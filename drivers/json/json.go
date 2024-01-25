@@ -39,11 +39,11 @@ func (d *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 	var ingestFn ingestFunc
 
 	switch typ { //nolint:exhaustive
-	case drivertype.TypeJSON:
+	case drivertype.JSON:
 		ingestFn = ingestJSON
-	case drivertype.TypeJSONA:
+	case drivertype.JSONA:
 		ingestFn = ingestJSONA
-	case drivertype.TypeJSONL:
+	case drivertype.JSONL:
 		ingestFn = ingestJSONL
 	default:
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
@@ -70,13 +70,13 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 	md := driver.Metadata{Type: d.typ, Monotable: true}
 
 	switch d.typ { //nolint:exhaustive
-	case drivertype.TypeJSON:
+	case drivertype.JSON:
 		md.Description = "JSON"
 		md.Doc = "https://en.wikipedia.org/wiki/JSON"
-	case drivertype.TypeJSONA:
+	case drivertype.JSONA:
 		md.Description = "JSON Array: LF-delimited JSON arrays"
 		md.Doc = "https://en.wikipedia.org/wiki/JSON"
-	case drivertype.TypeJSONL:
+	case drivertype.JSONL:
 		md.Description = "JSON Lines: LF-delimited JSON objects"
 		md.Doc = "https://en.wikipedia.org/wiki/JSON_streaming#Line-delimited_JSON"
 	}

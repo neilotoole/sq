@@ -211,12 +211,12 @@ func DetectMagicNumber(ctx context.Context, newRdrFn NewReaderFunc,
 		// something we can do about it, such as first extracting
 		// the zip, and then reading the inner magic number, but
 		// the xlsx.DetectXLSX func should catch the type anyway.
-		return drivertype.TypeXLSX, 1.0, nil
+		return drivertype.XLSX, 1.0, nil
 	case matchers.TypeXls:
 		// TODO: our xlsx driver doesn't yet support XLS
-		return drivertype.TypeXLSX, 1.0, errz.Errorf("Microsoft XLS (%s) not currently supported", ftype)
+		return drivertype.XLSX, 1.0, errz.Errorf("Microsoft XLS (%s) not currently supported", ftype)
 	case matchers.TypeSqlite:
-		return drivertype.TypeSL3, 1.0, nil
+		return drivertype.SQLite, 1.0, nil
 	}
 }
 
@@ -256,11 +256,11 @@ func (fs *Files) DetectStdinType(ctx context.Context) (drivertype.Type, error) {
 func TypeFromMediaType(mediatype string) (typ drivertype.Type, ok bool) {
 	switch {
 	case strings.Contains(mediatype, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`):
-		return drivertype.TypeXLSX, true
+		return drivertype.XLSX, true
 	case strings.Contains(mediatype, `text/csv`):
-		return drivertype.TypeCSV, true
+		return drivertype.CSV, true
 	case strings.Contains(mediatype, `text/tab-separated-values`):
-		return drivertype.TypeTSV, true
+		return drivertype.TSV, true
 	}
 
 	return drivertype.None, false

@@ -90,9 +90,9 @@ func DetectJSON(sampleSize int) files.DriverDetectFunc { // FIXME: is DetectJSON
 				// If the input is a JSON object on a single line, it could
 				// be TypeJSON or TypeJSONL. In deference to TypeJSONL, we
 				// return 0.9 instead of 1.0
-				return drivertype.TypeJSON, 0.9, nil
+				return drivertype.JSON, 0.9, nil
 			default:
-				return drivertype.TypeJSON, 1.0, nil
+				return drivertype.JSON, 1.0, nil
 			}
 
 		case leftBracket:
@@ -132,7 +132,7 @@ func DetectJSON(sampleSize int) files.DriverDetectFunc { // FIXME: is DetectJSON
 		}
 
 		if validObjCount > 0 {
-			return drivertype.TypeJSON, 1.0, nil
+			return drivertype.JSON, 1.0, nil
 		}
 
 		return drivertype.None, 0, nil

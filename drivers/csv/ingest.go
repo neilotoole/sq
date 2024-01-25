@@ -235,7 +235,7 @@ func getDelimiter(src *source.Source) (rune, error) {
 		return delim, nil
 	}
 
-	if src.Type == drivertype.TypeTSV {
+	if src.Type == drivertype.TSV {
 		return '\t', nil
 	}
 

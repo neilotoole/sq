@@ -28,7 +28,7 @@ const (
 func newSource(handle string) *source.Source {
 	return &source.Source{
 		Handle:   handle,
-		Type:     drivertype.TypeSL3,
+		Type:     drivertype.SQLite,
 		Location: proj.Abs("drivers/sqlite3/testdata/sakila.db"),
 	}
 }
@@ -552,7 +552,7 @@ func TestSource_LogValue(t *testing.T) {
 
 	src := &source.Source{
 		Handle:   "@sakila",
-		Type:     drivertype.TypeSL3,
+		Type:     drivertype.SQLite,
 		Location: "/tmp/sakila.db",
 		Options:  nil,
 	}

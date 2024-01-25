@@ -105,7 +105,7 @@ func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) (
 	// driver schemes, e.g. "postgres://". There's no possibility that
 	// this could be a file completion.
 
-	if strings.HasPrefix(toComplete, string(drivertype.TypeSL3)) {
+	if strings.HasPrefix(toComplete, string(drivertype.SQLite)) {
 		// Special handling for sqlite.
 		return locCompDoSQLite3(cmd, args, toComplete)
 	}
@@ -315,7 +315,7 @@ func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, /
 		//  sqlserver://alice@server?database=db
 		// But it can also be of the form:
 		//  sqlserver://alice@server/instance?database=db
-		if ploc.typ == drivertype.TypeMS {
+		if ploc.typ == drivertype.MSSQL {
 			if ploc.du.Path == "/" {
 				a = []string{toComplete + "instance?database="}
 				return a, locCompStdDirective
@@ -371,7 +371,7 @@ func locCompDoSQLite3(cmd *cobra.Command, _ []string, toComplete string) ([]stri
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	if drvr, err = ru.DriverRegistry.SQLDriverFor(drivertype.TypeSL3); err != nil {
+	if drvr, err = ru.DriverRegistry.SQLDriverFor(drivertype.SQLite); err != nil {
 		// Shouldn't happen
 		log.Error("Cannot load driver", lga.Err, err)
 		return nil, cobra.ShellCompDirectiveError
@@ -379,7 +379,7 @@ func locCompDoSQLite3(cmd *cobra.Command, _ []string, toComplete string) ([]stri
 
 	hist := &locHistory{
 		coll: ru.Config.Collection,
-		typ:  drivertype.TypeSL3,
+		typ:  drivertype.SQLite,
 		log:  log,
 	}
 
@@ -531,7 +531,7 @@ func locCompGetConnParams(drvr driver.SQLDriver) (keys []string, params map[stri
 	ogKeys := lo.Keys(ogParams)
 	slices.Sort(ogKeys)
 
-	if drvr.DriverMetadata().Type == drivertype.TypeMS {
+	if drvr.DriverMetadata().Type == drivertype.MSSQL {
 		// For SQLServer, the "database" key should come first, because
 		// it's required.
 		ogKeys = lo.Without(ogKeys, "database")
@@ -563,7 +563,7 @@ func locCompDriverPort(drvr driver.SQLDriver) string {
 // locCompAfterHost returns the next text to show after the host
 // part of the URL is complete.
 func locCompAfterHost(typ drivertype.Type) string {
-	if typ == drivertype.TypeMS {
+	if typ == drivertype.MSSQL {
 		return "?database="
 	}
 
@@ -645,7 +645,7 @@ func locCompParseLoc(loc string) (*parsedLoc, error) {
 
 	switch p.typ { //nolint:exhaustive
 	default:
-	case drivertype.TypeMS:
+	case drivertype.MSSQL:
 		var u *url.URL
 		if u, err = url.ParseRequestURI(loc); err == nil {
 			var vals url.Values
@@ -654,7 +654,7 @@ func locCompParseLoc(loc string) (*parsedLoc, error) {
 			}
 		}
 
-	case drivertype.TypePg, drivertype.TypeMy:
+	case drivertype.Pg, drivertype.MySQL:
 		p.name = strings.TrimPrefix(du.Path, "/")
 	}
 
@@ -859,7 +859,7 @@ func (h *locHistory) databases() []string {
 			return nil
 		}
 
-		if h.typ == drivertype.TypeMS && du.RawQuery != "" {
+		if h.typ == drivertype.MSSQL && du.RawQuery != "" {
 			var vals url.Values
 			if vals, err = url.ParseQuery(du.RawQuery); err == nil {
 				db := vals.Get("database")

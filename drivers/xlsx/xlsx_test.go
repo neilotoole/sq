@@ -160,7 +160,7 @@ func TestOpenFileFormats(t *testing.T) {
 			th := testh.New(t)
 			src := th.Add(&source.Source{
 				Handle:   "@excel",
-				Type:     drivertype.TypeXLSX,
+				Type:     drivertype.XLSX,
 				Location: filepath.Join("testdata", "file_formats", tc.filename),
 			})
 
@@ -260,7 +260,7 @@ func Test_XLSX_BadDateRecognition(t *testing.T) {
 
 	src := &source.Source{
 		Handle:   "@xlsx_bad_date",
-		Type:     drivertype.TypeXLSX,
+		Type:     drivertype.XLSX,
 		Location: proj.Abs("drivers/xlsx/testdata/problem_with_recognizing_date_colA.xlsx"),
 		Options:  options.Options{driver.OptIngestHeader.Key(): true},
 	}
@@ -283,7 +283,7 @@ func TestHandleSomeSheetsEmpty(t *testing.T) {
 	th := testh.New(t)
 	src := th.Add(&source.Source{
 		Handle:   "@xlsx_empty_sheets",
-		Type:     drivertype.TypeXLSX,
+		Type:     drivertype.XLSX,
 		Location: "testdata/some_sheets_empty.xlsx",
 	})
 
@@ -445,7 +445,7 @@ func TestDatetime(t *testing.T) {
 
 	src := &source.Source{
 		Handle:   "@excel/datetime",
-		Type:     drivertype.TypeXLSX,
+		Type:     drivertype.XLSX,
 		Location: "testdata/datetime.xlsx",
 	}
 

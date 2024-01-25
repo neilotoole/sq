@@ -66,19 +66,19 @@ func TestUpgrade(t *testing.T) {
 	require.Len(t, cfg.Collection.Sources(), 3)
 	src0 := cfg.Collection.Sources()[0]
 	require.Equal(t, handlePg, src0.Handle)
-	require.Equal(t, drivertype.TypePg, src0.Type)
+	require.Equal(t, drivertype.Pg, src0.Type)
 	require.Equal(t, "prod", cfg.Collection.ActiveGroup())
 	require.NotNil(t, cfg.Collection.Active())
 	require.Equal(t, handlePg, cfg.Collection.Active().Handle)
 
 	src1 := cfg.Collection.Sources()[1]
 	require.Equal(t, handleCSV, src1.Handle)
-	require.Equal(t, drivertype.TypeCSV, src1.Type)
+	require.Equal(t, drivertype.CSV, src1.Type)
 	require.Equal(t, true, src1.Options[driver.OptIngestHeader.Key()])
 
 	src2 := cfg.Collection.Sources()[2]
 	require.Equal(t, handleXLSX, src2.Handle)
-	require.Equal(t, drivertype.TypeXLSX, src2.Type)
+	require.Equal(t, drivertype.XLSX, src2.Type)
 	require.Equal(t, false, src2.Options[driver.OptIngestHeader.Key()])
 
 	wantCfgRaw, err := os.ReadFile(filepath.Join("testdata", "want.sq.yml"))

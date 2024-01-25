@@ -280,8 +280,8 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 	ctx = options.NewContext(ctx, src.Options)
 
 	md := &metadata.Source{
-		Driver:   drivertype.TypeMy,
-		DBDriver: drivertype.TypeMy,
+		Driver:   drivertype.MySQL,
+		DBDriver: drivertype.MySQL,
 		Handle:   src.Handle,
 		Location: src.Location,
 	}

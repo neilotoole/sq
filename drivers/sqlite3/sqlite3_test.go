@@ -211,7 +211,7 @@ func TestPathFromLocation(t *testing.T) {
 		t.Run(tc.loc, func(t *testing.T) {
 			src := &source.Source{
 				Handle:   "@h1",
-				Type:     drivertype.TypeSL3,
+				Type:     drivertype.SQLite,
 				Location: tc.loc,
 			}
 

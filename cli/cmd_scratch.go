@@ -50,7 +50,7 @@ func execScratch(cmd *cobra.Command, args []string) error {
 	defaultScratch := &source.Source{
 		Handle:   source.ScratchHandle,
 		Location: "internal:file",
-		Type:     drivertype.TypeSL3,
+		Type:     drivertype.SQLite,
 	}
 
 	if len(args) == 0 {

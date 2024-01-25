@@ -14,33 +14,35 @@ func (t Type) String() string {
 // None is the zero value of Type.
 const None = Type("")
 
+// Driver types.
 const (
-	// TypeSL3 is the sqlite3 source driver type.
-	TypeSL3 Type = "sqlite3"
+	// SQLite is for sqlite3.
+	SQLite Type = "sqlite3"
 
-	// TypeMS is the SQL Server source driver type.
-	TypeMS = Type("sqlserver")
+	// Pg is for Postgres.
+	Pg = Type("postgres")
 
-	// TypeCSV is the CSV driver type.
-	TypeCSV = Type("csv")
+	// MSSQL is for Microsoft SQL Server.
+	MSSQL = Type("sqlserver")
 
-	// TypeTSV is the TSV driver type.
-	TypeTSV = Type("tsv")
+	// MySQL is for MySQL and similar DBs such as MariaDB.
+	MySQL = Type("mysql")
 
-	// TypeJSON is the plain-old JSON driver type.
-	TypeJSON = Type("json")
+	// CSV is for Comma-Separated Values.
+	CSV = Type("csv")
 
-	// TypeJSONA is the JSON Array driver type.
-	TypeJSONA = Type("jsona")
+	// TSV is for Tab-Separated Values.
+	TSV = Type("tsv")
 
-	// TypeJSONL is the JSON Lines driver type.
-	TypeJSONL = Type("jsonl")
-	// TypeMy is the MySQL source driver type.
-	TypeMy = Type("mysql")
+	// JSON is for plain-old JSON.
+	JSON = Type("json")
 
-	// TypePg is the postgres source driver type.
-	TypePg = Type("postgres")
+	// JSONA is for JSON Array.
+	JSONA = Type("jsona")
 
-	// TypeXLSX is the sq source driver type for XLSX.
-	TypeXLSX = Type("xlsx")
+	// JSONL is for JSON Lines, aka ndjson (newline-delimited).
+	JSONL = Type("jsonl")
+
+	// XLSX is for Microsoft Excel spreadsheets.
+	XLSX = Type("xlsx")
 )

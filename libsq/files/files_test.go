@@ -35,21 +35,21 @@ func TestFiles_DetectType(t *testing.T) {
 		wantType drivertype.Type
 		wantErr  bool
 	}{
-		{loc: proj.Abs(sakila.PathSL3), wantType: drivertype.TypeSL3},
-		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: drivertype.TypeSL3},
-		{loc: proj.Abs(testsrc.PathXLSXTestHeader), wantType: drivertype.TypeXLSX},
-		{loc: proj.Abs("drivers/xlsx/testdata/test_header_xlsx"), wantType: drivertype.TypeXLSX},
-		{loc: proj.Abs("drivers/xlsx/testdata/test_noheader.xlsx"), wantType: drivertype.TypeXLSX},
-		{loc: proj.Abs("drivers/csv/testdata/person.csv"), wantType: drivertype.TypeCSV},
-		{loc: proj.Abs("drivers/csv/testdata/person_noheader.csv"), wantType: drivertype.TypeCSV},
-		{loc: proj.Abs("drivers/csv/testdata/person_csv"), wantType: drivertype.TypeCSV},
-		{loc: proj.Abs("drivers/csv/testdata/person.tsv"), wantType: drivertype.TypeTSV},
-		{loc: proj.Abs("drivers/csv/testdata/person_noheader.tsv"), wantType: drivertype.TypeTSV},
-		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: drivertype.TypeTSV},
-		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: drivertype.TypeTSV},
-		{loc: proj.Abs("drivers/json/testdata/actor.json"), wantType: drivertype.TypeJSON},
-		{loc: proj.Abs("drivers/json/testdata/actor.jsona"), wantType: drivertype.TypeJSONA},
-		{loc: proj.Abs("drivers/json/testdata/actor.jsonl"), wantType: drivertype.TypeJSONL},
+		{loc: proj.Abs(sakila.PathSL3), wantType: drivertype.SQLite},
+		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: drivertype.SQLite},
+		{loc: proj.Abs(testsrc.PathXLSXTestHeader), wantType: drivertype.XLSX},
+		{loc: proj.Abs("drivers/xlsx/testdata/test_header_xlsx"), wantType: drivertype.XLSX},
+		{loc: proj.Abs("drivers/xlsx/testdata/test_noheader.xlsx"), wantType: drivertype.XLSX},
+		{loc: proj.Abs("drivers/csv/testdata/person.csv"), wantType: drivertype.CSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_noheader.csv"), wantType: drivertype.CSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_csv"), wantType: drivertype.CSV},
+		{loc: proj.Abs("drivers/csv/testdata/person.tsv"), wantType: drivertype.TSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_noheader.tsv"), wantType: drivertype.TSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: drivertype.TSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: drivertype.TSV},
+		{loc: proj.Abs("drivers/json/testdata/actor.json"), wantType: drivertype.JSON},
+		{loc: proj.Abs("drivers/json/testdata/actor.jsona"), wantType: drivertype.JSONA},
+		{loc: proj.Abs("drivers/json/testdata/actor.jsonl"), wantType: drivertype.JSONL},
 		{loc: proj.Abs("README.md"), wantType: drivertype.None, wantErr: true},
 	}
 
@@ -80,23 +80,23 @@ func TestFiles_DriverType(t *testing.T) {
 		wantType drivertype.Type
 		wantErr  bool
 	}{
-		{loc: proj.Expand("sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sakila.db"), wantType: drivertype.TypeSL3},
-		{loc: proj.Abs(sakila.PathSL3), wantType: drivertype.TypeSL3},
-		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: drivertype.TypeSL3},
-		{loc: "sqlserver://sakila:p_ssW0rd@localhost?database=sakila", wantType: drivertype.TypeMS},
-		{loc: "postgres://sakila:p_ssW0rd@localhost/sakila", wantType: drivertype.TypePg},
-		{loc: "mysql://sakila:p_ssW0rd@localhost/sakila", wantType: drivertype.TypeMy},
-		{loc: proj.Abs(testsrc.PathXLSXTestHeader), wantType: drivertype.TypeXLSX},
-		{loc: proj.Abs("drivers/xlsx/testdata/test_header_xlsx"), wantType: drivertype.TypeXLSX},
-		{loc: sakila.URLSubsetXLSX, wantType: drivertype.TypeXLSX},
-		{loc: proj.Abs(sakila.PathCSVActor), wantType: drivertype.TypeCSV},
-		{loc: proj.Abs("drivers/csv/testdata/person_csv"), wantType: drivertype.TypeCSV},
-		{loc: sakila.URLActorCSV, wantType: drivertype.TypeCSV},
-		{loc: proj.Abs(sakila.PathTSVActor), wantType: drivertype.TypeTSV},
-		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: drivertype.TypeTSV},
-		{loc: proj.Abs("drivers/json/testdata/actor.json"), wantType: drivertype.TypeJSON},
-		{loc: proj.Abs("drivers/json/testdata/actor.jsona"), wantType: drivertype.TypeJSONA},
-		{loc: proj.Abs("drivers/json/testdata/actor.jsonl"), wantType: drivertype.TypeJSONL},
+		{loc: proj.Expand("sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sakila.db"), wantType: drivertype.SQLite},
+		{loc: proj.Abs(sakila.PathSL3), wantType: drivertype.SQLite},
+		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: drivertype.SQLite},
+		{loc: "sqlserver://sakila:p_ssW0rd@localhost?database=sakila", wantType: drivertype.MSSQL},
+		{loc: "postgres://sakila:p_ssW0rd@localhost/sakila", wantType: drivertype.Pg},
+		{loc: "mysql://sakila:p_ssW0rd@localhost/sakila", wantType: drivertype.MySQL},
+		{loc: proj.Abs(testsrc.PathXLSXTestHeader), wantType: drivertype.XLSX},
+		{loc: proj.Abs("drivers/xlsx/testdata/test_header_xlsx"), wantType: drivertype.XLSX},
+		{loc: sakila.URLSubsetXLSX, wantType: drivertype.XLSX},
+		{loc: proj.Abs(sakila.PathCSVActor), wantType: drivertype.CSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_csv"), wantType: drivertype.CSV},
+		{loc: sakila.URLActorCSV, wantType: drivertype.CSV},
+		{loc: proj.Abs(sakila.PathTSVActor), wantType: drivertype.TSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: drivertype.TSV},
+		{loc: proj.Abs("drivers/json/testdata/actor.json"), wantType: drivertype.JSON},
+		{loc: proj.Abs("drivers/json/testdata/actor.jsona"), wantType: drivertype.JSONA},
+		{loc: proj.Abs("drivers/json/testdata/actor.jsonl"), wantType: drivertype.JSONL},
 	}
 
 	for _, tc := range testCases {
@@ -127,8 +127,8 @@ func TestDetectMagicNumber(t *testing.T) {
 		wantScore float32
 		wantErr   bool
 	}{
-		{loc: proj.Abs(sakila.PathSL3), wantType: drivertype.TypeSL3, wantScore: 1.0},
-		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: drivertype.TypeSL3, wantScore: 1.0},
+		{loc: proj.Abs(sakila.PathSL3), wantType: drivertype.SQLite, wantScore: 1.0},
+		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: drivertype.SQLite, wantScore: 1.0},
 	}
 
 	for _, tc := range testCases {
@@ -159,7 +159,7 @@ func TestFiles_NewReader(t *testing.T) {
 
 	src := &source.Source{
 		Handle:   "@test_" + stringz.Uniq8(),
-		Type:     drivertype.TypeCSV,
+		Type:     drivertype.CSV,
 		Location: proj.Abs(fpath),
 	}
 
@@ -191,9 +191,9 @@ func TestFiles_Stdin(t *testing.T) {
 		wantType drivertype.Type
 		wantErr  bool
 	}{
-		{fpath: proj.Abs(sakila.PathCSVActor), wantType: drivertype.TypeCSV},
-		{fpath: proj.Abs(sakila.PathTSVActor), wantType: drivertype.TypeTSV},
-		{fpath: proj.Abs(sakila.PathXLSX), wantType: drivertype.TypeXLSX},
+		{fpath: proj.Abs(sakila.PathCSVActor), wantType: drivertype.CSV},
+		{fpath: proj.Abs(sakila.PathTSVActor), wantType: drivertype.TSV},
+		{fpath: proj.Abs(sakila.PathXLSX), wantType: drivertype.XLSX},
 	}
 
 	for _, tc := range testCases {
@@ -234,7 +234,7 @@ func TestFiles_Stdin_ErrorWrongOrder(t *testing.T) {
 	require.NoError(t, fs.AddStdin(th.Context, f)) // AddStdin closes f
 	typ, err = fs.DetectStdinType(th.Context)
 	require.NoError(t, err)
-	require.Equal(t, drivertype.TypeCSV, typ)
+	require.Equal(t, drivertype.CSV, typ)
 }
 
 func TestFiles_Filesize(t *testing.T) {

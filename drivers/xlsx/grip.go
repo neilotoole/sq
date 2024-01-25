@@ -50,7 +50,7 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	}
 
 	md.Handle = g.src.Handle
-	md.Driver = drivertype.TypeXLSX
+	md.Driver = drivertype.XLSX
 	md.Location = g.src.Location
 	if md.Name, err = location.Filename(g.src.Location); err != nil {
 		return nil, err

@@ -332,28 +332,28 @@ func TestNewBatchInsert(t *testing.T) {
 
 // coreDrivers is a slice of the core driver types.
 var coreDrivers = []drivertype.Type{
-	drivertype.TypePg,
-	drivertype.TypeMS,
-	drivertype.TypeSL3,
-	drivertype.TypeMy,
-	drivertype.TypeCSV,
-	drivertype.TypeTSV,
-	drivertype.TypeXLSX,
+	drivertype.Pg,
+	drivertype.MSSQL,
+	drivertype.SQLite,
+	drivertype.MySQL,
+	drivertype.CSV,
+	drivertype.TSV,
+	drivertype.XLSX,
 }
 
 // sqlDrivers is a slice of the SQL driver types.
 var sqlDrivers = []drivertype.Type{
-	drivertype.TypePg,
-	drivertype.TypeMS,
-	drivertype.TypeSL3,
-	drivertype.TypeMy,
+	drivertype.Pg,
+	drivertype.MSSQL,
+	drivertype.SQLite,
+	drivertype.MySQL,
 }
 
 // docDrivers is a slice of the doc driver types.
 var docDrivers = []drivertype.Type{
-	drivertype.TypeCSV,
-	drivertype.TypeTSV,
-	drivertype.TypeXLSX,
+	drivertype.CSV,
+	drivertype.TSV,
+	drivertype.XLSX,
 }
 
 func TestRegistry_DriversMetadata_All(t *testing.T) {

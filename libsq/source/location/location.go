@@ -226,7 +226,7 @@ func Parse(loc string) (*Fields, error) {
 		fpath := strings.TrimPrefix(loc, sqlitePrefix)
 
 		fields.Scheme = "sqlite3"
-		fields.DriverType = drivertype.TypeSL3
+		fields.DriverType = drivertype.SQLite
 		fields.DSN = fpath
 
 		// fpath could include params, e.g. "sqlite3://C:\sakila.db?param=val"
@@ -266,7 +266,7 @@ func Parse(loc string) (*Fields, error) {
 	default:
 		return nil, errz.Errorf("parse location: invalid scheme: %s", loc)
 	case "sqlserver":
-		fields.DriverType = drivertype.TypeMS
+		fields.DriverType = drivertype.MSSQL
 
 		u2, err := url.ParseRequestURI(loc)
 		if err != nil {
@@ -280,10 +280,10 @@ func Parse(loc string) (*Fields, error) {
 		}
 		fields.Name = vals.Get("database")
 	case "postgres":
-		fields.DriverType = drivertype.TypePg
+		fields.DriverType = drivertype.Pg
 		fields.Name = strings.TrimPrefix(u.Path, "/")
 	case "mysql":
-		fields.DriverType = drivertype.TypeMy
+		fields.DriverType = drivertype.MySQL
 		fields.Name = strings.TrimPrefix(u.Path, "/")
 	}
 

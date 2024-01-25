@@ -93,7 +93,7 @@ func TestSakila_query(t *testing.T) {
 		},
 	}
 
-	for _, drvr := range []drivertype.Type{drivertype.TypeCSV, drivertype.TypeTSV} {
+	for _, drvr := range []drivertype.Type{drivertype.CSV, drivertype.TSV} {
 		drvr := drvr
 
 		t.Run(drvr.String(), func(t *testing.T) {
@@ -281,7 +281,7 @@ func TestIngest_Kind_Timestamp(t *testing.T) {
 			th := testh.New(t)
 			src := &source.Source{
 				Handle:   "@tsv/" + tc.file,
-				Type:     drivertype.TypeTSV,
+				Type:     drivertype.TSV,
 				Location: filepath.Join("testdata", tc.file+".tsv"),
 			}
 			src = th.Add(src)
@@ -346,7 +346,7 @@ func TestIngest_Kind_Date(t *testing.T) {
 			th := testh.New(t)
 			src := &source.Source{
 				Handle:   "@tsv/" + tc.file,
-				Type:     drivertype.TypeTSV,
+				Type:     drivertype.TSV,
 				Location: filepath.Join("testdata", tc.file+".tsv"),
 			}
 			src = th.Add(src)
@@ -399,7 +399,7 @@ func TestIngest_Kind_Time(t *testing.T) {
 			th := testh.New(t)
 			src := &source.Source{
 				Handle:   "@tsv/" + tc.file,
-				Type:     drivertype.TypeTSV,
+				Type:     drivertype.TSV,
 				Location: filepath.Join("testdata", tc.file+".tsv"),
 			}
 			src = th.Add(src)

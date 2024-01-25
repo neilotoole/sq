@@ -80,7 +80,7 @@ func DetectJSONL(sampleSize int) files.DriverDetectFunc {
 		}
 
 		if validLines > 0 {
-			return drivertype.TypeJSONL, 1.0, nil
+			return drivertype.JSONL, 1.0, nil
 		}
 
 		return drivertype.None, 0, nil

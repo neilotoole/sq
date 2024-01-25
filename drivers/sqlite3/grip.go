@@ -69,7 +69,7 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	defer bar.Stop()
 	ctx = progress.NewBarContext(ctx, bar)
 
-	md := &metadata.Source{Handle: g.src.Handle, Driver: drivertype.TypeSL3, DBDriver: dbDrvr}
+	md := &metadata.Source{Handle: g.src.Handle, Driver: drivertype.SQLite, DBDriver: dbDrvr}
 
 	dsn, err := PathFromLocation(g.src)
 	if err != nil {

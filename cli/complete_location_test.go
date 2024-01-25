@@ -800,12 +800,12 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 	tr.Add(
 		source.Source{
 			Handle:   "@src1",
-			Type:     drivertype.TypePg,
+			Type:     drivertype.Pg,
 			Location: "postgres://alice:abc123@dev.acme.com:7777/sakila?application_name=app1&channel_binding=prefer",
 		},
 		source.Source{
 			Handle:   "@src2",
-			Type:     drivertype.TypePg,
+			Type:     drivertype.Pg,
 			Location: "postgres://bob:abc123@prod.acme.com:8888/sales?application_name=app2&channel_binding=require",
 		},
 	)
@@ -937,17 +937,17 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 	tr.Add(
 		source.Source{
 			Handle:   "@src1",
-			Type:     drivertype.TypeMS,
+			Type:     drivertype.MSSQL,
 			Location: "sqlserver://alice:abc123@dev.acme.com:7777?database=sakila&app+name=app1&encrypt=disable",
 		},
 		source.Source{
 			Handle:   "@src2",
-			Type:     drivertype.TypeMS,
+			Type:     drivertype.MSSQL,
 			Location: "sqlserver://bob:abc123@prod.acme.com:8888?database=sales&app+name=app2&encrypt=true",
 		},
 		source.Source{
 			Handle:   "@src3",
-			Type:     drivertype.TypeMS,
+			Type:     drivertype.MSSQL,
 			Location: "sqlserver://bob:abc123@prod.acme.com:8888/my_instance?database=sakila",
 		},
 	)
@@ -1138,19 +1138,19 @@ func TestCompleteAddLocation_History_SQLite3(t *testing.T) {
 	tr.Add(
 		source.Source{
 			Handle: "@src2",
-			Type:   drivertype.TypeSL3,
+			Type:   drivertype.SQLite,
 			// Note that this file doesn't actually exist
 			Location: "sqlite3:///zz_dir1/sqtest/sq/src2.db?mode=rwc&cache=FAST",
 		},
 		source.Source{
 			Handle: "@src1",
-			Type:   drivertype.TypeSL3,
+			Type:   drivertype.SQLite,
 			// Note that this file doesn't actually exist
 			Location: "sqlite3:///zz_dir1/sqtest/sq/src1.db",
 		},
 		source.Source{
 			Handle: "@src3",
-			Type:   drivertype.TypeSL3,
+			Type:   drivertype.SQLite,
 			// This file DOES exist
 			Location: src3Loc,
 		},

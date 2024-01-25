@@ -167,27 +167,27 @@ func (h *Helper) init() {
 		h.grips = driver.NewGrips(h.registry, h.files, sqlite3.NewScratchSource)
 		h.Cleanup.AddC(h.grips)
 
-		h.registry.AddProvider(drivertype.TypeSL3, &sqlite3.Provider{Log: log})
-		h.registry.AddProvider(drivertype.TypePg, &postgres.Provider{Log: log})
-		h.registry.AddProvider(drivertype.TypeMS, &sqlserver.Provider{Log: log})
-		h.registry.AddProvider(drivertype.TypeMy, &mysql.Provider{Log: log})
+		h.registry.AddProvider(drivertype.SQLite, &sqlite3.Provider{Log: log})
+		h.registry.AddProvider(drivertype.Pg, &postgres.Provider{Log: log})
+		h.registry.AddProvider(drivertype.MSSQL, &sqlserver.Provider{Log: log})
+		h.registry.AddProvider(drivertype.MySQL, &mysql.Provider{Log: log})
 
 		csvp := &csv.Provider{Log: log, Ingester: h.grips, Files: h.files}
-		h.registry.AddProvider(drivertype.TypeCSV, csvp)
-		h.registry.AddProvider(drivertype.TypeTSV, csvp)
+		h.registry.AddProvider(drivertype.CSV, csvp)
+		h.registry.AddProvider(drivertype.TSV, csvp)
 		h.files.AddDriverDetectors(csv.DetectCSV, csv.DetectTSV)
 
 		jsonp := &json.Provider{Log: log, Ingester: h.grips, Files: h.files}
-		h.registry.AddProvider(drivertype.TypeJSON, jsonp)
-		h.registry.AddProvider(drivertype.TypeJSONA, jsonp)
-		h.registry.AddProvider(drivertype.TypeJSONL, jsonp)
+		h.registry.AddProvider(drivertype.JSON, jsonp)
+		h.registry.AddProvider(drivertype.JSONA, jsonp)
+		h.registry.AddProvider(drivertype.JSONL, jsonp)
 		h.files.AddDriverDetectors(
 			json.DetectJSON(driver.OptIngestSampleSize.Get(nil)),
 			json.DetectJSONA(driver.OptIngestSampleSize.Get(nil)),
 			json.DetectJSONL(driver.OptIngestSampleSize.Get(nil)),
 		)
 
-		h.registry.AddProvider(drivertype.TypeXLSX, &xlsx.Provider{Log: log, Ingester: h.grips, Files: h.files})
+		h.registry.AddProvider(drivertype.XLSX, &xlsx.Provider{Log: log, Ingester: h.grips, Files: h.files})
 		h.files.AddDriverDetectors(xlsx.DetectXLSX)
 
 		h.addUserDrivers()
@@ -301,7 +301,7 @@ func (h *Helper) Source(handle string) *source.Source {
 	require.NoError(t, err,
 		"source %s was not found in %s", handle, testsrc.PathSrcsConfig)
 
-	if src.Type == drivertype.TypeSL3 {
+	if src.Type == drivertype.SQLite {
 		// This could be easily generalized for CSV/XLSX etc.
 		fpath, err := sqlite3.PathFromLocation(src)
 		require.NoError(t, err)
@@ -686,7 +686,7 @@ func (h *Helper) InsertDefaultRow(src *source.Source, tbl string) {
 	drvr := h.SQLDriverFor(src)
 	var query string
 
-	if src.Type == drivertype.TypeMy {
+	if src.Type == drivertype.MySQL {
 		// One driver had to be different...
 		// We could push this mysql-specific logic down to the driver impl
 		// but prob not worth the effort just for one driver.

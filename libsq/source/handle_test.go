@@ -91,7 +91,7 @@ func TestSuggestHandle(t *testing.T) {
 		taken []string
 	}{
 		{
-			typ:  drivertype.TypeCSV,
+			typ:  drivertype.CSV,
 			loc:  "/path/to/actor.csv",
 			want: "@actor",
 		},
@@ -101,27 +101,27 @@ func TestSuggestHandle(t *testing.T) {
 			want: "@actor",
 		},
 		{
-			typ:  drivertype.TypeXLSX,
+			typ:  drivertype.XLSX,
 			loc:  "/path/to/sakila.xlsx",
 			want: "@sakila",
 		},
 		{
-			typ:  drivertype.TypeXLSX,
+			typ:  drivertype.XLSX,
 			loc:  "/path/to/123_sakila.xlsx",
 			want: "@h123_sakila",
 		},
 		{
-			typ:  drivertype.TypeXLSX,
+			typ:  drivertype.XLSX,
 			loc:  "/path/to/__sakila.xlsx",
 			want: "@h__sakila",
 		},
 		{
-			typ:  drivertype.TypeXLSX,
+			typ:  drivertype.XLSX,
 			loc:  "/path/to/sakila.something.xlsx",
 			want: "@sakila_something",
 		},
 		{
-			typ:  drivertype.TypeXLSX,
+			typ:  drivertype.XLSX,
 			loc:  "/path/to/😀abc123😀",
 			want: "@h_abc123_",
 		},
@@ -131,13 +131,13 @@ func TestSuggestHandle(t *testing.T) {
 			want: "@sakila",
 		},
 		{
-			typ:   drivertype.TypeXLSX,
+			typ:   drivertype.XLSX,
 			loc:   "/path/to/sakila.xlsx",
 			want:  "@sakila2",
 			taken: []string{"@sakila", "@sakila1"},
 		},
 		{
-			typ:  drivertype.TypeSL3,
+			typ:  drivertype.SQLite,
 			loc:  "sqlite3:///path/to/sakila.db",
 			want: "@sakila",
 		},
@@ -147,12 +147,12 @@ func TestSuggestHandle(t *testing.T) {
 			want: "@sakila",
 		},
 		{
-			typ:  drivertype.TypeSL3,
+			typ:  drivertype.SQLite,
 			loc:  "/path/to/sakila.db",
 			want: "@sakila",
 		},
 		{
-			typ:  drivertype.TypeMS,
+			typ:  drivertype.MSSQL,
 			loc:  "sqlserver://sakila_p_ssW0rd@localhost?database=sakila",
 			want: "@sakila",
 		},
@@ -168,7 +168,7 @@ func TestSuggestHandle(t *testing.T) {
 			taken: []string{"@sakila"},
 		},
 		{
-			typ:  drivertype.TypePg,
+			typ:  drivertype.Pg,
 			loc:  "postgres://sakila_p_ssW0rd@localhost/sakila",
 			want: "@sakila",
 		},
@@ -178,12 +178,12 @@ func TestSuggestHandle(t *testing.T) {
 			want: "@sakila",
 		},
 		{
-			typ:  drivertype.TypePg,
+			typ:  drivertype.Pg,
 			loc:  "postgres://sakila_p_ssW0rd@localhost/sakila",
 			want: "@sakila",
 		},
 		{
-			typ:  drivertype.TypeMy,
+			typ:  drivertype.MySQL,
 			loc:  "mysql://sakila_p_ssW0rd@localhost:3306/sakila",
 			want: "@sakila",
 		},
@@ -201,7 +201,7 @@ func TestSuggestHandle(t *testing.T) {
 			for i := range tc.taken {
 				err := set.Add(&source.Source{
 					Handle:   tc.taken[i],
-					Type:     drivertype.TypeSL3,
+					Type:     drivertype.SQLite,
 					Location: "/tmp/taken.db",
 				})
 				require.NoError(t, err)

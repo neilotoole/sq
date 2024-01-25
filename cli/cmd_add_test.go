@@ -91,31 +91,31 @@ func TestCmdAdd(t *testing.T) {
 			loc:        proj.Rel(sakila.PathCSVActor),
 			handle:     "@h1",
 			wantHandle: "@h1",
-			wantType:   drivertype.TypeCSV,
+			wantType:   drivertype.CSV,
 			query:      actorDataQuery,
 		},
 		{
 			loc:        proj.Abs(sakila.PathCSVActor),
 			handle:     "@h1",
 			wantHandle: "@h1",
-			wantType:   drivertype.TypeCSV,
+			wantType:   drivertype.CSV,
 		},
 		{
 			loc:        proj.Abs(sakila.PathCSVActor),
 			wantHandle: "@actor",
-			wantType:   drivertype.TypeCSV,
+			wantType:   drivertype.CSV,
 		},
 		{
 			loc:        proj.Abs(sakila.PathCSVActor),
 			driver:     "csv",
 			wantHandle: "@actor",
-			wantType:   drivertype.TypeCSV,
+			wantType:   drivertype.CSV,
 		},
 		{
 			loc:        proj.Abs(sakila.PathCSVActor),
 			driver:     "xlsx",
 			wantHandle: "@actor",
-			wantType:   drivertype.TypeXLSX,
+			wantType:   drivertype.XLSX,
 			// It's legal to add a CSV file with the xlsx driver.
 			wantAddErr: false,
 			// But it should fail when we try to query it.
@@ -125,50 +125,50 @@ func TestCmdAdd(t *testing.T) {
 			loc:        proj.Rel(sakila.PathTSVActor),
 			handle:     "@h1",
 			wantHandle: "@h1",
-			wantType:   drivertype.TypeTSV,
+			wantType:   drivertype.TSV,
 			query:      actorDataQuery,
 		},
 		{
 			loc:        proj.Rel(sakila.PathTSVActorNoHeader),
 			handle:     "@h1",
 			wantHandle: "@h1",
-			wantType:   drivertype.TypeTSV,
+			wantType:   drivertype.TSV,
 			query:      actorDataQuery,
 		},
 		{
 			// sqlite can be added both with and without the scheme "sqlite://"
 			loc:        "sqlite3://" + proj.Abs(sakila.PathSL3),
 			wantHandle: "@sakila",
-			wantType:   drivertype.TypeSL3,
+			wantType:   drivertype.SQLite,
 		},
 
 		{
 			// with scheme
 			loc:        proj.Abs(sakila.PathSL3),
 			wantHandle: "@sakila",
-			wantType:   drivertype.TypeSL3,
+			wantType:   drivertype.SQLite,
 		},
 
 		{
 			// without scheme, abs path
 			loc:        proj.Rel(sakila.PathSL3),
 			wantHandle: "@sakila",
-			wantType:   drivertype.TypeSL3,
+			wantType:   drivertype.SQLite,
 		},
 		{
 			locFromHandle: sakila.Pg,
 			wantHandle:    "@sakila",
-			wantType:      drivertype.TypePg,
+			wantType:      drivertype.Pg,
 		},
 		{
 			locFromHandle: sakila.MS,
 			wantHandle:    "@sakila",
-			wantType:      drivertype.TypeMS,
+			wantType:      drivertype.MSSQL,
 		},
 		{
 			locFromHandle: sakila.My,
 			wantHandle:    "@sakila",
-			wantType:      drivertype.TypeMy,
+			wantType:      drivertype.MySQL,
 		},
 		{
 			loc:        proj.Abs(sakila.PathCSVActor),

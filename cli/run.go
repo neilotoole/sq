@@ -253,19 +253,19 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 	ru.Grips = driver.NewGrips(dr, ru.Files, scratchSrcFunc)
 	ru.Cleanup.AddC(ru.Grips)
 
-	dr.AddProvider(drivertype.TypeSL3, &sqlite3.Provider{Log: log})
-	dr.AddProvider(drivertype.TypePg, &postgres.Provider{Log: log})
-	dr.AddProvider(drivertype.TypeMS, &sqlserver.Provider{Log: log})
-	dr.AddProvider(drivertype.TypeMy, &mysql.Provider{Log: log})
+	dr.AddProvider(drivertype.SQLite, &sqlite3.Provider{Log: log})
+	dr.AddProvider(drivertype.Pg, &postgres.Provider{Log: log})
+	dr.AddProvider(drivertype.MSSQL, &sqlserver.Provider{Log: log})
+	dr.AddProvider(drivertype.MySQL, &mysql.Provider{Log: log})
 	csvp := &csv.Provider{Log: log, Ingester: ru.Grips, Files: ru.Files}
-	dr.AddProvider(drivertype.TypeCSV, csvp)
-	dr.AddProvider(drivertype.TypeTSV, csvp)
+	dr.AddProvider(drivertype.CSV, csvp)
+	dr.AddProvider(drivertype.TSV, csvp)
 	ru.Files.AddDriverDetectors(csv.DetectCSV, csv.DetectTSV)
 
 	jsonp := &json.Provider{Log: log, Ingester: ru.Grips, Files: ru.Files}
-	dr.AddProvider(drivertype.TypeJSON, jsonp)
-	dr.AddProvider(drivertype.TypeJSONA, jsonp)
-	dr.AddProvider(drivertype.TypeJSONL, jsonp)
+	dr.AddProvider(drivertype.JSON, jsonp)
+	dr.AddProvider(drivertype.JSONA, jsonp)
+	dr.AddProvider(drivertype.JSONL, jsonp)
 	sampleSize := driver.OptIngestSampleSize.Get(cfg.Options)
 	ru.Files.AddDriverDetectors(
 		json.DetectJSON(sampleSize),
@@ -273,7 +273,7 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 		json.DetectJSONL(sampleSize),
 	)
 
-	dr.AddProvider(drivertype.TypeXLSX, &xlsx.Provider{Log: log, Ingester: ru.Grips, Files: ru.Files})
+	dr.AddProvider(drivertype.XLSX, &xlsx.Provider{Log: log, Ingester: ru.Grips, Files: ru.Files})
 	ru.Files.AddDriverDetectors(xlsx.DetectXLSX)
 	// One day we may have more supported user driver genres.
 	userDriverImporters := map[string]userdriver.IngestFunc{

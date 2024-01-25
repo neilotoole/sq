@@ -228,7 +228,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
-	if typ == drivertype.TypeSL3 {
+	if typ == drivertype.SQLite {
 		locBefore := loc
 		// Special handling for SQLite, because it's a file-based DB.
 		loc, err = sqlite3.MungeLocation(loc)

@@ -131,7 +131,7 @@ func TestHelper_Files(t *testing.T) {
 
 	src := &source.Source{
 		Handle:   "@test_" + stringz.Uniq8(),
-		Type:     drivertype.TypeCSV,
+		Type:     drivertype.CSV,
 		Location: proj.Abs(fpath),
 	}
 

@@ -23,7 +23,7 @@ func TestExtension_fts5(t *testing.T) {
 	th := testh.New(t)
 	src := th.Add(&source.Source{
 		Handle:   "@fts",
-		Type:     drivertype.TypeSL3,
+		Type:     drivertype.SQLite,
 		Location: "sqlite3://" + tu.MustAbsFilepath("testdata", "sakila_fts5.db"),
 	})
 

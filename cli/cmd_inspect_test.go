@@ -83,7 +83,7 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 					gotTableNames = lo.Intersect(gotTableNames, possibleTbls)
 
 					for _, wantTblName := range tc.wantTbls {
-						if src.Type == drivertype.TypePg && wantTblName == sakila.TblFilmText {
+						if src.Type == drivertype.Pg && wantTblName == sakila.TblFilmText {
 							// Postgres sakila DB doesn't have film_text for some reason
 							continue
 						}
@@ -191,7 +191,7 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 			require.Contains(t, output, location.Redact(src.Location))
 
 			for _, wantTblName := range tc.wantTbls {
-				if src.Type == drivertype.TypePg && wantTblName == "film_text" {
+				if src.Type == drivertype.Pg && wantTblName == "film_text" {
 					// Postgres sakila DB doesn't have film_text for some reason
 					continue
 				}
@@ -263,7 +263,7 @@ func TestCmdInspect_smoke(t *testing.T) {
 
 	md := &metadata.Source{}
 	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
-	require.Equal(t, drivertype.TypeSL3, md.Driver)
+	require.Equal(t, drivertype.SQLite, md.Driver)
 	require.Equal(t, sakila.SL3, md.Handle)
 	require.Equal(t, src.RedactedLocation(), md.Location)
 	require.Equal(t, sakila.AllTblsViews(), md.TableNames())
@@ -278,7 +278,7 @@ func TestCmdInspect_smoke(t *testing.T) {
 
 	md = &metadata.Source{}
 	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
-	require.Equal(t, drivertype.TypeCSV, md.Driver)
+	require.Equal(t, drivertype.CSV, md.Driver)
 	require.Equal(t, sakila.CSVActor, md.Handle)
 	require.Equal(t, src.Location, md.Location)
 	require.Equal(t, []string{source.MonotableName}, md.TableNames())
@@ -295,12 +295,12 @@ func TestCmdInspect_stdin(t *testing.T) {
 	}{
 		{
 			fpath:    proj.Abs(sakila.PathCSVActor),
-			wantType: drivertype.TypeCSV,
+			wantType: drivertype.CSV,
 			wantTbls: []string{source.MonotableName},
 		},
 		{
 			fpath:    proj.Abs(sakila.PathTSVActor),
-			wantType: drivertype.TypeTSV,
+			wantType: drivertype.TSV,
 			wantTbls: []string{source.MonotableName},
 		},
 	}

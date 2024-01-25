@@ -103,7 +103,7 @@ func TestDSNFromLocation(t *testing.T) {
 		t.Run(tu.Name(tc.loc, tc.parseTime), func(t *testing.T) {
 			src := &source.Source{
 				Handle:   "@testhandle",
-				Type:     drivertype.TypeMy,
+				Type:     drivertype.MySQL,
 				Location: tc.loc,
 			}
 

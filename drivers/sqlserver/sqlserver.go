@@ -48,7 +48,7 @@ type Provider struct {
 
 // DriverFor implements driver.Provider.
 func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
-	if typ != drivertype.TypeMS {
+	if typ != drivertype.MSSQL {
 		return nil, errz.Errorf("unsupported driver type {%s}}", typ)
 	}
 
@@ -96,7 +96,7 @@ func (d *driveri) ErrWrapFunc() func(error) error {
 // DriverMetadata implements driver.SQLDriver.
 func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
-		Type:        drivertype.TypeMS,
+		Type:        drivertype.MSSQL,
 		Description: "Microsoft SQL Server / Azure SQL Edge",
 		Doc:         "https://github.com/microsoft/go-mssqldb",
 		IsSQL:       true,
@@ -107,7 +107,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 // Dialect implements driver.SQLDriver.
 func (d *driveri) Dialect() dialect.Dialect {
 	return dialect.Dialect{
-		Type:           drivertype.TypeMS,
+		Type:           drivertype.MSSQL,
 		Placeholders:   placeholders,
 		Enquote:        stringz.DoubleQuote,
 		MaxBatchValues: 1000,
@@ -203,8 +203,8 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 
 // ValidateSource implements driver.Driver.
 func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
-	if src.Type != drivertype.TypeMS {
-		return nil, errz.Errorf("expected driver type %q but got %q", drivertype.TypeMS, src.Type)
+	if src.Type != drivertype.MSSQL {
+		return nil, errz.Errorf("expected driver type %q but got %q", drivertype.MSSQL, src.Type)
 	}
 	return src, nil
 }

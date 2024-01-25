@@ -49,7 +49,7 @@ func TestParse(t *testing.T) {
 		{
 			loc: "sqlite3:///path/to/sakila.sqlite",
 			want: Fields{
-				DriverType: drivertype.TypeSL3, Scheme: "sqlite3", Name: "sakila", Ext: ".sqlite",
+				DriverType: drivertype.SQLite, Scheme: "sqlite3", Name: "sakila", Ext: ".sqlite",
 				DSN: "/path/to/sakila.sqlite",
 			},
 		},
@@ -57,7 +57,7 @@ func TestParse(t *testing.T) {
 			loc:     `sqlite3://C:\path\to\sakila.sqlite`,
 			windows: true,
 			want: Fields{
-				DriverType: drivertype.TypeSL3, Scheme: "sqlite3", Name: "sakila", Ext: ".sqlite",
+				DriverType: drivertype.SQLite, Scheme: "sqlite3", Name: "sakila", Ext: ".sqlite",
 				DSN: `C:\path\to\sakila.sqlite`,
 			},
 		},
@@ -65,39 +65,39 @@ func TestParse(t *testing.T) {
 			loc:     `sqlite3://C:\path\to\sakila.sqlite?param=val`,
 			windows: true,
 			want: Fields{
-				DriverType: drivertype.TypeSL3, Scheme: "sqlite3", Name: "sakila", Ext: ".sqlite",
+				DriverType: drivertype.SQLite, Scheme: "sqlite3", Name: "sakila", Ext: ".sqlite",
 				DSN: `C:\path\to\sakila.sqlite?param=val`,
 			},
 		},
 		{
 			loc: "sqlite3:///path/to/sakila",
 			want: Fields{
-				DriverType: drivertype.TypeSL3, Scheme: "sqlite3", Name: "sakila", DSN: "/path/to/sakila",
+				DriverType: drivertype.SQLite, Scheme: "sqlite3", Name: "sakila", DSN: "/path/to/sakila",
 			},
 		},
 		{
 			loc: "sqlite3://path/to/sakila.db",
 			want: Fields{
-				DriverType: drivertype.TypeSL3, Scheme: "sqlite3", Name: "sakila", Ext: ".db", DSN: "path/to/sakila.db",
+				DriverType: drivertype.SQLite, Scheme: "sqlite3", Name: "sakila", Ext: ".db", DSN: "path/to/sakila.db",
 			},
 		},
 		{
 			loc: "sqlite3:///path/to/sakila.db",
 			want: Fields{
-				DriverType: drivertype.TypeSL3, Scheme: "sqlite3", Name: "sakila", Ext: ".db", DSN: "/path/to/sakila.db",
+				DriverType: drivertype.SQLite, Scheme: "sqlite3", Name: "sakila", Ext: ".db", DSN: "/path/to/sakila.db",
 			},
 		},
 		{
 			loc: "sqlserver://sakila:p_ssW0rd@localhost?database=sakila",
 			want: Fields{
-				DriverType: drivertype.TypeMS, Scheme: "sqlserver", User: dbuser, Pass: dbpass, Hostname: "localhost",
+				DriverType: drivertype.MSSQL, Scheme: "sqlserver", User: dbuser, Pass: dbpass, Hostname: "localhost",
 				Name: "sakila", DSN: "sqlserver://sakila:p_ssW0rd@localhost?database=sakila",
 			},
 		},
 		{
 			loc: "sqlserver://sakila:p_ssW0rd@server:1433?database=sakila",
 			want: Fields{
-				DriverType: drivertype.TypeMS, Scheme: "sqlserver", User: dbuser, Pass: dbpass, Hostname: "server",
+				DriverType: drivertype.MSSQL, Scheme: "sqlserver", User: dbuser, Pass: dbpass, Hostname: "server",
 				Port: 1433, Name: "sakila",
 				DSN: "sqlserver://sakila:p_ssW0rd@server:1433?database=sakila",
 			},
@@ -105,14 +105,14 @@ func TestParse(t *testing.T) {
 		{
 			loc: "postgres://sakila:p_ssW0rd@localhost/sakila?sslmode=disable",
 			want: Fields{
-				DriverType: drivertype.TypePg, Scheme: "postgres", User: dbuser, Pass: dbpass, Hostname: "localhost",
+				DriverType: drivertype.Pg, Scheme: "postgres", User: dbuser, Pass: dbpass, Hostname: "localhost",
 				Name: "sakila", DSN: "dbname=sakila host=localhost password=p_ssW0rd sslmode=disable user=sakila",
 			},
 		},
 		{
 			loc: "postgres://sakila:p_ssW0rd@server:5432/sakila?sslmode=disable",
 			want: Fields{
-				DriverType: drivertype.TypePg, Scheme: "postgres", User: dbuser, Pass: dbpass, Hostname: "server", Port: 5432,
+				DriverType: drivertype.Pg, Scheme: "postgres", User: dbuser, Pass: dbpass, Hostname: "server", Port: 5432,
 				Name: "sakila",
 				DSN:  "dbname=sakila host=server password=p_ssW0rd port=5432 sslmode=disable user=sakila",
 			},
@@ -120,14 +120,14 @@ func TestParse(t *testing.T) {
 		{
 			loc: "mysql://sakila:p_ssW0rd@localhost/sakila",
 			want: Fields{
-				DriverType: drivertype.TypeMy, Scheme: "mysql", User: dbuser, Pass: dbpass, Hostname: "localhost",
+				DriverType: drivertype.MySQL, Scheme: "mysql", User: dbuser, Pass: dbpass, Hostname: "localhost",
 				Name: "sakila", DSN: "sakila:p_ssW0rd@tcp(localhost:3306)/sakila",
 			},
 		},
 		{
 			loc: "mysql://sakila:p_ssW0rd@server:3306/sakila",
 			want: Fields{
-				DriverType: drivertype.TypeMy, Scheme: "mysql", User: dbuser, Pass: dbpass, Hostname: "server", Port: 3306,
+				DriverType: drivertype.MySQL, Scheme: "mysql", User: dbuser, Pass: dbpass, Hostname: "server", Port: 3306,
 				Name: "sakila", DSN: "sakila:p_ssW0rd@tcp(server:3306)/sakila",
 			},
 		},
