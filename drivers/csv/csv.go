@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"log/slog"
 
+	"github.com/neilotoole/sq/libsq/files"
+
 	"github.com/neilotoole/sq/libsq/source/location"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -31,7 +33,7 @@ const (
 type Provider struct {
 	Log      *slog.Logger
 	Ingester driver.GripOpenIngester
-	Files    *source.Files
+	Files    *files.Files
 }
 
 // DriverFor implements driver.Provider.
@@ -51,7 +53,7 @@ type driveri struct {
 	log      *slog.Logger
 	typ      drivertype.Type
 	ingester driver.GripOpenIngester
-	files    *source.Files
+	files    *files.Files
 }
 
 // DriverMetadata implements driver.Driver.
@@ -112,7 +114,7 @@ type grip struct {
 	log   *slog.Logger
 	src   *source.Source
 	impl  driver.Grip
-	files *source.Files
+	files *files.Files
 }
 
 // DB implements driver.Grip.

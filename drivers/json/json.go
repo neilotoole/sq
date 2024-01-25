@@ -11,6 +11,8 @@ import (
 	"io"
 	"log/slog"
 
+	"github.com/neilotoole/sq/libsq/files"
+
 	"github.com/neilotoole/sq/libsq/source/location"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
@@ -40,7 +42,7 @@ const (
 type Provider struct {
 	Log      *slog.Logger
 	Ingester driver.GripOpenIngester
-	Files    *source.Files
+	Files    *files.Files
 }
 
 // DriverFor implements driver.Provider.
@@ -71,7 +73,7 @@ type driveri struct {
 	typ      drivertype.Type
 	ingestFn ingestFunc
 	ingester driver.GripOpenIngester
-	files    *source.Files
+	files    *files.Files
 }
 
 // DriverMetadata implements driver.Driver.
@@ -150,7 +152,7 @@ type grip struct {
 	src   *source.Source
 	impl  driver.Grip
 	clnup *cleanup.Cleanup
-	files *source.Files
+	files *files.Files
 }
 
 // DB implements driver.Grip.

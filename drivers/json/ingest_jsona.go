@@ -8,6 +8,8 @@ import (
 	"math"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/files"
+
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -24,8 +26,8 @@ import (
 
 // DetectJSONA returns a source.DriverDetectFunc for TypeJSONA.
 // Each line of input must be a valid JSON array.
-func DetectJSONA(sampleSize int) source.DriverDetectFunc {
-	return func(ctx context.Context, newRdrFn source.NewReaderFunc) (detected drivertype.Type,
+func DetectJSONA(sampleSize int) files.DriverDetectFunc {
+	return func(ctx context.Context, newRdrFn files.NewReaderFunc) (detected drivertype.Type,
 		score float32, err error,
 	) {
 		log := lg.FromContext(ctx)

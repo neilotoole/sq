@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/files"
+
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -179,9 +181,9 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptLogFormat,
 		OptDiffNumLines,
 		OptDiffDataFormat,
-		source.OptHTTPRequestTimeout,
-		source.OptHTTPResponseTimeout,
-		source.OptHTTPSInsecureSkipVerify,
+		files.OptHTTPRequestTimeout,
+		files.OptHTTPResponseTimeout,
+		files.OptHTTPSInsecureSkipVerify,
 		driver.OptConnMaxOpen,
 		driver.OptConnMaxIdle,
 		driver.OptConnMaxIdleTime,
@@ -193,7 +195,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptTuningFlushThreshold,
 		driver.OptIngestHeader,
 		driver.OptIngestCache,
-		source.OptCacheLockTimeout,
+		files.OptCacheLockTimeout,
 		driver.OptIngestColRename,
 		driver.OptIngestSampleSize,
 		csv.OptDelim,

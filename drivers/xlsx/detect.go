@@ -6,6 +6,8 @@ import (
 	"io"
 	"slices"
 
+	"github.com/neilotoole/sq/libsq/files"
+
 	"github.com/h2non/filetype"
 	"github.com/h2non/filetype/matchers"
 
@@ -14,15 +16,14 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/loz"
-	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
-var _ source.DriverDetectFunc = DetectXLSX
+var _ files.DriverDetectFunc = DetectXLSX
 
 // DetectXLSX implements source.DriverDetectFunc, returning
 // TypeXLSX and a score of 1.0 if valid XLSX.
-func DetectXLSX(ctx context.Context, newRdrFn source.NewReaderFunc) (detected drivertype.Type, score float32,
+func DetectXLSX(ctx context.Context, newRdrFn files.NewReaderFunc) (detected drivertype.Type, score float32,
 	err error,
 ) {
 	const detectBufSize = 4096

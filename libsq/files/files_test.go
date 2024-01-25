@@ -1,4 +1,4 @@
-package source_test
+package files_test
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/files"
 
 	"github.com/neilotoole/sq/libsq/source/location"
 
@@ -63,7 +65,7 @@ func TestFiles_DetectType(t *testing.T) {
 
 		t.Run(filepath.Base(tc.loc), func(t *testing.T) {
 			ctx := lg.NewContext(context.Background(), lgt.New(t))
-			fs, err := source.NewFiles(ctx, nil, testh.TempLockFunc(t), tu.TempDir(t, true), tu.CacheDir(t, true))
+			fs, err := files.New(ctx, nil, testh.TempLockFunc(t), tu.TempDir(t, true), tu.CacheDir(t, true))
 			require.NoError(t, err)
 			fs.AddDriverDetectors(testh.DriverDetectors()...)
 
@@ -109,7 +111,7 @@ func TestFiles_DriverType(t *testing.T) {
 		t.Run(tu.Name(location.RedactLocation(tc.loc)), func(t *testing.T) {
 			ctx := lg.NewContext(context.Background(), lgt.New(t))
 
-			fs, err := source.NewFiles(ctx, nil, testh.TempLockFunc(t), tu.TempDir(t, true), tu.CacheDir(t, true))
+			fs, err := files.New(ctx, nil, testh.TempLockFunc(t), tu.TempDir(t, true), tu.CacheDir(t, true))
 			require.NoError(t, err)
 			fs.AddDriverDetectors(testh.DriverDetectors()...)
 
@@ -144,7 +146,7 @@ func TestDetectMagicNumber(t *testing.T) {
 
 			ctx := lg.NewContext(context.Background(), lgt.New(t))
 
-			typ, score, err := source.DetectMagicNumber(ctx, rFn)
+			typ, score, err := files.DetectMagicNumber(ctx, rFn)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
@@ -168,7 +170,7 @@ func TestFiles_NewReader(t *testing.T) {
 		Location: proj.Abs(fpath),
 	}
 
-	fs, err := source.NewFiles(ctx, nil, testh.TempLockFunc(t), tu.TempDir(t, true), tu.CacheDir(t, true))
+	fs, err := files.New(ctx, nil, testh.TempLockFunc(t), tu.TempDir(t, true), tu.CacheDir(t, true))
 	require.NoError(t, err)
 
 	g := &errgroup.Group{}

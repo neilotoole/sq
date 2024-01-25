@@ -10,6 +10,8 @@ import (
 	"io"
 	"log/slog"
 
+	"github.com/neilotoole/sq/libsq/files"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -29,7 +31,7 @@ type Provider struct {
 	Log       *slog.Logger
 	DriverDef *DriverDef
 	Ingester  driver.GripOpenIngester
-	Files     *source.Files
+	Files     *files.Files
 	IngestFn  IngestFunc
 }
 
@@ -50,11 +52,11 @@ func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 }
 
 // Detectors returns funcs that can detect the driver type.
-func (p *Provider) Detectors() []source.DriverDetectFunc {
+func (p *Provider) Detectors() []files.DriverDetectFunc {
 	// TODO: it should be possible to return type detectors that
 	//  can detect based upon the DriverDef. So, as of right
 	//  now these detectors do nothing.
-	return []source.DriverDetectFunc{}
+	return []files.DriverDetectFunc{}
 }
 
 // Driver implements driver.Driver.
@@ -62,7 +64,7 @@ type driveri struct {
 	log      *slog.Logger
 	typ      drivertype.Type
 	def      *DriverDef
-	files    *source.Files
+	files    *files.Files
 	ingester driver.GripOpenIngester
 	ingestFn IngestFunc
 }

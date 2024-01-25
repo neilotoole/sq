@@ -8,18 +8,19 @@ import (
 	"io"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/files"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 // DetectJSON returns a source.DriverDetectFunc that can detect JSON.
-func DetectJSON(sampleSize int) source.DriverDetectFunc { // FIXME: is DetectJSON actually working?
-	return func(ctx context.Context, newRdrFn source.NewReaderFunc) (detected drivertype.Type, score float32,
+func DetectJSON(sampleSize int) files.DriverDetectFunc { // FIXME: is DetectJSON actually working?
+	return func(ctx context.Context, newRdrFn files.NewReaderFunc) (detected drivertype.Type, score float32,
 		err error,
 	) {
 		log := lg.FromContext(ctx)

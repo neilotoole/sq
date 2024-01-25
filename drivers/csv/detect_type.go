@@ -7,35 +7,36 @@ import (
 	"io"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/files"
+
 	"github.com/neilotoole/sq/cli/output/csvw"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 var (
-	_ source.DriverDetectFunc = DetectCSV
-	_ source.DriverDetectFunc = DetectTSV
+	_ files.DriverDetectFunc = DetectCSV
+	_ files.DriverDetectFunc = DetectTSV
 )
 
 // DetectCSV implements source.DriverDetectFunc.
-func DetectCSV(ctx context.Context, newRdrFn source.NewReaderFunc) (detected drivertype.Type, score float32,
+func DetectCSV(ctx context.Context, newRdrFn files.NewReaderFunc) (detected drivertype.Type, score float32,
 	err error,
 ) {
 	return detectType(ctx, TypeCSV, newRdrFn)
 }
 
 // DetectTSV implements source.DriverDetectFunc.
-func DetectTSV(ctx context.Context, newRdrFn source.NewReaderFunc) (detected drivertype.Type,
+func DetectTSV(ctx context.Context, newRdrFn files.NewReaderFunc) (detected drivertype.Type,
 	score float32, err error,
 ) {
 	return detectType(ctx, TypeTSV, newRdrFn)
 }
 
-func detectType(ctx context.Context, typ drivertype.Type, newRdrFn source.NewReaderFunc) (detected drivertype.Type,
+func detectType(ctx context.Context, typ drivertype.Type, newRdrFn files.NewReaderFunc) (detected drivertype.Type,
 	score float32, err error,
 ) {
 	log := lg.FromContext(ctx)

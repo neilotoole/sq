@@ -1,10 +1,12 @@
-package source
+package files
 
 import (
 	"context"
 	"net/http"
 	"path/filepath"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/source"
 
 	"github.com/neilotoole/streamcache"
 
@@ -63,7 +65,7 @@ var OptHTTPSInsecureSkipVerify = options.NewBool(
 //
 // It is guaranteed that one (and only one) of the returned values will be non-nil.
 // REVISIT: look into use of checkFresh?
-func (fs *Files) maybeStartDownload(ctx context.Context, src *Source, checkFresh bool) (dlFile string,
+func (fs *Files) maybeStartDownload(ctx context.Context, src *source.Source, checkFresh bool) (dlFile string,
 	dlStream *streamcache.Stream, err error,
 ) {
 	var ok bool
@@ -124,7 +126,7 @@ func (fs *Files) maybeStartDownload(ctx context.Context, src *Source, checkFresh
 
 // downloadDirFor gets the download cache dir for src. It is not
 // guaranteed that the returned dir exists or is accessible.
-func (fs *Files) downloadDirFor(src *Source) (string, error) {
+func (fs *Files) downloadDirFor(src *source.Source) (string, error) {
 	cacheDir, err := fs.CacheDirFor(src)
 	if err != nil {
 		return "", err
@@ -136,7 +138,7 @@ func (fs *Files) downloadDirFor(src *Source) (string, error) {
 
 // downloaderFor returns the downloader.Downloader for src, creating
 // and caching it if necessary.
-func (fs *Files) downloaderFor(ctx context.Context, src *Source) (*downloader.Downloader, error) {
+func (fs *Files) downloaderFor(ctx context.Context, src *source.Source) (*downloader.Downloader, error) {
 	dl, ok := fs.mDownloaders[src.Handle]
 	if ok {
 		return dl, nil
@@ -158,7 +160,7 @@ func (fs *Files) downloaderFor(ctx context.Context, src *Source) (*downloader.Do
 	return dl, nil
 }
 
-func (fs *Files) httpClientFor(ctx context.Context, src *Source) *http.Client {
+func (fs *Files) httpClientFor(ctx context.Context, src *source.Source) *http.Client {
 	o := options.Merge(options.FromContext(ctx), src.Options)
 	return httpz.NewClient(httpz.DefaultUserAgent,
 		httpz.OptRequestTimeout(OptHTTPRequestTimeout.Get(o)),

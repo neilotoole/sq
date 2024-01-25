@@ -13,6 +13,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/files"
+
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -83,7 +85,7 @@ type Helper struct {
 	Log *slog.Logger
 
 	registry *driver.Registry
-	files    *source.Files
+	files    *files.Files
 	grips    *driver.Grips
 	run      *run.Run
 
@@ -147,7 +149,7 @@ func (h *Helper) init() {
 		cfg := config.New()
 		var err error
 
-		h.files, err = source.NewFiles(
+		h.files, err = files.New(
 			h.Context,
 			optRegistry,
 			TempLockFunc(h.T),
@@ -769,7 +771,7 @@ func (h *Helper) Grips() *driver.Grips {
 }
 
 // Files returns the helper's source.Files instance.
-func (h *Helper) Files() *source.Files {
+func (h *Helper) Files() *files.Files {
 	h.init()
 	return h.files
 }
@@ -872,9 +874,9 @@ func DriverDefsFrom(t testing.TB, cfgFiles ...string) []*userdriver.DriverDef {
 }
 
 // DriverDetectors returns the common set of TypeDetectorFuncs.
-func DriverDetectors() []source.DriverDetectFunc {
-	return []source.DriverDetectFunc{
-		source.DetectMagicNumber,
+func DriverDetectors() []files.DriverDetectFunc {
+	return []files.DriverDetectFunc{
+		files.DetectMagicNumber,
 		xlsx.DetectXLSX,
 		csv.DetectCSV,
 		csv.DetectTSV,

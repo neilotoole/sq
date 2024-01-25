@@ -8,18 +8,19 @@ import (
 	"io"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/files"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 // DetectJSONL returns a source.DriverDetectFunc that can
 // detect JSONL.
-func DetectJSONL(sampleSize int) source.DriverDetectFunc {
-	return func(ctx context.Context, newRdrFn source.NewReaderFunc) (detected drivertype.Type,
+func DetectJSONL(sampleSize int) files.DriverDetectFunc {
+	return func(ctx context.Context, newRdrFn files.NewReaderFunc) (detected drivertype.Type,
 		score float32, err error,
 	) {
 		log := lg.FromContext(ctx)

@@ -5,6 +5,8 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/neilotoole/sq/libsq/files"
+
 	excelize "github.com/xuri/excelize/v2"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -28,7 +30,7 @@ const (
 // Provider implements driver.Provider.
 type Provider struct {
 	Log      *slog.Logger
-	Files    *source.Files
+	Files    *files.Files
 	Ingester driver.GripOpenIngester
 }
 
@@ -45,7 +47,7 @@ func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 type Driver struct {
 	log      *slog.Logger
 	ingester driver.GripOpenIngester
-	files    *source.Files
+	files    *files.Files
 }
 
 // DriverMetadata implements driver.Driver.

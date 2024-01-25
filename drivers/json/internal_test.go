@@ -7,6 +7,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/files"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -26,7 +28,7 @@ var (
 
 // newIngestJob is a constructor for the unexported ingestJob type.
 // If sampleSize <= 0, a default value is used.
-func newIngestJob(fromSrc *source.Source, newRdrFn source.NewReaderFunc, destGrip driver.Grip, sampleSize int,
+func newIngestJob(fromSrc *source.Source, newRdrFn files.NewReaderFunc, destGrip driver.Grip, sampleSize int,
 	flatten bool,
 ) ingestJob {
 	if sampleSize <= 0 {

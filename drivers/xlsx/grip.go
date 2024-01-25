@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"log/slog"
 
+	"github.com/neilotoole/sq/libsq/files"
+
 	"github.com/neilotoole/sq/libsq/source/location"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -19,7 +21,7 @@ import (
 type grip struct {
 	log    *slog.Logger
 	src    *source.Source
-	files  *source.Files
+	files  *files.Files
 	dbGrip driver.Grip
 }
 

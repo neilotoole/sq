@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/files"
+
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
@@ -33,18 +35,18 @@ type Grips struct {
 	drvrs        Provider
 	mu           sync.Mutex
 	scratchSrcFn ScratchSrcFunc
-	files        *source.Files
+	files        *files.Files
 	grips        map[string]Grip
 	clnup        *cleanup.Cleanup
 }
 
 // NewGrips returns a Grips instances.
-func NewGrips(drvrs Provider, files *source.Files, scratchSrcFn ScratchSrcFunc) *Grips {
+func NewGrips(drvrs Provider, fs *files.Files, scratchSrcFn ScratchSrcFunc) *Grips {
 	return &Grips{
 		drvrs:        drvrs,
 		mu:           sync.Mutex{},
 		scratchSrcFn: scratchSrcFn,
-		files:        files,
+		files:        fs,
 		grips:        map[string]Grip{},
 		clnup:        cleanup.New(),
 	}

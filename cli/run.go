@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/files"
+
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/config"
@@ -226,12 +228,12 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 		// configs don't share the same cache/temp dir.
 		sum := checksum.Sum([]byte(ru.ConfigStore.Location()))
 
-		ru.Files, err = source.NewFiles(
+		ru.Files, err = files.New(
 			ctx,
 			ru.OptionsRegistry,
 			cfgLockFunc,
-			filepath.Join(source.DefaultTempDir(), sum),
-			filepath.Join(source.DefaultCacheDir(), sum),
+			filepath.Join(files.DefaultTempDir(), sum),
+			filepath.Join(files.DefaultCacheDir(), sum),
 		)
 		if err != nil {
 			lg.WarnIfFuncError(log, lga.Cleanup, ru.Cleanup.Run)

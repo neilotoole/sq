@@ -1,4 +1,4 @@
-package source
+package files
 
 import (
 	"context"
@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/neilotoole/sq/libsq/source"
 
 	"github.com/neilotoole/sq/libsq/source/location"
 
@@ -79,12 +81,9 @@ type Files struct {
 	detectFns []DriverDetectFunc
 }
 
-// NewFiles returns a new Files instance. If cleanFscache is true, the fscache
+// New returns a new Files instance. If cleanFscache is true, the fscache
 // is cleaned on Files.Close.
-func NewFiles(
-	ctx context.Context,
-	optReg *options.Registry,
-	cfgLock lockfile.LockFunc,
+func New(ctx context.Context, optReg *options.Registry, cfgLock lockfile.LockFunc,
 	tmpDir, cacheDir string,
 ) (*Files, error) {
 	log := lg.FromContext(ctx)
@@ -115,7 +114,7 @@ func NewFiles(
 // An error is returned if src is not a document/file source.
 // For remote files, this method should only be invoked after the file has
 // completed downloading (e.g. after ingestion), or an error may be returned.
-func (fs *Files) Filesize(ctx context.Context, src *Source) (size int64, err error) {
+func (fs *Files) Filesize(ctx context.Context, src *source.Source) (size int64, err error) {
 	switch location.GetLocType(src.Location) {
 	case location.LocTypeLocalFile:
 		var fi os.FileInfo
@@ -126,7 +125,7 @@ func (fs *Files) Filesize(ctx context.Context, src *Source) (size int64, err err
 
 	case location.LocTypeStdin:
 		fs.mu.Lock()
-		stdinStream, ok := fs.mStreams[StdinHandle]
+		stdinStream, ok := fs.mStreams[source.StdinHandle]
 		fs.mu.Unlock()
 		if !ok {
 			// This is a programming error; probably should panic here.
@@ -198,13 +197,13 @@ func (fs *Files) AddStdin(ctx context.Context, f *os.File) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	if _, ok := fs.mStreams[StdinHandle]; ok {
-		return errz.Errorf("%s already added to reader cache", StdinHandle)
+	if _, ok := fs.mStreams[source.StdinHandle]; ok {
+		return errz.Errorf("%s already added to reader cache", source.StdinHandle)
 	}
 
 	stream := streamcache.New(f)
-	fs.mStreams[StdinHandle] = stream
-	lg.FromContext(ctx).With(lga.Handle, StdinHandle, lga.File, f.Name()).
+	fs.mStreams[source.StdinHandle] = stream
+	lg.FromContext(ctx).With(lga.Handle, source.StdinHandle, lga.File, f.Name()).
 		Debug("Added stdin to reader cache")
 	return nil
 }
@@ -214,7 +213,7 @@ func (fs *Files) AddStdin(ctx context.Context, f *os.File) error {
 // SQL driver). If src is a remote (http) location, the returned filepath
 // is that of the cached download file. If that file is not present, an
 // error is returned.
-func (fs *Files) filepath(src *Source) (string, error) {
+func (fs *Files) filepath(src *source.Source) (string, error) {
 	switch location.GetLocType(src.Location) {
 	case location.LocTypeLocalFile:
 		return src.Location, nil
@@ -250,7 +249,7 @@ func (fs *Files) filepath(src *Source) (string, error) {
 // If src.Handle is StdinHandle, AddStdin must first have been invoked.
 //
 // The caller must close the reader.
-func (fs *Files) NewReader(ctx context.Context, src *Source, ingesting bool) (io.ReadCloser, error) {
+func (fs *Files) NewReader(ctx context.Context, src *source.Source, ingesting bool) (io.ReadCloser, error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -261,7 +260,7 @@ func (fs *Files) NewReader(ctx context.Context, src *Source, ingesting bool) (io
 // true, and src is using a streamcache.Stream, that cache is sealed after
 // the reader is created: newReader must not be called again for src in the
 // lifetime of this Files instance.
-func (fs *Files) newReader(ctx context.Context, src *Source, finalRdr bool) (io.ReadCloser, error) {
+func (fs *Files) newReader(ctx context.Context, src *source.Source, finalRdr bool) (io.ReadCloser, error) {
 	lg.FromContext(ctx).Debug("Files.NewReader", lga.Src, src, "final_reader", finalRdr)
 
 	loc := src.Location
@@ -273,7 +272,7 @@ func (fs *Files) newReader(ctx context.Context, src *Source, finalRdr bool) (io.
 	case location.LocTypeLocalFile:
 		return errz.Return(os.Open(loc))
 	case location.LocTypeStdin:
-		stdinStream, ok := fs.mStreams[StdinHandle]
+		stdinStream, ok := fs.mStreams[source.StdinHandle]
 		if !ok {
 			// This is a programming error: AddStdin should have been invoked first.
 			// Probably should panic here.
@@ -323,7 +322,7 @@ func (fs *Files) newReader(ctx context.Context, src *Source, finalRdr bool) (io.
 
 // Ping implements a ping mechanism for document
 // sources (local or remote files).
-func (fs *Files) Ping(ctx context.Context, src *Source) error {
+func (fs *Files) Ping(ctx context.Context, src *source.Source) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 

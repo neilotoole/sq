@@ -1,4 +1,4 @@
-package source
+package files
 
 import (
 	"context"
@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/source"
 
 	"github.com/neilotoole/sq/libsq/source/location"
 
@@ -101,7 +103,7 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 		}
 	} else {
 		newRdrFn = func(ctx context.Context) (io.ReadCloser, error) {
-			src := &Source{Handle: handle, Location: loc}
+			src := &source.Source{Handle: handle, Location: loc}
 			return fs.newReader(ctx, src, false)
 		}
 	}
@@ -226,11 +228,11 @@ func (fs *Files) DetectStdinType(ctx context.Context) (drivertype.Type, error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	if _, ok := fs.mStreams[StdinHandle]; !ok {
+	if _, ok := fs.mStreams[source.StdinHandle]; !ok {
 		return drivertype.None, errz.New("must invoke Files.AddStdin before invoking DetectStdinType")
 	}
 
-	typ, ok, err := fs.detectType(ctx, StdinHandle, StdinHandle)
+	typ, ok, err := fs.detectType(ctx, source.StdinHandle, source.StdinHandle)
 	if err != nil {
 		return drivertype.None, err
 	}
@@ -263,3 +265,15 @@ func TypeFromMediaType(mediatype string) (typ drivertype.Type, ok bool) {
 
 	return drivertype.None, false
 }
+
+const (
+	// FIXME: the types are defined in like 5 places.
+	// They should be consolidated.
+	typeSL3  = drivertype.Type("sqlite3")
+	typePg   = drivertype.Type("postgres")
+	typeMS   = drivertype.Type("sqlserver")
+	typeMy   = drivertype.Type("mysql")
+	typeXLSX = drivertype.Type("xlsx")
+	typeCSV  = drivertype.Type("csv")
+	typeTSV  = drivertype.Type("tsv")
+)
