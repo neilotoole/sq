@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/stringz"
+
 	"github.com/a8m/tree"
 	"github.com/a8m/tree/ostree"
 	yaml "github.com/goccy/go-yaml"
@@ -105,6 +107,46 @@ func MarshalYAML(v any) ([]byte, error) {
 // UnmarshallYAML is our standard mechanism for decoding YAML.
 func UnmarshallYAML(data []byte, v any) error {
 	return errz.Err(yaml.Unmarshal(data, v))
+}
+
+// RenameDir is like os.Rename, but it works even if newpath
+// already exists and is a directory (which os.Rename fails on).
+func RenameDir(oldDir, newpath string) error {
+	oldFi, err := os.Stat(oldDir)
+	if err != nil {
+		return errz.Err(err)
+	}
+
+	if !oldFi.IsDir() {
+		return errz.Errorf("rename dir: not a dir: %s", oldDir)
+	}
+
+	if newFi, _ := os.Stat(newpath); newFi != nil && newFi.IsDir() {
+		// os.Rename will fail when newpath is a directory.
+		// So, we first move (rename) newpath to a temp staging path,
+		// and then we move oldpath to newpath, and finally we remove
+		// the staging dir. We do this because if there's open files
+		// in newpath, os.RemoveAll may fail, so this technique is
+		// more likely to succeed? Not completely sure about that.
+		staging := filepath.Join(os.TempDir(), stringz.Uniq8()+"_"+filepath.Base(newpath))
+
+		if err = os.Rename(newpath, staging); err != nil {
+			return errz.Err(err)
+		}
+
+		if err = os.Rename(oldDir, newpath); err != nil {
+			return errz.Err(err)
+		}
+
+		// If the staging deletion (i.e. the old dir) fails,
+		// do we even care? It'll be left hanging around in
+		// the tmp dir, which I guess could be a security
+		// issue in some circumstances?
+		_ = os.RemoveAll(staging)
+		return nil
+	}
+
+	return errz.Err(os.Rename(oldDir, newpath))
 }
 
 // ReadDir lists the contents of dir, returning the relative paths
@@ -393,8 +435,8 @@ func FileInfoEqual(a, b os.FileInfo) bool {
 
 	return a.Name() == b.Name() &&
 		a.Size() == b.Size() &&
+		a.ModTime().Equal(b.ModTime()) &&
 		a.Mode() == b.Mode() &&
-		a.ModTime() == b.ModTime() &&
 		a.IsDir() == b.IsDir()
 }
 

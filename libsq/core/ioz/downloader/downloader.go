@@ -107,7 +107,9 @@ type Downloader struct {
 
 	// disableCaching, if true, indicates that the cache should not be used.
 	disableCaching bool
-	cache          *cache
+
+	// cache implements the on-disk cache.
+	cache *cache
 
 	// markCachedResponses, if true, indicates that responses returned from the
 	// cache will be given an extra header, X-From-cache.
@@ -192,7 +194,7 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 	if cacheable {
 		cachedResp, err = dl.cache.get(req.Context(), req) //nolint:bodyclose
 	} else {
-		// Need to invalidate an existing value
+		// Need to invalidate the existing cache
 		// FIXME: delete
 		//if err = dl.cache.clear(req.Context()); err != nil {
 		//	h.Error(err)
@@ -318,7 +320,7 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 	}
 
 	// FIXME: Hmmn, ,do we want to clear here?
-	//lg.WarnIfError(log, "Delete resp cache", dl.cache.clear(req.Context()))
+	// lg.WarnIfError(log, "Delete resp cache", dl.cache.clear(req.Context()))
 
 	// It's not cacheable, so we can just wrap resp.Body in a streamcache
 	// and return it.

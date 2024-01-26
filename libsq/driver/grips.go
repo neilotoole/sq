@@ -291,7 +291,7 @@ func (gs *Grips) openIngestGripCache(ctx context.Context, src *source.Source,
 		return nil, err
 	}
 	if foundCached {
-		log.Info("Ingest cache HIT: found cached copy of source",
+		log.Info("Ingest cache HIT: found cached ingest DB",
 			lga.Src, src, "cached", impl.Source(),
 		)
 		return impl, nil

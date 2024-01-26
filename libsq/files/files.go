@@ -227,7 +227,7 @@ func (fs *Files) filepath(src *source.Source) (string, error) {
 		// FIXME: We shouldn't be depending on knowledge of the internal
 		// workings of download.Download here. Instead we should call
 		// some method?
-		dlFile := filepath.Join(dlDir, "body")
+		dlFile := filepath.Join(dlDir, "main", "body")
 		if !ioz.FileAccessible(dlFile) {
 			return "", errz.Errorf("remote file for %s not downloaded at: %s", src.Handle, dlFile)
 		}
@@ -371,10 +371,9 @@ func (fs *Files) Close() error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	fs.log.Debug("Files.Close: waiting for goroutines to complete")
+	fs.log.Debug("Files.Close: waiting for any downloads to complete")
 	fs.downloadersWg.Wait()
 
-	fs.log.Debug("Files.Close: executing cleanup", lga.Count, fs.clnup.Len())
 	err := fs.clnup.Run()
 	err = errz.Append(err, errz.Wrap(os.RemoveAll(fs.tempDir), "remove files temp dir"))
 	fs.doCacheSweep()

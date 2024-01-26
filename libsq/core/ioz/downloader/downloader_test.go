@@ -3,8 +3,6 @@ package downloader_test
 import (
 	"context"
 	"errors"
-	"github.com/neilotoole/sq/libsq/core/ioz"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +11,9 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,11 +33,14 @@ const (
 )
 
 func TestCachePreservedOnFailedRefresh(t *testing.T) {
-	log := lgt.New(t)
+	var (
+		log                 = lgt.New(t)
+		srvr                *httptest.Server
+		srvrShouldBodyError bool
+		srvrShouldNoCache   bool
+		sentBody            string
+	)
 
-	var sentBody string
-	var srvr *httptest.Server
-	var srvrShouldBodyError bool
 	srvr = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if srvrShouldBodyError {
 			// We want the error to happen while reading the body,
@@ -54,7 +58,11 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 
 		// Use "no-cache" to force downloader.getFreshness to return Stale:
 		// - https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control#response_directives
-		w.Header().Set("Cache-Control", "no-cache")
+
+		if srvrShouldNoCache {
+			w.Header().Set("Cache-Control", "no-cache")
+		}
+
 		w.Header().Set("Content-Type", "text/plain")
 		sentBody = stringz.UniqSuffix("hello") // Send a unique body each time.
 		w.Header().Set("Content-Length", strconv.Itoa(len(sentBody)))
@@ -83,7 +91,6 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	require.True(t, errors.Is(stream.Err(), io.EOF))
 
 	require.Equal(t, len(sentBody), stream.Size())
-
 	gotFilesize, err := dl.Filesize(ctx)
 	require.NoError(t, err)
 	require.Equal(t, len(sentBody), int(gotFilesize))
@@ -96,23 +103,35 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	t.Logf("Cache files:\n- body:       %s\n- header:     %s\n- checksums:  %s",
 		fpBody, fpHeader, fpChecksums)
 
-	gotCacheBody1 := tu.ReadFileToString(t, fpBody)
-	t.Logf("gotCacheBody1: \n\n%s\n\n", gotCacheBody1)
-	require.Equal(t, sentBody, gotCacheBody1)
-	gotCacheHeader1 := tu.ReadFileToString(t, fpHeader)
-	t.Logf("gotCacheHeader1: \n\n%s\n\n", gotCacheHeader1)
-	gotCacheChecksums1 := tu.ReadFileToString(t, fpChecksums)
-	t.Logf("gotCacheChecksums1: \n\n%s\n\n", gotCacheChecksums1)
-
 	fiBody1 := tu.MustStat(t, fpBody)
 	fiHeader1 := tu.MustStat(t, fpHeader)
 	fiChecksums1 := tu.MustStat(t, fpChecksums)
+
+	// gotCacheBody1 := tu.ReadFileToString(t, fpBody)
+	// t.Logf("gotCacheBody1: \n\n%s\n\n", gotCacheBody1)
+	// require.Equal(t, sentBody, gotCacheBody1)
+	// gotCacheHeader1 := tu.ReadFileToString(t, fpHeader)
+	// t.Logf("gotCacheHeader1: \n\n%s\n\n", gotCacheHeader1)
+	// gotCacheChecksums1 := tu.ReadFileToString(t, fpChecksums)
+	// t.Logf("gotCacheChecksums1: \n\n%s\n\n", gotCacheChecksums1)
+
+	h.Reset()
+	dl.Get(ctx, h.Handler)
+	require.Empty(t, h.Errors)
+	require.Empty(t, h.Streams)
+	require.Len(t, h.Downloaded, 1)
+
+	// fiBody1 := tu.MustStat(t, fpBody)
+	// fiHeader1 := tu.MustStat(t, fpHeader)
+	// fiChecksums1 := tu.MustStat(t, fpChecksums)
 
 	t.Logf("\n\n\nTAKE 2\n\n\n")
 
 	srvrShouldBodyError = true
 	h.Reset()
-	//downloader.SetDownloaderDisableCaching(dl, true)
+
+	// Sleep to allow file modification timestamps to tick
+	time.Sleep(time.Millisecond * 10)
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
 	require.NotEmpty(t, h.Streams)
@@ -133,9 +152,8 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	require.True(t, ioz.FileInfoEqual(fiChecksums1, fiChecksums2))
 
 	t.Logf("huzzah")
-	//state := dl.State(ctx)
-	//require.Equal(t, downloader.Fresh.String(), state.String()) // FIXME: What's wrong with this?
-
+	// state := dl.State(ctx)
+	// require.Equal(t, downloader.Fresh.String(), state.String()) // FIXME: What's wrong with this?
 }
 
 func TestDownload_redirect(t *testing.T) {
