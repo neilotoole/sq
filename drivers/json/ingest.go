@@ -11,9 +11,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"

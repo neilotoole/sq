@@ -17,8 +17,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/options"
-
 	"github.com/neilotoole/streamcache"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -27,6 +25,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
 )
 

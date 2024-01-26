@@ -14,8 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/stringz"
-
 	"github.com/a8m/tree"
 	"github.com/a8m/tree/ostree"
 	yaml "github.com/goccy/go-yaml"
@@ -23,6 +21,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // RWPerms is the default file mode used for creating files.

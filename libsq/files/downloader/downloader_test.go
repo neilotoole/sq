@@ -12,20 +12,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/libsq/files"
-
-	"github.com/neilotoole/sq/libsq/core/ioz"
-	"github.com/neilotoole/sq/libsq/core/stringz"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/libsq/core/ioz/downloader"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/files"
+	"github.com/neilotoole/sq/libsq/files/downloader"
 	"github.com/neilotoole/sq/testh/tu"
 )
 
