@@ -297,7 +297,7 @@ func (c *cache) write(ctx context.Context, resp *http.Response, headerOnly bool)
 	fpBodyStaging := filepath.Join(stagingDir, "body")
 	var written int64
 	if written, err = ioz.WriteToFile(ctx, fpBodyStaging, resp.Body); err != nil {
-		log.Error("Cache write: failed to write cache body file", lga.Err, err, lga.Path, fpBodyStaging)
+		log.Warn("Cache write: failed to write cache body file", lga.Err, err, lga.Path, fpBodyStaging)
 		return err
 	}
 

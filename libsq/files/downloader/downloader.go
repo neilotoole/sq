@@ -360,7 +360,7 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 			//   In that case, any previous cache files are left untouched by cache.write,
 			//   and all we do is log the error. If the cache is inconsistent, it will
 			//   repair itself on next invocation, so it's not a big deal.
-			log.Error("Failed to write download cache", lga.Dir, dl.cache.dir, lga.Err, err)
+			log.Warn("Failed to write download cache", lga.Dir, dl.cache.dir, lga.Err, err)
 		}
 		return
 	}
