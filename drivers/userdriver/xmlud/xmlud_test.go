@@ -24,7 +24,7 @@ const (
 
 func TestImport_Ppl(t *testing.T) {
 	t.Cleanup(func() {
-		tu.OpenFileCount(t, true)
+		tu.OpenFileCount(t, true, "")
 	})
 
 	th := testh.New(t)
@@ -42,13 +42,13 @@ func TestImport_Ppl(t *testing.T) {
 		assert.NoError(t, grip.Close())
 	})
 
-	tu.OpenFileCount(t, true)
+	tu.OpenFileCount(t, true, "")
 
 	data := proj.ReadFile("drivers/userdriver/xmlud/testdata/people.xml")
 	err = xmlud.Ingest(th.Context, udDef, bytes.NewReader(data), grip)
 	require.NoError(t, err)
 
-	tu.OpenFileCount(t, true)
+	tu.OpenFileCount(t, true, "")
 
 	srcMeta, err := grip.SourceMetadata(th.Context, false)
 	require.NoError(t, err)

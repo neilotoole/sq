@@ -27,7 +27,7 @@ require (
 	github.com/ncruces/go-strftime v0.1.9
 	github.com/neilotoole/shelleditor v0.4.1
 	github.com/neilotoole/slogt v1.1.0
-	github.com/neilotoole/streamcache v0.3.2
+	github.com/neilotoole/streamcache v0.3.3
 	github.com/nightlyone/lockfile v1.0.0
 	github.com/otiai10/copy v1.14.0
 	github.com/ryboe/q v1.0.20

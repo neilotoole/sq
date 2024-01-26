@@ -271,4 +271,6 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	require.True(t, ioz.FileInfoEqual(fiBody1, fiBody2))
 	require.True(t, ioz.FileInfoEqual(fiHeader1, fiHeader2))
 	require.True(t, ioz.FileInfoEqual(fiChecksums1, fiChecksums2))
+
+	h.Reset()
 }

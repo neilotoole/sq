@@ -448,11 +448,22 @@ func ReadToString(t testing.TB, r io.Reader) string {
 
 // OpenFileCount is a debugging function that returns the count
 // of open file handles for the current process via shelling out
-// to lsof. This function is skipped on Windows.
-// If log is true, the output of lsof is logged.
-func OpenFileCount(t testing.TB, log bool) int {
+// to lsof. On the master branch, OpenFileCount probably should never
+// be called; it's a debugging function for use during development.
+//
+// If arg log is true, the output of lsof is logged.
+//
+// This function is skipped on Windows.
+func OpenFileCount(t testing.TB, log bool, label string) int {
 	count, out := doOpenFileCount(t)
-	msg := fmt.Sprintf("Open files for [%d]: %d", os.Getpid(), count)
+	var msg string
+
+	if label != "" {
+		msg = "\n\n" + strings.Repeat("=", 40) + "\n" +
+			label + "\n" + strings.Repeat("=", 40) + "\n\n"
+	}
+
+	msg += fmt.Sprintf("Open files for pid [%d]: %d", os.Getpid(), count)
 	if log {
 		msg += "\n\n" + out
 	}
@@ -477,12 +488,12 @@ func doOpenFileCount(t testing.TB) (count int, out string) {
 func DiffOpenFileCount(t testing.TB, log bool) {
 	openingCount, openingOut := doOpenFileCount(t)
 	if log {
-		t.Logf("START: Open files for [%d]: %d\n\n%s", os.Getpid(), openingCount, openingOut)
+		t.Logf("START: Open files for pid [%d]: %d\n\n%s", os.Getpid(), openingCount, openingOut)
 	}
 	t.Cleanup(func() {
 		closingCount, closingOut := doOpenFileCount(t)
 		if log {
-			t.Logf("END: Open files for [%d]: %d\n\n%s", os.Getpid(), closingCount, closingOut)
+			t.Logf("END: Open files for pid [%d]: %d\n\n%s", os.Getpid(), closingCount, closingOut)
 		}
 		if openingCount != closingCount {
 			t.Logf("Open file count changed from %d to %d", openingCount, closingCount)

@@ -1,6 +1,7 @@
 package downloader
 
 import (
+	"io"
 	"log/slog"
 	"sync"
 
@@ -51,12 +52,18 @@ type SinkHandler struct {
 	Streams []*streamcache.Stream
 }
 
-// Reset resets the handler sinks.
+// Reset resets the handler sinks. It also drains and
+// closes any streams that were received via Handler.Uncached.
 func (sh *SinkHandler) Reset() {
 	sh.mu.Lock()
 	defer sh.mu.Unlock()
 	sh.Errors = nil
 	sh.Downloaded = nil
+
+	for _, stream := range sh.Streams {
+		_ = stream.Source().(io.Closer).Close()
+	}
+
 	sh.Streams = nil
 }
 
