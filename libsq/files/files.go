@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/neilotoole/streamcache"
@@ -219,15 +218,11 @@ func (fs *Files) filepath(src *source.Source) (string, error) {
 	case location.TypeLocalFile:
 		return src.Location, nil
 	case location.TypeRemoteFile:
-		dlDir, err := fs.downloadDirFor(src)
+		_, dlFile, err := fs.downloadPaths(src)
 		if err != nil {
 			return "", err
 		}
 
-		// FIXME: We shouldn't be depending on knowledge of the internal
-		// workings of download.Download here. Instead we should call
-		// some method?
-		dlFile := filepath.Join(dlDir, "main", "body")
 		if !ioz.FileAccessible(dlFile) {
 			return "", errz.Errorf("remote file for %s not downloaded at: %s", src.Handle, dlFile)
 		}

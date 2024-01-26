@@ -134,8 +134,9 @@ type Downloader struct {
 	// cache will be given an extra header, X-From-cache.
 	markCachedResponses bool
 
-	// dlStream is the streamcache.Stream that is returned to the caller
-	// for an active download.
+	// dlStream is the streamcache.Stream that is returned Handler for an
+	// active download. This field is used by Downloader.Filesize. It is
+	// reset to nil on each call to Downloader.Get.
 	dlStream *streamcache.Stream
 }
 
@@ -348,9 +349,18 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 		h.Uncached(dl.dlStream)
 
 		if err = dl.cache.write(req.Context(), resp, false); err != nil {
+			// We don't explicitly call Handler.Error: it would be "illegal" to do so
+			// anyway, because the Handler docs state that at most one Handler callback
+			// func is ever invoked. The cache write could fail for two reasons:
+			// - The download didn't complete successfully: that is, there was an error
+			//   reading from resp.Body. In this case, that same error will be propagated
+			//   to the Handler via the streamcache.Stream that was provided to Handler.Uncached.
+			// - The download completed, but there was a problem writing out the cache
+			//   files (header, body, checksum). This is likely a very rare occurrence.
+			//   In that case, any previous cache files are left untouched by cache.write,
+			//   and all we do is log the error. If the cache is inconsistent, it will
+			//   repair itself on next invocation, so it's not a big deal.
 			log.Error("Failed to write download cache", lga.Dir, dl.cache.dir, lga.Err, err)
-			// We don't need to explicitly call Handler.Error here, because the caller is
-			// gets any read error when they read from the streamcache.Stream.
 		}
 		return
 	}
@@ -526,7 +536,7 @@ func (dl *Downloader) cacheFileOnError(req *http.Request, err error) (fp string)
 	}
 
 	_, fp, _ = dl.cache.paths(req)
-	lg.FromContext(req.Context()).Warn("Returning cached response due to refresh error",
+	lg.FromContext(req.Context()).Warn("Returning possibly stale cached response due to download refresh error",
 		lga.Err, err, lga.Path, fp)
 	return fp
 }

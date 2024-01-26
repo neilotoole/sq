@@ -123,16 +123,21 @@ func (fs *Files) maybeStartDownload(ctx context.Context, src *source.Source, che
 	}
 }
 
-// downloadDirFor gets the download cache dir for src. It is not
-// guaranteed that the returned dir exists or is accessible.
-func (fs *Files) downloadDirFor(src *source.Source) (string, error) {
-	cacheDir, err := fs.CacheDirFor(src)
+// downloadPaths returns the paths for src's download cache dir and
+// cache body file. It is not guaranteed that the returned paths exist.
+func (fs *Files) downloadPaths(src *source.Source) (dlDir, dlFile string, err error) {
+	var cacheDir string
+	cacheDir, err = fs.CacheDirFor(src)
 	if err != nil {
-		return "", err
+		return "", dlFile, err
 	}
 
-	fp := filepath.Join(cacheDir, "download", checksum.Sum([]byte(src.Location)))
-	return fp, nil
+	// Note: we're depending on internal knowledge of the downloader impl here,
+	// which is not great. It might be better to implement a function
+	// in pkg downloader.
+	dlDir = filepath.Join(cacheDir, "download", checksum.Sum([]byte(src.Location)))
+	dlFile = filepath.Join(dlDir, "main", "body")
+	return dlDir, dlFile, nil
 }
 
 // downloaderFor returns the downloader.Downloader for src, creating
@@ -143,7 +148,7 @@ func (fs *Files) downloaderFor(ctx context.Context, src *source.Source) (*downlo
 		return dl, nil
 	}
 
-	dlDir, err := fs.downloadDirFor(src)
+	dlDir, _, err := fs.downloadPaths(src)
 	if err != nil {
 		return nil, err
 	}

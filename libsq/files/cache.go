@@ -392,7 +392,6 @@ func (fs *Files) doCacheSweep() {
 	defer cancelFn()
 
 	log := fs.log.With(lga.Dir, fs.cacheDir)
-	// log.Debug("Sweep cache dir: acquiring config lock")
 
 	if unlock, err := fs.cfgLockFn(ctx); err != nil {
 		log.Error("Sweep cache dir: failed to acquire config lock", lga.Lock, fs.cfgLockFn, lga.Err, err)
