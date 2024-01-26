@@ -39,7 +39,9 @@ var OptContinueOnError = options.NewBool(
 	`Continue with stale download if refresh fails. This option applies if
 a download is in the cache, but is considered stale, and a refresh attempt fails.
 If set to true, the refresh error is logged, and the stale download is returned.
-If false, an error is returned.`,
+This is a sort of "Airplane Mode" for downloads: when true, sq continues with
+the cached download when the network is unavailable. If false, an error is
+returned instead.`,
 	options.TagSource,
 )
 
