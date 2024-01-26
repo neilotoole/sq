@@ -54,6 +54,7 @@ const (
 	ScanType  = "scan_type"
 	Stack     = "stack"
 	Schema    = "schema"
+	Status    = "status"
 	Table     = "table"
 	Target    = "target"
 	Timeout   = "timeout"

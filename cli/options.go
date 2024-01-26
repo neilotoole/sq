@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/ioz/downloader"
+
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -183,6 +185,8 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		files.OptHTTPRequestTimeout,
 		files.OptHTTPResponseTimeout,
 		files.OptHTTPSInsecureSkipVerify,
+		downloader.OptCache,
+		downloader.OptContinueOnError,
 		driver.OptConnMaxOpen,
 		driver.OptConnMaxIdle,
 		driver.OptConnMaxIdleTime,

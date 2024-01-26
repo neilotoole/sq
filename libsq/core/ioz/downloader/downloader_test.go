@@ -12,6 +12,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/files"
+
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
@@ -33,11 +36,15 @@ const (
 )
 
 func TestCachePreservedOnFailedRefresh(t *testing.T) {
+	o := options.Options{files.OptHTTPResponseTimeout.Key(): "10m"}
+	ctx := options.NewContext(context.Background(), o)
+
 	var (
 		log                 = lgt.New(t)
 		srvr                *httptest.Server
 		srvrShouldBodyError bool
 		srvrShouldNoCache   bool
+		srvrMaxAge          = -1 // seconds
 		sentBody            string
 	)
 
@@ -61,6 +68,10 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 
 		if srvrShouldNoCache {
 			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Cache-Control", "max-age=0")
+		}
+		if srvrMaxAge >= 0 {
+			w.Header().Set("Cache-Control", "max-age="+strconv.Itoa(srvrMaxAge))
 		}
 
 		w.Header().Set("Content-Type", "text/plain")
@@ -71,9 +82,8 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	}))
 	t.Cleanup(srvr.Close)
 
-	ctx := lg.NewContext(context.Background(), log.With("origin", "downloader"))
-	cacheDir := filepath.Join(os.TempDir(), stringz.UniqSuffix("dlcache"))
-	// FIXME: switch ^^ to t.TempDir()
+	ctx = lg.NewContext(ctx, log.With("origin", "downloader"))
+	cacheDir := filepath.Join(t.TempDir(), stringz.UniqSuffix("dlcache"))
 	dl, err := downloader.New(t.Name(), httpz.NewDefaultClient(), srvr.URL, cacheDir)
 	require.NoError(t, err)
 	require.NoError(t, dl.Clear(ctx))
@@ -107,26 +117,6 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	fiHeader1 := tu.MustStat(t, fpHeader)
 	fiChecksums1 := tu.MustStat(t, fpChecksums)
 
-	// gotCacheBody1 := tu.ReadFileToString(t, fpBody)
-	// t.Logf("gotCacheBody1: \n\n%s\n\n", gotCacheBody1)
-	// require.Equal(t, sentBody, gotCacheBody1)
-	// gotCacheHeader1 := tu.ReadFileToString(t, fpHeader)
-	// t.Logf("gotCacheHeader1: \n\n%s\n\n", gotCacheHeader1)
-	// gotCacheChecksums1 := tu.ReadFileToString(t, fpChecksums)
-	// t.Logf("gotCacheChecksums1: \n\n%s\n\n", gotCacheChecksums1)
-
-	h.Reset()
-	dl.Get(ctx, h.Handler)
-	require.Empty(t, h.Errors)
-	require.Empty(t, h.Streams)
-	require.Len(t, h.Downloaded, 1)
-
-	// fiBody1 := tu.MustStat(t, fpBody)
-	// fiHeader1 := tu.MustStat(t, fpHeader)
-	// fiChecksums1 := tu.MustStat(t, fpChecksums)
-
-	t.Logf("\n\n\nTAKE 2\n\n\n")
-
 	srvrShouldBodyError = true
 	h.Reset()
 
@@ -143,6 +133,9 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	require.True(t, errors.Is(err, io.ErrUnexpectedEOF))
 	require.Equal(t, len(sentBody), stream.Size())
 
+	// Verify that the server hasn't updated the cache,
+	// by checking that the file modification timestamps
+	// haven't changed.
 	fiBody2 := tu.MustStat(t, fpBody)
 	fiHeader2 := tu.MustStat(t, fpHeader)
 	fiChecksums2 := tu.MustStat(t, fpChecksums)
@@ -150,10 +143,6 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	require.True(t, ioz.FileInfoEqual(fiBody1, fiBody2))
 	require.True(t, ioz.FileInfoEqual(fiHeader1, fiHeader2))
 	require.True(t, ioz.FileInfoEqual(fiChecksums1, fiChecksums2))
-
-	t.Logf("huzzah")
-	// state := dl.State(ctx)
-	// require.Equal(t, downloader.Fresh.String(), state.String()) // FIXME: What's wrong with this?
 }
 
 func TestDownload_redirect(t *testing.T) {

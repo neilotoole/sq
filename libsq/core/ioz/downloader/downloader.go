@@ -17,6 +17,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/options"
+
 	"github.com/neilotoole/streamcache"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -26,6 +28,32 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/progress"
+)
+
+var OptContinueOnError = options.NewBool(
+	"download.refresh.continue-on-error",
+	"",
+	false,
+	0,
+	true,
+	"Continue with stale download if refresh fails",
+	`Continue with stale download if refresh fails. This option applies if
+a download is in the cache, but is considered stale, and a refresh attempt fails.
+If set to true, the refresh error is logged, and the stale download is returned.
+If false, an error is returned.`,
+	options.TagSource,
+)
+
+var OptCache = options.NewBool(
+	"download.cache",
+	"",
+	false,
+	0,
+	true,
+	"Cache downloads",
+	`Cache downloaded remote files. When false, the cache is not used and
+the file is re-downloaded for each command.`,
+	options.TagSource,
 )
 
 // State is an enumeration of caching states based on the cache-control
@@ -73,24 +101,6 @@ func (s State) String() string {
 // XFromCache is the header added to responses that are returned from the cache.
 const XFromCache = "X-From-Stream"
 
-// Opt is a configuration option for creating a new Downloader.
-type Opt func(t *Downloader)
-
-// OptMarkCacheResponses configures a Downloader by setting
-// Downloader.markCachedResponses to true.
-func OptMarkCacheResponses(markCachedResponses bool) Opt {
-	return func(d *Downloader) {
-		d.markCachedResponses = markCachedResponses
-	}
-}
-
-// OptDisableCaching disables the cache.
-func OptDisableCaching(disable bool) Opt {
-	return func(d *Downloader) {
-		d.disableCaching = disable
-	}
-}
-
 // Downloader encapsulates downloading a file from a URL, using a local
 // disk cache if possible.
 type Downloader struct {
@@ -105,10 +115,15 @@ type Downloader struct {
 
 	c *http.Client
 
-	// disableCaching, if true, indicates that the cache should not be used.
-	disableCaching bool
+	// continueOnError, if true, indicates that the downloader
+	// should server the cached file if a refresh attempt fails.
+	continueOnError bool
 
-	// cache implements the on-disk cache.
+	// dlDir is the directory in which the download cache is stored.
+	dlDir string
+
+	// cache implements the on-disk cache. If nil, caching is disabled.
+	// It will be created in dlDir.
 	cache *cache
 
 	// markCachedResponses, if true, indicates that responses returned from the
@@ -127,16 +142,16 @@ type Downloader struct {
 	bodySize int64
 }
 
-// New returns a new Downloader for url that writes to cacheDir.
+// New returns a new Downloader for url that caches downloads in dlDir..
 // Name is a user-friendly name, such as a source handle like @data.
 // The name may show up in logs, or progress indicators etc.
-func New(name string, c *http.Client, dlURL, cacheDir string, opts ...Opt) (*Downloader, error) {
+func New(name string, c *http.Client, dlURL, dlDir string) (*Downloader, error) {
 	_, err := url.ParseRequestURI(dlURL)
 	if err != nil {
 		return nil, errz.Wrap(err, "invalid download URL")
 	}
 
-	if cacheDir, err = filepath.Abs(cacheDir); err != nil {
+	if dlDir, err = filepath.Abs(dlDir); err != nil {
 		return nil, errz.Err(err)
 	}
 
@@ -145,15 +160,9 @@ func New(name string, c *http.Client, dlURL, cacheDir string, opts ...Opt) (*Dow
 		c:                   c,
 		url:                 dlURL,
 		markCachedResponses: true,
-		disableCaching:      false,
+		continueOnError:     true,
 		bodySize:            -1,
-	}
-	for _, opt := range opts {
-		opt(dl)
-	}
-
-	if !dl.disableCaching {
-		dl.cache = &cache{dir: cacheDir}
+		dlDir:               dlDir,
 	}
 
 	return dl, nil
@@ -164,9 +173,18 @@ func New(name string, c *http.Client, dlURL, cacheDir string, opts ...Opt) (*Dow
 // is invoked, Get blocks until the download is completed. The download
 // resp.Body is written to cache; if an error occurs during cache write,
 // the cache write error is logged, but no error is returned.
+//
+// Get consults the context for options. In particular, it makes
+// use of OptCache and OptContinueOnError.
 func (dl *Downloader) Get(ctx context.Context, h Handler) {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()
+
+	o := options.FromContext(ctx)
+	dl.continueOnError = OptContinueOnError.Get(o)
+	if OptCache.Get(o) {
+		dl.cache = &cache{dir: dl.dlDir}
+	}
 
 	req := dl.mustRequest(ctx)
 	lg.FromContext(ctx).Debug("Get download", lga.URL, dl.url)
@@ -193,13 +211,6 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 	var cachedResp *http.Response
 	if cacheable {
 		cachedResp, err = dl.cache.get(req.Context(), req) //nolint:bodyclose
-	} else {
-		// Need to invalidate the existing cache
-		// FIXME: delete
-		//if err = dl.cache.clear(req.Context()); err != nil {
-		//	h.Error(err)
-		//	return
-		//}
 	}
 
 	var resp *http.Response
@@ -258,17 +269,32 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 			return
 
 		default:
-			//if err != nil || resp.StatusCode != http.StatusOK {
-			//	// FIXME: delete this
-			//	// lg.WarnIfError(log, msgDeleteCache, dl.cache.clear(req.Context()))
-			//}
+			if err != nil && resp != nil && resp.StatusCode != http.StatusOK {
+				log.Warn("Unexpected HTTP status from server; will serve from cache if possible",
+					lga.Err, err, lga.Status, resp.StatusCode)
+
+				if fp := dl.cacheFileOnError(req, err); fp != "" {
+					h.Cached(fp)
+					return
+				}
+			}
+
 			if err != nil {
+				if fp := dl.cacheFileOnError(req, err); fp != "" {
+					h.Cached(fp)
+					return
+				}
 				h.Error(err)
 				return
 			}
 
 			if resp.StatusCode != http.StatusOK {
 				err = errz.Errorf("download: unexpected HTTP status: %s", httpz.StatusText(resp.StatusCode))
+				if fp := dl.cacheFileOnError(req, err); fp != "" {
+					h.Cached(fp)
+					return
+				}
+
 				h.Error(err)
 				return
 			}
@@ -280,6 +306,10 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 		} else {
 			resp, err = dl.do(req) //nolint:bodyclose
 			if err != nil {
+				if fp := dl.cacheFileOnError(req, err); fp != "" {
+					h.Cached(fp)
+					return
+				}
 				h.Error(err)
 				return
 			}
@@ -300,6 +330,10 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 			if dl.bodySize, err = dl.cache.write(ctx, resp, true); err != nil {
 				log.Error("Failed to update cache header", lga.Dir, dl.cache.dir, lga.Err, err)
+				if fp := dl.cacheFileOnError(req, err); fp != "" {
+					h.Cached(fp)
+					return
+				}
 				h.Error(err)
 				return
 			}
@@ -318,9 +352,6 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 		}
 		return
 	}
-
-	// FIXME: Hmmn, ,do we want to clear here?
-	// lg.WarnIfError(log, "Delete resp cache", dl.cache.clear(req.Context()))
 
 	// It's not cacheable, so we can just wrap resp.Body in a streamcache
 	// and return it.
@@ -472,6 +503,32 @@ func (dl *Downloader) CacheFile(ctx context.Context) (fp string, err error) {
 	return fp, nil
 }
 
+// cacheFileOnError returns the path to the cached file, if it exists,
+// and is allowed to be returned on a refresh error. If not, empty
+// string is returned.
+func (dl *Downloader) cacheFileOnError(req *http.Request, err error) (fp string) {
+	if req == nil {
+		return ""
+	}
+
+	if dl.cache == nil {
+		return ""
+	}
+
+	if !dl.continueOnError {
+		return ""
+	}
+
+	if !dl.cache.exists(req) {
+		return ""
+	}
+
+	_, fp, _ = dl.cache.paths(req)
+	lg.FromContext(req.Context()).Warn("Returning cached response due to refresh error",
+		lga.Err, err, lga.Path, fp)
+	return fp
+}
+
 // Checksum returns the checksum of the cached download, if available.
 func (dl *Downloader) Checksum(ctx context.Context) (sum checksum.Checksum, ok bool) {
 	dl.mu.Lock()
@@ -486,7 +543,7 @@ func (dl *Downloader) Checksum(ctx context.Context) (sum checksum.Checksum, ok b
 }
 
 func (dl *Downloader) isCacheable(req *http.Request) bool {
-	if dl.cache == nil || dl.disableCaching {
+	if dl.cache == nil {
 		return false
 	}
 	return (req.Method == http.MethodGet || req.Method == http.MethodHead) && req.Header.Get("range") == ""
