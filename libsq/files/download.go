@@ -57,10 +57,7 @@ var OptHTTPSInsecureSkipVerify = options.NewBool(
 // or completed. If there's a download in progress, dlStream returns non-nil.
 // If the file is already downloaded to disk (and is valid/fresh), dlFile
 // returns non-empty and contains the absolute path to the downloaded file.
-// Otherwise, a new download is started, and dlStream returns non-nil. The
-// download happens on a freshly-spawned goroutine, and Files.downloadersWg
-// is incremented; wait on that WaitGroup to ensure that all downloads have
-// completed.
+// Otherwise, a new download is started and added to Files.streams.
 //
 // It is guaranteed that one (and only one) of the returned values will be non-nil.
 // REVISIT: look into use of checkFresh?
@@ -68,7 +65,7 @@ func (fs *Files) maybeStartDownload(ctx context.Context, src *source.Source, che
 	dlStream *streamcache.Stream, err error,
 ) {
 	var ok bool
-	if dlStream, ok = fs.mStreams[src.Handle]; ok {
+	if dlStream, ok = fs.streams[src.Handle]; ok {
 		// A download stream is always fresh, so we
 		// can ignore checkFresh here.
 		return "", dlStream, nil
@@ -103,9 +100,7 @@ func (fs *Files) maybeStartDownload(ctx context.Context, src *source.Source, che
 		Error:    func(dlErr error) { dlErrCh <- dlErr },
 	}
 
-	fs.downloadersWg.Add(1)
 	go func() {
-		defer fs.downloadersWg.Done()
 		dldr.Get(ctx, h)
 	}()
 
@@ -115,10 +110,10 @@ func (fs *Files) maybeStartDownload(ctx context.Context, src *source.Source, che
 	case err = <-dlErrCh:
 		return "", nil, err
 	case dlStream = <-dlStreamCh:
-		fs.mStreams[src.Handle] = dlStream
+		fs.streams[src.Handle] = dlStream
 		return "", dlStream, nil
 	case dlFile = <-dlFileCh:
-		fs.mDownloadedFiles[src.Handle] = dlFile
+		fs.downloadedFiles[src.Handle] = dlFile
 		return dlFile, nil, nil
 	}
 }
@@ -143,7 +138,7 @@ func (fs *Files) downloadPaths(src *source.Source) (dlDir, dlFile string, err er
 // downloaderFor returns the downloader.Downloader for src, creating
 // and caching it if necessary.
 func (fs *Files) downloaderFor(ctx context.Context, src *source.Source) (*downloader.Downloader, error) {
-	dl, ok := fs.mDownloaders[src.Handle]
+	dl, ok := fs.downloaders[src.Handle]
 	if ok {
 		return dl, nil
 	}
@@ -160,7 +155,7 @@ func (fs *Files) downloaderFor(ctx context.Context, src *source.Source) (*downlo
 	if dl, err = downloader.New(src.Handle, c, src.Location, dlDir); err != nil {
 		return nil, err
 	}
-	fs.mDownloaders[src.Handle] = dl
+	fs.downloaders[src.Handle] = dl
 	return dl, nil
 }
 
