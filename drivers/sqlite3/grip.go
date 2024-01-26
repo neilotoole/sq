@@ -6,6 +6,9 @@ import (
 	"log/slog"
 	"os"
 	"sync"
+	"time"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -67,6 +70,20 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	bar := progress.FromContext(ctx).NewUnitCounter(g.Source().Handle+": read schema", "item")
 	defer bar.Stop()
 	ctx = progress.NewBarContext(ctx, bar)
+
+	start := time.Now()
+	md, err := g.getSourceMetadata(ctx, noSchema)
+	if err != nil {
+		return nil, err
+	}
+
+	lg.FromContext(ctx).Debug("Read source metadata", lga.Src, g.src, lga.Elapsed, time.Since(start))
+	return md, nil
+}
+
+// SourceMetadata implements driver.Grip.
+func (g *grip) getSourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
+	// https://stackoverflow.com/questions/9646353/how-to-find-sqlite-database-file-version
 
 	md := &metadata.Source{Handle: g.src.Handle, Driver: drivertype.SQLite, DBDriver: dbDrvr}
 

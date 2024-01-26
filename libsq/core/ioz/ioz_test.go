@@ -99,3 +99,15 @@ func TestWriteToFile(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, val, string(got))
 }
+
+func TestRenameDir(t *testing.T) {
+	dir1, err := os.MkdirTemp("", "")
+	require.NoError(t, err)
+
+	dir2, err := os.MkdirTemp("", "")
+	require.NoError(t, err)
+
+	// Rename dir2 into dir1.
+	err = ioz.RenameDir(dir2, dir1)
+	require.NoError(t, err)
+}

@@ -133,8 +133,8 @@ github.com/neilotoole/shelleditor v0.4.1 h1:74LEw2mVo3jtNw2BjII6RSss9DXgEqAbmCQD
 github.com/neilotoole/shelleditor v0.4.1/go.mod h1:QanOZN4syDMp/L0SKwZb47Mh49mvLWX3ja5YfbYDDjo=
 github.com/neilotoole/slogt v1.1.0 h1:c7qE92sq+V0yvCuaxph+RQ2jOKL61c4hqS1Bv9W7FZE=
 github.com/neilotoole/slogt v1.1.0/go.mod h1:RCrGXkPc/hYybNulqQrMHRtvlQ7F6NktNVLuLwk6V+w=
-github.com/neilotoole/streamcache v0.3.2 h1:6dmMzSi6CjPKhxQ1SCcAxG5DsriM0qC9V28dlqWXSxM=
-github.com/neilotoole/streamcache v0.3.2/go.mod h1:rEzKCnekctG3vh0CNdkvQBXu0YraqKYP6KVrdYilvlo=
+github.com/neilotoole/streamcache v0.3.3 h1:mqQs2uCDX000pn+Isf039a10nw173gwCywPWQciMU+M=
+github.com/neilotoole/streamcache v0.3.3/go.mod h1:rEzKCnekctG3vh0CNdkvQBXu0YraqKYP6KVrdYilvlo=
 github.com/nightlyone/lockfile v1.0.0 h1:RHep2cFKK4PonZJDdEl4GmkabuhbsRMgk/k3uAmxBiA=
 github.com/nightlyone/lockfile v1.0.0/go.mod h1:rywoIealpdNse2r832aiD9jRk8ErCatROs6LzC841CI=
 github.com/otiai10/copy v1.14.0 h1:dCI/t1iTdYGtkvCuBG2BgR6KZa83PTclw4U5n2wAllU=

@@ -233,9 +233,10 @@ func AllTblsExceptFilmText() []string {
 
 // URLs for sakila resources.
 const (
-	URLActorCSV   = "https://sq.io/testdata/actor.csv"
-	URLSubsetXLSX = "https://sq.io/testdata/sakila_subset.xlsx"
-	URLXLSX       = "https://sq.io/testdata/sakila.xlsx"
+	ActorCSVURL    = "https://sq.io/testdata/actor.csv"
+	ActorCSVSize   = 7641
+	ExcelSubsetURL = "https://sq.io/testdata/sakila_subset.xlsx"
+	ExcelURL       = "https://sq.io/testdata/sakila.xlsx"
 )
 
 // Paths for sakila resources.

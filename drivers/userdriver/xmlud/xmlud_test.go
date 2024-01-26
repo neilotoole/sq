@@ -14,7 +14,6 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/testsrc"
-	"github.com/neilotoole/sq/testh/tu"
 )
 
 const (
@@ -22,11 +21,7 @@ const (
 	driverPpl = "ppl"
 )
 
-func TestImport_Ppl(t *testing.T) {
-	t.Cleanup(func() {
-		tu.OpenFileCount(t, true)
-	})
-
+func TestIngest_Ppl(t *testing.T) {
 	th := testh.New(t)
 
 	ext := &config.Ext{}
@@ -42,13 +37,9 @@ func TestImport_Ppl(t *testing.T) {
 		assert.NoError(t, grip.Close())
 	})
 
-	tu.OpenFileCount(t, true)
-
 	data := proj.ReadFile("drivers/userdriver/xmlud/testdata/people.xml")
 	err = xmlud.Ingest(th.Context, udDef, bytes.NewReader(data), grip)
 	require.NoError(t, err)
-
-	tu.OpenFileCount(t, true)
 
 	srcMeta, err := grip.SourceMetadata(th.Context, false)
 	require.NoError(t, err)
@@ -75,7 +66,7 @@ func TestImport_Ppl(t *testing.T) {
 	}
 }
 
-func TestImport_RSS(t *testing.T) {
+func TestIngest_RSS(t *testing.T) {
 	th := testh.New(t)
 
 	ext := &config.Ext{}

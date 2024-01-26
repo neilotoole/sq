@@ -90,7 +90,7 @@ func (fs *Files) DetectStdinType(ctx context.Context) (drivertype.Type, error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	if _, ok := fs.mStreams[source.StdinHandle]; !ok {
+	if _, ok := fs.streams[source.StdinHandle]; !ok {
 		return drivertype.None, errz.New("must invoke Files.AddStdin before invoking DetectStdinType")
 	}
 

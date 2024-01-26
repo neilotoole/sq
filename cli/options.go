@@ -18,6 +18,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/timez"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/files"
+	"github.com/neilotoole/sq/libsq/files/downloader"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
@@ -183,6 +184,8 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		files.OptHTTPRequestTimeout,
 		files.OptHTTPResponseTimeout,
 		files.OptHTTPSInsecureSkipVerify,
+		downloader.OptCache,
+		downloader.OptContinueOnError,
 		driver.OptConnMaxOpen,
 		driver.OptConnMaxIdle,
 		driver.OptConnMaxIdleTime,

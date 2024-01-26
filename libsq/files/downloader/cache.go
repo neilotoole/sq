@@ -32,25 +32,31 @@ const (
 // Use cache.paths to get the cache file paths.
 type cache struct {
 	// dir is the directory in which the cache files are stored.
-	// It is specific to a particular download.
+	// It is specific to a particular download. There are actually
+	// two subdirectories of dir: "main" and "staging". The staging dir
+	// is used to write new cache files, and on successful cache write,
+	// it is swapped with the main dir. This two-step "atomic-write-lite"
+	// exists so that a failed response read doesn't destroy the existing
+	// cache.
 	dir string
 }
 
 // paths returns the paths to the header, body, and checksum files for req.
 // It is not guaranteed that they exist.
 func (c *cache) paths(req *http.Request) (header, body, sum string) {
+	mainDir := filepath.Join(c.dir, "main")
 	if req == nil || req.Method == http.MethodGet {
-		return filepath.Join(c.dir, "header"),
-			filepath.Join(c.dir, "body"),
-			filepath.Join(c.dir, "checksums.txt")
+		return filepath.Join(mainDir, "header"),
+			filepath.Join(mainDir, "body"),
+			filepath.Join(mainDir, "checksums.txt")
 	}
 
 	// This is probably not strictly necessary because we're always
 	// using GET, but in an earlier incarnation of the code, it was relevant.
 	// Can probably delete.
-	return filepath.Join(c.dir, req.Method+"_header"),
-		filepath.Join(c.dir, req.Method+"_body"),
-		filepath.Join(c.dir, req.Method+"_checksums.txt")
+	return filepath.Join(mainDir, req.Method+"_header"),
+		filepath.Join(mainDir, req.Method+"_body"),
+		filepath.Join(mainDir, req.Method+"_checksums.txt")
 }
 
 // exists returns true if the cache exists and is consistent.
@@ -79,11 +85,12 @@ func (c *cache) exists(req *http.Request) bool {
 
 // clearIfInconsistent deletes the cache if it is inconsistent.
 func (c *cache) clearIfInconsistent(req *http.Request) error {
-	if !ioz.DirExists(c.dir) {
+	mainDir := filepath.Join(c.dir, "main")
+	if !ioz.DirExists(mainDir) {
 		return nil
 	}
 
-	entries, err := ioz.ReadDir(c.dir, false, false, false)
+	entries, err := ioz.ReadDir(mainDir, false, false, false)
 	if err != nil {
 		return err
 	}
@@ -231,74 +238,85 @@ func (c *cache) clear(ctx context.Context) error {
 	return nil
 }
 
-// write writes resp header and body to the cache, returning the number of
-// bytes written.
+// write updates the cache. If headerOnly is true, only the header cache file
+// is updated, and the function returns. Otherwise, the header and body
+// cache files are updated, and a checksum file (computed from the body file)
+// is also written to disk.
 //
-// If headerOnly is true, only the header cache file is updated.
-//
-// A checksum file, computed from the body file, is also written to disk.
+// If an error occurs while attempting to update the cache, any existing
+// cache artifacts are left untouched. It's a sort of atomic-write-lite.
+// To achieve this, cache files are first written to a staging dir, and that
+// staging dir is only swapped with the main cache dir if there are no errors.
 //
 // The response body is always closed.
-func (c *cache) write(ctx context.Context, resp *http.Response, headerOnly bool) (written int64, err error) {
-	start := time.Now()
+func (c *cache) write(ctx context.Context, resp *http.Response, headerOnly bool) (err error) {
 	log := lg.FromContext(ctx)
+	start := time.Now()
+	var stagingDir string
 
 	defer func() {
 		lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 
-		if err != nil {
-			log.Warn("Deleting cache because cache write failed", lga.Err, err, lga.Dir, c.dir)
-			lg.WarnIfError(log, msgDeleteCache, c.clear(ctx))
+		if stagingDir != "" && ioz.DirExists(stagingDir) {
+			lg.WarnIfError(log, "Remove cache staging dir", os.RemoveAll(stagingDir))
 		}
 	}()
 
-	if err = ioz.RequireDir(c.dir); err != nil {
-		return 0, err
+	mainDir := filepath.Join(c.dir, "main")
+	if err = ioz.RequireDir(mainDir); err != nil {
+		return err
+	}
+
+	stagingDir = filepath.Join(c.dir, "staging")
+	if err = ioz.RequireDir(mainDir); err != nil {
+		return err
 	}
 
 	log.Debug("Writing HTTP response header to cache", lga.Dir, c.dir, lga.Resp, resp)
-	fpHeader, fpBody, _ := c.paths(resp.Request)
-
 	headerBytes, err := httputil.DumpResponse(resp, false)
 	if err != nil {
-		return 0, errz.Err(err)
+		return errz.Err(err)
 	}
 
-	if _, err = ioz.WriteToFile(ctx, fpHeader, bytes.NewReader(headerBytes)); err != nil {
-		return written, err
+	fpHeaderStaging := filepath.Join(stagingDir, "header")
+	if _, err = ioz.WriteToFile(ctx, fpHeaderStaging, bytes.NewReader(headerBytes)); err != nil {
+		return err
 	}
 
+	fpHeader, fpBody, _ := c.paths(resp.Request)
 	if headerOnly {
-		return 0, nil
+		// It's only the header that we're changing, so we don't need to
+		// swap the entire staging dir, just the header file.
+		if err = os.Rename(fpHeaderStaging, fpHeader); err != nil {
+			return errz.Wrap(err, "failed to move staging cache header file")
+		}
+
+		return nil
 	}
 
-	cacheFile, err := os.OpenFile(fpBody, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, ioz.RWPerms)
+	fpBodyStaging := filepath.Join(stagingDir, "body")
+	var written int64
+	if written, err = ioz.WriteToFile(ctx, fpBodyStaging, resp.Body); err != nil {
+		log.Warn("Cache write: failed to write cache body file", lga.Err, err, lga.Path, fpBodyStaging)
+		return err
+	}
+
+	sum, err := checksum.ForFile(fpBodyStaging)
 	if err != nil {
-		return 0, err
+		return errz.Wrap(err, "failed to compute checksum for cache body file")
 	}
 
-	if written, err = errz.Return(io.Copy(cacheFile, resp.Body)); err != nil {
-		log.Error("Cache write: io.Copy failed", lga.Err, err)
-		lg.WarnIfCloseError(log, msgCloseCacheBodyFile, cacheFile)
-		cacheFile = nil
-		return 0, err
+	if err = checksum.WriteFile(filepath.Join(stagingDir, "checksums.txt"), sum, "body"); err != nil {
+		return errz.Wrap(err, "failed to write checksum file for cache body")
 	}
 
-	if err = errz.Err(cacheFile.Close()); err != nil {
-		cacheFile = nil
-		return 0, err
+	// We've got good data in the staging dir. Now we do the switcheroo.
+	if err = ioz.RenameDir(stagingDir, mainDir); err != nil {
+		return errz.Wrap(err, "failed to write download cache")
 	}
 
-	sum, err := checksum.ForFile(fpBody)
-	if err != nil {
-		return 0, errz.Wrap(err, "failed to compute checksum for cache body file")
-	}
-
-	if err = checksum.WriteFile(filepath.Join(c.dir, "checksums.txt"), sum, "body"); err != nil {
-		return 0, errz.Wrap(err, "failed to write checksum file for cache body")
-	}
-
+	stagingDir = ""
 	log.Info("Wrote HTTP response body to cache",
-		lga.Size, written, lga.File, fpBody, lga.Elapsed, time.Since(start).Round(time.Millisecond))
-	return written, nil
+		lga.Written, written, lga.File, fpBody, lga.Elapsed, time.Since(start).Round(time.Millisecond))
+	return nil
 }

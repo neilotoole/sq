@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -17,6 +18,35 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/testh/tu"
 )
+
+func TestSlowHeaderServer(t *testing.T) {
+	const hello = `Hello World!`
+	var srvr *httptest.Server
+	serverDelay := time.Second * 200
+	srvr = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+			t.Log("Server request context done")
+			return
+		case <-time.After(serverDelay):
+		}
+
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Length", strconv.Itoa(len(hello)))
+		_, err := w.Write([]byte(hello))
+		assert.NoError(t, err)
+	}))
+	t.Cleanup(srvr.Close)
+
+	clientHeaderTimeout := time.Second * 2
+	c := httpz.NewClient(httpz.OptRequestTimeout(clientHeaderTimeout))
+	req, err := http.NewRequest(http.MethodGet, srvr.URL, nil)
+	require.NoError(t, err)
+	resp, err := c.Do(req)
+	require.Error(t, err)
+	require.Nil(t, resp)
+	t.Log(err)
+}
 
 func TestOptRequestTimeout(t *testing.T) {
 	t.Parallel()

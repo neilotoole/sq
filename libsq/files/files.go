@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/neilotoole/streamcache"
@@ -17,26 +16,20 @@ import (
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
-	"github.com/neilotoole/sq/libsq/core/ioz/downloader"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/files/downloader"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/location"
 )
 
-// Files is the centralized API for interacting with files.
-//
-// Why does Files exist? There's a need for functionality to
-// transparently get a Reader for remote or local files, and most importantly,
-// an ability for multiple goroutines to read/sample a file while
-// it's being read (mainly to "sample" the file type, e.g. to determine
-// if it's an XLSX file etc.). See: Files.NewReader.
-//
-// TODO: move Files to its own pkg, e.g. files.New, *files.Files, etc.
+// Files is the centralized API for interacting with files. It provides
+// a uniform mechanism for reading files, whether from local disk, stdin,
+// or remote HTTP.
 type Files struct {
 	mu          sync.Mutex
 	log         *slog.Logger
@@ -45,7 +38,7 @@ type Files struct {
 	clnup       *cleanup.Cleanup
 	optRegistry *options.Registry
 
-	// mStreams is a map of source handles to streamcache.Stream
+	// streams is a map of source handles to streamcache.Stream
 	// instances: this is used to cache non-regular-file streams, such
 	// as stdin, or in-progress downloads. This streamcache mechanism
 	// permits multiple readers to access the stream. For example:
@@ -56,34 +49,30 @@ type Files struct {
 	// to read the stdin stream several times: first, to detect the type
 	// of data on stdin (via Files.DetectStdinType), and then to actually
 	// ingest the data.
-	mStreams map[string]*streamcache.Stream
+	streams map[string]*streamcache.Stream
+
+	// downloaders is a cache map of source handles to the downloader for
+	// that source: we only ever want to have one downloader per source.
+	// See Files.downloaderFor.
+	downloaders map[string]*downloader.Downloader
+
+	// downloadedFiles is a map of source handles to filepath of
+	// already downloaded files. Consulting this map allows Files
+	// to directly serve the downloaded file from disk instead of
+	// using downloader.Downloader (which typically makes an HTTP
+	// call to check the freshness of an already downloaded file).
+	downloadedFiles map[string]string
 
 	// cfgLockFn is the lock func for sq's config.
 	cfgLockFn lockfile.LockFunc
-
-	// mDownloaders is a cache map of source handles to the downloader for
-	// that source: we only ever want to have one downloader per source.
-	// See Files.downloaderFor.
-	mDownloaders map[string]*downloader.Downloader
-
-	// downloadersWg is used to wait for any downloader goroutines
-	// to complete. See
-	downloadersWg *sync.WaitGroup
-
-	// mDownloadedFiles is a map of source handles to filepath of
-	// already downloaded files. Consulting this map allows Files
-	// to directly serve the downloaded file from disk instead of
-	// using download.Download (which typically makes an HTTP
-	// call to check the freshness of an already downloaded file).
-	mDownloadedFiles map[string]string
 
 	// detectFns is the set of functions that can detect
 	// the type of a file.
 	detectFns []TypeDetectFunc
 }
 
-// New returns a new Files instance. If cleanFscache is true, the fscache
-// is cleaned on Files.Close.
+// New returns a new Files instance. The caller must invoke Files.Close
+// when done with the instance.
 func New(ctx context.Context, optReg *options.Registry, cfgLock lockfile.LockFunc,
 	tmpDir, cacheDir string,
 ) (*Files, error) {
@@ -95,16 +84,15 @@ func New(ctx context.Context, optReg *options.Registry, cfgLock lockfile.LockFun
 	}
 
 	fs := &Files{
-		log:              lg.FromContext(ctx),
-		optRegistry:      optReg,
-		cacheDir:         cacheDir,
-		tempDir:          tmpDir,
-		cfgLockFn:        cfgLock,
-		clnup:            cleanup.New(),
-		mDownloaders:     map[string]*downloader.Downloader{},
-		downloadersWg:    &sync.WaitGroup{},
-		mDownloadedFiles: map[string]string{},
-		mStreams:         map[string]*streamcache.Stream{},
+		log:             lg.FromContext(ctx),
+		optRegistry:     optReg,
+		cacheDir:        cacheDir,
+		tempDir:         tmpDir,
+		cfgLockFn:       cfgLock,
+		clnup:           cleanup.New(),
+		downloaders:     map[string]*downloader.Downloader{},
+		downloadedFiles: map[string]string{},
+		streams:         map[string]*streamcache.Stream{},
 	}
 
 	return fs, nil
@@ -113,8 +101,6 @@ func New(ctx context.Context, optReg *options.Registry, cfgLock lockfile.LockFun
 // Filesize returns the file size of src.Location. If the source is being
 // ingested asynchronously, this function may block until loading completes.
 // An error is returned if src is not a document/file source.
-// For remote files, this method should only be invoked after the file has
-// completed downloading (e.g. after ingestion), or an error may be returned.
 func (fs *Files) Filesize(ctx context.Context, src *source.Source) (size int64, err error) {
 	switch location.TypeOf(src.Location) {
 	case location.TypeLocalFile:
@@ -126,7 +112,7 @@ func (fs *Files) Filesize(ctx context.Context, src *source.Source) (size int64, 
 
 	case location.TypeStdin:
 		fs.mu.Lock()
-		stdinStream, ok := fs.mStreams[source.StdinHandle]
+		stdinStream, ok := fs.streams[source.StdinHandle]
 		fs.mu.Unlock()
 		if !ok {
 			// This is a programming error; probably should panic here.
@@ -143,7 +129,7 @@ func (fs *Files) Filesize(ctx context.Context, src *source.Source) (size int64, 
 
 		// First check if the file is already downloaded
 		// and in File's list of downloaded files.
-		dlFile, ok := fs.mDownloadedFiles[src.Handle]
+		dlFile, ok := fs.downloadedFiles[src.Handle]
 		if ok {
 			// The file is already downloaded.
 			fs.mu.Unlock()
@@ -154,9 +140,9 @@ func (fs *Files) Filesize(ctx context.Context, src *source.Source) (size int64, 
 			return fi.Size(), nil
 		}
 
-		// It's not in File's list of downloaded files, so
+		// It's not in the list of downloaded files, so
 		// check if there's an active download stream.
-		dlStream, ok := fs.mStreams[src.Handle]
+		dlStream, ok := fs.streams[src.Handle]
 		if ok {
 			fs.mu.Unlock()
 			var total int
@@ -190,20 +176,18 @@ func (fs *Files) Filesize(ctx context.Context, src *source.Source) (size int64, 
 }
 
 // AddStdin copies f to fs's cache: the stdin data in f
-// is later accessible via fs.NewReader(src) where src.Handle
-// is StdinHandle; f's type can be detected via DetectStdinType.
-// Note that f is ultimately closed by a goroutine spawned by
-// this method, but may not be closed at the time of return.
+// is later accessible via Files.NewReader(src) where src.Handle
+// is source.StdinHandle; f's type can be detected via DetectStdinType.
 func (fs *Files) AddStdin(ctx context.Context, f *os.File) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	if _, ok := fs.mStreams[source.StdinHandle]; ok {
+	if _, ok := fs.streams[source.StdinHandle]; ok {
 		return errz.Errorf("%s already added to reader cache", source.StdinHandle)
 	}
 
 	stream := streamcache.New(f)
-	fs.mStreams[source.StdinHandle] = stream
+	fs.streams[source.StdinHandle] = stream
 	lg.FromContext(ctx).With(lga.Handle, source.StdinHandle, lga.File, f.Name()).
 		Debug("Added stdin to reader cache")
 	return nil
@@ -219,15 +203,11 @@ func (fs *Files) filepath(src *source.Source) (string, error) {
 	case location.TypeLocalFile:
 		return src.Location, nil
 	case location.TypeRemoteFile:
-		dlDir, err := fs.downloadDirFor(src)
+		_, dlFile, err := fs.downloadPaths(src)
 		if err != nil {
 			return "", err
 		}
 
-		// FIXME: We shouldn't be depending on knowledge of the internal
-		// workings of download.Download here. Instead we should call
-		// some method?
-		dlFile := filepath.Join(dlDir, "body")
 		if !ioz.FileAccessible(dlFile) {
 			return "", errz.Errorf("remote file for %s not downloaded at: %s", src.Handle, dlFile)
 		}
@@ -273,7 +253,7 @@ func (fs *Files) newReader(ctx context.Context, src *source.Source, finalRdr boo
 	case location.TypeLocalFile:
 		return errz.Return(os.Open(loc))
 	case location.TypeStdin:
-		stdinStream, ok := fs.mStreams[source.StdinHandle]
+		stdinStream, ok := fs.streams[source.StdinHandle]
 		if !ok {
 			// This is a programming error: AddStdin should have been invoked first.
 			// Probably should panic here.
@@ -289,7 +269,7 @@ func (fs *Files) newReader(ctx context.Context, src *source.Source, finalRdr boo
 	}
 
 	// Is there a download in progress?
-	if dlStream, ok := fs.mStreams[src.Handle]; ok {
+	if dlStream, ok := fs.streams[src.Handle]; ok {
 		r := dlStream.NewReader(ctx)
 		if finalRdr {
 			dlStream.Seal()
@@ -298,7 +278,7 @@ func (fs *Files) newReader(ctx context.Context, src *source.Source, finalRdr boo
 	}
 
 	// Is the file already downloaded?
-	if fp, ok := fs.mDownloadedFiles[src.Handle]; ok {
+	if fp, ok := fs.downloadedFiles[src.Handle]; ok {
 		return errz.Return(os.Open(fp))
 	}
 
@@ -365,18 +345,21 @@ func (fs *Files) Ping(ctx context.Context, src *source.Source) error {
 	}
 }
 
-// Close closes any open resources and waits for any goroutines
-// to complete.
+// Close closes any open resources.
 func (fs *Files) Close() error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	fs.log.Debug("Files.Close: waiting for goroutines to complete")
-	fs.downloadersWg.Wait()
+	var err error
+	for _, stream := range fs.streams {
+		if c, ok := stream.Source().(io.Closer); ok {
+			err = errz.Append(err, c.Close())
+		}
+	}
 
-	fs.log.Debug("Files.Close: executing cleanup", lga.Count, fs.clnup.Len())
-	err := fs.clnup.Run()
+	err = errz.Append(err, fs.clnup.Run())
 	err = errz.Append(err, errz.Wrap(os.RemoveAll(fs.tempDir), "remove files temp dir"))
+
 	fs.doCacheSweep()
 
 	return err

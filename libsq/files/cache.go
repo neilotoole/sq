@@ -167,7 +167,7 @@ func (fs *Files) cachedBackingSourceForFile(ctx context.Context, src *source.Sou
 		Type:     drivertype.SQLite,
 	}
 
-	lg.FromContext(ctx).Debug("Found cached backing source DB src", lga.Src, src, "backing_src", backingSrc)
+	lg.FromContext(ctx).Debug("Found cached backing source DB", lga.Src, src, "backing_src", backingSrc)
 	return backingSrc, true, nil
 }
 
@@ -184,11 +184,11 @@ func (fs *Files) cachedBackingSourceForRemoteFile(ctx context.Context, src *sour
 	}
 
 	if downloadedFile == "" {
-		log.Debug("No cached download file for src", lga.Src, src)
+		log.Debug("No cached download file", lga.Src, src)
 		return nil, false, nil
 	}
 
-	log.Debug("Found cached download file for src", lga.Src, src, lga.Path, downloadedFile)
+	log.Debug("Found cached download file", lga.Src, src, lga.Path, downloadedFile)
 	return fs.cachedBackingSourceForFile(ctx, src)
 }
 
@@ -392,7 +392,6 @@ func (fs *Files) doCacheSweep() {
 	defer cancelFn()
 
 	log := fs.log.With(lga.Dir, fs.cacheDir)
-	log.Debug("Sweep cache dir: acquiring config lock")
 
 	if unlock, err := fs.cfgLockFn(ctx); err != nil {
 		log.Error("Sweep cache dir: failed to acquire config lock", lga.Lock, fs.cfgLockFn, lga.Err, err)

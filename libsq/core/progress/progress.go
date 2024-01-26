@@ -107,7 +107,6 @@ func Incr(ctx context.Context, n int) {
 // start ticking until the first call to one of the Progress.NewX methods.
 func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors) *Progress {
 	log := lg.FromContext(ctx)
-	log.Debug("New progress widget", "delay", delay)
 
 	if colors == nil {
 		colors = DefaultColors()
@@ -131,7 +130,6 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 	p.ctx, p.cancelFn = context.WithCancel(lg.NewContext(context.Background(), log))
 	go func() {
 		<-ctx.Done()
-		log.Debug("Stopping via go ctx done")
 		p.Stop()
 		<-p.stoppedCh
 		<-p.ctx.Done()
@@ -228,8 +226,6 @@ func (p *Progress) Stop() {
 func (p *Progress) doStop() {
 	p.stopOnce.Do(func() {
 		p.pcInitFn = nil
-		lg.FromContext(p.ctx).Debug("Stopping progress widget")
-		defer lg.FromContext(p.ctx).Debug("Stopped progress widget")
 		if p.pc == nil {
 			p.cancelFn()
 			<-p.ctx.Done()
@@ -308,8 +304,6 @@ func (p *Progress) newBar(cfg *barConfig, opts []Opt) *Bar {
 		return nil
 	default:
 	}
-
-	lg.FromContext(p.ctx).Debug("New bar", "msg", cfg.msg, "total", cfg.total)
 
 	if p.pc == nil {
 		p.pcInitFn()
@@ -461,7 +455,6 @@ func (b *Bar) doStop() {
 	}
 
 	b.barStopOnce.Do(func() {
-		lg.FromContext(b.p.ctx).Debug("Stopping progress bar")
 		if b.bar == nil {
 			close(b.barStoppedCh)
 			return
@@ -472,7 +465,6 @@ func (b *Bar) doStop() {
 		b.bar.Abort(true)
 		b.bar.Wait()
 		close(b.barStoppedCh)
-		lg.FromContext(b.p.ctx).Debug("Stopped progress bar")
 	})
 }
 
