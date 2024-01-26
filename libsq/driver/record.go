@@ -635,11 +635,16 @@ For a unique column name, e.g. "first_name" above, ".Recurrence" will be 0.
 For duplicate column names, ".Recurrence" will be 0 for the first instance,
 then 1 for the next instance, and so on.
 
+Note that this option only applies when the result set contains duplicates.
+To rename result columns generally, use a column alias. Note also that this
+config option applies globally; it cannot be set on a per-source basis. This
+is because it's ambiguous what would happen on a join where each source had
+a different renaming template.
+
 The default template renames the columns to:
 
   actor_id, first_name, last_name, last_update, actor_id_1, film_id, last_update_1`,
 	options.TagOutput,
-	options.TagSource,
 )
 
 // MungeResultColNames transforms column names, per the template defined
