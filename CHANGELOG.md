@@ -10,8 +10,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 ## Upcoming
 
 This is a significant release, focused on improving i/o, responsiveness,
-and performance. The headline feature is caching of ingested data for
-document sources such as CSV or Excel.
+and performance. The headline features are caching of ingested data for
+document sources such as CSV or Excel, and download caching for remote
+document sources.
 
 ### Added
 
@@ -41,8 +42,10 @@ document sources such as CSV or Excel.
   remote file is downloaded and cached locally. Subsequent commands check for staleness of
   the cached download, and re-download if necessary.
 - As part of the download revamp, new config options have been introduced:
-  - [`http.request.timeout`](https://sq.io/docs/config#httprequesttimeout) and
-    [`http.response.timeout`](https://sq.io/docs/config#httpresponsetimeout) control HTTP timeout.
+  - [`http.request.timeout`](https://sq.io/docs/config#httprequesttimeout) is the timeout for the initial response from the server, and
+    [`http.response.timeout`](https://sq.io/docs/config#httpresponsetimeout) is the timeout for reading the entire response body. We separate
+    these two timeouts because it's possible that the server responds quickly, but then
+    for a large file, the download takes too long.
   - [`https.insecure-skip-verify`](https://sq.io/docs/config#httpsinsecureskipverify) controls
     whether HTTPS connections verify the server's certificate. This is useful for remote files served
     with a self-signed certificate.
@@ -50,8 +53,8 @@ document sources such as CSV or Excel.
     cached locally.
   - [`download.refresh.continue-on-error`](https://sq.io/docs/config#downloadrefreshcontinueonerror)
     controls whether `sq` should continue with a stale cached download if an error
-    occurred while trying to refresh the download. This config option is a sort
-    of "Airplane Mode" for remote file sources: `sq` continues with the cached download when
+    occurred while trying to refresh the download. This is a sort
+    of "Airplane Mode" for remote document sources: `sq` continues with the cached download when
     the network is unavailable.
 - There are two more new config options introduced as part of the above work.
   - [`cache.lock.timeout`](https://sq.io/docs/config#cachelocktimeout) controls the time that
@@ -67,7 +70,8 @@ document sources such as CSV or Excel.
 
 ### Changed
 
-- Ingestion performance for `json` and `jsonl` sources has been significantly improved.
+- Ingestion performance for [`json`](https://sq.io/docs/drivers/json#json) and
+  [`jsonl`](https://sq.io/docs/drivers/json#jsonl) sources has been significantly improved.
 
 ### Fixed
 

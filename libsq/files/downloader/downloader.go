@@ -1,6 +1,8 @@
 // Package downloader provides a mechanism for getting files from
 // HTTP/S URLs, making use of a mostly RFC-compliant cache.
 //
+// The entrypoint is downloader.New.
+//
 // Acknowledgement: This package is a heavily customized fork
 // of https://github.com/gregjones/httpcache, via bitcomplete/download.
 package downloader
@@ -53,7 +55,7 @@ var OptCache = options.NewBool(
 	true,
 	"Cache downloads",
 	`Cache downloaded remote files. When false, the cache is not used and
-the file is re-downloaded for each command.`,
+the file is re-downloaded on each command.`,
 	options.TagSource,
 )
 
@@ -114,6 +116,7 @@ type Downloader struct {
 	// thus is guaranteed to be valid.
 	url string
 
+	// c is the HTTP client used to make requests.
 	c *http.Client
 
 	// continueOnError, if true, indicates that the downloader
@@ -131,16 +134,9 @@ type Downloader struct {
 	// cache will be given an extra header, X-From-cache.
 	markCachedResponses bool
 
-	// bodySize is the size of the downloaded file. It is set after
-	// the download has completed. A value of -1 indicates that it
-	// has not been set. The Downloader.Filesize method consults this value,
-	// but if not set (e.g. Downloader.Get) has not been invoked,
-	// Downloader.Filesize may use the size of the cached file on disk.
-	//
-	// REVISIT: Probably get rid of this bodySize mechanism. Maybe Downloader
-	// should hold on to a reference to the streamcache.Stream, and invoke
-	// its Stream.Total method?
-	bodySize int64
+	// dlStream is the streamcache.Stream that is returned to the caller
+	// for an active download.
+	dlStream *streamcache.Stream
 }
 
 // New returns a new Downloader for url that caches downloads in dlDir..
@@ -162,7 +158,6 @@ func New(name string, c *http.Client, dlURL, dlDir string) (*Downloader, error) 
 		url:                 dlURL,
 		markCachedResponses: true,
 		continueOnError:     true,
-		bodySize:            -1,
 		dlDir:               dlDir,
 	}
 
@@ -198,10 +193,15 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 	ctx := req.Context()
 	log := lg.FromContext(ctx)
 
-	_, fpBody, _ := dl.cache.paths(req)
+	dl.dlStream = nil
+
+	var fpBody string
+	if dl.cache != nil {
+		_, fpBody, _ = dl.cache.paths(req)
+	}
 
 	state := dl.state(req)
-	if state == Fresh {
+	if state == Fresh && fpBody != "" {
 		// The cached response is fresh, so we can return it.
 		h.Cached(fpBody)
 		return
@@ -223,7 +223,7 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 		if varyMatches(cachedResp, req) {
 			// Can only use cached value if the new request doesn't Vary significantly
 			freshness := getFreshness(cachedResp.Header, req.Header)
-			if freshness == Fresh {
+			if freshness == Fresh && fpBody != "" {
 				h.Cached(fpBody)
 				return
 			}
@@ -260,9 +260,8 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 			resp = cachedResp
 
-		case (err != nil || (resp.StatusCode >= 500)) &&
-			req.Method == http.MethodGet &&
-			canStaleOnError(cachedResp.Header, req.Header):
+		case fpBody != "" && (err != nil || (resp.StatusCode >= 500)) &&
+			req.Method == http.MethodGet && canStaleOnError(cachedResp.Header, req.Header):
 			// In case of transport failure and stale-if-error activated, returns cached content
 			// when available
 			log.Warn("Returning cached response due to transport failure", lga.Err, err)
@@ -329,7 +328,7 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 
 		if resp == cachedResp {
 			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
-			if dl.bodySize, err = dl.cache.write(ctx, resp, true); err != nil {
+			if err = dl.cache.write(ctx, resp, true); err != nil {
 				log.Error("Failed to update cache header", lga.Dir, dl.cache.dir, lga.Err, err)
 				if fp := dl.cacheFileOnError(req, err); fp != "" {
 					h.Cached(fp)
@@ -338,15 +337,17 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 				h.Error(err)
 				return
 			}
-			h.Cached(fpBody)
-			return
+			if fpBody != "" {
+				h.Cached(fpBody)
+				return
+			}
 		}
 
-		dlStream := streamcache.New(resp.Body)
-		resp.Body = dlStream.NewReader(ctx)
-		h.Uncached(dlStream)
+		dl.dlStream = streamcache.New(resp.Body)
+		resp.Body = dl.dlStream.NewReader(ctx)
+		h.Uncached(dl.dlStream)
 
-		if dl.bodySize, err = dl.cache.write(req.Context(), resp, false); err != nil {
+		if err = dl.cache.write(req.Context(), resp, false); err != nil {
 			log.Error("Failed to write download cache", lga.Dir, dl.cache.dir, lga.Err, err)
 			// We don't need to explicitly call Handler.Error here, because the caller is
 			// gets any read error when they read from the streamcache.Stream.
@@ -356,9 +357,9 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 
 	// It's not cacheable, so we can just wrap resp.Body in a streamcache
 	// and return it.
-	dlStream := streamcache.New(resp.Body)
+	dl.dlStream = streamcache.New(resp.Body)
 	resp.Body = nil // Unnecessary, but just to be explicit.
-	h.Uncached(dlStream)
+	h.Uncached(dl.dlStream)
 }
 
 // do executes the request.
@@ -453,30 +454,30 @@ func (dl *Downloader) state(req *http.Request) State {
 }
 
 // Filesize returns the size of the downloaded file. This should
-// only be invoked after the download has completed.
+// only be invoked after the download has completed or is cached,
+// as it may block until the download completes.
 func (dl *Downloader) Filesize(ctx context.Context) (int64, error) {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()
 
+	if dl.dlStream != nil {
+		// There's an active download, so we can get the filesize
+		// when the download completes.
+		size, err := dl.dlStream.Total(ctx)
+		return int64(size), err
+	}
+
 	if dl.cache == nil {
-		// There's no cache, so we can only get the value via
-		// the bodySize field.
-		if dl.bodySize < 0 {
-			return 0, errz.New("download file size not available")
-		}
-		return dl.bodySize, nil
+		return 0, errz.New("download file size not available")
 	}
 
 	req := dl.mustRequest(ctx)
 	if !dl.cache.exists(req) {
 		// It's not in the cache.
-		if dl.bodySize < 0 {
-			return 0, errz.New("download file size not available")
-		}
-		return dl.bodySize, nil
+		return 0, errz.New("download file size not available")
 	}
 
-	// It's in the cache
+	// It's in the cache.
 	_, fp, _ := dl.cache.paths(req)
 	fi, err := os.Stat(fp)
 	if err != nil {

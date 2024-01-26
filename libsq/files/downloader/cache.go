@@ -238,20 +238,18 @@ func (c *cache) clear(ctx context.Context) error {
 	return nil
 }
 
-// write writes resp header and body to the cache, returning the number of
-// body bytes written to disk.
+// write updates the cache. If headerOnly is true, only the header cache file
+// is updated, and the function returns. Otherwise, the header and body
+// cache files are updated, and a checksum file, computed from the body file,
+// is also written to disk.
 //
-// If headerOnly is true, only the header cache file is updated.
-//
-// A checksum file, computed from the body file, is also written to disk.
-//
-// If an error occurs while attempting to write to the cache, any existing
+// If an error occurs while attempting to update the cache, any existing
 // cache artifacts are left untouched. It's a sort of atomic-write-lite.
 // To achieve this, cache files are first written to a staging dir, and that
-// staging dir is only swapped with the cache dir if there are no errors.
+// staging dir is only swapped with the main cache dir if there are no errors.
 //
 // The response body is always closed.
-func (c *cache) write(ctx context.Context, resp *http.Response, headerOnly bool) (written int64, err error) {
+func (c *cache) write(ctx context.Context, resp *http.Response, headerOnly bool) (err error) {
 	log := lg.FromContext(ctx)
 	start := time.Now()
 	var stagingDir string
@@ -266,23 +264,23 @@ func (c *cache) write(ctx context.Context, resp *http.Response, headerOnly bool)
 
 	mainDir := filepath.Join(c.dir, "main")
 	if err = ioz.RequireDir(mainDir); err != nil {
-		return 0, err
+		return err
 	}
 
 	stagingDir = filepath.Join(c.dir, "staging")
 	if err = ioz.RequireDir(mainDir); err != nil {
-		return 0, err
+		return err
 	}
 
 	log.Debug("Writing HTTP response header to cache", lga.Dir, c.dir, lga.Resp, resp)
 	headerBytes, err := httputil.DumpResponse(resp, false)
 	if err != nil {
-		return 0, errz.Err(err)
+		return errz.Err(err)
 	}
 
 	fpHeaderStaging := filepath.Join(stagingDir, "header")
 	if _, err = ioz.WriteToFile(ctx, fpHeaderStaging, bytes.NewReader(headerBytes)); err != nil {
-		return 0, err
+		return err
 	}
 
 	fpHeader, fpBody, _ := c.paths(resp.Request)
@@ -290,34 +288,35 @@ func (c *cache) write(ctx context.Context, resp *http.Response, headerOnly bool)
 		// It's only the header that we're changing, so we don't need to
 		// swap the entire staging dir, just the header file.
 		if err = os.Rename(fpHeaderStaging, fpHeader); err != nil {
-			return 0, errz.Wrap(err, "failed to move staging cache header file")
+			return errz.Wrap(err, "failed to move staging cache header file")
 		}
 
-		return 0, nil
+		return nil
 	}
 
 	fpBodyStaging := filepath.Join(stagingDir, "body")
+	var written int64
 	if written, err = ioz.WriteToFile(ctx, fpBodyStaging, resp.Body); err != nil {
 		log.Error("Cache write: failed to write cache body file", lga.Err, err, lga.Path, fpBodyStaging)
-		return 0, err
+		return err
 	}
 
 	sum, err := checksum.ForFile(fpBodyStaging)
 	if err != nil {
-		return written, errz.Wrap(err, "failed to compute checksum for cache body file")
+		return errz.Wrap(err, "failed to compute checksum for cache body file")
 	}
 
 	if err = checksum.WriteFile(filepath.Join(stagingDir, "checksums.txt"), sum, "body"); err != nil {
-		return written, errz.Wrap(err, "failed to write checksum file for cache body")
+		return errz.Wrap(err, "failed to write checksum file for cache body")
 	}
 
 	// We've got good data in the staging dir. Now we do the switcheroo.
 	if err = ioz.RenameDir(stagingDir, mainDir); err != nil {
-		return 0, errz.Wrap(err, "failed to write download cache")
+		return errz.Wrap(err, "failed to write download cache")
 	}
 
 	stagingDir = ""
 	log.Info("Wrote HTTP response body to cache",
 		lga.Written, written, lga.File, fpBody, lga.Elapsed, time.Since(start).Round(time.Millisecond))
-	return written, nil
+	return nil
 }
