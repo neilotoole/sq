@@ -240,7 +240,7 @@ func (c *cache) clear(ctx context.Context) error {
 
 // write updates the cache. If headerOnly is true, only the header cache file
 // is updated, and the function returns. Otherwise, the header and body
-// cache files are updated, and a checksum file, computed from the body file,
+// cache files are updated, and a checksum file (computed from the body file)
 // is also written to disk.
 //
 // If an error occurs while attempting to update the cache, any existing

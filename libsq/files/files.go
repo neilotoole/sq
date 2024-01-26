@@ -140,7 +140,7 @@ func (fs *Files) Filesize(ctx context.Context, src *source.Source) (size int64, 
 			return fi.Size(), nil
 		}
 
-		// It's not in File's list of downloaded files, so
+		// It's not in the list of downloaded files, so
 		// check if there's an active download stream.
 		dlStream, ok := fs.streams[src.Handle]
 		if ok {

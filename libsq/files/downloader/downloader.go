@@ -360,7 +360,9 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 		if err = dl.cache.write(req.Context(), resp, false); err != nil {
 			// We don't explicitly call Handler.Error: it would be "illegal" to do so
 			// anyway, because the Handler docs state that at most one Handler callback
-			// func is ever invoked. The cache write could fail for two reasons:
+			// func is ever invoked.
+			//
+			// The cache write could fail for two reasons:
 			// - The download didn't complete successfully: that is, there was an error
 			//   reading from resp.Body. In this case, that same error will be propagated
 			//   to the Handler via the streamcache.Stream that was provided to Handler.Uncached.

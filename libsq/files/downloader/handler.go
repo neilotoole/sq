@@ -52,8 +52,8 @@ type SinkHandler struct {
 	Streams []*streamcache.Stream
 }
 
-// Reset resets the handler sinks. It also drains and
-// closes any streams that were received via Handler.Uncached.
+// Reset resets the handler sinks. It also closes the source reader of
+// any streams that were received via Handler.Uncached.
 func (sh *SinkHandler) Reset() {
 	sh.mu.Lock()
 	defer sh.mu.Unlock()
