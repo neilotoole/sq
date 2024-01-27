@@ -469,16 +469,9 @@ type columnMeta struct {
 	TableSchema           string         `db:"TABLE_SCHEMA"`
 	TableName             string         `db:"TABLE_NAME"`
 	ColumnName            string         `db:"COLUMN_NAME"`
-	OrdinalPosition       int64          `db:"ORDINAL_POSITION"`
-	ColumnDefault         sql.NullString `db:"COLUMN_DEFAULT"`
-	Nullable              sqlz.NullBool  `db:"IS_NULLABLE"`
 	DataType              string         `db:"DATA_TYPE"`
-	CharMaxLength         sql.NullInt64  `db:"CHARACTER_MAXIMUM_LENGTH"`
+	ColumnDefault         sql.NullString `db:"COLUMN_DEFAULT"`
 	CharOctetLength       sql.NullString `db:"CHARACTER_OCTET_LENGTH"`
-	NumericPrecision      sql.NullInt64  `db:"NUMERIC_PRECISION"`
-	NumericPrecisionRadix sql.NullInt64  `db:"NUMERIC_PRECISION_RADIX"`
-	NumericScale          sql.NullInt64  `db:"NUMERIC_SCALE"`
-	DateTimePrecision     sql.NullInt64  `db:"DATETIME_PRECISION"`
 	CharSetCatalog        sql.NullString `db:"CHARACTER_SET_CATALOG"`
 	CharSetSchema         sql.NullString `db:"CHARACTER_SET_SCHEMA"`
 	CharSetName           sql.NullString `db:"CHARACTER_SET_NAME"`
@@ -488,4 +481,11 @@ type columnMeta struct {
 	DomainCatalog         sql.NullString `db:"DOMAIN_CATALOG"`
 	DomainSchema          sql.NullString `db:"DOMAIN_SCHEMA"`
 	DomainName            sql.NullString `db:"DOMAIN_NAME"`
+	CharMaxLength         sql.NullInt64  `db:"CHARACTER_MAXIMUM_LENGTH"`
+	NumericPrecision      sql.NullInt64  `db:"NUMERIC_PRECISION"`
+	NumericPrecisionRadix sql.NullInt64  `db:"NUMERIC_PRECISION_RADIX"`
+	NumericScale          sql.NullInt64  `db:"NUMERIC_SCALE"`
+	DateTimePrecision     sql.NullInt64  `db:"DATETIME_PRECISION"`
+	OrdinalPosition       int64          `db:"ORDINAL_POSITION"`
+	Nullable              sqlz.NullBool  `db:"IS_NULLABLE"`
 }

@@ -22,16 +22,16 @@ type SQLiteLexer struct {
 }
 
 var SQLiteLexerLexerStaticData struct {
-	once                   sync.Once
+	PredictionContextCache *antlr.PredictionContextCache
+	atn                    *antlr.ATN
 	serializedATN          []int32
 	ChannelNames           []string
 	ModeNames              []string
 	LiteralNames           []string
 	SymbolicNames          []string
 	RuleNames              []string
-	PredictionContextCache *antlr.PredictionContextCache
-	atn                    *antlr.ATN
 	decisionToDFA          []*antlr.DFA
+	once                   sync.Once
 }
 
 func sqlitelexerLexerInit() {

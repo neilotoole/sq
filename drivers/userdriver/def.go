@@ -54,6 +54,9 @@ type TableMapping struct {
 	// Selector specifies how the table data is selected.
 	Selector string `yaml:"selector" json:"selector"`
 
+	// Comment is an optional table comment.
+	Comment string `yaml:"comment,omitempty" json:"comment,omitempty"`
+
 	// Cols is the set of columns in the table.
 	Cols []*ColMapping `yaml:"cols" json:"cols"`
 
@@ -61,9 +64,6 @@ type TableMapping struct {
 	// the primary key. Typically this is one column, but can be
 	// more than one for composite primary keys.
 	PrimaryKey []string `yaml:"primary_key" json:"primary_key"`
-
-	// Comment is an optional table comment.
-	Comment string `yaml:"comment,omitempty" json:"comment,omitempty"`
 }
 
 func (t *TableMapping) String() string {
@@ -175,9 +175,6 @@ type ColMapping struct {
 	// Selector is an optional selector for the col value, e.g. "./guid/@isPermaLink" for an attribute of an XML element.
 	Selector string `yaml:"selector,omitempty" json:"selector,omitempty"`
 
-	// Kind is the data kind, e.g. "int", "text.
-	Kind kind.Kind `yaml:"kind" json:"kind"`
-
 	// Format is an optional type format for text values, e.g. "RFC3339" for a string.
 	Format string `yaml:"format,omitempty" json:"format,omitempty"`
 
@@ -187,14 +184,17 @@ type ColMapping struct {
 	// Foreign indicates that this column is a foreign key into a parent tbl.
 	Foreign string `yaml:"foreign,omitempty" json:"foreign,omitempty"`
 
+	// Comment is an optional column comment.
+	Comment string `yaml:"comment,omitempty" json:"comment,omitempty"`
+
+	// Kind is the data kind, e.g. "int", "text.
+	Kind kind.Kind `yaml:"kind" json:"kind"`
+
 	// Unique is true if the column value is unique.
 	Unique bool `yaml:"unique,omitempty" json:"unique,omitempty"`
 
 	// Required is true if the column is required.
 	Required bool `yaml:"required" json:"required"`
-
-	// Comment is an optional column comment.
-	Comment string `yaml:"comment,omitempty" json:"comment,omitempty"`
 }
 
 func (c *ColMapping) String() string {
