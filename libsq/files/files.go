@@ -68,7 +68,9 @@ type Files struct {
 	// detectFns is the set of functions that can detect
 	// the type of a file.
 	detectFns []TypeDetectFunc
-	mu        sync.Mutex
+
+	// mu guards access to Files' internals.
+	mu sync.Mutex
 }
 
 // New returns a new Files instance. The caller must invoke Files.Close

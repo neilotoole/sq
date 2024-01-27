@@ -144,9 +144,6 @@ func (fs *Files) maybeStartDownload(ctx context.Context, src *source.Source, che
 		// That shouldn't be an issue: the up-stack Files function that
 		// acquired the lock will eventually return, releasing the lock,
 		// at which point the swap will happen. No big deal.
-		//
-		// Although, maybe we should consider using fifomu.Mutex here
-		// to ensure fairness? https://github.com/neilotoole/fifomu
 		fs.mu.Lock()
 		defer fs.mu.Unlock()
 

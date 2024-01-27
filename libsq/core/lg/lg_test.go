@@ -22,7 +22,7 @@ func TestContext(t *testing.T) {
 }
 
 func TestDepth(t *testing.T) {
-	// I'm too lazy to write a test that actually checks output
+	// I'm not motivated enough to write a test that actually checks output
 	// (e.g. by setting the log output to a bytes.Buffer), so this
 	// is just a visual check.
 	log := lgt.New(t)
