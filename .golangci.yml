@@ -152,7 +152,7 @@ linters-settings:
     # Run `go tool vet help` to see all analyzers.
     # Default: []
     disable:
-      - fieldalignment # too strict
+#      - fieldalignment # too strict
     # Settings per analyzer.
     settings:
       shadow:
@@ -626,6 +626,7 @@ issues:
       linters: [ errorlint ]
     - path: "_test\\.go"
       linters:
+        - govet
         - bodyclose
         - dupl
         - funlen

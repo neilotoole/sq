@@ -31,9 +31,9 @@ func TestSmoke(t *testing.T) {
 	// Execute a bunch of smoke test cases.
 
 	testCases := []struct {
-		a []string
 		// errBecause, if non-empty, indicates an error is expected.
 		errBecause string
+		a          []string
 	}{
 		{a: []string{"ls"}},
 		{a: []string{"ls", "-v"}},
