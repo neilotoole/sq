@@ -24,14 +24,14 @@ const (
 // Collection is a set of sources. Typically it is loaded from config
 // at a start of a run. Collection's methods are safe for concurrent use.
 type Collection struct {
+
+	// data holds the set's adata.
+	data collData
 	// mu is the mutex used by exported methods. A method
 	// should never call an exported method. Many exported methods
 	// have an internal equivalent, e.g. "IsExistingGroup" and
 	// "isExistingGroup", which should be used instead.
 	mu sync.Mutex
-
-	// data holds the set's adata.
-	data collData
 }
 
 // collData holds Collection data for the purposes of serialization
@@ -890,14 +890,14 @@ type Group struct {
 	// Name is the group name. For the root group, this is source.RootGroup ("/").
 	Name string `json:"name" yaml:"name"`
 
-	// Active is true if this is the active group in the set.
-	Active bool `json:"active" yaml:"active"`
-
 	// Sources are the direct members of the group.
 	Sources []*Source `json:"sources,omitempty" yaml:"sources,omitempty"`
 
 	// Groups holds any subgroups.
 	Groups []*Group `json:"groups,omitempty" yaml:"groups,omitempty"`
+
+	// Active is true if this is the active group in the set.
+	Active bool `json:"active" yaml:"active"`
 }
 
 // Counts returns counts for g.
