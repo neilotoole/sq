@@ -66,12 +66,22 @@ var OptHTTPSInsecureSkipVerify = options.NewBool(
 // download and cache update completion, the stream is removed from Files.streams
 // and the path to the cached file is added to Files.downloadedFiles.
 //
+// If arg checkFresh is false, and there's already a cached download on disk,
+// then the cached file is returned immediately, and no download is started.
+//
 // It is guaranteed that one (and only one) of the returned values will be non-nil.
 // REVISIT: look into use of checkFresh?
 func (fs *Files) maybeStartDownload(ctx context.Context, src *source.Source, checkFresh bool) (dlFile string,
 	dlStream *streamcache.Stream, err error,
 ) {
 	var ok bool
+
+	// If the file has just been downloaded, just return it. It doesn't
+	// matter about checkFresh.
+	if dlFile, ok = fs.downloadedFiles[src.Handle]; ok {
+		return dlFile, nil, nil
+	}
+
 	// If there's already a download in progress, then we can just return
 	// that stream.
 	if dlStream, ok = fs.streams[src.Handle]; ok {
@@ -92,6 +102,7 @@ func (fs *Files) maybeStartDownload(ctx context.Context, src *source.Source, che
 		dlFile, err = dldr.CacheFile(ctx)
 		if err == nil && dlFile != "" {
 			// The file is already on disk, so we can just return it.
+			// REVISIT: Should we add dlFile to the downloadFiles map?
 			return dlFile, nil, err
 		}
 	}
@@ -103,8 +114,8 @@ func (fs *Files) maybeStartDownload(ctx context.Context, src *source.Source, che
 		dlFileCh   = make(chan string, 1)
 	)
 
-	// Our handler simply pushes the callback values into the channels,
-	// which this main goroutine will select on below. The call
+	// Our handler simply pushes the callback values into the channels, which
+	// this main goroutine will select on at the bottom of the func. The call
 	// to downloader.Get will be executed in a newly spawned goroutine below.
 	h := downloader.Handler{
 		Cached:   func(dlFile string) { dlFileCh <- dlFile },
@@ -128,6 +139,14 @@ func (fs *Files) maybeStartDownload(ctx context.Context, src *source.Source, che
 		// forward, any clients of Files will get the cacheFile instead of
 		// the stream.
 
+		// We need to lock here because we're accessing Files.streams.
+		// So, this goroutine will block until the lock is available.
+		// That shouldn't be an issue: the up-stack Files function that
+		// acquired the lock will eventually return, releasing the lock,
+		// at which point the swap will happen. No big deal.
+		//
+		// Although, maybe we should consider using fifomu.Mutex here
+		// to ensure fairness? https://github.com/neilotoole/fifomu
 		fs.mu.Lock()
 		defer fs.mu.Unlock()
 
@@ -145,7 +164,7 @@ func (fs *Files) maybeStartDownload(ctx context.Context, src *source.Source, che
 		// and remove the stream from Files.streams.
 		fs.downloadedFiles[src.Handle] = cacheFile
 		delete(fs.streams, src.Handle)
-	}()
+	}() // end of goroutine
 
 	// Here we wait on the handler channels.
 	select {
