@@ -72,9 +72,9 @@ type ResultColumn interface {
 // baseNode is a base implementation of Node.
 type baseNode struct {
 	parent   Node
-	children []Node
 	ctx      antlr.ParseTree
 	text     string
+	children []Node
 }
 
 // ast implements ast.Node.

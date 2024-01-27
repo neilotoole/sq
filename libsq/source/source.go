@@ -52,6 +52,9 @@ var _ slog.LogValuer = (*Source)(nil)
 
 // Source describes a data source.
 type Source struct {
+
+	// Options are additional params, typically empty.
+	Options options.Options `yaml:"options,omitempty" json:"options,omitempty"`
 	// Handle is used to refer to a source, e.g. "@sakila".
 	Handle string `yaml:"handle" json:"handle"`
 
@@ -84,9 +87,6 @@ type Source struct {
 	//
 	// See also: Source.Catalog.
 	Schema string `yaml:"schema,omitempty" json:"schema,omitempty"`
-
-	// Options are additional params, typically empty.
-	Options options.Options `yaml:"options,omitempty" json:"options,omitempty"`
 }
 
 // LogValue implements slog.LogValuer.

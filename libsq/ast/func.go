@@ -25,9 +25,9 @@ var (
 
 // FuncNode models a function. For example, "COUNT()".
 type FuncNode struct {
+	fnName string
+	alias  string
 	baseNode
-	fnName      string
-	alias       string
 	proprietary bool
 }
 

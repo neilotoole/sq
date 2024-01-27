@@ -16,8 +16,8 @@ const (
 
 // LiteralNode is a leaf node representing a literal such as a number or a string.
 type LiteralNode struct {
-	baseNode
 	typ LiteralType
+	baseNode
 }
 
 // String returns a log/debug-friendly representation.

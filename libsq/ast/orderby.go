@@ -71,8 +71,8 @@ const (
 
 // OrderByTermNode is a child of OrderByNode.
 type OrderByTermNode struct {
-	baseNode
 	direction OrderByDirection
+	baseNode
 }
 
 // AddChild accepts a single child of type *SelectorNode.

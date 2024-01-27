@@ -12,14 +12,14 @@ import (
 type queryModel struct {
 	AST      *ast.AST
 	Table    *ast.TblSelectorNode
-	Joins    []*ast.JoinNode
-	Cols     []ast.ResultColumn
 	Range    *ast.RowRangeNode
 	Where    *ast.WhereNode
 	OrderBy  *ast.OrderByNode
 	GroupBy  *ast.GroupByNode
 	Having   *ast.HavingNode
 	Distinct *ast.UniqueNode
+	Joins    []*ast.JoinNode
+	Cols     []ast.ResultColumn
 }
 
 func (qm *queryModel) String() string {
