@@ -115,6 +115,7 @@ func TestBytesEncodedAsBase64(t *testing.T) {
 }
 
 func requireEqualXLSX(t *testing.T, data1, data2 []byte) {
+	t.Helper()
 	xl1, err := excelize.OpenReader(bytes.NewReader(data1))
 	require.NoError(t, err)
 
@@ -145,6 +146,7 @@ func requireEqualXLSX(t *testing.T, data1, data2 []byte) {
 }
 
 func readCellValue(t *testing.T, fpath, sheet, cell string) string {
+	t.Helper()
 	xl, err := excelize.OpenFile(fpath)
 	require.NoError(t, err)
 

@@ -51,17 +51,17 @@ type TestRun struct {
 // commands to use the same config.
 //
 // You can also use TestRun.Reset to reuse a TestRun instance.
-func New(ctx context.Context, t testing.TB, from *TestRun) *TestRun {
+func New(ctx context.Context, tb testing.TB, from *TestRun) *TestRun { //nolint:thelper
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
 	if !lg.InContext(ctx) {
 		// FIXME: Get rid of this abomination
-		ctx = lg.NewContext(ctx, lgt.New(t))
+		ctx = lg.NewContext(ctx, lgt.New(tb))
 	}
 
-	tr := &TestRun{T: t, Context: ctx, mu: &sync.Mutex{}}
+	tr := &TestRun{T: tb, Context: ctx, mu: &sync.Mutex{}}
 
 	var cfgStore config.Store
 	var cacheDir string
@@ -71,7 +71,7 @@ func New(ctx context.Context, t testing.TB, from *TestRun) *TestRun {
 		tr.hushOutput = from.hushOutput
 	}
 
-	tr.Run, tr.Out, tr.ErrOut = newRun(ctx, t, cfgStore, cacheDir)
+	tr.Run, tr.Out, tr.ErrOut = newRun(ctx, tb, cfgStore, cacheDir)
 	o := options.Merge(options.FromContext(ctx), tr.Run.Config.Options)
 	tr.Context = options.NewContext(ctx, o)
 	return tr
@@ -83,7 +83,9 @@ func New(ctx context.Context, t testing.TB, from *TestRun) *TestRun {
 // these buffers can be written to t.Log() if desired.
 //
 // If cfgStore is nil, a new one is created in a temp dir.
-func newRun(ctx context.Context, t testing.TB,
+//
+//nolint:thelper
+func newRun(ctx context.Context, tb testing.TB,
 	cfgStore config.Store, cacheDir string,
 ) (ru *run.Run, out, errOut *bytes.Buffer) {
 	out = &bytes.Buffer{}
@@ -97,16 +99,16 @@ func newRun(ctx context.Context, t testing.TB,
 	if cfgStore == nil {
 		var cfgDir string
 		cfgDir, err = os.MkdirTemp("", "sq_test")
-		require.NoError(t, err)
+		require.NoError(tb, err)
 		cfgStore = &yamlstore.Store{
 			Path:            filepath.Join(cfgDir, "sq.yml"),
 			OptionsRegistry: optsReg,
 		}
 		cfg = config.New()
-		require.NoError(t, cfgStore.Save(ctx, cfg))
+		require.NoError(tb, cfgStore.Save(ctx, cfg))
 	} else {
 		cfg, err = cfgStore.Load(ctx)
-		require.NoError(t, err)
+		require.NoError(tb, err)
 	}
 
 	ru = &run.Run{
@@ -129,19 +131,19 @@ func newRun(ctx context.Context, t testing.TB,
 	// the test runs may execute in parallel inside the same test binary
 	// process, thus breaking the pid-based lockfile mechanism.
 	if cacheDir == "" {
-		cacheDir = tu.CacheDir(t, false)
+		cacheDir = tu.CacheDir(tb, false)
 	}
 
 	ru.Files, err = files.New(
 		ctx,
 		ru.OptionsRegistry,
-		testh.TempLockFunc(t),
-		tu.TempDir(t, false),
+		testh.TempLockFunc(tb),
+		tu.TempDir(tb, false),
 		cacheDir,
 	)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
-	require.NoError(t, cli.FinishRunInit(ctx, ru))
+	require.NoError(tb, cli.FinishRunInit(ctx, ru))
 	return ru, out, errOut
 }
 

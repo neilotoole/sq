@@ -546,13 +546,17 @@ linters:
     - noctx # finds sending http request without context.Context
     - nolintlint # reports ill-formed or insufficient nolint directives
     - nosprintfhostport # checks for misuse of Sprintf to construct a host with port in a URL
+    - perfsprint # checks for performance issues with fmt.Sprintf
     - predeclared # finds code that shadows one of Go's predeclared identifiers
     - promlinter # checks Prometheus metrics naming via promlint
     - reassign # checks that package variables are not reassigned
     - revive # fast, configurable, extensible, flexible, and beautiful linter for Go, drop-in replacement of golint
+    - sloglint # ensure consistent code style when using log/slog.
     - stylecheck # is a replacement for golint
+    # - tagalign # check that struct tags are well aligned.
     - tenv # detects using os.Setenv instead of t.Setenv since Go1.17
     - testableexamples # checks if examples are testable (have an expected output)
+    - thelper # detects golang test helpers without t.Helper() call and checks the consistency of test helpers
     - tparallel # detects inappropriate usage of t.Parallel() method in your Go test codes
     - unconvert # removes unnecessary type conversions
     - unparam # reports unused function parameters

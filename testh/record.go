@@ -28,7 +28,7 @@ var (
 // may be inconsistent.
 //
 // This function effectively exists to speed up testing times.
-func RecordsFromTbl(tb testing.TB, handle, tbl string) (recMeta record.Meta, recs []record.Record) {
+func RecordsFromTbl(tb testing.TB, handle, tbl string) (recMeta record.Meta, recs []record.Record) { //nolint:thelper
 	recSinkMu.Lock()
 	defer recSinkMu.Unlock()
 

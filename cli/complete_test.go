@@ -23,10 +23,11 @@ import (
 )
 
 // testComplete is a helper for testing cobra completion.
-func testComplete(t testing.TB, from *testrun.TestRun, args ...string) completion {
+func testComplete(tb testing.TB, from *testrun.TestRun, args ...string) completion {
+	tb.Helper()
 	var ctx context.Context
 	if from == nil {
-		ctx = lg.NewContext(context.Background(), lgt.New(t))
+		ctx = lg.NewContext(context.Background(), lgt.New(tb))
 	} else {
 		ctx = from.Context
 	}
@@ -34,11 +35,11 @@ func testComplete(t testing.TB, from *testrun.TestRun, args ...string) completio
 	// Enable completion logging.
 	ctx = options.NewContext(ctx, options.Options{cli.OptShellCompletionLog.Key(): true})
 
-	tr := testrun.New(ctx, t, from)
+	tr := testrun.New(ctx, tb, from)
 	args = append([]string{cobra.ShellCompRequestCmd}, args...)
 
 	err := tr.Exec(args...)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	c := parseCompletion(tr)
 	return c

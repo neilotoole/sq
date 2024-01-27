@@ -110,17 +110,17 @@ type Helper struct {
 
 // New returns a new Helper. The helper's Close func will be
 // automatically invoked via t.Cleanup.
-func New(t testing.TB, opts ...Option) *Helper {
+func New(tb testing.TB, opts ...Option) *Helper { //nolint:thelper
 	h := &Helper{
-		T:       t,
+		T:       tb,
 		Cleanup: cleanup.New(),
 	}
 
 	ctx, cancelFn := context.WithCancel(context.Background())
 	h.cancelFn = cancelFn
 
-	h.Context = lg.NewContext(ctx, lgt.New(t))
-	t.Cleanup(h.Close)
+	h.Context = lg.NewContext(ctx, lgt.New(tb))
+	tb.Cleanup(h.Close)
 
 	for _, opt := range opts {
 		opt(h)
@@ -132,15 +132,15 @@ func New(t testing.TB, opts ...Option) *Helper {
 // NewWith is a convenience wrapper for New, that also returns
 // the source.Source for handle, the driver.SQLDriver, driver.Grip,
 // and the *sql.DB.
-func NewWith(t testing.TB, handle string) (*Helper, *source.Source, //nolint:revive
+func NewWith(tb testing.TB, handle string) (*Helper, *source.Source, //nolint:revive,thelper
 	driver.SQLDriver, driver.Grip, *sql.DB,
 ) {
-	th := New(t)
+	th := New(tb)
 	src := th.Source(handle)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	return th, src, drvr, grip, db
 }
@@ -846,7 +846,7 @@ func (h *Helper) DiffDB(src *source.Source) {
 	})
 }
 
-func mustLoadCollection(ctx context.Context, t testing.TB) *source.Collection {
+func mustLoadCollection(ctx context.Context, tb testing.TB) *source.Collection { //nolint:thelper
 	hookExpand := func(data []byte) ([]byte, error) {
 		// expand vars such as "${SQ_ROOT}"
 		return []byte(proj.Expand(string(data))), nil
@@ -860,19 +860,20 @@ func mustLoadCollection(ctx context.Context, t testing.TB) *source.Collection {
 	cli.RegisterDefaultOpts(store.OptionsRegistry)
 
 	cfg, err := store.Load(ctx)
-	require.NoError(t, err)
-	require.NotNil(t, cfg)
-	require.NotNil(t, cfg.Collection)
+	require.NoError(tb, err)
+	require.NotNil(tb, cfg)
+	require.NotNil(tb, cfg.Collection)
 
 	return cfg.Collection
 }
 
 // DriverDefsFrom builds DriverDef values from cfg files.
-func DriverDefsFrom(t testing.TB, cfgFiles ...string) []*userdriver.DriverDef {
+func DriverDefsFrom(tb testing.TB, cfgFiles ...string) []*userdriver.DriverDef {
+	tb.Helper()
 	var userDriverDefs []*userdriver.DriverDef
 	for _, f := range cfgFiles {
 		ext := &config.Ext{}
-		require.NoError(t, ioz.UnmarshallYAML(proj.ReadFile(f), ext))
+		require.NoError(tb, ioz.UnmarshallYAML(proj.ReadFile(f), ext))
 		userDriverDefs = append(userDriverDefs, ext.UserDrivers...)
 	}
 	return userDriverDefs
@@ -893,24 +894,27 @@ func DriverDetectors() []files.TypeDetectFunc {
 
 // SetBuildVersion sets the build version for the lifecycle
 // of test t.
-func SetBuildVersion(t testing.TB, vers string) {
+func SetBuildVersion(tb testing.TB, vers string) {
+	tb.Helper()
 	prevVers := buildinfo.Version
-	t.Setenv(buildinfo.EnvOverrideVersion, vers)
+	tb.Setenv(buildinfo.EnvOverrideVersion, vers)
 	buildinfo.Version = vers
-	t.Cleanup(func() {
+	tb.Cleanup(func() {
 		buildinfo.Version = prevVers
 	})
 }
 
 // TempLockfile returns a lockfile.Lockfile that uses a temp file.
-func TempLockfile(t testing.TB) lockfile.Lockfile {
-	return lockfile.Lockfile(tu.TempFile(t, "pid.lock", false))
+func TempLockfile(tb testing.TB) lockfile.Lockfile {
+	tb.Helper()
+	return lockfile.Lockfile(tu.TempFile(tb, "pid.lock", false))
 }
 
 // TempLockFunc returns a lockfile.LockFunc that uses a temp file.
-func TempLockFunc(t testing.TB) lockfile.LockFunc {
+func TempLockFunc(tb testing.TB) lockfile.LockFunc {
+	tb.Helper()
 	return func(ctx context.Context) (unlock func(), err error) {
-		lock := TempLockfile(t)
+		lock := TempLockfile(tb)
 		timeout := config.OptConfigLockTimeout.Default()
 		if err = lock.Lock(ctx, timeout); err != nil {
 			return nil, err
@@ -918,7 +922,7 @@ func TempLockFunc(t testing.TB) lockfile.LockFunc {
 
 		return func() {
 			if err := lock.Unlock(); err != nil {
-				t.Logf("failed to release temp lock: %v", err)
+				tb.Logf("failed to release temp lock: %v", err)
 			}
 		}, nil
 	}
@@ -927,14 +931,15 @@ func TempLockFunc(t testing.TB) lockfile.LockFunc {
 // ExtractHandlesFromQuery returns all handles mentioned in the query.
 // If failOnErr is true, the test will fail on any parse error; otherwise,
 // the test will log the error and return an empty slice.
-func ExtractHandlesFromQuery(t testing.TB, query string, failOnErr bool) []string {
+func ExtractHandlesFromQuery(tb testing.TB, query string, failOnErr bool) []string {
+	tb.Helper()
 	a, err := ast.Parse(lg.Discard(), query)
 	if err != nil {
 		if failOnErr {
-			require.NoError(t, err)
+			require.NoError(tb, err)
 			return nil
 		}
-		t.Logf("Failed to parse query: >> %s << : %v", query, err)
+		tb.Logf("Failed to parse query: >> %s << : %v", query, err)
 		return []string{}
 	}
 

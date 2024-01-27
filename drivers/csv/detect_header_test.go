@@ -35,6 +35,7 @@ func Test_detectHeaderRow(t *testing.T) {
 }
 
 func readAllRecs(t *testing.T, comma rune, fp string) [][]string {
+	t.Helper()
 	b, err := os.ReadFile(fp)
 	require.NoError(t, err)
 

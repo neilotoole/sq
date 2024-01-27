@@ -218,18 +218,19 @@ var (
 
 // DirCopy copies the contents of sourceDir to a temp dir.
 // If keep is false, temp dir will be cleaned up on test exit.
-func DirCopy(t testing.TB, sourceDir string, keep bool) (tmpDir string) {
+func DirCopy(tb testing.TB, sourceDir string, keep bool) (tmpDir string) {
+	tb.Helper()
 	var err error
 	if keep {
-		tmpDir, err = os.MkdirTemp("", sanitizeTestName(t.Name())+"_*")
-		require.NoError(t, err)
+		tmpDir, err = os.MkdirTemp("", sanitizeTestName(tb.Name())+"_*")
+		require.NoError(tb, err)
 	} else {
-		tmpDir = t.TempDir()
+		tmpDir = tb.TempDir()
 	}
 
 	err = copy.Copy(sourceDir, tmpDir)
-	require.NoError(t, err)
-	t.Logf("Copied %s -> %s", sourceDir, tmpDir)
+	require.NoError(tb, err)
+	tb.Logf("Copied %s -> %s", sourceDir, tmpDir)
 	return tmpDir
 }
 
@@ -259,10 +260,10 @@ func sanitizeTestName(name string) string {
 	return pattern
 }
 
-// Writer returns an io.Writer whose Write method invokes t.Log.
+// Writer returns an io.Writer whose Write method invokes tb.Log.
 // A newline is prepended to the log output.
-func Writer(t testing.TB) io.Writer {
-	return &tWriter{t}
+func Writer(tb testing.TB) io.Writer { //nolint:thelper
+	return &tWriter{tb}
 }
 
 var _ io.Writer = (*tWriter)(nil)
@@ -285,27 +286,28 @@ func (t *tWriter) Write(p []byte) (n int, err error) {
 // to a temp dir. On test conclusion, the original working dir is restored,
 // and the temp dir deleted (if applicable). The absolute path
 // of the changed working dir is returned.
-func Chdir(t testing.TB, dir string) (absDir string) {
+func Chdir(tb testing.TB, dir string) (absDir string) {
+	tb.Helper()
 	origDir, err := os.Getwd()
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	if filepath.IsAbs(dir) {
 		absDir = dir
 	} else {
 		absDir, err = filepath.Abs(dir)
-		require.NoError(t, err)
+		require.NoError(tb, err)
 	}
 
 	if dir == "" {
-		tmpDir := t.TempDir()
-		t.Cleanup(func() {
+		tmpDir := tb.TempDir()
+		tb.Cleanup(func() {
 			_ = os.Remove(tmpDir)
 		})
 		dir = tmpDir
 	}
 
-	require.NoError(t, os.Chdir(dir))
-	t.Cleanup(func() {
+	require.NoError(tb, os.Chdir(dir))
+	tb.Cleanup(func() {
 		_ = os.Chdir(origDir)
 	})
 
@@ -315,20 +317,21 @@ func Chdir(t testing.TB, dir string) (absDir string) {
 // WriteTemp writes b to a temporary file. The pattern arg
 // is used to generate the file name, per os.CreateTemp.
 // If cleanup is true, the file is deleted on test cleanup.
-func WriteTemp(t testing.TB, pattern string, b []byte, cleanup bool) (fpath string) {
+func WriteTemp(tb testing.TB, pattern string, b []byte, cleanup bool) (fpath string) {
+	tb.Helper()
 	f, err := os.CreateTemp("", pattern)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	written, err := f.Write(b)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	fpath = f.Name()
-	require.NoError(t, f.Close())
+	require.NoError(tb, f.Close())
 
-	t.Logf("Wrote %d bytes to: %s", written, fpath)
+	tb.Logf("Wrote %d bytes to: %s", written, fpath)
 
 	if cleanup {
-		t.Cleanup(func() {
-			assert.NoError(t, os.Remove(fpath))
+		tb.Cleanup(func() {
+			assert.NoError(tb, os.Remove(fpath))
 		})
 	}
 	return fpath
@@ -346,61 +349,67 @@ func MustAbsFilepath(elems ...string) string {
 }
 
 // MustStat invokes os.Stat on fp, and fails t on error.
-func MustStat(t testing.TB, fp string) os.FileInfo {
+func MustStat(tb testing.TB, fp string) os.FileInfo {
+	tb.Helper()
 	fi, err := os.Stat(fp)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	return fi
 }
 
 // TempDir is the standard means for obtaining a temp dir for tests.
 // If arg clean is true, the temp dir is created via t.TempDir, and
 // thus is deleted on test cleanup.
-func TempDir(t testing.TB, clean bool) string {
+func TempDir(tb testing.TB, clean bool) string {
+	tb.Helper()
 	if clean {
-		return filepath.Join(t.TempDir(), "sq-test", "tmp")
+		return filepath.Join(tb.TempDir(), "sq-test", "tmp")
 	}
 
 	fp := filepath.Join(os.TempDir(), "sq-test", stringz.Uniq8(), "tmp")
-	require.NoError(t, ioz.RequireDir(fp))
+	require.NoError(tb, ioz.RequireDir(fp))
 	return fp
 }
 
 // TempFile returns the path to a temp file with the given name, in a unique
 // temp dir. The file is not created. If arg clean is true, the parent temp
 // dir is created via t.TempDir, and thus is deleted on test cleanup.
-func TempFile(t testing.TB, name string, clean bool) string {
-	fp := filepath.Join(TempDir(t, clean), name)
+func TempFile(tb testing.TB, name string, clean bool) string {
+	tb.Helper()
+	fp := filepath.Join(TempDir(tb, clean), name)
 	return fp
 }
 
 // CacheDir is the standard means for obtaining a cache dir for tests.
 // If arg clean is true, the cache dir is created via t.TempDir, and
 // thus is deleted on test cleanup.
-func CacheDir(t testing.TB, clean bool) string {
+func CacheDir(tb testing.TB, clean bool) string {
+	tb.Helper()
 	if clean {
-		return filepath.Join(t.TempDir(), "sq-test", "cache")
+		return filepath.Join(tb.TempDir(), "sq-test", "cache")
 	}
 
 	fp := filepath.Join(os.TempDir(), "sq-test", stringz.Uniq8(), "cache")
-	require.NoError(t, ioz.RequireDir(fp))
+	require.NoError(tb, ioz.RequireDir(fp))
 	return fp
 }
 
 // ReadFileToString invokes ioz.ReadFileToString, failing t if
 // an error occurs.
-func ReadFileToString(t testing.TB, name string) string {
+func ReadFileToString(tb testing.TB, name string) string {
+	tb.Helper()
 	s, err := ioz.ReadFileToString(name)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	return s
 }
 
 // ReadToString reads all bytes from r and returns them as a string.
 // If r is an io.Closer, it is closed.
-func ReadToString(t testing.TB, r io.Reader) string {
+func ReadToString(tb testing.TB, r io.Reader) string {
+	tb.Helper()
 	b, err := io.ReadAll(r)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	if r, ok := r.(io.Closer); ok {
-		require.NoError(t, r.Close())
+		require.NoError(tb, r.Close())
 	}
 	return string(b)
 }
@@ -413,8 +422,9 @@ func ReadToString(t testing.TB, r io.Reader) string {
 // If arg log is true, the output of lsof is logged.
 //
 // This function is skipped on Windows.
-func OpenFileCount(t testing.TB, log bool, label string) int {
-	count, out := doOpenFileCount(t)
+func OpenFileCount(tb testing.TB, log bool, label string) int {
+	tb.Helper()
+	count, out := doOpenFileCount(tb)
 	var msg string
 
 	if label != "" {
@@ -426,16 +436,17 @@ func OpenFileCount(t testing.TB, log bool, label string) int {
 	if log {
 		msg += "\n\n" + out
 	}
-	t.Log(msg)
+	tb.Log(msg)
 	return count
 }
 
-func doOpenFileCount(t testing.TB) (count int, out string) {
-	SkipWindows(t, "OpenFileCount not implemented on Windows")
+func doOpenFileCount(tb testing.TB) (count int, out string) {
+	tb.Helper()
+	SkipWindows(tb, "OpenFileCount not implemented on Windows")
 
 	c := fmt.Sprintf("lsof -p %v", os.Getpid())
 	b, err := exec.Command("/bin/sh", "-c", c).Output()
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	lines := strings.Split(string(b), "\n")
 	count = len(lines) - 1
 	return count, string(b)
@@ -444,26 +455,28 @@ func doOpenFileCount(t testing.TB) (count int, out string) {
 // DiffOpenFileCount is a debugging function that compares the
 // open file count at the start of the test with the count at
 // the end of the test (via t.Cleanup). This function is skipped on Windows.
-func DiffOpenFileCount(t testing.TB, log bool) {
-	openingCount, openingOut := doOpenFileCount(t)
+func DiffOpenFileCount(tb testing.TB, log bool) {
+	tb.Helper()
+	openingCount, openingOut := doOpenFileCount(tb)
 	if log {
-		t.Logf("START: Open files for pid [%d]: %d\n\n%s", os.Getpid(), openingCount, openingOut)
+		tb.Logf("START: Open files for pid [%d]: %d\n\n%s", os.Getpid(), openingCount, openingOut)
 	}
-	t.Cleanup(func() {
-		closingCount, closingOut := doOpenFileCount(t)
+	tb.Cleanup(func() {
+		closingCount, closingOut := doOpenFileCount(tb)
 		if log {
-			t.Logf("END: Open files for pid [%d]: %d\n\n%s", os.Getpid(), closingCount, closingOut)
+			tb.Logf("END: Open files for pid [%d]: %d\n\n%s", os.Getpid(), closingCount, closingOut)
 		}
 		if openingCount != closingCount {
-			t.Logf("Open file count changed from %d to %d", openingCount, closingCount)
+			tb.Logf("Open file count changed from %d to %d", openingCount, closingCount)
 		} else {
-			t.Logf("Open file count unchanged: %d", openingCount)
+			tb.Logf("Open file count unchanged: %d", openingCount)
 		}
 	})
 }
 
 // UseProxy sets HTTP_PROXY and HTTPS_PROXY to localhost:9001.
-func UseProxy(t testing.TB) {
-	t.Setenv("HTTP_PROXY", "http://localhost:9001")
-	t.Setenv("HTTPS_PROXY", "http://localhost:9001")
+func UseProxy(tb testing.TB) {
+	tb.Helper()
+	tb.Setenv("HTTP_PROXY", "http://localhost:9001")
+	tb.Setenv("HTTPS_PROXY", "http://localhost:9001")
 }
