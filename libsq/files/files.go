@@ -31,10 +31,7 @@ import (
 // a uniform mechanism for reading files, whether from local disk, stdin,
 // or remote HTTP.
 type Files struct {
-	mu          sync.Mutex
 	log         *slog.Logger
-	cacheDir    string
-	tempDir     string
 	clnup       *cleanup.Cleanup
 	optRegistry *options.Registry
 
@@ -66,9 +63,13 @@ type Files struct {
 	// cfgLockFn is the lock func for sq's config.
 	cfgLockFn lockfile.LockFunc
 
+	cacheDir string
+	tempDir  string
+
 	// detectFns is the set of functions that can detect
 	// the type of a file.
 	detectFns []TypeDetectFunc
+	mu        sync.Mutex
 }
 
 // New returns a new Files instance. The caller must invoke Files.Close

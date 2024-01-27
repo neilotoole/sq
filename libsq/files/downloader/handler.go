@@ -39,7 +39,6 @@ type Handler struct {
 // callbacks it receives. This is used for testing.
 type SinkHandler struct {
 	Handler
-	mu  sync.Mutex
 	log *slog.Logger
 
 	// Errors records the errors received via Handler.Error.
@@ -50,6 +49,7 @@ type SinkHandler struct {
 
 	// Streams records the streams received via Handler.Uncached.
 	Streams []*streamcache.Stream
+	mu      sync.Mutex
 }
 
 // Reset resets the handler sinks. It also closes the source reader of
