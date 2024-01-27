@@ -21,16 +21,16 @@ import (
 
 // grip implements driver.Grip.
 type grip struct {
-	log  *slog.Logger
-	db   *sql.DB
-	src  *source.Source
-	drvr *driveri
+	closeErr error
+	log      *slog.Logger
+	db       *sql.DB
+	src      *source.Source
+	drvr     *driveri
 
 	// closeOnce and closeErr are used to ensure that Close is only called once.
 	// This is particularly relevant to sqlite, as calling Close multiple times
 	// can cause problems on Windows.
 	closeOnce sync.Once
-	closeErr  error
 }
 
 // DB implements driver.Grip.

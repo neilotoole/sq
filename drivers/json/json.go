@@ -57,10 +57,10 @@ func (d *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 
 // Driver implements driver.Driver.
 type driveri struct {
-	typ      drivertype.Type
-	ingestFn ingestFunc
 	ingester driver.GripOpenIngester
+	ingestFn ingestFunc
 	files    *files.Files
+	typ      drivertype.Type
 }
 
 // DriverMetadata implements driver.Driver.

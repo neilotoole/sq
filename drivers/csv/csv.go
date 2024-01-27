@@ -40,10 +40,10 @@ func (d *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 
 // Driver implements driver.Driver.
 type driveri struct {
-	log      *slog.Logger
-	typ      drivertype.Type
 	ingester driver.GripOpenIngester
+	log      *slog.Logger
 	files    *files.Files
+	typ      drivertype.Type
 }
 
 // DriverMetadata implements driver.Driver.
