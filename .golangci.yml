@@ -521,6 +521,7 @@ linters:
     - exportloopref # checks for pointers to enclosing loop variables
     - forbidigo # forbids identifiers
     - funlen # tool for detection of long functions
+    - gocheckcompilerdirectives
     - gochecknoinits # checks that no init functions are present in Go code
     - gocognit # computes and checks the cognitive complexity of functions
     - goconst # finds repeated strings that could be replaced by a constant
@@ -529,10 +530,11 @@ linters:
     - godot # checks if comments end in a period
     - gofumpt
     - goimports # in addition to fixing imports, goimports also formats your code in the same style as gofmt
-#    - gomoddirectives # manages the use of 'replace', 'retract', and 'excludes' directives in go.mod
+    - gomoddirectives # manages the use of 'replace', 'retract', and 'excludes' directives in go.mod
     - gomodguard # allow and block lists linter for direct Go module dependencies. This is different from depguard where there are different block types for example version constraints and module recommendations
     - goprintffuncname # checks that printf-like functions are named with f at the end
     - gosec # inspects source code for security problems
+    - grouper # analyzes expression groups
     - lll # reports long lines
     - loggercheck # checks key value pairs for common logger libraries (kitlog,klog,logr,zap)
     - makezero # finds slice declarations with non-zero initial length
@@ -565,7 +567,7 @@ linters:
     ## you may want to enable
     #- decorder # checks declaration order and count of types, constants, variables and functions
     #- exhaustruct # checks if all structure fields are initialized
-    #- gochecknoglobals # checks that no global variables exist
+#    - gochecknoglobals # checks that no global variables exist
     #- godox # detects FIXME, TODO and other comment keywords
     #- goheader # checks is file header matches to pattern
     #- gomnd # detects magic numbers
@@ -577,7 +579,7 @@ linters:
 
     ## disabled
     #- containedctx # detects struct contained context.Context field
-    #- contextcheck # [too many false positives] checks the function whether use a non-inherited context
+    # - contextcheck # [too many false positives] checks the function whether use a non-inherited context
     #- depguard # [replaced by gomodguard] checks if package imports are in a list of acceptable packages
     #- dogsled # checks assignments with too many blank identifiers (e.g. x, _, _, _, := f())
     #- dupword # [useless without config] checks for duplicate words in the source code
