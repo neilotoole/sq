@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 	"unicode"
@@ -21,25 +20,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
-
-// SkipIff skips t if b is true. If msgAndArgs is non-empty, its first
-// element must be a string, which can be a format string if there are
-// additional elements.
-//
-// Examples:
-//
-//	tu.SkipIff(t, a == b)
-//	tu.SkipIff(t, a == b, "skipping because a == b")
-//	tu.SkipIff(t, a == b, "skipping because a is %v and b is %v", a, b)
-func SkipIff(t testing.TB, b bool, format string, args ...any) {
-	if b {
-		if format == "" {
-			t.SkipNow()
-		} else {
-			t.Skipf(format, args...)
-		}
-	}
-}
 
 // StructFieldValue extracts the value of fieldName from arg strct.
 // If strct is nil, nil is returned.
@@ -225,13 +205,6 @@ func Name(args ...any) string {
 	return s
 }
 
-// SkipShort invokes t.Skip if testing.Short and arg skip are both true.
-func SkipShort(t testing.TB, skip bool) {
-	if skip && testing.Short() {
-		t.Skip("Skipping long-running test because -short is true.")
-	}
-}
-
 // AssertCompareFunc matches several of the testify/require funcs.
 // It can be used to choose assertion comparison funcs in test cases.
 type AssertCompareFunc func(require.TestingT, any, any, ...any)
@@ -337,20 +310,6 @@ func Chdir(t testing.TB, dir string) (absDir string) {
 	})
 
 	return absDir
-}
-
-// SkipWindows skips t if running on Windows.
-func SkipWindows(t testing.TB, format string, args ...any) {
-	if runtime.GOOS == "windows" {
-		t.Skipf(format, args...)
-	}
-}
-
-// SkipWindowsIf skips t if running on Windows and b is true.
-func SkipWindowsIf(t testing.TB, b bool, format string, args ...any) {
-	if runtime.GOOS == "windows" && b {
-		t.Skipf(format, args...)
-	}
 }
 
 // WriteTemp writes b to a temporary file. The pattern arg

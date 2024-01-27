@@ -34,7 +34,7 @@ func TestSakila_SQL(t *testing.T) { //nolint:tparallel
 
 // TestSakila_XLSX is a sanity check for Sakila XLSX test sources.
 func TestSakila_XLSX(t *testing.T) {
-	tu.SkipWindows(t, "XLSX fails on windows pipeline (too slow)")
+	tu.SkipIssueWindows(t, tu.GH371ExcelSlowWin)
 
 	handles := []string{sakila.XLSXSubset}
 	// TODO: Add sakila.XLSX to handles when performance is reasonable
