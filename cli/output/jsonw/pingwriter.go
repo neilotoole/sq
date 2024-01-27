@@ -30,7 +30,7 @@ func (p pingWriter) Open(_ []*source.Source) error {
 
 // Result implements output.PingWriter.
 func (p pingWriter) Result(src *source.Source, d time.Duration, err error) error {
-	r := struct {
+	r := struct { //nolint:govet // field alignment
 		*source.Source
 		Pong     bool          `json:"pong"`
 		Duration time.Duration `json:"duration"`

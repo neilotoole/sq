@@ -66,7 +66,7 @@ func (w *mdWriter) Catalogs(currentCatalog string, catalogs []string) error {
 	if len(catalogs) == 0 {
 		return nil
 	}
-	type cat struct {
+	type cat struct { //nolint:govet // field alignment
 		Name   string `json:"catalog"`
 		Active *bool  `json:"active,omitempty"`
 	}
@@ -89,7 +89,7 @@ func (w *mdWriter) Schemata(currentSchema string, schemas []*metadata.Schema) er
 
 	// We wrap each schema in a struct that has an "active" field,
 	// because we need to show the current schema in the output.
-	type wrapper struct {
+	type wrapper struct { //nolint:govet // field alignment
 		metadata.Schema `json:",omitempty,inline"`
 		Active          *bool `json:"active,omitempty"`
 	}

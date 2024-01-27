@@ -677,6 +677,8 @@ func locCompParseLoc(loc string) (*parsedLoc, error) {
 // It can represent partial or fully constructed locations. The stage
 // of construction is noted in parsedLoc.stageDone.
 type parsedLoc struct {
+	// du holds the parsed db url. This may be nil.
+	du *dburl.URL
 	// loc is the original unparsed location value.
 	loc string
 
@@ -700,14 +702,11 @@ type parsedLoc struct {
 	// hostname is the hostname, if applicable.
 	hostname string
 
-	// port is the port number, or 0 if not applicable.
-	port int
-
 	// name is the database name.
 	name string
 
-	// du holds the parsed db url. This may be nil.
-	du *dburl.URL
+	// port is the port number, or 0 if not applicable.
+	port int
 }
 
 // plocStage is an enum indicating what stage of construction
@@ -785,8 +784,8 @@ func locCompListFiles(ctx context.Context, toComplete string) []string {
 // elements of a location.
 type locHistory struct {
 	coll *source.Collection
-	typ  drivertype.Type
 	log  *slog.Logger
+	typ  drivertype.Type
 }
 
 func (h *locHistory) usernames() []string {

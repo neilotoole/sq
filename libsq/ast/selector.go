@@ -88,8 +88,6 @@ var (
 // generic selector will typically be replaced with a more specific
 // selector node such as TblSelectorNode or ColSelectorNode.
 type SelectorNode struct {
-	baseNode
-
 	// alias is the (optional) alias part. For example, given ".first_name:given_name",
 	// the alias value is "given_name". May be empty.
 	alias string
@@ -104,6 +102,7 @@ type SelectorNode struct {
 	// - .actor --> name1 = EMPTY
 	// - .actor.first_name -> name1 = first_name
 	name1 string
+	baseNode
 }
 
 // selector implements the ast.selector marker interface.
@@ -126,10 +125,10 @@ var _ Node = (*TblSelectorNode)(nil)
 // TblSelectorNode is a selector for a table, such as ".my_table"
 // or "@my_src.my_table".
 type TblSelectorNode struct {
-	SelectorNode
+	tbl tablefq.T
 
 	handle string
-	tbl    tablefq.T
+	SelectorNode
 }
 
 // newTblSelector creates a new TblSelectorNode from ctx.

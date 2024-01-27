@@ -464,7 +464,7 @@ type constraintMeta struct {
 }
 
 // columnMeta models column metadata from information schema.
-type columnMeta struct {
+type columnMeta struct { //nolint:govet // field alignment
 	TableCatalog          string         `db:"TABLE_CATALOG"`
 	TableSchema           string         `db:"TABLE_SCHEMA"`
 	TableName             string         `db:"TABLE_NAME"`

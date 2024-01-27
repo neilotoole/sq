@@ -108,10 +108,10 @@ var _ antlr.ErrorListener = (*antlrErrorListener)(nil)
 // TODO: this is a copy of the same-named type in libsq/ast/parser.go.
 // It should be moved to a common package.
 type antlrErrorListener struct {
+	err      error
 	name     string
 	errs     []string
 	warnings []string
-	err      error
 }
 
 // SyntaxError implements antlr.ErrorListener.

@@ -51,7 +51,13 @@ func ReservedHandles() []string {
 var _ slog.LogValuer = (*Source)(nil)
 
 // Source describes a data source.
-type Source struct {
+type Source struct { //nolint:govet
+	// Note: We disable the govet linter because it wants to reorder
+	// the fields to save a few bytes. However, for the purposes of
+	// outputting Source to config files, we prefer this order.
+	// We could probably implement a customer marshaler if struct
+	// alignment becomes an issue.
+
 	// Handle is used to refer to a source, e.g. "@sakila".
 	Handle string `yaml:"handle" json:"handle"`
 

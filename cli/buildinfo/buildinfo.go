@@ -34,7 +34,7 @@ var (
 )
 
 // Info encapsulates Version, Commit and Timestamp.
-type Info struct {
+type Info struct { //nolint:govet // field alignment
 	Version   string    `json:"version" yaml:"version"`
 	Commit    string    `json:"commit,omitempty" yaml:"commit,omitempty"`
 	Timestamp time.Time `json:"timestamp,omitempty" yaml:"timestamp,omitempty"`

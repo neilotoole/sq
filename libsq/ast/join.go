@@ -129,14 +129,14 @@ var _ Node = (*JoinNode)(nil)
 
 // JoinNode models a SQL JOIN node.
 type JoinNode struct {
-	seg           *SegmentNode
 	ctx           antlr.ParseTree
-	text          string
-	jt            jointype.Type
-	jtVal         string
+	seg           *SegmentNode
 	predicateExpr *ExprNode
 
 	targetTbl *TblSelectorNode
+	text      string
+	jt        jointype.Type
+	jtVal     string
 }
 
 // ast implements ast.Node.

@@ -29,9 +29,12 @@ import (
 // at fromSrc is read via newRdrFn and the resulting records
 // are written to destGrip.
 type ingestJob struct {
+	destGrip driver.Grip
+
 	fromSrc  *source.Source
 	newRdrFn files.NewReaderFunc
-	destGrip driver.Grip
+
+	stmtCache map[string]*driver.StmtExecer
 
 	// sampleSize is the maximum number of values to
 	// sample to determine the kind of an element.
@@ -43,8 +46,6 @@ type ingestJob struct {
 	//
 	// TODO: flatten should come from src.Options
 	flatten bool
-
-	stmtCache map[string]*driver.StmtExecer
 }
 
 // Close closes the ingestJob. In particular, it closes any cached statements.
@@ -144,19 +145,19 @@ type objectValueSet map[*entity]map[string]any
 
 // processor process JSON objects.
 type processor struct {
-	// if flattened is true, the JSON object will be flattened into a single table.
-	flatten bool
-
 	root         *entity
 	importSchema *ingestSchema
-
-	colNamesOrdered []string
 
 	// schemaDirtyEntities tracks entities whose structure have been modified.
 	schemaDirtyEntities map[*entity]struct{}
 
+	curObjVals objectValueSet
+
+	colNamesOrdered []string
+
 	unwrittenObjVals []objectValueSet
-	curObjVals       objectValueSet
+	// if flattened is true, the JSON object will be flattened into a single table.
+	flatten bool
 }
 
 func newProcessor(flatten bool) *processor {
@@ -409,11 +410,14 @@ func (p *processor) buildInsertionsFlat(schma *ingestSchema) ([]*insertion, erro
 
 // entity models the structure of a JSON entity, either an object or an array.
 type entity struct {
-	// isArray is true if the entity is an array, false if an object.
-	isArray bool
+	parent *entity
+
+	// detectors holds a kind detector for each non-entity field
+	// of entity. That is, it holds a detector for each string or number
+	// field etc, but not for an object or array field.
+	detectors map[string]*kind.Detector
 
 	name     string
-	parent   *entity
 	children []*entity
 
 	// fieldName holds the names of each field. This includes simple
@@ -421,10 +425,8 @@ type entity struct {
 	// object or array.
 	fieldNames []string
 
-	// detectors holds a kind detector for each non-entity field
-	// of entity. That is, it holds a detector for each string or number
-	// field etc, but not for an object or array field.
-	detectors map[string]*kind.Detector
+	// isArray is true if the entity is an array, false if an object.
+	isArray bool
 }
 
 func (e *entity) String() string {
@@ -477,12 +479,12 @@ func walkEntity(ent *entity, visitFn func(*entity) error) error {
 // ingestSchema encapsulates the table definitions that
 // the JSON is ingested to.
 type ingestSchema struct {
-	tblDefs     []*schema.Table
 	colMungeFns map[*schema.Column]kind.MungeFunc
 
 	// entityTbls is a mapping of entity to the table in which
 	// the entity's fields will be inserted.
 	entityTbls map[*entity]*schema.Table
+	tblDefs    []*schema.Table
 }
 
 // execSchemaDelta executes the schema delta between curSchema and newSchema.

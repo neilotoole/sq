@@ -26,8 +26,9 @@ import (
 // pipeline is used to execute a SLQ query,
 // and write the resulting records to a RecordWriter.
 type pipeline struct {
-	// query is the SLQ query
-	query string
+	// targetGrip is the destination for the ultimate SQL query to
+	// be executed against.
+	targetGrip driver.Grip
 
 	// qc is the context in which the query is executed.
 	qc *QueryContext
@@ -38,17 +39,16 @@ type pipeline struct {
 	// based on the input query and other context.
 	rc *render.Context
 
-	// tasks contains tasks that must be completed before targetSQL
-	// is executed against targetGrip. Typically tasks is used to
-	// set up the joindb before it is queried.
-	tasks []tasker
+	// query is the SLQ query
+	query string
 
 	// targetSQL is the ultimate SQL query to be executed against targetGrip.
 	targetSQL string
 
-	// targetGrip is the destination for the ultimate SQL query to
-	// be executed against.
-	targetGrip driver.Grip
+	// tasks contains tasks that must be completed before targetSQL
+	// is executed against targetGrip. Typically tasks is used to
+	// set up the joindb before it is queried.
+	tasks []tasker
 }
 
 // newPipeline parses query, returning a pipeline prepared for

@@ -22,8 +22,8 @@ func New() *Cleanup {
 // they are added.
 // Cleanup is safe for concurrent use.
 type Cleanup struct {
-	mu  sync.Mutex
 	fns []func() error
+	mu  sync.Mutex
 }
 
 // Len returns the count of cleanup funcs.

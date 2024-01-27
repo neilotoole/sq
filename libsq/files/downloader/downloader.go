@@ -107,7 +107,17 @@ const XFromCache = "X-From-Stream"
 // Downloader encapsulates downloading a file from a URL, using a local
 // disk cache if possible.
 type Downloader struct {
-	mu sync.Mutex
+	// c is the HTTP client used to make requests.
+	c *http.Client
+
+	// cache implements the on-disk cache. If nil, caching is disabled.
+	// It will be created in dlDir.
+	cache *cache
+
+	// dlStream is the streamcache.Stream that is returned Handler for an
+	// active download. This field is used by Downloader.Filesize. It is
+	// reset to nil on each call to Downloader.Get.
+	dlStream *streamcache.Stream
 
 	// name is a user-friendly name, such as a source handle like @data.
 	name string
@@ -116,28 +126,18 @@ type Downloader struct {
 	// thus is guaranteed to be valid.
 	url string
 
-	// c is the HTTP client used to make requests.
-	c *http.Client
+	// dlDir is the directory in which the download cache is stored.
+	dlDir string
+
+	mu sync.Mutex
 
 	// continueOnError, if true, indicates that the downloader
 	// should server the cached file if a refresh attempt fails.
 	continueOnError bool
 
-	// dlDir is the directory in which the download cache is stored.
-	dlDir string
-
-	// cache implements the on-disk cache. If nil, caching is disabled.
-	// It will be created in dlDir.
-	cache *cache
-
 	// markCachedResponses, if true, indicates that responses returned from the
 	// cache will be given an extra header, X-From-cache.
 	markCachedResponses bool
-
-	// dlStream is the streamcache.Stream that is returned Handler for an
-	// active download. This field is used by Downloader.Filesize. It is
-	// reset to nil on each call to Downloader.Get.
-	dlStream *streamcache.Stream
 }
 
 // New returns a new Downloader for url that caches downloads in dlDir..

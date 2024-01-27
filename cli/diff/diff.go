@@ -24,13 +24,12 @@ import (
 
 // Config contains parameters to control diff behavior.
 type Config struct {
-	// Lines specifies the number of lines of context surrounding a diff.
-	Lines int
-
 	// RecordWriterFn is a factory function that returns
 	// an output.RecordWriter used to generate diff text
 	// when comparing table data.
 	RecordWriterFn output.NewRecordWriterFunc
+	// Lines specifies the number of lines of context surrounding a diff.
+	Lines int
 }
 
 // Elements determines what source elements to compare.
@@ -53,9 +52,9 @@ type Elements struct {
 
 // sourceData encapsulates data about a source.
 type sourceData struct {
-	handle  string
 	src     *source.Source
 	srcMeta *metadata.Source
+	handle  string
 }
 
 func (sd *sourceData) clone() *sourceData { //nolint:unused // REVISIT: no longer needed?
@@ -72,10 +71,10 @@ func (sd *sourceData) clone() *sourceData { //nolint:unused // REVISIT: no longe
 
 // tableData encapsulates data about a table.
 type tableData struct {
-	tblName string
 	tblMeta *metadata.Table
 	src     *source.Source
 	srcMeta *metadata.Source
+	tblName string
 }
 
 func (td *tableData) clone() *tableData { //nolint:unused // REVISIT: no longer needed?

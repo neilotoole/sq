@@ -18,9 +18,9 @@ func NewOpt(key, flag string, short rune, defaultVal Format,
 
 // Opt is an options.Opt for format.Format.
 type Opt struct {
-	options.BaseOpt
-	defaultVal Format
 	validFn    func(Format) error
+	defaultVal Format
+	options.BaseOpt
 }
 
 // Process implements options.Processor. It converts matching

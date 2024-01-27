@@ -40,30 +40,25 @@ func FromContext(ctx context.Context) *Run {
 // to all cobra exec funcs. The Close method should be invoked when
 // the Run is no longer needed.
 type Run struct {
-	// Stdin typically is os.Stdin, but can be changed for testing.
-	Stdin *os.File
-
 	// Out is the output destination, typically os.Stdout.
 	Out io.Writer
 
 	// ErrOut is the error output destination, typically os.Stderr.
 	ErrOut io.Writer
 
+	// ConfigStore manages config persistence.
+	ConfigStore config.Store
+
+	// Stdin typically is os.Stdin, but can be changed for testing.
+	Stdin *os.File
+
 	// Cmd is the command instance provided by cobra for
 	// the currently executing command. This field will
 	// be set before the command's runFunc is invoked.
 	Cmd *cobra.Command
 
-	// Args is the arg slice supplied by cobra for
-	// the currently executing command. This field will
-	// be set before the command's runFunc is invoked.
-	Args []string
-
 	// Config is the run's config.
 	Config *config.Config
-
-	// ConfigStore manages config persistence.
-	ConfigStore config.Store
 
 	// OptionsRegistry is a registry of CLI options.Opt instances.
 	OptionsRegistry *options.Registry
@@ -90,6 +85,11 @@ type Run struct {
 	// should be more-or-less the final cleanup action performed by the CLI,
 	// and absolutely must happen after all other cleanup actions.
 	LogCloser func() error
+
+	// Args is the arg slice supplied by cobra for
+	// the currently executing command. This field will
+	// be set before the command's runFunc is invoked.
+	Args []string
 }
 
 // Close should be invoked to dispose of any open resources

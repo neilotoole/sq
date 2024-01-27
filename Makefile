@@ -22,6 +22,9 @@ lint:
 .PHONY: gen
 gen:
 	@go generate ./...
+	@# Run betteralign on generated code
+	@# https://github.com/dkorunic/betteralign
+	@betteralign -apply ./libsq/ast/internal/slq &> /dev/null | true
 
 .PHONY: fmt
 fmt:

@@ -230,7 +230,7 @@ func pingSource(ctx context.Context, dp driver.Provider, src *source.Source, tim
 }
 
 type pingResult struct {
+	err      error
 	src      *source.Source
 	duration time.Duration
-	err      error
 }

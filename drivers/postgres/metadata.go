@@ -436,11 +436,11 @@ type pgTable struct {
 	tableSchema  string
 	tableName    string
 	tableType    string
-	isInsertable sqlz.NullBool // Use driver.NullBool because "YES", "NO" values
-	rowCount     int64
-	size         sql.NullInt64
 	oid          string
 	comment      sql.NullString
+	size         sql.NullInt64
+	rowCount     int64
+	isInsertable sqlz.NullBool // Use driver.NullBool because "YES", "NO" values
 }
 
 func tblMetaFromPgTable(pgt *pgTable) *metadata.Table {
@@ -471,34 +471,34 @@ func tblMetaFromPgTable(pgt *pgTable) *metadata.Table {
 // pgColumn holds query results for column metadata.
 // See https://www.postgresql.org/docs/8.0/infoschema-columns.html
 type pgColumn struct {
-	tableCatalog           string
-	tableSchema            string
-	tableName              string
-	columnName             string
-	ordinalPosition        int64
-	columnDefault          sql.NullString
-	isNullable             sqlz.NullBool
-	dataType               string
+	tableCatalog  string
+	tableSchema   string
+	tableName     string
+	columnName    string
+	dataType      string
+	udtCatalog    string
+	udtSchema     string
+	udtName       string
+	columnDefault sql.NullString
+	domainCatalog sql.NullString
+	domainSchema  sql.NullString
+	domainName    sql.NullString
+	isGenerated   sql.NullString
+
+	// comment holds any column comment. Note that this field is
+	// not part of the standard postgres infoschema, but is
+	// separately fetched.
+	comment                sql.NullString
 	characterMaximumLength sql.NullInt64
 	characterOctetLength   sql.NullInt64
 	numericPrecision       sql.NullInt64
 	numericPrecisionRadix  sql.NullInt64
 	numericScale           sql.NullInt64
 	datetimePrecision      sql.NullInt64
-	domainCatalog          sql.NullString
-	domainSchema           sql.NullString
-	domainName             sql.NullString
-	udtCatalog             string
-	udtSchema              string
-	udtName                string
+	ordinalPosition        int64
+	isNullable             sqlz.NullBool
 	isIdentity             sqlz.NullBool
-	isGenerated            sql.NullString
 	isUpdatable            sqlz.NullBool
-
-	// comment holds any column comment. Note that this field is
-	// not part of the standard postgres infoschema, but is
-	// separately fetched.
-	comment sql.NullString
 }
 
 // getPgColumns queries the column metadata for tblName.
@@ -670,11 +670,10 @@ WHERE kcu.table_catalog = current_catalog AND kcu.table_schema = current_schema(
 // composite primary key (col_a, col_b), two pgConstraint instances
 // are produced.
 type pgConstraint struct {
-	tableCatalog    string
-	tableSchema     string
-	tableName       string
-	columnName      string
-	ordinalPosition int64
+	tableCatalog string
+	tableSchema  string
+	tableName    string
+	columnName   string
 
 	constraintName sql.NullString
 	constraintType sql.NullString
@@ -684,6 +683,7 @@ type pgConstraint struct {
 	// a foreign-key constraint points to. This is null if this
 	// constraint is not a foreign key.
 	constraintFKeyTableName sql.NullString
+	ordinalPosition         int64
 }
 
 // setTblMetaConstraints updates tblMeta with constraints found

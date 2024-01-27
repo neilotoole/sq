@@ -24,14 +24,14 @@ const (
 // Collection is a set of sources. Typically it is loaded from config
 // at a start of a run. Collection's methods are safe for concurrent use.
 type Collection struct {
+	// data holds the set's data.
+	data collData
+
 	// mu is the mutex used by exported methods. A method
 	// should never call an exported method. Many exported methods
 	// have an internal equivalent, e.g. "IsExistingGroup" and
 	// "isExistingGroup", which should be used instead.
 	mu sync.Mutex
-
-	// data holds the set's adata.
-	data collData
 }
 
 // collData holds Collection data for the purposes of serialization
@@ -886,7 +886,7 @@ func (c *Collection) tree(fromGroup string) (*Group, error) {
 }
 
 // Group models the hierarchical group structure of a set.
-type Group struct {
+type Group struct { //nolint:govet // field alignment
 	// Name is the group name. For the root group, this is source.RootGroup ("/").
 	Name string `json:"name" yaml:"name"`
 

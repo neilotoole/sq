@@ -352,8 +352,8 @@ func parseTableHandleArgs(dp driver.Provider, coll *source.Collection, args []st
 // tblHandle represents a @HANDLE.TABLE, with the handle's associated
 // src and driver.
 type tblHandle struct {
+	drvr   driver.Driver
+	src    *source.Source
 	handle string
 	tbl    string
-	src    *source.Source
-	drvr   driver.Driver
 }

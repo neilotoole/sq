@@ -9,7 +9,7 @@ import (
 )
 
 // Table models a database table definition.
-type Table struct {
+type Table struct { //nolint:govet // field alignment
 	// Name is the table name.
 	Name string `json:"name"`
 
@@ -99,7 +99,7 @@ func (t *Table) FindCol(name string) (*Column, error) {
 }
 
 // Column models a table column definition.
-type Column struct {
+type Column struct { //nolint:govet // field alignment
 	Name  string    `json:"name"`
 	Table *Table    `json:"-"`
 	Kind  kind.Kind `json:"kind"`

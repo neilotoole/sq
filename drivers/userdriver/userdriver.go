@@ -60,12 +60,12 @@ func (p *Provider) Detectors() []files.TypeDetectFunc {
 
 // Driver implements driver.Driver.
 type driveri struct {
+	ingester driver.GripOpenIngester
 	log      *slog.Logger
-	typ      drivertype.Type
 	def      *DriverDef
 	files    *files.Files
-	ingester driver.GripOpenIngester
 	ingestFn IngestFunc
+	typ      drivertype.Type
 }
 
 // DriverMetadata implements driver.Driver.

@@ -13,7 +13,7 @@ import (
 
 // VerboseOpt is a verbose realization of an options.Opt value.
 // This is used primarily to print metadata about the opt.
-type VerboseOpt struct {
+type VerboseOpt struct { //nolint:govet // field alignment
 	Key          string `json:"key"`
 	Usage        string `json:"usage"`
 	Type         string `json:"type"`

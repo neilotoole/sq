@@ -72,7 +72,7 @@ func (w *mdWriter) Catalogs(currentCatalog string, catalogs []string) error {
 		return nil
 	}
 
-	type cat struct {
+	type cat struct { //nolint:govet // field alignment
 		Name   string `yaml:"catalog"`
 		Active *bool  `yaml:"active,omitempty"`
 	}
@@ -95,7 +95,7 @@ func (w *mdWriter) Schemata(currentSchema string, schemas []*metadata.Schema) er
 
 	// We wrap each schema in a struct that has an "active" field,
 	// because we need to show the current schema in the output.
-	type wrapper struct {
+	type wrapper struct { //nolint:govet // field alignment
 		metadata.Schema `yaml:",omitempty,inline"`
 		Active          *bool `yaml:"active,omitempty"`
 	}

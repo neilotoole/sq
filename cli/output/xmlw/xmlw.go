@@ -26,23 +26,24 @@ type recordWriter struct {
 	out io.Writer
 	pr  *output.Printing
 
-	recMeta record.Meta
-
 	// outBuf holds output prior to flushing.
 	outBuf *bytes.Buffer
 
-	// recWritten indicates that at least one record has been written
-	// to outBuf.
-	recsWritten bool
-
 	elemColor *color.Color
 
-	tplRecStart   string
-	tplRecEnd     string
+	tplRecStart string
+	tplRecEnd   string
+
+	recMeta record.Meta
+
 	tplFieldStart []string
 	tplFieldEnd   []string
 
 	fieldPrintFns []func(w io.Writer, a ...any)
+
+	// recWritten indicates that at least one record has been written
+	// to outBuf.
+	recsWritten bool
 }
 
 const (

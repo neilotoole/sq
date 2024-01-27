@@ -47,7 +47,7 @@ func (w *configWriter) CacheLocation(loc string) error {
 
 // CacheStat implements output.ConfigWriter.
 func (w *configWriter) CacheStat(loc string, enabled bool, size int64) error {
-	type cacheInfo struct {
+	type cacheInfo struct { //nolint:govet // field alignment
 		Location string `yaml:"location"`
 		Enabled  bool   `yaml:"enabled"`
 		Size     *int64 `yaml:"size,omitempty"`

@@ -10,7 +10,7 @@ import (
 )
 
 // Source holds metadata for a source.
-type Source struct {
+type Source struct { //nolint:govet // field alignment
 	// Handle is the source handle.
 	Handle string `json:"handle" yaml:"handle"`
 
@@ -134,7 +134,7 @@ func (s *Source) String() string {
 }
 
 // Table models table (or view) metadata.
-type Table struct {
+type Table struct { //nolint:govet // field alignment
 	// Name is the table name, such as "actor".
 	Name string `json:"name" yaml:"name"`
 
@@ -222,7 +222,7 @@ func (t *Table) PKCols() []*Column {
 }
 
 // Column models metadata for a particular column of a data source.
-type Column struct {
+type Column struct { //nolint:govet // field alignment
 	Name         string    `json:"name" yaml:"name"`
 	Position     int64     `json:"position" yaml:"position"`
 	PrimaryKey   bool      `json:"primary_key" yaml:"primary_key"`

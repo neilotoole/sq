@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package diff computes differences between text files or strings.
+// Package udiff computes differences between text files or strings.
 package udiff
 
 import (
@@ -13,8 +13,9 @@ import (
 
 // An Edit describes the replacement of a portion of a text file.
 type Edit struct {
-	Start, End int    // byte offsets of the region to replace
-	New        string // the replacement
+	New   string // the replacement
+	Start int
+	End   int
 }
 
 func (e Edit) String() string {

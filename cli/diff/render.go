@@ -69,6 +69,7 @@ func renderTableMeta2YAML(showRowCounts bool, tm *metadata.Table) (string, error
 
 	// tableMeta hosts values of metadata.Table in the
 	// structure that diff wants.
+	//nolint:govet // field alignment
 	type tableMeta struct {
 		Name        string `json:"name" yaml:"name"`
 		FQName      string `json:"name_fq,omitempty" yaml:"name_fq,omitempty"`

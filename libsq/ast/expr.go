@@ -21,9 +21,9 @@ var (
 //
 //	SELECT 1+2 AS "alias" FROM "actor"
 type ExprElementNode struct {
-	baseNode
-	alias    string
 	exprNode *ExprNode
+	alias    string
+	baseNode
 }
 
 // resultColumn implements ast.ResultColumn.

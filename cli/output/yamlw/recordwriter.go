@@ -29,16 +29,16 @@ func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
 }
 
 type recordWriter struct {
-	mu         sync.Mutex
 	out        io.Writer
 	pr         *output.Printing
-	recMeta    record.Meta
-	fieldNames []string
 	buf        *bytes.Buffer
 	enc        *goccy.Encoder
+	null       string
+	recMeta    record.Meta
+	fieldNames []string
 	clrs       []*color.Color
 	keys       []string
-	null       string
+	mu         sync.Mutex
 }
 
 // Open implements output.RecordWriter.

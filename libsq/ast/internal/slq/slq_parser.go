@@ -19,14 +19,14 @@ type SLQParser struct {
 }
 
 var SLQParserStaticData struct {
-	once                   sync.Once
+	PredictionContextCache *antlr.PredictionContextCache
+	atn                    *antlr.ATN
 	serializedATN          []int32
 	LiteralNames           []string
 	SymbolicNames          []string
 	RuleNames              []string
-	PredictionContextCache *antlr.PredictionContextCache
-	atn                    *antlr.ATN
 	decisionToDFA          []*antlr.DFA
+	once                   sync.Once
 }
 
 func slqParserInit() {
@@ -329,8 +329,8 @@ type IStmtListContext interface {
 }
 
 type StmtListContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyStmtListContext() *StmtListContext {
@@ -574,8 +574,8 @@ type IQueryContext interface {
 }
 
 type QueryContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyQueryContext() *QueryContext {
@@ -754,8 +754,8 @@ type ISegmentContext interface {
 }
 
 type SegmentContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptySegmentContext() *SegmentContext {
@@ -944,8 +944,8 @@ type IElementContext interface {
 }
 
 type ElementContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyElementContext() *ElementContext {
@@ -1347,8 +1347,8 @@ type IFuncElementContext interface {
 }
 
 type FuncElementContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyFuncElementContext() *FuncElementContext {
@@ -1499,8 +1499,8 @@ type IFuncContext interface {
 }
 
 type FuncContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyFuncContext() *FuncContext {
@@ -1742,8 +1742,8 @@ type IFuncNameContext interface {
 }
 
 type FuncNameContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyFuncNameContext() *FuncNameContext {
@@ -1858,8 +1858,8 @@ type IJoinContext interface {
 }
 
 type JoinContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyJoinContext() *JoinContext {
@@ -2054,8 +2054,8 @@ type IJoinTableContext interface {
 }
 
 type JoinTableContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyJoinTableContext() *JoinTableContext {
@@ -2210,8 +2210,8 @@ type IUniqueFuncContext interface {
 }
 
 type UniqueFuncContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyUniqueFuncContext() *UniqueFuncContext {
@@ -2319,8 +2319,8 @@ type ICountFuncContext interface {
 }
 
 type CountFuncContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyCountFuncContext() *CountFuncContext {
@@ -2520,8 +2520,8 @@ type IWhereContext interface {
 }
 
 type WhereContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyWhereContext() *WhereContext {
@@ -2683,8 +2683,8 @@ type IGroupByTermContext interface {
 }
 
 type GroupByTermContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyGroupByTermContext() *GroupByTermContext {
@@ -2839,8 +2839,8 @@ type IGroupByContext interface {
 }
 
 type GroupByContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyGroupByContext() *GroupByContext {
@@ -3055,8 +3055,8 @@ type IHavingContext interface {
 }
 
 type HavingContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyHavingContext() *HavingContext {
@@ -3205,8 +3205,8 @@ type IOrderByTermContext interface {
 }
 
 type OrderByTermContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyOrderByTermContext() *OrderByTermContext {
@@ -3348,8 +3348,8 @@ type IOrderByContext interface {
 }
 
 type OrderByContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyOrderByContext() *OrderByContext {
@@ -3562,8 +3562,8 @@ type ISelectorContext interface {
 }
 
 type SelectorContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptySelectorContext() *SelectorContext {
@@ -3689,8 +3689,8 @@ type ISelectorElementContext interface {
 }
 
 type SelectorElementContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptySelectorElementContext() *SelectorElementContext {
@@ -3840,8 +3840,8 @@ type IAliasContext interface {
 }
 
 type AliasContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyAliasContext() *AliasContext {
@@ -3999,8 +3999,8 @@ type IArgContext interface {
 }
 
 type ArgContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyArgContext() *ArgContext {
@@ -4106,8 +4106,8 @@ type IHandleTableContext interface {
 }
 
 type HandleTableContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyHandleTableContext() *HandleTableContext {
@@ -4224,8 +4224,8 @@ type IHandleContext interface {
 }
 
 type HandleContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyHandleContext() *HandleContext {
@@ -4333,8 +4333,8 @@ type IRowRangeContext interface {
 }
 
 type RowRangeContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyRowRangeContext() *RowRangeContext {
@@ -4544,8 +4544,8 @@ type IExprElementContext interface {
 }
 
 type ExprElementContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyExprElementContext() *ExprElementContext {
@@ -4704,8 +4704,8 @@ type IExprContext interface {
 }
 
 type ExprContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyExprContext() *ExprContext {
@@ -5264,8 +5264,8 @@ type ILiteralContext interface {
 }
 
 type LiteralContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyLiteralContext() *LiteralContext {
@@ -5383,8 +5383,8 @@ type IUnaryOperatorContext interface {
 }
 
 type UnaryOperatorContext struct {
-	antlr.BaseParserRuleContext
 	parser antlr.Parser
+	antlr.BaseParserRuleContext
 }
 
 func NewEmptyUnaryOperatorContext() *UnaryOperatorContext {

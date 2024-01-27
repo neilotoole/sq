@@ -267,13 +267,17 @@ type objectsInArrayScanner struct {
 	// unbounded.
 	buf *buffer
 
+	// dec is the stdlib json decoder.
+	dec *stdj.Decoder
+
+	// decBuf holds the value of dec.Buffered, which allows us
+	// to look ahead at the upcoming decoder values.
+	decBuf []byte
+
 	// bufOffset is the offset of buf's byte slice relative to the
 	// entire input stream. This is necessary given that we trim
 	// buf to prevent unbounded growth.
 	bufOffset int
-
-	// dec is the stdlib json decoder.
-	dec *stdj.Decoder
 
 	// curDecPos is the current position of the decoder in the
 	// input stream.
@@ -282,10 +286,6 @@ type objectsInArrayScanner struct {
 	// prevDecPos holds the previous position of the decoder
 	// in the input stream.
 	prevDecPos int
-
-	// decBuf holds the value of dec.Buffered, which allows us
-	// to look ahead at the upcoming decoder values.
-	decBuf []byte
 
 	// objCount is the count of objects processed by method next.
 	objCount int

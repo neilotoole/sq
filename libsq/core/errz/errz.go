@@ -57,8 +57,8 @@ func Errorf(format string, args ...any) error {
 // errz is our error type that does the magic.
 type errz struct {
 	error
-	msg string
 	*stack
+	msg string
 }
 
 // inner implements stackTracer.

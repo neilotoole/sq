@@ -41,11 +41,11 @@ func parseSLQ(log *slog.Logger, input string) (*slq.QueryContext, error) {
 var _ antlr.ErrorListener = (*antlrErrorListener)(nil)
 
 type antlrErrorListener struct {
+	err      error
 	log      *slog.Logger
 	name     string
 	errs     []string
 	warnings []string
-	err      error
 }
 
 // SyntaxError implements antlr.ErrorListener.

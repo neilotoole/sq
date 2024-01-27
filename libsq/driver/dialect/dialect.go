@@ -8,9 +8,6 @@ import (
 
 // Dialect holds driver-specific SQL dialect values and functions.
 type Dialect struct {
-	// Type is the dialect's driver type.
-	Type drivertype.Type `json:"type"`
-
 	// Placeholders returns a string a SQL placeholders string.
 	// For example "(?, ?, ?)" or "($1, $2, $3), ($4, $5, $6)".
 	Placeholders func(numCols, numRows int) string
@@ -20,20 +17,23 @@ type Dialect struct {
 	// uses the double-quote rune (although MySQL uses backtick).
 	Enquote func(string) string
 
-	// IntBool is true if BOOLEAN is handled as an INT by the DB driver.
-	IntBool bool `json:"int_bool"`
-
-	// MaxBatchValues is the maximum number of values in a batch insert.
-	MaxBatchValues int
-
 	// Ops is a map of overridden SLQ operator (e.g. "==" or "!=") to
 	// its SQL rendering.
 	Ops map[string]string
+
+	// Type is the dialect's driver type.
+	Type drivertype.Type `json:"type"`
 
 	// Joins is the set of JOIN types (e.g. "RIGHT JOIN") that
 	// the dialect supports. Not all drivers support each join type. For
 	// example, MySQL doesn't support jointype.FullOuter.
 	Joins []jointype.Type
+
+	// MaxBatchValues is the maximum number of values in a batch insert.
+	MaxBatchValues int
+
+	// IntBool is true if BOOLEAN is handled as an INT by the DB driver.
+	IntBool bool `json:"int_bool"`
 
 	// Catalog indicates that the database supports the catalog concept,
 	// in addition to schema. For example, PostgreSQL supports catalog

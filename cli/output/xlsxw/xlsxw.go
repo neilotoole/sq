@@ -25,17 +25,9 @@ import (
 )
 
 type recordWriter struct {
-	recMeta       record.Meta
-	mu            sync.Mutex
-	pr            *output.Printing
-	out           io.Writer
-	header        bool
-	xfile         *excelize.File
-	nextRow       int
-	timeStyle     int
-	dateStyle     int
-	datetimeStyle int
-	headerStyle   int
+	out   io.Writer
+	pr    *output.Printing
+	xfile *excelize.File
 
 	// mDecimalPlacesStyles maps decimal places to
 	// the excelize style ID that should be used for that
@@ -47,6 +39,15 @@ type recordWriter struct {
 	// The map should not be directly accessed; instead use
 	// getDecimalStyle.
 	mDecimalPlacesStyles map[int]int
+	recMeta              record.Meta
+	nextRow              int
+	timeStyle            int
+	dateStyle            int
+	datetimeStyle        int
+	headerStyle          int
+
+	mu     sync.Mutex
+	header bool
 }
 
 var _ output.NewRecordWriterFunc = NewRecordWriter

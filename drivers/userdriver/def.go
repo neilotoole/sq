@@ -47,7 +47,7 @@ func (d *DriverDef) String() string {
 }
 
 // TableMapping describes how document data is mapped to a table.
-type TableMapping struct {
+type TableMapping struct { //nolint:govet // field alignment
 	// Name is the table name.
 	Name string `yaml:"table" json:"table"`
 
@@ -168,7 +168,7 @@ func (t *TableMapping) RequiredCols() []*ColMapping {
 }
 
 // ColMapping models a database table column.
-type ColMapping struct {
+type ColMapping struct { //nolint:govet // field alignment
 	// Name is the column name.
 	Name string `yaml:"col" json:"col"`
 

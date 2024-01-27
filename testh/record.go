@@ -112,8 +112,6 @@ func KindScanType(knd kind.Kind) reflect.Type {
 // RecordSink is an impl of output.RecordWriter that
 // captures invocations of that interface.
 type RecordSink struct {
-	mu sync.Mutex
-
 	// RecMeta holds the recMeta received via Open.
 	RecMeta record.Meta
 
@@ -125,6 +123,7 @@ type RecordSink struct {
 
 	// Flushed tracks the times Flush was invoked.
 	Flushed []time.Time
+	mu      sync.Mutex
 }
 
 // Result returns the first (and only) value returned from

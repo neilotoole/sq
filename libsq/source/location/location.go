@@ -159,9 +159,6 @@ type Fields struct {
 	// Hostname is the Hostname, if applicable.
 	Hostname string
 
-	// Port is the Port number or 0 if not applicable.
-	Port int
-
 	// Name is the "source Name", e.g. "sakila". Typically this
 	// is the database Name, but for a file location such
 	// as "/path/to/things.xlsx" it would be "things".
@@ -173,6 +170,9 @@ type Fields struct {
 	// DSN is the connection "data source Name" that can be used in a
 	// call to sql.Open. Empty for non-SQL locations.
 	DSN string
+
+	// Port is the Port number or 0 if not applicable.
+	Port int
 }
 
 // Parse parses a location string, returning a Fields instance representing

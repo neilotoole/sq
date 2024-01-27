@@ -21,11 +21,11 @@ import (
 //nolint:unused
 type recordDiff struct {
 	td1, td2           *tableData
+	header             string
+	diff               string
 	recMeta1, recMeta2 record.Meta
 	rec1, rec2         record.Record
 	row                int
-	header             string
-	diff               string
 }
 
 // findRecordDiff compares the row data in td1 and td2, returning

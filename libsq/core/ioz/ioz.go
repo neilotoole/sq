@@ -470,10 +470,10 @@ func ReadCloserNotifier(rc io.ReadCloser, fn func(closeErr error)) io.ReadCloser
 }
 
 type readCloserNotifier struct {
-	once     sync.Once
 	closeErr error
-	fn       func(error)
 	io.ReadCloser
+	fn   func(error)
+	once sync.Once
 }
 
 func (c *readCloserNotifier) Close() error {
@@ -493,10 +493,10 @@ func NewErrorAfterNReader(n int, err error) io.Reader {
 }
 
 type errorAfterNReader struct {
-	mu     sync.Mutex
+	err    error
 	afterN int
 	count  int
-	err    error
+	mu     sync.Mutex
 }
 
 func (r *errorAfterNReader) Read(p []byte) (n int, err error) {
