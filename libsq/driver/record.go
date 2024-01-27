@@ -716,11 +716,11 @@ type columnRenameTemplateData struct {
 	// Name is the original column name.
 	Name string
 
-	// Index is the column index.
-	Index int
-
 	// Alpha is the Excel-style alphabetical index, i.e. A, B, ..., Z, AA, AB.
 	Alpha string
+
+	// Index is the column index.
+	Index int
 
 	// Recurrence is the count of times this column name has already
 	// appeared in the list of column names. If the column name is unique,

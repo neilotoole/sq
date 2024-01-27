@@ -32,11 +32,11 @@ type ScratchSrcFunc func(ctx context.Context, name string) (src *source.Source, 
 // and then closed by Close. This may be a bad approach.
 type Grips struct {
 	drvrs        Provider
-	mu           sync.Mutex
 	scratchSrcFn ScratchSrcFunc
 	files        *files.Files
 	grips        map[string]Grip
 	clnup        *cleanup.Cleanup
+	mu           sync.Mutex
 }
 
 // NewGrips returns a Grips instances.
@@ -427,9 +427,9 @@ var _ Grip = (*cleanOnCloseGrip)(nil)
 // invocations of Close are no-ops and return the same error.
 type cleanOnCloseGrip struct {
 	Grip
-	once     sync.Once
 	closeErr error
 	clnup    *cleanup.Cleanup
+	once     sync.Once
 }
 
 // Close implements Grip. It invokes the underlying Grip's Close
