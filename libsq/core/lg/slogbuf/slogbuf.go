@@ -28,8 +28,8 @@ func New() (*slog.Logger, *Buffer) {
 
 // Buffer stores slog records that can be replayed via Buffer.Flush.
 type Buffer struct {
-	mu      sync.Mutex
 	entries []entry
+	mu      sync.Mutex
 }
 
 type entry struct {

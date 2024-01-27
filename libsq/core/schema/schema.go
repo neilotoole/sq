@@ -18,14 +18,14 @@ type Table struct {
 	// REVISIT: this construct does not allow for composite PK.
 	PKColName string `json:"primary_key,omitempty"`
 
+	// Cols is the table's column definitions.
+	Cols []*Column `json:"cols"`
+
 	// AutoIncrement, if true, indicates that a PK column
 	// should autoincrement.
 	//
 	// REVISIT: this construct does not allow for composite PK.
 	AutoIncrement bool `json:"auto_increment"`
-
-	// Cols is the table's column definitions.
-	Cols []*Column `json:"cols"`
 }
 
 // NewTable is a convenience constructor for creating
@@ -100,18 +100,18 @@ func (t *Table) FindCol(name string) (*Column, error) {
 
 // Column models a table column definition.
 type Column struct {
-	Name  string    `json:"name"`
-	Table *Table    `json:"-"`
-	Kind  kind.Kind `json:"kind"`
-
-	NotNull    bool `json:"not_null"`
-	HasDefault bool `json:"has_default"`
+	Table      *Table        `json:"-"`
+	ForeignKey *FKConstraint `json:"foreign_key,omitempty"`
+	Name       string        `json:"name"`
+	Kind       kind.Kind     `json:"kind"`
 
 	// Size typically applies to text fields, e.g. VARCHAR(255).
 	Size int `json:"size"`
 
-	Unique     bool          `json:"unique"`
-	ForeignKey *FKConstraint `json:"foreign_key,omitempty"`
+	NotNull    bool `json:"not_null"`
+	HasDefault bool `json:"has_default"`
+
+	Unique bool `json:"unique"`
 }
 
 // FKConstraint models a foreign key constraint.

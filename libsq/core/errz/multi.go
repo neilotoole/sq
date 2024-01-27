@@ -208,9 +208,9 @@ func Errors(err error) []error {
 // multiErr formats to a semicolon delimited list of error messages with
 // %v and with a more readable multi-line format with %+v.
 type multiErr struct { //nolint:errname
-	copyNeeded atomic.Bool
-	errors     []error
 	*stack
+	errors     []error
+	copyNeeded atomic.Bool
 }
 
 // inner implements stackTracer.
