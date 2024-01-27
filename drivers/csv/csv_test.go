@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/testh/tu"
+
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,6 +54,7 @@ func TestSmoke(t *testing.T) {
 
 func TestSakila_query(t *testing.T) {
 	t.Parallel()
+	tu.SkipIssueWindows(t, tu.GH355SQLiteDecimalWin)
 
 	testCases := []struct {
 		file      string
