@@ -32,7 +32,7 @@ var locSchemes = []string{
 const stdDirective = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
 
 func TestCompleteAddLocation_Postgres(t *testing.T) {
-	tu.SkipWindows(t, "Shell completion not fully implemented for windows")
+	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
 
 	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
@@ -268,7 +268,7 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 }
 
 func TestCompleteAddLocation_SQLServer(t *testing.T) {
-	tu.SkipWindows(t, "Shell completion not fully implemented for windows")
+	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
 
 	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
@@ -398,7 +398,7 @@ func TestCompleteAddLocation_SQLServer(t *testing.T) {
 }
 
 func TestCompleteAddLocation_MySQL(t *testing.T) {
-	tu.SkipWindows(t, "Shell completion not fully implemented for windows")
+	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
 
 	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
@@ -628,7 +628,7 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 }
 
 func TestCompleteAddLocation_SQLite3(t *testing.T) {
-	tu.SkipWindows(t, "Shell completion not fully implemented for windows")
+	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
 
 	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
@@ -789,7 +789,7 @@ func TestCompleteAddLocation_SQLite3(t *testing.T) {
 }
 
 func TestCompleteAddLocation_History_Postgres(t *testing.T) {
-	tu.SkipWindows(t, "Shell completion not fully implemented for windows")
+	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
 	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
 
@@ -926,7 +926,7 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 }
 
 func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
-	tu.SkipWindows(t, "Shell completion not fully implemented for windows")
+	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
 	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
 
@@ -1127,7 +1127,7 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 }
 
 func TestCompleteAddLocation_History_SQLite3(t *testing.T) {
-	tu.SkipWindows(t, "Shell completion not fully implemented for windows")
+	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
 	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
 	src3Loc := "sqlite3://" + wd + "/my.db?cache=FAST"
@@ -1302,7 +1302,7 @@ func TestParseLoc_stage(t *testing.T) {
 }
 
 func TestDoCompleteAddLocationFile(t *testing.T) {
-	tu.SkipWindows(t, "Shell completion not fully implemented for windows")
+	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
 
 	absDir := tu.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", absDir)
