@@ -105,9 +105,9 @@ func (s State) String() string {
 const XFromCache = "X-From-Stream"
 
 // Downloader encapsulates downloading a file from a URL, using a local
-// disk cache if possible. Downloader.Get makes uses of Handler callback
-// mechanism to facilitate processing of a download stream while the
-// download is still in-flight.
+// disk cache if possible. Downloader.Get makes uses of the Handler callback
+// mechanism to facilitate early consumption of a download stream while the
+// download is still in flight.
 type Downloader struct {
 	// c is the HTTP client used to make requests.
 	c *http.Client
@@ -378,7 +378,8 @@ func (dl *Downloader) get(req *http.Request, h Handler) (cacheFile string) { //n
 			// anyway, because the Handler docs state that at most one Handler callback
 			// func is ever invoked.
 			//
-			// The cache write could fail for two reasons:
+			// The cache write could fail for one of two reasons:
+			//
 			// - The download didn't complete successfully: that is, there was an error
 			//   reading from resp.Body. In this case, that same error will be propagated
 			//   to the Handler via the streamcache.Stream that was provided to Handler.Uncached.
@@ -390,8 +391,6 @@ func (dl *Downloader) get(req *http.Request, h Handler) (cacheFile string) { //n
 			log.Warn("Failed to write download cache", lga.Dir, dl.cache.dir, lga.Err, err)
 			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 			return ""
-			// FIXME: update docs
-			// return err
 		}
 		lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 		return fpBody
