@@ -125,30 +125,16 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 	// to ensure that p.Stop gets called when ctx is cancelled, but before
 	// the p.pc learns that its context is cancelled. This was done in an attempt
 	// to clean up the progress bars before the main context is cancelled (i.e.
-	// to remove bars when the user hits Ctrl-C). Alas, it's not working as
-	// hoped in that scenario.
+	// to remove bars when the user hits Ctrl-C).
 	p.ctx, p.cancelFn = context.WithCancel(lg.NewContext(context.Background(), log))
-	go func() {
-		<-ctx.Done()
-		p.Stop()
-		<-p.stoppedCh
-		<-p.ctx.Done()
-	}()
 
-	p.pcInitFn = func() {
-		opts := []mpb.ContainerOption{
-			mpb.WithOutput(out),
-			mpb.WithWidth(boxWidth),
-			mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
-		}
-
-		p.pc = mpb.NewWithContext(ctx, opts...)
-		p.pcInitFn = nil
+	opts := []mpb.ContainerOption{
+		mpb.WithOutput(out),
+		mpb.WithWidth(boxWidth),
+		mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
 	}
 
-	// REVISIT: The delay init of pc is no longer required. We can just
-	// directly call it here.
-	p.pcInitFn()
+	p.pc = mpb.NewWithContext(ctx, opts...)
 	return p
 }
 
@@ -156,11 +142,9 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 // The caller is responsible for calling Progress.Stop to indicate
 // completion.
 type Progress struct {
-	// The implementation here may seem a bit convoluted. The gist of it is that
-	// both the Progress.pc and Bar.bar are lazily initialized. The Progress.pc
-	// (progress container) is initialized on the first call to one of the
-	// Progress.NewX methods. The Bar.bar is initialized only after the bar's own
-	// render delay has expired. The details are ugly.
+	// The implementation here may seem a bit convoluted. When a new bar is
+	// created from this Progress, the Bar.bar is initialized only after the
+	// bar's own render delay has expired. The details are ugly.
 	//
 	// Why not just use the mpb package directly? There are three main reasons:
 	//
@@ -175,6 +159,9 @@ type Progress struct {
 	//    flexibility, e.g. if we ever want to swap out the mpb package for
 	//    something else.
 
+	ctx      context.Context
+	cancelFn context.CancelFunc
+
 	// mu guards ALL public methods.
 	mu *sync.Mutex
 
@@ -183,25 +170,20 @@ type Progress struct {
 	stoppedCh chan struct{}
 	stopOnce  *sync.Once
 
-	ctx      context.Context
-	cancelFn context.CancelFunc
-
 	// pc is the underlying progress container. It is lazily initialized
 	// by pcInitFn. Any method that accesses pc must be certain that
 	// pcInitFn has been called.
 	pc *mpb.Progress
 
-	// pcInitFn is the func that lazily initializes pc.
-	pcInitFn func()
-
-	// delay is the duration to wait before rendering a progress bar.
-	// This value is used for each bar created by this Progress.
-	delay time.Duration
-
+	// colors contains the color scheme to use.
 	colors *Colors
 
 	// bars contains all bars that have been created on this Progress.
 	bars []*Bar
+
+	// delay is the duration to wait before rendering a progress bar.
+	// Each newly-created bar gets its own render delay.
+	delay time.Duration
 }
 
 // Stop waits for all bars to complete and finally shuts down the
@@ -225,7 +207,6 @@ func (p *Progress) Stop() {
 // is written to stdout.
 func (p *Progress) doStop() {
 	p.stopOnce.Do(func() {
-		p.pcInitFn = nil
 		if p.pc == nil {
 			p.cancelFn()
 			<-p.ctx.Done()
@@ -282,10 +263,10 @@ type Opt interface {
 
 // barConfig is passed to Progress.newBar.
 type barConfig struct {
-	msg        string
-	total      int64
 	style      mpb.BarFillerBuilder
+	msg        string
 	decorators []decor.Decorator
+	total      int64
 }
 
 // newBar returns a new Bar. This function must only be called from
@@ -303,10 +284,6 @@ func (p *Progress) newBar(cfg *barConfig, opts []Opt) *Bar {
 	case <-p.ctx.Done():
 		return nil
 	default:
-	}
-
-	if p.pc == nil {
-		p.pcInitFn()
 	}
 
 	if cfg.total < 0 {
