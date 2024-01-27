@@ -26,6 +26,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestSmoke(t *testing.T) {
@@ -52,6 +53,7 @@ func TestSmoke(t *testing.T) {
 
 func TestSakila_query(t *testing.T) {
 	t.Parallel()
+	tu.SkipIssueWindows(t, tu.GH355SQLiteDecimalWin)
 
 	testCases := []struct {
 		file      string
