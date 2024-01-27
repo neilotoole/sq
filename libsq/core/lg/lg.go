@@ -9,6 +9,8 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"runtime"
+	"time"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -82,7 +84,7 @@ func WarnIfError(log *slog.Logger, msg string, err error) {
 		msg = "Error"
 	}
 
-	log.Warn(msg, lga.Err, err)
+	Depth(log, slog.LevelWarn, 0, msg, lga.Err, err)
 }
 
 // WarnIfFuncError executes fn (if non-nil), and logs a warning
@@ -101,7 +103,7 @@ func WarnIfFuncError(log *slog.Logger, msg string, fn func() error) {
 		msg = "Func error"
 	}
 
-	log.Warn(msg, lga.Err, err)
+	Depth(log, slog.LevelWarn, 0, msg, lga.Err, err)
 }
 
 // WarnIfCloseError executes c.Close if is non-nil, and logs a warning
@@ -120,19 +122,7 @@ func WarnIfCloseError(log *slog.Logger, msg string, c io.Closer) {
 		msg = "Close error"
 	}
 
-	log.Warn(msg, lga.Err, err)
-}
-
-// Error logs an error if err is non-nil.
-func Error(log *slog.Logger, msg string, err error, args ...any) {
-	if err == nil {
-		return
-	}
-
-	a := []any{lga.Err, err}
-	a = append(a, args...)
-
-	log.Error(msg, a...)
+	Depth(log, slog.LevelWarn, 0, msg, lga.Err, err)
 }
 
 // Unexpected is a convenience function for logging unexpected errors
@@ -142,5 +132,24 @@ func Unexpected(log *slog.Logger, err error) {
 		return
 	}
 
-	log.Error(lgm.Unexpected, lga.Err, err)
+	Depth(log, slog.LevelError, 0, lgm.Unexpected, lga.Err, err)
+}
+
+// Depth logs a message with the given call (pc skip) depth.
+func Depth(log *slog.Logger, level slog.Level, depth int, msg string, args ...any) {
+	h := log.Handler()
+	ctx := context.Background()
+
+	if !h.Enabled(ctx, level) {
+		return
+	}
+
+	var pc uintptr
+	var pcs [1]uintptr
+	runtime.Callers(3-depth, pcs[:])
+	pc = pcs[0]
+
+	r := slog.NewRecord(time.Now(), level, msg, pc)
+	r.Add(args...)
+	_ = h.Handle(ctx, r)
 }

@@ -89,9 +89,7 @@ func execVersion(cmd *cobra.Command, _ []string) error {
 	go func() {
 		var err error
 		v, err := fetchBrewVersion(ctx)
-		if err != nil {
-			lg.Error(logFrom(cmd), "Get brew version", err)
-		}
+		lg.WarnIfError(logFrom(cmd), "Get brew version", err)
 
 		// OK if v is empty
 		resultCh <- v
