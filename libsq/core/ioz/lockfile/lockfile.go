@@ -4,6 +4,7 @@ package lockfile
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"path/filepath"
 	"time"
 
@@ -45,7 +46,7 @@ func (l Lockfile) Lock(ctx context.Context, timeout time.Duration) error {
 			log.Warn("Failed to acquire pid lock", lga.Path, string(l), lga.Err, err)
 			return errz.Wrapf(err, "failed to acquire pid lock: %s", l)
 		}
-		log.Debug("Acquired pid lock")
+		lg.Depth(log, slog.LevelDebug, 1, "Acquired pid lock")
 		return nil
 	}
 
@@ -56,7 +57,7 @@ func (l Lockfile) Lock(ctx context.Context, timeout time.Duration) error {
 			err := lockfile.Lockfile(l).TryLock()
 			attempts++
 			if err == nil {
-				log.Debug("Acquired pid lock", lga.Attempts, attempts)
+				lg.Depth(log, slog.LevelDebug, 6, "Acquired pid lock")
 				return nil
 			}
 

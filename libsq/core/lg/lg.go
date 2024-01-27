@@ -84,7 +84,7 @@ func WarnIfError(log *slog.Logger, msg string, err error) {
 		msg = "Error"
 	}
 
-	Depth(log, slog.LevelWarn, 0, msg, lga.Err, err)
+	Depth(log, slog.LevelWarn, 1, msg, lga.Err, err)
 }
 
 // WarnIfFuncError executes fn (if non-nil), and logs a warning
@@ -103,7 +103,7 @@ func WarnIfFuncError(log *slog.Logger, msg string, fn func() error) {
 		msg = "Func error"
 	}
 
-	Depth(log, slog.LevelWarn, 0, msg, lga.Err, err)
+	Depth(log, slog.LevelWarn, 1, msg, lga.Err, err)
 }
 
 // WarnIfCloseError executes c.Close if is non-nil, and logs a warning
@@ -122,7 +122,7 @@ func WarnIfCloseError(log *slog.Logger, msg string, c io.Closer) {
 		msg = "Close error"
 	}
 
-	Depth(log, slog.LevelWarn, 0, msg, lga.Err, err)
+	Depth(log, slog.LevelWarn, 1, msg, lga.Err, err)
 }
 
 // Unexpected is a convenience function for logging unexpected errors
@@ -132,10 +132,11 @@ func Unexpected(log *slog.Logger, err error) {
 		return
 	}
 
-	Depth(log, slog.LevelError, 0, lgm.Unexpected, lga.Err, err)
+	Depth(log, slog.LevelError, 1, lgm.Unexpected, lga.Err, err)
 }
 
 // Depth logs a message with the given call (pc skip) depth.
+// This is useful for logging inside a helper function.
 func Depth(log *slog.Logger, level slog.Level, depth int, msg string, args ...any) {
 	h := log.Handler()
 	ctx := context.Background()
@@ -146,7 +147,7 @@ func Depth(log *slog.Logger, level slog.Level, depth int, msg string, args ...an
 
 	var pc uintptr
 	var pcs [1]uintptr
-	runtime.Callers(3-depth, pcs[:])
+	runtime.Callers(2+depth, pcs[:])
 	pc = pcs[0]
 
 	r := slog.NewRecord(time.Now(), level, msg, pc)
