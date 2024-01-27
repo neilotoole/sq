@@ -87,24 +87,25 @@ func OptNoLog() Option {
 
 // Helper encapsulates a test helper session.
 type Helper struct {
-	mu sync.Mutex
-
 	T testing.TB
+
+	Context context.Context
 
 	registry *driver.Registry
 	files    *files.Files
 	grips    *driver.Grips
 	run      *run.Run
 
-	initOnce sync.Once
-
 	coll     *source.Collection
 	srcCache map[string]*source.Source
 
-	Context  context.Context
 	cancelFn context.CancelFunc
 
 	Cleanup *cleanup.Cleanup
+
+	initOnce sync.Once
+
+	mu sync.Mutex
 }
 
 // New returns a new Helper. The helper's Close func will be
