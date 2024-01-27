@@ -105,7 +105,9 @@ func (s State) String() string {
 const XFromCache = "X-From-Stream"
 
 // Downloader encapsulates downloading a file from a URL, using a local
-// disk cache if possible.
+// disk cache if possible. Downloader.Get makes uses of Handler callback
+// mechanism to facilitate processing of a download stream while the
+// download is still in-flight.
 type Downloader struct {
 	// c is the HTTP client used to make requests.
 	c *http.Client
@@ -114,21 +116,21 @@ type Downloader struct {
 	// It will be created in dlDir.
 	cache *cache
 
-	// dlStream is the streamcache.Stream that is returned Handler for an
-	// active download. This field is used by Downloader.Filesize. It is
-	// reset to nil on each call to Downloader.Get.
+	// dlStream is the streamcache.Stream that is passed Handler.Uncached for an
+	// active download. This field is reset to nil on each call to Downloader.Get.
 	dlStream *streamcache.Stream
 
 	// name is a user-friendly name, such as a source handle like @data.
 	name string
 
-	// url is the URL of the download. It is parsed in download.New,
+	// url is the URL of the download. It is parsed in downloader.New,
 	// thus is guaranteed to be valid.
 	url string
 
 	// dlDir is the directory in which the download cache is stored.
 	dlDir string
 
+	// mu guards concurrent access to the Downloader.
 	mu sync.Mutex
 
 	// continueOnError, if true, indicates that the downloader
@@ -140,8 +142,8 @@ type Downloader struct {
 	markCachedResponses bool
 }
 
-// New returns a new Downloader for url that caches downloads in dlDir..
-// Name is a user-friendly name, such as a source handle like @data.
+// New returns a new Downloader for url that caches downloads in dlDir.
+// Arg name is a user-friendly label, such as a source handle like @data.
 // The name may show up in logs, or progress indicators etc.
 func New(name string, c *http.Client, dlURL, dlDir string) (*Downloader, error) {
 	_, err := url.ParseRequestURI(dlURL)
@@ -165,15 +167,27 @@ func New(name string, c *http.Client, dlURL, dlDir string) (*Downloader, error) 
 	return dl, nil
 }
 
-// Get gets the download, invoking Handler as appropriate. Exactly
-// one of the Handler methods will be invoked, one time. If Handler.Uncached
-// is invoked, Get blocks until the download is completed. The download
-// resp.Body is written to cache; if an error occurs during cache write,
-// the cache write error is logged, but no error is returned.
+// Get attempts to get the remote file, invoking Handler as appropriate. Exactly
+// one of the Handler methods will be invoked, one time.
+//
+//   - If Handler.Uncached is invoked, a download stream has begun. Get will
+//     then block until the download is completed. The download resp.Body is
+//     written to cache, and on success, the filepath to the newly updated
+//     cache file is returned.
+//     If an error occurs during cache write, the error is logged, and Get
+//     returns the filepath of the previously cached download, if permitted
+//     by policy. If not permitted or not existing, empty string is returned.
+//   - If Handler.Cached is invoked, Get returns immediately afterwards with
+//     the filepath of the cached download (the same value provided to
+//     Handler.Cached).
+//   - If Handler.Error is invoked, there was an unrecoverable problem (e.g. a
+//     transport error, and there's no previous cache) and the download is
+//     unavailable. That error should be propagated up the stack. Get will
+//     return empty string.
 //
 // Get consults the context for options. In particular, it makes
 // use of OptCache and OptContinueOnError.
-func (dl *Downloader) Get(ctx context.Context, h Handler) {
+func (dl *Downloader) Get(ctx context.Context, h Handler) (cacheFile string) {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()
 
@@ -185,12 +199,14 @@ func (dl *Downloader) Get(ctx context.Context, h Handler) {
 
 	req := dl.mustRequest(ctx)
 	lg.FromContext(ctx).Debug("Get download", lga.URL, dl.url)
-	dl.get(req, h)
+	cacheFile = dl.get(req, h)
+	return cacheFile
 }
 
-// get contains the main logic for getting the download. It invokes Handler
-// as appropriate.
-func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funlen,cyclop
+// get contains the main logic for getting the download.
+// It invokes Handler as appropriate, and on success returns the
+// filepath of the valid cached download ›file.
+func (dl *Downloader) get(req *http.Request, h Handler) (cacheFile string) { //nolint:gocognit,funlen,cyclop
 	ctx := req.Context()
 	log := lg.FromContext(ctx)
 
@@ -205,7 +221,7 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 	if state == Fresh && fpBody != "" {
 		// The cached response is fresh, so we can return it.
 		h.Cached(fpBody)
-		return
+		return fpBody
 	}
 
 	cacheable := dl.isCacheable(req)
@@ -227,7 +243,7 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 			if freshness == Fresh && fpBody != "" {
 				lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, cachedResp.Body)
 				h.Cached(fpBody)
-				return
+				return fpBody
 			}
 
 			if freshness == Stale {
@@ -262,14 +278,14 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 			resp = cachedResp
 
-		case fpBody != "" && (err != nil || (resp.StatusCode >= 500)) &&
+		case fpBody != "" && (err != nil || resp.StatusCode >= 500) &&
 			req.Method == http.MethodGet && canStaleOnError(cachedResp.Header, req.Header):
 			// In case of transport failure and stale-if-error activated, returns cached content
 			// when available.
 			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, cachedResp.Body)
 			log.Warn("Returning cached response due to transport failure", lga.Err, err)
 			h.Cached(fpBody)
-			return
+			return fpBody
 
 		default:
 			if err != nil && resp != nil && resp.StatusCode != http.StatusOK {
@@ -279,7 +295,7 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 				if fp := dl.cacheFileOnError(req, err); fp != "" {
 					lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 					h.Cached(fp)
-					return
+					return fp
 				}
 			}
 
@@ -287,10 +303,10 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 				lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 				if fp := dl.cacheFileOnError(req, err); fp != "" {
 					h.Cached(fp)
-					return
+					return fp
 				}
 				h.Error(err)
-				return
+				return ""
 			}
 
 			if resp.StatusCode != http.StatusOK {
@@ -298,11 +314,11 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 				err = errz.Errorf("download: unexpected HTTP status: %s", httpz.StatusText(resp.StatusCode))
 				if fp := dl.cacheFileOnError(req, err); fp != "" {
 					h.Cached(fp)
-					return
+					return fp
 				}
 
 				h.Error(err)
-				return
+				return ""
 			}
 		}
 	} else {
@@ -314,10 +330,10 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 			if err != nil {
 				if fp := dl.cacheFileOnError(req, err); fp != "" {
 					h.Cached(fp)
-					return
+					return fp
 				}
 				h.Error(err)
-				return
+				return ""
 			}
 		}
 	}
@@ -339,15 +355,15 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 				log.Error("Failed to update cache header", lga.Dir, dl.cache.dir, lga.Err, err)
 				if fp := dl.cacheFileOnError(req, err); fp != "" {
 					h.Cached(fp)
-					return
+					return fp
 				}
 				h.Error(err)
-				return
+				return ""
 			}
 
 			if fpBody != "" {
 				h.Cached(fpBody)
-				return
+				return fpBody
 			}
 		} else if cachedResp != nil && cachedResp.Body != nil {
 			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, cachedResp.Body)
@@ -372,9 +388,13 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 			//   and all we do is log the error. If the cache is inconsistent, it will
 			//   repair itself on next invocation, so it's not a big deal.
 			log.Warn("Failed to write download cache", lga.Dir, dl.cache.dir, lga.Err, err)
+			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
+			return ""
+			// FIXME: update docs
+			// return err
 		}
 		lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
-		return
+		return fpBody
 	}
 
 	// It's not cacheable, so we can just wrap resp.Body in a streamcache
@@ -382,6 +402,7 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funl
 	dl.dlStream = streamcache.New(resp.Body)
 	resp.Body = nil // Unnecessary, but just to be explicit.
 	h.Uncached(dl.dlStream)
+	return ""
 }
 
 // do executes the request.

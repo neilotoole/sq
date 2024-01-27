@@ -122,19 +122,13 @@ func (fs *Files) CachedBackingSourceFor(ctx context.Context, src *source.Source)
 // cachedBackingSourceForFile returns the underlying cached backing
 // source for src, if it exists.
 func (fs *Files) cachedBackingSourceForFile(ctx context.Context, src *source.Source) (*source.Source, bool, error) {
-	if _, ok := fs.streams[src.Handle]; ok {
-		// FIXME: Revisit this logic
-		// FIXME: Write explicit test for this.
-		lg.FromContext(ctx).Warn("Source has stream, therefore not using any cached source?", lga.Src, src)
-		// select {
-		// case <-stream.Done():
-		// 	lg.FromContext(ctx).Debug("Cached backing source has stream, and it's done", lga.Src, src)
-		// 	// Continue below
-		// 	// REVISIT: is this the correct logic?
-		// default:
-		// 	lg.FromContext(ctx).Debug("Cached backing source has stream, and it's not done", lga.Src, src)
-		// 	return nil, false, nil
-		// }
+	if _, dlFileExists := fs.downloadedFiles[src.Handle]; !dlFileExists {
+		// It's NOT the case that the file has just been downloaded.
+		// So, we check if there's an active download happening...
+		if _, dlStreamExists := fs.streams[src.Handle]; dlStreamExists {
+			lg.FromContext(ctx).Debug("Source has download stream, so backing cache DB not valid", lga.Src, src)
+			return nil, false, nil
+		}
 	}
 
 	_, cacheDBPath, checksumsPath, err := fs.CachePaths(src)

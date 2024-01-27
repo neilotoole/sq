@@ -272,7 +272,6 @@ func (c *cache) write(ctx context.Context, resp *http.Response, headerOnly bool)
 		return err
 	}
 
-	log.Debug("Writing HTTP response header to cache", lga.Dir, c.dir, lga.Resp, resp)
 	headerBytes, err := httputil.DumpResponse(resp, false)
 	if err != nil {
 		return errz.Err(err)
@@ -291,6 +290,7 @@ func (c *cache) write(ctx context.Context, resp *http.Response, headerOnly bool)
 			return errz.Wrap(err, "failed to move staging cache header file")
 		}
 
+		log.Info("Updated download cache (header only)", lga.Dir, c.dir, lga.Resp, resp)
 		return nil
 	}
 
@@ -316,7 +316,7 @@ func (c *cache) write(ctx context.Context, resp *http.Response, headerOnly bool)
 	}
 
 	stagingDir = ""
-	log.Info("Wrote HTTP response body to cache",
+	log.Info("Updated download cache (full)",
 		lga.Written, written, lga.File, fpBody, lga.Elapsed, time.Since(start).Round(time.Millisecond))
 	return nil
 }

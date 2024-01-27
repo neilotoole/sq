@@ -2,9 +2,13 @@ package files
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"path/filepath"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/streamcache"
 
@@ -57,7 +61,10 @@ var OptHTTPSInsecureSkipVerify = options.NewBool(
 // or completed. If there's a download in progress, dlStream returns non-nil.
 // If the file is already downloaded to disk (and is valid/fresh), dlFile
 // returns non-empty and contains the absolute path to the downloaded file.
-// Otherwise, a new download is started and added to Files.streams.
+// Otherwise, a new download is started (on a spawned goroutine), and the
+// stream returned from the downloader is added to Files.streams. On successful
+// download and cache update completion, the stream is removed from Files.streams
+// and the path to the cached file is added to Files.downloadedFiles.
 //
 // It is guaranteed that one (and only one) of the returned values will be non-nil.
 // REVISIT: look into use of checkFresh?
@@ -65,6 +72,8 @@ func (fs *Files) maybeStartDownload(ctx context.Context, src *source.Source, che
 	dlStream *streamcache.Stream, err error,
 ) {
 	var ok bool
+	// If there's already a download in progress, then we can just return
+	// that stream.
 	if dlStream, ok = fs.streams[src.Handle]; ok {
 		// A download stream is always fresh, so we
 		// can ignore checkFresh here.
@@ -94,6 +103,9 @@ func (fs *Files) maybeStartDownload(ctx context.Context, src *source.Source, che
 		dlFileCh   = make(chan string, 1)
 	)
 
+	// Our handler simply pushes the callback values into the channels,
+	// which this main goroutine will select on below. The call
+	// to downloader.Get will be executed in a newly spawned goroutine below.
 	h := downloader.Handler{
 		Cached:   func(dlFile string) { dlFileCh <- dlFile },
 		Uncached: func(dlStream *streamcache.Stream) { dlStreamCh <- dlStream },
@@ -101,18 +113,54 @@ func (fs *Files) maybeStartDownload(ctx context.Context, src *source.Source, che
 	}
 
 	go func() {
-		dldr.Get(ctx, h)
+		// Spawn a goroutine to execute the download process.
+		// The handler will be called before Get returns.
+		cacheFile := dldr.Get(ctx, h)
+		if cacheFile == "" {
+			// Either the download failed, or cache update failed.
+			return
+		}
+
+		// The download succeeded, and the cache was successfully updated.
+		// We know that cacheFile exists now. If a stream was created (and
+		// thus added to Files.streams), we can swap it out and instead
+		// populate Files.downloadedFiles with the cacheFile. Thus, going
+		// forward, any clients of Files will get the cacheFile instead of
+		// the stream.
+
+		fs.mu.Lock()
+		defer fs.mu.Unlock()
+
+		if stream, ok := fs.streams[src.Handle]; ok && stream != nil {
+			// The stream exists, and it's safe to close the stream's source,
+			// (i.e. the http response body), because the body has already
+			// been completely drained by the downloader: otherwise, we
+			// wouldn't have a non-empty value for cacheFile.
+			if c, ok := stream.Source().(io.Closer); ok {
+				lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseHTTPResponseBody, c)
+			}
+		}
+
+		// Now perform the swap: populate Files.downloadedFiles with cacheFile,
+		// and remove the stream from Files.streams.
+		fs.downloadedFiles[src.Handle] = cacheFile
+		delete(fs.streams, src.Handle)
 	}()
 
+	// Here we wait on the handler channels.
 	select {
 	case <-ctx.Done():
 		return "", nil, errz.Err(ctx.Err())
 	case err = <-dlErrCh:
 		return "", nil, err
 	case dlStream = <-dlStreamCh:
+		// New download stream. Add it to Files.streams,
+		// and return the stream.
 		fs.streams[src.Handle] = dlStream
 		return "", dlStream, nil
 	case dlFile = <-dlFileCh:
+		// The file is already on disk, so we added it to Files.downloadedFiles,
+		// and return its filepath.
 		fs.downloadedFiles[src.Handle] = dlFile
 		return dlFile, nil, nil
 	}

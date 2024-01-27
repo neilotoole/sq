@@ -21,7 +21,10 @@ func TestContext(t *testing.T) {
 	log.Info("huzzah")
 }
 
-func TestSourceAttr(t *testing.T) {
+func TestDepth(t *testing.T) {
+	// I'm too lazy to write a test that actually checks output
+	// (e.g. by setting the log output to a bytes.Buffer), so this
+	// is just a visual check.
 	log := lgt.New(t)
 	log = log.With("name", "alice", "age", 42)
 	err := errors.New("TestSourceAttr error")

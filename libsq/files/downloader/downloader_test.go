@@ -125,7 +125,8 @@ func TestDownload_New(t *testing.T) {
 	require.Empty(t, sum)
 
 	h := downloader.NewSinkHandler(log.With("origin", "handler"))
-	dl.Get(ctx, h.Handler)
+	gotCacheFile := dl.Get(ctx, h.Handler)
+	require.NotEmpty(t, gotCacheFile)
 	require.Empty(t, h.Errors)
 	require.Empty(t, h.Downloaded)
 	require.Equal(t, 1, len(h.Streams))
@@ -136,10 +137,12 @@ func TestDownload_New(t *testing.T) {
 	require.NotEmpty(t, sum)
 
 	h.Reset()
-	dl.Get(ctx, h.Handler)
+	gotCacheFile = dl.Get(ctx, h.Handler)
+	require.NotEmpty(t, gotCacheFile)
 	require.Empty(t, h.Errors)
 	require.Empty(t, h.Streams)
 	require.NotEmpty(t, h.Downloaded)
+	require.Equal(t, gotCacheFile, h.Downloaded[0])
 	gotFileBytes, err := os.ReadFile(h.Downloaded[0])
 	require.NoError(t, err)
 	require.Equal(t, sakila.ActorCSVSize, len(gotFileBytes))
@@ -155,8 +158,12 @@ func TestDownload_New(t *testing.T) {
 	require.Empty(t, sum)
 
 	h.Reset()
-	dl.Get(ctx, h.Handler)
+	gotCacheFile = dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
+	require.NotEmpty(t, gotCacheFile)
+	require.True(t, ioz.FileAccessible(gotCacheFile))
+
+	h.Reset()
 }
 
 func TestCachePreservedOnFailedRefresh(t *testing.T) {
@@ -213,9 +220,11 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	require.NoError(t, dl.Clear(ctx))
 	h := downloader.NewSinkHandler(log.With("origin", "handler"))
 
-	dl.Get(ctx, h.Handler)
+	gotCacheFile := dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
 	require.NotEmpty(t, h.Streams)
+	require.NotEmpty(t, gotCacheFile, "cache file should have been filled")
+	require.True(t, ioz.FileAccessible(gotCacheFile))
 
 	stream := h.Streams[0]
 	start := time.Now()
@@ -249,9 +258,12 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 
 	// Sleep to allow file modification timestamps to tick
 	time.Sleep(time.Millisecond * 10)
-	dl.Get(ctx, h.Handler)
+	gotCacheFile = dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
-	require.NotEmpty(t, h.Streams)
+	require.Empty(t, gotCacheFile,
+		"gotCacheFile should be empty, because the server returned an error during cache write")
+	require.NotEmpty(t, h.Streams,
+		"h.Streams should not be empty, because the download was in fact initiated")
 	stream = h.Streams[0]
 	<-stream.Filled()
 	err = stream.Err()

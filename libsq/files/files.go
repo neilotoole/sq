@@ -15,7 +15,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -197,8 +196,8 @@ func (fs *Files) AddStdin(ctx context.Context, f *os.File) error {
 // filepath returns the file path of src.Location. An error is returned
 // if the source's driver type is not a document type (e.g. it is a
 // SQL driver). If src is a remote (http) location, the returned filepath
-// is that of the cached download file. If that file is not present, an
-// error is returned.
+// is that of the cached download file. It's not guaranteed that that
+// file exists.
 func (fs *Files) filepath(src *source.Source) (string, error) {
 	switch location.TypeOf(src.Location) {
 	case location.TypeLocalFile:
@@ -207,15 +206,6 @@ func (fs *Files) filepath(src *source.Source) (string, error) {
 		_, dlFile, err := fs.downloadPaths(src)
 		if err != nil {
 			return "", err
-		}
-
-		// FIXME: https://github.com/neilotoole/sq/actions/runs/7679297142/job/20930035257#step:6:3046
-		if _, err = os.Stat(dlFile); err != nil {
-			return "", errz.Wrapf(err, "remote file for %s not downloaded at: %s", src.Handle, dlFile)
-		}
-
-		if !ioz.FileAccessible(dlFile) {
-			return "", errz.Errorf("remote file for %s not downloaded at: %s", src.Handle, dlFile)
 		}
 		return dlFile, nil
 	case location.TypeSQL:
