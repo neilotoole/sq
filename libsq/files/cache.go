@@ -122,6 +122,20 @@ func (fs *Files) CachedBackingSourceFor(ctx context.Context, src *source.Source)
 // cachedBackingSourceForFile returns the underlying cached backing
 // source for src, if it exists.
 func (fs *Files) cachedBackingSourceForFile(ctx context.Context, src *source.Source) (*source.Source, bool, error) {
+	if _, ok := fs.streams[src.Handle]; ok {
+		// FIXME: Revisit this logic
+		lg.FromContext(ctx).Warn("Source has stream, therefore not using any cached source?", lga.Src, src)
+		// select {
+		// case <-stream.Done():
+		// 	lg.FromContext(ctx).Debug("Cached backing source has stream, and it's done", lga.Src, src)
+		// 	// Continue below
+		// 	// REVISIT: is this the correct logic?
+		// default:
+		// 	lg.FromContext(ctx).Debug("Cached backing source has stream, and it's not done", lga.Src, src)
+		// 	return nil, false, nil
+		// }
+	}
+
 	_, cacheDBPath, checksumsPath, err := fs.CachePaths(src)
 	if err != nil {
 		return nil, false, err

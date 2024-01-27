@@ -209,6 +209,11 @@ func (fs *Files) filepath(src *source.Source) (string, error) {
 			return "", err
 		}
 
+		// FIXME: https://github.com/neilotoole/sq/actions/runs/7679297142/job/20930035257#step:6:3046
+		if _, err = os.Stat(dlFile); err != nil {
+			return "", errz.Wrapf(err, "remote file for %s not downloaded at: %s", src.Handle, dlFile)
+		}
+
 		if !ioz.FileAccessible(dlFile) {
 			return "", errz.Errorf("remote file for %s not downloaded at: %s", src.Handle, dlFile)
 		}
