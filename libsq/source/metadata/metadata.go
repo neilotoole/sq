@@ -10,11 +10,7 @@ import (
 )
 
 // Source holds metadata for a source.
-type Source struct {
-	// DBProperties are name-value pairs from the DB.
-	// Typically the value is a scalar such as integer or string, but
-	// it can be a nested value such as map or array.
-	DBProperties map[string]any `json:"db_properties,omitempty" yaml:"db_properties,omitempty"`
+type Source struct { //nolint:govet // field alignment
 	// Handle is the source handle.
 	Handle string `json:"handle" yaml:"handle"`
 
@@ -53,9 +49,6 @@ type Source struct {
 	// User is the username, if applicable.
 	User string `json:"user,omitempty" yaml:"user,omitempty"`
 
-	// Tables is the metadata for each table/view in the source.
-	Tables []*Table `json:"tables" yaml:"tables"`
-
 	// Size is the physical size of the source in bytes, e.g. DB file size.
 	Size int64 `json:"size" yaml:"size"`
 
@@ -64,6 +57,14 @@ type Source struct {
 
 	// ViewCount is the count of views.
 	ViewCount int64 `json:"view_count" yaml:"view_count"`
+
+	// Tables is the metadata for each table/view in the source.
+	Tables []*Table `json:"tables" yaml:"tables"`
+
+	// DBProperties are name-value pairs from the DB.
+	// Typically the value is a scalar such as integer or string, but
+	// it can be a nested value such as map or array.
+	DBProperties map[string]any `json:"db_properties,omitempty" yaml:"db_properties,omitempty"`
 }
 
 // Table returns the named table, or nil.
@@ -133,11 +134,7 @@ func (s *Source) String() string {
 }
 
 // Table models table (or view) metadata.
-type Table struct {
-	// Size is the physical size of the table in bytes. For a view, this
-	// may be nil.
-	Size *int64 `json:"size,omitempty" yaml:"size,omitempty"`
-
+type Table struct { //nolint:govet // field alignment
 	// Name is the table name, such as "actor".
 	Name string `json:"name" yaml:"name"`
 
@@ -153,14 +150,18 @@ type Table struct {
 	// The value is driver-dependent, e.g. "BASE TABLE" or "VIEW" for postgres.
 	DBTableType string `json:"table_type_db,omitempty" yaml:"table_type_db,omitempty"`
 
+	// RowCount is the number of rows in the table.
+	RowCount int64 `json:"row_count" yaml:"row_count"`
+
+	// Size is the physical size of the table in bytes. For a view, this
+	// may be nil.
+	Size *int64 `json:"size,omitempty" yaml:"size,omitempty"`
+
 	// Comment is the comment for the table. Typically empty.
 	Comment string `json:"comment,omitempty" yaml:"comment,omitempty"`
 
 	// Columns holds the metadata for the table's columns.
 	Columns []*Column `json:"columns" yaml:"columns"`
-
-	// RowCount is the number of rows in the table.
-	RowCount int64 `json:"row_count" yaml:"row_count"`
 }
 
 // String returns a log/debug friendly representation.
@@ -221,17 +222,17 @@ func (t *Table) PKCols() []*Column {
 }
 
 // Column models metadata for a particular column of a data source.
-type Column struct {
-	Name         string `json:"name" yaml:"name"`
-	BaseType     string `json:"base_type" yaml:"base_type"`
-	ColumnType   string `json:"column_type" yaml:"column_type"`
-	DefaultValue string `json:"default_value,omitempty" yaml:"default_value,omitempty"`
-	Comment      string `json:"comment,omitempty" yaml:"comment,omitempty"`
+type Column struct { //nolint:govet // field alignment
+	Name         string    `json:"name" yaml:"name"`
+	Position     int64     `json:"position" yaml:"position"`
+	PrimaryKey   bool      `json:"primary_key" yaml:"primary_key"`
+	BaseType     string    `json:"base_type" yaml:"base_type"`
+	ColumnType   string    `json:"column_type" yaml:"column_type"`
+	Kind         kind.Kind `json:"kind" yaml:"kind"`
+	Nullable     bool      `json:"nullable" yaml:"nullable"`
+	DefaultValue string    `json:"default_value,omitempty" yaml:"default_value,omitempty"`
+	Comment      string    `json:"comment,omitempty" yaml:"comment,omitempty"`
 	// TODO: Add foreign key field
-	Position   int64     `json:"position" yaml:"position"`
-	Kind       kind.Kind `json:"kind" yaml:"kind"`
-	PrimaryKey bool      `json:"primary_key" yaml:"primary_key"`
-	Nullable   bool      `json:"nullable" yaml:"nullable"`
 }
 
 // Clone returns a deep copy of c. If c is nil, nil is returned.

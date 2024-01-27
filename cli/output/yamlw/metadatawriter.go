@@ -48,10 +48,10 @@ func (w *mdWriter) SourceMetadata(md *metadata.Source, showSchema bool) error {
 
 	// Don't render "tables", "table_count", and "view_count"
 	type mdNoSchema struct {
+		metadata.Source `yaml:",omitempty,inline"`
 		Tables          *[]*metadata.Table `yaml:"tables,omitempty"`
 		TableCount      *int64             `yaml:"table_count,omitempty"`
 		ViewCount       *int64             `yaml:"view_count,omitempty"`
-		metadata.Source `yaml:",omitempty,inline"`
 	}
 
 	return writeYAML(w.out, w.yp, &mdNoSchema{Source: md2})
@@ -72,9 +72,9 @@ func (w *mdWriter) Catalogs(currentCatalog string, catalogs []string) error {
 		return nil
 	}
 
-	type cat struct {
-		Active *bool  `yaml:"active,omitempty"`
+	type cat struct { //nolint:govet // field alignment
 		Name   string `yaml:"catalog"`
+		Active *bool  `yaml:"active,omitempty"`
 	}
 
 	cats := make([]cat, len(catalogs))
@@ -95,9 +95,9 @@ func (w *mdWriter) Schemata(currentSchema string, schemas []*metadata.Schema) er
 
 	// We wrap each schema in a struct that has an "active" field,
 	// because we need to show the current schema in the output.
-	type wrapper struct {
-		Active          *bool `yaml:"active,omitempty"`
+	type wrapper struct { //nolint:govet // field alignment
 		metadata.Schema `yaml:",omitempty,inline"`
+		Active          *bool `yaml:"active,omitempty"`
 	}
 
 	a := make([]*wrapper, len(schemas))

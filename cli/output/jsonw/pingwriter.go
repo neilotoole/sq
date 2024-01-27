@@ -30,11 +30,11 @@ func (p pingWriter) Open(_ []*source.Source) error {
 
 // Result implements output.PingWriter.
 func (p pingWriter) Result(src *source.Source, d time.Duration, err error) error {
-	r := struct {
+	r := struct { //nolint:govet // field alignment
 		*source.Source
-		Error    string        `json:"error,omitempty"`
-		Duration time.Duration `json:"duration"`
 		Pong     bool          `json:"pong"`
+		Duration time.Duration `json:"duration"`
+		Error    string        `json:"error,omitempty"`
 	}{
 		Source:   src,
 		Pong:     err == nil,
