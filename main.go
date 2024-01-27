@@ -24,7 +24,7 @@ func main() {
 	}()
 
 	go func() {
-		// Listen for interrupt signal (Ctrl+C) and call cancelFn.
+		// Listen for interrupt signal (Ctrl-C) and call cancelFn.
 		stopCh := make(chan os.Signal, 1)
 		signal.Notify(stopCh, os.Interrupt)
 
