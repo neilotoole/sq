@@ -115,7 +115,6 @@ func TestDownload_New(t *testing.T) {
 	const dlURL = sakila.ActorCSVURL
 
 	cacheDir := t.TempDir()
-	t.Logf("cacheDir: %s", cacheDir)
 
 	dl, err := downloader.New(t.Name(), httpz.NewDefaultClient(), dlURL, cacheDir)
 	require.NoError(t, err)

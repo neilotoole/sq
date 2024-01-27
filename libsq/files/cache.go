@@ -124,6 +124,7 @@ func (fs *Files) CachedBackingSourceFor(ctx context.Context, src *source.Source)
 func (fs *Files) cachedBackingSourceForFile(ctx context.Context, src *source.Source) (*source.Source, bool, error) {
 	if _, ok := fs.streams[src.Handle]; ok {
 		// FIXME: Revisit this logic
+		// FIXME: Write explicit test for this.
 		lg.FromContext(ctx).Warn("Source has stream, therefore not using any cached source?", lga.Src, src)
 		// select {
 		// case <-stream.Done():
