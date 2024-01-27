@@ -46,22 +46,22 @@ type unified struct {
 
 // Hunk represents a contiguous set of line edits to apply.
 type hunk struct {
+	// The set of line based edits to apply.
+	Lines []line
 	// The line in the original source where the hunk starts.
 	FromLine int
 	// The line in the original source where the hunk finishes.
 	ToLine int
-	// The set of line based edits to apply.
-	Lines []line
 }
 
 // Line represents a single line operation to apply as part of a Hunk.
 type line struct {
-	// Kind is the type of line this represents, deletion, insertion or copy.
-	Kind OpKind
 	// Content is the content of this line.
 	// For deletion it is the line being removed, for all others it is the line
 	// to put in the output.
 	Content string
+	// Kind is the type of line this represents, deletion, insertion or copy.
+	Kind OpKind
 }
 
 // OpKind is used to denote the type of operation a line represents.
