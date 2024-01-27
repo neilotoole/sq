@@ -11,7 +11,6 @@ import (
 
 // Source holds metadata for a source.
 type Source struct {
-
 	// DBProperties are name-value pairs from the DB.
 	// Typically the value is a scalar such as integer or string, but
 	// it can be a nested value such as map or array.
@@ -135,7 +134,6 @@ func (s *Source) String() string {
 
 // Table models table (or view) metadata.
 type Table struct {
-
 	// Size is the physical size of the table in bytes. For a view, this
 	// may be nil.
 	Size *int64 `json:"size,omitempty" yaml:"size,omitempty"`

@@ -95,8 +95,8 @@ var _ Node = (*AST)(nil)
 // AST is the Abstract Syntax Tree. It is the root node of a SQL query/stmt.
 type AST struct {
 	ctx  *slq.QueryContext
-	segs []*SegmentNode
 	text string
+	segs []*SegmentNode
 }
 
 // ast implements ast.Node.

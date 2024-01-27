@@ -113,7 +113,6 @@ var (
 //
 // Options can be used as a drop-in replacement for slog.HandlerOptions.
 type Options struct {
-
 	// Minimum level to log (Default: slog.LevelInfo)
 	Level slog.Leveler
 

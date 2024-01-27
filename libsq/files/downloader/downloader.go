@@ -107,7 +107,6 @@ const XFromCache = "X-From-Stream"
 // Downloader encapsulates downloading a file from a URL, using a local
 // disk cache if possible.
 type Downloader struct {
-
 	// c is the HTTP client used to make requests.
 	c *http.Client
 

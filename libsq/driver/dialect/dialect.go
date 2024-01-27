@@ -8,7 +8,6 @@ import (
 
 // Dialect holds driver-specific SQL dialect values and functions.
 type Dialect struct {
-
 	// Placeholders returns a string a SQL placeholders string.
 	// For example "(?, ?, ?)" or "($1, $2, $3), ($4, $5, $6)".
 	Placeholders func(numCols, numRows int) string

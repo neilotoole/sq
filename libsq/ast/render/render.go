@@ -14,9 +14,6 @@ type Context struct {
 	// Renderer holds the rendering functions.
 	Renderer *Renderer
 
-	// Dialect is the driver dialect.
-	Dialect dialect.Dialect
-
 	// The args map contains predefined variables that are
 	// substituted into the query. It may be empty or nil.
 	Args map[string]string
@@ -25,6 +22,9 @@ type Context struct {
 	// a SQL query. It may not be initialized until late in
 	// the day.
 	Fragments *Fragments
+
+	// Dialect is the driver dialect.
+	Dialect dialect.Dialect
 }
 
 // Renderer is a set of functions for rendering ast elements into SQL.
@@ -84,12 +84,12 @@ type Renderer struct {
 	// empty string if n is nil.
 	Distinct func(rc *Context, n *ast.UniqueNode) (string, error)
 
+	// Render renders f into a SQL query.
+	Render func(rc *Context, f *Fragments) (string, error)
+
 	// PreRender is a set of hooks that are called before Render. It is a final
 	// opportunity to customize f before rendering. It is nil by default.
 	PreRender []func(rc *Context, f *Fragments) error
-
-	// Render renders f into a SQL query.
-	Render func(rc *Context, f *Fragments) (string, error)
 }
 
 // NewDefaultRenderer returns a Renderer that works for most SQL dialects.
@@ -121,6 +121,14 @@ func NewDefaultRenderer() *Renderer {
 // Fragments holds the fragments of a SQL query.
 // It is passed to Renderer.PreRender and Renderer.Render.
 type Fragments struct {
+	Distinct string
+	Columns  string
+	From     string
+	Where    string
+	GroupBy  string
+	Having   string
+	OrderBy  string
+	Range    string
 	// PreExecStmts are statements that are executed before the query.
 	// These can be used for edge-case behavior, such as setting up
 	// variables in the session.
@@ -132,15 +140,6 @@ type Fragments struct {
 	//
 	// See also: Fragments.PreExecStmts.
 	PostExecStmts []string
-
-	Distinct string
-	Columns  string
-	From     string
-	Where    string
-	GroupBy  string
-	Having   string
-	OrderBy  string
-	Range    string
 }
 
 // doRender renders the supplied fragments into a SQL query.

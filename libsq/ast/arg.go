@@ -8,8 +8,8 @@ import (
 
 // ArgNode implements the SQL "DISTINCT" clause.
 type ArgNode struct {
-	baseNode
 	key string
+	baseNode
 }
 
 // String returns a log/debug-friendly representation.
