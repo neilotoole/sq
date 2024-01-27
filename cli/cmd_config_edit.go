@@ -246,7 +246,7 @@ func getOptionsEditableText(reg *options.Registry, o options.Options, verbose bo
 				return "", err
 			}
 
-			sb.WriteString(string(b))
+			sb.Write(b)
 		}
 
 		return sb.String(), nil
@@ -264,7 +264,7 @@ func getOptionsEditableText(reg *options.Registry, o options.Options, verbose bo
 			return "", err
 		}
 
-		sb.WriteString(string(b))
+		sb.Write(b)
 	}
 
 	if len(o) > 0 && len(o) != len(reg.Opts()) {
@@ -283,7 +283,7 @@ func getOptionsEditableText(reg *options.Registry, o options.Options, verbose bo
 			return "", err
 		}
 
-		sb.WriteString(string(b))
+		sb.Write(b)
 	}
 
 	return sb.String(), nil
