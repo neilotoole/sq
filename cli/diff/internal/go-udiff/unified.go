@@ -15,12 +15,12 @@ import (
 // If the strings are equal, it returns the empty string.
 func Unified(oldLabel, newLabel, old, new string, numLines int) string {
 	edits := Strings(old, new)
-	unified, err := ToUnified(oldLabel, newLabel, old, edits, numLines)
+	u, err := ToUnified(oldLabel, newLabel, old, edits, numLines)
 	if err != nil {
 		// Can't happen: edits are consistent.
 		log.Fatalf("internal error in diff.Unified: %v", err)
 	}
-	return unified
+	return u
 }
 
 // ToUnified applies the edits to content and returns a unified diff.

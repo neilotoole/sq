@@ -44,7 +44,7 @@ func diffASCII(before, after []byte) []Edit {
 	// Convert from LCS diffs.
 	res := make([]Edit, len(diffs))
 	for i, d := range diffs {
-		res[i] = Edit{d.Start, d.End, string(after[d.ReplStart:d.ReplEnd])}
+		res[i] = Edit{Start: d.Start, End: d.End, New: string(after[d.ReplStart:d.ReplEnd])}
 	}
 	return res
 }
@@ -62,30 +62,30 @@ func diffRunes(before, after []rune) []Edit {
 		utf8Len += runesLen(before[lastEnd:d.Start]) // text between edits
 		start := utf8Len
 		utf8Len += runesLen(before[d.Start:d.End]) // text deleted by this edit
-		res[i] = Edit{start, utf8Len, string(after[d.ReplStart:d.ReplEnd])}
+		res[i] = Edit{Start: start, End: utf8Len, New: string(after[d.ReplStart:d.ReplEnd])}
 		lastEnd = d.End
 	}
 	return res
 }
 
 // runes is like []rune(string(bytes)) without the duplicate allocation.
-func runes(bytes []byte) []rune {
-	n := utf8.RuneCount(bytes)
-	runes := make([]rune, n)
+func runes(b []byte) []rune {
+	n := utf8.RuneCount(b)
+	rs := make([]rune, n)
 	for i := 0; i < n; i++ {
-		r, sz := utf8.DecodeRune(bytes)
-		bytes = bytes[sz:]
-		runes[i] = r
+		r, sz := utf8.DecodeRune(b)
+		b = b[sz:]
+		rs[i] = r
 	}
-	return runes
+	return rs
 }
 
 // runesLen returns the length in bytes of the UTF-8 encoding of runes.
-func runesLen(runes []rune) (len int) {
+func runesLen(runes []rune) (length int) {
 	for _, r := range runes {
-		len += utf8.RuneLen(r)
+		length += utf8.RuneLen(r)
 	}
-	return len
+	return length
 }
 
 // stringIsASCII reports whether s contains only ASCII.

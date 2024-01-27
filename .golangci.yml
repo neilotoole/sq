@@ -25,7 +25,7 @@ run:
     # is an open issue. Hopefully we can just rely on the original
     # package at some point.
     # See: https://github.com/aymanbagabas/go-udiff/issues/5
-    - cli/diff/internal/go-udiff
+#    - cli/diff/internal/go-udiff
 
     # This package is such a mess, and needs to be rewritten completely.
     - cli/output/tablew/internal
@@ -564,7 +564,7 @@ linters:
 
     ## you may want to enable
     #- decorder # checks declaration order and count of types, constants, variables and functions
-    #- exhaustruct # checks if all structure fields are initialized
+    - exhaustruct # checks if all structure fields are initialized
     #- gochecknoglobals # checks that no global variables exist
     #- godox # detects FIXME, TODO and other comment keywords
     #- goheader # checks is file header matches to pattern
