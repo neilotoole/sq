@@ -98,10 +98,10 @@ type Opt interface {
 type BaseOpt struct {
 	key   string
 	flag  string
-	short rune
 	usage string
 	help  string
 	tags  []string
+	short rune
 }
 
 // NewBaseOpt returns a new BaseOpt. If flag is empty string, key is
@@ -207,9 +207,9 @@ func NewString(key, flag string, short rune, defaultVal string,
 
 // String is an options.Opt for type string.
 type String struct {
-	BaseOpt
-	defaultVal string
 	validFn    func(string) error
+	defaultVal string
+	BaseOpt
 }
 
 // GetAny implements options.Opt.

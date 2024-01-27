@@ -202,20 +202,17 @@ func (rm Meta) LogValue() slog.Value {
 //
 // This is all a bit ugly.
 type ColumnTypeData struct {
-	Name string `json:"name"`
-
-	HasNullable       bool `json:"has_nullable"`
-	HasLength         bool `json:"has_length"`
-	HasPrecisionScale bool `json:"has_precision_scale"`
-
-	Nullable         bool         `json:"nullable"`
-	Length           int64        `json:"length"`
-	DatabaseTypeName string       `json:"database_type_name"`
-	Precision        int64        `json:"precision"`
-	Scale            int64        `json:"scale"`
-	ScanType         reflect.Type `json:"scan_type"`
-
-	Kind kind.Kind `json:"kind"`
+	ScanType          reflect.Type `json:"scan_type"`
+	Name              string       `json:"name"`
+	DatabaseTypeName  string       `json:"database_type_name"`
+	Length            int64        `json:"length"`
+	Precision         int64        `json:"precision"`
+	Scale             int64        `json:"scale"`
+	Kind              kind.Kind    `json:"kind"`
+	HasNullable       bool         `json:"has_nullable"`
+	HasLength         bool         `json:"has_length"`
+	HasPrecisionScale bool         `json:"has_precision_scale"`
+	Nullable          bool         `json:"nullable"`
 }
 
 // NewColumnTypeData returns a new instance with field values

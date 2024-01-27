@@ -48,8 +48,8 @@ func FromContext(ctx context.Context) Options {
 
 // Registry is a registry of Opt instances.
 type Registry struct {
-	mu   sync.Mutex
 	opts []Opt
+	mu   sync.Mutex
 }
 
 // Add adds opts to r. It panics if any element of opts is already registered.

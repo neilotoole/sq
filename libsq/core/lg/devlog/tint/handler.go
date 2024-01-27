@@ -49,8 +49,7 @@ Color support on Windows can be added by using e.g. the [go-colorable] package.
 [zerolog.ConsoleWriter]: https://pkg.go.dev/github.com/rs/zerolog#ConsoleWriter
 [go-isatty]: https://pkg.go.dev/github.com/mattn/go-isatty
 [go-colorable]: https://pkg.go.dev/github.com/mattn/go-colorable
-*/
-package tint
+*/package tint
 
 import (
 	"bytes"
@@ -114,9 +113,6 @@ var (
 //
 // Options can be used as a drop-in replacement for slog.HandlerOptions.
 type Options struct {
-	// Enable source code location (Default: false)
-	AddSource bool
-
 	// Minimum level to log (Default: slog.LevelInfo)
 	Level slog.Leveler
 
@@ -126,6 +122,9 @@ type Options struct {
 
 	// Time format (Default: time.StampMilli)
 	TimeFormat string
+
+	// Enable source code location (Default: false)
+	AddSource bool
 
 	// Disable color (Default: false)
 	NoColor bool
@@ -157,18 +156,19 @@ func NewHandler(w io.Writer, opts *Options) slog.Handler {
 
 // handler implements a slog.Handler.
 type handler struct {
+	w io.Writer
+
+	level       slog.Leveler
+	replaceAttr func([]string, slog.Attr) slog.Attr
 	attrsPrefix string
 	groupPrefix string
+	timeFormat  string
 	groups      []string
 
 	mu sync.Mutex
-	w  io.Writer
 
-	addSource   bool
-	level       slog.Leveler
-	replaceAttr func([]string, slog.Attr) slog.Attr
-	timeFormat  string
-	noColor     bool
+	addSource bool
+	noColor   bool
 }
 
 func (h *handler) clone() *handler {
