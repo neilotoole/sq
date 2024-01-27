@@ -89,9 +89,9 @@ func (w *mdWriter) Schemata(currentSchema string, schemas []*metadata.Schema) er
 
 	// We wrap each schema in a struct that has an "active" field,
 	// because we need to show the current schema in the output.
-	type wrapper struct {
-		Active          *bool `json:"active,omitempty"`
+	type wrapper struct { //nolint:govet // field alignment
 		metadata.Schema `json:",omitempty,inline"`
+		Active          *bool `json:"active,omitempty"`
 	}
 
 	a := make([]*wrapper, len(schemas))
