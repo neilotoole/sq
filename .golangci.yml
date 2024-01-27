@@ -561,6 +561,7 @@ linters:
     - unconvert # removes unnecessary type conversions
     - unparam # reports unused function parameters
     - usestdlibvars # detects the possibility to use variables/constants from the Go standard library
+    - wastedassign # finds wasted assignment statements.
     - whitespace # detects leading and trailing whitespace
 
     ## These three linters are disabled for now due to generics: https://github.com/golangci/golangci-lint/issues/2649

@@ -99,7 +99,7 @@ func buildCreateTableStmt(tblDef *schema.Table) string {
 		pk = buf.String()
 	}
 
-	uniq := ""
+	var uniq string
 	buf.Reset()
 	for _, col := range tblDef.Cols {
 		if col.Name == tblDef.PKColName {
@@ -122,7 +122,7 @@ func buildCreateTableStmt(tblDef *schema.Table) string {
 	}
 	uniq = buf.String()
 
-	fk := ""
+	var fk string
 	buf.Reset()
 	for _, col := range tblDef.Cols {
 		if col.ForeignKey == nil {

@@ -58,7 +58,7 @@ func buildCreateTableStmt(tblDef *schema.Table) string {
 		cols[i] = buf.String()
 	}
 
-	fk := ""
+	var fk string
 	buf = &bytes.Buffer{}
 	for _, col := range tblDef.Cols {
 		if col.ForeignKey == nil {

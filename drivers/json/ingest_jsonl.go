@@ -145,7 +145,7 @@ func ingestJSONL(ctx context.Context, job *ingestJob) error { //nolint:gocognit
 				proc.markSchemaClean()
 
 				curSchema = newSchema
-				newSchema = nil
+				newSchema = nil //nolint:wastedassign
 
 				if insertions, err = proc.buildInsertionsFlat(curSchema); err != nil {
 					return err
