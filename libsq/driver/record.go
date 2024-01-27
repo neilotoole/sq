@@ -437,7 +437,7 @@ func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
 		}()
 
 		for {
-			rec = nil
+			rec = nil //nolint:wastedassign
 
 			select {
 			case <-ctx.Done():

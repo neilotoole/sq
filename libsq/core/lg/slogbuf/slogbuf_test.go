@@ -130,6 +130,7 @@ func newTimelessJSONHandler(w io.Writer) *slog.JSONHandler {
 }
 
 func requireEqual(t *testing.T, want, got string) {
+	t.Helper()
 	if got != want {
 		t.Errorf("Output does not match.\nWANT:\n%s\nGOT:\n%s", want, got)
 	}

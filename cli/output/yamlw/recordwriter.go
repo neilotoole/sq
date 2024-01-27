@@ -177,8 +177,8 @@ func (w *recordWriter) Flush(context.Context) error {
 }
 
 // Close implements output.RecordWriter.
-func (w *recordWriter) Close(context.Context) error {
-	return w.Flush(context.TODO())
+func (w *recordWriter) Close(ctx context.Context) error {
+	return w.Flush(ctx)
 }
 
 // renderTime renders the *time.Time val into a fully-rendered string

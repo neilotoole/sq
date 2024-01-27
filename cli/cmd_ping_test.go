@@ -51,6 +51,7 @@ func TestCmdPing(t *testing.T) {
 // checkPintOutputCSV reads CSV records from h.out, and verifies
 // that there's an appropriate record for each of srcs.
 func checkPingOutputCSV(t *testing.T, h *testrun.TestRun, srcs ...source.Source) {
+	t.Helper()
 	recs, err := csv.NewReader(h.Out).ReadAll()
 	require.NoError(t, err)
 	require.Equal(t, len(srcs), len(recs))

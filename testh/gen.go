@@ -23,6 +23,7 @@ import (
 //
 //nolint:gosec
 func GenerateLargeCSV(t *testing.T, fp string) {
+	t.Helper()
 	const count = 5000000 // Generates ~500MB file
 	start := time.Now()
 	header := []string{

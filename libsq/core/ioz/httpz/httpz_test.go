@@ -139,6 +139,7 @@ func TestOptHeaderTimeout_vs_stdlib(t *testing.T) {
 		{
 			name: "http.DefaultClient",
 			ctxFn: func(t *testing.T) context.Context {
+				t.Helper()
 				ctx, cancelFn := context.WithTimeout(context.Background(), headerTimeout)
 				t.Cleanup(cancelFn)
 				return ctx
@@ -148,7 +149,7 @@ func TestOptHeaderTimeout_vs_stdlib(t *testing.T) {
 		},
 		{
 			name: "headerTimeout",
-			ctxFn: func(t *testing.T) context.Context {
+			ctxFn: func(t *testing.T) context.Context { //nolint:thelper
 				return context.Background()
 			},
 			c:       httpz.NewClient(httpz.OptRequestTimeout(headerTimeout)),

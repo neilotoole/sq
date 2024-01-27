@@ -588,7 +588,7 @@ var identRegex = regexp.MustCompile(`\A[a-zA-Z][a-zA-Z0-9_]*$`)
 // And identifier must start with a letter, and may contain letters,
 // numbers, and underscore.
 func ValidIdent(s string) error {
-	if identRegex.Match([]byte(s)) {
+	if identRegex.MatchString(s) {
 		return nil
 	}
 

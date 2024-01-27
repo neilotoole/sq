@@ -23,6 +23,7 @@ func getSLQParser(input string) *slq.SLQParser {
 // buildInitialAST returns a new AST created by parseTreeVisitor. The AST has not
 // yet been processed.
 func buildInitialAST(t *testing.T, input string) (*AST, error) {
+	t.Helper()
 	log := lgt.New(t)
 
 	p := getSLQParser(input)
@@ -38,6 +39,7 @@ func buildInitialAST(t *testing.T, input string) (*AST, error) {
 
 // mustParse builds a full AST from the input SLQ, or fails on any error.
 func mustParse(t *testing.T, input string) *AST {
+	t.Helper()
 	log := lgt.New(t)
 
 	ast, err := Parse(log, input)

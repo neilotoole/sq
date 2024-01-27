@@ -81,7 +81,7 @@ func (w *mdWriter) doTableMeta(md *metadata.Table) error {
 	row := []string{
 		md.Name,
 		md.TableType,
-		fmt.Sprintf("%d", md.RowCount),
+		strconv.FormatInt(md.RowCount, 10),
 		strings.Join(colNames, ", "),
 	}
 	rows = append(rows, row)
@@ -167,7 +167,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 		row = []string{
 			tbl.Name,
 			tbl.TableType,
-			fmt.Sprintf("%d", tbl.RowCount),
+			strconv.FormatInt(tbl.RowCount, 10),
 			w.tbl.pr.Faint.Sprintf("%d", len(tbl.Columns)),
 			tbl.Columns[0].Name,
 			tbl.Columns[0].BaseType,
@@ -216,7 +216,7 @@ func (w *mdWriter) printTables(tables []*metadata.Table) error {
 		row = []string{
 			tbl.Name,
 			tbl.TableType,
-			fmt.Sprintf("%d", tbl.RowCount),
+			strconv.FormatInt(tbl.RowCount, 10),
 			w.tbl.pr.String.Sprint(strings.Join(colNames, ", ")),
 		}
 
@@ -255,8 +255,8 @@ func (w *mdWriter) doSourceMetaFull(md *metadata.Source) error {
 		md.Name,
 		md.FQName,
 		w.tbl.pr.Number.Sprint(stringz.ByteSized(md.Size, 1, "")),
-		fmt.Sprintf("%d", md.TableCount),
-		fmt.Sprintf("%d", md.ViewCount),
+		strconv.FormatInt(md.TableCount, 10),
+		strconv.FormatInt(md.ViewCount, 10),
 		location.Redact(md.Location),
 	}
 

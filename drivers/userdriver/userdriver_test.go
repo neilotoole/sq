@@ -166,7 +166,7 @@ func TestValidateDriverDef(t *testing.T) {
 	}
 }
 
-func defsFromString(t *testing.T, yml string) []*userdriver.DriverDef {
+func defsFromString(t *testing.T, yml string) []*userdriver.DriverDef { //nolint:thelper
 	ext := &config.Ext{}
 	require.NoError(t, ioz.UnmarshallYAML([]byte(yml), ext))
 	return ext.UserDrivers

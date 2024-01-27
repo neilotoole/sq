@@ -90,7 +90,7 @@ type SinkTestFunc func(t testing.TB, sink *testh.RecordSink)
 
 // execQueryTestCase is called by test functions to execute
 // a queryTestCase.
-func execQueryTestCase(t *testing.T, tc queryTestCase) {
+func execQueryTestCase(t *testing.T, tc queryTestCase) { //nolint:thelper
 	if tc.skip {
 		t.Skip()
 	}
@@ -222,17 +222,19 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 // assertSinkCellValue returns a SinkTestFunc that asserts that
 // the cell at rowi, coli matches val.
 func assertSinkCellValue(rowi, coli int, val any) SinkTestFunc {
-	return func(t testing.TB, sink *testh.RecordSink) {
-		assert.Equal(t, val, sink.Recs[rowi][coli], "record[%d:%d] (%s)", rowi, coli, sink.RecMeta[coli].Name())
+	return func(tb testing.TB, sink *testh.RecordSink) {
+		tb.Helper()
+		assert.Equal(tb, val, sink.Recs[rowi][coli], "record[%d:%d] (%s)", rowi, coli, sink.RecMeta[coli].Name())
 	}
 }
 
 // assertSinkColValue returns a SinkTestFunc that asserts that
 // the column with index coli of each record matches val.
 func assertSinkColValue(coli int, val any) SinkTestFunc {
-	return func(t testing.TB, sink *testh.RecordSink) {
+	return func(tb testing.TB, sink *testh.RecordSink) {
+		tb.Helper()
 		for rowi, rec := range sink.Recs {
-			assert.Equal(t, val, rec[coli], "record[%d:%d] (%s)", rowi, coli, sink.RecMeta[coli].Name())
+			assert.Equal(tb, val, rec[coli], "record[%d:%d] (%s)", rowi, coli, sink.RecMeta[coli].Name())
 		}
 	}
 }
@@ -240,15 +242,17 @@ func assertSinkColValue(coli int, val any) SinkTestFunc {
 // assertSinkColValue returns a SinkTestFunc that asserts that
 // the name of column with index coli matches name.
 func assertSinkColName(coli int, name string) SinkTestFunc {
-	return func(t testing.TB, sink *testh.RecordSink) {
-		assert.Equal(t, name, sink.RecMeta[coli].Name(), "column %d", coli)
+	return func(tb testing.TB, sink *testh.RecordSink) {
+		tb.Helper()
+		assert.Equal(tb, name, sink.RecMeta[coli].Name(), "column %d", coli)
 	}
 }
 
 // assertSinkColMungedNames returns a SinkTestFunc that matches col names.
 func assertSinkColMungedNames(names ...string) SinkTestFunc {
-	return func(t testing.TB, sink *testh.RecordSink) {
+	return func(tb testing.TB, sink *testh.RecordSink) {
+		tb.Helper()
 		gotNames := sink.RecMeta.MungedNames()
-		assert.Equal(t, names, gotNames)
+		assert.Equal(tb, names, gotNames)
 	}
 }

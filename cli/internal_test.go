@@ -18,7 +18,8 @@ var (
 
 // DoTestParseLocStage is a helper to test the
 // non-exported locCompletionHelper.locCompParseLoc method.
-func DoTestParseLocStage(t testing.TB, ru *run.Run, loc string) (PlocStage, error) { //nolint:revive
+func DoTestParseLocStage(tb testing.TB, ru *run.Run, loc string) (PlocStage, error) { //nolint:revive
+	tb.Helper()
 	ploc, err := locCompParseLoc(loc)
 	if err != nil {
 		return PlocInit, err
