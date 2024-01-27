@@ -4,13 +4,17 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/neilotoole/streamcache"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -81,7 +85,7 @@ func TestDownload_redirect(t *testing.T) {
 	dl, err := downloader.New(t.Name(), httpz.NewDefaultClient(), loc, cacheDir)
 	require.NoError(t, err)
 	require.NoError(t, dl.Clear(ctx))
-	h := downloader.NewSinkHandler(log.With("origin", "handler"))
+	h := NewSinkHandler(log.With("origin", "handler"))
 
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
@@ -125,7 +129,7 @@ func TestDownload_New(t *testing.T) {
 	require.False(t, ok)
 	require.Empty(t, sum)
 
-	h := downloader.NewSinkHandler(log.With("origin", "handler"))
+	h := NewSinkHandler(log.With("origin", "handler"))
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
 	require.Empty(t, h.Downloaded)
@@ -212,7 +216,7 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	dl, err := downloader.New(t.Name(), httpz.NewDefaultClient(), srvr.URL, cacheDir)
 	require.NoError(t, err)
 	require.NoError(t, dl.Clear(ctx))
-	h := downloader.NewSinkHandler(log.With("origin", "handler"))
+	h := NewSinkHandler(log.With("origin", "handler"))
 
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
@@ -273,4 +277,62 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	require.True(t, ioz.FileInfoEqual(fiChecksums1, fiChecksums2))
 
 	h.Reset()
+}
+
+// SinkHandler is a downloader.Handler that records the results of the
+// callbacks it receives.
+type SinkHandler struct {
+	downloader.Handler
+	log *slog.Logger
+
+	// Errors records the errors received via Handler.Error.
+	Errors []error
+
+	// Downloaded records the already-downloaded files received via Handler.Cached.
+	Downloaded []string
+
+	// Streams records the streams received via Handler.Uncached.
+	Streams []*streamcache.Stream
+	mu      sync.Mutex
+}
+
+// Reset resets the handler sinks. It also closes the source reader of
+// any streams that were received via Handler.Uncached.
+func (sh *SinkHandler) Reset() {
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+	sh.Errors = nil
+	sh.Downloaded = nil
+
+	for _, stream := range sh.Streams {
+		_ = stream.Source().(io.Closer).Close()
+	}
+
+	sh.Streams = nil
+}
+
+// NewSinkHandler returns a new SinkHandler.
+func NewSinkHandler(log *slog.Logger) *SinkHandler {
+	h := &SinkHandler{log: log}
+	h.Cached = func(fp string) {
+		log.Info("Cached", lga.File, fp)
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		h.Downloaded = append(h.Downloaded, fp)
+	}
+
+	h.Uncached = func(dlStream *streamcache.Stream) {
+		log.Info("Uncached")
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		h.Streams = append(h.Streams, dlStream)
+	}
+
+	h.Error = func(err error) {
+		log.Info("Error", lga.Err, err)
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		h.Errors = append(h.Errors, err)
+	}
+	return h
 }

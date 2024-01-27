@@ -22,9 +22,9 @@ func NewRegistry(log *slog.Logger) *Registry {
 // Registry provides access to driver implementations.
 type Registry struct {
 	log       *slog.Logger
-	mu        sync.Mutex
 	providers map[drivertype.Type]Provider
 	types     []drivertype.Type
+	mu        sync.Mutex
 }
 
 // AddProvider registers the provider for the specified driver type.
