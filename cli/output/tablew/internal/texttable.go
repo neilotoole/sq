@@ -60,31 +60,31 @@ type Border struct {
 // Table struct
 type Table struct {
 	out         io.Writer
-	rows        [][]string
-	lines       [][][]string
 	cs          map[int]int
 	rs          map[int]int
-	headers     []string
-	footers     []string
-	autoFmt     bool
-	autoWrap    bool
-	mW          int
+	colTrans    map[int]textTransFunc
+	cellTrans   map[string]textTransFunc
+	headerTrans textTransFunc
 	pCenter     string
 	pRow        string
 	pColumn     string
+	rows        [][]string
+	lines       [][][]string
+	headers     []string
+	footers     []string
+	mW          int
 	tColumn     int
 	tRow        int
 	hAlign      int
 	fAlign      int
 	align       int
+	colSize     int
+	borders     Border
+	autoFmt     bool
+	autoWrap    bool
 	rowLine     bool
 	hdrLine     bool
 	hdrDisable  bool
-	borders     Border
-	colSize     int
-	colTrans    map[int]textTransFunc
-	cellTrans   map[string]textTransFunc
-	headerTrans textTransFunc
 }
 
 // NewTable returns a new table that writes to writer.

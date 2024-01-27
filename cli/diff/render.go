@@ -70,17 +70,17 @@ func renderTableMeta2YAML(showRowCounts bool, tm *metadata.Table) (string, error
 	// tableMeta hosts values of metadata.Table in the
 	// structure that diff wants.
 	type tableMeta struct {
-		Name        string `json:"name" yaml:"name"`
-		FQName      string `json:"name_fq,omitempty" yaml:"name_fq,omitempty"`
-		TableType   string `json:"table_type,omitempty" yaml:"table_type,omitempty"`
-		DBTableType string `json:"table_type_db,omitempty" yaml:"table_type_db,omitempty"`
 		// RowCount is a pointer, because its display is controlled
 		// by a variable.
 		RowCount    *int64             `json:"row_count,omitempty" yaml:"row_count,omitempty"`
 		Size        *int64             `json:"size,omitempty" yaml:"size,omitempty"`
+		Name        string             `json:"name" yaml:"name"`
+		FQName      string             `json:"name_fq,omitempty" yaml:"name_fq,omitempty"`
+		TableType   string             `json:"table_type,omitempty" yaml:"table_type,omitempty"`
+		DBTableType string             `json:"table_type_db,omitempty" yaml:"table_type_db,omitempty"`
 		Comment     string             `json:"comment,omitempty" yaml:"comment,omitempty"`
-		ColumnCount int64              `json:"column_count" yaml:"column_count"`
 		Columns     []*metadata.Column `json:"columns" yaml:"columns"`
+		ColumnCount int64              `json:"column_count" yaml:"column_count"`
 	}
 
 	tmr := &tableMeta{

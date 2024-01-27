@@ -31,11 +31,11 @@ import (
 
 // table encapsulates our table implementation.
 type table struct {
-	pr     *output.Printing
-	out    io.Writer
-	header bool
+	out io.Writer
+	pr  *output.Printing
 
 	tblImpl *internal.Table
+	header  bool
 }
 
 // renderResultCell renders a record value to a string.

@@ -39,33 +39,14 @@ package json
 //		}
 //	}
 type Tokenizer struct {
-	// When the tokenizer is positioned on a json delimiter this field is not
-	// zero. In this case the possible values are '{', '}', '[', ']', ':', and
-	// ','.
-	Delim Delim
+	// When the tokenizer has encountered invalid content this field is not nil.
+	Err error
 
 	// This field contains the raw json token that the tokenizer is pointing at.
 	// When Delim is not zero, this field is a single-element byte slice
 	// continaing the delimiter value. Otherwise, this field holds values like
 	// null, true, false, numbers, or quoted strings.
 	Value RawValue
-
-	// When the tokenizer has encountered invalid content this field is not nil.
-	Err error
-
-	// When the value is in an array or an object, this field contains the depth
-	// at which it was found.
-	Depth int
-
-	// When the value is in an array or an object, this field contains the
-	// position at which it was found.
-	Index int
-
-	// This field is true when the value is the key of an object.
-	IsKey bool
-
-	// Tells whether the next value read from the tokenizer is a key.
-	isKey bool
 
 	// json input for the tokenizer, pointing at data right after the last token
 	// that was parsed.
@@ -75,6 +56,25 @@ type Tokenizer struct {
 	// buffer is used as a AppendPre-allocated space to
 	stack  []state
 	buffer [8]state
+
+	// When the value is in an array or an object, this field contains the depth
+	// at which it was found.
+	Depth int
+
+	// When the value is in an array or an object, this field contains the
+	// position at which it was found.
+	Index int
+
+	// When the tokenizer is positioned on a json delimiter this field is not
+	// zero. In this case the possible values are '{', '}', '[', ']', ':', and
+	// ','.
+	Delim Delim
+
+	// This field is true when the value is the key of an object.
+	IsKey bool
+
+	// Tells whether the next value read from the tokenizer is a key.
+	isKey bool
 }
 
 type state struct {

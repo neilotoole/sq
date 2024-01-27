@@ -29,11 +29,11 @@ const (
 
 // RecordWriter implements output.RecordWriter.
 type RecordWriter struct {
-	mu          sync.Mutex
-	recMeta     record.Meta
 	cw          *csv.Writer
-	needsHeader bool
 	pr          *output.Printing
+	recMeta     record.Meta
+	mu          sync.Mutex
+	needsHeader bool
 }
 
 var (

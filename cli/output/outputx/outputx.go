@@ -14,13 +14,13 @@ import (
 // VerboseOpt is a verbose realization of an options.Opt value.
 // This is used primarily to print metadata about the opt.
 type VerboseOpt struct {
+	DefaultValue any    `json:"default_value"`
+	Value        any    `json:"value"`
 	Key          string `json:"key"`
 	Usage        string `json:"usage"`
 	Type         string `json:"type"`
-	IsSet        bool   `json:"is_set"`
-	DefaultValue any    `json:"default_value"`
-	Value        any    `json:"value"`
 	Help         string `json:"help"`
+	IsSet        bool   `json:"is_set"`
 }
 
 // NewVerboseOpt returns a VerboseOpt built from opt and o.

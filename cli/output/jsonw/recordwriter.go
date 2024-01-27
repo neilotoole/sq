@@ -42,22 +42,22 @@ func NewStdRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter 
 
 // stdWriter outputs records in standard JSON format.
 type stdWriter struct {
-	mu  sync.Mutex
 	err error
 	out io.Writer
 	pr  *output.Printing
 
-	// b is used as a buffer by writeRecord
-	b []byte
-
 	// outBuf is used to hold output prior to flushing.
 	outBuf *bytes.Buffer
 
-	recMeta     record.Meta
-	recsWritten bool
+	tpl *stdTemplate
 
-	tpl       *stdTemplate
-	encodeFns []func(b []byte, v any) ([]byte, error)
+	// b is used as a buffer by writeRecord
+	b []byte
+
+	recMeta     record.Meta
+	encodeFns   []func(b []byte, v any) ([]byte, error)
+	mu          sync.Mutex
+	recsWritten bool
 }
 
 // Open implements output.RecordWriter.
@@ -294,11 +294,9 @@ func NewArrayRecordWriter(out io.Writer, pr *output.Printing) output.RecordWrite
 // surround the output of each encode func. Therefore there
 // are len(rec)+1 tpl elements.
 type lineRecordWriter struct {
-	mu      sync.Mutex
-	err     error
-	out     io.Writer
-	pr      *output.Printing
-	recMeta record.Meta
+	err error
+	out io.Writer
+	pr  *output.Printing
 
 	// outBuf holds the output of the writer prior to flushing.
 	outBuf *bytes.Buffer
@@ -307,11 +305,14 @@ type lineRecordWriter struct {
 	// generating output.
 	newTplFn func(record.Meta, *output.Printing) ([][]byte, error)
 
+	recMeta record.Meta
+
 	// tpl is a slice of []byte, where len(tpl) == len(recMeta) + 1.
 	tpl [][]byte
 
 	// encodeFns holds an encoder func for each element of the record.
 	encodeFns []func(b []byte, v any) ([]byte, error)
+	mu        sync.Mutex
 }
 
 // Open implements output.RecordWriter.

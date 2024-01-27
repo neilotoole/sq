@@ -32,25 +32,24 @@ var _ config.Store = (*Store)(nil)
 // Store provides persistence of config via YAML file.
 // It implements config.Store.
 type Store struct {
-	// Path is the location of the config file
-	Path string
-
-	// PathOrigin is one of "flag", "env", or "default".
-	PathOrigin string
-
 	// If HookLoad is non-nil, it is invoked by Load
 	// on Path's bytes before the YAML is unmarshalled.
 	// This allows expansion of variables etc.
 	HookLoad func(data []byte) ([]byte, error)
-
-	// ExtPaths holds locations of potential ext config, both dirs and files (with suffix ".sq.yml")
-	ExtPaths []string
 
 	// UpgradeRegistry holds upgrade funcs for upgrading the config file.
 	UpgradeRegistry UpgradeRegistry
 
 	// OptionsRegistry holds options.
 	OptionsRegistry *options.Registry
+	// Path is the location of the config file
+	Path string
+
+	// PathOrigin is one of "flag", "env", or "default".
+	PathOrigin string
+
+	// ExtPaths holds locations of potential ext config, both dirs and files (with suffix ".sq.yml")
+	ExtPaths []string
 }
 
 // Lockfile implements Store.Lockfile.

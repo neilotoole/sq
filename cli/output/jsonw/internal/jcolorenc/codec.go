@@ -22,9 +22,9 @@ type codec struct {
 }
 
 type encoder struct {
-	flags    AppendFlags
-	clrs     internal.Colors
 	indenter *Indenter
+	clrs     internal.Colors
+	flags    AppendFlags
 }
 type decoder struct{ flags ParseFlags }
 
@@ -502,12 +502,12 @@ func constructEmbeddedStructPointerDecodeFunc(t reflect.Type, unexported bool, o
 
 func appendStructFields(fields []structField, t reflect.Type, offset uintptr, seen map[reflect.Type]*structType, canAddr bool) []structField {
 	type embeddedField struct {
+		subtype    *structType
+		subfield   *structField
 		index      int
 		offset     uintptr
 		pointer    bool
 		unexported bool
-		subtype    *structType
-		subfield   *structField
 	}
 
 	names := make(map[string]struct{})
@@ -915,25 +915,25 @@ type slice struct {
 }
 
 type structType struct {
-	fields      []structField
+	typ         reflect.Type
 	fieldsIndex map[string]*structField
 	ficaseIndex map[string]*structField
-	typ         reflect.Type
+	fields      []structField
 	inlined     bool
 }
 
 type structField struct {
 	codec     codec
-	offset    uintptr
+	typ       reflect.Type
 	empty     emptyFunc
-	tag       bool
-	omitempty bool
+	zero      reflect.Value
 	json      string
 	html      string
 	name      string
-	typ       reflect.Type
-	zero      reflect.Value
+	offset    uintptr
 	index     int
+	tag       bool
+	omitempty bool
 }
 
 func unmarshalTypeError(b []byte, t reflect.Type) error {

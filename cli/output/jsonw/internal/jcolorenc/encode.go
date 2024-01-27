@@ -931,10 +931,10 @@ func appendCompactEscapeHTML(dst, src []byte) []byte {
 // computed indentation. The AppendByte method appends a byte. All
 // methods are safe to use with a nil receiver.
 type Indenter struct {
-	disabled bool
 	Prefix   string
 	Indent   string
 	depth    int
+	disabled bool
 }
 
 // NewIndenter returns a new Indenter instance. If prefix and

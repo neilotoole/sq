@@ -20,10 +20,10 @@ import (
 // without colorization (that is, in monochrome).
 type monoEncoder struct {
 	formatDatetime         func(time.Time) string
-	formatDatetimeAsNumber bool
 	formatDate             func(time.Time) string
-	formatDateAsNumber     bool
 	formatTime             func(time.Time) string
+	formatDatetimeAsNumber bool
+	formatDateAsNumber     bool
 	formatTimeAsNumber     bool
 }
 
@@ -114,12 +114,12 @@ func (e monoEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 // colorEncoder provides methods for encoding JSON values
 // with color.
 type colorEncoder struct {
-	clrs                   internal.Colors
 	formatDatetime         func(time.Time) string
-	formatDatetimeAsNumber bool
 	formatDate             func(time.Time) string
-	formatDateAsNumber     bool
 	formatTime             func(time.Time) string
+	clrs                   internal.Colors
+	formatDatetimeAsNumber bool
+	formatDateAsNumber     bool
 	formatTimeAsNumber     bool
 }
 

@@ -12,11 +12,11 @@ import (
 )
 
 type recordWriter struct {
-	mu       sync.Mutex
 	tbl      *table
+	bar      *progress.Bar
 	recMeta  record.Meta
 	rowCount int
-	bar      *progress.Bar
+	mu       sync.Mutex
 }
 
 // NewRecordWriter returns a RecordWriter for text table output.

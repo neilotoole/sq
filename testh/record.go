@@ -112,7 +112,6 @@ func KindScanType(knd kind.Kind) reflect.Type {
 // RecordSink is an impl of output.RecordWriter that
 // captures invocations of that interface.
 type RecordSink struct {
-
 	// RecMeta holds the recMeta received via Open.
 	RecMeta record.Meta
 

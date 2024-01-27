@@ -242,10 +242,10 @@ func Valid(data []byte) bool {
 // Decoder is documented at https://golang.org/pkg/encoding/json/#Decoder
 type Decoder struct {
 	reader      io.Reader
+	err         error
 	buffer      []byte
 	remain      []byte
 	inputOffset int64
-	err         error
 	flags       ParseFlags
 }
 
@@ -373,11 +373,11 @@ func (dec *Decoder) InputOffset() int64 {
 // Encoder is documented at https://golang.org/pkg/encoding/json/#Encoder
 type Encoder struct {
 	writer   io.Writer
-	buffer   *bytes.Buffer
 	err      error
-	flags    AppendFlags
-	clrs     internal.Colors
+	buffer   *bytes.Buffer
 	indenter *Indenter
+	clrs     internal.Colors
+	flags    AppendFlags
 }
 
 // NewEncoder is documented at https://golang.org/pkg/encoding/json/#NewEncoder

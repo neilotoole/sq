@@ -23,11 +23,11 @@ import (
 
 // RecordWriter implements output.RecordWriter.
 type RecordWriter struct {
-	mu      sync.Mutex
-	recMeta record.Meta
-	pr      *output.Printing
 	out     io.Writer
+	pr      *output.Printing
 	buf     *bytes.Buffer
+	recMeta record.Meta
+	mu      sync.Mutex
 }
 
 var _ output.NewRecordWriterFunc = NewRecordWriter

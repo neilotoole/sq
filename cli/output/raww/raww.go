@@ -22,10 +22,10 @@ import (
 // written to the backing writer without any separator, or
 // encoding, etc.
 type recordWriter struct {
-	mu      sync.Mutex
 	out     io.Writer
 	pr      *output.Printing
 	recMeta record.Meta
+	mu      sync.Mutex
 }
 
 var _ output.NewRecordWriterFunc = NewRecordWriter

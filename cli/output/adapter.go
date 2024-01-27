@@ -31,9 +31,10 @@ type RecordWriterAdapter struct {
 	wg       *sync.WaitGroup
 	recCh    chan record.Record
 	errCh    chan error
-	errs     []error
 	written  *atomic.Int64
 	cancelFn context.CancelFunc
+
+	errs []error
 
 	// FlushAfterN indicates that the writer's Flush method
 	// should be invoked after N invocations of WriteRecords.

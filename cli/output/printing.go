@@ -12,74 +12,17 @@ import (
 
 // Printing describes color and pretty-printing options.
 type Printing struct {
-	// monochrome is controlled by EnableColor.
-	monochrome bool
-
-	// FlushThreshold is the size in bytes after which an output writer
-	// should flush any internal buffer.
-	FlushThreshold int
-
-	// ShowHeader indicates that a header (e.g. a header row) should
-	// be printed where applicable.
-	ShowHeader bool
-
-	// Verbose indicates that verbose output should be printed where
-	// applicable.
-	Verbose bool
-
-	// Compact indicates that output should not be pretty-printed.
-	// Typically this means indentation, new lines, etc., but
-	// varies by output format.
-	Compact bool
-
-	// Indent is the indent string to use when pretty-printing,
-	// typically two spaces.
-	Indent string
-
-	// Redact indicates that sensitive fields (such as passwords)
-	// should be redacted (hidden/masked).
-	//
-	// TODO: Redact is not being honored by the writers.
-	Redact bool
-
 	// FormatDatetime formats a timestamp e.g. 2020-11-12T13:14:15Z.
 	// Defaults to timez.DefaultDatetime.
 	FormatDatetime func(time time.Time) string
-
-	// FormatDatetimeAsNumber indicates that datetime values should be
-	// rendered as naked numbers (instead of as a string) if possible.
-	// See cli.OptDatetimeFormatAsNumber.
-	FormatDatetimeAsNumber bool
 
 	// FormatTime formats a time of day, e.g. 13:14:15.
 	// Defaults to timez.DefaultTime.
 	FormatTime func(time time.Time) string
 
-	// FormatTimeAsNumber indicates that time values should be
-	// rendered as naked numbers (instead of as a string) if possible.
-	// See cli.OptTimeFormatAsNumber.
-	FormatTimeAsNumber bool
-
 	// FormatDate formats a date, e.g. 2020-11-12.
 	// Defaults to timez.DefaultDate.
 	FormatDate func(time time.Time) string
-
-	// FormatDateAsNumber indicates that date values should be
-	// rendered as naked numbers (instead of as a string) if possible.
-	// See cli.OptDateFormatAsNumber.
-	FormatDateAsNumber bool
-
-	// ExcelDatetimeFormat is the format string for datetime values.
-	// See excelw.OptDatetimeFormat.
-	ExcelDatetimeFormat string
-
-	// ExcelDateFormat is the format string for date values.
-	// See excelw.OptDateFormat.
-	ExcelDateFormat string
-
-	// ExcelTimeFormat is the format string for time values.
-	// See excelw.OptTimeFormat.
-	ExcelTimeFormat string
 
 	// Active is the color for an active handle (or group, etc).
 	Active *color.Color
@@ -170,6 +113,63 @@ type Printing struct {
 
 	// Warning is the color for warning elements.
 	Warning *color.Color
+
+	// Indent is the indent string to use when pretty-printing,
+	// typically two spaces.
+	Indent string
+
+	// ExcelDatetimeFormat is the format string for datetime values.
+	// See excelw.OptDatetimeFormat.
+	ExcelDatetimeFormat string
+
+	// ExcelDateFormat is the format string for date values.
+	// See excelw.OptDateFormat.
+	ExcelDateFormat string
+
+	// ExcelTimeFormat is the format string for time values.
+	// See excelw.OptTimeFormat.
+	ExcelTimeFormat string
+
+	// FlushThreshold is the size in bytes after which an output writer
+	// should flush any internal buffer.
+	FlushThreshold int
+
+	// monochrome is controlled by EnableColor.
+	monochrome bool
+
+	// ShowHeader indicates that a header (e.g. a header row) should
+	// be printed where applicable.
+	ShowHeader bool
+
+	// Verbose indicates that verbose output should be printed where
+	// applicable.
+	Verbose bool
+
+	// Compact indicates that output should not be pretty-printed.
+	// Typically this means indentation, new lines, etc., but
+	// varies by output format.
+	Compact bool
+
+	// Redact indicates that sensitive fields (such as passwords)
+	// should be redacted (hidden/masked).
+	//
+	// TODO: Redact is not being honored by the writers.
+	Redact bool
+
+	// FormatDatetimeAsNumber indicates that datetime values should be
+	// rendered as naked numbers (instead of as a string) if possible.
+	// See cli.OptDatetimeFormatAsNumber.
+	FormatDatetimeAsNumber bool
+
+	// FormatTimeAsNumber indicates that time values should be
+	// rendered as naked numbers (instead of as a string) if possible.
+	// See cli.OptTimeFormatAsNumber.
+	FormatTimeAsNumber bool
+
+	// FormatDateAsNumber indicates that date values should be
+	// rendered as naked numbers (instead of as a string) if possible.
+	// See cli.OptDateFormatAsNumber.
+	FormatDateAsNumber bool
 }
 
 // NewPrinting returns a Printing instance. Color and pretty-print
