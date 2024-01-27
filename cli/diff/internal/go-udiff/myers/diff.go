@@ -47,10 +47,10 @@ func ComputeEdits(before, after string) []diff.Edit {
 }
 
 type operation struct {
-	Kind    diff.OpKind
 	Content []string // content from b
-	I1, I2  int      // indices of the line in a
-	J1      int      // indices of the line in b, J2 implied by len(Content)
+	Kind    diff.OpKind
+	I1, I2  int // indices of the line in a
+	J1      int // indices of the line in b, J2 implied by len(Content)
 }
 
 // operations returns the list of operations to convert a into b, consolidating
