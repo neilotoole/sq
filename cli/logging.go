@@ -219,7 +219,7 @@ func getLogEnabled(ctx context.Context, osArgs []string, cfg *config.Config) boo
 
 	val, ok, err := getBootstrapFlagValue(flag.LogEnabled, "", flag.LogEnabledUsage, osArgs)
 	if err != nil {
-		bootLog.Error("Reading log 'enabled' from flag", lga.Flag, flag.LogEnabled, lga.Err, err)
+		bootLog.Warn("Reading log 'enabled' from flag", lga.Flag, flag.LogEnabled, lga.Err, err)
 	}
 	if ok {
 		bootLog.Debug("Using log 'enabled' specified via flag", lga.Flag, flag.LogEnabled, lga.Val, val)
@@ -277,7 +277,7 @@ func getLogLevel(ctx context.Context, osArgs []string, cfg *config.Config) slog.
 
 	val, ok, err := getBootstrapFlagValue(flag.LogLevel, "", flag.LogLevelUsage, osArgs)
 	if err != nil {
-		bootLog.Error("Reading log level from flag", lga.Flag, flag.LogLevel, lga.Err, err)
+		bootLog.Warn("Reading log level from flag", lga.Flag, flag.LogLevel, lga.Err, err)
 	}
 	if ok {
 		bootLog.Debug("Using log level specified via flag", lga.Flag, flag.LogLevel, lga.Val, val)
@@ -321,7 +321,7 @@ func getLogFormat(ctx context.Context, osArgs []string, cfg *config.Config) form
 
 	val, ok, err := getBootstrapFlagValue(flag.LogFormat, "", flag.LogFormatUsage, osArgs)
 	if err != nil {
-		bootLog.Error("Error reading log format from flag", lga.Flag, flag.LogFormat, lga.Err, err)
+		bootLog.Warn("Error reading log format from flag", lga.Flag, flag.LogFormat, lga.Err, err)
 	}
 	if ok {
 		bootLog.Debug("Using log format specified via flag", lga.Flag, flag.LogFormat, lga.Val, val)
@@ -373,7 +373,7 @@ func getLogFilePath(ctx context.Context, osArgs []string, cfg *config.Config) st
 
 	fp, ok, err := getBootstrapFlagValue(flag.LogFile, "", flag.LogFileUsage, osArgs)
 	if err != nil {
-		bootLog.Error("Reading log file from flag", lga.Flag, flag.LogFile, lga.Err, err)
+		bootLog.Warn("Reading log file from flag", lga.Flag, flag.LogFile, lga.Err, err)
 	}
 	if ok {
 		bootLog.Debug("Log file specified via flag", lga.Flag, flag.LogFile, lga.Path, fp)
