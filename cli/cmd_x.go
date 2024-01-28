@@ -167,7 +167,11 @@ func execXDownloadCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	h := downloader.NewSinkHandler(log.With("origin", "handler"))
-	dl.Get(ctx, h.Handler)
+	if cacheFile := dl.Get(ctx, h.Handler); cacheFile == "" {
+		fmt.Fprintf(ru.Out, "No cache file: %s\n", err)
+	} else {
+		fmt.Fprintf(ru.Out, "Returned cache file: %s\n", cacheFile)
+	}
 
 	switch {
 	case len(h.Errors) > 0:

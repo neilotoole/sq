@@ -83,28 +83,31 @@ func TestDownload_redirect(t *testing.T) {
 	require.NoError(t, dl.Clear(ctx))
 	h := downloader.NewSinkHandler(log.With("origin", "handler"))
 
-	dl.Get(ctx, h.Handler)
+	gotGetFile := dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
+	require.NotEmpty(t, gotGetFile)
 	gotBody := tu.ReadToString(t, h.Streams[0].NewReader(ctx))
 	require.Equal(t, hello, gotBody)
 
 	h.Reset()
-	dl.Get(ctx, h.Handler)
+	gotGetFile = dl.Get(ctx, h.Handler)
+	require.NotEmpty(t, gotGetFile)
 	require.Empty(t, h.Errors)
 	require.Empty(t, h.Streams)
-	gotFile := h.Downloaded[0]
-	t.Logf("got fp: %s", gotFile)
-	gotBody = tu.ReadFileToString(t, gotFile)
+	gotDownloadedFile := h.Downloaded[0]
+	t.Logf("got fp: %s", gotDownloadedFile)
+	gotBody = tu.ReadFileToString(t, gotDownloadedFile)
 	t.Logf("got body: \n\n%s\n\n", gotBody)
 	require.Equal(t, serveBody, gotBody)
 
 	h.Reset()
-	dl.Get(ctx, h.Handler)
+	gotGetFile = dl.Get(ctx, h.Handler)
+	require.NotEmpty(t, gotGetFile)
 	require.Empty(t, h.Errors)
 	require.Empty(t, h.Streams)
-	gotFile = h.Downloaded[0]
-	t.Logf("got fp: %s", gotFile)
-	gotBody = tu.ReadFileToString(t, gotFile)
+	gotDownloadedFile = h.Downloaded[0]
+	t.Logf("got fp: %s", gotDownloadedFile)
+	gotBody = tu.ReadFileToString(t, gotDownloadedFile)
 	t.Logf("got body: \n\n%s\n\n", gotBody)
 	require.Equal(t, serveBody, gotBody)
 }
@@ -115,7 +118,6 @@ func TestDownload_New(t *testing.T) {
 	const dlURL = sakila.ActorCSVURL
 
 	cacheDir := t.TempDir()
-	t.Logf("cacheDir: %s", cacheDir)
 
 	dl, err := downloader.New(t.Name(), httpz.NewDefaultClient(), dlURL, cacheDir)
 	require.NoError(t, err)
@@ -126,7 +128,8 @@ func TestDownload_New(t *testing.T) {
 	require.Empty(t, sum)
 
 	h := downloader.NewSinkHandler(log.With("origin", "handler"))
-	dl.Get(ctx, h.Handler)
+	gotGetFile := dl.Get(ctx, h.Handler)
+	require.NotEmpty(t, gotGetFile)
 	require.Empty(t, h.Errors)
 	require.Empty(t, h.Downloaded)
 	require.Equal(t, 1, len(h.Streams))
@@ -137,10 +140,12 @@ func TestDownload_New(t *testing.T) {
 	require.NotEmpty(t, sum)
 
 	h.Reset()
-	dl.Get(ctx, h.Handler)
+	gotGetFile = dl.Get(ctx, h.Handler)
+	require.NotEmpty(t, gotGetFile)
 	require.Empty(t, h.Errors)
 	require.Empty(t, h.Streams)
 	require.NotEmpty(t, h.Downloaded)
+	require.Equal(t, gotGetFile, h.Downloaded[0])
 	gotFileBytes, err := os.ReadFile(h.Downloaded[0])
 	require.NoError(t, err)
 	require.Equal(t, sakila.ActorCSVSize, len(gotFileBytes))
@@ -156,8 +161,12 @@ func TestDownload_New(t *testing.T) {
 	require.Empty(t, sum)
 
 	h.Reset()
-	dl.Get(ctx, h.Handler)
+	gotGetFile = dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
+	require.NotEmpty(t, gotGetFile)
+	require.True(t, ioz.FileAccessible(gotGetFile))
+
+	h.Reset()
 }
 
 func TestCachePreservedOnFailedRefresh(t *testing.T) {
@@ -214,9 +223,11 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	require.NoError(t, dl.Clear(ctx))
 	h := downloader.NewSinkHandler(log.With("origin", "handler"))
 
-	dl.Get(ctx, h.Handler)
+	gotGetFile := dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
 	require.NotEmpty(t, h.Streams)
+	require.NotEmpty(t, gotGetFile, "cache file should have been filled")
+	require.True(t, ioz.FileAccessible(gotGetFile))
 
 	stream := h.Streams[0]
 	start := time.Now()
@@ -227,7 +238,6 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	gotSize, err := dl.Filesize(ctx)
 	require.NoError(t, err)
 	require.Equal(t, len(sentBody), int(gotSize))
-
 	require.Equal(t, len(sentBody), stream.Size())
 	gotFilesize, err := dl.Filesize(ctx)
 	require.NoError(t, err)
@@ -250,9 +260,12 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 
 	// Sleep to allow file modification timestamps to tick
 	time.Sleep(time.Millisecond * 10)
-	dl.Get(ctx, h.Handler)
+	gotGetFile = dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
-	require.NotEmpty(t, h.Streams)
+	require.Empty(t, gotGetFile,
+		"gotCacheFile should be empty, because the server returned an error during cache write")
+	require.NotEmpty(t, h.Streams,
+		"h.Streams should not be empty, because the download was in fact initiated")
 	stream = h.Streams[0]
 	<-stream.Filled()
 	err = stream.Err()

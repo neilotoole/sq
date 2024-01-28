@@ -15,7 +15,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -69,7 +68,9 @@ type Files struct {
 	// detectFns is the set of functions that can detect
 	// the type of a file.
 	detectFns []TypeDetectFunc
-	mu        sync.Mutex
+
+	// mu guards access to Files' internals.
+	mu sync.Mutex
 }
 
 // New returns a new Files instance. The caller must invoke Files.Close
@@ -197,8 +198,8 @@ func (fs *Files) AddStdin(ctx context.Context, f *os.File) error {
 // filepath returns the file path of src.Location. An error is returned
 // if the source's driver type is not a document type (e.g. it is a
 // SQL driver). If src is a remote (http) location, the returned filepath
-// is that of the cached download file. If that file is not present, an
-// error is returned.
+// is that of the cached download file. It's not guaranteed that that
+// file exists.
 func (fs *Files) filepath(src *source.Source) (string, error) {
 	switch location.TypeOf(src.Location) {
 	case location.TypeLocalFile:
@@ -207,10 +208,6 @@ func (fs *Files) filepath(src *source.Source) (string, error) {
 		_, dlFile, err := fs.downloadPaths(src)
 		if err != nil {
 			return "", err
-		}
-
-		if !ioz.FileAccessible(dlFile) {
-			return "", errz.Errorf("remote file for %s not downloaded at: %s", src.Handle, dlFile)
 		}
 		return dlFile, nil
 	case location.TypeSQL:
