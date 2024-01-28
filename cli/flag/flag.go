@@ -74,6 +74,10 @@ const (
 	OutputShort = "o"
 	OutputUsage = "Write output to <file> instead of stdout"
 
+	Input      = "input"
+	InputShort = "i"
+	InputUsage = "Read input from <file> instead of stdin"
+
 	InspectOverview      = "overview"
 	InspectOverviewShort = "O"
 	InspectOverviewUsage = "Show metadata only (no schema)"

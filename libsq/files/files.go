@@ -259,6 +259,7 @@ func (fs *Files) newReader(ctx context.Context, src *source.Source, finalRdr boo
 		}
 		r := stdinStream.NewReader(ctx)
 		if finalRdr {
+			lg.FromContext(ctx).Warn("Sealing source stream", lga.Src, src)
 			stdinStream.Seal()
 		}
 		return r, nil
@@ -270,6 +271,7 @@ func (fs *Files) newReader(ctx context.Context, src *source.Source, finalRdr boo
 	if dlStream, ok := fs.streams[src.Handle]; ok {
 		r := dlStream.NewReader(ctx)
 		if finalRdr {
+			lg.FromContext(ctx).Warn("Sealing download source stream", lga.Src, src)
 			dlStream.Seal()
 		}
 		return r, nil
@@ -290,6 +292,7 @@ func (fs *Files) newReader(ctx context.Context, src *source.Source, finalRdr boo
 	case dlStream != nil:
 		r := dlStream.NewReader(ctx)
 		if finalRdr {
+			lg.FromContext(ctx).Warn("Sealing download source stream", lga.Src, src)
 			dlStream.Seal()
 		}
 		return r, nil
