@@ -2,10 +2,11 @@ package sqlite3_test
 
 import (
 	"fmt"
-	"github.com/neilotoole/sq/testh/tu"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/neilotoole/sq/testh/tu"
 
 	"github.com/stretchr/testify/require"
 

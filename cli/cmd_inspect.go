@@ -104,6 +104,9 @@ formats both show extensive detail.`,
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSchema,
 		activeSchemaCompleter{getActiveSourceViaArgs}.complete))
 	addOptionFlag(cmd.Flags(), driver.OptIngestCache)
+
+	cmd.Flags().StringP(flag.Input, flag.InputShort, "", flag.InputUsage)
+	panicOn(cmd.Flags().MarkHidden(flag.Input)) // Hide for now; this is mostly used for testing.
 	return cmd
 }
 

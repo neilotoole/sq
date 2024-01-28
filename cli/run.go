@@ -140,6 +140,23 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 		ru.Cleanup = cleanup.New()
 	}
 
+	// If the --input=some/file flag is set, then we need
+	// to override ru.Stdin (which is typically stdin) to point
+	// it at the input source file.
+	if cmdFlagChanged(ru.Cmd, flag.Input) {
+		fpath, _ := ru.Cmd.Flags().GetString(flag.Input)
+		fpath, err := filepath.Abs(fpath)
+		if err != nil {
+			return errz.Wrapf(err, "failed to get absolute path for --%s", flag.Input)
+		}
+
+		f, err := os.Open(fpath)
+		if err != nil {
+			return errz.Wrapf(err, "failed to open file specified by flag --%s", flag.Input)
+		}
+		ru.Stdin = f
+	}
+
 	// If the --output=/some/file flag is set, then we need to
 	// override ru.Out (which is typically stdout) to point it at
 	// the output destination file.
