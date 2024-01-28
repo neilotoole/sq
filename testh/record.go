@@ -8,14 +8,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neilotoole/sq/testh/tu"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 var (
