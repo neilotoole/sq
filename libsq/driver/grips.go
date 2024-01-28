@@ -32,10 +32,12 @@ type ScratchSrcFunc func(ctx context.Context, name string) (src *source.Source, 
 // and then closed by Close. This may be a bad approach.
 type Grips struct {
 	drvrs        Provider
+	closeErr     error
 	scratchSrcFn ScratchSrcFunc
 	files        *files.Files
 	grips        map[string]Grip
 	clnup        *cleanup.Cleanup
+	closeOnce    sync.Once
 	mu           sync.Mutex
 }
 
@@ -417,7 +419,10 @@ func (gs *Grips) OpenJoin(ctx context.Context, srcs ...*source.Source) (Grip, er
 
 // Close closes gs, invoking any cleanup funcs.
 func (gs *Grips) Close() error {
-	return gs.clnup.Run()
+	gs.closeOnce.Do(func() {
+		gs.closeErr = gs.clnup.Run()
+	})
+	return gs.closeErr
 }
 
 var _ Grip = (*cleanOnCloseGrip)(nil)

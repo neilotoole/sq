@@ -104,6 +104,8 @@ type Helper struct {
 
 	initOnce sync.Once
 
+	closeOnce sync.Once
+
 	mu sync.Mutex
 }
 
@@ -209,6 +211,8 @@ func (h *Helper) init() {
 			OptionsRegistry: optRegistry,
 			DriverRegistry:  h.registry,
 		}
+
+		h.Cleanup.AddC(h.run)
 	})
 }
 
@@ -216,10 +220,12 @@ func (h *Helper) init() {
 // error occurs. Close is automatically invoked via t.Cleanup, it does
 // not need to be explicitly invoked unless desired.
 func (h *Helper) Close() {
-	err := h.Cleanup.Run()
-	lg.WarnIfError(h.Log(), "helper cleanup", err)
-	assert.NoError(h.T, err)
-	h.cancelFn()
+	h.closeOnce.Do(func() {
+		err := h.Cleanup.Run()
+		lg.WarnIfError(h.Log(), "helper cleanup", err)
+		assert.NoError(h.T, err)
+		h.cancelFn()
+	})
 }
 
 // Add adds src to the helper's collection.
