@@ -42,8 +42,8 @@ ingested each time.
   # Set default ingest caching behavior
   $ sq config set ingest.cache false
 
-	# Set ingest caching behavior for a specific source
-	$ sq config set --src @sakila ingest.cache false
+  # Set ingest caching behavior for a specific source
+  $ sq config set --src @sakila ingest.cache false
 `,
 	options.TagSource,
 )

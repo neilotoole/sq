@@ -53,8 +53,7 @@ var OptCache = options.NewBool(
 	0,
 	true,
 	"Cache downloads",
-	`
-Cache downloaded remote files. When false, the download cache is not used and
+	`Cache downloaded remote files. When false, the download cache is not used and
 the file is re-downloaded on each command.`,
 	options.TagSource,
 )
