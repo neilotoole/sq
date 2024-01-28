@@ -240,7 +240,8 @@ func (fs *Files) NewReader(ctx context.Context, src *source.Source, ingesting bo
 // the reader is created: newReader must not be called again for src in the
 // lifetime of this Files instance.
 func (fs *Files) newReader(ctx context.Context, src *source.Source, finalRdr bool) (io.ReadCloser, error) {
-	lg.FromContext(ctx).Debug("Files.NewReader", lga.Src, src, "final_reader", finalRdr)
+	log := lg.FromContext(ctx).With(lga.Src, src)
+	lg.Depth(log, slog.LevelDebug, 2, "Invoked Files.NewReader", "final_reader", finalRdr)
 
 	loc := src.Location
 	switch location.TypeOf(loc) {
@@ -259,7 +260,7 @@ func (fs *Files) newReader(ctx context.Context, src *source.Source, finalRdr boo
 		}
 		r := stdinStream.NewReader(ctx)
 		if finalRdr {
-			lg.FromContext(ctx).Debug("Sealing source stream", lga.Src, src)
+			lg.FromContext(ctx).Debug("Sealing source stream")
 			stdinStream.Seal()
 		}
 		return r, nil
@@ -271,7 +272,7 @@ func (fs *Files) newReader(ctx context.Context, src *source.Source, finalRdr boo
 	if dlStream, ok := fs.streams[src.Handle]; ok {
 		r := dlStream.NewReader(ctx)
 		if finalRdr {
-			lg.FromContext(ctx).Debug("Sealing download source stream", lga.Src, src)
+			log.Debug("Sealing download source stream")
 			dlStream.Seal()
 		}
 		return r, nil
@@ -292,7 +293,7 @@ func (fs *Files) newReader(ctx context.Context, src *source.Source, finalRdr boo
 	case dlStream != nil:
 		r := dlStream.NewReader(ctx)
 		if finalRdr {
-			lg.FromContext(ctx).Debug("Sealing download source stream", lga.Src, src)
+			log.Debug("Sealing download source stream")
 			dlStream.Seal()
 		}
 		return r, nil
