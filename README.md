@@ -123,7 +123,7 @@ $ sq ping
 
 > [!TIP]
 > Document sources such as CSV or Excel can be added from the local filesystem, or
-> from a remote HTTP URL. 
+> from an HTTP URL. 
 > 
 > ```shell
 > $ sq add https://acme.s3.amazonaws.com/sales.csv
@@ -218,7 +218,8 @@ That is, you can use `sq` to insert results from a Postgres query into a MySQL t
 or copy an Excel worksheet into a SQLite table, or a push a CSV file into
 a SQL Server table etc.
 
-> **Note:** If you want to copy a table inside the same (database) source,
+> [!TIP]
+> If you want to copy a table inside the same (database) source,
 > use [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy) instead, which uses the database's native table copy functionality.
 
 Here we query a CSV file, and insert the results into a Postgres table.
