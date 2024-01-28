@@ -32,7 +32,7 @@ import (
 )
 
 var OptContinueOnError = options.NewBool(
-	"download.refresh.continue-on-error",
+	"download.refresh.ok-on-err",
 	"",
 	false,
 	0,

@@ -28,9 +28,9 @@ var OptShellCompletionTimeout = options.NewDuration(
 	0,
 	time.Millisecond*500,
 	"Shell completion timeout",
-	`How long shell completion should wait before giving up. This can
-become relevant when shell completion inspects a source's metadata, e.g. to
-offer a list of tables in a source.`,
+	`How long shell completion should wait before giving up. This can become relevant
+when shell completion inspects a source's metadata, e.g. to offer a list of
+tables in a source.`,
 )
 
 var OptShellCompletionLog = options.NewBool(

@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
-## Upcoming
+## [v0.47.0] - 2024-01-28
 
 This is a significant release, focused on improving i/o, responsiveness,
 and performance. The headline features are [caching](https://sq.io/docs/source#cache)
@@ -16,14 +16,15 @@ such as CSV or Excel, and [download](https://sq.io/docs/source#download) caching
 
 ### Added
 
-- Long-running operations (such as data ingestion, or file download) now result
+- Long-running operations (such as data [ingestion](https://sq.io/docs/source#ingest),
+  or file [download](https://sq.io/docs/source#download)) now result
   in a progress bar being displayed. Display of the progress bar is controlled
   by the new config options [`progress`](https://sq.io/docs/config#progress)
   and [`progress.delay`](https://sq.io/docs/config#progressdelay). You can also use
   the `--no-progress` flag to disable the progress bar.
   - Note: the progress bar is rendered
     on `stderr` and is always zapped from the terminal when command output begins. It won't corrupt the output.
-- Ingested [document sources](https://sq.io/docs/source#document-source) (such as
+- [#307]: Ingested [document sources](https://sq.io/docs/source#document-source) (such as
   [CSV](https://sq.io/docs/drivers/csv) or [Excel](https://sq.io/docs/drivers/xlsx))
   now make use of an [ingest](https://sq.io/docs/source#ingest) cache DB. Previously, ingestion 
   of document source data occurred  on each `sq` command. It is now a one-time cost; subsequent
@@ -39,7 +40,7 @@ such as CSV or Excel, and [download](https://sq.io/docs/source#download) caching
   - [`sq cache location`](https://sq.io/docs/cmd/cache_location) prints the cache location on disk.
   - [`sq cache stat`](https://sq.io/docs/cmd/cache_stat) shows stats about the cache.
   - [`sq cache tree`](https://sq.io/docs/cmd/cache_location) shows a tree view of the cache.
-- The [download](https://sq.io/docs/source#download) mechanism for remote document sources (e.g. a CSV file at
+- [#24]: The [download](https://sq.io/docs/source#download) mechanism for remote document sources (e.g. a CSV file at
   [`https://sq.io/testdata/actor.csv`](https://sq.io/testdata/actor.csv)) has been completely
   overhauled. Previously, `sq` would re-download the remote file on every command. Now, the
   remote file is downloaded and [cached](https://sq.io/docs/source#cache) locally.
@@ -54,7 +55,7 @@ such as CSV or Excel, and [download](https://sq.io/docs/source#download) caching
     with a self-signed certificate.
   - [`download.cache`](https://sq.io/docs/config#downloadcache) controls whether remote files are
     cached locally.
-  - [`download.refresh.continue-on-error`](https://sq.io/docs/config#downloadrefreshcontinueonerror)
+  - [`download.refresh.ok-on-err`](https://sq.io/docs/config#downloadrefreshokonerr)
     controls whether `sq` should continue with a stale cached download if an error
     occurred while trying to refresh the download. This is a sort
     of "Airplane Mode" for remote document sources: `sq` continues with the cached download when
@@ -992,6 +993,7 @@ make working with lots of sources much easier.
 [#8]: https://github.com/neilotoole/sq/issues/8
 [#12]: https://github.com/neilotoole/sq/issues/12
 [#15]: https://github.com/neilotoole/sq/issues/15
+[#24]: https://github.com/neilotoole/sq/issues/24
 [#89]: https://github.com/neilotoole/sq/pull/89
 [#91]: https://github.com/neilotoole/sq/pull/91
 [#95]: https://github.com/neilotoole/sq/issues/93
@@ -1026,6 +1028,7 @@ make working with lots of sources much easier.
 [#270]: https://github.com/neilotoole/sq/issues/270
 [#277]: https://github.com/neilotoole/sq/issues/277
 [#279]: https://github.com/neilotoole/sq/issues/279
+[#307]: https://github.com/neilotoole/sq/issues/307
 [#308]: https://github.com/neilotoole/sq/pull/308
 [#335]: https://github.com/neilotoole/sq/issues/335
 [#338]: https://github.com/neilotoole/sq/issues/338
@@ -1084,3 +1087,4 @@ make working with lots of sources much easier.
 [v0.45.0]: https://github.com/neilotoole/sq/compare/v0.44.0...v0.45.0
 [v0.46.0]: https://github.com/neilotoole/sq/compare/v0.45.0...v0.46.0
 [v0.46.1]: https://github.com/neilotoole/sq/compare/v0.46.0...v0.46.1
+[v0.47.0]: https://github.com/neilotoole/sq/compare/v0.46.1...v0.47.0

@@ -129,9 +129,8 @@ $ sq ping
 > $ sq add https://acme.s3.amazonaws.com/sales.csv
 > ```
 > 
-> See the [sources](https://sq.io/docs/source#download) docs for more.
-> 
 > ![sq inspect remote](./.images/sq_inspect_remote_s3.png)
+> See the [sources](https://sq.io/docs/source#download) docs for more.
 
 
 ### Query
