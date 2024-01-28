@@ -14,7 +14,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
-	"github.com/neilotoole/sq/testh/tu"
 )
 
 var (
@@ -33,23 +32,17 @@ func RecordsFromTbl(tb testing.TB, handle, tbl string) (recMeta record.Meta, rec
 	recSinkMu.Lock()
 	defer recSinkMu.Unlock()
 
-	tu.OpenFileCount(tb, true, "start")
-
 	key := fmt.Sprintf("#rec_sink__%s__%s", handle, tbl)
 	sink, ok := recSinkCache[key]
 	if !ok {
 		th := New(tb, OptNoLog())
 		src := th.Source(handle)
 		var err error
-		tu.OpenFileCount(tb, true, "before query")
-
 		sink, err = th.QuerySQL(src, nil, "SELECT * FROM "+tbl)
 		require.NoError(tb, err)
 		recSinkCache[key] = sink
-		tu.OpenFileCount(tb, true, "after query")
 
 		th.Close()
-		tu.OpenFileCount(tb, true, "after close")
 	}
 
 	// Make copies so that the caller can mutate their records
