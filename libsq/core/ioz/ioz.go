@@ -45,6 +45,49 @@ func Close(ctx context.Context, c io.Closer) {
 	lg.WarnIfError(log, "Close", err)
 }
 
+// CopyFile copies the contents from src to dst atomically.
+// If dst does not exist, CopyFile creates it with src's perms.
+// If the copy fails, CopyFile aborts and dst is preserved.
+// If mkdir is true, the directory for dst is created if it
+// doesn't exist.
+func CopyFile(dst, src string, mkdir bool) error {
+	if mkdir {
+		if err := RequireDir(filepath.Dir(dst)); err != nil {
+			return err
+		}
+	}
+
+	fi, err := os.Stat(src)
+	if err != nil {
+		return errz.Err(err)
+	}
+
+	in, err := os.Open(src)
+	if err != nil {
+		return errz.Err(err)
+	}
+	defer in.Close()
+	tmp, err := os.CreateTemp(filepath.Dir(dst), "")
+	if err != nil {
+		return errz.Err(err)
+	}
+	_, err = io.Copy(tmp, in)
+	if err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmp.Name())
+		return errz.Err(err)
+	}
+	if err = tmp.Close(); err != nil {
+		_ = os.Remove(tmp.Name())
+		return errz.Err(err)
+	}
+	if err = os.Chmod(tmp.Name(), fi.Mode()); err != nil {
+		_ = os.Remove(tmp.Name())
+		return errz.Err(err)
+	}
+	return errz.Err(os.Rename(tmp.Name(), dst))
+}
+
 // CopyAsync asynchronously copies from r to w, invoking
 // non-nil callback when done.
 func CopyAsync(w io.Writer, r io.Reader, callback func(written int64, err error)) {

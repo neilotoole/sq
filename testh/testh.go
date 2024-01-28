@@ -5,7 +5,6 @@ package testh
 import (
 	"context"
 	"database/sql"
-	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -312,27 +311,12 @@ func (h *Helper) Source(handle string) *source.Source {
 
 	if src.Type == drivertype.SQLite {
 		// This could be easily generalized for CSV/XLSX etc.
-		fpath, err := sqlite3.PathFromLocation(src)
+		srcPath, err := sqlite3.PathFromLocation(src)
 		require.NoError(t, err)
 
-		srcFile, err := os.Open(fpath)
-		require.NoError(t, err)
-		defer func() {
-			assert.NoError(t, srcFile.Close())
-		}()
-
-		destFile, err := h.files.CreateTemp("*_"+filepath.Base(src.Location), true)
-		require.NoError(t, err)
-		defer func() {
-			assert.NoError(t, destFile.Close())
-		}()
-
-		destFileName := destFile.Name()
-
-		_, err = io.Copy(destFile, srcFile)
-		require.NoError(t, err)
-
-		src.Location = sqlite3.Prefix + destFileName
+		dstPath := filepath.Join(tu.TempDir(t, false), filepath.Base(srcPath))
+		require.NoError(t, ioz.CopyFile(dstPath, srcPath, true))
+		src.Location = sqlite3.Prefix + dstPath
 	}
 
 	h.srcCache[handle] = src
