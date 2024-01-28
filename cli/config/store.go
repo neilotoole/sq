@@ -71,6 +71,8 @@ var OptConfigLockTimeout = options.NewDuration(
 	0,
 	time.Second*5,
 	"Wait timeout to acquire config lock",
-	`Wait timeout to acquire the config lock. During this period, retry will occur
+	`
+Wait timeout to acquire the config lock (which prevents multiple sq instances
+stepping on each other's config changes). During this period, retry will occur
 if the lock is already held by another process. If zero, no retry occurs.`,
 )

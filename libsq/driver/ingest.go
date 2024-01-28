@@ -33,10 +33,18 @@ var OptIngestCache = options.NewBool(
 	0,
 	true,
 	"Cache ingest data",
-	`Specifies whether ingested data is cached or not. When data is ingested
-from a document source, it is stored in a cache DB. Subsequent uses of that same
-source will use that cached DB instead of ingesting the data again, unless this
-option is set to false, in which case, the data is ingested each time.`,
+	`Specifies whether ingested data is cached or not, on a default or per-source
+basis. When data is ingested from a document source, it is stored in a cache DB.
+Subsequent uses of that same source will use that cached DB instead of ingesting
+the data again, unless this option is set to false, in which case, the data is
+ingested each time.
+
+  # Set default ingest caching behavior
+  $ sq config set ingest.cache false
+
+	# Set ingest caching behavior for a specific source
+	$ sq config set --src @sakila ingest.cache false
+`,
 	options.TagSource,
 )
 
