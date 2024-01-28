@@ -8,6 +8,7 @@
 
 `sq` is a command line tool that provides jq-style access to
 structured data sources: SQL databases, or document formats like CSV or Excel.
+It is the lovechild of sql+jq.
 
 ![sq](.images/splash.png)
 
@@ -84,7 +85,9 @@ $ sq ls
 
 Let's [add](https://sq.io/docs/cmd/add) a source. First we'll add a [SQLite](https://sq.io/docs/drivers/sqlite)
 database, but this could also be [Postgres](https://sq.io/docs/drivers/postgres),
-[SQL Server](https://sq.io/docs/drivers/sqlserver), [Excel](https://sq.io/docs/drivers/xlsx), etc.
+[SQL Server](https://sq.io/docs/drivers/sqlserver) etc., or a document source such [Excel](https://sq.io/docs/drivers/xlsx) or
+[CSV](https://sq.io/docs/drivers/csv).
+
 Download the sample DB, and `sq add` the source. 
 
 ```shell
@@ -117,6 +120,19 @@ Thus you could instead do:
 $ sq ping
 @sakila  1ms  pong
 ```
+
+> [!TIP]
+> Document sources such as CSV or Excel can be added from the local filesystem, or
+> from a remote HTTP URL. 
+> 
+> ```shell
+> $ sq add https://acme.s3.amazonaws.com/sales.csv
+> ```
+> 
+> See the [sources](https://sq.io/docs/source#download) docs for more.
+> 
+> ![sq inspect remote](./.images/sq_inspect_remote_s3.png)
+
 
 ### Query
 

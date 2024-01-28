@@ -74,6 +74,15 @@ const (
 	OutputShort = "o"
 	OutputUsage = "Write output to <file> instead of stdout"
 
+	// Input sets Run.Stdin to the named file. At this time, this is used
+	// mainly for debugging, so it's marked hidden by the CLI. I'm not
+	// sure if this will ever be generally useful. Also, there's been no
+	// testing done to see how this flag would interact with, say,
+	// flag.PasswordPrompt, which also reads from stdin.
+	Input      = "input"
+	InputShort = "i"
+	InputUsage = "Read input from <file> instead of stdin"
+
 	InspectOverview      = "overview"
 	InspectOverviewShort = "O"
 	InspectOverviewUsage = "Show metadata only (no schema)"

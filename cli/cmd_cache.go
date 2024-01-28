@@ -45,11 +45,10 @@ func newCacheCmd() *cobra.Command {
 
 func newCacheLocationCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "location",
-		Aliases: []string{"loc"},
-		Short:   "Print cache location",
-		Long:    "Print cache location.",
-		Args:    cobra.ExactArgs(0),
+		Use:   "location",
+		Short: "Print cache location",
+		Long:  "Print cache location.",
+		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ru := run.FromContext(cmd.Context())
 			return ru.Writers.Config.CacheLocation(ru.Files.CacheDir())

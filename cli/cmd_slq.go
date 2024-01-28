@@ -327,6 +327,9 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 
 	cmd.Flags().StringP(flag.Output, flag.OutputShort, "", flag.OutputUsage)
 
+	cmd.Flags().StringP(flag.Input, flag.InputShort, "", flag.InputUsage)
+	panicOn(cmd.Flags().MarkHidden(flag.Input)) // Hide for now; this is mostly used for testing.
+
 	cmd.Flags().String(flag.Insert, "", flag.InsertUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.Insert,
 		(&handleTableCompleter{onlySQL: true, handleRequired: true}).complete))

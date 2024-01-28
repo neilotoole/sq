@@ -10,9 +10,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 ## Upcoming
 
 This is a significant release, focused on improving i/o, responsiveness,
-and performance. The headline features are caching of ingested data for
-document sources such as CSV or Excel, and download caching for remote
-document sources.
+and performance. The headline features are [caching](https://sq.io/docs/source#cache)
+of [ingested](https://sq.io/docs/source#ingest) data for [document sources](https://sq.io/docs/source#document-source)
+such as CSV or Excel, and [download](https://sq.io/docs/source#download) caching for remote document sources.
 
 ### Added
 
@@ -21,13 +21,16 @@ document sources.
   by the new config options [`progress`](https://sq.io/docs/config#progress)
   and [`progress.delay`](https://sq.io/docs/config#progressdelay). You can also use
   the `--no-progress` flag to disable the progress bar.
-- Ingested [document sources](https://sq.io/docs/concepts#document-source) (such as
+  - Note: the progress bar is rendered
+    on `stderr` and is always zapped from the terminal when command output begins. It won't corrupt the output.
+- Ingested [document sources](https://sq.io/docs/source#document-source) (such as
   [CSV](https://sq.io/docs/drivers/csv) or [Excel](https://sq.io/docs/drivers/xlsx))
-  now make use of an ingest cache DB. Previously, ingestion of document source data occurred
-  on each `sq` command. It is now a one-time cost; subsequent use of the document source utilizes
-  the cache DB. If the source document changes, the ingest cache DB is invalidated and
+  now make use of an [ingest](https://sq.io/docs/source#ingest) cache DB. Previously, ingestion 
+  of document source data occurred  on each `sq` command. It is now a one-time cost; subsequent
+  use of the document source utilizes
+  the cache DB. Until, that is, the source document changes: then the ingest cache DB is invalidated and
   ingested again. This is a significantly improved experience for large document sources.
-- There's several new commands to interact with the cache.
+- There are several new commands to interact with the cache (although you shouldn't need to):
   - [`sq cache enable`](https://sq.io/docs/cmd/cache_enable) and
   [`sq cache disable`](https://sq.io/docs/cmd/cache_disable) control cache usage.
   You can also instead use the new [`ingest.cache`](https://sq.io/docs/config#ingestcache)
@@ -36,11 +39,11 @@ document sources.
   - [`sq cache location`](https://sq.io/docs/cmd/cache_location) prints the cache location on disk.
   - [`sq cache stat`](https://sq.io/docs/cmd/cache_stat) shows stats about the cache.
   - [`sq cache tree`](https://sq.io/docs/cmd/cache_location) shows a tree view of the cache.
-- Downloading of remote document sources (e.g. a CSV file at
+- The [download](https://sq.io/docs/source#download) mechanism for remote document sources (e.g. a CSV file at
   [`https://sq.io/testdata/actor.csv`](https://sq.io/testdata/actor.csv)) has been completely
   overhauled. Previously, `sq` would re-download the remote file on every command. Now, the
-  remote file is downloaded and cached locally. Subsequent commands check for staleness of
-  the cached download, and re-download if necessary.
+  remote file is downloaded and [cached](https://sq.io/docs/source#cache) locally.
+  Subsequent `sq` invocations check for staleness of the cached download, and re-download if necessary.
 - As part of the download revamp, new config options have been introduced:
   - [`http.request.timeout`](https://sq.io/docs/config#httprequesttimeout) is the timeout for the initial response from the server, and
     [`http.response.timeout`](https://sq.io/docs/config#httpresponsetimeout) is the timeout for reading the entire response body. We separate

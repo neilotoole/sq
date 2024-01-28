@@ -67,7 +67,7 @@ func CopyFile(dst, src string, mkdir bool) error {
 		return errz.Err(err)
 	}
 	defer in.Close()
-	tmp, err := os.CreateTemp(filepath.Dir(dst), "")
+	tmp, err := os.CreateTemp(filepath.Dir(dst), "*_"+filepath.Base(src))
 	if err != nil {
 		return errz.Err(err)
 	}

@@ -59,12 +59,11 @@ func newConfigCmd() *cobra.Command {
 
 func newConfigLocationCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "location",
-		Aliases: []string{"loc"},
-		Short:   "Print config location",
-		Long:    "Print config location. Use --verbose for more detail.",
-		Args:    cobra.ExactArgs(0),
-		RunE:    execConfigLocation,
+		Use:   "location",
+		Short: "Print config location",
+		Long:  "Print config location. Use --verbose for more detail.",
+		Args:  cobra.ExactArgs(0),
+		RunE:  execConfigLocation,
 		Example: `  # Print config location
   $ sq config location
   /Users/neilotoole/.config/sq

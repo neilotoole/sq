@@ -3,22 +3,15 @@ package cli
 import (
 	"bufio"
 	"fmt"
-	"net/url"
 	"os"
 	"time"
 
 	"github.com/spf13/cobra"
 
-	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
-	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
-	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/files"
-	"github.com/neilotoole/sq/libsq/files/downloader"
-	"github.com/neilotoole/sq/libsq/source"
 )
 
 // newXCmd returns the root "x" command, which is the container
@@ -120,71 +113,6 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 
 	fmt.Fprintln(ru.Out, "exiting")
 	return ctx.Err()
-}
-
-func newXDownloadCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:    "download URL",
-		Short:  "Download a file",
-		Hidden: true,
-		Args:   cobra.ExactArgs(1),
-		RunE:   execXDownloadCmd,
-		Example: `  $ sq x download https://sq.io/testdata/actor.csv
-
-  # Download a big-ass file
-  $ sq x download https://sqio-public.s3.amazonaws.com/testdata/payment-large.gen.csv
-`,
-	}
-	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
-	return cmd
-}
-
-func execXDownloadCmd(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-	log := lg.FromContext(ctx)
-	ru := run.FromContext(ctx)
-
-	u, err := url.ParseRequestURI(args[0])
-	if err != nil {
-		return err
-	}
-
-	sum := checksum.Sum([]byte(u.String()))
-	fakeSrc := &source.Source{Handle: "@download_" + sum}
-	cacheDir, err := ru.Files.CacheDirFor(fakeSrc)
-	if err != nil {
-		return err
-	}
-
-	c := httpz.NewClient(
-		httpz.DefaultUserAgent,
-		httpz.OptResponseTimeout(time.Second*15),
-		httpz.OptRequestDelay(time.Second*5),
-	)
-	dl, err := downloader.New(fakeSrc.Handle, c, u.String(), cacheDir)
-	if err != nil {
-		return err
-	}
-
-	h := downloader.NewSinkHandler(log.With("origin", "handler"))
-	if cacheFile := dl.Get(ctx, h.Handler); cacheFile == "" {
-		fmt.Fprintf(ru.Out, "No cache file: %s\n", err)
-	} else {
-		fmt.Fprintf(ru.Out, "Returned cache file: %s\n", cacheFile)
-	}
-
-	switch {
-	case len(h.Errors) > 0:
-		err1 := errz.Err(h.Errors[0])
-		return err1
-	case len(h.Downloaded) > 0:
-		fmt.Fprintf(ru.Out, "Cached: %s\n", h.Downloaded[0])
-		return nil
-	case len(h.Streams) > 0:
-		fmt.Fprintf(ru.Out, "Uncached: %d bytes\n", h.Streams[0].Size())
-	}
-
-	return nil
 }
 
 func pressEnter() <-chan struct{} {
