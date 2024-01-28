@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/testh/tu"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -18,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // typeTestTableDDLPath is the location of the SQL CREATE statement

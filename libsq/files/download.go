@@ -16,44 +16,46 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/libsq/files/downloader"
+	"github.com/neilotoole/sq/libsq/files/internal/downloader"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-var OptHTTPRequestTimeout = options.NewDuration(
-	"http.request.timeout",
-	"",
-	0,
-	time.Second*10,
-	"HTTP/S request initial response timeout duration",
-	`How long to wait for initial response from a HTTP/S endpoint before
+var (
+	OptHTTPRequestTimeout = options.NewDuration(
+		"http.request.timeout",
+		"",
+		0,
+		time.Second*10,
+		"HTTP/S request initial response timeout duration",
+		`How long to wait for initial response from a HTTP/S endpoint before
 timeout occurs. Reading the body of the response, such as a large HTTP file
 download, is not affected by this option. Example: 500ms or 3s.
 Contrast with http.response.timeout.`,
-	options.TagSource,
-)
-
-var OptHTTPResponseTimeout = options.NewDuration(
-	"http.response.timeout",
-	"",
-	0,
-	0,
-	"HTTP/S request completion timeout duration",
-	`How long to wait for the entire HTTP transaction to complete. This includes
+		options.TagSource,
+	)
+	OptHTTPResponseTimeout = options.NewDuration(
+		"http.response.timeout",
+		"",
+		0,
+		0,
+		"HTTP/S request completion timeout duration",
+		`How long to wait for the entire HTTP transaction to complete. This includes
 reading the body of the response, such as a large HTTP file download. Typically
 this is set to 0, indicating no timeout. Contrast with http.request.timeout.`,
-	options.TagSource,
-)
-
-var OptHTTPSInsecureSkipVerify = options.NewBool(
-	"https.insecure-skip-verify",
-	"",
-	false,
-	0,
-	false,
-	"Skip HTTPS TLS verification",
-	"Skip HTTPS TLS verification. Useful when downloading against self-signed certs.",
-	options.TagSource,
+		options.TagSource,
+	)
+	OptHTTPSInsecureSkipVerify = options.NewBool(
+		"https.insecure-skip-verify",
+		"",
+		false,
+		0,
+		false,
+		"Skip HTTPS TLS verification",
+		"Skip HTTPS TLS verification. Useful when downloading against self-signed certs.",
+		options.TagSource,
+	)
+	OptDownloadContinueOnError = downloader.OptContinueOnError
+	OptDownloadCache           = downloader.OptCache
 )
 
 // maybeStartDownload starts a download for src if one is not already in progress

@@ -23,7 +23,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/files"
-	"github.com/neilotoole/sq/libsq/files/downloader"
+	"github.com/neilotoole/sq/libsq/files/internal/downloader"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
 )
