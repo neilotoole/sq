@@ -122,10 +122,16 @@ $ sq ping
 ```
 
 > [!TIP]
-> Document sources such as CSV or Excel added from the local filesystem, or
-> from a remote HTTP URL. See the [sources](https://sq.io/docs/source#download) docs.
+> Document sources such as CSV or Excel can be added from the local filesystem, or
+> from a remote HTTP URL. 
 > 
-> Image here. ![sq query where slq](./.images/sq_query_where_slq.png)
+> ```shell
+> $ sq add https://acme.s3.amazonaws.com/sales.csv
+> ```
+> 
+> See the [sources](https://sq.io/docs/source#download) docs for more.
+> 
+> ![sq inspect remote](./.images/sq_inspect_remote_s3.png)
 
 
 ### Query
