@@ -127,7 +127,7 @@ func (fs *Files) maybeStartDownload(ctx context.Context, src *source.Source, che
 	go func() {
 		// Spawn a goroutine to execute the download process.
 		// The handler will be called before Get returns.
-		cacheFile := dldr.Get(ctx, h)
+		cacheFile := dldr.Get(ctx)
 		if cacheFile == "" {
 			// Either the download failed, or cache update failed.
 			return

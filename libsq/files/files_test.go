@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -267,7 +266,8 @@ func TestFiles_Filesize(t *testing.T) {
 	// Files.Filesize will block until the stream is fully read.
 	r, err := fs.NewReader(th.Context, stdinSrc, false)
 	require.NoError(t, err)
-	require.NoError(t, ioz.Drain(r))
+	_, err = io.Copy(io.Discard, r)
+	require.NoError(t, err)
 
 	gotSize2, err := fs.Filesize(th.Context, stdinSrc)
 	require.NoError(t, err)

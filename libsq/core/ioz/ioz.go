@@ -539,10 +539,41 @@ func DirExists(dir string) bool {
 	return fi.IsDir()
 }
 
-// Drain drains r.
-func Drain(r io.Reader) error {
-	_, err := io.Copy(io.Discard, r)
-	return err
+// DrainN drains r, returning the number of bytes read, and any error. On
+// successful drain, if arg close is true and r is an io.ReadCloser, r.Close is
+// invoked and its error returned (along with n). If r is not an io.ReadCloser,
+// arg close is ignored.
+func DrainN(r io.Reader, close bool) (n int, err error) {
+	var n64 int64
+	n64, err = io.Copy(io.Discard, r)
+	n = int(n64)
+	if err != nil {
+		return n, errz.Err(err)
+	}
+
+	if !close {
+		return n, nil
+	}
+
+	if rc, ok := r.(io.ReadCloser); ok {
+		return n, errz.Err(rc.Close())
+	}
+	return n, nil
+}
+
+// Filesize returns the size of the file at fp. An error is returned
+// if fp doesn't exist or is a directory.
+func Filesize(fp string) (int64, error) {
+	fi, err := os.Stat(fp)
+	if err != nil {
+		return 0, errz.Err(err)
+	}
+
+	if fi.IsDir() {
+		return 0, errz.Errorf("not a file: %s", fp)
+	}
+
+	return fi.Size(), nil
 }
 
 // FileInfoEqual returns true if a and b are equal.

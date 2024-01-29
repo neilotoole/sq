@@ -216,6 +216,26 @@ var (
 	_ AssertCompareFunc = require.Greater
 )
 
+// RequireNoTake fails if a value is taken from c.
+func RequireNoTake[C any](tb testing.TB, c <-chan C, msgAndArgs ...any) {
+	tb.Helper()
+	select {
+	case <-c:
+		require.Fail(tb, "unexpected take from channel", msgAndArgs...)
+	default:
+	}
+}
+
+// RequireTake fails if a value is not taken from c.
+func RequireTake[C any](tb testing.TB, c <-chan C, msgAndArgs ...any) {
+	tb.Helper()
+	select {
+	case <-c:
+	default:
+		require.Fail(tb, "unexpected failure to take from channel", msgAndArgs...)
+	}
+}
+
 // DirCopy copies the contents of sourceDir to a temp dir.
 // If keep is false, temp dir will be cleaned up on test exit.
 func DirCopy(tb testing.TB, sourceDir string, keep bool) (tmpDir string) {
@@ -354,6 +374,35 @@ func MustStat(tb testing.TB, fp string) os.FileInfo {
 	fi, err := os.Stat(fp)
 	require.NoError(tb, err)
 	return fi
+}
+
+// MustDrain drains r, failing t on error. If arg close is true,
+// r is closed if it's an io.Closer.
+func MustDrain(tb testing.TB, r io.Reader, close bool) {
+	tb.Helper()
+	_, err := io.Copy(io.Discard, r)
+	require.NoError(tb, err)
+	if !close {
+		return
+	}
+	if rc, ok := r.(io.Closer); ok {
+		require.NoError(tb, rc.Close())
+	}
+}
+
+// MustDrainN is like MustDrain, but also reports the number of bytes
+// drained. If arg close is true, r is closed if it's an io.Closer.
+func MustDrainN(tb testing.TB, r io.Reader, close bool) int {
+	tb.Helper()
+	n, err := io.Copy(io.Discard, r)
+	require.NoError(tb, err)
+	if !close {
+		return int(n)
+	}
+	if rc, ok := r.(io.Closer); ok {
+		require.NoError(tb, rc.Close())
+	}
+	return int(n)
 }
 
 // TempDir is the standard means for obtaining a temp dir for tests.

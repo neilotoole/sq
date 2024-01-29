@@ -3,6 +3,12 @@ package downloader_test
 import (
 	"context"
 	"errors"
+	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,23 +18,91 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
-	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/files/internal/downloader"
-	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
 )
 
-func TestDownload_redirect(t *testing.T) {
+func TestDownloader(t *testing.T) {
+	const dlURL = sakila.ActorCSVURL
+	log := lgt.New(t)
+	ctx := lg.NewContext(context.Background(), log)
+
+	cacheDir := t.TempDir()
+
+	dl, err := downloader.New(t.Name(), httpz.NewDefaultClient(), dlURL, cacheDir)
+	require.NoError(t, err)
+	require.NoError(t, dl.Clear(ctx))
+	require.Equal(t, downloader.Uncached, dl.State(ctx))
+	sum, ok := dl.Checksum(ctx)
+	require.False(t, ok)
+	require.Empty(t, sum)
+
+	// Here's our first download, it's not cached, so we should
+	// get a stream.
+	gotFile, gotStream, gotErr := dl.Get(ctx)
+	require.NoError(t, gotErr)
+	require.Empty(t, gotFile)
+	require.NotNil(t, gotStream)
+	require.Equal(t, downloader.Uncached, dl.State(ctx))
+
+	// The stream should not be filled yet, because we
+	// haven't read from it.
+	tu.RequireNoTake(t, gotStream.Filled())
+
+	// And there should be no cache file, because the cache file
+	// isn't written until the stream is drained.
+	gotFile, gotErr = dl.CacheFile(ctx)
+	require.Error(t, gotErr)
+	require.Empty(t, gotFile)
+
+	r := gotStream.NewReader(ctx)
+	gotStream.Seal()
+
+	// Now we drain the stream, and the cache should magically fill.
+	gotN, err := ioz.DrainN(r, true)
+	require.NoError(t, err)
+	require.Equal(t, sakila.ActorCSVSize, gotN)
+	tu.RequireTake(t, gotStream.Filled())
+	tu.RequireTake(t, gotStream.Done())
+	require.Equal(t, sakila.ActorCSVSize, gotStream.Size())
+	require.Equal(t, downloader.Fresh, dl.State(ctx))
+
+	// Now we should be able to access the cache.
+	sum, ok = dl.Checksum(ctx)
+	require.True(t, ok)
+	require.NotEmpty(t, sum)
+	gotFile, gotErr = dl.CacheFile(ctx)
+	require.NoError(t, gotErr)
+	require.NotEmpty(t, gotFile)
+	gotSize, gotErr := ioz.Filesize(gotFile)
+	require.NoError(t, err)
+	require.Equal(t, sakila.ActorCSVSize, int(gotSize))
+
+	// Let's download again, and verify that the cache is used.
+	gotFile, gotStream, gotErr = dl.Get(ctx)
+	require.Nil(t, gotErr)
+	require.Nil(t, gotStream)
+	require.NotEmpty(t, gotFile)
+
+	gotFileBytes, err := os.ReadFile(gotFile)
+	require.NoError(t, err)
+	require.Equal(t, sakila.ActorCSVSize, len(gotFileBytes))
+	require.Equal(t, downloader.Fresh, dl.State(ctx))
+	sum, ok = dl.Checksum(ctx)
+	require.True(t, ok)
+	require.NotEmpty(t, sum)
+
+	require.NoError(t, dl.Clear(ctx))
+	require.Equal(t, downloader.Uncached, dl.State(ctx))
+	sum, ok = dl.Checksum(ctx)
+	require.False(t, ok)
+	require.Empty(t, sum)
+}
+
+func TestDownloader_redirect(t *testing.T) {
 	const hello = `Hello World!`
 	serveBody := hello
 	lastModified := time.Now().UTC()
@@ -81,100 +155,27 @@ func TestDownload_redirect(t *testing.T) {
 	dl, err := downloader.New(t.Name(), httpz.NewDefaultClient(), loc, cacheDir)
 	require.NoError(t, err)
 	require.NoError(t, dl.Clear(ctx))
-	h := downloader.NewSinkHandler(log.With("origin", "handler"))
 
-	gotGetFile := dl.Get(ctx, h.Handler)
-	require.Empty(t, h.Errors)
-	require.NotEmpty(t, gotGetFile)
-	gotBody := tu.ReadToString(t, h.Streams[0].NewReader(ctx))
+	gotFile, gotStream, gotErr := dl.Get(ctx)
+	require.NoError(t, gotErr)
+	require.NotNil(t, gotStream)
+	require.Empty(t, gotFile)
+	gotBody := tu.ReadToString(t, gotStream.NewReader(ctx))
 	require.Equal(t, hello, gotBody)
 
-	h.Reset()
-	gotGetFile = dl.Get(ctx, h.Handler)
-	require.NotEmpty(t, gotGetFile)
-	require.Empty(t, h.Errors)
-	require.Empty(t, h.Streams)
-	gotDownloadedFile := h.Downloaded[0]
-	t.Logf("got fp: %s", gotDownloadedFile)
-	gotBody = tu.ReadFileToString(t, gotDownloadedFile)
+	gotFile, gotStream, gotErr = dl.Get(ctx)
+	require.NoError(t, gotErr)
+	require.NotEmpty(t, gotFile)
+	t.Logf("got fp: %s", gotFile)
+	gotBody = tu.ReadFileToString(t, gotFile)
 	t.Logf("got body: \n\n%s\n\n", gotBody)
 	require.Equal(t, serveBody, gotBody)
-
-	h.Reset()
-	gotGetFile = dl.Get(ctx, h.Handler)
-	require.NotEmpty(t, gotGetFile)
-	require.Empty(t, h.Errors)
-	require.Empty(t, h.Streams)
-	gotDownloadedFile = h.Downloaded[0]
-	t.Logf("got fp: %s", gotDownloadedFile)
-	gotBody = tu.ReadFileToString(t, gotDownloadedFile)
-	t.Logf("got body: \n\n%s\n\n", gotBody)
-	require.Equal(t, serveBody, gotBody)
-}
-
-func TestDownload_New(t *testing.T) {
-	log := lgt.New(t)
-	ctx := lg.NewContext(context.Background(), log)
-	const dlURL = sakila.ActorCSVURL
-
-	cacheDir := t.TempDir()
-
-	dl, err := downloader.New(t.Name(), httpz.NewDefaultClient(), dlURL, cacheDir)
-	require.NoError(t, err)
-	require.NoError(t, dl.Clear(ctx))
-	require.Equal(t, downloader.Uncached, dl.State(ctx))
-	sum, ok := dl.Checksum(ctx)
-	require.False(t, ok)
-	require.Empty(t, sum)
-
-	h := downloader.NewSinkHandler(log.With("origin", "handler"))
-	gotGetFile := dl.Get(ctx, h.Handler)
-	require.NotEmpty(t, gotGetFile)
-	require.Empty(t, h.Errors)
-	require.Empty(t, h.Downloaded)
-	require.Equal(t, 1, len(h.Streams))
-	require.Equal(t, int64(sakila.ActorCSVSize), int64(h.Streams[0].Size()))
-	require.Equal(t, downloader.Fresh, dl.State(ctx))
-	sum, ok = dl.Checksum(ctx)
-	require.True(t, ok)
-	require.NotEmpty(t, sum)
-
-	h.Reset()
-	gotGetFile = dl.Get(ctx, h.Handler)
-	require.NotEmpty(t, gotGetFile)
-	require.Empty(t, h.Errors)
-	require.Empty(t, h.Streams)
-	require.NotEmpty(t, h.Downloaded)
-	require.Equal(t, gotGetFile, h.Downloaded[0])
-	gotFileBytes, err := os.ReadFile(h.Downloaded[0])
-	require.NoError(t, err)
-	require.Equal(t, sakila.ActorCSVSize, len(gotFileBytes))
-	require.Equal(t, downloader.Fresh, dl.State(ctx))
-	sum, ok = dl.Checksum(ctx)
-	require.True(t, ok)
-	require.NotEmpty(t, sum)
-
-	require.NoError(t, dl.Clear(ctx))
-	require.Equal(t, downloader.Uncached, dl.State(ctx))
-	sum, ok = dl.Checksum(ctx)
-	require.False(t, ok)
-	require.Empty(t, sum)
-
-	h.Reset()
-	gotGetFile = dl.Get(ctx, h.Handler)
-	require.Empty(t, h.Errors)
-	require.NotEmpty(t, gotGetFile)
-	require.True(t, ioz.FileAccessible(gotGetFile))
-
-	h.Reset()
 }
 
 func TestCachePreservedOnFailedRefresh(t *testing.T) {
-	o := options.Options{files.OptHTTPResponseTimeout.Key(): "10m"}
-	ctx := options.NewContext(context.Background(), o)
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
 
 	var (
-		log                 = lgt.New(t)
 		srvr                *httptest.Server
 		srvrShouldBodyError bool
 		srvrShouldNoCache   bool
@@ -216,29 +217,32 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	}))
 	t.Cleanup(srvr.Close)
 
-	ctx = lg.NewContext(ctx, log.With("origin", "downloader"))
 	cacheDir := filepath.Join(t.TempDir(), stringz.UniqSuffix("dlcache"))
 	dl, err := downloader.New(t.Name(), httpz.NewDefaultClient(), srvr.URL, cacheDir)
 	require.NoError(t, err)
 	require.NoError(t, dl.Clear(ctx))
-	h := downloader.NewSinkHandler(log.With("origin", "handler"))
 
-	gotGetFile := dl.Get(ctx, h.Handler)
-	require.Empty(t, h.Errors)
-	require.NotEmpty(t, h.Streams)
-	require.NotEmpty(t, gotGetFile, "cache file should have been filled")
-	require.True(t, ioz.FileAccessible(gotGetFile))
-
-	stream := h.Streams[0]
-	start := time.Now()
+	gotGetFile, gotStream, gotErr := dl.Get(ctx)
+	require.NoError(t, gotErr)
+	require.Empty(t, gotGetFile)
+	require.NotNil(t, gotStream)
+	tu.RequireNoTake(t, gotStream.Filled())
+	r := gotStream.NewReader(ctx)
+	gotStream.Seal()
 	t.Logf("Waiting for download to complete")
-	<-stream.Filled()
+	start := time.Now()
+
+	gotN, gotErr := ioz.DrainN(r, true)
 	t.Logf("Download completed after %s", time.Since(start))
-	require.True(t, errors.Is(stream.Err(), io.EOF))
+	tu.RequireTake(t, gotStream.Filled())
+	tu.RequireTake(t, gotStream.Done())
+	require.Equal(t, len(sentBody), gotN)
+
+	require.True(t, errors.Is(gotStream.Err(), io.EOF))
 	gotSize, err := dl.Filesize(ctx)
 	require.NoError(t, err)
 	require.Equal(t, len(sentBody), int(gotSize))
-	require.Equal(t, len(sentBody), stream.Size())
+	require.Equal(t, len(sentBody), gotStream.Size())
 	gotFilesize, err := dl.Filesize(ctx)
 	require.NoError(t, err)
 	require.Equal(t, len(sentBody), int(gotFilesize))
@@ -256,23 +260,31 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	fiChecksums1 := tu.MustStat(t, fpChecksums)
 
 	srvrShouldBodyError = true
-	h.Reset()
 
 	// Sleep to allow file modification timestamps to tick
 	time.Sleep(time.Millisecond * 10)
-	gotGetFile = dl.Get(ctx, h.Handler)
-	require.Empty(t, h.Errors)
+	gotGetFile, gotStream, gotErr = dl.Get(ctx)
+	require.NoError(t, gotErr)
 	require.Empty(t, gotGetFile,
-		"gotCacheFile should be empty, because the server returned an error during cache write")
-	require.NotEmpty(t, h.Streams,
-		"h.Streams should not be empty, because the download was in fact initiated")
-	stream = h.Streams[0]
-	<-stream.Filled()
-	err = stream.Err()
-	t.Logf("got stream err: %v", err)
-	require.Error(t, err)
-	require.True(t, errors.Is(err, io.ErrUnexpectedEOF))
-	require.Equal(t, len(sentBody), stream.Size())
+		"gotFile should be empty, because the server returned an error during cache write")
+	require.NotNil(t, gotStream,
+		"gotStream should not be empty, because the download was in fact initiated")
+
+	r = gotStream.NewReader(ctx)
+	gotStream.Seal()
+
+	gotN, gotErr = ioz.DrainN(r, true)
+	require.Equal(t, len(sentBody), gotN)
+	tu.RequireTake(t, gotStream.Filled())
+	tu.RequireNoTake(t, gotStream.Done())
+
+	gotErr2 := gotStream.Err()
+	require.Error(t, gotErr2)
+	require.True(t, errors.Is(gotErr, gotErr2))
+	t.Logf("got stream err: %v", gotErr)
+
+	require.True(t, errors.Is(gotErr, io.ErrUnexpectedEOF))
+	require.Equal(t, len(sentBody), gotStream.Size())
 
 	// Verify that the server hasn't updated the cache,
 	// by checking that the file modification timestamps
@@ -284,6 +296,4 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	require.True(t, ioz.FileInfoEqual(fiBody1, fiBody2))
 	require.True(t, ioz.FileInfoEqual(fiHeader1, fiHeader2))
 	require.True(t, ioz.FileInfoEqual(fiChecksums1, fiChecksums2))
-
-	h.Reset()
 }
