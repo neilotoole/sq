@@ -26,7 +26,9 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/c2h5oh/datasize"
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
@@ -99,9 +101,13 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 
 	if freq := OptDebugTrackMemory.Get(options.FromContext(ctx)); freq > 0 {
 		// Debug setting to log peak memory usage on exit.
-		memTracker := ioz.StartPeakMemoryTracker(ctx, freq)
+		peakSys, peakAllocs, gcPause := ioz.StartMemStatsTracker(ctx, freq)
 		defer func() {
-			log.Info("Peak memory usage", "mem", memTracker.String(), "bytes", memTracker.Load())
+			log.Info("Peak memory stats",
+				"sys", datasize.ByteSize(peakSys.Load()).HR(),
+				"heap", datasize.ByteSize(peakAllocs.Load()).HR(),
+				"gc_pause", time.Duration(gcPause.Load()).String(),
+			)
 		}()
 	}
 
