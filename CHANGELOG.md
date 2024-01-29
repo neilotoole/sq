@@ -22,8 +22,8 @@ such as CSV or Excel, and [download](https://sq.io/docs/source#download) caching
   by the new config options [`progress`](https://sq.io/docs/config#progress)
   and [`progress.delay`](https://sq.io/docs/config#progressdelay). You can also use
   the `--no-progress` flag to disable the progress bar.
-  - Note: the progress bar is rendered
-    on `stderr` and is always zapped from the terminal when command output begins. It won't corrupt the output.
+  - 👉 The progress bar is rendered on `stderr` and is always zapped from the terminal when command output begins.
+  It won't corrupt the output.
 - [#307]: Ingested [document sources](https://sq.io/docs/source#document-source) (such as
   [CSV](https://sq.io/docs/drivers/csv) or [Excel](https://sq.io/docs/drivers/xlsx))
   now make use of an [ingest](https://sq.io/docs/source#ingest) cache DB. Previously, ingestion 
