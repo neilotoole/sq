@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
+## [v0.47.1] - 2024-01-29
+
+This is a tiny bugfix release for a runtime issue on some Linux distros. See
+the previous [`v0.47.0`](https://github.com/neilotoole/sq/releases/tag/v0.47.0) release
+for recent headline features.
+
+### Fixed
+
+- `sq` [panicked](https://github.com/neilotoole/sq/actions/runs/7701355729/job/20987599862#step:3:383) on some Linux distros that don't include timezone data (`tzdata`). It's now
+  explicitly [imported](https://wawand.co/blog/posts/go-timezonedata-go115/).
+
+
 ## [v0.47.0] - 2024-01-29
 
 This is a significant release, focused on improving i/o, responsiveness,
@@ -25,19 +37,19 @@ you encounter any weirdness.
   and [`progress.delay`](https://sq.io/docs/config#progressdelay). You can also use
   the `--no-progress` flag to disable the progress bar.
   - 👉 The progress bar is rendered on `stderr` and is always zapped from the terminal when command output begins.
-  It won't corrupt the output.
+    It won't corrupt the output.
 - [#307]: Ingested [document sources](https://sq.io/docs/source#document-source) (such as
   [CSV](https://sq.io/docs/drivers/csv) or [Excel](https://sq.io/docs/drivers/xlsx))
-  now make use of an [ingest](https://sq.io/docs/source#ingest) cache DB. Previously, ingestion 
+  now make use of an [ingest](https://sq.io/docs/source#ingest) cache DB. Previously, ingestion
   of document source data occurred  on each `sq` command. It is now a one-time cost; subsequent
   use of the document source utilizes
   the cache DB. Until, that is, the source document changes: then the ingest cache DB is invalidated and
   ingested again. This is a significantly improved experience for large document sources.
 - There are several new commands to interact with the cache (although you shouldn't need to):
   - [`sq cache enable`](https://sq.io/docs/cmd/cache-enable) and
-  [`sq cache disable`](https://sq.io/docs/cmd/cache-disable) control cache usage.
-  You can also instead use the new [`ingest.cache`](https://sq.io/docs/config#ingestcache)
-  config option.
+    [`sq cache disable`](https://sq.io/docs/cmd/cache-disable) control cache usage.
+    You can also instead use the new [`ingest.cache`](https://sq.io/docs/config#ingestcache)
+    config option.
   - [`sq cache clear`](https://sq.io/docs/cmd/cache-clear) clears the cache.
   - [`sq cache location`](https://sq.io/docs/cmd/cache-location) prints the cache location on disk.
   - [`sq cache stat`](https://sq.io/docs/cmd/cache-stat) shows stats about the cache.
@@ -64,11 +76,11 @@ you encounter any weirdness.
     the network is unavailable.
 - There are two more new config options introduced as part of the above work.
   - [`cache.lock.timeout`](https://sq.io/docs/config#cachelocktimeout) controls the time that
-  `sq` will wait for a lock on the cache DB. The cache lock is introduced for when you have
-  multiple `sq` commands running concurrently, and you want to avoid them stepping on each other.
+    `sq` will wait for a lock on the cache DB. The cache lock is introduced for when you have
+    multiple `sq` commands running concurrently, and you want to avoid them stepping on each other.
   - Similarly, [`config.lock.timeout`](https://sq.io/docs/config#configlocktimeout) controls the
-  timeout for acquiring the (newly-introduced) lock on `sq`'s config file. This helps prevent
-  issues with multiple `sq` processes mutating the config concurrently.
+    timeout for acquiring the (newly-introduced) lock on `sq`'s config file. This helps prevent
+    issues with multiple `sq` processes mutating the config concurrently.
 - `sq`'s own [logs](https://sq.io/docs/config#logging) previously outputted in JSON
   format. Now there's a new [`log.format`](https://sq.io/docs/config#logformat) config option
   that permits setting the log format to `json` or `text`. The `text` format is more human-friendly, and
@@ -129,7 +141,7 @@ you encounter any weirdness.
   shoved a decimal value into a `float` or `string` and hoped for the best.
   [As is known](https://medium.com/@mayuribudake999/difference-between-decimal-and-float-eede050f6c9a),
   floats are imprecise, and so we saw [unwanted behavior](https://github.com/neilotoole/sq/actions/runs/6932116521/job/18855333269#step:6:2345), e.g.
-  
+
   ```shell
   db_type_test.go:194: 
         Error Trace:	D:/a/sq/sq/drivers/sqlite3/db_type_test.go:194
@@ -137,10 +149,10 @@ you encounter any weirdness.
                       expected: "77.77"
                       actual  : "77.77000000000001"
   ```
-  
+
   Now, `sq` uses a dedicated [`Decimal`](https://github.com/shopspring/decimal) type end-to-end.
   No precision is lost, and at the output end, the value is rendered with the correct precision.
-  
+
   There is a [proposal](https://github.com/golang/go/issues/30870) to add decimal support to
   the Go [`database/sql`](https://pkg.go.dev/database/sql) package. If that happens, `sq` will happily
   switch to that mechanism.
@@ -156,7 +168,7 @@ you encounter any weirdness.
 
 - New [SLQ](https://sq.io/docs/concepts#slq) function [`rownum()`](https://sq.io/docs/query#rownum) that returns the one-indexed
   row number of the current record.
-  
+
   ```shell
   $ sq '.actor | rownum(), .actor_id, .first_name | order_by(.first_name)'
   rownum()  actor_id  first_name
@@ -184,7 +196,7 @@ you encounter any weirdness.
     postgres
     sakila
     ```
-  
+
 ### Fixed
 
 - [`sq version`](https://sq.io/docs/cmd/version) now honors option
@@ -237,7 +249,7 @@ you encounter any weirdness.
 
 ### Fixed
 
-- [#308]: Fix to allow build on [32-bit systems](https://github.com/void-linux/void-packages/pull/45023). 
+- [#308]: Fix to allow build on [32-bit systems](https://github.com/void-linux/void-packages/pull/45023).
   Thanks [@icp](https://github.com/icp1994).
 
 
@@ -272,19 +284,19 @@ discover anything strange, please [open an issue](https://github.com/neilotoole/
 - [#99]: The [CSV](https://sq.io/docs/drivers/csv) and [XLSX](https://sq.io/docs/drivers/xlsx)
   drivers can now handle duplicate header column names in the ingest data.
   For example, given a CSV file:
-  
+
   ```csv
   actor_id,first_name,actor_id
   1,PENELOPE,1
   2,NICK,2
   ```
-  
+
   The columns will be renamed to:
-  
+
   ```csv
   actor_id,first_name,actor_id_1
   ```
-  
+
   The renaming behavior is controlled by a new option [`ingest.column.rename`](https://sq.io/docs/config#ingestcolumnrename)
   This new option is effectively the ingest counterpart of the existing output option
   [`result.column.rename`](https://sq.io/docs/config#resultcolumnrename).
@@ -315,23 +327,23 @@ discover anything strange, please [open an issue](https://github.com/neilotoole/
 - ☢️ The default Excel date format has changed. Previously
   the format was `11/9/89`, and now it is `1989-11-09`. The same applies
   to datetimes, e.g. `11/9/1989  00:00:00` becomes `1989-11-09 00:00`.
-  
+
   This change is made to reduce ambiguity and confusion.
   `sq` uses a [library](https://github.com/qax-os/excelize)
   to interact with Excel files, and it seems that the library chooses a particular format
   by default (`11/9/89`). There are several paths we could take here:
-  
+
   1. Interrogate the OS, and use the OS locale date format.
   2. Stick with the library default `11/9/89`.
   3. Pick a default other than `11/9/89`.
-  
+
   We pick the third option. The first option (locale-dependent)
-  is excluded because, as a general rule, we want `sq` to produce the same 
+  is excluded because, as a general rule, we want `sq` to produce the same
   output regardless of locale/system settings. We exclude the second option
   because month/day confuses most of the world. Thus, we're left with picking a
   default, and `1989-11-09` is the format used in
   [RFC3339](https://datatracker.ietf.org/doc/html/rfc3339) and friends.
-  
+
   Whether this is the correct (standard?) approach is still unclear, and
   feedback is welcome. However, the user can make use of the new config options
   ([`format.excel.datetime`](https://sq.io/docs/config#formatexceldatetime) etc.)
@@ -370,7 +382,7 @@ mechanism.
   the join types such as `left_outer_join`, `cross_join`, etc. are
   implemented ([docs](https://sq.io/docs/query#join-types)).
 
-  
+
 ### Changed
 
 -  ☢️ [#12]: The table [join](https://sq.io/docs/query#joins) mechanism has been
@@ -457,7 +469,7 @@ to SLQ (`sq`'s query language).
   3
   ```
   You may want to use `--no-header` (`-H`) when using `sq` as a calculator.
-  
+
   ```shell
   $ sq -H 1+2
   3
@@ -468,7 +480,7 @@ to SLQ (`sq`'s query language).
 ### Fixed
 
 - Literals can now be selected ([docs](https://sq.io/docs/query#select-literal)).
-  
+
   ```shell
   $ sq '.actor | .first_name, "X":middle_name, .last_name | .[0:2]'
   first_name  middle_name  last_name
@@ -476,7 +488,7 @@ to SLQ (`sq`'s query language).
   NICK        X            WAHLBERG
   ```
 - Lots of expressions that previously failed badly, now work.
-  
+
   ```shell
   $ sq '.actor | .first_name, (1+2):addition | .[0:2]'
   first_name  addition
@@ -516,7 +528,7 @@ to SLQ (`sq`'s query language).
 
 ### Changed
 
-- ☢️ [Proprietary database functions](https://sq.io/docs/query#proprietary-functions) are now 
+- ☢️ [Proprietary database functions](https://sq.io/docs/query#proprietary-functions) are now
   invoked by prefixing the function name with an underscore. For example:
   ```shell
   # mysql "date_format" func
@@ -600,7 +612,7 @@ The major feature is the long-gestating [`sq diff`](https://sq.io/docs/diff).
 This release significantly overhauls `sq`'s config mechanism ([#199]).
 For an overview, see the new [config docs](https://sq.io/docs/config).
 
-Alas, this release has several minor breaking changes ☢️. 
+Alas, this release has several minor breaking changes ☢️.
 
 ### Added
 
@@ -635,7 +647,7 @@ Alas, this release has several minor breaking changes ☢️.
 - The default location of the `sq` log file has changed. The new location
   is platform-dependent. Use `sq config get log.file -v` to view the location,
   or `sq config set log.file /path/to/sq.log` to set it.
-- ☢️ Envar `SQ_CONFIG` replaces `SQ_CONFIGDIR`. 
+- ☢️ Envar `SQ_CONFIG` replaces `SQ_CONFIGDIR`.
 - ☢️ Envar `SQ_LOG_FILE` replaces `SQ_LOGFILE`.
 - ☢️ Format flag `--table` is renamed to `--text`. This is changed because while the
   output is mostly in table format, sometimes it's just plain text. Thus
@@ -741,7 +753,7 @@ make working with lots of sources much easier.
 
 ### Added
 
-- [#173]: Predefined variables via `--arg` 
+- [#173]: Predefined variables via `--arg`
   flag ([docs](https://sq.io/docs/query#predefined-variables)):
   ```shell
   $ sq --arg first TOM '.actor | .first_name == $first'
@@ -796,7 +808,7 @@ make working with lots of sources much easier.
 
 ### Added
 
-- [#162]: `group_by` now accepts [function arguments](https://sq.io/docs/query#group_by). 
+- [#162]: `group_by` now accepts [function arguments](https://sq.io/docs/query#group_by).
 
 ### Changed
 
@@ -1090,3 +1102,4 @@ make working with lots of sources much easier.
 [v0.46.0]: https://github.com/neilotoole/sq/compare/v0.45.0...v0.46.0
 [v0.46.1]: https://github.com/neilotoole/sq/compare/v0.46.0...v0.46.1
 [v0.47.0]: https://github.com/neilotoole/sq/compare/v0.46.1...v0.47.0
+[v0.47.1]: https://github.com/neilotoole/sq/compare/v0.47.0...v0.47.1
