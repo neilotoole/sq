@@ -23,9 +23,10 @@ var (
 		0,
 		time.Second*10,
 		"HTTP/S request initial response timeout duration",
-		`How long to wait for initial response from a HTTP/S endpoint before
-timeout occurs. Reading the body of the response, such as a large HTTP file
-download, is not affected by this option. Example: 500ms or 3s.
+		`How long to wait for initial response from a HTTP/S endpoint before timeout
+occurs. Reading the body of the response, such as a large HTTP file download,
+is not affected by this option. Example: 500ms or 3s.
+
 Contrast with http.response.timeout.`,
 		options.TagSource,
 	)
@@ -37,7 +38,9 @@ Contrast with http.response.timeout.`,
 		"HTTP/S request completion timeout duration",
 		`How long to wait for the entire HTTP transaction to complete. This includes
 reading the body of the response, such as a large HTTP file download. Typically
-this is set to 0, indicating no timeout. Contrast with http.request.timeout.`,
+this is set to 0, indicating no timeout.
+
+Contrast with http.request.timeout.`,
 		options.TagSource,
 	)
 	OptHTTPSInsecureSkipVerify = options.NewBool(

@@ -22,9 +22,9 @@ var (
 			return errz.Wrap(err, "config: format.excel.datetime: invalid format string")
 		},
 		"Timestamp format string for Excel datetime values",
-		`Timestamp format for datetime values: that is, for values that have
-both a date and time component. The exact format is specific to
-Microsoft Excel, but is broadly similar to strftime.
+		`Timestamp format for datetime values: that is, for values that have both a date
+and time component. The exact format is specific to Microsoft Excel, but is
+broadly similar to strftime.
 
 Examples:
 
@@ -46,8 +46,8 @@ Examples:
 			return errz.Wrap(err, "config: format.excel.date: invalid format string")
 		},
 		"Date format string for Excel date-only values",
-		`Date format string for Microsoft Excel date-only values. The exact format
-is specific to Excel, but is broadly similar to strftime.
+		`Date format string for Microsoft Excel date-only values. The exact format is
+specific to Excel, but is broadly similar to strftime.
 
 Examples:
 
@@ -77,8 +77,8 @@ Examples:
   "h:mm am/pm"	     4:07 pm
   "h:mm:ss AM/PM"    4:07:01 PM
 
-Note that time-only values are sometimes programmatically indistinguishable
-from datetime values. In that situation, use format.excel.datetime instead.`,
+Note that time-only values are sometimes programmatically indistinguishable from
+datetime values. In that situation, use format.excel.datetime instead.`,
 		options.TagOutput,
 	)
 )

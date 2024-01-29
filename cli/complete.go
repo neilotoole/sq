@@ -40,12 +40,12 @@ var OptShellCompletionLog = options.NewBool(
 	0,
 	false,
 	"Enable logging of shell completion activity",
-	`Enable logging of shell completion activity. This is really only useful
-for debugging shell completion functionality. It's disabled by default,
-because it's frequently the case that shell completion handlers will trigger
-work (such as inspecting the schema) that doesn't complete by the shell
-completion timeout. This can result in the logs being filled with uninteresting
-junk when the timeout triggers logging of errors.`,
+	`Enable logging of shell completion activity. This is really only useful for
+debugging shell completion functionality. It's disabled by default, because it's
+frequently the case that shell completion handlers will trigger work (such as
+inspecting the schema) that doesn't complete by the shell completion timeout.
+This can result in the logs being filled with uninteresting junk when the
+timeout triggers logging of errors.`,
 )
 
 // completionFunc is a shell completion function.
