@@ -266,7 +266,6 @@ func (c *cache) newResponseCacher(ctx context.Context, resp *http.Response) (*re
 	defer func() { resp.Body = nil }()
 
 	stagingDir := filepath.Join(c.dir, "staging")
-
 	if err := ioz.RequireDir(stagingDir); err != nil {
 		_ = resp.Body.Close()
 		return nil, err
