@@ -201,6 +201,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		driver.OptIngestSampleSize,
 		csv.OptDelim,
 		csv.OptEmptyAsNull,
+		OptDebugTrackMemory,
 		progress.OptDebugSleep,
 	)
 }

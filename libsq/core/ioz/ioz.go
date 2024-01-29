@@ -11,12 +11,15 @@ import (
 	mrand "math/rand"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/a8m/tree"
 	"github.com/a8m/tree/ostree"
+	"github.com/c2h5oh/datasize"
 	yaml "github.com/goccy/go-yaml"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -791,4 +794,43 @@ func countNonDirs(entries []os.DirEntry) (count int) {
 		}
 	}
 	return count
+}
+
+// PeakMemory is an [atomic.Uint64] that tracks the peak memory usage.
+type PeakMemory struct {
+	atomic.Uint64
+}
+
+// String returns a human-friendly representation.
+func (p *PeakMemory) String() string {
+	v := p.Load()
+	return datasize.ByteSize(v).HR()
+}
+
+// StartPeakMemoryTracker starts a goroutine that tracks the peak memory usage,
+// per [runtime.MemStats.Sys] and [runtime.ReadMemStats]. The goroutine sleeps
+// for sampleFreq between each sample and exits when ctx is done.
+func StartPeakMemoryTracker(ctx context.Context, sampleFreq time.Duration) *PeakMemory {
+	peakMem := &PeakMemory{}
+	go func() {
+		ticker := time.NewTicker(sampleFreq)
+		defer ticker.Stop()
+
+		var peak uint64
+		stats := &runtime.MemStats{}
+		for {
+			runtime.ReadMemStats(stats)
+			peak = peakMem.Load()
+			if stats.Sys > peak {
+				peakMem.Store(stats.Sys)
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
+
+	return peakMem
 }
