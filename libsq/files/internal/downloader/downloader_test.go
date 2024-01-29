@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/streamcache"
+
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -167,6 +169,7 @@ func TestDownloader_redirect(t *testing.T) {
 
 	gotFile, gotStream, gotErr = dl.Get(ctx)
 	require.NoError(t, gotErr)
+	require.Nil(t, gotStream)
 	require.NotEmpty(t, gotFile)
 	t.Logf("got fp: %s", gotFile)
 	gotBody = tu.ReadFileToString(t, gotFile)
@@ -224,8 +227,10 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dl.Clear(ctx))
 
-	gotFile, gotStream, gotErr := dl.Get(ctx)
-	require.NoError(t, gotErr)
+	var gotFile string
+	var gotStream *streamcache.Stream
+	gotFile, gotStream, err = dl.Get(ctx)
+	require.NoError(t, err)
 	require.Empty(t, gotFile)
 	require.NotNil(t, gotStream)
 	tu.RequireNoTake(t, gotStream.Filled())
@@ -235,21 +240,19 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	start := time.Now()
 
 	var gotN int
-	gotN, gotErr = ioz.DrainClose(r)
+	gotN, err = ioz.DrainClose(r)
+	require.NoError(t, err)
 	t.Logf("Download completed after %s", time.Since(start))
 	tu.RequireTake(t, gotStream.Filled())
 	tu.RequireTake(t, gotStream.Done())
 	require.Equal(t, len(sentBody), gotN)
 
 	require.True(t, errors.Is(gotStream.Err(), io.EOF))
-	var gotSize int64
-	gotSize, err = dl.Filesize(ctx)
-	require.NoError(t, err)
-	require.Equal(t, len(sentBody), int(gotSize))
-	require.Equal(t, len(sentBody), gotStream.Size())
-	gotFilesize, err := dl.Filesize(ctx)
+	var gotFilesize int64
+	gotFilesize, err = dl.Filesize(ctx)
 	require.NoError(t, err)
 	require.Equal(t, len(sentBody), int(gotFilesize))
+	require.Equal(t, len(sentBody), gotStream.Size())
 
 	fpBody, err := dl.CacheFile(ctx)
 	require.NoError(t, err)
@@ -267,8 +270,8 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 
 	// Sleep to allow file modification timestamps to tick
 	time.Sleep(time.Millisecond * 10)
-	gotFile, gotStream, gotErr = dl.Get(ctx)
-	require.NoError(t, gotErr)
+	gotFile, gotStream, err = dl.Get(ctx)
+	require.NoError(t, err)
 	require.Empty(t, gotFile,
 		"gotFile should be empty, because the server returned an error during cache write")
 	require.NotNil(t, gotStream,
@@ -277,17 +280,17 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	r = gotStream.NewReader(ctx)
 	gotStream.Seal()
 
-	gotN, gotErr = ioz.DrainClose(r)
+	gotN, err = ioz.DrainClose(r)
 	require.Equal(t, len(sentBody), gotN)
 	tu.RequireTake(t, gotStream.Filled())
 	tu.RequireTake(t, gotStream.Done())
 
-	gotErr2 := gotStream.Err()
-	require.Error(t, gotErr2)
-	require.True(t, errors.Is(gotErr, gotErr2))
-	t.Logf("got stream err: %v", gotErr)
+	streamErr := gotStream.Err()
+	require.Error(t, streamErr)
+	require.True(t, errors.Is(err, streamErr))
+	t.Logf("got stream err: %v", err)
 
-	require.True(t, errors.Is(gotErr, io.ErrUnexpectedEOF))
+	require.True(t, errors.Is(err, io.ErrUnexpectedEOF))
 	require.Equal(t, len(sentBody), gotStream.Size())
 
 	// Verify that the server hasn't updated the cache,

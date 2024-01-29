@@ -364,12 +364,12 @@ func (c *cache) newResponseCacher(ctx context.Context, resp *http.Response) (*re
 var _ io.ReadCloser = (*responseCacher)(nil)
 
 type responseCacher struct {
-	mu         sync.Mutex
+	body       io.ReadCloser
 	closeErr   *error
+	f          *os.File
 	mainDir    string
 	stagingDir string
-	body       io.ReadCloser
-	f          *os.File
+	mu         sync.Mutex
 }
 
 func (r *responseCacher) write(p []byte, n int) error {
