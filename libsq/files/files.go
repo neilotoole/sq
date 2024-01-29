@@ -167,11 +167,6 @@ func (fs *Files) Filesize(ctx context.Context, src *source.Source) (size int64, 
 
 		return ioz.Filesize(dlFile)
 
-		// dl.Filesize will fail if the file has not been downloaded yet, which
-		// means that the source has not been ingested; but Files.Filesize should
-		// not have been invoked before ingestion.
-		// return dl.Filesize(ctx)
-
 	case location.TypeSQL:
 		// Should be impossible.
 		return 0, errz.Errorf("invalid to get size of SQL source: %s", src.Handle)

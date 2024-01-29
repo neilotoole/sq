@@ -75,7 +75,9 @@ func (fs *Files) CacheDirFor(src *source.Source) (dir string, err error) {
 }
 
 // WriteIngestChecksum is invoked (after successful ingestion) to write the
-// checksum for the ingest cache db.
+// checksum of the source document file vs the ingest DB. Thus, if the source
+// document changes, the checksum will no longer match, and the ingest DB
+// will be considered invalid.
 func (fs *Files) WriteIngestChecksum(ctx context.Context, src, backingSrc *source.Source) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -103,11 +105,14 @@ func (fs *Files) WriteIngestChecksum(ctx context.Context, src, backingSrc *sourc
 			}
 		}
 
-		// So, the stream is completely read from, but...
-		// FIXME: deal with the rest of the stuff here.
+		// If we got this far, either there's no stream, or the stream is done,
+		// which means that the download cache has been updated, and contains
+		// the fresh cached body file that we'll use to calculate the checksum.
+		// So, we'll go ahead and do the checksum stuff below.
 	}
 
-	// Write the checksums file.
+	// Now, we need to write a checksum file that contains the computed checksum
+	// value from ingestFilePath.
 	var sum checksum.Checksum
 	if sum, err = checksum.ForFile(ingestFilePath); err != nil {
 		log.Warn("Failed to compute checksum for source file; caching not in effect",

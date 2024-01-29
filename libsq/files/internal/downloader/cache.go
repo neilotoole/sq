@@ -237,8 +237,8 @@ func (c *cache) clear(ctx context.Context) error {
 	return nil
 }
 
-// write updates the cache header from resp. The response body is not
-// written to the cache, nor is resp.Body closed.
+// writeHeader updates the main cache header file from resp. The response body
+// is not written to the cache, nor is resp.Body closed.
 func (c *cache) writeHeader(ctx context.Context, resp *http.Response) (err error) {
 	header, err := httputil.DumpResponse(resp, false)
 	if err != nil {
