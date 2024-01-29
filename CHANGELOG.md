@@ -7,12 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
-## [v0.47.0] - UPCOMING
+## [v0.47.0] - 2024-01-29
 
 This is a significant release, focused on improving i/o, responsiveness,
 and performance. The headline features are [caching](https://sq.io/docs/source#cache)
 of [ingested](https://sq.io/docs/source#ingest) data for [document sources](https://sq.io/docs/source#document-source)
 such as CSV or Excel, and [download](https://sq.io/docs/source#download) caching for remote document sources.
+There are a lot of under-the-hood changes, so please [open an issue](https://github.com/neilotoole/sq/issues/new/choose) if
+you encounter any weirdness.
 
 ### Added
 
@@ -32,14 +34,14 @@ such as CSV or Excel, and [download](https://sq.io/docs/source#download) caching
   the cache DB. Until, that is, the source document changes: then the ingest cache DB is invalidated and
   ingested again. This is a significantly improved experience for large document sources.
 - There are several new commands to interact with the cache (although you shouldn't need to):
-  - [`sq cache enable`](https://sq.io/docs/cmd/cache_enable) and
-  [`sq cache disable`](https://sq.io/docs/cmd/cache_disable) control cache usage.
+  - [`sq cache enable`](https://sq.io/docs/cmd/cache-enable) and
+  [`sq cache disable`](https://sq.io/docs/cmd/cache-disable) control cache usage.
   You can also instead use the new [`ingest.cache`](https://sq.io/docs/config#ingestcache)
   config option.
-  - [`sq cache clear`](https://sq.io/docs/cmd/cache_clear) clears the cache.
-  - [`sq cache location`](https://sq.io/docs/cmd/cache_location) prints the cache location on disk.
-  - [`sq cache stat`](https://sq.io/docs/cmd/cache_stat) shows stats about the cache.
-  - [`sq cache tree`](https://sq.io/docs/cmd/cache_location) shows a tree view of the cache.
+  - [`sq cache clear`](https://sq.io/docs/cmd/cache-clear) clears the cache.
+  - [`sq cache location`](https://sq.io/docs/cmd/cache-location) prints the cache location on disk.
+  - [`sq cache stat`](https://sq.io/docs/cmd/cache-stat) shows stats about the cache.
+  - [`sq cache tree`](https://sq.io/docs/cmd/cache-location) shows a tree view of the cache.
 - [#24]: The [download](https://sq.io/docs/source#download) mechanism for remote document sources (e.g. a CSV file at
   [`https://sq.io/testdata/actor.csv`](https://sq.io/testdata/actor.csv)) has been completely
   overhauled. Previously, `sq` would re-download the remote file on every command. Now, the
@@ -50,12 +52,12 @@ such as CSV or Excel, and [download](https://sq.io/docs/source#download) caching
     [`http.response.timeout`](https://sq.io/docs/config#httpresponsetimeout) is the timeout for reading the entire response body. We separate
     these two timeouts because it's possible that the server responds quickly, but then
     for a large file, the download takes too long.
-  - [`https.insecure-skip-verify`](https://sq.io/docs/config#httpsinsecureskipverify) controls
+  - [`https.insecure-skip-verify`](https://sq.io/docs/config#httpsinsecure-skip-verify) controls
     whether HTTPS connections verify the server's certificate. This is useful for remote files served
     with a self-signed certificate.
   - [`download.cache`](https://sq.io/docs/config#downloadcache) controls whether remote files are
     cached locally.
-  - [`download.refresh.ok-on-err`](https://sq.io/docs/config#downloadrefreshokonerr)
+  - [`download.refresh.ok-on-err`](https://sq.io/docs/config#downloadrefreshok-on-err)
     controls whether `sq` should continue with a stale cached download if an error
     occurred while trying to refresh the download. This is a sort
     of "Airplane Mode" for remote document sources: `sq` continues with the cached download when
