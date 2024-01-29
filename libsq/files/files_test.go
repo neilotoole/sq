@@ -101,11 +101,18 @@ func TestFiles_DriverType(t *testing.T) {
 		t.Run(tu.Name(location.Redact(tc.loc)), func(t *testing.T) {
 			ctx := lg.NewContext(context.Background(), lgt.New(t))
 
-			fs, err := files.New(ctx, nil, testh.TempLockFunc(t), tu.TempDir(t, true), tu.CacheDir(t, true))
+			fs, err := files.New(
+				ctx,
+				nil,
+				testh.TempLockFunc(t),
+				tu.TempDir(t, false),
+				tu.CacheDir(t, false),
+			)
 			require.NoError(t, err)
+			defer func() { assert.NoError(t, fs.Close()) }()
 			fs.AddDriverDetectors(testh.DriverDetectors()...)
 
-			gotType, gotErr := fs.DetectType(context.Background(), "@test_"+stringz.Uniq8(), tc.loc)
+			gotType, gotErr := fs.DetectType(ctx, "@test_"+stringz.Uniq8(), tc.loc)
 			if tc.wantErr {
 				require.Error(t, gotErr)
 				return
