@@ -120,6 +120,16 @@ command, sq falls back to "text". Available formats:
 		`Delay before showing a progress bar.`,
 	)
 
+	OptDebugTrackMemory = options.NewDuration(
+		"debug.stats.frequency",
+		"",
+		0,
+		0,
+		"Memory usage sampling interval.",
+		`Memory usage sampling interval. If non-zero, peak memory usage is periodically
+sampled, and reported on exit. If zero, memory usage sampling is disabled.`,
+	)
+
 	OptCompact = options.NewBool(
 		"compact",
 		"",

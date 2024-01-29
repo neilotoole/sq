@@ -32,6 +32,7 @@ import (
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -85,6 +86,7 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 			_ = ru.LogCloser()
 		}
 	}()
+
 	ctx = options.NewContext(ctx, options.Merge(options.FromContext(ctx), ru.Config.Options))
 	log := lg.FromContext(ctx)
 	log.Info("EXECUTE", "args", strings.Join(args, " "))
@@ -94,6 +96,14 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 	)
 
 	ctx = run.NewContext(ctx, ru)
+
+	if freq := OptDebugTrackMemory.Get(options.FromContext(ctx)); freq > 0 {
+		// Debug setting to log peak memory usage on exit.
+		memTracker := ioz.StartPeakMemoryTracker(ctx, freq)
+		defer func() {
+			log.Info("Peak memory usage", "mem", memTracker.String(), "bytes", memTracker.Load())
+		}()
+	}
 
 	rootCmd := newCommandTree(ru)
 	var err error
