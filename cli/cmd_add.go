@@ -129,7 +129,7 @@ More examples:
   # Specify some params (note escaped chars)
   $ sq add postgres://user:pass@localhost/sakila\?sslmode=disable\&application_name=sq
 
-# Specify some params, but use quoted string (no shell completion)
+  # Specify some params, but use quoted string (no shell completion)
   $ sq add 'postgres://user:pass@localhost/sakila?sslmode=disable&application_name=sq''
 
   # Add a SQL Server source; will have generated handle @sakila

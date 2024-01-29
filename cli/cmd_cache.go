@@ -196,8 +196,8 @@ func newCacheEnableCmd() *cobra.Command { //nolint:dupl
 		Example: `  # Enable caching by default
   $ sq cache enable
 
-	# Enable caching for a particular source
-	$ sq cache enable @sakila`,
+  # Enable caching for a particular source
+  $ sq cache enable @sakila`,
 	}
 
 	markCmdRequiresConfigLock(cmd)
@@ -235,7 +235,7 @@ func newCacheDisableCmd() *cobra.Command { //nolint:dupl
   $ sq cache disable
 
   # Disable caching for a particular source
-	$ sq cache disable @sakila`,
+  $ sq cache disable @sakila`,
 	}
 
 	markCmdRequiresConfigLock(cmd)
