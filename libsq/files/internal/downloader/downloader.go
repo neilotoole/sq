@@ -371,6 +371,24 @@ func (dl *Downloader) get(req *http.Request) (dlFile string, //nolint:gocognit,f
 		// caller. If promotion fails, the promotion error (not io.EOF) is returned
 		// to the caller. Thus, it is guaranteed that any caller of rCacher's Read
 		// method will only receive io.EOF if the cache has been promoted to main.
+		//
+		// DESIGN NOTE: An earlier version of this code wrapped the resp.Body in a
+		// streamcache, created a reader from that streamcache, and filled the cache
+		// on a goroutine using that reader, while also returning the streamcache
+		// to the Downloader.Get caller (which spawned at least one streamcache
+		// reader to perform ingest, and possibly yet more readers to sample the
+		// stream). While this approach did work, it had a serious downside: this
+		// meant that there would be (at least) two streamcache readers - the cache
+		// filler, and the ingester - that would consume the full stream. And thus
+		// the streamcache would need to cache the entire download contents in
+		// memory, and wouldn't be able to take advantage of the Stream.Seal
+		// mechanism for the final reader. It also led to racy situations. Under
+		// that mechanism, <-Stream.Filled() could be reached by one of the
+		// non-cache-filling readers before the cache was written to disk. And thus,
+		// there was required a bunch of ugly code to synchronize with cache fill
+		// completion. The current approach guarantees that the cache is filled by
+		// the time ANY streamcache readers reaches io.EOF, as observed by
+		// <-Stream.Filled().
 		var rCacher *responseCacher
 		if rCacher, err = dl.cache.newResponseCacher(ctx, resp); err != nil {
 			return "", nil, err

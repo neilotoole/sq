@@ -609,9 +609,10 @@ var OptResultColRename = options.NewString(
 		return stringz.ValidTemplate("result.column.rename", s)
 	},
 	"Template to rename result columns",
-	`This Go text template is executed on the column names returned
-from the DB. Its primary purpose is to rename duplicate column names. For
-example, given a query that results in this SQL:
+	`
+This Go text template is executed on the column names returned from the DB. Its
+primary purpose is to rename duplicate column names. For example, given a query
+that results in this SQL:
 
   SELECT * FROM actor JOIN film_actor ON actor.actor_id = film_actor.actor_id
 
@@ -628,7 +629,7 @@ The fields available in the template are:
 
   .Name         column name
   .Index        zero-based index of the column in the result set
-  .Alpha        alphabetical index of the column, i.e. e.g. [A, B ... Z, AA, AB]
+  .Alpha        alphabetical index of the column, i.e. [A, B ... Z, AA, AB]
   .Recurrence   nth recurrence of the colum name in the result set
 
 For a unique column name, e.g. "first_name" above, ".Recurrence" will be 0.

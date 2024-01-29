@@ -835,7 +835,7 @@ make working with lots of sources much easier.
 
 ### Added
 
-- [#15]: Column Aliases. You can now change specify an alias for a column (or column expression
+- [#15]: Column Aliases. You can now specify an alias for a column (or column expression
   such as a function). For example: `sq '.actor | .first_name:given_name`, or `sq .actor | count(*):quantity`.
 - [#151]: `sq add` now has a `--active` flag, which immediately sets the new source
   as the active source.
