@@ -389,7 +389,9 @@ func (r *responseCacher) write(p []byte, n int) error {
 
 // Read implements io.Reader. It reads into p from the response body,
 // writes the received bytes to the cache, and returns the number of
-// bytes read and any error. If
+// bytes read and any error.
+//
+// FIXME: comment this properly.
 func (r *responseCacher) Read(p []byte) (n int, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -430,7 +432,6 @@ func (r *responseCacher) Read(p []byte) (n int, err error) {
 	}
 
 	return n, err
-
 }
 
 func (r *responseCacher) finalize() error {

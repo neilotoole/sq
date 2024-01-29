@@ -3,12 +3,6 @@ package downloader_test
 import (
 	"context"
 	"errors"
-	"github.com/neilotoole/sq/libsq/core/ioz"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +11,13 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -32,8 +33,8 @@ func TestDownloader(t *testing.T) {
 
 	cacheDir := t.TempDir()
 
-	dl, err := downloader.New(t.Name(), httpz.NewDefaultClient(), dlURL, cacheDir)
-	require.NoError(t, err)
+	dl, gotErr := downloader.New(t.Name(), httpz.NewDefaultClient(), dlURL, cacheDir)
+	require.NoError(t, gotErr)
 	require.NoError(t, dl.Clear(ctx))
 	require.Equal(t, downloader.Uncached, dl.State(ctx))
 	sum, ok := dl.Checksum(ctx)
@@ -62,8 +63,9 @@ func TestDownloader(t *testing.T) {
 	gotStream.Seal()
 
 	// Now we drain the stream, and the cache should magically fill.
-	gotN, err := ioz.DrainN(r, true)
-	require.NoError(t, err)
+	var gotN int
+	gotN, gotErr = ioz.DrainClose(r)
+	require.NoError(t, gotErr)
 	require.Equal(t, sakila.ActorCSVSize, gotN)
 	tu.RequireTake(t, gotStream.Filled())
 	tu.RequireTake(t, gotStream.Done())
@@ -78,7 +80,7 @@ func TestDownloader(t *testing.T) {
 	require.NoError(t, gotErr)
 	require.NotEmpty(t, gotFile)
 	gotSize, gotErr := ioz.Filesize(gotFile)
-	require.NoError(t, err)
+	require.NoError(t, gotErr)
 	require.Equal(t, sakila.ActorCSVSize, int(gotSize))
 
 	// Let's download again, and verify that the cache is used.
@@ -87,8 +89,8 @@ func TestDownloader(t *testing.T) {
 	require.Nil(t, gotStream)
 	require.NotEmpty(t, gotFile)
 
-	gotFileBytes, err := os.ReadFile(gotFile)
-	require.NoError(t, err)
+	gotFileBytes, gotErr := os.ReadFile(gotFile)
+	require.NoError(t, gotErr)
 	require.Equal(t, sakila.ActorCSVSize, len(gotFileBytes))
 	require.Equal(t, downloader.Fresh, dl.State(ctx))
 	sum, ok = dl.Checksum(ctx)
@@ -222,9 +224,9 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dl.Clear(ctx))
 
-	gotGetFile, gotStream, gotErr := dl.Get(ctx)
+	gotFile, gotStream, gotErr := dl.Get(ctx)
 	require.NoError(t, gotErr)
-	require.Empty(t, gotGetFile)
+	require.Empty(t, gotFile)
 	require.NotNil(t, gotStream)
 	tu.RequireNoTake(t, gotStream.Filled())
 	r := gotStream.NewReader(ctx)
@@ -232,14 +234,16 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	t.Logf("Waiting for download to complete")
 	start := time.Now()
 
-	gotN, gotErr := ioz.DrainN(r, true)
+	var gotN int
+	gotN, gotErr = ioz.DrainClose(r)
 	t.Logf("Download completed after %s", time.Since(start))
 	tu.RequireTake(t, gotStream.Filled())
 	tu.RequireTake(t, gotStream.Done())
 	require.Equal(t, len(sentBody), gotN)
 
 	require.True(t, errors.Is(gotStream.Err(), io.EOF))
-	gotSize, err := dl.Filesize(ctx)
+	var gotSize int64
+	gotSize, err = dl.Filesize(ctx)
 	require.NoError(t, err)
 	require.Equal(t, len(sentBody), int(gotSize))
 	require.Equal(t, len(sentBody), gotStream.Size())
@@ -263,9 +267,9 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 
 	// Sleep to allow file modification timestamps to tick
 	time.Sleep(time.Millisecond * 10)
-	gotGetFile, gotStream, gotErr = dl.Get(ctx)
+	gotFile, gotStream, gotErr = dl.Get(ctx)
 	require.NoError(t, gotErr)
-	require.Empty(t, gotGetFile,
+	require.Empty(t, gotFile,
 		"gotFile should be empty, because the server returned an error during cache write")
 	require.NotNil(t, gotStream,
 		"gotStream should not be empty, because the download was in fact initiated")
@@ -273,10 +277,10 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	r = gotStream.NewReader(ctx)
 	gotStream.Seal()
 
-	gotN, gotErr = ioz.DrainN(r, true)
+	gotN, gotErr = ioz.DrainClose(r)
 	require.Equal(t, len(sentBody), gotN)
 	tu.RequireTake(t, gotStream.Filled())
-	tu.RequireNoTake(t, gotStream.Done())
+	tu.RequireTake(t, gotStream.Done())
 
 	gotErr2 := gotStream.Err()
 	require.Error(t, gotErr2)

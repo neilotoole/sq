@@ -111,11 +111,6 @@ type Downloader struct {
 	// c is the HTTP client used to make requests.
 	c *http.Client
 
-	// workingCh is re-created on each call to Downloader.Get, and is closed
-	// when Get returns.
-	// Deprecated: using new responseCacher mechanism.
-	//workingCh chan struct{}
-
 	// cache implements the on-disk cache. If nil, caching is disabled.
 	// It will be created in dlDir.
 	cache *cache
@@ -166,12 +161,12 @@ func New(name string, c *http.Client, dlURL, dlDir string) (*Downloader, error) 
 		markCachedResponses: true,
 		continueOnError:     true,
 		dlDir:               dlDir,
-		//workingCh:           make(chan struct{}),
+		// workingCh:           make(chan struct{}),
 	}
 
 	// Downloader is not initially working, so the channel should be closed.
 	// It will be reset to open on each call to Downloader.Get.
-	//close(dl.workingCh)
+	// close(dl.workingCh)
 
 	return dl, nil
 }
@@ -209,21 +204,19 @@ func (dl *Downloader) Get(ctx context.Context) (dlFile string, dlStream *streamc
 	req := dl.mustRequest(ctx)
 	lg.FromContext(ctx).Debug("Get download", lga.URL, dl.url)
 	return dl.get(req)
-	//return dlFile
+	// return dlFile
 }
 
 // get contains the main logic for getting the download.
 // It invokes Handler as appropriate, and on success returns the
 // filepath of the valid cached download ›file.
-func (dl *Downloader) get(req *http.Request) (dlFile string, dlStream *streamcache.Stream, err error) { //nolint:gocognit,funlen,cyclop
+func (dl *Downloader) get(req *http.Request) (dlFile string, //nolint:gocognit,funlen,cyclop
+	dlStream *streamcache.Stream, err error,
+) {
 	ctx := req.Context()
 	log := lg.FromContext(ctx)
 
 	dl.dlStream = nil
-
-	//defer func() {
-	//	close(dl.workingCh)
-	//}()
 
 	var fpBody string
 	if dl.cache != nil {
@@ -233,12 +226,10 @@ func (dl *Downloader) get(req *http.Request) (dlFile string, dlStream *streamcac
 	state := dl.state(req)
 	if state == Fresh && fpBody != "" {
 		// The cached response is fresh, so we can return it.
-		//h.Cached(fpBody)
 		return fpBody, nil, nil
 	}
 
 	cacheable := dl.isCacheable(req)
-	//var err error
 	var cachedResp *http.Response
 	if cacheable {
 		cachedResp, err = dl.cache.get(req.Context(), req) //nolint:bodyclose
@@ -255,7 +246,6 @@ func (dl *Downloader) get(req *http.Request) (dlFile string, dlStream *streamcac
 			freshness := getFreshness(cachedResp.Header, req.Header)
 			if freshness == Fresh && fpBody != "" {
 				lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, cachedResp.Body)
-				//h.Cached(fpBody)
 				return fpBody, nil, nil
 			}
 
@@ -297,7 +287,6 @@ func (dl *Downloader) get(req *http.Request) (dlFile string, dlStream *streamcac
 			// when available.
 			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, cachedResp.Body)
 			log.Warn("Returning cached response due to transport failure", lga.Err, err)
-			//h.Cached(fpBody)
 			return fpBody, nil, nil
 
 		default:
@@ -307,7 +296,6 @@ func (dl *Downloader) get(req *http.Request) (dlFile string, dlStream *streamcac
 
 				if fp := dl.cacheFileOnError(req, err); fp != "" {
 					lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
-					//h.Cached(fp)
 					return fp, nil, nil
 				}
 			}
@@ -315,10 +303,9 @@ func (dl *Downloader) get(req *http.Request) (dlFile string, dlStream *streamcac
 			if err != nil {
 				lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 				if fp := dl.cacheFileOnError(req, err); fp != "" {
-					//h.Cached(fp)
 					return fp, nil, nil
 				}
-				//h.Error(err)
+
 				return "", nil, err
 			}
 
@@ -326,26 +313,23 @@ func (dl *Downloader) get(req *http.Request) (dlFile string, dlStream *streamcac
 				lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 				err = errz.Errorf("download: unexpected HTTP status: %s", httpz.StatusText(resp.StatusCode))
 				if fp := dl.cacheFileOnError(req, err); fp != "" {
-					//h.Cached(fp)
 					return fp, nil, nil
 				}
 
-				//h.Error(err)
 				return "", nil, err
 			}
 		}
 	} else {
 		reqCacheControl := parseCacheControl(req.Header)
 		if _, ok := reqCacheControl["only-if-cached"]; ok {
-			resp = newGatewayTimeoutResponse(req) //nolint:bodyclose
+			resp = newGatewayTimeoutResponse(req)
 		} else {
 			resp, err = dl.do(req) //nolint:bodyclose
 			if err != nil {
 				if fp := dl.cacheFileOnError(req, err); fp != "" {
-					//h.Cached(fp)
 					return fp, nil, nil
 				}
-				//h.Error(err)
+
 				return "", nil, err
 			}
 		}
@@ -367,65 +351,32 @@ func (dl *Downloader) get(req *http.Request) (dlFile string, dlStream *streamcac
 			if err != nil {
 				log.Error("Failed to update cache header", lga.Dir, dl.cache.dir, lga.Err, err)
 				if fp := dl.cacheFileOnError(req, err); fp != "" {
-					//h.Cached(fp)
 					return fp, nil, nil
 				}
-				//h.Error(err)
-				return "", nil, err
 
+				return "", nil, err
 			}
 
 			if fpBody != "" {
-				//h.Cached(fpBody)
 				return fpBody, nil, nil
 			}
 		} else if cachedResp != nil && cachedResp.Body != nil {
 			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, cachedResp.Body)
 		}
-		//
-		//var cacheErr error
-		//cacheWait := make(chan struct{})
 
 		var respCacher *responseCacher
 		if respCacher, err = dl.cache.newResponseCacher(ctx, resp); err != nil {
-			//h.Error(err)
 			return "", nil, err
 		}
 
 		dl.dlStream = streamcache.New(respCacher)
-		//resp.Body = dl.dlStream.NewReader(ctx)
-		//h.Uncached(dl.dlStream)
 		return "", dl.dlStream, nil
-		//cacheErr = dl.cache.write(req.Context(), resp, false)
-		//close(cacheWait)
-		//if cacheErr != nil {
-		//	// We don't explicitly call Handler.Error: it would be "illegal" to do so
-		//	// anyway, because the Handler docs state that at most one Handler callback
-		//	// func is ever invoked.
-		//	//
-		//	// The cache write could fail for one of two reasons:
-		//	//
-		//	// - The download didn't complete successfully: that is, there was an error
-		//	//   reading from resp.Body. In this case, that same error will be propagated
-		//	//   to the Handler via the streamcache.Stream that was provided to Handler.Uncached.
-		//	// - The download completed, but there was a problem writing out the cache
-		//	//   files (header, body, checksum). This is likely a very rare occurrence.
-		//	//   In that case, any previous cache files are left untouched by cache.write,
-		//	//   and all we do is log the error. If the cache is inconsistent, it will
-		//	//   repair itself on next invocation, so it's not a big deal.
-		//	log.Warn("Failed to write download cache", lga.Dir, dl.cache.dir, lga.Err, cacheErr)
-		//	lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
-		//	return ""
-		//}
-		//lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
-		//return fpBody
 	}
 
 	// It's not cacheable, so we can just wrap resp.Body in a streamcache
 	// and return it.
 	dl.dlStream = streamcache.New(resp.Body)
 	resp.Body = nil // Unnecessary, but just to be explicit.
-	//h.Uncached(dl.dlStream)
 	return "", dl.dlStream, nil
 }
 
@@ -553,13 +504,6 @@ func (dl *Downloader) Filesize(ctx context.Context) (int64, error) {
 
 	return fi.Size(), nil
 }
-
-// Working returns a channel that is closed when Downloader.Get returns.
-// Each new call to Downloader.Get creates a new channel, so don't hold
-// on to the returned channel across multiple calls to Get.
-//func (dl *Downloader) Working() <-chan struct{} {
-//	return dl.workingCh
-//}
 
 // CacheFile returns the path to the cached file, if it exists and has
 // been fully downloaded.

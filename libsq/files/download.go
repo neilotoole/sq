@@ -2,19 +2,15 @@ package files
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"path/filepath"
 	"time"
 
 	"github.com/neilotoole/streamcache"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/files/internal/downloader"
 	"github.com/neilotoole/sq/libsq/source"
@@ -108,78 +104,19 @@ func (fs *Files) maybeStartDownload(ctx context.Context, src *source.Source, che
 		}
 	}
 
-	// Having got this far, we need to talk to the downloader.
-	var (
-		dlErrCh    = make(chan error, 1)
-		dlStreamCh = make(chan *streamcache.Stream, 1)
-		dlFileCh   = make(chan string, 1)
-	)
-
-	// Our handler simply pushes the callback values into the channels, which
-	// this main goroutine will select on at the bottom of the func. The call
-	// to downloader.Get will be executed in a newly spawned goroutine below.
-	h := downloader.Handler{
-		Cached:   func(dlFile string) { dlFileCh <- dlFile },
-		Uncached: func(dlStream *streamcache.Stream) { dlStreamCh <- dlStream },
-		Error:    func(dlErr error) { dlErrCh <- dlErr },
-	}
-
-	go func() {
-		// Spawn a goroutine to execute the download process.
-		// The handler will be called before Get returns.
-		cacheFile := dldr.Get(ctx)
-		if cacheFile == "" {
-			// Either the download failed, or cache update failed.
-			return
-		}
-
-		// The download succeeded, and the cache was successfully updated.
-		// We know that cacheFile exists now. If a stream was created (and
-		// thus added to Files.streams), we can swap it out and instead
-		// populate Files.downloadedFiles with the cacheFile. Thus, going
-		// forward, any clients of Files will get the cacheFile instead of
-		// the stream.
-
-		// We need to lock here because we're accessing Files.streams.
-		// So, this goroutine will block until the lock is available.
-		// That shouldn't be an issue: the up-stack Files function that
-		// acquired the lock will eventually return, releasing the lock,
-		// at which point the swap will happen. No big deal.
-		fs.mu.Lock()
-		defer fs.mu.Unlock()
-
-		if stream, ok := fs.streams[src.Handle]; ok && stream != nil {
-			// The stream exists, and it's safe to close the stream's source,
-			// (i.e. the http response body), because the body has already
-			// been completely drained by the downloader: otherwise, we
-			// wouldn't have a non-empty value for cacheFile.
-			if c, ok := stream.Source().(io.Closer); ok {
-				lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseHTTPResponseBody, c)
-			}
-		}
-
-		// Now perform the swap: populate Files.downloadedFiles with cacheFile,
-		// and remove the stream from Files.streams.
-		fs.downloadedFiles[src.Handle] = cacheFile
-		delete(fs.streams, src.Handle)
-	}() // end of goroutine
-
-	// Here we wait on the handler channels.
-	select {
-	case <-ctx.Done():
-		return "", nil, errz.Err(ctx.Err())
-	case err = <-dlErrCh:
+	dlFile, dlStream, err = dldr.Get(ctx)
+	switch {
+	case err != nil:
 		return "", nil, err
-	case dlStream = <-dlStreamCh:
-		// New download stream. Add it to Files.streams,
+	case dlFile != "":
+		// The file is already on disk, so we can just return it.
+		fs.downloadedFiles[src.Handle] = dlFile
+		return dlFile, nil, nil
+	default:
+		// A new download stream was created. Add it to Files.streams,
 		// and return the stream.
 		fs.streams[src.Handle] = dlStream
 		return "", dlStream, nil
-	case dlFile = <-dlFileCh:
-		// The file is already on disk, so we added it to Files.downloadedFiles,
-		// and return its filepath.
-		fs.downloadedFiles[src.Handle] = dlFile
-		return dlFile, nil, nil
 	}
 }
 
@@ -192,7 +129,7 @@ func (fs *Files) downloadPaths(src *source.Source) (dlDir, dlFile string, err er
 		return "", dlFile, err
 	}
 
-	// Note: we're depending on internal knowledge of the downloader impl here,
+	// Note: we depend on internal knowledge of the downloader impl here,
 	// which is not great. It might be better to implement a function
 	// in pkg downloader.
 	dlDir = filepath.Join(cacheDir, "download", checksum.Sum([]byte(src.Location)))

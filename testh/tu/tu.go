@@ -376,32 +376,44 @@ func MustStat(tb testing.TB, fp string) os.FileInfo {
 	return fi
 }
 
-// MustDrain drains r, failing t on error. If arg close is true,
-// r is closed if it's an io.Closer.
-func MustDrain(tb testing.TB, r io.Reader, close bool) {
+// MustDrain drains r, failing t on error. If arg cloze is true,
+// r is closed if it's an io.Closer, even if the drain fails.
+// FIXME: delete this func.
+func MustDrain(tb testing.TB, r io.Reader, cloze bool) {
 	tb.Helper()
-	_, err := io.Copy(io.Discard, r)
-	require.NoError(tb, err)
-	if !close {
+	_, cpErr := io.Copy(io.Discard, r)
+	if !cloze {
+		require.NoError(tb, cpErr)
 		return
 	}
+
+	var closeErr error
 	if rc, ok := r.(io.Closer); ok {
-		require.NoError(tb, rc.Close())
+		closeErr = rc.Close()
 	}
+
+	require.NoError(tb, cpErr)
+	require.NoError(tb, closeErr)
 }
 
 // MustDrainN is like MustDrain, but also reports the number of bytes
-// drained. If arg close is true, r is closed if it's an io.Closer.
-func MustDrainN(tb testing.TB, r io.Reader, close bool) int {
+// drained. If arg cloze is true, r is closed if it's an io.Closer,
+// even if the drain fails.
+func MustDrainN(tb testing.TB, r io.Reader, cloze bool) int {
 	tb.Helper()
-	n, err := io.Copy(io.Discard, r)
-	require.NoError(tb, err)
-	if !close {
+	n, cpErr := io.Copy(io.Discard, r)
+	if !cloze {
+		require.NoError(tb, cpErr)
 		return int(n)
 	}
+
+	var closeErr error
 	if rc, ok := r.(io.Closer); ok {
-		require.NoError(tb, rc.Close())
+		closeErr = rc.Close()
 	}
+
+	require.NoError(tb, cpErr)
+	require.NoError(tb, closeErr)
 	return int(n)
 }
 

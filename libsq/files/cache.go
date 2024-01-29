@@ -103,8 +103,8 @@ func (fs *Files) WriteIngestChecksum(ctx context.Context, src, backingSrc *sourc
 			}
 		}
 
-		// So, the stream is completely read from, but
-
+		// So, the stream is completely read from, but...
+		// FIXME: deal with the rest of the stuff here.
 	}
 
 	// Write the checksums file.
