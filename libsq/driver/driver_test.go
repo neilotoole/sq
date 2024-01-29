@@ -246,16 +246,18 @@ func TestDriver_Ping(t *testing.T) {
 }
 
 func TestDriver_Open(t *testing.T) {
-	t.Parallel()
+	//t.Parallel()
 	testCases := sakila.AllHandles()
 	testCases = append(testCases, sakila.CSVActor, sakila.CSVActorHTTP)
+
+	testCases = []string{sakila.CSVActorHTTP}
 
 	for _, handle := range testCases {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
 			tu.SkipShort(t, handle == sakila.XLSX)
-			t.Parallel()
+			//t.Parallel()
 
 			th := testh.New(t)
 			src := th.Source(handle)

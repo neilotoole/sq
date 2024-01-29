@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httputil"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -319,4 +321,190 @@ func (c *cache) write(ctx context.Context, resp *http.Response, headerOnly bool)
 	log.Info("Updated download cache (full)",
 		lga.Written, written, lga.File, fpBody, lga.Elapsed, time.Since(start).Round(time.Millisecond))
 	return nil
+}
+
+// newResponseCacher returns a new responseCacher for resp.
+// On return, resp.Body will be nil.
+func (c *cache) newResponseCacher(ctx context.Context, resp *http.Response) (*responseCacher, error) {
+	defer func() { resp.Body = nil }()
+
+	stagingDir := filepath.Join(c.dir, "staging")
+
+	if err := ioz.RequireDir(stagingDir); err != nil {
+		_ = resp.Body.Close()
+		return nil, err
+	}
+
+	header, err := httputil.DumpResponse(resp, false)
+	if err != nil {
+		_ = resp.Body.Close()
+		return nil, errz.Err(err)
+	}
+
+	if _, err = ioz.WriteToFile(ctx, filepath.Join(stagingDir, "header"), bytes.NewReader(header)); err != nil {
+		_ = resp.Body.Close()
+		return nil, err
+	}
+
+	var f *os.File
+	if f, err = os.Create(filepath.Join(stagingDir, "body")); err != nil {
+		_ = resp.Body.Close()
+		return nil, err
+	}
+
+	r := &responseCacher{
+		stagingDir: stagingDir,
+		mainDir:    filepath.Join(c.dir, "main"),
+		body:       resp.Body,
+		f:          f,
+	}
+	return r, nil
+}
+
+var _ io.ReadCloser = (*responseCacher)(nil)
+
+type responseCacher struct {
+	mu         sync.Mutex
+	closeErr   *error
+	mainDir    string
+	stagingDir string
+	body       io.ReadCloser
+	f          *os.File
+}
+
+func (r *responseCacher) write(p []byte, n int) error {
+	_, err := r.f.Write(p[:n])
+	if err == nil {
+		return nil
+	}
+	_ = r.body.Close()
+	_ = r.f.Close()
+	_ = os.Remove(r.f.Name())
+	_ = os.RemoveAll(r.stagingDir)
+	r.stagingDir = ""
+	r.f = nil
+	r.body = nil
+	return errz.Wrap(err, "failed to write http response body to cache")
+}
+
+// Read implements io.Reader. It reads into p from the response body,
+// writes the received bytes to the cache, and returns the number of
+// bytes read and any error. If
+func (r *responseCacher) Read(p []byte) (n int, err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	// Use r.body as a sentinel to indicate that the cache
+	// has been closed.
+	if r.body == nil {
+		return 0, errz.New("response cache already closed")
+	}
+
+	n, err = r.body.Read(p)
+
+	switch {
+	case err == nil:
+		err = r.write(p, n)
+		return n, err
+	case !errors.Is(err, io.EOF):
+		// It's some other kind of error.
+		_ = r.body.Close()
+		r.body = nil
+		_ = r.f.Close()
+		_ = os.Remove(r.f.Name())
+		r.f = nil
+		_ = os.RemoveAll(r.stagingDir)
+		r.stagingDir = ""
+		return n, err
+	default:
+		// It's EOF. Time to wrap up.
+	}
+
+	var err2 error
+	if err2 = r.write(p, n); err2 != nil {
+		return n, err2
+	}
+
+	if err2 = r.finalize(); err2 != nil {
+		return n, err2
+	}
+
+	return n, err
+
+}
+
+func (r *responseCacher) finalize() error {
+	defer func() {
+		if r.f != nil {
+			_ = r.f.Close()
+			r.f = nil
+		}
+		if r.body != nil {
+			_ = r.body.Close()
+			r.body = nil
+		}
+		if r.stagingDir != "" {
+			_ = os.RemoveAll(r.stagingDir)
+			r.stagingDir = ""
+		}
+	}()
+
+	err := r.f.Close()
+	fpBody := r.f.Name()
+	r.f = nil
+	if err != nil {
+		return errz.Wrap(err, "failed to close cache body file")
+	}
+
+	err = r.body.Close()
+	r.body = nil
+	if err != nil {
+		return errz.Wrap(err, "failed to close http response body")
+	}
+
+	var sum checksum.Checksum
+	if sum, err = checksum.ForFile(fpBody); err != nil {
+		return errz.Wrap(err, "failed to compute checksum for cache body file")
+	}
+
+	if err = checksum.WriteFile(filepath.Join(r.stagingDir, "checksums.txt"), sum, "body"); err != nil {
+		return errz.Wrap(err, "failed to write checksum file for cache body")
+	}
+
+	// We've got good data in the staging dir. Now we do the switcheroo.
+	if err = ioz.RenameDir(r.stagingDir, r.mainDir); err != nil {
+		return errz.Wrap(err, "failed to write download cache")
+	}
+	r.stagingDir = ""
+
+	return nil
+}
+
+func (r *responseCacher) Close() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.closeErr != nil {
+		// Already closed
+		return *r.closeErr
+	}
+
+	var err error
+	if r.f != nil {
+		err = errz.Append(err, r.f.Close())
+		r.f = nil
+	}
+
+	if r.body != nil {
+		err = errz.Append(err, r.body.Close())
+		r.body = nil
+	}
+
+	if r.stagingDir != "" {
+		err = errz.Append(err, os.RemoveAll(r.stagingDir))
+		r.stagingDir = ""
+	}
+
+	r.closeErr = &err
+	return *r.closeErr
 }

@@ -3,7 +3,9 @@ package files
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -75,10 +77,34 @@ func (fs *Files) CacheDirFor(src *source.Source) (dir string, err error) {
 // WriteIngestChecksum is invoked (after successful ingestion) to write the
 // checksum for the ingest cache db.
 func (fs *Files) WriteIngestChecksum(ctx context.Context, src, backingSrc *source.Source) (err error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
 	log := lg.FromContext(ctx)
 	ingestFilePath, err := fs.filepath(src)
 	if err != nil {
 		return err
+	}
+
+	if location.TypeOf(src.Location) == location.TypeRemoteFile {
+		// If the source is remote, check if there was a download,
+		// and if so, make sure it's completed.
+		stream, ok := fs.streams[src.Handle]
+		if ok {
+			select {
+			case <-stream.Filled():
+			case <-stream.Done():
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+
+			if err = stream.Err(); err != nil && !errors.Is(err, io.EOF) {
+				return err
+			}
+		}
+
+		// So, the stream is completely read from, but
+
 	}
 
 	// Write the checksums file.

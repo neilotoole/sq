@@ -111,6 +111,10 @@ type Downloader struct {
 	// c is the HTTP client used to make requests.
 	c *http.Client
 
+	// workingCh is re-created on each call to Downloader.Get, and is closed
+	// when Get returns.
+	workingCh chan struct{}
+
 	// cache implements the on-disk cache. If nil, caching is disabled.
 	// It will be created in dlDir.
 	cache *cache
@@ -161,7 +165,12 @@ func New(name string, c *http.Client, dlURL, dlDir string) (*Downloader, error) 
 		markCachedResponses: true,
 		continueOnError:     true,
 		dlDir:               dlDir,
+		workingCh:           make(chan struct{}),
 	}
+
+	// Downloader is not initially working, so the channel should be closed.
+	// It will be reset to open on each call to Downloader.Get.
+	close(dl.workingCh)
 
 	return dl, nil
 }
@@ -210,6 +219,10 @@ func (dl *Downloader) get(req *http.Request, h Handler) (cacheFile string) { //n
 	log := lg.FromContext(ctx)
 
 	dl.dlStream = nil
+
+	defer func() {
+		close(dl.workingCh)
+	}()
 
 	var fpBody string
 	if dl.cache != nil {
@@ -368,11 +381,15 @@ func (dl *Downloader) get(req *http.Request, h Handler) (cacheFile string) { //n
 			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, cachedResp.Body)
 		}
 
+		var cacheErr error
+		cacheWait := make(chan struct{})
+
 		dl.dlStream = streamcache.New(resp.Body)
 		resp.Body = dl.dlStream.NewReader(ctx)
 		h.Uncached(dl.dlStream)
-
-		if err = dl.cache.write(req.Context(), resp, false); err != nil {
+		cacheErr = dl.cache.write(req.Context(), resp, false)
+		close(cacheWait)
+		if cacheErr != nil {
 			// We don't explicitly call Handler.Error: it would be "illegal" to do so
 			// anyway, because the Handler docs state that at most one Handler callback
 			// func is ever invoked.
@@ -387,7 +404,7 @@ func (dl *Downloader) get(req *http.Request, h Handler) (cacheFile string) { //n
 			//   In that case, any previous cache files are left untouched by cache.write,
 			//   and all we do is log the error. If the cache is inconsistent, it will
 			//   repair itself on next invocation, so it's not a big deal.
-			log.Warn("Failed to write download cache", lga.Dir, dl.cache.dir, lga.Err, err)
+			log.Warn("Failed to write download cache", lga.Dir, dl.cache.dir, lga.Err, cacheErr)
 			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 			return ""
 		}
@@ -526,6 +543,13 @@ func (dl *Downloader) Filesize(ctx context.Context) (int64, error) {
 	}
 
 	return fi.Size(), nil
+}
+
+// Working returns a channel that is closed when Downloader.Get returns.
+// Each new call to Downloader.Get creates a new channel, so don't hold
+// on to the returned channel across multiple calls to Get.
+func (dl *Downloader) Working() <-chan struct{} {
+	return dl.workingCh
 }
 
 // CacheFile returns the path to the cached file, if it exists and has
