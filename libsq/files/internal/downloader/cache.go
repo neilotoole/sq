@@ -4,12 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httputil"
 	"os"
 	"path/filepath"
-	"time"
+	"sync"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
@@ -17,7 +18,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 )
 
 const (
@@ -229,8 +229,7 @@ func (c *cache) clear(ctx context.Context) error {
 	recreateErr := ioz.RequireDir(c.dir)
 	err := errz.Append(deleteErr, recreateErr)
 	if err != nil {
-		lg.FromContext(ctx).Error(msgDeleteCache,
-			lga.Dir, c.dir, lga.Err, err)
+		lg.FromContext(ctx).Error(msgDeleteCache, lga.Dir, c.dir, lga.Err, err)
 		return err
 	}
 
@@ -238,85 +237,235 @@ func (c *cache) clear(ctx context.Context) error {
 	return nil
 }
 
-// write updates the cache. If headerOnly is true, only the header cache file
-// is updated, and the function returns. Otherwise, the header and body
-// cache files are updated, and a checksum file (computed from the body file)
-// is also written to disk.
-//
-// If an error occurs while attempting to update the cache, any existing
-// cache artifacts are left untouched. It's a sort of atomic-write-lite.
-// To achieve this, cache files are first written to a staging dir, and that
-// staging dir is only swapped with the main cache dir if there are no errors.
-//
-// The response body is always closed.
-func (c *cache) write(ctx context.Context, resp *http.Response, headerOnly bool) (err error) {
-	log := lg.FromContext(ctx)
-	start := time.Now()
-	var stagingDir string
-
-	defer func() {
-		lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
-
-		if stagingDir != "" && ioz.DirExists(stagingDir) {
-			lg.WarnIfError(log, "Remove cache staging dir", os.RemoveAll(stagingDir))
-		}
-	}()
+// writeHeader updates the main cache header file from resp. The response body
+// is not written to the cache, nor is resp.Body closed.
+func (c *cache) writeHeader(ctx context.Context, resp *http.Response) (err error) {
+	header, err := httputil.DumpResponse(resp, false)
+	if err != nil {
+		return errz.Err(err)
+	}
 
 	mainDir := filepath.Join(c.dir, "main")
 	if err = ioz.RequireDir(mainDir); err != nil {
 		return err
 	}
 
-	stagingDir = filepath.Join(c.dir, "staging")
-	if err = ioz.RequireDir(mainDir); err != nil {
+	fp := filepath.Join(mainDir, "header")
+	if _, err = ioz.WriteToFile(ctx, fp, bytes.NewReader(header)); err != nil {
 		return err
 	}
 
-	headerBytes, err := httputil.DumpResponse(resp, false)
+	lg.FromContext(ctx).Info("Updated download cache (header only)", lga.Dir, c.dir, lga.Resp, resp)
+	return nil
+}
+
+// newResponseCacher returns a new responseCacher for resp.
+// On return, resp.Body will be nil.
+func (c *cache) newResponseCacher(ctx context.Context, resp *http.Response) (*responseCacher, error) {
+	defer func() { resp.Body = nil }()
+
+	stagingDir := filepath.Join(c.dir, "staging")
+
+	if err := ioz.RequireDir(stagingDir); err != nil {
+		_ = resp.Body.Close()
+		return nil, err
+	}
+
+	header, err := httputil.DumpResponse(resp, false)
 	if err != nil {
-		return errz.Err(err)
+		_ = resp.Body.Close()
+		return nil, errz.Err(err)
 	}
 
-	fpHeaderStaging := filepath.Join(stagingDir, "header")
-	if _, err = ioz.WriteToFile(ctx, fpHeaderStaging, bytes.NewReader(headerBytes)); err != nil {
-		return err
+	if _, err = ioz.WriteToFile(ctx, filepath.Join(stagingDir, "header"), bytes.NewReader(header)); err != nil {
+		_ = resp.Body.Close()
+		return nil, err
 	}
 
-	fpHeader, fpBody, _ := c.paths(resp.Request)
-	if headerOnly {
-		// It's only the header that we're changing, so we don't need to
-		// swap the entire staging dir, just the header file.
-		if err = os.Rename(fpHeaderStaging, fpHeader); err != nil {
-			return errz.Wrap(err, "failed to move staging cache header file")
-		}
+	var f *os.File
+	if f, err = os.Create(filepath.Join(stagingDir, "body")); err != nil {
+		_ = resp.Body.Close()
+		return nil, err
+	}
 
-		log.Info("Updated download cache (header only)", lga.Dir, c.dir, lga.Resp, resp)
+	r := &responseCacher{
+		stagingDir: stagingDir,
+		mainDir:    filepath.Join(c.dir, "main"),
+		body:       resp.Body,
+		f:          f,
+	}
+	return r, nil
+}
+
+var _ io.ReadCloser = (*responseCacher)(nil)
+
+// responseCacher is an io.ReadCloser that wraps an [http.Response.Body],
+// appending bytes read via Read to a staging cache file. When Read receives
+// [io.EOF] from the wrapped response body, the staging cache is promoted and
+// replaces the main cache. If an error occurs during Read, the staging cache is
+// discarded, and the main cache is left untouched. If an error occurs during
+// cache promotion (which happens on receipt of io.EOF from resp.Body), the
+// promotion error, not [io.EOF], is returned by Read. Thus, a consumer of
+// responseCacher will not receive [io.EOF] unless the cache is successfully
+// promoted.
+type responseCacher struct {
+	body       io.ReadCloser
+	closeErr   *error
+	f          *os.File
+	mainDir    string
+	stagingDir string
+	mu         sync.Mutex
+}
+
+// Read implements [io.Reader]. It reads into p from the wrapped response body,
+// appends the received bytes to the staging cache, and returns the number of
+// bytes read, and any error. When Read encounters [io.EOF] from the response
+// body, it promotes the staging cache to main, and on success returns [io.EOF].
+// If an error occurs during cache promotion, Read returns that promotion error
+// instead of [io.EOF].
+func (r *responseCacher) Read(p []byte) (n int, err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	// Use r.body as a sentinel to indicate that the cache
+	// has been closed.
+	if r.body == nil {
+		return 0, errz.New("response cache already closed")
+	}
+
+	n, err = r.body.Read(p)
+
+	switch {
+	case err == nil:
+		err = r.cacheAppend(p, n)
+		return n, err
+	case !errors.Is(err, io.EOF):
+		// It's some other kind of error.
+		// Clean up and return.
+		_ = r.body.Close()
+		r.body = nil
+		_ = r.f.Close()
+		_ = os.Remove(r.f.Name())
+		r.f = nil
+		_ = os.RemoveAll(r.stagingDir)
+		r.stagingDir = ""
+		return n, err
+	default:
+		// It's EOF time! Let's promote the cache.
+	}
+
+	var err2 error
+	if err2 = r.cacheAppend(p, n); err2 != nil {
+		return n, err2
+	}
+
+	if err2 = r.cachePromote(); err2 != nil {
+		return n, err2
+	}
+
+	return n, err
+}
+
+// cacheAppend appends n bytes from p to the staging cache. If an error occurs,
+// the staging cache is discarded, and the error is returned.
+func (r *responseCacher) cacheAppend(p []byte, n int) error {
+	_, err := r.f.Write(p[:n])
+	if err == nil {
 		return nil
 	}
+	_ = r.body.Close()
+	r.body = nil
+	_ = r.f.Close()
+	_ = os.Remove(r.f.Name())
+	r.f = nil
+	_ = os.RemoveAll(r.stagingDir)
+	r.stagingDir = ""
+	return errz.Wrap(err, "failed to append http response body bytes to staging cache")
+}
 
-	fpBodyStaging := filepath.Join(stagingDir, "body")
-	var written int64
-	if written, err = ioz.WriteToFile(ctx, fpBodyStaging, resp.Body); err != nil {
-		log.Warn("Cache write: failed to write cache body file", lga.Err, err, lga.Path, fpBodyStaging)
-		return err
+// cachePromote is invoked by Read when it receives io.EOF from the wrapped
+// response body. It promotes the staging cache to main, and on success returns
+// nil. If an error occurs during promotion, the staging cache is discarded, and
+// the promotion error is returned.
+func (r *responseCacher) cachePromote() error {
+	defer func() {
+		if r.f != nil {
+			_ = r.f.Close()
+			r.f = nil
+		}
+		if r.body != nil {
+			_ = r.body.Close()
+			r.body = nil
+		}
+		if r.stagingDir != "" {
+			_ = os.RemoveAll(r.stagingDir)
+			r.stagingDir = ""
+		}
+	}()
+
+	err := r.f.Close()
+	fpBody := r.f.Name()
+	r.f = nil
+	if err != nil {
+		return errz.Wrap(err, "failed to close cache body file")
 	}
 
-	sum, err := checksum.ForFile(fpBodyStaging)
+	err = r.body.Close()
+	r.body = nil
 	if err != nil {
+		return errz.Wrap(err, "failed to close http response body")
+	}
+
+	var sum checksum.Checksum
+	if sum, err = checksum.ForFile(fpBody); err != nil {
 		return errz.Wrap(err, "failed to compute checksum for cache body file")
 	}
 
-	if err = checksum.WriteFile(filepath.Join(stagingDir, "checksums.txt"), sum, "body"); err != nil {
+	if err = checksum.WriteFile(filepath.Join(r.stagingDir, "checksums.txt"), sum, "body"); err != nil {
 		return errz.Wrap(err, "failed to write checksum file for cache body")
 	}
 
 	// We've got good data in the staging dir. Now we do the switcheroo.
-	if err = ioz.RenameDir(stagingDir, mainDir); err != nil {
+	if err = ioz.RenameDir(r.stagingDir, r.mainDir); err != nil {
 		return errz.Wrap(err, "failed to write download cache")
 	}
+	r.stagingDir = ""
 
-	stagingDir = ""
-	log.Info("Updated download cache (full)",
-		lga.Written, written, lga.File, fpBody, lga.Elapsed, time.Since(start).Round(time.Millisecond))
 	return nil
+}
+
+// Close implements [io.Closer]. Note that cache promotion happens when Read
+// receives [io.EOF] from the wrapped response body, so the main action should
+// be over by the time Close is invoked. Note that Close is idempotent, and
+// returns the same error on subsequent invocations.
+func (r *responseCacher) Close() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.closeErr != nil {
+		// Already closed
+		return *r.closeErr
+	}
+
+	// There's some duplication of logic with using both r.closeErr
+	// and r.body == nil as sentinels. This could be cleaned up.
+
+	var err error
+	if r.f != nil {
+		err = errz.Append(err, r.f.Close())
+		r.f = nil
+	}
+
+	if r.body != nil {
+		err = errz.Append(err, r.body.Close())
+		r.body = nil
+	}
+
+	if r.stagingDir != "" {
+		err = errz.Append(err, os.RemoveAll(r.stagingDir))
+		r.stagingDir = ""
+	}
+
+	r.closeErr = &err
+	return *r.closeErr
 }

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	crand "crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	mrand "math/rand"
@@ -382,6 +383,87 @@ func (w *notifyOnceWriter) Write(p []byte) (n int, err error) {
 	return w.w.Write(p)
 }
 
+// NotifyOnEOFReader returns an [io.Reader] that invokes fn
+// when r.Read returns [io.EOF]. The error that fn returns is
+// what's returned to the r caller: fn can transform the error
+// or return it unchanged. If r or fn is nil, r is returned.
+//
+// If r is an [io.ReadCloser], the returned reader will also
+// implement [io.ReadCloser].
+//
+// See also: [NotifyOnErrorReader], which is a generalization of
+// [NotifyOnEOFReader].
+func NotifyOnEOFReader(r io.Reader, fn func(error) error) io.Reader {
+	if r == nil || fn == nil {
+		return r
+	}
+
+	if rc, ok := r.(io.ReadCloser); ok {
+		return &notifyOnEOFReadCloser{notifyOnEOFReader{r: rc, fn: fn}}
+	}
+
+	return &notifyOnEOFReader{r: r}
+}
+
+type notifyOnEOFReader struct {
+	r  io.Reader
+	fn func(error) error
+}
+
+// Read implements io.Reader.
+func (r *notifyOnEOFReader) Read(p []byte) (n int, err error) {
+	n, err = r.r.Read(p)
+	if err != nil && errors.Is(err, io.EOF) {
+		err = r.fn(err)
+	}
+
+	return n, err
+}
+
+var _ io.ReadCloser = (*notifyOnEOFReadCloser)(nil)
+
+type notifyOnEOFReadCloser struct {
+	notifyOnEOFReader
+}
+
+// Close implements io.Closer.
+func (r *notifyOnEOFReadCloser) Close() error {
+	if c, ok := r.r.(io.Closer); ok {
+		return c.Close()
+	}
+	return nil
+}
+
+// NotifyOnErrorReader returns an [io.Reader] that invokes fn
+// when r.Read returns an error. The error that fn returns is
+// what's returned to the r caller: fn can transform the error
+// or return it unchanged. If r or fn is nil, r is returned.
+//
+// See also: [NotifyOnEOFReader], which is a specialization of
+// [NotifyOnErrorReader].
+func NotifyOnErrorReader(r io.Reader, fn func(error) error) io.Reader {
+	if r == nil || fn == nil {
+		return r
+	}
+
+	return &notifyOnErrorReader{r: r}
+}
+
+type notifyOnErrorReader struct {
+	r  io.Reader
+	fn func(error) error
+}
+
+// Read implements io.Reader.
+func (r *notifyOnErrorReader) Read(p []byte) (n int, err error) {
+	n, err = r.r.Read(p)
+	if err != nil {
+		err = r.fn(err)
+	}
+
+	return n, err
+}
+
 // WriteCloser returns w as an io.WriteCloser. If w implements
 // io.WriteCloser, w is returned. Otherwise, w is wrapped in a
 // no-op decorator that implements io.WriteCloser.
@@ -458,10 +540,35 @@ func DirExists(dir string) bool {
 	return fi.IsDir()
 }
 
-// Drain drains r.
-func Drain(r io.Reader) error {
-	_, err := io.Copy(io.Discard, r)
-	return err
+// DrainClose drains rc, returning the number of bytes read, and any error.
+// The reader is always closed, even if the drain operation returned an error.
+// If both the drain and the close operations return non-nil errors, the drain
+// error is returned.
+func DrainClose(rc io.ReadCloser) (n int, err error) {
+	var n64 int64
+	n64, err = io.Copy(io.Discard, rc)
+	n = int(n64)
+
+	closeErr := rc.Close()
+	if err == nil {
+		err = closeErr
+	}
+	return n, errz.Err(err)
+}
+
+// Filesize returns the size of the file at fp. An error is returned
+// if fp doesn't exist or is a directory.
+func Filesize(fp string) (int64, error) {
+	fi, err := os.Stat(fp)
+	if err != nil {
+		return 0, errz.Err(err)
+	}
+
+	if fi.IsDir() {
+		return 0, errz.Errorf("not a file: %s", fp)
+	}
+
+	return fi.Size(), nil
 }
 
 // FileInfoEqual returns true if a and b are equal.

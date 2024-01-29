@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -102,11 +101,18 @@ func TestFiles_DriverType(t *testing.T) {
 		t.Run(tu.Name(location.Redact(tc.loc)), func(t *testing.T) {
 			ctx := lg.NewContext(context.Background(), lgt.New(t))
 
-			fs, err := files.New(ctx, nil, testh.TempLockFunc(t), tu.TempDir(t, true), tu.CacheDir(t, true))
+			fs, err := files.New(
+				ctx,
+				nil,
+				testh.TempLockFunc(t),
+				tu.TempDir(t, false),
+				tu.CacheDir(t, false),
+			)
 			require.NoError(t, err)
+			defer func() { assert.NoError(t, fs.Close()) }()
 			fs.AddDriverDetectors(testh.DriverDetectors()...)
 
-			gotType, gotErr := fs.DetectType(context.Background(), "@test_"+stringz.Uniq8(), tc.loc)
+			gotType, gotErr := fs.DetectType(ctx, "@test_"+stringz.Uniq8(), tc.loc)
 			if tc.wantErr {
 				require.Error(t, gotErr)
 				return
@@ -267,7 +273,8 @@ func TestFiles_Filesize(t *testing.T) {
 	// Files.Filesize will block until the stream is fully read.
 	r, err := fs.NewReader(th.Context, stdinSrc, false)
 	require.NoError(t, err)
-	require.NoError(t, ioz.Drain(r))
+	_, err = io.Copy(io.Discard, r)
+	require.NoError(t, err)
 
 	gotSize2, err := fs.Filesize(th.Context, stdinSrc)
 	require.NoError(t, err)

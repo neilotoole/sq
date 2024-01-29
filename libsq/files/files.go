@@ -11,6 +11,8 @@ import (
 	"os"
 	"sync"
 
+	"github.com/neilotoole/sq/libsq/core/ioz"
+
 	"github.com/neilotoole/streamcache"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
@@ -105,7 +107,7 @@ func New(ctx context.Context, optReg *options.Registry, cfgLock lockfile.LockFun
 // An error is returned if src is not a document/file source.
 func (fs *Files) Filesize(ctx context.Context, src *source.Source) (size int64, err error) {
 	switch location.TypeOf(src.Location) {
-	case location.TypeLocalFile:
+	case location.TypeFile:
 		var fi os.FileInfo
 		if fi, err = os.Stat(src.Location); err != nil {
 			return 0, errz.Err(err)
@@ -126,7 +128,7 @@ func (fs *Files) Filesize(ctx context.Context, src *source.Source) (size int64, 
 		}
 		return int64(total), nil
 
-	case location.TypeRemoteFile:
+	case location.TypeHTTP:
 		fs.mu.Lock()
 
 		// First check if the file is already downloaded
@@ -134,12 +136,8 @@ func (fs *Files) Filesize(ctx context.Context, src *source.Source) (size int64, 
 		dlFile, ok := fs.downloadedFiles[src.Handle]
 		if ok {
 			// The file is already downloaded.
-			fs.mu.Unlock()
-			var fi os.FileInfo
-			if fi, err = os.Stat(dlFile); err != nil {
-				return 0, errz.Err(err)
-			}
-			return fi.Size(), nil
+			defer fs.mu.Unlock()
+			return ioz.Filesize(dlFile)
 		}
 
 		// It's not in the list of downloaded files, so
@@ -147,7 +145,9 @@ func (fs *Files) Filesize(ctx context.Context, src *source.Source) (size int64, 
 		dlStream, ok := fs.streams[src.Handle]
 		if ok {
 			fs.mu.Unlock()
+
 			var total int
+			// Block until the download completes.
 			if total, err = dlStream.Total(ctx); err != nil {
 				return 0, err
 			}
@@ -155,17 +155,17 @@ func (fs *Files) Filesize(ctx context.Context, src *source.Source) (size int64, 
 		}
 
 		// Finally, we turn to the downloader.
+		defer fs.mu.Unlock()
 		var dl *downloader.Downloader
-		dl, err = fs.downloaderFor(ctx, src)
-		fs.mu.Unlock()
-		if err != nil {
+		if dl, err = fs.downloaderFor(ctx, src); err != nil {
 			return 0, err
 		}
 
-		// dl.Filesize will fail if the file has not been downloaded yet, which
-		// means that the source has not been ingested; but Files.Filesize should
-		// not have been invoked before ingestion.
-		return dl.Filesize(ctx)
+		if dlFile, err = dl.CacheFile(ctx); err != nil {
+			return 0, err
+		}
+
+		return ioz.Filesize(dlFile)
 
 	case location.TypeSQL:
 		// Should be impossible.
@@ -202,9 +202,9 @@ func (fs *Files) AddStdin(ctx context.Context, f *os.File) error {
 // file exists.
 func (fs *Files) filepath(src *source.Source) (string, error) {
 	switch location.TypeOf(src.Location) {
-	case location.TypeLocalFile:
+	case location.TypeFile:
 		return src.Location, nil
-	case location.TypeRemoteFile:
+	case location.TypeHTTP:
 		_, dlFile, err := fs.downloadPaths(src)
 		if err != nil {
 			return "", err
@@ -249,7 +249,7 @@ func (fs *Files) newReader(ctx context.Context, src *source.Source, finalRdr boo
 		return nil, errz.Errorf("unknown source location type: %s", loc)
 	case location.TypeSQL:
 		return nil, errz.Errorf("invalid to read SQL source: %s", loc)
-	case location.TypeLocalFile:
+	case location.TypeFile:
 		return errz.Return(os.Open(loc))
 	case location.TypeStdin:
 		stdinStream, ok := fs.streams[source.StdinHandle]
@@ -313,13 +313,13 @@ func (fs *Files) Ping(ctx context.Context, src *source.Source) error {
 	case location.TypeStdin:
 		// Stdin is always available.
 		return nil
-	case location.TypeLocalFile:
+	case location.TypeFile:
 		if _, err := os.Stat(src.Location); err != nil {
 			return errz.Wrapf(err, "ping: failed to stat file source %s: %s", src.Handle, src.Location)
 		}
 		return nil
 
-	case location.TypeRemoteFile:
+	case location.TypeHTTP:
 		req, err := http.NewRequestWithContext(ctx, http.MethodHead, src.Location, nil)
 		if err != nil {
 			return errz.Wrapf(err, "ping: %s", src.Handle)

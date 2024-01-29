@@ -3,7 +3,9 @@ package files
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -73,15 +75,44 @@ func (fs *Files) CacheDirFor(src *source.Source) (dir string, err error) {
 }
 
 // WriteIngestChecksum is invoked (after successful ingestion) to write the
-// checksum for the ingest cache db.
+// checksum of the source document file vs the ingest DB. Thus, if the source
+// document changes, the checksum will no longer match, and the ingest DB
+// will be considered invalid.
 func (fs *Files) WriteIngestChecksum(ctx context.Context, src, backingSrc *source.Source) (err error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
 	log := lg.FromContext(ctx)
 	ingestFilePath, err := fs.filepath(src)
 	if err != nil {
 		return err
 	}
 
-	// Write the checksums file.
+	if location.TypeOf(src.Location) == location.TypeHTTP {
+		// If the source is remote, check if there was a download,
+		// and if so, make sure it's completed.
+		stream, ok := fs.streams[src.Handle]
+		if ok {
+			select {
+			case <-stream.Filled():
+			case <-stream.Done():
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+
+			if err = stream.Err(); err != nil && !errors.Is(err, io.EOF) {
+				return err
+			}
+		}
+
+		// If we got this far, either there's no stream, or the stream is done,
+		// which means that the download cache has been updated, and contains
+		// the fresh cached body file that we'll use to calculate the checksum.
+		// So, we'll go ahead and do the checksum stuff below.
+	}
+
+	// Now, we need to write a checksum file that contains the computed checksum
+	// value from ingestFilePath.
 	var sum checksum.Checksum
 	if sum, err = checksum.ForFile(ingestFilePath); err != nil {
 		log.Warn("Failed to compute checksum for source file; caching not in effect",
@@ -110,9 +141,9 @@ func (fs *Files) CachedBackingSourceFor(ctx context.Context, src *source.Source)
 	defer fs.mu.Unlock()
 
 	switch location.TypeOf(src.Location) {
-	case location.TypeLocalFile:
+	case location.TypeFile:
 		return fs.cachedBackingSourceForFile(ctx, src)
-	case location.TypeRemoteFile:
+	case location.TypeHTTP:
 		return fs.cachedBackingSourceForRemoteFile(ctx, src)
 	default:
 		return nil, false, errz.Errorf("caching not applicable for source: %s", src.Handle)

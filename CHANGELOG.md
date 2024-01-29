@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
-## [v0.47.0] - 2024-01-28
+## [v0.47.0] - UPCOMING
 
 This is a significant release, focused on improving i/o, responsiveness,
 and performance. The headline features are [caching](https://sq.io/docs/source#cache)
