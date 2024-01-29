@@ -4,6 +4,7 @@ package timez
 import (
 	"strings"
 	"time"
+	_ "time/tzdata" // Load tzdata: it's not included in all distros, e.g. Alpine.
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
