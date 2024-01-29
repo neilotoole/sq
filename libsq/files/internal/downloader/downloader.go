@@ -422,7 +422,7 @@ func (dl *Downloader) do(req *http.Request) (*http.Response, error) {
 }
 
 // mustRequest creates a new request from dl.url. The url has already been
-// parsed in download.New, so it's safe to ignore the error.
+// parsed in [downloader.New], so it's safe to use.
 func (dl *Downloader) mustRequest(ctx context.Context) *http.Request {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, dl.url, nil)
 	if err != nil {
