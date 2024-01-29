@@ -232,7 +232,7 @@ only applies to SQL sources.`,
 		ValidArgsFunction: (&handleTableCompleter{
 			onlySQL: true,
 		}).complete,
-		Example: `# drop table "actor" in src @sakila_sl3
+		Example: `  # drop table "actor" in src @sakila_sl3
   $ sq tbl drop @sakila_sl3.actor
 
   # drop table "payment"" in the active src
