@@ -17,8 +17,7 @@ func (f *Format) UnmarshalText(text []byte) error {
 		CSV, TSV, YAML:
 	case "table":
 		// Legacy: the "text" format used to be named "table".
-		// text = []byte(Text)
-		// FIXME: Probably should return an error now?
+		text = []byte(Text)
 	}
 
 	*f = Format(text)

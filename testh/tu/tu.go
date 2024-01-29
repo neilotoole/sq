@@ -376,47 +376,6 @@ func MustStat(tb testing.TB, fp string) os.FileInfo {
 	return fi
 }
 
-// MustDrain drains r, failing t on error. If arg cloze is true,
-// r is closed if it's an io.Closer, even if the drain fails.
-// FIXME: delete this func.
-func MustDrain(tb testing.TB, r io.Reader, cloze bool) {
-	tb.Helper()
-	_, cpErr := io.Copy(io.Discard, r)
-	if !cloze {
-		require.NoError(tb, cpErr)
-		return
-	}
-
-	var closeErr error
-	if rc, ok := r.(io.Closer); ok {
-		closeErr = rc.Close()
-	}
-
-	require.NoError(tb, cpErr)
-	require.NoError(tb, closeErr)
-}
-
-// MustDrainN is like MustDrain, but also reports the number of bytes
-// drained. If arg cloze is true, r is closed if it's an io.Closer,
-// even if the drain fails.
-func MustDrainN(tb testing.TB, r io.Reader, cloze bool) int {
-	tb.Helper()
-	n, cpErr := io.Copy(io.Discard, r)
-	if !cloze {
-		require.NoError(tb, cpErr)
-		return int(n)
-	}
-
-	var closeErr error
-	if rc, ok := r.(io.Closer); ok {
-		closeErr = rc.Close()
-	}
-
-	require.NoError(tb, cpErr)
-	require.NoError(tb, closeErr)
-	return int(n)
-}
-
 // TempDir is the standard means for obtaining a temp dir for tests.
 // If arg clean is true, the temp dir is created via t.TempDir, and
 // thus is deleted on test cleanup.

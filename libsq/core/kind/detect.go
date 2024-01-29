@@ -175,7 +175,7 @@ func (d *Detector) doSampleString(s string) {
 					return nil, errz.Err(err)
 				}
 
-				// FIXME: Should time always return the canonical format?
+				// REVISIT: Should time always return the canonical format?
 				// return t.Format(format), nil
 				return t.Format(time.TimeOnly), nil
 			}

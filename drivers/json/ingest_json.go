@@ -18,7 +18,8 @@ import (
 )
 
 // DetectJSON returns a files.TypeDetectFunc that can detect JSON.
-func DetectJSON(sampleSize int) files.TypeDetectFunc { // FIXME: is DetectJSON actually working?
+func DetectJSON(sampleSize int) files.TypeDetectFunc {
+	// REVISIT: is DetectJSON actually working properly? Needs more tests.
 	return func(ctx context.Context, newRdrFn files.NewReaderFunc) (detected drivertype.Type, score float32,
 		err error,
 	) {

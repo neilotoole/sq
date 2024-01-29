@@ -18,9 +18,10 @@ const (
 	StdinHandle = "@stdin"
 
 	// ActiveHandle is the reserved handle for the active source.
-	// FIXME: it should be possible to use "@0" as the active handle, but
-	//  the SLQ grammar doesn't currently allow it. Possibly change this
-	//  value to "@0" after modifying the SLQ grammar.
+	//
+	// TODO: it should be possible to use "@0" as the active handle, but
+	// the SLQ grammar doesn't currently allow it. Possibly change this
+	// value to "@0" after modifying the SLQ grammar.
 	ActiveHandle = "@active"
 
 	// ScratchHandle is the reserved handle for the scratch source.
@@ -139,7 +140,7 @@ func (s *Source) ShortLocation() string {
 // Group returns the source's group. If s is in the root group,
 // the empty string is returned.
 //
-// FIXME: For root group, should "/" be returned instead of empty string?
+// REVISIT: For root group, should "/" be returned instead of empty string?
 func (s *Source) Group() string {
 	return groupFromHandle(s.Handle)
 }
