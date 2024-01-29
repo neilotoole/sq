@@ -346,7 +346,7 @@ func (dl *Downloader) get(req *http.Request) (dlFile string, //nolint:gocognit,f
 		}
 
 		if resp == cachedResp {
-			err = dl.cache.write(ctx, resp, true)
+			err = dl.cache.writeHeader(ctx, resp)
 			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 			if err != nil {
 				log.Error("Failed to update cache header", lga.Dir, dl.cache.dir, lga.Err, err)

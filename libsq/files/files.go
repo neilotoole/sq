@@ -11,6 +11,8 @@ import (
 	"os"
 	"sync"
 
+	"github.com/neilotoole/sq/libsq/core/ioz"
+
 	"github.com/neilotoole/streamcache"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
@@ -134,12 +136,8 @@ func (fs *Files) Filesize(ctx context.Context, src *source.Source) (size int64, 
 		dlFile, ok := fs.downloadedFiles[src.Handle]
 		if ok {
 			// The file is already downloaded.
-			fs.mu.Unlock()
-			var fi os.FileInfo
-			if fi, err = os.Stat(dlFile); err != nil {
-				return 0, errz.Err(err)
-			}
-			return fi.Size(), nil
+			defer fs.mu.Unlock()
+			return ioz.Filesize(dlFile)
 		}
 
 		// It's not in the list of downloaded files, so
@@ -147,7 +145,9 @@ func (fs *Files) Filesize(ctx context.Context, src *source.Source) (size int64, 
 		dlStream, ok := fs.streams[src.Handle]
 		if ok {
 			fs.mu.Unlock()
+
 			var total int
+			// Block until the download completes.
 			if total, err = dlStream.Total(ctx); err != nil {
 				return 0, err
 			}
@@ -155,17 +155,22 @@ func (fs *Files) Filesize(ctx context.Context, src *source.Source) (size int64, 
 		}
 
 		// Finally, we turn to the downloader.
+		defer fs.mu.Unlock()
 		var dl *downloader.Downloader
-		dl, err = fs.downloaderFor(ctx, src)
-		fs.mu.Unlock()
-		if err != nil {
+		if dl, err = fs.downloaderFor(ctx, src); err != nil {
 			return 0, err
 		}
+
+		if dlFile, err = dl.CacheFile(ctx); err != nil {
+			return 0, err
+		}
+
+		return ioz.Filesize(dlFile)
 
 		// dl.Filesize will fail if the file has not been downloaded yet, which
 		// means that the source has not been ingested; but Files.Filesize should
 		// not have been invoked before ingestion.
-		return dl.Filesize(ctx)
+		// return dl.Filesize(ctx)
 
 	case location.TypeSQL:
 		// Should be impossible.

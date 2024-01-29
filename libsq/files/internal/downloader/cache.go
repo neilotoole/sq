@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
@@ -19,7 +18,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 )
 
 const (
@@ -231,8 +229,7 @@ func (c *cache) clear(ctx context.Context) error {
 	recreateErr := ioz.RequireDir(c.dir)
 	err := errz.Append(deleteErr, recreateErr)
 	if err != nil {
-		lg.FromContext(ctx).Error(msgDeleteCache,
-			lga.Dir, c.dir, lga.Err, err)
+		lg.FromContext(ctx).Error(msgDeleteCache, lga.Dir, c.dir, lga.Err, err)
 		return err
 	}
 
@@ -240,86 +237,25 @@ func (c *cache) clear(ctx context.Context) error {
 	return nil
 }
 
-// write updates the cache. If headerOnly is true, only the header cache file
-// is updated, and the function returns. Otherwise, the header and body
-// cache files are updated, and a checksum file (computed from the body file)
-// is also written to disk.
-//
-// If an error occurs while attempting to update the cache, any existing
-// cache artifacts are left untouched. It's a sort of atomic-write-lite.
-// To achieve this, cache files are first written to a staging dir, and that
-// staging dir is only swapped with the main cache dir if there are no errors.
-//
-// The response body is always closed.
-func (c *cache) write(ctx context.Context, resp *http.Response, headerOnly bool) (err error) {
-	log := lg.FromContext(ctx)
-	start := time.Now()
-	var stagingDir string
-
-	defer func() {
-		lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
-
-		if stagingDir != "" && ioz.DirExists(stagingDir) {
-			lg.WarnIfError(log, "Remove cache staging dir", os.RemoveAll(stagingDir))
-		}
-	}()
+// write updates the cache header from resp. The response body is not
+// written to the cache, nor is resp.Body closed.
+func (c *cache) writeHeader(ctx context.Context, resp *http.Response) (err error) {
+	header, err := httputil.DumpResponse(resp, false)
+	if err != nil {
+		return errz.Err(err)
+	}
 
 	mainDir := filepath.Join(c.dir, "main")
 	if err = ioz.RequireDir(mainDir); err != nil {
 		return err
 	}
 
-	stagingDir = filepath.Join(c.dir, "staging")
-	if err = ioz.RequireDir(mainDir); err != nil {
+	fp := filepath.Join(mainDir, "header")
+	if _, err = ioz.WriteToFile(ctx, fp, bytes.NewReader(header)); err != nil {
 		return err
 	}
 
-	headerBytes, err := httputil.DumpResponse(resp, false)
-	if err != nil {
-		return errz.Err(err)
-	}
-
-	fpHeaderStaging := filepath.Join(stagingDir, "header")
-	if _, err = ioz.WriteToFile(ctx, fpHeaderStaging, bytes.NewReader(headerBytes)); err != nil {
-		return err
-	}
-
-	fpHeader, fpBody, _ := c.paths(resp.Request)
-	if headerOnly {
-		// It's only the header that we're changing, so we don't need to
-		// swap the entire staging dir, just the header file.
-		if err = os.Rename(fpHeaderStaging, fpHeader); err != nil {
-			return errz.Wrap(err, "failed to move staging cache header file")
-		}
-
-		log.Info("Updated download cache (header only)", lga.Dir, c.dir, lga.Resp, resp)
-		return nil
-	}
-
-	fpBodyStaging := filepath.Join(stagingDir, "body")
-	var written int64
-	if written, err = ioz.WriteToFile(ctx, fpBodyStaging, resp.Body); err != nil {
-		log.Warn("Cache write: failed to write cache body file", lga.Err, err, lga.Path, fpBodyStaging)
-		return err
-	}
-
-	sum, err := checksum.ForFile(fpBodyStaging)
-	if err != nil {
-		return errz.Wrap(err, "failed to compute checksum for cache body file")
-	}
-
-	if err = checksum.WriteFile(filepath.Join(stagingDir, "checksums.txt"), sum, "body"); err != nil {
-		return errz.Wrap(err, "failed to write checksum file for cache body")
-	}
-
-	// We've got good data in the staging dir. Now we do the switcheroo.
-	if err = ioz.RenameDir(stagingDir, mainDir); err != nil {
-		return errz.Wrap(err, "failed to write download cache")
-	}
-
-	stagingDir = ""
-	log.Info("Updated download cache (full)",
-		lga.Written, written, lga.File, fpBody, lga.Elapsed, time.Since(start).Round(time.Millisecond))
+	lg.FromContext(ctx).Info("Updated download cache (header only)", lga.Dir, c.dir, lga.Resp, resp)
 	return nil
 }
 
