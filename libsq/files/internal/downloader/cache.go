@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -255,7 +256,7 @@ func (c *cache) writeHeader(ctx context.Context, resp *http.Response) (err error
 		return err
 	}
 
-	lg.FromContext(ctx).Info("Updated download cache (header only)", lga.Dir, c.dir, lga.Resp, resp)
+	lg.FromContext(ctx).Info("Updated download main cache (header only)", lga.Dir, mainDir, lga.Resp, resp)
 	return nil
 }
 
@@ -282,6 +283,9 @@ func (c *cache) newResponseCacher(ctx context.Context, resp *http.Response) (*re
 		return nil, err
 	}
 
+	log := lg.FromContext(ctx)
+	log.Debug("Wrote response header to staging cache", lga.Dir, c.dir, lga.Resp, resp)
+
 	var f *os.File
 	if f, err = os.Create(filepath.Join(stagingDir, "body")); err != nil {
 		_ = resp.Body.Close()
@@ -289,6 +293,7 @@ func (c *cache) newResponseCacher(ctx context.Context, resp *http.Response) (*re
 	}
 
 	r := &responseCacher{
+		log:        log,
 		stagingDir: stagingDir,
 		mainDir:    filepath.Join(c.dir, "main"),
 		body:       resp.Body,
@@ -310,6 +315,7 @@ var _ io.ReadCloser = (*responseCacher)(nil)
 // consumer of responseCacher will not receive [io.EOF] unless the cache is
 // successfully promoted.
 type responseCacher struct {
+	log        *slog.Logger
 	body       io.ReadCloser
 	closeErr   *error
 	f          *os.File
@@ -404,8 +410,13 @@ func (r *responseCacher) cachePromote() error {
 		}
 	}()
 
-	err := r.f.Close()
+	fi, err := r.f.Stat()
+	if err != nil {
+		return errz.Wrap(err, "failed to stat staging cache body file")
+	}
+
 	fpBody := r.f.Name()
+	err = r.f.Close()
 	r.f = nil
 	if err != nil {
 		return errz.Wrap(err, "failed to close cache body file")
@@ -432,6 +443,7 @@ func (r *responseCacher) cachePromote() error {
 	}
 	r.stagingDir = ""
 
+	r.log.Info("Promoted download staging cache to main", lga.Size, fi.Size(), lga.Dir, r.mainDir)
 	return nil
 }
 
