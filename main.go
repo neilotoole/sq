@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/libsq/core/errz"

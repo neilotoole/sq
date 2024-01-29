@@ -103,3 +103,16 @@ const (
 	// in the "blobs" table.
 	BlobDBPath = "drivers/sqlite3/testdata/blob.db"
 )
+
+var (
+	LosAngeles = mustLoadLocation("America/Los_Angeles")
+	Denver     = mustLoadLocation("America/Denver")
+)
+
+func mustLoadLocation(name string) *time.Location {
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		panic(err)
+	}
+	return loc
+}

@@ -441,7 +441,7 @@ func TestGenerateTimestampVals(t *testing.T) {
 	names := maps.Keys(timez.TimestampLayouts)
 	slices.Sort(names)
 
-	for _, loc := range []*time.Location{time.UTC, timez.LosAngeles, timez.Denver} {
+	for _, loc := range []*time.Location{time.UTC, fixt.LosAngeles, fixt.Denver} {
 		fmt.Fprintf(os.Stdout, "\n\n%s\n\n", loc.String())
 		tm := canonicalTimeUTC.In(loc)
 
