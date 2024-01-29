@@ -300,14 +300,15 @@ func (c *cache) newResponseCacher(ctx context.Context, resp *http.Response) (*re
 var _ io.ReadCloser = (*responseCacher)(nil)
 
 // responseCacher is an io.ReadCloser that wraps an [http.Response.Body],
-// appending bytes read via Read to a staging cache file. When Read receives
-// [io.EOF] from the wrapped response body, the staging cache is promoted and
-// replaces the main cache. If an error occurs during Read, the staging cache is
-// discarded, and the main cache is left untouched. If an error occurs during
-// cache promotion (which happens on receipt of io.EOF from resp.Body), the
-// promotion error, not [io.EOF], is returned by Read. Thus, a consumer of
-// responseCacher will not receive [io.EOF] unless the cache is successfully
-// promoted.
+// appending bytes read via Read to a staging cache file, and then returning
+// those same bytes to the caller. It is conceptually similar to [io.TeeReader].
+// When Read receives [io.EOF] from the wrapped response body, the staging cache
+// is promoted and replaces the main cache. If an error occurs during Read, the
+// staging cache is discarded, and the main cache is left untouched. If an error
+// occurs during cache promotion (which happens on receipt of [io.EOF] from
+// resp.Body), the promotion error, not [io.EOF], is returned by Read. Thus, a
+// consumer of responseCacher will not receive [io.EOF] unless the cache is
+// successfully promoted.
 type responseCacher struct {
 	body       io.ReadCloser
 	closeErr   *error
@@ -383,7 +384,7 @@ func (r *responseCacher) cacheAppend(p []byte, n int) error {
 	return errz.Wrap(err, "failed to append http response body bytes to staging cache")
 }
 
-// cachePromote is invoked by Read when it receives io.EOF from the wrapped
+// cachePromote is invoked by [Read] when it receives [io.EOF] from the wrapped
 // response body. It promotes the staging cache to main, and on success returns
 // nil. If an error occurs during promotion, the staging cache is discarded, and
 // the promotion error is returned.
