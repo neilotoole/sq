@@ -167,16 +167,17 @@ func New(name string, c *http.Client, dlURL, dlDir string) (*Downloader, error) 
 	return dl, nil
 }
 
-// Get attempts to get the remote file, returning either the filepath of
-// the already-cached file in dlFile, or a stream of a newly-started download
-// in dlStream, or an error. Exactly one of the return values will be non-nil.
+// Get attempts to get the remote file, returning either the filepath of the
+// already-cached file in dlFile, or a stream of a newly-started download in
+// dlStream, or an error. Exactly one of the return values will be non-nil.
 //
 //   - If dlFile is non-empty, it is the filepath on disk of the cached download,
 //     and dlStream and err are nil. However, depending on OptContinueOnError,
 //     dlFile may be the path to a stale download. If the cache is stale and a
 //     transport error occurs during refresh, and OptContinueOnError is true,
 //     the previous cached download is returned. If OptContinueOnError is false,
-//     the transport error is returned, and dlFile is empty.
+//     the transport error is returned, and dlFile is empty. The caller can also
+//     check the cache state via [Downloader.State].
 //   - If dlStream is non-nil, it is a stream of the download in progress, and
 //     dlFile is empty. The cache is updated when the stream has been completely
 //     consumed. If the stream is not consumed, the cache is not updated. If an
@@ -203,8 +204,6 @@ func (dl *Downloader) Get(ctx context.Context) (dlFile string, dlStream *streamc
 }
 
 // get contains the main logic for getting the download.
-// It invokes Handler as appropriate, and on success returns the
-// filepath of the valid cached download ›file.
 func (dl *Downloader) get(req *http.Request) (dlFile string, //nolint:gocognit,funlen,cyclop
 	dlStream *streamcache.Stream, err error,
 ) {
@@ -276,8 +275,8 @@ func (dl *Downloader) get(req *http.Request) (dlFile string, //nolint:gocognit,f
 
 		case fpBody != "" && (err != nil || resp.StatusCode >= 500) &&
 			req.Method == http.MethodGet && canStaleOnError(cachedResp.Header, req.Header):
-			// In case of transport failure and stale-if-error activated, returns cached content
-			// when available.
+			// In case of transport failure and stale-if-error returns true,
+			// returns stale cached download.
 			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, cachedResp.Body)
 			log.Warn("Returning cached response due to transport failure", lga.Err, err)
 			return fpBody, nil, nil
@@ -465,10 +464,11 @@ func (dl *Downloader) state(req *http.Request) State {
 }
 
 // CacheFile returns the path to the cached file, if it exists. If there's
-// a download in progress (downloader.Get returned a stream), then CacheFile
+// a download in progress ([Downloader.Get] returned a stream), then CacheFile
 // may return the filepath to the previously cached file. The caller should
 // wait on any previously returned download stream to complete to ensure
-// that the returned filepath is that of the current download.
+// that the returned filepath is that of the current download. The caller
+// can also check the cache state via [Downloader.State].
 func (dl *Downloader) CacheFile(ctx context.Context) (fp string, err error) {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()

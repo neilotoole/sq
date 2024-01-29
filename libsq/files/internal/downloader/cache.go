@@ -299,6 +299,15 @@ func (c *cache) newResponseCacher(ctx context.Context, resp *http.Response) (*re
 
 var _ io.ReadCloser = (*responseCacher)(nil)
 
+// responseCacher is an io.ReadCloser that wraps an [http.Response.Body],
+// appending bytes read via Read to a staging cache file. When Read receives
+// [io.EOF] from the wrapped response body, the staging cache is promoted and
+// replaces the main cache. If an error occurs during Read, the staging cache is
+// discarded, and the main cache is left untouched. If an error occurs during
+// cache promotion (which happens on receipt of io.EOF from resp.Body), the
+// promotion error, not [io.EOF], is returned by Read. Thus, a consumer of
+// responseCacher will not receive [io.EOF] unless the cache is successfully
+// promoted.
 type responseCacher struct {
 	body       io.ReadCloser
 	closeErr   *error
@@ -308,26 +317,11 @@ type responseCacher struct {
 	mu         sync.Mutex
 }
 
-func (r *responseCacher) write(p []byte, n int) error {
-	_, err := r.f.Write(p[:n])
-	if err == nil {
-		return nil
-	}
-	_ = r.body.Close()
-	_ = r.f.Close()
-	_ = os.Remove(r.f.Name())
-	_ = os.RemoveAll(r.stagingDir)
-	r.stagingDir = ""
-	r.f = nil
-	r.body = nil
-	return errz.Wrap(err, "failed to write http response body to cache")
-}
-
-// Read implements io.Reader. It reads into p from the response body,
-// writes the received bytes to the cache, and returns the number of
-// bytes read and any error.
-//
-// FIXME: comment this properly.
+// Read implements [io.Reader]. It reads into p from the wrapped response body,
+// appends the received bytes to the staging cache, and returns the number of
+// bytes read, and any error. When Read encounters [io.EOF] from the response
+// body, it finalizes the cache, and on success returns [io.EOF]. If an error
+// occurs during cache finalization, Read returns that error instead of io.EOF.
 func (r *responseCacher) Read(p []byte) (n int, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -342,10 +336,11 @@ func (r *responseCacher) Read(p []byte) (n int, err error) {
 
 	switch {
 	case err == nil:
-		err = r.write(p, n)
+		err = r.cacheAppend(p, n)
 		return n, err
 	case !errors.Is(err, io.EOF):
 		// It's some other kind of error.
+		// Clean up and return.
 		_ = r.body.Close()
 		r.body = nil
 		_ = r.f.Close()
@@ -355,22 +350,43 @@ func (r *responseCacher) Read(p []byte) (n int, err error) {
 		r.stagingDir = ""
 		return n, err
 	default:
-		// It's EOF. Time to wrap up.
+		// It's EOF time! Let's promote the cache.
 	}
 
 	var err2 error
-	if err2 = r.write(p, n); err2 != nil {
+	if err2 = r.cacheAppend(p, n); err2 != nil {
 		return n, err2
 	}
 
-	if err2 = r.finalize(); err2 != nil {
+	if err2 = r.cachePromote(); err2 != nil {
 		return n, err2
 	}
 
 	return n, err
 }
 
-func (r *responseCacher) finalize() error {
+// cacheAppend appends n bytes from p to the staging cache. If an error occurs,
+// the staging cache is discarded, and the error is returned.
+func (r *responseCacher) cacheAppend(p []byte, n int) error {
+	_, err := r.f.Write(p[:n])
+	if err == nil {
+		return nil
+	}
+	_ = r.body.Close()
+	r.body = nil
+	_ = r.f.Close()
+	_ = os.Remove(r.f.Name())
+	r.f = nil
+	_ = os.RemoveAll(r.stagingDir)
+	r.stagingDir = ""
+	return errz.Wrap(err, "failed to append http response body bytes to staging cache")
+}
+
+// cachePromote is invoked by Read when it receives io.EOF from the wrapped
+// response body. It promotes the staging cache to main, and on success returns
+// nil. If an error occurs during promotion, the staging cache is discarded, and
+// the promotion error is returned.
+func (r *responseCacher) cachePromote() error {
 	defer func() {
 		if r.f != nil {
 			_ = r.f.Close()
@@ -417,6 +433,10 @@ func (r *responseCacher) finalize() error {
 	return nil
 }
 
+// Close implements [io.Closer]. Note that cache promotion happens when Read
+// receives [io.EOF] from the wrapped response body, so the main action should
+// be over by the time Close is invoked. Note that Close is idempotent, and
+// returns the same error on subsequent invocations.
 func (r *responseCacher) Close() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -425,6 +445,9 @@ func (r *responseCacher) Close() error {
 		// Already closed
 		return *r.closeErr
 	}
+
+	// There's some duplication of logic with using both r.closeErr
+	// and r.body == nil as sentinels. This could be cleaned up.
 
 	var err error
 	if r.f != nil {
