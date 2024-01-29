@@ -104,9 +104,14 @@ func (s State) String() string {
 const XFromCache = "X-From-Stream"
 
 // Downloader encapsulates downloading a file from a URL, using a local
-// disk cache if possible. Downloader.Get makes uses of the Handler callback
-// mechanism to facilitate early consumption of a download stream while the
-// download is still in flight.
+// disk cache if possible. Downloader.Get returns either a filepath to the
+// already-downloaded file, or a stream of the download in progress, or an
+// error. If a stream is returned, the Downloader cache is updated when the
+// stream is fully consumed (this can be observed by the closing of the
+// channel returned by [streamcache.Stream.Filled]).
+//
+// To be extra clear about that last point: the caller must consume the
+// stream returned by Downloader.Get, or the cache will not be written.
 type Downloader struct {
 	// c is the HTTP client used to make requests.
 	c *http.Client
@@ -114,10 +119,6 @@ type Downloader struct {
 	// cache implements the on-disk cache. If nil, caching is disabled.
 	// It will be created in dlDir.
 	cache *cache
-
-	// dlStream is the streamcache.Stream that is passed Handler.Uncached for an
-	// active download. This field is reset to nil on each call to Downloader.Get.
-	dlStream *streamcache.Stream
 
 	// name is a user-friendly name, such as a source handle like @data.
 	name string
@@ -161,36 +162,31 @@ func New(name string, c *http.Client, dlURL, dlDir string) (*Downloader, error) 
 		markCachedResponses: true,
 		continueOnError:     true,
 		dlDir:               dlDir,
-		// workingCh:           make(chan struct{}),
 	}
-
-	// Downloader is not initially working, so the channel should be closed.
-	// It will be reset to open on each call to Downloader.Get.
-	// close(dl.workingCh)
 
 	return dl, nil
 }
 
-// Get attempts to get the remote file, invoking Handler as appropriate. Exactly
-// one of the Handler methods will be invoked, one time.
+// Get attempts to get the remote file, returning either the filepath of
+// the already-cached file in dlFile, or a stream of a newly-started download
+// in dlStream, or an error. Exactly one of the return values will be non-nil.
 //
-//   - If Handler.Uncached is invoked, a download stream has begun. Get will
-//     then block until the download is completed. The download resp.Body is
-//     written to cache, and on success, the filepath to the newly updated
-//     cache file is returned.
-//     If an error occurs during cache write, the error is logged, and Get
-//     returns the filepath of the previously cached download, if permitted
-//     by policy. If not permitted or not existing, empty string is returned.
-//   - If Handler.Cached is invoked, Get returns immediately afterwards with
-//     the filepath of the cached download (the same value provided to
-//     Handler.Cached).
-//   - If Handler.Error is invoked, there was an unrecoverable problem (e.g. a
-//     transport error, and there's no previous cache) and the download is
-//     unavailable. That error should be propagated up the stack. Get will
-//     return empty string.
+//   - If dlFile is non-empty, it is the filepath on disk of the cached download,
+//     and dlStream and err are nil. However, depending on OptContinueOnError,
+//     dlFile may be the path to a stale download. If the cache is stale and a
+//     transport error occurs during refresh, and OptContinueOnError is true,
+//     the previous cached download is returned. If OptContinueOnError is false,
+//     the transport error is returned, and dlFile is empty.
+//   - If dlStream is non-nil, it is a stream of the download in progress, and
+//     dlFile is empty. The cache is updated when the stream has been completely
+//     consumed. If the stream is not consumed, the cache is not updated. If an
+//     error occurs reading from the stream, the cache is also not updated: this
+//     means that the cache may still contain the previous (stale) download.
+//   - If err is non-nil, there was an unrecoverable problem (e.g. a transport
+//     error, and there's no previous cache) and the download is unavailable.
 //
-// Get consults the context for options. In particular, it makes
-// use of OptCache and OptContinueOnError.
+// Get consults the context for options. In particular, it makes use of OptCache
+// and OptContinueOnError.
 func (dl *Downloader) Get(ctx context.Context) (dlFile string, dlStream *streamcache.Stream, err error) {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()
@@ -204,7 +200,6 @@ func (dl *Downloader) Get(ctx context.Context) (dlFile string, dlStream *streamc
 	req := dl.mustRequest(ctx)
 	lg.FromContext(ctx).Debug("Get download", lga.URL, dl.url)
 	return dl.get(req)
-	// return dlFile
 }
 
 // get contains the main logic for getting the download.
@@ -215,8 +210,6 @@ func (dl *Downloader) get(req *http.Request) (dlFile string, //nolint:gocognit,f
 ) {
 	ctx := req.Context()
 	log := lg.FromContext(ctx)
-
-	dl.dlStream = nil
 
 	var fpBody string
 	if dl.cache != nil {
@@ -369,15 +362,15 @@ func (dl *Downloader) get(req *http.Request) (dlFile string, //nolint:gocognit,f
 			return "", nil, err
 		}
 
-		dl.dlStream = streamcache.New(respCacher)
-		return "", dl.dlStream, nil
+		dlStream = streamcache.New(respCacher)
+		return "", dlStream, nil
 	}
 
 	// It's not cacheable, so we can just wrap resp.Body in a streamcache
 	// and return it.
-	dl.dlStream = streamcache.New(resp.Body)
+	dlStream = streamcache.New(resp.Body)
 	resp.Body = nil // Unnecessary, but just to be explicit.
-	return "", dl.dlStream, nil
+	return "", dlStream, nil
 }
 
 // do executes the request.
@@ -471,42 +464,11 @@ func (dl *Downloader) state(req *http.Request) State {
 	return getFreshness(cachedResp.Header, req.Header)
 }
 
-// Filesize returns the size of the downloaded file. This should
-// only be invoked after the download has completed or is cached,
-// as it may block until the download completes.
-func (dl *Downloader) Filesize(ctx context.Context) (int64, error) {
-	dl.mu.Lock()
-	defer dl.mu.Unlock()
-
-	if dl.dlStream != nil {
-		// There's an active download, so we can get the filesize
-		// when the download completes.
-		size, err := dl.dlStream.Total(ctx)
-		return int64(size), err
-	}
-
-	if dl.cache == nil {
-		return 0, errz.New("download file size not available")
-	}
-
-	req := dl.mustRequest(ctx)
-	if !dl.cache.exists(req) {
-		// It's not in the cache.
-		return 0, errz.New("download file size not available")
-	}
-
-	// It's in the cache.
-	_, fp, _ := dl.cache.paths(req)
-	fi, err := os.Stat(fp)
-	if err != nil {
-		return 0, errz.Wrapf(err, "unable to stat cached download file: %s", fp)
-	}
-
-	return fi.Size(), nil
-}
-
-// CacheFile returns the path to the cached file, if it exists and has
-// been fully downloaded.
+// CacheFile returns the path to the cached file, if it exists. If there's
+// a download in progress (downloader.Get returned a stream), then CacheFile
+// may return the filepath to the previously cached file. The caller should
+// wait on any previously returned download stream to complete to ensure
+// that the returned filepath is that of the current download.
 func (dl *Downloader) CacheFile(ctx context.Context) (fp string, err error) {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()

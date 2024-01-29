@@ -248,10 +248,7 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	require.Equal(t, len(sentBody), gotN)
 
 	require.True(t, errors.Is(gotStream.Err(), io.EOF))
-	var gotFilesize int64
-	gotFilesize, err = dl.Filesize(ctx)
 	require.NoError(t, err)
-	require.Equal(t, len(sentBody), int(gotFilesize))
 	require.Equal(t, len(sentBody), gotStream.Size())
 
 	fpBody, err := dl.CacheFile(ctx)
