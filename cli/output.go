@@ -41,8 +41,8 @@ var (
 		0,
 		true,
 		"Print header row",
-		`Controls whether a header row is printed. This applies only
-to certain formats, such as "text" or "csv".`,
+		`Controls whether a header row is printed. This applies only to certain formats,
+such as "text" or "csv".`,
 		options.TagOutput,
 	)
 
@@ -163,8 +163,8 @@ Generally, it is not necessary to fiddle this knob.`,
 		"RFC3339",
 		nil,
 		"Timestamp format: constant such as RFC3339 or a strftime format",
-		`Timestamp format. This can be one of several predefined constants such
-as "RFC3339" or "Unix", or a strftime format such as "%Y-%m-%d %H:%M:%S".
+		`Timestamp format. This can be one of several predefined constants such as
+"RFC3339" or "Unix", or a strftime format such as "%Y-%m-%d %H:%M:%S".
 
 `+timeLayoutsList,
 		options.TagOutput,
@@ -177,9 +177,9 @@ as "RFC3339" or "Unix", or a strftime format such as "%Y-%m-%d %H:%M:%S".
 		0,
 		true,
 		"Render numeric datetime value as number instead of string",
-		`Render numeric datetime value as number instead of string, if possible.
-If format.datetime renders a numeric value (e.g. a Unix timestamp such
-as "1591843854"), that value is typically rendered as a string. For some output
+		`Render numeric datetime value as number instead of string, if possible. If
+format.datetime renders a numeric value (e.g. a Unix timestamp such as
+"1591843854"), that value is typically rendered as a string. For some output
 formats, such as JSON, it can be useful to instead render the value as a naked
 number instead of a string. Note that this option is no-op if the rendered value
 is not an integer.
@@ -199,10 +199,10 @@ is not an integer.
 		"DateOnly",
 		nil,
 		"Date format: constant such as DateOnly or a strftime format",
-		`Date format. This can be one of several predefined constants such
-as "DateOnly" or "Unix", or a strftime format such as "%Y-%m-%d".
-Note that date values are sometimes programmatically indistinguishable
-from datetime values. In that situation, use format.datetime instead.
+		`Date format. This can be one of several predefined constants such as "DateOnly"
+or "Unix", or a strftime format such as "%Y-%m-%d". Note that date values are
+sometimes programmatically indistinguishable from datetime values. In that
+situation, use format.datetime instead.
 
 `+timeLayoutsList,
 		options.TagOutput,
@@ -215,11 +215,11 @@ from datetime values. In that situation, use format.datetime instead.
 		0,
 		true,
 		"Render numeric date value as number instead of string",
-		`Render numeric date value as number instead of string, if possible.
-If format.date renders a numeric value (e.g. a year such as "1979"), that value
-is typically rendered as a string. For some output formats, such as JSON, it can
-be useful to instead render the value as a naked number instead of a string.
-Note that this option is no-op if the rendered value is not an integer.
+		`Render numeric date value as number instead of string, if possible. If
+format.date renders a numeric value (e.g. a year such as "1979"), that value is
+typically rendered as a string. For some output formats, such as JSON, it can be
+useful to instead render the value as a naked number instead of a string. Note
+that this option is no-op if the rendered value is not an integer.
 
   format.date.number=false
   [{"first_name":"PENELOPE","birth_year":"1979"}]
@@ -236,10 +236,10 @@ Note that this option is no-op if the rendered value is not an integer.
 		"TimeOnly",
 		nil,
 		"Time format: constant such as TimeOnly or a strftime format",
-		`Time format. This can be one of several predefined constants such
-as "TimeOnly" or "Unix", or a strftime format such as "%Y-%m-%d".
-Note that time values are sometimes programmatically indistinguishable
-from datetime values. In that situation, use format.datetime instead.
+		`Time format. This can be one of several predefined constants such as "TimeOnly"
+or "Unix", or a strftime format such as "%Y-%m-%d". Note that time values are
+sometimes programmatically indistinguishable from datetime values. In that
+situation, use format.datetime instead.
 
 `+timeLayoutsList,
 		options.TagOutput,
@@ -252,11 +252,12 @@ from datetime values. In that situation, use format.datetime instead.
 		0,
 		true,
 		"Render numeric time value as number instead of string",
-		`Render numeric time value as number instead of string, if possible.
-If format.time renders a numeric value (e.g. "59"), that value
-is typically rendered as a string. For some output formats, such as JSON, it can
-be useful to instead render the value as a naked number instead of a string.
-Note that this option is no-op if the rendered value is not an integer.
+		`
+Render numeric time value as number instead of string, if possible. If format.time
+renders a numeric value (e.g. "59"), that value is typically rendered as a string.
+For some output formats, such as JSON, it can be useful to instead render the
+value as a naked number instead of a string. Note that this option is no-op if
+the rendered value is not an integer.
 
   format.time.number=false
   [{"first_name":"PENELOPE","favorite_minute":"59"}]

@@ -43,6 +43,7 @@ var OptDiffDataFormat = format.NewOpt(
 	},
 	"Output format (json, csv…) when comparing data",
 	`Specify the output format to use when comparing table data.
+
 Available formats:
 
   text, csv, tsv,

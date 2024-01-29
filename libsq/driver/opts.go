@@ -30,6 +30,7 @@ var (
 		0,
 		"Max open connections to DB",
 		`Maximum number of open connections to the database.
+
 A value of zero indicates no limit.`,
 		options.TagSource,
 		options.TagSQL,
@@ -42,9 +43,10 @@ A value of zero indicates no limit.`,
 		0,
 		2,
 		"Max connections in idle connection pool",
-		`Set the maximum number of connections in the idle connection pool.
-If conn.max-open is greater than 0 but less than the new conn.max-idle,
-then the new conn.max-idle will be reduced to match the conn.max-open limit.
+		`Set the maximum number of connections in the idle connection pool. If
+conn.max-open is greater than 0 but less than the new conn.max-idle, then the
+new conn.max-idle will be reduced to match the conn.max-open limit.
+
 If n <= 0, no idle connections are retained.`,
 		options.TagSource,
 		options.TagSQL,
@@ -57,9 +59,10 @@ If n <= 0, no idle connections are retained.`,
 		0,
 		time.Second*2,
 		"Max connection idle time",
-		`Sets the maximum amount of time a connection may be idle.
-Expired connections may be closed lazily before reuse. If n <= 0,
-connections are not closed due to a connection's idle time.`,
+		`Sets the maximum amount of time a connection may be idle. Expired connections
+may be closed lazily before reuse.
+
+If n <= 0, connections are not closed due to a connection's idle time.`,
 		options.TagSource,
 		options.TagSQL,
 	)
@@ -71,8 +74,10 @@ connections are not closed due to a connection's idle time.`,
 		0,
 		time.Minute*10,
 		"Max connection lifetime",
-		`Set the maximum amount of time a connection may be reused.
-Expired connections may be closed lazily before reuse.
+		`
+Set the maximum amount of time a connection may be reused. Expired connections
+may be closed lazily before reuse.
+
 If n <= 0, connections are not closed due to a connection's age.`,
 		options.TagSource,
 		options.TagSQL,
@@ -98,9 +103,9 @@ If n <= 0, connections are not closed due to a connection's age.`,
 		0,
 		time.Second*3,
 		"Max interval between retries",
-		`The maximum interval to wait between retries.
-If an operation is retryable (for example, if the DB has too many clients),
-repeated retry operations back off, typically using a Fibonacci backoff.`,
+		`The maximum interval to wait between retries. If an operation is
+retryable (for example, if the DB has too many clients), repeated retry
+operations back off, typically using a Fibonacci backoff.`,
 		options.TagSource,
 	)
 
@@ -112,14 +117,14 @@ repeated retry operations back off, typically using a Fibonacci backoff.`,
 		0,
 		16,
 		"Max goroutines in any one errgroup",
-		`Controls the maximum number of goroutines that can be spawned
-by an errgroup. Note that this is the limit for any one errgroup, but not a
-ceiling on the total number of goroutines spawned, as some errgroups may
-themselves start an errgroup.
+		`Controls the maximum number of goroutines that can be spawned by an errgroup.
+Note that this is the limit for any one errgroup, but not a ceiling on the total
+number of goroutines spawned, as some errgroups may themselves start an
+errgroup.
 
-This knob is primarily for internal use. Ultimately it should go away
-in favor of dynamic errgroup limit setting based on availability
-of additional DB conns, etc.`,
+This knob is primarily for internal use. Ultimately it should go away in favor
+of dynamic errgroup limit setting based on availability of additional DB conns,
+etc.`,
 		options.TagTuning,
 	)
 
