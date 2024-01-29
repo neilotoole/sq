@@ -275,8 +275,8 @@ func (dl *Downloader) get(req *http.Request) (dlFile string, //nolint:gocognit,f
 
 		case fpBody != "" && (err != nil || resp.StatusCode >= 500) &&
 			req.Method == http.MethodGet && canStaleOnError(cachedResp.Header, req.Header):
-			// In case of transport failure and stale-if-error returns true,
-			// returns stale cached download.
+			// In case of transport failure canStaleOnError returns true,
+			// return the stale cached download.
 			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, cachedResp.Body)
 			log.Warn("Returning cached response due to transport failure", lga.Err, err)
 			return fpBody, nil, nil
@@ -356,17 +356,34 @@ func (dl *Downloader) get(req *http.Request) (dlFile string, //nolint:gocognit,f
 			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, cachedResp.Body)
 		}
 
-		var respCacher *responseCacher
-		if respCacher, err = dl.cache.newResponseCacher(ctx, resp); err != nil {
+		// OK, this is where the funky stuff happens.
+		//
+		// First, note that the cache is two-stage: there's a staging cache, and a
+		// main cache. The staging cache is used to write the response body to disk,
+		// and when the response body is fully consumed, the staging cache is
+		// promoted to main, in a sort of atomic-swap-lite. This is done to avoid
+		// partially-written cache files in the main cache, and other such nastiness.
+		//
+		// The responseCacher type is an io.ReadCloser that wraps the response body.
+		// As its Read method is called, it writes the body bytes to a staging cache
+		// file (and also returns them to the caller). When rCacher encounters io.EOF,
+		// it promotes the staging cache to main before returning io.EOF to the
+		// caller. If promotion fails, the promotion error (not io.EOF) is returned
+		// to the caller. Thus, it is guaranteed that any caller of rCacher's Read
+		// method will only receive io.EOF if the cache has been promoted to main.
+		var rCacher *responseCacher
+		if rCacher, err = dl.cache.newResponseCacher(ctx, resp); err != nil {
 			return "", nil, err
 		}
 
-		dlStream = streamcache.New(respCacher)
+		// And now we wrap rCacher in a streamcache: any streamcache readers will
+		// only receive io.EOF when/if the staging cache has been promoted to main.
+		dlStream = streamcache.New(rCacher)
 		return "", dlStream, nil
 	}
 
-	// It's not cacheable, so we can just wrap resp.Body in a streamcache
-	// and return it.
+	// The response is not cacheable, so we can just wrap resp.Body in a
+	// streamcache and return it.
 	dlStream = streamcache.New(resp.Body)
 	resp.Body = nil // Unnecessary, but just to be explicit.
 	return "", dlStream, nil

@@ -107,7 +107,7 @@ func New(ctx context.Context, optReg *options.Registry, cfgLock lockfile.LockFun
 // An error is returned if src is not a document/file source.
 func (fs *Files) Filesize(ctx context.Context, src *source.Source) (size int64, err error) {
 	switch location.TypeOf(src.Location) {
-	case location.TypeLocalFile:
+	case location.TypeFile:
 		var fi os.FileInfo
 		if fi, err = os.Stat(src.Location); err != nil {
 			return 0, errz.Err(err)
@@ -128,7 +128,7 @@ func (fs *Files) Filesize(ctx context.Context, src *source.Source) (size int64, 
 		}
 		return int64(total), nil
 
-	case location.TypeRemoteFile:
+	case location.TypeHTTP:
 		fs.mu.Lock()
 
 		// First check if the file is already downloaded
@@ -202,9 +202,9 @@ func (fs *Files) AddStdin(ctx context.Context, f *os.File) error {
 // file exists.
 func (fs *Files) filepath(src *source.Source) (string, error) {
 	switch location.TypeOf(src.Location) {
-	case location.TypeLocalFile:
+	case location.TypeFile:
 		return src.Location, nil
-	case location.TypeRemoteFile:
+	case location.TypeHTTP:
 		_, dlFile, err := fs.downloadPaths(src)
 		if err != nil {
 			return "", err
@@ -249,7 +249,7 @@ func (fs *Files) newReader(ctx context.Context, src *source.Source, finalRdr boo
 		return nil, errz.Errorf("unknown source location type: %s", loc)
 	case location.TypeSQL:
 		return nil, errz.Errorf("invalid to read SQL source: %s", loc)
-	case location.TypeLocalFile:
+	case location.TypeFile:
 		return errz.Return(os.Open(loc))
 	case location.TypeStdin:
 		stdinStream, ok := fs.streams[source.StdinHandle]
@@ -313,13 +313,13 @@ func (fs *Files) Ping(ctx context.Context, src *source.Source) error {
 	case location.TypeStdin:
 		// Stdin is always available.
 		return nil
-	case location.TypeLocalFile:
+	case location.TypeFile:
 		if _, err := os.Stat(src.Location); err != nil {
 			return errz.Wrapf(err, "ping: failed to stat file source %s: %s", src.Handle, src.Location)
 		}
 		return nil
 
-	case location.TypeRemoteFile:
+	case location.TypeHTTP:
 		req, err := http.NewRequestWithContext(ctx, http.MethodHead, src.Location, nil)
 		if err != nil {
 			return errz.Wrapf(err, "ping: %s", src.Handle)

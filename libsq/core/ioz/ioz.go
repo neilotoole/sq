@@ -383,16 +383,16 @@ func (w *notifyOnceWriter) Write(p []byte) (n int, err error) {
 	return w.w.Write(p)
 }
 
-// NotifyOnEOFReader returns an io.Reader that invokes fn
+// NotifyOnEOFReader returns an [io.Reader] that invokes fn
 // when r.Read returns [io.EOF]. The error that fn returns is
 // what's returned to the r caller: fn can transform the error
 // or return it unchanged. If r or fn is nil, r is returned.
 //
-// If r is an io.ReadCloser, the returned reader will also
-// implement io.ReadCloser.
+// If r is an [io.ReadCloser], the returned reader will also
+// implement [io.ReadCloser].
 //
-// See also: NotifyOnErrorReader, which is a generalization of
-// NotifyOnEOFReader.
+// See also: [NotifyOnErrorReader], which is a generalization of
+// [NotifyOnEOFReader].
 func NotifyOnEOFReader(r io.Reader, fn func(error) error) io.Reader {
 	if r == nil || fn == nil {
 		return r
@@ -434,13 +434,13 @@ func (r *notifyOnEOFReadCloser) Close() error {
 	return nil
 }
 
-// NotifyOnErrorReader returns an io.Reader that invokes fn
+// NotifyOnErrorReader returns an [io.Reader] that invokes fn
 // when r.Read returns an error. The error that fn returns is
 // what's returned to the r caller: fn can transform the error
 // or return it unchanged. If r or fn is nil, r is returned.
 //
-// See also: NotifyOnEOFReader, which is a specialization of
-// NotifyOnErrorReader.
+// See also: [NotifyOnEOFReader], which is a specialization of
+// [NotifyOnErrorReader].
 func NotifyOnErrorReader(r io.Reader, fn func(error) error) io.Reader {
 	if r == nil || fn == nil {
 		return r
@@ -454,6 +454,7 @@ type notifyOnErrorReader struct {
 	fn func(error) error
 }
 
+// Read implements io.Reader.
 func (r *notifyOnErrorReader) Read(p []byte) (n int, err error) {
 	n, err = r.r.Read(p)
 	if err != nil {

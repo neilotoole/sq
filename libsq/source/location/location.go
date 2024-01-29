@@ -1,6 +1,9 @@
 // Package location contains functionality related to source location.
 package location
 
+// NOTE: This package contains code from several eras. There's a bunch of
+// overlap and duplication. It should be consolidated.
+
 import (
 	"net/url"
 	"path"
@@ -327,11 +330,11 @@ func isFpath(loc string) (fpath string, ok bool) {
 type Type string
 
 const (
-	TypeStdin      = "stdin"
-	TypeLocalFile  = "local_file"
-	TypeSQL        = "sql"
-	TypeRemoteFile = "remote_file"
-	TypeUnknown    = "unknown"
+	TypeStdin   = "stdin"
+	TypeFile    = "local_file"
+	TypeSQL     = "sql"
+	TypeHTTP    = "http_file"
+	TypeUnknown = "unknown"
 )
 
 // TypeOf returns the type of loc, or locTypeUnknown if it
@@ -345,14 +348,14 @@ func TypeOf(loc string) Type {
 		return TypeSQL
 	case strings.HasPrefix(loc, "http://"),
 		strings.HasPrefix(loc, "https://"):
-		return TypeRemoteFile
+		return TypeHTTP
 	default:
 	}
 
 	if _, err := filepath.Abs(loc); err != nil {
 		return TypeUnknown
 	}
-	return TypeLocalFile
+	return TypeFile
 }
 
 // isHTTP tests if s is a well-structured HTTP or HTTPS url, and

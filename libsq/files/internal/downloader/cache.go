@@ -320,8 +320,9 @@ type responseCacher struct {
 // Read implements [io.Reader]. It reads into p from the wrapped response body,
 // appends the received bytes to the staging cache, and returns the number of
 // bytes read, and any error. When Read encounters [io.EOF] from the response
-// body, it finalizes the cache, and on success returns [io.EOF]. If an error
-// occurs during cache finalization, Read returns that error instead of io.EOF.
+// body, it promotes the staging cache to main, and on success returns [io.EOF].
+// If an error occurs during cache promotion, Read returns that promotion error
+// instead of [io.EOF].
 func (r *responseCacher) Read(p []byte) (n int, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

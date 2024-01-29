@@ -88,7 +88,7 @@ func (fs *Files) WriteIngestChecksum(ctx context.Context, src, backingSrc *sourc
 		return err
 	}
 
-	if location.TypeOf(src.Location) == location.TypeRemoteFile {
+	if location.TypeOf(src.Location) == location.TypeHTTP {
 		// If the source is remote, check if there was a download,
 		// and if so, make sure it's completed.
 		stream, ok := fs.streams[src.Handle]
@@ -141,9 +141,9 @@ func (fs *Files) CachedBackingSourceFor(ctx context.Context, src *source.Source)
 	defer fs.mu.Unlock()
 
 	switch location.TypeOf(src.Location) {
-	case location.TypeLocalFile:
+	case location.TypeFile:
 		return fs.cachedBackingSourceForFile(ctx, src)
-	case location.TypeRemoteFile:
+	case location.TypeHTTP:
 		return fs.cachedBackingSourceForRemoteFile(ctx, src)
 	default:
 		return nil, false, errz.Errorf("caching not applicable for source: %s", src.Handle)
