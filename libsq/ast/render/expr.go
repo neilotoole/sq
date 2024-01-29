@@ -64,7 +64,7 @@ func doExpr(rc *Context, expr *ast.ExprNode) (string, error) {
 			}
 			sb.WriteString(val)
 		default:
-			// FIXME: Should log a warning here
+			// REVISIT: Should log a warning here?
 			// Shouldn't happen? Need to investigate.
 			sb.WriteString(child.Text())
 		}

@@ -121,7 +121,7 @@ func applySourceOptions(cmd *cobra.Command, src *source.Source) error {
 		defaultOpts = options.Options{}
 	}
 
-	// FIXME: This should only apply source options?
+	// REVISIT: This should only apply source options?
 	flagOpts, err := getOptionsFromFlags(cmd.Flags(), ru.OptionsRegistry)
 	if err != nil {
 		return err

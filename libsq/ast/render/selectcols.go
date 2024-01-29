@@ -41,7 +41,7 @@ func doSelectCols(rc *Context, cols []ast.ResultColumn) (string, error) {
 				return "", err
 			}
 		default:
-			// FIXME: We should be exhaustively checking the cases.
+			// REVISIT: We should be exhaustively checking the cases.
 			// Actually, this should probably be an error?
 			vals[i] = col.Text() // for now, we just return the raw text
 		}

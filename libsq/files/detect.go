@@ -65,7 +65,7 @@ func (fs *Files) DetectType(ctx context.Context, handle, loc string) (drivertype
 		}
 	}
 
-	// FIXME: We really should try to be smarter here, esp with sqlite files.
+	// REVISIT: We really should try to be smarter here, esp with sqlite files.
 
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
