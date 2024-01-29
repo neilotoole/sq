@@ -4,7 +4,6 @@ package timez
 import (
 	"strings"
 	"time"
-	_ "time/tzdata" // Load tzdata: it's not included in all distros, e.g. Alpine.
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
@@ -178,17 +177,4 @@ var TimestampLayouts = map[string]string{
 	"DateHourMinute":            DateHourMinute,
 	"ExcelDatetimeMDYSeconds":   ExcelDatetimeMDYSeconds,
 	"ExcelDatetimeMDYNoSeconds": ExcelDatetimeMDYNoSeconds,
-}
-
-var (
-	LosAngeles = mustLoadLocation("America/Los_Angeles")
-	Denver     = mustLoadLocation("America/Denver")
-)
-
-func mustLoadLocation(name string) *time.Location {
-	loc, err := time.LoadLocation(name)
-	if err != nil {
-		panic(err)
-	}
-	return loc
 }
