@@ -128,7 +128,8 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 	// now handles this situation?
 
 	// Special handling is required for shell completion.
-	if len(args) > 0 && args[0] == cobra.ShellCompRequestCmd {
+	if len(args) > 0 &&
+		(args[0] == cobra.ShellCompRequestCmd || args[0] == cobra.ShellCompNoDescRequestCmd) {
 		if !OptShellCompletionLog.Get(options.FromContext(ctx)) {
 			log.Debug("Discarding shell completion logging",
 				lga.Opt, OptShellCompletionLog.Key(), lga.Val, false)
@@ -140,10 +141,11 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 			// handle it, as per normal.
 			rootCmd.SetArgs(args)
 		} else {
-			// There's no command matching the first argument to __complete.
+			// There's no command matching the first argument
+			// to "__complete" / "__completeNoDesc".
 			// Therefore, we assume that we want to perform completion
 			// for the "slq" command (which is the pseudo-root command).
-			effectiveArgs := append([]string{cobra.ShellCompRequestCmd, "slq"}, args[1:]...)
+			effectiveArgs := append([]string{args[0], "slq"}, args[1:]...)
 			rootCmd.SetArgs(effectiveArgs)
 		}
 	} else {
