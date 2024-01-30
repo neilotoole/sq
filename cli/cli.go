@@ -126,8 +126,8 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 	// and when it doesn't find such a command, it returns
 	// an "unknown command" error.
 
-	// Special handling is required for shell completion.
-	if len(args) > 0 && (args[0] == cobra.ShellCompRequestCmd || args[0] == cobra.ShellCompNoDescRequestCmd) {
+	switch {
+	case len(args) > 0 && (args[0] == cobra.ShellCompRequestCmd || args[0] == cobra.ShellCompNoDescRequestCmd):
 		// Look for `sq __complete X` or `sq __completeNoDesc X`
 		if !OptShellCompletionLog.Get(options.FromContext(ctx)) {
 			log.Debug("Discarding shell completion logging",
@@ -147,14 +147,16 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 			effectiveArgs := append([]string{args[0], "slq"}, args[1:]...)
 			rootCmd.SetArgs(effectiveArgs)
 		}
-	} else if len(args) > 0 && args[0] == cobraz.GenCompletionScriptsCmdName {
-		// Look for `sq completion [bash|zsh|X]`, which is cobra's built-in command
-		// to generate shell completion scripts. It won't be in the command tree
-		// (the call to rootCmd.Find below won't return it), so we need to look for
-		// specifically for its name in the args, and delegate to cobra's built-in
-		// completion command.
+	case len(args) > 0 && args[0] == cobraz.ShellCompGenScriptsCmd:
+		// Look for `sq completion [bash|zsh|X]`, which is cobra's built-in cmd
+		// to generate shell completion scripts. This is NOT the same cmd as the
+		// cobra.ShellCompRequestCmd ("__complete") which actually returns
+		// completion values. The cobraz.ShellCompGenScriptsCmd cmd won't be in the
+		// command tree (the call to rootCmd.Find below won't return it), so we need
+		// to look specifically for its name in the args, and when found, we
+		// let rootCmd take over, which will eventually find that built-in cmd.
 		rootCmd.SetArgs(args)
-	} else {
+	default:
 		var cmd *cobra.Command
 		cmd, _, err = rootCmd.Find(args)
 		if err != nil {
@@ -293,9 +295,9 @@ func newCommandTree(ru *run.Run) (rootCmd *cobra.Command) {
 // hasMatchingChildCommand returns true if s is a full or prefix
 // match for any of cmd's children. For example, if cmd has
 // children [inspect, ls, rm], then "insp" or "ls" would return true.
-// Note that there's special handling for cobraz.GenCompletionScriptsCmdName.
+// Note that there's special handling for cobraz.ShellCompGenScriptsCmd.
 func hasMatchingChildCommand(cmd *cobra.Command, s string) bool {
-	if strings.HasPrefix(cobraz.GenCompletionScriptsCmdName, s) { //nolint:gocritic // argOrder
+	if strings.HasPrefix(cobraz.ShellCompGenScriptsCmd, s) { //nolint:gocritic // argOrder
 		return true
 	}
 

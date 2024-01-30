@@ -8,12 +8,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// GenCompletionScriptsCmdName is the name of the cobra built-in "completion"
+// ShellCompGenScriptsCmd is the name of the cobra built-in "completion"
 // command that generates shell completion scripts.
 // Note that this is not the same as the hidden "__complete" command that
 // actually returns the completion results. That's cobra.ShellCompRequestCmd
 // (and also cobra.ShellCompNoDescRequestCmd).
-const GenCompletionScriptsCmdName = "completion"
+const ShellCompGenScriptsCmd = "completion"
 
 // Defines the text values for cobra.ShellCompDirective.
 const (
