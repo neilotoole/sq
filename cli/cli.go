@@ -128,7 +128,8 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 	// now handles this situation?
 
 	// Special handling is required for shell completion.
-	if len(args) > 0 && args[0] == cobra.ShellCompRequestCmd {
+	if len(args) > 0 &&
+		(args[0] == cobra.ShellCompRequestCmd || args[0] == cobra.ShellCompNoDescRequestCmd) {
 		if !OptShellCompletionLog.Get(options.FromContext(ctx)) {
 			log.Debug("Discarding shell completion logging",
 				lga.Opt, OptShellCompletionLog.Key(), lga.Val, false)
@@ -143,7 +144,7 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 			// There's no command matching the first argument to __complete.
 			// Therefore, we assume that we want to perform completion
 			// for the "slq" command (which is the pseudo-root command).
-			effectiveArgs := append([]string{cobra.ShellCompRequestCmd, "slq"}, args[1:]...)
+			effectiveArgs := append([]string{args[0], "slq"}, args[1:]...)
 			rootCmd.SetArgs(effectiveArgs)
 		}
 	} else {
@@ -161,7 +162,7 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 
 			// If we have args [sq, arg1, arg2] then we redirect
 			// to the "slq" command by modifying args to
-			// look like: [query, arg1, arg2] -- noting that SetArgs
+			// look like: [slq, arg1, arg2] -- noting that SetArgs
 			// doesn't want the first args element.
 			effectiveArgs := append([]string{"slq"}, args...)
 			if effectiveArgs, err = preprocessFlagArgVars(effectiveArgs); err != nil {
@@ -270,7 +271,7 @@ func newCommandTree(ru *run.Run) (rootCmd *cobra.Command) {
 	addCmd(ru, cacheCmd, newCacheClearCmd())
 	addCmd(ru, cacheCmd, newCacheTreeCmd())
 
-	addCmd(ru, rootCmd, newCompletionCmd())
+	//addCmd(ru, rootCmd, newCompletionCmd())
 	addCmd(ru, rootCmd, newVersionCmd())
 	addCmd(ru, rootCmd, newManCmd())
 
