@@ -39,7 +39,7 @@ func TestUpgrade(t *testing.T) {
 	testh.SetBuildVersion(t, nextVers)
 
 	// The sq.yml file in cfgDir is on v0.33.0
-	cfgDir := tu.DirCopy(t, "testdata", true)
+	cfgDir := tu.DirCopy(t, "testdata")
 	t.Setenv(config.EnvarConfig, cfgDir)
 
 	cfgFilePath := filepath.Join(cfgDir, "sq.yml")

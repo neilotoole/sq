@@ -156,10 +156,21 @@ func TestQuerySQL_Count(t *testing.T) {
 func TestEmptyAsNull(t *testing.T) {
 	t.Parallel()
 
+	// We've added a bunch of tu.OpenFileCount calls to debug
+	// windows file close ordering issues. These should be
+	// removed when done.
+
+	t.Cleanup(func() {
+		tu.OpenFileCount(t, true, "earliest cleanup (last exec)") // FIXME: delete this line
+	})
+
 	th := testh.New(t)
+	tu.OpenFileCount(t, true, "top") // FIXME: delete this line
+
 	sink, err := th.QuerySLQ(sakila.CSVAddress+`| .data | .[0:1]`, nil)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(sink.Recs))
+	tu.OpenFileCount(t, true, "after sink") // FIXME: delete this line
 
 	require.Equal(t, stringz.Strings(sakila.TblAddressColKinds()), stringz.Strings(sink.RecMeta.Kinds()))
 
@@ -181,6 +192,7 @@ func TestEmptyAsNull(t *testing.T) {
 	for i := range want {
 		require.EqualValues(t, want[i], rec0[i], "field [%d]", i)
 	}
+	tu.OpenFileCount(t, true, "bottom") // FIXME: delete this line
 }
 
 func TestIngest_DuplicateColumns(t *testing.T) {

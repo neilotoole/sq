@@ -33,7 +33,7 @@ func TestDownloader(t *testing.T) {
 	log := lgt.New(t)
 	ctx := lg.NewContext(context.Background(), log)
 
-	cacheDir := t.TempDir()
+	cacheDir := tu.TempDir(t)
 
 	dl, gotErr := downloader.New(t.Name(), httpz.NewDefaultClient(), dlURL, cacheDir)
 	require.NoError(t, gotErr)
@@ -110,7 +110,7 @@ func TestDownloader_redirect(t *testing.T) {
 	const hello = `Hello World!`
 	serveBody := hello
 	lastModified := time.Now().UTC()
-	cacheDir := t.TempDir()
+	cacheDir := tu.TempDir(t)
 
 	log := lgt.New(t)
 	var srvr *httptest.Server
@@ -222,7 +222,7 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	}))
 	t.Cleanup(srvr.Close)
 
-	cacheDir := filepath.Join(t.TempDir(), stringz.UniqSuffix("dlcache"))
+	cacheDir := filepath.Join(tu.TempDir(t), stringz.UniqSuffix("dlcache"))
 	dl, err := downloader.New(t.Name(), httpz.NewDefaultClient(), srvr.URL, cacheDir)
 	require.NoError(t, err)
 	require.NoError(t, dl.Clear(ctx))

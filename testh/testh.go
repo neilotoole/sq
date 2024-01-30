@@ -163,8 +163,8 @@ func (h *Helper) init() {
 			h.Context,
 			optRegistry,
 			TempLockFunc(h.T),
-			tu.TempDir(h.T, false),
-			tu.TempDir(h.T, false),
+			tu.TempDir(h.T),
+			tu.TempDir(h.T),
 		)
 		require.NoError(h.T, err)
 
@@ -320,7 +320,7 @@ func (h *Helper) Source(handle string) *source.Source {
 		srcPath, err := sqlite3.PathFromLocation(src)
 		require.NoError(t, err)
 
-		dstPath := filepath.Join(tu.TempDir(t, false), filepath.Base(srcPath))
+		dstPath := filepath.Join(tu.TempDir(t), filepath.Base(srcPath))
 		require.NoError(t, ioz.CopyFile(dstPath, srcPath, true))
 		src.Location = sqlite3.Prefix + dstPath
 	}
@@ -623,6 +623,7 @@ func (h *Helper) QuerySQL(src *source.Source, db sqlz.DB, query string, args ...
 // QuerySLQ executes the SLQ query. Args are predefined variables for
 // substitution.
 func (h *Helper) QuerySLQ(query string, args map[string]string) (*RecordSink, error) {
+	// h.init()
 	// We need to ensure that each of the handles in the query is loaded.
 	a, err := ast.Parse(h.Log(), query)
 	require.NoError(h.T, err)
@@ -897,7 +898,7 @@ func SetBuildVersion(tb testing.TB, vers string) {
 // TempLockfile returns a lockfile.Lockfile that uses a temp file.
 func TempLockfile(tb testing.TB) lockfile.Lockfile {
 	tb.Helper()
-	return lockfile.Lockfile(tu.TempFile(tb, "pid.lock", false))
+	return lockfile.Lockfile(tu.TempFile(tb, "pid.lock"))
 }
 
 // TempLockFunc returns a lockfile.LockFunc that uses a temp file.
