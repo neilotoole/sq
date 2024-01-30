@@ -163,8 +163,8 @@ func (h *Helper) init() {
 			h.Context,
 			optRegistry,
 			TempLockFunc(h.T),
-			tu.TempDir(h.T),
-			tu.TempDir(h.T),
+			tu.TempDir(h.T, "temp"),
+			tu.TempDir(h.T, "cache"),
 		)
 		require.NoError(h.T, err)
 

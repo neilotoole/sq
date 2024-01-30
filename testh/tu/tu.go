@@ -386,7 +386,7 @@ func randString() string {
 var dirCount = &atomic.Int64{}
 
 // TempDir is the standard means for obtaining a temp dir for tests.
-// A new, unique temp dir is returned on each call. If subDirs is
+// A new, unique temp dir is returned on each call. If arg subs is
 // non-empty, that sub-directory structure is created within the
 // parent temp dir. The returned value is an absolute path of
 // the form:
@@ -398,12 +398,13 @@ var dirCount = &atomic.Int64{}
 //	/var/folders/68/qthw...0gn/T/sq/test/testh/tu/TestTempDir/69226/3_1706579687990706_efb99710/foo/bar
 //
 // The returned dir is a subdir of os.TempDir(), and includes the package path
-// and test name (sanitized) as well as the pid, created dir count, timestamp,
+// and test name (sanitized), as well as the pid, created dir count, timestamp,
 // and random value. We use this structure to make it easier to identify the
 // calling test when debugging. The dir is created with perms 0777.
+//
 // The caller is responsible for removing the dir if desired - it is NOT
 // automatically deleted via t.Cleanup.
-func TempDir(tb testing.TB, subDirs ...string) string {
+func TempDir(tb testing.TB, subs ...string) string {
 	tb.Helper()
 
 	dir, err := os.Getwd()
@@ -424,7 +425,7 @@ func TempDir(tb testing.TB, subDirs ...string) string {
 			randString(),
 		))
 
-	for _, sub := range subDirs {
+	for _, sub := range subs {
 		fp = filepath.Join(fp, sub)
 	}
 

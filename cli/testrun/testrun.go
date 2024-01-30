@@ -138,7 +138,7 @@ func newRun(ctx context.Context, tb testing.TB,
 		ctx,
 		ru.OptionsRegistry,
 		testh.TempLockFunc(tb),
-		tu.TempDir(tb, "tmp"),
+		tu.TempDir(tb, "temp"),
 		cacheDir,
 	)
 	require.NoError(tb, err)
