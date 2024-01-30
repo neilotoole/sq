@@ -348,7 +348,9 @@ func cmdRequiresConfigLock(cmd *cobra.Command) bool {
 
 // lockReloadConfig acquires the lock for the config store, and updates the
 // run (as found on cmd's context) with a fresh copy of the config, loaded
-// after lock acquisition.
+// after lock acquisition. If there's no config persisted in the store,
+// the run's config is left untouched. (That run config will later be
+// saved to the store, if appropriate.)
 //
 // The config lock should be acquired before making any changes to config.
 // Timeout and progress options from ctx are honored.
@@ -387,18 +389,20 @@ func lockReloadConfig(cmd *cobra.Command) (unlock func(), err error) {
 		return nil, errz.Wrap(err, "acquire config lock")
 	}
 
-	var cfg *config.Config
-	if cfg, err = ru.ConfigStore.Load(ctx); err != nil {
-		// An error occurred reloading config; release the lock before returning.
-		if unlockErr := lock.Unlock(); unlockErr != nil {
-			lg.FromContext(ctx).Warn("Failed to release config lock",
-				lga.Lock, lock, lga.Err, unlockErr)
+	if ru.ConfigStore.Exists() {
+		var cfg *config.Config
+		if cfg, err = ru.ConfigStore.Load(ctx); err != nil {
+			// An error occurred reloading config; release the lock before returning.
+			if unlockErr := lock.Unlock(); unlockErr != nil {
+				lg.FromContext(ctx).Warn("Failed to release config lock",
+					lga.Lock, lock, lga.Err, unlockErr)
+			}
+			return nil, err
 		}
-		return nil, err
-	}
 
-	// Update the run with the fresh config.
-	ru.Config = cfg
+		// Assign the newly-reloaded config to the run.
+		ru.Config = cfg
+	} // Else, the config doesn't currently exist on disk; no reload required.
 
 	return func() {
 		if unlockErr := lock.Unlock(); unlockErr != nil {
