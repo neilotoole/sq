@@ -28,12 +28,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neilotoole/sq/cli/cobraz"
-
 	"github.com/c2h5oh/datasize"
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
+	"github.com/neilotoole/sq/cli/cobraz"
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/ioz"
