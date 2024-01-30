@@ -209,9 +209,9 @@ func (fs *Store) write(ctx context.Context, data []byte) error {
 	return nil
 }
 
-// fileExists returns true if the backing file can be accessed, false if it doesn't
+// Exists returns true if the backing file can be accessed, false if it doesn't
 // exist or on any error.
-func (fs *Store) fileExists() bool {
+func (fs *Store) Exists() bool {
 	_, err := os.Stat(fs.Path)
 	return err == nil
 }

@@ -48,7 +48,7 @@ func Load(ctx context.Context, osArgs []string, optsReg *options.Registry,
 		OptionsRegistry: optsReg,
 	}
 
-	if !cfgStore.fileExists() {
+	if !cfgStore.Exists() {
 		cfg := config.New()
 		return cfg, cfgStore, nil
 	}

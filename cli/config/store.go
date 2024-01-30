@@ -13,6 +13,9 @@ import (
 
 // Store saves and loads config.
 type Store interface {
+	// Exists returns true if the config exists in the store.
+	Exists() bool
+
 	// Save writes config to the store.
 	Save(ctx context.Context, cfg *Config) error
 
@@ -33,6 +36,11 @@ type Store interface {
 // DiscardStore implements Store but its Save method is no-op
 // and Load always returns a new empty Config. Useful for testing.
 type DiscardStore struct{}
+
+// Exists implements Store.Exists. It returns true.
+func (s DiscardStore) Exists() bool {
+	return true
+}
 
 // Lockfile implements Store.Lockfile.
 func (DiscardStore) Lockfile() (lockfile.Lockfile, error) {
