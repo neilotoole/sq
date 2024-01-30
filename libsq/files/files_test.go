@@ -55,7 +55,13 @@ func TestFiles_DetectType(t *testing.T) {
 
 		t.Run(filepath.Base(tc.loc), func(t *testing.T) {
 			ctx := lg.NewContext(context.Background(), lgt.New(t))
-			fs, err := files.New(ctx, nil, testh.TempLockFunc(t), tu.TempDir(t, true), tu.CacheDir(t, true))
+			fs, err := files.New(
+				ctx,
+				nil,
+				testh.TempLockFunc(t),
+				tu.TempDir(t, "temp"),
+				tu.TempDir(t, "cache"),
+			)
 			require.NoError(t, err)
 			fs.AddDriverDetectors(testh.DriverDetectors()...)
 
@@ -105,8 +111,8 @@ func TestFiles_DriverType(t *testing.T) {
 				ctx,
 				nil,
 				testh.TempLockFunc(t),
-				tu.TempDir(t, false),
-				tu.CacheDir(t, false),
+				tu.TempDir(t, "temp"),
+				tu.TempDir(t, "cache"),
 			)
 			require.NoError(t, err)
 			defer func() { assert.NoError(t, fs.Close()) }()
@@ -167,7 +173,13 @@ func TestFiles_NewReader(t *testing.T) {
 		Location: proj.Abs(fpath),
 	}
 
-	fs, err := files.New(ctx, nil, testh.TempLockFunc(t), tu.TempDir(t, true), tu.CacheDir(t, true))
+	fs, err := files.New(
+		ctx,
+		nil,
+		testh.TempLockFunc(t),
+		tu.TempDir(t, "tmp"),
+		tu.TempDir(t, "cache"),
+	)
 	require.NoError(t, err)
 
 	g := &errgroup.Group{}

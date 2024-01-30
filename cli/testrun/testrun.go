@@ -131,14 +131,14 @@ func newRun(ctx context.Context, tb testing.TB,
 	// the test runs may execute in parallel inside the same test binary
 	// process, thus breaking the pid-based lockfile mechanism.
 	if cacheDir == "" {
-		cacheDir = tu.CacheDir(tb, false)
+		cacheDir = tu.TempDir(tb, "cache")
 	}
 
 	ru.Files, err = files.New(
 		ctx,
 		ru.OptionsRegistry,
 		testh.TempLockFunc(tb),
-		tu.TempDir(tb, false),
+		tu.TempDir(tb, "temp"),
 		cacheDir,
 	)
 	require.NoError(tb, err)

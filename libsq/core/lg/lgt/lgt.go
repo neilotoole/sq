@@ -5,6 +5,10 @@ package lgt
 import (
 	"io"
 	"log/slog"
+	"os"
+	"testing"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/slogt"
 
@@ -18,4 +22,6 @@ func init() { //nolint:gochecknoinits
 }
 
 // New delegates to slogt.New.
-var New = slogt.New
+func New(tb testing.TB) *slog.Logger { //nolint:thelper
+	return slogt.New(tb).With(lga.Pid, os.Getpid())
+}

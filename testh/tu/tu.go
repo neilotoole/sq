@@ -2,16 +2,23 @@
 package tu
 
 import (
+	"crypto/rand"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/neilotoole/sq/testh/proj"
 
 	"github.com/otiai10/copy"
 	"github.com/stretchr/testify/assert"
@@ -237,18 +244,11 @@ func RequireTake[C any](tb testing.TB, c <-chan C, msgAndArgs ...any) {
 }
 
 // DirCopy copies the contents of sourceDir to a temp dir.
-// If keep is false, temp dir will be cleaned up on test exit.
-func DirCopy(tb testing.TB, sourceDir string, keep bool) (tmpDir string) {
+func DirCopy(tb testing.TB, sourceDir string) (tmpDir string) {
 	tb.Helper()
-	var err error
-	if keep {
-		tmpDir, err = os.MkdirTemp("", sanitizeTestName(tb.Name())+"_*")
-		require.NoError(tb, err)
-	} else {
-		tmpDir = tb.TempDir()
-	}
 
-	err = copy.Copy(sourceDir, tmpDir)
+	tmpDir = TempDir(tb)
+	err := copy.Copy(sourceDir, tmpDir)
 	require.NoError(tb, err)
 	tb.Logf("Copied %s -> %s", sourceDir, tmpDir)
 	return tmpDir
@@ -256,7 +256,7 @@ func DirCopy(tb testing.TB, sourceDir string, keep bool) (tmpDir string) {
 
 // sanitizeTestName sanitizes a test name. This impl is copied
 // from testing.T.TempDir.
-func sanitizeTestName(name string) string {
+func sanitizeTestName(name string) string { //nolint:unused
 	// Drop unusual characters (such as path separators or
 	// characters interacting with globs) from the directory name to
 	// avoid surprising os.MkdirTemp behavior.
@@ -319,7 +319,7 @@ func Chdir(tb testing.TB, dir string) (absDir string) {
 	}
 
 	if dir == "" {
-		tmpDir := tb.TempDir()
+		tmpDir := TempDir(tb)
 		tb.Cleanup(func() {
 			_ = os.Remove(tmpDir)
 		})
@@ -376,40 +376,69 @@ func MustStat(tb testing.TB, fp string) os.FileInfo {
 	return fi
 }
 
+func randString() string {
+	b := make([]byte, 128)
+	_, _ = rand.Read(b)
+	cs := crc32.ChecksumIEEE(b)
+	return fmt.Sprintf("%x", cs)
+}
+
+var dirCount = &atomic.Int64{}
+
 // TempDir is the standard means for obtaining a temp dir for tests.
-// If arg clean is true, the temp dir is created via t.TempDir, and
-// thus is deleted on test cleanup.
-func TempDir(tb testing.TB, clean bool) string {
+// A new, unique temp dir is returned on each call. If arg subs is
+// non-empty, that sub-directory structure is created within the
+// parent temp dir. The returned value is an absolute path of
+// the form:
+//
+//	# tu.TempDir(t):
+//	/var/folders/68/qthw...0gn/T/sq/test/testh/tu/TestTempDir/69226/2_1706579687990637_f8f226d0
+//
+//	# tu.TempDir(t, "foo", "bar"):
+//	/var/folders/68/qthw...0gn/T/sq/test/testh/tu/TestTempDir/69226/3_1706579687990706_efb99710/foo/bar
+//
+// The returned dir is a subdir of os.TempDir(), and includes the package path
+// and test name (sanitized), as well as the pid, created dir count, timestamp,
+// and random value. We use this structure to make it easier to identify the
+// calling test when debugging. The dir is created with perms 0777.
+//
+// The caller is responsible for removing the dir if desired - it is NOT
+// automatically deleted via t.Cleanup.
+func TempDir(tb testing.TB, subs ...string) string {
 	tb.Helper()
-	if clean {
-		return filepath.Join(tb.TempDir(), "sq-test", "tmp")
+
+	dir, err := os.Getwd()
+	require.NoError(tb, err)
+	dir = strings.TrimPrefix(dir, proj.Dir())
+
+	fp := filepath.Join(
+		os.TempDir(),
+		"sq",
+		"test",
+		dir,
+		stringz.SanitizeFilename(tb.Name()),
+		strconv.Itoa(os.Getpid()),
+		fmt.Sprintf(
+			"%d_%d_%s",
+			dirCount.Add(1),
+			time.Now().UnixMicro(),
+			randString(),
+		))
+
+	for _, sub := range subs {
+		fp = filepath.Join(fp, sub)
 	}
 
-	fp := filepath.Join(os.TempDir(), "sq-test", stringz.Uniq8(), "tmp")
-	require.NoError(tb, ioz.RequireDir(fp))
+	err = os.MkdirAll(fp, 0o777)
+	require.NoError(tb, err)
 	return fp
 }
 
 // TempFile returns the path to a temp file with the given name, in a unique
-// temp dir. The file is not created. If arg clean is true, the parent temp
-// dir is created via t.TempDir, and thus is deleted on test cleanup.
-func TempFile(tb testing.TB, name string, clean bool) string {
+// temp dir. The file is not created.
+func TempFile(tb testing.TB, name string) string {
 	tb.Helper()
-	fp := filepath.Join(TempDir(tb, clean), name)
-	return fp
-}
-
-// CacheDir is the standard means for obtaining a cache dir for tests.
-// If arg clean is true, the cache dir is created via t.TempDir, and
-// thus is deleted on test cleanup.
-func CacheDir(tb testing.TB, clean bool) string {
-	tb.Helper()
-	if clean {
-		return filepath.Join(tb.TempDir(), "sq-test", "cache")
-	}
-
-	fp := filepath.Join(os.TempDir(), "sq-test", stringz.Uniq8(), "cache")
-	require.NoError(tb, ioz.RequireDir(fp))
+	fp := filepath.Join(TempDir(tb), name)
 	return fp
 }
 

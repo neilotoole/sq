@@ -1,7 +1,11 @@
 package tu
 
 import (
+	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 
 	"github.com/stretchr/testify/require"
 )
@@ -92,4 +96,23 @@ func TestInterfaceSlice(t *testing.T) {
 	require.Panics(t, func() {
 		_ = AnySlice(42)
 	}, "should panic for non-slice arg")
+}
+
+func TestTempDir(t *testing.T) {
+	log := lgt.New(t)
+	log.Debug("huzzxah")
+
+	td1 := TempDir(t)
+	t.Logf("td1: %s", td1)
+	require.NotEmpty(t, td1)
+	require.DirExists(t, td1)
+
+	td2 := TempDir(t)
+	t.Logf("td2: %s", td2)
+
+	require.NotEqual(t, td1, td2)
+
+	td3 := TempDir(t, "foo", "bar")
+	t.Logf("td3: %s", td3)
+	require.True(t, strings.HasSuffix(td3, filepath.Join("foo", "bar")))
 }
