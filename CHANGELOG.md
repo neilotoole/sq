@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
+## [v0.47.2] - 2024-01-29
+
+Yet another morning-after-the-big-release issue, a nasty little one this time. 
+See the earlier [`v0.47.0`](https://github.com/neilotoole/sq/releases/tag/v0.47.0) release
+for recent headline features.
+
+### Fixed
+
+- `sq` was failing to write config when there was no pre-existing config file. This was due to
+  a bug in the newly-introduced (as of `v0.47.0`) config locking mechanism. Fixed.
+
+
 ## [v0.47.1] - 2024-01-29
 
 This is a tiny bugfix release for a runtime issue on some Linux distros. See
@@ -1103,3 +1115,4 @@ make working with lots of sources much easier.
 [v0.46.1]: https://github.com/neilotoole/sq/compare/v0.46.0...v0.46.1
 [v0.47.0]: https://github.com/neilotoole/sq/compare/v0.46.1...v0.47.0
 [v0.47.1]: https://github.com/neilotoole/sq/compare/v0.47.0...v0.47.1
+[v0.47.2]: https://github.com/neilotoole/sq/compare/v0.47.1...v0.47.2

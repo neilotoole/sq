@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/cli/config"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -25,6 +27,27 @@ import (
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
 )
+
+// TestConfigWriteOnFreshInstall verifies that sq can write
+// to the config store when there is no existing config.
+func TestConfigWriteOnFreshInstall(t *testing.T) {
+	cfgDir := tu.TempDir(t)
+	t.Setenv(config.EnvarConfigDir, cfgDir)
+	ctx := context.Background()
+
+	// We want to write to the config, it doesn't matter what
+	// we write, just that we write something.
+	args := []string{"config", "set", cli.OptPingCmdTimeout.Key(), "3m33s"}
+
+	err := cli.Execute(ctx, os.Stdin, os.Stdout, os.Stderr, args)
+	require.NoError(t, err)
+
+	args = []string{"config", "get", cli.OptPingCmdTimeout.Key()}
+	buf := &bytes.Buffer{}
+	err = cli.Execute(ctx, os.Stdin, buf, os.Stderr, args)
+	require.NoError(t, err)
+	require.Equal(t, "3m33s\n", buf.String())
+}
 
 func TestSmoke(t *testing.T) {
 	t.Parallel()
