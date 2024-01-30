@@ -16,7 +16,7 @@ env:
   BUILD_TAGS: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions'
 
 jobs:
-  test-linux-darwin:
+  test-nix:
     strategy:
       matrix:
         os: [ ubuntu-22.04, macos-12]
@@ -269,7 +269,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs:
       - lint
-      - test-linux-darwin
+      - test-nix
       - test-windows
       - binaries-darwin
       - binaries-linux-amd64
