@@ -7,7 +7,8 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-func newCompletionCmd() *cobra.Command {
+// FIXME: Delete newCompletionCmd before release.
+func newCompletionCmd() *cobra.Command { //nolint:unused
 	cmd := &cobra.Command{
 		Use:   "completion [bash|zsh|fish|powershell]",
 		Short: "Generate shell completion script",
@@ -59,7 +60,7 @@ PS> sq completion powershell > sq.ps1
 	return cmd
 }
 
-func execCompletion(cmd *cobra.Command, args []string) error {
+func execCompletion(cmd *cobra.Command, args []string) error { //nolint:unused
 	ru := run.FromContext(cmd.Context())
 	switch args[0] {
 	case "bash":
