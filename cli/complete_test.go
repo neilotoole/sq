@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/source"
-
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,6 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
@@ -303,6 +302,8 @@ func TestCompleteFlagActiveSchema_inspect(t *testing.T) {
 	}
 }
 
+// TestCompleteFilterActiveGroup tests completion behavior
+// wrt [cli.OptShellCompletionGroupFilter].
 func TestCompleteFilterActiveGroup(t *testing.T) {
 	const (
 		prodInv   = "@prod/inventory"
@@ -314,7 +315,6 @@ func TestCompleteFilterActiveGroup(t *testing.T) {
 	allSrcs := []string{prodInv, prodSales, devInv, devSales}
 	prodSrcs := []string{prodInv, prodSales}
 	devSrcs := []string{devInv, devSales}
-	_ = devSrcs
 
 	testCases := []struct {
 		name          string
@@ -326,7 +326,7 @@ func TestCompleteFilterActiveGroup(t *testing.T) {
 		wantDirective cobra.ShellCompDirective
 	}{
 		{
-			name:          "prod_src_empty",
+			name:          "src_prod_@",
 			srcs:          allSrcs,
 			activeSrc:     "",
 			activeGroup:   "prod",
@@ -335,7 +335,25 @@ func TestCompleteFilterActiveGroup(t *testing.T) {
 			wantDirective: cobra.ShellCompDirectiveNoFileComp,
 		},
 		{
-			name:          "dev_src_@",
+			name:          "src_prod_@dev",
+			srcs:          allSrcs,
+			activeSrc:     "",
+			activeGroup:   "prod",
+			args:          []string{"src", "@d"},
+			wantEquals:    devSrcs,
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			name:          "src_prod_@dev_slash",
+			srcs:          allSrcs,
+			activeSrc:     "",
+			activeGroup:   "prod",
+			args:          []string{"src", "@dev/"},
+			wantEquals:    devSrcs,
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			name:          "src_dev_@",
 			srcs:          allSrcs,
 			activeSrc:     "",
 			activeGroup:   "dev",
@@ -343,13 +361,66 @@ func TestCompleteFilterActiveGroup(t *testing.T) {
 			wantEquals:    devSrcs,
 			wantDirective: cobra.ShellCompDirectiveNoFileComp,
 		},
+		{
+			name:          "inspect_prod_@",
+			srcs:          allSrcs,
+			activeSrc:     "",
+			activeGroup:   "prod",
+			args:          []string{"inspect", "@"},
+			wantEquals:    prodSrcs,
+			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			name:          "inspect_prod_@prod/sal",
+			srcs:          allSrcs,
+			activeSrc:     "",
+			activeGroup:   "prod",
+			args:          []string{"inspect", "@prod/sal"},
+			wantEquals:    []string{prodSales, prodSales + ".data"},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			name:          "inspect_prod_no_active.dat",
+			srcs:          allSrcs,
+			activeSrc:     "",
+			activeGroup:   "prod",
+			args:          []string{"inspect", ".dat"},
+			wantEquals:    []string{},
+			wantDirective: cobra.ShellCompDirectiveError,
+		},
+		{
+			name:          "inspect_prod_active.dat",
+			srcs:          allSrcs,
+			activeSrc:     devInv,
+			activeGroup:   "prod",
+			args:          []string{"inspect", ".dat"},
+			wantEquals:    []string{".data"},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			name:          "inspect_prod_root_@",
+			srcs:          allSrcs,
+			activeSrc:     "",
+			activeGroup:   "prod",
+			args:          []string{"@"},
+			wantEquals:    prodSrcs,
+			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			name:          "inspect_prod_root_@",
+			srcs:          allSrcs,
+			activeSrc:     "",
+			activeGroup:   "prod",
+			args:          []string{"@d"},
+			wantEquals:    devSrcs,
+			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
 	}
 
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			th := testh.New(t)
-			tr := testrun.New(th.Context, t, nil).Hush()
+			tr := testrun.New(context.Background(), t, nil).Hush()
 
 			for _, handle := range tc.srcs {
 				src := testh.NewActorSource(t, handle, true)

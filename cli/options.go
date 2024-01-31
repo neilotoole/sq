@@ -173,7 +173,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptPingCmdTimeout,
 		OptShellCompletionTimeout,
 		OptShellCompletionLog,
-		OptShellCompletionGroupOnly,
+		OptShellCompletionGroupFilter,
 		config.OptConfigLockTimeout,
 		OptLogEnabled,
 		OptLogFile,

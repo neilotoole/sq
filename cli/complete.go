@@ -48,15 +48,14 @@ This can result in the logs being filled with uninteresting junk when the
 timeout triggers logging of errors.`,
 )
 
-var OptShellCompletionGroupOnly = options.NewBool(
-	"shell-completion.group-only",
+var OptShellCompletionGroupFilter = options.NewBool(
+	"shell-completion.group-filter",
 	"",
 	false,
 	0,
 	true,
 	"Shell completion initial source suggestions from active group only",
-	`
-When true, shell completion initially suggests only sources within the active
+	`When true, shell completion initially suggests only sources within the active
 group. When false, all sources are suggested. However, note that if the user
 continues to input a source handle that is outside the active group, completion
 will suggest all matching sources, regardless of this option's value.`,
@@ -832,7 +831,7 @@ func getActiveGroupHandleFilterPrefix(ru *run.Run) string {
 		return ""
 	}
 
-	groupOnly := OptShellCompletionGroupOnly.Get(ru.Config.Options)
+	groupOnly := OptShellCompletionGroupFilter.Get(ru.Config.Options)
 	if !groupOnly {
 		return ""
 	}

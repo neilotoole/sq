@@ -16,7 +16,8 @@ release for recent headline features.
 ### Fixed
 
 - Shell completion for `bash` only worked for top-level commands, not for subcommands, flags,
-  args, etc. This bug was due to an unnoticed change 🤦‍♂️in an imported library. It's now fixed.
+  args, etc. This bug was due to an unnoticed behavior change in an imported library 🤦‍♂️. It's now fixed,
+  and tests have been added.
 
 ### Changed
 
@@ -25,7 +26,7 @@ release for recent headline features.
   potentially flooding the user with irrelevant suggestions. However, if the user
   continues to input a source handle that is outside the active group, completion will
   suggest all matching sources. This behavior is controlled
-  via the new config option [`shell-completion.group-only`](https://sq.io/docs/config#shell-completiongroup-only).
+  via the new config option [`shell-completion.group-filter`](https://sq.io/docs/config#shell-completiongroup-filter).
 
 ## [v0.47.2] - 2024-01-29
 
