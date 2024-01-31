@@ -8,11 +8,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
 	"github.com/neilotoole/slogt"
 
 	"github.com/neilotoole/sq/libsq/core/lg/devlog"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 )
 
 func init() { //nolint:gochecknoinits

@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/lg/lgt"
-
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 )
 
 // TestFieldExtractionFunctions tests StructFieldValue, SliceFieldValues,
