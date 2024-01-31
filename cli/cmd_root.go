@@ -87,6 +87,7 @@ See docs and more: https://sq.io`,
 
 	cmd.Flags().SortFlags = false
 	cmd.PersistentFlags().SortFlags = false
+	cmd.CompletionOptions.DisableDescriptions = true
 
 	// The --help flag must be explicitly added to rootCmd,
 	// or else cobra tries to do its own (unwanted) thing.

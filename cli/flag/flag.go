@@ -67,9 +67,6 @@ const (
 	MonochromeShort = "M"
 	MonochromeUsage = "Don't colorize output"
 
-	NoProgress      = "no-progress"
-	NoProgressUsage = "Don't show progress bar"
-
 	Output      = "output"
 	OutputShort = "o"
 	OutputUsage = "Write output to <file> instead of stdout"
@@ -210,6 +207,9 @@ const (
 	DiffAll      = "all"
 	DiffAllShort = "a"
 	DiffAllUsage = "Compare everything (caution: may be slow)"
+
+	DumpCmd      = "cmd"
+	DumpCmdUsage = "Print the db-native dump tool command, but don't execute it"
 )
 
 // OutputFormatFlags is the set of flags that control output format.
