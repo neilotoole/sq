@@ -20,10 +20,10 @@ release for recent headline features.
 
 ### Changed
 
-- Shell completion now initially suggests only sources that within the
+- Shell completion now initially suggests only sources within the
   [active group](https://sq.io/docs/source#groups). Previously, all sources were suggested,
-  potentially flooding the user with irrelevant suggestions. Note however that if the user
-  continues to input a source name that is outside the active group, completion will
+  potentially flooding the user with irrelevant suggestions. However, if the user
+  continues to input a source handle that is outside the active group, completion will
   suggest all matching sources. This behavior is controlled
   via the new config option [`shell-completion.group-only`](https://sq.io/docs/config#shell-completiongroup-only).
 

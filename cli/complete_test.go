@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/source"
+
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -308,9 +310,81 @@ func TestCompleteFilterActiveGroup(t *testing.T) {
 	// FIXME: implement
 }
 
-func TestCompleteAllRequestCmds(t *testing.T) {
-	// FIXME: implement
-	_ = t
-	_ = cobra.ShellCompRequestCmd
-	_ = cobra.ShellCompNoDescRequestCmd
+// TestCompleteAllCobraRequestCmds verifies that completion
+// works with both cobra.ShellCompRequestCmd and
+// cobra.ShellCompNoDescRequestCmd.
+func TestCompleteAllCobraRequestCmds(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name          string
+		args          []string
+		wantContains  []string
+		wantDirective cobra.ShellCompDirective
+	}{
+		{
+			name:          "slq_empty",
+			args:          []string{"@"},
+			wantContains:  []string{source.ActiveHandle, sakila.SL3},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			name:          "slq_@",
+			args:          []string{"@"},
+			wantContains:  []string{source.ActiveHandle, sakila.SL3},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			name:          "src_empty",
+			args:          []string{"src", ""},
+			wantContains:  []string{sakila.SL3},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			name:          "src_@",
+			args:          []string{"src", "@"},
+			wantContains:  []string{sakila.SL3},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			name:          "inspect_empty",
+			args:          []string{"inspect", ""},
+			wantContains:  []string{sakila.SL3},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			name:          "inspect_@",
+			args:          []string{"inspect", "@"},
+			wantContains:  []string{sakila.SL3},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
+	}
+
+	for _, cobraCmd := range []string{cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd} {
+		cobraCmd := cobraCmd
+		for _, tc := range testCases {
+			tc := tc
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				t.Run(cobraCmd, func(t *testing.T) {
+					t.Parallel()
+
+					th := testh.New(t)
+					th.Context = options.NewContext(th.Context, options.Options{cli.OptShellCompletionLog.Key(): true})
+					tr := testrun.New(th.Context, t, nil)
+					tr.Add(*th.Source(sakila.SL3))
+
+					args := append([]string{cobraCmd}, tc.args...)
+					err := tr.Exec(args...)
+					require.NoError(t, err)
+
+					got := parseCompletion(tr)
+					assert.Equal(t, cobraz.MarshalDirective(tc.wantDirective), cobraz.MarshalDirective(got.result))
+					for j := range tc.wantContains {
+						assert.Contains(t, got.values, tc.wantContains[j])
+					}
+				})
+			})
+		}
+	}
 }

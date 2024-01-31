@@ -55,10 +55,11 @@ var OptShellCompletionGroupOnly = options.NewBool(
 	0,
 	true,
 	"Shell completion initial source suggestions from active group only",
-	`When true, shell completion initially only suggests sources from the active
-group. When false, shell completion suggests all sources. Note that if the user
-continues to input a source name from outside the active group, completion will
-suggest all matching sources.`,
+	`
+When true, shell completion initially suggests only sources within the active
+group. When false, all sources are suggested. However, note that if the user
+continues to input a source handle that is outside the active group, completion
+will suggest all matching sources, regardless of this option's value.`,
 )
 
 // completionFunc is a shell completion function.
