@@ -335,7 +335,7 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 		(&handleTableCompleter{onlySQL: true, handleRequired: true}).complete))
 
 	cmd.Flags().String(flag.ActiveSrc, "", flag.ActiveSrcUsage)
-	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSrc, completeHandle(0)))
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSrc, completeHandle(0, false)))
 
 	cmd.Flags().String(flag.ActiveSchema, "", flag.ActiveSchemaUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSchema,
