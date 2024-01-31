@@ -88,7 +88,7 @@ func TestCmdAdd(t *testing.T) {
 			wantAddErr: true,
 		},
 		{
-			loc:        proj.Rel(sakila.PathCSVActor),
+			loc:        proj.Abs(sakila.PathCSVActor),
 			handle:     "@h1",
 			wantHandle: "@h1",
 			wantType:   drivertype.CSV,
@@ -122,14 +122,14 @@ func TestCmdAdd(t *testing.T) {
 			wantQueryErr: true,
 		},
 		{
-			loc:        proj.Rel(sakila.PathTSVActor),
+			loc:        proj.Abs(sakila.PathTSVActor),
 			handle:     "@h1",
 			wantHandle: "@h1",
 			wantType:   drivertype.TSV,
 			query:      actorDataQuery,
 		},
 		{
-			loc:        proj.Rel(sakila.PathTSVActorNoHeader),
+			loc:        proj.Abs(sakila.PathTSVActorNoHeader),
 			handle:     "@h1",
 			wantHandle: "@h1",
 			wantType:   drivertype.TSV,
@@ -150,7 +150,7 @@ func TestCmdAdd(t *testing.T) {
 		},
 
 		{
-			// without scheme, abs path
+			// without scheme, relative path
 			loc:        proj.Rel(sakila.PathSL3),
 			wantHandle: "@sakila",
 			wantType:   drivertype.SQLite,

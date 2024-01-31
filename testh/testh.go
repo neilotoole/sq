@@ -844,7 +844,7 @@ func mustLoadCollection(ctx context.Context, tb testing.TB) *source.Collection {
 	}
 
 	store := &yamlstore.Store{
-		Path:            proj.Rel(testsrc.PathSrcsConfig),
+		Path:            proj.Abs(testsrc.PathSrcsConfig),
 		OptionsRegistry: &options.Registry{},
 		HookLoad:        hookExpand,
 	}
