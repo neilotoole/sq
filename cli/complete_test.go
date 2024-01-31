@@ -34,9 +34,7 @@ func testComplete(tb testing.TB, from *testrun.TestRun, args ...string) completi
 		ctx = from.Context
 	}
 
-	// Enable completion logging.
-	ctx = options.NewContext(ctx, options.Options{cli.OptShellCompletionLog.Key(): true})
-
+	ctx = enableCompletionLog(ctx)
 	tr := testrun.New(ctx, tb, from)
 	args = append([]string{cobra.ShellCompRequestCmd}, args...)
 
@@ -306,8 +304,77 @@ func TestCompleteFlagActiveSchema_inspect(t *testing.T) {
 }
 
 func TestCompleteFilterActiveGroup(t *testing.T) {
-	_ = t
-	// FIXME: implement
+	const (
+		prodInv   = "@prod/inventory"
+		prodSales = "@prod/sales"
+		devInv    = "@dev/inventory"
+		devSales  = "@dev/sales"
+	)
+
+	allSrcs := []string{prodInv, prodSales, devInv, devSales}
+	prodSrcs := []string{prodInv, prodSales}
+	devSrcs := []string{devInv, devSales}
+	_ = devSrcs
+
+	testCases := []struct {
+		name          string
+		srcs          []string
+		activeSrc     string
+		activeGroup   string
+		args          []string
+		wantEquals    []string
+		wantDirective cobra.ShellCompDirective
+	}{
+		{
+			name:          "prod_src_empty",
+			srcs:          allSrcs,
+			activeSrc:     "",
+			activeGroup:   "prod",
+			args:          []string{"src", "@"},
+			wantEquals:    prodSrcs,
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			name:          "dev_src_@",
+			srcs:          allSrcs,
+			activeSrc:     "",
+			activeGroup:   "dev",
+			args:          []string{"src", "@"},
+			wantEquals:    devSrcs,
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			th := testh.New(t)
+			tr := testrun.New(th.Context, t, nil).Hush()
+
+			for _, handle := range tc.srcs {
+				src := testh.NewActorSource(t, handle, true)
+				tr.Add(*src)
+			}
+
+			_, err := tr.Run.Config.Collection.SetActive(tc.activeSrc, false)
+			require.NoError(t, err)
+
+			require.NoError(t, tr.Run.Config.Collection.SetActiveGroup(tc.activeGroup))
+			require.NoError(t, tr.Run.ConfigStore.Save(tr.Context, tr.Run.Config))
+
+			got := testComplete(t, tr, tc.args...)
+			assert.Equal(t, tc.wantDirective, got.result,
+				"wanted: %v\ngot   : %v",
+				cobraz.MarshalDirective(tc.wantDirective),
+				cobraz.MarshalDirective(got.result))
+
+			if tc.wantDirective == cobra.ShellCompDirectiveError {
+				require.Empty(t, got.values)
+			} else {
+				require.Equal(t, tc.wantEquals, got.values)
+			}
+		})
+	}
 }
 
 // TestCompleteAllCobraRequestCmds verifies that completion
@@ -387,4 +454,14 @@ func TestCompleteAllCobraRequestCmds(t *testing.T) {
 			})
 		}
 	}
+}
+
+func enableCompletionLog(ctx context.Context) context.Context {
+	o := options.FromContext(ctx)
+	if o == nil {
+		return options.NewContext(ctx, options.Options{cli.OptShellCompletionLog.Key(): true})
+	}
+
+	o[cli.OptShellCompletionLog.Key()] = true
+	return ctx
 }

@@ -936,3 +936,31 @@ func ExtractHandlesFromQuery(tb testing.TB, query string, failOnErr bool) []stri
 
 	return ast.ExtractHandles(a)
 }
+
+// NewActorSource returns a new *source.Source for a copy of the Sakila
+// actor.csv datafile, using the given handle. If clean is true, the copy
+// is deleted by t.Cleanup.
+func NewActorSource(tb testing.TB, handle string, clean bool) *source.Source {
+	tb.Helper()
+
+	require.NoError(tb, source.ValidHandle(handle))
+	tmpDir := tu.TempDir(tb)
+	loc := filepath.Join(tmpDir, "actor.csv")
+	err := ioz.CopyFile(
+		loc,
+		proj.Abs("drivers/csv/testdata/sakila-csv/actor.csv"),
+		true,
+	)
+	require.NoError(tb, err)
+
+	if clean {
+		tb.Cleanup(func() {
+			assert.NoError(tb, os.RemoveAll(tmpDir))
+		})
+	}
+	return &source.Source{
+		Handle:   handle,
+		Type:     drivertype.CSV,
+		Location: loc,
+	}
+}

@@ -38,12 +38,6 @@ func FromContext(ctx context.Context) *slog.Logger {
 	return Discard()
 }
 
-// InContext returns true if there's a logger on the context.
-func InContext(ctx context.Context) bool {
-	v := ctx.Value(contextKey{})
-	return v != nil
-}
-
 // Discard returns a new *slog.Logger that discards output.
 func Discard() *slog.Logger {
 	h := discardHandler{}
@@ -72,6 +66,24 @@ func (d discardHandler) WithAttrs(_ []slog.Attr) slog.Handler {
 // WithGroup implements slog.Handler.
 func (d discardHandler) WithGroup(_ string) slog.Handler {
 	return d
+}
+
+// IsDiscard returns true if log was returned by [lg.Discard].
+func IsDiscard(log *slog.Logger) bool {
+	if log == nil {
+		return false
+	}
+
+	h := log.Handler()
+	if h == nil {
+		return false
+	}
+
+	if _, ok := h.(discardHandler); ok {
+		return true
+	}
+
+	return false
 }
 
 // WarnIfError logs a warning if err is non-nil.

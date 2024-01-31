@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 )
@@ -19,6 +21,13 @@ func TestContext(t *testing.T) {
 	log = lg.FromContext(ctx)
 
 	log.Info("huzzah")
+}
+
+func TestDiscard(t *testing.T) {
+	log := lg.Discard()
+	log.Info("huzzah")
+	require.True(t, lg.IsDiscard(log))
+	require.False(t, lg.IsDiscard(slog.Default()))
 }
 
 func TestDepth(t *testing.T) {

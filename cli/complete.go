@@ -101,7 +101,7 @@ func completeHandle(max int, includeActive bool) completionFunc {
 		handles = lo.Reject(handles, func(item string, index int) bool {
 			return !strings.HasPrefix(item, toComplete)
 		})
-		handles = maybeFilterHandlesByActiveGroup(cmd.Context(), toComplete, handles)
+		handles = maybeFilterHandlesByActiveGroup(ru, toComplete, handles)
 
 		slices.Sort(handles) // REVISIT: what's the logic for sorting or not?
 		handles, _ = lo.Difference(handles, args)
@@ -689,7 +689,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, ru *run.Run, 
 		}
 	}
 
-	matchingHandles = maybeFilterHandlesByActiveGroup(ctx, toComplete, matchingHandles)
+	matchingHandles = maybeFilterHandlesByActiveGroup(ru, toComplete, matchingHandles)
 
 	switch len(matchingHandles) {
 	default:
@@ -753,7 +753,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, ru *run.Run,
 		}
 	}
 
-	handleFilter := getActiveGroupHandleFilterPrefix(ctx)
+	handleFilter := getActiveGroupHandleFilterPrefix(ru)
 	for _, src := range ru.Config.Collection.Sources() {
 		if c.onlySQL {
 			isSQL, err := isSQLDriver(ru, src.Handle)
@@ -811,8 +811,8 @@ func getTableNamesForHandle(ctx context.Context, ru *run.Run, handle string) ([]
 
 // maybeFilterHandlesByActiveGroup filters the supplied handles by
 // active group, if appropriate.
-func maybeFilterHandlesByActiveGroup(ctx context.Context, toComplete string, suggestions []string) []string {
-	handleFilter := getActiveGroupHandleFilterPrefix(ctx)
+func maybeFilterHandlesByActiveGroup(ru *run.Run, toComplete string, suggestions []string) []string {
+	handleFilter := getActiveGroupHandleFilterPrefix(ru)
 	if handleFilter != "" {
 		if strings.HasPrefix(handleFilter, toComplete) {
 			suggestions = lo.Filter(suggestions, func(handle string, index int) bool {
@@ -827,13 +827,13 @@ func maybeFilterHandlesByActiveGroup(ctx context.Context, toComplete string, sug
 // to filter handles that should be returned. For example, if the active
 // group is "prod", then the returned prefix is "@prod/". Empty
 // string indicates no filter.
-func getActiveGroupHandleFilterPrefix(ctx context.Context) string {
-	ru := run.FromContext(ctx)
-	if ru == nil || ru.Config == nil || ru.Config.Options == nil {
+func getActiveGroupHandleFilterPrefix(ru *run.Run) string {
+	if ru == nil || ru.Config == nil {
 		return ""
 	}
 
-	if !OptShellCompletionGroupOnly.Get(options.FromContext(ctx)) {
+	groupOnly := OptShellCompletionGroupOnly.Get(ru.Config.Options)
+	if !groupOnly {
 		return ""
 	}
 

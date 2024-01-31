@@ -56,8 +56,7 @@ func New(ctx context.Context, tb testing.TB, from *TestRun) *TestRun { //nolint:
 		ctx = context.Background()
 	}
 
-	if !lg.InContext(ctx) {
-		// FIXME: Get rid of this abomination
+	if lg.IsDiscard(lg.FromContext(ctx)) {
 		ctx = lg.NewContext(ctx, lgt.New(tb))
 	}
 
