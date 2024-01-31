@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
+
+## [v0.47.3] - UPCOMING
+
+Minor bug fix release. See the earlier [`v0.47.0`](https://github.com/neilotoole/sq/releases/tag/v0.47.0)
+release for recent headline features.
+
+### Fixed
+
+- Shell completion for `bash` only worked for top-level commands, not for subcommands, flags,
+  args, etc. This bug was due to an unnoticed behavior change in an imported library 🤦‍♂️. It's now fixed,
+  and tests have been added.
+
+### Changed
+
+- Shell completion now initially suggests only sources within the
+  [active group](https://sq.io/docs/source#groups). Previously, all sources were suggested,
+  potentially flooding the user with irrelevant suggestions. However, if the user
+  continues to input a source handle that is outside the active group, completion will
+  suggest all matching sources. This behavior is controlled
+  via the new config option [`shell-completion.group-filter`](https://sq.io/docs/config#shell-completiongroup-filter).
+
 ## [v0.47.2] - 2024-01-29
 
 Yet another morning-after-the-big-release issue, a nasty little one this time. 
@@ -1116,3 +1137,4 @@ make working with lots of sources much easier.
 [v0.47.0]: https://github.com/neilotoole/sq/compare/v0.46.1...v0.47.0
 [v0.47.1]: https://github.com/neilotoole/sq/compare/v0.47.0...v0.47.1
 [v0.47.2]: https://github.com/neilotoole/sq/compare/v0.47.1...v0.47.2
+[v0.47.3]: https://github.com/neilotoole/sq/compare/v0.47.2...v0.47.3

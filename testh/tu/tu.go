@@ -18,14 +18,13 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/neilotoole/sq/testh/proj"
-
 	"github.com/otiai10/copy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/testh/proj"
 )
 
 // StructFieldValue extracts the value of fieldName from arg strct.

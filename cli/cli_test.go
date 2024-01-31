@@ -10,12 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/cli/config"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli"
+	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/schema"

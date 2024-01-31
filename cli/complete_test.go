@@ -17,6 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
@@ -32,9 +33,7 @@ func testComplete(tb testing.TB, from *testrun.TestRun, args ...string) completi
 		ctx = from.Context
 	}
 
-	// Enable completion logging.
-	ctx = options.NewContext(ctx, options.Options{cli.OptShellCompletionLog.Key(): true})
-
+	ctx = enableCompletionLog(ctx)
 	tr := testrun.New(ctx, tb, from)
 	args = append([]string{cobra.ShellCompRequestCmd}, args...)
 
@@ -301,4 +300,239 @@ func TestCompleteFlagActiveSchema_inspect(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestCompleteFilterActiveGroup tests completion behavior
+// wrt [cli.OptShellCompletionGroupFilter].
+func TestCompleteFilterActiveGroup(t *testing.T) {
+	const (
+		prodInv   = "@prod/inventory"
+		prodSales = "@prod/sales"
+		devInv    = "@dev/inventory"
+		devSales  = "@dev/sales"
+	)
+
+	allSrcs := []string{prodInv, prodSales, devInv, devSales}
+	prodSrcs := []string{prodInv, prodSales}
+	devSrcs := []string{devInv, devSales}
+
+	testCases := []struct {
+		name          string
+		srcs          []string
+		activeSrc     string
+		activeGroup   string
+		args          []string
+		wantEquals    []string
+		wantDirective cobra.ShellCompDirective
+	}{
+		{
+			name:          "src_prod_@",
+			srcs:          allSrcs,
+			activeSrc:     "",
+			activeGroup:   "prod",
+			args:          []string{"src", "@"},
+			wantEquals:    prodSrcs,
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			name:          "src_prod_@dev",
+			srcs:          allSrcs,
+			activeSrc:     "",
+			activeGroup:   "prod",
+			args:          []string{"src", "@d"},
+			wantEquals:    devSrcs,
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			name:          "src_prod_@dev_slash",
+			srcs:          allSrcs,
+			activeSrc:     "",
+			activeGroup:   "prod",
+			args:          []string{"src", "@dev/"},
+			wantEquals:    devSrcs,
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			name:          "src_dev_@",
+			srcs:          allSrcs,
+			activeSrc:     "",
+			activeGroup:   "dev",
+			args:          []string{"src", "@"},
+			wantEquals:    devSrcs,
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			name:          "inspect_prod_@",
+			srcs:          allSrcs,
+			activeSrc:     "",
+			activeGroup:   "prod",
+			args:          []string{"inspect", "@"},
+			wantEquals:    prodSrcs,
+			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			name:          "inspect_prod_@prod/sal",
+			srcs:          allSrcs,
+			activeSrc:     "",
+			activeGroup:   "prod",
+			args:          []string{"inspect", "@prod/sal"},
+			wantEquals:    []string{prodSales, prodSales + ".data"},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			name:          "inspect_prod_no_active.dat",
+			srcs:          allSrcs,
+			activeSrc:     "",
+			activeGroup:   "prod",
+			args:          []string{"inspect", ".dat"},
+			wantEquals:    []string{},
+			wantDirective: cobra.ShellCompDirectiveError,
+		},
+		{
+			name:          "inspect_prod_active.dat",
+			srcs:          allSrcs,
+			activeSrc:     devInv,
+			activeGroup:   "prod",
+			args:          []string{"inspect", ".dat"},
+			wantEquals:    []string{".data"},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			name:          "inspect_prod_root_@",
+			srcs:          allSrcs,
+			activeSrc:     "",
+			activeGroup:   "prod",
+			args:          []string{"@"},
+			wantEquals:    prodSrcs,
+			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			name:          "inspect_prod_root_@",
+			srcs:          allSrcs,
+			activeSrc:     "",
+			activeGroup:   "prod",
+			args:          []string{"@d"},
+			wantEquals:    devSrcs,
+			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			tr := testrun.New(context.Background(), t, nil).Hush()
+
+			for _, handle := range tc.srcs {
+				src := testh.NewActorSource(t, handle, true)
+				tr.Add(*src)
+			}
+
+			_, err := tr.Run.Config.Collection.SetActive(tc.activeSrc, false)
+			require.NoError(t, err)
+
+			require.NoError(t, tr.Run.Config.Collection.SetActiveGroup(tc.activeGroup))
+			require.NoError(t, tr.Run.ConfigStore.Save(tr.Context, tr.Run.Config))
+
+			got := testComplete(t, tr, tc.args...)
+			assert.Equal(t, tc.wantDirective, got.result,
+				"wanted: %v\ngot   : %v",
+				cobraz.MarshalDirective(tc.wantDirective),
+				cobraz.MarshalDirective(got.result))
+
+			if tc.wantDirective == cobra.ShellCompDirectiveError {
+				require.Empty(t, got.values)
+			} else {
+				require.Equal(t, tc.wantEquals, got.values)
+			}
+		})
+	}
+}
+
+// TestCompleteAllCobraRequestCmds verifies that completion
+// works with both cobra.ShellCompRequestCmd and
+// cobra.ShellCompNoDescRequestCmd.
+func TestCompleteAllCobraRequestCmds(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name          string
+		args          []string
+		wantContains  []string
+		wantDirective cobra.ShellCompDirective
+	}{
+		{
+			name:          "slq_empty",
+			args:          []string{"@"},
+			wantContains:  []string{source.ActiveHandle, sakila.SL3},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			name:          "slq_@",
+			args:          []string{"@"},
+			wantContains:  []string{source.ActiveHandle, sakila.SL3},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			name:          "src_empty",
+			args:          []string{"src", ""},
+			wantContains:  []string{sakila.SL3},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			name:          "src_@",
+			args:          []string{"src", "@"},
+			wantContains:  []string{sakila.SL3},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			name:          "inspect_empty",
+			args:          []string{"inspect", ""},
+			wantContains:  []string{sakila.SL3},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			name:          "inspect_@",
+			args:          []string{"inspect", "@"},
+			wantContains:  []string{sakila.SL3},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
+	}
+
+	for _, cobraCmd := range []string{cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd} {
+		cobraCmd := cobraCmd
+		for _, tc := range testCases {
+			tc := tc
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				t.Run(cobraCmd, func(t *testing.T) {
+					t.Parallel()
+
+					th := testh.New(t)
+					th.Context = options.NewContext(th.Context, options.Options{cli.OptShellCompletionLog.Key(): true})
+					tr := testrun.New(th.Context, t, nil)
+					tr.Add(*th.Source(sakila.SL3))
+
+					args := append([]string{cobraCmd}, tc.args...)
+					err := tr.Exec(args...)
+					require.NoError(t, err)
+
+					got := parseCompletion(tr)
+					assert.Equal(t, cobraz.MarshalDirective(tc.wantDirective), cobraz.MarshalDirective(got.result))
+					for j := range tc.wantContains {
+						assert.Contains(t, got.values, tc.wantContains[j])
+					}
+				})
+			})
+		}
+	}
+}
+
+func enableCompletionLog(ctx context.Context) context.Context {
+	o := options.FromContext(ctx)
+	if o == nil {
+		return options.NewContext(ctx, options.Options{cli.OptShellCompletionLog.Key(): true})
+	}
+
+	o[cli.OptShellCompletionLog.Key()] = true
+	return ctx
 }

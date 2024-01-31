@@ -33,7 +33,7 @@ func newXLockSrcCmd() *cobra.Command {
 		Short:             "Test source cache locking",
 		Hidden:            true,
 		Args:              cobra.ExactArgs(1),
-		ValidArgsFunction: completeHandle(1),
+		ValidArgsFunction: completeHandle(1, true),
 		RunE:              execXLockSrcCmd,
 		Example:           `  $ sq x lock-src-cache @sakila`,
 	}
@@ -132,7 +132,7 @@ func newXLockConfigCmd() *cobra.Command {
 		Short:             "Test config lock",
 		Hidden:            true,
 		Args:              cobra.NoArgs,
-		ValidArgsFunction: completeHandle(1),
+		ValidArgsFunction: completeHandle(1, true),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ru := run.FromContext(cmd.Context())
 			fmt.Fprintf(ru.Out, "Locking config (pid %d)\n", os.Getpid())

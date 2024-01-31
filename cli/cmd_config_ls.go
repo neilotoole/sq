@@ -43,7 +43,7 @@ just for that source.`,
 	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
 
 	cmd.Flags().String(flag.ConfigSrc, "", flag.ConfigSrcUsage)
-	panicOn(cmd.RegisterFlagCompletionFunc(flag.ConfigSrc, completeHandle(1)))
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.ConfigSrc, completeHandle(1, true)))
 
 	return cmd
 }

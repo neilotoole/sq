@@ -48,7 +48,7 @@ Use "sq config ls -v" to list available options.`,
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 
 	cmd.Flags().String(flag.ConfigSrc, "", flag.ConfigSrcUsage)
-	panicOn(cmd.RegisterFlagCompletionFunc(flag.ConfigSrc, completeHandle(1)))
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.ConfigSrc, completeHandle(1, true)))
 
 	cmd.Flags().BoolP(flag.ConfigDelete, flag.ConfigDeleteShort, false, flag.ConfigDeleteUsage)
 

@@ -102,7 +102,7 @@ func newCacheClearCmd() *cobra.Command {
 		Short:             "Clear cache",
 		Long:              "Clear cache for source or entire cache.",
 		Args:              cobra.MaximumNArgs(1),
-		ValidArgsFunction: completeHandle(1),
+		ValidArgsFunction: completeHandle(1, true),
 		RunE:              execCacheClear,
 		Example: `  # Clear entire cache
   $ sq cache clear
@@ -172,7 +172,7 @@ func newCacheEnableCmd() *cobra.Command { //nolint:dupl
 		Short:             "Enable caching",
 		Long:              `Enable caching by default or for a specific source.`,
 		Args:              cobra.MaximumNArgs(1),
-		ValidArgsFunction: completeHandle(1),
+		ValidArgsFunction: completeHandle(1, true),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ru := run.FromContext(cmd.Context())
 			var o options.Options
@@ -210,7 +210,7 @@ func newCacheDisableCmd() *cobra.Command { //nolint:dupl
 		Short:             "Disable caching",
 		Long:              `Disable caching by default or for a specific source.`,
 		Args:              cobra.MaximumNArgs(1),
-		ValidArgsFunction: completeHandle(1),
+		ValidArgsFunction: completeHandle(1, true),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ru := run.FromContext(cmd.Context())
 			var o options.Options
