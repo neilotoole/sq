@@ -140,7 +140,7 @@ func execMoveRenameHandle(cmd *cobra.Command, oldHandle, newHandle string) error
 	// Make a clone, because the original may get modified.
 	oldSrc = oldSrc.Clone()
 
-	newSrc, err := ru.Config.Collection.RenameSource(oldHandle, newHandle)
+	newSrc, err := ru.Config.Collection.RenameSource(oldSrc.Handle, newHandle)
 	if err != nil {
 		return err
 	}
@@ -245,7 +245,7 @@ func completeMove(cmd *cobra.Command, args []string, toComplete string) ([]strin
 	}
 
 	// toComplete must be a group.
-	if !source.IsValidGroup(toComplete) {
+	if !source.IsValidGroup(strings.TrimSuffix(toComplete, "/")) {
 		return nil, cobra.ShellCompDirectiveError
 	}
 

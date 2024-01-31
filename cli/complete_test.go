@@ -302,3 +302,15 @@ func TestCompleteFlagActiveSchema_inspect(t *testing.T) {
 		})
 	}
 }
+
+func TestCompleteFilterActiveGroup(t *testing.T) {
+	_ = t
+	// FIXME: implement
+}
+
+func TestCompleteAllRequestCmds(t *testing.T) {
+	// FIXME: implement
+	_ = t
+	_ = cobra.ShellCompRequestCmd
+	_ = cobra.ShellCompNoDescRequestCmd
+}

@@ -48,6 +48,19 @@ This can result in the logs being filled with uninteresting junk when the
 timeout triggers logging of errors.`,
 )
 
+var OptShellCompletionGroupOnly = options.NewBool(
+	"shell-completion.group-only",
+	"",
+	false,
+	0,
+	true,
+	"Shell completion initial source suggestions from active group only",
+	`When true, shell completion initially only suggests sources from the active
+group. When false, shell completion suggests all sources. Note that if the user
+continues to input a source name from outside the active group, completion will
+suggest all matching sources.`,
+)
+
 // completionFunc is a shell completion function.
 type completionFunc func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective)
 
@@ -76,7 +89,7 @@ func completeBool(_ *cobra.Command, _ []string, _ string) ([]string, cobra.Shell
 // completeHandle is a completionFunc that suggests handles.
 // The max arg is the maximum number of completions. Set to 0
 // for no limit.
-func completeHandle(max int) completionFunc {
+func completeHandle(max int, includeActive bool) completionFunc {
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if max > 0 && len(args) >= max {
 			return nil, cobra.ShellCompDirectiveNoFileComp
@@ -87,11 +100,12 @@ func completeHandle(max int) completionFunc {
 		handles = lo.Reject(handles, func(item string, index int) bool {
 			return !strings.HasPrefix(item, toComplete)
 		})
+		handles = maybeFilterHandlesByActiveGroup(cmd.Context(), toComplete, handles)
 
 		slices.Sort(handles) // REVISIT: what's the logic for sorting or not?
 		handles, _ = lo.Difference(handles, args)
 
-		if ru.Config.Collection.Active() != nil {
+		if includeActive && ru.Config.Collection.Active() != nil {
 			handles = append([]string{source.ActiveHandle}, handles...)
 		}
 
@@ -113,6 +127,7 @@ func completeGroup(max int) completionFunc {
 		groups, _ = lo.Difference(groups, args)
 		groups = lo.Uniq(groups)
 		slices.Sort(groups)
+
 		return groups, cobra.ShellCompDirectiveNoFileComp
 	}
 }
@@ -121,7 +136,7 @@ func completeGroup(max int) completionFunc {
 func completeHandleOrGroup(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	switch {
 	case toComplete == "":
-		items, _ := completeHandle(0)(cmd, args, toComplete)
+		items, _ := completeHandle(0, true)(cmd, args, toComplete)
 		groups, _ := completeGroup(0)(cmd, args, toComplete)
 		items = append(items, groups...)
 		items = lo.Uniq(items)
@@ -129,7 +144,7 @@ func completeHandleOrGroup(cmd *cobra.Command, args []string, toComplete string)
 	case toComplete == "/":
 		return []string{}, cobra.ShellCompDirectiveNoFileComp
 	case toComplete[0] == '@':
-		return completeHandle(0)(cmd, args, toComplete)
+		return completeHandle(0, true)(cmd, args, toComplete)
 	case source.IsValidGroup(toComplete):
 		return completeGroup(0)(cmd, args, toComplete)
 	default:
@@ -673,6 +688,8 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, ru *run.Run, 
 		}
 	}
 
+	matchingHandles = maybeFilterHandlesByActiveGroup(ctx, toComplete, matchingHandles)
+
 	switch len(matchingHandles) {
 	default:
 		return matchingHandles, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
@@ -735,6 +752,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, ru *run.Run,
 		}
 	}
 
+	handleFilter := getActiveGroupHandleFilterPrefix(ctx)
 	for _, src := range ru.Config.Collection.Sources() {
 		if c.onlySQL {
 			isSQL, err := isSQLDriver(ru, src.Handle)
@@ -747,7 +765,9 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, ru *run.Run,
 			}
 		}
 
-		suggestions = append(suggestions, src.Handle)
+		if strings.HasPrefix(src.Handle, handleFilter) {
+			suggestions = append(suggestions, src.Handle)
+		}
 	}
 
 	return suggestions, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
@@ -786,4 +806,40 @@ func getTableNamesForHandle(ctx context.Context, ru *run.Run, handle string) ([]
 	}
 
 	return md.TableNames(), nil
+}
+
+// maybeFilterHandlesByActiveGroup filters the supplied handles by
+// active group, if appropriate.
+func maybeFilterHandlesByActiveGroup(ctx context.Context, toComplete string, suggestions []string) []string {
+	handleFilter := getActiveGroupHandleFilterPrefix(ctx)
+	if handleFilter != "" {
+		if strings.HasPrefix(handleFilter, toComplete) {
+			suggestions = lo.Filter(suggestions, func(handle string, index int) bool {
+				return strings.HasPrefix(handle, handleFilter)
+			})
+		}
+	}
+	return suggestions
+}
+
+// getActiveGroupHandleFilterPrefix returns a prefix that can be used
+// to filter handles that should be returned. For example, if the active
+// group is "prod", then the returned prefix is "@prod/". Empty
+// string indicates no filter.
+func getActiveGroupHandleFilterPrefix(ctx context.Context) string {
+	ru := run.FromContext(ctx)
+	if ru == nil || ru.Config == nil || ru.Config.Options == nil {
+		return ""
+	}
+
+	if !OptShellCompletionGroupOnly.Get(options.FromContext(ctx)) {
+		return ""
+	}
+
+	activeGroup := ru.Config.Collection.ActiveGroup()
+	if activeGroup == "" || activeGroup == "/" {
+		return ""
+	}
+
+	return "@" + activeGroup + "/"
 }

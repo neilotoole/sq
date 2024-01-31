@@ -25,7 +25,7 @@ func newConfigEditCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "edit [@HANDLE]",
 		Args:              cobra.MaximumNArgs(1),
-		ValidArgsFunction: completeHandle(1),
+		ValidArgsFunction: completeHandle(1, true),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return execConfigEditOptions(cmd, args)
