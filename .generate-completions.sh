@@ -1,8 +1,8 @@
 #!/bin/sh
-# ".completions.sh" regenerates shell completions to "./completions".
+# ".generate-completions.sh" regenerates shell completions to "./completions".
 # This script is invoked by a hook in .goreleaser.yml during the CI
 # release process, generating "sq.bash", "sq.zsh", etc. into "./completions".
-# goreleaser then uses those generate completions for the various install
+# goreleaser then uses those generated completions for the various install
 # packages it creates.
 #
 # Note that the "./completions" dir is not committed to git; it is generated
