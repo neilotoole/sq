@@ -1128,3 +1128,4 @@ make working with lots of sources much easier.
 [v0.47.0]: https://github.com/neilotoole/sq/compare/v0.46.1...v0.47.0
 [v0.47.1]: https://github.com/neilotoole/sq/compare/v0.47.0...v0.47.1
 [v0.47.2]: https://github.com/neilotoole/sq/compare/v0.47.1...v0.47.2
+[v0.47.3]: https://github.com/neilotoole/sq/compare/v0.47.2...v0.47.3
