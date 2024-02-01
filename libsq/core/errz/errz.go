@@ -266,6 +266,31 @@ func Chain(err error) []error {
 	return errs
 }
 
+// ExitCoder is an interface that an error type can implement to indicate
+// that the program should exit with a specific status code.
+// In particular, note that *exec.ExitError implements this interface.
+type ExitCoder interface {
+	// ExitCode returns the exit code indicated by the error, or -1 if
+	// the error does not indicate a particular exit code.
+	ExitCode() int
+}
+
+// ExitCode returns the exit code of the first error in err's chain
+// that implements ExitCoder, otherwise -1.
+func ExitCode(err error) (code int) {
+	if err == nil {
+		return -1
+	}
+
+	chain := Chain(err)
+	for i := range chain {
+		if coder, ok := chain[i].(ExitCoder); ok { //nolint:errorlint
+			return coder.ExitCode()
+		}
+	}
+	return -1
+}
+
 // SprintTreeTypes returns a string representation of err's type tree.
 // A multi-error is represented as a slice of its children.
 func SprintTreeTypes(err error) string {

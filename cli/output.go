@@ -374,6 +374,30 @@ func getRecordWriterFunc(f format.Format) output.NewRecordWriterFunc {
 	}
 }
 
+// outputters is a container for the various output writers.
+// We need to refactor getPrinting to return a struct like this.
+type outputters struct { //nolint:unused
+	// outPr is the printing config for out.
+	outPr *output.Printing
+
+	// out is the output writer that should be used for stdout output.
+	out io.Writer
+
+	// ogOut is the original out, which probably was os.Stdin.
+	// It's referenced here for special cases.
+	ogOut io.Writer
+
+	// errOutPr is the printing config for errOut.
+	errOutPr *output.Printing
+
+	// errOut is the output writer that should be used for stderr output.
+	errOut io.Writer
+
+	// ogErrOut is the original errOut, which probably was os.Stderr.
+	// It's referenced here for special cases.
+	ogErrOut io.Writer
+}
+
 // getPrinting returns a Printing instance and
 // colorable or non-colorable writers. It is permissible
 // for the cmd arg to be nil. The caller should use the returned
@@ -386,6 +410,8 @@ func getRecordWriterFunc(f format.Format) output.NewRecordWriterFunc {
 // be absolutely bulletproof, as it's called by all commands, as well
 // as by the error handling mechanism. So, be sure to always check
 // for nil cmd, nil cmd.Context, etc.
+//
+// REVISIT: getPrinting should be refactored to return [*outputters].
 func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Options,
 	out, errOut io.Writer,
 ) (pr *output.Printing, out2, errOut2 io.Writer) {
@@ -447,6 +473,16 @@ func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Option
 	// We do want to colorize
 	if !isColorTerminal(out) {
 		// But out can't be colorized.
+
+		// FIXME: This disables colorization for both out and errOut, even
+		// if errOut is a color terminal.
+		//
+		//  $ sq db dump > local.pg.dump
+		//  sq: db dump: @ew/local/cloud: exit status 1: pg_dump: ...
+		//
+		// FIXME: e.g. above, the error message is not colorized, even
+		// though it should be.
+
 		color.NoColor = true
 		pr.EnableColor(false)
 		out2, errOut2 = out, errOut

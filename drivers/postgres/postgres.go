@@ -147,7 +147,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
 	log := lg.FromContext(ctx)
 	ctx = options.NewContext(ctx, src.Options)
-	poolCfg, err := getPoolConfig(src)
+	poolCfg, err := getPoolConfig(src, false)
 	if err != nil {
 		return nil, err
 	}

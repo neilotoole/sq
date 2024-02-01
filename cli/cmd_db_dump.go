@@ -1,7 +1,13 @@
 package cli
 
 import (
+	"bytes"
 	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
@@ -42,16 +48,10 @@ func newDBDumpCmd() *cobra.Command {
 func execDBDump(cmd *cobra.Command, args []string) error {
 	ru := run.FromContext(cmd.Context())
 
-	if !cmdFlagBool(cmd, flag.DumpCmd) {
-		// FIXME: remove this eventually, when (if?) we implement the
-		// in-process dump functionality.
-		return errz.New("db dump: only --cmd mode currently supported")
-	}
-
 	var (
-		src     *source.Source
-		err     error
-		cmdText string
+		src      *source.Source
+		err      error
+		shellCmd []string
 	)
 
 	if len(args) == 0 {
@@ -69,18 +69,49 @@ func execDBDump(cmd *cobra.Command, args []string) error {
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
 		if cmdFlagBool(cmd, flag.DumpCmdAll) {
-			cmdText, err = postgres.DumpAllCmd(src)
+			shellCmd, err = postgres.DumpAllCmd(src)
 			break
 		}
-		cmdText, err = postgres.DumpCmd(src)
+		shellCmd, err = postgres.DumpCmd(src)
 	default:
 		err = errz.Errorf("not supported for %s", src.Type)
 	}
 
 	if err != nil {
-		return errz.Wrap(err, "db dump")
+		return errz.Wrapf(err, "db dump: %s", src.Handle)
 	}
 
-	fmt.Fprintln(ru.Out, cmdText)
-	return nil
+	if cmdFlagBool(cmd, flag.DumpCmd) {
+		for i := range shellCmd {
+			shellCmd[i] = stringz.ShellEscape(shellCmd[i])
+		}
+		fmt.Fprintln(ru.Out, strings.Join(shellCmd, " "))
+		return nil
+	}
+
+	switch src.Type { //nolint:exhaustive
+	case drivertype.Pg:
+		return shellExecDumpCmdPg(ru, src, shellCmd)
+	default:
+		return errz.Errorf("db dump: %s: cmd execution not supported for %s", src.Handle, src.Type)
+	}
+}
+
+func shellExecDumpCmdPg(ru *run.Run, src *source.Source, shellCmd []string) error {
+	ctx := ru.Cmd.Context()
+
+	execCmd := exec.CommandContext(ctx, shellCmd[0], shellCmd[1:]...) //nolint:gosec
+
+	// FIXME: switch to ru.Out?
+	execCmd.Stdout = os.Stdout
+	execCmd.Stderr = &bytes.Buffer{}
+
+	execErr := execCmd.Run()
+	if execErr == nil {
+		return nil
+	}
+
+	msg := fmt.Sprintf("db dump: %s", src.Handle)
+	shellErr := newShellExecError(msg, execCmd, execErr)
+	return shellErr
 }
