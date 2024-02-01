@@ -337,7 +337,7 @@ func markCmdRequiresConfigLock(cmd *cobra.Command) {
 	if cmd.Annotations == nil {
 		cmd.Annotations = make(map[string]string)
 	}
-	cmd.Annotations["config.lock"] = "true"
+	cmd.Annotations["config.lock"] = "true" //nolint:goconst
 }
 
 // cmdRequiresConfigLock returns true if markCmdRequiresConfigLock was
@@ -447,6 +447,6 @@ func markCmdPlainStdout(cmd *cobra.Command) {
 
 // cmdPlainStdout returns true if markCmdPlainStdout was
 // previously invoked on cmd.
-func cmdPlainStdout(cmd *cobra.Command) bool {
+func cmdPlainStdout(cmd *cobra.Command) bool { //nolint:unused
 	return cmd.Annotations != nil && cmd.Annotations["stdout.plain"] == "true"
 }

@@ -5,15 +5,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/jackc/pgx/v5/pgconn"
 	"log/slog"
 	"strconv"
 	"strings"
 
 	pgx "github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/xo/dburl"
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
@@ -25,7 +22,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/record"
-	"github.com/neilotoole/sq/libsq/core/retry"
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -152,6 +148,9 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	log := lg.FromContext(ctx)
 	ctx = options.NewContext(ctx, src.Options)
 	poolCfg, err := getPoolConfig(src)
+	if err != nil {
+		return nil, err
+	}
 
 	var opts []stdlib.OptionOpenDB
 	if src.Schema != "" {
@@ -711,57 +710,4 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
 	}
 
 	return recMeta, mungeFn, nil
-}
-
-// NativeConfig returns builds the native postgres config from src.
-func NativeConfig(src *source.Source) (*pgconn.Config, error) {
-	poolCfg, err := getPoolConfig(src)
-	if err != nil {
-		return nil, err
-	}
-
-	return &poolCfg.ConnConfig.Config, nil
-}
-
-func getPoolConfig(src *source.Source) (*pgxpool.Config, error) {
-	poolCfg, err := pgxpool.ParseConfig(src.Location)
-	if err != nil {
-		return nil, errw(err)
-	}
-
-	if src.Catalog != "" && src.Catalog != poolCfg.ConnConfig.Database {
-		// The catalog differs from the database in the connection string.
-		// OOTB, Postgres doesn't support cross-database references. So,
-		// we'll need to change the connection string to use the catalog
-		// as the database. Note that we don't modify src.Location, but it's
-		// not entirely clear if that's the correct approach. Are there any
-		// downsides to modifying it (as long as the modified Location is not
-		// persisted back to config)?
-		var u *dburl.URL
-		if u, err = dburl.Parse(src.Location); err != nil {
-			return nil, errw(err)
-		}
-
-		u.Path = src.Catalog
-		connStr := u.String()
-		poolCfg, err = pgxpool.ParseConfig(connStr)
-		if err != nil {
-			return nil, errw(err)
-		}
-	}
-
-	return poolCfg, nil
-}
-
-// doRetry executes fn with retry on isErrTooManyConnections.
-func doRetry(ctx context.Context, fn func() error) error {
-	maxRetryInterval := driver.OptMaxRetryInterval.Get(options.FromContext(ctx))
-	return retry.Do(ctx, maxRetryInterval, fn, isErrTooManyConnections)
-}
-
-// tblfmt formats a table name for use in a query. The arg can be a string,
-// or a tablefq.T.
-func tblfmt[T string | tablefq.T](tbl T) string {
-	tfq := tablefq.From(tbl)
-	return tfq.Render(stringz.DoubleQuote)
 }

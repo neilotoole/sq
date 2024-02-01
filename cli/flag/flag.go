@@ -208,8 +208,10 @@ const (
 	DiffAllShort = "a"
 	DiffAllUsage = "Compare everything (caution: may be slow)"
 
-	DumpCmd      = "cmd"
-	DumpCmdUsage = "Print the db-native dump tool command, but don't execute it"
+	DumpCmd         = "cmd"
+	DumpCmdUsage    = "Print the db-native dump tool command, but don't execute it"
+	DumpCmdAll      = "all"
+	DumpCmdAllUsage = "Dump entire database cluster"
 )
 
 // OutputFormatFlags is the set of flags that control output format.
