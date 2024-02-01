@@ -5,8 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
-
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -20,20 +18,26 @@ import (
 
 // REVISIT: DumpCmd and DumpAllCmd could be methods on driver.SQLDriver.
 
+// TODO: Unify DumpCmd and DumpAllCmd, as they're almost identical, probably
+// in the form:
+//
+//  DumpCmd(src *source.Source, all bool) (cmd []string, err error).
+
 // DumpCmd returns the shell command components to execute pg_dump for src.
 // Example output (components concatenated with space):
 //
 //	pg_dump -Fc --no-acl -d 'postgres://alice:vNgR6R@db.acme.com:5432/sales?connect_timeout=10'
 //
-// Note that the components may need to be shell-escaped if they're to
-// be executed in the terminal or via a shell script.
-func DumpCmd(src *source.Source) (cmd []string, err error) {
+// Note that the returned cmd components may need to be shell-escaped if they're
+// to be executed in the terminal or via a shell script.
+func DumpCmd(src *source.Source) (cmd, env []string, err error) {
 	// - https://www.postgresql.org/docs/9.6/app-pgdump.html
 	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
+	// - https://gist.github.com/vielhuber/96eefdb3aff327bdf8230d753aaee1e1
 
 	cfg, err := getPoolConfig(src, true)
 	if err != nil {
-		return nil, err
+		return nil, env, err
 	}
 
 	// You might expect we'd add --no-owner, but if we're outputting a custom
@@ -46,18 +50,41 @@ func DumpCmd(src *source.Source) (cmd []string, err error) {
 	// special handling for --no-owner, e.g. making it an optional flag.
 	//
 	// Note that -d is "--db-name", which takes the connection string.
-	cmd = []string{"pg_dump", "-Fc", "--no-acl", "-d", cfg.ConnString()}
-	return cmd, nil
+	cmd = []string{
+		"pg_dump",
+		"-Fc",
+		"--no-acl",
+		"-d",
+		cfg.ConnString(),
+	}
+	return cmd, env, nil
 }
 
-// DumpAllCmd returns the shell command execute pg_dumpall for src.
-// The command is suitable for execution in a shell.
-func DumpAllCmd(src *source.Source) (cmd []string, err error) {
-	_ = src
+// DumpAllCmd returns the shell command components to execute pg_dump for src.
+// Example output (components concatenated with space):
+//
+//	pg_dump -Fc --no-acl -d 'postgres://alice:vNgR6R@db.acme.com:5432/sales?connect_timeout=10'
+//
+// Note that the returned cmd components may need to be shell-escaped if they're
+// to be executed in the terminal or via a shell script.
+func DumpAllCmd(src *source.Source) (cmd, env []string, err error) {
 	// - https://www.postgresql.org/docs/9.6/app-pg-dumpall.html
 	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
 
-	return nil, errz.New("not implemented")
+	cfg, err := getPoolConfig(src, true)
+	if err != nil {
+		return nil, env, err
+	}
+
+	env = []string{"PGPASSWORD=" + cfg.ConnConfig.Password}
+	cmd = []string{
+		"pg_dumpall",
+		"-w",                          // -w is --no-password
+		"-O",                          // -O is --no-owner
+		"-l", cfg.ConnConfig.Database, // -l is --database
+		"-d", cfg.ConnString(), // -d is --dbname
+	}
+	return cmd, env, nil
 }
 
 // getConnConfig builds the native postgres config from src.

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -20,7 +21,7 @@ import (
 
 func newDBDumpCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               "dump @src [--cmd]",
+		Use:               "dump @src [--cmd] [--all]",
 		Short:             "Dump database",
 		Long:              `Dump database using the database-native dump tool`,
 		ValidArgsFunction: completeHandle(1, true),
@@ -32,6 +33,9 @@ func newDBDumpCmd() *cobra.Command {
 	# Print the dump command, but don't execute it
 	$ sq db dump @sakila --cmd`,
 	}
+
+	// TODO:
+	// - Add more examples above
 
 	// TODO: Add options:
 	// --format=archive,text,dir?
@@ -52,6 +56,7 @@ func execDBDump(cmd *cobra.Command, args []string) error {
 		src      *source.Source
 		err      error
 		shellCmd []string
+		shellEnv []string
 	)
 
 	if len(args) == 0 {
@@ -66,13 +71,15 @@ func execDBDump(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	dumpAll := cmdFlagBool(cmd, flag.DumpCmdAll)
+
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
-		if cmdFlagBool(cmd, flag.DumpCmdAll) {
-			shellCmd, err = postgres.DumpAllCmd(src)
+		if dumpAll {
+			shellCmd, shellEnv, err = postgres.DumpAllCmd(src)
 			break
 		}
-		shellCmd, err = postgres.DumpCmd(src)
+		shellCmd, shellEnv, err = postgres.DumpCmd(src)
 	default:
 		err = errz.Errorf("not supported for %s", src.Type)
 	}
@@ -85,33 +92,59 @@ func execDBDump(cmd *cobra.Command, args []string) error {
 		for i := range shellCmd {
 			shellCmd[i] = stringz.ShellEscape(shellCmd[i])
 		}
-		fmt.Fprintln(ru.Out, strings.Join(shellCmd, " "))
+		for i := range shellEnv {
+			shellEnv[i] = stringz.ShellEscape(shellEnv[i])
+		}
+
+		if len(shellEnv) == 0 {
+			fmt.Fprintln(ru.Out, strings.Join(shellCmd, " "))
+		} else {
+			fmt.Fprintln(ru.Out, strings.Join(shellEnv, " ")+" "+strings.Join(shellCmd, " "))
+		}
+
 		return nil
 	}
 
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
-		return shellExecDumpCmdPg(ru, src, shellCmd)
+		if dumpAll {
+			return shellExecPgDumpAll(ru, src, shellCmd, shellEnv)
+		}
+		return shellExecPgDump(ru, src, shellCmd, shellEnv)
 	default:
 		return errz.Errorf("db dump: %s: cmd execution not supported for %s", src.Handle, src.Type)
 	}
 }
 
-func shellExecDumpCmdPg(ru *run.Run, src *source.Source, shellCmd []string) error {
-	ctx := ru.Cmd.Context()
-
-	execCmd := exec.CommandContext(ctx, shellCmd[0], shellCmd[1:]...) //nolint:gosec
+func shellExecPgDump(ru *run.Run, src *source.Source, shellCmd, shellEnv []string) error {
+	c := exec.CommandContext(ru.Cmd.Context(), shellCmd[0], shellCmd[1:]...) //nolint:gosec
+	c.Env = append(c.Env, shellEnv...)
 
 	// FIXME: switch to ru.Out?
-	execCmd.Stdout = os.Stdout
-	execCmd.Stderr = &bytes.Buffer{}
+	c.Stdout = os.Stdout
+	c.Stderr = &bytes.Buffer{}
 
-	execErr := execCmd.Run()
-	if execErr == nil {
-		return nil
+	if err := c.Run(); err != nil {
+		return newShellExecError(fmt.Sprintf("db dump: %s", src.Handle), c, err)
 	}
+	return nil
+}
 
-	msg := fmt.Sprintf("db dump: %s", src.Handle)
-	shellErr := newShellExecError(msg, execCmd, execErr)
-	return shellErr
+func shellExecPgDumpAll(ru *run.Run, src *source.Source, shellCmd, shellEnv []string) error {
+	c := exec.CommandContext(ru.Cmd.Context(), shellCmd[0], shellCmd[1:]...) //nolint:gosec
+
+	// PATH shenanigans are required to ensure that pg_dumpall can find pg_dump.
+	// Otherwise we see this error:
+	//
+	//  pg_dumpall: error: program "pg_dump" is needed by pg_dumpall but was not
+	//   found in the same directory as "pg_dumpall"
+	c.Env = append(c.Env, "PATH="+filepath.Dir(c.Path))
+	c.Env = append(c.Env, shellEnv...)
+
+	c.Stdout = os.Stdout
+	c.Stderr = &bytes.Buffer{}
+	if err := c.Run(); err != nil {
+		return newShellExecError(fmt.Sprintf("db dump --all: %s", src.Handle), c, err)
+	}
+	return nil
 }
