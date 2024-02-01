@@ -23,49 +23,36 @@ import (
 func DumpCmd(src *source.Source) (cmd string, err error) {
 	// - https://www.postgresql.org/docs/9.6/app-pgdump.html
 	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
-	pgCfg, err := getConnConfig(src)
+
+	envars, flags, _, err := buildDumpParts(src)
 	if err != nil {
 		return "", err
 	}
 
-	if pgCfg.Password == "" {
-		cmd = "PGPASSWORD=''"
-	} else {
-		cmd = "PGPASSWORD=" + stringz.ShellEscape(pgCfg.Password)
+	// --dbname=dbname
+	// Specifies the name of the database to connect to. This is equivalent to specifying dbname as the first non-option argument on the command line. The dbname can be a connection string.
+	// If so, connection string parameters will override any conflicting command line options.
+	// DOH ^^
+
+	cmd = envars
+	if cmd != "" {
+		cmd += " "
 	}
 
-	timeout := driver.OptConnOpenTimeout.Get(src.Options)
-	if timeout > 0 {
-		cmd += " PGCONNECT_TIMEOUT=" + strconv.Itoa(int(timeout.Seconds()))
-	}
-
-	// You might think we'd add --no-owner, but if we're outputting a
-	// custom archive (-Fc), then --no-owner is the default. From the pg_dump docs:
+	// You might think we'd add --no-owner, but if we're outputting a custom
+	// archive (-Fc), then --no-owner is the default. From the pg_dump docs:
 	//
-	// > This option is ignored when emitting an archive (non-text) output file.
-	// > For the archive formats, you can specify the option when you call pg_restore.
-	cmd += " pg_dump -Fc --no-acl"
-	if pgCfg.Port != 0 && pgCfg.Port != 5432 {
-		//  Don't include the port if we don't need to.
-		cmd += " -p " + strconv.Itoa(int(pgCfg.Port))
-	}
-
-	if pgCfg.User != "" {
-		cmd += " -U " + stringz.ShellEscape(pgCfg.User)
-	}
-
-	if pgCfg.Host != "" {
-		cmd += " -h " + pgCfg.Host
-	}
-
-	if pgCfg.Database != "" {
-		cmd += " " + pgCfg.Database
+	//  This option is ignored when emitting an archive (non-text) output file.
+	//  For the archive formats, you can specify the option when you call pg_restore.
+	cmd += "pg_dump -Fc --no-acl"
+	if flags != "" {
+		cmd += " " + flags
 	}
 
 	return cmd, nil
 }
 
-func pgDumpCommon(src *source.Source) (envars, flags string, cfg *pgconn.Config, err error) {
+func buildDumpParts(src *source.Source) (envars, flags string, cfg *pgconn.Config, err error) {
 	if cfg, err = getConnConfig(src); err != nil {
 		return "", "", nil, err
 	}
@@ -106,17 +93,17 @@ func pgDumpCommon(src *source.Source) (envars, flags string, cfg *pgconn.Config,
 //
 // TODO: This could be a method on driver.SQLDriver?
 func DumpAllCmd(src *source.Source) (cmd string, err error) {
-	// - https://www.postgresql.org/docs/9.6/app-pgdump.html
+	// - https://www.postgresql.org/docs/9.6/app-pg-dumpall.html
 	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
-	pgCfg, err := getConnConfig(src)
+
+	envars, flags, _, err := buildDumpParts(src)
 	if err != nil {
 		return "", err
 	}
 
-	if pgCfg.Password == "" {
-		cmd = "PGPASSWORD=''"
-	} else {
-		cmd = "PGPASSWORD=" + stringz.ShellEscape(pgCfg.Password)
+	cmd = envars
+	if cmd != "" {
+		cmd += " "
 	}
 
 	// You might think we'd add --no-owner, but if we're outputting a custom
@@ -124,22 +111,9 @@ func DumpAllCmd(src *source.Source) (cmd string, err error) {
 	//
 	//  This option is ignored when emitting an archive (non-text) output file.
 	//  For the archive formats, you can specify the option when you call pg_restore.
-	cmd += " pg_dump -Fc --no-acl"
-	if pgCfg.Port != 0 && pgCfg.Port != 5432 {
-		//  Don't include the port if we don't need to.
-		cmd += " -p " + strconv.Itoa(int(pgCfg.Port))
-	}
-
-	if pgCfg.User != "" {
-		cmd += " -U " + stringz.ShellEscape(pgCfg.User)
-	}
-
-	if pgCfg.Host != "" {
-		cmd += " -h " + pgCfg.Host
-	}
-
-	if pgCfg.Database != "" {
-		cmd += " " + pgCfg.Database
+	cmd += "pg_dump -Fc --no-acl"
+	if flags != "" {
+		cmd += " " + flags
 	}
 
 	return cmd, nil
