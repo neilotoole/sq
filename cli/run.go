@@ -433,3 +433,20 @@ func newProgressLockFunc(lock lockfile.Lockfile, msg string, timeout time.Durati
 		}, nil
 	}
 }
+
+// markCmdPlainStdout indicates that the command's stdout should
+// not be decorated in any way, e.g. with color or progress bars.
+// This is useful for binary output.
+func markCmdPlainStdout(cmd *cobra.Command) {
+	// FIXME: implement this in newWriters or such?
+	if cmd.Annotations == nil {
+		cmd.Annotations = make(map[string]string)
+	}
+	cmd.Annotations["stdout.plain"] = "true"
+}
+
+// cmdPlainStdout returns true if markCmdPlainStdout was
+// previously invoked on cmd.
+func cmdPlainStdout(cmd *cobra.Command) bool {
+	return cmd.Annotations != nil && cmd.Annotations["stdout.plain"] == "true"
+}
