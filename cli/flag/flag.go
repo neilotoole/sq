@@ -208,8 +208,6 @@ const (
 	DiffAllShort = "a"
 	DiffAllUsage = "Compare everything (caution: may be slow)"
 
-	DumpCmd          = "cmd"
-	DumpCmdUsage     = "Print the db-native dump tool command, but don't execute it"
 	DumpCatalog      = "catalog"
 	DumpCatalogUsage = "Dump the named catalog"
 	DumpNoOwner      = "no-owner"
@@ -218,14 +216,14 @@ const (
 	DumpFileShort    = "f"
 	DumpFileUsage    = "Write dump to file; if omitted, write to stdout"
 
-	ToolCmdLongFlags      = "long-flags"
-	ToolCmdLongFlagsUsage = "Print tool flags in long form"
+	PrintToolCmd          = "cmd"
+	PrintToolCmdUsage     = "Print the db-native tool command, but don't execute it"
+	PrintLongToolCmd      = "cmd-long"
+	PrintLongToolCmdUsage = "Print the db-native tool command in long form, but don't execute it"
 
 	RestoreFrom         = "from"
 	RestoreFromShort    = "f"
 	RestoreFromUsage    = "Restore from dump file; if omitted, read from stdin"
-	RestoreCmd          = "cmd"
-	RestoreCmdUsage     = "Print the db-native restore tool command, but don't execute it"
 	RestoreNoOwner      = "no-owner"
 	RestoreNoOwnerUsage = "Don't use ownership or ACL from dump"
 )

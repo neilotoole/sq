@@ -107,9 +107,9 @@ func shellExecPgDumpCluster(ru *run.Run, src *source.Source, shellCmd, shellEnv 
 	return nil
 }
 
-// shellExecPgRestore executes the pg_restore command. Arg dump is always
+// shellExecPgRestoreCatalog executes the pg_restore command. Arg dump is always
 // closed after this function returns.
-func shellExecPgRestore(ru *run.Run, src *source.Source, shellCmd, shellEnv []string) error {
+func shellExecPgRestoreCatalog(ru *run.Run, src *source.Source, shellCmd, shellEnv []string) error {
 	// - https://www.postgresql.org/docs/9.6/app-pgrestore.html
 
 	c := exec.CommandContext(ru.Cmd.Context(), shellCmd[0], shellCmd[1:]...) //nolint:gosec
@@ -125,7 +125,7 @@ func shellExecPgRestore(ru *run.Run, src *source.Source, shellCmd, shellEnv []st
 }
 
 //nolint:gocritic
-func shellExecPgRestoreAll(ru *run.Run, src *source.Source, shellCmd, shellEnv []string) error { //nolint:unused
+func shellExecPgRestoreCluster(ru *run.Run, src *source.Source, shellCmd, shellEnv []string) error {
 	_ = ru
 	_ = src
 	_ = shellCmd

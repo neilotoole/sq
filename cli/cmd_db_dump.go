@@ -51,10 +51,12 @@ func newDBDumpCatalogCmd() *cobra.Command {
 
 	markCmdPlainStdout(cmd)
 	cmd.Flags().String(flag.DumpCatalog, "", flag.DumpCatalogUsage)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.DumpCatalog, completeCatalog(0)))
 	cmd.Flags().Bool(flag.DumpNoOwner, false, flag.DumpNoOwnerUsage)
 	cmd.Flags().StringP(flag.DumpFile, flag.DumpFileShort, "", flag.DumpFileUsage)
-	cmd.Flags().Bool(flag.DumpCmd, false, flag.DumpCmdUsage)
-	panicOn(cmd.RegisterFlagCompletionFunc(flag.DumpCatalog, completeCatalog(0)))
+	cmd.Flags().Bool(flag.PrintToolCmd, false, flag.PrintToolCmdUsage)
+	cmd.Flags().Bool(flag.PrintLongToolCmd, false, flag.PrintLongToolCmdUsage)
+	cmd.MarkFlagsMutuallyExclusive(flag.PrintToolCmd, flag.PrintLongToolCmd)
 
 	return cmd
 }
@@ -91,7 +93,7 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 	var (
 		dumpVerbose   = cmdFlagBool(cmd, flag.Verbose)
 		dumpNoOwner   = cmdFlagBool(cmd, flag.DumpNoOwner)
-		dumpLongFlags = cmdFlagBool(cmd, flag.ToolCmdLongFlags)
+		dumpLongFlags = cmdFlagBool(cmd, flag.PrintLongToolCmd)
 		dumpFile      string
 	)
 
@@ -113,7 +115,7 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 			File:      dumpFile,
 			LongFlags: dumpLongFlags,
 		}
-		shellCmd, shellEnv, err = postgres.DumpCmd(src, params)
+		shellCmd, shellEnv, err = postgres.DumpCatalogCmd(src, params)
 	default:
 		return errz.Errorf("db dump: %s: not supported for %s", src.Handle, src.Type)
 	}
@@ -122,7 +124,7 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 		return errz.Wrapf(err, "db dump: %s", src.Handle)
 	}
 
-	if cmdFlagBool(cmd, flag.DumpCmd) {
+	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
 		return printToolCmd(ru, shellCmd, shellEnv)
 	}
 
@@ -130,7 +132,7 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 	case drivertype.Pg:
 		return shellExecPgDump(ru, src, shellCmd, shellEnv)
 	default:
-		return errz.Errorf("db dump: %s: cmd execution not supported for %s", src.Handle, src.Type)
+		return errz.Errorf("db dump: %s: not supported for %s", src.Handle, src.Type)
 	}
 }
 
@@ -156,12 +158,11 @@ func newDBDumpClusterCmd() *cobra.Command {
 	}
 
 	markCmdPlainStdout(cmd)
-	cmd.Flags().String(flag.DumpCatalog, "", flag.DumpCatalogUsage)
-	panicOn(cmd.RegisterFlagCompletionFunc(flag.DumpCatalog, completeCatalog(0)))
 	cmd.Flags().Bool(flag.DumpNoOwner, false, flag.DumpNoOwnerUsage)
 	cmd.Flags().StringP(flag.DumpFile, flag.DumpFileShort, "", flag.DumpNoOwnerUsage)
-	cmd.Flags().Bool(flag.DumpCmd, false, flag.DumpCmdUsage)
-	cmd.Flags().Bool(flag.ToolCmdLongFlags, false, flag.ToolCmdLongFlagsUsage)
+	cmd.Flags().Bool(flag.PrintToolCmd, false, flag.PrintToolCmdUsage)
+	cmd.Flags().Bool(flag.PrintLongToolCmd, false, flag.PrintLongToolCmdUsage)
+	cmd.MarkFlagsMutuallyExclusive(flag.PrintToolCmd, flag.PrintLongToolCmd)
 
 	return cmd
 }
@@ -191,7 +192,7 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 	var (
 		dumpVerbose   = cmdFlagBool(cmd, flag.Verbose)
 		dumpNoOwner   = cmdFlagBool(cmd, flag.DumpNoOwner)
-		dumpLongFlags = cmdFlagBool(cmd, flag.ToolCmdLongFlags)
+		dumpLongFlags = cmdFlagBool(cmd, flag.PrintLongToolCmd)
 		dumpFile      string
 	)
 
@@ -213,7 +214,7 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 			File:      dumpFile,
 			LongFlags: dumpLongFlags,
 		}
-		shellCmd, shellEnv, err = postgres.DumpAllCmd(src, params)
+		shellCmd, shellEnv, err = postgres.DumpClusterCmd(src, params)
 	default:
 		err = errz.Errorf("db dump cluster: %s: not supported for %s", src.Handle, src.Type)
 	}
@@ -222,7 +223,7 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 		return errz.Wrapf(err, "db dump cluster: %s", src.Handle)
 	}
 
-	if cmdFlagBool(cmd, flag.DumpCmd) {
+	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
 		return printToolCmd(ru, shellCmd, shellEnv)
 	}
 
@@ -230,6 +231,6 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 	case drivertype.Pg:
 		return shellExecPgDumpCluster(ru, src, shellCmd, shellEnv)
 	default:
-		return errz.Errorf("db dump: %s: cmd execution not supported for %s", src.Handle, src.Type)
+		return errz.Errorf("db dump cluster: %s: not supported for %s", src.Handle, src.Type)
 	}
 }

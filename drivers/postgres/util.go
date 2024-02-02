@@ -14,17 +14,23 @@ import (
 	"github.com/xo/dburl"
 )
 
-// REVISIT: DumpCmd and DumpAllCmd could be methods on driver.SQLDriver.
+// REVISIT: DumpCatalogCmd and DumpClusterCmd could be methods on driver.SQLDriver.
 
-// TODO: Unify DumpCmd and DumpAllCmd, as they're almost identical, probably
+// TODO: Unify DumpCatalogCmd and DumpClusterCmd, as they're almost identical, probably
 // in the form:
 //
-//  DumpCmd(src *source.Source, all bool) (cmd []string, err error).
+//  DumpCatalogCmd(src *source.Source, all bool) (cmd []string, err error).
 
-// ToolParams are parameters for DumpCmd and RestoreCmd.
-// See: https://www.postgresql.org/docs/current/app-pgrestore.html.
+// ToolParams are parameters for postgres tools such as pg_dump and pg_restore.
+//
+// - https://www.postgresql.org/docs/9.6/app-pgdump.html
+// - https://www.postgresql.org/docs/9.6/app-pgrestore.html.
+// - https://www.postgresql.org/docs/9.6/app-pg-dumpall.html
+// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
+//
+// Not every flag is applicable to all tools.
 type ToolParams struct {
-	// File is the path to the dump file to restore from. If empty, stdin is used.
+	// File is the path to the dump file.
 	File string
 
 	// Verbose indicates verbose output (progress).
@@ -39,14 +45,14 @@ type ToolParams struct {
 	LongFlags bool
 }
 
-// DumpCmd returns the shell command components to execute pg_dump for src.
+// DumpCatalogCmd returns the shell command components to execute pg_dump for src.
 // Example output (components concatenated with space):
 //
 //	pg_dump -Fc --no-acl -d 'postgres://alice:vNgR6R@db.acme.com:5432/sales?connect_timeout=10'
 //
 // Note that the returned cmd components may need to be shell-escaped if they're
 // to be executed in the terminal or via a shell script.
-func DumpCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error) {
+func DumpCatalogCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error) {
 	// - https://www.postgresql.org/docs/9.6/app-pgdump.html
 	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
 	// - https://gist.github.com/vielhuber/96eefdb3aff327bdf8230d753aaee1e1
@@ -82,14 +88,14 @@ func DumpCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error) {
 	return cmd, env, nil
 }
 
-// DumpAllCmd returns the shell command components to execute pg_dump for src.
+// DumpClusterCmd returns the shell command components to execute pg_dump for src.
 // Example output (components concatenated with space):
 //
 //	pg_dump -Fc --no-acl -d 'postgres://alice:vNgR6R@db.acme.com:5432/sales?connect_timeout=10'
 //
 // Note that the returned cmd components may need to be shell-escaped if they're
 // to be executed in the terminal or via a shell script.
-func DumpAllCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error) {
+func DumpClusterCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error) {
 	// - https://www.postgresql.org/docs/9.6/app-pg-dumpall.html
 	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
 
@@ -123,12 +129,12 @@ func DumpAllCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error
 	return cmd, env, nil
 }
 
-// RestoreCmd returns the shell command components to execute pg_restore for src.
+// RestoreCatalogCmd returns the shell command components to execute pg_restore for src.
 // Example output (components concatenated with space):
 //
 // Note that the returned cmd components may need to be shell-escaped if they're
 // to be executed in the terminal or via a shell script.
-func RestoreCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error) {
+func RestoreCatalogCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error) {
 	// - https://www.postgresql.org/docs/9.6/app-pgrestore.html
 	// - https://www.postgresql.org/docs/9.6/app-pgdump.html
 	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
