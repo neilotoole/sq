@@ -88,7 +88,7 @@ func DumpCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error) {
 //
 // Note that the returned cmd components may need to be shell-escaped if they're
 // to be executed in the terminal or via a shell script.
-func DumpAllCmd(src *source.Source, verbose bool) (cmd, env []string, err error) {
+func DumpAllCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error) {
 	// - https://www.postgresql.org/docs/9.6/app-pg-dumpall.html
 	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
 
@@ -97,20 +97,34 @@ func DumpAllCmd(src *source.Source, verbose bool) (cmd, env []string, err error)
 		return nil, env, err
 	}
 
-	env = []string{"PGPASSWORD=" + cfg.ConnConfig.Password}
-	cmd = []string{"pg_dumpall"}
-	if verbose {
-		cmd = append(cmd, "-v")
+	flags := flagsShort
+	if p.LongFlags {
+		flags = flagsLong
 	}
 
-	cmd = append(cmd,
-		"-w", // -w is --no-password
-		"-O", // -O is --no-owner
-		"-l", // -l is --database
-		cfg.ConnConfig.Database,
-		"-d", // -d is --dbname
-		cfg.ConnString(),
-	)
+	env = []string{"PGPASSWORD=" + cfg.ConnConfig.Password}
+	cmd = []string{"pg_dumpall"}
+	if p.Verbose {
+		cmd = append(cmd, flags[flagVerbose])
+	}
+
+	if p.NoOwner {
+		// NoOwner sets both --no-owner and --no-acl. Maybe these should
+		// be separate options.
+		cmd = append(cmd, flags[flagNoACL], flags[flagNoOwner])
+	}
+	cmd = append(cmd, flags[flagNoPassword])
+	cmd = append(cmd, flags[flagDatabase], cfg.ConnConfig.Database)
+	cmd = append(cmd, flags[flagDBName], cfg.ConnString())
+
+	//cmd = append(cmd,
+	//	//"-w", // -w is --no-password
+	//	"-O", // -O is --no-owner
+	//	"-l", // -l is --database
+	//	cfg.ConnConfig.Database,
+	//	"-d", // -d is --dbname
+	//	cfg.ConnString(),
+	//)
 	return cmd, env, nil
 }
 
@@ -271,6 +285,7 @@ const (
 	flagNoACL               = "--no-acl"
 	flagCreate              = "--create"
 	flagDBName              = "--dbname"
+	flagDatabase            = "--database"
 	flagFormatCustomArchive = "--format=custom"
 	flagIfExists            = "--if-exists"
 	flagClean               = "--clean"
@@ -287,6 +302,7 @@ var flagsLong = map[string]string{
 	flagFormatCustomArchive: flagFormatCustomArchive,
 	flagClean:               flagClean,
 	flagNoPassword:          flagNoPassword,
+	flagDatabase:            flagDatabase,
 }
 
 var flagsShort = map[string]string{
@@ -299,4 +315,5 @@ var flagsShort = map[string]string{
 	flagFormatCustomArchive: "-Fc",
 	flagIfExists:            "--if-exists",
 	flagNoPassword:          "-w",
+	flagDatabase:            "-l",
 }

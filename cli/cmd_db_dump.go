@@ -49,9 +49,12 @@ func newDBDumpCmd() *cobra.Command {
 	//
 
 	markCmdPlainStdout(cmd)
-	cmd.Flags().Bool(flag.DumpCmd, false, flag.DumpCmdUsage)
-	cmd.Flags().Bool(flag.DumpCmdAll, false, flag.DumpCmdAllUsage)
 	cmd.Flags().String(flag.DumpCatalog, "", flag.DumpCatalogUsage)
+	cmd.Flags().Bool(flag.DumpAll, false, flag.DumpAllUsage)
+	cmd.MarkFlagsMutuallyExclusive(flag.DumpAll, flag.DumpCatalog)
+	cmd.Flags().Bool(flag.DumpNoOwner, false, flag.DumpNoOwnerUsage)
+	cmd.Flags().StringP(flag.DumpFile, flag.DumpFileShort, "", flag.DumpNoOwnerUsage)
+	cmd.Flags().Bool(flag.DumpCmd, false, flag.DumpCmdUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.DumpCatalog, completeCatalog(0)))
 
 	return cmd
@@ -87,16 +90,24 @@ func execDBDump(cmd *cobra.Command, args []string) error {
 	}
 
 	var (
-		dumpAll     = cmdFlagBool(cmd, flag.DumpCmdAll)
+		dumpAll     = cmdFlagBool(cmd, flag.DumpAll)
 		dumpVerbose = cmdFlagBool(cmd, flag.Verbose)
+		dumpNoOwner = cmdFlagBool(cmd, flag.DumpNoOwner)
 	)
 
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
+		params := &postgres.ToolParams{
+			Verbose:   dumpVerbose,
+			NoOwner:   dumpNoOwner,
+			File:      "",
+			LongFlags: false,
+		}
 		if dumpAll {
 			shellCmd, shellEnv, err = postgres.DumpAllCmd(src, dumpVerbose)
 			break
 		}
+
 		shellCmd, shellEnv, err = postgres.DumpCmd(src, dumpVerbose)
 	default:
 		err = errz.Errorf("not supported for %s", src.Type)

@@ -210,10 +210,15 @@ const (
 
 	DumpCmd          = "cmd"
 	DumpCmdUsage     = "Print the db-native dump tool command, but don't execute it"
-	DumpCmdAll       = "all"
-	DumpCmdAllUsage  = "Dump entire database cluster"
+	DumpAll          = "all"
+	DumpAllUsage     = "Dump entire database cluster"
 	DumpCatalog      = "catalog"
 	DumpCatalogUsage = "Dump the named catalog"
+	DumpNoOwner      = "no-owner"
+	DumpNoOwnerUsage = "Don't set ownership or ACL"
+	DumpFile         = "file"
+	DumpFileShort    = "f"
+	DumpFileUsage    = "Write dump to file; if omitted, write to stdout"
 
 	RestoreFrom         = "from"
 	RestoreFromShort    = "f"
