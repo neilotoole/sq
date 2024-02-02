@@ -2,6 +2,8 @@ package postgres
 
 import (
 	"context"
+	"strconv"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/retry"
@@ -10,7 +12,6 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/xo/dburl"
-	"strconv"
 )
 
 // REVISIT: DumpCmd and DumpAllCmd could be methods on driver.SQLDriver.
@@ -23,6 +24,9 @@ import (
 // ToolParams are parameters for DumpCmd and RestoreCmd.
 // See: https://www.postgresql.org/docs/current/app-pgrestore.html.
 type ToolParams struct {
+	// File is the path to the dump file to restore from. If empty, stdin is used.
+	File string
+
 	// Verbose indicates verbose output (progress).
 	Verbose bool
 
@@ -30,9 +34,6 @@ type ToolParams struct {
 	// connection user will own all objects. This also sets the --no-acl flag.
 	// Maybe NoOwner should be named "no security" or similar?
 	NoOwner bool
-
-	// File is the path to the dump file to restore from. If empty, stdin is used.
-	File string
 
 	// LongFlags indicates whether to use long flags, e.g. --no-owner instead of -O.
 	LongFlags bool
@@ -113,18 +114,12 @@ func DumpAllCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error
 		// be separate options.
 		cmd = append(cmd, flags[flagNoACL], flags[flagNoOwner])
 	}
-	cmd = append(cmd, flags[flagNoPassword])
-	cmd = append(cmd, flags[flagDatabase], cfg.ConnConfig.Database)
-	cmd = append(cmd, flags[flagDBName], cfg.ConnString())
+	cmd = append(cmd,
+		flags[flagNoPassword],
+		flags[flagDatabase], cfg.ConnConfig.Database,
+		flags[flagDBName], cfg.ConnString(),
+	)
 
-	//cmd = append(cmd,
-	//	//"-w", // -w is --no-password
-	//	"-O", // -O is --no-owner
-	//	"-l", // -l is --database
-	//	cfg.ConnConfig.Database,
-	//	"-d", // -d is --dbname
-	//	cfg.ConnString(),
-	//)
 	return cmd, env, nil
 }
 

@@ -1,12 +1,7 @@
 package cli
 
 import (
-	"bytes"
-	"fmt"
-	"os/exec"
 	"strings"
-
-	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
@@ -19,8 +14,20 @@ import (
 
 func newDBRestoreCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "restore @src [--from file.dump] [--cmd]",
-		Short: "Restore db from dump",
+		Use:   "restore",
+		Short: "Restore db catalog or cluster from dump",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	return cmd
+}
+
+func newDBRestoreCatalogCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "catalog @src [--from file.dump] [--cmd]",
+		Short: "Restore db catalog from dump",
 		Long: `
 Restore db into @src from dump file, using the db-native restore tool.
 
@@ -34,20 +41,20 @@ db-native command is printed to stdout. Note that the command output will
 include DB credentials. For a Postgres source, it would look something like:
 
  pg_restore -d 'postgres://alice:abc123@localhost:5432/sales' backup.dump`,
-		ValidArgsFunction: completeHandle(1, true),
 		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: completeHandle(1, true),
 		RunE:              execDBRestore,
 		Example: `  # Restore @sakila_pg from backup.dump
-  $ sq db restore @sakila_pg -f backup.dump
+  $ sq db restore catalog @sakila_pg -f backup.dump
 
   # With verbose output, and reading from stdin
-  $ sq db restore -v @sakila_pg < backup.dump
+  $ sq db restore catalog -v @sakila_pg < backup.dump
 
   # Don't use ownership from dump; the source user will own the restored objects
-  $ sq db restore @sakila_pg --no-owner < backup.dump
+  $ sq db restore catalog  @sakila_pg --no-owner < backup.dump
 
   # Print the db-native restore command, but don't execute it
-  $ sq db restore @sakila_pg -f backup.dump --cmd`,
+  $ sq db restore catalog @sakila_pg -f backup.dump --cmd`,
 	}
 
 	cmd.Flags().StringP(flag.RestoreFrom, flag.RestoreFromShort, "", flag.RestoreFromUsage)
@@ -94,10 +101,6 @@ func execDBRestore(cmd *cobra.Command, args []string) error {
 			NoOwner: noOwner,
 			File:    fpDump,
 		}
-		//if restoreAll {
-		//	shellCmd, shellEnv, err = postgres.RestoreAllCmd(src, restoreVerbose)
-		//	break
-		//}
 		shellCmd, shellEnv, err = postgres.RestoreCmd(src, params)
 	default:
 		err = errz.Errorf("not supported for %s", src.Type)
@@ -107,21 +110,8 @@ func execDBRestore(cmd *cobra.Command, args []string) error {
 		return errz.Wrapf(err, "db restore: %s", src.Handle)
 	}
 
-	if cmdFlagBool(cmd, flag.RestoreCmd) {
-		for i := range shellCmd {
-			shellCmd[i] = stringz.ShellEscape(shellCmd[i])
-		}
-		for i := range shellEnv {
-			shellEnv[i] = stringz.ShellEscape(shellEnv[i])
-		}
-
-		if len(shellEnv) == 0 {
-			fmt.Fprintln(ru.Out, strings.Join(shellCmd, " "))
-		} else {
-			fmt.Fprintln(ru.Out, strings.Join(shellEnv, " ")+" "+strings.Join(shellCmd, " "))
-		}
-
-		return nil
+	if cmdFlagBool(cmd, flag.DumpCmd) {
+		return printToolCmd(ru, shellCmd, shellEnv)
 	}
 
 	switch src.Type { //nolint:exhaustive
@@ -130,49 +120,4 @@ func execDBRestore(cmd *cobra.Command, args []string) error {
 	default:
 		return errz.Errorf("db restore: %s: cmd execution not supported for %s", src.Handle, src.Type)
 	}
-}
-
-// shellExecPgRestore executes the pg_restore command. Arg dump is always
-// closed after this function returns.
-//
-//nolint:gocritic
-func shellExecPgRestore(ru *run.Run, src *source.Source, shellCmd, shellEnv []string) error {
-	// - https://www.postgresql.org/docs/9.6/app-pgrestore.html
-
-	c := exec.CommandContext(ru.Cmd.Context(), shellCmd[0], shellCmd[1:]...) //nolint:gosec
-	c.Env = append(c.Env, shellEnv...)
-	c.Stdin = ru.Stdin
-	c.Stdout = ru.Out
-	c.Stderr = &bytes.Buffer{}
-
-	if err := c.Run(); err != nil {
-		return newShellExecError(fmt.Sprintf("db restore: %s", src.Handle), c, err)
-	}
-	return nil
-}
-
-//nolint:gocritic
-func shellExecPgRestoreAll(ru *run.Run, src *source.Source, shellCmd, shellEnv []string) error {
-	_ = ru
-	_ = src
-	_ = shellCmd
-	_ = shellEnv
-
-	return errz.New("not implemented")
-	//c := exec.CommandContext(ru.Cmd.Context(), shellCmd[0], shellCmd[1:]...) //nolint:gosec
-	//
-	//// PATH shenanigans are required to ensure that pg_dumpall can find pg_dump.
-	//// Otherwise we see this error:
-	////
-	////  pg_dumpall: error: program "pg_dump" is needed by pg_dumpall but was not
-	////   found in the same directory as "pg_dumpall"
-	//c.Env = append(c.Env, "PATH="+filepath.Dir(c.Path))
-	//c.Env = append(c.Env, shellEnv...)
-	//
-	//c.Stdout = os.Stdout
-	//c.Stderr = &bytes.Buffer{}
-	//if err := c.Run(); err != nil {
-	//	return newShellExecError(fmt.Sprintf("db dump --all: %s", src.Handle), c, err)
-	//}
-	//return nil
 }

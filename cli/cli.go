@@ -260,8 +260,11 @@ func newCommandTree(ru *run.Run) (rootCmd *cobra.Command) {
 	addCmd(ru, tblCmd, newTblDropCmd())
 
 	dbCmd := addCmd(ru, rootCmd, newDBCmd())
-	addCmd(ru, dbCmd, newDBDumpCmd())
-	addCmd(ru, dbCmd, newDBRestoreCmd())
+	dbDumpCmd := addCmd(ru, dbCmd, newDBDumpCmd())
+	addCmd(ru, dbDumpCmd, newDBDumpCatalogCmd())
+	addCmd(ru, dbDumpCmd, newDBDumpClusterCmd())
+	dbRestoreCmd := addCmd(ru, dbCmd, newDBRestoreCmd())
+	addCmd(ru, dbRestoreCmd, newDBRestoreCatalogCmd())
 
 	addCmd(ru, rootCmd, newDiffCmd())
 

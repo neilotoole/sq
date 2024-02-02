@@ -210,8 +210,6 @@ const (
 
 	DumpCmd          = "cmd"
 	DumpCmdUsage     = "Print the db-native dump tool command, but don't execute it"
-	DumpAll          = "all"
-	DumpAllUsage     = "Dump entire database cluster"
 	DumpCatalog      = "catalog"
 	DumpCatalogUsage = "Dump the named catalog"
 	DumpNoOwner      = "no-owner"
@@ -220,6 +218,9 @@ const (
 	DumpFileShort    = "f"
 	DumpFileUsage    = "Write dump to file; if omitted, write to stdout"
 
+	ToolCmdLongFlags      = "long-flags"
+	ToolCmdLongFlagsUsage = "Print tool flags in long form"
+
 	RestoreFrom         = "from"
 	RestoreFromShort    = "f"
 	RestoreFromUsage    = "Restore from dump file; if omitted, read from stdin"
@@ -227,8 +228,6 @@ const (
 	RestoreCmdUsage     = "Print the db-native restore tool command, but don't execute it"
 	RestoreNoOwner      = "no-owner"
 	RestoreNoOwnerUsage = "Don't use ownership or ACL from dump"
-	// RestoreCmdAll        = "all" // FIXME: delete
-	// RestoreCmdAllUsage   = "Restore entire database cluster"
 )
 
 // OutputFormatFlags is the set of flags that control output format.

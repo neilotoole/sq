@@ -2,8 +2,15 @@ package cli
 
 import (
 	"bytes"
+	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
+
+	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/source"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
@@ -65,4 +72,97 @@ func newShellExecError(msg string, cmd *exec.Cmd, execErr error) *shellExecError
 	}
 
 	return e
+}
+
+func shellExecPgDump(ru *run.Run, src *source.Source, shellCmd, shellEnv []string) error {
+	c := exec.CommandContext(ru.Cmd.Context(), shellCmd[0], shellCmd[1:]...) //nolint:gosec
+	c.Env = append(c.Env, shellEnv...)
+
+	// FIXME: switch to ru.Out?
+	c.Stdout = os.Stdout
+	c.Stderr = &bytes.Buffer{}
+
+	if err := c.Run(); err != nil {
+		return newShellExecError(fmt.Sprintf("db dump: %s", src.Handle), c, err)
+	}
+	return nil
+}
+
+func shellExecPgDumpCluster(ru *run.Run, src *source.Source, shellCmd, shellEnv []string) error {
+	c := exec.CommandContext(ru.Cmd.Context(), shellCmd[0], shellCmd[1:]...) //nolint:gosec
+
+	// PATH shenanigans are required to ensure that pg_dumpall can find pg_dump.
+	// Otherwise we see this error:
+	//
+	//  pg_dumpall: error: program "pg_dump" is needed by pg_dumpall but was not
+	//   found in the same directory as "pg_dumpall"
+	c.Env = append(c.Env, "PATH="+filepath.Dir(c.Path))
+	c.Env = append(c.Env, shellEnv...)
+
+	c.Stdout = os.Stdout
+	c.Stderr = &bytes.Buffer{}
+	if err := c.Run(); err != nil {
+		return newShellExecError(fmt.Sprintf("db dump --all: %s", src.Handle), c, err)
+	}
+	return nil
+}
+
+// shellExecPgRestore executes the pg_restore command. Arg dump is always
+// closed after this function returns.
+func shellExecPgRestore(ru *run.Run, src *source.Source, shellCmd, shellEnv []string) error {
+	// - https://www.postgresql.org/docs/9.6/app-pgrestore.html
+
+	c := exec.CommandContext(ru.Cmd.Context(), shellCmd[0], shellCmd[1:]...) //nolint:gosec
+	c.Env = append(c.Env, shellEnv...)
+	c.Stdin = ru.Stdin
+	c.Stdout = ru.Out
+	c.Stderr = &bytes.Buffer{}
+
+	if err := c.Run(); err != nil {
+		return newShellExecError(fmt.Sprintf("db restore: %s", src.Handle), c, err)
+	}
+	return nil
+}
+
+//nolint:gocritic
+func shellExecPgRestoreAll(ru *run.Run, src *source.Source, shellCmd, shellEnv []string) error { //nolint:unused
+	_ = ru
+	_ = src
+	_ = shellCmd
+	_ = shellEnv
+
+	return errz.New("not implemented")
+	//c := exec.CommandContext(ru.Cmd.Context(), shellCmd[0], shellCmd[1:]...) //nolint:gosec
+	//
+	//// PATH shenanigans are required to ensure that pg_dumpall can find pg_dump.
+	//// Otherwise we see this error:
+	////
+	////  pg_dumpall: error: program "pg_dump" is needed by pg_dumpall but was not
+	////   found in the same directory as "pg_dumpall"
+	//c.Env = append(c.Env, "PATH="+filepath.Dir(c.Path))
+	//c.Env = append(c.Env, shellEnv...)
+	//
+	//c.Stdout = os.Stdout
+	//c.Stderr = &bytes.Buffer{}
+	//if err := c.Run(); err != nil {
+	//	return newShellExecError(fmt.Sprintf("db dump --all: %s", src.Handle), c, err)
+	//}
+	//return nil
+}
+
+func printToolCmd(ru *run.Run, shellCmd, shellEnv []string) error {
+	for i := range shellCmd {
+		shellCmd[i] = stringz.ShellEscape(shellCmd[i])
+	}
+	for i := range shellEnv {
+		shellEnv[i] = stringz.ShellEscape(shellEnv[i])
+	}
+
+	if len(shellEnv) == 0 {
+		fmt.Fprintln(ru.Out, strings.Join(shellCmd, " "))
+	} else {
+		fmt.Fprintln(ru.Out, strings.Join(shellEnv, " ")+" "+strings.Join(shellCmd, " "))
+	}
+
+	return nil
 }

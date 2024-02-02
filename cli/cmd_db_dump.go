@@ -1,14 +1,7 @@
 package cli
 
 import (
-	"bytes"
-	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
-
-	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
@@ -21,46 +14,52 @@ import (
 
 func newDBDumpCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               "dump @src [--cmd] [--all] [-v]",
-		Short:             "Dump db",
-		Long:              `Dump db the database-native dump tool`,
-		ValidArgsFunction: completeHandle(1, true),
-		Args:              cobra.MaximumNArgs(1),
-		RunE:              execDBDump,
-		Example: `  # Dump @sakila_pg using pg_dump, in verbose mode
-	$ sq db dump -v @sakila_pg > sakila.dump
-
-	# Print the dump command, but don't execute it
-	$ sq db dump @sakila_pg --cmd
-
-	# Dump the entire db cluster (all catalogs)
-	$ sq db dump @sakila_pg --all
-
-	# Dump a catalog (db) other than the source's current catalog
-  $ sq db dump @sakila_pg --catalog sales > sales.dump`,
+		Use:   "dump",
+		Short: "Dump db catalog or cluster",
+		Long:  `Execute or print db-native dump command for db catalog or cluster.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
-	// TODO:
-	// - Add more examples above
+	return cmd
+}
 
-	// TODO: Add options:
-	// --format=archive,text,dir?
-	// --schema bool (if not set, dump all schemas)
-	//
+func newDBDumpCatalogCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:               "catalog @src [--cmd]",
+		Short:             "Dump db catalog",
+		Long:              `Dump db catalog using database-native dump tool.`,
+		ValidArgsFunction: completeHandle(1, true),
+		Args:              cobra.MaximumNArgs(1),
+		RunE:              execDBDumpCatalog,
+		Example: `  # Dump @sakila_pg to sakila.dump using pg_dump
+  $ sq db dump catalog @sakila_pg -f sakila.dump
+
+  # Same as above, but verbose mode, and dump via stdout
+  $ sq db dump catalog @sakila_pg -v > sakila.dump
+
+  # Dump without ownership or ACL
+  $ sq db dump catalog --no-owner @sakila_pg > sakila.dump
+
+  # Print the dump command, but don't execute it
+  $ sq db dump catalog @sakila_pg --cmd
+
+  # Dump a catalog (db) other than the source's current catalog
+  $ sq db dump catalog @sakila_pg --catalog sales > sales.dump`,
+	}
 
 	markCmdPlainStdout(cmd)
 	cmd.Flags().String(flag.DumpCatalog, "", flag.DumpCatalogUsage)
-	cmd.Flags().Bool(flag.DumpAll, false, flag.DumpAllUsage)
-	cmd.MarkFlagsMutuallyExclusive(flag.DumpAll, flag.DumpCatalog)
 	cmd.Flags().Bool(flag.DumpNoOwner, false, flag.DumpNoOwnerUsage)
-	cmd.Flags().StringP(flag.DumpFile, flag.DumpFileShort, "", flag.DumpNoOwnerUsage)
+	cmd.Flags().StringP(flag.DumpFile, flag.DumpFileShort, "", flag.DumpFileUsage)
 	cmd.Flags().Bool(flag.DumpCmd, false, flag.DumpCmdUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.DumpCatalog, completeCatalog(0)))
 
 	return cmd
 }
 
-func execDBDump(cmd *cobra.Command, args []string) error {
+func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 	ru := run.FromContext(cmd.Context())
 
 	var (
@@ -90,27 +89,33 @@ func execDBDump(cmd *cobra.Command, args []string) error {
 	}
 
 	var (
-		dumpAll     = cmdFlagBool(cmd, flag.DumpAll)
-		dumpVerbose = cmdFlagBool(cmd, flag.Verbose)
-		dumpNoOwner = cmdFlagBool(cmd, flag.DumpNoOwner)
+		dumpVerbose   = cmdFlagBool(cmd, flag.Verbose)
+		dumpNoOwner   = cmdFlagBool(cmd, flag.DumpNoOwner)
+		dumpLongFlags = cmdFlagBool(cmd, flag.ToolCmdLongFlags)
+		dumpFile      string
 	)
+
+	if cmdFlagChanged(cmd, flag.DumpFile) {
+		if dumpFile, err = cmd.Flags().GetString(flag.DumpFile); err != nil {
+			return err
+		}
+
+		if dumpFile = strings.TrimSpace(dumpFile); dumpFile == "" {
+			return errz.Errorf("db dump catalog: %s: %s is specified, but empty", src.Handle, flag.DumpFile)
+		}
+	}
 
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
 		params := &postgres.ToolParams{
 			Verbose:   dumpVerbose,
 			NoOwner:   dumpNoOwner,
-			File:      "",
-			LongFlags: false,
+			File:      dumpFile,
+			LongFlags: dumpLongFlags,
 		}
-		if dumpAll {
-			shellCmd, shellEnv, err = postgres.DumpAllCmd(src, dumpVerbose)
-			break
-		}
-
-		shellCmd, shellEnv, err = postgres.DumpCmd(src, dumpVerbose)
+		shellCmd, shellEnv, err = postgres.DumpCmd(src, params)
 	default:
-		err = errz.Errorf("not supported for %s", src.Type)
+		return errz.Errorf("db dump: %s: not supported for %s", src.Handle, src.Type)
 	}
 
 	if err != nil {
@@ -118,62 +123,113 @@ func execDBDump(cmd *cobra.Command, args []string) error {
 	}
 
 	if cmdFlagBool(cmd, flag.DumpCmd) {
-		for i := range shellCmd {
-			shellCmd[i] = stringz.ShellEscape(shellCmd[i])
-		}
-		for i := range shellEnv {
-			shellEnv[i] = stringz.ShellEscape(shellEnv[i])
-		}
-
-		if len(shellEnv) == 0 {
-			fmt.Fprintln(ru.Out, strings.Join(shellCmd, " "))
-		} else {
-			fmt.Fprintln(ru.Out, strings.Join(shellEnv, " ")+" "+strings.Join(shellCmd, " "))
-		}
-
-		return nil
+		return printToolCmd(ru, shellCmd, shellEnv)
 	}
 
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
-		if dumpAll {
-			return shellExecPgDumpAll(ru, src, shellCmd, shellEnv)
-		}
 		return shellExecPgDump(ru, src, shellCmd, shellEnv)
 	default:
 		return errz.Errorf("db dump: %s: cmd execution not supported for %s", src.Handle, src.Type)
 	}
 }
 
-func shellExecPgDump(ru *run.Run, src *source.Source, shellCmd, shellEnv []string) error {
-	c := exec.CommandContext(ru.Cmd.Context(), shellCmd[0], shellCmd[1:]...) //nolint:gosec
-	c.Env = append(c.Env, shellEnv...)
+func newDBDumpClusterCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:               "cluster @src [--cmd]",
+		Short:             "Dump entire db cluster",
+		Long:              `Dump all catalogs in src's db cluster using the db-native dump tool.`,
+		ValidArgsFunction: completeHandle(1, true),
+		Args:              cobra.MaximumNArgs(1),
+		RunE:              execDBDumpCluster,
+		Example: `  # Dump all catalogs in @sakila_pg's cluster using pg_dumpall
+  $ sq db dump cluster @sakila_pg -f all.dump
 
-	// FIXME: switch to ru.Out?
-	c.Stdout = os.Stdout
-	c.Stderr = &bytes.Buffer{}
+  # Same as above, but verbose mode and using stdout
+  $ sq db dump cluster @sakila_pg -v > all.dump
 
-	if err := c.Run(); err != nil {
-		return newShellExecError(fmt.Sprintf("db dump: %s", src.Handle), c, err)
+  # Dump without ownership or ACL
+  $ sq db dump cluster @sakila_pg --no-owner > all.dump
+
+  # Print the dump command, but don't execute it
+  $ sq db dump cluster @sakila_pg -f all.dump --cmd`,
 	}
-	return nil
+
+	markCmdPlainStdout(cmd)
+	cmd.Flags().String(flag.DumpCatalog, "", flag.DumpCatalogUsage)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.DumpCatalog, completeCatalog(0)))
+	cmd.Flags().Bool(flag.DumpNoOwner, false, flag.DumpNoOwnerUsage)
+	cmd.Flags().StringP(flag.DumpFile, flag.DumpFileShort, "", flag.DumpNoOwnerUsage)
+	cmd.Flags().Bool(flag.DumpCmd, false, flag.DumpCmdUsage)
+	cmd.Flags().Bool(flag.ToolCmdLongFlags, false, flag.ToolCmdLongFlagsUsage)
+
+	return cmd
 }
 
-func shellExecPgDumpAll(ru *run.Run, src *source.Source, shellCmd, shellEnv []string) error {
-	c := exec.CommandContext(ru.Cmd.Context(), shellCmd[0], shellCmd[1:]...) //nolint:gosec
+func execDBDumpCluster(cmd *cobra.Command, args []string) error {
+	ru := run.FromContext(cmd.Context())
 
-	// PATH shenanigans are required to ensure that pg_dumpall can find pg_dump.
-	// Otherwise we see this error:
-	//
-	//  pg_dumpall: error: program "pg_dump" is needed by pg_dumpall but was not
-	//   found in the same directory as "pg_dumpall"
-	c.Env = append(c.Env, "PATH="+filepath.Dir(c.Path))
-	c.Env = append(c.Env, shellEnv...)
+	var (
+		src      *source.Source
+		err      error
+		shellCmd []string
+		shellEnv []string
+	)
 
-	c.Stdout = os.Stdout
-	c.Stderr = &bytes.Buffer{}
-	if err := c.Run(); err != nil {
-		return newShellExecError(fmt.Sprintf("db dump --all: %s", src.Handle), c, err)
+	if len(args) == 0 {
+		if src = ru.Config.Collection.Active(); src == nil {
+			return errz.New(msgNoActiveSrc)
+		}
+	} else if src, err = ru.Config.Collection.Get(args[0]); err != nil {
+		return err
 	}
-	return nil
+
+	if err = applySourceOptions(cmd, src); err != nil {
+		return err
+	}
+
+	var (
+		dumpVerbose   = cmdFlagBool(cmd, flag.Verbose)
+		dumpNoOwner   = cmdFlagBool(cmd, flag.DumpNoOwner)
+		dumpLongFlags = cmdFlagBool(cmd, flag.ToolCmdLongFlags)
+		dumpFile      string
+	)
+
+	if cmdFlagChanged(cmd, flag.DumpFile) {
+		if dumpFile, err = cmd.Flags().GetString(flag.DumpFile); err != nil {
+			return err
+		}
+
+		if dumpFile = strings.TrimSpace(dumpFile); dumpFile == "" {
+			return errz.Errorf("db dump cluster: %s: %s is specified, but empty", src.Handle, flag.DumpFile)
+		}
+	}
+
+	switch src.Type { //nolint:exhaustive
+	case drivertype.Pg:
+		params := &postgres.ToolParams{
+			Verbose:   dumpVerbose,
+			NoOwner:   dumpNoOwner,
+			File:      dumpFile,
+			LongFlags: dumpLongFlags,
+		}
+		shellCmd, shellEnv, err = postgres.DumpAllCmd(src, params)
+	default:
+		err = errz.Errorf("db dump cluster: %s: not supported for %s", src.Handle, src.Type)
+	}
+
+	if err != nil {
+		return errz.Wrapf(err, "db dump cluster: %s", src.Handle)
+	}
+
+	if cmdFlagBool(cmd, flag.DumpCmd) {
+		return printToolCmd(ru, shellCmd, shellEnv)
+	}
+
+	switch src.Type { //nolint:exhaustive
+	case drivertype.Pg:
+		return shellExecPgDumpCluster(ru, src, shellCmd, shellEnv)
+	default:
+		return errz.Errorf("db dump: %s: cmd execution not supported for %s", src.Handle, src.Type)
+	}
 }
