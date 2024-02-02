@@ -219,7 +219,7 @@ const (
 	PrintToolCmd          = "cmd"
 	PrintToolCmdUsage     = "Print the db-native tool command, but don't execute it"
 	PrintLongToolCmd      = "cmd-long"
-	PrintLongToolCmdUsage = "Print the db-native tool command in long form, but don't execute it"
+	PrintLongToolCmdUsage = "Print the long-form db-native tool command, but don't execute it"
 
 	RestoreFrom         = "from"
 	RestoreFromShort    = "f"

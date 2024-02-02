@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -91,6 +92,7 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 	}
 
 	var (
+		errPrefix     = fmt.Sprintf("db dump catalog: %s", src.Handle)
 		dumpVerbose   = cmdFlagBool(cmd, flag.Verbose)
 		dumpNoOwner   = cmdFlagBool(cmd, flag.DumpNoOwner)
 		dumpLongFlags = cmdFlagBool(cmd, flag.PrintLongToolCmd)
@@ -103,7 +105,7 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 		}
 
 		if dumpFile = strings.TrimSpace(dumpFile); dumpFile == "" {
-			return errz.Errorf("db dump catalog: %s: %s is specified, but empty", src.Handle, flag.DumpFile)
+			return errz.Errorf("%s: %s is specified, but empty", errPrefix, flag.DumpFile)
 		}
 	}
 
@@ -117,11 +119,11 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 		}
 		shellCmd, shellEnv, err = postgres.DumpCatalogCmd(src, params)
 	default:
-		return errz.Errorf("db dump: %s: not supported for %s", src.Handle, src.Type)
+		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
 	}
 
 	if err != nil {
-		return errz.Wrapf(err, "db dump: %s", src.Handle)
+		return errz.Wrap(err, errPrefix)
 	}
 
 	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
@@ -130,9 +132,10 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
-		return shellExecPgDump(ru, src, shellCmd, shellEnv)
+		return shellExecOut(ru, errPrefix, shellCmd, shellEnv, false, dumpFile)
+		// return shellExecPgDump(ru, src, shellCmd, shellEnv)
 	default:
-		return errz.Errorf("db dump: %s: not supported for %s", src.Handle, src.Type)
+		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
 	}
 }
 
@@ -159,7 +162,7 @@ func newDBDumpClusterCmd() *cobra.Command {
 
 	markCmdPlainStdout(cmd)
 	cmd.Flags().Bool(flag.DumpNoOwner, false, flag.DumpNoOwnerUsage)
-	cmd.Flags().StringP(flag.DumpFile, flag.DumpFileShort, "", flag.DumpNoOwnerUsage)
+	cmd.Flags().StringP(flag.DumpFile, flag.DumpFileShort, "", flag.DumpFileUsage)
 	cmd.Flags().Bool(flag.PrintToolCmd, false, flag.PrintToolCmdUsage)
 	cmd.Flags().Bool(flag.PrintLongToolCmd, false, flag.PrintLongToolCmdUsage)
 	cmd.MarkFlagsMutuallyExclusive(flag.PrintToolCmd, flag.PrintLongToolCmd)
@@ -190,6 +193,7 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 	}
 
 	var (
+		errPrefix     = fmt.Sprintf("db dump cluster: %s", src.Handle)
 		dumpVerbose   = cmdFlagBool(cmd, flag.Verbose)
 		dumpNoOwner   = cmdFlagBool(cmd, flag.DumpNoOwner)
 		dumpLongFlags = cmdFlagBool(cmd, flag.PrintLongToolCmd)
@@ -202,7 +206,7 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 		}
 
 		if dumpFile = strings.TrimSpace(dumpFile); dumpFile == "" {
-			return errz.Errorf("db dump cluster: %s: %s is specified, but empty", src.Handle, flag.DumpFile)
+			return errz.Errorf("%s: %s is specified, but empty", errPrefix, flag.DumpFile)
 		}
 	}
 
@@ -216,11 +220,11 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 		}
 		shellCmd, shellEnv, err = postgres.DumpClusterCmd(src, params)
 	default:
-		err = errz.Errorf("db dump cluster: %s: not supported for %s", src.Handle, src.Type)
+		err = errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
 	}
 
 	if err != nil {
-		return errz.Wrapf(err, "db dump cluster: %s", src.Handle)
+		return errz.Wrap(err, errPrefix)
 	}
 
 	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
@@ -229,7 +233,15 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
-		return shellExecPgDumpCluster(ru, src, shellCmd, shellEnv)
+		// return shellExecPgDumpCluster(ru, src, shellCmd, shellEnv)
+		return shellExecOut(
+			ru,
+			errPrefix,
+			shellCmd,
+			shellEnv,
+			true,
+			dumpFile,
+		)
 	default:
 		return errz.Errorf("db dump cluster: %s: not supported for %s", src.Handle, src.Type)
 	}

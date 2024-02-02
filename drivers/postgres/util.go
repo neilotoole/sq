@@ -62,16 +62,11 @@ func DumpCatalogCmd(src *source.Source, p *ToolParams) (cmd, env []string, err e
 		return nil, env, err
 	}
 
-	flags := flagsShort
-	if p.LongFlags {
-		flags = flagsLong
-	}
-
 	cmd = []string{"pg_dump"}
 	if p.Verbose {
-		cmd = append(cmd, flags[flagVerbose])
+		cmd = append(cmd, p.flag(flagVerbose))
 	}
-	cmd = append(cmd, flags[flagFormatCustomArchive])
+	cmd = append(cmd, p.flag(flagFormatCustomArchive))
 	if p.NoOwner {
 		// You might expect we'd add --no-owner, but if we're outputting a custom
 		// archive (-Fc), then --no-owner is the default. From the pg_dump docs:
@@ -81,17 +76,17 @@ func DumpCatalogCmd(src *source.Source, p *ToolParams) (cmd, env []string, err e
 		//
 		// If we ultimately allow non-archive formats, then we'll need to add
 		// special handling for --no-owner.
-		cmd = append(cmd, flags[flagNoACL])
+		cmd = append(cmd, p.flag(flagNoACL))
 	}
-
-	cmd = append(cmd, flags[flagDBName], cfg.ConnString())
+	cmd = append(cmd, p.flag(flagDBName), cfg.ConnString())
+	if p.File != "" {
+		cmd = append(cmd, p.flag(flagFile), p.File)
+	}
 	return cmd, env, nil
 }
 
 // DumpClusterCmd returns the shell command components to execute pg_dump for src.
 // Example output (components concatenated with space):
-//
-//	pg_dump -Fc --no-acl -d 'postgres://alice:vNgR6R@db.acme.com:5432/sales?connect_timeout=10'
 //
 // Note that the returned cmd components may need to be shell-escaped if they're
 // to be executed in the terminal or via a shell script.
@@ -126,7 +121,18 @@ func DumpClusterCmd(src *source.Source, p *ToolParams) (cmd, env []string, err e
 		flags[flagDBName], cfg.ConnString(),
 	)
 
+	if p.File != "" {
+		cmd = append(cmd, flags[flagFile], p.File)
+	}
+
 	return cmd, env, nil
+}
+
+func (p *ToolParams) flag(name string) string {
+	if p.LongFlags {
+		return flagsLong[name]
+	}
+	return flagsShort[name]
 }
 
 // RestoreCatalogCmd returns the shell command components to execute pg_restore for src.
@@ -140,11 +146,6 @@ func RestoreCatalogCmd(src *source.Source, p *ToolParams) (cmd, env []string, er
 	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
 	// - https://gist.github.com/vielhuber/96eefdb3aff327bdf8230d753aaee1e1
 
-	flags := flagsShort
-	if p.LongFlags {
-		flags = flagsLong
-	}
-
 	cfg, err := getPoolConfig(src, true)
 	if err != nil {
 		return nil, env, err
@@ -152,23 +153,24 @@ func RestoreCatalogCmd(src *source.Source, p *ToolParams) (cmd, env []string, er
 
 	cmd = []string{"pg_restore"}
 	if p.Verbose {
-		cmd = append(cmd, flags[flagVerbose])
+		cmd = append(cmd, p.flag(flagVerbose))
 	}
 	if p.NoOwner {
 		// NoOwner sets both --no-owner and --no-acl. Maybe these should
 		// be separate options.
-		cmd = append(cmd, flags[flagNoACL], flags[flagNoOwner]) // -O is --no-owner
+		cmd = append(cmd, p.flag(flagNoACL), p.flag(flagNoOwner)) // -O is --no-owner
 	}
 
 	cmd = append(cmd,
-		flags[flagClean],    // -c is --clean, meaning clean/drop db objects before restore
-		flags[flagIfExists], // ignore errors if objects don't exist, e.g. when dropping
-		flags[flagCreate],   // -C is --create
-		flags[flagDBName],
-		cfg.ConnString())
+		p.flag(flagClean),
+		p.flag(flagIfExists),
+		p.flag(flagCreate),
+		p.flag(flagDBName),
+		cfg.ConnString(),
+	)
 
 	if p.File != "" {
-		cmd = append(cmd, p.File)
+		cmd = append(cmd, p.flag(flagFile), p.File)
 	}
 
 	return cmd, env, nil
@@ -291,6 +293,7 @@ const (
 	flagIfExists            = "--if-exists"
 	flagClean               = "--clean"
 	flagNoPassword          = "--no-password"
+	flagFile                = "--file"
 )
 
 var flagsLong = map[string]string{
@@ -304,6 +307,7 @@ var flagsLong = map[string]string{
 	flagClean:               flagClean,
 	flagNoPassword:          flagNoPassword,
 	flagDatabase:            flagDatabase,
+	flagFile:                flagFile,
 }
 
 var flagsShort = map[string]string{
@@ -317,4 +321,5 @@ var flagsShort = map[string]string{
 	flagIfExists:            "--if-exists",
 	flagNoPassword:          "-w",
 	flagDatabase:            "-l",
+	flagFile:                "-f",
 }

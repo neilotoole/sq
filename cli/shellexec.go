@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
@@ -74,35 +77,54 @@ func newShellExecError(msg string, cmd *exec.Cmd, execErr error) *shellExecError
 	return e
 }
 
-func shellExecPgDump(ru *run.Run, src *source.Source, shellCmd, shellEnv []string) error {
-	c := exec.CommandContext(ru.Cmd.Context(), shellCmd[0], shellCmd[1:]...) //nolint:gosec
-	c.Env = append(c.Env, shellEnv...)
+// shellExecOut executes shellCmd with the environment specified in shellEnv.
+// The first element of shellCmd is the command name; the remaining elements
+// are passed as args to the command. If cmdDirPath is true, the command's PATH
+// will include the directory of the command. This allows the command to access
+// sibling commands in the same dir, e.g. "pg_dumpall" needs to invoke "pg_dump".
+// If outfile is empty, stdout is used; if non-empty, the command's output is
+// written to outfile.
+//
+// TODO: Move shellExec stuff to its own package.
+func shellExecOut(ru *run.Run, errMsg string, shellCmd, shellEnv []string,
+	cmdDirPath bool, outfile string,
+) (err error) {
+	ctx := ru.Cmd.Context()
+	var f *os.File
 
-	// FIXME: switch to ru.Out?
-	c.Stdout = os.Stdout
-	c.Stderr = &bytes.Buffer{}
-
-	if err := c.Run(); err != nil {
-		return newShellExecError(fmt.Sprintf("db dump: %s", src.Handle), c, err)
+	c := exec.CommandContext(ctx, shellCmd[0], shellCmd[1:]...) //nolint:gosec
+	if cmdDirPath {
+		c.Env = append(c.Env, "PATH="+filepath.Dir(c.Path))
 	}
-	return nil
-}
-
-func shellExecPgDumpCluster(ru *run.Run, src *source.Source, shellCmd, shellEnv []string) error {
-	c := exec.CommandContext(ru.Cmd.Context(), shellCmd[0], shellCmd[1:]...) //nolint:gosec
-
-	// PATH shenanigans are required to ensure that pg_dumpall can find pg_dump.
-	// Otherwise we see this error:
-	//
-	//  pg_dumpall: error: program "pg_dump" is needed by pg_dumpall but was not
-	//   found in the same directory as "pg_dumpall"
-	c.Env = append(c.Env, "PATH="+filepath.Dir(c.Path))
 	c.Env = append(c.Env, shellEnv...)
 
+	defer func() {
+		log := lg.FromContext(ctx)
+		if err != nil && f != nil {
+			lg.WarnIfCloseError(log, lgm.CloseOutputFile, f)
+			lg.WarnIfError(log, lgm.RemoveFile, os.Remove(outfile))
+			return
+		}
+
+		// err is nil
+		if f != nil {
+			if err = errz.Err(f.Close()); err != nil {
+				lg.WarnIfError(log, lgm.RemoveFile, os.Remove(outfile))
+			}
+		}
+	}()
+
 	c.Stdout = os.Stdout
+	if outfile != "" {
+		if f, err = os.Create(outfile); err != nil {
+			return err
+		}
+		c.Stdout = f
+	}
+
 	c.Stderr = &bytes.Buffer{}
-	if err := c.Run(); err != nil {
-		return newShellExecError(fmt.Sprintf("db dump --all: %s", src.Handle), c, err)
+	if err = c.Run(); err != nil {
+		return newShellExecError(errMsg, c, err)
 	}
 	return nil
 }

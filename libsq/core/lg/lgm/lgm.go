@@ -11,6 +11,7 @@ const (
 	CloseHTTPResponseBody = "Close HTTP response body"
 	CloseFileReader       = "Close file reader"
 	CloseFileWriter       = "Close file writer"
+	CloseOutputFile       = "Close output file"
 	CtxDone               = "Context unexpectedly done"
 	OpenSrc               = "Open source"
 	ReadDBRows            = "Read DB rows"
