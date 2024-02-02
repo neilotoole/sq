@@ -2,10 +2,6 @@ package postgres
 
 import (
 	"context"
-	"strconv"
-	"strings"
-
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/retry"
@@ -14,6 +10,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/xo/dburl"
+	"strconv"
 )
 
 // REVISIT: DumpCmd and DumpAllCmd could be methods on driver.SQLDriver.
@@ -23,6 +20,24 @@ import (
 //
 //  DumpCmd(src *source.Source, all bool) (cmd []string, err error).
 
+// ToolParams are parameters for DumpCmd and RestoreCmd.
+// See: https://www.postgresql.org/docs/current/app-pgrestore.html.
+type ToolParams struct {
+	// Verbose indicates verbose output (progress).
+	Verbose bool
+
+	// NoOwner won't output commands to set ownership of objects; the source's
+	// connection user will own all objects. This also sets the --no-acl flag.
+	// Maybe NoOwner should be named "no security" or similar?
+	NoOwner bool
+
+	// File is the path to the dump file to restore from. If empty, stdin is used.
+	File string
+
+	// LongFlags indicates whether to use long flags, e.g. --no-owner instead of -O.
+	LongFlags bool
+}
+
 // DumpCmd returns the shell command components to execute pg_dump for src.
 // Example output (components concatenated with space):
 //
@@ -30,7 +45,7 @@ import (
 //
 // Note that the returned cmd components may need to be shell-escaped if they're
 // to be executed in the terminal or via a shell script.
-func DumpCmd(src *source.Source, verbose bool) (cmd, env []string, err error) {
+func DumpCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error) {
 	// - https://www.postgresql.org/docs/9.6/app-pgdump.html
 	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
 	// - https://gist.github.com/vielhuber/96eefdb3aff327bdf8230d753aaee1e1
@@ -40,25 +55,29 @@ func DumpCmd(src *source.Source, verbose bool) (cmd, env []string, err error) {
 		return nil, env, err
 	}
 
-	// You might expect we'd add --no-owner, but if we're outputting a custom
-	// archive (-Fc), then --no-owner is the default. From the pg_dump docs:
-	//
-	//  This option is ignored when emitting an archive (non-text) output file.
-	//  For the archive formats, you can specify the option when you call pg_restore.
-	//
-	// If we ultimately allow non-archive formats, then we'll need to add
-	// special handling for --no-owner, e.g. making it an optional flag.
-	//
-	// Note that -d is "--db-name", which takes the connection string.
-	cmd = []string{"pg_dump"}
-	if verbose {
-		cmd = append(cmd, "-v")
+	flags := flagsShort
+	if p.LongFlags {
+		flags = flagsLong
 	}
-	cmd = append(cmd,
-		"-Fc",
-		"--no-acl",
-		"-d",
-		cfg.ConnString())
+
+	cmd = []string{"pg_dump"}
+	if p.Verbose {
+		cmd = append(cmd, flags[flagVerbose])
+	}
+	cmd = append(cmd, flags[flagFormatCustomArchive])
+	if p.NoOwner {
+		// You might expect we'd add --no-owner, but if we're outputting a custom
+		// archive (-Fc), then --no-owner is the default. From the pg_dump docs:
+		//
+		//  This option is ignored when emitting an archive (non-text) output file.
+		//  For the archive formats, you can specify the option when you call pg_restore.
+		//
+		// If we ultimately allow non-archive formats, then we'll need to add
+		// special handling for --no-owner.
+		cmd = append(cmd, flags[flagNoACL])
+	}
+
+	cmd = append(cmd, flags[flagDBName], cfg.ConnString())
 	return cmd, env, nil
 }
 
@@ -98,15 +117,18 @@ func DumpAllCmd(src *source.Source, verbose bool) (cmd, env []string, err error)
 // RestoreCmd returns the shell command components to execute pg_restore for src.
 // Example output (components concatenated with space):
 //
-//	pg_dump -Fc --no-acl -d 'postgres://alice:vNgR6R@db.acme.com:5432/sales?connect_timeout=10'
-//
 // Note that the returned cmd components may need to be shell-escaped if they're
 // to be executed in the terminal or via a shell script.
-func RestoreCmd(src *source.Source, verbose bool) (cmd, env []string, err error) {
+func RestoreCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error) {
 	// - https://www.postgresql.org/docs/9.6/app-pgrestore.html
 	// - https://www.postgresql.org/docs/9.6/app-pgdump.html
 	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
 	// - https://gist.github.com/vielhuber/96eefdb3aff327bdf8230d753aaee1e1
+
+	flags := flagsShort
+	if p.LongFlags {
+		flags = flagsLong
+	}
 
 	cfg, err := getPoolConfig(src, true)
 	if err != nil {
@@ -114,16 +136,26 @@ func RestoreCmd(src *source.Source, verbose bool) (cmd, env []string, err error)
 	}
 
 	cmd = []string{"pg_restore"}
-	if verbose {
-		cmd = append(cmd, "-v")
+	if p.Verbose {
+		cmd = append(cmd, flags[flagVerbose])
 	}
+	if p.NoOwner {
+		// NoOwner sets both --no-owner and --no-acl. Maybe these should
+		// be separate options.
+		cmd = append(cmd, flags[flagNoACL], flags[flagNoOwner]) // -O is --no-owner
+	}
+
 	cmd = append(cmd,
-		"--no-acl",
-		"-c", // -c is --clean, meaning clean/drop db objects before restore
-		"-C", // -C is --create
-		"-O", // -O is --no-owner
-		"-d", // -d is --dbname (conn string)
+		flags[flagClean],    // -c is --clean, meaning clean/drop db objects before restore
+		flags[flagIfExists], // ignore errors if objects don't exist, e.g. when dropping
+		flags[flagCreate],   // -C is --create
+		flags[flagDBName],
 		cfg.ConnString())
+
+	if p.File != "" {
+		cmd = append(cmd, p.File)
+	}
+
 	return cmd, env, nil
 }
 
@@ -134,6 +166,8 @@ func RestoreCmd(src *source.Source, verbose bool) (cmd, env []string, err error)
 //
 // Note that the returned cmd components may need to be shell-escaped if they're
 // to be executed in the terminal or via a shell script.
+//
+// FIXME: maybe delete this?
 func RestoreAllCmd(src *source.Source, verbose bool) (cmd, env []string, err error) {
 	// - https://www.postgresql.org/docs/9.6/app-pgrestore.html
 	// - https://www.postgresql.org/docs/9.6/app-pgdump.html
@@ -157,18 +191,6 @@ func RestoreAllCmd(src *source.Source, verbose bool) (cmd, env []string, err err
 		"-d", // -d is --dbname (conn string)
 		cfg.ConnString())
 	return cmd, env, nil
-}
-
-// getConnConfig builds the native postgres config from src.
-//
-// Deprecated: use getPoolConfig instead.
-func getConnConfig(src *source.Source) (*pgconn.Config, error) { //nolint:unused
-	poolCfg, err := getPoolConfig(src, false)
-	if err != nil {
-		return nil, err
-	}
-
-	return &poolCfg.ConnConfig.Config, nil
 }
 
 // getPoolConfig returns the native postgres [*pgxpool.Config] for src, applying
@@ -242,39 +264,39 @@ func tblfmt[T string | tablefq.T](tbl T) string {
 	return tfq.Render(stringz.DoubleQuote)
 }
 
-//nolint:unused
-func buildDumpParts(src *source.Source) (envars, flags string, cfg *pgconn.Config, err error) {
-	if cfg, err = getConnConfig(src); err != nil {
-		return "", "", nil, err
-	}
+// flags for pg_dump and pg_restore programs.
+const (
+	flagNoOwner             = "--no-owner"
+	flagVerbose             = "--verbose"
+	flagNoACL               = "--no-acl"
+	flagCreate              = "--create"
+	flagDBName              = "--dbname"
+	flagFormatCustomArchive = "--format=custom"
+	flagIfExists            = "--if-exists"
+	flagClean               = "--clean"
+	flagNoPassword          = "--no-password"
+)
 
-	if cfg.Password == "" {
-		envars = "PGPASSWORD=''"
-	} else {
-		envars = "PGPASSWORD=" + stringz.ShellEscape(cfg.Password)
-	}
+var flagsLong = map[string]string{
+	flagNoOwner:             flagNoOwner,
+	flagVerbose:             flagVerbose,
+	flagNoACL:               flagNoACL,
+	flagCreate:              flagCreate,
+	flagDBName:              flagDBName,
+	flagIfExists:            flagIfExists,
+	flagFormatCustomArchive: flagFormatCustomArchive,
+	flagClean:               flagClean,
+	flagNoPassword:          flagNoPassword,
+}
 
-	timeout := driver.OptConnOpenTimeout.Get(src.Options)
-	if timeout > 0 {
-		envars += " PGCONNECT_TIMEOUT=" + strconv.Itoa(int(timeout.Seconds()))
-	}
-
-	if cfg.Port != 0 && cfg.Port != 5432 {
-		//  Don't include the port if we don't need to.
-		flags += " -p " + strconv.Itoa(int(cfg.Port))
-	}
-
-	if cfg.User != "" {
-		flags += " -U " + stringz.ShellEscape(cfg.User)
-	}
-
-	if cfg.Host != "" {
-		flags += " -h " + cfg.Host
-	}
-
-	if cfg.Database != "" {
-		flags += " " + cfg.Database
-	}
-
-	return strings.TrimSpace(envars), strings.TrimSpace(flags), cfg, nil
+var flagsShort = map[string]string{
+	flagNoOwner:             "-O",
+	flagVerbose:             "-v",
+	flagNoACL:               "-x",
+	flagCreate:              "-C",
+	flagClean:               "-c",
+	flagDBName:              "-d",
+	flagFormatCustomArchive: "-Fc",
+	flagIfExists:            "--if-exists",
+	flagNoPassword:          "-w",
 }

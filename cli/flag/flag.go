@@ -215,10 +215,15 @@ const (
 	DumpCatalog      = "catalog"
 	DumpCatalogUsage = "Dump the named catalog"
 
-	RestoreCmd         = "cmd"
-	RestoreCmdUsage    = "Print the db-native restore tool command, but don't execute it"
-	RestoreCmdAll      = "all"
-	RestoreCmdAllUsage = "Restore entire database cluster"
+	RestoreFrom         = "from"
+	RestoreFromShort    = "f"
+	RestoreFromUsage    = "Restore from dump file; if omitted, read from stdin"
+	RestoreCmd          = "cmd"
+	RestoreCmdUsage     = "Print the db-native restore tool command, but don't execute it"
+	RestoreNoOwner      = "no-owner"
+	RestoreNoOwnerUsage = "Don't use ownership or ACL from dump"
+	// RestoreCmdAll        = "all" // FIXME: delete
+	// RestoreCmdAllUsage   = "Restore entire database cluster"
 )
 
 // OutputFormatFlags is the set of flags that control output format.
