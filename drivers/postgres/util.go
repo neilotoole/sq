@@ -30,7 +30,7 @@ import (
 //
 // Note that the returned cmd components may need to be shell-escaped if they're
 // to be executed in the terminal or via a shell script.
-func DumpCmd(src *source.Source) (cmd, env []string, err error) {
+func DumpCmd(src *source.Source, verbose bool) (cmd, env []string, err error) {
 	// - https://www.postgresql.org/docs/9.6/app-pgdump.html
 	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
 	// - https://gist.github.com/vielhuber/96eefdb3aff327bdf8230d753aaee1e1
@@ -50,13 +50,15 @@ func DumpCmd(src *source.Source) (cmd, env []string, err error) {
 	// special handling for --no-owner, e.g. making it an optional flag.
 	//
 	// Note that -d is "--db-name", which takes the connection string.
-	cmd = []string{
-		"pg_dump",
+	cmd = []string{"pg_dump"}
+	if verbose {
+		cmd = append(cmd, "-v")
+	}
+	cmd = append(cmd,
 		"-Fc",
 		"--no-acl",
 		"-d",
-		cfg.ConnString(),
-	}
+		cfg.ConnString())
 	return cmd, env, nil
 }
 
@@ -67,7 +69,7 @@ func DumpCmd(src *source.Source) (cmd, env []string, err error) {
 //
 // Note that the returned cmd components may need to be shell-escaped if they're
 // to be executed in the terminal or via a shell script.
-func DumpAllCmd(src *source.Source) (cmd, env []string, err error) {
+func DumpAllCmd(src *source.Source, verbose bool) (cmd, env []string, err error) {
 	// - https://www.postgresql.org/docs/9.6/app-pg-dumpall.html
 	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
 
@@ -77,13 +79,83 @@ func DumpAllCmd(src *source.Source) (cmd, env []string, err error) {
 	}
 
 	env = []string{"PGPASSWORD=" + cfg.ConnConfig.Password}
-	cmd = []string{
-		"pg_dumpall",
-		"-w",                          // -w is --no-password
-		"-O",                          // -O is --no-owner
-		"-l", cfg.ConnConfig.Database, // -l is --database
-		"-d", cfg.ConnString(), // -d is --dbname
+	cmd = []string{"pg_dumpall"}
+	if verbose {
+		cmd = append(cmd, "-v")
 	}
+
+	cmd = append(cmd,
+		"-w", // -w is --no-password
+		"-O", // -O is --no-owner
+		"-l", // -l is --database
+		cfg.ConnConfig.Database,
+		"-d", // -d is --dbname
+		cfg.ConnString(),
+	)
+	return cmd, env, nil
+}
+
+// RestoreCmd returns the shell command components to execute pg_restore for src.
+// Example output (components concatenated with space):
+//
+//	pg_dump -Fc --no-acl -d 'postgres://alice:vNgR6R@db.acme.com:5432/sales?connect_timeout=10'
+//
+// Note that the returned cmd components may need to be shell-escaped if they're
+// to be executed in the terminal or via a shell script.
+func RestoreCmd(src *source.Source, verbose bool) (cmd, env []string, err error) {
+	// - https://www.postgresql.org/docs/9.6/app-pgrestore.html
+	// - https://www.postgresql.org/docs/9.6/app-pgdump.html
+	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
+	// - https://gist.github.com/vielhuber/96eefdb3aff327bdf8230d753aaee1e1
+
+	cfg, err := getPoolConfig(src, true)
+	if err != nil {
+		return nil, env, err
+	}
+
+	cmd = []string{"pg_restore"}
+	if verbose {
+		cmd = append(cmd, "-v")
+	}
+	cmd = append(cmd,
+		"--no-acl",
+		"-c", // -c is --clean, meaning clean/drop db objects before restore
+		"-C", // -C is --create
+		"-O", // -O is --no-owner
+		"-d", // -d is --dbname (conn string)
+		cfg.ConnString())
+	return cmd, env, nil
+}
+
+// RestoreAllCmd returns the shell command components to execute pg_restore for src.
+// Example output (components concatenated with space):
+//
+//	pg_dump -Fc --no-acl -d 'postgres://alice:vNgR6R@db.acme.com:5432/sales?connect_timeout=10'
+//
+// Note that the returned cmd components may need to be shell-escaped if they're
+// to be executed in the terminal or via a shell script.
+func RestoreAllCmd(src *source.Source, verbose bool) (cmd, env []string, err error) {
+	// - https://www.postgresql.org/docs/9.6/app-pgrestore.html
+	// - https://www.postgresql.org/docs/9.6/app-pgdump.html
+	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
+	// - https://gist.github.com/vielhuber/96eefdb3aff327bdf8230d753aaee1e1
+
+	cfg, err := getPoolConfig(src, true)
+	if err != nil {
+		return nil, env, err
+	}
+
+	cmd = []string{"pg_restore"}
+	if verbose {
+		cmd = append(cmd, "-v")
+	}
+	cmd = append(cmd,
+		"--no-acl",
+		"-c", // -c is --clean, meaning clean/drop db objects before restore
+		"-C", // -C is --create
+		"-O", // -O is --no-owner
+		"-d", // -d is --dbname (conn string)
+		cfg.ConnString())
 	return cmd, env, nil
 }
 

@@ -261,6 +261,7 @@ func newCommandTree(ru *run.Run) (rootCmd *cobra.Command) {
 
 	dbCmd := addCmd(ru, rootCmd, newDBCmd())
 	addCmd(ru, dbCmd, newDBDumpCmd())
+	addCmd(ru, dbCmd, newDBRestoreCmd())
 
 	addCmd(ru, rootCmd, newDiffCmd())
 

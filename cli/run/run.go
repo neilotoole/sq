@@ -7,6 +7,9 @@ import (
 	"io"
 	"os"
 
+	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/source"
+
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/config"
@@ -106,6 +109,21 @@ func (ru *Run) Close() error {
 	}
 
 	return errz.Wrap(ru.Cleanup.Run(), "close run")
+}
+
+// DB is a convenience method that gets the  sqlz.DB and driver.SQLDriver\
+// for src.
+func (ru *Run) DB(ctx context.Context, src *source.Source) (sqlz.DB, driver.SQLDriver, error) {
+	grip, err := ru.Grips.Open(ctx, src)
+	if err != nil {
+		return nil, nil, err
+	}
+	db, err := grip.DB(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return db, grip.SQLDriver(), nil
 }
 
 // NewQueryContext returns a *libsq.QueryContext constructed from ru.

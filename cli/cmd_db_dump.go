@@ -21,17 +21,23 @@ import (
 
 func newDBDumpCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               "dump @src [--cmd] [--all]",
-		Short:             "Dump database",
-		Long:              `Dump database using the database-native dump tool`,
+		Use:               "dump @src [--cmd] [--all] [-v]",
+		Short:             "Dump db",
+		Long:              `Dump db the database-native dump tool`,
 		ValidArgsFunction: completeHandle(1, true),
 		Args:              cobra.MaximumNArgs(1),
 		RunE:              execDBDump,
-		Example: `  # Dump using the db-native dump tool
-	$ sq db dump @sakila > sakila.dump
+		Example: `  # Dump @sakila_pg using pg_dump, in verbose mode
+	$ sq db dump -v @sakila_pg > sakila.dump
 
 	# Print the dump command, but don't execute it
-	$ sq db dump @sakila --cmd`,
+	$ sq db dump @sakila_pg --cmd
+
+	# Dump the entire db cluster (all catalogs)
+	$ sq db dump @sakila_pg --all
+
+	# Dump a catalog (db) other than the source's current catalog
+  $ sq db dump @sakila_pg --catalog sales > sales.dump`,
 	}
 
 	// TODO:
@@ -45,6 +51,8 @@ func newDBDumpCmd() *cobra.Command {
 	markCmdPlainStdout(cmd)
 	cmd.Flags().Bool(flag.DumpCmd, false, flag.DumpCmdUsage)
 	cmd.Flags().Bool(flag.DumpCmdAll, false, flag.DumpCmdAllUsage)
+	cmd.Flags().String(flag.DumpCatalog, "", flag.DumpCatalogUsage)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.DumpCatalog, completeCatalog(0)))
 
 	return cmd
 }
@@ -71,15 +79,25 @@ func execDBDump(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	dumpAll := cmdFlagBool(cmd, flag.DumpCmdAll)
+	if cmdFlagChanged(cmd, flag.DumpCatalog) {
+		// Use a different catalog than the source's current catalog.
+		if src.Catalog, err = cmd.Flags().GetString(flag.DumpCatalog); err != nil {
+			return err
+		}
+	}
+
+	var (
+		dumpAll     = cmdFlagBool(cmd, flag.DumpCmdAll)
+		dumpVerbose = cmdFlagBool(cmd, flag.Verbose)
+	)
 
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
 		if dumpAll {
-			shellCmd, shellEnv, err = postgres.DumpAllCmd(src)
+			shellCmd, shellEnv, err = postgres.DumpAllCmd(src, dumpVerbose)
 			break
 		}
-		shellCmd, shellEnv, err = postgres.DumpCmd(src)
+		shellCmd, shellEnv, err = postgres.DumpCmd(src, dumpVerbose)
 	default:
 		err = errz.Errorf("not supported for %s", src.Type)
 	}
