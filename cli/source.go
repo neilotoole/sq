@@ -138,7 +138,7 @@ func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Sou
 			return err
 		}
 		if !exists {
-			return errz.Errorf("%s: catalog {%s} not referenceable or doesn't exist", src.Handle, src.Catalog)
+			return errz.Errorf("%s: catalog {%s} doesn't exist or not referenceable", src.Handle, src.Catalog)
 		}
 	}
 
@@ -147,7 +147,7 @@ func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Sou
 			return err
 		}
 		if !exists {
-			return errz.Errorf("%s: schema {%s} not referenceable or doesn't exist", src.Handle, src.Schema)
+			return errz.Errorf("%s: schema {%s} doesn't exist or not referenceable", src.Handle, src.Schema)
 		}
 	}
 
