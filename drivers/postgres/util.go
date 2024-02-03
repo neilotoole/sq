@@ -170,7 +170,7 @@ func RestoreCatalogCmd(src *source.Source, p *ToolParams) (cmd, env []string, er
 	)
 
 	if p.File != "" {
-		cmd = append(cmd, p.flag(flagFile), p.File)
+		cmd = append(cmd, p.File)
 	}
 
 	return cmd, env, nil

@@ -58,6 +58,16 @@ type driveri struct {
 	log *slog.Logger
 }
 
+func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (bool, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (d *driveri) CatalogExists(ctx context.Context, db sqlz.DB, catalog string) (bool, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
 // ConnParams implements driver.SQLDriver.
 // See: https://github.com/go-sql-driver/mysql#dsn-data-source-name.
 func (d *driveri) ConnParams() map[string][]string {

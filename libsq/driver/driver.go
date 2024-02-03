@@ -150,6 +150,14 @@ type SQLDriver interface {
 	// DropSchema drops the named schema in db.
 	DropSchema(ctx context.Context, db sqlz.DB, schemaName string) error
 
+	// CatalogExists returns true if db can reference the named catalog. If
+	// catalog is empty string, false is returned.
+	CatalogExists(ctx context.Context, db sqlz.DB, catalog string) (bool, error)
+
+	// SchemaExists returns true if db can reference the named schema. If
+	// schma is empty string, false is returned.
+	SchemaExists(ctx context.Context, db sqlz.DB, schma string) (bool, error)
+
 	// Truncate truncates tbl in src. If arg reset is true, the
 	// identity counter for tbl should be reset, if supported
 	// by the driver. Some DB impls may reset the identity

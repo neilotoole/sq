@@ -16,7 +16,10 @@ func TestParseCatalogSchema(t *testing.T) {
 		wantErr                 bool
 	}{
 		{in: "", wantErr: true},
+		{in: ".", wantErr: true},
 		{in: "dbo", wantCatalog: "", wantSchema: "dbo"},
+		{in: "sakila.", wantCatalog: "sakila", wantSchema: ""},
+		{in: ".dbo", wantErr: true},
 		{in: "sakila.dbo", wantCatalog: "sakila", wantSchema: "dbo"},
 		{in: `"my catalog"."my schema"`, wantCatalog: "my catalog", wantSchema: "my schema"},
 		{in: `"my catalog""."my schema"`, wantErr: true},

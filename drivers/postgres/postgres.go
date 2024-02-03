@@ -401,6 +401,28 @@ ORDER BY datname`
 	return catalogs, nil
 }
 
+// SchemaExists implements driver.SQLDriver.
+func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (bool, error) {
+	if schma == "" {
+		return false, nil
+	}
+
+	const q = `SELECT COUNT(schema_name) FROM information_schema.schemata
+ WHERE schema_name = $1`
+
+	var count int
+	return count > 0, errw(db.QueryRowContext(ctx, q, schma).Scan(&count))
+}
+
+// CatalogExists implements driver.SQLDriver.
+func (d *driveri) CatalogExists(ctx context.Context, db sqlz.DB, catalog string) (bool, error) {
+	const q = `SELECT COUNT(datname) FROM pg_catalog.pg_database
+WHERE datistemplate = FALSE AND datallowconn = TRUE AND datname = $1`
+
+	var count int
+	return count > 0, errw(db.QueryRowContext(ctx, q, catalog).Scan(&count))
+}
+
 // AlterTableRename implements driver.SQLDriver.
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
 	q := fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, tbl, newName)

@@ -72,6 +72,16 @@ type driveri struct {
 	log *slog.Logger
 }
 
+func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (bool, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (d *driveri) CatalogExists(ctx context.Context, db sqlz.DB, catalog string) (bool, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
 // ConnParams implements driver.SQLDriver.
 // See: https://github.com/mattn/go-sqlite3#connection-string.
 func (d *driveri) ConnParams() map[string][]string {

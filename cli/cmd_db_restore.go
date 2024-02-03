@@ -65,7 +65,6 @@ will include DB credentials. For a Postgres source, it would look something like
 	return cmd
 }
 
-//nolint:dupl
 func execDBRestoreCatalog(cmd *cobra.Command, args []string) error {
 	ru := run.FromContext(cmd.Context())
 
@@ -119,7 +118,6 @@ func execDBRestoreCatalog(cmd *cobra.Command, args []string) error {
 
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
-		//return shellExecPgRestoreCatalog(ru, src, shellCmd, shellEnv)
 		return shellExec(ru, errPrefix, shellCmd, shellEnv, true)
 	default:
 		return errz.Errorf("%s: cmd not supported for %s", errPrefix, src.Type)
@@ -169,7 +167,6 @@ FIXME: example command
 	return cmd
 }
 
-//nolint:dupl
 func execDBRestoreCluster(cmd *cobra.Command, args []string) error {
 	ru := run.FromContext(cmd.Context())
 

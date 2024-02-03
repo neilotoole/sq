@@ -648,6 +648,138 @@ func TestSQLDriver_CurrentSchemaCatalog(t *testing.T) {
 	}
 }
 
+func TestSQLDriver_SchemaExists(t *testing.T) {
+	testCases := []struct {
+		handle string
+		schema string
+		wantOK bool
+	}{
+		//{
+		//	handle:  sakila.SL3,
+		//	catalog: "default",
+		//	schema:  "main",
+		//	wantOK:  true,
+		//},
+		{handle: sakila.Pg, schema: "public", wantOK: true},
+		{handle: sakila.Pg, schema: "information_schema", wantOK: true},
+		{handle: sakila.Pg, schema: "not_exist", wantOK: false},
+		{handle: sakila.Pg, schema: "", wantOK: false},
+		//{
+		//	handle:  sakila.My,
+		//	catalog: "def",
+		//	schema:  "sakila",
+		//	wantOK:  true,
+		//},
+		//{
+		//	handle:  sakila.MS,
+		//	catalog: "sakila",
+		//	schema:  "dbo",
+		//	wantOK:  true,
+		//},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tu.Name(tc.handle, tc.schema, tc.wantOK), func(t *testing.T) {
+			th, _, drvr, _, db := testh.NewWith(t, tc.handle)
+
+			ok, err := drvr.SchemaExists(th.Context, db, tc.schema)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantOK, ok)
+
+			//gotSchema, err := drvr.CurrentSchema(th.Context, db)
+			//require.NoError(t, err)
+			//require.Equal(t, tc.schema, gotSchema)
+			//
+			//md, err := grip.SourceMetadata(th.Context, false)
+			//require.NoError(t, err)
+			//require.NotNil(t, md)
+			//require.Equal(t, md.Schema, tc.schema)
+			//require.Equal(t, md.Catalog, tc.catalog)
+			//
+			//gotSchemas, err := drvr.ListSchemas(th.Context, db)
+			//require.NoError(t, err)
+			//require.Contains(t, gotSchemas, gotSchema)
+
+			//if drvr.Dialect().Catalog {
+			//	gotCatalog, err := drvr.CurrentCatalog(th.Context, db)
+			//	require.NoError(t, err)
+			//	require.Equal(t, tc.catalog, gotCatalog)
+			//	gotCatalogs, err := drvr.ListCatalogs(th.Context, db)
+			//	require.NoError(t, err)
+			//	require.Contains(t, gotCatalogs, gotCatalog)
+			//}
+		})
+	}
+}
+
+func TestSQLDriver_CatalogExists(t *testing.T) {
+	testCases := []struct {
+		handle  string
+		catalog string
+		wantOK  bool
+	}{
+		//{
+		//	handle:  sakila.SL3,
+		//	catalog: "default",
+		//	schema:  "main",
+		//	wantOK:  true,
+		//},
+		{handle: sakila.Pg, catalog: "sakila", wantOK: true},
+		{handle: sakila.Pg, catalog: "postgres", wantOK: true},
+		{handle: sakila.Pg, catalog: "not_exist", wantOK: false},
+		{handle: sakila.Pg, catalog: "", wantOK: false},
+		//{
+		//	handle:  sakila.My,
+		//	catalog: "def",
+		//	schema:  "sakila",
+		//	wantOK:  true,
+		//},
+		//{
+		//	handle:  sakila.MS,
+		//	catalog: "sakila",
+		//	schema:  "dbo",
+		//	wantOK:  true,
+		//},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tu.Name(tc.handle, tc.catalog, tc.wantOK), func(t *testing.T) {
+			th, _, drvr, _, db := testh.NewWith(t, tc.handle)
+
+			ok, err := drvr.CatalogExists(th.Context, db, tc.catalog)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantOK, ok)
+
+			//gotSchema, err := drvr.CurrentSchema(th.Context, db)
+			//require.NoError(t, err)
+			//require.Equal(t, tc.schema, gotSchema)
+			//
+			//md, err := grip.SourceMetadata(th.Context, false)
+			//require.NoError(t, err)
+			//require.NotNil(t, md)
+			//require.Equal(t, md.Schema, tc.schema)
+			//require.Equal(t, md.Catalog, tc.catalog)
+			//
+			//gotSchemas, err := drvr.ListSchemas(th.Context, db)
+			//require.NoError(t, err)
+			//require.Contains(t, gotSchemas, gotSchema)
+
+			//if drvr.Dialect().Catalog {
+			//	gotCatalog, err := drvr.CurrentCatalog(th.Context, db)
+			//	require.NoError(t, err)
+			//	require.Equal(t, tc.catalog, gotCatalog)
+			//	gotCatalogs, err := drvr.ListCatalogs(th.Context, db)
+			//	require.NoError(t, err)
+			//	require.Contains(t, gotCatalogs, gotCatalog)
+			//}
+		})
+	}
+}
+
 func TestDriverCreateDropSchema(t *testing.T) {
 	testCases := []struct {
 		handle        string
