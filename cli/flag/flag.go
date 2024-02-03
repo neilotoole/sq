@@ -1,12 +1,15 @@
 // Package flag holds CLI flags.
 package flag
 
+// FIXME: Need to update docs for use of src.schema to note the
+// new "catalog." mechanism.
+
 const (
 	ActiveSrc      = "src"
 	ActiveSrcUsage = "Override active source for this query"
 
 	ActiveSchema      = "src.schema"
-	ActiveSchemaUsage = "Override active schema or catalog.schema for this query"
+	ActiveSchemaUsage = "Override active schema (and/or catalog) for this query"
 
 	ConfigSrc      = "src"
 	ConfigSrcUsage = "Config for source"

@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 
+## Upcoming
+
+### Changed
+
+- The `--src.schema` flag (as used in [`sq inspect`](https://sq.io/docs/cmd/inspect),
+  [`sq sql`](https://sq.io/docs/cmd/sql), and the root [`sq`](https://sq.io/docs/cmd/sq) cmd)
+  now accepts `--src.schema=CATALOG.` (note the `.` suffix). This is in addition to the existing allowed forms `SCHEMA`
+  and `CATALOG.SCHEMA`. This new `CATALOG.` form is effectively equivalent to `CATALOG.CURRENT_SCHEMA`.
+  
+  ```shell
+  # Inspect using the default schema in the "sales" catalog
+  $ sq --src.schema=sales. inspect
+  ```
+
+- The `--src.schema` flag is now validated. Previously, if you provided a non-existing catalog or schema
+  value, `sq` would silently ignore it and use the defaults. This could mislead the user into thinking that
+  they were getting valid results from the non-existent catalog or schema. Now `sq` will return an
+  error.
+
+
 ## [v0.47.3] - 2024-02-03
 
 Minor bug fix release. See the earlier [`v0.47.0`](https://github.com/neilotoole/sq/releases/tag/v0.47.0)
