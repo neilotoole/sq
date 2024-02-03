@@ -694,13 +694,11 @@ func TestSQLDriver_CatalogExists(t *testing.T) {
 		handle  string
 		catalog string
 		wantOK  bool
+		wantErr bool
 	}{
-		//{
-		//	handle:  sakila.SL3,
-		//	catalog: "default",
-		//	schema:  "main",
-		//	wantOK:  true,
-		//},
+		{handle: sakila.SL3, catalog: "default", wantErr: true},
+		{handle: sakila.SL3, catalog: "not_exist", wantErr: true},
+		{handle: sakila.SL3, catalog: "", wantErr: true},
 		{handle: sakila.Pg, catalog: "sakila", wantOK: true},
 		{handle: sakila.Pg, catalog: "postgres", wantOK: true},
 		{handle: sakila.Pg, catalog: "not_exist", wantOK: false},
@@ -723,8 +721,12 @@ func TestSQLDriver_CatalogExists(t *testing.T) {
 			th, _, drvr, _, db := testh.NewWith(t, tc.handle)
 
 			ok, err := drvr.CatalogExists(th.Context, db, tc.catalog)
-			require.NoError(t, err)
 			require.Equal(t, tc.wantOK, ok)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
 		})
 	}
 }

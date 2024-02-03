@@ -694,15 +694,6 @@ func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (b
 	return count > 0, errw(db.QueryRowContext(ctx, q, schma).Scan(&count))
 }
 
-func (d *driveri) CatalogExists(ctx context.Context, db sqlz.DB, catalog string) (bool, error) {
-	if catalog == "" {
-		return false, nil
-	}
-
-	// TODO implement me
-	panic("implement me")
-}
-
 // ListSchemas implements driver.SQLDriver.
 func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error) {
 	log := lg.FromContext(ctx)
@@ -747,6 +738,12 @@ func (d *driveri) ListSchemaMetadata(ctx context.Context, db sqlz.DB) ([]*metada
 		}
 	}
 	return schemas, nil
+}
+
+// CatalogExists implements driver.SQLDriver. SQLite does not support catalogs,
+// so this method always returns an error.
+func (d *driveri) CatalogExists(_ context.Context, _ sqlz.DB, _ string) (bool, error) {
+	return false, errz.New("sqlite3: catalog mechanism not supported")
 }
 
 // CurrentCatalog implements driver.SQLDriver. SQLite does not support catalogs,
