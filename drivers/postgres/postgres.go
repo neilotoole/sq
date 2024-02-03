@@ -561,7 +561,7 @@ func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, 
 	}
 
 	var args []any
-	var q = "SELECT table_name FROM information_schema.tables WHERE table_schema = "
+	q := "SELECT table_name FROM information_schema.tables WHERE table_schema = "
 	if schma == "" {
 		q += "current_schema()"
 	} else {

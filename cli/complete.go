@@ -852,19 +852,12 @@ func getTableNamesForHandle(ctx context.Context, ru *run.Run, handle string) ([]
 		return nil, err
 	}
 
-	grip, err := ru.Grips.Open(ctx, src)
+	db, drvr, err := ru.DB(ctx, src)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: We shouldn't have to load the full metadata just to get
-	// the table names. driver.SQLDriver should have a method ListTables.
-	md, err := grip.SourceMetadata(ctx, false)
-	if err != nil {
-		return nil, err
-	}
-
-	return md.TableNames(), nil
+	return drvr.ListTableNames(ctx, db, src.Schema, true, true)
 }
 
 // maybeFilterHandlesByActiveGroup filters the supplied handles by

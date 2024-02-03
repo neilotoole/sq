@@ -738,7 +738,7 @@ func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, 
 
 	tblClause += " AND name NOT LIKE 'sqlite_%'"
 
-	var q = "SELECT name FROM "
+	q := "SELECT name FROM "
 	if schma == "" {
 		q += "sqlite_master"
 	} else {
