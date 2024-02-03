@@ -58,11 +58,6 @@ type driveri struct {
 	log *slog.Logger
 }
 
-func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, tables, views bool) ([]string, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
 // ConnParams implements driver.SQLDriver.
 // See: https://github.com/go-sql-driver/mysql#dsn-data-source-name.
 func (d *driveri) ConnParams() map[string][]string {
@@ -287,6 +282,43 @@ func (d *driveri) CurrentCatalog(ctx context.Context, db sqlz.DB) (string, error
 		return "", errw(err)
 	}
 	return catalog, nil
+}
+
+// ListTableNames implements driver.SQLDriver.
+func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, tables, views bool) ([]string, error) {
+	var tblClause string
+	switch {
+	case tables && views:
+		tblClause = " AND (TABLE_TYPE = 'BASE TABLE' OR TABLE_TYPE = 'VIEW')"
+	case tables:
+		tblClause = " AND TABLE_TYPE = 'BASE TABLE'"
+	case views:
+		tblClause = " AND TABLE_TYPE = 'VIEW'"
+	default:
+		return []string{}, nil
+	}
+
+	var args []any
+	var q = "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = "
+	if schma == "" {
+		q += "DATABASE()"
+	} else {
+		q += "?"
+		args = append(args, schma)
+	}
+	q += tblClause + " ORDER BY TABLE_NAME"
+
+	rows, err := db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	names, err := sqlz.RowsScanColumn[string](ctx, rows)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	return names, nil
 }
 
 // ListCatalogs implements driver.SQLDriver. MySQL does not really support catalogs,

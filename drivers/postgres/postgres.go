@@ -549,7 +549,6 @@ WHERE table_name = $1`
 // ListTableNames implements driver.SQLDriver.
 func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, tables, views bool) ([]string, error) {
 	var tblClause string
-
 	switch {
 	case tables && views:
 		tblClause = " AND (table_type = 'BASE TABLE' OR table_type = 'VIEW')"
@@ -576,7 +575,7 @@ func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, 
 		return nil, errw(err)
 	}
 
-	names, err := sqlz.RowsScanNonNullColumn[string](ctx, rows)
+	names, err := sqlz.RowsScanColumn[string](ctx, rows)
 	if err != nil {
 		return nil, errw(err)
 	}

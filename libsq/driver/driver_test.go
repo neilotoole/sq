@@ -469,21 +469,13 @@ func TestGrip_SourceMetadata(t *testing.T) {
 
 // TestSQLDriver_ListTableNames_ArgSchemaEmpty tests [driver.SQLDriver.ListTableNames]
 // with an empty schema arg.
-func TestSQLDriver_ListTableNames_ArgSchemaEmpty(t *testing.T) {
-	t.Parallel()
-
-	handles := []string{
-		sakila.SL3,
-		//sakila.Pg,
-		//sakila.My,
-		//sakila.MS,
-	}
-
-	//for _, handle := range sakila.SQLLatest() {
-	for _, handle := range handles {
+func TestSQLDriver_ListTableNames_ArgSchemaEmpty(t *testing.T) { //nolint:tparallel
+	for _, handle := range sakila.SQLLatest() {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
+			t.Parallel()
+
 			th, _, drvr, _, db := testh.NewWith(t, handle)
 
 			got, err := drvr.ListTableNames(th.Context, db, "", false, false)
@@ -518,33 +510,17 @@ func TestSQLDriver_ListTableNames_ArgSchemaEmpty(t *testing.T) {
 
 // TestSQLDriver_ListTableNames_ArgSchemaNotEmpty tests
 // [driver.SQLDriver.ListTableNames] with a non-empty schema arg.
-func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) {
-	t.Parallel()
-
+func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tparallel
 	testCases := []struct {
 		handle     string
 		schema     string
 		wantTables int
 		wantViews  int
 	}{
-		{
-			handle:     sakila.Pg12, // Results are specific to DB versions
-			schema:     "information_schema",
-			wantTables: 7,
-			wantViews:  61,
-		},
-		{
-			handle:     sakila.MS19,
-			schema:     "dbo",
-			wantTables: 17,
-			wantViews:  5,
-		},
-		{
-			handle:     sakila.SL3,
-			schema:     "main",
-			wantTables: 16,
-			wantViews:  5,
-		},
+		{handle: sakila.Pg12, schema: "public", wantTables: 25, wantViews: 5},
+		{handle: sakila.MS19, schema: "dbo", wantTables: 17, wantViews: 5},
+		{handle: sakila.SL3, schema: "main", wantTables: 16, wantViews: 5},
+		{handle: sakila.My8, schema: "sakila", wantTables: 16, wantViews: 7},
 	}
 
 	for _, tc := range testCases {

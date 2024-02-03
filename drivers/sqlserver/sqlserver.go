@@ -564,7 +564,7 @@ func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, 
 		return nil, errw(err)
 	}
 
-	names, err := sqlz.RowsScanNonNullColumn[string](ctx, rows)
+	names, err := sqlz.RowsScanColumn[string](ctx, rows)
 	if err != nil {
 		return nil, errw(err)
 	}

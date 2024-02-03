@@ -80,10 +80,10 @@ func RequireSingleConn(db DB) error {
 	return nil
 }
 
-// RowsScanNonNullColumn scans a single-column [*sql.Rows] into a slice of T.
-// Don't use this function if the returned value could be nil. Arg rows
-// is always closed. On any error, the returned slice is nil.
-func RowsScanNonNullColumn[T any](ctx context.Context, rows *sql.Rows) (vals []T, err error) {
+// RowsScanColumn scans a single-column [*sql.Rows] into a slice of T. If the
+// returned value could be null, use a nullable type, e.g. [sql.NullString].
+// Arg rows is always closed. On any error, the returned slice is nil.
+func RowsScanColumn[T any](ctx context.Context, rows *sql.Rows) (vals []T, err error) {
 	defer func() {
 		if rows != nil {
 			lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDBRows, rows)
