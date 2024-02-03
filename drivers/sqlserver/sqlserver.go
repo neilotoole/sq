@@ -61,11 +61,6 @@ type driveri struct {
 	log *slog.Logger
 }
 
-func (d *driveri) CatalogExists(ctx context.Context, db sqlz.DB, catalog string) (bool, error) {
-	// TODO implement me
-	panic("implement me")
-}
-
 // ConnParams implements driver.SQLDriver.
 func (d *driveri) ConnParams() map[string][]string {
 	// https://github.com/microsoft/go-mssqldb#connection-parameters-and-dsn.
@@ -409,6 +404,10 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 
 // SchemaExists implements driver.SQLDriver.
 func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (bool, error) {
+	if schma == "" {
+		return false, nil
+	}
+
 	const q = `SELECT COUNT(SCHEMA_NAME) FROM INFORMATION_SCHEMA.SCHEMATA
 WHERE SCHEMA_NAME = @p1 AND CATALOG_NAME = DB_NAME()`
 
@@ -464,6 +463,18 @@ func (d *driveri) CurrentCatalog(ctx context.Context, db sqlz.DB) (string, error
 	return name, nil
 }
 
+// CatalogExists implements driver.SQLDriver.
+func (d *driveri) CatalogExists(ctx context.Context, db sqlz.DB, catalog string) (bool, error) {
+	if catalog == "" {
+		return false, nil
+	}
+
+	const q = `SELECT COUNT(name) FROM sys.databases WHERE name = @p1`
+
+	var count int
+	return count > 0, errw(db.QueryRowContext(ctx, q, catalog).Scan(&count))
+}
+
 // ListCatalogs implements driver.SQLDriver.
 func (d *driveri) ListCatalogs(ctx context.Context, db sqlz.DB) ([]string, error) {
 	catalogs := make([]string, 1, 3)
@@ -471,9 +482,7 @@ func (d *driveri) ListCatalogs(ctx context.Context, db sqlz.DB) ([]string, error
 		return nil, errw(err)
 	}
 
-	const q = `SELECT name FROM sys.databases
-WHERE name != DB_NAME()
-ORDER BY name`
+	const q = `SELECT name FROM sys.databases WHERE name != DB_NAME() ORDER BY name`
 
 	rows, err := db.QueryContext(ctx, q)
 	if err != nil {

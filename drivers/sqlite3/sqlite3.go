@@ -684,6 +684,10 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 
 // SchemaExists implements driver.SQLDriver.
 func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (bool, error) {
+	if schma == "" {
+		return false, nil
+	}
+
 	const q = `SELECT COUNT(name) FROM pragma_database_list WHERE name = ?`
 
 	var count int
@@ -691,6 +695,10 @@ func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (b
 }
 
 func (d *driveri) CatalogExists(ctx context.Context, db sqlz.DB, catalog string) (bool, error) {
+	if catalog == "" {
+		return false, nil
+	}
+
 	// TODO implement me
 	panic("implement me")
 }

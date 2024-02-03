@@ -58,11 +58,6 @@ type driveri struct {
 	log *slog.Logger
 }
 
-func (d *driveri) CatalogExists(ctx context.Context, db sqlz.DB, catalog string) (bool, error) {
-	// TODO implement me
-	panic("implement me")
-}
-
 // ConnParams implements driver.SQLDriver.
 // See: https://github.com/go-sql-driver/mysql#dsn-data-source-name.
 func (d *driveri) ConnParams() map[string][]string {
@@ -231,6 +226,10 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 
 // SchemaExists implements driver.SQLDriver.
 func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (bool, error) {
+	if schma == "" {
+		return false, nil
+	}
+
 	const q = "SELECT COUNT(SCHEMA_NAME) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?"
 	var count int
 	return count > 0, errw(db.QueryRowContext(ctx, q, schma).Scan(&count))
@@ -295,6 +294,12 @@ func (d *driveri) ListCatalogs(ctx context.Context, db sqlz.DB) ([]string, error
 	}
 
 	return []string{catalog}, nil
+}
+
+// CatalogExists implements driver.SQLDriver. It returns true if catalog is "def",
+// and false otherwise, nothing that MySQL doesn't really support catalogs.
+func (d *driveri) CatalogExists(_ context.Context, _ sqlz.DB, catalog string) (bool, error) {
+	return catalog == "def", nil
 }
 
 // AlterTableRename implements driver.SQLDriver.

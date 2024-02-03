@@ -688,6 +688,8 @@ func TestSQLDriver_SchemaExists(t *testing.T) {
 }
 
 func TestSQLDriver_CatalogExists(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		handle  string
 		catalog string
@@ -703,52 +705,26 @@ func TestSQLDriver_CatalogExists(t *testing.T) {
 		{handle: sakila.Pg, catalog: "postgres", wantOK: true},
 		{handle: sakila.Pg, catalog: "not_exist", wantOK: false},
 		{handle: sakila.Pg, catalog: "", wantOK: false},
-		//{
-		//	handle:  sakila.My,
-		//	catalog: "def",
-		//	schema:  "sakila",
-		//	wantOK:  true,
-		//},
-		//{
-		//	handle:  sakila.MS,
-		//	catalog: "sakila",
-		//	schema:  "dbo",
-		//	wantOK:  true,
-		//},
+		{handle: sakila.My, catalog: "def", wantOK: true},
+		{handle: sakila.My, catalog: "not_exist", wantOK: false},
+		{handle: sakila.My, catalog: "", wantOK: false},
+		{handle: sakila.MS, catalog: "sakila", wantOK: true},
+		{handle: sakila.MS, catalog: "model", wantOK: true},
+		{handle: sakila.MS, catalog: "not_exist", wantOK: false},
+		{handle: sakila.MS, catalog: "", wantOK: false},
 	}
 
 	for _, tc := range testCases {
 		tc := tc
 
 		t.Run(tu.Name(tc.handle, tc.catalog, tc.wantOK), func(t *testing.T) {
+			t.Parallel()
+
 			th, _, drvr, _, db := testh.NewWith(t, tc.handle)
 
 			ok, err := drvr.CatalogExists(th.Context, db, tc.catalog)
 			require.NoError(t, err)
 			require.Equal(t, tc.wantOK, ok)
-
-			//gotSchema, err := drvr.CurrentSchema(th.Context, db)
-			//require.NoError(t, err)
-			//require.Equal(t, tc.schema, gotSchema)
-			//
-			//md, err := grip.SourceMetadata(th.Context, false)
-			//require.NoError(t, err)
-			//require.NotNil(t, md)
-			//require.Equal(t, md.Schema, tc.schema)
-			//require.Equal(t, md.Catalog, tc.catalog)
-			//
-			//gotSchemas, err := drvr.ListSchemas(th.Context, db)
-			//require.NoError(t, err)
-			//require.Contains(t, gotSchemas, gotSchema)
-
-			//if drvr.Dialect().Catalog {
-			//	gotCatalog, err := drvr.CurrentCatalog(th.Context, db)
-			//	require.NoError(t, err)
-			//	require.Equal(t, tc.catalog, gotCatalog)
-			//	gotCatalogs, err := drvr.ListCatalogs(th.Context, db)
-			//	require.NoError(t, err)
-			//	require.Contains(t, gotCatalogs, gotCatalog)
-			//}
 		})
 	}
 }

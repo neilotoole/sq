@@ -408,7 +408,7 @@ func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (b
 	}
 
 	const q = `SELECT COUNT(schema_name) FROM information_schema.schemata
- WHERE schema_name = $1`
+ WHERE schema_name = $1 AND catalog_name = current_database()`
 
 	var count int
 	return count > 0, errw(db.QueryRowContext(ctx, q, schma).Scan(&count))
@@ -416,6 +416,10 @@ func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (b
 
 // CatalogExists implements driver.SQLDriver.
 func (d *driveri) CatalogExists(ctx context.Context, db sqlz.DB, catalog string) (bool, error) {
+	if catalog == "" {
+		return false, nil
+	}
+
 	const q = `SELECT COUNT(datname) FROM pg_catalog.pg_database
 WHERE datistemplate = FALSE AND datallowconn = TRUE AND datname = $1`
 
