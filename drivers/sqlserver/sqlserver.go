@@ -61,11 +61,6 @@ type driveri struct {
 	log *slog.Logger
 }
 
-func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (bool, error) {
-	// TODO implement me
-	panic("implement me")
-}
-
 func (d *driveri) CatalogExists(ctx context.Context, db sqlz.DB, catalog string) (bool, error) {
 	// TODO implement me
 	panic("implement me")
@@ -410,6 +405,15 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 	}
 
 	return schemas, nil
+}
+
+// SchemaExists implements driver.SQLDriver.
+func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (bool, error) {
+	const q = `SELECT COUNT(SCHEMA_NAME) FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE SCHEMA_NAME = @p1 AND CATALOG_NAME = DB_NAME()`
+
+	var count int
+	return count > 0, errw(db.QueryRowContext(ctx, q, schma).Scan(&count))
 }
 
 // ListSchemaMetadata implements driver.SQLDriver.
