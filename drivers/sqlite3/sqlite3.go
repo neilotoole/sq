@@ -72,12 +72,6 @@ type driveri struct {
 	log *slog.Logger
 }
 
-// ListTableNames implements driver.SQLDriver.
-func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, tables, views bool) ([]string, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
 // ConnParams implements driver.SQLDriver.
 // See: https://github.com/mattn/go-sqlite3#connection-string.
 func (d *driveri) ConnParams() map[string][]string {
@@ -725,6 +719,44 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 	}
 
 	return schemas, nil
+}
+
+// ListTableNames implements driver.SQLDriver. The returned names exclude
+// any sqlite_ internal tables.
+func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, tables, views bool) ([]string, error) {
+	var tblClause string
+	switch {
+	case tables && views:
+		tblClause = " WHERE (type = 'table' OR type = 'view')"
+	case tables:
+		tblClause = " WHERE type = 'table'"
+	case views:
+		tblClause = " WHERE type = 'view'"
+	default:
+		return []string{}, nil
+	}
+
+	tblClause += " AND name NOT LIKE 'sqlite_%'"
+
+	var q = "SELECT name FROM "
+	if schma == "" {
+		q += "sqlite_master"
+	} else {
+		q += stringz.DoubleQuote(schma) + ".sqlite_master"
+	}
+	q += tblClause + " ORDER BY name"
+
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	names, err := sqlz.RowsScanNonNullColumn[string](ctx, rows)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	return names, nil
 }
 
 // ListSchemaMetadata implements driver.SQLDriver.

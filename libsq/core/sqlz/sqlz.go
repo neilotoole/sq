@@ -90,6 +90,9 @@ func RowsScanNonNullColumn[T any](ctx context.Context, rows *sql.Rows) (vals []T
 		}
 	}()
 
+	// We typically want to return an empty slice rather than nil.
+	vals = make([]T, 0)
+
 	for rows.Next() {
 		select {
 		case <-ctx.Done():

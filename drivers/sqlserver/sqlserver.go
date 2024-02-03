@@ -61,12 +61,6 @@ type driveri struct {
 	log *slog.Logger
 }
 
-// ListTableNames implements driver.SQLDriver.
-func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, tables, views bool) ([]string, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
 // ConnParams implements driver.SQLDriver.
 func (d *driveri) ConnParams() map[string][]string {
 	// https://github.com/microsoft/go-mssqldb#connection-parameters-and-dsn.
@@ -538,6 +532,44 @@ func (d *driveri) DropSchema(ctx context.Context, db sqlz.DB, schemaName string)
 
 	lg.FromContext(ctx).Debug("Dropped schema", lga.Schema, schemaName)
 	return nil
+}
+
+// ListTableNames implements driver.SQLDriver.
+func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, tables, views bool) ([]string, error) {
+	var tblClause string
+
+	switch {
+	case tables && views:
+		tblClause = " AND (TABLE_TYPE = 'BASE TABLE' OR TABLE_TYPE = 'VIEW')"
+	case tables:
+		tblClause = " AND TABLE_TYPE = 'BASE TABLE'"
+	case views:
+		tblClause = " AND TABLE_TYPE = 'VIEW'"
+	default:
+		return []string{}, nil
+	}
+
+	var args []any
+	var q = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = "
+	if schma == "" {
+		q += "SCHEMA_NAME()"
+	} else {
+		q += "@p1"
+		args = append(args, schma)
+	}
+	q += tblClause + " ORDER BY TABLE_NAME"
+
+	rows, err := db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	names, err := sqlz.RowsScanNonNullColumn[string](ctx, rows)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	return names, nil
 }
 
 // CreateTable implements driver.SQLDriver.

@@ -533,12 +533,18 @@ func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) {
 			wantTables: 7,
 			wantViews:  61,
 		},
-		//{
-		//	handle:     sakila.MS19,
-		//	schema:     "INFORMATION_SCHEMA",
-		//	wantTables: 7,
-		//	wantViews:  61,
-		//},
+		{
+			handle:     sakila.MS19,
+			schema:     "dbo",
+			wantTables: 17,
+			wantViews:  5,
+		},
+		{
+			handle:     sakila.SL3,
+			schema:     "main",
+			wantTables: 16,
+			wantViews:  5,
+		},
 	}
 
 	for _, tc := range testCases {

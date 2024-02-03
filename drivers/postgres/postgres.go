@@ -552,11 +552,11 @@ func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, 
 
 	switch {
 	case tables && views:
-		tblClause = ` AND table_type IN ('BASE TABLE', 'VIEW')`
+		tblClause = " AND (table_type = 'BASE TABLE' OR table_type = 'VIEW')"
 	case tables:
-		tblClause = ` AND table_type = 'BASE TABLE'`
+		tblClause = " AND table_type = 'BASE TABLE'"
 	case views:
-		tblClause = ` AND table_type = 'VIEW'`
+		tblClause = " AND table_type = 'VIEW'"
 	default:
 		return []string{}, nil
 	}
@@ -576,7 +576,12 @@ func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, 
 		return nil, errw(err)
 	}
 
-	return errz.Return(sqlz.RowsScanNonNullColumn[string](ctx, rows))
+	names, err := sqlz.RowsScanNonNullColumn[string](ctx, rows)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	return names, nil
 }
 
 // DropTable implements driver.SQLDriver.
