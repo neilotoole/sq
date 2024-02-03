@@ -863,11 +863,10 @@ func getTableNamesForHandle(ctx context.Context, ru *run.Run, handle string) ([]
 // maybeFilterHandlesByActiveGroup filters the supplied handles by
 // active group, if appropriate.
 func maybeFilterHandlesByActiveGroup(ru *run.Run, toComplete string, suggestions []string) []string {
-	handleFilter := getActiveGroupHandleFilterPrefix(ru)
-	if handleFilter != "" {
-		if strings.HasPrefix(handleFilter, toComplete) {
-			suggestions = lo.Filter(suggestions, func(handle string, index int) bool {
-				return strings.HasPrefix(handle, handleFilter)
+	if groupPrefix := getActiveGroupHandleFilterPrefix(ru); groupPrefix != "" {
+		if strings.HasPrefix(groupPrefix, toComplete) {
+			suggestions = lo.Filter(suggestions, func(handle string, _ int) bool {
+				return strings.HasPrefix(handle, groupPrefix)
 			})
 		}
 	}

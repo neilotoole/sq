@@ -42,20 +42,20 @@ func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Tab
 
 // SourceMetadata implements driver.Grip.
 func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
-	meta, err := g.impl.SourceMetadata(ctx, noSchema)
+	md, err := g.impl.SourceMetadata(ctx, noSchema)
 	if err != nil {
 		return nil, err
 	}
 
-	meta.Handle = g.src.Handle
-	meta.Location = g.src.Location
-	meta.Name, err = location.Filename(g.src.Location)
+	md.Handle = g.src.Handle
+	md.Location = g.src.Location
+	md.Name, err = location.Filename(g.src.Location)
 	if err != nil {
 		return nil, err
 	}
 
-	meta.FQName = meta.Name
-	return meta, nil
+	md.FQName = md.Name
+	return md, nil
 }
 
 // Close implements driver.Grip.
