@@ -8,9 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
@@ -77,7 +74,7 @@ func newShellExecError(msg string, cmd *exec.Cmd, execErr error) *shellExecError
 	return e
 }
 
-// shellExecOut executes shellCmd with the environment specified in shellEnv.
+// shellExec executes shellCmd with the environment specified in shellEnv.
 // The first element of shellCmd is the command name; the remaining elements
 // are passed as args to the command. If cmdDirPath is true, the command's PATH
 // will include the directory of the command. This allows the command to access
@@ -86,62 +83,20 @@ func newShellExecError(msg string, cmd *exec.Cmd, execErr error) *shellExecError
 // written to outfile.
 //
 // TODO: Move shellExec stuff to its own package.
-func shellExecOut(ru *run.Run, errMsg string, shellCmd, shellEnv []string,
-	cmdDirPath bool, outfile string,
-) (err error) {
+func shellExec(ru *run.Run, errMsg string, shellCmd, shellEnv []string, cmdDirPath bool) (err error) {
 	ctx := ru.Cmd.Context()
-	var f *os.File
 
 	c := exec.CommandContext(ctx, shellCmd[0], shellCmd[1:]...) //nolint:gosec
 	if cmdDirPath {
 		c.Env = append(c.Env, "PATH="+filepath.Dir(c.Path))
 	}
 	c.Env = append(c.Env, shellEnv...)
-
-	defer func() {
-		log := lg.FromContext(ctx)
-		if err != nil && f != nil {
-			lg.WarnIfCloseError(log, lgm.CloseOutputFile, f)
-			lg.WarnIfError(log, lgm.RemoveFile, os.Remove(outfile))
-			return
-		}
-
-		// err is nil
-		if f != nil {
-			if err = errz.Err(f.Close()); err != nil {
-				lg.WarnIfError(log, lgm.RemoveFile, os.Remove(outfile))
-			}
-		}
-	}()
-
+	c.Stdin = ru.Stdin
 	c.Stdout = os.Stdout
-	if outfile != "" {
-		if f, err = os.Create(outfile); err != nil {
-			return err
-		}
-		c.Stdout = f
-	}
 
 	c.Stderr = &bytes.Buffer{}
 	if err = c.Run(); err != nil {
 		return newShellExecError(errMsg, c, err)
-	}
-	return nil
-}
-
-// shellExecPgRestoreCatalog executes the pg_restore command. Arg dump is always
-// closed after this function returns.
-func shellExecPgRestoreCatalog(ru *run.Run, src *source.Source, shellCmd, shellEnv []string) error {
-	// - https://www.postgresql.org/docs/9.6/app-pgrestore.html
-
-	c := exec.CommandContext(ru.Cmd.Context(), shellCmd[0], shellCmd[1:]...) //nolint:gosec
-	c.Env = append(c.Env, shellEnv...)
-	c.Stdin = ru.Stdin
-	c.Stdout = ru.Out
-	c.Stderr = &bytes.Buffer{}
-
-	if err := c.Run(); err != nil {
-		return newShellExecError(fmt.Sprintf("db restore: %s", src.Handle), c, err)
 	}
 	return nil
 }

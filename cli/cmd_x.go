@@ -14,7 +14,7 @@ import (
 	"github.com/neilotoole/sq/libsq/files"
 )
 
-// newXCmd returns the root "x" command, which is the container
+// newXCmd returns the "x" command, which is the container
 // for a set of hidden commands that are useful for development.
 // The x commands are not intended for end users.
 func newXCmd() *cobra.Command {

@@ -83,9 +83,10 @@ func execDBRestoreCatalog(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	errPrefix := "db restore catalog: " + src.Handle
 	if cmdFlagChanged(cmd, flag.RestoreFrom) {
 		if fpDump = strings.TrimSpace(cmd.Flag(flag.RestoreFrom).Value.String()); fpDump == "" {
-			return errz.Errorf("db restore catalog: %s: %s is specified, but empty", src.Handle, flag.RestoreFrom)
+			return errz.Errorf("%s: %s is specified, but empty", errPrefix, flag.RestoreFrom)
 		}
 	}
 
@@ -105,11 +106,11 @@ func execDBRestoreCatalog(cmd *cobra.Command, args []string) error {
 		}
 		shellCmd, shellEnv, err = postgres.RestoreCatalogCmd(src, params)
 	default:
-		return errz.Errorf("db restore catalog: %s: not supported for %s", src.Handle, src.Type)
+		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
 	}
 
 	if err != nil {
-		return errz.Wrapf(err, "db restore catalog: %s", src.Handle)
+		return errz.Wrap(err, errPrefix)
 	}
 
 	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
@@ -118,9 +119,10 @@ func execDBRestoreCatalog(cmd *cobra.Command, args []string) error {
 
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
-		return shellExecPgRestoreCatalog(ru, src, shellCmd, shellEnv)
+		//return shellExecPgRestoreCatalog(ru, src, shellCmd, shellEnv)
+		return shellExec(ru, errPrefix, shellCmd, shellEnv, true)
 	default:
-		return errz.Errorf("db restore catalog: %s: cmd not supported for %s", src.Handle, src.Type)
+		return errz.Errorf("%s: cmd not supported for %s", errPrefix, src.Type)
 	}
 }
 
