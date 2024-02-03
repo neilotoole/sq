@@ -546,6 +546,39 @@ WHERE table_name = $1`
 	return count == 1, nil
 }
 
+// ListTableNames implements driver.SQLDriver.
+func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, tables, views bool) ([]string, error) {
+	var tblClause string
+
+	switch {
+	case tables && views:
+		tblClause = ` AND table_type IN ('BASE TABLE', 'VIEW')`
+	case tables:
+		tblClause = ` AND table_type = 'BASE TABLE'`
+	case views:
+		tblClause = ` AND table_type = 'VIEW'`
+	default:
+		return []string{}, nil
+	}
+
+	var args []any
+	var q = "SELECT table_name FROM information_schema.tables WHERE table_schema = "
+	if schma == "" {
+		q += "current_schema()"
+	} else {
+		q += "$1"
+		args = append(args, schma)
+	}
+	q += tblClause + " ORDER BY table_name"
+
+	rows, err := db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	return errz.Return(sqlz.RowsScanNonNullColumn[string](ctx, rows))
+}
+
 // DropTable implements driver.SQLDriver.
 func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifExists bool) error {
 	var stmt string

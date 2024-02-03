@@ -167,6 +167,11 @@ type SQLDriver interface {
 	// TableExists returns true if there's an existing table tbl in db.
 	TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool, error)
 
+	// ListTableNames lists the tables of schma in db. The "tables" and "views"
+	// args filter TABLE and VIEW types, respectively. If both are false, an empty
+	// slice is returned. If schma is empty, the current schema is used.
+	ListTableNames(ctx context.Context, db sqlz.DB, schma string, tables, views bool) ([]string, error)
+
 	// CopyTable copies fromTable into a new table toTable.
 	// If copyData is true, fromTable's data is also copied.
 	// Constraints (keys, defaults etc.) may not be copied. The

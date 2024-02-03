@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -430,7 +431,7 @@ func TestRegistry_DriversMetadata_Doc(t *testing.T) {
 	}
 }
 
-func TestDatabase_TableMetadata(t *testing.T) { //nolint:tparallel
+func TestGrip_TableMetadata(t *testing.T) { //nolint:tparallel
 	for _, handle := range sakila.SQLAll() {
 		handle := handle
 
@@ -447,7 +448,7 @@ func TestDatabase_TableMetadata(t *testing.T) { //nolint:tparallel
 	}
 }
 
-func TestDatabase_SourceMetadata(t *testing.T) {
+func TestGrip_SourceMetadata(t *testing.T) {
 	t.Parallel()
 
 	for _, handle := range sakila.SQLAll() {
@@ -466,9 +467,117 @@ func TestDatabase_SourceMetadata(t *testing.T) {
 	}
 }
 
-// TestDatabase_SourceMetadata_concurrent tests the behavior of the
+// TestSQLDriver_ListTableNames_ArgSchemaEmpty tests [driver.SQLDriver.ListTableNames]
+// with an empty schema arg.
+func TestSQLDriver_ListTableNames_ArgSchemaEmpty(t *testing.T) {
+	t.Parallel()
+
+	handles := []string{
+		sakila.SL3,
+		//sakila.Pg,
+		//sakila.My,
+		//sakila.MS,
+	}
+
+	//for _, handle := range sakila.SQLLatest() {
+	for _, handle := range handles {
+		handle := handle
+
+		t.Run(handle, func(t *testing.T) {
+			th, _, drvr, _, db := testh.NewWith(t, handle)
+
+			got, err := drvr.ListTableNames(th.Context, db, "", false, false)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.True(t, len(got) == 0)
+
+			got, err = drvr.ListTableNames(th.Context, db, "", true, false)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Contains(t, got, sakila.TblActor)
+			require.NotContains(t, got, sakila.ViewFilmList)
+
+			got, err = drvr.ListTableNames(th.Context, db, "", false, true)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.NotContains(t, got, sakila.TblActor)
+			require.Contains(t, got, sakila.ViewFilmList)
+
+			got, err = drvr.ListTableNames(th.Context, db, "", true, true)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Contains(t, got, sakila.TblActor)
+			require.Contains(t, got, sakila.ViewFilmList)
+
+			gotCopy := append([]string(nil), got...)
+			slices.Sort(gotCopy)
+			require.Equal(t, got, gotCopy, "expected results to be sorted")
+		})
+	}
+}
+
+// TestSQLDriver_ListTableNames_ArgSchemaNotEmpty tests
+// [driver.SQLDriver.ListTableNames] with a non-empty schema arg.
+func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		handle     string
+		schema     string
+		wantTables int
+		wantViews  int
+	}{
+		{
+			handle:     sakila.Pg12, // Results are specific to DB versions
+			schema:     "information_schema",
+			wantTables: 7,
+			wantViews:  61,
+		},
+		//{
+		//	handle:     sakila.MS19,
+		//	schema:     "INFORMATION_SCHEMA",
+		//	wantTables: 7,
+		//	wantViews:  61,
+		//},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.handle, func(t *testing.T) {
+			t.Parallel()
+
+			th, _, drvr, _, db := testh.NewWith(t, tc.handle)
+
+			got, err := drvr.ListTableNames(th.Context, db, tc.schema, false, false)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.True(t, len(got) == 0)
+
+			got, err = drvr.ListTableNames(th.Context, db, tc.schema, true, false)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Len(t, got, tc.wantTables)
+
+			got, err = drvr.ListTableNames(th.Context, db, tc.schema, false, true)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Len(t, got, tc.wantViews)
+
+			got, err = drvr.ListTableNames(th.Context, db, tc.schema, true, true)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Len(t, got, tc.wantTables+tc.wantViews)
+
+			gotCopy := append([]string(nil), got...)
+			slices.Sort(gotCopy)
+			require.Equal(t, got, gotCopy, "expected results to be sorted")
+		})
+	}
+}
+
+// TestGrip_SourceMetadata_concurrent tests the behavior of the
 // drivers when SourceMetadata is invoked concurrently.
-func TestDatabase_SourceMetadata_concurrent(t *testing.T) { //nolint:tparallel
+func TestGrip_SourceMetadata_concurrent(t *testing.T) { //nolint:tparallel
 	const concurrency = 5
 
 	handles := sakila.SQLLatest()

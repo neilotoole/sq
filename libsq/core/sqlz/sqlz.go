@@ -4,8 +4,9 @@ package sqlz
 import (
 	"context"
 	"database/sql"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 )
 
 // Execer abstracts the ExecContext method
@@ -77,4 +78,41 @@ func RequireSingleConn(db DB) error {
 	}
 
 	return nil
+}
+
+// RowsScanNonNullColumn scans a single-column [*sql.Rows] into a slice of T.
+// Don't use this function if the returned value could be nil. Arg rows
+// is always closed. On any error, the returned slice is nil.
+func RowsScanNonNullColumn[T any](ctx context.Context, rows *sql.Rows) (vals []T, err error) {
+	defer func() {
+		if rows != nil {
+			lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDBRows, rows)
+		}
+	}()
+
+	for rows.Next() {
+		select {
+		case <-ctx.Done():
+			return nil, errz.Err(ctx.Err())
+		default:
+		}
+
+		var val T
+		if err = rows.Scan(&val); err != nil {
+			return nil, errz.Err(err)
+		}
+		vals = append(vals, val)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errz.Err(err)
+	}
+
+	err = rows.Close()
+	rows = nil
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	return vals, nil
 }

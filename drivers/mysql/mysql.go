@@ -58,6 +58,11 @@ type driveri struct {
 	log *slog.Logger
 }
 
+func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, tables, views bool) ([]string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 // ConnParams implements driver.SQLDriver.
 // See: https://github.com/go-sql-driver/mysql#dsn-data-source-name.
 func (d *driveri) ConnParams() map[string][]string {
