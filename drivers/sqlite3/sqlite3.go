@@ -72,16 +72,6 @@ type driveri struct {
 	log *slog.Logger
 }
 
-func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (bool, error) {
-	// TODO implement me
-	panic("implement me")
-}
-
-func (d *driveri) CatalogExists(ctx context.Context, db sqlz.DB, catalog string) (bool, error) {
-	// TODO implement me
-	panic("implement me")
-}
-
 // ConnParams implements driver.SQLDriver.
 // See: https://github.com/mattn/go-sqlite3#connection-string.
 func (d *driveri) ConnParams() map[string][]string {
@@ -690,6 +680,19 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 	}
 
 	return name, nil
+}
+
+// SchemaExists implements driver.SQLDriver.
+func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (bool, error) {
+	const q = `SELECT COUNT(name) FROM pragma_database_list WHERE name = ?`
+
+	var count int
+	return count > 0, errw(db.QueryRowContext(ctx, q, schma).Scan(&count))
+}
+
+func (d *driveri) CatalogExists(ctx context.Context, db sqlz.DB, catalog string) (bool, error) {
+	// TODO implement me
+	panic("implement me")
 }
 
 // ListSchemas implements driver.SQLDriver.

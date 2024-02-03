@@ -654,12 +654,9 @@ func TestSQLDriver_SchemaExists(t *testing.T) {
 		schema string
 		wantOK bool
 	}{
-		//{
-		//	handle:  sakila.SL3,
-		//	catalog: "default",
-		//	schema:  "main",
-		//	wantOK:  true,
-		//},
+		{handle: sakila.SL3, schema: "main", wantOK: true},
+		{handle: sakila.SL3, schema: "", wantOK: false},
+		{handle: sakila.SL3, schema: "not_exist", wantOK: false},
 		{handle: sakila.Pg, schema: "public", wantOK: true},
 		{handle: sakila.Pg, schema: "information_schema", wantOK: true},
 		{handle: sakila.Pg, schema: "not_exist", wantOK: false},
