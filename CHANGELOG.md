@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 
-## [v0.47.3] - UPCOMING
+## [v0.47.3] - 2024-02-03
 
 Minor bug fix release. See the earlier [`v0.47.0`](https://github.com/neilotoole/sq/releases/tag/v0.47.0)
 release for recent headline features.
