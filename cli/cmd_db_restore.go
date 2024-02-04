@@ -131,7 +131,7 @@ func execDBRestoreCatalog(cmd *cobra.Command, args []string) error {
 
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
-		//return ShellExec(ru, errPrefix, false, "", shellCmd, shellEnv, true)
+		// return ShellExec(ru, errPrefix, false, "", shellCmd, shellEnv, true)
 		return ShellExec2(cmd.Context(), c)
 	default:
 		return errz.Errorf("%s: cmd not supported for %s", errPrefix, src.Type)
@@ -216,8 +216,8 @@ func execDBRestoreCluster(cmd *cobra.Command, args []string) error {
 	case drivertype.Pg:
 		params := &postgres.ToolParams{
 			Verbose: verbose,
-			NoOwner: noOwner,
-			File:    fpDump,
+			NoOwner: noOwner, //nolint:govet
+			File:    fpDump,  //nolint:govet
 		}
 		shellCmd, shellEnv, err = postgres.RestoreClusterCmd(src, params.Verbose)
 	default:
@@ -246,7 +246,7 @@ func execDBRestoreCluster(cmd *cobra.Command, args []string) error {
 
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
-		//return shellExecPgRestoreCluster(ru, src, shellCmd, shellEnv)
+		// return shellExecPgRestoreCluster(ru, src, shellCmd, shellEnv)
 		return ShellExec2(cmd.Context(), c)
 	default:
 		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)

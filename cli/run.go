@@ -447,6 +447,6 @@ func markCmdPlainStdout(cmd *cobra.Command) {
 
 // cmdPlainStdout returns true if markCmdPlainStdout was
 // previously invoked on cmd.
-func cmdPlainStdout(cmd *cobra.Command) bool { //nolint:unused
+func cmdPlainStdout(cmd *cobra.Command) bool {
 	return cmd.Annotations != nil && cmd.Annotations["stdout.plain"] == "true"
 }

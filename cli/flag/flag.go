@@ -215,9 +215,6 @@ const (
 	DumpCatalogUsage = "Dump the named catalog"
 	DumpNoOwner      = "no-owner"
 	DumpNoOwnerUsage = "Don't set ownership or ACL"
-	//DumpFile         = "file"
-	//DumpFileShort    = "f"
-	//DumpFileUsage    = "Write dump to file; if omitted, write to stdout"
 
 	PrintToolCmd          = "cmd"
 	PrintToolCmdUsage     = "Print the db-native tool command, but don't execute it"

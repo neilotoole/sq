@@ -75,7 +75,7 @@ func ShellExec2(ctx context.Context, cmd *ShellCommand) (err error) {
 }
 
 // FIXME: Switch to ShellCommand using slog.LogValuer.
-func logShellCmd(log *slog.Logger, msg string, cmd string, shellArgs, shellEnv []string) {
+func logShellCmd(log *slog.Logger, msg, cmd string, shellArgs, shellEnv []string) {
 	// Make a copy of shellCmd so that mutations don't affect the original.
 	shellArgs = append([]string{cmd}, shellArgs...)
 	for i := range shellArgs {

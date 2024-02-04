@@ -150,7 +150,7 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
-		//return ShellExec(ru, errPrefix, false, dumpFile, shellCmd, shellEnv, false)
+		// return ShellExec(ru, errPrefix, false, dumpFile, shellCmd, shellEnv, false)
 		return ShellExec2(cmd.Context(), c)
 	default:
 		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
@@ -269,7 +269,7 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 	case drivertype.Pg:
 		// return shellExecPgDumpCluster(ru, src, shellCmd, shellEnv)
 		return ShellExec2(cmd.Context(), c)
-		//return ShellExec(ru, errPrefix, false, dumpFile, shellCmd, shellEnv, true)
+		// return ShellExec(ru, errPrefix, false, dumpFile, shellCmd, shellEnv, true)
 	default:
 		return errz.Errorf("db dump cluster: %s: not supported for %s", src.Handle, src.Type)
 	}

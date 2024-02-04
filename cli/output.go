@@ -502,7 +502,7 @@ func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Option
 		// We're writing to a file, so we can't colorize.
 		out2 = out
 	}
-	//out2 = colorable.NewColorable(out.(*os.File))
+	// out2 = colorable.NewColorable(out.(*os.File))
 
 	// Check if we can colorize errOut
 	if isColorTerminal(errOut) {
