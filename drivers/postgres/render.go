@@ -5,10 +5,20 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/schema"
 )
+
+// tblfmt formats a table name for use in a query. The arg can be a string,
+// or a tablefq.T.
+func tblfmt[T string | tablefq.T](tbl T) string {
+	tfq := tablefq.From(tbl)
+	return tfq.Render(stringz.DoubleQuote)
+}
 
 func dbTypeNameFromKind(knd kind.Kind) string {
 	switch knd { //nolint:exhaustive
