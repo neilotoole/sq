@@ -19,7 +19,6 @@ import (
 
 // TODO: Unify DumpCatalogCmd and DumpClusterCmd, as they're almost identical, probably
 // in the form:
-//
 //  DumpCatalogCmd(src *source.Source, all bool) (cmd []string, err error).
 
 // ToolParams are parameters for postgres tools such as pg_dump and pg_restore.
@@ -42,17 +41,29 @@ type ToolParams struct {
 	// Maybe NoOwner should be named "no security" or similar?
 	NoOwner bool
 
-	// LongFlags indicates whether to use long flags, e.g. --no-owner instead of -O.
+	// LongFlags indicates whether to use long flags, e.g. --no-owner instead
+	// of -O.
 	LongFlags bool
 }
 
-// DumpCatalogCmd returns the shell command components to execute pg_dump for src.
-// Example output (components concatenated with space):
+func (p *ToolParams) flag(name string) string {
+	if p.LongFlags {
+		return flagsLong[name]
+	}
+	return flagsShort[name]
+}
+
+// DumpCatalogCmd returns the shell command to execute pg_dump for src.
+// Example output:
 //
-//	pg_dump -Fc --no-acl -d 'postgres://alice:vNgR6R@db.acme.com:5432/sales?connect_timeout=10'
+//	pg_dump -Fc -d postgres://alice:vNgR6R@db.acme.com:5432/sales sales.dump
 //
-// Note that the returned cmd components may need to be shell-escaped if they're
-// to be executed in the terminal or via a shell script.
+// Reference:
+//
+//   - https://www.postgresql.org/docs/9.6/app-pgdump.html
+//   - https://www.postgresql.org/docs/9.6/app-pgrestore.html
+//
+// See also: [RestoreCatalogCmd].
 func DumpCatalogCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error) {
 	// - https://www.postgresql.org/docs/9.6/app-pgdump.html
 	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
@@ -86,11 +97,65 @@ func DumpCatalogCmd(src *source.Source, p *ToolParams) (cmd, env []string, err e
 	return cmd, env, nil
 }
 
-// DumpClusterCmd returns the shell command components to execute pg_dump for src.
+// RestoreCatalogCmd returns the shell command to restore a pg catalog (db) from
+// a dump produced by pg_dump ([DumpClusterCmd]). Example command:
+//
+//	pg_restore -d postgres://alice:vNgR6R@db.acme.com:5432/sales sales.dump
+//
+// Reference:
+//
+//   - https://www.postgresql.org/docs/9.6/app-pgrestore.html
+//   - https://www.postgresql.org/docs/9.6/app-pgdump.html
+//
+// See also: [DumpCatalogCmd].
+func RestoreCatalogCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error) {
+	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
+	// - https://gist.github.com/vielhuber/96eefdb3aff327bdf8230d753aaee1e1
+
+	cfg, err := getPoolConfig(src, true)
+	if err != nil {
+		return nil, env, err
+	}
+
+	cmd = []string{"pg_restore"}
+	if p.Verbose {
+		cmd = append(cmd, p.flag(flagVerbose))
+	}
+	if p.NoOwner {
+		// NoOwner sets both --no-owner and --no-acl. Maybe these should
+		// be separate options.
+		cmd = append(cmd, p.flag(flagNoACL), p.flag(flagNoOwner)) // -O is --no-owner
+	}
+
+	cmd = append(cmd,
+		p.flag(flagClean),
+		p.flag(flagIfExists),
+		p.flag(flagCreate),
+		p.flag(flagDBName),
+		cfg.ConnString(),
+	)
+
+	if p.File != "" {
+		cmd = append(cmd, p.File)
+	}
+
+	return cmd, env, nil
+}
+
+// DumpClusterCmd returns the shell command to execute pg_dumpall for src.
 // Example output (components concatenated with space):
 //
-// Note that the returned cmd components may need to be shell-escaped if they're
-// to be executed in the terminal or via a shell script.
+// PGPASSWORD=vNgR6R pg_dumpall -w -l sales -d postgres://alice:vNgR6R@db.acme.com:5432/sales -f cluster.dump
+//
+// Note that the dump produced by pg_dumpall is executed by psql, not pg_restore.
+//
+//   - https://www.postgresql.org/docs/9.6/app-pg-dumpall.html
+//   - https://www.postgresql.org/docs/9.6/app-psql.html
+//   - https://www.postgresql.org/docs/9.6/app-pgdump.html
+//   - https://www.postgresql.org/docs/9.6/app-pgrestore.html
+//   - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
+//
+// See also: [RestoreClusterCmd].
 func DumpClusterCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error) {
 	// - https://www.postgresql.org/docs/9.6/app-pg-dumpall.html
 	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
@@ -130,71 +195,23 @@ func DumpClusterCmd(src *source.Source, p *ToolParams) (cmd, env []string, err e
 	return cmd, env, nil
 }
 
-func (p *ToolParams) flag(name string) string {
-	if p.LongFlags {
-		return flagsLong[name]
-	}
-	return flagsShort[name]
-}
-
-// RestoreCatalogCmd returns the shell command components to execute pg_restore for src.
-// Example output (components concatenated with space):
+// RestoreClusterCmd returns the shell command to restore a pg cluster from a
+// dump produced by pg_dumpall (DumpClusterCmd). Note that the dump produced
+// by pg_dumpall is executed by psql, not pg_restore. Example command:
 //
-// Note that the returned cmd components may need to be shell-escaped if they're
-// to be executed in the terminal or via a shell script.
-func RestoreCatalogCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error) {
-	// - https://www.postgresql.org/docs/9.6/app-pgrestore.html
-	// - https://www.postgresql.org/docs/9.6/app-pgdump.html
-	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
-	// - https://gist.github.com/vielhuber/96eefdb3aff327bdf8230d753aaee1e1
-
-	cfg, err := getPoolConfig(src, true)
-	if err != nil {
-		return nil, env, err
-	}
-
-	cmd = []string{"pg_restore"}
-	if p.Verbose {
-		cmd = append(cmd, p.flag(flagVerbose))
-	}
-	if p.NoOwner {
-		// NoOwner sets both --no-owner and --no-acl. Maybe these should
-		// be separate options.
-		cmd = append(cmd, p.flag(flagNoACL), p.flag(flagNoOwner)) // -O is --no-owner
-	}
-
-	cmd = append(cmd,
-		p.flag(flagClean),
-		p.flag(flagIfExists),
-		p.flag(flagCreate),
-		p.flag(flagDBName),
-		cfg.ConnString(),
-	)
-
-	if p.File != "" {
-		cmd = append(cmd, p.File)
-	}
-
-	return cmd, env, nil
-}
-
-// RestoreClusterCmd returns the shell command components to execute pg_restore for src.
-// Example output (components concatenated with space):
+//	psql -d postgres://alice:vNgR6R@db.acme.com:5432/sales -f sales.dump
 //
-//	FIXME: insert example
+// Reference:
 //
-// Note that the returned cmd components may need to be shell-escaped if they're
-// to be executed in the terminal or via a shell script.
+//   - https://www.postgresql.org/docs/9.6/app-pg-dumpall.html
+//   - https://www.postgresql.org/docs/9.6/app-psql.html
+//   - https://www.postgresql.org/docs/9.6/app-pgdump.html
+//   - https://www.postgresql.org/docs/9.6/app-pgrestore.html
+//   - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
 //
-// FIXME: maybe delete this?
+// See also: [DumpClusterCmd].
 func RestoreClusterCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error) {
-	// - https://www.postgresql.org/docs/9.6/app-pg-dumpall.html
-	// - https://www.postgresql.org/docs/9.6/app-psql.html
-	// - https://www.postgresql.org/docs/9.6/app-pgrestore.html
-	// - https://www.postgresql.org/docs/9.6/app-pgdump.html
-	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
 	// - https://gist.github.com/vielhuber/96eefdb3aff327bdf8230d753aaee1e1
-
 	cfg, err := getPoolConfig(src, true)
 	if err != nil {
 		return nil, env, err
