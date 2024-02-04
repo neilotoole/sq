@@ -327,7 +327,7 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 
 	addTimeFormatOptsFlags(cmd)
 
-	cmd.Flags().StringP(flag.Output, flag.OutputShort, "", flag.OutputUsage)
+	cmd.Flags().StringP(flag.FileOutput, flag.FileOutputShort, "", flag.FileOutputUsage)
 
 	cmd.Flags().StringP(flag.Input, flag.InputShort, "", flag.InputUsage)
 	panicOn(cmd.Flags().MarkHidden(flag.Input)) // Hide for now; this is mostly used for testing.

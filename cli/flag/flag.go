@@ -70,9 +70,9 @@ const (
 	MonochromeShort = "M"
 	MonochromeUsage = "Don't colorize output"
 
-	Output      = "output"
-	OutputShort = "o"
-	OutputUsage = "Write output to <file> instead of stdout"
+	FileOutput      = "output"
+	FileOutputShort = "o"
+	FileOutputUsage = "Write output to <file> instead of stdout"
 
 	// Input sets Run.Stdin to the named file. At this time, this is used
 	// mainly for debugging, so it's marked hidden by the CLI. I'm not
@@ -215,9 +215,9 @@ const (
 	DumpCatalogUsage = "Dump the named catalog"
 	DumpNoOwner      = "no-owner"
 	DumpNoOwnerUsage = "Don't set ownership or ACL"
-	DumpFile         = "file"
-	DumpFileShort    = "f"
-	DumpFileUsage    = "Write dump to file; if omitted, write to stdout"
+	//DumpFile         = "file"
+	//DumpFileShort    = "f"
+	//DumpFileUsage    = "Write dump to file; if omitted, write to stdout"
 
 	PrintToolCmd          = "cmd"
 	PrintToolCmdUsage     = "Print the db-native tool command, but don't execute it"

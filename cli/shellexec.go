@@ -2,9 +2,10 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"io"
 	"log/slog"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -14,10 +15,8 @@ import (
 	"github.com/neilotoole/sq/libsq/source/location"
 
 	"github.com/neilotoole/sq/cli/run"
-	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/neilotoole/sq/libsq/source"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 var _ error = (*shellExecError)(nil)
@@ -79,19 +78,68 @@ func newShellExecError(msg string, cmd *exec.Cmd, execErr error) *shellExecError
 	return e
 }
 
-// shellExec executes shellCmd with the environment specified in shellEnv.
+// ShellCommand represents an external command being prepared or run.
+type ShellCommand struct {
+	// Name is the executable name, e.g. "pg_dump".
+	Name string
+
+	// Args is the set of args to the command.
+	Args []string
+
+	// Env is the set of environment variables to set for the command.
+	Env []string
+
+	// Stdin is the command's stdin. If nil, [os.Stdin] is used.
+	Stdin io.Reader
+
+	// Stdout is the command's stdout. If nil, [os.Stdout] is used.
+	Stdout io.Writer
+
+	// Stderr is the command's stderr. If nil, [os.Stderr] is used.
+	Stderr io.Writer
+
+	// ProgressFromStderr indicates that the command outputs progress messages
+	// on stderr.
+	ProgressFromStderr bool
+
+	// ErrPrefix is the prefix to use for error messages.
+	ErrPrefix string
+
+	// UsesOutputFile indicates that the command its output to this filepath
+	// instead of stdout. If empty, stdout is being used.
+	UsesOutputFile string
+
+	// CmdDirPath controls whether the command's PATH will include the parent dir
+	// of the command. This allows the command to access sibling commands in the
+	// same dir,  e.g. "pg_dumpall" needs to invoke "pg_dump".
+	CmdDirPath bool
+}
+
+// ShellExec executes shellCmd with the environment specified in shellEnv.
 // The first element of shellCmd is the command name; the remaining elements
-// are passed as args to the command. If cmdDirPath is true, the command's PATH
-// will include the directory of the command. This allows the command to access
-// sibling commands in the same dir, e.g. "pg_dumpall" needs to invoke "pg_dump".
+// are passed as args to the command.
+//
+// If stderrProgress is true, the command outputs progress messages to stderr.
+//
+// If usesOutputFile is non-empty, the command includes an argument or flag
+// indicating to write to a file rather than stdout. That is to say, the command
+// won't be using stdout for its output. If usesOutputFile is empty, the command
+// is using stdout.
+//
+// If cmdDirPath is true, the command's PATH  will include the directory of the
+// command. This allows the command to access sibling commands in the same dir,
+// e.g. "pg_dumpall" needs to invoke "pg_dump".
 // If outfile is empty, stdout is used; if non-empty, the command's output is
 // written to outfile.
 //
-// TODO: Move shellExec stuff to its own package.
-func shellExec(ru *run.Run, errMsg string, shellCmd, shellEnv []string, cmdDirPath bool) (err error) {
+// TODO: Move ShellExec stuff to its own package.
+func ShellExec(ru *run.Run, errMsg string, stderrProgress bool, usesOutputFile string,
+	shellCmd, shellEnv []string, cmdDirPath bool) (err error) {
+	_ = stderrProgress
+	_ = usesOutputFile
 	ctx := ru.Cmd.Context()
 
-	logShellCmd(lg.FromContext(ctx), "Executing shell cmd", shellCmd, shellEnv)
+	logShellCmd(lg.FromContext(ctx), "Executing shell cmd", shellCmd[0], shellCmd[1:], shellEnv)
 
 	c := exec.CommandContext(ctx, shellCmd[0], shellCmd[1:]...) //nolint:gosec
 	if cmdDirPath {
@@ -99,7 +147,7 @@ func shellExec(ru *run.Run, errMsg string, shellCmd, shellEnv []string, cmdDirPa
 	}
 	c.Env = append(c.Env, shellEnv...)
 	c.Stdin = ru.Stdin
-	c.Stdout = os.Stdout
+	c.Stdout = ru.Out
 
 	c.Stderr = &bytes.Buffer{}
 	if err = c.Run(); err != nil {
@@ -108,17 +156,38 @@ func shellExec(ru *run.Run, errMsg string, shellCmd, shellEnv []string, cmdDirPa
 	return nil
 }
 
-func logShellCmd(log *slog.Logger, msg string, shellCmd, shellEnv []string) {
+// ShellExec2 executes cmd.
+func ShellExec2(ctx context.Context, cmd *ShellCommand) (err error) {
+	logShellCmd(lg.FromContext(ctx), "Executing shell cmd", cmd.Name, cmd.Args, cmd.Env)
+
+	c := exec.CommandContext(ctx, cmd.Name, cmd.Args...) //nolint:gosec
+	if cmd.CmdDirPath {
+		c.Env = append(c.Env, "PATH="+filepath.Dir(c.Path))
+	}
+	c.Env = append(c.Env, cmd.Env...)
+	c.Stdin = cmd.Stdin
+	c.Stdout = cmd.Stdout
+
+	c.Stderr = &bytes.Buffer{}
+	if err = c.Run(); err != nil {
+		return newShellExecError(cmd.ErrPrefix, c, err)
+	}
+	return nil
+}
+
+// FIXME: Switch to ShellCommand using slog.LogValuer.
+func logShellCmd(log *slog.Logger, msg string, cmd string, shellArgs, shellEnv []string) {
 	// Make a copy of shellCmd so that mutations don't affect the original.
-	shellCmd = append([]string(nil), shellCmd...)
-	for i := range shellCmd {
+	shellArgs = append([]string{cmd}, shellArgs...)
+	for i := range shellArgs {
 		// If the command element is SQL or HTTP location, redact it.
-		locType := location.TypeOf(shellCmd[i])
+		locType := location.TypeOf(shellArgs[i])
 		if locType == location.TypeSQL || locType == location.TypeHTTP {
-			shellCmd[i] = location.Redact(shellCmd[i])
+			// FIXME: switch to just checking for HTTP URL.
+			shellArgs[i] = location.Redact(shellArgs[i])
 		}
 
-		shellCmd[i] = stringz.ShellEscape(shellCmd[i])
+		shellArgs[i] = stringz.ShellEscape(shellArgs[i])
 	}
 
 	// Make a copy of shellEnv so that mutations don't affect the original.
@@ -126,7 +195,7 @@ func logShellCmd(log *slog.Logger, msg string, shellCmd, shellEnv []string) {
 	for i := range shellEnv {
 		if parts := strings.SplitN(shellEnv[i], "=", 2); len(parts) > 1 {
 			// If the env var value is a SQL or HTTP location, redact it.
-			locType := location.TypeOf(shellCmd[1])
+			locType := location.TypeOf(shellArgs[1])
 			if locType == location.TypeSQL || locType == location.TypeHTTP {
 				shellEnv[i] = parts[0] + "=" + location.Redact(parts[1])
 			}
@@ -136,39 +205,13 @@ func logShellCmd(log *slog.Logger, msg string, shellCmd, shellEnv []string) {
 	}
 
 	if len(shellEnv) == 0 {
-		log.Info(msg, lga.Cmd, strings.Join(shellCmd, " "))
+		log.Info(msg, lga.Cmd, strings.Join(shellArgs, " "))
 	} else {
-		log.Info(msg, lga.Cmd, strings.Join(shellCmd, " "), lga.Env, strings.Join(shellEnv, " "))
+		log.Info(msg, lga.Cmd, strings.Join(shellArgs, " "), lga.Env, strings.Join(shellEnv, " "))
 	}
 }
 
-//nolint:gocritic
-func shellExecPgRestoreCluster(ru *run.Run, src *source.Source, shellCmd, shellEnv []string) error {
-	_ = ru
-	_ = src
-	_ = shellCmd
-	_ = shellEnv
-
-	return errz.New("not implemented")
-	//c := exec.CommandContext(ru.Cmd.Context(), shellCmd[0], shellCmd[1:]...) //nolint:gosec
-	//
-	//// PATH shenanigans are required to ensure that pg_dumpall can find pg_dump.
-	//// Otherwise we see this error:
-	////
-	////  pg_dumpall: error: program "pg_dump" is needed by pg_dumpall but was not
-	////   found in the same directory as "pg_dumpall"
-	//c.Env = append(c.Env, "PATH="+filepath.Dir(c.Path))
-	//c.Env = append(c.Env, shellEnv...)
-	//
-	//c.Stdout = os.Stdout
-	//c.Stderr = &bytes.Buffer{}
-	//if err := c.Run(); err != nil {
-	//	return newShellExecError(fmt.Sprintf("db dump --all: %s", src.Handle), c, err)
-	//}
-	//return nil
-}
-
-func printToolCmd(ru *run.Run, shellCmd, shellEnv []string) error {
+func PrintToolCmd(out io.Writer, shellCmd, shellEnv []string) error {
 	for i := range shellCmd {
 		shellCmd[i] = stringz.ShellEscape(shellCmd[i])
 	}
@@ -177,9 +220,9 @@ func printToolCmd(ru *run.Run, shellCmd, shellEnv []string) error {
 	}
 
 	if len(shellEnv) == 0 {
-		fmt.Fprintln(ru.Out, strings.Join(shellCmd, " "))
+		fmt.Fprintln(out, strings.Join(shellCmd, " "))
 	} else {
-		fmt.Fprintln(ru.Out, strings.Join(shellEnv, " ")+" "+strings.Join(shellCmd, " "))
+		fmt.Fprintln(out, strings.Join(shellEnv, " ")+" "+strings.Join(shellCmd, " "))
 	}
 
 	return nil

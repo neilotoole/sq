@@ -160,22 +160,22 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 	// If the --output=/some/file flag is set, then we need to
 	// override ru.Out (which is typically stdout) to point it at
 	// the output destination file.
-	if cmdFlagChanged(ru.Cmd, flag.Output) {
-		fpath, _ := ru.Cmd.Flags().GetString(flag.Output)
+	if cmdFlagChanged(ru.Cmd, flag.FileOutput) && !cmdPlainStdout(ru.Cmd) {
+		fpath, _ := ru.Cmd.Flags().GetString(flag.FileOutput)
 		fpath, err := filepath.Abs(fpath)
 		if err != nil {
-			return errz.Wrapf(err, "failed to get absolute path for --%s", flag.Output)
+			return errz.Wrapf(err, "failed to get absolute path for --%s", flag.FileOutput)
 		}
 
 		// Ensure the parent dir exists
 		err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm)
 		if err != nil {
-			return errz.Wrapf(err, "failed to make parent dir for --%s", flag.Output)
+			return errz.Wrapf(err, "failed to make parent dir for --%s", flag.FileOutput)
 		}
 
 		f, err := os.Create(fpath)
 		if err != nil {
-			return errz.Wrapf(err, "failed to open file specified by flag --%s", flag.Output)
+			return errz.Wrapf(err, "failed to open file specified by flag --%s", flag.FileOutput)
 		}
 
 		ru.Cleanup.AddC(f) // Make sure the file gets closed eventually

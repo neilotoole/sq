@@ -444,7 +444,7 @@ func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Option
 
 	colorize := !OptMonochrome.Get(opts)
 
-	if cmdFlagChanged(cmd, flag.Output) {
+	if cmdFlagChanged(cmd, flag.FileOutput) {
 		// We're outputting to a file, thus no color.
 		colorize = false
 	}
@@ -463,7 +463,9 @@ func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Option
 			pb := progress.New(ctx, errOut2, renderDelay, progColors)
 			clnup.Add(pb.Stop)
 			// On first write to stdout, we remove the progress widget.
-			out2 = ioz.NotifyOnceWriter(out2, pb.Stop)
+			if !cmdPlainStdout(cmd) {
+				out2 = ioz.NotifyOnceWriter(out2, pb.Stop)
+			}
 			cmd.SetContext(progress.NewContext(ctx, pb))
 		}
 
@@ -492,7 +494,15 @@ func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Option
 	// out can be colorized.
 	color.NoColor = false
 	pr.EnableColor(true)
-	out2 = colorable.NewColorable(out.(*os.File))
+	if !cmdPlainStdout(cmd) {
+		// We're writing to stdout, but we're not writing to a file,
+		// so we can colorize.
+		out2 = colorable.NewColorable(out.(*os.File))
+	} else {
+		// We're writing to a file, so we can't colorize.
+		out2 = out
+	}
+	//out2 = colorable.NewColorable(out.(*os.File))
 
 	// Check if we can colorize errOut
 	if isColorTerminal(errOut) {
@@ -513,7 +523,9 @@ func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Option
 		clnup.Add(pb.Stop)
 
 		// On first write to stdout, we remove the progress widget.
-		out2 = ioz.NotifyOnceWriter(out2, pb.Stop)
+		if !cmdPlainStdout(cmd) {
+			out2 = ioz.NotifyOnceWriter(out2, pb.Stop)
+		}
 
 		cmd.SetContext(progress.NewContext(ctx, pb))
 	}

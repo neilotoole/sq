@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"os"
 	"strings"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -113,12 +114,25 @@ func execDBRestoreCatalog(cmd *cobra.Command, args []string) error {
 	}
 
 	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
-		return printToolCmd(ru, shellCmd, shellEnv)
+		return PrintToolCmd(ru, shellCmd, shellEnv)
+	}
+
+	c := &ShellCommand{
+		Stdin:              os.Stdin,
+		Stdout:             os.Stdout,
+		Stderr:             os.Stderr,
+		ProgressFromStderr: false,
+		ErrPrefix:          errPrefix,
+		Name:               shellCmd[0],
+		Args:               shellCmd[1:],
+		Env:                shellEnv,
+		CmdDirPath:         true,
 	}
 
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
-		return shellExec(ru, errPrefix, shellCmd, shellEnv, true)
+		//return ShellExec(ru, errPrefix, false, "", shellCmd, shellEnv, true)
+		return ShellExec2(cmd.Context(), c)
 	default:
 		return errz.Errorf("%s: cmd not supported for %s", errPrefix, src.Type)
 	}
@@ -194,6 +208,7 @@ func execDBRestoreCluster(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	errPrefix := "db restore cluster: " + src.Handle
 	verbose := cmdFlagBool(cmd, flag.Verbose)
 	noOwner := cmdFlagBool(cmd, flag.RestoreNoOwner)
 
@@ -204,23 +219,36 @@ func execDBRestoreCluster(cmd *cobra.Command, args []string) error {
 			NoOwner: noOwner,
 			File:    fpDump,
 		}
-		shellCmd, shellEnv, err = postgres.RestoreCatalogCmd(src, params)
+		shellCmd, shellEnv, err = postgres.RestoreClusterCmd(src, params.Verbose)
 	default:
-		return errz.Errorf("db restore cluster: %s: not supported for %s", src.Handle, src.Type)
+		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
 	}
 
 	if err != nil {
-		return errz.Wrapf(err, "db restore cluster: %s", src.Handle)
+		return errz.Wrap(err, errPrefix)
 	}
 
 	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
-		return printToolCmd(ru, shellCmd, shellEnv)
+		return PrintToolCmd(ru, shellCmd, shellEnv)
+	}
+
+	c := &ShellCommand{
+		Stdin:              os.Stdin,
+		Stdout:             os.Stdout,
+		Stderr:             os.Stderr,
+		ProgressFromStderr: false,
+		ErrPrefix:          errPrefix,
+		Name:               shellCmd[0],
+		Args:               shellCmd[1:],
+		Env:                shellEnv,
+		CmdDirPath:         true,
 	}
 
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
-		return shellExecPgRestoreCluster(ru, src, shellCmd, shellEnv)
+		//return shellExecPgRestoreCluster(ru, src, shellCmd, shellEnv)
+		return ShellExec2(cmd.Context(), c)
 	default:
-		return errz.Errorf("db restore cluster: %s: not supported for %s", src.Handle, src.Type)
+		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
 	}
 }

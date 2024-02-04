@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -34,8 +35,8 @@ func newDBDumpCatalogCmd() *cobra.Command {
 		ValidArgsFunction: completeHandle(1, true),
 		Args:              cobra.MaximumNArgs(1),
 		RunE:              execDBDumpCatalog,
-		Example: `  # Dump @sakila_pg to sakila.dump using pg_dump
-  $ sq db dump catalog @sakila_pg -f sakila.dump
+		Example: `  # Dump @sakila_pg to file sakila.dump using pg_dump
+  $ sq db dump catalog @sakila_pg -o sakila.dump
 
   # Same as above, but verbose mode, and dump via stdout
   $ sq db dump catalog @sakila_pg -v > sakila.dump
@@ -50,11 +51,15 @@ func newDBDumpCatalogCmd() *cobra.Command {
   $ sq db dump catalog @sakila_pg --catalog sales > sales.dump`,
 	}
 
+	// Calling markCmdPlainStdout means that ru.Stdout will be
+	// the plain os.Stdout, and won't be decorated with color, or
+	// progress listeners etc. The dump commands handle their own output.
 	markCmdPlainStdout(cmd)
+
 	cmd.Flags().String(flag.DumpCatalog, "", flag.DumpCatalogUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.DumpCatalog, completeCatalog(0)))
 	cmd.Flags().Bool(flag.DumpNoOwner, false, flag.DumpNoOwnerUsage)
-	cmd.Flags().StringP(flag.DumpFile, flag.DumpFileShort, "", flag.DumpFileUsage)
+	cmd.Flags().StringP(flag.FileOutput, flag.FileOutputShort, "", flag.FileOutputUsage)
 	cmd.Flags().Bool(flag.PrintToolCmd, false, flag.PrintToolCmdUsage)
 	cmd.Flags().Bool(flag.PrintLongToolCmd, false, flag.PrintLongToolCmdUsage)
 	cmd.MarkFlagsMutuallyExclusive(flag.PrintToolCmd, flag.PrintLongToolCmd)
@@ -99,13 +104,13 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 		dumpFile      string
 	)
 
-	if cmdFlagChanged(cmd, flag.DumpFile) {
-		if dumpFile, err = cmd.Flags().GetString(flag.DumpFile); err != nil {
+	if cmdFlagChanged(cmd, flag.FileOutput) {
+		if dumpFile, err = cmd.Flags().GetString(flag.FileOutput); err != nil {
 			return err
 		}
 
 		if dumpFile = strings.TrimSpace(dumpFile); dumpFile == "" {
-			return errz.Errorf("%s: %s is specified, but empty", errPrefix, flag.DumpFile)
+			return errz.Errorf("%s: %s is specified, but empty", errPrefix, flag.FileOutput)
 		}
 	}
 
@@ -127,13 +132,26 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 	}
 
 	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
-		return printToolCmd(ru, shellCmd, shellEnv)
+		return PrintToolCmd(ru, shellCmd, shellEnv)
+	}
+
+	c := &ShellCommand{
+		Stdin:              os.Stdin,
+		Stdout:             os.Stdout,
+		Stderr:             os.Stderr,
+		ProgressFromStderr: false,
+		ErrPrefix:          errPrefix,
+		UsesOutputFile:     dumpFile,
+		Name:               shellCmd[0],
+		Args:               shellCmd[1:],
+		Env:                shellEnv,
+		CmdDirPath:         false,
 	}
 
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
-		return shellExec(ru, errPrefix, shellCmd, shellEnv, false)
-		// return shellExecPgDump(ru, src, shellCmd, shellEnv)
+		//return ShellExec(ru, errPrefix, false, dumpFile, shellCmd, shellEnv, false)
+		return ShellExec2(cmd.Context(), c)
 	default:
 		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
 	}
@@ -160,9 +178,12 @@ func newDBDumpClusterCmd() *cobra.Command {
   $ sq db dump cluster @sakila_pg -f all.dump --cmd`,
 	}
 
+	// Calling markCmdPlainStdout means that ru.Stdout will be
+	// the plain os.Stdout, and won't be decorated with color, or
+	// progress listeners etc. The dump commands handle their own output.
 	markCmdPlainStdout(cmd)
 	cmd.Flags().Bool(flag.DumpNoOwner, false, flag.DumpNoOwnerUsage)
-	cmd.Flags().StringP(flag.DumpFile, flag.DumpFileShort, "", flag.DumpFileUsage)
+	cmd.Flags().StringP(flag.FileOutput, flag.FileOutputShort, "", flag.FileOutputUsage)
 	cmd.Flags().Bool(flag.PrintToolCmd, false, flag.PrintToolCmdUsage)
 	cmd.Flags().Bool(flag.PrintLongToolCmd, false, flag.PrintLongToolCmdUsage)
 	cmd.MarkFlagsMutuallyExclusive(flag.PrintToolCmd, flag.PrintLongToolCmd)
@@ -200,13 +221,13 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 		dumpFile      string
 	)
 
-	if cmdFlagChanged(cmd, flag.DumpFile) {
-		if dumpFile, err = cmd.Flags().GetString(flag.DumpFile); err != nil {
+	if cmdFlagChanged(cmd, flag.FileOutput) {
+		if dumpFile, err = cmd.Flags().GetString(flag.FileOutput); err != nil {
 			return err
 		}
 
 		if dumpFile = strings.TrimSpace(dumpFile); dumpFile == "" {
-			return errz.Errorf("%s: %s is specified, but empty", errPrefix, flag.DumpFile)
+			return errz.Errorf("%s: %s is specified, but empty", errPrefix, flag.FileOutput)
 		}
 	}
 
@@ -228,13 +249,27 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 	}
 
 	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
-		return printToolCmd(ru, shellCmd, shellEnv)
+		return PrintToolCmd(ru, shellCmd, shellEnv)
+	}
+
+	c := &ShellCommand{
+		Stdin:              os.Stdin,
+		Stdout:             os.Stdout,
+		Stderr:             os.Stderr,
+		ProgressFromStderr: false,
+		ErrPrefix:          errPrefix,
+		UsesOutputFile:     dumpFile,
+		Name:               shellCmd[0],
+		Args:               shellCmd[1:],
+		Env:                shellEnv,
+		CmdDirPath:         true,
 	}
 
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
 		// return shellExecPgDumpCluster(ru, src, shellCmd, shellEnv)
-		return shellExec(ru, errPrefix, shellCmd, shellEnv, true)
+		return ShellExec2(cmd.Context(), c)
+		//return ShellExec(ru, errPrefix, false, dumpFile, shellCmd, shellEnv, true)
 	default:
 		return errz.Errorf("db dump cluster: %s: not supported for %s", src.Handle, src.Type)
 	}

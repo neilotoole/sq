@@ -176,16 +176,16 @@ func RestoreCatalogCmd(src *source.Source, p *ToolParams) (cmd, env []string, er
 	return cmd, env, nil
 }
 
-// RestoreAllCmd returns the shell command components to execute pg_restore for src.
+// RestoreClusterCmd returns the shell command components to execute pg_restore for src.
 // Example output (components concatenated with space):
 //
-//	pg_dump -Fc --no-acl -d 'postgres://alice:vNgR6R@db.acme.com:5432/sales?connect_timeout=10'
+//	FIXME: insert example
 //
 // Note that the returned cmd components may need to be shell-escaped if they're
 // to be executed in the terminal or via a shell script.
 //
 // FIXME: maybe delete this?
-func RestoreAllCmd(src *source.Source, verbose bool) (cmd, env []string, err error) {
+func RestoreClusterCmd(src *source.Source, verbose bool) (cmd, env []string, err error) {
 	// - https://www.postgresql.org/docs/9.6/app-pgrestore.html
 	// - https://www.postgresql.org/docs/9.6/app-pgdump.html
 	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
