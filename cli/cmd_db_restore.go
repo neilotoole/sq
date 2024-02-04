@@ -114,7 +114,7 @@ func execDBRestoreCatalog(cmd *cobra.Command, args []string) error {
 	}
 
 	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
-		return PrintToolCmd(ru, shellCmd, shellEnv)
+		return PrintToolCmd(ru.Out, shellCmd, shellEnv)
 	}
 
 	c := &ShellCommand{
@@ -229,7 +229,7 @@ func execDBRestoreCluster(cmd *cobra.Command, args []string) error {
 	}
 
 	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
-		return PrintToolCmd(ru, shellCmd, shellEnv)
+		return PrintToolCmd(ru.Out, shellCmd, shellEnv)
 	}
 
 	c := &ShellCommand{

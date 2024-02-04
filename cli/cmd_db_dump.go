@@ -132,7 +132,7 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 	}
 
 	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
-		return PrintToolCmd(ru, shellCmd, shellEnv)
+		return PrintToolCmd(ru.Out, shellCmd, shellEnv)
 	}
 
 	c := &ShellCommand{
@@ -249,7 +249,7 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 	}
 
 	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
-		return PrintToolCmd(ru, shellCmd, shellEnv)
+		return PrintToolCmd(ru.Out, shellCmd, shellEnv)
 	}
 
 	c := &ShellCommand{
