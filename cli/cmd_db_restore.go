@@ -121,7 +121,7 @@ func execDBRestoreCatalog(cmd *cobra.Command, args []string) error {
 		return errz.Wrap(err, errPrefix)
 	}
 
-	execCmd := &execz.Command{
+	execCmd := &execz.Cmd{
 		Stdin:              os.Stdin,
 		Stdout:             os.Stdout,
 		Stderr:             os.Stderr,
@@ -242,7 +242,7 @@ func execDBRestoreCluster(cmd *cobra.Command, args []string) error {
 		return errz.Wrap(err, errPrefix)
 	}
 
-	execCmd := &execz.Command{
+	execCmd := &execz.Cmd{
 		Stdin:              os.Stdin,
 		Stdout:             os.Stdout,
 		Stderr:             os.Stderr,

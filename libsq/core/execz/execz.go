@@ -16,8 +16,8 @@ import (
 	"github.com/neilotoole/sq/libsq/source/location"
 )
 
-// Command represents an external command being prepared or run.
-type Command struct {
+// Cmd represents an external command being prepared or run.
+type Cmd struct {
 	// Stdin is the command's stdin. If nil, [os.Stdin] is used.
 	Stdin io.Reader
 
@@ -26,8 +26,6 @@ type Command struct {
 
 	// Stderr is the command's stderr. If nil, [os.Stderr] is used.
 	Stderr io.Writer
-
-	stderrBuf *bytes.Buffer
 
 	// Name is the executable name, e.g. "pg_dump".
 	Name string
@@ -57,8 +55,8 @@ type Command struct {
 
 // String returns what command would look like if executed in a shell.
 // Note that the returned string could contain sensitive information such as
-// passwords, so it's not safe for logging. Instead, see [Command.LogValue].
-func (c *Command) String() string {
+// passwords, so it's not safe for logging. Instead, see [Cmd.LogValue].
+func (c *Cmd) String() string {
 	if c == nil {
 		return ""
 	}
@@ -88,7 +86,7 @@ func (c *Command) String() string {
 
 // redactedCmd returns a redacted rendering of c, suitable for logging (but
 // not execution). If escape is true, the string is also shell-escaped.
-func (c *Command) redactedCmd(escape bool) string {
+func (c *Cmd) redactedCmd(escape bool) string {
 	if c == nil {
 		return ""
 	}
@@ -110,7 +108,7 @@ func (c *Command) redactedCmd(escape bool) string {
 
 // redactedEnv returns c's env with sensitive values redacted.
 // If escape is true, the values are also shell-escaped.
-func (c *Command) redactedEnv(escape bool) []string {
+func (c *Cmd) redactedEnv(escape bool) []string {
 	if c == nil || len(c.Env) == 0 {
 		return []string{}
 	}
@@ -144,7 +142,7 @@ func (c *Command) redactedEnv(escape bool) []string {
 
 // redactedArgs returns c's args with sensitive values redacted.
 // If escape is true, the values are also shell-escaped.
-func (c *Command) redactedArgs(escape bool) []string {
+func (c *Cmd) redactedArgs(escape bool) []string {
 	if c == nil || len(c.Args) == 0 {
 		return []string{}
 	}
@@ -168,11 +166,11 @@ func (c *Command) redactedArgs(escape bool) []string {
 	return args
 }
 
-var _ slog.LogValuer = (*Command)(nil)
+var _ slog.LogValuer = (*Cmd)(nil)
 
 // LogValue implements [slog.LogValuer]. It redacts sensitive information
 // (passwords etc.) from URL-like values.
-func (c *Command) LogValue() slog.Value {
+func (c *Cmd) LogValue() slog.Value {
 	if c == nil {
 		return slog.Value{}
 	}
@@ -186,7 +184,7 @@ func (c *Command) LogValue() slog.Value {
 }
 
 // Exec executes cmd.
-func Exec(ctx context.Context, cmd *Command) (err error) {
+func Exec(ctx context.Context, cmd *Cmd) (err error) {
 	if cmd.Stdin == nil {
 		cmd.Stdin = os.Stdin
 	}
@@ -206,11 +204,11 @@ func Exec(ctx context.Context, cmd *Command) (err error) {
 	execCmd.Stdout = cmd.Stdout
 
 	// c.Stderr = &bytes.Buffer{} // FIXME: need to capture this better.
-	cmd.stderrBuf = &bytes.Buffer{}
+	stderrBuf := &bytes.Buffer{}
 
-	execCmd.Stderr = io.MultiWriter(cmd.stderrBuf, cmd.Stderr)
+	execCmd.Stderr = io.MultiWriter(stderrBuf, cmd.Stderr)
 	if err = execCmd.Run(); err != nil {
-		return newExecError(cmd.ErrPrefix, cmd, execCmd, err)
+		return newExecError(cmd.ErrPrefix, cmd, execCmd, stderrBuf, err)
 	}
 	return nil
 }
@@ -221,6 +219,7 @@ var _ error = (*execError)(nil)
 type execError struct {
 	msg     string
 	execErr error
+	cmd     *Cmd
 	execCmd *exec.Cmd
 	errOut  []byte
 }
@@ -255,18 +254,19 @@ func (e *execError) ExitCode() int {
 // newExecError creates a new execError. If cmd.Stderr is
 // a *bytes.Buffer, it will be used to populate the errOut field,
 // otherwise errOut may be nil.
-func newExecError(msg string, cmd *Command, execCmd *exec.Cmd, execErr error) *execError {
+func newExecError(msg string, cmd *Cmd, execCmd *exec.Cmd, stderrBuf *bytes.Buffer, execErr error) *execError {
 	e := &execError{
 		msg:     msg,
 		execErr: execErr,
+		cmd:     cmd,
 		execCmd: execCmd,
 	}
 
 	// TODO: We should implement special handling for Lookup errors,
 	// e.g. "pg_dump" not found.
 
-	if cmd.stderrBuf != nil {
-		e.errOut = cmd.stderrBuf.Bytes()
+	if stderrBuf != nil {
+		e.errOut = stderrBuf.Bytes()
 	}
 	return e
 }
