@@ -56,10 +56,10 @@ func newDBDumpCatalogCmd() *cobra.Command {
   $ sq db dump catalog @sakila_pg --catalog sales > sales.dump`,
 	}
 
-	// Calling markCmdPlainStdout means that ru.Stdout will be
+	// Calling cmdMarkPlainStdout means that ru.Stdout will be
 	// the plain os.Stdout, and won't be decorated with color, or
 	// progress listeners etc. The dump commands handle their own output.
-	markCmdPlainStdout(cmd)
+	cmdMarkPlainStdout(cmd)
 
 	cmd.Flags().String(flag.DumpCatalog, "", flag.DumpCatalogUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.DumpCatalog, completeCatalog(0)))
@@ -185,10 +185,10 @@ func newDBDumpClusterCmd() *cobra.Command {
   $ sq db dump cluster @sakila_pg -f all.dump --cmd`,
 	}
 
-	// Calling markCmdPlainStdout means that ru.Stdout will be
+	// Calling cmdMarkPlainStdout means that ru.Stdout will be
 	// the plain os.Stdout, and won't be decorated with color, or
 	// progress listeners etc. The dump commands handle their own output.
-	markCmdPlainStdout(cmd)
+	cmdMarkPlainStdout(cmd)
 	cmd.Flags().Bool(flag.DumpNoOwner, false, flag.DumpNoOwnerUsage)
 	cmd.Flags().StringP(flag.FileOutput, flag.FileOutputShort, "", flag.FileOutputUsage)
 	cmd.Flags().Bool(flag.PrintToolCmd, false, flag.PrintToolCmdUsage)

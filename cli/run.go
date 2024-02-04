@@ -160,7 +160,7 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 	// If the --output=/some/file flag is set, then we need to
 	// override ru.Out (which is typically stdout) to point it at
 	// the output destination file.
-	if cmdFlagChanged(ru.Cmd, flag.FileOutput) && !cmdPlainStdout(ru.Cmd) {
+	if cmdFlagChanged(ru.Cmd, flag.FileOutput) && !cmdRequiresPlainStdout(ru.Cmd) {
 		fpath, _ := ru.Cmd.Flags().GetString(flag.FileOutput)
 		fpath, err := filepath.Abs(fpath)
 		if err != nil {
@@ -330,20 +330,20 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 	return nil
 }
 
-// markCmdRequiresConfigLock marks cmd as requiring a config lock.
+// cmdMarkRequiresConfigLock marks cmd as requiring a config lock.
 // Thus, before the command's RunE is invoked, the config lock
 // is acquired (in preRun), and released on cleanup.
-func markCmdRequiresConfigLock(cmd *cobra.Command) {
+func cmdMarkRequiresConfigLock(cmd *cobra.Command) {
 	if cmd.Annotations == nil {
 		cmd.Annotations = make(map[string]string)
 	}
 	cmd.Annotations["config.lock"] = "true" //nolint:goconst
 }
 
-// cmdRequiresConfigLock returns true if markCmdRequiresConfigLock was
+// cmdRequiresConfigLock returns true if cmdMarkRequiresConfigLock was
 // previously invoked on cmd.
 func cmdRequiresConfigLock(cmd *cobra.Command) bool {
-	return cmd.Annotations != nil && cmd.Annotations["config.lock"] == "true"
+	return cmd != nil && cmd.Annotations != nil && cmd.Annotations["config.lock"] == "true"
 }
 
 // lockReloadConfig acquires the lock for the config store, and updates the
@@ -363,7 +363,7 @@ func cmdRequiresConfigLock(cmd *cobra.Command) bool {
 //		defer unlock()
 //	}
 //
-// However, in practice, most commands will invoke markCmdRequiresConfigLock
+// However, in practice, most commands will invoke cmdMarkRequiresConfigLock
 // instead of explicitly invoking lockReloadConfig.
 func lockReloadConfig(cmd *cobra.Command) (unlock func(), err error) {
 	ctx := cmd.Context()
@@ -434,10 +434,10 @@ func newProgressLockFunc(lock lockfile.Lockfile, msg string, timeout time.Durati
 	}
 }
 
-// markCmdPlainStdout indicates that the command's stdout should
+// cmdMarkPlainStdout indicates that the command's stdout should
 // not be decorated in any way, e.g. with color or progress bars.
 // This is useful for binary output.
-func markCmdPlainStdout(cmd *cobra.Command) {
+func cmdMarkPlainStdout(cmd *cobra.Command) {
 	// FIXME: implement this in newWriters or such?
 	if cmd.Annotations == nil {
 		cmd.Annotations = make(map[string]string)
@@ -445,8 +445,8 @@ func markCmdPlainStdout(cmd *cobra.Command) {
 	cmd.Annotations["stdout.plain"] = "true"
 }
 
-// cmdPlainStdout returns true if markCmdPlainStdout was
+// cmdRequiresPlainStdout returns true if cmdMarkPlainStdout was
 // previously invoked on cmd.
-func cmdPlainStdout(cmd *cobra.Command) bool {
-	return cmd.Annotations != nil && cmd.Annotations["stdout.plain"] == "true"
+func cmdRequiresPlainStdout(cmd *cobra.Command) bool {
+	return cmd != nil && cmd.Annotations != nil && cmd.Annotations["stdout.plain"] == "true"
 }

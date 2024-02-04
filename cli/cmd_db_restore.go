@@ -63,8 +63,10 @@ will include DB credentials. For a Postgres source, it would look something like
   $ sq db restore catalog @sakila_pg -f backup.dump --cmd`,
 	}
 
+	cmdMarkPlainStdout(cmd)
 	cmd.Flags().StringP(flag.RestoreFrom, flag.RestoreFromShort, "", flag.RestoreFromUsage)
 	cmd.Flags().Bool(flag.RestoreNoOwner, false, flag.RestoreNoOwnerUsage)
+	cmd.Flags().StringP(flag.FileOutput, flag.FileOutputShort, "", flag.FileOutputUsage)
 	cmd.Flags().Bool(flag.PrintToolCmd, false, flag.PrintToolCmdUsage)
 	cmd.Flags().Bool(flag.PrintLongToolCmd, false, flag.PrintLongToolCmdUsage)
 	cmd.MarkFlagsMutuallyExclusive(flag.PrintToolCmd, flag.PrintLongToolCmd)
@@ -180,8 +182,10 @@ FIXME: example command
   $ sq db restore cluster @sakila_pg -f backup.dump --cmd`,
 	}
 
+	cmdMarkPlainStdout(cmd)
 	cmd.Flags().StringP(flag.RestoreFrom, flag.RestoreFromShort, "", flag.RestoreFromUsage)
 	cmd.Flags().Bool(flag.RestoreNoOwner, false, flag.RestoreNoOwnerUsage)
+	cmd.Flags().StringP(flag.FileOutput, flag.FileOutputShort, "", flag.FileOutputUsage)
 	cmd.Flags().Bool(flag.PrintToolCmd, false, flag.PrintToolCmdUsage)
 	cmd.Flags().Bool(flag.PrintLongToolCmd, false, flag.PrintLongToolCmdUsage)
 	cmd.MarkFlagsMutuallyExclusive(flag.PrintToolCmd, flag.PrintLongToolCmd)
@@ -206,9 +210,11 @@ func execDBRestoreCluster(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	errPrefix := "db restore cluster: " + src.Handle
+
 	if cmdFlagChanged(cmd, flag.RestoreFrom) {
 		if fpDump = strings.TrimSpace(cmd.Flag(flag.RestoreFrom).Value.String()); fpDump == "" {
-			return errz.Errorf("db restore cluster: %s: %s is specified, but empty", src.Handle, flag.RestoreFrom)
+			return errz.Errorf("%s: %s is specified, but empty", errPrefix, flag.RestoreFrom)
 		}
 	}
 
@@ -216,18 +222,18 @@ func execDBRestoreCluster(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	errPrefix := "db restore cluster: " + src.Handle
 	verbose := cmdFlagBool(cmd, flag.Verbose)
-	noOwner := cmdFlagBool(cmd, flag.RestoreNoOwner)
+
+	// FIXME: get rid of noOwner from this command?
+	// noOwner := cmdFlagBool(cmd, flag.RestoreNoOwner)
 
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
 		params := &postgres.ToolParams{
 			Verbose: verbose,
-			NoOwner: noOwner, //nolint:govet
-			File:    fpDump,  //nolint:govet
+			File:    fpDump,
 		}
-		shellCmd, shellEnv, err = postgres.RestoreClusterCmd(src, params.Verbose)
+		shellCmd, shellEnv, err = postgres.RestoreClusterCmd(src, params)
 	default:
 		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
 	}
@@ -250,7 +256,8 @@ func execDBRestoreCluster(cmd *cobra.Command, args []string) error {
 
 	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
 		lg.FromContext(cmd.Context()).Info("Printing OS cmd", lga.Cmd, execCmd)
-		_, err = fmt.Fprintln(ru.Out, execCmd.String())
+		s := execCmd.String()
+		_, err = fmt.Fprintln(ru.Out, s)
 		return errz.Err(err)
 	}
 

@@ -4,7 +4,6 @@ package execz
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -27,6 +26,8 @@ type Command struct {
 
 	// Stderr is the command's stderr. If nil, [os.Stderr] is used.
 	Stderr io.Writer
+
+	stderrBuf *bytes.Buffer
 
 	// Name is the executable name, e.g. "pg_dump".
 	Name string
@@ -196,37 +197,21 @@ func Exec(ctx context.Context, cmd *Command) (err error) {
 		cmd.Stderr = os.Stderr
 	}
 
-	c := exec.CommandContext(ctx, cmd.Name, cmd.Args...) //nolint:gosec
+	execCmd := exec.CommandContext(ctx, cmd.Name, cmd.Args...) //nolint:gosec
 	if cmd.CmdDirPath {
-		c.Env = append(c.Env, "PATH="+filepath.Dir(c.Path))
+		execCmd.Env = append(execCmd.Env, "PATH="+filepath.Dir(execCmd.Path))
 	}
-	c.Env = append(c.Env, cmd.Env...)
-	c.Stdin = cmd.Stdin
-	c.Stdout = cmd.Stdout
+	execCmd.Env = append(execCmd.Env, cmd.Env...)
+	execCmd.Stdin = cmd.Stdin
+	execCmd.Stdout = cmd.Stdout
 
-	c.Stderr = &bytes.Buffer{} // FIXME: need to capture this better.
-	if err = c.Run(); err != nil {
-		return newExecError(cmd.ErrPrefix, c, err)
-	}
-	return nil
-}
+	// c.Stderr = &bytes.Buffer{} // FIXME: need to capture this better.
+	cmd.stderrBuf = &bytes.Buffer{}
 
-// PrintToolCmd prints the shell command to out.
-// TODO: This should really be moved to the outputters.
-func PrintToolCmd(out io.Writer, shellCmd, shellEnv []string) error {
-	for i := range shellCmd {
-		shellCmd[i] = stringz.ShellEscape(shellCmd[i])
+	execCmd.Stderr = io.MultiWriter(cmd.stderrBuf, cmd.Stderr)
+	if err = execCmd.Run(); err != nil {
+		return newExecError(cmd.ErrPrefix, cmd, execCmd, err)
 	}
-	for i := range shellEnv {
-		shellEnv[i] = stringz.ShellEscape(shellEnv[i])
-	}
-
-	if len(shellEnv) == 0 {
-		fmt.Fprintln(out, strings.Join(shellCmd, " "))
-	} else {
-		fmt.Fprintln(out, strings.Join(shellEnv, " ")+" "+strings.Join(shellCmd, " "))
-	}
-
 	return nil
 }
 
@@ -270,7 +255,7 @@ func (e *execError) ExitCode() int {
 // newExecError creates a new execError. If cmd.Stderr is
 // a *bytes.Buffer, it will be used to populate the errOut field,
 // otherwise errOut may be nil.
-func newExecError(msg string, execCmd *exec.Cmd, execErr error) *execError {
+func newExecError(msg string, cmd *Command, execCmd *exec.Cmd, execErr error) *execError {
 	e := &execError{
 		msg:     msg,
 		execErr: execErr,
@@ -280,11 +265,8 @@ func newExecError(msg string, execCmd *exec.Cmd, execErr error) *execError {
 	// TODO: We should implement special handling for Lookup errors,
 	// e.g. "pg_dump" not found.
 
-	if execCmd.Stderr != nil {
-		if buf, ok := execCmd.Stderr.(*bytes.Buffer); ok && buf != nil {
-			e.errOut = buf.Bytes()
-		}
+	if cmd.stderrBuf != nil {
+		e.errOut = cmd.stderrBuf.Bytes()
 	}
-
 	return e
 }

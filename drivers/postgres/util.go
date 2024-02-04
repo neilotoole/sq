@@ -105,6 +105,7 @@ func DumpClusterCmd(src *source.Source, p *ToolParams) (cmd, env []string, err e
 		flags = flagsLong
 	}
 
+	// FIXME: need mechanism to indicate that env contains password
 	env = []string{"PGPASSWORD=" + cfg.ConnConfig.Password}
 	cmd = []string{"pg_dumpall"}
 	if p.Verbose {
@@ -186,7 +187,9 @@ func RestoreCatalogCmd(src *source.Source, p *ToolParams) (cmd, env []string, er
 // to be executed in the terminal or via a shell script.
 //
 // FIXME: maybe delete this?
-func RestoreClusterCmd(src *source.Source, verbose bool) (cmd, env []string, err error) {
+func RestoreClusterCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error) {
+	// - https://www.postgresql.org/docs/9.6/app-pg-dumpall.html
+	// - https://www.postgresql.org/docs/9.6/app-psql.html
 	// - https://www.postgresql.org/docs/9.6/app-pgrestore.html
 	// - https://www.postgresql.org/docs/9.6/app-pgdump.html
 	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
@@ -197,17 +200,14 @@ func RestoreClusterCmd(src *source.Source, verbose bool) (cmd, env []string, err
 		return nil, env, err
 	}
 
-	cmd = []string{"pg_restore"}
-	if verbose {
-		cmd = append(cmd, "-v")
+	cmd = []string{"psql"}
+	if p.Verbose {
+		cmd = append(cmd, p.flag(flagVerbose))
 	}
-	cmd = append(cmd,
-		"--no-acl",
-		"-c", // -c is --clean, meaning clean/drop db objects before restore
-		"-C", // -C is --create
-		"-O", // -O is --no-owner
-		"-d", // -d is --dbname (conn string)
-		cfg.ConnString())
+	cmd = append(cmd, p.flag(flagDBName), cfg.ConnString())
+	if p.File != "" {
+		cmd = append(cmd, p.flag(flagFile), p.File)
+	}
 	return cmd, env, nil
 }
 

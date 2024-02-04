@@ -463,7 +463,7 @@ func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Option
 			pb := progress.New(ctx, errOut2, renderDelay, progColors)
 			clnup.Add(pb.Stop)
 			// On first write to stdout, we remove the progress widget.
-			if !cmdPlainStdout(cmd) {
+			if !cmdRequiresPlainStdout(cmd) {
 				out2 = ioz.NotifyOnceWriter(out2, pb.Stop)
 			}
 			cmd.SetContext(progress.NewContext(ctx, pb))
@@ -494,7 +494,7 @@ func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Option
 	// out can be colorized.
 	color.NoColor = false
 	pr.EnableColor(true)
-	if !cmdPlainStdout(cmd) {
+	if !cmdRequiresPlainStdout(cmd) {
 		// We're writing to stdout, but we're not writing to a file,
 		// so we can colorize.
 		out2 = colorable.NewColorable(out.(*os.File))
@@ -523,7 +523,7 @@ func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Option
 		clnup.Add(pb.Stop)
 
 		// On first write to stdout, we remove the progress widget.
-		if !cmdPlainStdout(cmd) {
+		if !cmdRequiresPlainStdout(cmd) {
 			out2 = ioz.NotifyOnceWriter(out2, pb.Stop)
 		}
 

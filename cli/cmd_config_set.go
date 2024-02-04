@@ -41,7 +41,7 @@ Use "sq config ls -v" to list available options.`,
   # Help for an individual option
   $ sq config set conn.max-open --help`,
 	}
-	markCmdRequiresConfigLock(cmd)
+	cmdMarkRequiresConfigLock(cmd)
 	addTextFormatFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)

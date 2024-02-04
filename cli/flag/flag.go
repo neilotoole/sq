@@ -221,7 +221,7 @@ const (
 	PrintLongToolCmd      = "cmd-long"
 	PrintLongToolCmdUsage = "Print the long-form db-native tool command, but don't execute it"
 
-	RestoreFrom         = "from"
+	RestoreFrom         = "from" // REVISIT: consider using flag.Input?
 	RestoreFromShort    = "f"
 	RestoreFromUsage    = "Restore from dump file; if omitted, read from stdin"
 	RestoreNoOwner      = "no-owner"
