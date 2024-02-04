@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -76,10 +75,8 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 	ru := run.FromContext(cmd.Context())
 
 	var (
-		src      *source.Source
-		err      error
-		shellCmd []string
-		shellEnv []string
+		src *source.Source
+		err error
 	)
 
 	if len(args) == 0 {
@@ -119,6 +116,8 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	var execCmd *execz.Cmd
+
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
 		params := &postgres.ToolParams{
@@ -127,7 +126,8 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 			File:      dumpFile,
 			LongFlags: dumpLongFlags,
 		}
-		shellCmd, shellEnv, err = postgres.DumpCatalogCmd(src, params)
+		// shellCmd, shellEnv, err = postgres.DumpCatalogCmd(src, params)
+		execCmd, err = postgres.DumpCatalogCmd(src, params)
 	default:
 		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
 	}
@@ -136,18 +136,10 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 		return errz.Wrap(err, errPrefix)
 	}
 
-	execCmd := &execz.Cmd{
-		Stdin:              os.Stdin,
-		Stdout:             os.Stdout,
-		Stderr:             os.Stderr,
-		ProgressFromStderr: false,
-		ErrPrefix:          errPrefix,
-		UsesOutputFile:     dumpFile,
-		Name:               shellCmd[0],
-		Args:               shellCmd[1:],
-		Env:                shellEnv,
-		CmdDirPath:         false,
-	}
+	execCmd.Stdin = ru.Stdin
+	execCmd.Stdout = ru.Out
+	execCmd.Stderr = ru.ErrOut
+	execCmd.ErrPrefix = errPrefix
 
 	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
 		lg.FromContext(cmd.Context()).Info("Printing OS cmd", lga.Cmd, execCmd)
@@ -199,13 +191,10 @@ func newDBDumpClusterCmd() *cobra.Command {
 }
 
 func execDBDumpCluster(cmd *cobra.Command, args []string) error {
-	ru := run.FromContext(cmd.Context())
-
 	var (
-		src      *source.Source
-		err      error
-		shellCmd []string
-		shellEnv []string
+		ru  = run.FromContext(cmd.Context())
+		src *source.Source
+		err error
 	)
 
 	if len(args) == 0 {
@@ -238,6 +227,8 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	var execCmd *execz.Cmd
+
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
 		params := &postgres.ToolParams{
@@ -246,7 +237,7 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 			File:      dumpFile,
 			LongFlags: dumpLongFlags,
 		}
-		shellCmd, shellEnv, err = postgres.DumpClusterCmd(src, params)
+		execCmd, err = postgres.DumpClusterCmd(src, params)
 	default:
 		err = errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
 	}
@@ -255,18 +246,10 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 		return errz.Wrap(err, errPrefix)
 	}
 
-	execCmd := &execz.Cmd{
-		Stdin:              os.Stdin,
-		Stdout:             os.Stdout,
-		Stderr:             os.Stderr,
-		ProgressFromStderr: false,
-		ErrPrefix:          errPrefix,
-		UsesOutputFile:     dumpFile,
-		Name:               shellCmd[0],
-		Args:               shellCmd[1:],
-		Env:                shellEnv,
-		CmdDirPath:         true,
-	}
+	execCmd.Stdin = ru.Stdin
+	execCmd.Stdout = ru.Out
+	execCmd.Stderr = ru.ErrOut
+	execCmd.ErrPrefix = errPrefix
 
 	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
 		lg.FromContext(cmd.Context()).Info("Printing OS cmd", lga.Cmd, execCmd)

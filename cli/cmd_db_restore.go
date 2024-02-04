@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -75,25 +74,22 @@ will include DB credentials. For a Postgres source, it would look something like
 }
 
 func execDBRestoreCatalog(cmd *cobra.Command, args []string) error {
-	ru := run.FromContext(cmd.Context())
-
 	var (
-		src      *source.Source
-		err      error
-		shellCmd []string
-		shellEnv []string
+		ru  = run.FromContext(cmd.Context())
+		src *source.Source
+		err error
 		// fpDump is the (optional) path to the dump file.
 		// If empty, stdin is used.
-		fpDump string
+		dumpFile string
 	)
-	// $ sq db restore @sakila_pg --from backup.dump
+
 	if src, err = ru.Config.Collection.Get(args[0]); err != nil {
 		return err
 	}
 
 	errPrefix := "db restore catalog: " + src.Handle
 	if cmdFlagChanged(cmd, flag.RestoreFrom) {
-		if fpDump = strings.TrimSpace(cmd.Flag(flag.RestoreFrom).Value.String()); fpDump == "" {
+		if dumpFile = strings.TrimSpace(cmd.Flag(flag.RestoreFrom).Value.String()); dumpFile == "" {
 			return errz.Errorf("%s: %s is specified, but empty", errPrefix, flag.RestoreFrom)
 		}
 	}
@@ -105,14 +101,16 @@ func execDBRestoreCatalog(cmd *cobra.Command, args []string) error {
 	verbose := cmdFlagBool(cmd, flag.Verbose)
 	noOwner := cmdFlagBool(cmd, flag.RestoreNoOwner)
 
+	var execCmd *execz.Cmd
+
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
 		params := &postgres.ToolParams{
 			Verbose: verbose,
 			NoOwner: noOwner,
-			File:    fpDump,
+			File:    dumpFile,
 		}
-		shellCmd, shellEnv, err = postgres.RestoreCatalogCmd(src, params)
+		execCmd, err = postgres.RestoreCatalogCmd(src, params)
 	default:
 		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
 	}
@@ -121,17 +119,10 @@ func execDBRestoreCatalog(cmd *cobra.Command, args []string) error {
 		return errz.Wrap(err, errPrefix)
 	}
 
-	execCmd := &execz.Cmd{
-		Stdin:              os.Stdin,
-		Stdout:             os.Stdout,
-		Stderr:             os.Stderr,
-		ProgressFromStderr: false,
-		ErrPrefix:          errPrefix,
-		Name:               shellCmd[0],
-		Args:               shellCmd[1:],
-		Env:                shellEnv,
-		CmdDirPath:         true,
-	}
+	execCmd.Stdin = ru.Stdin
+	execCmd.Stdout = ru.Out
+	execCmd.Stderr = ru.ErrOut
+	execCmd.ErrPrefix = errPrefix
 
 	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
 		lg.FromContext(cmd.Context()).Info("Printing OS cmd", lga.Cmd, execCmd)
@@ -194,26 +185,22 @@ FIXME: example command
 }
 
 func execDBRestoreCluster(cmd *cobra.Command, args []string) error {
-	ru := run.FromContext(cmd.Context())
-
 	var (
-		src      *source.Source
-		err      error
-		shellCmd []string
-		shellEnv []string
-		// fpDump is the (optional) path to the dump file.
+		ru  = run.FromContext(cmd.Context())
+		src *source.Source
+		err error
+		// dumpFile is the (optional) path to the dump file.
 		// If empty, stdin is used.
-		fpDump string
+		dumpFile string
 	)
-	// $ sq db restore @sakila_pg --from backup.dump
+
 	if src, err = ru.Config.Collection.Get(args[0]); err != nil {
 		return err
 	}
 
 	errPrefix := "db restore cluster: " + src.Handle
-
 	if cmdFlagChanged(cmd, flag.RestoreFrom) {
-		if fpDump = strings.TrimSpace(cmd.Flag(flag.RestoreFrom).Value.String()); fpDump == "" {
+		if dumpFile = strings.TrimSpace(cmd.Flag(flag.RestoreFrom).Value.String()); dumpFile == "" {
 			return errz.Errorf("%s: %s is specified, but empty", errPrefix, flag.RestoreFrom)
 		}
 	}
@@ -227,13 +214,15 @@ func execDBRestoreCluster(cmd *cobra.Command, args []string) error {
 	// FIXME: get rid of noOwner from this command?
 	// noOwner := cmdFlagBool(cmd, flag.RestoreNoOwner)
 
+	var execCmd *execz.Cmd
+
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
 		params := &postgres.ToolParams{
 			Verbose: verbose,
-			File:    fpDump,
+			File:    dumpFile,
 		}
-		shellCmd, shellEnv, err = postgres.RestoreClusterCmd(src, params)
+		execCmd, err = postgres.RestoreClusterCmd(src, params)
 	default:
 		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
 	}
@@ -242,17 +231,10 @@ func execDBRestoreCluster(cmd *cobra.Command, args []string) error {
 		return errz.Wrap(err, errPrefix)
 	}
 
-	execCmd := &execz.Cmd{
-		Stdin:              os.Stdin,
-		Stdout:             os.Stdout,
-		Stderr:             os.Stderr,
-		ProgressFromStderr: false,
-		ErrPrefix:          errPrefix,
-		Name:               shellCmd[0],
-		Args:               shellCmd[1:],
-		Env:                shellEnv,
-		CmdDirPath:         true,
-	}
+	execCmd.Stdin = ru.Stdin
+	execCmd.Stdout = ru.Out
+	execCmd.Stderr = ru.ErrOut
+	execCmd.ErrPrefix = errPrefix
 
 	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
 		lg.FromContext(cmd.Context()).Info("Printing OS cmd", lga.Cmd, execCmd)

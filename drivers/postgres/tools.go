@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"github.com/neilotoole/sq/libsq/core/execz"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -53,21 +54,25 @@ func (p *ToolParams) flag(name string) string {
 //   - https://www.postgresql.org/docs/9.6/app-pgrestore.html
 //
 // See also: [RestoreCatalogCmd].
-func DumpCatalogCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error) {
+func DumpCatalogCmd(src *source.Source, p *ToolParams) (*execz.Cmd, error) {
 	// - https://www.postgresql.org/docs/9.6/app-pgdump.html
 	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
 	// - https://gist.github.com/vielhuber/96eefdb3aff327bdf8230d753aaee1e1
 
 	cfg, err := getPoolConfig(src, true)
 	if err != nil {
-		return nil, env, err
+		return nil, err
 	}
 
-	cmd = []string{"pg_dump"}
+	cmd := &execz.Cmd{Name: "pg_dump"}
+
 	if p.Verbose {
-		cmd = append(cmd, p.flag(flagVerbose))
+		cmd.ProgressFromStderr = true
+		cmd.Args = append(cmd.Args, p.flag(flagVerbose))
 	}
-	cmd = append(cmd, p.flag(flagFormatCustomArchive))
+
+	cmd.Args = append(cmd.Args, p.flag(flagFormatCustomArchive))
+
 	if p.NoOwner {
 		// You might expect we'd add --no-owner, but if we're outputting a custom
 		// archive (-Fc), then --no-owner is the default. From the pg_dump docs:
@@ -77,13 +82,14 @@ func DumpCatalogCmd(src *source.Source, p *ToolParams) (cmd, env []string, err e
 		//
 		// If we ultimately allow non-archive formats, then we'll need to add
 		// special handling for --no-owner.
-		cmd = append(cmd, p.flag(flagNoACL))
+		cmd.Args = append(cmd.Args, p.flag(flagNoACL))
 	}
-	cmd = append(cmd, p.flag(flagDBName), cfg.ConnString())
+	cmd.Args = append(cmd.Args, p.flag(flagDBName), cfg.ConnString())
 	if p.File != "" {
-		cmd = append(cmd, p.flag(flagFile), p.File)
+		cmd.UsesOutputFile = p.File
+		cmd.Args = append(cmd.Args, p.flag(flagFile), p.File)
 	}
-	return cmd, env, nil
+	return cmd, nil
 }
 
 // RestoreCatalogCmd returns the shell command to restore a pg catalog (db) from
@@ -97,26 +103,27 @@ func DumpCatalogCmd(src *source.Source, p *ToolParams) (cmd, env []string, err e
 //   - https://www.postgresql.org/docs/9.6/app-pgdump.html
 //
 // See also: [DumpCatalogCmd].
-func RestoreCatalogCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error) {
+func RestoreCatalogCmd(src *source.Source, p *ToolParams) (*execz.Cmd, error) {
 	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
 	// - https://gist.github.com/vielhuber/96eefdb3aff327bdf8230d753aaee1e1
 
 	cfg, err := getPoolConfig(src, true)
 	if err != nil {
-		return nil, env, err
+		return nil, err
 	}
 
-	cmd = []string{"pg_restore"}
+	cmd := &execz.Cmd{Name: "pg_restore", CmdDirPath: true}
 	if p.Verbose {
-		cmd = append(cmd, p.flag(flagVerbose))
+		cmd.ProgressFromStderr = true
+		cmd.Args = append(cmd.Args, p.flag(flagVerbose))
 	}
 	if p.NoOwner {
 		// NoOwner sets both --no-owner and --no-acl. Maybe these should
 		// be separate options.
-		cmd = append(cmd, p.flag(flagNoACL), p.flag(flagNoOwner)) // -O is --no-owner
+		cmd.Args = append(cmd.Args, p.flag(flagNoACL), p.flag(flagNoOwner)) // -O is --no-owner
 	}
 
-	cmd = append(cmd,
+	cmd.Args = append(cmd.Args,
 		p.flag(flagClean),
 		p.flag(flagIfExists),
 		p.flag(flagCreate),
@@ -125,10 +132,11 @@ func RestoreCatalogCmd(src *source.Source, p *ToolParams) (cmd, env []string, er
 	)
 
 	if p.File != "" {
-		cmd = append(cmd, p.File)
+		cmd.UsesOutputFile = p.File
+		cmd.Args = append(cmd.Args, p.File)
 	}
 
-	return cmd, env, nil
+	return cmd, nil
 }
 
 // DumpClusterCmd returns the shell command to execute pg_dumpall for src.
@@ -145,43 +153,45 @@ func RestoreCatalogCmd(src *source.Source, p *ToolParams) (cmd, env []string, er
 //   - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
 //
 // See also: [RestoreClusterCmd].
-func DumpClusterCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error) {
+func DumpClusterCmd(src *source.Source, p *ToolParams) (*execz.Cmd, error) {
 	// - https://www.postgresql.org/docs/9.6/app-pg-dumpall.html
 	// - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
 
 	cfg, err := getPoolConfig(src, true)
 	if err != nil {
-		return nil, env, err
+		return nil, err
 	}
 
-	flags := flagsShort
-	if p.LongFlags {
-		flags = flagsLong
+	cmd := &execz.Cmd{
+		Name:       "pg_dumpall",
+		CmdDirPath: true,
+		Env:        []string{"PGPASSWORD=" + cfg.ConnConfig.Password},
 	}
 
 	// FIXME: need mechanism to indicate that env contains password
-	env = []string{"PGPASSWORD=" + cfg.ConnConfig.Password}
-	cmd = []string{"pg_dumpall"}
 	if p.Verbose {
-		cmd = append(cmd, flags[flagVerbose])
+		cmd.ProgressFromStderr = true
+		cmd.Args = append(cmd.Args, p.flag(flagVerbose))
 	}
 
 	if p.NoOwner {
 		// NoOwner sets both --no-owner and --no-acl. Maybe these should
 		// be separate options.
-		cmd = append(cmd, flags[flagNoACL], flags[flagNoOwner])
+		cmd.Args = append(cmd.Args, p.flag(flagNoACL), p.flag(flagNoOwner))
 	}
-	cmd = append(cmd,
-		flags[flagNoPassword],
-		flags[flagDatabase], cfg.ConnConfig.Database,
-		flags[flagDBName], cfg.ConnString(),
+
+	cmd.Args = append(cmd.Args,
+		p.flag(flagNoPassword),
+		p.flag(flagDatabase), cfg.ConnConfig.Database,
+		p.flag(flagDBName), cfg.ConnString(),
 	)
 
 	if p.File != "" {
-		cmd = append(cmd, flags[flagFile], p.File)
+		cmd.UsesOutputFile = p.File
+		cmd.Args = append(cmd.Args, p.flag(flagFile), p.File)
 	}
 
-	return cmd, env, nil
+	return cmd, nil
 }
 
 // RestoreClusterCmd returns the shell command to restore a pg cluster from a
@@ -199,22 +209,24 @@ func DumpClusterCmd(src *source.Source, p *ToolParams) (cmd, env []string, err e
 //   - https://cloud.google.com/sql/docs/postgres/import-export/import-export-dmp
 //
 // See also: [DumpClusterCmd].
-func RestoreClusterCmd(src *source.Source, p *ToolParams) (cmd, env []string, err error) {
+func RestoreClusterCmd(src *source.Source, p *ToolParams) (*execz.Cmd, error) {
 	// - https://gist.github.com/vielhuber/96eefdb3aff327bdf8230d753aaee1e1
 	cfg, err := getPoolConfig(src, true)
 	if err != nil {
-		return nil, env, err
+		return nil, err
 	}
 
-	cmd = []string{"psql"}
+	cmd := &execz.Cmd{Name: "psql", CmdDirPath: true}
 	if p.Verbose {
-		cmd = append(cmd, p.flag(flagVerbose))
+		cmd.ProgressFromStderr = true
+		cmd.Args = append(cmd.Args, p.flag(flagVerbose))
 	}
-	cmd = append(cmd, p.flag(flagDBName), cfg.ConnString())
+	cmd.Args = append(cmd.Args, p.flag(flagDBName), cfg.ConnString())
 	if p.File != "" {
-		cmd = append(cmd, p.flag(flagFile), p.File)
+		cmd.UsesOutputFile = p.File
+		cmd.Args = append(cmd.Args, p.flag(flagFile), p.File)
 	}
-	return cmd, env, nil
+	return cmd, nil
 }
 
 // flags for pg_dump and pg_restore programs.
