@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/execz"
+
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/drivers/postgres"
@@ -114,10 +116,10 @@ func execDBRestoreCatalog(cmd *cobra.Command, args []string) error {
 	}
 
 	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
-		return PrintToolCmd(ru.Out, shellCmd, shellEnv)
+		return execz.PrintToolCmd(ru.Out, shellCmd, shellEnv)
 	}
 
-	c := &ShellCommand{
+	c := &execz.ShellCommand{
 		Stdin:              os.Stdin,
 		Stdout:             os.Stdout,
 		Stderr:             os.Stderr,
@@ -132,7 +134,7 @@ func execDBRestoreCatalog(cmd *cobra.Command, args []string) error {
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
 		// return ShellExec(ru, errPrefix, false, "", shellCmd, shellEnv, true)
-		return ShellExec2(cmd.Context(), c)
+		return execz.ShellExec2(cmd.Context(), c)
 	default:
 		return errz.Errorf("%s: cmd not supported for %s", errPrefix, src.Type)
 	}
@@ -229,10 +231,10 @@ func execDBRestoreCluster(cmd *cobra.Command, args []string) error {
 	}
 
 	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
-		return PrintToolCmd(ru.Out, shellCmd, shellEnv)
+		return execz.PrintToolCmd(ru.Out, shellCmd, shellEnv)
 	}
 
-	c := &ShellCommand{
+	c := &execz.ShellCommand{
 		Stdin:              os.Stdin,
 		Stdout:             os.Stdout,
 		Stderr:             os.Stderr,
@@ -247,7 +249,7 @@ func execDBRestoreCluster(cmd *cobra.Command, args []string) error {
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
 		// return shellExecPgRestoreCluster(ru, src, shellCmd, shellEnv)
-		return ShellExec2(cmd.Context(), c)
+		return execz.ShellExec2(cmd.Context(), c)
 	default:
 		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
 	}

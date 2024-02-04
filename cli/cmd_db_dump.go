@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/execz"
+
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/drivers/postgres"
@@ -132,10 +134,10 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 	}
 
 	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
-		return PrintToolCmd(ru.Out, shellCmd, shellEnv)
+		return execz.PrintToolCmd(ru.Out, shellCmd, shellEnv)
 	}
 
-	c := &ShellCommand{
+	c := &execz.ShellCommand{
 		Stdin:              os.Stdin,
 		Stdout:             os.Stdout,
 		Stderr:             os.Stderr,
@@ -151,7 +153,7 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
 		// return ShellExec(ru, errPrefix, false, dumpFile, shellCmd, shellEnv, false)
-		return ShellExec2(cmd.Context(), c)
+		return execz.ShellExec2(cmd.Context(), c)
 	default:
 		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
 	}
@@ -249,10 +251,10 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 	}
 
 	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
-		return PrintToolCmd(ru.Out, shellCmd, shellEnv)
+		return execz.PrintToolCmd(ru.Out, shellCmd, shellEnv)
 	}
 
-	c := &ShellCommand{
+	c := &execz.ShellCommand{
 		Stdin:              os.Stdin,
 		Stdout:             os.Stdout,
 		Stderr:             os.Stderr,
@@ -268,7 +270,7 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
 		// return shellExecPgDumpCluster(ru, src, shellCmd, shellEnv)
-		return ShellExec2(cmd.Context(), c)
+		return execz.ShellExec2(cmd.Context(), c)
 		// return ShellExec(ru, errPrefix, false, dumpFile, shellCmd, shellEnv, true)
 	default:
 		return errz.Errorf("db dump cluster: %s: not supported for %s", src.Handle, src.Type)
