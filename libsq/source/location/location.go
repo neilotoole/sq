@@ -358,6 +358,11 @@ func TypeOf(loc string) Type {
 	return TypeFile
 }
 
+// IsURL returns true if t is TypeHTTP or TypeSQL.
+func (t Type) IsURL() bool {
+	return t == TypeHTTP || t == TypeSQL
+}
+
 // isHTTP tests if s is a well-structured HTTP or HTTPS url, and
 // if so, returns the url and true.
 func isHTTP(s string) (u *url.URL, ok bool) {

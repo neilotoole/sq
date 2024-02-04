@@ -1,0 +1,290 @@
+// Package execz builds on stdlib os/exec.
+package execz
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"log/slog"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/source/location"
+)
+
+// Command represents an external command being prepared or run.
+type Command struct {
+	// Stdin is the command's stdin. If nil, [os.Stdin] is used.
+	Stdin io.Reader
+
+	// Stdout is the command's stdout. If nil, [os.Stdout] is used.
+	Stdout io.Writer
+
+	// Stderr is the command's stderr. If nil, [os.Stderr] is used.
+	Stderr io.Writer
+
+	// Name is the executable name, e.g. "pg_dump".
+	Name string
+
+	// ErrPrefix is the prefix to use for error messages.
+	ErrPrefix string
+
+	// UsesOutputFile indicates that the command its output to this filepath
+	// instead of stdout. If empty, stdout is being used.
+	UsesOutputFile string
+
+	// Args is the set of args to the command.
+	Args []string
+
+	// Env is the set of environment variables to set for the command.
+	Env []string
+
+	// ProgressFromStderr indicates that the command outputs progress messages
+	// on stderr.
+	ProgressFromStderr bool
+
+	// CmdDirPath controls whether the command's PATH will include the parent dir
+	// of the command. This allows the command to access sibling commands in the
+	// same dir,  e.g. "pg_dumpall" needs to invoke "pg_dump".
+	CmdDirPath bool
+}
+
+// String returns what command would look like if executed in a shell.
+// Note that the returned string could contain sensitive information such as
+// passwords, so it's not safe for logging. Instead, see [Command.LogValue].
+func (c *Command) String() string {
+	if c == nil {
+		return ""
+	}
+
+	sb := strings.Builder{}
+
+	for i := range c.Env {
+		if i > 0 {
+			sb.WriteRune(' ')
+		}
+		sb.WriteString(stringz.ShellEscape(c.Env[i]))
+	}
+
+	if sb.Len() > 0 {
+		sb.WriteRune(' ')
+	}
+
+	sb.WriteString(stringz.ShellEscape(c.Name))
+
+	for i := range c.Args {
+		sb.WriteRune(' ')
+		sb.WriteString(stringz.ShellEscape(c.Args[i]))
+	}
+
+	return sb.String()
+}
+
+// redactedCmd returns a redacted rendering of c, suitable for logging (but
+// not execution). If escape is true, the string is also shell-escaped.
+func (c *Command) redactedCmd(escape bool) string {
+	if c == nil {
+		return ""
+	}
+
+	env := c.redactedEnv(escape)
+	args := c.redactedArgs(escape)
+
+	switch {
+	case len(env) == 0 && len(args) == 0:
+		return c.Name
+	case len(env) == 0:
+		return c.Name + " " + strings.Join(args, " ")
+	case len(args) == 0:
+		return strings.Join(env, " ") + " " + c.Name
+	default:
+		return strings.Join(env, " ") + " " + c.Name + " " + strings.Join(args, " ")
+	}
+}
+
+// redactedEnv returns c's env with sensitive values redacted.
+// If escape is true, the values are also shell-escaped.
+func (c *Command) redactedEnv(escape bool) []string {
+	if c == nil || len(c.Env) == 0 {
+		return []string{}
+	}
+
+	envars := make([]string, len(c.Env))
+	for i := range c.Env {
+		parts := strings.SplitN(c.Env[i], "=", 2)
+		if len(parts) < 2 {
+			// Shouldn't happen, but just in case.
+			if escape {
+				envars[i] = stringz.ShellEscape(c.Env[i])
+			} else {
+				envars[i] = c.Env[i]
+			}
+			continue
+		}
+
+		// If the envar value is a SQL or HTTP location, redact it.
+		if location.TypeOf(parts[1]).IsURL() {
+			parts[1] = location.Redact(parts[1])
+		}
+
+		if escape {
+			envars[i] = parts[0] + "=" + stringz.ShellEscape(parts[1])
+		} else {
+			envars[i] = parts[0] + "=" + parts[1]
+		}
+	}
+	return envars
+}
+
+// redactedArgs returns c's args with sensitive values redacted.
+// If escape is true, the values are also shell-escaped.
+func (c *Command) redactedArgs(escape bool) []string {
+	if c == nil || len(c.Args) == 0 {
+		return []string{}
+	}
+
+	args := make([]string, len(c.Args))
+	for i := range c.Args {
+		if location.TypeOf(c.Args[i]).IsURL() {
+			args[i] = location.Redact(c.Args[i])
+			if escape {
+				args[i] = stringz.ShellEscape(args[i])
+			}
+			continue
+		}
+
+		if escape {
+			args[i] = stringz.ShellEscape(c.Args[i])
+		} else {
+			args[i] = c.Args[i]
+		}
+	}
+	return args
+}
+
+var _ slog.LogValuer = (*Command)(nil)
+
+// LogValue implements [slog.LogValuer]. It redacts sensitive information
+// (passwords etc.) from URL-like values.
+func (c *Command) LogValue() slog.Value {
+	if c == nil {
+		return slog.Value{}
+	}
+
+	attrs := []slog.Attr{
+		slog.String("name", c.Name),
+		slog.String("exec", c.redactedCmd(false)),
+	}
+
+	return slog.GroupValue(attrs...)
+}
+
+// Exec executes cmd.
+func Exec(ctx context.Context, cmd *Command) (err error) {
+	if cmd.Stdin == nil {
+		cmd.Stdin = os.Stdin
+	}
+	if cmd.Stdout == nil {
+		cmd.Stdout = os.Stdout
+	}
+	if cmd.Stderr == nil {
+		cmd.Stderr = os.Stderr
+	}
+
+	c := exec.CommandContext(ctx, cmd.Name, cmd.Args...) //nolint:gosec
+	if cmd.CmdDirPath {
+		c.Env = append(c.Env, "PATH="+filepath.Dir(c.Path))
+	}
+	c.Env = append(c.Env, cmd.Env...)
+	c.Stdin = cmd.Stdin
+	c.Stdout = cmd.Stdout
+
+	c.Stderr = &bytes.Buffer{} // FIXME: need to capture this better.
+	if err = c.Run(); err != nil {
+		return newExecError(cmd.ErrPrefix, c, err)
+	}
+	return nil
+}
+
+// PrintToolCmd prints the shell command to out.
+// TODO: This should really be moved to the outputters.
+func PrintToolCmd(out io.Writer, shellCmd, shellEnv []string) error {
+	for i := range shellCmd {
+		shellCmd[i] = stringz.ShellEscape(shellCmd[i])
+	}
+	for i := range shellEnv {
+		shellEnv[i] = stringz.ShellEscape(shellEnv[i])
+	}
+
+	if len(shellEnv) == 0 {
+		fmt.Fprintln(out, strings.Join(shellCmd, " "))
+	} else {
+		fmt.Fprintln(out, strings.Join(shellEnv, " ")+" "+strings.Join(shellCmd, " "))
+	}
+
+	return nil
+}
+
+var _ error = (*execError)(nil)
+
+// execError is an error that occurred during command execution.
+type execError struct {
+	msg     string
+	execErr error
+	execCmd *exec.Cmd
+	errOut  []byte
+}
+
+// Error returns the error message.
+func (e *execError) Error() string {
+	s := e.msg + ": " + e.execErr.Error()
+
+	if len(e.errOut) > 0 {
+		s += ": " + string(e.errOut)
+		s = strings.TrimSuffix(s, "\r\n") // windows
+		s = strings.TrimSuffix(s, "\n")
+	}
+
+	return s
+}
+
+// Unwrap returns the underlying error.
+func (e *execError) Unwrap() error {
+	return e.execErr
+}
+
+// ExitCode returns the exit code of the command execution if the underlying
+// execution error was an *exec.ExitError, otherwise -1.
+func (e *execError) ExitCode() int {
+	if ee, ok := errz.As[*exec.ExitError](e.execErr); ok {
+		return ee.ExitCode()
+	}
+	return -1
+}
+
+// newExecError creates a new execError. If cmd.Stderr is
+// a *bytes.Buffer, it will be used to populate the errOut field,
+// otherwise errOut may be nil.
+func newExecError(msg string, execCmd *exec.Cmd, execErr error) *execError {
+	e := &execError{
+		msg:     msg,
+		execErr: execErr,
+		execCmd: execCmd,
+	}
+
+	// TODO: We should implement special handling for Lookup errors,
+	// e.g. "pg_dump" not found.
+
+	if execCmd.Stderr != nil {
+		if buf, ok := execCmd.Stderr.(*bytes.Buffer); ok && buf != nil {
+			e.errOut = buf.Bytes()
+		}
+	}
+
+	return e
+}

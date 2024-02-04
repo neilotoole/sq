@@ -5,13 +5,14 @@ import (
 	"strconv"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/xo/dburl"
+
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/retry"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/xo/dburl"
 )
 
 // REVISIT: DumpCatalogCmd and DumpClusterCmd could be methods on driver.SQLDriver.

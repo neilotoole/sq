@@ -7,9 +7,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/neilotoole/sq/libsq/core/sqlz"
-	"github.com/neilotoole/sq/libsq/source"
-
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/config"
@@ -19,8 +16,10 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/files"
+	"github.com/neilotoole/sq/libsq/source"
 )
 
 type runKey struct{}

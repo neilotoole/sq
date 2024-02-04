@@ -5,15 +5,18 @@ import (
 	"os"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/execz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/execz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
-	"github.com/spf13/cobra"
 )
 
 func newDBDumpCmd() *cobra.Command {
@@ -133,11 +136,7 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 		return errz.Wrap(err, errPrefix)
 	}
 
-	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
-		return execz.PrintToolCmd(ru.Out, shellCmd, shellEnv)
-	}
-
-	c := &execz.ShellCommand{
+	execCmd := &execz.Command{
 		Stdin:              os.Stdin,
 		Stdout:             os.Stdout,
 		Stderr:             os.Stderr,
@@ -150,10 +149,16 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 		CmdDirPath:         false,
 	}
 
+	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
+		lg.FromContext(cmd.Context()).Info("Printing OS cmd", lga.Cmd, execCmd)
+		_, err = fmt.Fprintln(ru.Out, execCmd.String())
+		return errz.Err(err)
+	}
+
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
-		// return ShellExec(ru, errPrefix, false, dumpFile, shellCmd, shellEnv, false)
-		return execz.ShellExec2(cmd.Context(), c)
+		lg.FromContext(cmd.Context()).Info("Executing OS cmd", lga.Cmd, execCmd)
+		return execz.Exec(cmd.Context(), execCmd)
 	default:
 		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
 	}
@@ -250,11 +255,7 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 		return errz.Wrap(err, errPrefix)
 	}
 
-	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
-		return execz.PrintToolCmd(ru.Out, shellCmd, shellEnv)
-	}
-
-	c := &execz.ShellCommand{
+	execCmd := &execz.Command{
 		Stdin:              os.Stdin,
 		Stdout:             os.Stdout,
 		Stderr:             os.Stderr,
@@ -267,12 +268,17 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 		CmdDirPath:         true,
 	}
 
+	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
+		lg.FromContext(cmd.Context()).Info("Printing OS cmd", lga.Cmd, execCmd)
+		_, err = fmt.Fprintln(ru.Out, execCmd.String())
+		return errz.Err(err)
+	}
+
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
-		// return shellExecPgDumpCluster(ru, src, shellCmd, shellEnv)
-		return execz.ShellExec2(cmd.Context(), c)
-		// return ShellExec(ru, errPrefix, false, dumpFile, shellCmd, shellEnv, true)
+		lg.FromContext(cmd.Context()).Info("Executing OS cmd", lga.Cmd, execCmd)
+		return execz.Exec(cmd.Context(), execCmd)
 	default:
-		return errz.Errorf("db dump cluster: %s: not supported for %s", src.Handle, src.Type)
+		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
 	}
 }
