@@ -20,15 +20,6 @@ import (
 
 // ShellCommand represents an external command being prepared or run.
 type ShellCommand struct {
-	// Name is the executable name, e.g. "pg_dump".
-	Name string
-
-	// Args is the set of args to the command.
-	Args []string
-
-	// Env is the set of environment variables to set for the command.
-	Env []string
-
 	// Stdin is the command's stdin. If nil, [os.Stdin] is used.
 	Stdin io.Reader
 
@@ -38,9 +29,8 @@ type ShellCommand struct {
 	// Stderr is the command's stderr. If nil, [os.Stderr] is used.
 	Stderr io.Writer
 
-	// ProgressFromStderr indicates that the command outputs progress messages
-	// on stderr.
-	ProgressFromStderr bool
+	// Name is the executable name, e.g. "pg_dump".
+	Name string
 
 	// ErrPrefix is the prefix to use for error messages.
 	ErrPrefix string
@@ -48,6 +38,16 @@ type ShellCommand struct {
 	// UsesOutputFile indicates that the command its output to this filepath
 	// instead of stdout. If empty, stdout is being used.
 	UsesOutputFile string
+
+	// Args is the set of args to the command.
+	Args []string
+
+	// Env is the set of environment variables to set for the command.
+	Env []string
+
+	// ProgressFromStderr indicates that the command outputs progress messages
+	// on stderr.
+	ProgressFromStderr bool
 
 	// CmdDirPath controls whether the command's PATH will include the parent dir
 	// of the command. This allows the command to access sibling commands in the
