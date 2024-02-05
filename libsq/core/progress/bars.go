@@ -8,9 +8,6 @@ import (
 	humanize "github.com/dustin/go-humanize"
 	"github.com/dustin/go-humanize/english"
 	"github.com/vbauerster/mpb/v8/decor"
-
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
 )
 
 // NewByteCounter returns a new determinate bar whose label
@@ -58,7 +55,6 @@ func (p *Progress) NewFilesizeCounter(msg string, f *os.File, fp string, opts ..
 	cfg := &barConfig{msg: msg, total: -1, style: spinnerStyle(p.colors.Filler)}
 
 	d := decor.Any(func(statistics decor.Statistics) string {
-		// panic("huzzah")
 		var fi os.FileInfo
 		var err error
 		if f != nil {
@@ -68,11 +64,9 @@ func (p *Progress) NewFilesizeCounter(msg string, f *os.File, fp string, opts ..
 		}
 
 		if err != nil {
-			lg.FromContext(p.ctx).Warn("filesize counter: %v", err)
 			return "-"
 		}
 
-		lg.FromContext(p.ctx).Warn("filesize", lga.Size, fmt.Sprintf("% .1f", decor.SizeB1024(fi.Size())))
 		return fmt.Sprintf("% .1f", decor.SizeB1024(fi.Size()))
 	})
 

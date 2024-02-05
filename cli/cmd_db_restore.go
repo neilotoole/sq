@@ -119,6 +119,7 @@ func execDBRestoreCatalog(cmd *cobra.Command, args []string) error {
 	}
 
 	execCmd.NoProgress = !OptProgress.Get(src.Options)
+	execCmd.Label = src.Handle + ": " + execCmd.Name
 	execCmd.Stdin = ru.Stdin
 	execCmd.Stdout = ru.Stdout
 	execCmd.Stderr = ru.ErrOut
@@ -232,6 +233,7 @@ func execDBRestoreCluster(cmd *cobra.Command, args []string) error {
 	}
 
 	execCmd.NoProgress = !OptProgress.Get(src.Options)
+	execCmd.Label = src.Handle + ": " + execCmd.Name
 	execCmd.Stdin = ru.Stdin
 	execCmd.Stdout = ru.Stdout
 	execCmd.Stderr = ru.ErrOut

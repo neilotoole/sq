@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -238,9 +237,8 @@ func Exec(ctx context.Context, cmd *Cmd) (err error) {
 		_ = os.Truncate(cmd.UsesOutputFile, 0)
 
 		if !cmd.NoProgress {
-			label := loz.NonEmptyOf(cmd.Label, cmd.Name)
 			bar := progress.FromContext(ctx).NewFilesizeCounter(
-				label,
+				loz.NonEmptyOf(cmd.Label, cmd.Name),
 				nil,
 				cmd.UsesOutputFile,
 				progress.OptTimer,
@@ -258,9 +256,8 @@ func Exec(ctx context.Context, cmd *Cmd) (err error) {
 			log.Warn("It's not a terminal")
 
 			if _, ok := cmd.Stdout.(*os.File); ok && !cmd.NoProgress {
-				label := loz.NonEmptyOf(cmd.Label, cmd.Name)
 				bar := progress.FromContext(ctx).NewFilesizeCounter(
-					label,
+					loz.NonEmptyOf(cmd.Label, cmd.Name),
 					cmd.Stdout.(*os.File),
 					"",
 					progress.OptTimer,
@@ -270,7 +267,6 @@ func Exec(ctx context.Context, cmd *Cmd) (err error) {
 		}
 	}
 
-	time.Sleep(time.Second * 5)
 	if err = execCmd.Run(); err != nil {
 		return newExecError(cmd.ErrPrefix, cmd, execCmd, stderrBuf, err)
 	}
