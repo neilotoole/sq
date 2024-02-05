@@ -42,11 +42,27 @@ func FromContext(ctx context.Context) *Run {
 // to all cobra exec funcs. The Close method should be invoked when
 // the Run is no longer needed.
 type Run struct {
-	// Out is the output destination, typically os.Stdout.
+	// Out is the output destination, typically a decorated writer over
+	// [Run.Stdout]. This writer should generally be used for program output,
+	// not [Run.Stdout].
 	Out io.Writer
 
-	// ErrOut is the error output destination, typically os.Stderr.
+	// Stdout is the original stdout file descriptor, which is typically
+	// the actual os.Stdout. Output should generally be written to [Run.Out]
+	// except for a few rare circumstances, such as executing an external
+	// program.
+	Stdout io.Writer
+
+	// ErrOut is the error output destination, typically a decorated writer
+	// over [Run.Stderr]. This writer should generally be used for error output,
+	// not [Run.Stderr].
 	ErrOut io.Writer
+
+	// Stderr is the original stderr file descriptor, which is typically
+	// the actual os.Stderr. Error output should generally be written to
+	// [Run.ErrOut] except for a few rare circumstances, such as executing an
+	// external program.
+	Stderr io.Writer
 
 	// ConfigStore manages config persistence.
 	ConfigStore config.Store

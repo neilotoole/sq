@@ -7,8 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/termz"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -21,6 +19,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/termz"
 )
 
 // PrintError is the centralized function for printing
@@ -91,9 +90,9 @@ func PrintError(ctx context.Context, ru *run.Run, err error) {
 		clnup = cleanup.New()
 	}
 	// getOutputConfig works even if cmd is nil
-	outCfg := getOutputConfig(cmd, clnup, opts, os.Stdout, os.Stderr)
+	outCfg := getOutputConfig(cmd, clnup, opts, os.Stdout, os.Stderr) // FIXME: why not using ru.Out, ru.ErrOut?
 	errOut, pr := outCfg.errOut, outCfg.errOutPr
-	//pr, _, errOut := getPrinting(cmd, clnup, opts, os.Stdout, os.Stderr) // FIXME: delete
+	// pr, _, errOut := getPrinting(cmd, clnup, opts, os.Stdout, os.Stderr) // FIXME: delete
 	// Execute the cleanup before we print the error.
 	if cleanErr := clnup.Run(); cleanErr != nil {
 		log.Error("Cleanup failed", lga.Err, cleanErr)

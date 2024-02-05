@@ -4,7 +4,6 @@ import (
 	"io"
 	"os"
 
-	"golang.org/x/sys/windows"
 	"golang.org/x/term"
 )
 

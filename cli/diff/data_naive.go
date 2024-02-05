@@ -42,7 +42,7 @@ func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	query2 := td2.src.Handle + "." + td2.tblName
 	log := lg.FromContext(ctx).With("a", query1).With("b", query2)
 
-	pr := ru.Writers.Printing.Clone()
+	pr := ru.Writers.OutPrinting.Clone()
 	pr.EnableColor(false)
 
 	buf1, buf2 := &bytes.Buffer{}, &bytes.Buffer{}
@@ -176,7 +176,7 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 				}
 
 				tblDataDiff = diffs[printIndex]
-				if err := Print(ctx, ru.Out, ru.Writers.Printing, tblDataDiff.header, tblDataDiff.diff); err != nil {
+				if err := Print(ctx, ru.Out, ru.Writers.OutPrinting, tblDataDiff.header, tblDataDiff.diff); err != nil {
 					printErrCh <- err
 					return
 				}

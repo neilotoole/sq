@@ -29,6 +29,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/termz"
 )
 
 type progCtxKey struct{}
@@ -96,6 +97,39 @@ func Incr(ctx context.Context, n int) {
 	if b, ok := val.(*Bar); ok {
 		b.Incr(n)
 	}
+}
+
+// OptEnabled is a boolean [options.Opt] that controls whether the progress
+// bar is enabled.
+var OptEnabled = options.NewBool(
+	"progress",
+	"no-progress",
+	true,
+	0,
+	true,
+	"Progress bar for long-running operations",
+	`Progress bar for long-running operations.`,
+	options.TagOutput,
+)
+
+// OptDelay is a duration [options.Opt] that controls the delay before
+// showing a progress bar.
+var OptDelay = options.NewDuration(
+	"progress.delay",
+	"",
+	0,
+	time.Second*2,
+	"Progress bar render delay",
+	`Delay before showing a progress bar.`,
+)
+
+// Allowed returns true if stderr is a terminal and [OptEnabled] is true.
+func Allowed(o options.Options, stderr io.Writer) bool {
+	if stderr == nil || !termz.IsTerminal(stderr) {
+		return false
+	}
+
+	return OptEnabled.Get(o)
 }
 
 // New returns a new Progress instance, which is a container for progress bars.

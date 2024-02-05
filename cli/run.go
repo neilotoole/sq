@@ -70,8 +70,8 @@ func newRun(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args 
 
 	ru := &run.Run{
 		Stdin:           stdin,
-		Out:             stdout,
-		ErrOut:          stderr,
+		Stdout:          stdout,
+		Stderr:          stderr,
 		OptionsRegistry: &options.Registry{},
 	}
 
@@ -158,7 +158,7 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 	}
 
 	// If the --output=/some/file flag is set, then we need to
-	// override ru.Out (which is typically stdout) to point it at
+	// override ru.Stdout (which is typically stdout) to point it at
 	// the output destination file.
 	if cmdFlagChanged(ru.Cmd, flag.FileOutput) && !cmdRequiresPlainStdout(ru.Cmd) {
 		fpath, _ := ru.Cmd.Flags().GetString(flag.FileOutput)
@@ -179,14 +179,19 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 		}
 
 		ru.Cleanup.AddC(f) // Make sure the file gets closed eventually
-		ru.Out = f
+		ru.Stdout = f
 	}
 
 	cmdOpts, err := getOptionsFromCmd(ru.Cmd)
 	if err != nil {
 		return err
 	}
-	ru.Writers, ru.Out, ru.ErrOut = newWriters(ru.Cmd, ru.Cleanup, cmdOpts, ru.Out, ru.ErrOut)
+
+	var outCfg *outputConfig
+	// ru.Writers, ru.Out, ru.ErrOut = newWriters(ru.Cmd, ru.Cleanup, cmdOpts, ru.Out, ru.ErrOut)
+	ru.Writers, outCfg = newWriters2(ru.Cmd, ru.Cleanup, cmdOpts, ru.Stdout, ru.Stderr)
+	ru.Out = outCfg.out
+	ru.ErrOut = outCfg.errOut
 
 	if err = FinishRunInit(ctx, ru); err != nil {
 		return err
