@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	colorable "github.com/mattn/go-colorable"
@@ -99,6 +100,30 @@ command, sq falls back to "text". Available formats:
 		"Don't print color output",
 		`Don't print color output.`,
 		options.TagOutput,
+	)
+
+	// OptProgress is a boolean [options.Opt] that controls whether the progress
+	// bar is enabled.
+	OptProgress = options.NewBool(
+		"progress",
+		"no-progress",
+		true,
+		0,
+		true,
+		"Progress bar for long-running operations",
+		`Progress bar for long-running operations.`,
+		options.TagOutput,
+	)
+
+	// OptProgressDelay is a duration [options.Opt] that controls the delay before
+	// showing a progress bar.
+	OptProgressDelay = options.NewDuration(
+		"progress.delay",
+		"",
+		0,
+		time.Second*2,
+		"Progress bar render delay",
+		`Delay before showing a progress bar.`,
 	)
 
 	OptDebugTrackMemory = options.NewDuration(
@@ -457,7 +482,7 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Op
 
 	var (
 		prog       *progress.Progress
-		noProg     = !progress.Allowed(opts, stderr)
+		noProg     = !OptProgress.Get(opts)
 		progColors = progress.DefaultColors()
 		monochrome = OptMonochrome.Get(opts)
 	)
@@ -484,7 +509,7 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Op
 		outCfg.errOutPr.EnableColor(true)
 		if ctx != nil && !noProg {
 			progColors.EnableColor(true)
-			prog = progress.New(ctx, outCfg.errOut, progress.OptDelay.Get(opts), progColors)
+			prog = progress.New(ctx, outCfg.errOut, OptProgressDelay.Get(opts), progColors)
 		}
 	case termz.IsTerminal(stderr):
 		// stderr is a terminal, and won't have color output, but we still enable
@@ -497,7 +522,7 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Op
 		outCfg.errOutPr.EnableColor(false)
 		if ctx != nil && !noProg {
 			progColors.EnableColor(false)
-			prog = progress.New(ctx, outCfg.errOut, progress.OptDelay.Get(opts), progColors)
+			prog = progress.New(ctx, outCfg.errOut, OptProgressDelay.Get(opts), progColors)
 		}
 	default:
 		// stderr is a not a terminal at all. No color, no progress.

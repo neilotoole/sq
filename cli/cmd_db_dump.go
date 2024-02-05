@@ -135,8 +135,9 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 		return errz.Wrap(err, errPrefix)
 	}
 
+	execCmd.NoProgress = !OptProgress.Get(src.Options)
 	execCmd.Stdin = ru.Stdin
-	execCmd.Stdout = ru.Out
+	execCmd.Stdout = ru.Stdout
 	execCmd.Stderr = ru.ErrOut
 	execCmd.ErrPrefix = errPrefix
 
@@ -245,8 +246,9 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 		return errz.Wrap(err, errPrefix)
 	}
 
+	execCmd.NoProgress = !OptProgress.Get(src.Options)
 	execCmd.Stdin = ru.Stdin
-	execCmd.Stdout = ru.Out
+	execCmd.Stdout = ru.Stdout
 	execCmd.Stderr = ru.ErrOut
 	execCmd.ErrPrefix = errPrefix
 

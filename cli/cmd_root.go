@@ -8,7 +8,6 @@ import (
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output/format"
 	_ "github.com/neilotoole/sq/drivers" // Load drivers
-	"github.com/neilotoole/sq/libsq/core/progress"
 )
 
 func newRootCmd() *cobra.Command {
@@ -101,7 +100,7 @@ See docs and more: https://sq.io`,
 
 	cmd.PersistentFlags().BoolP(flag.Monochrome, flag.MonochromeShort, false, flag.MonochromeUsage)
 
-	addOptionFlag(cmd.PersistentFlags(), progress.OptEnabled)
+	addOptionFlag(cmd.PersistentFlags(), OptProgress)
 	// TODO: Move the rest of the option flags over to addOptionFlag
 	cmd.PersistentFlags().BoolP(flag.Verbose, flag.VerboseShort, false, flag.VerboseUsage)
 

@@ -4,7 +4,6 @@ package execz
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -53,6 +52,9 @@ type Cmd struct {
 
 	// Env is the set of environment variables to set for the command.
 	Env []string
+
+	// NoProgress indicates that progress messages should not be output.
+	NoProgress bool
 
 	// ProgressFromStderr indicates that the command outputs progress messages
 	// on stderr.
@@ -235,14 +237,17 @@ func Exec(ctx context.Context, cmd *Cmd) (err error) {
 		// Truncate the file, ignoring any error (e.g. if it doesn't exist).
 		_ = os.Truncate(cmd.UsesOutputFile, 0)
 
-		label := loz.NonEmptyOf(cmd.Label, cmd.Name)
-		bar := progress.FromContext(ctx).NewFilesizeCounter(
-			label,
-			nil,
-			cmd.UsesOutputFile,
-			progress.OptTimer,
-		)
-		defer bar.Stop()
+		if !cmd.NoProgress {
+			label := loz.NonEmptyOf(cmd.Label, cmd.Name)
+			bar := progress.FromContext(ctx).NewFilesizeCounter(
+				label,
+				nil,
+				cmd.UsesOutputFile,
+				progress.OptTimer,
+			)
+			defer bar.Stop()
+		}
+
 	default:
 		log.Warn("It's default")
 
@@ -252,16 +257,16 @@ func Exec(ctx context.Context, cmd *Cmd) (err error) {
 		if !termz.IsTerminal(os.Stdout) {
 			log.Warn("It's not a terminal")
 
-			fmt.Fprintln(os.Stderr, "nuzzah")
-
-			label := loz.NonEmptyOf(cmd.Label, cmd.Name)
-			bar := progress.FromContext(ctx).NewFilesizeCounter(
-				label,
-				os.Stdout, // FIXME: should be using cmd.Stdout?
-				"",
-				progress.OptTimer,
-			)
-			defer bar.Stop()
+			if _, ok := cmd.Stdout.(*os.File); ok && !cmd.NoProgress {
+				label := loz.NonEmptyOf(cmd.Label, cmd.Name)
+				bar := progress.FromContext(ctx).NewFilesizeCounter(
+					label,
+					cmd.Stdout.(*os.File),
+					"",
+					progress.OptTimer,
+				)
+				defer bar.Stop()
+			}
 		}
 	}
 
