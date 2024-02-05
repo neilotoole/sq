@@ -4,14 +4,21 @@ package execz
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"github.com/neilotoole/sq/libsq/core/termz"
 	"io"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/loz"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source/location"
 )
@@ -29,6 +36,10 @@ type Cmd struct {
 
 	// Name is the executable name, e.g. "pg_dump".
 	Name string
+
+	// Label is a human-readable label for the command, e.g. "@sakila: dump".
+	// If empty, [Cmd.Name] is used.
+	Label string
 
 	// ErrPrefix is the prefix to use for error messages.
 	ErrPrefix string
@@ -185,6 +196,15 @@ func (c *Cmd) LogValue() slog.Value {
 
 // Exec executes cmd.
 func Exec(ctx context.Context, cmd *Cmd) (err error) {
+	log := lg.FromContext(ctx)
+
+	defer func() {
+		if err != nil && cmd.UsesOutputFile != "" {
+			// If an error occurred, we want to remove the output file.
+			lg.WarnIfError(lg.FromContext(ctx), lgm.RemoveFile, os.Remove(cmd.UsesOutputFile))
+		}
+	}()
+
 	if cmd.Stdin == nil {
 		cmd.Stdin = os.Stdin
 	}
@@ -203,10 +223,49 @@ func Exec(ctx context.Context, cmd *Cmd) (err error) {
 	execCmd.Stdin = cmd.Stdin
 	execCmd.Stdout = cmd.Stdout
 
-	// c.Stderr = &bytes.Buffer{} // FIXME: need to capture this better.
 	stderrBuf := &bytes.Buffer{}
-
 	execCmd.Stderr = io.MultiWriter(stderrBuf, cmd.Stderr)
+
+	switch {
+	case cmd.ProgressFromStderr:
+		log.Warn("It's cmd.ProgressFromStderr")
+		// TODO: We really want to print stderr.
+	case cmd.UsesOutputFile != "":
+		log.Warn("It's cmd.UsesOutputFile")
+		// Truncate the file, ignoring any error (e.g. if it doesn't exist).
+		_ = os.Truncate(cmd.UsesOutputFile, 0)
+
+		label := loz.NonEmptyOf(cmd.Label, cmd.Name)
+		bar := progress.FromContext(ctx).NewFilesizeCounter(
+			label,
+			nil,
+			cmd.UsesOutputFile,
+			progress.OptTimer,
+		)
+		defer bar.Stop()
+	default:
+		log.Warn("It's default")
+
+		// We're reduced to reading the size of stdout, but not if we're on a
+		// terminal. If we are on a terminal, then the user will get to see the
+		// command output in real-time and we don't need a progress bar.
+		if !termz.IsTerminal(os.Stdout) {
+			log.Warn("It's not a terminal")
+
+			fmt.Fprintln(os.Stderr, "nuzzah")
+
+			label := loz.NonEmptyOf(cmd.Label, cmd.Name)
+			bar := progress.FromContext(ctx).NewFilesizeCounter(
+				label,
+				os.Stdout, // FIXME: should be using cmd.Stdout?
+				"",
+				progress.OptTimer,
+			)
+			defer bar.Stop()
+		}
+	}
+
+	time.Sleep(time.Second * 5)
 	if err = execCmd.Run(); err != nil {
 		return newExecError(cmd.ErrPrefix, cmd, execCmd, stderrBuf, err)
 	}

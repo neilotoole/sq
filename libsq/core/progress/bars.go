@@ -1,6 +1,10 @@
 package progress
 
 import (
+	"fmt"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"os"
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
@@ -35,6 +39,43 @@ func (p *Progress) NewByteCounter(msg string, size int64, opts ...Opt) *Bar {
 	counter = colorize(counter, p.colors.Size)
 	cfg.decorators = []decor.Decorator{counter, percent}
 
+	return p.newBar(cfg, opts)
+}
+
+// NewFilesizeCounter returns a new indeterminate bar whose label metric is a
+// filesize, or "-" if it can't be read. If f is non-nil, its size is used; else
+// the file at path fp is used. The caller is ultimately responsible for calling
+// Bar.Stop on the returned Bar.
+func (p *Progress) NewFilesizeCounter(msg string, f *os.File, fp string, opts ...Opt) *Bar {
+	if p == nil {
+		return nil
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	cfg := &barConfig{msg: msg, total: -1, style: spinnerStyle(p.colors.Filler)}
+
+	d := decor.Any(func(statistics decor.Statistics) string {
+		//panic("huzzah")
+		var fi os.FileInfo
+		var err error
+		if f != nil {
+			fi, err = f.Stat()
+		} else {
+			fi, err = os.Stat(fp)
+		}
+
+		if err != nil {
+			lg.FromContext(p.ctx).Warn("filesize counter: %v", err)
+			return "-"
+		}
+
+		lg.FromContext(p.ctx).Warn("filesize", lga.Size, fmt.Sprintf("% .1f", decor.SizeB1024(fi.Size())))
+		return fmt.Sprintf("% .1f", decor.SizeB1024(fi.Size()))
+	})
+
+	cfg.decorators = []decor.Decorator{colorize(d, p.colors.Size)}
 	return p.newBar(cfg, opts)
 }
 

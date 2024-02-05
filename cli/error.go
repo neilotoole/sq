@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/termz"
 	"os"
 	"strings"
 
@@ -103,7 +104,7 @@ func PrintError(ctx context.Context, ru *run.Run, err error) {
 	}
 
 	// The user didn't want JSON, so we just print to stderr.
-	if isColorTerminal(os.Stderr) {
+	if termz.IsColorTerminal(os.Stderr) {
 		pr.Error.Fprintln(os.Stderr, "sq: "+err.Error())
 	} else {
 		fmt.Fprintln(os.Stderr, "sq: "+err.Error())

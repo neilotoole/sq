@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/termz"
 	"io"
 	"os"
 	"strings"
@@ -455,7 +456,7 @@ func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Option
 		out2 = out
 		errOut2 = errOut
 
-		if cmd != nil && cmd.Context() != nil && OptProgress.Get(opts) && isTerminal(errOut) {
+		if cmd != nil && cmd.Context() != nil && OptProgress.Get(opts) && termz.IsTerminal(errOut) {
 			progColors := progress.DefaultColors()
 			progColors.EnableColor(false)
 			ctx := cmd.Context()
@@ -473,8 +474,10 @@ func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Option
 	}
 
 	// We do want to colorize
-	if !isColorTerminal(out) {
+	if !termz.IsColorTerminal(out) {
 		// But out can't be colorized.
+
+		panic("oh noes")
 
 		// FIXME: This disables colorization for both out and errOut, even
 		// if errOut is a color terminal.
@@ -505,7 +508,7 @@ func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Option
 	// out2 = colorable.NewColorable(out.(*os.File))
 
 	// Check if we can colorize errOut
-	if isColorTerminal(errOut) {
+	if termz.IsColorTerminal(errOut) {
 		errOut2 = colorable.NewColorable(errOut.(*os.File))
 	} else {
 		// errOut2 can't be colorized, but since we're colorizing
@@ -513,9 +516,9 @@ func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Option
 		errOut2 = colorable.NewNonColorable(errOut)
 	}
 
-	if cmd != nil && cmd.Context() != nil && OptProgress.Get(opts) && isTerminal(errOut) {
+	if cmd != nil && cmd.Context() != nil && OptProgress.Get(opts) && termz.IsTerminal(errOut) {
 		progColors := progress.DefaultColors()
-		progColors.EnableColor(isColorTerminal(errOut))
+		progColors.EnableColor(termz.IsColorTerminal(errOut))
 
 		ctx := cmd.Context()
 		renderDelay := OptProgressDelay.Get(opts)
