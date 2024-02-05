@@ -1,12 +1,14 @@
 package cli
 
 import (
+	"context"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/termz"
 	"io"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/termz"
 
 	"github.com/fatih/color"
 	colorable "github.com/mattn/go-colorable"
@@ -375,18 +377,17 @@ func getRecordWriterFunc(f format.Format) output.NewRecordWriterFunc {
 	}
 }
 
-// outputters is a container for the various output writers.
-// We need to refactor getPrinting to return a struct like this.
-type outputters struct { //nolint:unused
+// outputConfig is a container for the various output writers.
+type outputConfig struct {
 	// outPr is the printing config for out.
 	outPr *output.Printing
 
 	// out is the output writer that should be used for stdout output.
 	out io.Writer
 
-	// ogOut is the original out, which probably was os.Stdin.
+	// stdout is the original stdout, which probably was os.Stdin.
 	// It's referenced here for special cases.
-	ogOut io.Writer
+	stdout *os.File
 
 	// errOutPr is the printing config for errOut.
 	errOutPr *output.Printing
@@ -394,9 +395,152 @@ type outputters struct { //nolint:unused
 	// errOut is the output writer that should be used for stderr output.
 	errOut io.Writer
 
-	// ogErrOut is the original errOut, which probably was os.Stderr.
+	// stderr is the original errOut, which probably was os.Stderr.
 	// It's referenced here for special cases.
-	ogErrOut io.Writer
+	stderr *os.File
+}
+
+// getOutputConfig returns the configured output writers for cmd.
+// Generally speaking the caller should use the [outputConfig.out] and
+// [outputConfig.errOut] writers for program output, as they are decorated
+// appropriately for dealing with colorization, etc. In very rare cases, such
+// as calling out to an external program (e.g. pg_dump), the original
+// [outputConfig.stdout] and [outputConfig.stderr] may be used.
+//
+// The supplied opts must already have flags merged into it
+// via getOptionsFromCmd.
+//
+// Be VERY cautious about making changes to getOutputConfig. This function must
+// be absolutely bulletproof, as it's called by all commands, as well as by the
+// error handling mechanism. So, be sure to always check for nil: any of the
+// args could be nil, or their fields could be nil. Check for nil *every time*.
+//
+// The returned outputConfig and all of its fields are guaranteed to be non-nil.
+func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Options,
+	stdout, stderr *os.File,
+) *outputConfig {
+	if opts == nil {
+		opts = options.Options{}
+	}
+
+	var ctx context.Context
+	if cmd == nil || cmd.Context() == nil {
+		ctx = context.Background()
+	} else {
+		ctx = cmd.Context()
+	}
+
+	if stdout == nil {
+		stdout = os.Stdout
+	}
+	if stderr == nil {
+		stderr = os.Stderr
+	}
+
+	outCfg := &outputConfig{stdout: stdout, stderr: stderr}
+
+	pr := output.NewPrinting()
+	pr.FormatDatetime = timez.FormatFunc(OptDatetimeFormat.Get(opts))
+	pr.FormatDatetimeAsNumber = OptDatetimeFormatAsNumber.Get(opts)
+	pr.FormatTime = timez.FormatFunc(OptTimeFormat.Get(opts))
+	pr.FormatTimeAsNumber = OptTimeFormatAsNumber.Get(opts)
+	pr.FormatDate = timez.FormatFunc(OptDateFormat.Get(opts))
+	pr.FormatDateAsNumber = OptDateFormatAsNumber.Get(opts)
+
+	pr.ExcelDatetimeFormat = xlsxw.OptDatetimeFormat.Get(opts)
+	pr.ExcelDateFormat = xlsxw.OptDateFormat.Get(opts)
+	pr.ExcelTimeFormat = xlsxw.OptTimeFormat.Get(opts)
+
+	pr.Verbose = OptVerbose.Get(opts)
+	pr.FlushThreshold = OptTuningFlushThreshold.Get(opts)
+	pr.Compact = OptCompact.Get(opts)
+
+	switch {
+	case cmdFlagChanged(cmd, flag.Header):
+		pr.ShowHeader, _ = cmd.Flags().GetBool(flag.Header)
+	case cmdFlagChanged(cmd, flag.NoHeader):
+		b, _ := cmd.Flags().GetBool(flag.NoHeader)
+		pr.ShowHeader = !b
+	case opts != nil:
+		pr.ShowHeader = OptPrintHeader.Get(opts)
+	}
+
+	var prog *progress.Progress
+	progColors := progress.DefaultColors()
+
+	monochrome := OptMonochrome.Get(opts)
+	if monochrome {
+		color.NoColor = true
+		pr.EnableColor(false)
+		progColors.EnableColor(false)
+	} else {
+		color.NoColor = false
+		pr.EnableColor(true)
+		progColors.EnableColor(true)
+	}
+
+	outCfg.outPr = pr.Clone()
+	outCfg.errOutPr = pr.Clone()
+	pr = nil // Make sure we don't accidentally use pr again
+
+	switch {
+	case termz.IsColorTerminal(stderr) && !monochrome:
+		// stderr is a color terminal and we're colorizing, thus
+		// we enable progress.
+		outCfg.errOut = colorable.NewColorable(stderr)
+		outCfg.errOutPr.EnableColor(true)
+		progColors.EnableColor(true)
+		prog = progress.New(ctx, outCfg.errOut, OptProgressDelay.Get(opts), progColors)
+	case termz.IsTerminal(stderr):
+		// stderr is a terminal, but won't be colorized, but we
+		// still enable progress.
+		outCfg.errOut = colorable.NewNonColorable(stderr)
+		outCfg.errOutPr.EnableColor(false)
+		progColors.EnableColor(false)
+		prog = progress.New(ctx, outCfg.errOut, OptProgressDelay.Get(opts), progColors)
+	default:
+		// stderr is a not a terminal at all. No color, no progress.
+		outCfg.errOut = colorable.NewNonColorable(stderr)
+		outCfg.errOutPr.EnableColor(false)
+		progColors.EnableColor(false)
+		prog = nil // Set to nil just to be explicit.
+	}
+
+	switch {
+	case cmd != nil && cmdFlagChanged(cmd, flag.FileOutput):
+		// stdout is an actual regular file on disk, so no color.
+		outCfg.out = colorable.NewNonColorable(stdout)
+		outCfg.outPr.EnableColor(false)
+	case termz.IsColorTerminal(stdout) && !monochrome:
+		// stdout is a color terminal and we're colorizing.
+		outCfg.out = colorable.NewColorable(stdout)
+		outCfg.outPr.EnableColor(true)
+	case termz.IsTerminal(stderr):
+		// stdout is a terminal, but won't be colorized.
+		outCfg.out = colorable.NewNonColorable(stdout)
+		outCfg.outPr.EnableColor(true)
+	default:
+		// stdout is a not a terminal at all. No color.
+		outCfg.out = colorable.NewNonColorable(stdout)
+		outCfg.outPr.EnableColor(false)
+	}
+
+	if prog != nil {
+		// The progress bar is enabled.
+
+		// Be sure to stop the progress bar eventually.
+		clnup.Add(prog.Stop)
+
+		// Also, stop the progress bar as soon as bytes are written
+		// to stdout, because we don't want the progress bar to
+		// corrupt the terminal output.
+		outCfg.out = ioz.NotifyOnceWriter(outCfg.out, prog.Stop)
+		if cmd != nil {
+			cmd.SetContext(progress.NewContext(ctx, prog))
+		}
+	}
+
+	return outCfg
 }
 
 // getPrinting returns a Printing instance and

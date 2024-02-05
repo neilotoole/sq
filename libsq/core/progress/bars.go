@@ -2,10 +2,11 @@ package progress
 
 import (
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"os"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	humanize "github.com/dustin/go-humanize"
 	"github.com/dustin/go-humanize/english"
@@ -57,7 +58,7 @@ func (p *Progress) NewFilesizeCounter(msg string, f *os.File, fp string, opts ..
 	cfg := &barConfig{msg: msg, total: -1, style: spinnerStyle(p.colors.Filler)}
 
 	d := decor.Any(func(statistics decor.Statistics) string {
-		//panic("huzzah")
+		// panic("huzzah")
 		var fi os.FileInfo
 		var err error
 		if f != nil {

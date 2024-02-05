@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/termz"
 	"os"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/termz"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -89,8 +90,10 @@ func PrintError(ctx context.Context, ru *run.Run, err error) {
 	} else {
 		clnup = cleanup.New()
 	}
-	// getPrinting works even if cmd is nil
-	pr, _, errOut := getPrinting(cmd, clnup, opts, os.Stdout, os.Stderr)
+	// getOutputConfig works even if cmd is nil
+	outCfg := getOutputConfig(cmd, clnup, opts, os.Stdout, os.Stderr)
+	errOut, pr := outCfg.errOut, outCfg.errOutPr
+	//pr, _, errOut := getPrinting(cmd, clnup, opts, os.Stdout, os.Stderr) // FIXME: delete
 	// Execute the cleanup before we print the error.
 	if cleanErr := clnup.Run(); cleanErr != nil {
 		log.Error("Cleanup failed", lga.Err, cleanErr)
