@@ -48,8 +48,7 @@ such as "text" or "csv".`,
 
 	OptFormat = format.NewOpt(
 		"format",
-		"format",
-		'f',
+		&options.Flag{Short: 'f'},
 		format.Text,
 		nil,
 		"Specify output format",
@@ -64,8 +63,7 @@ command, sq falls back to "text". Available formats:
 
 	OptErrorFormat = format.NewOpt(
 		"error.format",
-		"",
-		0,
+		nil,
 		format.Text,
 		func(f format.Format) error {
 			if f == format.Text || f == format.JSON {

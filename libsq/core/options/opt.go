@@ -50,11 +50,8 @@ type Opt interface {
 	// as returned by Opt.Key. However, a distinct value can be supplied, such
 	// that flag usage and config usage have different keys. For example,
 	// an Opt might have a key "diff.num-lines", but a flag "lines".
-	Flag() string
-
-	// Short is the short key. The zero value indicates no short key.
-	// For example, if the key is "json", the short key could be 'j'.
-	Short() rune
+	// FIXME: docs
+	Flag() Flag
 
 	// Usage is a one-line description of the Opt. Additional detail can be
 	// found in Help.
@@ -118,30 +115,32 @@ type Flag struct {
 // types can build on.
 type BaseOpt struct {
 	key   string
-	flag  string
 	usage string
 	help  string
 	tags  []string
-	short rune
+	flag  Flag
 }
 
 // NewBaseOpt returns a new BaseOpt. If flag is empty string, key is
 // used as the flag value.
-func NewBaseOpt(key, flag string, short rune, usage, help string, tags ...string) BaseOpt {
-	if flag == "" {
-		flag = key
-	}
-
+func NewBaseOpt(key string, flag *Flag, usage, help string, tags ...string) BaseOpt {
 	slices.Sort(tags)
 
-	return BaseOpt{
+	opt := BaseOpt{
 		key:   key,
-		flag:  flag,
-		short: short,
 		usage: usage,
 		help:  help,
 		tags:  tags,
 	}
+
+	if flag != nil {
+		opt.flag = *flag
+	}
+	if opt.flag.Name == "" {
+		opt.flag.Name = key
+	}
+
+	return opt
 }
 
 // Key implements options.Opt.
@@ -150,13 +149,8 @@ func (op BaseOpt) Key() string {
 }
 
 // Flag implements options.Opt.
-func (op BaseOpt) Flag() string {
+func (op BaseOpt) Flag() Flag {
 	return op.flag
-}
-
-// Short implements options.Opt.
-func (op BaseOpt) Short() rune {
-	return op.short
 }
 
 // Usage implements options.Opt.
@@ -220,7 +214,7 @@ func NewString(key string, flag *Flag, defaultVal string, validFn func(string) e
 		flag = &Flag{}
 	}
 	return String{
-		BaseOpt:    NewBaseOpt(key, flag.Name, flag.Short, usage, help, tags...),
+		BaseOpt:    NewBaseOpt(key, flag, usage, help, tags...),
 		defaultVal: defaultVal,
 		validFn:    validFn,
 	}
@@ -303,7 +297,7 @@ func NewInt(key string, flag *Flag, defaultVal int, usage, help string, tags ...
 	}
 
 	return Int{
-		BaseOpt:    NewBaseOpt(key, flag.Name, flag.Short, usage, help, tags...),
+		BaseOpt:    NewBaseOpt(key, flag, usage, help, tags...),
 		defaultVal: defaultVal,
 	}
 }
@@ -437,24 +431,15 @@ func NewBool(key string, flag *Flag, defaultVal bool, usage, help string, tags .
 	}
 
 	return Bool{
-		BaseOpt:      NewBaseOpt(key, flag.Name, flag.Short, usage, help, tags...),
-		defaultVal:   defaultVal,
-		flagInverted: flag.Invert,
+		BaseOpt:    NewBaseOpt(key, flag, usage, help, tags...),
+		defaultVal: defaultVal,
 	}
 }
 
 // Bool is an options.Opt for type bool.
 type Bool struct {
 	BaseOpt
-	defaultVal   bool
-	flagInverted bool
-}
-
-// FlagInverted returns true Opt value is the inverse of the flag value.
-// For example, if the Opt is "progress", and the flag is "--no-progress",
-// then FlagInverted will return true.
-func (op Bool) FlagInverted() bool {
-	return op.flagInverted
+	defaultVal bool
 }
 
 // GetAny implements options.Opt.
@@ -554,7 +539,7 @@ func NewDuration(key string, flag *Flag, defaultVal time.Duration,
 	}
 
 	return Duration{
-		BaseOpt:    NewBaseOpt(key, flag.Name, flag.Short, usage, help, tags...),
+		BaseOpt:    NewBaseOpt(key, flag, usage, help, tags...),
 		defaultVal: defaultVal,
 	}
 }

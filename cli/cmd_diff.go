@@ -27,8 +27,7 @@ var OptDiffNumLines = options.NewInt(
 
 var OptDiffDataFormat = format.NewOpt(
 	"diff.data.format",
-	"format",
-	'f',
+	&options.Flag{Name: "format", Short: 'f'},
 	format.Text,
 	func(f format.Format) error {
 		switch f { //nolint:exhaustive
@@ -186,7 +185,7 @@ The default (3) can be changed via:
 	}
 
 	panicOn(cmd.RegisterFlagCompletionFunc(
-		OptDiffDataFormat.Flag(),
+		OptDiffDataFormat.Flag().Name,
 		completeStrings(-1, stringz.Strings(diffFormats)...),
 	))
 

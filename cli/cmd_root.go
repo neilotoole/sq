@@ -111,12 +111,12 @@ See docs and more: https://sq.io`,
 	cmd.PersistentFlags().String(flag.Config, "", flag.ConfigUsage)
 
 	addOptionFlag(cmd.PersistentFlags(), OptLogEnabled)
-	panicOn(cmd.RegisterFlagCompletionFunc(OptLogEnabled.Flag(), completeBool))
+	panicOn(cmd.RegisterFlagCompletionFunc(OptLogEnabled.Flag().Name, completeBool))
 
 	addOptionFlag(cmd.PersistentFlags(), OptLogFile)
 
 	addOptionFlag(cmd.PersistentFlags(), OptLogLevel)
-	panicOn(cmd.RegisterFlagCompletionFunc(OptLogLevel.Flag(), completeStrings(
+	panicOn(cmd.RegisterFlagCompletionFunc(OptLogLevel.Flag().Name, completeStrings(
 		1,
 		slog.LevelDebug.String(),
 		slog.LevelInfo.String(),
@@ -125,7 +125,7 @@ See docs and more: https://sq.io`,
 	)))
 
 	addOptionFlag(cmd.PersistentFlags(), OptLogFormat)
-	panicOn(cmd.RegisterFlagCompletionFunc(OptLogFormat.Flag(), completeStrings(
+	panicOn(cmd.RegisterFlagCompletionFunc(OptLogFormat.Flag().Name, completeStrings(
 		1,
 		string(format.Text),
 		string(format.JSON),
