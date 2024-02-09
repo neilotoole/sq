@@ -29,11 +29,13 @@ gen:
 .PHONY: fmt
 fmt:
 	@# https://github.com/incu6us/goimports-reviser
-	@# Note that *_windows.go is excluded because the tool seems
+	@# Note that termz_windows.go is excluded because the tool seems
 	@# to mangle Go code that is guarded by build tags that
-	@# are not in use.
+	@# are not in use. Alas, we can't provide a double star glob,
+	@# e.g. **/*_windows.go, because filepath.Match doesn't support
+	@# double star, so we explicitly name the file.
 	@goimports-reviser -company-prefixes github.com/neilotoole -set-alias \
-		-excludes '**/*_windows.go' \
+		-excludes 'libsq/core/termz/termz_windows.go' \
 		-rm-unused -output write \
 		-project-name github.com/neilotoole/sq ./...
 
