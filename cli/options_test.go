@@ -11,12 +11,9 @@ import (
 )
 
 func TestRegisterDefaultOpts(t *testing.T) {
-	log := lgt.New(t)
 	reg := &options.Registry{}
-
-	log.Debug("options.Registry (before)", "reg", reg)
 	cli.RegisterDefaultOpts(reg)
-	log.Debug("options.Registry (after)", "reg", reg)
+	lgt.New(t).Debug("options.Registry (after)", "reg", reg)
 
 	keys := reg.Keys()
 	require.Len(t, keys, 54)

@@ -10,7 +10,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## [v0.47.4] - UPCOMING
 
-Minor release with changes to flags.
+Patch release with changes to flags.
 See the earlier [`v0.47.0`](https://github.com/neilotoole/sq/releases/tag/v0.47.0)
 release for recent headline features.
 
