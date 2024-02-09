@@ -156,8 +156,7 @@ Generally, it is not necessary to fiddle this knob.`,
 
 	OptDatetimeFormat = options.NewString(
 		"format.datetime",
-		"",
-		0,
+		nil,
 		"RFC3339",
 		nil,
 		"Timestamp format: constant such as RFC3339 or a strftime format",
@@ -190,8 +189,7 @@ is not an integer.
 
 	OptDateFormat = options.NewString(
 		"format.date",
-		"",
-		0,
+		nil,
 		"DateOnly",
 		nil,
 		"Date format: constant such as DateOnly or a strftime format",
@@ -225,8 +223,7 @@ that this option is no-op if the rendered value is not an integer.
 
 	OptTimeFormat = options.NewString(
 		"format.time",
-		"",
-		0,
+		nil,
 		"TimeOnly",
 		nil,
 		"Time format: constant such as TimeOnly or a strftime format",

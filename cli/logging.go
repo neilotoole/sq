@@ -36,8 +36,7 @@ var (
 
 	OptLogFile = options.NewString(
 		"log.file",
-		"",
-		0,
+		nil,
 		getDefaultLogFilePath(),
 		nil,
 		"Log file path",

@@ -156,7 +156,7 @@ func TestOptions_LogValue(t *testing.T) {
 }
 
 func TestEffective(t *testing.T) {
-	optHello := options.NewString("hello", "", 0, "world", nil, "", "")
+	optHello := options.NewString("hello", nil, "world", nil, "", "")
 	optCount := options.NewInt("count", nil, 1, "", "")
 
 	in := options.Options{"count": 7}

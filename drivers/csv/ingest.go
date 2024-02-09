@@ -39,8 +39,7 @@ the zero value for that type is used, e.g. empty string or 0.`,
 // OptDelim specifies the CSV delimiter to use.
 var OptDelim = options.NewString(
 	"driver.csv.delim",
-	"",
-	0,
+	nil,
 	delimCommaKey,
 	nil,
 	"Delimiter for ingest CSV data",

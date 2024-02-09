@@ -211,16 +211,16 @@ func (op BaseOpt) Process(o Options) (Options, error) {
 
 var _ Opt = String{}
 
-// NewString returns an options.String instance. If flag is empty, the
-// value of key is used. If valid Fn is non-nil, it is called from
-// the process function.
-//
-//nolint:revive
-func NewString(key, flag string, short rune, defaultVal string,
-	validFn func(string) error, usage, help string, tags ...string,
+// NewString returns an options.String instance. If valid Fn is non-nil, it is
+// called by [String.Process].
+func NewString(key string, flag *Flag, defaultVal string, validFn func(string) error,
+	usage, help string, tags ...string,
 ) String {
+	if flag == nil {
+		flag = &Flag{}
+	}
 	return String{
-		BaseOpt:    NewBaseOpt(key, flag, short, usage, help, tags...),
+		BaseOpt:    NewBaseOpt(key, flag.Name, flag.Short, usage, help, tags...),
 		defaultVal: defaultVal,
 		validFn:    validFn,
 	}

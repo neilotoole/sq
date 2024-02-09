@@ -59,8 +59,7 @@ var OptIngestSampleSize = options.NewInt(
 // OptIngestColRename transforms a column name in ingested data.
 var OptIngestColRename = options.NewString(
 	"ingest.column.rename",
-	"",
-	0,
+	nil,
 	"{{.Name}}{{with .Recurrence}}_{{.}}{{end}}",
 	func(s string) error {
 		return stringz.ValidTemplate("ingest.column.rename", s)
