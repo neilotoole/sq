@@ -44,7 +44,7 @@ Use "sq config ls -v" to list available options.`,
 	cmdMarkRequiresConfigLock(cmd)
 	addTextFormatFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
-	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
+	addOptionFlag(cmd.Flags(), OptCompact)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 
 	cmd.Flags().String(flag.ConfigSrc, "", flag.ConfigSrcUsage)

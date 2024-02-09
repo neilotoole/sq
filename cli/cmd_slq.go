@@ -382,7 +382,7 @@ func addResultFormatFlags(cmd *cobra.Command) {
 
 	cmd.MarkFlagsMutuallyExclusive(flag.OutputFormatFlags...)
 
-	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
+	addOptionFlag(cmd.Flags(), OptCompact)
 }
 
 // extractFlagArgsValues returns a map {key:value} of predefined variables

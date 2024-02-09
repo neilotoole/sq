@@ -217,18 +217,19 @@ func getLogEnabled(ctx context.Context, osArgs []string, cfg *config.Config) boo
 	bootLog := lg.FromContext(ctx)
 	var enabled bool
 
-	val, ok, err := getBootstrapFlagValue(flag.LogEnabled, "", flag.LogEnabledUsage, osArgs)
+	flg := OptLogEnabled.Flag()
+	val, ok, err := getBootstrapFlagValue(flg, "", OptLogEnabled.Usage(), osArgs)
 	if err != nil {
-		bootLog.Warn("Reading log 'enabled' from flag", lga.Flag, flag.LogEnabled, lga.Err, err)
+		bootLog.Warn("Reading log 'enabled' from flag", lga.Flag, flg, lga.Err, err)
 	}
 	if ok {
-		bootLog.Debug("Using log 'enabled' specified via flag", lga.Flag, flag.LogEnabled, lga.Val, val)
+		bootLog.Debug("Using log 'enabled' specified via flag", lga.Flag, flg, lga.Val, val)
 
 		enabled, err = stringz.ParseBool(val)
 		if err != nil {
 			bootLog.Error(
 				"Reading bool flag",
-				lga.Flag, flag.LogEnabled,
+				lga.Flag, flg,
 				lga.Val, val,
 			)
 			// When in doubt, enable logging?

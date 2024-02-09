@@ -88,10 +88,6 @@ const (
 	CacheTreeSizeShort = "s"
 	CacheTreeSizeUsage = "Show sizes in cache tree"
 
-	Compact      = "compact"
-	CompactShort = "c"
-	CompactUsage = "Compact instead of pretty-printed output"
-
 	Raw      = "raw"
 	RawShort = "r"
 	RawUsage = "Output each record field in raw format without any encoding or delimiter"
@@ -150,9 +146,6 @@ const (
 	InspectSchemata      = "schemata"
 	InspectSchemataShort = "S"
 	InspectSchemataUsage = "List schemas (in current catalog) only"
-
-	LogEnabled      = "log"
-	LogEnabledUsage = "Enable logging"
 
 	LogFile      = "log.file"
 	LogFileUsage = "Path to log file; empty disables logging"
