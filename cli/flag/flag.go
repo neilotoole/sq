@@ -138,12 +138,12 @@ const (
 	Config      = "config"
 	ConfigUsage = "Load config from here"
 
-	CSVEmptyAsNull      = "driver.csv.empty-as-null"
-	CSVEmptyAsNullUsage = "Treat empty CSV fields as null"
-
-	CSVDelim        = "driver.csv.delim"
-	CSVDelimUsage   = "CSV delimiter: one of comma, space, pipe, tab, colon, semi, period"
-	CSVDelimDefault = "comma"
+	//CSVEmptyAsNull      = "driver.csv.empty-as-null"
+	//CSVEmptyAsNullUsage = "Treat empty CSV fields as null"
+	//
+	//CSVDelim        = "driver.csv.delim"
+	//CSVDelimUsage   = "CSV delimiter: one of comma, space, pipe, tab, colon, semi, period"
+	//CSVDelimDefault = "comma"
 
 	ConfigDelete      = "delete"
 	ConfigDeleteShort = "D"
