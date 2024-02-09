@@ -48,7 +48,7 @@ timeout triggers logging of errors.`,
 var OptShellCompletionGroupFilter = options.NewBool(
 	"shell-completion.group-filter",
 	nil,
-	false,
+	true,
 	"Shell completion initial source suggestions from active group only",
 	`When true, shell completion initially suggests only sources within the active
 group. When false, all sources are suggested. However, note that if the user
