@@ -35,7 +35,7 @@ release for recent headline features.
 
 - The [`--src.schema`](https://sq.io/docs/source#source-override) flag (as used in [`sq inspect`](https://sq.io/docs/cmd/inspect),
   [`sq sql`](https://sq.io/docs/cmd/sql), and the root [`sq`](https://sq.io/docs/cmd/sq#override-active-schema) cmd)
-  now accepts `--src.schema=CATALOG.` (note the `.` suffix). This is in addition to the existing allowed forms `SCHEMA`
+  now accepts `--src.schema=CATALOG.`. Note the `.` suffix on `CATALOG.`. This is in addition to the existing allowed forms `SCHEMA`
   and `CATALOG.SCHEMA`. This new `CATALOG.` form is effectively equivalent to `CATALOG.CURRENT_SCHEMA`.
   
   ```shell
