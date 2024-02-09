@@ -31,7 +31,7 @@ func newDBRestoreCmd() *cobra.Command {
 
 func newDBRestoreCatalogCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "catalog @src [--from file.dump] [--cmd]",
+		Use:   "catalog @src [--from file.dump] [--print]",
 		Short: "Restore db catalog from dump",
 		Long: `Restore into @src from dump file, using the db-native restore tool.
 
@@ -40,7 +40,7 @@ If --from is specified, the dump is read from that file; otherwise stdin is used
 When --no-owner is specified, the source user will own the restored objects: the
 ownership (and ACLs) from the dump file are disregarded.
 
-If --cmd or --cmd-long are specified, the restore command is not executed, but
+If --print or --print-long are specified, the restore command is not executed, but
 instead the db-native command is printed to stdout. Note that the command output
 will include DB credentials. For a Postgres source, it would look something like:
 
@@ -58,16 +58,19 @@ will include DB credentials. For a Postgres source, it would look something like
   $ sq db restore catalog  @sakila_pg --no-owner < backup.dump
 
   # Print the db-native restore command, but don't execute it
-  $ sq db restore catalog @sakila_pg -f backup.dump --cmd`,
+  $ sq db restore catalog @sakila_pg -f backup.dump --print`,
 	}
 
 	cmdMarkPlainStdout(cmd)
-	cmd.Flags().StringP(flag.RestoreFrom, flag.RestoreFromShort, "", flag.RestoreFromUsage)
-	cmd.Flags().Bool(flag.RestoreNoOwner, false, flag.RestoreNoOwnerUsage)
+
+	// FIXME: add --src.Schema
+
+	cmd.Flags().StringP(flag.DBRestoreFrom, flag.DBRestoreFromShort, "", flag.DBRestoreFromUsage)
+	cmd.Flags().Bool(flag.DBRestoreNoOwner, false, flag.DBRestoreNoOwnerUsage)
 	cmd.Flags().StringP(flag.FileOutput, flag.FileOutputShort, "", flag.FileOutputUsage)
-	cmd.Flags().Bool(flag.PrintToolCmd, false, flag.PrintToolCmdUsage)
-	cmd.Flags().Bool(flag.PrintLongToolCmd, false, flag.PrintLongToolCmdUsage)
-	cmd.MarkFlagsMutuallyExclusive(flag.PrintToolCmd, flag.PrintLongToolCmd)
+	cmd.Flags().Bool(flag.DBPrintToolCmd, false, flag.DBPrintToolCmdUsage)
+	cmd.Flags().Bool(flag.DBPrintLongToolCmd, false, flag.DBPrintLongToolCmdUsage)
+	cmd.MarkFlagsMutuallyExclusive(flag.DBPrintToolCmd, flag.DBPrintLongToolCmd)
 
 	return cmd
 }
@@ -87,9 +90,9 @@ func execDBRestoreCatalog(cmd *cobra.Command, args []string) error {
 	}
 
 	errPrefix := "db restore catalog: " + src.Handle
-	if cmdFlagChanged(cmd, flag.RestoreFrom) {
-		if dumpFile = strings.TrimSpace(cmd.Flag(flag.RestoreFrom).Value.String()); dumpFile == "" {
-			return errz.Errorf("%s: %s is specified, but empty", errPrefix, flag.RestoreFrom)
+	if cmdFlagChanged(cmd, flag.DBRestoreFrom) {
+		if dumpFile = strings.TrimSpace(cmd.Flag(flag.DBRestoreFrom).Value.String()); dumpFile == "" {
+			return errz.Errorf("%s: %s is specified, but empty", errPrefix, flag.DBRestoreFrom)
 		}
 	}
 
@@ -98,7 +101,7 @@ func execDBRestoreCatalog(cmd *cobra.Command, args []string) error {
 	}
 
 	verbose := cmdFlagBool(cmd, flag.Verbose)
-	noOwner := cmdFlagBool(cmd, flag.RestoreNoOwner)
+	noOwner := cmdFlagBool(cmd, flag.DBRestoreNoOwner)
 
 	var execCmd *execz.Cmd
 
@@ -125,15 +128,15 @@ func execDBRestoreCatalog(cmd *cobra.Command, args []string) error {
 	execCmd.Stderr = ru.ErrOut
 	execCmd.ErrPrefix = errPrefix
 
-	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
-		lg.FromContext(cmd.Context()).Info("Printing OS cmd", lga.Cmd, execCmd)
+	if cmdFlagBool(cmd, flag.DBPrintToolCmd) || cmdFlagBool(cmd, flag.DBPrintLongToolCmd) {
+		lg.FromContext(cmd.Context()).Info("Printing external cmd", lga.Cmd, execCmd)
 		_, err = fmt.Fprintln(ru.Out, execCmd.String())
 		return errz.Err(err)
 	}
 
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
-		lg.FromContext(cmd.Context()).Info("Executing OS cmd", lga.Cmd, execCmd)
+		lg.FromContext(cmd.Context()).Info("Executing external cmd", lga.Cmd, execCmd)
 		return execz.Exec(cmd.Context(), execCmd)
 	default:
 		return errz.Errorf("%s: cmd not supported for %s", errPrefix, src.Type)
@@ -142,7 +145,7 @@ func execDBRestoreCatalog(cmd *cobra.Command, args []string) error {
 
 func newDBRestoreClusterCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "cluster @src [--from file.dump] [--cmd]",
+		Use:   "cluster @src [--from file.dump] [--print]",
 		Short: "Restore db cluster from dump",
 		Long: `Restore entire db cluster into @src from dump file, using the db-native restore
 tool.
@@ -152,7 +155,7 @@ If --from is specified, the dump is read from that file; otherwise stdin is used
 When --no-owner is specified, the source user will own the restored objects: the
 ownership (and ACLs) from the dump file are disregarded.
 
-If --cmd or --cmd-long are specified, the restore command is not executed, but
+If --print or --print-long are specified, the restore command is not executed, but
 instead the db-native command is printed to stdout. Note that the command output
 will include DB credentials. For a Postgres source, it would look something like:
 
@@ -171,16 +174,16 @@ FIXME: example command
   $ sq db restore cluster  @sakila_pg --no-owner < backup.dump
 
   # Print the db-native restore command, but don't execute it
-  $ sq db restore cluster @sakila_pg -f backup.dump --cmd`,
+  $ sq db restore cluster @sakila_pg -f backup.dump --print`,
 	}
 
 	cmdMarkPlainStdout(cmd)
-	cmd.Flags().StringP(flag.RestoreFrom, flag.RestoreFromShort, "", flag.RestoreFromUsage)
-	cmd.Flags().Bool(flag.RestoreNoOwner, false, flag.RestoreNoOwnerUsage)
+	cmd.Flags().StringP(flag.DBRestoreFrom, flag.DBRestoreFromShort, "", flag.DBRestoreFromUsage)
+	cmd.Flags().Bool(flag.DBRestoreNoOwner, false, flag.DBRestoreNoOwnerUsage)
 	cmd.Flags().StringP(flag.FileOutput, flag.FileOutputShort, "", flag.FileOutputUsage)
-	cmd.Flags().Bool(flag.PrintToolCmd, false, flag.PrintToolCmdUsage)
-	cmd.Flags().Bool(flag.PrintLongToolCmd, false, flag.PrintLongToolCmdUsage)
-	cmd.MarkFlagsMutuallyExclusive(flag.PrintToolCmd, flag.PrintLongToolCmd)
+	cmd.Flags().Bool(flag.DBPrintToolCmd, false, flag.DBPrintToolCmdUsage)
+	cmd.Flags().Bool(flag.DBPrintLongToolCmd, false, flag.DBPrintLongToolCmdUsage)
+	cmd.MarkFlagsMutuallyExclusive(flag.DBPrintToolCmd, flag.DBPrintLongToolCmd)
 
 	return cmd
 }
@@ -200,9 +203,9 @@ func execDBRestoreCluster(cmd *cobra.Command, args []string) error {
 	}
 
 	errPrefix := "db restore cluster: " + src.Handle
-	if cmdFlagChanged(cmd, flag.RestoreFrom) {
-		if dumpFile = strings.TrimSpace(cmd.Flag(flag.RestoreFrom).Value.String()); dumpFile == "" {
-			return errz.Errorf("%s: %s is specified, but empty", errPrefix, flag.RestoreFrom)
+	if cmdFlagChanged(cmd, flag.DBRestoreFrom) {
+		if dumpFile = strings.TrimSpace(cmd.Flag(flag.DBRestoreFrom).Value.String()); dumpFile == "" {
+			return errz.Errorf("%s: %s is specified, but empty", errPrefix, flag.DBRestoreFrom)
 		}
 	}
 
@@ -239,8 +242,8 @@ func execDBRestoreCluster(cmd *cobra.Command, args []string) error {
 	execCmd.Stderr = ru.ErrOut
 	execCmd.ErrPrefix = errPrefix
 
-	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
-		lg.FromContext(cmd.Context()).Info("Printing OS cmd", lga.Cmd, execCmd)
+	if cmdFlagBool(cmd, flag.DBPrintToolCmd) || cmdFlagBool(cmd, flag.DBPrintLongToolCmd) {
+		lg.FromContext(cmd.Context()).Info("Printing external cmd", lga.Cmd, execCmd)
 		s := execCmd.String()
 		_, err = fmt.Fprintln(ru.Out, s)
 		return errz.Err(err)
@@ -248,7 +251,7 @@ func execDBRestoreCluster(cmd *cobra.Command, args []string) error {
 
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
-		lg.FromContext(cmd.Context()).Info("Executing OS cmd", lga.Cmd, execCmd)
+		lg.FromContext(cmd.Context()).Info("Executing external cmd", lga.Cmd, execCmd)
 		return execz.Exec(cmd.Context(), execCmd)
 	default:
 		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)

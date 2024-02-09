@@ -211,21 +211,28 @@ const (
 	DiffAllShort = "a"
 	DiffAllUsage = "Compare everything (caution: may be slow)"
 
-	DumpCatalog      = "catalog"
-	DumpCatalogUsage = "Dump the named catalog"
-	DumpNoOwner      = "no-owner"
-	DumpNoOwnerUsage = "Don't set ownership or ACL"
+	DBDumpCatalog      = "catalog"
+	DBDumpCatalogUsage = "Dump the named catalog"
+	DBDumpNoOwner      = "no-owner"
+	DBDumpNoOwnerUsage = "Don't set ownership or ACL"
 
-	PrintToolCmd          = "cmd"
-	PrintToolCmdUsage     = "Print the db-native tool command, but don't execute it"
-	PrintLongToolCmd      = "cmd-long"
-	PrintLongToolCmdUsage = "Print the long-form db-native tool command, but don't execute it"
+	DBPrintToolCmd          = "print"
+	DBPrintToolCmdUsage     = "Print the db-native tool command, but don't execute it"
+	DBPrintLongToolCmd      = "print-long"
+	DBPrintLongToolCmdUsage = "Print the long-form db-native tool command, but don't execute it"
 
-	RestoreFrom         = "from" // REVISIT: consider using flag.Input?
-	RestoreFromShort    = "f"
-	RestoreFromUsage    = "Restore from dump file; if omitted, read from stdin"
-	RestoreNoOwner      = "no-owner"
-	RestoreNoOwnerUsage = "Don't use ownership or ACL from dump"
+	DBRestoreFrom         = "from"
+	DBRestoreFromShort    = "f"
+	DBRestoreFromUsage    = "Restore from dump file; if omitted, read from stdin"
+	DBRestoreNoOwner      = "no-owner"
+	DBRestoreNoOwnerUsage = "Don't use ownership or ACL from dump"
+
+	DBExecFile      = "file"
+	DBExecFileShort = "f"
+	DBExecFileUsage = "Read SQL from <file> instead of stdin"
+	DBExecCmd       = "command"
+	DBExecCmdShort  = "c"
+	DBExecCmdUsage  = "Execute SQL command string"
 )
 
 // OutputFormatFlags is the set of flags that control output format.

@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/execz"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -20,7 +21,7 @@ import (
 //
 // Not every flag is applicable to all tools.
 type ToolParams struct {
-	// File is the path to the dump file.
+	// File is the path to the file.
 	File string
 
 	// Verbose indicates verbose output (progress).
@@ -71,6 +72,7 @@ func DumpCatalogCmd(src *source.Source, p *ToolParams) (*execz.Cmd, error) {
 		cmd.Args = append(cmd.Args, p.flag(flagVerbose))
 	}
 
+	cmd.Args = append(cmd.Args, p.flag(flagClean), p.flag(flagIfExists)) // TODO: should be optional
 	cmd.Args = append(cmd.Args, p.flag(flagFormatCustomArchive))
 
 	if p.NoOwner {
@@ -173,7 +175,7 @@ func DumpClusterCmd(src *source.Source, p *ToolParams) (*execz.Cmd, error) {
 		cmd.ProgressFromStderr = true
 		cmd.Args = append(cmd.Args, p.flag(flagVerbose))
 	}
-
+	cmd.Args = append(cmd.Args, p.flag(flagClean), p.flag(flagIfExists)) // TODO: should be optional
 	if p.NoOwner {
 		// NoOwner sets both --no-owner and --no-acl. Maybe these should
 		// be separate options.
@@ -187,7 +189,6 @@ func DumpClusterCmd(src *source.Source, p *ToolParams) (*execz.Cmd, error) {
 	)
 
 	if p.File != "" {
-		cmd.UsesOutputFile = p.File
 		cmd.Args = append(cmd.Args, p.flag(flagFile), p.File)
 	}
 
@@ -223,9 +224,61 @@ func RestoreClusterCmd(src *source.Source, p *ToolParams) (*execz.Cmd, error) {
 	}
 	cmd.Args = append(cmd.Args, p.flag(flagDBName), cfg.ConnString())
 	if p.File != "" {
-		cmd.UsesOutputFile = p.File
 		cmd.Args = append(cmd.Args, p.flag(flagFile), p.File)
 	}
+	return cmd, nil
+}
+
+type ExecToolParams struct {
+	// ScriptFile is the path to the script file.
+	// Only one of ScriptFile or CmdString will be set.
+	ScriptFile string
+
+	// CmdString is the literal SQL command string.
+	CmdString string
+
+	// Verbose indicates verbose output (progress).
+	// Only one of ScriptFile or CmdString will be set.
+	Verbose bool
+
+	// LongFlags indicates whether to use long flags, e.g. --file instead of -f.
+	LongFlags bool
+}
+
+func (p *ExecToolParams) flag(name string) string {
+	if p.LongFlags {
+		return flagsLong[name]
+	}
+	return flagsShort[name]
+}
+
+// ExecCmd returns the shell command to execute psql with a script file
+// or command string. Example command:
+//
+//	psql -d postgres://alice:vNgR6R@db.acme.com:5432/sales -f query.sql
+//
+// See: https://www.postgresql.org/docs/9.6/app-psql.html.
+func ExecCmd(src *source.Source, p *ExecToolParams) (*execz.Cmd, error) {
+	cfg, err := getPoolConfig(src, true)
+	if err != nil {
+		return nil, err
+	}
+
+	cmd := &execz.Cmd{Name: "psql"}
+	if !p.Verbose {
+		cmd.Args = append(cmd.Args, p.flag(flagQuiet))
+	}
+	cmd.Args = append(cmd.Args, p.flag(flagDBName), cfg.ConnString())
+	if p.ScriptFile != "" {
+		cmd.Args = append(cmd.Args, p.flag(flagFile), p.ScriptFile)
+	}
+	if p.CmdString != "" {
+		if p.ScriptFile != "" {
+			return nil, errz.Errorf("only one of --file or --command may be set")
+		}
+		cmd.Args = append(cmd.Args, p.flag(flagCommand), p.CmdString)
+	}
+
 	return cmd, nil
 }
 
@@ -233,6 +286,7 @@ func RestoreClusterCmd(src *source.Source, p *ToolParams) (*execz.Cmd, error) {
 const (
 	flagNoOwner             = "--no-owner"
 	flagVerbose             = "--verbose"
+	flagQuiet               = "--quiet"
 	flagNoACL               = "--no-acl"
 	flagCreate              = "--create"
 	flagDBName              = "--dbname"
@@ -242,11 +296,13 @@ const (
 	flagClean               = "--clean"
 	flagNoPassword          = "--no-password"
 	flagFile                = "--file"
+	flagCommand             = "--command"
 )
 
 var flagsLong = map[string]string{
 	flagNoOwner:             flagNoOwner,
 	flagVerbose:             flagVerbose,
+	flagQuiet:               flagQuiet,
 	flagNoACL:               flagNoACL,
 	flagCreate:              flagCreate,
 	flagDBName:              flagDBName,
@@ -256,18 +312,21 @@ var flagsLong = map[string]string{
 	flagNoPassword:          flagNoPassword,
 	flagDatabase:            flagDatabase,
 	flagFile:                flagFile,
+	flagCommand:             flagCommand,
 }
 
 var flagsShort = map[string]string{
 	flagNoOwner:             "-O",
 	flagVerbose:             "-v",
+	flagQuiet:               "-q",
 	flagNoACL:               "-x",
 	flagCreate:              "-C",
 	flagClean:               "-c",
 	flagDBName:              "-d",
 	flagFormatCustomArchive: "-Fc",
-	flagIfExists:            "--if-exists",
+	flagIfExists:            flagIfExists,
 	flagNoPassword:          "-w",
 	flagDatabase:            "-l",
 	flagFile:                "-f",
+	flagCommand:             "-c",
 }

@@ -32,7 +32,7 @@ func newDBDumpCmd() *cobra.Command {
 
 func newDBDumpCatalogCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               "catalog @src [--cmd]",
+		Use:               "catalog @src [--print]",
 		Short:             "Dump db catalog",
 		Long:              `Dump db catalog using database-native dump tool.`,
 		ValidArgsFunction: completeHandle(1, true),
@@ -48,7 +48,7 @@ func newDBDumpCatalogCmd() *cobra.Command {
   $ sq db dump catalog --no-owner @sakila_pg > sakila.dump
 
   # Print the dump command, but don't execute it
-  $ sq db dump catalog @sakila_pg --cmd
+  $ sq db dump catalog @sakila_pg --print
 
   # Dump a catalog (db) other than the source's current catalog
   $ sq db dump catalog @sakila_pg --catalog sales > sales.dump`,
@@ -59,13 +59,13 @@ func newDBDumpCatalogCmd() *cobra.Command {
 	// progress listeners etc. The dump commands handle their own output.
 	cmdMarkPlainStdout(cmd)
 
-	cmd.Flags().String(flag.DumpCatalog, "", flag.DumpCatalogUsage)
-	panicOn(cmd.RegisterFlagCompletionFunc(flag.DumpCatalog, completeCatalog(0)))
-	cmd.Flags().Bool(flag.DumpNoOwner, false, flag.DumpNoOwnerUsage)
+	cmd.Flags().String(flag.DBDumpCatalog, "", flag.DBDumpCatalogUsage)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.DBDumpCatalog, completeCatalog(0)))
+	cmd.Flags().Bool(flag.DBDumpNoOwner, false, flag.DBDumpNoOwnerUsage)
 	cmd.Flags().StringP(flag.FileOutput, flag.FileOutputShort, "", flag.FileOutputUsage)
-	cmd.Flags().Bool(flag.PrintToolCmd, false, flag.PrintToolCmdUsage)
-	cmd.Flags().Bool(flag.PrintLongToolCmd, false, flag.PrintLongToolCmdUsage)
-	cmd.MarkFlagsMutuallyExclusive(flag.PrintToolCmd, flag.PrintLongToolCmd)
+	cmd.Flags().Bool(flag.DBPrintToolCmd, false, flag.DBPrintToolCmdUsage)
+	cmd.Flags().Bool(flag.DBPrintLongToolCmd, false, flag.DBPrintLongToolCmdUsage)
+	cmd.MarkFlagsMutuallyExclusive(flag.DBPrintToolCmd, flag.DBPrintLongToolCmd)
 
 	return cmd
 }
@@ -90,9 +90,9 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if cmdFlagChanged(cmd, flag.DumpCatalog) {
+	if cmdFlagChanged(cmd, flag.DBDumpCatalog) {
 		// Use a different catalog than the source's current catalog.
-		if src.Catalog, err = cmd.Flags().GetString(flag.DumpCatalog); err != nil {
+		if src.Catalog, err = cmd.Flags().GetString(flag.DBDumpCatalog); err != nil {
 			return err
 		}
 	}
@@ -100,8 +100,8 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 	var (
 		errPrefix     = fmt.Sprintf("db dump catalog: %s", src.Handle)
 		dumpVerbose   = cmdFlagBool(cmd, flag.Verbose)
-		dumpNoOwner   = cmdFlagBool(cmd, flag.DumpNoOwner)
-		dumpLongFlags = cmdFlagBool(cmd, flag.PrintLongToolCmd)
+		dumpNoOwner   = cmdFlagBool(cmd, flag.DBDumpNoOwner)
+		dumpLongFlags = cmdFlagBool(cmd, flag.DBPrintLongToolCmd)
 		dumpFile      string
 	)
 
@@ -142,15 +142,15 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 	execCmd.Stderr = ru.ErrOut
 	execCmd.ErrPrefix = errPrefix
 
-	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
-		lg.FromContext(cmd.Context()).Info("Printing OS cmd", lga.Cmd, execCmd)
+	if cmdFlagBool(cmd, flag.DBPrintToolCmd) || cmdFlagBool(cmd, flag.DBPrintLongToolCmd) {
+		lg.FromContext(cmd.Context()).Info("Printing external cmd", lga.Cmd, execCmd)
 		_, err = fmt.Fprintln(ru.Out, execCmd.String())
 		return errz.Err(err)
 	}
 
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
-		lg.FromContext(cmd.Context()).Info("Executing OS cmd", lga.Cmd, execCmd)
+		lg.FromContext(cmd.Context()).Info("Executing external cmd", lga.Cmd, execCmd)
 		return execz.Exec(cmd.Context(), execCmd)
 	default:
 		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
@@ -159,7 +159,7 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 
 func newDBDumpClusterCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               "cluster @src [--cmd]",
+		Use:               "cluster @src [--print]",
 		Short:             "Dump entire db cluster",
 		Long:              `Dump all catalogs in src's db cluster using the db-native dump tool.`,
 		ValidArgsFunction: completeHandle(1, true),
@@ -175,18 +175,18 @@ func newDBDumpClusterCmd() *cobra.Command {
   $ sq db dump cluster @sakila_pg --no-owner > all.dump
 
   # Print the dump command, but don't execute it
-  $ sq db dump cluster @sakila_pg -f all.dump --cmd`,
+  $ sq db dump cluster @sakila_pg -f all.dump --print`,
 	}
 
 	// Calling cmdMarkPlainStdout means that ru.Stdout will be
 	// the plain os.Stdout, and won't be decorated with color, or
 	// progress listeners etc. The dump commands handle their own output.
 	cmdMarkPlainStdout(cmd)
-	cmd.Flags().Bool(flag.DumpNoOwner, false, flag.DumpNoOwnerUsage)
+	cmd.Flags().Bool(flag.DBDumpNoOwner, false, flag.DBDumpNoOwnerUsage)
 	cmd.Flags().StringP(flag.FileOutput, flag.FileOutputShort, "", flag.FileOutputUsage)
-	cmd.Flags().Bool(flag.PrintToolCmd, false, flag.PrintToolCmdUsage)
-	cmd.Flags().Bool(flag.PrintLongToolCmd, false, flag.PrintLongToolCmdUsage)
-	cmd.MarkFlagsMutuallyExclusive(flag.PrintToolCmd, flag.PrintLongToolCmd)
+	cmd.Flags().Bool(flag.DBPrintToolCmd, false, flag.DBPrintToolCmdUsage)
+	cmd.Flags().Bool(flag.DBPrintLongToolCmd, false, flag.DBPrintLongToolCmdUsage)
+	cmd.MarkFlagsMutuallyExclusive(flag.DBPrintToolCmd, flag.DBPrintLongToolCmd)
 
 	return cmd
 }
@@ -213,8 +213,8 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 	var (
 		errPrefix     = fmt.Sprintf("db dump cluster: %s", src.Handle)
 		dumpVerbose   = cmdFlagBool(cmd, flag.Verbose)
-		dumpNoOwner   = cmdFlagBool(cmd, flag.DumpNoOwner)
-		dumpLongFlags = cmdFlagBool(cmd, flag.PrintLongToolCmd)
+		dumpNoOwner   = cmdFlagBool(cmd, flag.DBDumpNoOwner)
+		dumpLongFlags = cmdFlagBool(cmd, flag.DBPrintLongToolCmd)
 		dumpFile      string
 	)
 
@@ -254,15 +254,15 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 	execCmd.Stderr = ru.ErrOut
 	execCmd.ErrPrefix = errPrefix
 
-	if cmdFlagBool(cmd, flag.PrintToolCmd) || cmdFlagBool(cmd, flag.PrintLongToolCmd) {
-		lg.FromContext(cmd.Context()).Info("Printing OS cmd", lga.Cmd, execCmd)
+	if cmdFlagBool(cmd, flag.DBPrintToolCmd) || cmdFlagBool(cmd, flag.DBPrintLongToolCmd) {
+		lg.FromContext(cmd.Context()).Info("Printing external cmd", lga.Cmd, execCmd)
 		_, err = fmt.Fprintln(ru.Out, execCmd.String())
 		return errz.Err(err)
 	}
 
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
-		lg.FromContext(cmd.Context()).Info("Executing OS cmd", lga.Cmd, execCmd)
+		lg.FromContext(cmd.Context()).Info("Executing external cmd", lga.Cmd, execCmd)
 		return execz.Exec(cmd.Context(), execCmd)
 	default:
 		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)

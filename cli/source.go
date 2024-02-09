@@ -154,6 +154,52 @@ func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Sou
 	return nil
 }
 
+// getCmdSource gets the source specified in args[0], or if args is empty, the
+// active source, and calls applySourceOptions. If [flag.ActiveSchema] is set,
+// the [source.Source.Catalog] and [source.Source.Schema] fields are configured
+// (and validated) as appropriate.
+//
+// See: applySourceOptions, processFlagActiveSchema, verifySourceCatalogSchema.
+func getCmdSource(cmd *cobra.Command, args []string) (*source.Source, error) {
+	ru := run.FromContext(cmd.Context())
+
+	var src *source.Source
+	var err error
+	if len(args) == 0 {
+		if src = ru.Config.Collection.Active(); src == nil {
+			return nil, errz.New("no active source")
+		}
+	} else {
+		src, err = ru.Config.Collection.Get(args[0])
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if !cmdFlagChanged(cmd, flag.ActiveSchema) {
+		return src, nil
+	}
+
+	// Handle flag.ActiveSchema (--src.schema=CATALOG.SCHEMA). This func may
+	// mutate src's Catalog and Schema fields if appropriate.
+	var srcModified bool
+	if srcModified, err = processFlagActiveSchema(cmd, src); err != nil {
+		return nil, err
+	}
+
+	if err = applySourceOptions(cmd, src); err != nil {
+		return nil, err
+	}
+
+	if srcModified {
+		if err = verifySourceCatalogSchema(cmd.Context(), ru, src); err != nil {
+			return nil, err
+		}
+	}
+
+	return src, nil
+}
+
 // processFlagActiveSchema processes the --src.schema flag, setting appropriate
 // [source.Source.Catalog] and [source.Source.Schema] values on activeSrc. If
 // the src is modified by this function, modified returns true. If
