@@ -307,6 +307,15 @@ func preprocessUserSLQ(ctx context.Context, ru *run.Run, args []string) (string,
 // addTextFormatFlags adds the flags for --text format.
 func addTextFormatFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP(flag.Text, flag.TextShort, false, flag.TextUsage)
+
+	// Note that we don't use:
+	//
+	//  addOptionFlag(cmd.Flags(), OptPrintHeader)
+	//
+	// This is because, unlike other flags, printing the header is controllable
+	// via both --header (-h) and --no-header (-H). At the time of implementation,
+	// it seemed the ergonomics were better when both -h and -H were available.
+	// So, it'll probably stay this way.
 	cmd.Flags().BoolP(flag.Header, flag.HeaderShort, true, flag.HeaderUsage)
 	cmd.Flags().BoolP(flag.NoHeader, flag.NoHeaderShort, false, flag.NoHeaderUsage)
 	cmd.MarkFlagsMutuallyExclusive(flag.Header, flag.NoHeader)
@@ -347,14 +356,11 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	cmd.Flags().String(flag.IngestDriver, "", flag.IngestDriverUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.IngestDriver, completeDriverType))
 
-	// cmd.Flags().Bool(flag.IngestHeader, false, flag.IngestHeaderUsage)
 	addOptionFlag(cmd.Flags(), driver.OptIngestHeader)
 	addOptionFlag(cmd.Flags(), driver.OptIngestCache)
-	// cmd.Flags().Bool(flag.CSVEmptyAsNull, true, flag.CSVEmptyAsNullUsage)
 	addOptionFlag(cmd.Flags(), csv.OptDelim)
-	addOptionFlag(cmd.Flags(), csv.OptEmptyAsNull)
-	// cmd.Flags().String(flag.CSVDelim, flag.CSVDelimDefault, flag.CSVDelimUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(csv.OptDelim.Key(), completeStrings(-1, csv.NamedDelims()...)))
+	addOptionFlag(cmd.Flags(), csv.OptEmptyAsNull)
 }
 
 // addResultFormatFlags adds the individual flags that control result

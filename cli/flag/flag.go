@@ -1,4 +1,5 @@
-// Package flag holds CLI flags.
+// Package flag holds CLI flags. Note that many CLI flags are defined
+// via the options package, and are not listed here.
 package flag
 
 const (
@@ -25,10 +26,9 @@ const (
 	HTML      = "html"
 	HTMLUsage = "Output HTML table"
 
-	Header      = "header"
-	HeaderShort = "h"
-	HeaderUsage = "Print header row"
-
+	Header        = "header"
+	HeaderShort   = "h"
+	HeaderUsage   = "Print header row"
 	NoHeader      = "no-header"
 	NoHeaderShort = "H"
 	NoHeaderUsage = "Don't print header row"
