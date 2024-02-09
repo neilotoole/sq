@@ -101,6 +101,8 @@ See docs and more: https://sq.io`,
 	cmd.PersistentFlags().BoolP(flag.Monochrome, flag.MonochromeShort, false, flag.MonochromeUsage)
 
 	addOptionFlag(cmd.PersistentFlags(), OptProgress)
+	addOptionFlag(cmd.PersistentFlags(), OptRedact)
+
 	// TODO: Move the rest of the option flags over to addOptionFlag
 	cmd.PersistentFlags().BoolP(flag.Verbose, flag.VerboseShort, false, flag.VerboseUsage)
 

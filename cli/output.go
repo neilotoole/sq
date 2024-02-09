@@ -102,6 +102,17 @@ command, sq falls back to "text". Available formats:
 		options.TagOutput,
 	)
 
+	OptRedact = options.NewBool(
+		"redact",
+		"no-redact",
+		true,
+		0,
+		true,
+		"Redact passwords in output",
+		`Redact passwords in output.`,
+		options.TagOutput,
+	)
+
 	OptProgress = options.NewBool(
 		"progress",
 		"no-progress",
@@ -454,6 +465,7 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 	pr.Verbose = OptVerbose.Get(opts)
 	pr.FlushThreshold = OptTuningFlushThreshold.Get(opts)
 	pr.Compact = OptCompact.Get(opts)
+	pr.Redact = OptRedact.Get(opts)
 
 	switch {
 	case cmdFlagChanged(cmd, flag.Header):
