@@ -115,7 +115,7 @@ func TestBool(t *testing.T) {
 		t.Run(tu.Name(i, tc.key), func(t *testing.T) {
 			reg := &options.Registry{}
 
-			opt := options.NewBool(tc.key, "", false, 0, tc.defaultVal, "", "")
+			opt := options.NewBool(tc.key, nil, tc.defaultVal, "", "")
 			reg.Add(opt)
 
 			o := options.Options{tc.key: tc.input}

@@ -26,9 +26,7 @@ import (
 // or as the zero value for the kind of that field.
 var OptEmptyAsNull = options.NewBool(
 	"driver.csv.empty-as-null",
-	"",
-	false,
-	0,
+	nil,
 	true,
 	"Treat ingest empty CSV fields as NULL",
 	`When true, empty CSV fields are treated as NULL. When false,

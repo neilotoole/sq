@@ -12,9 +12,7 @@ import (
 // If not set, the ingester *may* try to detect if the input has a header.
 var OptIngestHeader = options.NewBool(
 	"ingest.header",
-	"",
-	false,
-	0,
+	nil,
 	false,
 	"Ingest data has a header row",
 	`Specifies whether ingested data has a header row or not.
@@ -28,9 +26,7 @@ to detect the header.`,
 // OptIngestCache specifies whether ingested data is cached or not.
 var OptIngestCache = options.NewBool(
 	"ingest.cache",
-	"no-cache",
-	true,
-	0,
+	&options.Flag{Name: "no-cache", Invert: true},
 	true,
 	"Cache ingest data",
 	`Specifies whether ingested data is cached or not, on a default or per-source

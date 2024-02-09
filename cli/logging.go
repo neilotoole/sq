@@ -28,9 +28,7 @@ import (
 var (
 	OptLogEnabled = options.NewBool(
 		"log",
-		"",
-		false,
-		0,
+		nil,
 		false,
 		"Enable logging",
 		"Enable logging.",
@@ -65,7 +63,7 @@ var (
 
 			return errz.Errorf("option {log.format} allows only %q or %q", format.Text, format.JSON)
 		},
-		"Log output format",
+		"Log output format (text or json)",
 		fmt.Sprintf(
 			`Log output format. Allowed formats are %q (human-friendly) or %q.`, format.Text, format.JSON),
 	)

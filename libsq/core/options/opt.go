@@ -93,6 +93,27 @@ type Opt interface {
 	Process(o Options) (Options, error)
 }
 
+// Flag is passed to the "NewX" Opt constructor functions, e.g. [NewBool], to
+// override the Opt's flag configuration. Passing a nil *Flag doesn't prevent
+// the Opt use as a flag: it simply indicates default flag configuration.
+type Flag struct {
+	// Name is the flag name to use. When empty, [Opt.Key] is used.
+	Name string
+
+	// Short is the short flag name, e.g. 'v' for "verbose". The zero value
+	// indicates no short name.
+	Short rune
+
+	// Invert indicates that the flag's boolean value is inverted vs the flag
+	// name. For example, if [Opt.Key] is "progress", but [Flag.Name] is
+	// "no-progress", then [Flag.Invert] should be true. This field is ignored for
+	// non-boolean [Opt] types.
+	Invert bool
+
+	// REVISIT: Maybe add a Flag.Usage field to override Opt.Usage()? This
+	// might help with inverted flags.
+}
+
 // BaseOpt is a partial implementation of options.Opt that concrete
 // types can build on.
 type BaseOpt struct {
@@ -403,17 +424,15 @@ func (op Int) Process(o Options) (Options, error) {
 
 var _ Opt = Bool{}
 
-// NewBool returns an options.Bool instance. If flag is empty, the value
-// of key is used. If invertFlag is true, the flag's boolean value
-// is inverted to set the option. For example, if the Opt is "progress",
-// and the flag is "--no-progress", then invertFlag should be true.
-func NewBool(key, flag string, invertFlag bool, short rune, //nolint:revive
-	defaultVal bool, usage, help string, tags ...string,
-) Bool {
+// NewBool returns an options.Bool instance. If arg flag is non-nil and
+// [Flag.Invert] is true, the flag's boolean value is inverted to set the option.
+// For example, if [Opt.Key] is progress, and [Flag.Name] is "--no-progress",
+// then [Flag.Invert] should be true.
+func NewBool(key string, flag *Flag, defaultVal bool, usage, help string, tags ...string) Bool {
 	return Bool{
-		BaseOpt:      NewBaseOpt(key, flag, short, usage, help, tags...),
+		BaseOpt:      NewBaseOpt(key, flag.Name, flag.Short, usage, help, tags...),
 		defaultVal:   defaultVal,
-		flagInverted: invertFlag,
+		flagInverted: flag.Invert,
 	}
 }
 

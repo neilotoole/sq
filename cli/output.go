@@ -38,9 +38,7 @@ import (
 var (
 	OptPrintHeader = options.NewBool(
 		"header",
-		"",
-		false,
-		0,
+		nil,
 		true,
 		"Print header row",
 		`Controls whether a header row is printed. This applies only to certain formats,
@@ -82,9 +80,7 @@ command, sq falls back to "text". Available formats:
 
 	OptVerbose = options.NewBool(
 		"verbose",
-		"",
-		false,
-		'v',
+		&options.Flag{Short: 'v'},
 		false,
 		"Print verbose output",
 		`Print verbose output.`,
@@ -93,9 +89,7 @@ command, sq falls back to "text". Available formats:
 
 	OptMonochrome = options.NewBool(
 		"monochrome",
-		"",
-		false,
-		'M',
+		&options.Flag{Short: 'M'},
 		false,
 		"Don't print color output",
 		`Don't print color output.`,
@@ -104,9 +98,7 @@ command, sq falls back to "text". Available formats:
 
 	OptRedact = options.NewBool(
 		"redact",
-		"no-redact",
-		true,
-		0,
+		&options.Flag{Name: "no-redact", Invert: true},
 		true,
 		"Redact passwords in output",
 		`Redact passwords in output.`,
@@ -115,9 +107,7 @@ command, sq falls back to "text". Available formats:
 
 	OptProgress = options.NewBool(
 		"progress",
-		"no-progress",
-		true,
-		0,
+		&options.Flag{Name: "no-progress", Invert: true},
 		true,
 		"Progress bar for long-running operations",
 		`Progress bar for long-running operations.`,
@@ -145,9 +135,7 @@ sampled, and reported on exit. If zero, memory usage sampling is disabled.`,
 
 	OptCompact = options.NewBool(
 		"compact",
-		"",
-		false,
-		'c',
+		&options.Flag{Short: 'c'},
 		false,
 		"Compact instead of pretty-printed output",
 		`Compact instead of pretty-printed output.`,
@@ -185,9 +173,7 @@ Generally, it is not necessary to fiddle this knob.`,
 
 	OptDatetimeFormatAsNumber = options.NewBool(
 		"format.datetime.number",
-		"",
-		false,
-		0,
+		nil,
 		true,
 		"Render numeric datetime value as number instead of string",
 		`Render numeric datetime value as number instead of string, if possible. If
@@ -223,9 +209,7 @@ situation, use format.datetime instead.
 
 	OptDateFormatAsNumber = options.NewBool(
 		"format.date.number",
-		"",
-		false,
-		0,
+		nil,
 		true,
 		"Render numeric date value as number instead of string",
 		`Render numeric date value as number instead of string, if possible. If
@@ -260,13 +244,10 @@ situation, use format.datetime instead.
 
 	OptTimeFormatAsNumber = options.NewBool(
 		"format.time.number",
-		"",
-		false,
-		0,
+		nil,
 		true,
 		"Render numeric time value as number instead of string",
-		`
-Render numeric time value as number instead of string, if possible. If format.time
+		`Render numeric time value as number instead of string, if possible. If format.time
 renders a numeric value (e.g. "59"), that value is typically rendered as a string.
 For some output formats, such as JSON, it can be useful to instead render the
 value as a naked number instead of a string. Note that this option is no-op if

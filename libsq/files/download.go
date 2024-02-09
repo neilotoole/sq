@@ -45,9 +45,7 @@ Contrast with http.request.timeout.`,
 	)
 	OptHTTPSInsecureSkipVerify = options.NewBool(
 		"https.insecure-skip-verify",
-		"",
-		false,
-		0,
+		nil,
 		false,
 		"Skip HTTPS TLS verification",
 		"Skip HTTPS TLS verification. Useful when downloading against self-signed certs.",
