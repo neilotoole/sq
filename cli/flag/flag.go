@@ -138,9 +138,6 @@ const (
 	Config      = "config"
 	ConfigUsage = "Load config from here"
 
-	IngestHeader      = "ingest.header"
-	IngestHeaderUsage = "Treat first row of ingest data as header"
-
 	CSVEmptyAsNull      = "driver.csv.empty-as-null"
 	CSVEmptyAsNullUsage = "Treat empty CSV fields as null"
 

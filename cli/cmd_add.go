@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/driver"
+
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
@@ -170,7 +172,8 @@ More examples:
 	cmd.Flags().Bool(flag.SkipVerify, false, flag.SkipVerifyUsage)
 	cmd.Flags().BoolP(flag.AddActive, flag.AddActiveShort, false, flag.AddActiveUsage)
 
-	cmd.Flags().Bool(flag.IngestHeader, false, flag.IngestHeaderUsage)
+	addOptionFlag(cmd.Flags(), driver.OptIngestHeader)
+	// cmd.Flags().Bool(flag.IngestHeader, false, flag.IngestHeaderUsage)
 
 	cmd.Flags().Bool(flag.CSVEmptyAsNull, true, flag.CSVEmptyAsNullUsage)
 	cmd.Flags().String(flag.CSVDelim, flag.CSVDelimDefault, flag.CSVDelimUsage)
