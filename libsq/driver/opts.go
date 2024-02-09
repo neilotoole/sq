@@ -25,8 +25,7 @@ var (
 	// OptConnMaxOpen controls sql.DB.SetMaxOpenConn.
 	OptConnMaxOpen = options.NewInt(
 		"conn.max-open",
-		"",
-		0,
+		nil,
 		0,
 		"Max open connections to DB",
 		`Maximum number of open connections to the database.
@@ -39,8 +38,7 @@ A value of zero indicates no limit.`,
 	// OptConnMaxIdle controls sql.DB.SetMaxIdleConns.
 	OptConnMaxIdle = options.NewInt(
 		"conn.max-idle",
-		"",
-		0,
+		nil,
 		2,
 		"Max connections in idle connection pool",
 		`Set the maximum number of connections in the idle connection pool. If
@@ -109,8 +107,7 @@ operations back off, typically using a Fibonacci backoff.`,
 	// by an errgroup.
 	OptTuningErrgroupLimit = options.NewInt(
 		"tuning.errgroup-limit",
-		"",
-		0,
+		nil,
 		16,
 		"Max goroutines in any one errgroup",
 		`Controls the maximum number of goroutines that can be spawned by an errgroup.
@@ -128,8 +125,7 @@ etc.`,
 	// insertion/writing.
 	OptTuningRecChanSize = options.NewInt(
 		"tuning.record-buffer",
-		"",
-		0,
+		nil,
 		1024,
 		"Size of record buffer",
 		`Controls the size of the buffer channel for record insertion/writing.`,

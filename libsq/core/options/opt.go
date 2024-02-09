@@ -296,11 +296,14 @@ func (op String) Process(o Options) (Options, error) {
 
 var _ Opt = Int{}
 
-// NewInt returns an options.Int instance. If flag is empty, the
-// value of key is used.
-func NewInt(key, flag string, short rune, defaultVal int, usage, help string, tags ...string) Int {
+// NewInt returns an options.Int instance.
+func NewInt(key string, flag *Flag, defaultVal int, usage, help string, tags ...string) Int {
+	if flag == nil {
+		flag = &Flag{}
+	}
+
 	return Int{
-		BaseOpt:    NewBaseOpt(key, flag, short, usage, help, tags...),
+		BaseOpt:    NewBaseOpt(key, flag.Name, flag.Short, usage, help, tags...),
 		defaultVal: defaultVal,
 	}
 }

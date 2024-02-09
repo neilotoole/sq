@@ -18,8 +18,7 @@ import (
 
 var OptDiffNumLines = options.NewInt(
 	"diff.lines",
-	"unified",
-	'U',
+	&options.Flag{Name: "unified", Short: 'U'},
 	3,
 	"Generate diffs with <n> lines of context",
 	`Generate diffs with <n> lines of context, where n >= 0.`,

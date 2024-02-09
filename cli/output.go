@@ -142,8 +142,7 @@ sampled, and reported on exit. If zero, memory usage sampling is disabled.`,
 
 	OptTuningFlushThreshold = options.NewInt(
 		"tuning.flush-threshold",
-		"",
-		0,
+		nil,
 		1000,
 		"Output writer buffer flush threshold in bytes",
 		`Size in bytes after which output writers should flush any internal buffer.
