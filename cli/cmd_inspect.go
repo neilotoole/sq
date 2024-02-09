@@ -121,12 +121,19 @@ func execInspect(cmd *cobra.Command, args []string) error {
 
 	// Handle flag.ActiveSchema (--src.schema=SCHEMA). This func will mutate
 	// src's Catalog and Schema fields if appropriate.
-	if err = processFlagActiveSchema(cmd, src); err != nil {
+	var srcModified bool
+	if srcModified, err = processFlagActiveSchema(cmd, src); err != nil {
 		return err
 	}
 
 	if err = applySourceOptions(cmd, src); err != nil {
 		return err
+	}
+
+	if srcModified {
+		if err = verifySourceCatalogSchema(ctx, ru, src); err != nil {
+			return err
+		}
 	}
 
 	grip, err := ru.Grips.Open(ctx, src)

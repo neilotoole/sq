@@ -402,6 +402,19 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 	return schemas, nil
 }
 
+// SchemaExists implements driver.SQLDriver.
+func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (bool, error) {
+	if schma == "" {
+		return false, nil
+	}
+
+	const q = `SELECT COUNT(SCHEMA_NAME) FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE SCHEMA_NAME = @p1 AND CATALOG_NAME = DB_NAME()`
+
+	var count int
+	return count > 0, errw(db.QueryRowContext(ctx, q, schma).Scan(&count))
+}
+
 // ListSchemaMetadata implements driver.SQLDriver.
 func (d *driveri) ListSchemaMetadata(ctx context.Context, db sqlz.DB) ([]*metadata.Schema, error) {
 	log := lg.FromContext(ctx)
@@ -450,6 +463,18 @@ func (d *driveri) CurrentCatalog(ctx context.Context, db sqlz.DB) (string, error
 	return name, nil
 }
 
+// CatalogExists implements driver.SQLDriver.
+func (d *driveri) CatalogExists(ctx context.Context, db sqlz.DB, catalog string) (bool, error) {
+	if catalog == "" {
+		return false, nil
+	}
+
+	const q = `SELECT COUNT(name) FROM sys.databases WHERE name = @p1`
+
+	var count int
+	return count > 0, errw(db.QueryRowContext(ctx, q, catalog).Scan(&count))
+}
+
 // ListCatalogs implements driver.SQLDriver.
 func (d *driveri) ListCatalogs(ctx context.Context, db sqlz.DB) ([]string, error) {
 	catalogs := make([]string, 1, 3)
@@ -457,9 +482,7 @@ func (d *driveri) ListCatalogs(ctx context.Context, db sqlz.DB) ([]string, error
 		return nil, errw(err)
 	}
 
-	const q = `SELECT name FROM sys.databases
-WHERE name != DB_NAME()
-ORDER BY name`
+	const q = `SELECT name FROM sys.databases WHERE name != DB_NAME() ORDER BY name`
 
 	rows, err := db.QueryContext(ctx, q)
 	if err != nil {
@@ -509,6 +532,44 @@ func (d *driveri) DropSchema(ctx context.Context, db sqlz.DB, schemaName string)
 
 	lg.FromContext(ctx).Debug("Dropped schema", lga.Schema, schemaName)
 	return nil
+}
+
+// ListTableNames implements driver.SQLDriver.
+func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, tables, views bool) ([]string, error) {
+	var tblClause string
+
+	switch {
+	case tables && views:
+		tblClause = " AND (TABLE_TYPE = 'BASE TABLE' OR TABLE_TYPE = 'VIEW')"
+	case tables:
+		tblClause = " AND TABLE_TYPE = 'BASE TABLE'"
+	case views:
+		tblClause = " AND TABLE_TYPE = 'VIEW'"
+	default:
+		return []string{}, nil
+	}
+
+	var args []any
+	q := "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = "
+	if schma == "" {
+		q += "SCHEMA_NAME()"
+	} else {
+		q += "@p1"
+		args = append(args, schma)
+	}
+	q += tblClause + " ORDER BY TABLE_NAME"
+
+	rows, err := db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	names, err := sqlz.RowsScanColumn[string](ctx, rows)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	return names, nil
 }
 
 // CreateTable implements driver.SQLDriver.

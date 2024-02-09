@@ -224,6 +224,17 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 	return schemas, nil
 }
 
+// SchemaExists implements driver.SQLDriver.
+func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (bool, error) {
+	if schma == "" {
+		return false, nil
+	}
+
+	const q = "SELECT COUNT(SCHEMA_NAME) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?"
+	var count int
+	return count > 0, errw(db.QueryRowContext(ctx, q, schma).Scan(&count))
+}
+
 // ListSchemaMetadata implements driver.SQLDriver.
 func (d *driveri) ListSchemaMetadata(ctx context.Context, db sqlz.DB) ([]*metadata.Schema, error) {
 	log := lg.FromContext(ctx)
@@ -273,6 +284,43 @@ func (d *driveri) CurrentCatalog(ctx context.Context, db sqlz.DB) (string, error
 	return catalog, nil
 }
 
+// ListTableNames implements driver.SQLDriver.
+func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, tables, views bool) ([]string, error) {
+	var tblClause string
+	switch {
+	case tables && views:
+		tblClause = " AND (TABLE_TYPE = 'BASE TABLE' OR TABLE_TYPE = 'VIEW')"
+	case tables:
+		tblClause = " AND TABLE_TYPE = 'BASE TABLE'"
+	case views:
+		tblClause = " AND TABLE_TYPE = 'VIEW'"
+	default:
+		return []string{}, nil
+	}
+
+	var args []any
+	q := "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = "
+	if schma == "" {
+		q += "DATABASE()"
+	} else {
+		q += "?"
+		args = append(args, schma)
+	}
+	q += tblClause + " ORDER BY TABLE_NAME"
+
+	rows, err := db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	names, err := sqlz.RowsScanColumn[string](ctx, rows)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	return names, nil
+}
+
 // ListCatalogs implements driver.SQLDriver. MySQL does not really support catalogs,
 // but this method simply delegates to CurrentCatalog, which returns the value
 // found in INFORMATION_SCHEMA.SCHEMATA, i.e. "def".
@@ -283,6 +331,12 @@ func (d *driveri) ListCatalogs(ctx context.Context, db sqlz.DB) ([]string, error
 	}
 
 	return []string{catalog}, nil
+}
+
+// CatalogExists implements driver.SQLDriver. It returns true if catalog is "def",
+// and false otherwise, nothing that MySQL doesn't really support catalogs.
+func (d *driveri) CatalogExists(_ context.Context, _ sqlz.DB, catalog string) (bool, error) {
+	return catalog == "def", nil
 }
 
 // AlterTableRename implements driver.SQLDriver.

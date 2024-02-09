@@ -153,7 +153,8 @@ type ConfigWriter interface {
 
 // Writers is a container for the various output Writers.
 type Writers struct {
-	Printing *Printing
+	OutPrinting *Printing
+	ErrPrinting *Printing
 
 	Record   RecordWriter
 	Metadata MetadataWriter

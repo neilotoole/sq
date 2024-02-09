@@ -47,7 +47,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 			return err
 		}
 
-		if err = Print(ctx, ru.Out, ru.Writers.Printing, srcDiff.header, srcDiff.diff); err != nil {
+		if err = Print(ctx, ru.Out, ru.Writers.OutPrinting, srcDiff.header, srcDiff.diff); err != nil {
 			return err
 		}
 	}
@@ -57,7 +57,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		if err != nil {
 			return err
 		}
-		if err = Print(ctx, ru.Out, ru.Writers.Printing, propsDiff.header, propsDiff.diff); err != nil {
+		if err = Print(ctx, ru.Out, ru.Writers.OutPrinting, propsDiff.header, propsDiff.diff); err != nil {
 			return err
 		}
 	}
@@ -68,7 +68,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 			return err
 		}
 		for _, tblDiff := range tblDiffs {
-			if err = Print(ctx, ru.Out, ru.Writers.Printing, tblDiff.header, tblDiff.diff); err != nil {
+			if err = Print(ctx, ru.Out, ru.Writers.OutPrinting, tblDiff.header, tblDiff.diff); err != nil {
 				return err
 			}
 		}

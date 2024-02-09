@@ -70,14 +70,16 @@ func determineSources(ctx context.Context, ru *run.Run, requireActive bool) erro
 }
 
 // activeSrcAndSchemaFromFlagsOrConfig gets the active source, either
-// from flagActiveSrc or from srcs.Active. An error is returned
+// from [flag.ActiveSrc] or from srcs.Active. An error is returned
 // if the flag src is not found: if the flag src is found,
 // it is set as the active src on coll. If the flag was not
 // set and there is no active src in coll, (nil, nil) is
 // returned.
 //
-// This source also checks flag.ActiveSchema, and changes the schema
+// This source also checks [flag.ActiveSchema], and changes the catalog/schema
 // of the source if the flag is set.
+//
+// See also: processFlagActiveSchema, verifySourceCatalogSchema.
 func activeSrcAndSchemaFromFlagsOrConfig(ru *run.Run) (*source.Source, error) {
 	cmd, coll := ru.Cmd, ru.Config.Collection
 	var activeSrc *source.Source
@@ -100,49 +102,148 @@ func activeSrcAndSchemaFromFlagsOrConfig(ru *run.Run) (*source.Source, error) {
 		activeSrc = coll.Active()
 	}
 
-	if err := processFlagActiveSchema(cmd, activeSrc); err != nil {
+	srcModified, err := processFlagActiveSchema(cmd, activeSrc)
+	if err != nil {
 		return nil, err
+	}
+
+	if srcModified {
+		if err = verifySourceCatalogSchema(ru.Cmd.Context(), ru, activeSrc); err != nil {
+			return nil, err
+		}
 	}
 
 	return activeSrc, nil
 }
 
-// processFlagActiveSchema processes the --src.schema flag, setting
-// appropriate Source.Catalog and Source.Schema values on activeSrc.
-// If flag.ActiveSchema is not set, this is no-op. If activeSrc is nil,
-// an error is returned.
-func processFlagActiveSchema(cmd *cobra.Command, activeSrc *source.Source) error {
+// verifySourceCatalogSchema verifies that src's non-empty [source.Source.Catalog]
+// and [source.Source.Schema] are valid, in that they are referenceable in src's
+// DB. If both fields are empty, this is a no-op. This function is typically
+// used when the source's catalog or schema are modified, e.g. via [flag.ActiveSchema].
+//
+// See also: processFlagActiveSchema.
+func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Source) error {
+	if src.Catalog == "" && src.Schema == "" {
+		return nil
+	}
+
+	db, drvr, err := ru.DB(ctx, src)
+	if err != nil {
+		return err
+	}
+
+	var exists bool
+	if src.Catalog != "" {
+		if exists, err = drvr.CatalogExists(ctx, db, src.Catalog); err != nil {
+			return err
+		}
+		if !exists {
+			return errz.Errorf("%s: catalog {%s} doesn't exist or not referenceable", src.Handle, src.Catalog)
+		}
+	}
+
+	if src.Schema != "" {
+		if exists, err = drvr.SchemaExists(ctx, db, src.Schema); err != nil {
+			return err
+		}
+		if !exists {
+			return errz.Errorf("%s: schema {%s} doesn't exist or not referenceable", src.Handle, src.Schema)
+		}
+	}
+
+	return nil
+}
+
+// getCmdSource gets the source specified in args[0], or if args is empty, the
+// active source, and calls applySourceOptions. If [flag.ActiveSchema] is set,
+// the [source.Source.Catalog] and [source.Source.Schema] fields are configured
+// (and validated) as appropriate.
+//
+// See: applySourceOptions, processFlagActiveSchema, verifySourceCatalogSchema.
+func getCmdSource(cmd *cobra.Command, args []string) (*source.Source, error) {
+	ru := run.FromContext(cmd.Context())
+
+	var src *source.Source
+	var err error
+	if len(args) == 0 {
+		if src = ru.Config.Collection.Active(); src == nil {
+			return nil, errz.New("no active source")
+		}
+	} else {
+		src, err = ru.Config.Collection.Get(args[0])
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if !cmdFlagChanged(cmd, flag.ActiveSchema) {
+		return src, nil
+	}
+
+	// Handle flag.ActiveSchema (--src.schema=CATALOG.SCHEMA). This func may
+	// mutate src's Catalog and Schema fields if appropriate.
+	var srcModified bool
+	if srcModified, err = processFlagActiveSchema(cmd, src); err != nil {
+		return nil, err
+	}
+
+	if err = applySourceOptions(cmd, src); err != nil {
+		return nil, err
+	}
+
+	if srcModified {
+		if err = verifySourceCatalogSchema(cmd.Context(), ru, src); err != nil {
+			return nil, err
+		}
+	}
+
+	return src, nil
+}
+
+// processFlagActiveSchema processes the --src.schema flag, setting appropriate
+// [source.Source.Catalog] and [source.Source.Schema] values on activeSrc. If
+// the src is modified by this function, modified returns true. If
+// [flag.ActiveSchema] is not set, this is no-op. If activeSrc is nil, an error
+// is returned.
+//
+// See also: verifySourceCatalogSchema.
+func processFlagActiveSchema(cmd *cobra.Command, activeSrc *source.Source) (modified bool, err error) {
 	ru := run.FromContext(cmd.Context())
 	if !cmdFlagChanged(cmd, flag.ActiveSchema) {
 		// Nothing to do here
-		return nil
+		return false, nil
 	}
 	if activeSrc == nil {
-		return errz.Errorf("active catalog/schema specified via --%s, but active source is nil",
+		return false, errz.Errorf("active catalog/schema specified via --%s, but active source is nil",
 			flag.ActiveSchema)
 	}
 
 	val, _ := cmd.Flags().GetString(flag.ActiveSchema)
 	if val = strings.TrimSpace(val); val == "" {
-		return errz.Errorf("active catalog/schema specified via --%s, but schema is empty",
+		return false, errz.Errorf("active catalog/schema specified via --%s, but schema is empty",
 			flag.ActiveSchema)
 	}
 
 	catalog, schema, err := ast.ParseCatalogSchema(val)
 	if err != nil {
-		return errz.Wrapf(err, "invalid active schema specified via --%s",
+		return false, errz.Wrapf(err, "invalid active schema specified via --%s",
 			flag.ActiveSchema)
+	}
+
+	if catalog != activeSrc.Catalog || schema != activeSrc.Schema {
+		modified = true
 	}
 
 	drvr, err := ru.DriverRegistry.SQLDriverFor(activeSrc.Type)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if catalog != "" {
 		if !drvr.Dialect().Catalog {
-			return errz.Errorf("driver {%s} does not support catalog", activeSrc.Type)
+			return false, errz.Errorf("driver {%s} does not support catalog", activeSrc.Type)
 		}
+
 		activeSrc.Catalog = catalog
 	}
 
@@ -150,7 +251,7 @@ func processFlagActiveSchema(cmd *cobra.Command, activeSrc *source.Source) error
 		activeSrc.Schema = schema
 	}
 
-	return nil
+	return modified, nil
 }
 
 // checkStdinSource checks if there's stdin data (on pipe/redirect).

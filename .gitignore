@@ -42,7 +42,7 @@ _testmain.go
 .envrc
 **/*.bench
 go.work*
-
+*.dump.sql
 # Some apps create temp files when editing, e.g. Excel with drivers/xlsx/testdata/~$test_header.xlsx
 **/testdata/~*
 
@@ -59,3 +59,5 @@ goreleaser-test.sh
 /*.db
 /.CHANGELOG.delta.md
 /testh/progress-remove.test.sh
+
+/*.dump

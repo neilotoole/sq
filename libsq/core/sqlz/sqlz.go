@@ -6,6 +6,8 @@ import (
 	"database/sql"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 )
 
 // Execer abstracts the ExecContext method
@@ -77,4 +79,37 @@ func RequireSingleConn(db DB) error {
 	}
 
 	return nil
+}
+
+// RowsScanColumn scans a single-column [*sql.Rows] into a slice of T. If the
+// returned value could be null, use a nullable type, e.g. [sql.NullString].
+// Arg rows is always closed. On any error, the returned slice is nil.
+func RowsScanColumn[T any](ctx context.Context, rows *sql.Rows) (vals []T, err error) {
+	defer func() {
+		if rows != nil {
+			lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDBRows, rows)
+		}
+	}()
+
+	// We want to return an empty slice rather than nil.
+	vals = make([]T, 0)
+	for rows.Next() {
+		var val T
+		if err = rows.Scan(&val); err != nil {
+			return nil, errz.Err(err)
+		}
+		vals = append(vals, val)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errz.Err(err)
+	}
+
+	err = rows.Close()
+	rows = nil
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	return vals, nil
 }

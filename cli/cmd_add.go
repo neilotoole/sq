@@ -156,7 +156,7 @@ More examples:
 		Long:  `Add data source specified by LOCATION, optionally identified by @HANDLE.`,
 	}
 
-	markCmdRequiresConfigLock(cmd)
+	cmdMarkRequiresConfigLock(cmd)
 	addTextFormatFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
@@ -242,7 +242,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	// or sq prompts the user.
 	if cmdFlagIsSetTrue(cmd, flag.PasswordPrompt) {
 		var passwd []byte
-		if passwd, err = readPassword(ctx, ru.Stdin, ru.Out, ru.Writers.Printing); err != nil {
+		if passwd, err = readPassword(ctx, ru.Stdin, ru.Out, ru.Writers.OutPrinting); err != nil {
 			return err
 		}
 

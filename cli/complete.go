@@ -113,6 +113,65 @@ func completeHandle(max int, includeActive bool) completionFunc {
 	}
 }
 
+// completeCatalog is a completionFunc that suggests catalogs.
+// If srcArgPos >= 0 and in the range of the cmd args, then
+// that value is used to determine the source handle. Typically the
+// src handle is the first arg, but it could be elsewhere.
+// For example, arg[0] below is @sakila, thus srcArgPos should be 0:
+//
+//	$ sq db dump @sakila --catalog [COMPLETE]
+//
+// If srcArgPos < 0, the catalogs for the active source are suggested.
+func completeCatalog(srcArgPos int) completionFunc {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		log, ru := logFrom(cmd), getRun(cmd)
+		if err := preRun(cmd, ru); err != nil {
+			lg.Unexpected(log, err)
+			return nil, cobra.ShellCompDirectiveError
+		}
+
+		var (
+			ctx  = cmd.Context()
+			coll = ru.Config.Collection
+			src  *source.Source
+			err  error
+		)
+
+		if srcArgPos >= 0 && srcArgPos < len(args) {
+			if src, err = coll.Get(args[srcArgPos]); err != nil {
+				lg.Unexpected(log, err)
+				return nil, cobra.ShellCompDirectiveError
+			}
+		}
+
+		if src == nil {
+			if src = coll.Active(); src == nil {
+				log.Debug("No active source, so no catalog completions")
+				return nil, cobra.ShellCompDirectiveError
+			}
+		}
+
+		db, drvr, err := ru.DB(ctx, src)
+		if err != nil {
+			lg.Unexpected(log, err)
+			return nil, cobra.ShellCompDirectiveError
+		}
+
+		catalogs, err := drvr.ListCatalogs(ctx, db)
+		if err != nil {
+			lg.Unexpected(log, err)
+			return nil, cobra.ShellCompDirectiveError
+		}
+
+		catalogs = lo.Filter(catalogs, func(catalog string, index int) bool {
+			return strings.HasPrefix(catalog, toComplete)
+		})
+
+		slices.Sort(catalogs)
+		return catalogs, cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
 // completeGroup is a completionFunc that suggests groups.
 // The max arg is the maximum number of completions. Set to 0
 // for no limit.
@@ -793,29 +852,21 @@ func getTableNamesForHandle(ctx context.Context, ru *run.Run, handle string) ([]
 		return nil, err
 	}
 
-	grip, err := ru.Grips.Open(ctx, src)
+	db, drvr, err := ru.DB(ctx, src)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: We shouldn't have to load the full metadata just to get
-	// the table names. driver.SQLDriver should have a method ListTables.
-	md, err := grip.SourceMetadata(ctx, false)
-	if err != nil {
-		return nil, err
-	}
-
-	return md.TableNames(), nil
+	return drvr.ListTableNames(ctx, db, src.Schema, true, true)
 }
 
 // maybeFilterHandlesByActiveGroup filters the supplied handles by
 // active group, if appropriate.
 func maybeFilterHandlesByActiveGroup(ru *run.Run, toComplete string, suggestions []string) []string {
-	handleFilter := getActiveGroupHandleFilterPrefix(ru)
-	if handleFilter != "" {
-		if strings.HasPrefix(handleFilter, toComplete) {
-			suggestions = lo.Filter(suggestions, func(handle string, index int) bool {
-				return strings.HasPrefix(handle, handleFilter)
+	if groupPrefix := getActiveGroupHandleFilterPrefix(ru); groupPrefix != "" {
+		if strings.HasPrefix(groupPrefix, toComplete) {
+			suggestions = lo.Filter(suggestions, func(handle string, _ int) bool {
+				return strings.HasPrefix(handle, groupPrefix)
 			})
 		}
 	}

@@ -198,14 +198,15 @@ func errorf(format string, v ...any) error {
 }
 
 // ParseCatalogSchema parses a string of the form 'catalog.schema'
-// and returns the catalog and schema. An error is returned if the schema
-// is empty (but catalog may be empty). Whitespace and quotes are handled
+// and returns the catalog and schema. It is permissible for one of the
+// components to be empty (but not both). Whitespace and quotes are handled
 // correctly.
 //
 // Examples:
 //
 //	`catalog.schema` 						-> "catalog", "schema", nil
-//	`schema`     								-> "", "schema", nil
+//	`catalog.` 									-> "catalog", "", nil
+//	`schema`										-> "", "schema", nil
 //	`"my catalog"."my schema"` 	-> "my catalog", "my schema", nil
 //
 // An error is returned if s is empty.
@@ -219,8 +220,18 @@ func ParseCatalogSchema(s string) (catalog, schema string, err error) {
 
 	// We'll hijack the existing parser code. A value "catalog.schema" is
 	// not valid, but ".catalog.schema" works as a selector.
-
+	//
+	// Being that we accept "catalog." as valid (indicating the default schema),
+	// we'll use a hack to make the parser work: we append a const string to
+	// the input (which the parser will think is the schema name), and later
+	// on we check for that const string, and set schema to empty string if
+	// that const is found.
+	const schemaNameHack = "DEFAULT_SCHEMA_HACK_be8hx64wd45vxusdebez2e6tega8ussy"
 	sel := "." + s
+	if strings.HasSuffix(s, ".") {
+		sel += schemaNameHack
+	}
+
 	a, err := Parse(lg.Discard(), sel)
 	if err != nil {
 		return "", "", errz.Errorf(errTpl, s)
@@ -230,7 +241,9 @@ func ParseCatalogSchema(s string) (catalog, schema string, err error) {
 		return "", "", errz.Errorf(errTpl, s)
 	}
 
-	tblSel := NewInspector(a).FindFirstTableSelector()
+	insp := NewInspector(a)
+
+	tblSel := insp.FindFirstTableSelector()
 	if tblSel == nil {
 		return "", "", errz.Errorf(errTpl, s)
 	}
@@ -243,6 +256,8 @@ func ParseCatalogSchema(s string) (catalog, schema string, err error) {
 	}
 	if schema == "" {
 		return "", "", errz.Errorf(errTpl, s)
+	} else if schema == schemaNameHack {
+		schema = ""
 	}
 
 	return catalog, schema, nil

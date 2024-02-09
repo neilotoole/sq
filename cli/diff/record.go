@@ -158,7 +158,7 @@ func findRecordDiff(ctx context.Context, ru *run.Run, lines int,
 		row:      i,
 	}
 
-	if err = populateRecordDiff(ctx, lines, ru.Writers.Printing, recDiff); err != nil {
+	if err = populateRecordDiff(ctx, lines, ru.Writers.OutPrinting, recDiff); err != nil {
 		return nil, err
 	}
 

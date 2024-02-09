@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -30,6 +31,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/termz"
 	"github.com/neilotoole/sq/libsq/core/timez"
 )
 
@@ -269,13 +271,15 @@ the rendered value is not an integer.
 )
 
 // newWriters returns an output.Writers instance configured per defaults and/or
-// flags from cmd. The returned out2/errOut2 values may differ
-// from the out/errOut args (e.g. decorated to support colorization).
+// flags from cmd. The returned writers in [outputConfig] may differ from
+// the stdout and stderr params (e.g. decorated to support colorization).
 func newWriters(cmd *cobra.Command, clnup *cleanup.Cleanup, o options.Options,
-	out, errOut io.Writer,
-) (w *output.Writers, out2, errOut2 io.Writer) {
-	var pr *output.Printing
-	pr, out2, errOut2 = getPrinting(cmd, clnup, o, out, errOut)
+	stdout, stderr io.Writer,
+) (w *output.Writers, outCfg *outputConfig) {
+	// Invoke getFormat to see if the format was specified
+	// via config or flag.
+	fm := getFormat(cmd, o)
+	outCfg = getOutputConfig(cmd, clnup, fm, o, stdout, stderr)
 	log := logFrom(cmd)
 
 	// Package tablew has writer impls for each of the writer interfaces,
@@ -283,50 +287,47 @@ func newWriters(cmd *cobra.Command, clnup *cleanup.Cleanup, o options.Options,
 	// flags and set the various writer fields depending upon which
 	// writers the format implements.
 	w = &output.Writers{
-		Printing: pr,
-		Record:   tablew.NewRecordWriter(out2, pr),
-		Metadata: tablew.NewMetadataWriter(out2, pr),
-		Source:   tablew.NewSourceWriter(out2, pr),
-		Ping:     tablew.NewPingWriter(out2, pr),
-		Error:    tablew.NewErrorWriter(errOut2, pr),
-		Version:  tablew.NewVersionWriter(out2, pr),
-		Config:   tablew.NewConfigWriter(out2, pr),
+		OutPrinting: outCfg.outPr,
+		ErrPrinting: outCfg.errOutPr,
+		Record:      tablew.NewRecordWriter(outCfg.out, outCfg.outPr),
+		Metadata:    tablew.NewMetadataWriter(outCfg.out, outCfg.outPr),
+		Source:      tablew.NewSourceWriter(outCfg.out, outCfg.outPr),
+		Ping:        tablew.NewPingWriter(outCfg.out, outCfg.outPr),
+		Error:       tablew.NewErrorWriter(outCfg.errOut, outCfg.errOutPr),
+		Version:     tablew.NewVersionWriter(outCfg.out, outCfg.outPr),
+		Config:      tablew.NewConfigWriter(outCfg.out, outCfg.outPr),
 	}
 
 	if OptErrorFormat.Get(o) == format.JSON {
 		// This logic works because the only supported values are text and json.
-		w.Error = jsonw.NewErrorWriter(log, errOut2, pr)
+		w.Error = jsonw.NewErrorWriter(log, outCfg.errOut, outCfg.errOutPr)
 	}
-
-	// Invoke getFormat to see if the format was specified
-	// via config or flag.
-	fm := getFormat(cmd, o)
 
 	//nolint:exhaustive
 	switch fm {
 	case format.JSON:
 		// No format specified, use JSON
-		w.Metadata = jsonw.NewMetadataWriter(out2, pr)
-		w.Source = jsonw.NewSourceWriter(out2, pr)
-		w.Version = jsonw.NewVersionWriter(out2, pr)
-		w.Ping = jsonw.NewPingWriter(out2, pr)
-		w.Config = jsonw.NewConfigWriter(out2, pr)
+		w.Metadata = jsonw.NewMetadataWriter(outCfg.out, outCfg.outPr)
+		w.Source = jsonw.NewSourceWriter(outCfg.out, outCfg.outPr)
+		w.Version = jsonw.NewVersionWriter(outCfg.out, outCfg.outPr)
+		w.Ping = jsonw.NewPingWriter(outCfg.out, outCfg.outPr)
+		w.Config = jsonw.NewConfigWriter(outCfg.out, outCfg.outPr)
 
 	case format.Text:
 		// Don't delete this case, it's actually needed due to
 		// the slightly odd logic that determines format.
 
 	case format.TSV:
-		w.Ping = csvw.NewPingWriter(out2, csvw.Tab)
+		w.Ping = csvw.NewPingWriter(outCfg.out, csvw.Tab)
 
 	case format.CSV:
-		w.Ping = csvw.NewPingWriter(out2, csvw.Comma)
+		w.Ping = csvw.NewPingWriter(outCfg.out, csvw.Comma)
 
 	case format.YAML:
-		w.Config = yamlw.NewConfigWriter(out2, pr)
-		w.Metadata = yamlw.NewMetadataWriter(out2, pr)
-		w.Source = yamlw.NewSourceWriter(out2, pr)
-		w.Version = yamlw.NewVersionWriter(out2, pr)
+		w.Config = yamlw.NewConfigWriter(outCfg.out, outCfg.outPr)
+		w.Metadata = yamlw.NewMetadataWriter(outCfg.out, outCfg.outPr)
+		w.Source = yamlw.NewSourceWriter(outCfg.out, outCfg.outPr)
+		w.Version = yamlw.NewVersionWriter(outCfg.out, outCfg.outPr)
 	default:
 	}
 
@@ -335,10 +336,10 @@ func newWriters(cmd *cobra.Command, clnup *cleanup.Cleanup, o options.Options,
 		// We can still continue, because w.Record was already set above.
 		log.Warn("No record writer impl for format", "format", fm)
 	} else {
-		w.Record = recwFn(out2, pr)
+		w.Record = recwFn(outCfg.out, outCfg.outPr)
 	}
 
-	return w, out2, errOut2
+	return w, outCfg
 }
 
 // getRecordWriterFunc returns a func that creates a new output.RecordWriter
@@ -374,23 +375,71 @@ func getRecordWriterFunc(f format.Format) output.NewRecordWriterFunc {
 	}
 }
 
-// getPrinting returns a Printing instance and
-// colorable or non-colorable writers. It is permissible
-// for the cmd arg to be nil. The caller should use the returned
-// io.Writer instances instead of the supplied writers, as they
-// may be decorated for dealing with color, etc.
-// The supplied opts must already have flags merged into it
-// via getOptionsFromCmd.
-//
-// Be cautious making changes to getPrinting. This function must
-// be absolutely bulletproof, as it's called by all commands, as well
-// as by the error handling mechanism. So, be sure to always check
-// for nil cmd, nil cmd.Context, etc.
-func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Options,
-	out, errOut io.Writer,
-) (pr *output.Printing, out2, errOut2 io.Writer) {
-	pr = output.NewPrinting()
+// outputConfig is a container for the various output writers.
+type outputConfig struct {
+	// outPr is the printing config for out.
+	outPr *output.Printing
 
+	// out is the output writer that should be used for stdout output.
+	out io.Writer
+
+	// stdout is the original stdout, which probably was os.Stdin.
+	// It's referenced here for special cases.
+	stdout io.Writer
+
+	// errOutPr is the printing config for errOut.
+	errOutPr *output.Printing
+
+	// errOut is the output writer that should be used for stderr output.
+	errOut io.Writer
+
+	// stderr is the original errOut, which probably was os.Stderr.
+	// It's referenced here for special cases.
+	stderr io.Writer
+}
+
+// getOutputConfig returns the configured output writers for cmd. Generally
+// speaking, the caller should use the outputConfig.out and outputConfig.errOut
+// writers for program output, as they are decorated appropriately for dealing
+// with colorization, progress bars, etc. In very rare cases, such as calling
+// out to an external program (e.g. pg_dump), the original outputConfig.stdout
+// and outputConfig.stderr may be used.
+//
+// The supplied opts must already have flags merged into it via getOptionsFromCmd.
+//
+// If the progress bar is enabled and possible (stderr is TTY etc.), then cmd's
+// context is decorated with via [progress.NewContext].
+//
+// Be VERY cautious about making changes to getOutputConfig. This function must
+// be absolutely bulletproof, as it's called by all commands, as well as by the
+// error handling mechanism. So, be sure to always check for nil: any of the
+// args could be nil, or their fields could be nil. Check EVERYTHING for nil.
+//
+// The returned outputConfig and all of its fields are guaranteed to be non-nil.
+//
+// See also: [OptMonochrome], [OptProgress], newWriters.
+func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
+	fm format.Format, opts options.Options, stdout, stderr io.Writer,
+) (outCfg *outputConfig) {
+	if opts == nil {
+		opts = options.Options{}
+	}
+
+	var ctx context.Context
+	if cmd != nil {
+		ctx = cmd.Context()
+	}
+
+	if stdout == nil {
+		stdout = os.Stdout
+	}
+	if stderr == nil {
+		stderr = os.Stderr
+	}
+
+	outCfg = &outputConfig{stdout: stdout, stderr: stderr}
+
+	pr := output.NewPrinting()
 	pr.FormatDatetime = timez.FormatFunc(OptDatetimeFormat.Get(opts))
 	pr.FormatDatetimeAsNumber = OptDatetimeFormatAsNumber.Get(opts)
 	pr.FormatTime = timez.FormatFunc(OptTimeFormat.Get(opts))
@@ -416,79 +465,104 @@ func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Option
 		pr.ShowHeader = OptPrintHeader.Get(opts)
 	}
 
-	colorize := !OptMonochrome.Get(opts)
+	var (
+		prog       *progress.Progress
+		noProg     = !OptProgress.Get(opts)
+		progColors = progress.DefaultColors()
+		monochrome = OptMonochrome.Get(opts)
+	)
 
-	if cmdFlagChanged(cmd, flag.Output) {
-		// We're outputting to a file, thus no color.
-		colorize = false
-	}
-
-	if !colorize {
+	if monochrome {
 		color.NoColor = true
 		pr.EnableColor(false)
-		out2 = out
-		errOut2 = errOut
-
-		if cmd != nil && cmd.Context() != nil && OptProgress.Get(opts) && isTerminal(errOut) {
-			progColors := progress.DefaultColors()
-			progColors.EnableColor(false)
-			ctx := cmd.Context()
-			renderDelay := OptProgressDelay.Get(opts)
-			pb := progress.New(ctx, errOut2, renderDelay, progColors)
-			clnup.Add(pb.Stop)
-			// On first write to stdout, we remove the progress widget.
-			out2 = ioz.NotifyOnceWriter(out2, pb.Stop)
-			cmd.SetContext(progress.NewContext(ctx, pb))
-		}
-
-		return pr, out2, errOut2
-	}
-
-	// We do want to colorize
-	if !isColorTerminal(out) {
-		// But out can't be colorized.
-		color.NoColor = true
-		pr.EnableColor(false)
-		out2, errOut2 = out, errOut
-		return pr, out2, errOut2
-	}
-
-	// out can be colorized.
-	color.NoColor = false
-	pr.EnableColor(true)
-	out2 = colorable.NewColorable(out.(*os.File))
-
-	// Check if we can colorize errOut
-	if isColorTerminal(errOut) {
-		errOut2 = colorable.NewColorable(errOut.(*os.File))
+		progColors.EnableColor(false)
 	} else {
-		// errOut2 can't be colorized, but since we're colorizing
-		// out, we'll apply the non-colorable filter to errOut.
-		errOut2 = colorable.NewNonColorable(errOut)
+		color.NoColor = false
+		pr.EnableColor(true)
+		progColors.EnableColor(true)
 	}
 
-	if cmd != nil && cmd.Context() != nil && OptProgress.Get(opts) && isTerminal(errOut) {
-		progColors := progress.DefaultColors()
-		progColors.EnableColor(isColorTerminal(errOut))
+	outCfg.outPr = pr.Clone()
+	outCfg.errOutPr = pr.Clone()
+	pr = nil //nolint:wastedassign // Make sure we don't accidentally use pr again
 
-		ctx := cmd.Context()
-		renderDelay := OptProgressDelay.Get(opts)
-		pb := progress.New(ctx, errOut2, renderDelay, progColors)
-		clnup.Add(pb.Stop)
-
-		// On first write to stdout, we remove the progress widget.
-		out2 = ioz.NotifyOnceWriter(out2, pb.Stop)
-
-		cmd.SetContext(progress.NewContext(ctx, pb))
+	switch {
+	case termz.IsColorTerminal(stderr) && !monochrome:
+		// stderr is a color terminal and we're colorizing, thus
+		// we enable progress if allowed and if ctx is non-nil.
+		outCfg.errOut = colorable.NewColorable(stderr.(*os.File))
+		outCfg.errOutPr.EnableColor(true)
+		if ctx != nil && !noProg {
+			progColors.EnableColor(true)
+			prog = progress.New(ctx, outCfg.errOut, OptProgressDelay.Get(opts), progColors)
+		}
+	case termz.IsTerminal(stderr):
+		// stderr is a terminal, and won't have color output, but we still enable
+		// progress, if allowed and ctx is non-nil.
+		//
+		// But... slightly weirdly, we still need to wrap stderr in a colorable, or
+		// else the progress bar won't render correctly. But it's not a problem,
+		// because we'll just disable the colors directly.
+		outCfg.errOut = colorable.NewColorable(stderr.(*os.File))
+		outCfg.errOutPr.EnableColor(false)
+		if ctx != nil && !noProg {
+			progColors.EnableColor(false)
+			prog = progress.New(ctx, outCfg.errOut, OptProgressDelay.Get(opts), progColors)
+		}
+	default:
+		// stderr is a not a terminal at all. No color, no progress.
+		outCfg.errOut = colorable.NewNonColorable(stderr)
+		outCfg.errOutPr.EnableColor(false)
+		progColors.EnableColor(false)
+		prog = nil // Set to nil just to be explicit.
 	}
 
-	return pr, out2, errOut2
+	switch {
+	case cmdFlagChanged(cmd, flag.FileOutput) || fm == format.Raw:
+		// For file or raw output, we don't decorate stdout with
+		// any colorable decorator.
+		outCfg.out = stdout
+		outCfg.outPr.EnableColor(false)
+	case cmd != nil && cmdFlagChanged(cmd, flag.FileOutput):
+		// stdout is an actual regular file on disk, so no color.
+		outCfg.out = colorable.NewNonColorable(stdout)
+		outCfg.outPr.EnableColor(false)
+	case termz.IsColorTerminal(stdout) && !monochrome:
+		// stdout is a color terminal and we're colorizing.
+		outCfg.out = colorable.NewColorable(stdout.(*os.File))
+		outCfg.outPr.EnableColor(true)
+	case termz.IsTerminal(stderr):
+		// stdout is a terminal, but won't be colorized.
+		outCfg.out = colorable.NewNonColorable(stdout)
+		outCfg.outPr.EnableColor(false)
+	default:
+		// stdout is a not a terminal at all. No color.
+		outCfg.out = colorable.NewNonColorable(stdout)
+		outCfg.outPr.EnableColor(false)
+	}
+
+	if !noProg && prog != nil && cmd != nil && ctx != nil {
+		// The progress bar is enabled.
+
+		// Be sure to stop the progress bar eventually.
+		clnup.Add(prog.Stop)
+
+		// Also, stop the progress bar as soon as bytes are written
+		// to out, because we don't want the progress bar to
+		// corrupt the terminal output.
+		outCfg.out = ioz.NotifyOnceWriter(outCfg.out, prog.Stop)
+		cmd.SetContext(progress.NewContext(ctx, prog))
+	}
+
+	return outCfg
 }
 
 func getFormat(cmd *cobra.Command, o options.Options) format.Format {
 	var fm format.Format
 
 	switch {
+	case cmd == nil:
+		fm = OptFormat.Get(o)
 	case cmdFlagChanged(cmd, flag.TSV):
 		fm = format.TSV
 	case cmdFlagChanged(cmd, flag.CSV):

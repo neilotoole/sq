@@ -74,7 +74,7 @@ func newCacheStatCmd() *cobra.Command {
   /Users/neilotoole/Library/Caches/sq/f36ac695  enabled  (472.8MB)`,
 	}
 
-	markCmdRequiresConfigLock(cmd)
+	cmdMarkRequiresConfigLock(cmd)
 	addTextFormatFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
@@ -111,7 +111,7 @@ func newCacheClearCmd() *cobra.Command {
   $ sq cache clear @sakila`,
 	}
 
-	markCmdRequiresConfigLock(cmd)
+	cmdMarkRequiresConfigLock(cmd)
 	return cmd
 }
 
@@ -150,7 +150,7 @@ func newCacheTreeCmd() *cobra.Command {
   $ sq cache tree --size`,
 	}
 
-	markCmdRequiresConfigLock(cmd)
+	cmdMarkRequiresConfigLock(cmd)
 	_ = cmd.Flags().BoolP(flag.CacheTreeSize, flag.CacheTreeSizeShort, false, flag.CacheTreeSizeUsage)
 	return cmd
 }
@@ -163,7 +163,7 @@ func execCacheTree(cmd *cobra.Command, _ []string) error {
 	}
 
 	showSize := cmdFlagBool(cmd, flag.CacheTreeSize)
-	return ioz.PrintTree(ru.Out, cacheDir, showSize, !ru.Writers.Printing.IsMonochrome())
+	return ioz.PrintTree(ru.Out, cacheDir, showSize, !ru.Writers.OutPrinting.IsMonochrome())
 }
 
 func newCacheEnableCmd() *cobra.Command { //nolint:dupl
@@ -200,7 +200,7 @@ func newCacheEnableCmd() *cobra.Command { //nolint:dupl
   $ sq cache enable @sakila`,
 	}
 
-	markCmdRequiresConfigLock(cmd)
+	cmdMarkRequiresConfigLock(cmd)
 	return cmd
 }
 
@@ -238,6 +238,6 @@ func newCacheDisableCmd() *cobra.Command { //nolint:dupl
   $ sq cache disable @sakila`,
 	}
 
-	markCmdRequiresConfigLock(cmd)
+	cmdMarkRequiresConfigLock(cmd)
 	return cmd
 }

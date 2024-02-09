@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -430,7 +431,7 @@ func TestRegistry_DriversMetadata_Doc(t *testing.T) {
 	}
 }
 
-func TestDatabase_TableMetadata(t *testing.T) { //nolint:tparallel
+func TestGrip_TableMetadata(t *testing.T) { //nolint:tparallel
 	for _, handle := range sakila.SQLAll() {
 		handle := handle
 
@@ -447,7 +448,7 @@ func TestDatabase_TableMetadata(t *testing.T) { //nolint:tparallel
 	}
 }
 
-func TestDatabase_SourceMetadata(t *testing.T) {
+func TestGrip_SourceMetadata(t *testing.T) {
 	t.Parallel()
 
 	for _, handle := range sakila.SQLAll() {
@@ -466,9 +467,99 @@ func TestDatabase_SourceMetadata(t *testing.T) {
 	}
 }
 
-// TestDatabase_SourceMetadata_concurrent tests the behavior of the
+// TestSQLDriver_ListTableNames_ArgSchemaEmpty tests [driver.SQLDriver.ListTableNames]
+// with an empty schema arg.
+func TestSQLDriver_ListTableNames_ArgSchemaEmpty(t *testing.T) { //nolint:tparallel
+	for _, handle := range sakila.SQLLatest() {
+		handle := handle
+
+		t.Run(handle, func(t *testing.T) {
+			t.Parallel()
+
+			th, _, drvr, _, db := testh.NewWith(t, handle)
+
+			got, err := drvr.ListTableNames(th.Context, db, "", false, false)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.True(t, len(got) == 0)
+
+			got, err = drvr.ListTableNames(th.Context, db, "", true, false)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Contains(t, got, sakila.TblActor)
+			require.NotContains(t, got, sakila.ViewFilmList)
+
+			got, err = drvr.ListTableNames(th.Context, db, "", false, true)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.NotContains(t, got, sakila.TblActor)
+			require.Contains(t, got, sakila.ViewFilmList)
+
+			got, err = drvr.ListTableNames(th.Context, db, "", true, true)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Contains(t, got, sakila.TblActor)
+			require.Contains(t, got, sakila.ViewFilmList)
+
+			gotCopy := append([]string(nil), got...)
+			slices.Sort(gotCopy)
+			require.Equal(t, got, gotCopy, "expected results to be sorted")
+		})
+	}
+}
+
+// TestSQLDriver_ListTableNames_ArgSchemaNotEmpty tests
+// [driver.SQLDriver.ListTableNames] with a non-empty schema arg.
+func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tparallel
+	testCases := []struct {
+		handle     string
+		schema     string
+		wantTables int
+		wantViews  int
+	}{
+		{handle: sakila.Pg12, schema: "public", wantTables: 25, wantViews: 5},
+		{handle: sakila.MS19, schema: "dbo", wantTables: 17, wantViews: 5},
+		{handle: sakila.SL3, schema: "main", wantTables: 16, wantViews: 5},
+		{handle: sakila.My8, schema: "sakila", wantTables: 16, wantViews: 7},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.handle, func(t *testing.T) {
+			t.Parallel()
+
+			th, _, drvr, _, db := testh.NewWith(t, tc.handle)
+
+			got, err := drvr.ListTableNames(th.Context, db, tc.schema, false, false)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.True(t, len(got) == 0)
+
+			got, err = drvr.ListTableNames(th.Context, db, tc.schema, true, false)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Len(t, got, tc.wantTables)
+
+			got, err = drvr.ListTableNames(th.Context, db, tc.schema, false, true)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Len(t, got, tc.wantViews)
+
+			got, err = drvr.ListTableNames(th.Context, db, tc.schema, true, true)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Len(t, got, tc.wantTables+tc.wantViews)
+
+			gotCopy := append([]string(nil), got...)
+			slices.Sort(gotCopy)
+			require.Equal(t, got, gotCopy, "expected results to be sorted")
+		})
+	}
+}
+
+// TestGrip_SourceMetadata_concurrent tests the behavior of the
 // drivers when SourceMetadata is invoked concurrently.
-func TestDatabase_SourceMetadata_concurrent(t *testing.T) { //nolint:tparallel
+func TestGrip_SourceMetadata_concurrent(t *testing.T) { //nolint:tparallel
 	const concurrency = 5
 
 	handles := sakila.SQLLatest()
@@ -643,6 +734,89 @@ func TestSQLDriver_CurrentSchemaCatalog(t *testing.T) {
 				gotCatalogs, err := drvr.ListCatalogs(th.Context, db)
 				require.NoError(t, err)
 				require.Contains(t, gotCatalogs, gotCatalog)
+			}
+		})
+	}
+}
+
+func TestSQLDriver_SchemaExists(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		handle string
+		schema string
+		wantOK bool
+	}{
+		{handle: sakila.SL3, schema: "main", wantOK: true},
+		{handle: sakila.SL3, schema: "", wantOK: false},
+		{handle: sakila.SL3, schema: "not_exist", wantOK: false},
+		{handle: sakila.Pg, schema: "public", wantOK: true},
+		{handle: sakila.Pg, schema: "information_schema", wantOK: true},
+		{handle: sakila.Pg, schema: "not_exist", wantOK: false},
+		{handle: sakila.Pg, schema: "", wantOK: false},
+		{handle: sakila.My, schema: "sakila", wantOK: true},
+		{handle: sakila.My, schema: "", wantOK: false},
+		{handle: sakila.My, schema: "not_exist", wantOK: false},
+		{handle: sakila.MS, schema: "dbo", wantOK: true},
+		{handle: sakila.MS, schema: "sys", wantOK: true},
+		{handle: sakila.MS, schema: "INFORMATION_SCHEMA", wantOK: true},
+		{handle: sakila.MS, schema: "", wantOK: false},
+		{handle: sakila.MS, schema: "not_exist", wantOK: false},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tu.Name(tc.handle, tc.schema, tc.wantOK), func(t *testing.T) {
+			t.Parallel()
+
+			th, _, drvr, _, db := testh.NewWith(t, tc.handle)
+			ok, err := drvr.SchemaExists(th.Context, db, tc.schema)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantOK, ok)
+		})
+	}
+}
+
+func TestSQLDriver_CatalogExists(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		handle  string
+		catalog string
+		wantOK  bool
+		wantErr bool
+	}{
+		{handle: sakila.SL3, catalog: "default", wantErr: true},
+		{handle: sakila.SL3, catalog: "not_exist", wantErr: true},
+		{handle: sakila.SL3, catalog: "", wantErr: true},
+		{handle: sakila.Pg, catalog: "sakila", wantOK: true},
+		{handle: sakila.Pg, catalog: "postgres", wantOK: true},
+		{handle: sakila.Pg, catalog: "not_exist", wantOK: false},
+		{handle: sakila.Pg, catalog: "", wantOK: false},
+		{handle: sakila.My, catalog: "def", wantOK: true},
+		{handle: sakila.My, catalog: "not_exist", wantOK: false},
+		{handle: sakila.My, catalog: "", wantOK: false},
+		{handle: sakila.MS, catalog: "sakila", wantOK: true},
+		{handle: sakila.MS, catalog: "model", wantOK: true},
+		{handle: sakila.MS, catalog: "not_exist", wantOK: false},
+		{handle: sakila.MS, catalog: "", wantOK: false},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tu.Name(tc.handle, tc.catalog, tc.wantOK), func(t *testing.T) {
+			t.Parallel()
+
+			th, _, drvr, _, db := testh.NewWith(t, tc.handle)
+
+			ok, err := drvr.CatalogExists(th.Context, db, tc.catalog)
+			require.Equal(t, tc.wantOK, ok)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}

@@ -1,0 +1,2 @@
+payment_id  customer_id  name      staff_id  rental_id  amount  payment_date          last_update
+1           71           Alice 71  0         3          500     2023-12-04T04:29:00Z  2023-12-04T04:29:00Z
