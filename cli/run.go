@@ -160,6 +160,8 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 	// If the --output=/some/file flag is set, then we need to
 	// override ru.Stdout (which is typically stdout) to point it at
 	// the output destination file.
+	//
+
 	if cmdFlagChanged(ru.Cmd, flag.FileOutput) && !cmdRequiresPlainStdout(ru.Cmd) {
 		fpath, _ := ru.Cmd.Flags().GetString(flag.FileOutput)
 		fpath, err := filepath.Abs(fpath)
@@ -188,7 +190,6 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 	}
 
 	var outCfg *outputConfig
-	// ru.Writers, ru.Out, ru.ErrOut = newWriters(ru.Cmd, ru.Cleanup, cmdOpts, ru.Out, ru.ErrOut)
 	ru.Writers, outCfg = newWriters(ru.Cmd, ru.Cleanup, cmdOpts, ru.Stdout, ru.Stderr)
 	ru.Out = outCfg.out
 	ru.ErrOut = outCfg.errOut

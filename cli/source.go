@@ -76,7 +76,7 @@ func determineSources(ctx context.Context, ru *run.Run, requireActive bool) erro
 // set and there is no active src in coll, (nil, nil) is
 // returned.
 //
-// This source also checks [flag.ActiveSchema], and changes the schema
+// This source also checks [flag.ActiveSchema], and changes the catalog/schema
 // of the source if the flag is set.
 //
 // See also: processFlagActiveSchema, verifySourceCatalogSchema.

@@ -42,4 +42,3 @@ fmt:
 	@# Use gofumpt instead of "go fmt"
 	@# https://github.com/mvdan/gofumpt
 	@gofumpt -w .
-Ï

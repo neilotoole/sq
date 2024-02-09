@@ -102,8 +102,6 @@ command, sq falls back to "text". Available formats:
 		options.TagOutput,
 	)
 
-	// OptProgress is a boolean [options.Opt] that controls whether the progress
-	// bar is enabled.
 	OptProgress = options.NewBool(
 		"progress",
 		"no-progress",
@@ -115,8 +113,6 @@ command, sq falls back to "text". Available formats:
 		options.TagOutput,
 	)
 
-	// OptProgressDelay is a duration [options.Opt] that controls the delay before
-	// showing a progress bar.
 	OptProgressDelay = options.NewDuration(
 		"progress.delay",
 		"",

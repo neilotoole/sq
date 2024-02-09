@@ -125,7 +125,6 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 			File:      dumpFile,
 			LongFlags: dumpLongFlags,
 		}
-		// shellCmd, shellEnv, err = postgres.DumpCatalogCmd(src, params)
 		execCmd, err = postgres.DumpCatalogCmd(src, params)
 	default:
 		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
