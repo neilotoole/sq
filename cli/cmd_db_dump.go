@@ -99,7 +99,7 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 
 	var (
 		errPrefix     = fmt.Sprintf("db dump catalog: %s", src.Handle)
-		dumpVerbose   = cmdFlagBool(cmd, flag.Verbose)
+		dumpVerbose   = OptVerbose.Get(src.Options)
 		dumpNoOwner   = cmdFlagBool(cmd, flag.DBDumpNoOwner)
 		dumpLongFlags = cmdFlagBool(cmd, flag.DBPrintLongToolCmd)
 		dumpFile      string
@@ -211,7 +211,7 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 
 	var (
 		errPrefix     = fmt.Sprintf("db dump cluster: %s", src.Handle)
-		dumpVerbose   = cmdFlagBool(cmd, flag.Verbose)
+		dumpVerbose   = OptVerbose.Get(src.Options)
 		dumpNoOwner   = cmdFlagBool(cmd, flag.DBDumpNoOwner)
 		dumpLongFlags = cmdFlagBool(cmd, flag.DBPrintLongToolCmd)
 		dumpFile      string

@@ -221,7 +221,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 
 	// This is a bit hacky, but it works... if not "--verbose", then just zap
 	// the DBVars, as we usually don't want to see those
-	if !cmdFlagIsSetTrue(cmd, flag.Verbose) {
+	if !OptVerbose.Get(src.Options) {
 		srcMeta.DBProperties = nil
 	}
 

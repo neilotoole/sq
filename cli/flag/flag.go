@@ -63,10 +63,6 @@ const (
 	AddActiveShort = "a"
 	AddActiveUsage = "Make this the active source"
 
-	Monochrome      = "monochrome"
-	MonochromeShort = "M"
-	MonochromeUsage = "Don't colorize output"
-
 	FileOutput      = "output"
 	FileOutputShort = "o"
 	FileOutputUsage = "Write output to <file> instead of stdout"
@@ -118,10 +114,6 @@ const (
 
 	PingTimeout      = "timeout"
 	PingTimeoutUsage = "Max time to wait for ping"
-
-	Verbose      = "verbose"
-	VerboseShort = "v"
-	VerboseUsage = "Verbose output"
 
 	Version      = "version"
 	VersionUsage = "Print version info"

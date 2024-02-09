@@ -98,14 +98,11 @@ See docs and more: https://sq.io`,
 	addQueryCmdFlags(cmd)
 	cmd.Flags().Bool(flag.Version, false, flag.VersionUsage)
 
-	cmd.PersistentFlags().BoolP(flag.Monochrome, flag.MonochromeShort, false, flag.MonochromeUsage)
-
+	addOptionFlag(cmd.PersistentFlags(), OptMonochrome)
 	addOptionFlag(cmd.PersistentFlags(), OptProgress)
 	addOptionFlag(cmd.PersistentFlags(), OptRedact)
-
+	addOptionFlag(cmd.PersistentFlags(), OptVerbose)
 	// TODO: Move the rest of the option flags over to addOptionFlag
-	cmd.PersistentFlags().BoolP(flag.Verbose, flag.VerboseShort, false, flag.VerboseUsage)
-
 	cmd.PersistentFlags().String(flag.Config, "", flag.ConfigUsage)
 
 	cmd.PersistentFlags().Bool(flag.LogEnabled, false, flag.LogEnabledUsage)

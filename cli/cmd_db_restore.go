@@ -100,7 +100,7 @@ func execDBRestoreCatalog(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	verbose := cmdFlagBool(cmd, flag.Verbose)
+	verbose := OptVerbose.Get(src.Options)
 	noOwner := cmdFlagBool(cmd, flag.DBRestoreNoOwner)
 
 	var execCmd *execz.Cmd
@@ -213,7 +213,7 @@ func execDBRestoreCluster(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	verbose := cmdFlagBool(cmd, flag.Verbose)
+	verbose := OptVerbose.Get(src.Options)
 
 	// FIXME: get rid of noOwner from this command?
 	// noOwner := cmdFlagBool(cmd, flag.RestoreNoOwner)
