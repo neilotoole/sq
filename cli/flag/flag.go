@@ -112,9 +112,6 @@ const (
 	TblData      = "data"
 	TblDataUsage = "Copy table data"
 
-	PingTimeout      = "timeout"
-	PingTimeoutUsage = "Max time to wait for ping"
-
 	Version      = "version"
 	VersionUsage = "Print version info"
 
@@ -137,13 +134,6 @@ const (
 
 	Config      = "config"
 	ConfigUsage = "Load config from here"
-
-	//CSVEmptyAsNull      = "driver.csv.empty-as-null"
-	//CSVEmptyAsNullUsage = "Treat empty CSV fields as null"
-	//
-	//CSVDelim        = "driver.csv.delim"
-	//CSVDelimUsage   = "CSV delimiter: one of comma, space, pipe, tab, colon, semi, period"
-	//CSVDelimDefault = "comma"
 
 	ConfigDelete      = "delete"
 	ConfigDeleteShort = "D"

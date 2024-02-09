@@ -176,8 +176,8 @@ More examples:
 	// cmd.Flags().Bool(flag.IngestHeader, false, flag.IngestHeaderUsage)
 	addOptionFlag(cmd.Flags(), csv.OptEmptyAsNull)
 	addOptionFlag(cmd.Flags(), csv.OptDelim)
-	//cmd.Flags().Bool(flag.CSVEmptyAsNull, true, flag.CSVEmptyAsNullUsage)
-	//cmd.Flags().String(flag.CSVDelim, flag.CSVDelimDefault, flag.CSVDelimUsage)
+	// cmd.Flags().Bool(flag.CSVEmptyAsNull, true, flag.CSVEmptyAsNullUsage)
+	// cmd.Flags().String(flag.CSVDelim, flag.CSVDelimDefault, flag.CSVDelimUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(csv.OptDelim.Flag(), completeStrings(-1, csv.NamedDelims()...)))
 
 	return cmd

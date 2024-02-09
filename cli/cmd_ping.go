@@ -70,7 +70,8 @@ The exit code is 1 if ping fails for any of the sources.`,
 	cmd.Flags().Bool(flag.TSV, false, flag.TSVUsage)
 	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
 
-	cmd.Flags().Duration(flag.PingTimeout, time.Second*10, flag.PingTimeoutUsage)
+	addOptionFlag(cmd.Flags(), OptPingCmdTimeout)
+	// cmd.Flags().Duration(flag.PingTimeout, time.Second*10, flag.PingTimeoutUsage)
 	return cmd
 }
 

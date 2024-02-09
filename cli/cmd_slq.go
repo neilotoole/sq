@@ -350,10 +350,10 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	// cmd.Flags().Bool(flag.IngestHeader, false, flag.IngestHeaderUsage)
 	addOptionFlag(cmd.Flags(), driver.OptIngestHeader)
 	addOptionFlag(cmd.Flags(), driver.OptIngestCache)
-	//cmd.Flags().Bool(flag.CSVEmptyAsNull, true, flag.CSVEmptyAsNullUsage)
+	// cmd.Flags().Bool(flag.CSVEmptyAsNull, true, flag.CSVEmptyAsNullUsage)
 	addOptionFlag(cmd.Flags(), csv.OptDelim)
 	addOptionFlag(cmd.Flags(), csv.OptEmptyAsNull)
-	//cmd.Flags().String(flag.CSVDelim, flag.CSVDelimDefault, flag.CSVDelimUsage)
+	// cmd.Flags().String(flag.CSVDelim, flag.CSVDelimDefault, flag.CSVDelimUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(csv.OptDelim.Key(), completeStrings(-1, csv.NamedDelims()...)))
 }
 
