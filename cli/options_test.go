@@ -30,6 +30,7 @@ func TestRegisterDefaultOpts(t *testing.T) {
 			require.NotNil(t, opt.DefaultAny())
 			require.Equal(t, opt.GetAny(nil), opt.DefaultAny())
 			require.NotEmpty(t, opt.Usage())
+			require.NotEmpty(t, opt.Flag().Usage)
 			require.True(t, opt.Flag().Short >= 0)
 			require.Equal(t, opt.Key(), opt.String())
 			require.NotEmpty(t, opt.Help())

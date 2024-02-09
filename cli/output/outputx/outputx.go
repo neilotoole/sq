@@ -20,7 +20,8 @@ type VerboseOpt struct { //nolint:govet // field alignment
 	IsSet        bool   `json:"is_set"`
 	DefaultValue any    `json:"default_value"`
 	Value        any    `json:"value"`
-	Help         string `json:"help"`
+	// FIXME: Add Flag?
+	Help string `json:"help"`
 }
 
 // NewVerboseOpt returns a VerboseOpt built from opt and o.

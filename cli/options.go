@@ -247,11 +247,11 @@ func addOptionFlag(flags *pflag.FlagSet, opt options.Opt) (key string) {
 	switch opt := opt.(type) {
 	case options.Int:
 		if opt.Flag().Short == 0 {
-			flags.Int(key, opt.Default(), opt.Usage())
+			flags.Int(key, opt.Default(), opt.Flag().Usage)
 			return key
 		}
 
-		flags.IntP(key, string(opt.Flag().Short), opt.Default(), opt.Usage())
+		flags.IntP(key, string(opt.Flag().Short), opt.Default(), opt.Flag().Usage)
 		return key
 	case options.Bool:
 		defVal := opt.Default()
@@ -259,19 +259,19 @@ func addOptionFlag(flags *pflag.FlagSet, opt options.Opt) (key string) {
 			defVal = !defVal
 		}
 		if opt.Flag().Short == 0 {
-			flags.Bool(key, defVal, opt.Usage())
+			flags.Bool(key, defVal, opt.Flag().Usage)
 			return key
 		}
 
-		flags.BoolP(key, string(opt.Flag().Short), defVal, opt.Usage())
+		flags.BoolP(key, string(opt.Flag().Short), defVal, opt.Flag().Usage)
 		return key
 	case options.Duration:
 		if opt.Flag().Short == 0 {
-			flags.Duration(key, opt.Default(), opt.Usage())
+			flags.Duration(key, opt.Default(), opt.Flag().Usage)
 			return key
 		}
 
-		flags.DurationP(key, string(opt.Flag().Short), opt.Get(nil), opt.Usage())
+		flags.DurationP(key, string(opt.Flag().Short), opt.Get(nil), opt.Flag().Usage)
 	default:
 		// Treat as string
 	}
@@ -282,11 +282,11 @@ func addOptionFlag(flags *pflag.FlagSet, opt options.Opt) (key string) {
 	}
 
 	if opt.Flag().Short == 0 {
-		flags.String(key, defVal, opt.Usage())
+		flags.String(key, defVal, opt.Flag().Usage)
 		return key
 	}
 
-	flags.StringP(key, string(opt.Flag().Short), defVal, opt.Usage())
+	flags.StringP(key, string(opt.Flag().Short), defVal, opt.Flag().Usage)
 	return key
 }
 
