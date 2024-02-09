@@ -1,4 +1,5 @@
-// Package flag holds CLI flags.
+// Package flag holds CLI flags. Note that many CLI flags are defined
+// via the options package, and are not listed here.
 package flag
 
 const (
@@ -25,10 +26,9 @@ const (
 	HTML      = "html"
 	HTMLUsage = "Output HTML table"
 
-	Header      = "header"
-	HeaderShort = "h"
-	HeaderUsage = "Print header row"
-
+	Header        = "header"
+	HeaderShort   = "h"
+	HeaderUsage   = "Print header row"
 	NoHeader      = "no-header"
 	NoHeaderShort = "H"
 	NoHeaderUsage = "Don't print header row"
@@ -63,10 +63,6 @@ const (
 	AddActiveShort = "a"
 	AddActiveUsage = "Make this the active source"
 
-	Monochrome      = "monochrome"
-	MonochromeShort = "M"
-	MonochromeUsage = "Don't colorize output"
-
 	FileOutput      = "output"
 	FileOutputShort = "o"
 	FileOutputUsage = "Write output to <file> instead of stdout"
@@ -92,10 +88,6 @@ const (
 	CacheTreeSizeShort = "s"
 	CacheTreeSizeUsage = "Show sizes in cache tree"
 
-	Compact      = "compact"
-	CompactShort = "c"
-	CompactUsage = "Compact instead of pretty-printed output"
-
 	Raw      = "raw"
 	RawShort = "r"
 	RawUsage = "Output each record field in raw format without any encoding or delimiter"
@@ -115,13 +107,6 @@ const (
 
 	TblData      = "data"
 	TblDataUsage = "Copy table data"
-
-	PingTimeout      = "timeout"
-	PingTimeoutUsage = "Max time to wait for ping"
-
-	Verbose      = "verbose"
-	VerboseShort = "v"
-	VerboseUsage = "Verbose output"
 
 	Version      = "version"
 	VersionUsage = "Print version info"
@@ -146,16 +131,6 @@ const (
 	Config      = "config"
 	ConfigUsage = "Load config from here"
 
-	IngestHeader      = "ingest.header"
-	IngestHeaderUsage = "Treat first row of ingest data as header"
-
-	CSVEmptyAsNull      = "driver.csv.empty-as-null"
-	CSVEmptyAsNullUsage = "Treat empty CSV fields as null"
-
-	CSVDelim        = "driver.csv.delim"
-	CSVDelimUsage   = "CSV delimiter: one of comma, space, pipe, tab, colon, semi, period"
-	CSVDelimDefault = "comma"
-
 	ConfigDelete      = "delete"
 	ConfigDeleteShort = "D"
 	ConfigDeleteUsage = "Reset this option to default value"
@@ -171,18 +146,6 @@ const (
 	InspectSchemata      = "schemata"
 	InspectSchemataShort = "S"
 	InspectSchemataUsage = "List schemas (in current catalog) only"
-
-	LogEnabled      = "log"
-	LogEnabledUsage = "Enable logging"
-
-	LogFile      = "log.file"
-	LogFileUsage = "Path to log file; empty disables logging"
-
-	LogLevel      = "log.level"
-	LogLevelUsage = "Log level: one of DEBUG, INFO, WARN, ERROR"
-
-	LogFormat      = "log.format"
-	LogFormatUsage = `Log format: one of "text" or "json"`
 
 	DiffOverview      = "overview"
 	DiffOverviewShort = "O"

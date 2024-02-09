@@ -68,9 +68,10 @@ The exit code is 1 if ping fails for any of the sources.`,
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.CSV, flag.CSVShort, false, flag.CSVUsage)
 	cmd.Flags().Bool(flag.TSV, false, flag.TSVUsage)
-	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
+	addOptionFlag(cmd.Flags(), OptCompact)
 
-	cmd.Flags().Duration(flag.PingTimeout, time.Second*10, flag.PingTimeoutUsage)
+	addOptionFlag(cmd.Flags(), OptPingCmdTimeout)
+	// cmd.Flags().Duration(flag.PingTimeout, time.Second*10, flag.PingTimeoutUsage)
 	return cmd
 }
 

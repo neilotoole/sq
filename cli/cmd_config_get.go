@@ -32,7 +32,7 @@ just for that source.`,
 	addTextFormatFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
-	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
+	addOptionFlag(cmd.Flags(), OptCompact)
 
 	cmd.Flags().String(flag.ConfigSrc, "", flag.ConfigSrcUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.ConfigSrc, completeHandle(1, true)))

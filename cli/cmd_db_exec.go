@@ -83,8 +83,6 @@ func execDBExec(cmd *cobra.Command, args []string) error {
 		// scriptString is the optional SQL command string.
 		// If empty, scriptFile or stdin is used.
 		cmdString string
-
-		verbose = cmdFlagBool(cmd, flag.Verbose)
 	)
 
 	if src, err = getCmdSource(cmd, args); err != nil {
@@ -113,7 +111,7 @@ func execDBExec(cmd *cobra.Command, args []string) error {
 	switch src.Type { //nolint:exhaustive
 	case drivertype.Pg:
 		params := &postgres.ExecToolParams{
-			Verbose:    verbose,
+			Verbose:    OptVerbose.Get(src.Options),
 			ScriptFile: scriptFile,
 			CmdString:  cmdString,
 			LongFlags:  cmdFlagChanged(cmd, flag.DBPrintLongToolCmd),

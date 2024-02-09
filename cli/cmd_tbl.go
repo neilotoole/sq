@@ -58,7 +58,7 @@ func newTblCopyCmd() *cobra.Command {
 
 	addTextFormatFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
-	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
+	addOptionFlag(cmd.Flags(), OptCompact)
 	cmd.Flags().Bool(flag.TblData, true, flag.TblDataUsage)
 
 	return cmd

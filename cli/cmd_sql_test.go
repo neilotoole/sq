@@ -10,10 +10,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/drivers/userdriver"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
@@ -122,6 +122,8 @@ func TestCmdSQL_SelectFromUserDriver(t *testing.T) {
 func TestCmdSQL_StdinQuery(t *testing.T) {
 	t.Parallel()
 
+	flagIngestHeader := driver.OptIngestHeader.Flag()
+
 	testCases := []struct {
 		fpath     string
 		tbl       string
@@ -131,25 +133,25 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 	}{
 		{
 			fpath:     proj.Abs(sakila.PathCSVActorNoHeader),
-			flags:     map[string]string{flag.IngestHeader: "false"},
+			flags:     map[string]string{flagIngestHeader: "false"},
 			tbl:       source.MonotableName,
 			wantCount: sakila.TblActorCount,
 		},
 		{
 			fpath:     proj.Abs(sakila.PathCSVActor),
-			flags:     map[string]string{flag.IngestHeader: "true"},
+			flags:     map[string]string{flagIngestHeader: "true"},
 			tbl:       source.MonotableName,
 			wantCount: sakila.TblActorCount,
 		},
 		{
 			fpath:     proj.Abs(sakila.PathXLSXActorHeader),
-			flags:     map[string]string{flag.IngestHeader: "true"},
+			flags:     map[string]string{flagIngestHeader: "true"},
 			tbl:       sakila.TblActor,
 			wantCount: sakila.TblActorCount,
 		},
 		{
 			fpath:     proj.Abs(sakila.PathXLSXSubset),
-			flags:     map[string]string{flag.IngestHeader: "true"},
+			flags:     map[string]string{flagIngestHeader: "true"},
 			tbl:       sakila.TblActor,
 			wantCount: sakila.TblActorCount,
 		},
