@@ -17,8 +17,8 @@ release for recent headline features.
 ### Added
 
 - By default, `sq` prints source locations with the password redacted. This is a sensible default, but
-  there are legitimate reasons to access the unredacted connection string. There's a new
-  global flag `--no-redact` for that (and a corresponding [`redact`](https://sq.io/docs/config#redact) config option).
+  there are legitimate reasons to access the unredacted connection string. Thus a new
+  global flag `--no-redact` (and a corresponding [`redact`](https://sq.io/docs/config#redact) config option).
 
   ```shell
   # Default behavior: password is redacted
@@ -29,6 +29,11 @@ release for recent headline features.
   $ sq src -v --no-redact
   @sakila/pg12  postgres  postgres://sakila:p_ssW0rd@192.168.50.132/sakila
   ```
+
+- Previously, if an error occurred when [`verbose`](https://sq.io/docs/config#verbose) was true,
+  and [`error.format`](https://sq.io/docs/config#errorformat) was `text`, `sq` would print a stack trace 
+  to `stderr`. This was poor default behavior, flooding the user terminal, so the default is now no stack trace.
+  To restore the previous behavior, use the new `-E` (`--error.stack`) flag, or set the [`error.stack`](https://sq.io/docs/config#errorstack) config option.
 
 
 ### Changed

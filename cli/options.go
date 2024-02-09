@@ -154,6 +154,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 	reg.Add(
 		OptFormat,
 		OptErrorFormat,
+		OptErrorStack,
 		OptDatetimeFormat,
 		OptDatetimeFormatAsNumber,
 		OptDateFormat,

@@ -76,6 +76,16 @@ command, sq falls back to "text". Available formats:
 		fmt.Sprintf(`The format to output errors in. Allowed formats are %q or %q.`, format.Text, format.JSON),
 	)
 
+	OptErrorStack = options.NewBool(
+		"error.stack",
+		&options.Flag{Short: 'E'},
+		false,
+		"Print error stack trace to stderr",
+		`Print error stack trace to stderr. This only applies when error.format is
+"text"; when error.format is "json", the stack trace is always printed.`,
+		options.TagOutput,
+	)
+
 	OptVerbose = options.NewBool(
 		"verbose",
 		&options.Flag{Short: 'v'},
@@ -285,7 +295,7 @@ func newWriters(cmd *cobra.Command, clnup *cleanup.Cleanup, o options.Options,
 		Metadata:    tablew.NewMetadataWriter(outCfg.out, outCfg.outPr),
 		Source:      tablew.NewSourceWriter(outCfg.out, outCfg.outPr),
 		Ping:        tablew.NewPingWriter(outCfg.out, outCfg.outPr),
-		Error:       tablew.NewErrorWriter(outCfg.errOut, outCfg.errOutPr),
+		Error:       tablew.NewErrorWriter(outCfg.errOut, outCfg.errOutPr, OptErrorStack.Get(o)),
 		Version:     tablew.NewVersionWriter(outCfg.out, outCfg.outPr),
 		Config:      tablew.NewConfigWriter(outCfg.out, outCfg.outPr),
 	}

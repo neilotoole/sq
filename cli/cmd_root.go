@@ -131,5 +131,8 @@ See docs and more: https://sq.io`,
 		string(format.JSON),
 	)))
 
+	addOptionFlag(cmd.PersistentFlags(), OptErrorFormat)
+	addOptionFlag(cmd.PersistentFlags(), OptErrorStack)
+
 	return cmd
 }
