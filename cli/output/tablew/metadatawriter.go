@@ -118,13 +118,17 @@ func (w *mdWriter) doSourceMetaNoSchema(md *metadata.Source) error {
 	w.tbl.tblImpl.SetColTrans(4, w.tbl.pr.Faint.SprintFunc())
 	w.tbl.tblImpl.SetColTrans(5, w.tbl.pr.Faint.SprintFunc())
 
+	loc := md.Location
+	if w.tbl.pr.Redact {
+		loc = location.Redact(loc)
+	}
 	row := []string{
 		md.Handle,
 		md.Driver.String(),
 		md.Name,
 		md.FQName,
 		w.tbl.pr.Number.Sprint(stringz.ByteSized(md.Size, 1, "")),
-		location.Redact(md.Location),
+		loc,
 	}
 
 	w.tbl.tblImpl.SetHeader(headers)
@@ -249,6 +253,10 @@ func (w *mdWriter) doSourceMetaFull(md *metadata.Source) error {
 	w.tbl.tblImpl.SetColTrans(6, w.tbl.pr.Number.SprintFunc())
 	w.tbl.tblImpl.SetColTrans(7, w.tbl.pr.Faint.SprintFunc())
 
+	loc := md.Location
+	if w.tbl.pr.Redact {
+		loc = location.Redact(loc)
+	}
 	row = []string{
 		md.Handle,
 		md.Driver.String(),
@@ -257,7 +265,7 @@ func (w *mdWriter) doSourceMetaFull(md *metadata.Source) error {
 		w.tbl.pr.Number.Sprint(stringz.ByteSized(md.Size, 1, "")),
 		strconv.FormatInt(md.TableCount, 10),
 		strconv.FormatInt(md.ViewCount, 10),
-		location.Redact(md.Location),
+		loc,
 	}
 
 	w.tbl.tblImpl.SetHeader(headers)

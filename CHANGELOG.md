@@ -10,15 +10,32 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## [v0.47.4] - UPCOMING
 
-Minor changes to the behavior of the `--src.schema` flag.
+Minor release with changes to flags.
 See the earlier [`v0.47.0`](https://github.com/neilotoole/sq/releases/tag/v0.47.0)
 release for recent headline features.
+
+### Added
+
+- By default, `sq` prints source locations with the password redacted. This is a sensible default, but
+  there are legitimate reasons to access the unredacted connection string. There's a new
+  global flag `--no-redact` for that (and a corresponding [`redact`](https://sq.io/docs/config#redact) config option).
+
+  ```shell
+  # Default behavior: password is redacted
+  $ sq src -v
+  @sakila/pg12  postgres  postgres://sakila:xxxxx@192.168.50.132/sakila
+  
+  # Unredacted
+  $ sq src -v --no-redact
+  @sakila/pg12  postgres  postgres://sakila:p_ssW0rd@192.168.50.132/sakila
+  ```
+
 
 ### Changed
 
 - The [`--src.schema`](https://sq.io/docs/source#source-override) flag (as used in [`sq inspect`](https://sq.io/docs/cmd/inspect),
   [`sq sql`](https://sq.io/docs/cmd/sql), and the root [`sq`](https://sq.io/docs/cmd/sq#override-active-schema) cmd)
-  now accepts `--src.schema=CATALOG.` (note the `.` suffix). This is in addition to the existing allowed forms `SCHEMA`
+  now accepts `--src.schema=CATALOG.`. Note the `.` suffix on `CATALOG.`. This is in addition to the existing allowed forms `SCHEMA`
   and `CATALOG.SCHEMA`. This new `CATALOG.` form is effectively equivalent to `CATALOG.CURRENT_SCHEMA`.
   
   ```shell

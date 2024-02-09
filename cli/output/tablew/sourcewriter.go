@@ -64,11 +64,15 @@ func (w *sourceWriter) Collection(coll *source.Collection) error {
 	// "HANDLE", "ACTIVE", "DRIVER", "LOCATION", "OPTIONS"
 	var rows [][]string
 	for _, src := range items {
+		loc := src.Location
+		if pr.Redact {
+			loc = location.Redact(loc)
+		}
 		row := []string{
 			src.Handle,
 			"",
 			string(src.Type),
-			src.RedactedLocation(),
+			loc,
 			renderSrcOptions(pr, src),
 		}
 
@@ -147,11 +151,15 @@ func (w *sourceWriter) doSource(coll *source.Collection, src *source.Source) err
 		return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 	}
 
+	loc := src.Location
+	if w.tbl.pr.Redact {
+		loc = location.Redact(loc)
+	}
 	var rows [][]string
 	row := []string{
 		src.Handle,
 		string(src.Type),
-		src.RedactedLocation(),
+		loc,
 		renderSrcOptions(w.tbl.pr, src),
 	}
 	rows = append(rows, row)

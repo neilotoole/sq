@@ -167,6 +167,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptVerbose,
 		OptPrintHeader,
 		OptMonochrome,
+		OptRedact,
 		OptProgress,
 		OptProgressDelay,
 		OptCompact,
