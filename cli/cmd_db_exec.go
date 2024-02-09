@@ -39,9 +39,9 @@ credentials.`,
   $ sq db exec @sakila_pg -f query.sql
 
   # Same as above, but use stdin
-	$ sq db exec @sakila_pg < query.sql
+  $ sq db exec @sakila_pg < query.sql
 
-	# Execute a command string against the active source
+  # Execute a command string against the active source
   $ sq db exec -c 'SELECT 777'
   777
 
@@ -50,7 +50,7 @@ credentials.`,
   psql -d 'postgres://alice:abc123@db.acme.com:5432/sales' -f query.sql
 
   # Execute against an alternative catalog or schema
-	$ sq db exec @sakila_pg --schema inventory.public -f query.sql`,
+  $ sq db exec @sakila_pg --schema inventory.public -f query.sql`,
 	}
 
 	cmdMarkPlainStdout(cmd)

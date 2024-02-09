@@ -91,9 +91,8 @@ func PrintError(ctx context.Context, ru *run.Run, err error) {
 	}
 	// getOutputConfig works even if cmd is nil
 	fm := getFormat(cmd, opts)
-	outCfg := getOutputConfig(cmd, clnup, fm, opts, os.Stdout, os.Stderr) // FIXME: why not using ru.Out, ru.ErrOut?
+	outCfg := getOutputConfig(cmd, clnup, fm, opts, ru.Stdout, ru.Stderr)
 	errOut, pr := outCfg.errOut, outCfg.errOutPr
-	// pr, _, errOut := getPrinting(cmd, clnup, opts, os.Stdout, os.Stderr) // FIXME: delete
 	// Execute the cleanup before we print the error.
 	if cleanErr := clnup.Run(); cleanErr != nil {
 		log.Error("Cleanup failed", lga.Err, cleanErr)

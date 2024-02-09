@@ -182,7 +182,7 @@ func TestOutputRaw(t *testing.T) {
 
 			outputBytes, err := os.ReadFile(outputPath)
 			require.NoError(t, err)
-			require.Equal(t, fixt.GopherSize, len(outputBytes)) // FIXME: not working
+			require.Equal(t, fixt.GopherSize, len(outputBytes))
 			_, err = gif.Decode(bytes.NewReader(outputBytes))
 			require.NoError(t, err)
 

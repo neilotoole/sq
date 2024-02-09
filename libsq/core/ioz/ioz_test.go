@@ -18,15 +18,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 )
 
-func TestFilepathMatch(t *testing.T) {
-	fp := "/Users/neilotoole/work/sq/sq/libsq/core/termz/termz_windows.go"
-	pattern := "**/**/*_windows.go"
-
-	matched, err := filepath.Match(pattern, fp)
-	require.NoError(t, err)
-	require.True(t, matched)
-}
-
 func TestMarshalYAML(t *testing.T) {
 	m := map[string]any{
 		"hello": `sqlserver://sakila:p_ss"**W0rd@222.75.174.219?database=sakila`,
