@@ -116,8 +116,7 @@ command, sq falls back to "text". Available formats:
 
 	OptProgressDelay = options.NewDuration(
 		"progress.delay",
-		"",
-		0,
+		nil,
 		time.Second*2,
 		"Progress bar render delay",
 		`Delay before showing a progress bar.`,
@@ -125,8 +124,7 @@ command, sq falls back to "text". Available formats:
 
 	OptDebugTrackMemory = options.NewDuration(
 		"debug.stats.frequency",
-		"",
-		0,
+		nil,
 		0,
 		"Memory usage sampling interval.",
 		`Memory usage sampling interval. If non-zero, peak memory usage is periodically

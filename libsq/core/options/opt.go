@@ -429,6 +429,10 @@ var _ Opt = Bool{}
 // For example, if [Opt.Key] is progress, and [Flag.Name] is "--no-progress",
 // then [Flag.Invert] should be true.
 func NewBool(key string, flag *Flag, defaultVal bool, usage, help string, tags ...string) Bool {
+	if flag == nil {
+		flag = &Flag{}
+	}
+
 	return Bool{
 		BaseOpt:      NewBaseOpt(key, flag.Name, flag.Short, usage, help, tags...),
 		defaultVal:   defaultVal,
@@ -538,13 +542,16 @@ func (op Bool) Process(o Options) (Options, error) {
 
 var _ Opt = Duration{}
 
-// NewDuration returns an options.Duration instance. If flag is empty, the
-// value of key is used.
-func NewDuration(key, flag string, short rune, defaultVal time.Duration,
+// NewDuration returns an options.Duration instance.
+func NewDuration(key string, flag *Flag, defaultVal time.Duration,
 	usage, help string, tags ...string,
 ) Duration {
+	if flag == nil {
+		flag = &Flag{}
+	}
+
 	return Duration{
-		BaseOpt:    NewBaseOpt(key, flag, short, usage, help, tags...),
+		BaseOpt:    NewBaseOpt(key, flag.Name, flag.Short, usage, help, tags...),
 		defaultVal: defaultVal,
 	}
 }

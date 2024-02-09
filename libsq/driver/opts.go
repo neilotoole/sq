@@ -55,8 +55,7 @@ If n <= 0, no idle connections are retained.`,
 	// OptConnMaxIdleTime controls sql.DB.SetConnMaxIdleTime.
 	OptConnMaxIdleTime = options.NewDuration(
 		"conn.max-idle-time",
-		"",
-		0,
+		nil,
 		time.Second*2,
 		"Max connection idle time",
 		`Sets the maximum amount of time a connection may be idle. Expired connections
@@ -70,8 +69,7 @@ If n <= 0, connections are not closed due to a connection's idle time.`,
 	// OptConnMaxLifetime controls sql.DB.SetConnMaxLifetime.
 	OptConnMaxLifetime = options.NewDuration(
 		"conn.max-lifetime",
-		"",
-		0,
+		nil,
 		time.Minute*10,
 		"Max connection lifetime",
 		`
@@ -86,8 +84,7 @@ If n <= 0, connections are not closed due to a connection's age.`,
 	// OptConnOpenTimeout controls connection open timeout.
 	OptConnOpenTimeout = options.NewDuration(
 		"conn.open-timeout",
-		"",
-		0,
+		nil,
 		time.Second*10,
 		"Connection open timeout",
 		"Max time to wait before a connection open timeout occurs.",
@@ -99,8 +96,7 @@ If n <= 0, connections are not closed due to a connection's age.`,
 	// between retries.
 	OptMaxRetryInterval = options.NewDuration(
 		"retry.max-interval",
-		"",
-		0,
+		nil,
 		time.Second*3,
 		"Max interval between retries",
 		`The maximum interval to wait between retries. If an operation is

@@ -26,8 +26,7 @@ import (
 // operations.
 var OptPingCmdTimeout = options.NewDuration(
 	"ping.timeout",
-	"",
-	0,
+	nil,
 	time.Second*10,
 	"ping command timeout duration",
 	"How long the ping command waits before timeout occurs. Example: 500ms or 2m10s.",
@@ -38,8 +37,7 @@ func newPingCmd() *cobra.Command {
 		Use:               "ping [@HANDLE|GROUP]*",
 		RunE:              execPing,
 		ValidArgsFunction: completeHandleOrGroup,
-
-		Short: "Ping data sources",
+		Short:             "Ping data sources",
 		Long: `Ping data sources (or groups of sources) to check connection health.
 If no arguments provided, the active data source is pinged. Otherwise, ping
 the specified sources or groups.

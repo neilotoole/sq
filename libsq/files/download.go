@@ -19,8 +19,7 @@ import (
 var (
 	OptHTTPRequestTimeout = options.NewDuration(
 		"http.request.timeout",
-		"",
-		0,
+		nil,
 		time.Second*10,
 		"HTTP/S request initial response timeout duration",
 		`How long to wait for initial response from a HTTP/S endpoint before timeout
@@ -32,8 +31,7 @@ Contrast with http.response.timeout.`,
 	)
 	OptHTTPResponseTimeout = options.NewDuration(
 		"http.response.timeout",
-		"",
-		0,
+		nil,
 		0,
 		"HTTP/S request completion timeout duration",
 		`How long to wait for the entire HTTP transaction to complete. This includes

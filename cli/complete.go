@@ -24,8 +24,7 @@ import (
 
 var OptShellCompletionTimeout = options.NewDuration(
 	"shell-completion.timeout",
-	"",
-	0,
+	nil,
 	time.Millisecond*500,
 	"Shell completion timeout",
 	`How long shell completion should wait before giving up. This can become relevant

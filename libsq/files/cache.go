@@ -30,8 +30,7 @@ import (
 // See also: driver.OptIngestCache.
 var OptCacheLockTimeout = options.NewDuration(
 	"cache.lock.timeout",
-	"",
-	0,
+	nil,
 	time.Second*5,
 	"Wait timeout to acquire cache lock",
 	`Wait timeout to acquire cache lock. During this period, retry will occur
