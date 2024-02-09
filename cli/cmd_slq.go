@@ -17,7 +17,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
@@ -204,7 +203,7 @@ func execSLQPrint(ctx context.Context, ru *run.Run, mArgs map[string]string) err
 //
 //	$ cat something.xlsx | sq @stdin.sheet1
 func preprocessUserSLQ(ctx context.Context, ru *run.Run, args []string) (string, error) {
-	log, reg, grips, coll := lg.FromContext(ctx), ru.DriverRegistry, ru.Grips, ru.Config.Collection
+	log, reg, coll := lg.FromContext(ctx), ru.DriverRegistry, ru.Config.Collection
 	activeSrc := coll.Active()
 
 	if len(args) == 0 {
@@ -212,6 +211,10 @@ func preprocessUserSLQ(ctx context.Context, ru *run.Run, args []string) (string,
 		// but sq is receiving pipe input. Let's say the user does this:
 		//
 		//  $ cat something.csv | sq  # query becomes "@stdin.data"
+		//
+		// REVISIT: It's not clear that this is even reachable any more?
+		// Plus, it's a bit ugly in general. Was the code already changed
+		// to force providing at least one query arg?
 		if activeSrc == nil {
 			// Piped input would result in an active @stdin src. We don't
 			// have that; we don't have any active src.
@@ -230,27 +233,26 @@ func preprocessUserSLQ(ctx context.Context, ru *run.Run, args []string) (string,
 		}
 
 		tblName := source.MonotableName
-
 		if !drvr.DriverMetadata().Monotable {
 			// This isn't a monotable src, so we can't
 			// just select @stdin.data. Instead we'll select
 			// the first table name, as found in the source meta.
-			grip, err := grips.Open(ctx, activeSrc)
-			if err != nil {
-				return "", err
-			}
-			defer lg.WarnIfCloseError(log, lgm.CloseDB, grip)
 
-			srcMeta, err := grip.SourceMetadata(ctx, false)
+			db, sqlDrvr, err := ru.DB(ctx, activeSrc)
 			if err != nil {
 				return "", err
 			}
 
-			if len(srcMeta.Tables) == 0 {
+			tables, err := sqlDrvr.ListTableNames(ctx, db, "", true, true)
+			if err != nil {
+				return "", err
+			}
+
+			if len(tables) == 0 {
 				return "", errz.New(msgSrcNoData)
 			}
 
-			tblName = srcMeta.Tables[0].Name
+			tblName = tables[0]
 			if tblName == "" {
 				return "", errz.New(msgSrcEmptyTableName)
 			}
@@ -325,7 +327,7 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 
 	addTimeFormatOptsFlags(cmd)
 
-	cmd.Flags().StringP(flag.Output, flag.OutputShort, "", flag.OutputUsage)
+	cmd.Flags().StringP(flag.FileOutput, flag.FileOutputShort, "", flag.FileOutputUsage)
 
 	cmd.Flags().StringP(flag.Input, flag.InputShort, "", flag.InputUsage)
 	panicOn(cmd.Flags().MarkHidden(flag.Input)) // Hide for now; this is mostly used for testing.

@@ -112,7 +112,9 @@ func newRun(ctx context.Context, tb testing.TB,
 
 	ru = &run.Run{
 		Stdin:           os.Stdin,
+		Stdout:          out,
 		Out:             out,
+		Stderr:          errOut,
 		ErrOut:          errOut,
 		Config:          cfg,
 		ConfigStore:     cfgStore,

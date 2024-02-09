@@ -150,35 +150,9 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
 	log := lg.FromContext(ctx)
 	ctx = options.NewContext(ctx, src.Options)
-	dbCfg, err := pgxpool.ParseConfig(src.Location)
+	poolCfg, err := getPoolConfig(src, false)
 	if err != nil {
-		return nil, errw(err)
-	}
-
-	if src.Catalog != "" && src.Catalog != dbCfg.ConnConfig.Database {
-		// The catalog differs from the database in the connection string.
-		// OOTB, Postgres doesn't support cross-database references. So,
-		// we'll need to change the connection string to use the catalog
-		// as the database. Note that we don't modify src.Location, but it's
-		// not entirely clear if that's the correct approach. Are there any
-		// downsides to modifying it (as long as the modified Location is not
-		// persisted back to config)?
-		var u *dburl.URL
-		if u, err = dburl.Parse(src.Location); err != nil {
-			return nil, errw(err)
-		}
-
-		u.Path = src.Catalog
-		connStr := u.String()
-		dbCfg, err = pgxpool.ParseConfig(connStr)
-		if err != nil {
-			return nil, errw(err)
-		}
-		log.Debug("Using catalog as database in connection string",
-			lga.Src, src,
-			lga.Catalog, src.Catalog,
-			lga.Conn, location.Redact(connStr),
-		)
+		return nil, err
 	}
 
 	var opts []stdlib.OptionOpenDB
@@ -196,7 +170,7 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 
 			log.Debug("Setting default schema (search_path) on Postgres DB connection",
 				lga.Src, src,
-				lga.Conn, location.Redact(dbCfg.ConnString()),
+				lga.Conn, location.Redact(poolCfg.ConnString()),
 				lga.Catalog, src.Catalog,
 				lga.Schema, src.Schema,
 				lga.Old, oldSearchPath,
@@ -207,9 +181,9 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		}))
 	}
 
-	dbCfg.ConnConfig.ConnectTimeout = driver.OptConnOpenTimeout.Get(src.Options)
+	poolCfg.ConnConfig.ConnectTimeout = driver.OptConnOpenTimeout.Get(src.Options)
 
-	db := stdlib.OpenDB(*dbCfg.ConnConfig, opts...)
+	db := stdlib.OpenDB(*poolCfg.ConnConfig, opts...)
 	driver.ConfigureDB(ctx, db, src.Options)
 
 	return db, nil
@@ -430,6 +404,32 @@ ORDER BY datname`
 	return catalogs, nil
 }
 
+// SchemaExists implements driver.SQLDriver.
+func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (bool, error) {
+	if schma == "" {
+		return false, nil
+	}
+
+	const q = `SELECT COUNT(schema_name) FROM information_schema.schemata
+ WHERE schema_name = $1 AND catalog_name = current_database()`
+
+	var count int
+	return count > 0, errw(db.QueryRowContext(ctx, q, schma).Scan(&count))
+}
+
+// CatalogExists implements driver.SQLDriver.
+func (d *driveri) CatalogExists(ctx context.Context, db sqlz.DB, catalog string) (bool, error) {
+	if catalog == "" {
+		return false, nil
+	}
+
+	const q = `SELECT COUNT(datname) FROM pg_catalog.pg_database
+WHERE datistemplate = FALSE AND datallowconn = TRUE AND datname = $1`
+
+	var count int
+	return count > 0, errw(db.QueryRowContext(ctx, q, catalog).Scan(&count))
+}
+
 // AlterTableRename implements driver.SQLDriver.
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
 	q := fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, tbl, newName)
@@ -547,6 +547,43 @@ WHERE table_name = $1`
 	}
 
 	return count == 1, nil
+}
+
+// ListTableNames implements driver.SQLDriver.
+func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, tables, views bool) ([]string, error) {
+	var tblClause string
+	switch {
+	case tables && views:
+		tblClause = " AND (table_type = 'BASE TABLE' OR table_type = 'VIEW')"
+	case tables:
+		tblClause = " AND table_type = 'BASE TABLE'"
+	case views:
+		tblClause = " AND table_type = 'VIEW'"
+	default:
+		return []string{}, nil
+	}
+
+	var args []any
+	q := "SELECT table_name FROM information_schema.tables WHERE table_schema = "
+	if schma == "" {
+		q += "current_schema()"
+	} else {
+		q += "$1"
+		args = append(args, schma)
+	}
+	q += tblClause + " ORDER BY table_name"
+
+	rows, err := db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	names, err := sqlz.RowsScanColumn[string](ctx, rows)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	return names, nil
 }
 
 // DropTable implements driver.SQLDriver.
@@ -741,15 +778,66 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
 	return recMeta, mungeFn, nil
 }
 
+// getPoolConfig returns the native postgres [*pgxpool.Config] for src, applying
+// src's fields, such as [source.Source.Catalog] as appropriate. If
+// includeConnTimeout is true, then 'connect_timeout' is included in the
+// returned config; this is provided as an option, because the connection
+// timeout is sometimes better handled via [context.WithTimeout].
+func getPoolConfig(src *source.Source, includeConnTimeout bool) (*pgxpool.Config, error) {
+	poolCfg, err := pgxpool.ParseConfig(src.Location)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	if src.Catalog != "" && src.Catalog != poolCfg.ConnConfig.Database {
+		// The catalog differs from the database in the connection string.
+		// OOTB, Postgres doesn't support cross-database references. So,
+		// we'll need to change the connection string to use the catalog
+		// as the database. Note that we don't modify src.Location, but it's
+		// not entirely clear if that's the correct approach. Are there any
+		// downsides to modifying it (as long as the modified Location is not
+		// persisted back to config)?
+		var u *dburl.URL
+		if u, err = dburl.Parse(src.Location); err != nil {
+			return nil, errw(err)
+		}
+
+		u.Path = src.Catalog
+		connStr := u.String()
+		poolCfg, err = pgxpool.ParseConfig(connStr)
+		if err != nil {
+			return nil, errw(err)
+		}
+	}
+
+	if includeConnTimeout {
+		srcTimeout := driver.OptConnOpenTimeout.Get(src.Options)
+		// Only set connect_timeout if it's non-zero and differs from the
+		// already-configured value.
+		// REVISIT: We should actually always set it, otherwise the user's
+		// envar PGCONNECT_TIMEOUT may override it?
+
+		if srcTimeout > 0 || poolCfg.ConnConfig.ConnectTimeout != srcTimeout {
+			var u *dburl.URL
+			if u, err = dburl.Parse(poolCfg.ConnString()); err != nil {
+				return nil, errw(err)
+			}
+
+			q := u.Query()
+			q.Set("connect_timeout", strconv.Itoa(int(srcTimeout.Seconds())))
+			u.RawQuery = q.Encode()
+			poolCfg, err = pgxpool.ParseConfig(u.String())
+			if err != nil {
+				return nil, errw(err)
+			}
+		}
+	}
+
+	return poolCfg, nil
+}
+
 // doRetry executes fn with retry on isErrTooManyConnections.
 func doRetry(ctx context.Context, fn func() error) error {
 	maxRetryInterval := driver.OptMaxRetryInterval.Get(options.FromContext(ctx))
 	return retry.Do(ctx, maxRetryInterval, fn, isErrTooManyConnections)
-}
-
-// tblfmt formats a table name for use in a query. The arg can be a string,
-// or a tablefq.T.
-func tblfmt[T string | tablefq.T](tbl T) string {
-	tfq := tablefq.From(tbl)
-	return tfq.Render(stringz.DoubleQuote)
 }

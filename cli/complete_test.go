@@ -199,7 +199,9 @@ func TestCompleteFlagActiveSchema_query_cmds(t *testing.T) { //nolint:tparallel
 //
 // See also: TestCompleteFlagActiveSchema_query_cmds.
 func TestCompleteFlagActiveSchema_inspect(t *testing.T) {
+	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
 	t.Parallel()
+
 	const wantDirective = cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveKeepOrder
 
 	testCases := []struct {
@@ -305,6 +307,9 @@ func TestCompleteFlagActiveSchema_inspect(t *testing.T) {
 // TestCompleteFilterActiveGroup tests completion behavior
 // wrt [cli.OptShellCompletionGroupFilter].
 func TestCompleteFilterActiveGroup(t *testing.T) {
+	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
+	t.Parallel()
+
 	const (
 		prodInv   = "@prod/inventory"
 		prodSales = "@prod/sales"
@@ -420,6 +425,8 @@ func TestCompleteFilterActiveGroup(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			tr := testrun.New(context.Background(), t, nil).Hush()
 
 			for _, handle := range tc.srcs {
@@ -452,6 +459,7 @@ func TestCompleteFilterActiveGroup(t *testing.T) {
 // works with both cobra.ShellCompRequestCmd and
 // cobra.ShellCompNoDescRequestCmd.
 func TestCompleteAllCobraRequestCmds(t *testing.T) {
+	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
 	t.Parallel()
 
 	testCases := []struct {

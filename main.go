@@ -20,6 +20,10 @@ func main() {
 	defer func() {
 		cancelFn()
 		if err != nil {
+			if code := errz.ExitCode(err); code > 0 {
+				os.Exit(code)
+			}
+
 			os.Exit(1)
 		}
 	}()

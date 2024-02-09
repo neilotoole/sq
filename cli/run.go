@@ -70,8 +70,8 @@ func newRun(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args 
 
 	ru := &run.Run{
 		Stdin:           stdin,
-		Out:             stdout,
-		ErrOut:          stderr,
+		Stdout:          stdout,
+		Stderr:          stderr,
 		OptionsRegistry: &options.Registry{},
 	}
 
@@ -158,35 +158,41 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 	}
 
 	// If the --output=/some/file flag is set, then we need to
-	// override ru.Out (which is typically stdout) to point it at
+	// override ru.Stdout (which is typically stdout) to point it at
 	// the output destination file.
-	if cmdFlagChanged(ru.Cmd, flag.Output) {
-		fpath, _ := ru.Cmd.Flags().GetString(flag.Output)
+	//
+
+	if cmdFlagChanged(ru.Cmd, flag.FileOutput) && !cmdRequiresPlainStdout(ru.Cmd) {
+		fpath, _ := ru.Cmd.Flags().GetString(flag.FileOutput)
 		fpath, err := filepath.Abs(fpath)
 		if err != nil {
-			return errz.Wrapf(err, "failed to get absolute path for --%s", flag.Output)
+			return errz.Wrapf(err, "failed to get absolute path for --%s", flag.FileOutput)
 		}
 
 		// Ensure the parent dir exists
 		err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm)
 		if err != nil {
-			return errz.Wrapf(err, "failed to make parent dir for --%s", flag.Output)
+			return errz.Wrapf(err, "failed to make parent dir for --%s", flag.FileOutput)
 		}
 
 		f, err := os.Create(fpath)
 		if err != nil {
-			return errz.Wrapf(err, "failed to open file specified by flag --%s", flag.Output)
+			return errz.Wrapf(err, "failed to open file specified by flag --%s", flag.FileOutput)
 		}
 
 		ru.Cleanup.AddC(f) // Make sure the file gets closed eventually
-		ru.Out = f
+		ru.Stdout = f
 	}
 
 	cmdOpts, err := getOptionsFromCmd(ru.Cmd)
 	if err != nil {
 		return err
 	}
-	ru.Writers, ru.Out, ru.ErrOut = newWriters(ru.Cmd, ru.Cleanup, cmdOpts, ru.Out, ru.ErrOut)
+
+	var outCfg *outputConfig
+	ru.Writers, outCfg = newWriters(ru.Cmd, ru.Cleanup, cmdOpts, ru.Stdout, ru.Stderr)
+	ru.Out = outCfg.out
+	ru.ErrOut = outCfg.errOut
 
 	if err = FinishRunInit(ctx, ru); err != nil {
 		return err
@@ -330,20 +336,20 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 	return nil
 }
 
-// markCmdRequiresConfigLock marks cmd as requiring a config lock.
+// cmdMarkRequiresConfigLock marks cmd as requiring a config lock.
 // Thus, before the command's RunE is invoked, the config lock
 // is acquired (in preRun), and released on cleanup.
-func markCmdRequiresConfigLock(cmd *cobra.Command) {
+func cmdMarkRequiresConfigLock(cmd *cobra.Command) {
 	if cmd.Annotations == nil {
 		cmd.Annotations = make(map[string]string)
 	}
-	cmd.Annotations["config.lock"] = "true"
+	cmd.Annotations["config.lock"] = "true" //nolint:goconst
 }
 
-// cmdRequiresConfigLock returns true if markCmdRequiresConfigLock was
+// cmdRequiresConfigLock returns true if cmdMarkRequiresConfigLock was
 // previously invoked on cmd.
 func cmdRequiresConfigLock(cmd *cobra.Command) bool {
-	return cmd.Annotations != nil && cmd.Annotations["config.lock"] == "true"
+	return cmd != nil && cmd.Annotations != nil && cmd.Annotations["config.lock"] == "true"
 }
 
 // lockReloadConfig acquires the lock for the config store, and updates the
@@ -363,7 +369,7 @@ func cmdRequiresConfigLock(cmd *cobra.Command) bool {
 //		defer unlock()
 //	}
 //
-// However, in practice, most commands will invoke markCmdRequiresConfigLock
+// However, in practice, most commands will invoke cmdMarkRequiresConfigLock
 // instead of explicitly invoking lockReloadConfig.
 func lockReloadConfig(cmd *cobra.Command) (unlock func(), err error) {
 	ctx := cmd.Context()
@@ -432,4 +438,21 @@ func newProgressLockFunc(lock lockfile.Lockfile, msg string, timeout time.Durati
 			}
 		}, nil
 	}
+}
+
+// cmdMarkPlainStdout indicates that the command's stdout should
+// not be decorated in any way, e.g. with color or progress bars.
+// This is useful for binary output.
+func cmdMarkPlainStdout(cmd *cobra.Command) {
+	// FIXME: implement this in newWriters or such?
+	if cmd.Annotations == nil {
+		cmd.Annotations = make(map[string]string)
+	}
+	cmd.Annotations["stdout.plain"] = "true"
+}
+
+// cmdRequiresPlainStdout returns true if cmdMarkPlainStdout was
+// previously invoked on cmd.
+func cmdRequiresPlainStdout(cmd *cobra.Command) bool {
+	return cmd != nil && cmd.Annotations != nil && cmd.Annotations["stdout.plain"] == "true"
 }

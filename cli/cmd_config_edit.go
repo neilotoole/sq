@@ -51,7 +51,7 @@ in envar $SQ_EDITOR or $EDITOR.`,
   # Use a different editor
   $ SQ_EDITOR=nano sq config edit`,
 	}
-	markCmdRequiresConfigLock(cmd)
+	cmdMarkRequiresConfigLock(cmd)
 	return cmd
 }
 
@@ -134,7 +134,7 @@ func execConfigEditSource(cmd *cobra.Command, args []string) error {
 
 	// The Catalog and Schema fields have yaml tag 'omitempty',
 	// so they wouldn't be rendered in the editor yaml if empty.
-	// However, we to render the fields commented-out if empty.
+	// However, we want to render the fields commented-out if empty.
 	// Hence this little hack.
 	if tmpSrc.Catalog == "" {
 		// Forces yaml rendering

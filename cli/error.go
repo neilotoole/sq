@@ -19,6 +19,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/termz"
 )
 
 // PrintError is the centralized function for printing
@@ -88,8 +89,10 @@ func PrintError(ctx context.Context, ru *run.Run, err error) {
 	} else {
 		clnup = cleanup.New()
 	}
-	// getPrinting works even if cmd is nil
-	pr, _, errOut := getPrinting(cmd, clnup, opts, os.Stdout, os.Stderr)
+	// getOutputConfig works even if cmd is nil
+	fm := getFormat(cmd, opts)
+	outCfg := getOutputConfig(cmd, clnup, fm, opts, ru.Stdout, ru.Stderr)
+	errOut, pr := outCfg.errOut, outCfg.errOutPr
 	// Execute the cleanup before we print the error.
 	if cleanErr := clnup.Run(); cleanErr != nil {
 		log.Error("Cleanup failed", lga.Err, cleanErr)
@@ -103,7 +106,7 @@ func PrintError(ctx context.Context, ru *run.Run, err error) {
 	}
 
 	// The user didn't want JSON, so we just print to stderr.
-	if isColorTerminal(os.Stderr) {
+	if termz.IsColorTerminal(os.Stderr) {
 		pr.Error.Fprintln(os.Stderr, "sq: "+err.Error())
 	} else {
 		fmt.Fprintln(os.Stderr, "sq: "+err.Error())

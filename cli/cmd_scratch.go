@@ -36,7 +36,7 @@ importing non-SQL data, or cross-database joins. If no argument provided, get th
 source. Otherwise, set @HANDLE or an internal db as the scratch data source. The reserved handle "@scratch" resets the
 `,
 	}
-	markCmdRequiresConfigLock(cmd)
+	cmdMarkRequiresConfigLock(cmd)
 
 	return cmd
 }

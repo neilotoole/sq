@@ -1,4 +1,4 @@
-package cli
+package termz
 
 import (
 	"io"
@@ -8,8 +8,8 @@ import (
 	"golang.org/x/term"
 )
 
-// isTerminal returns true if w is a terminal.
-func isTerminal(w io.Writer) bool {
+// IsTerminal returns true if w is a terminal.
+func IsTerminal(w io.Writer) bool {
 	switch v := w.(type) {
 	case *os.File:
 		return term.IsTerminal(int(v.Fd()))
@@ -18,7 +18,7 @@ func isTerminal(w io.Writer) bool {
 	}
 }
 
-// isColorTerminal returns true if w is a colorable terminal.
+// IsColorTerminal returns true if w is a colorable terminal.
 // It respects [NO_COLOR], [FORCE_COLOR] and TERM=dumb environment variables.
 //
 // Acknowledgement: This function is lifted from neilotoole/jsoncolor, but
@@ -27,7 +27,7 @@ func isTerminal(w io.Writer) bool {
 //
 // [NO_COLOR]: https://no-color.org/
 // [FORCE_COLOR]: https://force-color.org/
-func isColorTerminal(w io.Writer) bool {
+func IsColorTerminal(w io.Writer) bool {
 	if os.Getenv("NO_COLOR") != "" {
 		return false
 	}

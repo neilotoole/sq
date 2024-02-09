@@ -206,9 +206,12 @@ func TestIngest_DuplicateColumns(t *testing.T) {
 	require.NoError(t, err)
 
 	tr = testrun.New(ctx, t, tr).Hush()
-	require.NoError(t, tr.Exec("--csv", ".data"))
+	err = tr.Exec("--csv", ".data")
+	require.NoError(t, err)
 	wantHeaders := []string{"actor_id", "first_name", "last_name", "last_update", "actor_id_1"}
 	data := tr.BindCSV()
+	gotOut := tr.OutString()
+	_ = gotOut
 	require.Equal(t, wantHeaders, data[0])
 
 	// Make sure the data is correct

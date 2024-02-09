@@ -1,12 +1,15 @@
 // Package flag holds CLI flags.
 package flag
 
+// FIXME: Need to update docs for use of src.schema to note the
+// new "catalog." mechanism.
+
 const (
 	ActiveSrc      = "src"
 	ActiveSrcUsage = "Override active source for this query"
 
 	ActiveSchema      = "src.schema"
-	ActiveSchemaUsage = "Override active schema or catalog.schema for this query"
+	ActiveSchemaUsage = "Override active schema (and/or catalog) for this query"
 
 	ConfigSrc      = "src"
 	ConfigSrcUsage = "Config for source"
@@ -67,12 +70,9 @@ const (
 	MonochromeShort = "M"
 	MonochromeUsage = "Don't colorize output"
 
-	NoProgress      = "no-progress"
-	NoProgressUsage = "Don't show progress bar"
-
-	Output      = "output"
-	OutputShort = "o"
-	OutputUsage = "Write output to <file> instead of stdout"
+	FileOutput      = "output"
+	FileOutputShort = "o"
+	FileOutputUsage = "Write output to <file> instead of stdout"
 
 	// Input sets Run.Stdin to the named file. At this time, this is used
 	// mainly for debugging, so it's marked hidden by the CLI. I'm not
@@ -210,6 +210,29 @@ const (
 	DiffAll      = "all"
 	DiffAllShort = "a"
 	DiffAllUsage = "Compare everything (caution: may be slow)"
+
+	DBDumpCatalog      = "catalog"
+	DBDumpCatalogUsage = "Dump the named catalog"
+	DBDumpNoOwner      = "no-owner"
+	DBDumpNoOwnerUsage = "Don't set ownership or ACL"
+
+	DBPrintToolCmd          = "print"
+	DBPrintToolCmdUsage     = "Print the db-native tool command, but don't execute it"
+	DBPrintLongToolCmd      = "print-long"
+	DBPrintLongToolCmdUsage = "Print the long-form db-native tool command, but don't execute it"
+
+	DBRestoreFrom         = "from"
+	DBRestoreFromShort    = "f"
+	DBRestoreFromUsage    = "Restore from dump file; if omitted, read from stdin"
+	DBRestoreNoOwner      = "no-owner"
+	DBRestoreNoOwnerUsage = "Don't use ownership or ACL from dump"
+
+	DBExecFile      = "file"
+	DBExecFileShort = "f"
+	DBExecFileUsage = "Read SQL from <file> instead of stdin"
+	DBExecCmd       = "command"
+	DBExecCmdShort  = "c"
+	DBExecCmdUsage  = "Execute SQL command string"
 )
 
 // OutputFormatFlags is the set of flags that control output format.

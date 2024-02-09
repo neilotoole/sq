@@ -202,3 +202,20 @@ func RemoveUnordered[T any](a []*T, v *T) []*T {
 	}
 	return a
 }
+
+// Cond returns a if cond is true, else b. It's basically the ternary operator.
+func Cond[T any](cond bool, a, b T) T {
+	if cond {
+		return a
+	}
+	return b
+}
+
+// NonEmptyOf returns a if a is non-zero, else b.
+func NonEmptyOf[T comparable](a, b T) T {
+	var zero T
+	if a != zero {
+		return a
+	}
+	return b
+}

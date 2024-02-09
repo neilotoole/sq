@@ -141,14 +141,12 @@ func TestCmdAdd(t *testing.T) {
 			wantHandle: "@sakila",
 			wantType:   drivertype.SQLite,
 		},
-
 		{
 			// with scheme
 			loc:        proj.Abs(sakila.PathSL3),
 			wantHandle: "@sakila",
 			wantType:   drivertype.SQLite,
 		},
-
 		{
 			// without scheme, relative path
 			loc:        proj.Rel(sakila.PathSL3),
