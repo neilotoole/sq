@@ -46,15 +46,13 @@ type Opt interface {
 	// Key returns the Opt key, such as "ping.timeout".
 	Key() string
 
-	// Flag is the long flag name to use, which is typically the same value
-	// as returned by Opt.Key. However, a distinct value can be supplied, such
-	// that flag usage and config usage have different keys. For example,
-	// an Opt might have a key "diff.num-lines", but a flag "lines".
-	// FIXME: docs
+	// Flag is the computed flag config for the Opt.
 	Flag() Flag
 
 	// Usage is a one-line description of the Opt. Additional detail can be
-	// found in Help.
+	// found in Help. It is typically the case that [Flag.Usage] is the same value
+	// as Usage, but it can be overridden if the flag usage text should differ
+	// from the Opt usage text.
 	Usage() string
 
 	// Help returns the Opt's help text, which typically provides more detail
@@ -90,11 +88,13 @@ type Opt interface {
 	Process(o Options) (Options, error)
 }
 
-// Flag is passed to the "NewX" Opt constructor functions, e.g. [NewBool], to
-// override the Opt's flag configuration. Passing a nil *Flag doesn't prevent
-// the Opt use as a flag: it simply indicates default flag configuration.
+// Flag describe an Opt's behavior as a command-line flag. It can be passed to
+// the "NewX" Opt constructor functions, e.g. [NewBool], to override the Opt's
+// flag configuration. The computed Flag value is available via Opt.Flag.
+// It is common to pass a nil *Flag to the Opt constructors; the value returned
+// by Opt.Flag will be appropriately populated with default values.
 type Flag struct {
-	// Name is the flag name to use. When empty, [Opt.Key] is used.
+	// Name is the flag name to use. Defaults to [Opt.Key].
 	Name string
 
 	// Short is the short flag name, e.g. 'v' for "verbose". The zero value
@@ -107,8 +107,10 @@ type Flag struct {
 	// non-boolean [Opt] types.
 	Invert bool
 
-	// REVISIT: Maybe add a Flag.Usage field to override Opt.Usage()? This
-	// might help with inverted flags.
+	// Usage is the flag's usage text. Defaults to [Opt.Usage], but can be
+	// overridden if the flag usage text should differ from the [Opt] usage text.
+	// This is typically only the case when [Flag.Invert] is true.
+	Usage string
 }
 
 // BaseOpt is a partial implementation of options.Opt that concrete
@@ -138,6 +140,9 @@ func NewBaseOpt(key string, flag *Flag, usage, help string, tags ...string) Base
 	}
 	if opt.flag.Name == "" {
 		opt.flag.Name = key
+	}
+	if opt.flag.Usage == "" {
+		opt.flag.Usage = usage
 	}
 
 	return opt
