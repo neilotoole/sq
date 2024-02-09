@@ -26,7 +26,11 @@ to detect the header.`,
 // OptIngestCache specifies whether ingested data is cached or not.
 var OptIngestCache = options.NewBool(
 	"ingest.cache",
-	&options.Flag{Name: "no-cache", Invert: true},
+	&options.Flag{
+		Name:   "no-cache",
+		Invert: true,
+		Usage:  "Don't cache ingest data",
+	},
 	true,
 	"Cache ingest data",
 	`Specifies whether ingested data is cached or not, on a default or per-source
@@ -39,8 +43,7 @@ ingested each time.
   $ sq config set ingest.cache false
 
   # Set ingest caching behavior for a specific source
-  $ sq config set --src @sakila ingest.cache false
-`,
+  $ sq config set --src @sakila ingest.cache false`,
 	options.TagSource,
 )
 

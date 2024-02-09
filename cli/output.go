@@ -96,7 +96,11 @@ command, sq falls back to "text". Available formats:
 
 	OptRedact = options.NewBool(
 		"redact",
-		&options.Flag{Name: "no-redact", Invert: true},
+		&options.Flag{
+			Name:   "no-redact",
+			Invert: true,
+			Usage:  "Don't redact passwords in output",
+		},
 		true,
 		"Redact passwords in output",
 		`Redact passwords in output.`,
@@ -105,10 +109,14 @@ command, sq falls back to "text". Available formats:
 
 	OptProgress = options.NewBool(
 		"progress",
-		&options.Flag{Name: "no-progress", Invert: true},
+		&options.Flag{
+			Name:   "no-progress",
+			Invert: true,
+			Usage:  "Don't show progress bar",
+		},
 		true,
-		"Progress bar for long-running operations",
-		`Progress bar for long-running operations.`,
+		"Show progress bar for long-running operations",
+		`Show progress bar for long-running operations.`,
 		options.TagOutput,
 	)
 
