@@ -97,6 +97,11 @@ type Flag struct {
 	// Name is the flag name to use. Defaults to [Opt.Key].
 	Name string
 
+	// Usage is the flag's usage text. Defaults to [Opt.Usage], but can be
+	// overridden if the flag usage text should differ from the [Opt] usage text.
+	// This is typically only the case when [Flag.Invert] is true.
+	Usage string
+
 	// Short is the short flag name, e.g. 'v' for "verbose". The zero value
 	// indicates no short name.
 	Short rune
@@ -106,21 +111,16 @@ type Flag struct {
 	// "no-progress", then [Flag.Invert] should be true. This field is ignored for
 	// non-boolean [Opt] types.
 	Invert bool
-
-	// Usage is the flag's usage text. Defaults to [Opt.Usage], but can be
-	// overridden if the flag usage text should differ from the [Opt] usage text.
-	// This is typically only the case when [Flag.Invert] is true.
-	Usage string
 }
 
 // BaseOpt is a partial implementation of options.Opt that concrete
 // types can build on.
 type BaseOpt struct {
+	flag  Flag
 	key   string
 	usage string
 	help  string
 	tags  []string
-	flag  Flag
 }
 
 // NewBaseOpt returns a new BaseOpt. If flag is empty string, key is
