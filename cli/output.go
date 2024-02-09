@@ -277,10 +277,13 @@ the rendered value is not an integer.
 // newWriters returns an output.Writers instance configured per defaults and/or
 // flags from cmd. The returned writers in [outputConfig] may differ from
 // the stdout and stderr params (e.g. decorated to support colorization).
-func newWriters2(cmd *cobra.Command, clnup *cleanup.Cleanup, o options.Options,
+func newWriters(cmd *cobra.Command, clnup *cleanup.Cleanup, o options.Options,
 	stdout, stderr io.Writer,
 ) (w *output.Writers, outCfg *outputConfig) {
-	outCfg = getOutputConfig(cmd, clnup, o, stdout, stderr)
+	// Invoke getFormat to see if the format was specified
+	// via config or flag.
+	fm := getFormat(cmd, o)
+	outCfg = getOutputConfig(cmd, clnup, fm, o, stdout, stderr)
 	log := logFrom(cmd)
 
 	// Package tablew has writer impls for each of the writer interfaces,
@@ -303,10 +306,6 @@ func newWriters2(cmd *cobra.Command, clnup *cleanup.Cleanup, o options.Options,
 		// This logic works because the only supported values are text and json.
 		w.Error = jsonw.NewErrorWriter(log, outCfg.errOut, outCfg.errOutPr)
 	}
-
-	// Invoke getFormat to see if the format was specified
-	// via config or flag.
-	fm := getFormat(cmd, o)
 
 	//nolint:exhaustive
 	switch fm {
@@ -422,20 +421,10 @@ type outputConfig struct {
 //
 // The returned outputConfig and all of its fields are guaranteed to be non-nil.
 //
-// See also: [OptMonochrome], [OptProgress], newWriters2.
-func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Options,
-	stdout, stderr io.Writer,
+// See also: [OptMonochrome], [OptProgress], newWriters.
+func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
+	fm format.Format, opts options.Options, stdout, stderr io.Writer,
 ) (outCfg *outputConfig) {
-	defer func() {
-		// FIXME: checking invariants here, delete before release
-		switch {
-		case outCfg == nil, outCfg.outPr == nil, outCfg.out == nil, outCfg.stdout == nil,
-			outCfg.errOutPr == nil, outCfg.errOut == nil, outCfg.stderr == nil:
-			panic("We've got nils")
-		default:
-		}
-	}()
-
 	if opts == nil {
 		opts = options.Options{}
 	}
@@ -533,6 +522,11 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Op
 	}
 
 	switch {
+	case cmdFlagChanged(cmd, flag.FileOutput) || fm == format.Raw:
+		// For file or raw output, we don't decorate stdout with
+		// any colorable decorator.
+		outCfg.out = stdout
+		outCfg.outPr.EnableColor(false)
 	case cmd != nil && cmdFlagChanged(cmd, flag.FileOutput):
 		// stdout is an actual regular file on disk, so no color.
 		outCfg.out = colorable.NewNonColorable(stdout)
@@ -571,6 +565,8 @@ func getFormat(cmd *cobra.Command, o options.Options) format.Format {
 	var fm format.Format
 
 	switch {
+	case cmd == nil:
+		fm = OptFormat.Get(o)
 	case cmdFlagChanged(cmd, flag.TSV):
 		fm = format.TSV
 	case cmdFlagChanged(cmd, flag.CSV):

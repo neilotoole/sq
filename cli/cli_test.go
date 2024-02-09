@@ -129,8 +129,7 @@ func TestCreateTable_bytes(t *testing.T) {
 func TestOutputRaw(t *testing.T) {
 	t.Parallel()
 
-	// for _, handle := range sakila.SQLLatest() {
-	for _, handle := range []string{sakila.SL3} {
+	for _, handle := range sakila.SQLLatest() {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
