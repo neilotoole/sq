@@ -14,7 +14,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/config"
-	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
@@ -276,19 +275,20 @@ func getLogEnabled(ctx context.Context, osArgs []string, cfg *config.Config) boo
 func getLogLevel(ctx context.Context, osArgs []string, cfg *config.Config) slog.Level {
 	bootLog := lg.FromContext(ctx)
 
-	val, ok, err := getBootstrapFlagValue(flag.LogLevel, "", flag.LogLevelUsage, osArgs)
+	flg := OptLogLevel.Flag()
+	val, ok, err := getBootstrapFlagValue(flg, "", OptLogLevel.Usage(), osArgs)
 	if err != nil {
-		bootLog.Warn("Reading log level from flag", lga.Flag, flag.LogLevel, lga.Err, err)
+		bootLog.Warn("Reading log level from flag", lga.Flag, flg, lga.Err, err)
 	}
 	if ok {
-		bootLog.Debug("Using log level specified via flag", lga.Flag, flag.LogLevel, lga.Val, val)
+		bootLog.Debug("Using log level specified via flag", lga.Flag, flg, lga.Val, val)
 
 		lvl := new(slog.Level)
 		if err = lvl.UnmarshalText([]byte(val)); err == nil {
 			return *lvl
 		}
 		bootLog.Error("Invalid log level specified via flag",
-			lga.Flag, flag.LogLevel, lga.Val, val, lga.Err, err)
+			lga.Flag, flg, lga.Val, val, lga.Err, err)
 	}
 
 	val, ok = os.LookupEnv(config.EnvarLogLevel)
@@ -320,12 +320,13 @@ func getLogLevel(ctx context.Context, osArgs []string, cfg *config.Config) slog.
 func getLogFormat(ctx context.Context, osArgs []string, cfg *config.Config) format.Format {
 	bootLog := lg.FromContext(ctx)
 
-	val, ok, err := getBootstrapFlagValue(flag.LogFormat, "", flag.LogFormatUsage, osArgs)
+	flg := OptLogFormat.Flag()
+	val, ok, err := getBootstrapFlagValue(flg, "", OptLogFormat.Usage(), osArgs)
 	if err != nil {
-		bootLog.Warn("Error reading log format from flag", lga.Flag, flag.LogFormat, lga.Err, err)
+		bootLog.Warn("Error reading log format from flag", lga.Flag, flg, lga.Err, err)
 	}
 	if ok {
-		bootLog.Debug("Using log format specified via flag", lga.Flag, flag.LogFormat, lga.Val, val)
+		bootLog.Debug("Using log format specified via flag", lga.Flag, flg, lga.Val, val)
 
 		f := new(format.Format)
 		if err = f.UnmarshalText([]byte(val)); err == nil {
@@ -336,7 +337,7 @@ func getLogFormat(ctx context.Context, osArgs []string, cfg *config.Config) form
 			}
 		}
 		bootLog.Error("Invalid log format specified via flag",
-			lga.Flag, flag.LogFormat, lga.Val, val, lga.Err, err)
+			lga.Flag, flg, lga.Val, val, lga.Err, err)
 	}
 
 	val, ok = os.LookupEnv(config.EnvarLogFormat)
@@ -372,12 +373,13 @@ func getLogFormat(ctx context.Context, osArgs []string, cfg *config.Config) form
 func getLogFilePath(ctx context.Context, osArgs []string, cfg *config.Config) string {
 	bootLog := lg.FromContext(ctx)
 
-	fp, ok, err := getBootstrapFlagValue(flag.LogFile, "", flag.LogFileUsage, osArgs)
+	flg := OptLogFile.Flag()
+	fp, ok, err := getBootstrapFlagValue(flg, "", OptLogFile.Usage(), osArgs)
 	if err != nil {
-		bootLog.Warn("Reading log file from flag", lga.Flag, flag.LogFile, lga.Err, err)
+		bootLog.Warn("Reading log file from flag", lga.Flag, flg, lga.Err, err)
 	}
 	if ok {
-		bootLog.Debug("Log file specified via flag", lga.Flag, flag.LogFile, lga.Path, fp)
+		bootLog.Debug("Log file specified via flag", lga.Flag, flg, lga.Path, fp)
 		return fp
 	}
 

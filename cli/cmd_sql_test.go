@@ -8,13 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/driver"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/drivers/userdriver"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
