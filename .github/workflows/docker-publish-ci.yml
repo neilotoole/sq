@@ -1,4 +1,4 @@
-name: Docker
+name: docker-publish-ci
 
 # This workflow uses actions that are not certified by GitHub.
 # They are provided by a third-party and are governed by
@@ -11,7 +11,7 @@ on:
   workflow_call:
 
   # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+#  workflow_dispatch:
 #  schedule:
 #    - cron: '25 4 * * *'
 #  push:
@@ -89,8 +89,8 @@ jobs:
           context: packages/docker
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
-#          labels: ${{ steps.meta.outputs.labels }}
-          labels: latest
+          labels: ${{ steps.meta.outputs.labels }}
+#          labels: latest
           platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
