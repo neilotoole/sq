@@ -1,5 +1,9 @@
 FROM alpine:3.19
 
+LABEL org.opencontainers.image.source='https://github.com/neilotoole/sq'
+LABEL org.opencontainers.image.description='sq data wrangler, on Alpine Linux'
+LABEL org.opencontainers.image.licenses=MIT
+
 WORKDIR /root
 
 RUN apk add --update --no-cache curl gnupg wget bash bash-completion zsh \

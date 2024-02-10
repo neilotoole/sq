@@ -59,6 +59,37 @@ scoop install sq
 go install github.com/neilotoole/sq
 ```
 
+### Docker
+
+The [`ghcr.io/neilotoole/sq`](https://github.com/neilotoole/sq/pkgs/container/sq)
+image is preloaded with `sq` and a handful of related tools like `jq`.
+
+#### Local
+
+```shell
+# Shell into a one-time container.
+$ docker run -it ghcr.io/neilotoole/sq zsh
+
+# Start detached (background) container named "sq-shell".
+$ docker run -d --name sq-shell ghcr.io/neilotoole/sq
+# Shell into that container.
+$ docker exec -it sq-shell zsh 
+```
+
+#### Kubernetes
+
+Running `sq` in a Kubernetes environment is useful for DB migrations,
+as well as general data wrangling.
+
+```shell
+# Start pod named "sq-shell".
+$ kubectl run sq-shell --image ghcr.io/neilotoole/sq
+# Shell into the pod.
+$ kubectl exec -it sq-shell -- zsh 
+```
+
+
+
 See other [install options](https://sq.io/docs/install/).
 
 ## Overview
