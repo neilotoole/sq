@@ -6,10 +6,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 
-	renameio "github.com/google/renameio/v2"
-
+	"github.com/google/renameio/v2/maybe"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 )
@@ -164,9 +162,5 @@ func WriteToFile(ctx context.Context, fp string, r io.Reader) (written int64, er
 
 // WriteFileAtomic writes data to fp atomically, but not on Windows.
 func WriteFileAtomic(fp string, data []byte, mode os.FileMode) error {
-	if runtime.GOOS == "windows" {
-		return errz.Err(os.WriteFile(fp, data, mode))
-	}
-
-	return renameio.WriteFile(fp, data, mode)
+	return errz.Err(maybe.WriteFile(fp, data, mode))
 }
