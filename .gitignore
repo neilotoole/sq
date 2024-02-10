@@ -61,3 +61,5 @@ goreleaser-test.sh
 /testh/progress-remove.test.sh
 
 /*.dump
+
+/docker-build-run.sh
