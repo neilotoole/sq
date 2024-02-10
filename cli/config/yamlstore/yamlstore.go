@@ -3,7 +3,6 @@
 package yamlstore
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -202,7 +201,7 @@ func (fs *Store) write(ctx context.Context, data []byte) error {
 		return errz.Wrapf(err, "failed to make parent dir of config file: %s", filepath.Dir(fs.Path))
 	}
 
-	if err := ioz.WriteFileAtomic(fs.Path, bytes.NewReader(data)); err != nil {
+	if err := ioz.WriteFileAtomic(fs.Path, data, ioz.RWPerms); err != nil {
 		return errz.Wrap(err, "failed to save config file")
 	}
 
