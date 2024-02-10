@@ -96,22 +96,27 @@ See docs and more: https://sq.io`,
 	cmd.PersistentFlags().Bool(flag.Help, false, "Show help")
 
 	addQueryCmdFlags(cmd)
+
 	cmd.Flags().Bool(flag.Version, false, flag.VersionUsage)
 
-	cmd.PersistentFlags().BoolP(flag.Monochrome, flag.MonochromeShort, false, flag.MonochromeUsage)
-
+	addOptionFlag(cmd.PersistentFlags(), OptMonochrome)
 	addOptionFlag(cmd.PersistentFlags(), OptProgress)
-	// TODO: Move the rest of the option flags over to addOptionFlag
-	cmd.PersistentFlags().BoolP(flag.Verbose, flag.VerboseShort, false, flag.VerboseUsage)
+	addOptionFlag(cmd.PersistentFlags(), OptRedact)
+	addOptionFlag(cmd.PersistentFlags(), OptVerbose)
 
+	// flag.Config can't use the option flag mechanism, because... well,
+	// because it's the config flag, and it exists above the realm of
+	// options. It's the flag that tells us where to find the config file,
+	// thus it can't be an option stored in the config file.
 	cmd.PersistentFlags().String(flag.Config, "", flag.ConfigUsage)
 
-	cmd.PersistentFlags().Bool(flag.LogEnabled, false, flag.LogEnabledUsage)
-	panicOn(cmd.RegisterFlagCompletionFunc(flag.LogEnabled, completeBool))
-	cmd.PersistentFlags().String(flag.LogFile, "", flag.LogFileUsage)
+	addOptionFlag(cmd.PersistentFlags(), OptLogEnabled)
+	panicOn(cmd.RegisterFlagCompletionFunc(OptLogEnabled.Flag().Name, completeBool))
 
-	cmd.PersistentFlags().String(flag.LogLevel, "", flag.LogLevelUsage)
-	panicOn(cmd.RegisterFlagCompletionFunc(flag.LogLevel, completeStrings(
+	addOptionFlag(cmd.PersistentFlags(), OptLogFile)
+
+	addOptionFlag(cmd.PersistentFlags(), OptLogLevel)
+	panicOn(cmd.RegisterFlagCompletionFunc(OptLogLevel.Flag().Name, completeStrings(
 		1,
 		slog.LevelDebug.String(),
 		slog.LevelInfo.String(),
@@ -119,11 +124,15 @@ See docs and more: https://sq.io`,
 		slog.LevelError.String(),
 	)))
 
-	cmd.PersistentFlags().String(flag.LogFormat, "", flag.LogFormatUsage)
-	panicOn(cmd.RegisterFlagCompletionFunc(flag.LogFormat, completeStrings(
+	addOptionFlag(cmd.PersistentFlags(), OptLogFormat)
+	panicOn(cmd.RegisterFlagCompletionFunc(OptLogFormat.Flag().Name, completeStrings(
 		1,
 		string(format.Text),
 		string(format.JSON),
 	)))
+
+	addOptionFlag(cmd.PersistentFlags(), OptErrorFormat)
+	addOptionFlag(cmd.PersistentFlags(), OptErrorStack)
+
 	return cmd
 }

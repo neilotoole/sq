@@ -69,7 +69,7 @@ func TestInt(t *testing.T) {
 		t.Run(tu.Name(i, tc.key), func(t *testing.T) {
 			reg := &options.Registry{}
 
-			opt := options.NewInt(tc.key, "", 0, tc.defaultVal, "", "")
+			opt := options.NewInt(tc.key, nil, tc.defaultVal, "", "")
 			reg.Add(opt)
 
 			o := options.Options{tc.key: tc.input}
@@ -115,7 +115,7 @@ func TestBool(t *testing.T) {
 		t.Run(tu.Name(i, tc.key), func(t *testing.T) {
 			reg := &options.Registry{}
 
-			opt := options.NewBool(tc.key, "", false, 0, tc.defaultVal, "", "")
+			opt := options.NewBool(tc.key, nil, tc.defaultVal, "", "")
 			reg.Add(opt)
 
 			o := options.Options{tc.key: tc.input}
@@ -156,8 +156,8 @@ func TestOptions_LogValue(t *testing.T) {
 }
 
 func TestEffective(t *testing.T) {
-	optHello := options.NewString("hello", "", 0, "world", nil, "", "")
-	optCount := options.NewInt("count", "", 0, 1, "", "")
+	optHello := options.NewString("hello", nil, "world", nil, "", "")
+	optCount := options.NewInt("count", nil, 1, "", "")
 
 	in := options.Options{"count": 7}
 	want := options.Options{"count": 7, "hello": "world"}

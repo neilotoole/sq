@@ -12,20 +12,21 @@ import (
 
 // errorWriter implements output.ErrorWriter.
 type errorWriter struct {
-	w  io.Writer
-	pr *output.Printing
+	w          io.Writer
+	pr         *output.Printing
+	stacktrace bool
 }
 
 // NewErrorWriter returns an output.ErrorWriter that
 // outputs in text format.
-func NewErrorWriter(w io.Writer, pr *output.Printing) output.ErrorWriter {
-	return &errorWriter{w: w, pr: pr}
+func NewErrorWriter(w io.Writer, pr *output.Printing, stacktrace bool) output.ErrorWriter {
+	return &errorWriter{w: w, pr: pr, stacktrace: stacktrace}
 }
 
 // Error implements output.ErrorWriter.
 func (w *errorWriter) Error(systemErr, humanErr error) {
 	fmt.Fprintln(w.w, w.pr.Error.Sprintf("sq: %v", humanErr))
-	if !w.pr.Verbose {
+	if !w.stacktrace {
 		return
 	}
 

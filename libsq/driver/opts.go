@@ -25,8 +25,7 @@ var (
 	// OptConnMaxOpen controls sql.DB.SetMaxOpenConn.
 	OptConnMaxOpen = options.NewInt(
 		"conn.max-open",
-		"",
-		0,
+		nil,
 		0,
 		"Max open connections to DB",
 		`Maximum number of open connections to the database.
@@ -39,8 +38,7 @@ A value of zero indicates no limit.`,
 	// OptConnMaxIdle controls sql.DB.SetMaxIdleConns.
 	OptConnMaxIdle = options.NewInt(
 		"conn.max-idle",
-		"",
-		0,
+		nil,
 		2,
 		"Max connections in idle connection pool",
 		`Set the maximum number of connections in the idle connection pool. If
@@ -55,8 +53,7 @@ If n <= 0, no idle connections are retained.`,
 	// OptConnMaxIdleTime controls sql.DB.SetConnMaxIdleTime.
 	OptConnMaxIdleTime = options.NewDuration(
 		"conn.max-idle-time",
-		"",
-		0,
+		nil,
 		time.Second*2,
 		"Max connection idle time",
 		`Sets the maximum amount of time a connection may be idle. Expired connections
@@ -70,8 +67,7 @@ If n <= 0, connections are not closed due to a connection's idle time.`,
 	// OptConnMaxLifetime controls sql.DB.SetConnMaxLifetime.
 	OptConnMaxLifetime = options.NewDuration(
 		"conn.max-lifetime",
-		"",
-		0,
+		nil,
 		time.Minute*10,
 		"Max connection lifetime",
 		`
@@ -86,8 +82,7 @@ If n <= 0, connections are not closed due to a connection's age.`,
 	// OptConnOpenTimeout controls connection open timeout.
 	OptConnOpenTimeout = options.NewDuration(
 		"conn.open-timeout",
-		"",
-		0,
+		nil,
 		time.Second*10,
 		"Connection open timeout",
 		"Max time to wait before a connection open timeout occurs.",
@@ -99,8 +94,7 @@ If n <= 0, connections are not closed due to a connection's age.`,
 	// between retries.
 	OptMaxRetryInterval = options.NewDuration(
 		"retry.max-interval",
-		"",
-		0,
+		nil,
 		time.Second*3,
 		"Max interval between retries",
 		`The maximum interval to wait between retries. If an operation is
@@ -113,8 +107,7 @@ operations back off, typically using a Fibonacci backoff.`,
 	// by an errgroup.
 	OptTuningErrgroupLimit = options.NewInt(
 		"tuning.errgroup-limit",
-		"",
-		0,
+		nil,
 		16,
 		"Max goroutines in any one errgroup",
 		`Controls the maximum number of goroutines that can be spawned by an errgroup.
@@ -132,8 +125,7 @@ etc.`,
 	// insertion/writing.
 	OptTuningRecChanSize = options.NewInt(
 		"tuning.record-buffer",
-		"",
-		0,
+		nil,
 		1024,
 		"Size of record buffer",
 		`Controls the size of the buffer channel for record insertion/writing.`,

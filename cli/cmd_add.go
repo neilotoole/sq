@@ -20,12 +20,13 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/location"
 )
 
-func newSrcAddCmd() *cobra.Command { //nolint:funlen
+func newSrcAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "add [--handle @HANDLE] LOCATION",
 		RunE:              execSrcAdd,
@@ -159,7 +160,7 @@ More examples:
 	cmdMarkRequiresConfigLock(cmd)
 	addTextFormatFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
-	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
+	addOptionFlag(cmd.Flags(), OptCompact)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 
 	cmd.Flags().StringP(flag.AddDriver, flag.AddDriverShort, "", flag.AddDriverUsage)
@@ -170,11 +171,10 @@ More examples:
 	cmd.Flags().Bool(flag.SkipVerify, false, flag.SkipVerifyUsage)
 	cmd.Flags().BoolP(flag.AddActive, flag.AddActiveShort, false, flag.AddActiveUsage)
 
-	cmd.Flags().Bool(flag.IngestHeader, false, flag.IngestHeaderUsage)
-
-	cmd.Flags().Bool(flag.CSVEmptyAsNull, true, flag.CSVEmptyAsNullUsage)
-	cmd.Flags().String(flag.CSVDelim, flag.CSVDelimDefault, flag.CSVDelimUsage)
-	panicOn(cmd.RegisterFlagCompletionFunc(flag.CSVDelim, completeStrings(-1, csv.NamedDelims()...)))
+	addOptionFlag(cmd.Flags(), driver.OptIngestHeader)
+	addOptionFlag(cmd.Flags(), csv.OptEmptyAsNull)
+	addOptionFlag(cmd.Flags(), csv.OptDelim)
+	panicOn(cmd.RegisterFlagCompletionFunc(csv.OptDelim.Flag().Name, completeStrings(-1, csv.NamedDelims()...)))
 
 	return cmd
 }

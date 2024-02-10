@@ -24,8 +24,7 @@ import (
 
 var OptShellCompletionTimeout = options.NewDuration(
 	"shell-completion.timeout",
-	"",
-	0,
+	nil,
 	time.Millisecond*500,
 	"Shell completion timeout",
 	`How long shell completion should wait before giving up. This can become relevant
@@ -35,9 +34,7 @@ tables in a source.`,
 
 var OptShellCompletionLog = options.NewBool(
 	"shell-completion.log",
-	"",
-	false,
-	0,
+	nil,
 	false,
 	"Enable logging of shell completion activity",
 	`Enable logging of shell completion activity. This is really only useful for
@@ -50,9 +47,7 @@ timeout triggers logging of errors.`,
 
 var OptShellCompletionGroupFilter = options.NewBool(
 	"shell-completion.group-filter",
-	"",
-	false,
-	0,
+	nil,
 	true,
 	"Shell completion initial source suggestions from active group only",
 	`When true, shell completion initially suggests only sources within the active

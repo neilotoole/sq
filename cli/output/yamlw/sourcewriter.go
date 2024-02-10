@@ -57,9 +57,11 @@ func (w *sourceWriter) Collection(coll *source.Collection) error {
 		}
 	}
 
-	srcs = coll.Sources()
-	for i := range srcs {
-		srcs[i].Location = srcs[i].RedactedLocation()
+	if w.pr.Redact {
+		srcs = coll.Sources()
+		for i := range srcs {
+			srcs[i].Location = srcs[i].RedactedLocation()
+		}
 	}
 
 	// HACK: we set the activeHandle back, even though that
@@ -77,7 +79,9 @@ func (w *sourceWriter) Source(_ *source.Collection, src *source.Source) error {
 	}
 
 	src = src.Clone()
-	src.Location = src.RedactedLocation()
+	if w.pr.Redact {
+		src.Location = src.RedactedLocation()
+	}
 	return writeYAML(w.out, w.p, src)
 }
 
@@ -100,7 +104,9 @@ func (w *sourceWriter) Removed(srcs ...*source.Source) error {
 	srcs2 := make([]*source.Source, len(srcs))
 	for i := range srcs {
 		srcs2[i] = srcs[i].Clone()
-		srcs2[i].Location = srcs2[i].RedactedLocation()
+		if w.pr.Redact {
+			srcs2[i].Location = srcs2[i].RedactedLocation()
+		}
 	}
 	return writeYAML(w.out, w.p, srcs2)
 }
@@ -111,7 +117,9 @@ func (w *sourceWriter) Group(group *source.Group) error {
 		return nil
 	}
 
-	source.RedactGroup(group)
+	if w.pr.Redact {
+		source.RedactGroup(group)
+	}
 	return writeYAML(w.out, w.p, group)
 }
 
@@ -121,12 +129,16 @@ func (w *sourceWriter) SetActiveGroup(group *source.Group) error {
 		return nil
 	}
 
-	source.RedactGroup(group)
+	if w.pr.Redact {
+		source.RedactGroup(group)
+	}
 	return writeYAML(w.out, w.p, group)
 }
 
 // Groups implements output.SourceWriter.
 func (w *sourceWriter) Groups(tree *source.Group) error {
-	source.RedactGroup(tree)
+	if w.pr.Redact {
+		source.RedactGroup(tree)
+	}
 	return writeYAML(w.out, w.p, tree)
 }

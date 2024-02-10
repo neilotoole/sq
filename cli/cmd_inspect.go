@@ -90,7 +90,7 @@ formats both show extensive detail.`,
 
 	addTextFormatFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
-	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
+	addOptionFlag(cmd.Flags(), OptCompact)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 
 	cmd.Flags().BoolP(flag.InspectOverview, flag.InspectOverviewShort, false, flag.InspectOverviewUsage)
@@ -221,7 +221,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 
 	// This is a bit hacky, but it works... if not "--verbose", then just zap
 	// the DBVars, as we usually don't want to see those
-	if !cmdFlagIsSetTrue(cmd, flag.Verbose) {
+	if !OptVerbose.Get(src.Options) {
 		srcMeta.DBProperties = nil
 	}
 

@@ -152,8 +152,6 @@ type Printing struct {
 
 	// Redact indicates that sensitive fields (such as passwords)
 	// should be redacted (hidden/masked).
-	//
-	// TODO: Redact is not being honored by the writers.
 	Redact bool
 
 	// FormatDatetimeAsNumber indicates that datetime values should be
