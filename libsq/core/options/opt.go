@@ -123,8 +123,7 @@ type BaseOpt struct {
 	tags  []string
 }
 
-// NewBaseOpt returns a new BaseOpt. If flag is empty string, key is
-// used as the flag value.
+// NewBaseOpt returns a new BaseOpt.
 func NewBaseOpt(key string, flag *Flag, usage, help string, tags ...string) BaseOpt {
 	slices.Sort(tags)
 
@@ -210,7 +209,7 @@ func (op BaseOpt) Process(o Options) (Options, error) {
 
 var _ Opt = String{}
 
-// NewString returns an options.String instance. If valid Fn is non-nil, it is
+// NewString returns an options.String instance. If validFn is non-nil, it is
 // called by [String.Process].
 func NewString(key string, flag *Flag, defaultVal string, validFn func(string) error,
 	usage, help string, tags ...string,
