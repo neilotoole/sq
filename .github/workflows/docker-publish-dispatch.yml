@@ -7,6 +7,7 @@ name: Docker Publish (dispatch)
 
 
 
+
 on:
   workflow_call:
 
@@ -26,6 +27,7 @@ env:
   REGISTRY: ghcr.io
   # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
+  IMAGE_FQ_TAG: 'neilotoole/sq:latest'
 
 
 jobs:
@@ -88,7 +90,7 @@ jobs:
           file: packages/docker/alpine.Dockerfile
           context: packages/docker
           push: ${{ github.event_name != 'pull_request' }}
-          tags: latest
+          tags: ${{ env.IMAGE_FQ_TAG }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
           cache-from: type=gha
@@ -103,7 +105,7 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         env:
           # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
-          TAGS: latest
+          TAGS: ${{ env.IMAGE_FQ_TAG }}
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
