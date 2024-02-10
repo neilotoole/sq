@@ -1,32 +1,17 @@
 name: Docker Publish (CI)
 
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
-
+# This workflow publishes ghcr.io/neilotoole/sq as part of the CI process.
+# It is called from the main workflow.
 
 on:
   workflow_call:
 
-  # Allows you to run this workflow manually from the Actions tab
-#  workflow_dispatch:
-#  schedule:
-#    - cron: '25 4 * * *'
-#  push:
-#    branches: [ "master" ]
-#    # Publish semver tags as releases.
-#    tags: [ 'v*.*.*' ]
-#  pull_request:
-#    branches: [ "master" ]
 
 env:
   # Use docker.io for Docker Hub if empty
   REGISTRY: ghcr.io
   # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
-
 
 jobs:
   build:
@@ -52,8 +37,6 @@ jobs:
       - name: Install cosign
         if: github.event_name != 'pull_request'
         uses: sigstore/cosign-installer@v3.3.0
-#        with:
-#          cosign-release: 'v3.1.1'
 
       # Set up BuildKit Docker container builder to be able to build
       # multi-platform images and export cache
@@ -90,7 +73,6 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-#          labels: latest
           platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max

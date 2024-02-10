@@ -1,26 +1,14 @@
 name: Docker Publish (dispatch)
 
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
-
-
+# This workflow publishes ghcr.io/neilotoole/sq:latest using
+# the latest sq release. This workflow is intended for manual
+# execution from the Actions tab, and is not triggered by
+# any events. Ultimately this workflow may be deleted; it was
+# created to facilitate testing of the Docker publishing
+# process.
 
 on:
-  workflow_call:
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-#  schedule:
-#    - cron: '25 4 * * *'
-#  push:
-#    branches: [ "master" ]
-#    # Publish semver tags as releases.
-#    tags: [ 'v*.*.*' ]
-#  pull_request:
-#    branches: [ "master" ]
 
 env:
   # Use docker.io for Docker Hub if empty
@@ -54,8 +42,6 @@ jobs:
       - name: Install cosign
         if: github.event_name != 'pull_request'
         uses: sigstore/cosign-installer@v3.3.0
-#        with:
-#          cosign-release: 'v3.1.1'
 
       # Set up BuildKit Docker container builder to be able to build
       # multi-platform images and export cache
@@ -90,7 +76,7 @@ jobs:
           file: packages/docker/alpine.Dockerfile
           context: packages/docker
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ env.IMAGE_FQ_TAG }}
+          tags: ${{ env.IMAGE_FQ_TAG }} # Explicitly set the tag to push
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
           cache-from: type=gha
@@ -105,7 +91,7 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         env:
           # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
-          TAGS: ${{ env.IMAGE_FQ_TAG }}
+          TAGS: ${{ env.IMAGE_FQ_TAG }} # Explicitly set the tag to sign
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
