@@ -53,6 +53,9 @@ echo "source /etc/bash/bash_completion.sh" >> /etc/bash/bashrc
 mkdir -p /etc/bash_completion.d/
 #mkdir -p "$HOME/.config/bash_completion"
 sq completion bash > /etc/bash_completion.d/sq
+
+
+
 exit
 
 
