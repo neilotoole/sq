@@ -17,6 +17,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/google/renameio"
+
 	"github.com/a8m/tree"
 	"github.com/a8m/tree/ostree"
 	yaml "github.com/goccy/go-yaml"
@@ -695,6 +697,11 @@ func WriteToFile(ctx context.Context, fp string, r io.Reader) (written int64, er
 	}
 
 	return written, errz.Err(err)
+}
+
+// WriteFileAtomic writes data to fp atomically.
+func WriteFileAtomic(fp string, data []byte, perm os.FileMode) error {
+	return errz.Err(renameio.WriteFile(fp, data, perm))
 }
 
 // WriteErrorCloser supplements io.WriteCloser with an Error method, indicating

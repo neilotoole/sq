@@ -201,9 +201,7 @@ func (fs *Store) write(ctx context.Context, data []byte) error {
 		return errz.Wrapf(err, "failed to make parent dir of config file: %s", filepath.Dir(fs.Path))
 	}
 
-	// FIXME: Store.Save should do a two-step atomic write of the file.
-
-	if err := os.WriteFile(fs.Path, data, ioz.RWPerms); err != nil {
+	if err := ioz.WriteFileAtomic(fs.Path, data, ioz.RWPerms); err != nil {
 		return errz.Wrap(err, "failed to save config file")
 	}
 
