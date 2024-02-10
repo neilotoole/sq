@@ -3,6 +3,7 @@
 package yamlstore
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -126,21 +127,21 @@ func (fs *Store) Load(ctx context.Context) (*config.Config, error) {
 }
 
 func (fs *Store) doLoad(ctx context.Context) (*config.Config, error) {
-	bytes, err := os.ReadFile(fs.Path)
+	data, err := os.ReadFile(fs.Path)
 	if err != nil {
 		return nil, errz.Wrapf(err, "config: failed to load file: %s", fs.Path)
 	}
 
 	loadHookFn := fs.HookLoad
 	if loadHookFn != nil {
-		bytes, err = loadHookFn(bytes)
+		data, err = loadHookFn(data)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	cfg := config.New()
-	if err = ioz.UnmarshallYAML(bytes, cfg); err != nil {
+	if err = ioz.UnmarshallYAML(data, cfg); err != nil {
 		return nil, errz.Wrapf(err, "config: %s: failed to unmarshal config YAML", fs.Path)
 	}
 
@@ -201,7 +202,7 @@ func (fs *Store) write(ctx context.Context, data []byte) error {
 		return errz.Wrapf(err, "failed to make parent dir of config file: %s", filepath.Dir(fs.Path))
 	}
 
-	if err := ioz.WriteFileAtomic(fs.Path, data, ioz.RWPerms); err != nil {
+	if err := ioz.WriteFileAtomic(fs.Path, bytes.NewReader(data)); err != nil {
 		return errz.Wrap(err, "failed to save config file")
 	}
 
