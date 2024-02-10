@@ -23,6 +23,7 @@ cat << EOF >> ~/.zshrc
 
 alias lsa="ls -AF -h --color=always -v --author --time-style=long-iso"
 alias ll="ls -lAF -h --color=always -v --author --time-style=long-iso"
+
 EOF
 
 
