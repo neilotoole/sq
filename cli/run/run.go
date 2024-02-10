@@ -126,7 +126,7 @@ func (ru *Run) Close() error {
 	return errz.Wrap(ru.Cleanup.Run(), "close run")
 }
 
-// DB is a convenience method that gets the sqlz.DB and driver.SQLDriver\
+// DB is a convenience method that gets the sqlz.DB and driver.SQLDriver
 // for src.
 func (ru *Run) DB(ctx context.Context, src *source.Source) (sqlz.DB, driver.SQLDriver, error) {
 	grip, err := ru.Grips.Open(ctx, src)
