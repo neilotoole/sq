@@ -38,9 +38,7 @@ import (
 var (
 	OptPrintHeader = options.NewBool(
 		"header",
-		"",
-		false,
-		0,
+		nil,
 		true,
 		"Print header row",
 		`Controls whether a header row is printed. This applies only to certain formats,
@@ -50,8 +48,7 @@ such as "text" or "csv".`,
 
 	OptFormat = format.NewOpt(
 		"format",
-		"format",
-		'f',
+		&options.Flag{Short: 'f'},
 		format.Text,
 		nil,
 		"Specify output format",
@@ -66,8 +63,7 @@ command, sq falls back to "text". Available formats:
 
 	OptErrorFormat = format.NewOpt(
 		"error.format",
-		"",
-		0,
+		nil,
 		format.Text,
 		func(f format.Format) error {
 			if f == format.Text || f == format.JSON {
@@ -80,11 +76,19 @@ command, sq falls back to "text". Available formats:
 		fmt.Sprintf(`The format to output errors in. Allowed formats are %q or %q.`, format.Text, format.JSON),
 	)
 
+	OptErrorStack = options.NewBool(
+		"error.stack",
+		&options.Flag{Short: 'E'},
+		false,
+		"Print error stack trace to stderr",
+		`Print error stack trace to stderr. This only applies when error.format is
+"text"; when error.format is "json", the stack trace is always printed.`,
+		options.TagOutput,
+	)
+
 	OptVerbose = options.NewBool(
 		"verbose",
-		"",
-		false,
-		'v',
+		&options.Flag{Short: 'v'},
 		false,
 		"Print verbose output",
 		`Print verbose output.`,
@@ -93,9 +97,7 @@ command, sq falls back to "text". Available formats:
 
 	OptMonochrome = options.NewBool(
 		"monochrome",
-		"",
-		false,
-		'M',
+		&options.Flag{Short: 'M'},
 		false,
 		"Don't print color output",
 		`Don't print color output.`,
@@ -104,9 +106,11 @@ command, sq falls back to "text". Available formats:
 
 	OptRedact = options.NewBool(
 		"redact",
-		"no-redact",
-		true,
-		0,
+		&options.Flag{
+			Name:   "no-redact",
+			Invert: true,
+			Usage:  "Don't redact passwords in output",
+		},
 		true,
 		"Redact passwords in output",
 		`Redact passwords in output.`,
@@ -115,19 +119,20 @@ command, sq falls back to "text". Available formats:
 
 	OptProgress = options.NewBool(
 		"progress",
-		"no-progress",
+		&options.Flag{
+			Name:   "no-progress",
+			Invert: true,
+			Usage:  "Don't show progress bar",
+		},
 		true,
-		0,
-		true,
-		"Progress bar for long-running operations",
-		`Progress bar for long-running operations.`,
+		"Show progress bar for long-running operations",
+		`Show progress bar for long-running operations.`,
 		options.TagOutput,
 	)
 
 	OptProgressDelay = options.NewDuration(
 		"progress.delay",
-		"",
-		0,
+		nil,
 		time.Second*2,
 		"Progress bar render delay",
 		`Delay before showing a progress bar.`,
@@ -135,8 +140,7 @@ command, sq falls back to "text". Available formats:
 
 	OptDebugTrackMemory = options.NewDuration(
 		"debug.stats.frequency",
-		"",
-		0,
+		nil,
 		0,
 		"Memory usage sampling interval.",
 		`Memory usage sampling interval. If non-zero, peak memory usage is periodically
@@ -145,9 +149,7 @@ sampled, and reported on exit. If zero, memory usage sampling is disabled.`,
 
 	OptCompact = options.NewBool(
 		"compact",
-		"",
-		false,
-		'c',
+		&options.Flag{Short: 'c'},
 		false,
 		"Compact instead of pretty-printed output",
 		`Compact instead of pretty-printed output.`,
@@ -156,8 +158,7 @@ sampled, and reported on exit. If zero, memory usage sampling is disabled.`,
 
 	OptTuningFlushThreshold = options.NewInt(
 		"tuning.flush-threshold",
-		"",
-		0,
+		nil,
 		1000,
 		"Output writer buffer flush threshold in bytes",
 		`Size in bytes after which output writers should flush any internal buffer.
@@ -171,8 +172,7 @@ Generally, it is not necessary to fiddle this knob.`,
 
 	OptDatetimeFormat = options.NewString(
 		"format.datetime",
-		"",
-		0,
+		nil,
 		"RFC3339",
 		nil,
 		"Timestamp format: constant such as RFC3339 or a strftime format",
@@ -185,9 +185,7 @@ Generally, it is not necessary to fiddle this knob.`,
 
 	OptDatetimeFormatAsNumber = options.NewBool(
 		"format.datetime.number",
-		"",
-		false,
-		0,
+		nil,
 		true,
 		"Render numeric datetime value as number instead of string",
 		`Render numeric datetime value as number instead of string, if possible. If
@@ -207,8 +205,7 @@ is not an integer.
 
 	OptDateFormat = options.NewString(
 		"format.date",
-		"",
-		0,
+		nil,
 		"DateOnly",
 		nil,
 		"Date format: constant such as DateOnly or a strftime format",
@@ -223,9 +220,7 @@ situation, use format.datetime instead.
 
 	OptDateFormatAsNumber = options.NewBool(
 		"format.date.number",
-		"",
-		false,
-		0,
+		nil,
 		true,
 		"Render numeric date value as number instead of string",
 		`Render numeric date value as number instead of string, if possible. If
@@ -244,8 +239,7 @@ that this option is no-op if the rendered value is not an integer.
 
 	OptTimeFormat = options.NewString(
 		"format.time",
-		"",
-		0,
+		nil,
 		"TimeOnly",
 		nil,
 		"Time format: constant such as TimeOnly or a strftime format",
@@ -260,13 +254,10 @@ situation, use format.datetime instead.
 
 	OptTimeFormatAsNumber = options.NewBool(
 		"format.time.number",
-		"",
-		false,
-		0,
+		nil,
 		true,
 		"Render numeric time value as number instead of string",
-		`
-Render numeric time value as number instead of string, if possible. If format.time
+		`Render numeric time value as number instead of string, if possible. If format.time
 renders a numeric value (e.g. "59"), that value is typically rendered as a string.
 For some output formats, such as JSON, it can be useful to instead render the
 value as a naked number instead of a string. Note that this option is no-op if
@@ -304,7 +295,7 @@ func newWriters(cmd *cobra.Command, clnup *cleanup.Cleanup, o options.Options,
 		Metadata:    tablew.NewMetadataWriter(outCfg.out, outCfg.outPr),
 		Source:      tablew.NewSourceWriter(outCfg.out, outCfg.outPr),
 		Ping:        tablew.NewPingWriter(outCfg.out, outCfg.outPr),
-		Error:       tablew.NewErrorWriter(outCfg.errOut, outCfg.errOutPr),
+		Error:       tablew.NewErrorWriter(outCfg.errOut, outCfg.errOutPr, OptErrorStack.Get(o)),
 		Version:     tablew.NewVersionWriter(outCfg.out, outCfg.outPr),
 		Config:      tablew.NewConfigWriter(outCfg.out, outCfg.outPr),
 	}

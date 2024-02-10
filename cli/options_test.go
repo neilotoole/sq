@@ -11,15 +11,12 @@ import (
 )
 
 func TestRegisterDefaultOpts(t *testing.T) {
-	log := lgt.New(t)
 	reg := &options.Registry{}
-
-	log.Debug("options.Registry (before)", "reg", reg)
 	cli.RegisterDefaultOpts(reg)
-	log.Debug("options.Registry (after)", "reg", reg)
+	lgt.New(t).Debug("options.Registry (after)", "reg", reg)
 
 	keys := reg.Keys()
-	require.Len(t, keys, 53)
+	require.Len(t, keys, 54)
 
 	for _, opt := range reg.Opts() {
 		opt := opt
@@ -30,7 +27,8 @@ func TestRegisterDefaultOpts(t *testing.T) {
 			require.NotNil(t, opt.DefaultAny())
 			require.Equal(t, opt.GetAny(nil), opt.DefaultAny())
 			require.NotEmpty(t, opt.Usage())
-			require.True(t, opt.Short() >= 0)
+			require.NotEmpty(t, opt.Flag().Usage)
+			require.True(t, opt.Flag().Short >= 0)
 			require.Equal(t, opt.Key(), opt.String())
 			require.NotEmpty(t, opt.Help())
 		})

@@ -26,9 +26,7 @@ import (
 // or as the zero value for the kind of that field.
 var OptEmptyAsNull = options.NewBool(
 	"driver.csv.empty-as-null",
-	"",
-	false,
-	0,
+	nil,
 	true,
 	"Treat ingest empty CSV fields as NULL",
 	`When true, empty CSV fields are treated as NULL. When false,
@@ -41,8 +39,7 @@ the zero value for that type is used, e.g. empty string or 0.`,
 // OptDelim specifies the CSV delimiter to use.
 var OptDelim = options.NewString(
 	"driver.csv.delim",
-	"",
-	0,
+	nil,
 	delimCommaKey,
 	nil,
 	"Delimiter for ingest CSV data",

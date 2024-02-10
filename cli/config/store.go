@@ -75,8 +75,7 @@ func (DiscardStore) Location() string {
 // OptConfigLockTimeout is the time allowed to acquire the config lock.
 var OptConfigLockTimeout = options.NewDuration(
 	"config.lock.timeout",
-	"",
-	0,
+	nil,
 	time.Second*5,
 	"Wait timeout to acquire config lock",
 	`Wait timeout to acquire the config lock (which prevents multiple sq instances

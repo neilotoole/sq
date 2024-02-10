@@ -122,7 +122,7 @@ func TestCmdSQL_SelectFromUserDriver(t *testing.T) {
 func TestCmdSQL_StdinQuery(t *testing.T) {
 	t.Parallel()
 
-	flagIngestHeader := driver.OptIngestHeader.Flag()
+	flagIngestHeader := driver.OptIngestHeader.Flag().Name
 
 	testCases := []struct {
 		fpath     string

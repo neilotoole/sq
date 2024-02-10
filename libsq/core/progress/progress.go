@@ -464,8 +464,7 @@ func barRenderDelay(b *Bar, d time.Duration) <-chan struct{} {
 // progress impl is stable.
 var OptDebugSleep = options.NewDuration(
 	"debug.progress.sleep",
-	"",
-	0,
+	nil,
 	0,
 	"DEBUG: Sleep during operations to facilitate testing progress bars",
 	`DEBUG: Sleep during operations to facilitate testing progress bars.`,

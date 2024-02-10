@@ -14,8 +14,7 @@ var (
 	// OptDatetimeFormat is Excel's custom datetime format string.
 	OptDatetimeFormat = options.NewString(
 		"format.excel.datetime",
-		"",
-		0,
+		nil,
 		"yyyy-mm-dd hh:mm",
 		func(s string) error {
 			err := validateDatetimeFormatString(s)
@@ -38,8 +37,7 @@ Examples:
 	// OptDateFormat is Excel's custom date-only format string.
 	OptDateFormat = options.NewString(
 		"format.excel.date",
-		"",
-		0,
+		nil,
 		"yyyy-mm-dd",
 		func(s string) error {
 			err := validateDatetimeFormatString(s)
@@ -60,8 +58,7 @@ Examples:
 	// OptTimeFormat is Excel's custom time format string.
 	OptTimeFormat = options.NewString(
 		"format.excel.time",
-		"",
-		0,
+		nil,
 		"hh:mm:ss",
 		func(s string) error {
 			err := validateDatetimeFormatString(s)

@@ -46,18 +46,13 @@ type Opt interface {
 	// Key returns the Opt key, such as "ping.timeout".
 	Key() string
 
-	// Flag is the long flag name to use, which is typically the same value
-	// as returned by Opt.Key. However, a distinct value can be supplied, such
-	// that flag usage and config usage have different keys. For example,
-	// an Opt might have a key "diff.num-lines", but a flag "lines".
-	Flag() string
-
-	// Short is the short key. The zero value indicates no short key.
-	// For example, if the key is "json", the short key could be 'j'.
-	Short() rune
+	// Flag is the computed flag config for the Opt.
+	Flag() Flag
 
 	// Usage is a one-line description of the Opt. Additional detail can be
-	// found in Help.
+	// found in Help. It is typically the case that [Flag.Usage] is the same value
+	// as Usage, but it can be overridden if the flag usage text should differ
+	// from the Opt usage text.
 	Usage() string
 
 	// Help returns the Opt's help text, which typically provides more detail
@@ -93,34 +88,63 @@ type Opt interface {
 	Process(o Options) (Options, error)
 }
 
+// Flag describe an Opt's behavior as a command-line flag. It can be passed to
+// the "NewX" Opt constructor functions, e.g. [NewBool], to override the Opt's
+// flag configuration. The computed Flag value is available via Opt.Flag.
+// It is common to pass a nil *Flag to the Opt constructors; the value returned
+// by Opt.Flag will be appropriately populated with default values.
+type Flag struct {
+	// Name is the flag name to use. Defaults to [Opt.Key].
+	Name string
+
+	// Usage is the flag's usage text. Defaults to [Opt.Usage], but can be
+	// overridden if the flag usage text should differ from the [Opt] usage text.
+	// This is typically only the case when [Flag.Invert] is true.
+	Usage string
+
+	// Short is the short flag name, e.g. 'v' for "verbose". The zero value
+	// indicates no short name.
+	Short rune
+
+	// Invert indicates that the flag's boolean value is inverted vs the flag
+	// name. For example, if [Opt.Key] is "progress", but [Flag.Name] is
+	// "no-progress", then [Flag.Invert] should be true. This field is ignored for
+	// non-boolean [Opt] types.
+	Invert bool
+}
+
 // BaseOpt is a partial implementation of options.Opt that concrete
 // types can build on.
 type BaseOpt struct {
+	flag  Flag
 	key   string
-	flag  string
 	usage string
 	help  string
 	tags  []string
-	short rune
 }
 
-// NewBaseOpt returns a new BaseOpt. If flag is empty string, key is
-// used as the flag value.
-func NewBaseOpt(key, flag string, short rune, usage, help string, tags ...string) BaseOpt {
-	if flag == "" {
-		flag = key
-	}
-
+// NewBaseOpt returns a new BaseOpt.
+func NewBaseOpt(key string, flag *Flag, usage, help string, tags ...string) BaseOpt {
 	slices.Sort(tags)
 
-	return BaseOpt{
+	opt := BaseOpt{
 		key:   key,
-		flag:  flag,
-		short: short,
 		usage: usage,
 		help:  help,
 		tags:  tags,
 	}
+
+	if flag != nil {
+		opt.flag = *flag
+	}
+	if opt.flag.Name == "" {
+		opt.flag.Name = key
+	}
+	if opt.flag.Usage == "" {
+		opt.flag.Usage = usage
+	}
+
+	return opt
 }
 
 // Key implements options.Opt.
@@ -129,13 +153,8 @@ func (op BaseOpt) Key() string {
 }
 
 // Flag implements options.Opt.
-func (op BaseOpt) Flag() string {
+func (op BaseOpt) Flag() Flag {
 	return op.flag
-}
-
-// Short implements options.Opt.
-func (op BaseOpt) Short() rune {
-	return op.short
 }
 
 // Usage implements options.Opt.
@@ -190,16 +209,16 @@ func (op BaseOpt) Process(o Options) (Options, error) {
 
 var _ Opt = String{}
 
-// NewString returns an options.String instance. If flag is empty, the
-// value of key is used. If valid Fn is non-nil, it is called from
-// the process function.
-//
-//nolint:revive
-func NewString(key, flag string, short rune, defaultVal string,
-	validFn func(string) error, usage, help string, tags ...string,
+// NewString returns an options.String instance. If validFn is non-nil, it is
+// called by [String.Process].
+func NewString(key string, flag *Flag, defaultVal string, validFn func(string) error,
+	usage, help string, tags ...string,
 ) String {
+	if flag == nil {
+		flag = &Flag{}
+	}
 	return String{
-		BaseOpt:    NewBaseOpt(key, flag, short, usage, help, tags...),
+		BaseOpt:    NewBaseOpt(key, flag, usage, help, tags...),
 		defaultVal: defaultVal,
 		validFn:    validFn,
 	}
@@ -275,11 +294,14 @@ func (op String) Process(o Options) (Options, error) {
 
 var _ Opt = Int{}
 
-// NewInt returns an options.Int instance. If flag is empty, the
-// value of key is used.
-func NewInt(key, flag string, short rune, defaultVal int, usage, help string, tags ...string) Int {
+// NewInt returns an options.Int instance.
+func NewInt(key string, flag *Flag, defaultVal int, usage, help string, tags ...string) Int {
+	if flag == nil {
+		flag = &Flag{}
+	}
+
 	return Int{
-		BaseOpt:    NewBaseOpt(key, flag, short, usage, help, tags...),
+		BaseOpt:    NewBaseOpt(key, flag, usage, help, tags...),
 		defaultVal: defaultVal,
 	}
 }
@@ -403,32 +425,25 @@ func (op Int) Process(o Options) (Options, error) {
 
 var _ Opt = Bool{}
 
-// NewBool returns an options.Bool instance. If flag is empty, the value
-// of key is used. If invertFlag is true, the flag's boolean value
-// is inverted to set the option. For example, if the Opt is "progress",
-// and the flag is "--no-progress", then invertFlag should be true.
-func NewBool(key, flag string, invertFlag bool, short rune, //nolint:revive
-	defaultVal bool, usage, help string, tags ...string,
-) Bool {
+// NewBool returns an options.Bool instance. If arg flag is non-nil and
+// [Flag.Invert] is true, the flag's boolean value is inverted to set the option.
+// For example, if [Opt.Key] is progress, and [Flag.Name] is "--no-progress",
+// then [Flag.Invert] should be true.
+func NewBool(key string, flag *Flag, defaultVal bool, usage, help string, tags ...string) Bool {
+	if flag == nil {
+		flag = &Flag{}
+	}
+
 	return Bool{
-		BaseOpt:      NewBaseOpt(key, flag, short, usage, help, tags...),
-		defaultVal:   defaultVal,
-		flagInverted: invertFlag,
+		BaseOpt:    NewBaseOpt(key, flag, usage, help, tags...),
+		defaultVal: defaultVal,
 	}
 }
 
 // Bool is an options.Opt for type bool.
 type Bool struct {
 	BaseOpt
-	defaultVal   bool
-	flagInverted bool
-}
-
-// FlagInverted returns true Opt value is the inverse of the flag value.
-// For example, if the Opt is "progress", and the flag is "--no-progress",
-// then FlagInverted will return true.
-func (op Bool) FlagInverted() bool {
-	return op.flagInverted
+	defaultVal bool
 }
 
 // GetAny implements options.Opt.
@@ -519,13 +534,16 @@ func (op Bool) Process(o Options) (Options, error) {
 
 var _ Opt = Duration{}
 
-// NewDuration returns an options.Duration instance. If flag is empty, the
-// value of key is used.
-func NewDuration(key, flag string, short rune, defaultVal time.Duration,
+// NewDuration returns an options.Duration instance.
+func NewDuration(key string, flag *Flag, defaultVal time.Duration,
 	usage, help string, tags ...string,
 ) Duration {
+	if flag == nil {
+		flag = &Flag{}
+	}
+
 	return Duration{
-		BaseOpt:    NewBaseOpt(key, flag, short, usage, help, tags...),
+		BaseOpt:    NewBaseOpt(key, flag, usage, help, tags...),
 		defaultVal: defaultVal,
 	}
 }

@@ -33,9 +33,7 @@ import (
 
 var OptContinueOnError = options.NewBool(
 	"download.refresh.ok-on-err",
-	"",
-	false,
-	0,
+	nil,
 	true,
 	"Continue with stale download if refresh fails",
 	`Continue with stale download if refresh fails. This option applies if a download
@@ -48,9 +46,7 @@ download when the network is unavailable. If false, an error is returned instead
 
 var OptCache = options.NewBool(
 	"download.cache",
-	"",
-	false,
-	0,
+	nil,
 	true,
 	"Cache downloads",
 	`Cache downloaded remote files. When false, the download cache is not used and

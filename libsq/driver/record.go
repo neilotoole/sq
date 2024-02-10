@@ -602,8 +602,7 @@ func mungeSetZeroValue(i int, rec []any, destMeta record.Meta) {
 // OptResultColRename transforms a column name returned from the DB.
 var OptResultColRename = options.NewString(
 	"result.column.rename",
-	"",
-	0,
+	nil,
 	"{{.Name}}{{with .Recurrence}}_{{.}}{{end}}",
 	func(s string) error {
 		return stringz.ValidTemplate("result.column.rename", s)

@@ -325,12 +325,12 @@ func addTextFormatFlags(cmd *cobra.Command) {
 func addQueryCmdFlags(cmd *cobra.Command) {
 	addOptionFlag(cmd.Flags(), OptFormat)
 	panicOn(cmd.RegisterFlagCompletionFunc(
-		OptFormat.Flag(),
+		OptFormat.Flag().Name,
 		completeStrings(-1, stringz.Strings(format.All())...),
 	))
 	addResultFormatFlags(cmd)
 	cmd.MarkFlagsMutuallyExclusive(append(
-		[]string{OptFormat.Flag()},
+		[]string{OptFormat.Flag().Name},
 		flag.OutputFormatFlags...,
 	)...)
 

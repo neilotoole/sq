@@ -12,9 +12,7 @@ import (
 // If not set, the ingester *may* try to detect if the input has a header.
 var OptIngestHeader = options.NewBool(
 	"ingest.header",
-	"",
-	false,
-	0,
+	nil,
 	false,
 	"Ingest data has a header row",
 	`Specifies whether ingested data has a header row or not.
@@ -28,9 +26,11 @@ to detect the header.`,
 // OptIngestCache specifies whether ingested data is cached or not.
 var OptIngestCache = options.NewBool(
 	"ingest.cache",
-	"no-cache",
-	true,
-	0,
+	&options.Flag{
+		Name:   "no-cache",
+		Invert: true,
+		Usage:  "Don't cache ingest data",
+	},
 	true,
 	"Cache ingest data",
 	`Specifies whether ingested data is cached or not, on a default or per-source
@@ -43,8 +43,7 @@ ingested each time.
   $ sq config set ingest.cache false
 
   # Set ingest caching behavior for a specific source
-  $ sq config set --src @sakila ingest.cache false
-`,
+  $ sq config set --src @sakila ingest.cache false`,
 	options.TagSource,
 )
 
@@ -52,8 +51,7 @@ ingested each time.
 // should take to determine ingest data type.
 var OptIngestSampleSize = options.NewInt(
 	"ingest.sample-size",
-	"",
-	0,
+	nil,
 	256,
 	"Ingest data sample size for type detection",
 	`Specify the number of samples that a detector should take to determine type.`,
@@ -64,8 +62,7 @@ var OptIngestSampleSize = options.NewInt(
 // OptIngestColRename transforms a column name in ingested data.
 var OptIngestColRename = options.NewString(
 	"ingest.column.rename",
-	"",
-	0,
+	nil,
 	"{{.Name}}{{with .Recurrence}}_{{.}}{{end}}",
 	func(s string) error {
 		return stringz.ValidTemplate("ingest.column.rename", s)

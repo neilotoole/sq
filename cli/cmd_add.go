@@ -26,7 +26,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source/location"
 )
 
-func newSrcAddCmd() *cobra.Command { //nolint:funlen
+func newSrcAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "add [--handle @HANDLE] LOCATION",
 		RunE:              execSrcAdd,
@@ -172,12 +172,9 @@ More examples:
 	cmd.Flags().BoolP(flag.AddActive, flag.AddActiveShort, false, flag.AddActiveUsage)
 
 	addOptionFlag(cmd.Flags(), driver.OptIngestHeader)
-	// cmd.Flags().Bool(flag.IngestHeader, false, flag.IngestHeaderUsage)
 	addOptionFlag(cmd.Flags(), csv.OptEmptyAsNull)
 	addOptionFlag(cmd.Flags(), csv.OptDelim)
-	// cmd.Flags().Bool(flag.CSVEmptyAsNull, true, flag.CSVEmptyAsNullUsage)
-	// cmd.Flags().String(flag.CSVDelim, flag.CSVDelimDefault, flag.CSVDelimUsage)
-	panicOn(cmd.RegisterFlagCompletionFunc(csv.OptDelim.Flag(), completeStrings(-1, csv.NamedDelims()...)))
+	panicOn(cmd.RegisterFlagCompletionFunc(csv.OptDelim.Flag().Name, completeStrings(-1, csv.NamedDelims()...)))
 
 	return cmd
 }

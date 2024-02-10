@@ -30,7 +30,7 @@ import (
 func getOptionsFromFlags(flags *pflag.FlagSet, reg *options.Registry) (options.Options, error) {
 	o := options.Options{}
 	err := reg.Visit(func(opt options.Opt) error {
-		f := flags.Lookup(opt.Flag())
+		f := flags.Lookup(opt.Flag().Name)
 		if f == nil {
 			return nil
 		}
@@ -47,12 +47,12 @@ func getOptionsFromFlags(flags *pflag.FlagSet, reg *options.Registry) (options.O
 		if bOpt, ok := opt.(options.Bool); ok {
 			// Special handling for bool, because
 			// the flag value could be inverted.
-			val, err := flags.GetBool(bOpt.Flag())
+			val, err := flags.GetBool(bOpt.Flag().Name)
 			if err != nil {
 				return errz.Err(err)
 			}
 
-			if bOpt.FlagInverted() {
+			if bOpt.Flag().Invert {
 				val = !val
 			}
 			o[bOpt.Key()] = val
@@ -154,6 +154,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 	reg.Add(
 		OptFormat,
 		OptErrorFormat,
+		OptErrorStack,
 		OptDatetimeFormat,
 		OptDatetimeFormatAsNumber,
 		OptDateFormat,
@@ -242,36 +243,37 @@ func filterOptionsForSrc(typ drivertype.Type, opts ...options.Opt) []options.Opt
 // addOptionFlag adds a flag derived from opt to flags, returning the
 // flag name used.
 func addOptionFlag(flags *pflag.FlagSet, opt options.Opt) (key string) {
-	key = opt.Flag()
+	flg := opt.Flag()
+	key = flg.Name
 
 	switch opt := opt.(type) {
 	case options.Int:
-		if opt.Short() == 0 {
-			flags.Int(key, opt.Default(), opt.Usage())
+		if flg.Short == 0 {
+			flags.Int(key, opt.Default(), flg.Usage)
 			return key
 		}
 
-		flags.IntP(key, string(opt.Short()), opt.Default(), opt.Usage())
+		flags.IntP(key, string(flg.Short), opt.Default(), flg.Usage)
 		return key
 	case options.Bool:
 		defVal := opt.Default()
-		if opt.FlagInverted() {
+		if flg.Invert {
 			defVal = !defVal
 		}
-		if opt.Short() == 0 {
-			flags.Bool(key, defVal, opt.Usage())
+		if flg.Short == 0 {
+			flags.Bool(key, defVal, flg.Usage)
 			return key
 		}
 
-		flags.BoolP(key, string(opt.Short()), defVal, opt.Usage())
+		flags.BoolP(key, string(flg.Short), defVal, flg.Usage)
 		return key
 	case options.Duration:
-		if opt.Short() == 0 {
-			flags.Duration(key, opt.Default(), opt.Usage())
+		if flg.Short == 0 {
+			flags.Duration(key, opt.Default(), flg.Usage)
 			return key
 		}
 
-		flags.DurationP(key, string(opt.Short()), opt.Get(nil), opt.Usage())
+		flags.DurationP(key, string(flg.Short), opt.Get(nil), flg.Usage)
 	default:
 		// Treat as string
 	}
@@ -281,12 +283,12 @@ func addOptionFlag(flags *pflag.FlagSet, opt options.Opt) (key string) {
 		defVal = fmt.Sprintf("%v", v)
 	}
 
-	if opt.Short() == 0 {
-		flags.String(key, defVal, opt.Usage())
+	if flg.Short == 0 {
+		flags.String(key, defVal, flg.Usage)
 		return key
 	}
 
-	flags.StringP(key, string(opt.Short()), defVal, opt.Usage())
+	flags.StringP(key, string(flg.Short), defVal, flg.Usage)
 	return key
 }
 

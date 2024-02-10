@@ -28,9 +28,7 @@ import (
 var (
 	OptLogEnabled = options.NewBool(
 		"log",
-		"",
-		false,
-		0,
+		nil,
 		false,
 		"Enable logging",
 		"Enable logging.",
@@ -38,8 +36,7 @@ var (
 
 	OptLogFile = options.NewString(
 		"log.file",
-		"",
-		0,
+		nil,
 		getDefaultLogFilePath(),
 		nil,
 		"Log file path",
@@ -55,8 +52,7 @@ var (
 
 	OptLogFormat = format.NewOpt(
 		"log.format",
-		"",
-		0,
+		nil,
 		format.Text,
 		func(f format.Format) error {
 			if f == format.Text || f == format.JSON {
@@ -65,7 +61,7 @@ var (
 
 			return errz.Errorf("option {log.format} allows only %q or %q", format.Text, format.JSON)
 		},
-		"Log output format",
+		"Log output format (text or json)",
 		fmt.Sprintf(
 			`Log output format. Allowed formats are %q (human-friendly) or %q.`, format.Text, format.JSON),
 	)
@@ -216,7 +212,7 @@ func getLogEnabled(ctx context.Context, osArgs []string, cfg *config.Config) boo
 	bootLog := lg.FromContext(ctx)
 	var enabled bool
 
-	flg := OptLogEnabled.Flag()
+	flg := OptLogEnabled.Flag().Name
 	val, ok, err := getBootstrapFlagValue(flg, "", OptLogEnabled.Usage(), osArgs)
 	if err != nil {
 		bootLog.Warn("Reading log 'enabled' from flag", lga.Flag, flg, lga.Err, err)
@@ -275,7 +271,7 @@ func getLogEnabled(ctx context.Context, osArgs []string, cfg *config.Config) boo
 func getLogLevel(ctx context.Context, osArgs []string, cfg *config.Config) slog.Level {
 	bootLog := lg.FromContext(ctx)
 
-	flg := OptLogLevel.Flag()
+	flg := OptLogLevel.Flag().Name
 	val, ok, err := getBootstrapFlagValue(flg, "", OptLogLevel.Usage(), osArgs)
 	if err != nil {
 		bootLog.Warn("Reading log level from flag", lga.Flag, flg, lga.Err, err)
@@ -320,7 +316,7 @@ func getLogLevel(ctx context.Context, osArgs []string, cfg *config.Config) slog.
 func getLogFormat(ctx context.Context, osArgs []string, cfg *config.Config) format.Format {
 	bootLog := lg.FromContext(ctx)
 
-	flg := OptLogFormat.Flag()
+	flg := OptLogFormat.Flag().Name
 	val, ok, err := getBootstrapFlagValue(flg, "", OptLogFormat.Usage(), osArgs)
 	if err != nil {
 		bootLog.Warn("Error reading log format from flag", lga.Flag, flg, lga.Err, err)
@@ -373,7 +369,7 @@ func getLogFormat(ctx context.Context, osArgs []string, cfg *config.Config) form
 func getLogFilePath(ctx context.Context, osArgs []string, cfg *config.Config) string {
 	bootLog := lg.FromContext(ctx)
 
-	flg := OptLogFile.Flag()
+	flg := OptLogFile.Flag().Name
 	fp, ok, err := getBootstrapFlagValue(flg, "", OptLogFile.Usage(), osArgs)
 	if err != nil {
 		bootLog.Warn("Reading log file from flag", lga.Flag, flg, lga.Err, err)
@@ -426,7 +422,7 @@ var _ options.Opt = LogLevelOpt{}
 
 // NewLogLevelOpt returns a new LogLevelOpt instance.
 func NewLogLevelOpt(key string, defaultVal slog.Level, usage, help string) LogLevelOpt {
-	opt := options.NewBaseOpt(key, "", 0, usage, help)
+	opt := options.NewBaseOpt(key, nil, usage, help)
 	return LogLevelOpt{BaseOpt: opt, defaultVal: defaultVal}
 }
 
