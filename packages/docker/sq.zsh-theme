@@ -1,10 +1,3 @@
-# PROMPT+=' $(git_prompt_info)'
-
-# ZSH_THEME_GIT_PROMPT_PREFIX="%{$fg_bold[blue]%}git:(%{$fg[red]%}"
-# ZSH_THEME_GIT_PROMPT_SUFFIX="%{$reset_color%} "
-# ZSH_THEME_GIT_PROMPT_DIRTY="%{$fg[blue]%}) %{$fg[yellow]%}%1{✗%}"
-# ZSH_THEME_GIT_PROMPT_CLEAN="%{$fg[blue]%})"
-
 # git theming
 ZSH_THEME_GIT_PROMPT_PREFIX="%{$reset_color%}%{$fg_no_bold[yellow]%}"
 ZSH_THEME_GIT_PROMPT_SUFFIX="%b%{$fg_bold[gray]%}%{$reset_color%}"
@@ -29,8 +22,15 @@ git_prompt_info () {
 		upstream=$(__git_prompt_git rev-parse --abbrev-ref --symbolic-full-name "@{upstream}" 2>/dev/null)  && upstream=" -> ${upstream}"
 	fi
 
-  # echo $ref
 	echo "${ZSH_THEME_GIT_PROMPT_PREFIX}${ref:gs/%/%%}${upstream:gs/%/%%}$(parse_git_dirty)${ZSH_THEME_GIT_PROMPT_SUFFIX}"
+}
+
+# sq_prompt returns the handle of sq's active source, or empty string.
+function sq_prompt() {
+  handle=`sq src` || true
+  if [[ $handle != "" ]]; then
+    echo "%{$fg_bold[green]%}$handle%{$reset_color%} "
+  fi
 }
 
 
@@ -45,5 +45,4 @@ function check_last_exit_code() {
   fi
 }
 
-# PROMPT="%(?:%{$fg_bold[green]%}%1{➜%} :%{$fg_bold[red]%}%1{➜%} ) %{$fg[cyan]%}%c%{$reset_color%}"
-PROMPT='$(check_last_exit_code)%{$fg[cyan]%}%D{%H:%M:%S}%{$reset_color%} $(git_prompt_info)%{$fg[cyan]%}%24<…<%~%<<%{$reset_color%} %{$fg_bold[cyan]%}%(!.#.$)%{$reset_color%} '
+PROMPT='$(check_last_exit_code)%{$fg[cyan]%}%D{%H:%M:%S}%{$reset_color%} $(git_prompt_info)$(sq_prompt)%{$fg[cyan]%}%24<…<%~%<<%{$reset_color%} %{$fg_bold[cyan]%}%(!.#.$)%{$reset_color%} '

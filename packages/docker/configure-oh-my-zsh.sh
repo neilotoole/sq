@@ -14,8 +14,8 @@ mkdir -p ~/.oh-my-zsh/plugins/sq/
 sq completion zsh > ~/.oh-my-zsh/plugins/sq/_sq
 sed -i /plugins=\(git\)/s/git/'git sq'/g ~/.zshrc
 
-# Disable oh-my-zsh updates, because we don't want the update prompt
-# to ever appear, blocking user work.
+# Disable oh-my-zsh updates, because we don't want the
+# update prompt to ever appear, blocking user work.
 sed -i '/mode disabled/s/^# //g' ~/.zshrc
 
 # Add some useful aliases.

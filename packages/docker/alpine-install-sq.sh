@@ -1,11 +1,6 @@
 #!/usr/bin/env sh
-# This script attempts to install sq via apt, yum, apk, or brew.
-# Parts of the script are inspired by the get-docker.sh
-# script at https://get.docker.com
+# This script attempts to install sq via apk.
 
-
-
-# apk / alpine
 set -e
 printf "Using apk to install sq...\n\n"
 apk update
@@ -46,15 +41,13 @@ apk add --allow-untrusted "$file_path"
 rm "$file_path"
 
 printf "\n"
-sq version
+sq version --yaml
 printf "\n"
+
 source /etc/bash/bash_completion.sh
 echo "source /etc/bash/bash_completion.sh" >> /etc/bash/bashrc
 mkdir -p /etc/bash_completion.d/
-#mkdir -p "$HOME/.config/bash_completion"
 sq completion bash > /etc/bash_completion.d/sq
-
-
 
 exit
 
