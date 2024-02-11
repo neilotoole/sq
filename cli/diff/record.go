@@ -255,10 +255,10 @@ func (rd *recordDiffer) populateRecordDiff(ctx context.Context, recDiff *recordD
 		return errz.New("hunk header not found")
 	}
 
-	//hunkHeader, err = adjustHunkOffset(hunkHeader, recDiff.row)
-	//if err != nil {
-	//	return err
-	//}
+	hunkHeader, err = adjustHunkOffset(hunkHeader, recDiff.row)
+	if err != nil {
+		return err
+	}
 
 	rd.buf.WriteString(hunkHeader)
 	rd.buf.WriteRune('\n')
@@ -371,15 +371,25 @@ func adjustHunkOffset(hunk string, offset int) (string, error) {
 
 	var i1, i2, i3, i4 int
 	count, err := fmt.Fscanf(strings.NewReader(hunk), formatFull, &i1, &i2, &i3, &i4)
-	if err != nil {
-		return "", errz.Err(err)
+	if err == nil {
+		if count != 4 {
+			return "", errz.Errorf("expected 4 values, got %d", count)
+		}
+
+		i1 += offset
+		i3 += offset
+
+		return fmt.Sprintf(formatFull, i1, i2, i3, i4), nil
 	}
-	if count != 4 {
-		return "", errz.Errorf("expected 4 values, got %d", count)
+
+	// Long format didn't work, try the short format.
+	count, err = fmt.Fscanf(strings.NewReader(hunk), formatShort, &i1, &i3)
+	if err != nil {
+		return "", errz.Errorf("failed to parse hunk: %s", hunk)
 	}
 
 	i1 += offset
 	i3 += offset
 
-	return fmt.Sprintf(formatFull, i1, i2, i3, i4), nil
+	return fmt.Sprintf(formatShort, i1, i3), nil
 }
