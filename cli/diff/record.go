@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
-
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/yamlw"
 	"github.com/neilotoole/sq/cli/run"
@@ -15,6 +13,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"io"
 )
 
 // recordDiff is a container for a single record diff.
@@ -30,12 +29,11 @@ type recordDiff struct {
 }
 
 type diffSink struct {
-	td1, td2           *tableData
-	recMeta1, recMeta2 record.Meta
-	diffs              chan recPair
-	out                io.Writer
-	lines              int
-	pr                 *output.Printing
+	td1, td2     *tableData
+	recw1, recw2 *recWriter
+	diffs        chan recPair
+	out          io.Writer
+	cfg          *Config
 }
 
 type recPair struct {
@@ -55,18 +53,18 @@ func handleDiffSink(ctx context.Context, ds *diffSink) error {
 		recDiff := &recordDiff{
 			td1:      ds.td1,
 			td2:      ds.td2,
-			recMeta1: ds.recMeta1,
-			recMeta2: ds.recMeta2,
+			recMeta1: ds.recw1.recMeta,
+			recMeta2: ds.recw2.recMeta,
 			rec1:     rp.rec1,
 			rec2:     rp.rec2,
 			row:      rp.row,
 		}
 
-		if err = populateRecordDiff(ctx, ds.lines, ds.pr, recDiff); err != nil {
+		if err = populateRecordDiff(ctx, ds.cfg, recDiff); err != nil {
 			return err
 		}
 
-		if err = Print(ctx, ds.out, ds.pr, recDiff.header, recDiff.diff); err != nil {
+		if err = Print(ctx, ds.out, ds.cfg.pr, recDiff.header, recDiff.diff); err != nil {
 			return err
 		}
 	}
@@ -88,7 +86,7 @@ func handleDiffSink(ctx context.Context, ds *diffSink) error {
 // See:https://github.com/neilotoole/sq/issues/353
 //
 //nolint:unused
-func execTableDataDiff(ctx context.Context, ru *run.Run, lines int,
+func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	td1, td2 *tableData,
 ) error {
 	const chSize = 100
@@ -113,14 +111,13 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, lines int,
 	}
 
 	ds := &diffSink{
-		td1:      td1,
-		td2:      td2,
-		recMeta1: recw1.recMeta,
-		recMeta2: recw2.recMeta,
-		diffs:    make(chan recPair, 100),
-		out:      ru.Out,
-		lines:    lines,
-		pr:       ru.Writers.OutPrinting.Clone(),
+		td1:   td1,
+		td2:   td2,
+		recw1: recw1,
+		recw2: recw2,
+		diffs: make(chan recPair, 100),
+		out:   ru.Out,
+		cfg:   cfg,
 	}
 
 	var cancelFn context.CancelFunc
@@ -240,9 +237,7 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, lines int,
 }
 
 //nolint:unused
-func populateRecordDiff(ctx context.Context, lines int, pr *output.Printing, recDiff *recordDiff) error {
-	pr = pr.Clone()
-	pr.EnableColor(false)
+func populateRecordDiff(ctx context.Context, cfg *Config, recDiff *recordDiff) error {
 
 	var (
 		handleTbl1 = recDiff.td1.src.Handle + "." + recDiff.td1.tblName
@@ -252,22 +247,56 @@ func populateRecordDiff(ctx context.Context, lines int, pr *output.Printing, rec
 		err          error
 	)
 
-	if body1, err = renderRecord2YAML(ctx, pr, recDiff.recMeta1, recDiff.rec1); err != nil {
+	if body1, err = renderRecords(ctx, cfg, recDiff.recMeta1, []record.Record{recDiff.rec1}); err != nil {
 		return err
 	}
-	if body2, err = renderRecord2YAML(ctx, pr, recDiff.recMeta1, recDiff.rec2); err != nil {
+	if body2, err = renderRecords(ctx, cfg, recDiff.recMeta2, []record.Record{recDiff.rec2}); err != nil {
 		return err
 	}
 
+	//if body1, err = renderRecord2YAML(ctx, pr, recDiff.recMeta1, recDiff.rec1); err != nil {
+	//	return err
+	//}
+	//if body2, err = renderRecord2YAML(ctx, pr, recDiff.recMeta1, recDiff.rec2); err != nil {
+	//	return err
+	//}
+
 	msg := fmt.Sprintf("table {%s}", recDiff.td1.tblName)
-	recDiff.diff, err = computeUnified(ctx, msg, handleTbl1, handleTbl2, lines, body1, body2)
+	recDiff.diff, err = computeUnified(ctx, msg, handleTbl1, handleTbl2, cfg.Lines, body1, body2)
 	if err != nil {
 		return err
 	}
 
-	recDiff.header = fmt.Sprintf("sq diff %s %s | .[%d]", handleTbl1, handleTbl2, recDiff.row)
+	//recDiff.header = fmt.Sprintf("sq diff %s %s | .[%d]", handleTbl1, handleTbl2, recDiff.row)
 
 	return nil
+}
+
+func renderRecords(ctx context.Context, cfg *Config, recMeta record.Meta, recs []record.Record) (string, error) {
+	if len(recs) == 0 {
+		return "", nil
+	}
+
+	pr := cfg.pr.Clone()
+	pr.EnableColor(false)
+	pr.ShowHeader = false
+	buf := &bytes.Buffer{}
+	recw := cfg.RecordWriterFn(buf, pr)
+
+	//yw := yamlw.NewRecordWriter(buf, cfg.pr)
+	if err := recw.Open(ctx, recMeta); err != nil {
+		return "", err
+	}
+	if err := recw.WriteRecords(ctx, recs); err != nil {
+		return "", err
+	}
+	if err := recw.Flush(ctx); err != nil {
+		return "", err
+	}
+	if err := recw.Close(ctx); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 //nolint:unused

@@ -17,6 +17,7 @@ import (
 func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Elements, //nolint:revive
 	handle1, table1, handle2, table2 string,
 ) error {
+	cfg.pr = ru.Writers.OutPrinting.Clone()
 	td1, td2 := &tableData{tblName: table1}, &tableData{tblName: table2}
 
 	var err error
@@ -60,7 +61,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 		return nil
 	}
 
-	if err = execTableDataDiff(ctx, ru, cfg.Lines, td1, td2); err != nil {
+	if err = execTableDataDiff(ctx, ru, cfg, td1, td2); err != nil {
 		return err
 	}
 

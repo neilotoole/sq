@@ -30,6 +30,8 @@ type Config struct {
 	RecordWriterFn output.NewRecordWriterFunc
 	// Lines specifies the number of lines of context surrounding a diff.
 	Lines int
+
+	pr *output.Printing
 }
 
 // Elements determines what source elements to compare.
