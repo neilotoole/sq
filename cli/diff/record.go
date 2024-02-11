@@ -10,10 +10,10 @@ import (
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"io"
+	"strings"
 )
 
 // recordDiff is a container for a single record diff.
@@ -45,6 +45,8 @@ type recPair struct {
 func handleDiffSink(ctx context.Context, ds *diffSink) error {
 	var err error
 
+	rd := &recordDiffer{cfg: ds.cfg, buf: &bytes.Buffer{}}
+
 	for rp := range ds.diffs {
 		if rp.equal {
 			continue
@@ -60,13 +62,15 @@ func handleDiffSink(ctx context.Context, ds *diffSink) error {
 			row:      rp.row,
 		}
 
-		if err = populateRecordDiff(ctx, ds.cfg, recDiff); err != nil {
+		if err = rd.populateRecordDiff(ctx, recDiff); err != nil {
 			return err
 		}
 
-		if err = Print(ctx, ds.out, ds.cfg.pr, recDiff.header, recDiff.diff); err != nil {
-			return err
-		}
+	}
+
+	header := fmt.Sprintf("sq diff %s %s", ds.td1, ds.td2)
+	if err = Print(ctx, ds.out, ds.cfg.pr, header, rd.buf.String()); err != nil {
+		return err
 	}
 
 	return nil
@@ -94,6 +98,8 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	log := lg.FromContext(ctx).
 		With("a", td1.src.Handle+"."+td1.tblName).
 		With("b", td2.src.Handle+"."+td2.tblName)
+
+	_ = log
 
 	qc := run.NewQueryContext(ru, nil)
 
@@ -123,98 +129,156 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	var cancelFn context.CancelFunc
 	ctx, cancelFn = context.WithCancel(ctx)
 	go func() {
-		err := libsq.ExecuteSLQ(ctx, qc, query1, recw1)
-		if err != nil {
-			cancelFn()
-			select {
-			case errCh <- err:
-			default:
-			}
-		}
-	}()
-	go func() {
-		err := libsq.ExecuteSLQ(ctx, qc, query2, recw2)
-		if err != nil {
-			cancelFn()
-			select {
-			case errCh <- err:
-			default:
-			}
-		}
-	}()
-	go func() {
-		err := handleDiffSink(ctx, ds)
-		if err != nil {
-			cancelFn()
+
+		if err := libsq.ExecuteSLQ(ctx, qc, query1, recw1); err != nil {
 			errCh <- err
+			//cancelFn()
+			//select {
+			//case errCh <- err:
+			//default:
+			//}
+		}
+	}()
+	go func() {
+
+		if err := libsq.ExecuteSLQ(ctx, qc, query2, recw2); err != nil {
+			errCh <- err
+			//cancelFn()
+			//select {
+			//case errCh <- err:
+			//default:
+			//}
 		}
 	}()
 
-	var (
-		rec1, rec2 record.Record
-		i          = -1
-		err        error
-		//found      bool
-	)
-
-	for {
-		i++
-		rec1 = nil
-		rec2 = nil
-		err = nil
-
-		select {
-		case err = <-errCh:
-		case <-ctx.Done():
-			err = errz.Err(ctx.Err())
-		case rec1 = <-recw1.recCh:
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if err := handleDiffSink(ctx, ds); err != nil {
+			errCh <- err
+			//cancelFn()
 		}
-		if err != nil {
-			cancelFn()
-			log.Error("Table diff", lga.Err, err)
-			break
-		}
-
-		select {
-		case err = <-errCh:
-		case <-ctx.Done():
-			err = errz.Err(ctx.Err())
-		case rec2 = <-recw2.recCh:
-		}
-		if err != nil {
-			cancelFn()
-			log.Error("Table diff", lga.Err, err)
-			break
-		}
-
-		if rec1 == nil && rec2 == nil {
-			// End of data, no diff found
-			break
-		}
-
-		rp := recPair{
-			row:   i,
-			rec1:  rec1,
-			rec2:  rec2,
-			equal: record.Equal(rec1, rec2),
-		}
-
-		ds.diffs <- rp
-		//
-		//if record.Equal(rec1, rec2) {
-		//	continue
+		//if err != nil {
+		//	errCh <- err
+		//	//cancelFn()
 		//}
-		//
-		//// We've got a diff!
-		//log.Debug("Found a table diff", "row", i)
-		//found = true
-		//break
-	}
+	}()
 
-	if err != nil {
-		return err
-	}
+	// consume records
+	go func() {
+		var (
+			rec1, rec2 record.Record
+			i          = -1
+			//err        error
+		)
 
+		println("entering loop")
+		for {
+			select {
+			case <-ctx.Done():
+				println("ctx done")
+				return
+			case <-done:
+				println("done")
+				return
+				//goto BREAK
+			//case loopErr := <-errCh:
+			//	println("errCh loopErr: ", loopErr.Error())
+			//	errCh <- loopErr
+			//	goto BREAK
+			default:
+			}
+			//cancelFn()
+
+			i++
+			//fmt.Printf("i=%d\n", i)
+			rec1 = nil
+			rec2 = nil
+			//err = nil
+
+			select {
+			//case err = <-errCh:
+			//	errCh <- err
+			//	goto LOOP
+
+			case <-ctx.Done():
+				return
+				//goto BREAK
+				//err = errz.Err(ctx.Err())
+			case rec1 = <-recw1.recCh:
+			}
+			//if err != nil {
+			//	//cancelFn()
+			//	log.Error("Table diff", lga.Err, err)
+			//	break
+			//}
+
+			select {
+			//case err = <-errCh:
+			//	errCh <- err
+			//	goto LOOP
+
+			case <-ctx.Done():
+				return
+				//goto BREAK
+				//break
+				//err = errz.Err(ctx.Err())
+			case rec2 = <-recw2.recCh:
+			}
+			//if err != nil {
+			//	//cancelFn()
+			//	log.Error("Table diff", lga.Err, err)
+			//	break
+			//}
+
+			if rec1 == nil && rec2 == nil {
+				// End of data
+				close(ds.diffs)
+				break // break out of the loop
+			}
+
+			rp := recPair{
+				row:   i,
+				rec1:  rec1,
+				rec2:  rec2,
+				equal: record.Equal(rec1, rec2),
+			}
+
+			ds.diffs <- rp
+		}
+		//BREAK:
+	}()
+
+	//if err != nil {
+	//	println("err != nil", err.Error())
+	//	cancelFn()
+	//	return err
+	//}
+	println("entering bottom select")
+
+	var err error
+	select {
+	case <-ctx.Done():
+		println("bottom ctx done")
+		err = errz.Err(ctx.Err())
+	case <-done:
+		println("bottom done")
+		select {
+		case err = <-errCh:
+			println("bottom errCh err2")
+			//
+			//if err2 != nil {
+			//	err = err2
+			//}
+		default:
+		}
+
+	case err = <-errCh:
+		println("bottom errCh")
+	}
+	cancelFn()
+
+	return err
 	//if !found {
 	//	return nil //nolint:nilnil
 	//}
@@ -233,11 +297,16 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	//	return err
 	//}
 
-	return nil
+	//return nil
+}
+
+type recordDiffer struct {
+	cfg *Config
+	buf *bytes.Buffer
 }
 
 //nolint:unused
-func populateRecordDiff(ctx context.Context, cfg *Config, recDiff *recordDiff) error {
+func (rd *recordDiffer) populateRecordDiff(ctx context.Context, recDiff *recordDiff) error {
 
 	var (
 		handleTbl1 = recDiff.td1.src.Handle + "." + recDiff.td1.tblName
@@ -247,10 +316,10 @@ func populateRecordDiff(ctx context.Context, cfg *Config, recDiff *recordDiff) e
 		err          error
 	)
 
-	if body1, err = renderRecords(ctx, cfg, recDiff.recMeta1, []record.Record{recDiff.rec1}); err != nil {
+	if body1, err = renderRecords(ctx, rd.cfg, recDiff.recMeta1, []record.Record{recDiff.rec1}); err != nil {
 		return err
 	}
-	if body2, err = renderRecords(ctx, cfg, recDiff.recMeta2, []record.Record{recDiff.rec2}); err != nil {
+	if body2, err = renderRecords(ctx, rd.cfg, recDiff.recMeta2, []record.Record{recDiff.rec2}); err != nil {
 		return err
 	}
 
@@ -262,10 +331,26 @@ func populateRecordDiff(ctx context.Context, cfg *Config, recDiff *recordDiff) e
 	//}
 
 	msg := fmt.Sprintf("table {%s}", recDiff.td1.tblName)
-	recDiff.diff, err = computeUnified(ctx, msg, handleTbl1, handleTbl2, cfg.Lines, body1, body2)
+	recDiff.diff, err = computeUnified(ctx, msg, handleTbl1, handleTbl2, rd.cfg.Lines, body1, body2)
 	if err != nil {
 		return err
 	}
+
+	recDiff.diff = stringz.TrimHead(recDiff.diff, 2)
+
+	hunkHeader, hunkBody, found := strings.Cut(recDiff.diff, "\n")
+	if !found {
+		return errz.New("hunk header not found")
+	}
+
+	hunkHeader, err = adjustHunkOffset(hunkHeader, recDiff.row)
+	if err != nil {
+		return err
+	}
+
+	rd.buf.WriteString(hunkHeader)
+	rd.buf.WriteRune('\n')
+	rd.buf.WriteString(hunkBody)
 
 	//recDiff.header = fmt.Sprintf("sq diff %s %s | .[%d]", handleTbl1, handleTbl2, recDiff.row)
 
@@ -343,4 +428,46 @@ func (d *recWriter) Open(_ context.Context, _ context.CancelFunc, recMeta record
 func (d *recWriter) Wait() (written int64, err error) {
 	// We don't actually use Stop(), so just return zero values.
 	return 0, nil
+}
+
+// adjustHunkOffset adjusts the offset of a diff hunk. The hunk input is
+// expected to be a string of one of two forms. This is the long form:
+//
+//	@@ -44,7 +44,7 @@
+//
+// Given an offset of 10, this would become:
+//
+//	@@ -54,7 +54,7 @@
+//
+// The short form is:
+//
+//	@@ -44 +44 @@
+//
+// Given an offset of 10, this would become:
+//
+//	@@ -54 +54 @@
+//
+// The short form used when there's no surrounding lines (-U=0).
+//
+// Note that "-44,7 +44,7" means that the change is at line 44 and the number of
+// lines compared is 7 (although 8 lines will be rendered, because the changed
+// line is shown twice: the before and after versions of the line).
+func adjustHunkOffset(hunk string, offset int) (string, error) {
+	// https://unix.stackexchange.com/questions/81998/understanding-of-diff-output
+	const formatShort = "@@ -%d +%d @@"
+	const formatFull = "@@ -%d,%d +%d,%d @@"
+
+	var i1, i2, i3, i4 int
+	count, err := fmt.Fscanf(strings.NewReader(hunk), formatFull, &i1, &i2, &i3, &i4)
+	if err != nil {
+		return "", errz.Err(err)
+	}
+	if count != 4 {
+		return "", errz.Errorf("expected 4 values, got %d", count)
+	}
+
+	i1 += offset
+	i3 += offset
+
+	return fmt.Sprintf(formatFull, i1, i2, i3, i4), nil
 }

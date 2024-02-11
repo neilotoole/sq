@@ -8,6 +8,17 @@ import (
 	"strings"
 )
 
+// Head1 returns the first line of s, without the linebreak.
+func Head1(s string) string {
+	if s == "" {
+		return s
+	}
+
+	sc := bufio.NewScanner(strings.NewReader(s))
+	sc.Scan()
+	return sc.Text()
+}
+
 // TrimHead trims the first n lines from s. It panics
 // if n is negative. If n is zero, s is returned unchanged.
 func TrimHead(s string, n int) string {

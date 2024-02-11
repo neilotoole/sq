@@ -79,6 +79,11 @@ type tableData struct {
 	tblName string
 }
 
+// String returns @handle.table.
+func (td *tableData) String() string {
+	return fmt.Sprintf("%s.%s", td.src.Handle, td.tblName)
+}
+
 func (td *tableData) clone() *tableData { //nolint:unused // REVISIT: no longer needed?
 	if td == nil {
 		return nil

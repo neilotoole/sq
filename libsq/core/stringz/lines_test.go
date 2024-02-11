@@ -108,3 +108,24 @@ func TestTrimHead(t *testing.T) {
 		})
 	}
 }
+
+func TestHead1(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want string
+	}{
+		{in: "", want: ""},
+		{in: "a", want: "a"},
+		{in: "a\n", want: "a"},
+		{in: "a\nb", want: "a"},
+		{in: "a\nb\n", want: "a"},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.in, func(t *testing.T) {
+			got := stringz.Head1(tc.in)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
