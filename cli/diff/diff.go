@@ -136,6 +136,7 @@ func Print(ctx context.Context, w io.Writer, pr *output.Printing, header, dif st
 	bar := progress.FromContext(ctx).
 		NewUnitCounter("Preparing diff output", "line", progress.OptMemUsage)
 
+	// Should stream this, not buffer it all up.
 	after := stringz.VisitLines(dif, func(i int, line string) string {
 		if i == 0 && strings.HasPrefix(line, "---") {
 			return pr.DiffHeader.Sprint(line)
