@@ -128,113 +128,45 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 
 	var cancelFn context.CancelFunc
 	ctx, cancelFn = context.WithCancel(ctx)
-	go func() {
 
+	// Query DB, send records to recw1.
+	go func() {
 		if err := libsq.ExecuteSLQ(ctx, qc, query1, recw1); err != nil {
 			errCh <- err
-			//cancelFn()
-			//select {
-			//case errCh <- err:
-			//default:
-			//}
 		}
 	}()
+	// Query DB, send records to recw2.
 	go func() {
-
 		if err := libsq.ExecuteSLQ(ctx, qc, query2, recw2); err != nil {
 			errCh <- err
-			//cancelFn()
-			//select {
-			//case errCh <- err:
-			//default:
-			//}
 		}
 	}()
 
-	done := make(chan struct{})
+	// Consume records from recw1 and recw2, and compare them.
+	// Send record pairs to ds.diffs.
 	go func() {
-		defer close(done)
-		if err := handleDiffSink(ctx, ds); err != nil {
-			errCh <- err
-			//cancelFn()
-		}
-		//if err != nil {
-		//	errCh <- err
-		//	//cancelFn()
-		//}
-	}()
+		var rec1, rec2 record.Record
 
-	// consume records
-	go func() {
-		var (
-			rec1, rec2 record.Record
-			i          = -1
-			//err        error
-		)
-
-		println("entering loop")
-		for {
-			select {
-			case <-ctx.Done():
-				println("ctx done")
-				return
-			case <-done:
-				println("done")
-				return
-				//goto BREAK
-			//case loopErr := <-errCh:
-			//	println("errCh loopErr: ", loopErr.Error())
-			//	errCh <- loopErr
-			//	goto BREAK
-			default:
-			}
-			//cancelFn()
-
-			i++
-			//fmt.Printf("i=%d\n", i)
+		for i := 0; ; i++ {
 			rec1 = nil
 			rec2 = nil
-			//err = nil
 
 			select {
-			//case err = <-errCh:
-			//	errCh <- err
-			//	goto LOOP
-
 			case <-ctx.Done():
 				return
-				//goto BREAK
-				//err = errz.Err(ctx.Err())
 			case rec1 = <-recw1.recCh:
 			}
-			//if err != nil {
-			//	//cancelFn()
-			//	log.Error("Table diff", lga.Err, err)
-			//	break
-			//}
 
 			select {
-			//case err = <-errCh:
-			//	errCh <- err
-			//	goto LOOP
-
 			case <-ctx.Done():
 				return
-				//goto BREAK
-				//break
-				//err = errz.Err(ctx.Err())
 			case rec2 = <-recw2.recCh:
 			}
-			//if err != nil {
-			//	//cancelFn()
-			//	log.Error("Table diff", lga.Err, err)
-			//	break
-			//}
 
 			if rec1 == nil && rec2 == nil {
 				// End of data
 				close(ds.diffs)
-				break // break out of the loop
+				return
 			}
 
 			rp := recPair{
@@ -246,58 +178,38 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 
 			ds.diffs <- rp
 		}
-		//BREAK:
 	}()
 
-	//if err != nil {
-	//	println("err != nil", err.Error())
-	//	cancelFn()
-	//	return err
-	//}
-	println("entering bottom select")
+	diffDone := make(chan struct{})
+	// Consume the record pairs from ds.diffs, and write the diffs to ds.out.
+	go func() {
+		defer close(diffDone)
+		if err := handleDiffSink(ctx, ds); err != nil {
+			errCh <- err
+		}
+	}()
 
+	// Now, we wait for action. One of three things can happen...
 	var err error
 	select {
 	case <-ctx.Done():
-		println("bottom ctx done")
+		// 1. The context was canceled from above.
 		err = errz.Err(ctx.Err())
-	case <-done:
-		println("bottom done")
+	case err = <-errCh:
+		// 2. An error occurred in one of the goroutines.
+	case <-diffDone:
+		// 3. The diff sink has finished, but it could have finished
+		// because it's done, or because it errored. We need to check.
 		select {
 		case err = <-errCh:
-			println("bottom errCh err2")
-			//
-			//if err2 != nil {
-			//	err = err2
-			//}
+			// ACHSCHUALLLY, the diff sink errored.
 		default:
 		}
-
-	case err = <-errCh:
-		println("bottom errCh")
 	}
+
+	// No matter what happened above, we cancel the context.
 	cancelFn()
-
 	return err
-	//if !found {
-	//	return nil //nolint:nilnil
-	//}
-	//
-	//recDiff := &recordDiff{
-	//	td1:      td1,
-	//	td2:      td2,
-	//	recMeta1: recw1.recMeta,
-	//	recMeta2: recw2.recMeta,
-	//	rec1:     rec1,
-	//	rec2:     rec2,
-	//	row:      i,
-	//}
-	//
-	//if err = populateRecordDiff(ctx, lines, ru.Writers.OutPrinting, recDiff); err != nil {
-	//	return err
-	//}
-
-	//return nil
 }
 
 type recordDiffer struct {
@@ -343,10 +255,10 @@ func (rd *recordDiffer) populateRecordDiff(ctx context.Context, recDiff *recordD
 		return errz.New("hunk header not found")
 	}
 
-	hunkHeader, err = adjustHunkOffset(hunkHeader, recDiff.row)
-	if err != nil {
-		return err
-	}
+	//hunkHeader, err = adjustHunkOffset(hunkHeader, recDiff.row)
+	//if err != nil {
+	//	return err
+	//}
 
 	rd.buf.WriteString(hunkHeader)
 	rd.buf.WriteRune('\n')
