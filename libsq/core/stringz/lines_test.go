@@ -76,3 +76,35 @@ pleasure dome decree.
 
 	require.Equal(t, want, got)
 }
+
+func TestTrimHeadLines(t *testing.T) {
+	require.Panics(t, func() {
+		_ = stringz.TrimHeadLines("a", -1)
+	})
+
+	testCases := []struct {
+		in   string
+		n    int
+		want string
+	}{
+		{in: "", n: 0, want: ""},
+		{in: "", n: 1, want: ""},
+		{in: "a", n: 0, want: "a"},
+		{in: "a\n", n: 0, want: "a\n"},
+		{in: "a\nb", n: 0, want: "a\nb"},
+		{in: "a\nb\n", n: 0, want: "a\nb\n"},
+		{in: "a\nb\n", n: 1, want: "b\n"},
+		{in: "a\nb\n", n: 2, want: ""},
+		{in: "a\nb\n", n: 3, want: ""},
+		{in: "a\nb\n", n: 0, want: "a\nb\n"},
+		{in: "a\nb\nc\nd\ne\n", n: 3, want: "d\ne\n"},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tu.Name(tc.in, tc.n), func(t *testing.T) {
+			got := stringz.TrimHeadLines(tc.in, tc.n)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}

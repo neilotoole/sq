@@ -3,21 +3,41 @@ package stringz
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
 	"strings"
 )
 
-// TrimHeadLines trims the first n lines from s.
+// TrimHeadLines trims the first n lines from s. It panics
+// if n is negative. If n is zero, s is returned unchanged.
 func TrimHeadLines(s string, n int) string {
-	sc := bufio.NewScanner(strings.NewReader(s))
-	var i int
-	var buf bytes.Buffer
+	switch {
+	case n < 0:
+		panic(fmt.Sprintf("n must be >= 0 but was %d", n))
+	case n == 0, s == "":
+		return s
+	}
+
+	var (
+		sc  = bufio.NewScanner(strings.NewReader(s))
+		buf bytes.Buffer
+		i   = -1
+	)
+
 	for sc.Scan() {
+		i++
 		if i < n {
 			continue
 		}
-		i++
+
+		if buf.Len() > 0 {
+			buf.WriteRune('\n')
+		}
+
 		buf.Write(sc.Bytes())
+	}
+
+	if buf.Len() > 0 && s[len(s)-1] == '\n' {
 		buf.WriteRune('\n')
 	}
 
