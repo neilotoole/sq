@@ -11,6 +11,7 @@ import (
 )
 
 func BenchmarkExecTableDiff(b *testing.B) {
+
 	th := testh.New(b, testh.OptNoLog())
 
 	ru := th.Run()
@@ -26,6 +27,8 @@ func BenchmarkExecTableDiff(b *testing.B) {
 		Lines:          3,
 	}
 
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		buf := &bytes.Buffer{}
 		ru.Out = buf

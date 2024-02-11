@@ -997,7 +997,7 @@ func NewSakilaSource(tb testing.TB, handle string, clean bool) *source.Source {
 	}
 	return &source.Source{
 		Handle:   handle,
-		Type:     drivertype.CSV,
-		Location: loc,
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + loc,
 	}
 }
