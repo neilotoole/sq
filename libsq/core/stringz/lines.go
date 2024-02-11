@@ -8,9 +8,9 @@ import (
 	"strings"
 )
 
-// TrimHeadLines trims the first n lines from s. It panics
+// TrimHead trims the first n lines from s. It panics
 // if n is negative. If n is zero, s is returned unchanged.
-func TrimHeadLines(s string, n int) string {
+func TrimHead(s string, n int) string {
 	switch {
 	case n < 0:
 		panic(fmt.Sprintf("n must be >= 0 but was %d", n))

@@ -77,9 +77,9 @@ pleasure dome decree.
 	require.Equal(t, want, got)
 }
 
-func TestTrimHeadLines(t *testing.T) {
+func TestTrimHead(t *testing.T) {
 	require.Panics(t, func() {
-		_ = stringz.TrimHeadLines("a", -1)
+		_ = stringz.TrimHead("a", -1)
 	})
 
 	testCases := []struct {
@@ -103,7 +103,7 @@ func TestTrimHeadLines(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tu.Name(tc.in, tc.n), func(t *testing.T) {
-			got := stringz.TrimHeadLines(tc.in, tc.n)
+			got := stringz.TrimHead(tc.in, tc.n)
 			require.Equal(t, tc.want, got)
 		})
 	}
