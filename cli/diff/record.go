@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/yamlw"
@@ -28,6 +29,51 @@ type recordDiff struct {
 	row                int
 }
 
+type diffSink struct {
+	td1, td2           *tableData
+	recMeta1, recMeta2 record.Meta
+	diffs              chan recPair
+	out                io.Writer
+	lines              int
+	pr                 *output.Printing
+}
+
+type recPair struct {
+	row        int
+	rec1, rec2 record.Record
+	equal      bool
+}
+
+func handleDiffSink(ctx context.Context, ds *diffSink) error {
+	var err error
+
+	for rp := range ds.diffs {
+		if rp.equal {
+			continue
+		}
+
+		recDiff := &recordDiff{
+			td1:      ds.td1,
+			td2:      ds.td2,
+			recMeta1: ds.recMeta1,
+			recMeta2: ds.recMeta2,
+			rec1:     rp.rec1,
+			rec2:     rp.rec2,
+			row:      rp.row,
+		}
+
+		if err = populateRecordDiff(ctx, ds.lines, ds.pr, recDiff); err != nil {
+			return err
+		}
+
+		if err = Print(ctx, ds.out, ds.pr, recDiff.header, recDiff.diff); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // findRecordDiff compares the row data in td1 and td2, returning
 // a recordDiff instance if there's a difference between the
 // equivalent rows. The function stops when it finds the first difference.
@@ -42,9 +88,9 @@ type recordDiff struct {
 // See:https://github.com/neilotoole/sq/issues/353
 //
 //nolint:unused
-func findRecordDiff(ctx context.Context, ru *run.Run, lines int,
+func execTableDataDiff(ctx context.Context, ru *run.Run, lines int,
 	td1, td2 *tableData,
-) (*recordDiff, error) {
+) error {
 	const chSize = 100
 
 	log := lg.FromContext(ctx).
@@ -66,9 +112,21 @@ func findRecordDiff(ctx context.Context, ru *run.Run, lines int,
 		errCh: errCh,
 	}
 
-	gCtx, cancelFn := context.WithCancel(ctx)
+	ds := &diffSink{
+		td1:      td1,
+		td2:      td2,
+		recMeta1: recw1.recMeta,
+		recMeta2: recw2.recMeta,
+		diffs:    make(chan recPair, 100),
+		out:      ru.Out,
+		lines:    lines,
+		pr:       ru.Writers.OutPrinting.Clone(),
+	}
+
+	var cancelFn context.CancelFunc
+	ctx, cancelFn = context.WithCancel(ctx)
 	go func() {
-		err := libsq.ExecuteSLQ(gCtx, qc, query1, recw1)
+		err := libsq.ExecuteSLQ(ctx, qc, query1, recw1)
 		if err != nil {
 			cancelFn()
 			select {
@@ -78,13 +136,20 @@ func findRecordDiff(ctx context.Context, ru *run.Run, lines int,
 		}
 	}()
 	go func() {
-		err := libsq.ExecuteSLQ(gCtx, qc, query2, recw2)
+		err := libsq.ExecuteSLQ(ctx, qc, query2, recw2)
 		if err != nil {
 			cancelFn()
 			select {
 			case errCh <- err:
 			default:
 			}
+		}
+	}()
+	go func() {
+		err := handleDiffSink(ctx, ds)
+		if err != nil {
+			cancelFn()
+			errCh <- err
 		}
 	}()
 
@@ -92,7 +157,7 @@ func findRecordDiff(ctx context.Context, ru *run.Run, lines int,
 		rec1, rec2 record.Record
 		i          = -1
 		err        error
-		found      bool
+		//found      bool
 	)
 
 	for {
@@ -130,39 +195,48 @@ func findRecordDiff(ctx context.Context, ru *run.Run, lines int,
 			break
 		}
 
-		if record.Equal(rec1, rec2) {
-			continue
+		rp := recPair{
+			row:   i,
+			rec1:  rec1,
+			rec2:  rec2,
+			equal: record.Equal(rec1, rec2),
 		}
 
-		// We've got a diff!
-		log.Debug("Found a table diff", "row", i)
-		found = true
-		break
+		ds.diffs <- rp
+		//
+		//if record.Equal(rec1, rec2) {
+		//	continue
+		//}
+		//
+		//// We've got a diff!
+		//log.Debug("Found a table diff", "row", i)
+		//found = true
+		//break
 	}
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	if !found {
-		return nil, nil //nolint:nilnil
-	}
+	//if !found {
+	//	return nil //nolint:nilnil
+	//}
+	//
+	//recDiff := &recordDiff{
+	//	td1:      td1,
+	//	td2:      td2,
+	//	recMeta1: recw1.recMeta,
+	//	recMeta2: recw2.recMeta,
+	//	rec1:     rec1,
+	//	rec2:     rec2,
+	//	row:      i,
+	//}
+	//
+	//if err = populateRecordDiff(ctx, lines, ru.Writers.OutPrinting, recDiff); err != nil {
+	//	return err
+	//}
 
-	recDiff := &recordDiff{
-		td1:      td1,
-		td2:      td2,
-		recMeta1: recw1.recMeta,
-		recMeta2: recw2.recMeta,
-		rec1:     rec1,
-		rec2:     rec2,
-		row:      i,
-	}
-
-	if err = populateRecordDiff(ctx, lines, ru.Writers.OutPrinting, recDiff); err != nil {
-		return nil, err
-	}
-
-	return recDiff, nil
+	return nil
 }
 
 //nolint:unused
