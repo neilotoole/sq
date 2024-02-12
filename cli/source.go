@@ -41,7 +41,7 @@ func determineSources(ctx context.Context, ru *run.Run, requireActive bool) erro
 	if stdinSrc != nil {
 		// We have a valid source on stdin.
 
-		// Add the stdin source to coll.
+		// Append the stdin source to coll.
 		err = coll.Add(stdinSrc)
 		if err != nil {
 			return err

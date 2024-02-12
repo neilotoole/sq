@@ -276,7 +276,7 @@ func TestCmdAdd_Active(t *testing.T) {
 	require.NoError(t, tr.Exec("ls"))
 	require.Zero(t, tr.Out.Len())
 
-	// Add a new source. It should become the active source.
+	// Append a new source. It should become the active source.
 	tr = testrun.New(ctx, t, tr)
 	require.NoError(t, tr.Exec("add", proj.Abs(sakila.PathCSVActor), "--handle", h1))
 	tr = testrun.New(ctx, t, tr)
@@ -284,7 +284,7 @@ func TestCmdAdd_Active(t *testing.T) {
 	m := tr.BindMap()
 	require.Equal(t, h1, m["handle"])
 
-	// Add a second src, without the --active flag. The active src
+	// Append a second src, without the --active flag. The active src
 	// should remain h1.
 	tr = testrun.New(ctx, t, tr)
 	require.NoError(t, tr.Exec("add", proj.Abs(sakila.PathCSVActor), "--handle", h2))
@@ -293,7 +293,7 @@ func TestCmdAdd_Active(t *testing.T) {
 	m = tr.BindMap()
 	require.Equal(t, h1, m["handle"], "active source should still be %s", h1)
 
-	// Add a third src, this time with the --active flag. The active src
+	// Append a third src, this time with the --active flag. The active src
 	// should become h3.
 	tr = testrun.New(ctx, t, tr)
 	require.NoError(t, tr.Exec("add", proj.Abs(sakila.PathCSVActor), "--handle", h3, "--active"))

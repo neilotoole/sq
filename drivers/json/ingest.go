@@ -248,7 +248,7 @@ func (p *processor) buildSchemaFlat() (*ingestSchema, error) {
 		return nil, err
 	}
 
-	// Add the column names, in the correct order
+	// Append the column names, in the correct order
 	for _, colName := range p.colNamesOrdered {
 		for j := range colDefs {
 			if colDefs[j].Name == colName {

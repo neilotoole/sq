@@ -164,7 +164,7 @@ func execConfigEditSource(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Add indentation
+	// Append indentation
 	sc := bufio.NewScanner(strings.NewReader(optionsText))
 	var line string
 	for sc.Scan() {

@@ -41,7 +41,7 @@ When adding a data source, LOCATION is the only required arg.
 Note that sq generated the handle "@actor". But you can explicitly specify
 a handle.
 
-  # Add a postgres source with handle "@sakila/pg"
+  # Append a postgres source with handle "@sakila/pg"
   $ sq add --handle @sakila/pg postgres://user:pass@localhost/sakila
 
 This handle format "@sakila/pg" includes a group, "sakila". Using a group
@@ -79,7 +79,7 @@ user for the password:
 However, if there's input on stdin, sq will read the password from
 there instead of prompting the user:
 
-  # Add a source, but read password from an environment variable
+  # Append a source, but read password from an environment variable
   $ export PASSWD='open:;"_Ses@me'
   $ sq add postgres://user@localhost/sakila -p <<< $PASSWD
 
@@ -117,7 +117,7 @@ use flag --active to make the new source active.
 
 More examples:
 
-  # Add a source, but prompt user for password
+  # Append a source, but prompt user for password
   $ sq add postgres://user@localhost/sakila -p
   Password: ****
 
@@ -133,28 +133,28 @@ More examples:
   # Specify some params, but use quoted string (no shell completion)
   $ sq add 'postgres://user:pass@localhost/sakila?sslmode=disable&application_name=sq''
 
-  # Add a SQL Server source; will have generated handle @sakila
+  # Append a SQL Server source; will have generated handle @sakila
   $ sq add 'sqlserver://user:pass@localhost?database=sakila'
 
-  # Add a SQLite DB, and immediately make it the active source
+  # Append a SQLite DB, and immediately make it the active source
   $ sq add ./testdata/sqlite1.db --active
 
-  # Add an Excel spreadsheet, with options
+  # Append an Excel spreadsheet, with options
   $ sq add ./testdata/test1.xlsx --ingest.header=true
 
-  # Add a CSV source, with options
+  # Append a CSV source, with options
   $ sq add ./testdata/person.csv --ingest.header=true
 
-  # Add a CSV source from a URL (will be downloaded)
+  # Append a CSV source from a URL (will be downloaded)
   $ sq add https://sq.io/testdata/actor.csv
 
-  # Add a source, and make it the active source (and group)
+  # Append a source, and make it the active source (and group)
   $ sq add ./actor.csv --handle @csv/actor
 
-  # Add a currently unreachable source
+  # Append a currently unreachable source
   $ sq add postgres://user:pass@db.offline.com/sakila --skip-verify`,
-		Short: "Add data source",
-		Long:  `Add data source specified by LOCATION, optionally identified by @HANDLE.`,
+		Short: "Append data source",
+		Long:  `Append data source specified by LOCATION, optionally identified by @HANDLE.`,
 	}
 
 	cmdMarkRequiresConfigLock(cmd)

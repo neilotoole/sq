@@ -24,7 +24,7 @@ type Grip interface {
 	// may be different from the driver type reported by the Source.
 	SQLDriver() SQLDriver
 
-	// TODO: Add a method: SourceDriver() Driver.
+	// TODO: Append a method: SourceDriver() Driver.
 
 	// Source returns the source for which this Grip was opened.
 	Source() *source.Source

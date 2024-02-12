@@ -189,7 +189,7 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 	for _, tblName := range allTblNames {
 		tblName := tblName
 
-		// Add a little delay to allow the goroutine to get a head start
+		// Append a little delay to allow the goroutine to get a head start
 		// on its successors. Benchmark: does this actually help?
 		time.Sleep(time.Microsecond * 10)
 

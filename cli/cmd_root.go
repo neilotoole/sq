@@ -29,7 +29,7 @@ to copy, truncate and drop tables. Use "sq diff" to compare source
 metadata and row data.
 
 See docs and more: https://sq.io`,
-		Example: `  # Add Postgres source.
+		Example: `  # Append Postgres source.
   $ sq add postgres://user@localhost/sakila -p
   Password: ****
 
