@@ -245,12 +245,7 @@ func (b *Buf[T]) TailSlice(start, end int) []T {
 		panic("start must be >= 0")
 	case end < start:
 		panic("end must be >= start")
-	case end == start:
-		return make([]T, 0)
-	case b.count == 0:
-		return make([]T, 0)
-
-	case start >= b.count:
+	case end == start, b.count == 0, start >= b.count:
 		return make([]T, 0)
 	case b.count == 1:
 		// Special case: the buffer has only one item.
@@ -264,8 +259,7 @@ func (b *Buf[T]) TailSlice(start, end int) []T {
 		} else if end > len(b.window) {
 			end = len(b.window)
 		}
-		s := b.window[start:end]
-		return s
+		return b.window[start:end]
 	default: // b.back > b.front
 		if end >= b.count {
 			end = b.count - 1
@@ -273,23 +267,21 @@ func (b *Buf[T]) TailSlice(start, end int) []T {
 			end = len(b.window)
 		}
 
-		back := b.window[b.back+start:]
-		front := b.window[:b.front+end-len(b.window)+1]
-
-		x := append(back, front...)
-		return x
+		s := make([]T, 0, end-start)
+		s = append(s, b.window[b.back+start:]...)
+		return append(s, b.window[:b.front+end-len(b.window)+1]...)
 	}
 }
 
-// Capacity returns the capacity Buf, which is the size specified when
-// the buffer was created.
+// Capacity returns the capacity of Buf, which is the size specified when the
+// buffer was created.
 func (b *Buf[T]) Capacity() int {
 	return len(b.window)
 }
 
 // Offset returns the offset of the current window vs the nominal complete list
-// of items written to the buffer. If the buffer is empty, the returned offset
-// is 0.
+// of items written to the buffer. It is effectively the count of discarded
+// items. If the buffer is empty, the returned offset is 0.
 func (b *Buf[T]) Offset() int {
 	if b.count <= len(b.window) {
 		return 0
