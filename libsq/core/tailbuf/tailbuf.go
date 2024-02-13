@@ -191,6 +191,54 @@ func (b *Buf[T]) NominalSlice(start, end int) []T {
 //	}
 //}
 
+func (b *Buf[T]) TailSliceNew(start, end int) []T {
+	switch {
+	case start < 0:
+		panic("start must be >= 0")
+	case end < start:
+		panic("end must be >= start")
+	case end == start:
+		return make([]T, 0)
+	case b.count == 0:
+		return make([]T, 0)
+	case b.count == 1:
+		// Special case: the buffer has only one item.
+		if start == 0 && end > 1 {
+			return []T{b.window[0]}
+		}
+		return make([]T, 0)
+	case start >= b.count:
+		return make([]T, 0)
+	}
+	//case end < b.count-len(b.window):
+	//	return make([]T, 0)
+
+	if b.front > b.back {
+		if end > b.count {
+			end = b.count
+		}
+		if end > len(b.window) {
+			end = len(b.window)
+		}
+		s := b.window[start:end]
+		return s
+	}
+
+	// b.front < b.back
+	if end >= b.count {
+		end = b.count - 1
+	} else if end > len(b.window) {
+		end = len(b.window)
+	}
+
+	back := b.window[b.back+start:]
+	front := b.window[:b.front+end-len(b.window)+1]
+
+	x := append(back, front...)
+	return x
+
+}
+
 func (b *Buf[T]) TailSlice(start, end int) []T {
 	switch {
 	case start < 0:
@@ -201,26 +249,23 @@ func (b *Buf[T]) TailSlice(start, end int) []T {
 		return make([]T, 0)
 	case b.count == 0:
 		return make([]T, 0)
+
 	case start >= b.count:
 		return make([]T, 0)
-	//case end < b.count-len(b.window):
-	//	return make([]T, 0)
-	case b.front > b.back:
-		if end > b.count {
-			end = b.count
-		}
-		if end > len(b.window) {
-			end = len(b.window)
-		}
-		s := b.window[start:end]
-		return s
 	case b.count == 1:
 		// Special case: the buffer has only one item.
 		if start == 0 && end > 1 {
 			return []T{b.window[0]}
 		}
 		return make([]T, 0)
-
+	case b.front > b.back:
+		if end > b.count {
+			end = b.count
+		} else if end > len(b.window) {
+			end = len(b.window)
+		}
+		s := b.window[start:end]
+		return s
 	default: // b.back > b.front
 		if end >= b.count {
 			end = b.count - 1
