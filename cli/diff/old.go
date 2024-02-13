@@ -3,6 +3,7 @@ package diff
 import (
 	"context"
 	"fmt"
+
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq"

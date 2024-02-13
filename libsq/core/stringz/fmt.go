@@ -2,10 +2,11 @@ package stringz
 
 import (
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/shopspring/decimal"
 	"strconv"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/shopspring/decimal"
 )
 
 // ParseBool is an expansion of strconv.ParseBool that also

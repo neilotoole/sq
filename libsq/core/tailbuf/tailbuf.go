@@ -14,16 +14,16 @@ import "context"
 // or Buf.WriteAll methods. However, Buf drops the oldest items as it fills
 // (which is the entire point of this package): the tail window is the subset of
 // the nominal buffer that is currently available. Some of Buf's methods take
-// arguments that are indices into the nominal buffer, for example [Buf.NominalSlice].
+// arguments that are indices into the nominal buffer, for example [Buf.Slice].
 type Buf[T any] struct {
+	// window is the circular buffer.
+	window []T
 	// back is the cursor for the oldest item.
 	back int
 	// front is the cursor for the newest item.
 	front int
 	// count is the number of items written.
 	count int
-	// window is the circular buffer.
-	window []T
 }
 
 // New returns a new Buf with the specified capacity. It panics if capacity is
@@ -71,59 +71,50 @@ func (b *Buf[T]) write(item T) {
 	b.window[b.front] = item
 }
 
-// Window returns the current window of items in the buffer. The window is
-// returned as a slice, with the oldest item at index 0. The returned slice is
-// a copy, so the caller is free to mutate the slice. If the buffer is empty,
-// the returned slice is empty.
-func (b *Buf[T]) Window() []T {
-	if b.count < 1 {
+// Tail returns a slice containing the current tail window of items in the
+// buffer, with the oldest item at index 0. Depending on the state of Buf, the
+// returned slice may be a slice of Buf's internal data, or a copy. Thus you
+// should copy the returned slice before modifying it.
+func (b *Buf[T]) Tail() []T {
+	switch {
+	case b.count < 1:
 		return make([]T, 0)
-	}
-	if b.count <= len(b.window) {
+	case b.count <= len(b.window):
 		return b.window[0:b.count]
-	}
-	if b.front >= b.back {
+	case b.front >= b.back:
 		return b.window[b.back : b.front+1]
+	default:
+		s := make([]T, 0, len(b.window))
+		s = append(s, b.window[b.back:]...)
+		return append(s, b.window[:b.front+1]...)
 	}
-
-	return append(b.window[b.back:], b.window[:b.front+1]...)
 }
 
-// Count returns the number of items written to the buffer.
+// Count returns the total number of items written to the buffer.
 func (b *Buf[T]) Count() int {
 	return b.count
 }
 
+// InBounds returns true if the index i of the nominal buffer is within the
+// bounds of the tail window. That is to say, InBounds returns true if the ith
+// item written to the buffer is still in the tail window.
 func (b *Buf[T]) InBounds(i int) bool {
-	if b.count == 0 {
+	if b.count == 0 || i < 0 {
 		return false
 	}
 	start, end := b.Bounds()
 	return i >= start && i <= end // TODO: should be < end?
 }
 
-// Bounds returns the start and end indices of the current window vs the nominal
-// complete list of items written to the buffer. If the buffer is empty, start
-// and end are both 0. The returned end value always equals [Buf.Count].
+// Bounds returns the start and end indices of the tail window vs the nominal
+// buffer. If the buffer is empty, start and end are both 0. The returned
+// values are the same as [Buf.Offset] and [Buf.Count].
 func (b *Buf[T]) Bounds() (start, end int) {
-	if b.front == -1 {
-		return 0, 0
-	}
-
-	end = b.count
-	if b.count <= len(b.window) {
-		start = 0
-
-	} else {
-		start = b.count - len(b.window)
-	}
-
-	return start, end
+	return b.Offset(), b.Count()
 }
 
-// NominalSlice returns a slice into the nominal buffer, using the standard
-// [inclusive:exclusive] slicing mechanics. NominalSlice panics if start is negative or
-// end is less than start.
+// Slice returns a slice into the nominal buffer, using the standard
+// [inclusive:exclusive] slicing mechanics. It is equi
 //
 // Boundary checking is relaxed. If the buffer is empty, the returned slice
 // is empty. Otherwise, if the requested range is completely outside the bounds
@@ -132,113 +123,45 @@ func (b *Buf[T]) Bounds() (start, end int) {
 // boundary checking is important to you, use [Buf.InBounds] to check the start
 // and end indices.
 //
-// NominalSlice is approximately functionality equivalent to reslicing the result of
-// [Buf.Window], but it avoids wasteful copying (and has relaxed boundarcy
+// Slice is approximately functionality equivalent to reslicing the result of
+// [Buf.Tail], but it avoids wasteful copying (and has relaxed boundary
 // checking).
 //
 //	buf := tailbuf.New[int](3).WriteAll(1, 2, 3)
-//	a := buf.Window()[0:2]
-//	b := buf.NominalSlice(0, 2)
+//	a := buf.Tail()[0:2]
+//	b := buf.Slice(0, 2)
 //	assert.Equal(t, a, b)
-func (b *Buf[T]) NominalSlice(start, end int) []T {
+//
+// Slice panics if start is negative or end is less than start.
+func (b *Buf[T]) Slice(start, end int) []T {
 	offset := b.Offset()
 	return b.TailSlice(start-offset, end-offset)
 }
 
-//func (b *Buf[T]) NominalSlice(start, end int) []T {
-//	switch {
-//	case start < 0:
-//		panic("start must be >= 0")
-//	case end < start:
-//		panic("end must be >= start")
-//	case end == start:
-//		return make([]T, 0)
-//	case b.count == 0:
-//		return make([]T, 0)
-//	case start > b.count:
-//		return make([]T, 0)
-//	case end < b.count-len(b.window):
-//		return make([]T, 0)
-//	case b.front > b.back:
-//		offset := b.count - len(b.window)
-//		s := b.window[start-offset : end-offset]
-//		return s
-//	case b.count == 1:
-//		// Special case: the buffer has only one item.
-//		if start == 0 && end > 1 {
-//			return []T{b.window[0]}
-//		}
-//		return make([]T, 0)
+// TailSlice returns a slice of the tail window, using the standard
+// [inclusive:exclusive] slicing mechanics, but with permissive bounds checking.
 //
-//	default: // b.back > b.front
-//		var offset int
-//		if b.count > len(b.window) {
-//			offset = b.count - len(b.window)
-//		}
-//		backo := start - offset
-//		//fronto := end - offset
-//		//fmt.Printf("found it! back:%d, front: %d, start: %d, end: %d, backo: %d, fronto: %d\n",
-//		//	b.back, b.front, start, end, backo, fronto)
+// A call to TailSlice is equivalent to reslicing the result of [Buf.Tail], but
+// it may avoid unnecessary copying, depending on the state of Buf.
 //
-//		back := b.window[b.back+backo:]
-//		front := b.window[:b.front]
+//	buf := tailbuf.New[int](3).WriteAll(1, 2, 3)
+//	a := buf.Tail()[0:2]
+//	b := buf.TailSlice(0, 2)
+//	fmt.Println("a:", a, "b:", b)
+//	// Output: a: [1 2] b: [1 2]
 //
-//		x := append(back, front...)
-//		return x
+// The returned slice could a slice of Buf's internal data, or a freshly
+// allocated slice. Thus you should copy the returned slice before modifying it.
 //
-//		//panic()
-//		//return append(b.window[backo:], b.window[:fronto+1]...)
-//	}
-//}
-
-func (b *Buf[T]) TailSliceNew(start, end int) []T {
-	switch {
-	case start < 0:
-		panic("start must be >= 0")
-	case end < start:
-		panic("end must be >= start")
-	case end == start:
-		return make([]T, 0)
-	case b.count == 0:
-		return make([]T, 0)
-	case b.count == 1:
-		// Special case: the buffer has only one item.
-		if start == 0 && end > 1 {
-			return []T{b.window[0]}
-		}
-		return make([]T, 0)
-	case start >= b.count:
-		return make([]T, 0)
-	}
-	//case end < b.count-len(b.window):
-	//	return make([]T, 0)
-
-	if b.front > b.back {
-		if end > b.count {
-			end = b.count
-		}
-		if end > len(b.window) {
-			end = len(b.window)
-		}
-		s := b.window[start:end]
-		return s
-	}
-
-	// b.front < b.back
-	if end >= b.count {
-		end = b.count - 1
-	} else if end > len(b.window) {
-		end = len(b.window)
-	}
-
-	back := b.window[b.back+start:]
-	front := b.window[:b.front+end-len(b.window)+1]
-
-	x := append(back, front...)
-	return x
-
-}
-
+// If Buf is empty, the returned slice is empty. Otherwise, if the requested
+// range is completely outside the bounds of the tail window, the returned slice
+// is empty; if the range overlaps with the tail window, the returned slice
+// contains the overlapping items. If strict boundary checking is important, use
+// [Buf.InBounds] to check the start and end indices.
+//
+// Slice panics if start is negative or end is less than start.
+//
+// See also: [Buf.Slice], [Buf.Tail], [Buf.Bounds], [Buf.InBounds].
 func (b *Buf[T]) TailSlice(start, end int) []T {
 	switch {
 	case start < 0:
@@ -266,15 +189,14 @@ func (b *Buf[T]) TailSlice(start, end int) []T {
 		} else if end > len(b.window) {
 			end = len(b.window)
 		}
-
 		s := make([]T, 0, end-start)
 		s = append(s, b.window[b.back+start:]...)
 		return append(s, b.window[:b.front+end-len(b.window)+1]...)
 	}
 }
 
-// Capacity returns the capacity of Buf, which is the size specified when the
-// buffer was created.
+// Capacity returns the capacity of Buf, which is the fixed size specified when
+// the buffer was created.
 func (b *Buf[T]) Capacity() int {
 	return len(b.window)
 }
@@ -297,14 +219,11 @@ func (b *Buf[T]) AtOffset(offset int) T {
 	}
 
 	x := offset - b.count - len(b.window)
-
-	i := (b.front + offset) % len(b.window)
-	i = i - b.count
-
 	return b.window[x]
-
 }
 
+// Front returns the newest item in the tail window. If Buf is empty, the zero
+// value of T is returned.
 func (b *Buf[T]) Front() T {
 	if b.front == -1 {
 		var t T
@@ -313,6 +232,8 @@ func (b *Buf[T]) Front() T {
 	return b.window[b.front]
 }
 
+// Back returns the oldest item in the tail window. If Buf empty, the zero value
+// of T is returned.
 func (b *Buf[T]) Back() T {
 	if b.back == -1 {
 		var t T
@@ -322,19 +243,18 @@ func (b *Buf[T]) Back() T {
 }
 
 // Apply applies fn to each item in the tail window, in oldest-to-newest order.
-// If the buffer is empty, fn is not invoked. The buffer is returned for
-// chaining. Example:
+// If Buf is empty, fn is not invoked. The buffer is returned for chaining.
 //
 //	buf := tailbuf.New[string](3)
 //	buf.WriteAll("a", "b  ", "   c  ")
-//	buf.Apply(strings.ToUpper).Apply(strings.TrimSpace)
-//	fmt.Println(buf.Window())
+//	buf.Apply(strings.TrimSpace).Apply(strings.ToUpper)
+//	fmt.Println(buf.Tail())
 //	// Output: [A B C]
 //
-// Using Apply is cheaper than getting the window and applying the function
-// manually, as it avoids the allocation of a new slice by Buf.Window.
+// Using Apply is cheaper than getting the slice via [Buf.Tail] and applying fn
+// manually, as it avoids the possible allocation of a new slice by Buf.Tail.
 //
-// For more control or to handle errors, use [Buf.Do].
+// For more control, or to handle errors, use [Buf.Do].
 func (b *Buf[T]) Apply(fn func(item T) T) *Buf[T] {
 	if b.count == 0 {
 		return b

@@ -215,7 +215,6 @@ func (h *Helper) init() {
 		}
 
 		if h.run.Writers == nil {
-
 			h.run.Writers = &output.Writers{
 				OutPrinting: output.NewPrinting(),
 				ErrPrinting: output.NewPrinting(),

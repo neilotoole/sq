@@ -1,12 +1,13 @@
 package stringz_test
 
 import (
-	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/neilotoole/sq/testh/tu"
-	"github.com/stretchr/testify/require"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/testh/tu"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIndentLines(t *testing.T) {

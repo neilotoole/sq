@@ -1,8 +1,9 @@
 package diff
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func Test_adjustHunkOffset(t *testing.T) {
@@ -29,9 +30,9 @@ func Test_adjustHunkOffset(t *testing.T) {
 		})
 	}
 
-	//const in = "@@ -44,7 +44,7 @@"
-	//const want = "@@ -54,7 +54,7 @@"
-	//got, err := adjustHunkOffset(in, 10)
-	//require.NoError(t, err)
-	//require.Equal(t, want, got)
+	// const in = "@@ -44,7 +44,7 @@"
+	// const want = "@@ -54,7 +54,7 @@"
+	// got, err := adjustHunkOffset(in, 10)
+	// require.NoError(t, err)
+	// require.Equal(t, want, got)
 }

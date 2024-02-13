@@ -1,10 +1,11 @@
 package stringz_test
 
 import (
+	"testing"
+
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/testh/tu"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestDoubleQuote(t *testing.T) {

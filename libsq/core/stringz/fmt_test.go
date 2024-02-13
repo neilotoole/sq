@@ -1,11 +1,12 @@
 package stringz_test
 
 import (
+	"testing"
+
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/testh/tu"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 // TestDecimal tests FormatDecimal, DecimalPlaces, and DecimalFloatOK.

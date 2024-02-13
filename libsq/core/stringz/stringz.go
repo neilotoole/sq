@@ -166,7 +166,6 @@ func UniqN(length int) string {
 	}
 }
 
-
 // RepeatJoin returns a string consisting of count copies
 // of s separated by sep. For example:
 //

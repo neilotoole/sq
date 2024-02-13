@@ -2,16 +2,16 @@ package diff_test
 
 import (
 	"bytes"
+	"testing"
+
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/diff"
 	"github.com/neilotoole/sq/cli/output/tablew"
 	"github.com/neilotoole/sq/testh"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func BenchmarkExecTableDiff(b *testing.B) {
-
 	th := testh.New(b, testh.OptNoLog())
 
 	ru := th.Run()

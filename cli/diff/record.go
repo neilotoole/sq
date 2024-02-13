@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"strings"
+
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/yamlw"
 	"github.com/neilotoole/sq/cli/run"
@@ -12,8 +15,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"io"
-	"strings"
 )
 
 // recordDiff is a container for a single record diff.
@@ -65,7 +66,6 @@ func handleDiffSink(ctx context.Context, ds *diffSink) error {
 		if err = rd.populateRecordDiff(ctx, recDiff); err != nil {
 			return err
 		}
-
 	}
 
 	header := fmt.Sprintf("sq diff %s %s", ds.td1, ds.td2)
@@ -219,7 +219,6 @@ type recordDiffer struct {
 
 //nolint:unused
 func (rd *recordDiffer) populateRecordDiff(ctx context.Context, recDiff *recordDiff) error {
-
 	var (
 		handleTbl1 = recDiff.td1.src.Handle + "." + recDiff.td1.tblName
 		handleTbl2 = recDiff.td2.src.Handle + "." + recDiff.td2.tblName
@@ -264,7 +263,7 @@ func (rd *recordDiffer) populateRecordDiff(ctx context.Context, recDiff *recordD
 	rd.buf.WriteRune('\n')
 	rd.buf.WriteString(hunkBody)
 
-	//recDiff.header = fmt.Sprintf("sq diff %s %s | .[%d]", handleTbl1, handleTbl2, recDiff.row)
+	// recDiff.header = fmt.Sprintf("sq diff %s %s | .[%d]", handleTbl1, handleTbl2, recDiff.row)
 
 	return nil
 }
@@ -280,7 +279,7 @@ func renderRecords(ctx context.Context, cfg *Config, recMeta record.Meta, recs [
 	buf := &bytes.Buffer{}
 	recw := cfg.RecordWriterFn(buf, pr)
 
-	//yw := yamlw.NewRecordWriter(buf, cfg.pr)
+	// yw := yamlw.NewRecordWriter(buf, cfg.pr)
 	if err := recw.Open(ctx, recMeta); err != nil {
 		return "", err
 	}
@@ -383,7 +382,7 @@ func adjustHunkOffset(hunk string, offset int) (string, error) {
 	}
 
 	// Long format didn't work, try the short format.
-	count, err = fmt.Fscanf(strings.NewReader(hunk), formatShort, &i1, &i3)
+	_, err = fmt.Fscanf(strings.NewReader(hunk), formatShort, &i1, &i3)
 	if err != nil {
 		return "", errz.Errorf("failed to parse hunk: %s", hunk)
 	}
