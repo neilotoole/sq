@@ -1461,7 +1461,7 @@ var allValueIndent = `{
 	"PMapP": null,
 	"EmptyMap": {},
 	"NilMap": null,
-	"Slice": [
+	"NominalSlice": [
 		{
 			"Tag": "tag20"
 		},
@@ -1554,7 +1554,7 @@ var pallValueIndent = `{
 	},
 	"EmptyMap": null,
 	"NilMap": null,
-	"Slice": null,
+	"NominalSlice": null,
 	"SliceP": null,
 	"PSlice": [
 		{
@@ -1799,7 +1799,7 @@ func TestUnmarshalNulls(t *testing.T) {
 				"String"  : null,
 				"PBool": null,
 				"Map": null,
-				"Slice": null,
+				"NominalSlice": null,
 				"Interface": null,
 				"PRaw": null,
 				"PTime": null,
@@ -1863,7 +1863,7 @@ func TestUnmarshalNulls(t *testing.T) {
 		t.Errorf("Unmarshal of null did not clear nulls.Map")
 	}
 	if nulls.Slice != nil {
-		t.Errorf("Unmarshal of null did not clear nulls.Slice")
+		t.Errorf("Unmarshal of null did not clear nulls.NominalSlice")
 	}
 	if nulls.Interface != nil {
 		t.Errorf("Unmarshal of null did not clear nulls.Interface")

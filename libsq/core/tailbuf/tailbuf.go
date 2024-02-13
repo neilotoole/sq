@@ -14,7 +14,7 @@ import "context"
 // or Buf.WriteAll methods. However, Buf drops the oldest items as it fills
 // (which is the entire point of this package): the tail window is the subset of
 // the nominal buffer that is currently available. Some of Buf's methods take
-// arguments that are indices into the nominal buffer, for example [Buf.Slice].
+// arguments that are indices into the nominal buffer, for example [Buf.NominalSlice].
 type Buf[T any] struct {
 	// back is the cursor for the oldest item.
 	back int
@@ -26,14 +26,14 @@ type Buf[T any] struct {
 	window []T
 }
 
-// New returns a new Buf with the specified size. It panics if size is less
-// than 1.
-func New[T any](size int) *Buf[T] {
-	if size < 1 {
-		panic("size must be a positive integer")
+// New returns a new Buf with the specified capacity. It panics if capacity is
+// less than 1.
+func New[T any](capacity int) *Buf[T] {
+	if capacity < 1 {
+		panic("capacity must be > 0")
 	}
 	return &Buf[T]{
-		window: make([]T, size),
+		window: make([]T, capacity),
 		back:   -1,
 		front:  -1,
 	}
@@ -121,8 +121,8 @@ func (b *Buf[T]) Bounds() (start, end int) {
 	return start, end
 }
 
-// Slice returns a slice into the nominal buffer, using the standard
-// [inclusive:exclusive] slicing mechanics. Slice panics if start is negative or
+// NominalSlice returns a slice into the nominal buffer, using the standard
+// [inclusive:exclusive] slicing mechanics. NominalSlice panics if start is negative or
 // end is less than start.
 //
 // Boundary checking is relaxed. If the buffer is empty, the returned slice
@@ -132,16 +132,66 @@ func (b *Buf[T]) Bounds() (start, end int) {
 // boundary checking is important to you, use [Buf.InBounds] to check the start
 // and end indices.
 //
-// Slice is approximately functionality equivalent to reslicing the result of
+// NominalSlice is approximately functionality equivalent to reslicing the result of
 // [Buf.Window], but it avoids wasteful copying (and has relaxed boundarcy
 // checking).
 //
-//  buf := tailbuf.New[int](3).WriteAll(1, 2, 3)
-//  a := buf.Window()[0:2]
-//  b := buf.Slice(0, 2)
-//  assert.Equal(t, a, b)
+//	buf := tailbuf.New[int](3).WriteAll(1, 2, 3)
+//	a := buf.Window()[0:2]
+//	b := buf.NominalSlice(0, 2)
+//	assert.Equal(t, a, b)
+func (b *Buf[T]) NominalSlice(start, end int) []T {
+	offset := b.Offset()
+	return b.TailSlice(start-offset, end-offset)
+}
 
-func (b *Buf[T]) Slice(start, end int) []T {
+//func (b *Buf[T]) NominalSlice(start, end int) []T {
+//	switch {
+//	case start < 0:
+//		panic("start must be >= 0")
+//	case end < start:
+//		panic("end must be >= start")
+//	case end == start:
+//		return make([]T, 0)
+//	case b.count == 0:
+//		return make([]T, 0)
+//	case start > b.count:
+//		return make([]T, 0)
+//	case end < b.count-len(b.window):
+//		return make([]T, 0)
+//	case b.front > b.back:
+//		offset := b.count - len(b.window)
+//		s := b.window[start-offset : end-offset]
+//		return s
+//	case b.count == 1:
+//		// Special case: the buffer has only one item.
+//		if start == 0 && end > 1 {
+//			return []T{b.window[0]}
+//		}
+//		return make([]T, 0)
+//
+//	default: // b.back > b.front
+//		var offset int
+//		if b.count > len(b.window) {
+//			offset = b.count - len(b.window)
+//		}
+//		backo := start - offset
+//		//fronto := end - offset
+//		//fmt.Printf("found it! back:%d, front: %d, start: %d, end: %d, backo: %d, fronto: %d\n",
+//		//	b.back, b.front, start, end, backo, fronto)
+//
+//		back := b.window[b.back+backo:]
+//		front := b.window[:b.front]
+//
+//		x := append(back, front...)
+//		return x
+//
+//		//panic()
+//		//return append(b.window[backo:], b.window[:fronto+1]...)
+//	}
+//}
+
+func (b *Buf[T]) TailSlice(start, end int) []T {
 	switch {
 	case start < 0:
 		panic("start must be >= 0")
@@ -151,13 +201,18 @@ func (b *Buf[T]) Slice(start, end int) []T {
 		return make([]T, 0)
 	case b.count == 0:
 		return make([]T, 0)
-	case start > b.count:
+	case start >= b.count:
 		return make([]T, 0)
-	case end < b.count-len(b.window):
-		return make([]T, 0)
+	//case end < b.count-len(b.window):
+	//	return make([]T, 0)
 	case b.front > b.back:
-		offset := b.count - len(b.window)
-		s := b.window[start-offset : end-offset]
+		if end > b.count {
+			end = b.count
+		}
+		if end > len(b.window) {
+			end = len(b.window)
+		}
+		s := b.window[start:end]
 		return s
 	case b.count == 1:
 		// Special case: the buffer has only one item.
@@ -167,24 +222,24 @@ func (b *Buf[T]) Slice(start, end int) []T {
 		return make([]T, 0)
 
 	default: // b.back > b.front
-		var offset int
-		if b.count > len(b.window) {
-			offset = b.count - len(b.window)
+		if end >= b.count {
+			end = b.count - 1
+		} else if end > len(b.window) {
+			end = len(b.window)
 		}
-		backo := start - offset
-		//fronto := end - offset
-		//fmt.Printf("found it! back:%d, front: %d, start: %d, end: %d, backo: %d, fronto: %d\n",
-		//	b.back, b.front, start, end, backo, fronto)
 
-		back := b.window[b.back+backo:]
-		front := b.window[:b.front]
+		back := b.window[b.back+start:]
+		front := b.window[:b.front+end-len(b.window)+1]
 
 		x := append(back, front...)
 		return x
-
-		//panic()
-		//return append(b.window[backo:], b.window[:fronto+1]...)
 	}
+}
+
+// Capacity returns the capacity Buf, which is the size specified when
+// the buffer was created.
+func (b *Buf[T]) Capacity() int {
+	return len(b.window)
 }
 
 // Offset returns the offset of the current window vs the nominal complete list
