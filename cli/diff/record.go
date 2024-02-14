@@ -114,8 +114,7 @@ func handleDiffSink(ctx context.Context, ds *diffSink) error {
 }
 
 type recordDiffer struct {
-	cfg *Config
-	//buf                *bytes.Buffer
+	cfg                *Config
 	td1, td2           *tableData
 	recMeta1, recMeta2 record.Meta
 	tb                 *tailbuf.Buf[record.Record]
@@ -145,6 +144,8 @@ func (df *recordDiffer) generateHunkDiff(ctx context.Context, hnk *hunk, recs1, 
 		return err
 	}
 
+	// Trim the diff "file header"... ultimately, we should change computeUnified
+	// to not return this (e.g. add an arg "noHeader=true")
 	unified = stringz.TrimHead(unified, 2)
 
 	hunkHeader, hunkBody, found := strings.Cut(unified, "\n")
@@ -160,9 +161,6 @@ func (df *recordDiffer) generateHunkDiff(ctx context.Context, hnk *hunk, recs1, 
 	hnk.header = hunkHeader
 	hnk.body = hunkBody
 	return nil
-	//df.buf.WriteString(hunkHeader)
-	//df.buf.WriteRune('\n')
-	//df.buf.WriteString(hunkBody)
 }
 
 //
