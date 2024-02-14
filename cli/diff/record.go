@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/tailbuf"
 	"io"
 	"strings"
 
@@ -21,12 +22,10 @@ import (
 //
 //nolint:unused
 type recordDiff struct {
-	td1, td2           *tableData
-	header             string
-	diff               string
-	recMeta1, recMeta2 record.Meta
-	rec1, rec2         record.Record
-	row                int
+	header     string
+	diff       string
+	rec1, rec2 record.Record
+	row        int
 }
 
 type diffSink struct {
@@ -45,25 +44,54 @@ type recPair struct {
 
 func handleDiffSink(ctx context.Context, ds *diffSink) error {
 	var err error
+	tb := tailbuf.New[record.Record](ds.cfg.Lines)
+	rd := &recordDiffer{
+		cfg: ds.cfg,
+		buf: &bytes.Buffer{},
+		tb:  tb,
+		td1: ds.td1,
+		td2: ds.td2,
+		//recMeta1: ds.recw1.recMeta,
+		//recMeta2: ds.recw2.recMeta,
+	}
 
-	rd := &recordDiffer{cfg: ds.cfg, buf: &bytes.Buffer{}}
+	//row := -1
+	var preDiffRecs []record.Record
+	var differingRow int
+	_ = preDiffRecs
+	_ = differingRow
+	//for rp := range ds.diffs {
+	for row := 0; ; row++ {
 
-	for rp := range ds.diffs {
+		rp, ok := <-ds.diffs
+		if !ok {
+			break
+		}
+
+		if row == 0 {
+			rd.recMeta1 = ds.recw1.recMeta
+			rd.recMeta2 = ds.recw2.recMeta
+		}
+
+		//row++
 		if rp.equal {
+			differingRow = -1
+			tb.Write(rp.rec1)
 			continue
 		}
 
+		// We've found a differing row.
+		differingRow = row
+
+		preDiffRecs = tb.Slice(row-ds.cfg.Lines, row+1)
+
 		recDiff := &recordDiff{
-			td1:      ds.td1,
-			td2:      ds.td2,
-			recMeta1: ds.recw1.recMeta,
-			recMeta2: ds.recw2.recMeta,
-			rec1:     rp.rec1,
-			rec2:     rp.rec2,
-			row:      rp.row,
+			rec1: rp.rec1,
+			rec2: rp.rec2,
+			row:  rp.row,
 		}
 
-		if err = rd.populateRecordDiff(ctx, recDiff); err != nil {
+		if err = rd.foundDiff(ctx, recDiff); err != nil {
 			return err
 		}
 	}
@@ -72,6 +100,65 @@ func handleDiffSink(ctx context.Context, ds *diffSink) error {
 	if err = Print(ctx, ds.out, ds.cfg.pr, header, rd.buf.String()); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+type recordDiffer struct {
+	cfg                *Config
+	buf                *bytes.Buffer
+	td1, td2           *tableData
+	recMeta1, recMeta2 record.Meta
+	tb                 *tailbuf.Buf[record.Record]
+}
+
+//nolint:unused
+func (df *recordDiffer) foundDiff(ctx context.Context, recDiff *recordDiff) error {
+	var (
+		handleTbl1 = df.td1.src.Handle + "." + df.td1.tblName
+		handleTbl2 = df.td2.src.Handle + "." + df.td2.tblName
+
+		body1, body2 string
+		err          error
+	)
+
+	if body1, err = renderRecords(ctx, df.cfg, df.recMeta1, []record.Record{recDiff.rec1}); err != nil {
+		return err
+	}
+	if body2, err = renderRecords(ctx, df.cfg, df.recMeta2, []record.Record{recDiff.rec2}); err != nil {
+		return err
+	}
+
+	//if body1, err = renderRecord2YAML(ctx, pr, recDiff.recMeta1, recDiff.rec1); err != nil {
+	//	return err
+	//}
+	//if body2, err = renderRecord2YAML(ctx, pr, recDiff.recMeta1, recDiff.rec2); err != nil {
+	//	return err
+	//}
+
+	msg := fmt.Sprintf("table {%s}", df.td1.tblName)
+	recDiff.diff, err = computeUnified(ctx, msg, handleTbl1, handleTbl2, df.cfg.Lines, body1, body2)
+	if err != nil {
+		return err
+	}
+
+	recDiff.diff = stringz.TrimHead(recDiff.diff, 2)
+
+	hunkHeader, hunkBody, found := strings.Cut(recDiff.diff, "\n")
+	if !found {
+		return errz.New("hunk header not found")
+	}
+
+	hunkHeader, err = adjustHunkOffset(hunkHeader, recDiff.row)
+	if err != nil {
+		return err
+	}
+
+	df.buf.WriteString(hunkHeader)
+	df.buf.WriteRune('\n')
+	df.buf.WriteString(hunkBody)
+
+	// recDiff.header = fmt.Sprintf("sq diff %s %s | .[%d]", handleTbl1, handleTbl2, recDiff.row)
 
 	return nil
 }
@@ -210,62 +297,6 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	// No matter what happened above, we cancel the context.
 	cancelFn()
 	return err
-}
-
-type recordDiffer struct {
-	cfg *Config
-	buf *bytes.Buffer
-}
-
-//nolint:unused
-func (rd *recordDiffer) populateRecordDiff(ctx context.Context, recDiff *recordDiff) error {
-	var (
-		handleTbl1 = recDiff.td1.src.Handle + "." + recDiff.td1.tblName
-		handleTbl2 = recDiff.td2.src.Handle + "." + recDiff.td2.tblName
-
-		body1, body2 string
-		err          error
-	)
-
-	if body1, err = renderRecords(ctx, rd.cfg, recDiff.recMeta1, []record.Record{recDiff.rec1}); err != nil {
-		return err
-	}
-	if body2, err = renderRecords(ctx, rd.cfg, recDiff.recMeta2, []record.Record{recDiff.rec2}); err != nil {
-		return err
-	}
-
-	//if body1, err = renderRecord2YAML(ctx, pr, recDiff.recMeta1, recDiff.rec1); err != nil {
-	//	return err
-	//}
-	//if body2, err = renderRecord2YAML(ctx, pr, recDiff.recMeta1, recDiff.rec2); err != nil {
-	//	return err
-	//}
-
-	msg := fmt.Sprintf("table {%s}", recDiff.td1.tblName)
-	recDiff.diff, err = computeUnified(ctx, msg, handleTbl1, handleTbl2, rd.cfg.Lines, body1, body2)
-	if err != nil {
-		return err
-	}
-
-	recDiff.diff = stringz.TrimHead(recDiff.diff, 2)
-
-	hunkHeader, hunkBody, found := strings.Cut(recDiff.diff, "\n")
-	if !found {
-		return errz.New("hunk header not found")
-	}
-
-	hunkHeader, err = adjustHunkOffset(hunkHeader, recDiff.row)
-	if err != nil {
-		return err
-	}
-
-	rd.buf.WriteString(hunkHeader)
-	rd.buf.WriteRune('\n')
-	rd.buf.WriteString(hunkBody)
-
-	// recDiff.header = fmt.Sprintf("sq diff %s %s | .[%d]", handleTbl1, handleTbl2, recDiff.row)
-
-	return nil
 }
 
 func renderRecords(ctx context.Context, cfg *Config, recMeta record.Meta, recs []record.Record) (string, error) {

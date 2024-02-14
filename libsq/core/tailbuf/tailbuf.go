@@ -30,8 +30,9 @@ type Buf[T any] struct {
 // less than 1.
 func New[T any](capacity int) *Buf[T] {
 	if capacity < 1 {
-		panic("capacity must be > 0")
+		panic("capacity must be > 0") // FIXME: make zero value usable
 	}
+
 	return &Buf[T]{
 		window: make([]T, capacity),
 		back:   -1,
@@ -132,10 +133,18 @@ func (b *Buf[T]) Bounds() (start, end int) {
 //	b := buf.Slice(0, 2)
 //	assert.Equal(t, a, b)
 //
-// Slice panics if start is negative or end is less than start.
+// Slice panics if start is negative or end is less than start. // FIXME: not true
 func (b *Buf[T]) Slice(start, end int) []T {
 	offset := b.Offset()
-	return b.TailSlice(start-offset, end-offset)
+	start = start - offset
+	if start < 0 {
+		start = 0
+	}
+	end = end - offset
+	if end <= start {
+		return make([]T, 0)
+	}
+	return b.TailSlice(start, end)
 }
 
 // TailSlice returns a slice of the tail window, using the standard
