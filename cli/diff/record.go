@@ -56,6 +56,8 @@ func handleDiffSink(ctx context.Context, ds *diffSink) error {
 		//recMeta2: ds.recw2.recMeta,
 	}
 
+	rd.ha.header = fmt.Sprintf("sq diff %s %s", ds.td1, ds.td2)
+
 	//row := -1
 	var preDiffRecs []record.Record
 	var differingRow int
@@ -105,8 +107,7 @@ func handleDiffSink(ctx context.Context, ds *diffSink) error {
 		//}
 	}
 
-	header := fmt.Sprintf("sq diff %s %s", ds.td1, ds.td2)
-	if err = Print(ctx, ds.out, ds.cfg.pr, header, rd.ha.String()); err != nil {
+	if err = Print2Colorize(ctx, ds.out, ds.cfg.pr, rd.ha.header, rd.ha.Reader()); err != nil {
 		return err
 	}
 

@@ -14,6 +14,7 @@ import (
 	"text/template"
 	"time"
 	"unicode"
+	"unsafe"
 
 	sprig "github.com/Masterminds/sprig/v3"
 	"github.com/alessio/shellescape"
@@ -570,4 +571,23 @@ func TypeNames[T any](a ...T) []string {
 		types[i] = fmt.Sprintf("%T", a[i])
 	}
 	return types
+}
+
+// UnsafeBytes returns a byte slice for s without copying. This should really
+// only be used when we're chasing nanoseconds, and [strings.Builder] isn't a
+// good fit. UnsafeBytes uses package unsafe, and is generally sketchy.
+func UnsafeBytes(s string) []byte {
+	// https://josestg.medium.com/140x-faster-string-to-byte-and-byte-to-string-conversions-with-zero-allocation-in-go-200b4d7105fc
+	p := unsafe.StringData(s)
+	return unsafe.Slice(p, len(s))
+}
+
+// UnsafeString returns a string for b without copying. This should really only
+// be used when we're chasing nanoseconds. UnsafeString uses package unsafe, and
+// is generally sketchy.
+func UnsafeString(b []byte) string {
+	// https://josestg.medium.com/140x-faster-string-to-byte-and-byte-to-string-conversions-with-zero-allocation-in-go-200b4d7105fc
+	// Ignore if your IDE shows an error here; it's a false positive.
+	p := unsafe.SliceData(b)
+	return unsafe.String(p, len(b))
 }

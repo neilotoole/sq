@@ -7,6 +7,7 @@
 package diff
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -175,6 +176,120 @@ func Print(ctx context.Context, w io.Writer, pr *output.Printing, header, dif st
 	bar.Stop()
 	_, err := fmt.Fprintln(w, after)
 	return errz.Err(err)
+}
+
+// Print2Colorize prints dif to w. If pr is nil, printing is in monochrome.
+func Print2Colorize(ctx context.Context, w io.Writer, pr *output.Printing, header string, dif io.Reader) error {
+	if dif == nil {
+		return nil
+	}
+
+	var err error
+
+	if pr == nil || pr.IsMonochrome() {
+		// Monochrome
+		if header != "" {
+			if _, err = fmt.Fprintln(w, header); err != nil {
+				return errz.Err(err)
+			}
+		}
+		_, err = fmt.Fprintln(w, dif)
+		return errz.Err(err)
+	}
+
+	// Colorized.
+
+	if header != "" {
+		if _, err = pr.DiffHeader.Fprintln(w, header); err != nil {
+			return errz.Err(err)
+		}
+	}
+
+	sc := bufio.NewScanner(dif)
+	for i := 0; sc.Scan(); i++ {
+		line := sc.Text()
+		// REVISIT: ^^ don't need to allocate here.
+		// Instead, use sc.Bytes()
+
+		switch {
+		case i == 0 && strings.HasPrefix(line, "---"):
+			_, err = pr.DiffHeader.Fprintln(w, line)
+		case i == 1 && strings.HasPrefix(line, "+++"):
+			_, err = pr.DiffHeader.Fprintln(w, line)
+		case strings.HasPrefix(line, "@@"):
+			_, err = pr.DiffSection.Fprintln(w, line)
+		case strings.HasPrefix(line, "-"):
+			_, err = pr.DiffMinus.Fprintln(w, line)
+		case strings.HasPrefix(line, "+"):
+			_, err = pr.DiffPlus.Fprintln(w, line)
+		default:
+			_, err = pr.DiffNormal.Fprintln(w, line)
+		}
+
+		if err != nil {
+			return errz.Err(err)
+		}
+	}
+
+	return errz.Err(sc.Err())
+
+	//if i == 0 && strings.HasPrefix(line, "---") {
+	//	if _, err = pr.DiffHeader.Line(w, line); err != nil {
+	//		return errz.Err(err)
+	//	}
+	//} else if i == 1 && strings.HasPrefix(line, "+++") {
+	//	if _, err = pr.DiffHeader.Line(w, line); err != nil {
+	//		return errz.Err(err)
+	//	}
+	//} else if strings.HasPrefix(line, "@@") {
+	//	if _, err = pr.DiffSection.Line(w, line); err != nil {
+	//		return errz.Err(err)
+	//	}
+	//} else if strings.HasPrefix(line, "-") {
+	//	if _, err = pr.DiffMinus.Line(w, line); err != nil {
+	//		return errz.Err(err)
+	//	}
+	//} else if strings.HasPrefix(line, "+") {
+	//	if _, err = pr.DiffPlus.Line(w, line); err != nil {
+	//		return errz.Err(err)
+	//	}
+	//} else {
+	//	if _, err = pr.DiffNormal.Line(w, line); err != nil {
+	//		return errz.Err(err)
+	//	}
+	//}
+
+	//// FIXME: Should stream diff line colorization, not buffer it all up.
+	//after := stringz.VisitLines(dif, func(i int, line string) string {
+	//	if i == 0 && strings.HasPrefix(line, "---") {
+	//		return pr.DiffHeader.Sprint(line)
+	//	}
+	//	if i == 1 && strings.HasPrefix(line, "+++") {
+	//		return pr.DiffHeader.Sprint(line)
+	//	}
+	//
+	//	if strings.HasPrefix(line, "@@") {
+	//		return pr.DiffSection.Sprint(line)
+	//	}
+	//
+	//	if strings.HasPrefix(line, "-") {
+	//		return pr.DiffMinus.Sprint(line)
+	//	}
+	//
+	//	if strings.HasPrefix(line, "+") {
+	//		return pr.DiffPlus.Sprint(line)
+	//	}
+	//
+	//	return pr.DiffNormal.Sprint(line)
+	//})
+	//
+	//if header != "" {
+	//	after = pr.DiffHeader.Sprint(header) + "\n" + after
+	//}
+	//
+	//bar.Stop()
+	//_, err := fmt.Line(w, after)
+	//return errz.Err(err)
 }
 
 // computeUnified encapsulates computing a unified diff.

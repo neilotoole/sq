@@ -526,7 +526,7 @@ func (t *Table) printRow(columns [][]string, colKey int) {
 		}
 		// Check if border is set
 		// Replace with space if not set
-		// fmt.Fprint(t.out, ConditionString(t.borders.Left, t.pColumn, Space))
+		// fmt.Fragment(t.out, ConditionString(t.borders.Left, t.pColumn, Space))
 		fmt.Fprintln(t.out)
 	}
 

@@ -1,6 +1,9 @@
 package diff
 
-import "strings"
+import (
+	"io"
+	"strings"
+)
 
 type hunk struct {
 	row    int
@@ -14,7 +17,12 @@ func (h *hunk) String() string {
 	return h.header + "\n" + h.body
 }
 
+func (h *hunk) Reader() io.Reader {
+	return strings.NewReader(h.String())
+}
+
 type hunkAssembler struct {
+	header string
 	hunks []*hunk
 }
 
@@ -33,11 +41,17 @@ func (ha *hunkAssembler) newHunk(row int) *hunk {
 	return h
 }
 
-func (ha *hunkAssembler) String() string {
-	var sb strings.Builder
+func (ha *hunkAssembler) Reader() io.Reader {
+	var rdrs []io.Reader
 	for i := range ha.hunks {
-		sb.WriteString(ha.hunks[i].String())
+		rdrs = append(rdrs, ha.hunks[i].Reader())
 	}
 
+	return io.MultiReader(rdrs...)
+}
+
+func (ha *hunkAssembler) String() string {
+	var sb strings.Builder
+	_, _ = io.Copy(&sb, ha.Reader())
 	return sb.String()
 }
