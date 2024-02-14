@@ -5,7 +5,9 @@ import "strings"
 type hunk struct {
 	row    int
 	header string
-	body   string
+
+	// Consider using: https://pkg.go.dev/github.com/djherbis/buffer
+	body string
 }
 
 func (h *hunk) String() string {
@@ -21,6 +23,11 @@ func newHunkAssembler() *hunkAssembler {
 }
 
 func (ha *hunkAssembler) newHunk(row int) *hunk {
+	// TODO: new hunk should write out the previous hunk (if any) to
+	// a hunkAssembler.buf field, which probably should be
+	// a https://pkg.go.dev/github.com/djherbis/buffer, using a memory/file
+	// strategy.
+
 	h := &hunk{row: row}
 	ha.hunks = append(ha.hunks, h)
 	return h
