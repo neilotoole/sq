@@ -461,7 +461,7 @@ func execCopyTable(ctx context.Context, fromDB driver.Grip, fromTbl tablefq.T,
 		"Copy records",
 		destGrip,
 		destTbl.Table,
-		tuning.OptRecChanSize.Get(destGrip.Source().Options),
+		tuning.OptRecBufSize.Get(destGrip.Source().Options),
 		createTblHook,
 	)
 

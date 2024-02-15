@@ -116,7 +116,7 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.SetLimit(tuning.OptErrgroupLimit.Get(o))
-	diffCh := make(chan *tableDataDiff, tuning.OptRecChanSize.Get(o))
+	diffCh := make(chan *tableDataDiff, tuning.OptRecBufSize.Get(o))
 
 	printErrCh := make(chan error, 1)
 	printIndex := 0

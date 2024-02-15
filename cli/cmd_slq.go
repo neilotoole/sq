@@ -149,7 +149,7 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 		"Insert records",
 		destGrip,
 		destTbl,
-		tuning.OptRecChanSize.Get(destSrc.Options),
+		tuning.OptRecBufSize.Get(destSrc.Options),
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
 	)
 

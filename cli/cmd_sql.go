@@ -162,7 +162,7 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 		"Insert records",
 		destGrip,
 		destTbl,
-		tuning.OptRecChanSize.Get(destSrc.Options),
+		tuning.OptRecBufSize.Get(destSrc.Options),
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
 	)
 	err = libsq.QuerySQL(ctx, fromGrip, nil, inserter, args[0])

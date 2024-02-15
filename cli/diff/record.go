@@ -183,7 +183,7 @@ func (df *recordDiffer) generateHunkDiff(ctx context.Context, hnk *hunk, pairs [
 func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	td1, td2 *tableData,
 ) error {
-	recChSize := tuning.OptRecChanSize.Get(options.FromContext(ctx))
+	recBufSize := tuning.OptRecBufSize.Get(options.FromContext(ctx))
 
 	qc := run.NewQueryContext(ru, nil)
 
@@ -192,11 +192,11 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 
 	errCh := make(chan error, 5)
 	recw1 := &recWriter{
-		recCh: make(chan record.Record, recChSize),
+		recCh: make(chan record.Record, recBufSize),
 		errCh: errCh,
 	}
 	recw2 := &recWriter{
-		recCh: make(chan record.Record, recChSize),
+		recCh: make(chan record.Record, recBufSize),
 		errCh: errCh,
 	}
 
@@ -205,7 +205,7 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		td2:      td2,
 		recw1:    recw1,
 		recw2:    recw2,
-		recPairs: make(chan record.Pair, 100),
+		recPairs: make(chan record.Pair, recBufSize),
 		out:      ru.Out,
 		cfg:      cfg,
 	}

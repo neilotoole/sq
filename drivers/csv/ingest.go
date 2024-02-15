@@ -130,7 +130,7 @@ func (d *driveri) ingestCSV(ctx context.Context, src *source.Source, destGrip dr
 		libsq.MsgIngestRecords,
 		destGrip,
 		tblDef.Name,
-		tuning.OptRecChanSize.Get(destGrip.Source().Options),
+		tuning.OptRecBufSize.Get(destGrip.Source().Options),
 	)
 
 	err = execInsert(ctx, insertWriter, recMeta, mungers, recs, cr)

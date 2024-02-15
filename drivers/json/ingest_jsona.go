@@ -153,7 +153,7 @@ func ingestJSONA(ctx context.Context, job *ingestJob) error {
 		libsq.MsgIngestRecords,
 		job.destGrip,
 		tblDef.Name,
-		tuning.OptRecChanSize.Get(job.destGrip.Source().Options),
+		tuning.OptRecBufSize.Get(job.destGrip.Source().Options),
 	)
 
 	var cancelFn context.CancelFunc

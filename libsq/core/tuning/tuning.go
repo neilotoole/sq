@@ -33,7 +33,7 @@ etc.`,
 	options.TagTuning,
 )
 
-var OptRecChanSize = options.NewInt(
+var OptRecBufSize = options.NewInt(
 	"tuning.record-buffer",
 	nil,
 	1024,

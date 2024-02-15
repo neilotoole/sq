@@ -196,7 +196,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		driver.OptConnOpenTimeout,
 		tuning.OptMaxRetryInterval,
 		tuning.OptErrgroupLimit,
-		tuning.OptRecChanSize,
+		tuning.OptRecBufSize,
 		tuning.OptFlushThreshold,
 		driver.OptIngestHeader,
 		driver.OptIngestCache,
