@@ -129,12 +129,29 @@ func TestBuf_Tail_Slice_Equivalence(t *testing.T) {
 	require.Equal(t, a, b)
 }
 
+func TestBuf_CountGTCapacity(t *testing.T) {
+	buf := tailbuf.New[string](1)
+	buf.WriteAll("a", "b")
+	require.Equal(t, 1, buf.Capacity())
+	require.Equal(t, 2, buf.Count())
+	tail := buf.Tail()
+	require.Equal(t, []string{"b"}, tail)
+	tailSlice := buf.TailSlice(0, 1)
+	require.Equal(t, []string{"b"}, tailSlice)
+	nomSlice := buf.Slice(0, 2)
+	require.Equal(t, []string{"b"}, nomSlice)
+	nomSlice = buf.Slice(0, 1)
+	require.Empty(t, nomSlice)
+}
+
 func TestBuf_ZeroCapacity(t *testing.T) {
 	buf := tailbuf.New[int](0)
 	require.Equal(t, 0, buf.Capacity())
+	require.Equal(t, 0, buf.Count())
+
 	buf.Write(1)
 
-	require.Equal(t, 0, buf.Count())
+	require.Equal(t, 1, buf.Count())
 	require.Empty(t, buf.Tail())
 	require.Empty(t, buf.Slice(0, 1))
 }

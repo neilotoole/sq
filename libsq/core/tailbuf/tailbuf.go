@@ -45,6 +45,8 @@ func New[T any](capacity int) *Buf[T] {
 // is overwritten. The buffer is returned for chaining.
 func (b *Buf[T]) Write(t T) *Buf[T] {
 	if len(b.window) == 0 {
+		// We won't actually store the item, but we still count it.
+		b.count++
 		return b
 	}
 
@@ -56,6 +58,8 @@ func (b *Buf[T]) Write(t T) *Buf[T] {
 // are overwritten. The buffer is returned for chaining.
 func (b *Buf[T]) WriteAll(a ...T) *Buf[T] {
 	if len(b.window) == 0 {
+		// We won't actually store the items, but we still count them.
+		b.count += len(a)
 		return b
 	}
 
@@ -87,7 +91,7 @@ func (b *Buf[T]) write(item T) {
 // should copy the returned slice before modifying it, or instead use TailSlice.
 func (b *Buf[T]) Tail() []T {
 	switch {
-	case b.count < 1:
+	case len(b.window) == 0, b.count < 1:
 		return make([]T, 0) // REVISIT: why not return a nil slice?
 	case b.count <= len(b.window):
 		return b.window[0:b.count]
@@ -187,16 +191,17 @@ func (b *Buf[T]) TailSlice(start, end int) []T {
 		panic("end must be >= start")
 	case len(b.window) == 0, end == start, b.count == 0, start >= b.count:
 		return make([]T, 0)
-	case b.count == 1:
+	case b.count == 1, b.front == b.back:
 		// Special case: the buffer has only one item.
-		if start == 0 && end > 1 {
+		if start == 0 && end >= 1 {
 			return []T{b.window[0]}
 		}
 		return make([]T, 0)
 	case b.front > b.back:
 		if end > b.count {
 			end = b.count
-		} else if end > len(b.window) {
+		}
+		if end > len(b.window) {
 			end = len(b.window)
 		}
 		s := make([]T, 0, end-start)
@@ -204,12 +209,16 @@ func (b *Buf[T]) TailSlice(start, end int) []T {
 	default: // b.back > b.front
 		if end >= b.count {
 			end = b.count - 1
-		} else if end > len(b.window) {
+		}
+		if end > len(b.window) {
 			end = len(b.window)
 		}
 		s := make([]T, 0, end-start)
 		s = append(s, b.window[b.back+start:]...)
-		return append(s, b.window[:b.front+end-len(b.window)+1]...)
+		frontIndex := b.front + end - len(b.window) + 1
+
+		//return append(s, b.window[:b.front+end-len(b.window)+1]...)
+		return append(s, b.window[:frontIndex]...)
 	}
 }
 
