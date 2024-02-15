@@ -17,13 +17,13 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
-// recordDiff encapsulates an execution of a diffing the records of two tables.
+// recordDiff encapsulates an execution of diffing the records of two tables.
 type recordDiff struct {
 	cfg          *Config
 	td1, td2     *tableData
 	recw1, recw2 *recWriter
 	recPairs     chan record.Pair
-	ha           *hunkAssembler
+	doc          *diffDoc
 }
 
 func execRecordDiff(ctx context.Context, out io.Writer, df *recordDiff) error {
@@ -53,7 +53,7 @@ func execRecordDiff(ctx context.Context, out io.Writer, df *recordDiff) error {
 		}
 
 		// We've found a differing record pair. We need to generate a hunk.
-		hnk := df.ha.newHunk(row)
+		hnk := df.doc.newHunk(row)
 
 		// But, the hunk doesn't just contain the differing record pair. It may also
 		// include context lines before and after the difference.
@@ -113,8 +113,8 @@ func execRecordDiff(ctx context.Context, out io.Writer, df *recordDiff) error {
 		return errz.Err(err)
 	}
 
-	df.ha.header = fmt.Sprintf("sq diff %s %s", df.td1, df.td2)
-	if err = Print(ctx, out, df.cfg.pr, df.ha.header, df.ha.Reader()); err != nil {
+	df.doc.header = fmt.Sprintf("sq diff %s %s", df.td1, df.td2)
+	if err = Print(ctx, out, df.cfg.pr, df.doc.header, df.doc.Reader()); err != nil {
 		return err
 	}
 
@@ -209,7 +209,7 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		recw2:    recw2,
 		recPairs: make(chan record.Pair, recBufSize),
 		cfg:      cfg,
-		ha:       newHunkAssembler(),
+		doc:      newDiffDoc(),
 	}
 
 	var cancelFn context.CancelFunc

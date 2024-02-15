@@ -21,37 +21,37 @@ func (h *hunk) Reader() io.Reader {
 	return strings.NewReader(h.String())
 }
 
-type hunkAssembler struct {
+type diffDoc struct {
 	header string
-	hunks []*hunk
+	hunks  []*hunk
 }
 
-func newHunkAssembler() *hunkAssembler {
-	return &hunkAssembler{}
+func newDiffDoc() *diffDoc {
+	return &diffDoc{}
 }
 
-func (ha *hunkAssembler) newHunk(row int) *hunk {
+func (d *diffDoc) newHunk(row int) *hunk {
 	// TODO: new hunk should write out the previous hunk (if any) to
-	// a hunkAssembler.buf field, which probably should be
+	// a diffDoc.buf field, which probably should be
 	// a https://pkg.go.dev/github.com/djherbis/buffer, using a memory/file
 	// strategy.
 
 	h := &hunk{row: row}
-	ha.hunks = append(ha.hunks, h)
+	d.hunks = append(d.hunks, h)
 	return h
 }
 
-func (ha *hunkAssembler) Reader() io.Reader {
+func (d *diffDoc) Reader() io.Reader {
 	var rdrs []io.Reader
-	for i := range ha.hunks {
-		rdrs = append(rdrs, ha.hunks[i].Reader())
+	for i := range d.hunks {
+		rdrs = append(rdrs, d.hunks[i].Reader())
 	}
 
 	return io.MultiReader(rdrs...)
 }
 
-func (ha *hunkAssembler) String() string {
+func (d *diffDoc) String() string {
 	var sb strings.Builder
-	_, _ = io.Copy(&sb, ha.Reader())
+	_, _ = io.Copy(&sb, d.Reader())
 	return sb.String()
 }
