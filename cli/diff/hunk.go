@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"fmt"
 	"io"
 	"strings"
 )
@@ -26,7 +27,8 @@ type diffDoc struct {
 	hunks  []*hunk
 }
 
-func newDiffDoc(header string) *diffDoc {
+func newDiffDoc(title, left, right string) *diffDoc {
+	header := fmt.Sprintf("%s\n--- %s\n+++ %s", title, left, right)
 	return &diffDoc{header: header}
 }
 

@@ -68,7 +68,11 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 		return nil
 	}
 
-	doc := newDiffDoc(fmt.Sprintf("sq diff %s %s", td1, td2))
+	doc := newDiffDoc(
+		fmt.Sprintf("sq diff %s %s", td1, td2),
+		td1.String(),
+		td2.String(),
+	)
 	if err = buildTableDataDiffNew(ctx, ru, cfg, doc, td1, td2); err != nil {
 		return err
 	}
