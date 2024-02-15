@@ -77,7 +77,12 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 		return err
 	}
 
-	return Print(ctx, ru.Out, cfg.pr, doc.header, doc.Reader())
+	rdr, err := doc.Reader(ctx)
+	if err != nil {
+		return err
+	}
+
+	return Print(ctx, ru.Out, cfg.pr, doc.header, rdr)
 }
 
 func buildTableStructureDiff(ctx context.Context, cfg *Config, showRowCounts bool,

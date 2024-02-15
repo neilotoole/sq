@@ -66,7 +66,7 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *di
 		}
 	}()
 
-	df := &recordDiff{
+	df := &recordDiffer{
 		td1:      td1,
 		td2:      td2,
 		recw1:    recw1,
@@ -134,8 +134,8 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *di
 	return err
 }
 
-// recordDiff encapsulates an execution of diffing the records of two tables.
-type recordDiff struct {
+// recordDiffer encapsulates execution of diffing the records of two tables.
+type recordDiffer struct {
 	cfg          *Config
 	td1, td2     *tableData
 	recw1, recw2 *recordWriter
@@ -144,8 +144,8 @@ type recordDiff struct {
 }
 
 // exec compares the records in df.td1 and df.td2, writing the results
-// to recordDiff.doc.
-func (rd *recordDiff) exec(ctx context.Context) error {
+// to recordDiffer.doc.
+func (rd *recordDiffer) exec(ctx context.Context) error {
 	var (
 		tb        = tailbuf.New[record.Pair](rd.cfg.Lines + 1)
 		hunkPairs []record.Pair
@@ -154,10 +154,13 @@ func (rd *recordDiff) exec(ctx context.Context) error {
 		err       error
 	)
 
+LOOP:
 	for row := 0; ctx.Err() == nil; row++ {
 		select {
 		case <-ctx.Done():
-			return errz.Err(ctx.Err())
+			err = errz.Err(ctx.Err())
+			break LOOP
+			//return errz.Err(ctx.Err())
 		case rp, ok = <-rd.recPairs:
 		}
 
@@ -175,7 +178,11 @@ func (rd *recordDiff) exec(ctx context.Context) error {
 		}
 
 		// We've found a differing record pair. We need to generate a hunk.
-		hnk := rd.doc.newHunk(row)
+
+		var hnk *hunk
+		if hnk, err = rd.doc.newHunk(row); err != nil {
+			break
+		}
 
 		// But, the hunk doesn't just contain the differing record pair. It may also
 		// include context lines before and after the difference.
@@ -201,7 +208,9 @@ func (rd *recordDiff) exec(ctx context.Context) error {
 		for {
 			select {
 			case <-ctx.Done():
-				return errz.Err(ctx.Err())
+				err = errz.Err(ctx.Err())
+				break LOOP
+				//return errz.Err(ctx.Err())
 			case rp, ok = <-rd.recPairs:
 			}
 
@@ -228,18 +237,19 @@ func (rd *recordDiff) exec(ctx context.Context) error {
 
 		// OK, now we've got enough record pairs to generate the hunk.
 		if err = rd.populateHunk(ctx, hnk, hunkPairs); err != nil {
-			return err
+			break
 		}
 	}
 
-	if err = ctx.Err(); err != nil {
-		return errz.Err(err)
+	if err == nil {
+		err = errz.Err(ctx.Err())
 	}
 
-	return nil
+	rd.doc.Seal(err)
+	return err
 }
 
-func (rd *recordDiff) populateHunk(ctx context.Context, hnk *hunk, pairs []record.Pair) error {
+func (rd *recordDiffer) populateHunk(ctx context.Context, hnk *hunk, pairs []record.Pair) error {
 	var (
 		handleTbl1 = rd.td1.src.Handle + "." + rd.td1.tblName
 		handleTbl2 = rd.td2.src.Handle + "." + rd.td2.tblName

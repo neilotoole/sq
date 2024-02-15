@@ -1,7 +1,7 @@
 package diff
 
 // findRecordDiff compares the row data in td1 and td2, returning
-// a recordDiff instance if there's a difference between the
+// a recordDiffer instance if there's a difference between the
 // equivalent rows. The function stops when it finds the first difference.
 //
 // NOTE: findRecordDiff (and the functions it calls) are currently unused.
@@ -16,7 +16,7 @@ package diff
 //nolint:unused
 //func findRecordDiffOld(ctx context.Context, ru *run.Run, lines int,
 //	td1, td2 *tableData,
-//) (*recordDiff, error) {
+//) (*recordDiffer, error) {
 //	const chSize = 100
 //
 //	log := lg.FromContext(ctx).
@@ -120,7 +120,7 @@ package diff
 //		return nil, nil //nolint:nilnil
 //	}
 //
-//	recDiff := &recordDiff{
+//	recDiff := &recordDiffer{
 //		td1:      td1,
 //		td2:      td2,
 //		recMeta1: recw1.recMeta,
@@ -138,7 +138,7 @@ package diff
 //}
 //
 ////nolint:unused
-//func populateRecordDiffOld(ctx context.Context, lines int, pr *output.Printing, recDiff *recordDiff) error {
+//func populateRecordDiffOld(ctx context.Context, lines int, pr *output.Printing, recDiff *recordDiffer) error {
 //	pr = pr.Clone()
 //	pr.EnableColor(false)
 //
