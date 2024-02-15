@@ -117,10 +117,10 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.SetLimit(tuning.OptErrgroupLimit.Get(o))
 	diffCh := make(chan *tableDataDiff, tuning.OptRecBufSize.Get(o))
+	// REVISIT: Why are we using tuning.OptRecBufSize? It's not a record buffer.
 
 	printErrCh := make(chan error, 1)
 	printIndex := 0
-
 	go func() {
 		// This is the read/print goroutine. Further down, in an errgroup, we spin
 		// up multiple goroutines to build a tableDataDiff for each table. Those

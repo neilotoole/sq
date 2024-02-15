@@ -68,11 +68,12 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 		return nil
 	}
 
-	if err = execTableDataDiff(ctx, ru, cfg, td1, td2); err != nil {
+	doc := newDiffDoc(fmt.Sprintf("sq diff %s %s", td1, td2))
+	if err = buildTableDataDiffNew(ctx, ru, cfg, doc, td1, td2); err != nil {
 		return err
 	}
 
-	return nil
+	return Print(ctx, ru.Out, cfg.pr, doc.header, doc.Reader())
 }
 
 func buildTableStructureDiff(ctx context.Context, cfg *Config, showRowCounts bool,

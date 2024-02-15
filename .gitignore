@@ -19,7 +19,7 @@ _cgo_export.*
 
 _testmain.go
 
-
+/archive
 /cache
 
 *.exe

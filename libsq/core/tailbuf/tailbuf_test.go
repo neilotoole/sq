@@ -128,3 +128,13 @@ func TestBuf_Tail_Slice_Equivalence(t *testing.T) {
 	require.Equal(t, []int{1, 2}, b)
 	require.Equal(t, a, b)
 }
+
+func TestBuf_ZeroCapacity(t *testing.T) {
+	buf := tailbuf.New[int](0)
+	require.Equal(t, 0, buf.Capacity())
+	buf.Write(1)
+
+	require.Equal(t, 0, buf.Count())
+	require.Empty(t, buf.Tail())
+	require.Empty(t, buf.Slice(0, 1))
+}

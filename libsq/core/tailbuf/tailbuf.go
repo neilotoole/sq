@@ -6,8 +6,9 @@ package tailbuf
 import "context"
 
 // Buf is an append-only fixed-size circular buffer that provides a window on
-// the tail of items written to the buffer. The zero value is not usable; invoke
-// [tailbuf.New] to create a [Buf]. It is not safe for concurrent use.
+// the tail of items written to the buffer. The zero value is technically
+// usable, but not very useful. Instead, invoke [tailbuf.New] to create a Buf.
+// Buf is not safe for concurrent use.
 //
 // Note the terms "nominal buffer" and "tail window" (or just "window"). The
 // nominal buffer is the complete list of items written to Buf via the Buf.Write
@@ -29,8 +30,8 @@ type Buf[T any] struct {
 // New returns a new Buf with the specified capacity. It panics if capacity is
 // less than 1.
 func New[T any](capacity int) *Buf[T] {
-	if capacity < 1 {
-		panic("capacity must be > 0") // FIXME: make zero value usable
+	if capacity < 0 {
+		panic("capacity must be >= 0") // FIXME: make zero value usable
 	}
 
 	return &Buf[T]{
@@ -43,6 +44,10 @@ func New[T any](capacity int) *Buf[T] {
 // Write appends t to the buffer. If the buffer fills, the oldest item
 // is overwritten. The buffer is returned for chaining.
 func (b *Buf[T]) Write(t T) *Buf[T] {
+	if len(b.window) == 0 {
+		return b
+	}
+
 	b.write(t)
 	return b
 }
@@ -50,6 +55,10 @@ func (b *Buf[T]) Write(t T) *Buf[T] {
 // WriteAll appends items to the buffer. If the buffer fills, the oldest items
 // are overwritten. The buffer is returned for chaining.
 func (b *Buf[T]) WriteAll(a ...T) *Buf[T] {
+	if len(b.window) == 0 {
+		return b
+	}
+
 	for i := range a {
 		b.write(a[i])
 	}
@@ -79,7 +88,7 @@ func (b *Buf[T]) write(item T) {
 func (b *Buf[T]) Tail() []T {
 	switch {
 	case b.count < 1:
-		return make([]T, 0)
+		return make([]T, 0) // REVISIT: why not return a nil slice?
 	case b.count <= len(b.window):
 		return b.window[0:b.count]
 	case b.front >= b.back:
@@ -133,7 +142,7 @@ func (b *Buf[T]) Bounds() (start, end int) {
 //	b := buf.Slice(0, 2)
 //	assert.Equal(t, a, b)
 //
-// Slice panics if start is negative or end is less than start. // FIXME: not true
+// If start < 0, zero is used. Slice panics if end is less than start.
 func (b *Buf[T]) Slice(start, end int) []T {
 	offset := b.Offset()
 	start = start - offset
@@ -144,6 +153,7 @@ func (b *Buf[T]) Slice(start, end int) []T {
 	if end <= start {
 		return make([]T, 0)
 	}
+
 	return b.TailSlice(start, end)
 }
 
@@ -175,7 +185,7 @@ func (b *Buf[T]) TailSlice(start, end int) []T {
 		panic("start must be >= 0")
 	case end < start:
 		panic("end must be >= start")
-	case end == start, b.count == 0, start >= b.count:
+	case len(b.window) == 0, end == start, b.count == 0, start >= b.count:
 		return make([]T, 0)
 	case b.count == 1:
 		// Special case: the buffer has only one item.
@@ -219,24 +229,15 @@ func (b *Buf[T]) Reset() *Buf[T] {
 }
 
 // Offset returns the offset of the current window vs the nominal complete list
-// of items written to the buffer. It is effectively the count of discarded
-// items. If the buffer is empty, the returned offset is 0.
+// of items written to the buffer. It is effectively the count of items that
+// have slipped out of the tail window. If the buffer is empty, the returned
+// offset is 0.
 func (b *Buf[T]) Offset() int {
 	if b.count <= len(b.window) {
 		return 0
 	}
 
 	return b.count - len(b.window)
-}
-
-func (b *Buf[T]) AtOffset(offset int) T {
-	if b.back == -1 {
-		var t T
-		return t
-	}
-
-	x := offset - b.count - len(b.window)
-	return b.window[x]
 }
 
 // Front returns the newest item in the tail window. If Buf is empty, the zero

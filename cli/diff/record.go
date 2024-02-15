@@ -177,11 +177,11 @@ func (df *recordDiff) populateHunk(ctx context.Context, hnk *hunk, pairs []recor
 	return nil
 }
 
-// execTableDataDiff compares the row data in td1 and td2, writing
+// buildTableDataDiffNew compares the row data in td1 and td2, writing
 // the diff to ru.Out.
 //
 // See: https://github.com/neilotoole/sq/issues/353.
-func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config, td1, td2 *tableData) error {
+func buildTableDataDiffNew(ctx context.Context, ru *run.Run, cfg *Config, doc *diffDoc, td1, td2 *tableData) error {
 	recBufSize := tuning.OptRecBufSize.Get(options.FromContext(ctx))
 
 	qc := run.NewQueryContext(ru, nil)
@@ -253,7 +253,6 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config, td1, td2 *
 		}
 	}()
 
-	doc := newDiffDoc(fmt.Sprintf("sq diff %s %s", df.td1, df.td2))
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -280,11 +279,7 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config, td1, td2 *
 		}
 	}
 
-	if err != nil {
-		return err
-	}
-
-	return Print(ctx, ru.Out, df.cfg.pr, doc.header, doc.Reader())
+	return err
 }
 
 var _ libsq.RecordWriter = (*recWriter)(nil)
