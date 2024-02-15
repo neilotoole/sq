@@ -28,7 +28,7 @@ type recordDiff struct {
 // to doc.
 func execRecordDiff(ctx context.Context, df *recordDiff, doc *diffDoc) error {
 	var (
-		tb        = tailbuf.New[record.Pair](df.cfg.Lines)
+		tb        = tailbuf.New[record.Pair](df.cfg.Lines + 1)
 		hunkPairs []record.Pair
 		rp        record.Pair
 		ok        bool
