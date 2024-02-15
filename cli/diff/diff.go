@@ -24,8 +24,12 @@ type Config struct {
 	// an output.RecordWriter used to generate diff text
 	// when comparing table data.
 	RecordWriterFn output.NewRecordWriterFunc
+
 	// Lines specifies the number of lines of context surrounding a diff.
 	Lines int
+
+	// HunkMaxSize specifies the maximum number of items in a diff hunk.
+	HunkMaxSize int
 
 	pr *output.Printing
 }

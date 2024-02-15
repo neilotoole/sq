@@ -1,6 +1,7 @@
 package yamlw
 
 import (
+	"github.com/neilotoole/sq/cli/output/commonw"
 	"io"
 
 	"github.com/goccy/go-yaml/printer"

@@ -25,6 +25,19 @@ var OptDiffNumLines = options.NewInt(
 	options.TagOutput,
 )
 
+var OptDiffHunkMaxSize = options.NewInt(
+	"diff.hunk.max-size",
+	nil,
+	10000,
+	"Maximum size of individual diff hunks",
+	`Maximum size of individual diff hunks. A hunk is a segment of a diff that
+contains differing lines, as well as non-differing context lines before and
+after the difference. A hunk must be loaded into memory in its entirety; this
+setting prevents excessive memory usage. If a hunk would exceed this limit, it
+is split into multiple hunks; this still produces a well-formed diff.`,
+	options.TagOutput,
+)
+
 var OptDiffDataFormat = format.NewOpt(
 	"diff.data.format",
 	&options.Flag{Name: "format", Short: 'f'},
@@ -223,6 +236,7 @@ func execDiff(cmd *cobra.Command, args []string) error {
 
 	diffCfg := &diff.Config{
 		Lines:          OptDiffNumLines.Get(o),
+		HunkMaxSize:    OptDiffHunkMaxSize.Get(o),
 		RecordWriterFn: recwFn,
 	}
 
