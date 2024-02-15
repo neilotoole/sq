@@ -88,26 +88,15 @@ func handleDiffSink(ctx context.Context, ds *diffSink) error {
 		differingRow = row
 
 		preDiffRecs = tb.Slice(row-ds.cfg.Lines, row+1)
-
-		//recDiff := &recordDiff{
-		//	rec1: rp.rec1,
-		//	rec2: rp.rec2,
-		//	row:  rp.row,
-		//}
-
 		recs1 := append(preDiffRecs, rp.rec1)
 		recs2 := append(preDiffRecs, rp.rec2)
 
 		if err = rd.generateHunkDiff(ctx, hnk, recs1, recs2); err != nil {
 			return err
 		}
-
-		//if err = rd.foundDiff(ctx, recDiff); err != nil {
-		//	return err
-		//}
 	}
 
-	if err = Print2Colorize(ctx, ds.out, ds.cfg.pr, rd.ha.header, rd.ha.Reader()); err != nil {
+	if err = Print2(ctx, ds.out, ds.cfg.pr, rd.ha.header, rd.ha.Reader()); err != nil {
 		return err
 	}
 

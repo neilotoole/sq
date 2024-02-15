@@ -586,6 +586,10 @@ func UnsafeBytes(s string) []byte {
 // be used when we're chasing nanoseconds. UnsafeString uses package unsafe, and
 // is generally sketchy.
 func UnsafeString(b []byte) string {
+	if len(b) == 0 {
+		return ""
+	}
+
 	// https://josestg.medium.com/140x-faster-string-to-byte-and-byte-to-string-conversions-with-zero-allocation-in-go-200b4d7105fc
 	// Ignore if your IDE shows an error here; it's a false positive.
 	p := unsafe.SliceData(b)
