@@ -53,7 +53,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 			return err
 		}
 
-		if err = Print2(
+		if err = Print(
 			ctx,
 			ru.Out,
 			ru.Writers.OutPrinting,
@@ -73,17 +73,6 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 	}
 
 	return nil
-
-	//tblDataDiff, err := buildTableDataDiff(ctx, ru, cfg, td1, td2)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//if tblDataDiff == nil {
-	//	return nil
-	//}
-	//
-	//return Print(ctx, ru.Out, ru.Writers.OutPrinting, tblDataDiff.header, tblDataDiff.diff)
 }
 
 func buildTableStructureDiff(ctx context.Context, cfg *Config, showRowCounts bool,

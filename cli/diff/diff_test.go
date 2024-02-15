@@ -39,7 +39,7 @@ func TestMyers(t *testing.T) {
 	require.NoError(t, err)
 
 	buf := &bytes.Buffer{}
-	err = Print2(
+	err = Print(
 		context.Background(),
 		buf,
 		output.NewPrinting(),

@@ -96,7 +96,7 @@ func handleDiffSink(ctx context.Context, ds *diffSink) error {
 		}
 	}
 
-	if err = Print2(ctx, ds.out, ds.cfg.pr, rd.ha.header, rd.ha.Reader()); err != nil {
+	if err = Print(ctx, ds.out, ds.cfg.pr, rd.ha.header, rd.ha.Reader()); err != nil {
 		return err
 	}
 

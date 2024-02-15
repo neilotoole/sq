@@ -177,7 +177,7 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 				}
 
 				tblDataDiff = diffs[printIndex]
-				if err := Print2(
+				if err := Print(
 					ctx,
 					ru.Out,
 					ru.Writers.OutPrinting,

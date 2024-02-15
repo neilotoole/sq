@@ -48,7 +48,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 			return err
 		}
 
-		if err = Print2(
+		if err = Print(
 			ctx,
 			ru.Out,
 			ru.Writers.OutPrinting,
@@ -64,7 +64,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		if err != nil {
 			return err
 		}
-		if err = Print2(
+		if err = Print(
 			ctx,
 			ru.Out,
 			ru.Writers.OutPrinting,
@@ -81,7 +81,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 			return err
 		}
 		for _, tblDiff := range tblDiffs {
-			if err = Print2(
+			if err = Print(
 				ctx,
 				ru.Out,
 				ru.Writers.OutPrinting,
