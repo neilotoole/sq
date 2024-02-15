@@ -149,6 +149,7 @@ func (b *Buf[T]) Slice(start, end int) []T {
 
 // TailSlice returns a slice of the tail window, using the standard
 // [inclusive:exclusive] slicing mechanics, but with permissive bounds checking.
+// The slice is freshly allocated, so the caller is free to mutate it.
 //
 // A call to TailSlice is equivalent to reslicing the result of [Buf.Tail], but
 // it may avoid unnecessary copying, depending on the state of Buf.
@@ -158,9 +159,6 @@ func (b *Buf[T]) Slice(start, end int) []T {
 //	b := buf.TailSlice(0, 2)
 //	fmt.Println("a:", a, "b:", b)
 //	// Output: a: [1 2] b: [1 2]
-//
-// The returned slice could a slice of Buf's internal data, or a freshly
-// allocated slice. Thus you should copy the returned slice before modifying it.
 //
 // If Buf is empty, the returned slice is empty. Otherwise, if the requested
 // range is completely outside the bounds of the tail window, the returned slice
@@ -191,7 +189,8 @@ func (b *Buf[T]) TailSlice(start, end int) []T {
 		} else if end > len(b.window) {
 			end = len(b.window)
 		}
-		return b.window[start:end]
+		s := make([]T, 0, end-start)
+		return append(s, b.window[start:end]...)
 	default: // b.back > b.front
 		if end >= b.count {
 			end = b.count - 1
@@ -208,6 +207,15 @@ func (b *Buf[T]) TailSlice(start, end int) []T {
 // the buffer was created.
 func (b *Buf[T]) Capacity() int {
 	return len(b.window)
+}
+
+// Reset resets the buffer to its initial state. The buffer is returned for
+// chaining.
+func (b *Buf[T]) Reset() *Buf[T] {
+	b.back = -1
+	b.front = -1
+	b.count = 0
+	return b
 }
 
 // Offset returns the offset of the current window vs the nominal complete list

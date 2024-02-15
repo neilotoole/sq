@@ -31,42 +31,39 @@ type recordDiff struct {
 type diffSink struct {
 	td1, td2     *tableData
 	recw1, recw2 *recWriter
-	recPairs     chan recPair
+	recPairs     chan record.Pair
 	out          io.Writer
 	cfg          *Config
 }
 
-type recPair struct {
-	row        int
-	rec1, rec2 record.Record
-	equal      bool
-}
-
 func handleDiffSink(ctx context.Context, ds *diffSink) error {
 	var err error
-	tb := tailbuf.New[record.Record](ds.cfg.Lines)
+	tb := tailbuf.New[record.Pair](ds.cfg.Lines)
 	rd := &recordDiffer{
 		cfg: ds.cfg,
-		//buf: &bytes.Buffer{},
 		tb:  tb,
 		td1: ds.td1,
 		td2: ds.td2,
 		ha:  newHunkAssembler(),
-		//recMeta1: ds.recw1.recMeta,
-		//recMeta2: ds.recw2.recMeta,
 	}
 
 	rd.ha.header = fmt.Sprintf("sq diff %s %s", ds.td1, ds.td2)
 
-	//row := -1
-	var preDiffRecs []record.Record
+	var pairs []record.Pair
 	var differingRow int
-	_ = preDiffRecs
+	_ = pairs
 	_ = differingRow
-	//for rp := range ds.diffs {
-	for row := 0; ; row++ {
 
-		rp, ok := <-ds.recPairs
+	var ok bool
+	var rp record.Pair
+	for row := 0; ctx.Err() == nil; row++ {
+
+		select {
+		case <-ctx.Done():
+			return errz.Err(ctx.Err())
+		case rp, ok = <-ds.recPairs:
+		}
+
 		if !ok {
 			break
 		}
@@ -76,10 +73,10 @@ func handleDiffSink(ctx context.Context, ds *diffSink) error {
 			rd.recMeta2 = ds.recw2.recMeta
 		}
 
-		//row++
-		if rp.equal {
+		tb.Write(rp)
+
+		if rp.Equal() {
 			differingRow = -1
-			tb.Write(rp.rec1)
 			continue
 		}
 
@@ -87,13 +84,41 @@ func handleDiffSink(ctx context.Context, ds *diffSink) error {
 		// We've found a differing row.
 		differingRow = row
 
-		preDiffRecs = tb.Slice(row-ds.cfg.Lines, row+1)
-		recs1 := append(preDiffRecs, rp.rec1)
-		recs2 := append(preDiffRecs, rp.rec2)
+		pairs = tb.Slice(row-ds.cfg.Lines, row+1)
 
-		if err = rd.generateHunkDiff(ctx, hnk, recs1, recs2); err != nil {
+		// Find the first non-matching pair.
+		for {
+			select {
+			case <-ctx.Done():
+				return errz.Err(ctx.Err())
+			case rp, ok = <-ds.recPairs:
+			}
+
+			if !ok {
+				break
+			}
+			row++
+			tb.Write(rp)
+			pairs = append(pairs, rp)
+			if rp.Equal() {
+				break
+			}
+		}
+
+		//rp, ok = <-ds.recPairs
+		//if !ok {
+		//	break
+		//}
+		//recs1 := append(preDiffPairs, rp.Rec1())
+		//recs2 := append(preDiffPairs, rp.Rec2())
+
+		if err = rd.generateHunkDiff(ctx, hnk, pairs); err != nil {
 			return err
 		}
+	}
+
+	if err = ctx.Err(); err != nil {
+		return errz.Err(err)
 	}
 
 	if err = Print(ctx, ds.out, ds.cfg.pr, rd.ha.header, rd.ha.Reader()); err != nil {
@@ -107,11 +132,11 @@ type recordDiffer struct {
 	cfg                *Config
 	td1, td2           *tableData
 	recMeta1, recMeta2 record.Meta
-	tb                 *tailbuf.Buf[record.Record]
+	tb                 *tailbuf.Buf[record.Pair]
 	ha                 *hunkAssembler
 }
 
-func (df *recordDiffer) generateHunkDiff(ctx context.Context, hnk *hunk, recs1, recs2 []record.Record) error {
+func (df *recordDiffer) generateHunkDiff(ctx context.Context, hnk *hunk, pairs []record.Pair) error {
 	var (
 		handleTbl1 = df.td1.src.Handle + "." + df.td1.tblName
 		handleTbl2 = df.td2.src.Handle + "." + df.td2.tblName
@@ -119,6 +144,13 @@ func (df *recordDiffer) generateHunkDiff(ctx context.Context, hnk *hunk, recs1, 
 		body1, body2 string
 		err          error
 	)
+
+	recs1 := make([]record.Record, len(pairs))
+	recs2 := make([]record.Record, len(pairs))
+	for i := range pairs {
+		recs1[i] = pairs[i].Rec1()
+		recs2[i] = pairs[i].Rec2()
+	}
 
 	if body1, err = renderRecords(ctx, df.cfg, df.recMeta1, recs1); err != nil {
 		return err
@@ -152,6 +184,49 @@ func (df *recordDiffer) generateHunkDiff(ctx context.Context, hnk *hunk, recs1, 
 	hnk.body = hunkBody
 	return nil
 }
+
+//
+//func (df *recordDiffer) generateHunkDiff(ctx context.Context, hnk *hunk, recs1, recs2 []record.Record) error {
+//	var (
+//		handleTbl1 = df.td1.src.Handle + "." + df.td1.tblName
+//		handleTbl2 = df.td2.src.Handle + "." + df.td2.tblName
+//
+//		body1, body2 string
+//		err          error
+//	)
+//
+//	if body1, err = renderRecords(ctx, df.cfg, df.recMeta1, recs1); err != nil {
+//		return err
+//	}
+//	if body2, err = renderRecords(ctx, df.cfg, df.recMeta2, recs2); err != nil {
+//		return err
+//	}
+//
+//	msg := fmt.Sprintf("table {%s}", df.td1.tblName)
+//	var unified string
+//	unified, err = computeUnified(ctx, msg, handleTbl1, handleTbl2, df.cfg.Lines, body1, body2)
+//	if err != nil {
+//		return err
+//	}
+//
+//	// Trim the diff "file header"... ultimately, we should change computeUnified
+//	// to not return this (e.g. add an arg "noHeader=true")
+//	unified = stringz.TrimHead(unified, 2)
+//
+//	hunkHeader, hunkBody, found := strings.Cut(unified, "\n")
+//	if !found {
+//		return errz.New("hunk header not found")
+//	}
+//
+//	hunkHeader, err = adjustHunkOffset(hunkHeader, hnk.row)
+//	if err != nil {
+//		return err
+//	}
+//
+//	hnk.header = hunkHeader
+//	hnk.body = hunkBody
+//	return nil
+//}
 
 //
 //func (df *recordDiffer) foundDiff(ctx context.Context, recDiff *recordDiff) error {
@@ -242,7 +317,7 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		td2:      td2,
 		recw1:    recw1,
 		recw2:    recw2,
-		recPairs: make(chan recPair, 100),
+		recPairs: make(chan record.Pair, 100),
 		out:      ru.Out,
 		cfg:      cfg,
 	}
@@ -268,7 +343,7 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	go func() {
 		var rec1, rec2 record.Record
 
-		for i := 0; ; i++ {
+		for i := 0; ctx.Err() == nil; i++ {
 			rec1 = nil
 			rec2 = nil
 
@@ -290,13 +365,7 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 				return
 			}
 
-			rp := recPair{
-				row:   i,
-				rec1:  rec1,
-				rec2:  rec2,
-				equal: record.Equal(rec1, rec2),
-			}
-
+			rp := record.NewPair(i, rec1, rec2)
 			ds.recPairs <- rp
 		}
 	}()
