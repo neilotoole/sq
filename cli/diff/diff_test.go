@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -38,7 +39,13 @@ func TestMyers(t *testing.T) {
 	require.NoError(t, err)
 
 	buf := &bytes.Buffer{}
-	err = Print(context.Background(), buf, output.NewPrinting(), "diff before after", result)
+	err = Print2(
+		context.Background(),
+		buf,
+		output.NewPrinting(),
+		"diff before after",
+		strings.NewReader(result),
+	)
 	require.NoError(t, err)
 
 	t.Logf("\n" + buf.String())

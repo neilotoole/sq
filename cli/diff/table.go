@@ -3,6 +3,7 @@ package diff
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"golang.org/x/sync/errgroup"
 
@@ -52,7 +53,13 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 			return err
 		}
 
-		if err = Print(ctx, ru.Out, ru.Writers.OutPrinting, tblDiff.header, tblDiff.diff); err != nil {
+		if err = Print2(
+			ctx,
+			ru.Out,
+			ru.Writers.OutPrinting,
+			tblDiff.header,
+			strings.NewReader(tblDiff.diff),
+		); err != nil {
 			return err
 		}
 	}

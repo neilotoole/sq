@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/samber/lo"
@@ -176,7 +177,13 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 				}
 
 				tblDataDiff = diffs[printIndex]
-				if err := Print(ctx, ru.Out, ru.Writers.OutPrinting, tblDataDiff.header, tblDataDiff.diff); err != nil {
+				if err := Print2(
+					ctx,
+					ru.Out,
+					ru.Writers.OutPrinting,
+					tblDataDiff.header,
+					strings.NewReader(tblDataDiff.diff),
+				); err != nil {
 					printErrCh <- err
 					return
 				}
