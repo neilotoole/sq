@@ -221,7 +221,7 @@ func (rd *recordDiff) exec(ctx context.Context) error {
 				pairMatchSeq = 0
 			}
 
-			if pairMatchSeq >= rd.cfg.Lines-1 || len(hunkPairs) >= rd.cfg.HunkMaxSize {
+			if pairMatchSeq > rd.cfg.Lines || len(hunkPairs) >= rd.cfg.HunkMaxSize {
 				break
 			}
 		}

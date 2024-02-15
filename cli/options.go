@@ -185,6 +185,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptLogFormat,
 		OptDiffNumLines,
 		OptDiffDataFormat,
+		OptDiffHunkMaxSize,
 		files.OptHTTPRequestTimeout,
 		files.OptHTTPResponseTimeout,
 		files.OptHTTPSInsecureSkipVerify,
