@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	stdj "encoding/json"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"io"
 	"math"
 	"time"
@@ -17,7 +18,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -153,7 +153,7 @@ func ingestJSONA(ctx context.Context, job *ingestJob) error {
 		libsq.MsgIngestRecords,
 		job.destGrip,
 		tblDef.Name,
-		driver.OptTuningRecChanSize.Get(job.destGrip.Source().Options),
+		tuning.OptRecChanSize.Get(job.destGrip.Source().Options),
 	)
 
 	var cancelFn context.CancelFunc

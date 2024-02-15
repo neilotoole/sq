@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"reflect"
 	"strconv"
 	"strings"
@@ -286,7 +287,7 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(driver.OptTuningErrgroupLimit.Get(src.Options))
+	g.SetLimit(tuning.OptErrgroupLimit.Get(src.Options))
 
 	g.Go(func() error {
 		return doRetry(gCtx, func() error {

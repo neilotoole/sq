@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"slices"
 	"strings"
 	"time"
@@ -114,8 +115,8 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(driver.OptTuningErrgroupLimit.Get(o))
-	diffCh := make(chan *tableDataDiff, driver.OptTuningRecChanSize.Get(o))
+	g.SetLimit(tuning.OptErrgroupLimit.Get(o))
+	diffCh := make(chan *tableDataDiff, tuning.OptRecChanSize.Get(o))
 
 	printErrCh := make(chan error, 1)
 	printIndex := 0

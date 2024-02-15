@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"slices"
 	"strings"
 
@@ -148,7 +149,7 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 		"Insert records",
 		destGrip,
 		destTbl,
-		driver.OptTuningRecChanSize.Get(destSrc.Options),
+		tuning.OptRecChanSize.Get(destSrc.Options),
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
 	)
 

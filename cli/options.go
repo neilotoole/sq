@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"strings"
 
 	"github.com/samber/lo"
@@ -193,10 +194,10 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		driver.OptConnMaxIdleTime,
 		driver.OptConnMaxLifetime,
 		driver.OptConnOpenTimeout,
-		driver.OptMaxRetryInterval,
-		driver.OptTuningErrgroupLimit,
-		driver.OptTuningRecChanSize,
-		OptTuningFlushThreshold,
+		tuning.OptMaxRetryInterval,
+		tuning.OptErrgroupLimit,
+		tuning.OptRecChanSize,
+		tuning.OptFlushThreshold,
 		driver.OptIngestHeader,
 		driver.OptIngestCache,
 		files.OptCacheLockTimeout,

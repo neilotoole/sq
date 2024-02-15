@@ -3,14 +3,15 @@ package diff
 import (
 	"context"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/tailbuf"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"io"
 	"strings"
 
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
@@ -175,30 +176,14 @@ func (df *recordDiffer) generateHunkDiff(ctx context.Context, hnk *hunk, pairs [
 	return nil
 }
 
-// findRecordDiff compares the row data in td1 and td2, returning
-// a recordDiff instance if there's a difference between the
-// equivalent rows. The function stops when it finds the first difference.
+// execTableDataDiff compares the row data in td1 and td2, writing
+// the diff to ru.Out.
 //
-// NOTE: findRecordDiff (and the functions it calls) are currently unused.
-// Instead diff is using a naive implementation that renders all table
-// data to text, and then diffs that text. That impl can be horribly
-// inefficient for large result sets. findRecordDiff demonstrates one
-// possibly better path. The code is left here as a guilty reminder
-// to tackle this issue.
-//
-// See:https://github.com/neilotoole/sq/issues/353
-//
-//nolint:unused
+// See: https://github.com/neilotoole/sq/issues/353.
 func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	td1, td2 *tableData,
 ) error {
-	const chSize = 100
-
-	log := lg.FromContext(ctx).
-		With("a", td1.src.Handle+"."+td1.tblName).
-		With("b", td2.src.Handle+"."+td2.tblName)
-
-	_ = log
+	recChSize := tuning.OptRecChanSize.Get(options.FromContext(ctx))
 
 	qc := run.NewQueryContext(ru, nil)
 
@@ -207,11 +192,11 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 
 	errCh := make(chan error, 5)
 	recw1 := &recWriter{
-		recCh: make(chan record.Record, chSize),
+		recCh: make(chan record.Record, recChSize),
 		errCh: errCh,
 	}
 	recw2 := &recWriter{
-		recCh: make(chan record.Record, chSize),
+		recCh: make(chan record.Record, recChSize),
 		errCh: errCh,
 	}
 
@@ -247,9 +232,6 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		var rec1, rec2 record.Record
 
 		for i := 0; ctx.Err() == nil; i++ {
-			rec1 = nil
-			rec2 = nil
-
 			select {
 			case <-ctx.Done():
 				return

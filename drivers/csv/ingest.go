@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/csv"
 	"errors"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"io"
 	"time"
 	"unicode/utf8"
@@ -129,7 +130,7 @@ func (d *driveri) ingestCSV(ctx context.Context, src *source.Source, destGrip dr
 		libsq.MsgIngestRecords,
 		destGrip,
 		tblDef.Name,
-		driver.OptTuningRecChanSize.Get(destGrip.Source().Options),
+		tuning.OptRecChanSize.Get(destGrip.Source().Options),
 	)
 
 	err = execInsert(ctx, insertWriter, recMeta, mungers, recs, cr)

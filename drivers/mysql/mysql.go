@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"log/slog"
 	"slices"
 	"strings"
@@ -653,7 +654,7 @@ func dsnFromLocation(src *source.Source, parseTime bool) (string, error) {
 
 // doRetry executes fn with retry on isErrTooManyConnections.
 func doRetry(ctx context.Context, fn func() error) error {
-	maxRetryInterval := driver.OptMaxRetryInterval.Get(options.FromContext(ctx))
+	maxRetryInterval := tuning.OptMaxRetryInterval.Get(options.FromContext(ctx))
 	return retry.Do(ctx, maxRetryInterval, fn, isErrTooManyConnections)
 }
 

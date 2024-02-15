@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"io"
 	"os"
 	"strings"
@@ -154,16 +155,6 @@ sampled, and reported on exit. If zero, memory usage sampling is disabled.`,
 		"Compact instead of pretty-printed output",
 		`Compact instead of pretty-printed output.`,
 		options.TagOutput,
-	)
-
-	OptTuningFlushThreshold = options.NewInt(
-		"tuning.flush-threshold",
-		nil,
-		1000,
-		"Output writer buffer flush threshold in bytes",
-		`Size in bytes after which output writers should flush any internal buffer.
-Generally, it is not necessary to fiddle this knob.`,
-		options.TagTuning,
 	)
 
 	timeLayoutsList = "Predefined values:\n" + stringz.IndentLines(
@@ -454,7 +445,7 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 	pr.ExcelTimeFormat = xlsxw.OptTimeFormat.Get(opts)
 
 	pr.Verbose = OptVerbose.Get(opts)
-	pr.FlushThreshold = OptTuningFlushThreshold.Get(opts)
+	pr.FlushThreshold = tuning.OptFlushThreshold.Get(opts)
 	pr.Compact = OptCompact.Get(opts)
 	pr.Redact = OptRedact.Get(opts)
 

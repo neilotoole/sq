@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -19,7 +20,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
-	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -155,7 +155,7 @@ GROUP BY database_id) AS total_size_bytes`
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(driver.OptTuningErrgroupLimit.Get(src.Options))
+	g.SetLimit(tuning.OptErrgroupLimit.Get(src.Options))
 	tblMetas := make([]*metadata.Table, len(tblNames))
 	for i := range tblNames {
 		i := i
