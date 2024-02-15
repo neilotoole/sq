@@ -7,11 +7,11 @@ import (
 )
 
 type hunk struct {
-	row    int
 	header string
 
 	// Consider using: https://pkg.go.dev/github.com/djherbis/buffer
 	body string
+	row  int
 }
 
 func (h *hunk) String() string {
