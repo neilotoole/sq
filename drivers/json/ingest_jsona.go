@@ -4,10 +4,11 @@ import (
 	"bufio"
 	"context"
 	stdj "encoding/json"
-	"github.com/neilotoole/sq/libsq/core/tuning"
 	"io"
 	"math"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/tuning"
 
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"

@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/tuning"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/tuning"
 
 	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"

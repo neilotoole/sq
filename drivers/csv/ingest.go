@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/csv"
 	"errors"
-	"github.com/neilotoole/sq/libsq/core/tuning"
 	"io"
 	"time"
 	"unicode/utf8"
+
+	"github.com/neilotoole/sq/libsq/core/tuning"
 
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"

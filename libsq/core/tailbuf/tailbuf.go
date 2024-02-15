@@ -217,7 +217,7 @@ func (b *Buf[T]) TailSlice(start, end int) []T {
 		s = append(s, b.window[b.back+start:]...)
 		frontIndex := b.front + end - len(b.window) + 1
 
-		//return append(s, b.window[:b.front+end-len(b.window)+1]...)
+		// return append(s, b.window[:b.front+end-len(b.window)+1]...)
 		return append(s, b.window[:frontIndex]...)
 	}
 }

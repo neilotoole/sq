@@ -5,11 +5,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/tuning"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/tuning"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/samber/lo"

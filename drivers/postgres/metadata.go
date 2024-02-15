@@ -4,11 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/tuning"
 	"log/slog"
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/tuning"
 
 	"golang.org/x/sync/errgroup"
 

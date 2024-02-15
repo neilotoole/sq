@@ -3,11 +3,12 @@ package cli
 import (
 	"context"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/tuning"
 	"io"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/tuning"
 
 	"github.com/fatih/color"
 	colorable "github.com/mattn/go-colorable"

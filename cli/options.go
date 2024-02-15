@@ -2,8 +2,9 @@ package cli
 
 import (
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/tuning"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/tuning"
 
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"

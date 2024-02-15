@@ -3,9 +3,10 @@ package cli
 import (
 	"context"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/tuning"
 	"slices"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/tuning"
 
 	"github.com/spf13/cobra"
 

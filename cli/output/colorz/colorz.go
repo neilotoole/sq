@@ -4,9 +4,10 @@ package colorz
 import (
 	"bufio"
 	"bytes"
+	"io"
+
 	"github.com/fatih/color"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"io"
 )
 
 // NewPrinter returns a new Printer that uses c for colorization. If c is nil,

@@ -3,11 +3,15 @@ package diff
 import (
 	"context"
 	"fmt"
+	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/tailbuf"
 	"github.com/neilotoole/sq/libsq/core/tuning"
+	"github.com/neilotoole/sq/libsq/driver"
 	"golang.org/x/sync/errgroup"
-	"strings"
 
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq"
@@ -182,6 +186,7 @@ func (df *recordDiff) populateHunk(ctx context.Context, hnk *hunk, pairs []recor
 //
 // See: https://github.com/neilotoole/sq/issues/353.
 func buildTableDataDiffNew(ctx context.Context, ru *run.Run, cfg *Config, doc *diffDoc, td1, td2 *tableData) error {
+	log := lg.FromContext(ctx)
 	recBufSize := tuning.OptRecBufSize.Get(options.FromContext(ctx))
 
 	qc := run.NewQueryContext(ru, nil)
@@ -205,12 +210,21 @@ func buildTableDataDiffNew(ctx context.Context, ru *run.Run, cfg *Config, doc *d
 	// Query DB, send records to recw1.
 	go func() {
 		if err := libsq.ExecuteSLQ(ctx, qc, query1, recw1); err != nil {
+			if errz.Has[*driver.NotExistError](err) {
+				// For diffing, it's totally ok if a table is not found.
+				log.Debug("Diff: table not found", lga.Table, td1.String())
+				return
+			}
 			errCh <- err
 		}
 	}()
 	// Query DB, send records to recw2.
 	go func() {
 		if err := libsq.ExecuteSLQ(ctx, qc, query2, recw2); err != nil {
+			if errz.Has[*driver.NotExistError](err) {
+				log.Debug("Diff: table not found", lga.Table, td2.String())
+				return
+			}
 			errCh <- err
 		}
 	}()
@@ -284,6 +298,8 @@ func buildTableDataDiffNew(ctx context.Context, ru *run.Run, cfg *Config, doc *d
 
 var _ libsq.RecordWriter = (*recWriter)(nil)
 
+// recWriter is a trivial [libsq.RecordWriter] impl, whose recCh field we'll use
+// to capture records returned from a query.
 type recWriter struct {
 	recCh   chan record.Record
 	errCh   chan error
@@ -297,9 +313,10 @@ func (d *recWriter) Open(_ context.Context, _ context.CancelFunc, recMeta record
 	return d.recCh, d.errCh, nil
 }
 
-// Wait implements libsq.RecordWriter.
+// Wait implements libsq.RecordWriter. It won't ever be invoked, so it's no-op
+// and returns zero values.
 func (d *recWriter) Wait() (written int64, err error) {
-	// We don't actually use Stop(), so just return zero values.
+	// We don't actually use Wait(), so just return zero values.
 	return 0, nil
 }
 

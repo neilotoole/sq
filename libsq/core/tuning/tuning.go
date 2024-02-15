@@ -2,8 +2,9 @@
 package tuning
 
 import (
-	"github.com/neilotoole/sq/libsq/core/options"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/options"
 )
 
 var OptMaxRetryInterval = options.NewDuration(

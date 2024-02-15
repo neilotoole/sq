@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
 	"github.com/neilotoole/sq/libsq/core/tuning"
 
 	"github.com/samber/lo"

@@ -4,10 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/tuning"
 	"log/slog"
 	"slices"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/tuning"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/samber/lo"

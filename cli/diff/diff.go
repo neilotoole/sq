@@ -9,6 +9,7 @@ package diff
 import (
 	"context"
 	"fmt"
+
 	udiff "github.com/neilotoole/sq/cli/diff/internal/go-udiff"
 	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
 	"github.com/neilotoole/sq/cli/output"

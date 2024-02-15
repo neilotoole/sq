@@ -69,7 +69,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 	}
 
 	doc := newDiffDoc(
-		fmt.Sprintf("sq diff %s %s", td1, td2),
+		fmt.Sprintf("sq diff --data %s %s", td1, td2),
 		td1.String(),
 		td2.String(),
 	)

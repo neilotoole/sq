@@ -2,10 +2,11 @@ package colorz
 
 import (
 	"fmt"
-	"github.com/fatih/color"
-	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
+
+	"github.com/fatih/color"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPrinter(t *testing.T) {

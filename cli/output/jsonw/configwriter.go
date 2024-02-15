@@ -1,8 +1,9 @@
 package jsonw
 
 import (
-	"github.com/neilotoole/sq/cli/output/commonw"
 	"io"
+
+	"github.com/neilotoole/sq/cli/output/commonw"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/options"

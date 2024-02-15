@@ -2,9 +2,10 @@ package output
 
 import (
 	"context"
-	"github.com/neilotoole/sq/libsq/core/tuning"
 	"sync"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/tuning"
 
 	"go.uber.org/atomic"
 
