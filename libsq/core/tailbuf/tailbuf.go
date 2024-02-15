@@ -75,7 +75,7 @@ func (b *Buf[T]) write(item T) {
 // Tail returns a slice containing the current tail window of items in the
 // buffer, with the oldest item at index 0. Depending on the state of Buf, the
 // returned slice may be a slice of Buf's internal data, or a copy. Thus you
-// should copy the returned slice before modifying it.
+// should copy the returned slice before modifying it, or instead use TailSlice.
 func (b *Buf[T]) Tail() []T {
 	switch {
 	case b.count < 1:
@@ -115,7 +115,7 @@ func (b *Buf[T]) Bounds() (start, end int) {
 }
 
 // Slice returns a slice into the nominal buffer, using the standard
-// [inclusive:exclusive] slicing mechanics. It is equi
+// [inclusive:exclusive] slicing mechanics.
 //
 // Boundary checking is relaxed. If the buffer is empty, the returned slice
 // is empty. Otherwise, if the requested range is completely outside the bounds
@@ -125,7 +125,7 @@ func (b *Buf[T]) Bounds() (start, end int) {
 // and end indices.
 //
 // Slice is approximately functionality equivalent to reslicing the result of
-// [Buf.Tail], but it avoids wasteful copying (and has relaxed boundary
+// [Buf.Tail], but it may avoid wasteful copying (and has relaxed boundary
 // checking).
 //
 //	buf := tailbuf.New[int](3).WriteAll(1, 2, 3)

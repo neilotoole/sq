@@ -7,7 +7,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/tailbuf"
 	"github.com/neilotoole/sq/libsq/core/tuning"
 	"golang.org/x/sync/errgroup"
-	"io"
 	"strings"
 
 	"github.com/neilotoole/sq/cli/run"
@@ -23,10 +22,11 @@ type recordDiff struct {
 	td1, td2     *tableData
 	recw1, recw2 *recWriter
 	recPairs     chan record.Pair
-	doc          *diffDoc
 }
 
-func execRecordDiff(ctx context.Context, out io.Writer, df *recordDiff) error {
+// execRecordDiff compares the records in df.td1 and df.td2, writing the results
+// to doc.
+func execRecordDiff(ctx context.Context, df *recordDiff, doc *diffDoc) error {
 	var (
 		tb        = tailbuf.New[record.Pair](df.cfg.Lines)
 		hunkPairs []record.Pair
@@ -43,23 +43,26 @@ func execRecordDiff(ctx context.Context, out io.Writer, df *recordDiff) error {
 		}
 
 		if !ok {
+			// We've reached the end of the record pairs.
 			break
 		}
 
+		// We've got a record pair. We add it to the tailbuf.
 		tb.Write(rp)
 
 		if rp.Equal() {
+			// The record pair is equal, so we loop.
 			continue
 		}
 
 		// We've found a differing record pair. We need to generate a hunk.
-		hnk := df.doc.newHunk(row)
+		hnk := doc.newHunk(row)
 
 		// But, the hunk doesn't just contain the differing record pair. It may also
 		// include context lines before and after the difference.
 
 		// We get the before-the-difference record pairs from the tailbuf.
-		// Conveniently, the tailbuf already also contains the differing record pair.
+		// Conveniently, the tailbuf already contains the differing record pair.
 		hunkPairs = tb.Slice(row-df.cfg.Lines, row+1)
 
 		// Now we need to get the after-the-difference record pairs. We look for a
@@ -70,7 +73,7 @@ func execRecordDiff(ctx context.Context, out io.Writer, df *recordDiff) error {
 		//  - we've reached the end of the record pairs, or
 		//  - we've reached maxHunkRecords.
 		//
-		// We have the maxHunRecords limit to prevent unbounded growth of the hunk,
+		// The maxHunRecords limit exists to prevent unbounded growth of the hunk,
 		// which could eventually lead to an OOM situation if the diff is huge. If
 		// the limit is reached, the user will see adjacent hunks without any
 		// non-differing context lines between them. But that's ok, it's still a
@@ -84,6 +87,7 @@ func execRecordDiff(ctx context.Context, out io.Writer, df *recordDiff) error {
 			}
 
 			if !ok {
+				// We've reached the end of the record pairs.
 				break
 			}
 
@@ -111,11 +115,6 @@ func execRecordDiff(ctx context.Context, out io.Writer, df *recordDiff) error {
 
 	if err = ctx.Err(); err != nil {
 		return errz.Err(err)
-	}
-
-	df.doc.header = fmt.Sprintf("sq diff %s %s", df.td1, df.td2)
-	if err = Print(ctx, out, df.cfg.pr, df.doc.header, df.doc.Reader()); err != nil {
-		return err
 	}
 
 	return nil
@@ -182,13 +181,10 @@ func (df *recordDiff) populateHunk(ctx context.Context, hnk *hunk, pairs []recor
 // the diff to ru.Out.
 //
 // See: https://github.com/neilotoole/sq/issues/353.
-func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
-	td1, td2 *tableData,
-) error {
+func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config, td1, td2 *tableData) error {
 	recBufSize := tuning.OptRecBufSize.Get(options.FromContext(ctx))
 
 	qc := run.NewQueryContext(ru, nil)
-
 	query1 := td1.src.Handle + "." + stringz.DoubleQuote(td1.tblName)
 	query2 := td2.src.Handle + "." + stringz.DoubleQuote(td2.tblName)
 
@@ -202,18 +198,9 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		errCh: errCh,
 	}
 
-	df := &recordDiff{
-		td1:      td1,
-		td2:      td2,
-		recw1:    recw1,
-		recw2:    recw2,
-		recPairs: make(chan record.Pair, recBufSize),
-		cfg:      cfg,
-		doc:      newDiffDoc(),
-	}
-
 	var cancelFn context.CancelFunc
 	ctx, cancelFn = context.WithCancel(ctx)
+	defer cancelFn()
 
 	// Query DB, send records to recw1.
 	go func() {
@@ -228,8 +215,18 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		}
 	}()
 
-	// Consume records from recw1 and recw2, and compare them.
-	// Send record pairs to ds.diffs.
+	df := &recordDiff{
+		td1:      td1,
+		td2:      td2,
+		recw1:    recw1,
+		recw2:    recw2,
+		recPairs: make(chan record.Pair, recBufSize),
+		cfg:      cfg,
+	}
+
+	// Consume records from recw1 and recw2, build a record.Pair,
+	// and send the pair to df.recPairs. The pairs will be consumed
+	// by the execRecordDiff goroutine.
 	go func() {
 		var rec1, rec2 record.Record
 
@@ -252,15 +249,15 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 				return
 			}
 
-			rp := record.NewPair(i, rec1, rec2)
-			df.recPairs <- rp
+			df.recPairs <- record.NewPair(i, rec1, rec2)
 		}
 	}()
 
-	diffDone := make(chan struct{})
+	doc := newDiffDoc(fmt.Sprintf("sq diff %s %s", df.td1, df.td2))
+	done := make(chan struct{})
 	go func() {
-		defer close(diffDone)
-		if err := execRecordDiff(ctx, ru.Out, df); err != nil {
+		defer close(done)
+		if err := execRecordDiff(ctx, df, doc); err != nil {
 			errCh <- err
 		}
 	}()
@@ -273,19 +270,21 @@ func execTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		err = errz.Err(ctx.Err())
 	case err = <-errCh:
 		// 2. An error occurred in one of the goroutines.
-	case <-diffDone:
-		// 3. The diff sink has finished, but it could have finished
+	case <-done:
+		// 3. The execRecordDiff goroutine has finished, but it could be finished
 		// because it's done, or because it errored. We need to check.
 		select {
 		case err = <-errCh:
-			// ACHSCHUALLLY, the diff sink errored.
+			// ACHSCHUALLLY, the execRecordDiff errored.
 		default:
 		}
 	}
 
-	// No matter what happened above, we cancel the context.
-	cancelFn()
-	return err
+	if err != nil {
+		return err
+	}
+
+	return Print(ctx, ru.Out, df.cfg.pr, doc.header, doc.Reader())
 }
 
 var _ libsq.RecordWriter = (*recWriter)(nil)

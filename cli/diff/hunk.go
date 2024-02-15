@@ -26,8 +26,8 @@ type diffDoc struct {
 	hunks  []*hunk
 }
 
-func newDiffDoc() *diffDoc {
-	return &diffDoc{}
+func newDiffDoc(header string) *diffDoc {
+	return &diffDoc{header: header}
 }
 
 func (d *diffDoc) newHunk(row int) *hunk {
