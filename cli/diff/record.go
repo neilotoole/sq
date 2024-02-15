@@ -36,6 +36,9 @@ type diffSink struct {
 	cfg          *Config
 }
 
+// FIXME: maxHunkRecords should be configurable
+const maxHunkRecords = 1000
+
 func handleDiffSink(ctx context.Context, ds *diffSink) error {
 	var err error
 	tb := tailbuf.New[record.Pair](ds.cfg.Lines)
@@ -84,9 +87,10 @@ func handleDiffSink(ctx context.Context, ds *diffSink) error {
 		// We've found a differing row.
 		differingRow = row
 
-		pairs = tb.Slice(row-ds.cfg.Lines, row+1)
+		pairs = tb.Slice(row-ds.cfg.Lines, row+1) // tb.Count() +1
 
-		// Find the first non-matching pair.
+		var identicalCount int
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -101,16 +105,15 @@ func handleDiffSink(ctx context.Context, ds *diffSink) error {
 			tb.Write(rp)
 			pairs = append(pairs, rp)
 			if rp.Equal() {
+				identicalCount++
+			} else {
+				identicalCount = 0
+			}
+
+			if identicalCount >= ds.cfg.Lines-1 || len(pairs) >= maxHunkRecords {
 				break
 			}
 		}
-
-		//rp, ok = <-ds.recPairs
-		//if !ok {
-		//	break
-		//}
-		//recs1 := append(preDiffPairs, rp.Rec1())
-		//recs2 := append(preDiffPairs, rp.Rec2())
 
 		if err = rd.generateHunkDiff(ctx, hnk, pairs); err != nil {
 			return err
