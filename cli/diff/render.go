@@ -3,6 +3,8 @@ package diff
 import (
 	"bytes"
 	"context"
+	"io"
+	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/record"
@@ -21,6 +23,9 @@ func renderRecords(ctx context.Context, cfg *Config, recMeta record.Meta, recs [
 	pr.ShowHeader = false
 	buf := &bytes.Buffer{}
 	recw := cfg.RecordWriterFn(buf, pr)
+
+	var sb strings.Builder
+	_ = (io.Writer(&sb))
 
 	if err := recw.Open(ctx, recMeta); err != nil {
 		return "", err

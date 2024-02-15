@@ -29,11 +29,11 @@ package diff
 //	query2 := td2.src.Handle + "." + stringz.DoubleQuote(td2.tblName)
 //
 //	errCh := make(chan error, 5)
-//	recw1 := &recWriter{
+//	recw1 := &recordWriter{
 //		recCh: make(chan record.Record, chSize),
 //		errCh: errCh,
 //	}
-//	recw2 := &recWriter{
+//	recw2 := &recordWriter{
 //		recCh: make(chan record.Record, chSize),
 //		errCh: errCh,
 //	}

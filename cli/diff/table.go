@@ -73,7 +73,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 		td1.String(),
 		td2.String(),
 	)
-	if err = buildTableDataDiffNew(ctx, ru, cfg, doc, td1, td2); err != nil {
+	if err = execTableDataDiffDoc(ctx, ru, cfg, doc, td1, td2); err != nil {
 		return err
 	}
 
