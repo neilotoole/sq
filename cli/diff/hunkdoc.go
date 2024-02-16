@@ -14,14 +14,13 @@ import (
 // buildDocHeader returns a diff header suitable for use with newHunkDoc. The
 // returned header will look something like:
 //
-//	sq diff --data @diff/sakila_a.actor @diff/sakila_b.actor
-//	--- @diff/sakila_a.actor
-//	+++ @diff/sakila_b.actor
+//	--- @sakila_a.actor
+//	+++ @sakila_b.actor
 //
 // It is colorized according to [output.Printing.DiffHeader].
-func buildDocHeader(pr *output.Printing, title, left, right string) []byte {
+func buildDocHeader(pr *output.Printing, left, right string) []byte {
 	buf := &bytes.Buffer{}
-	header := fmt.Sprintf("%s\n--- %s\n+++ %s\n", title, left, right)
+	header := fmt.Sprintf("--- %s\n+++ %s\n", left, right)
 	_, _ = colorz.NewPrinter(pr.DiffHeader).Block(buf, []byte(header))
 	return buf.Bytes()
 }
@@ -41,6 +40,7 @@ var _ io.Reader = (*hunkDoc)(nil)
 // reasonably small databases.
 type hunkDoc struct {
 	mu      sync.Mutex
+	title   string
 	header  []byte
 	sealed  chan struct{}
 	hunks   []*hunk
@@ -49,14 +49,22 @@ type hunkDoc struct {
 	rdr     io.Reader
 }
 
-// newHunkDoc returns a new hunkDoc with the given docHeader. The header can be
-// generated with buildDocHeader. The returned hunkDoc is not sealed, and any
-// call to hunkDoc.Read will block until hunkDoc.Seal is invoked.
-func newHunkDoc(docHeader []byte) *hunkDoc {
+// newHunkDoc returns a new hunkDoc with the given title and header. Note that
+// the title is not included in the output returned by hunkDoc.Read. This is
+// because the title is only shown if the command output includes multiple docs.
+// The header can be generated with buildDocHeader. The returned hunkDoc is not
+// sealed; thus a call to hunkDoc.Read blocks until hunkDoc.Seal is invoked.
+func newHunkDoc(title string, docHeader []byte) *hunkDoc {
 	return &hunkDoc{
+		title:  title,
 		header: docHeader,
 		sealed: make(chan struct{}),
 	}
+}
+
+// Title returns the doc's title. It is in plaintext, without colorization.
+func (hd *hunkDoc) Title() string {
+	return hd.title
 }
 
 // Read implements [io.Reader]. It blocks until the hunkDoc is sealed.
