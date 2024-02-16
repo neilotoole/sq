@@ -1,9 +1,10 @@
-package diff
+package libdiff
 
 import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/neilotoole/sq/cli/diff"
 	"strings"
 	"testing"
 
@@ -11,7 +12,6 @@ import (
 
 	udiff "github.com/neilotoole/sq/cli/diff/libdiff/internal/go-udiff"
 	"github.com/neilotoole/sq/cli/diff/libdiff/internal/go-udiff/myers"
-	"github.com/neilotoole/sq/cli/output"
 )
 
 //nolint:lll,unused
@@ -39,10 +39,10 @@ func TestMyers(t *testing.T) {
 	require.NoError(t, err)
 
 	buf := &bytes.Buffer{}
-	err = Print(
+	err = diff.Print(
 		context.Background(),
 		buf,
-		output.NewPrinting(),
+		NewPrinting(),
 		"diff before after",
 		strings.NewReader(result),
 	)

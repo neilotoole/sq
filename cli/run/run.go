@@ -120,7 +120,7 @@ func (ru *Run) Close() error {
 	}
 
 	if ru.Cmd != nil {
-		lg.FromContext(ru.Cmd.Context()).Debug("Closing run")
+		lg.From(ru.Cmd).Debug("Closing run")
 	}
 
 	return errz.Wrap(ru.Cleanup.Run(), "close run")
