@@ -1,5 +1,10 @@
 package diff
 
+// Reference:
+// - https://github.com/aymanbagabas/go-udiff
+// - https://www.gnu.org/software/diffutils/manual/html_node/Hunks.html
+// - https://www.cloudbees.com/blog/git-diff-a-complete-comparison-tutorial-for-git
+
 import (
 	"context"
 	"github.com/neilotoole/sq/cli/diff/internal/go-udiff"
