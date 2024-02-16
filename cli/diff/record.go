@@ -143,7 +143,6 @@ type recordDiffer struct {
 	td1, td2     *tableData
 	recw1, recw2 *recordWriter
 	recPairs     chan record.Pair
-	//doc          *hunkDoc
 }
 
 // exec compares the records in recordDiffer.td1 and recordDiffer.td2, writing
