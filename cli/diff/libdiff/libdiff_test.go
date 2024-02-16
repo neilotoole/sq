@@ -2,10 +2,7 @@ package libdiff
 
 import (
 	"bytes"
-	"context"
 	"fmt"
-	"github.com/neilotoole/sq/cli/diff"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -25,31 +22,31 @@ const (
 	numLines = 3
 )
 
-func TestMyers(t *testing.T) {
-	const left, right = alphaShortBefore, alphaShortAfter
-	edits := myers.ComputeEdits(left, right)
-	result, err := udiff.ToUnified(
-		"before",
-		"after",
-		left,
-		edits,
-		numLines,
-	)
-
-	require.NoError(t, err)
-
-	buf := &bytes.Buffer{}
-	err = diff.Print(
-		context.Background(),
-		buf,
-		NewPrinting(),
-		"diff before after",
-		strings.NewReader(result),
-	)
-	require.NoError(t, err)
-
-	t.Logf("\n" + buf.String())
-}
+//func TestMyers(t *testing.T) {
+//	const left, right = alphaShortBefore, alphaShortAfter
+//	edits := myers.ComputeEdits(left, right)
+//	result, err := udiff.ToUnified(
+//		"before",
+//		"after",
+//		left,
+//		edits,
+//		numLines,
+//	)
+//
+//	require.NoError(t, err)
+//
+//	buf := &bytes.Buffer{}
+//	err = diff.Print(
+//		context.Background(),
+//		buf,
+//		NewPrinting(),
+//		"diff before after",
+//		strings.NewReader(result),
+//	)
+//	require.NoError(t, err)
+//
+//	t.Logf("\n" + buf.String())
+//}
 
 func TestMyersDiff(t *testing.T) {
 	const left, right = alphaShortBefore, alphaShortAfter

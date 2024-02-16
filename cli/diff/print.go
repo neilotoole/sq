@@ -47,8 +47,8 @@ func Print(ctx context.Context, w io.Writer, pr *libdiff.Printing, header string
 	var (
 		printHeader  = colorz.NewPrinter(pr.Header).Line
 		printSection = colorz.NewPrinter(pr.Section).Line
-		printMinus   = colorz.NewPrinter(pr.Deleted).Line
-		printPlus    = colorz.NewPrinter(pr.Inserted).Line
+		printMinus   = colorz.NewPrinter(pr.Deletion).Line
+		printPlus    = colorz.NewPrinter(pr.Insertion).Line
 		printNormal  = colorz.NewPrinter(pr.Normal).Line
 	)
 
@@ -106,8 +106,8 @@ func PrintColorizedDiff(ctx context.Context, w io.Writer, pr *libdiff.Printing, 
 	var (
 		printHeader  = colorz.NewPrinter(pr.Header).Line
 		printSection = colorz.NewPrinter(pr.Section).Line
-		printMinus   = colorz.NewPrinter(pr.Deleted).Line
-		printPlus    = colorz.NewPrinter(pr.Inserted).Line
+		printMinus   = colorz.NewPrinter(pr.Deletion).Line
+		printPlus    = colorz.NewPrinter(pr.Insertion).Line
 		printNormal  = colorz.NewPrinter(pr.Normal).Line
 	)
 
@@ -180,8 +180,8 @@ func colorizeHunks(ctx context.Context, w io.Writer, pr *libdiff.Printing, hunks
 
 	var (
 		printSection = colorz.NewPrinter(pr.Section).Line
-		printMinus   = colorz.NewPrinter(pr.Deleted).Line
-		printPlus    = colorz.NewPrinter(pr.Inserted).Line
+		printMinus   = colorz.NewPrinter(pr.Deletion).Line
+		printPlus    = colorz.NewPrinter(pr.Insertion).Line
 		printNormal  = colorz.NewPrinter(pr.Normal).Line
 	)
 
