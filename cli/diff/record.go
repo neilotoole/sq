@@ -9,7 +9,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/tuning"
 	"github.com/neilotoole/sq/libsq/driver"
 	"strings"
@@ -48,9 +47,9 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *Hu
 	ctx, cancelFn = context.WithCancel(ctx) // FIXME:  Do we use cancelFn?
 	defer cancelFn()
 
-	barMsg := fmt.Sprintf("Diff table data %s, %s", td1.String(), td2.String())
-	bar := progress.FromContext(ctx).NewWaiter(barMsg, true, progress.OptMemUsage)
-	defer bar.Stop()
+	//barMsg := fmt.Sprintf("Diff table data %s, %s", td1.String(), td2.String())
+	//bar := progress.FromContext(ctx).NewWaiter(barMsg, true, progress.OptMemUsage)
+	//defer bar.Stop()
 
 	// Query DB, send records to recw1.
 	go func() {

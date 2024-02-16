@@ -224,6 +224,7 @@ func (pr *Printing) Clone() *Printing {
 		FormatTimeAsNumber:     pr.FormatTimeAsNumber,
 		FormatDate:             pr.FormatDate,
 		FormatDateAsNumber:     pr.FormatDateAsNumber,
+		Diff:                   pr.Diff.Clone(),
 	}
 
 	pr2.Active = lo.ToPtr(*pr.Active)
@@ -231,7 +232,6 @@ func (pr *Printing) Clone() *Printing {
 	pr2.Bool = lo.ToPtr(*pr.Bool)
 	pr2.Bytes = lo.ToPtr(*pr.Bytes)
 	pr2.Datetime = lo.ToPtr(*pr.Datetime)
-	pr2.Diff = pr.Diff.Clone()
 	pr2.Disabled = lo.ToPtr(*pr.Disabled)
 	pr2.Duration = lo.ToPtr(*pr.Duration)
 	pr2.Enabled = lo.ToPtr(*pr.Enabled)
@@ -296,10 +296,10 @@ func (pr *Printing) IsMonochrome() bool {
 
 // EnableColor enables or disables all colors.
 func (pr *Printing) EnableColor(enable bool) {
+	pr.Diff.EnableColor(enable)
+
 	if enable {
 		pr.monochrome = false
-		pr.Diff.EnableColor(false)
-
 		for _, clr := range pr.colors() {
 			clr.EnableColor()
 		}
@@ -307,7 +307,6 @@ func (pr *Printing) EnableColor(enable bool) {
 	}
 
 	pr.monochrome = true
-	pr.Diff.EnableColor(true)
 	for _, clr := range pr.colors() {
 		clr.DisableColor()
 	}

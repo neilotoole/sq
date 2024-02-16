@@ -174,7 +174,7 @@ func colorizeHunks(ctx context.Context, w io.Writer, pr *libdiff.Printing, hunks
 
 	var err error
 	if pr == nil || pr.IsMonochrome() {
-		_, err = fmt.Fprintln(w, hunks)
+		_, err = io.Copy(w, hunks)
 		return errz.Err(err)
 	}
 

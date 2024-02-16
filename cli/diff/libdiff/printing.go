@@ -34,8 +34,7 @@ type Printing struct {
 	ShowHeader bool
 }
 
-// NewPrinting returns a Printing instance. Color and pretty-print
-// are enabled. The default indent is two spaces.
+// NewPrinting returns a Printing instance. Color is enabled by default.
 func NewPrinting() *Printing {
 	pr := &Printing{
 		ShowHeader: true,
