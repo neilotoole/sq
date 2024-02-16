@@ -7,8 +7,8 @@ package myers_test
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/difftest"
-	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
+	"github.com/neilotoole/sq/cli/diff/libdiff/internal/go-udiff/difftest"
+	"github.com/neilotoole/sq/cli/diff/libdiff/internal/go-udiff/myers"
 )
 
 func TestDiff(t *testing.T) {

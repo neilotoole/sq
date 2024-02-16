@@ -4,7 +4,7 @@
 
 // Package difftest supplies a set of tests that will operate on any
 // implementation of a diff algorithm as exposed by
-// diff "github.com/neilotoole/sq/cli/diff/internal/go-udiff"
+// diff "github.com/neilotoole/sq/cli/diff/libdiff/internal/go-udiff"
 package difftest_test
 
 import (
@@ -15,7 +15,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/difftest"
+	"github.com/neilotoole/sq/cli/diff/libdiff/internal/go-udiff/difftest"
 )
 
 func TestVerifyUnified(t *testing.T) {

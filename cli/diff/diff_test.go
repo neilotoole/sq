@@ -9,8 +9,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	udiff "github.com/neilotoole/sq/cli/diff/internal/go-udiff"
-	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
+	udiff "github.com/neilotoole/sq/cli/diff/libdiff/internal/go-udiff"
+	"github.com/neilotoole/sq/cli/diff/libdiff/internal/go-udiff/myers"
 	"github.com/neilotoole/sq/cli/output"
 )
 

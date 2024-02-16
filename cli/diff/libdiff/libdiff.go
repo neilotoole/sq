@@ -1,4 +1,5 @@
 // Package libdiff contains core diff functionality.
+//
 // Reference:
 // - https://github.com/aymanbagabas/go-udiff
 // - https://www.gnu.org/software/diffutils/manual/html_node/Hunks.html
@@ -8,9 +9,8 @@ package libdiff
 
 import (
 	"context"
-	"github.com/neilotoole/sq/cli/diff/internal/go-udiff"
-	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
-	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/cli/diff/libdiff/internal/go-udiff"
+	"github.com/neilotoole/sq/cli/diff/libdiff/internal/go-udiff/myers"
 )
 
 // ComputeUnified encapsulates computing a unified diff.
@@ -34,7 +34,7 @@ func ComputeUnified(ctx context.Context, oldLabel, newLabel string, lines int,
 		// there's no point continuing.
 		select {
 		case <-ctx.Done():
-			err = errz.Err(ctx.Err())
+			err = context.Cause(ctx)
 			return
 		default:
 		}
@@ -50,7 +50,7 @@ func ComputeUnified(ctx context.Context, oldLabel, newLabel string, lines int,
 
 	select {
 	case <-ctx.Done():
-		return "", errz.Err(ctx.Err())
+		return "", context.Cause(ctx)
 	case <-done:
 	}
 
