@@ -57,50 +57,50 @@ func newHunkDoc(docHeader []byte) *hunkDoc {
 }
 
 // Read implements [io.Reader]. It blocks until the hunkDoc is sealed.
-func (d *hunkDoc) Read(p []byte) (n int, err error) {
-	d.rdrOnce.Do(func() {
-		<-d.sealed
+func (hd *hunkDoc) Read(p []byte) (n int, err error) {
+	hd.rdrOnce.Do(func() {
+		<-hd.sealed
 
-		if d.err != nil {
-			d.rdr = ioz.ErrReader{Err: d.err}
+		if hd.err != nil {
+			hd.rdr = ioz.ErrReader{Err: hd.err}
 			return
 		}
 
-		rdrs := make([]io.Reader, 0, len(d.hunks)+1)
-		rdrs = append(rdrs, bytes.NewReader(d.header))
-		for i := range d.hunks {
-			rdrs = append(rdrs, d.hunks[i].Reader())
+		rdrs := make([]io.Reader, 0, len(hd.hunks)+1)
+		rdrs = append(rdrs, bytes.NewReader(hd.header))
+		for i := range hd.hunks {
+			rdrs = append(rdrs, hd.hunks[i].Reader())
 		}
 
-		d.rdr = io.MultiReader(rdrs...)
+		hd.rdr = io.MultiReader(rdrs...)
 	})
 
-	return d.rdr.Read(p)
+	return hd.rdr.Read(p)
 }
 
 // Seal seals the hunkDoc, indicating that it is complete. Until it is sealed,
 // any call to hunkDoc.Reader will block. On the happy path, arg err is nil. If
 // err is non-nil, a call to hunkDoc.Reader will return an error. Seal will
 // panic if called more than once.
-func (d *hunkDoc) Seal(err error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+func (hd *hunkDoc) Seal(err error) {
+	hd.mu.Lock()
+	defer hd.mu.Unlock()
 	select {
-	case <-d.sealed:
+	case <-hd.sealed:
 		panic("diff doc is already sealed")
 	default:
 	}
 
-	d.err = err
-	close(d.sealed)
+	hd.err = err
+	close(hd.sealed)
 }
 
-func (d *hunkDoc) newHunk(row int) (*hunk, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+func (hd *hunkDoc) newHunk(row int) (*hunk, error) {
+	hd.mu.Lock()
+	defer hd.mu.Unlock()
 
 	select {
-	case <-d.sealed:
+	case <-hd.sealed:
 		return nil, errz.New("diff doc is already sealed")
 	default:
 	}
@@ -111,13 +111,13 @@ func (d *hunkDoc) newHunk(row int) (*hunk, error) {
 	// strategy.
 
 	h := &hunk{row: row}
-	d.hunks = append(d.hunks, h)
+	hd.hunks = append(hd.hunks, h)
 	return h, nil
 }
 
 // String returns d's header as a string.
-func (d *hunkDoc) String() string {
-	return string(d.header)
+func (hd *hunkDoc) String() string {
+	return string(hd.header)
 }
 
 type hunk struct {
