@@ -74,7 +74,7 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *hu
 		recw2:    recw2,
 		recPairs: make(chan record.Pair, recBufSize),
 		cfg:      cfg,
-		doc:      doc,
+		//doc:      doc,
 	}
 
 	// Consume records from recw1 and recw2, build a record.Pair,
@@ -109,7 +109,7 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *hu
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		if err := df.exec(ctx); err != nil {
+		if err := df.exec(ctx, doc); err != nil {
 			errCh <- err
 		}
 	}()
@@ -141,12 +141,12 @@ type recordDiffer struct {
 	td1, td2     *tableData
 	recw1, recw2 *recordWriter
 	recPairs     chan record.Pair
-	doc          *hunkDoc
+	//doc          *hunkDoc
 }
 
 // exec compares the records in df.td1 and df.td2, writing the results
 // to recordDiffer.doc.
-func (rd *recordDiffer) exec(ctx context.Context) error {
+func (rd *recordDiffer) exec(ctx context.Context, doc *hunkDoc) error {
 	var (
 		numLines  = rd.cfg.Lines
 		tb        = tailbuf.New[record.Pair](numLines + 1)
@@ -193,7 +193,7 @@ LOOP:
 		// Conveniently, the tailbuf already contains the differing record pair.
 		hunkPairs = tb.Slice(row-numLines, row+1)
 
-		if hnk, err = rd.doc.NewHunk(row - (len(hunkPairs) - 1)); err != nil {
+		if hnk, err = doc.NewHunk(row - (len(hunkPairs) - 1)); err != nil {
 			break
 		}
 
@@ -273,8 +273,8 @@ LOOP:
 		err = errz.Err(ctx.Err())
 	}
 
-	// CRITICAL: we must seal the doc.
-	rd.doc.Seal(err)
+	// CRITICAL: we must seal the doc. On the happy path, err is nil.
+	doc.Seal(err)
 	return err
 }
 
