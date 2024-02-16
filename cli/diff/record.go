@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/neilotoole/sq/cli/run"
@@ -154,13 +155,16 @@ func (rd *recordDiffer) exec(ctx context.Context) error {
 		err       error
 	)
 
+	// NOTE: If making changes, make sure that the function doesn't return
+	// early. It's critical that rd.doc.Seal is invoked, and that happens
+	// at the end of this function.
+
 LOOP:
 	for row := 0; ctx.Err() == nil; row++ {
 		select {
 		case <-ctx.Done():
 			err = errz.Err(ctx.Err())
 			break LOOP
-			//return errz.Err(ctx.Err())
 		case rp, ok = <-rd.recPairs:
 		}
 
@@ -178,11 +182,7 @@ LOOP:
 		}
 
 		// We've found a differing record pair. We need to generate a hunk.
-
 		var hnk *hunk
-		if hnk, err = rd.doc.newHunk(row); err != nil {
-			break
-		}
 
 		// But, the hunk doesn't just contain the differing record pair. It may also
 		// include context lines before and after the difference.
@@ -190,6 +190,10 @@ LOOP:
 		// We get the before-the-difference record pairs from the tailbuf.
 		// Conveniently, the tailbuf already contains the differing record pair.
 		hunkPairs = tb.Slice(row-rd.cfg.Lines, row+1)
+
+		if hnk, err = rd.doc.NewHunk(row - (len(hunkPairs) - 1)); err != nil {
+			break
+		}
 
 		// Now we need to get the after-the-difference record pairs. We look for a
 		// sequence of non-differing (matching) record pairs, appending each
@@ -210,7 +214,6 @@ LOOP:
 			case <-ctx.Done():
 				err = errz.Err(ctx.Err())
 				break LOOP
-				//return errz.Err(ctx.Err())
 			case rp, ok = <-rd.recPairs:
 			}
 
@@ -222,6 +225,7 @@ LOOP:
 			row++
 			tb.Write(rp)
 			hunkPairs = append(hunkPairs, rp)
+
 			if rp.Equal() {
 				// Yay, we've found another matching record pair for our sequence.
 				pairMatchSeq++
@@ -242,6 +246,7 @@ LOOP:
 	}
 
 	if err == nil {
+		// If err isn't populated, it's still possible that ctx.Err is non-nil.
 		err = errz.Err(ctx.Err())
 	}
 
@@ -249,14 +254,22 @@ LOOP:
 	return err
 }
 
-func (rd *recordDiffer) populateHunk(ctx context.Context, hnk *hunk, pairs []record.Pair) error {
+// populateHunk populates hnk with the diff of the record pairs. Before return,
+// the hunk is always sealed via hunk.Seal, even if an error occurs.
+func (rd *recordDiffer) populateHunk(ctx context.Context, hnk *hunk, pairs []record.Pair) (err error) {
 	var (
-		handleTbl1 = rd.td1.src.Handle + "." + rd.td1.tblName
-		handleTbl2 = rd.td2.src.Handle + "." + rd.td2.tblName
-
-		body1, body2 string
-		err          error
+		handleTbl1           = rd.td1.String()
+		handleTbl2           = rd.td2.String()
+		hunkHeader, hunkBody string
+		body1, body2         string
 	)
+
+	defer func() {
+		// We always seal the hunk. Note that hunkHeader is populated at the bottom
+		// of the function. But if an error occurs and the function is returning
+		// early, it's ok if hunkHeader is empty.
+		hnk.Seal([]byte(hunkHeader), err)
+	}()
 
 	recs1 := make([]record.Record, len(pairs))
 	recs2 := make([]record.Record, len(pairs))
@@ -291,18 +304,22 @@ func (rd *recordDiffer) populateHunk(ctx context.Context, hnk *hunk, pairs []rec
 	// to not return this (e.g. add an arg "noHeader=true")
 	unified = stringz.TrimHead(unified, 2)
 
-	hunkHeader, hunkBody, found := strings.Cut(unified, "\n")
-	if !found {
+	var ok bool
+	if hunkHeader, hunkBody, ok = strings.Cut(unified, "\n"); !ok {
 		return errz.New("hunk header not found")
 	}
 
-	hunkHeader, err = adjustHunkOffset(hunkHeader, hnk.row)
+	if err = colorizeHunks(ctx, hnk, rd.cfg.pr, bytes.NewReader(stringz.UnsafeBytes(hunkBody))); err != nil {
+		return err
+	}
+
+	hunkHeader, err = adjustHunkOffset(hunkHeader, hnk.offset)
 	if err != nil {
 		return err
 	}
 
-	hnk.header = hunkHeader
-	hnk.body = hunkBody
+	// hunkHeader will be passed to hunk.Seal in the top defer.
+	hunkHeader = rd.cfg.pr.DiffSection.Sprintln(hunkHeader)
 	return nil
 }
 
@@ -349,9 +366,9 @@ func (w *recordWriter) Wait() (written int64, err error) {
 //
 // The short form used when there's no surrounding lines (-U=0).
 //
-// Note that "-44,7 +44,7" means that the change is at line 44 and the number of
-// lines compared is 7 (although 8 lines will be rendered, because the changed
-// line is shown twice: the before and after versions of the line).
+// Note that "-44,7 +44,7" means that the first line shown is line 44 and the
+// number of lines compared is 7 (although 8 lines will be rendered, because the
+// changed line is shown twice: the before and after versions of the line).
 func adjustHunkOffset(hunk string, offset int) (string, error) {
 	// https://unix.stackexchange.com/questions/81998/understanding-of-diff-output
 	const formatShort = "@@ -%d +%d @@"

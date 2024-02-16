@@ -8,7 +8,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"io"
-	"strings"
 	"sync"
 )
 
@@ -30,9 +29,16 @@ func buildDocHeader(pr *output.Printing, title, left, right string) []byte {
 var _ io.Reader = (*hunkDoc)(nil)
 
 // hunkDoc is a document that contains a series of diff hunks. It implements
-// io.Reader, and is intended to be used to stream diff output. The hunks
-// are added to the hunkDoc via newHunk. Any call to hunkDoc.Read will block
-// until hunkDoc.Seal is invoked.
+// io.Reader, and is used to stream diff output. The hunks are added to the
+// hunkDoc via NewHunk. Any call to hunkDoc.Read will block until hunkDoc.Seal
+// is invoked.
+//
+// This may seem overly elaborate, and the design can probably be simplified,
+// but the idea is to stream diff content as it's generated, rather than
+// buffering the entire diff in memory. This is important for large diffs,
+// which, in theory could be gigabytes in size. An earlier implementation of
+// this package used 20GB+ of memory to execute a complete diff of two
+// reasonably small databases.
 type hunkDoc struct {
 	mu      sync.Mutex
 	header  []byte
@@ -66,7 +72,7 @@ func (hd *hunkDoc) Read(p []byte) (n int, err error) {
 		rdrs := make([]io.Reader, 0, len(hd.hunks)+1)
 		rdrs = append(rdrs, bytes.NewReader(hd.header))
 		for i := range hd.hunks {
-			rdrs = append(rdrs, hd.hunks[i].Reader())
+			rdrs = append(rdrs, hd.hunks[i])
 		}
 
 		hd.rdr = io.MultiReader(rdrs...)
@@ -92,7 +98,18 @@ func (hd *hunkDoc) Seal(err error) {
 	close(hd.sealed)
 }
 
-func (hd *hunkDoc) newHunk(row int) (*hunk, error) {
+// Err returns the error associated with the doc, as provided to Seal. On the
+// happy path, Err returns nil.
+func (hd *hunkDoc) Err() error {
+	hd.mu.Lock()
+	defer hd.mu.Unlock()
+	return hd.err
+}
+
+// NewHunk returns a new hunk, where offset is the nominal line number in the
+// unified diff that this hunk would be part of. The returned hunk is not
+// sealed, and any call to hunk.Read will block until hunk.Seal is invoked.
+func (hd *hunkDoc) NewHunk(offset int) (*hunk, error) {
 	hd.mu.Lock()
 	defer hd.mu.Unlock()
 
@@ -107,28 +124,83 @@ func (hd *hunkDoc) newHunk(row int) (*hunk, error) {
 	// a https://pkg.go.dev/github.com/djherbis/buffer, using a memory/file
 	// strategy.
 
-	h := &hunk{row: row}
+	h := &hunk{
+		offset:  offset,
+		sealed:  make(chan struct{}),
+		bodyBuf: &bytes.Buffer{},
+	}
 	hd.hunks = append(hd.hunks, h)
 	return h, nil
 }
 
-// String returns d's header as a string.
+// String returns the doc's header as a string.
 func (hd *hunkDoc) String() string {
 	return string(hd.header)
 }
 
+var _ io.Writer = (*hunk)(nil)
+var _ io.Reader = (*hunk)(nil)
+
+// hunk is a diff hunk. It implements io.Writer and io.Reader. The hunk is
+// written to via Write, and then sealed via Seal. Once sealed, the hunk can
+// be read via Read. Any call to hunk.Read will block until hunk.Seal is
+// invoked.
 type hunk struct {
-	header string
+	mu     sync.Mutex
+	sealed chan struct{}
+	err    error
 
+	offset int
+	header []byte
 	// Consider using: https://pkg.go.dev/github.com/djherbis/buffer
-	body string
-	row  int
+	bodyBuf *bytes.Buffer
+
+	rdr     io.Reader
+	rdrOnce sync.Once
 }
 
-func (h *hunk) String() string {
-	return h.header + "\n" + h.body
+// Write writes to the hunk body. When writing is completed, the hunk must be
+// sealed via Seal. It is a programming error to invoke Write after Seal has
+// been invoked.
+func (h *hunk) Write(p []byte) (n int, err error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	n, err = h.bodyBuf.Write(p)
+	return n, errz.Err(err)
 }
 
-func (h *hunk) Reader() io.Reader {
-	return strings.NewReader(h.String())
+// Err returns the error associated with the hunk, as provided to hunk.Seal.
+// On the happy path, Err returns nil.
+func (h *hunk) Err() error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.err
+}
+
+// Seal seals the hunk, indicating that it is complete. Until it is sealed, any
+// call to hunk.Reader will block. On the happy path, arg err is nil. If an
+func (h *hunk) Seal(header []byte, err error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	h.header = header
+	h.err = err
+	close(h.sealed)
+}
+
+// Read implements [io.Reader]. It blocks until the hunk is sealed.
+func (h *hunk) Read(p []byte) (n int, err error) {
+	h.rdrOnce.Do(func() {
+		<-h.sealed
+
+		if h.err != nil {
+			h.rdr = ioz.ErrReader{Err: h.err}
+			return
+		}
+
+		h.rdr = io.MultiReader(bytes.NewReader(h.header), h.bodyBuf)
+	})
+
+	return h.rdr.Read(p)
 }
