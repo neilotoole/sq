@@ -24,6 +24,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 ) error {
 	cfg.prMain = ru.Writers.OutPrinting.Clone()
 	cfg.prDiff = cfg.prMain.Diff.Clone()
+
 	td1, td2 := &tableData{tblName: table1}, &tableData{tblName: table2}
 
 	var err error
