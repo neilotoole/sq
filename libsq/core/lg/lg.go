@@ -27,6 +27,10 @@ func NewContext(ctx context.Context, l *slog.Logger) context.Context {
 // FromContext returns the Logger stored in ctx by NewContext,
 // or the Discard logger if there is none.
 func FromContext(ctx context.Context) *slog.Logger {
+	if ctx == nil {
+		return Discard()
+	}
+
 	v := ctx.Value(contextKey{})
 	if v == nil {
 		return Discard()
@@ -36,6 +40,25 @@ func FromContext(ctx context.Context) *slog.Logger {
 		return l
 	}
 	return Discard()
+}
+
+// Contexter is an interface for types that can return a context.Context.
+type Contexter interface {
+	Context() context.Context
+}
+
+// From returns the Logger stored in c's context by NewContext, or the Discard
+// logger if there is none. It is a companion to FromContext.
+func From(c Contexter) *slog.Logger {
+	if c == nil {
+		return Discard()
+	}
+	ctx := c.Context()
+	if ctx == nil {
+		return Discard()
+	}
+
+	return FromContext(ctx)
 }
 
 // Discard returns a new *slog.Logger that discards output.

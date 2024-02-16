@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
@@ -230,7 +231,7 @@ func execDiff(cmd *cobra.Command, args []string) error {
 	recwFn := getRecordWriterFunc(f)
 	if recwFn == nil {
 		// Shouldn't happen
-		logFrom(cmd).Warn("No record writer impl for format", "format", f)
+		lg.From(cmd).Warn("No record writer impl for format", "format", f)
 		recwFn = tablew.NewRecordWriter
 	}
 

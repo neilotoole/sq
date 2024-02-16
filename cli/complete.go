@@ -119,7 +119,7 @@ func completeHandle(max int, includeActive bool) completionFunc {
 // If srcArgPos < 0, the catalogs for the active source are suggested.
 func completeCatalog(srcArgPos int) completionFunc {
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		log, ru := logFrom(cmd), getRun(cmd)
+		log, ru := lg.From(cmd), getRun(cmd)
 		if err := preRun(cmd, ru); err != nil {
 			lg.Unexpected(log, err)
 			return nil, cobra.ShellCompDirectiveError
@@ -224,7 +224,7 @@ func completeDriverType(cmd *cobra.Command, _ []string, _ string) ([]string, cob
 	ru := getRun(cmd)
 	if ru.Grips == nil {
 		if err := preRun(cmd, ru); err != nil {
-			lg.Unexpected(logFrom(cmd), err)
+			lg.Unexpected(lg.From(cmd), err)
 			return nil, cobra.ShellCompDirectiveError
 		}
 	}
@@ -286,7 +286,7 @@ func completeOptKey(cmd *cobra.Command, _ []string, toComplete string) ([]string
 	})
 
 	if len(keys) == 0 && len(toComplete) > 0 {
-		logFrom(cmd).Warn("Invalid option key", lga.Key, toComplete)
+		lg.From(cmd).Warn("Invalid option key", lga.Key, toComplete)
 		return nil, cobra.ShellCompDirectiveError
 	}
 
@@ -303,7 +303,7 @@ func completeOptValue(cmd *cobra.Command, args []string, toComplete string) ([]s
 	ru := getRun(cmd)
 	opt := ru.OptionsRegistry.Get(args[0])
 	if opt == nil {
-		logFrom(cmd).Warn("Invalid option key", lga.Key, args[0])
+		lg.From(cmd).Warn("Invalid option key", lga.Key, args[0])
 		return nil, cobra.ShellCompDirectiveError
 	}
 
@@ -413,7 +413,7 @@ func (c activeSchemaCompleter) complete(cmd *cobra.Command, args []string, toCom
 ) ([]string, cobra.ShellCompDirective) {
 	const baseDirective = cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveKeepOrder
 
-	log, ru := logFrom(cmd), getRun(cmd)
+	log, ru := lg.From(cmd), getRun(cmd)
 	if err := preRun(cmd, ru); err != nil {
 		lg.Unexpected(log, err)
 		return nil, cobra.ShellCompDirectiveError
@@ -592,7 +592,7 @@ func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string,
 ) ([]string, cobra.ShellCompDirective) {
 	ru := getRun(cmd)
 	if err := preRun(cmd, ru); err != nil {
-		lg.Unexpected(logFrom(cmd), err)
+		lg.Unexpected(lg.From(cmd), err)
 		return nil, cobra.ShellCompDirectiveError
 	}
 

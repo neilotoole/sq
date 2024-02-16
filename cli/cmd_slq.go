@@ -418,7 +418,7 @@ func extractFlagArgsValues(cmd *cobra.Command) (map[string]string, error) {
 			// If the key already exists, don't overwrite. This mimics jq's
 			// behavior.
 
-			log := logFrom(cmd)
+			log := lg.From(cmd)
 			log.With("arg", k).Warn("Double use of --arg key; using first value.")
 
 			continue

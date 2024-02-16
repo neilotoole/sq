@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/lg"
 	"strings"
 
 	"github.com/samber/lo"
@@ -58,7 +59,7 @@ Use "sq config ls -v" to list available options.`,
 }
 
 func execConfigSet(cmd *cobra.Command, args []string) error {
-	log := logFrom(cmd)
+	log := lg.From(cmd)
 	ru, ctx := run.FromContext(cmd.Context()), cmd.Context()
 
 	o := ru.Config.Options
@@ -152,7 +153,7 @@ func completeConfigSet(cmd *cobra.Command, args []string, toComplete string) ([]
 
 	case 1:
 		if cmdFlagChanged(cmd, flag.ConfigDelete) {
-			logFrom(cmd).Warn(fmt.Sprintf("No 2nd arg when using --%s flag", flag.ConfigDelete))
+			lg.From(cmd).Warn(fmt.Sprintf("No 2nd arg when using --%s flag", flag.ConfigDelete))
 			return nil, cobra.ShellCompDirectiveError
 		}
 

@@ -58,7 +58,7 @@ in envar $SQ_EDITOR or $EDITOR.`,
 // execConfigEditOptions edits the default options.
 func execConfigEditOptions(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
-	ru, log := run.FromContext(ctx), logFrom(cmd)
+	ru, log := run.FromContext(ctx), lg.From(cmd)
 	cfg := ru.Config
 	cmdOpts, err := getOptionsFromCmd(cmd)
 	if err != nil {
@@ -110,7 +110,7 @@ func execConfigEditOptions(cmd *cobra.Command, _ []string) error {
 // execConfigEditSource edits an individual source's config.
 func execConfigEditSource(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	ru, log := run.FromContext(ctx), logFrom(cmd)
+	ru, log := run.FromContext(ctx), lg.From(cmd)
 	cfg := ru.Config
 
 	cmdOpts, err := getOptionsFromCmd(cmd)

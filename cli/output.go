@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/lg"
 	"io"
 	"os"
 	"strings"
@@ -274,7 +275,7 @@ func newWriters(cmd *cobra.Command, clnup *cleanup.Cleanup, o options.Options,
 	// via config or flag.
 	fm := getFormat(cmd, o)
 	outCfg = getOutputConfig(cmd, clnup, fm, o, stdout, stderr)
-	log := logFrom(cmd)
+	log := lg.From(cmd)
 
 	// Package tablew has writer impls for each of the writer interfaces,
 	// so we use its Writers as the baseline. Later we check the format

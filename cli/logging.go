@@ -11,8 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/spf13/cobra"
-
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -183,27 +181,6 @@ func slogReplaceHTTPResponse(_ []string, a slog.Attr) slog.Attr {
 	v := httpz.ResponseLogValue(resp)
 	a.Value = v
 	return a
-}
-
-// logFrom is a convenience function for getting a *slog.Logger from a
-// *cobra.Command or context.Context.
-// If no logger present, lg.Discard() is returned.
-func logFrom(cmd *cobra.Command) *slog.Logger {
-	if cmd == nil {
-		return lg.Discard()
-	}
-
-	ctx := cmd.Context()
-	if ctx == nil {
-		return lg.Discard()
-	}
-
-	log := lg.FromContext(ctx)
-	if log == nil {
-		return lg.Discard()
-	}
-
-	return log
 }
 
 // getLogEnabled determines if logging is enabled based on flags, envars, or config.
