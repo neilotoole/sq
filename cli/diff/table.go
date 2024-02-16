@@ -70,7 +70,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 		return nil
 	}
 
-	doc := newDiffDoc(buildDocHeader(
+	doc := newHunkDoc(buildDocHeader(
 		cfg.pr,
 		fmt.Sprintf("sq diff --data %s %s", td1, td2),
 		td1.String(),

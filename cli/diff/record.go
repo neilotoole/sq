@@ -22,7 +22,7 @@ import (
 
 // execTableDataDiffDoc compares the row data in td1 and td2, writing the diff
 // to doc.
-func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *diffDoc, td1, td2 *tableData) error {
+func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *hunkDoc, td1, td2 *tableData) error {
 	log := lg.FromContext(ctx)
 	recBufSize := tuning.OptRecBufSize.Get(options.FromContext(ctx))
 
@@ -140,7 +140,7 @@ type recordDiffer struct {
 	td1, td2     *tableData
 	recw1, recw2 *recordWriter
 	recPairs     chan record.Pair
-	doc          *diffDoc
+	doc          *hunkDoc
 }
 
 // exec compares the records in df.td1 and df.td2, writing the results
