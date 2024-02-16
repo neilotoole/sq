@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/neilotoole/sq/cli/diff/libdiff"
 	"slices"
 	"strings"
 	"time"
@@ -86,7 +87,7 @@ func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	body1, body2 := buf1.String(), buf2.String()
 
 	bar2 := progress.FromContext(ctx).NewWaiter("Diff table "+td1.String(), true, progress.OptMemUsage)
-	unified, err := ComputeUnified(ctx, query1, query2, cfg.Lines, body1, body2)
+	unified, err := libdiff.ComputeUnified(ctx, query1, query2, cfg.Lines, body1, body2)
 	bar2.Stop()
 	if err != nil {
 		return nil, err

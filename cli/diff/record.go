@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/neilotoole/sq/cli/diff/libdiff"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -331,7 +332,7 @@ func (rd *recordDiffer) populateHunk(ctx context.Context, hnk *Hunk, pairs []rec
 	}
 
 	var unified string
-	unified, err = ComputeUnified(ctx, handleTbl1, handleTbl2, rd.cfg.Lines, body1, body2)
+	unified, err = libdiff.ComputeUnified(ctx, handleTbl1, handleTbl2, rd.cfg.Lines, body1, body2)
 	if err != nil {
 		return err
 	}

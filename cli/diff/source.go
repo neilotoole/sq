@@ -3,6 +3,7 @@ package diff
 import (
 	"context"
 	"fmt"
+	"github.com/neilotoole/sq/cli/diff/libdiff"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"slices"
 	"strings"
@@ -155,7 +156,7 @@ func buildSourceOverviewDiff(ctx context.Context, cfg *Config, sd1, sd2 *sourceD
 	}
 
 	bar := progress.FromContext(ctx).NewWaiter("Diff overview", true, progress.OptMemUsage)
-	unified, err := ComputeUnified(ctx, sd1.handle, sd2.handle, cfg.Lines, body1, body2)
+	unified, err := libdiff.ComputeUnified(ctx, sd1.handle, sd2.handle, cfg.Lines, body1, body2)
 	bar.Stop()
 	if err != nil {
 		return nil, err
@@ -185,7 +186,7 @@ func buildDBPropsDiff(ctx context.Context, cfg *Config, sd1, sd2 *sourceData) (*
 	}
 
 	bar := progress.FromContext(ctx).NewWaiter("Diff dbprops", true, progress.OptMemUsage)
-	unified, err := ComputeUnified(ctx, sd1.handle, sd2.handle, cfg.Lines, body1, body2)
+	unified, err := libdiff.ComputeUnified(ctx, sd1.handle, sd2.handle, cfg.Lines, body1, body2)
 	bar.Stop()
 	if err != nil {
 		return nil, err

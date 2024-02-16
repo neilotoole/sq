@@ -3,6 +3,7 @@ package diff
 import (
 	"context"
 	"fmt"
+	"github.com/neilotoole/sq/cli/diff/libdiff"
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"io"
@@ -99,7 +100,7 @@ func buildTableStructureDiff(ctx context.Context, cfg *Config, showRowCounts boo
 	handle2 := td2.src.Handle + "." + td2.tblName
 
 	bar := progress.FromContext(ctx).NewWaiter("Diff table schema "+td1.String(), true, progress.OptMemUsage)
-	unified, err := ComputeUnified(ctx, handle1, handle2, cfg.Lines, body1, body2)
+	unified, err := libdiff.ComputeUnified(ctx, handle1, handle2, cfg.Lines, body1, body2)
 	bar.Stop()
 	if err != nil {
 		return nil, err
