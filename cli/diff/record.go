@@ -26,6 +26,7 @@ import (
 func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *hunkDoc, td1, td2 *tableData) error {
 	log := lg.FromContext(ctx)
 	recBufSize := tuning.OptRecBufSize.Get(options.FromContext(ctx))
+	recPairs := make(chan record.Pair, recBufSize)
 
 	qc := run.NewQueryContext(ru, nil)
 	query1 := td1.src.Handle + "." + stringz.DoubleQuote(td1.tblName)
@@ -68,13 +69,15 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *hu
 	}()
 
 	df := &recordDiffer{
-		td1:      td1,
-		td2:      td2,
-		recw1:    recw1,
-		recw2:    recw2,
-		recPairs: make(chan record.Pair, recBufSize),
-		cfg:      cfg,
-		//doc:      doc,
+		td1: td1,
+		td2: td2,
+		recMetaFn: func() (meta1 record.Meta, meta2 record.Meta) {
+			return recw1.recMeta, recw2.recMeta
+		},
+		//recw1:    recw1,
+		//recw2:    recw2,
+
+		cfg: cfg,
 	}
 
 	// Consume records from recw1 and recw2, build a record.Pair,
@@ -98,18 +101,18 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *hu
 
 			if rec1 == nil && rec2 == nil {
 				// End of data
-				close(df.recPairs)
+				close(recPairs)
 				return
 			}
 
-			df.recPairs <- record.NewPair(i, rec1, rec2)
+			recPairs <- record.NewPair(i, rec1, rec2)
 		}
 	}()
 
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		df.exec(ctx, doc)
+		df.exec(ctx, recPairs, doc)
 
 		if err := doc.Err(); err != nil {
 			errCh <- err
@@ -139,15 +142,19 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *hu
 
 // recordDiffer encapsulates execution of diffing the records of two tables.
 type recordDiffer struct {
-	cfg          *Config
-	td1, td2     *tableData
-	recw1, recw2 *recordWriter
-	recPairs     chan record.Pair
+	cfg      *Config
+	td1, td2 *tableData
+
+	// recMetaFn returns the record.Meta for the query results for td1 and td2.
+	// We use a function here because record.Meta is only available after the
+	// query has been executed (and isn't available at the time of recordDiffer
+	// construction).
+	recMetaFn func() (rm1 record.Meta, rm2 record.Meta)
 }
 
-// exec compares the records in recordDiffer.td1 and recordDiffer.td2, writing
-// the results to doc. The caller can invoke hunkDoc.Err to check for errors.
-func (rd *recordDiffer) exec(ctx context.Context, doc *hunkDoc) {
+// exec compares the record pairs from recPairs, writing the diff results to
+// doc. The caller can invoke hunkDoc.Err to check for errors.
+func (rd *recordDiffer) exec(ctx context.Context, recPairs <-chan record.Pair, doc *hunkDoc) {
 	var (
 		numLines  = rd.cfg.Lines
 		tb        = tailbuf.New[record.Pair](numLines + 1)
@@ -168,7 +175,7 @@ LOOP:
 		case <-ctx.Done():
 			err = errz.Err(ctx.Err())
 			break LOOP
-		case rp, ok = <-rd.recPairs:
+		case rp, ok = <-recPairs:
 		}
 
 		if !ok {
@@ -230,7 +237,7 @@ LOOP:
 			case <-ctx.Done():
 				err = errz.Err(ctx.Err())
 				break LOOP
-			case rp, ok = <-rd.recPairs:
+			case rp, ok = <-recPairs:
 			}
 
 			if !ok {
@@ -270,13 +277,12 @@ LOOP:
 	}
 
 	if err == nil {
-		// Even if err isn't populated, it's still possible that ctx.Err is non-nil.
+		// Even if err is nil, it's still possible that ctx.Err is non-nil.
 		err = errz.Err(ctx.Err())
 	}
 
 	// CRITICAL: we must seal the doc. On the happy path, err is nil.
 	doc.Seal(err)
-	return
 }
 
 // populateHunk populates hnk with the diff of the record pairs. Before return,
@@ -285,6 +291,7 @@ func (rd *recordDiffer) populateHunk(ctx context.Context, hnk *hunk, pairs []rec
 	var (
 		handleTbl1           = rd.td1.String()
 		handleTbl2           = rd.td2.String()
+		recMeta1, recMeta2   = rd.recMetaFn()
 		hunkHeader, hunkBody string
 		body1, body2         string
 	)
@@ -306,12 +313,12 @@ func (rd *recordDiffer) populateHunk(ctx context.Context, hnk *hunk, pairs []rec
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		var bodyErr error
-		body1, bodyErr = renderRecords(gCtx, rd.cfg, rd.recw1.recMeta, recs1)
+		body1, bodyErr = renderRecords(gCtx, rd.cfg, recMeta1, recs1)
 		return bodyErr
 	})
 	g.Go(func() error {
 		var bodyErr error
-		body2, bodyErr = renderRecords(gCtx, rd.cfg, rd.recw2.recMeta, recs2)
+		body2, bodyErr = renderRecords(gCtx, rd.cfg, recMeta2, recs2)
 		return bodyErr
 	})
 	if err = g.Wait(); err != nil {
@@ -389,7 +396,7 @@ func (w *recordWriter) Wait() (written int64, err error) {
 //
 //	@@ -54 +54 @@
 //
-// The short form used when there's no surrounding lines (-U=0).
+// The short form is used when there's no surrounding lines (-U=0).
 //
 // Note that "-44,7 +44,7" means that the first line shown is line 44 and the
 // number of lines compared is 7 (although 8 lines will be rendered, because the
