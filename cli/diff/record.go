@@ -109,7 +109,9 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *hu
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		if err := df.exec(ctx, doc); err != nil {
+		df.exec(ctx, doc)
+
+		if err := doc.Err(); err != nil {
 			errCh <- err
 		}
 	}()
@@ -145,8 +147,8 @@ type recordDiffer struct {
 }
 
 // exec compares the records in df.td1 and df.td2, writing the results
-// to recordDiffer.doc.
-func (rd *recordDiffer) exec(ctx context.Context, doc *hunkDoc) error {
+// to doc. The caller can invoke hunkDoc.Err to check for errors.
+func (rd *recordDiffer) exec(ctx context.Context, doc *hunkDoc) {
 	var (
 		numLines  = rd.cfg.Lines
 		tb        = tailbuf.New[record.Pair](numLines + 1)
@@ -275,7 +277,7 @@ LOOP:
 
 	// CRITICAL: we must seal the doc. On the happy path, err is nil.
 	doc.Seal(err)
-	return err
+	return
 }
 
 // populateHunk populates hnk with the diff of the record pairs. Before return,
