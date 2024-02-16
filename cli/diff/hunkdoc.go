@@ -43,17 +43,14 @@ type hunkDoc struct {
 	rdr     io.Reader
 }
 
-// newHunkDoc returns a new hunkDoc with the given docHeader. The header
-// can be generated with buildDocHeader. It should look something like:
-//
-//	sq diff --data @diff/sakila_a.actor @diff/sakila_b.actor
-//	--- @diff/sakila_a.actor
-//	+++ @diff/sakila_b.actor
-//
-// The returned hunkDoc is not sealed, and any call to hunkDoc.Read will
-// block until hunkDoc.Seal is invoked.
+// newHunkDoc returns a new hunkDoc with the given docHeader. The header can be
+// generated with buildDocHeader. The returned hunkDoc is not sealed, and any
+// call to hunkDoc.Read will block until hunkDoc.Seal is invoked.
 func newHunkDoc(docHeader []byte) *hunkDoc {
-	return &hunkDoc{header: docHeader, sealed: make(chan struct{})}
+	return &hunkDoc{
+		header: docHeader,
+		sealed: make(chan struct{}),
+	}
 }
 
 // Read implements [io.Reader]. It blocks until the hunkDoc is sealed.
@@ -79,7 +76,7 @@ func (hd *hunkDoc) Read(p []byte) (n int, err error) {
 }
 
 // Seal seals the hunkDoc, indicating that it is complete. Until it is sealed,
-// any call to hunkDoc.Reader will block. On the happy path, arg err is nil. If
+// any call to hunkDoc.Read will block. On the happy path, arg err is nil. If
 // err is non-nil, a call to hunkDoc.Reader will return an error. Seal will
 // panic if called more than once.
 func (hd *hunkDoc) Seal(err error) {
@@ -87,7 +84,7 @@ func (hd *hunkDoc) Seal(err error) {
 	defer hd.mu.Unlock()
 	select {
 	case <-hd.sealed:
-		panic("diff doc is already sealed")
+		panic("diff hunk doc is already sealed")
 	default:
 	}
 
@@ -101,7 +98,7 @@ func (hd *hunkDoc) newHunk(row int) (*hunk, error) {
 
 	select {
 	case <-hd.sealed:
-		return nil, errz.New("diff doc is already sealed")
+		return nil, errz.New("diff hunk doc is already sealed")
 	default:
 	}
 
