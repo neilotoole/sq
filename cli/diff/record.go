@@ -148,11 +148,13 @@ type recordDiffer struct {
 // to recordDiffer.doc.
 func (rd *recordDiffer) exec(ctx context.Context) error {
 	var (
-		tb        = tailbuf.New[record.Pair](rd.cfg.Lines + 1)
+		numLines  = rd.cfg.Lines
+		tb        = tailbuf.New[record.Pair](numLines + 1)
 		hunkPairs []record.Pair
-		rp        record.Pair
-		ok        bool
-		err       error
+
+		rp  record.Pair
+		ok  bool
+		err error
 	)
 
 	// NOTE: If making changes, make sure that the function doesn't return
@@ -187,9 +189,9 @@ LOOP:
 		// But, the hunk doesn't just contain the differing record pair. It may also
 		// include context lines before and after the difference.
 
-		// We get the before-the-difference record pairs from the tailbuf.
+		// First, we get the before-the-difference record pairs from the tailbuf.
 		// Conveniently, the tailbuf already contains the differing record pair.
-		hunkPairs = tb.Slice(row-rd.cfg.Lines, row+1)
+		hunkPairs = tb.Slice(row-numLines, row+1)
 
 		if hnk, err = rd.doc.NewHunk(row - (len(hunkPairs) - 1)); err != nil {
 			break
@@ -199,9 +201,22 @@ LOOP:
 		// sequence of non-differing (matching) record pairs, appending each
 		// pair to hunkPairs. We stop when:
 		//
-		//  - we've found df.cfg.Lines of contiguous matching record pairs, or
+		//  - we've found numLines*2 of contiguous matching record pairs, or
 		//  - we've reached the end of the record pairs, or
-		//  - we've reached maxHunkRecords.
+		//  - we've accumulated cfg.HunkMaxSize pairs.
+		//
+		// We look ahead for numLines*2 (instead of just numLines) to avoid the
+		// situation where directly adjacent hunks duplicate the last line of the
+		// earlier hunk as the first line of the later hunk, e.g.
+		//
+		//  -34        AUDREY      OLIVIER    2020-06-11T02:50:54Z
+		//  +34        AUDREY      SWIFT      2020-06-11T02:50:54Z
+		//   35        JUDY        DEAN       2020-06-11T02:50:54Z
+		//   36        BURT        DUKAKIS    2020-06-11T02:50:54Z
+		//  @@ -36,6 +36,6 @@
+		//   36        BURT        DUKAKIS    2020-06-11T02:50:54Z
+		//   37        VAL         BOLGER     2020-06-11T02:50:54Z
+		//  -38        TOM         MCKELLEN   2020-06-11T02:50:54Z
 		//
 		// The maxHunRecords limit exists to prevent unbounded growth of the hunk,
 		// which could eventually lead to an OOM situation if the diff is huge. If
@@ -234,22 +249,31 @@ LOOP:
 				pairMatchSeq = 0
 			}
 
-			if pairMatchSeq > rd.cfg.Lines || len(hunkPairs) >= rd.cfg.HunkMaxSize {
+			if len(hunkPairs) >= rd.cfg.HunkMaxSize {
+				// We've reached the hard limit for the hunk size.
+				break
+			}
+
+			if pairMatchSeq > numLines*2 {
+				// We've looked ahead far enough to avoid the adjacent hunk line
+				// duplication issue, so we can trim off those extra lookahead pairs.
+				hunkPairs = hunkPairs[:len(hunkPairs)-numLines]
 				break
 			}
 		}
 
-		// OK, now we've got enough record pairs to generate the hunk.
+		// OK, now we've got enough record pairs to populate the hunk.
 		if err = rd.populateHunk(ctx, hnk, hunkPairs); err != nil {
 			break
 		}
 	}
 
 	if err == nil {
-		// If err isn't populated, it's still possible that ctx.Err is non-nil.
+		// Even if err isn't populated, it's still possible that ctx.Err is non-nil.
 		err = errz.Err(ctx.Err())
 	}
 
+	// CRITICAL: we must seal the doc.
 	rd.doc.Seal(err)
 	return err
 }
