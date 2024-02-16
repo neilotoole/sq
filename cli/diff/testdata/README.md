@@ -43,7 +43,7 @@ diff '--color=auto' -U3 -r ./diffdirs/a/kubla.txt ./diffdirs/b/kubla.txt
 
 ## Hunk section
 
-Here's how GitHub renders a hunk section in a markdown `diff` block.
+Here's a hunk section in a markdown `diff` block (presumably you're viewing this on GitHub).
 
 ```diff
 @@ -4,7 +4,7 @@ Here's some context I've added.
@@ -53,3 +53,13 @@ Here's how GitHub renders a hunk section in a markdown `diff` block.
 -With walls and towers were girdled round;
 +With walls and towers were girdled round and round;
 ```
+
+## GitHub comps
+
+### Split view
+
+![kubla_github_split.png](kubla_github_split.png)
+
+### Unified view
+
+![kubla_github_unified.png](kubla_github_unified.png)
