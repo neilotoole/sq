@@ -18,11 +18,11 @@ func renderRecords(ctx context.Context, cfg *Config, recMeta record.Meta, recs [
 		return "", nil
 	}
 
-	pr := cfg.pr.Clone()
-	pr.EnableColor(false)
-	pr.ShowHeader = false
+	prMain := cfg.prMain.Clone()
+	prMain.EnableColor(false)
+	prMain.ShowHeader = false
 	buf := &bytes.Buffer{}
-	recw := cfg.RecordWriterFn(buf, pr)
+	recw := cfg.RecordWriterFn(buf, prMain)
 
 	var sb strings.Builder
 	_ = (io.Writer(&sb))

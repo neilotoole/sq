@@ -184,7 +184,7 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 				if err := Print(
 					ctx,
 					ru.Out,
-					ru.Writers.OutPrinting,
+					ru.Writers.OutPrinting.Diff,
 					tblDataDiff.header,
 					strings.NewReader(tblDataDiff.diff),
 				); err != nil {

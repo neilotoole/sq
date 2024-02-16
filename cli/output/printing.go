@@ -1,6 +1,7 @@
 package output
 
 import (
+	"github.com/neilotoole/sq/cli/diff/libdiff"
 	"log/slog"
 	"time"
 
@@ -39,20 +40,8 @@ type Printing struct {
 	// Datetime is the color for time-related values.
 	Datetime *color.Color
 
-	// DiffPlus is the color for diff plus "+" elements.
-	DiffPlus *color.Color
-
-	// DiffMinus is the color for diff minus "-" elements.
-	DiffMinus *color.Color
-
-	// DiffHeader is the color for diff header elements.
-	DiffHeader *color.Color
-
-	// DiffSection is the color for diff section elements.
-	DiffSection *color.Color
-
-	// DiffNormal is the color for regular diff text.
-	DiffNormal *color.Color
+	// Diff contains colors for diff output.
+	Diff *libdiff.Printing
 
 	// Disabled is the color for disabled elements.
 	Disabled *color.Color
@@ -192,11 +181,7 @@ func NewPrinting() *Printing {
 		Bool:                   color.New(color.FgYellow),
 		Bytes:                  color.New(color.Faint),
 		Datetime:               color.New(color.FgGreen, color.Faint),
-		DiffHeader:             color.New(color.Bold),
-		DiffMinus:              color.New(color.FgRed),
-		DiffNormal:             color.New(color.Faint),
-		DiffPlus:               color.New(color.FgGreen),
-		DiffSection:            color.New(color.FgCyan),
+		Diff:                   libdiff.NewPrinting(),
 		Disabled:               color.New(color.FgYellow, color.Faint),
 		Duration:               color.New(color.FgGreen, color.Faint),
 		Enabled:                color.New(color.FgGreen, color.Faint),
@@ -246,11 +231,7 @@ func (pr *Printing) Clone() *Printing {
 	pr2.Bool = lo.ToPtr(*pr.Bool)
 	pr2.Bytes = lo.ToPtr(*pr.Bytes)
 	pr2.Datetime = lo.ToPtr(*pr.Datetime)
-	pr2.DiffPlus = lo.ToPtr(*pr.DiffPlus)
-	pr2.DiffMinus = lo.ToPtr(*pr.DiffMinus)
-	pr2.DiffHeader = lo.ToPtr(*pr.DiffHeader)
-	pr2.DiffSection = lo.ToPtr(*pr.DiffSection)
-	pr2.DiffNormal = lo.ToPtr(*pr.DiffNormal)
+	pr2.Diff = pr.Diff.Clone()
 	pr2.Disabled = lo.ToPtr(*pr.Disabled)
 	pr2.Duration = lo.ToPtr(*pr.Duration)
 	pr2.Enabled = lo.ToPtr(*pr.Enabled)
@@ -299,7 +280,6 @@ func (pr *Printing) LogValue() slog.Value {
 func (pr *Printing) colors() []*color.Color {
 	return []*color.Color{
 		pr.Active, pr.Bold, pr.Bold, pr.Bytes, pr.Datetime, pr.Duration,
-		pr.DiffHeader, pr.DiffMinus, pr.DiffPlus, pr.DiffNormal, pr.DiffSection,
 		pr.Disabled, pr.Enabled,
 		pr.Error, pr.Faint, pr.Handle, pr.Header, pr.Hilite,
 		pr.Key, pr.Location, pr.Normal, pr.Null, pr.Number, pr.Punc,
@@ -318,6 +298,7 @@ func (pr *Printing) IsMonochrome() bool {
 func (pr *Printing) EnableColor(enable bool) {
 	if enable {
 		pr.monochrome = false
+		pr.Diff.EnableColor(false)
 
 		for _, clr := range pr.colors() {
 			clr.EnableColor()
@@ -326,6 +307,7 @@ func (pr *Printing) EnableColor(enable bool) {
 	}
 
 	pr.monochrome = true
+	pr.Diff.EnableColor(true)
 	for _, clr := range pr.colors() {
 		clr.DisableColor()
 	}

@@ -346,7 +346,7 @@ func (rd *recordDiffer) populateHunk(ctx context.Context, hnk *Hunk, pairs []rec
 		return errz.New("Hunk header not found")
 	}
 
-	if err = colorizeHunks(ctx, hnk, rd.cfg.pr, bytes.NewReader(stringz.UnsafeBytes(hunkBody))); err != nil {
+	if err = colorizeHunks(ctx, hnk, rd.cfg.prDiff, bytes.NewReader(stringz.UnsafeBytes(hunkBody))); err != nil {
 		return err
 	}
 
@@ -356,7 +356,7 @@ func (rd *recordDiffer) populateHunk(ctx context.Context, hnk *Hunk, pairs []rec
 	}
 
 	// hunkHeader will be passed to hunk.Seal in the top defer.
-	hunkHeader = rd.cfg.pr.DiffSection.Sprintln(hunkHeader)
+	hunkHeader = rd.cfg.prDiff.Section.Sprintln(hunkHeader)
 	return nil
 }
 

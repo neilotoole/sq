@@ -3,7 +3,7 @@ package diff
 import (
 	"bytes"
 	"fmt"
-	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/diff/libdiff"
 	"github.com/neilotoole/sq/cli/output/colorz"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
@@ -131,10 +131,10 @@ func (d *UnifiedDoc) Err() error {
 //	+++ @sakila_b.actor
 //
 // It is colorized according to [output.Printing.DiffHeader].
-func NewDocHeader(pr *output.Printing, left, right string) []byte {
+func NewDocHeader(pr *libdiff.Printing, left, right string) []byte {
 	buf := &bytes.Buffer{}
 	header := fmt.Sprintf("--- %s\n+++ %s\n", left, right)
-	_, _ = colorz.NewPrinter(pr.DiffHeader).Block(buf, []byte(header))
+	_, _ = colorz.NewPrinter(pr.Header).Block(buf, []byte(header))
 	return buf.Bytes()
 }
 

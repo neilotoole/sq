@@ -5,9 +5,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/neilotoole/sq/cli/diff/libdiff"
 	"io"
 
-	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/colorz"
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
@@ -20,7 +20,7 @@ var (
 )
 
 // Print prints dif to w. If pr is nil, printing is monochrome.
-func Print(ctx context.Context, w io.Writer, pr *output.Printing, header string, dif io.Reader) error {
+func Print(ctx context.Context, w io.Writer, pr *libdiff.Printing, header string, dif io.Reader) error {
 	if dif == nil {
 		return nil
 	}
@@ -39,17 +39,17 @@ func Print(ctx context.Context, w io.Writer, pr *output.Printing, header string,
 
 	// Else, output is colorized.
 	if header != "" {
-		if _, err = pr.DiffHeader.Fprintln(w, header); err != nil {
+		if _, err = pr.Header.Fprintln(w, header); err != nil {
 			return errz.Err(err)
 		}
 	}
 
 	var (
-		printHeader  = colorz.NewPrinter(pr.DiffHeader).Line
-		printSection = colorz.NewPrinter(pr.DiffSection).Line
-		printMinus   = colorz.NewPrinter(pr.DiffMinus).Line
-		printPlus    = colorz.NewPrinter(pr.DiffPlus).Line
-		printNormal  = colorz.NewPrinter(pr.DiffNormal).Line
+		printHeader  = colorz.NewPrinter(pr.Header).Line
+		printSection = colorz.NewPrinter(pr.Section).Line
+		printMinus   = colorz.NewPrinter(pr.Minus).Line
+		printPlus    = colorz.NewPrinter(pr.Plus).Line
+		printNormal  = colorz.NewPrinter(pr.Normal).Line
 	)
 
 	sc := bufio.NewScanner(dif)
@@ -91,7 +91,7 @@ func Print(ctx context.Context, w io.Writer, pr *output.Printing, header string,
 }
 
 // PrintColorizedDiff prints dif to w. If pr is nil, printing is monochrome.
-func PrintColorizedDiff(ctx context.Context, w io.Writer, pr *output.Printing, dif io.Reader) error {
+func PrintColorizedDiff(ctx context.Context, w io.Writer, pr *libdiff.Printing, dif io.Reader) error {
 	if dif == nil {
 		return nil
 	}
@@ -104,11 +104,11 @@ func PrintColorizedDiff(ctx context.Context, w io.Writer, pr *output.Printing, d
 	}
 
 	var (
-		printHeader  = colorz.NewPrinter(pr.DiffHeader).Line
-		printSection = colorz.NewPrinter(pr.DiffSection).Line
-		printMinus   = colorz.NewPrinter(pr.DiffMinus).Line
-		printPlus    = colorz.NewPrinter(pr.DiffPlus).Line
-		printNormal  = colorz.NewPrinter(pr.DiffNormal).Line
+		printHeader  = colorz.NewPrinter(pr.Header).Line
+		printSection = colorz.NewPrinter(pr.Section).Line
+		printMinus   = colorz.NewPrinter(pr.Minus).Line
+		printPlus    = colorz.NewPrinter(pr.Plus).Line
+		printNormal  = colorz.NewPrinter(pr.Normal).Line
 	)
 
 	sc := bufio.NewScanner(dif)
@@ -167,7 +167,7 @@ func PrintColorizedDiff(ctx context.Context, w io.Writer, pr *output.Printing, d
 //	 11        ZERO        CAGE       2020-06-11T02:50:54Z
 //
 // If pr is nil, printing is monochrome.
-func colorizeHunks(ctx context.Context, w io.Writer, pr *output.Printing, hunks io.Reader) error {
+func colorizeHunks(ctx context.Context, w io.Writer, pr *libdiff.Printing, hunks io.Reader) error {
 	if hunks == nil {
 		return nil
 	}
@@ -179,10 +179,10 @@ func colorizeHunks(ctx context.Context, w io.Writer, pr *output.Printing, hunks 
 	}
 
 	var (
-		printSection = colorz.NewPrinter(pr.DiffSection).Line
-		printMinus   = colorz.NewPrinter(pr.DiffMinus).Line
-		printPlus    = colorz.NewPrinter(pr.DiffPlus).Line
-		printNormal  = colorz.NewPrinter(pr.DiffNormal).Line
+		printSection = colorz.NewPrinter(pr.Section).Line
+		printMinus   = colorz.NewPrinter(pr.Minus).Line
+		printPlus    = colorz.NewPrinter(pr.Plus).Line
+		printNormal  = colorz.NewPrinter(pr.Normal).Line
 	)
 
 	sc := bufio.NewScanner(hunks)

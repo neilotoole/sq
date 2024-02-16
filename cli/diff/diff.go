@@ -3,6 +3,7 @@ package diff
 
 import (
 	"fmt"
+	"github.com/neilotoole/sq/cli/diff/libdiff"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/source"
@@ -16,7 +17,8 @@ type Config struct {
 	// when comparing table data.
 	RecordWriterFn output.NewRecordWriterFunc
 
-	pr *output.Printing
+	prMain *output.Printing
+	prDiff *libdiff.Printing
 
 	// Lines specifies the number of lines of context surrounding a diff.
 	Lines int
