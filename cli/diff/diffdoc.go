@@ -1,9 +1,12 @@
 package diff
 
 import (
-	"context"
+	"bytes"
 	"fmt"
+	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/output/colorz"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"io"
 	"strings"
 	"sync"
@@ -25,17 +28,49 @@ func (h *hunk) Reader() io.Reader {
 	return strings.NewReader(h.String())
 }
 
-type diffDoc struct {
-	mu     sync.Mutex
-	header string
-	sealed chan struct{}
-	hunks  []*hunk
-	err    error
+var _ io.Reader = (*diffDoc)(nil)
+
+func buildDocHeader(pr *output.Printing, title, left, right string) []byte {
+	buf := &bytes.Buffer{}
+	header := fmt.Sprintf("%s\n--- %s\n+++ %s\n", title, left, right)
+	_, _ = colorz.NewPrinter(pr.DiffHeader).Block(buf, []byte(header))
+	return buf.Bytes()
 }
 
-func newDiffDoc(title, left, right string) *diffDoc {
-	header := fmt.Sprintf("%s\n--- %s\n+++ %s", title, left, right)
-	return &diffDoc{header: header, sealed: make(chan struct{})}
+type diffDoc struct {
+	mu      sync.Mutex
+	header  []byte
+	sealed  chan struct{}
+	hunks   []*hunk
+	err     error
+	rdrOnce sync.Once
+	rdr     io.Reader
+}
+
+func newDiffDoc(docHeader []byte) *diffDoc {
+	return &diffDoc{header: docHeader, sealed: make(chan struct{})}
+}
+
+// Read implements [io.Reader]. It blocks until the diffDoc is sealed.
+func (d *diffDoc) Read(p []byte) (n int, err error) {
+	d.rdrOnce.Do(func() {
+		<-d.sealed
+
+		if d.err != nil {
+			d.rdr = ioz.ErrReader{Err: d.err}
+			return
+		}
+
+		rdrs := make([]io.Reader, 0, len(d.hunks)+1)
+		rdrs = append(rdrs, bytes.NewReader(d.header))
+		for i := range d.hunks {
+			rdrs = append(rdrs, d.hunks[i].Reader())
+		}
+
+		d.rdr = io.MultiReader(rdrs...)
+	})
+
+	return d.rdr.Read(p)
 }
 
 // Seal seals the diffDoc, indicating that it is complete. Until it is sealed,
@@ -75,33 +110,7 @@ func (d *diffDoc) newHunk(row int) (*hunk, error) {
 	return h, nil
 }
 
-// Reader returns an io.Reader for the diffDoc. The method blocks
-// until the diffDoc.Seal is invoked.
-func (d *diffDoc) Reader(ctx context.Context) (io.Reader, error) {
-	select {
-	case <-ctx.Done():
-		return nil, errz.Err(ctx.Err())
-	case <-d.sealed:
-		// continue
-	}
-
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if d.err != nil {
-		return nil, d.err
-	}
-
-	rdrs := make([]io.Reader, 0, len(d.hunks)+1)
-	//rdrs = append(rdrs, strings.NewReader(d.header))
-	for i := range d.hunks {
-		rdrs = append(rdrs, d.hunks[i].Reader())
-	}
-
-	return io.MultiReader(rdrs...), nil
-}
-
-// String returns the diffDoc's header.
+// String returns d's header as a string.
 func (d *diffDoc) String() string {
-	return d.header
+	return string(d.header)
 }

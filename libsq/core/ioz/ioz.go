@@ -345,13 +345,25 @@ func (c *readCloserNotifier) Close() error {
 	return c.closeErr
 }
 
-var _ io.Reader = (*errorAfterNReader)(nil)
+var _ io.Reader = (*ErrReader)(nil)
+
+// ErrReader is an [io.Reader] that always returns an error.
+type ErrReader struct {
+	Err error
+}
+
+// Read implements [io.Reader]: it always returns [ErrReader.Err].
+func (e ErrReader) Read(p []byte) (n int, err error) {
+	return 0, e.Err
+}
 
 // NewErrorAfterNReader returns an io.Reader that returns err after
 // reading n random bytes from crypto/rand.Reader.
 func NewErrorAfterNReader(n int, err error) io.Reader {
 	return &errorAfterNReader{afterN: n, err: err}
 }
+
+var _ io.Reader = (*errorAfterNReader)(nil)
 
 type errorAfterNReader struct {
 	err    error

@@ -3,6 +3,8 @@ package diff
 import (
 	"context"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
+	"io"
 	"strings"
 
 	"golang.org/x/sync/errgroup"
@@ -68,21 +70,18 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 		return nil
 	}
 
-	doc := newDiffDoc(
+	doc := newDiffDoc(buildDocHeader(
+		cfg.pr,
 		fmt.Sprintf("sq diff --data %s %s", td1, td2),
 		td1.String(),
 		td2.String(),
-	)
+	))
 	if err = execTableDataDiffDoc(ctx, ru, cfg, doc, td1, td2); err != nil {
 		return err
 	}
 
-	rdr, err := doc.Reader(ctx)
-	if err != nil {
-		return err
-	}
-
-	return Print(ctx, ru.Out, cfg.pr, doc.header, rdr)
+	_, err = io.Copy(ru.Out, contextio.NewReader(ctx, doc))
+	return errz.Err(err)
 }
 
 func buildTableStructureDiff(ctx context.Context, cfg *Config, showRowCounts bool,
