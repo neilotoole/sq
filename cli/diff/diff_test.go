@@ -65,7 +65,7 @@ func TestMyersDiff(t *testing.T) {
 	require.NoError(t, err)
 	buf := &bytes.Buffer{}
 	for _, h := range dff.Hunks {
-		fmt.Fprintf(buf, "hunk: -%d, +%d\n", h.FromLine, h.ToLine)
+		fmt.Fprintf(buf, "Hunk: -%d, +%d\n", h.FromLine, h.ToLine)
 		for _, l := range h.Lines {
 			fmt.Fprintf(buf, "%s %q\n", l.Kind, l.Content)
 		}

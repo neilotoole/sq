@@ -23,7 +23,7 @@ import (
 
 // execTableDataDiffDoc compares the row data in td1 and td2, writing the diff
 // to doc.
-func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *hunkDoc, td1, td2 *tableData) error {
+func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *HunkDoc, td1, td2 *tableData) error {
 	log := lg.FromContext(ctx)
 	recBufSize := tuning.OptRecBufSize.Get(options.FromContext(ctx))
 	recPairs := make(chan record.Pair, recBufSize)
@@ -153,8 +153,8 @@ type recordDiffer struct {
 }
 
 // exec compares the record pairs from recPairs, writing the diff results to
-// doc. The caller can invoke hunkDoc.Err to check for errors.
-func (rd *recordDiffer) exec(ctx context.Context, recPairs <-chan record.Pair, doc *hunkDoc) {
+// doc. The caller can invoke HunkDoc.Err to check for errors.
+func (rd *recordDiffer) exec(ctx context.Context, recPairs <-chan record.Pair, doc *HunkDoc) {
 	var (
 		numLines  = rd.cfg.Lines
 		tb        = tailbuf.New[record.Pair](numLines + 1)
@@ -192,7 +192,7 @@ LOOP:
 		}
 
 		// We've found a differing record pair. We need to generate a hunk.
-		var hnk *hunk
+		var hnk *Hunk
 
 		// But, the hunk doesn't just contain the differing record pair. It may also
 		// include context lines before and after the difference.
@@ -287,7 +287,7 @@ LOOP:
 
 // populateHunk populates hnk with the diff of the record pairs. Before return,
 // the hunk is always sealed via hunk.Seal, even if an error occurs.
-func (rd *recordDiffer) populateHunk(ctx context.Context, hnk *hunk, pairs []record.Pair) (err error) {
+func (rd *recordDiffer) populateHunk(ctx context.Context, hnk *Hunk, pairs []record.Pair) (err error) {
 	var (
 		handleTbl1           = rd.td1.String()
 		handleTbl2           = rd.td2.String()
@@ -338,7 +338,7 @@ func (rd *recordDiffer) populateHunk(ctx context.Context, hnk *hunk, pairs []rec
 
 	var ok bool
 	if hunkHeader, hunkBody, ok = strings.Cut(unified, "\n"); !ok {
-		return errz.New("hunk header not found")
+		return errz.New("Hunk header not found")
 	}
 
 	if err = colorizeHunks(ctx, hnk, rd.cfg.pr, bytes.NewReader(stringz.UnsafeBytes(hunkBody))); err != nil {
@@ -422,7 +422,7 @@ func adjustHunkOffset(hunk string, offset int) (string, error) {
 	// Long format didn't work, try the short format.
 	_, err = fmt.Fscanf(strings.NewReader(hunk), formatShort, &i1, &i3)
 	if err != nil {
-		return "", errz.Errorf("failed to parse hunk: %s", hunk)
+		return "", errz.Errorf("failed to parse Hunk: %s", hunk)
 	}
 
 	i1 += offset
