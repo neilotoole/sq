@@ -6,20 +6,37 @@ import (
 
 // Printing encapsulates diff printing config.
 type Printing struct {
-	// Title is the color for diff title elements.
+	// Title is the color for diff title elements. The title is not actually part
+	// of a standard diff. We use it when multiple diffs are printed back-to-back.
 	Title *color.Color
 
 	// Header is the color for diff header elements.
+	//
+	//  --- @diff/sakila_a.actor
+	//  +++ @diff/sakila_b.actor
+	//
+	// A header should appear at the top of each diff.
 	Header *color.Color
 
-	// Section is the color for diff section elements.
+	// Section is the color for diff hunk section range elements.
+	//
+	//  @@ -8,9 +8,9 @@
+	//
+	// The above is a section.
 	Section *color.Color
 
-	// Plus is the color for diff plus "+" elements.
-	Plus *color.Color
+	// SectionComment is the color for (option) diff hunk section comments.
+	//
+	//  @@ -8,9 +8,9 @@ Here's some context.
+	//
+	// The text after the second @@ is a section comment.
+	SectionComment *color.Color
 
-	// Minus is the color for diff minus "-" elements.
-	Minus *color.Color
+	// Inserted is the color for diff plus "+" elements.
+	Inserted *color.Color
+
+	// Deleted is the color for diff minus "-" elements.
+	Deleted *color.Color
 
 	// Normal is the color for regular diff text.
 	Normal *color.Color
@@ -37,14 +54,15 @@ type Printing struct {
 // NewPrinting returns a Printing instance. Color is enabled by default.
 func NewPrinting() *Printing {
 	pr := &Printing{
-		ShowHeader: true,
-		monochrome: false,
-		Title:      color.New(color.FgYellow), // FIXME: choose a better color
-		Header:     color.New(color.Bold),
-		Minus:      color.New(color.FgRed),
-		Normal:     color.New(color.Faint),
-		Plus:       color.New(color.FgGreen),
-		Section:    color.New(color.FgCyan),
+		ShowHeader:     true,
+		monochrome:     false,
+		Title:          color.New(color.FgYellow), // FIXME: choose a better color
+		Header:         color.New(color.Bold),
+		Deleted:        color.New(color.FgRed),
+		Normal:         color.New(color.Faint),
+		Inserted:       color.New(color.FgGreen),
+		Section:        color.New(color.FgCyan),
+		SectionComment: color.New(color.FgCyan, color.Faint), // FIXME: make use of SectionComment
 	}
 
 	pr.EnableColor(true)
@@ -61,8 +79,9 @@ func (pr *Printing) Clone() *Printing {
 	pr2.Title = toPtr(*pr.Title)
 	pr2.Header = toPtr(*pr.Header)
 	pr2.Section = toPtr(*pr.Section)
-	pr2.Minus = toPtr(*pr.Minus)
-	pr2.Plus = toPtr(*pr.Plus)
+	pr2.SectionComment = toPtr(*pr.SectionComment)
+	pr2.Deleted = toPtr(*pr.Deleted)
+	pr2.Inserted = toPtr(*pr.Inserted)
 	pr2.Normal = toPtr(*pr.Normal)
 
 	return pr2
@@ -70,7 +89,13 @@ func (pr *Printing) Clone() *Printing {
 
 func (pr *Printing) colors() []*color.Color {
 	return []*color.Color{
-		pr.Title, pr.Header, pr.Section, pr.Minus, pr.Plus, pr.Normal,
+		pr.Title,
+		pr.Header,
+		pr.Section,
+		pr.SectionComment,
+		pr.Deleted,
+		pr.Inserted,
+		pr.Normal,
 	}
 }
 
