@@ -71,10 +71,6 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 	}
 
 	doc := NewHunkDoc("", NewDocHeader(cfg.pr, td1.String(), td2.String()))
-	//doc := NewHunkDoc(
-	//	fmt.Sprintf("sq diff --data %s %s", td1, td2),
-	//	NewDocHeader(cfg.pr, td1.String(), td2.String()),
-	//)
 	if err = execTableDataDiffDoc(ctx, ru, cfg, doc, td1, td2); err != nil {
 		return err
 	}
