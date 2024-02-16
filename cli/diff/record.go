@@ -146,8 +146,8 @@ type recordDiffer struct {
 	//doc          *hunkDoc
 }
 
-// exec compares the records in df.td1 and df.td2, writing the results
-// to doc. The caller can invoke hunkDoc.Err to check for errors.
+// exec compares the records in recordDiffer.td1 and recordDiffer.td2, writing
+// the results to doc. The caller can invoke hunkDoc.Err to check for errors.
 func (rd *recordDiffer) exec(ctx context.Context, doc *hunkDoc) {
 	var (
 		numLines  = rd.cfg.Lines
@@ -160,8 +160,8 @@ func (rd *recordDiffer) exec(ctx context.Context, doc *hunkDoc) {
 	)
 
 	// NOTE: If making changes, make sure that the function doesn't return
-	// early. It's critical that rd.doc.Seal is invoked, and that happens
-	// at the end of this function.
+	// early. It's critical that rd.doc.Seal is invoked (even when an error
+	// occurs), and that happens at the end of this function.
 
 LOOP:
 	for row := 0; ctx.Err() == nil; row++ {
