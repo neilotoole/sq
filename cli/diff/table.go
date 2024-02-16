@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"io"
 	"strings"
 
@@ -97,8 +98,9 @@ func buildTableStructureDiff(ctx context.Context, cfg *Config, showRowCounts boo
 	handle1 := td1.src.Handle + "." + td1.tblName
 	handle2 := td2.src.Handle + "." + td2.tblName
 
-	msg := fmt.Sprintf("table schema {%s}", td1.tblName)
-	unified, err := computeUnified(ctx, msg, handle1, handle2, cfg.Lines, body1, body2)
+	bar := progress.FromContext(ctx).NewWaiter("Diff table schema "+td1.String(), true, progress.OptMemUsage)
+	unified, err := ComputeUnified(ctx, handle1, handle2, cfg.Lines, body1, body2)
+	bar.Stop()
 	if err != nil {
 		return nil, err
 	}

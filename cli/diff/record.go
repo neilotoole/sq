@@ -8,6 +8,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/tuning"
 	"github.com/neilotoole/sq/libsq/driver"
 	"strings"
@@ -43,8 +44,12 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *Hu
 	}
 
 	var cancelFn context.CancelFunc
-	ctx, cancelFn = context.WithCancel(ctx)
+	ctx, cancelFn = context.WithCancel(ctx) // FIXME:  Do we use cancelFn?
 	defer cancelFn()
+
+	barMsg := fmt.Sprintf("Diff table data %s, %s", td1.String(), td2.String())
+	bar := progress.FromContext(ctx).NewWaiter(barMsg, true, progress.OptMemUsage)
+	defer bar.Stop()
 
 	// Query DB, send records to recw1.
 	go func() {
@@ -325,14 +330,13 @@ func (rd *recordDiffer) populateHunk(ctx context.Context, hnk *Hunk, pairs []rec
 		return err
 	}
 
-	msg := fmt.Sprintf("table {%s}", rd.td1.tblName)
 	var unified string
-	unified, err = computeUnified(ctx, msg, handleTbl1, handleTbl2, rd.cfg.Lines, body1, body2)
+	unified, err = ComputeUnified(ctx, handleTbl1, handleTbl2, rd.cfg.Lines, body1, body2)
 	if err != nil {
 		return err
 	}
 
-	// Trim the diff "file header"... ultimately, we should change computeUnified
+	// Trim the diff "file header"... ultimately, we should change ComputeUnified
 	// to not return this (e.g. add an arg "noHeader=true")
 	unified = stringz.TrimHead(unified, 2)
 

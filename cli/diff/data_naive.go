@@ -85,8 +85,9 @@ func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 
 	body1, body2 := buf1.String(), buf2.String()
 
-	msg := fmt.Sprintf("table {%s}", td1.tblName)
-	unified, err := computeUnified(ctx, msg, query1, query2, cfg.Lines, body1, body2)
+	bar2 := progress.FromContext(ctx).NewWaiter("Diff table "+td1.String(), true, progress.OptMemUsage)
+	unified, err := ComputeUnified(ctx, query1, query2, cfg.Lines, body1, body2)
+	bar2.Stop()
 	if err != nil {
 		return nil, err
 	}
