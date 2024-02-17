@@ -104,15 +104,13 @@ func execTableDataDiffDoc(ctx context.Context, cancelFn context.CancelCauseFunc,
 			// Bah! An error was returned from libsq.ExecuteSLQ. This error may have
 			// arisen even before the query was executed, and thus is not guaranteed
 			// to have been sent on errCh. Regardless, we cancel the context with
-			// the error.
+			// the error (although it's highly likely it's already been canceled).
+			cancelFn(err)
 			if !errz.IsErrContext(err) {
 				// No need to generate logs for context errors; the cause will be
 				// logged elsewhere.
 				log.Error("Error executing query", lga.Table, td1.String(), lga.Err, err)
-				return
 			}
-
-			cancelFn(err)
 		}
 	}()
 
@@ -125,14 +123,12 @@ func execTableDataDiffDoc(ctx context.Context, cancelFn context.CancelCauseFunc,
 				return
 			}
 
+			cancelFn(err)
 			if !errz.IsErrContext(err) {
 				// No need to generate logs for context errors; the cause will be
 				// logged elsewhere.
 				log.Error("Error executing query", lga.Table, td1.String(), lga.Err, err)
-				return
 			}
-
-			cancelFn(err)
 		}
 	}()
 
