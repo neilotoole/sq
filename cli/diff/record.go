@@ -15,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/libdiff"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tailbuf"
@@ -43,13 +44,9 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *Hu
 		errCh: errCh,
 	}
 
-	var cancelFn context.CancelFunc
-	ctx, cancelFn = context.WithCancel(ctx) // FIXME:  Do we use cancelFn?
-	defer cancelFn()
-
-	// barMsg := fmt.Sprintf("Diff table data %s, %s", td1.String(), td2.String())
-	// bar := progress.FromContext(ctx).NewWaiter(barMsg, true, progress.OptMemUsage)
-	// defer bar.Stop()
+	msg := fmt.Sprintf("Diff table data %s, %s", td1.String(), td2.String())
+	bar := progress.FromContext(ctx).NewWaiter(msg, true, progress.OptMemUsage)
+	defer bar.Stop()
 
 	// Query DB, send records to recw1.
 	go func() {
@@ -74,15 +71,12 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *Hu
 	}()
 
 	df := &recordDiffer{
+		cfg: cfg,
 		td1: td1,
 		td2: td2,
 		recMetaFn: func() (meta1, meta2 record.Meta) {
 			return recw1.recMeta, recw2.recMeta
 		},
-		// recw1:    recw1,
-		// recw2:    recw2,
-
-		cfg: cfg,
 	}
 
 	// Consume records from recw1 and recw2, build a record.Pair,
@@ -158,7 +152,7 @@ type recordDiffer struct {
 }
 
 // exec compares the record pairs from recPairs, writing the diff results to
-// doc. The caller can invoke HunkDoc.Err to check for errors.
+// doc. The caller can invoke [HunkDoc.Err] to check for errors.
 func (rd *recordDiffer) exec(ctx context.Context, recPairs <-chan record.Pair, doc *HunkDoc) {
 	var (
 		numLines  = rd.cfg.Lines
@@ -197,7 +191,7 @@ LOOP:
 		}
 
 		// We've found a differing record pair. We need to generate a hunk.
-		var hnk *Hunk
+		var hunk *Hunk
 
 		// But, the hunk doesn't just contain the differing record pair. It may also
 		// include context lines before and after the difference.
@@ -206,7 +200,7 @@ LOOP:
 		// Conveniently, the tailbuf already contains the differing record pair.
 		hunkPairs = tb.Slice(row-numLines, row+1)
 
-		if hnk, err = doc.NewHunk(row - (len(hunkPairs) - 1)); err != nil {
+		if hunk, err = doc.NewHunk(row - (len(hunkPairs) - 1)); err != nil {
 			break
 		}
 
@@ -276,7 +270,9 @@ LOOP:
 		}
 
 		// OK, now we've got enough record pairs to populate the hunk.
-		if err = rd.populateHunk(ctx, hnk, hunkPairs); err != nil {
+
+		rd.populateHunk(ctx, hunkPairs, hunk)
+		if err = hunk.Err(); err != nil {
 			break
 		}
 	}
@@ -290,22 +286,24 @@ LOOP:
 	doc.Seal(err)
 }
 
-// populateHunk populates hnk with the diff of the record pairs. Before return,
-// the hunk is always sealed via hunk.Seal, even if an error occurs.
-func (rd *recordDiffer) populateHunk(ctx context.Context, hnk *Hunk, pairs []record.Pair) (err error) {
+// populateHunk populates hunk with the diff of the record pairs. Before return,
+// the hunk is always sealed via [Hunk.Seal]. The caller can check [Hunk.Err]
+// to see if an error occurred.
+func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, hunk *Hunk) {
 	var (
 		handleTbl1           = rd.td1.String()
 		handleTbl2           = rd.td2.String()
 		recMeta1, recMeta2   = rd.recMetaFn()
 		hunkHeader, hunkBody string
 		body1, body2         string
+		err                  error
 	)
 
 	defer func() {
 		// We always seal the hunk. Note that hunkHeader is populated at the bottom
 		// of the function. But if an error occurs and the function is returning
 		// early, it's ok if hunkHeader is empty.
-		hnk.Seal([]byte(hunkHeader), err)
+		hunk.Seal([]byte(hunkHeader), err)
 	}()
 
 	recs1 := make([]record.Record, len(pairs))
@@ -327,13 +325,19 @@ func (rd *recordDiffer) populateHunk(ctx context.Context, hnk *Hunk, pairs []rec
 		return bodyErr
 	})
 	if err = g.Wait(); err != nil {
-		return err
+		return
 	}
 
 	var unified string
-	unified, err = libdiff.ComputeUnified(ctx, handleTbl1, handleTbl2, rd.cfg.Lines, body1, body2)
-	if err != nil {
-		return err
+	if unified, err = libdiff.ComputeUnified(
+		ctx,
+		handleTbl1,
+		handleTbl2,
+		rd.cfg.Lines,
+		body1,
+		body2,
+	); err != nil {
+		return
 	}
 
 	// Trim the diff "file header"... ultimately, we should change ComputeUnified
@@ -342,21 +346,20 @@ func (rd *recordDiffer) populateHunk(ctx context.Context, hnk *Hunk, pairs []rec
 
 	var ok bool
 	if hunkHeader, hunkBody, ok = strings.Cut(unified, "\n"); !ok {
-		return errz.New("Hunk header not found")
+		err = errz.New("Hunk header not found")
+		return
 	}
 
-	if err = colorizeHunks(ctx, hnk, rd.cfg.prDiff, bytes.NewReader(stringz.UnsafeBytes(hunkBody))); err != nil {
-		return err
+	if err = colorizeHunks(ctx, hunk, rd.cfg.prDiff, bytes.NewReader(stringz.UnsafeBytes(hunkBody))); err != nil {
+		return
 	}
 
-	hunkHeader, err = adjustHunkOffset(hunkHeader, hnk.offset)
-	if err != nil {
-		return err
+	if hunkHeader, err = adjustHunkOffset(hunkHeader, hunk.offset); err != nil {
+		return
 	}
 
 	// hunkHeader will be passed to hunk.Seal in the top defer.
 	hunkHeader = rd.cfg.prDiff.Section.Sprintln(hunkHeader)
-	return nil
 }
 
 var _ libsq.RecordWriter = (*recordWriter)(nil)
