@@ -1,8 +1,22 @@
+sq diffdirs/a/kubla.txt diffdirs/b/kubla.txt
 --- diffdirs/a/kubla.txt	2024-02-16 11:32:29.305630663 -0700
 +++ diffdirs/b/kubla.txt	2024-02-16 11:49:11.822825001 -0700
-@@ -4,7 +4,7 @@
+@@ -4,7 +4,7 @@ Here is some additional section commentary
  Through caverns measureless to man
     Down to a sunless sea.
+ So twice five miles of fertile ground
+-With walls and towers were girdled round;
++With walls and towers were girdled round and round and round;
+ And there were gardens bright with sinuous rills,
+ Where blossomed many an incense-bearing tree;
+ And here were forests ancient as the hills,
+sq  diffdirs/b/kubla.txt
+--- diffdirs/a/kubla.txt	2024-02-16 11:32:29.305630663 -0700
++++ diffdirs/b/kubla.txt	2024-02-16 11:49:11.822825001 -0700
+@@ -4,7 +4,7 @@ Here is some additional section commentary
+ Through caverns measureless to man
+    Down to a sunless sea.
+
  So twice five miles of fertile ground
 -With walls and towers were girdled round;
 +With walls and towers were girdled round and round and round;

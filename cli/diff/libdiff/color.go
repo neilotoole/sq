@@ -12,7 +12,7 @@ type Colors struct {
 	//
 	//  diff -U3 -r ./a/hiawatha.txt ./b/hiawatha.txt
 	//
-	// The command text is typically only printed when multiple diffs are printed
+	// The command text is typically only displayed when multiple diffs are printed
 	// back-to-back.
 	Command *color.Color
 
@@ -31,7 +31,7 @@ type Colors struct {
 	// The above is a section.
 	Section *color.Color
 
-	// SectionComment is the color for (option) diff hunk section comments.
+	// SectionComment is the color for (optional) diff hunk section comments.
 	//
 	//  @@ -8,9 +8,9 @@ Here's some context.
 	//
@@ -54,7 +54,7 @@ type Colors struct {
 	// ShowHeader indicates that a header (e.g. a header row) should
 	// be printed where applicable.
 	//
-	// REVISIT: Printing.ShowHeader may not be needed.
+	// REVISIT: Colors.ShowHeader may not be needed.
 	ShowHeader bool
 }
 
@@ -68,8 +68,8 @@ func NewColors() *Colors {
 		Deletion:       color.New(color.FgRed),
 		Context:        color.New(color.Faint),
 		Insertion:      color.New(color.FgGreen),
-		Section:        color.New(color.FgCyan),
-		SectionComment: color.New(color.FgCyan, color.Faint), // FIXME: make use of SectionComment
+		Section:        color.New(color.FgHiMagenta, color.Bold),
+		SectionComment: color.New(color.FgBlue),
 	}
 
 	c.EnableColor(true)

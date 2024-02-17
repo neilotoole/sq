@@ -85,7 +85,28 @@ func (c *colorizer) Read(p []byte) (n int, err error) {
 			}
 
 			if b0 == '@' && line[1] == '@' && line[2] == ' ' {
-				c.clrs.section.Writeln(c.buf, line)
+				// It's possible that there's commentary after the second @@
+				//
+				//  @@ -4,7 +4,7 @@ Here is some additional section commentary
+				//
+				// That commentary should be printed in a different color, so we
+				// need to search for it.
+
+				var i int
+				for i = 3; i < length; i++ {
+					if line[i] == '@' && line[i-1] == '@' {
+						break
+					}
+				}
+				if i == length-1 {
+					// No commentary after the second @@
+					c.clrs.section.Writeln(c.buf, line)
+					continue
+				}
+
+				c.clrs.section.Write(c.buf, line[:i+1])
+				// There's additional commentary after the second @@
+				c.clrs.sectionComment.Writeln(c.buf, line[i+1:])
 				continue
 			}
 		}
