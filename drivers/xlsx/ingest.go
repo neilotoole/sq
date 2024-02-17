@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/langz"
+
 	"github.com/samber/lo"
 	excelize "github.com/xuri/excelize/v2"
 	"golang.org/x/sync/errgroup"
@@ -16,7 +18,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-	"github.com/neilotoole/sq/libsq/core/loz"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/schema"
@@ -65,7 +66,7 @@ func (xs *xSheet) loadSampleRows(ctx context.Context, sampleSize int) error {
 			return err
 		}
 
-		if !loz.IsSliceZeroed(cells) {
+		if !langz.IsSliceZeroed(cells) {
 			xs.sampleRows = append(xs.sampleRows, cells)
 			if len(cells) > xs.sampleRowsMaxWidth {
 				xs.sampleRowsMaxWidth = len(cells)
@@ -75,7 +76,7 @@ func (xs *xSheet) loadSampleRows(ctx context.Context, sampleSize int) error {
 		count++
 	}
 
-	loz.AlignMatrixWidth(xs.sampleRows, "")
+	langz.AlignMatrixWidth(xs.sampleRows, "")
 
 	return nil
 }
@@ -221,7 +222,7 @@ LOOP:
 			return err
 		}
 
-		if loz.IsSliceZeroed(cells) {
+		if langz.IsSliceZeroed(cells) {
 			// Skip empty row
 			continue
 		}

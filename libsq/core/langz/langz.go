@@ -1,6 +1,6 @@
-// Package loz contains functionality supplemental to samber/lo.
-// Ideally these functions would be merged into that package.
-package loz
+// Package langz contains miscellaneous functionality supplemental
+// to core golang stuff like slices and channels.
+package langz
 
 import (
 	"github.com/samber/lo"

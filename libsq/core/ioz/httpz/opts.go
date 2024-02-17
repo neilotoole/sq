@@ -7,12 +7,13 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/langz"
+
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/core/loz"
 )
 
 // Opt is an option that can be passed to NewClient to
@@ -148,7 +149,7 @@ func OptRequestTimeout(timeout time.Duration) TripFunc {
 		resp, err := errz.Return(next.RoundTrip(req.WithContext(ctx)))
 
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			if loz.Take(ctx.Done()) {
+			if langz.Take(ctx.Done()) {
 				// The lower-down RoundTripper probably returned ctx.Err(),
 				// not context.Cause(), so we swap it around here.
 				if cause := context.Cause(ctx); cause != nil {
