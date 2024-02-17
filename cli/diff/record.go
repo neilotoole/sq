@@ -105,7 +105,13 @@ func execTableDataDiffDoc(ctx context.Context, cancelFn context.CancelCauseFunc,
 			// arisen even before the query was executed, and thus is not guaranteed
 			// to have been sent on errCh. Regardless, we cancel the context with
 			// the error.
-			log.Error("Error executing query", lga.Table, td1.String(), lga.Err, err)
+			if !errz.IsErrContext(err) {
+				// No need to generate logs for context errors; the cause will be
+				// logged elsewhere.
+				log.Error("Error executing query", lga.Table, td1.String(), lga.Err, err)
+				return
+			}
+
 			cancelFn(err)
 		}
 	}()
@@ -118,7 +124,14 @@ func execTableDataDiffDoc(ctx context.Context, cancelFn context.CancelCauseFunc,
 				log.Debug("Diff: table not found", lga.Table, td2.String())
 				return
 			}
-			log.Error("Error executing query", lga.Table, td2.String(), lga.Err, err)
+
+			if !errz.IsErrContext(err) {
+				// No need to generate logs for context errors; the cause will be
+				// logged elsewhere.
+				log.Error("Error executing query", lga.Table, td1.String(), lga.Err, err)
+				return
+			}
+
 			cancelFn(err)
 		}
 	}()
@@ -185,7 +198,12 @@ func execTableDataDiffDoc(ctx context.Context, cancelFn context.CancelCauseFunc,
 		if err = differ.exec(ctx, recPairsCh, doc); err != nil {
 			// Something bad happened, err is non-nil. Propagate err to the doc, and
 			// get the hell outta here.
-			log.Error("Error generating diff", lga.Err, err)
+			if !errz.IsErrContext(err) {
+				// No need to generate logs for context errors; the cause will be
+				// logged elsewhere.
+				log.Error("Error generating diff", lga.Err, err)
+			}
+
 			doc.Seal(err)
 			return
 		}

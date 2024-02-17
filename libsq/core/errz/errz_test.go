@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"io/fs"
 	"net/url"
 	"os"
@@ -226,4 +227,19 @@ func TestSprintTreeTypes(t *testing.T) {
 	got = errz.SprintTreeTypes(err)
 
 	require.Equal(t, "*errz.errz: *errz.multiErr[context.deadlineExceededError, *errz.errz: *errz.errz: *errz.errz, *errors.errorString]", got)
+}
+
+func TestIsErrContext(t *testing.T) {
+	var err error
+	require.False(t, errz.IsErrContext(err))
+	err = errz.New("nope")
+	require.False(t, errz.IsErrContext(err))
+
+	require.True(t, errz.IsErrContext(context.DeadlineExceeded))
+	require.True(t, errz.IsErrContext(context.Canceled))
+	require.True(t, errz.IsErrContext(fmt.Errorf("wrap: %w", context.DeadlineExceeded)))
+
+	require.True(t, errz.IsErrContext(context.Canceled))
+	require.True(t, errz.IsErrContext(errz.Err(context.Canceled)))
+	require.True(t, errz.IsErrContext(fmt.Errorf("wrap: %w", context.Canceled)))
 }

@@ -8,6 +8,7 @@
 package errz
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -346,4 +347,17 @@ func SprintTreeTypes(err error) string {
 	}
 
 	return sb.String()
+}
+
+// IsErrContext returns true if err's chain contains context.Canceled or
+// context.DeadlineExceeded.
+func IsErrContext(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if errors.Is(err, context.Canceled) {
+		return true
+	}
+	return errors.Is(err, context.DeadlineExceeded)
 }
