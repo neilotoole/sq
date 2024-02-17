@@ -12,8 +12,8 @@ type Colors struct {
 	//
 	//  diff -U3 -r ./a/hiawatha.txt ./b/hiawatha.txt
 	//
-	// The command text is typically only displayed when multiple diffs are printed
-	// back-to-back.
+	// The command text is typically only displayed when multiple diffs are
+	// printed back-to-back.
 	Command *color.Color
 
 	// Header is the color for diff header elements.
@@ -38,14 +38,14 @@ type Colors struct {
 	// The text after the second @@ is a section comment.
 	SectionComment *color.Color
 
-	// Insertion is the color for diff plus "+" elements.
+	// Insertion is the color for diff insertion "+" elements.
 	Insertion *color.Color
 
-	// Deletion is the color for diff minus "-" elements.
+	// Deletion is the color for diff deletion "-" elements.
 	Deletion *color.Color
 
 	// Context is the color for context lines, i.e. the lines above and below
-	// the actual diff.
+	// the insertions and deletions.
 	Context *color.Color
 
 	// monochrome is controlled by EnableColor.
@@ -76,7 +76,7 @@ func NewColors() *Colors {
 	return c
 }
 
-// Clone returns a clone of pr.
+// Clone returns a clone of c.
 func (c *Colors) Clone() *Colors {
 	c2 := &Colors{
 		monochrome: c.monochrome,
