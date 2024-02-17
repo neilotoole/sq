@@ -53,7 +53,8 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config,
 	msg := fmt.Sprintf("Diff table data %s, %s", td1.String(), td2.String())
 	bar := progress.FromContext(ctx).NewWaiter(msg, true, progress.OptMemUsage)
 
-	// Well, this is a bit wonky and can be restructured to be simpler.
+	// Well, this is a bit wonky and probably can be restructured to be simpler.
+	// FIXME: more docs.
 	// The idea is that we want to cancel the context if an error occurs on any
 	// of the goroutines. We also want to cancel the context if the user
 	// cancels the operation. We also want to cancel the context if the
@@ -62,9 +63,7 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config,
 	var cancelFn context.CancelCauseFunc
 	ctx, cancelFn = context.WithCancelCause(ctx)
 	go func() {
-		err := <-errCh
-		errCh <- err
-		if err != nil {
+		if err := <-errCh; err != nil {
 			cancelFn(err)
 		}
 	}()
@@ -77,7 +76,6 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config,
 				log.Debug("Diff: table not found", lga.Table, td1.String())
 				return
 			}
-			errCh <- err
 			cancelFn(err)
 		}
 	}()
@@ -92,7 +90,6 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config,
 				log.Debug("Diff: table not found", lga.Table, td2.String())
 				return
 			}
-			errCh <- err
 			cancelFn(err)
 		}
 	}()
@@ -136,7 +133,15 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config,
 	}()
 
 	go func() {
-		// Diff the record pairs, writing results to doc.
+		// This goroutine is the main action. It calls recordDiffer.exec, which
+		// consumes the record pairs, and writes the diff to doc. At the end of
+		// this function, doc.Seal is invoked. There are three possibilities:
+		//
+		//  - Happy path: everything worked, and doc.Seal(nil) is invoked.
+		//  - recordDiff.exec encountered an error, and doc.Seal(err) is invoked.
+		//  - One of the other goroutines encountered an error, and propagated that
+		//    error via cancelFn(err). Thus, in this goroutine, we must check that
+		//    condition, and invoke doc.Seal() with the cancel cause error.
 
 		defer bar.Stop()
 		var err error
@@ -151,13 +156,11 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config,
 			return
 		}
 
-		select {
-		case <-ctx.Done():
-			err = errz.Err(context.Cause(ctx))
-		case err = <-errCh:
-		default:
-		}
-		doc.Seal(err)
+		// On the happy path, the error arg to doc.Seal is nil.
+		//
+		// But, if any of the other goroutines encountered an error, that error
+		// was propagated to the context via the context.CancelCauseFunc.
+		doc.Seal(errz.Err(context.Cause(ctx)))
 	}()
 }
 
