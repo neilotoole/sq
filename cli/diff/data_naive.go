@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 
 	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
@@ -37,7 +40,7 @@ import (
 // are differences, and even then, to only selectively generate the
 // needed text.
 // See: https://github.com/neilotoole/sq/issues/353.
-func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
+func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config, //nolint:unused
 	td1, td2 *tableData,
 ) (*tableDataDiff, error) {
 	qc := run.NewQueryContext(ru, nil)
@@ -100,8 +103,80 @@ func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	}, nil
 }
 
+func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 *sourceData) (err error) {
+	log := lg.FromContext(ctx).With(lga.Left, sd1.src.Handle, lga.Right, sd2.src.Handle)
+	log.Info("Diffing source data")
+
+	cfg.prMain = ru.Writers.OutPrinting.Clone() // FIXME: This should happen automatically in NewConfig
+	cfg.prDiff = ru.Writers.OutPrinting.Diff.Clone()
+
+	allTblNames := append(sd1.srcMeta.TableNames(), sd2.srcMeta.TableNames()...)
+	allTblNames = lo.Uniq(allTblNames)
+	slices.Sort(allTblNames)
+
+	var cancelFn context.CancelCauseFunc
+	ctx, cancelFn = context.WithCancelCause(ctx)
+	defer func() {
+		cancelFn(err)
+	}()
+
+	gLimit := tuning.OptErrgroupLimit.Get(options.FromContext(ctx))
+	// g, gCtx := errgroup.WithContext(ctx)
+
+	g := &errgroup.Group{}
+	g.SetLimit(gLimit)
+
+	docs := make([]*HunkDoc, len(allTblNames))
+	execFns := make([]func() error, len(allTblNames))
+	for i, tblName := range allTblNames {
+		td1 := &tableData{src: sd1.src, tblName: tblName}
+		td1.tblMeta = sd1.srcMeta.Table(tblName)
+
+		// REVISIT: What if there isn't table metadata? Should we fetch
+		// it on a goroutine?
+
+		td2 := &tableData{src: sd2.src, tblName: tblName}
+		td2.tblMeta = sd2.srcMeta.Table(tblName)
+
+		cmd := fmt.Sprintf("sq diff --data %s %s", td1.String(), td2.String())
+		doc := NewHunkDoc(cmd, NewDocHeader(cfg.prDiff, td1.String(), td2.String()))
+		docs[i] = doc
+		execFns[i] = func() error {
+			execTableDataDiffDoc(ctx, cancelFn, ru, cfg, td1, td2, doc)
+			return doc.Err()
+		}
+	}
+
+	for i := range execFns {
+		g.Go(execFns[i])
+	}
+
+	if err = g.Wait(); err != nil {
+		log.Error("Goroutine error", lga.Err, err)
+		cancelFn(err)
+		return err
+	}
+
+	for i := range docs {
+		doc := docs[i]
+		if err = doc.Err(); err != nil {
+			log.Error("Diff doc error")
+			cancelFn(err)
+			return err
+		}
+
+		if _, err = io.Copy(ru.Out, contextio.NewReader(ctx, doc)); err != nil {
+			log.Error("Doc write out error", lga.Err, err)
+			cancelFn(err)
+			return err
+		}
+	}
+
+	return nil
+}
+
 // execSourceDataDiff executes a diff of all tables found in either source.
-func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 *sourceData) error {
+func execSourceDataDiffOld(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 *sourceData) error { //nolint:unused
 	o := options.FromContext(ctx)
 
 	allTblNames := append(sd1.srcMeta.TableNames(), sd2.srcMeta.TableNames()...)

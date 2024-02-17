@@ -119,10 +119,7 @@ func (ru *Run) Close() error {
 		return nil
 	}
 
-	if ru.Cmd != nil {
-		lg.From(ru.Cmd).Debug("Closing run")
-	}
-
+	lg.From(ru.Cmd).Debug("Closing run")
 	return errz.Wrap(ru.Cleanup.Run(), "close run")
 }
 

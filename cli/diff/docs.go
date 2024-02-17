@@ -134,10 +134,17 @@ func (d *UnifiedDoc) Err() error {
 //	+++ @sakila_b.actor
 //
 // It is colorized according to [output.Printing.DiffHeader].
-func NewDocHeader(pr *libdiff.Colors, left, right string) []byte {
-	buf := &bytes.Buffer{}
+func NewDocHeader(clrs *libdiff.Colors, left, right string) []byte {
 	header := fmt.Sprintf("--- %s\n+++ %s\n", left, right)
-	_, _ = colorz.NewPrinter(pr.Header).Block(buf, []byte(header))
+
+	if clrs == nil || clrs.IsMonochrome() {
+		return []byte(header)
+	}
+
+	buf := &bytes.Buffer{}
+	if _, err := colorz.NewPrinter(clrs.Header).Block(buf, []byte(header)); err != nil {
+		return []byte(header)
+	}
 	return buf.Bytes()
 }
 
@@ -174,7 +181,7 @@ type HunkDoc struct {
 }
 
 // Close implements io.Closer.
-func (d *HunkDoc) Close() error {
+func (d *HunkDoc) Close() error { // FIXME: need to invoke doc.Close
 	d.closeOnce.Do(func() {
 		d.mu.Lock()
 		var err error

@@ -34,6 +34,9 @@ import (
 func execTableDataDiffDoc(ctx context.Context, cancelFn context.CancelCauseFunc,
 	ru *run.Run, cfg *Config, td1, td2 *tableData, doc *HunkDoc,
 ) {
+	log := lg.FromContext(ctx).With(lga.Left, td1.String(), lga.Right, td2.String())
+	log.Info("Diffing table data")
+
 	bar := progress.FromContext(ctx).NewWaiter(
 		fmt.Sprintf("Diff table data %s, %s", td1.String(), td2.String()),
 		true,
@@ -71,6 +74,13 @@ func execTableDataDiffDoc(ctx context.Context, cancelFn context.CancelCauseFunc,
 	// we'll cancel ctx, which will stop the other goroutines.
 	go func() {
 		if err := <-errCh; err != nil {
+			if errz.Has[*driver.NotExistError](err) {
+				// For diffing, it's totally ok if a table is not found.
+				log.Warn("Diff: table not found")
+				return
+			}
+
+			log.Error("Error from record writer errCh", lga.Err, err)
 			cancelFn(err)
 		}
 	}()
@@ -87,7 +97,7 @@ func execTableDataDiffDoc(ctx context.Context, cancelFn context.CancelCauseFunc,
 		if err := libsq.ExecuteSLQ(ctx, qc, query1, recw1); err != nil {
 			if errz.Has[*driver.NotExistError](err) {
 				// For diffing, it's totally ok if a table is not found.
-				lg.FromContext(ctx).Debug("Diff: table not found", lga.Table, td1.String())
+				log.Debug("Diff: table not found", lga.Table, td1.String())
 				return
 			}
 
@@ -95,6 +105,7 @@ func execTableDataDiffDoc(ctx context.Context, cancelFn context.CancelCauseFunc,
 			// arisen even before the query was executed, and thus is not guaranteed
 			// to have been sent on errCh. Regardless, we cancel the context with
 			// the error.
+			log.Error("Error executing query", lga.Table, td1.String(), lga.Err, err)
 			cancelFn(err)
 		}
 	}()
@@ -104,9 +115,10 @@ func execTableDataDiffDoc(ctx context.Context, cancelFn context.CancelCauseFunc,
 		// Execute DB query2; records will be sent to recw2.recCh.
 		if err := libsq.ExecuteSLQ(ctx, qc, query2, recw2); err != nil {
 			if errz.Has[*driver.NotExistError](err) {
-				lg.FromContext(ctx).Debug("Diff: table not found", lga.Table, td2.String())
+				log.Debug("Diff: table not found", lga.Table, td2.String())
 				return
 			}
+			log.Error("Error executing query", lga.Table, td2.String(), lga.Err, err)
 			cancelFn(err)
 		}
 	}()
@@ -173,6 +185,7 @@ func execTableDataDiffDoc(ctx context.Context, cancelFn context.CancelCauseFunc,
 		if err = differ.exec(ctx, recPairsCh, doc); err != nil {
 			// Something bad happened, err is non-nil. Propagate err to the doc, and
 			// get the hell outta here.
+			log.Error("Error generating diff", lga.Err, err)
 			doc.Seal(err)
 			return
 		}
@@ -185,7 +198,11 @@ func execTableDataDiffDoc(ctx context.Context, cancelFn context.CancelCauseFunc,
 		// to doc.Seal.
 		//
 		// But hopefully we're just passing nil to doc.Seal here.
-		doc.Seal(errz.Err(context.Cause(ctx)))
+		err = errz.Err(context.Cause(ctx))
+		if err != nil {
+			log.Error("Record differ: post-execution: error in ctx", lga.Err, err)
+		}
+		doc.Seal(err)
 	}()
 
 	// Now execTableDataDiffDoc returns, while the goroutines do their magic.
@@ -299,7 +316,7 @@ LOOP:
 			// pairs.
 			select {
 			case <-ctx.Done():
-				err = errz.Err(ctx.Err())
+				err = errz.Err(context.Cause(ctx))
 				break LOOP
 			case rp, ok = <-recPairsCh:
 			}
