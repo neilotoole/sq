@@ -5,10 +5,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/neilotoole/sq/cli/diff/libdiff"
 	"io"
 
-	"github.com/neilotoole/sq/cli/output/colorz"
+	"github.com/neilotoole/sq/cli/diff/libdiff"
+	"github.com/neilotoole/sq/libsq/core/colorz"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 

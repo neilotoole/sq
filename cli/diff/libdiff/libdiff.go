@@ -10,6 +10,7 @@ package libdiff
 
 import (
 	"context"
+
 	"github.com/neilotoole/sq/cli/diff/libdiff/internal/go-udiff"
 	"github.com/neilotoole/sq/cli/diff/libdiff/internal/go-udiff/myers"
 )
@@ -18,7 +19,6 @@ import (
 func ComputeUnified(ctx context.Context, oldLabel, newLabel string, lines int,
 	before, after string,
 ) (string, error) {
-
 	var (
 		unified string
 		err     error

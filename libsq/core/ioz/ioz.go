@@ -353,7 +353,7 @@ type ErrReader struct {
 }
 
 // Read implements [io.Reader]: it always returns [ErrReader.Err].
-func (e ErrReader) Read(p []byte) (n int, err error) {
+func (e ErrReader) Read([]byte) (n int, err error) {
 	return 0, e.Err
 }
 

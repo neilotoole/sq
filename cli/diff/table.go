@@ -3,11 +3,12 @@ package diff
 import (
 	"context"
 	"fmt"
+	"io"
+	"strings"
+
 	"github.com/neilotoole/sq/cli/diff/libdiff"
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/progress"
-	"io"
-	"strings"
 
 	"golang.org/x/sync/errgroup"
 

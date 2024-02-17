@@ -3,13 +3,14 @@ package diff
 import (
 	"bytes"
 	"fmt"
-	"github.com/neilotoole/sq/cli/diff/libdiff"
-	"github.com/neilotoole/sq/cli/output/colorz"
-	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"io"
 	"strings"
 	"sync"
+
+	"github.com/neilotoole/sq/cli/diff/libdiff"
+	"github.com/neilotoole/sq/libsq/core/colorz"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 )
 
 var _ io.ReadCloser = (Doc)(nil)
@@ -33,8 +34,10 @@ type Doc interface {
 	Err() error
 }
 
-var _ Doc = (*UnifiedDoc)(nil)
-var _ io.Writer = (*UnifiedDoc)(nil)
+var (
+	_ Doc       = (*UnifiedDoc)(nil)
+	_ io.Writer = (*UnifiedDoc)(nil)
+)
 
 func NewUnifiedDoc(title string) *UnifiedDoc {
 	return &UnifiedDoc{
@@ -306,8 +309,10 @@ func (d *HunkDoc) NewHunk(offset int) (*Hunk, error) {
 	return h, nil
 }
 
-var _ io.Writer = (*Hunk)(nil)
-var _ io.ReadCloser = (*Hunk)(nil)
+var (
+	_ io.Writer     = (*Hunk)(nil)
+	_ io.ReadCloser = (*Hunk)(nil)
+)
 
 // Hunk is a diff hunk. It implements io.Writer and io.Reader. The hunk is
 // written to via Write, and then sealed via Seal. Once sealed, the hunk can

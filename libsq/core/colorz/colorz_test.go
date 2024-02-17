@@ -1,8 +1,7 @@
 package colorz
 
 import (
-	"fmt"
-	"os"
+	"bytes"
 	"testing"
 
 	"github.com/fatih/color"
@@ -10,10 +9,6 @@ import (
 )
 
 func TestPrinter(t *testing.T) {
-	// TODO: write actual tests. Currently the test is just
-	// executed manually and the output is visually inspected.
-	// Not great, Bob.
-
 	previous := color.NoColor
 	t.Cleanup(func() {
 		color.NoColor = previous
@@ -21,16 +16,35 @@ func TestPrinter(t *testing.T) {
 
 	color.NoColor = false
 
-	c := color.New(color.FgBlue)
-	p := NewPrinter(c)
+	var (
+		c   = color.New(color.FgBlue)
+		p   = NewPrinter(c)
+		buf = &bytes.Buffer{}
+		n   int
+		err error
+	)
 
-	p.Fragment(os.Stdout, []byte("hello"))
-	p.Fragment(os.Stdout, []byte("world"))
-	fmt.Fprintln(os.Stdout)
+	n, err = p.Fragment(buf, []byte("hello"))
+	require.NoError(t, err)
+	require.Equal(t, 14, n)
+	require.Equal(t, "\x1b[34mhello\x1b[0m", buf.String())
 
-	p.Line(os.Stdout, []byte("single line"))
+	n, err = p.Fragment(buf, []byte("world"))
+	require.NoError(t, err)
+	require.Equal(t, 14, n)
+	require.Equal(t, "\x1b[34mhello\x1b[0m\x1b[34mworld\x1b[0m", buf.String())
 
-	p.Block(os.Stdout, []byte("Hello,\nworld!"))
+	buf.Reset()
+	n, err = p.Line(buf, []byte("single line"))
+	require.NoError(t, err)
+	require.Equal(t, 21, n)
+	require.Equal(t, "\x1b[34msingle line\x1b[0m\n", buf.String())
+
+	buf.Reset()
+	n, err = p.Block(buf, []byte("Hello,\nworld!"))
+	require.NoError(t, err)
+	require.Equal(t, 31, n)
+	require.Equal(t, "\x1b[34mHello,\x1b[0m\n\x1b[34mworld!\x1b[0m", buf.String())
 }
 
 func TestHasEffect(t *testing.T) {

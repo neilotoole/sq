@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/neilotoole/sq/cli/diff/libdiff"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -11,7 +13,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/tuning"
 	"github.com/neilotoole/sq/libsq/driver"
-	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/tailbuf"
 	"golang.org/x/sync/errgroup"
@@ -47,9 +48,9 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *Hu
 	ctx, cancelFn = context.WithCancel(ctx) // FIXME:  Do we use cancelFn?
 	defer cancelFn()
 
-	//barMsg := fmt.Sprintf("Diff table data %s, %s", td1.String(), td2.String())
-	//bar := progress.FromContext(ctx).NewWaiter(barMsg, true, progress.OptMemUsage)
-	//defer bar.Stop()
+	// barMsg := fmt.Sprintf("Diff table data %s, %s", td1.String(), td2.String())
+	// bar := progress.FromContext(ctx).NewWaiter(barMsg, true, progress.OptMemUsage)
+	// defer bar.Stop()
 
 	// Query DB, send records to recw1.
 	go func() {
@@ -76,11 +77,11 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *Hu
 	df := &recordDiffer{
 		td1: td1,
 		td2: td2,
-		recMetaFn: func() (meta1 record.Meta, meta2 record.Meta) {
+		recMetaFn: func() (meta1, meta2 record.Meta) {
 			return recw1.recMeta, recw2.recMeta
 		},
-		//recw1:    recw1,
-		//recw2:    recw2,
+		// recw1:    recw1,
+		// recw2:    recw2,
 
 		cfg: cfg,
 	}
@@ -154,7 +155,7 @@ type recordDiffer struct {
 	// We use a function here because record.Meta is only available after the
 	// query has been executed (and isn't available at the time of recordDiffer
 	// construction).
-	recMetaFn func() (rm1 record.Meta, rm2 record.Meta)
+	recMetaFn func() (rm1, rm2 record.Meta)
 }
 
 // exec compares the record pairs from recPairs, writing the diff results to

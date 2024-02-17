@@ -2,7 +2,7 @@ package libdiff
 
 import (
 	"github.com/fatih/color"
-	"github.com/neilotoole/sq/cli/output/colorz"
+	"github.com/neilotoole/sq/libsq/core/colorz"
 )
 
 // Colors encapsulates diff color printing config.

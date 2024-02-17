@@ -2,11 +2,12 @@ package libdiff_test
 
 import (
 	"bytes"
-	"github.com/neilotoole/sq/cli/diff/libdiff"
-	"github.com/stretchr/testify/require"
 	"io"
 	"os"
 	"testing"
+
+	"github.com/neilotoole/sq/cli/diff/libdiff"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewColorizer(t *testing.T) {

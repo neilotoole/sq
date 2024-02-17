@@ -3,6 +3,7 @@ package diff
 import (
 	"bytes"
 	"context"
+
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/source/drivertype"

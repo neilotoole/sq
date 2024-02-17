@@ -3,11 +3,12 @@ package cli
 import (
 	"context"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/lg"
 	"io"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/libsq/core/tuning"
 
