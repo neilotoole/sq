@@ -3,6 +3,8 @@
 package langz
 
 import (
+	"fmt"
+
 	"github.com/samber/lo"
 )
 
@@ -25,9 +27,20 @@ func Apply[T any](collection []T, fn func(item T) T) []T {
 	return a
 }
 
-// ToSliceType returns a new slice of type T, having performed
+// MustTypedSlice calls TypedSlice, but panics if the conversion fails.
+func MustTypedSlice[T, S any](in ...S) []T {
+	out, ok := TypedSlice[T, S](in...)
+	if !ok {
+		var s S
+		var t T
+		panic(fmt.Sprintf("unable to convert %T to %T", s, t))
+	}
+	return out
+}
+
+// TypedSlice returns a new slice of type T, having performed
 // type conversion on each element of in.
-func ToSliceType[S, T any](in ...S) (out []T, ok bool) {
+func TypedSlice[T, S any](in ...S) (out []T, ok bool) {
 	out = make([]T, len(in))
 	var a any
 	for i := range in {

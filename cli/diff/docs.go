@@ -2,6 +2,7 @@ package diff
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/colorz"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/langz"
 	"github.com/neilotoole/sq/libsq/core/libdiff"
 )
 
@@ -105,6 +107,11 @@ func (d *UnifiedDoc) Read(p []byte) (n int, err error) {
 
 		if d.err != nil {
 			d.rdr = ioz.ErrReader{Err: d.err}
+			return
+		}
+
+		if d.bodyBuf.Len() == 0 {
+			d.rdr = ioz.EmptyReader{}
 			return
 		}
 
@@ -224,16 +231,41 @@ func (d *HunkDoc) Read(p []byte) (n int, err error) {
 			return
 		}
 
-		rdrs := make([]io.Reader, 0, len(d.hunks)+2)
-		if len(d.title) > 0 {
-			rdrs = append(rdrs, strings.NewReader(d.title+"\n"))
-		}
-		rdrs = append(rdrs, bytes.NewReader(d.header))
-		for i := range d.hunks {
-			rdrs = append(rdrs, d.hunks[i])
+		if len(d.hunks) == 0 {
+			d.rdr = ioz.EmptyReader{}
+			return
 		}
 
-		d.rdr = io.MultiReader(rdrs...)
+		hunksMultiRdr := io.MultiReader(langz.MustTypedSlice[io.Reader](d.hunks...)...)
+		p2 := make([]byte, len(p))
+		n, err = hunksMultiRdr.Read(p2)
+		switch {
+		case n == 0 && errors.Is(err, io.EOF):
+			d.rdr = ioz.EmptyReader{}
+			return
+		case n == 0 && err != nil:
+			d.rdr = ioz.ErrReader{Err: err}
+			return
+		case n == 0 && err == nil:
+			// Should be impossible because the hunks are buffers, and this
+			// can't happen in our scenario?
+			d.rdr = ioz.ErrReader{Err: errz.New("diff: hunks doc: unexpected zero read with nil error")}
+		case err != nil:
+			// n > 0, but we've hit an error.
+			d.rdr = ioz.NewErrorAfterBytesReader(p2, err)
+			return
+		default:
+			// Happy path: we've got some content in the hunks.
+		}
+
+		rdrs2 := make([]io.Reader, 0, 3)
+		if len(d.title) > 0 {
+			rdrs2 = append(rdrs2, strings.NewReader(d.title+"\n"))
+		}
+		rdrs2 = append(rdrs2, bytes.NewReader(p2))
+		rdrs2 = append(rdrs2, hunksMultiRdr)
+
+		d.rdr = io.MultiReader(rdrs2...)
 	})
 
 	return d.rdr.Read(p)

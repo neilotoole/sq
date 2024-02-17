@@ -68,7 +68,7 @@ func buildQueryModel(qc *QueryContext, a *ast.AST) (*queryModel, error) {
 
 	if seg != nil {
 		var colExprs []ast.ResultColumn
-		if colExprs, ok = langz.ToSliceType[ast.Node, ast.ResultColumn](seg.Children()...); !ok {
+		if colExprs, ok = langz.TypedSlice[ast.ResultColumn](seg.Children()...); !ok {
 			return nil, errz.Errorf("segment children contained elements that were not of type %T: %s",
 				ast.ResultColumn(nil), seg.Text())
 		}

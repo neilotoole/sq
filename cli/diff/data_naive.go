@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
-
 	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
 
@@ -18,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/libdiff"
@@ -120,11 +119,8 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 		cancelFn(err)
 	}()
 
-	gLimit := tuning.OptErrgroupLimit.Get(options.FromContext(ctx))
-	// g, gCtx := errgroup.WithContext(ctx)
-
 	g := &errgroup.Group{}
-	g.SetLimit(gLimit)
+	g.SetLimit(tuning.OptErrgroupLimit.Get(options.FromContext(ctx)))
 
 	docs := make([]*HunkDoc, len(allTblNames))
 	execFns := make([]func() error, len(allTblNames))
@@ -138,7 +134,7 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 		td2 := &tableData{src: sd2.src, tblName: tblName}
 		td2.tblMeta = sd2.srcMeta.Table(tblName)
 
-		cmd := fmt.Sprintf("sq diff --data %s %s", td1.String(), td2.String())
+		cmd := cfg.prDiff.Command.Sprintf("sq diff --data %s %s", td1.String(), td2.String())
 		doc := NewHunkDoc(cmd, NewDocHeader(cfg.prDiff, td1.String(), td2.String()))
 		docs[i] = doc
 		execFns[i] = func() error {

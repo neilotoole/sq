@@ -1,6 +1,7 @@
 package langz_test
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"testing"
@@ -27,16 +28,25 @@ func TestAll(t *testing.T) {
 		"wantInts and gotInts should not be the same slice")
 }
 
-func TestToSliceType(t *testing.T) {
-	input1 := []any{"hello", "world"}
+func TestTypedSlice(t *testing.T) {
+	bufs := []*bytes.Buffer{new(bytes.Buffer), new(bytes.Buffer)}
 
-	var got []string
+	var rdrs1, rdrs2 []io.Reader
 	var ok bool
-
-	got, ok = langz.ToSliceType[any, string](input1...)
+	rdrs1, ok = langz.TypedSlice[io.Reader](bufs...)
 	require.True(t, ok)
-	require.Len(t, got, 2)
-	require.Equal(t, []string{"hello", "world"}, got)
+	require.Len(t, rdrs1, 2)
+
+	rdrs2 = langz.MustTypedSlice[io.Reader](bufs...)
+	require.Len(t, rdrs2, 2)
+	require.Equal(t, rdrs1, rdrs2)
+
+	anys := []any{"hello", "world"}
+	var strs []string
+	strs, ok = langz.TypedSlice[string](anys...)
+	require.True(t, ok)
+	require.Len(t, strs, 2)
+	require.Equal(t, []string{"hello", "world"}, strs)
 }
 
 func TestApply(t *testing.T) {
@@ -110,7 +120,7 @@ func TestNewErrorAfterNReader_Read(t *testing.T) {
 
 	b := make([]byte, bufSize)
 
-	r := ioz.NewErrorAfterNReader(errAfterN, wantErr)
+	r := ioz.NewErrorAfterRandNReader(errAfterN, wantErr)
 	n, err := r.Read(b)
 	require.Error(t, err)
 	require.True(t, errors.Is(err, wantErr))
@@ -127,7 +137,7 @@ func TestNewErrorAfterNReader_ReadAll(t *testing.T) {
 	const errAfterN = 50
 	wantErr := errors.New("oh dear")
 
-	r := ioz.NewErrorAfterNReader(errAfterN, wantErr)
+	r := ioz.NewErrorAfterRandNReader(errAfterN, wantErr)
 	b, err := io.ReadAll(r)
 	require.Error(t, err)
 	require.True(t, errors.Is(err, wantErr))

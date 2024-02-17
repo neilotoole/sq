@@ -437,12 +437,17 @@ func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, h
 		return
 	}
 
+	if unified == "" {
+		// No diff was found.
+		return
+	}
+
 	// Trim the diff "file header"... ultimately, we should change ComputeUnified
 	// to not return this (e.g. add an arg "noHeader=true")
-	unified = stringz.TrimHead(unified, 2)
+	trimmed := stringz.TrimHead(unified, 2)
 
 	var ok bool
-	if hunkHeader, hunkBody, ok = strings.Cut(unified, "\n"); !ok {
+	if hunkHeader, hunkBody, ok = strings.Cut(trimmed, "\n"); !ok {
 		err = errz.New("Hunk header not found")
 		return
 	}
