@@ -159,6 +159,60 @@ func TestFooError(t *testing.T) {
 	t.Logf("\n%+v", st.Frames)
 }
 
+func TestFromChan(t *testing.T) {
+	errCh := make(chan error, 5)
+
+	got := errz.Drain(errCh)
+	require.Nil(t, got)
+
+	err0 := errors.New("zero")
+	errCh <- err0
+	got = errz.Drain(errCh)
+	require.NotNil(t, got)
+	require.Equal(t, "zero", got.Error())
+
+	err1 := errors.New("one")
+	err2 := errors.New("two")
+
+	errCh <- err1
+	errCh <- err2
+
+	got = errz.Drain(errCh)
+	require.NotNil(t, got)
+	errParts := errz.Errors(got)
+	require.Len(t, errParts, 2)
+	require.Equal(t, "one; two", got.Error())
+	require.Equal(t, "one", errParts[0].Error())
+	require.Equal(t, "two", errParts[1].Error())
+
+	close(errCh)
+
+	got = errz.Drain(errCh)
+	require.Nil(t, got)
+
+	got = errz.Drain(errCh)
+	require.Nil(t, got)
+}
+
+// TestJoinedErrorsMessage codifies the fact that errz multi-errors, via
+// [errz.Combine] and [errz.Append],  use "; " (semicolon and space) as the
+// error string separator, whereas stdlib multi-errors, via [errors.Join], use
+// "\n" (newline) as the separator.
+func TestJoinedErrorsMessage(t *testing.T) {
+	err0 := errors.New("zero")
+	err1 := errors.New("one")
+	err2 := errors.New("two")
+
+	stdlibErr := errors.Join(err0, err1, err2)
+	require.Equal(t, "zero\none\ntwo", stdlibErr.Error())
+
+	errzCombineErr := errz.Combine(err0, err1, err2)
+	require.Equal(t, "zero; one; two", errzCombineErr.Error())
+
+	errzAppendErr := errz.Append(err0, errz.Append(err1, err2))
+	require.Equal(t, "zero; one; two", errzAppendErr.Error())
+}
+
 //nolint:lll
 func TestSprintTreeTypes(t *testing.T) {
 	err := errz.Wrap(errz.Wrap(errz.New("inner"), "wrap1"), "")

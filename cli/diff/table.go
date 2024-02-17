@@ -75,7 +75,11 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 	}
 
 	doc := NewHunkDoc("", NewDocHeader(cfg.prDiff, td1.String(), td2.String()))
-	if err = execTableDataDiffDoc(ctx, ru, cfg, doc, td1, td2); err != nil {
+	if err = execTableDataDiffDoc(ctx, ru, cfg, td1, td2, doc); err != nil {
+		return err
+	}
+
+	if err = doc.Err(); err != nil {
 		return err
 	}
 

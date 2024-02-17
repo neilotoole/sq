@@ -25,7 +25,9 @@ import (
 
 // execTableDataDiffDoc compares the row data in td1 and td2, writing the diff
 // to doc.
-func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *HunkDoc, td1, td2 *tableData) error {
+func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config,
+	td1, td2 *tableData, doc *HunkDoc,
+) error {
 	log := lg.FromContext(ctx)
 	recBufSize := tuning.OptRecBufSize.Get(options.FromContext(ctx))
 	recPairs := make(chan record.Pair, recBufSize)
@@ -48,8 +50,8 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *Hu
 	bar := progress.FromContext(ctx).NewWaiter(msg, true, progress.OptMemUsage)
 	defer bar.Stop()
 
-	// Query DB, send records to recw1.
 	go func() {
+		// Query DB, send records to recw1.
 		if err := libsq.ExecuteSLQ(ctx, qc, query1, recw1); err != nil {
 			if errz.Has[*driver.NotExistError](err) {
 				// For diffing, it's totally ok if a table is not found.
@@ -59,8 +61,9 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *Hu
 			errCh <- err
 		}
 	}()
-	// Query DB, send records to recw2.
+
 	go func() {
+		// Query DB, send records to recw2.
 		if err := libsq.ExecuteSLQ(ctx, qc, query2, recw2); err != nil {
 			if errz.Has[*driver.NotExistError](err) {
 				log.Debug("Diff: table not found", lga.Table, td2.String())
@@ -79,10 +82,10 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *Hu
 		},
 	}
 
-	// Consume records from recw1 and recw2, build a record.Pair,
-	// and send the pair to df.recPairs. The pairs will be consumed
-	// by the exec goroutine.
 	go func() {
+		// Consume records from recw1 and recw2, build a record.Pair,
+		// and send the pair to df.recPairs. The pairs will be consumed
+		// by the exec goroutine.
 		var rec1, rec2 record.Record
 
 		for i := 0; ctx.Err() == nil; i++ {
@@ -110,9 +113,10 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *Hu
 
 	done := make(chan struct{})
 	go func() {
+		// Diff the record pairs, writing results to doc.
 		defer close(done)
-		df.exec(ctx, recPairs, doc)
 
+		df.exec(ctx, recPairs, doc)
 		if err := doc.Err(); err != nil {
 			errCh <- err
 		}
@@ -123,11 +127,11 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, doc *Hu
 	select {
 	case <-ctx.Done():
 		// 1. The context was canceled from above.
-		err = errz.Err(ctx.Err())
+		err = errz.Err(context.Cause(ctx))
 	case err = <-errCh:
 		// 2. An error occurred in one of the goroutines.
 	case <-done:
-		// 3. The exec goroutine has finished, but it could be finished
+		// 3. The exec goroutine has finished, but... it could be finished
 		// because it's done, or because it errored. We need to check.
 		select {
 		case err = <-errCh:

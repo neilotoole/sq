@@ -437,7 +437,11 @@ func Combine(errs ...error) error {
 	return fromSlice(errs)
 }
 
-// Append appends the given errors together. Either value may be nil.
+// Append appends the given errors together. Either value may be nil. The
+// value of the returned error's [error.Error] method is a semicolon-delimited
+// list of the non-nil errors' messages. This is different from the behavior
+// of stdlib [errors.Join], which separates errors with newlines. But, we choose
+// to use semicolons because it's more readable in logs and error messages.
 //
 // This function is a specialization of Combine for the common case where
 // there are only two errors.
