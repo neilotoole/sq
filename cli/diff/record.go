@@ -24,8 +24,8 @@ import (
 )
 
 // execTableDataDiffDoc compares the row data in td1 and td2, writing the diff
-// to doc. The doc is sealed via HunkDoc.Seal before the function returns. If an
-// error occurs, the error is sealed in the doc, and can be checked via
+// to doc. The doc is sealed via [HunkDoc.Seal] before the function returns. If
+// an error occurs, the error is sealed into the doc, and can be checked via
 // [HunkDoc.Err]. Note that the returned doc's [Doc.Read] method blocks until
 // the doc is completed (or errors out). Thus it's possible to execute this
 // function on a goroutine, and then invoke [Doc.Read] on another goroutine.
@@ -41,10 +41,11 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, //nolin
 	recBufSize := tuning.OptRecBufSize.Get(options.FromContext(ctx))
 	recPairsCh := make(chan record.Pair, recBufSize)
 
-	// We create two libsq.RecordWriter instances, each of which will capture
-	// the records returned from a query. On a separate goroutine, those records
-	// will be collated into record.Pair instances, and sent to recPairsCh. Then,
-	// those record pairs are used to generate the diff, which is written to doc.
+	// We create two recordWriter instances (that implement libsq.RecordWriter),
+	// each of which will capture the records returned from a query. On a separate
+	// goroutine, those records will be collated into record.Pair instances, and
+	// sent to recPairsCh. Then, those record pairs are used to generate the diff,
+	// which is written to doc.
 	//
 	// Note that the libsq.RecordWriter.Open method must return an error channel
 	// that the query engine can send errors to. That error channel is errCh,
