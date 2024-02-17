@@ -6,8 +6,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/libdiff"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/libsq/core/libdiff"
 )
 
 func TestNewColorizer(t *testing.T) {

@@ -3,9 +3,10 @@ package stringz_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/testh/tu"
-	"github.com/stretchr/testify/require"
 )
 
 func TestDoubleQuote(t *testing.T) {

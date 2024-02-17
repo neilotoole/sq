@@ -5,8 +5,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/shopspring/decimal"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 // ParseBool is an expansion of strconv.ParseBool that also

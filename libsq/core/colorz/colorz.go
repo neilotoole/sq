@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/fatih/color"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 

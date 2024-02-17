@@ -8,9 +8,8 @@ import (
 	"io"
 
 	"github.com/neilotoole/sq/libsq/core/colorz"
-	"github.com/neilotoole/sq/libsq/core/libdiff"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/libdiff"
 )
 
 var (

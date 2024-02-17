@@ -19,8 +19,9 @@ import (
 	sprig "github.com/Masterminds/sprig/v3"
 	"github.com/alessio/shellescape"
 	"github.com/google/uuid"
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/samber/lo"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 // Redacted is the "xxxxx" string used for redacted

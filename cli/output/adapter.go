@@ -5,14 +5,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/tuning"
-
 	"go.uber.org/atomic"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/record"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 )
 
 // RecordWriterAdapter implements libsq.RecordWriter and

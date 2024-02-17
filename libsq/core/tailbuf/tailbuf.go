@@ -3,7 +3,9 @@
 // [tailbuf.New] to create a [Buf].
 package tailbuf
 
-import "context"
+import (
+	"context"
+)
 
 // Buf is an append-only fixed-size circular buffer that provides a window on
 // the tail of items written to the buffer. The zero value is technically

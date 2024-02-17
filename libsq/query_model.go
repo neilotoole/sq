@@ -3,10 +3,9 @@ package libsq
 import (
 	"fmt"
 
-	"github.com/neilotoole/sq/libsq/core/langz"
-
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/langz"
 )
 
 // queryModel is a model of an SLQ query built from the AST.

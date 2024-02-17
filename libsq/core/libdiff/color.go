@@ -2,6 +2,7 @@ package libdiff
 
 import (
 	"github.com/fatih/color"
+
 	"github.com/neilotoole/sq/libsq/core/colorz"
 )
 

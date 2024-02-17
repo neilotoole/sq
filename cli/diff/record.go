@@ -6,21 +6,20 @@ import (
 	"fmt"
 	"strings"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/libdiff"
 	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/libsq/core/tuning"
-	"github.com/neilotoole/sq/libsq/driver"
-
-	"github.com/neilotoole/sq/libsq/core/tailbuf"
-	"golang.org/x/sync/errgroup"
-
-	"github.com/neilotoole/sq/libsq"
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/tailbuf"
+	"github.com/neilotoole/sq/libsq/core/tuning"
+	"github.com/neilotoole/sq/libsq/driver"
 )
 
 // execTableDataDiffDoc compares the row data in td1 and td2, writing the diff

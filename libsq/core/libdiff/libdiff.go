@@ -11,8 +11,7 @@ package libdiff
 import (
 	"context"
 
-	"github.com/neilotoole/sq/libsq/core/libdiff/internal/go-udiff"
-
+	udiff "github.com/neilotoole/sq/libsq/core/libdiff/internal/go-udiff"
 	"github.com/neilotoole/sq/libsq/core/libdiff/internal/go-udiff/myers"
 )
 

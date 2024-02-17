@@ -1,6 +1,8 @@
 package stringz
 
-import "strings"
+import (
+	"strings"
+)
 
 // DoubleQuote double-quotes (and escapes) s.
 //

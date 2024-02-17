@@ -4,9 +4,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/neilotoole/sq/libsq/core/tailbuf"
 	"github.com/neilotoole/sq/testh/tu"
-	"github.com/stretchr/testify/require"
 )
 
 func TestBuf(t *testing.T) {
