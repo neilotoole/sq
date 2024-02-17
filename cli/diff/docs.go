@@ -5,8 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 	"sync"
+
+	"github.com/neilotoole/sq/libsq/core/bytez"
 
 	"github.com/neilotoole/sq/libsq/core/colorz"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -21,18 +22,20 @@ var _ io.ReadCloser = (Doc)(nil)
 // diff output.
 type Doc interface {
 	// Read provides access to the Doc's bytes. It blocks until the doc is sealed,
-	// or returns a non-nil error.
+	// or returns a non-nil error. If the doc does not contain any hunks, Read
+	// returns io.EOF.
 	Read(p []byte) (n int, err error)
 
 	// Close closes the doc, disposing of any resources held.
 	Close() error
 
-	// Title returns the doc's title, which may be empty. If non-empty, the title
-	// is returned
+	// Title returns the doc's title as a string, which may be empty. Any
+	// colorization in the title bytes is removed.
 	Title() string
 
 	// Err returns the error associated with the doc. On the happy path, Err
-	// returns nil.
+	// returns nil. If Err returns non-nil, a call to Read will return the same
+	// error.
 	Err() error
 }
 
@@ -41,20 +44,25 @@ var (
 	_ io.Writer = (*UnifiedDoc)(nil)
 )
 
-func NewUnifiedDoc(title string) *UnifiedDoc {
+func NewUnifiedDoc(title []byte) *UnifiedDoc {
 	return &UnifiedDoc{
-		title:   title,
+		title:   bytez.TerminateNewline(title),
 		sealed:  make(chan struct{}),
 		bodyBuf: &bytes.Buffer{},
 	}
 }
 
+// UnifiedDoc is a diff [Doc] that consists of a single unified diff body
+// (although that body may contain multiple hunks). It exists as a bridge to
+// legacy code that generates unified diff output as a single block of text.
+//
+// See also: [HunkDoc].
 type UnifiedDoc struct {
 	err     error
 	rdr     io.Reader
 	sealed  chan struct{}
 	bodyBuf *bytes.Buffer
-	title   string
+	title   []byte
 	rdrOnce sync.Once
 	mu      sync.Mutex
 }
@@ -65,15 +73,22 @@ func (d *UnifiedDoc) Close() error {
 	return nil
 }
 
-// Title returns the doc's title, which may be empty.
+// Title returns the doc's title as a string. It may be empty. Colorization
+// is stripped.
 func (d *UnifiedDoc) Title() string {
-	return d.title
+	if len(d.title) == 0 {
+		return ""
+	}
+
+	b := colorz.Strip(d.title)
+	return string(b)
 }
 
 // Write writes to the doc body. The bytes are returned without processing by
-// [Read], so any colorization etc. must occur before writing. When writing is
-// completed, the doc must be sealed via [Seal]. It is a programming error to
-// invoke Write after Seal has been invoked.
+// [UnifiedDoc.Read], so any colorization etc. must occur before writing. When
+// writing is completed, the doc must be sealed via [UnifiedDoc.Seal]. It is a
+// programming error to invoke [UnifiedDoc.Write] after [UnifiedDoc.Seal] has
+// been invoked.
 func (d *UnifiedDoc) Write(p []byte) (n int, err error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -84,8 +99,8 @@ func (d *UnifiedDoc) Write(p []byte) (n int, err error) {
 
 // Seal seals the doc, indicating that it is complete. Until it is sealed, a
 // call to [UnifiedDoc.Read] will block. On the happy path, arg err is nil. If
-// err is non-nil, a call to [UnifiedDoc.Read] will return an error. Seal panics
-// if called more than once.
+// err is non-nil, a call to [UnifiedDoc.Read] will return that error. Seal
+// panics if called more than once.
 func (d *UnifiedDoc) Seal(err error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -99,8 +114,8 @@ func (d *UnifiedDoc) Seal(err error) {
 	close(d.sealed)
 }
 
-// Read blocks until the doc is sealed. It returns the doc's bytes, or the
-// non-nil error provided to [UnifiedDoc.Seal].
+// Read blocks until the doc is sealed. It returns the doc's bytes (which may
+// be empty), or the non-nil error provided to [UnifiedDoc.Seal].
 func (d *UnifiedDoc) Read(p []byte) (n int, err error) {
 	d.rdrOnce.Do(func() {
 		<-d.sealed
@@ -115,19 +130,20 @@ func (d *UnifiedDoc) Read(p []byte) (n int, err error) {
 			return
 		}
 
-		if d.title == "" {
+		if len(d.title) == 0 {
 			d.rdr = d.bodyBuf
 			return
 		}
 
-		d.rdr = io.MultiReader(strings.NewReader(d.title+"\n"), d.bodyBuf)
+		d.rdr = io.MultiReader(bytes.NewReader(d.title), d.bodyBuf)
 	})
 
 	return d.rdr.Read(p)
 }
 
-// Err returns any error associated with the doc, as provided to
-// [UnifiedDoc.Seal].
+// Err returns the error associated with the doc, as provided to
+// [UnifiedDoc.Seal]. The same non-nil error is returned by a call to
+// [UnifiedDoc.Read].
 func (d *UnifiedDoc) Err() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -179,7 +195,7 @@ type HunkDoc struct {
 	rdr       io.Reader
 	sealed    chan struct{}
 	closeErr  *error
-	title     string
+	title     []byte
 	header    []byte
 	hunks     []*Hunk
 	rdrOnce   sync.Once
@@ -188,7 +204,7 @@ type HunkDoc struct {
 }
 
 // Close implements io.Closer.
-func (d *HunkDoc) Close() error { // FIXME: need to invoke doc.Close
+func (d *HunkDoc) Close() error {
 	d.closeOnce.Do(func() {
 		d.mu.Lock()
 		var err error
@@ -203,11 +219,12 @@ func (d *HunkDoc) Close() error { // FIXME: need to invoke doc.Close
 	return *d.closeErr
 }
 
-// NewHunkDoc returns a new HunkDoc with the given title and header. The title
-// may be empty. The header can be generated with NewDocHeader. The returned
-// HunkDoc is not sealed; thus a call to hunkDoc.Read blocks until HunkDoc.Seal
-// is invoked.
-func NewHunkDoc(title string, header []byte) *HunkDoc {
+// NewHunkDoc returns a new HunkDoc with the given title and header. The values
+// should be previously colorized if desired. The title may be empty. The header
+// can be generated with [NewDocHeader]. If non-empty, both title and header
+// should be terminated with a newline. The returned [HunkDoc] is not sealed;
+// thus a call to [HunkDoc.Read] blocks until [HunkDoc.Seal] is invoked.
+func NewHunkDoc(title, header []byte) *HunkDoc {
 	return &HunkDoc{
 		title:  title,
 		header: header,
@@ -215,9 +232,20 @@ func NewHunkDoc(title string, header []byte) *HunkDoc {
 	}
 }
 
-// Title returns the doc's title, which may be empty.
+// Title returns the doc's title as a string. It may be empty. Colorization
+// is stripped.
 func (d *HunkDoc) Title() string {
-	return d.title
+	if len(d.title) == 0 {
+		return ""
+	}
+
+	b := colorz.Strip(d.title)
+	return string(b)
+}
+
+// String returns the doc's title as a string. It may be empty.
+func (d *HunkDoc) String() string {
+	return d.Title()
 }
 
 // Read blocks until the doc is sealed. It returns the doc's bytes, or the
@@ -260,7 +288,7 @@ func (d *HunkDoc) Read(p []byte) (n int, err error) {
 
 		rdrs2 := make([]io.Reader, 0, 3)
 		if len(d.title) > 0 {
-			rdrs2 = append(rdrs2, strings.NewReader(d.title+"\n"))
+			rdrs2 = append(rdrs2, bytes.NewReader(append(d.title, '\n')))
 		}
 		rdrs2 = append(rdrs2, bytes.NewReader(p2))
 		rdrs2 = append(rdrs2, hunksMultiRdr)
@@ -289,6 +317,7 @@ func (d *HunkDoc) Seal(err error) {
 }
 
 // Err returns the error associated with the doc, as provided to [HunkDoc.Seal].
+// The same non-nil error is returned by a call to [HunkDoc.Read].
 func (d *HunkDoc) Err() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()

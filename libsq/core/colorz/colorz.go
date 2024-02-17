@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"io"
 
+	"github.com/mattn/go-colorable"
+
 	"github.com/fatih/color"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -19,7 +21,7 @@ func NewPrinter(c *color.Color) Printer {
 		return monoPrinter{}
 	}
 
-	codes := ExtractCodes(c)
+	codes := ExtractSeqs(c)
 	if len(codes.Prefix) == 0 {
 		return monoPrinter{}
 	}
@@ -199,9 +201,9 @@ func HasEffect(c *color.Color) bool {
 	return c.Sprint(" ") != " "
 }
 
-// Codes represents the prefix and suffix bytes for a terminal color sequence.
-// Use [ExtractCodes] to build a Codes from a [color.Color].
-type Codes struct {
+// Seqs represents the prefix and suffix bytes for a terminal color sequence.
+// Use [ExtractSeqs] to build a Seqs from a [color.Color].
+type Seqs struct {
 	Prefix []byte
 	Suffix []byte
 }
@@ -212,31 +214,31 @@ type Codes struct {
 // Note also that Write does not return the typical (n, err) for a Write method;
 // it is intended for use with types such as [bytes.Buffer] where errors are not
 // a significant concern.
-func (c Codes) Write(w io.Writer, p []byte) {
-	if len(p) == 0 || len(c.Prefix) == 0 {
+func (s Seqs) Write(w io.Writer, p []byte) {
+	if len(p) == 0 || len(s.Prefix) == 0 {
 		return
 	}
 
-	_, _ = w.Write(c.Prefix)
+	_, _ = w.Write(s.Prefix)
 	_, _ = w.Write(p)
-	_, _ = w.Write(c.Suffix)
+	_, _ = w.Write(s.Suffix)
 }
 
 // Writeln is like Write, but it always writes a terminating newline. If p is
 // empty, only a newline is written. If p is already newline-terminated, an
 // additional newline is NOT written.
-func (c Codes) Writeln(w io.Writer, p []byte) {
+func (s Seqs) Writeln(w io.Writer, p []byte) {
 	switch {
 	case len(p) == 0:
 		_, _ = w.Write(newline)
 		return
-	case len(c.Prefix) == 0:
+	case len(s.Prefix) == 0:
 		// No colorization.
 		_, _ = w.Write(p)
 	default:
-		_, _ = w.Write(c.Prefix)
+		_, _ = w.Write(s.Prefix)
 		_, _ = w.Write(p)
-		_, _ = w.Write(c.Suffix)
+		_, _ = w.Write(s.Suffix)
 	}
 
 	if p[len(p)-1] != '\n' {
@@ -246,8 +248,8 @@ func (c Codes) Writeln(w io.Writer, p []byte) {
 
 var _ ByteWriter = (*bytes.Buffer)(nil)
 
-// ByteWriter is implemented by bytes.Buffer. It's used by [Codes.WriteByte] and
-// [Codes.WritelnByte] to avoid unnecessary allocations.
+// ByteWriter is implemented by bytes.Buffer. It's used by [Seqs.WriteByte] and
+// [Seqs.WritelnByte] to avoid unnecessary allocations.
 type ByteWriter interface {
 	io.Writer
 	WriteByte(byte) error
@@ -255,41 +257,41 @@ type ByteWriter interface {
 
 // WriteByte writes a colorized byte to w. This method is basically an
 // optimization for when w is [bytes.Buffer].
-func (c Codes) WriteByte(w ByteWriter, b byte) {
-	if len(c.Prefix) == 0 {
+func (s Seqs) WriteByte(w ByteWriter, b byte) {
+	if len(s.Prefix) == 0 {
 		_ = w.WriteByte(b)
 		return
 	}
 
-	_, _ = w.Write(c.Prefix)
+	_, _ = w.Write(s.Prefix)
 	_ = w.WriteByte(b)
-	_, _ = w.Write(c.Suffix)
+	_, _ = w.Write(s.Suffix)
 }
 
 // WritelnByte writes a colorized byte and a newline to w. This method is
 // basically an optimization for when w is [bytes.Buffer].
-func (c Codes) WritelnByte(w ByteWriter, b byte) {
-	if len(c.Prefix) == 0 {
+func (s Seqs) WritelnByte(w ByteWriter, b byte) {
+	if len(s.Prefix) == 0 {
 		_ = w.WriteByte(b)
 		_, _ = w.Write(newline)
 		return
 	}
 
-	_, _ = w.Write(c.Prefix)
+	_, _ = w.Write(s.Prefix)
 	_ = w.WriteByte(b)
-	_, _ = w.Write(c.Suffix)
+	_, _ = w.Write(s.Suffix)
 	_, _ = w.Write(newline)
 }
 
-// ExtractCodes extracts the prefix and suffix bytes for the terminal color
+// ExtractSeqs extracts the prefix and suffix bytes for the terminal color
 // sequence produced by c. The prefix and suffix are extracted even if c is
 // disabled, e.g. via [color.Color.DisableColor]. If c is nil, or if there's no
 // color sequence, the zero value is returned.
-func ExtractCodes(c *color.Color) Codes {
-	var codes Codes
+func ExtractSeqs(c *color.Color) Seqs {
+	var seqs Seqs
 
 	if c == nil {
-		return codes
+		return seqs
 	}
 
 	// Dirty hack ahead: print a space using c, then grab the bytes printed before
@@ -304,16 +306,27 @@ func ExtractCodes(c *color.Color) Codes {
 	i := bytes.IndexByte(b, ' ')
 	if i <= 0 {
 		// Shouldn't be possible.
-		return codes
+		return seqs
 	}
 	prefix := b[:i]
 	suffix := b[i+1:]
 
 	if len(prefix) == 0 {
-		return codes
+		return seqs
 	}
 
-	codes.Prefix = prefix
-	codes.Suffix = suffix
-	return codes
+	seqs.Prefix = prefix
+	seqs.Suffix = suffix
+	return seqs
+}
+
+// Strip returns a copy of b with all terminal color sequences removed.
+func Strip(b []byte) []byte {
+	if len(b) == 0 {
+		return b
+	}
+
+	buf := bytes.Buffer{}
+	_, _ = colorable.NewNonColorable(&buf).Write(b)
+	return buf.Bytes()
 }

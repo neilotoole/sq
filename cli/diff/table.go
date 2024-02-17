@@ -73,7 +73,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 		return nil
 	}
 
-	doc := NewHunkDoc("", NewDocHeader(cfg.Colors, td1.String(), td2.String()))
+	doc := NewHunkDoc(nil, NewDocHeader(cfg.Colors, td1.String(), td2.String()))
 	var cancelFn context.CancelCauseFunc
 	ctx, cancelFn = context.WithCancelCause(ctx)
 	go execTableDataDiffDoc(ctx, cancelFn, ru, cfg, td1, td2, doc)

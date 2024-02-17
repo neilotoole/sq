@@ -134,14 +134,14 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 		td1 := &tableData{src: sd1.src, tblName: tblName}
 		td1.tblMeta = sd1.srcMeta.Table(tblName)
 
-		// REVISIT: What if there isn't table metadata? Should we fetch
-		// it on a goroutine?
+		// REVISIT: What if there isn't table metadata? Or is it guaranteed t
+		// be present.
 
 		td2 := &tableData{src: sd2.src, tblName: tblName}
 		td2.tblMeta = sd2.srcMeta.Table(tblName)
 
-		cmd := cfg.Colors.Command.Sprintf("sq diff --data %s %s", td1.String(), td2.String())
-		doc := NewHunkDoc(cmd, NewDocHeader(cfg.Colors, td1.String(), td2.String()))
+		cmdTitle := []byte(cfg.Colors.Command.Sprintf("sq diff --data %s %s", td1.String(), td2.String()))
+		doc := NewHunkDoc(cmdTitle, NewDocHeader(cfg.Colors, td1.String(), td2.String()))
 		docs[i] = doc
 		execFns[i] = func() error {
 			execTableDataDiffDoc(ctx, cancelFn, ru, cfg, td1, td2, doc)

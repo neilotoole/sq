@@ -132,24 +132,24 @@ func (c *Colors) EnableColor(enable bool) {
 
 func (c *Colors) codes() *codes {
 	return &codes{
-		command:        colorz.ExtractCodes(c.Command),
-		header:         colorz.ExtractCodes(c.Header),
-		section:        colorz.ExtractCodes(c.Section),
-		sectionComment: colorz.ExtractCodes(c.SectionComment),
-		insertion:      colorz.ExtractCodes(c.Insertion),
-		deletion:       colorz.ExtractCodes(c.Deletion),
-		context:        colorz.ExtractCodes(c.Context),
+		command:        colorz.ExtractSeqs(c.Command),
+		header:         colorz.ExtractSeqs(c.Header),
+		section:        colorz.ExtractSeqs(c.Section),
+		sectionComment: colorz.ExtractSeqs(c.SectionComment),
+		insertion:      colorz.ExtractSeqs(c.Insertion),
+		deletion:       colorz.ExtractSeqs(c.Deletion),
+		context:        colorz.ExtractSeqs(c.Context),
 	}
 }
 
 type codes struct {
-	command        colorz.Codes
-	header         colorz.Codes
-	section        colorz.Codes
-	sectionComment colorz.Codes
-	insertion      colorz.Codes
-	deletion       colorz.Codes
-	context        colorz.Codes
+	command        colorz.Seqs
+	header         colorz.Seqs
+	section        colorz.Seqs
+	sectionComment colorz.Seqs
+	insertion      colorz.Seqs
+	deletion       colorz.Seqs
+	context        colorz.Seqs
 }
 
 // toPtr returns a pointer copy of value.
