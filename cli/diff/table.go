@@ -6,8 +6,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/neilotoole/sq/cli/diff/libdiff"
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
+	"github.com/neilotoole/sq/libsq/core/libdiff"
 	"github.com/neilotoole/sq/libsq/core/progress"
 
 	"golang.org/x/sync/errgroup"

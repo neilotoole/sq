@@ -25,7 +25,7 @@ run:
     # is an open issue. Hopefully we can just rely on the original
     # package at some point.
     # See: https://github.com/aymanbagabas/go-udiff/issues/5
-    - cli/diff/internal/go-udiff
+    - libsq/core/libdiff/internal/go-udiff
 
     # This package is such a mess, and needs to be rewritten completely.
     - cli/output/tablew/internal

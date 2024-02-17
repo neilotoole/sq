@@ -11,8 +11,9 @@ package libdiff
 import (
 	"context"
 
-	"github.com/neilotoole/sq/cli/diff/libdiff/internal/go-udiff"
-	"github.com/neilotoole/sq/cli/diff/libdiff/internal/go-udiff/myers"
+	"github.com/neilotoole/sq/libsq/core/libdiff/internal/go-udiff"
+
+	"github.com/neilotoole/sq/libsq/core/libdiff/internal/go-udiff/myers"
 )
 
 // ComputeUnified encapsulates computing a unified diff.

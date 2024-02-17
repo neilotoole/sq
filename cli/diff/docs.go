@@ -7,10 +7,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/neilotoole/sq/cli/diff/libdiff"
 	"github.com/neilotoole/sq/libsq/core/colorz"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/libdiff"
 )
 
 var _ io.ReadCloser = (Doc)(nil)
@@ -48,13 +48,13 @@ func NewUnifiedDoc(title string) *UnifiedDoc {
 }
 
 type UnifiedDoc struct {
-	mu      sync.Mutex
-	title   string
-	sealed  chan struct{}
 	err     error
-	rdrOnce sync.Once
 	rdr     io.Reader
+	sealed  chan struct{}
 	bodyBuf *bytes.Buffer
+	title   string
+	rdrOnce sync.Once
+	mu      sync.Mutex
 }
 
 // Close implements io.Closer.
@@ -161,16 +161,16 @@ var _ Doc = (*HunkDoc)(nil)
 //
 // [issue]: https://github.com/neilotoole/sq/issues/353
 type HunkDoc struct {
-	mu        sync.Mutex
+	err       error
+	rdr       io.Reader
+	sealed    chan struct{}
+	closeErr  *error
 	title     string
 	header    []byte
-	sealed    chan struct{}
 	hunks     []*Hunk
-	err       error
 	rdrOnce   sync.Once
-	rdr       io.Reader
 	closeOnce sync.Once
-	closeErr  *error
+	mu        sync.Mutex
 }
 
 // Close implements io.Closer.
@@ -188,28 +188,6 @@ func (d *HunkDoc) Close() error {
 
 	return *d.closeErr
 }
-
-//
-//func (hd *HunkDoc) Size() (size int64, err error) {
-//	hd.mu.Lock()
-//	defer hd.mu.Unlock()
-//
-//	if hd.err != nil {
-//		return 0, hd.err
-//	}
-//
-//	<-hd.sealed
-//
-//	var n int64
-//	for i := range hd.hunks {
-//		if n, err = hd.hunks[i].Size(); err != nil {
-//			return 0, err
-//		}
-//		size += n
-//	}
-//
-//	return size, nil
-//}
 
 // NewHunkDoc returns a new HunkDoc with the given title and header. The title
 // may be empty. The header can be generated with NewDocHeader. The returned
@@ -319,17 +297,18 @@ var (
 // be read via Read. Any call to hunk.Read will block until hunk.Seal is
 // invoked.
 type Hunk struct {
-	mu     sync.Mutex
-	sealed chan struct{}
-	err    error
+	err error
 
-	offset int
-	header []byte
+	rdr    io.Reader
+	sealed chan struct{}
 	// Consider using: https://pkg.go.dev/github.com/djherbis/buffer
 	bodyBuf *bytes.Buffer
 
-	rdr     io.Reader
+	header []byte
+
+	offset  int
 	rdrOnce sync.Once
+	mu      sync.Mutex
 }
 
 // Close implements io.Closer.
@@ -386,18 +365,3 @@ func (h *Hunk) Read(p []byte) (n int, err error) {
 
 	return h.rdr.Read(p)
 }
-
-//// Size returns the size of the hunk body (as returned by Read) in bytes. It
-//// blocks until the hunk is sealed, or returns the hunk's non-nil error.
-//func (h *Hunk) Size() (int64, error) {
-//	h.mu.Lock()
-//	if h.err != nil {
-//		defer h.mu.Unlock()
-//		return 0, h.err
-//	}
-//	h.mu.Unlock()
-//	<-h.sealed
-//	h.mu.Lock()
-//	defer h.mu.Unlock()
-//	return int64(h.bodyBuf.Len()), h.err
-//}

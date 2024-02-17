@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	udiff "github.com/neilotoole/sq/cli/diff/libdiff/internal/go-udiff"
+	udiff "github.com/neilotoole/sq/libsq/core/libdiff/internal/go-udiff"
 )
 
 func main() {

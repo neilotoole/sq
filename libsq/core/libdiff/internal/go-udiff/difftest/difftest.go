@@ -4,7 +4,7 @@
 
 // Package difftest supplies a set of tests that will operate on any
 // implementation of a diff algorithm as exposed by
-// diff "github.com/neilotoole/sq/cli/diff/libdiff/internal/go-udiff"
+// diff "github.com/neilotoole/sq/libsq/core/libdiff/internal/go-udiff"
 package difftest
 
 // There are two kinds of tests, semantic tests, and 'golden data' tests.
@@ -17,7 +17,7 @@ package difftest
 import (
 	"testing"
 
-	diff "github.com/neilotoole/sq/cli/diff/libdiff/internal/go-udiff"
+	diff "github.com/neilotoole/sq/libsq/core/libdiff/internal/go-udiff"
 )
 
 const (

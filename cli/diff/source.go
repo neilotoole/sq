@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/neilotoole/sq/cli/diff/libdiff"
+	"github.com/neilotoole/sq/libsq/core/libdiff"
 	"github.com/neilotoole/sq/libsq/core/progress"
 
 	"github.com/samber/lo"

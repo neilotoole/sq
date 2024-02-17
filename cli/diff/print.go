@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/neilotoole/sq/cli/diff/libdiff"
 	"github.com/neilotoole/sq/libsq/core/colorz"
+	"github.com/neilotoole/sq/libsq/core/libdiff"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
@@ -72,65 +72,6 @@ func Print(ctx context.Context, w io.Writer, pr *libdiff.Colors, header string, 
 		case i == 0 && bytes.HasPrefix(line, prefixMinuses):
 			_, err = printHeader(w, line)
 		case i == 1 && bytes.HasPrefix(line, prefixPluses):
-			_, err = printHeader(w, line)
-		case bytes.HasPrefix(line, prefixSection):
-			_, err = printSection(w, line)
-		case line[0] == '-':
-			_, err = printMinus(w, line)
-		case line[0] == '+':
-			_, err = printPlus(w, line)
-		default:
-			_, err = printNormal(w, line)
-		}
-
-		if err != nil {
-			return errz.Err(err)
-		}
-	}
-
-	return errz.Err(sc.Err())
-}
-
-// PrintColorizedDiff prints dif to w. If pr is nil, printing is monochrome.
-func PrintColorizedDiff(ctx context.Context, w io.Writer, pr *libdiff.Colors, dif io.Reader) error {
-	if dif == nil {
-		return nil
-	}
-
-	var err error
-	if pr == nil || pr.IsMonochrome() {
-
-		_, err = fmt.Fprintln(w, dif)
-		return errz.Err(err)
-	}
-
-	var (
-		printHeader  = colorz.NewPrinter(pr.Header).Line
-		printSection = colorz.NewPrinter(pr.Section).Line
-		printMinus   = colorz.NewPrinter(pr.Deletion).Line
-		printPlus    = colorz.NewPrinter(pr.Insertion).Line
-		printNormal  = colorz.NewPrinter(pr.Context).Line
-	)
-
-	sc := bufio.NewScanner(dif)
-	var line []byte
-
-	for i := 0; sc.Scan(); i++ {
-		if ctx.Err() != nil {
-			return errz.Err(ctx.Err())
-		}
-
-		line = sc.Bytes()
-		switch {
-		case len(line) == 0:
-			// I'm not sure if this happens, but if it does, print an empty line.
-			_, err = w.Write(newline)
-		case i == 0:
-			// Title line?
-			_, err = printHeader(w, line)
-		case i == 1 && bytes.HasPrefix(line, prefixMinuses):
-			_, err = printHeader(w, line)
-		case i == 2 && bytes.HasPrefix(line, prefixPluses):
 			_, err = printHeader(w, line)
 		case bytes.HasPrefix(line, prefixSection):
 			_, err = printSection(w, line)

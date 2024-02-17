@@ -577,6 +577,7 @@ func TypeNames[T any](a ...T) []string {
 // only be used when we're chasing nanoseconds, and [strings.Builder] isn't a
 // good fit. UnsafeBytes uses package unsafe, and is generally sketchy.
 func UnsafeBytes(s string) []byte {
+	//nolint:lll
 	// https://josestg.medium.com/140x-faster-string-to-byte-and-byte-to-string-conversions-with-zero-allocation-in-go-200b4d7105fc
 	p := unsafe.StringData(s)
 	return unsafe.Slice(p, len(s))
@@ -590,6 +591,7 @@ func UnsafeString(b []byte) string {
 		return ""
 	}
 
+	//nolint:lll
 	// https://josestg.medium.com/140x-faster-string-to-byte-and-byte-to-string-conversions-with-zero-allocation-in-go-200b4d7105fc
 	// Ignore if your IDE shows an error here; it's a false positive.
 	p := unsafe.SliceData(b)

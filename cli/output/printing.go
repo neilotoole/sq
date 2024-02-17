@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/neilotoole/sq/cli/diff/libdiff"
+	"github.com/neilotoole/sq/libsq/core/libdiff"
 
 	"github.com/fatih/color"
 	"github.com/samber/lo"

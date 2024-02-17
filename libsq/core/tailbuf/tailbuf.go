@@ -149,11 +149,11 @@ func (b *Buf[T]) Bounds() (start, end int) {
 // If start < 0, zero is used. Slice panics if end is less than start.
 func (b *Buf[T]) Slice(start, end int) []T {
 	offset := b.Offset()
-	start = start - offset
+	start -= offset
 	if start < 0 {
 		start = 0
 	}
-	end = end - offset
+	end -= offset
 	if end <= start {
 		return make([]T, 0)
 	}
