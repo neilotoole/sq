@@ -22,32 +22,6 @@ const (
 	numLines = 3
 )
 
-//func TestMyers(t *testing.T) {
-//	const left, right = alphaShortBefore, alphaShortAfter
-//	edits := myers.ComputeEdits(left, right)
-//	result, err := udiff.ToUnified(
-//		"before",
-//		"after",
-//		left,
-//		edits,
-//		numLines,
-//	)
-//
-//	require.NoError(t, err)
-//
-//	buf := &bytes.Buffer{}
-//	err = diff.Print(
-//		context.Background(),
-//		buf,
-//		NewColors(),
-//		"diff before after",
-//		strings.NewReader(result),
-//	)
-//	require.NoError(t, err)
-//
-//	t.Logf("\n" + buf.String())
-//}
-
 func TestMyersDiff(t *testing.T) {
 	const left, right = alphaShortBefore, alphaShortAfter
 	edits := myers.ComputeEdits(left, right)

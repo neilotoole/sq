@@ -6,12 +6,6 @@ import (
 	"io"
 )
 
-//var (
-//	prefixMinuses = []byte("---")
-//	prefixPluses  = []byte("+++")
-//	prefixSection = []byte("@@")
-//)
-
 type colorizer struct {
 	sc      *bufio.Scanner
 	buf     *bytes.Buffer

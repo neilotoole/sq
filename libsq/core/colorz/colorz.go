@@ -212,7 +212,7 @@ type Codes struct {
 // it is intended for use with types such as [bytes.Buffer] where errors are not
 // a significant concern.
 func (c Codes) Write(w io.Writer, p []byte) {
-	if len(p) == 0 || len(c.Prefix) == 0 || w == nil {
+	if len(p) == 0 || len(c.Prefix) == 0 {
 		return
 	}
 
@@ -226,8 +226,6 @@ func (c Codes) Write(w io.Writer, p []byte) {
 // additional newline is NOT written.
 func (c Codes) Writeln(w io.Writer, p []byte) {
 	switch {
-	case w == nil:
-		return
 	case len(p) == 0:
 		_, _ = w.Write(newline)
 		return
@@ -247,8 +245,8 @@ func (c Codes) Writeln(w io.Writer, p []byte) {
 
 var _ ByteWriter = (*bytes.Buffer)(nil)
 
-// ByteWriter is implemented by bytes.Buffer. It's used by WriteByte to avoid
-// unnecessary allocations.
+// ByteWriter is implemented by bytes.Buffer. It's used by [Codes.WriteByte] and
+// [Codes.WritelnByte] to avoid unnecessary allocations.
 type ByteWriter interface {
 	io.Writer
 	WriteByte(byte) error
@@ -257,28 +255,19 @@ type ByteWriter interface {
 // WriteByte writes a colorized byte to w. This method is basically an
 // optimization for when w is [bytes.Buffer].
 func (c Codes) WriteByte(w ByteWriter, b byte) {
-	if w == nil {
-		return
-	}
-
 	if len(c.Prefix) == 0 {
 		_ = w.WriteByte(b)
 		return
 	}
 
 	_, _ = w.Write(c.Prefix)
-	w.WriteByte(b)
+	_ = w.WriteByte(b)
 	_, _ = w.Write(c.Suffix)
-	return
 }
 
 // WritelnByte writes a colorized byte and a newline to w. This method is
 // basically an optimization for when w is [bytes.Buffer].
 func (c Codes) WritelnByte(w ByteWriter, b byte) {
-	if w == nil {
-		return
-	}
-
 	if len(c.Prefix) == 0 {
 		_ = w.WriteByte(b)
 		_, _ = w.Write(newline)
@@ -286,47 +275,15 @@ func (c Codes) WritelnByte(w ByteWriter, b byte) {
 	}
 
 	_, _ = w.Write(c.Prefix)
-	w.WriteByte(b)
+	_ = w.WriteByte(b)
 	_, _ = w.Write(c.Suffix)
 	_, _ = w.Write(newline)
-	return
 }
-
-//
-//// WriteByte writes a single byte to w, prefixed and suffixed by c.Prefix and
-//// c.Suffix.
-//func (c Codes) WriteByteOld(w io.Writer, b byte) {
-//	if w == nil {
-//		return
-//	}
-//
-//	if len(c.Prefix) == 0 {
-//		if wb, ok := w.(ByteWriter); ok {
-//			_ = wb.WriteByte(b)
-//			return
-//		}
-//		_, _ = w.Write([]byte{b})
-//		return
-//	}
-//
-//	if wb, ok := w.(ByteWriter); ok {
-//		_, _ = w.Write(c.Prefix)
-//		wb.WriteByte(b)
-//		_, _ = w.Write(c.Suffix)
-//		return
-//	}
-//
-//	s := make([]byte, len(c.Prefix)+1+len(c.Suffix))
-//	copy(s, c.Prefix)
-//	s[len(c.Prefix)] = b
-//	copy(s[len(c.Prefix)+1:], c.Suffix)
-//	_, _ = w.Write(s)
-//}
 
 // ExtractCodes extracts the prefix and suffix bytes for the terminal color
 // sequence produced by c. The prefix and suffix are extracted even if c is
 // disabled, e.g. via [color.Color.DisableColor]. If c is nil, or if there's no
-// color sequence, the returned values will be nil.
+// color sequence, the zero value is returned.
 func ExtractCodes(c *color.Color) Codes {
 	var codes Codes
 
