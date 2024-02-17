@@ -24,10 +24,14 @@ import (
 )
 
 // execTableDataDiffDoc compares the row data in td1 and td2, writing the diff
-// to doc.
+// to doc. The doc is sealed via HunkDoc.Seal before the function returns. If an
+// error occurs, the error is sealed in the doc, and can be checked via
+// [HunkDoc.Err]. Note that the returned doc's Doc.Read method blocks until the
+// doc is completed (or errors). Thus it's possible to execute this function on
+// a goroutine, and then invoke Doc.Read on another goroutine.
 func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config,
 	td1, td2 *tableData, doc *HunkDoc,
-) error {
+) {
 	log := lg.FromContext(ctx)
 	recBufSize := tuning.OptRecBufSize.Get(options.FromContext(ctx))
 	recPairs := make(chan record.Pair, recBufSize)
@@ -36,7 +40,7 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config,
 	query1 := td1.src.Handle + "." + stringz.DoubleQuote(td1.tblName)
 	query2 := td2.src.Handle + "." + stringz.DoubleQuote(td2.tblName)
 
-	errCh := make(chan error, 5)
+	errCh := make(chan error, 5) // Not sure if 5 is the correct size?
 	recw1 := &recordWriter{
 		recCh: make(chan record.Record, recBufSize),
 		errCh: errCh,
@@ -48,7 +52,22 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config,
 
 	msg := fmt.Sprintf("Diff table data %s, %s", td1.String(), td2.String())
 	bar := progress.FromContext(ctx).NewWaiter(msg, true, progress.OptMemUsage)
-	defer bar.Stop()
+
+	// Well, this is a bit wonky and can be restructured to be simpler.
+	// The idea is that we want to cancel the context if an error occurs on any
+	// of the goroutines. We also want to cancel the context if the user
+	// cancels the operation. We also want to cancel the context if the
+	// operation completes successfully. So, we create a new context, and
+
+	var cancelFn context.CancelCauseFunc
+	ctx, cancelFn = context.WithCancelCause(ctx)
+	go func() {
+		err := <-errCh
+		errCh <- err
+		if err != nil {
+			cancelFn(err)
+		}
+	}()
 
 	go func() {
 		// Query DB, send records to recw1.
@@ -59,17 +78,22 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config,
 				return
 			}
 			errCh <- err
+			cancelFn(err)
 		}
 	}()
 
 	go func() {
 		// Query DB, send records to recw2.
+		// errCh <- errz.New("oh no") // FIXME: delete
+		// return
+
 		if err := libsq.ExecuteSLQ(ctx, qc, query2, recw2); err != nil {
 			if errz.Has[*driver.NotExistError](err) {
 				log.Debug("Diff: table not found", lga.Table, td2.String())
 				return
 			}
 			errCh <- err
+			cancelFn(err)
 		}
 	}()
 
@@ -111,36 +135,30 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config,
 		}
 	}()
 
-	done := make(chan struct{})
 	go func() {
 		// Diff the record pairs, writing results to doc.
-		defer close(done)
 
-		df.exec(ctx, recPairs, doc)
-		if err := doc.Err(); err != nil {
-			errCh <- err
+		defer bar.Stop()
+		var err error
+		defer func() {
+			// On the happy path, err is nil, but we still want to invoke cancelFn
+			// to avoid resource leaks.
+			cancelFn(err)
+		}()
+
+		if err = df.exec(ctx, recPairs, doc); err != nil {
+			doc.Seal(err)
+			return
 		}
-	}()
 
-	// Now, we wait for action. One of three things can happen...
-	var err error
-	select {
-	case <-ctx.Done():
-		// 1. The context was canceled from above.
-		err = errz.Err(context.Cause(ctx))
-	case err = <-errCh:
-		// 2. An error occurred in one of the goroutines.
-	case <-done:
-		// 3. The exec goroutine has finished, but... it could be finished
-		// because it's done, or because it errored. We need to check.
 		select {
+		case <-ctx.Done():
+			err = errz.Err(context.Cause(ctx))
 		case err = <-errCh:
-			// ACHSCHUALLLY, the exec errored.
 		default:
 		}
-	}
-
-	return err
+		doc.Seal(err)
+	}()
 }
 
 // recordDiffer encapsulates execution of diffing the records of two tables.
@@ -156,8 +174,9 @@ type recordDiffer struct {
 }
 
 // exec compares the record pairs from recPairs, writing the diff results to
-// doc. The caller can invoke [HunkDoc.Err] to check for errors.
-func (rd *recordDiffer) exec(ctx context.Context, recPairs <-chan record.Pair, doc *HunkDoc) {
+// doc. This function does not invoke [HunkDoc.Seal], so the caller must do so,
+// probably passing the returned err (if non-nil) to [HunkDoc.Seal].
+func (rd *recordDiffer) exec(ctx context.Context, recPairs <-chan record.Pair, doc *HunkDoc) error {
 	var (
 		numLines  = rd.cfg.Lines
 		tb        = tailbuf.New[record.Pair](numLines + 1)
@@ -168,15 +187,11 @@ func (rd *recordDiffer) exec(ctx context.Context, recPairs <-chan record.Pair, d
 		err error
 	)
 
-	// NOTE: If making changes, make sure that the function doesn't return
-	// early. It's critical that rd.doc.Seal is invoked (even when an error
-	// occurs), and that happens at the end of this function.
-
 LOOP:
 	for row := 0; ctx.Err() == nil; row++ {
 		select {
 		case <-ctx.Done():
-			err = errz.Err(ctx.Err())
+			err = errz.Err(context.Cause(ctx))
 			break LOOP
 		case rp, ok = <-recPairs:
 		}
@@ -283,11 +298,10 @@ LOOP:
 
 	if err == nil {
 		// Even if err is nil, it's still possible that ctx.Err is non-nil.
-		err = errz.Err(ctx.Err())
+		err = errz.Err(context.Cause(ctx))
 	}
 
-	// CRITICAL: we must seal the doc. On the happy path, err is nil.
-	doc.Seal(err)
+	return err
 }
 
 // populateHunk populates hunk with the diff of the record pairs. Before return,

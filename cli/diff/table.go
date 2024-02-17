@@ -75,13 +75,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 	}
 
 	doc := NewHunkDoc("", NewDocHeader(cfg.prDiff, td1.String(), td2.String()))
-	if err = execTableDataDiffDoc(ctx, ru, cfg, td1, td2, doc); err != nil {
-		return err
-	}
-
-	if err = doc.Err(); err != nil {
-		return err
-	}
+	go execTableDataDiffDoc(ctx, ru, cfg, td1, td2, doc)
 
 	_, err = io.Copy(ru.Out, contextio.NewReader(ctx, doc))
 	return errz.Err(err)
