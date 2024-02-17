@@ -106,8 +106,8 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 	log := lg.FromContext(ctx).With(lga.Left, sd1.src.Handle, lga.Right, sd2.src.Handle)
 	log.Info("Diffing source data")
 
-	cfg.prMain = ru.Writers.OutPrinting.Clone() // FIXME: This should happen automatically in NewConfig
-	cfg.prDiff = ru.Writers.OutPrinting.Diff.Clone()
+	cfg.Printing = ru.Writers.OutPrinting.Clone() // FIXME: This should happen automatically in NewConfig
+	cfg.Colors = ru.Writers.OutPrinting.Diff.Clone()
 
 	allTblNames := append(sd1.srcMeta.TableNames(), sd2.srcMeta.TableNames()...)
 	allTblNames = lo.Uniq(allTblNames)
@@ -140,8 +140,8 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 		td2 := &tableData{src: sd2.src, tblName: tblName}
 		td2.tblMeta = sd2.srcMeta.Table(tblName)
 
-		cmd := cfg.prDiff.Command.Sprintf("sq diff --data %s %s", td1.String(), td2.String())
-		doc := NewHunkDoc(cmd, NewDocHeader(cfg.prDiff, td1.String(), td2.String()))
+		cmd := cfg.Colors.Command.Sprintf("sq diff --data %s %s", td1.String(), td2.String())
+		doc := NewHunkDoc(cmd, NewDocHeader(cfg.Colors, td1.String(), td2.String()))
 		docs[i] = doc
 		execFns[i] = func() error {
 			execTableDataDiffDoc(ctx, cancelFn, ru, cfg, td1, td2, doc)

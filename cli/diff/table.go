@@ -24,9 +24,6 @@ import (
 func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Elements, //nolint:revive
 	handle1, table1, handle2, table2 string,
 ) error {
-	cfg.prMain = ru.Writers.OutPrinting.Clone()
-	cfg.prDiff = cfg.prMain.Diff.Clone()
-
 	td1, td2 := &tableData{tblName: table1}, &tableData{tblName: table2}
 
 	var err error
@@ -64,7 +61,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 		if err = Print(
 			ctx,
 			ru.Out,
-			cfg.prDiff,
+			cfg.Colors,
 			tblDiff.header,
 			strings.NewReader(tblDiff.diff),
 		); err != nil {
@@ -76,7 +73,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 		return nil
 	}
 
-	doc := NewHunkDoc("", NewDocHeader(cfg.prDiff, td1.String(), td2.String()))
+	doc := NewHunkDoc("", NewDocHeader(cfg.Colors, td1.String(), td2.String()))
 	var cancelFn context.CancelCauseFunc
 	ctx, cancelFn = context.WithCancelCause(ctx)
 	go execTableDataDiffDoc(ctx, cancelFn, ru, cfg, td1, td2, doc)

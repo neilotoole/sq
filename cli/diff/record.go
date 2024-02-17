@@ -452,7 +452,7 @@ func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, h
 		return
 	}
 
-	if err = colorizeHunks(ctx, hunk, rd.cfg.prDiff, bytes.NewReader(stringz.UnsafeBytes(hunkBody))); err != nil {
+	if err = colorizeHunks(ctx, hunk, rd.cfg.Colors, bytes.NewReader(stringz.UnsafeBytes(hunkBody))); err != nil {
 		return
 	}
 
@@ -461,7 +461,7 @@ func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, h
 	}
 
 	// hunkHeader will be passed to hunk.Seal in the top defer.
-	hunkHeader = rd.cfg.prDiff.Section.Sprintln(hunkHeader)
+	hunkHeader = rd.cfg.Colors.Section.Sprintln(hunkHeader)
 }
 
 var _ libsq.RecordWriter = (*recordWriter)(nil)

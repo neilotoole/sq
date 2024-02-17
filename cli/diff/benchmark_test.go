@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/libsq/core/libdiff"
+	"github.com/neilotoole/sq/testh/sakila"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli"
@@ -26,6 +30,8 @@ func BenchmarkExecTableDiff(b *testing.B) {
 	cfg := &diff.Config{
 		RecordWriterFn: tablew.NewRecordWriter,
 		Lines:          3,
+		Printing:       output.NewPrinting(),
+		Colors:         libdiff.NewColors(),
 	}
 
 	b.ReportAllocs()
@@ -33,7 +39,16 @@ func BenchmarkExecTableDiff(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		buf := &bytes.Buffer{}
 		ru.Out = buf
-		err := diff.ExecTableDiff(th.Context, ru, cfg, elems, srcA.Handle, "actor", srcB.Handle, "actor")
+		err := diff.ExecTableDiff(
+			th.Context,
+			ru,
+			cfg,
+			elems,
+			srcA.Handle,
+			sakila.TblActor,
+			srcB.Handle,
+			sakila.TblActor,
+		)
 		require.NoError(b, err)
 		buf.Reset()
 	}

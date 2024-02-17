@@ -17,8 +17,13 @@ type Config struct {
 	// when comparing table data.
 	RecordWriterFn output.NewRecordWriterFunc
 
-	prMain *output.Printing
-	prDiff *libdiff.Colors
+	// Printing is the output.Printing instance to use when generating diff text.
+	Printing *output.Printing
+
+	// Colors is the diff colors to use when generating diff text. It may be
+	// modified by the diff package; pass a clone if the original should not be
+	// modified.
+	Colors *libdiff.Colors
 
 	// Lines specifies the number of lines of context surrounding a diff.
 	Lines int

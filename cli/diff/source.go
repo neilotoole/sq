@@ -53,7 +53,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		if err = Print(
 			ctx,
 			ru.Out,
-			cfg.prDiff,
+			cfg.Colors,
 			srcDiff.header,
 			strings.NewReader(srcDiff.diff),
 		); err != nil {
@@ -69,7 +69,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		if err = Print(
 			ctx,
 			ru.Out,
-			cfg.prDiff,
+			cfg.Colors,
 			propsDiff.header,
 			strings.NewReader(propsDiff.diff),
 		); err != nil {
@@ -86,7 +86,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 			if err = Print(
 				ctx,
 				ru.Out,
-				cfg.prDiff,
+				cfg.Colors,
 				tblDiff.header,
 				strings.NewReader(tblDiff.diff),
 			); err != nil {

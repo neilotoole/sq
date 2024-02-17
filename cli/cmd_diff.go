@@ -238,6 +238,8 @@ func execDiff(cmd *cobra.Command, args []string) error {
 	diffCfg := &diff.Config{
 		Lines:          OptDiffNumLines.Get(o),
 		HunkMaxSize:    OptDiffHunkMaxSize.Get(o),
+		Printing:       ru.Writers.OutPrinting.Clone(),
+		Colors:         ru.Writers.OutPrinting.Diff.Clone(),
 		RecordWriterFn: recwFn,
 	}
 

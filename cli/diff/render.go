@@ -16,11 +16,11 @@ func renderRecords(ctx context.Context, cfg *Config, recMeta record.Meta, recs [
 		return "", nil
 	}
 
-	prMain := cfg.prMain.Clone()
-	prMain.EnableColor(false)
-	prMain.ShowHeader = false
+	pr := cfg.Printing.Clone()
+	pr.EnableColor(false)
+	pr.ShowHeader = false
 	buf := &bytes.Buffer{}
-	recw := cfg.RecordWriterFn(buf, prMain)
+	recw := cfg.RecordWriterFn(buf, pr)
 
 	if err := recw.Open(ctx, recMeta); err != nil {
 		return "", err
