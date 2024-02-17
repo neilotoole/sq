@@ -123,6 +123,12 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 	g.SetLimit(tuning.OptErrgroupLimit.Get(options.FromContext(ctx)))
 
 	docs := make([]*HunkDoc, len(allTblNames))
+	defer func() {
+		for i := range docs {
+			lg.WarnIfCloseError(log, "Close diff doc", docs[i])
+		}
+	}()
+
 	execFns := make([]func() error, len(allTblNames))
 	for i, tblName := range allTblNames {
 		td1 := &tableData{src: sd1.src, tblName: tblName}

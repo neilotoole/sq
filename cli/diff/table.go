@@ -6,6 +6,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/cli/run"
@@ -81,6 +83,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 
 	_, err = errz.Return(io.Copy(ru.Out, contextio.NewReader(ctx, doc)))
 	cancelFn(err)
+	lg.WarnIfCloseError(lg.FromContext(ctx), "Close diff doc", doc)
 	return err
 }
 
