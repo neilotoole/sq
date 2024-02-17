@@ -41,7 +41,7 @@ type Printing struct {
 	Datetime *color.Color
 
 	// Diff contains colors for diff output.
-	Diff *libdiff.Printing
+	Diff *libdiff.Colors
 
 	// Disabled is the color for disabled elements.
 	Disabled *color.Color
@@ -181,7 +181,7 @@ func NewPrinting() *Printing {
 		Bool:                   color.New(color.FgYellow),
 		Bytes:                  color.New(color.Faint),
 		Datetime:               color.New(color.FgGreen, color.Faint),
-		Diff:                   libdiff.NewPrinting(),
+		Diff:                   libdiff.NewColors(),
 		Disabled:               color.New(color.FgYellow, color.Faint),
 		Duration:               color.New(color.FgGreen, color.Faint),
 		Enabled:                color.New(color.FgGreen, color.Faint),

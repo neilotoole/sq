@@ -131,7 +131,7 @@ func (d *UnifiedDoc) Err() error {
 //	+++ @sakila_b.actor
 //
 // It is colorized according to [output.Printing.DiffHeader].
-func NewDocHeader(pr *libdiff.Printing, left, right string) []byte {
+func NewDocHeader(pr *libdiff.Colors, left, right string) []byte {
 	buf := &bytes.Buffer{}
 	header := fmt.Sprintf("--- %s\n+++ %s\n", left, right)
 	_, _ = colorz.NewPrinter(pr.Header).Block(buf, []byte(header))

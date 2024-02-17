@@ -16,13 +16,30 @@ func TestNewColorizer(t *testing.T) {
 	fi, err := f.Stat()
 	require.NoError(t, err)
 
-	pr := libdiff.NewPrinting()
+	clrs := libdiff.NewColors()
 
-	r := libdiff.NewColorizer(pr, f)
+	r := libdiff.NewColorizer(clrs, f)
 	n, err := io.Copy(os.Stdout, r)
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, n, fi.Size())
 }
+
+//func TestNewColorizer2(t *testing.T) {
+//	f, err := os.Open("testdata/kubla.patch")
+//	require.NoError(t, err)
+//	t.Cleanup(func() { require.NoError(t, f.Close()) })
+//	fi, err := f.Stat()
+//	require.NoError(t, err)
+//
+//	//clrs := libdiff.NewColors()
+//
+//	//r := libdiff.NewReader(f)
+//
+//	//r := libdiff.NewColorizer(clrs, f)
+//	n, err := io.Copy(os.Stdout, r)
+//	require.NoError(t, err)
+//	require.GreaterOrEqual(t, n, fi.Size())
+//}
 
 func TestBuf(t *testing.T) {
 	buf := &bytes.Buffer{}

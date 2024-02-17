@@ -18,12 +18,12 @@ func NewPrinter(c *color.Color) Printer {
 		return monoPrinter{}
 	}
 
-	prefix, suffix := ExtractCodes(c)
-	if len(prefix) == 0 {
+	codes := ExtractCodes(c)
+	if len(codes.Prefix) == 0 {
 		return monoPrinter{}
 	}
 
-	return colorPrinter{prefix: prefix, suffix: suffix}
+	return colorPrinter{prefix: codes.Prefix, suffix: codes.Suffix}
 }
 
 // Printer provides color-aware printing.
@@ -198,13 +198,140 @@ func HasEffect(c *color.Color) bool {
 	return c.Sprint(" ") != " "
 }
 
+// Codes represents the prefix and suffix bytes for a terminal color sequence.
+// Use [ExtractCodes] to build a Codes from a [color.Color].
+type Codes struct {
+	Prefix []byte
+	Suffix []byte
+}
+
+// Write writes p to w, prefixed and suffixed by c.Prefix and c.Suffix. If c
+// is the zero value, or w is nil, or p is empty, Write is no-op. Write does
+// not check for internal line breaks in p, which could break colorization.
+// Note also that Write does not return the typical (n, err) for a Write method;
+// it is intended for use with types such as [bytes.Buffer] where errors are not
+// a significant concern.
+func (c Codes) Write(w io.Writer, p []byte) {
+	if len(p) == 0 || len(c.Prefix) == 0 || w == nil {
+		return
+	}
+
+	_, _ = w.Write(c.Prefix)
+	_, _ = w.Write(p)
+	_, _ = w.Write(c.Suffix)
+}
+
+// Writeln is like Write, but it always writes a terminating newline. If p is
+// empty, only a newline is written. If p is already newline-terminated, an
+// additional newline is NOT written.
+func (c Codes) Writeln(w io.Writer, p []byte) {
+	switch {
+	case w == nil:
+		return
+	case len(p) == 0:
+		_, _ = w.Write(newline)
+		return
+	case len(c.Prefix) == 0:
+		// No colorization.
+		_, _ = w.Write(p)
+	default:
+		_, _ = w.Write(c.Prefix)
+		_, _ = w.Write(p)
+		_, _ = w.Write(c.Suffix)
+	}
+
+	if p[len(p)-1] != '\n' {
+		_, _ = w.Write(newline)
+	}
+}
+
+var _ ByteWriter = (*bytes.Buffer)(nil)
+
+// ByteWriter is implemented by bytes.Buffer. It's used by WriteByte to avoid
+// unnecessary allocations.
+type ByteWriter interface {
+	io.Writer
+	WriteByte(byte) error
+}
+
+// WriteByte writes a colorized byte to w. This method is basically an
+// optimization for when w is [bytes.Buffer].
+func (c Codes) WriteByte(w ByteWriter, b byte) {
+	if w == nil {
+		return
+	}
+
+	if len(c.Prefix) == 0 {
+		_ = w.WriteByte(b)
+		return
+	}
+
+	_, _ = w.Write(c.Prefix)
+	w.WriteByte(b)
+	_, _ = w.Write(c.Suffix)
+	return
+}
+
+// WritelnByte writes a colorized byte and a newline to w. This method is
+// basically an optimization for when w is [bytes.Buffer].
+func (c Codes) WritelnByte(w ByteWriter, b byte) {
+	if w == nil {
+		return
+	}
+
+	if len(c.Prefix) == 0 {
+		_ = w.WriteByte(b)
+		_, _ = w.Write(newline)
+		return
+	}
+
+	_, _ = w.Write(c.Prefix)
+	w.WriteByte(b)
+	_, _ = w.Write(c.Suffix)
+	_, _ = w.Write(newline)
+	return
+}
+
+//
+//// WriteByte writes a single byte to w, prefixed and suffixed by c.Prefix and
+//// c.Suffix.
+//func (c Codes) WriteByteOld(w io.Writer, b byte) {
+//	if w == nil {
+//		return
+//	}
+//
+//	if len(c.Prefix) == 0 {
+//		if wb, ok := w.(ByteWriter); ok {
+//			_ = wb.WriteByte(b)
+//			return
+//		}
+//		_, _ = w.Write([]byte{b})
+//		return
+//	}
+//
+//	if wb, ok := w.(ByteWriter); ok {
+//		_, _ = w.Write(c.Prefix)
+//		wb.WriteByte(b)
+//		_, _ = w.Write(c.Suffix)
+//		return
+//	}
+//
+//	s := make([]byte, len(c.Prefix)+1+len(c.Suffix))
+//	copy(s, c.Prefix)
+//	s[len(c.Prefix)] = b
+//	copy(s[len(c.Prefix)+1:], c.Suffix)
+//	_, _ = w.Write(s)
+//}
+
 // ExtractCodes extracts the prefix and suffix bytes for the terminal color
 // sequence produced by c. The prefix and suffix are extracted even if c is
 // disabled, e.g. via [color.Color.DisableColor]. If c is nil, or if there's no
 // color sequence, the returned values will be nil.
-func ExtractCodes(c *color.Color) (prefix, suffix []byte) {
+func ExtractCodes(c *color.Color) Codes {
+	var codes Codes
+
 	if c == nil {
-		return nil, nil
+		return codes
 	}
 
 	// Dirty hack ahead: print a space using c, then grab the bytes printed before
@@ -219,14 +346,16 @@ func ExtractCodes(c *color.Color) (prefix, suffix []byte) {
 	i := bytes.IndexByte(b, ' ')
 	if i <= 0 {
 		// Shouldn't be possible.
-		return nil, nil
+		return codes
 	}
-	prefix = b[:i]
-	suffix = b[i+1:]
+	prefix := b[:i]
+	suffix := b[i+1:]
 
 	if len(prefix) == 0 {
-		return nil, nil
+		return codes
 	}
 
-	return prefix, suffix
+	codes.Prefix = prefix
+	codes.Suffix = suffix
+	return codes
 }

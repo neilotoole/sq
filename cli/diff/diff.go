@@ -18,7 +18,7 @@ type Config struct {
 	RecordWriterFn output.NewRecordWriterFunc
 
 	prMain *output.Printing
-	prDiff *libdiff.Printing
+	prDiff *libdiff.Colors
 
 	// Lines specifies the number of lines of context surrounding a diff.
 	Lines int

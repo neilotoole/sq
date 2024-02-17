@@ -2,15 +2,19 @@ package libdiff
 
 import (
 	"github.com/fatih/color"
-	"github.com/msoap/byline"
-	"io"
+	"github.com/neilotoole/sq/cli/output/colorz"
 )
 
-// Printing encapsulates diff printing config.
-type Printing struct {
-	// Title is the color for diff title elements. The title is not actually part
-	// of a standard diff. We use it when multiple diffs are printed back-to-back.
-	Title *color.Color
+// Colors encapsulates diff color printing config.
+type Colors struct {
+	// Command is the color for the diff command text. That is, the text of the
+	// command that effectively triggered this diff. For example:
+	//
+	//  diff -U3 -r ./a/hiawatha.txt ./b/hiawatha.txt
+	//
+	// The command text is typically only printed when multiple diffs are printed
+	// back-to-back.
+	Command *color.Color
 
 	// Header is the color for diff header elements.
 	//
@@ -40,8 +44,9 @@ type Printing struct {
 	// Deletion is the color for diff minus "-" elements.
 	Deletion *color.Color
 
-	// Normal is the color for regular diff text.
-	Normal *color.Color
+	// Context is the color for context lines, i.e. the lines above and below
+	// the actual diff.
+	Context *color.Color
 
 	// monochrome is controlled by EnableColor.
 	monochrome bool
@@ -53,186 +58,100 @@ type Printing struct {
 	ShowHeader bool
 }
 
-// NewPrinting returns a Printing instance. Color is enabled by default.
-func NewPrinting() *Printing {
-	pr := &Printing{
+// NewColors returns a Colors instance. Coloring is enabled by default.
+func NewColors() *Colors {
+	c := &Colors{
 		ShowHeader:     true,
 		monochrome:     false,
-		Title:          color.New(color.FgYellow), // FIXME: choose a better color
+		Command:        color.New(color.FgBlue),
 		Header:         color.New(color.Bold),
 		Deletion:       color.New(color.FgRed),
-		Normal:         color.New(color.Faint),
+		Context:        color.New(color.Faint),
 		Insertion:      color.New(color.FgGreen),
 		Section:        color.New(color.FgCyan),
 		SectionComment: color.New(color.FgCyan, color.Faint), // FIXME: make use of SectionComment
 	}
 
-	pr.EnableColor(true)
-	return pr
+	c.EnableColor(true)
+	return c
 }
 
 // Clone returns a clone of pr.
-func (pr *Printing) Clone() *Printing {
-	pr2 := &Printing{
-		monochrome: pr.monochrome,
-		ShowHeader: pr.ShowHeader,
+func (c *Colors) Clone() *Colors {
+	c2 := &Colors{
+		monochrome: c.monochrome,
+		ShowHeader: c.ShowHeader,
 	}
 
-	pr2.Title = toPtr(*pr.Title)
-	pr2.Header = toPtr(*pr.Header)
-	pr2.Section = toPtr(*pr.Section)
-	pr2.SectionComment = toPtr(*pr.SectionComment)
-	pr2.Deletion = toPtr(*pr.Deletion)
-	pr2.Insertion = toPtr(*pr.Insertion)
-	pr2.Normal = toPtr(*pr.Normal)
+	c2.Command = toPtr(*c.Command)
+	c2.Header = toPtr(*c.Header)
+	c2.Section = toPtr(*c.Section)
+	c2.SectionComment = toPtr(*c.SectionComment)
+	c2.Deletion = toPtr(*c.Deletion)
+	c2.Insertion = toPtr(*c.Insertion)
+	c2.Context = toPtr(*c.Context)
 
-	return pr2
+	return c2
 }
 
-func (pr *Printing) colors() []*color.Color {
+func (c *Colors) colors() []*color.Color {
 	return []*color.Color{
-		pr.Title,
-		pr.Header,
-		pr.Section,
-		pr.SectionComment,
-		pr.Deletion,
-		pr.Insertion,
-		pr.Normal,
+		c.Command,
+		c.Header,
+		c.Section,
+		c.SectionComment,
+		c.Deletion,
+		c.Insertion,
+		c.Context,
 	}
 }
 
 // IsMonochrome returns true if in monochrome (no color) mode.
 // Default is false (color enabled) for a new instance.
-func (pr *Printing) IsMonochrome() bool {
-	return pr.monochrome
+func (c *Colors) IsMonochrome() bool {
+	return c.monochrome
 }
 
 // EnableColor enables or disables all colors.
-func (pr *Printing) EnableColor(enable bool) {
+func (c *Colors) EnableColor(enable bool) {
 	if enable {
-		pr.monochrome = false
+		c.monochrome = false
 
-		for _, clr := range pr.colors() {
+		for _, clr := range c.colors() {
 			clr.EnableColor()
 		}
 		return
 	}
 
-	pr.monochrome = true
-	for _, clr := range pr.colors() {
+	c.monochrome = true
+	for _, clr := range c.colors() {
 		clr.DisableColor()
 	}
+}
+
+func (c *Colors) codes() *codes {
+	return &codes{
+		command:        colorz.ExtractCodes(c.Command),
+		header:         colorz.ExtractCodes(c.Header),
+		section:        colorz.ExtractCodes(c.Section),
+		sectionComment: colorz.ExtractCodes(c.SectionComment),
+		insertion:      colorz.ExtractCodes(c.Insertion),
+		deletion:       colorz.ExtractCodes(c.Deletion),
+		context:        colorz.ExtractCodes(c.Context),
+	}
+}
+
+type codes struct {
+	command        colorz.Codes
+	header         colorz.Codes
+	section        colorz.Codes
+	sectionComment colorz.Codes
+	insertion      colorz.Codes
+	deletion       colorz.Codes
+	context        colorz.Codes
 }
 
 // toPtr returns a pointer copy of value.
 func toPtr[T any](x T) *T {
 	return &x
 }
-
-func NewColorizer(pr *Printing, src io.Reader) io.Reader {
-	lr := byline.NewReader(src)
-	return lr
-}
-
-var (
-	newline       = []byte{'\n'}
-	prefixMinuses = []byte("---")
-	prefixPluses  = []byte("+++")
-	prefixSection = []byte("@@")
-)
-
-//func colorizeLine(pr *Printing, line []byte) []byte {
-//	switch {
-//	case len(line) == 0:
-//		return line
-//	case line[0] == '-':
-//		return stringz.UnsafeBytes(pr.Deletion.Sprint(stringz.UnsafeString(line)))
-//	case line[0] == '+':
-//		return stringz.UnsafeBytes(pr.Insertion.Sprint(stringz.UnsafeString(line)))
-//	case line[0] == ' ':
-//		return stringz.UnsafeBytes(pr.Normal.Sprint(stringz.UnsafeString(line)))
-//	case line[0] == '@':
-//		return stringz.UnsafeBytes(pr.Section.Sprint(stringz.UnsafeString(line)))
-//	case bytes.HasPrefix(line, prefixMinuses), bytes.HasPrefix(line, prefixPluses):
-//		return stringz.UnsafeBytes(pr.Header.Sprint(stringz.UnsafeString(line)))
-//	case bytes.HasPrefix(line, prefixSection):
-//		return stringz.UnsafeBytes(pr.Section.Sprint(stringz.UnsafeString(line)))
-//
-//	default:
-//		_, err = printNormal(w, line)
-//	}
-//}
-
-//
-//func NewColorizer(ctx context.Context, pr *Printing, src io.Reader) io.Reader {
-//	return &colorizer{ctx: ctx, pr: pr, src: src, buf: &bytes.Buffer{}, sc: bufio.NewScanner(src)}
-//}
-//
-//var _ io.Reader = (*colorizer)(nil)
-//
-//type colorizer struct {
-//	ctx context.Context
-//	pr  *Printing
-//	src io.Reader
-//	buf *bytes.Buffer
-//	sc  *bufio.Scanner
-//}
-//
-//func (c *colorizer) Read(p []byte) (n int, err error) {
-//	if c.buf.Len() >= len(p) {
-//		return c.buf.Read(p)
-//	}
-//
-//	var line []byte
-//	_ = line
-//
-//	for c.buf.Len() < len(p) && c.sc.Scan() {
-//		line = c.sc.Bytes()
-//		if len(line) == 0 {
-//			err = c.buf.WriteByte('\n')
-//			if err != nil {
-//				break
-//			}
-//			continue
-//		}
-//
-//		// do colorization here
-//		_, err = c.buf.Write(line)
-//		if err != nil {
-//			break
-//		}
-//		err = c.buf.WriteByte('\n')
-//		if err != nil {
-//			break
-//		}
-//	}
-//
-//	if err == nil {
-//		return c.buf.Read(p)
-//	}
-//
-//	// We've got an error situation here.
-//
-//	return 0, nil
-//}
-//
-//func (c *colorizer) readPassthrough(p []byte) (n int, err error) {
-//	for {
-//		if c.buf.Len() >= len(p) {
-//			return c.buf.Read(p)
-//		}
-//
-//		n, err = c.src.Read(p)
-//		if n > 0 {
-//			c.buf.Write(p[:n])
-//		}
-//
-//		if err != nil {
-//			n, _ = c.buf.Read(p)
-//			if n == len(p) {
-//				return n, nil
-//			}
-//			return n, err
-//		}
-//	}
-//}

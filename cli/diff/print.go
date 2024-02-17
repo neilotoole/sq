@@ -20,7 +20,7 @@ var (
 )
 
 // Print prints dif to w. If pr is nil, printing is monochrome.
-func Print(ctx context.Context, w io.Writer, pr *libdiff.Printing, header string, dif io.Reader) error {
+func Print(ctx context.Context, w io.Writer, pr *libdiff.Colors, header string, dif io.Reader) error {
 	if dif == nil {
 		return nil
 	}
@@ -49,7 +49,7 @@ func Print(ctx context.Context, w io.Writer, pr *libdiff.Printing, header string
 		printSection = colorz.NewPrinter(pr.Section).Line
 		printMinus   = colorz.NewPrinter(pr.Deletion).Line
 		printPlus    = colorz.NewPrinter(pr.Insertion).Line
-		printNormal  = colorz.NewPrinter(pr.Normal).Line
+		printNormal  = colorz.NewPrinter(pr.Context).Line
 	)
 
 	sc := bufio.NewScanner(dif)
@@ -91,7 +91,7 @@ func Print(ctx context.Context, w io.Writer, pr *libdiff.Printing, header string
 }
 
 // PrintColorizedDiff prints dif to w. If pr is nil, printing is monochrome.
-func PrintColorizedDiff(ctx context.Context, w io.Writer, pr *libdiff.Printing, dif io.Reader) error {
+func PrintColorizedDiff(ctx context.Context, w io.Writer, pr *libdiff.Colors, dif io.Reader) error {
 	if dif == nil {
 		return nil
 	}
@@ -108,7 +108,7 @@ func PrintColorizedDiff(ctx context.Context, w io.Writer, pr *libdiff.Printing, 
 		printSection = colorz.NewPrinter(pr.Section).Line
 		printMinus   = colorz.NewPrinter(pr.Deletion).Line
 		printPlus    = colorz.NewPrinter(pr.Insertion).Line
-		printNormal  = colorz.NewPrinter(pr.Normal).Line
+		printNormal  = colorz.NewPrinter(pr.Context).Line
 	)
 
 	sc := bufio.NewScanner(dif)
@@ -167,7 +167,7 @@ func PrintColorizedDiff(ctx context.Context, w io.Writer, pr *libdiff.Printing, 
 //	 11        ZERO        CAGE       2020-06-11T02:50:54Z
 //
 // If pr is nil, printing is monochrome.
-func colorizeHunks(ctx context.Context, w io.Writer, pr *libdiff.Printing, hunks io.Reader) error {
+func colorizeHunks(ctx context.Context, w io.Writer, pr *libdiff.Colors, hunks io.Reader) error {
 	if hunks == nil {
 		return nil
 	}
@@ -182,7 +182,7 @@ func colorizeHunks(ctx context.Context, w io.Writer, pr *libdiff.Printing, hunks
 		printSection = colorz.NewPrinter(pr.Section).Line
 		printMinus   = colorz.NewPrinter(pr.Deletion).Line
 		printPlus    = colorz.NewPrinter(pr.Insertion).Line
-		printNormal  = colorz.NewPrinter(pr.Normal).Line
+		printNormal  = colorz.NewPrinter(pr.Context).Line
 	)
 
 	sc := bufio.NewScanner(hunks)

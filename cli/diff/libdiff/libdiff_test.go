@@ -39,7 +39,7 @@ const (
 //	err = diff.Print(
 //		context.Background(),
 //		buf,
-//		NewPrinting(),
+//		NewColors(),
 //		"diff before after",
 //		strings.NewReader(result),
 //	)
