@@ -26,21 +26,35 @@ import (
 // execTableDataDiffDoc compares the row data in td1 and td2, writing the diff
 // to doc. The doc is sealed via HunkDoc.Seal before the function returns. If an
 // error occurs, the error is sealed in the doc, and can be checked via
-// [HunkDoc.Err]. Note that the returned doc's Doc.Read method blocks until the
-// doc is completed (or errors). Thus it's possible to execute this function on
-// a goroutine, and then invoke Doc.Read on another goroutine.
-func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config,
+// [HunkDoc.Err]. Note that the returned doc's [Doc.Read] method blocks until
+// the doc is completed (or errors out). Thus it's possible to execute this
+// function on a goroutine, and then invoke [Doc.Read] on another goroutine.
+func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, //nolint:funlen
 	td1, td2 *tableData, doc *HunkDoc,
 ) {
-	log := lg.FromContext(ctx)
+	bar := progress.FromContext(ctx).NewWaiter(
+		fmt.Sprintf("Diff table data %s, %s", td1.String(), td2.String()),
+		true,
+		progress.OptMemUsage,
+	)
+
 	recBufSize := tuning.OptRecBufSize.Get(options.FromContext(ctx))
-	recPairs := make(chan record.Pair, recBufSize)
+	recPairsCh := make(chan record.Pair, recBufSize)
 
-	qc := run.NewQueryContext(ru, nil)
-	query1 := td1.src.Handle + "." + stringz.DoubleQuote(td1.tblName)
-	query2 := td2.src.Handle + "." + stringz.DoubleQuote(td2.tblName)
-
+	// We create two libsq.RecordWriter instances, each of which will capture
+	// the records returned from a query. On a separate goroutine, those records
+	// will be collated into record.Pair instances, and sent to recPairsCh. Then,
+	// those record pairs are used to generate the diff, which is written to doc.
+	//
+	// Note that the libsq.RecordWriter.Open method must return an error channel
+	// that the query engine can send errors to. That error channel is errCh,
+	// created directly below.
 	errCh := make(chan error, 5) // Not sure if 5 is the correct size?
+
+	// The two recordWriter instances, recw1 and recw2, share the same errCh,
+	// because we don't care which one receives an error, just that one of them
+	// did.
+
 	recw1 := &recordWriter{
 		recCh: make(chan record.Record, recBufSize),
 		errCh: errCh,
@@ -50,63 +64,62 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config,
 		errCh: errCh,
 	}
 
-	msg := fmt.Sprintf("Diff table data %s, %s", td1.String(), td2.String())
-	bar := progress.FromContext(ctx).NewWaiter(msg, true, progress.OptMemUsage)
-
-	// Well, this is a bit wonky and probably can be restructured to be simpler.
-	// FIXME: more docs.
-	// The idea is that we want to cancel the context if an error occurs on any
-	// of the goroutines. We also want to cancel the context if the user
-	// cancels the operation. We also want to cancel the context if the
-	// operation completes successfully. So, we create a new context, and
-
+	// We'll be kicking off a bunch of goroutines below. If either of the
+	// recordWriter instances receives an error (on errCh), we'll want to stop
+	// those goroutines. So, we'll switch ctx to a context.WithCancelCause, which
+	// those new goroutines will use.
 	var cancelFn context.CancelCauseFunc
 	ctx, cancelFn = context.WithCancelCause(ctx)
+
+	// Somebody has to listen for errors on errCh. If an error is received,
+	// we'll cancel ctx, which will stop the other goroutines.
 	go func() {
 		if err := <-errCh; err != nil {
 			cancelFn(err)
 		}
 	}()
 
+	// Now we'll start two goroutines to execute the DB queries. The resulting
+	// records from the DB queries will be sent to each recordWriter.recCh, and
+	// any errors will be sent to the shared errCh.
+
+	qc := run.NewQueryContext(ru, nil)
+
 	go func() {
-		// Query DB, send records to recw1.
+		query1 := td1.src.Handle + "." + stringz.DoubleQuote(td1.tblName)
+		// Execute DB query1; records will be sent to recw1.recCh.
 		if err := libsq.ExecuteSLQ(ctx, qc, query1, recw1); err != nil {
 			if errz.Has[*driver.NotExistError](err) {
 				// For diffing, it's totally ok if a table is not found.
-				log.Debug("Diff: table not found", lga.Table, td1.String())
+				lg.FromContext(ctx).Debug("Diff: table not found", lga.Table, td1.String())
 				return
 			}
+
+			// Bah! An error was returned from libsq.ExecuteSLQ. This error may have
+			// arisen even before the query was executed, and thus is not guaranteed
+			// to have been sent on errCh. Regardless, we cancel the context with
+			// the error.
 			cancelFn(err)
 		}
 	}()
 
 	go func() {
-		// Query DB, send records to recw2.
-		// errCh <- errz.New("oh no") // FIXME: delete
-		// return
-
+		query2 := td2.src.Handle + "." + stringz.DoubleQuote(td2.tblName)
+		// Execute DB query2; records will be sent to recw2.recCh.
 		if err := libsq.ExecuteSLQ(ctx, qc, query2, recw2); err != nil {
 			if errz.Has[*driver.NotExistError](err) {
-				log.Debug("Diff: table not found", lga.Table, td2.String())
+				lg.FromContext(ctx).Debug("Diff: table not found", lga.Table, td2.String())
 				return
 			}
 			cancelFn(err)
 		}
 	}()
 
-	df := &recordDiffer{
-		cfg: cfg,
-		td1: td1,
-		td2: td2,
-		recMetaFn: func() (meta1, meta2 record.Meta) {
-			return recw1.recMeta, recw2.recMeta
-		},
-	}
-
+	// At this point, both of our DB query goroutines have kicked off. This next
+	// goroutine collates the records from recw1 and recw2 into record.Pair
+	// instances, and sends those pairs to recPairsCh. The pairs will be consumed
+	// by the diff exec goroutine further below.
 	go func() {
-		// Consume records from recw1 and recw2, build a record.Pair,
-		// and send the pair to df.recPairs. The pairs will be consumed
-		// by the exec goroutine.
 		var rec1, rec2 record.Record
 
 		for i := 0; ctx.Err() == nil; i++ {
@@ -124,44 +137,70 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config,
 
 			if rec1 == nil && rec2 == nil {
 				// End of data
-				close(recPairs)
+				close(recPairsCh)
 				return
 			}
 
-			recPairs <- record.NewPair(i, rec1, rec2)
+			recPairsCh <- record.NewPair(i, rec1, rec2)
 		}
 	}()
 
+	// This final goroutine is the main action.
 	go func() {
-		// This goroutine is the main action. It calls recordDiffer.exec, which
-		// consumes the record pairs, and writes the diff to doc. At the end of
-		// this function, doc.Seal is invoked. There are three possibilities:
+		defer bar.Stop() // Now is as good a time as any to cancel the progress bar.
+
+		// First, we construct a recordDiffer instance. It encapsulates building
+		// the diff from the record pairs in recPairsCh.
+		differ := &recordDiffer{
+			cfg: cfg,
+			td1: td1,
+			td2: td2,
+			recMetaFn: func() (meta1, meta2 record.Meta) {
+				return recw1.recMeta, recw2.recMeta
+			},
+		}
+
+		// Shortly below, we invoke recordDiffer.exec, which consumes the record
+		// pairs from recPairsCh, and writes the diff to doc. At the end of this
+		// unction, doc.Seal is invoked. There are three possibilities:
 		//
 		//  - Happy path: everything worked, and doc.Seal(nil) is invoked.
-		//  - recordDiff.exec encountered an error, and doc.Seal(err) is invoked.
+		//  - recordDiffer.exec encountered an error, and doc.Seal(err) is invoked.
 		//  - One of the other goroutines encountered an error, and propagated that
 		//    error via cancelFn(err). Thus, in this goroutine, we must check that
 		//    condition, and invoke doc.Seal() with the cancel cause error.
 
-		defer bar.Stop()
 		var err error
 		defer func() {
-			// On the happy path, err is nil, but we still want to invoke cancelFn
-			// to avoid resource leaks.
+			// When on the happy path, err will be nil, but we still need to invoke
+			// cancelFn to avoid resource leaks.
 			cancelFn(err)
 		}()
 
-		if err = df.exec(ctx, recPairs, doc); err != nil {
+		// OK, finally we get to generating the diff! The generated diff is written
+		// to doc.
+		if err = differ.exec(ctx, recPairsCh, doc); err != nil {
+			// Something bad happened, err is non-nil. Propagate err to the doc, and
+			// get the hell outta here.
 			doc.Seal(err)
 			return
 		}
 
-		// On the happy path, the error arg to doc.Seal is nil.
+		// We didn't get an error from recordDiffer.exec. Presumably we're on the
+		// happy path, and so the error arg to doc.Seal should be nil.
 		//
-		// But, if any of the other goroutines encountered an error, that error
-		// was propagated to the context via the context.CancelCauseFunc.
+		// BUT... if any of the other goroutines encountered an error, that error
+		// was propagated to ctx via cancelFn, and we would need to pass that error
+		// to doc.Seal.
+		//
+		// But hopefully we're just passing nil to doc.Seal here.
 		doc.Seal(errz.Err(context.Cause(ctx)))
 	}()
+
+	// Now execTableDataDiffDoc returns, while the goroutines do their magic.
+	// The caller can just invoke doc.Read, which will block until the DB queries
+	// execute and return results, and the diff is generated, and the diff is
+	// written to doc.
 }
 
 // recordDiffer encapsulates execution of diffing the records of two tables.
@@ -171,18 +210,26 @@ type recordDiffer struct {
 
 	// recMetaFn returns the record.Meta for the query results for td1 and td2.
 	// We use a function here because record.Meta is only available after the
-	// query has been executed (and isn't available at the time of recordDiffer
-	// construction).
+	// query has been executed (the record.Meta is returned from the DB, and thus
+	// isn't guaranteed to be available at the time of recordDiffer construction).
 	recMetaFn func() (rm1, rm2 record.Meta)
 }
 
-// exec compares the record pairs from recPairs, writing the diff results to
+// exec compares the record pairs from recPairsCh, writing the diff results to
 // doc. This function does not invoke [HunkDoc.Seal], so the caller must do so,
 // probably passing the returned err (if non-nil) to [HunkDoc.Seal].
-func (rd *recordDiffer) exec(ctx context.Context, recPairs <-chan record.Pair, doc *HunkDoc) error {
+func (rd *recordDiffer) exec(ctx context.Context, recPairsCh <-chan record.Pair, doc *HunkDoc) error {
 	var (
-		numLines  = rd.cfg.Lines
-		tb        = tailbuf.New[record.Pair](numLines + 1)
+		numLines = rd.cfg.Lines
+
+		// We use a tailbuf to hang on to the last X record pairs. We'll need to
+		// look back at those record pairs to construct the context lines preceding
+		// any differing records we encounter.
+		tb = tailbuf.New[record.Pair](numLines + 1)
+
+		// hunkPairs is the slice of record pairs that will be used to generate the
+		// actual diff hunk. It will contain the differing record pair, as well as
+		// numLines of pairs before and after differing pair.
 		hunkPairs []record.Pair
 
 		rp  record.Pair
@@ -196,7 +243,8 @@ LOOP:
 		case <-ctx.Done():
 			err = errz.Err(context.Cause(ctx))
 			break LOOP
-		case rp, ok = <-recPairs:
+		case rp, ok = <-recPairsCh:
+			// Get the next record pair for processing.
 		}
 
 		if !ok {
@@ -208,20 +256,22 @@ LOOP:
 		tb.Write(rp)
 
 		if rp.Equal() {
-			// The record pair is equal, so we loop.
+			// The record pair is equal, so we loop until we find a differing pair.
 			continue
 		}
 
-		// We've found a differing record pair. We need to generate a hunk.
+		// We've found a differing record pair. We need to generate a diff hunk.
 		var hunk *Hunk
 
 		// But, the hunk doesn't just contain the differing record pair. It may also
 		// include context lines before and after the difference.
 
 		// First, we get the before-the-difference record pairs from the tailbuf.
-		// Conveniently, the tailbuf already contains the differing record pair.
+		// Conveniently, the tailbuf also already contains the differing record pair.
 		hunkPairs = tb.Slice(row-numLines, row+1)
 
+		// Create a new hunk in doc. The actual diff text will get written to that
+		// hunk.
 		if hunk, err = doc.NewHunk(row - (len(hunkPairs) - 1)); err != nil {
 			break
 		}
@@ -247,18 +297,20 @@ LOOP:
 		//   37        VAL         BOLGER     2020-06-11T02:50:54Z
 		//  -38        TOM         MCKELLEN   2020-06-11T02:50:54Z
 		//
-		// The maxHunRecords limit exists to prevent unbounded growth of the hunk,
+		// The cfg.HunkMaxSize limit exists to prevent unbounded growth of the hunk,
 		// which could eventually lead to an OOM situation if the diff is huge. If
 		// the limit is reached, the user will see adjacent hunks without any
 		// non-differing context lines between them. But that's ok, it's still a
 		// well-formed and valid diff, it'll be rare, and it's better than OOMing.
 		var pairMatchSeq int
-		for {
+		for err = ctx.Err(); err == nil; {
+			// Start looking ahead to get numLines of after-the-difference record
+			// pairs.
 			select {
 			case <-ctx.Done():
 				err = errz.Err(ctx.Err())
 				break LOOP
-			case rp, ok = <-recPairs:
+			case rp, ok = <-recPairsCh:
 			}
 
 			if !ok {
@@ -292,15 +344,17 @@ LOOP:
 		}
 
 		// OK, now we've got enough record pairs to populate the hunk.
-
 		rd.populateHunk(ctx, hunkPairs, hunk)
 		if err = hunk.Err(); err != nil {
+			// Uh-oh, something bad happened while populating the hunk.
+			// Time to head for the exit.
 			break
 		}
 	}
 
+	// We're here because we either have generated the hunk, or an error occurred.
 	if err == nil {
-		// Even if err is nil, it's still possible that ctx.Err is non-nil.
+		// Even if err is nil, it's still possible that the context was canceled.
 		err = errz.Err(context.Cause(ctx))
 	}
 
