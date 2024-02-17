@@ -75,10 +75,13 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 	}
 
 	doc := NewHunkDoc("", NewDocHeader(cfg.prDiff, td1.String(), td2.String()))
-	go execTableDataDiffDoc(ctx, ru, cfg, td1, td2, doc)
+	var cancelFn context.CancelCauseFunc
+	ctx, cancelFn = context.WithCancelCause(ctx)
+	go execTableDataDiffDoc(ctx, cancelFn, ru, cfg, td1, td2, doc)
 
-	_, err = io.Copy(ru.Out, contextio.NewReader(ctx, doc))
-	return errz.Err(err)
+	_, err = errz.Return(io.Copy(ru.Out, contextio.NewReader(ctx, doc)))
+	cancelFn(err)
+	return err
 }
 
 func buildTableStructureDiff(ctx context.Context, cfg *Config, showRowCounts bool,

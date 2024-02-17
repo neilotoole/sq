@@ -127,7 +127,7 @@ func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (targetSQL str
 // Note that QuerySQL may return before recw has finished writing, thus the
 // caller may wish to wait for recw to complete.
 // The caller is responsible for closing grip (and db, if non-nil).
-func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB, //nolint:funlen
+func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 	recw RecordWriter, query string, args ...any,
 ) error {
 	log := lg.FromContext(ctx)

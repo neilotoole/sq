@@ -26,11 +26,13 @@ import (
 // execTableDataDiffDoc compares the row data in td1 and td2, writing the diff
 // to doc. The doc is sealed via [HunkDoc.Seal] before the function returns. If
 // an error occurs, the error is sealed into the doc, and can be checked via
-// [HunkDoc.Err]. Note that the returned doc's [Doc.Read] method blocks until
-// the doc is completed (or errors out). Thus it's possible to execute this
-// function on a goroutine, and then invoke [Doc.Read] on another goroutine.
-func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, //nolint:funlen
-	td1, td2 *tableData, doc *HunkDoc,
+// [HunkDoc.Err]. Any error should also be propagated via cancelFn, to cancel
+// any peer goroutines. Note that the returned doc's [Doc.Read] method blocks
+// until the doc is completed (or errors out). Thus it's possible to execute
+// this function on a goroutine, and then invoke [Doc.Read] on another
+// goroutine.
+func execTableDataDiffDoc(ctx context.Context, cancelFn context.CancelCauseFunc,
+	ru *run.Run, cfg *Config, td1, td2 *tableData, doc *HunkDoc,
 ) {
 	bar := progress.FromContext(ctx).NewWaiter(
 		fmt.Sprintf("Diff table data %s, %s", td1.String(), td2.String()),
@@ -64,13 +66,6 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, //nolin
 		recCh: make(chan record.Record, recBufSize),
 		errCh: errCh,
 	}
-
-	// We'll be kicking off a bunch of goroutines below. If either of the
-	// recordWriter instances receives an error (on errCh), we'll want to stop
-	// those goroutines. So, we'll switch ctx to a context.WithCancelCause, which
-	// those new goroutines will use.
-	var cancelFn context.CancelCauseFunc
-	ctx, cancelFn = context.WithCancelCause(ctx)
 
 	// Somebody has to listen for errors on errCh. If an error is received,
 	// we'll cancel ctx, which will stop the other goroutines.
@@ -172,11 +167,6 @@ func execTableDataDiffDoc(ctx context.Context, ru *run.Run, cfg *Config, //nolin
 		//    condition, and invoke doc.Seal() with the cancel cause error.
 
 		var err error
-		defer func() {
-			// When on the happy path, err will be nil, but we still need to invoke
-			// cancelFn to avoid resource leaks.
-			cancelFn(err)
-		}()
 
 		// OK, finally we get to generating the diff! The generated diff is written
 		// to doc.

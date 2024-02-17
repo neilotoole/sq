@@ -74,6 +74,10 @@ linters-settings:
     # Default: 40
     statements: 100
 
+    # Ignore comments when counting lines.
+    # Default false
+    ignore-comments: true
+
   gocognit:
     # Minimal code complexity to report
     # Default: 30 (but we recommend 10-20)

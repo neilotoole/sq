@@ -100,7 +100,7 @@ func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	}, nil
 }
 
-// execSourceDataDiff executes a diff all tables found in either source.
+// execSourceDataDiff executes a diff of all tables found in either source.
 func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 *sourceData) error {
 	o := options.FromContext(ctx)
 
