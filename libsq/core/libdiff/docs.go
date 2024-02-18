@@ -158,25 +158,38 @@ func (d *UnifiedDoc) Err() error {
 	return d.err
 }
 
-// NewDocHeader returns a diff header suitable for use with NewHunkDoc. The
-// returned header looks something like:
+// Header is the byte sequence for a diff doc, as created by [Headerf],
+// and passed to [NewHunkDoc].
+type Header []byte
+
+// String returns the header as a string. It may be empty. Colorization is
+// stripped.
+func (h Header) String() string {
+	if len(h) == 0 {
+		return ""
+	}
+	return string(colorz.Strip(h))
+}
+
+// Headerf formats a diff doc header suitable for use with NewHunkDoc.
+//
+//	header := libdiff.Headerf(clrs, "@sakila_a.actor", "@sakila_b.actor")
+//
+// The returned header looks something like:
 //
 //	--- @sakila_a.actor
 //	+++ @sakila_b.actor
 //
-// It is colorized according to [output.Printing.DiffHeader].
-func NewDocHeader(clrs *Colors, left, right string) []byte {
-	header := fmt.Sprintf("--- %s\n+++ %s\n", left, right)
-
-	if clrs == nil || clrs.IsMonochrome() {
-		return []byte(header)
+// It is colorized according to [Colors.Header], and terminates with newline.
+func Headerf(clrs *Colors, left, right string) Header {
+	if clrs == nil || clrs.Header == nil || clrs.IsMonochrome() {
+		return []byte(fmt.Sprintf("--- %s\n+++ %s\n", left, right))
 	}
 
-	buf := &bytes.Buffer{}
-	if _, err := colorz.NewPrinter(clrs.Header).Block(buf, []byte(header)); err != nil {
-		return []byte(header)
-	}
-	return buf.Bytes()
+	line1 := clrs.Header.Sprintf("--- %s", left) + "\n"
+	line2 := clrs.Header.Sprintf("+++ %s", right) + "\n"
+
+	return append([]byte(line1), line2...)
 }
 
 // Title is the byte sequence for a diff command title, as created by [Titlef],
@@ -195,16 +208,17 @@ func (t Title) String() string {
 // Titlef formats a diff command title suitable for use with NewHunkDoc
 // or NewUnifiedDoc.
 //
-//	title := libdiff.Titlef(cfg.Colors, "sq diff --data %s %s", src1.Handle, src2.Handle)
+//	title := libdiff.Titlef(clrs, "sq diff --data %s %s", src1.Handle, src2.Handle)
 //
-// The title is colorized according to [Colors.CmdTitle].
+// The title is colorized according to [Colors.CmdTitle] and terminates with
+// newline.
 func Titlef(clrs *Colors, format string, a ...any) []byte {
 	title := fmt.Sprintf(format, a...)
 	if title == "" {
 		return []byte{}
 	}
 
-	if clrs != nil && !clrs.IsMonochrome() {
+	if clrs != nil && clrs.CmdTitle != nil && !clrs.IsMonochrome() {
 		title = clrs.CmdTitle.Sprint(title)
 	}
 
@@ -261,7 +275,7 @@ func (d *HunkDoc) Close() error {
 
 // NewHunkDoc returns a new HunkDoc with the given title and header. The values
 // should be previously colorized if desired. The title may be empty. The header
-// can be generated with [NewDocHeader]. If non-empty, both title and header
+// can be generated with [Headerf]. If non-empty, both title and header
 // should be terminated with a newline. The returned [HunkDoc] is not sealed;
 // thus a call to [HunkDoc.Read] blocks until [HunkDoc.Seal] is invoked.
 func NewHunkDoc(title, header []byte) *HunkDoc {

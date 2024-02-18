@@ -2,7 +2,6 @@ package diff
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	"github.com/neilotoole/sq/libsq/core/libdiff"
@@ -67,9 +66,8 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 			return err
 		}
 
-		title := libdiff.Titlef(cfg.Colors, fmt.Sprintf("sq diff --schema %s.%s %s.%s",
-			td1.src.Handle, td1.tblName, td2.src.Handle, td2.tblName))
-		doc := libdiff.NewUnifiedDoc(title)
+		doc := libdiff.NewUnifiedDoc(libdiff.Titlef(cfg.Colors,
+			"sq diff --schema %s %s", td1.String(), td2.String()))
 		docs = append(docs, doc)
 		execFns = append(execFns, func() {
 			execTableStructureDiff(ctx, cfg, elems.RowCount, td1, td2, doc)
@@ -80,10 +78,10 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 	}
 
 	if elems.Data {
-		title := libdiff.Titlef(cfg.Colors, fmt.Sprintf("sq diff --data %s.%s %s.%s",
-			td1.src.Handle, td1.tblName, td2.src.Handle, td2.tblName))
-		header := libdiff.NewDocHeader(cfg.Colors, td1.String(), td2.String())
-		doc := libdiff.NewHunkDoc(title, header)
+		doc := libdiff.NewHunkDoc(
+			libdiff.Titlef(cfg.Colors, "sq diff --data %s.%s %s.%s",
+				td1.src.Handle, td1.tblName, td2.src.Handle, td2.tblName),
+			libdiff.Headerf(cfg.Colors, td1.String(), td2.String()))
 		docs = append(docs, doc)
 		execFns = append(execFns, func() {
 			execTableDataDiffDoc(ctx, cancelFn, ru, cfg, td1, td2, doc)

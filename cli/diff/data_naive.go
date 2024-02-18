@@ -53,8 +53,10 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 		td2 := &tableData{src: sd2.src, tblName: tblName}
 		td2.tblMeta = sd2.srcMeta.Table(tblName)
 
-		title := libdiff.Titlef(cfg.Colors, "sq diff --data %s %s", td1.String(), td2.String())
-		doc := libdiff.NewHunkDoc(title, libdiff.NewDocHeader(cfg.Colors, td1.String(), td2.String()))
+		doc := libdiff.NewHunkDoc(
+			libdiff.Titlef(cfg.Colors, "sq diff --data %s %s", td1.String(), td2.String()),
+			libdiff.Headerf(cfg.Colors, td1.String(), td2.String()),
+		)
 		docs[i] = doc
 		execFns[i] = func() error {
 			execTableDataDiffDoc(ctx, cancelFn, ru, cfg, td1, td2, doc)
