@@ -79,8 +79,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 
 	if elems.Data {
 		doc := libdiff.NewHunkDoc(
-			libdiff.Titlef(cfg.Colors, "sq diff --data %s.%s %s.%s",
-				td1.src.Handle, td1.tblName, td2.src.Handle, td2.tblName),
+			libdiff.Titlef(cfg.Colors, "sq diff --data %s %s", td1, td2),
 			libdiff.Headerf(cfg.Colors, td1.String(), td2.String()))
 		docs = append(docs, doc)
 		execFns = append(execFns, func() {

@@ -450,7 +450,7 @@ func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, h
 
 	var ok bool
 	if hunkHeader, hunkBody, ok = strings.Cut(trimmed, "\n"); !ok {
-		err = errz.New("Hunk header not found")
+		err = errz.New("hunk header not found")
 		return
 	}
 

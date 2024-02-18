@@ -5,6 +5,8 @@ import (
 	"io"
 	"slices"
 
+	"github.com/neilotoole/sq/libsq/core/langz"
+
 	"github.com/neilotoole/sq/libsq/core/libdiff"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -19,10 +21,10 @@ import (
 	"github.com/neilotoole/sq/libsq/core/tuning"
 )
 
-// execSourceDataDiff compares the row data of each table in sd1 and sd2.
-func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 *sourceData) (err error) {
+// execDiffSourceTablesData compares the row data of each table in sd1 and sd2.
+func execDiffSourceTablesData(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 *sourceData) (err error) {
 	log := lg.FromContext(ctx).With(lga.Left, sd1.src.Handle, lga.Right, sd2.src.Handle)
-	log.Info("Diffing source data")
+	log.Info("Diffing source tables data")
 
 	allTblNames := append(sd1.srcMeta.TableNames(), sd2.srcMeta.TableNames()...)
 	allTblNames = lo.Uniq(allTblNames)
@@ -31,9 +33,6 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 	var cancelFn context.CancelCauseFunc
 	ctx, cancelFn = context.WithCancelCause(ctx)
 	defer func() { cancelFn(err) }()
-
-	g := &errgroup.Group{}
-	g.SetLimit(tuning.OptErrgroupLimit.Get(options.FromContext(ctx)))
 
 	docs := make([]*libdiff.HunkDoc, len(allTblNames))
 	defer func() {
@@ -54,7 +53,7 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 		td2.tblMeta = sd2.srcMeta.Table(tblName)
 
 		doc := libdiff.NewHunkDoc(
-			libdiff.Titlef(cfg.Colors, "sq diff --data %s %s", td1.String(), td2.String()),
+			libdiff.Titlef(cfg.Colors, "sq diff --data %s %s", td1, td2),
 			libdiff.Headerf(cfg.Colors, td1.String(), td2.String()),
 		)
 		docs[i] = doc
@@ -64,30 +63,19 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 		}
 	}
 
+	g := &errgroup.Group{}
+	g.SetLimit(tuning.OptErrgroupLimit.Get(options.FromContext(ctx)))
 	for i := range execFns {
 		g.Go(execFns[i])
 	}
 
 	if err = g.Wait(); err != nil {
-		log.Error("Goroutine error", lga.Err, err)
 		cancelFn(err)
 		return err
 	}
 
-	for i := range docs {
-		doc := docs[i]
-		if err = doc.Err(); err != nil {
-			log.Error("Diff doc error")
-			cancelFn(err)
-			return err
-		}
-
-		if _, err = io.Copy(ru.Out, contextio.NewReader(ctx, doc)); err != nil {
-			log.Error("Doc write out error", lga.Err, err)
-			cancelFn(err)
-			return err
-		}
-	}
-
-	return nil
+	rdr := io.MultiReader(langz.MustTypedSlice[io.Reader](docs...)...)
+	_, err = io.Copy(ru.Out, contextio.NewReader(ctx, rdr))
+	cancelFn(err)
+	return err
 }

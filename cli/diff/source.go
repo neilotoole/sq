@@ -103,7 +103,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 
 	if elems.Data {
 		// We're going for it... diff all table data.
-		return execSourceDataDiff(ctx, ru, cfg, sd1, sd2)
+		return execDiffSourceTablesData(ctx, ru, cfg, sd1, sd2)
 	}
 
 	return nil
