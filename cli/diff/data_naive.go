@@ -2,9 +2,10 @@ package diff
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"slices"
+
+	"github.com/neilotoole/sq/libsq/core/libdiff"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/samber/lo"
@@ -34,7 +35,7 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 	g := &errgroup.Group{}
 	g.SetLimit(tuning.OptErrgroupLimit.Get(options.FromContext(ctx)))
 
-	docs := make([]*HunkDoc, len(allTblNames))
+	docs := make([]*libdiff.HunkDoc, len(allTblNames))
 	defer func() {
 		for i := range docs {
 			lg.WarnIfCloseError(log, lgm.CloseDiffDoc, docs[i])
@@ -52,8 +53,8 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 		td2 := &tableData{src: sd2.src, tblName: tblName}
 		td2.tblMeta = sd2.srcMeta.Table(tblName)
 
-		cmdTitle := Titlef(cfg.Colors, fmt.Sprintf("sq diff --data %s %s", td1.String(), td2.String()))
-		doc := NewHunkDoc(cmdTitle, NewDocHeader(cfg.Colors, td1.String(), td2.String()))
+		title := libdiff.Titlef(cfg.Colors, "sq diff --data %s %s", td1.String(), td2.String())
+		doc := libdiff.NewHunkDoc(title, libdiff.NewDocHeader(cfg.Colors, td1.String(), td2.String()))
 		docs[i] = doc
 		execFns[i] = func() error {
 			execTableDataDiffDoc(ctx, cancelFn, ru, cfg, td1, td2, doc)

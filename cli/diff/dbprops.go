@@ -10,7 +10,7 @@ import (
 )
 
 // execDiffDBProps diffs the dbprops of sd1 and sd2, writing the diff to doc.
-func execDiffDBProps(ctx context.Context, cfg *Config, sd1, sd2 *sourceData, doc *UnifiedDoc) {
+func execDiffDBProps(ctx context.Context, cfg *Config, sd1, sd2 *sourceData, doc *libdiff.UnifiedDoc) {
 	var err error
 	defer func() { doc.Seal(err) }()
 

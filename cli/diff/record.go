@@ -34,7 +34,7 @@ import (
 //
 // REVISIT: Do we really need to pass in the cancelFn here?
 func execTableDataDiffDoc(ctx context.Context, cancelFn context.CancelCauseFunc,
-	ru *run.Run, cfg *Config, td1, td2 *tableData, doc *HunkDoc,
+	ru *run.Run, cfg *Config, td1, td2 *tableData, doc *libdiff.HunkDoc,
 ) {
 	log := lg.FromContext(ctx).With(lga.Left, td1.String(), lga.Right, td2.String())
 	log.Info("Diffing table data")
@@ -242,7 +242,7 @@ type recordDiffer struct {
 // exec compares the record pairs from recPairsCh, writing the diff results to
 // doc. This function does not invoke [HunkDoc.Seal], so the caller must do so,
 // probably passing the returned err (if non-nil) to [HunkDoc.Seal].
-func (rd *recordDiffer) exec(ctx context.Context, recPairsCh <-chan record.Pair, doc *HunkDoc) error {
+func (rd *recordDiffer) exec(ctx context.Context, recPairsCh <-chan record.Pair, doc *libdiff.HunkDoc) error {
 	var (
 		numLines = rd.cfg.Lines
 
@@ -285,7 +285,7 @@ LOOP:
 		}
 
 		// We've found a differing record pair. We need to generate a diff hunk.
-		var hunk *Hunk
+		var hunk *libdiff.Hunk
 
 		// But, the hunk doesn't just contain the differing record pair. It may also
 		// include context lines before and after the difference.
@@ -388,7 +388,7 @@ LOOP:
 // populateHunk populates hunk with the diff of the record pairs. Before return,
 // the hunk is always sealed via [Hunk.Seal]. The caller can check [Hunk.Err]
 // to see if an error occurred.
-func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, hunk *Hunk) {
+func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, hunk *libdiff.Hunk) {
 	var (
 		handleTbl1           = rd.td1.String()
 		handleTbl2           = rd.td2.String()
@@ -458,7 +458,7 @@ func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, h
 		return
 	}
 
-	if hunkHeader, err = adjustHunkOffset(hunkHeader, hunk.offset); err != nil {
+	if hunkHeader, err = adjustHunkOffset(hunkHeader, hunk.Offset()); err != nil {
 		return
 	}
 

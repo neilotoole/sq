@@ -70,7 +70,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 
 	if elems.DBProperties {
 		title := []byte(cfg.Colors.CmdTitle.Sprintf("sq diff --dbprops %s %s", sd1.handle, sd2.handle))
-		doc := NewUnifiedDoc(title)
+		doc := libdiff.NewUnifiedDoc(title)
 		execDiffDBProps(ctx, cfg, sd1, sd2, doc)
 		if err := doc.Err(); err != nil {
 			return err

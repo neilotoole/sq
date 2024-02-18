@@ -53,7 +53,7 @@ func buildSourceTableStructureDiffs(ctx context.Context, cfg *Config, showRowCou
 }
 
 func execTableStructureDiff(ctx context.Context, cfg *Config, showRowCounts bool,
-	td1, td2 *tableData, doc *UnifiedDoc,
+	td1, td2 *tableData, doc *libdiff.UnifiedDoc,
 ) {
 	var (
 		body1, body2 string

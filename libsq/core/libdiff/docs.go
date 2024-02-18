@@ -1,4 +1,4 @@
-package diff
+package libdiff
 
 import (
 	"bytes"
@@ -13,7 +13,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/langz"
-	"github.com/neilotoole/sq/libsq/core/libdiff"
 )
 
 var _ io.ReadCloser = (Doc)(nil)
@@ -31,7 +30,7 @@ type Doc interface {
 
 	// Title returns the doc's title as a string, which may be empty. Any
 	// colorization in the title bytes is removed.
-	Title() string
+	Title() Title
 
 	// Err returns the error associated with the doc. On the happy path, Err
 	// returns nil. If Err returns non-nil, a call to Read will return the same
@@ -47,13 +46,19 @@ var (
 // NewUnifiedDoc returns a new UnifiedDoc with the given title. The title may be
 // empty. The diff body should be written via [UnifiedDoc.Write], and then the doc
 // should be sealed via [UnifiedDoc.Seal].
-func NewUnifiedDoc(cmdTitle []byte) *UnifiedDoc {
+func NewUnifiedDoc(cmdTitle Title) *UnifiedDoc {
 	return &UnifiedDoc{
-		cmdTitle: bytez.TerminateNewline(cmdTitle),
-		sealed:   make(chan struct{}),
-		bodyBuf:  &bytes.Buffer{},
+		title:   bytez.TerminateNewline(cmdTitle),
+		sealed:  make(chan struct{}),
+		bodyBuf: &bytes.Buffer{},
 	}
 }
+
+var (
+	_ io.ReadCloser = (*UnifiedDoc)(nil)
+	_ io.Writer     = (*UnifiedDoc)(nil)
+	_ Doc           = (*UnifiedDoc)(nil)
+)
 
 // UnifiedDoc is a diff [Doc] that consists of a single unified diff body
 // (although that body may contain multiple hunks). It exists as a bridge to
@@ -61,13 +66,13 @@ func NewUnifiedDoc(cmdTitle []byte) *UnifiedDoc {
 //
 // See also: [HunkDoc].
 type UnifiedDoc struct {
-	err      error
-	rdr      io.Reader
-	sealed   chan struct{}
-	bodyBuf  *bytes.Buffer
-	cmdTitle []byte
-	rdrOnce  sync.Once
-	mu       sync.Mutex
+	err     error
+	rdr     io.Reader
+	sealed  chan struct{}
+	bodyBuf *bytes.Buffer
+	title   Title
+	rdrOnce sync.Once
+	mu      sync.Mutex
 }
 
 // Close implements io.Closer.
@@ -76,15 +81,15 @@ func (d *UnifiedDoc) Close() error {
 	return nil
 }
 
-// Title returns the doc's title as a string. It may be empty. Colorization
-// is stripped.
-func (d *UnifiedDoc) Title() string {
-	if len(d.cmdTitle) == 0 {
-		return ""
-	}
+// Title returns the doc's title. It may be empty.
+func (d *UnifiedDoc) Title() Title {
+	return d.title
+}
 
-	b := colorz.Strip(d.cmdTitle)
-	return string(b)
+// String returns the doc's title as a string, with any colorization removed.
+// It may be empty.
+func (d *UnifiedDoc) String() string {
+	return d.Title().String()
 }
 
 // Write writes to the doc body. The bytes are returned without processing by
@@ -133,12 +138,12 @@ func (d *UnifiedDoc) Read(p []byte) (n int, err error) {
 			return
 		}
 
-		if len(d.cmdTitle) == 0 {
+		if len(d.title) == 0 {
 			d.rdr = d.bodyBuf
 			return
 		}
 
-		d.rdr = io.MultiReader(bytes.NewReader(d.cmdTitle), d.bodyBuf)
+		d.rdr = io.MultiReader(bytes.NewReader(d.title), d.bodyBuf)
 	})
 
 	return d.rdr.Read(p)
@@ -160,7 +165,7 @@ func (d *UnifiedDoc) Err() error {
 //	+++ @sakila_b.actor
 //
 // It is colorized according to [output.Printing.DiffHeader].
-func NewDocHeader(clrs *libdiff.Colors, left, right string) []byte {
+func NewDocHeader(clrs *Colors, left, right string) []byte {
 	header := fmt.Sprintf("--- %s\n+++ %s\n", left, right)
 
 	if clrs == nil || clrs.IsMonochrome() {
@@ -174,10 +179,27 @@ func NewDocHeader(clrs *libdiff.Colors, left, right string) []byte {
 	return buf.Bytes()
 }
 
-// Titlef returns a diff command title suitable for use with NewHunkDoc
-// or NewUnifiedDoc. The title is colorized according to
-// [libdiff.Colors.CmdTitle].
-func Titlef(clrs *libdiff.Colors, title string) []byte {
+// Title is the byte sequence for a diff command title, as created by [Titlef],
+// and passed to [NewUnifiedDoc] or [NewHunkDoc].
+type Title []byte
+
+// String returns the title as a string. It may be empty. Colorization is
+// stripped.
+func (t Title) String() string {
+	if len(t) == 0 {
+		return ""
+	}
+	return string(colorz.Strip(t))
+}
+
+// Titlef formats a diff command title suitable for use with NewHunkDoc
+// or NewUnifiedDoc.
+//
+//	title := libdiff.Titlef(cfg.Colors, "sq diff --data %s %s", src1.Handle, src2.Handle)
+//
+// The title is colorized according to [Colors.CmdTitle].
+func Titlef(clrs *Colors, format string, a ...any) []byte {
+	title := fmt.Sprintf(format, a...)
 	if title == "" {
 		return []byte{}
 	}
@@ -250,20 +272,15 @@ func NewHunkDoc(title, header []byte) *HunkDoc {
 	}
 }
 
-// Title returns the doc's title as a string. It may be empty. Colorization
-// is stripped.
-func (d *HunkDoc) Title() string {
-	if len(d.title) == 0 {
-		return ""
-	}
-
-	b := colorz.Strip(d.title)
-	return string(b)
+// Title returns the doc's title. It may be empty.
+func (d *HunkDoc) Title() Title {
+	return d.title
 }
 
-// String returns the doc's title as a string. It may be empty.
+// String returns the doc's title as a string, with any colorization removed.
+// It may be empty.
 func (d *HunkDoc) String() string {
-	return d.Title()
+	return d.Title().String()
 }
 
 // Read blocks until the doc is sealed. It returns the doc's bytes, or the
@@ -395,6 +412,11 @@ type Hunk struct {
 	offset  int
 	rdrOnce sync.Once
 	mu      sync.Mutex
+}
+
+// Offset returns the nominal offset of this hunk in its doc's body.
+func (h *Hunk) Offset() int {
+	return h.offset
 }
 
 // Close implements io.Closer.
