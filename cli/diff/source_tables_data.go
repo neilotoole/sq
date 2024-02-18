@@ -15,11 +15,11 @@ import (
 )
 
 // execDiffSourceTablesData compares the row data of each table in sd1 and sd2.
-func execDiffSourceTablesData(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 *sourceData) (err error) {
+func execDiffSourceTablesData(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 *sourceData) error {
 	log := lg.FromContext(ctx).With(lga.Left, sd1.src.Handle, lga.Right, sd2.src.Handle)
 	log.Info("Diffing source tables data")
 
-	docs, err := prepareDiffSourceTablesDataExecers(ctx, ru, cfg, sd1, sd2)
+	docs, err := prepareSourceTablesDataDiffers(ctx, ru, cfg, sd1, sd2)
 	if err != nil {
 		return err
 	}
@@ -28,9 +28,9 @@ func execDiffSourceTablesData(ctx context.Context, ru *run.Run, cfg *Config, sd1
 	return diffdoc.Execute(ctx, ru.Out, concurrency, docs)
 }
 
-// prepareDiffSourceTablesDataExecers compares the row data of each table in sd1 and sd2.
-func prepareDiffSourceTablesDataExecers(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 *sourceData,
-) (execDocs []*diffdoc.Execer, err error) { //nolint:unparam
+// prepareSourceTablesDataDiffers compares the row data of each table in sd1 and sd2.
+func prepareSourceTablesDataDiffers(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 *sourceData,
+) (execDocs []*diffdoc.Differ, err error) { //nolint:unparam
 	log := lg.FromContext(ctx).With(lga.Left, sd1.src.Handle, lga.Right, sd2.src.Handle)
 	log.Info("Diffing source tables data")
 
@@ -38,7 +38,7 @@ func prepareDiffSourceTablesDataExecers(ctx context.Context, ru *run.Run, cfg *C
 	allTblNames = lo.Uniq(allTblNames)
 	slices.Sort(allTblNames)
 
-	docs := make([]*diffdoc.Execer, len(allTblNames))
+	differs := make([]*diffdoc.Differ, len(allTblNames))
 	for i, tblName := range allTblNames {
 		td1 := &tableData{src: sd1.src, tblName: tblName}
 		td1.tblMeta = sd1.srcMeta.Table(tblName)
@@ -54,10 +54,10 @@ func prepareDiffSourceTablesDataExecers(ctx context.Context, ru *run.Run, cfg *C
 			diffdoc.Headerf(cfg.Colors, td1.String(), td2.String()),
 		)
 
-		docs[i] = diffdoc.NewExecer(doc, func(ctx context.Context, cancelFn func(error)) {
+		differs[i] = diffdoc.NewDiffer(doc, func(ctx context.Context, cancelFn func(error)) {
 			execDiffTableData(ctx, cancelFn, ru, cfg, td1, td2, doc)
 		})
 	}
 
-	return docs, nil
+	return differs, nil
 }

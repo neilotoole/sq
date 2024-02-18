@@ -1,4 +1,5 @@
-// Package diffdoc contains core diff functionality.
+// Package diffdoc provides core diff functionality, with a focus on streaming
+// and concurrency.
 //
 // Reference:
 //
@@ -34,16 +35,17 @@ type Doc interface {
 	// Read returns [io.EOF].
 	Read(p []byte) (n int, err error)
 
-	// Close closes the doc, disposing of any resources held.
+	// Close closes the doc, releasing any resources held.
 	Close() error
 
-	// Title returns the doc's title, which may be empty.
-	Title() Title
-
 	// Err returns the error associated with the doc. On the happy path, Err
-	// returns nil. If Err returns non-nil, a call to Read will return the same
+	// returns nil. If Err returns non-nil, a call to [Doc.Read] returns the same
 	// error.
 	Err() error
+
+	// String returns the doc's title, with any colorization removed. It may be
+	// empty. It exists mainly for logging and debugging.
+	String() string
 }
 
 var (
@@ -51,9 +53,9 @@ var (
 	_ io.Writer = (*UnifiedDoc)(nil)
 )
 
-// NewUnifiedDoc returns a new UnifiedDoc with the given title. The title may be
-// empty. The diff body should be written via [UnifiedDoc.Write], and then the doc
-// should be sealed via [UnifiedDoc.Seal].
+// NewUnifiedDoc returns a new [UnifiedDoc] with the given title. The title may
+// be empty. The diff body should be written to via [UnifiedDoc.Write], and then
+// the doc should be sealed via [UnifiedDoc.Seal].
 func NewUnifiedDoc(cmdTitle Title) *UnifiedDoc {
 	return &UnifiedDoc{
 		title:   bytez.TerminateNewline(cmdTitle),
@@ -62,11 +64,8 @@ func NewUnifiedDoc(cmdTitle Title) *UnifiedDoc {
 	}
 }
 
-var (
-	_ io.ReadCloser = (*UnifiedDoc)(nil)
-	_ io.Writer     = (*UnifiedDoc)(nil)
-	_ Doc           = (*UnifiedDoc)(nil)
-)
+var _ Doc = (*UnifiedDoc)(nil)
+var _ io.Writer = (*UnifiedDoc)(nil)
 
 // UnifiedDoc is a diff [Doc] that consists of a single unified diff body
 // (although that body may contain multiple hunks). It exists as a bridge to
@@ -89,22 +88,20 @@ func (d *UnifiedDoc) Close() error {
 	return nil
 }
 
-// Title returns the doc's title. It may be empty.
-func (d *UnifiedDoc) Title() Title {
-	return d.title
-}
-
 // String returns the doc's title as a string, with any colorization removed.
 // It may be empty.
 func (d *UnifiedDoc) String() string {
-	return d.Title().String()
+	if d == nil || len(d.title) == 0 {
+		return ""
+	}
+	return d.title.String()
 }
 
-// Write writes to the doc body. The bytes are returned without processing by
-// [UnifiedDoc.Read], so any colorization etc. must occur before writing. When
-// writing is completed, the doc must be sealed via [UnifiedDoc.Seal]. It is a
-// programming error to invoke [UnifiedDoc.Write] after [UnifiedDoc.Seal] has
-// been invoked.
+// Write writes to the doc body. The bytes are returned (without additional
+// processing) by [UnifiedDoc.Read], so any colorization etc. must occur before
+// writing. When writing is complete, the doc must be sealed via
+// [UnifiedDoc.Seal]. It is a programming error to invoke [UnifiedDoc.Write]
+// after [UnifiedDoc.Seal] has been invoked.
 func (d *UnifiedDoc) Write(p []byte) (n int, err error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -180,7 +177,7 @@ func (h Header) String() string {
 	return string(colorz.Strip(h))
 }
 
-// Headerf formats a diff doc header suitable for use with NewHunkDoc.
+// Headerf formats a diff doc header suitable for use with [NewHunkDoc].
 //
 //	header := libdiff.Headerf(clrs, "@sakila_a.actor", "@sakila_b.actor")
 //
@@ -214,8 +211,8 @@ func (t Title) String() string {
 	return string(colorz.Strip(t))
 }
 
-// Titlef formats a diff command title suitable for use with NewHunkDoc
-// or NewUnifiedDoc.
+// Titlef formats a diff command title suitable for use with [NewHunkDoc] or
+// [NewUnifiedDoc].
 //
 //	title := libdiff.Titlef(clrs, "sq diff --data %s %s", src1.Handle, src2.Handle)
 //
@@ -258,7 +255,7 @@ type HunkDoc struct {
 	rdr       io.Reader
 	sealed    chan struct{}
 	closeErr  *error
-	title     []byte
+	title     Title
 	header    []byte
 	hunks     []*Hunk
 	rdrOnce   sync.Once
@@ -282,12 +279,12 @@ func (d *HunkDoc) Close() error {
 	return *d.closeErr
 }
 
-// NewHunkDoc returns a new HunkDoc with the given title and header. The values
-// should be previously colorized if desired. The title may be empty. The header
-// can be generated with [Headerf]. If non-empty, both title and header
+// NewHunkDoc returns a new [HunkDoc] with the given title and header. The
+// values should be previously colorized if desired. The title may be empty. The
+// header can be generated with [Headerf]. If non-empty, both title and header
 // should be terminated with a newline. The returned [HunkDoc] is not sealed;
 // thus a call to [HunkDoc.Read] blocks until [HunkDoc.Seal] is invoked.
-func NewHunkDoc(title, header []byte) *HunkDoc {
+func NewHunkDoc(title Title, header []byte) *HunkDoc {
 	return &HunkDoc{
 		title:  title,
 		header: header,
@@ -295,15 +292,13 @@ func NewHunkDoc(title, header []byte) *HunkDoc {
 	}
 }
 
-// Title returns the doc's title. It may be empty.
-func (d *HunkDoc) Title() Title {
-	return d.title
-}
-
 // String returns the doc's title as a string, with any colorization removed.
 // It may be empty.
 func (d *HunkDoc) String() string {
-	return d.Title().String()
+	if d == nil || len(d.title) == 0 {
+		return ""
+	}
+	return d.title.String()
 }
 
 // Read provides access to the doc's bytes. It blocks until the doc is sealed,
@@ -388,7 +383,7 @@ func (d *HunkDoc) Err() error {
 
 // NewHunk returns a new hunk, where offset is the nominal line number in the
 // unified diff that this hunk would be part of. The returned hunk is not
-// sealed, and any call to hunk.Read will block until hunk.Seal is invoked.
+// sealed, and any call to [Hunk.Read] will block until [Hunk.Seal] is invoked.
 func (d *HunkDoc) NewHunk(offset int) (*Hunk, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -422,10 +417,9 @@ var (
 	_ io.ReadCloser = (*Hunk)(nil)
 )
 
-// Hunk is a diff hunk. It implements io.Writer and io.Reader. The hunk is
-// written to via Write, and then sealed via Seal. Once sealed, the hunk can
-// be read via Read. Any call to hunk.Read will block until hunk.Seal is
-// invoked.
+// Hunk is a diff hunk, part of a [HunkDoc]. It implements [io.Writer] and
+// [io.Reader]. The hunk is written to via [Hunk.Write], and then sealed via
+// [Hunk.Seal]. Until sealed, [Hunk.Read] blocks.
 type Hunk struct {
 	err error
 
@@ -491,8 +485,8 @@ func (h *Hunk) Seal(header []byte, err error) {
 }
 
 // Read blocks until the hunk is sealed. It returns the doc's bytes, or the
-// non-nil error provided to [Hunk.Seal]. It is a programming error to call Read
-// after [Hunk.Close] has been invoked.
+// non-nil error provided to [Hunk.Seal]. It is a programming error to invoke
+// Read after [Hunk.Close] has been invoked.
 func (h *Hunk) Read(p []byte) (n int, err error) {
 	h.rdrOnce.Do(func() {
 		<-h.sealed
