@@ -108,4 +108,3 @@ type tableDiff struct {
 	header   string
 	diff     string
 }
-

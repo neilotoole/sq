@@ -174,6 +174,21 @@ func NewDocHeader(clrs *libdiff.Colors, left, right string) []byte {
 	return buf.Bytes()
 }
 
+// Titlef returns a diff command title suitable for use with NewHunkDoc
+// or NewUnifiedDoc. The title is colorized according to
+// [libdiff.Colors.CmdTitle].
+func Titlef(clrs *libdiff.Colors, title string) []byte {
+	if title == "" {
+		return []byte{}
+	}
+
+	if clrs != nil && !clrs.IsMonochrome() {
+		title = clrs.CmdTitle.Sprint(title)
+	}
+
+	return bytez.TerminateNewline([]byte(title))
+}
+
 var _ Doc = (*HunkDoc)(nil)
 
 // HunkDoc is a document that consists of a series of diff hunks. It implements
@@ -291,7 +306,7 @@ func (d *HunkDoc) Read(p []byte) (n int, err error) {
 
 		rdrs2 := make([]io.Reader, 0, 3)
 		if len(d.title) > 0 {
-			rdrs2 = append(rdrs2, bytes.NewReader(append(d.title, '\n')))
+			rdrs2 = append(rdrs2, bytes.NewReader(d.title))
 		}
 		rdrs2 = append(rdrs2, bytes.NewReader(p2))
 		rdrs2 = append(rdrs2, hunksMultiRdr)

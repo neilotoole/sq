@@ -3,13 +3,13 @@ package diff
 import (
 	"context"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
-	"github.com/neilotoole/sq/libsq/core/lg"
 	"io"
-	"slices"
 	"strings"
 
-	"github.com/samber/lo"
+	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/cli/run"
@@ -77,28 +77,14 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		}
 
 		_, err := errz.Return(io.Copy(ru.Out, contextio.NewReader(ctx, doc)))
-		lg.WarnIfCloseError(lg.FromContext(ctx), "Close diff doc", doc)
+		lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDiffDoc, doc)
 		if err != nil {
 			return err
 		}
-
-		//propsDiff, err := buildDBPropsDiff(ctx, cfg, sd1, sd2)
-		//if err != nil {
-		//	return err
-		//}
-		//if err = Print(
-		//	ctx,
-		//	ru.Out,
-		//	cfg.Colors,
-		//	propsDiff.header,
-		//	strings.NewReader(propsDiff.diff),
-		//); err != nil {
-		//	return err
-		//}
 	}
 
 	if elems.Schema {
-		tblDiffs, err := buildSourceTableDiffs(ctx, cfg, elems.RowCount, sd1, sd2)
+		tblDiffs, err := buildSourceTableStructureDiffs(ctx, cfg, elems.RowCount, sd1, sd2)
 		if err != nil {
 			return err
 		}
@@ -121,45 +107,6 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	}
 
 	return nil
-}
-
-func buildSourceTableDiffs(ctx context.Context, cfg *Config, showRowCounts bool,
-	sd1, sd2 *sourceData,
-) ([]*tableDiff, error) {
-	allTblNames := append(sd1.srcMeta.TableNames(), sd2.srcMeta.TableNames()...)
-	allTblNames = lo.Uniq(allTblNames)
-	slices.Sort(allTblNames)
-
-	var diffs []*tableDiff
-	for _, tblName := range allTblNames {
-		select {
-		case <-ctx.Done():
-			return nil, errz.Err(ctx.Err())
-		default:
-		}
-
-		td1 := &tableData{
-			tblName: tblName,
-			tblMeta: sd1.srcMeta.Table(tblName),
-			src:     sd1.src,
-			srcMeta: sd1.srcMeta,
-		}
-		td2 := &tableData{
-			tblName: tblName,
-			tblMeta: sd2.srcMeta.Table(tblName),
-			src:     sd2.src,
-			srcMeta: sd2.srcMeta,
-		}
-
-		dff, err := buildTableStructureDiff(ctx, cfg, showRowCounts, td1, td2)
-		if err != nil {
-			return nil, err
-		}
-
-		diffs = append(diffs, dff)
-	}
-
-	return diffs, nil
 }
 
 func buildSourceOverviewDiff(ctx context.Context, cfg *Config, sd1, sd2 *sourceData) (*sourceOverviewDiff, error) {

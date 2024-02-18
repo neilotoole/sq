@@ -2,10 +2,11 @@ package diff
 
 import (
 	"context"
-	"github.com/neilotoole/sq/libsq/core/libdiff"
-	"github.com/neilotoole/sq/libsq/core/progress"
 	"io"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/libdiff"
+	"github.com/neilotoole/sq/libsq/core/progress"
 )
 
 // execDiffDBProps diffs the dbprops of sd1 and sd2, writing the diff to doc.

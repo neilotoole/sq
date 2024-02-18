@@ -31,6 +31,8 @@ import (
 // until the doc is completed (or errors out). Thus it's possible to execute
 // this function on a goroutine, and then invoke [Doc.Read] on another
 // goroutine.
+//
+// REVISIT: Do we really need to pass in the cancelFn here?
 func execTableDataDiffDoc(ctx context.Context, cancelFn context.CancelCauseFunc,
 	ru *run.Run, cfg *Config, td1, td2 *tableData, doc *HunkDoc,
 ) {

@@ -4,17 +4,18 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/langz"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
-	"github.com/neilotoole/sq/libsq/core/libdiff"
-	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -24,6 +25,7 @@ import (
 func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Elements, //nolint:revive
 	handle1, table1, handle2, table2 string,
 ) error {
+	log := lg.FromContext(ctx).With(lga.Left, handle1+"."+table1, lga.Right, handle2+"."+table2)
 	td1, td2 := &tableData{tblName: table1}, &tableData{tblName: table2}
 
 	var err error
@@ -35,6 +37,17 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 	if err != nil {
 		return err
 	}
+
+	var docs []Doc
+	defer func() {
+		for i := range docs {
+			lg.WarnIfCloseError(log, lgm.CloseDiffDoc, docs[i])
+		}
+	}()
+
+	var execFns []func()
+	var cancelFn context.CancelCauseFunc
+	ctx, cancelFn = context.WithCancelCause(ctx)
 
 	if elems.Schema {
 		g, gCtx := errgroup.WithContext(ctx)
@@ -52,72 +65,44 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 			return err
 		}
 
-		var tblDiff *tableDiff
-		tblDiff, err = buildTableStructureDiff(ctx, cfg, elems.RowCount, td1, td2)
-		if err != nil {
-			return err
-		}
-
-		if err = Print(
-			ctx,
-			ru.Out,
-			cfg.Colors,
-			tblDiff.header,
-			strings.NewReader(tblDiff.diff),
-		); err != nil {
-			return err
-		}
+		title := Titlef(cfg.Colors, fmt.Sprintf("sq diff --schema %s.%s %s.%s",
+			td1.src.Handle, td1.tblName, td2.src.Handle, td2.tblName))
+		doc := NewUnifiedDoc(title)
+		docs = append(docs, doc)
+		execFns = append(execFns, func() {
+			execTableStructureDiff(ctx, cfg, elems.RowCount, td1, td2, doc)
+			if doc.Err() != nil {
+				cancelFn(doc.Err())
+			}
+		})
 	}
 
-	if !elems.Data {
+	if elems.Data {
+		title := Titlef(cfg.Colors, fmt.Sprintf("sq diff --data %s.%s %s.%s",
+			td1.src.Handle, td1.tblName, td2.src.Handle, td2.tblName))
+		doc := NewHunkDoc(title, NewDocHeader(cfg.Colors, td1.String(), td2.String()))
+		docs = append(docs, doc)
+		execFns = append(execFns, func() {
+			execTableDataDiffDoc(ctx, cancelFn, ru, cfg, td1, td2, doc)
+			if doc.Err() != nil {
+				cancelFn(doc.Err())
+			}
+		})
+	}
+
+	if len(execFns) == 0 {
+		// Shouldn't happen.
 		return nil
 	}
 
-	doc := NewHunkDoc(nil, NewDocHeader(cfg.Colors, td1.String(), td2.String()))
-	var cancelFn context.CancelCauseFunc
-	ctx, cancelFn = context.WithCancelCause(ctx)
-	go execTableDataDiffDoc(ctx, cancelFn, ru, cfg, td1, td2, doc)
+	rdr := io.MultiReader(langz.MustTypedSlice[io.Reader](docs...)...)
 
-	_, err = errz.Return(io.Copy(ru.Out, contextio.NewReader(ctx, doc)))
-	cancelFn(err)
-	lg.WarnIfCloseError(lg.FromContext(ctx), "Close diff doc", doc)
-	return err
-}
-
-func buildTableStructureDiff(ctx context.Context, cfg *Config, showRowCounts bool,
-	td1, td2 *tableData,
-) (*tableDiff, error) {
-	var (
-		body1, body2 string
-		err          error
-	)
-
-	if body1, err = renderTableMeta2YAML(showRowCounts, td1.tblMeta); err != nil {
-		return nil, err
-	}
-	if body2, err = renderTableMeta2YAML(showRowCounts, td2.tblMeta); err != nil {
-		return nil, err
+	for i := range execFns {
+		go execFns[i]()
 	}
 
-	handle1 := td1.src.Handle + "." + td1.tblName
-	handle2 := td2.src.Handle + "." + td2.tblName
-
-	bar := progress.FromContext(ctx).NewWaiter("Diff table schema "+td1.String(), true, progress.OptMemUsage)
-	unified, err := libdiff.ComputeUnified(ctx, handle1, handle2, cfg.Lines, body1, body2)
-	bar.Stop()
-	if err != nil {
-		return nil, err
-	}
-
-	tblDiff := &tableDiff{
-		td1: td1,
-		td2: td2,
-		header: fmt.Sprintf("sq diff %s.%s %s.%s",
-			td1.src.Handle, td1.tblName, td2.src.Handle, td2.tblName),
-		diff: unified,
-	}
-
-	return tblDiff, nil
+	_, err = io.Copy(ru.Out, contextio.NewReader(ctx, rdr))
+	return errz.Err(err)
 }
 
 // fetchTableMeta returns the metadata.Table for table. If the table
