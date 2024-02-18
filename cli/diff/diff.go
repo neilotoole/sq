@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/neilotoole/sq/cli/output"
-	"github.com/neilotoole/sq/libsq/core/libdiff"
+	"github.com/neilotoole/sq/libsq/core/diffdoc"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
@@ -23,7 +23,7 @@ type Config struct {
 	// Colors is the diff colors to use when generating diff text. It may be
 	// modified by the diff package; pass a clone if the original should not be
 	// modified.
-	Colors *libdiff.Colors
+	Colors *diffdoc.Colors
 
 	// Lines specifies the number of lines of context surrounding a diff.
 	Lines int

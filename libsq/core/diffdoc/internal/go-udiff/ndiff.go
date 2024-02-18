@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"unicode/utf8"
 
-	"github.com/neilotoole/sq/libsq/core/libdiff/internal/go-udiff/lcs"
+	"github.com/neilotoole/sq/libsq/core/diffdoc/internal/go-udiff/lcs"
 )
 
 // Strings computes the differences between two strings.

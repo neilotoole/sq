@@ -8,7 +8,7 @@ package myers
 import (
 	"strings"
 
-	diff "github.com/neilotoole/sq/libsq/core/libdiff/internal/go-udiff"
+	diff "github.com/neilotoole/sq/libsq/core/diffdoc/internal/go-udiff"
 )
 
 // Reference:

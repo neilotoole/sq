@@ -1,4 +1,4 @@
-package libdiff
+package diffdoc
 
 import (
 	"bufio"

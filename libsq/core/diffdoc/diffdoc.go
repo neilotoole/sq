@@ -1,19 +1,20 @@
-package libdiff
+// Package diffdoc contains core diff functionality.
+//
+// Reference:
+//
+// - https://en.wikipedia.org/wiki/Diff#Unified_format
+// - https://www.gnu.org/software/diffutils/manual/html_node/Hunks.html
+// - https://www.gnu.org/software/diffutils/manual/html_node/Sections.html
+// - https://www.cloudbees.com/blog/git-diff-a-complete-comparison-tutorial-for-git
+// - https://github.com/aymanbagabas/go-udiff
+package diffdoc
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
 	"sync"
-
-	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-	"github.com/samber/lo"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/libsq/core/bytez"
 
@@ -43,73 +44,6 @@ type Doc interface {
 	// returns nil. If Err returns non-nil, a call to Read will return the same
 	// error.
 	Err() error
-}
-
-// var _ io.ReadCloser = (*DocExecer)(nil)
-
-// DocExecer encapsulates a [Doc] and a function that populates the [Doc].
-type DocExecer struct {
-	doc Doc
-	fn  func(ctx context.Context, cancelFn func(error))
-}
-
-// NewDocExecer returns a new DocExecer.
-func NewDocExecer(doc Doc, fn func(ctx context.Context, cancelFn func(error))) *DocExecer {
-	return &DocExecer{doc: doc, fn: fn}
-}
-
-// exec returns a function that, when invoked, populates the doc by executing
-// the function passed to NewDocExecer. If that function returns an error,
-// cancelFn is invoked with that error, and the error is returned.
-func (d *DocExecer) exec(ctx context.Context, cancelFn func(error)) func() error {
-	if cancelFn == nil {
-		ctx, cancelFn = context.WithCancelCause(ctx)
-	}
-	return func() error {
-		d.fn(ctx, cancelFn)
-		err := d.doc.Err()
-		if err != nil {
-			cancelFn(err)
-		}
-		return err
-	}
-}
-
-// Exec executes the docs concurrently, writing the output to out.
-func Exec(ctx context.Context, out io.Writer, concurrency int, docs []*DocExecer) (err error) {
-	log := lg.FromContext(ctx)
-	docs = lo.WithoutEmpty(docs)
-	defer func() {
-		for i := range docs {
-			doc := docs[i].doc
-			if closeErr := doc.Close(); closeErr != nil {
-				log.Warn(lgm.CloseDiffDoc, closeErr, lga.Doc, doc.Title().String())
-			}
-		}
-	}()
-
-	var cancelFn context.CancelCauseFunc
-	ctx, cancelFn = context.WithCancelCause(ctx)
-	defer func() { cancelFn(err) }()
-
-	g := &errgroup.Group{}
-	g.SetLimit(concurrency)
-	for i := range docs {
-		g.Go(docs[i].exec(ctx, cancelFn))
-	}
-
-	// We don't call g.Wait() here because we're using the errgroup only to limit
-	// the number of concurrent goroutines. We don't actually want to wait for
-	// all the goroutines to finish; we want to stream the output (via io.Copy
-	// below) as soon as it's available.
-
-	rdrs := make([]io.Reader, len(docs))
-	for i := range docs {
-		rdrs[i] = docs[i].doc
-	}
-
-	_, err = io.Copy(out, contextio.NewReader(ctx, io.MultiReader(rdrs...)))
-	return err
 }
 
 var (

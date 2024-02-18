@@ -7,8 +7,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/diffdoc"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/libdiff"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/samber/lo"
 )
@@ -19,7 +19,7 @@ type execFunc func() error
 //nolint:unused
 func prepareDiffSourceAllTableStructure(ctx context.Context, cancelFn context.CancelCauseFunc,
 	cfg *Config, showRowCounts bool, sd1, sd2 *sourceData,
-) (execFns []execFunc, docs []libdiff.Doc, err error) {
+) (execFns []execFunc, docs []diffdoc.Doc, err error) {
 	allTblNames := append(sd1.srcMeta.TableNames(), sd2.srcMeta.TableNames()...)
 	allTblNames = lo.Uniq(allTblNames)
 	slices.Sort(allTblNames)
@@ -44,7 +44,7 @@ func prepareDiffSourceAllTableStructure(ctx context.Context, cancelFn context.Ca
 			srcMeta: sd2.srcMeta,
 		}
 
-		doc := libdiff.NewUnifiedDoc(libdiff.Titlef(cfg.Colors, "sq diff %s %s", td1, td2))
+		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors, "sq diff %s %s", td1, td2))
 		docs = append(docs, doc)
 
 		execFns = append(execFns, func() error {
@@ -100,7 +100,7 @@ func buildSourceTableStructureDiffs(ctx context.Context, cfg *Config, showRowCou
 }
 
 func diffTableStructure(ctx context.Context, cfg *Config, showRowCounts bool,
-	td1, td2 *tableData, doc *libdiff.UnifiedDoc,
+	td1, td2 *tableData, doc *diffdoc.UnifiedDoc,
 ) {
 	var (
 		body1, body2 string
@@ -120,13 +120,13 @@ func diffTableStructure(ctx context.Context, cfg *Config, showRowCounts bool,
 	handle2 := td2.src.Handle + "." + td2.tblName
 
 	bar := progress.FromContext(ctx).NewWaiter("Diff table schema "+td1.String(), true, progress.OptMemUsage)
-	unified, err := libdiff.ComputeUnified(ctx, handle1, handle2, cfg.Lines, body1, body2)
+	unified, err := diffdoc.ComputeUnified(ctx, handle1, handle2, cfg.Lines, body1, body2)
 	bar.Stop()
 	if err != nil {
 		return
 	}
 
-	_, err = io.Copy(doc, libdiff.NewColorizer(cfg.Colors, strings.NewReader(unified)))
+	_, err = io.Copy(doc, diffdoc.NewColorizer(cfg.Colors, strings.NewReader(unified)))
 }
 
 func buildTableStructureDiff(ctx context.Context, cfg *Config, showRowCounts bool,
@@ -148,7 +148,7 @@ func buildTableStructureDiff(ctx context.Context, cfg *Config, showRowCounts boo
 	handle2 := td2.src.Handle + "." + td2.tblName
 
 	bar := progress.FromContext(ctx).NewWaiter("Diff table schema "+td1.String(), true, progress.OptMemUsage)
-	unified, err := libdiff.ComputeUnified(ctx, handle1, handle2, cfg.Lines, body1, body2)
+	unified, err := diffdoc.ComputeUnified(ctx, handle1, handle2, cfg.Lines, body1, body2)
 	bar.Stop()
 	if err != nil {
 		return nil, err

@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 
-	"github.com/neilotoole/sq/libsq/core/libdiff"
+	"github.com/neilotoole/sq/libsq/core/diffdoc"
 
 	"github.com/neilotoole/sq/libsq/core/langz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -39,7 +39,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 		return err
 	}
 
-	var docs []libdiff.Doc
+	var docs []diffdoc.Doc
 	defer func() {
 		for i := range docs {
 			lg.WarnIfCloseError(log, lgm.CloseDiffDoc, docs[i])
@@ -66,7 +66,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 			return err
 		}
 
-		doc := libdiff.NewUnifiedDoc(libdiff.Titlef(cfg.Colors,
+		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors,
 			"sq diff --schema %s %s", td1.String(), td2.String()))
 		docs = append(docs, doc)
 		execFns = append(execFns, func() {
@@ -78,9 +78,9 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 	}
 
 	if elems.Data {
-		doc := libdiff.NewHunkDoc(
-			libdiff.Titlef(cfg.Colors, "sq diff --data %s %s", td1, td2),
-			libdiff.Headerf(cfg.Colors, td1.String(), td2.String()))
+		doc := diffdoc.NewHunkDoc(
+			diffdoc.Titlef(cfg.Colors, "sq diff --data %s %s", td1, td2),
+			diffdoc.Headerf(cfg.Colors, td1.String(), td2.String()))
 		docs = append(docs, doc)
 		execFns = append(execFns, func() {
 			execDiffTableData(ctx, cancelFn, ru, cfg, td1, td2, doc)

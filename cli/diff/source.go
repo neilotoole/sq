@@ -12,8 +12,8 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq/core/diffdoc"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/libdiff"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
@@ -50,7 +50,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	}
 
 	if elems.Overview {
-		doc := libdiff.NewUnifiedDoc(libdiff.Titlef(cfg.Colors,
+		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors,
 			"sq diff --overview %s %s", sd1.handle, sd2.handle))
 
 		diffSourceOverview(ctx, cfg, sd1, sd2, doc)
@@ -66,7 +66,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	}
 
 	if elems.DBProperties {
-		doc := libdiff.NewUnifiedDoc(libdiff.Titlef(cfg.Colors,
+		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors,
 			"sq diff --dbprops %s %s", sd1.handle, sd2.handle))
 
 		diffDBProps(ctx, cfg, sd1, sd2, doc)

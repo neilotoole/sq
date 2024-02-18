@@ -1,4 +1,4 @@
-package libdiff_test
+package diffdoc_test
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/libsq/core/libdiff"
+	"github.com/neilotoole/sq/libsq/core/diffdoc"
 )
 
 func TestNewColorizer(t *testing.T) {
@@ -18,8 +18,8 @@ func TestNewColorizer(t *testing.T) {
 	fi, err := f.Stat()
 	require.NoError(t, err)
 
-	clrs := libdiff.NewColors()
-	r := libdiff.NewColorizer(clrs, f)
+	clrs := diffdoc.NewColors()
+	r := diffdoc.NewColorizer(clrs, f)
 
 	got := &bytes.Buffer{}
 	require.NoError(t, err)

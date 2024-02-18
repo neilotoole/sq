@@ -8,8 +8,8 @@ import (
 	"io"
 
 	"github.com/neilotoole/sq/libsq/core/colorz"
+	"github.com/neilotoole/sq/libsq/core/diffdoc"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/libdiff"
 )
 
 var (
@@ -20,7 +20,7 @@ var (
 )
 
 // Print prints dif to w. If pr is nil, printing is monochrome.
-func Print(ctx context.Context, w io.Writer, pr *libdiff.Colors, header string, dif io.Reader) error {
+func Print(ctx context.Context, w io.Writer, pr *diffdoc.Colors, header string, dif io.Reader) error {
 	if dif == nil {
 		return nil
 	}
@@ -108,7 +108,7 @@ func Print(ctx context.Context, w io.Writer, pr *libdiff.Colors, header string, 
 //	 11        ZERO        CAGE       2020-06-11T02:50:54Z
 //
 // If pr is nil, printing is monochrome.
-func colorizeHunks(ctx context.Context, w io.Writer, pr *libdiff.Colors, hunks io.Reader) error {
+func colorizeHunks(ctx context.Context, w io.Writer, pr *diffdoc.Colors, hunks io.Reader) error {
 	if hunks == nil {
 		return nil
 	}

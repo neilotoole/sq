@@ -1,18 +1,10 @@
-// Package libdiff contains core diff functionality.
-//
-// Reference:
-// - https://github.com/aymanbagabas/go-udiff
-// - https://www.gnu.org/software/diffutils/manual/html_node/Hunks.html
-// - https://www.gnu.org/software/diffutils/manual/html_node/Sections.html
-// - https://www.cloudbees.com/blog/git-diff-a-complete-comparison-tutorial-for-git
-// - https://en.wikipedia.org/wiki/Diff#Unified_format
-package libdiff
+package diffdoc
 
 import (
 	"context"
 
-	udiff "github.com/neilotoole/sq/libsq/core/libdiff/internal/go-udiff"
-	"github.com/neilotoole/sq/libsq/core/libdiff/internal/go-udiff/myers"
+	udiff "github.com/neilotoole/sq/libsq/core/diffdoc/internal/go-udiff"
+	"github.com/neilotoole/sq/libsq/core/diffdoc/internal/go-udiff/myers"
 )
 
 // ComputeUnified encapsulates computing a unified diff.

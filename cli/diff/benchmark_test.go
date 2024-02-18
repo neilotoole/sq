@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/neilotoole/sq/cli/output"
-	"github.com/neilotoole/sq/libsq/core/libdiff"
+	"github.com/neilotoole/sq/libsq/core/diffdoc"
 	"github.com/neilotoole/sq/testh/sakila"
 
 	"github.com/stretchr/testify/require"
@@ -31,7 +31,7 @@ func BenchmarkExecTableDiff(b *testing.B) {
 		RecordWriterFn: tablew.NewRecordWriter,
 		Lines:          3,
 		Printing:       output.NewPrinting(),
-		Colors:         libdiff.NewColors(),
+		Colors:         diffdoc.NewColors(),
 	}
 
 	b.ReportAllocs()

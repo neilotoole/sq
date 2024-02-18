@@ -7,12 +7,12 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/neilotoole/sq/libsq/core/libdiff"
+	"github.com/neilotoole/sq/libsq/core/diffdoc"
 	"github.com/neilotoole/sq/libsq/core/progress"
 )
 
 // diffDBProps diffs the dbprops of sd1 and sd2, writing the diff to doc.
-func diffDBProps(ctx context.Context, cfg *Config, sd1, sd2 *sourceData, doc *libdiff.UnifiedDoc) {
+func diffDBProps(ctx context.Context, cfg *Config, sd1, sd2 *sourceData, doc *diffdoc.UnifiedDoc) {
 	bar := progress.FromContext(ctx).NewWaiter("Diff dbprops", true, progress.OptMemUsage)
 	defer bar.Stop()
 
@@ -36,9 +36,9 @@ func diffDBProps(ctx context.Context, cfg *Config, sd1, sd2 *sourceData, doc *li
 	}
 
 	var unified string
-	if unified, err = libdiff.ComputeUnified(ctx, sd1.handle, sd2.handle, cfg.Lines, body1, body2); err != nil {
+	if unified, err = diffdoc.ComputeUnified(ctx, sd1.handle, sd2.handle, cfg.Lines, body1, body2); err != nil {
 		return
 	}
 
-	_, err = io.Copy(doc, libdiff.NewColorizer(cfg.Colors, strings.NewReader(unified)))
+	_, err = io.Copy(doc, diffdoc.NewColorizer(cfg.Colors, strings.NewReader(unified)))
 }
