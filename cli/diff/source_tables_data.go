@@ -55,7 +55,7 @@ func prepareSourceTablesDataDiffers(ctx context.Context, ru *run.Run, cfg *Confi
 		)
 
 		differs[i] = diffdoc.NewDiffer(doc, func(ctx context.Context, cancelFn func(error)) {
-			execDiffTableData(ctx, cancelFn, ru, cfg, td1, td2, doc)
+			diffTableData(ctx, cancelFn, ru, cfg, td1, td2, doc)
 		})
 	}
 

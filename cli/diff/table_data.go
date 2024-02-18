@@ -28,7 +28,7 @@ func prepareTableDataDiffer(ru *run.Run, cfg *Config, td1, td2 *tableData) *diff
 		diffdoc.Titlef(cfg.Colors, "sq diff --data %s %s", td1, td2),
 		diffdoc.Headerf(cfg.Colors, td1.String(), td2.String()))
 	differ := diffdoc.NewDiffer(doc, func(ctx context.Context, cancelFn func(error)) {
-		execDiffTableData(ctx, cancelFn, ru, cfg, td1, td2, doc)
+		diffTableData(ctx, cancelFn, ru, cfg, td1, td2, doc)
 		if doc.Err() != nil {
 			cancelFn(doc.Err())
 		}
@@ -37,17 +37,13 @@ func prepareTableDataDiffer(ru *run.Run, cfg *Config, td1, td2 *tableData) *diff
 	return differ
 }
 
-// execDiffTableData compares the row data in td1 and td2, writing the diff
-// to doc. The doc is sealed via [HunkDoc.Seal] before the function returns. If
-// an error occurs, the error is sealed into the doc, and can be checked via
-// [HunkDoc.Err]. Any error should also be propagated via cancelFn, to cancel
-// any peer goroutines. Note that the returned doc's [Doc.Read] method blocks
-// until the doc is completed (or errors out). Thus it's possible to execute
-// this function on a goroutine, and then invoke [Doc.Read] on another
-// goroutine.
-//
-// REVISIT: Do we really need to pass in the cancelFn here?
-func execDiffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
+// diffTableData compares the row data in td1 and td2, writing the diff
+// to doc. The doc is sealed via [diffdoc.HunkDoc.Seal] before the function
+// returns. If an error occurs, the error is sealed into the doc, and can be
+// checked via [diffdoc.HunkDoc.Err]. Any error should also be propagated via
+// cancelFn, to cancel any peer goroutines. Note that the returned doc's
+// [diffdoc.Doc.Read] method blocks until the doc is completed (or errors out).
+func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 	ru *run.Run, cfg *Config, td1, td2 *tableData, doc *diffdoc.HunkDoc,
 ) {
 	log := lg.FromContext(ctx).With(lga.Left, td1.String(), lga.Right, td2.String())
@@ -86,8 +82,8 @@ func execDiffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 		errCh: errCh,
 	}
 
-	// Somebody has to listen for errors on errCh. If an error is received,
-	// we'll cancel ctx, which will stop the other goroutines.
+	// Somebody has to listen for errors on errCh. If an error is received, we'll
+	// cancel ctx, which will stop the other goroutines.
 	go func() {
 		if err := <-errCh; err != nil {
 			if errz.Has[*driver.NotExistError](err) {
@@ -235,7 +231,8 @@ func execDiffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 		doc.Seal(err)
 	}()
 
-	// Now execDiffTableData returns, while the goroutines do their magic.
+	// Now diffTableData returns, while the goroutines do their magic.
+	//
 	// The caller can just invoke doc.Read, which will block until the DB queries
 	// execute and return results, and the diff is generated, and the diff is
 	// written to doc.
@@ -400,8 +397,8 @@ LOOP:
 }
 
 // populateHunk populates hunk with the diff of the record pairs. Before return,
-// the hunk is always sealed via [Hunk.Seal]. The caller can check [Hunk.Err]
-// to see if an error occurred.
+// the hunk is always sealed via [diffdoc.Hunk.Seal]. The caller can check
+// [diffdoc.Hunk.Err] to see if an error occurred.
 func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, hunk *diffdoc.Hunk) {
 	var (
 		handleTbl1           = rd.td1.String()
