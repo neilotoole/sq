@@ -21,15 +21,14 @@ var _ io.ReadCloser = (Doc)(nil)
 // diff output.
 type Doc interface {
 	// Read provides access to the Doc's bytes. It blocks until the doc is sealed,
-	// or returns a non-nil error. If the doc does not contain any hunks, Read
-	// returns io.EOF.
+	// or returns a non-nil error. If the doc does not contain any diff hunks,
+	// Read returns [io.EOF].
 	Read(p []byte) (n int, err error)
 
 	// Close closes the doc, disposing of any resources held.
 	Close() error
 
-	// Title returns the doc's title as a string, which may be empty. Any
-	// colorization in the title bytes is removed.
+	// Title returns the doc's title, which may be empty.
 	Title() Title
 
 	// Err returns the error associated with the doc. On the happy path, Err
@@ -122,8 +121,9 @@ func (d *UnifiedDoc) Seal(err error) {
 	close(d.sealed)
 }
 
-// Read blocks until the doc is sealed. It returns the doc's bytes (which may
-// be empty), or the non-nil error provided to [UnifiedDoc.Seal].
+// Read provides access to the doc's bytes. It blocks until the doc is sealed,
+// or returns the non-nil error provided to [HunkDoc.Seal]. If the doc does not
+// contain any diff hunks, Read returns [io.EOF].
 func (d *UnifiedDoc) Read(p []byte) (n int, err error) {
 	d.rdrOnce.Do(func() {
 		<-d.sealed
@@ -283,8 +283,9 @@ func (d *HunkDoc) String() string {
 	return d.Title().String()
 }
 
-// Read blocks until the doc is sealed. It returns the doc's bytes, or the
-// non-nil error provided to [HunkDoc.Seal].
+// Read provides access to the doc's bytes. It blocks until the doc is sealed,
+// or returns the non-nil error provided to [HunkDoc.Seal]. If the doc does not
+// contain any diff hunks, Read returns [io.EOF].
 func (d *HunkDoc) Read(p []byte) (n int, err error) {
 	d.rdrOnce.Do(func() {
 		<-d.sealed
@@ -321,9 +322,12 @@ func (d *HunkDoc) Read(p []byte) (n int, err error) {
 			// Happy path: we've got some content in the hunks.
 		}
 
-		rdrs2 := make([]io.Reader, 0, 3)
+		rdrs2 := make([]io.Reader, 0, 4)
 		if len(d.title) > 0 {
 			rdrs2 = append(rdrs2, bytes.NewReader(d.title))
+		}
+		if len(d.header) > 0 {
+			rdrs2 = append(rdrs2, bytes.NewReader(d.header))
 		}
 		rdrs2 = append(rdrs2, bytes.NewReader(p2))
 		rdrs2 = append(rdrs2, hunksMultiRdr)
