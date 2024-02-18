@@ -18,7 +18,7 @@ const (
 	// StmtSelect is executed using sql.DB.Query.
 	StmtSelect = "select"
 
-	// StmtOther is executed using sql.DB.Exec.
+	// StmtOther is executed using sql.DB.exec.
 	StmtOther = "other"
 )
 

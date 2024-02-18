@@ -663,7 +663,7 @@ func (h *Helper) QuerySLQ(query string, args map[string]string) (*RecordSink, er
 	return sink, nil
 }
 
-// ExecSQL is a convenience wrapper for sql.DB.Exec that returns the
+// ExecSQL is a convenience wrapper for sql.DB.exec that returns the
 // rows affected, failing on any error. Note that ExecSQL uses the
 // same Grip instance as returned by h.Open.
 func (h *Helper) ExecSQL(src *source.Source, query string, args ...any) (affected int64) {

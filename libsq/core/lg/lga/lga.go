@@ -23,6 +23,7 @@ const (
 	Driver    = "driver"
 	Default   = "default"
 	DefaultTo = "default_to"
+	Doc       = "doc"
 	Elapsed   = "elapsed"
 	Env       = "env"
 	Err       = "error"
