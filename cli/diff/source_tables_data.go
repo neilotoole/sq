@@ -58,7 +58,7 @@ func execDiffSourceTablesData(ctx context.Context, ru *run.Run, cfg *Config, sd1
 		)
 		docs[i] = doc
 		execFns[i] = func() error {
-			execTableDataDiffDoc(ctx, cancelFn, ru, cfg, td1, td2, doc)
+			execDiffTableData(ctx, cancelFn, ru, cfg, td1, td2, doc)
 			return doc.Err()
 		}
 	}

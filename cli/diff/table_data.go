@@ -23,7 +23,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 )
 
-// execTableDataDiffDoc compares the row data in td1 and td2, writing the diff
+// execDiffTableData compares the row data in td1 and td2, writing the diff
 // to doc. The doc is sealed via [HunkDoc.Seal] before the function returns. If
 // an error occurs, the error is sealed into the doc, and can be checked via
 // [HunkDoc.Err]. Any error should also be propagated via cancelFn, to cancel
@@ -33,7 +33,7 @@ import (
 // goroutine.
 //
 // REVISIT: Do we really need to pass in the cancelFn here?
-func execTableDataDiffDoc(ctx context.Context, cancelFn context.CancelCauseFunc,
+func execDiffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 	ru *run.Run, cfg *Config, td1, td2 *tableData, doc *libdiff.HunkDoc,
 ) {
 	log := lg.FromContext(ctx).With(lga.Left, td1.String(), lga.Right, td2.String())
@@ -221,7 +221,7 @@ func execTableDataDiffDoc(ctx context.Context, cancelFn context.CancelCauseFunc,
 		doc.Seal(err)
 	}()
 
-	// Now execTableDataDiffDoc returns, while the goroutines do their magic.
+	// Now execDiffTableData returns, while the goroutines do their magic.
 	// The caller can just invoke doc.Read, which will block until the DB queries
 	// execute and return results, and the diff is generated, and the diff is
 	// written to doc.

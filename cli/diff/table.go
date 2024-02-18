@@ -83,7 +83,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 			libdiff.Headerf(cfg.Colors, td1.String(), td2.String()))
 		docs = append(docs, doc)
 		execFns = append(execFns, func() {
-			execTableDataDiffDoc(ctx, cancelFn, ru, cfg, td1, td2, doc)
+			execDiffTableData(ctx, cancelFn, ru, cfg, td1, td2, doc)
 			if doc.Err() != nil {
 				cancelFn(doc.Err())
 			}
