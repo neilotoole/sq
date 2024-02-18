@@ -46,15 +46,20 @@ func differsForAllTableData(ctx context.Context, cfg *Config, sd1, sd2 *sourceDa
 
 		td2 := &tableData{src: sd2.src, tblName: tblName}
 		td2.tblMeta = sd2.srcMeta.Table(tblName)
-		differs[i] = differForTableData(cfg, td1, td2)
+		differs[i] = differForTableData(cfg, true, td1, td2)
 	}
 
 	return differs, nil
 }
 
-func differForTableData(cfg *Config, td1, td2 *tableData) *diffdoc.Differ {
+func differForTableData(cfg *Config, title bool, td1, td2 *tableData) *diffdoc.Differ {
+	var cmdTitle diffdoc.Title
+	if title {
+		cmdTitle = diffdoc.Titlef(cfg.Colors, "sq diff --data %s %s", td1, td2)
+	}
+
 	doc := diffdoc.NewHunkDoc(
-		diffdoc.Titlef(cfg.Colors, "sq diff --data %s %s", td1, td2),
+		cmdTitle,
 		diffdoc.Headerf(cfg.Colors, td1.String(), td2.String()))
 	differ := diffdoc.NewDiffer(doc, func(ctx context.Context, cancelFn func(error)) {
 		diffTableData(ctx, cancelFn, cfg, td1, td2, doc)

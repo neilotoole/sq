@@ -52,7 +52,7 @@ func ExecTableDiff(ctx context.Context, cfg *Config,
 	}
 
 	if elems.Data {
-		differ := differForTableData(cfg, td1, td2)
+		differ := differForTableData(cfg, false, td1, td2)
 		differs = append(differs, differ)
 	}
 
