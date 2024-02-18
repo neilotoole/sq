@@ -2,7 +2,6 @@ package diff
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"strings"
 
@@ -15,7 +14,6 @@ import (
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/libdiff"
-	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
@@ -52,26 +50,26 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	}
 
 	if elems.Overview {
-		srcDiff, err := buildSourceOverviewDiff(ctx, cfg, sd1, sd2)
-		if err != nil {
+		doc := libdiff.NewUnifiedDoc(libdiff.Titlef(cfg.Colors,
+			"sq diff --overview %s %s", sd1.handle, sd2.handle))
+
+		diffSourceOverview(ctx, cfg, sd1, sd2, doc)
+		if err := doc.Err(); err != nil {
 			return err
 		}
 
-		if err = Print(
-			ctx,
-			ru.Out,
-			cfg.Colors,
-			srcDiff.header,
-			strings.NewReader(srcDiff.diff),
-		); err != nil {
+		_, err := errz.Return(io.Copy(ru.Out, contextio.NewReader(ctx, doc)))
+		lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDiffDoc, doc)
+		if err != nil {
 			return err
 		}
 	}
 
 	if elems.DBProperties {
-		title := []byte(cfg.Colors.CmdTitle.Sprintf("sq diff --dbprops %s %s", sd1.handle, sd2.handle))
-		doc := libdiff.NewUnifiedDoc(title)
-		execDiffDBProps(ctx, cfg, sd1, sd2, doc)
+		doc := libdiff.NewUnifiedDoc(libdiff.Titlef(cfg.Colors,
+			"sq diff --dbprops %s %s", sd1.handle, sd2.handle))
+
+		diffDBProps(ctx, cfg, sd1, sd2, doc)
 		if err := doc.Err(); err != nil {
 			return err
 		}
@@ -107,36 +105,6 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	}
 
 	return nil
-}
-
-func buildSourceOverviewDiff(ctx context.Context, cfg *Config, sd1, sd2 *sourceData) (*sourceOverviewDiff, error) {
-	var (
-		body1, body2 string
-		err          error
-	)
-
-	if body1, err = renderSourceMeta2YAML(sd1.srcMeta); err != nil {
-		return nil, err
-	}
-	if body2, err = renderSourceMeta2YAML(sd2.srcMeta); err != nil {
-		return nil, err
-	}
-
-	bar := progress.FromContext(ctx).NewWaiter("Diff overview", true, progress.OptMemUsage)
-	unified, err := libdiff.ComputeUnified(ctx, sd1.handle, sd2.handle, cfg.Lines, body1, body2)
-	bar.Stop()
-	if err != nil {
-		return nil, err
-	}
-
-	diff := &sourceOverviewDiff{
-		sd1:    sd1,
-		sd2:    sd2,
-		header: fmt.Sprintf("sq diff --overview %s %s", sd1.handle, sd2.handle),
-		diff:   unified,
-	}
-
-	return diff, nil
 }
 
 func fetchSourceMeta(ctx context.Context, ru *run.Run, handle string) (*source.Source, *metadata.Source, error) {

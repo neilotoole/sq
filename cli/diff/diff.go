@@ -95,13 +95,6 @@ func (td *tableData) clone() *tableData { //nolint:unused // REVISIT: no longer 
 	}
 }
 
-// sourceOverviewDiff is a container for a source overview diff.
-type sourceOverviewDiff struct {
-	sd1, sd2 *sourceData
-	header   string
-	diff     string
-}
-
 // tableDiff is a container for a table diff.
 type tableDiff struct {
 	td1, td2 *tableData
