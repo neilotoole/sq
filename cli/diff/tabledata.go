@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/samber/lo"
 	"slices"
 	"strings"
+
+	"github.com/samber/lo"
 
 	"golang.org/x/sync/errgroup"
 

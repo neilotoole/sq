@@ -14,11 +14,11 @@ import (
 // ExecSourceDiff is the entrypoint to diff two sources, handle1 and handle2.
 // Contrast with [ExecTableDiff], which diffs two tables.
 func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
-	elems *Elements, handle1, handle2 string,
+	elems *Elements, src1, src2 *source.Source,
 ) error {
 	var (
-		sd1 = &sourceData{handle: handle1}
-		sd2 = &sourceData{handle: handle2}
+		sd1 = &sourceData{src: src1, handle: src1.Handle}
+		sd2 = &sourceData{src: src2, handle: src2.Handle}
 	)
 
 	g, gCtx := errgroup.WithContext(ctx)
@@ -31,12 +31,12 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		// TODO: I think in some places we need just the table names, so we should
 		// be able to call SQLDriver.ListTableNames instead of getting the entire
 		// metadata.Source.
-		sd1.src, sd1.srcMeta, err = fetchSourceMeta(gCtx, ru, handle1)
+		sd1.src, sd1.srcMeta, err = fetchSourceMeta(gCtx, ru, src1.Handle)
 		return err
 	})
 	g.Go(func() error {
 		var err error
-		sd2.src, sd2.srcMeta, err = fetchSourceMeta(gCtx, ru, handle2)
+		sd2.src, sd2.srcMeta, err = fetchSourceMeta(gCtx, ru, src2.Handle)
 		return err
 	})
 	if err := g.Wait(); err != nil {

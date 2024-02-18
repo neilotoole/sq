@@ -2,6 +2,7 @@ package diff
 
 import (
 	"context"
+
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
 	"golang.org/x/sync/errgroup"
 
@@ -12,24 +13,15 @@ import (
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
-// ExecTableDiff is the entrypoint to diff two tables, @handle1.table1 and
-// @handle2.table2.
+// ExecTableDiff is the entrypoint to diff two tables, src1.table1 and
+// src2.table2.
 //
 // Contrast with [ExecSourceDiff], which diffs two sources.
 func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Elements, //nolint:revive
-	handle1, table1, handle2, table2 string,
+	src1 *source.Source, table1 string, src2 *source.Source, table2 string,
 ) error {
-	td1, td2 := &tableData{tblName: table1}, &tableData{tblName: table2}
-
-	source.ParseTableHandle()
-
-	var err error
-	if td1.src, err = ru.Config.Collection.Get(handle1); err != nil {
-		return err
-	}
-	if td2.src, err = ru.Config.Collection.Get(handle2); err != nil {
-		return err
-	}
+	td1 := &tableData{src: src1, tblName: table1}
+	td2 := &tableData{src: src2, tblName: table2}
 
 	var differs []*diffdoc.Differ
 	if elems.Schema {
@@ -44,7 +36,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 			td2.tblMeta, gErr = fetchTableMeta(gCtx, ru, td2.src, table2)
 			return gErr
 		})
-		if err = g.Wait(); err != nil {
+		if err := g.Wait(); err != nil {
 			return err
 		}
 
@@ -66,9 +58,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 
 // fetchTableMeta returns the metadata.Table for table. If the table
 // does not exist, {nil,nil} is returned.
-func fetchTableMeta(ctx context.Context, ru *run.Run, src *source.Source, table string) (
-	*metadata.Table, error,
-) {
+func fetchTableMeta(ctx context.Context, ru *run.Run, src *source.Source, table string) (*metadata.Table, error) {
 	grip, err := ru.Grips.Open(ctx, src)
 	if err != nil {
 		return nil, err

@@ -2,9 +2,10 @@ package diff_test
 
 import (
 	"bytes"
+	"testing"
+
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/tuning"
-	"testing"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
@@ -47,9 +48,9 @@ func BenchmarkExecTableDiff(b *testing.B) {
 			ru,
 			cfg,
 			elems,
-			srcA.Handle,
+			srcA,
 			sakila.TblActor,
-			srcB.Handle,
+			srcB,
 			sakila.TblActor,
 		)
 		require.NoError(b, err)
