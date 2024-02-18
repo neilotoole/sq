@@ -2,21 +2,15 @@ package diff
 
 import (
 	"context"
-	"io"
 
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
-
-	"github.com/neilotoole/sq/libsq/core/langz"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -26,32 +20,17 @@ import (
 func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Elements, //nolint:revive
 	handle1, table1, handle2, table2 string,
 ) error {
-	log := lg.FromContext(ctx).With(lga.Left, handle1+"."+table1, lga.Right, handle2+"."+table2)
 	td1, td2 := &tableData{tblName: table1}, &tableData{tblName: table2}
 
 	var err error
-	td1.src, err = ru.Config.Collection.Get(handle1)
-	if err != nil {
+	if td1.src, err = ru.Config.Collection.Get(handle1); err != nil {
 		return err
 	}
-	td2.src, err = ru.Config.Collection.Get(handle2)
-	if err != nil {
+	if td2.src, err = ru.Config.Collection.Get(handle2); err != nil {
 		return err
 	}
 
-	var docs []diffdoc.Doc
 	var differs []*diffdoc.Differ
-	_ = differs
-	defer func() {
-		for i := range docs {
-			lg.WarnIfCloseError(log, lgm.CloseDiffDoc, docs[i])
-		}
-	}()
-
-	var execFns []func()
-	var cancelFn context.CancelCauseFunc
-	ctx, cancelFn = context.WithCancelCause(ctx)
-
 	if elems.Schema {
 		g, gCtx := errgroup.WithContext(ctx)
 		g.Go(func() error {
@@ -70,50 +49,19 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 
 		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors,
 			"sq diff --schema %s %s", td1.String(), td2.String()))
-
 		differ := diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
 			diffTableStructure(ctx, cfg, elems.RowCount, td1, td2, doc)
 		})
-		_ = differ
-
-		docs = append(docs, doc)
-		execFns = append(execFns, func() {
-			diffTableStructure(ctx, cfg, elems.RowCount, td1, td2, doc)
-			if doc.Err() != nil {
-				cancelFn(doc.Err())
-			}
-		})
+		differs = append(differs, differ)
 	}
 
 	if elems.Data {
 		differ := prepareTableDataDiffer(ru, cfg, td1, td2)
-		_ = differ
-
-		doc := diffdoc.NewHunkDoc(
-			diffdoc.Titlef(cfg.Colors, "sq diff --data %s %s", td1, td2),
-			diffdoc.Headerf(cfg.Colors, td1.String(), td2.String()))
-		docs = append(docs, doc)
-		execFns = append(execFns, func() {
-			execDiffTableData(ctx, cancelFn, ru, cfg, td1, td2, doc)
-			if doc.Err() != nil {
-				cancelFn(doc.Err())
-			}
-		})
+		differs = append(differs, differ)
 	}
 
-	if len(execFns) == 0 {
-		// Shouldn't happen.
-		return nil
-	}
-
-	rdr := io.MultiReader(langz.MustTypedSlice[io.Reader](docs...)...)
-
-	for i := range execFns {
-		go execFns[i]()
-	}
-
-	_, err = io.Copy(ru.Out, contextio.NewReader(ctx, rdr))
-	return errz.Err(err)
+	concurrency := tuning.OptErrgroupLimit.Get(options.FromContext(ctx))
+	return diffdoc.Execute(ctx, ru.Out, concurrency, differs)
 }
 
 // fetchTableMeta returns the metadata.Table for table. If the table

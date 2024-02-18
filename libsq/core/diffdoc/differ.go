@@ -8,7 +8,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -45,17 +44,21 @@ func (d *Differ) execute(ctx context.Context, cancelFn func(error)) func() error
 }
 
 // Execute executes differs concurrently, writing output sequentially to w.
+//
+// Arg concurrency specifies the maximum number of concurrent Differ executions.
+// Zero indicates sequential execution; a negative values indicates unbounded
+// concurrency.
+//
+// The first error encountered is returned.
 func Execute(ctx context.Context, w io.Writer, concurrency int, differs []*Differ) (err error) {
 	// REVISIT: should Execute accept <-chan *Differ instead of []*Differ?
-
-	log := lg.FromContext(ctx)
-	differs = lo.WithoutEmpty(differs)
-
 	defer func() {
-		for i := range differs {
-			doc := differs[i].doc
-			if closeErr := doc.Close(); closeErr != nil {
-				log.Warn(lgm.CloseDiffDoc, closeErr, lga.Doc, doc.String())
+		for _, differ := range differs {
+			if differs == nil || differ.doc == nil {
+				continue
+			}
+			if closeErr := differ.doc.Close(); closeErr != nil {
+				lg.FromContext(ctx).Warn(lgm.CloseDiffDoc, lga.Doc, differ.doc.String(), lga.Err, closeErr)
 			}
 		}
 	}()
@@ -67,6 +70,9 @@ func Execute(ctx context.Context, w io.Writer, concurrency int, differs []*Diffe
 	g := &errgroup.Group{}
 	g.SetLimit(concurrency)
 	for i := range differs {
+		if differs[i] == nil {
+			continue
+		}
 		g.Go(differs[i].execute(ctx, cancelFn))
 	}
 
@@ -75,9 +81,12 @@ func Execute(ctx context.Context, w io.Writer, concurrency int, differs []*Diffe
 	// the goroutines to finish; we want to stream the output (via io.Copy below)
 	// as soon as it's available.
 
-	rdrs := make([]io.Reader, len(differs))
+	rdrs := make([]io.Reader, 0, len(differs))
 	for i := range differs {
-		rdrs[i] = differs[i].doc
+		if differs[i] == nil {
+			continue
+		}
+		rdrs = append(rdrs, differs[i].doc)
 	}
 
 	_, err = io.Copy(w, contextio.NewReader(ctx, io.MultiReader(rdrs...)))
