@@ -32,6 +32,10 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		// TODO: This mechanism fetches the entire source metadata. That's
 		// only necessary if both opts.DBProperties and opts.Tables are true.
 		// This mechanism can be improved to only fetch the relevant data.
+
+		// TODO: I think in some places we need just the table names, so we should
+		// be able to call SQLDriver.ListTableNames instead of getting the entire
+		// metadata.Source.
 		sd1.src, sd1.srcMeta, err = fetchSourceMeta(gCtx, ru, handle1)
 		return err
 	})

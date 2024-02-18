@@ -4,6 +4,13 @@ This dir contains testdata for the `sq` diff tests. It also contains scripts tha
 against GNU [`diff`](https://www.gnu.org/software/diffutils/manual/html_node/index.html)
 to compare the output of `sq` with the `diff`'s output.
 
+## Reference
+
+- https://en.wikipedia.org/wiki/Diff#Unified_format
+- https://www.gnu.org/software/diffutils/manual/html_node/Hunks.html
+- https://www.gnu.org/software/diffutils/manual/html_node/Sections.html
+- https://www.cloudbees.com/blog/git-diff-a-complete-comparison-tutorial-for-git
+
 
 ## diffdirs
 

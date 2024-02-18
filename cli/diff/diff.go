@@ -115,11 +115,3 @@ type dbPropsDiff struct {
 	header   string
 	diff     string
 }
-
-// tableDataDiff is a container for a table's data diff.
-type tableDataDiff struct { //nolint:unused // REVISIT: no longer needed?
-	td1, td2 *tableData
-	// recMeta1, recMeta2 record.Meta
-	header string
-	diff   string
-}

@@ -386,9 +386,15 @@ func (h *Hunk) Close() error {
 	return nil
 }
 
-// Write writes to the hunk body. When writing is completed, the hunk must be
-// sealed via Seal. It is a programming error to invoke Write after [Hunk.Seal]
-// or [Hunk.Close] has been invoked.
+// Write writes to the hunk body. The hunk header ("@@ ... @@") should not be
+// written to the body; instead it should be provided via [Hunk.Seal]. This
+// facilitates stream processing of hunks, because the hunk header can't be
+// calculated until after the hunk body is generated. When writing is complete,
+// the hunk must be sealed via [Hunk.Seal], supplying the hunk header at that
+// point.
+//
+// It is a programming error to invoke Write after [Hunk.Seal] or [Hunk.Close]
+// has been invoked.
 func (h *Hunk) Write(p []byte) (n int, err error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -404,9 +410,10 @@ func (h *Hunk) Err() error {
 	return h.err
 }
 
-// Seal seals the hunk, indicating that it is complete. Until it is sealed, a
-// call to [Hunk.Read] blocks. On the happy path, arg err is nil. It is a
-// runtime error to call Seal more than once.
+// Seal seals the hunk, indicating that it is complete. The header arg is the
+// hunk header ("@@ ... @@"). Until the hunk is sealed, a call to [Hunk.Read]
+// blocks. On the happy path, arg err is nil. It is a runtime error to invoke
+// Seal more than once.
 func (h *Hunk) Seal(header []byte, err error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
