@@ -94,10 +94,3 @@ func (td *tableData) clone() *tableData { //nolint:unused // REVISIT: no longer 
 		srcMeta: td.srcMeta.Clone(),
 	}
 }
-
-// tableDiff is a container for a table diff.
-type tableDiff struct {
-	td1, td2 *tableData
-	header   string
-	diff     string
-}

@@ -465,7 +465,7 @@ func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, h
 		return
 	}
 
-	if err = colorizeHunks(ctx, hunk, rd.cfg.Colors, bytes.NewReader(stringz.UnsafeBytes(hunkBody))); err != nil {
+	if err = diffdoc.ColorizeHunks(ctx, hunk, rd.cfg.Colors, bytes.NewReader(stringz.UnsafeBytes(hunkBody))); err != nil {
 		return
 	}
 

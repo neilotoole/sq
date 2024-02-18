@@ -3,7 +3,11 @@ package diffdoc
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"io"
+
+	"github.com/neilotoole/sq/libsq/core/colorz"
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 type colorizer struct {
@@ -123,4 +127,72 @@ func (c *colorizer) Read(p []byte) (n int, err error) {
 	}
 
 	return c.buf.Read(p)
+}
+
+var prefixSection = []byte("@@")
+
+// ColorizeHunks prints a colorized diff hunks to w. The reader must not include
+// the diff header. That is, it should not include:
+//
+//	sq diff --data @diff/sakila_a.actor @diff/sakila_b.actor
+//	--- @diff/sakila_a.actor
+//	+++ @diff/sakila_b.actor
+//
+// Instead, hunks should contain one or more hunks, e.g.
+//
+//	@@ -2,3 +2,3 @@
+//	 1         PENELOPE    GUINESS    2020-06-11T02:50:54Z
+//	-2         NICK        WAHLBERG   2020-06-11T02:50:54Z
+//	+2         NICK        BERGER     2020-06-11T02:50:54Z
+//	 3         ED          CHASE      2020-06-11T02:50:54Z
+//	@@ -12,3 +12,3 @@
+//	 11        ZERO        CAGE       2020-06-11T02:50:54Z
+//
+// If pr is nil, printing is monochrome.
+func ColorizeHunks(ctx context.Context, w io.Writer, clrs *Colors, hunks io.Reader) error {
+	if hunks == nil {
+		return nil
+	}
+
+	var err error
+	if clrs == nil || clrs.IsMonochrome() {
+		_, err = io.Copy(w, hunks)
+		return errz.Err(err)
+	}
+
+	var (
+		printSection = colorz.NewPrinter(clrs.Section).Line
+		printMinus   = colorz.NewPrinter(clrs.Deletion).Line
+		printPlus    = colorz.NewPrinter(clrs.Insertion).Line
+		printNormal  = colorz.NewPrinter(clrs.Context).Line
+	)
+
+	sc := bufio.NewScanner(hunks)
+	var line []byte
+	for sc.Scan() {
+		if ctx.Err() != nil {
+			return errz.Err(ctx.Err())
+		}
+
+		line = sc.Bytes()
+		switch {
+		case len(line) == 0:
+			// I'm not sure if this happens, but if it does, print an empty line.
+			_, err = w.Write([]byte{newline})
+		case bytes.HasPrefix(line, prefixSection):
+			_, err = printSection(w, line)
+		case line[0] == '-':
+			_, err = printMinus(w, line)
+		case line[0] == '+':
+			_, err = printPlus(w, line)
+		default:
+			_, err = printNormal(w, line)
+		}
+
+		if err != nil {
+			return errz.Err(err)
+		}
+	}
+
+	return errz.Err(sc.Err())
 }

@@ -2,6 +2,7 @@ package diff
 
 import (
 	"context"
+
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/tuning"
 	"golang.org/x/sync/errgroup"
@@ -48,42 +49,17 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	if elems.Overview {
 		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors,
 			"sq diff --overview %s %s", sd1.handle, sd2.handle))
-
-		differ := diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
+		differs = append(differs, diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
 			diffSourceOverview(ctx, cfg, sd1, sd2, doc)
-		})
-		differs = append(differs, differ)
-		//
-		//diffSourceOverview(ctx, cfg, sd1, sd2, doc)
-		//if err := doc.Err(); err != nil {
-		//	return err
-		//}
-		//
-		//_, err := errz.Return(io.Copy(ru.Out, contextio.NewReader(ctx, doc)))
-		//lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDiffDoc, doc)
-		//if err != nil {
-		//	return err
-		//}
+		}))
 	}
 
 	if elems.DBProperties {
 		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors,
 			"sq diff --dbprops %s %s", sd1.handle, sd2.handle))
-
-		differ := diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
+		differs = append(differs, diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
 			diffDBProps(ctx, cfg, sd1, sd2, doc)
-		})
-		differs = append(differs, differ)
-		//diffDBProps(ctx, cfg, sd1, sd2, doc)
-		//if err := doc.Err(); err != nil {
-		//	return err
-		//}
-		//
-		//_, err := errz.Return(io.Copy(ru.Out, contextio.NewReader(ctx, doc)))
-		//lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDiffDoc, doc)
-		//if err != nil {
-		//	return err
-		//}
+		}))
 	}
 
 	if elems.Schema {
@@ -92,22 +68,6 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 			return err
 		}
 		differs = append(differs, schemaDiffers...)
-
-		//tblDiffs, err := buildSourceTableStructureDiffs(ctx, cfg, elems.RowCount, sd1, sd2)
-		//if err != nil {
-		//	return err
-		//}
-		//for _, tblDiff := range tblDiffs {
-		//	if err = Print(
-		//		ctx,
-		//		ru.Out,
-		//		cfg.Colors,
-		//		tblDiff.header,
-		//		strings.NewReader(tblDiff.diff),
-		//	); err != nil {
-		//		return err
-		//	}
-		//}
 	}
 
 	if elems.Data {
@@ -117,7 +77,6 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 			return err
 		}
 		differs = append(differs, dataDiffers...)
-		//return execDiffAllData(ctx, ru, cfg, sd1, sd2)
 	}
 
 	concurrency := tuning.OptErrgroupLimit.Get(options.FromContext(ctx))
