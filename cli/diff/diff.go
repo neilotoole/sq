@@ -30,6 +30,11 @@ type Config struct {
 
 	// HunkMaxSize specifies the maximum number of items in a diff hunk.
 	HunkMaxSize int
+
+	// Concurrency specifies the maximum number of concurrent diff executions.
+	// Zero indicates sequential execution; a negative values indicates unbounded
+	// concurrency.
+	Concurrency int
 }
 
 // Elements determines what source elements to compare.

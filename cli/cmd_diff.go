@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
@@ -240,6 +241,7 @@ func execDiff(cmd *cobra.Command, args []string) error {
 		HunkMaxSize:    OptDiffHunkMaxSize.Get(o),
 		Printing:       ru.Writers.OutPrinting.Clone(),
 		Colors:         ru.Writers.OutPrinting.Diff.Clone(),
+		Concurrency:    tuning.OptErrgroupLimit.Get(options.FromContext(ctx)),
 		RecordWriterFn: recwFn,
 	}
 

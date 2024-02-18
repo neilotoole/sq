@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/samber/lo"
+	"slices"
 	"strings"
 
 	"golang.org/x/sync/errgroup"
@@ -23,7 +25,33 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 )
 
-func prepareTableDataDiffer(ru *run.Run, cfg *Config, td1, td2 *tableData) *diffdoc.Differ {
+// differsForAllTableData compares the row data of each table in sd1 and sd2.
+func differsForAllTableData(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 *sourceData,
+) (execDocs []*diffdoc.Differ, err error) { //nolint:unparam
+	log := lg.FromContext(ctx).With(lga.Left, sd1.src.Handle, lga.Right, sd2.src.Handle)
+	log.Info("Diffing source tables data")
+
+	allTblNames := append(sd1.srcMeta.TableNames(), sd2.srcMeta.TableNames()...)
+	allTblNames = lo.Uniq(allTblNames)
+	slices.Sort(allTblNames)
+
+	differs := make([]*diffdoc.Differ, len(allTblNames))
+	for i, tblName := range allTblNames {
+		td1 := &tableData{src: sd1.src, tblName: tblName}
+		td1.tblMeta = sd1.srcMeta.Table(tblName)
+
+		// REVISIT: What if there isn't table metadata? Or is it guaranteed to
+		// be present?
+
+		td2 := &tableData{src: sd2.src, tblName: tblName}
+		td2.tblMeta = sd2.srcMeta.Table(tblName)
+		differs[i] = differForTableData(ru, cfg, td1, td2)
+	}
+
+	return differs, nil
+}
+
+func differForTableData(ru *run.Run, cfg *Config, td1, td2 *tableData) *diffdoc.Differ {
 	doc := diffdoc.NewHunkDoc(
 		diffdoc.Titlef(cfg.Colors, "sq diff --data %s %s", td1, td2),
 		diffdoc.Headerf(cfg.Colors, td1.String(), td2.String()))

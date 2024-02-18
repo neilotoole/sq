@@ -11,7 +11,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/progress"
 )
 
-func diffSourceOverview(ctx context.Context, cfg *Config, sd1, sd2 *sourceData, doc *diffdoc.UnifiedDoc) {
+func diffOverview(ctx context.Context, cfg *Config, sd1, sd2 *sourceData, doc *diffdoc.UnifiedDoc) {
 	bar := progress.FromContext(ctx).NewWaiter("Diff overview", true, progress.OptMemUsage)
 	defer bar.Stop()
 

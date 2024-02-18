@@ -3,8 +3,6 @@ package diff
 import (
 	"context"
 
-	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/libsq/core/tuning"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/cli/run"
@@ -13,7 +11,8 @@ import (
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
-// ExecSourceDiff diffs handle1 and handle2.
+// ExecSourceDiff is the entrypoint to diff two sources, handle1 and handle2.
+// Contrast with [ExecTableDiff], which diffs two tables.
 func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	elems *Elements, handle1, handle2 string,
 ) error {
@@ -21,8 +20,6 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		sd1 = &sourceData{handle: handle1}
 		sd2 = &sourceData{handle: handle2}
 	)
-
-	var differs []*diffdoc.Differ
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
@@ -46,11 +43,13 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		return err
 	}
 
+	var differs []*diffdoc.Differ
+
 	if elems.Overview {
 		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors,
 			"sq diff --overview %s %s", sd1.handle, sd2.handle))
 		differs = append(differs, diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
-			diffSourceOverview(ctx, cfg, sd1, sd2, doc)
+			diffOverview(ctx, cfg, sd1, sd2, doc)
 		}))
 	}
 
@@ -63,7 +62,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	}
 
 	if elems.Schema {
-		schemaDiffers, err := prepareAllTablesSchemaDiffers(ctx, cfg, elems.RowCount, sd1, sd2)
+		schemaDiffers, err := differsForSchema(ctx, cfg, elems.RowCount, sd1, sd2)
 		if err != nil {
 			return err
 		}
@@ -72,15 +71,14 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 
 	if elems.Data {
 		// We're going for it... diff all table data.
-		dataDiffers, err := prepareAllDataDiffers(ctx, ru, cfg, sd1, sd2)
+		dataDiffers, err := differsForAllTableData(ctx, ru, cfg, sd1, sd2)
 		if err != nil {
 			return err
 		}
 		differs = append(differs, dataDiffers...)
 	}
 
-	concurrency := tuning.OptErrgroupLimit.Get(options.FromContext(ctx))
-	return diffdoc.Execute(ctx, ru.Out, concurrency, differs)
+	return diffdoc.Execute(ctx, ru.Out, cfg.Concurrency, differs)
 }
 
 func fetchSourceMeta(ctx context.Context, ru *run.Run, handle string) (*source.Source, *metadata.Source, error) {

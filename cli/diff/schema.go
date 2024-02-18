@@ -12,7 +12,7 @@ import (
 	"github.com/samber/lo"
 )
 
-func prepareAllTablesSchemaDiffers(ctx context.Context, cfg *Config, showRowCounts bool,
+func differsForSchema(ctx context.Context, cfg *Config, showRowCounts bool,
 	sd1, sd2 *sourceData,
 ) (differs []*diffdoc.Differ, err error) {
 	allTblNames := append(sd1.srcMeta.TableNames(), sd2.srcMeta.TableNames()...)
@@ -43,7 +43,7 @@ func prepareAllTablesSchemaDiffers(ctx context.Context, cfg *Config, showRowCoun
 
 		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors, "sq diff %s %s", td1, td2))
 		differ := diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
-			diffTableStructure(ctx, cfg, showRowCounts, td1, td2, doc)
+			diffTableSchema(ctx, cfg, showRowCounts, td1, td2, doc)
 		})
 		differs = append(differs, differ)
 	}
@@ -51,7 +51,7 @@ func prepareAllTablesSchemaDiffers(ctx context.Context, cfg *Config, showRowCoun
 	return differs, nil
 }
 
-func diffTableStructure(ctx context.Context, cfg *Config, showRowCounts bool,
+func diffTableSchema(ctx context.Context, cfg *Config, showRowCounts bool,
 	td1, td2 *tableData, doc *diffdoc.UnifiedDoc,
 ) {
 	var (

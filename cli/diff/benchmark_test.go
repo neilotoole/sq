@@ -2,6 +2,8 @@ package diff_test
 
 import (
 	"bytes"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"testing"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -32,6 +34,7 @@ func BenchmarkExecTableDiff(b *testing.B) {
 		Lines:          3,
 		Printing:       output.NewPrinting(),
 		Colors:         diffdoc.NewColors(),
+		Concurrency:    tuning.OptErrgroupLimit.Get(options.FromContext(th.Context)),
 	}
 
 	b.ReportAllocs()

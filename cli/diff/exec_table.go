@@ -2,11 +2,7 @@ package diff
 
 import (
 	"context"
-
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
-	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/libsq/core/tuning"
-
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/cli/run"
@@ -16,11 +12,16 @@ import (
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
-// ExecTableDiff diffs handle1.table1 and handle2.table2.
+// ExecTableDiff is the entrypoint to diff two tables, @handle1.table1 and
+// @handle2.table2.
+//
+// Contrast with [ExecSourceDiff], which diffs two sources.
 func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Elements, //nolint:revive
 	handle1, table1, handle2, table2 string,
 ) error {
 	td1, td2 := &tableData{tblName: table1}, &tableData{tblName: table2}
+
+	source.ParseTableHandle()
 
 	var err error
 	if td1.src, err = ru.Config.Collection.Get(handle1); err != nil {
@@ -50,18 +51,17 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors,
 			"sq diff --schema %s %s", td1.String(), td2.String()))
 		differ := diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
-			diffTableStructure(ctx, cfg, elems.RowCount, td1, td2, doc)
+			diffTableSchema(ctx, cfg, elems.RowCount, td1, td2, doc)
 		})
 		differs = append(differs, differ)
 	}
 
 	if elems.Data {
-		differ := prepareTableDataDiffer(ru, cfg, td1, td2)
+		differ := differForTableData(ru, cfg, td1, td2)
 		differs = append(differs, differ)
 	}
 
-	concurrency := tuning.OptErrgroupLimit.Get(options.FromContext(ctx))
-	return diffdoc.Execute(ctx, ru.Out, concurrency, differs)
+	return diffdoc.Execute(ctx, ru.Out, cfg.Concurrency, differs)
 }
 
 // fetchTableMeta returns the metadata.Table for table. If the table
