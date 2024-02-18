@@ -13,6 +13,53 @@ import (
 	"github.com/samber/lo"
 )
 
+//nolint:unused
+type execFunc func() error
+
+//nolint:unused
+func prepareDiffSourceAllTableStructure(ctx context.Context, cancelFn context.CancelCauseFunc,
+	cfg *Config, showRowCounts bool, sd1, sd2 *sourceData,
+) (execFns []execFunc, docs []libdiff.Doc, err error) {
+	allTblNames := append(sd1.srcMeta.TableNames(), sd2.srcMeta.TableNames()...)
+	allTblNames = lo.Uniq(allTblNames)
+	slices.Sort(allTblNames)
+
+	for _, tblName := range allTblNames {
+		select {
+		case <-ctx.Done():
+			return nil, nil, errz.Err(context.Cause(ctx))
+		default:
+		}
+
+		td1 := &tableData{
+			tblName: tblName,
+			tblMeta: sd1.srcMeta.Table(tblName),
+			src:     sd1.src,
+			srcMeta: sd1.srcMeta,
+		}
+		td2 := &tableData{
+			tblName: tblName,
+			tblMeta: sd2.srcMeta.Table(tblName),
+			src:     sd2.src,
+			srcMeta: sd2.srcMeta,
+		}
+
+		doc := libdiff.NewUnifiedDoc(libdiff.Titlef(cfg.Colors, "sq diff %s %s", td1, td2))
+		docs = append(docs, doc)
+
+		execFns = append(execFns, func() error {
+			diffTableStructure(ctx, cfg, showRowCounts, td1, td2, doc)
+			docErr := doc.Err()
+			if docErr != nil {
+				cancelFn(docErr)
+			}
+			return docErr
+		})
+	}
+
+	return execFns, docs, nil
+}
+
 func buildSourceTableStructureDiffs(ctx context.Context, cfg *Config, showRowCounts bool,
 	sd1, sd2 *sourceData,
 ) ([]*tableDiff, error) {
@@ -52,7 +99,7 @@ func buildSourceTableStructureDiffs(ctx context.Context, cfg *Config, showRowCou
 	return diffs, nil
 }
 
-func execTableStructureDiff(ctx context.Context, cfg *Config, showRowCounts bool,
+func diffTableStructure(ctx context.Context, cfg *Config, showRowCounts bool,
 	td1, td2 *tableData, doc *libdiff.UnifiedDoc,
 ) {
 	var (

@@ -70,7 +70,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 			"sq diff --schema %s %s", td1.String(), td2.String()))
 		docs = append(docs, doc)
 		execFns = append(execFns, func() {
-			execTableStructureDiff(ctx, cfg, elems.RowCount, td1, td2, doc)
+			diffTableStructure(ctx, cfg, elems.RowCount, td1, td2, doc)
 			if doc.Err() != nil {
 				cancelFn(doc.Err())
 			}
