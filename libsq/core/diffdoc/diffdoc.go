@@ -64,8 +64,10 @@ func NewUnifiedDoc(cmdTitle Title) *UnifiedDoc {
 	}
 }
 
-var _ Doc = (*UnifiedDoc)(nil)
-var _ io.Writer = (*UnifiedDoc)(nil)
+var (
+	_ Doc       = (*UnifiedDoc)(nil)
+	_ io.Writer = (*UnifiedDoc)(nil)
+)
 
 // UnifiedDoc is a diff [Doc] that consists of a single unified diff body
 // (although that body may contain multiple hunks). It exists as a bridge to

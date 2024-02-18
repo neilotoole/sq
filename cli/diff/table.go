@@ -40,6 +40,8 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 	}
 
 	var docs []diffdoc.Doc
+	var differs []*diffdoc.Differ
+	_ = differs
 	defer func() {
 		for i := range docs {
 			lg.WarnIfCloseError(log, lgm.CloseDiffDoc, docs[i])
@@ -68,6 +70,12 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 
 		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors,
 			"sq diff --schema %s %s", td1.String(), td2.String()))
+
+		differ := diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
+			diffTableStructure(ctx, cfg, elems.RowCount, td1, td2, doc)
+		})
+		_ = differ
+
 		docs = append(docs, doc)
 		execFns = append(execFns, func() {
 			diffTableStructure(ctx, cfg, elems.RowCount, td1, td2, doc)
@@ -78,6 +86,9 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 	}
 
 	if elems.Data {
+		differ := prepareTableDataDiffer(ru, cfg, td1, td2)
+		_ = differ
+
 		doc := diffdoc.NewHunkDoc(
 			diffdoc.Titlef(cfg.Colors, "sq diff --data %s %s", td1, td2),
 			diffdoc.Headerf(cfg.Colors, td1.String(), td2.String()))

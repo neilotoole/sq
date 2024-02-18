@@ -23,6 +23,20 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 )
 
+func prepareTableDataDiffer(ru *run.Run, cfg *Config, td1, td2 *tableData) *diffdoc.Differ {
+	doc := diffdoc.NewHunkDoc(
+		diffdoc.Titlef(cfg.Colors, "sq diff --data %s %s", td1, td2),
+		diffdoc.Headerf(cfg.Colors, td1.String(), td2.String()))
+	differ := diffdoc.NewDiffer(doc, func(ctx context.Context, cancelFn func(error)) {
+		execDiffTableData(ctx, cancelFn, ru, cfg, td1, td2, doc)
+		if doc.Err() != nil {
+			cancelFn(doc.Err())
+		}
+	})
+
+	return differ
+}
+
 // execDiffTableData compares the row data in td1 and td2, writing the diff
 // to doc. The doc is sealed via [HunkDoc.Seal] before the function returns. If
 // an error occurs, the error is sealed into the doc, and can be checked via

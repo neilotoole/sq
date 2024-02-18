@@ -20,7 +20,9 @@ type Differ struct {
 }
 
 // NewDiffer returns a new [Differ] that can be passed to [Execute]. Arg doc is
-// the [Doc] to be populated, and fn populates the [Doc].
+// the [Doc] to be populated, and fn populates the [Doc]. The cancelFn arg to fn
+// must only be invoked in the event of an error; it must not be invoked on the
+// happy path.
 func NewDiffer(doc Doc, fn func(ctx context.Context, cancelFn func(error))) *Differ {
 	return &Differ{doc: doc, fn: fn}
 }
@@ -44,6 +46,8 @@ func (d *Differ) execute(ctx context.Context, cancelFn func(error)) func() error
 
 // Execute executes differs concurrently, writing output sequentially to w.
 func Execute(ctx context.Context, w io.Writer, concurrency int, differs []*Differ) (err error) {
+	// REVISIT: should Execute accept <-chan *Differ instead of []*Differ?
+
 	log := lg.FromContext(ctx)
 	differs = lo.WithoutEmpty(differs)
 
