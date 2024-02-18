@@ -3,6 +3,7 @@ package diff
 
 import (
 	"fmt"
+	"github.com/neilotoole/sq/cli/run"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
@@ -12,6 +13,9 @@ import (
 
 // Config contains parameters to control diff behavior.
 type Config struct {
+	// Run is the program run instance.
+	Run *run.Run
+
 	// RecordWriterFn is a factory function that returns
 	// an output.RecordWriter used to generate diff text
 	// when comparing table data.

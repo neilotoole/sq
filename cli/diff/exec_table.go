@@ -17,9 +17,9 @@ import (
 // src2.table2.
 //
 // Contrast with [ExecSourceDiff], which diffs two sources.
-func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Elements, //nolint:revive
-	src1 *source.Source, table1 string, src2 *source.Source, table2 string,
-) error {
+func ExecTableDiff(ctx context.Context, cfg *Config, elems *Elements,
+	src1 *source.Source, table1 string, src2 *source.Source, table2 string) error {
+	ru := cfg.Run
 	td1 := &tableData{src: src1, tblName: table1}
 	td2 := &tableData{src: src2, tblName: table2}
 

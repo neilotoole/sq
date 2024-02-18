@@ -13,13 +13,10 @@ import (
 
 // ExecSourceDiff is the entrypoint to diff two sources, handle1 and handle2.
 // Contrast with [ExecTableDiff], which diffs two tables.
-func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
-	elems *Elements, src1, src2 *source.Source,
-) error {
-	var (
-		sd1 = &sourceData{src: src1, handle: src1.Handle}
-		sd2 = &sourceData{src: src2, handle: src2.Handle}
-	)
+func ExecSourceDiff(ctx context.Context, cfg *Config, elems *Elements, src1, src2 *source.Source) error {
+	ru := cfg.Run
+	sd1 := &sourceData{src: src1, handle: src1.Handle}
+	sd2 := &sourceData{src: src2, handle: src2.Handle}
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {

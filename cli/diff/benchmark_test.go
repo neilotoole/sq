@@ -43,16 +43,7 @@ func BenchmarkExecTableDiff(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		buf := &bytes.Buffer{}
 		ru.Out = buf
-		err := diff.ExecTableDiff(
-			th.Context,
-			ru,
-			cfg,
-			elems,
-			srcA,
-			sakila.TblActor,
-			srcB,
-			sakila.TblActor,
-		)
+		err := diff.ExecTableDiff(th.Context, cfg, elems, srcA, sakila.TblActor, srcB, sakila.TblActor)
 		require.NoError(b, err)
 		buf.Reset()
 	}

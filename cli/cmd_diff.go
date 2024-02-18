@@ -246,6 +246,7 @@ func execDiff(cmd *cobra.Command, args []string) error {
 	}
 
 	diffCfg := &diff.Config{
+		Run:            ru,
 		Lines:          OptDiffNumLines.Get(o),
 		HunkMaxSize:    OptDiffHunkMaxSize.Get(o),
 		Printing:       ru.Writers.OutPrinting.Clone(),
@@ -261,12 +262,12 @@ func execDiff(cmd *cobra.Command, args []string) error {
 	switch {
 	case table1 == "" && table2 == "":
 		elems := getDiffSourceElements(cmd)
-		return diff.ExecSourceDiff(ctx, ru, diffCfg, elems, src1, src2)
+		return diff.ExecSourceDiff(ctx, diffCfg, elems, src1, src2)
 	case table1 == "" || table2 == "":
 		return errz.Errorf("invalid args: both must be either @HANDLE or @HANDLE.TABLE")
 	default:
 		elems := getDiffTableElements(cmd)
-		return diff.ExecTableDiff(ctx, ru, diffCfg, elems, src1, table1, src2, table2)
+		return diff.ExecTableDiff(ctx, diffCfg, elems, src1, table1, src2, table2)
 	}
 }
 
