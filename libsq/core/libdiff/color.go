@@ -8,14 +8,14 @@ import (
 
 // Colors encapsulates diff color printing config.
 type Colors struct {
-	// Command is the color for the diff command text. That is, the text of the
+	// CmdTitle is the color for the diff command text. That is, the text of the
 	// command that effectively triggered this diff. For example:
 	//
 	//  diff -U3 -r ./a/hiawatha.txt ./b/hiawatha.txt
 	//
 	// The command text is typically only displayed when multiple diffs are
 	// printed back-to-back.
-	Command *color.Color
+	CmdTitle *color.Color
 
 	// Header is the color for diff header elements.
 	//
@@ -64,7 +64,7 @@ func NewColors() *Colors {
 	c := &Colors{
 		ShowHeader:     true,
 		monochrome:     false,
-		Command:        color.New(color.FgBlue),
+		CmdTitle:       color.New(color.FgBlue),
 		Header:         color.New(color.Bold),
 		Deletion:       color.New(color.FgRed),
 		Context:        color.New(color.Faint),
@@ -84,7 +84,7 @@ func (c *Colors) Clone() *Colors {
 		ShowHeader: c.ShowHeader,
 	}
 
-	c2.Command = toPtr(*c.Command)
+	c2.CmdTitle = toPtr(*c.CmdTitle)
 	c2.Header = toPtr(*c.Header)
 	c2.Section = toPtr(*c.Section)
 	c2.SectionComment = toPtr(*c.SectionComment)
@@ -97,7 +97,7 @@ func (c *Colors) Clone() *Colors {
 
 func (c *Colors) colors() []*color.Color {
 	return []*color.Color{
-		c.Command,
+		c.CmdTitle,
 		c.Header,
 		c.Section,
 		c.SectionComment,
@@ -132,7 +132,7 @@ func (c *Colors) EnableColor(enable bool) {
 
 func (c *Colors) codes() *codes {
 	return &codes{
-		command:        colorz.ExtractSeqs(c.Command),
+		command:        colorz.ExtractSeqs(c.CmdTitle),
 		header:         colorz.ExtractSeqs(c.Header),
 		section:        colorz.ExtractSeqs(c.Section),
 		sectionComment: colorz.ExtractSeqs(c.SectionComment),

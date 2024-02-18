@@ -44,11 +44,14 @@ var (
 	_ io.Writer = (*UnifiedDoc)(nil)
 )
 
-func NewUnifiedDoc(title []byte) *UnifiedDoc {
+// NewUnifiedDoc returns a new UnifiedDoc with the given title. The title may be
+// empty. The diff body should be written via [UnifiedDoc.Write], and then the doc
+// should be sealed via [UnifiedDoc.Seal].
+func NewUnifiedDoc(cmdTitle []byte) *UnifiedDoc {
 	return &UnifiedDoc{
-		title:   bytez.TerminateNewline(title),
-		sealed:  make(chan struct{}),
-		bodyBuf: &bytes.Buffer{},
+		cmdTitle: bytez.TerminateNewline(cmdTitle),
+		sealed:   make(chan struct{}),
+		bodyBuf:  &bytes.Buffer{},
 	}
 }
 
@@ -58,13 +61,13 @@ func NewUnifiedDoc(title []byte) *UnifiedDoc {
 //
 // See also: [HunkDoc].
 type UnifiedDoc struct {
-	err     error
-	rdr     io.Reader
-	sealed  chan struct{}
-	bodyBuf *bytes.Buffer
-	title   []byte
-	rdrOnce sync.Once
-	mu      sync.Mutex
+	err      error
+	rdr      io.Reader
+	sealed   chan struct{}
+	bodyBuf  *bytes.Buffer
+	cmdTitle []byte
+	rdrOnce  sync.Once
+	mu       sync.Mutex
 }
 
 // Close implements io.Closer.
@@ -76,11 +79,11 @@ func (d *UnifiedDoc) Close() error {
 // Title returns the doc's title as a string. It may be empty. Colorization
 // is stripped.
 func (d *UnifiedDoc) Title() string {
-	if len(d.title) == 0 {
+	if len(d.cmdTitle) == 0 {
 		return ""
 	}
 
-	b := colorz.Strip(d.title)
+	b := colorz.Strip(d.cmdTitle)
 	return string(b)
 }
 
@@ -130,12 +133,12 @@ func (d *UnifiedDoc) Read(p []byte) (n int, err error) {
 			return
 		}
 
-		if len(d.title) == 0 {
+		if len(d.cmdTitle) == 0 {
 			d.rdr = d.bodyBuf
 			return
 		}
 
-		d.rdr = io.MultiReader(bytes.NewReader(d.title), d.bodyBuf)
+		d.rdr = io.MultiReader(bytes.NewReader(d.cmdTitle), d.bodyBuf)
 	})
 
 	return d.rdr.Read(p)

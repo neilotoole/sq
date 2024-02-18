@@ -3,6 +3,9 @@ package diff
 import (
 	"context"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"io"
 	"slices"
 	"strings"
 
@@ -66,19 +69,32 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	}
 
 	if elems.DBProperties {
-		propsDiff, err := buildDBPropsDiff(ctx, cfg, sd1, sd2)
+		title := []byte(cfg.Colors.CmdTitle.Sprintf("sq diff --dbprops %s %s", sd1.handle, sd2.handle))
+		doc := NewUnifiedDoc(title)
+		execDiffDBProps(ctx, cfg, sd1, sd2, doc)
+		if err := doc.Err(); err != nil {
+			return err
+		}
+
+		_, err := errz.Return(io.Copy(ru.Out, contextio.NewReader(ctx, doc)))
+		lg.WarnIfCloseError(lg.FromContext(ctx), "Close diff doc", doc)
 		if err != nil {
 			return err
 		}
-		if err = Print(
-			ctx,
-			ru.Out,
-			cfg.Colors,
-			propsDiff.header,
-			strings.NewReader(propsDiff.diff),
-		); err != nil {
-			return err
-		}
+
+		//propsDiff, err := buildDBPropsDiff(ctx, cfg, sd1, sd2)
+		//if err != nil {
+		//	return err
+		//}
+		//if err = Print(
+		//	ctx,
+		//	ru.Out,
+		//	cfg.Colors,
+		//	propsDiff.header,
+		//	strings.NewReader(propsDiff.diff),
+		//); err != nil {
+		//	return err
+		//}
 	}
 
 	if elems.Schema {
@@ -174,34 +190,6 @@ func buildSourceOverviewDiff(ctx context.Context, cfg *Config, sd1, sd2 *sourceD
 	}
 
 	return diff, nil
-}
-
-func buildDBPropsDiff(ctx context.Context, cfg *Config, sd1, sd2 *sourceData) (*dbPropsDiff, error) {
-	var (
-		body1, body2 string
-		err          error
-	)
-
-	if body1, err = renderDBProperties2YAML(sd1.srcMeta.DBProperties); err != nil {
-		return nil, err
-	}
-	if body2, err = renderDBProperties2YAML(sd2.srcMeta.DBProperties); err != nil {
-		return nil, err
-	}
-
-	bar := progress.FromContext(ctx).NewWaiter("Diff dbprops", true, progress.OptMemUsage)
-	unified, err := libdiff.ComputeUnified(ctx, sd1.handle, sd2.handle, cfg.Lines, body1, body2)
-	bar.Stop()
-	if err != nil {
-		return nil, err
-	}
-
-	return &dbPropsDiff{
-		sd1:    sd1,
-		sd2:    sd2,
-		header: fmt.Sprintf("sq diff --dbprops %s %s", sd1.handle, sd2.handle),
-		diff:   unified,
-	}, nil
 }
 
 func fetchSourceMeta(ctx context.Context, ru *run.Run, handle string) (*source.Source, *metadata.Source, error) {

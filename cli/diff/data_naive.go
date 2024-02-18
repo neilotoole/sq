@@ -49,7 +49,7 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 		td2 := &tableData{src: sd2.src, tblName: tblName}
 		td2.tblMeta = sd2.srcMeta.Table(tblName)
 
-		cmdTitle := []byte(cfg.Colors.Command.Sprintf("sq diff --data %s %s", td1.String(), td2.String()))
+		cmdTitle := []byte(cfg.Colors.CmdTitle.Sprintf("sq diff --data %s %s", td1.String(), td2.String()))
 		doc := NewHunkDoc(cmdTitle, NewDocHeader(cfg.Colors, td1.String(), td2.String()))
 		docs[i] = doc
 		execFns[i] = func() error {

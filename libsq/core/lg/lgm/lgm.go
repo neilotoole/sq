@@ -12,6 +12,7 @@ const (
 	CloseFileReader       = "Close file reader"
 	CloseFileWriter       = "Close file writer"
 	CloseOutputFile       = "Close output file"
+	CloseDiffDoc          = "Close diff doc"
 	CtxDone               = "Context unexpectedly done"
 	OpenSrc               = "Open source"
 	ReadDBRows            = "Read DB rows"

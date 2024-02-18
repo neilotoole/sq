@@ -109,9 +109,3 @@ type tableDiff struct {
 	diff     string
 }
 
-// dbPropsDiff is a container for a DB properties diff.
-type dbPropsDiff struct {
-	sd1, sd2 *sourceData
-	header   string
-	diff     string
-}

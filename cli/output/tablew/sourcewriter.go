@@ -55,6 +55,7 @@ func (w *sourceWriter) Collection(coll *source.Collection) error {
 
 		w.tbl.tblImpl.SetHeaderDisable(true)
 		w.tbl.tblImpl.SetColTrans(0, pr.Handle.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(1, pr.Faint.SprintFunc())
 		w.tbl.tblImpl.SetColTrans(2, pr.Location.SprintFunc())
 		return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 	}
@@ -86,6 +87,7 @@ func (w *sourceWriter) Collection(coll *source.Collection) error {
 
 	w.tbl.tblImpl.SetHeaderDisable(!pr.ShowHeader)
 	w.tbl.tblImpl.SetColTrans(0, pr.Handle.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(2, pr.Faint.SprintFunc())
 	w.tbl.tblImpl.SetColTrans(3, pr.Location.SprintFunc())
 	w.tbl.tblImpl.SetHeader([]string{"HANDLE", "ACTIVE", "DRIVER", "LOCATION", "OPTIONS"})
 	return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
@@ -146,6 +148,7 @@ func (w *sourceWriter) doSource(coll *source.Collection, src *source.Source) err
 			w.tbl.tblImpl.SetColTrans(0, w.tbl.pr.Handle.SprintFunc())
 		}
 
+		w.tbl.tblImpl.SetColTrans(1, w.tbl.pr.Faint.SprintFunc())
 		w.tbl.tblImpl.SetColTrans(2, w.tbl.pr.Location.SprintFunc())
 		w.tbl.tblImpl.SetHeaderDisable(true)
 		return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
@@ -170,6 +173,7 @@ func (w *sourceWriter) doSource(coll *source.Collection, src *source.Source) err
 		w.tbl.tblImpl.SetColTrans(0, w.tbl.pr.Handle.SprintFunc())
 	}
 
+	w.tbl.tblImpl.SetColTrans(1, w.tbl.pr.Faint.SprintFunc())
 	w.tbl.tblImpl.SetColTrans(2, w.tbl.pr.Location.SprintFunc())
 	w.tbl.tblImpl.SetHeaderDisable(true)
 	return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
