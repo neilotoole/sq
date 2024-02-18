@@ -2,18 +2,12 @@ package diff
 
 import (
 	"context"
-	"io"
-	"strings"
-
-	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
@@ -26,6 +20,8 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		sd1 = &sourceData{handle: handle1}
 		sd2 = &sourceData{handle: handle2}
 	)
+
+	var differs []*diffdoc.Differ
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
@@ -53,58 +49,79 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors,
 			"sq diff --overview %s %s", sd1.handle, sd2.handle))
 
-		diffSourceOverview(ctx, cfg, sd1, sd2, doc)
-		if err := doc.Err(); err != nil {
-			return err
-		}
-
-		_, err := errz.Return(io.Copy(ru.Out, contextio.NewReader(ctx, doc)))
-		lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDiffDoc, doc)
-		if err != nil {
-			return err
-		}
+		differ := diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
+			diffSourceOverview(ctx, cfg, sd1, sd2, doc)
+		})
+		differs = append(differs, differ)
+		//
+		//diffSourceOverview(ctx, cfg, sd1, sd2, doc)
+		//if err := doc.Err(); err != nil {
+		//	return err
+		//}
+		//
+		//_, err := errz.Return(io.Copy(ru.Out, contextio.NewReader(ctx, doc)))
+		//lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDiffDoc, doc)
+		//if err != nil {
+		//	return err
+		//}
 	}
 
 	if elems.DBProperties {
 		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors,
 			"sq diff --dbprops %s %s", sd1.handle, sd2.handle))
 
-		diffDBProps(ctx, cfg, sd1, sd2, doc)
-		if err := doc.Err(); err != nil {
-			return err
-		}
-
-		_, err := errz.Return(io.Copy(ru.Out, contextio.NewReader(ctx, doc)))
-		lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDiffDoc, doc)
-		if err != nil {
-			return err
-		}
+		differ := diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
+			diffDBProps(ctx, cfg, sd1, sd2, doc)
+		})
+		differs = append(differs, differ)
+		//diffDBProps(ctx, cfg, sd1, sd2, doc)
+		//if err := doc.Err(); err != nil {
+		//	return err
+		//}
+		//
+		//_, err := errz.Return(io.Copy(ru.Out, contextio.NewReader(ctx, doc)))
+		//lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDiffDoc, doc)
+		//if err != nil {
+		//	return err
+		//}
 	}
 
 	if elems.Schema {
-		tblDiffs, err := buildSourceTableStructureDiffs(ctx, cfg, elems.RowCount, sd1, sd2)
+		schemaDiffers, err := prepareAllTablesSchemaDiffers(ctx, cfg, elems.RowCount, sd1, sd2)
 		if err != nil {
 			return err
 		}
-		for _, tblDiff := range tblDiffs {
-			if err = Print(
-				ctx,
-				ru.Out,
-				cfg.Colors,
-				tblDiff.header,
-				strings.NewReader(tblDiff.diff),
-			); err != nil {
-				return err
-			}
-		}
+		differs = append(differs, schemaDiffers...)
+
+		//tblDiffs, err := buildSourceTableStructureDiffs(ctx, cfg, elems.RowCount, sd1, sd2)
+		//if err != nil {
+		//	return err
+		//}
+		//for _, tblDiff := range tblDiffs {
+		//	if err = Print(
+		//		ctx,
+		//		ru.Out,
+		//		cfg.Colors,
+		//		tblDiff.header,
+		//		strings.NewReader(tblDiff.diff),
+		//	); err != nil {
+		//		return err
+		//	}
+		//}
 	}
 
 	if elems.Data {
 		// We're going for it... diff all table data.
-		return execDiffSourceTablesData(ctx, ru, cfg, sd1, sd2)
+		dataDiffers, err := prepareAllDataDiffers(ctx, ru, cfg, sd1, sd2)
+		if err != nil {
+			return err
+		}
+		differs = append(differs, dataDiffers...)
+		//return execDiffAllData(ctx, ru, cfg, sd1, sd2)
 	}
 
-	return nil
+	concurrency := tuning.OptErrgroupLimit.Get(options.FromContext(ctx))
+	return diffdoc.Execute(ctx, ru.Out, concurrency, differs)
 }
 
 func fetchSourceMeta(ctx context.Context, ru *run.Run, handle string) (*source.Source, *metadata.Source, error) {
@@ -112,10 +129,12 @@ func fetchSourceMeta(ctx context.Context, ru *run.Run, handle string) (*source.S
 	if err != nil {
 		return nil, nil, err
 	}
+
 	grip, err := ru.Grips.Open(ctx, src)
 	if err != nil {
 		return nil, nil, err
 	}
+
 	md, err := grip.SourceMetadata(ctx, false)
 	if err != nil {
 		return nil, nil, err

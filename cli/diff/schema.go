@@ -17,17 +17,18 @@ import (
 type execFunc func() error
 
 //nolint:unused
-func prepareDiffSourceAllTableStructure(ctx context.Context, cancelFn context.CancelCauseFunc,
-	cfg *Config, showRowCounts bool, sd1, sd2 *sourceData,
-) (execFns []execFunc, docs []diffdoc.Doc, err error) {
+func prepareAllTablesSchemaDiffers(ctx context.Context, cfg *Config, showRowCounts bool,
+	sd1, sd2 *sourceData) (differs []*diffdoc.Differ, err error) {
 	allTblNames := append(sd1.srcMeta.TableNames(), sd2.srcMeta.TableNames()...)
 	allTblNames = lo.Uniq(allTblNames)
 	slices.Sort(allTblNames)
 
+	differs = make([]*diffdoc.Differ, 0, len(allTblNames))
+
 	for _, tblName := range allTblNames {
 		select {
 		case <-ctx.Done():
-			return nil, nil, errz.Err(context.Cause(ctx))
+			return nil, errz.Err(context.Cause(ctx))
 		default:
 		}
 
@@ -45,21 +46,25 @@ func prepareDiffSourceAllTableStructure(ctx context.Context, cancelFn context.Ca
 		}
 
 		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors, "sq diff %s %s", td1, td2))
-		docs = append(docs, doc)
-
-		execFns = append(execFns, func() error {
+		differ := diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
 			diffTableStructure(ctx, cfg, showRowCounts, td1, td2, doc)
-			docErr := doc.Err()
-			if docErr != nil {
-				cancelFn(docErr)
-			}
-			return docErr
 		})
+		differs = append(differs, differ)
+		//
+		//execFns = append(execFns, func() error {
+		//	diffTableStructure(ctx, cfg, showRowCounts, td1, td2, doc)
+		//	docErr := doc.Err()
+		//	if docErr != nil {
+		//		cancelFn(docErr)
+		//	}
+		//	return docErr
+		//})
 	}
 
-	return execFns, docs, nil
+	return differs, nil
 }
 
+// Deprecated: use prepareDiffSourceAllTableStructure instead.
 func buildSourceTableStructureDiffs(ctx context.Context, cfg *Config, showRowCounts bool,
 	sd1, sd2 *sourceData,
 ) ([]*tableDiff, error) {
