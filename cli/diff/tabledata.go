@@ -27,7 +27,7 @@ import (
 )
 
 // differsForAllTableData compares the row data of each table in sd1 and sd2.
-func differsForAllTableData(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 *sourceData,
+func differsForAllTableData(ctx context.Context, cfg *Config, sd1, sd2 *sourceData,
 ) (execDocs []*diffdoc.Differ, err error) { //nolint:unparam
 	log := lg.FromContext(ctx).With(lga.Left, sd1.src.Handle, lga.Right, sd2.src.Handle)
 	log.Info("Diffing source tables data")
@@ -46,18 +46,18 @@ func differsForAllTableData(ctx context.Context, ru *run.Run, cfg *Config, sd1, 
 
 		td2 := &tableData{src: sd2.src, tblName: tblName}
 		td2.tblMeta = sd2.srcMeta.Table(tblName)
-		differs[i] = differForTableData(ru, cfg, td1, td2)
+		differs[i] = differForTableData(cfg, td1, td2)
 	}
 
 	return differs, nil
 }
 
-func differForTableData(ru *run.Run, cfg *Config, td1, td2 *tableData) *diffdoc.Differ {
+func differForTableData(cfg *Config, td1, td2 *tableData) *diffdoc.Differ {
 	doc := diffdoc.NewHunkDoc(
 		diffdoc.Titlef(cfg.Colors, "sq diff --data %s %s", td1, td2),
 		diffdoc.Headerf(cfg.Colors, td1.String(), td2.String()))
 	differ := diffdoc.NewDiffer(doc, func(ctx context.Context, cancelFn func(error)) {
-		diffTableData(ctx, cancelFn, ru, cfg, td1, td2, doc)
+		diffTableData(ctx, cancelFn, cfg, td1, td2, doc)
 		if doc.Err() != nil {
 			cancelFn(doc.Err())
 		}
@@ -73,7 +73,7 @@ func differForTableData(ru *run.Run, cfg *Config, td1, td2 *tableData) *diffdoc.
 // cancelFn, to cancel any peer goroutines. Note that the returned doc's
 // [diffdoc.Doc.Read] method blocks until the doc is completed (or errors out).
 func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
-	ru *run.Run, cfg *Config, td1, td2 *tableData, doc *diffdoc.HunkDoc,
+	cfg *Config, td1, td2 *tableData, doc *diffdoc.HunkDoc,
 ) {
 	log := lg.FromContext(ctx).With(lga.Left, td1.String(), lga.Right, td2.String())
 	log.Info("Diffing table data")
@@ -130,7 +130,7 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 	// records from the DB queries will be sent to each recordWriter.recCh, and
 	// any errors will be sent to the shared errCh.
 
-	qc := run.NewQueryContext(ru, nil)
+	qc := run.NewQueryContext(cfg.Run, nil)
 
 	go func() {
 		query1 := td1.src.Handle + "." + stringz.DoubleQuote(td1.tblName)

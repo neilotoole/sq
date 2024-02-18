@@ -17,13 +17,17 @@ import (
 // src2.table2.
 //
 // Contrast with [ExecSourceDiff], which diffs two sources.
-func ExecTableDiff(ctx context.Context, cfg *Config, elems *Elements,
-	src1 *source.Source, table1 string, src2 *source.Source, table2 string) error {
-	ru := cfg.Run
-	td1 := &tableData{src: src1, tblName: table1}
-	td2 := &tableData{src: src2, tblName: table2}
+func ExecTableDiff(ctx context.Context, cfg *Config,
+	src1 *source.Source, table1 string, src2 *source.Source, table2 string,
+) error {
+	var (
+		ru      = cfg.Run
+		elems   = cfg.Elements
+		td1     = &tableData{src: src1, tblName: table1}
+		td2     = &tableData{src: src2, tblName: table2}
+		differs []*diffdoc.Differ
+	)
 
-	var differs []*diffdoc.Differ
 	if elems.Schema {
 		g, gCtx := errgroup.WithContext(ctx)
 		g.Go(func() error {
@@ -42,14 +46,13 @@ func ExecTableDiff(ctx context.Context, cfg *Config, elems *Elements,
 
 		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors,
 			"sq diff --schema %s %s", td1.String(), td2.String()))
-		differ := diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
+		differs = append(differs, diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
 			diffTableSchema(ctx, cfg, elems.RowCount, td1, td2, doc)
-		})
-		differs = append(differs, differ)
+		}))
 	}
 
 	if elems.Data {
-		differ := differForTableData(ru, cfg, td1, td2)
+		differ := differForTableData(cfg, td1, td2)
 		differs = append(differs, differ)
 	}
 

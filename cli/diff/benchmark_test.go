@@ -31,7 +31,9 @@ func BenchmarkExecTableDiff(b *testing.B) {
 
 	elems := &diff.Elements{Data: true}
 	cfg := &diff.Config{
+		Run:            ru,
 		RecordWriterFn: tablew.NewRecordWriter,
+		Elements:       elems,
 		Lines:          3,
 		Printing:       output.NewPrinting(),
 		Colors:         diffdoc.NewColors(),
@@ -43,7 +45,7 @@ func BenchmarkExecTableDiff(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		buf := &bytes.Buffer{}
 		ru.Out = buf
-		err := diff.ExecTableDiff(th.Context, cfg, elems, srcA, sakila.TblActor, srcB, sakila.TblActor)
+		err := diff.ExecTableDiff(th.Context, cfg, srcA, sakila.TblActor, srcB, sakila.TblActor)
 		require.NoError(b, err)
 		buf.Reset()
 	}

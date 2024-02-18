@@ -3,6 +3,7 @@ package diff
 
 import (
 	"fmt"
+
 	"github.com/neilotoole/sq/cli/run"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -15,6 +16,9 @@ import (
 type Config struct {
 	// Run is the program run instance.
 	Run *run.Run
+
+	// Elements specifies what elements to diff.
+	Elements *Elements
 
 	// RecordWriterFn is a factory function that returns
 	// an output.RecordWriter used to generate diff text

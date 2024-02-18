@@ -13,10 +13,12 @@ import (
 
 // ExecSourceDiff is the entrypoint to diff two sources, handle1 and handle2.
 // Contrast with [ExecTableDiff], which diffs two tables.
-func ExecSourceDiff(ctx context.Context, cfg *Config, elems *Elements, src1, src2 *source.Source) error {
-	ru := cfg.Run
-	sd1 := &sourceData{src: src1, handle: src1.Handle}
-	sd2 := &sourceData{src: src2, handle: src2.Handle}
+func ExecSourceDiff(ctx context.Context, cfg *Config, src1, src2 *source.Source) error {
+	var (
+		elems = cfg.Elements
+		sd1   = &sourceData{src: src1, handle: src1.Handle}
+		sd2   = &sourceData{src: src2, handle: src2.Handle}
+	)
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
@@ -28,12 +30,12 @@ func ExecSourceDiff(ctx context.Context, cfg *Config, elems *Elements, src1, src
 		// TODO: I think in some places we need just the table names, so we should
 		// be able to call SQLDriver.ListTableNames instead of getting the entire
 		// metadata.Source.
-		sd1.src, sd1.srcMeta, err = fetchSourceMeta(gCtx, ru, src1.Handle)
+		sd1.src, sd1.srcMeta, err = fetchSourceMeta(gCtx, cfg.Run, src1.Handle)
 		return err
 	})
 	g.Go(func() error {
 		var err error
-		sd2.src, sd2.srcMeta, err = fetchSourceMeta(gCtx, ru, src2.Handle)
+		sd2.src, sd2.srcMeta, err = fetchSourceMeta(gCtx, cfg.Run, src2.Handle)
 		return err
 	})
 	if err := g.Wait(); err != nil {
@@ -68,14 +70,14 @@ func ExecSourceDiff(ctx context.Context, cfg *Config, elems *Elements, src1, src
 
 	if elems.Data {
 		// We're going for it... diff all table data.
-		dataDiffers, err := differsForAllTableData(ctx, ru, cfg, sd1, sd2)
+		dataDiffers, err := differsForAllTableData(ctx, cfg, sd1, sd2)
 		if err != nil {
 			return err
 		}
 		differs = append(differs, dataDiffers...)
 	}
 
-	return diffdoc.Execute(ctx, ru.Out, cfg.Concurrency, differs)
+	return diffdoc.Execute(ctx, cfg.Run.Out, cfg.Concurrency, differs)
 }
 
 func fetchSourceMeta(ctx context.Context, ru *run.Run, handle string) (*source.Source, *metadata.Source, error) {
