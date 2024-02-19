@@ -1,28 +1,51 @@
 // Package oncecache provides a strongly-typed, concurrency-safe, in-memory,
 // on-demand cache that ensures that a given cache entry is populated only once.
+// It also provides a callback mechanism that can be used for linked cache
+// propagation, logging, or metrics.
 package oncecache
 
 import (
 	"context"
+	"crypto/rand"
+	"fmt"
+	"hash/crc32"
+	"log/slog"
+	"reflect"
 	"sync"
 )
 
-// New returns a new [Cache] instance. The fetch func is called, on-demand, by
+// FetchFunc called by [Cache.Get] to fill an unpopulated cache entry.
+type FetchFunc[K comparable, V any] func(ctx context.Context, key K) (val V, err error)
+
+// New returns a new [Cache] instance. The fetch func is invoked, on-demand, by
 // [Cache.Get] to obtain an entry value for a given key, OR the entry may be
 // externally set via [Cache.Set]. Either which way, the entry is populated only
 // once. That is, unless the entry is explicitly cleared via [Cache.Delete] or
 // [Cache.Clear], at which point the entry may be populated afresh.
 //
-// The opts are functional options that can be used to configure the cache. For
-// example, see the [OnFillFunc] or [OnEvictFunc] callbacks.
-func New[K comparable, V any](fetch FetchFunc[K, V], opts ...Opt[K, V]) *Cache[K, V] {
+// Arg opts is a set of functional options that can be used to configure the
+// cache. For example, see [Name] to set the cache name, or the [OnFillFunc]
+// or [OnEvictFunc] callbacks.
+func New[K comparable, V any](fetch FetchFunc[K, V], opts ...Opt) *Cache[K, V] {
 	c := &Cache[K, V]{
+		name:    randomName(),
 		entries: map[K]*entry[K, V]{},
 		fetch:   fetch,
 	}
 
 	for _, opt := range opts {
-		opt.apply(c)
+		if !isNil(opt) {
+			if optioner, ok := opt.(optApplier[K, V]); ok {
+				optioner.apply(c)
+				continue
+			}
+
+			// Else, we've got to do it case-by-case.
+			if name, ok := opt.(Name); ok {
+				c.name = string(name)
+				continue
+			}
+		}
 	}
 
 	return c
@@ -40,11 +63,41 @@ func New[K comparable, V any](fetch FetchFunc[K, V], opts ...Opt[K, V]) *Cache[K
 //
 // The zero value is not usable; instead invoke [New].
 type Cache[K comparable, V any] struct {
+	name    string
 	fetch   FetchFunc[K, V]
 	onFill  []OnFillFunc[K, V]
 	onEvict []OnEvictFunc[K, V]
 	entries map[K]*entry[K, V]
 	mu      sync.Mutex
+}
+
+// Name returns the cache's name, useful for logging. Specify the cache name by
+// passing [oncecache.Name] to [New]; otherwise a random name is used.
+func (c *Cache[K, V]) Name() string {
+	return c.name
+}
+
+// String returns a debug-friendly string representation of the cache.
+func (c *Cache[K, V]) String() string {
+	return fmt.Sprintf(
+		"%s[%T, %T][%d]",
+		c.name,
+		*new(K),
+		*new(V),
+		len(c.entries),
+	)
+}
+
+// LogValue implements [slog.LogValuer].
+func (c *Cache[K, V]) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("name", c.name),
+		slog.Int("entries", len(c.entries)),
+		slog.Group("type",
+			"key", fmt.Sprintf("%T", *new(K)),
+			"value", fmt.Sprintf("%T", *new(V)),
+		),
+	)
 }
 
 // Clear clears the cache entries, invoking any [OnEvictFunc] callbacks on each
@@ -139,7 +192,7 @@ func (e *entry[K, V]) set(ctx context.Context, key K, val V, err error) {
 
 	if notify {
 		for _, onFill := range e.cache.onFill {
-			onFill(ctx, key, val, err)
+			onFill(ctx, e.cache, key, val, err)
 		}
 	}
 }
@@ -153,7 +206,7 @@ func (e *entry[K, V]) get(ctx context.Context, key K) (V, error) {
 
 	if notify {
 		for _, onFill := range e.cache.onFill {
-			onFill(ctx, key, e.val, e.err)
+			onFill(ctx, e.cache, key, e.val, e.err)
 		}
 	}
 
@@ -162,6 +215,18 @@ func (e *entry[K, V]) get(ctx context.Context, key K) (V, error) {
 
 func (e *entry[K, V]) evict(ctx context.Context, key K) {
 	for _, onEvict := range e.cache.onEvict {
-		onEvict(ctx, key, e.val, e.err)
+		onEvict(ctx, e.cache, key, e.val, e.err)
 	}
+}
+
+func randomName() string {
+	b := make([]byte, 128)
+	_, _ = rand.Read(b)
+	return fmt.Sprintf("cache-%x", crc32.ChecksumIEEE(b))
+}
+
+// isNil checks if a value is nil or if it's a reference type with a nil underlying value.
+func isNil(x any) bool {
+	defer func() { recover() }() //nolint:errcheck
+	return x == nil || reflect.ValueOf(x).IsNil()
 }

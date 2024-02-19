@@ -3,6 +3,7 @@ package oncecache_test
 import (
 	"context"
 	"errors"
+	"github.com/neilotoole/slogt"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -13,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func noOddNumbers(_ context.Context, key int) (string, error) {
+func fetchEvenOnly(_ context.Context, key int) (string, error) {
 	if key%2 == 0 {
 		return strconv.Itoa(key), nil
 	}
@@ -24,7 +25,7 @@ func TestCache(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	fetcher := noOddNumbers
+	fetcher := fetchEvenOnly
 	c := oncecache.New[int, string](fetcher)
 
 	got, err := c.Get(ctx, 0)
@@ -77,7 +78,7 @@ func TestCacheConcurrent(t *testing.T) {
 
 	fetcher := func(ctx context.Context, key int) (val string, err error) {
 		invocations[key].Add(1)
-		return noOddNumbers(ctx, key)
+		return fetchEvenOnly(ctx, key)
 	}
 
 	c := oncecache.New[int, string](fetcher)
@@ -105,3 +106,80 @@ func TestCacheConcurrent(t *testing.T) {
 		assert.Equal(t, int64(1), invocations[i].Load(), "key %d", i)
 	}
 }
+
+//	func fetchDouble[K ~int, V ~int](_ context.Context, key K) (val V, err error) {
+//		return V(key * 2), nil
+//	}
+func fetchDouble(_ context.Context, key int) (val int, err error) {
+	return key * 2, nil
+}
+
+//func TestOnFillChan(t *testing.T) {
+//	ctx := context.Background()
+//
+//	var opt oncecache.Opt[int, int]
+//
+//	eventCh := make(chan oncecache.Event[int, int], 10)
+//
+//	c2 := oncecache.New[int, int](fetchDouble[int, int], opt)
+//
+//	got, err := c2.Get(ctx, 3)
+//	require.NoError(t, err)
+//	require.Equal(t, 6, got)
+//
+//}
+
+func TestLogging(t *testing.T) {
+	ctx := context.Background()
+
+	c := oncecache.New[int, int](fetchDouble)
+	got := c.Name()
+	require.NotEmpty(t, got)
+	t.Log(got)
+
+	c = oncecache.New[int, int](fetchDouble, oncecache.Name("cache-foo"))
+	got = c.Name()
+	require.Equal(t, "cache-foo", got)
+
+	// Sanity check: make sure Cache.LogValue doesn't shit the bed.
+	slogt.New(t).Info("hello", "cache", c)
+
+	s := c.String()
+	require.Equal(t, "cache-foo[int, int][0]", s)
+	_, _ = c.Get(ctx, 1)
+	_, _ = c.Get(ctx, 2)
+	_, _ = c.Get(ctx, 3)
+	s = c.String()
+	require.Equal(t, "cache-foo[int, int][3]", s)
+}
+
+//func TestOnFill(t *testing.T) {
+//	ctx := context.Background()
+//	double := func(ctx context.Context, key int) (val int, err error) {
+//		return key * 2, nil
+//	}
+//	//c := oncecache.New[int, int](double)
+//	//
+//	//got, err := c.Get(ctx, 3)
+//	//require.NoError(t, err)
+//	//require.Equal(t, 6, got)
+//
+//	//var cb oncecache.OnFillFunc[int, int] = func(ctx context.Context, key int, val int, err error) {
+//	//	require.NoError(t, err)
+//	//	require.Equal(t, 6, val)
+//	//}
+//	//_ = cb
+//	var cb oncecache.OnFillFunc[int, int] = func(ctx context.Context, key int, val int, err error) {
+//		t.Logf("key: %d, val: %d, err: %v", key, val, err)
+//	}
+//
+//	//x := oncecache.OptHuzzah2[int, int]{Key: 1, Val: 2}
+//
+//	c2 := oncecache.New[int, int](double, cb)
+//	_ = c2
+//
+//	got, err := c2.Get(ctx, 3)
+//	require.NoError(t, err)
+//	require.Equal(t, 6, got)
+//
+//}
