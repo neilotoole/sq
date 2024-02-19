@@ -3,8 +3,6 @@ package staffdir
 import (
 	"context"
 	"log/slog"
-
-	"github.com/neilotoole/sq/libsq/core/oncecache"
 )
 
 var _ DB = (*DirCache)(nil)
@@ -14,11 +12,11 @@ func NewDirCache(log *slog.Logger, db DB) *DirCache {
 		log:   log,
 		db:    db,
 		stats: NewStats(),
-		companies: oncecache.New[string, *Company](func(ctx context.Context, _ string) (val *Company, err error) {
+		companies: ocache.New[string, *Company](func(ctx context.Context, _ string) (val *Company, err error) {
 			return db.GetCompany(ctx)
 		}),
-		depts:     oncecache.New[string, *Department](db.GetDepartment),
-		employees: oncecache.New[int, *Employee](db.GetEmployee),
+		depts:     ocache.New[string, *Department](db.GetDepartment),
+		employees: ocache.New[int, *Employee](db.GetEmployee),
 	}
 }
 
@@ -26,9 +24,9 @@ type DirCache struct {
 	log       *slog.Logger
 	db        DB
 	stats     *Stats
-	companies *oncecache.Cache[string, *Company]
-	depts     *oncecache.Cache[string, *Department]
-	employees *oncecache.Cache[int, *Employee]
+	companies *ocache.Cache[string, *Company]
+	depts     *ocache.Cache[string, *Department]
+	employees *ocache.Cache[int, *Employee]
 }
 
 func (dc *DirCache) Stats() *Stats {

@@ -1,15 +1,15 @@
-package oncecache_test
+package ocache_test
 
 import (
 	"context"
 	"errors"
 	"github.com/neilotoole/slogt"
+	"github.com/neilotoole/sq/libsq/core/ocache"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/oncecache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,12 +21,16 @@ func fetchEvenOnly(_ context.Context, key int) (string, error) {
 	return "", errors.New("odd numbers not supported")
 }
 
+func fetchDouble(_ context.Context, key int) (val int, err error) {
+	return key * 2, nil
+}
+
 func TestCache(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
 	fetcher := fetchEvenOnly
-	c := oncecache.New[int, string](fetcher)
+	c := ocache.New[int, string](fetcher)
 
 	got, err := c.Get(ctx, 0)
 	require.NoError(t, err)
@@ -81,7 +85,7 @@ func TestCacheConcurrent(t *testing.T) {
 		return fetchEvenOnly(ctx, key)
 	}
 
-	c := oncecache.New[int, string](fetcher)
+	c := ocache.New[int, string](fetcher)
 
 	wg := &sync.WaitGroup{}
 	wg.Add(concurrency)
@@ -110,9 +114,6 @@ func TestCacheConcurrent(t *testing.T) {
 //	func fetchDouble[K ~int, V ~int](_ context.Context, key K) (val V, err error) {
 //		return V(key * 2), nil
 //	}
-func fetchDouble(_ context.Context, key int) (val int, err error) {
-	return key * 2, nil
-}
 
 //func TestOnFillChan(t *testing.T) {
 //	ctx := context.Background()
@@ -132,12 +133,12 @@ func fetchDouble(_ context.Context, key int) (val int, err error) {
 func TestLogging(t *testing.T) {
 	ctx := context.Background()
 
-	c := oncecache.New[int, int](fetchDouble)
+	c := ocache.New[int, int](fetchDouble)
 	got := c.Name()
 	require.NotEmpty(t, got)
 	t.Log(got)
 
-	c = oncecache.New[int, int](fetchDouble, oncecache.Name("cache-foo"))
+	c = ocache.New[int, int](fetchDouble, ocache.Name("cache-foo"))
 	got = c.Name()
 	require.Equal(t, "cache-foo", got)
 

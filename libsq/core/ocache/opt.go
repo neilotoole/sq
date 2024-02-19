@@ -1,7 +1,6 @@
-package oncecache
+package ocache
 
 import "context"
-
 
 // Opt is an option for [New].
 type Opt interface {
