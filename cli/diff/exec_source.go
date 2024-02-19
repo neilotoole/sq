@@ -14,6 +14,8 @@ import (
 // ExecSourceDiff is the entrypoint to diff two sources, handle1 and handle2.
 // Contrast with [ExecTableDiff], which diffs two tables.
 func ExecSourceDiff(ctx context.Context, cfg *Config, src1, src2 *source.Source) error {
+	cfg.init()
+
 	var (
 		elems = cfg.Elements
 		sd1   = &sourceData{src: src1, handle: src1.Handle}

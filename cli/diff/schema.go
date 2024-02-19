@@ -2,6 +2,7 @@ package diff
 
 import (
 	"context"
+	"github.com/neilotoole/sq/libsq/source"
 	"io"
 	"slices"
 	"strings"
@@ -29,12 +30,14 @@ func differsForSchema(ctx context.Context, cfg *Config, showRowCounts bool,
 		}
 
 		td1 := &tableData{
+			tbl:     source.Table{Handle: sd1.src.Handle, Name: tblName},
 			tblName: tblName,
 			tblMeta: sd1.srcMeta.Table(tblName),
 			src:     sd1.src,
 			srcMeta: sd1.srcMeta,
 		}
 		td2 := &tableData{
+			tbl:     source.Table{Handle: sd2.src.Handle, Name: tblName},
 			tblName: tblName,
 			tblMeta: sd2.srcMeta.Table(tblName),
 			src:     sd2.src,
@@ -42,10 +45,9 @@ func differsForSchema(ctx context.Context, cfg *Config, showRowCounts bool,
 		}
 
 		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors, "sq diff %s %s", td1, td2))
-		differ := diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
+		differs = append(differs, diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
 			diffTableSchema(ctx, cfg, showRowCounts, td1, td2, doc)
-		})
-		differs = append(differs, differ)
+		}))
 	}
 
 	return differs, nil

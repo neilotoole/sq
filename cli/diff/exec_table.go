@@ -6,11 +6,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/neilotoole/sq/cli/run"
-	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // ExecTableDiff is the entrypoint to diff two tables, src1.table1 and
@@ -20,11 +16,20 @@ import (
 func ExecTableDiff(ctx context.Context, cfg *Config,
 	src1 *source.Source, table1 string, src2 *source.Source, table2 string,
 ) error {
+	cfg.init()
 	var (
-		ru      = cfg.Run
-		elems   = cfg.Elements
-		td1     = &tableData{src: src1, tblName: table1}
-		td2     = &tableData{src: src2, tblName: table2}
+		ru    = cfg.Run
+		elems = cfg.Elements
+		td1   = &tableData{
+			tbl:     source.Table{Handle: src1.Handle, Name: table1},
+			src:     src1,
+			tblName: table1,
+		}
+		td2 = &tableData{
+			tbl:     source.Table{Handle: src2.Handle, Name: table2},
+			src:     src2,
+			tblName: table2,
+		}
 		differs []*diffdoc.Differ
 	)
 
@@ -57,22 +62,4 @@ func ExecTableDiff(ctx context.Context, cfg *Config,
 	}
 
 	return diffdoc.Execute(ctx, ru.Out, cfg.Concurrency, differs)
-}
-
-// fetchTableMeta returns the metadata.Table for table. If the table
-// does not exist, {nil,nil} is returned.
-func fetchTableMeta(ctx context.Context, ru *run.Run, src *source.Source, table string) (*metadata.Table, error) {
-	grip, err := ru.Grips.Open(ctx, src)
-	if err != nil {
-		return nil, err
-	}
-	md, err := grip.TableMetadata(ctx, table)
-	if err != nil {
-		if errz.Has[*driver.NotExistError](err) {
-			return nil, nil //nolint:nilnil
-		}
-		return nil, err
-	}
-
-	return md, nil
 }

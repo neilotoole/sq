@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/source"
 	"slices"
 	"strings"
 
@@ -38,13 +39,21 @@ func differsForAllTableData(ctx context.Context, cfg *Config, sd1, sd2 *sourceDa
 
 	differs := make([]*diffdoc.Differ, len(allTblNames))
 	for i, tblName := range allTblNames {
-		td1 := &tableData{src: sd1.src, tblName: tblName}
+		td1 := &tableData{
+			tbl:     source.Table{Handle: sd1.src.Handle, Name: tblName},
+			src:     sd1.src,
+			tblName: tblName,
+		}
 		td1.tblMeta = sd1.srcMeta.Table(tblName)
 
 		// REVISIT: What if there isn't table metadata? Or is it guaranteed to
 		// be present?
 
-		td2 := &tableData{src: sd2.src, tblName: tblName}
+		td2 := &tableData{
+			tbl:     source.Table{Handle: sd2.src.Handle, Name: tblName},
+			src:     sd2.src,
+			tblName: tblName,
+		}
 		td2.tblMeta = sd2.srcMeta.Table(tblName)
 		differs[i] = differForTableData(cfg, true, td1, td2)
 	}

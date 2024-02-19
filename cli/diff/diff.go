@@ -1,12 +1,11 @@
-// Package diff contains sq's diff implementation.
+// Package diff contains sq's diff implementation. There are two package
+// entrypoints: ExecSourceDiff and ExecTableDiff.
 package diff
 
 import (
 	"fmt"
-
-	"github.com/neilotoole/sq/cli/run"
-
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -14,7 +13,7 @@ import (
 
 // Config contains parameters to control diff behavior.
 type Config struct {
-	// Run is the program run instance.
+	// Run is the main program run.Run instance.
 	Run *run.Run
 
 	// Elements specifies what elements to diff.
@@ -43,6 +42,17 @@ type Config struct {
 	// Zero indicates sequential execution; a negative values indicates unbounded
 	// concurrency.
 	Concurrency int
+
+	// cache is lazily initialized by Config.init.
+	cache *cache
+}
+
+// init lazy-initializes Config. It must be invoked at package entrypoints.
+func (c *Config) init() {
+	c.cache = &cache{
+		ru:      c.Run,
+		tblMeta: map[source.Table]*metadata.Table{},
+	}
 }
 
 // Elements determines what source elements to compare.
@@ -70,20 +80,21 @@ type sourceData struct {
 	handle  string
 }
 
-func (sd *sourceData) clone() *sourceData { //nolint:unused // REVISIT: no longer needed?
-	if sd == nil {
-		return nil
-	}
-
-	return &sourceData{
-		handle:  sd.handle,
-		src:     sd.src.Clone(),
-		srcMeta: sd.srcMeta.Clone(),
-	}
-}
+//func (sd *sourceData) clone() *sourceData { //nolint:unused // REVISIT: no longer needed?
+//	if sd == nil {
+//		return nil
+//	}
+//
+//	return &sourceData{
+//		handle:  sd.handle,
+//		src:     sd.src.Clone(),
+//		srcMeta: sd.srcMeta.Clone(),
+//	}
+//}
 
 // tableData encapsulates data about a table.
 type tableData struct {
+	tbl     source.Table
 	tblMeta *metadata.Table
 	src     *source.Source
 	srcMeta *metadata.Source
@@ -95,15 +106,15 @@ func (td *tableData) String() string {
 	return fmt.Sprintf("%s.%s", td.src.Handle, td.tblName)
 }
 
-func (td *tableData) clone() *tableData { //nolint:unused // REVISIT: no longer needed?
-	if td == nil {
-		return nil
-	}
-
-	return &tableData{
-		tblName: td.tblName,
-		tblMeta: td.tblMeta.Clone(),
-		src:     td.src.Clone(),
-		srcMeta: td.srcMeta.Clone(),
-	}
-}
+//func (td *tableData) clone() *tableData { //nolint:unused // REVISIT: no longer needed?
+//	if td == nil {
+//		return nil
+//	}
+//
+//	return &tableData{
+//		tblName: td.tblName,
+//		tblMeta: td.tblMeta.Clone(),
+//		src:     td.src.Clone(),
+//		srcMeta: td.srcMeta.Clone(),
+//	}
+//}
