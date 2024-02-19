@@ -1,8 +1,12 @@
-// Package ocache provides a strongly-typed, concurrency-safe, in-memory,
-// on-demand object cache that ensures that a given cache entry is populated
-// only once. It also provides a callback mechanism that can be used for linked
-// cache propagation, logging, or metrics.
-package ocache
+// Package oncecache contains a strongly-typed, concurrency-safe, in-memory,
+// on-demand object [Cache] that ensures that a given cache entry is populated
+// only once.
+//
+// Its raison d'être is ergonomic use as a write-once, ready-many-times cache.
+//
+// It also provides a callback mechanism that can be used for linked cache
+// propagation, logging, or metrics.
+package oncecache
 
 import (
 	"context"

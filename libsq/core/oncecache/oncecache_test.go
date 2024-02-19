@@ -1,10 +1,10 @@
-package ocache_test
+package oncecache_test
 
 import (
 	"context"
 	"errors"
 	"github.com/neilotoole/slogt"
-	"github.com/neilotoole/sq/libsq/core/ocache"
+	"github.com/neilotoole/sq/libsq/core/oncecache"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -30,7 +30,7 @@ func TestCache(t *testing.T) {
 
 	ctx := context.Background()
 	fetcher := fetchEvenOnly
-	c := ocache.New[int, string](fetcher)
+	c := oncecache.New[int, string](fetcher)
 
 	got, err := c.Get(ctx, 0)
 	require.NoError(t, err)
@@ -85,7 +85,7 @@ func TestCacheConcurrent(t *testing.T) {
 		return fetchEvenOnly(ctx, key)
 	}
 
-	c := ocache.New[int, string](fetcher)
+	c := oncecache.New[int, string](fetcher)
 
 	wg := &sync.WaitGroup{}
 	wg.Add(concurrency)
@@ -133,12 +133,12 @@ func TestCacheConcurrent(t *testing.T) {
 func TestLogging(t *testing.T) {
 	ctx := context.Background()
 
-	c := ocache.New[int, int](fetchDouble)
+	c := oncecache.New[int, int](fetchDouble)
 	got := c.Name()
 	require.NotEmpty(t, got)
 	t.Log(got)
 
-	c = ocache.New[int, int](fetchDouble, ocache.Name("cache-foo"))
+	c = oncecache.New[int, int](fetchDouble, oncecache.Name("cache-foo"))
 	got = c.Name()
 	require.Equal(t, "cache-foo", got)
 
