@@ -3,12 +3,13 @@ package staffdir_test
 import (
 	"context"
 	"encoding/json"
-	"github.com/neilotoole/slogt"
-	"github.com/neilotoole/sq/libsq/core/oncecache/example/staffdir"
-	"github.com/stretchr/testify/require"
 	"log/slog"
 	"os"
 	"testing"
+
+	"github.com/neilotoole/slogt"
+	"github.com/neilotoole/sq/libsq/core/oncecache/example/staffdir"
+	"github.com/stretchr/testify/require"
 )
 
 func setup(t *testing.T) (*slog.Logger, *staffdir.InMemDB, *staffdir.DirCache) {

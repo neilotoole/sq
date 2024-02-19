@@ -2,8 +2,9 @@ package staffdir
 
 import (
 	"context"
-	"github.com/neilotoole/sq/libsq/core/oncecache"
 	"log/slog"
+
+	"github.com/neilotoole/sq/libsq/core/oncecache"
 )
 
 var _ DB = (*DirCache)(nil)
@@ -37,11 +38,16 @@ func (dc *DirCache) Stats() *Stats {
 func (dc *DirCache) GetCompany(ctx context.Context) (*Company, error) {
 	dc.stats.getCompany.Add(1)
 	got, err := dc.companies.Get(ctx, "singleton")
+	for _, dept := range got.Departments {
+		dc.depts.Set(dept.Name, dept, nil)
+	}
+
 	if err == nil {
 		dc.log.Info("GetCompany", "company", got)
 	} else {
 		dc.log.Error("GetCompany", "error", err.Error())
 	}
+
 	return got, err
 }
 
@@ -50,6 +56,9 @@ func (dc *DirCache) ListDepartments(ctx context.Context) ([]*Department, error) 
 	got, err := dc.db.ListDepartments(ctx)
 	if err == nil {
 		dc.log.Info("ListDepartments", "count", len(got))
+		for _, dept := range got {
+			dc.depts.Set(dept.Name, dept, nil)
+		}
 	} else {
 		dc.log.Error("ListDepartments", "error", err.Error())
 	}

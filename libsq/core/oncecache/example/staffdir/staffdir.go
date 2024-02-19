@@ -32,11 +32,11 @@ func (d *Department) String() string {
 }
 
 // LogValue implements slog.LogValuer.
-func (e *Department) LogValue() slog.Value {
-	if e == nil {
+func (d *Department) LogValue() slog.Value {
+	if d == nil {
 		return slog.Value{}
 	}
-	return slog.GroupValue(slog.String("name", e.Name), slog.Int("staff", len(e.Staff)))
+	return slog.GroupValue(slog.String("name", d.Name), slog.Int("staff", len(d.Staff)))
 }
 
 type Employee struct {
@@ -119,7 +119,6 @@ func (s *Stats) String() string {
 		"GetCompany: %d, ListDepartments: %d, GetDepartment: %d, ListEmployees: %d, GetEmployee: %d",
 		s.GetCompany(), s.ListDepartments(), s.GetDepartment(), s.ListEmployees(), s.GetEmployee(),
 	)
-
 }
 
 func NewStats() *Stats {

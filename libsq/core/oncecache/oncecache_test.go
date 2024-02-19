@@ -48,13 +48,13 @@ func TestCache(t *testing.T) {
 	require.Equal(t, "seven", got)
 
 	// But, if we delete the entry, it can be set again.
-	c.Delete(7)
+	c.Delete(nil, 7)
 	got, err = c.Get(ctx, 7)
 	require.Error(t, err)
 	require.Empty(t, got)
 
 	// Verify that clear works too.
-	c.Clear()
+	c.Clear(nil)
 	c.Set(7, "seven", nil)
 	got, err = c.Get(ctx, 7)
 	require.NoError(t, err)
