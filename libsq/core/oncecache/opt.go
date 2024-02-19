@@ -6,8 +6,8 @@ import "context"
 type FetchFunc[K comparable, V any] func(ctx context.Context, key K) (val V, err error)
 
 // Opt is a functional option for [New].
-type Opt interface {
-	apply()
+type Opt[K comparable, V any] interface {
+	apply(c *Cache[K, V])
 }
 
 // OnFillFunc is a callback functional option for [New] that is invoked when a
@@ -25,6 +25,13 @@ func (f OnFillFunc[K, V]) apply(c *Cache[K, V]) {
 	c.onFill = append(c.onFill, f)
 }
 
+type OptHuzzah[K comparable, V any] struct {
+}
+
+func (o OptHuzzah[K, V]) apply(c *Cache[K, V]) {
+
+}
+
 // OnEvictFunc is a callback functional option for [New] that is invoked when a
 // cache entry is evicted via [Cache.Delete] or [Cache.Clear].
 //
@@ -38,8 +45,6 @@ type OnEvictFunc[K comparable, V any] func(ctx context.Context, key K, val V, er
 func (f OnEvictFunc[K, V]) apply(c *Cache[K, V]) {
 	c.onEvict = append(c.onEvict, f)
 }
-
-type WubbleChan chan string
 
 type EventType string
 
@@ -57,15 +62,20 @@ type Event[K comparable, V any] struct {
 }
 
 //type EventChan[K comparable, V any] chan<- Event[K, V]
+//
+//func OnFillCallback[K comparable, V any](ch chan<- Event[K, V]) Opt {
+//	return onFillOpt[K, V]{ch: ch}
+//}
+//
+//type onFillOpt[K comparable, V any] struct {
+//	ch chan<- Event[K, V]
+//}
+//
+//func (o onFillOpt[K, V]) apply() {
+//	//TODO implement me
+//	panic("implement me")
+//}
 
-func OnFillCallback[K comparable, V any](<-chan Event[K, V]) Opt {
-	return nil
-}
-
-type onFillCallback[K comparable, V any] struct {
-	ch chan<- Event[K, V]
-}
-
-func (f onFillCallback[K, V]) apply(c *Cache[K, V]) {
-	//c.onFill = append(c.onFill, f)
-}
+//func (f onFillOpt[K, V]) apply(c *Cache[K, V]) {
+//	//c.onFill = append(c.onFill, f)
+//}

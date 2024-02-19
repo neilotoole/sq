@@ -15,14 +15,14 @@ import (
 //
 // The opts are functional options that can be used to configure the cache. For
 // example, see the [OnFillFunc] or [OnEvictFunc] callbacks.
-func New[K comparable, V any](fetch FetchFunc[K, V], opts ...Opt) *Cache[K, V] {
+func New[K comparable, V any](fetch FetchFunc[K, V], opts ...Opt[K, V]) *Cache[K, V] {
 	c := &Cache[K, V]{
 		entries: map[K]*entry[K, V]{},
 		fetch:   fetch,
 	}
 
 	for _, opt := range opts {
-		opt.apply()
+		opt.apply(c)
 	}
 
 	return c
@@ -76,7 +76,7 @@ func (c *Cache[K, V]) Clear(ctx context.Context) {
 
 // Delete deletes the entry for the given key, invoking any [OnEvictFunc]
 // callbacks.
-func (c *Cache[K, V]) Delete(ctx context.Context, key interface{}) {
+func (c *Cache[K, V]) Delete(ctx context.Context, key K) {
 	c.mu.Lock()
 	ce, ok := c.entries[key]
 	delete(c.entries, key)
@@ -165,4 +165,3 @@ func (e *entry[K, V]) evict(ctx context.Context, key K) {
 		onEvict(ctx, key, e.val, e.err)
 	}
 }
-

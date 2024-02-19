@@ -36,26 +36,26 @@ func TestCache(t *testing.T) {
 	require.Empty(t, got)
 
 	// Seven is my lucky number though.
-	c.Set(7, "seven", nil)
+	c.Set(ctx, 7, "seven", nil)
 	got, err = c.Get(ctx, 7)
 	require.NoError(t, err)
 	require.Equal(t, "seven", got)
 
 	// Verify that it a value can only be set once.
-	c.Set(7, "", errors.New("nope"))
+	c.Set(ctx, 7, "", errors.New("nope"))
 	got, err = c.Get(ctx, 7)
 	require.NoError(t, err)
 	require.Equal(t, "seven", got)
 
 	// But, if we delete the entry, it can be set again.
-	c.Delete(nil, 7)
+	c.Delete(ctx, 7)
 	got, err = c.Get(ctx, 7)
 	require.Error(t, err)
 	require.Empty(t, got)
 
 	// Verify that clear works too.
 	c.Clear(nil)
-	c.Set(7, "seven", nil)
+	c.Set(ctx, 7, "seven", nil)
 	got, err = c.Get(ctx, 7)
 	require.NoError(t, err)
 	require.Equal(t, "seven", got)
