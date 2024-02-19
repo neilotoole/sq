@@ -2,6 +2,7 @@ package staffdir
 
 import (
 	"context"
+	"github.com/neilotoole/sq/libsq/core/ocache"
 	"log/slog"
 )
 
@@ -37,7 +38,7 @@ func (dc *DirCache) GetCompany(ctx context.Context) (*Company, error) {
 	dc.stats.getCompany.Add(1)
 	got, err := dc.companies.Get(ctx, "singleton")
 	for _, dept := range got.Departments {
-		dc.depts.Set(dept.Name, dept, nil)
+		dc.depts.Set(ctx, dept.Name, dept, nil)
 	}
 
 	if err == nil {
@@ -55,7 +56,7 @@ func (dc *DirCache) ListDepartments(ctx context.Context) ([]*Department, error) 
 	if err == nil {
 		dc.log.Info("ListDepartments", "count", len(got))
 		for _, dept := range got {
-			dc.depts.Set(dept.Name, dept, nil)
+			dc.depts.Set(ctx, dept.Name, dept, nil)
 		}
 	} else {
 		dc.log.Error("ListDepartments", "error", err.Error())

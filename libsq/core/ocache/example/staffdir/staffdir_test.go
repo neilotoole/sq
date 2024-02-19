@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/neilotoole/slogt"
-	"github.com/neilotoole/sq/libsq/core/oncecache/example/staffdir"
+	"github.com/neilotoole/sq/libsq/core/ocache/example/staffdir"
 	"github.com/stretchr/testify/require"
 )
 
