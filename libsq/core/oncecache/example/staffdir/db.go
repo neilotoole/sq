@@ -33,7 +33,7 @@ func NewInMemDB(log *slog.Logger, datafile string) (*InMemDB, error) {
 	db := &InMemDB{
 		log:     log,
 		company: company,
-		stats:   NewUsageStats(),
+		stats:   NewStats(),
 	}
 
 	return db, nil

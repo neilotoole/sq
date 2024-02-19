@@ -12,22 +12,26 @@ func NewDirCache(log *slog.Logger, db DB) *DirCache {
 	return &DirCache{
 		log:   log,
 		db:    db,
-		stats: NewUsageStats(),
+		stats: NewStats(),
 		companies: oncecache.New[string, *Company](func(ctx context.Context, _ string) (val *Company, err error) {
 			return db.GetCompany(ctx)
 		}),
-		departments: oncecache.New[string, *Department](db.GetDepartment),
-		employees:   oncecache.New[int, *Employee](db.GetEmployee),
+		depts:     oncecache.New[string, *Department](db.GetDepartment),
+		employees: oncecache.New[int, *Employee](db.GetEmployee),
 	}
 }
 
 type DirCache struct {
-	log         *slog.Logger
-	db          DB
-	stats       *Stats
-	companies   *oncecache.Cache[string, *Company]
-	departments *oncecache.Cache[string, *Department]
-	employees   *oncecache.Cache[int, *Employee]
+	log       *slog.Logger
+	db        DB
+	stats     *Stats
+	companies *oncecache.Cache[string, *Company]
+	depts     *oncecache.Cache[string, *Department]
+	employees *oncecache.Cache[int, *Employee]
+}
+
+func (dc *DirCache) Stats() *Stats {
+	return dc.stats
 }
 
 func (dc *DirCache) GetCompany(ctx context.Context) (*Company, error) {
@@ -53,7 +57,8 @@ func (dc *DirCache) ListDepartments(ctx context.Context) ([]*Department, error) 
 }
 
 func (dc *DirCache) GetDepartment(ctx context.Context, dept string) (*Department, error) {
-	got, err := dc.departments.Get(ctx, dept)
+	dc.stats.getDepartment.Add(1)
+	got, err := dc.depts.Get(ctx, dept)
 	if err == nil {
 		dc.log.Info("GetDepartment", "dept", got)
 	} else {
@@ -63,6 +68,7 @@ func (dc *DirCache) GetDepartment(ctx context.Context, dept string) (*Department
 }
 
 func (dc *DirCache) ListEmployees(ctx context.Context) ([]*Employee, error) {
+	dc.stats.listEmployees.Add(1)
 	got, err := dc.db.ListEmployees(ctx)
 	if err == nil {
 		dc.log.Info("ListEmployees", "count", len(got))
@@ -73,6 +79,7 @@ func (dc *DirCache) ListEmployees(ctx context.Context) ([]*Employee, error) {
 }
 
 func (dc *DirCache) GetEmployee(ctx context.Context, id int) (*Employee, error) {
+	dc.stats.getEmployee.Add(1)
 	got, err := dc.employees.Get(ctx, id)
 	if err == nil {
 		dc.log.Info("GetEmployee", "id", id, "name", got)

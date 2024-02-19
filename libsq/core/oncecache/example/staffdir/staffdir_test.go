@@ -6,28 +6,41 @@ import (
 	"github.com/neilotoole/slogt"
 	"github.com/neilotoole/sq/libsq/core/oncecache/example/staffdir"
 	"github.com/stretchr/testify/require"
+	"log/slog"
 	"os"
 	"testing"
 )
 
-func TestApp(t *testing.T) {
-	ctx := context.Background()
+func setup(t *testing.T) (*slog.Logger, *staffdir.InMemDB, *staffdir.DirCache) {
 	log := slogt.New(t)
 
 	db, err := staffdir.NewInMemDB(log.With("layer", "db"), "testdata/acme.json")
 	require.NoError(t, err)
-
-	wileyDB, err := db.GetEmployee(ctx, 1)
-	require.NoError(t, err)
-	require.Equal(t, "Wile E. Coyote", wileyDB.Name)
-
 	cache := staffdir.NewDirCache(log.With("layer", "cache"), db)
-	require.NotNil(t, cache)
+	return log, db, cache
+}
+
+func TestApp(t *testing.T) {
+	const wileyName = "Wile E. Coyote"
+
+	ctx := context.Background()
+
+	_, db, cache := setup(t)
+	_ = db
 
 	wiley, err := cache.GetEmployee(ctx, 1)
 	require.NoError(t, err)
-	require.Equal(t, "Wile E. Coyote", wiley.Name)
+	require.Equal(t, wileyName, wiley.Name)
 
+	require.Equal(t, 1, db.Stats().GetEmployee())
+	require.Equal(t, 1, cache.Stats().GetEmployee())
+
+	wiley, err = cache.GetEmployee(ctx, 1)
+	require.NoError(t, err)
+	require.Equal(t, wileyName, wiley.Name)
+
+	require.Equal(t, 1, db.Stats().GetEmployee())
+	require.Equal(t, 2, cache.Stats().GetEmployee())
 }
 
 func TestLoadJSON(t *testing.T) {

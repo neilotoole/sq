@@ -2,6 +2,7 @@ package staffdir
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync/atomic"
 )
@@ -75,7 +76,53 @@ type Stats struct {
 	getEmployee     *atomic.Int64
 }
 
-func NewUsageStats() *Stats {
+func (s *Stats) GetCompany() int {
+	return int(s.getCompany.Load())
+}
+
+func (s *Stats) ListDepartments() int {
+	return int(s.listDepartments.Load())
+}
+
+func (s *Stats) GetDepartment() int {
+	return int(s.getDepartment.Load())
+}
+
+func (s *Stats) ListEmployees() int {
+	return int(s.listEmployees.Load())
+}
+
+func (s *Stats) GetEmployee() int {
+	return int(s.getEmployee.Load())
+}
+
+func (s *Stats) LogValue() slog.Value {
+	if s == nil {
+		return slog.Value{}
+	}
+
+	return slog.GroupValue(
+		slog.Int("GetCompany", int(s.getCompany.Load())),
+		slog.Int("ListDepartments", int(s.listDepartments.Load())),
+		slog.Int("GetDepartment", int(s.getDepartment.Load())),
+		slog.Int("ListEmployees", int(s.listEmployees.Load())),
+		slog.Int("GetEmployee", int(s.getEmployee.Load())),
+	)
+}
+
+func (s *Stats) String() string {
+	if s == nil {
+		return ""
+	}
+
+	return fmt.Sprintf(
+		"GetCompany: %d, ListDepartments: %d, GetDepartment: %d, ListEmployees: %d, GetEmployee: %d",
+		s.GetCompany(), s.ListDepartments(), s.GetDepartment(), s.ListEmployees(), s.GetEmployee(),
+	)
+
+}
+
+func NewStats() *Stats {
 	return &Stats{
 		getCompany:      &atomic.Int64{},
 		listDepartments: &atomic.Int64{},
