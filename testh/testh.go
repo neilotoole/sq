@@ -5,6 +5,7 @@ package testh
 import (
 	"context"
 	"database/sql"
+	"github.com/neilotoole/sq/libsq/source/mdcache"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -212,6 +213,7 @@ func (h *Helper) init() {
 			ConfigStore:     config.DiscardStore{},
 			OptionsRegistry: optRegistry,
 			DriverRegistry:  h.registry,
+			MDCache:         mdcache.New(h.Context, cfg.Collection, h.grips),
 		}
 
 		if h.run.Writers == nil {

@@ -34,6 +34,13 @@ func New(_ context.Context, coll *source.Collection, grips *driver.Grips) (c *Ca
 	return c
 }
 
+// Close closes the cache.
+func (c *Cache) Close() error {
+	// FIXME: Probably need to add a method oncecache.Cache.Close().
+	// Unlike oncecache.Cache.Clear, it wouldn't send out notification signals.
+	return nil
+}
+
 // TableMeta returns the metadata for tbl.
 func (c *Cache) TableMeta(ctx context.Context, tbl source.Table) (*metadata.Table, error) {
 	return c.tblMeta.Get(ctx, tbl)

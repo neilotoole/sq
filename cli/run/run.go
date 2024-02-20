@@ -4,6 +4,7 @@ package run
 
 import (
 	"context"
+	"github.com/neilotoole/sq/libsq/source/mdcache"
 	"io"
 	"os"
 
@@ -89,6 +90,9 @@ type Run struct {
 
 	// Grips mediates access to driver.Grip instances.
 	Grips *driver.Grips
+
+	// MDCache caches source metadata.
+	MDCache *mdcache.Cache
 
 	// Writers holds the various writer types that
 	// the CLI uses to print output.
