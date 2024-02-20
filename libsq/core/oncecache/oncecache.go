@@ -16,7 +16,7 @@ import (
 	"sync"
 )
 
-// FetchFunc called by [Cache.Get] to fill an unpopulated cache entry. If
+// FetchFunc is called by [Cache.Get] to fill an unpopulated cache entry. If
 // needed, the source [Cache] can be retrieved from ctx via [FromContext].
 type FetchFunc[K comparable, V any] func(ctx context.Context, key K) (val V, err error)
 
@@ -37,17 +37,19 @@ func New[K comparable, V any](fetch FetchFunc[K, V], opts ...Opt) *Cache[K, V] {
 	}
 
 	for _, opt := range opts {
-		if !isNil(opt) {
-			if optioner, ok := opt.(optApplier[K, V]); ok {
-				optioner.apply(c)
-				continue
-			}
+		if isNil(opt) {
+			continue
+		}
 
-			// Else, we've got to do it case-by-case.
-			if name, ok := opt.(Name); ok {
-				c.name = string(name)
-				continue
-			}
+		if applier, ok := opt.(optApplier[K, V]); ok {
+			applier.apply(c)
+			continue
+		}
+
+		// Else, we've got to do it case-by-case.
+		if name, ok := opt.(Name); ok {
+			c.name = string(name)
+			continue
 		}
 	}
 
@@ -121,7 +123,8 @@ func (c *Cache[K, V]) Clear(ctx context.Context) {
 		return
 	}
 
-	var evictions []func()
+	evictions := make([]func(), 0, len(c.entries))
+	ctx = newContext(ctx, c)
 	for key, ent := range c.entries {
 		if ent != nil {
 			e := ent
@@ -141,15 +144,15 @@ func (c *Cache[K, V]) Clear(ctx context.Context) {
 // callbacks.
 func (c *Cache[K, V]) Delete(ctx context.Context, key K) {
 	c.mu.Lock()
-	ce, ok := c.entries[key]
+	e, ok := c.entries[key]
 	delete(c.entries, key)
 	c.mu.Unlock()
-	if ok && ce != nil {
-		ce.evict(newContext(ctx, c), key)
+	if ok && e != nil {
+		e.evict(newContext(ctx, c), key)
 	}
 }
 
-// Set explicitly sets the value and fetch error for the given key, allowing an
+// Set explicitly sets the value and fill error for the given key, allowing an
 // external process to prime the cache. Note that the value can alternatively be
 // filled implicitly via [Cache.Get] invoking the fetch func. If there's already
 // a cache entry for key, Set is no-op: the value is not updated. If this Set
@@ -221,6 +224,7 @@ func (e *entry[K, V]) set(ctx context.Context, key K, val V, err error) {
 		notify = true
 	})
 
+	// We perform notification outside of the once to avoid holding the lock.
 	if notify && len(e.cache.onFill) > 0 {
 		ctx = newContext(ctx, e.cache)
 		for _, onFill := range e.cache.onFill {
@@ -237,6 +241,7 @@ func (e *entry[K, V]) get(ctx context.Context, key K) (V, error) {
 		notify = true
 	})
 
+	// We perform notification outside of the once to avoid holding the lock.
 	if notify && len(e.cache.onFill) > 0 {
 		for _, onFill := range e.cache.onFill {
 			onFill(ctx, key, e.val, e.err)
