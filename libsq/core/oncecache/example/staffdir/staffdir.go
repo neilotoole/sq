@@ -5,7 +5,7 @@ import (
 	"log/slog"
 )
 
-type StaffDirectory interface {
+type HRSystem interface {
 	GetOrg(ctx context.Context, org string) (*Org, error)
 	GetDepartment(ctx context.Context, dept string) (*Department, error)
 	GetEmployee(ctx context.Context, ID int) (*Employee, error)

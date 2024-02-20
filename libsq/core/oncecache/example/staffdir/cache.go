@@ -7,30 +7,28 @@ import (
 	"github.com/neilotoole/sq/libsq/core/oncecache"
 )
 
-var _ StaffDirectory = (*AppCache)(nil)
+var _ HRSystem = (*HRCache)(nil)
 
-// AppCache is a caching layer for StaffDirectory.
-type AppCache struct {
+// HRCache is a caching layer for HRSystem.
+type HRCache struct {
 	log       *slog.Logger
-	db        StaffDirectory
+	db        HRSystem
 	stats     *Stats
 	orgs      *oncecache.Cache[string, *Org]
 	depts     *oncecache.Cache[string, *Department]
 	employees *oncecache.Cache[int, *Employee]
 }
 
-// NewAppCache wraps a [StaffDirectory] with a caching layer.
-func NewAppCache(log *slog.Logger, db StaffDirectory) *AppCache {
-	c := &AppCache{
+// NewAppCache wraps a [HRSystem] with a caching layer.
+func NewAppCache(log *slog.Logger, db HRSystem) *HRCache {
+	c := &HRCache{
 		log:   log,
 		db:    db,
 		stats: NewStats(),
 	}
 
 	c.orgs = oncecache.New[string, *Org](
-		func(ctx context.Context, _ string) (val *Org, err error) {
-			return db.GetOrg(ctx, "")
-		},
+		db.GetOrg,
 		oncecache.OnFill(c.onFillOrg),
 	)
 
@@ -39,12 +37,14 @@ func NewAppCache(log *slog.Logger, db StaffDirectory) *AppCache {
 		oncecache.OnFill(c.onFillDept),
 	)
 
-	c.employees = oncecache.New[int, *Employee](db.GetEmployee)
+	c.employees = oncecache.New[int, *Employee](
+		db.GetEmployee,
+	)
 
 	return c
 }
 
-func (c *AppCache) onFillOrg(ctx context.Context, _ string, comp *Org, err error) {
+func (c *HRCache) onFillOrg(ctx context.Context, _ string, comp *Org, err error) {
 	if err != nil {
 		return
 	}
@@ -54,7 +54,7 @@ func (c *AppCache) onFillOrg(ctx context.Context, _ string, comp *Org, err error
 	}
 }
 
-func (c *AppCache) onFillDept(ctx context.Context, _ string, dept *Department, err error) {
+func (c *HRCache) onFillDept(ctx context.Context, _ string, dept *Department, err error) {
 	if err != nil {
 		return
 	}
@@ -65,7 +65,7 @@ func (c *AppCache) onFillDept(ctx context.Context, _ string, dept *Department, e
 }
 
 // Close clears the cache.
-func (c *AppCache) Close() error {
+func (c *HRCache) Close() error {
 	ctx := context.Background()
 	c.employees.Clear(ctx)
 	c.orgs.Clear(ctx)
@@ -74,12 +74,12 @@ func (c *AppCache) Close() error {
 }
 
 // Stats returns the cache stats.
-func (c *AppCache) Stats() *Stats {
+func (c *HRCache) Stats() *Stats {
 	return c.stats
 }
 
-// GetOrg implements [StaffDirectory].
-func (c *AppCache) GetOrg(ctx context.Context, org string) (*Org, error) {
+// GetOrg implements [HRSystem].
+func (c *HRCache) GetOrg(ctx context.Context, org string) (*Org, error) {
 	c.stats.getOrg.Add(1)
 	got, err := c.orgs.Get(ctx, "singleton")
 
@@ -92,8 +92,8 @@ func (c *AppCache) GetOrg(ctx context.Context, org string) (*Org, error) {
 	return got, err
 }
 
-// GetDepartment implements [StaffDirectory].
-func (c *AppCache) GetDepartment(ctx context.Context, dept string) (*Department, error) {
+// GetDepartment implements [HRSystem].
+func (c *HRCache) GetDepartment(ctx context.Context, dept string) (*Department, error) {
 	c.stats.getDepartment.Add(1)
 	got, err := c.depts.Get(ctx, dept)
 	if err == nil {
@@ -104,8 +104,8 @@ func (c *AppCache) GetDepartment(ctx context.Context, dept string) (*Department,
 	return got, err
 }
 
-// GetEmployee implements [StaffDirectory].
-func (c *AppCache) GetEmployee(ctx context.Context, id int) (*Employee, error) {
+// GetEmployee implements [HRSystem].
+func (c *HRCache) GetEmployee(ctx context.Context, id int) (*Employee, error) {
 	c.stats.getEmployee.Add(1)
 	employee, err := c.employees.Get(ctx, id)
 	if err == nil {
