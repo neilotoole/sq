@@ -23,6 +23,7 @@ type Cache struct {
 	tblMeta  *oncecache.Cache[source.Table, *metadata.Table]
 	srcMeta  *oncecache.Cache[string, *metadata.Source]
 	tblNames *oncecache.Cache[string, []string]
+	dbProps  *oncecache.Cache[string, map[string]any]
 }
 
 // New returns a new [Cache].
@@ -40,6 +41,10 @@ func New(_ context.Context, coll *source.Collection, grips *driver.Grips) *Cache
 	c.tblNames = oncecache.New[string, []string](
 		c.fetchTableNames,
 		oncecache.Name("mdcache.tblNames"),
+	)
+	c.dbProps = oncecache.New[string, map[string]any](
+		c.fetchDBProps,
+		oncecache.Name("mdcache.dbProps"),
 	)
 
 	return c
@@ -72,6 +77,12 @@ func (c *Cache) TableNames(ctx context.Context, handle string) ([]string, error)
 	return c.tblNames.Get(ctx, handle)
 }
 
+// DBProperties returns the DB properties for the source. The returned value is the
+// internal cache entry, so the caller MUST NOT modify it.
+func (c *Cache) DBProperties(ctx context.Context, handle string) (map[string]any, error) {
+	return c.dbProps.Get(ctx, handle)
+}
+
 // TableMetaPair returns the [metadata.Table] pair for tbl1 and tbl2. The
 // returned values are the internal cache entries, so the caller MUST NOT modify
 // them. Use [metadata.Table.Clone] if necessary.
@@ -92,6 +103,14 @@ func (c *Cache) TableNamesPair(ctx context.Context, src1, src2 *source.Source) (
 	return getPair(ctx, c.tblNames, src1.Handle, src2.Handle)
 }
 
+// DBPropertiesPair returns the DB properties for src1 and src2. The returned
+// values are the internal cache entries, so the caller MUST NOT modify them.
+func (c *Cache) DBPropertiesPair(ctx context.Context,
+	src1, src2 *source.Source,
+) (dbp1, dbp2 map[string]any, err error) {
+	return getPair(ctx, c.dbProps, src1.Handle, src2.Handle)
+}
+
 // db is a convenience method that gets the sqlz.DB and driver.SQLDriver for
 // src.
 func (c *Cache) db(ctx context.Context, src *source.Source) (sqlz.DB, driver.SQLDriver, error) {
@@ -105,6 +124,27 @@ func (c *Cache) db(ctx context.Context, src *source.Source) (sqlz.DB, driver.SQL
 	}
 
 	return d, grip.SQLDriver(), nil
+}
+
+func (c *Cache) fetchDBProps(ctx context.Context, handle string) (map[string]any, error) {
+	src, err := c.coll.Get(handle)
+	if err != nil {
+		return nil, err
+	}
+
+	db, drvr, err := c.db(ctx, src)
+	if err != nil {
+		return nil, err
+	}
+
+	dbProps, err := drvr.DBProperties(ctx, db)
+	if err != nil {
+		if errz.Has[*driver.NotExistError](err) {
+			return nil, nil //nolint:nilnil
+		}
+		return nil, err
+	}
+	return dbProps, err
 }
 
 func (c *Cache) fetchTableNames(ctx context.Context, handle string) ([]string, error) {
