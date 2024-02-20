@@ -2,8 +2,8 @@
 // dependency-free, in-memory, on-demand object [Cache], focused on write-once,
 // read-often ergonomics.
 //
-// The package also provides an event mechanism useful for composite cache
-// entry propagation, logging, or metrics.
+// The package also provides an event mechanism useful for composite cache entry
+// propagation, logging, or metrics.
 package oncecache
 
 import (
@@ -41,12 +41,17 @@ func New[K comparable, V any](fetch FetchFunc[K, V], opts ...Opt) *Cache[K, V] {
 			continue
 		}
 
+		// Most Opt types implement [optApplier]...
 		if applier, ok := opt.(optApplier[K, V]); ok {
 			applier.apply(c)
 			continue
 		}
 
-		// Else, we've got to do it case-by-case.
+		// But, not all of them. In the case of setting the name, the ergonomics of
+		// needing to specify the cache [K, V] types in the name option was just too
+		// ugly to bear.
+		//
+		// So, [Name] doesn't implement [optApplier]. We handle it specially.
 		if name, ok := opt.(Name); ok {
 			c.name = string(name)
 			continue
@@ -91,12 +96,8 @@ func (c *Cache[K, V]) Len() int {
 
 // String returns a debug-friendly string representation of the cache.
 func (c *Cache[K, V]) String() string {
-	return fmt.Sprintf(
-		"%s[%T, %T][%d]",
-		c.name,
-		*new(K),
-		*new(V),
-		c.Len(),
+	return fmt.Sprintf("%s[%T, %T][%d]",
+		c.name, *new(K), *new(V), c.Len(),
 	)
 }
 
