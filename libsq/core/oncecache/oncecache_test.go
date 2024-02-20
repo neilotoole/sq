@@ -3,13 +3,13 @@ package oncecache_test
 import (
 	"context"
 	"errors"
+	"github.com/neilotoole/slogt"
+	"github.com/neilotoole/sq/libsq/core/oncecache"
+	"github.com/neilotoole/sq/libsq/core/oncecache/example/hrsystem"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
-
-	"github.com/neilotoole/slogt"
-	"github.com/neilotoole/sq/libsq/core/oncecache"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -135,33 +135,159 @@ func TestLogging(t *testing.T) {
 	require.Equal(t, "cache-foo[int, int][3]", s)
 }
 
-//func TestOnFill(t *testing.T) {
-//	ctx := context.Background()
-//	double := func(ctx context.Context, key int) (val int, err error) {
-//		return key * 2, nil
-//	}
-//	//c := oncecache.New[int, int](double)
-//	//
-//	//got, err := c.Get(ctx, 3)
-//	//require.NoError(t, err)
-//	//require.Equal(t, 6, got)
-//
-//	//var cb oncecache.OnFillFunc[int, int] = func(ctx context.Context, key int, val int, err error) {
-//	//	require.NoError(t, err)
-//	//	require.Equal(t, 6, val)
-//	//}
-//	//_ = cb
-//	var cb oncecache.OnFillFunc[int, int] = func(ctx context.Context, key int, val int, err error) {
-//		t.Logf("key: %d, val: %d, err: %v", key, val, err)
-//	}
-//
-//	//x := oncecache.OptHuzzah2[int, int]{Key: 1, Val: 2}
-//
-//	c2 := oncecache.New[int, int](double, cb)
-//	_ = c2
-//
-//	got, err := c2.Get(ctx, 3)
-//	require.NoError(t, err)
-//	require.Equal(t, 6, got)
-//
-//}
+const (
+	acmeName    = "Acme Corporation"
+	engDeptName = "Engineering"
+	qaDeptName  = "QA"
+	wileyName   = "Wile E. Coyote"
+	wileyEmpID  = 1
+)
+
+func setupHRSystem(t *testing.T) (*hrsystem.HRDatabase, *hrsystem.HRCache) {
+	t.Helper()
+	log := slogt.New(t)
+
+	db, err := hrsystem.NewHRDatabase(
+		log.With("layer", "db"),
+		"example/hrsystem/testdata/acme.json",
+	)
+	require.NoError(t, err)
+	cache := hrsystem.NewHRCache(log.With("layer", "cache"), db)
+	return db, cache
+}
+
+// TestOnFill_EntryPropagation tests using the [oncecache.OnFill] mechanism to
+// propagate cache entries between linked caches.
+func TestOnFill_EntryPropagation(t *testing.T) {
+	ctx := context.Background()
+	_, db := setupHRSystem(t)
+
+	var (
+		orgCache  *oncecache.Cache[string, *hrsystem.Org]
+		deptCache *oncecache.Cache[string, *hrsystem.Department]
+		empCache  *oncecache.Cache[int, *hrsystem.Employee]
+	)
+
+	orgCache = oncecache.New[string, *hrsystem.Org](
+		db.GetOrg,
+		oncecache.OnFill(func(ctx context.Context, orgName string, org *hrsystem.Org, err error) {
+			// Propagate the org's departments to the deptCache.
+			for _, dept := range org.Departments {
+				deptCache.Set(ctx, dept.Name, dept, nil)
+				// Note: Setting an entry on deptCache should in turn propagate to
+				// empCache, because deptCache is itself configured with an OnFill
+				// handler below.
+			}
+		}),
+	)
+
+	deptCache = oncecache.New[string, *hrsystem.Department](
+		db.GetDepartment,
+		oncecache.OnFill(func(ctx context.Context, deptName string, dept *hrsystem.Department, err error) {
+			// Propagate the department's staff to empCache.
+			for _, emp := range dept.Staff {
+				empCache.Set(ctx, emp.ID, emp, nil)
+			}
+		}),
+	)
+
+	empCache = oncecache.New[int, *hrsystem.Employee](
+		func(ctx context.Context, key int) (val *hrsystem.Employee, err error) {
+			t.Fatal("should not be called, because entries should have been propagated by now")
+			return
+		},
+	)
+
+	// orgCache.Get should trigger entry propagation to the other caches.
+	acmeCorp, err := orgCache.Get(ctx, acmeName)
+	require.NoError(t, err)
+	require.Equal(t, acmeName, acmeCorp.Name)
+
+	wiley, err := empCache.Get(ctx, wileyEmpID)
+	require.NoError(t, err)
+	require.Equal(t, wileyName, wiley.Name)
+
+	engDept, err := deptCache.Get(ctx, engDeptName)
+	require.NoError(t, err)
+	require.Equal(t, engDeptName, engDept.Name)
+}
+
+// TestOnFillChan_EntryPropagation tests using the [oncecache.OnFillChan] mechanism to
+// propagate cache entries between linked caches, using channels.
+func TestOnFillChan_EntryPropagation(t *testing.T) {
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
+
+	_, db := setupHRSystem(t)
+
+	var (
+		orgCache  *oncecache.Cache[string, *hrsystem.Org]
+		deptCache *oncecache.Cache[string, *hrsystem.Department]
+		empCache  *oncecache.Cache[int, *hrsystem.Employee]
+	)
+
+	orgCacheCh := make(chan oncecache.Event[string, *hrsystem.Org], 10)
+	defer close(orgCacheCh)
+
+	orgCache = oncecache.New[string, *hrsystem.Org](
+		db.GetOrg,
+		oncecache.OnFillChan(orgCacheCh, false),
+	)
+
+	deptCacheCh := make(chan oncecache.Event[string, *hrsystem.Department], 10)
+	defer close(deptCacheCh)
+
+	deptCache = oncecache.New[string, *hrsystem.Department](
+		db.GetDepartment,
+		oncecache.OnFillChan(deptCacheCh, false),
+	)
+
+	empCache = oncecache.New[int, *hrsystem.Employee](
+		func(ctx context.Context, key int) (val *hrsystem.Employee, err error) {
+			t.Fatal("should not be called, because entries should have been propagated by now")
+			return
+		},
+	)
+
+	// We use handledCh to signal that an event has been handled.
+	handledCh := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case event := <-orgCacheCh:
+				org := event.Val
+				for _, dept := range org.Departments {
+					deptCache.Set(ctx, dept.Name, dept, event.Err)
+				}
+			case event := <-deptCacheCh:
+				dept := event.Val
+				for _, emp := range dept.Staff {
+					empCache.Set(ctx, emp.ID, emp, nil)
+				}
+			}
+			handledCh <- struct{}{}
+		}
+	}()
+
+	// orgCache.Get should trigger entry propagation to the other caches.
+	acmeCorp, err := orgCache.Get(ctx, acmeName)
+	require.NoError(t, err)
+	require.Equal(t, acmeName, acmeCorp.Name)
+
+	// Because we're using a goroutine for cache entry propagation, we wait for
+	// two events to be handled: one for orgCache->deptCache, and another for
+	// deptCache->empCache.
+
+	<-handledCh
+	<-handledCh
+
+	wiley, err := empCache.Get(ctx, wileyEmpID)
+	require.NoError(t, err)
+	require.Equal(t, wileyName, wiley.Name)
+
+	engDept, err := deptCache.Get(ctx, engDeptName)
+	require.NoError(t, err)
+	require.Equal(t, engDeptName, engDept.Name)
+}

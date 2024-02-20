@@ -93,6 +93,9 @@ func (e Event[K, V]) String() string {
 
 type notifyFunc[K comparable, V any] func(ctx context.Context, key K, val V, err error)
 
+// OnFillChan is a WUBBLE.
+// FIXME: docs
+// FIXME: change arg "block" to "discard"?
 func OnFillChan[K comparable, V any](ch chan<- Event[K, V], block bool) Opt {
 	return eventOpt[K, V]{ch: ch, block: block, action: ActionFill}
 }

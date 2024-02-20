@@ -19,20 +19,20 @@ const (
 	wileyName   = "Wile E. Coyote"
 )
 
-func setup(t *testing.T) (*hrsystem.HRDatabase, *hrsystem.HRCache) {
+func setup(t *testing.T) (*hrsystem.HRCache, *hrsystem.HRDatabase) {
 	t.Helper()
 	log := slogt.New(t)
 
 	db, err := hrsystem.NewHRDatabase(log.With("layer", "db"), "testdata/acme.json")
 	require.NoError(t, err)
 	cache := hrsystem.NewHRCache(log.With("layer", "cache"), db)
-	return db, cache
+	return cache, db
 }
 
 func TestHRCache_Basic(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	db, cache := setup(t)
+	cache, db := setup(t)
 
 	require.Equal(t, 0, cache.Stats().GetEmployee())
 	require.Equal(t, 0, db.Stats().GetEmployee())
@@ -55,7 +55,7 @@ func TestHRCache_Basic(t *testing.T) {
 func TestHRCache_Propagation(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	db, cache := setup(t)
+	cache, db := setup(t)
 
 	// The GetOrg call should trigger cache entry propagation.
 	acme, err := cache.GetOrg(ctx, acmeName)
