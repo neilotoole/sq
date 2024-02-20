@@ -232,7 +232,7 @@ type Column struct { //nolint:govet // field alignment
 	Nullable     bool      `json:"nullable" yaml:"nullable"`
 	DefaultValue string    `json:"default_value,omitempty" yaml:"default_value,omitempty"`
 	Comment      string    `json:"comment,omitempty" yaml:"comment,omitempty"`
-	// TODO: Append foreign key field
+	// TODO: Add foreign key field
 }
 
 // Clone returns a deep copy of c. If c is nil, nil is returned.
