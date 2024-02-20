@@ -1,9 +1,9 @@
 // Package oncecache contains a strongly-typed, concurrency-safe, context-aware,
-// dependency-free, in-memory, on-demand object [Cache], focused on fill-once,
-// read-many ergonomics.
+// dependency-free, in-memory, on-demand object [Cache], focused on write-once,
+// read-often ergonomics.
 //
-// The package also provides an event mechanism useful for linked cache
-// propagation, logging, or metrics.
+// The package also provides an event mechanism useful for composite cache
+// entry propagation, logging, or metrics.
 package oncecache
 
 import (

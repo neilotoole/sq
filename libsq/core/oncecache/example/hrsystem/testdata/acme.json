@@ -17,17 +17,17 @@
       ]
     },
     {
-      "name": "Testing",
+      "name": "QA",
       "staff": [
         {
           "id": 3,
           "name": "Bugs Bunny",
-          "role": "Tester"
+          "role": "Head of QA"
         },
         {
           "id": 4,
           "name": "Daffy Duck",
-          "role": "Tester"
+          "role": "White Hat"
         }
       ]
     }

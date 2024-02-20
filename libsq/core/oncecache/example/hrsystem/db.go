@@ -1,4 +1,4 @@
-package staffdir
+package hrsystem
 
 import (
 	"context"
