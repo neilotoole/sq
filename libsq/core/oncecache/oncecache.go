@@ -1,10 +1,8 @@
-// Package oncecache contains a strongly-typed, concurrency-safe, in-memory,
-// on-demand object [Cache] that ensures that a given cache entry is populated
-// only once.
+// Package oncecache contains a strongly-typed, concurrency-safe, context-aware,
+// dependency-free, in-memory, on-demand object [Cache], focused on fill-once,
+// read-many ergonomics.
 //
-// Its raison d'être is ergonomic use as a write-once, ready-many-times cache.
-//
-// It also provides a callback mechanism that can be used for linked cache
+// The package also provides an event mechanism useful for linked cache
 // propagation, logging, or metrics.
 package oncecache
 
@@ -18,7 +16,8 @@ import (
 	"sync"
 )
 
-// FetchFunc called by [Cache.Get] to fill an unpopulated cache entry.
+// FetchFunc called by [Cache.Get] to fill an unpopulated cache entry. If
+// needed, the source [Cache] can be retrieved from ctx via [FromContext].
 type FetchFunc[K comparable, V any] func(ctx context.Context, key K) (val V, err error)
 
 // New returns a new [Cache] instance. The fetch func is invoked, on-demand, by
@@ -81,6 +80,13 @@ func (c *Cache[K, V]) Name() string {
 	return c.name
 }
 
+// Len returns the number of entries in the cache.
+func (c *Cache[K, V]) Len() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.entries)
+}
+
 // String returns a debug-friendly string representation of the cache.
 func (c *Cache[K, V]) String() string {
 	return fmt.Sprintf(
@@ -88,7 +94,7 @@ func (c *Cache[K, V]) String() string {
 		c.name,
 		*new(K),
 		*new(V),
-		len(c.entries),
+		c.Len(),
 	)
 }
 
@@ -96,10 +102,10 @@ func (c *Cache[K, V]) String() string {
 func (c *Cache[K, V]) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.String("name", c.name),
-		slog.Int("entries", len(c.entries)),
+		slog.Int("entries", c.Len()),
 		slog.Group("type",
 			"key", fmt.Sprintf("%T", *new(K)),
-			"value", fmt.Sprintf("%T", *new(V)),
+			"val", fmt.Sprintf("%T", *new(V)),
 		),
 	)
 }
@@ -139,7 +145,7 @@ func (c *Cache[K, V]) Delete(ctx context.Context, key K) {
 	delete(c.entries, key)
 	c.mu.Unlock()
 	if ok && ce != nil {
-		ce.evict(ctx, key)
+		ce.evict(newContext(ctx, c), key)
 	}
 }
 
@@ -179,6 +185,27 @@ func (c *Cache[K, V]) getEntry(key K) *entry[K, V] {
 	return e
 }
 
+// Opt is an option for [New].
+type Opt interface {
+	optioner()
+}
+
+// optApplier is an Opt that uses the apply method to modify a Cache instance.
+type optApplier[K comparable, V any] interface {
+	Opt
+	apply(c *Cache[K, V])
+}
+
+// Name is an [Opt] for [New] that sets the cache's name. The name is accessible via [Cache.Name].
+//
+//	c := oncecache.New[int, string](fetch, oncecache.Name("foobar"))
+//
+// The name is used by [Cache.String] and [Cache.LogValue]. If [Name] is not
+// specified, a random name such as "cache-38a2b7d4" is generated.
+type Name string
+
+func (o Name) optioner() {}
+
 type entry[K comparable, V any] struct {
 	val   V
 	err   error
@@ -194,7 +221,8 @@ func (e *entry[K, V]) set(ctx context.Context, key K, val V, err error) {
 		notify = true
 	})
 
-	if notify {
+	if notify && len(e.cache.onFill) > 0 {
+		ctx = newContext(ctx, e.cache)
 		for _, onFill := range e.cache.onFill {
 			onFill(ctx, e.cache, key, val, err)
 		}
@@ -204,11 +232,12 @@ func (e *entry[K, V]) set(ctx context.Context, key K, val V, err error) {
 func (e *entry[K, V]) get(ctx context.Context, key K) (V, error) {
 	var notify bool
 	e.once.Do(func() {
+		ctx = newContext(ctx, e.cache)
 		e.val, e.err = e.cache.fetch(ctx, key)
 		notify = true
 	})
 
-	if notify {
+	if notify && len(e.cache.onFill) > 0 {
 		for _, onFill := range e.cache.onFill {
 			onFill(ctx, e.cache, key, e.val, e.err)
 		}
@@ -217,6 +246,8 @@ func (e *entry[K, V]) get(ctx context.Context, key K) (V, error) {
 	return e.val, e.err
 }
 
+// evict invokes any [OnEvictFunc] callbacks for the given cache entry. The
+// supplied ctx should already be decorated via newContext.
 func (e *entry[K, V]) evict(ctx context.Context, key K) {
 	for _, onEvict := range e.cache.onEvict {
 		onEvict(ctx, e.cache, key, e.val, e.err)
@@ -227,6 +258,38 @@ func randomName() string {
 	b := make([]byte, 128)
 	_, _ = rand.Read(b)
 	return fmt.Sprintf("cache-%x", crc32.ChecksumIEEE(b))
+}
+
+type ctxKey struct{}
+
+// NewContext returns ctx with c added as a value. If ctx is nil, a new context
+// is created.
+func newContext[K comparable, V any](ctx context.Context, c *Cache[K, V]) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	return context.WithValue(ctx, ctxKey{}, c)
+}
+
+// FromContext returns the [Cache] value stored in ctx, if any, or nil. All
+// cache callbacks receive a context that has been decorated with the [Cache]
+// instance.
+func FromContext[K comparable, V any](ctx context.Context) *Cache[K, V] {
+	if ctx == nil {
+		return nil
+	}
+
+	val := ctx.Value(ctxKey{})
+	if val == nil {
+		return nil
+	}
+
+	if c, ok := val.(*Cache[K, V]); ok {
+		return c
+	}
+
+	return nil
 }
 
 // isNil checks if a value is nil or if it's a reference type with a nil underlying value.

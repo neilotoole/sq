@@ -30,8 +30,7 @@ func TestCache(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	fetcher := fetchEvenOnly
-	c := oncecache.New[int, string](fetcher)
+	c := oncecache.New[int, string](fetchEvenOnly)
 
 	got, err := c.Get(ctx, 0)
 	require.NoError(t, err)
