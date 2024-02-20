@@ -2,38 +2,36 @@ package staffdir
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
-	"sync/atomic"
 )
 
 type StaffDirectory interface {
-	GetCompany(ctx context.Context) (*Company, error)
+	GetOrg(ctx context.Context) (*Org, error)
 	GetDepartment(ctx context.Context, dept string) (*Department, error)
 	GetEmployee(ctx context.Context, ID int) (*Employee, error)
 }
 
-type Company struct {
+type Org struct {
 	Name        string        `json:"name"`
 	Departments []*Department `json:"departments"`
 }
 
 // LogValue implements [slog.LogValuer].
-func (c *Company) LogValue() slog.Value {
-	if c == nil {
+func (o *Org) LogValue() slog.Value {
+	if o == nil {
 		return slog.Value{}
 	}
 	return slog.GroupValue(
-		slog.String("name", c.Name),
-		slog.Int("depts", len(c.Departments)),
+		slog.String("name", o.Name),
+		slog.Int("depts", len(o.Departments)),
 	)
 }
 
-func (c *Company) String() string {
-	if c == nil {
+func (o *Org) String() string {
+	if o == nil {
 		return ""
 	}
-	return c.Name
+	return o.Name
 }
 
 type Department struct {
@@ -79,54 +77,5 @@ func (e *Employee) LogValue() slog.Value {
 		slog.Int("id", e.ID),
 		slog.String("name", e.Name),
 		slog.String("role", e.Role),
-	)
-}
-
-func NewStats() *Stats {
-	return &Stats{
-		getCompany:    &atomic.Int64{},
-		getDepartment: &atomic.Int64{},
-		getEmployee:   &atomic.Int64{},
-	}
-}
-
-type Stats struct {
-	getCompany    *atomic.Int64
-	getDepartment *atomic.Int64
-	getEmployee   *atomic.Int64
-}
-
-func (s *Stats) GetCompany() int {
-	return int(s.getCompany.Load())
-}
-
-func (s *Stats) GetDepartment() int {
-	return int(s.getDepartment.Load())
-}
-
-func (s *Stats) GetEmployee() int {
-	return int(s.getEmployee.Load())
-}
-
-func (s *Stats) LogValue() slog.Value {
-	if s == nil {
-		return slog.Value{}
-	}
-
-	return slog.GroupValue(
-		slog.Int("GetCompany", int(s.getCompany.Load())),
-		slog.Int("GetDepartment", int(s.getDepartment.Load())),
-		slog.Int("GetEmployee", int(s.getEmployee.Load())),
-	)
-}
-
-func (s *Stats) String() string {
-	if s == nil {
-		return ""
-	}
-
-	return fmt.Sprintf(
-		"GetCompany: %d, GetDepartment: %d, GetEmployee: %d",
-		s.GetCompany(), s.GetDepartment(), s.GetEmployee(),
 	)
 }

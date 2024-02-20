@@ -49,7 +49,7 @@ func TestLoadJSON(t *testing.T) {
 	data, err := os.ReadFile("testdata/acme.json")
 	require.NoError(t, err)
 
-	acme := &staffdir.Company{}
+	acme := &staffdir.Org{}
 	require.NoError(t, json.Unmarshal(data, acme))
 
 	require.Equal(t, "Acme Corporation", acme.Name)

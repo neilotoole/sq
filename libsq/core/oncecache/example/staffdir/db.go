@@ -11,7 +11,7 @@ import (
 var _ StaffDirectory = (*InMemDB)(nil)
 
 type InMemDB struct {
-	company *Company
+	company *Org
 	log     *slog.Logger
 	stats   *Stats
 }
@@ -24,7 +24,7 @@ func NewInMemDB(log *slog.Logger, datafile string) (*InMemDB, error) {
 		return nil, err
 	}
 
-	var company *Company
+	var company *Org
 	err = json.Unmarshal(data, &company)
 	if err != nil {
 		return nil, err
@@ -43,9 +43,9 @@ func (md *InMemDB) Stats() *Stats {
 	return md.stats
 }
 
-func (md *InMemDB) GetCompany(_ context.Context) (*Company, error) {
-	md.stats.getCompany.Add(1)
-	md.log.Info("GetCompany", "company", md.company.Name)
+func (md *InMemDB) GetOrg(_ context.Context) (*Org, error) {
+	md.stats.getOrg.Add(1)
+	md.log.Info("GetOrg", "company", md.company.Name)
 	return md.company, nil
 }
 

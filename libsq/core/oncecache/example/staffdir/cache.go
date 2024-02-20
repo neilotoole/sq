@@ -14,7 +14,7 @@ type AppCache struct {
 	log       *slog.Logger
 	db        StaffDirectory
 	stats     *Stats
-	companies *oncecache.Cache[string, *Company]
+	companies *oncecache.Cache[string, *Org]
 	depts     *oncecache.Cache[string, *Department]
 	employees *oncecache.Cache[int, *Employee]
 }
@@ -27,9 +27,9 @@ func NewAppCache(log *slog.Logger, db StaffDirectory) *AppCache {
 		stats: NewStats(),
 	}
 
-	c.companies = oncecache.New[string, *Company](
-		func(ctx context.Context, _ string) (val *Company, err error) {
-			return db.GetCompany(ctx)
+	c.companies = oncecache.New[string, *Org](
+		func(ctx context.Context, _ string) (val *Org, err error) {
+			return db.GetOrg(ctx)
 		},
 		oncecache.OnFill(c.onFillCompany),
 	)
@@ -44,7 +44,7 @@ func NewAppCache(log *slog.Logger, db StaffDirectory) *AppCache {
 	return c
 }
 
-func (c *AppCache) onFillCompany(ctx context.Context, _ string, comp *Company, err error) {
+func (c *AppCache) onFillCompany(ctx context.Context, _ string, comp *Org, err error) {
 	if err != nil {
 		return
 	}
@@ -78,15 +78,15 @@ func (c *AppCache) Stats() *Stats {
 	return c.stats
 }
 
-// GetCompany implements [StaffDirectory].
-func (c *AppCache) GetCompany(ctx context.Context) (*Company, error) {
-	c.stats.getCompany.Add(1)
+// GetOrg implements [StaffDirectory].
+func (c *AppCache) GetOrg(ctx context.Context) (*Org, error) {
+	c.stats.getOrg.Add(1)
 	got, err := c.companies.Get(ctx, "singleton")
 
 	if err == nil {
-		c.log.Info("GetCompany", "company", got)
+		c.log.Info("GetOrg", "company", got)
 	} else {
-		c.log.Error("GetCompany", "error", err.Error())
+		c.log.Error("GetOrg", "error", err.Error())
 	}
 
 	return got, err
