@@ -98,6 +98,37 @@ func (c *Cache) TableMetaPair(ctx context.Context, tbl1, tbl2 source.Table) (md1
 	return md1, md2, err
 }
 
+func getPair[K comparable, V any](ctx context.Context, c *oncecache.Cache[K, V], tbl1, tbl2 K) (md1, md2 V, err error) {
+	has1, has2 := c.Has(tbl1), c.Has(tbl2)
+
+	if has1 || has2 {
+		// We've got at least one of the pair, so there's no need for parallel
+		// fetching, as one of them will come quickly from the Cache, and the other
+		// will do the long fetch from the DB.
+		var err1, err2 error
+		md1, err1 = c.Get(ctx, tbl1)
+		md2, err2 = c.Get(ctx, tbl2)
+		return md1, md2, errz.Combine(err1, err2)
+	}
+
+	// We've got neither. Fetch both in parallel.
+	g, gCtx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		var mdErr error
+		md1, mdErr = c.Get(gCtx, tbl1)
+		return mdErr
+	})
+	g.Go(func() error {
+		var mdErr error
+		md2, mdErr = c.Get(gCtx, tbl2)
+		return mdErr
+	})
+	if err = g.Wait(); err != nil {
+		return md1, md2, err
+	}
+	return md1, md2, err
+}
+
 // SourceMetaPair returns the [metadata.Source] pair for tbl1 and tbl2. The
 // returned values are the internal cache entries, so the caller MUST NOT modify
 // them. Use [metadata.Source.Clone] if necessary.
