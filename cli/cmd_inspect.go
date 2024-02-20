@@ -250,7 +250,7 @@ func determineInspectTarget(ctx context.Context, ru *run.Run, args []string) (
 		if src != nil {
 			// We have a valid source on stdin.
 
-			// Append the source to the set.
+			// Add the source to the set.
 			err = coll.Add(src)
 			if err != nil {
 				return nil, "", err

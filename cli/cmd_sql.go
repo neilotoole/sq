@@ -46,7 +46,7 @@ source.`,
 	// TODO: These flags aren't actually implemented yet.
 	// And... this entire --exec/--query mechanism needs to be revisited.
 	// It's probably the case that sq can figure out whether to use
-	// Query or exec based on the SQL statement. Probably using
+	// Query or Exec based on the SQL statement. Probably using
 	// an antlr parser for each driver's SQL language.
 	// Anyway, because the flags were already present in previous
 	// releases, I'm reverting the (very recent) deletion of these
@@ -56,7 +56,7 @@ source.`,
 	// User explicitly wants to execute the SQL using sql.DB.Query
 	cmd.Flags().Bool(flag.SQLQuery, false, flag.SQLQueryUsage)
 	panicOn(cmd.Flags().MarkHidden(flag.SQLQuery))
-	// User explicitly wants to execute the SQL using sql.DB.exec
+	// User explicitly wants to execute the SQL using sql.DB.Exec
 	cmd.Flags().Bool(flag.SQLExec, false, flag.SQLExecUsage)
 	panicOn(cmd.Flags().MarkHidden(flag.SQLExec))
 	return cmd
