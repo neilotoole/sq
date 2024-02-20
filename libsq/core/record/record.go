@@ -140,3 +140,41 @@ func Clone(rec Record) Record {
 
 	return r2
 }
+
+// NewPair returns a new Pair of records. The value returned by [Pair.Equal] is
+// calculated once in this constructor. Mutating the records after construction
+// may make that value inaccurate.
+func NewPair(row int, rec1, rec2 Record) Pair {
+	return Pair{row: row, rec1: rec1, rec2: rec2, equal: Equal(rec1, rec2)}
+}
+
+// NewIdenticalPairs returns a slice of [record.Pair] where [Pair.Rec1] and
+// [Pair.Rec2] are the same record. [Pair.Equal] returns true for each pair.
+func NewIdenticalPairs(row int, recs ...Record) []Pair {
+	pairs := make([]Pair, len(recs))
+	for i := 0; i < len(recs); i++ {
+		pairs[i] = Pair{row: row + i, rec1: recs[i], rec2: recs[i], equal: true}
+	}
+	return pairs
+}
+
+// Pair is a pair of records, typically used to represent matching records from
+// two different sources, which are being compared. Either of the pair may be
+// nil. The value return by [Pair.Equal] is calculated once at the time of
+// construction; mutating the records after construction may make that value
+// inaccurate.
+type Pair struct {
+	rec1, rec2 Record
+	row        int
+	equal      bool
+}
+
+// Equal returns true if the records were equal at the time of the Pair's
+// construction. Mutating the records after construction may make this value
+// inaccurate. Two nil records are considered equal.
+//
+// See: [record.Equal].
+func (p Pair) Equal() bool  { return p.equal }
+func (p Pair) Row() int     { return p.row }
+func (p Pair) Rec1() Record { return p.rec1 }
+func (p Pair) Rec2() Record { return p.rec2 }

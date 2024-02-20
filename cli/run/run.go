@@ -20,6 +20,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/mdcache"
 )
 
 type runKey struct{}
@@ -90,6 +91,9 @@ type Run struct {
 	// Grips mediates access to driver.Grip instances.
 	Grips *driver.Grips
 
+	// MDCache caches source metadata.
+	MDCache *mdcache.Cache
+
 	// Writers holds the various writer types that
 	// the CLI uses to print output.
 	Writers *output.Writers
@@ -119,10 +123,7 @@ func (ru *Run) Close() error {
 		return nil
 	}
 
-	if ru.Cmd != nil {
-		lg.FromContext(ru.Cmd.Context()).Debug("Closing run")
-	}
-
+	lg.From(ru.Cmd).Debug("Closing run")
 	return errz.Wrap(ru.Cleanup.Run(), "close run")
 }
 

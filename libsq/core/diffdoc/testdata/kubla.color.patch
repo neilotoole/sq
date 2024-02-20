@@ -1,0 +1,25 @@
+[34msq diffdirs/a/kubla.txt diffdirs/b/kubla.txt[0m
+[1m--- diffdirs/a/kubla.txt	2024-02-16 11:32:29.305630663 -0700[22m
+[1m+++ diffdirs/b/kubla.txt	2024-02-16 11:49:11.822825001 -0700[22m
+[95;1m@@ -4,7 +4,7 @@[0;22m[34m Here is some additional section commentary[0m
+[2m Through caverns measureless to man[22m
+[2m    Down to a sunless sea.[22m
+[2m So twice five miles of fertile ground[22m
+[31m-With walls and towers were girdled round;[0m
+[32m+With walls and towers were girdled round and round and round;[0m
+[2m And there were gardens bright with sinuous rills,[22m
+[2m Where blossomed many an incense-bearing tree;[22m
+[2m And here were forests ancient as the hills,[22m
+[34msq  diffdirs/b/kubla.txt[0m
+[1m--- diffdirs/a/kubla.txt	2024-02-16 11:32:29.305630663 -0700[22m
+[1m+++ diffdirs/b/kubla.txt	2024-02-16 11:49:11.822825001 -0700[22m
+[95;1m@@ -4,7 +4,7 @@[0;22m[34m Here is some additional section commentary[0m
+[2m Through caverns measureless to man[22m
+[2m    Down to a sunless sea.[22m
+
+[2m So twice five miles of fertile ground[22m
+[31m-With walls and towers were girdled round;[0m
+[32m+With walls and towers were girdled round and round and round;[0m
+[2m And there were gardens bright with sinuous rills,[22m
+[2m Where blossomed many an incense-bearing tree;[22m
+[2m And here were forests ancient as the hills,[22m

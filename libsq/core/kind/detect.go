@@ -84,7 +84,7 @@ func (d *Detector) Sample(v any) {
 	d.doSampleString(v.(string))
 }
 
-//nolint:gocognit,funlen
+//nolint:gocognit
 func (d *Detector) doSampleString(s string) {
 	if s == "" {
 		// Can't really do anything useful with this

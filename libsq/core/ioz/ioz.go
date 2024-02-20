@@ -345,22 +345,44 @@ func (c *readCloserNotifier) Close() error {
 	return c.closeErr
 }
 
-var _ io.Reader = (*errorAfterNReader)(nil)
+var _ io.Reader = EmptyReader{}
 
-// NewErrorAfterNReader returns an io.Reader that returns err after
-// reading n random bytes from crypto/rand.Reader.
-func NewErrorAfterNReader(n int, err error) io.Reader {
-	return &errorAfterNReader{afterN: n, err: err}
+// EmptyReader is an io.Reader whose Read methods always returns io.EOF.
+type EmptyReader struct{}
+
+// Read always returns (0, io.EOF).
+func (e EmptyReader) Read([]byte) (n int, err error) {
+	return 0, io.EOF
 }
 
-type errorAfterNReader struct {
+var _ io.Reader = (*ErrReader)(nil)
+
+// ErrReader is an [io.Reader] that always returns an error.
+type ErrReader struct {
+	Err error
+}
+
+// Read implements [io.Reader]: it always returns [ErrReader.Err].
+func (e ErrReader) Read([]byte) (n int, err error) {
+	return 0, e.Err
+}
+
+// NewErrorAfterRandNReader returns an io.Reader that returns err after
+// reading n random bytes from crypto/rand.Reader.
+func NewErrorAfterRandNReader(n int, err error) io.Reader {
+	return &errorAfterRandNReader{afterN: n, err: err}
+}
+
+var _ io.Reader = (*errorAfterRandNReader)(nil)
+
+type errorAfterRandNReader struct {
 	err    error
 	afterN int
 	count  int
 	mu     sync.Mutex
 }
 
-func (r *errorAfterNReader) Read(p []byte) (n int, err error) {
+func (r *errorAfterRandNReader) Read(p []byte) (n int, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -381,6 +403,31 @@ func (r *errorAfterNReader) Read(p []byte) (n int, err error) {
 	}
 	r.count += n
 	return n, r.err
+}
+
+var _ io.Reader = (*errorAfterBytesReader)(nil)
+
+// NewErrorAfterBytesReader returns an io.Reader that returns err after
+// p has been fully read. If err is nil, the reader will return io.EOF
+// instead of err.
+func NewErrorAfterBytesReader(p []byte, err error) io.Reader {
+	r := &errorAfterBytesReader{err: err, buf: bytes.Buffer{}}
+	_, _ = r.buf.Write(p)
+	return r
+}
+
+type errorAfterBytesReader struct {
+	err error
+	buf bytes.Buffer
+}
+
+// Read implements io.Reader.
+func (e *errorAfterBytesReader) Read(p []byte) (n int, err error) {
+	n, err = e.buf.Read(p)
+	if err != nil && e.err != nil {
+		err = e.err
+	}
+	return n, err
 }
 
 // WriteErrorCloser supplements io.WriteCloser with an Error method, indicating

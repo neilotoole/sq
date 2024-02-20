@@ -1,0 +1,35 @@
+{
+  "name": "Acme Corporation",
+  "departments": [
+    {
+      "name": "Engineering",
+      "staff": [
+        {
+          "id": 1,
+          "name": "Wile E. Coyote",
+          "role": "Senior Engineer"
+        },
+        {
+          "id": 2,
+          "name": "Road Runner",
+          "role": "Senior Engineer"
+        }
+      ]
+    },
+    {
+      "name": "QA",
+      "staff": [
+        {
+          "id": 3,
+          "name": "Bugs Bunny",
+          "role": "Head of QA"
+        },
+        {
+          "id": 4,
+          "name": "Daffy Duck",
+          "role": "White Hat"
+        }
+      ]
+    }
+  ]
+}

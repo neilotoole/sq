@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
+## Upcoming
+
+## Changed
+
+- Minor fiddling with the color scheme for some command output.
+
 
 ## [v0.47.4] -2024-02-09
 

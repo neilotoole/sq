@@ -10,8 +10,10 @@ import (
 	"github.com/neilotoole/sq/cli/output/tablew"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -22,6 +24,19 @@ var OptDiffNumLines = options.NewInt(
 	3,
 	"Generate diffs with <n> lines of context",
 	`Generate diffs with <n> lines of context, where n >= 0.`,
+	options.TagOutput,
+)
+
+var OptDiffHunkMaxSize = options.NewInt(
+	"diff.hunk.max-size",
+	nil,
+	10000,
+	"Maximum size of individual diff hunks",
+	`Maximum size of individual diff hunks. A hunk is a segment of a diff that
+contains differing lines, as well as non-differing context lines before and
+after the difference. A hunk must be loaded into memory in its entirety; this
+setting prevents excessive memory usage. If a hunk would exceed this limit, it
+is split into multiple hunks; this still produces a well-formed diff.`,
 	options.TagOutput,
 )
 
@@ -217,12 +232,26 @@ func execDiff(cmd *cobra.Command, args []string) error {
 	recwFn := getRecordWriterFunc(f)
 	if recwFn == nil {
 		// Shouldn't happen
-		logFrom(cmd).Warn("No record writer impl for format", "format", f)
+		lg.From(cmd).Warn("No record writer impl for format", "format", f)
 		recwFn = tablew.NewRecordWriter
 	}
 
+	src1, err := ru.Config.Collection.Get(handle1)
+	if err != nil {
+		return err
+	}
+	src2, err := ru.Config.Collection.Get(handle2)
+	if err != nil {
+		return err
+	}
+
 	diffCfg := &diff.Config{
+		Run:            ru,
 		Lines:          OptDiffNumLines.Get(o),
+		HunkMaxSize:    OptDiffHunkMaxSize.Get(o),
+		Printing:       ru.Writers.OutPrinting.Clone(),
+		Colors:         ru.Writers.OutPrinting.Diff.Clone(),
+		Concurrency:    tuning.OptErrgroupLimit.Get(options.FromContext(ctx)),
 		RecordWriterFn: recwFn,
 	}
 
@@ -232,13 +261,13 @@ func execDiff(cmd *cobra.Command, args []string) error {
 
 	switch {
 	case table1 == "" && table2 == "":
-		elems := getDiffSourceElements(cmd)
-		return diff.ExecSourceDiff(ctx, ru, diffCfg, elems, handle1, handle2)
+		diffCfg.Elements = getDiffSourceElements(cmd)
+		return diff.ExecSourceDiff(ctx, diffCfg, src1, src2)
 	case table1 == "" || table2 == "":
 		return errz.Errorf("invalid args: both must be either @HANDLE or @HANDLE.TABLE")
 	default:
-		elems := getDiffTableElements(cmd)
-		return diff.ExecTableDiff(ctx, ru, diffCfg, elems, handle1, table1, handle2, table2)
+		diffCfg.Elements = getDiffTableElements(cmd)
+		return diff.ExecTableDiff(ctx, diffCfg, src1, table1, src2, table2)
 	}
 }
 

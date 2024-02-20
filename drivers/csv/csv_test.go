@@ -16,7 +16,7 @@ import (
 
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/loz"
+	"github.com/neilotoole/sq/libsq/core/langz"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/timez"
@@ -351,7 +351,7 @@ func TestIngest_Kind_Date(t *testing.T) {
 		{
 			file:        "test_date",
 			wantHeaders: []string{"Long", "Short", "d-mmm-yy", "mm-dd-yy", "mmmm d, yyyy"},
-			wantVals:    loz.Make(5, wantDate),
+			wantVals:    langz.Make(5, wantDate),
 		},
 	}
 

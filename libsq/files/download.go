@@ -112,7 +112,7 @@ func (fs *Files) maybeStartDownload(ctx context.Context, src *source.Source, che
 		fs.downloadedFiles[src.Handle] = dlFile
 		return dlFile, nil, nil
 	default:
-		// A new download stream was created. Add it to Files.streams,
+		// A new download stream was created. Append it to Files.streams,
 		// and return the stream.
 		fs.streams[src.Handle] = dlStream
 		return "", dlStream, nil

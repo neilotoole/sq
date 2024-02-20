@@ -11,7 +11,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/record"
-	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 )
 
 // RecordWriterAdapter implements libsq.RecordWriter and
@@ -50,7 +50,7 @@ type RecordWriterAdapter struct {
 // NewRecordWriterAdapter returns a new RecordWriterAdapter.
 // The size of the internal buffer is controlled by driver.OptTuningRecChanSize.
 func NewRecordWriterAdapter(ctx context.Context, rw RecordWriter) *RecordWriterAdapter {
-	chSize := driver.OptTuningRecChanSize.Get(options.FromContext(ctx))
+	chSize := tuning.OptRecBufSize.Get(options.FromContext(ctx))
 	recCh := make(chan record.Record, chSize)
 
 	return &RecordWriterAdapter{rw: rw, recCh: recCh, wg: &sync.WaitGroup{}, written: atomic.NewInt64(0)}

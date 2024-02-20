@@ -49,6 +49,7 @@ import (
 	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/mdcache"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -205,11 +206,21 @@ func (h *Helper) init() {
 		h.run = &run.Run{
 			Stdin:           os.Stdin,
 			Out:             os.Stdout,
-			ErrOut:          os.Stdin,
+			Stdout:          os.Stdout,
+			ErrOut:          os.Stderr,
+			Stderr:          os.Stderr,
 			Config:          cfg,
 			ConfigStore:     config.DiscardStore{},
 			OptionsRegistry: optRegistry,
 			DriverRegistry:  h.registry,
+			MDCache:         mdcache.New(h.Context, cfg.Collection, h.grips),
+		}
+
+		if h.run.Writers == nil {
+			h.run.Writers = &output.Writers{
+				OutPrinting: output.NewPrinting(),
+				ErrPrinting: output.NewPrinting(),
+			}
 		}
 
 		h.Cleanup.AddC(h.run)
@@ -962,5 +973,32 @@ func NewActorSource(tb testing.TB, handle string, clean bool) *source.Source {
 		Handle:   handle,
 		Type:     drivertype.CSV,
 		Location: loc,
+	}
+}
+
+// NewSakilaSource returns a new *source.Source for a copy of the Sakila
+// SQLite database, using the given handle. If clean is true, the copy
+// is deleted by t.Cleanup.
+func NewSakilaSource(tb testing.TB, handle string, clean bool) *source.Source {
+	tb.Helper()
+	require.NoError(tb, source.ValidHandle(handle))
+	tmpDir := tu.TempDir(tb)
+	loc := filepath.Join(tmpDir, "sakila.db")
+	err := ioz.CopyFile(
+		loc,
+		proj.Abs("drivers/sqlite3/testdata/sakila.db"),
+		true,
+	)
+	require.NoError(tb, err)
+
+	if clean {
+		tb.Cleanup(func() {
+			assert.NoError(tb, os.RemoveAll(tmpDir))
+		})
+	}
+	return &source.Source{
+		Handle:   handle,
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + loc,
 	}
 }

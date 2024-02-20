@@ -16,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/timez"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
@@ -183,6 +184,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptLogFormat,
 		OptDiffNumLines,
 		OptDiffDataFormat,
+		OptDiffHunkMaxSize,
 		files.OptHTTPRequestTimeout,
 		files.OptHTTPResponseTimeout,
 		files.OptHTTPSInsecureSkipVerify,
@@ -193,10 +195,10 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		driver.OptConnMaxIdleTime,
 		driver.OptConnMaxLifetime,
 		driver.OptConnOpenTimeout,
-		driver.OptMaxRetryInterval,
-		driver.OptTuningErrgroupLimit,
-		driver.OptTuningRecChanSize,
-		OptTuningFlushThreshold,
+		tuning.OptMaxRetryInterval,
+		tuning.OptErrgroupLimit,
+		tuning.OptRecBufSize,
+		tuning.OptFlushThreshold,
 		driver.OptIngestHeader,
 		driver.OptIngestCache,
 		files.OptCacheLockTimeout,

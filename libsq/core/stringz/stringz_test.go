@@ -2,12 +2,9 @@ package stringz_test
 
 import (
 	"errors"
-	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/samber/lo"
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -52,30 +49,6 @@ func TestUUID(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		u := stringz.Uniq32()
 		require.Equal(t, 32, len(u))
-	}
-}
-
-func TestPluralize(t *testing.T) {
-	testCases := []struct {
-		s    string
-		i    int
-		want string
-	}{
-		{s: "row(s)", i: 0, want: "rows"},
-		{s: "row(s)", i: 1, want: "row"},
-		{s: "row(s)", i: 2, want: "rows"},
-		{s: "row(s) col(s)", i: 0, want: "rows cols"},
-		{s: "row(s) col(s)", i: 1, want: "row col"},
-		{s: "row(s) col(s)", i: 2, want: "rows cols"},
-		{s: "row(s)", i: 2, want: "rows"},
-		{s: "rows", i: 0, want: "rows"},
-		{s: "rows", i: 1, want: "rows"},
-		{s: "rows", i: 2, want: "rows"},
-	}
-
-	for _, tc := range testCases {
-		got := stringz.Plu(tc.s, tc.i)
-		require.Equal(t, tc.want, got)
 	}
 }
 
@@ -180,41 +153,6 @@ func TestPrefixSlice(t *testing.T) {
 	}
 }
 
-func TestParseBool(t *testing.T) {
-	testCases := map[string]bool{
-		"1":     true,
-		"t":     true,
-		"true":  true,
-		"TRUE":  true,
-		"y":     true,
-		"Y":     true,
-		"yes":   true,
-		"Yes":   true,
-		"YES":   true,
-		"0":     false,
-		"f":     false,
-		"false": false,
-		"False": false,
-		"n":     false,
-		"N":     false,
-		"no":    false,
-		"No":    false,
-		"NO":    false,
-	}
-
-	for input, wantBool := range testCases {
-		gotBool, gotErr := stringz.ParseBool(input)
-		require.NoError(t, gotErr)
-		require.Equal(t, wantBool, gotBool)
-	}
-
-	invalid := []string{"", " ", " true ", "gibberish", "-1"}
-	for _, input := range invalid {
-		_, gotErr := stringz.ParseBool(input)
-		require.Error(t, gotErr)
-	}
-}
-
 // TestSliceIndex_InSlice tests SliceIndex and InSlice.
 func TestSliceIndex_InSlice(t *testing.T) {
 	const needle = "hello"
@@ -270,118 +208,6 @@ func TestSanitizeAlphaNumeric(t *testing.T) {
 	for input, want := range testCases {
 		got := stringz.SanitizeAlphaNumeric(input, '_')
 		require.Equal(t, want, got)
-	}
-}
-
-func TestLineCount(t *testing.T) {
-	testCases := []struct {
-		in        string
-		withEmpty int
-		skipEmpty int
-	}{
-		{in: "", withEmpty: 0, skipEmpty: 0},
-		{in: "\n", withEmpty: 1, skipEmpty: 0},
-		{in: "\n\n", withEmpty: 2, skipEmpty: 0},
-		{in: "\n\n", withEmpty: 2, skipEmpty: 0},
-		{in: " ", withEmpty: 1, skipEmpty: 1},
-		{in: "one", withEmpty: 1, skipEmpty: 1},
-		{in: "one\n", withEmpty: 1, skipEmpty: 1},
-		{in: "\none\n", withEmpty: 2, skipEmpty: 1},
-		{in: "one\ntwo", withEmpty: 2, skipEmpty: 2},
-		{in: "one\ntwo\n", withEmpty: 2, skipEmpty: 2},
-		{in: "one\ntwo\n ", withEmpty: 3, skipEmpty: 3},
-		{in: "one\n\nthree", withEmpty: 3, skipEmpty: 2},
-		{in: "one\n\nthree\n", withEmpty: 3, skipEmpty: 2},
-	}
-
-	require.Equal(t, -1, stringz.LineCount(nil, true))
-
-	for i, tc := range testCases {
-		tc := tc
-
-		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
-			count := stringz.LineCount(strings.NewReader(tc.in), false)
-			require.Equal(t, tc.withEmpty, count)
-			count = stringz.LineCount(strings.NewReader(tc.in), true)
-			require.Equal(t, tc.skipEmpty, count)
-		})
-	}
-}
-
-func TestDoubleQuote(t *testing.T) {
-	testCases := []struct {
-		in   string
-		want string
-	}{
-		{in: ``, want: `""`},
-		{in: `"hello"`, want: `"""hello"""`},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.in, func(t *testing.T) {
-			got := stringz.DoubleQuote(tc.in)
-			require.Equal(t, tc.want, got)
-		})
-	}
-}
-
-func TestStripDoubleQuote(t *testing.T) {
-	testCases := []struct {
-		in   string
-		want string
-	}{
-		{in: ``, want: ``},
-		{in: `"`, want: `"`},
-		{in: `""`, want: ``},
-		{in: `"a`, want: `"a`},
-		{in: `"a"`, want: `a`},
-		{in: `"abc"`, want: `abc`},
-		{in: `"hello "" world"`, want: `hello "" world`},
-	}
-
-	for i, tc := range testCases {
-		tc := tc
-		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
-			got := stringz.StripDoubleQuote(tc.in)
-			require.Equal(t, tc.want, got)
-		})
-	}
-}
-
-func TestBacktickQuote(t *testing.T) {
-	testCases := []struct {
-		in   string
-		want string
-	}{
-		{in: "", want: "``"},
-		{in: "`world`", want: "```world```"},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.in, func(t *testing.T) {
-			got := stringz.BacktickQuote(tc.in)
-			require.Equal(t, tc.want, got)
-		})
-	}
-}
-
-func TestSingleQuote(t *testing.T) {
-	testCases := []struct {
-		in   string
-		want string
-	}{
-		{in: "", want: "''"},
-		{in: "jessie's girl", want: "'jessie''s girl'"},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.in, func(t *testing.T) {
-			got := stringz.SingleQuote(tc.in)
-			require.Equal(t, tc.want, got)
-		})
 	}
 }
 
@@ -468,39 +294,6 @@ func TestStringsD(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestVisitLines(t *testing.T) {
-	const input = `In Xanadu did
-Kubla Khan a stately
-pleasure dome decree.
-
-`
-	const want = `1. In Xanadu did<<
-2. Kubla Khan a stately<<
-3. pleasure dome decree.<<
-4. <<`
-
-	got := stringz.VisitLines(input, func(i int, line string) string {
-		return strconv.Itoa(i+1) + ". " + line + "<<"
-	})
-
-	require.Equal(t, want, got)
-}
-
-func TestIndentLines(t *testing.T) {
-	const input = `In Xanadu did
-Kubla Khan a stately
-pleasure dome decree.
-
-`
-	const want = `__In Xanadu did
-__Kubla Khan a stately
-__pleasure dome decree.
-__`
-
-	got := stringz.IndentLines(input, "__")
-	require.Equal(t, got, want)
 }
 
 func TestTemplate(t *testing.T) {
@@ -623,39 +416,6 @@ func TestEllipsifyASCII(t *testing.T) {
 			got := stringz.EllipsifyASCII(tc.input, tc.maxLen)
 			require.True(t, len(got) <= tc.maxLen)
 			require.Equal(t, tc.want, got)
-		})
-	}
-}
-
-// TestDecimal tests FormatDecimal, DecimalPlaces, and DecimalFloatOK.
-// The FormatDecimal tests verifies that the function formats a decimal
-// value as expected, especially that the number of decimal places matches
-// the exponent of the decimal value.
-func TestDecimal(t *testing.T) {
-	testCases := []struct {
-		in          decimal.Decimal
-		wantStr     string
-		wantPlaces  int32
-		wantFloatOK bool
-	}{
-		{in: decimal.New(0, 0), wantStr: "0", wantPlaces: 0, wantFloatOK: true},
-		{in: decimal.New(0, -1), wantStr: "0.0", wantPlaces: 1, wantFloatOK: true},
-		{in: decimal.New(0, -2), wantStr: "0.00", wantPlaces: 2, wantFloatOK: true},
-		{in: decimal.New(0, 2), wantStr: "0", wantPlaces: 0, wantFloatOK: true},
-		{in: decimal.NewFromFloat(1.1), wantStr: "1.1", wantPlaces: 1, wantFloatOK: true},
-		{in: decimal.New(100, -2), wantStr: "1.00", wantPlaces: 2, wantFloatOK: true},
-		{in: decimal.New(10000, -4), wantStr: "1.0000", wantPlaces: 4, wantFloatOK: true},
-	}
-
-	for i, tc := range testCases {
-		tc := tc
-		t.Run(tu.Name(i, tc.in, tc.wantStr), func(t *testing.T) {
-			gotStr := stringz.FormatDecimal(tc.in)
-			require.Equal(t, tc.wantStr, gotStr)
-			gotPlaces := stringz.DecimalPlaces(tc.in)
-			require.Equal(t, tc.wantPlaces, gotPlaces)
-			gotFloatOK := stringz.DecimalFloatOK(tc.in)
-			require.Equal(t, tc.wantFloatOK, gotFloatOK)
 		})
 	}
 }

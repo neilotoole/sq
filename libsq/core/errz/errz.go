@@ -8,6 +8,7 @@
 package errz
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -291,6 +292,33 @@ func ExitCode(err error) (code int) {
 	return -1
 }
 
+// Drain reads all currently available non-nil errors from errCh. If errCh is
+// nil, or there are no errors to read, Drain returns nil. If there's only a
+// single error, Drain returns it. If there are multiple errors, Drain returns
+// a multi-error created via [errz.Append]. Drain does not block; it does not
+// wait for errCh to be closed. Thus, invoking Drain again on the same errCh
+// may yield additional errors.
+func Drain(errCh <-chan error) error {
+	if errCh == nil {
+		return nil
+	}
+
+	var result error
+	for {
+		select {
+		case err, ok := <-errCh:
+			if err != nil {
+				result = Append(result, err)
+			}
+			if !ok {
+				return result
+			}
+		default:
+			return result
+		}
+	}
+}
+
 // SprintTreeTypes returns a string representation of err's type tree.
 // A multi-error is represented as a slice of its children.
 func SprintTreeTypes(err error) string {
@@ -319,4 +347,17 @@ func SprintTreeTypes(err error) string {
 	}
 
 	return sb.String()
+}
+
+// IsErrContext returns true if err's chain contains context.Canceled or
+// context.DeadlineExceeded.
+func IsErrContext(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if errors.Is(err, context.Canceled) {
+		return true
+	}
+	return errors.Is(err, context.DeadlineExceeded)
 }

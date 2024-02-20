@@ -12,9 +12,9 @@ import (
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/langz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-	"github.com/neilotoole/sq/libsq/core/loz"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/termz"
@@ -238,7 +238,7 @@ func Exec(ctx context.Context, cmd *Cmd) (err error) {
 
 		if !cmd.NoProgress {
 			bar := progress.FromContext(ctx).NewFilesizeCounter(
-				loz.NonEmptyOf(cmd.Label, cmd.Name),
+				langz.NonEmptyOf(cmd.Label, cmd.Name),
 				nil,
 				cmd.UsesOutputFile,
 				progress.OptTimer,
@@ -257,7 +257,7 @@ func Exec(ctx context.Context, cmd *Cmd) (err error) {
 
 			if _, ok := cmd.Stdout.(*os.File); ok && !cmd.NoProgress {
 				bar := progress.FromContext(ctx).NewFilesizeCounter(
-					loz.NonEmptyOf(cmd.Label, cmd.Name),
+					langz.NonEmptyOf(cmd.Label, cmd.Name),
 					cmd.Stdout.(*os.File),
 					"",
 					progress.OptTimer,

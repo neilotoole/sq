@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/google/renameio/v2/maybe"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 )

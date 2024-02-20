@@ -120,7 +120,7 @@ func execPing(cmd *cobra.Command, args []string) error {
 	}
 	timeout := OptPingCmdTimeout.Get(cmdOpts)
 
-	logFrom(cmd).Debug("Using ping timeout", lga.Val, fmt.Sprintf("%v", timeout))
+	lg.From(cmd).Debug("Using ping timeout", lga.Val, fmt.Sprintf("%v", timeout))
 
 	err = pingSources(cmd.Context(), ru.DriverRegistry, srcs, ru.Writers.Ping, timeout)
 	if errors.Is(err, context.Canceled) {

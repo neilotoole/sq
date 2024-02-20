@@ -16,7 +16,7 @@ import (
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/loz"
+	"github.com/neilotoole/sq/libsq/core/langz"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/timez"
@@ -462,14 +462,14 @@ func TestDatetime(t *testing.T) {
 		{
 			sheet:       "date",
 			wantHeaders: []string{"Long", "Short", "d-mmm-yy", "mm-dd-yy", "mmmm d, yyyy"},
-			wantKinds:   loz.Make(5, kind.Date),
-			wantVals: lo.ToAnySlice(loz.Make(5,
+			wantKinds:   langz.Make(5, kind.Date),
+			wantVals: lo.ToAnySlice(langz.Make(5,
 				time.Date(1989, time.November, 9, 0, 0, 0, 0, time.UTC))),
 		},
 		{
 			sheet:       "time",
 			wantHeaders: []string{"time1", "time2", "time3", "time4", "time5", "time6"},
-			wantKinds:   loz.Make(6, kind.Time),
+			wantKinds:   langz.Make(6, kind.Time),
 			wantVals:    []any{"15:17:00", "15:17:00", "15:17:00", "15:17:00", "15:17:00", "15:17:59"},
 		},
 		{
@@ -496,7 +496,7 @@ func TestDatetime(t *testing.T) {
 				"StampNano",
 				"UnixDate",
 			},
-			wantKinds: loz.Make(20, kind.Datetime),
+			wantKinds: langz.Make(20, kind.Datetime),
 			wantVals: lo.ToAnySlice([]time.Time{
 				wantSecUTC,   // ANSIC
 				wantMinUTC,   // DateHourMinute

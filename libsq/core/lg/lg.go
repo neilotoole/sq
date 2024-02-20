@@ -9,6 +9,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"reflect"
 	"runtime"
 	"time"
 
@@ -27,6 +28,10 @@ func NewContext(ctx context.Context, l *slog.Logger) context.Context {
 // FromContext returns the Logger stored in ctx by NewContext,
 // or the Discard logger if there is none.
 func FromContext(ctx context.Context) *slog.Logger {
+	if isNil(ctx) {
+		return Discard()
+	}
+
 	v := ctx.Value(contextKey{})
 	if v == nil {
 		return Discard()
@@ -36,6 +41,26 @@ func FromContext(ctx context.Context) *slog.Logger {
 		return l
 	}
 	return Discard()
+}
+
+// Contexter is an interface for types that can return a context.Context.
+type Contexter interface {
+	Context() context.Context
+}
+
+// From returns the Logger stored in c's context by NewContext, or the Discard
+// logger if there is none. It is a companion to FromContext.
+func From(c Contexter) *slog.Logger {
+	if isNil(c) {
+		return Discard()
+	}
+
+	ctx := c.Context()
+	if isNil(ctx) {
+		return Discard()
+	}
+
+	return FromContext(ctx)
 }
 
 // Discard returns a new *slog.Logger that discards output.
@@ -165,4 +190,10 @@ func Depth(log *slog.Logger, level slog.Level, depth int, msg string, args ...an
 	r := slog.NewRecord(time.Now(), level, msg, pc)
 	r.Add(args...)
 	_ = h.Handle(ctx, r)
+}
+
+// isNil checks if a value is nil or if it's a reference type with a nil underlying value.
+func isNil(x any) bool {
+	defer func() { recover() }() //nolint:errcheck
+	return x == nil || reflect.ValueOf(x).IsNil()
 }

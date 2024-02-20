@@ -5,7 +5,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/loz"
+	"github.com/neilotoole/sq/libsq/core/langz"
 )
 
 // queryModel is a model of an SLQ query built from the AST.
@@ -68,7 +68,7 @@ func buildQueryModel(qc *QueryContext, a *ast.AST) (*queryModel, error) {
 
 	if seg != nil {
 		var colExprs []ast.ResultColumn
-		if colExprs, ok = loz.ToSliceType[ast.Node, ast.ResultColumn](seg.Children()...); !ok {
+		if colExprs, ok = langz.TypedSlice[ast.ResultColumn](seg.Children()...); !ok {
 			return nil, errz.Errorf("segment children contained elements that were not of type %T: %s",
 				ast.ResultColumn(nil), seg.Text())
 		}
