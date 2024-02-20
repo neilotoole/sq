@@ -43,7 +43,7 @@ func (md *InMemDB) Stats() *Stats {
 	return md.stats
 }
 
-func (md *InMemDB) GetOrg(_ context.Context) (*Org, error) {
+func (md *InMemDB) GetOrg(ctx context.Context, org string) (*Org, error) {
 	md.stats.getOrg.Add(1)
 	md.log.Info("GetOrg", "company", md.company.Name)
 	return md.company, nil

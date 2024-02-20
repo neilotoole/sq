@@ -6,7 +6,7 @@ import (
 )
 
 type StaffDirectory interface {
-	GetOrg(ctx context.Context) (*Org, error)
+	GetOrg(ctx context.Context, org string) (*Org, error)
 	GetDepartment(ctx context.Context, dept string) (*Department, error)
 	GetEmployee(ctx context.Context, ID int) (*Employee, error)
 }
