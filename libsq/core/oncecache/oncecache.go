@@ -26,9 +26,9 @@ type FetchFunc[K comparable, V any] func(ctx context.Context, key K) (val V, err
 // once. That is, unless the entry is explicitly cleared via [Cache.Delete] or
 // [Cache.Clear], at which point the entry may be populated afresh.
 //
-// Arg opts is a set of functional options that can be used to configure the
-// cache. For example, see [Name] to set the cache name, or the [OnFillFunc]
-// or [OnEvictFunc] callbacks.
+// Arg opts is a set of options that can be used to configure the cache. For
+// example, see [Name] to set the cache name, or the [OnFill] or [OnEvict]
+// options for event callbacks.
 func New[K comparable, V any](fetch FetchFunc[K, V], opts ...Opt) *Cache[K, V] {
 	c := &Cache[K, V]{
 		name:    randomName(),
@@ -64,7 +64,7 @@ func New[K comparable, V any](fetch FetchFunc[K, V], opts ...Opt) *Cache[K, V] {
 // allowing the entry to be populated afresh.
 //
 // A cache entry consists not only of the key and value, but also any error
-// associated with setting the entry value.
+// associated with filling the entry value.
 //
 // The zero value is not usable; instead invoke [New].
 type Cache[K comparable, V any] struct {
@@ -112,7 +112,7 @@ func (c *Cache[K, V]) LogValue() slog.Value {
 	)
 }
 
-// Clear clears the cache entries, invoking any [OnEvictFunc] callbacks on each
+// Clear clears the cache entries, invoking any [OnEvict] callbacks on each
 // cache entry. The entry callback order is not specified.
 func (c *Cache[K, V]) Clear(ctx context.Context) {
 	c.mu.Lock()
@@ -140,7 +140,7 @@ func (c *Cache[K, V]) Clear(ctx context.Context) {
 	}
 }
 
-// Delete deletes the entry for the given key, invoking any [OnEvictFunc]
+// Delete deletes the entry for the given key, invoking any [OnEvict]
 // callbacks.
 func (c *Cache[K, V]) Delete(ctx context.Context, key K) {
 	c.mu.Lock()
@@ -154,10 +154,10 @@ func (c *Cache[K, V]) Delete(ctx context.Context, key K) {
 
 // Set explicitly sets the value and fill error for the given key, allowing an
 // external process to prime the cache. Note that the value can alternatively be
-// filled implicitly via [Cache.Get] invoking the fetch func. If there's already
-// a cache entry for key, Set is no-op: the value is not updated. If this Set
-// call does update the cache entry, any [OnFillFunc] callbacks (as provided to
-// [New]) are invoked.
+// filled implicitly via [Cache.Get], when it invokes the fetch func. If there's
+// already a cache entry for key, Set is no-op: the value is not updated. If
+// this Set call does update the cache entry, any [OnFill] callbacks - as
+// provided to [New] - are invoked.
 func (c *Cache[K, V]) Set(ctx context.Context, key K, val V, err error) {
 	e := c.getEntry(key)
 	e.set(ctx, key, val, err)
@@ -166,9 +166,9 @@ func (c *Cache[K, V]) Set(ctx context.Context, key K, val V, err error) {
 // Get gets the value (and fill error) for the given key. If there's no entry
 // for the key, the fetch func is invoked, setting the entry value and error. If
 // the entry is already populated, the value and error are returned without
-// invoking the fetch func. If population does occur, any [OnFillFunc] callbacks
-// (as provided to [New]) are invoked, and this call blocks until all callbacks
-// return.
+// invoking the fetch func. If population does occur, any [OnFill] callbacks -
+// as provided to [New] - are invoked, and this Get call blocks until all
+// callbacks return.
 func (c *Cache[K, V]) Get(ctx context.Context, key K) (V, error) {
 	e := c.getEntry(key)
 	return e.get(ctx, key)
@@ -193,13 +193,15 @@ type Opt interface {
 	optioner()
 }
 
-// optApplier is an Opt that uses the apply method to modify a Cache instance.
+// optApplier is an [Opt] that uses the apply method to configure a [Cache]
+// instance.
 type optApplier[K comparable, V any] interface {
 	Opt
 	apply(c *Cache[K, V])
 }
 
-// Name is an [Opt] for [New] that sets the cache's name. The name is accessible via [Cache.Name].
+// Name is an [Opt] for [New] that sets the cache's name. The name is accessible
+// via [Cache.Name].
 //
 //	c := oncecache.New[int, string](fetch, oncecache.Name("foobar"))
 //
@@ -209,6 +211,8 @@ type Name string
 
 func (o Name) optioner() {}
 
+// entry is the internal representation of a cache entry. Contrast with the
+// external [Entry] type.
 type entry[K comparable, V any] struct {
 	val   V
 	err   error
@@ -224,7 +228,7 @@ func (e *entry[K, V]) set(ctx context.Context, key K, val V, err error) {
 		notify = true
 	})
 
-	// We perform notification outside of the once to avoid holding the lock.
+	// We perform notification outside the once to avoid holding the lock.
 	if notify && len(e.cache.onFill) > 0 {
 		ctx = newContext(ctx, e.cache)
 		for _, fn := range e.cache.onFill {
@@ -241,7 +245,7 @@ func (e *entry[K, V]) get(ctx context.Context, key K) (V, error) {
 		notify = true
 	})
 
-	// We perform notification outside of the once to avoid holding the lock.
+	// We perform notification outside the once to avoid holding the lock.
 	if notify && len(e.cache.onFill) > 0 {
 		for _, onFill := range e.cache.onFill {
 			onFill(ctx, key, e.val, e.err)
@@ -251,8 +255,8 @@ func (e *entry[K, V]) get(ctx context.Context, key K) (V, error) {
 	return e.val, e.err
 }
 
-// evict invokes any [OnEvictFunc] callbacks for the given cache entry. The
-// supplied ctx should already be decorated via newContext.
+// evict invokes any [OnEvict] callbacks for the given cache entry. The caller
+// should beforehand decorate ctx via newContext.
 func (e *entry[K, V]) evict(ctx context.Context, key K) {
 	for _, onEvict := range e.cache.onEvict {
 		onEvict(ctx, key, e.val, e.err)
@@ -267,7 +271,7 @@ func randomName() string {
 
 type ctxKey struct{}
 
-// NewContext returns ctx with c added as a value. If ctx is nil, a new context
+// newContext returns ctx with c added as a value. If ctx is nil, a new context
 // is created.
 func newContext[K comparable, V any](ctx context.Context, c *Cache[K, V]) context.Context {
 	if ctx == nil {
@@ -297,7 +301,8 @@ func FromContext[K comparable, V any](ctx context.Context) *Cache[K, V] {
 	return nil
 }
 
-// isNil checks if a value is nil or if it's a reference type with a nil underlying value.
+// isNil checks if a value is nil or if it's a reference type with a nil
+// underlying value.
 func isNil(x any) bool {
 	defer func() { recover() }() //nolint:errcheck
 	return x == nil || reflect.ValueOf(x).IsNil()
