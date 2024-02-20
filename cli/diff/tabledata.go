@@ -39,29 +39,18 @@ func differsForAllTableData(ctx context.Context, cfg *Config, sd1, sd2 *sourceDa
 
 	differs := make([]*diffdoc.Differ, len(allTblNames))
 	for i, tblName := range allTblNames {
-		td1 := &tableData{
-			tbl:     source.Table{Handle: sd1.src.Handle, Name: tblName},
-			src:     sd1.src,
-			tblName: tblName,
-		}
-		td1.tblMeta = sd1.srcMeta.Table(tblName)
-
+		td1 := source.Table{Handle: sd1.src.Handle, Name: tblName}
 		// REVISIT: What if there isn't table metadata? Or is it guaranteed to
 		// be present?
 
-		td2 := &tableData{
-			tbl:     source.Table{Handle: sd2.src.Handle, Name: tblName},
-			src:     sd2.src,
-			tblName: tblName,
-		}
-		td2.tblMeta = sd2.srcMeta.Table(tblName)
+		td2 := source.Table{Handle: sd2.src.Handle, Name: tblName}
 		differs[i] = differForTableData(cfg, true, td1, td2)
 	}
 
 	return differs, nil
 }
 
-func differForTableData(cfg *Config, title bool, td1, td2 *tableData) *diffdoc.Differ {
+func differForTableData(cfg *Config, title bool, td1, td2 source.Table) *diffdoc.Differ {
 	var cmdTitle diffdoc.Title
 	if title {
 		cmdTitle = diffdoc.Titlef(cfg.Colors, "sq diff --data %s %s", td1, td2)
@@ -87,7 +76,7 @@ func differForTableData(cfg *Config, title bool, td1, td2 *tableData) *diffdoc.D
 // cancelFn, to cancel any peer goroutines. Note that the returned doc's
 // [diffdoc.Doc.Read] method blocks until the doc is completed (or errors out).
 func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
-	cfg *Config, td1, td2 *tableData, doc *diffdoc.HunkDoc,
+	cfg *Config, td1, td2 source.Table, doc *diffdoc.HunkDoc,
 ) {
 	log := lg.FromContext(ctx).With(lga.Left, td1.String(), lga.Right, td2.String())
 	log.Info("Diffing table data")
@@ -147,7 +136,7 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 	qc := run.NewQueryContext(cfg.Run, nil)
 
 	go func() {
-		query1 := td1.src.Handle + "." + stringz.DoubleQuote(td1.tblName)
+		query1 := td1.Handle + "." + stringz.DoubleQuote(td1.Name)
 		// Execute DB query1; records will be sent to recw1.recCh.
 		if err := libsq.ExecuteSLQ(ctx, qc, query1, recw1); err != nil {
 			if errz.Has[*driver.NotExistError](err) {
@@ -170,7 +159,7 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 	}()
 
 	go func() {
-		query2 := td2.src.Handle + "." + stringz.DoubleQuote(td2.tblName)
+		query2 := td2.Handle + "." + stringz.DoubleQuote(td2.Name)
 		// Execute DB query2; records will be sent to recw2.recCh.
 		if err := libsq.ExecuteSLQ(ctx, qc, query2, recw2); err != nil {
 			if errz.Has[*driver.NotExistError](err) {
@@ -284,7 +273,7 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 // recordDiffer encapsulates execution of diffing the records of two tables.
 type recordDiffer struct {
 	cfg      *Config
-	td1, td2 *tableData
+	td1, td2 source.Table
 
 	// recMetaFn returns the record.Meta for the query results for td1 and td2.
 	// We use a function here because record.Meta is only available after the

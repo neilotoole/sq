@@ -2,8 +2,9 @@ package staffdir
 
 import (
 	"context"
-	"github.com/neilotoole/sq/libsq/core/oncecache"
 	"log/slog"
+
+	"github.com/neilotoole/sq/libsq/core/oncecache"
 )
 
 var _ DB = (*DirCache)(nil)
@@ -20,6 +21,8 @@ func NewDirCache(log *slog.Logger, db DB) *DirCache {
 		employees: oncecache.New[int, *Employee](db.GetEmployee),
 	}
 }
+
+// func (d *DirCache) handleCompany
 
 type DirCache struct {
 	log       *slog.Logger

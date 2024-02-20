@@ -13,17 +13,17 @@ type optApplier[K comparable, V any] interface {
 	apply(c *Cache[K, V])
 }
 
-// Name is a functional option for [New] that sets the cache's name, as
-// accessible via [Cache.Name].
+// Name is an [Opt] for [New] that sets the cache's name. The name is accessible via [Cache.Name].
+//
+//	c := oncecache.New[int, string](fetch, oncecache.Name("foobar"))
+//
+// The name is used by [Cache.String] and [Cache.LogValue]. If [Name] is not
+// specified, a random name such as "cache-38a2b7d4" is generated.
 type Name string
 
 func (o Name) optioner() {}
 
-//func (o Name[K, V]) apply(c *Cache[K, V]) {
-//	c.name = string(o)
-//}
-
-// OnFillFunc is a callback functional option for [New] that is invoked when a
+// OnFillFunc is a callback [Opt] for [New] that is invoked when a
 // cache entry is populated, whether on-demand via [Cache.Get] and [FetchFunc],
 // or externally via [Cache.Set].
 //
@@ -44,47 +44,70 @@ func (f OnFillFunc[K, V]) apply(c *Cache[K, V]) {
 // Common use cases include logging, metrics, or cache entry propagation.
 //
 // Note that the triggering call to [Cache.Delete] or [Cache.Clear] blocks until
-// every [OnEvictFunc] returns. Consider spawning a goroutine if the callback is
-// long-running.
+// every [OnEvictFunc] returns. Consider using [OnEvictChan] for long-running
+// callbacks.
 type OnEvictFunc[K comparable, V any] func(ctx context.Context, c *Cache[K, V], key K, val V, err error)
 
 func (f OnEvictFunc[K, V]) apply(c *Cache[K, V]) {
 	c.onEvict = append(c.onEvict, f)
 }
 
-type EventType string
+// Action is an enumeration of cache actions, as seen on [Event.Action].
+type Action uint8
 
 const (
-	EventFill  = EventType("fill")
-	EventEvict = EventType("evict")
+	ActionFill  Action = 1
+	ActionEvict Action = 2
 )
 
-type Event[K comparable, V any] struct {
-	Type  EventType
+// String returns action name.
+func (a Action) String() string {
+	switch a {
+	case ActionFill:
+		return "fill"
+	case ActionEvict:
+		return "evict"
+	default:
+		return "unknown"
+	}
+}
+
+// Entry is a cache entry, as seen on [Event.Entry].
+type Entry[K comparable, V any] struct {
 	Cache *Cache[K, V]
 	Key   K
 	Val   V
 	Err   error
 }
 
-func OnFillChan[K comparable, V any](ch chan<- Event[K, V], block bool) Opt {
-	return eventOpt[K, V]{ch: ch, block: block, typ: EventFill}
+// Event is a cache event.
+type Event[K comparable, V any] struct {
+	Entry  Entry[K, V]
+	Action Action
 }
+
+func OnFillChan[K comparable, V any](ch chan<- Event[K, V], block bool) Opt {
+	return eventOpt[K, V]{ch: ch, block: block, action: ActionFill}
+}
+
 func OnEvictChan[K comparable, V any](ch chan<- Event[K, V], block bool) Opt {
-	return eventOpt[K, V]{ch: ch, block: block, typ: EventFill}
+	return eventOpt[K, V]{ch: ch, block: block, action: ActionEvict}
 }
 
 type eventOpt[K comparable, V any] struct {
-	typ   EventType
-	block bool
-	ch    chan<- Event[K, V]
+	ch     chan<- Event[K, V]
+	action Action
+	block  bool
 }
 
 func (o eventOpt[K, V]) optioner() {}
 
 func (o eventOpt[K, V]) apply(c *Cache[K, V]) {
 	fn := func(ctx context.Context, c *Cache[K, V], key K, val V, err error) {
-		event := Event[K, V]{Type: o.typ, Cache: c, Key: key, Val: val, Err: err}
+		event := Event[K, V]{
+			Action: o.action,
+			Entry:  Entry[K, V]{Cache: c, Key: key, Val: val, Err: err},
+		}
 
 		if o.block {
 			// Blocking.
@@ -99,28 +122,9 @@ func (o eventOpt[K, V]) apply(c *Cache[K, V]) {
 		}
 	}
 
-	if o.typ == EventFill {
+	if o.action == ActionFill {
 		c.onFill = append(c.onFill, OnFillFunc[K, V](fn))
 	} else {
 		c.onEvict = append(c.onEvict, OnEvictFunc[K, V](fn))
 	}
 }
-
-//type EventChan[K comparable, V any] chan<- Event[K, V]
-//
-//func OnFillCallback[K comparable, V any](ch chan<- Event[K, V]) Opt {
-//	return eventOpt[K, V]{ch: ch}
-//}
-//
-//type eventOpt[K comparable, V any] struct {
-//	ch chan<- Event[K, V]
-//}
-//
-//func (o eventOpt[K, V]) apply() {
-//	//TODO implement me
-//	panic("implement me")
-//}
-
-//func (f eventOpt[K, V]) apply(c *Cache[K, V]) {
-//	//c.onFill = append(c.onFill, f)
-//}

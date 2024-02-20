@@ -3,6 +3,7 @@ package diff
 import (
 	"context"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 	"io"
 	"slices"
 	"strings"
@@ -29,20 +30,8 @@ func differsForSchema(ctx context.Context, cfg *Config, showRowCounts bool,
 		default:
 		}
 
-		td1 := &tableData{
-			tbl:     source.Table{Handle: sd1.src.Handle, Name: tblName},
-			tblName: tblName,
-			tblMeta: sd1.srcMeta.Table(tblName),
-			src:     sd1.src,
-			srcMeta: sd1.srcMeta,
-		}
-		td2 := &tableData{
-			tbl:     source.Table{Handle: sd2.src.Handle, Name: tblName},
-			tblName: tblName,
-			tblMeta: sd2.srcMeta.Table(tblName),
-			src:     sd2.src,
-			srcMeta: sd2.srcMeta,
-		}
+		td1 := source.Table{Handle: sd1.src.Handle, Name: tblName}
+		td2 := source.Table{Handle: sd2.src.Handle, Name: tblName}
 
 		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors, "sq diff %s %s", td1, td2))
 		differs = append(differs, diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
@@ -54,27 +43,30 @@ func differsForSchema(ctx context.Context, cfg *Config, showRowCounts bool,
 }
 
 func diffTableSchema(ctx context.Context, cfg *Config, showRowCounts bool,
-	td1, td2 *tableData, doc *diffdoc.UnifiedDoc,
+	td1, td2 source.Table, doc *diffdoc.UnifiedDoc,
 ) {
 	var (
 		body1, body2 string
+		md1, md2     *metadata.Table
 		err          error
 	)
 
 	defer func() { doc.Seal(err) }()
 
-	if body1, err = renderTableMeta2YAML(showRowCounts, td1.tblMeta); err != nil {
-		return
-	}
-	if body2, err = renderTableMeta2YAML(showRowCounts, td2.tblMeta); err != nil {
+	md1, md2, err = cfg.cache.getTableMetaPair(ctx, td1, td2)
+	if err != nil {
 		return
 	}
 
-	handle1 := td1.src.Handle + "." + td1.tblName
-	handle2 := td2.src.Handle + "." + td2.tblName
+	if body1, err = renderTableMeta2YAML(showRowCounts, md1); err != nil {
+		return
+	}
+	if body2, err = renderTableMeta2YAML(showRowCounts, md2); err != nil {
+		return
+	}
 
 	bar := progress.FromContext(ctx).NewWaiter("Diff table schema "+td1.String(), true, progress.OptMemUsage)
-	unified, err := diffdoc.ComputeUnified(ctx, handle1, handle2, cfg.Lines, body1, body2)
+	unified, err := diffdoc.ComputeUnified(ctx, td1.String(), td2.String(), cfg.Lines, body1, body2)
 	bar.Stop()
 	if err != nil {
 		return

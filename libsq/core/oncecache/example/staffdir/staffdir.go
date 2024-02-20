@@ -40,9 +40,9 @@ func (d *Department) LogValue() slog.Value {
 }
 
 type Employee struct {
-	ID   int    `json:"id"`
 	Name string `json:"name"`
 	Role string `json:"role"`
+	ID   int    `json:"id"`
 }
 
 func (e *Employee) String() string {

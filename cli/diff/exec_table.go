@@ -4,8 +4,6 @@ import (
 	"context"
 
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
-	"golang.org/x/sync/errgroup"
-
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -18,37 +16,14 @@ func ExecTableDiff(ctx context.Context, cfg *Config,
 ) error {
 	cfg.init()
 	var (
-		ru    = cfg.Run
-		elems = cfg.Elements
-		td1   = &tableData{
-			tbl:     source.Table{Handle: src1.Handle, Name: table1},
-			src:     src1,
-			tblName: table1,
-		}
-		td2 = &tableData{
-			tbl:     source.Table{Handle: src2.Handle, Name: table2},
-			src:     src2,
-			tblName: table2,
-		}
+		ru      = cfg.Run
+		elems   = cfg.Elements
+		td1     = source.Table{Handle: src1.Handle, Name: table1}
+		td2     = source.Table{Handle: src2.Handle, Name: table2}
 		differs []*diffdoc.Differ
 	)
 
 	if elems.Schema {
-		g, gCtx := errgroup.WithContext(ctx)
-		g.Go(func() error {
-			var gErr error
-			td1.tblMeta, gErr = fetchTableMeta(gCtx, ru, td1.src, table1)
-			return gErr
-		})
-		g.Go(func() error {
-			var gErr error
-			td2.tblMeta, gErr = fetchTableMeta(gCtx, ru, td2.src, table2)
-			return gErr
-		})
-		if err := g.Wait(); err != nil {
-			return err
-		}
-
 		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors,
 			"sq diff --schema %s %s", td1.String(), td2.String()))
 		differs = append(differs, diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {

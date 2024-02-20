@@ -3,7 +3,6 @@
 package diff
 
 import (
-	"fmt"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
@@ -79,42 +78,3 @@ type sourceData struct {
 	srcMeta *metadata.Source
 	handle  string
 }
-
-//func (sd *sourceData) clone() *sourceData { //nolint:unused // REVISIT: no longer needed?
-//	if sd == nil {
-//		return nil
-//	}
-//
-//	return &sourceData{
-//		handle:  sd.handle,
-//		src:     sd.src.Clone(),
-//		srcMeta: sd.srcMeta.Clone(),
-//	}
-//}
-
-// tableData encapsulates data about a table.
-type tableData struct {
-	tbl     source.Table
-	tblMeta *metadata.Table
-	src     *source.Source
-	srcMeta *metadata.Source
-	tblName string
-}
-
-// String returns @handle.table.
-func (td *tableData) String() string {
-	return fmt.Sprintf("%s.%s", td.src.Handle, td.tblName)
-}
-
-//func (td *tableData) clone() *tableData { //nolint:unused // REVISIT: no longer needed?
-//	if td == nil {
-//		return nil
-//	}
-//
-//	return &tableData{
-//		tblName: td.tblName,
-//		tblMeta: td.tblMeta.Clone(),
-//		src:     td.src.Clone(),
-//		srcMeta: td.srcMeta.Clone(),
-//	}
-//}

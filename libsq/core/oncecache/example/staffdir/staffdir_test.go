@@ -13,6 +13,7 @@ import (
 )
 
 func setup(t *testing.T) (*slog.Logger, *staffdir.InMemDB, *staffdir.DirCache) {
+	t.Helper()
 	log := slogt.New(t)
 
 	db, err := staffdir.NewInMemDB(log.With("layer", "db"), "testdata/acme.json")

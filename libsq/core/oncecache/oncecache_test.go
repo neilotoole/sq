@@ -3,12 +3,13 @@ package oncecache_test
 import (
 	"context"
 	"errors"
-	"github.com/neilotoole/slogt"
-	"github.com/neilotoole/sq/libsq/core/oncecache"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
+
+	"github.com/neilotoole/slogt"
+	"github.com/neilotoole/sq/libsq/core/oncecache"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,7 +60,7 @@ func TestCache(t *testing.T) {
 	require.Empty(t, got)
 
 	// Verify that clear works too.
-	c.Clear(nil)
+	c.Clear(ctx)
 	c.Set(ctx, 7, "seven", nil)
 	got, err = c.Get(ctx, 7)
 	require.NoError(t, err)
@@ -110,25 +111,6 @@ func TestCacheConcurrent(t *testing.T) {
 		assert.Equal(t, int64(1), invocations[i].Load(), "key %d", i)
 	}
 }
-
-//	func fetchDouble[K ~int, V ~int](_ context.Context, key K) (val V, err error) {
-//		return V(key * 2), nil
-//	}
-
-//func TestOnFillChan(t *testing.T) {
-//	ctx := context.Background()
-//
-//	var opt oncecache.Opt[int, int]
-//
-//	eventCh := make(chan oncecache.Event[int, int], 10)
-//
-//	c2 := oncecache.New[int, int](fetchDouble[int, int], opt)
-//
-//	got, err := c2.Get(ctx, 3)
-//	require.NoError(t, err)
-//	require.Equal(t, 6, got)
-//
-//}
 
 func TestLogging(t *testing.T) {
 	ctx := context.Background()

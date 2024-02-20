@@ -67,11 +67,11 @@ func New[K comparable, V any](fetch FetchFunc[K, V], opts ...Opt) *Cache[K, V] {
 //
 // The zero value is not usable; instead invoke [New].
 type Cache[K comparable, V any] struct {
-	name    string
 	fetch   FetchFunc[K, V]
+	entries map[K]*entry[K, V]
+	name    string
 	onFill  []OnFillFunc[K, V]
 	onEvict []OnEvictFunc[K, V]
-	entries map[K]*entry[K, V]
 	mu      sync.Mutex
 }
 
@@ -116,10 +116,10 @@ func (c *Cache[K, V]) Clear(ctx context.Context) {
 	}
 
 	var evictions []func()
-	for key, ce := range c.entries {
-		if ce != nil {
-			ce := ce
-			evictions = append(evictions, func() { ce.evict(ctx, key) })
+	for key, ent := range c.entries {
+		if ent != nil {
+			e := ent
+			evictions = append(evictions, func() { e.evict(ctx, key) })
 		}
 	}
 
