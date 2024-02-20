@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/source"
 	"slices"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/source"
 
 	"github.com/samber/lo"
 

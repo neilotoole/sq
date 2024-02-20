@@ -28,7 +28,7 @@ func (e Entry[K, V]) String() string {
 		sb.WriteString(e.Err.Error())
 		sb.WriteRune(']')
 	}
-	val := fmt.Sprintf("%v", e.Val)
+	val := fmt.Sprintf(" = %v", e.Val)
 	if len(val) > 32 {
 		sb.WriteString(val[:13])
 		sb.WriteString("...")
@@ -69,9 +69,10 @@ func (e Event[K, V]) LogValue() slog.Value {
 // String returns a string representation of the event.
 func (e Event[K, V]) String() string {
 	var sb strings.Builder
-	sb.WriteString(e.Action.String())
-	sb.WriteString(": ")
+
 	sb.WriteString(e.Cache.name)
+	sb.WriteRune('.')
+	sb.WriteString(e.Action.String())
 	sb.WriteRune('[')
 	sb.WriteString(fmt.Sprintf("%v", e.Key))
 	sb.WriteRune(']')
@@ -80,7 +81,7 @@ func (e Event[K, V]) String() string {
 		sb.WriteString(e.Err.Error())
 		sb.WriteRune(']')
 	}
-	val := fmt.Sprintf(" %v", e.Val)
+	val := fmt.Sprintf(" = %v", e.Val)
 	if len(val) > 32 {
 		sb.WriteString(val[:14])
 		sb.WriteString("...")

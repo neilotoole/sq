@@ -2,11 +2,12 @@ package diff
 
 import (
 	"context"
-	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/source/metadata"
 	"io"
 	"slices"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
 	"github.com/neilotoole/sq/libsq/core/errz"

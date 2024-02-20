@@ -2,6 +2,8 @@ package diff
 
 import (
 	"context"
+	"sync"
+
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/upgrademu"
@@ -9,7 +11,6 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 	"golang.org/x/sync/errgroup"
-	"sync"
 )
 
 type cache struct {
@@ -56,10 +57,10 @@ type cacheEntry[K comparable, V any] struct {
 	key K
 	val V
 	err error
-	//getOnce sync.Once
-	//setOnce sync.Once
+	// getOnce sync.Once
+	// setOnce sync.Once
 	once sync.Once
-	//getter  func(ctx context.Context, key K, setter func(val V, err error))
+	// getter  func(ctx context.Context, key K, setter func(val V, err error))
 	getter2 func(ctx context.Context, key K) (val V, err error)
 }
 
@@ -79,7 +80,7 @@ func (ce *cacheEntry[K, V]) set(val V, err error) {
 func (ce *cacheEntry[K, V]) get(ctx context.Context) (V, error) {
 	ce.once.Do(func() {
 		ce.val, ce.err = ce.getter2(ctx, ce.key)
-		//ce.getter(ctx, ce.key, ce.set)
+		// ce.getter(ctx, ce.key, ce.set)
 	})
 	return ce.val, ce.err
 }
@@ -155,7 +156,7 @@ func (c *cache) getTableMeta(ctx context.Context, tbl source.Table) (*metadata.T
 // getTableMetaPair returns the [metadata.Table] for tbl1 and tbl2.
 //
 // FIXME: this is a very quick impl. It must be improved.
-func (c *cache) getTableMetaPair(ctx context.Context, tbl1, tbl2 source.Table) (md1 *metadata.Table, md2 *metadata.Table, err error) {
+func (c *cache) getTableMetaPair(ctx context.Context, tbl1, tbl2 source.Table) (md1, md2 *metadata.Table, err error) {
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		var mdErr error
@@ -171,7 +172,6 @@ func (c *cache) getTableMetaPair(ctx context.Context, tbl1, tbl2 source.Table) (
 		return nil, nil, err
 	}
 	return md1, md2, err
-
 }
 
 // fetchTableMeta returns the metadata.Table for table. If the table

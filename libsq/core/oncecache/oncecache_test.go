@@ -174,15 +174,9 @@ func loadHRDatabase(t *testing.T) *hrsystem.HRDatabase {
 // Test_OnFill_OnEvict tests use of the [oncecache.OnFill] mechanism to
 // propagate cache events between overlapping caches.
 func Test_OnFill_OnEvict(t *testing.T) {
-	ctx := context.Background()
-	var db *hrsystem.HRDatabase
-	var cache *hrsystem.HRCache
-	_ = db
-	_ = cache
-
-	db = loadHRDatabase(t)
-
 	var (
+		ctx       = context.Background()
+		db        = loadHRDatabase(t)
 		orgCache  *oncecache.Cache[string, *hrsystem.Org]
 		deptCache *oncecache.Cache[string, *hrsystem.Department]
 		empCache  *oncecache.Cache[int, *hrsystem.Employee]
@@ -416,16 +410,18 @@ func TestLogging(t *testing.T) {
 	ctx := context.Background()
 
 	c := oncecache.New[int, int](fetchDouble)
-	got := c.Name()
-	require.NotEmpty(t, got)
-	t.Log(got)
+
+	gotName := c.Name()
+	require.NotEmpty(t, gotName)
+	t.Log(gotName)
 
 	c = oncecache.New[int, int](fetchDouble, oncecache.Name("cache-foo"))
-	got = c.Name()
-	require.Equal(t, "cache-foo", got)
+	gotName = c.Name()
+	require.Equal(t, "cache-foo", gotName)
 
 	// Sanity check: make sure Cache.LogValue doesn't shit the bed.
-	slogt.New(t).Info("hello", "cache", c)
+	log := slogt.New(t)
+	log.Info("hello", "cache", c)
 
 	s := c.String()
 	require.Equal(t, "cache-foo[int, int][0]", s)
@@ -434,4 +430,29 @@ func TestLogging(t *testing.T) {
 	_, _ = c.Get(ctx, 3)
 	s = c.String()
 	require.Equal(t, "cache-foo[int, int][3]", s)
+
+	eventCh := make(chan oncecache.Event[int, int], 3)
+	c = oncecache.New[int, int](
+		fetchDouble,
+		oncecache.Name("event-cache"),
+		oncecache.OnFillChan(eventCh, false),
+	)
+
+	gotVal, gotErr := c.Get(ctx, 1)
+	require.NoError(t, gotErr)
+	require.Equal(t, 2, gotVal)
+
+	time.Sleep(time.Millisecond) // Allow event to propagate
+	var event oncecache.Event[int, int]
+	select {
+	case event = <-eventCh:
+	default:
+		t.Fatal("Expected event")
+	}
+	require.Equal(t, oncecache.ActionFill, event.Action)
+	t.Logf("event: %s", event)
+	t.Logf("entry: %s", event.Entry)
+
+	log.Info("Got event", "event", event)
+	log.Info("Got entry", "entry", event.Entry)
 }
