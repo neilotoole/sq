@@ -19,6 +19,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -145,7 +146,7 @@ func (p *pipeline) executeTasks(ctx context.Context) error {
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(driver.OptTuningErrgroupLimit.Get(options.FromContext(ctx)))
+	g.SetLimit(tuning.OptErrgroupLimit.Get(options.FromContext(ctx)))
 
 	for _, task := range p.tasks {
 		task := task
@@ -460,7 +461,7 @@ func execCopyTable(ctx context.Context, fromDB driver.Grip, fromTbl tablefq.T,
 		"Copy records",
 		destGrip,
 		destTbl.Table,
-		driver.OptTuningRecChanSize.Get(destGrip.Source().Options),
+		tuning.OptRecBufSize.Get(destGrip.Source().Options),
 		createTblHook,
 	)
 

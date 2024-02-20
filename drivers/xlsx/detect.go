@@ -11,9 +11,9 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/langz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-	"github.com/neilotoole/sq/libsq/core/loz"
 	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
@@ -100,7 +100,7 @@ func detectSheetColumnKinds(sheet *xSheet, rangeStart int) ([]kind.Kind, []kind.
 	var detectors []*kind.Detector
 
 	for i := rangeStart; i < len(rows); i++ {
-		if loz.IsSliceZeroed(rows[i]) {
+		if langz.IsSliceZeroed(rows[i]) {
 			continue
 		}
 

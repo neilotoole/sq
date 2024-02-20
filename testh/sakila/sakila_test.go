@@ -37,7 +37,7 @@ func TestSakila_XLSX(t *testing.T) {
 	tu.SkipIssueWindows(t, tu.GH371ExcelSlowWin)
 
 	handles := []string{sakila.XLSXSubset}
-	// TODO: Add sakila.XLSX to handles when performance is reasonable
+	// TODO: Append sakila.XLSX to handles when performance is reasonable
 	//  enough not to break CI.
 
 	for _, handle := range handles {

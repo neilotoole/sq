@@ -239,7 +239,7 @@ func (dl *Downloader) get(req *http.Request) (dlFile string, //nolint:gocognit,f
 
 			if freshness == Stale {
 				var req2 *http.Request
-				// Add validators if caller hasn't already done so
+				// Append validators if caller hasn't already done so
 				etag := cachedResp.Header.Get("etag")
 				if etag != "" && req.Header.Get("etag") == "" {
 					req2 = cloneRequest(req)

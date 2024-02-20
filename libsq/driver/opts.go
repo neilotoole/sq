@@ -92,43 +92,11 @@ If n <= 0, connections are not closed due to a connection's age.`,
 
 	// OptMaxRetryInterval is the maximum interval to wait
 	// between retries.
-	OptMaxRetryInterval = options.NewDuration(
-		"retry.max-interval",
-		nil,
-		time.Second*3,
-		"Max interval between retries",
-		`The maximum interval to wait between retries. If an operation is
-retryable (for example, if the DB has too many clients), repeated retry
-operations back off, typically using a Fibonacci backoff.`,
-		options.TagSource,
-	)
 
 	// OptTuningErrgroupLimit controls the maximum number of goroutines that can be spawned
 	// by an errgroup.
-	OptTuningErrgroupLimit = options.NewInt(
-		"tuning.errgroup-limit",
-		nil,
-		16,
-		"Max goroutines in any one errgroup",
-		`Controls the maximum number of goroutines that can be spawned by an errgroup.
-Note that this is the limit for any one errgroup, but not a ceiling on the total
-number of goroutines spawned, as some errgroups may themselves start an
-errgroup.
-
-This knob is primarily for internal use. Ultimately it should go away in favor
-of dynamic errgroup limit setting based on availability of additional DB conns,
-etc.`,
-		options.TagTuning,
-	)
 
 	// OptTuningRecChanSize is the size of the buffer chan for record
 	// insertion/writing.
-	OptTuningRecChanSize = options.NewInt(
-		"tuning.record-buffer",
-		nil,
-		1024,
-		"Size of record buffer",
-		`Controls the size of the buffer channel for record insertion/writing.`,
-		options.TagTuning,
-	)
+
 )

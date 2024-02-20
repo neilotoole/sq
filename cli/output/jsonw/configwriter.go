@@ -4,7 +4,7 @@ import (
 	"io"
 
 	"github.com/neilotoole/sq/cli/output"
-	"github.com/neilotoole/sq/cli/output/outputx"
+	"github.com/neilotoole/sq/cli/output/commonw"
 	"github.com/neilotoole/sq/libsq/core/options"
 )
 
@@ -70,7 +70,7 @@ func (w *configWriter) Opt(o options.Options, opt options.Opt) error {
 		return writeJSON(w.out, w.pr, o2)
 	}
 
-	vo := outputx.NewVerboseOpt(opt, o2)
+	vo := commonw.NewVerboseOpt(opt, o2)
 	return writeJSON(w.out, w.pr, vo)
 }
 
@@ -85,9 +85,9 @@ func (w *configWriter) Options(reg *options.Registry, o options.Options) error {
 	}
 
 	opts := reg.Opts()
-	m := map[string]outputx.VerboseOpt{}
+	m := map[string]commonw.VerboseOpt{}
 	for _, opt := range opts {
-		m[opt.Key()] = outputx.NewVerboseOpt(opt, o)
+		m[opt.Key()] = commonw.NewVerboseOpt(opt, o)
 	}
 
 	return writeJSON(w.out, w.pr, m)
@@ -99,7 +99,7 @@ func (w *configWriter) SetOption(o options.Options, opt options.Opt) error {
 		return nil
 	}
 
-	vo := outputx.NewVerboseOpt(opt, o)
+	vo := commonw.NewVerboseOpt(opt, o)
 	return writeJSON(w.out, w.pr, vo)
 }
 
@@ -110,6 +110,6 @@ func (w *configWriter) UnsetOption(opt options.Opt) error {
 	}
 
 	o := options.Options{opt.Key(): opt.GetAny(nil)}
-	vo := outputx.NewVerboseOpt(opt, o)
+	vo := commonw.NewVerboseOpt(opt, o)
 	return writeJSON(w.out, w.pr, vo)
 }

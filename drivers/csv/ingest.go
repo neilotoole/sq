@@ -17,6 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -129,7 +130,7 @@ func (d *driveri) ingestCSV(ctx context.Context, src *source.Source, destGrip dr
 		libsq.MsgIngestRecords,
 		destGrip,
 		tblDef.Name,
-		driver.OptTuningRecChanSize.Get(destGrip.Source().Options),
+		tuning.OptRecBufSize.Get(destGrip.Source().Options),
 	)
 
 	err = execInsert(ctx, insertWriter, recMeta, mungers, recs, cr)

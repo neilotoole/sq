@@ -16,9 +16,9 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/langz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-	"github.com/neilotoole/sq/libsq/core/loz"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/record"
@@ -330,7 +330,7 @@ func PrepareInsertStmt(ctx context.Context, drvr SQLDriver, db sqlz.Preparer, de
 
 	dialect := drvr.Dialect()
 	tblNameQuoted := dialect.Enquote(destTbl)
-	colNamesQuoted := loz.Apply(destCols, dialect.Enquote)
+	colNamesQuoted := langz.Apply(destCols, dialect.Enquote)
 	colsJoined := strings.Join(colNamesQuoted, Comma)
 	placeholders := dialect.Placeholders(len(colNamesQuoted), numRows)
 

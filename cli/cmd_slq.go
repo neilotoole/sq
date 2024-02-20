@@ -18,6 +18,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -148,7 +149,7 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 		"Insert records",
 		destGrip,
 		destTbl,
-		driver.OptTuningRecChanSize.Get(destSrc.Options),
+		tuning.OptRecBufSize.Get(destSrc.Options),
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
 	)
 
@@ -416,7 +417,7 @@ func extractFlagArgsValues(cmd *cobra.Command) (map[string]string, error) {
 			// If the key already exists, don't overwrite. This mimics jq's
 			// behavior.
 
-			log := logFrom(cmd)
+			log := lg.From(cmd)
 			log.With("arg", k).Warn("Double use of --arg key; using first value.")
 
 			continue

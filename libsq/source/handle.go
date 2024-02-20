@@ -181,6 +181,19 @@ func SuggestHandle(coll *Collection, typ drivertype.Type, loc string) (string, e
 	}
 }
 
+// Table represents a table (or view) in a source, e.g. "@sakila.actor".
+type Table struct {
+	// Handle is the source handle, e.g. "@sakila".
+	Handle string
+	// Name is the table name, e.g. "actor".
+	Name string
+}
+
+// String returns @handle.name, e.g. "@sakila.actor".
+func (t Table) String() string {
+	return t.Handle + "." + t.Name
+}
+
 // ParseTableHandle attempts to parse a SLQ source handle and/or table name.
 // Surrounding whitespace is trimmed. Examples of valid input values are:
 //

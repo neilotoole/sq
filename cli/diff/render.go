@@ -1,11 +1,41 @@
 package diff
 
 import (
+	"bytes"
+	"context"
+
 	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
+
+func renderRecords(ctx context.Context, cfg *Config, recMeta record.Meta, recs []record.Record) (string, error) {
+	if len(recs) == 0 {
+		return "", nil
+	}
+
+	pr := cfg.Printing.Clone()
+	pr.EnableColor(false)
+	pr.ShowHeader = false
+	buf := &bytes.Buffer{}
+	recw := cfg.RecordWriterFn(buf, pr)
+
+	if err := recw.Open(ctx, recMeta); err != nil {
+		return "", err
+	}
+	if err := recw.WriteRecords(ctx, recs); err != nil {
+		return "", err
+	}
+	if err := recw.Flush(ctx); err != nil {
+		return "", err
+	}
+	if err := recw.Close(ctx); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
 
 // renderSourceMeta2YAML returns a YAML rendering of metadata.Source.
 // The returned YAML is subtly different from that

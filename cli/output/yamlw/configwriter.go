@@ -6,7 +6,7 @@ import (
 	"github.com/goccy/go-yaml/printer"
 
 	"github.com/neilotoole/sq/cli/output"
-	"github.com/neilotoole/sq/cli/output/outputx"
+	"github.com/neilotoole/sq/cli/output/commonw"
 	"github.com/neilotoole/sq/libsq/core/options"
 )
 
@@ -73,7 +73,7 @@ func (w *configWriter) Opt(o options.Options, opt options.Opt) error {
 		return writeYAML(w.out, w.p, o2)
 	}
 
-	vo := outputx.NewVerboseOpt(opt, o2)
+	vo := commonw.NewVerboseOpt(opt, o2)
 	return writeYAML(w.out, w.p, vo)
 }
 
@@ -88,9 +88,9 @@ func (w *configWriter) Options(reg *options.Registry, o options.Options) error {
 	}
 
 	opts := reg.Opts()
-	m := map[string]outputx.VerboseOpt{}
+	m := map[string]commonw.VerboseOpt{}
 	for _, opt := range opts {
-		m[opt.Key()] = outputx.NewVerboseOpt(opt, o)
+		m[opt.Key()] = commonw.NewVerboseOpt(opt, o)
 	}
 
 	return writeYAML(w.out, w.p, m)
@@ -102,7 +102,7 @@ func (w *configWriter) SetOption(o options.Options, opt options.Opt) error {
 		return nil
 	}
 
-	vo := outputx.NewVerboseOpt(opt, o)
+	vo := commonw.NewVerboseOpt(opt, o)
 	return writeYAML(w.out, w.p, vo)
 }
 
@@ -113,6 +113,6 @@ func (w *configWriter) UnsetOption(opt options.Opt) error {
 	}
 
 	o := options.Options{opt.Key(): opt.GetAny(nil)}
-	vo := outputx.NewVerboseOpt(opt, o)
+	vo := commonw.NewVerboseOpt(opt, o)
 	return writeYAML(w.out, w.p, vo)
 }

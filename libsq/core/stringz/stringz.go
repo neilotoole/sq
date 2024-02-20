@@ -3,26 +3,23 @@
 package stringz
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"math/rand"
 	"path/filepath"
 	"reflect"
 	"regexp"
-	"strconv"
 	"strings"
 	"text/template"
 	"time"
 	"unicode"
+	"unsafe"
 
 	sprig "github.com/Masterminds/sprig/v3"
 	"github.com/alessio/shellescape"
 	"github.com/google/uuid"
 	"github.com/samber/lo"
-	"github.com/shopspring/decimal"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
@@ -77,24 +74,6 @@ func genAlphaCol(n int, start rune, lenAlpha int) string {
 	return Reverse(buf.String())
 }
 
-// ParseBool is an expansion of strconv.ParseBool that also
-// accepts variants of "yes" and "no" (which are bool
-// representations returned by some data sources).
-func ParseBool(s string) (bool, error) {
-	switch s {
-	default:
-		b, err := strconv.ParseBool(s)
-		if err != nil {
-			return b, errz.Err(err)
-		}
-		return b, nil
-	case "1", "yes", "Yes", "YES", "y", "Y", "on", "ON":
-		return true, nil
-	case "0", "no", "No", "NO", "n", "N", "off", "OFF":
-		return false, nil
-	}
-}
-
 // InSlice returns true if the needle is present in the haystack.
 func InSlice(haystack []string, needle string) bool {
 	return SliceIndex(haystack, needle) != -1
@@ -109,82 +88,6 @@ func SliceIndex(haystack []string, needle string) int {
 	}
 	return -1
 }
-
-// FormatFloat formats f. This method exists to provide a standard
-// float formatting across the codebase.
-func FormatFloat(f float64) string {
-	return strconv.FormatFloat(f, 'f', -1, 64)
-}
-
-// FormatDecimal formats d with the appropriate number of decimal
-// places as defined by d's exponent.
-func FormatDecimal(d decimal.Decimal) string {
-	exp := d.Exponent()
-	var places int32
-	if exp < 0 {
-		places = -exp
-	}
-	return d.StringFixed(places)
-}
-
-// DecimalPlaces returns the count of decimal places in d. That is to
-// say, it returns the number of digits after the decimal point.
-func DecimalPlaces(d decimal.Decimal) int32 {
-	var places int32
-	exp := d.Exponent()
-	if exp < 0 {
-		places = -exp
-	}
-	return places
-}
-
-// DecimalFloatOK returns true if d can be stored as a float64
-// without losing precision.
-func DecimalFloatOK(d decimal.Decimal) bool {
-	sDec := d.String()
-	sF := FormatFloat(d.InexactFloat64())
-	return sDec == sF
-}
-
-// ByteSized returns a human-readable byte size, e.g. "2.1 MB", "3.0 TB", etc.
-// TODO: replace this usage with "github.com/c2h5oh/datasize",
-// or maybe https://github.com/docker/go-units/.
-func ByteSized(size int64, precision int, sep string) string {
-	f := float64(size)
-	tpl := "%." + strconv.Itoa(precision) + "f" + sep
-
-	switch {
-	case f >= yb:
-		return fmt.Sprintf(tpl+"YB", f/yb)
-	case f >= zb:
-		return fmt.Sprintf(tpl+"ZB", f/zb)
-	case f >= eb:
-		return fmt.Sprintf(tpl+"EB", f/eb)
-	case f >= pb:
-		return fmt.Sprintf(tpl+"PB", f/pb)
-	case f >= tb:
-		return fmt.Sprintf(tpl+"TB", f/tb)
-	case f >= gb:
-		return fmt.Sprintf(tpl+"GB", f/gb)
-	case f >= mb:
-		return fmt.Sprintf(tpl+"MB", f/mb)
-	case f >= kb:
-		return fmt.Sprintf(tpl+"KB", f/kb)
-	}
-	return fmt.Sprintf(tpl+"B", f)
-}
-
-const (
-	_          = iota // ignore first value by assigning to blank identifier
-	kb float64 = 1 << (10 * iota)
-	mb
-	gb
-	tb
-	pb
-	eb
-	zb
-	yb
-)
 
 func SprintJSON(value any) string {
 	j, err := json.MarshalIndent(value, "", "  ")
@@ -263,16 +166,6 @@ func UniqN(length int) string {
 	default:
 		return stringWithCharset(1, charsetAlphaLower) + stringWithCharset(length-1, charsetAlphanumericLower)
 	}
-}
-
-// Plu handles the most common (English language) case of
-// pluralization. With arg s being "row(s) col(s)", Plu
-// returns "row col" if arg i is 1, otherwise returns "rows cols".
-func Plu(s string, i int) string {
-	if i == 1 {
-		return strings.ReplaceAll(s, "(s)", "")
-	}
-	return strings.ReplaceAll(s, "(s)", "s")
 }
 
 // RepeatJoin returns a string consisting of count copies
@@ -414,38 +307,6 @@ func SanitizeAlphaNumeric(s string, r rune) string {
 	return string(runes)
 }
 
-// LineCount returns the number of lines in r. If skipEmpty is
-// true, empty lines are skipped (a whitespace-only line is not
-// considered empty). If r is nil or any error occurs, -1 is returned.
-func LineCount(r io.Reader, skipEmpty bool) int {
-	if r == nil {
-		return -1
-	}
-
-	sc := bufio.NewScanner(r)
-	var i int
-
-	if skipEmpty {
-		for sc.Scan() {
-			if len(sc.Bytes()) > 0 {
-				i++
-			}
-		}
-
-		if sc.Err() != nil {
-			return -1
-		}
-
-		return i
-	}
-
-	for i = 0; sc.Scan(); i++ { //nolint:revive
-		// no-op
-	}
-
-	return i
-}
-
 // TrimLen returns s but with a maximum length of maxLen.
 // This func is only tested with ASCII chars; results are not
 // guaranteed for multibyte runes.
@@ -511,70 +372,6 @@ func EllipsifyASCII(s string, width int) string {
 
 	trimLen := ((width + 1) / 2) - 2
 	return s[:trimLen] + "..." + s[len(s)-trimLen:]
-}
-
-// DoubleQuote double-quotes (and escapes) s.
-//
-//	hello "world"  -->  "hello ""world"""
-func DoubleQuote(s string) string {
-	const q = '"'
-	sb := strings.Builder{}
-	sb.WriteRune(q)
-	for _, r := range s {
-		if r == q {
-			sb.WriteRune(q)
-		}
-		sb.WriteRune(r)
-	}
-	sb.WriteRune(q)
-	return sb.String()
-}
-
-// StripDoubleQuote strips double quotes from s,
-// or returns s unchanged if it is not correctly double-quoted.
-func StripDoubleQuote(s string) string {
-	if len(s) < 2 {
-		return s
-	}
-
-	if s[0] == '"' && s[len(s)-1] == '"' {
-		return s[1 : len(s)-1]
-	}
-	return s
-}
-
-// BacktickQuote backtick-quotes (and escapes) s.
-//
-//	hello `world`  --> `hello ``world```
-func BacktickQuote(s string) string {
-	const q = '`'
-	sb := strings.Builder{}
-	sb.WriteRune(q)
-	for _, r := range s {
-		if r == q {
-			sb.WriteRune(q)
-		}
-		sb.WriteRune(r)
-	}
-	sb.WriteRune(q)
-	return sb.String()
-}
-
-// SingleQuote single-quotes (and escapes) s.
-//
-//	jessie's girl  -->  'jessie''s girl'
-func SingleQuote(s string) string {
-	const q = '\''
-	sb := strings.Builder{}
-	sb.WriteRune(q)
-	for _, r := range s {
-		if r == q {
-			sb.WriteRune(q)
-		}
-		sb.WriteRune(r)
-	}
-	sb.WriteRune(q)
-	return sb.String()
 }
 
 // Type returns the printed type of v.
@@ -672,32 +469,6 @@ func Val(i any) any {
 			continue
 		}
 	}
-}
-
-// VisitLines visits the lines of s, returning a new string built from
-// applying fn to each line.
-func VisitLines(s string, fn func(i int, line string) string) string {
-	var sb strings.Builder
-
-	sc := bufio.NewScanner(strings.NewReader(s))
-	var line string
-	for i := 0; sc.Scan(); i++ {
-		line = sc.Text()
-		line = fn(i, line)
-		if i > 0 {
-			sb.WriteRune('\n')
-		}
-		sb.WriteString(line)
-	}
-
-	return sb.String()
-}
-
-// IndentLines returns a new string built from indenting each line of s.
-func IndentLines(s, indent string) string {
-	return VisitLines(s, func(_ int, line string) string {
-		return indent + line
-	})
 }
 
 // HasAnyPrefix returns true if s has any of the prefixes.
@@ -801,4 +572,29 @@ func TypeNames[T any](a ...T) []string {
 		types[i] = fmt.Sprintf("%T", a[i])
 	}
 	return types
+}
+
+// UnsafeBytes returns a byte slice for s without copying. This should really
+// only be used when we're chasing nanoseconds, and [strings.Builder] isn't a
+// good fit. UnsafeBytes uses package unsafe, and is generally sketchy.
+func UnsafeBytes(s string) []byte {
+	//nolint:lll
+	// https://josestg.medium.com/140x-faster-string-to-byte-and-byte-to-string-conversions-with-zero-allocation-in-go-200b4d7105fc
+	p := unsafe.StringData(s)
+	return unsafe.Slice(p, len(s))
+}
+
+// UnsafeString returns a string for b without copying. This should really only
+// be used when we're chasing nanoseconds. UnsafeString uses package unsafe, and
+// is generally sketchy.
+func UnsafeString(b []byte) string {
+	if len(b) == 0 {
+		return ""
+	}
+
+	//nolint:lll
+	// https://josestg.medium.com/140x-faster-string-to-byte-and-byte-to-string-conversions-with-zero-allocation-in-go-200b4d7105fc
+	// Ignore if your IDE shows an error here; it's a false positive.
+	p := unsafe.SliceData(b)
+	return unsafe.String(p, len(b))
 }

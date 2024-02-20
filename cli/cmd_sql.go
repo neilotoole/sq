@@ -16,7 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -162,7 +162,7 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 		"Insert records",
 		destGrip,
 		destTbl,
-		driver.OptTuningRecChanSize.Get(destSrc.Options),
+		tuning.OptRecBufSize.Get(destSrc.Options),
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
 	)
 	err = libsq.QuerySQL(ctx, fromGrip, nil, inserter, args[0])

@@ -79,7 +79,7 @@ func TestZuluTimestamp(t *testing.T) {
 
 func TestFormatFunc(t *testing.T) {
 	layouts := timez.NamedLayouts()
-	// Add some custom layouts
+	// Append some custom layouts
 	layouts = append(layouts, "%Y/%m/%d", "%s")
 
 	for _, layout := range layouts {

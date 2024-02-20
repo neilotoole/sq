@@ -28,11 +28,13 @@ import (
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/termz"
 	"github.com/neilotoole/sq/libsq/core/timez"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 )
 
 var (
@@ -156,16 +158,6 @@ sampled, and reported on exit. If zero, memory usage sampling is disabled.`,
 		options.TagOutput,
 	)
 
-	OptTuningFlushThreshold = options.NewInt(
-		"tuning.flush-threshold",
-		nil,
-		1000,
-		"Output writer buffer flush threshold in bytes",
-		`Size in bytes after which output writers should flush any internal buffer.
-Generally, it is not necessary to fiddle this knob.`,
-		options.TagTuning,
-	)
-
 	timeLayoutsList = "Predefined values:\n" + stringz.IndentLines(
 		wordwrap.WrapString(strings.Join(timez.NamedLayouts(), ", "), 64),
 		"  ")
@@ -282,7 +274,7 @@ func newWriters(cmd *cobra.Command, clnup *cleanup.Cleanup, o options.Options,
 	// via config or flag.
 	fm := getFormat(cmd, o)
 	outCfg = getOutputConfig(cmd, clnup, fm, o, stdout, stderr)
-	log := logFrom(cmd)
+	log := lg.From(cmd)
 
 	// Package tablew has writer impls for each of the writer interfaces,
 	// so we use its Writers as the baseline. Later we check the format
@@ -454,7 +446,7 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 	pr.ExcelTimeFormat = xlsxw.OptTimeFormat.Get(opts)
 
 	pr.Verbose = OptVerbose.Get(opts)
-	pr.FlushThreshold = OptTuningFlushThreshold.Get(opts)
+	pr.FlushThreshold = tuning.OptFlushThreshold.Get(opts)
 	pr.Compact = OptCompact.Get(opts)
 	pr.Redact = OptRedact.Get(opts)
 

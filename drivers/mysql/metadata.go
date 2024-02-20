@@ -24,6 +24,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -286,7 +287,7 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(driver.OptTuningErrgroupLimit.Get(src.Options))
+	g.SetLimit(tuning.OptErrgroupLimit.Get(src.Options))
 
 	g.Go(func() error {
 		return doRetry(gCtx, func() error {

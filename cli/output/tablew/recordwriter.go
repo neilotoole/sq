@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/neilotoole/sq/cli/output"
-	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/record"
 )
@@ -76,7 +75,6 @@ func (w *recordWriter) Close(ctx context.Context) error {
 	header := w.recMeta.MungedNames()
 	w.tbl.tblImpl.SetHeader(header)
 
-	lg.FromContext(ctx).Debug("RecordWriter (text): writing records to output", "recs", w.rowCount)
 	return w.tbl.writeAll(ctx)
 }
 
