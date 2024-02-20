@@ -4,13 +4,14 @@ package mdcache
 import (
 	"context"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/oncecache"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
-	"golang.org/x/sync/errgroup"
 )
 
 // Cache caches source metadata. Note that the accessor methods return the
@@ -25,14 +26,21 @@ type Cache struct {
 }
 
 // New returns a new [Cache].
-func New(_ context.Context, coll *source.Collection, grips *driver.Grips) (c *Cache) {
-	c = &Cache{
-		coll:     coll,
-		grips:    grips,
-		tblMeta:  oncecache.New[source.Table, *metadata.Table](c.fetchTableMeta),
-		srcMeta:  oncecache.New[string, *metadata.Source](c.fetchSourceMeta),
-		tblNames: oncecache.New[string, []string](c.fetchTableNames),
-	}
+func New(_ context.Context, coll *source.Collection, grips *driver.Grips) *Cache {
+	c := &Cache{coll: coll, grips: grips}
+
+	c.tblMeta = oncecache.New[source.Table, *metadata.Table](
+		c.fetchTableMeta,
+		oncecache.Name("mdcache.tblMeta"),
+	)
+	c.srcMeta = oncecache.New[string, *metadata.Source](
+		c.fetchSourceMeta,
+		oncecache.Name("mdcache.srcMeta"),
+	)
+	c.tblNames = oncecache.New[string, []string](
+		c.fetchTableNames,
+		oncecache.Name("mdcache.tblNames"),
+	)
 
 	return c
 }
@@ -190,9 +198,9 @@ func getPair[K comparable, V any](ctx context.Context, c *oncecache.Cache[K, V],
 	// We've got neither. Fetch both in parallel.
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		var mdErr error
-		val1, mdErr = c.Get(gCtx, key1)
-		return mdErr
+		var gErr error
+		val1, gErr = c.Get(gCtx, key1)
+		return gErr
 	})
 	g.Go(func() error {
 		var mdErr error

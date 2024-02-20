@@ -5,12 +5,11 @@ import (
 	"io"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/source"
-
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
 	"github.com/neilotoole/sq/libsq/core/progress"
+	"github.com/neilotoole/sq/libsq/source"
 )
 
 func diffOverview(ctx context.Context, cfg *Config, src1, src2 *source.Source, doc *diffdoc.UnifiedDoc) {

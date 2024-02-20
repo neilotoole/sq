@@ -6,15 +6,14 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/langz"
-
-	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/source/metadata"
+	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/langz"
 	"github.com/neilotoole/sq/libsq/core/progress"
-	"github.com/samber/lo"
+	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 func differsForSchema(ctx context.Context, cfg *Config, showRowCounts bool,

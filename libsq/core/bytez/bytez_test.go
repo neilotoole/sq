@@ -3,8 +3,9 @@ package bytez_test
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/bytez"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/libsq/core/bytez"
 )
 
 func TestTerminateNewline(t *testing.T) {

@@ -10,12 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neilotoole/slogt"
-	"github.com/neilotoole/sq/libsq/core/oncecache"
-	"github.com/neilotoole/sq/libsq/core/oncecache/example/hrsystem"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/slogt"
+
+	"github.com/neilotoole/sq/libsq/core/oncecache"
+	"github.com/neilotoole/sq/libsq/core/oncecache/example/hrsystem"
 )
 
 func fetchEvenOnly(_ context.Context, key int) (string, error) {

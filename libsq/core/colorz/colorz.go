@@ -6,9 +6,8 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/mattn/go-colorable"
-
 	"github.com/fatih/color"
+	colorable "github.com/mattn/go-colorable"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 )

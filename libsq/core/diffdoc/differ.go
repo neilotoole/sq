@@ -4,11 +4,12 @@ import (
 	"context"
 	"io"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-	"golang.org/x/sync/errgroup"
 )
 
 // Differ encapsulates a [Doc] and a function that populates the [Doc].

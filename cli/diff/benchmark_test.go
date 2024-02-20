@@ -4,19 +4,17 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/libsq/core/tuning"
-
-	"github.com/neilotoole/sq/cli/output"
-	"github.com/neilotoole/sq/libsq/core/diffdoc"
-	"github.com/neilotoole/sq/testh/sakila"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/diff"
+	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/tablew"
+	"github.com/neilotoole/sq/libsq/core/diffdoc"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/sq/testh/sakila"
 )
 
 func BenchmarkExecTableDiff(b *testing.B) {

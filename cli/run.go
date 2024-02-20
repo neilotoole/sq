@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/source/mdcache"
-
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/config"
@@ -39,6 +37,7 @@ import (
 	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/mdcache"
 )
 
 // getRun is a convenience function for getting Run

@@ -5,12 +5,11 @@ import (
 	"io"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/source"
-
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
 	"github.com/neilotoole/sq/libsq/core/progress"
+	"github.com/neilotoole/sq/libsq/source"
 )
 
 // diffDBProps diffs the dbprops of sd1 and sd2, writing the diff to doc.

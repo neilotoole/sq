@@ -385,7 +385,7 @@ func (p *Progress) newBar(cfg *barConfig, opts []Opt) *Bar {
 
 		b.bar = pBar
 		b.bar.IncrBy(int(b.incrStash.Load()))
-		b.incrStash = nil
+		// b.incrStash = nil // FIXME: This sometimes gets hit when nil. Why?
 	}
 
 	b.delayCh = barRenderDelay(b, p.delay)

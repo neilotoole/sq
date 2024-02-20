@@ -7,8 +7,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/neilotoole/sq/libsq/source/mdcache"
-
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/config"
@@ -22,6 +20,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/mdcache"
 )
 
 type runKey struct{}

@@ -18,7 +18,6 @@ import (
 	"sync"
 
 	"github.com/neilotoole/sq/libsq/core/bytez"
-
 	"github.com/neilotoole/sq/libsq/core/colorz"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
