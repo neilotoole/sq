@@ -213,7 +213,7 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 
 		// First, we construct a recordDiffer instance. It encapsulates building
 		// the diff from the record pairs in recPairsCh.
-		differ := &recordDiffer{
+		recDiffer := &recordDiffer{
 			cfg: cfg,
 			td1: td1,
 			td2: td2,
@@ -236,7 +236,7 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 
 		// OK, finally we get to generating the diff! The generated diff is written
 		// to doc.
-		if err = differ.exec(ctx, recPairsCh, doc); err != nil {
+		if err = recDiffer.exec(ctx, recPairsCh, doc); err != nil {
 			// Something bad happened, err is non-nil. Propagate err to the doc, and
 			// get the hell outta here.
 			if !errz.IsErrContext(err) {
