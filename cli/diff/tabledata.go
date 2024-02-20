@@ -276,14 +276,14 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 
 // recordDiffer encapsulates execution of diffing the records of two tables.
 type recordDiffer struct {
-	cfg      *Config
-	td1, td2 source.Table
+	cfg *Config
 
 	// recMetaFn returns the record.Meta for the query results for td1 and td2.
 	// We use a function here because record.Meta is only available after the
 	// query has been executed (the record.Meta is returned from the DB, and thus
 	// isn't guaranteed to be available at the time of recordDiffer construction).
 	recMetaFn func() (rm1, rm2 record.Meta)
+	td1, td2  source.Table
 }
 
 // exec compares the record pairs from recPairsCh, writing the diff results to

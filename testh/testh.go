@@ -5,13 +5,14 @@ package testh
 import (
 	"context"
 	"database/sql"
-	"github.com/neilotoole/sq/libsq/source/mdcache"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/neilotoole/sq/libsq/source/mdcache"
 
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"

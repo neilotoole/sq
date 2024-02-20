@@ -4,9 +4,10 @@ package run
 
 import (
 	"context"
-	"github.com/neilotoole/sq/libsq/source/mdcache"
 	"io"
 	"os"
+
+	"github.com/neilotoole/sq/libsq/source/mdcache"
 
 	"github.com/spf13/cobra"
 

@@ -120,6 +120,24 @@ func AlignMatrixWidth[T any](a [][]T, defaultVal T) {
 	}
 }
 
+// JoinSlices joins the slices into a single slice. It always returns a new,
+// non-nil slice, even if all the input slices are nil. The input slices are
+// not modified. Order is preserved.
+func JoinSlices[T any](a []T, others ...[]T) []T {
+	totalLen := len(a)
+	for _, s := range others {
+		totalLen += len(s)
+	}
+
+	joined := make([]T, 0, totalLen)
+	joined = append(joined, a...)
+	for _, s := range others {
+		joined = append(joined, s...)
+	}
+
+	return joined
+}
+
 // Make works like the runtime make func, but it also fills
 // the slice with val.
 func Make[T any](count int, val T) []T {

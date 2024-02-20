@@ -2,12 +2,13 @@ package cli
 
 import (
 	"context"
-	"github.com/neilotoole/sq/libsq/source/mdcache"
 	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/source/mdcache"
 
 	"github.com/spf13/cobra"
 

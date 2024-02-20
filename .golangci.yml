@@ -33,6 +33,10 @@ run:
     # The tint package is a fork of an upstream package.
     - libsq/core/lg/devlog/tint
 
+    # Fork of a GitHub gist.
+    - libsq/core/upgrademu
+
+
     # Non-committed scratch dir
     - scratch
 
