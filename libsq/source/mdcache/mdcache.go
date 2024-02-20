@@ -68,132 +68,20 @@ func (c *Cache) TableNames(ctx context.Context, handle string) ([]string, error)
 // returned values are the internal cache entries, so the caller MUST NOT modify
 // them. Use [metadata.Table.Clone] if necessary.
 func (c *Cache) TableMetaPair(ctx context.Context, tbl1, tbl2 source.Table) (md1, md2 *metadata.Table, err error) {
-	has1, has2 := c.tblMeta.Has(tbl1), c.tblMeta.Has(tbl2)
-
-	if has1 || has2 {
-		// We've got at least one of the pair, so there's no need for parallel
-		// fetching, as one of them will come quickly from the Cache, and the other
-		// will do the long fetch from the DB.
-		var err1, err2 error
-		md1, err1 = c.tblMeta.Get(ctx, tbl1)
-		md2, err2 = c.tblMeta.Get(ctx, tbl2)
-		return md1, md2, errz.Combine(err1, err2)
-	}
-
-	// We've got neither. Fetch both in parallel.
-	g, gCtx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		var mdErr error
-		md1, mdErr = c.tblMeta.Get(gCtx, tbl1)
-		return mdErr
-	})
-	g.Go(func() error {
-		var mdErr error
-		md2, mdErr = c.tblMeta.Get(gCtx, tbl2)
-		return mdErr
-	})
-	if err = g.Wait(); err != nil {
-		return nil, nil, err
-	}
-	return md1, md2, err
-}
-
-func getPair[K comparable, V any](ctx context.Context, c *oncecache.Cache[K, V], tbl1, tbl2 K) (md1, md2 V, err error) {
-	has1, has2 := c.Has(tbl1), c.Has(tbl2)
-
-	if has1 || has2 {
-		// We've got at least one of the pair, so there's no need for parallel
-		// fetching, as one of them will come quickly from the Cache, and the other
-		// will do the long fetch from the DB.
-		var err1, err2 error
-		md1, err1 = c.Get(ctx, tbl1)
-		md2, err2 = c.Get(ctx, tbl2)
-		return md1, md2, errz.Combine(err1, err2)
-	}
-
-	// We've got neither. Fetch both in parallel.
-	g, gCtx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		var mdErr error
-		md1, mdErr = c.Get(gCtx, tbl1)
-		return mdErr
-	})
-	g.Go(func() error {
-		var mdErr error
-		md2, mdErr = c.Get(gCtx, tbl2)
-		return mdErr
-	})
-	if err = g.Wait(); err != nil {
-		return md1, md2, err
-	}
-	return md1, md2, err
+	return getPair(ctx, c.tblMeta, tbl1, tbl2)
 }
 
 // SourceMetaPair returns the [metadata.Source] pair for tbl1 and tbl2. The
 // returned values are the internal cache entries, so the caller MUST NOT modify
 // them. Use [metadata.Source.Clone] if necessary.
 func (c *Cache) SourceMetaPair(ctx context.Context, src1, src2 *source.Source) (md1, md2 *metadata.Source, err error) {
-	has1, has2 := c.srcMeta.Has(src1.Handle), c.srcMeta.Has(src2.Handle)
-
-	if has1 || has2 {
-		// We've got at least one of the pair, so there's no need for parallel
-		// fetching, as one of them will come quickly from the Cache, and the other
-		// will do the long fetch from the DB.
-		var err1, err2 error
-		md1, err1 = c.srcMeta.Get(ctx, src1.Handle)
-		md2, err2 = c.srcMeta.Get(ctx, src2.Handle)
-		return md1, md2, errz.Combine(err1, err2)
-	}
-
-	// We've got neither. Fetch both in parallel.
-	g, gCtx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		var mdErr error
-		md1, mdErr = c.srcMeta.Get(gCtx, src1.Handle)
-		return mdErr
-	})
-	g.Go(func() error {
-		var mdErr error
-		md2, mdErr = c.srcMeta.Get(gCtx, src2.Handle)
-		return mdErr
-	})
-	if err = g.Wait(); err != nil {
-		return nil, nil, err
-	}
-	return md1, md2, err
+	return getPair(ctx, c.srcMeta, src1.Handle, src2.Handle)
 }
 
 // TableNamesPair returns the list of tables for tbl1 and tbl2. The returned
 // values are the internal cache entries, so the caller MUST NOT modify them.
 func (c *Cache) TableNamesPair(ctx context.Context, src1, src2 *source.Source) (tbls1, tbls2 []string, err error) {
-	has1, has2 := c.tblNames.Has(src1.Handle), c.srcMeta.Has(src2.Handle)
-
-	if has1 || has2 {
-		// We've got at least one of the pair, so there's no need for parallel
-		// fetching, as one of them will come quickly from the Cache, and the other
-		// will do the long fetch from the DB.
-		var err1, err2 error
-		tbls1, err1 = c.tblNames.Get(ctx, src1.Handle)
-		tbls2, err2 = c.tblNames.Get(ctx, src2.Handle)
-		return tbls1, tbls2, errz.Combine(err1, err2)
-	}
-
-	// We've got neither. Fetch both in parallel.
-	g, gCtx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		var mdErr error
-		tbls1, mdErr = c.tblNames.Get(gCtx, src1.Handle)
-		return mdErr
-	})
-	g.Go(func() error {
-		var mdErr error
-		tbls2, mdErr = c.tblNames.Get(gCtx, src2.Handle)
-		return mdErr
-	})
-	if err = g.Wait(); err != nil {
-		return nil, nil, err
-	}
-	return tbls1, tbls2, err
+	return getPair(ctx, c.tblNames, src1.Handle, src2.Handle)
 }
 
 // db is a convenience method that gets the sqlz.DB and driver.SQLDriver for
@@ -280,4 +168,39 @@ func (c *Cache) gripForHandle(ctx context.Context, handle string) (grip driver.G
 	}
 
 	return c.grips.Open(ctx, src)
+}
+
+// getPair is a helper that fetches a pair of values from the cache. If both
+// values are absent from the cache, they are fetched in parallel.
+func getPair[K comparable, V any](ctx context.Context, c *oncecache.Cache[K, V],
+	key1, key2 K,
+) (val1, val2 V, err error) {
+	has1, has2 := c.Has(key1), c.Has(key2)
+
+	if has1 || has2 {
+		// We've got at least one of the pair, so there's no need for parallel
+		// fetching, as one of them will come quickly from the Cache, and the other
+		// will do the long fetch from the DB.
+		var err1, err2 error
+		val1, err1 = c.Get(ctx, key1)
+		val2, err2 = c.Get(ctx, key2)
+		return val1, val2, errz.Combine(err1, err2)
+	}
+
+	// We've got neither. Fetch both in parallel.
+	g, gCtx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		var mdErr error
+		val1, mdErr = c.Get(gCtx, key1)
+		return mdErr
+	})
+	g.Go(func() error {
+		var mdErr error
+		val2, mdErr = c.Get(gCtx, key2)
+		return mdErr
+	})
+	if err = g.Wait(); err != nil {
+		return val1, val2, err
+	}
+	return val1, val2, err
 }
