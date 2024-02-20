@@ -7,6 +7,7 @@ import (
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/mdcache"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -43,12 +44,12 @@ type Config struct {
 	Concurrency int
 
 	// cache is lazily initialized by Config.init.
-	cache *cache
+	cache *mdcache.cache
 }
 
 // init lazy-initializes Config. It must be invoked at package entrypoints.
 func (c *Config) init() {
-	c.cache = &cache{
+	c.cache = &mdcache.cache{
 		ru:      c.Run,
 		tblMeta: map[source.Table]*metadata.Table{},
 	}
