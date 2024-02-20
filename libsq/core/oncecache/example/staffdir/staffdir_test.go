@@ -12,13 +12,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setup(t *testing.T) (*slog.Logger, *staffdir.InMemDB, *staffdir.DirCache) {
+func setup(t *testing.T) (*slog.Logger, *staffdir.InMemDB, *staffdir.AppCache) {
 	t.Helper()
 	log := slogt.New(t)
 
 	db, err := staffdir.NewInMemDB(log.With("layer", "db"), "testdata/acme.json")
 	require.NoError(t, err)
-	cache := staffdir.NewDirCache(log.With("layer", "cache"), db)
+	cache := staffdir.NewAppCache(log.With("layer", "cache"), db)
 	return log, db, cache
 }
 

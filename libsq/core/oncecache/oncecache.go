@@ -71,8 +71,8 @@ type Cache[K comparable, V any] struct {
 	fetch   FetchFunc[K, V]
 	entries map[K]*entry[K, V]
 	name    string
-	onFill  []OnFillFunc[K, V]
-	onEvict []OnEvictFunc[K, V]
+	onFill  []notifyFunc[K, V]
+	onEvict []notifyFunc[K, V]
 	mu      sync.Mutex
 }
 
@@ -227,8 +227,8 @@ func (e *entry[K, V]) set(ctx context.Context, key K, val V, err error) {
 	// We perform notification outside of the once to avoid holding the lock.
 	if notify && len(e.cache.onFill) > 0 {
 		ctx = newContext(ctx, e.cache)
-		for _, onFill := range e.cache.onFill {
-			onFill(ctx, key, val, err)
+		for _, fn := range e.cache.onFill {
+			fn(ctx, key, val, err)
 		}
 	}
 }

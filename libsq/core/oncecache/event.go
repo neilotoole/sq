@@ -91,6 +91,8 @@ func (e Event[K, V]) String() string {
 	return sb.String()
 }
 
+type notifyFunc[K comparable, V any] func(ctx context.Context, key K, val V, err error)
+
 func OnFillChan[K comparable, V any](ch chan<- Event[K, V], block bool) Opt {
 	return eventOpt[K, V]{ch: ch, block: block, action: ActionFill}
 }
@@ -128,46 +130,65 @@ func (o eventOpt[K, V]) apply(c *Cache[K, V]) {
 	}
 
 	if o.action == ActionFill {
-		c.onFill = append(c.onFill, OnFillFunc[K, V](fn))
+		c.onFill = append(c.onFill, fn)
 	} else {
-		c.onEvict = append(c.onEvict, OnEvictFunc[K, V](fn))
+		c.onEvict = append(c.onEvict, fn)
 	}
 }
 
-// OnFillFunc is a callback [Opt] for [New] that is invoked when a
-// cache entry is populated, whether on-demand via [Cache.Get] and [FetchFunc],
-// or externally via [Cache.Set].
+// OnFill returns a callback [Opt] for [New] that is invoked when a cache entry
+// is populated, whether on-demand via [Cache.Get] and [FetchFunc], or
+// externally via [Cache.Set].
 //
 // Common use cases include logging, metrics, or cache entry propagation.
 //
 // Note that the triggering call to [Cache.Set] or [Cache.Get] blocks until
-// every [OnFillFunc] returns. Consider using [OnFillChan] for long-running
+// every [OnFill] returns. Consider using [OnFillChan] for long-running
 // callbacks.
-type OnFillFunc[K comparable, V any] func(ctx context.Context, key K, val V, err error)
-
-func (f OnFillFunc[K, V]) apply(c *Cache[K, V]) {
-	c.onFill = append(c.onFill, f)
+func OnFill[K comparable, V any](fn func(ctx context.Context, key K, val V, err error)) Opt {
+	return onFillFuncOpt[K, V]{fn: fn}
 }
 
-// OnEvictFunc is a callback functional option for [New] that is invoked when a
-// cache entry is evicted via [Cache.Delete] or [Cache.Clear].
+type onFillFuncOpt[K comparable, V any] struct {
+	fn notifyFunc[K, V]
+}
+
+func (f onFillFuncOpt[K, V]) optioner() {}
+
+func (f onFillFuncOpt[K, V]) apply(c *Cache[K, V]) {
+	c.onFill = append(c.onFill, f.fn)
+}
+
+// OnEvict returns a callback [Opt] for [New] that is invoked when a cache entry
+// is evicted via [Cache.Delete] or [Cache.Clear].
 //
 // Common use cases include logging, metrics, or cache entry propagation.
 //
 // Note that the triggering call to [Cache.Delete] or [Cache.Clear] blocks until
-// every [OnEvictFunc] returns. Consider using [OnEvictChan] for long-running
+// every [OnEvict] returns. Consider using [OnEvictChan] for long-running
 // callbacks.
-type OnEvictFunc[K comparable, V any] func(ctx context.Context, key K, val V, err error)
+func OnEvict[K comparable, V any](fn func(ctx context.Context, key K, val V, err error)) Opt {
+	return onEvictFuncOpt[K, V]{fn: fn}
+}
 
-func (f OnEvictFunc[K, V]) apply(c *Cache[K, V]) {
-	c.onEvict = append(c.onEvict, f)
+type onEvictFuncOpt[K comparable, V any] struct {
+	fn notifyFunc[K, V]
+}
+
+func (f onEvictFuncOpt[K, V]) optioner() {}
+
+func (f onEvictFuncOpt[K, V]) apply(c *Cache[K, V]) {
+	c.onEvict = append(c.onEvict, f.fn)
 }
 
 // Action is an enumeration of cache actions, as seen on [Event.Action].
 type Action uint8
 
 const (
-	ActionFill  Action = 1
+	// ActionFill is the action of populating a cache entry.
+	ActionFill Action = 1
+
+	// ActionEvict is the action of evicting a cache entry.
 	ActionEvict Action = 2
 )
 
