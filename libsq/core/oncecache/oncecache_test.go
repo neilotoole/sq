@@ -3,13 +3,16 @@ package oncecache_test
 import (
 	"context"
 	"errors"
-	"github.com/neilotoole/slogt"
-	"github.com/neilotoole/sq/libsq/core/oncecache"
-	"github.com/neilotoole/sq/libsq/core/oncecache/example/hrsystem"
+	"fmt"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
+
+	"github.com/neilotoole/slogt"
+	"github.com/neilotoole/sq/libsq/core/oncecache"
+	"github.com/neilotoole/sq/libsq/core/oncecache/example/hrsystem"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,8 +30,6 @@ func fetchDouble(_ context.Context, key int) (val int, err error) {
 }
 
 func TestCache(t *testing.T) {
-	t.Parallel()
-
 	ctx := context.Background()
 	c := oncecache.New[int, string](fetchEvenOnly)
 
@@ -129,13 +130,13 @@ func TestContext(t *testing.T) {
 			return val, err
 		},
 		oncecache.Name(cacheName),
-		oncecache.OnFill(func(ctx context.Context, key int, val int, err error) {
+		oncecache.OnFill(func(ctx context.Context, key, val int, err error) {
 			gotCache := oncecache.FromContext[int, int](ctx)
 			require.Equal(t, c, gotCache)
 			require.Equal(t, cacheName, gotCache.Name())
 			t.Logf("OnFill[%s](%v, %v, %v)", c.Name(), key, val, err)
 		}),
-		oncecache.OnEvict(func(ctx context.Context, key int, val int, err error) {
+		oncecache.OnEvict(func(ctx context.Context, key, val int, err error) {
 			gotCache := oncecache.FromContext[int, int](ctx)
 			require.Equal(t, c, gotCache)
 			require.Equal(t, cacheName, gotCache.Name())
@@ -158,7 +159,7 @@ const (
 	wileyEmpID  = 1
 )
 
-func setupHRSystem(t *testing.T) (*hrsystem.HRDatabase, *hrsystem.HRCache) {
+func loadHRDatabase(t *testing.T) *hrsystem.HRDatabase {
 	t.Helper()
 	log := slogt.New(t)
 
@@ -167,15 +168,19 @@ func setupHRSystem(t *testing.T) (*hrsystem.HRDatabase, *hrsystem.HRCache) {
 		"example/hrsystem/testdata/acme.json",
 	)
 	require.NoError(t, err)
-	cache := hrsystem.NewHRCache(log.With("layer", "cache"), db)
-	return db, cache
+	return db
 }
 
 // Test_OnFill_OnEvict tests use of the [oncecache.OnFill] mechanism to
 // propagate cache events between overlapping caches.
 func Test_OnFill_OnEvict(t *testing.T) {
 	ctx := context.Background()
-	_, db := setupHRSystem(t)
+	var db *hrsystem.HRDatabase
+	var cache *hrsystem.HRCache
+	_ = db
+	_ = cache
+
+	db = loadHRDatabase(t)
 
 	var (
 		orgCache  *oncecache.Cache[string, *hrsystem.Org]
@@ -244,13 +249,14 @@ func Test_OnFill_OnEvict(t *testing.T) {
 	require.Equal(t, 1, db.Stats().GetEmployee())
 }
 
-// TestOnFillChan tests using the [oncecache.OnFillChan] mechanism to propagate
-// cache entries between overlapping caches, using channels.
-func TestOnFillChan(t *testing.T) {
+// Test_OnFillChan_OnEvictChan tests using the [oncecache.OnFillChan] mechanism
+// to propagate cache entries between overlapping caches, using channels.
+func Test_OnFillChan_OnEvictChan(t *testing.T) {
+	log := slogt.New(t)
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
 
-	_, db := setupHRSystem(t)
+	db := loadHRDatabase(t)
 
 	var (
 		orgCache  *oncecache.Cache[string, *hrsystem.Org]
@@ -263,7 +269,9 @@ func TestOnFillChan(t *testing.T) {
 
 	orgCache = oncecache.New[string, *hrsystem.Org](
 		db.GetOrg,
+		oncecache.Name("orgCache"),
 		oncecache.OnFillChan(orgCacheCh, false),
+		oncecache.OnEvictChan(orgCacheCh, false),
 	)
 
 	deptCacheCh := make(chan oncecache.Event[string, *hrsystem.Department], 10)
@@ -271,24 +279,23 @@ func TestOnFillChan(t *testing.T) {
 
 	deptCache = oncecache.New[string, *hrsystem.Department](
 		db.GetDepartment,
+		oncecache.Name("deptCache"),
 		oncecache.OnFillChan(deptCacheCh, false),
+		oncecache.OnEvictChan(deptCacheCh, false),
 	)
 
-	empCache = oncecache.New[int, *hrsystem.Employee](
-		func(ctx context.Context, key int) (val *hrsystem.Employee, err error) {
-			t.Fatal("should not be called, because entries should have been propagated by now")
-			return
-		},
-	)
+	empCache = oncecache.New[int, *hrsystem.Employee](db.GetEmployee, oncecache.Name("empCache"))
 
-	// We use handledCh to signal that an event has been handled.
-	handledCh := make(chan struct{})
+	// We use actionCh to signal that an event has been handled.
+	actionCh := make(chan oncecache.Action, 100)
 	go func() {
+		log := log.With("layer", "event")
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case event := <-orgCacheCh:
+				log.Info("Got event", "e", event)
 				org := event.Val
 				switch event.Action {
 				case oncecache.ActionFill:
@@ -300,16 +307,30 @@ func TestOnFillChan(t *testing.T) {
 						deptCache.Delete(ctx, dept.Name)
 					}
 				default:
-					t.Fatalf("unexpected action: %v", event.Action)
+					panic(fmt.Sprintf("unexpected action: %v", event.Action))
 				}
-
+				actionCh <- event.Action
 			case event := <-deptCacheCh:
+				log.Info("Got event", "e", event)
 				dept := event.Val
-				for _, emp := range dept.Staff {
-					empCache.Set(ctx, emp.ID, emp, nil)
+				switch event.Action {
+				case oncecache.ActionFill:
+					for _, emp := range dept.Staff {
+						empCache.Set(ctx, emp.ID, emp, nil)
+					}
+				case oncecache.ActionEvict:
+					for _, emp := range dept.Staff {
+						empCache.Delete(ctx, emp.ID)
+					}
+				default:
+					if event.Action.IsZero() {
+						// This is the final zero event, indicating that the channel is closed.
+						return
+					}
+					panic(fmt.Sprintf("unexpected action: %v", event.Action))
 				}
+				actionCh <- event.Action
 			}
-			handledCh <- struct{}{}
 		}
 	}()
 
@@ -318,20 +339,77 @@ func TestOnFillChan(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, acmeName, acmeCorp.Name)
 
-	// Because we're using a goroutine for cache entry propagation, we wait for
-	// two events to be handled: one for orgCache->deptCache, and another for
-	// deptCache->empCache.
+	// Because we're using a goroutine for cache entry propagation, we need
+	// to wait for 3 events to be handled:
+	//
+	// - fill orgCache[acmeName]
+	// - fill deptCache[engDeptName]
+	// - fill deptCache[qaDeptName]
+	//
+	// Note that other entry fills occur: in particular, empCache is populated
+	// for each employee. However, this test hasn't set up a listener on empCache,
+	// so empCache doesn't generate any events.
+	requireDrainActionCh(t, actionCh, time.Millisecond, oncecache.ActionFill, 3)
 
-	<-handledCh
-	<-handledCh
-
+	require.Equal(t, 0, db.Stats().GetEmployee())
 	wiley, err := empCache.Get(ctx, wileyEmpID)
 	require.NoError(t, err)
 	require.Equal(t, wileyName, wiley.Name)
+	require.Equal(t, 0, db.Stats().GetEmployee(), "shouldn't hit db")
 
 	engDept, err := deptCache.Get(ctx, engDeptName)
 	require.NoError(t, err)
 	require.Equal(t, engDeptName, engDept.Name)
+	require.Equal(t, 0, db.Stats().GetDepartment(), "shouldn't hit db")
+
+	// Now we evict acmeCorp, which should propagate to the other caches.
+	orgCache.Delete(ctx, acmeCorp.Name)
+	// Similar to above, we should get three evictions.
+	requireDrainActionCh(t, actionCh, time.Millisecond, oncecache.ActionEvict, 3)
+
+	// Wiley should no longer be cached, so this call should hit the db.
+	require.Equal(t, 0, db.Stats().GetEmployee())
+	wiley, err = empCache.Get(ctx, wileyEmpID)
+	require.NoError(t, err)
+	require.Equal(t, wileyName, wiley.Name)
+	require.Equal(t, 1, db.Stats().GetEmployee())
+}
+
+// requireDrainActionCh verifies that within timeout, ch receives exactly
+// wantCount actions, all of which are wantAction.
+func requireDrainActionCh(t *testing.T, ch <-chan oncecache.Action,
+	timeout time.Duration, wantAction oncecache.Action, wantCount int,
+) {
+	t.Helper()
+
+	ctx, cancel := context.WithCancelCause(context.Background())
+	time.AfterFunc(timeout, func() {
+		cancel(fmt.Errorf("timed out (%s) waiting for action", timeout))
+	})
+
+	var gotCount int
+	var gotAction oncecache.Action
+	for {
+		select {
+		case <-ctx.Done():
+			if gotCount == wantCount {
+				return
+			}
+			assert.Equal(t, wantCount, gotCount,
+				"got %d actions in %s but wanted %d", gotCount, timeout, wantCount)
+			require.NoError(t, context.Cause(ctx))
+		case gotAction = <-ch:
+		}
+
+		if gotAction.IsZero() {
+			break
+		}
+
+		gotCount++
+		require.Equal(t, wantAction.String(), gotAction.String())
+		require.LessOrEqual(t, gotCount, wantCount)
+	}
+	require.Equal(t, wantCount, gotCount)
 }
 
 func TestLogging(t *testing.T) {

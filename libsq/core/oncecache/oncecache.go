@@ -291,7 +291,7 @@ func (e *entry[K, V]) get(ctx context.Context, key K) (V, error) {
 }
 
 // evict invokes any [OnEvict] callbacks for the given cache entry. The caller
-// should beforehand decorate ctx via NewContext.
+// should beforehand decorate ctx via [NewContext].
 func (e *entry[K, V]) evict(ctx context.Context, key K) {
 	for _, onEvict := range e.cache.onEvict {
 		onEvict(ctx, key, e.val, e.err)

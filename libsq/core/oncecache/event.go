@@ -112,7 +112,7 @@ type eventOpt[K comparable, V any] struct {
 
 func (o eventOpt[K, V]) optioner() {}
 
-func (o eventOpt[K, V]) apply(c *Cache[K, V]) {
+func (o eventOpt[K, V]) apply(c *Cache[K, V]) { //nolint:unused // linter is wrong, method is invoked.
 	fn := func(ctx context.Context, key K, val V, err error) {
 		event := Event[K, V]{
 			Action: o.action,
@@ -158,7 +158,7 @@ type onFillFuncOpt[K comparable, V any] struct {
 
 func (f onFillFuncOpt[K, V]) optioner() {}
 
-func (f onFillFuncOpt[K, V]) apply(c *Cache[K, V]) {
+func (f onFillFuncOpt[K, V]) apply(c *Cache[K, V]) { //nolint:unused // linter is wrong, method is invoked.
 	c.onFill = append(c.onFill, f.fn)
 }
 
@@ -180,7 +180,7 @@ type onEvictFuncOpt[K comparable, V any] struct {
 
 func (f onEvictFuncOpt[K, V]) optioner() {}
 
-func (f onEvictFuncOpt[K, V]) apply(c *Cache[K, V]) {
+func (f onEvictFuncOpt[K, V]) apply(c *Cache[K, V]) { //nolint:unused // linter is wrong, method is invoked.
 	c.onEvict = append(c.onEvict, f.fn)
 }
 
@@ -194,6 +194,11 @@ const (
 	// ActionEvict is the action of evicting a cache entry.
 	ActionEvict Action = 2
 )
+
+// IsZero returns true if the action is the zero value.
+func (a Action) IsZero() bool {
+	return a == 0
+}
 
 // String returns action name.
 func (a Action) String() string {
