@@ -2,8 +2,8 @@
 // dependency-free, in-memory, on-demand object [Cache], focused on write-once,
 // read-often ergonomics.
 //
-// The package also provides an event mechanism useful for composite cache entry
-// propagation, logging, or metrics.
+// The package also provides an event mechanism useful for logging, metrics, or
+// propagating cache entries between overlapping composite caches.
 package oncecache
 
 import (
@@ -134,7 +134,7 @@ func (c *Cache[K, V]) Clear(ctx context.Context) {
 	}
 
 	evictions := make([]func(), 0, len(c.entries))
-	ctx = newContext(ctx, c)
+	ctx = NewContext(ctx, c)
 	for key, ent := range c.entries {
 		if ent != nil {
 			e := ent
@@ -158,7 +158,7 @@ func (c *Cache[K, V]) Delete(ctx context.Context, key K) {
 	delete(c.entries, key)
 	c.mu.Unlock()
 	if ok && e != nil {
-		e.evict(newContext(ctx, c), key)
+		e.evict(NewContext(ctx, c), key)
 	}
 }
 
@@ -265,7 +265,7 @@ func (e *entry[K, V]) set(ctx context.Context, key K, val V, err error) {
 
 	// We perform notification outside the once to avoid holding the lock.
 	if notify && len(e.cache.onFill) > 0 {
-		ctx = newContext(ctx, e.cache)
+		ctx = NewContext(ctx, e.cache)
 		for _, fn := range e.cache.onFill {
 			fn(ctx, key, val, err)
 		}
@@ -275,7 +275,7 @@ func (e *entry[K, V]) set(ctx context.Context, key K, val V, err error) {
 func (e *entry[K, V]) get(ctx context.Context, key K) (V, error) {
 	var notify bool
 	e.once.Do(func() {
-		ctx = newContext(ctx, e.cache)
+		ctx = NewContext(ctx, e.cache)
 		e.val, e.err = e.cache.fetch(ctx, key)
 		notify = true
 	})
@@ -291,7 +291,7 @@ func (e *entry[K, V]) get(ctx context.Context, key K) (V, error) {
 }
 
 // evict invokes any [OnEvict] callbacks for the given cache entry. The caller
-// should beforehand decorate ctx via newContext.
+// should beforehand decorate ctx via NewContext.
 func (e *entry[K, V]) evict(ctx context.Context, key K) {
 	for _, onEvict := range e.cache.onEvict {
 		onEvict(ctx, key, e.val, e.err)
@@ -306,9 +306,9 @@ func randomName() string {
 
 type ctxKey struct{}
 
-// newContext returns ctx with c added as a value. If ctx is nil, a new context
+// NewContext returns ctx decorated with [Cache] c. If ctx is nil, a new context
 // is created.
-func newContext[K comparable, V any](ctx context.Context, c *Cache[K, V]) context.Context {
+func NewContext[K comparable, V any](ctx context.Context, c *Cache[K, V]) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
 	}

@@ -111,28 +111,43 @@ func TestCacheConcurrent(t *testing.T) {
 	}
 }
 
-func TestLogging(t *testing.T) {
+// TestContext verifies that the context passed to callbacks is decorated with
+// the cache, as retrieved via [oncecache.FromContext].
+func TestContext(t *testing.T) {
 	ctx := context.Background()
+	const cacheName = "test-cache"
 
-	c := oncecache.New[int, int](fetchDouble)
-	got := c.Name()
-	require.NotEmpty(t, got)
-	t.Log(got)
+	var c *oncecache.Cache[int, int]
+	c = oncecache.New[int, int](
+		func(ctx context.Context, key int) (val int, err error) {
+			gotCache := oncecache.FromContext[int, int](ctx)
+			require.Equal(t, c, gotCache)
+			require.Equal(t, cacheName, gotCache.Name())
 
-	c = oncecache.New[int, int](fetchDouble, oncecache.Name("cache-foo"))
-	got = c.Name()
-	require.Equal(t, "cache-foo", got)
+			val, err = fetchDouble(ctx, key)
+			t.Logf("Fetch[%s](%v) (%v, %v)", c.Name(), key, val, err)
+			return val, err
+		},
+		oncecache.Name(cacheName),
+		oncecache.OnFill(func(ctx context.Context, key int, val int, err error) {
+			gotCache := oncecache.FromContext[int, int](ctx)
+			require.Equal(t, c, gotCache)
+			require.Equal(t, cacheName, gotCache.Name())
+			t.Logf("OnFill[%s](%v, %v, %v)", c.Name(), key, val, err)
+		}),
+		oncecache.OnEvict(func(ctx context.Context, key int, val int, err error) {
+			gotCache := oncecache.FromContext[int, int](ctx)
+			require.Equal(t, c, gotCache)
+			require.Equal(t, cacheName, gotCache.Name())
+			t.Logf("OnEvict[%s](%v, %v, %v)", c.Name(), key, val, err)
+		}),
+	)
 
-	// Sanity check: make sure Cache.LogValue doesn't shit the bed.
-	slogt.New(t).Info("hello", "cache", c)
+	got, err := c.Get(ctx, 1)
+	require.NoError(t, err)
+	require.Equal(t, 2, got)
 
-	s := c.String()
-	require.Equal(t, "cache-foo[int, int][0]", s)
-	_, _ = c.Get(ctx, 1)
-	_, _ = c.Get(ctx, 2)
-	_, _ = c.Get(ctx, 3)
-	s = c.String()
-	require.Equal(t, "cache-foo[int, int][3]", s)
+	c.Delete(ctx, 1)
 }
 
 const (
@@ -156,9 +171,9 @@ func setupHRSystem(t *testing.T) (*hrsystem.HRDatabase, *hrsystem.HRCache) {
 	return db, cache
 }
 
-// TestOnFill_EntryPropagation tests using the [oncecache.OnFill] mechanism to
-// propagate cache entries between linked caches.
-func TestOnFill_EntryPropagation(t *testing.T) {
+// Test_OnFill_OnEvict tests use of the [oncecache.OnFill] mechanism to
+// propagate cache events between overlapping caches.
+func Test_OnFill_OnEvict(t *testing.T) {
 	ctx := context.Background()
 	_, db := setupHRSystem(t)
 
@@ -179,42 +194,59 @@ func TestOnFill_EntryPropagation(t *testing.T) {
 				// handler below.
 			}
 		}),
+		oncecache.OnEvict(func(ctx context.Context, orgName string, org *hrsystem.Org, err error) {
+			// As with OnFill, we'll propagate eviction.
+			for _, dept := range org.Departments {
+				deptCache.Delete(ctx, dept.Name)
+			}
+		}),
 	)
 
 	deptCache = oncecache.New[string, *hrsystem.Department](
 		db.GetDepartment,
 		oncecache.OnFill(func(ctx context.Context, deptName string, dept *hrsystem.Department, err error) {
-			// Propagate the department's staff to empCache.
 			for _, emp := range dept.Staff {
 				empCache.Set(ctx, emp.ID, emp, nil)
 			}
 		}),
+		oncecache.OnEvict(func(ctx context.Context, deptName string, dept *hrsystem.Department, err error) {
+			for _, emp := range dept.Staff {
+				empCache.Delete(ctx, emp.ID)
+			}
+		}),
 	)
 
-	empCache = oncecache.New[int, *hrsystem.Employee](
-		func(ctx context.Context, key int) (val *hrsystem.Employee, err error) {
-			t.Fatal("should not be called, because entries should have been propagated by now")
-			return
-		},
-	)
+	empCache = oncecache.New[int, *hrsystem.Employee](db.GetEmployee)
 
 	// orgCache.Get should trigger entry propagation to the other caches.
 	acmeCorp, err := orgCache.Get(ctx, acmeName)
 	require.NoError(t, err)
 	require.Equal(t, acmeName, acmeCorp.Name)
+	require.Equal(t, 1, db.Stats().GetOrg())
 
 	wiley, err := empCache.Get(ctx, wileyEmpID)
 	require.NoError(t, err)
 	require.Equal(t, wileyName, wiley.Name)
+	require.Equal(t, 0, db.Stats().GetEmployee())
 
 	engDept, err := deptCache.Get(ctx, engDeptName)
 	require.NoError(t, err)
 	require.Equal(t, engDeptName, engDept.Name)
+	require.Equal(t, 0, db.Stats().GetDepartment())
+
+	// Now we evict acmeCorp, which should propagate to the other caches.
+	orgCache.Delete(ctx, acmeCorp.Name)
+
+	// Wiley should no longer be cached, so this call should hit the db.
+	wiley, err = empCache.Get(ctx, wileyEmpID)
+	require.NoError(t, err)
+	require.Equal(t, wileyName, wiley.Name)
+	require.Equal(t, 1, db.Stats().GetEmployee())
 }
 
-// TestOnFillChan_EntryPropagation tests using the [oncecache.OnFillChan] mechanism to
-// propagate cache entries between linked caches, using channels.
-func TestOnFillChan_EntryPropagation(t *testing.T) {
+// TestOnFillChan tests using the [oncecache.OnFillChan] mechanism to propagate
+// cache entries between overlapping caches, using channels.
+func TestOnFillChan(t *testing.T) {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
 
@@ -258,9 +290,19 @@ func TestOnFillChan_EntryPropagation(t *testing.T) {
 				return
 			case event := <-orgCacheCh:
 				org := event.Val
-				for _, dept := range org.Departments {
-					deptCache.Set(ctx, dept.Name, dept, event.Err)
+				switch event.Action {
+				case oncecache.ActionFill:
+					for _, dept := range org.Departments {
+						deptCache.Set(ctx, dept.Name, dept, event.Err)
+					}
+				case oncecache.ActionEvict:
+					for _, dept := range org.Departments {
+						deptCache.Delete(ctx, dept.Name)
+					}
+				default:
+					t.Fatalf("unexpected action: %v", event.Action)
 				}
+
 			case event := <-deptCacheCh:
 				dept := event.Val
 				for _, emp := range dept.Staff {
@@ -290,4 +332,28 @@ func TestOnFillChan_EntryPropagation(t *testing.T) {
 	engDept, err := deptCache.Get(ctx, engDeptName)
 	require.NoError(t, err)
 	require.Equal(t, engDeptName, engDept.Name)
+}
+
+func TestLogging(t *testing.T) {
+	ctx := context.Background()
+
+	c := oncecache.New[int, int](fetchDouble)
+	got := c.Name()
+	require.NotEmpty(t, got)
+	t.Log(got)
+
+	c = oncecache.New[int, int](fetchDouble, oncecache.Name("cache-foo"))
+	got = c.Name()
+	require.Equal(t, "cache-foo", got)
+
+	// Sanity check: make sure Cache.LogValue doesn't shit the bed.
+	slogt.New(t).Info("hello", "cache", c)
+
+	s := c.String()
+	require.Equal(t, "cache-foo[int, int][0]", s)
+	_, _ = c.Get(ctx, 1)
+	_, _ = c.Get(ctx, 2)
+	_, _ = c.Get(ctx, 3)
+	s = c.String()
+	require.Equal(t, "cache-foo[int, int][3]", s)
 }
