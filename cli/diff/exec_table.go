@@ -14,7 +14,6 @@ import (
 func ExecTableDiff(ctx context.Context, cfg *Config,
 	src1 *source.Source, table1 string, src2 *source.Source, table2 string,
 ) error {
-	cfg.init()
 	var (
 		ru      = cfg.Run
 		elems   = cfg.Elements

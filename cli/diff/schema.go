@@ -54,7 +54,7 @@ func diffTableSchema(ctx context.Context, cfg *Config, showRowCounts bool,
 
 	defer func() { doc.Seal(err) }()
 
-	md1, md2, err = cfg.cache.getTableMetaPair(ctx, td1, td2)
+	md1, md2, err = cfg.Run.MDCache.TableMetaPair(ctx, td1, td2)
 	if err != nil {
 		return
 	}
