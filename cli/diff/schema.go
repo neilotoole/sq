@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/langz"
+
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 
@@ -16,10 +18,14 @@ import (
 )
 
 func differsForSchema(ctx context.Context, cfg *Config, showRowCounts bool,
-	sd1, sd2 *sourceData,
+	src1, src2 *source.Source,
 ) (differs []*diffdoc.Differ, err error) {
-	allTblNames := append(sd1.srcMeta.TableNames(), sd2.srcMeta.TableNames()...)
-	allTblNames = lo.Uniq(allTblNames)
+	tbls1, tbls2, err := cfg.Run.MDCache.TableNamesPair(ctx, src1, src2)
+	if err != nil {
+		return nil, err
+	}
+
+	allTblNames := lo.Uniq(langz.JoinSlices(tbls1, tbls2))
 	slices.Sort(allTblNames)
 
 	differs = make([]*diffdoc.Differ, 0, len(allTblNames))
@@ -31,8 +37,8 @@ func differsForSchema(ctx context.Context, cfg *Config, showRowCounts bool,
 		default:
 		}
 
-		td1 := source.Table{Handle: sd1.src.Handle, Name: tblName}
-		td2 := source.Table{Handle: sd2.src.Handle, Name: tblName}
+		td1 := source.Table{Handle: src1.Handle, Name: tblName}
+		td2 := source.Table{Handle: src2.Handle, Name: tblName}
 
 		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors, "sq diff %s %s", td1, td2))
 		differs = append(differs, diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {

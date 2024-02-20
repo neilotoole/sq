@@ -6,8 +6,6 @@ import (
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
-	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // Config contains parameters to control diff behavior.
@@ -59,11 +57,4 @@ type Elements struct {
 
 	// Data compares each row in a table. Caution: this can be slow.
 	Data bool
-}
-
-// sourceData encapsulates data about a source.
-type sourceData struct {
-	src     *source.Source
-	srcMeta *metadata.Source
-	handle  string
 }

@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/langz"
+
 	"github.com/neilotoole/sq/libsq/source"
 
 	"github.com/samber/lo"
@@ -28,23 +30,24 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 )
 
-// differsForAllTableData compares the row data of each table in sd1 and sd2.
-func differsForAllTableData(ctx context.Context, cfg *Config, sd1, sd2 *sourceData,
-) (execDocs []*diffdoc.Differ, err error) { //nolint:unparam
-	log := lg.FromContext(ctx).With(lga.Left, sd1.src.Handle, lga.Right, sd2.src.Handle)
+// differsForAllTableData compares the row data of each table in src1 and src2.
+func differsForAllTableData(ctx context.Context, cfg *Config, src1, src2 *source.Source,
+) (execDocs []*diffdoc.Differ, err error) {
+	log := lg.FromContext(ctx).With(lga.Left, src1.Handle, lga.Right, src2.Handle)
 	log.Info("Diffing source tables data")
 
-	allTblNames := append(sd1.srcMeta.TableNames(), sd2.srcMeta.TableNames()...)
-	allTblNames = lo.Uniq(allTblNames)
+	tbls1, tbls2, err := cfg.Run.MDCache.TableNamesPair(ctx, src1, src2)
+	if err != nil {
+		return nil, err
+	}
+
+	allTblNames := lo.Uniq(langz.JoinSlices(tbls1, tbls2))
 	slices.Sort(allTblNames)
 
 	differs := make([]*diffdoc.Differ, len(allTblNames))
 	for i, tblName := range allTblNames {
-		td1 := source.Table{Handle: sd1.src.Handle, Name: tblName}
-		// REVISIT: What if there isn't table metadata? Or is it guaranteed to
-		// be present?
-
-		td2 := source.Table{Handle: sd2.src.Handle, Name: tblName}
+		td1 := source.Table{Handle: src1.Handle, Name: tblName}
+		td2 := source.Table{Handle: src2.Handle, Name: tblName}
 		differs[i] = differForTableData(cfg, true, td1, td2)
 	}
 
