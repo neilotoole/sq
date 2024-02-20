@@ -224,7 +224,7 @@ func (e *entry[K, V]) set(ctx context.Context, key K, val V, err error) {
 	if notify && len(e.cache.onFill) > 0 {
 		ctx = newContext(ctx, e.cache)
 		for _, onFill := range e.cache.onFill {
-			onFill(ctx, e.cache, key, val, err)
+			onFill(ctx, key, val, err)
 		}
 	}
 }
@@ -239,7 +239,7 @@ func (e *entry[K, V]) get(ctx context.Context, key K) (V, error) {
 
 	if notify && len(e.cache.onFill) > 0 {
 		for _, onFill := range e.cache.onFill {
-			onFill(ctx, e.cache, key, e.val, e.err)
+			onFill(ctx, key, e.val, e.err)
 		}
 	}
 
@@ -250,7 +250,7 @@ func (e *entry[K, V]) get(ctx context.Context, key K) (V, error) {
 // supplied ctx should already be decorated via newContext.
 func (e *entry[K, V]) evict(ctx context.Context, key K) {
 	for _, onEvict := range e.cache.onEvict {
-		onEvict(ctx, e.cache, key, e.val, e.err)
+		onEvict(ctx, key, e.val, e.err)
 	}
 }
 

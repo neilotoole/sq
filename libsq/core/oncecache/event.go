@@ -30,9 +30,9 @@ func (e Entry[K, V]) String() string {
 	}
 	val := fmt.Sprintf("%v", e.Val)
 	if len(val) > 32 {
-		sb.Write([]byte(val[:13]))
+		sb.WriteString(val[:13])
 		sb.WriteString("...")
-		sb.Write([]byte(val[len(val)-13:]))
+		sb.WriteString(val[len(val)-13:])
 	} else {
 		sb.WriteString(val)
 	}
@@ -82,9 +82,9 @@ func (e Event[K, V]) String() string {
 	}
 	val := fmt.Sprintf(" %v", e.Val)
 	if len(val) > 32 {
-		sb.Write([]byte(val[:14]))
+		sb.WriteString(val[:14])
 		sb.WriteString("...")
-		sb.Write([]byte(val[len(val)-14:]))
+		sb.WriteString(val[len(val)-14:])
 	} else {
 		sb.WriteString(val)
 	}
@@ -108,7 +108,7 @@ type eventOpt[K comparable, V any] struct {
 func (o eventOpt[K, V]) optioner() {}
 
 func (o eventOpt[K, V]) apply(c *Cache[K, V]) {
-	fn := func(ctx context.Context, c *Cache[K, V], key K, val V, err error) {
+	fn := func(ctx context.Context, key K, val V, err error) {
 		event := Event[K, V]{
 			Action: o.action,
 			Entry:  Entry[K, V]{Cache: c, Key: key, Val: val, Err: err},
@@ -143,7 +143,7 @@ func (o eventOpt[K, V]) apply(c *Cache[K, V]) {
 // Note that the triggering call to [Cache.Set] or [Cache.Get] blocks until
 // every [OnFillFunc] returns. Consider using [OnFillChan] for long-running
 // callbacks.
-type OnFillFunc[K comparable, V any] func(ctx context.Context, c *Cache[K, V], key K, val V, err error)
+type OnFillFunc[K comparable, V any] func(ctx context.Context, key K, val V, err error)
 
 func (f OnFillFunc[K, V]) apply(c *Cache[K, V]) {
 	c.onFill = append(c.onFill, f)
@@ -157,7 +157,7 @@ func (f OnFillFunc[K, V]) apply(c *Cache[K, V]) {
 // Note that the triggering call to [Cache.Delete] or [Cache.Clear] blocks until
 // every [OnEvictFunc] returns. Consider using [OnEvictChan] for long-running
 // callbacks.
-type OnEvictFunc[K comparable, V any] func(ctx context.Context, c *Cache[K, V], key K, val V, err error)
+type OnEvictFunc[K comparable, V any] func(ctx context.Context, key K, val V, err error)
 
 func (f OnEvictFunc[K, V]) apply(c *Cache[K, V]) {
 	c.onEvict = append(c.onEvict, f)
