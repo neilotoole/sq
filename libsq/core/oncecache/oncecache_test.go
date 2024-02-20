@@ -33,9 +33,12 @@ func TestCache(t *testing.T) {
 	ctx := context.Background()
 	c := oncecache.New[int, string](fetchEvenOnly)
 
+	require.False(t, c.Has(0))
+
 	got, err := c.Get(ctx, 0)
 	require.NoError(t, err)
 	require.Equal(t, "0", got)
+	require.True(t, c.Has(0))
 
 	got, err = c.Get(ctx, 1)
 	require.Error(t, err)

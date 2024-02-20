@@ -122,6 +122,14 @@ func (c *Cache[K, V]) LogValue() slog.Value {
 	)
 }
 
+// Has returns true if [Cache] c has an entry for key.
+func (c *Cache[K, V]) Has(key K) bool {
+	c.mu.Lock()
+	_, ok := c.entries[key]
+	c.mu.Unlock()
+	return ok
+}
+
 // Clear clears the cache entries, invoking any [OnEvict] callbacks on each
 // cache entry. The entry callback order is not specified.
 func (c *Cache[K, V]) Clear(ctx context.Context) {
