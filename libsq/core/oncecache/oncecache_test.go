@@ -1,6 +1,7 @@
 package oncecache_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -194,8 +195,8 @@ func loadHRDatabase(t *testing.T) *hrsystem.HRDatabase {
 	return db
 }
 
-// Test_OnFuncs tests use of the On* callbacks, such as [oncecache.OnFill].
-func Test_OnFuncs(t *testing.T) {
+// TestCallbacks tests use of the On* callbacks, such as [oncecache.OnFill].
+func TestCallbacks(t *testing.T) {
 	var (
 		ctx       = context.Background()
 		db        = loadHRDatabase(t)
@@ -480,14 +481,15 @@ func TestLogOutput(t *testing.T) {
 }
 
 func TestLog(t *testing.T) {
-	log := slogt.New(t)
+	buf, log := newBufLogger()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	c := oncecache.New[int, int](
 		calcFibonacci,
 		oncecache.Name("fibs"),
-		oncecache.Log[int, int](log, slog.LevelDebug),
+		oncecache.Log(log, slog.LevelInfo, oncecache.OpFill, oncecache.OpEvict),
+		oncecache.Log(log, slog.LevelDebug, oncecache.OpHit, oncecache.OpMiss),
 	)
 
 	_, _ = c.Get(ctx, 10)
@@ -502,4 +504,41 @@ func TestLog(t *testing.T) {
 	_ = c.MaybeSet(ctx, 7, 55, nil)
 	_ = c.MaybeSet(ctx, 7, 55, nil)
 	_, _ = c.Get(ctx, 7)
+
+	const want = `level=DEBUG msg="Cache event" ev.cache=fibs ev.op=miss ev.k=10
+level=INFO msg="Cache event" ev.cache=fibs ev.op=fill ev.k=10 ev.v=55
+level=DEBUG msg="Cache event" ev.cache=fibs ev.op=hit ev.k=10 ev.v=55
+level=DEBUG msg="Cache event" ev.cache=fibs ev.op=hit ev.k=10 ev.v=55
+level=INFO msg="Cache event" ev.cache=fibs ev.op=evict ev.k=10 ev.v=55
+level=DEBUG msg="Cache event" ev.cache=fibs ev.op=miss ev.k=10
+level=INFO msg="Cache event" ev.cache=fibs ev.op=fill ev.k=10 ev.v=55
+level=DEBUG msg="Cache event" ev.cache=fibs ev.op=miss ev.k=7
+level=INFO msg="Cache event" ev.cache=fibs ev.op=fill ev.k=7 ev.v=13
+level=DEBUG msg="Cache event" ev.cache=fibs ev.op=hit ev.k=7 ev.v=13
+level=INFO msg="Cache event" ev.cache=fibs ev.op=evict ev.k=7 ev.v=13
+level=INFO msg="Cache event" ev.cache=fibs ev.op=fill ev.k=7 ev.v=55
+level=DEBUG msg="Cache event" ev.cache=fibs ev.op=hit ev.k=7 ev.v=55
+`
+	got := buf.String()
+	t.Log("\n", got)
+	require.Equal(t, want, got)
+}
+
+// newBufLogger returns a slog.Logger that writes to a bytes.Buffer, and doesn't
+// output "source" or "time" attributes. This makes it suitable for testing log
+// output.
+func newBufLogger() (*bytes.Buffer, *slog.Logger) {
+	buf := &bytes.Buffer{}
+	h := slog.NewTextHandler(buf, &slog.HandlerOptions{
+		AddSource: false,
+		Level:     slog.LevelDebug,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == "time" {
+				return slog.Attr{}
+			}
+
+			return a
+		},
+	})
+	return buf, slog.New(h)
 }

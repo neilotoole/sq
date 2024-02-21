@@ -72,9 +72,16 @@ func (c *Cache[K, V]) applyOpts(opts []Opt) {
 
 		// But, not all of them. Some of them implement [concreteOptApplier]. We
 		// must provide the non-parameterized (concrete) fields of [Cache].
-		npc := &concreteCache{name: &c.name}
+		cc := &concreteCache{name: &c.name}
 		if applier, ok := opt.(concreteOptApplier); ok {
-			applier.applyConcrete(npc)
+			applier.applyConcrete(cc)
+			continue
+		}
+
+		// Hmmmn, I thought I was soooo clever with that applyConcrete mechanism,
+		// but it isn't helping with the logOpt scenario. Rethink required.
+		if cfg, ok := opt.(logOptConfig); ok {
+			newLogOpt[K, V](cfg).apply(c)
 			continue
 		}
 

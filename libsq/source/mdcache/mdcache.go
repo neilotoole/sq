@@ -35,24 +35,24 @@ func New(_ context.Context, log *slog.Logger, coll *source.Collection, grips *dr
 	c.tblMeta = oncecache.New[source.Table, *metadata.Table](
 		c.fetchTableMeta,
 		oncecache.Name("mdcache.tblMeta"),
-		oncecache.Log[source.Table, *metadata.Table](log, slog.LevelDebug),
+		oncecache.Log(log, slog.LevelDebug),
 	)
 
 	c.srcMeta = oncecache.New[string, *metadata.Source](
 		c.fetchSourceMeta,
 		oncecache.Name("mdcache.srcMeta"),
-		oncecache.Log[string, *metadata.Source](log, slog.LevelDebug),
+		oncecache.Log(log, slog.LevelDebug),
 	)
 	c.tblNames = oncecache.New[string, []string](
 		c.fetchTableNames,
 		oncecache.Name("mdcache.tblNames"),
-		oncecache.Log[string, *metadata.Source](log, slog.LevelDebug),
+		oncecache.Log(log, slog.LevelDebug),
 	)
 
 	c.dbProps = oncecache.New[string, map[string]any](
 		c.fetchDBProps,
 		oncecache.Name("mdcache.dbProps"),
-		oncecache.Log[string, map[string]any](log, slog.LevelDebug),
+		oncecache.Log(log, slog.LevelDebug),
 	)
 
 	return c

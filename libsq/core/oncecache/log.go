@@ -7,28 +7,42 @@ import (
 	"strings"
 )
 
-// The LogX variables are used by [oncecache.Log] to configure log output.
+// LogConfig is used by [oncecache.Log] to configure log output.
 // See also: [oncecache.Event.LogValue], [oncecache.Entry.LogValue].
-var (
-	LogMsg       = "Cache event"
-	LogAttrEvent = "ev"
-	LogAttrCache = "cache"
-	LogAttrOp    = "op"
-	LogAttrKey   = "k"
-	LogAttrVal   = "v"
-	LogAttrErr   = "err"
-)
+var LogConfig = struct {
+	Msg       string
+	AttrEvent string
+	AttrCache string
+	AttrOp    string
+	AttrKey   string
+	AttrVal   string
+	AttrErr   string
+}{
+	Msg:       "Cache event",
+	AttrEvent: "ev",
+	AttrCache: "cache",
+	AttrOp:    "op",
+	AttrKey:   "k",
+	AttrVal:   "v",
+	AttrErr:   "err",
+}
 
 // Log is an [Opt] for [oncecache.New] that logs each [Event] to log, where
 // [Event.Op] is in ops. If ops is empty, all events are logged. If log is nil,
-// Log is a no-op. If lvl is nil, [slog.LevelInfo] is used.
+// Log is a no-op. If lvl is nil, [slog.LevelInfo] is used. Example usage:
 //
-// Note that [Event.LogValue] implements [slog.LogValuer]. Output is controlled
-// by the LogX variables, e.g. [LogMsg], [LogAttrEvent], etc.
+//	c := oncecache.New[int, int](
+//		calcFibonacci,
+//		oncecache.Name("fibs"),
+//		oncecache.Log(log, slog.LevelInfo, oncecache.OpFill, oncecache.OpEvict),
+//		oncecache.Log(log, slog.LevelDebug, oncecache.OpHit, oncecache.OpMiss),
+//	)
 //
-// If you require even more control, you can roll your own logging mechanism
-// using an [OnEvent] channel or the On* callbacks.
-func Log[K comparable, V any](log *slog.Logger, lvl slog.Leveler, ops ...Op) Opt {
+// Log is intended to handle basic logging needs. Some configuration is possible
+// via [oncecache.LogConfig]. If you require more control, you can roll your own
+// logging mechanism using an [OnEvent] channel or the On* callbacks. If doing
+// so, note that [Event], [Entry] and [Cache] each implement [slog.LogValuer].
+func Log(log *slog.Logger, lvl slog.Leveler, ops ...Op) Opt {
 	if log == nil {
 		return nil
 	}
@@ -43,25 +57,39 @@ func Log[K comparable, V any](log *slog.Logger, lvl slog.Leveler, ops ...Op) Opt
 		ops = uniq(ops)
 	}
 
-	o := &logOpt[K, V]{
+	return logOptConfig{
 		log: log,
 		lvl: lvl,
 		ops: ops,
 	}
-
-	return o
 }
 
-type logOpt[K comparable, V any] struct {
+var _ Opt = logOptConfig{}
+
+type logOptConfig struct {
 	log *slog.Logger
 	lvl slog.Leveler
 	ops []Op
 }
 
+func (o logOptConfig) optioner() {}
+
+func newLogOpt[K comparable, V any](cfg logOptConfig) *logOpt[K, V] {
+	return &logOpt[K, V]{
+		cfg: cfg,
+	}
+}
+
+var _ Opt = (*logOpt[any, any])(nil)
+
+type logOpt[K comparable, V any] struct {
+	cfg logOptConfig
+}
+
 func (o *logOpt[K, V]) optioner() {}
 
-func (o *logOpt[K, V]) apply(c *Cache[K, V]) { //nolint:unused // linter wrong
-	for _, op := range o.ops {
+func (o *logOpt[K, V]) apply(c *Cache[K, V]) {
+	for _, op := range o.cfg.ops {
 		switch op {
 		case OpFill:
 			c.onFill = append(c.onFill, o.logFill)
@@ -78,11 +106,11 @@ func (o *logOpt[K, V]) apply(c *Cache[K, V]) { //nolint:unused // linter wrong
 	}
 }
 
-func (o *logOpt[K, V]) logEvent(ctx context.Context, ev Event[K, V]) { //nolint:unused // linter wrong
-	o.log.LogAttrs(ctx, o.lvl.Level(), LogMsg, slog.Any(LogAttrEvent, ev))
+func (o *logOpt[K, V]) logEvent(ctx context.Context, ev Event[K, V]) {
+	o.cfg.log.LogAttrs(ctx, o.cfg.lvl.Level(), LogConfig.Msg, slog.Any(LogConfig.AttrEvent, ev))
 }
 
-func (o *logOpt[K, V]) logHit(ctx context.Context, key K, val V, err error) { //nolint:unused // linter wrong
+func (o *logOpt[K, V]) logHit(ctx context.Context, key K, val V, err error) {
 	ev := Event[K, V]{
 		Op:    OpHit,
 		Entry: Entry[K, V]{Cache: FromContext[K, V](ctx), Key: key, Val: val, Err: err},
@@ -90,7 +118,7 @@ func (o *logOpt[K, V]) logHit(ctx context.Context, key K, val V, err error) { //
 	o.logEvent(ctx, ev)
 }
 
-func (o *logOpt[K, V]) logMiss(ctx context.Context, key K, val V, err error) { //nolint:unused // linter wrong
+func (o *logOpt[K, V]) logMiss(ctx context.Context, key K, val V, err error) {
 	ev := Event[K, V]{
 		Op:    OpMiss,
 		Entry: Entry[K, V]{Cache: FromContext[K, V](ctx), Key: key, Val: val, Err: err},
@@ -98,7 +126,7 @@ func (o *logOpt[K, V]) logMiss(ctx context.Context, key K, val V, err error) { /
 	o.logEvent(ctx, ev)
 }
 
-func (o *logOpt[K, V]) logFill(ctx context.Context, key K, val V, err error) { //nolint:unused // linter wrong
+func (o *logOpt[K, V]) logFill(ctx context.Context, key K, val V, err error) {
 	ev := Event[K, V]{
 		Op:    OpFill,
 		Entry: Entry[K, V]{Cache: FromContext[K, V](ctx), Key: key, Val: val, Err: err},
@@ -106,7 +134,7 @@ func (o *logOpt[K, V]) logFill(ctx context.Context, key K, val V, err error) { /
 	o.logEvent(ctx, ev)
 }
 
-func (o *logOpt[K, V]) logEvict(ctx context.Context, key K, val V, err error) { //nolint:unused // linter is wrong
+func (o *logOpt[K, V]) logEvict(ctx context.Context, key K, val V, err error) {
 	ev := Event[K, V]{
 		Op:    OpEvict,
 		Entry: Entry[K, V]{Cache: FromContext[K, V](ctx), Key: key, Val: val, Err: err},
@@ -118,16 +146,16 @@ func (o *logOpt[K, V]) logEvict(ctx context.Context, key K, val V, err error) { 
 // but also logging [Event.Op].
 func (e Event[K, V]) LogValue() slog.Value {
 	attrs := make([]slog.Attr, 3, 5)
-	attrs[0] = slog.String(LogAttrCache, e.Cache.name)
-	attrs[1] = slog.String(LogAttrOp, e.Op.String())
-	attrs[2] = slog.Any(LogAttrKey, e.Key)
+	attrs[0] = slog.String(LogConfig.AttrCache, e.Cache.name)
+	attrs[1] = slog.String(LogConfig.AttrOp, e.Op.String())
+	attrs[2] = slog.Any(LogConfig.AttrKey, e.Key)
 
 	if e.Op != OpMiss {
 		if e.isValLogged() {
-			attrs = append(attrs, slog.Any(LogAttrVal, e.Val))
+			attrs = append(attrs, slog.Any(LogConfig.AttrVal, e.Val))
 		}
 		if e.Err != nil {
-			attrs = append(attrs, slog.Any(LogAttrErr, e.Err))
+			attrs = append(attrs, slog.Any(LogConfig.AttrErr, e.Err))
 		}
 	}
 
@@ -174,14 +202,14 @@ func (e Entry[K, V]) String() string {
 // logging Err if non-nil, and always logging Key and [Cache.Name].
 func (e Entry[K, V]) LogValue() slog.Value {
 	attrs := make([]slog.Attr, 2, 4)
-	attrs[0] = slog.String(LogAttrCache, e.Cache.name)
-	attrs[1] = slog.Any(LogAttrKey, e.Key)
+	attrs[0] = slog.String(LogConfig.AttrCache, e.Cache.name)
+	attrs[1] = slog.Any(LogConfig.AttrKey, e.Key)
 
 	if e.isValLogged() {
-		attrs = append(attrs, slog.Any(LogAttrVal, e.Val))
+		attrs = append(attrs, slog.Any(LogConfig.AttrVal, e.Val))
 	}
 	if e.Err != nil {
-		attrs = append(attrs, slog.Any(LogAttrErr, e.Err))
+		attrs = append(attrs, slog.Any(LogConfig.AttrErr, e.Err))
 	}
 
 	return slog.GroupValue(attrs...)

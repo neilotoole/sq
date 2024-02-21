@@ -91,28 +91,28 @@ func (o eventOpt[K, V]) apply(c *Cache[K, V]) { //nolint:unused // linter is wro
 	}
 }
 
-// onEventFuncOpt is [Opt] type returned by [OnFill], [OnEvict], [OnHit], and
+// callbackOpt is [Opt] type returned by [OnFill], [OnEvict], [OnHit], and
 // [OnMiss].
-type onEventFuncOpt[K comparable, V any] struct {
+type callbackOpt[K comparable, V any] struct {
 	fn callbackFunc[K, V]
 	op Op
 }
 
-func (f onEventFuncOpt[K, V]) optioner() {}
+func (o callbackOpt[K, V]) optioner() {}
 
-func (f onEventFuncOpt[K, V]) apply(c *Cache[K, V]) { //nolint:unused // linter is wrong, method is invoked.
-	switch f.op {
+func (o callbackOpt[K, V]) apply(c *Cache[K, V]) { //nolint:unused // linter is wrong, method is invoked.
+	switch o.op {
 	case OpFill:
-		c.onFill = append(c.onFill, f.fn)
+		c.onFill = append(c.onFill, o.fn)
 	case OpEvict:
-		c.onEvict = append(c.onEvict, f.fn)
+		c.onEvict = append(c.onEvict, o.fn)
 	case OpHit:
-		c.onHit = append(c.onHit, f.fn)
+		c.onHit = append(c.onHit, o.fn)
 	case OpMiss:
-		c.onMiss = append(c.onMiss, f.fn)
+		c.onMiss = append(c.onMiss, o.fn)
 	default:
 		// Shouldn't happen.
-		panic(fmt.Sprintf("unknown op: %v: %s", f.op, f.op))
+		panic(fmt.Sprintf("unknown op: %v: %s", o.op, o.op))
 	}
 }
 
@@ -127,7 +127,7 @@ func (f onEventFuncOpt[K, V]) apply(c *Cache[K, V]) { //nolint:unused // linter 
 // While [OnFill] can be used for logging, metrics, etc., most common tasks are
 // better accomplished via [OnEvent].
 func OnFill[K comparable, V any](fn func(ctx context.Context, key K, val V, err error)) Opt {
-	return onEventFuncOpt[K, V]{op: OpFill, fn: fn}
+	return callbackOpt[K, V]{op: OpFill, fn: fn}
 }
 
 // OnEvict returns a callback [Opt] for [New] that is invoked when a cache entry
@@ -137,7 +137,7 @@ func OnFill[K comparable, V any](fn func(ctx context.Context, key K, val V, err 
 // [Cache.Delete] or [Cache.Clear] blocks until every [OnEvict] returns.
 // Consider using [OnEvent] for long-running callbacks.
 func OnEvict[K comparable, V any](fn func(ctx context.Context, key K, val V, err error)) Opt {
-	return onEventFuncOpt[K, V]{op: OpEvict, fn: fn}
+	return callbackOpt[K, V]{op: OpEvict, fn: fn}
 }
 
 // OnHit returns a callback [Opt] for [New] that is invoked when [Cache.Get]
@@ -147,7 +147,7 @@ func OnEvict[K comparable, V any](fn func(ctx context.Context, key K, val V, err
 // [Cache.Get] blocks until every [OnHit] returns. Consider using the
 // asynchronous [OnEvent] for long-running callbacks.
 func OnHit[K comparable, V any](fn func(ctx context.Context, key K, val V, err error)) Opt {
-	return onEventFuncOpt[K, V]{op: OpHit, fn: fn}
+	return callbackOpt[K, V]{op: OpHit, fn: fn}
 }
 
 // OnMiss returns a callback [Opt] for [New] that is invoked when [Cache.Get]
@@ -156,8 +156,10 @@ func OnHit[K comparable, V any](fn func(ctx context.Context, key K, val V, err e
 // Note that [OnMiss] callbacks are synchronous; the triggering call to
 // [Cache.Get] blocks until every [OnMiss] returns. Consider using the
 // asynchronous [OnEvent] for long-running callbacks.
+//
+// FIXME: Starting to think OnMiss should just use the standard callback signature.
 func OnMiss[K comparable, V any](fn func(ctx context.Context, key K)) Opt {
-	return onEventFuncOpt[K, V]{op: OpMiss, fn: func(ctx context.Context, key K, val V, err error) {
+	return callbackOpt[K, V]{op: OpMiss, fn: func(ctx context.Context, key K, val V, err error) {
 		fn(ctx, key)
 	}}
 }
