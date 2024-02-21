@@ -426,7 +426,7 @@ func requireDrainActionCh(t *testing.T, ch <-chan oncecache.Op,
 	require.Equal(t, wantCount, gotCount)
 }
 
-func TestLogging(t *testing.T) {
+func TestLogOutput(t *testing.T) {
 	ctx := context.Background()
 
 	c := oncecache.New[int, int](fetchDouble)
@@ -477,7 +477,7 @@ func TestLogging(t *testing.T) {
 	log.Info("Got entry", "entry", event.Entry)
 }
 
-func TestLogOpt(t *testing.T) {
+func TestLog(t *testing.T) {
 	log := slogt.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -500,39 +500,4 @@ func TestLogOpt(t *testing.T) {
 	c.MaybeSet(ctx, 7, 55, nil)
 	c.MaybeSet(ctx, 7, 55, nil)
 	_, _ = c.Get(ctx, 7)
-}
-
-func TestLogEvents(t *testing.T) {
-	log := slogt.New(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	eventCh := make(chan oncecache.Event[int, int], 100)
-	c := oncecache.New[int, int](
-		calcFibonacci,
-		oncecache.Name("fibs"),
-		oncecache.OnEvent(eventCh, true),
-	)
-
-	doneCh := make(chan struct{})
-	go func() {
-		defer close(doneCh)
-		oncecache.LogEvents(ctx, eventCh, log, slog.LevelDebug, nil)
-	}()
-
-	_, _ = c.Get(ctx, 10)
-	_, _ = c.Get(ctx, 10)
-	_, _ = c.Get(ctx, 10)
-	c.Delete(ctx, 10)
-	_, _ = c.Get(ctx, 10)
-	_, _ = c.Get(ctx, 7)
-	_, _ = c.Get(ctx, 7)
-
-	c.Delete(ctx, 7)
-	c.MaybeSet(ctx, 7, 55, nil)
-	c.MaybeSet(ctx, 7, 55, nil)
-	_, _ = c.Get(ctx, 7)
-
-	close(eventCh)
-	<-doneCh
 }

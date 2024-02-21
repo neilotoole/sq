@@ -7,16 +7,27 @@ import (
 	"strings"
 )
 
+// The LogX variables are used by [oncecache.Log] via [oncecache.Event.LogValue]
+// to control cache event log output.
+var (
+	LogMsg       = "Cache event"
+	LogAttrEvent = "ev"
+	LogAttrCache = "cache"
+	LogAttrOp    = "op"
+	LogAttrKey   = "k"
+	LogAttrVal   = "v"
+	LogAttrErr   = "err"
+)
+
 // Log is an [Opt] for [oncecache.New] that logs each [Event] to log, where
 // [Event.Op] is in ops. If ops is empty, all events are logged. If log is nil,
 // Log is a no-op. If lvl is nil, [slog.LevelInfo] is used.
 //
-// Note that [Event.LogValue] implements [slog.LogValuer]; the event is logged
-// as an attribute using [oncecache.LogAttrEvent], with the log message
-// [oncecache.LogMsg].
+// Note that [Event.LogValue] implements [slog.LogValuer]. Output is controlled
+// by the LogX variables, e.g. [LogMsg], [LogAttrEvent], etc.
 //
-// If you require more control, you can roll your own logging mechanism using an
-// [OnEvent] channel or the On* callbacks.
+// If you require even more control, you can roll your own logging mechanism
+// using an [OnEvent] channel or the On* callbacks.
 func Log[K comparable, V any](log *slog.Logger, lvl slog.Leveler, ops ...Op) Opt {
 	if log == nil {
 		return nil
@@ -102,88 +113,6 @@ func (o *logOpt[K, V]) logEvict(ctx context.Context, key K, val V, err error) { 
 	}
 	o.logEvent(ctx, ev)
 }
-
-// LogEvents logs cache events from ch to the given logger. It continues until ch is
-// consumed or the non-nil ctx is done. It is common to spawn a goroutine to
-// handle the logging. For example:
-//
-//	eventCh := make(chan oncecache.Event[int, int], 100)
-//	c := oncecache.New[int, int](
-//	  calcFibonacci,
-//	  oncecache.Name("fibs"),
-//	  oncecache.OnEvent(eventCh, true),
-//	)
-//
-//	go oncecache.LogEvents(ctx, eventCh, log, slog.LevelDebug, nil)
-//
-//	c.Get(ctx, 10) // emits miss, then fill
-//	c.Get(ctx, 10) // emits hit
-//
-//	// Output:
-//	level=DEBUG msg="Cache event" e.op=miss e.cache=fibs e.key=10 e.val=0 e.err=<nil>
-//	level=DEBUG msg="Cache event" e.op=fill e.cache=fibs e.key=10 e.val=55 e.err=<nil>
-//	level=DEBUG msg="Cache event" e.op=hit e.cache=fibs e.key=10 e.val=55 e.err=<nil>
-//
-// Note that [LogEvents] returns immediately if log or ch are nil. If lvl is nil,
-// [slog.LevelInfo] is used.
-//
-// If msgFmt is non-nil, it is invoked on each event to format the log message;
-// otherwise, [oncecache.LogMsg] is used.
-//
-// Note that [Event.LogValue] implements [slog.LogValuer]; the event is logged
-// as an attribute using [oncecache.LogAttrEvent].
-func LogEvents[K comparable, V any](ctx context.Context, ch <-chan Event[K, V],
-	log *slog.Logger, lvl slog.Leveler, msgFmt func(Event[K, V]) string,
-) {
-	if ch == nil || log == nil {
-		return
-	}
-
-	if isNil(lvl) {
-		lvl = slog.LevelInfo
-	}
-
-	msg := LogMsg
-
-	if ctx == nil {
-		for e := range ch {
-			if msgFmt != nil {
-				msg = msgFmt(e)
-			}
-			log.Log(nil, lvl.Level(), msg, slog.Any(LogAttrEvent, e)) //nolint:staticcheck
-		}
-		return
-	}
-
-	done := ctx.Done()
-	for ctx.Err() == nil {
-		select {
-		case e, ok := <-ch:
-			if !ok {
-				return
-			}
-			if msgFmt != nil {
-				msg = msgFmt(e)
-			}
-
-			log.LogAttrs(ctx, lvl.Level(), msg, slog.Any(LogAttrEvent, e))
-		case <-done:
-			return
-		}
-	}
-}
-
-// The Log* variables are used by [oncecache.Log] via [oncecache.Event.LogValue]
-// to control cache event log output.
-var (
-	LogMsg       = "Cache event"
-	LogAttrEvent = "ev"
-	LogAttrCache = "cache"
-	LogAttrOp    = "op"
-	LogAttrKey   = "k"
-	LogAttrVal   = "v"
-	LogAttrErr   = "err"
-)
 
 // LogValue implements [slog.LogValuer], logging according to [Entry.LogValue],
 // but also logging [Event.Op].
