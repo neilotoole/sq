@@ -71,22 +71,29 @@ func (c *Cache[K, V]) applyOpts(opts []Opt) {
 }
 
 // Cache is a concurrency-safe, in-memory, on-demand cache that ensures that a
-// given cache entry is populated only once (unless explicitly cleared), either
-// implicitly via [Cache.Get] or externally via [Cache.Set].
+// given cache entry is populated only once, either implicitly via [Cache.Get]
+// and the fetch func, or externally via [Cache.Set].
 //
-// An entry can be explicitly cleared via [Cache.Delete] or [Cache.Clear],
-// allowing the entry to be populated afresh.
+// However, a cache entry can be explicitly cleared via [Cache.Delete] or
+// [Cache.Clear], allowing the entry to be populated afresh.
 //
 // A cache entry consists not only of the key and value, but also any error
-// associated with filling the entry value.
+// associated with filling the entry value via the fetch func or via
+// [Cache.Set]. Thus, a cache entry is a triple: (key, value, error). An entry
+// with a non-nil error is still a valid cache entry. A call to [Cache.Get] for
+// an existing errorful cache entry does not invoke the fetch func again. Cache
+// entry population occurs only once (hence "oncecache"), unless the entry is
+// explicitly evicted via [Cache.Delete] or [Cache.Clear].
 //
 // The zero value is not usable; instead invoke [New].
 type Cache[K comparable, V any] struct {
 	fetch   FetchFunc[K, V]
 	entries map[K]*entry[K, V]
 	name    string
-	onFill  []notifyFunc[K, V]
-	onEvict []notifyFunc[K, V]
+	onFill  []callbackFunc[K, V]
+	onEvict []callbackFunc[K, V]
+	onHit   []callbackFunc[K, V]
+	onMiss  []callbackFunc[K, V]
 	mu      sync.Mutex
 }
 
@@ -144,18 +151,19 @@ func (c *Cache[K, V]) Clear(ctx context.Context) {
 	evictions := make([]func(), 0, len(c.entries))
 	ctx = NewContext(ctx, c)
 	for key, ent := range c.entries {
-		if ent != nil {
-			e := ent
-			evictions = append(evictions, func() { e.evict(ctx, key) })
+		if ent == nil {
+			continue // Shouldn't be possible
 		}
+		e := ent
+		evictions = append(evictions, func() { e.notifyEvict(ctx, key) })
 	}
 
 	clear(c.entries)
+	for _, fn := range evictions {
+		fn()
+	}
 	c.mu.Unlock()
 
-	for _, evict := range evictions {
-		evict()
-	}
 }
 
 // Delete deletes the entry for the given key, invoking any [OnEvict]
@@ -163,11 +171,13 @@ func (c *Cache[K, V]) Clear(ctx context.Context) {
 func (c *Cache[K, V]) Delete(ctx context.Context, key K) {
 	c.mu.Lock()
 	e, ok := c.entries[key]
-	delete(c.entries, key)
-	c.mu.Unlock()
-	if ok && e != nil {
-		e.evict(NewContext(ctx, c), key)
+	if ok {
+		delete(c.entries, key)
+		if e != nil {
+			e.notifyEvict(NewContext(ctx, c), key)
+		}
 	}
+	c.mu.Unlock()
 }
 
 // Set explicitly sets the value and fill error for the given key, allowing an
@@ -281,28 +291,36 @@ func (e *entry[K, V]) set(ctx context.Context, key K, val V, err error) {
 }
 
 func (e *entry[K, V]) get(ctx context.Context, key K) (V, error) {
-	var notify bool
+	var miss bool
 	e.once.Do(func() {
+		miss = true
 		ctx = NewContext(ctx, e.cache)
+		for _, fn := range e.cache.onMiss {
+			fn(ctx, key, e.val, e.err)
+		}
+
 		e.val, e.err = e.cache.fetch(ctx, key)
-		notify = true
+
+		for _, fn := range e.cache.onFill {
+			fn(ctx, key, e.val, e.err)
+		}
 	})
 
-	// We perform notification outside the once to avoid holding the lock.
-	if notify && len(e.cache.onFill) > 0 {
-		for _, onFill := range e.cache.onFill {
-			onFill(ctx, key, e.val, e.err)
+	if !miss && len(e.cache.onHit) > 0 {
+		ctx = NewContext(ctx, e.cache)
+		for _, fn := range e.cache.onHit {
+			fn(ctx, key, e.val, e.err)
 		}
 	}
 
 	return e.val, e.err
 }
 
-// evict invokes any [OnEvict] callbacks for the given cache entry. The caller
-// should beforehand decorate ctx via [NewContext].
-func (e *entry[K, V]) evict(ctx context.Context, key K) {
-	for _, onEvict := range e.cache.onEvict {
-		onEvict(ctx, key, e.val, e.err)
+// notifyEvict invokes any [OnEvict] callbacks for the given cache entry. The
+// caller should beforehand decorate ctx via [NewContext].
+func (e *entry[K, V]) notifyEvict(ctx context.Context, key K) {
+	for _, fn := range e.cache.onEvict {
+		fn(ctx, key, e.val, e.err)
 	}
 }
 

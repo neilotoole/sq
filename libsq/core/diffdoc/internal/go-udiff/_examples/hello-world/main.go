@@ -9,6 +9,6 @@ import (
 func main() {
 	a := "Hello, world!\n"
 	b := "Hello, Go!\nSay hi to µDiff"
-	d := udiff.Unified("a.txt", "b.txt", a, b)
+	d := udiff.Unified("a.txt", "b.txt", a, b, 3)
 	fmt.Println(d)
 }
