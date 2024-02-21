@@ -275,7 +275,7 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 
 	ru.Grips = driver.NewGrips(dr, ru.Files, scratchSrcFunc)
 	ru.Cleanup.AddC(ru.Grips)
-	ru.MDCache = mdcache.New(ctx, cfg.Collection, ru.Grips)
+	ru.MDCache = mdcache.New(ctx, nil, cfg.Collection, ru.Grips)
 	ru.Cleanup.AddC(ru.MDCache)
 
 	dr.AddProvider(drivertype.SQLite, &sqlite3.Provider{Log: log})

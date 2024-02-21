@@ -362,3 +362,20 @@ func isNil(x any) bool {
 	defer func() { recover() }() //nolint:errcheck
 	return x == nil || reflect.ValueOf(x).IsNil()
 }
+
+// uniq returns a new slice containing only the unique elements of a.
+func uniq[T comparable](a []T) []T {
+	result := make([]T, 0, len(a))
+	seen := make(map[T]struct{}, len(a))
+
+	for _, item := range a {
+		if _, ok := seen[item]; ok {
+			continue
+		}
+
+		seen[item] = struct{}{}
+		result = append(result, item)
+	}
+
+	return result
+}

@@ -3,6 +3,8 @@ package mdcache
 
 import (
 	"context"
+	"log/slog"
+	"sync"
 
 	"golang.org/x/sync/errgroup"
 
@@ -18,33 +20,42 @@ import (
 // actual internal cache values, not copies, so the caller MUST NOT modify
 // the returned values.
 type Cache struct {
-	coll     *source.Collection
-	grips    *driver.Grips
-	tblMeta  *oncecache.Cache[source.Table, *metadata.Table]
-	srcMeta  *oncecache.Cache[string, *metadata.Source]
-	tblNames *oncecache.Cache[string, []string]
-	dbProps  *oncecache.Cache[string, map[string]any]
+	coll      *source.Collection
+	grips     *driver.Grips
+	tblMeta   *oncecache.Cache[source.Table, *metadata.Table]
+	srcMeta   *oncecache.Cache[string, *metadata.Source]
+	tblNames  *oncecache.Cache[string, []string]
+	dbProps   *oncecache.Cache[string, map[string]any]
+	logCancel func()
+	logWg     *sync.WaitGroup
 }
 
-// New returns a new [Cache].
-func New(_ context.Context, coll *source.Collection, grips *driver.Grips) *Cache {
+// New returns a new [Cache]. If log is non-nil, it will be used for logging
+// cache events.
+func New(ctx context.Context, log *slog.Logger, coll *source.Collection, grips *driver.Grips) *Cache {
 	c := &Cache{coll: coll, grips: grips}
 
 	c.tblMeta = oncecache.New[source.Table, *metadata.Table](
 		c.fetchTableMeta,
 		oncecache.Name("mdcache.tblMeta"),
+		oncecache.Log[source.Table, *metadata.Table](log, slog.LevelDebug),
 	)
+
 	c.srcMeta = oncecache.New[string, *metadata.Source](
 		c.fetchSourceMeta,
 		oncecache.Name("mdcache.srcMeta"),
+		oncecache.Log[string, *metadata.Source](log, slog.LevelDebug),
 	)
 	c.tblNames = oncecache.New[string, []string](
 		c.fetchTableNames,
 		oncecache.Name("mdcache.tblNames"),
+		oncecache.Log[string, *metadata.Source](log, slog.LevelDebug),
 	)
+
 	c.dbProps = oncecache.New[string, map[string]any](
 		c.fetchDBProps,
 		oncecache.Name("mdcache.dbProps"),
+		oncecache.Log[string, map[string]any](log, slog.LevelDebug),
 	)
 
 	return c
@@ -52,6 +63,8 @@ func New(_ context.Context, coll *source.Collection, grips *driver.Grips) *Cache
 
 // Close closes the cache.
 func (c *Cache) Close() error {
+	//ctx := context.Background()
+
 	// FIXME: Probably need to add a method oncecache.Cache.Close().
 	// Unlike oncecache.Cache.Clear, it wouldn't send out notification signals.
 	return nil

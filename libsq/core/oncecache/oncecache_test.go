@@ -477,6 +477,40 @@ func TestLogging(t *testing.T) {
 	log.Info("Got entry", "entry", event.Entry)
 }
 
+func TestLogOpt(t *testing.T) {
+	log := slogt.New(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	c := oncecache.New[int, int](
+		calcFibonacci,
+		oncecache.Name("fibs"),
+		oncecache.Log[int, int](log, slog.LevelDebug),
+	)
+
+	//doneCh := make(chan struct{})
+	//go func() {
+	//	defer close(doneCh)
+	//	oncecache.LogEvents(ctx, eventCh, log, slog.LevelDebug, nil)
+	//}()
+
+	_, _ = c.Get(ctx, 10)
+	_, _ = c.Get(ctx, 10)
+	_, _ = c.Get(ctx, 10)
+	c.Delete(ctx, 10)
+	_, _ = c.Get(ctx, 10)
+	_, _ = c.Get(ctx, 7)
+	_, _ = c.Get(ctx, 7)
+
+	c.Delete(ctx, 7)
+	c.MaybeSet(ctx, 7, 55, nil)
+	c.MaybeSet(ctx, 7, 55, nil)
+	_, _ = c.Get(ctx, 7)
+
+	//close(eventCh)
+	//<-doneCh
+}
+
 func TestLogEvents(t *testing.T) {
 	log := slogt.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -492,7 +526,7 @@ func TestLogEvents(t *testing.T) {
 	doneCh := make(chan struct{})
 	go func() {
 		defer close(doneCh)
-		oncecache.Log(ctx, eventCh, log, slog.LevelDebug, nil)
+		oncecache.LogEvents(ctx, eventCh, log, slog.LevelDebug, nil)
 	}()
 
 	_, _ = c.Get(ctx, 10)

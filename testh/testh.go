@@ -213,7 +213,7 @@ func (h *Helper) init() {
 			ConfigStore:     config.DiscardStore{},
 			OptionsRegistry: optRegistry,
 			DriverRegistry:  h.registry,
-			MDCache:         mdcache.New(h.Context, cfg.Collection, h.grips),
+			MDCache:         mdcache.New(h.Context, nil, cfg.Collection, h.grips),
 		}
 
 		if h.run.Writers == nil {
