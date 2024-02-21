@@ -253,6 +253,28 @@ func (c *Cache[K, V]) getEntry(key K) *entry[K, V] {
 	return e
 }
 
+// Close closes the cache, releasing any resources. Close is idempotent and
+// always returns nil. Callbacks are not invoked. The cache is not usable after
+// Close is invoked; calls to other [Cache] methods may panic.
+func (c *Cache[K, V]) Close() error {
+	if c == nil {
+		return nil
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.onFill = nil
+	c.onEvict = nil
+	c.onHit = nil
+	c.onMiss = nil
+	c.entries = nil
+	c.fetch = nil
+	c.getValueFn = nil
+	c.maybeSetValueFn = nil
+	return nil
+}
+
 // entry is the internal representation of a cache entry. Contrast with the
 // external [Entry] type.
 type entry[K comparable, V any] struct {
@@ -321,12 +343,6 @@ func getValueFast[K comparable, V any](ctx context.Context, e *entry[K, V], key 
 	return e.val, e.err
 }
 
-func randomName() string {
-	b := make([]byte, 128)
-	_, _ = rand.Read(b)
-	return fmt.Sprintf("cache-%x", crc32.ChecksumIEEE(b))
-}
-
 type ctxKey struct{}
 
 // NewContext returns ctx decorated with [Cache] c. If ctx is nil, a new context
@@ -359,6 +375,12 @@ func FromContext[K comparable, V any](ctx context.Context) *Cache[K, V] {
 	return nil
 }
 
+func randomName() string {
+	b := make([]byte, 128)
+	_, _ = rand.Read(b)
+	return fmt.Sprintf("cache-%x", crc32.ChecksumIEEE(b))
+}
+
 // isNil checks if a value is nil or if it's a reference type with a nil
 // underlying value.
 func isNil(x any) bool {
@@ -371,13 +393,13 @@ func uniq[T comparable](a []T) []T {
 	result := make([]T, 0, len(a))
 	seen := make(map[T]struct{}, len(a))
 
-	for _, item := range a {
-		if _, ok := seen[item]; ok {
+	for _, val := range a {
+		if _, ok := seen[val]; ok {
 			continue
 		}
 
-		seen[item] = struct{}{}
-		result = append(result, item)
+		seen[val] = struct{}{}
+		result = append(result, val)
 	}
 
 	return result

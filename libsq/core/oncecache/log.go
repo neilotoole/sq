@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-// The LogX variables are used by [oncecache.Log] via [oncecache.Event.LogValue]
-// to control cache event log output.
+// The LogX variables are used by [oncecache.Log] to configure log output.
+// See also: [oncecache.Event.LogValue], [oncecache.Entry.LogValue].
 var (
 	LogMsg       = "Cache event"
 	LogAttrEvent = "ev"
