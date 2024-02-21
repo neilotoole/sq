@@ -62,13 +62,15 @@ func TestCache(t *testing.T) {
 	require.Empty(t, got)
 
 	// Seven is my lucky number though.
-	c.MaybeSet(ctx, 7, "seven", nil)
+	ok := c.MaybeSet(ctx, 7, "seven", nil)
+	require.True(t, ok)
 	got, err = c.Get(ctx, 7)
 	require.NoError(t, err)
 	require.Equal(t, "seven", got)
 
 	// Verify that it a value can only be set once.
-	c.MaybeSet(ctx, 7, "", errors.New("nope"))
+	ok = c.MaybeSet(ctx, 7, "", errors.New("nope"))
+	require.False(t, ok)
 	got, err = c.Get(ctx, 7)
 	require.NoError(t, err)
 	require.Equal(t, "seven", got)
@@ -81,7 +83,8 @@ func TestCache(t *testing.T) {
 
 	// Verify that clear works too.
 	c.Clear(ctx)
-	c.MaybeSet(ctx, 7, "seven", nil)
+	ok = c.MaybeSet(ctx, 7, "seven", nil)
+	require.True(t, ok)
 	got, err = c.Get(ctx, 7)
 	require.NoError(t, err)
 	require.Equal(t, "seven", got)
@@ -207,7 +210,7 @@ func Test_OnFill_OnEvict(t *testing.T) {
 		oncecache.OnFill(func(ctx context.Context, orgName string, org *hrsystem.Org, err error) {
 			// Propagate the org's departments to the deptCache.
 			for _, dept := range org.Departments {
-				deptCache.MaybeSet(ctx, dept.Name, dept, nil)
+				_ = deptCache.MaybeSet(ctx, dept.Name, dept, nil)
 				// Note: Setting an entry on deptCache should in turn propagate to
 				// empCache, because deptCache is itself configured with an OnFill
 				// handler below.
@@ -225,7 +228,7 @@ func Test_OnFill_OnEvict(t *testing.T) {
 		db.GetDepartment,
 		oncecache.OnFill(func(ctx context.Context, deptName string, dept *hrsystem.Department, err error) {
 			for _, emp := range dept.Staff {
-				empCache.MaybeSet(ctx, emp.ID, emp, nil)
+				_ = empCache.MaybeSet(ctx, emp.ID, emp, nil)
 			}
 		}),
 		oncecache.OnEvict(func(ctx context.Context, deptName string, dept *hrsystem.Department, err error) {
@@ -314,7 +317,7 @@ func TestOnEventChan(t *testing.T) {
 				switch event.Op { //nolint:exhaustive
 				case oncecache.OpFill:
 					for _, dept := range org.Departments {
-						deptCache.MaybeSet(ctx, dept.Name, dept, event.Err)
+						_ = deptCache.MaybeSet(ctx, dept.Name, dept, event.Err)
 					}
 				case oncecache.OpEvict:
 					for _, dept := range org.Departments {
@@ -330,7 +333,7 @@ func TestOnEventChan(t *testing.T) {
 				switch event.Op { //nolint:exhaustive
 				case oncecache.OpFill:
 					for _, emp := range dept.Staff {
-						empCache.MaybeSet(ctx, emp.ID, emp, nil)
+						_ = empCache.MaybeSet(ctx, emp.ID, emp, nil)
 					}
 				case oncecache.OpEvict:
 					for _, emp := range dept.Staff {
@@ -497,7 +500,7 @@ func TestLog(t *testing.T) {
 	_, _ = c.Get(ctx, 7)
 
 	c.Delete(ctx, 7)
-	c.MaybeSet(ctx, 7, 55, nil)
-	c.MaybeSet(ctx, 7, 55, nil)
+	_ = c.MaybeSet(ctx, 7, 55, nil)
+	_ = c.MaybeSet(ctx, 7, 55, nil)
 	_, _ = c.Get(ctx, 7)
 }

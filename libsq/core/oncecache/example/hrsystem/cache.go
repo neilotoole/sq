@@ -116,7 +116,7 @@ func (c *HRCache) onFillOrg(ctx context.Context, _ string, org *Org, err error) 
 
 	for _, dept := range org.Departments {
 		// Filling a dept entry should in turn propagate to the employees cache.
-		c.depts.MaybeSet(ctx, dept.Name, dept, nil)
+		_ = c.depts.MaybeSet(ctx, dept.Name, dept, nil)
 	}
 }
 
@@ -129,6 +129,6 @@ func (c *HRCache) onFillDept(ctx context.Context, _ string, dept *Department, er
 	}
 
 	for _, emp := range dept.Staff {
-		c.employees.MaybeSet(ctx, emp.ID, emp, nil)
+		_ = c.employees.MaybeSet(ctx, emp.ID, emp, nil)
 	}
 }
