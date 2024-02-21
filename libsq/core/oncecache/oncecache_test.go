@@ -503,6 +503,11 @@ func TestLogEvents(t *testing.T) {
 	_, _ = c.Get(ctx, 7)
 	_, _ = c.Get(ctx, 7)
 
+	c.Delete(ctx, 7)
+	c.MaybeSet(ctx, 7, 55, nil)
+	c.MaybeSet(ctx, 7, 55, nil)
+	_, _ = c.Get(ctx, 7)
+
 	close(eventCh)
 	<-doneCh
 }

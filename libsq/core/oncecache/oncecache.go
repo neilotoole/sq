@@ -104,7 +104,7 @@ func (c *Cache[K, V]) applyOpts(opts []Opt) {
 type Cache[K comparable, V any] struct {
 	fetch           FetchFunc[K, V]
 	entries         map[K]*entry[K, V]
-	maybeSetValueFn func(ctx context.Context, e *entry[K, V], key K, val V, err error)
+	maybeSetValueFn func(ctx context.Context, e *entry[K, V], key K, val V, err error) bool
 	getValueFn      func(ctx context.Context, e *entry[K, V], key K) (V, error)
 	name            string
 	onFill          []callbackFunc[K, V]
@@ -213,14 +213,17 @@ func (c *Cache[K, V]) Delete(ctx context.Context, key K) {
 }
 
 // MaybeSet sets the value and fill error for the given key if it is not already
-// filled, thus allowing an external process to prime the cache. Note that the
-// value might instead be filled implicitly via [Cache.Get], when it invokes the
-// fetch func. If there's already a cache entry for key, MaybeSet is no-op: the
-// value is not updated. If this MaybeSet call does update the cache entry, any
-// [OnFill] callbacks - as provided to [New] - are invoked.
-func (c *Cache[K, V]) MaybeSet(ctx context.Context, key K, val V, err error) {
+// filled, returning true if the value was set. This would allow an external
+// process to prime the cache.
+//
+// Note that the value might instead be filled implicitly via [Cache.Get], when
+// it invokes the fetch func. If there's already a cache entry for key, MaybeSet
+// is no-op: the value is not updated. If this MaybeSet call does update the
+// cache entry, any [OnFill] callbacks - as provided to [New] - are invoked, and
+// ok returns true.
+func (c *Cache[K, V]) MaybeSet(ctx context.Context, key K, val V, err error) (ok bool) {
 	e := c.getEntry(key)
-	c.maybeSetValueFn(ctx, e, key, val, err)
+	return c.maybeSetValueFn(ctx, e, key, val, err)
 }
 
 // Get gets the value (and fill error) for the given key. If there's no entry
@@ -256,8 +259,10 @@ type entry[K comparable, V any] struct {
 	once  sync.Once
 }
 
-func maybeSetValueSlow[K comparable, V any](ctx context.Context, e *entry[K, V], key K, val V, err error) {
+func maybeSetValueSlow[K comparable, V any](ctx context.Context, e *entry[K, V], key K, val V, err error) bool {
+	var ok bool
 	e.once.Do(func() {
+		ok = true
 		e.val = val
 		e.err = err
 		ctx = NewContext(ctx, e.cache)
@@ -265,13 +270,17 @@ func maybeSetValueSlow[K comparable, V any](ctx context.Context, e *entry[K, V],
 			fn(ctx, key, val, err)
 		}
 	})
+	return ok
 }
 
-func maybeSetValueFast[K comparable, V any](_ context.Context, e *entry[K, V], _ K, val V, err error) {
+func maybeSetValueFast[K comparable, V any](_ context.Context, e *entry[K, V], _ K, val V, err error) bool {
+	var ok bool
 	e.once.Do(func() {
 		e.val = val
 		e.err = err
+		ok = true
 	})
+	return ok
 }
 
 func getValueSlow[K comparable, V any](ctx context.Context, e *entry[K, V], key K) (V, error) {
