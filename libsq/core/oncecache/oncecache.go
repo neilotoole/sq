@@ -28,7 +28,7 @@ type FetchFunc[K comparable, V any] func(ctx context.Context, key K) (val V, err
 //
 // Arg opts is a set of options that can be used to configure the cache. For
 // example, see [Name] to set the cache name, or the [OnFill] or [OnEvict]
-// options for event callbacks.
+// options for event callbacks. Any nil [Opt] in opts is ignored.
 func New[K comparable, V any](fetch FetchFunc[K, V], opts ...Opt) *Cache[K, V] {
 	c := &Cache[K, V]{
 		name:    randomName(),
@@ -81,7 +81,7 @@ func (c *Cache[K, V]) applyOpts(opts []Opt) {
 		// Hmmmn, I thought I was soooo clever with that applyConcrete mechanism,
 		// but it isn't helping with the logOpt scenario. Rethink required.
 		if cfg, ok := opt.(logOptConfig); ok {
-			newLogOpt[K, V](cfg).apply(c)
+			(*logOpt[K, V])(&cfg).apply(c)
 			continue
 		}
 
@@ -275,10 +275,7 @@ func (c *Cache[K, V]) Close() error {
 	c.onEvict = nil
 	c.onHit = nil
 	c.onMiss = nil
-	c.entries = nil
-	c.fetch = nil
-	c.getValueFn = nil
-	c.maybeSetValueFn = nil
+	clear(c.entries)
 	return nil
 }
 

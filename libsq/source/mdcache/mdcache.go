@@ -29,7 +29,7 @@ type Cache struct {
 
 // New returns a new [Cache]. If log is non-nil, it will be used for logging
 // cache events.
-func New(_ context.Context, log *slog.Logger, coll *source.Collection, grips *driver.Grips) *Cache {
+func New(log *slog.Logger, coll *source.Collection, grips *driver.Grips) *Cache {
 	c := &Cache{coll: coll, grips: grips}
 
 	c.tblMeta = oncecache.New[source.Table, *metadata.Table](
@@ -60,11 +60,16 @@ func New(_ context.Context, log *slog.Logger, coll *source.Collection, grips *dr
 
 // Close closes the cache.
 func (c *Cache) Close() error {
-	// ctx := context.Background()
+	if c == nil {
+		return nil
+	}
 
-	// FIXME: Probably need to add a method oncecache.Cache.Close().
-	// Unlike oncecache.Cache.Clear, it wouldn't send out notification signals.
-	return nil
+	return errz.Combine(
+		c.tblNames.Close(),
+		c.tblMeta.Close(),
+		c.srcMeta.Close(),
+		c.dbProps.Close(),
+	)
 }
 
 // TableMeta returns the metadata for tbl. The returned value is the internal

@@ -60,7 +60,6 @@ func NewGrips(drvrs Provider, fs *files.Files, scratchSrcFn ScratchSrcFunc) *Gri
 // NOTE: This entire logic re caching/not-closing is a bit sketchy,
 // and needs to be revisited.
 func (gs *Grips) Open(ctx context.Context, src *source.Source) (Grip, error) {
-	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
 
@@ -97,7 +96,6 @@ func (gs *Grips) IsSQLSource(src *source.Source) bool {
 }
 
 func (gs *Grips) doOpen(ctx context.Context, src *source.Source) (Grip, error) {
-	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 	grip, ok := gs.grips[src.Handle]
 	if ok {
 		return grip, nil

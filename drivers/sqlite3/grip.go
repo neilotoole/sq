@@ -142,8 +142,12 @@ func (g *grip) getSourceMetadata(ctx context.Context, noSchema bool) (*metadata.
 // return the same error.
 func (g *grip) Close() error {
 	g.closeOnce.Do(func() {
-		g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
 		g.closeErr = errw(g.db.Close())
+		if g.closeErr != nil {
+			g.log.Error(lgm.CloseDB, lga.Handle, g.src.Handle, lga.Err, g.closeErr)
+		} else {
+			g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
+		}
 	})
 
 	return g.closeErr

@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"log/slog"
+	"sync"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
@@ -15,10 +17,12 @@ import (
 
 // grip is the postgres implementation of driver.Grip.
 type grip struct {
-	log  *slog.Logger
-	drvr *driveri
-	db   *sql.DB
-	src  *source.Source
+	log       *slog.Logger
+	drvr      *driveri
+	db        *sql.DB
+	src       *source.Source
+	closeErr  error
+	closeOnce sync.Once
 }
 
 // DB implements driver.Grip.
@@ -56,11 +60,14 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 
 // Close implements driver.Grip.
 func (g *grip) Close() error {
-	g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
+	g.closeOnce.Do(func() {
+		g.closeErr = errw(g.db.Close())
+		if g.closeErr != nil {
+			g.log.Error(lgm.CloseDB, lga.Handle, g.src.Handle, lga.Err, g.closeErr)
+		} else {
+			g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
+		}
+	})
 
-	err := g.db.Close()
-	if err != nil {
-		return errw(err)
-	}
-	return nil
+	return g.closeErr
 }

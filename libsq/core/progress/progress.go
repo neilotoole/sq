@@ -516,6 +516,17 @@ var OptDebugSleep = options.NewDuration(
 	`DEBUG: Sleep during operations to facilitate testing progress bars.`,
 )
 
+// OptDebugForce forces instantiation of progress bars, even if stderr is not a
+// terminal. It should be removed when the progress impl is stable.
+var OptDebugForce = options.NewBool(
+	"debug.progress.force",
+	nil,
+	false,
+	"DEBUG: Always render progress bars",
+	`DEBUG: Always render progress bars, even when stderr is not a terminal, or
+progress is not enabled. This is useful for testing the progress impl.`,
+)
+
 // DebugSleep sleeps for a period of time to facilitate testing the
 // progress impl. It uses the value from OptDebugSleep. This function
 // (and OptDebugSleep) should be removed when the progress impl is

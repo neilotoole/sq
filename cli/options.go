@@ -208,6 +208,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		csv.OptEmptyAsNull,
 		OptDebugTrackMemory,
 		progress.OptDebugSleep,
+		progress.OptDebugForce,
 	)
 }
 

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
 )
 
 // LogConfig is used by [oncecache.Log] to configure log output.
@@ -74,22 +76,14 @@ type logOptConfig struct {
 
 func (o logOptConfig) optioner() {}
 
-func newLogOpt[K comparable, V any](cfg logOptConfig) *logOpt[K, V] {
-	return &logOpt[K, V]{
-		cfg: cfg,
-	}
-}
+var _ Opt = &logOpt[any, any]{}
 
-var _ Opt = (*logOpt[any, any])(nil)
-
-type logOpt[K comparable, V any] struct {
-	cfg logOptConfig
-}
+type logOpt[K comparable, V any] logOptConfig
 
 func (o *logOpt[K, V]) optioner() {}
 
 func (o *logOpt[K, V]) apply(c *Cache[K, V]) {
-	for _, op := range o.cfg.ops {
+	for _, op := range o.ops {
 		switch op {
 		case OpFill:
 			c.onFill = append(c.onFill, o.logFill)
@@ -106,8 +100,10 @@ func (o *logOpt[K, V]) apply(c *Cache[K, V]) {
 	}
 }
 
-func (o *logOpt[K, V]) logEvent(ctx context.Context, ev Event[K, V]) {
-	o.cfg.log.LogAttrs(ctx, o.cfg.lvl.Level(), LogConfig.Msg, slog.Any(LogConfig.AttrEvent, ev))
+func (o *logOpt[K, V]) logEvent(_ context.Context, ev Event[K, V]) {
+	lg.Depth(o.log, o.lvl.Level(), 7, LogConfig.Msg, slog.Any(LogConfig.AttrEvent, ev))
+
+	// o.log.LogAttrs(ctx, o.lvl.Level(), LogConfig.Msg, slog.Any(LogConfig.AttrEvent, ev))
 }
 
 func (o *logOpt[K, V]) logHit(ctx context.Context, key K, val V, err error) {
@@ -166,7 +162,6 @@ func (e Event[K, V]) LogValue() slog.Value {
 // is not incorporated. For logging, note [Event.LogValue].
 func (e Event[K, V]) String() string {
 	var sb strings.Builder
-
 	sb.WriteString(e.Cache.name)
 	sb.WriteRune('.')
 	sb.WriteString(e.Op.String())
@@ -215,7 +210,7 @@ func (e Entry[K, V]) LogValue() slog.Value {
 	return slog.GroupValue(attrs...)
 }
 
-// isValLogged returns true if the entry's Val field should be logged. Only
+// isValLogged returns true if the Entry's Val field should be logged. Only
 // primitive types and [slog.LogValuer] are logged. In particular, note that
 // string is not logged.
 func (e Entry[K, V]) isValLogged() bool {

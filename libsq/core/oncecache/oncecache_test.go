@@ -381,7 +381,7 @@ func TestOnEventChan(t *testing.T) {
 
 	// Now we notifyEvict acmeCorp, which should propagate to the other caches.
 	orgCache.Delete(ctx, acmeCorp.Name)
-	// Similar to above, we should getValueSlow three evictions.
+	// Similar to above, we should get three evictions.
 	requireDrainActionCh(t, actionCh, time.Millisecond, oncecache.OpEvict, 3)
 
 	// Wiley should no longer be cached, so this call should hit the db.
