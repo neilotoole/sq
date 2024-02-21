@@ -32,7 +32,7 @@ func fetchDouble(_ context.Context, key int) (val int, err error) {
 }
 
 func calcFibonacci(ctx context.Context, n int) (val int, err error) {
-	a, b, temp := 0, 1, 0
+	a, b, temp := 0, 1, 0 //nolint:wastedassign
 	for i := 0; i < n && ctx.Err() == nil; i++ {
 		temp = a
 		a = b
@@ -44,7 +44,6 @@ func calcFibonacci(ctx context.Context, n int) (val int, err error) {
 	}
 
 	return a, nil
-
 }
 
 func TestCache(t *testing.T) {
@@ -63,13 +62,13 @@ func TestCache(t *testing.T) {
 	require.Empty(t, got)
 
 	// Seven is my lucky number though.
-	c.Set(ctx, 7, "seven", nil)
+	c.MaybeSet(ctx, 7, "seven", nil)
 	got, err = c.Get(ctx, 7)
 	require.NoError(t, err)
 	require.Equal(t, "seven", got)
 
 	// Verify that it a value can only be set once.
-	c.Set(ctx, 7, "", errors.New("nope"))
+	c.MaybeSet(ctx, 7, "", errors.New("nope"))
 	got, err = c.Get(ctx, 7)
 	require.NoError(t, err)
 	require.Equal(t, "seven", got)
@@ -82,7 +81,7 @@ func TestCache(t *testing.T) {
 
 	// Verify that clear works too.
 	c.Clear(ctx)
-	c.Set(ctx, 7, "seven", nil)
+	c.MaybeSet(ctx, 7, "seven", nil)
 	got, err = c.Get(ctx, 7)
 	require.NoError(t, err)
 	require.Equal(t, "seven", got)
@@ -208,7 +207,7 @@ func Test_OnFill_OnEvict(t *testing.T) {
 		oncecache.OnFill(func(ctx context.Context, orgName string, org *hrsystem.Org, err error) {
 			// Propagate the org's departments to the deptCache.
 			for _, dept := range org.Departments {
-				deptCache.Set(ctx, dept.Name, dept, nil)
+				deptCache.MaybeSet(ctx, dept.Name, dept, nil)
 				// Note: Setting an entry on deptCache should in turn propagate to
 				// empCache, because deptCache is itself configured with an OnFill
 				// handler below.
@@ -226,7 +225,7 @@ func Test_OnFill_OnEvict(t *testing.T) {
 		db.GetDepartment,
 		oncecache.OnFill(func(ctx context.Context, deptName string, dept *hrsystem.Department, err error) {
 			for _, emp := range dept.Staff {
-				empCache.Set(ctx, emp.ID, emp, nil)
+				empCache.MaybeSet(ctx, emp.ID, emp, nil)
 			}
 		}),
 		oncecache.OnEvict(func(ctx context.Context, deptName string, dept *hrsystem.Department, err error) {
@@ -264,7 +263,7 @@ func Test_OnFill_OnEvict(t *testing.T) {
 	require.Equal(t, 1, db.Stats().GetEmployee())
 }
 
-// TestOnEventChan tests using the [oncecache.OnEventChan] mechanism
+// TestOnEventChan tests using the [oncecache.OnEvent] mechanism
 // to propagate cache entries between overlapping caches, using channels.
 func TestOnEventChan(t *testing.T) {
 	log := slogt.New(t)
@@ -285,8 +284,8 @@ func TestOnEventChan(t *testing.T) {
 	orgCache = oncecache.New[string, *hrsystem.Org](
 		db.GetOrg,
 		oncecache.Name("orgCache"),
-		//oncecache.OnFillChan(orgCacheCh, false),
-		oncecache.OnEventChan(orgCacheCh, false, oncecache.OpFill, oncecache.OpEvict),
+		// oncecache.OnFillChan(orgCacheCh, false),
+		oncecache.OnEvent(orgCacheCh, false, oncecache.OpFill, oncecache.OpEvict),
 	)
 
 	deptCacheCh := make(chan oncecache.Event[string, *hrsystem.Department], 10)
@@ -295,8 +294,8 @@ func TestOnEventChan(t *testing.T) {
 	deptCache = oncecache.New[string, *hrsystem.Department](
 		db.GetDepartment,
 		oncecache.Name("deptCache"),
-		//oncecache.OnFillChan(deptCacheCh, false),
-		oncecache.OnEventChan(deptCacheCh, false, oncecache.OpFill, oncecache.OpEvict),
+		// oncecache.OnFillChan(deptCacheCh, false),
+		oncecache.OnEvent(deptCacheCh, false, oncecache.OpFill, oncecache.OpEvict),
 	)
 
 	empCache = oncecache.New[int, *hrsystem.Employee](db.GetEmployee, oncecache.Name("empCache"))
@@ -312,10 +311,10 @@ func TestOnEventChan(t *testing.T) {
 			case event := <-orgCacheCh:
 				log.Info("Got event", "e", event)
 				org := event.Val
-				switch event.Op {
+				switch event.Op { //nolint:exhaustive
 				case oncecache.OpFill:
 					for _, dept := range org.Departments {
-						deptCache.Set(ctx, dept.Name, dept, event.Err)
+						deptCache.MaybeSet(ctx, dept.Name, dept, event.Err)
 					}
 				case oncecache.OpEvict:
 					for _, dept := range org.Departments {
@@ -328,10 +327,10 @@ func TestOnEventChan(t *testing.T) {
 			case event := <-deptCacheCh:
 				log.Info("Got event", "e", event)
 				dept := event.Val
-				switch event.Op {
+				switch event.Op { //nolint:exhaustive
 				case oncecache.OpFill:
 					for _, emp := range dept.Staff {
-						empCache.Set(ctx, emp.ID, emp, nil)
+						empCache.MaybeSet(ctx, emp.ID, emp, nil)
 					}
 				case oncecache.OpEvict:
 					for _, emp := range dept.Staff {
@@ -379,7 +378,7 @@ func TestOnEventChan(t *testing.T) {
 
 	// Now we notifyEvict acmeCorp, which should propagate to the other caches.
 	orgCache.Delete(ctx, acmeCorp.Name)
-	// Similar to above, we should get three evictions.
+	// Similar to above, we should getValueSlow three evictions.
 	requireDrainActionCh(t, actionCh, time.Millisecond, oncecache.OpEvict, 3)
 
 	// Wiley should no longer be cached, so this call should hit the db.
@@ -456,7 +455,7 @@ func TestLogging(t *testing.T) {
 	c = oncecache.New[int, int](
 		fetchDouble,
 		oncecache.Name("event-cache"),
-		oncecache.OnEventChan(eventCh, false, oncecache.OpFill),
+		oncecache.OnEvent(eventCh, false, oncecache.OpFill),
 	)
 
 	gotVal, gotErr := c.Get(ctx, 1)
@@ -487,7 +486,7 @@ func TestLogEvents(t *testing.T) {
 	c := oncecache.New[int, int](
 		calcFibonacci,
 		oncecache.Name("fibs"),
-		oncecache.OnEventChan(eventCh, true),
+		oncecache.OnEvent(eventCh, true),
 	)
 
 	doneCh := make(chan struct{})
@@ -496,20 +495,14 @@ func TestLogEvents(t *testing.T) {
 		oncecache.Log(ctx, eventCh, log, slog.LevelDebug, nil)
 	}()
 
-	c.Get(ctx, 10)
-	c.Get(ctx, 10)
-	c.Get(ctx, 10)
+	_, _ = c.Get(ctx, 10)
+	_, _ = c.Get(ctx, 10)
+	_, _ = c.Get(ctx, 10)
 	c.Delete(ctx, 10)
-	c.Get(ctx, 10)
+	_, _ = c.Get(ctx, 10)
+	_, _ = c.Get(ctx, 7)
+	_, _ = c.Get(ctx, 7)
 
 	close(eventCh)
 	<-doneCh
-	//for i := 0; i < 20; i++ {
-	//	_, _ _= c.Get(ctx, i)
-	//	//require.NoError(t, err)
-	//	//t.Logf("%d*%d = %d", i, i, sq)
-	//}
-
-	//Allow time for the log events to propagate.
-	//time.Sleep(time.Second)
 }

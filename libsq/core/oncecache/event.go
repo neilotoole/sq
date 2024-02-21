@@ -3,9 +3,10 @@ package oncecache
 import (
 	"context"
 	"fmt"
-	"github.com/samber/lo"
 	"log/slog"
 	"strings"
+
+	"github.com/samber/lo"
 )
 
 type callbackFunc[K comparable, V any] func(ctx context.Context, key K, val V, err error)
@@ -95,15 +96,19 @@ func (e Event[K, V]) String() string {
 	return sb.String()
 }
 
-// OnEventChan is an argument to [New] that configures the cache to emit events
-// on the given channel. If ops is empty, all events are emitted; otherwise,
+// OnEvent is an [Opt] argument to [New] that configures the cache to emit
+// events on the given chan. If ops is empty, all events are emitted; otherwise,
 // only events for the given ops are emitted.
 //
 // If arg block is true, the [Cache] function that triggered the event will
-// block on sending to ch. If false, the event is dropped if ch is full. You can
-// use an unbuffered channel and block=true to stop the event consumer from
-// falling behind.
-func OnEventChan[K comparable, V any](ch chan<- Event[K, V], block bool, ops ...Op) Opt {
+// block on sending on a full ch. If false, the new event is dropped if ch is
+// full.
+//
+// You can use an unbuffered channel and block=true to stop the event consumer
+// from falling too far behind the cache state. Alternatively the synchronous
+// [OnHit], [OnMiss], [OnFill], and [OnEvict] callbacks can be used, at cost of
+// increased lock contention and lower throughput.
+func OnEvent[K comparable, V any](ch chan<- Event[K, V], block bool, ops ...Op) Opt {
 	ops = lo.Uniq(ops)
 	if len(ops) == 0 {
 		ops = []Op{OpFill, OpEvict, OpHit, OpMiss}
@@ -158,13 +163,11 @@ func (o eventOpt[K, V]) apply(c *Cache[K, V]) { //nolint:unused // linter is wro
 	}
 }
 
-func onEvent[K comparable, V any](op Op, fn func(ctx context.Context, key K, val V, err error)) Opt {
-	return onEventFuncOpt[K, V]{op: op, fn: fn}
-}
-
+// onEventFuncOpt is [Opt] type returned by [OnFill], [OnEvict], [OnHit], and
+// [OnMiss].
 type onEventFuncOpt[K comparable, V any] struct {
-	op Op
 	fn callbackFunc[K, V]
+	op Op
 }
 
 func (f onEventFuncOpt[K, V]) optioner() {}
@@ -177,24 +180,24 @@ func (f onEventFuncOpt[K, V]) apply(c *Cache[K, V]) { //nolint:unused // linter 
 		c.onEvict = append(c.onEvict, f.fn)
 	case OpHit:
 		c.onHit = append(c.onHit, f.fn)
-	//case OpMiss:
-	//	c.onMiss = append(c.onMiss, f.fn)
+	case OpMiss:
+		c.onMiss = append(c.onMiss, f.fn)
 	default:
 		// Shouldn't happen.
-		panic(fmt.Sprintf("unknown action: %v: %s", f.op, f.op))
+		panic(fmt.Sprintf("unknown op: %v: %s", f.op, f.op))
 	}
 }
 
 // OnFill returns a callback [Opt] for [New] that is invoked when a cache entry
 // is populated, whether on-demand via [Cache.Get] and [FetchFunc], or
-// externally via [Cache.Set].
+// externally via [Cache.MaybeSet].
 //
 // Note that [OnFill] callbacks are synchronous; the triggering call to
-// [Cache.Set] or [Cache.Get] blocks until every [OnFill] returns. Consider
-// using [OnEventChan] for long-running callbacks.
+// [Cache.MaybeSet] or [Cache.Get] blocks until every [OnFill] returns. Consider
+// using [OnEvent] for long-running callbacks.
 //
 // While [OnFill] can be used for logging, metrics, etc., most common tasks are
-// better accomplished via [OnEventChan].
+// better accomplished via [OnEvent].
 func OnFill[K comparable, V any](fn func(ctx context.Context, key K, val V, err error)) Opt {
 	return onEventFuncOpt[K, V]{op: OpFill, fn: fn}
 }
@@ -204,24 +207,32 @@ func OnFill[K comparable, V any](fn func(ctx context.Context, key K, val V, err 
 //
 // Note that [OnEvict] callbacks are synchronous; the triggering call to
 // [Cache.Delete] or [Cache.Clear] blocks until every [OnEvict] returns.
-// Consider using [OnEventChan] for long-running callbacks.
+// Consider using [OnEvent] for long-running callbacks.
 func OnEvict[K comparable, V any](fn func(ctx context.Context, key K, val V, err error)) Opt {
 	return onEventFuncOpt[K, V]{op: OpEvict, fn: fn}
 }
 
-//// OnHit returns a callback [Opt] for [New] that is invoked when [Cache.Get]
-//// results in a cache hit.
-////
-//// Note that [OnHit] callbacks are synchronous; the triggering call to
-//// [Cache.Get] blocks until every [OnHit] returns. Consider using [OnEventChan]
-//// for long-running callbacks.
-//func OnHit[K comparable, V any](fn func(ctx context.Context, key K, val V, err error)) Opt {
-//	return onEventFuncOpt[K, V]{op: OpHit, fn: fn}
-//}
+// OnHit returns a callback [Opt] for [New] that is invoked when [Cache.Get]
+// results in a cache hit.
+//
+// Note that [OnHit] callbacks are synchronous; the triggering call to
+// [Cache.Get] blocks until every [OnHit] returns. Consider using the
+// asynchronous [OnEvent] for long-running callbacks.
+func OnHit[K comparable, V any](fn func(ctx context.Context, key K, val V, err error)) Opt {
+	return onEventFuncOpt[K, V]{op: OpHit, fn: fn}
+}
 
-//func OnMiss[K comparable, V any](fn func(ctx context.Context, key K, val V, err error)) Opt {
-//	return onEventFuncOpt[K, V]{op: OpMiss, fn: fn}
-//}
+// OnMiss returns a callback [Opt] for [New] that is invoked when [Cache.Get]
+// results in a cache miss.
+//
+// Note that [OnMiss] callbacks are synchronous; the triggering call to
+// [Cache.Get] blocks until every [OnMiss] returns. Consider using the
+// asynchronous [OnEvent] for long-running callbacks.
+func OnMiss[K comparable, V any](fn func(ctx context.Context, key K)) Opt {
+	return onEventFuncOpt[K, V]{op: OpMiss, fn: func(ctx context.Context, key K, val V, err error) {
+		fn(ctx, key)
+	}}
+}
 
 // Op is an enumeration of cache operations, as see in [Event.Op].
 type Op uint8
@@ -275,7 +286,7 @@ func (o Op) String() string {
 //	c := oncecache.New[int, int](
 //	  calcFibonacci,
 //	  oncecache.Name("fibs"),
-//	  oncecache.OnEventChan(eventCh, true),
+//	  oncecache.OnEvent(eventCh, true),
 //	)
 //
 //	go oncecache.Log(ctx, eventCh, log, slog.LevelDebug, nil)
@@ -297,7 +308,8 @@ func (o Op) String() string {
 // Note that [Event.LogValue] implements [slog.LogValuer]; the event is logged
 // as an attribute using [oncecache.LogAttrKey].
 func Log[K comparable, V any](ctx context.Context, ch <-chan Event[K, V],
-	log *slog.Logger, lvl slog.Leveler, msgFmt func(Event[K, V]) string) {
+	log *slog.Logger, lvl slog.Leveler, msgFmt func(Event[K, V]) string,
+) {
 	if ch == nil || log == nil {
 		return
 	}
@@ -313,7 +325,7 @@ func Log[K comparable, V any](ctx context.Context, ch <-chan Event[K, V],
 			if msgFmt != nil {
 				msg = msgFmt(e)
 			}
-			log.Log(nil, lvl.Level(), msg, slog.Any(LogAttrKey, e))
+			log.Log(nil, lvl.Level(), msg, slog.Any(LogAttrKey, e)) //nolint:staticcheck
 		}
 		return
 	}
