@@ -3,8 +3,6 @@ package oncecache
 import (
 	"context"
 	"fmt"
-
-	"github.com/samber/lo"
 )
 
 type callbackFunc[K comparable, V any] func(ctx context.Context, key K, val V, err error)
@@ -29,20 +27,22 @@ type Event[K comparable, V any] struct {
 // only events for the given ops are emitted.
 //
 // If arg block is true, the [Cache] function that triggered the event will
-// block on sending on a full ch. If false, the new event is dropped if ch is
+// block on sending to a full ch. If false, the new event is dropped if ch is
 // full.
 //
 // You can use an unbuffered channel and block=true to stop the event consumer
 // from falling too far behind the cache state. Alternatively the synchronous
 // [OnHit], [OnMiss], [OnFill], and [OnEvict] callbacks can be used, at cost of
 // increased lock contention and lower throughput.
+//
+// For basic logging, consider [oncecache.Log].
 func OnEvent[K comparable, V any](ch chan<- Event[K, V], block bool, ops ...Op) Opt {
-	ops = lo.Uniq(ops)
+	ops = uniq(ops)
 	if len(ops) == 0 {
 		ops = []Op{OpFill, OpEvict, OpHit, OpMiss}
 	}
 
-	return eventOpt[K, V]{ch: ch, block: block, ops: lo.Uniq(ops)}
+	return eventOpt[K, V]{ch: ch, block: block, ops: uniq(ops)}
 }
 
 type eventOpt[K comparable, V any] struct {

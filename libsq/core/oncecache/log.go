@@ -134,7 +134,8 @@ func (e Event[K, V]) LogValue() slog.Value {
 	return slog.GroupValue(attrs...)
 }
 
-// String returns a string representation of the event.
+// String returns a string representation of the event. The event's Val field
+// is not incorporated. For logging, note [Event.LogValue].
 func (e Event[K, V]) String() string {
 	var sb strings.Builder
 
@@ -149,18 +150,11 @@ func (e Event[K, V]) String() string {
 		sb.WriteString(e.Err.Error())
 		sb.WriteRune(']')
 	}
-	val := fmt.Sprintf(" = %v", e.Val)
-	if len(val) > 32 {
-		sb.WriteString(val[:14])
-		sb.WriteString("...")
-		sb.WriteString(val[len(val)-14:])
-	} else {
-		sb.WriteString(val)
-	}
 	return sb.String()
 }
 
-// String returns a string representation of the entry.
+// String returns a string representation of the entry. The entry's Val field
+// is not incorporated. For logging, note [Entry.LogValue].
 func (e Entry[K, V]) String() string {
 	sb := strings.Builder{}
 	sb.WriteString(e.Cache.name)
@@ -171,14 +165,6 @@ func (e Entry[K, V]) String() string {
 		sb.WriteString("[! ")
 		sb.WriteString(e.Err.Error())
 		sb.WriteRune(']')
-	}
-	val := fmt.Sprintf(" = %v", e.Val)
-	if len(val) > 32 {
-		sb.WriteString(val[:13])
-		sb.WriteString("...")
-		sb.WriteString(val[len(val)-13:])
-	} else {
-		sb.WriteString(val)
 	}
 	return sb.String()
 }
@@ -201,6 +187,9 @@ func (e Entry[K, V]) LogValue() slog.Value {
 	return slog.GroupValue(attrs...)
 }
 
+// isValLogged returns true if the entry's Val field should be logged. Only
+// primitive types and [slog.LogValuer] are logged. In particular, note that
+// string is not logged.
 func (e Entry[K, V]) isValLogged() bool {
 	switch any(e.Val).(type) {
 	case slog.LogValuer, bool, nil, int, int8, int16, int32, int64,

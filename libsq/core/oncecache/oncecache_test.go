@@ -194,9 +194,8 @@ func loadHRDatabase(t *testing.T) *hrsystem.HRDatabase {
 	return db
 }
 
-// Test_OnFill_OnEvict tests use of the [oncecache.OnFill] mechanism to
-// propagate cache events between overlapping caches.
-func Test_OnFill_OnEvict(t *testing.T) {
+// Test_OnFuncs tests use of the On* callbacks, such as [oncecache.OnFill].
+func Test_OnFuncs(t *testing.T) {
 	var (
 		ctx       = context.Background()
 		db        = loadHRDatabase(t)

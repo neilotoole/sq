@@ -14,8 +14,6 @@ import (
 	"log/slog"
 	"reflect"
 	"sync"
-
-	"golang.org/x/exp/maps"
 )
 
 // FetchFunc is called by [Cache.Get] to fill an unpopulated cache entry. If
@@ -158,7 +156,12 @@ func (c *Cache[K, V]) Has(key K) bool {
 func (c *Cache[K, V]) Keys() []K {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return maps.Keys(c.entries)
+
+	r := make([]K, 0, len(c.entries))
+	for k := range c.entries {
+		r = append(r, k)
+	}
+	return r
 }
 
 // Clear clears the cache entries, invoking any [OnEvict] callbacks on each
