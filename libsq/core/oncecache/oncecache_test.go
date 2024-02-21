@@ -488,12 +488,6 @@ func TestLogOpt(t *testing.T) {
 		oncecache.Log[int, int](log, slog.LevelDebug),
 	)
 
-	//doneCh := make(chan struct{})
-	//go func() {
-	//	defer close(doneCh)
-	//	oncecache.LogEvents(ctx, eventCh, log, slog.LevelDebug, nil)
-	//}()
-
 	_, _ = c.Get(ctx, 10)
 	_, _ = c.Get(ctx, 10)
 	_, _ = c.Get(ctx, 10)
@@ -506,9 +500,6 @@ func TestLogOpt(t *testing.T) {
 	c.MaybeSet(ctx, 7, 55, nil)
 	c.MaybeSet(ctx, 7, 55, nil)
 	_, _ = c.Get(ctx, 7)
-
-	//close(eventCh)
-	//<-doneCh
 }
 
 func TestLogEvents(t *testing.T) {

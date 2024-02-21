@@ -3,8 +3,6 @@ package oncecache
 import (
 	"context"
 	"fmt"
-	"log/slog"
-	"strings"
 
 	"github.com/samber/lo"
 )
@@ -20,80 +18,10 @@ type Entry[K comparable, V any] struct {
 	Err   error
 }
 
-// String returns a string representation of the entry.
-func (e Entry[K, V]) String() string {
-	sb := strings.Builder{}
-	sb.WriteString(e.Cache.name)
-	sb.WriteRune('[')
-	sb.WriteString(fmt.Sprintf("%v", e.Key))
-	sb.WriteRune(']')
-	if e.Err != nil {
-		sb.WriteString("[! ")
-		sb.WriteString(e.Err.Error())
-		sb.WriteRune(']')
-	}
-	val := fmt.Sprintf(" = %v", e.Val)
-	if len(val) > 32 {
-		sb.WriteString(val[:13])
-		sb.WriteString("...")
-		sb.WriteString(val[len(val)-13:])
-	} else {
-		sb.WriteString(val)
-	}
-	return sb.String()
-}
-
-// LogValue implements slog.LogValuer.
-func (e Entry[K, V]) LogValue() slog.Value {
-	return slog.GroupValue(
-		slog.String("cache", e.Cache.name),
-		slog.Any("key", e.Key),
-		slog.Any("val", e.Val),
-		slog.Any("err", e.Err),
-	)
-}
-
 // Event is a cache event.
 type Event[K comparable, V any] struct {
 	Entry[K, V]
 	Op Op
-}
-
-// LogValue implements slog.LogValuer.
-func (e Event[K, V]) LogValue() slog.Value {
-	return slog.GroupValue(
-		slog.String("op", e.Op.String()),
-		slog.String("cache", e.Cache.name),
-		slog.Any("key", e.Key),
-		slog.Any("val", e.Val),
-		slog.Any("err", e.Err),
-	)
-}
-
-// String returns a string representation of the event.
-func (e Event[K, V]) String() string {
-	var sb strings.Builder
-
-	sb.WriteString(e.Cache.name)
-	sb.WriteRune('.')
-	sb.WriteString(e.Op.String())
-	sb.WriteRune('[')
-	sb.WriteString(fmt.Sprintf("%v", e.Key))
-	sb.WriteRune(']')
-	if e.Err != nil {
-		sb.WriteString("[! ")
-		sb.WriteString(e.Err.Error())
-		sb.WriteRune(']')
-	}
-	val := fmt.Sprintf(" = %v", e.Val)
-	if len(val) > 32 {
-		sb.WriteString(val[:14])
-		sb.WriteString("...")
-		sb.WriteString(val[len(val)-14:])
-	} else {
-		sb.WriteString(val)
-	}
-	return sb.String()
 }
 
 // OnEvent is an [Opt] argument to [New] that configures the cache to emit
