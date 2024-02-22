@@ -89,3 +89,16 @@ func Valid(cfg *Config) error {
 
 	return nil
 }
+
+// Origin describes the origin of a config item.
+type Origin string
+
+const (
+	OriginFlag    Origin = "flag"
+	OriginEnv     Origin = "env"
+	OriginDefault Origin = "default"
+)
+
+func (o Origin) String() string {
+	return string(o)
+}

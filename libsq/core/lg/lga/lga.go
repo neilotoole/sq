@@ -39,6 +39,7 @@ const (
 	Loc       = "loc"
 	Lock      = "lock"
 	Method    = "method"
+	Mode      = "mode"
 	Name      = "name"
 	New       = "new"
 	Old       = "old"

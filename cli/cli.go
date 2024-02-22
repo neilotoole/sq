@@ -24,9 +24,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/neilotoole/sq/cli/pprofile"
+	"github.com/neilotoole/sq/libsq/files"
 
 	"github.com/c2h5oh/datasize"
 	"github.com/spf13/cobra"
@@ -83,10 +87,16 @@ func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args
 
 // ExecuteWith invokes the cobra CLI framework, ultimately
 // resulting in a command being executed. This function always closes ru.
-func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
+func ExecuteWith(ctx context.Context, ru *run.Run, args []string) (err error) {
 	defer func() {
 		if ru != nil && ru.LogCloser != nil {
 			_ = ru.LogCloser()
+		}
+	}()
+
+	defer func() {
+		if err != nil {
+			PrintError(ctx, ru, err)
 		}
 	}()
 
@@ -112,8 +122,14 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 		}()
 	}
 
+	var pprofDone func()
+	if pprofDone, err = maybeStartPprof(ctx, args); err != nil {
+		return err
+	} else if pprofDone != nil {
+		defer pprofDone()
+	}
+
 	rootCmd := newCommandTree(ru)
-	var err error
 
 	// The following is a workaround for the fact that cobra doesn't
 	// currently (as of 2017, so yeah, "currently") support executing
@@ -205,9 +221,6 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 	// sub-command, and ultimately execute that command.
 	err = rootCmd.ExecuteContext(ctx)
 	lg.WarnIfCloseError(log, "Problem closing run", ru)
-	if err != nil {
-		PrintError(ctx, ru, err)
-	}
 
 	return err
 }
@@ -354,4 +367,30 @@ func addCmd(ru *run.Run, parentCmd, cmd *cobra.Command) *cobra.Command {
 	parentCmd.AddCommand(cmd)
 
 	return cmd
+}
+
+func maybeStartPprof(ctx context.Context, osArgs []string) (done func(), err error) {
+	optMode := pprofile.OptMode
+	o := options.FromContext(ctx)
+
+	// Because we start pprof before cobra has parsed the flags, we need to
+	// manually check the flags here.
+	fval, ok, err := getBootstrapFlagValue(optMode.Flag().Name, string(optMode.Flag().Short), optMode.Flag().Usage, osArgs)
+	if err != nil {
+		return nil, err
+	}
+
+	var mode string
+	if ok && fval != "" {
+		mode = fval
+	} else {
+		mode = optMode.Get(o)
+	}
+
+	if mode == pprofile.ModeOff {
+		return func() {}, nil
+	}
+
+	pprofDir := filepath.Join(files.DefaultCacheDir(), "pprof")
+	return pprofile.Start(ctx, mode, pprofDir)
 }

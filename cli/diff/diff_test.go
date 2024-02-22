@@ -16,8 +16,9 @@ func TestSchemaDiff(t *testing.T) {
 	th := testh.New(t)
 
 	tr := testrun.New(th.Context, t, nil)
+	_ = tr.Reset().Exec("config", "set", "debug.progress.force", "true")
 
-	tr.Add(
+	tr = tr.Add(
 		source.Source{
 			Handle:   "@test_a",
 			Type:     drivertype.SQLite,

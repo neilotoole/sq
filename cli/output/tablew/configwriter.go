@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/neilotoole/sq/cli/config"
+
 	"github.com/fatih/color"
 	"github.com/samber/lo"
 
@@ -29,7 +31,7 @@ func NewConfigWriter(out io.Writer, pr *output.Printing) output.ConfigWriter {
 }
 
 // Location implements output.ConfigWriter.
-func (w *configWriter) Location(path, origin string) error {
+func (w *configWriter) Location(path string, origin config.Origin) error {
 	fmt.Fprintln(w.tbl.out, path)
 	if w.tbl.pr.Verbose && origin != "" {
 		w.tbl.pr.Faint.Fprint(w.tbl.out, "Origin: ")

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/neilotoole/sq/cli/config"
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/config/yamlstore"
@@ -83,7 +84,7 @@ func newConfigLocationCmd() *cobra.Command {
 func execConfigLocation(cmd *cobra.Command, _ []string) error {
 	ru := run.FromContext(cmd.Context())
 	path := ru.ConfigStore.Location()
-	var origin string
+	var origin config.Origin
 	if store, ok := ru.ConfigStore.(*yamlstore.Store); ok {
 		origin = store.PathOrigin
 	}

@@ -15,6 +15,23 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
+// ConfigDir returns the config dir, and the origin of the config dir.
+func ConfigDir(osArgs []string) (cfgDir string, origin config.Origin, err error) {
+	var ok bool
+	if cfgDir, ok, _ = getConfigDirFromFlag(osArgs); ok {
+		origin = config.OriginFlag
+	} else if cfgDir, ok = getConfigDirFromEnv(); ok {
+		origin = config.OriginEnv
+	} else {
+		origin = config.OriginDefault
+		if cfgDir, err = getDefaultConfigDir(); err != nil {
+			return "", "", err
+		}
+	}
+
+	return cfgDir, origin, nil
+}
+
 // Load loads sq config from the default location (~/.config/sq/sq.yml) or
 // the location specified in envars or flags.
 func Load(ctx context.Context, osArgs []string, optsReg *options.Registry,
@@ -22,17 +39,17 @@ func Load(ctx context.Context, osArgs []string, optsReg *options.Registry,
 ) (*config.Config, config.Store, error) {
 	var (
 		cfgDir string
-		origin string
+		origin config.Origin
 		ok     bool
 		err    error
 	)
 
 	if cfgDir, ok, _ = getConfigDirFromFlag(osArgs); ok {
-		origin = originFlag
+		origin = config.OriginFlag
 	} else if cfgDir, ok = getConfigDirFromEnv(); ok {
-		origin = originEnv
+		origin = config.OriginEnv
 	} else {
-		origin = originDefault
+		origin = config.OriginDefault
 		if cfgDir, err = getDefaultConfigDir(); err != nil {
 			return nil, nil, err
 		}

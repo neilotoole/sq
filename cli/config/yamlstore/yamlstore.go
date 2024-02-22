@@ -21,11 +21,6 @@ import (
 
 // Origin of the config path.
 // See Store.PathOrigin.
-const (
-	originFlag    = "flag"
-	originEnv     = "env"
-	originDefault = "default"
-)
 
 var _ config.Store = (*Store)(nil)
 
@@ -46,7 +41,7 @@ type Store struct {
 	Path string
 
 	// PathOrigin is one of "flag", "env", or "default".
-	PathOrigin string
+	PathOrigin config.Origin
 
 	// ExtPaths holds locations of potential ext config, both dirs and files (with suffix ".sq.yml")
 	ExtPaths []string

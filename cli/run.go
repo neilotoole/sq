@@ -108,6 +108,9 @@ func newRun(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args 
 	}
 
 	log = log.With(lga.Pid, os.Getpid())
+	// Set default log, which also sets the stdlib pkg "log" default, just
+	// in case any poorly-behaved libs try to use those default loggers.
+	slog.SetDefault(log)
 
 	if ru.Config == nil {
 		ru.Config = config.New()
