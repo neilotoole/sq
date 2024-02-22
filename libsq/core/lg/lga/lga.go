@@ -29,6 +29,7 @@ const (
 	Err       = "error"
 	Expected  = "expected"
 	File      = "file"
+	Freq      = "freq"
 	From      = "from"
 	Flag      = "flag"
 	Handle    = "handle"

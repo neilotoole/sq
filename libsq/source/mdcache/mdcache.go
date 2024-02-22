@@ -30,29 +30,31 @@ type Cache struct {
 // New returns a new [Cache]. If log is non-nil, it will be used for logging
 // cache events.
 func New(log *slog.Logger, coll *source.Collection, grips *driver.Grips) *Cache {
+	_ = log
+
 	c := &Cache{coll: coll, grips: grips}
 
 	c.tblMeta = oncecache.New[source.Table, *metadata.Table](
 		c.fetchTableMeta,
 		oncecache.Name("mdcache.tblMeta"),
-		oncecache.Log(log, slog.LevelDebug),
+		// oncecache.Log(log, slog.LevelDebug),
 	)
 
 	c.srcMeta = oncecache.New[string, *metadata.Source](
 		c.fetchSourceMeta,
 		oncecache.Name("mdcache.srcMeta"),
-		oncecache.Log(log, slog.LevelDebug),
+		// oncecache.Log(log, slog.LevelDebug),
 	)
 	c.tblNames = oncecache.New[string, []string](
 		c.fetchTableNames,
 		oncecache.Name("mdcache.tblNames"),
-		oncecache.Log(log, slog.LevelDebug),
+		// oncecache.Log(log, slog.LevelDebug),
 	)
 
 	c.dbProps = oncecache.New[string, map[string]any](
 		c.fetchDBProps,
 		oncecache.Name("mdcache.dbProps"),
-		oncecache.Log(log, slog.LevelDebug),
+		// oncecache.Log(log, slog.LevelDebug),
 	)
 
 	return c

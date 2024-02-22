@@ -17,6 +17,7 @@ package progress
 import (
 	"context"
 	"io"
+	"log/slog"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -180,6 +181,8 @@ type Progress struct {
 	// colors contains the color scheme to use.
 	colors *Colors
 
+	megaBar *Bar
+
 	// bars contains all bars that have been created on this Progress.
 	bars []*Bar
 
@@ -187,6 +190,8 @@ type Progress struct {
 	// Each newly-created bar gets its own render delay.
 	delay time.Duration
 }
+
+const maxActiveBars = 5
 
 // Stop waits for all bars to complete and finally shuts down the
 // progress container. After this method has been called, there is
@@ -200,6 +205,26 @@ func (p *Progress) Stop() {
 	p.doStop()
 	<-p.stoppedCh
 	p.mu.Unlock()
+}
+
+// LogValue reports some stats.
+func (p *Progress) LogValue() slog.Value {
+	var barCount int
+	var barsIncrByCallTotal int64
+	p.mu.Lock()
+	barCount = len(p.bars)
+	for _, bar := range p.bars {
+		if bar == nil {
+			continue
+		}
+		barsIncrByCallTotal += bar.incrByCalls.Load()
+	}
+	p.mu.Unlock()
+
+	return slog.GroupValue(
+		slog.Int("bars", barCount),
+		slog.Int("incr_by_total", int(barsIncrByCallTotal)),
+	)
 }
 
 // doStop is probably needlessly complex, but at the time it was written,
@@ -271,11 +296,27 @@ type barConfig struct {
 	total      int64
 }
 
+func (p *Progress) maybeMegaBar() *Bar {
+	if p.megaBar != nil {
+		return p.megaBar
+	}
+
+	if len(p.bars) >= maxActiveBars {
+		return nil
+	}
+
+	return nil
+}
+
 // newBar returns a new Bar. This function must only be called from
 // inside the Progress mutex.
 func (p *Progress) newBar(cfg *barConfig, opts []Opt) *Bar {
 	if p == nil {
 		return nil
+	}
+
+	if megaBar := p.maybeMegaBar(); megaBar != nil {
+		return megaBar
 	}
 
 	cfg.decorators = lo.WithoutEmpty(cfg.decorators)
@@ -302,6 +343,7 @@ func (p *Progress) newBar(cfg *barConfig, opts []Opt) *Bar {
 
 	b := &Bar{
 		p:            p,
+		incrByCalls:  &atomic.Int64{},
 		incrStash:    &atomic.Int64{},
 		barInitOnce:  &sync.Once{},
 		barStopOnce:  &sync.Once{},
@@ -426,6 +468,9 @@ type Bar struct {
 	// incrStash holds the increment count until the
 	// bar is fully initialized.
 	incrStash *atomic.Int64
+
+	// incrByCalls is the number of times IncrBy has been called.
+	incrByCalls *atomic.Int64
 }
 
 // Incr increments progress by amount n. It is safe to
@@ -434,6 +479,8 @@ func (b *Bar) Incr(n int) {
 	if b == nil {
 		return
 	}
+
+	b.incrByCalls.Add(1)
 
 	b.p.mu.Lock()
 	defer b.p.mu.Unlock()

@@ -29,17 +29,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/c2h5oh/datasize"
+	"github.com/neilotoole/sq/libsq/core/runtimez"
+
 	"github.com/neilotoole/sq/cli/pprofile"
 	"github.com/neilotoole/sq/libsq/files"
 
-	"github.com/c2h5oh/datasize"
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/cobraz"
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -110,9 +111,12 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) (err error) {
 
 	ctx = run.NewContext(ctx, ru)
 
-	if freq := OptDebugTrackMemory.Get(options.FromContext(ctx)); freq > 0 {
+	memStatRefreshFreq := OptDebugTrackMemory.Get(options.FromContext(ctx))
+	if memStatRefreshFreq > 0 {
+		// runtimez.MemStatsRefresh = memStatRefreshFreq
+
 		// Debug setting to log peak memory usage on exit.
-		peakSys, peakAllocs, gcPause := ioz.StartMemStatsTracker(ctx, freq)
+		peakSys, peakAllocs, gcPause := runtimez.StartMemStatsTracker(ctx)
 		defer func() {
 			log.Info("Peak memory stats",
 				"sys", datasize.ByteSize(peakSys.Load()).HR(),

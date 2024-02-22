@@ -10,9 +10,7 @@ import (
 	"io"
 	mrand "math/rand"
 	"os"
-	"runtime"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	yaml "github.com/goccy/go-yaml"
@@ -457,49 +455,4 @@ func (w *writeErrorCloser) Error(err error) {
 // invokes non-nil fn when WriteErrorCloser.Error is called.
 func NewFuncWriteErrorCloser(w io.WriteCloser, fn func(error)) WriteErrorCloser {
 	return &writeErrorCloser{WriteCloser: w, fn: fn}
-}
-
-// StartMemStatsTracker starts a goroutine that tracks memory stats, returning
-// the peak values of [runtime.MemStats.Sys], [runtime.MemStats.TotalAlloc] and
-// [runtime.MemStats.PauseTotalNs]. The goroutine sleeps for sampleFreq between
-// each sample and exits when ctx is done.
-//
-//nolint:revive // datarace
-func StartMemStatsTracker(ctx context.Context, sampleFreq time.Duration) (sys *atomic.Uint64,
-	allocs, gcPauseNs *atomic.Uint64,
-) {
-	sys = &atomic.Uint64{}
-	allocs = &atomic.Uint64{}
-	gcPauseNs = &atomic.Uint64{}
-
-	go func() {
-		ticker := time.NewTicker(sampleFreq)
-		defer ticker.Stop()
-
-		stats := &runtime.MemStats{}
-		var done bool
-		for {
-			runtime.ReadMemStats(stats)
-
-			if stats.Sys > sys.Load() {
-				sys.Store(stats.Sys)
-			}
-
-			allocs.Store(stats.TotalAlloc)
-			gcPauseNs.Store(stats.PauseTotalNs)
-
-			if done {
-				return
-			}
-			select {
-			case <-ctx.Done():
-				// We perform one more loop to ensure we capture
-				// the final stats before return.
-				done = true
-			case <-ticker.C:
-			}
-		}
-	}()
-
-	return sys, allocs, gcPauseNs
 }
