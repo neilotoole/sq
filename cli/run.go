@@ -108,6 +108,9 @@ func newRun(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args 
 	}
 
 	log = log.With(lga.Pid, os.Getpid())
+	// Set default log, which also sets the stdlib pkg "log" default, just
+	// in case any poorly-behaved libs try to use those default loggers.
+	slog.SetDefault(log)
 
 	if ru.Config == nil {
 		ru.Config = config.New()
@@ -275,7 +278,7 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 
 	ru.Grips = driver.NewGrips(dr, ru.Files, scratchSrcFunc)
 	ru.Cleanup.AddC(ru.Grips)
-	ru.MDCache = mdcache.New(ctx, cfg.Collection, ru.Grips)
+	ru.MDCache = mdcache.New(log, cfg.Collection, ru.Grips)
 	ru.Cleanup.AddC(ru.MDCache)
 
 	dr.AddProvider(drivertype.SQLite, &sqlite3.Provider{Log: log})

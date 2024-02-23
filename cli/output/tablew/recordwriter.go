@@ -12,7 +12,7 @@ import (
 
 type recordWriter struct {
 	tbl      *table
-	bar      *progress.Bar
+	bar      progress.Bar
 	recMeta  record.Meta
 	rowCount int
 	mu       sync.Mutex

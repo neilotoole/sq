@@ -463,9 +463,14 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 	var (
 		prog       *progress.Progress
 		noProg     = !OptProgress.Get(opts)
+		forceProg  = progress.OptDebugForce.Get(opts)
 		progColors = progress.DefaultColors()
 		monochrome = OptMonochrome.Get(opts)
 	)
+
+	if forceProg {
+		noProg = false
+	}
 
 	if monochrome {
 		color.NoColor = true
@@ -482,13 +487,20 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 	pr = nil //nolint:wastedassign // Make sure we don't accidentally use pr again
 
 	switch {
-	case termz.IsColorTerminal(stderr) && !monochrome:
-		// stderr is a color terminal and we're colorizing, thus
-		// we enable progress if allowed and if ctx is non-nil.
-		outCfg.errOut = colorable.NewColorable(stderr.(*os.File))
-		outCfg.errOutPr.EnableColor(true)
-		if ctx != nil && !noProg {
-			progColors.EnableColor(true)
+	case forceProg, termz.IsColorTerminal(stderr) && !monochrome:
+		// Either forceProg is true, or stderr is a color terminal and we're
+		// colorizing, thus we enable progress if allowed and if ctx is non-nil.
+		var colorize bool
+		if f, ok := stderr.(*os.File); ok {
+			outCfg.errOut = colorable.NewColorable(f)
+			colorize = true
+		} else {
+			outCfg.errOut = colorable.NewNonColorable(stderr)
+		}
+
+		outCfg.errOutPr.EnableColor(colorize)
+		if ctx != nil && (forceProg || !noProg) {
+			progColors.EnableColor(colorize)
 			prog = progress.New(ctx, outCfg.errOut, OptProgressDelay.Get(opts), progColors)
 		}
 	case termz.IsTerminal(stderr):
@@ -510,6 +522,12 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 		outCfg.errOutPr.EnableColor(false)
 		progColors.EnableColor(false)
 		prog = nil // Set to nil just to be explicit.
+	}
+
+	if prog != nil {
+		clnup.Add(func() {
+			lg.FromContext(ctx).Info("Progress closing stats", "progress", prog)
+		})
 	}
 
 	switch {

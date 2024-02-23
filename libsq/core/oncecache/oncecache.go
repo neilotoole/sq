@@ -28,7 +28,7 @@ type FetchFunc[K comparable, V any] func(ctx context.Context, key K) (val V, err
 //
 // Arg opts is a set of options that can be used to configure the cache. For
 // example, see [Name] to set the cache name, or the [OnFill] or [OnEvict]
-// options for event callbacks.
+// options for event callbacks. Any nil [Opt] in opts is ignored.
 func New[K comparable, V any](fetch FetchFunc[K, V], opts ...Opt) *Cache[K, V] {
 	c := &Cache[K, V]{
 		name:    randomName(),
@@ -37,6 +37,19 @@ func New[K comparable, V any](fetch FetchFunc[K, V], opts ...Opt) *Cache[K, V] {
 	}
 
 	c.applyOpts(opts)
+
+	if len(c.onFill)+len(c.onMiss)+len(c.onHit) == 0 {
+		c.getValueFn = getValueFast[K, V]
+	} else {
+		c.getValueFn = getValueSlow[K, V]
+	}
+
+	if len(c.onFill) == 0 {
+		c.maybeSetValueFn = maybeSetValueFast[K, V]
+	} else {
+		c.maybeSetValueFn = maybeSetValueSlow[K, V]
+	}
+
 	return c
 }
 
@@ -59,9 +72,16 @@ func (c *Cache[K, V]) applyOpts(opts []Opt) {
 
 		// But, not all of them. Some of them implement [concreteOptApplier]. We
 		// must provide the non-parameterized (concrete) fields of [Cache].
-		npc := &concreteCache{name: &c.name}
+		cc := &concreteCache{name: &c.name}
 		if applier, ok := opt.(concreteOptApplier); ok {
-			applier.applyConcrete(npc)
+			applier.applyConcrete(cc)
+			continue
+		}
+
+		// Hmmmn, I thought I was soooo clever with that applyConcrete mechanism,
+		// but it isn't helping with the logOpt scenario. Rethink required.
+		if cfg, ok := opt.(logOptConfig); ok {
+			(*logOpt[K, V])(&cfg).apply(c)
 			continue
 		}
 
@@ -71,23 +91,32 @@ func (c *Cache[K, V]) applyOpts(opts []Opt) {
 }
 
 // Cache is a concurrency-safe, in-memory, on-demand cache that ensures that a
-// given cache entry is populated only once (unless explicitly cleared), either
-// implicitly via [Cache.Get] or externally via [Cache.Set].
+// given cache entry is populated only once, either implicitly via [Cache.Get]
+// and the fetch func, or externally via [Cache.Set].
 //
-// An entry can be explicitly cleared via [Cache.Delete] or [Cache.Clear],
-// allowing the entry to be populated afresh.
+// However, a cache entry can be explicitly cleared via [Cache.Delete] or
+// [Cache.Clear], allowing the entry to be populated afresh.
 //
 // A cache entry consists not only of the key and value, but also any error
-// associated with filling the entry value.
+// associated with filling the entry value via the fetch func or via
+// [Cache.Set]. Thus, a cache entry is a triple: (key, value, error). An entry
+// with a non-nil error is still a valid cache entry. A call to [Cache.Get] for
+// an existing errorful cache entry does not invoke the fetch func again. Cache
+// entry population occurs only once (hence "oncecache"), unless the entry is
+// explicitly evicted via [Cache.Delete] or [Cache.Clear].
 //
 // The zero value is not usable; instead invoke [New].
 type Cache[K comparable, V any] struct {
-	fetch   FetchFunc[K, V]
-	entries map[K]*entry[K, V]
-	name    string
-	onFill  []notifyFunc[K, V]
-	onEvict []notifyFunc[K, V]
-	mu      sync.Mutex
+	fetch           FetchFunc[K, V]
+	entries         map[K]*entry[K, V]
+	maybeSetValueFn func(ctx context.Context, e *entry[K, V], key K, val V, err error) bool
+	getValueFn      func(ctx context.Context, e *entry[K, V], key K) (V, error)
+	name            string
+	onFill          []callbackFunc[K, V]
+	onEvict         []callbackFunc[K, V]
+	onHit           []callbackFunc[K, V]
+	onMiss          []callbackFunc[K, V]
+	mu              sync.Mutex
 }
 
 // Name returns the cache's name, useful for logging. Specify the cache name by
@@ -130,66 +159,91 @@ func (c *Cache[K, V]) Has(key K) bool {
 	return ok
 }
 
-// Clear clears the cache entries, invoking any [OnEvict] callbacks on each
-// cache entry. The entry callback order is not specified.
-func (c *Cache[K, V]) Clear(ctx context.Context) {
+// Keys returns the cache keys. The keys will be in an indeterminate order.
+func (c *Cache[K, V]) Keys() []K {
 	c.mu.Lock()
+	defer c.mu.Unlock()
 
+	r := make([]K, 0, len(c.entries))
+	for k := range c.entries {
+		r = append(r, k)
+	}
+	return r
+}
+
+// Clear clears the cache entries, invoking any [OnEvict] callbacks on each
+// cache entry. The entry callback order is not specified. The cache is locked
+// until Clear (including any callbacks) returns.
+func (c *Cache[K, V]) Clear(ctx context.Context) {
 	if len(c.onEvict) == 0 {
+		c.mu.Lock()
 		clear(c.entries)
 		c.mu.Unlock()
 		return
 	}
 
-	evictions := make([]func(), 0, len(c.entries))
 	ctx = NewContext(ctx, c)
-	for key, ent := range c.entries {
-		if ent != nil {
-			e := ent
-			evictions = append(evictions, func() { e.evict(ctx, key) })
+	c.mu.Lock()
+	for key, e := range c.entries {
+		delete(c.entries, key)
+		if e == nil {
+			continue // Shouldn't be possible
+		}
+
+		for _, fn := range e.cache.onEvict {
+			fn(ctx, key, e.val, e.err)
 		}
 	}
-
-	clear(c.entries)
 	c.mu.Unlock()
-
-	for _, evict := range evictions {
-		evict()
-	}
 }
 
-// Delete deletes the entry for the given key, invoking any [OnEvict]
-// callbacks.
+// Delete deletes the entry for the given key, invoking any [OnEvict] callbacks.
+// The cache is locked until Delete (including any callbacks) returns.
 func (c *Cache[K, V]) Delete(ctx context.Context, key K) {
+	if len(c.onEvict) == 0 {
+		c.mu.Lock()
+		delete(c.entries, key)
+		c.mu.Unlock()
+		return
+	}
+
 	c.mu.Lock()
 	e, ok := c.entries[key]
-	delete(c.entries, key)
-	c.mu.Unlock()
-	if ok && e != nil {
-		e.evict(NewContext(ctx, c), key)
+	if !ok {
+		c.mu.Unlock()
+		return
 	}
+
+	delete(c.entries, key)
+	ctx = NewContext(ctx, c)
+	for _, fn := range e.cache.onEvict {
+		fn(ctx, key, e.val, e.err)
+	}
+	c.mu.Unlock()
 }
 
-// Set explicitly sets the value and fill error for the given key, allowing an
-// external process to prime the cache. Note that the value can alternatively be
-// filled implicitly via [Cache.Get], when it invokes the fetch func. If there's
-// already a cache entry for key, Set is no-op: the value is not updated. If
-// this Set call does update the cache entry, any [OnFill] callbacks - as
-// provided to [New] - are invoked.
-func (c *Cache[K, V]) Set(ctx context.Context, key K, val V, err error) {
+// MaybeSet sets the value and fill error for the given key if it is not already
+// filled, returning true if the value was set. This would allow an external
+// process to prime the cache.
+//
+// Note that the value might instead be filled implicitly via [Cache.Get], when
+// it invokes the fetch func. If there's already a cache entry for key, MaybeSet
+// is no-op: the value is not updated. If this MaybeSet call does update the
+// cache entry, any [OnFill] callbacks - as provided to [New] - are invoked, and
+// ok returns true.
+func (c *Cache[K, V]) MaybeSet(ctx context.Context, key K, val V, err error) (ok bool) {
 	e := c.getEntry(key)
-	e.set(ctx, key, val, err)
+	return c.maybeSetValueFn(ctx, e, key, val, err)
 }
 
 // Get gets the value (and fill error) for the given key. If there's no entry
 // for the key, the fetch func is invoked, setting the entry value and error. If
 // the entry is already populated, the value and error are returned without
-// invoking the fetch func. If population does occur, any [OnFill] callbacks -
-// as provided to [New] - are invoked, and this Get call blocks until all
-// callbacks return.
+// invoking the fetch func. Any [OnHit], [OnMiss], and [OnFill] callbacks are
+// invoked, and [OpHit], [OpMiss] and [OpFill] events emitted, as appropriate.
 func (c *Cache[K, V]) Get(ctx context.Context, key K) (V, error) {
 	e := c.getEntry(key)
-	return e.get(ctx, key)
+	return c.getValueFn(ctx, e, key)
 }
 
 func (c *Cache[K, V]) getEntry(key K) *entry[K, V] {
@@ -206,53 +260,24 @@ func (c *Cache[K, V]) getEntry(key K) *entry[K, V] {
 	return e
 }
 
-// Opt is an option for [New].
-type Opt interface {
-	// optioner is a marker method to unify our two functional option types,
-	// optApplier and concreteOptApplier.
-	optioner()
+// Close closes the cache, releasing any resources. Close is idempotent and
+// always returns nil. Callbacks are not invoked. The cache is not usable after
+// Close is invoked; calls to other [Cache] methods may panic.
+func (c *Cache[K, V]) Close() error {
+	if c == nil {
+		return nil
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.onFill = nil
+	c.onEvict = nil
+	c.onHit = nil
+	c.onMiss = nil
+	clear(c.entries)
+	return nil
 }
-
-// optApplier is an [Opt] that uses the apply method to configure the fields of
-// [Cache]. It must be type-parameterized, as this Opt access the parameterized
-// fields of [Cache].
-type optApplier[K comparable, V any] interface {
-	Opt
-	apply(c *Cache[K, V])
-}
-
-// concreteOptApplier is an [Opt] type that uses the applyConcrete method to
-// configure the non-parameterized (concrete) fields of [Cache].
-//
-// TODO: Write a post about this pattern:
-// "Mixing concrete and type-parameterized functional options".
-type concreteOptApplier interface {
-	Opt
-	applyConcrete(c *concreteCache)
-}
-
-// concreteCache contains pointers to the non-parameterized (concrete) state of
-// [Cache]. It is passed to concreteOptApplier.applyConcrete by [New].
-type concreteCache struct {
-	name *string
-}
-
-var _ concreteOptApplier = (*Name)(nil)
-
-// Name is an [Opt] for [New] that sets the cache's name. The name is accessible
-// via [Cache.Name].
-//
-//	c := oncecache.New[int, string](fetch, oncecache.Name("foobar"))
-//
-// The name is used by [Cache.String] and [Cache.LogValue]. If [Name] is not
-// specified, a random name such as "cache-38a2b7d4" is generated.
-type Name string
-
-func (o Name) applyConcrete(c *concreteCache) {
-	*c.name = string(o)
-}
-
-func (o Name) optioner() {}
 
 // entry is the internal representation of a cache entry. Contrast with the
 // external [Entry] type.
@@ -263,53 +288,63 @@ type entry[K comparable, V any] struct {
 	once  sync.Once
 }
 
-func (e *entry[K, V]) set(ctx context.Context, key K, val V, err error) {
-	var notify bool
+func maybeSetValueSlow[K comparable, V any](ctx context.Context, e *entry[K, V], key K, val V, err error) bool {
+	var ok bool
 	e.once.Do(func() {
+		ok = true
 		e.val = val
 		e.err = err
-		notify = true
-	})
-
-	// We perform notification outside the once to avoid holding the lock.
-	if notify && len(e.cache.onFill) > 0 {
 		ctx = NewContext(ctx, e.cache)
 		for _, fn := range e.cache.onFill {
 			fn(ctx, key, val, err)
 		}
-	}
+	})
+	return ok
 }
 
-func (e *entry[K, V]) get(ctx context.Context, key K) (V, error) {
-	var notify bool
+func maybeSetValueFast[K comparable, V any](_ context.Context, e *entry[K, V], _ K, val V, err error) bool {
+	var ok bool
 	e.once.Do(func() {
+		e.val = val
+		e.err = err
+		ok = true
+	})
+	return ok
+}
+
+func getValueSlow[K comparable, V any](ctx context.Context, e *entry[K, V], key K) (V, error) {
+	var miss bool
+	e.once.Do(func() {
+		miss = true
 		ctx = NewContext(ctx, e.cache)
+		for _, fn := range e.cache.onMiss {
+			fn(ctx, key, e.val, e.err)
+		}
+
 		e.val, e.err = e.cache.fetch(ctx, key)
-		notify = true
+
+		for _, fn := range e.cache.onFill {
+			fn(ctx, key, e.val, e.err)
+		}
 	})
 
-	// We perform notification outside the once to avoid holding the lock.
-	if notify && len(e.cache.onFill) > 0 {
-		for _, onFill := range e.cache.onFill {
-			onFill(ctx, key, e.val, e.err)
+	if !miss && len(e.cache.onHit) > 0 {
+		ctx = NewContext(ctx, e.cache)
+		for _, fn := range e.cache.onHit {
+			fn(ctx, key, e.val, e.err)
 		}
 	}
 
 	return e.val, e.err
 }
 
-// evict invokes any [OnEvict] callbacks for the given cache entry. The caller
-// should beforehand decorate ctx via [NewContext].
-func (e *entry[K, V]) evict(ctx context.Context, key K) {
-	for _, onEvict := range e.cache.onEvict {
-		onEvict(ctx, key, e.val, e.err)
-	}
-}
+func getValueFast[K comparable, V any](ctx context.Context, e *entry[K, V], key K) (V, error) {
+	e.once.Do(func() {
+		ctx = NewContext(ctx, e.cache)
+		e.val, e.err = e.cache.fetch(ctx, key)
+	})
 
-func randomName() string {
-	b := make([]byte, 128)
-	_, _ = rand.Read(b)
-	return fmt.Sprintf("cache-%x", crc32.ChecksumIEEE(b))
+	return e.val, e.err
 }
 
 type ctxKey struct{}
@@ -344,9 +379,32 @@ func FromContext[K comparable, V any](ctx context.Context) *Cache[K, V] {
 	return nil
 }
 
+func randomName() string {
+	b := make([]byte, 128)
+	_, _ = rand.Read(b)
+	return fmt.Sprintf("cache-%x", crc32.ChecksumIEEE(b))
+}
+
 // isNil checks if a value is nil or if it's a reference type with a nil
 // underlying value.
 func isNil(x any) bool {
 	defer func() { recover() }() //nolint:errcheck
 	return x == nil || reflect.ValueOf(x).IsNil()
+}
+
+// uniq returns a new slice containing only the unique elements of a.
+func uniq[T comparable](a []T) []T {
+	result := make([]T, 0, len(a))
+	seen := make(map[T]struct{}, len(a))
+
+	for _, val := range a {
+		if _, ok := seen[val]; ok {
+			continue
+		}
+
+		seen[val] = struct{}{}
+		result = append(result, val)
+	}
+
+	return result
 }

@@ -11,6 +11,8 @@ import (
 	"io"
 	"time"
 
+	"github.com/neilotoole/sq/cli/config"
+
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/hostinfo"
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -129,7 +131,7 @@ type VersionWriter interface {
 type ConfigWriter interface {
 	// Location prints the config location. The origin may be empty, or one
 	// of "flag", "env", "default".
-	Location(loc, origin string) error
+	Location(loc string, origin config.Origin) error
 
 	// Opt prints a single options.Opt.
 	Opt(o options.Options, opt options.Opt) error

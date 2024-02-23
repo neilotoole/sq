@@ -3,6 +3,7 @@ package mdcache
 
 import (
 	"context"
+	"log/slog"
 
 	"golang.org/x/sync/errgroup"
 
@@ -26,25 +27,34 @@ type Cache struct {
 	dbProps  *oncecache.Cache[string, map[string]any]
 }
 
-// New returns a new [Cache].
-func New(_ context.Context, coll *source.Collection, grips *driver.Grips) *Cache {
+// New returns a new [Cache]. If log is non-nil, it will be used for logging
+// cache events.
+func New(log *slog.Logger, coll *source.Collection, grips *driver.Grips) *Cache {
+	_ = log
+
 	c := &Cache{coll: coll, grips: grips}
 
 	c.tblMeta = oncecache.New[source.Table, *metadata.Table](
 		c.fetchTableMeta,
 		oncecache.Name("mdcache.tblMeta"),
+		// oncecache.Log(log, slog.LevelDebug),
 	)
+
 	c.srcMeta = oncecache.New[string, *metadata.Source](
 		c.fetchSourceMeta,
 		oncecache.Name("mdcache.srcMeta"),
+		// oncecache.Log(log, slog.LevelDebug),
 	)
 	c.tblNames = oncecache.New[string, []string](
 		c.fetchTableNames,
 		oncecache.Name("mdcache.tblNames"),
+		// oncecache.Log(log, slog.LevelDebug),
 	)
+
 	c.dbProps = oncecache.New[string, map[string]any](
 		c.fetchDBProps,
 		oncecache.Name("mdcache.dbProps"),
+		// oncecache.Log(log, slog.LevelDebug),
 	)
 
 	return c
@@ -52,9 +62,16 @@ func New(_ context.Context, coll *source.Collection, grips *driver.Grips) *Cache
 
 // Close closes the cache.
 func (c *Cache) Close() error {
-	// FIXME: Probably need to add a method oncecache.Cache.Close().
-	// Unlike oncecache.Cache.Clear, it wouldn't send out notification signals.
-	return nil
+	if c == nil {
+		return nil
+	}
+
+	return errz.Combine(
+		c.tblNames.Close(),
+		c.tblMeta.Close(),
+		c.srcMeta.Close(),
+		c.dbProps.Close(),
+	)
 }
 
 // TableMeta returns the metadata for tbl. The returned value is the internal

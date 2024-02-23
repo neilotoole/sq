@@ -3,6 +3,8 @@ package cli
 import (
 	"log/slog"
 
+	"github.com/neilotoole/sq/cli/pprofile"
+
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -103,6 +105,11 @@ See docs and more: https://sq.io`,
 	addOptionFlag(cmd.PersistentFlags(), OptProgress)
 	addOptionFlag(cmd.PersistentFlags(), OptRedact)
 	addOptionFlag(cmd.PersistentFlags(), OptVerbose)
+	addOptionFlag(cmd.PersistentFlags(), pprofile.OptMode)
+	panicOn(cmd.RegisterFlagCompletionFunc(pprofile.OptMode.Flag().Name, completeStrings(
+		-1,
+		pprofile.Modes()...,
+	)))
 
 	// flag.Config can't use the option flag mechanism, because... well,
 	// because it's the config flag, and it exists above the realm of

@@ -3,6 +3,8 @@ package jsonw
 import (
 	"io"
 
+	"github.com/neilotoole/sq/cli/config"
+
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/commonw"
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -44,10 +46,10 @@ func (w *configWriter) CacheStat(loc string, enabled bool, size int64) error {
 }
 
 // Location implements output.ConfigWriter.
-func (w *configWriter) Location(loc, origin string) error {
+func (w *configWriter) Location(loc string, origin config.Origin) error {
 	type cfgInfo struct {
-		Location string `json:"location"`
-		Origin   string `json:"origin,omitempty"`
+		Location string        `json:"location"`
+		Origin   config.Origin `json:"origin,omitempty"`
 	}
 
 	c := cfgInfo{

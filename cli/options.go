@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/pprofile"
+
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -207,7 +209,9 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		csv.OptDelim,
 		csv.OptEmptyAsNull,
 		OptDebugTrackMemory,
+		pprofile.OptMode,
 		progress.OptDebugSleep,
+		progress.OptDebugForce,
 	)
 }
 

@@ -3,6 +3,8 @@ package yamlw
 import (
 	"io"
 
+	"github.com/neilotoole/sq/cli/config"
+
 	"github.com/goccy/go-yaml/printer"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -25,10 +27,10 @@ func NewConfigWriter(out io.Writer, pr *output.Printing) output.ConfigWriter {
 }
 
 // Location implements output.ConfigWriter.
-func (w *configWriter) Location(loc, origin string) error {
+func (w *configWriter) Location(loc string, origin config.Origin) error {
 	type cfgInfo struct {
-		Location string `json:"location"`
-		Origin   string `json:"origin,omitempty"`
+		Location string        `json:"location"`
+		Origin   config.Origin `json:"origin,omitempty"`
 	}
 
 	c := cfgInfo{

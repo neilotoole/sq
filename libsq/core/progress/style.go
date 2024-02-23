@@ -2,8 +2,9 @@ package progress
 
 import (
 	"fmt"
-	"runtime"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/runtimez"
 
 	"github.com/fatih/color"
 	mpb "github.com/vbauerster/mpb/v8"
@@ -138,8 +139,7 @@ type optMemUsage struct{}
 
 func (optMemUsage) apply(p *Progress, cfg *barConfig) {
 	fn := func(s decor.Statistics) string {
-		stats := &runtime.MemStats{}
-		runtime.ReadMemStats(stats)
+		stats := runtimez.MemStats()
 		msg := fmt.Sprintf(" (% .1f)", decor.SizeB1024(stats.Sys))
 		return p.colors.MemUsage.Sprint(msg)
 	}

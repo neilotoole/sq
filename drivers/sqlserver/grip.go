@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log/slog"
+	"sync"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -15,10 +16,12 @@ import (
 
 // grip implements driver.Grip.
 type grip struct {
-	log  *slog.Logger
-	drvr *driveri
-	db   *sql.DB
-	src  *source.Source
+	log       *slog.Logger
+	drvr      *driveri
+	db        *sql.DB
+	src       *source.Source
+	closeErr  error
+	closeOnce sync.Once
 }
 
 var _ driver.Grip = (*grip)(nil)
@@ -72,7 +75,14 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 
 // Close implements driver.Grip.
 func (g *grip) Close() error {
-	g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
+	g.closeOnce.Do(func() {
+		g.closeErr = errw(g.db.Close())
+		if g.closeErr != nil {
+			g.log.Error(lgm.CloseDB, lga.Handle, g.src.Handle, lga.Err, g.closeErr)
+		} else {
+			g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
+		}
+	})
 
-	return errw(g.db.Close())
+	return g.closeErr
 }

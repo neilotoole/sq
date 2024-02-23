@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/cli/pprofile"
+
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
@@ -317,6 +319,9 @@ func completeOptValue(cmd *cobra.Command, args []string, toComplete string) ([]s
 			return a, cobra.ShellCompDirectiveDefault
 		case OptDatetimeFormat.Key(), OptTimeFormat.Key(), OptDateFormat.Key():
 			return timez.NamedLayouts(), cobra.ShellCompDirectiveNoFileComp
+		case pprofile.OptMode.Key():
+			// REVISIT: We really need a generic mechanism for this.
+			return pprofile.Modes(), cobra.ShellCompDirectiveNoFileComp
 		}
 
 	case LogLevelOpt:
