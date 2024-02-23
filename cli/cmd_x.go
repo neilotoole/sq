@@ -4,9 +4,10 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/options"
 	"os"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/spf13/cobra"
 
@@ -101,9 +102,9 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 	barTimeout := time.Second * 30
 	_ = barTimeout
 	pb := progress.FromContext(ctx)
-	//bar := pb.NewTimeoutWaiter("Doing something...", time.Now().Add(barTimeout))
+	// bar := pb.NewTimeoutWaiter("Doing something...", time.Now().Add(barTimeout))
 	bar := pb.NewUnitCounter("Counting stuff...", "thing", progress.OptTimer)
-	//defer bar.Stop()
+	// defer bar.Stop()
 
 	go func() {
 		for ctx.Err() == nil {
@@ -112,7 +113,8 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 		}
 	}()
 
-	bar.Incr(10)
+	const stepSleepy = time.Second * 2
+	// bar.Incr(10)
 
 	log.Warn("bar.Show; should be no op")
 	bar.Show() // This should be a no-op
@@ -122,39 +124,41 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 
 	bar.Show()
 	log.Warn("Showing bar")
-	time.Sleep(time.Second * 5)
+	time.Sleep(stepSleepy)
 
 	log.Warn("Hiding bar")
 	bar.Hide()
 
-	time.Sleep(time.Second * 5)
+	time.Sleep(stepSleepy)
 
 	log.Warn("Showing bar again")
 	bar.Show()
 
-	time.Sleep(time.Second * 5)
+	time.Sleep(stepSleepy)
 
 	log.Warn("Stopping bar")
-	bar.Stop()
-	cancelFn()
+	// bar.Stop()
+	defer cancelFn()
 
-	//select {
-	//case <-pressEnter():
-	//	bar.Stop()
-	//	pb.Stop()
-	//	fmt.Fprintln(ru.Out, "\nENTER received")
-	//case <-ctx.Done():
-	//	bar.Stop()
-	//	pb.Stop()
-	//	fmt.Fprintln(ru.Out, "Context done")
-	//case <-time.After(d + time.Second*5):
-	//	bar.Stop()
-	//	log.Warn("timed out, about to print something")
-	//	fmt.Fprintln(ru.Out, "Really timed out")
-	//	log.Warn("done printing")
-	//}
-	//
-	//fmt.Fprintln(ru.Out, "exiting")
+	pb.Stop()
+
+	// select {
+	// case <-pressEnter():
+	// 	bar.Stop()
+	// 	pb.Stop()
+	// 	fmt.Fprintln(ru.Out, "\nENTER received")
+	// case <-ctx.Done():
+	// 	bar.Stop()
+	// 	pb.Stop()
+	// 	fmt.Fprintln(ru.Out, "Context done")
+	// case <-time.After(d + time.Second*5):
+	// 	bar.Stop()
+	// 	log.Warn("timed out, about to print something")
+	// 	fmt.Fprintln(ru.Out, "Really timed out")
+	// 	log.Warn("done printing")
+	// }
+
+	fmt.Fprintln(ru.Out, "exiting")
 	return nil
 }
 

@@ -49,7 +49,7 @@ func NewWriter(ctx context.Context, msg string, size int64, w io.Writer) Writer 
 	b := pb.NewByteCounter(msg, size)
 	return &progCopier{progWriter{
 		ctx: ctx,
-		//delayCh: b.getDelayCh(),
+		// delayCh: b.getDelayCh(),
 		w: w,
 		b: b,
 	}}
@@ -60,7 +60,7 @@ var _ io.WriteCloser = (*progWriter)(nil)
 type progWriter struct {
 	ctx context.Context
 	w   io.Writer
-	//delayCh <-chan struct{}
+	// delayCh <-chan struct{}
 	b Bar
 }
 
@@ -70,7 +70,7 @@ func (w *progWriter) Write(p []byte) (n int, err error) {
 	case <-w.ctx.Done():
 		w.b.Stop()
 		return 0, w.ctx.Err()
-	//case <-w.delayCh:
+	// case <-w.delayCh:
 	//	w.b.ensureInit()
 	default:
 	}
@@ -127,7 +127,7 @@ func NewReader(ctx context.Context, msg string, size int64, r io.Reader) io.Read
 	b := pb.NewByteCounter(msg, size)
 	pr := &progReader{
 		ctx: ctx,
-		//delayCh: b.getDelayCh(),
+		// delayCh: b.getDelayCh(),
 		r: r,
 		b: b,
 	}
@@ -139,7 +139,7 @@ var _ io.ReadCloser = (*progReader)(nil)
 type progReader struct {
 	ctx context.Context
 	r   io.Reader
-	//delayCh <-chan struct{}
+	// delayCh <-chan struct{}
 	b Bar
 }
 
@@ -166,7 +166,7 @@ func (r *progReader) Read(p []byte) (n int, err error) {
 	case <-r.ctx.Done():
 		r.b.Stop()
 		return 0, r.ctx.Err()
-	//case <-r.delayCh:
+	// case <-r.delayCh:
 	//	r.b.ensureInit()
 	default:
 	}
@@ -233,7 +233,7 @@ func (w *progCopier) ReadFrom(r io.Reader) (n int64, err error) {
 		// Let the original Writer decide the chunk size.
 		rdr := &progReader{
 			ctx: w.ctx,
-			//delayCh: w.delayCh,
+			// delayCh: w.delayCh,
 			r: r,
 			b: w.b,
 		}
