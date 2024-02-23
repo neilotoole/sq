@@ -2,9 +2,10 @@ package diff_test
 
 import (
 	"fmt"
-	"github.com/neilotoole/sq/testh/proj"
 	"os"
 	"testing"
+
+	"github.com/neilotoole/sq/testh/proj"
 
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/source"
