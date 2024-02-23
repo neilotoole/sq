@@ -69,7 +69,7 @@ type barCtxKey struct{}
 
 // NewBarContext returns ctx with bar added as a value. This context can
 // be used in conjunction with progress.Incr to increment the progress bar.
-func NewBarContext(ctx context.Context, bar *Bar) context.Context {
+func NewBarContext(ctx context.Context, bar Bar) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -96,7 +96,7 @@ func Incr(ctx context.Context, n int) {
 		return
 	}
 
-	if b, ok := val.(*Bar); ok {
+	if b, ok := val.(*virtualBar); ok {
 		b.Incr(n)
 	}
 }
@@ -118,7 +118,7 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 	p := &Progress{
 		mu:        &sync.Mutex{},
 		colors:    colors,
-		bars:      make([]*Bar, 0),
+		bars:      make([]*virtualBar, 0),
 		delay:     delay,
 		stoppedCh: make(chan struct{}),
 		stopOnce:  &sync.Once{},
@@ -181,17 +181,17 @@ type Progress struct {
 	// colors contains the color scheme to use.
 	colors *Colors
 
-	megaBar *Bar
+	megaBar *megaBar //nolint:unused
 
 	// bars contains all bars that have been created on this Progress.
-	bars []*Bar
+	bars []*virtualBar
 
 	// delay is the duration to wait before rendering a progress bar.
 	// Each newly-created bar gets its own render delay.
 	delay time.Duration
 }
 
-const maxActiveBars = 5
+const maxActiveBars = 5 //nolint:unused
 
 // Stop waits for all bars to complete and finally shuts down the
 // progress container. After this method has been called, there is
@@ -288,7 +288,7 @@ type Opt interface {
 	apply(*Progress, *barConfig)
 }
 
-// barConfig is passed to Progress.newBar.
+// barConfig is passed to Progress.barFromConfig.
 type barConfig struct {
 	style      mpb.BarFillerBuilder
 	msg        string
@@ -296,27 +296,26 @@ type barConfig struct {
 	total      int64
 }
 
-func (p *Progress) maybeMegaBar() *Bar {
-	if p.megaBar != nil {
-		return p.megaBar
+// barFromConfig returns a bar for cfg. This method must only be called
+// from within the Progress mutex. This method may end up calling createVirtualBar,
+// or it may return a nopBar, or a megaBar.
+func (p *Progress) barFromConfig(cfg *barConfig, opts []Opt) Bar {
+	if p == nil {
+		return nopBar{}
 	}
 
-	if len(p.bars) >= maxActiveBars {
-		return nil
-	}
-
-	return nil
+	// if mega := p.maybeMegaBar(); mega != nil {
+	//	return mega
+	// }
+	return p.createVirtualBar(cfg, opts)
 }
 
-// newBar returns a new Bar. This function must only be called from
-// inside the Progress mutex.
-func (p *Progress) newBar(cfg *barConfig, opts []Opt) *Bar {
+// createVirtualBar returns a new virtualBar (or nil). It must only be called
+// from inside the Progress mutex. Generally speaking, callers should use
+// Progress.barFromConfig instead of calling createVirtualBar directly.
+func (p *Progress) createVirtualBar(cfg *barConfig, opts []Opt) *virtualBar {
 	if p == nil {
 		return nil
-	}
-
-	if megaBar := p.maybeMegaBar(); megaBar != nil {
-		return megaBar
 	}
 
 	cfg.decorators = lo.WithoutEmpty(cfg.decorators)
@@ -341,7 +340,7 @@ func (p *Progress) newBar(cfg *barConfig, opts []Opt) *Bar {
 		cfg.msg = stringz.Ellipsify(cfg.msg, msgLength)
 	}
 
-	b := &Bar{
+	b := &virtualBar{
 		p:            p,
 		incrByCalls:  &atomic.Int64{},
 		incrStash:    &atomic.Int64{},
@@ -382,7 +381,7 @@ func (p *Progress) newBar(cfg *barConfig, opts []Opt) *Bar {
 					// If we panic here, it's likely because the progress has already
 					// been stopped.
 					err := errz.Errorf("progress: new bar: %v", r)
-					lg.FromContext(p.ctx).Warn("Caught panic in progress.newBar", lga.Err, err)
+					lg.FromContext(p.ctx).Warn("Caught panic in progress.barFromConfig", lga.Err, err)
 				}
 			}()
 			//nolint:lll
@@ -394,7 +393,7 @@ func (p *Progress) newBar(cfg *barConfig, opts []Opt) *Bar {
 				        /Users/neilotoole/work/moi/go/pkg/mod/github.com/vbauerster/mpb/v8@v8.7.2/progress.go:140 +0xf0
 				github.com/vbauerster/mpb/v8.(*Progress).New(0x14000116140, 0x0, {0x1293264d8, 0x1400077a030}, {0x140004c21c0, 0x4, 0x4})
 				        /Users/neilotoole/work/moi/go/pkg/mod/github.com/vbauerster/mpb/v8@v8.7.2/progress.go:131 +0x84
-				github.com/neilotoole/sq/libsq/core/progress.(*Progress).newBar.func1()
+				github.com/neilotoole/sq/libsq/core/progress.(*Progress).barFromConfig.func1()
 				        /Users/neilotoole/work/sq/sq/libsq/core/progress/progress.go:331 +0x584
 				sync.(*Once).doSlow(0x140003cc020, 0x140005f8600)
 				        /opt/homebrew/opt/go/libexec/src/sync/once.go:74 +0x140
@@ -436,111 +435,9 @@ func (p *Progress) newBar(cfg *barConfig, opts []Opt) *Bar {
 	return b
 }
 
-// Bar represents a single progress bar. The caller should invoke
-// Bar.Incr as necessary to increment the bar's progress. When
-// the bar is complete, the caller should invoke Bar.Stop. All
-// methods are safe to call on a nil Bar.
-type Bar struct {
-	// bar is nil until barInitOnce.Do(barInitFn) is called
-	bar *mpb.Bar
-	// p is never nil
-	p *Progress
-
-	// There's a bug in the mpb package, wherein it doesn't fully
-	// respect the render delay.
-	//
-	// https://github.com/vbauerster/mpb/issues/136
-	//
-	// Until that bug is fixed, the Bar is lazily initialized
-	// after the render delay expires. In fact, even when the
-	// bug is fixed, we may just stick with the lazy initialization
-	// mechanism, as it allows us to set the render delay on a
-	// per-bar basis, which is not possible with the mpb package.
-
-	barInitOnce *sync.Once
-	barInitFn   func()
-
-	barStopOnce  *sync.Once
-	barStoppedCh chan struct{}
-
-	delayCh <-chan struct{}
-
-	// incrStash holds the increment count until the
-	// bar is fully initialized.
-	incrStash *atomic.Int64
-
-	// incrByCalls is the number of times IncrBy has been called.
-	incrByCalls *atomic.Int64
-}
-
-// Incr increments progress by amount n. It is safe to
-// call IncrBy on a nil Bar.
-func (b *Bar) Incr(n int) {
-	if b == nil {
-		return
-	}
-
-	b.incrByCalls.Add(1)
-
-	b.p.mu.Lock()
-	defer b.p.mu.Unlock()
-
-	select {
-	case <-b.p.stoppedCh:
-		return
-	case <-b.barStoppedCh:
-		return
-	case <-b.p.ctx.Done():
-		return
-	case <-b.delayCh:
-		b.barInitOnce.Do(b.barInitFn)
-		if b.bar != nil {
-			b.bar.IncrBy(n)
-		}
-		return
-	default:
-		// The bar hasn't been initialized yet, so we stash
-		// the increment count for later use.
-		b.incrStash.Add(int64(n))
-	}
-}
-
-// Stop stops and removes the bar. It is safe to call Stop on a nil Bar,
-// or to call Stop multiple times.
-func (b *Bar) Stop() {
-	if b == nil {
-		return
-	}
-
-	b.p.mu.Lock()
-	defer b.p.mu.Unlock()
-
-	b.doStop()
-	<-b.barStoppedCh
-}
-
-func (b *Bar) doStop() {
-	if b == nil {
-		return
-	}
-
-	b.barStopOnce.Do(func() {
-		if b.bar == nil {
-			close(b.barStoppedCh)
-			return
-		}
-
-		// We *probably* only need to call b.bar.Abort() here?
-		b.bar.SetTotal(-1, true)
-		b.bar.Abort(true)
-		b.bar.Wait()
-		close(b.barStoppedCh)
-	})
-}
-
 // barRenderDelay returns a channel that will be closed after d,
 // at which point b will be initialized.
-func barRenderDelay(b *Bar, d time.Duration) <-chan struct{} {
+func barRenderDelay(b *virtualBar, d time.Duration) <-chan struct{} {
 	delayCh := make(chan struct{})
 	t := time.NewTimer(d)
 	go func() {

@@ -49,7 +49,7 @@ func NewWriter(ctx context.Context, msg string, size int64, w io.Writer) Writer 
 	b := pb.NewByteCounter(msg, size)
 	return &progCopier{progWriter{
 		ctx:     ctx,
-		delayCh: b.delayCh,
+		delayCh: b.getDelayCh(),
 		w:       w,
 		b:       b,
 	}}
@@ -61,7 +61,7 @@ type progWriter struct {
 	ctx     context.Context
 	w       io.Writer
 	delayCh <-chan struct{}
-	b       *Bar
+	b       Bar
 }
 
 // Write implements io.Writer, but with context and progress interaction.
@@ -71,7 +71,7 @@ func (w *progWriter) Write(p []byte) (n int, err error) {
 		w.b.Stop()
 		return 0, w.ctx.Err()
 	case <-w.delayCh:
-		w.b.barInitOnce.Do(w.b.barInitFn)
+		w.b.ensureInit()
 	default:
 	}
 
@@ -127,7 +127,7 @@ func NewReader(ctx context.Context, msg string, size int64, r io.Reader) io.Read
 	b := pb.NewByteCounter(msg, size)
 	pr := &progReader{
 		ctx:     ctx,
-		delayCh: b.delayCh,
+		delayCh: b.getDelayCh(),
 		r:       r,
 		b:       b,
 	}
@@ -140,7 +140,7 @@ type progReader struct {
 	ctx     context.Context
 	r       io.Reader
 	delayCh <-chan struct{}
-	b       *Bar
+	b       Bar
 }
 
 // Close implements io.ReadCloser, but with context awareness.
@@ -167,7 +167,7 @@ func (r *progReader) Read(p []byte) (n int, err error) {
 		r.b.Stop()
 		return 0, r.ctx.Err()
 	case <-r.delayCh:
-		r.b.barInitOnce.Do(r.b.barInitFn)
+		r.b.ensureInit()
 	default:
 	}
 
