@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"os"
@@ -93,6 +94,8 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 	_ = log
 	_ = ru
 
+	var cancelFn context.CancelFunc
+	ctx, cancelFn = context.WithCancel(ctx)
 	renderDelay := OptProgressDelay.Get(options.FromContext(ctx))
 
 	barTimeout := time.Second * 30
@@ -101,6 +104,13 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 	//bar := pb.NewTimeoutWaiter("Doing something...", time.Now().Add(barTimeout))
 	bar := pb.NewUnitCounter("Counting stuff...", "thing", progress.OptTimer)
 	//defer bar.Stop()
+
+	go func() {
+		for ctx.Err() == nil {
+			bar.Incr(1)
+			time.Sleep(time.Millisecond * 100)
+		}
+	}()
 
 	bar.Incr(10)
 
@@ -126,6 +136,7 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 
 	log.Warn("Stopping bar")
 	bar.Stop()
+	cancelFn()
 
 	//select {
 	//case <-pressEnter():
@@ -144,7 +155,7 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 	//}
 	//
 	//fmt.Fprintln(ru.Out, "exiting")
-	return ctx.Err()
+	return nil
 }
 
 func pressEnter() <-chan struct{} {
