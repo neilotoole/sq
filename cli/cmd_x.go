@@ -117,22 +117,22 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 	// bar.Incr(10)
 
 	log.Warn("bar.Show; should be no op")
-	bar.Show() // This should be a no-op
+	progress.ShowBar(bar) // This should be a no-op
 
 	time.Sleep(renderDelay)
 	log.Warn("After renderDelay sleep")
 
-	bar.Show()
+	progress.ShowBar(bar)
 	log.Warn("Showing bar")
 	time.Sleep(stepSleepy)
 
 	log.Warn("Hiding bar")
-	bar.Hide()
+	progress.HideBar(bar)
 
 	time.Sleep(stepSleepy)
 
 	log.Warn("Showing bar again")
-	bar.Show()
+	progress.ShowBar(bar)
 
 	time.Sleep(stepSleepy)
 

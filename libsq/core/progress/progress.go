@@ -215,7 +215,7 @@ func (p *Progress) Hide() {
 	defer p.mu.Unlock()
 
 	for _, bar := range p.bars {
-		bar.Hide()
+		bar.hide()
 	}
 }
 
@@ -228,7 +228,7 @@ func (p *Progress) Show() {
 	defer p.mu.Unlock()
 
 	for _, bar := range p.bars {
-		bar.Show()
+		bar.show()
 	}
 }
 

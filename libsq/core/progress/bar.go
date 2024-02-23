@@ -21,8 +21,8 @@ import (
 type Bar interface {
 	Incr(n int)
 	Stop()
-	Hide()
-	Show()
+	hide()
+	show()
 	refresh()
 }
 
@@ -74,7 +74,7 @@ func HideBar(b Bar) {
 		return
 	}
 
-	b.Hide()
+	b.hide()
 }
 
 func ShowBar(b Bar) {
@@ -82,7 +82,7 @@ func ShowBar(b Bar) {
 		return
 	}
 
-	b.Show()
+	b.show()
 }
 
 func (b *virtualBar) refresh() {
@@ -120,7 +120,7 @@ func (b *virtualBar) maybeSendIncr() {
 	b.incrLastSentTime = time.Now()
 }
 
-func (b *virtualBar) Hide() {
+func (b *virtualBar) hide() {
 	if b == nil {
 		return
 	}
@@ -131,7 +131,7 @@ func (b *virtualBar) Hide() {
 	b.doHide()
 }
 
-func (b *virtualBar) Show() {
+func (b *virtualBar) show() {
 	if b == nil {
 		return
 	}
@@ -254,9 +254,9 @@ type nopBar struct{}
 
 func (b nopBar) refresh() {}
 
-func (b nopBar) Hide() {}
+func (b nopBar) hide() {}
 
-func (b nopBar) Show() {}
+func (b nopBar) show() {}
 
 func (b nopBar) Incr(_ int) {}
 func (b nopBar) Stop()      {}
@@ -294,10 +294,10 @@ type megaBar struct {
 
 func (mb *megaBar) refresh() {}
 
-func (mb *megaBar) Hide() {
+func (mb *megaBar) hide() {
 }
 
-func (mb *megaBar) Show() {
+func (mb *megaBar) show() {
 }
 
 func (mb *megaBar) init() {
