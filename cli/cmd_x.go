@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"os"
 	"time"
 
@@ -89,29 +90,60 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
 	log := lg.FromContext(ctx)
 	ru := run.FromContext(ctx)
+	_ = log
+	_ = ru
 
-	d := time.Second * 5
+	renderDelay := OptProgressDelay.Get(options.FromContext(ctx))
+
+	barTimeout := time.Second * 30
+	_ = barTimeout
 	pb := progress.FromContext(ctx)
-	bar := pb.NewTimeoutWaiter("Locking @sakila", time.Now().Add(d))
-	defer bar.Stop()
+	//bar := pb.NewTimeoutWaiter("Doing something...", time.Now().Add(barTimeout))
+	bar := pb.NewUnitCounter("Counting stuff...", "thing", progress.OptTimer)
+	//defer bar.Stop()
 
-	select {
-	case <-pressEnter():
-		bar.Stop()
-		pb.Stop()
-		fmt.Fprintln(ru.Out, "\nENTER received")
-	case <-ctx.Done():
-		bar.Stop()
-		pb.Stop()
-		fmt.Fprintln(ru.Out, "Context done")
-	case <-time.After(d + time.Second*5):
-		bar.Stop()
-		log.Warn("timed out, about to print something")
-		fmt.Fprintln(ru.Out, "Really timed out")
-		log.Warn("done printing")
-	}
+	bar.Incr(10)
 
-	fmt.Fprintln(ru.Out, "exiting")
+	log.Warn("bar.Show; should be no op")
+	bar.Show() // This should be a no-op
+
+	time.Sleep(renderDelay)
+	log.Warn("After renderDelay sleep")
+
+	bar.Show()
+	log.Warn("Showing bar")
+	time.Sleep(time.Second * 5)
+
+	log.Warn("Hiding bar")
+	bar.Hide()
+
+	time.Sleep(time.Second * 5)
+
+	log.Warn("Showing bar again")
+	bar.Show()
+
+	time.Sleep(time.Second * 5)
+
+	log.Warn("Stopping bar")
+	bar.Stop()
+
+	//select {
+	//case <-pressEnter():
+	//	bar.Stop()
+	//	pb.Stop()
+	//	fmt.Fprintln(ru.Out, "\nENTER received")
+	//case <-ctx.Done():
+	//	bar.Stop()
+	//	pb.Stop()
+	//	fmt.Fprintln(ru.Out, "Context done")
+	//case <-time.After(d + time.Second*5):
+	//	bar.Stop()
+	//	log.Warn("timed out, about to print something")
+	//	fmt.Fprintln(ru.Out, "Really timed out")
+	//	log.Warn("done printing")
+	//}
+	//
+	//fmt.Fprintln(ru.Out, "exiting")
 	return ctx.Err()
 }
 

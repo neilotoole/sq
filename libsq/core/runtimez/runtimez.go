@@ -30,7 +30,6 @@ func MemStats() *runtime.MemStats {
 	now := time.Now()
 	memStatsMu.Lock()
 	if now.After(memStatsNextRefresh) {
-		// println("refresh memstats")
 		var ms runtime.MemStats
 		runtime.ReadMemStats(&ms)
 		memStats = &ms

@@ -27,9 +27,7 @@ import (
 	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
@@ -138,6 +136,7 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 	}
 
 	p.pc = mpb.NewWithContext(ctx, opts...)
+	p.startMonitor()
 	return p
 }
 
@@ -207,6 +206,33 @@ func (p *Progress) Stop() {
 	p.mu.Unlock()
 }
 
+func (p *Progress) Hide() {
+	if p == nil {
+		return
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for _, bar := range p.bars {
+		bar.Hide()
+	}
+
+}
+
+func (p *Progress) Show() {
+	if p == nil {
+		return
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for _, bar := range p.bars {
+		bar.Show()
+	}
+}
+
 // LogValue reports some stats.
 func (p *Progress) LogValue() slog.Value {
 	var barCount int
@@ -249,9 +275,9 @@ func (p *Progress) doStop() {
 		}
 
 		for _, b := range p.bars {
-			// We abort each of the bars here, before we call b.doStop() below.
+			// We abort each of the bars here, before we call b.doHide() below.
 			// In theory, this gives the bar abortion process a head start before
-			// b.bar.Wait() is invoked by b.doStop(). This may be completely
+			// b.bar.Wait() is invoked by b.doHide(). This may be completely
 			// unnecessary, but it doesn't seem to hurt.
 			if b.bar != nil {
 				b.bar.SetTotal(-1, true)
@@ -260,7 +286,7 @@ func (p *Progress) doStop() {
 		}
 
 		for _, b := range p.bars {
-			b.doStop()
+			b.doHide()
 			<-b.barStoppedCh // Wait for bar to stop
 		}
 
@@ -340,115 +366,152 @@ func (p *Progress) createVirtualBar(cfg *barConfig, opts []Opt) *virtualBar {
 		cfg.msg = stringz.Ellipsify(cfg.msg, msgLength)
 	}
 
+	for _, opt := range opts {
+		if opt != nil {
+			opt.apply(p, cfg)
+		}
+	}
+
 	b := &virtualBar{
-		p:            p,
-		incrByCalls:  &atomic.Int64{},
-		incrStash:    &atomic.Int64{},
-		barInitOnce:  &sync.Once{},
+		p:           p,
+		incrByCalls: &atomic.Int64{},
+		incrTotal:   &atomic.Int64{},
+		//barInitOnce:  &sync.Once{},
 		barStopOnce:  &sync.Once{},
 		barStoppedCh: make(chan struct{}),
+		delayUntil:   time.Now().Add(p.delay),
+		cfg:          cfg,
 	}
-	b.barInitFn = func() {
-		p.mu.Lock()
-		defer p.mu.Unlock()
+	//b.barInitFn = func() {
+	//	p.mu.Lock()
+	//	defer p.mu.Unlock()
+	//
+	//	select {
+	//	case <-p.ctx.Done():
+	//		return
+	//	case <-p.stoppedCh:
+	//		return
+	//	case <-b.barStoppedCh:
+	//		return
+	//	default:
+	//	}
+	//
+	//	for _, opt := range opts {
+	//		if opt != nil {
+	//			opt.apply(p, cfg)
+	//		}
+	//	}
+	//
+	//	// NOTE: It shouldn't be possible that the progress has already been
+	//	// stopped. If it is stopped, the call to p.pc.New below panics.
+	//	// Unfortunately, this does happen; it is seen most often during debugging.
+	//	// The entire logic needs to be revisited. In the meantime, if we encounter
+	//	// the panic, we'll recover and just log a warning. It's not actually
+	//	// problematic for the user if this situation arises.
+	//	var pBar *mpb.Bar
+	//	func() {
+	//		defer func() {
+	//			if r := recover(); r != nil {
+	//				// If we panic here, it's likely because the progress has already
+	//				// been stopped.
+	//				err := errz.Errorf("progress: new bar: %v", r)
+	//				lg.FromContext(p.ctx).Warn("Caught panic in progress.barFromConfig", lga.Err, err)
+	//			}
+	//		}()
+	//		//nolint:lll
+	//		/*
+	//			panic: *mpb.Progress instance can't be reused after *mpb.Progress.Wait()
+	//
+	//			goroutine 1170 [running]:
+	//			github.com/vbauerster/mpb/v8.(*Progress).MustAdd(0x14000116140, 0x0, {0x10167a580, 0x140003f22a0}, {0x140004c21c0, 0x4, 0x4})
+	//			        /Users/neilotoole/work/moi/go/pkg/mod/github.com/vbauerster/mpb/v8@v8.7.2/progress.go:140 +0xf0
+	//			github.com/vbauerster/mpb/v8.(*Progress).New(0x14000116140, 0x0, {0x1293264d8, 0x1400077a030}, {0x140004c21c0, 0x4, 0x4})
+	//			        /Users/neilotoole/work/moi/go/pkg/mod/github.com/vbauerster/mpb/v8@v8.7.2/progress.go:131 +0x84
+	//			github.com/neilotoole/sq/libsq/core/progress.(*Progress).barFromConfig.func1()
+	//			        /Users/neilotoole/work/sq/sq/libsq/core/progress/progress.go:331 +0x584
+	//			sync.(*Once).doSlow(0x140003cc020, 0x140005f8600)
+	//			        /opt/homebrew/opt/go/libexec/src/sync/once.go:74 +0x140
+	//			sync.(*Once).Do(0x140003cc020, 0x140005f8600)
+	//			        /opt/homebrew/opt/go/libexec/src/sync/once.go:65 +0x44
+	//			github.com/neilotoole/sq/libsq/core/progress.barRenderDelay.func1()
+	//			        /Users/neilotoole/work/sq/sq/libsq/core/progress/progress.go:458 +0x158
+	//			created by github.com/neilotoole/sq/libsq/core/progress.barRenderDelay in goroutine 1135
+	//			        /Users/neilotoole/work/sq/sq/libsq/core/progress/progress.go:453 +0x110
+	//			Exiting.
+	//		*/
+	//
+	//		pBar = p.pc.New(cfg.total,
+	//			cfg.style,
+	//			mpb.BarWidth(barWidth),
+	//			mpb.PrependDecorators(
+	//				colorize(decor.Name(cfg.msg, decor.WCSyncWidthR), p.colors.Message),
+	//			),
+	//			mpb.AppendDecorators(cfg.decorators...),
+	//			mpb.BarRemoveOnComplete(),
+	//		)
+	//	}()
+	//
+	//	if pBar == nil {
+	//		// pBar is nil because the progress has already been stopped, and there
+	//		// was a panic above. So, we just return. It's not actually a problem
+	//		// for the user.
+	//		return
+	//	}
+	//
+	//	b.bar = pBar
+	//	b.bar.IncrBy(int(b.incrTotal.Load()))
+	//	// b.incrStash = nil // FIXME: This sometimes gets hit when nil. Why?
+	//}
 
-		select {
-		case <-p.ctx.Done():
-			return
-		case <-p.stoppedCh:
-			return
-		case <-b.barStoppedCh:
-			return
-		default:
-		}
-
-		for _, opt := range opts {
-			if opt != nil {
-				opt.apply(p, cfg)
-			}
-		}
-
-		// NOTE: It shouldn't be possible that the progress has already been
-		// stopped. If it is stopped, the call to p.pc.New below panics.
-		// Unfortunately, this does happen; it is seen most often during debugging.
-		// The entire logic needs to be revisited. In the meantime, if we encounter
-		// the panic, we'll recover and just log a warning. It's not actually
-		// problematic for the user if this situation arises.
-		var pBar *mpb.Bar
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					// If we panic here, it's likely because the progress has already
-					// been stopped.
-					err := errz.Errorf("progress: new bar: %v", r)
-					lg.FromContext(p.ctx).Warn("Caught panic in progress.barFromConfig", lga.Err, err)
-				}
-			}()
-			//nolint:lll
-			/*
-				panic: *mpb.Progress instance can't be reused after *mpb.Progress.Wait()
-
-				goroutine 1170 [running]:
-				github.com/vbauerster/mpb/v8.(*Progress).MustAdd(0x14000116140, 0x0, {0x10167a580, 0x140003f22a0}, {0x140004c21c0, 0x4, 0x4})
-				        /Users/neilotoole/work/moi/go/pkg/mod/github.com/vbauerster/mpb/v8@v8.7.2/progress.go:140 +0xf0
-				github.com/vbauerster/mpb/v8.(*Progress).New(0x14000116140, 0x0, {0x1293264d8, 0x1400077a030}, {0x140004c21c0, 0x4, 0x4})
-				        /Users/neilotoole/work/moi/go/pkg/mod/github.com/vbauerster/mpb/v8@v8.7.2/progress.go:131 +0x84
-				github.com/neilotoole/sq/libsq/core/progress.(*Progress).barFromConfig.func1()
-				        /Users/neilotoole/work/sq/sq/libsq/core/progress/progress.go:331 +0x584
-				sync.(*Once).doSlow(0x140003cc020, 0x140005f8600)
-				        /opt/homebrew/opt/go/libexec/src/sync/once.go:74 +0x140
-				sync.(*Once).Do(0x140003cc020, 0x140005f8600)
-				        /opt/homebrew/opt/go/libexec/src/sync/once.go:65 +0x44
-				github.com/neilotoole/sq/libsq/core/progress.barRenderDelay.func1()
-				        /Users/neilotoole/work/sq/sq/libsq/core/progress/progress.go:458 +0x158
-				created by github.com/neilotoole/sq/libsq/core/progress.barRenderDelay in goroutine 1135
-				        /Users/neilotoole/work/sq/sq/libsq/core/progress/progress.go:453 +0x110
-				Exiting.
-			*/
-
-			pBar = p.pc.New(cfg.total,
-				cfg.style,
-				mpb.BarWidth(barWidth),
-				mpb.PrependDecorators(
-					colorize(decor.Name(cfg.msg, decor.WCSyncWidthR), p.colors.Message),
-				),
-				mpb.AppendDecorators(cfg.decorators...),
-				mpb.BarRemoveOnComplete(),
-			)
-		}()
-
-		if pBar == nil {
-			// pBar is nil because the progress has already been stopped, and there
-			// was a panic above. So, we just return. It's not actually a problem
-			// for the user.
-			return
-		}
-
-		b.bar = pBar
-		b.bar.IncrBy(int(b.incrStash.Load()))
-		// b.incrStash = nil // FIXME: This sometimes gets hit when nil. Why?
-	}
-
-	b.delayCh = barRenderDelay(b, p.delay)
+	//b.delayCh = barRenderDelay(b, p.delay)
 	p.bars = append(p.bars, b)
 
 	return b
 }
 
+func (p *Progress) startMonitor() {
+	if p == nil {
+		return
+	}
+
+	refreshFreq := 100 * time.Millisecond
+	ctx := p.ctx
+	ctxDone := ctx.Done()
+
+	go func() {
+		for ctx.Err() == nil {
+			select {
+			case <-ctxDone:
+				p.doStop()
+				return
+			case <-p.stoppedCh:
+				return
+			default:
+
+			}
+
+			for _, bar := range p.bars {
+				bar.refresh()
+			}
+			time.Sleep(refreshFreq)
+		}
+	}()
+}
+
 // barRenderDelay returns a channel that will be closed after d,
 // at which point b will be initialized.
-func barRenderDelay(b *virtualBar, d time.Duration) <-chan struct{} {
-	delayCh := make(chan struct{})
-	t := time.NewTimer(d)
-	go func() {
-		defer close(delayCh)
-		defer t.Stop()
-
-		<-t.C
-		b.barInitOnce.Do(b.barInitFn)
-	}()
-	return delayCh
-}
+//func barRenderDelay(b *virtualBar, d time.Duration) <-chan struct{} {
+//	delayCh := make(chan struct{})
+//	t := time.NewTimer(d)
+//	go func() {
+//		defer close(delayCh)
+//		defer t.Stop()
+//
+//		<-t.C
+//		b.barInitOnce.Do(b.barInitFn)
+//	}()
+//	return delayCh
+//}
 
 // OptDebugSleep configures DebugSleep. It should be removed when the
 // progress impl is stable.
