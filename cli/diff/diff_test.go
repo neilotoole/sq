@@ -2,6 +2,7 @@ package diff_test
 
 import (
 	"fmt"
+	"github.com/neilotoole/sq/testh/proj"
 	"os"
 	"testing"
 
@@ -22,12 +23,12 @@ func TestSchemaDiff(t *testing.T) {
 		source.Source{
 			Handle:   "@test_a",
 			Type:     drivertype.SQLite,
-			Location: "sqlite3:///Users/neilotoole/work/sq/sq/cli/diff/testdata/sakila_a.db",
+			Location: "sqlite3://" + proj.Abs("cli/diff/testdata/sakila_a.db"),
 		},
 		source.Source{
 			Handle:   "@test_b",
 			Type:     drivertype.SQLite,
-			Location: "sqlite3:///Users/neilotoole/work/sq/sq/cli/diff/testdata/sakila_b.db",
+			Location: "sqlite3://" + proj.Abs("cli/diff/testdata/sakila_b.db"),
 		},
 	)
 
