@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/run"
@@ -96,6 +98,61 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 
 	var cancelFn context.CancelFunc
 	ctx, cancelFn = context.WithCancel(ctx)
+	defer cancelFn()
+	// renderDelay := OptProgressDelay.Get(options.FromContext(ctx))
+
+	barTimeout := time.Second * 30
+	_ = barTimeout
+	pb := progress.FromContext(ctx)
+
+	const wantBarCount = 10
+
+	bars := make([]progress.Bar, 0, wantBarCount)
+
+	for i := 0; i < wantBarCount; i++ {
+		bar := pb.NewUnitCounter(fmt.Sprintf("Counter %d", i), "thing", progress.OptTimer)
+		bars = append(bars, bar)
+	}
+
+	// bar := pb.NewTimeoutWaiter("Doing something...", time.Now().Add(barTimeout))
+	// bar := pb.NewUnitCounter("Counting stuff...", "thing", progress.OptTimer)
+	// defer bar.Stop()
+
+	go func() {
+		for ctx.Err() == nil {
+			for i := range bars {
+				bars[i].Incr(1)
+			}
+			time.Sleep(time.Millisecond * 100)
+		}
+	}()
+
+	const stepSleepy = time.Second * 5
+	sleepyLog := func() {
+		log.Warn("Sleeping...", lga.Period, stepSleepy)
+		time.Sleep(stepSleepy)
+	}
+
+	// bar.Incr(10)
+	sleepyLog()
+
+	sleepyLog()
+
+	sleepyLog()
+
+	fmt.Fprintln(ru.Out, "exiting")
+	return nil
+}
+
+func execXProgressOld(cmd *cobra.Command, _ []string) error {
+	ctx := cmd.Context()
+	log := lg.FromContext(ctx)
+	ru := run.FromContext(ctx)
+	_ = log
+	_ = ru
+
+	var cancelFn context.CancelFunc
+	ctx, cancelFn = context.WithCancel(ctx)
 	renderDelay := OptProgressDelay.Get(options.FromContext(ctx))
 
 	barTimeout := time.Second * 30
@@ -112,7 +169,7 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 		}
 	}()
 
-	const stepSleepy = time.Second * 2
+	const stepSleepy = time.Second * 5
 	// bar.Incr(10)
 
 	log.Warn("bar.Show; should be no op")

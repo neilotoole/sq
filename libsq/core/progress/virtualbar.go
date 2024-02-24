@@ -1,12 +1,14 @@
 package progress
 
 import (
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	humanize "github.com/dustin/go-humanize"
-	"github.com/dustin/go-humanize/english"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/samber/lo"
+
 	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 
@@ -15,38 +17,56 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 )
 
-// Bar represents a single progress bar. The caller should invoke Incr as
-// necessary to increment the bar's progress. When the bar is complete, the
-// caller should invoke Bar.Stop.
-type Bar interface {
-	// Incr increments the progress bar by amount n.
-	Incr(n int)
+// newVirtualBar returns a new virtualBar (or nil). It must only be called
+// from inside the Progress mutex. Generally speaking, callers should use
+// Progress.barFromConfig instead of calling newVirtualBar directly.
+//
+// Note that the returned virtualBar is NOT automatically shown, nor is it
+// automatically added to Progress.bars.
+func newVirtualBar(p *Progress, cfg *barConfig, opts []Opt) *virtualBar {
+	if p == nil {
+		return nil
+	}
 
-	// Stop stops and removes the bar, preventing further use of the bar.
-	Stop()
+	cfg.decorators = lo.WithoutEmpty(cfg.decorators)
 
-	// show shows the bar. It may be hidden again using Bar.hide.
-	show()
+	select {
+	case <-p.destroyedCh:
+		return nil
+	case <-p.ctx.Done():
+		return nil
+	default:
+	}
 
-	// hide hides the bar. It may be shown again using Bar.show.
-	hide()
+	if cfg.total < 0 {
+		cfg.total = 0
+	}
 
-	// refresh is called by the Progress's monitor loop to refresh the bar's
-	// state.
-	refresh()
+	// We want the bar message to be a consistent width.
+	switch {
+	case len(cfg.msg) < msgLength:
+		cfg.msg += strings.Repeat(" ", msgLength-len(cfg.msg))
+	case len(cfg.msg) > msgLength:
+		cfg.msg = stringz.Ellipsify(cfg.msg, msgLength)
+	}
+
+	for _, opt := range opts {
+		if opt != nil {
+			opt.apply(p, cfg)
+		}
+	}
+
+	b := &virtualBar{
+		p:           p,
+		incrByCalls: &atomic.Int64{},
+		incrTotal:   &atomic.Int64{},
+		destroyOnce: &sync.Once{},
+		notBefore:   time.Now().Add(p.delay),
+		cfg:         cfg,
+	}
+
+	return b
 }
-
-var _ Bar = nopBar{}
-
-// nopBar is a no-op Bar. It is returned when the Progress is not enabled, so
-// that callers don't have to worry about checking for nil.
-type nopBar struct{}
-
-func (nopBar) Incr(int) {}
-func (nopBar) Stop()    {}
-func (nopBar) show()    {}
-func (nopBar) hide()    {}
-func (nopBar) refresh() {}
 
 var _ Bar = (*virtualBar)(nil)
 
@@ -97,6 +117,23 @@ type virtualBar struct {
 	wantShow bool
 }
 
+func (b *virtualBar) isRendered(t time.Time) bool {
+	if b == nil {
+		return false
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.wantShow && t.After(b.notBefore)
+}
+
+func (b *virtualBar) isRenderable(t time.Time) bool {
+	if b == nil {
+		return false
+	}
+
+	return t.After(b.notBefore)
+}
+
 // Incr increments the progress bar by amount n.
 func (b *virtualBar) Incr(n int) {
 	if b == nil {
@@ -107,7 +144,7 @@ func (b *virtualBar) Incr(n int) {
 	b.incrByCalls.Add(1)
 }
 
-func (b *virtualBar) refresh() {
+func (b *virtualBar) refresh(t time.Time) {
 	if b == nil {
 		return
 	}
@@ -127,7 +164,7 @@ func (b *virtualBar) refresh() {
 	}
 
 	if b.bimpl == nil {
-		b.doShow()
+		b.maybeShow(t)
 		// REVISIT: Hmmn, I think we always want to call maybeSendIncr here.
 		// return
 	}
@@ -159,11 +196,13 @@ func (b *virtualBar) show() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	b.doShow()
+	b.wantShow = true
+
+	// b.maybeShow(time.Now())
 }
 
-// doShow must be called inside b's mutex.
-func (b *virtualBar) doShow() {
+// maybeShow must be called inside b's mutex.
+func (b *virtualBar) maybeShow(t time.Time) {
 	if b == nil || b.destroyed {
 		return
 	}
@@ -173,7 +212,7 @@ func (b *virtualBar) doShow() {
 		return
 	}
 
-	if !time.Now().After(b.notBefore) {
+	if !t.After(b.notBefore) {
 		return
 	}
 
@@ -219,7 +258,7 @@ func (b *virtualBar) hide() {
 	defer b.mu.Unlock()
 
 	b.wantShow = false
-	b.stopConcrete()
+	// b.stopConcrete()
 }
 
 func (b *virtualBar) stopConcrete() {
@@ -242,7 +281,12 @@ func (b *virtualBar) stopConcrete() {
 
 // Stop stops and removes the bar.
 func (b *virtualBar) Stop() {
+	if b == nil {
+		return
+	}
+
 	b.destroy()
+	b.p.delistBar(b)
 }
 
 // destroy destroys the virtualBar, after which it is no longer usable. On
@@ -263,93 +307,4 @@ func (b *virtualBar) destroy() {
 		b.stopConcrete()
 		b.destroyed = true
 	})
-}
-
-var _ Bar = (*groupBar)(nil)
-
-func (p *Progress) maybeGroupBar() *groupBar { //nolint:unused
-	if p.groupBar != nil {
-		p.groupBar.addOne()
-		return p.groupBar
-	}
-
-	if len(p.bars) < groupBarThreshold {
-		return nil
-	}
-
-	gb := &groupBar{
-		p:           p,
-		activeCount: &atomic.Int64{},
-	}
-
-	gb.init()
-	gb.addOne()
-
-	p.groupBar = gb
-	return p.groupBar
-}
-
-// groupBar is a special Bar that groups multiple bars. Once groupBarThreshold
-// number of bars are active, future bars are grouped into a single groupBar.
-// We do this partially for UX, and partially because the mbp progress library
-// slows down with lots of bars.
-//
-// NOTE: the groupBar mechanism  is not yet implemented.
-type groupBar struct {
-	p           *Progress
-	activeCount *atomic.Int64
-	vb          *virtualBar
-	mu          sync.Mutex
-}
-
-func (mb *groupBar) refresh() {}
-
-func (mb *groupBar) hide() {
-}
-
-func (mb *groupBar) show() {
-}
-
-func (mb *groupBar) init() {
-	cfg := &barConfig{
-		msg:   "Processing multiple",
-		total: -1,
-		style: spinnerStyle(mb.p.colors.Filler),
-	}
-	d := decor.Any(func(statistics decor.Statistics) string {
-		s := humanize.Comma(statistics.Current)
-		s += " " + english.PluralWord(int(statistics.Current), "item", "items")
-		return s
-	})
-	cfg.decorators = []decor.Decorator{colorize(d, mb.p.colors.Size)}
-
-	vb := mb.p.createVirtualBar(cfg, nil)
-	mb.vb = vb
-}
-
-func (mb *groupBar) addOne() { //nolint:unused
-	mb.mu.Lock()
-	defer mb.mu.Unlock()
-	mb.activeCount.Add(1)
-
-	if mb.vb == nil {
-		mb.init()
-	}
-}
-
-func (mb *groupBar) Incr(n int) {
-	mb.vb.Incr(n)
-}
-
-func (mb *groupBar) Stop() {
-	mb.mu.Lock()
-	defer mb.mu.Unlock()
-
-	mb.activeCount.Add(-1)
-	if mb.activeCount.Load() > 0 {
-		return
-	}
-
-	mb.vb.Stop()
-	mb.vb = nil
 }

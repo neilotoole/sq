@@ -18,21 +18,18 @@ import (
 	"context"
 	"io"
 	"log/slog"
-	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
-	"github.com/samber/lo"
+	"github.com/neilotoole/sq/libsq/core/langz"
+
 	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 const (
-
 	// uxRedrawFreq is how often the progress bars are redrawn.
 	uxRedrawFreq = 150 * time.Millisecond
 
@@ -47,8 +44,31 @@ const (
 	// with dozens of progress bars, which is not great UX. Also, the mpb package
 	// doesn't seem to handle a large number of bars very well; performance goes
 	// to hell.
-	groupBarThreshold = 5 //nolint:unused
+	groupBarThreshold = 5
 )
+
+// Bar represents a single progress bar, owned by a [Progress] instance. The
+// caller invokes Incr as necessary to increment the bar's progress. When the
+// bar is complete, the caller should invoke Bar.Stop.
+type Bar interface {
+	// Incr increments the progress bar by amount n.
+	Incr(n int)
+
+	// Stop stops and removes the bar, preventing further use of the bar.
+	Stop()
+
+	// show shows the bar. It may be hidden again using Bar.hide.
+	show()
+
+	// hide hides the bar. It may be shown again using Bar.show.
+	hide()
+
+	// refresh is called by the Progress's monitor loop to refresh the bar's
+	// state.
+	refresh(t time.Time)
+
+	isRendered(t time.Time) bool
+}
 
 // New returns a new Progress instance, which is a container for progress bars.
 // The returned Progress instance is safe for concurrent use, and all of its
@@ -65,12 +85,14 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 	}
 
 	p := &Progress{
-		mu:        &sync.Mutex{},
-		colors:    colors,
-		bars:      make([]*virtualBar, 0),
-		delay:     delay,
-		stoppedCh: make(chan struct{}),
-		stopOnce:  &sync.Once{},
+		mu:                  &sync.Mutex{},
+		colors:              colors,
+		allBars:             make([]*virtualBar, 0),
+		activeVisibleBars:   make([]*virtualBar, 0),
+		activeInvisibleBars: make([]*virtualBar, 0),
+		delay:               delay,
+		destroyedCh:         make(chan struct{}),
+		destroyOnce:         &sync.Once{},
 	}
 
 	// Note that p.ctx is not the same as the arg ctx. This is a bit of a hack
@@ -88,6 +110,7 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 	}
 
 	p.pc = mpb.NewWithContext(ctx, opts...)
+	p.groupBar = newGroupBar(p)
 	p.startMonitor()
 	return p
 }
@@ -119,23 +142,24 @@ type Progress struct {
 	// mu guards ALL public methods.
 	mu *sync.Mutex
 
-	// stoppedCh is closed when the progress widget is stopped.
+	// destroyedCh is closed when the progress widget is stopped.
 	// This somewhat duplicates <-p.ctx.Done()... maybe it can be removed?
-	stoppedCh chan struct{}
-	stopOnce  *sync.Once
+	destroyedCh chan struct{}
+	destroyOnce *sync.Once
 
-	// pc is the underlying progress container. It is lazily initialized
-	// by pcInitFn. Any method that accesses pc must be certain that
-	// pcInitFn has been called.
+	// pc is the underlying mbp.Progress container.
 	pc *mpb.Progress
 
 	// colors contains the color scheme to use.
 	colors *Colors
 
-	groupBar *groupBar //nolint:unused
+	groupBar *groupBar // FIXME: document groupBar
 
-	// bars contains all bars that have been created on this Progress.
-	bars []*virtualBar
+	// allBars contains all non-destroyed virtualBar instances.
+	allBars []*virtualBar
+
+	activeVisibleBars   []*virtualBar
+	activeInvisibleBars []*virtualBar
 
 	// delay is the duration to wait before rendering a progress bar.
 	// Each newly-created bar gets its own render delay.
@@ -151,8 +175,8 @@ func (p *Progress) Stop() {
 	}
 
 	p.mu.Lock()
-	p.doStop()
-	<-p.stoppedCh
+	p.destroy()
+	<-p.destroyedCh
 	p.mu.Unlock()
 }
 
@@ -161,8 +185,8 @@ func (p *Progress) LogValue() slog.Value {
 	var barCount int
 	var barsIncrByCallTotal int64
 	p.mu.Lock()
-	barCount = len(p.bars)
-	for _, bar := range p.bars {
+	barCount = len(p.allBars)
+	for _, bar := range p.allBars {
 		if bar == nil {
 			continue
 		}
@@ -176,30 +200,31 @@ func (p *Progress) LogValue() slog.Value {
 	)
 }
 
-// doStop is probably needlessly complex, but at the time it was written,
+// destroy is probably needlessly complex, but at the time it was written,
 // there was a bug in the mpb package (to do with delayed render and abort),
 // and so was created an extra-paranoid workaround. It's still not clear
 // if all of this works to remove the progress bars before content
 // is written to stdout.
-func (p *Progress) doStop() {
-	p.stopOnce.Do(func() {
+func (p *Progress) destroy() {
+	p.destroyOnce.Do(func() {
 		if p.pc == nil {
 			p.cancelFn()
 			<-p.ctx.Done()
-			close(p.stoppedCh)
+			close(p.destroyedCh)
 			return
 		}
 
-		if len(p.bars) == 0 {
+		if len(p.allBars) == 0 {
 			p.cancelFn()
 			<-p.ctx.Done()
-			close(p.stoppedCh)
+			close(p.destroyedCh)
 			return
 		}
 
-		for _, b := range p.bars {
+		for _, b := range p.allBars {
 			b.destroy()
 		}
+		p.groupBar.destroy()
 
 		// So, now we REALLY want to wait for the progress widget
 		// to finish. Alas, the pc.Wait method doesn't seem to
@@ -214,7 +239,7 @@ func (p *Progress) doStop() {
 		// We shouldn't need this extra call to pc.Wait,
 		// but it shouldn't hurt?
 		p.pc.Wait()
-		close(p.stoppedCh)
+		close(p.destroyedCh)
 	})
 
 	<-p.ctx.Done()
@@ -233,65 +258,33 @@ type barConfig struct {
 	total      int64
 }
 
-// barFromConfig returns a bar for cfg. This method must only be called
-// from within the Progress mutex. This method may end up calling createVirtualBar,
+// barFromConfig returns a bar for cfg. This method must only be called from
+// within the Progress mutex. This method may end up calling newVirtualBar,
 // or it may return a nopBar, or a groupBar.
 func (p *Progress) barFromConfig(cfg *barConfig, opts []Opt) Bar {
 	if p == nil {
 		return nopBar{}
 	}
 
-	return p.createVirtualBar(cfg, opts)
+	vb := newVirtualBar(p, cfg, opts)
+	//if p.needGroupBar() {
+	//	vb.hide()
+	//} else {
+	//	vb.show()
+	//}
+
+	p.allBars = append(p.allBars, vb)
+	return vb
 }
 
-// createVirtualBar returns a new virtualBar (or nil). It must only be called
-// from inside the Progress mutex. Generally speaking, callers should use
-// Progress.barFromConfig instead of calling createVirtualBar directly.
-func (p *Progress) createVirtualBar(cfg *barConfig, opts []Opt) *virtualBar {
+func (p *Progress) delistBar(vb *virtualBar) {
 	if p == nil {
-		return nil
+		return
 	}
 
-	cfg.decorators = lo.WithoutEmpty(cfg.decorators)
-
-	select {
-	case <-p.stoppedCh:
-		return nil
-	case <-p.ctx.Done():
-		return nil
-	default:
-	}
-
-	if cfg.total < 0 {
-		cfg.total = 0
-	}
-
-	// We want the bar message to be a consistent width.
-	switch {
-	case len(cfg.msg) < msgLength:
-		cfg.msg += strings.Repeat(" ", msgLength-len(cfg.msg))
-	case len(cfg.msg) > msgLength:
-		cfg.msg = stringz.Ellipsify(cfg.msg, msgLength)
-	}
-
-	for _, opt := range opts {
-		if opt != nil {
-			opt.apply(p, cfg)
-		}
-	}
-
-	b := &virtualBar{
-		p:           p,
-		incrByCalls: &atomic.Int64{},
-		incrTotal:   &atomic.Int64{},
-		destroyOnce: &sync.Once{},
-		notBefore:   time.Now().Add(p.delay),
-		cfg:         cfg,
-	}
-
-	p.bars = append(p.bars, b)
-	b.show()
-	return b
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.allBars = langz.Remove(p.allBars, vb)
 }
 
 // startMonitor starts Progress's monitor goroutine, which periodically
@@ -310,26 +303,63 @@ func (p *Progress) startMonitor() {
 			select {
 			case <-done:
 				return
-			case <-p.stoppedCh:
+			case <-p.destroyedCh:
 				return
 			default:
 			}
 
-			for i := 0; i < len(p.bars); i++ {
-				select {
-				case <-done:
-					return
-				case <-p.stoppedCh:
-					return
-				default:
-					if p.bars[i] == nil {
-						continue
-					}
-					p.bars[i].refresh()
+			t := time.Now()
+
+			p.mu.Lock()
+			p.activeVisibleBars = p.activeVisibleBars[:0]
+			p.activeInvisibleBars = p.activeInvisibleBars[:0]
+
+			for _, bar := range p.allBars {
+				bar := bar
+				if !bar.isRenderable(t) {
+					continue
 				}
+
+				// bar is renderable
+				if len(p.activeVisibleBars) < groupBarThreshold {
+					bar.wantShow = true
+					p.activeVisibleBars = append(p.activeVisibleBars, bar)
+					continue
+				}
+
+				bar.wantShow = false
+				p.activeInvisibleBars = append(p.activeInvisibleBars, bar)
 			}
 
+			for i := 0; i < len(p.allBars); i++ {
+				select {
+				case <-done:
+					p.mu.Unlock()
+					return
+				case <-p.destroyedCh:
+					p.mu.Unlock()
+					return
+				default:
+					p.allBars[i].refresh(t)
+				}
+			}
+			p.groupBar.refresh(t)
+
+			p.mu.Unlock()
 			time.Sleep(refreshFreq)
 		}
 	}()
 }
+
+var _ Bar = nopBar{}
+
+// nopBar is a no-op Bar. It is returned when the Progress is not enabled, so
+// that callers don't have to worry about checking for nil.
+type nopBar struct{}
+
+func (b nopBar) isRendered(t time.Time) bool { return false }
+func (nopBar) Incr(int)                      {}
+func (nopBar) Stop()                         {}
+func (nopBar) show()                         {}
+func (nopBar) hide()                         {}
+func (nopBar) refresh(time.Time)             {}
