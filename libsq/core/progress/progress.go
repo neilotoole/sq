@@ -28,76 +28,27 @@ import (
 	"github.com/vbauerster/mpb/v8/decor"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
-type progCtxKey struct{}
+const (
 
-// NewContext returns ctx with p added as a value.
-func NewContext(ctx context.Context, p *Progress) context.Context {
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	// uxRedrawFreq is how often the progress bars are redrawn.
+	uxRedrawFreq = 150 * time.Millisecond
 
-	return context.WithValue(ctx, progCtxKey{}, p)
-}
+	// refreshFreq is how often the state of the bars is refreshed.
+	// Experimentation shows 70ms to be appropriate.
+	//
+	// REVISIT: Confirm 70ms is the appropriate refreshFreq rate.
+	refreshFreq = 70 * time.Millisecond
 
-// FromContext returns the Progress added to ctx via NewContext,
-// or returns nil. Note that it is safe to invoke the methods
-// of a nil Progress.
-func FromContext(ctx context.Context) *Progress {
-	if ctx == nil {
-		return nil
-	}
-
-	val := ctx.Value(progCtxKey{})
-	if val == nil {
-		return nil
-	}
-
-	if p, ok := val.(*Progress); ok {
-		return p
-	}
-
-	return nil
-}
-
-type barCtxKey struct{}
-
-// NewBarContext returns ctx with bar added as a value. This context can
-// be used in conjunction with progress.Incr to increment the progress bar.
-func NewBarContext(ctx context.Context, bar Bar) context.Context {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	return context.WithValue(ctx, barCtxKey{}, bar)
-}
-
-// Incr increments the progress of the outermost bar (if any) in ctx
-// by amount n. Use in conjunction with a context returned from NewBarContext.
-// It safe to invoke Incr on a nil context or a context that doesn't
-// contain a Bar.
-//
-// NOTE: This context-based incrementing is a bit of an experiment. I'm
-// a bit hesitant in going even further with context-based logic, as it's not
-// clear to me that it's a good idea to lean on context so much.
-// So, it's possible this mechanism may be removed in the future.
-func Incr(ctx context.Context, n int) {
-	if ctx == nil {
-		return
-	}
-
-	val := ctx.Value(barCtxKey{})
-	if val == nil {
-		return
-	}
-
-	if b, ok := val.(*virtualBar); ok {
-		b.Incr(n)
-	}
-}
+	// groupBarThreshold is the number of bars at which we combine bars into
+	// a group. We do this because otherwise the terminal output could get filled
+	// with dozens of progress bars, which is not great UX. Also, the mpb package
+	// doesn't seem to handle a large number of bars very well; performance goes
+	// to hell.
+	groupBarThreshold = 5 //nolint:unused
+)
 
 // New returns a new Progress instance, which is a container for progress bars.
 // The returned Progress instance is safe for concurrent use, and all of its
@@ -133,6 +84,7 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 		mpb.WithOutput(out),
 		mpb.WithWidth(boxWidth),
 		mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
+		mpb.WithRefreshRate(uxRedrawFreq),
 	}
 
 	p.pc = mpb.NewWithContext(ctx, opts...)
@@ -180,7 +132,7 @@ type Progress struct {
 	// colors contains the color scheme to use.
 	colors *Colors
 
-	megaBar *megaBar //nolint:unused
+	groupBar *groupBar //nolint:unused
 
 	// bars contains all bars that have been created on this Progress.
 	bars []*virtualBar
@@ -189,8 +141,6 @@ type Progress struct {
 	// Each newly-created bar gets its own render delay.
 	delay time.Duration
 }
-
-const maxActiveBars = 5 //nolint:unused
 
 // Stop waits for all bars to complete and finally shuts down the
 // progress container. After this method has been called, there is
@@ -204,32 +154,6 @@ func (p *Progress) Stop() {
 	p.doStop()
 	<-p.stoppedCh
 	p.mu.Unlock()
-}
-
-func (p *Progress) Hide() {
-	if p == nil {
-		return
-	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	for _, bar := range p.bars {
-		bar.hide()
-	}
-}
-
-func (p *Progress) Show() {
-	if p == nil {
-		return
-	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	for _, bar := range p.bars {
-		bar.show()
-	}
 }
 
 // LogValue reports some stats.
@@ -273,20 +197,8 @@ func (p *Progress) doStop() {
 			return
 		}
 
-		// for _, b := range p.bars {
-		// 	// We abort each of the bars here, before we call b.doHide() below.
-		// 	// In theory, this gives the bar abortion process a head start before
-		// 	// b.bar.Wait() is invoked by b.doHide(). This may be completely
-		// 	// unnecessary, but it doesn't seem to hurt.
-		// 	if b.bar != nil {
-		// 		b.bar.SetTotal(-1, true)
-		// 		b.bar.Abort(true)
-		// 	}
-		// }
-
 		for _, b := range p.bars {
-			b.doStop()
-			<-b.barStoppedCh // Wait for bar to stop
+			b.destroy()
 		}
 
 		// So, now we REALLY want to wait for the progress widget
@@ -323,15 +235,12 @@ type barConfig struct {
 
 // barFromConfig returns a bar for cfg. This method must only be called
 // from within the Progress mutex. This method may end up calling createVirtualBar,
-// or it may return a nopBar, or a megaBar.
+// or it may return a nopBar, or a groupBar.
 func (p *Progress) barFromConfig(cfg *barConfig, opts []Opt) Bar {
 	if p == nil {
 		return nopBar{}
 	}
 
-	// if mega := p.maybeMegaBar(); mega != nil {
-	//	return mega
-	// }
 	return p.createVirtualBar(cfg, opts)
 }
 
@@ -372,75 +281,55 @@ func (p *Progress) createVirtualBar(cfg *barConfig, opts []Opt) *virtualBar {
 	}
 
 	b := &virtualBar{
-		p:            p,
-		incrByCalls:  &atomic.Int64{},
-		incrTotal:    &atomic.Int64{},
-		barStopOnce:  &sync.Once{},
-		barStoppedCh: make(chan struct{}),
-		delayUntil:   time.Now().Add(p.delay),
-		cfg:          cfg,
+		p:           p,
+		incrByCalls: &atomic.Int64{},
+		incrTotal:   &atomic.Int64{},
+		destroyOnce: &sync.Once{},
+		notBefore:   time.Now().Add(p.delay),
+		cfg:         cfg,
 	}
 
 	p.bars = append(p.bars, b)
+	b.show()
 	return b
 }
 
+// startMonitor starts Progress's monitor goroutine, which periodically
+// refreshes the bars. The goroutine returns when p.ctx or p.stoppedCh are done.
 func (p *Progress) startMonitor() {
 	if p == nil {
 		return
 	}
 
-	refreshFreq := refreshRate / 2
 	ctx := p.ctx
-	ctxDone := ctx.Done()
-
 	go func() {
-		for ctx.Err() == nil {
+		defer p.Stop()
+
+		done := ctx.Done()
+		for {
 			select {
-			case <-ctxDone:
-				p.doStop()
+			case <-done:
 				return
 			case <-p.stoppedCh:
 				return
 			default:
 			}
 
-			for _, bar := range p.bars {
-				bar.refresh()
+			for i := 0; i < len(p.bars); i++ {
+				select {
+				case <-done:
+					return
+				case <-p.stoppedCh:
+					return
+				default:
+					if p.bars[i] == nil {
+						continue
+					}
+					p.bars[i].refresh()
+				}
 			}
+
 			time.Sleep(refreshFreq)
 		}
 	}()
-}
-
-// OptDebugSleep configures DebugSleep. It should be removed when the
-// progress impl is stable.
-var OptDebugSleep = options.NewDuration(
-	"debug.progress.sleep",
-	nil,
-	0,
-	"DEBUG: Sleep during operations to facilitate testing progress bars",
-	`DEBUG: Sleep during operations to facilitate testing progress bars.`,
-)
-
-// OptDebugForce forces instantiation of progress bars, even if stderr is not a
-// terminal. It should be removed when the progress impl is stable.
-var OptDebugForce = options.NewBool(
-	"debug.progress.force",
-	nil,
-	false,
-	"DEBUG: Always render progress bars",
-	`DEBUG: Always render progress bars, even when stderr is not a terminal, or
-progress is not enabled. This is useful for testing the progress impl.`,
-)
-
-// DebugSleep sleeps for a period of time to facilitate testing the
-// progress impl. It uses the value from OptDebugSleep. This function
-// (and OptDebugSleep) should be removed when the progress impl is
-// stable.
-func DebugSleep(ctx context.Context) {
-	sleep := OptDebugSleep.Get(options.FromContext(ctx))
-	if sleep > 0 {
-		time.Sleep(sleep)
-	}
 }

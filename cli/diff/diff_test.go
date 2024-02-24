@@ -5,13 +5,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/neilotoole/sq/testh/proj"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
-	"github.com/stretchr/testify/require"
+	"github.com/neilotoole/sq/testh/proj"
 )
 
 func TestSchemaDiff(t *testing.T) {

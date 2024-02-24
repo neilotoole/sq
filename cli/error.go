@@ -8,12 +8,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/neilotoole/sq/cli/output"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/cli/output/jsonw"
 	"github.com/neilotoole/sq/cli/run"

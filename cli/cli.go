@@ -30,20 +30,18 @@ import (
 	"time"
 
 	"github.com/c2h5oh/datasize"
-	"github.com/neilotoole/sq/libsq/core/runtimez"
-
-	"github.com/neilotoole/sq/cli/pprofile"
-	"github.com/neilotoole/sq/libsq/files"
-
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/cobraz"
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/pprofile"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/runtimez"
+	"github.com/neilotoole/sq/libsq/files"
 )
 
 func init() { //nolint:gochecknoinits

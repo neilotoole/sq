@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/neilotoole/sq/cli/config"
-
 	"github.com/fatih/color"
 	"github.com/samber/lo"
 
+	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/options"

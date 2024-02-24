@@ -4,18 +4,17 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/runtimez"
-
 	"github.com/fatih/color"
 	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
+
+	"github.com/neilotoole/sq/libsq/core/runtimez"
 )
 
 const (
-	msgLength   = 36
-	barWidth    = 28
-	boxWidth    = 64
-	refreshRate = 150 * time.Millisecond
+	msgLength = 36
+	barWidth  = 28
+	boxWidth  = 64
 )
 
 // DefaultColors returns the default colors used for the progress bars.

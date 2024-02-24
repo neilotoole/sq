@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neilotoole/sq/cli/pprofile"
-
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/output/xlsxw"
+	"github.com/neilotoole/sq/cli/pprofile"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/libsq/core/errz"

@@ -1,9 +1,9 @@
 package cli
 
 import (
-	"github.com/neilotoole/sq/cli/config"
 	"github.com/spf13/cobra"
 
+	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
