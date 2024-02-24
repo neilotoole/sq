@@ -106,6 +106,9 @@ type virtualBar struct {
 	// incrLastSentVal is the most recent value sent to bimpl.
 	incrLastSentVal int64
 
+	// groupLastSentVal is the most recent value used by the groupBar.
+	groupLastSentVal int64
+
 	// mu guards the virtualBar's fields.
 	mu sync.Mutex
 
@@ -172,6 +175,23 @@ func (b *virtualBar) refresh(t time.Time) {
 	b.maybeSendIncr()
 }
 
+func (b *virtualBar) getGroupIncr() int {
+	if b == nil {
+		return 0
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.destroyed {
+		return 0
+	}
+
+	delta := b.incrTotal.Load() - b.incrLastSentVal - b.groupLastSentVal
+	b.groupLastSentVal += delta
+	return int(delta)
+}
+
 func (b *virtualBar) maybeSendIncr() {
 	if b == nil || b.bimpl == nil || !b.wantShow {
 		return
@@ -222,6 +242,25 @@ func (b *virtualBar) maybeShow(t time.Time) {
 // startConcrete start's the virtualBar's concrete mpb.Bar. It must be called
 // inside b's mutex.
 func (b *virtualBar) startConcrete() {
+	if b == nil || b.p == nil {
+		return
+	}
+
+	// b.p.mu.Lock()
+	// defer b.p.mu.Unlock()
+
+	if b.destroyed {
+		return
+	}
+
+	select {
+	case <-b.p.destroyedCh:
+		return
+	case <-b.p.ctx.Done():
+		return
+	default:
+	}
+
 	defer func() {
 		if r := recover(); r != nil {
 			// On a previous version of this codebase, we would occasionally see
@@ -275,7 +314,7 @@ func (b *virtualBar) stopConcrete() {
 	b.bimpl.SetTotal(-1, true)
 	b.bimpl.Abort(true)
 	b.bimpl.Wait()
-	lg.FromContext(b.p.ctx).Warn("Hiding bar", "bar msg", b.cfg.msg)
+	lg.FromContext(b.p.ctx).Warn("Hiding bar", "bar msg", strings.TrimSpace(b.cfg.msg))
 	b.bimpl = nil
 }
 

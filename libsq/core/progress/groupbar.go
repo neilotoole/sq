@@ -2,54 +2,15 @@ package progress
 
 import (
 	"sync"
-	"sync/atomic"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/dustin/go-humanize"
 	"github.com/dustin/go-humanize/english"
 	"github.com/vbauerster/mpb/v8/decor"
 )
-
-var _ Bar = (*groupBar)(nil)
-
-const enableGroupBar = false
-
-func (p *Progress) countVisibleBars(t time.Time) (count int) {
-	if p == nil {
-		return count
-	}
-
-	for _, vb := range p.allBars {
-		if vb == p.groupBar.vb {
-			continue
-		}
-		if vb.isRendered(t) {
-			count++
-		}
-	}
-
-	return count
-}
-
-func (p *Progress) needGroupBar() bool {
-	if !enableGroupBar {
-		return false
-	}
-
-	if p == nil {
-		return false
-	}
-
-	if p.groupBar != nil {
-		return true
-	}
-
-	if len(p.allBars) < groupBarThreshold {
-		return false
-	}
-
-	return true
-}
 
 // groupBar is a special Bar that groups multiple bars. Once groupBarThreshold
 // number of bars are active, future bars are grouped into a single groupBar.
@@ -58,44 +19,11 @@ func (p *Progress) needGroupBar() bool {
 //
 // NOTE: the groupBar mechanism  is not yet implemented.
 type groupBar struct {
-	p           *Progress
-	activeCount *atomic.Int64
+	p *Progress
 
 	// vb is the groupBar's own virtualBar for rendering itself.
 	vb *virtualBar
 	mu sync.Mutex
-}
-
-func (gb *groupBar) isRendered(t time.Time) bool {
-	if gb == nil || gb.p == nil {
-		return false
-	}
-	return len(gb.p.activeInvisibleBars) > 0
-}
-
-func (gb *groupBar) refresh(t time.Time) {
-	if !gb.isRendered(t) {
-		gb.hide()
-		return
-	}
-
-	gb.vb.Incr(1) // FIXME: calculate real value
-	gb.vb.show()
-	gb.vb.maybeShow(t)
-}
-
-func (gb *groupBar) hide() {
-	if gb == nil || gb.vb == nil {
-		return
-	}
-	gb.vb.hide()
-}
-
-func (gb *groupBar) show() {
-	if gb == nil || gb.vb == nil {
-		return
-	}
-	gb.vb.show()
 }
 
 func newGroupBar(p *Progress) *groupBar {
@@ -122,21 +50,34 @@ func newGroupBar(p *Progress) *groupBar {
 	return gb
 }
 
-func (gb *groupBar) Incr(n int) {
-	gb.vb.Incr(n)
+func (gb *groupBar) isRendered(t time.Time) bool {
+	if gb == nil || gb.p == nil {
+		return false
+	}
+	return len(gb.p.activeInvisibleBars) > 0
 }
 
-func (gb *groupBar) Stop() {
-	gb.mu.Lock()
-	defer gb.mu.Unlock()
-
-	gb.activeCount.Add(-1)
-	if gb.activeCount.Load() > 0 {
+func (gb *groupBar) refresh(t time.Time) {
+	if !gb.isRendered(t) {
+		gb.vb.hide()
 		return
 	}
 
-	gb.vb.Stop()
-	gb.vb = nil
+	groupIncr := gb.calculateIncr()
+	gb.vb.Incr(groupIncr) // FIXME: calculate real value
+	gb.vb.show()
+	gb.vb.maybeShow(t)
+	gb.vb.refresh(t)
+}
+
+func (gb *groupBar) calculateIncr() int {
+	var val int
+	for _, vb := range gb.p.activeInvisibleBars {
+		val += vb.getGroupIncr()
+	}
+
+	lg.FromContext(gb.p.ctx).Debug("groupBar.calculateIncr", lga.Val, val)
+	return val
 }
 
 func (gb *groupBar) destroy() {
@@ -150,3 +91,43 @@ func (gb *groupBar) destroy() {
 		gb.vb.destroy()
 	}
 }
+
+// var _ Bar = (*groupBar)(nil)
+const enableGroupBar = false
+
+//func (p *Progress) countVisibleBars(t time.Time) (count int) {
+//	if p == nil {
+//		return count
+//	}
+//
+//	for _, vb := range p.allBars {
+//		if vb == p.groupBar.vb {
+//			continue
+//		}
+//		if vb.isRendered(t) {
+//			count++
+//		}
+//	}
+//
+//	return count
+//}
+//
+//func (p *Progress) needGroupBar() bool {
+//	if !enableGroupBar {
+//		return false
+//	}
+//
+//	if p == nil {
+//		return false
+//	}
+//
+//	if p.groupBar != nil {
+//		return true
+//	}
+//
+//	if len(p.allBars) < groupBarThreshold {
+//		return false
+//	}
+//
+//	return true
+//}

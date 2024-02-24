@@ -99,10 +99,7 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 	var cancelFn context.CancelFunc
 	ctx, cancelFn = context.WithCancel(ctx)
 	defer cancelFn()
-	// renderDelay := OptProgressDelay.Get(options.FromContext(ctx))
 
-	barTimeout := time.Second * 30
-	_ = barTimeout
 	pb := progress.FromContext(ctx)
 
 	const wantBarCount = 10
@@ -113,10 +110,6 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 		bar := pb.NewUnitCounter(fmt.Sprintf("Counter %d", i), "thing", progress.OptTimer)
 		bars = append(bars, bar)
 	}
-
-	// bar := pb.NewTimeoutWaiter("Doing something...", time.Now().Add(barTimeout))
-	// bar := pb.NewUnitCounter("Counting stuff...", "thing", progress.OptTimer)
-	// defer bar.Stop()
 
 	go func() {
 		for ctx.Err() == nil {
@@ -138,6 +131,81 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 
 	sleepyLog()
 
+	sleepyLog()
+
+	for i := 3; i < 7; i++ {
+		bars[i].Stop()
+	}
+
+	sleepyLog()
+	sleepyLog()
+
+	fmt.Fprintln(ru.Out, "exiting")
+	return nil
+}
+
+func execXProgressSingleVals(cmd *cobra.Command, _ []string) error {
+	ctx := cmd.Context()
+	log := lg.FromContext(ctx)
+	ru := run.FromContext(ctx)
+	_ = log
+	_ = ru
+
+	var cancelFn context.CancelFunc
+	ctx, cancelFn = context.WithCancel(ctx)
+	defer cancelFn()
+	// renderDelay := OptProgressDelay.Get(options.FromContext(ctx))
+
+	barTimeout := time.Second * 30
+	_ = barTimeout
+	pb := progress.FromContext(ctx)
+
+	const wantBarCount = 10
+
+	bars := make([]progress.Bar, 0, wantBarCount)
+
+	for i := 0; i < wantBarCount; i++ {
+		bar := pb.NewUnitCounter(fmt.Sprintf("Counter %d", i), "thing", progress.OptTimer)
+		bars = append(bars, bar)
+	}
+
+	// bar := pb.NewTimeoutWaiter("Doing something...", time.Now().Add(barTimeout))
+	// bar := pb.NewUnitCounter("Counting stuff...", "thing", progress.OptTimer)
+	// defer bar.Stop()
+
+	for i := range bars {
+		bars[i].Incr(1)
+	}
+
+	//go func() {
+	//	for ctx.Err() == nil {
+	//		for i := range bars {
+	//			bars[i].Incr(1)
+	//		}
+	//		time.Sleep(time.Millisecond * 100)
+	//	}
+	//}()
+
+	const stepSleepy = time.Second * 5
+	sleepyLog := func() {
+		log.Warn("Sleeping...", lga.Period, stepSleepy)
+		time.Sleep(stepSleepy)
+	}
+
+	// bar.Incr(10)
+	sleepyLog()
+
+	bars[7].Incr(10)
+
+	sleepyLog()
+
+	sleepyLog()
+
+	//for i := 3; i < 7; i++ {
+	//	bars[i].Stop()
+	//}
+
+	sleepyLog()
 	sleepyLog()
 
 	fmt.Fprintln(ru.Out, "exiting")

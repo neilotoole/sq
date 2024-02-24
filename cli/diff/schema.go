@@ -6,14 +6,13 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/samber/lo"
-
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/langz"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
+	"github.com/samber/lo"
 )
 
 func differsForSchema(ctx context.Context, cfg *Config, showRowCounts bool,
@@ -51,6 +50,9 @@ func differsForSchema(ctx context.Context, cfg *Config, showRowCounts bool,
 func diffTableSchema(ctx context.Context, cfg *Config, showRowCounts bool,
 	td1, td2 source.Table, doc *diffdoc.UnifiedDoc,
 ) {
+	bar := progress.FromContext(ctx).NewWaiter("Diff table schema "+td1.String(), true, progress.OptMemUsage)
+	defer bar.Stop()
+
 	var (
 		body1, body2 string
 		md1, md2     *metadata.Table
@@ -71,7 +73,6 @@ func diffTableSchema(ctx context.Context, cfg *Config, showRowCounts bool,
 		return
 	}
 
-	bar := progress.FromContext(ctx).NewWaiter("Diff table schema "+td1.String(), true, progress.OptMemUsage)
 	unified, err := diffdoc.ComputeUnified(ctx, td1.String(), td2.String(), cfg.Lines, body1, body2)
 	bar.Stop()
 	if err != nil {
