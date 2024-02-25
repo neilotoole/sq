@@ -120,7 +120,7 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 		}
 	}()
 
-	const stepSleepy = time.Second * 5
+	const stepSleepy = time.Second * 4
 	sleepyLog := func() {
 		log.Warn("Sleeping...", lga.Period, stepSleepy)
 		time.Sleep(stepSleepy)
@@ -138,6 +138,11 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 	}
 
 	sleepyLog()
+
+	bars[0].Stop()
+	bars[7].Stop()
+	bars[8].Stop()
+
 	sleepyLog()
 
 	fmt.Fprintln(ru.Out, "exiting")
