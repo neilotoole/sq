@@ -173,6 +173,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptRedact,
 		OptProgress,
 		OptProgressDelay,
+		OptProgressMaxBars,
 		OptCompact,
 		OptPingCmdTimeout,
 		OptShellCompletionTimeout,

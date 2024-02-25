@@ -88,12 +88,9 @@ const (
 	// and it starts to slow down, so refresh shouldn't happen too often.
 	stateRefreshFreq = 333 * time.Millisecond
 
-	// groupBarThreshold is the number of bars after which we combine further bars
-	// into a group. We do this because otherwise the terminal output could get
-	// filled with dozens of progress bars, which is not great UX. Also, the mpb
-	// pkg doesn't seem to handle a large number of bars very well; performance
-	// degrades quickly.
-	groupBarThreshold = 5
+	// DefaultMaxBars is the default threshold at which any further bars are
+	// combined into a group bar.
+	DefaultMaxBars = 5
 )
 
 // Bar represents a single progress bar, owned by a [Progress] instance. The
@@ -125,7 +122,16 @@ type Bar interface {
 // Arg delay specifies a duration to wait before rendering the progress bar.
 // The Progress is lazily initialized, and thus the delay clock doesn't start
 // ticking until the first call to one of the Progress.NewXBar functions.
-func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors) *Progress {
+//
+// Arg maxBars specifies the threshold at which any further bars are combined
+// into a group bar. This is useful for UX, to avoid flooding the terminal with
+// progress bars, and for performance, as the progress widgets don't scale well.
+// If maxBars is <= 0, a nil Progress is returned, which won't render any UX.
+func New(ctx context.Context, out io.Writer, maxBars int, delay time.Duration, colors *Colors) *Progress {
+	if maxBars <= 0 {
+		return nil
+	}
+
 	log := lg.FromContext(ctx)
 
 	if colors == nil {
@@ -142,6 +148,7 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 		delay:               delay,
 		stoppingCh:          make(chan struct{}),
 		destroyOnce:         &sync.Once{},
+		groupThreshold:      maxBars - 1,
 	}
 
 	// Note that p.ctx is not the same as the arg ctx. This is a bit of a hack
@@ -197,6 +204,13 @@ type Progress struct {
 	// delay is the duration to wait before rendering a progress bar.
 	// Each newly-created bar gets its own render delay.
 	delay time.Duration
+
+	// groupThreshold is the number of bars after which we combine further bars
+	// into a group. We do this because otherwise the terminal output could get
+	// filled with dozens of progress bars, which is not great UX. Also, the mpb
+	// pkg doesn't seem to handle a large number of bars very well; performance
+	// degrades quickly.
+	groupThreshold int
 }
 
 // Stop waits for all bars to complete and finally shuts down the
@@ -370,7 +384,7 @@ func (p *Progress) startStateRefreshLoop() {
 
 			p.mu.Lock()
 			allBars := slices.Clone(p.allBars)
-			p.activeVisibleBars = make([]*virtualBar, 0, groupBarThreshold)
+			p.activeVisibleBars = make([]*virtualBar, 0, p.groupThreshold)
 			p.activeInvisibleBars = make([]*virtualBar, 0)
 
 			for i := range allBars {
@@ -379,7 +393,7 @@ func (p *Progress) startStateRefreshLoop() {
 					continue
 				}
 
-				if len(p.activeVisibleBars) < groupBarThreshold {
+				if len(p.activeVisibleBars) < p.groupThreshold {
 					bar.wantShow = true
 					p.activeVisibleBars = append(p.activeVisibleBars, bar)
 					continue

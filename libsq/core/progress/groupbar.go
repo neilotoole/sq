@@ -8,7 +8,7 @@ import (
 	"github.com/vbauerster/mpb/v8/decor"
 )
 
-// groupBar groups multiple bars. Once groupBarThreshold number of bars is
+// groupBar groups multiple bars. Once groupThreshold number of bars is
 // reached, further bars are grouped into a single groupBar. We do this
 // partially for UX, and partially because the mbp progress library
 // slows down with lots of bars.

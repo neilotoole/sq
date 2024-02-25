@@ -21,7 +21,7 @@ func TestNewWriter(t *testing.T) {
 	const limit = 1000000
 
 	ctx := context.Background()
-	pb := progress.New(ctx, io.Discard, time.Millisecond, progress.DefaultColors())
+	pb := progress.New(ctx, io.Discard, progress.DefaultMaxBars, time.Millisecond, progress.DefaultColors())
 	ctx = progress.NewContext(ctx, pb)
 
 	src := ioz.LimitRandReader(limit)
@@ -43,7 +43,7 @@ func TestNewWriter_Closer(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	pb := progress.New(ctx, os.Stdout, time.Millisecond, progress.DefaultColors())
+	pb := progress.New(ctx, os.Stdout, progress.DefaultMaxBars, time.Millisecond, progress.DefaultColors())
 	ctx = progress.NewContext(ctx, pb)
 	defer pb.Stop()
 
@@ -70,7 +70,7 @@ func TestNewReader_Closer(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	pb := progress.New(ctx, os.Stdout, time.Millisecond, progress.DefaultColors())
+	pb := progress.New(ctx, os.Stdout, progress.DefaultMaxBars, time.Millisecond, progress.DefaultColors())
 	ctx = progress.NewContext(ctx, pb)
 	defer pb.Stop()
 

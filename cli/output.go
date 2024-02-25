@@ -266,6 +266,18 @@ var OptProgressDelay = options.NewDuration(
 	options.TagOutput,
 )
 
+var OptProgressMaxBars = options.NewInt(
+	"progress.max-bars",
+	nil,
+	progress.DefaultMaxBars,
+	"Max concurrent progress bars shown in terminal",
+	`Limit the number of progress bars shown concurrently in the terminal. When the
+threshold is reached, further progress bars are grouped into a single group bar.
+If zero, no progress bar is rendered.`,
+
+	options.TagOutput,
+)
+
 // newWriters returns an output.Writers instance configured per defaults and/or
 // flags from cmd. The returned writers in [outputConfig] may differ from
 // the stdout and stderr params (e.g. decorated to support colorization).
@@ -415,10 +427,10 @@ type outputConfig struct {
 //
 // See also: [OptMonochrome], [OptProgress], newWriters.
 func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
-	fm format.Format, opts options.Options, stdout, stderr io.Writer,
+	fm format.Format, o options.Options, stdout, stderr io.Writer,
 ) (outCfg *outputConfig) {
-	if opts == nil {
-		opts = options.Options{}
+	if o == nil {
+		o = options.Options{}
 	}
 
 	var ctx context.Context
@@ -436,21 +448,21 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 	outCfg = &outputConfig{stdout: stdout, stderr: stderr}
 
 	pr := output.NewPrinting()
-	pr.FormatDatetime = timez.FormatFunc(OptDatetimeFormat.Get(opts))
-	pr.FormatDatetimeAsNumber = OptDatetimeFormatAsNumber.Get(opts)
-	pr.FormatTime = timez.FormatFunc(OptTimeFormat.Get(opts))
-	pr.FormatTimeAsNumber = OptTimeFormatAsNumber.Get(opts)
-	pr.FormatDate = timez.FormatFunc(OptDateFormat.Get(opts))
-	pr.FormatDateAsNumber = OptDateFormatAsNumber.Get(opts)
+	pr.FormatDatetime = timez.FormatFunc(OptDatetimeFormat.Get(o))
+	pr.FormatDatetimeAsNumber = OptDatetimeFormatAsNumber.Get(o)
+	pr.FormatTime = timez.FormatFunc(OptTimeFormat.Get(o))
+	pr.FormatTimeAsNumber = OptTimeFormatAsNumber.Get(o)
+	pr.FormatDate = timez.FormatFunc(OptDateFormat.Get(o))
+	pr.FormatDateAsNumber = OptDateFormatAsNumber.Get(o)
 
-	pr.ExcelDatetimeFormat = xlsxw.OptDatetimeFormat.Get(opts)
-	pr.ExcelDateFormat = xlsxw.OptDateFormat.Get(opts)
-	pr.ExcelTimeFormat = xlsxw.OptTimeFormat.Get(opts)
+	pr.ExcelDatetimeFormat = xlsxw.OptDatetimeFormat.Get(o)
+	pr.ExcelDateFormat = xlsxw.OptDateFormat.Get(o)
+	pr.ExcelTimeFormat = xlsxw.OptTimeFormat.Get(o)
 
-	pr.Verbose = OptVerbose.Get(opts)
-	pr.FlushThreshold = tuning.OptFlushThreshold.Get(opts)
-	pr.Compact = OptCompact.Get(opts)
-	pr.Redact = OptRedact.Get(opts)
+	pr.Verbose = OptVerbose.Get(o)
+	pr.FlushThreshold = tuning.OptFlushThreshold.Get(o)
+	pr.Compact = OptCompact.Get(o)
+	pr.Redact = OptRedact.Get(o)
 
 	switch {
 	case cmdFlagChanged(cmd, flag.Header):
@@ -458,16 +470,16 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 	case cmdFlagChanged(cmd, flag.NoHeader):
 		b, _ := cmd.Flags().GetBool(flag.NoHeader)
 		pr.ShowHeader = !b
-	case opts != nil:
-		pr.ShowHeader = OptPrintHeader.Get(opts)
+	case o != nil:
+		pr.ShowHeader = OptPrintHeader.Get(o)
 	}
 
 	var (
 		prog       *progress.Progress
-		noProg     = !OptProgress.Get(opts)
-		forceProg  = debugz.OptProgressDebugForce.Get(opts)
+		noProg     = !OptProgress.Get(o)
+		forceProg  = debugz.OptProgressDebugForce.Get(o)
 		progColors = progress.DefaultColors()
-		monochrome = OptMonochrome.Get(opts)
+		monochrome = OptMonochrome.Get(o)
 	)
 
 	if forceProg {
@@ -503,7 +515,7 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 		outCfg.errOutPr.EnableColor(colorize)
 		if ctx != nil && (forceProg || !noProg) {
 			progColors.EnableColor(colorize)
-			prog = progress.New(ctx, outCfg.errOut, OptProgressDelay.Get(opts), progColors)
+			prog = progress.New(ctx, outCfg.errOut, OptProgressMaxBars.Get(o), OptProgressDelay.Get(o), progColors)
 		}
 	case termz.IsTerminal(stderr):
 		// stderr is a terminal, and won't have color output, but we still enable
@@ -516,7 +528,7 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 		outCfg.errOutPr.EnableColor(false)
 		if ctx != nil && !noProg {
 			progColors.EnableColor(false)
-			prog = progress.New(ctx, outCfg.errOut, OptProgressDelay.Get(opts), progColors)
+			prog = progress.New(ctx, outCfg.errOut, OptProgressMaxBars.Get(o), OptProgressDelay.Get(o), progColors)
 		}
 	default:
 		// stderr is a not a terminal at all. No color, no progress.
