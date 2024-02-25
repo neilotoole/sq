@@ -407,7 +407,7 @@ func (dl *Downloader) get(req *http.Request) (dlFile string, //nolint:gocognit,f
 func (dl *Downloader) do(req *http.Request) (*http.Response, error) {
 	ctx := req.Context()
 	log := lg.FromContext(ctx)
-	bar := progress.FromContext(ctx).NewWaiter(dl.name+": start download", true)
+	bar := progress.FromContext(ctx).NewWaiter(dl.name + ": start download")
 	start := time.Now()
 	resp, err := dl.c.Do(req)
 	logResp(log, req, resp, time.Since(start), err)

@@ -50,7 +50,7 @@ func differsForSchema(ctx context.Context, cfg *Config, showRowCounts bool,
 func diffTableSchema(ctx context.Context, cfg *Config, showRowCounts bool,
 	td1, td2 source.Table, doc *diffdoc.UnifiedDoc,
 ) {
-	bar := progress.FromContext(ctx).NewWaiter("Diff table schema "+td1.String(), true, progress.OptMemUsage)
+	bar := progress.FromContext(ctx).NewWaiter("Diff table schema "+td1.String(), progress.OptMemUsage)
 	defer bar.Stop()
 
 	var (

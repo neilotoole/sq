@@ -15,7 +15,7 @@ import (
 
 // diffDBProps diffs the dbprops of sd1 and sd2, writing the diff to doc.
 func diffDBProps(ctx context.Context, cfg *Config, src1, src2 *source.Source, doc *diffdoc.UnifiedDoc) {
-	bar := progress.FromContext(ctx).NewWaiter("Diff dbprops", true, progress.OptMemUsage)
+	bar := progress.FromContext(ctx).NewWaiter("Diff dbprops", progress.OptMemUsage)
 	defer bar.Stop()
 
 	var body1, body2 string

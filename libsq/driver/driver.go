@@ -234,7 +234,7 @@ type Metadata struct {
 // driver impl in its Open method. If the ping fails, db is closed.
 // In practice, this function probably isn't needed. Maybe ditch it.
 func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB) error {
-	bar := progress.FromContext(ctx).NewWaiter("Ping "+src.Handle, true)
+	bar := progress.FromContext(ctx).NewWaiter("Ping " + src.Handle)
 	defer bar.Stop()
 
 	o := options.Merge(options.FromContext(ctx), src.Options)

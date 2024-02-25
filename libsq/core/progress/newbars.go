@@ -13,7 +13,7 @@ import (
 // NewByteCounter returns a new determinate bar whose label
 // metric is the size in bytes of the data being processed. The caller is
 // ultimately responsible for calling Bar.Stop on the returned Bar.
-func (p *Progress) NewByteCounter(msg string, size int64, opts ...Opt) Bar {
+func (p *Progress) NewByteCounter(msg string, size int64, opts ...BarOpt) Bar {
 	if p == nil {
 		return nopBar{}
 	}
@@ -44,7 +44,7 @@ func (p *Progress) NewByteCounter(msg string, size int64, opts ...Opt) Bar {
 // filesize, or "-" if it can't be read. If f is non-nil, its size is used; else
 // the file at path fp is used. The caller is ultimately responsible for calling
 // Bar.Stop on the returned Bar.
-func (p *Progress) NewFilesizeCounter(msg string, f *os.File, fp string, opts ...Opt) Bar {
+func (p *Progress) NewFilesizeCounter(msg string, f *os.File, fp string, opts ...BarOpt) Bar {
 	if p == nil {
 		return nopBar{}
 	}
@@ -91,7 +91,7 @@ func (p *Progress) NewFilesizeCounter(msg string, f *os.File, fp string, opts ..
 //	Ingesting records               ∙∙●              87 recs
 //
 // Note that the unit arg is automatically pluralized.
-func (p *Progress) NewUnitCounter(msg, unit string, opts ...Opt) Bar {
+func (p *Progress) NewUnitCounter(msg, unit string, opts ...BarOpt) Bar {
 	if p == nil {
 		return nopBar{}
 	}
@@ -117,14 +117,14 @@ func (p *Progress) NewUnitCounter(msg, unit string, opts ...Opt) Bar {
 	return p.createBar(cfg, opts)
 }
 
-// NewWaiter returns a generic indeterminate spinner. If arg clock
-// is true, a timer is shown. This produces output similar to:
+// NewWaiter returns a generic indeterminate spinner with a timer. This produces
+// output similar to:
 //
 //	@excel/remote: start download                ●∙∙                4s
 //
 // The caller is ultimately responsible for calling Bar.Stop on the
 // returned Bar.
-func (p *Progress) NewWaiter(msg string, clock bool, opts ...Opt) Bar {
+func (p *Progress) NewWaiter(msg string, opts ...BarOpt) Bar {
 	if p == nil {
 		return nopBar{}
 	}
@@ -132,16 +132,14 @@ func (p *Progress) NewWaiter(msg string, clock bool, opts ...Opt) Bar {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	opts = append(opts, OptTimer)
+
 	cfg := &barConfig{
 		msg:   msg,
 		total: -1,
 		style: spinnerStyle(p.colors.Filler),
 	}
 
-	if clock {
-		d := newElapsedSeconds(p.colors.Size, time.Now(), decor.WCSyncSpace)
-		cfg.decorators = []decor.Decorator{d}
-	}
 	return p.createBar(cfg, opts)
 }
 
@@ -154,7 +152,7 @@ func (p *Progress) NewWaiter(msg string, clock bool, opts ...Opt) Bar {
 //	Ingesting sheets   ∙∙∙∙∙●                     4 / 16 sheets
 //
 // Note that the unit arg is automatically pluralized.
-func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64, opts ...Opt) Bar {
+func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64, opts ...BarOpt) Bar {
 	if p == nil {
 		return nopBar{}
 	}
@@ -191,7 +189,7 @@ func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64, opts ...Op
 // The caller is ultimately responsible for calling Bar.Stop on
 // the returned bar, although the bar will also be stopped when the
 // parent Progress stops.
-func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time, opts ...Opt) Bar {
+func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time, opts ...BarOpt) Bar {
 	if p == nil {
 		return nopBar{}
 	}

@@ -136,7 +136,7 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 	fromTbl := tablefq.New(tblHandles[0].tbl)
 	toTbl := tablefq.New(tblHandles[1].tbl)
 
-	bar := progress.FromContext(ctx).NewWaiter("Copy table", true)
+	bar := progress.FromContext(ctx).NewWaiter("Copy table")
 	copied, err := sqlDrvr.CopyTable(ctx, db, fromTbl, toTbl, copyData)
 	bar.Stop()
 	if err != nil {
@@ -207,7 +207,7 @@ func execTblTruncate(cmd *cobra.Command, args []string) error {
 				tblH.drvr.DriverMetadata().Type, tblH.src.Handle)
 		}
 
-		bar := progress.FromContext(ctx).NewWaiter("Truncate table", true)
+		bar := progress.FromContext(ctx).NewWaiter("Truncate table")
 		affected, err = tblH.drvr.(driver.SQLDriver).Truncate(ctx, tblH.src, tblH.tbl, true)
 		bar.Stop()
 		if err != nil {
@@ -275,7 +275,7 @@ func execTblDrop(cmd *cobra.Command, args []string) (err error) {
 		}
 
 		targetTbl := tablefq.New(tblH.tbl)
-		bar := progress.FromContext(ctx).NewWaiter("Drop table", true)
+		bar := progress.FromContext(ctx).NewWaiter("Drop table")
 		err = sqlDrvr.DropTable(cmd.Context(), db, targetTbl, false)
 		bar.Stop()
 		if err != nil {

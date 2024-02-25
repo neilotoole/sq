@@ -23,7 +23,7 @@ import (
 //
 // Note that the returned virtualBar is NOT automatically shown, nor is it
 // automatically added to Progress.allBars.
-func newVirtualBar(p *Progress, cfg *barConfig, opts []Opt) *virtualBar {
+func newVirtualBar(p *Progress, cfg *barConfig, opts []BarOpt) *virtualBar {
 	if p == nil {
 		return nil
 	}

@@ -3,6 +3,8 @@ package sqlserver
 import (
 	"context"
 
+	"github.com/neilotoole/sq/libsq/core/debugz"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/progress"
@@ -49,7 +51,7 @@ func getSysConfigurations(ctx context.Context, db sqlz.DB) (map[string]any, erro
 			return nil, errw(err)
 		}
 		progress.Incr(ctx, 1)
-		progress.DebugSleep(ctx)
+		debugz.DebugSleep(ctx)
 
 		m[name] = val
 	}
@@ -87,7 +89,7 @@ func getServerProperties(ctx context.Context, db sqlz.DB) (map[string]any, error
 			continue
 		}
 		progress.Incr(ctx, 1)
-		progress.DebugSleep(ctx)
+		debugz.DebugSleep(ctx)
 
 		m[name] = val
 	}

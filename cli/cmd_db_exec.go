@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/progress"
-
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -127,7 +125,7 @@ func execDBExec(cmd *cobra.Command, args []string) error {
 		return errz.Wrap(err, errPrefix)
 	}
 
-	execCmd.NoProgress = !progress.OptEnable.Get(src.Options)
+	execCmd.NoProgress = !OptProgress.Get(src.Options)
 	execCmd.Label = src.Handle + ": " + execCmd.Name
 	execCmd.Stdin = ru.Stdin
 	execCmd.Stdout = ru.Stdout

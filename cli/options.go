@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/debugz"
+
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -15,7 +17,6 @@ import (
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/timez"
 	"github.com/neilotoole/sq/libsq/core/tuning"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -171,8 +172,8 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptPrintHeader,
 		OptMonochrome,
 		OptRedact,
-		progress.OptEnable,
-		progress.OptDelay,
+		OptProgress,
+		OptProgressDelay,
 		OptCompact,
 		OptPingCmdTimeout,
 		OptShellCompletionTimeout,
@@ -209,8 +210,8 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		csv.OptEmptyAsNull,
 		OptDebugTrackMemory,
 		pprofile.OptMode,
-		progress.OptDebugSleep,
-		progress.OptDebugForce,
+		debugz.OptProgressDebugSleep,
+		debugz.OptProgressDebugForce,
 	)
 }
 

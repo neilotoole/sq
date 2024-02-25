@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/debugz"
+
 	"github.com/samber/lo"
 	excelize "github.com/xuri/excelize/v2"
 	"golang.org/x/sync/errgroup"
@@ -133,7 +135,7 @@ func ingestXLSX(ctx context.Context, src *source.Source, destGrip driver.Grip, x
 
 	var ingestCount, skipped int
 	for i := range sheetTbls {
-		progress.DebugSleep(ctx)
+		debugz.DebugSleep(ctx)
 
 		if sheetTbls[i] == nil {
 			// tblDef can be nil if its sheet is empty (has no data).

@@ -6,45 +6,8 @@ package progress
 // with the package, this stuff can be deleted.
 
 import (
-	"context"
-	"time"
-
 	"github.com/samber/lo"
-
-	"github.com/neilotoole/sq/libsq/core/options"
 )
-
-// OptDebugSleep configures DebugSleep. It should be removed when the
-// progress impl is stable.
-var OptDebugSleep = options.NewDuration(
-	"debug.progress.sleep",
-	nil,
-	0,
-	"DEBUG: Sleep during operations to facilitate testing progress bars",
-	`DEBUG: Sleep during operations to facilitate testing progress bars.`,
-)
-
-// OptDebugForce forces instantiation of progress bars, even if stderr is not a
-// terminal. It should be removed when the progress impl is stable.
-var OptDebugForce = options.NewBool(
-	"debug.progress.force",
-	nil,
-	false,
-	"DEBUG: Always render progress bars",
-	`DEBUG: Always render progress bars, even when stderr is not a terminal, or
-progress is not enabled. This is useful for testing the progress impl.`,
-)
-
-// DebugSleep sleeps for a period of time to facilitate testing the
-// progress impl. It uses the value from OptDebugSleep. This function
-// (and OptDebugSleep) should be removed when the progress impl is
-// stable.
-func DebugSleep(ctx context.Context) {
-	sleep := OptDebugSleep.Get(options.FromContext(ctx))
-	if sleep > 0 {
-		time.Sleep(sleep)
-	}
-}
 
 // ShowBar shows bar b. This is a temporary function for testing.
 // FIXME: Delete ShowBar.

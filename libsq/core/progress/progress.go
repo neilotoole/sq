@@ -243,8 +243,8 @@ func (p *Progress) destroy() {
 	<-p.ctx.Done()
 }
 
-// Opt is a functional option for Bar creation.
-type Opt interface {
+// BarOpt is a functional option for Bar creation.
+type BarOpt interface {
 	apply(*Progress, *barConfig)
 }
 
@@ -258,7 +258,7 @@ type barConfig struct {
 
 // createBar returns a bar for cfg. This method must only be called from within the
 // Progress mutex.
-func (p *Progress) createBar(cfg *barConfig, opts []Opt) Bar {
+func (p *Progress) createBar(cfg *barConfig, opts []BarOpt) Bar {
 	if p == nil {
 		return nopBar{}
 	}

@@ -3,8 +3,6 @@ package cli
 import (
 	"log/slog"
 
-	"github.com/neilotoole/sq/libsq/core/progress"
-
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -103,7 +101,7 @@ See docs and more: https://sq.io`,
 	cmd.Flags().Bool(flag.Version, false, flag.VersionUsage)
 
 	addOptionFlag(cmd.PersistentFlags(), OptMonochrome)
-	addOptionFlag(cmd.PersistentFlags(), progress.OptEnable)
+	addOptionFlag(cmd.PersistentFlags(), OptProgress)
 	addOptionFlag(cmd.PersistentFlags(), OptRedact)
 	addOptionFlag(cmd.PersistentFlags(), OptVerbose)
 	addOptionFlag(cmd.PersistentFlags(), pprofile.OptMode)

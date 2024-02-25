@@ -117,10 +117,10 @@ func newElapsedSeconds(c *color.Color, startTime time.Time, wcc ...decor.WC) dec
 	return decor.Any(fn, wcc...)
 }
 
-// OptTimer is an Opt that causes the bar to display elapsed seconds.
+// OptTimer is an BarOpt that causes the bar to display elapsed seconds.
 var OptTimer = optElapsedSeconds{}
 
-var _ Opt = optElapsedSeconds{}
+var _ BarOpt = optElapsedSeconds{}
 
 type optElapsedSeconds struct{}
 
@@ -128,11 +128,11 @@ func (optElapsedSeconds) apply(p *Progress, cfg *barConfig) {
 	cfg.decorators = append(cfg.decorators, newElapsedSeconds(p.colors.Size, time.Now(), decor.WCSyncSpace))
 }
 
-// OptMemUsage is an Opt that causes the bar to display program
+// OptMemUsage is an BarOpt that causes the bar to display program
 // memory usage.
 var OptMemUsage = optMemUsage{}
 
-var _ Opt = optMemUsage{}
+var _ BarOpt = optMemUsage{}
 
 type optMemUsage struct{}
 

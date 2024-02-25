@@ -140,7 +140,7 @@ func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 		}
 	}
 
-	bar := progress.FromContext(ctx).NewWaiter("Execute query", true)
+	bar := progress.FromContext(ctx).NewWaiter("Execute query")
 	rows, err := db.QueryContext(ctx, query, args...)
 	bar.Stop()
 	if err != nil {

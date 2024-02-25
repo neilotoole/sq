@@ -18,6 +18,8 @@ import (
 	"github.com/neilotoole/sq/libsq/files"
 )
 
+//nolint:unparam,unused,nolintlint
+
 // newXCmd returns the "x" command, which is the container
 // for a set of hidden commands that are useful for development.
 // The x commands are not intended for end users.
@@ -89,7 +91,7 @@ func newXProgressCmd() *cobra.Command {
 	return cmd
 }
 
-func execXProgressOldOld(cmd *cobra.Command, _ []string) error { //nolint:unparam,unused
+func execXProgress(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
 	log := lg.FromContext(ctx)
 	ru := run.FromContext(ctx)
@@ -102,14 +104,33 @@ func execXProgressOldOld(cmd *cobra.Command, _ []string) error { //nolint:unpara
 
 	pb := progress.FromContext(ctx)
 
-	const wantBarCount = 10
-
-	bars := make([]progress.Bar, 0, wantBarCount)
-
-	for i := 0; i < wantBarCount; i++ {
-		bar := pb.NewUnitCounter(fmt.Sprintf("Counter %d", i), "thing", progress.OptTimer)
-		bars = append(bars, bar)
-	}
+	bars := make([]progress.Bar, 0)
+	// var bar progress.Bar
+	bars = append(bars, pb.NewUnitCounter(
+		"NewUnitCounter",
+		"item",
+	))
+	bars = append(bars, pb.NewUnitCounter(
+		"NewUnitCounter.OptTimer",
+		"item",
+		progress.OptTimer,
+	))
+	bars = append(bars, pb.NewUnitCounter(
+		"NewUnitCounter.OptTimer.OptMemUsage",
+		"item",
+		progress.OptTimer,
+		progress.OptMemUsage,
+	))
+	bars = append(bars, pb.NewWaiter("NewWaiter"))
+	bars = append(bars, pb.NewWaiter(
+		"NewWaiter.OptTimer",
+		progress.OptTimer,
+	))
+	bars = append(bars, pb.NewWaiter(
+		"NewWaiter.OptTimer.OptMemUsage",
+		progress.OptTimer,
+		progress.OptMemUsage,
+	))
 
 	go func() {
 		for ctx.Err() == nil {
@@ -126,22 +147,7 @@ func execXProgressOldOld(cmd *cobra.Command, _ []string) error { //nolint:unpara
 		time.Sleep(stepSleepy)
 	}
 
-	// bar.Incr(10)
 	sleepyLog()
-
-	sleepyLog()
-
-	sleepyLog()
-
-	for i := 3; i < 7; i++ {
-		bars[i].Stop()
-	}
-
-	sleepyLog()
-
-	bars[0].Stop()
-	bars[7].Stop()
-	bars[8].Stop()
 
 	sleepyLog()
 
@@ -149,7 +155,7 @@ func execXProgressOldOld(cmd *cobra.Command, _ []string) error { //nolint:unpara
 	return nil
 }
 
-func execXProgress(cmd *cobra.Command, _ []string) error {
+func execXProgressSingle(cmd *cobra.Command, _ []string) error { //nolint:unparam,unused
 	ctx := cmd.Context()
 	log := lg.FromContext(ctx)
 	ru := run.FromContext(ctx)
@@ -158,59 +164,7 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 
 	var cancelFn context.CancelFunc
 	ctx, cancelFn = context.WithCancel(ctx)
-	defer cancelFn()
-
-	pb := progress.FromContext(ctx)
-
-	const wantBarCount = 10
-
-	bars := make([]progress.Bar, 0, wantBarCount)
-
-	for i := 0; i < wantBarCount; i++ {
-		bar := pb.NewUnitCounter(fmt.Sprintf("Counter %d", i), "thing", progress.OptTimer)
-		bars = append(bars, bar)
-	}
-
-	for i := range bars {
-		bars[i].Incr(1)
-	}
-
-	const stepSleepy = time.Second * 5
-	sleepyLog := func() {
-		log.Warn("Sleeping...", lga.Period, stepSleepy)
-		time.Sleep(stepSleepy)
-	}
-
-	sleepyLog()
-
-	for i := 3; i < 10; i++ {
-		bars[i].Stop()
-	}
-
-	sleepyLog()
-
-	for i := 0; i < 5; i++ {
-		bar := pb.NewUnitCounter(fmt.Sprintf("Counter x%d", i), "thing", progress.OptTimer)
-		bars = append(bars, bar)
-		bar.Incr(1)
-	}
-
-	sleepyLog()
-
-	fmt.Fprintln(ru.Out, "exiting")
-	return nil
-}
-
-func execXProgressOld(cmd *cobra.Command, _ []string) error { //nolint:unparam,unused
-	ctx := cmd.Context()
-	log := lg.FromContext(ctx)
-	ru := run.FromContext(ctx)
-	_ = log
-	_ = ru
-
-	var cancelFn context.CancelFunc
-	ctx, cancelFn = context.WithCancel(ctx)
-	renderDelay := progress.OptDelay.Get(options.FromContext(ctx))
+	renderDelay := OptProgressDelay.Get(options.FromContext(ctx))
 
 	barTimeout := time.Second * 30
 	_ = barTimeout

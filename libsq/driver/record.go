@@ -11,6 +11,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/debugz"
+
 	"github.com/shopspring/decimal"
 	"go.uber.org/atomic"
 
@@ -468,7 +470,7 @@ func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
 
 				bi.written.Add(affected)
 				pbar.Incr(int(affected))
-				progress.DebugSleep(ctx)
+				debugz.DebugSleep(ctx)
 
 				if rec == nil {
 					// recCh is closed (coincidentally exactly on the
@@ -512,7 +514,7 @@ func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
 
 			bi.written.Add(affected)
 			pbar.Incr(int(affected))
-			progress.DebugSleep(ctx)
+			debugz.DebugSleep(ctx)
 
 			// We're done
 			return
