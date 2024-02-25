@@ -89,7 +89,7 @@ const (
 	// filled with dozens of progress bars, which is not great UX. Also, the mpb
 	// pkg doesn't seem to handle a large number of bars very well; performance
 	// degrades quickly.
-	groupBarThreshold = 14
+	groupBarThreshold = 5
 )
 
 // Bar represents a single progress bar, owned by a [Progress] instance. The
@@ -303,9 +303,10 @@ type barConfig struct {
 	total         int64
 }
 
-// createBar returns a bar for cfg. This method must only be called from within the
-// Progress mutex. The caller must hold Progress.mu.
-func (p *Progress) createBar(cfg *barConfig, add bool, opts []BarOpt) Bar {
+// createBar creates a new bar, and adds it to Progress.allBars.
+//
+// The caller must hold Progress.mu.
+func (p *Progress) createBar(cfg *barConfig, opts []BarOpt) Bar {
 	if p == nil {
 		return nopBar{}
 	}
@@ -313,22 +314,20 @@ func (p *Progress) createBar(cfg *barConfig, add bool, opts []BarOpt) Bar {
 	// FIXME: createBar should probably acquire the lock internally.
 
 	vb := newVirtualBar(p, cfg, opts)
-	if add {
-		p.allBars = append(p.allBars, vb)
-	}
+	p.allBars = append(p.allBars, vb)
 	return vb
 }
 
-// forgetBar removes bar b from Progress.allBars. It is the caller's
+// forgetBar removes bar vb from Progress.allBars. It is the caller's
 // responsibility to first invoke virtualBar.destroy.
-func (p *Progress) forgetBar(b *virtualBar) {
+func (p *Progress) forgetBar(vb *virtualBar) {
 	if p == nil {
 		return
 	}
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.allBars = langz.Remove(p.allBars, b)
+	p.allBars = langz.Remove(p.allBars, vb)
 }
 
 // startRefreshLoop starts Progress's refresh goroutine, which periodically

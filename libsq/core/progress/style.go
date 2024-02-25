@@ -35,15 +35,6 @@ func newAlignment() *alignment {
 	}
 }
 
-// var syncWidth = decor.WCSyncSpaceR
-//var syncWidth = decor.WCSyncWidth
-
-func nopWidget(c *color.Color, val string, wc decor.WC) decor.Decorator {
-	return decor.Any(func(statistics decor.Statistics) string {
-		return c.Sprint(val)
-	}, wc)
-}
-
 // DefaultColors returns the default colors used for the progress bars.
 func DefaultColors() *Colors {
 	return &Colors{
@@ -54,6 +45,7 @@ func DefaultColors() *Colors {
 		Percent:  color.New(color.FgCyan, color.Faint),
 		Size:     color.New(color.Faint),
 		Waiting:  color.New(color.FgYellow, color.Faint),
+		Timer:    color.New(color.FgYellow, color.Faint),
 		Warning:  color.New(color.FgYellow),
 	}
 }
@@ -66,6 +58,7 @@ type Colors struct {
 	Message  *color.Color
 	Percent  *color.Color
 	Size     *color.Color
+	Timer    *color.Color
 	Waiting  *color.Color
 	Warning  *color.Color
 }
@@ -83,6 +76,7 @@ func (c *Colors) EnableColor(enable bool) {
 		c.Message.EnableColor()
 		c.Percent.EnableColor()
 		c.Size.EnableColor()
+		c.Timer.EnableColor()
 		c.Waiting.EnableColor()
 		c.Warning.EnableColor()
 		return
@@ -94,15 +88,16 @@ func (c *Colors) EnableColor(enable bool) {
 	c.Message.DisableColor()
 	c.Percent.DisableColor()
 	c.Size.DisableColor()
+	c.Timer.DisableColor()
 	c.Waiting.DisableColor()
 	c.Warning.DisableColor()
 }
 
-//func colorize(decorator decor.Decorator, c *color.Color) decor.Decorator {
-//	return decor.Meta(decorator, func(s string) string {
-//		return c.Sprint(s)
-//	})
-//}
+func colorize(decorator decor.Decorator, c *color.Color) decor.Decorator {
+	return decor.Meta(decorator, func(s string) string {
+		return c.Sprint(s)
+	})
+}
 
 func spinnerStyle(c *color.Color) mpb.SpinnerStyleComposer {
 	// REVISIT: maybe use ascii chars only, in case it's a weird terminal?
@@ -134,22 +129,20 @@ var OptTimer = optTimer{}
 
 var _ BarOpt = optTimer{}
 
-type optTimer struct {
-}
+// wsprefix is the spacing prefix for widgets.
+
+type optTimer struct{}
 
 func (optTimer) apply(p *Progress, cfg *barConfig) {
 	startTime := time.Now()
-	//cfg.timerWidget = newElapsedSeconds(p.colors.Size, time.Now(), syncWidth)
 	fn := func(s decor.Statistics) string {
 		var msg string
 		if !s.Completed {
-			//msg = producer(time.Since(startTime))
-			msg = time.Since(startTime).Round(time.Second).String()
-			msg = p.colors.Size.Sprint(msg)
+			msg = "   " + time.Since(startTime).Round(time.Second).String()
 		}
 		return msg
 	}
-	cfg.timerWidget = decor.Any(fn, p.align.timer)
+	cfg.timerWidget = colorize(decor.Any(fn, p.align.timer), p.colors.Timer)
 }
 
 // OptMemUsage is an BarOpt that causes the bar to display program
@@ -163,9 +156,11 @@ type optMemUsage struct{}
 func (optMemUsage) apply(p *Progress, cfg *barConfig) {
 	fn := func(s decor.Statistics) string {
 		stats := runtimez.MemStats()
-		msg := fmt.Sprintf("xx (% .1f)", decor.SizeB1024(stats.Sys))
-		return p.colors.MemUsage.Sprint(msg)
+		return "  " + fmt.Sprintf("(% .1f)", decor.SizeB1000(stats.Sys))
 	}
-	cfg.memoryWidget = decor.Any(fn, p.align.mem)
+	cfg.memoryWidget = colorize(decor.Any(fn, p.align.mem), p.colors.MemUsage)
+}
 
+func nopWidget(p *Progress, wc decor.WC) decor.Decorator {
+	return colorize(decor.Name("", wc), p.colors.Size) // Shouldn't matter which color we use
 }

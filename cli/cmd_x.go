@@ -166,9 +166,9 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 
 	<-pressEnter(false)
 
-	//log.Warn("DOING THE BIG SLEEP")
-	//time.Sleep(time.Second * 10)
-	//log.Warn("BIG SLEEP DONE")
+	// log.Warn("DOING THE BIG SLEEP")
+	// time.Sleep(time.Second * 10)
+	// log.Warn("BIG SLEEP DONE")
 
 	close(incrStopCh)
 	pb.Stop()

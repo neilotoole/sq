@@ -53,20 +53,16 @@ func newVirtualBar(p *Progress, cfg *barConfig, opts []BarOpt) *virtualBar {
 	}
 
 	if cfg.counterWidget == nil {
-		//cfg.counterWidget = nopWidget("999 items", p.align.counter)
-		//cfg.counterWidget = decor.Name("|__couxnter__|", p.align.counter)
-		cfg.counterWidget = decor.Any(func(statistics decor.Statistics) string {
-			return p.colors.Size.Sprint("xx")
-		}, p.align.counter)
+		cfg.counterWidget = nopWidget(p, p.align.counter)
 	}
 	if cfg.timerWidget == nil {
-		cfg.timerWidget = nopWidget(p.colors.Size, "|__timer__|", p.align.timer)
+		cfg.timerWidget = nopWidget(p, p.align.timer)
 	}
 	if cfg.percentWidget == nil {
-		cfg.percentWidget = nopWidget(p.colors.Size, "|__percent__|", p.align.percent)
+		cfg.percentWidget = nopWidget(p, p.align.percent)
 	}
 	if cfg.memoryWidget == nil {
-		cfg.memoryWidget = nopWidget(p.colors.Size, "|__memory__|", p.align.mem)
+		cfg.memoryWidget = nopWidget(p, p.align.mem)
 	}
 
 	vb := &virtualBar{
@@ -291,38 +287,11 @@ func (vb *virtualBar) startConcrete() {
 	// Recover on any interaction with mpb.
 	defer func() { _ = recover() }()
 
-	//decors := []decor.Decorator{
-	//	vb.cfg.counterWidget,
-	//	vb.cfg.percentWidget,
-	//	vb.cfg.timerWidget,
-	//	vb.cfg.memoryWidget,
-	//}
-	//
-	//for i, d := range decors {
-	//	if d == nil {
-	//		decors[i] = nopWidget()
-	//	}
-	//}
-
-	//if vb.cfg.counterWidget == nil {
-	//	vb.cfg.counterWidget = nopWidget("__counter2__")
-	//}
-	//if vb.cfg.timerWidget == nil {
-	//	vb.cfg.timerWidget = nopWidget("__timer2__")
-	//}
-	//if vb.cfg.percentWidget == nil {
-	//	vb.cfg.percentWidget = nopWidget("__percent2__")
-	//}
-	//if vb.cfg.memoryWidget == nil {
-	//	vb.cfg.memoryWidget = nopWidget("__memory2__")
-	//}
-
 	vb.bimpl = vb.p.pc.New(vb.cfg.total,
 		vb.cfg.style,
 		mpb.BarWidth(barWidth),
 		mpb.PrependDecorators(
-			//colorize(decor.Name(vb.cfg.msg, decor.WCSyncWidth), vb.p.colors.Message),
-			decor.Name(vb.p.colors.Message.Sprint(vb.cfg.msg), vb.p.align.msg),
+			colorize(decor.Name(vb.cfg.msg, vb.p.align.msg), vb.p.colors.Message),
 		),
 		mpb.AppendDecorators(vb.cfg.counterWidget, vb.cfg.percentWidget, vb.cfg.timerWidget, vb.cfg.memoryWidget),
 		mpb.BarRemoveOnComplete(),

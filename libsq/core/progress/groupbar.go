@@ -1,7 +1,6 @@
 package progress
 
 import (
-	"github.com/dustin/go-humanize/english"
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
@@ -31,31 +30,28 @@ func newGroupBar(p *Progress) *groupBar {
 		return nil
 	}
 
-	msg := "Multiple operations"
-	unit := "op"
-	//vb := p.NewUnitCounter("Processing multiple", "items", )
-
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	cfg := &barConfig{
-		msg:   msg,
+		msg:   "Multiple operations",
 		total: -1,
 		style: spinnerStyle(p.colors.Filler),
 	}
 
 	fn := func(statistics decor.Statistics) string {
-		s := humanize.Comma(statistics.Current)
-		if unit != "" {
-			s += " " + english.PluralWord(int(statistics.Current), unit, "")
+		switch statistics.Current {
+		case 0:
+			return ""
+		case 1:
+			return "1 op"
+		default:
+			return humanize.Comma(statistics.Current) + " ops"
 		}
-		return p.colors.Size.Sprint(s)
 	}
+	cfg.counterWidget = colorize(decor.Any(fn, p.align.counter), p.colors.Size)
 
-	cfg.counterWidget = decor.Any(fn, p.align.counter)
-	//cfg.counterWidget = colorize(cfg.counterWidget, p.colors.Size)
-
-	//vb := p.createBar(cfg, false)
+	OptTimer.apply(p, cfg)
 
 	gb := &groupBar{
 		p:  p,

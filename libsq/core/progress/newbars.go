@@ -1,7 +1,9 @@
 package progress
 
 import (
+	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
@@ -22,23 +24,25 @@ func (p *Progress) NewByteCounter(msg string, size int64, opts ...BarOpt) Bar {
 
 	cfg := &barConfig{msg: msg, total: size}
 
-	//var counter decor.Decorator
-	//var percent decor.Decorator
 	if size < 0 {
 		cfg.style = spinnerStyle(p.colors.Filler)
-		cfg.counterWidget = decor.Current(decor.SizeB1024(0), "% .1f", p.align.counter)
-		cfg.percentWidget = nopWidget(p.colors.Size, "|__percent__|", p.align.percent)
+		cfg.counterWidget = colorize(
+			decor.Current(decor.SizeB1000(0), "% .1f", p.align.counter),
+			p.colors.Size,
+		)
 	} else {
 		cfg.style = barStyle(p.colors.Filler)
-		cfg.counterWidget = decor.Counters(decor.SizeB1024(0), "% .1f / % .1f", p.align.counter)
-		cfg.percentWidget = decor.NewPercentage(" %.1f", p.align.percent)
-		//percent = colorize(percent, p.colors.Percent)
+		cfg.counterWidget = colorize(
+			decor.Counters(decor.SizeB1000(0), "% .1f / % .1f", p.align.counter),
+			p.colors.Size,
+		)
+		cfg.percentWidget = colorize(
+			decor.NewPercentage(" %.1f", p.align.percent),
+			p.colors.Percent,
+		)
 	}
-	//cfg.counterWidget = colorize(counter, p.colors.Size)
-	//cfg.counterWidget = counter
-	//cfg.percentWidget = percent
 
-	return p.createBar(cfg, true, opts)
+	return p.createBar(cfg, opts)
 }
 
 // NewFilesizeCounter returns a new indeterminate bar whose label metric is a
@@ -68,12 +72,12 @@ func (p *Progress) NewFilesizeCounter(msg string, f *os.File, fp string, opts ..
 			return "-"
 		}
 
-		return p.colors.Size.Sprintf("% .1f", decor.SizeB1024(fi.Size()))
+		return fmt.Sprintf("% .1f", decor.SizeB1000(fi.Size()))
 	}
 
-	cfg.counterWidget = decor.Any(fn, p.align.counter)
+	cfg.counterWidget = colorize(decor.Any(fn, p.align.counter), p.colors.Size)
 
-	return p.createBar(cfg, true, opts)
+	return p.createBar(cfg, opts)
 }
 
 // NewUnitCounter returns a new indeterminate bar whose label
@@ -112,12 +116,12 @@ func (p *Progress) NewUnitCounter(msg, unit string, opts ...BarOpt) Bar {
 		if unit != "" {
 			s += " " + english.PluralWord(int(statistics.Current), unit, "")
 		}
-		return p.colors.Size.Sprint(s)
+		return s
 	}
 
-	cfg.counterWidget = decor.Any(fn, p.align.counter)
+	cfg.counterWidget = colorize(decor.Any(fn, p.align.counter), p.colors.Size)
 
-	return p.createBar(cfg, true, opts)
+	return p.createBar(cfg, opts)
 }
 
 // NewWaiter returns a generic indeterminate spinner with a timer. This produces
@@ -143,7 +147,7 @@ func (p *Progress) NewWaiter(msg string, opts ...BarOpt) Bar {
 		style: spinnerStyle(p.colors.Filler),
 	}
 
-	return p.createBar(cfg, true, opts)
+	return p.createBar(cfg, opts)
 }
 
 // NewUnitTotalCounter returns a new determinate bar whose label
@@ -178,11 +182,11 @@ func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64, opts ...Ba
 		if unit != "" {
 			s += " " + english.PluralWord(int(statistics.Current), unit, "")
 		}
-		return p.colors.Size.Sprint(s)
+		return s
 	}
 
-	cfg.counterWidget = decor.Any(fn, p.align.counter)
-	return p.createBar(cfg, true, opts)
+	cfg.counterWidget = colorize(decor.Any(fn, p.align.counter), p.colors.Size)
+	return p.createBar(cfg, opts)
 }
 
 // NewTimeoutWaiter returns a new indeterminate bar whose label is the
@@ -207,24 +211,29 @@ func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time, opts ...BarOp
 		remaining := time.Until(expires)
 		switch {
 		case remaining > 0:
-			return p.colors.Size.Sprintf("timeout in %s", remaining.Round(time.Second))
+			return fmt.Sprintf("timeout in %s", remaining.Round(time.Second))
 		case remaining > -time.Second:
 			// We do the extra second to prevent a "flash" of the timeout message,
 			// and it also prevents "timeout in -1s" etc. This situation should be
 			// rare; the caller should have already called Stop() on the Progress
 			// when the timeout happened, but we'll play it safe.
-			return p.colors.Size.Sprint("timeout in 0s")
+			return "timeout in 0s"
 		default:
-			return p.colors.Warning.Sprintf("timed out")
+			return "timed out"
 		}
 	}
 
-	cfg.counterWidget = decor.Any(fn, p.align.counter)
+	cfg.counterWidget = decor.Meta(decor.Any(fn, p.align.counter), func(s string) string {
+		if strings.HasPrefix(s, "timeout in") {
+			return p.colors.Size.Sprint(s)
+		}
+		return p.colors.Warning.Sprint(s)
+	})
 
 	cfg.total = int64(time.Until(expires))
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	return p.createBar(cfg, true, opts)
+	return p.createBar(cfg, opts)
 }
