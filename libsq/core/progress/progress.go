@@ -57,17 +57,15 @@ type Bar interface {
 	// Stop stops and removes the bar, preventing further use of the bar.
 	Stop()
 
-	// show shows the bar. It may be hidden again using Bar.hide.
-	show()
+	// markShown marks the bar to be displayed.
+	markShown()
 
-	// hide hides the bar. It may be shown again using Bar.show.
-	hide()
+	// markHidden marks the bar to be hidden.
+	markHidden()
 
 	// refresh is called by the Progress's monitor loop to refresh the bar's
 	// state.
 	refresh(t time.Time)
-
-	isRendered(t time.Time) bool
 }
 
 // New returns a new Progress instance, which is a container for progress bars.
@@ -250,7 +248,7 @@ type Opt interface {
 	apply(*Progress, *barConfig)
 }
 
-// barConfig is passed to Progress.barFromConfig.
+// barConfig is passed to Progress.createBar.
 type barConfig struct {
 	style      mpb.BarFillerBuilder
 	msg        string
@@ -258,33 +256,28 @@ type barConfig struct {
 	total      int64
 }
 
-// barFromConfig returns a bar for cfg. This method must only be called from
-// within the Progress mutex. This method may end up calling newVirtualBar,
-// or it may return a nopBar, or a groupBar.
-func (p *Progress) barFromConfig(cfg *barConfig, opts []Opt) Bar {
+// createBar returns a bar for cfg. This method must only be called from within the
+// Progress mutex.
+func (p *Progress) createBar(cfg *barConfig, opts []Opt) Bar {
 	if p == nil {
 		return nopBar{}
 	}
 
 	vb := newVirtualBar(p, cfg, opts)
-	//if p.needGroupBar() {
-	//	vb.hide()
-	//} else {
-	//	vb.show()
-	//}
-
 	p.allBars = append(p.allBars, vb)
 	return vb
 }
 
-func (p *Progress) delistBar(vb *virtualBar) {
+// removeBar removes bar b from Progress.allBars. It is the caller's
+// responsibility to first invoke virtualBar.destroy.
+func (p *Progress) removeBar(b *virtualBar) {
 	if p == nil {
 		return
 	}
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.allBars = langz.Remove(p.allBars, vb)
+	p.allBars = langz.Remove(p.allBars, b)
 }
 
 // startMonitor starts Progress's monitor goroutine, which periodically
@@ -294,11 +287,9 @@ func (p *Progress) startMonitor() {
 		return
 	}
 
-	ctx := p.ctx
 	go func() {
 		defer p.Stop()
-
-		done := ctx.Done()
+		done := p.ctx.Done()
 		for {
 			select {
 			case <-done:
@@ -357,9 +348,8 @@ var _ Bar = nopBar{}
 // that callers don't have to worry about checking for nil.
 type nopBar struct{}
 
-func (b nopBar) isRendered(t time.Time) bool { return false }
-func (nopBar) Incr(int)                      {}
-func (nopBar) Stop()                         {}
-func (nopBar) show()                         {}
-func (nopBar) hide()                         {}
-func (nopBar) refresh(time.Time)             {}
+func (nopBar) Incr(int)          {}
+func (nopBar) Stop()             {}
+func (nopBar) markShown()        {}
+func (nopBar) markHidden()       {}
+func (nopBar) refresh(time.Time) {}

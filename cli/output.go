@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/fatih/color"
 	colorable "github.com/mattn/go-colorable"
@@ -117,27 +116,6 @@ command, sq falls back to "text". Available formats:
 		"Redact passwords in output",
 		`Redact passwords in output.`,
 		options.TagOutput,
-	)
-
-	OptProgress = options.NewBool(
-		"progress",
-		&options.Flag{
-			Name:   "no-progress",
-			Invert: true,
-			Usage:  "Don't show progress bar",
-		},
-		true,
-		"Show progress bar for long-running operations",
-		`Show progress bar for long-running operations.`,
-		options.TagOutput,
-	)
-
-	OptProgressDelay = options.NewDuration(
-		"progress.delay",
-		nil,
-		time.Second*2,
-		"Progress bar render delay",
-		`Delay before showing a progress bar.`,
 	)
 
 	OptDebugTrackMemory = options.NewDuration(
@@ -462,7 +440,7 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 
 	var (
 		prog       *progress.Progress
-		noProg     = !OptProgress.Get(opts)
+		noProg     = !progress.OptEnable.Get(opts)
 		forceProg  = progress.OptDebugForce.Get(opts)
 		progColors = progress.DefaultColors()
 		monochrome = OptMonochrome.Get(opts)
@@ -501,7 +479,7 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 		outCfg.errOutPr.EnableColor(colorize)
 		if ctx != nil && (forceProg || !noProg) {
 			progColors.EnableColor(colorize)
-			prog = progress.New(ctx, outCfg.errOut, OptProgressDelay.Get(opts), progColors)
+			prog = progress.New(ctx, outCfg.errOut, progress.OptDelay.Get(opts), progColors)
 		}
 	case termz.IsTerminal(stderr):
 		// stderr is a terminal, and won't have color output, but we still enable
@@ -514,7 +492,7 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 		outCfg.errOutPr.EnableColor(false)
 		if ctx != nil && !noProg {
 			progColors.EnableColor(false)
-			prog = progress.New(ctx, outCfg.errOut, OptProgressDelay.Get(opts), progColors)
+			prog = progress.New(ctx, outCfg.errOut, progress.OptDelay.Get(opts), progColors)
 		}
 	default:
 		// stderr is a not a terminal at all. No color, no progress.

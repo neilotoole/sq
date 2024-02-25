@@ -19,10 +19,10 @@ import (
 
 // newVirtualBar returns a new virtualBar (or nil). It must only be called
 // from inside the Progress mutex. Generally speaking, callers should use
-// Progress.barFromConfig instead of calling newVirtualBar directly.
+// Progress.createBar instead of calling newVirtualBar directly.
 //
 // Note that the returned virtualBar is NOT automatically shown, nor is it
-// automatically added to Progress.bars.
+// automatically added to Progress.allBars.
 func newVirtualBar(p *Progress, cfg *barConfig, opts []Opt) *virtualBar {
 	if p == nil {
 		return nil
@@ -56,7 +56,7 @@ func newVirtualBar(p *Progress, cfg *barConfig, opts []Opt) *virtualBar {
 		}
 	}
 
-	b := &virtualBar{
+	vb := &virtualBar{
 		p:           p,
 		incrByCalls: &atomic.Int64{},
 		incrTotal:   &atomic.Int64{},
@@ -65,15 +65,14 @@ func newVirtualBar(p *Progress, cfg *barConfig, opts []Opt) *virtualBar {
 		cfg:         cfg,
 	}
 
-	return b
+	return vb
 }
 
 var _ Bar = (*virtualBar)(nil)
 
-// virtualBar is the main implementation of Bar. It is a virtual bar in the
+// virtualBar is the main implementation of Bar. It is a "virtual bar" in the
 // sense that it is not a concrete mpb.Bar, but rather an abstraction that
-// may create and destroy a concrete mpb.Bar as necessary, as virtualBar.show
-// or virtualBar.hide are invoked.
+// may create and destroy a concrete mpb.Bar as necessary.
 type virtualBar struct {
 	// notBefore is a checkpoint before which the virtualBar isn't shown. It's
 	// basically a render delay for the virtualBar.
@@ -82,8 +81,8 @@ type virtualBar struct {
 	// incrLastSentTime is when incrLastSentVal was last sent to bimpl.
 	incrLastSentTime time.Time
 
-	// cfg is the bar's configuration. It is preserved so that the bar can
-	// be hidden and shown.
+	// cfg is the bar's configuration. It is preserved so that the concrete bimpl
+	// can be created, destroyed, and recreated as needed.
 	cfg *barConfig
 
 	// bimpl is the concrete mpb.Bar impl. While the virtualBar is hidden, or
@@ -103,10 +102,11 @@ type virtualBar struct {
 	// destroyOnce is used within virtualBar.destroy.
 	destroyOnce *sync.Once
 
-	// incrLastSentVal is the most recent value sent to bimpl.
+	// incrLastSentVal is the most recent increment total value sent to bimpl.
 	incrLastSentVal int64
 
-	// groupLastSentVal is the most recent value used by the groupBar.
+	// groupLastSentVal is the most recent increment value consumed by
+	// Progress.groupBar.
 	groupLastSentVal int64
 
 	// mu guards the virtualBar's fields.
@@ -120,143 +120,143 @@ type virtualBar struct {
 	wantShow bool
 }
 
-func (b *virtualBar) isRendered(t time.Time) bool {
-	if b == nil {
-		return false
-	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.wantShow && t.After(b.notBefore)
-}
-
-func (b *virtualBar) isRenderable(t time.Time) bool {
-	if b == nil {
+// isRenderable returns true if the virtualBar is renderable at time t. It will
+// not be renderable if b.notBefore hasn't passed, or if b is nil or destroyed.
+func (vb *virtualBar) isRenderable(t time.Time) bool {
+	if vb == nil || t.Before(vb.notBefore) {
 		return false
 	}
 
-	return t.After(b.notBefore)
+	vb.mu.Lock()
+	defer vb.mu.Unlock()
+	return !vb.destroyed
 }
 
-// Incr increments the progress bar by amount n.
-func (b *virtualBar) Incr(n int) {
-	if b == nil {
+// Incr tracks the bar's increment value. The tracked value may be used by
+// virtualBar.refresh to update the concrete mpb.Bar.
+func (vb *virtualBar) Incr(n int) {
+	if vb == nil {
 		return
 	}
 
-	b.incrTotal.Add(int64(n))
-	b.incrByCalls.Add(1)
+	vb.incrTotal.Add(int64(n))
+	vb.incrByCalls.Add(1)
 }
 
-func (b *virtualBar) refresh(t time.Time) {
-	if b == nil {
+// refresh is called on the Progress's monitor loop, potentially creating,
+// incrementing, or destroying virtualBar.bimpl.
+func (vb *virtualBar) refresh(t time.Time) {
+	if vb == nil {
 		return
 	}
 
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	vb.mu.Lock()
+	defer vb.mu.Unlock()
 
-	if b.destroyed {
+	switch {
+	case vb.destroyed:
 		return
-	}
-
-	if !b.wantShow {
-		if b.bimpl != nil {
-			b.stopConcrete()
+	case !vb.wantShow:
+		// We don't want to show the bar.
+		if vb.bimpl != nil {
+			// If the concrete impl is present, we need to nuke it.
+			vb.stopConcrete()
 		}
 		return
+	case vb.bimpl == nil:
+		// We want to show the bar, but the concrete impl isn't present.
+		vb.maybeShow(t)
+	default:
 	}
 
-	if b.bimpl == nil {
-		b.maybeShow(t)
-		// REVISIT: Hmmn, I think we always want to call maybeSendIncr here.
-		// return
-	}
-
-	b.maybeSendIncr()
+	vb.maybeSendConcreteIncr()
 }
 
-func (b *virtualBar) getGroupIncr() int {
-	if b == nil {
-		return 0
-	}
-
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	if b.destroyed {
-		return 0
-	}
-
-	delta := b.incrTotal.Load() - b.incrLastSentVal - b.groupLastSentVal
-	b.groupLastSentVal += delta
-	return int(delta)
-}
-
-func (b *virtualBar) maybeSendIncr() {
-	if b == nil || b.bimpl == nil || !b.wantShow {
+// maybeSendConcreteIncr updates concrete mpb.Bar with the current increment,
+// if appropriate. The increment won't be sent if the concrete bar doesn't
+// exist, or if b is destroyed, etc.
+func (vb *virtualBar) maybeSendConcreteIncr() {
+	if vb == nil || !vb.wantShow || vb.destroyed || vb.bimpl == nil {
 		return
 	}
 
-	total := b.incrTotal.Load()
-	amount := total - b.incrLastSentVal
+	total := vb.incrTotal.Load()
+	amount := total - vb.incrLastSentVal
 	if amount == 0 {
 		return
 	}
 
-	b.bimpl.IncrBy(int(amount))
-	b.incrLastSentVal = total
-	b.incrLastSentTime = time.Now()
+	vb.bimpl.IncrBy(int(amount))
+	vb.incrLastSentVal = total
+	vb.incrLastSentTime = time.Now()
 }
 
-func (b *virtualBar) show() {
-	if b == nil {
-		return
+// groupIncrDelta returns the increment delta to be consumed by
+// Progress.groupBar, if vb is part of a groupBar.
+func (vb *virtualBar) groupIncrDelta() int {
+	if vb == nil {
+		return 0
 	}
 
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	vb.mu.Lock()
+	defer vb.mu.Unlock()
 
-	b.wantShow = true
+	if vb.destroyed {
+		return 0
+	}
 
-	// b.maybeShow(time.Now())
+	delta := vb.incrTotal.Load() - vb.incrLastSentVal - vb.groupLastSentVal
+	vb.groupLastSentVal += delta
+	return int(delta)
 }
 
-// maybeShow must be called inside b's mutex.
-func (b *virtualBar) maybeShow(t time.Time) {
-	if b == nil || b.destroyed {
+// markShown implements Bar.markShown.
+func (vb *virtualBar) markShown() {
+	if vb == nil {
 		return
 	}
 
-	b.wantShow = true
-	if b.bimpl != nil {
+	vb.mu.Lock()
+	defer vb.mu.Unlock()
+
+	vb.wantShow = true
+}
+
+// maybeShow maybe causes the virtualBar to be rendered, if appropriate. It must
+// be called inside the bar's mutex. maybeShow may instantiate a concrete
+// mpb.Bar via virtualBar.startConcrete.
+func (vb *virtualBar) maybeShow(t time.Time) {
+	if vb == nil || vb.destroyed {
 		return
 	}
 
-	if !t.After(b.notBefore) {
+	vb.wantShow = true
+	if vb.bimpl != nil {
 		return
 	}
 
-	b.startConcrete()
+	if !t.After(vb.notBefore) {
+		return
+	}
+
+	vb.startConcrete()
 }
 
 // startConcrete start's the virtualBar's concrete mpb.Bar. It must be called
 // inside b's mutex.
-func (b *virtualBar) startConcrete() {
-	if b == nil || b.p == nil {
+func (vb *virtualBar) startConcrete() {
+	if vb == nil || vb.p == nil {
 		return
 	}
 
-	// b.p.mu.Lock()
-	// defer b.p.mu.Unlock()
-
-	if b.destroyed {
+	if vb.destroyed {
 		return
 	}
 
 	select {
-	case <-b.p.destroyedCh:
+	case <-vb.p.destroyedCh:
 		return
-	case <-b.p.ctx.Done():
+	case <-vb.p.ctx.Done():
 		return
 	default:
 	}
@@ -267,83 +267,86 @@ func (b *virtualBar) startConcrete() {
 			// panics due to a race condition. This recover was added to paper over
 			// the panic, but it's not clear if it's still necessary.
 			err := errz.Errorf("progress: %v", r)
-			lg.FromContext(b.p.ctx).Warn("Caught panic in progress.startConcrete", lga.Err, err)
+			lg.FromContext(vb.p.ctx).Warn("Caught panic in progress.startConcrete", lga.Err, err)
 		}
 	}()
 
-	b.bimpl = b.p.pc.New(b.cfg.total,
-		b.cfg.style,
+	vb.bimpl = vb.p.pc.New(vb.cfg.total,
+		vb.cfg.style,
 		mpb.BarWidth(barWidth),
 		mpb.PrependDecorators(
-			colorize(decor.Name(b.cfg.msg, decor.WCSyncWidthR), b.p.colors.Message),
+			colorize(decor.Name(vb.cfg.msg, decor.WCSyncWidthR), vb.p.colors.Message),
 		),
-		mpb.AppendDecorators(b.cfg.decorators...),
+		mpb.AppendDecorators(vb.cfg.decorators...),
 		mpb.BarRemoveOnComplete(),
 	)
 
 	// Send the total value to the bar.
-	total := b.incrTotal.Load()
-	b.incrLastSentVal = total
-	b.incrLastSentTime = time.Now()
-	b.bimpl.IncrBy(int(total))
+	total := vb.incrTotal.Load()
+	vb.incrLastSentVal = total
+	vb.incrLastSentTime = time.Now()
+	vb.bimpl.IncrBy(int(total))
 }
 
-func (b *virtualBar) hide() {
-	if b == nil {
+// markHidden marks the virtualBar as hidden. On the next refresh, b's concrete
+// bar may be removed.
+func (vb *virtualBar) markHidden() {
+	if vb == nil {
 		return
 	}
 
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	vb.mu.Lock()
+	defer vb.mu.Unlock()
 
-	b.wantShow = false
-	// b.stopConcrete()
+	vb.wantShow = false
 }
 
-func (b *virtualBar) stopConcrete() {
-	if b == nil {
+// stopConcrete stops the concrete virtualBar.bimpl. It must be called inside
+// vb's mutex.
+func (vb *virtualBar) stopConcrete() {
+	if vb == nil {
 		return
 	}
 
-	b.wantShow = false
-	if b.bimpl == nil {
+	vb.wantShow = false
+	if vb.bimpl == nil {
 		return
 	}
 
 	// We *probably* only need to call b.bar.Abort() here?
-	b.bimpl.SetTotal(-1, true)
-	b.bimpl.Abort(true)
-	b.bimpl.Wait()
-	lg.FromContext(b.p.ctx).Warn("Hiding bar", "bar msg", strings.TrimSpace(b.cfg.msg))
-	b.bimpl = nil
+	vb.bimpl.SetTotal(-1, true)
+	vb.bimpl.Abort(true)
+	vb.bimpl.Wait()
+	lg.FromContext(vb.p.ctx).Warn("Hiding bar", "bar msg", strings.TrimSpace(vb.cfg.msg))
+	vb.bimpl = nil
 }
 
 // Stop stops and removes the bar.
-func (b *virtualBar) Stop() {
-	if b == nil {
+func (vb *virtualBar) Stop() {
+	if vb == nil {
 		return
 	}
 
-	b.destroy()
-	b.p.delistBar(b)
+	vb.destroy()
+	vb.p.removeBar(vb)
 }
 
 // destroy destroys the virtualBar, after which it is no longer usable. On
 // return, virtualBar.destroyed is true.
-func (b *virtualBar) destroy() {
-	if b == nil {
+func (vb *virtualBar) destroy() {
+	if vb == nil {
 		return
 	}
 
-	b.destroyOnce.Do(func() {
-		b.mu.Lock()
-		defer b.mu.Unlock()
-		if b.bimpl == nil {
-			b.destroyed = true
+	vb.destroyOnce.Do(func() {
+		vb.mu.Lock()
+		defer vb.mu.Unlock()
+		if vb.bimpl == nil {
+			vb.destroyed = true
 			return
 		}
 
-		b.stopConcrete()
-		b.destroyed = true
+		vb.stopConcrete()
+		vb.destroyed = true
 	})
 }

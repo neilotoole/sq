@@ -144,7 +144,7 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func execXProgressSingleVals(cmd *cobra.Command, _ []string) error {
+func execXProgressSingleVals(cmd *cobra.Command, _ []string) error { //nolint:unparam,unused
 	ctx := cmd.Context()
 	log := lg.FromContext(ctx)
 	ru := run.FromContext(ctx)
@@ -154,7 +154,6 @@ func execXProgressSingleVals(cmd *cobra.Command, _ []string) error {
 	var cancelFn context.CancelFunc
 	ctx, cancelFn = context.WithCancel(ctx)
 	defer cancelFn()
-	// renderDelay := OptProgressDelay.Get(options.FromContext(ctx))
 
 	barTimeout := time.Second * 30
 	_ = barTimeout
@@ -169,22 +168,9 @@ func execXProgressSingleVals(cmd *cobra.Command, _ []string) error {
 		bars = append(bars, bar)
 	}
 
-	// bar := pb.NewTimeoutWaiter("Doing something...", time.Now().Add(barTimeout))
-	// bar := pb.NewUnitCounter("Counting stuff...", "thing", progress.OptTimer)
-	// defer bar.Stop()
-
 	for i := range bars {
 		bars[i].Incr(1)
 	}
-
-	//go func() {
-	//	for ctx.Err() == nil {
-	//		for i := range bars {
-	//			bars[i].Incr(1)
-	//		}
-	//		time.Sleep(time.Millisecond * 100)
-	//	}
-	//}()
 
 	const stepSleepy = time.Second * 5
 	sleepyLog := func() {
@@ -201,9 +187,9 @@ func execXProgressSingleVals(cmd *cobra.Command, _ []string) error {
 
 	sleepyLog()
 
-	//for i := 3; i < 7; i++ {
-	//	bars[i].Stop()
-	//}
+	// for i := 3; i < 7; i++ {
+	// 	bars[i].Stop()
+	// }
 
 	sleepyLog()
 	sleepyLog()
@@ -212,7 +198,7 @@ func execXProgressSingleVals(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func execXProgressOld(cmd *cobra.Command, _ []string) error {
+func execXProgressOld(cmd *cobra.Command, _ []string) error { //nolint:unparam,unused
 	ctx := cmd.Context()
 	log := lg.FromContext(ctx)
 	ru := run.FromContext(ctx)
@@ -221,7 +207,7 @@ func execXProgressOld(cmd *cobra.Command, _ []string) error {
 
 	var cancelFn context.CancelFunc
 	ctx, cancelFn = context.WithCancel(ctx)
-	renderDelay := OptProgressDelay.Get(options.FromContext(ctx))
+	renderDelay := progress.OptDelay.Get(options.FromContext(ctx))
 
 	barTimeout := time.Second * 30
 	_ = barTimeout

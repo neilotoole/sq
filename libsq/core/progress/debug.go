@@ -53,7 +53,7 @@ func ShowBar(b Bar) {
 		return
 	}
 
-	b.show()
+	b.markShown()
 }
 
 // HideBar hides bar b. This is a temporary function for testing.
@@ -63,7 +63,7 @@ func HideBar(b Bar) {
 		return
 	}
 
-	b.hide()
+	b.markHidden()
 }
 
 // Hide hides the Progress.
@@ -78,7 +78,7 @@ func Hide(p *Progress) {
 	defer p.mu.Unlock()
 
 	for _, bar := range p.allBars {
-		bar.hide()
+		bar.markHidden()
 	}
 }
 
@@ -94,6 +94,6 @@ func Show(p *Progress) {
 	defer p.mu.Unlock()
 
 	for _, bar := range p.allBars {
-		bar.show()
+		bar.markShown()
 	}
 }

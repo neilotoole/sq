@@ -37,7 +37,7 @@ func (p *Progress) NewByteCounter(msg string, size int64, opts ...Opt) Bar {
 	counter = colorize(counter, p.colors.Size)
 	cfg.decorators = []decor.Decorator{counter, percent}
 
-	return p.barFromConfig(cfg, opts)
+	return p.createBar(cfg, opts)
 }
 
 // NewFilesizeCounter returns a new indeterminate bar whose label metric is a
@@ -71,7 +71,7 @@ func (p *Progress) NewFilesizeCounter(msg string, f *os.File, fp string, opts ..
 	})
 
 	cfg.decorators = []decor.Decorator{colorize(d, p.colors.Size)}
-	return p.barFromConfig(cfg, opts)
+	return p.createBar(cfg, opts)
 }
 
 // NewUnitCounter returns a new indeterminate bar whose label
@@ -114,7 +114,7 @@ func (p *Progress) NewUnitCounter(msg, unit string, opts ...Opt) Bar {
 	})
 	cfg.decorators = []decor.Decorator{colorize(d, p.colors.Size)}
 
-	return p.barFromConfig(cfg, opts)
+	return p.createBar(cfg, opts)
 }
 
 // NewWaiter returns a generic indeterminate spinner. If arg clock
@@ -142,7 +142,7 @@ func (p *Progress) NewWaiter(msg string, clock bool, opts ...Opt) Bar {
 		d := newElapsedSeconds(p.colors.Size, time.Now(), decor.WCSyncSpace)
 		cfg.decorators = []decor.Decorator{d}
 	}
-	return p.barFromConfig(cfg, opts)
+	return p.createBar(cfg, opts)
 }
 
 // NewUnitTotalCounter returns a new determinate bar whose label
@@ -180,7 +180,7 @@ func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64, opts ...Op
 		return s
 	})
 	cfg.decorators = []decor.Decorator{colorize(d, p.colors.Size)}
-	return p.barFromConfig(cfg, opts)
+	return p.createBar(cfg, opts)
 }
 
 // NewTimeoutWaiter returns a new indeterminate bar whose label is the
@@ -222,5 +222,5 @@ func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time, opts ...Opt) 
 
 	cfg.decorators = []decor.Decorator{d}
 	cfg.total = int64(time.Until(expires))
-	return p.barFromConfig(cfg, opts)
+	return p.createBar(cfg, opts)
 }
