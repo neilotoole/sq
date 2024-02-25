@@ -77,12 +77,16 @@ correct on both counts. PRs are welcome.
 */
 
 const (
-	// uxRedrawFreq is how often the progress bars are redrawn.
+	// uxRedrawFreq is how often the progress bars are redrawn by mpb. The default
+	// value is 150ms, which gives pretty smooth animation. Note that this value
+	// is different from stateRefreshFreq, which is how often the state of the
+	// bars is sent to the mpb widgets.
 	uxRedrawFreq = 150 * time.Millisecond
 
-	// refreshFreq is how often the state of the bars is refreshed.
-	// Experimentation shows 70ms works, but probably it could be higher.
-	refreshFreq = 70 * time.Millisecond
+	// stateRefreshFreq is how often the state of the bars is updated and sent to
+	// the concrete mpb widgets. Note that every state update puts load on mpb,
+	// and it starts to slow down, so refresh shouldn't happen too often.
+	stateRefreshFreq = 333 * time.Millisecond
 
 	// groupBarThreshold is the number of bars after which we combine further bars
 	// into a group. We do this because otherwise the terminal output could get
@@ -156,7 +160,7 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 
 	p.pc = mpb.NewWithContext(ctx, opts...)
 	p.groupBar = newGroupBar(p)
-	p.startRefreshLoop()
+	p.startStateRefreshLoop()
 	return p
 }
 
@@ -330,9 +334,10 @@ func (p *Progress) forgetBar(vb *virtualBar) {
 	p.allBars = langz.Remove(p.allBars, vb)
 }
 
-// startRefreshLoop starts Progress's refresh goroutine, which periodically
-// refreshes the bars. The goroutine returns when p.ctx or p.stoppingCh are done.
-func (p *Progress) startRefreshLoop() {
+// startStateRefreshLoop starts Progress's refresh goroutine, which periodically
+// sends the bar states to the concrete mpb widgets. The goroutine returns when
+// Progress.ctx or Progress.stoppingCh are done.
+func (p *Progress) startStateRefreshLoop() {
 	if p == nil {
 		return
 	}
@@ -341,14 +346,15 @@ func (p *Progress) startRefreshLoop() {
 		defer func() {
 			if r := recover(); r != nil {
 				err := errz.Errorf("%v", r)
-				lg.FromContext(p.ctx).Error("progress refresh loop panic", lga.Err, err)
+				// Shouldn't happen, but just in case.
+				lg.FromContext(p.ctx).Error("progress state refresh loop panic", lga.Err, err)
 			}
 		}()
 
 		defer p.Stop()
 		done := p.ctx.Done()
 
-		ticker := time.NewTicker(refreshFreq)
+		ticker := time.NewTicker(stateRefreshFreq)
 		defer ticker.Stop()
 
 		for {
