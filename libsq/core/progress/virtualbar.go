@@ -317,7 +317,7 @@ func (vb *virtualBar) stopConcrete() {
 	vb.bimpl.SetTotal(-1, true)
 	vb.bimpl.Abort(true)
 	vb.bimpl.Wait()
-	lg.FromContext(vb.p.ctx).Warn("Hiding bar", "bar msg", strings.TrimSpace(vb.cfg.msg))
+	lg.FromContext(vb.p.ctx).Warn("Hiding virtualBar.bimpl", "bar msg", strings.TrimSpace(vb.cfg.msg))
 	vb.bimpl = nil
 }
 

@@ -89,7 +89,7 @@ func newXProgressCmd() *cobra.Command {
 	return cmd
 }
 
-func execXProgress(cmd *cobra.Command, _ []string) error {
+func execXProgressOldOld(cmd *cobra.Command, _ []string) error { //nolint:unparam,unused
 	ctx := cmd.Context()
 	log := lg.FromContext(ctx)
 	ru := run.FromContext(ctx)
@@ -149,7 +149,7 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func execXProgressSingleVals(cmd *cobra.Command, _ []string) error { //nolint:unparam,unused
+func execXProgress(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
 	log := lg.FromContext(ctx)
 	ru := run.FromContext(ctx)
@@ -160,8 +160,6 @@ func execXProgressSingleVals(cmd *cobra.Command, _ []string) error { //nolint:un
 	ctx, cancelFn = context.WithCancel(ctx)
 	defer cancelFn()
 
-	barTimeout := time.Second * 30
-	_ = barTimeout
 	pb := progress.FromContext(ctx)
 
 	const wantBarCount = 10
@@ -183,20 +181,12 @@ func execXProgressSingleVals(cmd *cobra.Command, _ []string) error { //nolint:un
 		time.Sleep(stepSleepy)
 	}
 
-	// bar.Incr(10)
 	sleepyLog()
 
-	bars[7].Incr(10)
+	for i := 3; i < 10; i++ {
+		bars[i].Stop()
+	}
 
-	sleepyLog()
-
-	sleepyLog()
-
-	// for i := 3; i < 7; i++ {
-	// 	bars[i].Stop()
-	// }
-
-	sleepyLog()
 	sleepyLog()
 
 	fmt.Fprintln(ru.Out, "exiting")

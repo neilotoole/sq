@@ -52,6 +52,7 @@ func newGroupBar(p *Progress) *groupBar {
 func (gb *groupBar) refresh(t time.Time) {
 	if len(gb.p.activeInvisibleBars) == 0 {
 		gb.vb.markHidden()
+		gb.vb.stopConcrete()
 		return
 	}
 
