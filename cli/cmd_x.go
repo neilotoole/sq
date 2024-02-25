@@ -110,6 +110,10 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 		"NewUnitCounter",
 		"item",
 	))
+	bars = append(bars, pb.NewWaiter(
+		"NewWaiter.OptMemUsage",
+		progress.OptMemUsage,
+	))
 	bars = append(bars, pb.NewUnitCounter(
 		"NewUnitCounter.OptTimer",
 		"item",
@@ -122,8 +126,17 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 		progress.OptMemUsage,
 	))
 	bars = append(bars, pb.NewWaiter("NewWaiter"))
-	bars = append(bars, pb.NewWaiter(
-		"NewWaiter.OptMemUsage",
+
+	bars = append(bars, pb.NewTimeoutWaiter("NewTimeoutWaiter",
+		time.Now().Add(time.Minute),
+	))
+	bars = append(bars, pb.NewTimeoutWaiter("NewTimeoutWaiter.OptTimer",
+		time.Now().Add(time.Minute),
+		progress.OptTimer,
+	))
+	bars = append(bars, pb.NewTimeoutWaiter("NewTimeoutWaiter.OptTimer.OptMem",
+		time.Now().Add(time.Minute),
+		progress.OptTimer,
 		progress.OptMemUsage,
 	))
 
@@ -151,11 +164,11 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 	}
 	_ = sleepyLog
 
-	// <-pressEnter(false)
+	<-pressEnter(false)
 
-	log.Warn("DOING THE BIG SLEEP")
-	time.Sleep(time.Second * 7)
-	log.Warn("BIG SLEEP DONE")
+	//log.Warn("DOING THE BIG SLEEP")
+	//time.Sleep(time.Second * 10)
+	//log.Warn("BIG SLEEP DONE")
 
 	close(incrStopCh)
 	pb.Stop()

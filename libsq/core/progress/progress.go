@@ -89,7 +89,7 @@ const (
 	// filled with dozens of progress bars, which is not great UX. Also, the mpb
 	// pkg doesn't seem to handle a large number of bars very well; performance
 	// degrades quickly.
-	groupBarThreshold = 5
+	groupBarThreshold = 14
 )
 
 // Bar represents a single progress bar, owned by a [Progress] instance. The
@@ -131,6 +131,7 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 	p := &Progress{
 		mu:                  &sync.Mutex{},
 		colors:              colors,
+		align:               newAlignment(),
 		allBars:             make([]*virtualBar, 0),
 		activeVisibleBars:   make([]*virtualBar, 0),
 		activeInvisibleBars: make([]*virtualBar, 0),
@@ -168,6 +169,8 @@ type Progress struct {
 
 	// mu guards ALL public methods.
 	mu *sync.Mutex
+
+	align *alignment
 
 	// stoppingCh is closed at the top of Progress.destroy.
 	stoppingCh  chan struct{}
@@ -287,7 +290,7 @@ type BarOpt interface {
 
 // barConfig is passed to Progress.createBar. Note that there are four decorator
 // fields: these are effectively the "widgets" that are displayed on any given
-// bar. If a widget is nil, a nopDecor will be set by createVirtualBar. This is
+// bar. If a widget is nil, a nopWidget will be set by createVirtualBar. This is
 // because we need the widgets to exist (even if invisible) for visual
 // alignment purposes.
 type barConfig struct {
@@ -302,7 +305,7 @@ type barConfig struct {
 
 // createBar returns a bar for cfg. This method must only be called from within the
 // Progress mutex. The caller must hold Progress.mu.
-func (p *Progress) createBar(cfg *barConfig, opts []BarOpt) Bar {
+func (p *Progress) createBar(cfg *barConfig, add bool, opts []BarOpt) Bar {
 	if p == nil {
 		return nopBar{}
 	}
@@ -310,7 +313,9 @@ func (p *Progress) createBar(cfg *barConfig, opts []BarOpt) Bar {
 	// FIXME: createBar should probably acquire the lock internally.
 
 	vb := newVirtualBar(p, cfg, opts)
-	p.allBars = append(p.allBars, vb)
+	if add {
+		p.allBars = append(p.allBars, vb)
+	}
 	return vb
 }
 

@@ -17,6 +17,33 @@ const (
 	boxWidth  = 64
 )
 
+type alignment struct {
+	msg     decor.WC
+	counter decor.WC
+	percent decor.WC
+	timer   decor.WC
+	mem     decor.WC
+}
+
+func newAlignment() *alignment {
+	return &alignment{
+		msg:     decor.WC{C: decor.DSyncWidth},
+		counter: decor.WC{C: decor.DSyncWidth},
+		percent: decor.WC{C: decor.DSyncWidth},
+		timer:   decor.WC{C: decor.DSyncWidth},
+		mem:     decor.WC{C: decor.DSyncWidth},
+	}
+}
+
+// var syncWidth = decor.WCSyncSpaceR
+//var syncWidth = decor.WCSyncWidth
+
+func nopWidget(c *color.Color, val string, wc decor.WC) decor.Decorator {
+	return decor.Any(func(statistics decor.Statistics) string {
+		return c.Sprint(val)
+	}, wc)
+}
+
 // DefaultColors returns the default colors used for the progress bars.
 func DefaultColors() *Colors {
 	return &Colors{
@@ -71,11 +98,11 @@ func (c *Colors) EnableColor(enable bool) {
 	c.Warning.DisableColor()
 }
 
-func colorize(decorator decor.Decorator, c *color.Color) decor.Decorator {
-	return decor.Meta(decorator, func(s string) string {
-		return c.Sprint(s)
-	})
-}
+//func colorize(decorator decor.Decorator, c *color.Color) decor.Decorator {
+//	return decor.Meta(decorator, func(s string) string {
+//		return c.Sprint(s)
+//	})
+//}
 
 func spinnerStyle(c *color.Color) mpb.SpinnerStyleComposer {
 	// REVISIT: maybe use ascii chars only, in case it's a weird terminal?
@@ -102,31 +129,27 @@ func barStyle(c *color.Color) mpb.BarStyleComposer {
 		Tip(frames...).TipMeta(clr)
 }
 
-func newElapsedSeconds(c *color.Color, startTime time.Time, wcc ...decor.WC) decor.Decorator {
-	var msg string
-	producer := func(d time.Duration) string {
-		return " " + d.Round(time.Second).String()
-	}
+// OptTimer is an BarOpt that causes the bar to display elapsed seconds.
+var OptTimer = optTimer{}
+
+var _ BarOpt = optTimer{}
+
+type optTimer struct {
+}
+
+func (optTimer) apply(p *Progress, cfg *barConfig) {
+	startTime := time.Now()
+	//cfg.timerWidget = newElapsedSeconds(p.colors.Size, time.Now(), syncWidth)
 	fn := func(s decor.Statistics) string {
+		var msg string
 		if !s.Completed {
-			msg = producer(time.Since(startTime))
-			msg = c.Sprint(msg)
+			//msg = producer(time.Since(startTime))
+			msg = time.Since(startTime).Round(time.Second).String()
+			msg = p.colors.Size.Sprint(msg)
 		}
 		return msg
 	}
-	return decor.Any(fn, wcc...)
-}
-
-// OptTimer is an BarOpt that causes the bar to display elapsed seconds.
-var OptTimer = optElapsedSeconds{}
-
-var _ BarOpt = optElapsedSeconds{}
-
-type optElapsedSeconds struct{}
-
-func (optElapsedSeconds) apply(p *Progress, cfg *barConfig) {
-	cfg.timerWidget = newElapsedSeconds(p.colors.Size, time.Now(), decor.WCSyncWidth)
-	// cfg.decorators = append(cfg.decorators, newElapsedSeconds(p.colors.Size, time.Now(), decor.WCSyncWidth))
+	cfg.timerWidget = decor.Any(fn, p.align.timer)
 }
 
 // OptMemUsage is an BarOpt that causes the bar to display program
@@ -140,9 +163,9 @@ type optMemUsage struct{}
 func (optMemUsage) apply(p *Progress, cfg *barConfig) {
 	fn := func(s decor.Statistics) string {
 		stats := runtimez.MemStats()
-		msg := fmt.Sprintf(" (% .1f)", decor.SizeB1024(stats.Sys))
+		msg := fmt.Sprintf("xx (% .1f)", decor.SizeB1024(stats.Sys))
 		return p.colors.MemUsage.Sprint(msg)
 	}
-	cfg.memoryWidget = decor.Any(fn, decor.WCSyncWidth)
-	// cfg.decorators = append(cfg.decorators, decor.Any(fn, decor.WCSyncWidth))
+	cfg.memoryWidget = decor.Any(fn, p.align.mem)
+
 }

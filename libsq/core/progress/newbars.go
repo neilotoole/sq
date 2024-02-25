@@ -1,7 +1,6 @@
 package progress
 
 import (
-	"fmt"
 	"os"
 	"time"
 
@@ -23,21 +22,23 @@ func (p *Progress) NewByteCounter(msg string, size int64, opts ...BarOpt) Bar {
 
 	cfg := &barConfig{msg: msg, total: size}
 
-	var counter decor.Decorator
-	var percent decor.Decorator
+	//var counter decor.Decorator
+	//var percent decor.Decorator
 	if size < 0 {
 		cfg.style = spinnerStyle(p.colors.Filler)
-		counter = decor.Current(decor.SizeB1024(0), "% .1f", decor.WCSyncWidth)
+		cfg.counterWidget = decor.Current(decor.SizeB1024(0), "% .1f", p.align.counter)
+		cfg.percentWidget = nopWidget(p.colors.Size, "|__percent__|", p.align.percent)
 	} else {
 		cfg.style = barStyle(p.colors.Filler)
-		counter = decor.Counters(decor.SizeB1024(0), "% .1f / % .1f", decor.WCSyncWidth)
-		percent = decor.NewPercentage(" %.1f", decor.WCSyncWidth)
-		percent = colorize(percent, p.colors.Percent)
+		cfg.counterWidget = decor.Counters(decor.SizeB1024(0), "% .1f / % .1f", p.align.counter)
+		cfg.percentWidget = decor.NewPercentage(" %.1f", p.align.percent)
+		//percent = colorize(percent, p.colors.Percent)
 	}
-	cfg.counterWidget = colorize(counter, p.colors.Size)
-	cfg.percentWidget = percent
+	//cfg.counterWidget = colorize(counter, p.colors.Size)
+	//cfg.counterWidget = counter
+	//cfg.percentWidget = percent
 
-	return p.createBar(cfg, opts)
+	return p.createBar(cfg, true, opts)
 }
 
 // NewFilesizeCounter returns a new indeterminate bar whose label metric is a
@@ -54,7 +55,7 @@ func (p *Progress) NewFilesizeCounter(msg string, f *os.File, fp string, opts ..
 
 	cfg := &barConfig{msg: msg, total: -1, style: spinnerStyle(p.colors.Filler)}
 
-	d := decor.Any(func(statistics decor.Statistics) string {
+	fn := func(statistics decor.Statistics) string {
 		var fi os.FileInfo
 		var err error
 		if f != nil {
@@ -67,11 +68,12 @@ func (p *Progress) NewFilesizeCounter(msg string, f *os.File, fp string, opts ..
 			return "-"
 		}
 
-		return fmt.Sprintf("% .1f", decor.SizeB1024(fi.Size()))
-	}, decor.WCSyncWidth)
+		return p.colors.Size.Sprintf("% .1f", decor.SizeB1024(fi.Size()))
+	}
 
-	cfg.counterWidget = colorize(d, p.colors.Size)
-	return p.createBar(cfg, opts)
+	cfg.counterWidget = decor.Any(fn, p.align.counter)
+
+	return p.createBar(cfg, true, opts)
 }
 
 // NewUnitCounter returns a new indeterminate bar whose label
@@ -105,16 +107,17 @@ func (p *Progress) NewUnitCounter(msg, unit string, opts ...BarOpt) Bar {
 		style: spinnerStyle(p.colors.Filler),
 	}
 
-	cfg.counterWidget = decor.Any(func(statistics decor.Statistics) string {
+	fn := func(statistics decor.Statistics) string {
 		s := humanize.Comma(statistics.Current)
 		if unit != "" {
 			s += " " + english.PluralWord(int(statistics.Current), unit, "")
 		}
-		return s
-	}, decor.WCSyncWidth)
-	cfg.counterWidget = colorize(cfg.counterWidget, p.colors.Size)
+		return p.colors.Size.Sprint(s)
+	}
 
-	return p.createBar(cfg, opts)
+	cfg.counterWidget = decor.Any(fn, p.align.counter)
+
+	return p.createBar(cfg, true, opts)
 }
 
 // NewWaiter returns a generic indeterminate spinner with a timer. This produces
@@ -140,7 +143,7 @@ func (p *Progress) NewWaiter(msg string, opts ...BarOpt) Bar {
 		style: spinnerStyle(p.colors.Filler),
 	}
 
-	return p.createBar(cfg, opts)
+	return p.createBar(cfg, true, opts)
 }
 
 // NewUnitTotalCounter returns a new determinate bar whose label
@@ -170,15 +173,16 @@ func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64, opts ...Ba
 		style: barStyle(p.colors.Filler),
 	}
 
-	cfg.counterWidget = decor.Any(func(statistics decor.Statistics) string {
+	fn := func(statistics decor.Statistics) string {
 		s := humanize.Comma(statistics.Current) + " / " + humanize.Comma(statistics.Total)
 		if unit != "" {
 			s += " " + english.PluralWord(int(statistics.Current), unit, "")
 		}
-		return s
-	}, decor.WCSyncWidth)
-	cfg.counterWidget = colorize(cfg.counterWidget, p.colors.Size)
-	return p.createBar(cfg, opts)
+		return p.colors.Size.Sprint(s)
+	}
+
+	cfg.counterWidget = decor.Any(fn, p.align.counter)
+	return p.createBar(cfg, true, opts)
 }
 
 // NewTimeoutWaiter returns a new indeterminate bar whose label is the
@@ -199,7 +203,7 @@ func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time, opts ...BarOp
 		style: spinnerStyle(p.colors.Waiting),
 	}
 
-	cfg.counterWidget = decor.Any(func(statistics decor.Statistics) string {
+	fn := func(statistics decor.Statistics) string {
 		remaining := time.Until(expires)
 		switch {
 		case remaining > 0:
@@ -213,18 +217,14 @@ func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time, opts ...BarOp
 		default:
 			return p.colors.Warning.Sprintf("timed out")
 		}
-	}, decor.WCSyncWidth)
+	}
+
+	cfg.counterWidget = decor.Any(fn, p.align.counter)
 
 	cfg.total = int64(time.Until(expires))
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	return p.createBar(cfg, opts)
-}
-
-func nopDecor() decor.Decorator {
-	return decor.Any(func(statistics decor.Statistics) string {
-		return ""
-	}, decor.WCSyncWidth)
+	return p.createBar(cfg, true, opts)
 }
