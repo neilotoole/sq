@@ -9,10 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/debugz"
-
 	"golang.org/x/sync/errgroup"
 
+	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"

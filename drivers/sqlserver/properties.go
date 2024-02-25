@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/neilotoole/sq/libsq/core/debugz"
-
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/progress"

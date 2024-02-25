@@ -6,11 +6,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // newVirtualBar returns a new virtualBar (or nil). It must only be called
@@ -19,6 +19,8 @@ import (
 //
 // Note that the returned virtualBar is NOT automatically shown, nor is it
 // automatically added to Progress.allBars.
+//
+// It is not necessary for the caller to hold Progress.mu.
 func newVirtualBar(p *Progress, cfg *barConfig, opts []BarOpt) *virtualBar {
 	if p == nil {
 		return nil
@@ -50,17 +52,17 @@ func newVirtualBar(p *Progress, cfg *barConfig, opts []BarOpt) *virtualBar {
 		}
 	}
 
-	if cfg.counterDecor == nil {
-		cfg.counterDecor = nopDecor()
+	if cfg.counterWidget == nil {
+		cfg.counterWidget = nopDecor()
 	}
-	if cfg.timerDecor == nil {
-		cfg.timerDecor = nopDecor()
+	if cfg.timerWidget == nil {
+		cfg.timerWidget = nopDecor()
 	}
-	if cfg.percentDecor == nil {
-		cfg.percentDecor = nopDecor()
+	if cfg.percentWidget == nil {
+		cfg.percentWidget = nopDecor()
 	}
-	if cfg.memDecor == nil {
-		cfg.memDecor = nopDecor()
+	if cfg.memoryWidget == nil {
+		cfg.memoryWidget = nopDecor()
 	}
 
 	vb := &virtualBar{
@@ -286,10 +288,10 @@ func (vb *virtualBar) startConcrete() {
 	defer func() { _ = recover() }()
 
 	decors := []decor.Decorator{
-		vb.cfg.counterDecor,
-		vb.cfg.percentDecor,
-		vb.cfg.timerDecor,
-		vb.cfg.memDecor,
+		vb.cfg.counterWidget,
+		vb.cfg.percentWidget,
+		vb.cfg.timerWidget,
+		vb.cfg.memoryWidget,
 	}
 
 	vb.bimpl = vb.p.pc.New(vb.cfg.total,

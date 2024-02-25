@@ -10,12 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/debugz"
-
 	"github.com/go-sql-driver/mysql"
 	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"

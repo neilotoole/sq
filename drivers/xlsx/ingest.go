@@ -7,12 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/debugz"
-
 	"github.com/samber/lo"
 	excelize "github.com/xuri/excelize/v2"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/langz"

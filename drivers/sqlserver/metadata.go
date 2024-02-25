@@ -8,11 +8,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/debugz"
-
 	"github.com/c2h5oh/datasize"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"

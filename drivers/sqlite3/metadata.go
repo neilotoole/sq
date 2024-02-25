@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/debugz"
-
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"

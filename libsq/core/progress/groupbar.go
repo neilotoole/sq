@@ -3,7 +3,7 @@ package progress
 import (
 	"time"
 
-	"github.com/dustin/go-humanize"
+	humanize "github.com/dustin/go-humanize"
 	"github.com/vbauerster/mpb/v8/decor"
 )
 
@@ -36,26 +36,28 @@ func newGroupBar(p *Progress) *groupBar {
 		style: spinnerStyle(p.colors.Filler),
 	}
 
-	cfg.counterDecor = decor.Any(func(statistics decor.Statistics) string {
+	cfg.counterWidget = decor.Any(func(statistics decor.Statistics) string {
 		if statistics.Current <= 0 {
 			return ""
 		}
 
-		return " " + humanize.Comma(statistics.Current) + " items"
+		return " " + p.colors.Size.Sprint(humanize.Comma(statistics.Current)+" items")
 	}, decor.WCSyncWidth)
-	cfg.counterDecor = colorize(cfg.counterDecor, p.colors.Size)
 
 	gb := &groupBar{
 		p:  p,
 		vb: newVirtualBar(p, cfg, nil),
 	}
+
+	// We want the groupBar to be hidden initially. The refresh loop will make it
+	// visible when appropriate.
 	gb.vb.markHidden()
 	return gb
 }
 
 // refresh refreshes the groupBar.
 func (gb *groupBar) refresh(t time.Time) {
-	if gb == nil {
+	if gb == nil || gb.vb == nil {
 		return
 	}
 

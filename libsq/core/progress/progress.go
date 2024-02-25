@@ -22,10 +22,13 @@ import (
 	"sync"
 	"time"
 
+	mpb "github.com/vbauerster/mpb/v8"
+	"github.com/vbauerster/mpb/v8/decor"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/langz"
 	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/vbauerster/mpb/v8"
-	"github.com/vbauerster/mpb/v8/decor"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 )
 
 /*
@@ -132,7 +135,6 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 		activeVisibleBars:   make([]*virtualBar, 0),
 		activeInvisibleBars: make([]*virtualBar, 0),
 		delay:               delay,
-		destroyedCh:         make(chan struct{}),
 		stoppingCh:          make(chan struct{}),
 		destroyOnce:         &sync.Once{},
 	}
@@ -167,11 +169,8 @@ type Progress struct {
 	// mu guards ALL public methods.
 	mu *sync.Mutex
 
-	// destroyedCh is closed when the progress widget is stopped.
-	// This somewhat duplicates <-p.ctx.Done()... maybe it can be removed?
-
+	// stoppingCh is closed at the top of Progress.destroy.
 	stoppingCh  chan struct{}
-	destroyedCh chan struct{}
 	destroyOnce *sync.Once
 
 	// pc is the underlying mbp.Progress container.
@@ -202,7 +201,6 @@ func (p *Progress) Stop() {
 	}
 
 	p.destroy()
-	<-p.destroyedCh
 }
 
 // LogValue reports some stats.
@@ -237,16 +235,17 @@ func (p *Progress) destroy() {
 	p.destroyOnce.Do(func() {
 		close(p.stoppingCh)
 
-		defer func() { p.cancelFn() }()
-		defer func() { _ = recover() }()
+		defer func() {
+			p.cancelFn()
+			<-p.ctx.Done()
+		}()
+
+		defer func() { _ = recover() }() // Never propagate any panic here
 
 		p.mu.Lock()
 		defer p.mu.Unlock()
 
 		if p.pc == nil {
-			p.cancelFn()
-			<-p.ctx.Done()
-			close(p.destroyedCh)
 			return
 		}
 
@@ -276,7 +275,6 @@ func (p *Progress) destroy() {
 		// We shouldn't need this extra call to pc.Wait,
 		// but it shouldn't hurt?
 		p.pc.Wait()
-		close(p.destroyedCh)
 	})
 
 	<-p.ctx.Done()
@@ -287,23 +285,29 @@ type BarOpt interface {
 	apply(*Progress, *barConfig)
 }
 
-// barConfig is passed to Progress.createBar.
+// barConfig is passed to Progress.createBar. Note that there are four decorator
+// fields: these are effectively the "widgets" that are displayed on any given
+// bar. If a widget is nil, a nopDecor will be set by createVirtualBar. This is
+// because we need the widgets to exist (even if invisible) for visual
+// alignment purposes.
 type barConfig struct {
-	style        mpb.BarFillerBuilder
-	counterDecor decor.Decorator
-	percentDecor decor.Decorator
-	timerDecor   decor.Decorator
-	memDecor     decor.Decorator
-	msg          string
-	total        int64
+	style         mpb.BarFillerBuilder
+	counterWidget decor.Decorator
+	percentWidget decor.Decorator
+	timerWidget   decor.Decorator
+	memoryWidget  decor.Decorator
+	msg           string
+	total         int64
 }
 
 // createBar returns a bar for cfg. This method must only be called from within the
-// Progress mutex.
+// Progress mutex. The caller must hold Progress.mu.
 func (p *Progress) createBar(cfg *barConfig, opts []BarOpt) Bar {
 	if p == nil {
 		return nopBar{}
 	}
+
+	// FIXME: createBar should probably acquire the lock internally.
 
 	vb := newVirtualBar(p, cfg, opts)
 	p.allBars = append(p.allBars, vb)
@@ -330,6 +334,13 @@ func (p *Progress) startRefreshLoop() {
 	}
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				err := errz.Errorf("%v", r)
+				lg.FromContext(p.ctx).Error("progress refresh loop panic", lga.Err, err)
+			}
+		}()
+
 		defer p.Stop()
 		done := p.ctx.Done()
 
@@ -350,7 +361,7 @@ func (p *Progress) startRefreshLoop() {
 			p.mu.Lock()
 			allBars := slices.Clone(p.allBars)
 			p.activeVisibleBars = make([]*virtualBar, 0, groupBarThreshold)
-			p.activeInvisibleBars = make([]*virtualBar, 0, len(allBars)-groupBarThreshold)
+			p.activeInvisibleBars = make([]*virtualBar, 0)
 
 			for i := range allBars {
 				bar := allBars[i]

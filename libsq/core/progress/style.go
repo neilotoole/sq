@@ -125,7 +125,7 @@ var _ BarOpt = optElapsedSeconds{}
 type optElapsedSeconds struct{}
 
 func (optElapsedSeconds) apply(p *Progress, cfg *barConfig) {
-	cfg.timerDecor = newElapsedSeconds(p.colors.Size, time.Now(), decor.WCSyncWidth)
+	cfg.timerWidget = newElapsedSeconds(p.colors.Size, time.Now(), decor.WCSyncWidth)
 	// cfg.decorators = append(cfg.decorators, newElapsedSeconds(p.colors.Size, time.Now(), decor.WCSyncWidth))
 }
 
@@ -143,6 +143,6 @@ func (optMemUsage) apply(p *Progress, cfg *barConfig) {
 		msg := fmt.Sprintf(" (% .1f)", decor.SizeB1024(stats.Sys))
 		return p.colors.MemUsage.Sprint(msg)
 	}
-	cfg.memDecor = decor.Any(fn, decor.WCSyncWidth)
+	cfg.memoryWidget = decor.Any(fn, decor.WCSyncWidth)
 	// cfg.decorators = append(cfg.decorators, decor.Any(fn, decor.WCSyncWidth))
 }

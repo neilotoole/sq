@@ -11,11 +11,10 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/debugz"
-
 	"github.com/shopspring/decimal"
 	"go.uber.org/atomic"
 
+	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/langz"

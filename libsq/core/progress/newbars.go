@@ -10,9 +10,9 @@ import (
 	"github.com/vbauerster/mpb/v8/decor"
 )
 
-// NewByteCounter returns a new determinate bar whose label
-// metric is the size in bytes of the data being processed. The caller is
-// ultimately responsible for calling Bar.Stop on the returned Bar.
+// NewByteCounter returns a new determinate bar whose label metric is the size
+// in bytes of the data being processed. The caller is ultimately responsible
+// for calling Bar.Stop on the returned Bar.
 func (p *Progress) NewByteCounter(msg string, size int64, opts ...BarOpt) Bar {
 	if p == nil {
 		return nopBar{}
@@ -34,10 +34,8 @@ func (p *Progress) NewByteCounter(msg string, size int64, opts ...BarOpt) Bar {
 		percent = decor.NewPercentage(" %.1f", decor.WCSyncWidth)
 		percent = colorize(percent, p.colors.Percent)
 	}
-	// counter = colorize(counter, p.colors.Size)
-	cfg.counterDecor = colorize(counter, p.colors.Size)
-	cfg.percentDecor = percent
-	// cfg.decorators = []decor.Decorator{counter, percent}
+	cfg.counterWidget = colorize(counter, p.colors.Size)
+	cfg.percentWidget = percent
 
 	return p.createBar(cfg, opts)
 }
@@ -72,8 +70,7 @@ func (p *Progress) NewFilesizeCounter(msg string, f *os.File, fp string, opts ..
 		return fmt.Sprintf("% .1f", decor.SizeB1024(fi.Size()))
 	}, decor.WCSyncWidth)
 
-	cfg.counterDecor = colorize(d, p.colors.Size)
-	// cfg.decorators = []decor.Decorator{colorize(d, p.colors.Size)}
+	cfg.counterWidget = colorize(d, p.colors.Size)
 	return p.createBar(cfg, opts)
 }
 
@@ -108,15 +105,14 @@ func (p *Progress) NewUnitCounter(msg, unit string, opts ...BarOpt) Bar {
 		style: spinnerStyle(p.colors.Filler),
 	}
 
-	d := decor.Any(func(statistics decor.Statistics) string {
+	cfg.counterWidget = decor.Any(func(statistics decor.Statistics) string {
 		s := humanize.Comma(statistics.Current)
 		if unit != "" {
 			s += " " + english.PluralWord(int(statistics.Current), unit, "")
 		}
 		return s
 	}, decor.WCSyncWidth)
-	cfg.counterDecor = colorize(d, p.colors.Size)
-	// cfg.decorators = []decor.Decorator{colorize(d, p.colors.Size)}
+	cfg.counterWidget = colorize(cfg.counterWidget, p.colors.Size)
 
 	return p.createBar(cfg, opts)
 }
@@ -174,15 +170,14 @@ func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64, opts ...Ba
 		style: barStyle(p.colors.Filler),
 	}
 
-	d := decor.Any(func(statistics decor.Statistics) string {
+	cfg.counterWidget = decor.Any(func(statistics decor.Statistics) string {
 		s := humanize.Comma(statistics.Current) + " / " + humanize.Comma(statistics.Total)
 		if unit != "" {
 			s += " " + english.PluralWord(int(statistics.Current), unit, "")
 		}
 		return s
 	}, decor.WCSyncWidth)
-	cfg.counterDecor = colorize(d, p.colors.Size)
-	// cfg.decorators = []decor.Decorator{colorize(d, p.colors.Size)}
+	cfg.counterWidget = colorize(cfg.counterWidget, p.colors.Size)
 	return p.createBar(cfg, opts)
 }
 
@@ -199,15 +194,12 @@ func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time, opts ...BarOp
 		return nopBar{}
 	}
 
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	cfg := &barConfig{
 		msg:   msg,
 		style: spinnerStyle(p.colors.Waiting),
 	}
 
-	d := decor.Any(func(statistics decor.Statistics) string {
+	cfg.counterWidget = decor.Any(func(statistics decor.Statistics) string {
 		remaining := time.Until(expires)
 		switch {
 		case remaining > 0:
@@ -223,9 +215,11 @@ func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time, opts ...BarOp
 		}
 	}, decor.WCSyncWidth)
 
-	cfg.counterDecor = d
-	// cfg.decorators = []decor.Decorator{d}
 	cfg.total = int64(time.Until(expires))
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	return p.createBar(cfg, opts)
 }
 
