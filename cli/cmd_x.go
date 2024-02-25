@@ -189,6 +189,14 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 
 	sleepyLog()
 
+	for i := 0; i < 5; i++ {
+		bar := pb.NewUnitCounter(fmt.Sprintf("Counter x%d", i), "thing", progress.OptTimer)
+		bars = append(bars, bar)
+		bar.Incr(1)
+	}
+
+	sleepyLog()
+
 	fmt.Fprintln(ru.Out, "exiting")
 	return nil
 }
