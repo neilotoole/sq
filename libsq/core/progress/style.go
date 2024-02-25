@@ -2,7 +2,10 @@ package progress
 
 import (
 	"fmt"
+	"strings"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/fatih/color"
 	mpb "github.com/vbauerster/mpb/v8"
@@ -12,7 +15,7 @@ import (
 )
 
 const (
-	msgLength = 36
+	msgMaxLen = 36
 	barWidth  = 28
 	boxWidth  = 64
 )
@@ -163,4 +166,18 @@ func (optMemUsage) apply(p *Progress, cfg *barConfig) {
 
 func nopWidget(p *Progress, wc decor.WC) decor.Decorator {
 	return colorize(decor.Name("", wc), p.colors.Size) // Shouldn't matter which color we use
+}
+
+func msgWidth(msg string) string {
+	switch {
+	case len(msg) < msgMaxLen:
+		msg += strings.Repeat(" ", msgMaxLen-len(msg))
+	case len(msg) > msgMaxLen:
+		msg = stringz.Ellipsify(msg, msgMaxLen)
+	}
+	return msg
+}
+
+func staticMsgWidget(p *Progress, msg string) decor.Decorator {
+	return colorize(decor.Name(msgWidth(msg), p.align.msg), p.colors.Message)
 }

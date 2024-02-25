@@ -1,16 +1,11 @@
 package progress
 
 import (
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	mpb "github.com/vbauerster/mpb/v8"
-	"github.com/vbauerster/mpb/v8/decor"
-
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // newVirtualBar returns a new virtualBar (or nil). It must only be called
@@ -36,14 +31,6 @@ func newVirtualBar(p *Progress, cfg *barConfig, opts []BarOpt) *virtualBar {
 
 	if cfg.total < 0 {
 		cfg.total = 0
-	}
-
-	// We want the bar message to be a consistent width.
-	switch {
-	case len(cfg.msg) < msgLength:
-		cfg.msg += strings.Repeat(" ", msgLength-len(cfg.msg))
-	case len(cfg.msg) > msgLength:
-		cfg.msg = stringz.Ellipsify(cfg.msg, msgLength)
 	}
 
 	for _, opt := range opts {
@@ -290,9 +277,7 @@ func (vb *virtualBar) startConcrete() {
 	vb.bimpl = vb.p.pc.New(vb.cfg.total,
 		vb.cfg.style,
 		mpb.BarWidth(barWidth),
-		mpb.PrependDecorators(
-			colorize(decor.Name(vb.cfg.msg, vb.p.align.msg), vb.p.colors.Message),
-		),
+		mpb.PrependDecorators(vb.cfg.msgWidget),
 		mpb.AppendDecorators(vb.cfg.counterWidget, vb.cfg.percentWidget, vb.cfg.timerWidget, vb.cfg.memoryWidget),
 		mpb.BarRemoveOnComplete(),
 	)
@@ -339,7 +324,6 @@ func (vb *virtualBar) stopConcrete() {
 	vb.bimpl.SetTotal(-1, true)
 	vb.bimpl.Abort(true)
 	vb.bimpl.Wait()
-	lg.FromContext(vb.p.ctx).Warn("Hiding virtualBar.bimpl", "bar msg", strings.TrimSpace(vb.cfg.msg))
 	vb.bimpl = nil
 }
 

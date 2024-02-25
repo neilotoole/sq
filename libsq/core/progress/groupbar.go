@@ -1,6 +1,7 @@
 package progress
 
 import (
+	"fmt"
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
@@ -34,7 +35,6 @@ func newGroupBar(p *Progress) *groupBar {
 	defer p.mu.Unlock()
 
 	cfg := &barConfig{
-		msg:   "Multiple operations",
 		total: -1,
 		style: spinnerStyle(p.colors.Filler),
 	}
@@ -44,14 +44,28 @@ func newGroupBar(p *Progress) *groupBar {
 		case 0:
 			return ""
 		case 1:
-			return "1 op"
+			return "1 item"
 		default:
-			return humanize.Comma(statistics.Current) + " ops"
+			return humanize.Comma(statistics.Current) + " items"
 		}
 	}
 	cfg.counterWidget = colorize(decor.Any(fn, p.align.counter), p.colors.Size)
 
+	// Add a timer widget.
 	OptTimer.apply(p, cfg)
+
+	// The groupBar's message widget is dynamic (incorporating the count of active
+	// invisible bars).
+	cfg.msgWidget = colorize(
+		decor.Any(
+			func(statistics decor.Statistics) string {
+				m := fmt.Sprintf("More operations (%d)", len(p.activeInvisibleBars))
+				return msgWidth(m)
+			},
+			p.align.msg,
+		),
+		p.colors.Message,
+	)
 
 	gb := &groupBar{
 		p:  p,

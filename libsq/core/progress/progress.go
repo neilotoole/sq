@@ -299,7 +299,7 @@ type barConfig struct {
 	percentWidget decor.Decorator
 	timerWidget   decor.Decorator
 	memoryWidget  decor.Decorator
-	msg           string
+	msgWidget     decor.Decorator
 	total         int64
 }
 

@@ -22,7 +22,10 @@ func (p *Progress) NewByteCounter(msg string, size int64, opts ...BarOpt) Bar {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	cfg := &barConfig{msg: msg, total: size}
+	cfg := &barConfig{
+		msgWidget: staticMsgWidget(p, msg),
+		total:     size,
+	}
 
 	if size < 0 {
 		cfg.style = spinnerStyle(p.colors.Filler)
@@ -57,7 +60,11 @@ func (p *Progress) NewFilesizeCounter(msg string, f *os.File, fp string, opts ..
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	cfg := &barConfig{msg: msg, total: -1, style: spinnerStyle(p.colors.Filler)}
+	cfg := &barConfig{
+		msgWidget: staticMsgWidget(p, msg),
+		total:     -1,
+		style:     spinnerStyle(p.colors.Filler),
+	}
 
 	fn := func(statistics decor.Statistics) string {
 		var fi os.FileInfo
@@ -106,9 +113,9 @@ func (p *Progress) NewUnitCounter(msg, unit string, opts ...BarOpt) Bar {
 	defer p.mu.Unlock()
 
 	cfg := &barConfig{
-		msg:   msg,
-		total: -1,
-		style: spinnerStyle(p.colors.Filler),
+		msgWidget: staticMsgWidget(p, msg),
+		total:     -1,
+		style:     spinnerStyle(p.colors.Filler),
 	}
 
 	fn := func(statistics decor.Statistics) string {
@@ -142,9 +149,9 @@ func (p *Progress) NewWaiter(msg string, opts ...BarOpt) Bar {
 	opts = append(opts, OptTimer)
 
 	cfg := &barConfig{
-		msg:   msg,
-		total: -1,
-		style: spinnerStyle(p.colors.Filler),
+		msgWidget: staticMsgWidget(p, msg),
+		total:     -1,
+		style:     spinnerStyle(p.colors.Filler),
 	}
 
 	return p.createBar(cfg, opts)
@@ -172,9 +179,9 @@ func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64, opts ...Ba
 	defer p.mu.Unlock()
 
 	cfg := &barConfig{
-		msg:   msg,
-		total: total,
-		style: barStyle(p.colors.Filler),
+		msgWidget: staticMsgWidget(p, msg),
+		total:     total,
+		style:     barStyle(p.colors.Filler),
 	}
 
 	fn := func(statistics decor.Statistics) string {
@@ -203,8 +210,8 @@ func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time, opts ...BarOp
 	}
 
 	cfg := &barConfig{
-		msg:   msg,
-		style: spinnerStyle(p.colors.Waiting),
+		msgWidget: staticMsgWidget(p, msg),
+		style:     spinnerStyle(p.colors.Waiting),
 	}
 
 	fn := func(statistics decor.Statistics) string {
