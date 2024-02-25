@@ -1,11 +1,9 @@
 package progress
 
 import (
-	"sync"
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/dustin/go-humanize/english"
 	"github.com/vbauerster/mpb/v8/decor"
 )
 
@@ -13,33 +11,39 @@ import (
 // reached, further bars are grouped into a single groupBar. We do this
 // partially for UX, and partially because the mbp progress library
 // slows down with lots of bars.
+//
+// Note that groupBar doesn't need an internal mutex: it is not concurrently
+// accessed.
 type groupBar struct {
+	// p is the Progress instance to which this groupBar belongs. It is always
+	// non-nil if the groupBar is non-nil.
 	p *Progress
 
 	// vb is the groupBar's own virtualBar for rendering itself.
 	vb *virtualBar
-	mu sync.Mutex
 }
 
+// newGroupBar returns a new groupBar (or nil) for Progress p. Note that only
+// a single groupBar is created per Progress instance (at Progress creation).
 func newGroupBar(p *Progress) *groupBar {
 	if p == nil {
 		return nil
 	}
+
 	cfg := &barConfig{
 		msg:   "Processing multiple",
 		total: -1,
 		style: spinnerStyle(p.colors.Filler),
 	}
-	d := decor.Any(func(statistics decor.Statistics) string {
+
+	cfg.counterDecor = decor.Any(func(statistics decor.Statistics) string {
 		if statistics.Current <= 0 {
 			return ""
 		}
 
-		s := humanize.Comma(statistics.Current)
-		s += " " + english.PluralWord(int(statistics.Current), "item", "items")
-		return s
-	})
-	cfg.decorators = []decor.Decorator{colorize(d, p.colors.Size)}
+		return " " + humanize.Comma(statistics.Current) + " items"
+	}, decor.WCSyncWidth)
+	cfg.counterDecor = colorize(cfg.counterDecor, p.colors.Size)
 
 	gb := &groupBar{
 		p:  p,
@@ -49,20 +53,48 @@ func newGroupBar(p *Progress) *groupBar {
 	return gb
 }
 
+// refresh refreshes the groupBar.
 func (gb *groupBar) refresh(t time.Time) {
+	if gb == nil {
+		return
+	}
+
+	select {
+	case <-gb.p.stoppingCh:
+		gb.vb.mu.Lock()
+		gb.vb.stopConcrete()
+		gb.vb.mu.Unlock()
+	case <-gb.p.ctx.Done():
+		gb.vb.mu.Lock()
+		gb.vb.stopConcrete()
+		gb.vb.mu.Unlock()
+		return
+	default:
+	}
+
 	if len(gb.p.activeInvisibleBars) == 0 {
 		gb.vb.markHidden()
+		gb.vb.mu.Lock()
 		gb.vb.stopConcrete()
+		gb.vb.mu.Unlock()
 		return
 	}
 
 	gb.vb.Incr(gb.calculateIncr())
 	gb.vb.markShown()
+
+	gb.vb.mu.Lock()
 	gb.vb.maybeShow(t)
+	gb.vb.mu.Unlock()
+
 	gb.vb.refresh(t)
 }
 
 func (gb *groupBar) calculateIncr() int {
+	if gb == nil {
+		return 0
+	}
+
 	var val int
 	for _, vb := range gb.p.activeInvisibleBars {
 		val += vb.groupIncrDelta()
@@ -71,14 +103,16 @@ func (gb *groupBar) calculateIncr() int {
 	return val
 }
 
+// destroy destroys the groupBar.
 func (gb *groupBar) destroy() {
 	if gb == nil {
 		return
 	}
-	gb.mu.Lock()
-	defer gb.mu.Unlock()
 
 	if gb.vb != nil {
 		gb.vb.destroy()
 	}
+
+	gb.vb = nil
+	gb.p.groupBar = nil
 }

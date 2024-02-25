@@ -7,14 +7,10 @@ import (
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/samber/lo"
-
 	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
 )
 
 // newVirtualBar returns a new virtualBar (or nil). It must only be called
@@ -28,10 +24,8 @@ func newVirtualBar(p *Progress, cfg *barConfig, opts []BarOpt) *virtualBar {
 		return nil
 	}
 
-	cfg.decorators = lo.WithoutEmpty(cfg.decorators)
-
 	select {
-	case <-p.destroyedCh:
+	case <-p.stoppingCh:
 		return nil
 	case <-p.ctx.Done():
 		return nil
@@ -54,6 +48,19 @@ func newVirtualBar(p *Progress, cfg *barConfig, opts []BarOpt) *virtualBar {
 		if opt != nil {
 			opt.apply(p, cfg)
 		}
+	}
+
+	if cfg.counterDecor == nil {
+		cfg.counterDecor = nopDecor()
+	}
+	if cfg.timerDecor == nil {
+		cfg.timerDecor = nopDecor()
+	}
+	if cfg.percentDecor == nil {
+		cfg.percentDecor = nopDecor()
+	}
+	if cfg.memDecor == nil {
+		cfg.memDecor = nopDecor()
 	}
 
 	vb := &virtualBar{
@@ -89,7 +96,8 @@ type virtualBar struct {
 	// destroyed, bimpl is nil. While the virtualBar is shown, bimpl is non-nil.
 	bimpl *mpb.Bar
 
-	// p is the virtualBar's parent Progress.
+	// p is the virtualBar's parent Progress. It is always non-nil if the
+	// virtualBar is non-nil.
 	p *Progress
 
 	// incrTotal holds the total value of increment values passed to Incr.
@@ -143,11 +151,21 @@ func (vb *virtualBar) Incr(n int) {
 	vb.incrByCalls.Add(1)
 }
 
-// refresh is called on the Progress's monitor loop, potentially creating,
+// refresh is called by the Progress's refresh goroutine, potentially creating,
 // incrementing, or destroying virtualBar.bimpl.
 func (vb *virtualBar) refresh(t time.Time) {
 	if vb == nil {
 		return
+	}
+
+	select {
+	case <-vb.p.stoppingCh:
+		vb.destroy()
+		return
+	case <-vb.p.ctx.Done():
+		vb.destroy()
+		return
+	default:
 	}
 
 	vb.mu.Lock()
@@ -175,6 +193,8 @@ func (vb *virtualBar) refresh(t time.Time) {
 // maybeSendConcreteIncr updates concrete mpb.Bar with the current increment,
 // if appropriate. The increment won't be sent if the concrete bar doesn't
 // exist, or if b is destroyed, etc.
+//
+// The caller must hold the virtualBar.mu lock.
 func (vb *virtualBar) maybeSendConcreteIncr() {
 	if vb == nil || !vb.wantShow || vb.destroyed || vb.bimpl == nil {
 		return
@@ -217,14 +237,14 @@ func (vb *virtualBar) markShown() {
 	}
 
 	vb.mu.Lock()
-	defer vb.mu.Unlock()
-
 	vb.wantShow = true
+	vb.mu.Unlock()
 }
 
-// maybeShow maybe causes the virtualBar to be rendered, if appropriate. It must
-// be called inside the bar's mutex. maybeShow may instantiate a concrete
-// mpb.Bar via virtualBar.startConcrete.
+// maybeShow maybe causes the virtualBar to be rendered, if appropriate. It may
+// instantiate a concrete mpb.Bar via virtualBar.startConcrete.
+//
+// The caller must hold the virtualBar.mu lock.
 func (vb *virtualBar) maybeShow(t time.Time) {
 	if vb == nil || vb.destroyed {
 		return
@@ -242,8 +262,9 @@ func (vb *virtualBar) maybeShow(t time.Time) {
 	vb.startConcrete()
 }
 
-// startConcrete start's the virtualBar's concrete mpb.Bar. It must be called
-// inside b's mutex.
+// startConcrete start's the virtualBar's concrete mpb.Bar.
+//
+// The caller must hold the virtualBar.mu lock.
 func (vb *virtualBar) startConcrete() {
 	if vb == nil || vb.p == nil {
 		return
@@ -254,22 +275,22 @@ func (vb *virtualBar) startConcrete() {
 	}
 
 	select {
-	case <-vb.p.destroyedCh:
+	case <-vb.p.stoppingCh:
 		return
 	case <-vb.p.ctx.Done():
 		return
 	default:
 	}
 
-	defer func() {
-		if r := recover(); r != nil {
-			// On a previous version of this codebase, we would occasionally see
-			// panics due to a race condition. This recover was added to paper over
-			// the panic, but it's not clear if it's still necessary.
-			err := errz.Errorf("progress: %v", r)
-			lg.FromContext(vb.p.ctx).Warn("Caught panic in progress.startConcrete", lga.Err, err)
-		}
-	}()
+	// Recover on any interaction with mpb.
+	defer func() { _ = recover() }()
+
+	decors := []decor.Decorator{
+		vb.cfg.counterDecor,
+		vb.cfg.percentDecor,
+		vb.cfg.timerDecor,
+		vb.cfg.memDecor,
+	}
 
 	vb.bimpl = vb.p.pc.New(vb.cfg.total,
 		vb.cfg.style,
@@ -277,7 +298,7 @@ func (vb *virtualBar) startConcrete() {
 		mpb.PrependDecorators(
 			colorize(decor.Name(vb.cfg.msg, decor.WCSyncWidthR), vb.p.colors.Message),
 		),
-		mpb.AppendDecorators(vb.cfg.decorators...),
+		mpb.AppendDecorators(decors...),
 		mpb.BarRemoveOnComplete(),
 	)
 
@@ -296,13 +317,13 @@ func (vb *virtualBar) markHidden() {
 	}
 
 	vb.mu.Lock()
-	defer vb.mu.Unlock()
-
 	vb.wantShow = false
+	vb.mu.Unlock()
 }
 
-// stopConcrete stops the concrete virtualBar.bimpl. It must be called inside
-// vb's mutex.
+// stopConcrete stops the concrete virtualBar.bimpl.
+//
+// The caller must hold the virtualBar.mu lock.
 func (vb *virtualBar) stopConcrete() {
 	if vb == nil {
 		return
@@ -312,6 +333,12 @@ func (vb *virtualBar) stopConcrete() {
 	if vb.bimpl == nil {
 		return
 	}
+
+	defer func() {
+		vb.bimpl = nil
+		// Recover on any interaction with mpb.
+		_ = recover()
+	}()
 
 	// We *probably* only need to call b.bar.Abort() here?
 	vb.bimpl.SetTotal(-1, true)
@@ -328,7 +355,7 @@ func (vb *virtualBar) Stop() {
 	}
 
 	vb.destroy()
-	vb.p.removeBar(vb)
+	vb.p.forgetBar(vb)
 }
 
 // destroy destroys the virtualBar, after which it is no longer usable. On

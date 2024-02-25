@@ -125,7 +125,8 @@ var _ BarOpt = optElapsedSeconds{}
 type optElapsedSeconds struct{}
 
 func (optElapsedSeconds) apply(p *Progress, cfg *barConfig) {
-	cfg.decorators = append(cfg.decorators, newElapsedSeconds(p.colors.Size, time.Now(), decor.WCSyncSpace))
+	cfg.timerDecor = newElapsedSeconds(p.colors.Size, time.Now(), decor.WCSyncWidth)
+	// cfg.decorators = append(cfg.decorators, newElapsedSeconds(p.colors.Size, time.Now(), decor.WCSyncWidth))
 }
 
 // OptMemUsage is an BarOpt that causes the bar to display program
@@ -142,5 +143,6 @@ func (optMemUsage) apply(p *Progress, cfg *barConfig) {
 		msg := fmt.Sprintf(" (% .1f)", decor.SizeB1024(stats.Sys))
 		return p.colors.MemUsage.Sprint(msg)
 	}
-	cfg.decorators = append(cfg.decorators, decor.Any(fn, decor.WCSyncSpace))
+	cfg.memDecor = decor.Any(fn, decor.WCSyncWidth)
+	// cfg.decorators = append(cfg.decorators, decor.Any(fn, decor.WCSyncWidth))
 }

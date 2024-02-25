@@ -18,32 +18,74 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"slices"
 	"sync"
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/langz"
-
-	mpb "github.com/vbauerster/mpb/v8"
-	"github.com/vbauerster/mpb/v8/decor"
-
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/vbauerster/mpb/v8"
+	"github.com/vbauerster/mpb/v8/decor"
 )
+
+/*
+
+IMPLEMENTATION NOTE
+-------------------
+
+This progress pkg is a fairly hefty wrapper around the vbauerster/mpb pkg, which
+does the actual rendering of the progress bars. The development of this pkg has
+been a bit of an adventure, with a lot of trial-and-error pain. It's almost
+certainly that it could be rebuilt better, but I also never want to go near it
+again.
+
+Why not just use the mpb package directly? There are several reasons:
+
+1. At the time of creating this package, the mpb package didn't correctly
+   honor the render delay. See: https://github.com/vbauerster/mpb/issues/136
+   That bug has since been fixed, but...
+2. Delayed initialization of bars is useful for our purposes. In particular, we
+   can set the render delay on a per-bar basis, which was not possible with the
+   mpb pkg (its render delay is per Progress, not per Bar).
+3. The mpb pkg didn't appear to have a mechanism to "hide" a bar temporarily
+   while maintaining its counter state. We want to be able to hide a bar, allow
+   some main program output to be rendered, then if there's another delay, show
+   the hidden bar again. That's not possible if using mpb directly.
+4. This pkg has the groupBar mechanism, which is a way to aggregate and then
+   disaggregate multiple bars. Basically, once we hit N bars, further bars are
+	 aggregated into a single "group" bar. This is useful for UX, as we don't want
+	 to clutter the terminal with dozens of progress bars. Also, mpb's performance
+	 degrades when there are a large number of bars. With groupBar, the main
+   program doesn't have to worry about dozens, hundreds, or even thousands of
+   bars being created; they'll just all be aggregated. This simplifies the main
+   program logic, because we can just create bars with abandon.
+5. Having this wrapper around the mpb package allows us greater flexibility,
+   e.g. if we ever want to swap out the mpb package for something else.
+
+Due to battle scars from the development process, you'll find lots of redundant
+checks and locks in this pkg. They can probably be tidied away with a little
+effort. Also, many interactions with mpb are wrapped in panic-recover. These are
+probably overkill, but being that progress bars are merely a UX nicety, we don't
+want to the main program to crash due to sloppiness in this package.
+
+TLDR: If you find this pkg's code to be paranoid and/or sloppy, you're probably
+correct on both counts. PRs are welcome.
+
+*/
 
 const (
 	// uxRedrawFreq is how often the progress bars are redrawn.
 	uxRedrawFreq = 150 * time.Millisecond
 
 	// refreshFreq is how often the state of the bars is refreshed.
-	// Experimentation shows 70ms to be appropriate.
-	//
-	// REVISIT: Confirm 70ms is the appropriate refreshFreq rate.
+	// Experimentation shows 70ms works, but probably it could be higher.
 	refreshFreq = 70 * time.Millisecond
 
-	// groupBarThreshold is the number of bars at which we combine bars into
-	// a group. We do this because otherwise the terminal output could get filled
-	// with dozens of progress bars, which is not great UX. Also, the mpb package
-	// doesn't seem to handle a large number of bars very well; performance goes
-	// to hell.
+	// groupBarThreshold is the number of bars after which we combine further bars
+	// into a group. We do this because otherwise the terminal output could get
+	// filled with dozens of progress bars, which is not great UX. Also, the mpb
+	// pkg doesn't seem to handle a large number of bars very well; performance
+	// degrades quickly.
 	groupBarThreshold = 5
 )
 
@@ -63,18 +105,19 @@ type Bar interface {
 	// markHidden marks the bar to be hidden.
 	markHidden()
 
-	// refresh is called by the Progress's monitor loop to refresh the bar's
+	// refresh is called by the Progress's refresh loop to refresh the bar's
 	// state.
 	refresh(t time.Time)
 }
 
 // New returns a new Progress instance, which is a container for progress bars.
 // The returned Progress instance is safe for concurrent use, and all of its
-// public methods can be safely invoked on a nil Progress. The caller is
+// exported methods can be safely invoked on a nil Progress. The caller is
 // responsible for calling Progress.Stop on the returned Progress.
+//
 // Arg delay specifies a duration to wait before rendering the progress bar.
-// The Progress is lazily initialized, and thus the delay clock doesn't
-// start ticking until the first call to one of the Progress.NewX methods.
+// The Progress is lazily initialized, and thus the delay clock doesn't start
+// ticking until the first call to one of the Progress.NewXBar functions.
 func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors) *Progress {
 	log := lg.FromContext(ctx)
 
@@ -90,6 +133,7 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 		activeInvisibleBars: make([]*virtualBar, 0),
 		delay:               delay,
 		destroyedCh:         make(chan struct{}),
+		stoppingCh:          make(chan struct{}),
 		destroyOnce:         &sync.Once{},
 	}
 
@@ -109,7 +153,7 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 
 	p.pc = mpb.NewWithContext(ctx, opts...)
 	p.groupBar = newGroupBar(p)
-	p.startMonitor()
+	p.startRefreshLoop()
 	return p
 }
 
@@ -117,23 +161,6 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 // The caller is responsible for calling Progress.Stop to indicate
 // completion.
 type Progress struct {
-	// The implementation here may seem a bit convoluted. When a new bar is
-	// created from this Progress, the Bar.bar is initialized only after the
-	// bar's own render delay has expired. The details are ugly.
-	//
-	// Why not just use the mpb package directly? There are three main reasons:
-	//
-	// 1. At the time of creating this package, the mpb package didn't correctly
-	//    honor the render delay. See: https://github.com/vbauerster/mpb/issues/136
-	//    That bug has since been fixed, but...
-	// 2. The delayed initialization of the Bar.bar is useful for our purposes.
-	//    In particular, we can set the render delay on a per-bar basis, which is
-	//    not possible with the mpb package (its render delay is per Progress, not
-	//    per Bar).
-	// 3. Having this wrapper around the mpb package allows us greater
-	//    flexibility, e.g. if we ever want to swap out the mpb package for
-	//    something else.
-
 	ctx      context.Context
 	cancelFn context.CancelFunc
 
@@ -142,6 +169,8 @@ type Progress struct {
 
 	// destroyedCh is closed when the progress widget is stopped.
 	// This somewhat duplicates <-p.ctx.Done()... maybe it can be removed?
+
+	stoppingCh  chan struct{}
 	destroyedCh chan struct{}
 	destroyOnce *sync.Once
 
@@ -172,10 +201,8 @@ func (p *Progress) Stop() {
 		return
 	}
 
-	p.mu.Lock()
 	p.destroy()
 	<-p.destroyedCh
-	p.mu.Unlock()
 }
 
 // LogValue reports some stats.
@@ -200,11 +227,22 @@ func (p *Progress) LogValue() slog.Value {
 
 // destroy is probably needlessly complex, but at the time it was written,
 // there was a bug in the mpb package (to do with delayed render and abort),
-// and so was created an extra-paranoid workaround. It's still not clear
-// if all of this works to remove the progress bars before content
-// is written to stdout.
+// and so was created an extra-paranoid workaround. Be careful modifying this
+// function, as it's a bit of a minefield.
 func (p *Progress) destroy() {
+	if p == nil {
+		return
+	}
+
 	p.destroyOnce.Do(func() {
+		close(p.stoppingCh)
+
+		defer func() { p.cancelFn() }()
+		defer func() { _ = recover() }()
+
+		p.mu.Lock()
+		defer p.mu.Unlock()
+
 		if p.pc == nil {
 			p.cancelFn()
 			<-p.ctx.Done()
@@ -212,17 +250,18 @@ func (p *Progress) destroy() {
 			return
 		}
 
-		if len(p.allBars) == 0 {
-			p.cancelFn()
-			<-p.ctx.Done()
-			close(p.destroyedCh)
-			return
+		allBars := slices.Clone(p.allBars)
+		wg := &sync.WaitGroup{}
+		wg.Add(len(allBars))
+		for i := range allBars {
+			go func(i int) {
+				defer wg.Done()
+				allBars[i].destroy()
+			}(i)
 		}
 
-		for _, b := range p.allBars {
-			b.destroy()
-		}
 		p.groupBar.destroy()
+		wg.Wait()
 
 		// So, now we REALLY want to wait for the progress widget
 		// to finish. Alas, the pc.Wait method doesn't seem to
@@ -250,10 +289,13 @@ type BarOpt interface {
 
 // barConfig is passed to Progress.createBar.
 type barConfig struct {
-	style      mpb.BarFillerBuilder
-	msg        string
-	decorators []decor.Decorator
-	total      int64
+	style        mpb.BarFillerBuilder
+	counterDecor decor.Decorator
+	percentDecor decor.Decorator
+	timerDecor   decor.Decorator
+	memDecor     decor.Decorator
+	msg          string
+	total        int64
 }
 
 // createBar returns a bar for cfg. This method must only be called from within the
@@ -268,9 +310,9 @@ func (p *Progress) createBar(cfg *barConfig, opts []BarOpt) Bar {
 	return vb
 }
 
-// removeBar removes bar b from Progress.allBars. It is the caller's
+// forgetBar removes bar b from Progress.allBars. It is the caller's
 // responsibility to first invoke virtualBar.destroy.
-func (p *Progress) removeBar(b *virtualBar) {
+func (p *Progress) forgetBar(b *virtualBar) {
 	if p == nil {
 		return
 	}
@@ -280,9 +322,9 @@ func (p *Progress) removeBar(b *virtualBar) {
 	p.allBars = langz.Remove(p.allBars, b)
 }
 
-// startMonitor starts Progress's monitor goroutine, which periodically
-// refreshes the bars. The goroutine returns when p.ctx or p.stoppedCh are done.
-func (p *Progress) startMonitor() {
+// startRefreshLoop starts Progress's refresh goroutine, which periodically
+// refreshes the bars. The goroutine returns when p.ctx or p.stoppingCh are done.
+func (p *Progress) startRefreshLoop() {
 	if p == nil {
 		return
 	}
@@ -290,28 +332,32 @@ func (p *Progress) startMonitor() {
 	go func() {
 		defer p.Stop()
 		done := p.ctx.Done()
+
+		ticker := time.NewTicker(refreshFreq)
+		defer ticker.Stop()
+
 		for {
 			select {
 			case <-done:
 				return
-			case <-p.destroyedCh:
+			case <-p.stoppingCh:
 				return
-			default:
+			case <-ticker.C:
 			}
 
 			t := time.Now()
 
 			p.mu.Lock()
-			p.activeVisibleBars = p.activeVisibleBars[:0]
-			p.activeInvisibleBars = p.activeInvisibleBars[:0]
+			allBars := slices.Clone(p.allBars)
+			p.activeVisibleBars = make([]*virtualBar, 0, groupBarThreshold)
+			p.activeInvisibleBars = make([]*virtualBar, 0, len(allBars)-groupBarThreshold)
 
-			for _, bar := range p.allBars {
-				bar := bar
+			for i := range allBars {
+				bar := allBars[i]
 				if !bar.isRenderable(t) {
 					continue
 				}
 
-				// bar is renderable
 				if len(p.activeVisibleBars) < groupBarThreshold {
 					bar.wantShow = true
 					p.activeVisibleBars = append(p.activeVisibleBars, bar)
@@ -322,12 +368,12 @@ func (p *Progress) startMonitor() {
 				p.activeInvisibleBars = append(p.activeInvisibleBars, bar)
 			}
 
-			for i := 0; i < len(p.allBars); i++ {
+			for i := range allBars {
 				select {
-				case <-done:
+				case <-p.stoppingCh:
 					p.mu.Unlock()
 					return
-				case <-p.destroyedCh:
+				case <-done:
 					p.mu.Unlock()
 					return
 				default:
@@ -337,7 +383,6 @@ func (p *Progress) startMonitor() {
 			p.groupBar.refresh(t)
 
 			p.mu.Unlock()
-			time.Sleep(refreshFreq)
 		}
 	}()
 }

@@ -27,15 +27,17 @@ func (p *Progress) NewByteCounter(msg string, size int64, opts ...BarOpt) Bar {
 	var percent decor.Decorator
 	if size < 0 {
 		cfg.style = spinnerStyle(p.colors.Filler)
-		counter = decor.Current(decor.SizeB1024(0), "% .1f")
+		counter = decor.Current(decor.SizeB1024(0), "% .1f", decor.WCSyncWidth)
 	} else {
 		cfg.style = barStyle(p.colors.Filler)
-		counter = decor.Counters(decor.SizeB1024(0), "% .1f / % .1f")
-		percent = decor.NewPercentage(" %.1f", decor.WCSyncSpace)
+		counter = decor.Counters(decor.SizeB1024(0), "% .1f / % .1f", decor.WCSyncWidth)
+		percent = decor.NewPercentage(" %.1f", decor.WCSyncWidth)
 		percent = colorize(percent, p.colors.Percent)
 	}
-	counter = colorize(counter, p.colors.Size)
-	cfg.decorators = []decor.Decorator{counter, percent}
+	// counter = colorize(counter, p.colors.Size)
+	cfg.counterDecor = colorize(counter, p.colors.Size)
+	cfg.percentDecor = percent
+	// cfg.decorators = []decor.Decorator{counter, percent}
 
 	return p.createBar(cfg, opts)
 }
@@ -68,9 +70,10 @@ func (p *Progress) NewFilesizeCounter(msg string, f *os.File, fp string, opts ..
 		}
 
 		return fmt.Sprintf("% .1f", decor.SizeB1024(fi.Size()))
-	})
+	}, decor.WCSyncWidth)
 
-	cfg.decorators = []decor.Decorator{colorize(d, p.colors.Size)}
+	cfg.counterDecor = colorize(d, p.colors.Size)
+	// cfg.decorators = []decor.Decorator{colorize(d, p.colors.Size)}
 	return p.createBar(cfg, opts)
 }
 
@@ -111,8 +114,9 @@ func (p *Progress) NewUnitCounter(msg, unit string, opts ...BarOpt) Bar {
 			s += " " + english.PluralWord(int(statistics.Current), unit, "")
 		}
 		return s
-	})
-	cfg.decorators = []decor.Decorator{colorize(d, p.colors.Size)}
+	}, decor.WCSyncWidth)
+	cfg.counterDecor = colorize(d, p.colors.Size)
+	// cfg.decorators = []decor.Decorator{colorize(d, p.colors.Size)}
 
 	return p.createBar(cfg, opts)
 }
@@ -176,8 +180,9 @@ func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64, opts ...Ba
 			s += " " + english.PluralWord(int(statistics.Current), unit, "")
 		}
 		return s
-	})
-	cfg.decorators = []decor.Decorator{colorize(d, p.colors.Size)}
+	}, decor.WCSyncWidth)
+	cfg.counterDecor = colorize(d, p.colors.Size)
+	// cfg.decorators = []decor.Decorator{colorize(d, p.colors.Size)}
 	return p.createBar(cfg, opts)
 }
 
@@ -216,9 +221,16 @@ func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time, opts ...BarOp
 		default:
 			return p.colors.Warning.Sprintf("timed out")
 		}
-	})
+	}, decor.WCSyncWidth)
 
-	cfg.decorators = []decor.Decorator{d}
+	cfg.counterDecor = d
+	// cfg.decorators = []decor.Decorator{d}
 	cfg.total = int64(time.Until(expires))
 	return p.createBar(cfg, opts)
+}
+
+func nopDecor() decor.Decorator {
+	return decor.Any(func(statistics decor.Statistics) string {
+		return ""
+	}, decor.WCSyncWidth)
 }

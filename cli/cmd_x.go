@@ -66,7 +66,7 @@ func execXLockSrcCmd(cmd *cobra.Command, args []string) error {
 	fmt.Fprintf(ru.Out, "Cache lock acquired for %s\n", src.Handle)
 
 	select {
-	case <-pressEnter():
+	case <-pressEnter(true):
 		fmt.Fprintln(ru.Out, "\nENTER received, releasing lock")
 	case <-ctx.Done():
 		fmt.Fprintln(ru.Out, "\nContext done, releasing lock")
@@ -81,9 +81,10 @@ func execXLockSrcCmd(cmd *cobra.Command, args []string) error {
 
 func newXProgressCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "progress",
-		Short:   "Execute progress test code",
-		Hidden:  true,
+		Use:    "progress",
+		Short:  "Execute progress test code",
+		Hidden: true,
+		// RunE:    execXProgress,
 		RunE:    execXProgress,
 		Example: `	$ sq x progress`,
 	}
@@ -123,17 +124,20 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 	))
 	bars = append(bars, pb.NewWaiter("NewWaiter"))
 	bars = append(bars, pb.NewWaiter(
-		"NewWaiter.OptTimer",
-		progress.OptTimer,
-	))
-	bars = append(bars, pb.NewWaiter(
-		"NewWaiter.OptTimer.OptMemUsage",
-		progress.OptTimer,
+		"NewWaiter.OptMemUsage",
 		progress.OptMemUsage,
 	))
 
+	incrStopCh := make(chan struct{})
+
 	go func() {
 		for ctx.Err() == nil {
+			select {
+			case <-incrStopCh:
+				return
+			default:
+			}
+
 			for i := range bars {
 				bars[i].Incr(1)
 			}
@@ -146,10 +150,16 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 		log.Warn("Sleeping...", lga.Period, stepSleepy)
 		time.Sleep(stepSleepy)
 	}
+	_ = sleepyLog
 
-	sleepyLog()
+	// <-pressEnter(false)
 
-	sleepyLog()
+	log.Warn("DOING THE BIG SLEEP")
+	time.Sleep(time.Second * 7)
+	log.Warn("BIG SLEEP DONE")
+
+	close(incrStopCh)
+	pb.Stop()
 
 	fmt.Fprintln(ru.Out, "exiting")
 	return nil
@@ -229,11 +239,13 @@ func execXProgressSingle(cmd *cobra.Command, _ []string) error { //nolint:unpara
 	return nil
 }
 
-func pressEnter() <-chan struct{} {
+func pressEnter(prompt bool) <-chan struct{} {
 	done := make(chan struct{})
 	go func() {
 		buf := bufio.NewReader(os.Stdin)
-		fmt.Fprintf(os.Stdout, "\nPress [ENTER] to continue\n\n  > ")
+		if prompt {
+			fmt.Fprintf(os.Stdout, "\nPress [ENTER] to continue\n\n  > ")
+		}
 		_, _ = buf.ReadBytes('\n')
 		close(done)
 	}()
