@@ -1,6 +1,7 @@
 module github.com/neilotoole/sq
 
 go 1.21
+toolchain go1.22.0
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
@@ -31,7 +32,8 @@ require (
 	github.com/neilotoole/streamcache v0.3.3
 	github.com/nightlyone/lockfile v1.0.0
 	github.com/otiai10/copy v1.14.0
-	github.com/ryboe/q v1.0.20
+	github.com/pkg/profile v1.7.0
+	github.com/ryboe/q v1.0.21
 	github.com/samber/lo v1.39.0
 	github.com/segmentio/encoding v0.4.0
 	github.com/sethvargo/go-retry v0.2.4
@@ -57,14 +59,12 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
-	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/felixge/fgprof v0.9.3 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/google/pprof v0.0.0-20240207164012-fb44976bdcd5 // indirect
 	github.com/huandu/xstrings v1.4.0 // indirect
-	github.com/ianlancetaylor/demangle v0.0.0-20240205174729-1f824a1a9b87 // indirect
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -80,7 +80,6 @@ require (
 	github.com/muesli/mango v0.2.0 // indirect
 	github.com/muesli/mango-pflag v0.1.0 // indirect
 	github.com/neilotoole/fifomu v0.1.1 // indirect
-	github.com/pkg/profile v1.7.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.3 // indirect
