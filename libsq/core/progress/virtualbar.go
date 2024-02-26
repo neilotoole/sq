@@ -57,7 +57,7 @@ func newVirtualBar(p *Progress, cfg *barConfig, opts []BarOpt) *virtualBar {
 		incrByCalls: &atomic.Int64{},
 		incrTotal:   &atomic.Int64{},
 		destroyOnce: &sync.Once{},
-		notBefore:   time.Now().Add(p.delay),
+		notBefore:   time.Now().Add(p.renderDelay),
 		cfg:         cfg,
 	}
 
@@ -299,6 +299,17 @@ func (vb *virtualBar) markHidden() {
 	vb.mu.Lock()
 	vb.wantShow = false
 	vb.mu.Unlock()
+}
+
+func (vb *virtualBar) hide() {
+	if vb == nil {
+		return
+	}
+
+	vb.mu.Lock()
+	defer vb.mu.Unlock()
+	vb.wantShow = false
+	vb.stopConcrete()
 }
 
 // stopConcrete stops the concrete virtualBar.bimpl.

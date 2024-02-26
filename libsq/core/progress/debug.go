@@ -28,35 +28,3 @@ func HideBar(b Bar) {
 
 	b.markHidden()
 }
-
-// Hide hides the Progress.
-//
-// FIXME: Hide is a temporary function for testing. It should be removed.
-func Hide(p *Progress) {
-	if p == nil {
-		return
-	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	for _, bar := range p.allBars {
-		bar.markHidden()
-	}
-}
-
-// Show shows the Progress.
-//
-// FIXME: Show is a temporary function for testing. It should be removed.
-func Show(p *Progress) {
-	if p == nil {
-		return
-	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	for _, bar := range p.allBars {
-		bar.markShown()
-	}
-}

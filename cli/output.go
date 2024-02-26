@@ -476,7 +476,7 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 
 	var (
 		prog       *progress.Progress
-		noProg     = !OptProgress.Get(o)
+		noProg     = !OptProgress.Get(o) || OptProgressMaxBars.Get(o) < 1
 		forceProg  = debugz.OptProgressDebugForce.Get(o)
 		progColors = progress.DefaultColors()
 		monochrome = OptMonochrome.Get(o)

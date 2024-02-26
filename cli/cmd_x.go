@@ -1,9 +1,11 @@
 package cli
 
+//nolint:unparam,unused,nolintlint
 import (
 	"bufio"
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
@@ -16,8 +18,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/files"
 )
-
-//nolint:unparam,unused,nolintlint
 
 // newXCmd returns the "x" command, which is the container
 // for a set of hidden commands that are useful for development.
@@ -84,14 +84,76 @@ func newXProgressCmd() *cobra.Command {
 		Short:  "Execute progress test code",
 		Hidden: true,
 		// RunE:    execXProgress,
-		RunE:    execXProgress,
+		RunE:    execXProgressShowHide,
 		Example: `	$ sq x progress`,
 	}
 
 	return cmd
 }
 
-func execXProgress(cmd *cobra.Command, _ []string) error {
+const stepSleepy = time.Second * 4
+
+func sleepyLog(log *slog.Logger) {
+	log.Warn("Sleeping...", lga.Period, stepSleepy)
+	time.Sleep(stepSleepy)
+}
+
+func execXProgressShowHide(cmd *cobra.Command, _ []string) error {
+	ctx := cmd.Context()
+	log := lg.FromContext(ctx)
+	ru := run.FromContext(ctx)
+	_ = log
+	_ = ru
+
+	// var cancelFn context.CancelFunc
+	// ctx, cancelFn = context.WithCancel(ctx)
+	// renderDelay := OptProgressDelay.Get(options.FromContext(ctx))
+
+	const wantBarCount = 3
+	pb := progress.FromContext(ctx)
+	var bars []progress.Bar
+	// var bar progress.Bar
+
+	for i := 0; i < wantBarCount; i++ {
+		bars = append(bars, pb.NewUnitCounter(fmt.Sprintf("counter-%d", i), "item"))
+	}
+
+	incrStopCh := make(chan struct{})
+	defer close(incrStopCh)
+	go func() {
+		for ctx.Err() == nil {
+			select {
+			case <-incrStopCh:
+				return
+			default:
+			}
+
+			for i := range bars {
+				bars[i].Incr(1)
+			}
+			time.Sleep(time.Millisecond * 100)
+		}
+	}()
+
+	sleepyLog(log)
+
+	log.Warn("hiding pb")
+	pb.Hide()
+
+	sleepyLog(log)
+
+	log.Warn("showing pb")
+	pb.Show()
+
+	sleepyLog(log)
+
+	pb.Stop()
+
+	fmt.Fprintln(ru.Out, "exiting")
+	return nil
+}
+
+func execXProgress(cmd *cobra.Command, _ []string) error { //nolint:unparam,unused
 	ctx := cmd.Context()
 	log := lg.FromContext(ctx)
 	ru := run.FromContext(ctx)

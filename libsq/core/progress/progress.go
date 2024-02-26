@@ -145,7 +145,7 @@ func New(ctx context.Context, out io.Writer, maxBars int, delay time.Duration, c
 		allBars:             make([]*virtualBar, 0),
 		activeVisibleBars:   make([]*virtualBar, 0),
 		activeInvisibleBars: make([]*virtualBar, 0),
-		delay:               delay,
+		renderDelay:         delay,
 		stoppingCh:          make(chan struct{}),
 		destroyOnce:         &sync.Once{},
 		groupThreshold:      maxBars - 1,
@@ -181,10 +181,13 @@ type Progress struct {
 	// mu guards ALL public methods.
 	mu *sync.Mutex
 
+	// align contains values to visually align progress bar widgets.
 	align *alignment
 
 	// stoppingCh is closed at the top of Progress.destroy.
-	stoppingCh  chan struct{}
+	stoppingCh chan struct{}
+
+	// destroyOnce ensures that Progress.destroy happens only once.
 	destroyOnce *sync.Once
 
 	// pc is the underlying mbp.Progress container.
@@ -193,17 +196,25 @@ type Progress struct {
 	// colors contains the color scheme to use.
 	colors *Colors
 
-	groupBar *groupBar // FIXME: document groupBar
+	// groupBar is used to aggregate multiple bars into a single group bar, once
+	// the number of bars exceeds Progress.groupThreshold.
+	groupBar *groupBar
 
 	// allBars contains all non-destroyed virtualBar instances.
 	allBars []*virtualBar
 
-	activeVisibleBars   []*virtualBar
+	// activeVisibleBars is populated on each state refresh loop with the bars
+	// that should be shown.
+	activeVisibleBars []*virtualBar
+
+	// activeInvisibleBars is populated on each state refresh loop with the bars
+	// that should be aggregated into the group bar.
 	activeInvisibleBars []*virtualBar
 
-	// delay is the duration to wait before rendering a progress bar.
-	// Each newly-created bar gets its own render delay.
-	delay time.Duration
+	// renderDelay is the duration to wait before rendering a progress bar.
+	// Each newly-created bar gets its own render delay calculated using the time
+	// of bar creation plus this value.
+	renderDelay time.Duration
 
 	// groupThreshold is the number of bars after which we combine further bars
 	// into a group. We do this because otherwise the terminal output could get
@@ -211,6 +222,9 @@ type Progress struct {
 	// pkg doesn't seem to handle a large number of bars very well; performance
 	// degrades quickly.
 	groupThreshold int
+
+	// hidden indicates that the Progress's bars should not be shown.
+	hidden bool
 }
 
 // Stop waits for all bars to complete and finally shuts down the
@@ -222,6 +236,33 @@ func (p *Progress) Stop() {
 	}
 
 	p.destroy()
+}
+
+// Hide hides the Progress's bars.
+func (p *Progress) Hide() {
+	if p == nil {
+		return
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.hidden = true
+	for _, bar := range p.allBars {
+		bar.hide()
+	}
+}
+
+// Show marks the Progress's bars as eligible for showing.
+func (p *Progress) Show() {
+	if p == nil {
+		return
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.hidden = false
 }
 
 // LogValue reports some stats.
@@ -383,6 +424,11 @@ func (p *Progress) startStateRefreshLoop() {
 			t := time.Now()
 
 			p.mu.Lock()
+			if p.hidden {
+				p.mu.Unlock()
+				continue
+			}
+
 			allBars := slices.Clone(p.allBars)
 			p.activeVisibleBars = make([]*virtualBar, 0, p.groupThreshold)
 			p.activeInvisibleBars = make([]*virtualBar, 0)
