@@ -231,9 +231,6 @@ type Progress struct {
 
 	// destroyOnce ensures that Progress.destroy happens only once.
 	destroyOnce sync.Once
-
-	// hidden indicates that the Progress's bars should not be shown.
-	hidden bool
 }
 
 // Stop waits for all bars to complete and finally shuts down the
@@ -247,25 +244,10 @@ func (p *Progress) Stop() {
 	p.destroy()
 }
 
-// Hide hides the Progress's bars.
-func (p *Progress) Hide() {
-	if p == nil {
-		return
-	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.hidden = true
-	for _, bar := range p.allBars {
-		bar.hide()
-	}
-	p.groupBar.hide()
-}
-
 // HideOnWriter returns an io.Writer that hides the Progress when w is written
-// to. Note that the Progress may show itself again after its render delay
-// has elapsed anew.
+// to. Note that the Progress may show itself again after its render delay has
+// elapsed anew. HideOnWriter is typically called with os.Stdout, to hide the
+// Progress when the main program writes to stdout.
 func (p *Progress) HideOnWriter(w io.Writer) io.Writer {
 	if p == nil || w == nil {
 		return w
@@ -285,18 +267,6 @@ func (p *Progress) HideOnWriter(w io.Writer) io.Writer {
 		// Note that it's safe to invoke p.life.kill on a nil pcLifecycle.
 		p.life.kill()
 	})
-}
-
-// Show marks the Progress's bars as eligible for showing.
-func (p *Progress) Show() {
-	if p == nil {
-		return
-	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.hidden = false
 }
 
 // LogValue reports some stats.
@@ -358,7 +328,7 @@ func (p *Progress) startLifecycleLoop() {
 			}
 
 			p.mu.Lock()
-			if time.Now().Before(p.notBefore) {
+			if time.Now().Before(p.notBefore) || len(p.allBars) == 0 {
 				p.mu.Unlock()
 				continue
 			}
@@ -543,10 +513,6 @@ func (lf *pcLifecycle) startStateRefreshLoop() {
 			t := time.Now()
 
 			p.mu.Lock()
-			if p.hidden {
-				p.mu.Unlock()
-				continue
-			}
 
 			if t.Before(p.notBefore) {
 				p.mu.Unlock()

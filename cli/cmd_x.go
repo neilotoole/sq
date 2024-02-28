@@ -151,61 +151,6 @@ func execXProgressHideOnWriter(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func execXProgressShowHide(cmd *cobra.Command, _ []string) error { //nolint:unparam,unused
-	ctx := cmd.Context()
-	log := lg.FromContext(ctx)
-	ru := run.FromContext(ctx)
-	_ = log
-	_ = ru
-
-	// var cancelFn context.CancelFunc
-	// ctx, cancelFn = context.WithCancel(ctx)
-	// renderDelay := OptProgressDelay.Get(options.FromContext(ctx))
-
-	const wantBarCount = 3
-	pb := progress.FromContext(ctx)
-	var bars []progress.Bar
-	// var bar progress.Bar
-
-	for i := 0; i < wantBarCount; i++ {
-		bars = append(bars, pb.NewUnitCounter(fmt.Sprintf("counter-%d", i), "item"))
-	}
-
-	incrStopCh := make(chan struct{})
-	defer close(incrStopCh)
-	go func() {
-		for ctx.Err() == nil {
-			select {
-			case <-incrStopCh:
-				return
-			default:
-			}
-
-			for i := range bars {
-				bars[i].Incr(1)
-			}
-			time.Sleep(time.Millisecond * 100)
-		}
-	}()
-
-	sleepyLog(log)
-
-	log.Warn("hiding pb")
-	pb.Hide()
-
-	sleepyLog(log)
-
-	log.Warn("showing pb")
-	pb.Show()
-
-	sleepyLog(log)
-
-	pb.Stop()
-
-	fmt.Fprintln(ru.Out, "exiting")
-	return nil
-}
-
 func execXProgressManyBars(cmd *cobra.Command, _ []string) error { //nolint:unparam,unused
 	ctx := cmd.Context()
 	log := lg.FromContext(ctx)
