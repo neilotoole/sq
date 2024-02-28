@@ -22,12 +22,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/ioz"
+	mpb "github.com/vbauerster/mpb/v8"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	mpb "github.com/vbauerster/mpb/v8"
 )
 
 /*

@@ -3,6 +3,7 @@ package cli
 import (
 	"io"
 
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -75,6 +76,10 @@ func getBootstrapFlagValue(flg, flgShort, flgUsage string, osArgs []string) (val
 	fs := pflag.NewFlagSet("bootstrap", pflag.ContinueOnError)
 	fs.ParseErrorsWhitelist.UnknownFlags = true
 	fs.SetOutput(io.Discard)
+
+	// Special handling for the --help flag, because pflag gives it special
+	// treatment. So, we just get rid of it.
+	osArgs = lo.Without(osArgs, "--help")
 
 	_ = fs.StringP(flg, flgShort, "", flgUsage)
 	if err = fs.Parse(osArgs); err != nil {

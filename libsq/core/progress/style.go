@@ -5,13 +5,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/stringz"
-
 	"github.com/fatih/color"
 	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 
 	"github.com/neilotoole/sq/libsq/core/runtimez"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 const (

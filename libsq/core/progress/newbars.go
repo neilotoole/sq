@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/langz"
-	"github.com/vbauerster/mpb/v8"
-
 	humanize "github.com/dustin/go-humanize"
 	"github.com/dustin/go-humanize/english"
+	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
+
+	"github.com/neilotoole/sq/libsq/core/langz"
 )
 
 // BarOpt is a functional option for Bar creation.
