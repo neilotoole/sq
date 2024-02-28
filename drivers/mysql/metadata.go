@@ -14,6 +14,7 @@ import (
 	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -190,7 +191,7 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 		return nil, errw(err)
 	}
 	progress.Incr(ctx, 1)
-	progress.DebugSleep(ctx)
+	debugz.DebugSleep(ctx)
 
 	tblMeta.TableType = canonicalTableType(tblMeta.DBTableType)
 	tblMeta.FQName = schema + "." + tblMeta.Name
@@ -236,7 +237,7 @@ ORDER BY cols.ordinal_position ASC`
 			return nil, errw(err)
 		}
 		progress.Incr(ctx, 1)
-		progress.DebugSleep(ctx)
+		debugz.DebugSleep(ctx)
 
 		if strings.EqualFold("YES", isNullable) {
 			col.Nullable = true
@@ -351,7 +352,7 @@ func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *metadata.Source) 
 		return errw(err)
 	}
 	progress.Incr(ctx, 1)
-	progress.DebugSleep(ctx)
+	debugz.DebugSleep(ctx)
 
 	md.Name = schema
 	md.Schema = schema
@@ -385,7 +386,7 @@ func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 		}
 
 		progress.Incr(ctx, 1)
-		progress.DebugSleep(ctx)
+		debugz.DebugSleep(ctx)
 
 		// Narrow setting to bool or int if possible.
 		var (
@@ -467,7 +468,7 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 		}
 
 		progress.Incr(ctx, 1)
-		progress.DebugSleep(ctx)
+		debugz.DebugSleep(ctx)
 
 		if !curTblName.Valid || !colName.Valid {
 			// table may have been dropped during metadata collection
@@ -634,7 +635,7 @@ func getTableRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) (map[
 			return nil, errw(err)
 		}
 		progress.Incr(ctx, 1)
-		progress.DebugSleep(ctx)
+		debugz.DebugSleep(ctx)
 
 		m[tblName] = count
 	}

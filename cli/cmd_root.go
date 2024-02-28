@@ -3,12 +3,11 @@ package cli
 import (
 	"log/slog"
 
-	"github.com/neilotoole/sq/cli/pprofile"
-
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output/format"
+	"github.com/neilotoole/sq/cli/pprofile"
 	_ "github.com/neilotoole/sq/drivers" // Load drivers
 )
 

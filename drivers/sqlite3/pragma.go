@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -33,7 +34,7 @@ func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 		}
 
 		progress.Incr(ctx, 1)
-		progress.DebugSleep(ctx)
+		debugz.DebugSleep(ctx)
 
 		if val != nil {
 			m[pragma] = val

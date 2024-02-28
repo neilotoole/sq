@@ -147,17 +147,18 @@ func LimitRandReader(limit int64) io.Reader {
 	return io.LimitReader(crand.Reader, limit)
 }
 
-// NotifyOnceWriter returns an io.Writer that invokes fn on the first
+// NotifyOnceWriter returns an io.Writer that invokes fn before the first
 // invocation of Write. If w or fn is nil, w is returned.
+//
+// See also: [NotifyWriter], which is a generalization of [NotifyOnceWriter].
 func NotifyOnceWriter(w io.Writer, fn func()) io.Writer {
 	if w == nil || fn == nil {
 		return w
 	}
 
 	return &notifyOnceWriter{
-		fn:     fn,
-		w:      w,
-		doneCh: make(chan struct{}),
+		fn: fn,
+		w:  w,
 	}
 }
 
@@ -166,20 +167,45 @@ var _ io.Writer = (*notifyOnceWriter)(nil)
 type notifyOnceWriter struct {
 	w          io.Writer
 	fn         func()
-	doneCh     chan struct{} // REVISIT: Do we need doneCh?
 	notifyOnce sync.Once
 }
 
-// Write implements io.Writer. On the first invocation of this
-// method, the notify function is invoked, blocking until it returns.
-// Subsequent invocations of Write don't trigger the notify function.
+// Write implements io.Writer. On the first invocation of this method, the
+// notify function is invoked, blocking until it returns. Subsequent invocations
+// of Write don't trigger the notify function.
 func (w *notifyOnceWriter) Write(p []byte) (n int, err error) {
 	w.notifyOnce.Do(func() {
 		w.fn()
-		close(w.doneCh)
 	})
 
-	<-w.doneCh
+	return w.w.Write(p)
+}
+
+// NotifyWriter returns an [io.Writer] that invokes fn(n) before every
+// invocation of Write, where the n arg to fn is the length of the byte slice to
+// be written (which may be zero). If w or fn is nil, w is returned.
+//
+// See also: [NotifyOnceWriter].
+func NotifyWriter(w io.Writer, fn func(n int)) io.Writer {
+	if w == nil || fn == nil {
+		return w
+	}
+
+	return &notifyWriter{
+		fn: fn,
+		w:  w,
+	}
+}
+
+type notifyWriter struct {
+	fn func(n int)
+	w  io.Writer
+}
+
+// Write invokes notifyWriter.fn with len(p) before passing through the Write
+// call to notifyWriter.w.
+func (w *notifyWriter) Write(p []byte) (n int, err error) {
+	w.fn(len(p))
 	return w.w.Write(p)
 }
 

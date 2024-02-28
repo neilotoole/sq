@@ -7,13 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/cli/pprofile"
-
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output/format"
+	"github.com/neilotoole/sq/cli/pprofile"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"

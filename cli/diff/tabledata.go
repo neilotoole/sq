@@ -84,7 +84,6 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 
 	bar := progress.FromContext(ctx).NewWaiter(
 		fmt.Sprintf("Diff table data %s, %s", td1.String(), td2.String()),
-		true,
 		progress.OptMemUsage,
 	)
 

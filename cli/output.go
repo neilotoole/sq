@@ -26,8 +26,8 @@ import (
 	"github.com/neilotoole/sq/cli/output/xmlw"
 	"github.com/neilotoole/sq/cli/output/yamlw"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
+	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
@@ -117,27 +117,6 @@ command, sq falls back to "text". Available formats:
 		"Redact passwords in output",
 		`Redact passwords in output.`,
 		options.TagOutput,
-	)
-
-	OptProgress = options.NewBool(
-		"progress",
-		&options.Flag{
-			Name:   "no-progress",
-			Invert: true,
-			Usage:  "Don't show progress bar",
-		},
-		true,
-		"Show progress bar for long-running operations",
-		`Show progress bar for long-running operations.`,
-		options.TagOutput,
-	)
-
-	OptProgressDelay = options.NewDuration(
-		"progress.delay",
-		nil,
-		time.Second*2,
-		"Progress bar render delay",
-		`Delay before showing a progress bar.`,
 	)
 
 	OptDebugTrackMemory = options.NewDuration(
@@ -262,6 +241,40 @@ the rendered value is not an integer.
 `,
 		options.TagOutput,
 	)
+)
+
+var OptProgress = options.NewBool(
+	"progress",
+	&options.Flag{
+		Name:   "no-progress",
+		Invert: true,
+		Usage:  "Don't show progress bar",
+	},
+	true,
+	"Show progress bar",
+	`Show progress bar for long-running operations.`,
+	options.TagOutput,
+)
+
+var OptProgressDelay = options.NewDuration(
+	"progress.delay",
+	nil,
+	time.Second*2,
+	"Progress bar render delay",
+	`Delay before showing a progress bar.`,
+	options.TagOutput,
+)
+
+var OptProgressMaxBars = options.NewInt(
+	"progress.max-bars",
+	nil,
+	progress.DefaultMaxBars,
+	"Max concurrent progress bars shown in terminal",
+	`Limit the number of progress bars shown concurrently in the terminal. When the
+threshold is reached, further progress bars are grouped into a single group bar.
+If zero, no progress bar is rendered.`,
+
+	options.TagOutput,
 )
 
 // newWriters returns an output.Writers instance configured per defaults and/or
@@ -413,10 +426,10 @@ type outputConfig struct {
 //
 // See also: [OptMonochrome], [OptProgress], newWriters.
 func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
-	fm format.Format, opts options.Options, stdout, stderr io.Writer,
+	fm format.Format, o options.Options, stdout, stderr io.Writer,
 ) (outCfg *outputConfig) {
-	if opts == nil {
-		opts = options.Options{}
+	if o == nil {
+		o = options.Options{}
 	}
 
 	var ctx context.Context
@@ -434,21 +447,21 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 	outCfg = &outputConfig{stdout: stdout, stderr: stderr}
 
 	pr := output.NewPrinting()
-	pr.FormatDatetime = timez.FormatFunc(OptDatetimeFormat.Get(opts))
-	pr.FormatDatetimeAsNumber = OptDatetimeFormatAsNumber.Get(opts)
-	pr.FormatTime = timez.FormatFunc(OptTimeFormat.Get(opts))
-	pr.FormatTimeAsNumber = OptTimeFormatAsNumber.Get(opts)
-	pr.FormatDate = timez.FormatFunc(OptDateFormat.Get(opts))
-	pr.FormatDateAsNumber = OptDateFormatAsNumber.Get(opts)
+	pr.FormatDatetime = timez.FormatFunc(OptDatetimeFormat.Get(o))
+	pr.FormatDatetimeAsNumber = OptDatetimeFormatAsNumber.Get(o)
+	pr.FormatTime = timez.FormatFunc(OptTimeFormat.Get(o))
+	pr.FormatTimeAsNumber = OptTimeFormatAsNumber.Get(o)
+	pr.FormatDate = timez.FormatFunc(OptDateFormat.Get(o))
+	pr.FormatDateAsNumber = OptDateFormatAsNumber.Get(o)
 
-	pr.ExcelDatetimeFormat = xlsxw.OptDatetimeFormat.Get(opts)
-	pr.ExcelDateFormat = xlsxw.OptDateFormat.Get(opts)
-	pr.ExcelTimeFormat = xlsxw.OptTimeFormat.Get(opts)
+	pr.ExcelDatetimeFormat = xlsxw.OptDatetimeFormat.Get(o)
+	pr.ExcelDateFormat = xlsxw.OptDateFormat.Get(o)
+	pr.ExcelTimeFormat = xlsxw.OptTimeFormat.Get(o)
 
-	pr.Verbose = OptVerbose.Get(opts)
-	pr.FlushThreshold = tuning.OptFlushThreshold.Get(opts)
-	pr.Compact = OptCompact.Get(opts)
-	pr.Redact = OptRedact.Get(opts)
+	pr.Verbose = OptVerbose.Get(o)
+	pr.FlushThreshold = tuning.OptFlushThreshold.Get(o)
+	pr.Compact = OptCompact.Get(o)
+	pr.Redact = OptRedact.Get(o)
 
 	switch {
 	case cmdFlagChanged(cmd, flag.Header):
@@ -456,16 +469,16 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 	case cmdFlagChanged(cmd, flag.NoHeader):
 		b, _ := cmd.Flags().GetBool(flag.NoHeader)
 		pr.ShowHeader = !b
-	case opts != nil:
-		pr.ShowHeader = OptPrintHeader.Get(opts)
+	case o != nil:
+		pr.ShowHeader = OptPrintHeader.Get(o)
 	}
 
 	var (
 		prog       *progress.Progress
-		noProg     = !OptProgress.Get(opts)
-		forceProg  = progress.OptDebugForce.Get(opts)
+		noProg     = !OptProgress.Get(o) || OptProgressMaxBars.Get(o) < 1
+		forceProg  = debugz.OptProgressDebugForce.Get(o)
 		progColors = progress.DefaultColors()
-		monochrome = OptMonochrome.Get(opts)
+		monochrome = OptMonochrome.Get(o)
 	)
 
 	if forceProg {
@@ -501,7 +514,7 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 		outCfg.errOutPr.EnableColor(colorize)
 		if ctx != nil && (forceProg || !noProg) {
 			progColors.EnableColor(colorize)
-			prog = progress.New(ctx, outCfg.errOut, OptProgressDelay.Get(opts), progColors)
+			prog = progress.New(ctx, outCfg.errOut, OptProgressMaxBars.Get(o), OptProgressDelay.Get(o), progColors)
 		}
 	case termz.IsTerminal(stderr):
 		// stderr is a terminal, and won't have color output, but we still enable
@@ -514,7 +527,7 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 		outCfg.errOutPr.EnableColor(false)
 		if ctx != nil && !noProg {
 			progColors.EnableColor(false)
-			prog = progress.New(ctx, outCfg.errOut, OptProgressDelay.Get(opts), progColors)
+			prog = progress.New(ctx, outCfg.errOut, OptProgressMaxBars.Get(o), OptProgressDelay.Get(o), progColors)
 		}
 	default:
 		// stderr is a not a terminal at all. No color, no progress.
@@ -560,10 +573,10 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 		// Be sure to stop the progress bar eventually.
 		clnup.Add(prog.Stop)
 
-		// Also, stop the progress bar as soon as bytes are written
+		// Also, hide the progress bar as soon as bytes are written
 		// to out, because we don't want the progress bar to
 		// corrupt the terminal output.
-		outCfg.out = ioz.NotifyOnceWriter(outCfg.out, prog.Stop)
+		outCfg.out = prog.HideOnWriter(outCfg.out)
 		cmd.SetContext(progress.NewContext(ctx, prog))
 	}
 

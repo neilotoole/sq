@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -310,7 +311,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 
 	for rows.Next() {
 		progress.Incr(ctx, 1)
-		progress.DebugSleep(ctx)
+		debugz.DebugSleep(ctx)
 
 		col := &metadata.Column{}
 		var notnull int64
@@ -396,7 +397,7 @@ ORDER BY m.name, p.cid
 
 	for rows.Next() {
 		progress.Incr(ctx, 1)
-		progress.DebugSleep(ctx)
+		debugz.DebugSleep(ctx)
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
@@ -551,7 +552,7 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 			}
 			j++
 			progress.Incr(ctx, 1)
-			progress.DebugSleep(ctx)
+			debugz.DebugSleep(ctx)
 		}
 
 		if err = rows.Err(); err != nil {

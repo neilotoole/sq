@@ -1,15 +1,21 @@
 package cli
 
+//nolint:unparam,unused,nolintlint
 import (
 	"bufio"
+	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
+
+	"github.com/neilotoole/sq/testh/proj"
 
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/files"
 )
@@ -60,7 +66,7 @@ func execXLockSrcCmd(cmd *cobra.Command, args []string) error {
 	fmt.Fprintf(ru.Out, "Cache lock acquired for %s\n", src.Handle)
 
 	select {
-	case <-pressEnter():
+	case <-pressEnter(true):
 		fmt.Fprintln(ru.Out, "\nENTER received, releasing lock")
 	case <-ctx.Done():
 		fmt.Fprintln(ru.Out, "\nContext done, releasing lock")
@@ -78,48 +84,164 @@ func newXProgressCmd() *cobra.Command {
 		Use:     "progress",
 		Short:   "Execute progress test code",
 		Hidden:  true,
-		RunE:    execXProgress,
+		RunE:    execXProgressManyBars,
 		Example: `	$ sq x progress`,
 	}
 
 	return cmd
 }
 
-func execXProgress(cmd *cobra.Command, _ []string) error {
+const stepSleepy = time.Second * 7 //nolint:unused
+
+func sleepyLog(log *slog.Logger) { //nolint:unused
+	log.Warn("Sleeping...", lga.Period, stepSleepy)
+	time.Sleep(stepSleepy)
+}
+
+func execXProgressHideOnWriter(cmd *cobra.Command, _ []string) error { //nolint:unparam,unused
 	ctx := cmd.Context()
 	log := lg.FromContext(ctx)
 	ru := run.FromContext(ctx)
+	_ = log
+	_ = ru
 
-	d := time.Second * 5
+	const wantBarCount = 3
 	pb := progress.FromContext(ctx)
-	bar := pb.NewTimeoutWaiter("Locking @sakila", time.Now().Add(d))
-	defer bar.Stop()
+	var bars []progress.Bar
+	// var bar progress.Bar
 
-	select {
-	case <-pressEnter():
-		bar.Stop()
-		pb.Stop()
-		fmt.Fprintln(ru.Out, "\nENTER received")
-	case <-ctx.Done():
-		bar.Stop()
-		pb.Stop()
-		fmt.Fprintln(ru.Out, "Context done")
-	case <-time.After(d + time.Second*5):
-		bar.Stop()
-		log.Warn("timed out, about to print something")
-		fmt.Fprintln(ru.Out, "Really timed out")
-		log.Warn("done printing")
+	for i := 0; i < wantBarCount; i++ {
+		bars = append(bars, pb.NewUnitCounter(fmt.Sprintf("counter-%d", i), "item"))
 	}
 
+	incrStopCh := make(chan struct{})
+	defer close(incrStopCh)
+	go func() {
+		for ctx.Err() == nil {
+			select {
+			case <-incrStopCh:
+				return
+			default:
+			}
+
+			for i := range bars {
+				bars[i].Incr(1)
+			}
+			time.Sleep(time.Millisecond * 100)
+		}
+	}()
+
+	sleepyLog(log)
+
+	log.Warn("writing")
+	fmt.Fprintln(ru.Out, "Writing to stdout 0")
+
+	sleepyLog(log)
+
+	fmt.Fprintln(ru.Out, "Writing to stdout 1")
+	sleepyLog(log)
+
+	pb.Stop()
+
 	fmt.Fprintln(ru.Out, "exiting")
-	return ctx.Err()
+	return nil
 }
 
-func pressEnter() <-chan struct{} {
+//nolint:lll
+func execXProgressManyBars(cmd *cobra.Command, _ []string) error {
+	ctx := cmd.Context()
+	log := lg.FromContext(ctx)
+	ru := run.FromContext(ctx)
+	_ = log
+	_ = ru
+
+	var cancelFn context.CancelFunc
+	ctx, cancelFn = context.WithCancel(ctx)
+	defer cancelFn()
+
+	pb := progress.FromContext(ctx)
+
+	bars := make([]progress.Bar, 0)
+
+	bars = append(bars, pb.NewUnitCounter("NewUnitCounter", "item"))
+	bars = append(bars, pb.NewUnitCounter("NewUnitCounter.OptTimer", "item", progress.OptTimer))
+	bars = append(bars, pb.NewUnitCounter("NewUnitCounter.OptTimer.OptMemUsage", "item", progress.OptTimer, progress.OptMemUsage))
+
+	bars = append(bars, pb.NewUnitTotalCounter("NewUnitTotalCounter", "item", 100))
+	bars = append(bars, pb.NewUnitTotalCounter("NewUnitTotalCounter.OptTimer", "item", 100, progress.OptTimer))
+	bars = append(bars, pb.NewUnitTotalCounter("NewUnitTotalCounter.OptTimer.OptMem", "item", 100, progress.OptTimer, progress.OptMemUsage))
+	bars = append(bars, pb.NewUnitTotalCounter("NewUnitTotalCounter.OptMem", "item", 100, progress.OptMemUsage))
+
+	bars = append(bars, pb.NewWaiter("NewWaiter"))
+	bars = append(bars, pb.NewWaiter("NewWaiter.OptMemUsage", progress.OptMemUsage))
+
+	bars = append(bars, pb.NewTimeoutWaiter("NewTimeoutWaiter", time.Now().Add(time.Minute)))
+	bars = append(bars, pb.NewTimeoutWaiter("NewTimeoutWaiter.OptTimer", time.Now().Add(time.Minute), progress.OptTimer))
+	bars = append(bars, pb.NewTimeoutWaiter("NewTimeoutWaiter.OptTimer.OptMem", time.Now().Add(time.Minute), progress.OptTimer, progress.OptMemUsage))
+
+	bars = append(bars, pb.NewByteCounter("NewByteCounter.Size1000", 1000))
+	bars = append(bars, pb.NewByteCounter("NewByteCounter.Size1000.OptTimer", 1000, progress.OptTimer))
+	bars = append(bars, pb.NewByteCounter("NewByteCounter.Size1000.OptTimer.OptMem", 1000, progress.OptTimer, progress.OptMemUsage))
+	bars = append(bars, pb.NewByteCounter("NewByteCounter.Size1000.OptMem", 1000, progress.OptMemUsage))
+	bars = append(bars, pb.NewByteCounter("NewByteCounter.NoSize", -1))
+	bars = append(bars, pb.NewByteCounter("NewByteCounter.NoSize.OptTimer", -1, progress.OptTimer))
+	bars = append(bars, pb.NewByteCounter("NewByteCounter.NoSize.OptTimer.OptMem", -1, progress.OptTimer, progress.OptMemUsage))
+	bars = append(bars, pb.NewByteCounter("NewByteCounter.NoSize.OptMem", -1, progress.OptMemUsage))
+	bars = append(bars, pb.NewByteCounter("NewByteCounter.NoSize.OptMem", -1, progress.OptMemUsage))
+
+	fp := proj.Abs("go.mod")
+	bars = append(bars, pb.NewFilesizeCounter("NewFilesizeCounter", nil, fp))
+	bars = append(bars, pb.NewFilesizeCounter("NewFilesizeCounter.OptTimer", nil, fp, progress.OptTimer))
+	bars = append(bars, pb.NewFilesizeCounter("NewFilesizeCounter.OptTimer.OptMem", nil, "fp", progress.OptTimer, progress.OptMemUsage))
+	bars = append(bars, pb.NewFilesizeCounter("NewFilesizeCounter.OptMem", nil, fp, progress.OptMemUsage))
+
+	incrStopCh := make(chan struct{})
+
+	go func() {
+		for ctx.Err() == nil {
+			select {
+			case <-incrStopCh:
+				return
+			default:
+			}
+
+			for i := range bars {
+				bars[i].Incr(1)
+			}
+			time.Sleep(time.Millisecond * 100)
+		}
+	}()
+
+	const stepSleepy = time.Second * 7
+	sleepyLog := func() {
+		log.Warn("Sleeping...", lga.Period, stepSleepy)
+		time.Sleep(stepSleepy)
+	}
+	_ = sleepyLog
+
+	// <-pressEnter(false)
+
+	log.Warn("DOING THE BIG SLEEP")
+	time.Sleep(time.Second * 10)
+	log.Warn("BIG SLEEP DONE")
+
+	close(incrStopCh)
+	ts := time.Now()
+	log.Warn("Stopping")
+	pb.Stop()
+	log.Warn("Stopped", lga.Elapsed, time.Since(ts))
+
+	fmt.Fprintln(ru.Out, "exiting")
+	return nil
+}
+
+func pressEnter(prompt bool) <-chan struct{} {
 	done := make(chan struct{})
 	go func() {
 		buf := bufio.NewReader(os.Stdin)
-		fmt.Fprintf(os.Stdout, "\nPress [ENTER] to continue\n\n  > ")
+		if prompt {
+			fmt.Fprintf(os.Stdout, "\nPress [ENTER] to continue\n\n  > ")
+		}
 		_, _ = buf.ReadBytes('\n')
 		close(done)
 	}()

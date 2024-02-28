@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"sync"
 
+	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/progress"
@@ -57,7 +58,7 @@ WHERE TABLE_NAME = @p1`
 		return nil, errw(err)
 	}
 	progress.Incr(ctx, 1)
-	progress.DebugSleep(ctx)
+	debugz.DebugSleep(ctx)
 
 	// TODO: getTableMetadata can cause deadlock in the DB. Needs further investigation.
 	// But a quick hack would be to use retry on a deadlock error.

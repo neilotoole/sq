@@ -47,6 +47,7 @@ const (
 	Opt       = "opt"
 	Opts      = "opts"
 	Path      = "path"
+	Period    = "period"
 	Pid       = "pid"
 	Query     = "query"
 	Resp      = "resp"

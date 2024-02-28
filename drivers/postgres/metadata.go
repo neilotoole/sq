@@ -11,6 +11,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -201,7 +202,7 @@ current_setting('server_version'), version(), "current_user"()`
 		return nil, errw(err)
 	}
 	progress.Incr(ctx, 1)
-	progress.DebugSleep(ctx)
+	debugz.DebugSleep(ctx)
 
 	if !schema.Valid {
 		return nil, errz.New("NULL value for current_schema(): check privileges and search_path")
@@ -309,7 +310,7 @@ func getPgSettings(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 			return nil, errw(err)
 		}
 		progress.Incr(ctx, 1)
-		progress.DebugSleep(ctx)
+		debugz.DebugSleep(ctx)
 
 		// Narrow the setting value bool, int, etc.
 		val = setting
@@ -368,7 +369,7 @@ ORDER BY table_name`
 		}
 		tblNames = append(tblNames, s)
 		progress.Incr(ctx, 1)
-		progress.DebugSleep(ctx)
+		debugz.DebugSleep(ctx)
 	}
 
 	err = closeRows(rows)
@@ -401,7 +402,7 @@ AND table_name = $1`
 		return nil, errw(err)
 	}
 	progress.Incr(ctx, 1)
-	progress.DebugSleep(ctx)
+	debugz.DebugSleep(ctx)
 
 	tblMeta := tblMetaFromPgTable(pgTbl)
 	if tblMeta.Name != tblName {
@@ -562,7 +563,7 @@ ORDER BY cols.table_catalog, cols.table_schema, cols.table_name, cols.ordinal_po
 		}
 
 		progress.Incr(ctx, 1)
-		progress.DebugSleep(ctx)
+		debugz.DebugSleep(ctx)
 		cols = append(cols, col)
 	}
 	err = closeRows(rows)
@@ -653,7 +654,7 @@ WHERE kcu.table_catalog = current_catalog AND kcu.table_schema = current_schema(
 		}
 
 		progress.Incr(ctx, 1)
-		progress.DebugSleep(ctx)
+		debugz.DebugSleep(ctx)
 		constraints = append(constraints, pgc)
 	}
 	err = closeRows(rows)

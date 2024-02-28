@@ -3,17 +3,66 @@ package progress
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
 	"github.com/dustin/go-humanize/english"
+	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
+
+	"github.com/neilotoole/sq/libsq/core/langz"
 )
 
-// NewByteCounter returns a new determinate bar whose label
-// metric is the size in bytes of the data being processed. The caller is
-// ultimately responsible for calling Bar.Stop on the returned Bar.
-func (p *Progress) NewByteCounter(msg string, size int64, opts ...Opt) Bar {
+// BarOpt is a functional option for Bar creation.
+type BarOpt interface {
+	apply(*Progress, *barConfig)
+}
+
+// barConfig is passed to Progress.createBar. Note that there are five decorator
+// fields: these are effectively the "widgets" that are displayed on any given
+// bar. If a widget is nil, a nopWidget will be set by newVirtualBar. This is
+// because we need the widgets to exist (even if invisible) for visual
+// alignment purposes.
+type barConfig struct {
+	style         mpb.BarFillerBuilder
+	counterWidget decor.Decorator
+	percentWidget decor.Decorator
+	timerWidget   decor.Decorator
+	memoryWidget  decor.Decorator
+	msgWidget     decor.Decorator
+	total         int64
+}
+
+// createBar creates a new bar, and adds it to Progress.allBars.
+//
+// The caller must hold Progress.mu.
+func (p *Progress) createBar(cfg *barConfig, opts []BarOpt) Bar {
+	if p == nil {
+		return nopBar{}
+	}
+
+	vb := newVirtualBar(p, cfg, opts)
+	p.allBars = append(p.allBars, vb)
+	return vb
+}
+
+// forgetBar removes bar vb from Progress.allBars. It is the caller's
+// responsibility to first invoke virtualBar.destroy.
+func (p *Progress) forgetBar(vb *virtualBar) {
+	if p == nil {
+		return
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.allBars = langz.Remove(p.allBars, vb)
+}
+
+// NewByteCounter returns a new determinate bar whose label metric is the size
+// in bytes of the data being processed. The caller is ultimately responsible
+// for calling Bar.Stop on the returned Bar.
+func (p *Progress) NewByteCounter(msg string, size int64, opts ...BarOpt) Bar {
 	if p == nil {
 		return nopBar{}
 	}
@@ -21,30 +70,37 @@ func (p *Progress) NewByteCounter(msg string, size int64, opts ...Opt) Bar {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	cfg := &barConfig{msg: msg, total: size}
+	cfg := &barConfig{
+		msgWidget: staticMsgWidget(p, msg),
+		total:     size,
+	}
 
-	var counter decor.Decorator
-	var percent decor.Decorator
 	if size < 0 {
 		cfg.style = spinnerStyle(p.colors.Filler)
-		counter = decor.Current(decor.SizeB1024(0), "% .1f")
+		cfg.counterWidget = colorize(
+			decor.Current(decor.SizeB1000(0), "% .1f", p.align.counter),
+			p.colors.Size,
+		)
 	} else {
 		cfg.style = barStyle(p.colors.Filler)
-		counter = decor.Counters(decor.SizeB1024(0), "% .1f / % .1f")
-		percent = decor.NewPercentage(" %.1f", decor.WCSyncSpace)
-		percent = colorize(percent, p.colors.Percent)
+		cfg.counterWidget = colorize(
+			decor.Counters(decor.SizeB1000(0), "% .1f / % .1f", p.align.counter),
+			p.colors.Size,
+		)
+		cfg.percentWidget = colorize(
+			decor.NewPercentage(" %.1f", p.align.percent),
+			p.colors.Percent,
+		)
 	}
-	counter = colorize(counter, p.colors.Size)
-	cfg.decorators = []decor.Decorator{counter, percent}
 
-	return p.barFromConfig(cfg, opts)
+	return p.createBar(cfg, opts)
 }
 
 // NewFilesizeCounter returns a new indeterminate bar whose label metric is a
 // filesize, or "-" if it can't be read. If f is non-nil, its size is used; else
 // the file at path fp is used. The caller is ultimately responsible for calling
 // Bar.Stop on the returned Bar.
-func (p *Progress) NewFilesizeCounter(msg string, f *os.File, fp string, opts ...Opt) Bar {
+func (p *Progress) NewFilesizeCounter(msg string, f *os.File, fp string, opts ...BarOpt) Bar {
 	if p == nil {
 		return nopBar{}
 	}
@@ -52,9 +108,13 @@ func (p *Progress) NewFilesizeCounter(msg string, f *os.File, fp string, opts ..
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	cfg := &barConfig{msg: msg, total: -1, style: spinnerStyle(p.colors.Filler)}
+	cfg := &barConfig{
+		msgWidget: staticMsgWidget(p, msg),
+		total:     -1,
+		style:     spinnerStyle(p.colors.Filler),
+	}
 
-	d := decor.Any(func(statistics decor.Statistics) string {
+	fn := func(statistics decor.Statistics) string {
 		var fi os.FileInfo
 		var err error
 		if f != nil {
@@ -67,11 +127,12 @@ func (p *Progress) NewFilesizeCounter(msg string, f *os.File, fp string, opts ..
 			return "-"
 		}
 
-		return fmt.Sprintf("% .1f", decor.SizeB1024(fi.Size()))
-	})
+		return fmt.Sprintf("% .1f", decor.SizeB1000(fi.Size()))
+	}
 
-	cfg.decorators = []decor.Decorator{colorize(d, p.colors.Size)}
-	return p.barFromConfig(cfg, opts)
+	cfg.counterWidget = colorize(decor.Any(fn, p.align.counter), p.colors.Size)
+
+	return p.createBar(cfg, opts)
 }
 
 // NewUnitCounter returns a new indeterminate bar whose label
@@ -91,7 +152,7 @@ func (p *Progress) NewFilesizeCounter(msg string, f *os.File, fp string, opts ..
 //	Ingesting records               ∙∙●              87 recs
 //
 // Note that the unit arg is automatically pluralized.
-func (p *Progress) NewUnitCounter(msg, unit string, opts ...Opt) Bar {
+func (p *Progress) NewUnitCounter(msg, unit string, opts ...BarOpt) Bar {
 	if p == nil {
 		return nopBar{}
 	}
@@ -100,31 +161,32 @@ func (p *Progress) NewUnitCounter(msg, unit string, opts ...Opt) Bar {
 	defer p.mu.Unlock()
 
 	cfg := &barConfig{
-		msg:   msg,
-		total: -1,
-		style: spinnerStyle(p.colors.Filler),
+		msgWidget: staticMsgWidget(p, msg),
+		total:     -1,
+		style:     spinnerStyle(p.colors.Filler),
 	}
 
-	d := decor.Any(func(statistics decor.Statistics) string {
+	fn := func(statistics decor.Statistics) string {
 		s := humanize.Comma(statistics.Current)
 		if unit != "" {
 			s += " " + english.PluralWord(int(statistics.Current), unit, "")
 		}
 		return s
-	})
-	cfg.decorators = []decor.Decorator{colorize(d, p.colors.Size)}
+	}
 
-	return p.barFromConfig(cfg, opts)
+	cfg.counterWidget = colorize(decor.Any(fn, p.align.counter), p.colors.Size)
+
+	return p.createBar(cfg, opts)
 }
 
-// NewWaiter returns a generic indeterminate spinner. If arg clock
-// is true, a timer is shown. This produces output similar to:
+// NewWaiter returns a generic indeterminate spinner with a timer. This produces
+// output similar to:
 //
 //	@excel/remote: start download                ●∙∙                4s
 //
 // The caller is ultimately responsible for calling Bar.Stop on the
 // returned Bar.
-func (p *Progress) NewWaiter(msg string, clock bool, opts ...Opt) Bar {
+func (p *Progress) NewWaiter(msg string, opts ...BarOpt) Bar {
 	if p == nil {
 		return nopBar{}
 	}
@@ -132,17 +194,15 @@ func (p *Progress) NewWaiter(msg string, clock bool, opts ...Opt) Bar {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	opts = append(opts, OptTimer)
+
 	cfg := &barConfig{
-		msg:   msg,
-		total: -1,
-		style: spinnerStyle(p.colors.Filler),
+		msgWidget: staticMsgWidget(p, msg),
+		total:     -1,
+		style:     spinnerStyle(p.colors.Filler),
 	}
 
-	if clock {
-		d := newElapsedSeconds(p.colors.Size, time.Now(), decor.WCSyncSpace)
-		cfg.decorators = []decor.Decorator{d}
-	}
-	return p.barFromConfig(cfg, opts)
+	return p.createBar(cfg, opts)
 }
 
 // NewUnitTotalCounter returns a new determinate bar whose label
@@ -154,7 +214,7 @@ func (p *Progress) NewWaiter(msg string, clock bool, opts ...Opt) Bar {
 //	Ingesting sheets   ∙∙∙∙∙●                     4 / 16 sheets
 //
 // Note that the unit arg is automatically pluralized.
-func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64, opts ...Opt) Bar {
+func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64, opts ...BarOpt) Bar {
 	if p == nil {
 		return nopBar{}
 	}
@@ -167,20 +227,21 @@ func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64, opts ...Op
 	defer p.mu.Unlock()
 
 	cfg := &barConfig{
-		msg:   msg,
-		total: total,
-		style: barStyle(p.colors.Filler),
+		msgWidget: staticMsgWidget(p, msg),
+		total:     total,
+		style:     barStyle(p.colors.Filler),
 	}
 
-	d := decor.Any(func(statistics decor.Statistics) string {
+	fn := func(statistics decor.Statistics) string {
 		s := humanize.Comma(statistics.Current) + " / " + humanize.Comma(statistics.Total)
 		if unit != "" {
 			s += " " + english.PluralWord(int(statistics.Current), unit, "")
 		}
 		return s
-	})
-	cfg.decorators = []decor.Decorator{colorize(d, p.colors.Size)}
-	return p.barFromConfig(cfg, opts)
+	}
+
+	cfg.counterWidget = colorize(decor.Any(fn, p.align.counter), p.colors.Size)
+	return p.createBar(cfg, opts)
 }
 
 // NewTimeoutWaiter returns a new indeterminate bar whose label is the
@@ -191,36 +252,43 @@ func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64, opts ...Op
 // The caller is ultimately responsible for calling Bar.Stop on
 // the returned bar, although the bar will also be stopped when the
 // parent Progress stops.
-func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time, opts ...Opt) Bar {
+func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time, opts ...BarOpt) Bar {
 	if p == nil {
 		return nopBar{}
 	}
 
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	cfg := &barConfig{
-		msg:   msg,
-		style: spinnerStyle(p.colors.Waiting),
+		msgWidget: staticMsgWidget(p, msg),
+		style:     spinnerStyle(p.colors.Waiting),
 	}
 
-	d := decor.Any(func(statistics decor.Statistics) string {
+	fn := func(statistics decor.Statistics) string {
 		remaining := time.Until(expires)
 		switch {
 		case remaining > 0:
-			return p.colors.Size.Sprintf("timeout in %s", remaining.Round(time.Second))
+			return fmt.Sprintf("timeout in %s", remaining.Round(time.Second))
 		case remaining > -time.Second:
 			// We do the extra second to prevent a "flash" of the timeout message,
 			// and it also prevents "timeout in -1s" etc. This situation should be
 			// rare; the caller should have already called Stop() on the Progress
 			// when the timeout happened, but we'll play it safe.
-			return p.colors.Size.Sprint("timeout in 0s")
+			return "timeout in 0s"
 		default:
-			return p.colors.Warning.Sprintf("timed out")
+			return "timed out"
 		}
+	}
+
+	cfg.counterWidget = decor.Meta(decor.Any(fn, p.align.counter), func(s string) string {
+		if strings.HasPrefix(s, "timeout in") {
+			return p.colors.Size.Sprint(s)
+		}
+		return p.colors.Warning.Sprint(s)
 	})
 
-	cfg.decorators = []decor.Decorator{d}
 	cfg.total = int64(time.Until(expires))
-	return p.barFromConfig(cfg, opts)
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.createBar(cfg, opts)
 }
