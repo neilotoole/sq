@@ -8,14 +8,13 @@ import (
 	mpb "github.com/vbauerster/mpb/v8"
 )
 
-// newVirtualBar returns a new virtualBar (or nil). It must only be called
-// from inside the Progress mutex. Generally speaking, callers should use
-// Progress.createBar instead of calling newVirtualBar directly.
+// newVirtualBar returns a new virtualBar (or nil). Generally speaking, callers
+// should use Progress.createBar instead of calling newVirtualBar directly.
 //
 // Note that the returned virtualBar is NOT automatically shown, nor is it
 // automatically added to Progress.allBars.
 //
-// It is not necessary for the caller to hold Progress.mu.
+// The caller should hold Progress.mu.
 func newVirtualBar(p *Progress, cfg *barConfig, opts []BarOpt) *virtualBar {
 	if p == nil {
 		return nil
@@ -87,7 +86,7 @@ type virtualBar struct {
 	// virtualBar is non-nil.
 	p *Progress
 
-	// incrTotal holds the total value of increment values passed to Incr.
+	// incrTotal holds the cumulative value of virtualBar.Incr.
 	incrTotal *atomic.Int64
 
 	// incrByCalls is a count of virtualBar.Incr invocations. It's used for

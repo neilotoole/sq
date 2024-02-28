@@ -11,7 +11,7 @@ import (
 // groupBar groups multiple bars. Once Progress.groupThreshold number of bars is
 // reached, further bars are grouped into a single groupBar. We do this
 // partially for UX, and partially because the mbp progress library slows down
-// ith lots of bars.
+// with lots of bars.
 //
 // Note that groupBar doesn't need an internal mutex: it is not concurrently
 // accessed.

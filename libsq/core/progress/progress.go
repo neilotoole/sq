@@ -69,7 +69,7 @@ Due to battle scars from the development process, you'll find lots of redundant
 checks and locks in this pkg. They can probably be tidied away with a little
 effort. Also, many interactions with mpb are wrapped in panic-recover. These are
 probably overkill, but being that progress bars are merely a UX nicety, we don't
-want to the main program to crash due to sloppiness in this package.
+want the main program to crash due to sloppiness in this package.
 
 TLDR: If you find this pkg's code to be paranoid and/or sloppy, you're probably
 correct on both counts. PRs are welcome.
