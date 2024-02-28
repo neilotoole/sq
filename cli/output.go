@@ -28,7 +28,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
@@ -574,10 +573,11 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 		// Be sure to stop the progress bar eventually.
 		clnup.Add(prog.Stop)
 
-		// Also, stop the progress bar as soon as bytes are written
+		// Also, hide the progress bar as soon as bytes are written
 		// to out, because we don't want the progress bar to
 		// corrupt the terminal output.
-		outCfg.out = ioz.NotifyOnceWriter(outCfg.out, prog.Stop)
+		outCfg.out = prog.HideOnWriter(outCfg.out)
+		// outCfg.out = ioz.NotifyOnceWriter(outCfg.out, prog.Stop)
 		cmd.SetContext(progress.NewContext(ctx, prog))
 	}
 

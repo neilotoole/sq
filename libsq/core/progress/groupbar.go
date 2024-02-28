@@ -8,7 +8,7 @@ import (
 	"github.com/vbauerster/mpb/v8/decor"
 )
 
-// groupBar groups multiple bars. Once groupThreshold number of bars is
+// groupBar groups multiple bars. Once Progress.groupThreshold number of bars is
 // reached, further bars are grouped into a single groupBar. We do this
 // partially for UX, and partially because the mbp progress library
 // slows down with lots of bars.
@@ -72,8 +72,8 @@ func newGroupBar(p *Progress) *groupBar {
 		vb: newVirtualBar(p, cfg, nil),
 	}
 
-	// We want the groupBar to be hidden initially. The refresh loop will make it
-	// visible when appropriate.
+	// We want the groupBar to be hidden initially. The state refresh loop will
+	// make it visible when appropriate.
 	gb.vb.markHidden()
 	return gb
 }
@@ -84,21 +84,7 @@ func (gb *groupBar) refresh(t time.Time) {
 		return
 	}
 
-	select {
-	case <-gb.p.stoppingCh:
-		gb.vb.mu.Lock()
-		gb.vb.stopConcrete()
-		gb.vb.mu.Unlock()
-	case <-gb.p.ctx.Done():
-		gb.vb.mu.Lock()
-		gb.vb.stopConcrete()
-		gb.vb.mu.Unlock()
-		return
-	default:
-	}
-
-	if len(gb.p.activeInvisibleBars) == 0 {
-		gb.vb.markHidden()
+	if !gb.p.life.alive() || len(gb.p.activeInvisibleBars) == 0 {
 		gb.vb.mu.Lock()
 		gb.vb.stopConcrete()
 		gb.vb.mu.Unlock()
@@ -115,6 +101,14 @@ func (gb *groupBar) refresh(t time.Time) {
 	gb.vb.refresh(t)
 }
 
+func (gb *groupBar) hide() {
+	if gb == nil || gb.vb == nil {
+		return
+	}
+
+	gb.vb.hide()
+}
+
 func (gb *groupBar) calculateIncr() int {
 	if gb == nil {
 		return 0
@@ -128,8 +122,8 @@ func (gb *groupBar) calculateIncr() int {
 	return val
 }
 
-// destroy destroys the groupBar.
-func (gb *groupBar) destroy() {
+// destroy destroys the groupBar. // FIXME: Do we need this?
+func (gb *groupBar) destroy() { //nolint:unused
 	if gb == nil {
 		return
 	}

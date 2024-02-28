@@ -84,7 +84,7 @@ func newXProgressCmd() *cobra.Command {
 		Short:  "Execute progress test code",
 		Hidden: true,
 		// RunE:    execXProgress,
-		RunE:    execXProgressShowHide,
+		RunE:    execXProgressHideOnWriter,
 		Example: `	$ sq x progress`,
 	}
 
@@ -98,7 +98,60 @@ func sleepyLog(log *slog.Logger) {
 	time.Sleep(stepSleepy)
 }
 
-func execXProgressShowHide(cmd *cobra.Command, _ []string) error {
+func execXProgressHideOnWriter(cmd *cobra.Command, _ []string) error {
+	ctx := cmd.Context()
+	log := lg.FromContext(ctx)
+	ru := run.FromContext(ctx)
+	_ = log
+	_ = ru
+
+	// var cancelFn context.CancelFunc
+	// ctx, cancelFn = context.WithCancel(ctx)
+	// renderDelay := OptProgressDelay.Get(options.FromContext(ctx))
+
+	const wantBarCount = 3
+	pb := progress.FromContext(ctx)
+	var bars []progress.Bar
+	// var bar progress.Bar
+
+	for i := 0; i < wantBarCount; i++ {
+		bars = append(bars, pb.NewUnitCounter(fmt.Sprintf("counter-%d", i), "item"))
+	}
+
+	incrStopCh := make(chan struct{})
+	defer close(incrStopCh)
+	go func() {
+		for ctx.Err() == nil {
+			select {
+			case <-incrStopCh:
+				return
+			default:
+			}
+
+			for i := range bars {
+				bars[i].Incr(1)
+			}
+			time.Sleep(time.Millisecond * 100)
+		}
+	}()
+
+	sleepyLog(log)
+
+	log.Warn("writing")
+	fmt.Fprintln(ru.Out, "Writing to stdout 0")
+
+	sleepyLog(log)
+
+	fmt.Fprintln(ru.Out, "Writing to stdout 1")
+	sleepyLog(log)
+
+	pb.Stop()
+
+	fmt.Fprintln(ru.Out, "exiting")
+	return nil
+}
+
+func execXProgressShowHide(cmd *cobra.Command, _ []string) error { //nolint:unparam,unused
 	ctx := cmd.Context()
 	log := lg.FromContext(ctx)
 	ru := run.FromContext(ctx)
@@ -153,7 +206,7 @@ func execXProgressShowHide(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func execXProgress(cmd *cobra.Command, _ []string) error { //nolint:unparam,unused
+func execXProgressManyBars(cmd *cobra.Command, _ []string) error { //nolint:unparam,unused
 	ctx := cmd.Context()
 	log := lg.FromContext(ctx)
 	ru := run.FromContext(ctx)
@@ -226,14 +279,17 @@ func execXProgress(cmd *cobra.Command, _ []string) error { //nolint:unparam,unus
 	}
 	_ = sleepyLog
 
-	<-pressEnter(false)
+	// <-pressEnter(false)
 
-	// log.Warn("DOING THE BIG SLEEP")
-	// time.Sleep(time.Second * 10)
-	// log.Warn("BIG SLEEP DONE")
+	log.Warn("DOING THE BIG SLEEP")
+	time.Sleep(time.Second * 10)
+	log.Warn("BIG SLEEP DONE")
 
 	close(incrStopCh)
+	ts := time.Now()
+	log.Warn("Stopping")
 	pb.Stop()
+	log.Warn("Stopped", lga.Elapsed, time.Since(ts))
 
 	fmt.Fprintln(ru.Out, "exiting")
 	return nil

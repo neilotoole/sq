@@ -22,6 +22,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/ioz"
+
 	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 
@@ -132,7 +134,7 @@ func New(ctx context.Context, out io.Writer, maxBars int, delay time.Duration, c
 		return nil
 	}
 
-	log := lg.FromContext(ctx)
+	// log := lg.FromContext(ctx)
 
 	if colors == nil {
 		colors = DefaultColors()
@@ -140,14 +142,14 @@ func New(ctx context.Context, out io.Writer, maxBars int, delay time.Duration, c
 
 	p := &Progress{
 		mu:                  &sync.Mutex{},
+		destroyedCh:         make(chan struct{}),
 		colors:              colors,
 		align:               newAlignment(),
 		allBars:             make([]*virtualBar, 0),
 		activeVisibleBars:   make([]*virtualBar, 0),
 		activeInvisibleBars: make([]*virtualBar, 0),
 		renderDelay:         delay,
-		stoppingCh:          make(chan struct{}),
-		destroyOnce:         &sync.Once{},
+		ticker:              time.NewTicker(stateRefreshFreq),
 		groupThreshold:      maxBars - 1,
 	}
 
@@ -156,18 +158,23 @@ func New(ctx context.Context, out io.Writer, maxBars int, delay time.Duration, c
 	// the p.pc learns that its context is cancelled. This was done in an attempt
 	// to clean up the progress bars before the main context is cancelled (i.e.
 	// to remove bars when the user hits Ctrl-C).
-	p.ctx, p.cancelFn = context.WithCancel(lg.NewContext(context.Background(), log))
+	//
+	// p.ctx, p.cancelFn = context.WithCancel(lg.NewContext(context.Background(), log))
+	// p.ctx = lg.NewContext(context.Background(), log)
+	// FIXME: update docs
+	p.ctx = ctx
 
-	opts := []mpb.ContainerOption{
+	p.pcOpts = []mpb.ContainerOption{
 		mpb.WithOutput(out),
 		mpb.WithWidth(boxWidth),
 		mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
 		mpb.WithRefreshRate(uxRedrawFreq),
 	}
 
-	p.pc = mpb.NewWithContext(ctx, opts...)
+	// p.pc = mpb.NewWithContext(ctx, opts...)
 	p.groupBar = newGroupBar(p)
-	p.startStateRefreshLoop()
+
+	p.startLifecycleLoop()
 	return p
 }
 
@@ -175,8 +182,15 @@ func New(ctx context.Context, out io.Writer, maxBars int, delay time.Duration, c
 // The caller is responsible for calling Progress.Stop to indicate
 // completion.
 type Progress struct {
-	ctx      context.Context
-	cancelFn context.CancelFunc
+	// notBefore is a checkpoint before which the Progress isn't shown. It is
+	// consulted by the state refresh loop.
+	notBefore time.Time
+
+	ctx context.Context
+
+	life *pcLifecycle
+
+	destroyedCh chan struct{}
 
 	// mu guards ALL public methods.
 	mu *sync.Mutex
@@ -184,21 +198,16 @@ type Progress struct {
 	// align contains values to visually align progress bar widgets.
 	align *alignment
 
-	// stoppingCh is closed at the top of Progress.destroy.
-	stoppingCh chan struct{}
-
-	// destroyOnce ensures that Progress.destroy happens only once.
-	destroyOnce *sync.Once
-
-	// pc is the underlying mbp.Progress container.
-	pc *mpb.Progress
-
 	// colors contains the color scheme to use.
 	colors *Colors
 
 	// groupBar is used to aggregate multiple bars into a single group bar, once
 	// the number of bars exceeds Progress.groupThreshold.
 	groupBar *groupBar
+
+	ticker *time.Ticker
+
+	pcOpts []mpb.ContainerOption
 
 	// allBars contains all non-destroyed virtualBar instances.
 	allBars []*virtualBar
@@ -222,6 +231,8 @@ type Progress struct {
 	// pkg doesn't seem to handle a large number of bars very well; performance
 	// degrades quickly.
 	groupThreshold int
+
+	destroyOnce sync.Once
 
 	// hidden indicates that the Progress's bars should not be shown.
 	hidden bool
@@ -251,6 +262,31 @@ func (p *Progress) Hide() {
 	for _, bar := range p.allBars {
 		bar.hide()
 	}
+	p.groupBar.hide()
+}
+
+// HideOnWriter returns an io.Writer that hides the Progress when w is written
+// to. Note that the Progress may show itself again after its render delay
+// has elapsed anew.
+func (p *Progress) HideOnWriter(w io.Writer) io.Writer {
+	if p == nil || w == nil {
+		return w
+	}
+
+	return ioz.NotifyWriter(w, func(n int) {
+		if n <= 0 {
+			return
+		}
+
+		// p.Stop()
+
+		p.mu.Lock()
+		p.notBefore = time.Now().Add(p.renderDelay)
+		lg.FromContext(p.ctx).Warn("Got hideonwriter", "until", p.notBefore)
+		p.mu.Unlock()
+
+		p.life.kill()
+	})
 }
 
 // Show marks the Progress's bars as eligible for showing.
@@ -295,21 +331,97 @@ func (p *Progress) destroy() {
 	}
 
 	p.destroyOnce.Do(func() {
-		close(p.stoppingCh)
+		defer close(p.destroyedCh)
+		p.life.kill()
+	})
+}
 
+func (p *Progress) startLifecycleLoop() {
+	if p == nil {
+		return
+	}
+
+	go func() {
+		defer p.ticker.Stop()
+		for {
+			select {
+			case <-p.ctx.Done():
+				return
+			case <-p.destroyedCh:
+				return
+			case t, ok := <-p.ticker.C:
+				if !ok {
+					return
+				}
+				lg.FromContext(p.ctx).Warn("Got a tick", lga.Val, t)
+			}
+
+			p.mu.Lock()
+			now := time.Now()
+			if now.Before(p.notBefore) {
+				lg.FromContext(p.ctx).Warn("We're before p.notBefore", "now", now, "notBefore", p.notBefore)
+				p.mu.Unlock()
+				continue
+			}
+
+			lg.FromContext(p.ctx).Warn("We're after p.notBefore", "now", now, "notBefore", p.notBefore)
+
+			if p.life != nil {
+				p.mu.Unlock()
+				continue
+			}
+
+			log := lg.FromContext(p.ctx)
+			ctx, cancelFn := context.WithCancel(lg.NewContext(context.Background(), log))
+
+			p.life = &pcLifecycle{
+				p:        p,
+				pc:       mpb.NewWithContext(ctx, p.pcOpts...),
+				dyingCh:  make(chan struct{}),
+				killOnce: &sync.Once{},
+				ctx:      ctx,
+				cancelFn: cancelFn,
+			}
+			p.life.startStateRefreshLoop()
+			p.mu.Unlock()
+		}
+	}()
+}
+
+type pcLifecycle struct {
+	p *Progress
+
+	ctx      context.Context
+	cancelFn context.CancelFunc
+
+	// dyingCh is closed at the top of pcLifecycle.kill.
+	dyingCh chan struct{}
+
+	// killOnce ensures that pcLifecycle.kill happens only once.
+	killOnce *sync.Once
+
+	// pc is the underlying mbp.Progress container.
+	pc *mpb.Progress
+}
+
+func (lf *pcLifecycle) kill() {
+	if lf == nil {
+		return
+	}
+
+	lf.killOnce.Do(func() {
 		defer func() {
-			p.cancelFn()
-			<-p.ctx.Done()
+			lf.cancelFn()
+			<-lf.ctx.Done()
 		}()
 
 		defer func() { _ = recover() }() // Never propagate any panic here
 
+		p := lf.p
 		p.mu.Lock()
 		defer p.mu.Unlock()
 
-		if p.pc == nil {
-			return
-		}
+		close(lf.dyingCh)
 
 		allBars := slices.Clone(p.allBars)
 		wg := &sync.WaitGroup{}
@@ -317,11 +429,10 @@ func (p *Progress) destroy() {
 		for i := range allBars {
 			go func(i int) {
 				defer wg.Done()
-				allBars[i].destroy()
+				allBars[i].hide()
 			}(i)
 		}
-
-		p.groupBar.destroy()
+		p.groupBar.hide()
 		wg.Wait()
 
 		// So, now we REALLY want to wait for the progress widget
@@ -329,17 +440,21 @@ func (p *Progress) destroy() {
 		// always remove the bars from the terminal. So, we do
 		// some probably useless extra steps to hopefully trigger
 		// the terminal wipe before we return.
-		p.pc.Wait()
+		lf.pc.Wait()
 		// Important: we must call cancelFn after pc.Wait() or the bars
 		// may not be removed from the terminal.
-		p.cancelFn()
-		<-p.ctx.Done()
+		lf.cancelFn()
+		<-lf.ctx.Done()
 		// We shouldn't need this extra call to pc.Wait,
 		// but it shouldn't hurt?
-		p.pc.Wait()
+		lf.pc.Wait()
+
+		// We set p.life to nil. The lifecycle loop will then observe this on its
+		// next iteration and create a new lifecycle if appropriate.
+		p.life = nil
 	})
 
-	<-p.ctx.Done()
+	<-lf.ctx.Done()
 }
 
 // BarOpt is a functional option for Bar creation.
@@ -389,42 +504,78 @@ func (p *Progress) forgetBar(vb *virtualBar) {
 	p.allBars = langz.Remove(p.allBars, vb)
 }
 
+// alive returns true if the lifecycle is still alive or false otherwise.
+//
+// See also: pcLifecycle.next.
+func (lf *pcLifecycle) alive() bool {
+	if lf == nil {
+		return false
+	}
+
+	select {
+	case <-lf.dyingCh:
+		return false
+	case <-lf.ctx.Done():
+		return false
+	case <-lf.p.destroyedCh:
+		return false
+	case <-lf.p.ctx.Done():
+		return false
+	default:
+		return true
+	}
+}
+
+// next blocks until the next lifecycle tick occurs, or returns false if the
+// lifecycle is over. See also: pcLifecycle.alive.
+func (lf *pcLifecycle) next() bool {
+	if lf == nil {
+		return false
+	}
+
+	select {
+	case <-lf.dyingCh:
+		return false
+	case <-lf.ctx.Done():
+		return false
+	case <-lf.p.destroyedCh:
+		return false
+	case <-lf.p.ctx.Done():
+		return false
+	case _, ok := <-lf.p.ticker.C:
+		return ok
+	}
+}
+
 // startStateRefreshLoop starts Progress's refresh goroutine, which periodically
 // sends the bar states to the concrete mpb widgets. The goroutine returns when
 // Progress.ctx or Progress.stoppingCh are done.
-func (p *Progress) startStateRefreshLoop() {
-	if p == nil {
+func (lf *pcLifecycle) startStateRefreshLoop() {
+	if lf == nil || lf.p == nil {
 		return
 	}
 
 	go func() {
+		p := lf.p
+
 		defer func() {
 			if r := recover(); r != nil {
 				err := errz.Errorf("%v", r)
 				// Shouldn't happen, but just in case.
-				lg.FromContext(p.ctx).Error("progress state refresh loop panic", lga.Err, err)
+				lg.FromContext(lf.ctx).Error("progress state refresh loop panic", lga.Err, err)
 			}
 		}()
 
-		defer p.Stop()
-		done := p.ctx.Done()
-
-		ticker := time.NewTicker(stateRefreshFreq)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-done:
-				return
-			case <-p.stoppingCh:
-				return
-			case <-ticker.C:
-			}
-
+		for lf.next() {
 			t := time.Now()
 
 			p.mu.Lock()
 			if p.hidden {
+				p.mu.Unlock()
+				continue
+			}
+
+			if t.Before(p.notBefore) {
 				p.mu.Unlock()
 				continue
 			}
@@ -450,16 +601,11 @@ func (p *Progress) startStateRefreshLoop() {
 			}
 
 			for i := range allBars {
-				select {
-				case <-p.stoppingCh:
+				if !lf.alive() {
 					p.mu.Unlock()
 					return
-				case <-done:
-					p.mu.Unlock()
-					return
-				default:
-					p.allBars[i].refresh(t)
 				}
+				p.allBars[i].refresh(t)
 			}
 			p.groupBar.refresh(t)
 

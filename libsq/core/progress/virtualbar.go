@@ -22,9 +22,7 @@ func newVirtualBar(p *Progress, cfg *barConfig, opts []BarOpt) *virtualBar {
 	}
 
 	select {
-	case <-p.stoppingCh:
-		return nil
-	case <-p.ctx.Done():
+	case <-p.destroyedCh:
 		return nil
 	default:
 	}
@@ -147,18 +145,12 @@ func (vb *virtualBar) refresh(t time.Time) {
 		return
 	}
 
-	select {
-	case <-vb.p.stoppingCh:
-		vb.destroy()
-		return
-	case <-vb.p.ctx.Done():
-		vb.destroy()
-		return
-	default:
-	}
-
 	vb.mu.Lock()
 	defer vb.mu.Unlock()
+	if !vb.p.life.alive() {
+		vb.stopConcrete()
+		return
+	}
 
 	switch {
 	case vb.destroyed:
@@ -264,7 +256,7 @@ func (vb *virtualBar) startConcrete() {
 	}
 
 	select {
-	case <-vb.p.stoppingCh:
+	case <-vb.p.life.dyingCh:
 		return
 	case <-vb.p.ctx.Done():
 		return
@@ -274,7 +266,7 @@ func (vb *virtualBar) startConcrete() {
 	// Recover on any interaction with mpb.
 	defer func() { _ = recover() }()
 
-	vb.bimpl = vb.p.pc.New(vb.cfg.total,
+	vb.bimpl = vb.p.life.pc.New(vb.cfg.total,
 		vb.cfg.style,
 		mpb.BarWidth(barWidth),
 		mpb.PrependDecorators(vb.cfg.msgWidget),
@@ -289,7 +281,7 @@ func (vb *virtualBar) startConcrete() {
 	vb.bimpl.IncrBy(int(total))
 }
 
-// markHidden marks the virtualBar as hidden. On the next refresh, b's concrete
+// markHidden marks the virtualBar as hidden. On the alive refresh, b's concrete
 // bar may be removed.
 func (vb *virtualBar) markHidden() {
 	if vb == nil {
