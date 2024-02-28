@@ -38,7 +38,7 @@ IMPLEMENTATION NOTE
 This progress pkg is a fairly hefty wrapper around the vbauerster/mpb pkg, which
 does the actual rendering of the progress bars. The development of this pkg has
 been a bit of an adventure, with a lot of trial-and-error pain. It's almost
-certainly that it could be rebuilt better, but I also never want to go near it
+certain that it could be rebuilt better, but I also never want to go near it
 again.
 
 Why not just use the mpb package directly? There are several reasons:
@@ -56,9 +56,9 @@ Why not just use the mpb package directly? There are several reasons:
    package introduces the pcLifecycle (Progress Container Lifecycle) mechanism.
 4. This pkg has the groupBar mechanism, which is a way to aggregate and then
    disaggregate multiple bars. Basically, once we hit N bars, further bars are
-	 aggregated into a single "group" bar. This is useful for UX, as we don't want
-	 to clutter the terminal with dozens of progress bars. Also, mpb's performance
-	 degrades when there are a large number of bars. With groupBar, the main
+   aggregated into a single "group" bar. This is useful for UX, as we don't want
+   to clutter the terminal with dozens of progress bars. Also, mpb's performance
+   degrades when there are a large number of bars. With groupBar, the main
    program doesn't have to worry about dozens, hundreds, or even thousands of
    bars being created; they'll just all be aggregated. This simplifies the main
    program logic, because we can just create bars with abandon.
@@ -365,19 +365,20 @@ func (p *Progress) startLifecycleLoop() {
 	}()
 }
 
-// pcLifecycle models the lifecycle of a mpb.Progress container. It is created
-// by Progress.startLifecycleLoop, which periodically checks for the need to
-// create a new pcLifecycle, as progress containers are destroyed (when a
-// Progress is hidden) and recreated (when a Progress should be shown).
+// pcLifecycle (Progress Container Lifecycle) models the lifecycle of a
+// mpb.Progress container. It is created by Progress.startLifecycleLoop, which
+// periodically checks for the need to create a new pcLifecycle, as progress
+// containers are destroyed (when a Progress is hidden) and recreated (when a
+// Progress should be shown).
 type pcLifecycle struct {
 	p *Progress
 
-	// Note that pcLifecycle.ctx is not the same as the arg ctx. This was a bit of
-	// a hack to ensure that the container gets destroyed when ctx is cancelled,
-	// but before the pcLifecycle.pc learns that its context is cancelled. This
-	// was done in an attempt to clean up the progress bars before the main
-	// context is cancelled (i.e. to remove bars when the user hits Ctrl-C). It's
-	// not entirely clear if this mechanism is still necessary.
+	// Note that pcLifecycle.ctx is not a direct child of the main program ctx.
+	// This was a bit of a hack to ensure that the container gets destroyed when
+	// ctx is cancelled, but before the pcLifecycle.pc learns that its context is
+	// cancelled. This was done in an attempt to clean up the progress bars before
+	// the main context is cancelled (i.e. to remove bars when the user hits
+	// Ctrl-C). It's not entirely clear if this mechanism is still necessary.
 
 	ctx      context.Context
 	cancelFn context.CancelFunc
@@ -446,7 +447,7 @@ func (lf *pcLifecycle) kill() {
 	})
 }
 
-// alive returns true if the lifecycle is still alive or false otherwise.
+// alive returns true if the lifecycle is still alive, or false otherwise.
 //
 // See also: pcLifecycle.next.
 func (lf *pcLifecycle) alive() bool {

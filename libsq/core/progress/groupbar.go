@@ -10,8 +10,8 @@ import (
 
 // groupBar groups multiple bars. Once Progress.groupThreshold number of bars is
 // reached, further bars are grouped into a single groupBar. We do this
-// partially for UX, and partially because the mbp progress library
-// slows down with lots of bars.
+// partially for UX, and partially because the mbp progress library slows down
+// ith lots of bars.
 //
 // Note that groupBar doesn't need an internal mutex: it is not concurrently
 // accessed.
@@ -120,18 +120,4 @@ func (gb *groupBar) calculateIncr() int {
 	}
 
 	return val
-}
-
-// destroy destroys the groupBar. // FIXME: Do we need this?
-func (gb *groupBar) destroy() { //nolint:unused
-	if gb == nil {
-		return
-	}
-
-	if gb.vb != nil {
-		gb.vb.destroy()
-	}
-
-	gb.vb = nil
-	gb.p.groupBar = nil
 }

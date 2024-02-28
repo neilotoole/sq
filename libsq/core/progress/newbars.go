@@ -19,9 +19,9 @@ type BarOpt interface {
 	apply(*Progress, *barConfig)
 }
 
-// barConfig is passed to Progress.createBar. Note that there are four decorator
+// barConfig is passed to Progress.createBar. Note that there are five decorator
 // fields: these are effectively the "widgets" that are displayed on any given
-// bar. If a widget is nil, a nopWidget will be set by createVirtualBar. This is
+// bar. If a widget is nil, a nopWidget will be set by newVirtualBar. This is
 // because we need the widgets to exist (even if invisible) for visual
 // alignment purposes.
 type barConfig struct {
@@ -41,8 +41,6 @@ func (p *Progress) createBar(cfg *barConfig, opts []BarOpt) Bar {
 	if p == nil {
 		return nopBar{}
 	}
-
-	// FIXME: createBar should probably acquire the lock internally.
 
 	vb := newVirtualBar(p, cfg, opts)
 	p.allBars = append(p.allBars, vb)

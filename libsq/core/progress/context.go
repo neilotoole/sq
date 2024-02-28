@@ -46,14 +46,14 @@ func NewBarContext(ctx context.Context, bar Bar) context.Context {
 	return context.WithValue(ctx, barCtxKey{}, bar)
 }
 
-// Incr invokes [Bar.Incr] outermost [Bar] in ctx by amount n. Use in
+// Incr invokes [Bar.Incr] with amount n on the outermost [Bar] in ctx. Use in
 // conjunction with a context returned from NewBarContext. It safe to invoke
 // Incr on a nil context or a context that doesn't contain a Bar.
 //
-// NOTE: This context-based incrementing is a bit of an experiment. I'm
-// a bit hesitant in going even further with context-based logic, as it's not
-// clear to me that it's a good idea to lean on context so much.
-// So, it's possible this mechanism may be removed in the future.
+// NOTE: This context-based incrementing is a bit of an experiment. I'm hesitant
+// in going further with context-based logic, as it's not clear to me that it's
+// a good idea to lean on context so much. So, it's possible this mechanism may
+// be removed in the future.
 func Incr(ctx context.Context, n int) {
 	if ctx == nil {
 		return
