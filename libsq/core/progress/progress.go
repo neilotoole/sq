@@ -24,13 +24,10 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/ioz"
 
-	mpb "github.com/vbauerster/mpb/v8"
-	"github.com/vbauerster/mpb/v8/decor"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/langz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	mpb "github.com/vbauerster/mpb/v8"
 )
 
 /*
@@ -55,7 +52,8 @@ Why not just use the mpb package directly? There are several reasons:
 3. The mpb pkg didn't appear to have a mechanism to "hide" a bar temporarily
    while maintaining its counter state. We want to be able to hide a bar, allow
    some main program output to be rendered, then if there's another delay, show
-   the hidden bar again. That's not possible if using mpb directly.
+   the hidden bar again. That's not possible if using mpb directly. So this
+   package introduces the pcLifecycle (Progress Container Lifecycle) mechanism.
 4. This pkg has the groupBar mechanism, which is a way to aggregate and then
    disaggregate multiple bars. Basically, once we hit N bars, further bars are
 	 aggregated into a single "group" bar. This is useful for UX, as we don't want
@@ -134,13 +132,12 @@ func New(ctx context.Context, out io.Writer, maxBars int, delay time.Duration, c
 		return nil
 	}
 
-	// log := lg.FromContext(ctx)
-
 	if colors == nil {
 		colors = DefaultColors()
 	}
 
 	p := &Progress{
+		ctx:                 ctx,
 		mu:                  &sync.Mutex{},
 		destroyedCh:         make(chan struct{}),
 		colors:              colors,
@@ -149,31 +146,19 @@ func New(ctx context.Context, out io.Writer, maxBars int, delay time.Duration, c
 		activeVisibleBars:   make([]*virtualBar, 0),
 		activeInvisibleBars: make([]*virtualBar, 0),
 		renderDelay:         delay,
-		ticker:              time.NewTicker(stateRefreshFreq),
 		groupThreshold:      maxBars - 1,
+		pcOpts: []mpb.ContainerOption{
+			mpb.WithOutput(out),
+			mpb.WithWidth(boxWidth),
+			mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
+			mpb.WithRefreshRate(uxRedrawFreq),
+		},
+		// ticker is stopped when the goroutine spawned by
+		// Progress.startLifecycleLoop returns.
+		ticker: time.NewTicker(stateRefreshFreq),
 	}
 
-	// Note that p.ctx is not the same as the arg ctx. This is a bit of a hack
-	// to ensure that p.Stop gets called when ctx is cancelled, but before
-	// the p.pc learns that its context is cancelled. This was done in an attempt
-	// to clean up the progress bars before the main context is cancelled (i.e.
-	// to remove bars when the user hits Ctrl-C).
-	//
-	// p.ctx, p.cancelFn = context.WithCancel(lg.NewContext(context.Background(), log))
-	// p.ctx = lg.NewContext(context.Background(), log)
-	// FIXME: update docs
-	p.ctx = ctx
-
-	p.pcOpts = []mpb.ContainerOption{
-		mpb.WithOutput(out),
-		mpb.WithWidth(boxWidth),
-		mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
-		mpb.WithRefreshRate(uxRedrawFreq),
-	}
-
-	// p.pc = mpb.NewWithContext(ctx, opts...)
 	p.groupBar = newGroupBar(p)
-
 	p.startLifecycleLoop()
 	return p
 }
@@ -183,16 +168,24 @@ func New(ctx context.Context, out io.Writer, maxBars int, delay time.Duration, c
 // completion.
 type Progress struct {
 	// notBefore is a checkpoint before which the Progress isn't shown. It is
-	// consulted by the state refresh loop.
+	// consulted by the state refresh loop. It may be increased during the
+	// Progress's lifetime.
 	notBefore time.Time
 
+	// ctx is a reference to the main program context.
 	ctx context.Context
 
+	// life is the current lifecycle of the mpb.Progress container, which may be
+	// nil. The lifecycle is created on-demand by Progress.startLifecycleLoop; is
+	// killed when the Progress is hidden or destroyed; and is recreated when/if
+	// it's appropriate to show the Progress again.
 	life *pcLifecycle
 
+	// destroyedCh is closed when the Progress is destroyed, at which point the
+	// Progress is no longer usable.
 	destroyedCh chan struct{}
 
-	// mu guards ALL public methods.
+	// mu guards the state of the Progress.
 	mu *sync.Mutex
 
 	// align contains values to visually align progress bar widgets.
@@ -205,8 +198,12 @@ type Progress struct {
 	// the number of bars exceeds Progress.groupThreshold.
 	groupBar *groupBar
 
+	// ticker is used by the goroutines spawned by Progress.startLifecycleLoop and
+	// pcLifecycle.startStateRefreshLoop.
 	ticker *time.Ticker
 
+	// pcOpts are the container options used to create (or recreate) the
+	// mpb.Progress container (as found in pcLifecycle.pc).
 	pcOpts []mpb.ContainerOption
 
 	// allBars contains all non-destroyed virtualBar instances.
@@ -232,6 +229,7 @@ type Progress struct {
 	// degrades quickly.
 	groupThreshold int
 
+	// destroyOnce ensures that Progress.destroy happens only once.
 	destroyOnce sync.Once
 
 	// hidden indicates that the Progress's bars should not be shown.
@@ -278,13 +276,13 @@ func (p *Progress) HideOnWriter(w io.Writer) io.Writer {
 			return
 		}
 
-		// p.Stop()
-
 		p.mu.Lock()
+		// Although we're about to kill the pcLifecycle, a new one may be created
+		// later, but not before the render delay has elapsed anew.
 		p.notBefore = time.Now().Add(p.renderDelay)
-		lg.FromContext(p.ctx).Warn("Got hideonwriter", "until", p.notBefore)
 		p.mu.Unlock()
 
+		// Note that it's safe to invoke p.life.kill on a nil pcLifecycle.
 		p.life.kill()
 	})
 }
@@ -336,6 +334,10 @@ func (p *Progress) destroy() {
 	})
 }
 
+// startLifecycleLoop starts a goroutine that monitors the lifecycle conditions,
+// and creates a new pcLifecycle (setting Progress.life) when appropriate. The
+// goroutine loops on Progress.ticker, and returns when Progress.ctx or
+// Progress.destroyedCh are done.
 func (p *Progress) startLifecycleLoop() {
 	if p == nil {
 		return
@@ -349,30 +351,35 @@ func (p *Progress) startLifecycleLoop() {
 				return
 			case <-p.destroyedCh:
 				return
-			case t, ok := <-p.ticker.C:
+			case _, ok := <-p.ticker.C:
 				if !ok {
 					return
 				}
-				lg.FromContext(p.ctx).Warn("Got a tick", lga.Val, t)
 			}
 
 			p.mu.Lock()
-			now := time.Now()
-			if now.Before(p.notBefore) {
-				lg.FromContext(p.ctx).Warn("We're before p.notBefore", "now", now, "notBefore", p.notBefore)
+			if time.Now().Before(p.notBefore) {
 				p.mu.Unlock()
 				continue
 			}
-
-			lg.FromContext(p.ctx).Warn("We're after p.notBefore", "now", now, "notBefore", p.notBefore)
 
 			if p.life != nil {
+				// The lifecycle already exists, nothing to do here, so we loop until
+				// the next tick.
 				p.mu.Unlock()
 				continue
 			}
 
-			log := lg.FromContext(p.ctx)
-			ctx, cancelFn := context.WithCancel(lg.NewContext(context.Background(), log))
+			// There's no lifecycle object, so we need to create it, and start its
+			// state refresh loop.
+
+			// Note that the lifecycle object is created with a new context, which is
+			// not a direct child of the main program ctx. This was a bit of a hack
+			// from an earlier version of this package that was trying to ensure that
+			// the progress bars were cleaned up before the mpb.Progress container
+			// received ctx.Done cancellation. It's not entirely clear if this
+			// mechanism is still necessary after the various changes to this package.
+			ctx, cancelFn := context.WithCancel(lg.NewContext(context.Background(), lg.FromContext(p.ctx)))
 
 			p.life = &pcLifecycle{
 				p:        p,
@@ -388,8 +395,19 @@ func (p *Progress) startLifecycleLoop() {
 	}()
 }
 
+// pcLifecycle models the lifecycle of a mpb.Progress container. It is created
+// by Progress.startLifecycleLoop, which periodically checks for the need to
+// create a new pcLifecycle, as progress containers are destroyed (when a
+// Progress is hidden) and recreated (when a Progress should be shown).
 type pcLifecycle struct {
 	p *Progress
+
+	// Note that pcLifecycle.ctx is not the same as the arg ctx. This was a bit of
+	// a hack to ensure that the container gets destroyed when ctx is cancelled,
+	// but before the pcLifecycle.pc learns that its context is cancelled. This
+	// was done in an attempt to clean up the progress bars before the main
+	// context is cancelled (i.e. to remove bars when the user hits Ctrl-C). It's
+	// not entirely clear if this mechanism is still necessary.
 
 	ctx      context.Context
 	cancelFn context.CancelFunc
@@ -404,6 +422,9 @@ type pcLifecycle struct {
 	pc *mpb.Progress
 }
 
+// kill kills the pcLifecycle, ensuring that the underlying mpb.Progress
+// container is destroyed (and its UX manifestation is removed). The pcLifecycle
+// is no longer valid after kill returns (and Progress.life is set to nil).
 func (lf *pcLifecycle) kill() {
 	if lf == nil {
 		return
@@ -453,55 +474,6 @@ func (lf *pcLifecycle) kill() {
 		// next iteration and create a new lifecycle if appropriate.
 		p.life = nil
 	})
-
-	<-lf.ctx.Done()
-}
-
-// BarOpt is a functional option for Bar creation.
-type BarOpt interface {
-	apply(*Progress, *barConfig)
-}
-
-// barConfig is passed to Progress.createBar. Note that there are four decorator
-// fields: these are effectively the "widgets" that are displayed on any given
-// bar. If a widget is nil, a nopWidget will be set by createVirtualBar. This is
-// because we need the widgets to exist (even if invisible) for visual
-// alignment purposes.
-type barConfig struct {
-	style         mpb.BarFillerBuilder
-	counterWidget decor.Decorator
-	percentWidget decor.Decorator
-	timerWidget   decor.Decorator
-	memoryWidget  decor.Decorator
-	msgWidget     decor.Decorator
-	total         int64
-}
-
-// createBar creates a new bar, and adds it to Progress.allBars.
-//
-// The caller must hold Progress.mu.
-func (p *Progress) createBar(cfg *barConfig, opts []BarOpt) Bar {
-	if p == nil {
-		return nopBar{}
-	}
-
-	// FIXME: createBar should probably acquire the lock internally.
-
-	vb := newVirtualBar(p, cfg, opts)
-	p.allBars = append(p.allBars, vb)
-	return vb
-}
-
-// forgetBar removes bar vb from Progress.allBars. It is the caller's
-// responsibility to first invoke virtualBar.destroy.
-func (p *Progress) forgetBar(vb *virtualBar) {
-	if p == nil {
-		return
-	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.allBars = langz.Remove(p.allBars, vb)
 }
 
 // alive returns true if the lifecycle is still alive or false otherwise.
@@ -547,9 +519,10 @@ func (lf *pcLifecycle) next() bool {
 	}
 }
 
-// startStateRefreshLoop starts Progress's refresh goroutine, which periodically
-// sends the bar states to the concrete mpb widgets. The goroutine returns when
-// Progress.ctx or Progress.stoppingCh are done.
+// startStateRefreshLoop starts the lifecycle's state refresh goroutine, which
+// periodically sends the bar states to the concrete mpb widgets. The goroutine
+// returns when the lifecycle is done. Thus, a state refresh loop goroutine is
+// specific to a particular pcLifecycle instance.
 func (lf *pcLifecycle) startStateRefreshLoop() {
 	if lf == nil || lf.p == nil {
 		return

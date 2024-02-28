@@ -91,7 +91,7 @@ func newXProgressCmd() *cobra.Command {
 	return cmd
 }
 
-const stepSleepy = time.Second * 4
+const stepSleepy = time.Second * 7
 
 func sleepyLog(log *slog.Logger) {
 	log.Warn("Sleeping...", lga.Period, stepSleepy)
@@ -272,7 +272,7 @@ func execXProgressManyBars(cmd *cobra.Command, _ []string) error { //nolint:unpa
 		}
 	}()
 
-	const stepSleepy = time.Second * 4
+	const stepSleepy = time.Second * 7
 	sleepyLog := func() {
 		log.Warn("Sleeping...", lga.Period, stepSleepy)
 		time.Sleep(stepSleepy)

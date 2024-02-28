@@ -6,10 +6,60 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/langz"
+	"github.com/vbauerster/mpb/v8"
+
 	humanize "github.com/dustin/go-humanize"
 	"github.com/dustin/go-humanize/english"
 	"github.com/vbauerster/mpb/v8/decor"
 )
+
+// BarOpt is a functional option for Bar creation.
+type BarOpt interface {
+	apply(*Progress, *barConfig)
+}
+
+// barConfig is passed to Progress.createBar. Note that there are four decorator
+// fields: these are effectively the "widgets" that are displayed on any given
+// bar. If a widget is nil, a nopWidget will be set by createVirtualBar. This is
+// because we need the widgets to exist (even if invisible) for visual
+// alignment purposes.
+type barConfig struct {
+	style         mpb.BarFillerBuilder
+	counterWidget decor.Decorator
+	percentWidget decor.Decorator
+	timerWidget   decor.Decorator
+	memoryWidget  decor.Decorator
+	msgWidget     decor.Decorator
+	total         int64
+}
+
+// createBar creates a new bar, and adds it to Progress.allBars.
+//
+// The caller must hold Progress.mu.
+func (p *Progress) createBar(cfg *barConfig, opts []BarOpt) Bar {
+	if p == nil {
+		return nopBar{}
+	}
+
+	// FIXME: createBar should probably acquire the lock internally.
+
+	vb := newVirtualBar(p, cfg, opts)
+	p.allBars = append(p.allBars, vb)
+	return vb
+}
+
+// forgetBar removes bar vb from Progress.allBars. It is the caller's
+// responsibility to first invoke virtualBar.destroy.
+func (p *Progress) forgetBar(vb *virtualBar) {
+	if p == nil {
+		return
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.allBars = langz.Remove(p.allBars, vb)
+}
 
 // NewByteCounter returns a new determinate bar whose label metric is the size
 // in bytes of the data being processed. The caller is ultimately responsible
