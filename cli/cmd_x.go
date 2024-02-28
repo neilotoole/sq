@@ -168,6 +168,11 @@ func execXProgressManyBars(cmd *cobra.Command, _ []string) error {
 	bars = append(bars, pb.NewUnitCounter("NewUnitCounter.OptTimer", "item", progress.OptTimer))
 	bars = append(bars, pb.NewUnitCounter("NewUnitCounter.OptTimer.OptMemUsage", "item", progress.OptTimer, progress.OptMemUsage))
 
+	bars = append(bars, pb.NewUnitTotalCounter("NewUnitTotalCounter", "item", 100))
+	bars = append(bars, pb.NewUnitTotalCounter("NewUnitTotalCounter.OptTimer", "item", 100, progress.OptTimer))
+	bars = append(bars, pb.NewUnitTotalCounter("NewUnitTotalCounter.OptTimer.OptMem", "item", 100, progress.OptTimer, progress.OptMemUsage))
+	bars = append(bars, pb.NewUnitTotalCounter("NewUnitTotalCounter.OptMem", "item", 100, progress.OptMemUsage))
+
 	bars = append(bars, pb.NewWaiter("NewWaiter"))
 	bars = append(bars, pb.NewWaiter("NewWaiter.OptMemUsage", progress.OptMemUsage))
 
