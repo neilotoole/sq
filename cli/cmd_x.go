@@ -9,6 +9,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/neilotoole/sq/testh/proj"
+
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/run"
@@ -80,34 +82,29 @@ func execXLockSrcCmd(cmd *cobra.Command, args []string) error {
 
 func newXProgressCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:    "progress",
-		Short:  "Execute progress test code",
-		Hidden: true,
-		// RunE:    execXProgress,
-		RunE:    execXProgressHideOnWriter,
+		Use:     "progress",
+		Short:   "Execute progress test code",
+		Hidden:  true,
+		RunE:    execXProgressManyBars,
 		Example: `	$ sq x progress`,
 	}
 
 	return cmd
 }
 
-const stepSleepy = time.Second * 7
+const stepSleepy = time.Second * 7 //nolint:unused
 
-func sleepyLog(log *slog.Logger) {
+func sleepyLog(log *slog.Logger) { //nolint:unused
 	log.Warn("Sleeping...", lga.Period, stepSleepy)
 	time.Sleep(stepSleepy)
 }
 
-func execXProgressHideOnWriter(cmd *cobra.Command, _ []string) error {
+func execXProgressHideOnWriter(cmd *cobra.Command, _ []string) error { //nolint:unparam,unused
 	ctx := cmd.Context()
 	log := lg.FromContext(ctx)
 	ru := run.FromContext(ctx)
 	_ = log
 	_ = ru
-
-	// var cancelFn context.CancelFunc
-	// ctx, cancelFn = context.WithCancel(ctx)
-	// renderDelay := OptProgressDelay.Get(options.FromContext(ctx))
 
 	const wantBarCount = 3
 	pb := progress.FromContext(ctx)
@@ -151,7 +148,8 @@ func execXProgressHideOnWriter(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func execXProgressManyBars(cmd *cobra.Command, _ []string) error { //nolint:unparam,unused
+//nolint:lll
+func execXProgressManyBars(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
 	log := lg.FromContext(ctx)
 	ru := run.FromContext(ctx)
@@ -165,40 +163,33 @@ func execXProgressManyBars(cmd *cobra.Command, _ []string) error { //nolint:unpa
 	pb := progress.FromContext(ctx)
 
 	bars := make([]progress.Bar, 0)
-	// var bar progress.Bar
-	bars = append(bars, pb.NewUnitCounter(
-		"NewUnitCounter",
-		"item",
-	))
-	bars = append(bars, pb.NewWaiter(
-		"NewWaiter.OptMemUsage",
-		progress.OptMemUsage,
-	))
-	bars = append(bars, pb.NewUnitCounter(
-		"NewUnitCounter.OptTimer",
-		"item",
-		progress.OptTimer,
-	))
-	bars = append(bars, pb.NewUnitCounter(
-		"NewUnitCounter.OptTimer.OptMemUsage",
-		"item",
-		progress.OptTimer,
-		progress.OptMemUsage,
-	))
-	bars = append(bars, pb.NewWaiter("NewWaiter"))
 
-	bars = append(bars, pb.NewTimeoutWaiter("NewTimeoutWaiter",
-		time.Now().Add(time.Minute),
-	))
-	bars = append(bars, pb.NewTimeoutWaiter("NewTimeoutWaiter.OptTimer",
-		time.Now().Add(time.Minute),
-		progress.OptTimer,
-	))
-	bars = append(bars, pb.NewTimeoutWaiter("NewTimeoutWaiter.OptTimer.OptMem",
-		time.Now().Add(time.Minute),
-		progress.OptTimer,
-		progress.OptMemUsage,
-	))
+	bars = append(bars, pb.NewUnitCounter("NewUnitCounter", "item"))
+	bars = append(bars, pb.NewUnitCounter("NewUnitCounter.OptTimer", "item", progress.OptTimer))
+	bars = append(bars, pb.NewUnitCounter("NewUnitCounter.OptTimer.OptMemUsage", "item", progress.OptTimer, progress.OptMemUsage))
+
+	bars = append(bars, pb.NewWaiter("NewWaiter"))
+	bars = append(bars, pb.NewWaiter("NewWaiter.OptMemUsage", progress.OptMemUsage))
+
+	bars = append(bars, pb.NewTimeoutWaiter("NewTimeoutWaiter", time.Now().Add(time.Minute)))
+	bars = append(bars, pb.NewTimeoutWaiter("NewTimeoutWaiter.OptTimer", time.Now().Add(time.Minute), progress.OptTimer))
+	bars = append(bars, pb.NewTimeoutWaiter("NewTimeoutWaiter.OptTimer.OptMem", time.Now().Add(time.Minute), progress.OptTimer, progress.OptMemUsage))
+
+	bars = append(bars, pb.NewByteCounter("NewByteCounter.Size1000", 1000))
+	bars = append(bars, pb.NewByteCounter("NewByteCounter.Size1000.OptTimer", 1000, progress.OptTimer))
+	bars = append(bars, pb.NewByteCounter("NewByteCounter.Size1000.OptTimer.OptMem", 1000, progress.OptTimer, progress.OptMemUsage))
+	bars = append(bars, pb.NewByteCounter("NewByteCounter.Size1000.OptMem", 1000, progress.OptMemUsage))
+	bars = append(bars, pb.NewByteCounter("NewByteCounter.NoSize", -1))
+	bars = append(bars, pb.NewByteCounter("NewByteCounter.NoSize.OptTimer", -1, progress.OptTimer))
+	bars = append(bars, pb.NewByteCounter("NewByteCounter.NoSize.OptTimer.OptMem", -1, progress.OptTimer, progress.OptMemUsage))
+	bars = append(bars, pb.NewByteCounter("NewByteCounter.NoSize.OptMem", -1, progress.OptMemUsage))
+	bars = append(bars, pb.NewByteCounter("NewByteCounter.NoSize.OptMem", -1, progress.OptMemUsage))
+
+	fp := proj.Abs("go.mod")
+	bars = append(bars, pb.NewFilesizeCounter("NewFilesizeCounter", nil, fp))
+	bars = append(bars, pb.NewFilesizeCounter("NewFilesizeCounter.OptTimer", nil, fp, progress.OptTimer))
+	bars = append(bars, pb.NewFilesizeCounter("NewFilesizeCounter.OptTimer.OptMem", nil, "fp", progress.OptTimer, progress.OptMemUsage))
+	bars = append(bars, pb.NewFilesizeCounter("NewFilesizeCounter.OptMem", nil, fp, progress.OptMemUsage))
 
 	incrStopCh := make(chan struct{})
 
