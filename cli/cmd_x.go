@@ -16,7 +16,6 @@ import (
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/files"
 )
@@ -231,80 +230,6 @@ func execXProgressManyBars(cmd *cobra.Command, _ []string) error {
 	log.Warn("Stopping")
 	pb.Stop()
 	log.Warn("Stopped", lga.Elapsed, time.Since(ts))
-
-	fmt.Fprintln(ru.Out, "exiting")
-	return nil
-}
-
-func execXProgressSingle(cmd *cobra.Command, _ []string) error { //nolint:unparam,unused
-	ctx := cmd.Context()
-	log := lg.FromContext(ctx)
-	ru := run.FromContext(ctx)
-	_ = log
-	_ = ru
-
-	var cancelFn context.CancelFunc
-	ctx, cancelFn = context.WithCancel(ctx)
-	renderDelay := OptProgressDelay.Get(options.FromContext(ctx))
-
-	barTimeout := time.Second * 30
-	_ = barTimeout
-	pb := progress.FromContext(ctx)
-	// bar := pb.NewTimeoutWaiter("Doing something...", time.Now().Add(barTimeout))
-	bar := pb.NewUnitCounter("Counting stuff...", "thing", progress.OptTimer)
-	// defer bar.Stop()
-
-	go func() {
-		for ctx.Err() == nil {
-			bar.Incr(1)
-			time.Sleep(time.Millisecond * 100)
-		}
-	}()
-
-	const stepSleepy = time.Second * 5
-	// bar.Incr(10)
-
-	log.Warn("bar.Show; should be no op")
-	progress.ShowBar(bar) // This should be a no-op
-
-	time.Sleep(renderDelay)
-	log.Warn("After renderDelay sleep")
-
-	progress.ShowBar(bar)
-	log.Warn("Showing bar")
-	time.Sleep(stepSleepy)
-
-	log.Warn("Hiding bar")
-	progress.HideBar(bar)
-
-	time.Sleep(stepSleepy)
-
-	log.Warn("Showing bar again")
-	progress.ShowBar(bar)
-
-	time.Sleep(stepSleepy)
-
-	log.Warn("Stopping bar")
-	// bar.Stop()
-	defer cancelFn()
-
-	pb.Stop()
-
-	// select {
-	// case <-pressEnter():
-	// 	bar.Stop()
-	// 	pb.Stop()
-	// 	fmt.Fprintln(ru.Out, "\nENTER received")
-	// case <-ctx.Done():
-	// 	bar.Stop()
-	// 	pb.Stop()
-	// 	fmt.Fprintln(ru.Out, "Context done")
-	// case <-time.After(d + time.Second*5):
-	// 	bar.Stop()
-	// 	log.Warn("timed out, about to print something")
-	// 	fmt.Fprintln(ru.Out, "Really timed out")
-	// 	log.Warn("done printing")
-	// }
 
 	fmt.Fprintln(ru.Out, "exiting")
 	return nil

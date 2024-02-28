@@ -577,7 +577,6 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 		// to out, because we don't want the progress bar to
 		// corrupt the terminal output.
 		outCfg.out = prog.HideOnWriter(outCfg.out)
-		// outCfg.out = ioz.NotifyOnceWriter(outCfg.out, prog.Stop)
 		cmd.SetContext(progress.NewContext(ctx, prog))
 	}
 

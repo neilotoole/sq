@@ -49,9 +49,8 @@ func NewWriter(ctx context.Context, msg string, size int64, w io.Writer) Writer 
 	b := pb.NewByteCounter(msg, size)
 	return &progCopier{progWriter{
 		ctx: ctx,
-		// delayCh: b.getDelayCh(),
-		w: w,
-		b: b,
+		w:   w,
+		b:   b,
 	}}
 }
 
@@ -70,8 +69,6 @@ func (w *progWriter) Write(p []byte) (n int, err error) {
 	case <-w.ctx.Done():
 		w.b.Stop()
 		return 0, w.ctx.Err()
-	// case <-w.delayCh:
-	//	w.b.ensureInit()
 	default:
 	}
 
@@ -127,9 +124,8 @@ func NewReader(ctx context.Context, msg string, size int64, r io.Reader) io.Read
 	b := pb.NewByteCounter(msg, size)
 	pr := &progReader{
 		ctx: ctx,
-		// delayCh: b.getDelayCh(),
-		r: r,
-		b: b,
+		r:   r,
+		b:   b,
 	}
 	return pr
 }
@@ -139,8 +135,7 @@ var _ io.ReadCloser = (*progReader)(nil)
 type progReader struct {
 	ctx context.Context
 	r   io.Reader
-	// delayCh <-chan struct{}
-	b Bar
+	b   Bar
 }
 
 // Close implements io.ReadCloser, but with context awareness.
@@ -166,8 +161,6 @@ func (r *progReader) Read(p []byte) (n int, err error) {
 	case <-r.ctx.Done():
 		r.b.Stop()
 		return 0, r.ctx.Err()
-	// case <-r.delayCh:
-	//	r.b.ensureInit()
 	default:
 	}
 
@@ -233,9 +226,8 @@ func (w *progCopier) ReadFrom(r io.Reader) (n int64, err error) {
 		// Let the original Writer decide the chunk size.
 		rdr := &progReader{
 			ctx: w.ctx,
-			// delayCh: w.delayCh,
-			r: r,
-			b: w.b,
+			r:   r,
+			b:   w.b,
 		}
 
 		return io.Copy(w.progWriter.w, rdr)
