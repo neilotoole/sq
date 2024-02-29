@@ -298,14 +298,14 @@ var _ io.Writer = (*WrittenWriter)(nil)
 // no-op.
 type WrittenWriter struct {
 	W       io.Writer
-	Written int64
 	Err     error
+	Written int64
 }
 
 // Write writes p to the underlying writer, updating the number of bytes
 // written. If an error occurs, it is stored in the Err field, and subsequent
 // calls to Write are no-op.
-func (w WrittenWriter) Write(p []byte) (n int, err error) {
+func (w *WrittenWriter) Write(p []byte) (n int, err error) {
 	if w.Err != nil {
 		return 0, w.Err
 	}

@@ -34,7 +34,6 @@ func renderRecords(ctx context.Context, cfg *Config, recMeta record.Meta, recs [
 	if err := recw.Close(ctx); err != nil {
 		return nil, err
 	}
-	recw = nil
 	return buf.Bytes(), nil
 }
 

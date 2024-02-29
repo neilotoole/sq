@@ -6,10 +6,11 @@ package udiff
 
 import (
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"io"
 	"log"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/ioz"
 )
 
 // Unified returns a unified diff of the old and new strings.
