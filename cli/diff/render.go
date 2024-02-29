@@ -11,9 +11,9 @@ import (
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
-func renderRecords(ctx context.Context, cfg *Config, recMeta record.Meta, recs []record.Record) (string, error) {
+func renderRecords(ctx context.Context, cfg *Config, recMeta record.Meta, recs []record.Record) ([]byte, error) {
 	if len(recs) == 0 {
-		return "", nil
+		return nil, nil
 	}
 
 	pr := cfg.Printing.Clone()
@@ -23,18 +23,19 @@ func renderRecords(ctx context.Context, cfg *Config, recMeta record.Meta, recs [
 	recw := cfg.RecordWriterFn(buf, pr)
 
 	if err := recw.Open(ctx, recMeta); err != nil {
-		return "", err
+		return nil, err
 	}
 	if err := recw.WriteRecords(ctx, recs); err != nil {
-		return "", err
+		return nil, err
 	}
 	if err := recw.Flush(ctx); err != nil {
-		return "", err
+		return nil, err
 	}
 	if err := recw.Close(ctx); err != nil {
-		return "", err
+		return nil, err
 	}
-	return buf.String(), nil
+	recw = nil
+	return buf.Bytes(), nil
 }
 
 // renderSourceMeta2YAML returns a YAML rendering of metadata.Source.

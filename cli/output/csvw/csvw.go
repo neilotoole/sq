@@ -98,13 +98,15 @@ func (w *RecordWriter) WriteRecords(ctx context.Context, recs []record.Record) e
 		w.needsHeader = false
 	}
 
+	done := ctx.Done()
+	fields := make([]string, len(w.recMeta))
+
 	for _, rec := range recs {
 		select {
-		case <-ctx.Done():
+		case <-done:
 			return ctx.Err()
 		default:
 		}
-		fields := make([]string, len(rec))
 
 		for i, val := range rec {
 			switch val := val.(type) {
@@ -113,6 +115,7 @@ func (w *RecordWriter) WriteRecords(ctx context.Context, recs []record.Record) e
 				fields[i] = fmt.Sprintf("%v", val)
 			case nil:
 				// nil is rendered as empty string, which this cell already is
+				fields[i] = ""
 			case int64:
 				fields[i] = w.pr.Number.Sprint(strconv.FormatInt(val, 10))
 			case decimal.Decimal:

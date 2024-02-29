@@ -482,7 +482,7 @@ func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, h
 		handleTbl2           = rd.td2.String()
 		recMeta1, recMeta2   = rd.recMetaFn()
 		hunkHeader, hunkBody string
-		body1, body2         string
+		body1, body2         []byte
 		err                  error
 	)
 
@@ -521,11 +521,14 @@ func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, h
 		handleTbl1,
 		handleTbl2,
 		rd.cfg.Lines,
-		body1,
-		body2,
+		stringz.UnsafeString(body1),
+		stringz.UnsafeString(body2),
 	); err != nil {
 		return
 	}
+
+	body1 = nil
+	body2 = nil
 
 	if unified == "" {
 		// No diff was found.

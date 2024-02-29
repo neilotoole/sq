@@ -290,6 +290,32 @@ func (r *notifyOnErrorReader) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
+var _ io.Writer = (*WrittenWriter)(nil)
+
+// WrittenWriter is an io.Writer decorator that tracks the number of bytes
+// written to the underlying writer, as well as any error returned. If an error
+// occurs, it is stored in the Err field, and subsequent calls to Write are
+// no-op.
+type WrittenWriter struct {
+	W       io.Writer
+	Written int64
+	Err     error
+}
+
+// Write writes p to the underlying writer, updating the number of bytes
+// written. If an error occurs, it is stored in the Err field, and subsequent
+// calls to Write are no-op.
+func (w WrittenWriter) Write(p []byte) (n int, err error) {
+	if w.Err != nil {
+		return 0, w.Err
+	}
+
+	n, err = w.W.Write(p)
+	w.Written += int64(n)
+	w.Err = err
+	return n, err
+}
+
 // WriteCloser returns w as an io.WriteCloser. If w implements
 // io.WriteCloser, w is returned. Otherwise, w is wrapped in a
 // no-op decorator that implements io.WriteCloser.
