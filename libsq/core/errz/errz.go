@@ -292,6 +292,37 @@ func ExitCode(err error) (code int) {
 	return -1
 }
 
+// WithExitCode returns an error that implements ExitCoder, if err is non-nil.
+// If err is nil, WithExitCode returns nil. If err already implements ExitCoder
+// and its exit code is the same as code, WithExitCode returns err unchanged.
+func WithExitCode(err error, code int) error {
+	if err == nil {
+		return nil
+	}
+
+	if c := ExitCode(err); c == code {
+		return err
+	}
+
+	if ez, ok := err.(*errz); ok { //nolint:errorlint
+		return &exitCoder{errz: *ez, code: code}
+	}
+
+	return &exitCoder{errz: errz{stack: callers(0), error: err}, code: code}
+}
+
+var _ ExitCoder = (*exitCoder)(nil)
+
+type exitCoder struct {
+	errz
+	code int
+}
+
+// ExitCode implements ExitCoder.
+func (e *exitCoder) ExitCode() int {
+	return e.code
+}
+
 // Drain reads all currently available non-nil errors from errCh. If errCh is
 // nil, or there are no errors to read, Drain returns nil. If there's only a
 // single error, Drain returns it. If there are multiple errors, Drain returns
@@ -381,3 +412,9 @@ func IsContextStop(ctx context.Context) bool {
 	}
 	return errors.Is(err, ErrStop)
 }
+
+// ErrNoMsg is a sentinel error indicating that a command has failed (and thus
+// the program should exit with a non-zero code), but no error message should be
+// printed. This is useful in the case where any error information may already
+// have been printed as part of the command output.
+var ErrNoMsg = errors.New("")

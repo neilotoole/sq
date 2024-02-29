@@ -10,10 +10,12 @@ import (
 // ExecTableDiff is the entrypoint to diff two tables, src1.table1 and
 // src2.table2.
 //
+// If differences are found, hasDiffs returns true.
+//
 // Contrast with [ExecSourceDiff], which diffs two sources.
-func ExecTableDiff(ctx context.Context, cfg *Config,
-	src1 *source.Source, table1 string, src2 *source.Source, table2 string,
-) error {
+func ExecTableDiff(ctx context.Context, cfg *Config, src1 *source.Source, table1 string,
+	src2 *source.Source, table2 string,
+) (hasDiffs bool, err error) {
 	var (
 		ru      = cfg.Run
 		elems   = cfg.Modes

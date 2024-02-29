@@ -20,7 +20,6 @@ package cli
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -55,13 +54,6 @@ const (
 	msgSrcNoData         = "source has no data"
 	msgSrcEmptyTableName = "source has empty table name"
 )
-
-// errNoMsg is a sentinel error indicating that a command
-// has failed (and thus the program should exit with a non-zero
-// code), but no error message should be printed.
-// This is useful in the case where any error information may
-// already have been printed as part of the command output.
-var errNoMsg = errors.New("")
 
 // Execute builds a Run using ctx and default
 // settings, and invokes ExecuteWith.

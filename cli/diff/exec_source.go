@@ -8,8 +8,10 @@ import (
 )
 
 // ExecSourceDiff is the entrypoint to diff two sources, handle1 and handle2.
+// If differences are found, hasDiffs returns true.
+//
 // Contrast with [ExecTableDiff], which diffs two tables.
-func ExecSourceDiff(ctx context.Context, cfg *Config, src1, src2 *source.Source) error {
+func ExecSourceDiff(ctx context.Context, cfg *Config, src1, src2 *source.Source) (hasDiffs bool, err error) {
 	modes := cfg.Modes
 
 	var differs []*diffdoc.Differ
@@ -33,7 +35,7 @@ func ExecSourceDiff(ctx context.Context, cfg *Config, src1, src2 *source.Source)
 	if modes.Schema {
 		schemaDiffers, err := differsForSchema(ctx, cfg, modes.RowCount, src1, src2)
 		if err != nil {
-			return err
+			return hasDiffs, err
 		}
 		differs = append(differs, schemaDiffers...)
 	}
@@ -42,7 +44,7 @@ func ExecSourceDiff(ctx context.Context, cfg *Config, src1, src2 *source.Source)
 		// We're going for it... diff all table data.
 		dataDiffers, err := differsForAllTableData(ctx, cfg, src1, src2)
 		if err != nil {
-			return err
+			return hasDiffs, err
 		}
 		differs = append(differs, dataDiffers...)
 	}

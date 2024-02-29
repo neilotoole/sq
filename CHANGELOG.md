@@ -13,21 +13,29 @@ This release features significant improvements to [`sq diff`](https://sq.io/docs
 
 ## Added
 
-- Previously a `sq diff` of table data always diffed every row, which could get crazy
+- Previously a `sq diff --data` diffed every row, which could get crazy
   with a large table. Now the command stops after N differences, where N is controlled by
-  the `--stop-after` flag, or the new config option [`diff.stop-after`](https://sq.io/docs/config#diffstop-after).
+  the `--stop` flag, or the new config option [`diff.stop`](https://sq.io/docs/config#diffstop).
   The default stop-after value is `3`; set to `0` to show all differences.
 
   ```shell
   # Stop on first difference
-  $ sq diff @prod.actor @staging.actor --data --stop-after 1
+  $ sq diff @prod.actor @staging.actor --data --stop 1
   
   # Stop after 5 differences, using the -n shorthand flag
   $ sq diff @prod.actor @staging.actor --data -n 5
   ```
-- [#353] The performance of `sq diff` has been significantly improved overall.
+- [#353]: The performance of `sq diff` has been significantly improved. There's still more to do.
 
 ## Changed
+
+- ☢️ Previously, `sq diff` only exited non-zero on an error. Now, `sq diff` exits `0` when no differences,
+  exits `1` if differences are found, and exits `2` on any error.
+  This aligns with the behavior of [GNU diff](https://www.gnu.org/software/diffutils/manual/):
+
+  ```text
+  Exit status is 0 if inputs are the same, 1 if different, 2 if trouble.
+  ```
 
 - Minor fiddling with the color scheme for some command output.
 

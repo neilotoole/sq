@@ -125,7 +125,7 @@ func execPing(cmd *cobra.Command, args []string) error {
 	err = pingSources(cmd.Context(), ru.DriverRegistry, srcs, ru.Writers.Ping, timeout)
 	if errors.Is(err, context.Canceled) {
 		// It's common to cancel "sq ping". We don't want to print the cancel message.
-		return errNoMsg
+		return errz.ErrNoMsg
 	}
 
 	return err
@@ -133,7 +133,7 @@ func execPing(cmd *cobra.Command, args []string) error {
 
 // pingSources pings each of the sources in srcs, and prints results
 // to w. If any error occurs pinging any of srcs, that error is printed
-// inline as part of the ping results, and an errNoMsg is returned.
+// inline as part of the ping results, and an ErrNoMsg is returned.
 //
 // NOTE: This ping code has an ancient lineage, in that it was
 // originally laid down before context.Context was a thing. Thus,
@@ -189,7 +189,7 @@ func pingSources(ctx context.Context, dp driver.Provider, srcs []*source.Source,
 	// an additional error message (as the error message will already have
 	// been printed by PingWriter).
 	if pingErrExists {
-		return errNoMsg
+		return errz.ErrNoMsg
 	}
 
 	return nil
