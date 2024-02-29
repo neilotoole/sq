@@ -3,6 +3,7 @@ package diff
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -54,7 +55,11 @@ func differsForAllTableData(ctx context.Context, cfg *Config, src1, src2 *source
 func differForTableData(cfg *Config, title bool, td1, td2 source.Table) *diffdoc.Differ {
 	var cmdTitle diffdoc.Title
 	if title {
-		cmdTitle = diffdoc.Titlef(cfg.Colors, "sq diff --data %s %s", td1, td2)
+		if cfg.StopAfter > 0 {
+			cmdTitle = diffdoc.Titlef(cfg.Colors, "sq diff --data --stop-after %d %s %s", cfg.StopAfter, td1, td2)
+		} else {
+			cmdTitle = diffdoc.Titlef(cfg.Colors, "sq diff --data %s %s", td1, td2)
+		}
 	}
 
 	doc := diffdoc.NewHunkDoc(
@@ -76,7 +81,7 @@ func differForTableData(cfg *Config, title bool, td1, td2 source.Table) *diffdoc
 // checked via [diffdoc.HunkDoc.Err]. Any error should also be propagated via
 // cancelFn, to cancel any peer goroutines. Note that the returned doc's
 // [diffdoc.Doc.Read] method blocks until the doc is completed (or errors out).
-func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
+func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //nolint:funlen,gocognit
 	cfg *Config, td1, td2 source.Table, doc *diffdoc.HunkDoc,
 ) {
 	log := lg.FromContext(ctx).With(lga.Left, td1.String(), lga.Right, td2.String())
@@ -124,6 +129,18 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 				return
 			}
 
+			if errors.Is(err, context.Canceled) {
+				log.Warn("Diff: cancelled err on errCh consumer")
+				// FIXME: docs
+				return
+			}
+
+			if errors.Is(err, errz.ErrStop) {
+				log.Warn("Diff: stop error on errCh consumer")
+				// FIXME: docs
+				return
+			}
+
 			log.Error("Error from record writer errCh", lga.Err, err)
 			cancelFn(err)
 		}
@@ -135,13 +152,22 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 
 	qc := run.NewQueryContext(cfg.Run, nil)
 
+	// We give the DB query goroutines their own context, dbCtx. This is so that
+	// we can explicitly stop the queries using dbCancel(errz.ErrStop) if we reach
+	// the diff stop-after limit.
+	dbCtx, dbCancel := context.WithCancelCause(ctx)
 	go func() {
 		query1 := td1.Handle + "." + stringz.DoubleQuote(td1.Name)
 		// Execute DB query1; records will be sent to recw1.recCh.
-		if err := libsq.ExecuteSLQ(ctx, qc, query1, recw1); err != nil {
-			if errz.Has[*driver.NotExistError](err) {
+		if err := libsq.ExecuteSLQ(dbCtx, qc, query1, recw1); err != nil {
+			switch {
+			case errz.Has[*driver.NotExistError](err):
 				// For diffing, it's totally ok if a table is not found.
-				log.Debug("Diff: table not found", lga.Table, td1.String())
+				log.Debug("Diff: table not found", lga.Table, td2.String())
+				return
+			case errors.Is(err, errz.ErrStop) || errz.IsContextStop(dbCtx):
+				// This means we explicitly stopped the query, probably due to reaching
+				// the diff stop-after limit.
 				return
 			}
 
@@ -161,10 +187,17 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 	go func() {
 		query2 := td2.Handle + "." + stringz.DoubleQuote(td2.Name)
 		// Execute DB query2; records will be sent to recw2.recCh.
-		if err := libsq.ExecuteSLQ(ctx, qc, query2, recw2); err != nil {
-			if errz.Has[*driver.NotExistError](err) {
+		if err := libsq.ExecuteSLQ(dbCtx, qc, query2, recw2); err != nil {
+			switch {
+			case errz.Has[*driver.NotExistError](err):
+				// For diffing, it's totally ok if a table is not found.
 				log.Debug("Diff: table not found", lga.Table, td2.String())
 				return
+			case errors.Is(err, errz.ErrStop) || errz.IsContextStop(dbCtx):
+				// This means we explicitly stopped the query, probably due to
+				// reaching the diff stop-after limit.
+				return
+			default:
 			}
 
 			cancelFn(err)
@@ -182,6 +215,8 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 	// by the diff exec goroutine further below.
 	go func() {
 		var rec1, rec2 record.Record
+		var diffCount int
+		stopAfter := cfg.StopAfter
 
 		for i := 0; ctx.Err() == nil; i++ {
 			select {
@@ -202,7 +237,17 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 				return
 			}
 
-			recPairsCh <- record.NewPair(i, rec1, rec2)
+			rp := record.NewPair(i, rec1, rec2)
+			if !rp.Equal() {
+				diffCount++
+			}
+
+			recPairsCh <- rp
+			if stopAfter > 0 && diffCount >= stopAfter {
+				dbCancel(errz.ErrStop) // Explicit stop
+				close(recPairsCh)
+				return
+			}
 		}
 	}()
 

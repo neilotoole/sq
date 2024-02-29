@@ -8,13 +8,15 @@ import (
 )
 
 // ExecSourceDiff is the entrypoint to diff two sources, handle1 and handle2.
+// If differences are found, hasDiffs returns true.
+//
 // Contrast with [ExecTableDiff], which diffs two tables.
-func ExecSourceDiff(ctx context.Context, cfg *Config, src1, src2 *source.Source) error {
-	elems := cfg.Elements
+func ExecSourceDiff(ctx context.Context, cfg *Config, src1, src2 *source.Source) (hasDiffs bool, err error) {
+	modes := cfg.Modes
 
 	var differs []*diffdoc.Differ
 
-	if elems.Overview {
+	if modes.Overview {
 		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors,
 			"sq diff --overview %s %s", src1.Handle, src2.Handle))
 		differs = append(differs, diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
@@ -22,7 +24,7 @@ func ExecSourceDiff(ctx context.Context, cfg *Config, src1, src2 *source.Source)
 		}))
 	}
 
-	if elems.DBProperties {
+	if modes.DBProperties {
 		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors,
 			"sq diff --dbprops %s %s", src1.Handle, src2.Handle))
 		differs = append(differs, diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
@@ -30,19 +32,19 @@ func ExecSourceDiff(ctx context.Context, cfg *Config, src1, src2 *source.Source)
 		}))
 	}
 
-	if elems.Schema {
-		schemaDiffers, err := differsForSchema(ctx, cfg, elems.RowCount, src1, src2)
+	if modes.Schema {
+		schemaDiffers, err := differsForSchema(ctx, cfg, modes.RowCount, src1, src2)
 		if err != nil {
-			return err
+			return hasDiffs, err
 		}
 		differs = append(differs, schemaDiffers...)
 	}
 
-	if elems.Data {
+	if modes.Data {
 		// We're going for it... diff all table data.
 		dataDiffers, err := differsForAllTableData(ctx, cfg, src1, src2)
 		if err != nil {
-			return err
+			return hasDiffs, err
 		}
 		differs = append(differs, dataDiffers...)
 	}

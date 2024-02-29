@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/testrun"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
@@ -35,6 +36,7 @@ func TestSchemaDiff(t *testing.T) {
 
 	err := tr.Reset().Exec("diff", "@test_a", "@test_b", "--schema")
 
-	require.NoError(t, err)
+	require.Error(t, err)
+	require.Equal(t, 1, errz.ExitCode(err), "should be exit code 1 on differences")
 	fmt.Fprintln(os.Stdout, tr.Out.String())
 }

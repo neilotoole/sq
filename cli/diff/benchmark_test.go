@@ -27,11 +27,11 @@ func BenchmarkExecTableDiff(b *testing.B) {
 	require.NoError(b, ru.Config.Collection.Add(srcA))
 	require.NoError(b, ru.Config.Collection.Add(srcB))
 
-	elems := &diff.Elements{Data: true}
+	elems := &diff.Modes{Data: true}
 	cfg := &diff.Config{
 		Run:            ru,
 		RecordWriterFn: tablew.NewRecordWriter,
-		Elements:       elems,
+		Modes:          elems,
 		Lines:          3,
 		Printing:       output.NewPrinting(),
 		Colors:         diffdoc.NewColors(),
@@ -43,7 +43,7 @@ func BenchmarkExecTableDiff(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		buf := &bytes.Buffer{}
 		ru.Out = buf
-		err := diff.ExecTableDiff(th.Context, cfg, srcA, sakila.TblActor, srcB, sakila.TblActor)
+		_, err := diff.ExecTableDiff(th.Context, cfg, srcA, sakila.TblActor, srcB, sakila.TblActor)
 		require.NoError(b, err)
 		buf.Reset()
 	}

@@ -9,8 +9,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/neilotoole/sq/testh/proj"
-
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/run"
@@ -18,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/files"
+	"github.com/neilotoole/sq/testh/proj"
 )
 
 // newXCmd returns the "x" command, which is the container

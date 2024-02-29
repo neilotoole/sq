@@ -27,6 +27,15 @@ var OptDiffNumLines = options.NewInt(
 	options.TagOutput,
 )
 
+var OptDiffStopAfter = options.NewInt(
+	"diff.stop",
+	&options.Flag{Name: "stop", Short: 'n'},
+	3,
+	"Stop after <n> differences",
+	`Stop after <n> differences are found. If n <= 0, no limit is applied.`,
+	options.TagOutput,
+)
+
 var OptDiffHunkMaxSize = options.NewInt(
 	"diff.hunk.max-size",
 	nil,
@@ -98,8 +107,7 @@ source overview, schema, and table row counts. Table row data is not compared.
 When comparing tables ("table diff"), the default is to diff table schema and
 row counts. Table row data is not compared.
 
-Use flags to specify the elements you want to compare. The available
-elements are:
+Use flags to specify the modes you want to compare. The available modes are:
 
   --overview   source metadata, without schema (source diff only)
   --dbprops    database/server properties (source diff only)
@@ -108,13 +116,14 @@ elements are:
   --data       row data values
   --all        all of the above
 
-Flag --data diffs the values of each row in the compared tables. Use with
-caution with large tables.
+Flag --data diffs the values of each row in the compared tables, until the stop
+limit is reached. Use the --stop (-n) flag or the diff.stop config option to
+specify the stop limit. The default is 3.
 
 Use --format with --data to specify the format to render the diff records.
 Line-based formats (e.g. "text" or "jsonl") are often the most ergonomic,
-although "yaml" may be preferable for comparing column values. The
-available formats are:
+although "yaml" may be preferable for comparing column values. The available
+formats are:
 
   text, csv, tsv,
   json, jsona, jsonl,
@@ -132,15 +141,16 @@ Note that --overview and --dbprops only apply to source diffs, not table diffs.
 Flag --unified (-U) controls the number of lines to show surrounding a diff.
 The default (3) can be changed via:
 
-  $ sq config set diff.lines N`,
+  $ sq config set diff.lines N
+
+Exit status is 0 if inputs are the same, 1 if different, 2 on any error.`,
 		Args: cobra.ExactArgs(2),
 		ValidArgsFunction: (&handleTableCompleter{
 			handleRequired: true,
 			max:            2,
 		}).complete,
 		RunE: execDiff,
-		Example: `
-  Metadata diff
+		Example: `  Metadata diff
   -------------
 
   # Diff sources (compare default elements).
@@ -173,17 +183,18 @@ The default (3) can be changed via:
   Row data diff
   -------------
 
-  # Compare data in the actor tables.
-  $ sq diff @prod/sakila.actor @staging/sakila.actor --data
+  # Compare data in the actor tables, stopping at the first difference.
+  $ sq diff @prod/sakila.actor @staging/sakila.actor --data --stop 1
 
   # Compare data in the actor tables, but output in JSONL.
   $ sq diff @prod/sakila.actor @staging/sakila.actor --data --format jsonl
 
   # Compare data in all tables and views. Caution: may be slow.
-  $ sq diff @prod/sakila @staging/sakila --data`,
+  $ sq diff @prod/sakila @staging/sakila --data --stop 0`,
 	}
 
 	addOptionFlag(cmd.Flags(), OptDiffNumLines)
+	addOptionFlag(cmd.Flags(), OptDiffStopAfter)
 	addOptionFlag(cmd.Flags(), OptDiffDataFormat)
 
 	cmd.Flags().BoolP(flag.DiffOverview, flag.DiffOverviewShort, false, flag.DiffOverviewUsage)
@@ -209,9 +220,22 @@ The default (3) can be changed via:
 }
 
 // execDiff compares sources or tables.
-func execDiff(cmd *cobra.Command, args []string) error {
+func execDiff(cmd *cobra.Command, args []string) (err error) {
 	ctx := cmd.Context()
 	ru := run.FromContext(ctx)
+
+	var foundDiffs bool
+	defer func() {
+		// From GNU diff help:
+		// > Exit status is 0 if inputs are the same, 1 if different, 2 if trouble.
+		switch {
+		case err != nil:
+			err = errz.WithExitCode(err, 2)
+		case foundDiffs:
+			// We want to exit 1 if diffs were found.
+			err = errz.WithExitCode(errz.ErrNoMsg, 1)
+		}
+	}()
 
 	handle1, table1, err := source.ParseTableHandle(args[0])
 	if err != nil {
@@ -248,6 +272,7 @@ func execDiff(cmd *cobra.Command, args []string) error {
 	diffCfg := &diff.Config{
 		Run:            ru,
 		Lines:          OptDiffNumLines.Get(o),
+		StopAfter:      OptDiffStopAfter.Get(o),
 		HunkMaxSize:    OptDiffHunkMaxSize.Get(o),
 		Printing:       ru.Writers.OutPrinting.Clone(),
 		Colors:         ru.Writers.OutPrinting.Diff.Clone(),
@@ -261,20 +286,22 @@ func execDiff(cmd *cobra.Command, args []string) error {
 
 	switch {
 	case table1 == "" && table2 == "":
-		diffCfg.Elements = getDiffSourceElements(cmd)
-		return diff.ExecSourceDiff(ctx, diffCfg, src1, src2)
+		diffCfg.Modes = getDiffSourceElements(cmd)
+		foundDiffs, err = diff.ExecSourceDiff(ctx, diffCfg, src1, src2)
 	case table1 == "" || table2 == "":
 		return errz.Errorf("invalid args: both must be either @HANDLE or @HANDLE.TABLE")
 	default:
-		diffCfg.Elements = getDiffTableElements(cmd)
-		return diff.ExecTableDiff(ctx, diffCfg, src1, table1, src2, table2)
+		diffCfg.Modes = getDiffTableElements(cmd)
+		foundDiffs, err = diff.ExecTableDiff(ctx, diffCfg, src1, table1, src2, table2)
 	}
+
+	return err
 }
 
-func getDiffSourceElements(cmd *cobra.Command) *diff.Elements {
+func getDiffSourceElements(cmd *cobra.Command) *diff.Modes {
 	if !isAnyDiffElementsFlagChanged(cmd) {
 		// Default
-		return &diff.Elements{
+		return &diff.Modes{
 			Overview:     true,
 			DBProperties: false,
 			Schema:       true,
@@ -284,7 +311,7 @@ func getDiffSourceElements(cmd *cobra.Command) *diff.Elements {
 	}
 
 	if cmdFlagChanged(cmd, flag.DiffAll) {
-		return &diff.Elements{
+		return &diff.Modes{
 			Overview:     true,
 			DBProperties: true,
 			Schema:       true,
@@ -293,7 +320,7 @@ func getDiffSourceElements(cmd *cobra.Command) *diff.Elements {
 		}
 	}
 
-	return &diff.Elements{
+	return &diff.Modes{
 		Overview:     cmdFlagIsSetTrue(cmd, flag.DiffOverview),
 		DBProperties: cmdFlagIsSetTrue(cmd, flag.DiffDBProps),
 		Schema:       cmdFlagIsSetTrue(cmd, flag.DiffSchema),
@@ -302,24 +329,24 @@ func getDiffSourceElements(cmd *cobra.Command) *diff.Elements {
 	}
 }
 
-func getDiffTableElements(cmd *cobra.Command) *diff.Elements {
+func getDiffTableElements(cmd *cobra.Command) *diff.Modes {
 	if !isAnyDiffElementsFlagChanged(cmd) {
 		// Default
-		return &diff.Elements{
+		return &diff.Modes{
 			Schema:   true,
 			RowCount: true,
 		}
 	}
 
 	if cmdFlagChanged(cmd, flag.DiffAll) {
-		return &diff.Elements{
+		return &diff.Modes{
 			Schema:   true,
 			RowCount: true,
 			Data:     true,
 		}
 	}
 
-	return &diff.Elements{
+	return &diff.Modes{
 		Schema:   cmdFlagIsSetTrue(cmd, flag.DiffSchema),
 		RowCount: cmdFlagIsSetTrue(cmd, flag.DiffRowCount),
 		Data:     cmdFlagIsSetTrue(cmd, flag.DiffData),

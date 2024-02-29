@@ -243,3 +243,18 @@ func TestIsErrContext(t *testing.T) {
 	require.True(t, errz.IsErrContext(errz.Err(context.Canceled)))
 	require.True(t, errz.IsErrContext(fmt.Errorf("wrap: %w", context.Canceled)))
 }
+
+func TestWithExitCode(t *testing.T) {
+	got := errz.WithExitCode(nil, 1)
+	require.Nil(t, got)
+
+	err := errz.New("nope")
+	require.Equal(t, -1, errz.ExitCode(err))
+
+	err = errz.WithExitCode(err, 2)
+	require.Equal(t, 2, errz.ExitCode(err))
+
+	err = errz.WithExitCode(errz.ErrNoMsg, 3)
+	require.Equal(t, 3, errz.ExitCode(err))
+	require.True(t, errors.Is(err, errz.ErrNoMsg))
+}

@@ -264,8 +264,6 @@ func getPair[K comparable, V any](ctx context.Context, c *oncecache.Cache[K, V],
 		val2, mdErr = c.Get(gCtx, key2)
 		return mdErr
 	})
-	if err = g.Wait(); err != nil {
-		return val1, val2, err
-	}
+	err = g.Wait()
 	return val1, val2, err
 }

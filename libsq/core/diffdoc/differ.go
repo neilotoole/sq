@@ -50,9 +50,9 @@ func (d *Differ) execute(ctx context.Context, cancelFn func(error)) func() error
 // Zero indicates sequential execution; a negative values indicates unbounded
 // concurrency.
 //
-// The first error encountered is returned.
-func Execute(ctx context.Context, w io.Writer, concurrency int, differs []*Differ) (err error) {
-	// REVISIT: should Execute accept <-chan *Differ instead of []*Differ?
+// The first error encountered is returned; hasDiff returns true if differences
+// were found, and false if no differences.
+func Execute(ctx context.Context, w io.Writer, concurrency int, differs []*Differ) (hasDiffs bool, err error) {
 	defer func() {
 		for _, differ := range differs {
 			if differs == nil || differ.doc == nil {
@@ -90,6 +90,7 @@ func Execute(ctx context.Context, w io.Writer, concurrency int, differs []*Diffe
 		rdrs = append(rdrs, differs[i].doc)
 	}
 
-	_, err = io.Copy(w, contextio.NewReader(ctx, io.MultiReader(rdrs...)))
-	return err
+	var n int64
+	n, err = io.Copy(w, contextio.NewReader(ctx, io.MultiReader(rdrs...)))
+	return n > 0, err
 }

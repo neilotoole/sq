@@ -13,12 +13,11 @@ type Config struct {
 	// Run is the main program run.Run instance.
 	Run *run.Run
 
-	// Elements specifies what elements to diff.
-	Elements *Elements
+	// Modes specifies what diff modes to use.
+	Modes *Modes
 
-	// RecordWriterFn is a factory function that returns
-	// an output.RecordWriter used to generate diff text
-	// when comparing table data.
+	// RecordWriterFn is a factory function that returns an output.RecordWriter
+	// used to generate diff text when comparing table data.
 	RecordWriterFn output.NewRecordWriterFunc
 
 	// Printing is the output.Printing instance to use when generating diff text.
@@ -39,10 +38,13 @@ type Config struct {
 	// Zero indicates sequential execution; a negative values indicates unbounded
 	// concurrency.
 	Concurrency int
+
+	// StopAfter specifies the number of diffs to execute before stopping.
+	StopAfter int
 }
 
-// Elements determines what source elements to compare.
-type Elements struct {
+// Modes determines what diff modes to execute.
+type Modes struct {
 	// Overview compares a summary of the sources.
 	Overview bool
 

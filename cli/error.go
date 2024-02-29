@@ -40,7 +40,7 @@ func PrintError(ctx context.Context, ru *run.Run, err error) {
 		return
 	}
 
-	if errors.Is(err, errNoMsg) {
+	if errors.Is(err, errz.ErrNoMsg) {
 		// errNoMsg is a sentinel err that sq doesn't want to print
 		return
 	}
