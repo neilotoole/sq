@@ -27,6 +27,15 @@ var OptDiffNumLines = options.NewInt(
 	options.TagOutput,
 )
 
+var OptDiffStopAfter = options.NewInt(
+	"diff.stop-after",
+	&options.Flag{Name: "stop-after", Short: 'n'},
+	3,
+	"Stop after <n> differences",
+	`Stop after <n> differences are found. If n <= 0, no limit is applied.`,
+	options.TagOutput,
+)
+
 var OptDiffHunkMaxSize = options.NewInt(
 	"diff.hunk.max-size",
 	nil,
@@ -184,6 +193,7 @@ The default (3) can be changed via:
 	}
 
 	addOptionFlag(cmd.Flags(), OptDiffNumLines)
+	addOptionFlag(cmd.Flags(), OptDiffStopAfter)
 	addOptionFlag(cmd.Flags(), OptDiffDataFormat)
 
 	cmd.Flags().BoolP(flag.DiffOverview, flag.DiffOverviewShort, false, flag.DiffOverviewUsage)
@@ -248,6 +258,7 @@ func execDiff(cmd *cobra.Command, args []string) error {
 	diffCfg := &diff.Config{
 		Run:            ru,
 		Lines:          OptDiffNumLines.Get(o),
+		StopAfter:      OptDiffStopAfter.Get(o),
 		HunkMaxSize:    OptDiffHunkMaxSize.Get(o),
 		Printing:       ru.Writers.OutPrinting.Clone(),
 		Colors:         ru.Writers.OutPrinting.Diff.Clone(),
@@ -261,20 +272,20 @@ func execDiff(cmd *cobra.Command, args []string) error {
 
 	switch {
 	case table1 == "" && table2 == "":
-		diffCfg.Elements = getDiffSourceElements(cmd)
+		diffCfg.Modes = getDiffSourceElements(cmd)
 		return diff.ExecSourceDiff(ctx, diffCfg, src1, src2)
 	case table1 == "" || table2 == "":
 		return errz.Errorf("invalid args: both must be either @HANDLE or @HANDLE.TABLE")
 	default:
-		diffCfg.Elements = getDiffTableElements(cmd)
+		diffCfg.Modes = getDiffTableElements(cmd)
 		return diff.ExecTableDiff(ctx, diffCfg, src1, table1, src2, table2)
 	}
 }
 
-func getDiffSourceElements(cmd *cobra.Command) *diff.Elements {
+func getDiffSourceElements(cmd *cobra.Command) *diff.Modes {
 	if !isAnyDiffElementsFlagChanged(cmd) {
 		// Default
-		return &diff.Elements{
+		return &diff.Modes{
 			Overview:     true,
 			DBProperties: false,
 			Schema:       true,
@@ -284,7 +295,7 @@ func getDiffSourceElements(cmd *cobra.Command) *diff.Elements {
 	}
 
 	if cmdFlagChanged(cmd, flag.DiffAll) {
-		return &diff.Elements{
+		return &diff.Modes{
 			Overview:     true,
 			DBProperties: true,
 			Schema:       true,
@@ -293,7 +304,7 @@ func getDiffSourceElements(cmd *cobra.Command) *diff.Elements {
 		}
 	}
 
-	return &diff.Elements{
+	return &diff.Modes{
 		Overview:     cmdFlagIsSetTrue(cmd, flag.DiffOverview),
 		DBProperties: cmdFlagIsSetTrue(cmd, flag.DiffDBProps),
 		Schema:       cmdFlagIsSetTrue(cmd, flag.DiffSchema),
@@ -302,24 +313,24 @@ func getDiffSourceElements(cmd *cobra.Command) *diff.Elements {
 	}
 }
 
-func getDiffTableElements(cmd *cobra.Command) *diff.Elements {
+func getDiffTableElements(cmd *cobra.Command) *diff.Modes {
 	if !isAnyDiffElementsFlagChanged(cmd) {
 		// Default
-		return &diff.Elements{
+		return &diff.Modes{
 			Schema:   true,
 			RowCount: true,
 		}
 	}
 
 	if cmdFlagChanged(cmd, flag.DiffAll) {
-		return &diff.Elements{
+		return &diff.Modes{
 			Schema:   true,
 			RowCount: true,
 			Data:     true,
 		}
 	}
 
-	return &diff.Elements{
+	return &diff.Modes{
 		Schema:   cmdFlagIsSetTrue(cmd, flag.DiffSchema),
 		RowCount: cmdFlagIsSetTrue(cmd, flag.DiffRowCount),
 		Data:     cmdFlagIsSetTrue(cmd, flag.DiffData),

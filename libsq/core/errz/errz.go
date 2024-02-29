@@ -361,3 +361,23 @@ func IsErrContext(err error) bool {
 	}
 	return errors.Is(err, context.DeadlineExceeded)
 }
+
+// ErrStop is a sentinel error a la [io.EOF] used to indicate that an explicit
+// stop condition has been reached. The stop condition is typically not an
+// indication of a failure state, but rather a signal to stop processing. It is
+// usually used in conjunction with context.CancelCauseFunc.
+//
+// See: [IsContextStop].
+var ErrStop = errors.New("explicit stop")
+
+// IsContextStop returns true if ctx's cause error is [ErrStop].
+func IsContextStop(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	err := context.Cause(ctx)
+	if err == nil {
+		return false
+	}
+	return errors.Is(err, ErrStop)
+}

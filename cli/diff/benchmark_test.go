@@ -27,11 +27,11 @@ func BenchmarkExecTableDiff(b *testing.B) {
 	require.NoError(b, ru.Config.Collection.Add(srcA))
 	require.NoError(b, ru.Config.Collection.Add(srcB))
 
-	elems := &diff.Elements{Data: true}
+	elems := &diff.Modes{Data: true}
 	cfg := &diff.Config{
 		Run:            ru,
 		RecordWriterFn: tablew.NewRecordWriter,
-		Elements:       elems,
+		Modes:          elems,
 		Lines:          3,
 		Printing:       output.NewPrinting(),
 		Colors:         diffdoc.NewColors(),

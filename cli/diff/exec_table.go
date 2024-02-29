@@ -16,7 +16,7 @@ func ExecTableDiff(ctx context.Context, cfg *Config,
 ) error {
 	var (
 		ru      = cfg.Run
-		elems   = cfg.Elements
+		elems   = cfg.Modes
 		td1     = source.Table{Handle: src1.Handle, Name: table1}
 		td2     = source.Table{Handle: src2.Handle, Name: table2}
 		differs []*diffdoc.Differ
