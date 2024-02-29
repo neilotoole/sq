@@ -13,7 +13,7 @@ This release features significant improvements to [`sq diff`](https://sq.io/docs
 
 ## Added
 
-- Previously a `sq diff --data` diffed every row, which could get crazy
+- Previously `sq diff --data` diffed every row, which could get crazy
   with a large table. Now the command stops after N differences, where N is controlled by
   the `--stop` flag, or the new config option [`diff.stop`](https://sq.io/docs/config#diffstop).
   The default stop-after value is `3`; set to `0` to show all differences.

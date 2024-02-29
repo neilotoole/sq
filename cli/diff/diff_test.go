@@ -2,13 +2,13 @@ package diff_test
 
 import (
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/testrun"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
