@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/neilotoole/sq/cli/output/csvw"
 	"slices"
 	"strings"
 
@@ -380,7 +381,7 @@ LOOP:
 
 		// First, we get the before-the-difference record pairs from the tailbuf.
 		// Conveniently, the tailbuf also already contains the differing record pair.
-		hunkPairs = tb.Slice(row-numLines, row+1)
+		hunkPairs = tailbuf.SliceNominal(tb, row-numLines, row+1)
 
 		// Create a new hunk in doc. The actual diff text will get written to that
 		// hunk.
@@ -456,7 +457,7 @@ LOOP:
 		}
 
 		// OK, now we've got enough record pairs to populate the hunk.
-		rd.populateHunk(ctx, hunkPairs, hunk)
+		rd.populateHunk2(ctx, hunkPairs, hunk)
 		if err = hunk.Err(); err != nil {
 			// Uh-oh, something bad happened while populating the hunk.
 			// Time to head for the exit.
@@ -471,6 +472,12 @@ LOOP:
 	}
 
 	return err
+}
+
+func (rd *recordDiffer) populateHunk2(ctx context.Context, pairs []record.Pair, hunk *diffdoc.Hunk) {
+	recMeta1, recMeta2 := rd.recMetaFn()
+	dw := csvw.NewDiffWriter(rd.cfg.Printing)
+	dw.Write(ctx, hunk, recMeta1, recMeta2, pairs)
 }
 
 // populateHunk populates hunk with the diff of the record pairs. Before return,

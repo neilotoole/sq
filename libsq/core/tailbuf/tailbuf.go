@@ -17,7 +17,7 @@ import (
 // or Buf.WriteAll methods. However, Buf drops the oldest items as it fills
 // (which is the entire point of this package): the tail window is the subset of
 // the nominal buffer that is currently available. Some of Buf's methods take
-// arguments that are indices into the nominal buffer, for example [Buf.Slice].
+// arguments that are indices into the nominal buffer, for example [Buf.SliceNominal].
 type Buf[T any] struct {
 	// window is the circular buffer.
 	window []T
@@ -90,7 +90,7 @@ func (b *Buf[T]) write(item T) {
 // Tail returns a slice containing the current tail window of items in the
 // buffer, with the oldest item at index 0. Depending on the state of Buf, the
 // returned slice may be a slice of Buf's internal data, or a copy. Thus you
-// should copy the returned slice before modifying it, or instead use TailSlice.
+// should copy the returned slice before modifying it, or instead use SliceTail.
 func (b *Buf[T]) Tail() []T {
 	switch {
 	case len(b.window) == 0, b.count < 1:
@@ -127,101 +127,6 @@ func (b *Buf[T]) InBounds(i int) bool {
 // values are the same as [Buf.Offset] and [Buf.Count].
 func (b *Buf[T]) Bounds() (start, end int) {
 	return b.Offset(), b.Count()
-}
-
-// Slice returns a slice into the nominal buffer, using the standard
-// [inclusive:exclusive] slicing mechanics.
-//
-// Boundary checking is relaxed. If the buffer is empty, the returned slice
-// is empty. Otherwise, if the requested range is completely outside the bounds
-// of the tail window, the returned slice is empty; if the range overlaps with
-// the tail window, the returned slice contains the overlapping items. If strict
-// boundary checking is important to you, use [Buf.InBounds] to check the start
-// and end indices.
-//
-// Slice is approximately functionality equivalent to reslicing the result of
-// [Buf.Tail], but it may avoid wasteful copying (and has relaxed boundary
-// checking).
-//
-//	buf := tailbuf.New[int](3).WriteAll(1, 2, 3)
-//	a := buf.Tail()[0:2]
-//	b := buf.Slice(0, 2)
-//	assert.Equal(t, a, b)
-//
-// If start < 0, zero is used. Slice panics if end is less than start.
-func (b *Buf[T]) Slice(start, end int) []T {
-	offset := b.Offset()
-	start -= offset
-	if start < 0 {
-		start = 0
-	}
-	end -= offset
-	if end <= start {
-		return make([]T, 0)
-	}
-
-	return b.TailSlice(start, end)
-}
-
-// TailSlice returns a slice of the tail window, using the standard
-// [inclusive:exclusive] slicing mechanics, but with permissive bounds checking.
-// The slice is freshly allocated, so the caller is free to mutate it.
-//
-// A call to TailSlice is equivalent to reslicing the result of [Buf.Tail], but
-// it may avoid unnecessary copying, depending on the state of Buf.
-//
-//	buf := tailbuf.New[int](3).WriteAll(1, 2, 3)
-//	a := buf.Tail()[0:2]
-//	b := buf.TailSlice(0, 2)
-//	fmt.Println("a:", a, "b:", b)
-//	// Output: a: [1 2] b: [1 2]
-//
-// If Buf is empty, the returned slice is empty. Otherwise, if the requested
-// range is completely outside the bounds of the tail window, the returned slice
-// is empty; if the range overlaps with the tail window, the returned slice
-// contains the overlapping items. If strict boundary checking is important, use
-// [Buf.InBounds] to check the start and end indices.
-//
-// Slice panics if start is negative or end is less than start.
-//
-// See also: [Buf.Slice], [Buf.Tail], [Buf.Bounds], [Buf.InBounds].
-func (b *Buf[T]) TailSlice(start, end int) []T {
-	switch {
-	case start < 0:
-		panic("start must be >= 0")
-	case end < start:
-		panic("end must be >= start")
-	case len(b.window) == 0, end == start, b.count == 0, start >= b.count:
-		return make([]T, 0)
-	case b.count == 1, b.front == b.back:
-		// Special case: the buffer has only one item.
-		if start == 0 && end >= 1 {
-			return []T{b.window[0]}
-		}
-		return make([]T, 0)
-	case b.front > b.back:
-		if end > b.count {
-			end = b.count
-		}
-		if end > len(b.window) {
-			end = len(b.window)
-		}
-		s := make([]T, 0, end-start)
-		return append(s, b.window[start:end]...)
-	default: // b.back > b.front
-		if end >= b.count {
-			end = b.count - 1
-		}
-		if end > len(b.window) {
-			end = len(b.window)
-		}
-		s := make([]T, 0, end-start)
-		s = append(s, b.window[b.back+start:]...)
-		frontIndex := b.front + end - len(b.window) + 1
-
-		// return append(s, b.window[:b.front+end-len(b.window)+1]...)
-		return append(s, b.window[:frontIndex]...)
-	}
 }
 
 // Capacity returns the capacity of Buf, which is the fixed size specified when
@@ -359,4 +264,99 @@ func (b *Buf[T]) Do(ctx context.Context, fn func(ctx context.Context, item T, in
 	}
 
 	return nil
+}
+
+// SliceNominal returns a slice into the nominal buffer, using the standard
+// [inclusive:exclusive] slicing mechanics.
+//
+// Boundary checking is relaxed. If the buffer is empty, the returned slice
+// is empty. Otherwise, if the requested range is completely outside the bounds
+// of the tail window, the returned slice is empty; if the range overlaps with
+// the tail window, the returned slice contains the overlapping items. If strict
+// boundary checking is important to you, use [Buf.InBounds] to check the start
+// and end indices.
+//
+// SliceNominal is approximately functionality equivalent to reslicing the result of
+// [Buf.Tail], but it may avoid wasteful copying (and has relaxed boundary
+// checking).
+//
+//	buf := tailbuf.New[int](3).WriteAll(1, 2, 3)
+//	a := buf.Tail()[0:2]
+//	b := buf.SliceNominal(0, 2)
+//	assert.Equal(t, a, b)
+//
+// If start < 0, zero is used. SliceNominal panics if end is less than start.
+func SliceNominal[T any](b *Buf[T], start, end int) []T {
+	offset := b.Offset()
+	start -= offset
+	if start < 0 {
+		start = 0
+	}
+	end -= offset
+	if end <= start {
+		return make([]T, 0)
+	}
+
+	return SliceTail(b, start, end)
+}
+
+// SliceTail returns a slice of the tail window, using the standard
+// [inclusive:exclusive] slicing mechanics, but with permissive bounds checking.
+// The slice is freshly allocated, so the caller is free to mutate it.
+//
+// A call to SliceTail is equivalent to reslicing the result of [Buf.Tail], but
+// it may avoid unnecessary copying, depending on the state of Buf.
+//
+//	buf := tailbuf.New[int](3).WriteAll(1, 2, 3)
+//	a := buf.Tail()[0:2]
+//	b := buf.SliceTail(0, 2)
+//	fmt.Println("a:", a, "b:", b)
+//	// Output: a: [1 2] b: [1 2]
+//
+// If Buf is empty, the returned slice is empty. Otherwise, if the requested
+// range is completely outside the bounds of the tail window, the returned slice
+// is empty; if the range overlaps with the tail window, the returned slice
+// contains the overlapping items. If strict boundary checking is important, use
+// [Buf.InBounds] to check the start and end indices.
+//
+// SliceTail panics if start is negative or end is less than start.
+//
+// See also: [SliceNominal], [Buf.Tail], [Buf.Bounds], [Buf.InBounds].
+func SliceTail[T any](b *Buf[T], start, end int) []T {
+	switch {
+	case start < 0:
+		panic("start must be >= 0")
+	case end < start:
+		panic("end must be >= start")
+	case len(b.window) == 0, end == start, b.count == 0, start >= b.count:
+		return make([]T, 0)
+	case b.count == 1, b.front == b.back:
+		// Special case: the buffer has only one item.
+		if start == 0 && end >= 1 {
+			return []T{b.window[0]}
+		}
+		return make([]T, 0)
+	case b.front > b.back:
+		if end > b.count {
+			end = b.count
+		}
+		if end > len(b.window) {
+			end = len(b.window)
+		}
+		s := make([]T, 0, end-start)
+		return append(s, b.window[start:end]...)
+	default: // b.back > b.front
+		if end >= b.count {
+			end = b.count - 1
+		}
+		if end > len(b.window) {
+			end = len(b.window)
+		}
+		s := make([]T, 0, end-start)
+		s = append(s, b.window[b.back+start:]...)
+		frontIndex := b.front + end - len(b.window) + 1
+
+		// return append(s, b.window[:b.front+end-len(b.window)+1]...)
+		return append(s, b.window[:frontIndex]...)
+	}
 }
