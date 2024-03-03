@@ -276,9 +276,9 @@ func (b *Buf[T]) Do(ctx context.Context, fn func(ctx context.Context, item T, in
 // boundary checking is important to you, use [Buf.InBounds] to check the start
 // and end indices.
 //
-// SliceNominal is approximately functionality equivalent to reslicing the result of
-// [Buf.Tail], but it may avoid wasteful copying (and has relaxed boundary
-// checking).
+// SliceNominal is approximately functionality equivalent to reslicing the
+// result of [Buf.Tail], but it may avoid wasteful copying (and has relaxed
+// bounds checking).
 //
 //	buf := tailbuf.New[int](3).WriteAll(1, 2, 3)
 //	a := buf.Tail()[0:2]
@@ -356,7 +356,6 @@ func SliceTail[T any](b *Buf[T], start, end int) []T {
 		s = append(s, b.window[b.back+start:]...)
 		frontIndex := b.front + end - len(b.window) + 1
 
-		// return append(s, b.window[:b.front+end-len(b.window)+1]...)
 		return append(s, b.window[:frontIndex]...)
 	}
 }

@@ -5,9 +5,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/neilotoole/sq/cli/output/csvw"
 	"slices"
 	"strings"
+
+	"github.com/neilotoole/sq/cli/output/csvw"
 
 	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
@@ -217,9 +218,19 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	go func() {
 		var rec1, rec2 record.Record
 		var diffCount int
-		stopAfter := cfg.StopAfter
+
+		// If cfg.StopAfter is set, we'll stop after diffCount reaches cfg.StopAfter
+		// plus cfg.Lines. We add cfg.Lines to ensure that we have enough records
+		// to generate the "context lines" after the last differing record.
+		explicitStopAt := -1
 
 		for i := 0; ctx.Err() == nil; i++ {
+			if explicitStopAt > -1 && i > explicitStopAt {
+				dbCancel(errz.ErrStop) // Explicit stop
+				close(recPairsCh)
+				return
+			}
+
 			select {
 			case <-ctx.Done():
 				return
@@ -244,10 +255,8 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 			}
 
 			recPairsCh <- rp
-			if stopAfter > 0 && diffCount >= stopAfter {
-				dbCancel(errz.ErrStop) // Explicit stop
-				close(recPairsCh)
-				return
+			if explicitStopAt == -1 && cfg.StopAfter > 0 && diffCount >= cfg.StopAfter {
+				explicitStopAt = i + cfg.Lines
 			}
 		}
 	}()
@@ -448,7 +457,7 @@ LOOP:
 				break
 			}
 
-			if pairMatchSeq > numLines*2 {
+			if pairMatchSeq >= numLines*2 {
 				// We've looked ahead far enough to avoid the adjacent hunk line
 				// duplication issue, so we can trim off those extra lookahead pairs.
 				hunkPairs = hunkPairs[:len(hunkPairs)-numLines]
@@ -458,6 +467,7 @@ LOOP:
 
 		// OK, now we've got enough record pairs to populate the hunk.
 		rd.populateHunk2(ctx, hunkPairs, hunk)
+		// rd.populateHunk(ctx, hunkPairs, hunk)
 		if err = hunk.Err(); err != nil {
 			// Uh-oh, something bad happened while populating the hunk.
 			// Time to head for the exit.
@@ -483,7 +493,7 @@ func (rd *recordDiffer) populateHunk2(ctx context.Context, pairs []record.Pair, 
 // populateHunk populates hunk with the diff of the record pairs. Before return,
 // the hunk is always sealed via [diffdoc.Hunk.Seal]. The caller can check
 // [diffdoc.Hunk.Err] to see if an error occurred.
-func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, hunk *diffdoc.Hunk) {
+func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, hunk *diffdoc.Hunk) { //nolint:unused
 	var (
 		handleTbl1           = rd.td1.String()
 		handleTbl2           = rd.td2.String()

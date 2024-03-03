@@ -15,9 +15,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/record"
 	"io"
 	"sync"
+
+	"github.com/neilotoole/sq/libsq/core/record"
 
 	"github.com/neilotoole/sq/libsq/core/bytez"
 	"github.com/neilotoole/sq/libsq/core/colorz"

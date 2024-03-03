@@ -3,6 +3,7 @@ package diff
 import (
 	"bytes"
 	"context"
+
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -10,8 +11,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
-
-
+//nolint:unused
 func renderRecords(ctx context.Context, cfg *Config, recMeta record.Meta, recs []record.Record) ([]byte, error) {
 	if len(recs) == 0 {
 		return nil, nil

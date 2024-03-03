@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"slices"
+
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/colorz"
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
 	"github.com/neilotoole/sq/libsq/core/record"
-	"slices"
 )
 
 func NewDiffWriter(pr *output.Printing) *DiffWriter {
@@ -79,8 +80,8 @@ func (dw *DiffWriter) Write(ctx context.Context, dest *diffdoc.Hunk, rm1, rm2 re
 			_ = csv1.WriteRecords(ctx, recs)
 			_ = csv1.Flush(ctx)
 			_, _ = dest.Write(dw.contextPrefix)
-			dest.Write(buf1.Bytes()[0 : buf1.Len()-1])
-			dest.Write(dw.contextSuffix)
+			_, _ = dest.Write(buf1.Bytes()[0 : buf1.Len()-1])
+			_, _ = dest.Write(dw.contextSuffix)
 			buf1.Reset()
 			continue
 		}
@@ -90,16 +91,16 @@ func (dw *DiffWriter) Write(ctx context.Context, dest *diffdoc.Hunk, rm1, rm2 re
 		_ = csv1.WriteRecords(ctx, recs)
 		_ = csv1.Flush(ctx)
 		_, _ = dest.Write(dw.deletePrefix)
-		dest.Write(buf1.Bytes()[0 : buf1.Len()-1])
-		dest.Write(dw.deleteSuffix)
+		_, _ = dest.Write(buf1.Bytes()[0 : buf1.Len()-1])
+		_, _ = dest.Write(dw.deleteSuffix)
 		buf1.Reset()
 
 		recs[0] = pair.Rec2()
 		_ = csv2.WriteRecords(ctx, recs)
 		_ = csv2.Flush(ctx)
 		_, _ = dest.Write(dw.insertPrefix)
-		dest.Write(buf2.Bytes()[0 : buf2.Len()-1])
-		dest.Write(dw.insertSuffix)
+		_, _ = dest.Write(buf2.Bytes()[0 : buf2.Len()-1])
+		_, _ = dest.Write(dw.insertSuffix)
 		buf2.Reset()
 	}
 
@@ -117,21 +118,5 @@ func (dw *DiffWriter) Write(ctx context.Context, dest *diffdoc.Hunk, rm1, rm2 re
 	}
 
 	seq := colorz.ExtractSeqs(dw.pr.Diff.Section)
-	hunkHeader = append(seq.Prefix, []byte(headerText)...)
-	hunkHeader = append(hunkHeader, seq.Suffix...)
-	hunkHeader = append(hunkHeader, '\n')
-}
-
-func equivalentRecMeta(rm1, rm2 record.Meta) bool {
-	if len(rm1) != len(rm2) {
-		return false
-	}
-
-	for i := range rm1 {
-		if rm1[i].Kind() != rm2[i].Kind() {
-			return false
-		}
-	}
-
-	return slices.Equal(rm1.MungedNames(), rm2.MungedNames())
+	hunkHeader = seq.Appendln(hunkHeader, []byte(headerText))
 }

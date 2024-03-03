@@ -245,6 +245,25 @@ func (s Seqs) Writeln(w io.Writer, p []byte) {
 	}
 }
 
+// Append appends colorized p to dest, returning the result. If p is empty,
+// or if s.Prefix is empty, dest is returned unmodified.
+func (s Seqs) Append(dest, p []byte) []byte {
+	if len(p) == 0 || len(s.Prefix) == 0 {
+		return dest
+	}
+
+	dest = append(dest, s.Prefix...)
+	dest = append(dest, p...)
+	dest = append(dest, s.Suffix...)
+	return dest
+}
+
+// Appendln appends colorized p to dest and then a newline, returning the
+// result.
+func (s Seqs) Appendln(dest, p []byte) []byte {
+	return append(s.Append(dest, p), '\n')
+}
+
 var _ ByteWriter = (*bytes.Buffer)(nil)
 
 // ByteWriter is implemented by bytes.Buffer. It's used by [Seqs.WriteByte] and
