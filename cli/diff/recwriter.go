@@ -3,36 +3,37 @@ package diff
 import (
 	"bytes"
 	"context"
+	"strings"
+
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"golang.org/x/sync/errgroup"
-	"strings"
 )
 
-// RecordWriter is a type that generates a diff hunk for pairs of records.
-type RecordWriter interface {
-	Write(ctx context.Context, dest *diffdoc.Hunk, rm1, rm2 record.Meta, pairs []record.Pair)
+// RecordHunkWriter is a type that generates a diff hunk for pairs of records.
+type RecordHunkWriter interface {
+	WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm2 record.Meta, pairs []record.Pair)
 }
 
-func NewRecordWriterAdapter(
+func NewRecordHunkWriterAdapter(
 	pr *output.Printing,
 	rw output.NewRecordWriterFunc,
 	lines int,
-) *RecordWriterAdapter {
-	return &RecordWriterAdapter{pr: pr, recWriterFn: rw, lines: lines}
+) *RecordHunkWriterAdapter {
+	return &RecordHunkWriterAdapter{pr: pr, recWriterFn: rw, lines: lines}
 }
 
-type RecordWriterAdapter struct {
+type RecordHunkWriterAdapter struct {
 	pr          *output.Printing
 	recWriterFn output.NewRecordWriterFunc
 	// lines specifies the number of lines of context surrounding a diff.
 	lines int
 }
 
-func (wa *RecordWriterAdapter) Write(ctx context.Context, hunk *diffdoc.Hunk, rm1, rm2 record.Meta, pairs []record.Pair) {
+func (wa *RecordHunkWriterAdapter) WriteHunk(ctx context.Context, hunk *diffdoc.Hunk, rm1, rm2 record.Meta, pairs []record.Pair) {
 	var (
 		hunkHeader, hunkBody string
 		body1, body2         []byte
@@ -110,7 +111,7 @@ func (wa *RecordWriterAdapter) Write(ctx context.Context, hunk *diffdoc.Hunk, rm
 	hunkHeader = wa.pr.Diff.Section.Sprintln(hunkHeader)
 }
 
-func (wa *RecordWriterAdapter) renderRecords(ctx context.Context, recMeta record.Meta, recs []record.Record) ([]byte, error) {
+func (wa *RecordHunkWriterAdapter) renderRecords(ctx context.Context, recMeta record.Meta, recs []record.Record) ([]byte, error) {
 	if len(recs) == 0 {
 		return nil, nil
 	}

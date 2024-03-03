@@ -41,7 +41,7 @@ type DiffWriter struct {
 	deleteSuffix  []byte
 }
 
-func (dw *DiffWriter) Write(ctx context.Context, dest *diffdoc.Hunk, rm1, rm2 record.Meta, pairs []record.Pair) {
+func (dw *DiffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm2 record.Meta, pairs []record.Pair) {
 	var err error
 	var hunkHeader []byte
 

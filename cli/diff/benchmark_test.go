@@ -27,16 +27,16 @@ func BenchmarkExecTableDiff(b *testing.B) {
 	require.NoError(b, ru.Config.Collection.Add(srcA))
 	require.NoError(b, ru.Config.Collection.Add(srcB))
 
-	elems := &diff.Modes{Data: true}
+	pr := output.NewPrinting()
 	cfg := &diff.Config{
-		Run:            ru,
-		RecordWriterFn: tablew.NewRecordWriter,
-		Modes:          elems,
-		Lines:          3,
-		Printing:       output.NewPrinting(),
-		Colors:         diffdoc.NewColors(),
-		Concurrency:    tuning.OptErrgroupLimit.Get(options.FromContext(th.Context)),
+		Run:         ru,
+		Modes:       &diff.Modes{Data: true},
+		Lines:       3,
+		Printing:    pr,
+		Colors:      diffdoc.NewColors(),
+		Concurrency: tuning.OptErrgroupLimit.Get(options.FromContext(th.Context)),
 	}
+	cfg.RecordHunkWriter = diff.NewRecordHunkWriterAdapter(pr, tablew.NewRecordWriter, cfg.Lines)
 
 	b.ReportAllocs()
 	b.ResetTimer()

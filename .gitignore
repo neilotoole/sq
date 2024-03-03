@@ -63,3 +63,4 @@ goreleaser-test.sh
 /*.dump
 
 /docker-build-run.sh
+tempdiff

@@ -1,17 +1,11 @@
 package diff
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"slices"
 	"strings"
-
-	"github.com/neilotoole/sq/cli/output/csvw"
-
-	"github.com/samber/lo"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq"
@@ -28,6 +22,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/tuning"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/samber/lo"
 )
 
 // differsForAllTableData compares the row data of each table in src1 and src2.
@@ -487,97 +482,97 @@ LOOP:
 
 func (rd *recordDiffer) populateHunk3(ctx context.Context, pairs []record.Pair, hunk *diffdoc.Hunk) {
 	recMeta1, recMeta2 := rd.recMetaFn()
-	dw := rd.cfg.RecordWriter
-	dw.Write(ctx, hunk, recMeta1, recMeta2, pairs)
+	rd.cfg.RecordHunkWriter.WriteHunk(ctx, hunk, recMeta1, recMeta2, pairs)
 }
 
-func (rd *recordDiffer) populateHunk2(ctx context.Context, pairs []record.Pair, hunk *diffdoc.Hunk) {
-	recMeta1, recMeta2 := rd.recMetaFn()
-	dw := csvw.NewDiffWriter(rd.cfg.Printing)
-	dw.Write(ctx, hunk, recMeta1, recMeta2, pairs)
-}
-
-// populateHunk populates hunk with the diff of the record pairs. Before return,
-// the hunk is always sealed via [diffdoc.Hunk.Seal]. The caller can check
-// [diffdoc.Hunk.Err] to see if an error occurred.
-func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, hunk *diffdoc.Hunk) { //nolint:unused
-	var (
-		rm1, rm2             = rd.recMetaFn()
-		hunkHeader, hunkBody string
-		body1, body2         []byte
-		err                  error
-	)
-
-	defer func() {
-		// We always seal the hunk. Note that hunkHeader is populated at the bottom
-		// of the function. But if an error occurs and the function is returning
-		// early, it's ok if hunkHeader is empty.
-		hunk.Seal([]byte(hunkHeader), err)
-	}()
-
-	recs1 := make([]record.Record, len(pairs))
-	recs2 := make([]record.Record, len(pairs))
-	for i := range pairs {
-		recs1[i] = pairs[i].Rec1()
-		recs2[i] = pairs[i].Rec2()
-	}
-
-	g, gCtx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		var bodyErr error
-		body1, bodyErr = renderRecords(gCtx, rd.cfg, rm1, recs1)
-		return bodyErr
-	})
-	g.Go(func() error {
-		var bodyErr error
-		body2, bodyErr = renderRecords(gCtx, rd.cfg, rm2, recs2)
-		return bodyErr
-	})
-	if err = g.Wait(); err != nil {
-		return
-	}
-
-	var unified string
-	if unified, err = diffdoc.ComputeUnified(
-		ctx,
-		"recs1",
-		"recs2",
-		rd.cfg.Lines,
-		stringz.UnsafeString(body1),
-		stringz.UnsafeString(body2),
-	); err != nil {
-		return
-	}
-
-	body1 = nil
-	body2 = nil
-
-	if unified == "" {
-		// No diff was found.
-		return
-	}
-
-	// Trim the diff "file header"... ultimately, we should change ComputeUnified
-	// to not return this (e.g. add an arg "noHeader=true")
-	trimmed := stringz.TrimHead(unified, 2)
-
-	var ok bool
-	if hunkHeader, hunkBody, ok = strings.Cut(trimmed, "\n"); !ok {
-		err = errz.New("hunk header not found")
-		return
-	}
-
-	if err = diffdoc.ColorizeHunks(ctx, hunk, rd.cfg.Colors, bytes.NewReader(stringz.UnsafeBytes(hunkBody))); err != nil {
-		return
-	}
-
-	if hunkHeader, err = adjustHunkOffset(hunkHeader, hunk.Offset()); err != nil {
-		return
-	}
-
-	// hunkHeader will be passed to hunk.Seal in the top defer.
-	hunkHeader = rd.cfg.Colors.Section.Sprintln(hunkHeader)
-}
+//
+//func (rd *recordDiffer) populateHunk2(ctx context.Context, pairs []record.Pair, hunk *diffdoc.Hunk) {
+//	recMeta1, recMeta2 := rd.recMetaFn()
+//	dw := csvw.NewDiffWriter(rd.cfg.Printing)
+//	dw.Write(ctx, hunk, recMeta1, recMeta2, pairs)
+//}
+//
+//// populateHunk populates hunk with the diff of the record pairs. Before return,
+//// the hunk is always sealed via [diffdoc.Hunk.Seal]. The caller can check
+//// [diffdoc.Hunk.Err] to see if an error occurred.
+//func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, hunk *diffdoc.Hunk) { //nolint:unused
+//	var (
+//		rm1, rm2             = rd.recMetaFn()
+//		hunkHeader, hunkBody string
+//		body1, body2         []byte
+//		err                  error
+//	)
+//
+//	defer func() {
+//		// We always seal the hunk. Note that hunkHeader is populated at the bottom
+//		// of the function. But if an error occurs and the function is returning
+//		// early, it's ok if hunkHeader is empty.
+//		hunk.Seal([]byte(hunkHeader), err)
+//	}()
+//
+//	recs1 := make([]record.Record, len(pairs))
+//	recs2 := make([]record.Record, len(pairs))
+//	for i := range pairs {
+//		recs1[i] = pairs[i].Rec1()
+//		recs2[i] = pairs[i].Rec2()
+//	}
+//
+//	g, gCtx := errgroup.WithContext(ctx)
+//	g.Go(func() error {
+//		var bodyErr error
+//		body1, bodyErr = renderRecords(gCtx, rd.cfg, rm1, recs1)
+//		return bodyErr
+//	})
+//	g.Go(func() error {
+//		var bodyErr error
+//		body2, bodyErr = renderRecords(gCtx, rd.cfg, rm2, recs2)
+//		return bodyErr
+//	})
+//	if err = g.Wait(); err != nil {
+//		return
+//	}
+//
+//	var unified string
+//	if unified, err = diffdoc.ComputeUnified(
+//		ctx,
+//		"recs1",
+//		"recs2",
+//		rd.cfg.Lines,
+//		stringz.UnsafeString(body1),
+//		stringz.UnsafeString(body2),
+//	); err != nil {
+//		return
+//	}
+//
+//	body1 = nil
+//	body2 = nil
+//
+//	if unified == "" {
+//		// No diff was found.
+//		return
+//	}
+//
+//	// Trim the diff "file header"... ultimately, we should change ComputeUnified
+//	// to not return this (e.g. add an arg "noHeader=true")
+//	trimmed := stringz.TrimHead(unified, 2)
+//
+//	var ok bool
+//	if hunkHeader, hunkBody, ok = strings.Cut(trimmed, "\n"); !ok {
+//		err = errz.New("hunk header not found")
+//		return
+//	}
+//
+//	if err = diffdoc.ColorizeHunks(ctx, hunk, rd.cfg.Colors, bytes.NewReader(stringz.UnsafeBytes(hunkBody))); err != nil {
+//		return
+//	}
+//
+//	if hunkHeader, err = adjustHunkOffset(hunkHeader, hunk.Offset()); err != nil {
+//		return
+//	}
+//
+//	// hunkHeader will be passed to hunk.Seal in the top defer.
+//	hunkHeader = rd.cfg.Colors.Section.Sprintln(hunkHeader)
+//}
 
 var _ libsq.RecordWriter = (*recordWriter)(nil)
 

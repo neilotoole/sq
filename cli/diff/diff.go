@@ -16,11 +16,8 @@ type Config struct {
 	// Modes specifies what diff modes to use.
 	Modes *Modes
 
-	// RecordWriterFn is a factory function that returns an output.RecordWriter
-	// used to generate diff text when comparing table data.
-	RecordWriterFn output.NewRecordWriterFunc
-
-	RecordWriter RecordWriter
+	// RecordHunkWriter generates a diff hunk for pairs of records.
+	RecordHunkWriter RecordHunkWriter
 
 	// Printing is the output.Printing instance to use when generating diff text.
 	Printing *output.Printing

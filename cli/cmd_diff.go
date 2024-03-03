@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/csvw"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
@@ -267,23 +268,27 @@ func execDiff(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
+	numLines := OptDiffNumLines.Get(o)
+	if numLines < 0 {
+		return errz.Errorf("number of lines to show must be >= 0")
+	}
+
 	diffCfg := &diff.Config{
 		Run:         ru,
-		Lines:       OptDiffNumLines.Get(o),
+		Lines:       numLines,
 		StopAfter:   OptDiffStopAfter.Get(o),
 		HunkMaxSize: OptDiffHunkMaxSize.Get(o),
 		Printing:    ru.Writers.OutPrinting.Clone(),
 		Colors:      ru.Writers.OutPrinting.Diff.Clone(),
 		Concurrency: tuning.OptErrgroupLimit.Get(options.FromContext(ctx)),
-		//RecordWriterFn: recwFn,
 	}
 
-	if diffCfg.RecordWriter, err = getDiffRecordWriter(OptDiffDataFormat.Get(o), diffCfg); err != nil {
+	if diffCfg.RecordHunkWriter, err = getDiffRecordWriter(
+		OptDiffDataFormat.Get(o),
+		ru.Writers.OutPrinting,
+		numLines,
+	); err != nil {
 		return err
-	}
-
-	if diffCfg.Lines < 0 {
-		return errz.Errorf("number of lines to show must be >= 0")
 	}
 
 	switch {
@@ -364,12 +369,12 @@ func isAnyDiffElementsFlagChanged(cmd *cobra.Command) bool {
 	return false
 }
 
-func getDiffRecordWriter(f format.Format, cfg *diff.Config) (diff.RecordWriter, error) {
+func getDiffRecordWriter(f format.Format, pr *output.Printing, lines int) (diff.RecordHunkWriter, error) {
 	if f == format.CSV {
 		// Currently we've only implemented an "optimized" (and I say that loosely)
 		// diff writer for CSV. There's no technical reason the others can't be
 		// implemented; just haven't gotten around to it yet.
-		return csvw.NewDiffWriter(cfg.Printing), nil
+		return csvw.NewDiffWriter(pr), nil
 	}
 
 	// All the rest of the formats have to use the adapter.
@@ -379,5 +384,5 @@ func getDiffRecordWriter(f format.Format, cfg *diff.Config) (diff.RecordWriter, 
 		return nil, errz.Errorf("no diff record writer impl for format: %s", f)
 	}
 
-	return diff.NewRecordWriterAdapter(cfg.Printing, recWriterFn, cfg.Lines), nil
+	return diff.NewRecordHunkWriterAdapter(pr, recWriterFn, lines), nil
 }
