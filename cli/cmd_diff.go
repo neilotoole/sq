@@ -271,14 +271,14 @@ func execDiff(cmd *cobra.Command, args []string) (err error) {
 		Lines:       numLines,
 		StopAfter:   OptDiffStopAfter.Get(o),
 		HunkMaxSize: OptDiffHunkMaxSize.Get(o),
-		Printing:    ru.Writers.OutPrinting.Clone(),
-		Colors:      ru.Writers.OutPrinting.Diff.Clone(),
+		Printing:    ru.Writers.PrOut.Clone(),
+		Colors:      ru.Writers.PrOut.Diff.Clone(),
 		Concurrency: tuning.OptErrgroupLimit.Get(options.FromContext(ctx)),
 	}
 
 	if diffCfg.RecordHunkWriter, err = getDiffRecordWriter(
 		OptDiffDataFormat.Get(o),
-		ru.Writers.OutPrinting,
+		ru.Writers.PrOut,
 		numLines,
 	); err != nil {
 		return err

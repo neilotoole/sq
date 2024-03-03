@@ -92,7 +92,7 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	recBufSize := tuning.OptRecBufSize.Get(options.FromContext(ctx))
 	recPairsCh := make(chan record.Pair, recBufSize)
 
-	// We create two recordWriter instances (that implement libsq.RecordWriter),
+	// We create two dbResults instances (that implement libsq.RecordWriter),
 	// each of which will capture the records returned from a query. On a separate
 	// goroutine, those records will be collated into record.Pair instances, and
 	// sent to recPairsCh. Then, those record pairs are used to generate the diff,
@@ -103,15 +103,15 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	// created directly below.
 	errCh := make(chan error, 5) // Not sure if 5 is the correct size?
 
-	// The two recordWriter instances, recw1 and recw2, share the same errCh,
+	// The two dbResults instances, recw1 and recw2, share the same errCh,
 	// because we don't care which one receives an error, just that one of them
 	// did.
 
-	recw1 := &recordWriter{
+	recw1 := &dbResults{
 		recCh: make(chan record.Record, recBufSize),
 		errCh: errCh,
 	}
-	recw2 := &recordWriter{
+	recw2 := &dbResults{
 		recCh: make(chan record.Record, recBufSize),
 		errCh: errCh,
 	}
@@ -144,7 +144,7 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	}()
 
 	// Now we'll start two goroutines to execute the DB queries. The resulting
-	// records from the DB queries will be sent to each recordWriter.recCh, and
+	// records from the DB queries will be sent to each dbResults.recCh, and
 	// any errors will be sent to the shared errCh.
 
 	qc := run.NewQueryContext(cfg.Run, nil)
@@ -484,115 +484,26 @@ func (rd *recordDiffer) populateHunk3(ctx context.Context, pairs []record.Pair, 
 	rd.cfg.RecordHunkWriter.WriteHunk(ctx, hunk, recMeta1, recMeta2, pairs)
 }
 
-//
-//func (rd *recordDiffer) populateHunk2(ctx context.Context, pairs []record.Pair, hunk *diffdoc.Hunk) {
-//	recMeta1, recMeta2 := rd.recMetaFn()
-//	dw := csvw.NewDiffWriter(rd.cfg.Printing)
-//	dw.Write(ctx, hunk, recMeta1, recMeta2, pairs)
-//}
-//
-//// populateHunk populates hunk with the diff of the record pairs. Before return,
-//// the hunk is always sealed via [diffdoc.Hunk.Seal]. The caller can check
-//// [diffdoc.Hunk.Err] to see if an error occurred.
-//func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, hunk *diffdoc.Hunk) { //nolint:unused
-//	var (
-//		rm1, rm2             = rd.recMetaFn()
-//		hunkHeader, hunkBody string
-//		body1, body2         []byte
-//		err                  error
-//	)
-//
-//	defer func() {
-//		// We always seal the hunk. Note that hunkHeader is populated at the bottom
-//		// of the function. But if an error occurs and the function is returning
-//		// early, it's ok if hunkHeader is empty.
-//		hunk.Seal([]byte(hunkHeader), err)
-//	}()
-//
-//	recs1 := make([]record.Record, len(pairs))
-//	recs2 := make([]record.Record, len(pairs))
-//	for i := range pairs {
-//		recs1[i] = pairs[i].Rec1()
-//		recs2[i] = pairs[i].Rec2()
-//	}
-//
-//	g, gCtx := errgroup.WithContext(ctx)
-//	g.Go(func() error {
-//		var bodyErr error
-//		body1, bodyErr = renderRecords(gCtx, rd.cfg, rm1, recs1)
-//		return bodyErr
-//	})
-//	g.Go(func() error {
-//		var bodyErr error
-//		body2, bodyErr = renderRecords(gCtx, rd.cfg, rm2, recs2)
-//		return bodyErr
-//	})
-//	if err = g.Wait(); err != nil {
-//		return
-//	}
-//
-//	var unified string
-//	if unified, err = diffdoc.ComputeUnified(
-//		ctx,
-//		"recs1",
-//		"recs2",
-//		rd.cfg.Lines,
-//		stringz.UnsafeString(body1),
-//		stringz.UnsafeString(body2),
-//	); err != nil {
-//		return
-//	}
-//
-//	body1 = nil
-//	body2 = nil
-//
-//	if unified == "" {
-//		// No diff was found.
-//		return
-//	}
-//
-//	// Trim the diff "file header"... ultimately, we should change ComputeUnified
-//	// to not return this (e.g. add an arg "noHeader=true")
-//	trimmed := stringz.TrimHead(unified, 2)
-//
-//	var ok bool
-//	if hunkHeader, hunkBody, ok = strings.Cut(trimmed, "\n"); !ok {
-//		err = errz.New("hunk header not found")
-//		return
-//	}
-//
-//	if err = diffdoc.ColorizeHunks(ctx, hunk, rd.cfg.Colors, bytes.NewReader(stringz.UnsafeBytes(hunkBody))); err != nil {
-//		return
-//	}
-//
-//	if hunkHeader, err = adjustHunkOffset(hunkHeader, hunk.Offset()); err != nil {
-//		return
-//	}
-//
-//	// hunkHeader will be passed to hunk.Seal in the top defer.
-//	hunkHeader = rd.cfg.Colors.Section.Sprintln(hunkHeader)
-//}
+var _ libsq.RecordWriter = (*dbResults)(nil)
 
-var _ libsq.RecordWriter = (*recordWriter)(nil)
-
-// recordWriter is a trivial [libsq.RecordWriter] impl, whose recCh field is
+// dbResults is a trivial [libsq.RecordWriter] impl, whose recCh field is
 // used to capture records returned from a query.
-type recordWriter struct {
+type dbResults struct {
 	recCh   chan record.Record
 	errCh   chan error
 	recMeta record.Meta
 }
 
 // Open implements libsq.RecordWriter.
-func (w *recordWriter) Open(_ context.Context, _ context.CancelFunc, recMeta record.Meta,
+func (rs *dbResults) Open(_ context.Context, _ context.CancelFunc, recMeta record.Meta,
 ) (recCh chan<- record.Record, errCh <-chan error, err error) {
-	w.recMeta = recMeta
-	return w.recCh, w.errCh, nil
+	rs.recMeta = recMeta
+	return rs.recCh, rs.errCh, nil
 }
 
 // Wait implements libsq.RecordWriter. It won't ever be invoked, so it's no-op
 // and returns zero values.
-func (w *recordWriter) Wait() (written int64, err error) {
+func (rs *dbResults) Wait() (written int64, err error) {
 	// We don't actually use Wait(), so just return zero values.
 	return 0, nil
 }

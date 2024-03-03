@@ -294,15 +294,15 @@ func newWriters(cmd *cobra.Command, clnup *cleanup.Cleanup, o options.Options,
 	// flags and set the various writer fields depending upon which
 	// writers the format implements.
 	w = &output.Writers{
-		OutPrinting: outCfg.outPr,
-		ErrPrinting: outCfg.errOutPr,
-		Record:      tablew.NewRecordWriter(outCfg.out, outCfg.outPr),
-		Metadata:    tablew.NewMetadataWriter(outCfg.out, outCfg.outPr),
-		Source:      tablew.NewSourceWriter(outCfg.out, outCfg.outPr),
-		Ping:        tablew.NewPingWriter(outCfg.out, outCfg.outPr),
-		Error:       tablew.NewErrorWriter(outCfg.errOut, outCfg.errOutPr, OptErrorStack.Get(o)),
-		Version:     tablew.NewVersionWriter(outCfg.out, outCfg.outPr),
-		Config:      tablew.NewConfigWriter(outCfg.out, outCfg.outPr),
+		PrOut:    outCfg.outPr,
+		PrErr:    outCfg.errOutPr,
+		Record:   tablew.NewRecordWriter(outCfg.out, outCfg.outPr),
+		Metadata: tablew.NewMetadataWriter(outCfg.out, outCfg.outPr),
+		Source:   tablew.NewSourceWriter(outCfg.out, outCfg.outPr),
+		Ping:     tablew.NewPingWriter(outCfg.out, outCfg.outPr),
+		Error:    tablew.NewErrorWriter(outCfg.errOut, outCfg.errOutPr, OptErrorStack.Get(o)),
+		Version:  tablew.NewVersionWriter(outCfg.out, outCfg.outPr),
+		Config:   tablew.NewConfigWriter(outCfg.out, outCfg.outPr),
 	}
 
 	if OptErrorFormat.Get(o) == format.JSON {
