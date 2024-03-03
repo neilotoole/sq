@@ -33,7 +33,9 @@ type RecordHunkWriterAdapter struct {
 	lines int
 }
 
-func (wa *RecordHunkWriterAdapter) WriteHunk(ctx context.Context, hunk *diffdoc.Hunk, rm1, rm2 record.Meta, pairs []record.Pair) {
+func (wa *RecordHunkWriterAdapter) WriteHunk(ctx context.Context, hunk *diffdoc.Hunk,
+	rm1, rm2 record.Meta, pairs []record.Pair,
+) {
 	var (
 		hunkHeader, hunkBody string
 		body1, body2         []byte
@@ -111,7 +113,9 @@ func (wa *RecordHunkWriterAdapter) WriteHunk(ctx context.Context, hunk *diffdoc.
 	hunkHeader = wa.pr.Diff.Section.Sprintln(hunkHeader)
 }
 
-func (wa *RecordHunkWriterAdapter) renderRecords(ctx context.Context, recMeta record.Meta, recs []record.Record) ([]byte, error) {
+func (wa *RecordHunkWriterAdapter) renderRecords(ctx context.Context,
+	recMeta record.Meta, recs []record.Record,
+) ([]byte, error) {
 	if len(recs) == 0 {
 		return nil, nil
 	}

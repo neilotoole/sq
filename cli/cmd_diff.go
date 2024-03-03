@@ -252,13 +252,6 @@ func execDiff(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
-	//recwFn := getRecordWriterFunc(f)
-	//if recwFn == nil {
-	//	// Shouldn't happen
-	//	lg.From(cmd).Warn("No record writer impl for format", "format", f)
-	//	recwFn = tablew.NewRecordWriter
-	//}
-
 	src1, err := ru.Config.Collection.Get(handle1)
 	if err != nil {
 		return err

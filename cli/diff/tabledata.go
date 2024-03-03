@@ -220,7 +220,6 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 		stopAt := -1
 
 		for i := 0; ctx.Err() == nil; i++ {
-
 			select {
 			case <-ctx.Done():
 				return
