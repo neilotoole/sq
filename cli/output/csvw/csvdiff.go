@@ -70,13 +70,12 @@ func (dw *DiffWriter) Write(ctx context.Context, dest *diffdoc.Hunk, rm1, rm2 re
 	}
 
 	recs := make([]record.Record, 1)
-	var pair record.Pair
-	var diffCount int
 
-	for i := 0; i < len(pairs) && ctx.Err() == nil; i++ {
-		pair = pairs[i]
-		if pair.Equal() {
-			recs[0] = pair.Rec1()
+	var i, j, k int
+	for i = 0; i < len(pairs) && ctx.Err() == nil; i++ {
+		if pairs[i].Equal() {
+			// The record pair is equal, so we just need to print the record once.
+			recs[0] = pairs[i].Rec1()
 			_ = csv1.WriteRecords(ctx, recs)
 			_ = csv1.Flush(ctx)
 			_, _ = dest.Write(dw.contextPrefix)
@@ -86,22 +85,39 @@ func (dw *DiffWriter) Write(ctx context.Context, dest *diffdoc.Hunk, rm1, rm2 re
 			continue
 		}
 
-		diffCount++
-		recs[0] = pair.Rec1()
-		_ = csv1.WriteRecords(ctx, recs)
-		_ = csv1.Flush(ctx)
-		_, _ = dest.Write(dw.deletePrefix)
-		_, _ = dest.Write(buf1.Bytes()[0 : buf1.Len()-1])
-		_, _ = dest.Write(dw.deleteSuffix)
-		buf1.Reset()
+		// We've found a difference. We need to print all the consecutive "deletion"
+		// lines; and then the consecutive "insertion" lines.
 
-		recs[0] = pair.Rec2()
-		_ = csv2.WriteRecords(ctx, recs)
-		_ = csv2.Flush(ctx)
-		_, _ = dest.Write(dw.insertPrefix)
-		_, _ = dest.Write(buf2.Bytes()[0 : buf2.Len()-1])
-		_, _ = dest.Write(dw.insertSuffix)
-		buf2.Reset()
+		for j = i; j < len(pairs) && !pairs[j].Equal(); j++ {
+			// Print deletion lines:
+			//
+			// -38,TOM,MCKELLEN,2020-06-11T02:50:54Z
+			// -39,GOLDIE,BRODY,2020-06-11T02:50:54Z
+			recs[0] = pairs[j].Rec1()
+			_ = csv1.WriteRecords(ctx, recs)
+			_ = csv1.Flush(ctx)
+			_, _ = dest.Write(dw.deletePrefix)
+			_, _ = dest.Write(buf1.Bytes()[0 : buf1.Len()-1])
+			_, _ = dest.Write(dw.deleteSuffix)
+			buf1.Reset()
+		}
+
+		for k = i; k < j; k++ {
+			// Print insertion lines:
+			//
+			// +38,THOMAS,MCKELLEN,2020-06-11T02:50:54Z
+			// +39,GOLDIE,LOCKS,2020-06-11T02:50:54Z
+			recs[0] = pairs[k].Rec2()
+			_ = csv2.WriteRecords(ctx, recs)
+			_ = csv2.Flush(ctx)
+			_, _ = dest.Write(dw.insertPrefix)
+			_, _ = dest.Write(buf2.Bytes()[0 : buf2.Len()-1])
+			_, _ = dest.Write(dw.insertSuffix)
+			buf2.Reset()
+		}
+
+		// Adjust the main loop index.
+		i = j - 1
 	}
 
 	if ctx.Err() != nil {

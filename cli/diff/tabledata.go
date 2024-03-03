@@ -222,14 +222,9 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 		// If cfg.StopAfter is set, we'll stop after diffCount reaches cfg.StopAfter
 		// plus cfg.Lines. We add cfg.Lines to ensure that we have enough records
 		// to generate the "context lines" after the last differing record.
-		explicitStopAt := -1
+		stopAt := -1
 
 		for i := 0; ctx.Err() == nil; i++ {
-			if explicitStopAt > -1 && i > explicitStopAt {
-				dbCancel(errz.ErrStop) // Explicit stop
-				close(recPairsCh)
-				return
-			}
 
 			select {
 			case <-ctx.Done():
@@ -255,8 +250,14 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 			}
 
 			recPairsCh <- rp
-			if explicitStopAt == -1 && cfg.StopAfter > 0 && diffCount >= cfg.StopAfter {
-				explicitStopAt = i + cfg.Lines
+
+			if stopAt == -1 && cfg.StopAfter > 0 && diffCount >= cfg.StopAfter {
+				stopAt = i + cfg.Lines
+			}
+			if stopAt > -1 && i >= stopAt {
+				dbCancel(errz.ErrStop) // Explicit stop
+				close(recPairsCh)
+				return
 			}
 		}
 	}()
@@ -466,7 +467,7 @@ LOOP:
 		}
 
 		// OK, now we've got enough record pairs to populate the hunk.
-		rd.populateHunk2(ctx, hunkPairs, hunk)
+		rd.populateHunk3(ctx, hunkPairs, hunk)
 		// rd.populateHunk(ctx, hunkPairs, hunk)
 		if err = hunk.Err(); err != nil {
 			// Uh-oh, something bad happened while populating the hunk.
@@ -484,6 +485,12 @@ LOOP:
 	return err
 }
 
+func (rd *recordDiffer) populateHunk3(ctx context.Context, pairs []record.Pair, hunk *diffdoc.Hunk) {
+	recMeta1, recMeta2 := rd.recMetaFn()
+	dw := rd.cfg.RecordWriter
+	dw.Write(ctx, hunk, recMeta1, recMeta2, pairs)
+}
+
 func (rd *recordDiffer) populateHunk2(ctx context.Context, pairs []record.Pair, hunk *diffdoc.Hunk) {
 	recMeta1, recMeta2 := rd.recMetaFn()
 	dw := csvw.NewDiffWriter(rd.cfg.Printing)
@@ -495,9 +502,7 @@ func (rd *recordDiffer) populateHunk2(ctx context.Context, pairs []record.Pair, 
 // [diffdoc.Hunk.Err] to see if an error occurred.
 func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, hunk *diffdoc.Hunk) { //nolint:unused
 	var (
-		handleTbl1           = rd.td1.String()
-		handleTbl2           = rd.td2.String()
-		recMeta1, recMeta2   = rd.recMetaFn()
+		rm1, rm2             = rd.recMetaFn()
 		hunkHeader, hunkBody string
 		body1, body2         []byte
 		err                  error
@@ -520,12 +525,12 @@ func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, h
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		var bodyErr error
-		body1, bodyErr = renderRecords(gCtx, rd.cfg, recMeta1, recs1)
+		body1, bodyErr = renderRecords(gCtx, rd.cfg, rm1, recs1)
 		return bodyErr
 	})
 	g.Go(func() error {
 		var bodyErr error
-		body2, bodyErr = renderRecords(gCtx, rd.cfg, recMeta2, recs2)
+		body2, bodyErr = renderRecords(gCtx, rd.cfg, rm2, recs2)
 		return bodyErr
 	})
 	if err = g.Wait(); err != nil {
@@ -535,8 +540,8 @@ func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, h
 	var unified string
 	if unified, err = diffdoc.ComputeUnified(
 		ctx,
-		handleTbl1,
-		handleTbl2,
+		"recs1",
+		"recs2",
 		rd.cfg.Lines,
 		stringz.UnsafeString(body1),
 		stringz.UnsafeString(body2),

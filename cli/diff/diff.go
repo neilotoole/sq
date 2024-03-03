@@ -20,6 +20,8 @@ type Config struct {
 	// used to generate diff text when comparing table data.
 	RecordWriterFn output.NewRecordWriterFunc
 
+	RecordWriter RecordWriter
+
 	// Printing is the output.Printing instance to use when generating diff text.
 	Printing *output.Printing
 

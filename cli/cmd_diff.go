@@ -1,16 +1,15 @@
 package cli
 
 import (
+	"github.com/neilotoole/sq/cli/output/csvw"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/diff"
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output/format"
-	"github.com/neilotoole/sq/cli/output/tablew"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tuning"
@@ -252,13 +251,12 @@ func execDiff(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
-	f := OptDiffDataFormat.Get(o)
-	recwFn := getRecordWriterFunc(f)
-	if recwFn == nil {
-		// Shouldn't happen
-		lg.From(cmd).Warn("No record writer impl for format", "format", f)
-		recwFn = tablew.NewRecordWriter
-	}
+	//recwFn := getRecordWriterFunc(f)
+	//if recwFn == nil {
+	//	// Shouldn't happen
+	//	lg.From(cmd).Warn("No record writer impl for format", "format", f)
+	//	recwFn = tablew.NewRecordWriter
+	//}
 
 	src1, err := ru.Config.Collection.Get(handle1)
 	if err != nil {
@@ -270,14 +268,18 @@ func execDiff(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	diffCfg := &diff.Config{
-		Run:            ru,
-		Lines:          OptDiffNumLines.Get(o),
-		StopAfter:      OptDiffStopAfter.Get(o),
-		HunkMaxSize:    OptDiffHunkMaxSize.Get(o),
-		Printing:       ru.Writers.OutPrinting.Clone(),
-		Colors:         ru.Writers.OutPrinting.Diff.Clone(),
-		Concurrency:    tuning.OptErrgroupLimit.Get(options.FromContext(ctx)),
-		RecordWriterFn: recwFn,
+		Run:         ru,
+		Lines:       OptDiffNumLines.Get(o),
+		StopAfter:   OptDiffStopAfter.Get(o),
+		HunkMaxSize: OptDiffHunkMaxSize.Get(o),
+		Printing:    ru.Writers.OutPrinting.Clone(),
+		Colors:      ru.Writers.OutPrinting.Diff.Clone(),
+		Concurrency: tuning.OptErrgroupLimit.Get(options.FromContext(ctx)),
+		//RecordWriterFn: recwFn,
+	}
+
+	if diffCfg.RecordWriter, err = getDiffRecordWriter(OptDiffDataFormat.Get(o), diffCfg); err != nil {
+		return err
 	}
 
 	if diffCfg.Lines < 0 {
@@ -360,4 +362,22 @@ func isAnyDiffElementsFlagChanged(cmd *cobra.Command) bool {
 		}
 	}
 	return false
+}
+
+func getDiffRecordWriter(f format.Format, cfg *diff.Config) (diff.RecordWriter, error) {
+	if f == format.CSV {
+		// Currently we've only implemented an "optimized" (and I say that loosely)
+		// diff writer for CSV. There's no technical reason the others can't be
+		// implemented; just haven't gotten around to it yet.
+		return csvw.NewDiffWriter(cfg.Printing), nil
+	}
+
+	// All the rest of the formats have to use the adapter.
+	recWriterFn := getRecordWriterFunc(f)
+	if recWriterFn == nil {
+		// Shouldn't happen
+		return nil, errz.Errorf("no diff record writer impl for format: %s", f)
+	}
+
+	return diff.NewRecordWriterAdapter(cfg.Printing, recWriterFn, cfg.Lines), nil
 }
