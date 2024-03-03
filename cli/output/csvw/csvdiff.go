@@ -46,6 +46,10 @@ func newDiffWriter(pr *output.Printing, rw output.NewRecordWriterFunc) diff.Reco
 	return dw
 }
 
+// diffWriter is a somewhat-optimal implementation of diff.RecordHunkWriter for
+// CSV/TSV. It still delegates its CSV record generation to this package's
+// RecordWriter implementation, which itself delegates to stdlib encoding/csv,
+// resulting in way too many allocations. But it's a start.
 type diffWriter struct {
 	pr            *output.Printing
 	newWriterFn   output.NewRecordWriterFunc
@@ -57,6 +61,7 @@ type diffWriter struct {
 	deleteSuffix  []byte
 }
 
+// WriteHunk implements diff.RecordHunkWriter.
 func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm2 record.Meta, pairs []record.Pair) {
 	var err error
 	var hunkHeader []byte
@@ -85,6 +90,7 @@ func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm
 		return
 	}
 
+	// recs is a slice of length 1, which we reuse for writing records.
 	recs := make([]record.Record, 1)
 
 	var i, j, k int
@@ -95,14 +101,14 @@ func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm
 			_ = csv1.WriteRecords(ctx, recs)
 			_ = csv1.Flush(ctx)
 			_, _ = dest.Write(dw.contextPrefix)
-			_, _ = dest.Write(buf1.Bytes()[0 : buf1.Len()-1])
-			_, _ = dest.Write(dw.contextSuffix)
+			_, _ = dest.Write(buf1.Bytes()[0 : buf1.Len()-1]) // trim trailing newline
+			_, _ = dest.Write(dw.contextSuffix)               // contains newline
 			buf1.Reset()
 			continue
 		}
 
-		// We've found a difference. We need to print all the consecutive "deletion"
-		// lines; and then the consecutive "insertion" lines.
+		// We've found a difference. We need to print all consecutive "deletion"
+		// lines; and when those are done, we do the consecutive "insertion" lines.
 
 		for j = i; j < len(pairs) && !pairs[j].Equal(); j++ {
 			// Print deletion lines:
@@ -132,7 +138,8 @@ func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm
 			buf2.Reset()
 		}
 
-		// Adjust the main loop index.
+		// Adjust the main loop index to skip over the differing
+		// records that we've just processed.
 		i = j - 1
 	}
 
@@ -144,6 +151,7 @@ func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm
 	offset := dest.Offset() + 1
 	var headerText string
 	if len(pairs) == 1 {
+		// Short hunk header format for single-line diffs.
 		headerText = fmt.Sprintf("@@ -%d +%d @@", offset, offset)
 	} else {
 		headerText = fmt.Sprintf("@@ -%d,%d +%d,%d @@", offset, len(pairs), offset, len(pairs))
