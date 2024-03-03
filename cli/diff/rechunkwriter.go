@@ -13,27 +13,27 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// RecordHunkWriter is a type that generates a diff hunk for pairs of records.
+// RecordHunkWriter generates a diff hunk for pairs of records in a particular
+// diff output format.
 type RecordHunkWriter interface {
 	WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm2 record.Meta, pairs []record.Pair)
 }
 
-func NewRecordHunkWriterAdapter(
-	pr *output.Printing,
-	rw output.NewRecordWriterFunc,
-	lines int,
-) *RecordHunkWriterAdapter {
-	return &RecordHunkWriterAdapter{pr: pr, recWriterFn: rw, lines: lines}
+// NewRecordHunkWriterAdapter bridges RecordHunkWriter and output.RecordWriter
+// for diff output formats that don't implement a native RecordHunkWriter.
+func NewRecordHunkWriterAdapter(pr *output.Printing, rw output.NewRecordWriterFunc, lines int) RecordHunkWriter {
+	return &recordHunkWriterAdapter{pr: pr, recWriterFn: rw, lines: lines}
 }
 
-type RecordHunkWriterAdapter struct {
+type recordHunkWriterAdapter struct {
 	pr          *output.Printing
 	recWriterFn output.NewRecordWriterFunc
 	// lines specifies the number of lines of context surrounding a diff.
 	lines int
 }
 
-func (wa *RecordHunkWriterAdapter) WriteHunk(ctx context.Context, hunk *diffdoc.Hunk,
+// WriteHunk implements RecordHunkWriter.
+func (wa *recordHunkWriterAdapter) WriteHunk(ctx context.Context, hunk *diffdoc.Hunk,
 	rm1, rm2 record.Meta, pairs []record.Pair,
 ) {
 	var (
@@ -113,7 +113,7 @@ func (wa *RecordHunkWriterAdapter) WriteHunk(ctx context.Context, hunk *diffdoc.
 	hunkHeader = wa.pr.Diff.Section.Sprintln(hunkHeader)
 }
 
-func (wa *RecordHunkWriterAdapter) renderRecords(ctx context.Context,
+func (wa *recordHunkWriterAdapter) renderRecords(ctx context.Context,
 	recMeta record.Meta, recs []record.Record,
 ) ([]byte, error) {
 	if len(recs) == 0 {
@@ -126,17 +126,19 @@ func (wa *RecordHunkWriterAdapter) renderRecords(ctx context.Context,
 	buf := &bytes.Buffer{}
 	recw := wa.recWriterFn(buf, pr)
 
-	if err := recw.Open(ctx, recMeta); err != nil {
+	var err error
+	if err = recw.Open(ctx, recMeta); err != nil {
 		return nil, err
 	}
-	if err := recw.WriteRecords(ctx, recs); err != nil {
+	if err = recw.WriteRecords(ctx, recs); err != nil {
 		return nil, err
 	}
-	if err := recw.Flush(ctx); err != nil {
+	if err = recw.Flush(ctx); err != nil {
 		return nil, err
 	}
-	if err := recw.Close(ctx); err != nil {
+	if err = recw.Close(ctx); err != nil {
 		return nil, err
 	}
+
 	return buf.Bytes(), nil
 }
