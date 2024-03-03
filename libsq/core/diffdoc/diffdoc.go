@@ -18,13 +18,12 @@ import (
 	"io"
 	"sync"
 
-	"github.com/neilotoole/sq/libsq/core/record"
-
 	"github.com/neilotoole/sq/libsq/core/bytez"
 	"github.com/neilotoole/sq/libsq/core/colorz"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/langz"
+	"github.com/neilotoole/sq/libsq/core/record"
 )
 
 var _ io.ReadCloser = (Doc)(nil)

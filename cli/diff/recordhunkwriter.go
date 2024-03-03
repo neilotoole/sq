@@ -5,12 +5,13 @@ import (
 	"context"
 	"strings"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"golang.org/x/sync/errgroup"
 )
 
 // RecordHunkWriter generates a diff hunk for pairs of records in a particular

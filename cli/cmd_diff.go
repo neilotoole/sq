@@ -1,13 +1,13 @@
 package cli
 
 import (
-	"github.com/neilotoole/sq/cli/output"
-	"github.com/neilotoole/sq/cli/output/csvw"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/diff"
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/output/csvw"
 	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -82,7 +82,7 @@ var diffFormats = []format.Format{
 	format.Markdown, format.HTML, format.XML, format.YAML,
 }
 
-var allDiffElementsFlags = []string{
+var allDiffModeFlags = []string{
 	flag.DiffAll,
 	flag.DiffOverview,
 	flag.DiffSchema,
@@ -205,7 +205,7 @@ Exit status is 0 if inputs are the same, 1 if different, 2 on any error.`,
 	cmd.Flags().BoolP(flag.DiffAll, flag.DiffAllShort, false, flag.DiffAllUsage)
 
 	// If flag.DiffAll is provided, no other diff elements flag can be provided.
-	nonAllFlags := lo.Drop(allDiffElementsFlags, 0)
+	nonAllFlags := lo.Drop(allDiffModeFlags, 0)
 	for i := range nonAllFlags {
 		cmd.MarkFlagsMutuallyExclusive(flag.DiffAll, nonAllFlags[i])
 	}
@@ -286,20 +286,20 @@ func execDiff(cmd *cobra.Command, args []string) (err error) {
 
 	switch {
 	case table1 == "" && table2 == "":
-		diffCfg.Modes = getDiffSourceElements(cmd)
+		diffCfg.Modes = getDiffSourceModes(cmd)
 		foundDiffs, err = diff.ExecSourceDiff(ctx, diffCfg, src1, src2)
 	case table1 == "" || table2 == "":
 		return errz.Errorf("invalid args: both must be either @HANDLE or @HANDLE.TABLE")
 	default:
-		diffCfg.Modes = getDiffTableElements(cmd)
+		diffCfg.Modes = getDiffTableModes(cmd)
 		foundDiffs, err = diff.ExecTableDiff(ctx, diffCfg, src1, table1, src2, table2)
 	}
 
 	return err
 }
 
-func getDiffSourceElements(cmd *cobra.Command) *diff.Modes {
-	if !isAnyDiffElementsFlagChanged(cmd) {
+func getDiffSourceModes(cmd *cobra.Command) *diff.Modes {
+	if !isAnyDiffModeFlagChanged(cmd) {
 		// Default
 		return &diff.Modes{
 			Overview:     true,
@@ -329,8 +329,8 @@ func getDiffSourceElements(cmd *cobra.Command) *diff.Modes {
 	}
 }
 
-func getDiffTableElements(cmd *cobra.Command) *diff.Modes {
-	if !isAnyDiffElementsFlagChanged(cmd) {
+func getDiffTableModes(cmd *cobra.Command) *diff.Modes {
+	if !isAnyDiffModeFlagChanged(cmd) {
 		// Default
 		return &diff.Modes{
 			Schema:   true,
@@ -353,8 +353,8 @@ func getDiffTableElements(cmd *cobra.Command) *diff.Modes {
 	}
 }
 
-func isAnyDiffElementsFlagChanged(cmd *cobra.Command) bool {
-	for _, name := range allDiffElementsFlags {
+func isAnyDiffModeFlagChanged(cmd *cobra.Command) bool {
+	for _, name := range allDiffModeFlags {
 		if cmdFlagChanged(cmd, name) {
 			return true
 		}
@@ -363,11 +363,14 @@ func isAnyDiffElementsFlagChanged(cmd *cobra.Command) bool {
 }
 
 func getDiffRecordWriter(f format.Format, pr *output.Printing, lines int) (diff.RecordHunkWriter, error) {
-	if f == format.CSV {
-		// Currently we've only implemented an "optimized" (and I say that loosely)
-		// diff writer for CSV. There's no technical reason the others can't be
-		// implemented; just haven't gotten around to it yet.
-		return csvw.NewDiffWriter(pr), nil
+	switch f { //nolint:exhaustive
+	// Currently we've only implemented an "optimized" (and I say that loosely)
+	// diff writer for CSV/TSV. There's no technical reason the others can't be
+	// implemented; just haven't gotten around to it yet.
+	case format.CSV:
+		return csvw.NewCommaDiffWriter(pr), nil
+	case format.TSV:
+		return csvw.NewTabDiffWriter(pr), nil
 	}
 
 	// All the rest of the formats have to use the adapter.

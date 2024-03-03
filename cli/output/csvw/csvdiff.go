@@ -6,18 +6,33 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/neilotoole/sq/cli/diff"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/colorz"
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
 	"github.com/neilotoole/sq/libsq/core/record"
 )
 
-func NewDiffWriter(pr *output.Printing) *DiffWriter {
+// NewCommaDiffWriter returns a diff.RecordHunkWriter for CSV.
+func NewCommaDiffWriter(pr *output.Printing) diff.RecordHunkWriter {
+	return newDiffWriter(pr, NewCommaRecordWriter)
+}
+
+// NewTabDiffWriter returns a diff.RecordHunkWriter for TSV.
+func NewTabDiffWriter(pr *output.Printing) diff.RecordHunkWriter {
+	return newDiffWriter(pr, NewTabRecordWriter)
+}
+
+func newDiffWriter(pr *output.Printing, rw output.NewRecordWriterFunc) diff.RecordHunkWriter {
 	pr = pr.Clone()
 	pr.EnableColor(false)
 	pr.ShowHeader = false
 
-	dw := &DiffWriter{pr: pr}
+	dw := &diffWriter{
+		pr:          pr,
+		newWriterFn: rw,
+	}
+
 	seq := colorz.ExtractSeqs(pr.Diff.Context)
 	dw.contextPrefix = slices.Clip(append(seq.Prefix, ' '))
 	dw.contextSuffix = slices.Clip(append(seq.Suffix, '\n'))
@@ -31,8 +46,9 @@ func NewDiffWriter(pr *output.Printing) *DiffWriter {
 	return dw
 }
 
-type DiffWriter struct {
+type diffWriter struct {
 	pr            *output.Printing
+	newWriterFn   output.NewRecordWriterFunc
 	contextPrefix []byte
 	contextSuffix []byte
 	insertPrefix  []byte
@@ -41,7 +57,7 @@ type DiffWriter struct {
 	deleteSuffix  []byte
 }
 
-func (dw *DiffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm2 record.Meta, pairs []record.Pair) {
+func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm2 record.Meta, pairs []record.Pair) {
 	var err error
 	var hunkHeader []byte
 
@@ -57,13 +73,13 @@ func (dw *DiffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm
 	}
 
 	buf1 := &bytes.Buffer{}
-	csv1 := NewCommaRecordWriter(buf1, dw.pr)
+	csv1 := dw.newWriterFn(buf1, dw.pr)
 	if err = csv1.Open(ctx, rm1); err != nil {
 		dest.Seal(nil, err)
 		return
 	}
 	buf2 := &bytes.Buffer{}
-	csv2 := NewCommaRecordWriter(buf2, dw.pr)
+	csv2 := dw.newWriterFn(buf2, dw.pr)
 	if err = csv2.Open(ctx, rm2); err != nil {
 		dest.Seal(nil, err)
 		return
