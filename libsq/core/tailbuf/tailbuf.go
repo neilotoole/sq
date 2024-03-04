@@ -17,7 +17,8 @@ import (
 // or Buf.WriteAll methods. However, Buf drops the oldest items as it fills
 // (which is the entire point of this package): the tail window is the subset of
 // the nominal buffer that is currently available. Some of Buf's methods take
-// arguments that are indices into the nominal buffer, for example [Buf.SliceNominal].
+// arguments that are indices into the nominal buffer, for example
+// [SliceNominal].
 type Buf[T any] struct {
 	// window is the circular buffer.
 	window []T
@@ -43,8 +44,8 @@ func New[T any](capacity int) *Buf[T] {
 	}
 }
 
-// Write appends t to the buffer. If the buffer fills, the oldest item
-// is overwritten. The buffer is returned for chaining.
+// Write appends t to the buffer. If the buffer fills, the oldest item is
+// overwritten. The buffer is returned for chaining.
 func (b *Buf[T]) Write(t T) *Buf[T] {
 	if len(b.window) == 0 {
 		// We won't actually store the item, but we still count it.
@@ -90,7 +91,8 @@ func (b *Buf[T]) write(item T) {
 // Tail returns a slice containing the current tail window of items in the
 // buffer, with the oldest item at index 0. Depending on the state of Buf, the
 // returned slice may be a slice of Buf's internal data, or a copy. Thus you
-// should copy the returned slice before modifying it, or instead use SliceTail.
+// should copy the returned slice before modifying it, or instead use
+// [SliceTail].
 func (b *Buf[T]) Tail() []T {
 	switch {
 	case len(b.window) == 0, b.count < 1:
@@ -269,10 +271,10 @@ func (b *Buf[T]) Do(ctx context.Context, fn func(ctx context.Context, item T, in
 // SliceNominal returns a slice into the nominal buffer, using the standard
 // [inclusive:exclusive] slicing mechanics.
 //
-// Boundary checking is relaxed. If the buffer is empty, the returned slice
-// is empty. Otherwise, if the requested range is completely outside the bounds
-// of the tail window, the returned slice is empty; if the range overlaps with
-// the tail window, the returned slice contains the overlapping items. If strict
+// Boundary checking is relaxed. If the buffer is empty, the returned slice is
+// empty. Otherwise, if the requested range is completely outside the bounds of
+// the tail window, the returned slice is empty; if the range overlaps with the
+// tail window, the returned slice contains the overlapping items. If strict
 // boundary checking is important to you, use [Buf.InBounds] to check the start
 // and end indices.
 //
