@@ -50,24 +50,34 @@ func (wa *recordHunkWriterAdapter) WriteHunk(ctx context.Context, hunk *diffdoc.
 		hunk.Seal([]byte(hunkHeader), err)
 	}()
 
-	recs1 := make([]record.Record, len(pairs))
-	recs2 := make([]record.Record, len(pairs))
+	recs1 := make([]record.Record, 0)
+	recs2 := make([]record.Record, 0)
 	for i := range pairs {
-		recs1[i] = pairs[i].Rec1()
-		recs2[i] = pairs[i].Rec2()
+		if rec := pairs[i].Rec1(); rec != nil {
+			recs1 = append(recs1, rec)
+		}
+		if rec := pairs[i].Rec2(); rec != nil {
+			recs2 = append(recs2, rec)
+		}
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		var bodyErr error
-		body1, bodyErr = wa.renderRecords(gCtx, rm1, recs1)
-		return bodyErr
-	})
-	g.Go(func() error {
-		var bodyErr error
-		body2, bodyErr = wa.renderRecords(gCtx, rm2, recs2)
-		return bodyErr
-	})
+	if len(recs1) > 0 {
+		g.Go(func() error {
+			var bodyErr error
+			body1, bodyErr = wa.renderRecords(gCtx, rm1, recs1)
+			return bodyErr
+		})
+	}
+
+	if len(recs2) > 0 {
+		g.Go(func() error {
+			var bodyErr error
+			body2, bodyErr = wa.renderRecords(gCtx, rm2, recs2)
+			return bodyErr
+		})
+	}
+
 	if err = g.Wait(); err != nil {
 		return
 	}

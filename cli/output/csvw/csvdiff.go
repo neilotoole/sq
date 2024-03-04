@@ -116,6 +116,9 @@ func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm
 			// -38,TOM,MCKELLEN,2020-06-11T02:50:54Z
 			// -39,GOLDIE,BRODY,2020-06-11T02:50:54Z
 			recs[0] = pairs[j].Rec1()
+			if recs[0] == nil {
+				break
+			}
 			_ = csv1.WriteRecords(ctx, recs)
 			_ = csv1.Flush(ctx)
 			_, _ = dest.Write(dw.deletePrefix)
@@ -124,12 +127,15 @@ func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm
 			buf1.Reset()
 		}
 
-		for k = i; k < j; k++ {
+		for k = i; k < len(pairs) && !pairs[k].Equal(); k++ {
 			// Print insertion lines:
 			//
 			// +38,THOMAS,MCKELLEN,2020-06-11T02:50:54Z
 			// +39,GOLDIE,LOCKS,2020-06-11T02:50:54Z
 			recs[0] = pairs[k].Rec2()
+			if recs[0] == nil {
+				break
+			}
 			_ = csv2.WriteRecords(ctx, recs)
 			_ = csv2.Flush(ctx)
 			_, _ = dest.Write(dw.insertPrefix)
@@ -140,7 +146,7 @@ func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm
 
 		// Adjust the main loop index to skip over the differing
 		// records that we've just processed.
-		i = j - 1
+		i = max(j, k) - 1
 	}
 
 	if ctx.Err() != nil {
