@@ -288,29 +288,31 @@ func (b *Buf[T]) DropBack() {
 	} else {
 		b.back = (b.back + 1) % len(b.window)
 	}
-	b.written--
 }
 
-// DropBackN removes the oldest n items in the tail window.
-// See also: [Buf.PopBackN].
+// DropBackN removes the oldest n items from the tail, zeroing out the items.
 func (b *Buf[T]) DropBackN(n int) {
-	// FIXME: better implementation needed, also need to zero elements.
-	if b.written == 0 || n < 1 {
+	size := b.Len()
+	if size == 0 || n < 1 {
 		return
 	}
 
-	if n >= b.written {
-		b.Reset()
+	if n >= size {
+		b.Clear()
 		return
 	}
 
 	if b.front > b.back {
-		b.back = (b.back + n) % len(b.window)
-	} else {
-		b.back = (b.back + n) % len(b.window)
-		if b.back > b.front {
-			b.back = b.front
+		for i := 0; i < n; i++ {
+			b.window[b.back] = b.zero
+			b.back = (b.back + 1) % len(b.window)
 		}
+		return
+	}
+
+	for i := 0; i < n; i++ {
+		b.window[b.back] = b.zero
+		b.back = (b.back + 1) % len(b.window)
 	}
 }
 

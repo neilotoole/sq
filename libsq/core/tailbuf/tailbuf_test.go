@@ -239,6 +239,7 @@ func TestPopFront(t *testing.T) {
 	buf := tailbuf.New[rune](3)
 	buf.WriteAll('a', 'b', 'c')
 	require.Equal(t, 3, buf.Written())
+	require.Equal(t, 3, buf.Len())
 	require.Equal(t, 'c', buf.Front())
 	require.Equal(t, 'a', buf.Back())
 	require.Equal(t, []rune{'a', 'b', 'c'}, buf.Tail())
@@ -320,35 +321,37 @@ func TestDropBack(t *testing.T) {
 	buf := tailbuf.New[rune](3)
 	buf.WriteAll('a', 'b', 'c')
 	require.Equal(t, 3, buf.Written())
+	require.Equal(t, 3, buf.Len())
 	require.Equal(t, 'a', buf.Back())
+	require.Equal(t, []rune{'a', 'b', 'c'}, buf.Tail())
 
 	buf.DropBack()
-	require.Equal(t, 2, buf.Written())
+	require.Equal(t, 3, buf.Written())
+	require.Equal(t, 2, buf.Len())
 	require.Equal(t, 'b', buf.Back())
 	require.Equal(t, []rune{0, 'b', 'c'}, tailbuf.InternalWindow(buf))
+	require.Equal(t, []rune{'b', 'c'}, buf.Tail())
 
 	buf.DropBack()
-	require.Equal(t, 1, buf.Written())
+	require.Equal(t, 3, buf.Written())
+	require.Equal(t, 1, buf.Len())
 	require.Equal(t, 'c', buf.Back())
 	require.Equal(t, []rune{0, 0, 'c'}, tailbuf.InternalWindow(buf))
+	require.Equal(t, []rune{'c'}, buf.Tail())
 
 	buf.DropBack()
-	require.Equal(t, 0, buf.Written())
+	require.Equal(t, 3, buf.Written())
+	require.Equal(t, 0, buf.Len())
 	require.Empty(t, buf.Back())
 	requireZeroInternalWindow(t, buf)
+	require.Empty(t, buf.Tail())
 
 	buf.DropBack()
-	require.Zero(t, buf.Written())
+	require.Equal(t, 3, buf.Written())
+	require.Equal(t, 0, buf.Len())
 	require.Empty(t, buf.Back())
 	requireZeroInternalWindow(t, buf)
-}
-
-func requireZeroInternalWindow[T any](t *testing.T, buf *tailbuf.Buf[T]) {
-	t.Helper()
-	window := tailbuf.InternalWindow(buf)
-	for i := range window {
-		require.Zero(t, window[i])
-	}
+	require.Empty(t, buf.Tail())
 }
 
 func TestPopBackN(t *testing.T) {
@@ -372,14 +375,59 @@ func TestPopBackN(t *testing.T) {
 	window := tailbuf.InternalWindow(buf)
 	require.Equal(t, []rune{0, 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'}, window)
 	gotTail := buf.Tail()
-	require.Equal(t, []rune{'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'}, gotTail)
+	require.Equal(t, all[1:], gotTail)
 
 	got = buf.PopBackN(3)
 	require.Equal(t, []rune{'b', 'c', 'd'}, got)
 	require.Equal(t, 6, buf.Len())
 	require.Equal(t, 10, buf.Written())
+	gotTail = buf.Tail()
+	require.Equal(t, all[4:], gotTail)
 
 	got = buf.PopBackN(10)
 	require.Equal(t, []rune{'e', 'f', 'g', 'h', 'i', 'j'}, got)
 	require.Equal(t, 0, buf.Len())
+	require.Equal(t, 10, buf.Written())
+	require.Empty(t, buf.Tail())
+}
+
+func TestDropBackN(t *testing.T) {
+	all := []rune{'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'}
+	buf := tailbuf.New[rune](10)
+	buf.WriteAll(all...)
+	require.Equal(t, 10, buf.Len())
+	require.Equal(t, 10, buf.Written())
+	require.Equal(t, all, buf.Tail())
+
+	buf.DropBackN(0)
+	require.Equal(t, 10, buf.Len())
+	require.Equal(t, 10, buf.Written())
+	require.Equal(t, all, buf.Tail())
+
+	buf.DropBackN(1)
+	require.Equal(t, 9, buf.Len())
+	require.Equal(t, 10, buf.Written())
+	window := tailbuf.InternalWindow(buf)
+	require.Equal(t, []rune{0, 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'}, window)
+	gotTail := buf.Tail()
+	require.Equal(t, all[1:], gotTail)
+
+	buf.DropBackN(3)
+	require.Equal(t, 6, buf.Len())
+	require.Equal(t, 10, buf.Written())
+	gotTail = buf.Tail()
+	require.Equal(t, all[4:], gotTail)
+
+	buf.DropBackN(10)
+	require.Equal(t, 0, buf.Len())
+	require.Equal(t, 10, buf.Written())
+	require.Empty(t, buf.Tail())
+}
+
+func requireZeroInternalWindow[T any](t *testing.T, buf *tailbuf.Buf[T]) {
+	t.Helper()
+	window := tailbuf.InternalWindow(buf)
+	for i := range window {
+		require.Zero(t, window[i])
+	}
 }
