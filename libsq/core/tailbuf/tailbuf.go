@@ -20,6 +20,10 @@ import (
 // arguments that are indices into the nominal buffer, for example
 // [SliceNominal].
 type Buf[T any] struct {
+	// zero is the zero value of T, used for zeroing elements of the in-use
+	// window so that after operations like Buf.DropBack we don't accidentally
+	// hold on to references.
+	zero T
 	// window is the circular buffer.
 	window []T
 	// back is the cursor for the oldest item.
@@ -28,10 +32,6 @@ type Buf[T any] struct {
 	front int
 	// written is the number of items written.
 	written int
-	// zero is the zero value of T, used for zeroing elements of the in-use
-	// window so that after operations like Buf.DropBack we don't accidentally
-	// hold on to references.
-	zero T
 }
 
 // New returns a new Buf with the specified capacity. It panics if capacity is
@@ -114,6 +114,27 @@ func (b *Buf[T]) Tail() []T {
 	}
 }
 
+// tailNewSlice is like Buf.Tail but it always returns a fresh slice.
+func (b *Buf[T]) tailNewSlice() []T {
+	size := b.Len()
+	switch {
+	case size == 0:
+		return make([]T, 0)
+	case size == 1:
+		return []T{b.window[b.front]}
+	case b.front > b.back:
+		s := make([]T, b.front-b.back+1)
+		copy(s, b.window[b.back:b.front+1])
+		return s
+		// return b.window[b.back : b.front+1]
+	default:
+		s := make([]T, size)
+		copy(s, b.window[b.back:])
+		copy(s[len(b.window)-b.back:], b.window[:b.front+1])
+		return s
+	}
+}
+
 // Written returns the total number of items written to the buffer.
 func (b *Buf[T]) Written() int {
 	return b.written
@@ -157,7 +178,8 @@ func (b *Buf[T]) Len() int {
 	}
 }
 
-func (b *Buf[T]) zeroInUseWindowElements() {
+// zeroTail zeroes out the items in the tail window.
+func (b *Buf[T]) zeroTail() {
 	if b.front > b.back {
 		for i := b.back; i <= b.front; i++ {
 			b.window[i] = b.zero
@@ -172,15 +194,33 @@ func (b *Buf[T]) zeroInUseWindowElements() {
 	}
 }
 
-// Reset resets the buffer to its initial state. The buffer is returned for
-// chaining. Any items in the buffer are zeroed out.
+// Reset resets the buffer to its initial state, including the value returned
+// by [Buf.Written]. The buffer is returned for chaining. Any items in the
+// buffer
+// are zeroed out.
+//
+// See also: [Buf.Clear].
 func (b *Buf[T]) Reset() *Buf[T] {
-	b.zeroInUseWindowElements()
+	b.zeroTail()
 
 	b.back = -1
 	b.front = -1
 
 	b.written = 0
+	return b
+}
+
+// Clear removes all items from the buffer, zeroing all values. This is similar
+// to [Buf.Reset], but note that the value returned by [Buf.Written] is
+// unchanged. The buffer is returned for chaining.
+//
+// See also: [Buf.Reset].
+func (b *Buf[T]) Clear() *Buf[T] {
+	b.zeroTail()
+
+	b.back = -1
+	b.front = -1
+
 	return b
 }
 
@@ -289,21 +329,26 @@ func (b *Buf[T]) PopBack() T {
 	} else {
 		b.back = (b.back + 1) % len(b.window)
 	}
-	//b.count--
+	// b.count--
 	return item
 }
 
 // PopBackN removes and returns the oldest n items in the tail window. Any
 // removed items are zeroed out from the buffer's internal window. On return,
-// the slice contains the removed items, in oldest-to-newest order, and the
-// buffer's count is decremented by n.
+// the slice (which is always freshly allocated) contains the removed items, in
+// oldest-to-newest order, and Buf.Len is reduced by n. If n is greater than the
+// number of items in the tail window, all items in the tail window are removed
+// and returned.
 func (b *Buf[T]) PopBackN(n int) []T {
-	if b.written == 0 || n < 1 {
+	size := b.Len()
+	if size == 0 || n < 1 {
 		return make([]T, 0)
 	}
 
-	if n >= b.written {
-		n = b.written
+	if n >= size {
+		s := b.tailNewSlice()
+		b.Clear()
+		return s
 	}
 
 	if b.front > b.back {
@@ -313,7 +358,6 @@ func (b *Buf[T]) PopBackN(n int) []T {
 			b.window[b.back] = b.zero
 			b.back = (b.back + 1) % len(b.window)
 		}
-		b.written -= n
 		return s
 	}
 
@@ -323,9 +367,7 @@ func (b *Buf[T]) PopBackN(n int) []T {
 		b.window[b.back] = b.zero
 		b.back = (b.back + 1) % len(b.window)
 	}
-	b.written -= n
 	return s
-
 }
 
 // Apply applies fn to each item in the tail window, in oldest-to-newest order.

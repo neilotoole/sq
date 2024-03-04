@@ -428,9 +428,9 @@ LOOP:
 
 			if len(hunkPairs) >= rd.cfg.HunkMaxSize {
 				// We've reached the hard limit for the hunk size.
-				//front := tb.Front()
-				//tb.Reset()
-				//tb.Write(front)
+				// front := tb.Front()
+				// tb.Reset()
+				// tb.Write(front)
 
 				break
 			}
@@ -483,7 +483,7 @@ LOOP:
 
 		// OK, now we've got enough record pairs to populate the hunk.
 		rd.populateHunk(ctx, hunkPairs, hunk)
-		//if hunkPairsLen >= rd.cfg.HunkMaxSize {
+		// if hunkPairsLen >= rd.cfg.HunkMaxSize {
 		tb.Reset()
 		//}
 
