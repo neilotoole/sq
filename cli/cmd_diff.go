@@ -366,8 +366,8 @@ func isAnyDiffModeFlagChanged(cmd *cobra.Command) bool {
 func getDiffRecordWriter(f format.Format, pr *output.Printing, lines int) (diff.RecordHunkWriter, error) {
 	switch f { //nolint:exhaustive
 	// We've only implemented an "optimized" (and I say that loosely) diff writer
-	// for a handful of formats. There's no technical reason the
-	// others can't be implemented; just haven't gotten around to it yet.
+	// for a handful of formats. There's no technical reason the others can't be
+	// implemented; just haven't gotten around to it yet.
 	case format.CSV:
 		return csvw.NewCommaDiffWriter(pr), nil
 	case format.TSV:
