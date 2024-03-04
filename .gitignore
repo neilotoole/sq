@@ -64,3 +64,5 @@ goreleaser-test.sh
 
 /docker-build-run.sh
 tempdiff
+sakila_a*
+sakila_b*

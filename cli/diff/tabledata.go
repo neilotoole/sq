@@ -26,9 +26,10 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// differsForAllTableData compares the row data of each table in src1 and src2.
+// differsForAllTableData returns a slice containing a *diffdoc.Differ for the
+// row data of each table in src1 and src2.
 func differsForAllTableData(ctx context.Context, cfg *Config, src1, src2 *source.Source,
-) (execDocs []*diffdoc.Differ, err error) {
+) (differs []*diffdoc.Differ, err error) {
 	log := lg.FromContext(ctx).With(lga.Left, src1.Handle, lga.Right, src2.Handle)
 	log.Info("Diffing source tables data")
 
@@ -40,7 +41,7 @@ func differsForAllTableData(ctx context.Context, cfg *Config, src1, src2 *source
 	allTblNames := lo.Uniq(langz.JoinSlices(tbls1, tbls2))
 	slices.Sort(allTblNames)
 
-	differs := make([]*diffdoc.Differ, len(allTblNames))
+	differs = make([]*diffdoc.Differ, len(allTblNames))
 	for i, tblName := range allTblNames {
 		td1 := source.Table{Handle: src1.Handle, Name: tblName}
 		td2 := source.Table{Handle: src2.Handle, Name: tblName}
