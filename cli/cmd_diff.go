@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"github.com/neilotoole/sq/cli/output/tablew"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/csvw"
 	"github.com/neilotoole/sq/cli/output/format"
+	"github.com/neilotoole/sq/cli/output/tablew"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/options"
