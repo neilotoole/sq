@@ -86,8 +86,8 @@ func (wa *recordHunkWriterAdapter) WriteHunk(ctx context.Context, hunk *diffdoc.
 	var unified string
 	if unified, err = diffdoc.ComputeUnified(
 		ctx,
-		"recs1",
-		"recs2",
+		"recs1", // not actually used
+		"recs2", // not actually used
 		wa.lines,
 		stringz.UnsafeString(body1),
 		stringz.UnsafeString(body2),
