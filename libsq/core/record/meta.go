@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+	"slices"
 	"strconv"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -191,6 +192,28 @@ func (rm Meta) LogValue() slog.Value {
 	}
 
 	return slog.AnyValue(a)
+}
+
+// Equalish returns true if rm and other are equal in the most relevant aspects.
+// Specifically, they're equal if their field kinds are equal, and have the
+// same munged names.
+func (rm Meta) Equalish(other Meta) bool {
+	switch {
+	case rm == nil && other == nil:
+		return true
+	case other == nil || rm == nil:
+		return false
+	case len(rm) != len(other):
+		return false
+	case &rm == &other:
+		return true
+	case !slices.Equal(rm.Kinds(), other.Kinds()):
+		return false
+	case !slices.Equal(rm.MungedNames(), other.MungedNames()):
+		return false
+	}
+
+	return true
 }
 
 // ColumnTypeData contains the same data as sql.ColumnType

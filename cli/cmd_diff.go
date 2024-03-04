@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/neilotoole/sq/cli/output/tablew"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
@@ -364,13 +365,15 @@ func isAnyDiffModeFlagChanged(cmd *cobra.Command) bool {
 
 func getDiffRecordWriter(f format.Format, pr *output.Printing, lines int) (diff.RecordHunkWriter, error) {
 	switch f { //nolint:exhaustive
-	// Currently we've only implemented an "optimized" (and I say that loosely)
-	// diff writer for CSV/TSV. There's no technical reason the others can't be
-	// implemented; just haven't gotten around to it yet.
+	// We've only implemented an "optimized" (and I say that loosely) diff writer
+	// for a handful of formats. There's no technical reason the
+	// others can't be implemented; just haven't gotten around to it yet.
 	case format.CSV:
 		return csvw.NewCommaDiffWriter(pr), nil
 	case format.TSV:
 		return csvw.NewTabDiffWriter(pr), nil
+	case format.Text:
+		return tablew.NewDiffWriter(pr), nil
 	}
 
 	// All the rest of the formats have to use the adapter.

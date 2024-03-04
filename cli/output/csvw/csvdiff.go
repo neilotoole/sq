@@ -46,7 +46,7 @@ func newDiffWriter(pr *output.Printing, rw output.NewRecordWriterFunc) diff.Reco
 	return dw
 }
 
-// diffWriter is a somewhat-optimal implementation of diff.RecordHunkWriter for
+// diffWriter is a somewhat-optimized implementation of diff.RecordHunkWriter for
 // CSV/TSV. It still delegates its CSV record generation to this package's
 // RecordWriter implementation, which itself delegates to stdlib encoding/csv,
 // resulting in way too many allocations. But it's a start.
