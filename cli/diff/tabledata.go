@@ -350,15 +350,16 @@ func (rd *recordDiffer) exec(ctx context.Context, recPairsCh <-chan record.Pair,
 		// numLines of pairs before and after differing pair.
 		hunkPairs []record.Pair
 
-		rp  record.Pair
-		ok  bool
-		err error
+		rp      record.Pair
+		ok      bool
+		err     error
+		ctxDone = ctx.Done()
 	)
 
 LOOP:
 	for row := 0; ctx.Err() == nil; row++ {
 		select {
-		case <-ctx.Done():
+		case <-ctxDone:
 			err = errz.Err(context.Cause(ctx))
 			break LOOP
 		case rp, ok = <-recPairsCh:
@@ -424,8 +425,16 @@ LOOP:
 		for err = ctx.Err(); err == nil; {
 			// Start looking ahead to get numLines of after-the-difference record
 			// pairs.
+
+			// FIXME: implement cfg.HunkMaxSize
+			if len(hunkPairs) >= rd.cfg.HunkMaxSize {
+				// We've reached the hard limit for the hunk size.
+				tb.Reset()
+				break
+			}
+
 			select {
-			case <-ctx.Done():
+			case <-ctxDone:
 				err = errz.Err(context.Cause(ctx))
 				break LOOP
 			case rp, ok = <-recPairsCh:
@@ -448,22 +457,30 @@ LOOP:
 				pairMatchSeq = 0
 			}
 
-			if len(hunkPairs) >= rd.cfg.HunkMaxSize {
-				// We've reached the hard limit for the hunk size.
-				break
-			}
-
-			if pairMatchSeq >= numLines*2 {
-				// We've looked ahead far enough to avoid the adjacent hunk line
-				// duplication issue, so we can trim off those extra lookahead pairs.
-				hunkPairs = hunkPairs[:len(hunkPairs)-numLines]
-				break
+			if numLines == 0 {
+				// Special handling for zero context lines. We need to keep looking
+				// ahead until we find the first non-differing record pair, so that we
+				// don't end up with adjacent hunks. If all the records differ, we'll
+				// probably run into the diff.stop or diff.hunk-max-size limit at some
+				// point.
+				if rp.Equal() {
+					// We found a non-differing pair, but because we're showing zero
+					// context lines, we need to trim it off.
+					hunkPairs = hunkPairs[:len(hunkPairs)-1]
+					break
+				}
+			} else {
+				if pairMatchSeq >= numLines*2 {
+					// We've looked ahead far enough to avoid the adjacent hunk line
+					// duplication issue, so we can trim off those extra lookahead pairs.
+					hunkPairs = hunkPairs[:len(hunkPairs)-numLines]
+					break
+				}
 			}
 		}
 
 		// OK, now we've got enough record pairs to populate the hunk.
-		rd.populateHunk3(ctx, hunkPairs, hunk)
-		// rd.populateHunk(ctx, hunkPairs, hunk)
+		rd.populateHunk(ctx, hunkPairs, hunk)
 		if err = hunk.Err(); err != nil {
 			// Uh-oh, something bad happened while populating the hunk.
 			// Time to head for the exit.
@@ -480,7 +497,7 @@ LOOP:
 	return err
 }
 
-func (rd *recordDiffer) populateHunk3(ctx context.Context, pairs []record.Pair, hunk *diffdoc.Hunk) {
+func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, hunk *diffdoc.Hunk) {
 	recMeta1, recMeta2 := rd.recMetaFn()
 	rd.cfg.RecordHunkWriter.WriteHunk(ctx, hunk, recMeta1, recMeta2, pairs)
 }
