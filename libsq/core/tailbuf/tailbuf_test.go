@@ -204,7 +204,7 @@ func TestTail_Slice_Equivalence(t *testing.T) {
 	require.Equal(t, a, b)
 }
 
-func TestCountGTCapacity(t *testing.T) {
+func TestWrittenGTCapacity(t *testing.T) {
 	buf := tailbuf.New[string](1)
 	buf.WriteAll("a", "b")
 	require.Equal(t, 1, buf.Capacity())
@@ -389,6 +389,60 @@ func TestPopBackN(t *testing.T) {
 	require.Equal(t, 0, buf.Len())
 	require.Equal(t, 10, buf.Written())
 	require.Empty(t, buf.Tail())
+}
+
+func TestPopFrontN(t *testing.T) {
+	all := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"}
+	buf := tailbuf.New[string](10)
+	buf.WriteAll(all...)
+	require.Equal(t, 10, buf.Len())
+	require.Equal(t, 10, buf.Written())
+	require.Equal(t, all, buf.Tail())
+
+	got := buf.PopFrontN(0)
+	require.Empty(t, got)
+	require.Equal(t, 10, buf.Len())
+	require.Equal(t, 10, buf.Written())
+	require.Equal(t, all, buf.Tail())
+
+	got = buf.PopFrontN(1)
+	require.Equal(t, []string{"j"}, got)
+	require.Equal(t, 9, buf.Len())
+	require.Equal(t, 10, buf.Written())
+	window := tailbuf.InternalWindow(buf)
+	require.Equal(t, []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", ""}, window)
+	gotTail := buf.Tail()
+	require.Equal(t, []string{"a", "b", "c", "d", "e", "f", "g", "h", "i"}, gotTail)
+
+	got = buf.PopFrontN(2)
+	require.Equal(t, []string{"h", "i"}, got)
+	require.Equal(t, 7, buf.Len())
+	require.Equal(t, 10, buf.Written())
+	gotTail = buf.Tail()
+	require.Equal(t, []string{"a", "b", "c", "d", "e", "f", "g"}, gotTail)
+
+	got = buf.PopFrontN(10)
+	require.Equal(t, []string{"a", "b", "c", "d", "e", "f", "g"}, got)
+	require.Equal(t, 0, buf.Len())
+	require.Equal(t, 10, buf.Written())
+	gotTail = buf.Tail()
+	require.Empty(t, gotTail)
+}
+
+func TestLen(t *testing.T) {
+	all := []string{"a", "b", "c"}
+	buf := tailbuf.New[string](3)
+	require.Equal(t, 0, buf.Len())
+	buf.Write("a")
+	require.Equal(t, 1, buf.Len())
+	buf.Write("b")
+	require.Equal(t, 2, buf.Len())
+	buf.Write("c")
+	require.Equal(t, 3, buf.Len())
+	buf.Clear()
+	require.Equal(t, 0, buf.Len())
+	buf.WriteAll(all...)
+	require.Equal(t, 3, buf.Len())
 }
 
 func TestDropBackN(t *testing.T) {

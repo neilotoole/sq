@@ -30,8 +30,10 @@ type Buf[T any] struct {
 	back int
 	// front is the cursor for the newest item.
 	front int
-	// written is the number of items written.
+	// written is the total number of items written via Buf.Write or Buf.WriteAll.
 	written int
+	// len is the number of items currently in the buffer.
+	len int
 }
 
 // New returns a new Buf with the specified capacity. It panics if capacity is
@@ -90,6 +92,9 @@ func (b *Buf[T]) write(item T) {
 
 	b.front = (b.front + 1) % len(b.window)
 	b.window[b.front] = item
+	if b.len < len(b.window) {
+		b.len++
+	}
 }
 
 // Tail returns a slice containing the items currently in the buffer, in
@@ -98,16 +103,15 @@ func (b *Buf[T]) write(item T) {
 // should copy the returned slice before modifying it, or instead use
 // [SliceTail].
 func (b *Buf[T]) Tail() []T {
-	size := b.Len()
 	switch {
-	case size == 0:
+	case b.len == 0:
 		return b.window[:0]
-	case size == 1:
+	case b.len == 1:
 		return b.window[b.front : b.front+1]
 	case b.front > b.back:
 		return b.window[b.back : b.front+1]
 	default:
-		s := make([]T, size)
+		s := make([]T, b.len)
 		copy(s, b.window[b.back:])
 		copy(s[len(b.window)-b.back:], b.window[:b.front+1])
 		return s
@@ -116,19 +120,17 @@ func (b *Buf[T]) Tail() []T {
 
 // tailNewSlice is like Buf.Tail but it always returns a fresh slice.
 func (b *Buf[T]) tailNewSlice() []T {
-	size := b.Len()
 	switch {
-	case size == 0:
+	case b.len == 0:
 		return make([]T, 0)
-	case size == 1:
+	case b.len == 1:
 		return []T{b.window[b.front]}
 	case b.front > b.back:
 		s := make([]T, b.front-b.back+1)
 		copy(s, b.window[b.back:b.front+1])
 		return s
-		// return b.window[b.back : b.front+1]
 	default:
-		s := make([]T, size)
+		s := make([]T, b.len)
 		copy(s, b.window[b.back:])
 		copy(s[len(b.window)-b.back:], b.window[:b.front+1])
 		return s
@@ -166,16 +168,7 @@ func (b *Buf[T]) Capacity() int {
 
 // Len returns the number of items currently in the buffer.
 func (b *Buf[T]) Len() int {
-	switch {
-	case b.written == 0, len(b.window) == 0, b.front == -1, b.back == -1:
-		return 0
-	case b.front == b.back:
-		return 1
-	case b.front > b.back:
-		return b.front - b.back + 1
-	default:
-		return len(b.window) - b.back + b.front + 1
-	}
+	return b.len
 }
 
 // zeroTail zeroes out the items in the tail window.
@@ -201,11 +194,7 @@ func (b *Buf[T]) zeroTail() {
 //
 // See also: [Buf.Clear].
 func (b *Buf[T]) Reset() *Buf[T] {
-	b.zeroTail()
-
-	b.back = -1
-	b.front = -1
-
+	b.Clear()
 	b.written = 0
 	return b
 }
@@ -220,6 +209,7 @@ func (b *Buf[T]) Clear() *Buf[T] {
 
 	b.back = -1
 	b.front = -1
+	b.len = 0
 
 	return b
 }
@@ -261,6 +251,7 @@ func (b *Buf[T]) PopFront() T {
 	} else {
 		b.front = (b.front - 1 + len(b.window)) % len(b.window)
 	}
+	b.len--
 	return item
 }
 
@@ -288,16 +279,16 @@ func (b *Buf[T]) DropBack() {
 	} else {
 		b.back = (b.back + 1) % len(b.window)
 	}
+	b.len--
 }
 
 // DropBackN removes the oldest n items from the tail, zeroing out the items.
 func (b *Buf[T]) DropBackN(n int) {
-	size := b.Len()
-	if size == 0 || n < 1 {
+	if b.len == 0 || n < 1 {
 		return
 	}
 
-	if n >= size {
+	if n >= b.len {
 		b.Clear()
 		return
 	}
@@ -306,6 +297,7 @@ func (b *Buf[T]) DropBackN(n int) {
 		for i := 0; i < n; i++ {
 			b.window[b.back] = b.zero
 			b.back = (b.back + 1) % len(b.window)
+			b.len--
 		}
 		return
 	}
@@ -313,10 +305,12 @@ func (b *Buf[T]) DropBackN(n int) {
 	for i := 0; i < n; i++ {
 		b.window[b.back] = b.zero
 		b.back = (b.back + 1) % len(b.window)
+		b.len--
 	}
 }
 
-// PopBack removes and returns the oldest item in the tail window.
+// PopBack removes and returns the oldest item in the tail window. If the buffer
+// is empty, the zero value of T is returned.
 func (b *Buf[T]) PopBack() T {
 	if b.back == -1 {
 		var t T
@@ -331,7 +325,7 @@ func (b *Buf[T]) PopBack() T {
 	} else {
 		b.back = (b.back + 1) % len(b.window)
 	}
-	// b.count--
+	b.len--
 	return item
 }
 
@@ -342,12 +336,11 @@ func (b *Buf[T]) PopBack() T {
 // number of items in the tail window, all items in the tail window are removed
 // and returned.
 func (b *Buf[T]) PopBackN(n int) []T {
-	size := b.Len()
-	if size == 0 || n < 1 {
+	if b.len == 0 || n < 1 {
 		return make([]T, 0)
 	}
 
-	if n >= size {
+	if n >= b.len {
 		s := b.tailNewSlice()
 		b.Clear()
 		return s
@@ -359,6 +352,7 @@ func (b *Buf[T]) PopBackN(n int) []T {
 			s[i] = b.window[b.back]
 			b.window[b.back] = b.zero
 			b.back = (b.back + 1) % len(b.window)
+			b.len--
 		}
 		return s
 	}
@@ -368,6 +362,45 @@ func (b *Buf[T]) PopBackN(n int) []T {
 		s[i] = b.window[b.back]
 		b.window[b.back] = b.zero
 		b.back = (b.back + 1) % len(b.window)
+		b.len--
+	}
+	return s
+}
+
+// PopFrontN removes and returns the newest n items in the tail window. Any
+// removed items are zeroed out from the buffer's internal window. On return,
+// the slice (which is always freshly allocated) contains the removed items, in
+// oldest-to-newest order, and Buf.Len is reduced by n. If n is greater than the
+// number of items in the tail window, all items in the tail window are removed
+// and returned.
+func (b *Buf[T]) PopFrontN(n int) []T {
+	if b.len == 0 || n < 1 {
+		return make([]T, 0)
+	}
+
+	if n >= b.len {
+		s := b.tailNewSlice()
+		b.Clear()
+		return s
+	}
+
+	if b.front > b.back {
+		s := make([]T, n)
+		for i := n - 1; i >= 0; i-- {
+			s[i] = b.window[b.front]
+			b.window[b.front] = b.zero
+			b.front = (b.front - 1 + len(b.window)) % len(b.window)
+			b.len--
+		}
+		return s
+	}
+
+	s := make([]T, n)
+	for i := n - 1; i >= 0; i-- {
+		s[i] = b.window[b.front]
+		b.window[b.front] = b.zero
+		b.front = (b.front - 1 + len(b.window)) % len(b.window)
+		b.len--
 	}
 	return s
 }
@@ -386,7 +419,7 @@ func (b *Buf[T]) PopBackN(n int) []T {
 //
 // For more control, or to handle errors, use [Buf.Do].
 func (b *Buf[T]) Apply(fn func(item T) T) *Buf[T] {
-	if b.written == 0 {
+	if b.len == 0 {
 		return b
 	}
 
@@ -425,7 +458,7 @@ func (b *Buf[T]) Apply(fn func(item T) T) *Buf[T] {
 // The context is not checked for cancellation between iterations. The context
 // should be checked in fn if desired.
 func (b *Buf[T]) Do(ctx context.Context, fn func(ctx context.Context, item T, index, offset int) (T, error)) error {
-	if b.written == 0 {
+	if b.len == 0 {
 		return nil
 	}
 
