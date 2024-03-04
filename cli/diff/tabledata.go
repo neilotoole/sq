@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/samber/lo"
 
@@ -105,15 +104,15 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	// created directly below.
 	errCh := make(chan error, 5) // Not sure if 5 is the correct size?
 
-	// The two dbResults instances, recw1 and recw2, share the same errCh,
+	// The two dbResults instances, rs1 and rs2, share the same errCh,
 	// because we don't care which one receives an error, just that one of them
 	// did.
 
-	recw1 := &dbResults{
+	rs1 := &dbResults{
 		recCh: make(chan record.Record, recBufSize),
 		errCh: errCh,
 	}
-	recw2 := &dbResults{
+	rs2 := &dbResults{
 		recCh: make(chan record.Record, recBufSize),
 		errCh: errCh,
 	}
@@ -122,26 +121,23 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	// cancel ctx, which will stop the other goroutines.
 	go func() {
 		if err := <-errCh; err != nil {
-			if errz.Has[*driver.NotExistError](err) {
+			switch {
+			case errz.Has[*driver.NotExistError](err):
 				// For diffing, it's totally ok if a table is not found.
 				log.Warn("Diff: table not found")
 				return
-			}
-
-			if errors.Is(err, context.Canceled) {
+			case errors.Is(err, context.Canceled):
 				log.Warn("Diff: cancelled err on errCh consumer")
-				// FIXME: docs
 				return
-			}
-
-			if errors.Is(err, errz.ErrStop) {
-				log.Warn("Diff: stop error on errCh consumer")
-				// FIXME: docs
+			case errors.Is(err, errz.ErrStop):
+				// errz.ErrStop is normal control flow (handled elsewhere), not an
+				// error, so we don't log anything. I'm not sure if this case is even
+				// reachable, but it's here just in case.
 				return
+			default:
+				log.Error("Error from record writer errCh", lga.Err, err)
+				cancelFn(err)
 			}
-
-			log.Error("Error from record writer errCh", lga.Err, err)
-			cancelFn(err)
 		}
 	}()
 
@@ -157,8 +153,8 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	dbCtx, dbCancel := context.WithCancelCause(ctx)
 	go func() {
 		query1 := td1.Handle + "." + stringz.DoubleQuote(td1.Name)
-		// Execute DB query1; records will be sent to recw1.recCh.
-		if err := libsq.ExecuteSLQ(dbCtx, qc, query1, recw1); err != nil {
+		// Execute DB query1; records will be sent to rs1.recCh.
+		if err := libsq.ExecuteSLQ(dbCtx, qc, query1, rs1); err != nil {
 			switch {
 			case errz.Has[*driver.NotExistError](err):
 				// For diffing, it's totally ok if a table is not found.
@@ -185,8 +181,8 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 
 	go func() {
 		query2 := td2.Handle + "." + stringz.DoubleQuote(td2.Name)
-		// Execute DB query2; records will be sent to recw2.recCh.
-		if err := libsq.ExecuteSLQ(dbCtx, qc, query2, recw2); err != nil {
+		// Execute DB query2; records will be sent to rs2.recCh.
+		if err := libsq.ExecuteSLQ(dbCtx, qc, query2, rs2); err != nil {
 			switch {
 			case errz.Has[*driver.NotExistError](err):
 				// For diffing, it's totally ok if a table is not found.
@@ -209,7 +205,7 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	}()
 
 	// At this point, both of our DB query goroutines have kicked off. This next
-	// goroutine collates the records from recw1 and recw2 into record.Pair
+	// goroutine collates the records from rs1 and rs2 into record.Pair
 	// instances, and sends those pairs to recPairsCh. The pairs will be consumed
 	// by the diff exec goroutine further below.
 	go func() {
@@ -225,13 +221,13 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 			select {
 			case <-ctx.Done():
 				return
-			case rec1 = <-recw1.recCh:
+			case rec1 = <-rs1.recCh:
 			}
 
 			select {
 			case <-ctx.Done():
 				return
-			case rec2 = <-recw2.recCh:
+			case rec2 = <-rs2.recCh:
 			}
 
 			if rec1 == nil && rec2 == nil {
@@ -269,7 +265,7 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 			td1: td1,
 			td2: td2,
 			recMetaFn: func() (meta1, meta2 record.Meta) {
-				return recw1.recMeta, recw2.recMeta
+				return rs1.recMeta, rs2.recMeta
 			},
 		}
 
@@ -427,10 +423,8 @@ LOOP:
 			// Start looking ahead to get numLines of after-the-difference record
 			// pairs.
 
-			// FIXME: implement cfg.HunkMaxSize
 			if len(hunkPairs) >= rd.cfg.HunkMaxSize {
 				// We've reached the hard limit for the hunk size.
-				tb.Reset()
 				break
 			}
 
@@ -499,8 +493,8 @@ LOOP:
 }
 
 func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, hunk *diffdoc.Hunk) {
-	recMeta1, recMeta2 := rd.recMetaFn()
-	rd.cfg.RecordHunkWriter.WriteHunk(ctx, hunk, recMeta1, recMeta2, pairs)
+	rm1, rm2 := rd.recMetaFn()
+	rd.cfg.RecordHunkWriter.WriteHunk(ctx, hunk, rm1, rm2, pairs)
 }
 
 var _ libsq.RecordWriter = (*dbResults)(nil)
@@ -525,56 +519,4 @@ func (rs *dbResults) Open(_ context.Context, _ context.CancelFunc, recMeta recor
 func (rs *dbResults) Wait() (written int64, err error) {
 	// We don't actually use Wait(), so just return zero values.
 	return 0, nil
-}
-
-// adjustHunkOffset adjusts the offset of a diff hunk. The hunk input is
-// expected to be a string of one of two forms. This is the long form:
-//
-//	@@ -44,7 +44,7 @@
-//
-// Given an offset of 10, this would become:
-//
-//	@@ -54,7 +54,7 @@
-//
-// The short form is:
-//
-//	@@ -44 +44 @@
-//
-// Given an offset of 10, this would become:
-//
-//	@@ -54 +54 @@
-//
-// The short form is used when there's no surrounding lines (-U=0).
-//
-// Note that "-44,7 +44,7" means that the first line shown is line 44 and the
-// number of lines compared is 7 (although 8 lines will be rendered, because the
-// changed line is shown twice: the before and after versions of the line).
-func adjustHunkOffset(hunk string, offset int) (string, error) {
-	// https://unix.stackexchange.com/questions/81998/understanding-of-diff-output
-	const formatShort = "@@ -%d +%d @@"
-	const formatFull = "@@ -%d,%d +%d,%d @@"
-
-	var i1, i2, i3, i4 int
-	count, err := fmt.Fscanf(strings.NewReader(hunk), formatFull, &i1, &i2, &i3, &i4)
-	if err == nil {
-		if count != 4 {
-			return "", errz.Errorf("expected 4 values, got %d", count)
-		}
-
-		i1 += offset
-		i3 += offset
-
-		return fmt.Sprintf(formatFull, i1, i2, i3, i4), nil
-	}
-
-	// Long format didn't work, try the short format.
-	_, err = fmt.Fscanf(strings.NewReader(hunk), formatShort, &i1, &i3)
-	if err != nil {
-		return "", errz.Errorf("failed to parse Hunk: %s", hunk)
-	}
-
-	i1 += offset
-	i3 += offset
-
-	return fmt.Sprintf(formatShort, i1, i3), nil
 }

@@ -202,6 +202,9 @@ func HasEffect(c *color.Color) bool {
 
 // Seqs represents the prefix and suffix bytes for a terminal color sequence.
 // Use [ExtractSeqs] to build a Seqs from a [color.Color].
+//
+// REVISIT: Life would be simpler if we just implemented our own Color type that
+// embedded fatih/color.Color. There's a lot of messing around in this pkg.
 type Seqs struct {
 	Prefix []byte
 	Suffix []byte

@@ -3,6 +3,7 @@ package diff
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"strings"
 
 	"golang.org/x/sync/errgroup"
@@ -152,4 +153,56 @@ func (wa *recordHunkWriterAdapter) renderRecords(ctx context.Context,
 	}
 
 	return buf.Bytes(), nil
+}
+
+// adjustHunkOffset adjusts the offset of a diff hunk. The hunk input is
+// expected to be a string of one of two forms. This is the long form:
+//
+//	@@ -44,7 +44,7 @@
+//
+// Given an offset of 10, this would become:
+//
+//	@@ -54,7 +54,7 @@
+//
+// The short form is:
+//
+//	@@ -44 +44 @@
+//
+// Given an offset of 10, this would become:
+//
+//	@@ -54 +54 @@
+//
+// The short form is used when there's no surrounding lines (-U=0).
+//
+// Note that "-44,7 +44,7" means that the first line shown is line 44 and the
+// number of lines compared is 7 (although 8 lines will be rendered, because the
+// changed line is shown twice: the before and after versions of the line).
+func adjustHunkOffset(hunk string, offset int) (string, error) {
+	// https://unix.stackexchange.com/questions/81998/understanding-of-diff-output
+	const formatShort = "@@ -%d +%d @@"
+	const formatFull = "@@ -%d,%d +%d,%d @@"
+
+	var i1, i2, i3, i4 int
+	count, err := fmt.Fscanf(strings.NewReader(hunk), formatFull, &i1, &i2, &i3, &i4)
+	if err == nil {
+		if count != 4 {
+			return "", errz.Errorf("expected 4 values, got %d", count)
+		}
+
+		i1 += offset
+		i3 += offset
+
+		return fmt.Sprintf(formatFull, i1, i2, i3, i4), nil
+	}
+
+	// Long format didn't work, try the short format.
+	_, err = fmt.Fscanf(strings.NewReader(hunk), formatShort, &i1, &i3)
+	if err != nil {
+		return "", errz.Errorf("failed to parse Hunk: %s", hunk)
+	}
+
+	i1 += offset
+	i3 += offset
+
+	return fmt.Sprintf(formatShort, i1, i3), nil
 }
