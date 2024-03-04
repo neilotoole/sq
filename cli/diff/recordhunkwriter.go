@@ -18,11 +18,13 @@ import (
 // RecordHunkWriter generates a diff hunk for pairs of records in a particular
 // diff output format.
 type RecordHunkWriter interface {
+	// WriteHunk writes a diff hunk to dest for the given record pairs.
 	WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm2 record.Meta, pairs []record.Pair)
 }
 
-// NewRecordHunkWriterAdapter bridges RecordHunkWriter and output.RecordWriter
-// for diff output formats that don't implement a native RecordHunkWriter.
+// NewRecordHunkWriterAdapter bridges [RecordHunkWriter] and
+// [output.RecordWriter] for diff output formats that don't implement a native
+// [RecordHunkWriter].
 func NewRecordHunkWriterAdapter(pr *output.Printing, rw output.NewRecordWriterFunc, lines int) RecordHunkWriter {
 	return &recordHunkWriterAdapter{pr: pr, recWriterFn: rw, lines: lines}
 }

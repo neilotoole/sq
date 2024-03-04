@@ -73,12 +73,12 @@ func differForTableData(cfg *Config, title bool, td1, td2 source.Table) *diffdoc
 	return differ
 }
 
-// diffTableData compares the row data in td1 and td2, writing the diff
-// to doc. The doc is sealed via [diffdoc.HunkDoc.Seal] before the function
-// returns. If an error occurs, the error is sealed into the doc, and can be
-// checked via [diffdoc.HunkDoc.Err]. Any error should also be propagated via
-// cancelFn, to cancel any peer goroutines. Note that the returned doc's
-// [diffdoc.Doc.Read] method blocks until the doc is completed (or errors out).
+// diffTableData compares the row data in td1 and td2, writing the diff to doc.
+// The doc is sealed via [diffdoc.HunkDoc.Seal] before the function returns. If
+// an error occurs, the error is sealed into the doc, and can be checked via
+// [diffdoc.HunkDoc.Err]. Any error should also be propagated via cancelFn, to
+// cancel any peer goroutines. Note that the returned doc's [diffdoc.Doc.Read]
+// method blocks until the doc is completed (or errors out).
 func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //nolint:funlen,gocognit
 	cfg *Config, td1, td2 source.Table, doc *diffdoc.HunkDoc,
 ) {
@@ -93,8 +93,8 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	recBufSize := tuning.OptRecBufSize.Get(options.FromContext(ctx))
 	recPairsCh := make(chan record.Pair, recBufSize)
 
-	// We create two dbResults instances (that implement libsq.RecordWriter),
-	// each of which will capture the records returned from a query. On a separate
+	// We create two dbResults instances (that implement libsq.RecordWriter), each
+	// of which will capture the records returned from a query. On a separate
 	// goroutine, those records will be collated into record.Pair instances, and
 	// sent to recPairsCh. Then, those record pairs are used to generate the diff,
 	// which is written to doc.
@@ -104,9 +104,8 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	// created directly below.
 	errCh := make(chan error, 5) // Not sure if 5 is the correct size?
 
-	// The two dbResults instances, rs1 and rs2, share the same errCh,
-	// because we don't care which one receives an error, just that one of them
-	// did.
+	// The two dbResults instances (rs1 and rs2) share the same errCh, because we
+	// don't care which one receives an error, just that one of them did.
 
 	rs1 := &dbResults{
 		recCh: make(chan record.Record, recBufSize),
@@ -205,9 +204,9 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	}()
 
 	// At this point, both of our DB query goroutines have kicked off. This next
-	// goroutine collates the records from rs1 and rs2 into record.Pair
-	// instances, and sends those pairs to recPairsCh. The pairs will be consumed
-	// by the diff exec goroutine further below.
+	// goroutine collates the records from rs1 and rs2 into record.Pair instances,
+	// and sends those pairs to recPairsCh. The pairs will be consumed by the diff
+	// exec goroutine further below.
 	go func() {
 		var rec1, rec2 record.Record
 		var diffCount int
