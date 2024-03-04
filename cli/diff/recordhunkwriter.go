@@ -113,7 +113,7 @@ func (wa *recordHunkWriterAdapter) WriteHunk(ctx context.Context, hunk *diffdoc.
 		return
 	}
 
-	if err = diffdoc.ColorizeHunks(ctx, hunk, wa.pr.Diff, bytes.NewReader(stringz.UnsafeBytes(hunkBody))); err != nil {
+	if err = diffdoc.ColorizeHunks(ctx, hunk, wa.pr.Diff, strings.NewReader(hunkBody)); err != nil {
 		return
 	}
 
@@ -156,7 +156,7 @@ func (wa *recordHunkWriterAdapter) renderRecords(ctx context.Context,
 }
 
 // adjustHunkOffset adjusts the offset of a diff hunk. The hunk input is
-// expected to be a string of one of two forms. This is the long form:
+// expected to be a string of one of two basic forms. This is the long form:
 //
 //	@@ -44,7 +44,7 @@
 //
@@ -174,16 +174,25 @@ func (wa *recordHunkWriterAdapter) renderRecords(ctx context.Context,
 //
 // The short form is used when there's no surrounding lines (-U=0).
 //
+// Annoyingly, it's actually possible to find hybrid forms, such as:
+//
+//	@@ -44 +44,7 @@
+//	@@ -44,7 +44 @@
+//
+// These hybrid forms are handled as expected.
+//
 // Note that "-44,7 +44,7" means that the first line shown is line 44 and the
 // number of lines compared is 7 (although 8 lines will be rendered, because the
 // changed line is shown twice: the before and after versions of the line).
 func adjustHunkOffset(hunk string, offset int) (string, error) {
 	// https://unix.stackexchange.com/questions/81998/understanding-of-diff-output
-	const formatShort = "@@ -%d +%d @@"
-	const formatFull = "@@ -%d,%d +%d,%d @@"
+	const fm1 = "@@ -%d,%d +%d,%d @@"
+	const fm2 = "@@ -%d +%d,%d @@"
+	const fm3 = "@@ -%d,%d +%d @@"
+	const fm4 = "@@ -%d +%d @@"
 
 	var i1, i2, i3, i4 int
-	count, err := fmt.Fscanf(strings.NewReader(hunk), formatFull, &i1, &i2, &i3, &i4)
+	count, err := fmt.Fscanf(strings.NewReader(hunk), fm1, &i1, &i2, &i3, &i4)
 	if err == nil {
 		if count != 4 {
 			return "", errz.Errorf("expected 4 values, got %d", count)
@@ -192,11 +201,35 @@ func adjustHunkOffset(hunk string, offset int) (string, error) {
 		i1 += offset
 		i3 += offset
 
-		return fmt.Sprintf(formatFull, i1, i2, i3, i4), nil
+		return fmt.Sprintf(fm1, i1, i2, i3, i4), nil
+	}
+
+	count, err = fmt.Fscanf(strings.NewReader(hunk), fm2, &i1, &i3, &i4)
+	if err == nil {
+		if count != 3 {
+			return "", errz.Errorf("expected 3 values, got %d", count)
+		}
+
+		i1 += offset
+		i3 += offset
+
+		return fmt.Sprintf(fm2, i1, i3, i4), nil
+	}
+
+	count, err = fmt.Fscanf(strings.NewReader(hunk), fm3, &i1, &i2, &i3)
+	if err == nil {
+		if count != 3 {
+			return "", errz.Errorf("expected 3 values, got %d", count)
+		}
+
+		i1 += offset
+		i3 += offset
+
+		return fmt.Sprintf(fm3, i1, i2, i3), nil
 	}
 
 	// Long format didn't work, try the short format.
-	_, err = fmt.Fscanf(strings.NewReader(hunk), formatShort, &i1, &i3)
+	_, err = fmt.Fscanf(strings.NewReader(hunk), fm4, &i1, &i3)
 	if err != nil {
 		return "", errz.Errorf("failed to parse Hunk: %s", hunk)
 	}
@@ -204,5 +237,5 @@ func adjustHunkOffset(hunk string, offset int) (string, error) {
 	i1 += offset
 	i3 += offset
 
-	return fmt.Sprintf(formatShort, i1, i3), nil
+	return fmt.Sprintf(fm4, i1, i3), nil
 }
