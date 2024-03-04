@@ -10,29 +10,94 @@ import (
 	"github.com/neilotoole/sq/testh/tu"
 )
 
+func TestTail(t *testing.T) {
+	// FIXME: make this a table test or something
+	buf := tailbuf.New[rune](3)
+	gotLen := buf.Len()
+	require.Equal(t, 0, gotLen)
+	require.Equal(t, 0, buf.Written())
+	require.Empty(t, buf.Tail())
+
+	buf.Write('a')
+	require.Equal(t, 1, buf.Written())
+	gotLen = buf.Len()
+	require.Equal(t, 1, gotLen)
+	gotTail := buf.Tail()
+	require.Equal(t, []rune{'a'}, gotTail)
+
+	buf.Write('b')
+	require.Equal(t, 2, buf.Written())
+	gotLen = buf.Len()
+	require.Equal(t, 2, gotLen)
+	gotTail = buf.Tail()
+	require.Equal(t, []rune{'a', 'b'}, gotTail)
+
+	buf.Write('c')
+	require.Equal(t, 3, buf.Written())
+	gotLen = buf.Len()
+	require.Equal(t, 3, gotLen)
+	gotTail = buf.Tail()
+	require.Equal(t, []rune{'a', 'b', 'c'}, gotTail)
+
+	buf.Write('d')
+	require.Equal(t, 4, buf.Written())
+	gotLen = buf.Len()
+	require.Equal(t, 3, gotLen)
+	gotTail = buf.Tail()
+	require.Equal(t, []rune{'b', 'c', 'd'}, gotTail)
+
+	buf.Write('e')
+	require.Equal(t, 5, buf.Written())
+	gotLen = buf.Len()
+	require.Equal(t, 3, gotLen)
+	gotTail = buf.Tail()
+	require.Equal(t, []rune{'c', 'd', 'e'}, gotTail)
+
+	buf.Write('f')
+	require.Equal(t, 6, buf.Written())
+	gotLen = buf.Len()
+	require.Equal(t, 3, gotLen)
+	gotTail = buf.Tail()
+	require.Equal(t, []rune{'d', 'e', 'f'}, gotTail)
+
+	buf.Write('g')
+	require.Equal(t, 7, buf.Written())
+	gotLen = buf.Len()
+	require.Equal(t, 3, gotLen)
+	gotTail = buf.Tail()
+	require.Equal(t, []rune{'e', 'f', 'g'}, gotTail)
+
+	buf.WriteAll('h', 'i', 'j')
+	require.Equal(t, 10, buf.Written())
+	gotLen = buf.Len()
+	require.Equal(t, 3, gotLen)
+	gotTail = buf.Tail()
+	require.Equal(t, []rune{'h', 'i', 'j'}, gotTail)
+}
+
 func TestBuf(t *testing.T) {
 	testCases := []struct {
-		add                string
+		add                rune
 		wantStart, wantEnd int
-		wantWindow         []string
+		wantWindow         []rune
 	}{
-		{add: "a", wantStart: 0, wantEnd: 1, wantWindow: []string{"a"}},
-		{add: "b", wantStart: 0, wantEnd: 2, wantWindow: []string{"a", "b"}},
-		{add: "c", wantStart: 0, wantEnd: 3, wantWindow: []string{"a", "b", "c"}},
-		{add: "d", wantStart: 1, wantEnd: 4, wantWindow: []string{"b", "c", "d"}},
-		{add: "e", wantStart: 2, wantEnd: 5, wantWindow: []string{"c", "d", "e"}},
-		{add: "f", wantStart: 3, wantEnd: 6, wantWindow: []string{"d", "e", "f"}},
-		{add: "g", wantStart: 4, wantEnd: 7, wantWindow: []string{"e", "f", "g"}},
-		{add: "h", wantStart: 5, wantEnd: 8, wantWindow: []string{"f", "g", "h"}},
+		{add: 'a', wantStart: 0, wantEnd: 1, wantWindow: []rune{'a'}},
+		{add: 'b', wantStart: 0, wantEnd: 2, wantWindow: []rune{'a', 'b'}},
+		{add: 'c', wantStart: 0, wantEnd: 3, wantWindow: []rune{'a', 'b', 'c'}},
+		{add: 'd', wantStart: 1, wantEnd: 4, wantWindow: []rune{'b', 'c', 'd'}},
+		{add: 'e', wantStart: 2, wantEnd: 5, wantWindow: []rune{'c', 'd', 'e'}},
+		{add: 'f', wantStart: 3, wantEnd: 6, wantWindow: []rune{'d', 'e', 'f'}},
+		{add: 'g', wantStart: 4, wantEnd: 7, wantWindow: []rune{'e', 'f', 'g'}},
+		{add: 'h', wantStart: 5, wantEnd: 8, wantWindow: []rune{'f', 'g', 'h'}},
 	}
 
-	buf := tailbuf.New[string](3)
+	buf := tailbuf.New[rune](3)
 
 	for i, tc := range testCases {
 		tc := tc
 		t.Run(tu.Name(i, tc.add), func(t *testing.T) {
 			buf.Write(tc.add)
-			require.Equal(t, tc.wantEnd, buf.Count())
+			require.Equal(t, tc.wantEnd, buf.Written())
 			require.Equal(t, tc.add, buf.Front())
 			window := buf.Tail()
 			require.Equal(t, tc.wantWindow, window)
@@ -45,7 +110,7 @@ func TestBuf(t *testing.T) {
 	}
 }
 
-func TestBuf_Bounds(t *testing.T) {
+func TestBounds(t *testing.T) {
 	buf := tailbuf.New[string](3)
 	start, end := buf.Bounds()
 	require.Equal(t, 0, start)
@@ -62,7 +127,7 @@ func TestBuf_Bounds(t *testing.T) {
 	require.Equal(t, 5, end)
 }
 
-func TestBuf_Slice(t *testing.T) {
+func TestSlice(t *testing.T) {
 	buf := tailbuf.New[int](3)
 	buf.WriteAll(0, 1, 2)
 
@@ -106,7 +171,7 @@ func TestBuf_Slice(t *testing.T) {
 	require.Equal(t, []int{6}, s)
 }
 
-func TestBuf_Apply(t *testing.T) {
+func TestApply(t *testing.T) {
 	buf := tailbuf.New[string](3)
 	buf.WriteAll("In", "Xanadu  ", "   did", "Kubla  ", "Khan")
 	buf.Apply(strings.ToUpper).Apply(strings.TrimSpace)
@@ -114,7 +179,7 @@ func TestBuf_Apply(t *testing.T) {
 	require.Equal(t, []string{"DID", "KUBLA", "KHAN"}, got)
 }
 
-func TestBuf_TailSlice(t *testing.T) {
+func TestTailSlice(t *testing.T) {
 	buf := tailbuf.New[int](10).WriteAll(1, 2, 3, 4, 5)
 	a := buf.Tail()[0:2]
 	b := tailbuf.SliceTail(buf, 0, 2)
@@ -122,7 +187,7 @@ func TestBuf_TailSlice(t *testing.T) {
 	require.Equal(t, a, b)
 }
 
-func TestBuf_Tail_Slice_Equivalence(t *testing.T) {
+func TestTail_Slice_Equivalence(t *testing.T) {
 	buf := tailbuf.New[int](10).WriteAll(1, 2, 3, 4, 5)
 	a := buf.Tail()[0:2]
 	b := tailbuf.SliceNominal(buf, 0, 2)
@@ -130,11 +195,11 @@ func TestBuf_Tail_Slice_Equivalence(t *testing.T) {
 	require.Equal(t, a, b)
 }
 
-func TestBuf_CountGTCapacity(t *testing.T) {
+func TestCountGTCapacity(t *testing.T) {
 	buf := tailbuf.New[string](1)
 	buf.WriteAll("a", "b")
 	require.Equal(t, 1, buf.Capacity())
-	require.Equal(t, 2, buf.Count())
+	require.Equal(t, 2, buf.Written())
 	tail := buf.Tail()
 	require.Equal(t, []string{"b"}, tail)
 	tailSlice := tailbuf.SliceTail(buf, 0, 1)
@@ -145,14 +210,154 @@ func TestBuf_CountGTCapacity(t *testing.T) {
 	require.Empty(t, nomSlice)
 }
 
-func TestBuf_ZeroCapacity(t *testing.T) {
-	buf := tailbuf.New[int](0)
+func TestZeroCapacity(t *testing.T) {
+	buf := tailbuf.New[rune](0)
 	require.Equal(t, 0, buf.Capacity())
-	require.Equal(t, 0, buf.Count())
+	require.Equal(t, 0, buf.Written())
+	require.Equal(t, 0, buf.Len())
+	require.Empty(t, buf.Tail())
 
-	buf.Write(1)
+	buf.Write('a')
 
-	require.Equal(t, 1, buf.Count())
+	require.Equal(t, 1, buf.Written())
+	gotLen := buf.Len()
+	require.Equal(t, 0, gotLen)
 	require.Empty(t, buf.Tail())
 	require.Empty(t, tailbuf.SliceNominal(buf, 0, 1))
+}
+
+func TestPopFront(t *testing.T) {
+	buf := tailbuf.New[rune](3)
+	buf.WriteAll('a', 'b', 'c')
+	require.Equal(t, 3, buf.Written())
+	require.Equal(t, 'c', buf.Front())
+	require.Equal(t, 'a', buf.Back())
+	require.Equal(t, []rune{'a', 'b', 'c'}, buf.Tail())
+
+	got := buf.PopFront()
+	require.Equal(t, 'c', got)
+	require.Equal(t, 3, buf.Written())
+	require.Equal(t, 2, buf.Len())
+	require.Equal(t, 'b', buf.Front())
+	require.Equal(t, []rune{'a', 'b', 0}, tailbuf.InternalWindow(buf))
+	require.Equal(t, []rune{'a', 'b'}, buf.Tail())
+
+	got = buf.PopFront()
+	require.Equal(t, 'b', got)
+	require.Equal(t, 3, buf.Written())
+	require.Equal(t, 1, buf.Len())
+	require.Equal(t, 'a', buf.Front())
+	require.Equal(t, []rune{'a', 0, 0}, tailbuf.InternalWindow(buf))
+	require.Equal(t, []rune{'a'}, buf.Tail())
+
+	got = buf.PopFront()
+	require.Equal(t, 'a', got)
+	require.Equal(t, 3, buf.Written())
+	require.Empty(t, buf.Front())
+	requireZeroInternalWindow(t, buf)
+	require.Equal(t, 0, buf.Len())
+	require.Equal(t, []rune{}, buf.Tail())
+
+	got = buf.PopFront()
+	require.Zero(t, got)
+	require.Equal(t, 3, buf.Written())
+	require.Equal(t, 0, buf.Len())
+	require.Empty(t, buf.Front())
+	requireZeroInternalWindow(t, buf)
+	require.Equal(t, []rune{}, buf.Tail())
+}
+
+func TestPopBack(t *testing.T) {
+	buf := tailbuf.New[rune](3)
+	buf.WriteAll('a', 'b', 'c')
+	require.Equal(t, 3, buf.Written())
+	require.Equal(t, 'c', buf.Front())
+	require.Equal(t, 'a', buf.Back())
+	require.Equal(t, []rune{'a', 'b', 'c'}, tailbuf.InternalWindow(buf))
+	require.Equal(t, []rune{'a', 'b', 'c'}, buf.Tail())
+
+	got := buf.PopBack()
+	require.Equal(t, 'a', got)
+	require.Equal(t, 2, buf.Written())
+	require.Equal(t, 'b', buf.Back())
+	require.Equal(t, []rune{0, 'b', 'c'}, tailbuf.InternalWindow(buf))
+	require.Equal(t, []rune{'b', 'c'}, buf.Tail())
+
+	got = buf.PopBack()
+	require.Equal(t, 'b', got)
+	require.Equal(t, 1, buf.Written())
+	require.Equal(t, 'c', buf.Back())
+	require.Equal(t, []rune{0, 0, 'c'}, tailbuf.InternalWindow(buf))
+
+	got = buf.PopBack()
+	require.Equal(t, 'c', got)
+	require.Equal(t, 0, buf.Written())
+	require.Empty(t, buf.Back())
+	requireZeroInternalWindow(t, buf)
+
+	got = buf.PopBack()
+	require.Zero(t, got)
+	require.Equal(t, 0, buf.Written())
+	require.Empty(t, buf.Back())
+	requireZeroInternalWindow(t, buf)
+}
+
+func TestDropBack(t *testing.T) {
+	buf := tailbuf.New[rune](3)
+	buf.WriteAll('a', 'b', 'c')
+	require.Equal(t, 3, buf.Written())
+	require.Equal(t, 'a', buf.Back())
+
+	buf.DropBack()
+	require.Equal(t, 2, buf.Written())
+	require.Equal(t, 'b', buf.Back())
+	require.Equal(t, []rune{0, 'b', 'c'}, tailbuf.InternalWindow(buf))
+
+	buf.DropBack()
+	require.Equal(t, 1, buf.Written())
+	require.Equal(t, 'c', buf.Back())
+	require.Equal(t, []rune{0, 0, 'c'}, tailbuf.InternalWindow(buf))
+
+	buf.DropBack()
+	require.Equal(t, 0, buf.Written())
+	require.Empty(t, buf.Back())
+	requireZeroInternalWindow(t, buf)
+
+	buf.DropBack()
+	require.Zero(t, buf.Written())
+	require.Empty(t, buf.Back())
+	requireZeroInternalWindow(t, buf)
+}
+
+func requireZeroInternalWindow[T any](t *testing.T, buf *tailbuf.Buf[T]) {
+	window := tailbuf.InternalWindow(buf)
+	for i := range window {
+		require.Zero(t, window[i])
+	}
+}
+
+func TestPopBackN(t *testing.T) {
+	all := []rune{'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'}
+	buf := tailbuf.New[rune](10)
+	buf.WriteAll(all...)
+	require.Equal(t, 10, buf.Written())
+	require.Equal(t, all, buf.Tail())
+
+	got := buf.PopBackN(0)
+	require.Empty(t, got)
+	require.Equal(t, 10, buf.Written())
+	require.Equal(t, all, buf.Tail())
+
+	got = buf.PopBackN(1)
+	require.Equal(t, []rune{'a'}, got)
+	require.Equal(t, 9, buf.Written())
+	gotTail := buf.Tail()
+	require.Equal(t, []rune{'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'}, gotTail)
+
+	got = buf.PopBackN(3)
+	require.Equal(t, []rune{'b', 'c', 'd'}, got)
+	require.Equal(t, 6, buf.Written())
+	got = buf.PopBackN(10)
+	require.Equal(t, []rune{'e', 'f', 'g', 'h', 'i', 'j'}, got)
+	require.Equal(t, 0, buf.Written())
 }

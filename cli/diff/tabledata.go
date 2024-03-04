@@ -352,6 +352,9 @@ func (rd *recordDiffer) exec(ctx context.Context, recPairsCh <-chan record.Pair,
 		ctxDone = ctx.Done()
 	)
 
+	var hunkPairsLen int
+	_ = hunkPairsLen
+
 LOOP:
 	for row := 0; ctx.Err() == nil; row++ {
 		select {
@@ -384,6 +387,7 @@ LOOP:
 		// First, we get the before-the-difference record pairs from the tailbuf.
 		// Conveniently, the tailbuf also already contains the differing record pair.
 		hunkPairs = tailbuf.SliceNominal(tb, row-numLines, row+1)
+		hunkPairsLen = len(hunkPairs)
 
 		// Create a new hunk in doc. The actual diff text will get written to that
 		// hunk.
@@ -424,6 +428,10 @@ LOOP:
 
 			if len(hunkPairs) >= rd.cfg.HunkMaxSize {
 				// We've reached the hard limit for the hunk size.
+				//front := tb.Front()
+				//tb.Reset()
+				//tb.Write(front)
+
 				break
 			}
 
@@ -442,7 +450,7 @@ LOOP:
 			row++
 			tb.Write(rp)
 			hunkPairs = append(hunkPairs, rp)
-
+			hunkPairsLen = len(hunkPairs)
 			if rp.Equal() {
 				// Yay, we've found another matching record pair for our sequence.
 				pairMatchSeq++
@@ -475,6 +483,10 @@ LOOP:
 
 		// OK, now we've got enough record pairs to populate the hunk.
 		rd.populateHunk(ctx, hunkPairs, hunk)
+		//if hunkPairsLen >= rd.cfg.HunkMaxSize {
+		tb.Reset()
+		//}
+
 		if err = hunk.Err(); err != nil {
 			// Uh-oh, something bad happened while populating the hunk.
 			// Time to head for the exit.
