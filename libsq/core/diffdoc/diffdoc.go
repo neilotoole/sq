@@ -12,6 +12,7 @@ package diffdoc
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -22,6 +23,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/langz"
+	"github.com/neilotoole/sq/libsq/core/record"
 )
 
 var _ io.ReadCloser = (Doc)(nil)
@@ -502,3 +504,5 @@ func (h *Hunk) Read(p []byte) (n int, err error) {
 
 	return h.rdr.Read(p)
 }
+
+type RecordDiffWriterFunc func(ctx context.Context, dest *Hunk, rm1, rm2 record.Meta, recPairs []record.Pair)

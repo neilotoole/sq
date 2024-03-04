@@ -6,11 +6,12 @@ import (
 
 	"github.com/neilotoole/sq/cli/diff"
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/output/csvw"
 	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/cli/output/tablew"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tuning"
@@ -82,7 +83,7 @@ var diffFormats = []format.Format{
 	format.Markdown, format.HTML, format.XML, format.YAML,
 }
 
-var allDiffElementsFlags = []string{
+var allDiffModeFlags = []string{
 	flag.DiffAll,
 	flag.DiffOverview,
 	flag.DiffSchema,
@@ -205,7 +206,7 @@ Exit status is 0 if inputs are the same, 1 if different, 2 on any error.`,
 	cmd.Flags().BoolP(flag.DiffAll, flag.DiffAllShort, false, flag.DiffAllUsage)
 
 	// If flag.DiffAll is provided, no other diff elements flag can be provided.
-	nonAllFlags := lo.Drop(allDiffElementsFlags, 0)
+	nonAllFlags := lo.Drop(allDiffModeFlags, 0)
 	for i := range nonAllFlags {
 		cmd.MarkFlagsMutuallyExclusive(flag.DiffAll, nonAllFlags[i])
 	}
@@ -252,14 +253,6 @@ func execDiff(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
-	f := OptDiffDataFormat.Get(o)
-	recwFn := getRecordWriterFunc(f)
-	if recwFn == nil {
-		// Shouldn't happen
-		lg.From(cmd).Warn("No record writer impl for format", "format", f)
-		recwFn = tablew.NewRecordWriter
-	}
-
 	src1, err := ru.Config.Collection.Get(handle1)
 	if err != nil {
 		return err
@@ -269,37 +262,45 @@ func execDiff(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
-	diffCfg := &diff.Config{
-		Run:            ru,
-		Lines:          OptDiffNumLines.Get(o),
-		StopAfter:      OptDiffStopAfter.Get(o),
-		HunkMaxSize:    OptDiffHunkMaxSize.Get(o),
-		Printing:       ru.Writers.OutPrinting.Clone(),
-		Colors:         ru.Writers.OutPrinting.Diff.Clone(),
-		Concurrency:    tuning.OptErrgroupLimit.Get(options.FromContext(ctx)),
-		RecordWriterFn: recwFn,
+	numLines := OptDiffNumLines.Get(o)
+	if numLines < 0 {
+		return errz.Errorf("number of lines to show must be >= 0")
 	}
 
-	if diffCfg.Lines < 0 {
-		return errz.Errorf("number of lines to show must be >= 0")
+	diffCfg := &diff.Config{
+		Run:         ru,
+		Lines:       numLines,
+		StopAfter:   OptDiffStopAfter.Get(o),
+		HunkMaxSize: OptDiffHunkMaxSize.Get(o),
+		Printing:    ru.Writers.PrOut.Clone(),
+		Colors:      ru.Writers.PrOut.Diff.Clone(),
+		Concurrency: tuning.OptErrgroupLimit.Get(options.FromContext(ctx)),
+	}
+
+	if diffCfg.RecordHunkWriter, err = getDiffRecordWriter(
+		OptDiffDataFormat.Get(o),
+		ru.Writers.PrOut,
+		numLines,
+	); err != nil {
+		return err
 	}
 
 	switch {
 	case table1 == "" && table2 == "":
-		diffCfg.Modes = getDiffSourceElements(cmd)
+		diffCfg.Modes = getDiffSourceModes(cmd)
 		foundDiffs, err = diff.ExecSourceDiff(ctx, diffCfg, src1, src2)
 	case table1 == "" || table2 == "":
 		return errz.Errorf("invalid args: both must be either @HANDLE or @HANDLE.TABLE")
 	default:
-		diffCfg.Modes = getDiffTableElements(cmd)
+		diffCfg.Modes = getDiffTableModes(cmd)
 		foundDiffs, err = diff.ExecTableDiff(ctx, diffCfg, src1, table1, src2, table2)
 	}
 
 	return err
 }
 
-func getDiffSourceElements(cmd *cobra.Command) *diff.Modes {
-	if !isAnyDiffElementsFlagChanged(cmd) {
+func getDiffSourceModes(cmd *cobra.Command) *diff.Modes {
+	if !isAnyDiffModeFlagChanged(cmd) {
 		// Default
 		return &diff.Modes{
 			Overview:     true,
@@ -329,8 +330,8 @@ func getDiffSourceElements(cmd *cobra.Command) *diff.Modes {
 	}
 }
 
-func getDiffTableElements(cmd *cobra.Command) *diff.Modes {
-	if !isAnyDiffElementsFlagChanged(cmd) {
+func getDiffTableModes(cmd *cobra.Command) *diff.Modes {
+	if !isAnyDiffModeFlagChanged(cmd) {
 		// Default
 		return &diff.Modes{
 			Schema:   true,
@@ -353,11 +354,34 @@ func getDiffTableElements(cmd *cobra.Command) *diff.Modes {
 	}
 }
 
-func isAnyDiffElementsFlagChanged(cmd *cobra.Command) bool {
-	for _, name := range allDiffElementsFlags {
+func isAnyDiffModeFlagChanged(cmd *cobra.Command) bool {
+	for _, name := range allDiffModeFlags {
 		if cmdFlagChanged(cmd, name) {
 			return true
 		}
 	}
 	return false
+}
+
+func getDiffRecordWriter(f format.Format, pr *output.Printing, lines int) (diff.RecordHunkWriter, error) {
+	switch f { //nolint:exhaustive
+	// We've only implemented an "optimized" (and I say that loosely) diff writer
+	// for a handful of formats. There's no technical reason the others can't be
+	// implemented; just haven't gotten around to it yet.
+	case format.CSV:
+		return csvw.NewCommaDiffWriter(pr), nil
+	case format.TSV:
+		return csvw.NewTabDiffWriter(pr), nil
+	case format.Text:
+		return tablew.NewDiffWriter(pr), nil
+	}
+
+	// All the rest of the formats have to use the adapter.
+	recWriterFn := getRecordWriterFunc(f)
+	if recWriterFn == nil {
+		// Shouldn't happen
+		return nil, errz.Errorf("no diff record writer impl for format: %s", f)
+	}
+
+	return diff.NewRecordHunkWriterAdapter(pr, recWriterFn, lines), nil
 }

@@ -14,6 +14,8 @@ func Test_adjustHunkOffset(t *testing.T) {
 		wantErr bool
 	}{
 		{in: "@@ -44,7 +44,7 @@", offset: 10, want: "@@ -54,7 +54,7 @@", wantErr: false},
+		{in: "@@ -1 +0,7 @@", offset: 10, want: "@@ -11 +10,7 @@", wantErr: false},
+		{in: "@@ -1,2 +1 @@", offset: 10, want: "@@ -11,2 +11 @@", wantErr: false},
 		{in: "@@ -44 +44 @@", offset: 10, want: "@@ -54 +54 @@", wantErr: false},
 	}
 

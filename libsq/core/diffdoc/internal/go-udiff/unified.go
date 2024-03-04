@@ -6,8 +6,11 @@ package udiff
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/ioz"
 )
 
 // Unified returns a unified diff of the old and new strings.
@@ -196,6 +199,18 @@ func (u unified) String() string {
 		return ""
 	}
 	b := new(strings.Builder)
+	_, _ = u.WriteTo(b)
+	return b.String()
+}
+
+// WriteTo writes the unified diff to the given writer.
+func (u unified) WriteTo(w io.Writer) (n int64, err error) {
+	if len(u.Hunks) == 0 {
+		return 0, nil
+	}
+
+	b := &ioz.WrittenWriter{W: w}
+
 	fmt.Fprintf(b, "--- %s\n", u.From)
 	fmt.Fprintf(b, "+++ %s\n", u.To)
 	for _, hunk := range u.Hunks {
@@ -243,5 +258,5 @@ func (u unified) String() string {
 			}
 		}
 	}
-	return b.String()
+	return b.Written, b.Err
 }

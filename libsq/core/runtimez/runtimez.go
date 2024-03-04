@@ -14,7 +14,7 @@ import (
 
 // MemStatsRefresh determines how often the value returned by MemStats is
 // refreshed.
-var MemStatsRefresh = 2 * time.Second
+var MemStatsRefresh = time.Millisecond * 250
 
 var (
 	memStats            *runtime.MemStats

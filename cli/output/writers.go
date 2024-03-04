@@ -154,8 +154,11 @@ type ConfigWriter interface {
 
 // Writers is a container for the various output Writers.
 type Writers struct {
-	OutPrinting *Printing
-	ErrPrinting *Printing
+	// PrOut is the printing config for stdout.
+	PrOut *Printing
+
+	// PrErr is the printing config for stderr.
+	PrErr *Printing
 
 	Record   RecordWriter
 	Metadata MetadataWriter
