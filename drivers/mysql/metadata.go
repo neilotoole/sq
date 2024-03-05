@@ -19,7 +19,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/record"
@@ -222,7 +221,7 @@ ORDER BY cols.ordinal_position ASC`
 	if err != nil {
 		return nil, errw(err)
 	}
-	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+	defer sqlz.CloseRows(log, rows)
 
 	var cols []*metadata.Column
 
@@ -373,7 +372,7 @@ func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 	if err != nil {
 		return nil, errw(err)
 	}
-	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+	defer sqlz.CloseRows(log, rows)
 
 	m := map[string]any{}
 	for rows.Next() {
@@ -449,7 +448,7 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 	if err != nil {
 		return nil, errw(err)
 	}
-	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+	defer sqlz.CloseRows(log, rows)
 
 	for rows.Next() {
 		select {
@@ -623,7 +622,7 @@ func getTableRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) (map[
 		return nil, err
 	}
 
-	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+	defer sqlz.CloseRows(log, rows)
 
 	var (
 		m       = make(map[string]int64, len(tblNames))

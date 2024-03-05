@@ -156,7 +156,8 @@ func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 			return err
 		}
 	}
-	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+
+	defer sqlz.CloseRows(log, rows)
 
 	// This next part is a bit ugly.
 	//

@@ -73,23 +73,17 @@ type Printing struct {
 	// Location is the color for Source.Location values.
 	Location *color.Color
 
-	// Null is the color for null.
-	Null *color.Color
-
 	// Normal is the default color.
 	Normal *color.Color
+
+	// Null is the color for null.
+	Null *color.Color
 
 	// Number is the color for number values, including int, float, decimal etc.
 	Number *color.Color
 
 	// Punc is the color for punctuation such as colons, braces, etc.
 	Punc *color.Color
-
-	// String is the color for string values.
-	String *color.Color
-
-	// Success is the color for success elements.
-	Success *color.Color
 
 	// Stack is the color for stack traces.
 	Stack *color.Color
@@ -99,6 +93,12 @@ type Printing struct {
 
 	// StackErrorType is the color for the error types attached to a stack trace.
 	StackErrorType *color.Color
+
+	// String is the color for string values.
+	String *color.Color
+
+	// Success is the color for success elements.
+	Success *color.Color
 
 	// Warning is the color for warning elements.
 	Warning *color.Color
@@ -279,12 +279,31 @@ func (pr *Printing) LogValue() slog.Value {
 
 func (pr *Printing) colors() []*color.Color {
 	return []*color.Color{
-		pr.Active, pr.Bold, pr.Bold, pr.Bytes, pr.Datetime, pr.Duration,
-		pr.Disabled, pr.Enabled,
-		pr.Error, pr.Faint, pr.Handle, pr.Header, pr.Hilite,
-		pr.Key, pr.Location, pr.Normal, pr.Null, pr.Number, pr.Punc,
-		pr.Stack, pr.StackError, pr.StackErrorType,
-		pr.String, pr.Success, pr.Warning,
+		pr.Active,
+		pr.Bold,
+		pr.Bool,
+		pr.Bytes,
+		pr.Datetime,
+		pr.Disabled,
+		pr.Duration,
+		pr.Enabled,
+		pr.Error,
+		pr.Faint,
+		pr.Handle,
+		pr.Header,
+		pr.Hilite,
+		pr.Key,
+		pr.Location,
+		pr.Normal,
+		pr.Null,
+		pr.Number,
+		pr.Punc,
+		pr.Stack,
+		pr.StackError,
+		pr.StackErrorType,
+		pr.String,
+		pr.Success,
+		pr.Warning,
 	}
 }
 

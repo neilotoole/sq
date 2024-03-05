@@ -16,7 +16,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/record"
@@ -297,7 +296,7 @@ func getPgSettings(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 	}
 
 	log := lg.FromContext(ctx)
-	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+	defer sqlz.CloseRows(log, rows)
 
 	m := map[string]any{}
 	for rows.Next() {
@@ -359,7 +358,7 @@ ORDER BY table_name`
 	if err != nil {
 		return nil, errw(err)
 	}
-	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+	defer sqlz.CloseRows(log, rows)
 
 	var tblNames []string
 	for rows.Next() {
@@ -553,7 +552,7 @@ ORDER BY cols.table_catalog, cols.table_schema, cols.table_name, cols.ordinal_po
 		return nil, errw(err)
 	}
 
-	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+	defer sqlz.CloseRows(log, rows)
 
 	var cols []*pgColumn
 	for rows.Next() {
@@ -642,7 +641,7 @@ WHERE kcu.table_catalog = current_catalog AND kcu.table_schema = current_schema(
 	if err != nil {
 		return nil, errw(err)
 	}
-	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+	defer sqlz.CloseRows(log, rows)
 
 	var constraints []*pgConstraint
 

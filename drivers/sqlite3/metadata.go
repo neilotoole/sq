@@ -13,7 +13,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
@@ -307,7 +306,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	if err != nil {
 		return nil, errw(err)
 	}
-	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+	defer sqlz.CloseRows(log, rows)
 
 	for rows.Next() {
 		progress.Incr(ctx, 1)
@@ -393,7 +392,7 @@ ORDER BY m.name, p.cid
 	if err != nil {
 		return nil, errw(err)
 	}
-	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+	defer sqlz.CloseRows(log, rows)
 
 	for rows.Next() {
 		progress.Incr(ctx, 1)
@@ -547,7 +546,7 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 		for rows.Next() {
 			err = rows.Scan(&tblCounts[j])
 			if err != nil {
-				lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+				sqlz.CloseRows(log, rows)
 				return nil, errw(err)
 			}
 			j++
@@ -556,7 +555,7 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 		}
 
 		if err = rows.Err(); err != nil {
-			lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+			sqlz.CloseRows(log, rows)
 			return nil, errw(err)
 		}
 

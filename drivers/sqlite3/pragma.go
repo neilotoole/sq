@@ -9,7 +9,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
@@ -64,7 +63,7 @@ func readPragma(ctx context.Context, db sqlz.DB, pragma string) (any, error) {
 		return nil, errw(err)
 	}
 
-	defer lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDBRows, rows)
+	defer sqlz.CloseRows(lg.FromContext(ctx), rows)
 
 	if !rows.Next() {
 		return nil, nil //nolint:nilnil
@@ -137,7 +136,7 @@ func listPragmaNames(ctx context.Context, db sqlz.DB) ([]string, error) {
 		return nil, errw(err)
 	}
 
-	defer lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDBRows, rows)
+	defer sqlz.CloseRows(lg.FromContext(ctx), rows)
 
 	var (
 		names []string

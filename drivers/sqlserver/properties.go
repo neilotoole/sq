@@ -5,7 +5,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
@@ -40,7 +39,7 @@ func getSysConfigurations(ctx context.Context, db sqlz.DB) (map[string]any, erro
 		return nil, errw(err)
 	}
 
-	defer lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDBRows, rows)
+	defer sqlz.CloseRows(lg.FromContext(ctx), rows)
 
 	for rows.Next() {
 		var name string
@@ -74,7 +73,7 @@ func getServerProperties(ctx context.Context, db sqlz.DB) (map[string]any, error
 		return nil, errw(err)
 	}
 
-	defer lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDBRows, rows)
+	defer sqlz.CloseRows(lg.FromContext(ctx), rows)
 
 	for rows.Next() {
 		var name string
