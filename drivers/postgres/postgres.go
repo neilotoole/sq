@@ -652,13 +652,13 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
-		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
+		lg.WarnIfCloseError(d.log, lgm.CloseDBRows, rows)
 		return nil, errw(err)
 	}
 
 	err = rows.Err()
 	if err != nil {
-		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
+		lg.WarnIfCloseError(d.log, lgm.CloseDBRows, rows)
 		return nil, errw(err)
 	}
 

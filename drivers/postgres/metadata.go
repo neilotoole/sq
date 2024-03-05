@@ -296,7 +296,8 @@ func getPgSettings(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 		return nil, errw(err)
 	}
 
-	defer lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDBRows, rows)
+	log := lg.FromContext(ctx)
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
 	m := map[string]any{}
 	for rows.Next() {

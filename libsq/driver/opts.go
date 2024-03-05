@@ -5,15 +5,12 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/options"
 )
 
 // ConfigureDB configures DB using o. It is no-op if o is nil.
-func ConfigureDB(ctx context.Context, db *sql.DB, o options.Options) {
+func ConfigureDB(_ context.Context, db *sql.DB, o options.Options) {
 	o2 := options.Effective(o, OptConnMaxOpen, OptConnMaxIdle, OptConnMaxIdleTime, OptConnMaxLifetime)
-
-	lg.FromContext(ctx).Debug("Setting config on DB conn", "config", o2)
 
 	db.SetMaxOpenConns(OptConnMaxOpen.Get(o2))
 	db.SetMaxIdleConns(OptConnMaxIdle.Get(o2))
