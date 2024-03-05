@@ -54,9 +54,9 @@ func differForTableData(cfg *Config, title bool, td1, td2 source.Table) *diffdoc
 	var cmdTitle diffdoc.Title
 	if title {
 		if cfg.StopAfter > 0 {
-			cmdTitle = diffdoc.Titlef(cfg.Colors, "sq diff --data --stop %d %s %s", cfg.StopAfter, td1, td2)
+			cmdTitle = diffdoc.Titlef(cfg.Colors, "sq diff --data -U%d -n%d %s %s", cfg.Lines, cfg.StopAfter, td1, td2)
 		} else {
-			cmdTitle = diffdoc.Titlef(cfg.Colors, "sq diff --data %s %s", td1, td2)
+			cmdTitle = diffdoc.Titlef(cfg.Colors, "sq diff --data -U%d %s %s", cfg.Lines, td1, td2)
 		}
 	}
 
