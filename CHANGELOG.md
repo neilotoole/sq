@@ -26,6 +26,10 @@ This release features significant improvements to [`sq diff`](https://sq.io/docs
   $ sq diff @prod.actor @staging.actor --data -n 5
   ```
 - [#353]: The performance of `sq diff` has been significantly improved. There's still more to do.
+- Previously, `sq diff --data` compared the rendered (text) representation of each value. This could
+  lead to inaccurate results if, say, two timestamp values were in different time zones, but the text
+  rendering omitted the time zone. Now, `sq diff --data` compares the raw values, not the rendered text.
+  Note in particular with time values, that both time and location components are compared.
 
 ## Changed
 

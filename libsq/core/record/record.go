@@ -29,10 +29,9 @@ import (
 // It is an error for a Record to contain elements of any other type.
 type Record []any
 
-// Valid checks that each element of the record vals is
-// of an acceptable type. On the first unacceptable element,
-// the index of that element and an error are returned. On
-// success (-1, nil) is returned.
+// Valid checks that each element of the record vals is of an acceptable type.
+// On the first unacceptable element, the index of that element and an error are
+// returned. On success (-1, nil) is returned.
 //
 // These acceptable types are:
 //
@@ -51,7 +50,8 @@ func Valid(rec Record) (i int, err error) {
 	return -1, nil
 }
 
-// Equal returns true if each element of a and b are equal values.
+// Equal returns true if each element of a and b are equal values. Note that
+// [time.Time] values compare both time and location components.
 func Equal(a, b Record) bool {
 	switch {
 	case a == nil && b == nil:
@@ -77,21 +77,58 @@ func Equal(a, b Record) bool {
 			if !bytes.Equal(va, vb) {
 				return false
 			}
-		case int64, float64, bool, string, time.Time, decimal.Decimal:
+		case int64, float64, bool, string:
 			switch vb := b[i].(type) {
-			case int64, float64, bool, string, time.Time, decimal.Decimal:
+			case int64, float64, bool, string:
 				if vb != va {
 					return false
 				}
 			default:
 				return false
 			}
+		case decimal.Decimal:
+			var vb decimal.Decimal
+			if vb, ok = b[i].(decimal.Decimal); !ok {
+				return false
+			}
+			return va.Equal(vb)
+		case time.Time:
+			var vb time.Time
+			if vb, ok = b[i].(time.Time); !ok {
+				return false
+			}
+
+			return equalTimes(va, vb)
 		default:
 			return false
 		}
 	}
 
 	return true
+}
+
+// equalTimes returns true if a and b have the same time value and location.
+//
+// We don't use [time.Time.Equal] directly because it doesn't compare locations.
+// And using a == b alone is not reliable because of monotonic clock issues. See
+// the docs for [time.Time.Equal] for more info.
+func equalTimes(a, b time.Time) bool {
+	if a == b { //nolint:revive // time-equal
+		// The linter complains about == comparison, but it's ok, because we also
+		// check using Time.Equal below.
+		return true
+	}
+
+	if !a.Equal(b) {
+		return false
+	}
+
+	locA, locB := a.Location(), b.Location()
+	if locA == locB {
+		return true
+	}
+
+	return locA.String() == locB.String()
 }
 
 // CloneSlice returns a deep copy of recs.
