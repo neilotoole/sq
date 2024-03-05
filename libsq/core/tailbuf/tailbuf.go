@@ -22,18 +22,27 @@ import (
 type Buf[T any] struct {
 	// zero is the zero value of T, used for zeroing elements of the in-use
 	// window so that after operations like Buf.DropBack we don't accidentally
-	// hold on to references.
+	// hold on to references. This is probably a premature optimization; needs
+	// benchmarks.
 	zero T
+
 	// window is the circular buffer.
 	window []T
-	// back is the cursor for the oldest item.
-	back int
-	// front is the cursor for the newest item.
-	front int
-	// written is the total number of items written via Buf.Write or Buf.WriteAll.
-	written int
+
 	// len is the number of items currently in the buffer.
 	len int
+
+	// back is the cursor for the oldest item.
+	back int
+
+	// REVISIT: Do we need both back and front?
+	// Could we just use back and len?
+
+	// front is the cursor for the newest item.
+	front int
+
+	// written is the total number of items added via Buf.Write or Buf.WriteAll.
+	written int
 }
 
 // New returns a new Buf with the specified capacity. It panics if capacity is
@@ -293,11 +302,12 @@ func (b *Buf[T]) DropBackN(n int) {
 		return
 	}
 
+	b.len -= n
+
 	if b.front > b.back {
 		for i := 0; i < n; i++ {
 			b.window[b.back] = b.zero
 			b.back = (b.back + 1) % len(b.window)
-			b.len--
 		}
 		return
 	}
@@ -305,7 +315,6 @@ func (b *Buf[T]) DropBackN(n int) {
 	for i := 0; i < n; i++ {
 		b.window[b.back] = b.zero
 		b.back = (b.back + 1) % len(b.window)
-		b.len--
 	}
 }
 
@@ -346,13 +355,13 @@ func (b *Buf[T]) PopBackN(n int) []T {
 		return s
 	}
 
+	b.len -= n
 	if b.front > b.back {
 		s := make([]T, n)
 		for i := 0; i < n; i++ {
 			s[i] = b.window[b.back]
 			b.window[b.back] = b.zero
 			b.back = (b.back + 1) % len(b.window)
-			b.len--
 		}
 		return s
 	}
@@ -362,7 +371,6 @@ func (b *Buf[T]) PopBackN(n int) []T {
 		s[i] = b.window[b.back]
 		b.window[b.back] = b.zero
 		b.back = (b.back + 1) % len(b.window)
-		b.len--
 	}
 	return s
 }
@@ -384,13 +392,14 @@ func (b *Buf[T]) PopFrontN(n int) []T {
 		return s
 	}
 
+	b.len -= n
+
 	if b.front > b.back {
 		s := make([]T, n)
 		for i := n - 1; i >= 0; i-- {
 			s[i] = b.window[b.front]
 			b.window[b.front] = b.zero
 			b.front = (b.front - 1 + len(b.window)) % len(b.window)
-			b.len--
 		}
 		return s
 	}
@@ -400,7 +409,6 @@ func (b *Buf[T]) PopFrontN(n int) []T {
 		s[i] = b.window[b.front]
 		b.window[b.front] = b.zero
 		b.front = (b.front - 1 + len(b.window)) % len(b.window)
-		b.len--
 	}
 	return s
 }
