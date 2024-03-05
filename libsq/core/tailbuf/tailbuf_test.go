@@ -478,10 +478,37 @@ func TestDropBackN(t *testing.T) {
 	require.Empty(t, buf.Tail())
 }
 
-func requireZeroInternalWindow[T any](t *testing.T, buf *tailbuf.Buf[T]) {
-	t.Helper()
+func TestPopBack_PopBackN_Equivalence(t *testing.T) {
+	all := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"}
+	buf1 := tailbuf.New[string](10)
+	buf2 := tailbuf.New[string](10)
+
+	tailbuf.RequireEqualInternalState(t, buf1, buf2)
+
+	buf1.WriteAll(all...)
+	buf2.WriteAll(all...)
+
+	tailbuf.RequireEqualInternalState(t, buf1, buf2)
+	tail1 := buf1.Tail()
+	tail2 := buf2.Tail()
+
+	require.Equal(t, tail1, tail2)
+
+	buf1.PopBackN(5)
+	for i := 0; i < 5; i++ {
+		buf2.PopBack()
+	}
+
+	tailbuf.RequireEqualInternalState(t, buf1, buf2)
+	require.Equal(t, tail1, tail2)
+
+	require.Equal(t, buf1.Tail(), buf2.Tail())
+}
+
+func requireZeroInternalWindow[T any](tb testing.TB, buf *tailbuf.Buf[T]) {
+	tb.Helper()
 	window := tailbuf.InternalWindow(buf)
 	for i := range window {
-		require.Zero(t, window[i])
+		require.Zero(tb, window[i])
 	}
 }
