@@ -87,6 +87,7 @@ type UnifiedDoc struct {
 
 // Close implements io.Closer.
 func (d *UnifiedDoc) Close() error {
+	d.bodyBuf.Reset()
 	d.bodyBuf = nil
 	return nil
 }

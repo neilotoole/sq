@@ -44,11 +44,20 @@ var OptRecBufSize = options.NewInt(
 )
 
 var OptFlushThreshold = options.NewInt(
-	"tuning.flush-threshold",
+	"tuning.output-flush-threshold",
 	nil,
 	1000,
 	"Output writer buffer flush threshold in bytes",
 	`Size in bytes after which output writers should flush any internal buffer.
 Generally, it is not necessary to fiddle this knob.`,
+	options.TagTuning,
+)
+
+var OptBufMemLimit = options.NewInt(
+	"tuning.buffer-mem-limit",
+	nil,
+	1024*32, // 32KB
+	"Buffer swap file memory limit",
+	`Size in bytes after which in-memory temp buffers overflow to disk.`,
 	options.TagTuning,
 )

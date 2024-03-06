@@ -5,12 +5,18 @@ package files
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 
+	"github.com/djherbis/buffer"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"github.com/neilotoole/streamcache"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
@@ -31,6 +37,10 @@ import (
 // a uniform mechanism for reading files, whether from local disk, stdin,
 // or remote HTTP.
 type Files struct {
+	// fileBufPool is the buffer pool for file-backed buffers, as used by
+	// Files.NewBuffer.
+	fileBufPool buffer.Pool
+
 	log         *slog.Logger
 	clnup       *cleanup.Cleanup
 	optRegistry *options.Registry
@@ -70,8 +80,20 @@ type Files struct {
 	// the type of a file.
 	detectFns []TypeDetectFunc
 
+	// memBufSize is the threshold after which buffers returned by Files.NewBuffer
+	// spill to disk.
+	memBufSize int64
+
 	// mu guards access to Files' internals.
 	mu sync.Mutex
+}
+
+// NewBuffer returns a new [buffer.Buffer] instance which may be in-memory or
+// on-disk, or both, for use as a temporary buffer for potentially large buffers
+// that may not fit in memory. The caller must invoke [buffer.Buffer.Reset] on
+// the returned buffer when done with it.
+func (fs *Files) NewBuffer() buffer.Buffer {
+	return buffer.NewMulti(buffer.New(fs.memBufSize), buffer.NewPartition(fs.fileBufPool))
 }
 
 // New returns a new Files instance. The caller must invoke Files.Close
@@ -96,7 +118,14 @@ func New(ctx context.Context, optReg *options.Registry, cfgLock lockfile.LockFun
 		downloaders:     map[string]*downloader.Downloader{},
 		downloadedFiles: map[string]string{},
 		streams:         map[string]*streamcache.Stream{},
+		memBufSize:      int64(tuning.OptBufMemLimit.Get(options.FromContext(ctx))),
 	}
+
+	bufDir := filepath.Join(tmpDir, fmt.Sprintf("filebuf_%d_%s", os.Getpid(), stringz.Uniq8()))
+	if err := ioz.RequireDir(bufDir); err != nil {
+		return nil, err
+	}
+	fs.fileBufPool = buffer.NewFilePool(math.MaxInt, bufDir)
 
 	return fs, nil
 }
