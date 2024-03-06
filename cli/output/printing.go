@@ -105,8 +105,8 @@ type Printing struct {
 	// Warning is the color for warning elements.
 	Warning *color.Color
 
-	// NewBufferFn returns a new [ioz.Buffer] instance, whose use should be
-	// preferred over [bytes.Buffer] in large data situations.
+	// NewBufferFn returns a new [ioz.Buffer] instance; it should be preferred
+	// over [bytes.Buffer] when dealing large/unbounded data.
 	NewBufferFn func() ioz.Buffer
 
 	// Indent is the indent string to use when pretty-printing,
@@ -218,6 +218,7 @@ func NewPrinting() *Printing {
 // Clone returns a clone of pr.
 func (pr *Printing) Clone() *Printing {
 	pr2 := &Printing{
+		NewBufferFn:            pr.NewBufferFn,
 		monochrome:             pr.monochrome,
 		FlushThreshold:         pr.FlushThreshold,
 		ShowHeader:             pr.ShowHeader,

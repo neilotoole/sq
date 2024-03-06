@@ -56,7 +56,7 @@ Generally, it is not necessary to fiddle this knob.`,
 var OptBufMemLimit = options.NewInt(
 	"tuning.buffer-mem-limit",
 	nil,
-	1024*32, // 32KB
+	1024*1000, // 1MB
 	"Buffer swap file memory limit",
 	`Size in bytes after which in-memory temp buffers overflow to disk.`,
 	options.TagTuning,

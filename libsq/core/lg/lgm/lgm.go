@@ -10,6 +10,7 @@ const (
 	CloseDBStmt           = "Close DB stmt"
 	CloseHTTPResponseBody = "Close HTTP response body"
 	CloseFileReader       = "Close file reader"
+	CloseBuffer           = "Close buffer"
 	CloseFileWriter       = "Close file writer"
 	CloseOutputFile       = "Close output file"
 	CloseDiffDoc          = "Close diff doc"

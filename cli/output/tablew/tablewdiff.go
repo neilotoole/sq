@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/cli/diff"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/colorz"
@@ -14,6 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/record"
 )
 
+// NewDiffWriter returns a diff.RecordHunkWriter for format "text".
 func NewDiffWriter(pr *output.Printing) diff.RecordHunkWriter {
 	pr = pr.Clone()
 	pr.EnableColor(false)
@@ -36,10 +40,11 @@ func NewDiffWriter(pr *output.Printing) diff.RecordHunkWriter {
 	return dw
 }
 
-// diffWriter is partially-optimized implementation of diff.RecordHunkWriter for
-// format "text". It still delegates its record generation to this package's
-// RecordWriter implementation, resulting in way too many allocations. It's
-// actually pretty egregious in terms of resource usage.
+// diffWriter is an implementation of diff.RecordHunkWriter for the "text"
+// format. It still delegates its record generation to this package's
+// [output.RecordWriter] implementation, resulting in way too many allocations.
+// It's actually pretty egregious in terms of resource usage. The entire thing
+// needs to be rewritten.
 type diffWriter struct {
 	pr            *output.Printing
 	contextPrefix []byte
@@ -64,6 +69,7 @@ func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm
 func (dw *diffWriter) writeDifferent(ctx context.Context, dest *diffdoc.Hunk,
 	rm1, rm2 record.Meta, pairs []record.Pair,
 ) {
+	log := lg.FromContext(ctx)
 	var err error
 	var hunkHeader []byte
 
@@ -99,7 +105,9 @@ func (dw *diffWriter) writeDifferent(ctx context.Context, dest *diffdoc.Hunk,
 		return
 	}
 
-	buf1 := &bytes.Buffer{}
+	buf1 := dw.pr.NewBufferFn()
+	defer lg.WarnIfCloseError(log, lgm.CloseBuffer, buf1)
+
 	tw := NewRecordWriter(buf1, dw.pr)
 	if err = tw.Open(ctx, rm1); err != nil {
 		return
@@ -113,7 +121,8 @@ func (dw *diffWriter) writeDifferent(ctx context.Context, dest *diffdoc.Hunk,
 	if err = tw.Close(ctx); err != nil {
 		return
 	}
-	buf2 := &bytes.Buffer{}
+	buf2 := dw.pr.NewBufferFn()
+	defer lg.WarnIfCloseError(log, lgm.CloseBuffer, buf2)
 	tw = NewRecordWriter(buf2, dw.pr)
 	if err = tw.Open(ctx, rm2); err != nil {
 		return
