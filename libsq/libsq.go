@@ -11,6 +11,7 @@ package libsq
 
 import (
 	"context"
+	"errors"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -155,7 +156,8 @@ func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 			return err
 		}
 	}
-	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+
+	defer sqlz.CloseRows(log, rows)
 
 	// This next part is a bit ugly.
 	//
@@ -255,7 +257,10 @@ func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 		select {
 		// If ctx is done, then we just return, we're done.
 		case <-ctx.Done():
-			lg.WarnIfError(log, lgm.CtxDone, ctx.Err())
+			if !errors.Is(context.Cause(ctx), errz.ErrStop) {
+				// No need to log if it's errz.ErrStop, as it's a sentinel.
+				lg.WarnIfError(log, lgm.CtxDone, ctx.Err())
+			}
 			cancelFn()
 			return ctx.Err()
 

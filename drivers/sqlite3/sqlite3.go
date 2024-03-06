@@ -704,7 +704,7 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+	defer sqlz.CloseRows(log, rows)
 
 	for rows.Next() {
 		var schma string
@@ -920,7 +920,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	// column type info.
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
-		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
+		sqlz.CloseRows(d.log, rows)
 		return nil, errw(err)
 	}
 
@@ -930,14 +930,14 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	if rows.Next() {
 		colTypes, err = rows.ColumnTypes()
 		if err != nil {
-			lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
+			sqlz.CloseRows(d.log, rows)
 			return nil, errw(err)
 		}
 	}
 
 	err = rows.Err()
 	if err != nil {
-		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
+		sqlz.CloseRows(d.log, rows)
 		return nil, errw(err)
 	}
 

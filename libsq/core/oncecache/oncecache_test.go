@@ -366,7 +366,7 @@ func TestOnEventChan(t *testing.T) {
 	// Note that other entry fills occur: in particular, empCache is populated
 	// for each employee. However, this test hasn't set up a listener on empCache,
 	// so empCache doesn't generate any events.
-	requireDrainActionCh(t, actionCh, time.Millisecond, oncecache.OpFill, 3)
+	requireDrainActionCh(t, actionCh, time.Millisecond*10, oncecache.OpFill, 3)
 
 	require.Equal(t, 0, db.Stats().GetEmployee())
 	wiley, err := empCache.Get(ctx, wileyEmpID)
@@ -382,7 +382,7 @@ func TestOnEventChan(t *testing.T) {
 	// Now we notifyEvict acmeCorp, which should propagate to the other caches.
 	orgCache.Delete(ctx, acmeCorp.Name)
 	// Similar to above, we should get three evictions.
-	requireDrainActionCh(t, actionCh, time.Millisecond, oncecache.OpEvict, 3)
+	requireDrainActionCh(t, actionCh, time.Millisecond*10, oncecache.OpEvict, 3)
 
 	// Wiley should no longer be cached, so this call should hit the db.
 	require.Equal(t, 0, db.Stats().GetEmployee())

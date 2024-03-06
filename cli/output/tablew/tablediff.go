@@ -139,8 +139,8 @@ func (dw *diffWriter) writeDifferent(ctx context.Context, dest *diffdoc.Hunk,
 			_ = sc2.Scan()
 
 			_, _ = dest.Write(dw.contextPrefix)
-			_, _ = dest.Write(line[0 : len(line)-1]) // trim trailing newline
-			_, _ = dest.Write(dw.contextSuffix)      // contains newline
+			_, _ = dest.Write(line)
+			_, _ = dest.Write(dw.contextSuffix) // contains newline
 			continue
 		}
 
@@ -150,7 +150,7 @@ func (dw *diffWriter) writeDifferent(ctx context.Context, dest *diffdoc.Hunk,
 		for j = i; ctx.Err() == nil && j < len(pairs) && !pairs[j].Equal() && sc1.Scan(); j++ {
 			line = sc1.Bytes()
 			_, _ = dest.Write(dw.deletePrefix)
-			_, _ = dest.Write(line[0 : len(line)-1])
+			_, _ = dest.Write(line)
 			_, _ = dest.Write(dw.deleteSuffix)
 		}
 		if ctx.Err() != nil {
@@ -161,7 +161,7 @@ func (dw *diffWriter) writeDifferent(ctx context.Context, dest *diffdoc.Hunk,
 		for k = i; ctx.Err() == nil && k < len(pairs) && !pairs[k].Equal() && sc2.Scan(); k++ {
 			line = sc2.Bytes()
 			_, _ = dest.Write(dw.insertPrefix)
-			_, _ = dest.Write(line[0 : len(line)-1])
+			_, _ = dest.Write(line)
 			_, _ = dest.Write(dw.insertSuffix)
 		}
 		if ctx.Err() != nil {
@@ -273,11 +273,6 @@ func (dw *diffWriter) writeEqualish(ctx context.Context, dest *diffdoc.Hunk,
 		return
 	}
 
-	buf1Str := buf1.String()
-	buf2Str := buf2.String()
-	_ = buf1Str
-	_ = buf2Str
-
 	sc1 := bufio.NewScanner(buf1)
 	sc2 := bufio.NewScanner(buf2)
 	var line []byte
@@ -289,8 +284,8 @@ func (dw *diffWriter) writeEqualish(ctx context.Context, dest *diffdoc.Hunk,
 			_ = sc2.Scan()
 
 			_, _ = dest.Write(dw.contextPrefix)
-			_, _ = dest.Write(line[0 : len(line)-1]) // trim trailing newline
-			_, _ = dest.Write(dw.contextSuffix)      // contains newline
+			_, _ = dest.Write(line)             // trim trailing newline
+			_, _ = dest.Write(dw.contextSuffix) // contains newline
 			continue
 		}
 
@@ -300,7 +295,7 @@ func (dw *diffWriter) writeEqualish(ctx context.Context, dest *diffdoc.Hunk,
 		for j = i; ctx.Err() == nil && j < len(pairs) && !pairs[j].Equal() && sc1.Scan(); j++ {
 			line = sc1.Bytes()
 			_, _ = dest.Write(dw.deletePrefix)
-			_, _ = dest.Write(line[0 : len(line)-1])
+			_, _ = dest.Write(line)
 			_, _ = dest.Write(dw.deleteSuffix)
 		}
 		if ctx.Err() != nil {
@@ -311,7 +306,7 @@ func (dw *diffWriter) writeEqualish(ctx context.Context, dest *diffdoc.Hunk,
 		for k = i; ctx.Err() == nil && k < len(pairs) && !pairs[k].Equal() && sc2.Scan(); k++ {
 			line = sc2.Bytes()
 			_, _ = dest.Write(dw.insertPrefix)
-			_, _ = dest.Write(line[0 : len(line)-1])
+			_, _ = dest.Write(line)
 			_, _ = dest.Write(dw.insertSuffix)
 		}
 		if ctx.Err() != nil {

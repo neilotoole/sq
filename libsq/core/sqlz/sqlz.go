@@ -4,6 +4,9 @@ package sqlz
 import (
 	"context"
 	"database/sql"
+	"log/slog"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -87,7 +90,7 @@ func RequireSingleConn(db DB) error {
 func RowsScanColumn[T any](ctx context.Context, rows *sql.Rows) (vals []T, err error) {
 	defer func() {
 		if rows != nil {
-			lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDBRows, rows)
+			CloseRows(lg.FromContext(ctx), rows)
 		}
 	}()
 
@@ -112,4 +115,25 @@ func RowsScanColumn[T any](ctx context.Context, rows *sql.Rows) (vals []T, err e
 	}
 
 	return vals, nil
+}
+
+// CloseRows closes the supplied *sql.Rows, logging a warning on close errors
+// other than context errors. If log is nil, no logging is performed. If rows
+// is nil, CloseRows is no-op.
+func CloseRows(log *slog.Logger, rows *sql.Rows) {
+	if rows == nil {
+		return
+	}
+
+	err := rows.Close()
+	if log == nil || err == nil {
+		return
+	}
+
+	if errz.IsErrContext(err) {
+		// We don't want to log context errors.
+		return
+	}
+
+	log.Warn(lgm.CloseDBRows, lga.Err, err)
 }

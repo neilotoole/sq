@@ -297,13 +297,13 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
-		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
+		sqlz.CloseRows(d.log, rows)
 		return nil, errw(err)
 	}
 
 	err = rows.Err()
 	if err != nil {
-		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
+		sqlz.CloseRows(d.log, rows)
 		return nil, errw(err)
 	}
 
@@ -385,7 +385,7 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+	defer sqlz.CloseRows(log, rows)
 
 	for rows.Next() {
 		var schma string
@@ -428,7 +428,7 @@ ORDER BY schema_name`
 		return nil, errw(err)
 	}
 
-	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+	defer sqlz.CloseRows(log, rows)
 
 	var name string
 	var catalog, owner sql.NullString
@@ -489,7 +489,7 @@ func (d *driveri) ListCatalogs(ctx context.Context, db sqlz.DB) ([]string, error
 		return nil, errw(err)
 	}
 
-	defer lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDBRows, rows)
+	defer sqlz.CloseRows(lg.FromContext(ctx), rows)
 
 	for rows.Next() {
 		var catalog string
@@ -715,7 +715,7 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName stri
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
-		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
+		sqlz.CloseRows(d.log, rows)
 		return nil, errw(err)
 	}
 
@@ -725,7 +725,7 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName stri
 
 	destCols, _, err := d.RecordMeta(ctx, colTypes)
 	if err != nil {
-		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
+		sqlz.CloseRows(d.log, rows)
 		return nil, errw(err)
 	}
 

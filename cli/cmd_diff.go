@@ -38,9 +38,9 @@ var OptDiffStopAfter = options.NewInt(
 )
 
 var OptDiffHunkMaxSize = options.NewInt(
-	"diff.hunk.max-size",
+	"diff.max-hunk-size",
 	nil,
-	10000,
+	5000,
 	"Maximum size of individual diff hunks",
 	`Maximum size of individual diff hunks. A hunk is a segment of a diff that
 contains differing lines, as well as non-differing context lines before and

@@ -15,7 +15,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/record"
@@ -341,7 +340,7 @@ ORDER BY TABLE_NAME ASC, TABLE_TYPE ASC`
 	if err != nil {
 		return nil, nil, err
 	}
-	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+	defer sqlz.CloseRows(log, rows)
 
 	for rows.Next() {
 		var tblName, tblType string
@@ -384,7 +383,7 @@ func getColumnMeta(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblNa
 		return nil, errw(err)
 	}
 
-	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+	defer sqlz.CloseRows(log, rows)
 
 	var cols []columnMeta
 
@@ -431,7 +430,7 @@ func getConstraints(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblN
 	progress.Incr(ctx, 1)
 	debugz.DebugSleep(ctx)
 
-	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+	defer sqlz.CloseRows(log, rows)
 
 	var constraints []constraintMeta
 	for rows.Next() {
