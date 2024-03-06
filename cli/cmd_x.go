@@ -254,7 +254,7 @@ func newXLockConfigCmd() *cobra.Command {
 		Hidden:            true,
 		Args:              cobra.NoArgs,
 		ValidArgsFunction: completeHandle(1, true),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			ru := run.FromContext(cmd.Context())
 			fmt.Fprintf(ru.Out, "Locking config (pid %d)\n", os.Getpid())
 			unlock, err := lockReloadConfig(cmd)

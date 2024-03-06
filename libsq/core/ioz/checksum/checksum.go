@@ -26,7 +26,7 @@ func Sum(b []byte) string {
 		return ""
 	}
 	sum := crc32.ChecksumIEEE(b)
-	return fmt.Sprintf("%x", sum)
+	return fmt.Sprintf("%x", sum) //nolint:perfsprint
 }
 
 // SumAll returns the hash of a, and all the elements
@@ -37,7 +37,7 @@ func SumAll[T ~string](a T, b ...T) string {
 	for _, col := range b {
 		_, _ = h.Write([]byte(col))
 	}
-	return fmt.Sprintf("%x", h.Sum32())
+	return fmt.Sprintf("%x", h.Sum32()) //nolint:perfsprint
 }
 
 // Rand returns a random checksum.

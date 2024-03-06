@@ -18,7 +18,7 @@ func NewHandler(w io.Writer, lvl slog.Leveler) slog.Handler {
 		Level:      lvl,
 		TimeFormat: shortTimeFormat,
 		AddSource:  true,
-		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 			switch a.Key {
 			case "error":
 				a.Key = "err"

@@ -106,7 +106,7 @@ func TestCmdSLQ_CSV(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.CSVActor)
 	tr := testrun.New(th.Context, t, nil).Add(*src)
-	err := tr.Exec("slq", "--header=false", "--csv", fmt.Sprintf("%s.data", src.Handle))
+	err := tr.Exec("slq", "--header=false", "--csv", src.Handle+".data")
 	require.NoError(t, err)
 
 	recs := tr.BindCSV()

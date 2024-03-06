@@ -20,7 +20,7 @@ func newTblCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "tbl",
 		Short: "Useful table actions (copy, truncate, drop)",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},
 		Example: `  # Copy table actor to new table actor2

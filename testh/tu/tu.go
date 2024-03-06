@@ -379,7 +379,7 @@ func randString() string {
 	b := make([]byte, 128)
 	_, _ = rand.Read(b)
 	cs := crc32.ChecksumIEEE(b)
-	return fmt.Sprintf("%x", cs)
+	return fmt.Sprintf("%x", cs) //nolint:perfsprint
 }
 
 var dirCount = &atomic.Int64{}

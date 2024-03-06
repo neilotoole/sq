@@ -185,12 +185,12 @@ func TestIngestJSONL_Flat(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			newRdrFn := func(ctx context.Context) (io.ReadCloser, error) {
+			newRdrFn := func(_ context.Context) (io.ReadCloser, error) {
 				return io.NopCloser(strings.NewReader(tc.input)), nil
 			}
 
 			if tc.fpath != "" {
-				newRdrFn = func(ctx context.Context) (io.ReadCloser, error) {
+				newRdrFn = func(_ context.Context) (io.ReadCloser, error) {
 					return os.Open(filepath.Join("testdata", tc.fpath))
 				}
 			}

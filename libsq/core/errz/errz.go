@@ -285,7 +285,7 @@ func ExitCode(err error) (code int) {
 
 	chain := Chain(err)
 	for i := range chain {
-		if coder, ok := chain[i].(ExitCoder); ok { //nolint:errorlint
+		if coder, ok := chain[i].(ExitCoder); ok {
 			return coder.ExitCode()
 		}
 	}
@@ -360,7 +360,7 @@ func SprintTreeTypes(err error) string {
 	var sb strings.Builder
 	for i, e := range errChain {
 		sb.WriteString(fmt.Sprintf("%T", e))
-		if me, ok := e.(multipleErrorer); ok { //nolint:errorlint
+		if me, ok := e.(multipleErrorer); ok {
 			children := me.Unwrap()
 			childText := make([]string, len(children))
 			for j := range children {

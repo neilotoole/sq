@@ -117,7 +117,7 @@ func newTimelessJSONHandler(w io.Writer) *slog.JSONHandler {
 	h := &slog.HandlerOptions{
 		AddSource: false,
 		Level:     slog.LevelDebug,
-		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 			if a.Key == "time" {
 				return slog.Attr{}
 			}

@@ -111,7 +111,7 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 						err := tr2.Exec(
 							"inspect",
 							tc.handle,
-							fmt.Sprintf("--%s", flag.InspectOverview),
+							"--"+flag.InspectOverview,
 							fmt.Sprintf("--%s", tf.format),
 						)
 						require.NoError(t, err)
@@ -138,8 +138,8 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 						err := tr2.Exec(
 							"inspect",
 							tc.handle,
-							fmt.Sprintf("--%s", flag.InspectDBProps),
-							fmt.Sprintf("--%s", tf.format),
+							"--"+flag.InspectDBProps,
+							"--"+tf.format.String(),
 						)
 						require.NoError(t, err)
 
@@ -219,8 +219,8 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 				err := tr2.Exec(
 					"inspect",
 					tc.handle,
-					fmt.Sprintf("--%s", flag.InspectOverview),
-					fmt.Sprintf("--%s", format.Text),
+					"--"+flag.InspectOverview,
+					"--"+format.Text.String(),
 				)
 				require.NoError(t, err)
 				output := tr2.Out.String()
@@ -235,8 +235,8 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 				err := tr2.Exec(
 					"inspect",
 					tc.handle,
-					fmt.Sprintf("--%s", flag.InspectDBProps),
-					fmt.Sprintf("--%s", format.Text),
+					"--"+flag.InspectDBProps,
+					"--"+format.Text.String(),
 				)
 				require.NoError(t, err)
 				output := tr2.Out.String()

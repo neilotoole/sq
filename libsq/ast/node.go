@@ -273,7 +273,7 @@ func NodesHavingText(tree Node, text string) []Node {
 	var nodes []Node
 
 	w := NewWalker(tree)
-	w.AddVisitor(typeNode, func(w *Walker, node Node) error {
+	w.AddVisitor(typeNode, func(_ *Walker, node Node) error {
 		nodeText := node.Text()
 		if nodeText == text {
 			nodes = append(nodes, node)
@@ -374,7 +374,7 @@ func FindNodes[T Node](ast *AST) []T {
 		return nodes
 	}
 	w := NewWalker(ast)
-	w.AddVisitor(reflect.TypeOf((*T)(nil)).Elem(), func(w *Walker, node Node) error {
+	w.AddVisitor(reflect.TypeOf((*T)(nil)).Elem(), func(_ *Walker, node Node) error {
 		nodes = append(nodes, node.(T))
 		return nil
 	})
@@ -388,7 +388,7 @@ func FindNodes[T Node](ast *AST) []T {
 func FindFirstNode[T Node](ast *AST) T {
 	var node T
 	w := NewWalker(ast)
-	w.AddVisitor(reflect.TypeOf((*T)(nil)).Elem(), func(w *Walker, n Node) error {
+	w.AddVisitor(reflect.TypeOf((*T)(nil)).Elem(), func(_ *Walker, n Node) error {
 		node, _ = n.(T)
 		return io.EOF // Return any error to halt the walk.
 	})
@@ -423,11 +423,6 @@ func NodePrevSegmentChild[T Node](node Node) (T, error) {
 			seg, ok = parent.(*SegmentNode)
 			if ok {
 				break
-			}
-
-			if seg == nil {
-				// Can't happen?
-				return result, errorf("unable to find segment in node {%T} ancestry", node)
 			}
 		}
 	}

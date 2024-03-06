@@ -207,7 +207,7 @@ func TestCallbacks(t *testing.T) {
 
 	orgCache = oncecache.New[string, *hrsystem.Org](
 		db.GetOrg,
-		oncecache.OnFill(func(ctx context.Context, orgName string, org *hrsystem.Org, err error) {
+		oncecache.OnFill(func(ctx context.Context, _ string, org *hrsystem.Org, _ error) {
 			// Propagate the org's departments to the deptCache.
 			for _, dept := range org.Departments {
 				_ = deptCache.MaybeSet(ctx, dept.Name, dept, nil)
@@ -216,7 +216,7 @@ func TestCallbacks(t *testing.T) {
 				// handler below.
 			}
 		}),
-		oncecache.OnEvict(func(ctx context.Context, orgName string, org *hrsystem.Org, err error) {
+		oncecache.OnEvict(func(ctx context.Context, _ string, org *hrsystem.Org, _ error) {
 			// As with OnFill, we'll propagate eviction.
 			for _, dept := range org.Departments {
 				deptCache.Delete(ctx, dept.Name)
@@ -226,12 +226,12 @@ func TestCallbacks(t *testing.T) {
 
 	deptCache = oncecache.New[string, *hrsystem.Department](
 		db.GetDepartment,
-		oncecache.OnFill(func(ctx context.Context, deptName string, dept *hrsystem.Department, err error) {
+		oncecache.OnFill(func(ctx context.Context, _ string, dept *hrsystem.Department, _ error) {
 			for _, emp := range dept.Staff {
 				_ = empCache.MaybeSet(ctx, emp.ID, emp, nil)
 			}
 		}),
-		oncecache.OnEvict(func(ctx context.Context, deptName string, dept *hrsystem.Department, err error) {
+		oncecache.OnEvict(func(ctx context.Context, _ string, dept *hrsystem.Department, _ error) {
 			for _, emp := range dept.Staff {
 				empCache.Delete(ctx, emp.ID)
 			}
@@ -532,7 +532,7 @@ func newBufLogger() (*bytes.Buffer, *slog.Logger) {
 	h := slog.NewTextHandler(buf, &slog.HandlerOptions{
 		AddSource: false,
 		Level:     slog.LevelDebug,
-		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 			if a.Key == "time" {
 				return slog.Attr{}
 			}

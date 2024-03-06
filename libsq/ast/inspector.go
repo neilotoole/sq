@@ -25,7 +25,7 @@ func NewInspector(ast *AST) *Inspector {
 func (in *Inspector) CountNodes(typ reflect.Type) int {
 	count := 0
 	w := NewWalker(in.ast)
-	w.AddVisitor(typ, func(w *Walker, node Node) error {
+	w.AddVisitor(typ, func(_ *Walker, _ Node) error {
 		count++
 		return nil
 	})
@@ -38,7 +38,7 @@ func (in *Inspector) CountNodes(typ reflect.Type) int {
 func (in *Inspector) FindNodes(typ reflect.Type) []Node {
 	var nodes []Node
 	w := NewWalker(in.ast)
-	w.AddVisitor(typ, func(w *Walker, node Node) error {
+	w.AddVisitor(typ, func(_ *Walker, node Node) error {
 		nodes = append(nodes, node)
 		return nil
 	})
@@ -54,14 +54,14 @@ func (in *Inspector) FindNodes(typ reflect.Type) []Node {
 func (in *Inspector) FindHandles() []string {
 	var handles []string
 
-	if err := walkWith(in.ast, typeHandleNode, func(walker *Walker, node Node) error {
+	if err := walkWith(in.ast, typeHandleNode, func(_ *Walker, node Node) error {
 		handles = append(handles, node.Text())
 		return nil
 	}); err != nil {
 		panic(err)
 	}
 
-	if err := walkWith(in.ast, typeTblSelectorNode, func(walker *Walker, node Node) error {
+	if err := walkWith(in.ast, typeTblSelectorNode, func(_ *Walker, node Node) error {
 		n, _ := node.(*TblSelectorNode)
 		if n.handle != "" {
 			handles = append(handles, n.handle)

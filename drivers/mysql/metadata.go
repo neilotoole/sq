@@ -524,7 +524,7 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 	// count for the table (which can happen if the table is dropped
 	// during the metadata collection process). So we filter out any
 	// nil elements.
-	tblMetas = lo.Reject(tblMetas, func(item *metadata.Table, index int) bool {
+	tblMetas = lo.Reject(tblMetas, func(item *metadata.Table, _ int) bool {
 		return item == nil
 	})
 

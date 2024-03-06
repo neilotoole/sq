@@ -118,7 +118,7 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 
 	var newRdrFn NewReaderFunc
 	if location.TypeOf(loc) == location.TypeFile {
-		newRdrFn = func(ctx context.Context) (io.ReadCloser, error) {
+		newRdrFn = func(_ context.Context) (io.ReadCloser, error) {
 			return errz.Return(os.Open(loc))
 		}
 	} else {

@@ -643,7 +643,7 @@ func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifEx
 	if ifExists {
 		stmt = fmt.Sprintf("IF OBJECT_ID('%s', 'U') IS NOT NULL DROP TABLE %s", tblID, tblID)
 	} else {
-		stmt = fmt.Sprintf("DROP TABLE %s", tblID)
+		stmt = "DROP TABLE " + tblID
 	}
 
 	_, err := db.ExecContext(ctx, stmt)

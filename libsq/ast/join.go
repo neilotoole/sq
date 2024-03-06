@@ -1,8 +1,6 @@
 package ast
 
 import (
-	"fmt"
-
 	antlr "github.com/antlr4-go/antlr/v4"
 
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
@@ -245,7 +243,7 @@ func (n *JoinNode) String() string {
 		rightTblName, _ = n.targetTbl.SelValue()
 	}
 
-	text += fmt.Sprintf("|target:%s", rightTblName)
+	text += "|target:" + rightTblName
 	return text
 }
 

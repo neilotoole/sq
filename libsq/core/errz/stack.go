@@ -242,7 +242,7 @@ func Stacks(err error) []*StackTrace {
 
 	var stacks []*StackTrace
 	for err != nil {
-		if tracer, ok := err.(stackTracer); ok { //nolint:errorlint
+		if tracer, ok := err.(stackTracer); ok {
 			st := tracer.stackTrace()
 			if st != nil {
 				stacks = append(stacks, st)
@@ -275,7 +275,7 @@ func LastStack(err error) *StackTrace {
 		inner  error
 	)
 	for err != nil {
-		tracer, ok = err.(stackTracer) //nolint:errorlint
+		tracer, ok = err.(stackTracer)
 		if !ok || tracer == nil {
 			return nil
 		}
@@ -285,7 +285,6 @@ func LastStack(err error) *StackTrace {
 			return tracer.stackTrace()
 		}
 
-		//nolint:errorlint
 		if _, ok = inner.(stackTracer); !ok {
 			return tracer.stackTrace()
 		}

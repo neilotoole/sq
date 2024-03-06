@@ -188,7 +188,7 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 		sentBody            string
 	)
 
-	srvr = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srvr = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		if srvrShouldBodyError {
 			// We want the error to happen while reading the body,
 			// not send non-200 status code.

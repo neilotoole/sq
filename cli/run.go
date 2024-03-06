@@ -231,7 +231,7 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 	if scratchSrc == nil {
 		scratchSrcFunc = sqlite3.NewScratchSource
 	} else {
-		scratchSrcFunc = func(_ context.Context, name string) (src *source.Source, clnup func() error, err error) {
+		scratchSrcFunc = func(_ context.Context, _ string) (src *source.Source, clnup func() error, err error) {
 			return scratchSrc, nil, nil
 		}
 	}

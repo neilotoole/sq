@@ -15,7 +15,7 @@ func newConfigCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		Short: "Manage config",
 		Long:  `View and edit config.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},
 		Example: `  # Print config location
