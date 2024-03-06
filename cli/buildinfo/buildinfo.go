@@ -110,7 +110,7 @@ func init() { //nolint:gochecknoinits
 	if Version != "" && !semver.IsValid(Version) {
 		// We want to panic here because it is a pipeline/build failure
 		// to have an invalid non-empty Version.
-		panic(fmt.Sprintf("Invalid Info.Version value: %s", Version))
+		panic("Invalid Info.Version value: " + Version)
 	}
 
 	if Timestamp != "" {

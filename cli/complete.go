@@ -68,7 +68,7 @@ var (
 
 // completeStrings completes from a slice of string.
 func completeStrings(max int, a ...string) completionFunc {
-	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return func(_ *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
 		if max > 0 && len(args) >= max {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -93,7 +93,7 @@ func completeHandle(max int, includeActive bool) completionFunc {
 
 		ru := getRun(cmd)
 		handles := ru.Config.Collection.Handles()
-		handles = lo.Reject(handles, func(item string, index int) bool {
+		handles = lo.Reject(handles, func(item string, _ int) bool {
 			return !strings.HasPrefix(item, toComplete)
 		})
 		handles = maybeFilterHandlesByActiveGroup(ru, toComplete, handles)
@@ -159,7 +159,7 @@ func completeCatalog(srcArgPos int) completionFunc {
 			return nil, cobra.ShellCompDirectiveError
 		}
 
-		catalogs = lo.Filter(catalogs, func(catalog string, index int) bool {
+		catalogs = lo.Filter(catalogs, func(catalog string, _ int) bool {
 			return strings.HasPrefix(catalog, toComplete)
 		})
 
@@ -172,7 +172,7 @@ func completeCatalog(srcArgPos int) completionFunc {
 // The max arg is the maximum number of completions. Set to 0
 // for no limit.
 func completeGroup(max int) completionFunc {
-	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return func(cmd *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
 		if max > 0 && len(args) >= max {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -261,7 +261,7 @@ func completeOptKey(cmd *cobra.Command, _ []string, toComplete string) ([]string
 		}
 
 		opts := filterOptionsForSrc(src.Type, ru.OptionsRegistry.Opts()...)
-		keys = lo.Map(opts, func(item options.Opt, index int) string {
+		keys = lo.Map(opts, func(item options.Opt, _ int) string {
 			return item.Key()
 		})
 
@@ -282,7 +282,7 @@ func completeOptKey(cmd *cobra.Command, _ []string, toComplete string) ([]string
 		return ru.OptionsRegistry.Keys(), cobra.ShellCompDirectiveDefault
 	}
 
-	keys = lo.Filter(keys, func(item string, index int) bool {
+	keys = lo.Filter(keys, func(item string, _ int) bool {
 		return strings.HasPrefix(item, toComplete)
 	})
 
@@ -338,7 +338,7 @@ func completeOptValue(cmd *cobra.Command, args []string, toComplete string) ([]s
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	a = lo.Filter(a, func(item string, index int) bool {
+	a = lo.Filter(a, func(item string, _ int) bool {
 		return strings.HasPrefix(item, toComplete)
 	})
 
@@ -501,7 +501,7 @@ func (c activeSchemaCompleter) complete(cmd *cobra.Command, args []string, toCom
 			a[i] = inputCatalog + "." + a[i]
 		}
 
-		a = lo.Filter(a, func(item string, index int) bool {
+		a = lo.Filter(a, func(item string, _ int) bool {
 			return strings.HasPrefix(item, toComplete)
 		})
 
@@ -520,7 +520,7 @@ func (c activeSchemaCompleter) complete(cmd *cobra.Command, args []string, toCom
 		}
 	}
 
-	a = lo.Filter(a, func(item string, index int) bool {
+	a = lo.Filter(a, func(item string, _ int) bool {
 		return strings.HasPrefix(item, toComplete)
 	})
 

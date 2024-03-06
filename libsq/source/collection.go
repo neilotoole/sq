@@ -799,7 +799,7 @@ func (c *Collection) sourcesInGroup(group string, directMembersOnly bool) ([]*So
 		copy(srcs, c.data.Sources)
 
 		if directMembersOnly {
-			srcs = lo.Reject(srcs, func(item *Source, index int) bool {
+			srcs = lo.Reject(srcs, func(item *Source, _ int) bool {
 				srcGroup := item.Group()
 				if srcGroup == "/" || srcGroup == "" {
 					return false
@@ -825,7 +825,7 @@ func (c *Collection) sourcesInGroup(group string, directMembersOnly bool) ([]*So
 	}
 
 	if directMembersOnly {
-		srcs = lo.Reject(srcs, func(item *Source, index int) bool {
+		srcs = lo.Reject(srcs, func(item *Source, _ int) bool {
 			return item.Group() != group
 		})
 	}
@@ -986,7 +986,7 @@ func (g *Group) AllGroups() []*Group {
 // groupsFilterOnlyDirectChildren rejects from groups any element that
 // is not a direct child of parentGroup.
 func groupsFilterOnlyDirectChildren(parentGroup string, groups []string) []string {
-	groups = lo.Reject(groups, func(item string, index int) bool {
+	groups = lo.Reject(groups, func(item string, _ int) bool {
 		if parentGroup == "/" {
 			return strings.ContainsRune(item, '/')
 		}

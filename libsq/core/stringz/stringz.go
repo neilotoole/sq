@@ -484,14 +484,14 @@ func HasAnyPrefix(s string, prefixes ...string) bool {
 // FilterPrefix returns a new slice containing each element
 // of a that has prefix.
 func FilterPrefix(prefix string, a ...string) []string {
-	return lo.Filter(a, func(item string, index int) bool {
+	return lo.Filter(a, func(item string, _ int) bool {
 		return strings.HasPrefix(item, prefix)
 	})
 }
 
 // ElementsHavingPrefix returns the elements of a that have prefix.
 func ElementsHavingPrefix(a []string, prefix string) []string {
-	return lo.Filter(a, func(item string, index int) bool {
+	return lo.Filter(a, func(item string, _ int) bool {
 		return strings.HasPrefix(item, prefix)
 	})
 }

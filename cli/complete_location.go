@@ -462,7 +462,7 @@ func locCompDoConnParams(du *dburl.URL, hist *locHistory, drvr driver.SQLDriver,
 	before, _, ok := strings.Cut(lastElement, "=")
 	if !ok {
 		candidateKeys := stringz.ElementsHavingPrefix(drvrParamKeys, before)
-		candidateKeys = lo.Reject(candidateKeys, func(candidateKey string, index int) bool {
+		candidateKeys = lo.Reject(candidateKeys, func(candidateKey string, _ int) bool {
 			// We don't want the same candidate to show up twice, so we exclude
 			// it, but only if it already has a value in the query string.
 			if slices.Contains(actualKeys, candidateKey) {

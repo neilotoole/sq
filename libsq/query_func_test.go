@@ -88,7 +88,7 @@ func TestQuery_func_schema(t *testing.T) {
 			// SQL Server doesn't support changing the schema on a per-connection
 			// basis. So we expect the default schema to be returned.
 			in: `@sakila | schema()`,
-			beforeRun: func(tc queryTestCase, th *testh.Helper, qc *libsq.QueryContext) {
+			beforeRun: func(_ queryTestCase, _ *testh.Helper, qc *libsq.QueryContext) {
 				qc.Collection.Active().Schema = infoSchema
 			},
 			wantSQL:      `SELECT SCHEMA_NAME() AS "schema()"`,
@@ -113,7 +113,7 @@ func TestQuery_func_schema(t *testing.T) {
 		{
 			name: "postgres-alt",
 			in:   `@sakila | schema()`,
-			beforeRun: func(tc queryTestCase, th *testh.Helper, qc *libsq.QueryContext) {
+			beforeRun: func(_ queryTestCase, _ *testh.Helper, qc *libsq.QueryContext) {
 				qc.Collection.Active().Schema = infoSchema
 			},
 			wantSQL:      `SELECT current_schema() AS "schema()"`,
@@ -138,7 +138,7 @@ func TestQuery_func_schema(t *testing.T) {
 		{
 			name: "mysql-alt",
 			in:   `@sakila | schema()`,
-			beforeRun: func(tc queryTestCase, th *testh.Helper, qc *libsq.QueryContext) {
+			beforeRun: func(_ queryTestCase, _ *testh.Helper, qc *libsq.QueryContext) {
 				qc.Collection.Active().Schema = infoSchema
 			},
 			wantSQL:      "SELECT DATABASE() AS `schema()`",
@@ -186,7 +186,7 @@ func TestQuery_func_catalog(t *testing.T) {
 		{
 			name: "sqlserver-alt",
 			in:   `@sakila | catalog()`,
-			beforeRun: func(tc queryTestCase, th *testh.Helper, qc *libsq.QueryContext) {
+			beforeRun: func(_ queryTestCase, _ *testh.Helper, qc *libsq.QueryContext) {
 				qc.Collection.Active().Catalog = "model"
 			},
 			wantSQL:      `SELECT DB_NAME() AS "catalog()"`,
@@ -211,7 +211,7 @@ func TestQuery_func_catalog(t *testing.T) {
 		{
 			name: "postgres-alt",
 			in:   `@sakila | catalog()`,
-			beforeRun: func(tc queryTestCase, th *testh.Helper, qc *libsq.QueryContext) {
+			beforeRun: func(_ queryTestCase, _ *testh.Helper, qc *libsq.QueryContext) {
 				qc.Collection.Active().Catalog = "postgres"
 			},
 			wantSQL:      `SELECT current_database() AS "catalog()"`,

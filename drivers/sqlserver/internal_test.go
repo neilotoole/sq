@@ -1,7 +1,7 @@
 package sqlserver
 
 import (
-	"fmt"
+	"errors"
 	"testing"
 
 	mssql "github.com/microsoft/go-mssqldb"
@@ -32,7 +32,7 @@ func Test_hasErrCode(t *testing.T) {
 	var err error
 
 	require.False(t, hasErrCode(nil, wantCode))
-	err = fmt.Errorf("huzzah")
+	err = errors.New("huzzah")
 	require.False(t, hasErrCode(err, wantCode))
 
 	err = mssql.Error{

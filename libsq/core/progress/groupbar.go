@@ -58,7 +58,7 @@ func newGroupBar(p *Progress) *groupBar {
 	// invisible bars).
 	cfg.msgWidget = colorize(
 		decor.Any(
-			func(statistics decor.Statistics) string {
+			func(_ decor.Statistics) string {
 				m := fmt.Sprintf("More operations (%d)", len(p.activeInvisibleBars))
 				return msgWidth(m)
 			},

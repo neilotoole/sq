@@ -56,7 +56,7 @@ func (o eventOpt[K, V]) optioner() {}
 func (o eventOpt[K, V]) apply(c *Cache[K, V]) { //nolint:unused // linter is wrong, method is invoked.
 	for _, op := range o.ops {
 		op := op
-		fn := func(ctx context.Context, key K, val V, err error) {
+		fn := func(_ context.Context, key K, val V, err error) {
 			event := Event[K, V]{
 				Op:    op,
 				Entry: Entry[K, V]{Cache: c, Key: key, Val: val, Err: err},
@@ -159,7 +159,7 @@ func OnHit[K comparable, V any](fn func(ctx context.Context, key K, val V, err e
 //
 // FIXME: Starting to think OnMiss should just use the standard callback signature.
 func OnMiss[K comparable, V any](fn func(ctx context.Context, key K)) Opt {
-	return callbackOpt[K, V]{op: OpMiss, fn: func(ctx context.Context, key K, val V, err error) {
+	return callbackOpt[K, V]{op: OpMiss, fn: func(ctx context.Context, key K, _ V, _ error) {
 		fn(ctx, key)
 	}}
 }

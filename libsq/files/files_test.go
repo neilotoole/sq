@@ -145,7 +145,7 @@ func TestDetectMagicNumber(t *testing.T) {
 		tc := tc
 
 		t.Run(filepath.Base(tc.loc), func(t *testing.T) {
-			rFn := func(ctx context.Context) (io.ReadCloser, error) { return os.Open(tc.loc) }
+			rFn := func(_ context.Context) (io.ReadCloser, error) { return os.Open(tc.loc) }
 
 			ctx := lg.NewContext(context.Background(), lgt.New(t))
 

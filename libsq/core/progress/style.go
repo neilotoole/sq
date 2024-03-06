@@ -156,7 +156,7 @@ var _ BarOpt = optMemUsage{}
 type optMemUsage struct{}
 
 func (optMemUsage) apply(p *Progress, cfg *barConfig) {
-	fn := func(s decor.Statistics) string {
+	fn := func(_ decor.Statistics) string {
 		stats := runtimez.MemStats()
 		return "  " + fmt.Sprintf("(% .1f)", decor.SizeB1000(stats.Sys))
 	}

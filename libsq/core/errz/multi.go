@@ -264,7 +264,7 @@ func (merr *multiErr) LogValue() slog.Value {
 	attrs[0] = slog.String("msg", merr.Error())
 	attrs[1] = slog.String("type", fmt.Sprintf("%T", merr))
 	attrs[2] = slog.String("tree", SprintTreeTypes(merr))
-	errs := lo.Map(merr.Errors(), func(err error, i int) string { return err.Error() })
+	errs := lo.Map(merr.Errors(), func(err error, _ int) string { return err.Error() })
 	attrs[3] = slog.Any("errors", errs)
 	return slog.GroupValue(attrs...)
 }
@@ -517,7 +517,7 @@ func extractErrors(err error) []error {
 
 	// check if the given err is an unwrappable error that
 	// implements multipleErrorer interface.
-	eg, ok := err.(multipleErrorer) //nolint:errorlint
+	eg, ok := err.(multipleErrorer)
 	if !ok {
 		return []error{err}
 	}

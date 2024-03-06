@@ -18,7 +18,7 @@ func newCacheCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		Short: "Manage cache",
 		Long:  `Manage cache.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},
 		Example: `  # Print cache location.
@@ -49,7 +49,7 @@ func newCacheLocationCmd() *cobra.Command {
 		Short: "Print cache location",
 		Long:  "Print cache location.",
 		Args:  cobra.ExactArgs(0),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			ru := run.FromContext(cmd.Context())
 			return ru.Writers.Config.CacheLocation(ru.Files.CacheDir())
 		},

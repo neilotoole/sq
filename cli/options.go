@@ -223,7 +223,7 @@ func filterOptionsForSrc(typ drivertype.Type, opts ...options.Opt) []options.Opt
 		return opts
 	}
 
-	opts = lo.Reject(opts, func(opt options.Opt, index int) bool {
+	opts = lo.Reject(opts, func(opt options.Opt, _ int) bool {
 		if opt == nil {
 			return true
 		}

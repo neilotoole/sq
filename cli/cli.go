@@ -243,7 +243,7 @@ func newCommandTree(ru *run.Run) (rootCmd *cobra.Command) {
 	// root cmd. We need to perform some trickery to make it output help
 	// such that "sq help" and "sq --help" output the same thing.
 	slqCmd := newSLQCmd()
-	slqCmd.SetHelpFunc(func(command *cobra.Command, i []string) {
+	slqCmd.SetHelpFunc(func(_ *cobra.Command, _ []string) {
 		panicOn(rootCmd.Help())
 	})
 

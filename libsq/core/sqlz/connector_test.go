@@ -46,7 +46,7 @@ func (t tConnectorCloser) Close() error {
 func TestConnectorWith(t *testing.T) {
 	var c driver.Connector
 	var invoked bool
-	fn := func(ctx context.Context, conn driver.Conn) error {
+	fn := func(_ context.Context, _ driver.Conn) error {
 		invoked = true
 		return nil
 	}

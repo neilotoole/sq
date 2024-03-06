@@ -114,7 +114,7 @@ func (p *Progress) NewFilesizeCounter(msg string, f *os.File, fp string, opts ..
 		style:     spinnerStyle(p.colors.Filler),
 	}
 
-	fn := func(statistics decor.Statistics) string {
+	fn := func(_ decor.Statistics) string {
 		var fi os.FileInfo
 		var err error
 		if f != nil {
@@ -262,7 +262,7 @@ func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time, opts ...BarOp
 		style:     spinnerStyle(p.colors.Waiting),
 	}
 
-	fn := func(statistics decor.Statistics) string {
+	fn := func(_ decor.Statistics) string {
 		remaining := time.Until(expires)
 		switch {
 		case remaining > 0:

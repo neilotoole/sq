@@ -86,7 +86,7 @@ func OptResponseTimeout(timeout time.Duration) TripFunc {
 			} else {
 				// Wrap resp.Body with a ReadCloserNotifier, so that cancelFn
 				// is called when the body is closed.
-				resp.Body = ioz.ReadCloserNotifier(resp.Body, func(err error) {
+				resp.Body = ioz.ReadCloserNotifier(resp.Body, func(_ error) {
 					if errors.Is(context.Cause(ctx), timeoutErr) {
 						lg.FromContext(ctx).Warn("HTTP request not completed within timeout",
 							lga.Timeout, timeout, lga.URL, req.URL.String())

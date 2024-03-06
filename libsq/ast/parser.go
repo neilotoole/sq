@@ -100,7 +100,7 @@ func (el *antlrErrorListener) error() error {
 
 func (el *antlrErrorListener) String() string {
 	if len(el.errs)+len(el.warnings) == 0 {
-		return fmt.Sprintf("%s: no issues", el.name)
+		return el.name + ": no issues"
 	}
 
 	strs := make([]string, 0, len(el.errs)+len(el.warnings))

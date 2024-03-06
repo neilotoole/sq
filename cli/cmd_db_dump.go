@@ -22,7 +22,7 @@ func newDBDumpCmd() *cobra.Command {
 		Use:   "dump",
 		Short: "Dump db catalog or cluster",
 		Long:  `Execute or print db-native dump command for db catalog or cluster.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},
 	}
@@ -98,7 +98,7 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 	}
 
 	var (
-		errPrefix     = fmt.Sprintf("db dump catalog: %s", src.Handle)
+		errPrefix     = "db dump catalog: " + src.Handle
 		dumpVerbose   = OptVerbose.Get(src.Options)
 		dumpNoOwner   = cmdFlagBool(cmd, flag.DBDumpNoOwner)
 		dumpLongFlags = cmdFlagBool(cmd, flag.DBPrintLongToolCmd)
@@ -210,7 +210,7 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 	}
 
 	var (
-		errPrefix     = fmt.Sprintf("db dump cluster: %s", src.Handle)
+		errPrefix     = "db dump cluster: " + src.Handle
 		dumpVerbose   = OptVerbose.Get(src.Options)
 		dumpNoOwner   = cmdFlagBool(cmd, flag.DBDumpNoOwner)
 		dumpLongFlags = cmdFlagBool(cmd, flag.DBPrintLongToolCmd)

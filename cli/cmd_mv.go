@@ -236,7 +236,7 @@ func completeMove(cmd *cobra.Command, args []string, toComplete string) ([]strin
 		}
 
 		items = lo.Without(items, args[0])
-		items = lo.Reject(items, func(item string, index int) bool {
+		items = lo.Reject(items, func(item string, _ int) bool {
 			return !strings.HasPrefix(item, toComplete)
 		})
 		return items, cobra.ShellCompDirectiveNoFileComp
@@ -250,7 +250,7 @@ func completeMove(cmd *cobra.Command, args []string, toComplete string) ([]strin
 	}
 
 	items = append(items, groups...)
-	items = lo.Reject(items, func(item string, index int) bool {
+	items = lo.Reject(items, func(item string, _ int) bool {
 		return !strings.HasPrefix(item, toComplete)
 	})
 	items, _ = lo.Difference(items, args)
