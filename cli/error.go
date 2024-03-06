@@ -96,7 +96,7 @@ func PrintError(ctx context.Context, ru *run.Run, err error) {
 	var errOut io.Writer
 	var pr *output.Printing
 	if ru != nil && ru.Stdout != nil && ru.Stderr != nil {
-		outCfg := getOutputConfig(cmd, clnup, fm, opts, ru.Stdout, ru.Stderr)
+		outCfg := getOutputConfig(cmd, ru.Files, clnup, fm, opts, ru.Stdout, ru.Stderr)
 		if outCfg != nil {
 			errOut, pr = outCfg.errOut, outCfg.errOutPr
 		}

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/files"
+
 	"github.com/fatih/color"
 	colorable "github.com/mattn/go-colorable"
 	wordwrap "github.com/mitchellh/go-wordwrap"
@@ -280,13 +282,13 @@ If zero, no progress bar is rendered.`,
 // newWriters returns an output.Writers instance configured per defaults and/or
 // flags from cmd. The returned writers in [outputConfig] may differ from
 // the stdout and stderr params (e.g. decorated to support colorization).
-func newWriters(cmd *cobra.Command, clnup *cleanup.Cleanup, o options.Options,
+func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o options.Options,
 	stdout, stderr io.Writer,
 ) (w *output.Writers, outCfg *outputConfig) {
 	// Invoke getFormat to see if the format was specified
 	// via config or flag.
 	fm := getFormat(cmd, o)
-	outCfg = getOutputConfig(cmd, clnup, fm, o, stdout, stderr)
+	outCfg = getOutputConfig(cmd, fs, clnup, fm, o, stdout, stderr)
 	log := lg.From(cmd)
 
 	// Package tablew has writer impls for each of the writer interfaces,
@@ -425,7 +427,7 @@ type outputConfig struct {
 // The returned outputConfig and all of its fields are guaranteed to be non-nil.
 //
 // See also: [OptMonochrome], [OptProgress], newWriters.
-func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
+func getOutputConfig(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup,
 	fm format.Format, o options.Options, stdout, stderr io.Writer,
 ) (outCfg *outputConfig) {
 	if o == nil {
@@ -447,6 +449,10 @@ func getOutputConfig(cmd *cobra.Command, clnup *cleanup.Cleanup,
 	outCfg = &outputConfig{stdout: stdout, stderr: stderr}
 
 	pr := output.NewPrinting()
+	if fs != nil {
+		pr.NewBufferFn = fs.NewBuffer
+	}
+
 	pr.FormatDatetime = timez.FormatFunc(OptDatetimeFormat.Get(o))
 	pr.FormatDatetimeAsNumber = OptDatetimeFormatAsNumber.Get(o)
 	pr.FormatTime = timez.FormatFunc(OptTimeFormat.Get(o))
