@@ -199,6 +199,20 @@ func (e encoder) doEncodeString(b []byte, p unsafe.Pointer) ([]byte, error) {
 			j = j + 1
 			continue
 
+		case '\b':
+			b = append(b, s[i:j]...)
+			b = append(b, '\\', 'b')
+			i = j + 1
+			j = j + 1
+			continue
+
+		case '\f':
+			b = append(b, s[i:j]...)
+			b = append(b, '\\', 'f')
+			i = j + 1
+			j = j + 1
+			continue
+
 		case '<', '>', '&':
 			b = append(b, s[i:j]...)
 			b = append(b, `\u00`...)
