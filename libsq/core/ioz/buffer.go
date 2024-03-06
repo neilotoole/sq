@@ -87,20 +87,6 @@ func NewBuffers(dir string, memBufSize int) (*Buffers, error) {
 		fileBufPool:    buffer.NewFilePool(math.MaxInt, dir),
 	}
 
-	// Now is a good time to test if the pool works.
-	if f, err := bf.fileBufPool.Get(); err != nil {
-		return nil, errz.Wrapf(err, "failed to get file buffer from pool")
-	} else {
-		f.Reset()
-	}
-
-	b2 := bf.NewMem2Disk()
-	_, err := io.Copy(b2, LimitRandReader(100000)) // FIXME: delete
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-	b2.Reset()
-
 	return bf, nil
 }
 
@@ -142,7 +128,8 @@ func (m *mem2DiskBuffer) Close() error {
 
 var _ buffer.Buffer = (*lazyFileBuffer)(nil)
 
-// lazyFileBuffer is a [Buffer] that lazily initializes a file-backed buffer.
+// lazyFileBuffer is a [buffer.Buffer] that lazily initializes a file-backed
+// buffer.
 type lazyFileBuffer struct {
 	pool buffer.Pool
 	buf  buffer.Buffer
