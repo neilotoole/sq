@@ -150,7 +150,7 @@ jobs:
           go-version-file: go.mod
 
       - name: GoReleaser (build darwin binaries)
-        uses: goreleaser/goreleaser-action@v3
+        uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -181,7 +181,7 @@ jobs:
           go-version-file: go.mod
 
       - name: GoReleaser (build linux-amd64 binaries)
-        uses: goreleaser/goreleaser-action@v3
+        uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -217,7 +217,7 @@ jobs:
           sudo apt install -y gcc-aarch64-linux-gnu
 
       - name: GoReleaser (build linux-arm64 binaries)
-        uses: goreleaser/goreleaser-action@v3
+        uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -249,7 +249,7 @@ jobs:
           go-version-file: go.mod
 
       - name: GoReleaser (build windows binaries)
-        uses: goreleaser/goreleaser-action@v3
+        uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -315,7 +315,7 @@ jobs:
         run: ./.generate-changelog-delta.sh > ./.CHANGELOG.delta.md
 
       - name: GoReleaser (publish)
-        uses: goreleaser/goreleaser-action@v3
+        uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
