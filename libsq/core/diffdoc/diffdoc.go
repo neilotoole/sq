@@ -68,7 +68,7 @@ func NewUnifiedDoc(cmdTitle Title, opts ...Opt) *UnifiedDoc {
 	}
 
 	if doc.bodyBuf == nil {
-		doc.bodyBuf = DefaultBufferFactory()
+		doc.bodyBuf = ioz.NewDefaultBuffer()
 	}
 
 	return doc
@@ -88,7 +88,7 @@ type UnifiedDoc struct {
 	err     error
 	rdr     io.Reader
 	sealed  chan struct{}
-	bodyBuf Buffer
+	bodyBuf ioz.Buffer
 	title   Title
 	rdrOnce sync.Once
 	mu      sync.Mutex
@@ -96,9 +96,9 @@ type UnifiedDoc struct {
 
 // Close implements io.Closer.
 func (d *UnifiedDoc) Close() error {
-	d.bodyBuf.Reset()
+	err := d.bodyBuf.Close()
 	d.bodyBuf = nil
-	return nil
+	return err
 }
 
 // String returns the doc's title as a string, with any colorization removed.
@@ -268,7 +268,7 @@ type HunkDoc struct {
 	rdr        io.Reader
 	sealed     chan struct{}
 	closeErr   *error
-	bufFactory func() Buffer
+	bufFactory func() ioz.Buffer
 	title      Title
 	header     []byte
 	hunks      []*Hunk
@@ -308,13 +308,13 @@ func NewHunkDoc(title Title, header []byte, opts ...Opt) *HunkDoc {
 	}
 
 	for _, opt := range opts {
-		if bf, ok := opt.(*optBufferFactory); ok {
+		if bf, ok := opt.(optBufferFactory); ok {
 			doc.bufFactory = bf.f
 		}
 	}
 
 	if doc.bufFactory == nil {
-		doc.bufFactory = DefaultBufferFactory
+		doc.bufFactory = ioz.NewDefaultBuffer
 	}
 
 	return doc
@@ -447,7 +447,7 @@ type Hunk struct {
 	err     error
 	rdr     io.Reader
 	sealed  chan struct{}
-	bodyBuf Buffer
+	bodyBuf ioz.Buffer
 	header  []byte
 	offset  int
 	rdrOnce sync.Once
@@ -461,10 +461,10 @@ func (h *Hunk) Offset() int {
 
 // Close implements io.Closer.
 func (h *Hunk) Close() error {
-	h.header = nil
-	h.bodyBuf.Reset()
+	err := h.bodyBuf.Close()
 	h.bodyBuf = nil
-	return nil
+	h.header = nil
+	return err
 }
 
 // Write writes to the hunk body. The hunk header ("@@ ... @@") should not be
@@ -530,49 +530,13 @@ type Opt interface {
 // OptBufferFactory returns an Opt that sets the buffer factory for a [Doc].
 // This permits the use of alternative buffering strategies, such as file-backed
 // buffers for large files.
-func OptBufferFactory(f func() Buffer) Opt {
+func OptBufferFactory(f func() ioz.Buffer) Opt {
 	return optBufferFactory{f: f}
 }
 
 type optBufferFactory struct {
-	f func() Buffer
+	f func() ioz.Buffer
 }
 
 func (o optBufferFactory) apply() {
-}
-
-// DefaultBufferFactory is used by [Doc] types to create buffers if the [Doc] is
-// not supplied with an [OptBufferFactory]. The default buffer factory simply
-// uses [bytes.Buffer].
-var DefaultBufferFactory = func() Buffer {
-	return &bufAdapter{bytes.Buffer{}}
-}
-
-var _ Buffer = (*bufAdapter)(nil)
-
-type bufAdapter struct {
-	bytes.Buffer
-}
-
-func (b *bufAdapter) Cap() int64 {
-	return int64(b.Buffer.Cap())
-}
-
-func (b *bufAdapter) Len() int64 {
-	return int64(b.Buffer.Len())
-}
-
-// Buffer extracts the methods of [bytes.Buffer] to allow for alternative
-// buffering strategies, such as file-backed buffers for large files.
-type Buffer interface {
-	// Len returns the number of bytes of the unread portion of the buffer;
-	Len() int64
-
-	// Cap returns the capacity of the buffer.
-	Cap() int64
-	io.Reader
-	io.Writer
-
-	// Reset resets the buffer to be empty.
-	Reset()
 }

@@ -307,4 +307,5 @@ func TestFiles_NewBuffer(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, want, got)
 	buf.Reset()
+	require.NoError(t, buf.Close())
 }

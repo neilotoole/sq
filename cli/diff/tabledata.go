@@ -240,10 +240,10 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 			}
 
 			rp := record.NewPair(i, rec1, rec2)
+			bar.Incr(1)
 			if !rp.Equal() {
 				diffCount++
 			}
-			bar.Incr(1)
 
 			recPairsCh <- rp
 

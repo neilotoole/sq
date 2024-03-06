@@ -6,6 +6,7 @@ import (
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 )
 
 // Config contains parameters to control diff behavior.
@@ -66,10 +67,8 @@ type Modes struct {
 // threshold, which is helpful when diffing large files.
 func getBufFactory(cfg *Config) diffdoc.Opt {
 	if cfg == nil || cfg.Run == nil || cfg.Run.Files == nil {
-		return diffdoc.OptBufferFactory(diffdoc.DefaultBufferFactory)
+		return diffdoc.OptBufferFactory(ioz.NewDefaultBuffer)
 	}
 
-	return diffdoc.OptBufferFactory(func() diffdoc.Buffer {
-		return cfg.Run.Files.NewBuffer()
-	})
+	return diffdoc.OptBufferFactory(cfg.Run.Files.NewBuffer)
 }
