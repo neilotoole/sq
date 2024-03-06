@@ -12,7 +12,6 @@ package diffdoc
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -23,7 +22,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/langz"
-	"github.com/neilotoole/sq/libsq/core/record"
 )
 
 var _ io.ReadCloser = (Doc)(nil)
@@ -57,12 +55,23 @@ var (
 // NewUnifiedDoc returns a new [UnifiedDoc] with the given title. The title may
 // be empty. The diff body should be written to via [UnifiedDoc.Write], and then
 // the doc should be sealed via [UnifiedDoc.Seal].
-func NewUnifiedDoc(cmdTitle Title) *UnifiedDoc {
-	return &UnifiedDoc{
-		title:   bytez.TerminateNewline(cmdTitle),
-		sealed:  make(chan struct{}),
-		bodyBuf: &bytes.Buffer{},
+func NewUnifiedDoc(cmdTitle Title, opts ...Opt) *UnifiedDoc {
+	doc := &UnifiedDoc{
+		title:  bytez.TerminateNewline(cmdTitle),
+		sealed: make(chan struct{}),
 	}
+
+	for _, opt := range opts {
+		if bf, ok := opt.(optBufferFactory); ok {
+			doc.bodyBuf = bf.f()
+		}
+	}
+
+	if doc.bodyBuf == nil {
+		doc.bodyBuf = DefaultBufferFactory()
+	}
+
+	return doc
 }
 
 var (
@@ -79,7 +88,7 @@ type UnifiedDoc struct {
 	err     error
 	rdr     io.Reader
 	sealed  chan struct{}
-	bodyBuf *bytes.Buffer
+	bodyBuf Buffer
 	title   Title
 	rdrOnce sync.Once
 	mu      sync.Mutex
@@ -255,19 +264,21 @@ var _ Doc = (*HunkDoc)(nil)
 //
 // [issue]: https://github.com/neilotoole/sq/issues/353
 type HunkDoc struct {
-	err       error
-	rdr       io.Reader
-	sealed    chan struct{}
-	closeErr  *error
-	title     Title
-	header    []byte
-	hunks     []*Hunk
-	rdrOnce   sync.Once
-	closeOnce sync.Once
-	mu        sync.Mutex
+	err        error
+	rdr        io.Reader
+	sealed     chan struct{}
+	closeErr   *error
+	bufFactory func() Buffer
+	title      Title
+	header     []byte
+	hunks      []*Hunk
+	rdrOnce    sync.Once
+	closeOnce  sync.Once
+	mu         sync.Mutex
 }
 
-// Close implements io.Closer.
+// Close implements io.Closer. It is a programming error to use the [HunkDoc]
+// after it has been closed.
 func (d *HunkDoc) Close() error {
 	d.closeOnce.Do(func() {
 		d.mu.Lock()
@@ -277,6 +288,7 @@ func (d *HunkDoc) Close() error {
 		}
 		d.closeErr = &err
 		d.hunks = nil
+		d.rdr = nil
 		d.mu.Unlock()
 	})
 
@@ -288,12 +300,24 @@ func (d *HunkDoc) Close() error {
 // header can be generated with [Headerf]. If non-empty, both title and header
 // should be terminated with a newline. The returned [HunkDoc] is not sealed;
 // thus a call to [HunkDoc.Read] blocks until [HunkDoc.Seal] is invoked.
-func NewHunkDoc(title Title, header []byte) *HunkDoc {
-	return &HunkDoc{
+func NewHunkDoc(title Title, header []byte, opts ...Opt) *HunkDoc {
+	doc := &HunkDoc{
 		title:  title,
 		header: header,
 		sealed: make(chan struct{}),
 	}
+
+	for _, opt := range opts {
+		if bf, ok := opt.(*optBufferFactory); ok {
+			doc.bufFactory = bf.f
+		}
+	}
+
+	if doc.bufFactory == nil {
+		doc.bufFactory = DefaultBufferFactory
+	}
+
+	return doc
 }
 
 // String returns the doc's title as a string, with any colorization removed.
@@ -402,15 +426,10 @@ func (d *HunkDoc) NewHunk(offset int) (*Hunk, error) {
 		return nil, errz.New("diff doc is already closed")
 	}
 
-	// TODO: new hunk should write out the previous hunk (if any) to
-	// a HunkDoc.buf field, which probably should be
-	// a https://pkg.go.dev/github.com/djherbis/buffer, using a memory/file
-	// strategy.
-
 	h := &Hunk{
 		offset:  offset,
 		sealed:  make(chan struct{}),
-		bodyBuf: &bytes.Buffer{},
+		bodyBuf: d.bufFactory(),
 	}
 	d.hunks = append(d.hunks, h)
 	return h, nil
@@ -425,15 +444,11 @@ var (
 // [io.Reader]. The hunk is written to via [Hunk.Write], and then sealed via
 // [Hunk.Seal]. Until sealed, [Hunk.Read] blocks.
 type Hunk struct {
-	err error
-
-	rdr    io.Reader
-	sealed chan struct{}
-	// Consider using: https://pkg.go.dev/github.com/djherbis/buffer
-	bodyBuf *bytes.Buffer
-
-	header []byte
-
+	err     error
+	rdr     io.Reader
+	sealed  chan struct{}
+	bodyBuf Buffer
+	header  []byte
 	offset  int
 	rdrOnce sync.Once
 	mu      sync.Mutex
@@ -447,6 +462,7 @@ func (h *Hunk) Offset() int {
 // Close implements io.Closer.
 func (h *Hunk) Close() error {
 	h.header = nil
+	h.bodyBuf.Reset()
 	h.bodyBuf = nil
 	return nil
 }
@@ -506,4 +522,57 @@ func (h *Hunk) Read(p []byte) (n int, err error) {
 	return h.rdr.Read(p)
 }
 
-type RecordDiffWriterFunc func(ctx context.Context, dest *Hunk, rm1, rm2 record.Meta, recPairs []record.Pair)
+// Opt is an option for configuring a [Doc].
+type Opt interface {
+	apply()
+}
+
+// OptBufferFactory returns an Opt that sets the buffer factory for a [Doc].
+// This permits the use of alternative buffering strategies, such as file-backed
+// buffers for large files.
+func OptBufferFactory(f func() Buffer) Opt {
+	return optBufferFactory{f: f}
+}
+
+type optBufferFactory struct {
+	f func() Buffer
+}
+
+func (o optBufferFactory) apply() {
+}
+
+// DefaultBufferFactory is used by [Doc] types to create buffers if the [Doc] is
+// not supplied with an [OptBufferFactory]. The default buffer factory simply
+// uses [bytes.Buffer].
+var DefaultBufferFactory = func() Buffer {
+	return &bufAdapter{bytes.Buffer{}}
+}
+
+var _ Buffer = (*bufAdapter)(nil)
+
+type bufAdapter struct {
+	bytes.Buffer
+}
+
+func (b *bufAdapter) Cap() int64 {
+	return int64(b.Buffer.Cap())
+}
+
+func (b *bufAdapter) Len() int64 {
+	return int64(b.Buffer.Len())
+}
+
+// Buffer extracts the methods of [bytes.Buffer] to allow for alternative
+// buffering strategies, such as file-backed buffers for large files.
+type Buffer interface {
+	// Len returns the number of bytes of the unread portion of the buffer;
+	Len() int64
+
+	// Cap returns the capacity of the buffer.
+	Cap() int64
+	io.Reader
+	io.Writer
+
+	// Reset resets the buffer to be empty.
+	Reset()
+}

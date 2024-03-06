@@ -39,7 +39,10 @@ func differsForSchema(ctx context.Context, cfg *Config, showRowCounts bool,
 		td1 := source.Table{Handle: src1.Handle, Name: tblName}
 		td2 := source.Table{Handle: src2.Handle, Name: tblName}
 
-		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors, "sq diff %s %s", td1, td2))
+		doc := diffdoc.NewUnifiedDoc(
+			diffdoc.Titlef(cfg.Colors, "sq diff %s %s", td1, td2),
+			getBufFactory(cfg),
+		)
 		differs = append(differs, diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
 			diffTableSchema(ctx, cfg, showRowCounts, td1, td2, doc)
 		}))

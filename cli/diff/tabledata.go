@@ -62,7 +62,10 @@ func differForTableData(cfg *Config, title bool, td1, td2 source.Table) *diffdoc
 
 	doc := diffdoc.NewHunkDoc(
 		cmdTitle,
-		diffdoc.Headerf(cfg.Colors, td1.String(), td2.String()))
+		diffdoc.Headerf(cfg.Colors, td1.String(), td2.String()),
+		getBufFactory(cfg),
+	)
+
 	differ := diffdoc.NewDiffer(doc, func(ctx context.Context, cancelFn func(error)) {
 		diffTableData(ctx, cancelFn, cfg, td1, td2, doc)
 		if doc.Err() != nil {
@@ -85,8 +88,9 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	log := lg.FromContext(ctx).With(lga.Left, td1.String(), lga.Right, td2.String())
 	log.Info("Diffing table data")
 
-	bar := progress.FromContext(ctx).NewWaiter(
-		fmt.Sprintf("Diff table data %s, %s", td1.String(), td2.String()),
+	bar := progress.FromContext(ctx).NewUnitCounter(
+		fmt.Sprintf("Diff data %s, %s", td1.String(), td2.String()),
+		"rec",
 		progress.OptMemUsage,
 	)
 
@@ -239,6 +243,7 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 			if !rp.Equal() {
 				diffCount++
 			}
+			bar.Incr(1)
 
 			recPairsCh <- rp
 

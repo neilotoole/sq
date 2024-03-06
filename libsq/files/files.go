@@ -88,12 +88,27 @@ type Files struct {
 	mu sync.Mutex
 }
 
-// NewBuffer returns a new [buffer.Buffer] instance which may be in-memory or
-// on-disk, or both, for use as a temporary buffer for potentially large buffers
-// that may not fit in memory. The caller must invoke [buffer.Buffer.Reset] on
-// the returned buffer when done with it.
-func (fs *Files) NewBuffer() buffer.Buffer {
+// NewBuffer returns a new [Buffer] instance which may be in-memory or on-disk,
+// or both, for use as a temporary buffer for potentially large buffers that may
+// not fit in memory. The caller must invoke [Buffer.Reset] on the returned
+// buffer when done with it.
+func (fs *Files) NewBuffer() Buffer {
 	return buffer.NewMulti(buffer.New(fs.memBufSize), buffer.NewPartition(fs.fileBufPool))
+}
+
+// Buffer extracts the methods of [bytes.Buffer] to allow for alternative
+// buffering strategies, such as file-backed buffers for large files.
+type Buffer interface {
+	// Len returns the number of bytes of the unread portion of the buffer;
+	Len() int64
+
+	// Cap returns the capacity of the buffer.
+	Cap() int64
+	io.Reader
+	io.Writer
+
+	// Reset resets the buffer to be empty.
+	Reset()
 }
 
 // New returns a new Files instance. The caller must invoke Files.Close

@@ -25,8 +25,10 @@ func ExecTableDiff(ctx context.Context, cfg *Config, src1 *source.Source, table1
 	)
 
 	if elems.Schema {
-		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors,
-			"sq diff --schema %s %s", td1.String(), td2.String()))
+		doc := diffdoc.NewUnifiedDoc(
+			diffdoc.Titlef(cfg.Colors, "sq diff --schema %s %s", td1.String(), td2.String()),
+			getBufFactory(cfg),
+		)
 		differs = append(differs, diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
 			diffTableSchema(ctx, cfg, elems.RowCount, td1, td2, doc)
 		}))

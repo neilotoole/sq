@@ -59,3 +59,17 @@ type Modes struct {
 	// Data compares each row in a table. Caution: this can be slow.
 	Data bool
 }
+
+// getBufferFactor returns a diffdoc.Opt for use with [diffdoc.NewUnifiedDoc]
+// or [diffdoc.NewHunkDoc] that configures the [diffdoc.Doc] to use buffers
+// created by cfg.Run.Files. These buffers spill over to disk after a size
+// threshold, which is helpful when diffing large files.
+func getBufFactory(cfg *Config) diffdoc.Opt {
+	if cfg == nil || cfg.Run == nil || cfg.Run.Files == nil {
+		return diffdoc.OptBufferFactory(diffdoc.DefaultBufferFactory)
+	}
+
+	return diffdoc.OptBufferFactory(func() diffdoc.Buffer {
+		return cfg.Run.Files.NewBuffer()
+	})
+}

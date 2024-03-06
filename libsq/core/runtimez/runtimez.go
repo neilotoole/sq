@@ -46,11 +46,12 @@ func MemStats() *runtime.MemStats {
 // each sample and exits when ctx is done.
 //
 //nolint:revive // datarace
-func StartMemStatsTracker(ctx context.Context) (sys, allocs, gcPauseNs *atomic.Uint64) {
+func StartMemStatsTracker(ctx context.Context) (sys, curAllocs, totalAllocs, gcPauseNs *atomic.Uint64) {
 	lg.FromContext(ctx).Info("Starting memory stats tracker", lga.Freq, MemStatsRefresh)
 
 	sys = &atomic.Uint64{}
-	allocs = &atomic.Uint64{}
+	curAllocs = &atomic.Uint64{}
+	totalAllocs = &atomic.Uint64{}
 	gcPauseNs = &atomic.Uint64{}
 
 	go func() {
@@ -64,7 +65,11 @@ func StartMemStatsTracker(ctx context.Context) (sys, allocs, gcPauseNs *atomic.U
 				sys.Store(stats.Sys)
 			}
 
-			allocs.Store(stats.TotalAlloc)
+			if stats.Alloc > curAllocs.Load() {
+				curAllocs.Store(stats.Alloc)
+			}
+
+			totalAllocs.Store(stats.TotalAlloc)
 			gcPauseNs.Store(stats.PauseTotalNs)
 
 			select {
@@ -77,7 +82,7 @@ func StartMemStatsTracker(ctx context.Context) (sys, allocs, gcPauseNs *atomic.U
 					sys.Store(stats.Sys)
 				}
 
-				allocs.Store(ms.TotalAlloc)
+				totalAllocs.Store(ms.TotalAlloc)
 				gcPauseNs.Store(ms.PauseTotalNs)
 				return
 			case <-ticker.C:
@@ -85,5 +90,5 @@ func StartMemStatsTracker(ctx context.Context) (sys, allocs, gcPauseNs *atomic.U
 		}
 	}()
 
-	return sys, allocs, gcPauseNs
+	return sys, curAllocs, totalAllocs, gcPauseNs
 }

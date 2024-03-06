@@ -17,16 +17,20 @@ func ExecSourceDiff(ctx context.Context, cfg *Config, src1, src2 *source.Source)
 	var differs []*diffdoc.Differ
 
 	if modes.Overview {
-		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors,
-			"sq diff --overview %s %s", src1.Handle, src2.Handle))
+		doc := diffdoc.NewUnifiedDoc(
+			diffdoc.Titlef(cfg.Colors, "sq diff --overview %s %s", src1.Handle, src2.Handle),
+			getBufFactory(cfg),
+		)
 		differs = append(differs, diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
 			diffOverview(ctx, cfg, src1, src2, doc)
 		}))
 	}
 
 	if modes.DBProperties {
-		doc := diffdoc.NewUnifiedDoc(diffdoc.Titlef(cfg.Colors,
-			"sq diff --dbprops %s %s", src1.Handle, src2.Handle))
+		doc := diffdoc.NewUnifiedDoc(
+			diffdoc.Titlef(cfg.Colors, "sq diff --dbprops %s %s", src1.Handle, src2.Handle),
+			getBufFactory(cfg),
+		)
 		differs = append(differs, diffdoc.NewDiffer(doc, func(ctx context.Context, _ func(error)) {
 			diffDBProps(ctx, cfg, src1, src2, doc)
 		}))
