@@ -1,6 +1,6 @@
 // This file is a shim for dependencies of golang_*_test.go files that are normally provided by the standard library.
 // It helps importing those files with minimal changes.
-package json
+package jcolorenc
 
 import (
 	"bytes"

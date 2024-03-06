@@ -1,4 +1,4 @@
-package json
+package jcolorenc
 
 // Tokenizer is an iterator-style type which can be used to progressively parse
 // through a json input.

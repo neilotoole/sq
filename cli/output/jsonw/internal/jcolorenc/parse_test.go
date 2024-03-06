@@ -1,4 +1,4 @@
-package json
+package jcolorenc
 
 import (
 	"bytes"

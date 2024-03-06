@@ -11,7 +11,7 @@ import (
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/jsonw/internal"
-	jcolorenc "github.com/neilotoole/sq/cli/output/jsonw/internal/jcolorenc" //nolint:revive
+	"github.com/neilotoole/sq/cli/output/jsonw/internal/jcolorenc"
 )
 
 // Encoder encapsulates the methods of a JSON encoder.
