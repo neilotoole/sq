@@ -1,7 +1,7 @@
 //go:build !go1.15
 // +build !go1.15
 
-package json
+package jcolorenc
 
 import (
 	"reflect"

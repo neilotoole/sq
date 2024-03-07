@@ -1,10 +1,13 @@
 package csvw
 
 import (
-	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"slices"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/cli/diff"
 	"github.com/neilotoole/sq/cli/output"
@@ -46,10 +49,10 @@ func newDiffWriter(pr *output.Printing, rw output.NewRecordWriterFunc) diff.Reco
 	return dw
 }
 
-// diffWriter is a somewhat-optimized implementation of diff.RecordHunkWriter for
-// CSV/TSV. It still delegates its CSV record generation to this package's
-// RecordWriter implementation, which itself delegates to stdlib encoding/csv,
-// resulting in way too many allocations. But it's a start.
+// diffWriter is an implementation of diff.RecordHunkWriter for CSV/TSV. It
+// still delegates its CSV record generation to this package's RecordWriter
+// implementation, which itself delegates to stdlib encoding/csv, resulting in
+// way too many allocations. The entire thing needs to be reimplemented.
 type diffWriter struct {
 	pr            *output.Printing
 	newWriterFn   output.NewRecordWriterFunc
@@ -63,6 +66,7 @@ type diffWriter struct {
 
 // WriteHunk implements diff.RecordHunkWriter.
 func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm2 record.Meta, pairs []record.Pair) {
+	log := lg.FromContext(ctx)
 	var err error
 	var hunkHeader []byte
 
@@ -77,13 +81,15 @@ func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm
 		return
 	}
 
-	buf1 := &bytes.Buffer{}
+	buf1 := dw.pr.NewBufferFn()
+	defer lg.WarnIfCloseError(log, lgm.CloseBuffer, buf1)
 	csv1 := dw.newWriterFn(buf1, dw.pr)
 	if err = csv1.Open(ctx, rm1); err != nil {
 		dest.Seal(nil, err)
 		return
 	}
-	buf2 := &bytes.Buffer{}
+	buf2 := dw.pr.NewBufferFn()
+	defer lg.WarnIfCloseError(log, lgm.CloseBuffer, buf2)
 	csv2 := dw.newWriterFn(buf2, dw.pr)
 	if err = csv2.Open(ctx, rm2); err != nil {
 		dest.Seal(nil, err)
@@ -92,6 +98,7 @@ func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm
 
 	// recs is a slice of length 1, which we reuse for writing records.
 	recs := make([]record.Record, 1)
+	var line []byte
 
 	var i, j, k int
 	for i = 0; i < len(pairs) && ctx.Err() == nil; i++ {
@@ -101,8 +108,9 @@ func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm
 			_ = csv1.WriteRecords(ctx, recs)
 			_ = csv1.Flush(ctx)
 			_, _ = dest.Write(dw.contextPrefix)
-			_, _ = dest.Write(buf1.Bytes()[0 : buf1.Len()-1]) // trim trailing newline
-			_, _ = dest.Write(dw.contextSuffix)               // contains newline
+			line, _ = io.ReadAll(buf1)
+			_, _ = dest.Write(line[0 : len(line)-1]) // trim trailing newline
+			_, _ = dest.Write(dw.contextSuffix)      // contains newline
 			buf1.Reset()
 			continue
 		}
@@ -122,7 +130,8 @@ func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm
 			_ = csv1.WriteRecords(ctx, recs)
 			_ = csv1.Flush(ctx)
 			_, _ = dest.Write(dw.deletePrefix)
-			_, _ = dest.Write(buf1.Bytes()[0 : buf1.Len()-1])
+			line, _ = io.ReadAll(buf1)
+			_, _ = dest.Write(line[0 : len(line)-1])
 			_, _ = dest.Write(dw.deleteSuffix)
 			buf1.Reset()
 		}
@@ -139,7 +148,8 @@ func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm
 			_ = csv2.WriteRecords(ctx, recs)
 			_ = csv2.Flush(ctx)
 			_, _ = dest.Write(dw.insertPrefix)
-			_, _ = dest.Write(buf2.Bytes()[0 : buf2.Len()-1])
+			line, _ = io.ReadAll(buf2)
+			_, _ = dest.Write(line[0 : len(line)-1])
 			_, _ = dest.Write(dw.insertSuffix)
 			buf2.Reset()
 		}

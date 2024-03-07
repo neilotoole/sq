@@ -5,10 +5,12 @@ package files
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/neilotoole/streamcache"
@@ -22,6 +24,8 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"github.com/neilotoole/sq/libsq/files/internal/downloader"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/location"
@@ -31,6 +35,9 @@ import (
 // a uniform mechanism for reading files, whether from local disk, stdin,
 // or remote HTTP.
 type Files struct {
+	// fileBufs provides  file-backed buffers, as used by Files.NewBuffer.
+	fileBufs *ioz.Buffers
+
 	log         *slog.Logger
 	clnup       *cleanup.Cleanup
 	optRegistry *options.Registry
@@ -74,6 +81,14 @@ type Files struct {
 	mu sync.Mutex
 }
 
+// NewBuffer returns a new [ioz.Buffer] instance which may be in-memory or
+// on-disk, or both, for use as a temporary buffer for potentially large data
+// that may not fit in memory. The caller MUST invoke [ioz.Buffer.Close] on the
+// returned buffer when done.
+func (fs *Files) NewBuffer() ioz.Buffer {
+	return fs.fileBufs.NewMem2Disk()
+}
+
 // New returns a new Files instance. The caller must invoke Files.Close
 // when done with the instance.
 func New(ctx context.Context, optReg *options.Registry, cfgLock lockfile.LockFunc,
@@ -96,6 +111,14 @@ func New(ctx context.Context, optReg *options.Registry, cfgLock lockfile.LockFun
 		downloaders:     map[string]*downloader.Downloader{},
 		downloadedFiles: map[string]string{},
 		streams:         map[string]*streamcache.Stream{},
+	}
+
+	var err error
+	if fs.fileBufs, err = ioz.NewBuffers(
+		filepath.Join(tmpDir, fmt.Sprintf("filebuf_%d_%s", os.Getpid(), stringz.Uniq8())),
+		tuning.OptBufMemLimit.Get(options.FromContext(ctx)),
+	); err != nil {
+		return nil, err
 	}
 
 	return fs, nil
@@ -363,6 +386,7 @@ func (fs *Files) Close() error {
 		}
 	}
 
+	err = errz.Append(err, fs.fileBufs.Close())
 	err = errz.Append(err, fs.clnup.Run())
 	err = errz.Append(err, errz.Wrap(os.RemoveAll(fs.tempDir), "remove files temp dir"))
 

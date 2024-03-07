@@ -292,3 +292,20 @@ func TestFiles_Filesize(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, wantSize, gotSize2)
 }
+
+func TestFiles_NewBuffer(t *testing.T) {
+	th := testh.New(t)
+	fs := th.Files()
+
+	want := []byte("hello world")
+	buf := fs.NewBuffer()
+	n, err := buf.Write(want)
+	require.NoError(t, err)
+	require.Equal(t, len(want), n)
+
+	got, err := io.ReadAll(buf)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
+	buf.Reset()
+	require.NoError(t, buf.Close())
+}

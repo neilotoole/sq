@@ -106,11 +106,12 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) (err error) {
 		// runtimez.MemStatsRefresh = memStatRefreshFreq
 
 		// Debug setting to log peak memory usage on exit.
-		peakSys, peakAllocs, gcPause := runtimez.StartMemStatsTracker(ctx)
+		peakSys, peakAllocs, totalAllocs, gcPause := runtimez.StartMemStatsTracker(ctx)
 		defer func() {
-			log.Info("Peak memory stats",
-				"sys", datasize.ByteSize(peakSys.Load()).HR(),
-				"heap", datasize.ByteSize(peakAllocs.Load()).HR(),
+			log.Info("Memory stats",
+				"sys_peak", datasize.ByteSize(peakSys.Load()).HR(),
+				"heap_peak", datasize.ByteSize(peakAllocs.Load()).HR(),
+				"heap_total", datasize.ByteSize(totalAllocs.Load()).HR(),
 				"gc_pause", time.Duration(gcPause.Load()).String(),
 			)
 		}()

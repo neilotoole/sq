@@ -193,14 +193,14 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 		return err
 	}
 
-	var outCfg *outputConfig
-	ru.Writers, outCfg = newWriters(ru.Cmd, ru.Cleanup, cmdOpts, ru.Stdout, ru.Stderr)
-	ru.Out = outCfg.out
-	ru.ErrOut = outCfg.errOut
-
 	if err = FinishRunInit(ctx, ru); err != nil {
 		return err
 	}
+
+	var outCfg *outputConfig
+	ru.Writers, outCfg = newWriters(ru.Cmd, ru.Files, ru.Cleanup, cmdOpts, ru.Stdout, ru.Stderr)
+	ru.Out = outCfg.out
+	ru.ErrOut = outCfg.errOut
 
 	if cmdRequiresConfigLock(cmd) {
 		var unlock func()

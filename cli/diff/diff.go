@@ -6,6 +6,7 @@ import (
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 )
 
 // Config contains parameters to control diff behavior.
@@ -58,4 +59,16 @@ type Modes struct {
 
 	// Data compares each row in a table. Caution: this can be slow.
 	Data bool
+}
+
+// getBufferFactor returns a diffdoc.Opt for use with [diffdoc.NewUnifiedDoc]
+// or [diffdoc.NewHunkDoc] that configures the [diffdoc.Doc] to use buffers
+// created by cfg.Run.Files. These buffers spill over to disk after a size
+// threshold, which is helpful when diffing large files.
+func getBufFactory(cfg *Config) diffdoc.Opt {
+	if cfg == nil || cfg.Run == nil || cfg.Run.Files == nil {
+		return diffdoc.OptBufferFactory(ioz.NewDefaultBuffer)
+	}
+
+	return diffdoc.OptBufferFactory(cfg.Run.Files.NewBuffer)
 }

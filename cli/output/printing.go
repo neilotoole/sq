@@ -4,6 +4,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/ioz"
+
 	"github.com/fatih/color"
 	"github.com/samber/lo"
 
@@ -103,6 +105,10 @@ type Printing struct {
 	// Warning is the color for warning elements.
 	Warning *color.Color
 
+	// NewBufferFn returns a new [ioz.Buffer] instance; it should be preferred
+	// over [bytes.Buffer] when dealing large/unbounded data.
+	NewBufferFn func() ioz.Buffer
+
 	// Indent is the indent string to use when pretty-printing,
 	// typically two spaces.
 	Indent string
@@ -163,6 +169,7 @@ type Printing struct {
 // are enabled. The default indent is two spaces.
 func NewPrinting() *Printing {
 	pr := &Printing{
+		NewBufferFn:            ioz.NewDefaultBuffer,
 		ShowHeader:             true,
 		Verbose:                false,
 		Compact:                false,
@@ -211,6 +218,7 @@ func NewPrinting() *Printing {
 // Clone returns a clone of pr.
 func (pr *Printing) Clone() *Printing {
 	pr2 := &Printing{
+		NewBufferFn:            pr.NewBufferFn,
 		monochrome:             pr.monochrome,
 		FlushThreshold:         pr.FlushThreshold,
 		ShowHeader:             pr.ShowHeader,
