@@ -17,7 +17,6 @@ package progress
 import (
 	"context"
 	"io"
-	"log/slog"
 	"slices"
 	"sync"
 	"time"
@@ -267,26 +266,6 @@ func (p *Progress) HideOnWriter(w io.Writer) io.Writer {
 		// Note that it's safe to invoke p.life.kill on a nil pcLifecycle.
 		p.life.kill()
 	})
-}
-
-// LogValue reports some stats.
-func (p *Progress) LogValue() slog.Value {
-	var barCount int
-	var barsIncrByCallTotal int64
-	p.mu.Lock()
-	barCount = len(p.allBars)
-	for _, bar := range p.allBars {
-		if bar == nil {
-			continue
-		}
-		barsIncrByCallTotal += bar.incrByCalls.Load()
-	}
-	p.mu.Unlock()
-
-	return slog.GroupValue(
-		slog.Int("bars", barCount),
-		slog.Int("incr_by_total", int(barsIncrByCallTotal)),
-	)
 }
 
 // destroy is probably needlessly complex, but at the time it was written,

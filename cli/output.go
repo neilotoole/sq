@@ -543,12 +543,6 @@ func getOutputConfig(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup
 		prog = nil // Set to nil just to be explicit.
 	}
 
-	if prog != nil {
-		clnup.Add(func() {
-			lg.FromContext(ctx).Info("Progress closing stats", "progress", prog)
-		})
-	}
-
 	switch {
 	case cmdFlagChanged(cmd, flag.FileOutput) || fm == format.Raw:
 		// For file or raw output, we don't decorate stdout with

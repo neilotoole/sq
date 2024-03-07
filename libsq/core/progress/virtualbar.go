@@ -51,7 +51,6 @@ func newVirtualBar(p *Progress, cfg *barConfig, opts []BarOpt) *virtualBar {
 
 	vb := &virtualBar{
 		p:           p,
-		incrByCalls: &atomic.Int64{},
 		incrTotal:   &atomic.Int64{},
 		destroyOnce: &sync.Once{},
 		notBefore:   time.Now().Add(p.renderDelay),
@@ -88,10 +87,6 @@ type virtualBar struct {
 
 	// incrTotal holds the cumulative value of virtualBar.Incr.
 	incrTotal *atomic.Int64
-
-	// incrByCalls is a count of virtualBar.Incr invocations. It's used for
-	// logging stats.
-	incrByCalls *atomic.Int64
 
 	// destroyOnce is used within virtualBar.destroy.
 	destroyOnce *sync.Once
@@ -134,7 +129,6 @@ func (vb *virtualBar) Incr(n int) {
 	}
 
 	vb.incrTotal.Add(int64(n))
-	vb.incrByCalls.Add(1)
 }
 
 // refresh is called by the Progress's refresh goroutine, potentially creating,
