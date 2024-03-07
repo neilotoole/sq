@@ -25,11 +25,33 @@ This release features significant improvements to [`sq diff`](https://sq.io/docs
   # Stop after 5 differences, using the -n shorthand flag
   $ sq diff @prod.actor @staging.actor --data -n5
   ```
+
 - [#353]: The performance of `sq diff` has been significantly improved. There's still more to do.
+
 - Previously, `sq diff --data` compared the rendered (text) representation of each value. This could
   lead to inaccurate results, for example with two timestamp values in different time zones, but the text
   rendering omitted the time zone. Now, `sq diff --data` compares the raw values, not the rendered text.
   Note in particular with time values that both time and location components are compared.
+
+- `sq` can now handle a SQLite DB on `stdin`. This is useful for testing, or for
+  working with SQLite DBs in a pipeline.
+
+  ```shell
+  $ cat sakila.db | sq '.actor | .first_name, .last_name'
+  ```
+
+  It's also surprisingly handy in daily life, because there are sneaky SQLite DBs
+  all around us. Let's see how many text messages I've sent and received over the years:
+
+  ```shell
+  $ cat ~/Library/Messages/chat.db | sq '.message | count'
+  count
+  215439
+  ```
+  I'm sure that number makes me an amateur with these millenials 👴🏻. 
+  
+  > Note that you'll need to enable macOS [Full Disk Access](https://spin.atomicobject.com/search-imessage-sql/) to read the `chat.db` file.
+
 
 ## Changed
 

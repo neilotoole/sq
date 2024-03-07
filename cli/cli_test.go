@@ -10,6 +10,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -217,4 +220,50 @@ func TestExprNoSource(t *testing.T) {
 			require.Equal(t, tc.want, results[0])
 		})
 	}
+}
+
+func TestSQLiteStdin(t *testing.T) {
+	t.Parallel()
+
+	tr := testrun.New(context.Background(), t, nil).Hush()
+
+	// Test SLQ query
+	err := tr.Exec(
+		"--input",
+		proj.Abs("drivers/sqlite3/testdata/sakila.db"),
+		"--csv",
+		"--header",
+		".actor",
+	)
+	require.NoError(t, err)
+	gotCSV := tr.BindCSV()
+	require.Len(t, gotCSV, sakila.TblActorCount+1) // +1 for header
+	require.Equal(t, gotCSV[0], sakila.TblActorCols())
+
+	// Test SQL query
+	err = tr.Reset().Exec(
+		"sql",
+		"--input",
+		proj.Abs("drivers/sqlite3/testdata/sakila.db"),
+		"--csv",
+		"--header",
+		"SELECT * FROM actor",
+	)
+	require.NoError(t, err)
+	gotCSV = tr.BindCSV()
+	require.Len(t, gotCSV, sakila.TblActorCount+1) // +1 for header
+	require.Equal(t, gotCSV[0], sakila.TblActorCols())
+
+	// Test inspect
+	err = tr.Reset().Exec(
+		"--input",
+		proj.Abs("drivers/sqlite3/testdata/sakila.db"),
+		"inspect",
+		"--json",
+	)
+	require.NoError(t, err)
+	gotMap := tr.BindMap()
+	require.Equal(t, drivertype.SQLite.String(), gotMap["db_driver"])
+	require.Equal(t, source.StdinHandle, gotMap["handle"])
+	require.Len(t, gotMap["tables"], 21)
 }
