@@ -2,9 +2,12 @@ package cli
 
 import (
 	"context"
+	"io"
 	"os"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -254,11 +257,14 @@ func processFlagActiveSchema(cmd *cobra.Command, activeSrc *source.Source) (modi
 	return modified, nil
 }
 
-// checkStdinSource checks if there's stdin data (on pipe/redirect).
-// If there is, that pipe is inspected, and if it has recognizable
-// input, a new source instance with handle @stdin is constructed
-// and returned. If the pipe has no data (size is zero),
-// then (nil,nil) is returned.
+// checkStdinSource checks if there's stdin data (on pipe/redirect). If there
+// is, that pipe is inspected, and if it has recognizable input, a new source
+// instance with handle @stdin is constructed and returned. If the pipe has no
+// data (size is zero), then (nil,nil) is returned.
+//
+// There's special handling for a SQLite db on stdin: the input is copied to
+// a temp file, and a Source returned with handle @stdin, but with the location
+// set to the temp file path.
 func checkStdinSource(ctx context.Context, ru *run.Run) (*source.Source, error) {
 	f := ru.Stdin
 	fi, err := f.Stat()
@@ -302,14 +308,57 @@ func checkStdinSource(ctx context.Context, ru *run.Run) (*source.Source, error) 
 		}
 	}
 
-	return newSource(
-		ctx,
-		ru.DriverRegistry,
-		typ,
-		source.StdinHandle,
-		source.StdinHandle,
-		options.Options{},
-	)
+	if typ != drivertype.SQLite {
+		return newSource(
+			ctx,
+			ru.DriverRegistry,
+			typ,
+			source.StdinHandle,
+			source.StdinHandle,
+			options.Options{},
+		)
+	}
+
+	// We have special handling to allow reading a sqlite db from stdin, e.g.:
+	//
+	//  $ cat sakila.db | sq '.actor'
+	//
+	// We create a temp file, and copy the stdin data to it from the reader
+	// returned from Files.NewReader for @stdin. Note that it's too late to copy
+	// from stdin directly, because we've already sampled stdin above to determine
+	// the driver type. Then we return a source with handle @stdin, but with the
+	// location set to the temp file.
+	tmpFile, err := ru.Files.CreateTemp("stdin_*.db", true)
+	if err != nil {
+		return nil, err
+	}
+	defer lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseFileReader, tmpFile)
+
+	src := &source.Source{
+		Handle: source.StdinHandle,
+		// Location has to be @stdin initially for Files.NewReader to work.
+		// We set Location to the temp file path below.
+		Location: source.StdinHandle,
+		Type:     drivertype.SQLite,
+	}
+
+	r, err := ru.Files.NewReader(ctx, src, true)
+	if err != nil {
+		return nil, err
+	}
+
+	bar := progress.FromContext(ctx).NewFilesizeCounter("Reading @stdin", tmpFile, "")
+	_, err = io.Copy(tmpFile, r)
+	bar.Stop()
+	if err != nil {
+		return nil, err
+	}
+	if err = errz.Append(tmpFile.Close(), r.Close()); err != nil {
+		return nil, err
+	}
+
+	src.Location = "sqlite3://" + tmpFile.Name()
+	return src, nil
 }
 
 // newSource creates a new Source instance where the

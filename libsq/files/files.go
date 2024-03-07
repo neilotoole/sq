@@ -395,7 +395,7 @@ func (fs *Files) Close() error {
 	return err
 }
 
-// CreateTemp creates a new temporary file fs's temp dir with the given
+// CreateTemp creates a new temporary file in fs's temp dir with the given
 // filename pattern, as per the os.CreateTemp docs. If arg clean is
 // true, the file is added to the cleanup sequence invoked by fs.Close.
 // It is the callers responsibility to close the returned file.
