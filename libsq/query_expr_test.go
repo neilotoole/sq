@@ -162,3 +162,40 @@ func TestQuery_expr_literal(t *testing.T) {
 		})
 	}
 }
+
+//nolint:exhaustive
+func TestQuery_expr_where_bool(t *testing.T) {
+	// Note that there's no actual field .actor.is_alive, thus we're only testing
+	// the query rendering, so skipExec=true. Unfortunately sakila doesn't have
+	// a table with a bool column, so it's not trivial to test the query execution
+	// given this test harness.
+	testCases := []queryTestCase{
+		{
+			name:    "true",
+			in:      `@sakila | .actor | where(.is_alive == true)`,
+			wantSQL: `SELECT * FROM "actor" WHERE "is_alive" = true`,
+			override: driverMap{
+				drivertype.MSSQL: `SELECT * FROM "actor" WHERE "is_alive" = 1`,
+				drivertype.MySQL: "SELECT * FROM `actor` WHERE `is_alive` = true",
+			},
+			skipExec: true,
+		},
+		{
+			name:    "false",
+			in:      `@sakila | .actor | where(.is_alive == false)`,
+			wantSQL: `SELECT * FROM "actor" WHERE "is_alive" = false`,
+			override: driverMap{
+				drivertype.MSSQL: `SELECT * FROM "actor" WHERE "is_alive" = 0`,
+				drivertype.MySQL: "SELECT * FROM `actor` WHERE `is_alive` = false",
+			},
+			skipExec: true,
+		},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tu.Name(i, tc.name), func(t *testing.T) {
+			execQueryTestCase(t, tc)
+		})
+	}
+}
