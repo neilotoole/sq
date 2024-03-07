@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"image/gif"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -265,5 +266,4 @@ func TestSQLiteStdin(t *testing.T) {
 	require.Equal(t, drivertype.SQLite.String(), gotMap["db_driver"])
 	require.Equal(t, source.StdinHandle, gotMap["handle"])
 	require.Len(t, gotMap["tables"], 21)
-
 }
