@@ -151,6 +151,19 @@ func (d *driveri) Renderer() *render.Renderer {
 	r.FunctionNames[ast.FuncNameCatalog] = "DB_NAME"
 	r.FunctionOverrides[ast.FuncNameRowNum] = renderFuncRowNum
 
+	defaultLiteralFn := r.Literal
+	r.Literal = func(rc *render.Context, lit *ast.LiteralNode) (string, error) {
+		// SQLServer doesn't like "true" or "false" for boolean literals.
+		// We need to use 0 and 1.
+		if lit.LiteralType() == ast.LiteralBool {
+			if lit.Text() == "true" {
+				return "1", nil
+			}
+			return "0", nil
+		}
+		return defaultLiteralFn(rc, lit)
+	}
+
 	return r
 }
 

@@ -12,6 +12,7 @@ const (
 	LiteralNaturalNumber LiteralType = "int"
 	LiteralAnyNumber     LiteralType = "float"
 	LiteralString        LiteralType = "string"
+	LiteralBool          LiteralType = "bool"
 )
 
 // LiteralNode is a leaf node representing a literal such as a number or a string.
@@ -45,6 +46,8 @@ func (v *parseTreeVisitor) VisitLiteral(ctx *slq.LiteralContext) any {
 		node.typ = LiteralNull
 	case ctx.STRING() != nil:
 		node.typ = LiteralString
+	case ctx.BOOL() != nil:
+		node.typ = LiteralBool
 	default:
 		// Shouldn't happen
 		return errorf("unable to determine literal type for: %s", ctx.GetText())

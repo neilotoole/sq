@@ -52,6 +52,18 @@ This release features significant improvements to [`sq diff`](https://sq.io/docs
   
   > Note that you'll need to enable macOS [Full Disk Access](https://spin.atomicobject.com/search-imessage-sql/) to read the `chat.db` file.
 
+- `sq` now allows you to use `true` and `false` literals in queries. Which, in hindsight, does seem like a bit of
+  an oversight 😳. (Although previously you could usually get away with using `1` and `0`).
+
+  ```shell
+  $ sq '.people | where(.is_alive == false)'
+  name        is_alive
+  Kubla Khan  false
+  
+  $ sq '.people | where(.is_alive == true)'
+  name         is_alive
+  Kaiser Soze  true
+  ```
 
 ## Changed
 

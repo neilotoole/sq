@@ -283,10 +283,11 @@ expr:
 	| func
 	;
 
-literal: NN | NUMBER | STRING | NULL;
+literal: NN | NUMBER | BOOL | STRING | NULL;
 
 unaryOperator: '-' | '+' | '~' | '!';
 
+BOOL: 'true' | 'false';
 NULL: 'null';
 ID: [a-zA-Z_][a-zA-Z0-9_]*;
 WS: [ \t\r\n]+ -> skip;

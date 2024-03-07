@@ -18,6 +18,8 @@ func doLiteral(_ *Context, lit *ast.LiteralNode) (string, error) {
 			return "", err
 		}
 		return stringz.SingleQuote(text), nil
+	case ast.LiteralBool:
+		return lit.Text(), nil
 	default:
 		// Should never happen.
 		panic("unknown literal type: " + string(lit.LiteralType()))
