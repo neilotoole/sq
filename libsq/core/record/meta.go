@@ -54,6 +54,10 @@ func NewFieldMeta(data *ColumnTypeData, mungedName string) *FieldMeta {
 
 // String returns a log-debug friendly representation.
 func (fm *FieldMeta) String() string {
+	if fm == nil {
+		return "<nil>"
+	}
+
 	nullMsg := "?"
 	if fm.data.HasNullable {
 		nullMsg = strconv.FormatBool(fm.data.Nullable)
@@ -63,9 +67,9 @@ func (fm *FieldMeta) String() string {
 		"%s|%s|%s|%s|%s|%s",
 		fm.data.Name,
 		fm.mungedName,
-		fm.data.Kind.String(),
+		fm.data.Kind,
 		fm.data.DatabaseTypeName,
-		fm.ScanType().String(),
+		fm.ScanType(),
 		nullMsg,
 	)
 }
