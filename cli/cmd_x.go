@@ -16,7 +16,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/files"
-	"github.com/neilotoole/sq/testh/proj"
 )
 
 // newXCmd returns the "x" command, which is the container
@@ -187,12 +186,6 @@ func execXProgressManyBars(cmd *cobra.Command, _ []string) error {
 	bars = append(bars, pb.NewByteCounter("NewByteCounter.NoSize.OptTimer.OptMem", -1, progress.OptTimer, progress.OptMemUsage))
 	bars = append(bars, pb.NewByteCounter("NewByteCounter.NoSize.OptMem", -1, progress.OptMemUsage))
 	bars = append(bars, pb.NewByteCounter("NewByteCounter.NoSize.OptMem", -1, progress.OptMemUsage))
-
-	fp := proj.Abs("go.mod")
-	bars = append(bars, pb.NewFilesizeCounter("NewFilesizeCounter", nil, fp))
-	bars = append(bars, pb.NewFilesizeCounter("NewFilesizeCounter.OptTimer", nil, fp, progress.OptTimer))
-	bars = append(bars, pb.NewFilesizeCounter("NewFilesizeCounter.OptTimer.OptMem", nil, "fp", progress.OptTimer, progress.OptMemUsage))
-	bars = append(bars, pb.NewFilesizeCounter("NewFilesizeCounter.OptMem", nil, fp, progress.OptMemUsage))
 
 	incrStopCh := make(chan struct{})
 

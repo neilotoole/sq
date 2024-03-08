@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/files"
-
 	"github.com/fatih/color"
 	colorable "github.com/mattn/go-colorable"
 	wordwrap "github.com/mitchellh/go-wordwrap"
@@ -37,6 +35,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/termz"
 	"github.com/neilotoole/sq/libsq/core/timez"
 	"github.com/neilotoole/sq/libsq/core/tuning"
+	"github.com/neilotoole/sq/libsq/files"
 )
 
 var (
