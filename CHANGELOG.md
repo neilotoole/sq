@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
-## [v0.48.0] - 2024-03-07
+## [v0.48.1] - 2024-03-07
 
 This release features significant improvements to [`sq diff`](https://sq.io/docs/diff).
 
@@ -1255,4 +1255,4 @@ make working with lots of sources much easier.
 [v0.47.2]: https://github.com/neilotoole/sq/compare/v0.47.1...v0.47.2
 [v0.47.3]: https://github.com/neilotoole/sq/compare/v0.47.2...v0.47.3
 [v0.47.4]: https://github.com/neilotoole/sq/compare/v0.47.3...v0.47.4
-[v0.48.0]: https://github.com/neilotoole/sq/compare/v0.47.4...v0.48.0
+[v0.48.1]: https://github.com/neilotoole/sq/compare/v0.47.4...v0.48.1
