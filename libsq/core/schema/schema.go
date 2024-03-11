@@ -2,8 +2,6 @@
 package schema
 
 import (
-	"strings"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 )
@@ -26,6 +24,42 @@ type Table struct { //nolint:govet // field alignment
 
 	// Cols is the table's column definitions.
 	Cols []*Column `json:"cols"`
+}
+
+func (t *Table) Equal(b *Table) bool {
+	if t == nil && b == nil {
+		return true
+	}
+	if t == nil || b == nil {
+		return false
+	}
+	if t == b {
+		return true
+	}
+
+	if t.Name != b.Name {
+		return false
+	}
+
+	if t.PKColName != b.PKColName {
+		return false
+	}
+
+	if t.AutoIncrement != b.AutoIncrement {
+		return false
+	}
+
+	if len(t.Cols) != len(b.Cols) {
+		return false
+	}
+
+	for i, col := range t.Cols {
+		if !col.Equal(b.Cols[i]) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // NewTable is a convenience constructor for creating
@@ -63,7 +97,7 @@ func (t *Table) ColKinds() []kind.Kind {
 }
 
 func (t *Table) String() string {
-	return t.Name + "(" + strings.Join(t.ColNames(), ",") + ")"
+	return t.Name
 }
 
 // ColsByName returns the ColDefs for each named column, or an error if any column
@@ -114,6 +148,53 @@ type Column struct { //nolint:govet // field alignment
 	ForeignKey *FKConstraint `json:"foreign_key,omitempty"`
 }
 
+func (c *Column) Equal(b *Column) bool {
+	if c == nil && b == nil {
+		return true
+	}
+	if c == nil || b == nil {
+		return false
+	}
+	if c == b {
+		return true
+	}
+
+	if c.Name != b.Name {
+		return false
+	}
+
+	if c.Kind != b.Kind {
+		return false
+	}
+
+	if c.NotNull != b.NotNull {
+		return false
+	}
+
+	if c.HasDefault != b.HasDefault {
+		return false
+	}
+
+	if c.Size != b.Size {
+		return false
+	}
+
+	if c.Unique != b.Unique {
+		return false
+	}
+
+	if !c.ForeignKey.Equal(b.ForeignKey) {
+		return false
+	}
+
+	return true
+
+}
+
+func (c *Column) String() string {
+	return c.Name
+}
+
 // FKConstraint models a foreign key constraint.
 type FKConstraint struct {
 	// RefTable is the name of the referenced parent table.
@@ -124,4 +205,34 @@ type FKConstraint struct {
 	OnDelete string `json:"on_delete"`
 	// OnUpdate is one of CASCADE or SET_NULL, defaults to CASCADE.
 	OnUpdate string `json:"on_update"`
+}
+
+func (fk *FKConstraint) Equal(b *FKConstraint) bool {
+	if fk == nil && b == nil {
+		return true
+	}
+	if fk == nil || b == nil {
+		return false
+	}
+	if fk == b {
+		return true
+	}
+
+	if fk.RefTable != b.RefTable {
+		return false
+	}
+
+	if fk.RefCol != b.RefCol {
+		return false
+	}
+
+	if fk.OnDelete != b.OnDelete {
+		return false
+	}
+
+	if fk.OnUpdate != b.OnUpdate {
+		return false
+	}
+
+	return true
 }

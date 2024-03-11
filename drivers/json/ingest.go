@@ -563,9 +563,6 @@ func (s *ingestSchema) getTable(name string) *schema.Table {
 // execSchemaDelta executes the schema delta between curSchema and newSchema.
 // That is, if curSchema is nil, then newSchema is created in the DB; if
 // newSchema has additional tables or columns, then those are created in the DB.
-//
-// TODO: execSchemaDelta is only partially implemented; it doesn't create
-// the new tables/columns.
 func execSchemaDelta(ctx context.Context, drvr driver.SQLDriver, db sqlz.DB,
 	curSchema, newSchema *ingestSchema,
 ) error {
@@ -584,32 +581,32 @@ func execSchemaDelta(ctx context.Context, drvr driver.SQLDriver, db sqlz.DB,
 		return nil
 	}
 
-	var newExistingTables []*schema.Table
-	var newNonExistentTables []*schema.Table
+	var alterTbls []*schema.Table
+	var createTbls []*schema.Table
 
-	for _, tbl := range newSchema.tblDefs {
-		existingTbl := curSchema.getTable(tbl.Name)
-		if existingTbl == nil {
-			newNonExistentTables = append(newNonExistentTables, tbl)
-		} else {
-			newExistingTables = append(newExistingTables, existingTbl)
+	for _, newTbl := range newSchema.tblDefs {
+		oldTbl := curSchema.getTable(newTbl.Name)
+		if oldTbl == nil {
+			createTbls = append(createTbls, newTbl)
+		} else if !oldTbl.Equal(newTbl) {
+			alterTbls = append(alterTbls, newTbl)
 		}
 	}
 
-	for _, updateTbl := range newExistingTables {
-		oldTbl := curSchema.getTable(updateTbl.Name)
-		if err = execMaybeAlterTable(ctx, drvr, db, oldTbl, updateTbl); err != nil {
+	for _, wantTbl := range alterTbls {
+		oldTbl := curSchema.getTable(wantTbl.Name)
+		if err = execMaybeAlterTable(ctx, drvr, db, oldTbl, wantTbl); err != nil {
 			return err
 		}
 	}
 
-	for _, tbl := range newNonExistentTables {
-		err = drvr.CreateTable(ctx, db, tbl)
+	for _, wantTbl := range createTbls {
+		err = drvr.CreateTable(ctx, db, wantTbl)
 		if err != nil {
 			return err
 		}
 
-		log.Debug("Created table", lga.Table, tbl.Name)
+		log.Debug("Created table", lga.Table, wantTbl.Name)
 	}
 
 	return nil
@@ -626,44 +623,48 @@ func execMaybeAlterTable(ctx context.Context, drvr driver.SQLDriver, db sqlz.DB,
 		return drvr.CreateTable(ctx, db, newTbl)
 	}
 
+	if oldTbl.Equal(newTbl) {
+		return nil
+	}
+
 	tblName := newTbl.Name
 
-	var newNonExistentCols []*schema.Column
-	var newExistingCols []*schema.Column
+	var createCols []*schema.Column
+	var alterCols []*schema.Column
+	var wantAlterColNames []string
+	var wantColKinds []kind.Kind
 
-	for _, col := range newTbl.Cols {
-		existingCol, err := oldTbl.FindCol(col.Name)
+	for _, newCol := range newTbl.Cols {
+		oldCol, err := oldTbl.FindCol(newCol.Name)
 		if err != nil {
-			newNonExistentCols = append(newNonExistentCols, col)
-		} else {
-			newExistingCols = append(newExistingCols, existingCol)
+			createCols = append(createCols, newCol)
+		} else if newCol.Kind != oldCol.Kind {
+			alterCols = append(alterCols, newCol)
+			wantAlterColNames = append(wantAlterColNames, newCol.Name)
+			wantColKinds = append(wantColKinds, newCol.Kind)
 		}
 	}
 
-	var alterColKindName []string
-	var alterColKind []kind.Kind
+	//for _, alterCol := range alterCols {
+	//	oldCol, err := oldTbl.FindCol(alterCol.Name)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	if alterCol.Kind == oldCol.Kind {
+	//		continue
+	//	}
+	//
+	//
+	//}
 
-	for _, updateCol := range newExistingCols {
-		oldCol, err := oldTbl.FindCol(updateCol.Name)
+	if len(wantAlterColNames) > 0 {
+		err := drvr.AlterTableColumnKinds(ctx, db, tblName, wantAlterColNames, wantColKinds)
 		if err != nil {
 			return err
 		}
-		if updateCol.Kind == oldCol.Kind {
-			continue
-		}
-
-		alterColKindName = append(alterColKindName, updateCol.Name)
-		alterColKind = append(alterColKind, updateCol.Kind)
 	}
 
-	if len(alterColKindName) > 0 {
-		err := drvr.AlterTableColumnKinds(ctx, db, tblName, alterColKindName, alterColKind)
-		if err != nil {
-			return err
-		}
-	}
-
-	for _, col := range newNonExistentCols {
+	for _, col := range createCols {
 		if err := drvr.AlterTableAddColumn(ctx, db, tblName, col.Name, col.Kind); err != nil {
 			return err
 		}

@@ -100,6 +100,7 @@ func ExtractColNameAndTypeFromCreateStmt(stmt, colName string) (name, typ string
 	return "", "", errz.Errorf("sqlite: column {%s} not found in stmt", colName)
 }
 
+// FIXME: delete ExtractColNamesAndTypesFromCreateStmt
 func ExtractColNamesAndTypesFromCreateStmt(stmt string) (names, types []string, err error) {
 	stmtCtx, err := parseCreateTableStmt(stmt)
 	if err != nil {

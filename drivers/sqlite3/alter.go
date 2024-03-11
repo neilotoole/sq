@@ -149,7 +149,7 @@ func getTx(ctx context.Context, db sqlz.DB) (tx *sql.Tx, err error) {
 	if tx, ok = db.(*sql.Tx); !ok {
 		var sqlDB *sql.DB
 		if sqlDB, ok = db.(*sql.DB); !ok {
-			return nil, errz.New("sqlite3: expected *sql.DB or *sql.Tx")
+			return nil, errz.Errorf("sqlite3: expected *sql.DB or *sql.Tx but got: %T", db)
 		}
 
 		tx, err = sqlDB.BeginTx(ctx, nil)
