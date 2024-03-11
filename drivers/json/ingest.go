@@ -630,35 +630,21 @@ func execMaybeAlterTable(ctx context.Context, drvr driver.SQLDriver, db sqlz.DB,
 	tblName := newTbl.Name
 
 	var createCols []*schema.Column
-	var alterCols []*schema.Column
 	var wantAlterColNames []string
-	var wantColKinds []kind.Kind
+	var wantAlterColKinds []kind.Kind
 
 	for _, newCol := range newTbl.Cols {
 		oldCol, err := oldTbl.FindCol(newCol.Name)
 		if err != nil {
 			createCols = append(createCols, newCol)
 		} else if newCol.Kind != oldCol.Kind {
-			alterCols = append(alterCols, newCol)
 			wantAlterColNames = append(wantAlterColNames, newCol.Name)
-			wantColKinds = append(wantColKinds, newCol.Kind)
+			wantAlterColKinds = append(wantAlterColKinds, newCol.Kind)
 		}
 	}
 
-	//for _, alterCol := range alterCols {
-	//	oldCol, err := oldTbl.FindCol(alterCol.Name)
-	//	if err != nil {
-	//		return err
-	//	}
-	//	if alterCol.Kind == oldCol.Kind {
-	//		continue
-	//	}
-	//
-	//
-	//}
-
 	if len(wantAlterColNames) > 0 {
-		err := drvr.AlterTableColumnKinds(ctx, db, tblName, wantAlterColNames, wantColKinds)
+		err := drvr.AlterTableColumnKinds(ctx, db, tblName, wantAlterColNames, wantAlterColKinds)
 		if err != nil {
 			return err
 		}

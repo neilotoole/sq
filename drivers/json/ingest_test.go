@@ -10,20 +10,18 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/source/metadata"
-
-	"github.com/neilotoole/sq/cli/testrun"
-	"github.com/neilotoole/sq/libsq/core/lg/lgt"
-	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/source/drivertype"
-	"github.com/neilotoole/sq/testh/proj"
-
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/drivers/json"
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
+	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
 	"github.com/neilotoole/sq/testh/tu"
@@ -446,14 +444,14 @@ Ordino,42.55623,1.53319,AD,5,`
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			tr := testrun.New(context.Background(), t, nil)
+			tr := testrun.New(context.Background(), t, nil).Hush()
 			src := &source.Source{
 				Handle:   "@cities",
 				Type:     drivertype.JSON,
 				Location: proj.Abs(filepath.Join("drivers/json/testdata/", tc.name)),
 			}
 			tr = tr.Add(*src)
-			err := tr.Exec("--csv", ".data", ".[0:2]")
+			err := tr.Exec("--csv", ".data | .[0:3]")
 			require.NoError(t, err)
 			require.Equal(t, wantCSV, tr.OutString())
 

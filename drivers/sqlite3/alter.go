@@ -2,7 +2,6 @@ package sqlite3
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
 
@@ -57,30 +56,20 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 		return errz.New("sqlite3: alter table: mismatched count of columns and kinds")
 	}
 
+	// It's recommended to disable foreign keys before this alter procedure.
 	if restorePragmaFK, fkErr := pragmaDisableForeignKeys(ctx, db); fkErr != nil {
 		return fkErr
 	} else if restorePragmaFK != nil {
 		defer restorePragmaFK()
 	}
 
-	var tx *sql.Tx
-	if tx, err = getTx(ctx, db); err != nil {
-		return err
-	}
-
-	defer func() {
-		if tx != nil {
-			_ = tx.Rollback()
-		}
-	}()
-
 	q := "SELECT sql FROM sqlite_master WHERE type='table' AND name=?"
 	var ogDDL string
-	if err = tx.QueryRowContext(ctx, q, tblName).Scan(&ogDDL); err != nil {
+	if err = db.QueryRowContext(ctx, q, tblName).Scan(&ogDDL); err != nil {
 		return errz.Wrapf(err, "sqlite3: alter table: failed to read original DDL")
 	}
 
-	allColDefs, err := sqlparser.ExtractCreateStmtColDefs(ogDDL)
+	allColDefs, err := sqlparser.ExtractCreateTableStmtColDefs(ogDDL)
 	if err != nil {
 		return errz.Wrapf(err, "sqlite3: alter table: failed to extract column definitions from DDL")
 	}
@@ -108,26 +97,26 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	nuTblName := "tmp_tbl_alter_" + stringz.Uniq32()
 	nuDDL = strings.Replace(nuDDL, tblName, nuTblName, 1)
 
-	if _, err = tx.ExecContext(ctx, nuDDL); err != nil {
+	if _, err = db.ExecContext(ctx, nuDDL); err != nil {
 		return errz.Wrapf(err, "sqlite3: alter table: failed to create temporary table")
 	}
 
-	copyStmt := fmt.Sprintf( //nolint:gosec
+	copyStmt := fmt.Sprintf(
 		"INSERT INTO %s SELECT * FROM %s",
 		stringz.DoubleQuote(nuTblName),
 		stringz.DoubleQuote(tblName),
 	)
-	if _, err = tx.ExecContext(ctx, copyStmt); err != nil {
+	if _, err = db.ExecContext(ctx, copyStmt); err != nil {
 		return errz.Wrapf(err, "sqlite3: alter table: failed to copy data to temporary table")
 	}
 
 	// Drop old table
-	if _, err = tx.ExecContext(ctx, "DROP TABLE "+stringz.DoubleQuote(tblName)); err != nil {
+	if _, err = db.ExecContext(ctx, "DROP TABLE "+stringz.DoubleQuote(tblName)); err != nil {
 		return errz.Wrapf(err, "sqlite3: alter table: failed to drop original table")
 	}
 
 	// Rename new table to old table name
-	if _, err = tx.ExecContext(ctx, fmt.Sprintf(
+	if _, err = db.ExecContext(ctx, fmt.Sprintf(
 		"ALTER TABLE %s RENAME TO %s",
 		stringz.DoubleQuote(nuTblName),
 		stringz.DoubleQuote(tblName),
@@ -135,30 +124,7 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 		return errz.Wrapf(err, "sqlite3: alter table: failed to rename temporary table")
 	}
 
-	err = tx.Commit()
-	tx = nil
-	if err != nil {
-		return errz.Wrapf(err, "sqlite3: alter table: failed to commit transaction")
-	}
-
 	return nil
-}
-
-func getTx(ctx context.Context, db sqlz.DB) (tx *sql.Tx, err error) {
-	var ok bool
-	if tx, ok = db.(*sql.Tx); !ok {
-		var sqlDB *sql.DB
-		if sqlDB, ok = db.(*sql.DB); !ok {
-			return nil, errz.Errorf("sqlite3: expected *sql.DB or *sql.Tx but got: %T", db)
-		}
-
-		tx, err = sqlDB.BeginTx(ctx, nil)
-		if err != nil {
-			return nil, errz.Wrapf(err, "sqlite3: failed to begin transaction")
-		}
-	}
-
-	return tx, nil
 }
 
 // pragmaDisableForeignKeys disables foreign keys, returning a function that

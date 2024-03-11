@@ -1,10 +1,8 @@
 package sqlparser
 
 import (
-	"slices"
-	"strings"
+	antlr "github.com/antlr4-go/antlr/v4"
 
-	"github.com/antlr4-go/antlr/v4"
 	"github.com/neilotoole/sq/drivers/sqlite3/internal/sqlparser/sqlite"
 	"github.com/neilotoole/sq/libsq/ast/antlrz"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -72,64 +70,9 @@ func ExtractTableIdentFromCreateTableStmt(stmt string, unescape bool) (schema, t
 	return schema, table, nil
 }
 
-// ExtractColNameAndTypeFromCreateStmt extracts the column name and type from
-// a CREATE TABLE statement. If the column name is quoted in the original, it
-// is returned quote. If the column name is not found, an error is returned.
-func ExtractColNameAndTypeFromCreateStmt(stmt, colName string) (name, typ string, err error) {
-	stmtCtx, err := parseCreateTableStmt(stmt)
-	if err != nil {
-		return "", "", err
-	}
-
-	for _, child := range stmtCtx.GetChildren() {
-		if colDef, ok := child.(*sqlite.Column_defContext); ok {
-			if colDef == nil || colDef.Column_name() == nil {
-				continue
-			}
-
-			gotColNameText := colDef.Column_name().GetText()
-			if gotColNameText == colName || gotColNameText == stringz.DoubleQuote(colName) {
-				if colDef.Type_name() == nil {
-					continue
-				}
-				return gotColNameText, colDef.Type_name().GetText(), nil
-			}
-		}
-	}
-
-	return "", "", errz.Errorf("sqlite: column {%s} not found in stmt", colName)
-}
-
-// FIXME: delete ExtractColNamesAndTypesFromCreateStmt
-func ExtractColNamesAndTypesFromCreateStmt(stmt string) (names, types []string, err error) {
-	stmtCtx, err := parseCreateTableStmt(stmt)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	tokEx := antlrz.NewTokenExtractor(stmt)
-	for _, child := range stmtCtx.GetChildren() {
-		if colDef, ok := child.(*sqlite.Column_defContext); ok {
-			if colDef == nil || colDef.Column_name() == nil {
-				continue
-			}
-
-			if colDef.Type_name() == nil || colDef.Type_name().GetText() == "" {
-				continue
-			}
-
-			raw := tokEx.Extract(colDef)
-			_ = raw
-
-			names = append(names, colDef.Column_name().GetText())
-			types = append(types, colDef.Type_name().GetText())
-		}
-	}
-
-	return names, types, nil
-}
-
-func ExtractCreateStmtColDefs(stmt string) ([]*ColDef, error) {
+// ExtractCreateTableStmtColDefs extracts the column definitions from a CREATE
+// TABLE statement.
+func ExtractCreateTableStmtColDefs(stmt string) ([]*ColDef, error) {
 	stmtCtx, err := parseCreateTableStmt(stmt)
 	if err != nil {
 		return nil, err
@@ -197,42 +140,4 @@ type ColDef struct {
 // String returns the raw text of the column definition.
 func (cd *ColDef) String() string {
 	return cd.Raw
-}
-
-func CanonicalizeCreateStmtColNames(stmt string) (string, error) {
-	colNames, _, err := ExtractColNamesAndTypesFromCreateStmt(stmt)
-	if err != nil {
-		return "", err
-	}
-
-	// Sort in order of length.
-	slices.SortFunc(colNames, func(i, j string) int {
-		switch {
-		case len(i) == len(j):
-			return 0
-		case len(i) < len(j):
-			return 1
-		default:
-			return -1
-		}
-	})
-
-	for _, colName := range colNames {
-		canonicalColName := colName
-		if canonicalColName[0] != '"' {
-			canonicalColName = stringz.DoubleQuote(canonicalColName)
-		}
-		switch {
-		case strings.Contains(stmt, colName+" "):
-			stmt = strings.Replace(stmt, colName+" ", canonicalColName+" ", 1)
-		case strings.Contains(stmt, colName+"\n"):
-			stmt = strings.Replace(stmt, colName+"\n", canonicalColName+"\n", 1)
-		case strings.Contains(stmt, colName+"\r\n"):
-			stmt = strings.Replace(stmt, colName+"\r\n", canonicalColName+"\r\n", 1)
-		case strings.Contains(stmt, colName+"\t"):
-			stmt = strings.Replace(stmt, colName+"\t", canonicalColName+"\t", 1)
-		}
-	}
-
-	return stmt, nil
 }

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/antlr4-go/antlr/v4"
+	antlr "github.com/antlr4-go/antlr/v4"
 )
 
 // TokenExtractor extracts the raw text of a parser rule from the input.

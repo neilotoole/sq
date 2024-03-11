@@ -188,7 +188,6 @@ func (c *Column) Equal(b *Column) bool {
 	}
 
 	return true
-
 }
 
 func (c *Column) String() string {

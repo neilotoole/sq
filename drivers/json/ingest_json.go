@@ -9,12 +9,11 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/progress"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -175,10 +174,8 @@ func ingestJSON(ctx context.Context, job *ingestJob) error {
 		obj            map[string]any
 		chunk          []byte
 		schemaModified bool
-		// curSchema      *ingestSchema
-		insertions []*insertion
-		hasMore    bool
-		objIndex   = -1
+		insertions     []*insertion
+		hasMore        bool
 	)
 
 	for {
@@ -186,7 +183,6 @@ func ingestJSON(ctx context.Context, job *ingestJob) error {
 		if err != nil {
 			return err
 		}
-		objIndex++
 
 		// obj is returned nil by scan.next when end of input.
 		hasMore = obj != nil

@@ -68,14 +68,14 @@ func TestExtractTableNameFromCreateTableStmt(t *testing.T) {
 	}
 }
 
-func TestExtractCreateStmtColDefs(t *testing.T) {
+func TestExtractCreateTableStmtColDefs(t *testing.T) {
 	const input = `CREATE TABLE "og_table" (
 "name" TEXT NOT NULL,
 "age" INTEGER( 10 ) NOT NULL,
 weight INTEGER NOT NULL
 )`
 
-	colDefs, err := sqlparser.ExtractCreateStmtColDefs(input)
+	colDefs, err := sqlparser.ExtractCreateTableStmtColDefs(input)
 	require.NoError(t, err)
 	require.Len(t, colDefs, 3)
 	require.Equal(t, `"name" TEXT NOT NULL`, colDefs[0].Raw)
@@ -101,34 +101,4 @@ weight INTEGER NOT NULL
 	require.Equal(t, "INTEGER", colDefs[2].RawType)
 	snippet = input[colDefs[2].InputOffset : colDefs[2].InputOffset+len(colDefs[2].Raw)]
 	require.Equal(t, colDefs[2].Raw, snippet)
-}
-
-func TestExtractColNamesAndTypesFromCreateStmt(t *testing.T) {
-	const input = `CREATE TABLE "og_table" (
-"name" TEXT NOT NULL,
-"age" INTEGER( 10 ) NOT NULL,
-weight INTEGER NOT NULL
-)`
-
-	names, types, err := sqlparser.ExtractColNamesAndTypesFromCreateStmt(input)
-	require.NoError(t, err)
-	require.Equal(t, []string{`"name"`, `"age"`, `weight`}, names)
-	require.Equal(t, []string{"TEXT", "INTEGER(10)", "INTEGER"}, types)
-}
-
-func TestCanonicalizeCreateStmtColNames(t *testing.T) {
-	const input = `CREATE TABLE "og_table" (
-"name" TEXT NOT NULL,
-"age" INTEGER( 10 ) NOT NULL,
-weight INTEGER NOT NULL
-)`
-	const want = `CREATE TABLE "og_table" (
-"name" TEXT NOT NULL,
-"age" INTEGER( 10 ) NOT NULL,
-"weight" INTEGER NOT NULL
-)`
-
-	got, err := sqlparser.CanonicalizeCreateStmtColNames(input)
-	require.NoError(t, err)
-	require.Equal(t, want, got)
 }
