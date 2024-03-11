@@ -10,11 +10,12 @@ require (
 	github.com/alessio/shellescape v1.4.2
 	github.com/antlr4-go/antlr/v4 v4.13.0
 	github.com/c2h5oh/datasize v0.0.0-20231215233829-aa82cc1e6500
+	github.com/djherbis/buffer v1.2.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/ecnepsnai/osquery v1.0.1
 	github.com/emirpasic/gods v1.18.1
 	github.com/fatih/color v1.16.0
-	github.com/go-sql-driver/mysql v1.7.1
+	github.com/go-sql-driver/mysql v1.8.0
 	github.com/goccy/go-yaml v1.11.3
 	github.com/google/renameio/v2 v2.0.0
 	github.com/google/uuid v1.6.0
@@ -55,13 +56,13 @@ require (
 )
 
 require (
+	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/djherbis/buffer v1.2.0 // indirect
 	github.com/felixge/fgprof v0.9.4 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
