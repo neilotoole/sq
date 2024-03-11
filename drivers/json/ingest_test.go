@@ -417,6 +417,7 @@ func TestColumnOrderFlat(t *testing.T) {
 
 func TestJSONData_Cities(t *testing.T) {
 	t.Parallel()
+	tu.SkipWindows(t, "Takes too long on Windows CI")
 	tu.SkipShort(t, true)
 
 	const wantCSV = `name,lat,lng,country,admin1,admin2
