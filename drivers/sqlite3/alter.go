@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
+
 	"github.com/neilotoole/sq/drivers/sqlite3/internal/sqlparser"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -11,7 +13,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"strings"
 )
 
 // AlterTableRename implements driver.SQLDriver.
@@ -49,7 +50,9 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 //   - https://www.sqlitetutorial.net/sqlite-alter-table/
 //
 // Note that colNames and kinds must be the same length.
-func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB, tblName string, colNames []string, kinds []kind.Kind) (err error) {
+func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
+	tblName string, colNames []string, kinds []kind.Kind,
+) (err error) {
 	if len(colNames) != len(kinds) {
 		return errz.New("sqlite3: alter table: mismatched count of columns and kinds")
 	}
@@ -109,18 +112,26 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB, tblName
 		return errz.Wrapf(err, "sqlite3: alter table: failed to create temporary table")
 	}
 
-	copyStmt := fmt.Sprintf("INSERT INTO %s SELECT * FROM %s", stringz.DoubleQuote(nuTblName), stringz.DoubleQuote(tblName))
+	copyStmt := fmt.Sprintf( //nolint:gosec
+		"INSERT INTO %s SELECT * FROM %s",
+		stringz.DoubleQuote(nuTblName),
+		stringz.DoubleQuote(tblName),
+	)
 	if _, err = tx.ExecContext(ctx, copyStmt); err != nil {
 		return errz.Wrapf(err, "sqlite3: alter table: failed to copy data to temporary table")
 	}
 
 	// Drop old table
-	if _, err = tx.ExecContext(ctx, fmt.Sprintf("DROP TABLE %s", stringz.DoubleQuote(tblName))); err != nil {
+	if _, err = tx.ExecContext(ctx, "DROP TABLE "+stringz.DoubleQuote(tblName)); err != nil {
 		return errz.Wrapf(err, "sqlite3: alter table: failed to drop original table")
 	}
 
 	// Rename new table to old table name
-	if _, err = tx.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s RENAME TO %s", stringz.DoubleQuote(nuTblName), stringz.DoubleQuote(tblName))); err != nil {
+	if _, err = tx.ExecContext(ctx, fmt.Sprintf(
+		"ALTER TABLE %s RENAME TO %s",
+		stringz.DoubleQuote(nuTblName),
+		stringz.DoubleQuote(tblName),
+	)); err != nil {
 		return errz.Wrapf(err, "sqlite3: alter table: failed to rename temporary table")
 	}
 

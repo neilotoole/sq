@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"context"
 	stdj "encoding/json"
-	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/source/metadata"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
@@ -481,5 +482,4 @@ func Test_Cities_MixedFieldKind(t *testing.T) {
 	colAdmin1 := md.Table("data").Column("admin1")
 	require.NotNil(t, colAdmin1)
 	require.Equal(t, kind.Text.String(), colAdmin1.Kind.String())
-
 }

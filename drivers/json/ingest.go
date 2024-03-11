@@ -370,17 +370,15 @@ func (p *processor) doAddObject(ent *entity, m map[string]any) error {
 				val = maybeFloatToInt(val)
 				// We don't need to keep sampling after we've detected the kind.
 				detector.Sample(val)
-			} else {
-				// REVISIT: We don't need to hold onto the samples after we've detected
-				// the kind, it's just holding onto memory. We should probably nil out
-				// the detector.
+			} else
+			// REVISIT: We don't need to hold onto the samples after we've detected
+			// the kind, it's just holding onto memory. We should probably nil out
+			// the detector.
 
-				// The column is already defined. Check if the value is allowed.
-				if !p.fieldValAllowed(detector, colDef, val) {
-					p.markSchemaDirty(ent)
-				}
+			// The column is already defined. Check if the value is allowed.
+			if !p.fieldValAllowed(detector, colDef, val) {
+				p.markSchemaDirty(ent)
 			}
-
 		}
 	}
 

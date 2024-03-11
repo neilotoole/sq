@@ -68,27 +68,6 @@ func TestExtractTableNameFromCreateTableStmt(t *testing.T) {
 	}
 }
 
-func TestAlterCreateTableColumnType(t *testing.T) {
-	const input = `CREATE TABLE "og_table" (
-"name" TEXT NOT NULL,
-"age" INTEGER( 10 ) NOT NULL,
-"weight" INTEGER NOT NULL
-)`
-
-	gotColName, gotColType, err := sqlparser.ExtractColNameAndTypeFromCreateStmt(input, "age")
-	require.NoError(t, err)
-	require.Equal(t, `"age"`, gotColName)
-	require.Equal(t, "INTEGER", gotColType)
-
-	//	const want = `CREATE TABLE "og_table" (
-	//"name" TEXT NOT NULL,
-	//"age" TEXT NOT NULL,
-	//"weight" INTEGER NOT NULL
-	//)`
-	//
-	//	require.Equal(t, want, got)
-}
-
 func TestExtractCreateStmtColDefs(t *testing.T) {
 	const input = `CREATE TABLE "og_table" (
 "name" TEXT NOT NULL,

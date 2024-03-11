@@ -796,7 +796,6 @@ func (d *driveri) ListCatalogs(_ context.Context, _ sqlz.DB) ([]string, error) {
 	return nil, errz.New("sqlite3: catalog mechanism not supported")
 }
 
-
 // TableExists implements driver.SQLDriver.
 func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool, error) {
 	const query = `SELECT COUNT(*) FROM sqlite_master WHERE name = ? AND type='table'`

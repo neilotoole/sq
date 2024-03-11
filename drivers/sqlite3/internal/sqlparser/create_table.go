@@ -1,13 +1,14 @@
 package sqlparser
 
 import (
+	"slices"
+	"strings"
+
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/neilotoole/sq/drivers/sqlite3/internal/sqlparser/sqlite"
 	"github.com/neilotoole/sq/libsq/ast/antlrz"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"slices"
-	"strings"
 )
 
 func parseCreateTableStmt(input string) (*sqlite.Create_table_stmtContext, error) {
@@ -82,7 +83,6 @@ func ExtractColNameAndTypeFromCreateStmt(stmt, colName string) (name, typ string
 
 	for _, child := range stmtCtx.GetChildren() {
 		if colDef, ok := child.(*sqlite.Column_defContext); ok {
-
 			if colDef == nil || colDef.Column_name() == nil {
 				continue
 			}

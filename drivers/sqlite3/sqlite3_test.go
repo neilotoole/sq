@@ -1,11 +1,12 @@
 package sqlite3_test
 
 import (
-	"github.com/neilotoole/sq/libsq/core/kind"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/neilotoole/sq/libsq/core/kind"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"

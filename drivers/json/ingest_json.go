@@ -175,7 +175,7 @@ func ingestJSON(ctx context.Context, job *ingestJob) error {
 		obj            map[string]any
 		chunk          []byte
 		schemaModified bool
-		//curSchema      *ingestSchema
+		// curSchema      *ingestSchema
 		insertions []*insertion
 		hasMore    bool
 		objIndex   = -1
@@ -214,7 +214,7 @@ func ingestJSON(ctx context.Context, job *ingestJob) error {
 				// so we mark it as clean.
 				proc.markSchemaClean()
 
-				//curSchema = newSchema
+				// curSchema = newSchema
 				proc.curSchema = newSchema
 				newSchema = nil //nolint:wastedassign
 
