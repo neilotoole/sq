@@ -4,11 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/neilotoole/sq/drivers/sqlite3/internal/sqlparser"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"strings"
 )
 
 // AlterTableRename implements driver.SQLDriver.
@@ -72,6 +75,53 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB, tblName
 	var ogDDL string
 	if err = tx.QueryRowContext(ctx, q, tblName).Scan(&ogDDL); err != nil {
 		return errz.Wrapf(err, "sqlite3: alter table: failed to read original DDL")
+	}
+
+	allColDefs, err := sqlparser.ExtractCreateStmtColDefs(ogDDL)
+	if err != nil {
+		return errz.Wrapf(err, "sqlite3: alter table: failed to extract column definitions from DDL")
+	}
+
+	var colDefs []*sqlparser.ColDef
+	for i, colName := range colNames {
+		for _, cd := range allColDefs {
+			if cd.Name == colName {
+				colDefs = append(colDefs, cd)
+				break
+			}
+		}
+		if len(colDefs) != i+1 {
+			return errz.Errorf("sqlite3: alter table: column {%s} not found in table DDL", colName)
+		}
+	}
+
+	nuDDL := ogDDL
+	for i, colDef := range colDefs {
+		wantType := DBTypeForKind(kinds[i])
+		wantColDefText := strings.Replace(colDef.Raw, colDef.RawType, wantType, 1)
+		nuDDL = strings.Replace(nuDDL, colDef.Raw, wantColDefText, 1)
+	}
+
+	nuTblName := "tmp_tbl_alter_" + stringz.Uniq32()
+	nuDDL = strings.Replace(nuDDL, tblName, nuTblName, 1)
+
+	if _, err = tx.ExecContext(ctx, nuDDL); err != nil {
+		return errz.Wrapf(err, "sqlite3: alter table: failed to create temporary table")
+	}
+
+	copyStmt := fmt.Sprintf("INSERT INTO %s SELECT * FROM %s", stringz.DoubleQuote(nuTblName), stringz.DoubleQuote(tblName))
+	if _, err = tx.ExecContext(ctx, copyStmt); err != nil {
+		return errz.Wrapf(err, "sqlite3: alter table: failed to copy data to temporary table")
+	}
+
+	// Drop old table
+	if _, err = tx.ExecContext(ctx, fmt.Sprintf("DROP TABLE %s", stringz.DoubleQuote(tblName))); err != nil {
+		return errz.Wrapf(err, "sqlite3: alter table: failed to drop original table")
+	}
+
+	// Rename new table to old table name
+	if _, err = tx.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s RENAME TO %s", stringz.DoubleQuote(nuTblName), stringz.DoubleQuote(tblName))); err != nil {
+		return errz.Wrapf(err, "sqlite3: alter table: failed to rename temporary table")
 	}
 
 	err = tx.Commit()
