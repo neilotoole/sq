@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
+## [v0.48.2] - 2024-03-11
+
+## Fixed
+
+- [#415]: The JSON ingester could fail due to a bug when a JSON blob landed on the edge
+  of a buffer.
+- The JSON ingester wasn't able to handle the case where a post-[sampling](https://sq.io/docs/config#ingestsample-size)
+  JSON field had a different kind from the kind determined by the sampling process. For example, let's say
+  the sample size was 1000, and the field `zip` was determined to be of kind `int`, because
+  values 0-1000 were all parseable as integers. But then the 1001st value was `BX123`, which
+  obviously is not an integer. `sq` will now see the non-integer value, and alter the ingest DB schema
+  to a compatible kind, e.g. `text`. This flexibility is powerful, but it does come at the cost of slower
+  ingest speed. But that's a topic for another release.
+
 ## [v0.48.1] - 2024-03-07
 
 This release features significant improvements to [`sq diff`](https://sq.io/docs/diff).
@@ -1195,7 +1209,8 @@ make working with lots of sources much easier.
 [#335]: https://github.com/neilotoole/sq/issues/335
 [#338]: https://github.com/neilotoole/sq/issues/338
 [#340]: https://github.com/neilotoole/sq/pull/340
-[#353]: https://github.com/neilotoole/sq/pull/353
+[#353]: https://github.com/neilotoole/sq/issues/353
+[#415]: https://github.com/neilotoole/sq/issues/415
 
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
@@ -1256,3 +1271,4 @@ make working with lots of sources much easier.
 [v0.47.3]: https://github.com/neilotoole/sq/compare/v0.47.2...v0.47.3
 [v0.47.4]: https://github.com/neilotoole/sq/compare/v0.47.3...v0.47.4
 [v0.48.1]: https://github.com/neilotoole/sq/compare/v0.47.4...v0.48.1
+[v0.48.2]: https://github.com/neilotoole/sq/compare/v0.48.1...v0.48.2
