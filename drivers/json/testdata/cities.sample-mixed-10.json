@@ -1,0 +1,82 @@
+[
+  {
+    "name": "Sant Julià de Lòria",
+    "lat": "42.46372",
+    "lng": "1.49129",
+    "country": "AD",
+    "admin1": "06",
+    "admin2": ""
+  },
+  {
+    "name": "Pas de la Casa",
+    "lat": "42.54277",
+    "lng": "1.73361",
+    "country": "AD",
+    "admin1": "03",
+    "admin2": ""
+  },
+  {
+    "name": "Ordino",
+    "lat": "42.55623",
+    "lng": "1.53319",
+    "country": "AD",
+    "admin1": "TEXT",
+    "admin2": ""
+  },
+  {
+    "name": "les Escaldes",
+    "lat": "42.50729",
+    "lng": "1.53414",
+    "country": "AD",
+    "admin1": "08",
+    "admin2": ""
+  },
+  {
+    "name": "la Massana",
+    "lat": "42.54499",
+    "lng": "1.51483",
+    "country": "AD",
+    "admin1": "04",
+    "admin2": ""
+  },
+  {
+    "name": "Encamp",
+    "lat": "42.53474",
+    "lng": "1.58014",
+    "country": "AD",
+    "admin1": "03",
+    "admin2": ""
+  },
+  {
+    "name": "Canillo",
+    "lat": "42.5676",
+    "lng": "1.59756",
+    "country": "AD",
+    "admin1": "02",
+    "admin2": ""
+  },
+  {
+    "name": "Arinsal",
+    "lat": "42.57205",
+    "lng": "1.48453",
+    "country": "AD",
+    "admin1": "04",
+    "admin2": ""
+  },
+  {
+    "name": "Andorra la Vella",
+    "lat": "42.50779",
+    "lng": "1.52109",
+    "country": "AD",
+    "admin1": "07",
+    "admin2": ""
+  },
+  {
+    "name": "Umm Al Quwain City",
+    "lat": "25.56473",
+    "lng": "55.55517",
+    "country": "AE",
+    "admin1": "07",
+    "admin2": ""
+  }
+]

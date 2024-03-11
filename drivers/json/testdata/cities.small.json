@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Sant Julià de Lòria",
+    "lat": "42.46372",
+    "lng": "1.49129",
+    "country": "AD",
+    "admin1": "06",
+    "admin2": ""
+  },
+  {
+    "name": "Pas de la Casa",
+    "lat": "42.54277",
+    "lng": "1.73361",
+    "country": "AD",
+    "admin1": "03",
+    "admin2": ""
+  },
+  {
+    "name": "Ordino",
+    "lat": "42.55623",
+    "lng": "1.53319",
+    "country": "AD",
+    "admin1": "05",
+    "admin2": ""
+  }
+]

@@ -4,11 +4,19 @@ import (
 	"bytes"
 	"context"
 	stdj "encoding/json"
+	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/neilotoole/sq/cli/testrun"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
+	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/testh/proj"
 
 	"github.com/stretchr/testify/require"
 
@@ -18,6 +26,11 @@ import (
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
 	"github.com/neilotoole/sq/testh/tu"
+)
+
+const (
+	citiesLargeObjCount = 146994
+	citiesSmallObjCount = 3
 )
 
 func BenchmarkIngestJSONL_Flat(b *testing.B) {
@@ -303,9 +316,10 @@ func TestScanObjectsInArray(t *testing.T) {
 
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			t.Parallel()
+			log := lgt.New(t)
 
 			r := bytes.NewReader([]byte(tc.in))
-			gotObjs, gotChunks, err := json.ScanObjectsInArray(r)
+			gotObjs, gotChunks, err := json.ScanObjectsInArray(log, r)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
@@ -332,6 +346,8 @@ func TestScanObjectsInArray_Files(t *testing.T) {
 		{fname: "testdata/actor.json", wantCount: sakila.TblActorCount},
 		{fname: "testdata/film_actor.json", wantCount: sakila.TblFilmActorCount},
 		{fname: "testdata/payment.json", wantCount: sakila.TblPaymentCount},
+		{fname: "testdata/cities.small.json", wantCount: citiesSmallObjCount},
+		{fname: "testdata/cities.large.json", wantCount: citiesLargeObjCount},
 	}
 
 	for _, tc := range testCases {
@@ -339,12 +355,13 @@ func TestScanObjectsInArray_Files(t *testing.T) {
 
 		t.Run(tu.Name(tc.fname), func(t *testing.T) {
 			t.Parallel()
+			log := lgt.New(t)
 
 			f, err := os.Open(tc.fname)
 			require.NoError(t, err)
 			defer f.Close()
 
-			gotObjs, gotChunks, err := json.ScanObjectsInArray(f)
+			gotObjs, gotChunks, err := json.ScanObjectsInArray(log, f)
 			require.NoError(t, err)
 			require.Equal(t, tc.wantCount, len(gotObjs))
 			require.Equal(t, tc.wantCount, len(gotChunks))
@@ -397,4 +414,72 @@ func TestColumnOrderFlat(t *testing.T) {
 			require.Equal(t, tc.want, gotCols)
 		})
 	}
+}
+
+func TestJSONData_Cities(t *testing.T) {
+	t.Parallel()
+	tu.SkipShort(t, true)
+
+	const wantCSV = `name,lat,lng,country,admin1,admin2
+Sant Julià de Lòria,42.46372,1.49129,AD,6,
+Pas de la Casa,42.54277,1.73361,AD,3,
+Ordino,42.55623,1.53319,AD,5,`
+
+	testCases := []struct {
+		name         string
+		wantRowCount int
+	}{
+		{
+			name:         "cities.small.json",
+			wantRowCount: citiesSmallObjCount,
+		},
+		{
+			name:         "cities.large.json",
+			wantRowCount: citiesLargeObjCount,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			tr := testrun.New(context.Background(), t, nil)
+			src := &source.Source{
+				Handle:   "@cities",
+				Type:     drivertype.JSON,
+				Location: proj.Abs(filepath.Join("drivers/json/testdata/", tc.name)),
+			}
+			tr = tr.Add(*src)
+			err := tr.Exec("--csv", ".data", ".[0:2]")
+			require.NoError(t, err)
+			require.Equal(t, wantCSV, tr.OutString())
+
+			// FIXME: test inspect table row count
+		})
+	}
+}
+
+func Test_Cities_MixedFieldKind(t *testing.T) {
+	src := &source.Source{
+		Handle:   "@cities",
+		Type:     drivertype.JSON,
+		Location: proj.Abs("drivers/json/testdata/cities.sample-mixed-10.json"),
+	}
+
+	tr := testrun.New(context.Background(), t, nil).Hush()
+	tr.Add(*src)
+
+	require.NoError(t, tr.Exec("config", "set", driver.OptIngestSampleSize.Key(), "2"))
+
+	err := tr.Reset().Exec("inspect", "-j")
+	require.NoError(t, err)
+	var md *metadata.Source
+	tr.Bind(&md)
+	t.Log(md.Name)
+	colAdmin1 := md.Table("data").Column("admin1")
+	require.NotNil(t, colAdmin1)
+	require.Equal(t, kind.Text.String(), colAdmin1.Kind.String())
+
 }

@@ -6,7 +6,10 @@ import (
 	stdj "encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/progress"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -105,7 +108,7 @@ func DetectJSON(sampleSize int) files.TypeDetectFunc {
 		}
 		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r2)
 
-		sc := newObjectInArrayScanner(r2)
+		sc := newObjectInArrayScanner(log, r2)
 		var validObjCount int
 		var obj map[string]any
 
@@ -140,6 +143,9 @@ func DetectJSON(sampleSize int) files.TypeDetectFunc {
 }
 
 func ingestJSON(ctx context.Context, job *ingestJob) error {
+	bar := progress.FromContext(ctx).NewUnitCounter("Ingest JSON", "object")
+	defer bar.Stop()
+
 	log := lg.FromContext(ctx)
 	defer lg.WarnIfCloseError(log, "Close JSON ingest job", job)
 
@@ -163,15 +169,16 @@ func ingestJSON(ctx context.Context, job *ingestJob) error {
 	defer lg.WarnIfCloseError(log, lgm.CloseDB, conn)
 
 	proc := newProcessor(job.flatten)
-	scan := newObjectInArrayScanner(r)
+	scan := newObjectInArrayScanner(log, r)
 
 	var (
 		obj            map[string]any
 		chunk          []byte
 		schemaModified bool
-		curSchema      *ingestSchema
-		insertions     []*insertion
-		hasMore        bool
+		//curSchema      *ingestSchema
+		insertions []*insertion
+		hasMore    bool
+		objIndex   = -1
 	)
 
 	for {
@@ -179,14 +186,18 @@ func ingestJSON(ctx context.Context, job *ingestJob) error {
 		if err != nil {
 			return err
 		}
+		objIndex++
 
 		// obj is returned nil by scan.next when end of input.
 		hasMore = obj != nil
+		if hasMore {
+			bar.Incr(1)
+		}
 
 		if schemaModified {
 			if !hasMore || scan.objCount >= job.sampleSize {
 				log.Debug("Time to (re)build the schema", lga.Line, scan.objCount)
-				if curSchema == nil {
+				if proc.curSchema == nil {
 					log.Debug("First time building the schema")
 				}
 
@@ -195,7 +206,7 @@ func ingestJSON(ctx context.Context, job *ingestJob) error {
 					return err
 				}
 
-				if err = execSchemaDelta(ctx, drvr, conn, curSchema, newSchema); err != nil {
+				if err = execSchemaDelta(ctx, drvr, conn, proc.curSchema, newSchema); err != nil {
 					return err
 				}
 
@@ -203,10 +214,11 @@ func ingestJSON(ctx context.Context, job *ingestJob) error {
 				// so we mark it as clean.
 				proc.markSchemaClean()
 
-				curSchema = newSchema
+				//curSchema = newSchema
+				proc.curSchema = newSchema
 				newSchema = nil //nolint:wastedassign
 
-				if insertions, err = proc.buildInsertionsFlat(curSchema); err != nil {
+				if insertions, err = proc.buildInsertionsFlat(proc.curSchema); err != nil {
 					return err
 				}
 
@@ -214,11 +226,11 @@ func ingestJSON(ctx context.Context, job *ingestJob) error {
 					return err
 				}
 			}
+		}
 
-			if !hasMore {
-				// We're done
-				break
-			}
+		if !hasMore {
+			// end of input
+			break
 		}
 
 		if schemaModified, err = proc.processObject(obj, chunk); err != nil {
@@ -227,7 +239,7 @@ func ingestJSON(ctx context.Context, job *ingestJob) error {
 
 		// Initial schema has not been created: we're still in
 		// the sampling phase. So we loop.
-		if curSchema == nil {
+		if proc.curSchema == nil {
 			continue
 		}
 
@@ -240,7 +252,7 @@ func ingestJSON(ctx context.Context, job *ingestJob) error {
 
 		// The schema exists in the DB, and the current JSON chunk hasn't
 		// dirtied the schema, so it's safe to insert the recent rows.
-		if insertions, err = proc.buildInsertionsFlat(curSchema); err != nil {
+		if insertions, err = proc.buildInsertionsFlat(proc.curSchema); err != nil {
 			return err
 		}
 
@@ -260,6 +272,7 @@ func ingestJSON(ctx context.Context, job *ingestJob) error {
 // JSON objects, returning the decoded object and the chunk of JSON
 // that it was scanned from. Example input: [{a:1},{a:2},{a:3}].
 type objectsInArrayScanner struct {
+	log *slog.Logger
 	// buf will get all the data that the JSON decoder reads.
 	// buf's role is to keep track of JSON text that has already been
 	// consumed by dec, so that we can return the raw JSON chunk
@@ -294,13 +307,13 @@ type objectsInArrayScanner struct {
 
 // newObjectInArrayScanner returns a new instance that
 // reads from r.
-func newObjectInArrayScanner(r io.Reader) *objectsInArrayScanner {
+func newObjectInArrayScanner(log *slog.Logger, r io.Reader) *objectsInArrayScanner {
 	buf := &buffer{b: []byte{}}
 	// Everything that dec reads from r is written
 	// to buf via the TeeReader.
 	dec := stdj.NewDecoder(io.TeeReader(r, buf))
 
-	return &objectsInArrayScanner{buf: buf, dec: dec}
+	return &objectsInArrayScanner{log: log, buf: buf, dec: dec}
 }
 
 // next scans the next object from the reader. The returned chunk holds
@@ -358,10 +371,19 @@ func (s *objectsInArrayScanner) next() (obj map[string]any, chunk []byte, err er
 		return nil, nil, errz.Err(err)
 	}
 
-	more = s.dec.More()
+	var delimIndex int
+	var delim byte
+
+	if len(s.decBuf) == 0 {
+		// We've landed right on the edge of the chunk, there'll be no delim (or any
+		// other char), so we skip over delim searching.
+		goto BOTTOM
+	}
+
+	more = s.dec.More() // REVISIT: Should we not be testing this value?
 
 	// Peek ahead in the decoder buffer
-	delimIndex, delim := nextDelim(s.decBuf, 0, true)
+	delimIndex, delim = nextDelim(s.decBuf, 0, true)
 	if delimIndex == -1 {
 		return nil, nil, errz.New("invalid JSON: additional input expected")
 	}
@@ -403,6 +425,7 @@ func (s *objectsInArrayScanner) next() (obj map[string]any, chunk []byte, err er
 		}
 	}
 
+BOTTOM:
 	// Note that we re-use the vars delimIndex and delim here.
 	// Above us, these vars referred to s.decBuf, not s.buf as here.
 	delimIndex, delim = nextDelim(s.buf.b, s.prevDecPos-s.bufOffset, false)

@@ -193,6 +193,11 @@ type SQLDriver interface {
 	// AlterTableRenameColumn renames a column.
 	AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error
 
+	// AlterTableColumnKinds changes the kinds of colNames in tbl. The length of
+	// args colNames and kinds must be equal. The method may create a transaction
+	// internally if db is not already a transaction.
+	AlterTableColumnKinds(ctx context.Context, db sqlz.DB, tbl string, colNames []string, kinds []kind.Kind) error
+
 	// DBProperties returns a map of key-value database properties. The value
 	// is often a scalar such as an int, string, or bool, but can be a nested
 	// map or array.

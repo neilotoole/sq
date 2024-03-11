@@ -145,8 +145,8 @@ type objectValueSet map[*entity]map[string]any
 
 // processor process JSON objects.
 type processor struct {
-	root         *entity
-	importSchema *ingestSchema
+	root      *entity
+	curSchema *ingestSchema
 
 	// schemaDirtyEntities tracks entities whose structure have been modified.
 	schemaDirtyEntities map[*entity]struct{}
@@ -162,9 +162,13 @@ type processor struct {
 
 func newProcessor(flatten bool) *processor {
 	return &processor{
-		flatten:             flatten,
-		importSchema:        &ingestSchema{},
-		root:                &entity{name: source.MonotableName, detectors: map[string]*kind.Detector{}},
+		flatten:   flatten,
+		curSchema: nil,
+		root: &entity{
+			name:      source.MonotableName,
+			detectors: map[string]*kind.Detector{},
+			kinds:     map[string]kind.Kind{},
+		},
 		schemaDirtyEntities: map[*entity]struct{}{},
 	}
 }
@@ -263,7 +267,7 @@ func (p *processor) buildSchemaFlat() (*ingestSchema, error) {
 // processObject processes the parsed JSON object m. If the structure
 // of the ingestSchema changes due to this object, dirtySchema returns true.
 func (p *processor) processObject(m map[string]any, chunk []byte) (dirtySchema bool, err error) {
-	p.curObjVals = objectValueSet{}
+	p.curObjVals = make(objectValueSet)
 	err = p.doAddObject(p.root, m)
 	dirtySchema = len(p.schemaDirtyEntities) > 0
 	if err != nil {
@@ -296,6 +300,8 @@ func (p *processor) updateColNames(chunk []byte) error {
 }
 
 func (p *processor) doAddObject(ent *entity, m map[string]any) error {
+	var err error
+
 	for fieldName, val := range m {
 		switch val := val.(type) {
 		case map[string]any:
@@ -315,6 +321,7 @@ func (p *processor) doAddObject(ent *entity, m map[string]any) error {
 					name:      fieldName,
 					parent:    ent,
 					detectors: map[string]*kind.Detector{},
+					kinds:     map[string]kind.Kind{},
 				}
 				ent.children = append(ent.children, child)
 			} else if child.isArray {
@@ -324,8 +331,7 @@ func (p *processor) doAddObject(ent *entity, m map[string]any) error {
 					ent.String())
 			}
 
-			err := p.doAddObject(child, val)
-			if err != nil {
+			if err = p.doAddObject(child, val); err != nil {
 				return err
 			}
 
@@ -358,12 +364,64 @@ func (p *processor) doAddObject(ent *entity, m map[string]any) error {
 			colName := p.calcColName(ent, fieldName)
 			entVals[colName] = val
 
-			val = maybeFloatToInt(val)
-			detector.Sample(val)
+			colDef := p.getColDef(ent, colName)
+
+			if colDef == nil && val != nil {
+				val = maybeFloatToInt(val)
+				// We don't need to keep sampling after we've detected the kind.
+				detector.Sample(val)
+			} else {
+				// REVISIT: We don't need to hold onto the samples after we've detected
+				// the kind, it's just holding onto memory. We should probably nil out
+				// the detector.
+
+				// The column is already defined. Check if the value is allowed.
+				if !p.fieldValAllowed(detector, colDef, val) {
+					p.markSchemaDirty(ent)
+				}
+			}
+
 		}
 	}
 
 	return nil
+}
+
+func (p *processor) fieldValAllowed(detector *kind.Detector, col *schema.Column, val any) bool {
+	if val == nil || col == nil {
+		return true
+	}
+
+	if col.Kind == kind.Null || col.Kind == kind.Unknown || col.Kind == kind.Text {
+		return true
+	}
+
+	detector.Sample(val)
+	k, _, err := detector.Detect()
+	if err != nil || k != col.Kind {
+		return false
+	}
+
+	return true
+}
+
+// getColDef returns the schema.Column, or nil if not existing.
+func (p *processor) getColDef(ent *entity, colName string) *schema.Column {
+	if p == nil || p.curSchema == nil || p.curSchema.entityTbls == nil {
+		return nil
+	}
+
+	tblDef, ok := p.curSchema.entityTbls[ent]
+	if !ok || tblDef == nil {
+		return nil
+	}
+
+	colDef, err := tblDef.FindCol(colName)
+	if err != nil {
+		return nil
+	}
+
+	return colDef
 }
 
 // buildInsertionsFlat builds a set of DB insertions from the
@@ -416,6 +474,10 @@ type entity struct {
 	// of entity. That is, it holds a detector for each string or number
 	// field etc, but not for an object or array field.
 	detectors map[string]*kind.Detector
+
+	// kinds is the sibling of detectors, holding a kind.Kind for each field,
+	// once the detector has detected the kind.
+	kinds map[string]kind.Kind
 
 	name     string
 	children []*entity
@@ -487,6 +549,19 @@ type ingestSchema struct {
 	tblDefs    []*schema.Table
 }
 
+func (s *ingestSchema) getTable(name string) *schema.Table {
+	if s == nil {
+		return nil
+	}
+
+	for _, tbl := range s.tblDefs {
+		if tbl.Name == name {
+			return tbl
+		}
+	}
+	return nil
+}
+
 // execSchemaDelta executes the schema delta between curSchema and newSchema.
 // That is, if curSchema is nil, then newSchema is created in the DB; if
 // newSchema has additional tables or columns, then those are created in the DB.
@@ -498,20 +573,106 @@ func execSchemaDelta(ctx context.Context, drvr driver.SQLDriver, db sqlz.DB,
 ) error {
 	log := lg.FromContext(ctx)
 	var err error
+
 	if curSchema == nil {
-		for _, tblDef := range newSchema.tblDefs {
-			err = drvr.CreateTable(ctx, db, tblDef)
+		for _, tbl := range newSchema.tblDefs {
+			err = drvr.CreateTable(ctx, db, tbl)
 			if err != nil {
 				return err
 			}
 
-			log.Debug("Created table", lga.Table, tblDef.Name)
+			log.Debug("Created table", lga.Table, tbl.Name)
 		}
 		return nil
 	}
 
-	// TODO: implement execSchemaDelta fully.
-	return errz.New("schema delta not yet implemented")
+	var newExistingTables []*schema.Table
+	var newNonExistentTables []*schema.Table
+
+	for _, tbl := range newSchema.tblDefs {
+		existingTbl := curSchema.getTable(tbl.Name)
+		if existingTbl == nil {
+			newNonExistentTables = append(newNonExistentTables, tbl)
+		} else {
+			newExistingTables = append(newExistingTables, existingTbl)
+		}
+	}
+
+	for _, updateTbl := range newExistingTables {
+		oldTbl := curSchema.getTable(updateTbl.Name)
+		if err = execMaybeAlterTable(ctx, drvr, db, oldTbl, updateTbl); err != nil {
+			return err
+		}
+	}
+
+	for _, tbl := range newNonExistentTables {
+		err = drvr.CreateTable(ctx, db, tbl)
+		if err != nil {
+			return err
+		}
+
+		log.Debug("Created table", lga.Table, tbl.Name)
+	}
+
+	return nil
+}
+
+func execMaybeAlterTable(ctx context.Context, drvr driver.SQLDriver, db sqlz.DB,
+	oldTbl, newTbl *schema.Table,
+) error {
+	log := lg.FromContext(ctx)
+	if newTbl == nil {
+		return nil
+	}
+	if oldTbl == nil {
+		return drvr.CreateTable(ctx, db, newTbl)
+	}
+
+	tblName := newTbl.Name
+
+	var newNonExistentCols []*schema.Column
+	var newExistingCols []*schema.Column
+
+	for _, col := range newTbl.Cols {
+		existingCol, err := oldTbl.FindCol(col.Name)
+		if err != nil {
+			newNonExistentCols = append(newNonExistentCols, col)
+		} else {
+			newExistingCols = append(newExistingCols, existingCol)
+		}
+	}
+
+	var alterColKindName []string
+	var alterColKind []kind.Kind
+
+	for _, updateCol := range newExistingCols {
+		oldCol, err := oldTbl.FindCol(updateCol.Name)
+		if err != nil {
+			return err
+		}
+		if updateCol.Kind == oldCol.Kind {
+			continue
+		}
+
+		alterColKindName = append(alterColKindName, updateCol.Name)
+		alterColKind = append(alterColKind, updateCol.Kind)
+	}
+
+	if len(alterColKindName) > 0 {
+		err := drvr.AlterTableColumnKinds(ctx, db, tblName, alterColKindName, alterColKind)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, col := range newNonExistentCols {
+		if err := drvr.AlterTableAddColumn(ctx, db, tblName, col.Name, col.Kind); err != nil {
+			return err
+		}
+		log.Debug("Added column", lga.Table, newTbl.Name, lga.Col, col.Name)
+	}
+
+	return nil
 }
 
 // columnOrderFlat parses the json chunk and returns a slice

@@ -8,6 +8,8 @@ import (
 	"io"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/progress"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -89,6 +91,8 @@ func DetectJSONL(sampleSize int) files.TypeDetectFunc {
 func ingestJSONL(ctx context.Context, job *ingestJob) error { //nolint:gocognit
 	log := lg.FromContext(ctx)
 	defer lg.WarnIfCloseError(log, "Close JSONL ingest job", job)
+	bar := progress.FromContext(ctx).NewUnitCounter("Ingest JSONL", "object")
+	defer bar.Stop()
 
 	r, err := job.newRdrFn(ctx)
 	if err != nil {
@@ -122,6 +126,10 @@ func ingestJSONL(ctx context.Context, job *ingestJob) error { //nolint:gocognit
 		hasMore, line, err = scan.next()
 		if err != nil {
 			return err
+		}
+
+		if hasMore {
+			bar.Incr(1)
 		}
 
 		if schemaModified {

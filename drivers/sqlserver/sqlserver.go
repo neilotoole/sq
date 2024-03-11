@@ -625,6 +625,11 @@ func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, c
 	return errz.Wrapf(errw(err), "alter table: failed to rename column {%s.%s.%s} to {%s}", schma, tbl, col, newName)
 }
 
+// AlterTableColumnKinds is not yet implemented for sqlserver.
+func (d *driveri) AlterTableColumnKinds(_ context.Context, _ sqlz.DB, _ string, _ []string, _ []kind.Kind) error {
+	return errz.New("not implemented")
+}
+
 // CopyTable implements driver.SQLDriver.
 func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 	fromTable, toTable tablefq.T, copyData bool,
