@@ -354,6 +354,11 @@ func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, c
 	return errz.Wrapf(errw(err), "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
 }
 
+// AlterTableColumnKinds is not yet implemented for mysql.
+func (d *driveri) AlterTableColumnKinds(_ context.Context, _ sqlz.DB, _ string, _ []string, _ []kind.Kind) error {
+	return errz.New("not implemented")
+}
+
 // PrepareInsertStmt implements driver.SQLDriver.
 func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
 	numRows int,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"testing"
 
@@ -75,8 +76,8 @@ func TestDetectColKindsJSONA(t *testing.T) {
 
 // ScanObjectsInArray is a convenience function
 // for objectsInArrayScanner.
-func ScanObjectsInArray(r io.Reader) (objs []map[string]any, chunks [][]byte, err error) {
-	sc := newObjectInArrayScanner(r)
+func ScanObjectsInArray(log *slog.Logger, r io.Reader) (objs []map[string]any, chunks [][]byte, err error) {
+	sc := newObjectInArrayScanner(log, r)
 
 	for {
 		var obj map[string]any

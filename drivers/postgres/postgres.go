@@ -457,6 +457,11 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 	return nil
 }
 
+// AlterTableColumnKinds is not yet implemented for postgres.
+func (d *driveri) AlterTableColumnKinds(_ context.Context, _ sqlz.DB, _ string, _ []string, _ []kind.Kind) error {
+	return errz.New("not implemented")
+}
+
 // PrepareInsertStmt implements driver.SQLDriver.
 func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
 	numRows int,

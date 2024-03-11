@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/sqlite3"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -326,4 +327,67 @@ func TestSQLQuery_Whitespace(t *testing.T) {
 	require.Equal(t, "first name", sink.RecMeta[1].MungedName())
 	require.Equal(t, "last name", sink.RecMeta[2].Name())
 	require.Equal(t, "last name", sink.RecMeta[2].MungedName())
+}
+
+func TestDriveri_AlterTableColumnKinds(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@test",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+	}
+
+	ogTbl := &schema.Table{
+		Name:          "og_table",
+		PKColName:     "",
+		AutoIncrement: false,
+		Cols:          nil,
+	}
+
+	ogColName := &schema.Column{
+		Name:    "name",
+		Table:   ogTbl,
+		Kind:    kind.Text,
+		NotNull: true,
+	}
+	ogColAge := &schema.Column{
+		Name:    "age",
+		Table:   ogTbl,
+		Kind:    kind.Int,
+		NotNull: true,
+	}
+	ogColWeight := &schema.Column{
+		Name:    "weight",
+		Table:   ogTbl,
+		Kind:    kind.Int,
+		NotNull: true,
+	}
+
+	ogTbl.Cols = []*schema.Column{ogColName, ogColAge, ogColWeight}
+	grip := th.Open(src)
+
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+	drvr := grip.SQLDriver()
+
+	err = drvr.CreateTable(th.Context, db, ogTbl)
+	require.NoError(t, err)
+
+	gotTblMeta, err := grip.TableMetadata(th.Context, ogTbl.Name)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(gotTblMeta.Columns))
+	require.Equal(t, kind.Int, gotTblMeta.Column("age").Kind)
+	require.Equal(t, kind.Int, gotTblMeta.Column("weight").Kind)
+
+	alterColNames := []string{"age", "weight"}
+	alterColKinds := []kind.Kind{kind.Text, kind.Float}
+
+	err = drvr.AlterTableColumnKinds(th.Context, db, ogTbl.Name, alterColNames, alterColKinds)
+	require.NoError(t, err)
+
+	gotTblMeta, err = grip.TableMetadata(th.Context, ogTbl.Name)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(gotTblMeta.Columns))
+	require.Equal(t, kind.Text.String(), gotTblMeta.Column("age").Kind.String())
+	require.Equal(t, kind.Float.String(), gotTblMeta.Column("weight").Kind.String())
 }

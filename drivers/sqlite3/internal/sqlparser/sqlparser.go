@@ -8,47 +8,7 @@ import (
 	"strings"
 
 	antlr "github.com/antlr4-go/antlr/v4"
-
-	"github.com/neilotoole/sq/drivers/sqlite3/internal/sqlparser/sqlite"
-	"github.com/neilotoole/sq/libsq/core/errz"
 )
-
-// ExtractTableIdentFromCreateTableStmt extracts table name (and the
-// table's schema if specified) from a CREATE TABLE statement.
-// If err is nil, table is guaranteed to be non-empty. If arg unescape is
-// true, any surrounding quotation chars are trimmed from the returned values.
-//
-//	CREATE TABLE "sakila"."actor" ( actor_id INTEGER NOT NULL)  -->  sakila, actor, nil
-func ExtractTableIdentFromCreateTableStmt(stmt string, unescape bool) (schema, table string, err error) {
-	stmtCtx, err := parseCreateTableStmt(stmt)
-	if err != nil {
-		return "", "", err
-	}
-
-	if n, ok := stmtCtx.Schema_name().(*sqlite.Schema_nameContext); ok {
-		if n.Any_name() != nil && !n.Any_name().IsEmpty() && n.Any_name().IDENTIFIER() != nil {
-			schema = n.Any_name().IDENTIFIER().GetText()
-			if unescape {
-				schema = trimIdentQuotes(schema)
-			}
-		}
-	}
-
-	if x, ok := stmtCtx.Table_name().(*sqlite.Table_nameContext); ok {
-		if x.Any_name() != nil && !x.Any_name().IsEmpty() && x.Any_name().IDENTIFIER() != nil {
-			table = x.Any_name().IDENTIFIER().GetText()
-			if unescape {
-				table = trimIdentQuotes(table)
-			}
-		}
-	}
-
-	if table == "" {
-		return "", "", errz.Errorf("failed to extract table name from CREATE TABLE statement")
-	}
-
-	return schema, table, nil
-}
 
 // trimIdentQuotes trims any of the legal quote characters from s.
 // These are double quote, single quote, backtick, and square brackets.
@@ -76,30 +36,6 @@ func trimIdentQuotes(s string) string {
 	default:
 	}
 	return s
-}
-
-func parseCreateTableStmt(input string) (*sqlite.Create_table_stmtContext, error) {
-	lex := sqlite.NewSQLiteLexer(antlr.NewInputStream(input))
-	lex.RemoveErrorListeners() // the generated lexer has default listeners we don't want
-	lexErrs := &antlrErrorListener{name: "lexer"}
-	lex.AddErrorListener(lexErrs)
-
-	p := sqlite.NewSQLiteParser(antlr.NewCommonTokenStream(lex, 0))
-	p.RemoveErrorListeners() // the generated parser has default listeners we don't want
-	parseErrs := &antlrErrorListener{name: "parser"}
-	p.AddErrorListener(parseErrs)
-
-	qCtx := p.Create_table_stmt()
-
-	if err := lexErrs.error(); err != nil {
-		return nil, errz.Err(err)
-	}
-
-	if err := parseErrs.error(); err != nil {
-		return nil, errz.Err(err)
-	}
-
-	return qCtx.(*sqlite.Create_table_stmtContext), nil
 }
 
 var _ antlr.ErrorListener = (*antlrErrorListener)(nil)

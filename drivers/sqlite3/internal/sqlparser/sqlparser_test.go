@@ -67,3 +67,38 @@ func TestExtractTableNameFromCreateTableStmt(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractCreateTableStmtColDefs(t *testing.T) {
+	const input = `CREATE TABLE "og_table" (
+"name" TEXT NOT NULL,
+"age" INTEGER( 10 ) NOT NULL,
+weight INTEGER NOT NULL
+)`
+
+	colDefs, err := sqlparser.ExtractCreateTableStmtColDefs(input)
+	require.NoError(t, err)
+	require.Len(t, colDefs, 3)
+	require.Equal(t, `"name" TEXT NOT NULL`, colDefs[0].Raw)
+	require.Equal(t, `"name"`, colDefs[0].RawName)
+	require.Equal(t, `name`, colDefs[0].Name)
+	require.Equal(t, "TEXT", colDefs[0].Type)
+	require.Equal(t, "TEXT", colDefs[0].RawType)
+	snippet := input[colDefs[0].InputOffset : colDefs[0].InputOffset+len(colDefs[0].Raw)]
+	require.Equal(t, colDefs[0].Raw, snippet)
+
+	require.Equal(t, `"age" INTEGER( 10 ) NOT NULL`, colDefs[1].Raw)
+	require.Equal(t, `"age"`, colDefs[1].RawName)
+	require.Equal(t, `age`, colDefs[1].Name)
+	require.Equal(t, "INTEGER(10)", colDefs[1].Type)
+	require.Equal(t, "INTEGER( 10 )", colDefs[1].RawType)
+	snippet = input[colDefs[1].InputOffset : colDefs[1].InputOffset+len(colDefs[1].Raw)]
+	require.Equal(t, colDefs[1].Raw, snippet)
+
+	require.Equal(t, `weight INTEGER NOT NULL`, colDefs[2].Raw)
+	require.Equal(t, `weight`, colDefs[2].RawName)
+	require.Equal(t, `weight`, colDefs[2].Name)
+	require.Equal(t, "INTEGER", colDefs[2].Type)
+	require.Equal(t, "INTEGER", colDefs[2].RawType)
+	snippet = input[colDefs[2].InputOffset : colDefs[2].InputOffset+len(colDefs[2].Raw)]
+	require.Equal(t, colDefs[2].Raw, snippet)
+}
