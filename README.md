@@ -367,9 +367,7 @@ See [CHANGELOG.md](./CHANGELOG.md).
 - Date rendering via [`ncruces/go-strftime`](https://github.com/ncruces/go-strftime).
 - A modified version [`dolmen-go/contextio`](https://github.com/dolmen-go/contextio) is
   incorporated into the codebase.
-- The [`log.devmode`](https://sq.io/docs/config#logdevmode) log format is
-  derived from [`lmittmann/tint`](https://github.com/lmittmann/tint).
-- [`djherbis/fscache`](https://github.com/djherbis/fscache) is used for caching.
+- [`djherbis/buffer`](https://github.com/djherbis/buffer) is used for caching.
 - A forked version of [`nightlyone/lockfile`](https://github.com/nightlyone/lockfile) is incorporated.
 - The human-friendly `text` log format handler is a fork of [`lmittmann/tint`](https://github.com/lmittmann/tint).
 
