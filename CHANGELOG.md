@@ -9,7 +9,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## [v0.48.3] - 2024-03-11
 
-## Fixed
+Small bugfix release.
+
+### Fixed
 
 - [#415]: The JSON ingester could fail due to a bug when a JSON blob landed on the edge
   of a buffer.
@@ -25,7 +27,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 This release features significant improvements to [`sq diff`](https://sq.io/docs/diff).
 
-## Added
+### Added
 
 - Previously `sq diff --data` diffed every row, which could get crazy
   with a large table. Now the command stops after N differences, where N is controlled by
@@ -79,7 +81,7 @@ This release features significant improvements to [`sq diff`](https://sq.io/docs
   Kaiser Soze  true
   ```
 
-## Changed
+### Changed
 
 - ☢️ Previously, `sq diff` only exited non-zero on an error. Now, `sq diff` exits `0` when no differences,
   exits `1` if differences are found, and exits `2` on any error.
@@ -710,7 +712,7 @@ to SLQ (`sq`'s query language).
 
 The major feature is the long-gestating [`sq diff`](https://sq.io/docs/diff).
 
-## Added
+### Added
 
 - [#229]: `sq diff` compares two sources, or tables.
 - `sq inspect --dbprops` is a new mode that returns only the DB properties.
@@ -718,7 +720,7 @@ The major feature is the long-gestating [`sq diff`](https://sq.io/docs/diff).
   DB types (previously, it was only implemented for Postgres and MySQL).
 - [CSV](https://sq.io/docs/output#csv-tsv) format now colorizes output.
 
-## Changed
+### Changed
 
 - `sq inspect -v` previously returned DB properties in a field named `db_variables`.
   This field has been renamed to `db_properties`. The renaming reflects the fact
@@ -740,7 +742,7 @@ The major feature is the long-gestating [`sq diff`](https://sq.io/docs/diff).
   continue to expand the number of output formats, without needing to have
   a dedicated flag for each format.
 
-## Fixed
+### Fixed
 
 - `sq config edit @source` was failing to save any edits.
 
