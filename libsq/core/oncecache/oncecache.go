@@ -12,11 +12,12 @@ import (
 	"crypto/rand"
 	"encoding/gob"
 	"fmt"
-	"golang.org/x/exp/maps"
 	"hash/crc32"
 	"log/slog"
 	"reflect"
 	"sync"
+
+	"golang.org/x/exp/maps"
 )
 
 // FetchFunc is called by [Cache.Get] to fill an unpopulated cache entry. If
@@ -282,12 +283,14 @@ func (c *Cache[K, V]) Close() error {
 	return nil
 }
 
-var _ gob.GobEncoder = (*Cache[int, int])(nil)
-var _ gob.GobDecoder = (*Cache[int, int])(nil)
+var (
+	_ gob.GobEncoder = (*Cache[int, int])(nil)
+	_ gob.GobDecoder = (*Cache[int, int])(nil)
+)
 
 type gobData[K comparable, V any] struct {
-	Name    string
 	Entries map[K]*gobEntry[K, V]
+	Name    string
 }
 
 type gobEntry[K comparable, V any] struct {
@@ -306,13 +309,12 @@ func (c *Cache[K, V]) GobEncode() ([]byte, error) {
 		Entries: make(map[K]*gobEntry[K, V], len(c.entries)),
 	}
 
-	for k, e := range c.entries {
-		gbd.Entries[k] = &gobEntry[K, V]{Val: e.val, Err: e.err}
+	for k, ent := range c.entries {
+		gbd.Entries[k] = &gobEntry[K, V]{Val: ent.val, Err: ent.err}
 	}
 
 	buf := &bytes.Buffer{}
-	enc := gob.NewEncoder(buf)
-	if err := enc.Encode(gbd); err != nil {
+	if err := gob.NewEncoder(buf).Encode(gbd); err != nil {
 		return nil, err
 	}
 
@@ -320,7 +322,8 @@ func (c *Cache[K, V]) GobEncode() ([]byte, error) {
 }
 
 // GobDecode implements [gob.GobDecoder]. Only the cache name and entries are
-// decoded. The fetch func and callbacks are not decoded.
+// decoded. The fetch func and callbacks are not decoded. Any pre-existing
+// entries in c are cleared prior to decoding.
 func (c *Cache[K, V]) GobDecode(p []byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -334,7 +337,7 @@ func (c *Cache[K, V]) GobDecode(p []byte) error {
 	maps.Clear(c.entries)
 	for k, e := range gbd.Entries {
 		ent := &entry[K, V]{val: e.Val, err: e.Err, cache: c}
-		ent.once.Do(func() {})
+		ent.once.Do(func() {}) // Consume the sync.Once
 		c.entries[k] = ent
 	}
 

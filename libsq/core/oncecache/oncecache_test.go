@@ -395,9 +395,9 @@ func TestOnEventChan(t *testing.T) {
 func TestGob(t *testing.T) {
 	ctx := context.Background()
 
-	invocationCount := &atomic.Int64{}
-	fetchFunc := func(ctx context.Context, key int) (val int, err error) {
-		invocationCount.Add(1)
+	var fetchCount int
+	fetchFunc := func(_ context.Context, key int) (val int, err error) {
+		fetchCount++
 		return key, nil
 	}
 
@@ -411,13 +411,13 @@ func TestGob(t *testing.T) {
 		require.Equal(t, i, v)
 	}
 
-	require.Equal(t, iters, int(invocationCount.Load()))
+	require.Equal(t, iters, fetchCount)
 
 	var data []byte
 	data, err := c1.GobEncode()
 	require.NoError(t, err)
 
-	invocationCount.Store(0)
+	fetchCount = 0
 	c2 := oncecache.New[int, int](fetchFunc)
 	require.NoError(t, c2.GobDecode(data))
 
@@ -427,11 +427,10 @@ func TestGob(t *testing.T) {
 		require.Equal(t, i, v)
 	}
 
-	require.Equal(t, 0, int(invocationCount.Load()))
+	require.Equal(t, 0, fetchCount, "fetch shouldn't have been invoked")
 	require.Equal(t, iters, c2.Len())
 	require.Equal(t, c1.Name(), c2.Name())
 	require.Equal(t, c1.String(), c2.String())
-
 }
 
 // requireDrainActionCh verifies that within timeout, ch receives exactly
