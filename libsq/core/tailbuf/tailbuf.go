@@ -1,11 +1,9 @@
 // Package tailbuf contains a tail buffer [Buf] of fixed size that provides a
-// window on the tail of the items written via [Buf.Write]. Start with
-// [tailbuf.New] to create a [Buf].
+// window on the tail of the items written via [Buf.Write] or [Buf.WriteAll].
+// Start with [tailbuf.New] to create a [Buf].
 package tailbuf
 
-import (
-	"context"
-)
+import "context"
 
 // Buf is an append-only fixed-size circular buffer that provides a window on
 // the tail of items written to the buffer. The zero value is technically
@@ -13,11 +11,11 @@ import (
 // Buf is not safe for concurrent use.
 //
 // Note the terms "nominal buffer" and "tail window" (or just "window"). The
-// nominal buffer is the complete list of items written to Buf via the Buf.Write
-// or Buf.WriteAll methods. However, Buf drops the oldest items as it fills
-// (which is the entire point of this package): the tail window is the subset of
-// the nominal buffer that is currently available. Some of Buf's methods take
-// arguments that are indices into the nominal buffer, for example
+// nominal buffer is the complete list of items written to Buf via the
+// [Buf.Write] or [Buf.WriteAll] methods. However, Buf drops the oldest items as
+// it fills (which is the entire point of this package): the tail window is the
+// subset of the nominal buffer that is currently available. Some of Buf's
+// methods take arguments that are indices into the nominal buffer, for example
 // [SliceNominal].
 type Buf[T any] struct {
 	// zero is the zero value of T, used for zeroing elements of the in-use
@@ -198,8 +196,7 @@ func (b *Buf[T]) zeroTail() {
 
 // Reset resets the buffer to its initial state, including the value returned
 // by [Buf.Written]. The buffer is returned for chaining. Any items in the
-// buffer
-// are zeroed out.
+// buffer are zeroed out.
 //
 // See also: [Buf.Clear].
 func (b *Buf[T]) Reset() *Buf[T] {
