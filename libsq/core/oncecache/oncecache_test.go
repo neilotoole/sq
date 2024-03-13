@@ -392,6 +392,47 @@ func TestOnEventChan(t *testing.T) {
 	require.Equal(t, 1, db.Stats().GetEmployee())
 }
 
+func TestGob(t *testing.T) {
+	ctx := context.Background()
+
+	var fetchCount int
+	fetchFunc := func(_ context.Context, key int) (val int, err error) {
+		fetchCount++
+		return key, nil
+	}
+
+	c1 := oncecache.New[int, int](fetchFunc)
+
+	const iters = 10
+	for i := 0; i < iters; i++ {
+		var v int
+		v, err := c1.Get(ctx, i)
+		require.NoError(t, err)
+		require.Equal(t, i, v)
+	}
+
+	require.Equal(t, iters, fetchCount)
+
+	var data []byte
+	data, err := c1.GobEncode()
+	require.NoError(t, err)
+
+	fetchCount = 0
+	c2 := oncecache.New[int, int](fetchFunc)
+	require.NoError(t, c2.GobDecode(data))
+
+	for i := 0; i < iters; i++ {
+		v, err := c2.Get(ctx, i)
+		require.NoError(t, err)
+		require.Equal(t, i, v)
+	}
+
+	require.Equal(t, 0, fetchCount, "fetch shouldn't have been invoked")
+	require.Equal(t, iters, c2.Len())
+	require.Equal(t, c1.Name(), c2.Name())
+	require.Equal(t, c1.String(), c2.String())
+}
+
 // requireDrainActionCh verifies that within timeout, ch receives exactly
 // wantCount actions, all of which are wantAction.
 func requireDrainActionCh(t *testing.T, ch <-chan oncecache.Op,
