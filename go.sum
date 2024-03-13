@@ -158,6 +158,8 @@ github.com/ncruces/go-strftime v0.1.9 h1:bY0MQC28UADQmHmaF5dgpLmImcShSi2kHU9XLdh
 github.com/ncruces/go-strftime v0.1.9/go.mod h1:Fwc5htZGVVkseilnfgOVb9mKy6w1naJmn9CehxcKcls=
 github.com/neilotoole/fifomu v0.1.2 h1:sgJhcOTlEXGVj/nS5Bb8/qV+1wgmk+KPavcNuDw0rDM=
 github.com/neilotoole/fifomu v0.1.2/go.mod h1:9di2j+xBgr+nX6IPmpwQVxKt6yzgPLk9WXEj/aLwcao=
+github.com/neilotoole/oncecache v0.0.1 h1:9yZw+LcZoOi5t/cMZmCyQTTCKdWZcdOrnsA3C7F67v4=
+github.com/neilotoole/oncecache v0.0.1/go.mod h1:ZM6Lud8L981mNmbo91VVGuKg6MW6UMdCViPZPB8xU0M=
 github.com/neilotoole/shelleditor v0.4.1 h1:74LEw2mVo3jtNw2BjII6RSss9DXgEqAbmCQDDiJvzO0=
 github.com/neilotoole/shelleditor v0.4.1/go.mod h1:QanOZN4syDMp/L0SKwZb47Mh49mvLWX3ja5YfbYDDjo=
 github.com/neilotoole/slogt v1.1.0 h1:c7qE92sq+V0yvCuaxph+RQ2jOKL61c4hqS1Bv9W7FZE=
