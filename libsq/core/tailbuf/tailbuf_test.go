@@ -1,17 +1,16 @@
 package tailbuf_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/tailbuf"
-	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestTail(t *testing.T) {
-	// FIXME: make this a table test or something
 	buf := tailbuf.New[rune](3)
 	gotLen := buf.Len()
 	require.Equal(t, 0, gotLen)
@@ -104,7 +103,7 @@ func TestBuf(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tu.Name(i, tc.add), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d_%s", i, string(tc.add)), func(t *testing.T) {
 			buf.Write(tc.add)
 			require.Equal(t, tc.wantEnd, buf.Written())
 			require.Equal(t, tc.add, buf.Front())
