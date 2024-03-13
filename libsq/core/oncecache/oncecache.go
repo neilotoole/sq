@@ -7,9 +7,12 @@
 package oncecache
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/gob"
 	"fmt"
+	"golang.org/x/exp/maps"
 	"hash/crc32"
 	"log/slog"
 	"reflect"
@@ -276,6 +279,65 @@ func (c *Cache[K, V]) Close() error {
 	c.onHit = nil
 	c.onMiss = nil
 	clear(c.entries)
+	return nil
+}
+
+var _ gob.GobEncoder = (*Cache[int, int])(nil)
+var _ gob.GobDecoder = (*Cache[int, int])(nil)
+
+type gobData[K comparable, V any] struct {
+	Name    string
+	Entries map[K]*gobEntry[K, V]
+}
+
+type gobEntry[K comparable, V any] struct {
+	Val V
+	Err error
+}
+
+// GobEncode implements [gob.GobEncoder]. Only the cache name and entries are
+// encoded. The fetch func and callbacks are not encoded.
+func (c *Cache[K, V]) GobEncode() ([]byte, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	gbd := &gobData[K, V]{
+		Name:    c.name,
+		Entries: make(map[K]*gobEntry[K, V], len(c.entries)),
+	}
+
+	for k, e := range c.entries {
+		gbd.Entries[k] = &gobEntry[K, V]{Val: e.val, Err: e.err}
+	}
+
+	buf := &bytes.Buffer{}
+	enc := gob.NewEncoder(buf)
+	if err := enc.Encode(gbd); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+// GobDecode implements [gob.GobDecoder]. Only the cache name and entries are
+// decoded. The fetch func and callbacks are not decoded.
+func (c *Cache[K, V]) GobDecode(p []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	gbd := &gobData[K, V]{}
+	if err := gob.NewDecoder(bytes.NewReader(p)).Decode(gbd); err != nil {
+		return err
+	}
+
+	c.name = gbd.Name
+	maps.Clear(c.entries)
+	for k, e := range gbd.Entries {
+		ent := &entry[K, V]{val: e.Val, err: e.Err, cache: c}
+		ent.once.Do(func() {})
+		c.entries[k] = ent
+	}
+
 	return nil
 }
 
