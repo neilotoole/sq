@@ -1,8 +1,6 @@
 module github.com/neilotoole/sq
 
-go 1.22
-
-toolchain go1.22.1
+go 1.22.1
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
@@ -84,6 +82,7 @@ require (
 	github.com/muesli/mango v0.2.0 // indirect
 	github.com/muesli/mango-pflag v0.1.0 // indirect
 	github.com/neilotoole/fifomu v0.1.2 // indirect
+	github.com/neilotoole/tailbuf v0.0.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.3 // indirect

@@ -166,6 +166,10 @@ github.com/neilotoole/slogt v1.1.0 h1:c7qE92sq+V0yvCuaxph+RQ2jOKL61c4hqS1Bv9W7FZ
 github.com/neilotoole/slogt v1.1.0/go.mod h1:RCrGXkPc/hYybNulqQrMHRtvlQ7F6NktNVLuLwk6V+w=
 github.com/neilotoole/streamcache v0.3.5 h1:8YVgTcd3OpTC46zduXJE4WAhTjxQCEBHYVGDgQ6R3ss=
 github.com/neilotoole/streamcache v0.3.5/go.mod h1:yYJLcdAWI6jMeSSIfQ8vIydWxsrdAdGGNbYMXvWKV6M=
+github.com/neilotoole/tailbuf v0.0.1 h1:9/gAJLDNDPJvPUHLFLcBkA+VzLE9o+WpoXBAf1LsY+g=
+github.com/neilotoole/tailbuf v0.0.1/go.mod h1:HZmN+u4ChqyMotcqTSyEJJJoKjyEkRbnKpmMTTutEeM=
+github.com/neilotoole/tailbuf v0.0.2 h1:bZjoFaQDeuiq5gjcKL80PgGEPRVkrRzQZl6rM8F0gJw=
+github.com/neilotoole/tailbuf v0.0.2/go.mod h1:drAfG791tTcCre7cR8m4LfHRVR7y0Ht1kpaLo0T7P8A=
 github.com/nightlyone/lockfile v1.0.0 h1:RHep2cFKK4PonZJDdEl4GmkabuhbsRMgk/k3uAmxBiA=
 github.com/nightlyone/lockfile v1.0.0/go.mod h1:rywoIealpdNse2r832aiD9jRk8ErCatROs6LzC841CI=
 github.com/orisano/pixelmatch v0.0.0-20220722002657-fb0b55479cde/go.mod h1:nZgzbfBr3hhjoZnS66nKrHmduYNpc34ny7RK4z5/HM0=
