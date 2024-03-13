@@ -8,6 +8,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/oncecache"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
