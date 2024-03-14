@@ -382,4 +382,4 @@ See [CHANGELOG.md](./CHANGELOG.md).
 - [`jsoncolor`](https://github.com/neilotoole/jsoncolor) is a JSON colorizer created for `sq`.
 - [`streamcache`](https://github.com/neilotoole/streamcache) is a Go in-memory byte cache mechanism created for `sq`.
 - [`tailbuf`](https://github.com/neilotoole/tailbuf) is a fixed-size object tail buffer created for `sq`.
-- [`oncecache`](https:/github.com/neilotoole/oncecache) is an in-memory object cache created for `sq`.
+- [`oncecache`](https://github.com/neilotoole/oncecache) is an in-memory object cache created for `sq`.
