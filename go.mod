@@ -82,7 +82,7 @@ require (
 	github.com/muesli/mango v0.2.0 // indirect
 	github.com/muesli/mango-pflag v0.1.0 // indirect
 	github.com/neilotoole/fifomu v0.1.2 // indirect
-	github.com/neilotoole/tailbuf v0.0.3 // indirect
+	github.com/neilotoole/tailbuf v0.0.4 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.3 // indirect

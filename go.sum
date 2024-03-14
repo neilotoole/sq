@@ -172,6 +172,8 @@ github.com/neilotoole/tailbuf v0.0.2 h1:bZjoFaQDeuiq5gjcKL80PgGEPRVkrRzQZl6rM8F0
 github.com/neilotoole/tailbuf v0.0.2/go.mod h1:drAfG791tTcCre7cR8m4LfHRVR7y0Ht1kpaLo0T7P8A=
 github.com/neilotoole/tailbuf v0.0.3 h1:cgnLk1DtbrjLhsKgyWbcgQS9SskZFa4obEP2OoWOFv4=
 github.com/neilotoole/tailbuf v0.0.3/go.mod h1:drAfG791tTcCre7cR8m4LfHRVR7y0Ht1kpaLo0T7P8A=
+github.com/neilotoole/tailbuf v0.0.4 h1:V16Qf+0b0P+dQEPINfFzbTRidVooZvQdPTpL4QtrlP8=
+github.com/neilotoole/tailbuf v0.0.4/go.mod h1:drAfG791tTcCre7cR8m4LfHRVR7y0Ht1kpaLo0T7P8A=
 github.com/nightlyone/lockfile v1.0.0 h1:RHep2cFKK4PonZJDdEl4GmkabuhbsRMgk/k3uAmxBiA=
 github.com/nightlyone/lockfile v1.0.0/go.mod h1:rywoIealpdNse2r832aiD9jRk8ErCatROs6LzC841CI=
 github.com/orisano/pixelmatch v0.0.0-20220722002657-fb0b55479cde/go.mod h1:nZgzbfBr3hhjoZnS66nKrHmduYNpc34ny7RK4z5/HM0=
