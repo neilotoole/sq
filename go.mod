@@ -31,6 +31,7 @@ require (
 	github.com/neilotoole/shelleditor v0.4.1
 	github.com/neilotoole/slogt v1.1.0
 	github.com/neilotoole/streamcache v0.3.5
+	github.com/neilotoole/tailbuf v0.0.4
 	github.com/nightlyone/lockfile v1.0.0
 	github.com/otiai10/copy v1.14.0
 	github.com/pkg/profile v1.7.0
@@ -43,7 +44,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
 	github.com/vbauerster/mpb/v8 v8.7.2
-	github.com/xo/dburl v0.21.1
+	github.com/xo/dburl v0.22.0
 	github.com/xuri/excelize/v2 v2.8.1
 	go.uber.org/atomic v1.11.0
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
@@ -82,7 +83,6 @@ require (
 	github.com/muesli/mango v0.2.0 // indirect
 	github.com/muesli/mango-pflag v0.1.0 // indirect
 	github.com/neilotoole/fifomu v0.1.2 // indirect
-	github.com/neilotoole/tailbuf v0.0.4 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.3 // indirect
