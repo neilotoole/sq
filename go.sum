@@ -70,8 +70,8 @@ github.com/go-playground/universal-translator v0.17.0 h1:icxd5fm+REJzpZx7ZfpaD87
 github.com/go-playground/universal-translator v0.17.0/go.mod h1:UkSxE5sNxxRwHyU+Scu5vgOQjsIJAF8j9muTVoKLVtA=
 github.com/go-playground/validator/v10 v10.4.1 h1:pH2c5ADXtd66mxoE0Zm9SUhxE20r7aM3F26W0hOn+GE=
 github.com/go-playground/validator/v10 v10.4.1/go.mod h1:nlOn6nFhuKACm19sB/8EGNn9GlaMV7XkbRSipzJ0Ii4=
-github.com/go-sql-driver/mysql v1.8.0 h1:UtktXaU2Nb64z/pLiGIxY4431SJ4/dR5cjMmlVHgnT4=
-github.com/go-sql-driver/mysql v1.8.0/go.mod h1:wEBSXgmK//2ZFJyE+qWnIsVGmvmEKlqwuVSjsCm7DZg=
+github.com/go-sql-driver/mysql v1.8.1 h1:LedoTUt/eveggdHS9qUFC1EFSa8bU2+1pZjSRpvNJ1Y=
+github.com/go-sql-driver/mysql v1.8.1/go.mod h1:wEBSXgmK//2ZFJyE+qWnIsVGmvmEKlqwuVSjsCm7DZg=
 github.com/gobwas/httphead v0.1.0/go.mod h1:O/RXo79gxV8G+RqlR/otEwx4Q36zl9rqC5u12GKvMCM=
 github.com/gobwas/pool v0.2.1/go.mod h1:q8bcK0KcYlCgd9e7WYLm9LpyS+YeLd8JVDW6WezmKEw=
 github.com/gobwas/ws v1.2.1/go.mod h1:hRKAFb8wOxFROYNsT1bqfWnhX+b5MFeJM9r2ZSwg/KY=
@@ -166,12 +166,6 @@ github.com/neilotoole/slogt v1.1.0 h1:c7qE92sq+V0yvCuaxph+RQ2jOKL61c4hqS1Bv9W7FZ
 github.com/neilotoole/slogt v1.1.0/go.mod h1:RCrGXkPc/hYybNulqQrMHRtvlQ7F6NktNVLuLwk6V+w=
 github.com/neilotoole/streamcache v0.3.5 h1:8YVgTcd3OpTC46zduXJE4WAhTjxQCEBHYVGDgQ6R3ss=
 github.com/neilotoole/streamcache v0.3.5/go.mod h1:yYJLcdAWI6jMeSSIfQ8vIydWxsrdAdGGNbYMXvWKV6M=
-github.com/neilotoole/tailbuf v0.0.1 h1:9/gAJLDNDPJvPUHLFLcBkA+VzLE9o+WpoXBAf1LsY+g=
-github.com/neilotoole/tailbuf v0.0.1/go.mod h1:HZmN+u4ChqyMotcqTSyEJJJoKjyEkRbnKpmMTTutEeM=
-github.com/neilotoole/tailbuf v0.0.2 h1:bZjoFaQDeuiq5gjcKL80PgGEPRVkrRzQZl6rM8F0gJw=
-github.com/neilotoole/tailbuf v0.0.2/go.mod h1:drAfG791tTcCre7cR8m4LfHRVR7y0Ht1kpaLo0T7P8A=
-github.com/neilotoole/tailbuf v0.0.3 h1:cgnLk1DtbrjLhsKgyWbcgQS9SskZFa4obEP2OoWOFv4=
-github.com/neilotoole/tailbuf v0.0.3/go.mod h1:drAfG791tTcCre7cR8m4LfHRVR7y0Ht1kpaLo0T7P8A=
 github.com/neilotoole/tailbuf v0.0.4 h1:V16Qf+0b0P+dQEPINfFzbTRidVooZvQdPTpL4QtrlP8=
 github.com/neilotoole/tailbuf v0.0.4/go.mod h1:drAfG791tTcCre7cR8m4LfHRVR7y0Ht1kpaLo0T7P8A=
 github.com/nightlyone/lockfile v1.0.0 h1:RHep2cFKK4PonZJDdEl4GmkabuhbsRMgk/k3uAmxBiA=

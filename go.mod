@@ -13,7 +13,7 @@ require (
 	github.com/ecnepsnai/osquery v1.0.1
 	github.com/emirpasic/gods v1.18.1
 	github.com/fatih/color v1.16.0
-	github.com/go-sql-driver/mysql v1.8.0
+	github.com/go-sql-driver/mysql v1.8.1
 	github.com/goccy/go-yaml v1.11.3
 	github.com/google/renameio/v2 v2.0.0
 	github.com/google/uuid v1.6.0
@@ -31,6 +31,7 @@ require (
 	github.com/neilotoole/shelleditor v0.4.1
 	github.com/neilotoole/slogt v1.1.0
 	github.com/neilotoole/streamcache v0.3.5
+	github.com/neilotoole/tailbuf v0.0.4
 	github.com/nightlyone/lockfile v1.0.0
 	github.com/otiai10/copy v1.14.0
 	github.com/pkg/profile v1.7.0
@@ -82,7 +83,6 @@ require (
 	github.com/muesli/mango v0.2.0 // indirect
 	github.com/muesli/mango-pflag v0.1.0 // indirect
 	github.com/neilotoole/fifomu v0.1.2 // indirect
-	github.com/neilotoole/tailbuf v0.0.4 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.3 // indirect
