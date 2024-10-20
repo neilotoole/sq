@@ -12,7 +12,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/ecnepsnai/osquery v1.0.1
 	github.com/emirpasic/gods v1.18.1
-	github.com/fatih/color v1.16.0
+	github.com/fatih/color v1.17.0
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/goccy/go-yaml v1.11.3
 	github.com/google/renameio/v2 v2.0.0
