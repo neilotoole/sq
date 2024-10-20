@@ -94,7 +94,7 @@ func (s *SegmentNode) setContext(ctx antlr.ParseTree) error {
 // like SelectorNode|FuncNode.
 func (s *SegmentNode) ChildType() (reflect.Type, error) {
 	if len(s.Children()) == 0 {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 	_, err := s.uniformChildren()
 	if err != nil {
