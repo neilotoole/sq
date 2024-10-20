@@ -415,7 +415,7 @@ type LogLevelOpt struct {
 // returned.
 func (op LogLevelOpt) Process(o options.Options) (options.Options, error) {
 	if o == nil {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	key := op.Key()
