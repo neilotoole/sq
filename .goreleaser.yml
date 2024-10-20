@@ -26,7 +26,7 @@ archives:
   -
 #    name_template: "{{.ProjectName}}-{{ .Version }}-{{.Os}}-{{.Arch}}"
     name_template: >-
-      {{.ProjectName}}-{{ .Version }}-{{- if eq .Os "darwin" }}macos{{- else }}{{ .Arch }}{{ end }}-{{.Arch}}
+      {{.ProjectName}}-{{ .Version }}-{{- if eq .Os "darwin" }}macos{{- else }}{{ .Os }}{{ end }}-{{.Arch}}
 #    replacements:
 #      darwin: macos
     format_overrides:
