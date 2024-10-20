@@ -158,7 +158,7 @@ type optMemUsage struct{}
 func (optMemUsage) apply(p *Progress, cfg *barConfig) {
 	fn := func(_ decor.Statistics) string {
 		stats := runtimez.MemStats()
-		return "  " + fmt.Sprintf("(% .1f)", decor.SizeB1000(stats.Sys))
+		return "  " + fmt.Sprintf("(% .1f)", decor.SizeB1000(stats.Sys)) //nolint:gosec
 	}
 	cfg.memoryWidget = colorize(decor.Any(fn, p.align.mem), p.colors.MemUsage)
 }

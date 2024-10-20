@@ -67,9 +67,9 @@ var (
 )
 
 // completeStrings completes from a slice of string.
-func completeStrings(max int, a ...string) completionFunc {
+func completeStrings(maxVals int, a ...string) completionFunc {
 	return func(_ *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
-		if max > 0 && len(args) >= max {
+		if maxVals > 0 && len(args) >= maxVals {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
@@ -85,9 +85,9 @@ func completeBool(_ *cobra.Command, _ []string, _ string) ([]string, cobra.Shell
 // completeHandle is a completionFunc that suggests handles.
 // The max arg is the maximum number of completions. Set to 0
 // for no limit.
-func completeHandle(max int, includeActive bool) completionFunc {
+func completeHandle(maxVals int, includeActive bool) completionFunc {
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if max > 0 && len(args) >= max {
+		if maxVals > 0 && len(args) >= maxVals {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
@@ -171,9 +171,9 @@ func completeCatalog(srcArgPos int) completionFunc {
 // completeGroup is a completionFunc that suggests groups.
 // The max arg is the maximum number of completions. Set to 0
 // for no limit.
-func completeGroup(max int) completionFunc {
+func completeGroup(maxVals int) completionFunc {
 	return func(cmd *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
-		if max > 0 && len(args) >= max {
+		if maxVals > 0 && len(args) >= maxVals {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 

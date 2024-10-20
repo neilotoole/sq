@@ -267,7 +267,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 		if err != nil {
 			return nil, errw(err)
 		}
-		size := int64(byteCount.Bytes())
+		size := int64(byteCount.Bytes()) //nolint:gosec
 		tblMeta.Size = &size
 	}
 
