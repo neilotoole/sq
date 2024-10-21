@@ -38,7 +38,7 @@ require (
 	github.com/ryboe/q v1.0.21
 	github.com/samber/lo v1.39.0
 	github.com/segmentio/encoding v0.4.0
-	github.com/sethvargo/go-retry v0.2.4
+	github.com/sethvargo/go-retry v0.3.0
 	github.com/shopspring/decimal v1.4.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
