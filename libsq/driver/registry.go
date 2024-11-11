@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"fmt"
 	"log/slog"
 	"sync"
 
@@ -34,8 +35,7 @@ func (r *Registry) AddProvider(typ drivertype.Type, p Provider) {
 	defer r.mu.Unlock()
 
 	if existingType, ok := r.providers[typ]; ok {
-		r.log.Warn("failed to add driver provider (%T) for driver type %s: provider (%T) already registered", p, typ,
-			existingType)
+		r.log.Warn(fmt.Sprintf("failed to add driver provider (%T) for driver type %s: provider (%T) already registered", p, typ, existingType))
 		return
 	}
 
