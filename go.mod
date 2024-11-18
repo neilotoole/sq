@@ -1,12 +1,12 @@
 module github.com/neilotoole/sq
 
-go 1.22.3
+go 1.23.3
 
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/a8m/tree v0.0.0-20240104212747-2c8764a5f17e
 	github.com/alessio/shellescape v1.4.2
-	github.com/antlr4-go/antlr/v4 v4.13.0
+	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/c2h5oh/datasize v0.0.0-20231215233829-aa82cc1e6500
 	github.com/djherbis/buffer v1.2.0
 	github.com/dustin/go-humanize v1.0.1
@@ -35,7 +35,7 @@ require (
 	github.com/nightlyone/lockfile v1.0.0
 	github.com/otiai10/copy v1.14.0
 	github.com/pkg/profile v1.7.0
-	github.com/ryboe/q v1.0.21
+	github.com/ryboe/q v1.0.23
 	github.com/samber/lo v1.39.0
 	github.com/segmentio/encoding v0.4.0
 	github.com/sethvargo/go-retry v0.3.0
