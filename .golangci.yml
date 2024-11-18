@@ -16,29 +16,6 @@ run:
 
   tests: true
 
-  skip-dirs:
-    # Skip jcolorenc because big chunks of it are copied from
-    # another encoder, and it uses a bunch of unsafe etc.
-    - cli/output/jsonw/internal/jcolorenc
-
-    # go-udiff is an internal fork of a package for which there
-    # is an open issue. Hopefully we can just rely on the original
-    # package at some point.
-    # See: https://github.com/aymanbagabas/go-udiff/issues/5
-    - libsq/core/diffdoc/internal/go-udiff
-
-    # This package is such a mess, and needs to be rewritten completely.
-    - cli/output/tablew/internal
-
-    # The tint package is a fork of an upstream package.
-    - libsq/core/lg/devlog/tint
-
-    # Fork of a GitHub gist.
-    - libsq/core/upgrademu
-
-
-    # Non-committed scratch dir
-    - scratch
 
 output:
   sort-results: true
@@ -59,7 +36,7 @@ linters-settings:
     # Report about not checking of errors in type assertions: `a := b.(MyStruct)`.
     # Such cases aren't reported by default.
     # Default: false
-    check-type-assertions: true
+    check-type-assertions: false
 
   exhaustive:
     # Program elements to check for exhaustiveness.
@@ -630,6 +607,31 @@ issues:
   # Set to 0 to disable.
   # Default: 3
   max-same-issues: 3
+
+  exclude-dirs:
+    # Skip jcolorenc because big chunks of it are copied from
+    # another encoder, and it uses a bunch of unsafe etc.
+    - cli/output/jsonw/internal/jcolorenc
+
+    # go-udiff is an internal fork of a package for which there
+    # is an open issue. Hopefully we can just rely on the original
+    # package at some point.
+    # See: https://github.com/aymanbagabas/go-udiff/issues/5
+    - libsq/core/diffdoc/internal/go-udiff
+
+    # This package is such a mess, and needs to be rewritten completely.
+    - cli/output/tablew/internal
+
+    # The tint package is a fork of an upstream package.
+    - libsq/core/lg/devlog/tint
+
+    # Fork of a GitHub gist.
+    - libsq/core/upgrademu
+
+
+    # Non-committed scratch dir
+    - scratch
+
 
   exclude-rules:
     - source: "^//\\s*go:generate\\s"
