@@ -313,7 +313,7 @@ func WithExitCode(err error, code int) error {
 
 var _ ExitCoder = (*exitCoder)(nil)
 
-type exitCoder struct {
+type exitCoder struct { //nolint:errname
 	errz
 	code int
 }

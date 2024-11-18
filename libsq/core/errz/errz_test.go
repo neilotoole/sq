@@ -54,7 +54,7 @@ func TestUnwrapChain(t *testing.T) {
 	require.Equal(t, "huzzah", gotCustomErr.msg)
 
 	gotUnwrap := errz.UnwrapChain(err)
-	require.Equal(t, *originalErr.(*customError), *gotUnwrap.(*customError)) //nolint:errorlint
+	require.Equal(t, *originalErr.(*customError), *gotUnwrap.(*customError)) //nolint:errorlint,errcheck
 }
 
 type customError struct {

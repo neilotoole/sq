@@ -217,7 +217,7 @@ func (in *Inspector) FindTableSegments() []*SegmentNode {
 func (in *Inspector) FindFirstHandle() (handle string) {
 	nodes := in.FindNodes(typeHandleNode)
 	if len(nodes) > 0 {
-		handle = nodes[0].(*HandleNode).Handle()
+		handle = nodes[0].(*HandleNode).Handle() //nolint:errcheck
 		return handle
 	}
 

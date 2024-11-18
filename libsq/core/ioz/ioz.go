@@ -349,7 +349,7 @@ type nopWriteCloserReaderFrom struct {
 func (nopWriteCloserReaderFrom) Close() error { return nil }
 
 func (c nopWriteCloserReaderFrom) ReadFrom(r io.Reader) (int64, error) {
-	return c.Writer.(io.ReaderFrom).ReadFrom(r)
+	return c.Writer.(io.ReaderFrom).ReadFrom(r) //nolint:errcheck
 }
 
 // DrainClose drains rc, returning the number of bytes read, and any error.

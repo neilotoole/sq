@@ -61,7 +61,7 @@ func (sh *SinkHandler) Reset() {
 	sh.Downloaded = nil
 
 	for _, stream := range sh.Streams {
-		_ = stream.Source().(io.Closer).Close()
+		_ = stream.Source().(io.Closer).Close() //nolint:errcheck
 	}
 
 	sh.Streams = nil

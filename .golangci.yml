@@ -59,7 +59,7 @@ linters-settings:
     # Report about not checking of errors in type assertions: `a := b.(MyStruct)`.
     # Such cases aren't reported by default.
     # Default: false
-    check-type-assertions: true
+    check-type-assertions: false
 
   exhaustive:
     # Program elements to check for exhaustiveness.

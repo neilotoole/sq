@@ -11,16 +11,16 @@ import (
 func TestAlienCause(t *testing.T) {
 	err := New("boo")
 
-	cause := err.(*errz).alienCause()
+	cause := err.(*errz).alienCause() //nolint:errcheck
 	require.Nil(t, cause)
 
 	err = Err(context.DeadlineExceeded)
-	cause = err.(*errz).alienCause()
+	cause = err.(*errz).alienCause() //nolint:errcheck
 	require.Equal(t, context.DeadlineExceeded, cause)
 
 	err = Err(context.DeadlineExceeded)
 	err = Wrap(err, "wrap")
-	cause = err.(*errz).alienCause()
+	cause = err.(*errz).alienCause() //nolint:errcheck
 	require.Equal(t, context.DeadlineExceeded, cause)
 }
 

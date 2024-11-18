@@ -40,9 +40,9 @@ func NewClient(opts ...Opt) *http.Client {
 	c.Timeout = 0
 	var tr *http.Transport
 	if c.Transport == nil {
-		tr = (http.DefaultTransport.(*http.Transport)).Clone()
+		tr = (http.DefaultTransport.(*http.Transport)).Clone() //nolint:errcheck
 	} else {
-		tr = (c.Transport.(*http.Transport)).Clone()
+		tr = (c.Transport.(*http.Transport)).Clone() //nolint:errcheck
 	}
 
 	DefaultTLSVersion.apply(tr)
