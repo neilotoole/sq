@@ -20,7 +20,7 @@ jobs:
   test-nix:
     strategy:
       matrix:
-        os: [ ubuntu-22.04, macos-12]
+        os: [ ubuntu-24.04, macos-13]
 
     runs-on: ${{ matrix.os }}
 
@@ -131,6 +131,7 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           skip-cache: true
+          install-mode: 'goinstall'
           version: ${{ env.GOLANGCI_LINT_VERSION }}
 
 
