@@ -43,7 +43,7 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
-	github.com/vbauerster/mpb/v8 v8.7.3
+	github.com/vbauerster/mpb/v8 v8.8.3
 	github.com/xo/dburl v0.23.2
 	github.com/xuri/excelize/v2 v2.8.1
 	go.uber.org/atomic v1.11.0
