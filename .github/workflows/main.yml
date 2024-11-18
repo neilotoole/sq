@@ -131,6 +131,7 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           skip-cache: true
+          install-mode: 'goinstall'
           version: ${{ env.GOLANGCI_LINT_VERSION }}
 
 
