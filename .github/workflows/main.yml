@@ -160,7 +160,7 @@ jobs:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
       - name: Upload assets (darwin)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dist-darwin
           path: dist-darwin
@@ -191,7 +191,7 @@ jobs:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
       - name: Upload assets (linux-amd64)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dist-linux-amd64
           path: dist-linux
@@ -227,7 +227,7 @@ jobs:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
       - name: Upload assets (linux-arm64)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dist-linux-arm64
           path: dist-linux
@@ -260,7 +260,7 @@ jobs:
 
 
       - name: Upload assets (windows)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dist-windows
           path: dist-windows
@@ -288,25 +288,25 @@ jobs:
           go-version-file: go.mod
 
       - name: Download darwin artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: dist-darwin
           path: dist-darwin
 
       - name: Download linux-amd64 artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: dist-linux-amd64
           path: dist-linux
 
       - name: Download linux-arm64 artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: dist-linux-arm64
           path: dist-linux
 
       - name: Download windows artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: dist-windows
           path: dist-windows
