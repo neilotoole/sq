@@ -66,5 +66,5 @@ type connectorCloser struct {
 
 // Close implements io.Closer.
 func (c connectorCloser) Close() error {
-	return c.impl.(io.Closer).Close() //nolint:errcheck
+	return c.impl.(io.Closer).Close()
 }

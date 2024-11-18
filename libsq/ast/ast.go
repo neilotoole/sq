@@ -54,7 +54,7 @@ func buildAST(log *slog.Logger, query slq.IQueryContext) (*AST, error) {
 	tree := &parseTreeVisitor{log: log}
 
 	if err := q.Accept(tree); err != nil {
-		return nil, err.(error) //nolint:errcheck
+		return nil, err.(error)
 	}
 
 	visitors := []struct {

@@ -196,7 +196,7 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 			sentBody = stringz.UniqSuffix("baaaaad")
 			_, err := w.Write([]byte(sentBody))
 			assert.NoError(t, err)
-			w.(http.Flusher).Flush() //nolint:errcheck
+			w.(http.Flusher).Flush()
 			time.Sleep(time.Millisecond * 10)
 			srvr.CloseClientConnections()
 			// The client should get an io.ErrUnexpectedEOF.

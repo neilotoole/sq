@@ -30,7 +30,7 @@ func parseCreateTableStmt(input string) (*sqlite.Create_table_stmtContext, error
 		return nil, errz.Err(err)
 	}
 
-	return qCtx.(*sqlite.Create_table_stmtContext), nil //nolint:errcheck
+	return qCtx.(*sqlite.Create_table_stmtContext), nil
 }
 
 // ExtractTableIdentFromCreateTableStmt extracts table name (and the

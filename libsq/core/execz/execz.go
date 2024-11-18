@@ -258,7 +258,7 @@ func Exec(ctx context.Context, cmd *Cmd) (err error) {
 			if _, ok := cmd.Stdout.(*os.File); ok && !cmd.NoProgress {
 				bar := progress.FromContext(ctx).NewFilesizeCounter(
 					langz.NonEmptyOf(cmd.Label, cmd.Name),
-					cmd.Stdout.(*os.File), //nolint:errcheck
+					cmd.Stdout.(*os.File),
 					"",
 					progress.OptTimer,
 				)

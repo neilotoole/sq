@@ -36,7 +36,7 @@ func NewContext(ctx context.Context, ru *Run) context.Context {
 
 // FromContext extracts the Run added to ctx via NewContext.
 func FromContext(ctx context.Context) *Run {
-	return ctx.Value(runKey{}).(*Run) //nolint:errcheck
+	return ctx.Value(runKey{}).(*Run)
 }
 
 // Run is a container for injectable resources passed
