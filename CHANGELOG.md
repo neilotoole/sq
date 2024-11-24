@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
+## [v0.48.4] - 2024-11-24
+
+### Changed
+
+- Updated Go dependencies (was failing some security vulnerability scans).
+
 ## [v0.48.3] - 2024-03-11
 
 Small bugfix release.
@@ -1274,3 +1280,4 @@ make working with lots of sources much easier.
 [v0.47.4]: https://github.com/neilotoole/sq/compare/v0.47.3...v0.47.4
 [v0.48.1]: https://github.com/neilotoole/sq/compare/v0.47.4...v0.48.1
 [v0.48.3]: https://github.com/neilotoole/sq/compare/v0.48.1...v0.48.3
+[v0.48.4]: https://github.com/neilotoole/sq/compare/v0.48.3...v0.48.4
