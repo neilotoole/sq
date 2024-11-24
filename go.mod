@@ -37,12 +37,12 @@ require (
 	github.com/pkg/profile v1.7.0
 	github.com/ryboe/q v1.0.23
 	github.com/samber/lo v1.47.0
-	github.com/segmentio/encoding v0.4.0
+	github.com/segmentio/encoding v0.4.1
 	github.com/sethvargo/go-retry v0.3.0
 	github.com/shopspring/decimal v1.4.0
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	github.com/vbauerster/mpb/v8 v8.7.3
 	github.com/xo/dburl v0.23.2
 	github.com/xuri/excelize/v2 v2.8.1
@@ -64,10 +64,10 @@ require (
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/felixge/fgprof v0.9.4 // indirect
+	github.com/felixge/fgprof v0.9.3 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
-	github.com/google/pprof v0.0.0-20240227163752-401108e1b7e7 // indirect
+	github.com/google/pprof v0.0.0-20211214055906-6f57359322fd // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -93,6 +93,6 @@ require (
 	github.com/xuri/efp v0.0.0-20231025114914-d1ff6096ae53 // indirect
 	github.com/xuri/nfp v0.0.0-20230919160717-d98342af3f05 // indirect
 	golang.org/x/crypto v0.27.0 // indirect
-	golang.org/x/net v0.25.0 // indirect
+	golang.org/x/net v0.21.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
