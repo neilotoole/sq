@@ -14,7 +14,7 @@
 name: Codacy Security Scan
 
 on:
-  schedule:
+#  schedule:
 #    - cron: '43 3 * * 0'
   workflow_dispatch:
 
