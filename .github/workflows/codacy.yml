@@ -15,7 +15,7 @@ name: Codacy Security Scan
 
 on:
   schedule:
-    - cron: '43 3 * * 0'
+#    - cron: '43 3 * * 0'
   workflow_dispatch:
 
 permissions:
@@ -61,7 +61,6 @@ jobs:
           # This will handover control about PR rejection to the GitHub side
           max-allowed-issues: 2147483647
           # configuration-file: .codacy.yml
-          extra-args: --category=security
 
       # Upload the SARIF file generated in the previous step
       - name: Upload SARIF results file
