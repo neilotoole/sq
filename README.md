@@ -37,8 +37,10 @@ Find out more at [sq.io](https://sq.io).
 ### macOS
 
 ```shell
-brew install neilotoole/sq/sq
+brew install sq
 ```
+> [!IMPORTANT]
+> `sq` is now a [core brew formula](https://formulae.brew.sh/formula/sq#default). Previously, `sq` was available via `brew install neilotoole/sq/sq`. If you have installed `sq` this way, you should uninstall it (`brew uninstall neilotoole/sq/sq`) before installing the new formula via `brew install sq`.
 
 ### Linux
 
