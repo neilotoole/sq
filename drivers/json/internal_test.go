@@ -6,6 +6,8 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -98,4 +100,28 @@ func ScanObjectsInArray(log *slog.Logger, r io.Reader) (objs []map[string]any, c
 	}
 
 	return objs, chunks, nil
+}
+
+func TestCannotBeJSON(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		in   io.Reader
+		want bool
+	}{
+		{in: strings.NewReader(""), want: true},
+		{in: strings.NewReader("{"), want: true},
+		{in: strings.NewReader("{}"), want: false},
+		{in: strings.NewReader(`{"key": "value"}`), want: false},
+		{in: strings.NewReader(`abcd`), want: true},
+	}
+
+	for i, tc := range testCases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			t.Parallel()
+
+			got := cannotBeJSON(tc.in)
+			require.Equal(t, tc.want, got)
+		})
+	}
 }

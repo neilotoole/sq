@@ -35,14 +35,24 @@ func DetectJSONA(sampleSize int) files.TypeDetectFunc {
 			log.Debug("JSONA detection complete", lga.Elapsed, time.Since(start), lga.Score, score)
 		}()
 
-		var r io.ReadCloser
-		r, err = newRdrFn(ctx)
+		var r1, r2 io.ReadCloser
+
+		r1, err = newRdrFn(ctx)
 		if err != nil {
 			return drivertype.None, 0, errz.Err(err)
 		}
-		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
+		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r1)
+		if cannotBeJSON(r1) {
+			return drivertype.None, 0, nil
+		}
 
-		sc := bufio.NewScanner(r)
+		r2, err = newRdrFn(ctx)
+		if err != nil {
+			return drivertype.None, 0, errz.Err(err)
+		}
+		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r2)
+
+		sc := bufio.NewScanner(r2)
 		var validLines int
 		var line []byte
 
