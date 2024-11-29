@@ -101,7 +101,7 @@ var testCases = []struct {
 func Test_ReadAll(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			rdrCount := 0
+			var rdrCount int
 
 			sc := splitscanreader.NewScanner(strings.NewReader(tc.in))
 			var lines []string
@@ -124,9 +124,95 @@ func Test_ReadAll(t *testing.T) {
 }
 
 func Test_Read_Loop(t *testing.T) {
+	testCases := []struct {
+		name         string
+		in           string
+		wantLines    []string
+		wantRdrCount int
+	}{
+		{
+			name:         "empty",
+			in:           "",
+			wantLines:    nil,
+			wantRdrCount: 1,
+		},
+		{
+			name:         "oneline-lf",
+			in:           "a\n",
+			wantLines:    []string{"a"},
+			wantRdrCount: 2,
+		},
+		{
+			name:         "empty-1-lf",
+			in:           "\n",
+			wantLines:    nil,
+			wantRdrCount: 2,
+		},
+		{
+			name:         "empty-1-crlf",
+			in:           "\r\n",
+			wantLines:    nil,
+			wantRdrCount: 2,
+		},
+		{
+			name:         "empty-2-crlf",
+			in:           "\r\n\r\n",
+			wantLines:    nil,
+			wantRdrCount: 3,
+		},
+		{
+			name:         "empty-2-lf",
+			in:           "\n\n",
+			wantLines:    nil,
+			wantRdrCount: 3,
+		},
+		{
+			name:         "oneline-crlf",
+			in:           "line1\r\n",
+			wantLines:    []string{"line1"},
+			wantRdrCount: 2,
+		},
+		{
+			name:         "oneline-no-lf",
+			in:           "line1",
+			wantLines:    []string{"line1"},
+			wantRdrCount: 1,
+		},
+		{
+			name:         "content-2-lf",
+			in:           "line1\nline2\n",
+			wantLines:    []string{"line1", "line2"},
+			wantRdrCount: 3,
+		},
+		{
+			name:         "content-4-no-trailing-lf",
+			in:           "line1\nline2\nline3\nline4",
+			wantLines:    []string{"line1", "line2", "line3", "line4"},
+			wantRdrCount: 4,
+		},
+		{
+			name:         "single-char-4-lf",
+			in:           "a\nb\nc\nd",
+			wantLines:    []string{"a", "b", "c", "d"},
+			wantRdrCount: 4,
+		},
+		{
+			name:         "single-char-4-cr",
+			in:           "a\rb\rc\rd",
+			wantLines:    []string{"a", "b", "c", "d"},
+			wantRdrCount: 4,
+		},
+		{
+			name:         "multi-lines-with-extra-lf",
+			in:           "\nline2\nline3\nline4\n\nline5",
+			wantLines:    []string{"line2", "line3", "line4", "line5"},
+			wantRdrCount: 6,
+		},
+	}
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			for bufSize := 1; bufSize < 10; bufSize++ { // FIXME: test bufsize zero
+			for bufSize := 1; bufSize < 11; bufSize++ { // FIXME: test bufsize zero
 				t.Run(fmt.Sprintf("buf-%d", bufSize), func(t *testing.T) {
 					rdrCount := 0
 					sc := splitscanreader.NewScanner(strings.NewReader(tc.in))

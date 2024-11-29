@@ -12,9 +12,10 @@ https://stackoverflow.com/questions/37530451/golang-bufio-read-multiline-until-c
 */
 
 type Scanner struct {
-	src  io.Reader
-	buf  *bytes.Buffer
-	done bool
+	src        io.Reader
+	buf        *bytes.Buffer
+	done       bool
+	trailingCR bool
 }
 
 func NewScanner(src io.Reader) *Scanner {
@@ -40,7 +41,7 @@ type reader struct {
 	done bool
 }
 
-func (r reader) Read(p []byte) (n int, err error) {
+func (r *reader) Read(p []byte) (n int, err error) {
 	if r.done {
 		return 0, io.EOF
 	}
@@ -68,6 +69,11 @@ func (r reader) Read(p []byte) (n int, err error) {
 		i = bytes.IndexByte(data, '\r')
 		if i < 0 {
 			return n, nil
+		}
+		if i == n-1 {
+			r.done = true
+			r.sc.trailingCR = true
+			return i, nil
 		}
 	}
 
