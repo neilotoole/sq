@@ -1,4 +1,6 @@
-package splitscanreader
+// Package linesplitreaders provides a type that returns an io.Reader for
+// each line in the source io.Reader.
+package linesplitreaders
 
 import (
 	"bytes"
@@ -11,23 +13,24 @@ import (
 https://stackoverflow.com/questions/37530451/golang-bufio-read-multiline-until-crlf-r-n-delimiter/37531472
 */
 
-type Scanner struct {
+type Splitter struct {
 	src        io.Reader
 	buf        *bytes.Buffer
 	done       bool
 	trailingCR bool
 }
 
-func NewScanner(src io.Reader) *Scanner {
-	return &Scanner{src: src, buf: &bytes.Buffer{}}
+func New(src io.Reader) *Splitter {
+	return &Splitter{src: src, buf: &bytes.Buffer{}}
 }
 
-func (s *Scanner) Scan() bool {
+// Next returns true if there is another reader available Splitter.Reader.
+func (s *Splitter) Next() bool {
 	return !s.done
 }
 
 // Reader returns the next reader, or nil.
-func (s *Scanner) Reader() io.Reader {
+func (s *Splitter) Reader() io.Reader {
 	if s.done {
 		return nil
 	}
@@ -37,7 +40,7 @@ func (s *Scanner) Reader() io.Reader {
 var _ io.Reader = &reader{}
 
 type reader struct {
-	sc   *Scanner
+	sc   *Splitter
 	done bool
 }
 
@@ -65,19 +68,26 @@ func (r *reader) Read(p []byte) (n int, err error) {
 	data := p[:n]
 	i := bytes.IndexByte(data, '\n')
 
-	if i < 0 {
+	switch {
+	case i < 0:
+		// Didn't find a newline
 		i = bytes.IndexByte(data, '\r')
 		if i < 0 {
 			return n, nil
 		}
+
+		//if i == 0 && len(p) == 1 {
+		if i == 0 && n == 1 {
+			r.sc.trailingCR = true
+			return 0, nil
+		}
+
 		if i == n-1 {
 			r.done = true
 			r.sc.trailingCR = true
 			return i, nil
 		}
-	}
-
-	if i == 0 {
+	case i == 0:
 		if n == 1 {
 			return 0, io.EOF
 		}
@@ -88,7 +98,12 @@ func (r *reader) Read(p []byte) (n int, err error) {
 		}
 
 		return 0, io.EOF
+	default:
 	}
+
+	//if p[i-1] == '\r' {
+	//	i--
+	//}
 
 	_, err = r.sc.buf.Write(p[i+1 : n])
 	if p[i-1] == '\r' {
