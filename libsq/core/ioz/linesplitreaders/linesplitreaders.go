@@ -73,7 +73,20 @@ func (r *reader) handleBuf(p []byte) (n int, err error) {
 	lfi := bytes.IndexByte(data, '\n')
 	switch {
 	case lfi < 0:
-		return r.sc.buf.Read(p)
+		if r.sc.buf.Len() == 1 {
+			b, _ := r.sc.buf.ReadByte()
+			if b == '\r' {
+				return 0, nil
+			}
+
+			_ = r.sc.buf.UnreadByte()
+		}
+
+		n, err = r.sc.buf.Read(p)
+		if n > 0 && p[n-1] == '\r' {
+			n--
+		}
+		return n, err
 	case lfi == 0:
 		r.sc.advance = true
 		_, _ = r.sc.buf.ReadByte() // Discard the LF
@@ -81,12 +94,20 @@ func (r *reader) handleBuf(p []byte) (n int, err error) {
 	//case lfi == len(data)-1:
 
 	default:
+		if lfi > 0 && data[lfi-1] == '\r' {
+			p = p[:lfi-1]
+			n, err = r.sc.buf.Read(p)
+			_, _ = r.sc.buf.ReadByte() // discard the CR
+		} else {
+			p = p[:lfi]
+			n, err = r.sc.buf.Read(p)
+		}
 		// Somewhere in the middle
-		p = p[:lfi]
-		//lr := io.LimitReader(r.sc.buf, int64(lfi))
-		//// FIXME: set rc.trailing = true, and advance by one?
-		//n, err = lr.Read(p)
-		n, err = r.sc.buf.Read(p)
+		//p = p[:lfi]
+		////lr := io.LimitReader(r.sc.buf, int64(lfi))
+		////// FIXME: set rc.trailing = true, and advance by one?
+		////n, err = lr.Read(p)
+		//n, err = r.sc.buf.Read(p)
 		return n, err
 	}
 
@@ -127,6 +148,18 @@ func (r *reader) handleLeadingLF(p, data []byte, srcN int) (n int, err error) {
 }
 
 func (r *reader) handleNoLF(p, data []byte, srcN int) (n int, err error) {
+	if srcN == 1 && data[0] == '\r' {
+		// Special case, discard single CR
+
+		//r.sc.advance = true
+		//r.sc.activeRdr = nil
+		return 0, nil
+	}
+
+	if srcN > 0 && data[srcN-1] == '\r' {
+		srcN--
+	}
+
 	if r.sc.advance {
 		r.sc.advance = false
 		r.markReaderEOF()
@@ -149,6 +182,9 @@ func (r *reader) handleTrailingLF(p, data []byte, srcN, lfi int) (n int, err err
 	}
 
 	r.sc.advance = true
+	if srcN > 1 && p[srcN-2] == '\r' {
+		srcN--
+	}
 	//r.sc.activeRdr = nil
 	//r.err = nil
 	return srcN - 1, nil
@@ -173,6 +209,10 @@ func (r *reader) handleMiddleLF(p, data []byte, srcN, lfi int) (n int, err error
 
 	r.markReaderEOF()
 	//r.sc.activeRdr = nil
+	if srcN > 1 && p[lfi-1] == '\r' {
+		return lfi - 1, io.EOF
+	}
+
 	return lfi, io.EOF
 }
 

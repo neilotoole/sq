@@ -148,30 +148,42 @@ func Test_Read_Loop(t *testing.T) {
 			wantLines:    []string{""},
 			wantRdrCount: 1,
 		},
-		//{
-		//	name:         "empty-1-crlf",
-		//	in:           "\r\n",
-		//	wantLines:    nil,
-		//	wantRdrCount: 2,
-		//},
-		//{
-		//	name:         "empty-2-crlf",
-		//	in:           "\r\n\r\n",
-		//	wantLines:    nil,
-		//	wantRdrCount: 3,
-		//},
+		{
+			name:         "empty-1-cr",
+			in:           "\r",
+			wantLines:    []string{""}, // REVISIT: What do we really want here?
+			wantRdrCount: 1,
+		},
+		{
+			name:         "empty-1-crlf",
+			in:           "\r\n",
+			wantLines:    []string{""},
+			wantRdrCount: 1,
+		},
+		{
+			name:         "empty-2-crlf",
+			in:           "\r\n\r\n",
+			wantLines:    []string{"", ""},
+			wantRdrCount: 2,
+		},
+		{
+			name:         "a-crlf",
+			in:           "a\r\n",
+			wantLines:    []string{"a"},
+			wantRdrCount: 1,
+		},
 		{
 			name:         "empty-2-lf",
 			in:           "\n\n",
 			wantLines:    []string{"", ""},
 			wantRdrCount: 2,
 		},
-		//{
-		//	name:         "oneline-crlf",
-		//	in:           "line1\r\n",
-		//	wantLines:    []string{"line1"},
-		//	wantRdrCount: 2,
-		//},
+		{
+			name:         "oneline-crlf",
+			in:           "line1\r\n",
+			wantLines:    []string{"line1"},
+			wantRdrCount: 1,
+		},
 		{
 			name:         "oneline-no-lf",
 			in:           "line1",
@@ -191,14 +203,32 @@ func Test_Read_Loop(t *testing.T) {
 			wantRdrCount: 2,
 		},
 		{
+			name:         "ab-crlf-cd-crlf",
+			in:           "ab\r\ncd\r\n",
+			wantLines:    []string{"ab", "cd"},
+			wantRdrCount: 2,
+		},
+		{
 			name:         "content-4-no-trailing-lf",
 			in:           "line1\nline2\nline3\nline4",
 			wantLines:    []string{"line1", "line2", "line3", "line4"},
 			wantRdrCount: 4,
 		},
 		{
+			name:         "content-4-no-trailing-crlf",
+			in:           "line1\r\nline2\r\nline3\r\nline4",
+			wantLines:    []string{"line1", "line2", "line3", "line4"},
+			wantRdrCount: 4,
+		},
+		{
 			name:         "single-char-4-lf",
 			in:           "a\nb\nc\nd",
+			wantLines:    []string{"a", "b", "c", "d"},
+			wantRdrCount: 4,
+		},
+		{
+			name:         "single-char-4-crlf",
+			in:           "a\r\nb\r\nc\r\nd",
 			wantLines:    []string{"a", "b", "c", "d"},
 			wantRdrCount: 4,
 		},
@@ -215,8 +245,20 @@ func Test_Read_Loop(t *testing.T) {
 			wantRdrCount: 6,
 		},
 		{
+			name:         "multi-lines-with-extra-crlf",
+			in:           "\r\nline2\r\nline3\r\nline4\r\n\r\nline5",
+			wantLines:    []string{"", "line2", "line3", "line4", "", "line5"},
+			wantRdrCount: 6,
+		},
+		{
 			name:         "single-char-lines-with-extra-lf",
 			in:           "\nb\nc\nd\n\nf",
+			wantLines:    []string{"", "b", "c", "d", "", "f"},
+			wantRdrCount: 6,
+		},
+		{
+			name:         "single-char-lines-with-extra-crlf",
+			in:           "\r\nb\r\nc\r\nd\r\n\r\nf",
 			wantLines:    []string{"", "b", "c", "d", "", "f"},
 			wantRdrCount: 6,
 		},
@@ -233,8 +275,20 @@ func Test_Read_Loop(t *testing.T) {
 			wantRdrCount: 3,
 		},
 		{
+			name:         "a-c-lines-with-extra-crlf",
+			in:           "a\r\n\r\nc",
+			wantLines:    []string{"a", "", "c"},
+			wantRdrCount: 3,
+		},
+		{
 			name:         "lf-lf-c",
 			in:           "\n\nc",
+			wantLines:    []string{"", "", "c"},
+			wantRdrCount: 3,
+		},
+		{
+			name:         "crlf-crlf-c",
+			in:           "\r\n\r\nc",
 			wantLines:    []string{"", "", "c"},
 			wantRdrCount: 3,
 		},
@@ -291,50 +345,4 @@ func Test_Read_Loop(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestCRLF_one_byte_buf10(t *testing.T) {
-	const input = "\r\n"
-	const bufSize = 10
-
-	splitter := linesplitreaders.New(strings.NewReader(input))
-
-	require.True(t, splitter.Next())
-	buf := make([]byte, bufSize)
-	r := splitter.Reader()
-	require.NotNil(t, r)
-	n, err := r.Read(buf)
-	require.Equal(t, 0, n)
-	require.NoError(t, err)
-
-	n, err = r.Read(buf)
-	require.Equal(t, 0, n)
-	require.True(t, errors.Is(err, io.EOF))
-
-	require.False(t, splitter.Next())
-	r = splitter.Reader()
-	require.Nil(t, r)
-}
-
-func TestCRLF_one_byte_buf2(t *testing.T) {
-	const input = "\r\n"
-	const bufSize = 5
-
-	splitter := linesplitreaders.New(strings.NewReader(input))
-
-	require.True(t, splitter.Next())
-	buf := make([]byte, bufSize)
-	r := splitter.Reader()
-	require.NotNil(t, r)
-	n, err := r.Read(buf)
-	require.Equal(t, 0, n)
-	require.NoError(t, err)
-
-	n, err = r.Read(buf)
-	require.Equal(t, 0, n)
-	require.True(t, errors.Is(err, io.EOF))
-
-	require.False(t, splitter.Next())
-	r = splitter.Reader()
-	require.Nil(t, r)
 }
