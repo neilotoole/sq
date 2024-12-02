@@ -14,7 +14,7 @@ require (
 	github.com/emirpasic/gods v1.18.1
 	github.com/fatih/color v1.18.0
 	github.com/go-sql-driver/mysql v1.8.1
-	github.com/goccy/go-yaml v1.14.3
+	github.com/goccy/go-yaml v1.15.6
 	github.com/google/renameio/v2 v2.0.0
 	github.com/google/uuid v1.6.0
 	github.com/h2non/filetype v1.1.3
