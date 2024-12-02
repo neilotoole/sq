@@ -5,6 +5,7 @@ package linesplitreaders
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 )
 
@@ -14,13 +15,12 @@ https://stackoverflow.com/questions/37530451/golang-bufio-read-multiline-until-c
 */
 
 type Splitter struct {
-	src    io.Reader
-	buf    *bytes.Buffer
-	srcEOF bool
-	srcErr error
-	//done       bool
+	src       io.Reader
+	buf       *bytes.Buffer
+	srcEOF    bool
+	srcErr    error
 	activeRdr *reader
-	trailing  bool
+	advance   bool
 }
 
 func New(src io.Reader) *Splitter {
@@ -57,12 +57,14 @@ func (r *reader) handleBuf(p []byte) (n int, err error) {
 		panic("buf is empty")
 	}
 
-	if r.sc.trailing {
+	if r.sc.advance {
 		r.markReaderEOF()
-		r.sc.trailing = false
+		r.sc.advance = false
 		return 0, io.EOF
 	}
 
+	lenBufBytes := r.sc.buf.Len()
+	_ = lenBufBytes
 	data := r.sc.buf.Bytes()
 	if len(data) > len(p) {
 		data = data[:len(p)]
@@ -73,16 +75,18 @@ func (r *reader) handleBuf(p []byte) (n int, err error) {
 	case lfi < 0:
 		return r.sc.buf.Read(p)
 	case lfi == 0:
-		r.sc.trailing = true
+		r.sc.advance = true
 		_, _ = r.sc.buf.ReadByte() // Discard the LF
 		return 0, nil
 	//case lfi == len(data)-1:
 
 	default:
 		// Somewhere in the middle
-		lr := io.LimitReader(r.sc.buf, int64(lfi))
-		// FIXME: set rc.trailing = true
-		n, err = lr.Read(p)
+		p = p[:lfi]
+		//lr := io.LimitReader(r.sc.buf, int64(lfi))
+		//// FIXME: set rc.trailing = true, and advance by one?
+		//n, err = lr.Read(p)
+		n, err = r.sc.buf.Read(p)
 		return n, err
 	}
 
@@ -100,20 +104,20 @@ func (r *reader) markReaderEOF() {
 }
 
 func (r *reader) handleLeadingLF(p, data []byte, srcN int) (n int, err error) {
-	if r.sc.trailing {
+	if r.sc.advance {
 		r.markReaderEOF()
-		_, _ = r.sc.buf.Write(p[1:])
-		r.sc.trailing = true
+		_, _ = r.sc.buf.Write(p[1:srcN])
+		r.sc.advance = true
 		return 0, io.EOF
 	}
 
 	if srcN == 1 {
-		r.sc.trailing = true
+		r.sc.advance = true
 		//r.sc.activeRdr = nil
 		return 0, nil
 	}
 
-	r.sc.trailing = true
+	r.sc.advance = true
 	_, _ = r.sc.buf.Write(p[1:srcN])
 
 	//r.markReaderEOF()
@@ -123,8 +127,8 @@ func (r *reader) handleLeadingLF(p, data []byte, srcN int) (n int, err error) {
 }
 
 func (r *reader) handleNoLF(p, data []byte, srcN int) (n int, err error) {
-	if r.sc.trailing {
-		r.sc.trailing = false
+	if r.sc.advance {
+		r.sc.advance = false
 		r.markReaderEOF()
 		_, _ = r.sc.buf.Write(p[:srcN])
 		return 0, io.EOF
@@ -137,22 +141,22 @@ func (r *reader) handleNoLF(p, data []byte, srcN int) (n int, err error) {
 }
 
 func (r *reader) handleTrailingLF(p, data []byte, srcN, lfi int) (n int, err error) {
-	if r.sc.trailing {
+	if r.sc.advance {
 		r.markReaderEOF()
-		r.sc.trailing = false
+		r.sc.advance = false
 		_, _ = r.sc.buf.Write(p[:srcN])
 		return 0, io.EOF
 	}
 
-	r.sc.trailing = true
+	r.sc.advance = true
 	//r.sc.activeRdr = nil
 	//r.err = nil
 	return srcN - 1, nil
 }
 
 func (r *reader) handleMiddleLF(p, data []byte, srcN, lfi int) (n int, err error) {
-	if r.sc.trailing {
-		r.sc.trailing = false
+	if r.sc.advance {
+		r.sc.advance = false
 		r.markReaderEOF()
 		_, _ = r.sc.buf.Write(p[:srcN])
 		return 0, io.EOF
@@ -176,6 +180,12 @@ func (r *reader) Read(p []byte) (n int, err error) {
 	if r.err != nil {
 		return 0, err
 	}
+
+	bufLen := r.sc.buf.Len()
+	_ = bufLen
+
+	fmt.Println("bufLen:", bufLen)
+	fmt.Printf("buf: >%s<\n", r.sc.buf.String())
 
 	if r.sc.buf.Len() > 0 {
 		return r.handleBuf(p)

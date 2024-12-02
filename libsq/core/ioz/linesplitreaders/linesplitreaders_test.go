@@ -221,6 +221,12 @@ func Test_Read_Loop(t *testing.T) {
 			wantRdrCount: 6,
 		},
 		{
+			name:         "single-char-lines-with-extra-lf-2",
+			in:           "\nb\nc\nd\n\nf\n",
+			wantLines:    []string{"", "b", "c", "d", "", "f"},
+			wantRdrCount: 6,
+		},
+		{
 			name:         "a-c-lines-with-extra-lf",
 			in:           "a\n\nc",
 			wantLines:    []string{"a", "", "c"},
@@ -234,7 +240,7 @@ func Test_Read_Loop(t *testing.T) {
 		},
 	}
 
-	const bufMin, bufMax = 1, 12
+	const bufMin, bufMax = 1, 16
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -272,10 +278,11 @@ func Test_Read_Loop(t *testing.T) {
 						}
 
 						// We've hit EOF, so we should have a line
-						//if len(line) > 0 {
+
 						lines = append(lines, string(line))
+						strLine := string(line)
+						t.Logf(">%s<", strLine)
 						line = nil
-						//}
 					}
 
 					require.Equal(t, tc.wantLines, lines)
