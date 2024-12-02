@@ -134,16 +134,12 @@ func (r *reader) handleLeadingLF(p, data []byte, srcN int) (n int, err error) {
 
 	if srcN == 1 {
 		r.sc.advance = true
-		//r.sc.activeRdr = nil
 		return 0, nil
 	}
 
 	r.sc.advance = true
 	_, _ = r.sc.buf.Write(p[1:srcN])
 
-	//r.markReaderEOF()
-	//r.sc.activeRdr = nil
-	//r.err = nil
 	return 0, nil
 }
 
@@ -151,8 +147,6 @@ func (r *reader) handleNoLF(p, data []byte, srcN int) (n int, err error) {
 	if srcN == 1 && data[0] == '\r' {
 		// Special case, discard single CR
 
-		//r.sc.advance = true
-		//r.sc.activeRdr = nil
 		return 0, nil
 	}
 
@@ -167,9 +161,6 @@ func (r *reader) handleNoLF(p, data []byte, srcN int) (n int, err error) {
 		return 0, io.EOF
 	}
 
-	//r.sc.trailing = true
-	//r.sc.activeRdr = nil
-	//r.err = nil
 	return srcN, nil
 }
 
@@ -185,8 +176,7 @@ func (r *reader) handleTrailingLF(p, data []byte, srcN, lfi int) (n int, err err
 	if srcN > 1 && p[srcN-2] == '\r' {
 		srcN--
 	}
-	//r.sc.activeRdr = nil
-	//r.err = nil
+
 	return srcN - 1, nil
 }
 
@@ -199,16 +189,9 @@ func (r *reader) handleMiddleLF(p, data []byte, srcN, lfi int) (n int, err error
 	}
 
 	_, _ = r.sc.buf.Write(p[lfi+1 : srcN])
-	//if p[lfi-1] == '\r' {
-	//	lfi--
-	//}
-	//if err != nil {
-	//	panic(err)
-	//	//return i, err
-	//}
 
 	r.markReaderEOF()
-	//r.sc.activeRdr = nil
+
 	if srcN > 1 && p[lfi-1] == '\r' {
 		return lfi - 1, io.EOF
 	}
@@ -217,6 +200,9 @@ func (r *reader) handleMiddleLF(p, data []byte, srcN, lfi int) (n int, err error
 }
 
 func (r *reader) Read(p []byte) (n int, err error) {
+	if r.sc.srcErr != nil {
+		return 0, r.sc.srcErr
+	}
 	if r.err != nil {
 		return 0, err
 	}
@@ -238,11 +224,6 @@ func (r *reader) Read(p []byte) (n int, err error) {
 		r.sc.srcErr = err
 		if errors.Is(err, io.EOF) {
 			r.sc.srcEOF = true
-		}
-
-		if n == 0 {
-			r.sc.activeRdr = nil
-			return 0, io.EOF
 		}
 
 		return n, err
