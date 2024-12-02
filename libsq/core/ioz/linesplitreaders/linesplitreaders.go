@@ -4,8 +4,6 @@ package linesplitreaders
 
 import (
 	"bytes"
-	"errors"
-	"fmt"
 	"io"
 )
 
@@ -17,19 +15,20 @@ https://stackoverflow.com/questions/37530451/golang-bufio-read-multiline-until-c
 type Splitter struct {
 	src       io.Reader
 	buf       *bytes.Buffer
-	srcEOF    bool
 	srcErr    error
 	activeRdr *reader
-	advance   bool
+
+	// advance is set to true when the current a new line is available.
+	advance bool
 }
 
 func New(src io.Reader) *Splitter {
 	return &Splitter{src: src, buf: &bytes.Buffer{}}
 }
 
-// Next returns true if there is another reader available Splitter.Reader.
+// Next returns true if there is another reader available via Splitter.Reader.
 func (s *Splitter) Next() bool {
-	return s.srcErr == nil && !s.srcEOF
+	return s.srcErr == nil
 }
 
 // Reader returns the next reader, or nil.
@@ -50,6 +49,49 @@ var _ io.Reader = &reader{}
 type reader struct {
 	sc  *Splitter
 	err error
+}
+
+func (r *reader) Read(p []byte) (n int, err error) {
+	if r.sc.srcErr != nil {
+		return 0, r.sc.srcErr
+	}
+	if r.err != nil {
+		return 0, err
+	}
+
+	if r.sc.buf.Len() > 0 {
+		return r.handleBuf(p)
+	}
+
+	n, err = r.sc.src.Read(p)
+
+	if err != nil {
+		r.sc.srcErr = err
+		return n, err
+	}
+
+	data := p[:n]
+	lfi := bytes.IndexByte(data, '\n')
+
+	// Options
+	// 1. Leading newline
+	// 2. No newline
+	// 3. Trailing newline
+	// 4. Middle newline
+
+	switch {
+	case lfi == 0: // Leading newline
+		return r.handleLeadingLF(p, data, n)
+
+	case lfi < 0: // Didn't find a newline
+		return r.handleNoLF(p, data, n)
+
+	case lfi == n-1: // trailing newline
+		return r.handleTrailingLF(p, data, n, lfi)
+
+	default:
+		return r.handleMiddleLF(p, data, n, lfi)
+	}
 }
 
 func (r *reader) handleBuf(p []byte) (n int, err error) {
@@ -102,21 +144,10 @@ func (r *reader) handleBuf(p []byte) (n int, err error) {
 			p = p[:lfi]
 			n, err = r.sc.buf.Read(p)
 		}
-		// Somewhere in the middle
-		//p = p[:lfi]
-		////lr := io.LimitReader(r.sc.buf, int64(lfi))
-		////// FIXME: set rc.trailing = true, and advance by one?
-		////n, err = lr.Read(p)
-		//n, err = r.sc.buf.Read(p)
+
 		return n, err
 	}
 
-	//n, err = r.sc.buf.Read(p) // FIXME: do this part
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//return n, err
 }
 
 func (r *reader) markReaderEOF() {
@@ -198,204 +229,3 @@ func (r *reader) handleMiddleLF(p, data []byte, srcN, lfi int) (n int, err error
 
 	return lfi, io.EOF
 }
-
-func (r *reader) Read(p []byte) (n int, err error) {
-	if r.sc.srcErr != nil {
-		return 0, r.sc.srcErr
-	}
-	if r.err != nil {
-		return 0, err
-	}
-
-	bufLen := r.sc.buf.Len()
-	_ = bufLen
-
-	fmt.Println("bufLen:", bufLen)
-	fmt.Printf("buf: >%s<\n", r.sc.buf.String())
-
-	if r.sc.buf.Len() > 0 {
-		return r.handleBuf(p)
-		//n, err = r.sc.buf.Read(p)
-	}
-
-	n, err = r.sc.src.Read(p)
-
-	if err != nil {
-		r.sc.srcErr = err
-		if errors.Is(err, io.EOF) {
-			r.sc.srcEOF = true
-		}
-
-		return n, err
-	}
-
-	data := p[:n]
-	lfi := bytes.IndexByte(data, '\n')
-
-	// Options
-	// 1. Leading newline
-	// 2. No newline
-	// 3. Trailing newline
-	// 4. Middle newline
-
-	switch {
-	case lfi == 0: // Leading newline
-		return r.handleLeadingLF(p, data, n)
-		//if n == 1 {
-		//	if r.sc.trailing {
-		//		r.sc.activeRdr = nil
-		//		return 0, io.EOF
-		//	}
-		//
-		//	r.sc.trailing = true
-		//	//r.sc.activeRdr = nil
-		//	return 0, nil
-		//}
-		//
-		//_, err = r.sc.buf.Write(p[i+1 : n])
-		//if err != nil {
-		//	panic(err)
-		//	//return i, err
-		//}
-		//
-		//r.sc.activeRdr = nil
-		//return 0, io.EOF
-	case lfi < 0: // Didn't find a newline
-		return r.handleNoLF(p, data, n)
-		//i = bytes.IndexByte(data, '\r')
-		//if i < 0 {
-		//	if r.sc.trailing {
-		//		r.sc.trailing = false
-		//		r.sc.activeRdr = nil
-		//		return n, io.EOF
-		//	}
-		//
-		//	return n, nil
-		//}
-
-		//if i == 0 && len(p) == 1 {
-		//if lfi == 0 {
-		//	r.sc.trailing = true
-		//	if n > 1 {
-		//		_, err = r.sc.buf.Write(p[1:])
-		//		if err != nil {
-		//			panic(err)
-		//			//return i, err
-		//		}
-		//	}
-		//	return 0, nil
-		//}
-		//
-		//if lfi == n-1 {
-		//	//r.done = true
-		//	r.sc.trailing = true
-		//	return lfi, nil
-		//}
-
-	case lfi == n-1: // trailing newline
-		return r.handleTrailingLF(p, data, n, lfi)
-		// Found a trailing newline
-		//if p[n-2] == '\r' {
-		//	n--
-		//}
-		//return n - 1, nil
-
-	default:
-		return r.handleMiddleLF(p, data, n, lfi)
-	}
-
-	//if p[i-1] == '\r' {
-	//	i--
-	//}
-
-	//_, err = r.sc.buf.Write(p[lfi+1 : n])
-	//if p[lfi-1] == '\r' {
-	//	lfi--
-	//}
-	//if err != nil {
-	//	panic(err)
-	//	//return i, err
-	//}
-	//
-	//r.sc.activeRdr = nil
-	//return lfi, io.EOF
-}
-
-//
-//func (r *reader) ReadOld(p []byte) (n int, err error) {
-//	if r.done {
-//		return 0, io.EOF
-//	}
-//
-//	if r.sc.buf.Len() > 0 {
-//		n, err = r.sc.buf.Read(p)
-//	} else {
-//		n, err = r.sc.src.Read(p)
-//	}
-//
-//	if err != nil {
-//		r.sc.done = true
-//
-//		if n == 0 && errors.Is(err, io.EOF) {
-//			return 0, io.EOF
-//		}
-//
-//		return n, err
-//	}
-//
-//	data := p[:n]
-//	i := bytes.IndexByte(data, '\n')
-//
-//	switch {
-//	case i < 0:
-//		// Didn't find a newline
-//		i = bytes.IndexByte(data, '\r')
-//		if i < 0 {
-//			return n, nil
-//		}
-//
-//		//if i == 0 && len(p) == 1 {
-//		if i == 0 {
-//			r.sc.trailingCR = true
-//			if n > 1 {
-//				_, err = r.sc.buf.Write(p[1:])
-//				if err != nil {
-//					return i, err
-//				}
-//			}
-//			return 0, nil
-//		}
-//
-//		if i == n-1 {
-//			r.done = true
-//			r.sc.trailingCR = true
-//			return i, nil
-//		}
-//	case i == 0:
-//		if n == 1 {
-//			return 0, io.EOF
-//		}
-//
-//		_, err = r.sc.buf.Write(p[i+1 : n])
-//		if err != nil {
-//			return i, err
-//		}
-//
-//		return 0, io.EOF
-//	default:
-//	}
-//
-//	//if p[i-1] == '\r' {
-//	//	i--
-//	//}
-//
-//	_, err = r.sc.buf.Write(p[i+1 : n])
-//	if p[i-1] == '\r' {
-//		i--
-//	}
-//	if err != nil {
-//		return i, err
-//	}
-//
-//	return i, io.EOF
-//}

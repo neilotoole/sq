@@ -207,12 +207,15 @@ func Test_ReadAll(t *testing.T) {
 
 // Test_Reader_Read tests via the io.Reader returned from Splitter.Reader.
 func Test_Reader_Read(t *testing.T) {
-	const bufMin, bufMax = 1, 16
+	t.Parallel()
+	const bufMin, bufMax = 1, 37
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			for bufSize := bufMin; bufSize <= bufMax; bufSize++ { // FIXME: test bufsize zero
+			t.Parallel()
+			for bufSize := bufMin; bufSize <= bufMax; bufSize++ {
 				t.Run(fmt.Sprintf("buf-%d", bufSize), func(t *testing.T) {
+					t.Parallel()
 					var rdrCount = 0
 					splitter := linesplitreaders.New(strings.NewReader(tc.in))
 					var lines []string
@@ -302,7 +305,7 @@ func TestSplitter_Reader_Read_ReturnsSameErrorSubsequently(t *testing.T) {
 
 	for _, tc := range []string{"", "a\n", "a\n", "a\r\n"} {
 		t.Run(tc, func(t *testing.T) {
-			splitter := linesplitreaders.New(&errReader{Err: wantErr})
+			splitter := linesplitreaders.New(&errReader{err: wantErr})
 			rdr := splitter.Reader()
 			_, err := io.ReadAll(rdr)
 			require.Error(t, err)
@@ -320,10 +323,10 @@ var _ io.Reader = (*errReader)(nil)
 
 // errReader is an [io.Reader] that always returns an error.
 type errReader struct {
-	Err error
+	err error
 }
 
 // Read implements [io.Reader]: it always returns [errReader.Err].
 func (e errReader) Read([]byte) (n int, err error) {
-	return 0, e.Err
+	return 0, e.err
 }
