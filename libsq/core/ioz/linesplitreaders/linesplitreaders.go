@@ -55,8 +55,9 @@ func (r *reader) Read(p []byte) (n int, err error) {
 	if r.sc.srcErr != nil {
 		return 0, r.sc.srcErr
 	}
+
 	if r.err != nil {
-		return 0, err
+		return 0, r.err
 	}
 
 	if r.sc.buf.Len() > 0 {
@@ -64,7 +65,6 @@ func (r *reader) Read(p []byte) (n int, err error) {
 	}
 
 	n, err = r.sc.src.Read(p)
-
 	if err != nil {
 		r.sc.srcErr = err
 		return n, err
@@ -81,16 +81,16 @@ func (r *reader) Read(p []byte) (n int, err error) {
 
 	switch {
 	case lfi == 0: // Leading newline
-		return r.handleLeadingLF(p, data, n)
+		return r.handleLeadingLF(p, n)
 
 	case lfi < 0: // Didn't find a newline
 		return r.handleNoLF(p, data, n)
 
 	case lfi == n-1: // trailing newline
-		return r.handleTrailingLF(p, data, n, lfi)
+		return r.handleTrailingLF(p, n)
 
 	default:
-		return r.handleMiddleLF(p, data, n, lfi)
+		return r.handleMiddleLF(p, n, lfi)
 	}
 }
 
@@ -133,7 +133,7 @@ func (r *reader) handleBuf(p []byte) (n int, err error) {
 		r.sc.advance = true
 		_, _ = r.sc.buf.ReadByte() // Discard the LF
 		return 0, nil
-	//case lfi == len(data)-1:
+	// case lfi == len(data)-1:
 
 	default:
 		if lfi > 0 && data[lfi-1] == '\r' {
@@ -147,7 +147,6 @@ func (r *reader) handleBuf(p []byte) (n int, err error) {
 
 		return n, err
 	}
-
 }
 
 func (r *reader) markReaderEOF() {
@@ -155,7 +154,7 @@ func (r *reader) markReaderEOF() {
 	r.err = io.EOF
 }
 
-func (r *reader) handleLeadingLF(p, data []byte, srcN int) (n int, err error) {
+func (r *reader) handleLeadingLF(p []byte, srcN int) (n int, err error) {
 	if r.sc.advance {
 		r.markReaderEOF()
 		_, _ = r.sc.buf.Write(p[1:srcN])
@@ -195,7 +194,7 @@ func (r *reader) handleNoLF(p, data []byte, srcN int) (n int, err error) {
 	return srcN, nil
 }
 
-func (r *reader) handleTrailingLF(p, data []byte, srcN, lfi int) (n int, err error) {
+func (r *reader) handleTrailingLF(p []byte, srcN int) (n int, err error) {
 	if r.sc.advance {
 		r.markReaderEOF()
 		r.sc.advance = false
@@ -211,7 +210,7 @@ func (r *reader) handleTrailingLF(p, data []byte, srcN, lfi int) (n int, err err
 	return srcN - 1, nil
 }
 
-func (r *reader) handleMiddleLF(p, data []byte, srcN, lfi int) (n int, err error) {
+func (r *reader) handleMiddleLF(p []byte, srcN, lfi int) (n int, err error) {
 	if r.sc.advance {
 		r.sc.advance = false
 		r.markReaderEOF()

@@ -120,12 +120,17 @@ var testCases = []struct {
 		wantLines:    []string{"a", "b", "c", "d"},
 		wantRdrCount: 4,
 	},
-	//{
+	// NOTE: The below test is commented out, because it's not entirely clear what
+	// we're hoping for here. Either which way, the code is broken, because
+	// different results are returned depending on the size of the []byte passed
+	// to Read.
+	//
+	// {
 	//	name:         "single-char-4-cr",
 	//	in:           "a\rb\rc\rd",
 	//	wantLines:    []string{"abcd"},
 	//	wantRdrCount: 1,
-	//},
+	// },
 	{
 		name:         "multi-lines-with-extra-lf",
 		in:           "\nline2\nline3\nline4\n\nline5",
@@ -216,7 +221,7 @@ func Test_Reader_Read(t *testing.T) {
 			for bufSize := bufMin; bufSize <= bufMax; bufSize++ {
 				t.Run(fmt.Sprintf("buf-%d", bufSize), func(t *testing.T) {
 					t.Parallel()
-					var rdrCount = 0
+					rdrCount := 0
 					splitter := linesplitreaders.New(strings.NewReader(tc.in))
 					var lines []string
 
