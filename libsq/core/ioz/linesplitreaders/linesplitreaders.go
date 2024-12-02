@@ -58,8 +58,7 @@ func (r *reader) handleBuf(p []byte) (n int, err error) {
 	}
 
 	if r.sc.trailing {
-		r.sc.activeRdr = nil
-		r.err = io.EOF
+		r.markReaderEOF()
 		r.sc.trailing = false
 		return 0, io.EOF
 	}
@@ -103,10 +102,8 @@ func (r *reader) markReaderEOF() {
 func (r *reader) handleLeadingLF(p, data []byte, srcN int) (n int, err error) {
 	if r.sc.trailing {
 		r.markReaderEOF()
-		if _, err = r.sc.buf.Write(p[1:]); err != nil {
-			panic(err) // FIXME
-		}
-		r.sc.trailing = false
+		_, _ = r.sc.buf.Write(p[1:])
+		r.sc.trailing = true
 		return 0, io.EOF
 	}
 
@@ -117,9 +114,7 @@ func (r *reader) handleLeadingLF(p, data []byte, srcN int) (n int, err error) {
 	}
 
 	r.sc.trailing = true
-	if _, _ = r.sc.buf.Write(p[1:srcN]); err != nil {
-		panic(err) // FIXME
-	}
+	_, _ = r.sc.buf.Write(p[1:srcN])
 
 	//r.markReaderEOF()
 	//r.sc.activeRdr = nil
