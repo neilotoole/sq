@@ -77,6 +77,8 @@ func (r *reader) handleBuf(p []byte) (n int, err error) {
 		r.sc.trailing = true
 		_, _ = r.sc.buf.ReadByte() // Discard the LF
 		return 0, nil
+	//case lfi == len(data)-1:
+
 	default:
 		// Somewhere in the middle
 		lr := io.LimitReader(r.sc.buf, int64(lfi))
@@ -154,16 +156,24 @@ func (r *reader) handleTrailingLF(p, data []byte, srcN, lfi int) (n int, err err
 }
 
 func (r *reader) handleMiddleLF(p, data []byte, srcN, lfi int) (n int, err error) {
-	_, err = r.sc.buf.Write(p[lfi+1 : srcN])
-	if p[lfi-1] == '\r' {
-		lfi--
-	}
-	if err != nil {
-		panic(err)
-		//return i, err
+	if r.sc.trailing {
+		r.sc.trailing = false
+		r.markReaderEOF()
+		_, _ = r.sc.buf.Write(p[:srcN])
+		return 0, io.EOF
 	}
 
-	r.sc.activeRdr = nil
+	_, _ = r.sc.buf.Write(p[lfi+1 : srcN])
+	//if p[lfi-1] == '\r' {
+	//	lfi--
+	//}
+	//if err != nil {
+	//	panic(err)
+	//	//return i, err
+	//}
+
+	r.markReaderEOF()
+	//r.sc.activeRdr = nil
 	return lfi, io.EOF
 }
 

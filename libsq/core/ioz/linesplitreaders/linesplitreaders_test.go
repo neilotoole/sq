@@ -190,12 +190,12 @@ func Test_Read_Loop(t *testing.T) {
 			wantLines:    []string{"ab", "cd"},
 			wantRdrCount: 2,
 		},
-		//{
-		//	name:         "content-4-no-trailing-lf",
-		//	in:           "line1\nline2\nline3\nline4",
-		//	wantLines:    []string{"line1", "line2", "line3", "line4"},
-		//	wantRdrCount: 4,
-		//},
+		{
+			name:         "content-4-no-trailing-lf",
+			in:           "line1\nline2\nline3\nline4",
+			wantLines:    []string{"line1", "line2", "line3", "line4"},
+			wantRdrCount: 4,
+		},
 		{
 			name:         "single-char-4-lf",
 			in:           "a\nb\nc\nd",
@@ -208,15 +208,15 @@ func Test_Read_Loop(t *testing.T) {
 		//	wantLines:    []string{"a", "b", "c", "d"},
 		//	wantRdrCount: 4,
 		//},
-		//{
-		//	name:         "multi-lines-with-extra-lf",
-		//	in:           "\nline2\nline3\nline4\n\nline5",
-		//	wantLines:    []string{"line2", "line3", "line4", "line5"},
-		//	wantRdrCount: 6,
-		//},
+		{
+			name:         "multi-lines-with-extra-lf",
+			in:           "\nline2\nline3\nline4\n\nline5",
+			wantLines:    []string{"line2", "line3", "line4", "line5"},
+			wantRdrCount: 6,
+		},
 	}
 
-	const bufMin, bufMax = 4, 4
+	const bufMin, bufMax = 1, 16
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
