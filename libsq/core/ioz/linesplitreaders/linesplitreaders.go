@@ -227,4 +227,30 @@ func (r *reader) handleMiddleLF(p []byte, srcN, lfi int) (n int, err error) {
 	}
 
 	return lfi, io.EOF
+
+	//slices.Values()
 }
+
+//func Items() iter.Seq[Item] {
+//	return func(yield func(Item) bool) {
+//		items := []Item{1, 2, 3}
+//		for _, v := range items {
+//			if !yield(v) {
+//				return
+//			}
+//		}
+//	}
+//}
+
+//func Lines(src io.Reader) iter.Seq[io.Reader] {
+//	splitter := New(src)
+//
+//	return func(yield func(src io.Reader) bool) {
+//		items := []Item{1, 2, 3}
+//		for _, v := range items {
+//			if !yield(v) {
+//				return
+//			}
+//		}
+//	}
+//}

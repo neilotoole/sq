@@ -335,3 +335,34 @@ type errReader struct {
 func (e errReader) Read([]byte) (n int, err error) {
 	return 0, e.err
 }
+
+// FIXME: figure out iter pattern
+//func TestIters(t *testing.T) {
+//
+//}
+//
+//func PrintPrimes() {
+//	for p := range Primes(Integers()) {
+//		fmt.Println(p)
+//	}
+//}
+//
+//func Primes(src io.Reader) iter.Seq[string] {
+//	b, err := io.ReadAll(src)
+//	if err != nil {
+//		panic(err)
+//	}
+//
+//	strs := strings.Split(string(b), "\n")
+//	_ = strs
+//
+//	return func(yield func(string) bool) {
+//		for n := range seq {
+//			if isPrime(n) {
+//				if !yield(n) {
+//					return
+//				}
+//			}
+//		}
+//	}
+//}
