@@ -20,7 +20,7 @@ import (
 
 // typeTestTableDDLPath is the location of the SQL CREATE statement
 // for the "type_test" table that is used to verify handling of the
-// the driver's various data types.
+// driver's various data types.
 const typeTestTableDDLPath = "testdata/type_test.ddl"
 
 // typeTestVals is the set of vals inserted to the type_test table (and
@@ -223,7 +223,7 @@ var typeTestVals = [][]any{
 }
 
 // typeTestColNames holds type_test table column names.
-// TODO: add spatial types
+// TODO: add spatial types.
 var typeTestColNames = []string{
 	"col_id",
 	"col_bigint",
