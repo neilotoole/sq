@@ -112,7 +112,7 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) (err error) {
 				"sys_peak", datasize.ByteSize(peakSys.Load()).HR(),
 				"heap_peak", datasize.ByteSize(peakAllocs.Load()).HR(),
 				"heap_total", datasize.ByteSize(totalAllocs.Load()).HR(),
-				"gc_pause", time.Duration(gcPause.Load()).String(),
+				"gc_pause", time.Duration(gcPause.Load()).String(), //nolint:gosec
 			)
 		}()
 	}

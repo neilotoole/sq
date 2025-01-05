@@ -29,7 +29,7 @@ type Opt struct {
 // returned.
 func (op Opt) Process(o options.Options) (options.Options, error) {
 	if o == nil {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	key := op.Key()

@@ -244,10 +244,53 @@ func (w *recordWriter) renderTime(fieldMeta *record.FieldMeta, val any) (string,
 		// It's not a number, it's some kind of non-numeric date/time value.
 	}
 
+	if isGoccyTimestamp(v) {
+		return w.pr.Datetime.Sprint(v), nil
+	}
+
+	// For safety, we'll use the goccy encoder to render the value.
 	node, err := w.enc.EncodeToNode(v)
 	if err != nil {
 		return "", errz.Err(err)
 	}
 
 	return w.pr.Datetime.Sprint(node.String()), nil
+}
+
+// isGoccyTimestamp returns true if one of the timestamp values that goccy has
+// decided it wants to enquote. This goccy change occurred in v0.15.9.
+//
+// See:
+//   - Issue: https://github.com/goccy/go-yaml/issues/430
+//   - PR: https://github.com/goccy/go-yaml/pull/515
+//
+// However, sq does NOT want to enquote these values. This function is a
+// workaround (copied from goccy) to determine if val one of these values. If
+// it is, renderTime renders the value directly.
+//
+// We probably don't need to go to all of this trouble in renderTime, and could
+// just render the value directly as a string, but if the rendered output is
+// weird (e.g. includes newlines?), it's better to play it safe and use the
+// goccy encoder's EncodeToNode method.
+
+func isGoccyTimestamp(val string) bool {
+	for _, format := range goccyTimestampFormats {
+		if _, err := time.Parse(format, val); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// This is a subset of the formats permitted by the regular expression
+// defined at http://yaml.org/type/timestamp.html. Note that time.Parse
+// cannot handle: "2001-12-14 21:59:43.10 -5" from the examples.
+var goccyTimestampFormats = []string{
+	time.RFC3339Nano,
+	"2006-01-02t15:04:05.999999999Z07:00", // RFC3339Nano with lower-case "t".
+	time.DateTime,
+	time.DateOnly,
+
+	// Not in examples, but to preserve backward compatibility by quoting time values.
+	"15:4",
 }

@@ -10,9 +10,8 @@ on:
   workflow_dispatch:
 
 env:
-  GO_VERSION: 1.21.0
   GORELEASER_VERSION: 1.24.0
-  GOLANGCI_LINT_VERSION: v1.56
+  GOLANGCI_LINT_VERSION: v1.63.4
   TPARSE_VERSION: v0.13.2
   BUILD_TAGS: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions'
 
@@ -20,7 +19,7 @@ jobs:
   test-nix:
     strategy:
       matrix:
-        os: [ ubuntu-22.04, macos-12]
+        os: [ ubuntu-24.04, macos-15]
 
     runs-on: ${{ matrix.os }}
 
@@ -105,7 +104,7 @@ jobs:
         tparse -all -sort=elapsed -file gotest.out.json
 
   lint:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -128,15 +127,16 @@ jobs:
           go-version-file: go.mod
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v6
         with:
           skip-cache: true
+          install-mode: 'goinstall'
           version: ${{ env.GOLANGCI_LINT_VERSION }}
 
 
   binaries-darwin:
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: macos-12
+    runs-on: macos-15
 
     steps:
       - name: Checkout
@@ -160,14 +160,14 @@ jobs:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
       - name: Upload assets (darwin)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dist-darwin
           path: dist-darwin
 
   binaries-linux-amd64:
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -191,14 +191,14 @@ jobs:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
       - name: Upload assets (linux-amd64)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dist-linux-amd64
           path: dist-linux
 
   binaries-linux-arm64:
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -227,7 +227,7 @@ jobs:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
       - name: Upload assets (linux-arm64)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dist-linux-arm64
           path: dist-linux
@@ -260,13 +260,13 @@ jobs:
 
 
       - name: Upload assets (windows)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dist-windows
           path: dist-windows
 
   publish:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: startsWith(github.ref, 'refs/tags/v')
     needs:
       - lint
@@ -288,25 +288,25 @@ jobs:
           go-version-file: go.mod
 
       - name: Download darwin artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: dist-darwin
           path: dist-darwin
 
       - name: Download linux-amd64 artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: dist-linux-amd64
           path: dist-linux
 
       - name: Download linux-arm64 artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: dist-linux-arm64
           path: dist-linux
 
       - name: Download windows artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: dist-windows
           path: dist-windows

@@ -345,9 +345,9 @@ func (op Int) Get(o Options) int {
 	case int64:
 		return int(i)
 	case uint64:
-		return int(i)
+		return int(i) //nolint:gosec
 	case uint:
-		return int(i)
+		return int(i) //nolint:gosec
 	default:
 		return op.defaultVal
 	}
@@ -381,7 +381,7 @@ func (op Int) Process(o Options) (Options, error) {
 	case float64:
 		i = int(v)
 	case uint:
-		i = int(v)
+		i = int(v) //nolint:gosec
 	case uint8:
 		i = int(v)
 	case uint16:
@@ -389,7 +389,7 @@ func (op Int) Process(o Options) (Options, error) {
 	case uint32:
 		i = int(v)
 	case uint64:
-		i = int(v)
+		i = int(v) //nolint:gosec
 	case int8:
 		i = int(v)
 	case int16:

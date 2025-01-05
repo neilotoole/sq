@@ -171,7 +171,11 @@ if command_exists brew; then
   set -e
   printf "Using brew to install sq...\n\n"
 
-  brew install neilotoole/sq/sq
+  # sq is now a core brew formula ("brew install sq"). If it's already installed
+  # via the old neilotoole/sq tap, uninstall that first.
+  brew uninstall neilotoole/sq/sq 2> /dev/null || true
+
+  brew install sq
 
   printf "\n"
   sq version

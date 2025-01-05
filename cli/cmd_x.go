@@ -96,7 +96,7 @@ func sleepyLog(log *slog.Logger) { //nolint:unused
 	time.Sleep(stepSleepy)
 }
 
-func execXProgressHideOnWriter(cmd *cobra.Command, _ []string) error { //nolint:unparam,unused
+func execXProgressHideOnWriter(cmd *cobra.Command, _ []string) error { //nolint:unused
 	ctx := cmd.Context()
 	log := lg.FromContext(ctx)
 	ru := run.FromContext(ctx)

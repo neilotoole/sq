@@ -75,7 +75,7 @@ func (w *RecordWriter) Close(ctx context.Context) error {
 	return w.Flush(ctx)
 }
 
-func (w *RecordWriter) writeRecord(rec record.Record) error {
+func (w *RecordWriter) writeRecord(rec record.Record) error { //nolint:unparam
 	var s string
 	for i, field := range rec {
 		w.buf.WriteString("| ")

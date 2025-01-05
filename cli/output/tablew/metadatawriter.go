@@ -381,7 +381,7 @@ func (w *mdWriter) Catalogs(currentCatalog string, catalogs []string) error {
 		var rows [][]string
 		for _, catalog := range catalogs {
 			if catalog == currentCatalog {
-				catalog = pr.Active.Sprintf(catalog)
+				catalog = pr.Active.Sprintf(catalog) //nolint:govet
 			}
 			rows = append(rows, []string{catalog})
 		}
@@ -401,7 +401,7 @@ func (w *mdWriter) Catalogs(currentCatalog string, catalogs []string) error {
 	for _, catalog := range catalogs {
 		var active string
 		if catalog == currentCatalog {
-			catalog = pr.Active.Sprintf(catalog)
+			catalog = pr.Active.Sprintf(catalog) //nolint:govet
 			active = pr.Bool.Sprint("active")
 		}
 		rows = append(rows, []string{catalog, active})
@@ -425,7 +425,7 @@ func (w *mdWriter) Schemata(currentSchema string, schemas []*metadata.Schema) er
 		for _, schema := range schemas {
 			s := schema.Name
 			if schema.Name == currentSchema {
-				s = pr.Active.Sprintf(s)
+				s = pr.Active.Sprintf(s) //nolint:govet
 			}
 			rows = append(rows, []string{s})
 		}
@@ -448,7 +448,7 @@ func (w *mdWriter) Schemata(currentSchema string, schemas []*metadata.Schema) er
 		row := []string{schema.Name, schema.Catalog, schema.Owner, ""}
 
 		if schema.Name == currentSchema {
-			row[0] = pr.Active.Sprintf(row[0])
+			row[0] = pr.Active.Sprintf(row[0]) //nolint:govet
 			row[3] = "active"
 		}
 		rows = append(rows, row)
