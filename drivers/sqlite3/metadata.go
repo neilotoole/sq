@@ -129,10 +129,12 @@ func setScanType(ctx context.Context, colType *record.ColumnTypeData) {
 
 // kindFromDBTypeName determines the kind.Kind from the database
 // type name. For example, "VARCHAR(64)" -> kind.Text.
-// See https://www.sqlite.org/datatype3.html#determination_of_column_affinity
-// The scanType arg may be nil (it may not be available to the caller): when
-// non-nil it may be used to determine ambiguous cases. For example,
-// dbTypeName is empty string for "COUNT(*)"
+//
+// See: https://www.sqlite.org/datatype3.html#determination_of_column_affinity
+//
+// The scanType arg may be nil (it may not be available to the caller). When
+// non-nil it may be used to determine ambiguous cases. For example, dbTypeName
+// is empty string for "COUNT(*)".
 func kindFromDBTypeName(ctx context.Context, colName, dbTypeName string, scanType reflect.Type) kind.Kind {
 	log := lg.FromContext(ctx)
 	if dbTypeName == "" {
@@ -236,7 +238,7 @@ func kindFromDBTypeName(ctx context.Context, colName, dbTypeName string, scanTyp
 }
 
 // DBTypeForKind returns the database type for kind.
-// For example: Int --> INTEGER
+// For example: Int --> INTEGER.
 func DBTypeForKind(knd kind.Kind) string {
 	switch knd {
 	default:

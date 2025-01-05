@@ -2,8 +2,12 @@ package yamlw_test
 
 import (
 	"bytes"
+	"io"
 	"testing"
+	"time"
 
+	goccy "github.com/goccy/go-yaml"
+	"github.com/neilotoole/sq/libsq/core/timez"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -46,4 +50,27 @@ func TestRecordWriter(t *testing.T) {
 	got := buf.String()
 	t.Log("\n" + got)
 	require.Equal(t, want, got)
+}
+
+func TestGoccyYAMLTimestampEncode(t *testing.T) {
+	// The goccy YAML encoder, as of v0.15.9, treats a time.Time and certain
+	// string representations of that time differently. The time.Time is rendered
+	// without quotes, while the string representation is rendered with quotes.
+	// This test verifies that behavior.
+
+	const val = "2020-06-11T02:50:54Z"
+
+	enc := goccy.NewEncoder(io.Discard)
+
+	ts := timez.MustParse(time.RFC3339Nano, val)
+
+	node, err := enc.EncodeToNode(ts)
+	require.NoError(t, err)
+	str := node.String()
+	require.Equal(t, val, str)
+
+	node, err = enc.EncodeToNode(val)
+	require.NoError(t, err)
+	str = node.String()
+	require.Equal(t, `"`+val+`"`, str, "expected quotes around string representation of time")
 }
