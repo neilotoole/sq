@@ -19,7 +19,7 @@ jobs:
   test-nix:
     strategy:
       matrix:
-        os: [ ubuntu-24.04, macos-13]
+        os: [ ubuntu-24.04, macos-15]
 
     runs-on: ${{ matrix.os }}
 
@@ -104,7 +104,7 @@ jobs:
         tparse -all -sort=elapsed -file gotest.out.json
 
   lint:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -136,7 +136,7 @@ jobs:
 
   binaries-darwin:
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: macos-12
+    runs-on: macos-15
 
     steps:
       - name: Checkout
@@ -167,7 +167,7 @@ jobs:
 
   binaries-linux-amd64:
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -198,7 +198,7 @@ jobs:
 
   binaries-linux-arm64:
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -266,7 +266,7 @@ jobs:
           path: dist-windows
 
   publish:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: startsWith(github.ref, 'refs/tags/v')
     needs:
       - lint
