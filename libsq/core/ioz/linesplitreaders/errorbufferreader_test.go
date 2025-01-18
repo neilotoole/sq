@@ -3,9 +3,10 @@ package linesplitreaders
 import (
 	"errors"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"io"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestErrorBufferReader_Read(t *testing.T) {
@@ -19,7 +20,6 @@ func TestErrorBufferReader_Read(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("case-%d", i), func(t *testing.T) {
-
 			r := newErrorBufferReader(tc.input, tc.wantErr)
 			got, err := io.ReadAll(r)
 			require.Equal(t, tc.input, got)
