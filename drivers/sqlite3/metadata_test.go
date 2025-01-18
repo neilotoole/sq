@@ -207,7 +207,7 @@ func TestRecordMetadata(t *testing.T) {
 			require.NoError(t, err)
 			t.Cleanup(func() { assert.NoError(t, rows.Close()) })
 
-			hasNext := rows.Next() // invoke rows.Next before invoking RecordMeta
+			hasNext := rows.Next() // invoke rows.HasMore before invoking RecordMeta
 			colTypes, err := rows.ColumnTypes()
 			require.NoError(t, err)
 

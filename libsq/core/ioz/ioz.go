@@ -458,25 +458,46 @@ func (r *errorAfterRandNReader) Read(p []byte) (n int, err error) {
 var _ io.Reader = (*errorAfterBytesReader)(nil)
 
 // NewErrorAfterBytesReader returns an io.Reader that returns err after
-// p has been fully read. If err is nil, the reader will return io.EOF
-// instead of err.
+// p has been fully read. A runtime panic occurs if err is nil. This function
+// is primarily intended for testing.
 func NewErrorAfterBytesReader(p []byte, err error) io.Reader {
-	r := &errorAfterBytesReader{err: err, buf: bytes.Buffer{}}
-	_, _ = r.buf.Write(p)
-	return r
+	if err == nil {
+		panic("err should not be nil")
+	}
+
+	return &errorAfterBytesReader{
+		err:          err,
+		src:          bytes.NewReader(p),
+		errorAtCount: len(p),
+	}
 }
 
 type errorAfterBytesReader struct {
+	// src holds the underlying backing bytes.
+	src *bytes.Reader
+
+	// err is the error to return after reading errorAtCount bytes.
 	err error
-	buf bytes.Buffer
+
+	// errorAtCount is the number of bytes to read before returning err.
+	errorAtCount int
+
+	// count is the number of bytes read so far.
+	count int
 }
 
 // Read implements io.Reader.
 func (e *errorAfterBytesReader) Read(p []byte) (n int, err error) {
-	n, err = e.buf.Read(p)
-	if err != nil && e.err != nil {
+	if e.count >= e.errorAtCount {
+		return 0, e.err
+	}
+
+	n, err = e.src.Read(p)
+	e.count += n
+	if e.count >= e.errorAtCount {
 		err = e.err
 	}
+
 	return n, err
 }
 

@@ -9,7 +9,7 @@ package jcolorenc
 //
 // Here is a common pattern to use a tokenizer:
 //
-//	for t := json.NewTokenizer(b); t.Next(); {
+//	for t := json.NewTokenizer(b); t.HasMore(); {
 //		switch t.Delim {
 //		case '{':
 //			...

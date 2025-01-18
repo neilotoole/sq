@@ -367,7 +367,7 @@ func (t *Table) printHeading() {
 		fmt.Fprint(t.out, head)
 
 	}
-	// Next line
+	// HasMore line
 	fmt.Fprintln(t.out)
 	if t.hdrLine {
 		t.printLine(true)
@@ -411,7 +411,7 @@ func (t *Table) printFooter() {
 			padFunc(f, Space, v),
 			pad)
 	}
-	// Next line
+	// HasMore line
 	fmt.Fprintln(t.out)
 
 	hasPrinted := false

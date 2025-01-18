@@ -616,7 +616,7 @@ func locCompParseLoc(loc string) (*parsedLoc, error) {
 	// At a minimum, we're at this point:
 	//  postgres://
 
-	// Next we're looking for user:pass, e.g.
+	// HasMore we're looking for user:pass, e.g.
 	//  postgres://alice:huzzah@localhost
 
 	if p.du, err = dburl.Parse(p.loc); err != nil {

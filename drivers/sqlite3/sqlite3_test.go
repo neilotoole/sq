@@ -52,14 +52,14 @@ func TestQueryEmptyTable(t *testing.T) {
 // TestExhibitDriverColumnTypesBehavior shows the unusual
 // behavior of SQLite wrt column types. The following is observed:
 //
-//  1. If rows.ColumnTypes is invoked prior to rows.Next being
+//  1. If rows.ColumnTypes is invoked prior to rows.HasMore being
 //     invoked, the column ScanType will be nil.
 //
 //     UPDATE: ^^ As of mattn/go-sqlite3@v1.14.16 (and probably earlier)
 //     this behavior seems to have changed.
 //
 //  2. The values returned by rows.ColumnTypes can change after
-//     each call to rows.Next. This is because of SQLite's dynamic
+//     each call to rows.HasMore. This is because of SQLite's dynamic
 //     typing: any value can be stored in any column.
 //
 // The second fact is potentially problematic for sq, as sq expects
@@ -83,8 +83,8 @@ func TestExhibitDriverColumnTypesBehavior(t *testing.T) {
 
 	// 1. Demonstrate that ColumnType.ScanType now correctly returns
 	//    a valid value when rows.ColumnTypes is invoked prior to the first
-	//    invocation of rows.Next. In earlier versions of the driver,
-	//    it was necessary to invoke rows.Next first.
+	//    invocation of rows.HasMore. In earlier versions of the driver,
+	//    it was necessary to invoke rows.HasMore first.
 	rows1, err := db.Query(query)
 	require.NoError(t, err)
 	defer rows1.Close()
@@ -97,7 +97,7 @@ func TestExhibitDriverColumnTypesBehavior(t *testing.T) {
 
 	require.False(t, rows1.Next()) // no rows yet since table is empty
 	colTypes, err = rows1.ColumnTypes()
-	require.Error(t, err, "ColumnTypes returns an error because the Next call closed rows")
+	require.Error(t, err, "ColumnTypes returns an error because the HasMore call closed rows")
 	require.Nil(t, colTypes)
 
 	// 2. In earlier versions of mattn/sqlite3, a column's scan type

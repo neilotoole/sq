@@ -7,12 +7,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/ioz"
+
 	"github.com/neilotoole/sq/libsq/core/ioz/linesplitreaders"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-var testCases = []struct {
+var splitTestCases = []struct {
 	name         string
 	in           string
 	wantLines    []string
@@ -193,16 +195,32 @@ var testCases = []struct {
 		wantLines:    []string{"", "", "c"},
 		wantRdrCount: 3,
 	},
+	{
+		name:         "mixed-endings-3",
+		in:           "\r\r\n\r\r\r\n",
+		wantLines:    []string{"\r", "\r\r", ""},
+		wantRdrCount: 3,
+	},
+	{
+		name:         "mixed-endings-4",
+		in:           "\r\r\n\n\r\r\r\n",
+		wantLines:    []string{"\r", "", "\r\r", ""},
+		wantRdrCount: 4,
+	},
 }
 
-func Test_ReadAll(t *testing.T) {
-	for _, tc := range testCases {
+func TestSplitter_via_ioReadAll(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range splitTestCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			var rdrCount int
 
 			sc := linesplitreaders.New(strings.NewReader(tc.in))
 			var lines []string
-			for sc.Next() {
+			for sc.HasMore() {
 				r := sc.Reader()
 				require.NotNil(t, r)
 				rdrCount++
@@ -218,25 +236,26 @@ func Test_ReadAll(t *testing.T) {
 	}
 }
 
-// Test_Reader_Read tests via the io.Reader returned from Splitter.Reader.
-func Test_Reader_Read(t *testing.T) {
-	// t.Parallel()
+// TestSplitter_via_Read tests via the io.Reader returned from Splitter.Reader.
+func TestSplitter_via_Read(t *testing.T) {
+	t.Parallel()
 
-	const bufMin, bufMax = 1, 11
+	// Try different buffer sizes.
+	const bufMin, bufMax = 1, 1000
 
-	for _, tc := range testCases {
+	for _, tc := range splitTestCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// t.Parallel()
+			t.Parallel()
+
 			for bufSize := bufMin; bufSize <= bufMax; bufSize++ {
 				t.Run(fmt.Sprintf("buf-%d", bufSize), func(t *testing.T) {
-					t.Logf("\n\n>%s<\n\n", tc.in)
+					t.Parallel()
 
-					// t.Parallel()
 					rdrCount := 0
 					splitter := linesplitreaders.New(strings.NewReader(tc.in))
 					var lines []string
 
-					for splitter.Next() {
+					for splitter.HasMore() {
 						r := splitter.Reader()
 						require.NotNil(t, r)
 						rdrCount++
@@ -254,9 +273,6 @@ func Test_Reader_Read(t *testing.T) {
 								line = append(line, p[:n]...)
 							}
 
-							lineStr := string(line)
-							_ = lineStr
-
 							if err != nil {
 								assert.True(t, errors.Is(err, io.EOF))
 								break
@@ -264,10 +280,7 @@ func Test_Reader_Read(t *testing.T) {
 						}
 
 						// We've hit EOF, so we should have a line
-
 						lines = append(lines, string(line))
-						strLine := string(line)
-						t.Logf(">%s<", strLine)
 						line = nil
 					}
 
@@ -283,17 +296,17 @@ func TestSplitter_Reader_PanicsWhenExistingReaderNotConsumed(t *testing.T) {
 	for _, tc := range []string{"", "a\n", "a\nb\n", "a\r\n"} {
 		t.Run(tc, func(t *testing.T) {
 			splitter := linesplitreaders.New(strings.NewReader(tc))
-			require.True(t, splitter.Next())
-			require.True(t, splitter.Next())
+			require.True(t, splitter.HasMore())
+			require.True(t, splitter.HasMore())
 			_ = splitter.Reader()
 			require.Panics(t, func() {
 				splitter.Reader()
 			})
-			require.True(t, splitter.Next())
+			require.True(t, splitter.HasMore())
 			require.Panics(t, func() {
 				splitter.Reader()
 			})
-			require.True(t, splitter.Next())
+			require.True(t, splitter.HasMore())
 		})
 	}
 }
@@ -330,7 +343,63 @@ func TestSplitter_Reader_Read_ReturnsSameErrorSubsequently(t *testing.T) {
 			require.Error(t, err)
 			require.True(t, errors.Is(err, wantErr))
 
-			require.False(t, splitter.Next())
+			require.False(t, splitter.HasMore())
+		})
+	}
+}
+
+func TestReadAllError(t *testing.T) {
+	input := "a\nb\nc\nd\n\r"
+	want := []string{"a", "b", "c", "d", "\r"}
+	wantErr := errors.New("want error")
+
+	src := ioz.NewErrorAfterBytesReader([]byte(input), wantErr)
+
+	lines, err := linesplitreaders.ReadAll(src)
+	require.Equal(t, want, lines)
+	require.True(t, errors.Is(err, wantErr))
+}
+
+func TestReadAll(t *testing.T) {
+	sentinelErr := errors.New("sentinel error")
+
+	testCases := []struct {
+		src       io.Reader
+		wantLines []string
+		wantErr   error
+	}{
+		{
+			src:       strings.NewReader(""),
+			wantLines: []string{""},
+			wantErr:   nil,
+		},
+		{
+			src:       strings.NewReader("hello"),
+			wantLines: []string{"hello"},
+			wantErr:   nil,
+		},
+		{
+			src:       strings.NewReader("a\nb\nc\nd"),
+			wantLines: []string{"a", "b", "c", "d"},
+			wantErr:   nil,
+		},
+		{
+			src:       ioz.NewErrorAfterBytesReader([]byte("a\nb\nc\nd"), sentinelErr),
+			wantLines: []string{"a", "b", "c", "d"},
+			wantErr:   sentinelErr,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(fmt.Sprintf("case-%d", i), func(t *testing.T) {
+			lines, err := linesplitreaders.ReadAll(tc.src)
+			if tc.wantErr != nil {
+				require.True(t, errors.Is(err, tc.wantErr))
+			} else {
+				require.NoError(t, err)
+			}
+
+			require.Equal(t, tc.wantLines, lines)
 		})
 	}
 }
@@ -346,34 +415,3 @@ type errReader struct {
 func (e errReader) Read([]byte) (n int, err error) {
 	return 0, e.err
 }
-
-// FIXME: figure out iter pattern
-//func TestIters(t *testing.T) {
-//
-//}
-//
-//func PrintPrimes() {
-//	for p := range Primes(Integers()) {
-//		fmt.Println(p)
-//	}
-//}
-//
-//func Primes(src io.Reader) iter.Seq[string] {
-//	b, err := io.ReadAll(src)
-//	if err != nil {
-//		panic(err)
-//	}
-//
-//	strs := strings.Split(string(b), "\n")
-//	_ = strs
-//
-//	return func(yield func(string) bool) {
-//		for n := range seq {
-//			if isPrime(n) {
-//				if !yield(n) {
-//					return
-//				}
-//			}
-//		}
-//	}
-//}

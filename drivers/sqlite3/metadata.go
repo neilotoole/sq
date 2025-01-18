@@ -60,7 +60,7 @@ func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType,
 // setScanType ensures colTypeData.ScanType is set appropriately.
 // If the scan type is nil, a scan type will be set based upon
 // the col kind. The scan type can be nil in the case where rows.ColumnTypes
-// was invoked before rows.Next (this is necessary for an empty table).
+// was invoked before rows.HasMore (this is necessary for an empty table).
 //
 // If the scan type is NOT a sql.NullTYPE, the corresponding sql.NullTYPE will
 // be set.
