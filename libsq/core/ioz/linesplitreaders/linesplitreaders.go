@@ -18,8 +18,9 @@ type Splitter struct {
 	srcErr    error
 	activeRdr *reader
 
-	// advance is set to true when the current a new line is available.
-	advance bool
+	// advanceN is set to true when the current a new line is available.
+	advanceN  bool
+	trailingR bool
 }
 
 func New(src io.Reader) *Splitter {
@@ -51,6 +52,53 @@ type reader struct {
 	err error
 }
 
+func (r *reader) handleReadError(p []byte, n int, err error) (int, error) {
+	if n == 0 {
+		r.err = err
+		r.sc.srcErr = err
+		r.sc.activeRdr = nil
+
+		if r.sc.trailingR {
+			r.sc.trailingR = false
+			p[0] = '\r'
+			return 1, err
+		}
+
+		return 0, err
+	}
+
+	if n == 1 {
+		if p[0] == '\n' {
+			r.sc.trailingR = false
+			r.markReaderEOF()
+			r.sc.srcErr = err
+			return 0, io.EOF
+		}
+		//
+		//return n, err
+	}
+
+	ebr := newErrorBufferReader(p[:n], err)
+	r.sc.src = ebr
+	return 0, nil
+	//
+	//
+	//
+	//if errors.Is(err, io.EOF) {
+	//	if n == 0 {
+	//		return 0, io.EOF
+	//	}
+	//
+	//	if p[n-1] == '\r' {
+	//		r.sc.trailingR = true
+	//	}
+	//
+	//	return n, nil
+	//}
+	//
+	//return n, err
+}
+
 func (r *reader) Read(p []byte) (n int, err error) {
 	if r.sc.srcErr != nil {
 		return 0, r.sc.srcErr
@@ -60,14 +108,63 @@ func (r *reader) Read(p []byte) (n int, err error) {
 		return 0, r.err
 	}
 
+	if len(p) == 0 {
+		return 0, r.err
+	}
+
 	if r.sc.buf.Len() > 0 {
 		return r.handleBuf(p)
 	}
 
 	n, err = r.sc.src.Read(p)
 	if err != nil {
-		r.sc.srcErr = err
-		return n, err
+		return r.handleReadError(p, n, err)
+		//r.sc.srcErr = err
+		//
+		//if errors.Is(err, io.EOF) {
+		//
+		//}
+		//
+		//return n, err
+	}
+
+	if n == 0 { // FIXME: revisit
+		return 0, nil
+	}
+
+	// n >= 1
+	if r.sc.trailingR {
+		r.sc.trailingR = false
+		if n == 1 {
+			if p[0] == '\r' {
+				r.sc.trailingR = true
+				return 1, nil
+			}
+			if p[0] == '\n' {
+				r.markReaderEOF()
+				return 0, io.EOF
+			}
+			// Else, it's a regular character
+			r.sc.buf.WriteByte(p[0])
+			p[0] = '\r'
+			return 1, nil
+		}
+
+		// Else, n > 1
+		if p[0] == '\n' {
+			r.sc.buf.Write(p[1:n])
+			r.markReaderEOF()
+			return 0, io.EOF
+		}
+		if p[0] == '\r' {
+			r.sc.trailingR = true
+			r.sc.buf.Write(p[1:n])
+			return 1, nil
+		}
+
+		r.sc.buf.Write(p[1:n])
+		p[0] = '\r'
+		return 1, nil
 	}
 
 	data := p[:n]
@@ -99,9 +196,9 @@ func (r *reader) handleBuf(p []byte) (n int, err error) {
 		panic("buf is empty")
 	}
 
-	if r.sc.advance {
+	if r.sc.advanceN {
 		r.markReaderEOF()
-		r.sc.advance = false
+		r.sc.advanceN = false
 		return 0, io.EOF
 	}
 
@@ -130,7 +227,7 @@ func (r *reader) handleBuf(p []byte) (n int, err error) {
 		}
 		return n, err
 	case lfi == 0:
-		r.sc.advance = true
+		r.sc.advanceN = true
 		_, _ = r.sc.buf.ReadByte() // Discard the LF
 		return 0, nil
 	// case lfi == len(data)-1:
@@ -155,19 +252,19 @@ func (r *reader) markReaderEOF() {
 }
 
 func (r *reader) handleLeadingLF(p []byte, srcN int) (n int, err error) {
-	if r.sc.advance {
+	if r.sc.advanceN {
 		r.markReaderEOF()
 		_, _ = r.sc.buf.Write(p[1:srcN])
-		r.sc.advance = true
+		r.sc.advanceN = true
 		return 0, io.EOF
 	}
 
 	if srcN == 1 {
-		r.sc.advance = true
+		r.sc.advanceN = true
 		return 0, nil
 	}
 
-	r.sc.advance = true
+	r.sc.advanceN = true
 	_, _ = r.sc.buf.Write(p[1:srcN])
 
 	return 0, nil
@@ -176,7 +273,7 @@ func (r *reader) handleLeadingLF(p []byte, srcN int) (n int, err error) {
 func (r *reader) handleNoLF(p, data []byte, srcN int) (n int, err error) {
 	if srcN == 1 && data[0] == '\r' {
 		// Special case, discard single CR
-
+		r.sc.trailingR = true
 		return 0, nil
 	}
 
@@ -184,8 +281,8 @@ func (r *reader) handleNoLF(p, data []byte, srcN int) (n int, err error) {
 		srcN--
 	}
 
-	if r.sc.advance {
-		r.sc.advance = false
+	if r.sc.advanceN {
+		r.sc.advanceN = false
 		r.markReaderEOF()
 		_, _ = r.sc.buf.Write(p[:srcN])
 		return 0, io.EOF
@@ -195,14 +292,14 @@ func (r *reader) handleNoLF(p, data []byte, srcN int) (n int, err error) {
 }
 
 func (r *reader) handleTrailingLF(p []byte, srcN int) (n int, err error) {
-	if r.sc.advance {
+	if r.sc.advanceN {
 		r.markReaderEOF()
-		r.sc.advance = false
+		r.sc.advanceN = false
 		_, _ = r.sc.buf.Write(p[:srcN])
 		return 0, io.EOF
 	}
 
-	r.sc.advance = true
+	r.sc.advanceN = true
 	if srcN > 1 && p[srcN-2] == '\r' {
 		srcN--
 	}
@@ -211,8 +308,8 @@ func (r *reader) handleTrailingLF(p []byte, srcN int) (n int, err error) {
 }
 
 func (r *reader) handleMiddleLF(p []byte, srcN, lfi int) (n int, err error) {
-	if r.sc.advance {
-		r.sc.advance = false
+	if r.sc.advanceN {
+		r.sc.advanceN = false
 		r.markReaderEOF()
 		_, _ = r.sc.buf.Write(p[:srcN])
 		return 0, io.EOF
@@ -227,8 +324,6 @@ func (r *reader) handleMiddleLF(p []byte, srcN, lfi int) (n int, err error) {
 	}
 
 	return lfi, io.EOF
-
-	//slices.Values()
 }
 
 //func Items() iter.Seq[Item] {
