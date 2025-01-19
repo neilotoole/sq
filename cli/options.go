@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
+
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -203,7 +205,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		tuning.OptRecBufSize,
 		tuning.OptFlushThreshold,
 		tuning.OptBufMemLimit,
-		tuning.OptScanTokenBufLimit,
+		scannerz.OptScanTokenBufLimit,
 		driver.OptIngestHeader,
 		driver.OptIngestCache,
 		files.OptCacheLockTimeout,

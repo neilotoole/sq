@@ -8,6 +8,8 @@ import (
 	"math"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
+
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -53,7 +55,7 @@ func DetectJSONA(sampleSize int) files.TypeDetectFunc {
 		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r2)
 
 		sc := bufio.NewScanner(r2)
-		tuning.ConfigureBufioScanner(ctx, sc)
+		scannerz.ConfigureScanner(ctx, sc)
 
 		var validLines int
 		var line []byte

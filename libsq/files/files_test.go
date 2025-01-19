@@ -137,7 +137,7 @@ func TestFiles_DriverType(t *testing.T) {
 // See: https://github.com/neilotoole/sq/issues/446.
 func TestFiles_Detect_LargeToken(t *testing.T) {
 	blob := generateJSONLinesBlobWithLargeTokens(bufio.MaxScanTokenSize*1.5, 5)
-	//blob := generateJSONLinesBlobWithLargeTokens(10, 5)
+	// blob := generateJSONLinesBlobWithLargeTokens(10, 5)
 
 	f, err := os.Create("testdata/large_token_max.jsonl")
 	require.NoError(t, err)

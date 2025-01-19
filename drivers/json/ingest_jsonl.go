@@ -5,9 +5,10 @@ import (
 	"bytes"
 	"context"
 	stdj "encoding/json"
-	"github.com/neilotoole/sq/libsq/core/tuning"
 	"io"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -48,7 +49,7 @@ func DetectJSONL(sampleSize int) files.TypeDetectFunc {
 		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r2)
 
 		sc := bufio.NewScanner(r2)
-		tuning.ConfigureBufioScanner(ctx, sc)
+		scannerz.ConfigureScanner(ctx, sc)
 		var validLines int
 		var line []byte
 
@@ -243,7 +244,7 @@ type lineScanner struct {
 func newLineScanner(ctx context.Context, r io.Reader, requireAnchor byte) *lineScanner {
 	return &lineScanner{
 		ctx:           ctx,
-		sc:            tuning.ConfigureBufioScanner(ctx, bufio.NewScanner(r)),
+		sc:            scannerz.ConfigureScanner(ctx, bufio.NewScanner(r)),
 		requireAnchor: requireAnchor,
 	}
 }

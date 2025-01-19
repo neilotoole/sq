@@ -9,12 +9,13 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/progress"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
@@ -90,7 +91,7 @@ func DetectJSON(sampleSize int) files.TypeDetectFunc {
 
 			// If the input is all on a single line, then it could be
 			// either JSON or JSONL. For single-line input, prefer JSONL.
-			lineCount := stringz.LineCount(bytes.NewReader(buf.b), true)
+			lineCount := scannerz.LineCount(ctx, bytes.NewReader(buf.b), true)
 			switch lineCount {
 			case -1:
 				// should never happen
