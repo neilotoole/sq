@@ -19,7 +19,7 @@ import (
 var OptScanBufLimit = datasize.NewOpt(
 	"tuning.scan-buffer-limit",
 	nil,
-	datasize.MustParseString("1MB"),
+	datasize.MustParseString("8MB"),
 	"Scan token buffer limit",
 	`Size of the buffer used for scanning tokens.
 
