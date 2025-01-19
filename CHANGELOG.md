@@ -15,9 +15,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   by [`bufio.Scanner`](https://pkg.go.dev/bufio#Scanner), when splitting
   lines from input that was too long (larger than
   [`bufio.MaxScanTokenSize`](https://pkg.go.dev/bufio#MaxScanTokenSize), i.e. `64KB`). This meant that
-  `sq` wasn't able to parse large JSON files, amongst other problems. The buffer size is 
+  `sq` wasn't able to parse large JSON files, amongst other problems. The maximum buffer size is 
   now configurable via the new [`tuning.scan-buffer-limit`](https://sq.io/docs/config#tuning.scan-buffer-limit)
-  option. It defaults to `8MB`.
+  option. Note that the buffer will start small and grow as needed, up to the limit.
 
   ```plaintext
   $ sq config set tuning.scan-buffer-limit 32MB   # or 1024B, 64KB, 1GB, etc.

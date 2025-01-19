@@ -1,13 +1,11 @@
 // Package scannerz contains functionality for scanning data, most specifically
-// for working with bufio.Scanner.
+// for working with bufio.Scanner. See scannerz.NewScanner.
 package scannerz
 
 import (
 	"bufio"
 	"context"
 	"io"
-
-	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/libsq/core/datasize"
 
@@ -19,9 +17,10 @@ import (
 var OptScanBufLimit = datasize.NewOpt(
 	"tuning.scan-buffer-limit",
 	nil,
-	datasize.MustParseString("8MB"),
+	datasize.MustParseString("32MB"),
 	"Scan token buffer limit",
-	`Size of the buffer used for scanning tokens.
+	`Maximum size of the buffer used for scanning tokens. The buffer will start
+small and grow as needed, but will not exceed this limit.
 
 Use units B, KB, MB, GB, etc. For example, 64KB, or 10MB. If no unit specified,
 bytes are assumed.`,
@@ -33,17 +32,12 @@ bytes are assumed.`,
 func NewScanner(ctx context.Context, r io.Reader) *bufio.Scanner {
 	sc := bufio.NewScanner(r)
 
-	opt := OptScanBufLimit.Get(options.FromContext(ctx))
-	limit := opt.Bytes()
-	initialBufSize := uint64(1024 * 64)
-	if initialBufSize > limit {
-		initialBufSize = limit
+	limit := OptScanBufLimit.Get(options.FromContext(ctx)).Bytes()
+	initial := uint64(4096) // 4096 is the default initial bufio.Scanner buffer size.
+	if initial > limit {
+		initial = limit
 	}
 
-	lg.FromContext(ctx).Debug("Configuring bufio.Scanner buffer",
-		"initial", datasize.ByteSize(initialBufSize),
-		"limit", datasize.ByteSize(limit))
-
-	sc.Buffer(make([]byte, int(initialBufSize)), int(limit)) //nolint:gosec // ignore overflow concern
+	sc.Buffer(make([]byte, int(initial)), int(limit)) //nolint:gosec // ignore overflow concern
 	return sc
 }

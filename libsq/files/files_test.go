@@ -1,14 +1,10 @@
 package files_test
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -132,31 +128,6 @@ func TestFiles_DriverType(t *testing.T) {
 			require.Equal(t, tc.wantType, gotType)
 		})
 	}
-}
-
-// See: https://github.com/neilotoole/sq/issues/446.
-func TestFiles_Detect_LargeToken(t *testing.T) {
-	blob := generateJSONLinesBlobWithLargeTokens(bufio.MaxScanTokenSize*1.5, 5)
-	// blob := generateJSONLinesBlobWithLargeTokens(10, 5)
-
-	f, err := os.Create("testdata/large_token_max.jsonl")
-	require.NoError(t, err)
-
-	_, err = f.Write(blob)
-	require.NoError(t, err)
-
-	require.NoError(t, f.Close())
-}
-
-func generateJSONLinesBlobWithLargeTokens(tokenSize, lines int) []byte {
-	buf := &bytes.Buffer{}
-	for i := 0; i < lines; i++ {
-		buf.WriteString(`{"id": "` + strconv.Itoa(i) + `", "name": "`)
-		buf.WriteString(strings.Repeat("x", tokenSize))
-		buf.WriteString(`"}`)
-		buf.WriteString("\n")
-	}
-	return buf.Bytes()
 }
 
 func TestDetectMagicNumber(t *testing.T) {
