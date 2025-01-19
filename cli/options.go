@@ -203,6 +203,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		tuning.OptRecBufSize,
 		tuning.OptFlushThreshold,
 		tuning.OptBufMemLimit,
+		tuning.OptScanTokenBufLimit,
 		driver.OptIngestHeader,
 		driver.OptIngestCache,
 		files.OptCacheLockTimeout,

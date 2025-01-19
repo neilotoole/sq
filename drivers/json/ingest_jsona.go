@@ -53,6 +53,8 @@ func DetectJSONA(sampleSize int) files.TypeDetectFunc {
 		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r2)
 
 		sc := bufio.NewScanner(r2)
+		tuning.ConfigureBufioScanner(ctx, sc)
+
 		var validLines int
 		var line []byte
 
@@ -101,7 +103,7 @@ func DetectJSONA(sampleSize int) files.TypeDetectFunc {
 		}
 
 		if err = sc.Err(); err != nil {
-			return drivertype.None, 0, errz.Err(err)
+			return drivertype.None, 0, errz.Wrap(err, "jsona")
 		}
 
 		if validLines > 0 {

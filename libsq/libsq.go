@@ -162,27 +162,27 @@ func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 	// This next part is a bit ugly.
 	//
 	// For some databases (specifically sqlite), a call to rows.ColumnTypes
-	// before rows.HasMore is first invoked will always return nil for the
-	// scan type of the columns. After rows.HasMore is first invoked, the
+	// before rows.Next is first invoked will always return nil for the
+	// scan type of the columns. After rows.Next is first invoked, the
 	// scan type will then be reported.
 	//
 	// UPDATE: As of mattn/go-sqlite3@v1.14.16 (and probably earlier)
 	// it seems that this behavior may have changed. That is, it seems
 	// that rows.ColumnTypes is now returning values even before the first
-	// rows.HasMore call. It may now be possible to refactor the below code
+	// rows.Next call. It may now be possible to refactor the below code
 	// to remove the double call to rows.ColumnTypes.
 	//
-	// However, there is a snag. Assume an empty table. A call to rows.HasMore
+	// However, there is a snag. Assume an empty table. A call to rows.Next
 	// returns false, and a following call to rows.ColumnTypes will return
-	// an error (because the rows.HasMore call closed rows). But we still need
+	// an error (because the rows.Next call closed rows). But we still need
 	// the column type info even for an empty table, because it's needed
 	// to construct the record.Meta which, amongst other things, is used to
 	// show column header info to the user, which we still want to do even
 	// for an empty table.
 	//
 	// The workaround is that we call rows.ColumnTypes before the call to
-	// rows.HasMore, and if rows.HasMore returns true, we call rows.ColumnTypes
-	// again to get the more-complete []ColumnType. If rows.HasMore returns
+	// rows.Next, and if rows.Next returns true, we call rows.ColumnTypes
+	// again to get the more-complete []ColumnType. If rows.Next returns
 	// false, we still make use of the earlier partially-complete []ColumnType.
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {

@@ -279,7 +279,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 		return 0, errw(err)
 	}
 
-	// HasMore, we extract the table identifier from the CREATE TABLE statement.
+	// Next, we extract the table identifier from the CREATE TABLE statement.
 	// For example, "main"."actor". Note that the schema part may be empty.
 	ogSchema, ogTbl, err := sqlparser.ExtractTableIdentFromCreateTableStmt(ogTblCreateStmt,
 		false)

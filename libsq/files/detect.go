@@ -160,7 +160,7 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 
 			gTyp, gScore, gErr := detectFn(gCtx, newRdrFn)
 			if gErr != nil {
-				return gErr
+				return errz.Wrap(gErr, "detect")
 			}
 
 			if gScore > 0 {
@@ -177,7 +177,7 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 
 	if err = g.Wait(); err != nil {
 		log.Error(err.Error())
-		return drivertype.None, false, errz.Err(err)
+		return drivertype.None, false, err
 	}
 	close(resultCh)
 

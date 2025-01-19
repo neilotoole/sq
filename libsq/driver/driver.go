@@ -102,9 +102,9 @@ type SQLDriver interface {
 	// metadata may differ from the original metadata returned
 	// by rows.ColumnTypes.
 	//
-	// The caller should typically should invoke rows.HasMore before
+	// The caller should typically should invoke rows.Next before
 	// this method is invoked, as some implementations do not return
-	// complete column type info until after the first call to rows.HasMore.
+	// complete column type info until after the first call to rows.Next.
 	//
 	// RecordMeta also returns a NewRecordFunc which can be
 	// applied to the scan row from sql.Rows.

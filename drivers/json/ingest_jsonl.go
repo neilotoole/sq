@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	stdj "encoding/json"
+	"github.com/neilotoole/sq/libsq/core/tuning"
 	"io"
 	"time"
 
@@ -47,6 +48,7 @@ func DetectJSONL(sampleSize int) files.TypeDetectFunc {
 		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r2)
 
 		sc := bufio.NewScanner(r2)
+		tuning.ConfigureBufioScanner(ctx, sc)
 		var validLines int
 		var line []byte
 
@@ -58,7 +60,7 @@ func DetectJSONL(sampleSize int) files.TypeDetectFunc {
 			}
 
 			if err = sc.Err(); err != nil {
-				return drivertype.None, 0, errz.Err(err)
+				return drivertype.None, 0, errz.Wrap(err, "jsonl")
 			}
 
 			line = sc.Bytes()
@@ -239,7 +241,11 @@ type lineScanner struct {
 }
 
 func newLineScanner(ctx context.Context, r io.Reader, requireAnchor byte) *lineScanner {
-	return &lineScanner{ctx: ctx, sc: bufio.NewScanner(r), requireAnchor: requireAnchor}
+	return &lineScanner{
+		ctx:           ctx,
+		sc:            tuning.ConfigureBufioScanner(ctx, bufio.NewScanner(r)),
+		requireAnchor: requireAnchor,
+	}
 }
 
 // next returns the next non-empty line.
@@ -253,11 +259,11 @@ func (ls *lineScanner) next() (hasMore bool, line []byte, err error) {
 
 		hasMore = ls.sc.Scan()
 		if !hasMore {
-			return false, nil, nil
+			return false, nil, errz.Wrap(ls.sc.Err(), "JSON line scan")
 		}
 
 		if err = ls.sc.Err(); err != nil {
-			return false, nil, errz.Err(err)
+			return false, nil, errz.Wrap(err, "JSON line scan")
 		}
 
 		line = ls.sc.Bytes()

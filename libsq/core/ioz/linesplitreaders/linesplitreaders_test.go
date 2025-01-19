@@ -1,9 +1,12 @@
 package linesplitreaders_test
 
 import (
+	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"testing"
 
@@ -220,7 +223,7 @@ func TestSplitter_via_ioReadAll(t *testing.T) {
 
 			sc := linesplitreaders.New(strings.NewReader(tc.in))
 			var lines []string
-			for sc.HasMore() {
+			for sc.Next() {
 				r := sc.Reader()
 				require.NotNil(t, r)
 				rdrCount++
@@ -255,7 +258,7 @@ func TestSplitter_via_Read(t *testing.T) {
 					splitter := linesplitreaders.New(strings.NewReader(tc.in))
 					var lines []string
 
-					for splitter.HasMore() {
+					for splitter.Next() {
 						r := splitter.Reader()
 						require.NotNil(t, r)
 						rdrCount++
@@ -296,17 +299,17 @@ func TestSplitter_Reader_PanicsWhenExistingReaderNotConsumed(t *testing.T) {
 	for _, tc := range []string{"", "a\n", "a\nb\n", "a\r\n"} {
 		t.Run(tc, func(t *testing.T) {
 			splitter := linesplitreaders.New(strings.NewReader(tc))
-			require.True(t, splitter.HasMore())
-			require.True(t, splitter.HasMore())
+			require.True(t, splitter.Next())
+			require.True(t, splitter.Next())
 			_ = splitter.Reader()
 			require.Panics(t, func() {
 				splitter.Reader()
 			})
-			require.True(t, splitter.HasMore())
+			require.True(t, splitter.Next())
 			require.Panics(t, func() {
 				splitter.Reader()
 			})
-			require.True(t, splitter.HasMore())
+			require.True(t, splitter.Next())
 		})
 	}
 }
@@ -334,7 +337,7 @@ func TestSplitter_Reader_Read_ReturnsSameErrorSubsequently(t *testing.T) {
 
 	for _, tc := range []string{"", "a\n", "a\n", "a\r\n"} {
 		t.Run(tc, func(t *testing.T) {
-			splitter := linesplitreaders.New(&errReader{err: wantErr})
+			splitter := linesplitreaders.New(ioz.ErrReader{Err: wantErr})
 			rdr := splitter.Reader()
 			_, err := io.ReadAll(rdr)
 			require.Error(t, err)
@@ -343,7 +346,7 @@ func TestSplitter_Reader_Read_ReturnsSameErrorSubsequently(t *testing.T) {
 			require.Error(t, err)
 			require.True(t, errors.Is(err, wantErr))
 
-			require.False(t, splitter.HasMore())
+			require.False(t, splitter.Next())
 		})
 	}
 }
@@ -355,7 +358,7 @@ func TestReadAllError(t *testing.T) {
 
 	src := ioz.NewErrorAfterBytesReader([]byte(input), wantErr)
 
-	lines, err := linesplitreaders.ReadAll(src)
+	lines, err := linesplitreaders.ReadAllStrings(src)
 	require.Equal(t, want, lines)
 	require.True(t, errors.Is(err, wantErr))
 }
@@ -392,7 +395,7 @@ func TestReadAll(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("case-%d", i), func(t *testing.T) {
-			lines, err := linesplitreaders.ReadAll(tc.src)
+			lines, err := linesplitreaders.ReadAllStrings(tc.src)
 			if tc.wantErr != nil {
 				require.True(t, errors.Is(err, tc.wantErr))
 			} else {
@@ -404,14 +407,215 @@ func TestReadAll(t *testing.T) {
 	}
 }
 
-var _ io.Reader = (*errReader)(nil)
-
-// errReader is an [io.Reader] that always returns an error.
-type errReader struct {
-	err error
+func TestPerf(t *testing.T) {
+	data, lineCount := generateBenchInput(100)
+	src := bytes.NewReader(data)
+	lines, err := linesplitreaders.ReadAllBytes(src)
+	require.NoError(t, err)
+	require.Equal(t, lineCount+1, len(lines))
 }
 
-// Read implements [io.Reader]: it always returns [errReader.Err].
-func (e errReader) Read([]byte) (n int, err error) {
-	return 0, e.err
+func TestGenerateFile(t *testing.T) {
+	fp := "testdata/benchdata.txt"
+	data, lineCount := generateBenchInput(100)
+
+	destFile, err := os.Create(fp)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		assert.NoError(t, destFile.Close())
+	})
+
+	written, err := io.Copy(destFile, bytes.NewReader(data))
+	require.NoError(t, err)
+	t.Logf("Wrote %d lines, %d bytes to %s", lineCount, written, fp)
+}
+
+func TestMemUsage(t *testing.T) {
+	data, wantLineCount := generateBenchInput(100)
+	src := bytes.NewReader(data)
+
+	p := make([]byte, bufio.MaxScanTokenSize)
+
+	splitter := linesplitreaders.New(src)
+	var lineCount int
+	for splitter.Next() {
+		r := splitter.Reader()
+
+		for {
+			_, err := r.Read(p)
+			if errors.Is(err, io.EOF) {
+				lineCount++
+				break
+			}
+			require.NoError(t, err)
+		}
+	}
+
+	require.Equal(t, wantLineCount+1, lineCount)
+}
+
+func TestFileProcessing(t *testing.T) {
+	sep := []byte("\r\n")
+
+	srcFile, err := os.Open("testdata/benchdata.txt")
+	require.NoError(t, err)
+	destFile, err := os.Create("testdata/out-splitter.txt")
+	require.NoError(t, err)
+
+	splitter := linesplitreaders.New(srcFile)
+	for splitter.Next() {
+		rdr := splitter.Reader()
+		_, err = io.Copy(destFile, rdr)
+		require.NoError(t, err)
+		_, err = destFile.Write(sep)
+		require.NoError(t, err)
+	}
+
+	assert.NoError(t, srcFile.Close())
+	assert.NoError(t, destFile.Close())
+}
+
+func BenchmarkFileProcessing(b *testing.B) {
+	// NOTE: benchmarks are reporting perf an order of magnitude
+	// worse than stdlib's bufio.Scanner.
+	sep := []byte("\r\n")
+
+	b.Run("splitter", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			srcFile, err := os.Open("testdata/benchdata.txt")
+			require.NoError(b, err)
+			destFile, err := os.Create("testdata/out-splitter.txt")
+			require.NoError(b, err)
+
+			splitter := linesplitreaders.New(srcFile)
+			for splitter.Next() {
+				rdr := splitter.Reader()
+				_, err = io.Copy(destFile, rdr)
+				require.NoError(b, err)
+				_, err = destFile.Write(sep)
+				require.NoError(b, err)
+			}
+
+			assert.NoError(b, srcFile.Close())
+			assert.NoError(b, destFile.Close())
+		}
+	})
+
+	b.Run("scanner", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			srcFile, err := os.Open("testdata/benchdata.txt")
+			require.NoError(b, err)
+			destFile, err := os.Create("testdata/out-splitter.txt")
+			require.NoError(b, err)
+
+			sc := bufio.NewScanner(srcFile)
+			for sc.Scan() {
+				_, err = destFile.Write(sc.Bytes())
+				require.NoError(b, err)
+				_, err = destFile.Write(sep)
+				require.NoError(b, err)
+			}
+
+			assert.NoError(b, sc.Err())
+
+			assert.NoError(b, srcFile.Close())
+			assert.NoError(b, destFile.Close())
+		}
+	})
+}
+
+func BenchmarkSplitterVsScanner(b *testing.B) {
+	// NOTE: benchmarks are reporting perf an order of magnitude
+	// worse than stdlib's bufio.Scanner.
+
+	data, lineCount := generateBenchInput(250)
+
+	b.Run("splitter-strings", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			src := bytes.NewReader(data)
+			lines, err := linesplitreaders.ReadAllStrings(src)
+			if err != nil {
+				b.Error(err)
+			}
+			require.True(b, len(lines) > 0)
+			require.Equal(b, lineCount+1, len(lines))
+		}
+	})
+
+	b.Run("splitter-bytes", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			src := bytes.NewReader(data)
+			lines, err := linesplitreaders.ReadAllBytes(src)
+			if err != nil {
+				b.Error(err)
+			}
+			require.True(b, len(lines) > 0)
+			require.Equal(b, lineCount+1, len(lines))
+		}
+	})
+
+	b.Run("scanner", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			src := bytes.NewReader(data)
+			lines, err := scannerReadAll(src)
+			if err != nil {
+				b.Error(err)
+			}
+			require.True(b, len(lines) > 0)
+			require.Equal(b, lineCount, len(lines))
+		}
+	})
+}
+
+func generateBenchInput(n int) (data []byte, lineCount int) {
+	token := bytes.Repeat([]byte("a"), bufio.MaxScanTokenSize/2)
+	for i := 0; i < n*100; i++ {
+		data = append(data, token...)
+		data = append(data, '\n')
+		lineCount++
+	}
+
+	return data, lineCount
+}
+
+// TestVerifyBufioScannerMaxScanTokenSize is a sanity check that verifies
+// bufio.Scanner's MaxScanTokenSize behavior.
+func TestVerifyBufioScannerMaxScanTokenSize(t *testing.T) {
+	sb := strings.Builder{}
+	wantLine := strings.Repeat("a", bufio.MaxScanTokenSize*2)
+
+	for i := 0; i < 5; i++ {
+		sb.WriteString(wantLine)
+		sb.WriteRune('\n')
+	}
+
+	require.True(t, sb.Len() > bufio.MaxScanTokenSize)
+
+	lines, err := scannerReadAll(strings.NewReader(sb.String()))
+	require.True(t, errors.Is(err, bufio.ErrTooLong))
+	require.Nil(t, lines)
+}
+
+func scannerReadAll(src io.Reader) ([]string, error) {
+	sc := bufio.NewScanner(src)
+	var lines []string
+	for sc.Scan() {
+		lines = append(lines, sc.Text())
+	}
+	return lines, sc.Err()
 }

@@ -2,6 +2,8 @@
 package tuning
 
 import (
+	"bufio"
+	"context"
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -61,3 +63,20 @@ var OptBufMemLimit = options.NewInt(
 	`Size in bytes after which in-memory temp buffers overflow to disk.`,
 	options.TagTuning,
 )
+
+var OptScanTokenBufLimit = options.NewInt(
+	"tuning.scan-token-buffer-limit",
+	nil,
+	1000*1000, // 1MB
+	"Scan token buffer limit",
+	`Size in bytes of the buffer used for scanning tokens.`,
+	options.TagTuning,
+)
+
+// ConfigureBufioScanner configures the bufio.Scanner sc with the buffer
+// size taken from OptScanTokenBufLimit. The configured scanner is returned
+// for fluency.
+func ConfigureBufioScanner(ctx context.Context, sc *bufio.Scanner) *bufio.Scanner {
+	sc.Buffer(make([]byte, 1024*64), OptScanTokenBufLimit.Get(options.FromContext(ctx)))
+	return sc
+}
