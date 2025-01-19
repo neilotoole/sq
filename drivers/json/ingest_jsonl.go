@@ -48,8 +48,7 @@ func DetectJSONL(sampleSize int) files.TypeDetectFunc {
 		}
 		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r2)
 
-		sc := bufio.NewScanner(r2)
-		scannerz.ConfigureScanner(ctx, sc)
+		sc := scannerz.NewScanner(ctx, r2)
 		var validLines int
 		var line []byte
 
@@ -244,7 +243,7 @@ type lineScanner struct {
 func newLineScanner(ctx context.Context, r io.Reader, requireAnchor byte) *lineScanner {
 	return &lineScanner{
 		ctx:           ctx,
-		sc:            scannerz.ConfigureScanner(ctx, bufio.NewScanner(r)),
+		sc:            scannerz.NewScanner(ctx, r),
 		requireAnchor: requireAnchor,
 	}
 }

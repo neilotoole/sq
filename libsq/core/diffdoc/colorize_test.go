@@ -2,6 +2,7 @@ package diffdoc_test
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 	"testing"
@@ -19,7 +20,7 @@ func TestNewColorizer(t *testing.T) {
 	require.NoError(t, err)
 
 	clrs := diffdoc.NewColors()
-	r := diffdoc.NewColorizer(clrs, f)
+	r := diffdoc.NewColorizer(context.Background(), clrs, f)
 
 	got := &bytes.Buffer{}
 	require.NoError(t, err)

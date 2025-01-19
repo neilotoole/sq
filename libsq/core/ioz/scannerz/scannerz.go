@@ -19,17 +19,10 @@ var OptScanTokenBufLimit = options.NewInt(
 	options.TagTuning,
 )
 
-// ConfigureScanner configures the bufio.Scanner sc with the buffer
-// size taken from OptScanTokenBufLimit. The configured scanner is returned
-// for fluency.
-func ConfigureScanner(ctx context.Context, sc *bufio.Scanner) *bufio.Scanner {
-	sc.Buffer(make([]byte, 1024*64), OptScanTokenBufLimit.Get(options.FromContext(ctx)))
-	return sc
-}
-
-// NewScanner returns a new bufio.Scanner configured via ConfigureScanner.
+// NewScanner returns a new bufio.Scanner configured via OptScanTokenBufLimit
+// set on ctx.
 func NewScanner(ctx context.Context, r io.Reader) *bufio.Scanner {
 	sc := bufio.NewScanner(r)
-	ConfigureScanner(ctx, sc)
+	sc.Buffer(make([]byte, 1024*64), OptScanTokenBufLimit.Get(options.FromContext(ctx)))
 	return sc
 }

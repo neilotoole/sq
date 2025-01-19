@@ -1,12 +1,14 @@
 package sqlparser
 
 import (
-	"bufio"
 	"bytes"
+	"context"
 	"io"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
@@ -34,7 +36,9 @@ const (
 // It currently only works if the delimiters are at the
 // end of the line. Also, its ability to detect the correct
 // statement type is limited.
-func SplitSQL(input io.Reader, delim string, moreDelims ...string) (stmts []string, types []StmtType, err error) {
+func SplitSQL(ctx context.Context, input io.Reader, delim string,
+	moreDelims ...string,
+) (stmts []string, types []StmtType, err error) {
 	// NOTE: There are parser libraries such as xwb1989/sqlparser
 	//  but from a quick look, it seems that they cannot parse
 	//  all SQL dialects. Also, the input->parse->output process
@@ -51,7 +55,7 @@ func SplitSQL(input io.Reader, delim string, moreDelims ...string) (stmts []stri
 		return nil, types, errz.Err(err)
 	}
 
-	scanner := bufio.NewScanner(bytes.NewReader(data))
+	scanner := scannerz.NewScanner(ctx, bytes.NewReader(data))
 	sb := strings.Builder{}
 
 	// First pass, ditch comments and empty lines
@@ -80,7 +84,7 @@ func SplitSQL(input io.Reader, delim string, moreDelims ...string) (stmts []stri
 	firstPassResult := sb.String()
 
 	// Second pass, split her up by delim at end of line
-	scanner = bufio.NewScanner(strings.NewReader(firstPassResult))
+	scanner = scannerz.NewScanner(ctx, strings.NewReader(firstPassResult))
 	buf := &bytes.Buffer{}
 
 	for scanner.Scan() {

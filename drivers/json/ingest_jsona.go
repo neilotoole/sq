@@ -1,7 +1,6 @@
 package json
 
 import (
-	"bufio"
 	"context"
 	stdj "encoding/json"
 	"io"
@@ -54,8 +53,7 @@ func DetectJSONA(sampleSize int) files.TypeDetectFunc {
 		}
 		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r2)
 
-		sc := bufio.NewScanner(r2)
-		scannerz.ConfigureScanner(ctx, sc)
+		sc := scannerz.NewScanner(ctx, r2)
 
 		var validLines int
 		var line []byte
@@ -205,7 +203,7 @@ func startInsertJSONA(ctx context.Context, recordCh chan<- record.Record, errCh 
 ) error {
 	defer close(recordCh)
 
-	sc := bufio.NewScanner(r)
+	sc := scannerz.NewScanner(ctx, r)
 	var line []byte
 	var err error
 
@@ -275,7 +273,7 @@ func detectColKindsJSONA(ctx context.Context, r io.Reader, sampleSize int) ([]ki
 		mungeFns   []kind.MungeFunc
 	)
 
-	sc := bufio.NewScanner(r)
+	sc := scannerz.NewScanner(ctx, r)
 	for sc.Scan() {
 		select {
 		case <-ctx.Done():

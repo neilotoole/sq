@@ -6,6 +6,8 @@ import (
 	"context"
 	"io"
 
+	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
+
 	"github.com/neilotoole/sq/libsq/core/colorz"
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
@@ -17,13 +19,13 @@ type colorizer struct {
 	hasData bool
 }
 
-func NewColorizer(clrs *Colors, src io.Reader) io.Reader {
+func NewColorizer(ctx context.Context, clrs *Colors, src io.Reader) io.Reader {
 	if src == nil || clrs == nil || clrs.IsMonochrome() {
 		return src
 	}
 
 	c := &colorizer{
-		sc:      bufio.NewScanner(src),
+		sc:      scannerz.NewScanner(ctx, src),
 		buf:     &bytes.Buffer{},
 		hasData: true,
 		clrs:    *clrs.codes(),
@@ -167,7 +169,7 @@ func ColorizeHunks(ctx context.Context, w io.Writer, clrs *Colors, hunks io.Read
 		printNormal  = colorz.NewPrinter(clrs.Context).Line
 	)
 
-	sc := bufio.NewScanner(hunks)
+	sc := scannerz.NewScanner(ctx, hunks)
 	var line []byte
 	for sc.Scan() {
 		if ctx.Err() != nil {
