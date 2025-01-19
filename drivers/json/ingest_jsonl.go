@@ -89,7 +89,7 @@ func DetectJSONL(sampleSize int) files.TypeDetectFunc {
 		}
 
 		if err = sc.Err(); err != nil {
-			return drivertype.None, 0, errz.Err(err)
+			return drivertype.None, 0, errz.Wrap(err, "jsonl")
 		}
 
 		if validLines > 0 {

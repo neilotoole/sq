@@ -114,7 +114,7 @@ func DetectJSON(sampleSize int) files.TypeDetectFunc {
 
 		r3, err = newRdrFn(ctx)
 		if err != nil {
-			return drivertype.None, 0, errz.Err(err)
+			return drivertype.None, 0, errz.Wrap(err, "json")
 		}
 		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r3)
 

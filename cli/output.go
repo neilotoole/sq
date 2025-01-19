@@ -467,7 +467,7 @@ func getOutputConfig(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup
 	pr.ExcelTimeFormat = xlsxw.OptTimeFormat.Get(o)
 
 	pr.Verbose = OptVerbose.Get(o)
-	pr.FlushThreshold = tuning.OptFlushThreshold.Get(o)
+	pr.FlushThreshold = int(tuning.OptFlushThreshold.Get(o).Bytes()) //nolint:gosec // ignore overflow concern
 	pr.Compact = OptCompact.Get(o)
 	pr.Redact = OptRedact.Get(o)
 

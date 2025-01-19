@@ -7,22 +7,43 @@ import (
 	"context"
 	"io"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
+
+	"github.com/neilotoole/sq/libsq/core/datasize"
+
 	"github.com/neilotoole/sq/libsq/core/options"
 )
 
-var OptScanTokenBufLimit = options.NewInt(
-	"tuning.scan-token-buffer-limit",
+// OptScanBufLimit is an Opt for configuring the buffer size of a bufio.Scanner
+// returned from scannerz.NewScanner.
+var OptScanBufLimit = datasize.NewOpt(
+	"tuning.scan-buffer-limit",
 	nil,
-	1000*1000, // 1MB
+	datasize.MustParseString("1MB"),
 	"Scan token buffer limit",
-	`Size in bytes of the buffer used for scanning tokens.`,
+	`Size of the buffer used for scanning tokens.
+
+Use units B, KB, MB, GB, etc. For example, 64KB, or 10MB. If no unit specified,
+bytes are assumed.`,
 	options.TagTuning,
 )
 
-// NewScanner returns a new bufio.Scanner configured via OptScanTokenBufLimit
+// NewScanner returns a new bufio.Scanner configured via OptScanBufLimit
 // set on ctx.
 func NewScanner(ctx context.Context, r io.Reader) *bufio.Scanner {
 	sc := bufio.NewScanner(r)
-	sc.Buffer(make([]byte, 1024*64), OptScanTokenBufLimit.Get(options.FromContext(ctx)))
+
+	opt := OptScanBufLimit.Get(options.FromContext(ctx))
+	limit := opt.Bytes()
+	initialBufSize := uint64(1024 * 64)
+	if initialBufSize > limit {
+		initialBufSize = limit
+	}
+
+	lg.FromContext(ctx).Debug("Configuring bufio.Scanner buffer",
+		"initial", datasize.ByteSize(initialBufSize),
+		"limit", datasize.ByteSize(limit))
+
+	sc.Buffer(make([]byte, int(initialBufSize)), int(limit)) //nolint:gosec // ignore overflow concern
 	return sc
 }

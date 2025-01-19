@@ -286,7 +286,7 @@ func detectColKindsJSONA(ctx context.Context, r io.Reader, sampleSize int) ([]ki
 		}
 
 		if err = sc.Err(); err != nil {
-			return nil, nil, errz.Err(err)
+			return nil, nil, errz.Wrap(err, "jsona")
 		}
 
 		line = sc.Bytes()
@@ -300,7 +300,7 @@ func detectColKindsJSONA(ctx context.Context, r io.Reader, sampleSize int) ([]ki
 
 		// Each line of JSONA must open with left bracket
 		if line[0] != '[' {
-			return nil, nil, errz.New("line does not begin with left bracket '['")
+			return nil, nil, errz.New("jsona: line does not begin with left bracket '['")
 		}
 
 		// If the line is JSONA, it should marshall into []any
@@ -311,7 +311,7 @@ func detectColKindsJSONA(ctx context.Context, r io.Reader, sampleSize int) ([]ki
 		}
 
 		if len(vals) == 0 {
-			return nil, nil, errz.Errorf("zero field count at line %d", totalLineCount)
+			return nil, nil, errz.Errorf("jsona: zero field count at line %d", totalLineCount)
 		}
 
 		if kinds == nil {
@@ -324,7 +324,7 @@ func detectColKindsJSONA(ctx context.Context, r io.Reader, sampleSize int) ([]ki
 		}
 
 		if len(vals) != len(kinds) {
-			return nil, nil, errz.Errorf("inconsistent field count: expected %d but got %d at line %d",
+			return nil, nil, errz.Errorf("jsona: inconsistent field count: expected %d but got %d at line %d",
 				len(kinds), len(vals), totalLineCount)
 		}
 
@@ -335,7 +335,7 @@ func detectColKindsJSONA(ctx context.Context, r io.Reader, sampleSize int) ([]ki
 	}
 
 	if jLineCount == 0 {
-		return nil, nil, errz.New("empty JSONA input")
+		return nil, nil, errz.New("jsona: empty JSONA input")
 	}
 
 	for i := range kinds {
