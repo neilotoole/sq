@@ -1,6 +1,7 @@
 package sqlparser_test
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -195,7 +196,12 @@ func TestSplitInput(t *testing.T) {
 			for _, tc := range testGroup {
 				tc := tc
 				t.Run(tc.name, func(t *testing.T) {
-					stmts, stmtTypes, err := sqlparser.SplitSQL(strings.NewReader(tc.input), tc.delim, tc.moreDelims...)
+					stmts, stmtTypes, err := sqlparser.SplitSQL(
+						context.Background(),
+						strings.NewReader(tc.input),
+						tc.delim,
+						tc.moreDelims...,
+					)
 					require.NoError(t, err)
 					require.Equal(t, tc.wantCount, len(stmts))
 					require.Equal(t, len(stmts), len(stmtTypes))

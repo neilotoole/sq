@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
+
 	"github.com/fatih/color"
 	colorable "github.com/mattn/go-colorable"
 	wordwrap "github.com/mitchellh/go-wordwrap"
@@ -31,7 +33,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/termz"
 	"github.com/neilotoole/sq/libsq/core/timez"
 	"github.com/neilotoole/sq/libsq/core/tuning"
@@ -138,9 +139,11 @@ sampled, and reported on exit. If zero, memory usage sampling is disabled.`,
 		options.TagOutput,
 	)
 
-	timeLayoutsList = "Predefined values:\n" + stringz.IndentLines(
+	timeLayoutsList = "Predefined values:\n" + scannerz.IndentLines(
+		context.Background(),
 		wordwrap.WrapString(strings.Join(timez.NamedLayouts(), ", "), 64),
-		"  ")
+		"  ",
+	)
 
 	OptDatetimeFormat = options.NewString(
 		"format.datetime",
@@ -464,7 +467,7 @@ func getOutputConfig(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup
 	pr.ExcelTimeFormat = xlsxw.OptTimeFormat.Get(o)
 
 	pr.Verbose = OptVerbose.Get(o)
-	pr.FlushThreshold = tuning.OptFlushThreshold.Get(o)
+	pr.FlushThreshold = int(tuning.OptFlushThreshold.Get(o).Bytes()) //nolint:gosec // ignore overflow concern
 	pr.Compact = OptCompact.Get(o)
 	pr.Redact = OptRedact.Get(o)
 

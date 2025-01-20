@@ -9,12 +9,13 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/progress"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
@@ -31,14 +32,24 @@ func DetectJSON(sampleSize int) files.TypeDetectFunc {
 			log.Debug("JSON detection complete", lga.Elapsed, time.Since(start), lga.Score, score)
 		}()
 
-		var r1, r2 io.ReadCloser
+		var r1, r2, r3 io.ReadCloser
+
 		r1, err = newRdrFn(ctx)
 		if err != nil {
 			return drivertype.None, 0, errz.Err(err)
 		}
 		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r1)
+		if cannotBeJSON(r1) {
+			return drivertype.None, 0, nil
+		}
 
-		dec := stdj.NewDecoder(r1)
+		r2, err = newRdrFn(ctx)
+		if err != nil {
+			return drivertype.None, 0, errz.Err(err)
+		}
+		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r2)
+
+		dec := stdj.NewDecoder(r2)
 		var tok stdj.Token
 		tok, err = dec.Token()
 		if err != nil {
@@ -55,7 +66,7 @@ func DetectJSON(sampleSize int) files.TypeDetectFunc {
 			return drivertype.None, 0, nil
 		case leftBrace:
 			// The input is a single JSON object
-			r2, err = newRdrFn(ctx)
+			r3, err = newRdrFn(ctx)
 
 			// buf gets a copy of what is read from r2
 			buf := &buffer{}
@@ -63,9 +74,9 @@ func DetectJSON(sampleSize int) files.TypeDetectFunc {
 			if err != nil {
 				return drivertype.None, 0, errz.Err(err)
 			}
-			defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r2)
+			defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r3)
 
-			dec = stdj.NewDecoder(io.TeeReader(r2, buf))
+			dec = stdj.NewDecoder(io.TeeReader(r3, buf))
 			var m map[string]any
 			err = dec.Decode(&m)
 			if err != nil {
@@ -80,7 +91,7 @@ func DetectJSON(sampleSize int) files.TypeDetectFunc {
 
 			// If the input is all on a single line, then it could be
 			// either JSON or JSONL. For single-line input, prefer JSONL.
-			lineCount := stringz.LineCount(bytes.NewReader(buf.b), true)
+			lineCount := scannerz.LineCount(ctx, bytes.NewReader(buf.b), true)
 			switch lineCount {
 			case -1:
 				// should never happen
@@ -101,13 +112,13 @@ func DetectJSON(sampleSize int) files.TypeDetectFunc {
 			// The input is one or more JSON objects inside an array
 		}
 
-		r2, err = newRdrFn(ctx)
+		r3, err = newRdrFn(ctx)
 		if err != nil {
-			return drivertype.None, 0, errz.Err(err)
+			return drivertype.None, 0, errz.Wrap(err, "json")
 		}
-		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r2)
+		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r3)
 
-		sc := newObjectInArrayScanner(log, r2)
+		sc := newObjectInArrayScanner(log, r3)
 		var validObjCount int
 		var obj map[string]any
 

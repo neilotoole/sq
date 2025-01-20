@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
+## Upcoming
+
+### Fixed
+
+- [#446]: A [`bufio.ErrTooLong`](https://pkg.go.dev/bufio#ErrTooLong) was being returned
+  by [`bufio.Scanner`](https://pkg.go.dev/bufio#Scanner), when splitting
+  lines from input that was too long (larger than
+  [`bufio.MaxScanTokenSize`](https://pkg.go.dev/bufio#MaxScanTokenSize), i.e. `64KB`). This meant that
+  `sq` wasn't able to parse large JSON files, amongst other problems. The maximum buffer size is 
+  now configurable via the new [`tuning.scan-buffer-limit`](https://sq.io/docs/config/#tuningscan-buffer-limit)
+  option. Note that the buffer will start small and grow as needed, up to the limit.
+
+  ```plaintext
+  $ sq config set tuning.scan-buffer-limit 64MB   # or 1024B, 64KB, 1GB, etc.
+  ```
+  A more useful error message is also now returned when the buffer limit is exceeded
+  (the error suggests adjusting `tuning.scan-buffer-limit`).
+
+### Changed
+
+- Renamed config option `tuning.buffer-mem-limit` to [`tuning.buffer-spill-limit`](https://sq.io/docs/config/#tuningbuffer-spill-limit).
+  The new name better reflects the purpose of the option.
+
+  
 ## [v0.48.4] - 2024-11-24
 
 ### Changed
@@ -1219,6 +1243,7 @@ make working with lots of sources much easier.
 [#340]: https://github.com/neilotoole/sq/pull/340
 [#353]: https://github.com/neilotoole/sq/issues/353
 [#415]: https://github.com/neilotoole/sq/issues/415
+[#446]: https://github.com/neilotoole/sq/issues/446
 
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2

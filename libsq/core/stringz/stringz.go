@@ -11,12 +11,10 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
-	"text/template"
 	"time"
 	"unicode"
 	"unsafe"
 
-	sprig "github.com/Masterminds/sprig/v3"
 	"github.com/alessio/shellescape"
 	"github.com/google/uuid"
 	"github.com/samber/lo"
@@ -494,39 +492,6 @@ func ElementsHavingPrefix(a []string, prefix string) []string {
 	return lo.Filter(a, func(item string, _ int) bool {
 		return strings.HasPrefix(item, prefix)
 	})
-}
-
-// NewTemplate returns a new text template, with the sprig
-// functions already loaded.
-func NewTemplate(name, tpl string) (*template.Template, error) {
-	t, err := template.New(name).Funcs(sprig.FuncMap()).Parse(tpl)
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-	return t, nil
-}
-
-// ValidTemplate is a convenience wrapper around NewTemplate. It
-// returns an error if the tpl is not a valid text template.
-func ValidTemplate(name, tpl string) error {
-	_, err := NewTemplate(name, tpl)
-	return err
-}
-
-// ExecuteTemplate is a convenience function that constructs
-// and executes a text template, returning the string value.
-func ExecuteTemplate(name, tpl string, data any) (string, error) {
-	t, err := NewTemplate(name, tpl)
-	if err != nil {
-		return "", err
-	}
-
-	buf := &bytes.Buffer{}
-	if err = t.Execute(buf, data); err != nil {
-		return "", err
-	}
-
-	return buf.String(), nil
 }
 
 // ShellEscape escapes s, making it safe to pass to a shell.

@@ -2,6 +2,7 @@ package ioz_test
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -75,4 +76,14 @@ func TestRenameDir(t *testing.T) {
 	// Rename dir2 into dir1.
 	err = ioz.RenameDir(dir2, dir1)
 	require.NoError(t, err)
+}
+
+func TestNewErrorAfterBytesReader(t *testing.T) {
+	wantErr := errors.New("huzzah")
+	input := ""
+
+	rdr := ioz.NewErrorAfterBytesReader([]byte(input), wantErr)
+	got, err := io.ReadAll(rdr)
+	require.Equal(t, input, string(got))
+	require.True(t, errors.Is(err, wantErr))
 }

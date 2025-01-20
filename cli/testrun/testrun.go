@@ -6,11 +6,15 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/itchyny/gojq"
+	"github.com/neilotoole/sq/libsq/core/errz"
 
 	"github.com/stretchr/testify/require"
 
@@ -283,6 +287,69 @@ func (tr *TestRun) BindCSV() [][]string {
 	recs, err := csv.NewReader(tr.Out).ReadAll()
 	require.NoError(tr.T, err)
 	return recs
+}
+
+// JQ executes the jq query against the output (which must be JSON), returning
+// the result. Example:
+//
+//	tr := testrun.New(ctx, t, nil)
+//	require.NoError(t, tr.Exec(".actor", "--json"))
+//	got := tr.JQ(".[0].first_name")
+//	require.Equal(t, "PENELOPE", got)
+//
+// The JQ functionality is provided by the "github.com/itchyny/gojq" package.
+func (tr *TestRun) JQ(query string) any {
+	tr.mu.Lock()
+	defer tr.mu.Unlock()
+	tr.T.Helper()
+
+	return execJQ(tr.T, tr.Out.Bytes(), query)
+}
+
+func execJQ(tb testing.TB, blob []byte, query string) any {
+	tb.Helper()
+
+	q, err := gojq.Parse(query)
+	require.NoError(tb, err)
+
+	var obj any
+	obj = map[string]any{}
+	err = json.Unmarshal(blob, &obj)
+	if err != nil && errz.Has[*json.UnmarshalTypeError](err) {
+		obj = []any{}
+		err = json.Unmarshal(blob, &obj)
+		require.NoError(tb, err)
+	}
+
+	iter := q.Run(obj)
+	var count int
+
+	var results []any
+
+	for {
+		v, ok := iter.Next()
+		if !ok {
+			break
+		}
+		if err, ok = v.(error); ok {
+			var haltErr *gojq.HaltError
+			if errors.As(err, &haltErr) && haltErr.Value() == nil {
+				break
+			}
+			require.NoError(tb, err)
+		}
+		count++
+		results = append(results, v)
+	}
+
+	switch count {
+	case 0:
+		return nil
+	case 1:
+		return results[0]
+	default:
+		return results
+	}
 }
 
 // OutString returns the contents of tr.Out as a string,

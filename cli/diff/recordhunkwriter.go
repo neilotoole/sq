@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
+
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -107,7 +109,7 @@ func (wa *recordHunkWriterAdapter) WriteHunk(ctx context.Context, hunk *diffdoc.
 
 	// Trim the diff "file header"... ultimately, we should change ComputeUnified
 	// to not return this (e.g. add an arg "noHeader=true")
-	trimmed := stringz.TrimHead(unified, 2)
+	trimmed := scannerz.TrimHead(ctx, unified, 2)
 
 	var ok bool
 	if hunkHeader, hunkBody, ok = strings.Cut(trimmed, "\n"); !ok {

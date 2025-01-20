@@ -1,11 +1,12 @@
 package tablew
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"fmt"
 	"slices"
+
+	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
 
 	"github.com/neilotoole/sq/cli/diff"
 	"github.com/neilotoole/sq/cli/output"
@@ -136,8 +137,8 @@ func (dw *diffWriter) writeDifferent(ctx context.Context, dest *diffdoc.Hunk,
 		return
 	}
 
-	sc1 := bufio.NewScanner(buf1)
-	sc2 := bufio.NewScanner(buf2)
+	sc1 := scannerz.NewScanner(ctx, buf1)
+	sc2 := scannerz.NewScanner(ctx, buf2)
 	var line []byte
 	var i, j, k int
 	for i = 0; i < len(pairs) && ctx.Err() == nil; i++ {
@@ -261,7 +262,7 @@ func (dw *diffWriter) writeEqualish(ctx context.Context, dest *diffdoc.Hunk,
 	buf1 := &bytes.Buffer{}
 	buf2 := &bytes.Buffer{}
 
-	sc := bufio.NewScanner(bufAllRecs)
+	sc := scannerz.NewScanner(ctx, bufAllRecs)
 	var i, j, k int
 	for i = 0; ctx.Err() == nil && i < len(recs1) && sc.Scan(); i++ {
 		_, _ = buf1.Write(sc.Bytes())
@@ -281,8 +282,8 @@ func (dw *diffWriter) writeEqualish(ctx context.Context, dest *diffdoc.Hunk,
 		return
 	}
 
-	sc1 := bufio.NewScanner(buf1)
-	sc2 := bufio.NewScanner(buf2)
+	sc1 := scannerz.NewScanner(ctx, buf1)
+	sc2 := scannerz.NewScanner(ctx, buf2)
 	var line []byte
 
 	for i = 0; i < len(pairs) && ctx.Err() == nil; i++ {

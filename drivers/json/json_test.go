@@ -20,6 +20,8 @@ import (
 func TestDriverDetectorFuncs(t *testing.T) {
 	const sampleSize = 1000
 
+	randomBinaryFilename := filepath.Base(tu.GenerateBinaryFile(t, "testdata", 1<<30, true)) // 1GB
+
 	detectFns := map[drivertype.Type]files.TypeDetectFunc{ //nolint:exhaustive
 		drivertype.JSON:  json.DetectJSON(sampleSize),
 		drivertype.JSONA: json.DetectJSONA(sampleSize),
@@ -55,6 +57,8 @@ func TestDriverDetectorFuncs(t *testing.T) {
 		{fn: drivertype.JSON, fname: "payment.jsonl"},
 		{fn: drivertype.JSON, fname: "jsonl_good_1.jsonl"},
 		{fn: drivertype.JSON, fname: "jsonl_bad_1.jsonl"},
+		{fn: drivertype.JSON, fname: randomBinaryFilename},
+		{fn: drivertype.JSON, fname: "empty.file"},
 
 		// JSONA detector
 		{fn: drivertype.JSONA, fname: "actor.jsona", want: drivertype.JSONA},
@@ -72,6 +76,9 @@ func TestDriverDetectorFuncs(t *testing.T) {
 		{fn: drivertype.JSONA, fname: "payment.jsonl"},
 		{fn: drivertype.JSONA, fname: "jsonl_good_1.jsonl"},
 		{fn: drivertype.JSONA, fname: "jsonl_bad_1.jsonl"},
+		{fn: drivertype.JSONA, fname: randomBinaryFilename},
+		{fn: drivertype.JSONA, fname: "empty.file"},
+
 		// JSONL detector
 		{fn: drivertype.JSONL, fname: "actor.jsonl", want: drivertype.JSONL},
 		{fn: drivertype.JSONL, fname: "jsonl_good_1.jsonl", want: drivertype.JSONL},
@@ -86,6 +93,8 @@ func TestDriverDetectorFuncs(t *testing.T) {
 		{fn: drivertype.JSONL, fname: "payment.jsonl", want: drivertype.JSONL},
 		{fn: drivertype.JSONL, fname: "payment.jsona"},
 		{fn: drivertype.JSONL, fname: "payment.json"},
+		{fn: drivertype.JSONL, fname: randomBinaryFilename},
+		{fn: drivertype.JSONL, fname: "empty.file"},
 	}
 
 	for _, tc := range testCases {

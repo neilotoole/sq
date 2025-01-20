@@ -1,10 +1,11 @@
 package cli
 
 import (
-	"bufio"
 	"bytes"
 	"os"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
 
 	"github.com/spf13/cobra"
 
@@ -165,7 +166,7 @@ func execConfigEditSource(cmd *cobra.Command, args []string) error {
 	}
 
 	// Add indentation
-	sc := bufio.NewScanner(strings.NewReader(optionsText))
+	sc := scannerz.NewScanner(ctx, strings.NewReader(optionsText))
 	var line string
 	for sc.Scan() {
 		line = sc.Text()
