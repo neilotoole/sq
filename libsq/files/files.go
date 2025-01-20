@@ -116,7 +116,7 @@ func New(ctx context.Context, optReg *options.Registry, cfgLock lockfile.LockFun
 	var err error
 	if fs.fileBufs, err = ioz.NewBuffers(
 		filepath.Join(tmpDir, fmt.Sprintf("filebuf_%d_%s", os.Getpid(), stringz.Uniq8())),
-		tuning.OptBufMemLimit.Get(options.FromContext(ctx)),
+		int(tuning.OptBufSpillLimit.Get(options.FromContext(ctx)).Bytes()), //nolint:gosec // ignore overflow concern
 	); err != nil {
 		return nil, err
 	}

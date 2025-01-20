@@ -1,9 +1,12 @@
 package tu
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/neilotoole/sq/libsq/core/ioz"
 
 	"github.com/stretchr/testify/require"
 
@@ -115,4 +118,19 @@ func TestTempDir(t *testing.T) {
 	td3 := TempDir(t, "foo", "bar")
 	t.Logf("td3: %s", td3)
 	require.True(t, strings.HasSuffix(td3, filepath.Join("foo", "bar")))
+}
+
+func TestGenerateBinaryFile(t *testing.T) {
+	fp := GenerateBinaryFile(t, ".", 1024, false)
+	require.FileExists(t, fp)
+	gotSize, err := ioz.Filesize(fp)
+	require.NoError(t, err)
+	require.Equal(t, int64(1024), gotSize)
+	require.NoError(t, os.Remove(fp))
+
+	fp = GenerateBinaryFile(t, ".", 1024*1024, true)
+	require.FileExists(t, fp)
+	gotSize, err = ioz.Filesize(fp)
+	require.NoError(t, err)
+	require.Equal(t, int64(1024*1024), gotSize)
 }

@@ -47,5 +47,5 @@ func diffDBProps(ctx context.Context, cfg *Config, src1, src2 *source.Source, do
 		return
 	}
 
-	_, err = io.Copy(doc, diffdoc.NewColorizer(cfg.Colors, strings.NewReader(unified)))
+	_, err = io.Copy(doc, diffdoc.NewColorizer(ctx, cfg.Colors, strings.NewReader(unified)))
 }

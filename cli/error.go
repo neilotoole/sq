@@ -1,12 +1,15 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -183,6 +186,12 @@ func humanizeError(err error) error {
 	switch {
 	// Friendlier messages for context errors.
 	default:
+	case errors.Is(err, bufio.ErrTooLong):
+		err = errz.Errorf(
+			"%s: maybe adjust config '%s'",
+			err.Error(),
+			scannerz.OptScanBufLimit.Key(),
+		)
 	case errors.Is(err, context.Canceled):
 		err = errz.New("canceled")
 	case errors.Is(err, context.DeadlineExceeded):

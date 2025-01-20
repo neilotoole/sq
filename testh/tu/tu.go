@@ -528,3 +528,31 @@ func UseProxy(tb testing.TB) {
 	tb.Setenv("HTTP_PROXY", "http://localhost:9001")
 	tb.Setenv("HTTPS_PROXY", "http://localhost:9001")
 }
+
+// GenerateBinaryFile generates a random binary file of size bytes in dir.
+// It returns the filepath ("dir/RANDOM_NAME"). The file is closed after
+// writing. If clean is true, the file is removed on test cleanup. Otherwise,
+// the caller is responsible for removing the file if desired.
+func GenerateBinaryFile(tb testing.TB, dir string, size int64, clean bool) (fp string) {
+	tb.Helper()
+
+	fp = filepath.Join(dir, stringz.SanitizeFilename(tb.Name())+"."+stringz.Uniq8()+".random.binary")
+	abs, err := filepath.Abs(fp)
+	require.NoError(tb, err)
+
+	f, err := os.Create(fp)
+	require.NoError(tb, err)
+	defer func() { require.NoError(tb, f.Close()) }()
+
+	_, err = io.CopyN(f, rand.Reader, size)
+	require.NoError(tb, err)
+
+	if clean {
+		tb.Cleanup(func() {
+			require.NoError(tb, os.Remove(abs))
+		})
+	}
+
+	tb.Logf("Generated %d bytes random binary file: %s", size, abs)
+	return fp
+}
