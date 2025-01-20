@@ -1,12 +1,12 @@
 {
-    "version": "0.48.4",
+    "version": "0.48.5",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/neilotoole/sq/releases/download/v0.48.4/sq-0.48.4-amd64-amd64.zip",
+            "url": "https://github.com/neilotoole/sq/releases/download/v0.48.5/sq-0.48.5-windows-amd64.zip",
             "bin": [
                 "sq.exe"
             ],
-            "hash": "fbe8723f68cd51ca765db54484a65eaabda4886ed71747806ee9a4ff0db76d2e"
+            "hash": "7f73093787d30f99ad09e3735fb245e3d600bbf4e1dbc7a98334e8956564ebd0"
         }
     },
     "homepage": "https://sq.io",
