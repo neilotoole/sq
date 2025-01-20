@@ -24,22 +24,26 @@ jobs:
             exit 1
           fi
 
-  macos-install-sh:
-    runs-on: macos-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    steps:
-      - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@master
+# Disabling macos-install-sh for now, because install.sh now uses the brew core
+# sq formula, instead of the neilotoole/sq/sq formula. The brew core formula is
+# updated by the brew maintainers, so it won't be available at the time this job runs.
 
-      - name: Test install.sh
-        shell: bash
-        run: |
-          set -e pipefail
-          /bin/sh -c "$(curl -fsSL https://sq.io/install.sh)"
-          if [ "$(sq version | awk '{print $2}')" != "${{github.ref_name}}" ]; then
-            echo "Expected sq ${{github.ref_name}} but got: $(sq version)"
-            exit 1
-          fi
+#  macos-install-sh:
+#    runs-on: macos-latest
+#    if: startsWith(github.ref, 'refs/tags/v')
+#    steps:
+#      - name: Set up Homebrew
+#        uses: Homebrew/actions/setup-homebrew@master
+#
+#      - name: Test install.sh
+#        shell: bash
+#        run: |
+#          set -e pipefail
+#          /bin/sh -c "$(curl -fsSL https://sq.io/install.sh)"
+#          if [ "$(sq version | awk '{print $2}')" != "${{github.ref_name}}" ]; then
+#            echo "Expected sq ${{github.ref_name}} but got: $(sq version)"
+#            exit 1
+#          fi
 
   linux-other:
     runs-on: ubuntu-latest
