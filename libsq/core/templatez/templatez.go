@@ -1,3 +1,4 @@
+// Package templatez contains utilities for working with Go templates.
 package templatez
 
 import (
