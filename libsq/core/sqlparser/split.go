@@ -36,8 +36,7 @@ const (
 // It currently only works if the delimiters are at the
 // end of the line. Also, its ability to detect the correct
 // statement type is limited.
-func SplitSQL(ctx context.Context, input io.Reader, delim string,
-	moreDelims ...string,
+func SplitSQL(ctx context.Context, input io.Reader, delim string, moreDelims ...string,
 ) (stmts []string, types []StmtType, err error) {
 	// NOTE: There are parser libraries such as xwb1989/sqlparser
 	//  but from a quick look, it seems that they cannot parse
