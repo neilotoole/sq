@@ -3,9 +3,10 @@ package driver
 import (
 	"context"
 
+	"github.com/neilotoole/sq/libsq/core/templatez"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // OptIngestHeader specifies whether ingested data has a header row or not.
@@ -65,7 +66,7 @@ var OptIngestColRename = options.NewString(
 	nil,
 	"{{.Name}}{{with .Recurrence}}_{{.}}{{end}}",
 	func(s string) error {
-		return stringz.ValidTemplate("ingest.column.rename", s)
+		return templatez.ValidTemplate("ingest.column.rename", s)
 	},
 	"Template to rename ingest columns",
 	`This Go text template is executed on ingested column names.
@@ -112,7 +113,7 @@ func MungeIngestColNames(ctx context.Context, ogColNames []string) (colNames []s
 		return ogColNames, nil
 	}
 
-	tpl, err := stringz.NewTemplate(OptIngestColRename.Key(), tplText)
+	tpl, err := templatez.NewTemplate(OptIngestColRename.Key(), tplText)
 	if err != nil {
 		return nil, errz.Wrap(err, "config: ")
 	}

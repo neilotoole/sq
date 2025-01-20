@@ -4,6 +4,8 @@ package tuning
 import (
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/datasize"
+
 	"github.com/neilotoole/sq/libsq/core/options"
 )
 
@@ -43,21 +45,27 @@ var OptRecBufSize = options.NewInt(
 	options.TagTuning,
 )
 
-var OptFlushThreshold = options.NewInt(
+var OptFlushThreshold = datasize.NewOpt(
 	"tuning.output-flush-threshold",
 	nil,
-	1000,
-	"Output writer buffer flush threshold in bytes",
-	`Size in bytes after which output writers should flush any internal buffer.
-Generally, it is not necessary to fiddle this knob.`,
+	datasize.MustParseString("1000B"),
+	"Output writer buffer flush threshold.",
+	`Size after which output writers should flush any internal buffer.
+Generally, it is not necessary to fiddle this knob.
+
+Use units B, KB, MB, GB, etc. For example, 64KB, or 10MB. If no unit specified,
+bytes are assumed.`,
 	options.TagTuning,
 )
 
-var OptBufMemLimit = options.NewInt(
-	"tuning.buffer-mem-limit",
+var OptBufSpillLimit = datasize.NewOpt(
+	"tuning.buffer-spill-limit",
 	nil,
-	1000*1000, // 1MB
+	datasize.MustParseString("1MB"),
 	"Buffer swap file memory limit",
-	`Size in bytes after which in-memory temp buffers overflow to disk.`,
+	`Size after which in-memory temp buffers spill to disk.
+
+Use units B, KB, MB, GB, etc. For example, 64KB, or 10MB. If no unit specified,
+bytes are assumed.`,
 	options.TagTuning,
 )

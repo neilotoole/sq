@@ -8,6 +8,8 @@ import (
 	"io"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -28,14 +30,25 @@ func DetectJSONL(sampleSize int) files.TypeDetectFunc {
 		defer func() {
 			log.Debug("JSONL detection complete", lga.Elapsed, time.Since(start), lga.Score, score)
 		}()
-		var r io.ReadCloser
-		r, err = newRdrFn(ctx)
+
+		var r1, r2 io.ReadCloser
+
+		r1, err = newRdrFn(ctx)
 		if err != nil {
 			return drivertype.None, 0, errz.Err(err)
 		}
-		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
+		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r1)
+		if cannotBeJSON(r1) {
+			return drivertype.None, 0, nil
+		}
 
-		sc := bufio.NewScanner(r)
+		r2, err = newRdrFn(ctx)
+		if err != nil {
+			return drivertype.None, 0, errz.Err(err)
+		}
+		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r2)
+
+		sc := scannerz.NewScanner(ctx, r2)
 		var validLines int
 		var line []byte
 
@@ -47,7 +60,7 @@ func DetectJSONL(sampleSize int) files.TypeDetectFunc {
 			}
 
 			if err = sc.Err(); err != nil {
-				return drivertype.None, 0, errz.Err(err)
+				return drivertype.None, 0, errz.Wrap(err, "jsonl")
 			}
 
 			line = sc.Bytes()
@@ -76,7 +89,7 @@ func DetectJSONL(sampleSize int) files.TypeDetectFunc {
 		}
 
 		if err = sc.Err(); err != nil {
-			return drivertype.None, 0, errz.Err(err)
+			return drivertype.None, 0, errz.Wrap(err, "jsonl")
 		}
 
 		if validLines > 0 {
@@ -228,7 +241,11 @@ type lineScanner struct {
 }
 
 func newLineScanner(ctx context.Context, r io.Reader, requireAnchor byte) *lineScanner {
-	return &lineScanner{ctx: ctx, sc: bufio.NewScanner(r), requireAnchor: requireAnchor}
+	return &lineScanner{
+		ctx:           ctx,
+		sc:            scannerz.NewScanner(ctx, r),
+		requireAnchor: requireAnchor,
+	}
 }
 
 // next returns the next non-empty line.
@@ -242,11 +259,11 @@ func (ls *lineScanner) next() (hasMore bool, line []byte, err error) {
 
 		hasMore = ls.sc.Scan()
 		if !hasMore {
-			return false, nil, nil
+			return false, nil, errz.Wrap(ls.sc.Err(), "JSON line scan")
 		}
 
 		if err = ls.sc.Err(); err != nil {
-			return false, nil, errz.Err(err)
+			return false, nil, errz.Wrap(err, "JSON line scan")
 		}
 
 		line = ls.sc.Bytes()

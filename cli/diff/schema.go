@@ -83,5 +83,5 @@ func diffTableSchema(ctx context.Context, cfg *Config, showRowCounts bool,
 		return
 	}
 
-	_, err = io.Copy(doc, diffdoc.NewColorizer(cfg.Colors, strings.NewReader(unified)))
+	_, err = io.Copy(doc, diffdoc.NewColorizer(ctx, cfg.Colors, strings.NewReader(unified)))
 }

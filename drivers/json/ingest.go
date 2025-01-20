@@ -810,3 +810,20 @@ func newInsertion(tbl string, cols []string, vals []any) *insertion {
 		vals:     vals,
 	}
 }
+
+// cannotBeJSON returns true if the input cannot be JSON. This is a quick sanity
+// check that returns true if two JSON tokens cannot be decoded from the input.
+func cannotBeJSON(r io.Reader) bool {
+	// Decode some JSON tokens from reader r. A minimum of two tokens are required
+	// to determine if the input is JSON.
+	dec := stdj.NewDecoder(r)
+	if _, err := dec.Token(); err != nil {
+		return true
+	}
+
+	if _, err := dec.Token(); err != nil {
+		return true
+	}
+
+	return false
+}

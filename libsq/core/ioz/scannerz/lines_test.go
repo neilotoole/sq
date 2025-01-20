@@ -1,13 +1,15 @@
-package stringz_test
+package scannerz_test
 
 import (
+	"context"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
+
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/testh/tu"
 )
 
@@ -22,7 +24,7 @@ __Kubla Khan a stately
 __pleasure dome decree.
 __`
 
-	got := stringz.IndentLines(input, "__")
+	got := scannerz.IndentLines(context.Background(), input, "__")
 	require.Equal(t, got, want)
 }
 
@@ -47,15 +49,17 @@ func TestLineCount(t *testing.T) {
 		{in: "one\n\nthree\n", withEmpty: 3, skipEmpty: 2},
 	}
 
-	require.Equal(t, -1, stringz.LineCount(nil, true))
+	ctx := context.Background()
+
+	require.Equal(t, -1, scannerz.LineCount(ctx, nil, true))
 
 	for i, tc := range testCases {
 		tc := tc
 
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
-			count := stringz.LineCount(strings.NewReader(tc.in), false)
+			count := scannerz.LineCount(ctx, strings.NewReader(tc.in), false)
 			require.Equal(t, tc.withEmpty, count)
-			count = stringz.LineCount(strings.NewReader(tc.in), true)
+			count = scannerz.LineCount(ctx, strings.NewReader(tc.in), true)
 			require.Equal(t, tc.skipEmpty, count)
 		})
 	}
@@ -72,7 +76,7 @@ pleasure dome decree.
 3. pleasure dome decree.<<
 4. <<`
 
-	got := stringz.VisitLines(input, func(i int, line string) string {
+	got := scannerz.VisitLines(context.Background(), input, func(i int, line string) string {
 		return strconv.Itoa(i+1) + ". " + line + "<<"
 	})
 
@@ -81,7 +85,7 @@ pleasure dome decree.
 
 func TestTrimHead(t *testing.T) {
 	require.Panics(t, func() {
-		_ = stringz.TrimHead("a", -1)
+		_ = scannerz.TrimHead(context.Background(), "a", -1)
 	})
 
 	testCases := []struct {
@@ -105,7 +109,7 @@ func TestTrimHead(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tu.Name(tc.in, tc.n), func(t *testing.T) {
-			got := stringz.TrimHead(tc.in, tc.n)
+			got := scannerz.TrimHead(context.Background(), tc.in, tc.n)
 			require.Equal(t, tc.want, got)
 		})
 	}
@@ -126,7 +130,7 @@ func TestHead1(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.in, func(t *testing.T) {
-			got := stringz.Head1(tc.in)
+			got := scannerz.Head1(context.Background(), tc.in)
 			require.Equal(t, tc.want, got)
 		})
 	}

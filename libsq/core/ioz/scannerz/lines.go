@@ -1,27 +1,27 @@
-package stringz
+package scannerz
 
 import (
-	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"strings"
 )
 
 // Head1 returns the first line of s, without the linebreak.
-func Head1(s string) string {
+func Head1(ctx context.Context, s string) string {
 	if s == "" {
 		return s
 	}
 
-	sc := bufio.NewScanner(strings.NewReader(s))
+	sc := NewScanner(ctx, strings.NewReader(s))
 	sc.Scan()
 	return sc.Text()
 }
 
 // TrimHead trims the first n lines from s. It panics
 // if n is negative. If n is zero, s is returned unchanged.
-func TrimHead(s string, n int) string {
+func TrimHead(ctx context.Context, s string, n int) string {
 	switch {
 	case n < 0:
 		panic(fmt.Sprintf("n must be >= 0 but was %d", n))
@@ -30,7 +30,7 @@ func TrimHead(s string, n int) string {
 	}
 
 	var (
-		sc  = bufio.NewScanner(strings.NewReader(s))
+		sc  = NewScanner(ctx, strings.NewReader(s))
 		buf bytes.Buffer
 		i   = -1
 	)
@@ -57,10 +57,10 @@ func TrimHead(s string, n int) string {
 
 // VisitLines visits the lines of s, returning a new string built from
 // applying fn to each line.
-func VisitLines(s string, fn func(i int, line string) string) string {
+func VisitLines(ctx context.Context, s string, fn func(i int, line string) string) string {
 	var sb strings.Builder
 
-	sc := bufio.NewScanner(strings.NewReader(s))
+	sc := NewScanner(ctx, strings.NewReader(s))
 	var line string
 	for i := 0; sc.Scan(); i++ {
 		line = sc.Text()
@@ -75,8 +75,8 @@ func VisitLines(s string, fn func(i int, line string) string) string {
 }
 
 // IndentLines returns a new string built from indenting each line of s.
-func IndentLines(s, indent string) string {
-	return VisitLines(s, func(_ int, line string) string {
+func IndentLines(ctx context.Context, s, indent string) string {
+	return VisitLines(ctx, s, func(_ int, line string) string {
 		return indent + line
 	})
 }
@@ -84,12 +84,12 @@ func IndentLines(s, indent string) string {
 // LineCount returns the number of lines in r. If skipEmpty is
 // true, empty lines are skipped (a whitespace-only line is not
 // considered empty). If r is nil or any error occurs, -1 is returned.
-func LineCount(r io.Reader, skipEmpty bool) int {
+func LineCount(ctx context.Context, r io.Reader, skipEmpty bool) int {
 	if r == nil {
 		return -1
 	}
 
-	sc := bufio.NewScanner(r)
+	sc := NewScanner(ctx, r)
 	var i int
 
 	if skipEmpty {

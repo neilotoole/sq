@@ -1,12 +1,13 @@
 package json
 
 import (
-	"bufio"
 	"context"
 	stdj "encoding/json"
 	"io"
 	"math"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
 
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -35,14 +36,25 @@ func DetectJSONA(sampleSize int) files.TypeDetectFunc {
 			log.Debug("JSONA detection complete", lga.Elapsed, time.Since(start), lga.Score, score)
 		}()
 
-		var r io.ReadCloser
-		r, err = newRdrFn(ctx)
+		var r1, r2 io.ReadCloser
+
+		r1, err = newRdrFn(ctx)
 		if err != nil {
 			return drivertype.None, 0, errz.Err(err)
 		}
-		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
+		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r1)
+		if cannotBeJSON(r1) {
+			return drivertype.None, 0, nil
+		}
 
-		sc := bufio.NewScanner(r)
+		r2, err = newRdrFn(ctx)
+		if err != nil {
+			return drivertype.None, 0, errz.Err(err)
+		}
+		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r2)
+
+		sc := scannerz.NewScanner(ctx, r2)
+
 		var validLines int
 		var line []byte
 
@@ -54,7 +66,7 @@ func DetectJSONA(sampleSize int) files.TypeDetectFunc {
 			}
 
 			if err = sc.Err(); err != nil {
-				return drivertype.None, 0, errz.Err(err)
+				return drivertype.None, 0, errz.Wrap(err, "jsona")
 			}
 
 			line = sc.Bytes()
@@ -91,7 +103,7 @@ func DetectJSONA(sampleSize int) files.TypeDetectFunc {
 		}
 
 		if err = sc.Err(); err != nil {
-			return drivertype.None, 0, errz.Err(err)
+			return drivertype.None, 0, errz.Wrap(err, "jsona")
 		}
 
 		if validLines > 0 {
@@ -191,7 +203,7 @@ func startInsertJSONA(ctx context.Context, recordCh chan<- record.Record, errCh 
 ) error {
 	defer close(recordCh)
 
-	sc := bufio.NewScanner(r)
+	sc := scannerz.NewScanner(ctx, r)
 	var line []byte
 	var err error
 
@@ -261,7 +273,7 @@ func detectColKindsJSONA(ctx context.Context, r io.Reader, sampleSize int) ([]ki
 		mungeFns   []kind.MungeFunc
 	)
 
-	sc := bufio.NewScanner(r)
+	sc := scannerz.NewScanner(ctx, r)
 	for sc.Scan() {
 		select {
 		case <-ctx.Done():
@@ -274,7 +286,7 @@ func detectColKindsJSONA(ctx context.Context, r io.Reader, sampleSize int) ([]ki
 		}
 
 		if err = sc.Err(); err != nil {
-			return nil, nil, errz.Err(err)
+			return nil, nil, errz.Wrap(err, "jsona")
 		}
 
 		line = sc.Bytes()
@@ -288,7 +300,7 @@ func detectColKindsJSONA(ctx context.Context, r io.Reader, sampleSize int) ([]ki
 
 		// Each line of JSONA must open with left bracket
 		if line[0] != '[' {
-			return nil, nil, errz.New("line does not begin with left bracket '['")
+			return nil, nil, errz.New("jsona: line does not begin with left bracket '['")
 		}
 
 		// If the line is JSONA, it should marshall into []any
@@ -299,7 +311,7 @@ func detectColKindsJSONA(ctx context.Context, r io.Reader, sampleSize int) ([]ki
 		}
 
 		if len(vals) == 0 {
-			return nil, nil, errz.Errorf("zero field count at line %d", totalLineCount)
+			return nil, nil, errz.Errorf("jsona: zero field count at line %d", totalLineCount)
 		}
 
 		if kinds == nil {
@@ -312,7 +324,7 @@ func detectColKindsJSONA(ctx context.Context, r io.Reader, sampleSize int) ([]ki
 		}
 
 		if len(vals) != len(kinds) {
-			return nil, nil, errz.Errorf("inconsistent field count: expected %d but got %d at line %d",
+			return nil, nil, errz.Errorf("jsona: inconsistent field count: expected %d but got %d at line %d",
 				len(kinds), len(vals), totalLineCount)
 		}
 
@@ -323,7 +335,7 @@ func detectColKindsJSONA(ctx context.Context, r io.Reader, sampleSize int) ([]ki
 	}
 
 	if jLineCount == 0 {
-		return nil, nil, errz.New("empty JSONA input")
+		return nil, nil, errz.New("jsona: empty JSONA input")
 	}
 
 	for i := range kinds {

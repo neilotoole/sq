@@ -11,6 +11,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/templatez"
+
 	"github.com/shopspring/decimal"
 	"go.uber.org/atomic"
 
@@ -606,7 +608,7 @@ var OptResultColRename = options.NewString(
 	nil,
 	"{{.Name}}{{with .Recurrence}}_{{.}}{{end}}",
 	func(s string) error {
-		return stringz.ValidTemplate("result.column.rename", s)
+		return templatez.ValidTemplate("result.column.rename", s)
 	},
 	"Template to rename result columns",
 	`This Go text template is executed on the column names returned from the DB. Its
@@ -669,7 +671,7 @@ func MungeResultColNames(ctx context.Context, ogColNames []string) (colNames []s
 		return ogColNames, nil
 	}
 
-	tpl, err := stringz.NewTemplate(OptResultColRename.Key(), tplText)
+	tpl, err := templatez.NewTemplate(OptResultColRename.Key(), tplText)
 	if err != nil {
 		return nil, errz.Wrap(err, "config: ")
 	}
