@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
-## Upcoming
+## [v0.48.5] - 2025-01-19
 
 ### Fixed
 
@@ -1306,3 +1306,4 @@ make working with lots of sources much easier.
 [v0.48.1]: https://github.com/neilotoole/sq/compare/v0.47.4...v0.48.1
 [v0.48.3]: https://github.com/neilotoole/sq/compare/v0.48.1...v0.48.3
 [v0.48.4]: https://github.com/neilotoole/sq/compare/v0.48.3...v0.48.4
+[v0.48.5]: https://github.com/neilotoole/sq/compare/v0.48.4...v0.48.5
