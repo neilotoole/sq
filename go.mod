@@ -37,7 +37,7 @@ require (
 	github.com/otiai10/copy v1.14.1
 	github.com/pkg/profile v1.7.0
 	github.com/ryboe/q v1.0.23
-	github.com/samber/lo v1.47.0
+	github.com/samber/lo v1.49.1
 	github.com/segmentio/encoding v0.4.1
 	github.com/sethvargo/go-retry v0.3.0
 	github.com/shopspring/decimal v1.4.0
