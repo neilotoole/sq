@@ -1,3 +1,6 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/goreleaser/goreleaser/v2.6.1/www/docs/static/schema-pro.json
+version: 2
+
 before:
   hooks:
     - go mod tidy
@@ -31,7 +34,7 @@ archives:
 #      darwin: macos
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [ zip ]
     files:
       - README.md
       - LICENSE
@@ -42,9 +45,9 @@ archives:
 checksum:
   name_template: 'checksums.txt'
 snapshot:
-  name_template: "{{ .Tag }}-snapshot"
+  version_template: "{{ .Tag }}-snapshot"
 changelog:
-  skip: true
+  disable: true
 
 release:
   github:

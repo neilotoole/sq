@@ -1,3 +1,6 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/goreleaser/goreleaser/v2.6.1/www/docs/static/schema-pro.json
+version: 2
+
 before:
   hooks:
     - go mod tidy
@@ -34,4 +37,4 @@ builds:
       - sqlite_json
       - sqlite_math_functions
 archives:
-  - format: binary
+  - formats: [ binary ]
