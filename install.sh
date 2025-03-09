@@ -183,6 +183,14 @@ if command_exists brew; then
   exit
 fi
 
+# nix
+if command_exists nix-shell; then
+  set -e
+  printf "Using nix to install sq...\n\n"
+
+  nix-shell -p sq
+  exit
+fi
 
 printf "\nCould not find a suitable install mechanism to install sq.\n"
 printf "\nVisit https://github.com/neilotoole/sq for more installation options.\n"
