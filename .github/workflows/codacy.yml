@@ -62,8 +62,47 @@ jobs:
           max-allowed-issues: 2147483647
           # configuration-file: .codacy.yml
 
-      # Upload the SARIF file generated in the previous step
-      - name: Upload SARIF results file
+      # Split SARIF file if it contains more than 20 runs (GitHub's limit)
+      - name: Split SARIF file
+        id: split-sarif
+        run: |
+          python3 .github/scripts/split-sarif.py results.sarif ./sarif-split 20
+          echo "Created split SARIF files:"
+          ls -lh ./sarif-split/
+
+      # Upload each SARIF file separately with unique categories
+      # This step will be executed multiple times based on the split files
+      - name: Upload SARIF results file 1
+        if: hashFiles('sarif-split/results-1.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: results.sarif
+          sarif_file: sarif-split/results-1.sarif
+          category: codacy-1
+
+      - name: Upload SARIF results file 2
+        if: hashFiles('sarif-split/results-2.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: sarif-split/results-2.sarif
+          category: codacy-2
+
+      - name: Upload SARIF results file 3
+        if: hashFiles('sarif-split/results-3.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: sarif-split/results-3.sarif
+          category: codacy-3
+
+      - name: Upload SARIF results file 4
+        if: hashFiles('sarif-split/results-4.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: sarif-split/results-4.sarif
+          category: codacy-4
+
+      - name: Upload SARIF results file 5
+        if: hashFiles('sarif-split/results-5.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: sarif-split/results-5.sarif
+          category: codacy-5
