@@ -62,47 +62,42 @@ jobs:
           max-allowed-issues: 2147483647
           # configuration-file: .codacy.yml
 
-      # Split SARIF file if it contains more than 20 runs (GitHub's limit)
+      # Split SARIF file into individual files (one run per file)
+      # GitHub requires each SARIF file to contain only one run per category
       - name: Split SARIF file
         id: split-sarif
         run: |
-          python3 .github/scripts/split-sarif.py results.sarif ./sarif-split 20
+          python3 .github/scripts/split-sarif.py results.sarif ./sarif-split
           echo "Created split SARIF files:"
           ls -lh ./sarif-split/
 
-      # Upload each SARIF file separately with unique categories
-      # This step will be executed multiple times based on the split files
-      - name: Upload SARIF results file 1
-        if: hashFiles('sarif-split/results-1.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: sarif-split/results-1.sarif
-          category: codacy-1
+      # Upload each SARIF file separately
+      # Each file gets uploaded with a unique category based on the filename
+      - name: Upload SARIF results files
+        run: |
+          # Find all SARIF files and upload them one by one
+          for sarif_file in ./sarif-split/*.sarif; do
+            if [ -f "$sarif_file" ]; then
+              # Extract filename without path and extension to use as category
+              filename=$(basename "$sarif_file" .sarif)
+              category="codacy-${filename}"
 
-      - name: Upload SARIF results file 2
-        if: hashFiles('sarif-split/results-2.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: sarif-split/results-2.sarif
-          category: codacy-2
+              echo "Uploading $sarif_file with category: $category"
 
-      - name: Upload SARIF results file 3
-        if: hashFiles('sarif-split/results-3.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: sarif-split/results-3.sarif
-          category: codacy-3
-
-      - name: Upload SARIF results file 4
-        if: hashFiles('sarif-split/results-4.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: sarif-split/results-4.sarif
-          category: codacy-4
-
-      - name: Upload SARIF results file 5
-        if: hashFiles('sarif-split/results-5.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: sarif-split/results-5.sarif
-          category: codacy-5
+              # Use the upload-sarif action for each file
+              # We need to do this in a subshell with the GitHub Action
+              gh api \
+                --method POST \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "/repos/${{ github.repository }}/code-scanning/sarifs" \
+                -f "commit_sha=${{ github.sha }}" \
+                -f "ref=${{ github.ref }}" \
+                -f "sarif=@$sarif_file" \
+                -f "category=$category" \
+                && echo "✓ Uploaded $filename" \
+                || echo "✗ Failed to upload $filename"
+            fi
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

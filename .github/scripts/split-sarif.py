@@ -2,14 +2,15 @@
 """
 Split a SARIF file with multiple runs into separate files.
 
-This script splits a SARIF file that contains more than 20 runs (GitHub's limit)
-into multiple SARIF files, each containing a maximum of 20 runs.
+GitHub Code Scanning requires each SARIF file to contain only ONE run per category.
+This script splits a SARIF file with multiple runs into separate files, each
+containing exactly one run.
 
 Usage:
-    python split-sarif.py <input-sarif-file> <output-dir> [max-runs-per-file]
+    python split-sarif.py <input-sarif-file> <output-dir>
 
 Example:
-    python split-sarif.py results.sarif ./sarif-output 20
+    python split-sarif.py results.sarif ./sarif-output
 """
 
 import json
@@ -18,14 +19,13 @@ import os
 from pathlib import Path
 
 
-def split_sarif(input_file, output_dir, max_runs=20):
+def split_sarif(input_file, output_dir):
     """
-    Split a SARIF file into multiple files based on the number of runs.
+    Split a SARIF file into multiple files, one run per file.
 
     Args:
         input_file: Path to the input SARIF file
         output_dir: Directory to write split SARIF files
-        max_runs: Maximum number of runs per output file (default: 20)
 
     Returns:
         List of output file paths
@@ -43,33 +43,37 @@ def split_sarif(input_file, output_dir, max_runs=20):
     total_runs = len(runs)
 
     print(f"Total runs found: {total_runs}")
-    print(f"Max runs per file: {max_runs}")
+    print(f"Creating one SARIF file per run...")
 
     # Create output directory if it doesn't exist
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     output_files = []
 
-    # Split runs into chunks
-    for i in range(0, total_runs, max_runs):
-        chunk_runs = runs[i:i + max_runs]
-        chunk_number = (i // max_runs) + 1
+    # Create one file per run
+    for i, run in enumerate(runs, start=1):
+        # Get tool name for better file naming
+        tool_name = "unknown"
+        if 'tool' in run and 'driver' in run['tool'] and 'name' in run['tool']['driver']:
+            tool_name = run['tool']['driver']['name']
+            # Sanitize tool name for filename
+            tool_name = tool_name.replace('/', '-').replace('\\', '-').replace(' ', '-')
 
-        # Create a new SARIF object with the chunk of runs
-        chunk_sarif = {
+        # Create a new SARIF object with a single run
+        single_run_sarif = {
             **sarif_data,  # Copy all top-level properties
-            'runs': chunk_runs
+            'runs': [run]  # Only one run per file
         }
 
-        # Generate output filename
-        output_file = os.path.join(output_dir, f'results-{chunk_number}.sarif')
+        # Generate output filename with tool name and index
+        output_file = os.path.join(output_dir, f'results-{i:02d}-{tool_name}.sarif')
 
-        # Write the chunk to file
+        # Write the single run to file
         with open(output_file, 'w') as f:
-            json.dump(chunk_sarif, f, indent=2)
+            json.dump(single_run_sarif, f, indent=2)
 
         output_files.append(output_file)
-        print(f"Created {output_file} with {len(chunk_runs)} runs")
+        print(f"  [{i}/{total_runs}] Created {os.path.basename(output_file)}")
 
     return output_files
 
@@ -81,17 +85,15 @@ def main():
 
     input_file = sys.argv[1]
     output_dir = sys.argv[2]
-    max_runs = int(sys.argv[3]) if len(sys.argv) > 3 else 20
 
     if not os.path.exists(input_file):
         print(f"Error: Input file '{input_file}' not found")
         sys.exit(1)
 
-    output_files = split_sarif(input_file, output_dir, max_runs)
+    output_files = split_sarif(input_file, output_dir)
 
     if output_files:
-        print(f"\nSuccessfully split {input_file} into {len(output_files)} file(s)")
-        print(f"Output files: {', '.join(output_files)}")
+        print(f"\n✓ Successfully split {input_file} into {len(output_files)} file(s)")
     else:
         print("No output files created")
         sys.exit(1)
