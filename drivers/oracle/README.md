@@ -1,6 +1,6 @@
 # Oracle Database Driver for SQ
 
-Oracle database driver implementation for SQ using godror.
+Oracle database driver implementation for SQ using [godror](https://github.com/godror/godror).
 
 ## Status
 
