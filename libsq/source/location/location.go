@@ -288,6 +288,9 @@ func Parse(loc string) (*Fields, error) {
 	case "mysql":
 		fields.DriverType = drivertype.MySQL
 		fields.Name = strings.TrimPrefix(u.Path, "/")
+	case "oracle":
+		fields.DriverType = drivertype.Oracle
+		fields.Name = strings.TrimPrefix(u.Path, "/")
 	}
 
 	return fields, nil
