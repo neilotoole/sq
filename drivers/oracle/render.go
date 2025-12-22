@@ -37,10 +37,12 @@ func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind 
 	case "INTERVAL DAY TO SECOND", "INTERVAL YEAR TO MONTH":
 		return kind.Text
 	default:
-		log.Warn("Unknown Oracle column type",
-			"db_type", dbTypeName,
-			"column", colName,
-			"defaulting_to", kind.Unknown)
+		if log != nil {
+			log.Warn("Unknown Oracle column type",
+				"db_type", dbTypeName,
+				"column", colName,
+				"defaulting_to", kind.Unknown)
+		}
 		return kind.Unknown
 	}
 }
