@@ -22,13 +22,16 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db *sql.DB, noSc
 	}
 
 	// Get database version
+	// Use v$version instead of v$instance as it's more accessible to regular users
 	var version string
 	err := db.QueryRowContext(ctx,
-		"SELECT version FROM v$instance").Scan(&version)
+		"SELECT BANNER FROM v$version WHERE ROWNUM = 1").Scan(&version)
 	if err != nil {
-		return nil, errw(err)
+		// If we can't query version (permissions issue), just leave it empty
+		md.DBVersion = ""
+	} else {
+		md.DBVersion = version
 	}
-	md.DBVersion = version
 
 	// Get current schema
 	var schema string
