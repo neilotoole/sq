@@ -1,0 +1,37 @@
+services:
+  oracle:
+    image: gvenzl/oracle-free:23-slim
+    ports:
+      - "1521:1521"
+    environment:
+      ORACLE_PASSWORD: oracle_password
+      APP_USER: testuser
+      APP_USER_PASSWORD: testpass
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+    healthcheck:
+      test: ["CMD", "sqlplus", "-L", "testuser/testpass@//localhost:1521/FREEPDB1", "@/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_DB: sakila
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./testdata:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testuser -d sakila"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  oracle-data:
+  postgres-data:
