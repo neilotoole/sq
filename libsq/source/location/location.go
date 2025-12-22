@@ -23,6 +23,7 @@ var dbSchemes = []string{
 	"sqlserver",
 	"postgres",
 	"sqlite3",
+	"oracle",
 }
 
 // Filename returns the final component of the file/URL path.
