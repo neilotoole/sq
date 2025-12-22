@@ -457,16 +457,18 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 		}
 	}
 
+	enquote := d.Dialect().Enquote
+
 	// Build column list for SELECT
 	colsClause := make([]string, len(colNames))
 	for i, colName := range colNames {
-		colsClause[i] = stringz.DoubleQuote(colName)
+		colsClause[i] = enquote(colName)
 	}
 
 	// Use a subquery to get column types from an empty result set
 	query := fmt.Sprintf("SELECT %s FROM %s WHERE 1=0",
 		strings.Join(colsClause, ", "),
-		stringz.DoubleQuote(tblName))
+		enquote(tblName))
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
