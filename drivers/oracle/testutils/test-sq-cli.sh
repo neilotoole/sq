@@ -44,19 +44,18 @@ setup_oracle_instant_client || true
 run_sq() {
     local description="$1"
     shift
-    log_info "$description"
+    log_dim "$description"
     if "$SQ_BINARY" "$@"; then
-        log_success "$description"
         return 0
     else
-        log_error "$description"
+        log_error "$description failed"
         return 1
     fi
 }
 
 # Check prerequisites (sq binary, Docker, etc.)
 check_prerequisites() {
-    log_info "Checking prerequisites..."
+    log "Checking Prerequisites"
 
     # Check for sq binary
     if [ ! -f "$SQ_BINARY" ] && ! command -v "$SQ_BINARY" >/dev/null 2>&1; then
@@ -71,14 +70,14 @@ check_prerequisites() {
     # Check Docker prerequisites (from common.bash)
     check_docker_prerequisites
 
-    log_success "Prerequisites check passed"
-    log_info "Using sq binary: $SQ_BINARY"
-    log_info "sq version: $("$SQ_BINARY" version 2>/dev/null || echo 'unknown')"
+    log_indent log_dim "sq binary: $SQ_BINARY"
+    log_indent log_dim "sq version: $("$SQ_BINARY" version 2>/dev/null || echo 'unknown')"
+    log_success "Prerequisites Found Successfully"
 }
 
 # Start database containers (Oracle and Postgres)
 start_containers() {
-    log_info "Starting Oracle and Postgres containers..."
+    log "Starting Containers"
     start_services oracle postgres
 
     # Wait for Oracle to be healthy
@@ -86,14 +85,13 @@ start_containers() {
         log_error "Oracle did not become ready in time"
         return 1
     fi
+    log ""
 
     # Wait for Postgres to be healthy
     if ! wait_for_healthy "postgres" 60; then
         log_error "Postgres did not become ready in time"
         return 1
     fi
-
-    log_success "Databases started"
 }
 
 # Stop database containers
@@ -107,7 +105,7 @@ stop_containers() {
 
 # Add data sources to sq
 add_sources() {
-    log_info "Adding data sources to sq..."
+    log "Adding Data Sources"
 
     # Remove existing sources if they exist
     "$SQ_BINARY" rm @test_oracle 2>/dev/null || true
@@ -115,7 +113,7 @@ add_sources() {
 
     # Add Oracle source
     if run_sq "Adding Oracle source" add --handle @test_oracle "$ORACLE_DSN"; then
-        log_success "Oracle source added"
+        :
     else
         log_error "Failed to add Oracle source"
         return 1
@@ -123,22 +121,22 @@ add_sources() {
 
     # Add Postgres source
     if run_sq "Adding Postgres source" add --handle @test_postgres "$POSTGRES_DSN"; then
-        log_success "Postgres source added"
+        :
     else
         log_error "Failed to add Postgres source"
         return 1
     fi
+
+    log_success "Data sources added"
 }
 
 # Cleanup sq sources
 cleanup_sources() {
-    log_info "Cleaning up..."
+    log_dim "Cleaning up sources..."
 
     # Remove sources
     "$SQ_BINARY" rm @test_oracle 2>/dev/null || true
     "$SQ_BINARY" rm @test_postgres 2>/dev/null || true
-
-    log_success "Cleanup completed"
 }
 
 # ==============================================================================
@@ -147,33 +145,34 @@ cleanup_sources() {
 
 # Test Oracle connectivity and basic operations
 test_oracle_basic() {
-    log_info "Testing Oracle basic operations..."
-    echo ""
+    log "Testing Oracle Basic Operations"
 
     # Test 1: Inspect Oracle (show schema)
-    log_info "Test 1: Inspect Oracle schema"
+    log_dim "Test 1: Inspect Oracle schema"
     if "$SQ_BINARY" inspect @test_oracle >/dev/null 2>&1; then
-        log_success "Oracle schema inspection succeeded"
+        :
     else
         log_error "Oracle schema inspection failed"
         return 1
     fi
 
     # Test 2: Execute simple query using SQL
-    log_info "Test 2: Execute simple query (SELECT FROM DUAL)"
-    local result=$("$SQ_BINARY" sql --src @test_oracle "SELECT 'Hello' AS TEST_COL FROM DUAL" --json 2>/dev/null)
+    log_dim "Test 2: Execute simple query (SELECT FROM DUAL)"
+    local result
+    result=$("$SQ_BINARY" sql --src @test_oracle "SELECT 'Hello' AS TEST_COL FROM DUAL" --json 2>/dev/null)
     if echo "$result" | /usr/bin/grep -q '"TEST_COL"'; then
-        log_success "Simple query succeeded"
+        :
     else
         log_error "Simple query failed"
         return 1
     fi
 
     # Test 3: Query current schema using SQL
-    log_info "Test 3: Query current schema"
-    local schema=$("$SQ_BINARY" sql --src @test_oracle "SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') AS SCHEMA_NAME FROM DUAL" --json 2>/dev/null | /usr/bin/grep -o '"SCHEMA_NAME": "[^"]*"' | cut -d'"' -f4)
+    log_dim "Test 3: Query current schema"
+    local schema
+    schema=$("$SQ_BINARY" sql --src @test_oracle "SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') AS SCHEMA_NAME FROM DUAL" --json 2>/dev/null | /usr/bin/grep -o '"SCHEMA_NAME": "[^"]*"' | cut -d'"' -f4)
     if [ -n "$schema" ]; then
-        log_success "Current schema: $schema"
+        :
     else
         log_error "Failed to query current schema"
         return 1
@@ -184,44 +183,46 @@ test_oracle_basic() {
 
 # Test creating and querying tables in Oracle
 test_oracle_tables() {
-    log_info "Testing Oracle table operations..."
-    echo ""
+    log "Testing Oracle Table Operations"
 
-    local test_table="${TEST_TABLE_PREFIX}_DEMO_$(date +%s)"
+    local test_table
+    test_table="${TEST_TABLE_PREFIX}_DEMO_$(date +%s)"
 
     # Test 1: Create a test table using SQL
-    log_info "Test 1: Create test table in Oracle"
+    log_dim "Test 1: Create test table in Oracle"
     if "$SQ_BINARY" sql --src @test_oracle "CREATE TABLE ${test_table} (ID NUMBER(19,0), NAME VARCHAR2(100), CREATED_AT TIMESTAMP)" >/dev/null 2>&1; then
-        log_success "Created table ${test_table} in Oracle"
+        :
     else
         log_error "Failed to create table in Oracle"
         return 1
     fi
 
     # Test 2: Insert data using SQL
-    log_info "Test 2: Insert data into Oracle table"
+    log_dim "Test 2: Insert data into Oracle table"
     if "$SQ_BINARY" sql --src @test_oracle "INSERT INTO ${test_table} (ID, NAME, CREATED_AT) VALUES (1, 'Test User', SYSTIMESTAMP)" >/dev/null 2>&1; then
-        log_success "Inserted data into ${test_table}"
+        :
     else
         log_error "Failed to insert data"
         return 1
     fi
 
     # Test 3: Query data back
-    log_info "Test 3: Query data from Oracle table"
-    local row_count=$("$SQ_BINARY" sql --src @test_oracle "SELECT TO_CHAR(COUNT(*)) AS CNT FROM ${test_table}" --json 2>/dev/null | /usr/bin/grep -o '"CNT": "[0-9]*"' | cut -d'"' -f4)
+    log_dim "Test 3: Query data from Oracle table"
+    local row_count
+    row_count=$("$SQ_BINARY" sql --src @test_oracle "SELECT TO_CHAR(COUNT(*)) AS CNT FROM ${test_table}" --json 2>/dev/null | /usr/bin/grep -o '"CNT": "[0-9]*"' | cut -d'"' -f4)
     if [ "$row_count" -eq 1 ]; then
-        log_success "Table has correct row count: $row_count"
+        :
     else
         log_error "Table row count mismatch. Expected: 1, Got: $row_count"
         return 1
     fi
 
     # Test 4: Query with WHERE clause
-    log_info "Test 4: Query with WHERE clause"
-    local name=$("$SQ_BINARY" sql --src @test_oracle "SELECT NAME FROM ${test_table} WHERE ID = 1" --json 2>/dev/null | /usr/bin/grep -o '"NAME": "[^"]*"' | cut -d'"' -f4)
+    log_dim "Test 4: Query with WHERE clause"
+    local name
+    name=$("$SQ_BINARY" sql --src @test_oracle "SELECT NAME FROM ${test_table} WHERE ID = 1" --json 2>/dev/null | /usr/bin/grep -o '"NAME": "[^"]*"' | cut -d'"' -f4)
     if [ "$name" = "Test User" ]; then
-        log_success "WHERE clause query succeeded: $name"
+        :
     else
         log_error "WHERE clause query failed. Expected: Test User, Got: $name"
         return 1
@@ -229,71 +230,74 @@ test_oracle_tables() {
 
     # Note: We don't drop the table here because sq doesn't have a DROP TABLE command
     # The table will remain in Oracle but that's fine for testing
-    log_warning "Test table ${test_table} left in Oracle (sq doesn't have DROP TABLE command)"
+    log_indent log_dim "Test table ${test_table} left in Oracle"
 
     log_success "Oracle table operations test passed"
 }
 
 # Test cross-database operations
 test_cross_database() {
-    log_info "Testing cross-database operations (Postgres + Oracle)..."
-    echo ""
+    log "Testing Cross-Database Operations"
 
     # Test 1: Query Postgres data
-    log_info "Test 1: Query data from Postgres"
-    local pg_output=$("$SQ_BINARY" sql --src @test_postgres "SELECT COUNT(*)::text AS CNT FROM actor" --json 2>&1)
-    local pg_count=$(echo "$pg_output" | /usr/bin/grep -o '"[Cc][Nn][Tt]": "[0-9]*"' | cut -d'"' -f4)
+    log_dim "Test 1: Query data from Postgres"
+    local pg_output
+    local pg_count
+    pg_output=$("$SQ_BINARY" sql --src @test_postgres "SELECT COUNT(*)::text AS CNT FROM actor" --json 2>&1)
+    pg_count=$(echo "$pg_output" | /usr/bin/grep -o '"[Cc][Nn][Tt]": "[0-9]*"' | cut -d'"' -f4)
     if [ -n "$pg_count" ] && [ "$pg_count" -gt 0 ]; then
-        log_success "Postgres query succeeded: $pg_count actors"
+        :
     else
         log_error "Failed to query Postgres"
         return 1
     fi
 
     # Test 2: Create a matching table in Oracle and insert data manually
-    log_info "Test 2: Create test table in Oracle for cross-database test"
-    local test_table="${TEST_TABLE_PREFIX}_XFER_$(date +%s)"
+    log_dim "Test 2: Create test table in Oracle for cross-database test"
+    local test_table
+    test_table="${TEST_TABLE_PREFIX}_XFER_$(date +%s)"
 
     if "$SQ_BINARY" sql --src @test_oracle "CREATE TABLE ${test_table} (ACTOR_ID NUMBER(10,0), FIRST_NAME VARCHAR2(45), LAST_NAME VARCHAR2(45))" >/dev/null 2>&1; then
-        log_success "Created table ${test_table} in Oracle"
+        :
     else
         log_error "Failed to create table in Oracle"
         return 1
     fi
 
     # Test 3: Insert sample data into Oracle table
-    log_info "Test 3: Insert sample data into Oracle table"
+    log_dim "Test 3: Insert sample data into Oracle table"
     if "$SQ_BINARY" sql --src @test_oracle "INSERT INTO ${test_table} (ACTOR_ID, FIRST_NAME, LAST_NAME) VALUES (1, 'TEST', 'USER')" >/dev/null 2>&1; then
-        log_success "Inserted test data into Oracle"
+        :
     else
         log_error "Failed to insert data"
         return 1
     fi
 
     # Test 4: Query Oracle table
-    log_info "Test 4: Query Oracle table"
-    local ora_count=$("$SQ_BINARY" sql --src @test_oracle "SELECT TO_CHAR(COUNT(*)) AS CNT FROM ${test_table}" --json 2>/dev/null | /usr/bin/grep -o '"CNT": "[0-9]*"' | cut -d'"' -f4)
+    log_dim "Test 4: Query Oracle table"
+    local ora_count
+    ora_count=$("$SQ_BINARY" sql --src @test_oracle "SELECT TO_CHAR(COUNT(*)) AS CNT FROM ${test_table}" --json 2>/dev/null | /usr/bin/grep -o '"CNT": "[0-9]*"' | cut -d'"' -f4)
     if [ "$ora_count" -eq 1 ]; then
-        log_success "Oracle table query succeeded: $ora_count row"
+        :
     else
         log_error "Failed to query Oracle table"
         return 1
     fi
 
-    log_warning "Test table ${test_table} left in Oracle"
+    log_indent log_dim "Test table ${test_table} left in Oracle"
 
     log_success "Cross-database operations test passed"
 }
 
 # Test type mappings
 test_type_mappings() {
-    log_info "Testing Oracle type mappings..."
-    echo ""
+    log "Testing Oracle Type Mappings"
 
-    local test_table="${TEST_TABLE_PREFIX}_TYPES_$(date +%s)"
+    local test_table
+    test_table="${TEST_TABLE_PREFIX}_TYPES_$(date +%s)"
 
     # Test 1: Create table with various data types
-    log_info "Test 1: Create table with various Oracle data types"
+    log_dim "Test 1: Create table with various Oracle data types"
     if "$SQ_BINARY" sql --src @test_oracle "CREATE TABLE ${test_table} (
         COL_INT NUMBER(19,0),
         COL_TEXT VARCHAR2(100),
@@ -303,14 +307,14 @@ test_type_mappings() {
         COL_TIMESTAMP TIMESTAMP,
         COL_DATE DATE
     )" >/dev/null 2>&1; then
-        log_success "Created table with various types"
+        :
     else
         log_error "Failed to create table with types"
         return 1
     fi
 
     # Test 2: Insert data with different types
-    log_info "Test 2: Insert data with various types"
+    log_dim "Test 2: Insert data with various types"
     if "$SQ_BINARY" sql --src @test_oracle "INSERT INTO ${test_table} VALUES (
         42,
         'Test Text',
@@ -320,23 +324,24 @@ test_type_mappings() {
         TIMESTAMP '2024-01-01 12:00:00',
         DATE '2024-01-01'
     )" >/dev/null 2>&1; then
-        log_success "Inserted data with various types"
+        :
     else
         log_error "Failed to insert data"
         return 1
     fi
 
     # Test 3: Query data back and verify
-    log_info "Test 3: Query and verify type-mapped data"
-    local int_val=$("$SQ_BINARY" sql --src @test_oracle "SELECT TO_CHAR(COL_INT) AS COL_INT FROM ${test_table}" --json 2>/dev/null | /usr/bin/grep -o '"COL_INT": "[0-9]*"' | cut -d'"' -f4)
+    log_dim "Test 3: Query and verify type-mapped data"
+    local int_val
+    int_val=$("$SQ_BINARY" sql --src @test_oracle "SELECT TO_CHAR(COL_INT) AS COL_INT FROM ${test_table}" --json 2>/dev/null | /usr/bin/grep -o '"COL_INT": "[0-9]*"' | cut -d'"' -f4)
     if [ "$int_val" -eq 42 ]; then
-        log_success "Type mapping verified: INT=$int_val"
+        :
     else
         log_error "Type mapping failed. Expected: 42, Got: $int_val"
         return 1
     fi
 
-    log_warning "Test table ${test_table} left in Oracle"
+    log_indent log_dim "Test table ${test_table} left in Oracle"
 
     log_success "Type mapping test passed"
 }
@@ -349,7 +354,7 @@ main() {
     log_separator
     log_banner
     log_info "SQ CLI Oracle Driver Test"
-    echo ""
+    log ""
 
     # Track test results
     local tests_passed=0
@@ -357,11 +362,11 @@ main() {
 
     # Check prerequisites
     check_prerequisites
-    echo ""
+    log ""
 
     # Start containers
     start_containers
-    echo ""
+    log ""
 
     # Add sources
     if add_sources; then
@@ -369,7 +374,7 @@ main() {
     else
         ((tests_failed++))
     fi
-    echo ""
+    log ""
 
     # Run tests
     if test_oracle_basic; then
@@ -377,47 +382,45 @@ main() {
     else
         ((tests_failed++))
     fi
-    echo ""
+    log ""
 
     if test_oracle_tables; then
         ((tests_passed++))
     else
         ((tests_failed++))
     fi
-    echo ""
+    log ""
 
     if test_cross_database; then
         ((tests_passed++))
     else
         ((tests_failed++))
     fi
-    echo ""
+    log ""
 
     if test_type_mappings; then
         ((tests_passed++))
     else
         ((tests_failed++))
     fi
-    echo ""
+    log ""
 
     # Cleanup
     cleanup_sources
-    echo ""
+    log ""
 
     # Stop containers
-    stop_containers
-    echo ""
+    stop_services
+    log ""
 
     # Print summary
-    log_info "Test Summary"
-    log_success "Tests passed: $tests_passed"
     if [ $tests_failed -gt 0 ]; then
-        log_error "Tests failed: $tests_failed"
+        log_error "Tests failed: $tests_failed of $((tests_passed + tests_failed))"
         log_error "SQ CLI Oracle driver test FAILED"
         log_separator
         exit 1
     else
-        log_success "All tests passed!"
+        log_success "All $tests_passed tests passed!"
         log_success "SQ CLI Oracle driver test completed successfully"
         log_separator
         exit 0

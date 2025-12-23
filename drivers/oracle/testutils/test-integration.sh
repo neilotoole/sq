@@ -46,25 +46,27 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --help|-h)
-      echo "Usage: $0 [OPTIONS]"
-      echo ""
-      echo "Options:"
-      echo "  --with-pg, --with-postgres  Start Postgres and run cross-database tests"
-      echo "  --keep                      Keep containers running after tests"
-      echo "  --pattern PATTERN           Run only tests matching PATTERN (e.g., TestSmoke)"
-      echo "  --timeout DURATION          Test timeout (default: 10m)"
-      echo "  --help, -h                  Show this help message"
-      echo ""
-      echo "Examples:"
-      echo "  $0                          # Run all Oracle integration tests"
-      echo "  $0 --with-pg                # Run all tests including cross-database"
-      echo "  $0 --pattern TestSmoke      # Run only TestSmoke"
-      echo "  $0 --keep                   # Keep containers running after tests"
+      log_separator
+      log_info "Oracle Integration Test Runner"
+      log "Usage: $0 [OPTIONS]"
+      log_dim ""
+      log_info "Options:"
+      log "  --with-pg, --with-postgres  ${DIM}Start Postgres and run cross-database tests"
+      log "  --keep                      ${DIM}Keep containers running after tests"
+      log "  --pattern PATTERN           ${DIM}Run only tests matching PATTERN (e.g., TestSmoke)"
+      log "  --timeout DURATION          ${DIM}Test timeout (default: 10m)"
+      log "  --help, -h                  ${DIM}Show this help message"
+      log ""
+      log_info "Examples:"
+      log "  $0                          ${DIM}# Run all Oracle integration tests"
+      log "  $0 --with-pg                ${DIM}# Run all tests including cross-database"
+      log "  $0 --pattern TestSmoke      ${DIM}# Run only TestSmoke"
+      log "  $0 --keep                   ${DIM}# Keep containers running after tests"
       exit 0
       ;;
     *)
       log_error "Unknown option: $1"
-      echo "Use --help for usage information"
+      log "Use --help for usage information"
       exit 1
       ;;
   esac
@@ -75,7 +77,7 @@ cd "$SCRIPT_DIR"
 
 # Check prerequisites (including Go for this script)
 check_prerequisites() {
-    log_info "Checking prerequisites..."
+    log "Checking Prerequisites"
 
     # Check Docker prerequisites (from common.bash)
     check_docker_prerequisites
@@ -86,7 +88,7 @@ check_prerequisites() {
         exit 1
     fi
 
-    log_success "Prerequisites check passed"
+    log_success "Prerequisites Found Successfully"
 }
 
 # Function to start containers
@@ -95,10 +97,9 @@ start_containers() {
 
     if [ "$WITH_POSTGRES" = true ]; then
         services="oracle postgres"
-        log_info "Starting Oracle and Postgres containers..."
-    else
-        log_info "Starting Oracle container..."
     fi
+
+    log "Starting Containers"
 
     start_services $services
 }
@@ -110,7 +111,7 @@ stop_containers() {
 
 # Function to run tests
 run_tests() {
-    log_info "Running integration tests..."
+    log "Running integration tests..."
 
     # Set up Oracle Instant Client
     setup_oracle_instant_client || true
@@ -123,22 +124,25 @@ run_tests() {
     fi
 
     # Show what we're running
-    log_info "Running tests in: $DRIVER_DIR"
-    log_info "Test command: $test_cmd"
+    log "Running tests in: $DRIVER_DIR"
+    log_indent log_dim "Test command: $test_cmd"
     echo ""
 
     # Run the tests from the driver directory
-    pushd "$DRIVER_DIR" > /dev/null
+    pushd "$DRIVER_DIR" > /dev/null || return 1
     local result=0
-    if eval "$test_cmd"; then
+    echo -en "${DIM}"
+    eval "$test_cmd"
+    result=$?
+    echo -en "${RESET}"
+    if [ $result -eq 0 ]; then
         echo ""
         log_success "All tests passed!"
     else
         echo ""
         log_error "Some tests failed"
-        result=1
     fi
-    popd > /dev/null
+    popd > /dev/null || return 1
     return $result
 }
 
@@ -147,15 +151,15 @@ main() {
     log_separator
     log_banner
     log_info "Oracle Integration Test Runner"
-    echo ""
+    log ""
 
     # Check prerequisites
     check_prerequisites
-    echo ""
+    log ""
 
     # Start containers
     start_containers
-    echo ""
+    log ""
 
     # Wait for Oracle to be healthy
     if ! wait_for_healthy "oracle" 180; then
@@ -164,7 +168,7 @@ main() {
         stop_containers
         exit 1
     fi
-    echo ""
+    log ""
 
     # Wait for Postgres if needed
     if [ "$WITH_POSTGRES" = true ]; then
@@ -174,17 +178,17 @@ main() {
             stop_containers
             exit 1
         fi
-        echo ""
+        log ""
     fi
 
     # Run tests
     local test_result=0
     run_tests || test_result=$?
-    echo ""
+    log ""
 
     # Cleanup
     stop_containers
-    echo ""
+    log ""
 
     # Exit with test result
     if [ $test_result -eq 0 ]; then

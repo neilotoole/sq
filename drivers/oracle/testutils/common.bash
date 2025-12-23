@@ -18,16 +18,17 @@
 #   DOCKER_COMPOSE - The docker compose command to use
 #   DRIVER_DIR - Parent directory (drivers/oracle)
 
-# Ensure SCRIPT_DIR is set
-if [ -z "${SCRIPT_DIR:-}" ]; then
-    echo "ERROR: SCRIPT_DIR must be set before sourcing common.bash" >&2
-    exit 1
-fi
-
 # Source logging utilities if not already sourced
 if ! declare -f log_info >/dev/null 2>&1; then
     source "${SCRIPT_DIR}/log.bash"
 fi
+
+# Ensure SCRIPT_DIR is set
+if [ -z "${SCRIPT_DIR:-}" ]; then
+    log_error "ERROR: SCRIPT_DIR must be set before sourcing common.bash" >&2
+    exit 1
+fi
+
 
 # ==============================================================================
 # Directory Setup
@@ -67,7 +68,8 @@ command_exists() {
 setup_oracle_instant_client() {
     if [ -d "/opt/oracle/instantclient" ]; then
         export DYLD_LIBRARY_PATH="/opt/oracle/instantclient:${DYLD_LIBRARY_PATH:-}"
-        log_info "Set DYLD_LIBRARY_PATH=/opt/oracle/instantclient"
+        log_indent log_dim "Oracle instant client found in ${DIM}/opt/oracle/instantclient${RESET}"
+        log_indent log_dim "DYLD_LIBRARY_PATH set to ${DIM}$DYLD_LIBRARY_PATH${RESET}"
         return 0
     fi
     return 1
@@ -87,16 +89,19 @@ check_docker_prerequisites() {
 
     if [ -z "$DOCKER_COMPOSE" ]; then
         log_error "Neither docker-compose nor 'docker compose' is available"
-        log_error "Please install Docker Compose: https://docs.docker.com/compose/install/"
+        log "Please install Docker Compose: https://docs.docker.com/compose/install/"
         exit 1
     fi
 
     # Check if Docker daemon is running
     if ! docker info >/dev/null 2>&1; then
         log_error "Docker daemon is not running"
-        log_error "Start Docker and try again"
+        log "Start Docker and try again"
         exit 1
     fi
+
+    # Log version of docker compose
+    log_dim "Docker Compose found: $($DOCKER_COMPOSE version --short)"
 
     return 0
 }
@@ -113,10 +118,11 @@ wait_for_healthy() {
     local max_wait=${2:-120}  # Default 120 seconds
     local elapsed=0
 
-    log_info "Waiting for $service to be healthy (timeout: ${max_wait}s)..."
+    log_dim "Waiting for $service to be healthy (timeout: ${max_wait}s)..."
 
     while [ $elapsed -lt $max_wait ]; do
-        local health=$($DOCKER_COMPOSE ps -q "$service" | xargs docker inspect -f '{{.State.Health.Status}}' 2>/dev/null || echo "unknown")
+        local health
+        health=$($DOCKER_COMPOSE ps -q "$service" | xargs docker inspect -f '{{.State.Health.Status}}' 2>/dev/null || echo "unknown")
 
         if [ "$health" = "healthy" ]; then
             log_success "$service is healthy (${elapsed}s)"
@@ -124,18 +130,19 @@ wait_for_healthy() {
         fi
 
         # Check if container is running
-        local status=$($DOCKER_COMPOSE ps -q "$service" | xargs docker inspect -f '{{.State.Status}}' 2>/dev/null || echo "not found")
+        local status
+        status=$($DOCKER_COMPOSE ps -q "$service" | xargs docker inspect -f '{{.State.Status}}' 2>/dev/null || echo "not found")
         if [ "$status" != "running" ]; then
             log_error "$service container is not running (status: $status)"
             return 1
         fi
 
         echo -n "."
-        sleep 2
+        sleep 2 || true
         elapsed=$((elapsed + 2))
     done
 
-    echo ""
+    log ""
     log_error "$service did not become healthy after ${max_wait}s"
     log_warning "Check logs: $DOCKER_COMPOSE logs $service"
     return 1
@@ -146,18 +153,18 @@ wait_for_healthy() {
 # Must be called from SCRIPT_DIR or specify -f flag
 start_services() {
     local services="$*"
-    
+
     if [ -z "$services" ]; then
         log_error "No services specified"
         return 1
     fi
 
-    log_info "Starting containers: $services"
-    
-    pushd "$SCRIPT_DIR" > /dev/null
-    $DOCKER_COMPOSE up -d $services
+    log_dim "Starting containers: $services"
+
+    pushd "$SCRIPT_DIR" > /dev/null || return 1
+    $DOCKER_COMPOSE up -d --no-build $services
     local result=$?
-    popd > /dev/null
+    popd > /dev/null || return 1
 
     if [ $result -ne 0 ]; then
         log_error "Failed to start containers"
@@ -173,19 +180,19 @@ start_services() {
 # If --keep or KEEP_CONTAINERS=true, containers are not stopped
 stop_services() {
     local keep="${1:-}"
-    
+
     if [ "$keep" = "--keep" ] || [ "${KEEP_CONTAINERS:-false}" = true ]; then
-        log_info "Keeping containers running (--keep flag specified)"
-        log_info "To stop manually, run: $DOCKER_COMPOSE down"
+        log_info_dim "Keeping containers running (--keep flag specified)"
+        log_info_dim "To stop manually, run: $DOCKER_COMPOSE down"
         return 0
     fi
 
-    log_info "Stopping containers..."
-    
-    pushd "$SCRIPT_DIR" > /dev/null
+    log_dim "Stopping containers..."
+
+    pushd "$SCRIPT_DIR" > /dev/null || return
     $DOCKER_COMPOSE down
-    popd > /dev/null
-    
+    popd > /dev/null || return
+
     log_success "Containers stopped"
 }
 
@@ -194,10 +201,10 @@ stop_services() {
 show_service_logs() {
     local service=$1
     local tail_lines=${2:-50}
-    
-    pushd "$SCRIPT_DIR" > /dev/null
+
+    pushd "$SCRIPT_DIR" > /dev/null || return
     $DOCKER_COMPOSE logs --tail="$tail_lines" "$service"
-    popd > /dev/null
+    popd > /dev/null || return
 }
 
 # ==============================================================================
