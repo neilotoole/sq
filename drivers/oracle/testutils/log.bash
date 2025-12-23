@@ -76,15 +76,15 @@ log_info_dim() {
 }
 
 log_success() {
-    echo -e " ${GREEN}✔${RESET} ${DIM}${GREEN} $1${RESET}"
+    echo -e " ${GREEN}✔${RESET} ${DIM}${GREEN}$1${RESET}"
 }
 
 log_error() {
-    echo -e " ${RED}🅇${RESET}  ${DIM}${RED}$1${RESET}"
+    echo -e " ${RED}🅇${RESET} ${DIM}${RED}$1${RESET}"
 }
 
 log_warning() {
-    echo -e " ${YELLOW}▲${RESET}  ${DIM}${YELLOW}$1${RESET}"
+    echo -e " ${YELLOW}▲${RESET} ${DIM}${YELLOW}$1${RESET}"
 }
 
 # -----------------------------------------------------------------------------------------------------------
@@ -156,7 +156,7 @@ log_banner() {
     ${DIM}${YELLOW}╚════██║██║▄▄ ██║    ██║   ██║   ██║   ██║██║     ╚════██║
     ${DIM}${YELLOW}███████║╚██████╔╝    ╚██████╔╝   ██║   ██║███████╗███████║
     ${DIM}${YELLOW}╚══════╝ ╚══▀▀═╝      ╚═════╝    ╚═╝   ╚═╝╚══════╝╚══════╝
-    "
+    ${RESET}"
 }
 
 # -----------------------------------------------------------------------------------------------------------

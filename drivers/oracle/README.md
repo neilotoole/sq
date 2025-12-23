@@ -55,7 +55,7 @@ Oracle database driver implementation for SQ using [godror](https://github.com/g
 
 Oracle connection strings supported by godror:
 
-```
+```bash
 oracle://username:password@hostname:1521/service_name
 oracle://username:password@hostname/service_name
 oracle://username:password@tns_alias
