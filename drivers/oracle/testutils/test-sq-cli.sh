@@ -14,23 +14,33 @@
 
 set -euo pipefail
 
-# Get script directory and source logging utilities
+# Get script directory and source common utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DRIVER_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-source "${SCRIPT_DIR}/log.bash"
+source "${SCRIPT_DIR}/common.bash"
 
 # Configuration
-SQ_BINARY="${SQ_BINARY:-/Users/65720/Development/Projects/go/bin/sq}"
+# Default to $GOPATH/bin/sq, fall back to finding sq in PATH
+if [ -z "${SQ_BINARY:-}" ]; then
+    if [ -n "${GOPATH:-}" ] && [ -x "${GOPATH}/bin/sq" ]; then
+        SQ_BINARY="${GOPATH}/bin/sq"
+    elif command -v sq >/dev/null 2>&1; then
+        SQ_BINARY="$(command -v sq)"
+    else
+        SQ_BINARY="sq"  # Will fail later with helpful error message
+    fi
+fi
 ORACLE_DSN="${ORACLE_DSN:-oracle://testuser:testpass@localhost:1521/FREEPDB1}"
 POSTGRES_DSN="${POSTGRES_DSN:-postgres://testuser:testpass@localhost:5432/sakila?sslmode=disable}"
 TEST_TABLE_PREFIX="SQ_TEST"
 
-# Set Oracle Instant Client library path if not already set
-if [ -d "/opt/oracle/instantclient" ]; then
-    export DYLD_LIBRARY_PATH="/opt/oracle/instantclient:${DYLD_LIBRARY_PATH:-}"
-fi
+# Set up Oracle Instant Client
+setup_oracle_instant_client || true
 
-# Function to run sq command with error handling
+# ==============================================================================
+# SQ-Specific Functions
+# ==============================================================================
+
+# Run sq command with error handling
 run_sq() {
     local description="$1"
     shift
@@ -44,89 +54,56 @@ run_sq() {
     fi
 }
 
-# Function to check if a command exists
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
-}
-
-# Check prerequisites
+# Check prerequisites (sq binary, Docker, etc.)
 check_prerequisites() {
     log_info "Checking prerequisites..."
 
-    if [ ! -f "$SQ_BINARY" ]; then
+    # Check for sq binary
+    if [ ! -f "$SQ_BINARY" ] && ! command -v "$SQ_BINARY" >/dev/null 2>&1; then
         log_error "sq binary not found at: $SQ_BINARY"
-        log_error "Set SQ_BINARY environment variable or update the script"
+        log_error "Options to fix:"
+        log_error "  1. Install sq: go install github.com/neilotoole/sq"
+        log_error "  2. Set GOPATH if sq is in \$GOPATH/bin"
+        log_error "  3. Set SQ_BINARY=/path/to/sq environment variable"
         exit 1
     fi
 
-    if ! command_exists docker; then
-        log_error "docker is not installed or not in PATH"
-        exit 1
-    fi
-
-    if ! docker info >/dev/null 2>&1; then
-        log_error "Docker daemon is not running"
-        exit 1
-    fi
+    # Check Docker prerequisites (from common.bash)
+    check_docker_prerequisites
 
     log_success "Prerequisites check passed"
     log_info "Using sq binary: $SQ_BINARY"
     log_info "sq version: $("$SQ_BINARY" version 2>/dev/null || echo 'unknown')"
 }
 
-# Start database containers
+# Start database containers (Oracle and Postgres)
 start_containers() {
     log_info "Starting Oracle and Postgres containers..."
-    cd "$SCRIPT_DIR"
-    docker-compose up -d oracle postgres
+    start_services oracle postgres
 
     # Wait for Oracle to be healthy
-    log_info "Waiting for Oracle to be ready..."
-    local max_wait=180
-    local elapsed=0
-
-    while [ $elapsed -lt $max_wait ]; do
-        local health=$(docker-compose ps -q oracle | xargs docker inspect -f '{{.State.Health.Status}}' 2>/dev/null || echo "unknown")
-        if [ "$health" = "healthy" ]; then
-            log_success "Oracle is ready (${elapsed}s)"
-            break
-        fi
-        echo -n "."
-        sleep 2
-        elapsed=$((elapsed + 2))
-    done
-
-    if [ $elapsed -ge $max_wait ]; then
+    if ! wait_for_healthy "oracle" 180; then
         log_error "Oracle did not become ready in time"
         return 1
     fi
 
     # Wait for Postgres to be healthy
-    log_info "Waiting for Postgres to be ready..."
-    elapsed=0
-    max_wait=60
-
-    while [ $elapsed -lt $max_wait ]; do
-        local health=$(docker-compose ps -q postgres | xargs docker inspect -f '{{.State.Health.Status}}' 2>/dev/null || echo "unknown")
-        if [ "$health" = "healthy" ]; then
-            log_success "Postgres is ready (${elapsed}s)"
-            break
-        fi
-        echo -n "."
-        sleep 2
-        elapsed=$((elapsed + 2))
-    done
+    if ! wait_for_healthy "postgres" 60; then
+        log_error "Postgres did not become ready in time"
+        return 1
+    fi
 
     log_success "Databases started"
 }
 
 # Stop database containers
 stop_containers() {
-    log_info "Stopping containers..."
-    cd "$SCRIPT_DIR"
-    docker-compose down
-    log_success "Containers stopped"
+    stop_services
 }
+
+# ==============================================================================
+# SQ Source Management
+# ==============================================================================
 
 # Add data sources to sq
 add_sources() {
@@ -152,6 +129,21 @@ add_sources() {
         return 1
     fi
 }
+
+# Cleanup sq sources
+cleanup_sources() {
+    log_info "Cleaning up..."
+
+    # Remove sources
+    "$SQ_BINARY" rm @test_oracle 2>/dev/null || true
+    "$SQ_BINARY" rm @test_postgres 2>/dev/null || true
+
+    log_success "Cleanup completed"
+}
+
+# ==============================================================================
+# Test Functions
+# ==============================================================================
 
 # Test Oracle connectivity and basic operations
 test_oracle_basic() {
@@ -349,18 +341,10 @@ test_type_mappings() {
     log_success "Type mapping test passed"
 }
 
-# Cleanup
-cleanup() {
-    log_info "Cleaning up..."
+# ==============================================================================
+# Main Execution
+# ==============================================================================
 
-    # Remove sources
-    "$SQ_BINARY" rm @test_oracle 2>/dev/null || true
-    "$SQ_BINARY" rm @test_postgres 2>/dev/null || true
-
-    log_success "Cleanup completed"
-}
-
-# Main execution
 main() {
     log_separator
     log_banner
@@ -417,7 +401,7 @@ main() {
     echo ""
 
     # Cleanup
-    cleanup
+    cleanup_sources
     echo ""
 
     # Stop containers
@@ -444,8 +428,8 @@ main() {
 cleanup_on_exit() {
     if [ $? -ne 0 ]; then
         log_warning "Tests failed, cleaning up..."
-        cleanup 2>/dev/null || true
-        stop_containers 2>/dev/null || true
+        cleanup_sources 2>/dev/null || true
+        force_stop_containers
     fi
 }
 trap cleanup_on_exit EXIT

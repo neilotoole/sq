@@ -16,10 +16,9 @@
 
 set -euo pipefail
 
-# Get script directory and source logging utilities
+# Get script directory and source common utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DRIVER_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-source "${SCRIPT_DIR}/log.bash"
+source "${SCRIPT_DIR}/common.bash"
 
 # Configuration
 WITH_POSTGRES=false
@@ -74,34 +73,16 @@ done
 # Change to script directory
 cd "$SCRIPT_DIR"
 
-# Function to check if a command exists
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
-}
-
-# Check prerequisites
+# Check prerequisites (including Go for this script)
 check_prerequisites() {
     log_info "Checking prerequisites..."
 
-    if ! command_exists docker; then
-        log_error "docker is not installed or not in PATH"
-        exit 1
-    fi
+    # Check Docker prerequisites (from common.bash)
+    check_docker_prerequisites
 
-    if ! command_exists docker-compose && ! docker compose version >/dev/null 2>&1; then
-        log_error "docker-compose is not installed or not in PATH"
-        exit 1
-    fi
-
+    # Also need Go for running tests
     if ! command_exists go; then
         log_error "go is not installed or not in PATH"
-        exit 1
-    fi
-
-    # Check if Docker daemon is running
-    if ! docker info >/dev/null 2>&1; then
-        log_error "Docker daemon is not running"
-        log_error "Start Docker and try again"
         exit 1
     fi
 
@@ -119,72 +100,20 @@ start_containers() {
         log_info "Starting Oracle container..."
     fi
 
-    docker-compose up -d $services
-
-    if [ $? -ne 0 ]; then
-        log_error "Failed to start containers"
-        exit 1
-    fi
-
-    log_success "Containers started"
-}
-
-# Function to wait for a service to be healthy
-wait_for_healthy() {
-    local service=$1
-    local max_wait=${2:-120}  # Default 120 seconds
-    local elapsed=0
-
-    log_info "Waiting for $service to be healthy (timeout: ${max_wait}s)..."
-
-    while [ $elapsed -lt $max_wait ]; do
-        local health=$(docker-compose ps -q "$service" | xargs docker inspect -f '{{.State.Health.Status}}' 2>/dev/null || echo "unknown")
-
-        if [ "$health" = "healthy" ]; then
-            log_success "$service is healthy (${elapsed}s)"
-            return 0
-        fi
-
-        # Check if container is running
-        local status=$(docker-compose ps -q "$service" | xargs docker inspect -f '{{.State.Status}}' 2>/dev/null || echo "not found")
-        if [ "$status" != "running" ]; then
-            log_error "$service container is not running (status: $status)"
-            return 1
-        fi
-
-        echo -n "."
-        sleep 2
-        elapsed=$((elapsed + 2))
-    done
-
-    echo ""
-    log_error "$service did not become healthy after ${max_wait}s"
-    log_warning "Check logs: docker-compose logs $service"
-    return 1
+    start_services $services
 }
 
 # Function to stop containers
 stop_containers() {
-    if [ "$KEEP_CONTAINERS" = true ]; then
-        log_info "Keeping containers running (--keep flag specified)"
-        log_info "To stop manually, run: docker-compose down"
-        return 0
-    fi
-
-    log_info "Stopping containers..."
-    docker-compose down
-    log_success "Containers stopped"
+    stop_services
 }
 
 # Function to run tests
 run_tests() {
     log_info "Running integration tests..."
 
-    # Set DYLD_LIBRARY_PATH for Oracle Instant Client (if not already set)
-    if [ -d "/opt/oracle/instantclient" ]; then
-        export DYLD_LIBRARY_PATH="/opt/oracle/instantclient:${DYLD_LIBRARY_PATH:-}"
-        log_info "Set DYLD_LIBRARY_PATH=/opt/oracle/instantclient"
-    fi
+    # Set up Oracle Instant Client
+    setup_oracle_instant_client || true
 
     # Build test command - run from driver directory where Go files are located
     local test_cmd="go test -v -timeout $TIMEOUT"
@@ -231,7 +160,7 @@ main() {
     # Wait for Oracle to be healthy
     if ! wait_for_healthy "oracle" 180; then
         log_error "Oracle failed to become healthy"
-        docker-compose logs --tail=50 oracle
+        show_service_logs oracle 50
         stop_containers
         exit 1
     fi
@@ -241,7 +170,7 @@ main() {
     if [ "$WITH_POSTGRES" = true ]; then
         if ! wait_for_healthy "postgres" 60; then
             log_error "Postgres failed to become healthy"
-            docker-compose logs --tail=50 postgres
+            show_service_logs postgres 50
             stop_containers
             exit 1
         fi
@@ -273,7 +202,7 @@ main() {
 cleanup_on_exit() {
     if [ $? -ne 0 ] && [ "$KEEP_CONTAINERS" != true ]; then
         log_warning "Tests failed, stopping containers..."
-        docker-compose down 2>/dev/null || true
+        force_stop_containers
     fi
 }
 trap cleanup_on_exit EXIT
