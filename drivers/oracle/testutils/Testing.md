@@ -22,17 +22,19 @@ cd drivers/oracle
 go test -v -short
 ```
 
+> Note: The test scripts and docker-compose.yml are located in `drivers/oracle/testutils/`.
+
 **Run integration tests (requires Oracle + Instant Client):**
 
 ```bash
-cd drivers/oracle
+cd drivers/oracle/testutils
 ./test-integration.sh
 ```
 
 **Run all tests including cross-database (requires Oracle + Postgres):**
 
 ```bash
-cd drivers/oracle
+cd drivers/oracle/testutils
 ./test-integration.sh --with-pg
 ```
 
@@ -55,6 +57,8 @@ go test -v -short
 
 Expected output: **4 tests passing**, 6 tests skipped
 
+> Note: Test scripts and docker-compose.yml are located in `testutils/` subdirectory.
+
 You can also run specific unit tests:
 
 ```bash
@@ -68,13 +72,16 @@ Integration tests require a running Oracle database (and optionally Postgres for
 **Manual approach:**
 
 ```bash
-# Start databases
+# Start databases (from testutils directory)
+cd drivers/oracle/testutils
 docker-compose up -d
 
-# Run tests without -short flag
+# Run tests from driver directory
+cd drivers/oracle
 go test -v
 
 # Stop databases
+cd drivers/oracle/testutils
 docker-compose down
 ```
 
@@ -186,7 +193,7 @@ If you're using the `test-integration.sh` script, it handles starting/stopping D
 ### Manual Setup: Step 1 - Start Oracle Database
 
 ```bash
-cd drivers/oracle
+cd drivers/oracle/testutils
 
 # Start Oracle container
 docker-compose up -d
@@ -359,16 +366,21 @@ The `TestSakilaCrossDatabase` test demonstrates real-world usage by:
 This test requires both Postgres and Oracle to be running. It can be run with:
 
 ```bash
-# Start both databases
+# Start both databases (from testutils directory)
+cd drivers/oracle/testutils
 docker-compose up -d
 
-# Run only the cross-database test
+# Run only the cross-database test (from driver directory)
+cd drivers/oracle
 go test -v -run TestSakilaCrossDatabase -timeout 10m
 ```
 
 ## Docker Management Commands
 
 ```bash
+# From the testutils directory
+cd drivers/oracle/testutils
+
 # Start Oracle (and optionally Postgres)
 docker-compose up -d
 

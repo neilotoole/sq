@@ -15,7 +15,7 @@ This schema is automatically loaded when the Postgres container starts via docke
 
 ## Usage
 
-The scripts in this directory are automatically executed by the Postgres container on first startup (via the `/docker-entrypoint-initdb.d` mount in docker-compose.yml).
+The scripts in this directory are automatically executed by the Postgres container on first startup (via the `/docker-entrypoint-initdb.d` mount in `../testutils/docker-compose.yml`).
 
 Files are executed in alphanumeric order, so prefix with numbers to control execution order:
 - `01-sakila-schema.sql` - Schema and initial data

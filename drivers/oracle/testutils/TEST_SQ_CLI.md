@@ -42,7 +42,7 @@ The `test-sq-cli.sh` script validates the Oracle driver by running real-world op
 ### Basic Usage
 
 ```bash
-cd drivers/oracle
+cd drivers/oracle/testutils
 ./test-sq-cli.sh
 ```
 
