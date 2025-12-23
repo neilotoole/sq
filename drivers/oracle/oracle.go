@@ -529,7 +529,19 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (r
 	}
 
 	mungeFn := func(row []any) (record.Record, error) {
-		rec, _ := driver.NewRecordFromScanRow(recMeta, row, nil)
+		// Oracle doesn't need special munging, so we use default munging.
+		rec, skipped := driver.NewRecordFromScanRow(recMeta, row, nil)
+		if len(skipped) > 0 {
+			var skippedDetails []string
+			for _, skip := range skipped {
+				meta := recMeta[skip]
+				skippedDetails = append(skippedDetails,
+					fmt.Sprintf("[%d] %s: db(%s) --> kind(%s) --> scan(%s)",
+						skip, meta.Name(), meta.DatabaseTypeName(), meta.Kind(), meta.ScanType()))
+			}
+			return nil, errz.Errorf("expected zero skipped cols but have %d:\n  %s",
+				skipped, strings.Join(skippedDetails, "\n  "))
+		}
 		return rec, nil
 	}
 
