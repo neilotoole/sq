@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -202,7 +203,7 @@ ORDER BY c.column_id`
 		col := &metadata.Column{
 			Name:       colName,
 			Position:   int64(columnID),
-			Kind:       kindFromDBTypeName(nil, colName, dataType),
+			Kind:       kindFromDBTypeName(lg.FromContext(ctx), colName, dataType),
 			ColumnType: fullTypeName,
 			Nullable:   nullable == "Y",
 			Comment:    comment.String,
