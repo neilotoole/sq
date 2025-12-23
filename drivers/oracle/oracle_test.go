@@ -72,7 +72,7 @@ To fix:
      echo 'export DYLD_LIBRARY_PATH=/opt/oracle/instantclient:$DYLD_LIBRARY_PATH' >> ~/.zshrc
      source ~/.zshrc
 
-See drivers/oracle/Testing.md for full setup instructions.`)
+See drivers/oracle/testutils/Testing.md for full setup instructions.`)
 				return
 			}
 
@@ -92,7 +92,7 @@ To run Oracle integration tests, install Oracle Instant Client:
     See: https://oracle.github.io/odpi/doc/installation.html#linux
 
 Unit tests (go test -short) do not require Oracle Instant Client.
-See drivers/oracle/Testing.md for full setup instructions.`)
+See drivers/oracle/testutils/Testing.md for full setup instructions.`)
 			return
 		}
 
@@ -107,7 +107,7 @@ To start Oracle database:
 Wait 1-2 minutes for Oracle to initialize, then check status:
   docker-compose ps
 
-See drivers/oracle/Testing.md for full setup instructions.`)
+See drivers/oracle/testutils/Testing.md for full setup instructions.`)
 			return
 		}
 

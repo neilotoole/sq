@@ -16,15 +16,12 @@
 
 set -euo pipefail
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Get script directory and source logging utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DRIVER_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+source "${SCRIPT_DIR}/log.bash"
 
 # Configuration
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WITH_POSTGRES=false
 KEEP_CONTAINERS=false
 TEST_PATTERN=""
@@ -67,7 +64,7 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     *)
-      echo -e "${RED}Unknown option: $1${NC}"
+      log_error "Unknown option: $1"
       echo "Use --help for usage information"
       exit 1
       ;;
@@ -77,23 +74,6 @@ done
 # Change to script directory
 cd "$SCRIPT_DIR"
 
-# Function to print colored messages
-info() {
-    echo -e "${BLUE}ℹ${NC} $*"
-}
-
-success() {
-    echo -e "${GREEN}✓${NC} $*"
-}
-
-warning() {
-    echo -e "${YELLOW}⚠${NC} $*"
-}
-
-error() {
-    echo -e "${RED}✗${NC} $*"
-}
-
 # Function to check if a command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
@@ -101,31 +81,31 @@ command_exists() {
 
 # Check prerequisites
 check_prerequisites() {
-    info "Checking prerequisites..."
+    log_info "Checking prerequisites..."
 
     if ! command_exists docker; then
-        error "docker is not installed or not in PATH"
+        log_error "docker is not installed or not in PATH"
         exit 1
     fi
 
     if ! command_exists docker-compose && ! docker compose version >/dev/null 2>&1; then
-        error "docker-compose is not installed or not in PATH"
+        log_error "docker-compose is not installed or not in PATH"
         exit 1
     fi
 
     if ! command_exists go; then
-        error "go is not installed or not in PATH"
+        log_error "go is not installed or not in PATH"
         exit 1
     fi
 
     # Check if Docker daemon is running
     if ! docker info >/dev/null 2>&1; then
-        error "Docker daemon is not running"
-        error "Start Docker and try again"
+        log_error "Docker daemon is not running"
+        log_error "Start Docker and try again"
         exit 1
     fi
 
-    success "Prerequisites check passed"
+    log_success "Prerequisites check passed"
 }
 
 # Function to start containers
@@ -134,19 +114,19 @@ start_containers() {
 
     if [ "$WITH_POSTGRES" = true ]; then
         services="oracle postgres"
-        info "Starting Oracle and Postgres containers..."
+        log_info "Starting Oracle and Postgres containers..."
     else
-        info "Starting Oracle container..."
+        log_info "Starting Oracle container..."
     fi
 
     docker-compose up -d $services
 
     if [ $? -ne 0 ]; then
-        error "Failed to start containers"
+        log_error "Failed to start containers"
         exit 1
     fi
 
-    success "Containers started"
+    log_success "Containers started"
 }
 
 # Function to wait for a service to be healthy
@@ -155,20 +135,20 @@ wait_for_healthy() {
     local max_wait=${2:-120}  # Default 120 seconds
     local elapsed=0
 
-    info "Waiting for $service to be healthy (timeout: ${max_wait}s)..."
+    log_info "Waiting for $service to be healthy (timeout: ${max_wait}s)..."
 
     while [ $elapsed -lt $max_wait ]; do
         local health=$(docker-compose ps -q "$service" | xargs docker inspect -f '{{.State.Health.Status}}' 2>/dev/null || echo "unknown")
 
         if [ "$health" = "healthy" ]; then
-            success "$service is healthy (${elapsed}s)"
+            log_success "$service is healthy (${elapsed}s)"
             return 0
         fi
 
         # Check if container is running
         local status=$(docker-compose ps -q "$service" | xargs docker inspect -f '{{.State.Status}}' 2>/dev/null || echo "not found")
         if [ "$status" != "running" ]; then
-            error "$service container is not running (status: $status)"
+            log_error "$service container is not running (status: $status)"
             return 1
         fi
 
@@ -178,35 +158,35 @@ wait_for_healthy() {
     done
 
     echo ""
-    error "$service did not become healthy after ${max_wait}s"
-    warning "Check logs: docker-compose logs $service"
+    log_error "$service did not become healthy after ${max_wait}s"
+    log_warning "Check logs: docker-compose logs $service"
     return 1
 }
 
 # Function to stop containers
 stop_containers() {
     if [ "$KEEP_CONTAINERS" = true ]; then
-        info "Keeping containers running (--keep flag specified)"
-        info "To stop manually, run: docker-compose down"
+        log_info "Keeping containers running (--keep flag specified)"
+        log_info "To stop manually, run: docker-compose down"
         return 0
     fi
 
-    info "Stopping containers..."
+    log_info "Stopping containers..."
     docker-compose down
-    success "Containers stopped"
+    log_success "Containers stopped"
 }
 
 # Function to run tests
 run_tests() {
-    info "Running integration tests..."
+    log_info "Running integration tests..."
 
     # Set DYLD_LIBRARY_PATH for Oracle Instant Client (if not already set)
     if [ -d "/opt/oracle/instantclient" ]; then
         export DYLD_LIBRARY_PATH="/opt/oracle/instantclient:${DYLD_LIBRARY_PATH:-}"
-        info "Set DYLD_LIBRARY_PATH=/opt/oracle/instantclient"
+        log_info "Set DYLD_LIBRARY_PATH=/opt/oracle/instantclient"
     fi
 
-    # Build test command
+    # Build test command - run from driver directory where Go files are located
     local test_cmd="go test -v -timeout $TIMEOUT"
 
     if [ -n "$TEST_PATTERN" ]; then
@@ -214,24 +194,30 @@ run_tests() {
     fi
 
     # Show what we're running
-    info "Test command: $test_cmd"
+    log_info "Running tests in: $DRIVER_DIR"
+    log_info "Test command: $test_cmd"
     echo ""
 
-    # Run the tests
+    # Run the tests from the driver directory
+    pushd "$DRIVER_DIR" > /dev/null
+    local result=0
     if eval "$test_cmd"; then
         echo ""
-        success "All tests passed!"
-        return 0
+        log_success "All tests passed!"
     else
         echo ""
-        error "Some tests failed"
-        return 1
+        log_error "Some tests failed"
+        result=1
     fi
+    popd > /dev/null
+    return $result
 }
 
 # Main execution
 main() {
-    info "Oracle Integration Test Runner"
+    log_separator
+    log_banner
+    log_info "Oracle Integration Test Runner"
     echo ""
 
     # Check prerequisites
@@ -244,7 +230,7 @@ main() {
 
     # Wait for Oracle to be healthy
     if ! wait_for_healthy "oracle" 180; then
-        error "Oracle failed to become healthy"
+        log_error "Oracle failed to become healthy"
         docker-compose logs --tail=50 oracle
         stop_containers
         exit 1
@@ -254,7 +240,7 @@ main() {
     # Wait for Postgres if needed
     if [ "$WITH_POSTGRES" = true ]; then
         if ! wait_for_healthy "postgres" 60; then
-            error "Postgres failed to become healthy"
+            log_error "Postgres failed to become healthy"
             docker-compose logs --tail=50 postgres
             stop_containers
             exit 1
@@ -273,10 +259,12 @@ main() {
 
     # Exit with test result
     if [ $test_result -eq 0 ]; then
-        success "Integration test run completed successfully"
+        log_success "Integration test run completed successfully"
+        log_separator
         exit 0
     else
-        error "Integration test run failed"
+        log_error "Integration test run failed"
+        log_separator
         exit 1
     fi
 }
@@ -284,7 +272,7 @@ main() {
 # Trap to ensure cleanup on exit
 cleanup_on_exit() {
     if [ $? -ne 0 ] && [ "$KEEP_CONTAINERS" != true ]; then
-        warning "Tests failed, stopping containers..."
+        log_warning "Tests failed, stopping containers..."
         docker-compose down 2>/dev/null || true
     fi
 }

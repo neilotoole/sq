@@ -25,7 +25,7 @@ services:
       POSTGRES_DB: sakila
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./testdata:/docker-entrypoint-initdb.d
+      - ../testdata:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U testuser -d sakila"]
       interval: 5s

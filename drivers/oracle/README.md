@@ -72,22 +72,22 @@ cd drivers/oracle
 go test -v -short
 
 # Run integration tests (requires Oracle Instant Client + Docker)
-./test-integration.sh
+./testutils/test-integration.sh
 
 # Run all tests including cross-database (requires Postgres too)
-./test-integration.sh --with-pg
+./testutils/test-integration.sh --with-pg
 ```
 
 For detailed testing instructions, including:
 
 - Unit vs integration test organization
-- `test-integration.sh` script usage
+- `testutils/test-integration.sh` script usage
 - Oracle Instant Client installation
 - Manual Docker setup
 - Cross-database testing (Postgres → Oracle)
 - Troubleshooting
 
-See **[Testing.md](./Testing.md)**
+See **[Testing.md](./testutils/Testing.md)**
 
 ## Oracle-Specific Notes
 
@@ -102,6 +102,7 @@ See **[Testing.md](./Testing.md)**
 4. **Identifiers**: Oracle folds unquoted identifiers to uppercase. SQ uses double quotes consistently.
 
 5. **NUMBER Type Handling**:
+
    - NUMBER(p,0) where p ≤ 19 → treated as Int
    - NUMBER(p,s) where s > 0 → treated as Decimal
    - NUMBER with no precision → treated as Decimal
@@ -119,15 +120,15 @@ See **[Testing.md](./Testing.md)**
 
 ## Implementation Files
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `oracle.go` | ~650 | Main driver, SQLDriver implementation, DDL/DML operations |
-| `metadata.go` | ~230 | Data dictionary queries for schema/table/column metadata |
-| `render.go` | ~120 | Type mapping and SQL generation |
-| `grip.go` | ~70 | Connection grip implementation |
-| `errors.go` | ~60 | Oracle error code handling |
-| `internal_test.go` | ~80 | Unit tests |
-| `docker-compose.yml` | ~20 | Docker setup for integration tests |
+| File                           | Lines | Purpose                                                   |
+| ------------------------------ | ----- | --------------------------------------------------------- |
+| `oracle.go`                    | ~650  | Main driver, SQLDriver implementation, DDL/DML operations |
+| `metadata.go`                  | ~230  | Data dictionary queries for schema/table/column metadata  |
+| `render.go`                    | ~120  | Type mapping and SQL generation                           |
+| `grip.go`                      | ~70   | Connection grip implementation                            |
+| `errors.go`                    | ~60   | Oracle error code handling                                |
+| `internal_test.go`             | ~80   | Unit tests                                                |
+| `testutils/docker-compose.yml` | ~20   | Docker setup for integration tests                        |
 
 ## What's Not Included (Post-MVP)
 
@@ -161,14 +162,14 @@ registry.AddProvider(drivertype.Oracle, &oracle.Provider{Log: log})
 
 ## Common Oracle Error Codes
 
-| Code | Description | SQ Handling |
-|------|-------------|-------------|
-| ORA-00942 | Table/view not found | Converted to NotExistError |
-| ORA-00955 | Object name exists | Converted to AlreadyExistsError |
-| ORA-00904 | Invalid identifier | Converted to NotExistError |
-| ORA-01017 | Invalid credentials | Authentication error |
-| ORA-12516 | No available handler | Connection pooling issue |
-| ORA-12541 | No listener | Connection refused |
+| Code      | Description          | SQ Handling                     |
+| --------- | -------------------- | ------------------------------- |
+| ORA-00942 | Table/view not found | Converted to NotExistError      |
+| ORA-00955 | Object name exists   | Converted to AlreadyExistsError |
+| ORA-00904 | Invalid identifier   | Converted to NotExistError      |
+| ORA-01017 | Invalid credentials  | Authentication error            |
+| ORA-12516 | No available handler | Connection pooling issue        |
+| ORA-12541 | No listener          | Connection refused              |
 
 ## Requirements
 
