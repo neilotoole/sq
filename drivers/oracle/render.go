@@ -78,8 +78,11 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 }
 
 // createTblKindDefaults is a map of kind.Kind to default value for CREATE TABLE.
+// NOTE: Oracle treats empty string '' as NULL, so we use a single space for text defaults.
+// Oracle also doesn't support function calls (like EMPTY_BLOB()) as DEFAULT values,
+// so BLOB columns with NOT NULL must be handled without a default.
 var createTblKindDefaults = map[kind.Kind]string{
-	kind.Text:     "DEFAULT ''",
+	kind.Text:     "DEFAULT ' '", // Oracle treats '' as NULL, use space instead
 	kind.Int:      "DEFAULT 0",
 	kind.Float:    "DEFAULT 0",
 	kind.Decimal:  "DEFAULT 0",
@@ -87,8 +90,8 @@ var createTblKindDefaults = map[kind.Kind]string{
 	kind.Datetime: "DEFAULT TIMESTAMP '1970-01-01 00:00:00'",
 	kind.Date:     "DEFAULT DATE '1970-01-01'",
 	kind.Time:     "DEFAULT TIMESTAMP '1970-01-01 00:00:00'",
-	kind.Bytes:    "DEFAULT EMPTY_BLOB()",
-	kind.Unknown:  "DEFAULT ''",
+	kind.Bytes:    "", // Oracle doesn't support EMPTY_BLOB() as DEFAULT; omit default
+	kind.Unknown:  "DEFAULT ' '", // Oracle treats '' as NULL, use space instead
 }
 
 // buildCreateTableStmt builds a CREATE TABLE statement for Oracle.
@@ -105,8 +108,12 @@ func buildCreateTableStmt(tblDef *schema.Table) string {
 		sb.WriteString(dbTypeNameFromKind(colDef.Kind))
 
 		if colDef.NotNull {
-			sb.WriteRune(' ')
-			sb.WriteString(createTblKindDefaults[colDef.Kind])
+			// Add default value if one exists for this kind
+			// (some types like BLOB don't have valid defaults in Oracle)
+			if defaultVal := createTblKindDefaults[colDef.Kind]; defaultVal != "" {
+				sb.WriteRune(' ')
+				sb.WriteString(defaultVal)
+			}
 			sb.WriteString(" NOT NULL")
 		}
 
