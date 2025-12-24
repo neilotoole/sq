@@ -22,6 +22,7 @@ import (
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/drivers/clickhouse"
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/json"
 	"github.com/neilotoole/sq/drivers/mysql"
@@ -182,6 +183,7 @@ func (h *Helper) init() {
 		h.registry.AddProvider(drivertype.Pg, &postgres.Provider{Log: h.Log()})
 		h.registry.AddProvider(drivertype.MSSQL, &sqlserver.Provider{Log: h.Log()})
 		h.registry.AddProvider(drivertype.MySQL, &mysql.Provider{Log: h.Log()})
+		h.registry.AddProvider(drivertype.ClickHouse, &clickhouse.Provider{Log: h.Log()})
 
 		csvp := &csv.Provider{Log: h.Log(), Ingester: h.grips, Files: h.files}
 		h.registry.AddProvider(drivertype.CSV, csvp)

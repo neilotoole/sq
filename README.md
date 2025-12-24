@@ -319,17 +319,18 @@ implementation. To view the installed/supported drivers:
 
 ```shell
 $ sq driver ls
-DRIVER     DESCRIPTION                          
-sqlite3    SQLite                               
-postgres   PostgreSQL                           
-sqlserver  Microsoft SQL Server / Azure SQL Edge
-mysql      MySQL                                
-csv        Comma-Separated Values               
-tsv        Tab-Separated Values                 
-json       JSON                                 
-jsona      JSON Array: LF-delimited JSON arrays 
-jsonl      JSON Lines: LF-delimited JSON objects
-xlsx       Microsoft Excel XLSX                 
+DRIVER      DESCRIPTION
+sqlite3     SQLite
+postgres    PostgreSQL
+sqlserver   Microsoft SQL Server / Azure SQL Edge
+mysql       MySQL
+clickhouse  ClickHouse
+csv         Comma-Separated Values
+tsv         Tab-Separated Values
+json        JSON
+jsona       JSON Array: LF-delimited JSON arrays
+jsonl       JSON Lines: LF-delimited JSON objects
+xlsx        Microsoft Excel XLSX
 ```
 
 ## Output formats

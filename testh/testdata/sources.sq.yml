@@ -122,4 +122,7 @@ collection:
     - handle: '@blobdb'
       driver: sqlite3
       location: 'sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/blob.db'
+    - handle: '@clickhouse_test'
+      driver: clickhouse
+      location: clickhouse://testuser:testpass@localhost:19000/testdb
 
