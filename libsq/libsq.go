@@ -122,6 +122,45 @@ func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (targetSQL str
 	return p.targetSQL, nil
 }
 
+// ExecSQL executes a SQL statement (DDL/DML) that doesn't return rows,
+// such as CREATE TABLE, INSERT, UPDATE, DELETE, DROP TABLE, etc.
+// It returns the number of rows affected. If db is non-nil, the statement
+// is executed against it. Otherwise, the connection is obtained from grip.
+// The caller is responsible for closing grip (and db, if non-nil).
+func ExecSQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
+	stmt string, args ...any,
+) (affected int64, err error) {
+	log := lg.FromContext(ctx)
+	errw := grip.SQLDriver().ErrWrapFunc()
+
+	if db == nil {
+		if db, err = grip.DB(ctx); err != nil {
+			return 0, err
+		}
+	}
+
+	bar := progress.FromContext(ctx).NewWaiter("Execute statement")
+	result, err := db.ExecContext(ctx, stmt, args...)
+	bar.Stop()
+	if err != nil {
+		err = errz.Wrapf(errw(err), `SQL query against %s failed: %s`, grip.Source().Handle, stmt)
+		select {
+		case <-ctx.Done():
+			log.Debug("Error received, but context was done", lga.Err, err)
+			return 0, ctx.Err()
+		default:
+			return 0, err
+		}
+	}
+
+	affected, err = result.RowsAffected()
+	if err != nil {
+		return 0, errw(err)
+	}
+
+	return affected, nil
+}
+
 // QuerySQL executes the SQL query, writing the results to recw. If db is
 // non-nil, the query is executed against it. Otherwise, the connection is
 // obtained from grip.

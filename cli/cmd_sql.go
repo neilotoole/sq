@@ -116,6 +116,49 @@ func execSQL(cmd *cobra.Command, args []string) error {
 	return execSQLInsert(ctx, ru, activeSrc, destSrc, destTbl)
 }
 
+// isQueryStatement returns true if the SQL appears to be a query (SELECT)
+// that returns rows, false if it's a statement (CREATE, INSERT, UPDATE, etc.)
+// that should use ExecContext.
+func isQueryStatement(sql string) bool {
+	// Trim whitespace and convert to uppercase for comparison
+	sql = strings.TrimSpace(sql)
+	if sql == "" {
+		return true // default to query
+	}
+
+	// Remove leading comments
+	for strings.HasPrefix(sql, "--") || strings.HasPrefix(sql, "/*") {
+		if strings.HasPrefix(sql, "--") {
+			if idx := strings.Index(sql, "\n"); idx >= 0 {
+				sql = strings.TrimSpace(sql[idx+1:])
+			} else {
+				return true
+			}
+		} else if strings.HasPrefix(sql, "/*") {
+			if idx := strings.Index(sql, "*/"); idx >= 0 {
+				sql = strings.TrimSpace(sql[idx+2:])
+			} else {
+				return true
+			}
+		}
+	}
+
+	sqlUpper := strings.ToUpper(sql)
+
+	// Check for query statements (return rows)
+	queryPrefixes := []string{"SELECT", "WITH", "SHOW", "DESCRIBE", "DESC", "EXPLAIN"}
+	for _, prefix := range queryPrefixes {
+		if strings.HasPrefix(sqlUpper, prefix+" ") || strings.HasPrefix(sqlUpper, prefix+"\t") ||
+			strings.HasPrefix(sqlUpper, prefix+"\n") || strings.HasPrefix(sqlUpper, prefix+"\r") ||
+			sqlUpper == prefix {
+			return true
+		}
+	}
+
+	// Everything else (CREATE, INSERT, UPDATE, DELETE, DROP, ALTER, etc.) is a statement
+	return false
+}
+
 // execSQLPrint executes the SQL and prints resulting records
 // to the configured writer.
 func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source) error {
@@ -125,8 +168,22 @@ func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source) erro
 		return err
 	}
 
+	sql := args[0]
+
+	// Detect if this is a query (SELECT) or statement (CREATE, INSERT, etc.)
+	if !isQueryStatement(sql) {
+		// This is a DDL/DML statement, use ExecSQL
+		affected, err := libsq.ExecSQL(ctx, grip, nil, sql)
+		if err != nil {
+			return err
+		}
+		_, _ = fmt.Fprintf(ru.Out, stringz.Plu("Affected %d row(s)\n", int(affected)), affected)
+		return nil
+	}
+
+	// This is a query, use QuerySQL
 	recw := output.NewRecordWriterAdapter(ctx, ru.Writers.Record)
-	err = libsq.QuerySQL(ctx, grip, nil, recw, args[0])
+	err = libsq.QuerySQL(ctx, grip, nil, recw, sql)
 	if err != nil {
 		return err
 	}
