@@ -223,14 +223,15 @@ func isNullableType(typeName string) bool {
 
 // kindFromClickHouseType maps ClickHouse type names to sq kinds.
 func kindFromClickHouseType(chType string) kind.Kind {
+	// Strip LowCardinality wrapper if present (check first, as it may wrap Nullable)
+	// "LowCardinality(" is 15 characters
+	if len(chType) > 16 && chType[:15] == "LowCardinality(" {
+		chType = chType[15 : len(chType)-1]
+	}
+
 	// Strip Nullable wrapper if present
 	if isNullableType(chType) {
 		chType = chType[9 : len(chType)-1]
-	}
-
-	// Strip LowCardinality wrapper if present
-	if len(chType) > 14 && chType[:14] == "LowCardinality(" {
-		chType = chType[15 : len(chType)-1]
 	}
 
 	switch chType {

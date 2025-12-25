@@ -126,6 +126,73 @@ func TestIsNullableType(t *testing.T) {
 	}
 }
 
+// TestLowCardinalityWrapperStripping specifically tests that LowCardinality
+// wrappers are correctly stripped to extract the inner type.
+// This test catches the off-by-one bug where chType[:14] was compared against
+// "LowCardinality(" (15 chars), which would never match.
+func TestLowCardinalityWrapperStripping(t *testing.T) {
+	testCases := []struct {
+		chType   string
+		wantKind kind.Kind
+		desc     string
+	}{
+		// These would return kind.Text with or without the fix (String default)
+		{"LowCardinality(String)", kind.Text, "LowCardinality wrapping String"},
+
+		// These REQUIRE correct wrapper stripping to return the right kind
+		{"LowCardinality(Int64)", kind.Int, "LowCardinality wrapping Int64"},
+		{"LowCardinality(Int32)", kind.Int, "LowCardinality wrapping Int32"},
+		{"LowCardinality(UInt64)", kind.Int, "LowCardinality wrapping UInt64"},
+		{"LowCardinality(Float64)", kind.Float, "LowCardinality wrapping Float64"},
+		{"LowCardinality(Float32)", kind.Float, "LowCardinality wrapping Float32"},
+		{"LowCardinality(DateTime)", kind.Datetime, "LowCardinality wrapping DateTime"},
+		{"LowCardinality(Date)", kind.Date, "LowCardinality wrapping Date"},
+
+		// Nested wrappers: LowCardinality(Nullable(...))
+		{"LowCardinality(Nullable(Int64))", kind.Int, "LowCardinality+Nullable wrapping Int64"},
+		{"LowCardinality(Nullable(Float64))", kind.Float, "LowCardinality+Nullable wrapping Float64"},
+		{"LowCardinality(Nullable(DateTime))", kind.Datetime, "LowCardinality+Nullable wrapping DateTime"},
+
+		// Edge cases
+		{"LowCardinality(UUID)", kind.Text, "LowCardinality wrapping UUID"},
+		{"LowCardinality(Bool)", kind.Bool, "LowCardinality wrapping Bool"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.chType, func(t *testing.T) {
+			gotKind := kindFromClickHouseType(tc.chType)
+			require.Equal(t, tc.wantKind, gotKind,
+				"%s: expected %s but got %s", tc.desc, tc.wantKind, gotKind)
+		})
+	}
+}
+
+// TestNullableWrapperStripping tests that Nullable wrappers are correctly stripped.
+func TestNullableWrapperStripping(t *testing.T) {
+	testCases := []struct {
+		chType   string
+		wantKind kind.Kind
+	}{
+		{"Nullable(Int64)", kind.Int},
+		{"Nullable(Int32)", kind.Int},
+		{"Nullable(UInt64)", kind.Int},
+		{"Nullable(Float64)", kind.Float},
+		{"Nullable(Float32)", kind.Float},
+		{"Nullable(String)", kind.Text},
+		{"Nullable(DateTime)", kind.Datetime},
+		{"Nullable(Date)", kind.Date},
+		{"Nullable(Bool)", kind.Bool},
+		{"Nullable(UUID)", kind.Text},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.chType, func(t *testing.T) {
+			gotKind := kindFromClickHouseType(tc.chType)
+			require.Equal(t, tc.wantKind, gotKind)
+		})
+	}
+}
+
 // TestBuildCreateTableStmt tests CREATE TABLE statement generation.
 func TestBuildCreateTableStmt(t *testing.T) {
 	tblDef := schema.NewTable("test_table",
