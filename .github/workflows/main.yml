@@ -130,7 +130,7 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           skip-cache: true
-          install-mode: 'goinstall'
+          install-mode: 'binary'
           version: ${{ env.GOLANGCI_LINT_VERSION }}
 
 
