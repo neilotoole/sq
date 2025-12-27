@@ -513,7 +513,7 @@ func (t *Table) printRow(columns [][]string, colKey int) {
 					cellContent = PadRight(text, Space, t.cs[y])
 					fmt.Fprintf(t.out, tran("%s  "), cellContent)
 				} else {
-					fmt.Fprintf(t.out, tran(strings.TrimRightFunc(cellContent, unicode.IsSpace)))
+					fmt.Fprint(t.out, tran(strings.TrimRightFunc(cellContent, unicode.IsSpace)))
 				}
 
 			default:

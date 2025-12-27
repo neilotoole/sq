@@ -1,6 +1,6 @@
 module github.com/neilotoole/sq
 
-go 1.23.4
+go 1.25.5
 
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
@@ -48,12 +48,12 @@ require (
 	github.com/xo/dburl v0.23.2
 	github.com/xuri/excelize/v2 v2.8.1
 	go.uber.org/atomic v1.11.0
-	golang.org/x/exp v0.0.0-20250103183323-7d7fa50e5329
-	golang.org/x/mod v0.22.0
-	golang.org/x/sync v0.10.0
-	golang.org/x/sys v0.29.0
-	golang.org/x/term v0.28.0
-	golang.org/x/text v0.21.0
+	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93
+	golang.org/x/mod v0.31.0
+	golang.org/x/sync v0.19.0
+	golang.org/x/sys v0.39.0
+	golang.org/x/term v0.38.0
+	golang.org/x/text v0.32.0
 )
 
 require (

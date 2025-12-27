@@ -83,7 +83,7 @@ func TestParseBuild(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(tu.Name(i, tc.name), func(t *testing.T) {
-			t.Logf(tc.in)
+			t.Log(tc.in)
 			log := lgt.New(t)
 
 			ptree, err := parseSLQ(log, tc.in)
