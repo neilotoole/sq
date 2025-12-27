@@ -16,7 +16,8 @@ install:
 
 .PHONY: lint
 lint:
-	@golangci-lint run --out-format tab --sort-results
+	go tool -modfile=tools/golangci-lint/go.mod golangci-lint version
+	go tool -modfile=tools/golangci-lint/go.mod golangci-lint run --output.tab.path stdout
 	@shellcheck ./install.sh
 
 .PHONY: gen

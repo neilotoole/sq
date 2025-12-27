@@ -280,9 +280,10 @@ current_setting('server_version'), version(), "current_user"()`
 	}
 
 	for _, tbl := range md.Tables {
-		if tbl.TableType == sqlz.TableTypeTable {
+		switch tbl.TableType {
+		case sqlz.TableTypeTable:
 			md.TableCount++
-		} else if tbl.TableType == sqlz.TableTypeView {
+		case sqlz.TableTypeView:
 			md.ViewCount++
 		}
 	}

@@ -113,7 +113,8 @@ func Equal(a, b Record) bool {
 // And using a == b alone is not reliable because of monotonic clock issues. See
 // the docs for [time.Time.Equal] for more info.
 func equalTimes(a, b time.Time) bool {
-	if a == b { //nolint:revive
+	//nolint:revive
+	if a == b { //nolint:staticcheck
 		// The linter complains about == comparison, but it's ok, because we also
 		// check using Time.Equal below.
 		return true

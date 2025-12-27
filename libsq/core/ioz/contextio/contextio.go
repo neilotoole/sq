@@ -172,7 +172,7 @@ func (rc *readCloser) Close() error {
 func (w *copier) ReadFrom(r io.Reader) (n int64, err error) {
 	if _, ok := w.w.(io.ReaderFrom); ok {
 		// Let the original Writer decide the chunk size.
-		return io.Copy(w.writer.w, &reader{ctx: w.ctx, r: r})
+		return io.Copy(w.w, &reader{ctx: w.ctx, r: r})
 	}
 	select {
 	case <-w.ctx.Done():

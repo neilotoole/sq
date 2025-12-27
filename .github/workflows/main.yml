@@ -11,7 +11,7 @@ on:
 
 env:
   GORELEASER_VERSION: 2.6.1
-  GOLANGCI_LINT_VERSION: v1.63.4
+  GOLANGCI_LINT_VERSION: v2.5.0
   TPARSE_VERSION: v0.13.2
   BUILD_TAGS: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions'
 

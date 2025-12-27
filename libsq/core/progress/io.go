@@ -230,7 +230,7 @@ func (w *progCopier) ReadFrom(r io.Reader) (n int64, err error) {
 			b:   w.b,
 		}
 
-		return io.Copy(w.progWriter.w, rdr)
+		return io.Copy(w.w, rdr)
 	}
 	select {
 	case <-w.ctx.Done():
