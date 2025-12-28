@@ -1,6 +1,7 @@
 package xlsx_test
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"os"
@@ -156,9 +157,7 @@ func TestDetectXLSX_NonXLSX(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			newRdrFn := func(_ context.Context) (io.ReadCloser, error) {
-				return io.NopCloser(
-					&bytesReader{data: tc.content},
-				), nil
+				return io.NopCloser(bytes.NewReader(tc.content)), nil
 			}
 
 			gotType, gotScore, err := xlsx.DetectXLSX(context.Background(), newRdrFn)
@@ -167,19 +166,4 @@ func TestDetectXLSX_NonXLSX(t *testing.T) {
 			require.Equal(t, float32(0), gotScore, "expected 0 score for %s", tc.name)
 		})
 	}
-}
-
-// bytesReader is a simple io.Reader wrapper for byte slices.
-type bytesReader struct {
-	data []byte
-	pos  int
-}
-
-func (r *bytesReader) Read(p []byte) (n int, err error) {
-	if r.pos >= len(r.data) {
-		return 0, io.EOF
-	}
-	n = copy(p, r.data[r.pos:])
-	r.pos += n
-	return n, nil
 }

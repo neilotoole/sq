@@ -119,20 +119,19 @@ func hasXLSXEntry(buf []byte) bool {
 			break
 		}
 
-		// Check if filename starts with "xl/".
-		filenameEnd := filenameStart + filenameLen
-		if filenameEnd > len(buf) {
-			filenameEnd = len(buf)
-		}
-		filename := buf[filenameStart:filenameEnd]
-
-		if bytes.HasPrefix(filename, xlPrefix) {
+		// Check if filename starts with "xl/". We only need to examine the
+		// prefix bytes, not the entire filename.
+		filenamePrefix := buf[filenameStart : filenameStart+len(xlPrefix)]
+		if bytes.Equal(filenamePrefix, xlPrefix) {
 			return true
 		}
 
-		// Move past this header to continue searching.
-		// Skip at least 1 byte to avoid infinite loop.
-		pos++
+		// Skip past the fixed header (30 bytes) and filename to efficiently
+		// search for the next ZIP local file header. We could also skip the
+		// extra field and compressed data, but that adds complexity for
+		// data descriptor handling. Skipping header+filename is sufficient
+		// for efficient detection.
+		pos += 30 + filenameLen
 	}
 
 	return false
