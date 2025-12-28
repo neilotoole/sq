@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
-## Unreleased
+> [!NOTE]
+> Sometimes this `CHANGELOG.md` has gaps between versions, e.g. `v0.18.0` to `v0.18.2`. 
+> This typically means that there was some CI/tooling mishap. Ignore those gaps.
+
+## [v0.48.10] - 2025-12-28
 
 ### Fixed
 
@@ -26,14 +30,12 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 ### Changed
 
 - [#504]: Updated `golangci-lint` to `v2.7.2`, along with Go dependencies
-  and GitHub Actions workflow versions. Other tool version have been updated too.
+  and GitHub Actions workflow versions. Other tool versions have been updated too.
   
   Note that Go tool dependencies are now located in the [`tools/`](./tools)
   directory, each with its own `go.mod`. Tools are invoked via
   `go tool -modfile`, e.g. `go tool -modfile=tools/golangci-lint/go.mod golangci-lint`.
   See the [Makefile](Makefile) and [`tools/README.md`](./tools/README.md) for more detail.
-
-### Added
 
 ## [v0.48.5] - 2025-01-19
 
@@ -1273,6 +1275,7 @@ make working with lots of sources much easier.
 [#415]: https://github.com/neilotoole/sq/issues/415
 [#446]: https://github.com/neilotoole/sq/issues/446
 [#504]: https://github.com/neilotoole/sq/issues/504
+[#506]: https://github.com/neilotoole/sq/issues/506
 
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
@@ -1336,3 +1339,4 @@ make working with lots of sources much easier.
 [v0.48.3]: https://github.com/neilotoole/sq/compare/v0.48.1...v0.48.3
 [v0.48.4]: https://github.com/neilotoole/sq/compare/v0.48.3...v0.48.4
 [v0.48.5]: https://github.com/neilotoole/sq/compare/v0.48.4...v0.48.5
+[v0.48.10]: https://github.com/neilotoole/sq/compare/v0.48.5...v0.48.10
