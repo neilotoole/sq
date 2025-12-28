@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
+## Unreleased
+
+### Fixed
+
+### Changed
+
+- [#504]: Updated `golangci-lint` to `v2.7.2`, along with Go dependencies
+  and GitHub Actions workflow versions. Other tool version have been updated too.
+  
+  Note that Go tool dependencies are now located in the [`tools/`](./tools)
+  directory, each with its own `go.mod`. Tools are invoked via
+  `go tool -modfile`, e.g. `go tool -modfile=tools/golangci-lint/go.mod golangci-lint`.
+  See the [Makefile](Makefile) and [`tools/README.md`](./tools/README.md) for more detail.
+
+### Added
+
 ## [v0.48.5] - 2025-01-19
 
 ### Fixed
@@ -1244,6 +1260,7 @@ make working with lots of sources much easier.
 [#353]: https://github.com/neilotoole/sq/issues/353
 [#415]: https://github.com/neilotoole/sq/issues/415
 [#446]: https://github.com/neilotoole/sq/issues/446
+[#504]: https://github.com/neilotoole/sq/issues/504
 
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
