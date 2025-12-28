@@ -1,13 +1,12 @@
 package xlsx
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
-	"errors"
 	"io"
 	"slices"
-
-	"github.com/h2non/filetype"
-	"github.com/h2non/filetype/matchers"
+	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -22,11 +21,16 @@ var _ files.TypeDetectFunc = DetectXLSX
 
 // DetectXLSX implements files.TypeDetectFunc, returning
 // TypeXLSX and a score of 1.0 if valid XLSX.
+//
+// Detection works by parsing the file as a ZIP archive and checking
+// for the presence of the "xl/" directory, which is the hallmark of
+// an XLSX (Office Open XML Spreadsheet) file. This approach is more
+// reliable than magic number detection because XLSX files are ZIP
+// archives, and different tools create them with varying internal
+// structures that can confuse magic-number-based detection.
 func DetectXLSX(ctx context.Context, newRdrFn files.NewReaderFunc) (detected drivertype.Type, score float32,
 	err error,
 ) {
-	const detectBufSize = 4096
-
 	log := lg.FromContext(ctx)
 	var r io.ReadCloser
 	r, err = newRdrFn(ctx)
@@ -35,23 +39,36 @@ func DetectXLSX(ctx context.Context, newRdrFn files.NewReaderFunc) (detected dri
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
-	buf := make([]byte, detectBufSize)
-
-	if _, err = io.ReadFull(r, buf); err != nil && !errors.Is(err, io.ErrUnexpectedEOF) {
+	data, err := io.ReadAll(r)
+	if err != nil {
 		return drivertype.None, 0, errz.Err(err)
 	}
 
-	t, err := filetype.Document(buf)
-	if err != nil && !errors.Is(err, filetype.ErrUnknownBuffer) {
-		return drivertype.None, 0, errz.Err(err)
-	}
-
-	switch t {
-	case matchers.TypeXlsx, matchers.TypeXls:
-		return drivertype.XLSX, 1.0, nil
-	default:
+	if len(data) < 4 {
 		return drivertype.None, 0, nil
 	}
+
+	// Quick check for ZIP signature before attempting to parse.
+	// ZIP files start with "PK\x03\x04".
+	if data[0] != 'P' || data[1] != 'K' || data[2] != 0x03 || data[3] != 0x04 {
+		return drivertype.None, 0, nil
+	}
+
+	zipRdr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		// Not a valid ZIP file
+		return drivertype.None, 0, nil
+	}
+
+	// XLSX files contain an "xl/" directory with workbook data.
+	// Check if any entry starts with "xl/".
+	for _, f := range zipRdr.File {
+		if strings.HasPrefix(f.Name, "xl/") {
+			return drivertype.XLSX, 1.0, nil
+		}
+	}
+
+	return drivertype.None, 0, nil
 }
 
 func detectHeaderRow(ctx context.Context, sheet *xSheet) (hasHeader bool, err error) {
