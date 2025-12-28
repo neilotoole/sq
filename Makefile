@@ -44,3 +44,26 @@ fmt:
 	@# Use gofumpt instead of "go fmt"
 	@# https://github.com/mvdan/gofumpt
 	@go tool -modfile=tools/gofumpt/go.mod gofumpt -w .
+
+.PHONY: goreleaser-verify-config
+goreleaser-verify-config:
+	@# Validate goreleaser config files (does not build or publish).
+	@# Requires goreleaser: https://goreleaser.com/install/
+	goreleaser check -f .goreleaser.yml
+	goreleaser check -f .goreleaser-darwin.yml
+	goreleaser check -f .goreleaser-linux-amd64.yml
+	goreleaser check -f .goreleaser-linux-arm64.yml
+	goreleaser check -f .goreleaser-windows.yml
+
+.PHONY: goreleaser-build-local-arch
+goreleaser-build-local-arch:
+	@# Build binary for current platform using goreleaser (does not publish).
+	@# Uses --snapshot (no git tag required) and --single-target (current platform only).
+	@# Note: Uses platform-specific config since .goreleaser.yml expects prebuilt binaries.
+ifeq ($(shell uname -s),Darwin)
+	goreleaser build --snapshot --clean --single-target -f .goreleaser-darwin.yml
+else ifeq ($(shell uname -s),Linux)
+	goreleaser build --snapshot --clean --single-target -f .goreleaser-linux-amd64.yml
+else
+	goreleaser build --snapshot --clean --single-target -f .goreleaser-windows.yml
+endif
