@@ -1,4 +1,4 @@
-module github.com/neilotoole/sq/sq/tools/golangci-lint
+module github.com/neilotoole/sq/tools/golangci-lint
 
 go 1.25.5
 
