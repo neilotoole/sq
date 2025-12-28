@@ -25,7 +25,7 @@ gen:
 	@go generate ./...
 	@# Run betteralign on generated code
 	@# https://github.com/dkorunic/betteralign
-	@betteralign -apply ./libsq/ast/internal/slq &> /dev/null | true
+	@go tool -modfile=tools/betteralign/go.mod betteralign -apply ./libsq/ast/internal/slq &> /dev/null | true
 
 .PHONY: fmt
 fmt:
@@ -35,11 +35,12 @@ fmt:
 	@# are not in use. Alas, we can't provide a double star glob,
 	@# e.g. **/*_windows.go, because filepath.Match doesn't support
 	@# double star, so we explicitly name the file.
-	@goimports-reviser -company-prefixes github.com/neilotoole -set-alias \
+	@go tool -modfile=tools/goimports-reviser/go.mod goimports-reviser \
+		-company-prefixes github.com/neilotoole -set-alias \
 		-excludes 'libsq/core/termz/termz_windows.go' \
 		-rm-unused -output write \
 		-project-name github.com/neilotoole/sq ./...
 
 	@# Use gofumpt instead of "go fmt"
 	@# https://github.com/mvdan/gofumpt
-	@gofumpt -w .
+	@go tool -modfile=tools/gofumpt/go.mod gofumpt -w .
