@@ -63,7 +63,11 @@ goreleaser-build-local-arch:
 ifeq ($(shell uname -s),Darwin)
 	goreleaser build --snapshot --clean --single-target -f .goreleaser-darwin.yml
 else ifeq ($(shell uname -s),Linux)
+  ifeq ($(shell uname -m),aarch64)
+	goreleaser build --snapshot --clean --single-target -f .goreleaser-linux-arm64.yml
+  else
 	goreleaser build --snapshot --clean --single-target -f .goreleaser-linux-amd64.yml
+  endif
 else
 	goreleaser build --snapshot --clean --single-target -f .goreleaser-windows.yml
 endif
