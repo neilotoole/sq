@@ -519,10 +519,10 @@ func SanitizeFilename(name string) string {
 	// Some extra paranoid handling below.
 	// Note that we know that filename is at least one char long.
 	trimmed := strings.TrimSpace(name)
-	switch {
-	case trimmed == ".":
+	switch trimmed {
+	case ".":
 		return strings.Replace(name, ".", repl, 1)
-	case trimmed == "..":
+	case "..":
 		return strings.Replace(name, "..", repl+repl, 1)
 	default:
 		return name

@@ -517,7 +517,7 @@ func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tpa
 		wantTables int
 		wantViews  int
 	}{
-		{handle: sakila.Pg12, schema: "public", wantTables: 25, wantViews: 5},
+		{handle: sakila.Pg12, schema: "public", wantTables: 21, wantViews: 7},
 		{handle: sakila.MS19, schema: "dbo", wantTables: 17, wantViews: 5},
 		{handle: sakila.SL3, schema: "main", wantTables: 16, wantViews: 5},
 		{handle: sakila.My8, schema: "sakila", wantTables: 16, wantViews: 7},

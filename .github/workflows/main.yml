@@ -11,8 +11,8 @@ on:
 
 env:
   GORELEASER_VERSION: 2.6.1
-  GOLANGCI_LINT_VERSION: v1.63.4
-  TPARSE_VERSION: v0.13.2
+  GOLANGCI_LINT_VERSION: v2.7.2
+  TPARSE_VERSION: v0.18.0
   BUILD_TAGS: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions'
 
 jobs:
@@ -25,12 +25,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
@@ -68,12 +68,12 @@ jobs:
 #        path-type: inherit
 
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version-file: go.mod
 
@@ -107,7 +107,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -122,15 +122,15 @@ jobs:
           shellcheck ./install.sh
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
           skip-cache: true
-          install-mode: 'goinstall'
+          install-mode: 'binary'
           version: ${{ env.GOLANGCI_LINT_VERSION }}
 
 
@@ -140,12 +140,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
@@ -160,7 +160,7 @@ jobs:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
       - name: Upload assets (darwin)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dist-darwin
           path: dist-darwin
@@ -171,12 +171,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
@@ -191,7 +191,7 @@ jobs:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
       - name: Upload assets (linux-amd64)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dist-linux-amd64
           path: dist-linux
@@ -202,12 +202,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
@@ -227,7 +227,7 @@ jobs:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
       - name: Upload assets (linux-arm64)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dist-linux-arm64
           path: dist-linux
@@ -239,12 +239,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
@@ -260,7 +260,7 @@ jobs:
 
 
       - name: Upload assets (windows)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dist-windows
           path: dist-windows
@@ -278,35 +278,35 @@ jobs:
       - binaries-windows
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
       - name: Download darwin artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: dist-darwin
           path: dist-darwin
 
       - name: Download linux-amd64 artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: dist-linux-amd64
           path: dist-linux
 
       - name: Download linux-arm64 artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: dist-linux-arm64
           path: dist-linux
 
       - name: Download windows artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: dist-windows
           path: dist-windows

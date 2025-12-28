@@ -197,15 +197,14 @@ func humanizeError(err error) error {
 	case errors.Is(err, context.DeadlineExceeded):
 		errMsg := err.Error()
 		deadlineMsg := context.DeadlineExceeded.Error()
-		if errMsg == deadlineMsg {
-			// For generic context.DeadlineExceeded errors, we
-			// just return "timeout".
-			err = errz.New("timeout")
-		} else {
-			// But if the error is a wrapped context.DeadlineExceeded, we
+		if errMsg != deadlineMsg {
+			// The error is a wrapped context.DeadlineExceeded, we
 			// trim off the ": context deadline exceeded" suffix.
 			return errz.New(strings.TrimSuffix(errMsg, ": "+deadlineMsg))
 		}
+		// For generic context.DeadlineExceeded errors, we
+		// just return "timeout".
+		err = errz.New("timeout")
 	}
 
 	return err

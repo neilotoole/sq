@@ -1,5 +1,5 @@
 // Package v0_34_0 upgrades YAML config to v0.34.0.
-package v0_34_0 //nolint:stylecheck,revive,cyclop
+package v0_34_0 //nolint:revive,cyclop
 
 import (
 	"context"

@@ -59,7 +59,7 @@ func TypedSlice[T, S any](in ...S) (out []T, ok bool) {
 // with any additional elements filled with defaultVal. If a and b
 // are already the same length, they are returned as-is. At most
 // one new slice is allocated.
-func AlignSliceLengths[T any](a, b []T, defaultVal T) ([]T, []T) {
+func AlignSliceLengths[T any](a, b []T, defaultVal T) (a2, b2 []T) {
 	switch {
 	case len(a) == len(b):
 		return a, b

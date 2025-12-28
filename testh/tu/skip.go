@@ -68,7 +68,7 @@ func SkipIf(tb testing.TB, cond bool, format string, args ...any) {
 }
 
 // SkipWindows skips tb if running on Windows.
-func SkipWindows(tb testing.TB, format string, args ...any) {
+func SkipWindows(tb testing.TB, format string, args ...any) { //nolint:goprintffuncname
 	tb.Helper()
 	if isWindows {
 		tb.Skipf(format, args...)
