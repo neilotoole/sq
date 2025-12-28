@@ -546,9 +546,9 @@ func getOutputConfig(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup
 	}
 
 	switch {
-	case cmdFlagChanged(cmd, flag.FileOutput) || fm == format.Raw:
-		// For file or raw output, we don't decorate stdout with
-		// any colorable decorator.
+	case cmdFlagChanged(cmd, flag.FileOutput) || fm == format.Raw || fm == format.XLSX:
+		// For file, raw, or XLSX output, we don't decorate stdout with
+		// any colorable decorator. XLSX is binary and must not be modified.
 		outCfg.out = stdout
 		outCfg.outPr.EnableColor(false)
 	case cmd != nil && cmdFlagChanged(cmd, flag.FileOutput):

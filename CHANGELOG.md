@@ -11,6 +11,18 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [#506]: Fixed two XLSX-related issues (which are actually regressions due
+  to "optimizations" introduced to avoid having to read the full file to
+  determine file type):
+  - **Stdin detection**: Fixed type detection failing for XLSX files created by
+    various tools (e.g., Go's excelize library). These files have varying
+    internal ZIP structures that the previous detection couldn't handle.
+    Detection now scans ZIP local file headers for `xl/` entries instead of
+    relying on fragile magic number heuristics.
+  - **Output colorization**: Fixed XLSX binary output being corrupted when
+    written to stdout. The colorization decorator was modifying the binary
+    data. XLSX format now bypasses colorization like raw output.
+
 ### Changed
 
 - [#504]: Updated `golangci-lint` to `v2.7.2`, along with Go dependencies
