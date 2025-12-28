@@ -11,11 +11,15 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
-- [#506]: Fixed stdin XLSX type detection failing for certain XLSX files. Files
-  created by some tools (e.g., Go's excelize library) have varying internal ZIP
-  structures that the previous detection couldn't handle. Detection now scans
-  ZIP local file headers for `xl/` entries instead of relying on fragile magic
-  number heuristics.
+- [#506]: Fixed two XLSX-related issues:
+  - **Stdin detection**: Fixed type detection failing for XLSX files created by
+    various tools (e.g., Go's excelize library). These files have varying
+    internal ZIP structures that the previous detection couldn't handle.
+    Detection now scans ZIP local file headers for `xl/` entries instead of
+    relying on fragile magic number heuristics.
+  - **Output colorization**: Fixed XLSX binary output being corrupted when
+    written to stdout. The colorization decorator was modifying the binary
+    data. XLSX format now bypasses colorization like raw output.
 
 ### Changed
 
