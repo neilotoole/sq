@@ -49,7 +49,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/vbauerster/mpb/v8 v8.7.3 // BRITTLE
 	github.com/xo/dburl v0.24.2
-	github.com/xuri/excelize/v2 v2.8.1 // BRITLE
+	github.com/xuri/excelize/v2 v2.8.1 // BRITTLE
 	go.uber.org/atomic v1.11.0
 	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93
 	golang.org/x/mod v0.31.0
