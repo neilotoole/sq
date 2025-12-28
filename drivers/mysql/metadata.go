@@ -74,7 +74,7 @@ func kindFromDBTypeName(ctx context.Context, colName, dbTypeName string) kind.Ki
 		knd = kind.Datetime
 	case "DATE":
 		knd = kind.Date
-	case "TIME": //nolint:goconst
+	case "TIME":
 		knd = kind.Time
 	case "FLOAT", "DOUBLE", "DOUBLE PRECISION", "REAL":
 		knd = kind.Float

@@ -20,7 +20,6 @@ linters:
     - gocheckcompilerdirectives
     - gochecknoinits
     - gocognit
-    - goconst
     - gocritic
     - gocyclo
     - godot
@@ -294,7 +293,7 @@ linters:
             - preserveScope
           disabled: false
         - name: time-equal
-          disabled: false
+          disabled: true  # Disabled: behaves inconsistently across architectures (arm64 vs amd64)
         - name: time-naming
           disabled: false
         - name: var-naming

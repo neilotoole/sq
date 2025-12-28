@@ -349,7 +349,7 @@ func cmdMarkRequiresConfigLock(cmd *cobra.Command) {
 	if cmd.Annotations == nil {
 		cmd.Annotations = make(map[string]string)
 	}
-	cmd.Annotations["config.lock"] = "true" //nolint:goconst
+	cmd.Annotations["config.lock"] = "true"
 }
 
 // cmdRequiresConfigLock returns true if cmdMarkRequiresConfigLock was

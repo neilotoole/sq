@@ -46,7 +46,7 @@ func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind 
 		knd = kind.Unknown
 	case "INT", "INTEGER", "INT2", "INT4", "INT8", "SMALLINT", "BIGINT":
 		knd = kind.Int
-	case "CHAR", "CHARACTER", "VARCHAR", "TEXT", "BPCHAR", "CHARACTER VARYING": //nolint:goconst
+	case "CHAR", "CHARACTER", "VARCHAR", "TEXT", "BPCHAR", "CHARACTER VARYING":
 		knd = kind.Text
 	case "BYTEA":
 		knd = kind.Bytes
@@ -54,7 +54,7 @@ func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind 
 		knd = kind.Bool
 	case "TIMESTAMP", "TIMESTAMPTZ", "TIMESTAMP WITHOUT TIME ZONE":
 		knd = kind.Datetime
-	case "TIME", "TIMETZ", "TIME WITHOUT TIME ZONE": //nolint:goconst
+	case "TIME", "TIMETZ", "TIME WITHOUT TIME ZONE":
 		knd = kind.Time
 	case "DATE":
 		knd = kind.Date
