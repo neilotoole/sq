@@ -1,12 +1,12 @@
 package xlsx
 
 import (
-	"archive/zip"
 	"bytes"
 	"context"
+	"encoding/binary"
+	"errors"
 	"io"
 	"slices"
-	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -22,15 +22,24 @@ var _ files.TypeDetectFunc = DetectXLSX
 // DetectXLSX implements files.TypeDetectFunc, returning
 // TypeXLSX and a score of 1.0 if valid XLSX.
 //
-// Detection works by parsing the file as a ZIP archive and checking
-// for the presence of the "xl/" directory, which is the hallmark of
+// Detection works by scanning for ZIP local file headers and checking
+// if any entry's filename starts with "xl/", which is the hallmark of
 // an XLSX (Office Open XML Spreadsheet) file. This approach is more
 // reliable than magic number detection because XLSX files are ZIP
 // archives, and different tools create them with varying internal
 // structures that can confuse magic-number-based detection.
+//
+// Unlike parsing the full ZIP (which requires reading to the end for
+// the central directory), this scans only the first portion of the file.
 func DetectXLSX(ctx context.Context, newRdrFn files.NewReaderFunc) (detected drivertype.Type, score float32,
 	err error,
 ) {
+	// Read enough bytes to find ZIP local file headers with "xl/" entries.
+	// Most XLSX files have "xl/" entries within the first 8KB, but we use
+	// a larger buffer to handle files with bigger metadata or different
+	// entry ordering.
+	const detectBufSize = 64 * 1024
+
 	log := lg.FromContext(ctx)
 	var r io.ReadCloser
 	r, err = newRdrFn(ctx)
@@ -39,36 +48,94 @@ func DetectXLSX(ctx context.Context, newRdrFn files.NewReaderFunc) (detected dri
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
-	data, err := io.ReadAll(r)
-	if err != nil {
+	buf := make([]byte, detectBufSize)
+	n, err := io.ReadFull(r, buf)
+	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
 		return drivertype.None, 0, errz.Err(err)
 	}
+	buf = buf[:n]
 
-	if len(data) < 4 {
-		return drivertype.None, 0, nil
-	}
-
-	// Quick check for ZIP signature before attempting to parse.
-	// ZIP files start with "PK\x03\x04".
-	if data[0] != 'P' || data[1] != 'K' || data[2] != 0x03 || data[3] != 0x04 {
-		return drivertype.None, 0, nil
-	}
-
-	zipRdr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	if err != nil {
-		// Not a valid ZIP file
-		return drivertype.None, 0, nil
-	}
-
-	// XLSX files contain an "xl/" directory with workbook data.
-	// Check if any entry starts with "xl/".
-	for _, f := range zipRdr.File {
-		if strings.HasPrefix(f.Name, "xl/") {
-			return drivertype.XLSX, 1.0, nil
-		}
+	if hasXLSXEntry(buf) {
+		return drivertype.XLSX, 1.0, nil
 	}
 
 	return drivertype.None, 0, nil
+}
+
+// zipLocalFileHeaderSig is the ZIP local file header signature.
+var zipLocalFileHeaderSig = []byte{'P', 'K', 0x03, 0x04}
+
+// hasXLSXEntry scans buf for ZIP local file headers and returns true
+// if any entry's filename starts with "xl/".
+//
+// ZIP local file header format:
+//
+//	Offset  Length  Description
+//	0       4       Signature (PK\x03\x04)
+//	4       2       Version needed
+//	6       2       General purpose bit flag
+//	8       2       Compression method
+//	10      2       Last mod file time
+//	12      2       Last mod file date
+//	14      4       CRC-32
+//	18      4       Compressed size
+//	22      4       Uncompressed size
+//	26      2       Filename length (n)
+//	28      2       Extra field length (m)
+//	30      n       Filename
+//	30+n    m       Extra field
+func hasXLSXEntry(buf []byte) bool {
+	if len(buf) < 4 {
+		return false
+	}
+
+	// Quick check: must start with ZIP signature.
+	if !bytes.HasPrefix(buf, zipLocalFileHeaderSig) {
+		return false
+	}
+
+	xlPrefix := []byte("xl/")
+	pos := 0
+
+	for pos+30 <= len(buf) {
+		// Look for next ZIP local file header signature.
+		idx := bytes.Index(buf[pos:], zipLocalFileHeaderSig)
+		if idx == -1 {
+			break
+		}
+		pos += idx
+
+		// Need at least 30 bytes for the fixed-size header fields.
+		if pos+30 > len(buf) {
+			break
+		}
+
+		// Read filename length from offset 26-27 (little-endian uint16).
+		filenameLen := int(binary.LittleEndian.Uint16(buf[pos+26 : pos+28]))
+
+		// Check if we have enough bytes for the filename.
+		filenameStart := pos + 30
+		if filenameStart+len(xlPrefix) > len(buf) {
+			break
+		}
+
+		// Check if filename starts with "xl/".
+		filenameEnd := filenameStart + filenameLen
+		if filenameEnd > len(buf) {
+			filenameEnd = len(buf)
+		}
+		filename := buf[filenameStart:filenameEnd]
+
+		if bytes.HasPrefix(filename, xlPrefix) {
+			return true
+		}
+
+		// Move past this header to continue searching.
+		// Skip at least 1 byte to avoid infinite loop.
+		pos++
+	}
+
+	return false
 }
 
 func detectHeaderRow(ctx context.Context, sheet *xSheet) (hasHeader bool, err error) {

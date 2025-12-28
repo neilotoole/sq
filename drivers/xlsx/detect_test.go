@@ -115,8 +115,8 @@ func TestDetectXLSX_NonXLSX(t *testing.T) {
 			content: []byte(`{"foo": "bar"}`),
 		},
 		{
-			name: "regular_zip",
-			// A minimal valid ZIP file (empty archive)
+			name: "regular_zip_empty",
+			// A minimal valid ZIP file (empty archive) - starts with end-of-central-dir
 			content: []byte{
 				0x50, 0x4B, 0x05, 0x06, // End of central directory signature
 				0x00, 0x00, // Number of this disk
@@ -127,6 +127,29 @@ func TestDetectXLSX_NonXLSX(t *testing.T) {
 				0x00, 0x00, 0x00, 0x00, // Offset of start of central directory
 				0x00, 0x00, // Comment length
 			},
+		},
+		{
+			name: "zip_with_other_content",
+			// A ZIP with a local file header but no xl/ entry (like a text file)
+			content: func() []byte {
+				// ZIP local file header for "readme.txt"
+				header := []byte{
+					0x50, 0x4B, 0x03, 0x04, // Local file header signature
+					0x14, 0x00, // Version needed (2.0)
+					0x00, 0x00, // General purpose bit flag
+					0x00, 0x00, // Compression method (stored)
+					0x00, 0x00, // Last mod file time
+					0x00, 0x00, // Last mod file date
+					0x00, 0x00, 0x00, 0x00, // CRC-32
+					0x05, 0x00, 0x00, 0x00, // Compressed size (5)
+					0x05, 0x00, 0x00, 0x00, // Uncompressed size (5)
+					0x0A, 0x00, // Filename length (10)
+					0x00, 0x00, // Extra field length (0)
+				}
+				filename := []byte("readme.txt")
+				content := []byte("hello")
+				return append(append(header, filename...), content...)
+			}(),
 		},
 	}
 
