@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  GORELEASER_VERSION: 2.6.1
+  GORELEASER_VERSION: 2.13.2
   GOLANGCI_LINT_VERSION: v2.7.2
   TPARSE_VERSION: v0.18.0
   BUILD_TAGS: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions'
@@ -154,7 +154,7 @@ jobs:
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
-          args: build --skip-validate --clean -f .goreleaser-darwin.yml
+          args: build --skip=validate --clean -f .goreleaser-darwin.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
