@@ -60,6 +60,7 @@ goreleaser-build-local-arch:
 	@# Build binary for current platform using goreleaser (does not publish).
 	@# Uses --snapshot (no git tag required) and --single-target (current platform only).
 	@# Note: Uses platform-specific config since .goreleaser.yml expects prebuilt binaries.
+	@# This is just for local testing.
 ifeq ($(shell uname -s),Darwin)
 	goreleaser build --snapshot --clean --single-target -f .goreleaser-darwin.yml
 else ifeq ($(shell uname -s),Linux)
