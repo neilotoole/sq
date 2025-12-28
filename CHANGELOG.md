@@ -11,6 +11,12 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [#506]: Fixed stdin XLSX type detection failing for certain XLSX files. Files
+  created by some tools (e.g., Go's excelize library) have varying internal ZIP
+  structures that the previous detection couldn't handle. Detection now scans
+  ZIP local file headers for `xl/` entries instead of relying on fragile magic
+  number heuristics.
+
 ### Changed
 
 - [#504]: Updated `golangci-lint` to `v2.7.2`, along with Go dependencies
