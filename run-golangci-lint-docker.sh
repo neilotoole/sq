@@ -6,6 +6,10 @@
 # architectures. GitHub Actions CI runs on linux/amd64, so testing both
 # architectures locally helps catch issues before pushing.
 #
+# NOTE: You should not need this script during regular development; it's for
+# when there are differences between CI and local behavior. This script may be
+# removed at a future point.
+#
 # The script mounts the project directory into the container and runs
 # golangci-lint as if it were running in a GH action.
 #
