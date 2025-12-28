@@ -1,4 +1,4 @@
-module github.com/neilotoole/sq/sq/tools/tparse
+module github.com/neilotoole/sq/tools/tparse
 
 go 1.25.5
 

@@ -1,4 +1,4 @@
-module github.com/neilotoole/sq/sq/tools/goimports-reviser
+module github.com/neilotoole/sq/tools/goimports-reviser
 
 go 1.25.5
 

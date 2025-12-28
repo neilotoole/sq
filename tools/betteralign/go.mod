@@ -1,4 +1,4 @@
-module github.com/neilotoole/sq/sq/tools/betteralign
+module github.com/neilotoole/sq/tools/betteralign
 
 go 1.25.5
 

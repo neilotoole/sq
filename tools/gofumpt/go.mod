@@ -1,4 +1,4 @@
-module github.com/neilotoole/sq/sq/tools/gofumpt
+module github.com/neilotoole/sq/tools/gofumpt
 
 go 1.25.5
 
