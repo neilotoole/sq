@@ -7,8 +7,18 @@ Go 1.24+ `tool` directive in isolated `go.mod` files.
 
 We use this subdirectory pattern to **isolate tool dependencies from the main
 project's dependency tree**. This approach is recommended by the
-[golangci-lint team](https://golangci-lint.run/docs/welcome/install/local/) and
+[`golangci-lint` team](https://golangci-lint.run/docs/welcome/install/local/) and
 is considered a best practice (well, by some people).
+
+Note that the `golangci-lint` team don't *really* recommend this practice, but
+we're doing it anyway until the Go community settle on a best practice. Per the
+`golangci-lint` team:
+
+> But if you want to use `go tool` to install and run `golangci-lint` (once again
+> we don’t recommend that), the best approach is to use a dedicated module or
+> module file to isolate `golangci-lint` from other tools or dependencies.
+> This approach avoids modifying your project dependencies and the
+> `golangci-lint` dependencies.
 
 ### The problem: dependency conflicts
 
