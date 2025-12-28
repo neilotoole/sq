@@ -185,7 +185,7 @@ jobs:
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
-          args: build --skip-validate --clean -f .goreleaser-linux-amd64.yml
+          args: build --skip=validate --clean -f .goreleaser-linux-amd64.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
@@ -221,7 +221,7 @@ jobs:
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
-          args: build --skip-validate --clean -f .goreleaser-linux-arm64.yml
+          args: build --skip=validate --clean -f .goreleaser-linux-arm64.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
@@ -253,7 +253,7 @@ jobs:
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
-          args: build --skip-validate --clean -f .goreleaser-windows.yml
+          args: build --skip=validate --clean -f .goreleaser-windows.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
