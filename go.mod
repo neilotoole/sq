@@ -1,7 +1,7 @@
 module github.com/neilotoole/sq
 
 // NOTE: Some of these deps are marked with "BRITTLE". That means that extra
-// care needs to be taken when upgrading those versions, for various resons.
+// care needs to be taken when upgrading those versions, for various reasons.
 
 go 1.25.5
 
