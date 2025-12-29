@@ -16,7 +16,7 @@ require (
 	github.com/ecnepsnai/osquery v1.0.1
 	github.com/emirpasic/gods v1.18.1
 	github.com/fatih/color v1.18.0
-	github.com/go-sql-driver/mysql v1.8.1 // BRITTLE
+	github.com/go-sql-driver/mysql v1.9.3 // BRITTLE
 	github.com/goccy/go-yaml v1.19.1
 	github.com/google/renameio/v2 v2.0.1
 	github.com/google/uuid v1.6.0
