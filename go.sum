@@ -196,8 +196,8 @@ github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/tiendc/go-deepcopy v1.7.1 h1:LnubftI6nYaaMOcaz0LphzwraqN8jiWTwm416sitff4=
 github.com/tiendc/go-deepcopy v1.7.1/go.mod h1:4bKjNC2r7boYOkD2IOuZpYjmlDdzjbpTRyCx+goBCJQ=
-github.com/vbauerster/mpb/v8 v8.7.3 h1:n/mKPBav4FFWp5fH4U0lPpXfiOmCEgl5Yx/NM3tKJA0=
-github.com/vbauerster/mpb/v8 v8.7.3/go.mod h1:9nFlNpDGVoTmQ4QvNjSLtwLmAFjwmq0XaAF26toHGNM=
+github.com/vbauerster/mpb/v8 v8.11.3 h1:iniBmO4ySXCl4gVdmJpgrtormH5uvjpxcx/dMyVU9Jw=
+github.com/vbauerster/mpb/v8 v8.11.3/go.mod h1:n9M7WbP0NFjpgKS5XdEC3tMRgZTNM/xtC8zWGkiMuy0=
 github.com/xo/dburl v0.24.2 h1:aK6ASamrFjKl76h/UCBecc0BPBi97+IVmw4YWxx0rno=
 github.com/xo/dburl v0.24.2/go.mod h1:uazlaAQxj4gkshhfuuYyvwCBouOmNnG2aDxTCFZpmL4=
 github.com/xuri/efp v0.0.1 h1:fws5Rv3myXyYni8uwj2qKjVaRP30PdjeYe2Y6FDsCL8=
