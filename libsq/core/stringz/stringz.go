@@ -15,7 +15,7 @@ import (
 	"unicode"
 	"unsafe"
 
-	"github.com/alessio/shellescape"
+	"al.essio.dev/pkg/shellescape"
 	"github.com/google/uuid"
 	"github.com/samber/lo"
 

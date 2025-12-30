@@ -5,10 +5,22 @@ module github.com/neilotoole/sq
 
 go 1.25.5
 
+// godebug x509negativeserial=1 is set here because of an issue with older
+// SQL Server versions not doing the right thing with X509 certs (see RFC 5280).
+// This has been an issue since Go 1.23 became stricter about certs.
+// See:
+// - https://pkg.go.dev/crypto/x509#ParseCertificate
+//   Before Go 1.23, ParseCertificate accepted certificates with negative serial
+//   numbers. This behavior can be restored by including "x509negativeserial=1"
+//   in the GODEBUG environment variable.
+// - https://github.com/burningalchemist/sql_exporter/issues/729
+// - https://github.com/influxdata/telegraf/issues/16309#issuecomment-2612865201
+godebug x509negativeserial=1
+
 require (
+	al.essio.dev/pkg/shellescape v1.6.0
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/a8m/tree v0.0.0-20240104212747-2c8764a5f17e
-	github.com/alessio/shellescape v1.4.2
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/c2h5oh/datasize v0.0.0-20231215233829-aa82cc1e6500
 	github.com/djherbis/buffer v1.2.0
@@ -16,17 +28,17 @@ require (
 	github.com/ecnepsnai/osquery v1.0.1
 	github.com/emirpasic/gods v1.18.1
 	github.com/fatih/color v1.18.0
-	github.com/go-sql-driver/mysql v1.8.1 // BRITTLE
+	github.com/go-sql-driver/mysql v1.9.3 // BRITTLE
 	github.com/goccy/go-yaml v1.19.1
 	github.com/google/renameio/v2 v2.0.1
 	github.com/google/uuid v1.6.0
 	github.com/h2non/filetype v1.1.3
 	github.com/itchyny/gojq v0.12.18
-	github.com/jackc/pgx/v5 v5.7.2 // BRITTLE
+	github.com/jackc/pgx/v5 v5.8.0 // BRITTLE
 	github.com/mattn/go-colorable v0.1.14
 	github.com/mattn/go-runewidth v0.0.19
-	github.com/mattn/go-sqlite3 v1.14.24 // BRITTLE
-	github.com/microsoft/go-mssqldb v1.8.0 // BRITTLE
+	github.com/mattn/go-sqlite3 v1.14.32 // BRITTLE
+	github.com/microsoft/go-mssqldb v1.9.5 // BRITTLE
 	github.com/mitchellh/go-wordwrap v1.0.1
 	github.com/muesli/mango-cobra v1.3.0
 	github.com/muesli/roff v0.1.0
@@ -47,7 +59,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
-	github.com/vbauerster/mpb/v8 v8.7.3 // BRITTLE
+	github.com/vbauerster/mpb/v8 v8.11.3 // BRITTLE
 	github.com/xo/dburl v0.24.2
 	github.com/xuri/excelize/v2 v2.10.0 // BRITTLE
 	go.uber.org/atomic v1.11.0
