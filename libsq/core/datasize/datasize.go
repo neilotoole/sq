@@ -4,6 +4,7 @@ package datasize
 
 import (
 	"github.com/c2h5oh/datasize"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/options"
 )

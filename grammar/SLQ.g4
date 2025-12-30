@@ -322,7 +322,7 @@ NEQ: '!=';
 EQ: '==';
 
 
-NAME: '.' (ARG | ID | STRING);
+NAME: '.' (ARG | ID | STRING | INTF);
 
 // SEL can be .THING or .THING.OTHERTHING.
 // It can also be ."some name".OTHERTHING, etc.

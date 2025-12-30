@@ -25,6 +25,11 @@ func TestParseCatalogSchema(t *testing.T) {
 		{in: `"my catalog""."my schema"`, wantErr: true},
 		{in: `"my catalog"."my schema"."my table"`, wantErr: true},
 		{in: `catalog.schema.table`, wantErr: true},
+		// Test numeric schema names (issue #470)
+		{in: "123", wantCatalog: "", wantSchema: "123"},
+		{in: "456.789", wantCatalog: "456", wantSchema: "789"},
+		{in: "sakila.123", wantCatalog: "sakila", wantSchema: "123"},
+		{in: "123.dbo", wantCatalog: "123", wantSchema: "dbo"},
 	}
 
 	for i, tc := range testCases {

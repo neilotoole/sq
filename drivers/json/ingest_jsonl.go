@@ -8,9 +8,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
