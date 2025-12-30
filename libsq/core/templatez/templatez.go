@@ -5,7 +5,8 @@ import (
 	"bytes"
 	"text/template"
 
-	"github.com/Masterminds/sprig/v3"
+	sprig "github.com/Masterminds/sprig/v3"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 

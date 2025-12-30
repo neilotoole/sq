@@ -3,9 +3,10 @@ package templatez_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/neilotoole/sq/libsq/core/templatez"
 	"github.com/neilotoole/sq/testh/tu"
-	"github.com/stretchr/testify/require"
 )
 
 func TestTemplate(t *testing.T) {

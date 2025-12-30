@@ -6,10 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/ioz"
-
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 )
 
