@@ -11,16 +11,16 @@ go 1.25.5
 // See:
 // - https://pkg.go.dev/crypto/x509#ParseCertificate
 //   Before Go 1.23, ParseCertificate accepted certificates with negative serial
-//   numbers. This behavior can be restoredby including "x509negativeserial=1"
+//   numbers. This behavior can be restored by including "x509negativeserial=1"
 //   in the GODEBUG environment variable.
 // - https://github.com/burningalchemist/sql_exporter/issues/729
 // - https://github.com/influxdata/telegraf/issues/16309#issuecomment-2612865201
 godebug x509negativeserial=1
 
 require (
+	al.essio.dev/pkg/shellescape v1.6.0
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/a8m/tree v0.0.0-20240104212747-2c8764a5f17e
-	github.com/alessio/shellescape v1.4.2
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/c2h5oh/datasize v0.0.0-20231215233829-aa82cc1e6500
 	github.com/djherbis/buffer v1.2.0
