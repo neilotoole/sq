@@ -47,7 +47,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
-	github.com/vbauerster/mpb/v8 v8.7.3 // BRITTLE
+	github.com/vbauerster/mpb/v8 v8.11.3 // BRITTLE
 	github.com/xo/dburl v0.24.2
 	github.com/xuri/excelize/v2 v2.10.0 // BRITTLE
 	go.uber.org/atomic v1.11.0
