@@ -6,7 +6,7 @@ module github.com/neilotoole/sq
 go 1.25.5
 
 // godebug x509negativeserial=1 is set here because of an issue with older
-// SQL Server versionsnot doing the right thing with X509 certs (see RFC 5280).
+// SQL Server versions not doing the right thing with X509 certs (see RFC 5280).
 // This has been an issue since Go 1.23 became stricter about certs.
 // See:
 // - https://pkg.go.dev/crypto/x509#ParseCertificate
