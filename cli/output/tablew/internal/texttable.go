@@ -185,7 +185,11 @@ func (t *Table) RenderAll(ctx context.Context) error {
 func (t *Table) SetHeader(keys []string) {
 	t.colSize = len(keys)
 	for i, v := range keys {
-		t.parseDimension(v, i, -1)
+		if !t.hdrDisable {
+			// Only include header text in column width calculation
+			// if the header row will actually be displayed.
+			t.parseDimension(v, i, -1)
+		}
 		t.headers = append(t.headers, v)
 	}
 }
