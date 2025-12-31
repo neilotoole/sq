@@ -17,7 +17,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 - [#469]: Column widths were too wide when using `--no-header` flag. Header text
   is now excluded from column width calculation when headers are disabled.
-  Thanks to [majiayu000](https://github.com/majiayu000) for the fix.
+  Thanks to [@majiayu000](https://github.com/majiayu000) for the fix.
 
 ### Changed
 
