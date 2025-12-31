@@ -30,6 +30,10 @@ func TestParseCatalogSchema(t *testing.T) {
 		{in: "456.789", wantCatalog: "456", wantSchema: "789"},
 		{in: "sakila.123", wantCatalog: "sakila", wantSchema: "123"},
 		{in: "123.dbo", wantCatalog: "123", wantSchema: "dbo"},
+		{in: "123abc", wantCatalog: "", wantSchema: "123abc"},
+		{in: "123abc.def", wantCatalog: "123abc", wantSchema: "def"},
+		{in: "456.123abc", wantCatalog: "456", wantSchema: "123abc"},
+		{in: "123abc.456def", wantCatalog: "123abc", wantSchema: "456def"},
 	}
 
 	for i, tc := range testCases {
