@@ -3,10 +3,11 @@ package datasize_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/neilotoole/sq/libsq/core/datasize"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/testh/tu"
-	"github.com/stretchr/testify/require"
 )
 
 func TestOpt(t *testing.T) {

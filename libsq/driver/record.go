@@ -11,8 +11,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/templatez"
-
 	"github.com/shopspring/decimal"
 	"go.uber.org/atomic"
 
@@ -27,6 +25,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/templatez"
 )
 
 // NewRecordFunc is invoked on a query result row (scanRow) to
