@@ -17,6 +17,11 @@ Yes, we are a Go project, and shouldn't need a [Makefile](./Makefile). But, `sq`
 complex project, with generated code, CGo, test containers, related docs [website](https://sq.io), and a bunch of other
 stuff. Therefore, if for no other reason, it is recommended to use the Makefile when developing locally.
 
+As a kick-off point, run `make all`. This will generate code, format, lint,
+run tests, build the binary to `dist/`, and install `sq`. See the
+[Makefile](./Makefile) for individual targets.
+
+
 ## CHANGELOG.md
 
 The [CHANGELOG.md](./CHANGELOG.md) file is sacrosanct, in that it *must* be updated every

@@ -7,11 +7,17 @@ LDFLAGS				:= -X $(VERSION_PKG).Version=$(BUILD_VERSION) -X $(VERSION_PKG).Commi
 BUILD_TAGS  		:= sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_icu sqlite_introspect sqlite_json sqlite_math_functions
 
 .PHONY: all
-all: lint fmt gen fmt lint test install
+all: gen fmt lint test build install
 
 .PHONY: test
 test:
 	@go test -tags "$(BUILD_TAGS)" ./...
+
+.PHONY: build
+build:
+	@# Build binary for the current (local) platform only; output to dist/sq.
+	@mkdir -p dist
+	@go build -ldflags "$(LDFLAGS)" -tags "$(BUILD_TAGS)" -o dist/sq
 
 .PHONY: install
 install:
