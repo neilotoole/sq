@@ -8,8 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 > [!NOTE]
-> Sometimes this `CHANGELOG.md` has gaps between versions, e.g. `v0.18.0` to `v0.18.2`.
-> This typically means that there was some CI/tooling mishap. Ignore those gaps.
+> Sometimes this `CHANGELOG.md` has gaps between versions, e.g. `v0.18.0` to
+> `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
+> those gaps.
 
 ## Unreleased
 
@@ -43,7 +44,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 - [#504]: Updated `golangci-lint` to `v2.7.2`, along with Go dependencies
   and GitHub Actions workflow versions. Other tool versions have been updated too.
-  
+
   Note that Go tool dependencies are now located in the [`tools/`](./tools)
   directory, each with its own `go.mod`. Tools are invoked via
   `go tool -modfile`, e.g. `go tool -modfile=tools/golangci-lint/go.mod golangci-lint`.
@@ -57,7 +58,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   by [`bufio.Scanner`](https://pkg.go.dev/bufio#Scanner), when splitting
   lines from input that was too long (larger than
   [`bufio.MaxScanTokenSize`](https://pkg.go.dev/bufio#MaxScanTokenSize), i.e. `64KB`). This meant that
-  `sq` wasn't able to parse large JSON files, amongst other problems. The maximum buffer size is 
+  `sq` wasn't able to parse large JSON files, amongst other problems. The maximum buffer size is
   now configurable via the new [`tuning.scan-buffer-limit`](https://sq.io/docs/config/#tuningscan-buffer-limit)
   option. Note that the buffer will start small and grow as needed, up to the limit.
 
@@ -72,7 +73,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - Renamed config option `tuning.buffer-mem-limit` to [`tuning.buffer-spill-limit`](https://sq.io/docs/config/#tuningbuffer-spill-limit).
   The new name better reflects the purpose of the option.
 
-  
+
 ## [v0.48.4] - 2024-11-24
 
 ### Changed
@@ -109,7 +110,7 @@ This release features significant improvements to [`sq diff`](https://sq.io/docs
   ```shell
   # Stop on first difference
   $ sq diff @prod.actor @staging.actor --data --stop 1
-  
+
   # Stop after 5 differences, using the -n shorthand flag
   $ sq diff @prod.actor @staging.actor --data -n5
   ```
@@ -136,8 +137,8 @@ This release features significant improvements to [`sq diff`](https://sq.io/docs
   count
   215439
   ```
-  I'm sure that number makes me an amateur with these millenials 👴🏻. 
-  
+  I'm sure that number makes me an amateur with these millenials 👴🏻.
+
   > Note that you'll need to enable macOS [Full Disk Access](https://spin.atomicobject.com/search-imessage-sql/) to read the `chat.db` file.
 
 - `sq` now allows you to use `true` and `false` literals in queries. Which, in hindsight, does seem like a bit of
@@ -147,7 +148,7 @@ This release features significant improvements to [`sq diff`](https://sq.io/docs
   $ sq '.people | where(.is_alive == false)'
   name        is_alive
   Kubla Khan  false
-  
+
   $ sq '.people | where(.is_alive == true)'
   name         is_alive
   Kaiser Soze  true
@@ -182,14 +183,14 @@ release for recent headline features.
   # Default behavior: password is redacted
   $ sq src -v
   @sakila/pg12  postgres  postgres://sakila:xxxxx@192.168.50.132/sakila
-  
+
   # Unredacted
   $ sq src -v --no-redact
   @sakila/pg12  postgres  postgres://sakila:p_ssW0rd@192.168.50.132/sakila
   ```
 
 - Previously, if an error occurred when [`verbose`](https://sq.io/docs/config#verbose) was true,
-  and [`error.format`](https://sq.io/docs/config#errorformat) was `text`, `sq` would print a stack trace 
+  and [`error.format`](https://sq.io/docs/config#errorformat) was `text`, `sq` would print a stack trace
   to `stderr`. This was poor default behavior, flooding the user terminal, so the default is now no stack trace.
   To restore the previous behavior, use the new `-E` (`--error.stack`) flag, or set the [`error.stack`](https://sq.io/docs/config#errorstack) config option.
 
@@ -200,10 +201,10 @@ release for recent headline features.
   [`sq sql`](https://sq.io/docs/cmd/sql), and the root [`sq`](https://sq.io/docs/cmd/sq#override-active-schema) cmd)
   now accepts `--src.schema=CATALOG.`. Note the `.` suffix on `CATALOG.`. This is in addition to the existing allowed forms `SCHEMA`
   and `CATALOG.SCHEMA`. This new `CATALOG.` form is effectively equivalent to `CATALOG.CURRENT_SCHEMA`.
-  
+
   ```shell
   # Inspect using the default schema in the "sales" catalog
-  $ sq inspect --src.schema=sales. 
+  $ sq inspect --src.schema=sales.
   ```
 
 - The [`--src.schema`](https://sq.io/docs/source#source-override) flag is now validated. Previously, if you provided a non-existing catalog or schema
@@ -233,7 +234,7 @@ release for recent headline features.
 
 ## [v0.47.2] - 2024-01-29
 
-Yet another morning-after-the-big-release issue, a nasty little one this time. 
+Yet another morning-after-the-big-release issue, a nasty little one this time.
 See the earlier [`v0.47.0`](https://github.com/neilotoole/sq/releases/tag/v0.47.0) release
 for recent headline features.
 
@@ -361,7 +362,7 @@ you encounter any weirdness.
   ```shell
   # Previously
   $ sq '.payment | .customer_id, sum(.amount) | group_by(.customer_id) | order_by(.customer_id)'
-  
+
   # Now
   $ sq '.payment | .customer_id, sum(.amount) | gb(.customer_id) | ob(.customer_id)'
   ```
@@ -379,9 +380,9 @@ you encounter any weirdness.
   floats are imprecise, and so we saw [unwanted behavior](https://github.com/neilotoole/sq/actions/runs/6932116521/job/18855333269#step:6:2345), e.g.
 
   ```shell
-  db_type_test.go:194: 
+  db_type_test.go:194:
         Error Trace:	D:/a/sq/sq/drivers/sqlite3/db_type_test.go:194
-        Error:      	Not equal: 
+        Error:      	Not equal:
                       expected: "77.77"
                       actual  : "77.77000000000001"
   ```
@@ -627,7 +628,7 @@ mechanism.
    ```shell
    # Previously, only a single join was possible
    $ sq '.actor, .film_actor | join(.actor_id)'
-   
+
    # Now, an arbitrary number of joins
    $ sq '.actor | join(.film_actor, .actor_id) | join(.film, .film_id)'
    ```
@@ -692,7 +693,7 @@ to SLQ (`sq`'s query language).
   ```shell
   # Previously
   $ sq '.actor | .actor_id <= 2'
-  
+
   # Now
   $ sq '.actor | where(.actor_id <= 2)'
   ```
@@ -740,7 +741,7 @@ to SLQ (`sq`'s query language).
   given_name
   PENELOPE
   NICK
-  
+
   # Now, any arbitrary string can be used
   $ sq '.actor | .first_name:"Given Name" | .[0:2]'
   Given Name
@@ -769,7 +770,7 @@ to SLQ (`sq`'s query language).
   ```shell
   # mysql "date_format" func
   $ sq '@sakila/mysql | .payment | _date_format(.payment_date, "%m")'
-  
+
   # Postgres "date_trunc" func
   $ sq '@sakila/postgres | .payment | _date_trunc("month", .payment_date)'
   ```
@@ -894,7 +895,7 @@ Alas, this release has several minor breaking changes ☢️.
   ```shell
   # previously
   $ cat mystery.data | sq --driver=csv '.data'
-  
+
   # now
   $ cat mystery.data | sq --ingest.driver=csv '.data'
   ```
@@ -903,7 +904,7 @@ Alas, this release has several minor breaking changes ☢️.
   ```shell
   # previously
   $ sq add ./actor.csv --opts=header=false
-  
+
   # now
   $ sq add ./actor.csv --ingest.header=false
    ```
@@ -913,7 +914,7 @@ Alas, this release has several minor breaking changes ☢️.
     ```shell
   # previously
   $ sq add ./actor.csv -h @actor
-  
+
   # now
   $ sq add ./actor.csv -n @actor
    ```
@@ -1033,7 +1034,7 @@ make working with lots of sources much easier.
   $ sq '.actor | max(.actor_id)'
   max("actor_id")
   200
-  
+
   # now
   $ sq '.actor | max(.actor_id)'
   max(.actor_id)
