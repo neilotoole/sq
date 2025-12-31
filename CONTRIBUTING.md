@@ -1,7 +1,7 @@
 `sq` welcomes new [issues](https://github.com/neilotoole/sq/issues), [pull requests](https://github.com/neilotoole/sq/pulls)
 and [discussion](https://github.com/neilotoole/sq/discussions).
 
-For user documentation, see [sq.io](https://sq.io)
+For user documentation, see [sq.io](https://sq.io).
 
 ## Tooling
 
@@ -92,20 +92,20 @@ The `## Unreleased` section should not exist when there is no work-in-progress.
 
 Optional brief description paragraph for significant releases.
 
-### Added
+### Fixed
 
-- New features go here
+- Bug fixes
 
 ### Changed
 
 - Changes to existing functionality
 
-### Fixed
+### Added
 
-- Bug fixes
+- New features go here
 ```
 
-When present, sections should appear in this order: Added, Changed, Fixed.
+When present, sections should appear in this order: Fixed, Changed, Added.
 Not all sections are required for every release.
 
 ### Special Markers
