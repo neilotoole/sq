@@ -6,10 +6,9 @@ import (
 	"context"
 	"io"
 
-	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
-
 	"github.com/neilotoole/sq/libsq/core/colorz"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
 )
 
 type colorizer struct {

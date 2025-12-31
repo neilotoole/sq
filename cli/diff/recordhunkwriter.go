@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
-
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
