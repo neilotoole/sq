@@ -20,18 +20,21 @@ you may not need all of these tools. You'll definitely need `go`.
 ## Makefile
 
 Yes, we are a Go project, and shouldn't need a [Makefile](./Makefile). But, `sq` is also a fairly
-complex project, with generated code, CGo, test containers, related docs [website](https://sq.io), and a bunch of other
+complex project, with generated code, [CGo](https://go.dev/wiki/cgo)
+(due to embedded SQLite), test containers, related docs [website](https://sq.io), and a bunch of other
 stuff. Therefore, if for no other reason, it is recommended to use the Makefile when developing locally.
 
+## General advice
+
 As a kick-off point, run `make all`. This will generate code, format, lint,
-run tests, build the binary to `dist/`, and install a local `sq` build. See the
-[Makefile](./Makefile) for individual targets.
+run tests, build the local binary to `dist/`, and install a local `sq` build.
+See the [Makefile](./Makefile) for individual targets.
 
 ## Opening issues
 
-There are already templates in place: just use the usual GitHub process to
-open an [issue for `sq`](https://github.com/neilotoole/sq/issues). Remember to
-search the existing issues first.
+There are already GitHub templates in place: just use the usual GitHub process
+to open an [issue for `sq`](https://github.com/neilotoole/sq/issues). Remember
+to search the existing issues first.
 
 ## Opening a PR
 
