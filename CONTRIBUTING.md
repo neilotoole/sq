@@ -3,6 +3,14 @@ and [discussion](https://github.com/neilotoole/sq/discussions).
 
 For user documentation, see [sq.io](https://sq.io)
 
+## Required tooling
+
+This documentation presumes you are on MacOS. If not, adapt appropriately.
+
+- `go`: `brew install go`
+- `make`: `brew install make`
+- `shellcheck`: `brew install shellcheck`
+
 ## Makefile
 
 Yes, we are a Go project, and shouldn't need a [Makefile](./Makefile). But, `sq` is also a fairly
