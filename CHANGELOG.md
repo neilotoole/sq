@@ -8,8 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 > [!NOTE]
-> Sometimes this `CHANGELOG.md` has gaps between versions, e.g. `v0.18.0` to `v0.18.2`. 
+> Sometimes this `CHANGELOG.md` has gaps between versions, e.g. `v0.18.0` to `v0.18.2`.
 > This typically means that there was some CI/tooling mishap. Ignore those gaps.
+
+## Unreleased
+
+### Fixed
+
+- [#469]: Column widths were too wide when using `--no-header` flag. Header text
+  is now excluded from column width calculation when headers are disabled.
+  Thanks to [majiayu000](https://github.com/majiayu000) for the fix.
+
+### Changed
+
+### Added
 
 ## [v0.48.10] - 2025-12-28
 
@@ -1274,6 +1286,7 @@ make working with lots of sources much easier.
 [#353]: https://github.com/neilotoole/sq/issues/353
 [#415]: https://github.com/neilotoole/sq/issues/415
 [#446]: https://github.com/neilotoole/sq/issues/446
+[#469]: https://github.com/neilotoole/sq/issues/469
 [#504]: https://github.com/neilotoole/sq/issues/504
 [#506]: https://github.com/neilotoole/sq/issues/506
 
