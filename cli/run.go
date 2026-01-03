@@ -18,6 +18,7 @@ import (
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/json"
 	"github.com/neilotoole/sq/drivers/mysql"
+	"github.com/neilotoole/sq/drivers/oracle"
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/drivers/sqlserver"
@@ -285,6 +286,7 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 	dr.AddProvider(drivertype.Pg, &postgres.Provider{Log: log})
 	dr.AddProvider(drivertype.MSSQL, &sqlserver.Provider{Log: log})
 	dr.AddProvider(drivertype.MySQL, &mysql.Provider{Log: log})
+	dr.AddProvider(drivertype.Oracle, &oracle.Provider{Log: log})
 	csvp := &csv.Provider{Log: log, Ingester: ru.Grips, Files: ru.Files}
 	dr.AddProvider(drivertype.CSV, csvp)
 	dr.AddProvider(drivertype.TSV, csvp)
