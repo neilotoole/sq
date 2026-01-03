@@ -83,7 +83,7 @@ func differForTableData(cfg *Config, title bool, td1, td2 source.Table) *diffdoc
 // [diffdoc.HunkDoc.Err]. Any error should also be propagated via cancelFn, to
 // cancel any peer goroutines. Note that the returned doc's [diffdoc.Doc.Read]
 // method blocks until the doc is completed (or errors out).
-func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //nolint:funlen,gocognit
+func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //nolint:gocognit
 	cfg *Config, td1, td2 source.Table, doc *diffdoc.HunkDoc,
 ) {
 	log := lg.FromContext(ctx).With(lga.Left, td1.String(), lga.Right, td2.String())

@@ -2,6 +2,7 @@
 package tu
 
 import (
+	"context"
 	"crypto/rand"
 	"fmt"
 	"hash/crc32"
@@ -493,7 +494,7 @@ func doOpenFileCount(tb testing.TB) (count int, out string) {
 	SkipWindows(tb, "OpenFileCount not implemented on Windows")
 
 	c := fmt.Sprintf("lsof -p %v", os.Getpid())
-	b, err := exec.Command("/bin/sh", "-c", c).Output()
+	b, err := exec.CommandContext(context.Background(), "/bin/sh", "-c", c).Output()
 	require.NoError(tb, err)
 	lines := strings.Split(string(b), "\n")
 	count = len(lines) - 1

@@ -58,8 +58,8 @@ func TestIsQueryStatement(t *testing.T) {
 		{"insert with comment", "/* comment */ INSERT INTO users VALUES (1)", false},
 
 		// Edge cases
-		{"empty string", "", true},             // defaults to query
-		{"only whitespace", "   ", true},       // defaults to query
+		{"empty string", "", true},                  // defaults to query
+		{"only whitespace", "   ", true},            // defaults to query
 		{"only comment", "-- just a comment", true}, // no actual SQL after comment
 	}
 
@@ -73,7 +73,7 @@ func TestIsQueryStatement(t *testing.T) {
 	}
 }
 
-// TestIsQueryStatement_RealWorld tests with real-world SQL examples
+// TestIsQueryStatement_RealWorld tests with real-world SQL examples.
 func TestIsQueryStatement_RealWorld(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -88,20 +88,23 @@ func TestIsQueryStatement_RealWorld(t *testing.T) {
 			reason:   "Complex SELECT with JOINs should be detected as query",
 		},
 		{
-			name:     "multi-line insert",
-			sql:      "INSERT INTO users (id, name, email)\nVALUES \n  (1, 'Alice', 'alice@example.com'),\n  (2, 'Bob', 'bob@example.com')",
+			name: "multi-line insert",
+			sql: "INSERT INTO users (id, name, email)\nVALUES \n  " +
+				"(1, 'Alice', 'alice@example.com'),\n  (2, 'Bob', 'bob@example.com')",
 			expected: false,
 			reason:   "Multi-line INSERT should be detected as statement",
 		},
 		{
-			name:     "create table with constraints",
-			sql:      "CREATE TABLE users (id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, created_at TIMESTAMP DEFAULT NOW())",
+			name: "create table with constraints",
+			sql: "CREATE TABLE users (id SERIAL PRIMARY KEY, " +
+				"name VARCHAR(100) NOT NULL, created_at TIMESTAMP DEFAULT NOW())",
 			expected: false,
 			reason:   "CREATE TABLE with constraints should be detected as statement",
 		},
 		{
-			name:     "update with subquery",
-			sql:      "UPDATE users SET status = 'active' WHERE id IN (SELECT user_id FROM logins WHERE login_date > '2024-01-01')",
+			name: "update with subquery",
+			sql: "UPDATE users SET status = 'active' " +
+				"WHERE id IN (SELECT user_id FROM logins WHERE login_date > '2024-01-01')",
 			expected: false,
 			reason:   "UPDATE (even with subquery) should be detected as statement",
 		},

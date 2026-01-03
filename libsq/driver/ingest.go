@@ -3,10 +3,9 @@ package driver
 import (
 	"context"
 
-	"github.com/neilotoole/sq/libsq/core/templatez"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/templatez"
 )
 
 // OptIngestHeader specifies whether ingested data has a header row or not.

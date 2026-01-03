@@ -11,7 +11,7 @@ import (
 	"github.com/neilotoole/sq/testh/sakila"
 )
 
-// uniqueTableName generates a unique table name for testing
+// uniqueTableName generates a unique table name for testing.
 func uniqueTableName(prefix string) string {
 	// Use timestamp to ensure uniqueness
 	return fmt.Sprintf("%s_%d", prefix, time.Now().UnixNano())
@@ -113,7 +113,7 @@ func TestQueryVsExec_DDL_CREATE(t *testing.T) {
 //
 // This test shows a concrete example of incorrect behavior:
 // - QueryContext on INSERT returns wrong affected row count (0)
-// - ExecContext on INSERT returns correct affected row count
+// - ExecContext on INSERT returns correct affected row count.
 func TestQueryVsExec_DML_INSERT(t *testing.T) {
 	testCases := []string{
 		sakila.Pg12,
@@ -203,7 +203,7 @@ func TestQueryVsExec_DML_INSERT(t *testing.T) {
 	}
 }
 
-// TestQueryVsExec_DML_UPDATE demonstrates affected row count for UPDATE
+// TestQueryVsExec_DML_UPDATE demonstrates affected row count for UPDATE.
 func TestQueryVsExec_DML_UPDATE(t *testing.T) {
 	testCases := []string{
 		sakila.Pg12,
@@ -273,7 +273,7 @@ func TestQueryVsExec_DML_UPDATE(t *testing.T) {
 	}
 }
 
-// TestExecSQL_Function tests the libsq.ExecSQL function we added
+// TestExecSQL_Function tests the libsq.ExecSQL function we added.
 func TestExecSQL_Function(t *testing.T) {
 	testCases := []string{
 		sakila.Pg12,

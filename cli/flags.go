@@ -74,7 +74,7 @@ func cmdFlagBool(cmd *cobra.Command, name string) bool {
 // as logging and config, interrogate flags before cobra has loaded.
 func getBootstrapFlagValue(flg, flgShort, flgUsage string, osArgs []string) (val string, ok bool, err error) {
 	fs := pflag.NewFlagSet("bootstrap", pflag.ContinueOnError)
-	fs.ParseErrorsWhitelist.UnknownFlags = true
+	fs.ParseErrorsAllowlist.UnknownFlags = true
 	fs.SetOutput(io.Discard)
 
 	// Special handling for the --help flag, because pflag gives it special

@@ -88,7 +88,7 @@ func Load(ctx context.Context, osArgs []string, optsReg *options.Registry,
 // cobra is initialized.
 func getConfigDirFromFlag(osArgs []string) (dir string, ok bool, err error) {
 	fs := pflag.NewFlagSet("bootstrap", pflag.ContinueOnError)
-	fs.ParseErrorsWhitelist.UnknownFlags = true
+	fs.ParseErrorsAllowlist.UnknownFlags = true
 	fs.SetOutput(io.Discard)
 
 	_ = fs.String(flag.Config, "", flag.ConfigUsage)

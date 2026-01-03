@@ -74,7 +74,7 @@ func kindFromDBTypeName(ctx context.Context, colName, dbTypeName string) kind.Ki
 		knd = kind.Datetime
 	case "DATE":
 		knd = kind.Date
-	case "TIME": //nolint:goconst
+	case "TIME":
 		knd = kind.Time
 	case "FLOAT", "DOUBLE", "DOUBLE PRECISION", "REAL":
 		knd = kind.Float
@@ -318,9 +318,10 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 	}
 
 	for _, tbl := range md.Tables {
-		if tbl.TableType == sqlz.TableTypeTable {
+		switch tbl.TableType {
+		case sqlz.TableTypeTable:
 			md.TableCount++
-		} else if tbl.TableType == sqlz.TableTypeView {
+		case sqlz.TableTypeView:
 			md.ViewCount++
 		}
 	}

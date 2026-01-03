@@ -231,6 +231,9 @@ func (pr *Printing) Clone() *Printing {
 		FormatTimeAsNumber:     pr.FormatTimeAsNumber,
 		FormatDate:             pr.FormatDate,
 		FormatDateAsNumber:     pr.FormatDateAsNumber,
+		ExcelDatetimeFormat:    pr.ExcelDatetimeFormat,
+		ExcelDateFormat:        pr.ExcelDateFormat,
+		ExcelTimeFormat:        pr.ExcelTimeFormat,
 		Diff:                   pr.Diff.Clone(),
 	}
 

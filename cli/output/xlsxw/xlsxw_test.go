@@ -8,6 +8,7 @@ import (
 	"image"
 	"image/gif"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -154,6 +155,33 @@ func readCellValue(t *testing.T, fpath, sheet, cell string) string {
 	require.NoError(t, err)
 
 	return val
+}
+
+// TestXLSXRoundtrip tests writing XLSX output from a query and then
+// reading it back with "sq inspect". This verifies that XLSX files
+// created by sq can be correctly detected and read.
+func TestXLSXRoundtrip(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	// Create a temp file path for the XLSX output
+	xlsxPath := filepath.Join(t.TempDir(), "actor_roundtrip.xlsx")
+
+	// Step 1: Query .actor table and write to XLSX file using --output flag
+	tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+	require.NoError(t, tr.Exec(".actor", "--xlsx", "--output", xlsxPath))
+
+	// Step 2: Add the XLSX file as a source
+	tr2 := testrun.New(th.Context, t, nil).Hush()
+	require.NoError(t, tr2.Exec("add", xlsxPath))
+
+	// Step 3: Inspect the added source
+	require.NoError(t, tr2.Reset().Exec("inspect", "--json"))
+
+	// Verify we got expected output - should show xlsx driver and "data" table
+	require.Equal(t, "xlsx", tr2.JQ(".driver"))
+	require.Equal(t, "data", tr2.JQ(".tables[0].name"))
+	require.Equal(t, float64(sakila.TblActorCount), tr2.JQ(".tables[0].row_count"))
 }
 
 func TestOptDatetimeFormats(t *testing.T) {

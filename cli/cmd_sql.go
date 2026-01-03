@@ -129,17 +129,17 @@ func isQueryStatement(sql string) bool {
 	// Remove leading comments
 	for strings.HasPrefix(sql, "--") || strings.HasPrefix(sql, "/*") {
 		if strings.HasPrefix(sql, "--") {
-			if idx := strings.Index(sql, "\n"); idx >= 0 {
-				sql = strings.TrimSpace(sql[idx+1:])
-			} else {
+			idx := strings.Index(sql, "\n")
+			if idx < 0 {
 				return true
 			}
+			sql = strings.TrimSpace(sql[idx+1:])
 		} else if strings.HasPrefix(sql, "/*") {
-			if idx := strings.Index(sql, "*/"); idx >= 0 {
-				sql = strings.TrimSpace(sql[idx+2:])
-			} else {
+			idx := strings.Index(sql, "*/")
+			if idx < 0 {
 				return true
 			}
+			sql = strings.TrimSpace(sql[idx+2:])
 		}
 	}
 
@@ -173,9 +173,9 @@ func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source) erro
 	// Detect if this is a query (SELECT) or statement (CREATE, INSERT, etc.)
 	if !isQueryStatement(sql) {
 		// This is a DDL/DML statement, use ExecSQL
-		affected, err := libsq.ExecSQL(ctx, grip, nil, sql)
-		if err != nil {
-			return err
+		affected, execErr := libsq.ExecSQL(ctx, grip, nil, sql)
+		if execErr != nil {
+			return execErr
 		}
 		_, _ = fmt.Fprintf(ru.Out, stringz.Plu("Affected %d row(s)\n", int(affected)), affected)
 		return nil

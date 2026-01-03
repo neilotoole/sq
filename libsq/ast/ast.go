@@ -251,12 +251,13 @@ func ParseCatalogSchema(s string) (catalog, schema string, err error) {
 	if tblSel.name1 == "" {
 		schema = tblSel.name0
 	} else {
-		catalog = tblSel.SelectorNode.name0
-		schema = tblSel.SelectorNode.name1
+		catalog = tblSel.name0
+		schema = tblSel.name1
 	}
-	if schema == "" {
+	switch schema {
+	case "":
 		return "", "", errz.Errorf(errTpl, s)
-	} else if schema == schemaNameHack {
+	case schemaNameHack:
 		schema = ""
 	}
 
