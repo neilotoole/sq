@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
-
 	"github.com/fatih/color"
 	colorable "github.com/mattn/go-colorable"
 	wordwrap "github.com/mitchellh/go-wordwrap"
@@ -30,6 +28,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
@@ -546,9 +545,9 @@ func getOutputConfig(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup
 	}
 
 	switch {
-	case cmdFlagChanged(cmd, flag.FileOutput) || fm == format.Raw:
-		// For file or raw output, we don't decorate stdout with
-		// any colorable decorator.
+	case cmdFlagChanged(cmd, flag.FileOutput) || fm == format.Raw || fm == format.XLSX:
+		// For file, raw, or XLSX output, we don't decorate stdout with
+		// any colorable decorator. XLSX is binary and must not be modified.
 		outCfg.out = stdout
 		outCfg.outPr.EnableColor(false)
 	case cmd != nil && cmdFlagChanged(cmd, flag.FileOutput):

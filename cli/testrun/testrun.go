@@ -14,14 +14,13 @@ import (
 	"testing"
 
 	"github.com/itchyny/gojq"
-	"github.com/neilotoole/sq/libsq/core/errz"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"

@@ -13,9 +13,18 @@ ifeq ($(UNAME_S),Darwin)
 	export CGO_LDFLAGS
 endif
 
+.PHONY: all
+all: gen fmt lint test build install
+
 .PHONY: test
 test:
 	@go test -tags "$(BUILD_TAGS)" ./...
+
+.PHONY: build
+build:
+	@# Build binary for the current (local) platform only; output to dist/sq.
+	@mkdir -p dist
+	@go build -ldflags "$(LDFLAGS)" -tags "$(BUILD_TAGS)" -o dist/sq
 
 .PHONY: install
 install:
@@ -23,7 +32,8 @@ install:
 
 .PHONY: lint
 lint:
-	@golangci-lint run --out-format tab --sort-results
+	go tool -modfile=tools/golangci-lint/go.mod golangci-lint version
+	go tool -modfile=tools/golangci-lint/go.mod golangci-lint run --output.tab.path stdout
 	@shellcheck ./install.sh
 
 .PHONY: gen
@@ -31,7 +41,7 @@ gen:
 	@go generate ./...
 	@# Run betteralign on generated code
 	@# https://github.com/dkorunic/betteralign
-	@betteralign -apply ./libsq/ast/internal/slq &> /dev/null | true
+	@go tool -modfile=tools/betteralign/go.mod betteralign -apply ./libsq/ast/internal/slq &> /dev/null | true
 
 .PHONY: fmt
 fmt:
@@ -41,11 +51,41 @@ fmt:
 	@# are not in use. Alas, we can't provide a double star glob,
 	@# e.g. **/*_windows.go, because filepath.Match doesn't support
 	@# double star, so we explicitly name the file.
-	@goimports-reviser -company-prefixes github.com/neilotoole -set-alias \
+	@go tool -modfile=tools/goimports-reviser/go.mod goimports-reviser \
+		-company-prefixes github.com/neilotoole -set-alias \
 		-excludes 'libsq/core/termz/termz_windows.go' \
 		-rm-unused -output write \
 		-project-name github.com/neilotoole/sq ./...
 
 	@# Use gofumpt instead of "go fmt"
 	@# https://github.com/mvdan/gofumpt
-	@gofumpt -w .
+	@go tool -modfile=tools/gofumpt/go.mod gofumpt -w .
+
+.PHONY: goreleaser-verify-config
+goreleaser-verify-config:
+	@# Validate goreleaser config files (does not build or publish).
+	@# Requires goreleaser: https://goreleaser.com/install/
+	goreleaser check -f .goreleaser.yml
+	goreleaser check -f .goreleaser-darwin.yml
+	goreleaser check -f .goreleaser-linux-amd64.yml
+	goreleaser check -f .goreleaser-linux-arm64.yml
+	goreleaser check -f .goreleaser-windows.yml
+
+.PHONY: goreleaser-build-local-arch
+goreleaser-build-local-arch:
+	@# Build binary for current platform using goreleaser (does not publish).
+	@# Uses --snapshot (no git tag required) and --single-target (current platform only).
+	@# Note: Uses platform-specific config since .goreleaser.yml expects prebuilt binaries.
+	@# This is just for local testing. It does not prove much about the how the
+	@# CI pipeline will behave.
+ifeq ($(shell uname -s),Darwin)
+	goreleaser build --snapshot --clean --single-target -f .goreleaser-darwin.yml
+else ifeq ($(shell uname -s),Linux)
+  ifeq ($(shell uname -m),aarch64)
+	goreleaser build --snapshot --clean --single-target -f .goreleaser-linux-arm64.yml
+  else
+	goreleaser build --snapshot --clean --single-target -f .goreleaser-linux-amd64.yml
+  endif
+else
+	goreleaser build --snapshot --clean --single-target -f .goreleaser-windows.yml
+endif

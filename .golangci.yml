@@ -1,654 +1,411 @@
-# This code is licensed under the terms of the MIT license.
-
-## Golden config for golangci-lint v1.50.1
-#
-# This is the best config for golangci-lint based on my experience and opinion.
-# It is very strict, but not extremely strict.
-# Feel free to adopt and change it for your needs.
-#
-# @neilotoole: ^^ Well, it's less strict now!
-# Based on: https://gist.github.com/maratori/47a4d00457a92aa426dbd48a18776322
-
+version: "2"
 run:
-  # Timeout for analysis, e.g. 30s, 5m.
-  # Default: 1m
-  timeout: 5m
-
   tests: true
-
-
-output:
-  sort-results: true
-
-# This file contains only configs which differ from defaults.
-# All possible options can be found here https://github.com/golangci/golangci-lint/blob/master/.golangci.reference.yml
-linters-settings:
-  cyclop:
-    # The maximal code complexity to report.
-    # Default: 10
-    max-complexity: 50
-    # The maximal average package complexity.
-    # If it's higher than 0.0 (float) the check is enabled
-    # Default: 0.0
-    package-average: 10.0
-
-  errcheck:
-    # Report about not checking of errors in type assertions: `a := b.(MyStruct)`.
-    # Such cases aren't reported by default.
-    # Default: false
-    check-type-assertions: false
-
-  exhaustive:
-    # Program elements to check for exhaustiveness.
-    # Default: [ switch ]
-    check:
-      - switch
-      - map
-
-  funlen:
-    # Checks the number of lines in a function.
-    # If lower than 0, disable the check.
-    # Default: 60
-    lines: 175
-    # Checks the number of statements in a function.
-    # If lower than 0, disable the check.
-    # Default: 40
-    statements: 100
-
-    # Ignore comments when counting lines.
-    # Default false
-    ignore-comments: true
-
-  gocognit:
-    # Minimal code complexity to report
-    # Default: 30 (but we recommend 10-20)
-    min-complexity: 50
-
-  gocritic:
-    # Settings passed to gocritic.
-    # The settings key is the name of a supported gocritic checker.
-    # The list of supported checkers can be find in https://go-critic.github.io/overview.
-    settings:
-      captLocal:
-        # Whether to restrict checker to params only.
-        # Default: true
-        paramsOnly: false
-      underef:
-        # Whether to skip (*x).method() calls where x is a pointer receiver.
-        # Default: true
-        skipRecvDeref: false
-
-  gocyclo:
-    # Minimal code complexity to report.
-    # Default: 30 (but we recommend 10-20)
-    min-complexity: 50
-
-  gofumpt:
-    # Module path which contains the source code being formatted.
-    # Default: ""
-    module-path: github.com/neilotoole/sq
-    # Choose whether to use the extra rules.
-    # Default: false
-    extra-rules: true
-
-  gomnd:
-    # List of function patterns to exclude from analysis.
-    # Values always ignored: `time.Date`,
-    # `strconv.FormatInt`, `strconv.FormatUint`, `strconv.FormatFloat`,
-    # `strconv.ParseInt`, `strconv.ParseUint`, `strconv.ParseFloat`.
-    # Default: []
-    ignored-functions:
-      - make
-      - os.Chmod
-      - os.Mkdir
-      - os.MkdirAll
-      - os.OpenFile
-      - os.WriteFile
-      - prometheus.ExponentialBuckets
-      - prometheus.ExponentialBucketsRange
-      - prometheus.LinearBuckets
-    ignored-numbers:
-      - "2"
-      - "3"
-
-  gomodguard:
-    blocked:
-      # List of blocked modules.
-      # Default: []
-      modules:
-        - github.com/golang/protobuf:
-            recommendations:
-              - google.golang.org/protobuf
-            reason: "see https://developers.google.com/protocol-buffers/docs/reference/go/faq#modules"
-        - github.com/satori/go.uuid:
-            recommendations:
-              - github.com/google/uuid
-            reason: "satori's package is not maintained"
-        - github.com/gofrs/uuid:
-            recommendations:
-              - github.com/google/uuid
-            reason: "gofrs' package is not go module"
-
-  govet:
-    # Enable all analyzers.
-    # Default: false
-    enable-all: true
-    # Disable analyzers by name.
-    # Run `go tool vet help` to see all analyzers.
-    # Default: []
-    disable:
-    # - fieldalignment # too strict
-    # Settings per analyzer.
-    settings:
-      shadow:
-        # Whether to be strict about shadowing; can be noisy.
-        # Default: false
-        strict: false
-
-  lll:
-    # Max line length, lines longer will be reported.
-    # '\t' is counted as 1 character by default, and can be changed with the tab-width option.
-    # Default: 120.
-    line-length: 120
-    # Tab width in spaces.
-    # Default: 1
-    tab-width: 1
-
-  nakedret:
-    # Make an issue if func has more lines of code than this setting, and it has naked returns.
-    # Default: 30
-    max-func-lines: 0
-
-  nestif:
-    # Minimal complexity of if statements to report.
-    # Default: 5
-    min-complexity: 20
-
-  nolintlint:
-    # Exclude following linters from requiring an explanation.
-    # Default: []
-    allow-no-explanation: [ funlen, gocognit, lll ]
-    # Enable to require an explanation of nonzero length after each nolint directive.
-    # Default: false
-    require-explanation: false
-    # Enable to require nolint directives to mention the specific linter being suppressed.
-    # Default: false
-    require-specific: true
-
-  revive:
-    # https://golangci-lint.run/usage/linters/#revive
-    rules:
-
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#add-constant
-      - name: add-constant
-        disabled: true
-        arguments:
-          - maxLitCount: "3"
-            allowStrs: '""'
-            allowInts: "0,1,2"
-            allowFloats: "0.0,0.,1.0,1.,2.0,2."
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#argument-limit
-      - name: argument-limit
-        disabled: false
-        arguments: [ 7 ]
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#atomic
-      - name: atomic
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#banned-characters
-      - name: banned-characters
-        disabled: true
-        arguments: [ "Ω", "Σ", "σ", "7" ]
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#bare-return
-      - name: bare-return
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#blank-imports
-      - name: blank-imports
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#bool-literal-in-expr
-      - name: bool-literal-in-expr
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#call-to-gc
-      - name: call-to-gc
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#cognitive-complexity
-      - name: cognitive-complexity
-        disabled: true
-        arguments: [ 7 ]
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#comment-spacings
-      - name: comment-spacings
-        disabled: true
-        arguments:
-          - mypragma
-          - otherpragma
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#confusing-naming
-      - name: confusing-naming
-        disabled: true
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#confusing-results
-      - name: confusing-results
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#constant-logical-expr
-      - name: constant-logical-expr
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#context-as-argument
-      - name: context-as-argument
-        disabled: false
-        arguments:
-          - allowTypesBefore: "*testing.T,*github.com/user/repo/testing.Harness"
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#context-keys-type
-      - name: context-keys-type
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#cyclomatic
-      - name: cyclomatic
-        disabled: true
-        arguments: [ 3 ]
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#datarace
-      - name: datarace
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#deep-exit
-      - name: deep-exit
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#defer
-      - name: defer
-        disabled: false
-        arguments:
-          - [ "call-chain", "loop" ]
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#dot-imports
-      - name: dot-imports
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#duplicated-imports
-      - name: duplicated-imports
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#early-return
-      - name: early-return
-        disabled: false
-        arguments:
-          - "preserveScope"
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#empty-block
-      - name: empty-block
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#empty-lines
-      - name: empty-lines
-        disabled: true # Covered by "whitespace" linter.
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#enforce-map-style
-      - name: enforce-map-style
-        disabled: true
-        arguments:
-          - "make"
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#error-naming
-      - name: error-naming
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#error-return
-      - name: error-return
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#error-strings
-      - name: error-strings
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#errorf
-      - name: errorf
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#file-header
-      - name: file-header
-        disabled: true
-#        arguments:
-#          - This is the text that must appear at the top of source files.
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#flag-parameter
-      - name: flag-parameter
-        disabled: true
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#function-result-limit
-      - name: function-result-limit
-        disabled: false
-        arguments: [ 4 ]
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#function-length
-      - name: function-length
-        disabled: true
-        arguments: [ 10, 0 ]
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#get-return
-      - name: get-return
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#identical-branches
-      - name: identical-branches
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#if-return
-      - name: if-return
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#increment-decrement
-      - name: increment-decrement
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#indent-error-flow
-      - name: indent-error-flow
-        disabled: false
-        arguments:
-          - "preserveScope"
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#import-alias-naming
-      - name: import-alias-naming
-        disabled: false
-        arguments:
-          - "^[a-z][a-z0-9]{0,}$"
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#imports-blacklist
-      - name: imports-blacklist
-        disabled: false
-        arguments:
-          - "crypto/md5"
-          - "crypto/sha1"
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#import-shadowing
-      - name: import-shadowing
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#line-length-limit
-      - name: line-length-limit
-        disabled: true
-        arguments: [ 80 ]
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#max-public-structs
-      - name: max-public-structs
-        disabled: true
-        arguments: [ 3 ]
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#modifies-parameter
-      - name: modifies-parameter
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#modifies-value-receiver
-      - name: modifies-value-receiver
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#nested-structs
-      - name: nested-structs
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#optimize-operands-order
-      - name: optimize-operands-order
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#package-comments
-      - name: package-comments
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#range
-      - name: range
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#range-val-in-closure
-      - name: range-val-in-closure
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#range-val-address
-      - name: range-val-address
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#receiver-naming
-      - name: receiver-naming
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#redundant-import-alias
-      - name: redundant-import-alias
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#redefines-builtin-id
-      - name: redefines-builtin-id
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#string-of-int
-      - name: string-of-int
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#string-format
-      - name: string-format
-        disabled: false
-        arguments:
-          - - 'core.WriteError[1].Message'
-            - '/^([^A-Z]|$)/'
-            - must not start with a capital letter
-          - - 'fmt.Errorf[0]'
-            - '/(^|[^\.!?])$/'
-            - must not end in punctuation
-          - - panic
-            - '/^[^\n]*$/'
-            - must not contain line breaks
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#struct-tag
-      - name: struct-tag
-        arguments:
-          - "json,inline"
-          - "bson,outline,gnu"
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#superfluous-else
-      - name: superfluous-else
-        disabled: false
-        arguments:
-          - "preserveScope"
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#time-equal
-      - name: time-equal
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#time-naming
-      - name: time-naming
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#var-naming
-      - name: var-naming
-        disabled: false
-        arguments:
-          - [ "ID" ] # AllowList
-          - [ "VM" ] # DenyList
-          - - upperCaseConst: true
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#var-declaration
-      - name: var-declaration
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#unconditional-recursion
-      - name: unconditional-recursion
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#unexported-naming
-      - name: unexported-naming
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#unexported-return
-      - name: unexported-return
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#unhandled-error
-      - name: unhandled-error
-        disabled: false
-        arguments:
-          - "fmt.Printf"
-          - "fmt.Fprintf"
-          - "fmt.Fprint"
-          - "fmt.Fprintln"
-          - "bytes.Buffer.Write"
-          - "bytes.Buffer.WriteByte"
-          - "bytes.Buffer.WriteString"
-          - "bytes.Buffer.WriteRune"
-          - "strings.Builder.WriteString"
-          - "strings.Builder.WriteRune"
-          - "strings.Builder.Write"
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#unnecessary-stmt
-      - name: unnecessary-stmt
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#unreachable-code
-      - name: unreachable-code
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#unused-parameter
-      - name: unused-parameter
-        disabled: false
-        arguments:
-          - allowRegex: "^_"
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#unused-receiver
-      - name: unused-receiver
-        disabled: true
-        arguments:
-          - allowRegex: "^_"
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#useless-break
-      - name: useless-break
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#waitgroup-by-value
-      - name: waitgroup-by-value
-        disabled: false
-
-  rowserrcheck:
-    # database/sql is always checked
-    # Default: []
-    packages:
-      - github.com/jmoiron/sqlx
-
-  tenv:
-    # The option `all` will run against whole test files (`_test.go`) regardless of method/function signatures.
-    # Otherwise, only methods that take `*testing.T`, `*testing.B`, and `testing.TB` as arguments are checked.
-    # Default: false
-    all: true
-
-
 linters:
-  disable-all: true
-
+  default: none
   enable:
-    ## enabled by default
-    - errcheck # checking for unchecked errors, these unchecked errors can be critical bugs in some cases
-    - gosimple # specializes in simplifying a code
-    - govet # reports suspicious constructs, such as Printf calls whose arguments do not align with the format string
-    - ineffassign # detects when assignments to existing variables are not used
-    - staticcheck # is a go vet on steroids, applying a ton of static analysis checks
-    - typecheck # like the front-end of a Go compiler, parses and type-checks Go code
-    - unused # checks for unused constants, variables, functions and types
-
-
-#    ## disabled by default
-    - asasalint # checks for pass []any as any in variadic func(...any)
-    - asciicheck # checks that your code does not contain non-ASCII identifiers
-    - bidichk # checks for dangerous unicode character sequences
-    - bodyclose # checks whether HTTP response body is closed successfully
-#    - copyloopvar # detects places where loop variables are copied.
-    - cyclop # checks function and package cyclomatic complexity
-    - dupl # tool for code clone detection
-    - durationcheck # checks for two durations multiplied together
-    - errname # checks that sentinel errors are prefixed with the Err and error types are suffixed with the Error
-    - errorlint # finds code that will cause problems with the error wrapping scheme introduced in Go 1.13
-#    - execinquery # checks query string in Query function which reads your Go src files and warning it finds (linter archived)
-    - exhaustive # checks exhaustiveness of enum switch statements
-    - forbidigo # forbids identifiers
-    - funlen # tool for detection of long functions
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - cyclop
+    - dupl
+    - durationcheck
+    - errcheck
+    - errname
+    - errorlint
+    - exhaustive
+    - forbidigo
+    - funlen
     - gocheckcompilerdirectives
-    - gochecknoinits # checks that no init functions are present in Go code
-    - gocognit # computes and checks the cognitive complexity of functions
-    - goconst # finds repeated strings that could be replaced by a constant
-    - gocritic # provides diagnostics that check for bugs, performance and style issues
-    - gocyclo # computes and checks the cyclomatic complexity of functions
-    - godot # checks if comments end in a period
-    - gofumpt
-    - goimports # in addition to fixing imports, goimports also formats your code in the same style as gofmt
-    - gomoddirectives # manages the use of 'replace', 'retract', and 'excludes' directives in go.mod
-    - gomodguard # allow and block lists linter for direct Go module dependencies. This is different from depguard where there are different block types for example version constraints and module recommendations
-    - goprintffuncname # checks that printf-like functions are named with f at the end
-    - gosec # inspects source code for security problems
-    - grouper # analyzes expression groups
-    - lll # reports long lines
-    - loggercheck # checks key value pairs for common logger libraries (kitlog,klog,logr,zap)
-    - makezero # finds slice declarations with non-zero initial length
+    - gochecknoinits
+    - gocognit
+    - gocritic
+    - gocyclo
+    - godot
+    - gomoddirectives
+    - gomodguard
+    - goprintffuncname
+    - gosec
+    - govet
+    - grouper
+    - ineffassign
+    - lll
+    - loggercheck
+    - makezero
     - mirror
-    - nakedret # finds naked returns in functions greater than a specified function length
-    - nestif # reports deeply nested if statements
-    - nilerr # finds the code that returns nil even if it checks that the error is not nil
-    - nilnil # checks that there is no simultaneous return of nil error and an invalid value
-    - noctx # finds sending http request without context.Context
-    - nolintlint # reports ill-formed or insufficient nolint directives
-    - nosprintfhostport # checks for misuse of Sprintf to construct a host with port in a URL
-    - perfsprint # checks for performance issues with fmt.Sprintf
-    - predeclared # finds code that shadows one of Go's predeclared identifiers
-    - promlinter # checks Prometheus metrics naming via promlint
-    - reassign # checks that package variables are not reassigned
-    - revive # fast, configurable, extensible, flexible, and beautiful linter for Go, drop-in replacement of golint
-    - sloglint # ensure consistent code style when using log/slog.
-    - stylecheck # is a replacement for golint
-    # - tagalign # check that struct tags are well aligned.
-    - tenv # detects using os.Setenv instead of t.Setenv since Go1.17
-    - testableexamples # checks if examples are testable (have an expected output)
-    - thelper # detects golang test helpers without t.Helper() call and checks the consistency of test helpers
-    - tparallel # detects inappropriate usage of t.Parallel() method in your Go test codes
-    - unconvert # removes unnecessary type conversions
-    - unparam # reports unused function parameters
-    - usestdlibvars # detects the possibility to use variables/constants from the Go standard library
-    - wastedassign # finds wasted assignment statements.
-    - whitespace # detects leading and trailing whitespace
-
-    ## These three linters are disabled for now due to generics: https://github.com/golangci/golangci-lint/issues/2649
-    #- rowserrcheck # checks whether Err of rows is checked successfully  # Disabled because:  https://github.com/golangci/golangci-lint/issues/2649
-    #- sqlclosecheck # checks that sql.Rows and sql.Stmt are closed
-    #- wastedassign # finds wasted assignment statements
-
-
-    ## you may want to enable
-    #- decorder # checks declaration order and count of types, constants, variables and functions
-    #- exhaustruct # checks if all structure fields are initialized
-#    - gochecknoglobals # checks that no global variables exist
-    #- godox # detects FIXME, TODO and other comment keywords
-    #- goheader # checks is file header matches to pattern
-    #- gomnd # detects magic numbers
-    #- interfacebloat # checks the number of methods inside an interface
-    #- ireturn # accept interfaces, return concrete types
-    #- prealloc # [premature optimization, but can be used in some cases] finds slice declarations that could potentially be preallocated
-    #- varnamelen # [great idea, but too many false positives] checks that the length of a variable's name matches its scope
-    #- wrapcheck # checks that errors returned from external packages are wrapped
-
-    ## disabled
-    #- containedctx # detects struct contained context.Context field
-    # - contextcheck # [too many false positives] checks the function whether use a non-inherited context
-    #- depguard # [replaced by gomodguard] checks if package imports are in a list of acceptable packages
-    #- dogsled # checks assignments with too many blank identifiers (e.g. x, _, _, _, := f())
-    #- dupword # [useless without config] checks for duplicate words in the source code
-    #- errchkjson # [don't see profit + I'm against of omitting errors like in the first example https://github.com/breml/errchkjson] checks types passed to the json encoding functions. Reports unsupported types and optionally reports occasions, where the check for the returned error can be omitted
-    #- forcetypeassert # [replaced by errcheck] finds forced type assertions
-    #- goerr113 # [too strict] checks the errors handling expressions
-    #- gofmt # [replaced by goimports] checks whether code was gofmt-ed
-    #- gofumpt # [replaced by goimports, gofumports is not available yet] checks whether code was gofumpt-ed
-    #- grouper # analyzes expression groups
-    #- importas # enforces consistent import aliases
-    #- maintidx # measures the maintainability index of each function
-    #- misspell # [useless] finds commonly misspelled English words in comments
-    #- nlreturn # [too strict and mostly code is not more readable] checks for a new line before return and branch statements to increase code clarity
-    #- paralleltest # [too many false positives] detects missing usage of t.Parallel() method in your Go test
-    #- tagliatelle # checks the struct tags
-    #- thelper # detects golang test helpers without t.Helper() call and checks the consistency of test helpers
-    #- wsl # [too strict and mostly code is not more readable] whitespace linter forces you to use empty lines
-
-    ## deprecated
-    #- deadcode # [deprecated, replaced by unused] finds unused code
-    #- exhaustivestruct # [deprecated, replaced by exhaustruct] checks if all struct's fields are initialized
-    #- golint # [deprecated, replaced by revive] golint differs from gofmt. Gofmt reformats Go source code, whereas golint prints out style mistakes
-    #- ifshort # [deprecated] checks that your code uses short syntax for if-statements whenever possible
-    #- interfacer # [deprecated] suggests narrower interface types
-    #- maligned # [deprecated, replaced by govet fieldalignment] detects Go structs that would take less memory if their fields were sorted
-    #- nosnakecase # [deprecated, replaced by revive var-naming] detects snake case of variable naming and function name
-    #- scopelint # [deprecated, replaced by exportloopref] checks for unpinned variables in go programs
-    #- structcheck # [deprecated, replaced by unused] finds unused struct fields
-    #- varcheck # [deprecated, replaced by unused] finds unused global variables and constants
-
-
-issues:
-  # Maximum count of issues with the same text.
-  # Set to 0 to disable.
-  # Default: 3
-  max-same-issues: 3
-
-  exclude-dirs:
-    # Skip jcolorenc because big chunks of it are copied from
-    # another encoder, and it uses a bunch of unsafe etc.
-    - cli/output/jsonw/internal/jcolorenc
-
-    # go-udiff is an internal fork of a package for which there
-    # is an open issue. Hopefully we can just rely on the original
-    # package at some point.
-    # See: https://github.com/aymanbagabas/go-udiff/issues/5
-    - libsq/core/diffdoc/internal/go-udiff
-
-    # This package is such a mess, and needs to be rewritten completely.
-    - cli/output/tablew/internal
-
-    # The tint package is a fork of an upstream package.
-    - libsq/core/lg/devlog/tint
-
-    # Fork of a GitHub gist.
-    - libsq/core/upgrademu
-
-
-    # Non-committed scratch dir
-    - scratch
-
-
-  exclude-rules:
-    - source: "^//\\s*go:generate\\s"
-      linters: [ lll ]
-    - source: "(noinspection|TODO)"
-      linters: [ godot ]
-    - source: "//noinspection"
-      linters: [ gocritic ]
-    - source: "^\\s+if _, ok := err\\.\\([^.]+\\.InternalError\\); ok {"
-      linters: [ errorlint ]
-    - path: "_test\\.go"
-      linters:
-        - govet
-        - bodyclose
-        - dupl
+    - nakedret
+    - nestif
+    - nilerr
+    - nilnil
+    - noctx
+    - nolintlint
+    - nosprintfhostport
+    - perfsprint
+    - predeclared
+    - promlinter
+    - reassign
+    - revive
+    - sloglint
+    - staticcheck
+    - testableexamples
+    - thelper
+    - tparallel
+    - unconvert
+    - unparam
+    - unused
+    - usestdlibvars
+    - wastedassign
+    - whitespace
+  settings:
+    cyclop:
+      max-complexity: 50
+      package-average: 10
+    errcheck:
+      check-type-assertions: false
+    exhaustive:
+      check:
+        - switch
+        - map
+    funlen:
+      lines: 175
+      statements: 100
+      ignore-comments: true
+    gocognit:
+      min-complexity: 50
+    gocritic:
+      settings:
+        captLocal:
+          paramsOnly: false
+        underef:
+          skipRecvDeref: false
+    gocyclo:
+      min-complexity: 50
+    gomodguard:
+      blocked:
+        modules:
+          - github.com/golang/protobuf:
+              recommendations:
+                - google.golang.org/protobuf
+              reason: see https://developers.google.com/protocol-buffers/docs/reference/go/faq#modules
+          - github.com/satori/go.uuid:
+              recommendations:
+                - github.com/google/uuid
+              reason: satori's package is not maintained
+          - github.com/gofrs/uuid:
+              recommendations:
+                - github.com/google/uuid
+              reason: gofrs' package is not go module
+    govet:
+      enable-all: true
+      settings:
+        shadow:
+          strict: false
+    lll:
+      line-length: 120
+      tab-width: 1
+    nakedret:
+      max-func-lines: 0
+    nestif:
+      min-complexity: 20
+    nolintlint:
+      require-explanation: false
+      require-specific: true
+      allow-no-explanation:
         - funlen
-        - goconst
-        - gosec
-        - noctx
-        - wrapcheck
+        - gocognit
+        - lll
+    revive:
+      rules:
+        - name: add-constant
+          arguments:
+            - allowFloats: 0.0,0.,1.0,1.,2.0,2.
+              allowInts: 0,1,2
+              allowStrs: '""'
+              maxLitCount: "3"
+          disabled: true
+        - name: argument-limit
+          arguments:
+            - 7
+          disabled: false
+        - name: atomic
+          disabled: false
+        - name: banned-characters
+          arguments:
+            - Ω
+            - Σ
+            - σ
+            - "7"
+          disabled: true
+        - name: bare-return
+          disabled: false
+        - name: blank-imports
+          disabled: false
+        - name: bool-literal-in-expr
+          disabled: false
+        - name: call-to-gc
+          disabled: false
+        - name: cognitive-complexity
+          arguments:
+            - 7
+          disabled: true
+        - name: comment-spacings
+          arguments:
+            - mypragma
+            - otherpragma
+          disabled: true
+        - name: confusing-naming
+          disabled: true
+        - name: confusing-results
+          disabled: false
+        - name: constant-logical-expr
+          disabled: false
+        - name: context-as-argument
+          arguments:
+            - allowTypesBefore: '*testing.T,*github.com/user/repo/testing.Harness'
+          disabled: false
+        - name: context-keys-type
+          disabled: false
+        - name: cyclomatic
+          arguments:
+            - 3
+          disabled: true
+        - name: datarace
+          disabled: false
+        - name: deep-exit
+          disabled: false
+        - name: defer
+          arguments:
+            - - call-chain
+              - loop
+          disabled: false
+        - name: dot-imports
+          disabled: false
+        - name: duplicated-imports
+          disabled: false
+        - name: early-return
+          arguments:
+            - preserveScope
+          disabled: false
+        - name: empty-block
+          disabled: false
+        - name: empty-lines
+          disabled: true
+        - name: enforce-map-style
+          arguments:
+            - make
+          disabled: true
+        - name: error-naming
+          disabled: false
+        - name: error-return
+          disabled: false
+        - name: error-strings
+          disabled: false
+        - name: errorf
+          disabled: false
+        - name: file-header
+          disabled: true
+        - name: flag-parameter
+          disabled: true
+        - name: function-result-limit
+          arguments:
+            - 4
+          disabled: false
+        - name: function-length
+          arguments:
+            - 10
+            - 0
+          disabled: true
+        - name: get-return
+          disabled: false
+        - name: identical-branches
+          disabled: false
+        - name: if-return
+          disabled: false
+        - name: increment-decrement
+          disabled: false
+        - name: indent-error-flow
+          arguments:
+            - preserveScope
+          disabled: false
+        - name: import-alias-naming
+          arguments:
+            - ^[a-z][a-z0-9]{0,}$
+          disabled: false
+        - name: imports-blocklist
+          arguments:
+            - crypto/md5
+            - crypto/sha1
+          disabled: false
+        - name: import-shadowing
+          disabled: false
+        - name: line-length-limit
+          arguments:
+            - 80
+          disabled: true
+        - name: max-public-structs
+          arguments:
+            - 3
+          disabled: true
+        - name: modifies-parameter
+          disabled: false
+        - name: modifies-value-receiver
+          disabled: false
+        - name: nested-structs
+          disabled: false
+        - name: optimize-operands-order
+          disabled: false
+        - name: package-comments
+          disabled: false
+        - name: range
+          disabled: false
+        - name: range-val-in-closure
+          disabled: false
+        - name: range-val-address
+          disabled: false
+        - name: receiver-naming
+          disabled: false
+        - name: redundant-import-alias
+          disabled: false
+        - name: redefines-builtin-id
+          disabled: false
+        - name: string-of-int
+          disabled: false
+        - name: string-format
+          arguments:
+            - - core.WriteError[1].Message
+              - /^([^A-Z]|$)/
+              - must not start with a capital letter
+            - - fmt.Errorf[0]
+              - /(^|[^\.!?])$/
+              - must not end in punctuation
+            - - panic
+              - /^[^\n]*$/
+              - must not contain line breaks
+          disabled: false
+        - name: struct-tag
+          arguments:
+            - json,inline
+            - bson,outline,gnu
+          disabled: false
+        - name: superfluous-else
+          arguments:
+            - preserveScope
+          disabled: false
+        - name: time-equal
+          disabled: true  # Disabled: behaves inconsistently across architectures (arm64 vs amd64)
+        - name: time-naming
+          disabled: false
+        - name: var-naming
+          arguments:
+            - - ID
+            - - VM
+            - - upperCaseConst: true
+          disabled: false
+        - name: var-declaration
+          disabled: false
+        - name: unconditional-recursion
+          disabled: false
+        - name: unexported-naming
+          disabled: false
+        - name: unexported-return
+          disabled: false
+        - name: unhandled-error
+          arguments:
+            - fmt.Printf
+            - fmt.Fprintf
+            - fmt.Fprint
+            - fmt.Fprintln
+            - bytes.Buffer.Write
+            - bytes.Buffer.WriteByte
+            - bytes.Buffer.WriteString
+            - bytes.Buffer.WriteRune
+            - strings.Builder.WriteString
+            - strings.Builder.WriteRune
+            - strings.Builder.Write
+          disabled: false
+        - name: unnecessary-stmt
+          disabled: false
+        - name: unreachable-code
+          disabled: false
+        - name: unused-parameter
+          arguments:
+            - allowRegex: ^_
+          disabled: false
+        - name: unused-receiver
+          arguments:
+            - allowRegex: ^_
+          disabled: true
+        - name: useless-break
+          disabled: false
+        - name: waitgroup-by-value
+          disabled: false
+    rowserrcheck:
+      packages:
+        - github.com/jmoiron/sqlx
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - lll
+        source: ^//\s*go:generate\s
+      - linters:
+          - godot
+        source: (noinspection|TODO)
+      - linters:
+          - gocritic
+        source: //noinspection
+      - linters:
+          - errorlint
+        source: ^\s+if _, ok := err\.\([^.]+\.InternalError\); ok {
+      - linters:
+          - bodyclose
+          - dupl
+          - funlen
+          - goconst
+          - gosec
+          - govet
+          - noctx
+          - wrapcheck
+        path: _test\.go
+      - linters:
+          - revive
+        path: drivers/json/
+        text: var-naming
+    paths:
+      - cli/output/jsonw/internal/jcolorenc
+      - libsq/core/diffdoc/internal/go-udiff
+      - cli/output/tablew/internal
+      - libsq/core/lg/devlog/tint
+      - libsq/core/upgrademu
+      - scratch
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  max-same-issues: 3
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    gofumpt:
+      module-path: github.com/neilotoole/sq
+      extra-rules: true
+  exclusions:
+    generated: lax
+    paths:
+      - cli/output/jsonw/internal/jcolorenc
+      - libsq/core/diffdoc/internal/go-udiff
+      - cli/output/tablew/internal
+      - libsq/core/lg/devlog/tint
+      - libsq/core/upgrademu
+      - scratch
+      - third_party$
+      - builtin$
+      - examples$

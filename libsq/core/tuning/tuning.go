@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/datasize"
-
 	"github.com/neilotoole/sq/libsq/core/options"
 )
 

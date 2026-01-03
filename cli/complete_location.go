@@ -386,7 +386,7 @@ func locCompDoSQLite3(cmd *cobra.Command, _ []string, toComplete string) ([]stri
 	du, err := dburl.Parse(toComplete)
 	if err == nil {
 		// Check if we're done with the filepath part, and on to conn params?
-		if du.URL.RawQuery != "" || strings.HasSuffix(toComplete, "?") {
+		if du.RawQuery != "" || strings.HasSuffix(toComplete, "?") {
 			return locCompDoConnParams(du, hist, drvr, toComplete)
 		}
 	}
@@ -630,7 +630,7 @@ func locCompParseLoc(loc string) (*parsedLoc, error) {
 	}
 	p.hostname = du.Hostname()
 
-	if strings.ContainsRune(du.URL.Host, ':') {
+	if strings.ContainsRune(du.Host, ':') {
 		p.stageDone = plocHostname
 	}
 
@@ -658,7 +658,7 @@ func locCompParseLoc(loc string) (*parsedLoc, error) {
 		p.name = strings.TrimPrefix(du.Path, "/")
 	}
 
-	if strings.HasSuffix(s, "/") || strings.HasSuffix(s, `\?`) || du.URL.Path != "" {
+	if strings.HasSuffix(s, "/") || strings.HasSuffix(s, `\?`) || du.Path != "" {
 		p.stageDone = plocHost
 	}
 
@@ -666,7 +666,7 @@ func locCompParseLoc(loc string) (*parsedLoc, error) {
 		p.stageDone = plocPath
 	}
 
-	if du.URL.RawQuery != "" {
+	if du.RawQuery != "" {
 		p.stageDone = plocPath
 	}
 

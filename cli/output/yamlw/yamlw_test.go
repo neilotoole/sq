@@ -7,11 +7,11 @@ import (
 	"time"
 
 	goccy "github.com/goccy/go-yaml"
-	"github.com/neilotoole/sq/libsq/core/timez"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/yamlw"
+	"github.com/neilotoole/sq/libsq/core/timez"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 )

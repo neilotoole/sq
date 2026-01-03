@@ -9,8 +9,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -21,6 +19,7 @@ import (
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -197,15 +196,14 @@ func humanizeError(err error) error {
 	case errors.Is(err, context.DeadlineExceeded):
 		errMsg := err.Error()
 		deadlineMsg := context.DeadlineExceeded.Error()
-		if errMsg == deadlineMsg {
-			// For generic context.DeadlineExceeded errors, we
-			// just return "timeout".
-			err = errz.New("timeout")
-		} else {
-			// But if the error is a wrapped context.DeadlineExceeded, we
+		if errMsg != deadlineMsg {
+			// The error is a wrapped context.DeadlineExceeded, we
 			// trim off the ": context deadline exceeded" suffix.
 			return errz.New(strings.TrimSuffix(errMsg, ": "+deadlineMsg))
 		}
+		// For generic context.DeadlineExceeded errors, we
+		// just return "timeout".
+		err = errz.New("timeout")
 	}
 
 	return err

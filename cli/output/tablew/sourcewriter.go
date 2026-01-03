@@ -47,7 +47,7 @@ func (w *sourceWriter) Collection(coll *source.Collection) error {
 			}
 
 			if coll.Active() != nil && coll.Active().Handle == src.Handle {
-				row[0] = pr.Active.Sprintf(row[0]) + pr.Faint.Sprint("*") //nolint:govet
+				row[0] = pr.Active.Sprint(row[0]) + pr.Faint.Sprint("*")
 			}
 
 			rows = append(rows, row)
@@ -78,8 +78,8 @@ func (w *sourceWriter) Collection(coll *source.Collection) error {
 		}
 
 		if coll.Active() != nil && coll.Active().Handle == src.Handle {
-			row[0] = pr.Active.Sprintf(row[0]) //nolint:govet
-			row[1] = pr.Bool.Sprintf("active")
+			row[0] = pr.Active.Sprint(row[0])
+			row[1] = pr.Bool.Sprint("active")
 		}
 
 		rows = append(rows, row)
@@ -284,8 +284,8 @@ func (w *sourceWriter) renderGroups(groups []*source.Group) error {
 		}
 
 		if g.Active {
-			row[0] = pr.Active.Sprintf(row[0]) //nolint:govet
-			row[5] = pr.Bool.Sprintf("active")
+			row[0] = pr.Active.Sprint(row[0])
+			row[5] = pr.Bool.Sprint("active")
 		} else {
 			// Don't render value for active==false. It's just noise.
 			row[5] = ""
@@ -326,7 +326,7 @@ func rowEmptyZeroes(_ *output.Printing, row []string) {
 func rowFaintZeroes(pr *output.Printing, row []string) { //nolint:unused
 	for i := range row {
 		if row[i] == "0" {
-			row[i] = pr.Faint.Sprintf(row[i]) //nolint:govet
+			row[i] = pr.Faint.Sprint(row[i])
 		}
 	}
 }

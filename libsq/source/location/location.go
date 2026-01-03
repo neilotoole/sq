@@ -372,7 +372,7 @@ func (t Type) IsURL() bool {
 func isHTTP(s string) (u *url.URL, ok bool) {
 	var err error
 	u, err = url.Parse(s)
-	if err != nil || u.Host == "" || !(u.Scheme == "http" || u.Scheme == "https") {
+	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
 		return nil, false
 	}
 

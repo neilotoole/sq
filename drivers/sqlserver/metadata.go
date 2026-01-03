@@ -202,9 +202,10 @@ GROUP BY database_id) AS total_size_bytes`
 	}
 
 	for _, tbl := range md.Tables {
-		if tbl.TableType == sqlz.TableTypeTable {
+		switch tbl.TableType {
+		case sqlz.TableTypeTable:
 			md.TableCount++
-		} else if tbl.TableType == sqlz.TableTypeView {
+		case sqlz.TableTypeView:
 			md.ViewCount++
 		}
 	}

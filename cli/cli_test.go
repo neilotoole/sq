@@ -120,7 +120,7 @@ func TestCreateTable_bytes(t *testing.T) {
 			data := []any{fixt.GopherFilename, fBytes}
 
 			require.Equal(t, int64(1), th.CreateTable(true, src, tblDef, data))
-			t.Logf(src.Location)
+			t.Log(src.Location)
 			th.DropTable(src, tablefq.From(tblDef.Name))
 		})
 	}

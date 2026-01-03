@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -14,11 +15,13 @@ import (
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/jsonw"
+	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
+	"github.com/neilotoole/sq/testh/sakila"
 )
 
 func TestRecordWriters(t *testing.T) {
@@ -220,6 +223,64 @@ func TestErrorWriter(t *testing.T) {
 			got := buf.String()
 
 			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// TestJSONRoundtrip tests writing JSON/JSONA/JSONL output from a query and then
+// reading it back with "sq inspect". This verifies that JSON files
+// created by sq can be correctly detected and read.
+func TestJSONRoundtrip(t *testing.T) {
+	testCases := []struct {
+		name       string
+		ext        string
+		formatFlag string
+		wantDriver string
+	}{
+		{
+			name:       "json",
+			ext:        ".json",
+			formatFlag: "--json",
+			wantDriver: "json",
+		},
+		{
+			name:       "jsona",
+			ext:        ".jsona",
+			formatFlag: "--jsona",
+			wantDriver: "jsona",
+		},
+		{
+			name:       "jsonl",
+			ext:        ".jsonl",
+			formatFlag: "--jsonl",
+			wantDriver: "jsonl",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			th := testh.New(t)
+			src := th.Source(sakila.SL3)
+
+			// Create a temp file path for the JSON output
+			jsonPath := filepath.Join(t.TempDir(), "actor_roundtrip"+tc.ext)
+
+			// Step 1: Query .actor table and write to JSON file
+			tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+			require.NoError(t, tr.Exec(".actor", tc.formatFlag, "--output", jsonPath))
+
+			// Step 2: Add the JSON file as a source (fresh TestRun needed
+			// so the JSON file becomes the only/active source)
+			tr = testrun.New(th.Context, t, nil).Hush()
+			require.NoError(t, tr.Exec("add", jsonPath))
+
+			// Step 3: Inspect the added source
+			require.NoError(t, tr.Reset().Exec("inspect", "--json"))
+
+			// Verify we got expected output
+			require.Equal(t, tc.wantDriver, tr.JQ(".driver"))
+			require.Equal(t, "data", tr.JQ(".tables[0].name"))
+			require.Equal(t, float64(sakila.TblActorCount), tr.JQ(".tables[0].row_count"))
 		})
 	}
 }
