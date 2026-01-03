@@ -23,6 +23,7 @@ var dbSchemes = []string{
 	"sqlserver",
 	"postgres",
 	"sqlite3",
+	"clickhouse",
 }
 
 // Filename returns the final component of the file/URL path.
@@ -287,6 +288,9 @@ func Parse(loc string) (*Fields, error) {
 		fields.Name = strings.TrimPrefix(u.Path, "/")
 	case "mysql":
 		fields.DriverType = drivertype.MySQL
+		fields.Name = strings.TrimPrefix(u.Path, "/")
+	case "clickhouse":
+		fields.DriverType = drivertype.ClickHouse
 		fields.Name = strings.TrimPrefix(u.Path, "/")
 	}
 
