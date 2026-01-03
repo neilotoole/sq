@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
@@ -380,6 +381,33 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 	// TODO: verify not empty
 
 	tbls := jc.tables()
+
+	// Detect and resolve duplicate target table names.
+	// When multiple tables have the same name (e.g., @src1.actor and @src2.actor),
+	// they would conflict when copied to the join database. We resolve this by
+	// assigning unique aliases based on the source handle.
+	tblTargetNames := make(map[string]int) // count occurrences of each target name
+	tblHandles := make([]string, len(tbls))
+	for i, tbl := range tbls {
+		targetName := tbl.TblAliasOrName().Table
+		tblTargetNames[targetName]++
+		tblHandles[i] = tbl.Handle()
+		if tblHandles[i] == "" {
+			tblHandles[i] = leftHandle
+		}
+	}
+
+	// For any duplicate target names, assign unique aliases using handle prefix
+	for i, tbl := range tbls {
+		targetName := tbl.TblAliasOrName().Table
+		if tblTargetNames[targetName] > 1 && tbl.Alias() == "" {
+			// Generate a unique alias: handle_tablename (without the @ prefix)
+			handleWithoutAt := strings.TrimPrefix(tblHandles[i], "@")
+			uniqueAlias := handleWithoutAt + "_" + targetName
+			tbl.SetAlias(uniqueAlias)
+		}
+	}
+
 	for _, tbl := range tbls {
 		tbl := tbl
 		handle := tbl.Handle()
