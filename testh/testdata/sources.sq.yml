@@ -124,5 +124,5 @@ collection:
       location: 'sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/blob.db'
     - handle: '@clickhouse_test'
       driver: clickhouse
-      location: clickhouse://testuser:testpass@localhost:19000/testdb
+      location: clickhouse://testuser:testpass@${SQ_TEST_SRC__CLICKHOUSE_TEST}/testdb
 

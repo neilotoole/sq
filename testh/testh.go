@@ -299,7 +299,9 @@ func (h *Helper) Source(handle string) *source.Source {
 
 	// If the handle refers to an external database, we will skip
 	// the test if the envar for the handle is not set.
-	if stringz.InSlice(sakila.SQLAllExternal(), handle) {
+	// This includes sakila external sources and other external test sources like ClickHouse.
+	externalHandles := append(sakila.SQLAllExternal(), "@clickhouse_test")
+	if stringz.InSlice(externalHandles, handle) {
 		// Skip the test if the envar for the handle is not set
 		handleEnvar := "SQ_TEST_SRC__" + strings.ToUpper(strings.TrimPrefix(handle, "@"))
 		if envar, ok := os.LookupEnv(handleEnvar); !ok || strings.TrimSpace(envar) == "" {
@@ -361,7 +363,8 @@ func (h *Helper) SourceConfigured(handle string) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if !stringz.InSlice(sakila.SQLAllExternal(), handle) {
+	externalHandles := append(sakila.SQLAllExternal(), "@clickhouse_test")
+	if !stringz.InSlice(externalHandles, handle) {
 		// Non-SQL and SQLite sources are always available.
 		return true
 	}
