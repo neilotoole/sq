@@ -59,7 +59,7 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db *sql.DB, noSc
 }
 
 // getTablesMetadata returns metadata for all tables in the current schema.
-func getTablesMetadata(ctx context.Context, db *sql.DB, schemaName string) ([]*metadata.Table, error) {
+func getTablesMetadata(ctx context.Context, db *sql.DB, _ string) ([]*metadata.Table, error) {
 	const query = `SELECT table_name
 FROM user_tables
 WHERE temporary = 'N'
@@ -132,11 +132,11 @@ WHERE t.table_name = :1`
 	}
 
 	tblMeta := &metadata.Table{
-		Name:       tblName,
-		TableType:  "table",
-		RowCount:   numRows.Int64,
-		Size:       &bytes,
-		Comment:    comment.String,
+		Name:      tblName,
+		TableType: "table",
+		RowCount:  numRows.Int64,
+		Size:      &bytes,
+		Comment:   comment.String,
 	}
 
 	// Get column metadata

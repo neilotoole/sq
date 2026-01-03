@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	// Default test connection string for Oracle Free Docker
+	// Default test connection string for Oracle Free Docker.
 	testDSN = "oracle://testuser:testpass@localhost:1521/FREEPDB1"
 )
 
@@ -41,6 +41,7 @@ func skipIfNoOracle(t *testing.T) {
 	if dsn == "" {
 		dsn = testDSN
 	}
+	_ = dsn // Used for future configuration
 
 	db, err := sql.Open("godror", "testuser/testpass@localhost:1521/FREEPDB1")
 	if err != nil {
@@ -324,7 +325,7 @@ func TestTypeMappings(t *testing.T) {
 
 	err = sqlDrvr.CreateTable(ctx, db, tblDef)
 	require.NoError(t, err)
-	defer sqlDrvr.DropTable(ctx, db, tablefq.From(tblName), true)
+	defer func() { _ = sqlDrvr.DropTable(ctx, db, tablefq.From(tblName), true) }()
 
 	// Insert test data
 	testTime := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
@@ -511,7 +512,9 @@ func TestSakilaCrossDatabase(t *testing.T) {
 		log.Info("Created table in Oracle", "table", testTableName)
 
 		// Insert data into Oracle (use uppercase table name)
-		insertSQL := fmt.Sprintf(`INSERT INTO "%s" (ACTOR_ID, FIRST_NAME, LAST_NAME) VALUES (:1, :2, :3)`, strings.ToUpper(testTableName))
+		insertSQL := fmt.Sprintf(
+			`INSERT INTO "%s" (ACTOR_ID, FIRST_NAME, LAST_NAME) VALUES (:1, :2, :3)`,
+			strings.ToUpper(testTableName))
 		stmt, err := oracleDB.PrepareContext(ctx, insertSQL)
 		require.NoError(t, err, "Failed to prepare insert statement")
 		defer stmt.Close()
@@ -524,7 +527,8 @@ func TestSakilaCrossDatabase(t *testing.T) {
 
 		// Verify row count in Oracle (use uppercase table name)
 		var oracleRowCount int
-		err = oracleDB.QueryRowContext(ctx, fmt.Sprintf(`SELECT COUNT(*) FROM "%s"`, strings.ToUpper(testTableName))).Scan(&oracleRowCount)
+		countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s"`, strings.ToUpper(testTableName))
+		err = oracleDB.QueryRowContext(ctx, countQuery).Scan(&oracleRowCount)
 		require.NoError(t, err, "Failed to count Oracle rows")
 
 		assert.Equal(t, pgRowCount, oracleRowCount, "Row count mismatch between Postgres and Oracle")

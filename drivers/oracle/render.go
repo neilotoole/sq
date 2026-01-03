@@ -50,7 +50,7 @@ func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind 
 // dbTypeNameFromKind returns the Oracle database type name for the given kind.Kind.
 func dbTypeNameFromKind(knd kind.Kind) string {
 	switch knd {
-	case kind.Text:
+	case kind.Null, kind.Text:
 		return "VARCHAR2(4000)"
 	case kind.Int:
 		return "NUMBER(19,0)"
@@ -72,16 +72,16 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 		return "BLOB"
 	case kind.Unknown:
 		return "VARCHAR2(4000)"
-	default:
-		return "VARCHAR2(4000)"
 	}
+	return "VARCHAR2(4000)"
 }
 
 // createTblKindDefaults is a map of kind.Kind to default value for CREATE TABLE.
-// NOTE: Oracle treats empty string '' as NULL, so we use a single space for text defaults.
+// NOTE: Oracle treats empty string ” as NULL, so we use a single space for text defaults.
 // Oracle also doesn't support function calls (like EMPTY_BLOB()) as DEFAULT values,
 // so BLOB columns with NOT NULL must be handled without a default.
 var createTblKindDefaults = map[kind.Kind]string{
+	kind.Null:     "",            // NULL kind has no default
 	kind.Text:     "DEFAULT ' '", // Oracle treats '' as NULL, use space instead
 	kind.Int:      "DEFAULT 0",
 	kind.Float:    "DEFAULT 0",
@@ -90,7 +90,7 @@ var createTblKindDefaults = map[kind.Kind]string{
 	kind.Datetime: "DEFAULT TIMESTAMP '1970-01-01 00:00:00'",
 	kind.Date:     "DEFAULT DATE '1970-01-01'",
 	kind.Time:     "DEFAULT TIMESTAMP '1970-01-01 00:00:00'",
-	kind.Bytes:    "", // Oracle doesn't support EMPTY_BLOB() as DEFAULT; omit default
+	kind.Bytes:    "",            // Oracle doesn't support EMPTY_BLOB() as DEFAULT; omit default
 	kind.Unknown:  "DEFAULT ' '", // Oracle treats '' as NULL, use space instead
 }
 

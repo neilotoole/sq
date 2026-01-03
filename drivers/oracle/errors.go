@@ -56,8 +56,3 @@ func hasErrCode(err error, code int) bool {
 func isErrTableNotExist(err error) bool {
 	return hasErrCode(err, errCodeTableNotFound)
 }
-
-// isErrTooManyConnections checks for ORA-12516.
-func isErrTooManyConnections(err error) bool {
-	return hasErrCode(err, errCodeTooManyConnections)
-}

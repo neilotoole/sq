@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	godror "github.com/godror/godror"
+	"github.com/godror/godror"
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
@@ -57,11 +57,11 @@ func (d *driveri) ConnParams() map[string][]string {
 	// Oracle connection parameters
 	// godror supports many Oracle-specific parameters
 	return map[string][]string{
-		"connectionClass":    nil,
-		"poolMinSessions":    {"0"},
-		"poolMaxSessions":    {"1000"},
-		"poolIncrement":      {"1"},
-		"timezone":           nil,
+		"connectionClass":      nil,
+		"poolMinSessions":      {"0"},
+		"poolMaxSessions":      {"1000"},
+		"poolIncrement":        {"1"},
+		"timezone":             nil,
 		"standaloneConnection": {"0", "1"},
 	}
 }
@@ -297,7 +297,7 @@ func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool
 }
 
 // ListTableNames implements driver.SQLDriver.
-func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, tables, views bool) ([]string, error) {
+func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, _ string, tables, views bool) ([]string, error) {
 	names := []string{}
 
 	if tables {
@@ -372,14 +372,13 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	// Get row count before truncate
 	var affected int64
 	tblName := stringz.DoubleQuote(strings.ToUpper(tbl))
-	err = db.QueryRowContext(ctx,
-		fmt.Sprintf("SELECT COUNT(*) FROM %s", tblName)).Scan(&affected)
+	err = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+tblName).Scan(&affected)
 	if err != nil {
 		return 0, errw(err)
 	}
 
 	// TRUNCATE with optional storage reset
-	truncateQuery := fmt.Sprintf("TRUNCATE TABLE %s", tblName)
+	truncateQuery := "TRUNCATE TABLE " + tblName
 	if reset {
 		truncateQuery += " DROP STORAGE" // Also resets sequences in Oracle
 	} else {
@@ -410,8 +409,10 @@ func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName
 }
 
 // AlterTableRenameColumn implements driver.SQLDriver.
-func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
-	q := fmt.Sprintf(`ALTER TABLE "%s" RENAME COLUMN "%s" TO "%s"`, strings.ToUpper(tbl), strings.ToUpper(col), strings.ToUpper(newName))
+func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string,
+) error {
+	q := fmt.Sprintf(`ALTER TABLE "%s" RENAME COLUMN "%s" TO "%s"`,
+		strings.ToUpper(tbl), strings.ToUpper(col), strings.ToUpper(newName))
 	_, err := db.ExecContext(ctx, q)
 	return errw(err)
 }
@@ -422,7 +423,9 @@ func (d *driveri) AlterTableColumnKinds(_ context.Context, _ sqlz.DB, _ string, 
 }
 
 // CopyTable implements driver.SQLDriver.
-func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable tablefq.T, copyData bool) (int64, error) {
+func (d *driveri) CopyTable(
+	ctx context.Context, db sqlz.DB, fromTable, toTable tablefq.T, copyData bool,
+) (int64, error) {
 	fromTblName := stringz.DoubleQuote(strings.ToUpper(fromTable.Table))
 	toTblName := stringz.DoubleQuote(strings.ToUpper(toTable.Table))
 
@@ -447,7 +450,9 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 }
 
 // TableColumnTypes implements driver.SQLDriver.
-func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName string, colNames []string) ([]*sql.ColumnType, error) {
+func (d *driveri) TableColumnTypes(
+	ctx context.Context, db sqlz.DB, tblName string, colNames []string,
+) ([]*sql.ColumnType, error) {
 	// If colNames is empty, get all columns
 	if len(colNames) == 0 {
 		var err error
@@ -506,7 +511,9 @@ ORDER BY column_id`
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta, driver.NewRecordFunc, error) {
+func (d *driveri) RecordMeta(
+	ctx context.Context, colTypes []*sql.ColumnType,
+) (record.Meta, driver.NewRecordFunc, error) {
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
 	ogColNames := make([]string, len(colTypes))
 
@@ -552,7 +559,7 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (r
 func (d *driveri) setScanType(colTypeData *record.ColumnTypeData, knd kind.Kind) {
 	// For nullable columns, use nullable scan types
 	switch knd {
-	case kind.Text, kind.Unknown:
+	case kind.Null, kind.Text, kind.Unknown:
 		colTypeData.ScanType = sqlz.RTypeNullString
 	case kind.Int:
 		colTypeData.ScanType = sqlz.RTypeNullInt64
@@ -567,8 +574,6 @@ func (d *driveri) setScanType(colTypeData *record.ColumnTypeData, knd kind.Kind)
 		colTypeData.ScanType = sqlz.RTypeNullTime
 	case kind.Bytes:
 		colTypeData.ScanType = sqlz.RTypeBytes
-	default:
-		colTypeData.ScanType = sqlz.RTypeNullString
 	}
 }
 
