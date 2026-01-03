@@ -1,6 +1,8 @@
 package render
 
 import (
+	"strings"
+
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
@@ -15,10 +17,11 @@ func doOrderBy(rc *Context, ob *ast.OrderByNode) (string, error) {
 		return "", errz.Errorf("%T has no ordering terms: %s", ob, ob)
 	}
 
-	clause := "ORDER BY "
+	var sb strings.Builder
+	sb.WriteString("ORDER BY ")
 	for i := 0; i < len(terms); i++ {
 		if i > 0 {
-			clause += ", "
+			sb.WriteString(", ")
 		}
 
 		sel, err := renderSelectorNode(rc.Dialect, terms[i].Selector())
@@ -26,15 +29,15 @@ func doOrderBy(rc *Context, ob *ast.OrderByNode) (string, error) {
 			return "", err
 		}
 
-		clause += sel
+		sb.WriteString(sel)
 		switch terms[i].Direction() { //nolint:exhaustive
 		case ast.OrderByDirectionAsc:
-			clause += " ASC"
+			sb.WriteString(" ASC")
 		case ast.OrderByDirectionDesc:
-			clause += " DESC"
+			sb.WriteString(" DESC")
 		default:
 		}
 	}
 
-	return clause, nil
+	return sb.String(), nil
 }

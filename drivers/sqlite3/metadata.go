@@ -88,7 +88,7 @@ func setScanType(ctx context.Context, colType *record.ColumnTypeData) {
 		}
 	}
 
-	switch knd {
+	switch knd { //nolint:exhaustive
 	default:
 		// Shouldn't happen?
 		lg.FromContext(ctx).Warn("Unknown kind for col",

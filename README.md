@@ -31,6 +31,10 @@ and [drop](https://sq.io/docs/cmd/tbl-drop) tables.
 
 Find out more at [sq.io](https://sq.io).
 
+> [!TIP]
+> The rest of this doc is mainly for `sq` end users and first-timers. Contributors (bug reports, feature requests, pull requests),
+> see [CONTRIBUTING.md](./CONTRIBUTING.md).
+
 
 ## Install
 

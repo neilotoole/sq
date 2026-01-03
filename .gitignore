@@ -67,3 +67,8 @@ goreleaser-test.sh
 tempdiff
 sakila_a*
 sakila_b*
+
+## AI stuff
+CLAUDE.md
+CLAUDE.local.md
+/.claude

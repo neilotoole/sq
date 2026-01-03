@@ -279,7 +279,7 @@ func (w *recordWriter) WriteRecords(ctx context.Context, recs []record.Record) e
 					return errw(err)
 				}
 			case int64:
-				if err := w.xfile.SetCellInt(SheetName, cellIndex, int(val)); err != nil {
+				if err := w.xfile.SetCellInt(SheetName, cellIndex, val); err != nil {
 					return errw(err)
 				}
 			case float64:

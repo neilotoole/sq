@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Contributing Guidelines
+    url: https://github.com/neilotoole/sq/blob/master/CONTRIBUTING.md
+    about: Please read our contributing guidelines before opening an issue or PR
+  - name: Discussions
+    url: https://github.com/neilotoole/sq/discussions
+    about: Ask questions and discuss ideas
+  - name: Documentation
+    url: https://sq.io/docs
+    about: Check the documentation for usage help

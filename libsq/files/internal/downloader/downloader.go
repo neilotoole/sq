@@ -200,7 +200,7 @@ func (dl *Downloader) Get(ctx context.Context) (dlFile string, dlStream *streamc
 }
 
 // get contains the main logic for getting the download.
-func (dl *Downloader) get(req *http.Request) (dlFile string, //nolint:gocognit,funlen,cyclop
+func (dl *Downloader) get(req *http.Request) (dlFile string, //nolint:gocognit,cyclop
 	dlStream *streamcache.Stream, err error,
 ) {
 	ctx := req.Context()

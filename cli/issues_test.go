@@ -11,9 +11,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
-	"github.com/stretchr/testify/require"
 )
 
 // See: https://github.com/neilotoole/sq/issues/446.

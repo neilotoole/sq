@@ -43,8 +43,7 @@ func TestErrorf(t *testing.T) {
 }
 
 func TestUnwrapChain(t *testing.T) {
-	var originalErr error //nolint:gosimple
-	originalErr = &customError{msg: "huzzah"}
+	var originalErr error = &customError{msg: "huzzah"}
 
 	err := errz.Wrap(errz.Wrap(originalErr, "wrap1"), "wrap2")
 	require.Equal(t, "wrap2: wrap1: huzzah", err.Error())
