@@ -8,7 +8,7 @@ import (
 	"log/slog"
 	"strings"
 
-	_ "github.com/ClickHouse/clickhouse-go/v2"
+	_ "github.com/ClickHouse/clickhouse-go/v2" // ClickHouse driver
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
@@ -64,14 +64,14 @@ type driveri struct {
 func (d *driveri) ConnParams() map[string][]string {
 	// ClickHouse connection parameters
 	return map[string][]string{
-		"dial_timeout":        {"10s"},
-		"compress":            {"true", "false", "lz4", "zstd", "gzip"},
-		"secure":              {"true", "false"},
-		"skip_verify":         {"true", "false"},
+		"dial_timeout":             {"10s"},
+		"compress":                 {"true", "false", "lz4", "zstd", "gzip"},
+		"secure":                   {"true", "false"},
+		"skip_verify":              {"true", "false"},
 		"connection_open_strategy": {"in_order", "round_robin"},
-		"max_open_conns":      {"10"},
-		"max_idle_conns":      {"5"},
-		"conn_max_lifetime":   {"1h"},
+		"max_open_conns":           {"10"},
+		"max_idle_conns":           {"5"},
+		"conn_max_lifetime":        {"1h"},
 	}
 }
 
@@ -218,7 +218,7 @@ func (d *driveri) DBProperties(ctx context.Context, db sqlz.DB) (map[string]any,
 }
 
 // Truncate implements driver.Driver.
-func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64, err error) {
+func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, _ bool) (affected int64, err error) {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return 0, errw(err)
@@ -307,13 +307,13 @@ func (d *driveri) CurrentCatalog(ctx context.Context, db sqlz.DB) (string, error
 
 // CurrentSchema implements driver.SQLDriver.
 func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error) {
-	var schema string
+	var schemaName string
 	const query = `SELECT currentDatabase()`
 
-	if err := db.QueryRowContext(ctx, query).Scan(&schema); err != nil {
+	if err := db.QueryRowContext(ctx, query).Scan(&schemaName); err != nil {
 		return "", errw(err)
 	}
-	return schema, nil
+	return schemaName, nil
 }
 
 // ListCatalogs implements driver.SQLDriver.
@@ -387,11 +387,11 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 
 	var schemas []string
 	for rows.Next() {
-		var schema string
-		if err = rows.Scan(&schema); err != nil {
+		var schemaName string
+		if err = rows.Scan(&schemaName); err != nil {
 			return nil, errw(err)
 		}
-		schemas = append(schemas, schema)
+		schemas = append(schemas, schemaName)
 	}
 
 	if err = rows.Err(); err != nil {
@@ -458,7 +458,9 @@ func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (b
 }
 
 // CopyTable implements driver.SQLDriver.
-func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable tablefq.T, copyData bool) (int64, error) {
+func (d *driveri) CopyTable(
+	ctx context.Context, db sqlz.DB, fromTable, toTable tablefq.T, copyData bool,
+) (int64, error) {
 	// First, get the schema of the source table
 	// Type assert sqlz.DB to *sql.DB for metadata functions
 	sqlDB, ok := db.(*sql.DB)
@@ -507,7 +509,9 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 }
 
 // TableColumnTypes implements driver.SQLDriver.
-func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName string, colNames []string) ([]*sql.ColumnType, error) {
+func (d *driveri) TableColumnTypes(
+	ctx context.Context, db sqlz.DB, tblName string, colNames []string,
+) ([]*sql.ColumnType, error) {
 	const queryTpl = "SELECT %s FROM %s LIMIT 0"
 
 	enquote := d.Dialect().Enquote
@@ -561,10 +565,7 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 		return nil, err
 	}
 
-	query, err := buildUpdateStmt(destTbl, destColNames, where)
-	if err != nil {
-		return nil, err
-	}
+	query := buildUpdateStmt(destTbl, destColNames, where)
 
 	stmt, err := db.PrepareContext(ctx, query)
 	if err != nil {
@@ -638,7 +639,7 @@ type grip struct {
 }
 
 // DB implements driver.Grip.
-func (g *grip) DB(ctx context.Context) (*sql.DB, error) {
+func (g *grip) DB(_ context.Context) (*sql.DB, error) {
 	return g.db, nil
 }
 

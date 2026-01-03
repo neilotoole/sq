@@ -224,8 +224,7 @@ func TestBuildInsertStmt(t *testing.T) {
 	}
 
 	// Test single row insert
-	stmt, err := buildInsertStmt(tblName, cols, 1)
-	require.NoError(t, err)
+	stmt := buildInsertStmt(tblName, cols, 1)
 	require.Contains(t, stmt, "INSERT INTO")
 	require.Contains(t, stmt, "`test_table`")
 	require.Contains(t, stmt, "`id`")
@@ -236,8 +235,7 @@ func TestBuildInsertStmt(t *testing.T) {
 	require.NotContains(t, stmt, "), (") // No second row
 
 	// Test multi-row insert
-	stmt, err = buildInsertStmt(tblName, cols, 3)
-	require.NoError(t, err)
+	stmt = buildInsertStmt(tblName, cols, 3)
 	require.Contains(t, stmt, "VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?)")
 }
 
@@ -247,8 +245,7 @@ func TestBuildUpdateStmt(t *testing.T) {
 	cols := []string{"name", "value"}
 
 	// Test without WHERE clause
-	stmt, err := buildUpdateStmt(tblName, cols, "")
-	require.NoError(t, err)
+	stmt := buildUpdateStmt(tblName, cols, "")
 	require.Contains(t, stmt, "ALTER TABLE")
 	require.Contains(t, stmt, "`test_table`")
 	require.Contains(t, stmt, "UPDATE")
@@ -257,8 +254,7 @@ func TestBuildUpdateStmt(t *testing.T) {
 	require.NotContains(t, stmt, "WHERE")
 
 	// Test with WHERE clause
-	stmt, err = buildUpdateStmt(tblName, cols, "id = 123")
-	require.NoError(t, err)
+	stmt = buildUpdateStmt(tblName, cols, "id = 123")
 	require.Contains(t, stmt, "WHERE id = 123")
 }
 

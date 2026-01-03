@@ -1,6 +1,7 @@
 package clickhouse_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -37,7 +38,7 @@ func TestTypeMapping(t *testing.T) {
 		{"col_bool", kind.Bool, true, true},
 		{"col_decimal", kind.Decimal, "123.45", "123.45"},
 		{"col_datetime", kind.Datetime, "2023-01-15 10:30:00", nil}, // Will be parsed
-		{"col_date", kind.Date, "2023-01-15", nil},                   // Will be parsed
+		{"col_date", kind.Date, "2023-01-15", nil},                  // Will be parsed
 	}
 
 	colNames := make([]string, len(testCases))
@@ -53,20 +54,18 @@ func TestTypeMapping(t *testing.T) {
 	t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
 
 	// Build insert statement
-	insertStmt := "INSERT INTO " + stringz.BacktickQuote(tblName) + " ("
-	placeholders := "("
+	var colParts, placeholderParts []string
 	values := make([]any, len(testCases))
 
 	for i, tc := range testCases {
-		if i > 0 {
-			insertStmt += ", "
-			placeholders += ", "
-		}
-		insertStmt += stringz.BacktickQuote(tc.colName)
-		placeholders += "?"
+		colParts = append(colParts, stringz.BacktickQuote(tc.colName))
+		placeholderParts = append(placeholderParts, "?")
 		values[i] = tc.testVal
 	}
-	insertStmt += ") VALUES " + placeholders + ")"
+
+	insertStmt := "INSERT INTO " + stringz.BacktickQuote(tblName) +
+		" (" + strings.Join(colParts, ", ") + ") VALUES (" +
+		strings.Join(placeholderParts, ", ") + ")"
 
 	_ = th.ExecSQL(src, insertStmt, values...)
 	// Note: ClickHouse driver may return 0 for affected rows on INSERT

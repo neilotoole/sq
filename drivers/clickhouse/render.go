@@ -1,7 +1,6 @@
 package clickhouse
 
 import (
-	"database/sql"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -9,15 +8,10 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
-// kindFromDBTypeName returns the kind.Kind for a database column type.
-func kindFromDBTypeName(colType *sql.ColumnType, colName, dbTypeName string) kind.Kind {
-	return kindFromClickHouseType(dbTypeName)
-}
-
 // dbTypeNameFromKind maps sq kind to ClickHouse type name for CREATE TABLE.
 func dbTypeNameFromKind(knd kind.Kind) string {
 	switch knd {
-	case kind.Text:
+	case kind.Unknown, kind.Null, kind.Text:
 		return "String"
 	case kind.Int:
 		return "Int64"
@@ -35,9 +29,8 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 		return "DateTime"
 	case kind.Bytes:
 		return "String" // Binary data as String
-	default:
-		return "String"
 	}
+	return "String"
 }
 
 // buildCreateTableStmt builds a CREATE TABLE statement for ClickHouse.
@@ -72,7 +65,7 @@ func buildCreateTableStmt(tblDef *schema.Table) string {
 }
 
 // buildInsertStmt builds an INSERT statement for multiple rows.
-func buildInsertStmt(tbl string, cols []*schema.Column, numRows int) (string, error) {
+func buildInsertStmt(tbl string, cols []*schema.Column, numRows int) string {
 	sb := strings.Builder{}
 	sb.WriteString("INSERT INTO ")
 	sb.WriteString(stringz.BacktickQuote(tbl))
@@ -102,11 +95,11 @@ func buildInsertStmt(tbl string, cols []*schema.Column, numRows int) (string, er
 		}
 	}
 
-	return sb.String(), nil
+	return sb.String()
 }
 
 // buildUpdateStmt builds an UPDATE statement.
-func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
+func buildUpdateStmt(tbl string, cols []string, where string) string {
 	sb := strings.Builder{}
 	sb.WriteString("ALTER TABLE ")
 	sb.WriteString(stringz.BacktickQuote(tbl))
@@ -125,5 +118,5 @@ func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
 		sb.WriteString(where)
 	}
 
-	return sb.String(), nil
+	return sb.String()
 }

@@ -97,8 +97,8 @@ func getTablesMetadata(ctx context.Context, db *sql.DB, dbName string) ([]*metad
 		}
 
 		// Get column metadata for this table
-		cols, err := getColumnsMetadata(ctx, db, dbName, tblName)
-		if err != nil {
+		cols, colErr := getColumnsMetadata(ctx, db, dbName, tblName)
+		if colErr != nil {
 			// Log error but continue with other tables
 			continue
 		}
@@ -303,7 +303,7 @@ func setScanType(colTypeData *record.ColumnTypeData, knd kind.Kind) {
 	// ClickHouse driver handles most type conversions automatically
 	// We just need to set the scan type based on the kind
 	switch knd {
-	case kind.Text, kind.Decimal:
+	case kind.Unknown, kind.Null, kind.Text, kind.Decimal:
 		colTypeData.ScanType = sqlz.RTypeString
 	case kind.Int:
 		colTypeData.ScanType = sqlz.RTypeInt64
@@ -315,7 +315,5 @@ func setScanType(colTypeData *record.ColumnTypeData, knd kind.Kind) {
 		colTypeData.ScanType = sqlz.RTypeTime
 	case kind.Bytes:
 		colTypeData.ScanType = sqlz.RTypeBytes
-	default:
-		colTypeData.ScanType = sqlz.RTypeString
 	}
 }
