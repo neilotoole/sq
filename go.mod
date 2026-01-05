@@ -37,7 +37,7 @@ require (
 	github.com/jackc/pgx/v5 v5.8.0 // BRITTLE
 	github.com/mattn/go-colorable v0.1.14
 	github.com/mattn/go-runewidth v0.0.19
-	github.com/mattn/go-sqlite3 v1.14.32 // BRITTLE
+	github.com/mattn/go-sqlite3 v1.14.33 // BRITTLE
 	github.com/microsoft/go-mssqldb v1.9.5 // BRITTLE
 	github.com/mitchellh/go-wordwrap v1.0.1
 	github.com/muesli/mango-cobra v1.3.0
