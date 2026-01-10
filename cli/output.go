@@ -317,7 +317,7 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 	//nolint:exhaustive
 	switch fm {
 	case format.JSON:
-		// No format specified, use JSON
+		w.StmtExec = jsonw.NewStmtExecWriter(outCfg.out, outCfg.outPr)
 		w.Metadata = jsonw.NewMetadataWriter(outCfg.out, outCfg.outPr)
 		w.Source = jsonw.NewSourceWriter(outCfg.out, outCfg.outPr)
 		w.Version = jsonw.NewVersionWriter(outCfg.out, outCfg.outPr)
