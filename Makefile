@@ -12,8 +12,10 @@
 #
 # This is a macOS linker warning (common on newer Xcode versions) caused by CGO
 # dependencies (the SQLite library) passing -lm multiple times. The warning is
-# harmless but annoying.
+# harmless but annoying. Only apply this linker flag on macOS.
+ifeq ($(shell uname),Darwin)
 export CGO_LDFLAGS  := -Wl,-no_warn_duplicate_libraries
+endif
 
 PKG 				:= github.com/neilotoole/sq
 VERSION_PKG 		:= $(PKG)/cli/buildinfo
@@ -22,8 +24,6 @@ BUILD_COMMIT      	:= $(shell git rev-parse HEAD)
 BUILD_TIMESTAMP		:= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 LDFLAGS				:= -X $(VERSION_PKG).Version=$(BUILD_VERSION) -X $(VERSION_PKG).Commit=$(BUILD_COMMIT) -X $(VERSION_PKG).Timestamp=$(BUILD_TIMESTAMP)
 BUILD_TAGS  		:= sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_icu sqlite_introspect sqlite_json sqlite_math_functions
-
-
 
 .PHONY: all
 all: gen fmt lint test build install
