@@ -30,9 +30,14 @@ func TestBug520_LsShowsPassword(t *testing.T) {
 			loc:  "sqlserver://sa:p_ssW0rd@localhost?encrypt=true",
 		},
 		{
-			name: "postgres: for sanity check",
+			name: "postgres: for regression/sanity check",
 			loc:  "postgres://sakila:p_ssW0rd@localhost/sakila",
 		},
+		{
+			name: "mysql: for regression/sanity check",
+			loc:  "mysql://sakila:p_ssW0rd@localhost/sakila",
+		},
+		// NOTE: SQLite is not included because it uses file paths, not URLs with passwords.
 	}
 
 	for _, tc := range testCases {
