@@ -1293,6 +1293,7 @@ make working with lots of sources much easier.
 [#469]: https://github.com/neilotoole/sq/issues/469
 [#504]: https://github.com/neilotoole/sq/issues/504
 [#506]: https://github.com/neilotoole/sq/issues/506
+[#520]: https://github.com/neilotoole/sq/issues/520
 
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
