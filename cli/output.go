@@ -300,6 +300,7 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 		PrOut:    outCfg.outPr,
 		PrErr:    outCfg.errOutPr,
 		Record:   tablew.NewRecordWriter(outCfg.out, outCfg.outPr),
+		StmtExec: tablew.NewStmtExecWriter(outCfg.out, outCfg.outPr),
 		Metadata: tablew.NewMetadataWriter(outCfg.out, outCfg.outPr),
 		Source:   tablew.NewSourceWriter(outCfg.out, outCfg.outPr),
 		Ping:     tablew.NewPingWriter(outCfg.out, outCfg.outPr),

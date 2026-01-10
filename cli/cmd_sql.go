@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -173,12 +174,14 @@ func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source) erro
 	// Detect if this is a query (SELECT) or statement (CREATE, INSERT, etc.)
 	if !isQueryStatement(sql) {
 		// This is a DDL/DML statement, use ExecSQL
+		start := time.Now()
 		affected, execErr := libsq.ExecSQL(ctx, grip, nil, sql)
+		elapsed := time.Since(start)
 		if execErr != nil {
 			return execErr
 		}
-		_, _ = fmt.Fprintf(ru.Out, stringz.Plu("Affected %d row(s)\n", int(affected)), affected)
-		return nil
+
+		return ru.Writers.StmtExec.StmtExecuted(ctx, affected, elapsed)
 	}
 
 	// This is a query, use QuerySQL

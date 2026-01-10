@@ -47,6 +47,12 @@ type RecordWriter interface {
 	Close(ctx context.Context) error
 }
 
+// StmtExecWriter outputs details of a successfully executed SQL statement.
+type StmtExecWriter interface {
+	// StmtExecuted writes SQL statement execution details.
+	StmtExecuted(ctx context.Context, affected int64, elapsed time.Duration) error
+}
+
 // MetadataWriter can output metadata.
 type MetadataWriter interface {
 	// TableMetadata writes the table metadata.
@@ -161,6 +167,7 @@ type Writers struct {
 	PrErr *Printing
 
 	Record   RecordWriter
+	StmtExec StmtExecWriter
 	Metadata MetadataWriter
 	Source   SourceWriter
 	Error    ErrorWriter
