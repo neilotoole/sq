@@ -1,3 +1,20 @@
+# Makefile for sq.
+#
+# This Makefile is provided as a developer convenience. The GitHub CI builds
+# do not make use of it. The Makefile has traditionally been actively maintained
+# for macOS dev work, but should work on Linux.
+
+
+# Suppress macOS linker warning about duplicate -lm from CGO/SQLite
+# dependencies. Previously this annoying warning was printed:
+#
+#   ld: warning: ignoring duplicate libraries: '-lm'
+#
+# This is a macOS linker warning (common on newer Xcode versions) caused by CGO
+# dependencies (the SQLite library) passing -lm multiple times. The warning is
+# harmless but annoying.
+export CGO_LDFLAGS  := -Wl,-no_warn_duplicate_libraries
+
 PKG 				:= github.com/neilotoole/sq
 VERSION_PKG 		:= $(PKG)/cli/buildinfo
 BUILD_VERSION     	:= $(shell git describe --tags --always --dirty)
@@ -5,6 +22,8 @@ BUILD_COMMIT      	:= $(shell git rev-parse HEAD)
 BUILD_TIMESTAMP		:= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 LDFLAGS				:= -X $(VERSION_PKG).Version=$(BUILD_VERSION) -X $(VERSION_PKG).Commit=$(BUILD_COMMIT) -X $(VERSION_PKG).Timestamp=$(BUILD_TIMESTAMP)
 BUILD_TAGS  		:= sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_icu sqlite_introspect sqlite_json sqlite_math_functions
+
+
 
 .PHONY: all
 all: gen fmt lint test build install
@@ -69,7 +88,7 @@ goreleaser-build-local-arch:
 	@# Build binary for current platform using goreleaser (does not publish).
 	@# Uses --snapshot (no git tag required) and --single-target (current platform only).
 	@# Note: Uses platform-specific config since .goreleaser.yml expects prebuilt binaries.
-	@# This is just for local testing. It does not prove much about the how the
+	@# This is just for local testing. It does not prove much about how the
 	@# CI pipeline will behave.
 ifeq ($(shell uname -s),Darwin)
 	goreleaser build --snapshot --clean --single-target -f .goreleaser-darwin.yml
