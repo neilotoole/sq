@@ -28,6 +28,9 @@ const (
 	// MySQL is for MySQL and similar DBs such as MariaDB.
 	MySQL = Type("mysql")
 
+	// ClickHouse is for ClickHouse.
+	ClickHouse = Type("clickhouse")
+
 	// CSV is for Comma-Separated Values.
 	CSV = Type("csv")
 

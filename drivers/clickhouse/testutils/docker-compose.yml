@@ -1,0 +1,46 @@
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.8
+    container_name: clickhouse-clickhouse-1
+    hostname: clickhouse
+    ports:
+      - "18123:8123"  # HTTP
+      - "19000:9000"  # Native
+    environment:
+      CLICKHOUSE_DB: testdb
+      CLICKHOUSE_USER: testuser
+      CLICKHOUSE_PASSWORD: testpass
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    volumes:
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks:
+      - clickhouse_network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: clickhouse-postgres-1
+    hostname: postgres
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_DB: testdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init-scripts/postgres:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testuser"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - clickhouse_network
+
+networks:
+  clickhouse_network:
+    driver: bridge
