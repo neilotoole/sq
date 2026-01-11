@@ -22,6 +22,85 @@ import (
 	"github.com/neilotoole/sq/testh/tu"
 )
 
+func TestCmdSQL_ExecType(t *testing.T) {
+	tblName
+
+	tSQLCmds := []struct {
+		// name is the name of the test.
+		name string
+		// sql is the SQL command text we are interpreting; it could be a query OR a
+		// statement.
+		sql string
+		// isQuery is true if this is a SQL query; if false, it's a SQL statement.
+		isQuery bool
+		// wantQueryVals is the set of values expected to be returned if isQuery is
+		// true.
+		wantQueryVals []any
+		// wantRowsAffected is the rows-affected count expected to be returned if
+		// isQuery is false.
+		wantRowsAffected int64
+	}{
+		{
+			name: "create_table",
+			sql:  "CREATE TABLE test_exec_type (id INTEGER, name VARCHAR(100))",
+		},
+		{
+			name:    "select_empty",
+			sql:     "SELECT * FROM test_exec_type",
+			isQuery: true,
+		},
+		{
+			name: "insert_alice",
+			sql:  "INSERT INTO test_exec_type (id, name) VALUES (1, 'Alice')",
+		},
+		{
+			name: "insert_bob",
+			sql:  "INSERT INTO test_exec_type (id, name) VALUES (2, 'Bob')",
+		},
+		{
+			name:    "select_two_rows",
+			sql:     "SELECT * FROM test_exec_type",
+			isQuery: true,
+		},
+		{
+			name: "update_alice",
+			sql:  "UPDATE test_exec_type SET name = 'Charlie' WHERE id = 1",
+		},
+		{
+			name:    "select_one_row",
+			sql:     "SELECT * FROM test_exec_type WHERE id = 1",
+			isQuery: true,
+		},
+		{
+			name: "delete_bob",
+			sql:  "DELETE FROM test_exec_type WHERE id = 2",
+		},
+		{
+			name:    "select_after_delete",
+			sql:     "SELECT * FROM test_exec_type",
+			isQuery: true,
+		},
+		{
+			name: "drop_table",
+			sql:  "DROP TABLE test_exec_type",
+		},
+	}
+
+	for _, handle := range sakila.SQLLatest() {
+		t.Run(handle, func(t *testing.T) {
+			ctx := t.Context()
+
+			th := testh.New(t)
+			src := th.Source(handle)
+			tr := testrun.New(ctx, t, nil)
+			tr.Add(*src)
+
+			// After this, we'll execute "sq sql X", where X is the SQL cmd string,.
+		})
+	}
+
+}
+
 // TestCmdSQL_Insert tests "sq sql QUERY --insert=dest.tbl".
 func TestCmdSQL_Insert(t *testing.T) {
 	for _, origin := range sakila.SQLLatest() {

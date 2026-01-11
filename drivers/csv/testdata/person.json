@@ -1,0 +1,9 @@
+[
+  {"uid": 1, "username": "neilotoole", "email": "neilotoole@apache.org", "address_id": 1},
+  {"uid": 2, "username": "ksoze", "email": "kaiser@soze.org", "address_id": 2},
+  {"uid": 3, "username": "kubla", "email": "kubla@khan.mn", "address_id": null},
+  {"uid": 4, "username": "tesla", "email": "nikola@tesla.rs", "address_id": 1},
+  {"uid": 5, "username": "augustus", "email": "augustus@caesar.org", "address_id": 2},
+  {"uid": 6, "username": "julius", "email": "julius@caesar.org", "address_id": null},
+  {"uid": 7, "username": "plato", "email": "plato@athens.gr", "address_id": 1}
+]
