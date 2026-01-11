@@ -22,10 +22,11 @@ import (
 	"github.com/neilotoole/sq/testh/tu"
 )
 
+// TestCmdSQL_ExecType runs a sequence of SQL CRUD commands (CREATE, SELECT,
+// UPDATE, etc.) against "sq sql". It is expected that each command succeeds,
+// and proceeds to the next.
 func TestCmdSQL_ExecType(t *testing.T) {
-	tblName
-
-	tSQLCmds := []struct {
+	testCases := []struct {
 		// name is the name of the test.
 		name string
 		// sql is the SQL command text we are interpreting; it could be a query OR a
@@ -33,56 +34,66 @@ func TestCmdSQL_ExecType(t *testing.T) {
 		sql string
 		// isQuery is true if this is a SQL query; if false, it's a SQL statement.
 		isQuery bool
-		// wantQueryVals is the set of values expected to be returned if isQuery is
-		// true.
-		wantQueryVals []any
+		// wantQueryVals is the set of "name" column values expected to be returned
+		// if isQuery is true. We use a single column to simplify verification.
+		wantQueryVals []string
 		// wantRowsAffected is the rows-affected count expected to be returned if
 		// isQuery is false.
 		wantRowsAffected int64
 	}{
 		{
-			name: "create_table",
-			sql:  "CREATE TABLE test_exec_type (id INTEGER, name VARCHAR(100))",
+			name:             "create_table",
+			sql:              "CREATE TABLE test_exec_type (id INTEGER, name VARCHAR(100))",
+			wantRowsAffected: 0,
 		},
 		{
-			name:    "select_empty",
-			sql:     "SELECT * FROM test_exec_type",
-			isQuery: true,
+			name:          "select_empty",
+			sql:           "SELECT name FROM test_exec_type",
+			isQuery:       true,
+			wantQueryVals: []string{},
 		},
 		{
-			name: "insert_alice",
-			sql:  "INSERT INTO test_exec_type (id, name) VALUES (1, 'Alice')",
+			name:             "insert_alice",
+			sql:              "INSERT INTO test_exec_type (id, name) VALUES (1, 'Alice')",
+			wantRowsAffected: 1,
 		},
 		{
-			name: "insert_bob",
-			sql:  "INSERT INTO test_exec_type (id, name) VALUES (2, 'Bob')",
+			name:             "insert_bob",
+			sql:              "INSERT INTO test_exec_type (id, name) VALUES (2, 'Bob')",
+			wantRowsAffected: 1,
 		},
 		{
-			name:    "select_two_rows",
-			sql:     "SELECT * FROM test_exec_type",
-			isQuery: true,
+			name:          "select_two_rows",
+			sql:           "SELECT name FROM test_exec_type ORDER BY id",
+			isQuery:       true,
+			wantQueryVals: []string{"Alice", "Bob"},
 		},
 		{
-			name: "update_alice",
-			sql:  "UPDATE test_exec_type SET name = 'Charlie' WHERE id = 1",
+			name:             "update_alice",
+			sql:              "UPDATE test_exec_type SET name = 'Charlie' WHERE id = 1",
+			wantRowsAffected: 1,
 		},
 		{
-			name:    "select_one_row",
-			sql:     "SELECT * FROM test_exec_type WHERE id = 1",
-			isQuery: true,
+			name:          "select_one_row",
+			sql:           "SELECT name FROM test_exec_type WHERE id = 1",
+			isQuery:       true,
+			wantQueryVals: []string{"Charlie"},
 		},
 		{
-			name: "delete_bob",
-			sql:  "DELETE FROM test_exec_type WHERE id = 2",
+			name:             "delete_bob",
+			sql:              "DELETE FROM test_exec_type WHERE id = 2",
+			wantRowsAffected: 1,
 		},
 		{
-			name:    "select_after_delete",
-			sql:     "SELECT * FROM test_exec_type",
-			isQuery: true,
+			name:          "select_after_delete",
+			sql:           "SELECT name FROM test_exec_type",
+			isQuery:       true,
+			wantQueryVals: []string{"Charlie"},
 		},
 		{
-			name: "drop_table",
-			sql:  "DROP TABLE test_exec_type",
+			name:             "drop_table",
+			sql:              "DROP TABLE test_exec_type",
+			wantRowsAffected: 0,
 		},
 	}
 
@@ -93,12 +104,46 @@ func TestCmdSQL_ExecType(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
 			tr := testrun.New(ctx, t, nil)
+
+			// Set format to JSON so that subsequent runs are using JSON.
+			require.NoError(t, tr.Exec("config", "set", "format", "json"))
+
+			tr.Reset()
 			tr.Add(*src)
 
-			// After this, we'll execute "sq sql X", where X is the SQL cmd string,.
+			for _, tc := range testCases {
+				t.Run(tc.name, func(t *testing.T) {
+					tr.Reset()
+
+					err := tr.Exec("sql", tc.sql)
+					require.NoError(t, err, "failed to execute: %s", tc.sql)
+
+					if tc.isQuery {
+						// For queries, verify we get the expected values.
+						var results []map[string]any
+						tr.Bind(&results)
+
+						require.Len(t, results, len(tc.wantQueryVals),
+							"expected %d rows, got %d", len(tc.wantQueryVals), len(results))
+
+						for i, wantVal := range tc.wantQueryVals {
+							gotVal, ok := results[i]["name"].(string)
+							require.True(t, ok, "expected 'name' column to be string")
+							require.Equal(t, wantVal, gotVal,
+								"row %d: expected name=%q, got %q", i, wantVal, gotVal)
+						}
+					} else {
+						// For statements, verify rows_affected.
+						result := tr.BindMap()
+						gotAffected, ok := result["rows_affected"].(float64)
+						require.True(t, ok, "expected 'rows_affected' in output")
+						require.Equal(t, tc.wantRowsAffected, int64(gotAffected),
+							"expected rows_affected=%d, got %d", tc.wantRowsAffected, int64(gotAffected))
+					}
+				})
+			}
 		})
 	}
-
 }
 
 // TestCmdSQL_Insert tests "sq sql QUERY --insert=dest.tbl".
