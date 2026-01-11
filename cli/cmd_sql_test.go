@@ -23,9 +23,11 @@ import (
 )
 
 // TestCmdSQL_ExecType runs a sequence of SQL CRUD commands (CREATE, SELECT,
-// UPDATE, etc.) against "sq sql". It is expected that each command succeeds,
-// and proceeds to the next.
+// UPDATE, etc.) against "sq sql". Some of these result in a query (SELECT), and
+// some result in a statement (CREATE, UPDATE, DROP, etc.).
 func TestCmdSQL_ExecType(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		// name is the name of the test.
 		name string
@@ -97,19 +99,20 @@ func TestCmdSQL_ExecType(t *testing.T) {
 		},
 	}
 
+	// Execute the test cases for each of the available SQL sources.
 	for _, handle := range sakila.SQLLatest() {
 		t.Run(handle, func(t *testing.T) {
-			ctx := t.Context()
+			t.Parallel()
 
 			th := testh.New(t)
-			src := th.Source(handle)
-			tr := testrun.New(ctx, t, nil)
+			src := th.Source(handle) // Will skip test if source not available
+			tr := testrun.New(th.Context, t, nil)
 
 			// Set format to JSON so that subsequent runs are using JSON.
 			require.NoError(t, tr.Exec("config", "set", "format", "json"))
 
-			tr.Reset()
-			tr.Add(*src)
+			tr.Reset().Add(*src)
+			require.NoError(t, tr.Exec("ping"), "source %s should be available", handle)
 
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
