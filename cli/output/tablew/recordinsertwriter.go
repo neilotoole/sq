@@ -26,27 +26,23 @@ func NewRecordInsertWriter(out io.Writer, pr *output.Printing) output.RecordInse
 }
 
 // RecordsInserted implements output.RecordInsertWriter.
-func (w *recordInsertWriter) RecordsInserted(_ context.Context, destSrc *source.Source, destTbl string,
+func (w *recordInsertWriter) RecordsInserted(_ context.Context, target *source.Source, tbl string,
 	rowsInserted int64, elapsed time.Duration,
 ) error {
-	s := w.pr.String.Sprintf("Inserted ") +
-		w.pr.Number.Sprintf("%d", rowsInserted)
+	s := w.pr.Number.Sprintf("%d", rowsInserted)
 
 	if rowsInserted == 1 {
-		s += w.pr.String.Sprint(" row")
+		s += w.pr.Normal.Sprint(" row inserted into ")
 	} else {
-		s += w.pr.String.Sprint(" rows")
+		s += w.pr.Normal.Sprint(" rows inserted into ")
 	}
 
-	s += w.pr.String.Sprint(" into ") +
-		w.pr.Handle.Sprint(destSrc.Handle) +
-		w.pr.Faint.Sprint(".") +
-		w.pr.String.Sprint(destTbl)
+	s += w.pr.Handle.Sprint(source.Target(target, tbl))
 
 	if w.pr.Verbose {
 		s += w.pr.Faint.Sprintf(" in %v", elapsed.Round(time.Millisecond))
 	}
 
-	fmt.Fprintln(w.out, s)
-	return nil
+	_, err := fmt.Fprintln(w.out, s)
+	return err
 }

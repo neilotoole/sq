@@ -56,8 +56,9 @@ type RecordWriter interface {
 // "sq --insert" mechanism, which pipes the output of a sq query to a
 // destination source/table.
 type RecordInsertWriter interface {
-	// RecordsInserted outputs record insertion details.
-	RecordsInserted(ctx context.Context, destSrc *source.Source, destTbl string,
+	// RecordsInserted outputs record insertion details, indicating that a count
+	// of rowsInserted rows were inserted into tbl in destination target.
+	RecordsInserted(ctx context.Context, target *source.Source, tbl string,
 		rowsInserted int64, elapsed time.Duration) error
 }
 

@@ -38,6 +38,6 @@ func (w *stmtExecWriter) StmtExecuted(_ context.Context, affected int64, elapsed
 		s += w.pr.Faint.Sprintf(" in %v", elapsed.Round(time.Millisecond))
 	}
 
-	fmt.Fprintln(w.out, s)
-	return nil
+	_, err := fmt.Fprintln(w.out, s)
+	return err
 }
