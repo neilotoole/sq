@@ -47,6 +47,39 @@ type RecordWriter interface {
 	Close(ctx context.Context) error
 }
 
+// RecordInsertWriter outputs details of record insertion into a destination
+// table.
+//
+// One could ask: why not add the RecordInsertWriter.RecordsInserted method to
+// the RecordWriter interface, instead of creating a new interface? This is
+// because RecordInsertWriter is effectively a user-facing logger, for which sq
+// only guarantees text (tablew) and JSON (jsonw). It doesn't really make sense
+// to force the Excel writer (xlsxw) to implement a "N rows affected" mechanism.
+//
+// Note that RecordInsertWriter is distinct from StmtExecWriter. StmtExecWriter
+// generically outputs the details of any SQL statement execution, which could
+// be an INSERT, but also could be UPDATE, CREATE, etc.). Meanwhile,
+// RecordInsertWriter outputs the results of the "sq --insert" mechanism, which
+// pipes the results (records) of a query to a destination source/table.
+type RecordInsertWriter interface {
+	// RecordsInserted outputs record insertion details, indicating that a count
+	// of rowsInserted rows were inserted into tbl in destination target.
+	RecordsInserted(ctx context.Context, target *source.Source, tbl string,
+		rowsInserted int64, elapsed time.Duration) error
+}
+
+// StmtExecWriter outputs details of a successfully executed SQL statement.
+//
+// Note that StmtExecWriter is distinct from RecordInsertWriter. StmtExecWriter
+// generically outputs the details of any SQL statement execution, which could
+// be an INSERT, but also could be UPDATE, CREATE, etc.). Meanwhile,
+// RecordInsertWriter outputs the results of the "sq --insert" mechanism, which
+// pipes the results (records) of a query to a destination source/table.
+type StmtExecWriter interface {
+	// StmtExecuted writes SQL statement execution details.
+	StmtExecuted(ctx context.Context, target *source.Source, affected int64, elapsed time.Duration) error
+}
+
 // MetadataWriter can output metadata.
 type MetadataWriter interface {
 	// TableMetadata writes the table metadata.
@@ -160,13 +193,15 @@ type Writers struct {
 	// PrErr is the printing config for stderr.
 	PrErr *Printing
 
-	Record   RecordWriter
-	Metadata MetadataWriter
-	Source   SourceWriter
-	Error    ErrorWriter
-	Ping     PingWriter
-	Version  VersionWriter
-	Config   ConfigWriter
+	Record       RecordWriter
+	RecordInsert RecordInsertWriter
+	StmtExec     StmtExecWriter
+	Metadata     MetadataWriter
+	Source       SourceWriter
+	Error        ErrorWriter
+	Ping         PingWriter
+	Version      VersionWriter
+	Config       ConfigWriter
 }
 
 // NewRecordWriterFunc is a func type that returns an output.RecordWriter.

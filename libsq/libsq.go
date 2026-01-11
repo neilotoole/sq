@@ -102,6 +102,11 @@ type RecordWriter interface {
 
 // ExecuteSLQ executes the slq query, writing the results to recw.
 // The caller is responsible for closing qc.
+//
+// Note differences between ExecuteSLQ and ExecSQL: ExecuteSLQ executes a SLQ
+// statement (which is a sort of pipeline) which could result in multiple
+// backend SQL commands being executed against several different sources. By
+// contrast, ExecSQL executes SQL against a single source.
 func ExecuteSLQ(ctx context.Context, qc *QueryContext, query string, recw RecordWriter) error {
 	p, err := newPipeline(ctx, qc, query)
 	if err != nil {
@@ -122,12 +127,58 @@ func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (targetSQL str
 	return p.targetSQL, nil
 }
 
+// ExecSQL executes a SQL statement (DDL/DML) that doesn't return rows,
+// such as CREATE TABLE, INSERT, UPDATE, DELETE, DROP TABLE, etc.
+// It returns the number of rows affected. If db is non-nil, the statement
+// is executed against it. Otherwise, the connection is obtained from grip.
+// The caller is responsible for closing grip (and db, if non-nil).
+//
+// See also: QuerySQL.
+func ExecSQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
+	stmt string, args ...any,
+) (affected int64, err error) {
+	log := lg.FromContext(ctx)
+	errw := grip.SQLDriver().ErrWrapFunc()
+
+	if db == nil {
+		if db, err = grip.DB(ctx); err != nil {
+			return 0, err
+		}
+	}
+
+	bar := progress.FromContext(ctx).NewWaiter("Execute statement")
+	result, err := db.ExecContext(ctx, stmt, args...)
+	bar.Stop()
+	if err != nil {
+		err = errz.Wrapf(errw(err), `SQL stmt against %s failed: %s`, grip.Source().Handle, stmt)
+		select {
+		case <-ctx.Done():
+			// If the context was canceled, it's probably more accurate
+			// to just return the context error.
+			log.Debug("Error received, but context was done", lga.Err, err)
+			return 0, ctx.Err()
+		default:
+			return 0, err
+		}
+	}
+
+	affected, err = result.RowsAffected()
+	if err != nil {
+		return 0, errw(err)
+	}
+
+	return affected, nil
+}
+
 // QuerySQL executes the SQL query, writing the results to recw. If db is
 // non-nil, the query is executed against it. Otherwise, the connection is
 // obtained from grip.
+//
 // Note that QuerySQL may return before recw has finished writing, thus the
 // caller may wish to wait for recw to complete.
 // The caller is responsible for closing grip (and db, if non-nil).
+//
+// See also: ExecSQL.
 func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 	recw RecordWriter, query string, args ...any,
 ) error {
@@ -148,7 +199,7 @@ func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 		err = errz.Wrapf(errw(err), `SQL query against %s failed: %s`, grip.Source().Handle, query)
 		select {
 		case <-ctx.Done():
-			// If the context was cancelled, it's probably more accurate
+			// If the context was canceled, it's probably more accurate
 			// to just return the context error.
 			log.Debug("Error received, but context was done", lga.Err, err)
 			return ctx.Err()
