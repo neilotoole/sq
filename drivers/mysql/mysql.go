@@ -117,6 +117,7 @@ func (d *driveri) Dialect() dialect.Dialect {
 		IntBool:        true,
 		MaxBatchValues: 250,
 		Ops:            dialect.DefaultOps(),
+		ExecModeFor:    dialect.DefaultExecModeFor,
 		Joins:          lo.Without(jointype.All(), jointype.FullOuter),
 		Catalog:        false,
 	}

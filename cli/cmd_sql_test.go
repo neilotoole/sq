@@ -22,10 +22,10 @@ import (
 	"github.com/neilotoole/sq/testh/tu"
 )
 
-// TestCmdSQL_ExecType runs a sequence of SQL CRUD commands (CREATE, SELECT,
+// TestCmdSQL_ExecMode runs a sequence of SQL CRUD commands (CREATE, SELECT,
 // UPDATE, etc.) against "sq sql". Some of these result in a query (SELECT), and
-// some result in a statement (CREATE, UPDATE, DROP, etc.).
-func TestCmdSQL_ExecType(t *testing.T) {
+// some result in an exec (CREATE, UPDATE, DROP, etc.).
+func TestCmdSQL_ExecMode(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
