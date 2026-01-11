@@ -181,7 +181,8 @@ func TestCmdSQL_MultipleStatements(t *testing.T) {
 		},
 		{
 			name: "two_inserts",
-			sql:  "INSERT INTO actor (actor_id, first_name, last_name) VALUES (9998, 'A', 'B'); INSERT INTO actor (actor_id, first_name, last_name) VALUES (9999, 'C', 'D')",
+			//nolint:lll
+			sql: "INSERT INTO actor (actor_id, first_name, last_name) VALUES (9998, 'A', 'B'); INSERT INTO actor (actor_id, first_name, last_name) VALUES (9999, 'C', 'D')",
 		},
 	}
 
