@@ -30,7 +30,14 @@ all: gen fmt lint test build install
 
 .PHONY: test
 test:
+	@# Run all tests.
 	@go test -tags "$(BUILD_TAGS)" ./...
+
+.PHONY: test-short
+test-short:
+	@# Run tests with -short flag, skipping long-running tests.
+	@# See: https://pkg.go.dev/testing#Short
+	@go test -short -tags "$(BUILD_TAGS)" ./...
 
 .PHONY: build
 build:
