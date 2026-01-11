@@ -1,5 +1,5 @@
 // Package libsq implements the core sq functionality.
-// The ExecuteSLQ function is the entrypoint for executing
+// The ExecSLQ function is the entrypoint for executing
 // a SLQ query, which may interact with several data sources.
 // The QuerySQL function executes a SQL query against a single
 // source. Both functions ultimately send their result records to
@@ -100,14 +100,14 @@ type RecordWriter interface {
 	Wait() (written int64, err error)
 }
 
-// ExecuteSLQ executes the slq query, writing the results to recw.
+// ExecSLQ executes the SLQ query, writing the results to recw.
 // The caller is responsible for closing qc.
 //
-// Note differences between ExecuteSLQ and ExecSQL: ExecuteSLQ executes a SLQ
+// Note differences between ExecSLQ and ExecSQL: ExecSLQ executes a SLQ
 // statement (which is a sort of pipeline) which could result in multiple
 // backend SQL commands being executed against several different sources. By
 // contrast, ExecSQL executes SQL against a single source.
-func ExecuteSLQ(ctx context.Context, qc *QueryContext, query string, recw RecordWriter) error {
+func ExecSLQ(ctx context.Context, qc *QueryContext, query string, recw RecordWriter) error {
 	p, err := newPipeline(ctx, qc, query)
 	if err != nil {
 		return err
@@ -118,7 +118,7 @@ func ExecuteSLQ(ctx context.Context, qc *QueryContext, query string, recw Record
 
 // SLQ2SQL simulates execution of a SLQ query, but instead of executing
 // the resulting SQL query, that ultimate SQL is returned. Effectively it is
-// equivalent to libsq.ExecuteSLQ, but without the execution.
+// equivalent to libsq.ExecSLQ, but without the execution.
 func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (targetSQL string, err error) {
 	p, err := newPipeline(ctx, qc, query)
 	if err != nil {
