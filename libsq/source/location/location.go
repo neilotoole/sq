@@ -133,7 +133,9 @@ func Short(loc string) string {
 
 	db := vals.Get("database")
 	if db == "" {
-		return loc
+		// This can happen for an MSSQL URL, of the form
+		// "sqlserver://sq:***@localhost" (without the "?database=db" part).
+		return sb.String()
 	}
 
 	sb.WriteRune('/')
