@@ -25,18 +25,18 @@ func NewRecordInsertWriter(out io.Writer, pr *output.Printing) output.RecordInse
 }
 
 // RecordsInserted implements output.RecordInsertWriter.
-func (w *recordInsertWriter) RecordsInserted(_ context.Context, target *source.Source, tbl string,
-	rowsInserted int64, _ time.Duration,
+func (w *recordInsertWriter) RecordsInserted(_ context.Context, target *source.Source,
+	tbl string, rowsInserted int64, _ time.Duration,
 ) error {
 	type insertOutput struct {
 		Target       string `json:"target" yaml:"target"`
 		Table        string `json:"table"         yaml:"table"`
-		RawsAffected int64  `json:"rows_affected" yaml:"rows_affected"`
+		RowsAffected int64  `json:"rows_affected" yaml:"rows_affected"`
 	}
 
 	return writeJSON(w.out, w.pr, insertOutput{
 		Target:       target.Handle,
 		Table:        tbl,
-		RawsAffected: rowsInserted,
+		RowsAffected: rowsInserted,
 	})
 }

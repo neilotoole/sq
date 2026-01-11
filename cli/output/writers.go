@@ -51,10 +51,10 @@ type RecordWriter interface {
 // table.
 //
 // Note that RecordInsertWriter is distinct from StmtExecWriter. StmtExecWriter
-// generically outputs the details of any SQL exec statement, which could
-// include an INSERT. Meanwhile, RecordInsertWriter outputs the results of the
-// "sq --insert" mechanism, which pipes the output of a sq query to a
-// destination source/table.
+// generically outputs the details of any SQL statement execution, which could
+// be an INSERT, but also could be UPDATE, CREATE, etc.). Meanwhile,
+// RecordInsertWriter outputs the results of the "sq --insert" mechanism, which
+// pipes the results (records) of a query to a destination source/table.
 type RecordInsertWriter interface {
 	// RecordsInserted outputs record insertion details, indicating that a count
 	// of rowsInserted rows were inserted into tbl in destination target.
@@ -63,6 +63,12 @@ type RecordInsertWriter interface {
 }
 
 // StmtExecWriter outputs details of a successfully executed SQL statement.
+//
+// Note that StmtExecWriter is distinct from RecordInsertWriter. StmtExecWriter
+// generically outputs the details of any SQL statement execution, which could
+// be an INSERT, but also could be UPDATE, CREATE, etc.). Meanwhile,
+// RecordInsertWriter outputs the results of the "sq --insert" mechanism, which
+// pipes the results (records) of a query to a destination source/table.
 type StmtExecWriter interface {
 	// StmtExecuted writes SQL statement execution details.
 	StmtExecuted(ctx context.Context, target *source.Source, affected int64, elapsed time.Duration) error
