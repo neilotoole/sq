@@ -24,17 +24,12 @@ func NewStmtExecWriter(out io.Writer, pr *output.Printing) output.StmtExecWriter
 }
 
 // StmtExecuted implements output.StmtExecWriter.
-func (w *stmtExecWriter) StmtExecuted(_ context.Context, affected int64, elapsed time.Duration) error {
+func (w *stmtExecWriter) StmtExecuted(_ context.Context, affected int64, _ time.Duration) error {
 	type stmtOutput struct {
 		RowsAffected int64 `json:"rows_affected" yaml:"rows_affected"`
-		// REVISIT: Not so sure about whether wwe should output elapsed_ms? We
-		// generally don't do this for other JSON writer funcs. That having been
-		// said, many SQL CLI tools do output the elapsed duration.
-		ElapsedMS int64 `json:"elapsed_ms" yaml:"elapsed_ms"`
 	}
 
 	return writeJSON(w.out, w.pr, stmtOutput{
 		RowsAffected: affected,
-		ElapsedMS:    elapsed.Milliseconds(),
 	})
 }

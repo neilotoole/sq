@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -15,8 +14,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tuning"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -225,20 +222,21 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 		tuning.OptRecBufSize.Get(destSrc.Options),
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
 	)
+
+	start := time.Now()
 	err = libsq.QuerySQL(ctx, fromGrip, nil, inserter, args[0])
 	if err != nil {
 		return errz.Wrapf(err, "insert to {%s} failed", source.Target(destSrc, destTbl))
 	}
 
 	affected, err := inserter.Wait() // Stop for the writer to finish processing
+	elapsed := time.Since(start)
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destSrc.Handle, destTbl)
 	}
 
-	lg.FromContext(ctx).Debug(lgm.RowsAffected, lga.Count, affected)
+	lg.FromContext(ctx).Debug("Rows inserted", lga.Target, source.Target(destSrc, destTbl),
+		lga.Count, affected, lga.Elapsed, elapsed)
 
-	// TODO: Should really use a Printer here
-	_, _ = fmt.Fprintf(ru.Out, stringz.Plu("Inserted %d row(s) into %s\n",
-		int(affected)), affected, source.Target(destSrc, destTbl))
-	return nil
+	return ru.Writers.RecordInsert.RecordsInserted(ctx, destSrc, destTbl, affected, elapsed)
 }

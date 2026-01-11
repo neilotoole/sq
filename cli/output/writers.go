@@ -47,6 +47,20 @@ type RecordWriter interface {
 	Close(ctx context.Context) error
 }
 
+// RecordInsertWriter outputs details of record insertion into a destination
+// table.
+//
+// Note that RecordInsertWriter is distinct from StmtExecWriter. StmtExecWriter
+// generically outputs the details of any SQL exec statement, which could
+// include an INSERT. Meanwhile, RecordInsertWriter outputs the results of the
+// "sq --insert" mechanism, which pipes the output of a sq query to a
+// destination source/table.
+type RecordInsertWriter interface {
+	// RecordsInserted outputs record insertion details.
+	RecordsInserted(ctx context.Context, destSrc *source.Source, destTbl string,
+		rowsInserted int64, elapsed time.Duration) error
+}
+
 // StmtExecWriter outputs details of a successfully executed SQL statement.
 type StmtExecWriter interface {
 	// StmtExecuted writes SQL statement execution details.
@@ -166,14 +180,15 @@ type Writers struct {
 	// PrErr is the printing config for stderr.
 	PrErr *Printing
 
-	Record   RecordWriter
-	StmtExec StmtExecWriter
-	Metadata MetadataWriter
-	Source   SourceWriter
-	Error    ErrorWriter
-	Ping     PingWriter
-	Version  VersionWriter
-	Config   ConfigWriter
+	Record       RecordWriter
+	RecordInsert RecordInsertWriter
+	StmtExec     StmtExecWriter
+	Metadata     MetadataWriter
+	Source       SourceWriter
+	Error        ErrorWriter
+	Ping         PingWriter
+	Version      VersionWriter
+	Config       ConfigWriter
 }
 
 // NewRecordWriterFunc is a func type that returns an output.RecordWriter.

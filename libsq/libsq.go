@@ -146,6 +146,8 @@ func ExecSQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 		err = errz.Wrapf(errw(err), `SQL query against %s failed: %s`, grip.Source().Handle, stmt)
 		select {
 		case <-ctx.Done():
+			// If the context was canceled, it's probably more accurate
+			// to just return the context error.
 			log.Debug("Error received, but context was done", lga.Err, err)
 			return 0, ctx.Err()
 		default:
@@ -187,7 +189,7 @@ func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 		err = errz.Wrapf(errw(err), `SQL query against %s failed: %s`, grip.Source().Handle, query)
 		select {
 		case <-ctx.Done():
-			// If the context was cancelled, it's probably more accurate
+			// If the context was canceled, it's probably more accurate
 			// to just return the context error.
 			log.Debug("Error received, but context was done", lga.Err, err)
 			return ctx.Err()
