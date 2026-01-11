@@ -149,6 +149,65 @@ func TestCmdSQL_ExecMode(t *testing.T) {
 	}
 }
 
+// TestCmdSQL_MultipleStatements tests the behavior of "sq sql" when the SQL
+// string contains multiple statements. At this time, an error is expected to
+// be returned. In a future revision, sq should parse out each of the separate
+// statements, and try to execute them. Then again, that may not make sense
+// given the way sq returns its output... how would sq return multiple JSON
+// arrays, for example?
+//
+// At the very least, this test exists to document current behavior.
+func TestCmdSQL_MultipleStatements(t *testing.T) {
+	t.Parallel()
+
+	// Note the behavior of "sq sql" when there are multiple SQL statements in the
+	// input string. Currently, an error is expected:
+	//
+	//   $ sq sql "select * from actor; select * from actor"
+	//   sq: SQL query against @sakila/local/pg failed: select * from actor; select * from actor:
+	//       ERROR: cannot insert multiple commands into a prepared statement (SQLSTATE 42601)
+
+	testCases := []struct {
+		name string
+		sql  string
+	}{
+		{
+			name: "two_selects",
+			sql:  "SELECT * FROM actor; SELECT * FROM actor",
+		},
+		{
+			name: "select_and_insert",
+			sql:  "SELECT * FROM actor; INSERT INTO actor (actor_id, first_name, last_name) VALUES (9999, 'Test', 'User')",
+		},
+		{
+			name: "two_inserts",
+			sql:  "INSERT INTO actor (actor_id, first_name, last_name) VALUES (9998, 'A', 'B'); INSERT INTO actor (actor_id, first_name, last_name) VALUES (9999, 'C', 'D')",
+		},
+	}
+
+	for _, handle := range sakila.SQLLatest() {
+		t.Run(handle, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			src := th.Source(handle)
+			tr := testrun.New(th.Context, t, nil).Hush()
+
+			tr.Add(*src)
+			require.NoError(t, tr.Exec("ping"), "source %s should be available", handle)
+
+			for _, tc := range testCases {
+				t.Run(tc.name, func(t *testing.T) {
+					tr.Reset()
+
+					err := tr.Exec("sql", tc.sql)
+					require.Error(t, err, "expected error for multiple statements: %s", tc.sql)
+				})
+			}
+		})
+	}
+}
+
 // TestCmdSQL_ExecTypeEdgeCases tests edge cases for SQL type detection,
 // including comments, case variations, CTEs, and ALTER statements.
 func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
