@@ -65,7 +65,7 @@ type RecordInsertWriter interface {
 // StmtExecWriter outputs details of a successfully executed SQL statement.
 type StmtExecWriter interface {
 	// StmtExecuted writes SQL statement execution details.
-	StmtExecuted(ctx context.Context, affected int64, elapsed time.Duration) error
+	StmtExecuted(ctx context.Context, target *source.Source, affected int64, elapsed time.Duration) error
 }
 
 // MetadataWriter can output metadata.

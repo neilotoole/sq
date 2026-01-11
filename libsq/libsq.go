@@ -143,7 +143,7 @@ func ExecSQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 	result, err := db.ExecContext(ctx, stmt, args...)
 	bar.Stop()
 	if err != nil {
-		err = errz.Wrapf(errw(err), `SQL query against %s failed: %s`, grip.Source().Handle, stmt)
+		err = errz.Wrapf(errw(err), `SQL stmt against %s failed: %s`, grip.Source().Handle, stmt)
 		select {
 		case <-ctx.Done():
 			// If the context was canceled, it's probably more accurate

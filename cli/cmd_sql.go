@@ -178,7 +178,7 @@ func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source) erro
 			return execErr
 		}
 
-		return ru.Writers.StmtExec.StmtExecuted(ctx, affected, elapsed)
+		return ru.Writers.StmtExec.StmtExecuted(ctx, fromSrc, affected, elapsed)
 	}
 
 	// This is a query, use QuerySQL
