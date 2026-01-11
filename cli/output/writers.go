@@ -50,6 +50,12 @@ type RecordWriter interface {
 // RecordInsertWriter outputs details of record insertion into a destination
 // table.
 //
+// One could ask: why not add the RecordInsertWriter.RecordsInserted method to
+// the RecordWriter interface, instead of creating a new interface? This is
+// because RecordInsertWriter is effectively a user-facing logger, for which sq
+// only guarantees text (tablew) and JSON (jsonw). It doesn't really make sense
+// to force the Excel writer (xlsxw) to implement a "N rows affected" mechanism.
+//
 // Note that RecordInsertWriter is distinct from StmtExecWriter. StmtExecWriter
 // generically outputs the details of any SQL statement execution, which could
 // be an INSERT, but also could be UPDATE, CREATE, etc.). Meanwhile,

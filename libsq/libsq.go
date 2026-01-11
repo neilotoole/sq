@@ -102,6 +102,11 @@ type RecordWriter interface {
 
 // ExecuteSLQ executes the slq query, writing the results to recw.
 // The caller is responsible for closing qc.
+//
+// Note differences between ExecuteSLQ and ExecSQL: ExecuteSLQ executes a SLQ
+// statement (which is a sort of pipeline) which could result in multiple
+// backend SQL commands being executed against several different sources. By
+// contrast, ExecSQL executes SQL against a single source.
 func ExecuteSLQ(ctx context.Context, qc *QueryContext, query string, recw RecordWriter) error {
 	p, err := newPipeline(ctx, qc, query)
 	if err != nil {
@@ -127,6 +132,8 @@ func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (targetSQL str
 // It returns the number of rows affected. If db is non-nil, the statement
 // is executed against it. Otherwise, the connection is obtained from grip.
 // The caller is responsible for closing grip (and db, if non-nil).
+//
+// See also: QuerySQL.
 func ExecSQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 	stmt string, args ...any,
 ) (affected int64, err error) {
@@ -166,9 +173,12 @@ func ExecSQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 // QuerySQL executes the SQL query, writing the results to recw. If db is
 // non-nil, the query is executed against it. Otherwise, the connection is
 // obtained from grip.
+//
 // Note that QuerySQL may return before recw has finished writing, thus the
 // caller may wish to wait for recw to complete.
 // The caller is responsible for closing grip (and db, if non-nil).
+//
+// See also: ExecSQL.
 func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 	recw RecordWriter, query string, args ...any,
 ) error {
