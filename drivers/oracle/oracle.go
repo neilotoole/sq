@@ -88,6 +88,7 @@ func (d *driveri) Dialect() dialect.Dialect {
 		Type:           drivertype.Oracle,
 		Placeholders:   placeholders,
 		Enquote:        enquoteOracle,
+		ExecModeFor:    dialect.DefaultExecModeFor,
 		MaxBatchValues: 1000,
 		Ops:            dialect.DefaultOps(),
 		Joins:          jointype.All(),
