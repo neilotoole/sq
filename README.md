@@ -122,7 +122,7 @@ $ sq ls
 
 Let's [add](https://sq.io/docs/cmd/add) a source. First we'll add a [SQLite](https://sq.io/docs/drivers/sqlite)
 database, but this could also be [Postgres](https://sq.io/docs/drivers/postgres),
-[SQL Server](https://sq.io/docs/drivers/sqlserver) etc., or a document source such [Excel](https://sq.io/docs/drivers/xlsx) or
+[SQL Server](https://sq.io/docs/drivers/sqlserver), [MySQL](https://sq.io/docs/drivers/mysql), [Oracle](./drivers/oracle/README.md) etc., or a document source such as [Excel](https://sq.io/docs/drivers/xlsx) or
 [CSV](https://sq.io/docs/drivers/csv).
 
 Download the sample DB, and `sq add` the source. 
@@ -323,18 +323,22 @@ implementation. To view the installed/supported drivers:
 
 ```shell
 $ sq driver ls
-DRIVER     DESCRIPTION                          
-sqlite3    SQLite                               
-postgres   PostgreSQL                           
+DRIVER     DESCRIPTION
+sqlite3    SQLite
+postgres   PostgreSQL
 sqlserver  Microsoft SQL Server / Azure SQL Edge
-mysql      MySQL                                
-csv        Comma-Separated Values               
-tsv        Tab-Separated Values                 
-json       JSON                                 
-jsona      JSON Array: LF-delimited JSON arrays 
+mysql      MySQL
+oracle     Oracle Database (experimental)
+csv        Comma-Separated Values
+tsv        Tab-Separated Values
+json       JSON
+jsona      JSON Array: LF-delimited JSON arrays
 jsonl      JSON Lines: LF-delimited JSON objects
-xlsx       Microsoft Excel XLSX                 
+xlsx       Microsoft Excel XLSX
 ```
+
+> [!NOTE]
+> **Oracle Driver (Experimental):** Oracle Database support is experimental. It requires Oracle Instant Client to be installed on your system. See the [Oracle driver docs](./drivers/oracle/README.md) for installation and setup instructions.
 
 ## Output formats
 

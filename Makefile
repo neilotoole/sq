@@ -25,6 +25,13 @@ BUILD_TIMESTAMP		:= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 LDFLAGS				:= -X $(VERSION_PKG).Version=$(BUILD_VERSION) -X $(VERSION_PKG).Commit=$(BUILD_COMMIT) -X $(VERSION_PKG).Timestamp=$(BUILD_TIMESTAMP)
 BUILD_TAGS  		:= sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_icu sqlite_introspect sqlite_json sqlite_math_functions
 
+# Suppress "ld: warning: ignoring duplicate libraries" on macOS (Xcode 15+)
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+	CGO_LDFLAGS := -Wl,-no_warn_duplicate_libraries
+	export CGO_LDFLAGS
+endif
+
 .PHONY: all
 all: gen fmt lint test build install
 

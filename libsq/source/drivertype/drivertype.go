@@ -28,6 +28,9 @@ const (
 	// MySQL is for MySQL and similar DBs such as MariaDB.
 	MySQL = Type("mysql")
 
+	// Oracle is for Oracle Database.
+	Oracle = Type("oracle")
+
 	// CSV is for Comma-Separated Values.
 	CSV = Type("csv")
 
