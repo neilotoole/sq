@@ -158,7 +158,7 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	go func() {
 		query1 := td1.Handle + "." + stringz.DoubleQuote(td1.Name)
 		// Execute DB query1; records will be sent to rs1.recCh.
-		if err := libsq.ExecuteSLQ(dbCtx, qc, query1, rs1); err != nil {
+		if err := libsq.ExecSLQ(dbCtx, qc, query1, rs1); err != nil {
 			switch {
 			case errz.Has[*driver.NotExistError](err):
 				// For diffing, it's totally ok if a table is not found.
@@ -170,7 +170,7 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 				return
 			}
 
-			// Bah! An error was returned from libsq.ExecuteSLQ. This error may have
+			// Bah! An error was returned from libsq.ExecSLQ. This error may have
 			// arisen even before the query was executed, and thus is not guaranteed
 			// to have been sent on errCh. Regardless, we cancel the context with
 			// the error (although it's highly likely it's already been canceled).
@@ -186,7 +186,7 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	go func() {
 		query2 := td2.Handle + "." + stringz.DoubleQuote(td2.Name)
 		// Execute DB query2; records will be sent to rs2.recCh.
-		if err := libsq.ExecuteSLQ(dbCtx, qc, query2, rs2); err != nil {
+		if err := libsq.ExecSLQ(dbCtx, qc, query2, rs2); err != nil {
 			switch {
 			case errz.Has[*driver.NotExistError](err):
 				// For diffing, it's totally ok if a table is not found.

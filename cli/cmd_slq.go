@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -153,8 +154,10 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
 	)
 
-	execErr := libsq.ExecuteSLQ(ctx, qc, slq, inserter)
+	start := time.Now()
+	execErr := libsq.ExecSLQ(ctx, qc, slq, inserter)
 	affected, waitErr := inserter.Wait() // Stop for the writer to finish processing
+	elapsed := time.Since(start)
 	if execErr != nil {
 		return errz.Wrapf(execErr, "insert %s.%s failed", destSrc.Handle, destTbl)
 	}
@@ -163,8 +166,10 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 		return errz.Wrapf(waitErr, "insert %s.%s failed", destSrc.Handle, destTbl)
 	}
 
-	fmt.Fprintf(ru.Out, stringz.Plu("Inserted %d row(s) into %s.%s\n", int(affected)), affected, destSrc.Handle, destTbl)
-	return nil
+	lg.FromContext(ctx).Debug("Rows inserted", lga.Target, source.Target(destSrc, destTbl),
+		lga.Count, affected, lga.Elapsed, elapsed)
+
+	return ru.Writers.RecordInsert.RecordsInserted(ctx, destSrc, destTbl, affected, elapsed)
 }
 
 // execSLQPrint executes the SLQ query, and prints output to writer.
@@ -177,7 +182,7 @@ func execSLQPrint(ctx context.Context, ru *run.Run, mArgs map[string]string) err
 	}
 
 	recw := output.NewRecordWriterAdapter(ctx, ru.Writers.Record)
-	execErr := libsq.ExecuteSLQ(ctx, qc, slq, recw)
+	execErr := libsq.ExecSLQ(ctx, qc, slq, recw)
 	_, waitErr := recw.Wait()
 	if execErr != nil {
 		return execErr

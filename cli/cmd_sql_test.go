@@ -22,6 +22,362 @@ import (
 	"github.com/neilotoole/sq/testh/tu"
 )
 
+// TestCmdSQL_ExecMode runs a sequence of SQL CRUD commands (CREATE, SELECT,
+// UPDATE, etc.) against "sq sql". Some of these result in a query (SELECT), and
+// some result in an exec (CREATE, UPDATE, DROP, etc.).
+func TestCmdSQL_ExecMode(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		// name is the name of the test.
+		name string
+		// sql is the SQL command text we are interpreting; it could be a query OR a
+		// statement.
+		sql string
+		// isQuery is true if this is a SQL query; if false, it's a SQL statement.
+		isQuery bool
+		// wantQueryVals is the set of "name" column values expected to be returned
+		// if isQuery is true. We use a single column to simplify verification.
+		wantQueryVals []string
+		// wantRowsAffected is the rows-affected count expected to be returned if
+		// isQuery is false.
+		wantRowsAffected int64
+	}{
+		{
+			name:             "create_table",
+			sql:              "CREATE TABLE test_exec_type (id INTEGER, name VARCHAR(100))",
+			wantRowsAffected: 0,
+		},
+		{
+			name:          "select_empty",
+			sql:           "SELECT name FROM test_exec_type",
+			isQuery:       true,
+			wantQueryVals: []string{},
+		},
+		{
+			name:             "insert_alice",
+			sql:              "INSERT INTO test_exec_type (id, name) VALUES (1, 'Alice')",
+			wantRowsAffected: 1,
+		},
+		{
+			name:             "insert_bob",
+			sql:              "INSERT INTO test_exec_type (id, name) VALUES (2, 'Bob')",
+			wantRowsAffected: 1,
+		},
+		{
+			name:          "select_two_rows",
+			sql:           "SELECT name FROM test_exec_type ORDER BY id",
+			isQuery:       true,
+			wantQueryVals: []string{"Alice", "Bob"},
+		},
+		{
+			name:             "update_alice",
+			sql:              "UPDATE test_exec_type SET name = 'Charlie' WHERE id = 1",
+			wantRowsAffected: 1,
+		},
+		{
+			name:          "select_one_row",
+			sql:           "SELECT name FROM test_exec_type WHERE id = 1",
+			isQuery:       true,
+			wantQueryVals: []string{"Charlie"},
+		},
+		{
+			name:             "delete_bob",
+			sql:              "DELETE FROM test_exec_type WHERE id = 2",
+			wantRowsAffected: 1,
+		},
+		{
+			name:          "select_after_delete",
+			sql:           "SELECT name FROM test_exec_type",
+			isQuery:       true,
+			wantQueryVals: []string{"Charlie"},
+		},
+		{
+			name:             "drop_table",
+			sql:              "DROP TABLE test_exec_type",
+			wantRowsAffected: 0,
+		},
+	}
+
+	// Execute the test cases for each of the available SQL sources.
+	for _, handle := range sakila.SQLLatest() {
+		t.Run(handle, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			src := th.Source(handle) // Will skip test if source not available
+			tr := testrun.New(th.Context, t, nil)
+
+			// Set format to JSON so that subsequent runs are using JSON.
+			require.NoError(t, tr.Exec("config", "set", "format", "json"))
+
+			tr.Reset().Add(*src)
+			require.NoError(t, tr.Exec("ping"), "source %s should be available", handle)
+
+			for _, tc := range testCases {
+				t.Run(tc.name, func(t *testing.T) {
+					tr.Reset()
+
+					err := tr.Exec("sql", tc.sql)
+					require.NoError(t, err, "failed to execute: %s", tc.sql)
+
+					if tc.isQuery {
+						// For queries, verify we get the expected values.
+						var results []map[string]any
+						tr.Bind(&results)
+
+						require.Len(t, results, len(tc.wantQueryVals),
+							"expected %d rows, got %d", len(tc.wantQueryVals), len(results))
+
+						for i, wantVal := range tc.wantQueryVals {
+							gotVal, ok := results[i]["name"].(string)
+							require.True(t, ok, "expected 'name' column to be string")
+							require.Equal(t, wantVal, gotVal,
+								"row %d: expected name=%q, got %q", i, wantVal, gotVal)
+						}
+					} else {
+						// For statements, verify rows_affected.
+						result := tr.BindMap()
+						gotAffected, ok := result["rows_affected"].(float64)
+						require.True(t, ok, "expected 'rows_affected' in output")
+						require.Equal(t, tc.wantRowsAffected, int64(gotAffected),
+							"expected rows_affected=%d, got %d", tc.wantRowsAffected, int64(gotAffected))
+					}
+				})
+			}
+		})
+	}
+}
+
+// TestCmdSQL_MultipleStatements tests the behavior of "sq sql" when the SQL
+// string contains multiple statements.
+//
+// This test is skipped because the behavior varies significantly between
+// database drivers, and sq doesn't currently have a strategy for handling
+// these situations consistently.
+//
+// # Observed Driver Behavior (as of 2026-01)
+//
+// When executing "SELECT * FROM t; SELECT * FROM t":
+//
+//   - PostgreSQL: ERROR - "cannot insert multiple commands into a prepared statement"
+//   - MySQL:      ERROR - driver rejects multiple statements
+//   - SQLite:     NO ERROR - silently executes only the first statement
+//   - SQL Server: NO ERROR - silently executes only the first statement
+//
+// When executing "SELECT * FROM t; INSERT INTO t ...":
+//
+//   - PostgreSQL: ERROR
+//   - MySQL:      ERROR
+//   - SQLite:     NO ERROR - silently executes only the first statement (SELECT)
+//   - SQL Server: ERROR
+//
+// When executing "INSERT ...; INSERT ...":
+//
+//   - All drivers: ERROR
+//
+// # Why This Matters
+//
+// The inconsistent behavior is problematic because:
+//  1. Users may not realize only the first statement executed
+//  2. Silent partial execution can lead to data inconsistencies
+//  3. The behavior depends on which database you're connected to
+//
+// # Future Considerations
+//
+// In a future revision, sq could parse out each statement and execute them
+// sequentially. However, this raises questions about output format - how would
+// sq return multiple result sets (e.g., multiple JSON arrays), or a combination
+// of result sets and "rows affected" output? This is not yet clear.
+//
+// At the very least, this test documents the current inconsistent behavior.
+func TestCmdSQL_MultipleStatements(t *testing.T) {
+	t.Skipf("Skipping: multiple-statement behavior varies by driver (see doc comment)")
+
+	t.Parallel()
+
+	// Example error from PostgreSQL:
+	//
+	//   $ sq sql "select * from actor; select * from actor"
+	//   sq: SQL query against @sakila/local/pg failed: select * from actor; select * from actor:
+	//       ERROR: cannot insert multiple commands into a prepared statement (SQLSTATE 42601)
+
+	testCases := []struct {
+		name string
+		sql  string
+	}{
+		{
+			name: "two_selects",
+			sql:  "SELECT * FROM actor; SELECT * FROM actor",
+		},
+		{
+			name: "select_and_insert",
+			sql:  "SELECT * FROM actor; INSERT INTO actor (actor_id, first_name, last_name) VALUES (9999, 'Test', 'User')",
+		},
+		{
+			name: "two_inserts",
+			//nolint:lll
+			sql: "INSERT INTO actor (actor_id, first_name, last_name) VALUES (9998, 'A', 'B'); INSERT INTO actor (actor_id, first_name, last_name) VALUES (9999, 'C', 'D')",
+		},
+	}
+
+	for _, handle := range sakila.SQLLatest() {
+		t.Run(handle, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			src := th.Source(handle)
+			tr := testrun.New(th.Context, t, nil).Hush()
+
+			tr.Add(*src)
+			require.NoError(t, tr.Exec("ping"), "source %s should be available", handle)
+
+			for _, tc := range testCases {
+				t.Run(tc.name, func(t *testing.T) {
+					tr.Reset()
+
+					err := tr.Exec("sql", tc.sql)
+					require.Error(t, err, "expected error for multiple statements: %s", tc.sql)
+				})
+			}
+		})
+	}
+}
+
+// TestCmdSQL_ExecTypeEdgeCases tests edge cases for SQL type detection,
+// including comments, case variations, CTEs, and ALTER statements.
+func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name             string
+		sql              string
+		isQuery          bool
+		wantRowsAffected int64
+	}{
+		// Lowercase variations
+		{
+			name:    "select_lowercase",
+			sql:     "select name from test_edge_cases where id = 1",
+			isQuery: true,
+		},
+		{
+			name:             "insert_lowercase",
+			sql:              "insert into test_edge_cases (id, name) values (10, 'Lowercase')",
+			isQuery:          false,
+			wantRowsAffected: 1,
+		},
+		{
+			name:             "update_lowercase",
+			sql:              "update test_edge_cases set name = 'Updated' where id = 10",
+			isQuery:          false,
+			wantRowsAffected: 1,
+		},
+		{
+			name:             "delete_lowercase",
+			sql:              "delete from test_edge_cases where id = 10",
+			isQuery:          false,
+			wantRowsAffected: 1,
+		},
+
+		// Mixed case
+		{
+			name:    "select_mixed_case",
+			sql:     "SeLeCt name FROM test_edge_cases WHERE id = 1",
+			isQuery: true,
+		},
+
+		// NOTE: SQL with leading single-line comments (--) cannot be tested via CLI
+		// arguments because the shell interprets -- as a flag prefix. These cases
+		// are tested in the unit test TestIsQueryStatement instead.
+
+		// SQL with leading block comments
+		{
+			name:    "select_with_block_comment",
+			sql:     "/* Block comment */ SELECT name FROM test_edge_cases WHERE id = 1",
+			isQuery: true,
+		},
+		{
+			name:             "insert_with_block_comment",
+			sql:              "/* Insert comment */ INSERT INTO test_edge_cases (id, name) VALUES (30, 'BlockComment')",
+			isQuery:          false,
+			wantRowsAffected: 1,
+		},
+		{
+			name:             "delete_block_cleanup",
+			sql:              "DELETE FROM test_edge_cases WHERE id = 30",
+			isQuery:          false,
+			wantRowsAffected: 1,
+		},
+
+		// WITH (Common Table Expressions)
+		{
+			name:    "with_cte",
+			sql:     "WITH cte AS (SELECT id, name FROM test_edge_cases) SELECT name FROM cte WHERE id = 1",
+			isQuery: true,
+		},
+		{
+			name:    "with_cte_lowercase",
+			sql:     "with cte as (select id, name from test_edge_cases) select name from cte where id = 1",
+			isQuery: true,
+		},
+	}
+
+	for _, handle := range sakila.SQLLatest() {
+		t.Run(handle, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			src := th.Source(handle)
+			tr := testrun.New(th.Context, t, nil)
+
+			// Set format to JSON
+			require.NoError(t, tr.Exec("config", "set", "format", "json"))
+
+			tr.Reset().Add(*src)
+			require.NoError(t, tr.Exec("ping"), "source %s should be available", handle)
+
+			// Setup: Create test table and insert initial data
+			tr.Reset()
+			err := tr.Exec("sql", "CREATE TABLE test_edge_cases (id INTEGER, name VARCHAR(100))")
+			require.NoError(t, err, "failed to create test table")
+
+			tr.Reset()
+			err = tr.Exec("sql", "INSERT INTO test_edge_cases (id, name) VALUES (1, 'Alice')")
+			require.NoError(t, err, "failed to insert test data")
+
+			// Run edge case tests
+			for _, tc := range testCases {
+				t.Run(tc.name, func(t *testing.T) {
+					tr.Reset()
+
+					err := tr.Exec("sql", tc.sql)
+					require.NoError(t, err, "failed to execute: %s", tc.sql)
+
+					if tc.isQuery {
+						var results []map[string]any
+						tr.Bind(&results)
+						// Just verify it's treated as a query (returns array)
+						require.NotNil(t, results, "expected query results for: %s", tc.sql)
+					} else {
+						result := tr.BindMap()
+						gotAffected, ok := result["rows_affected"].(float64)
+						require.True(t, ok, "expected 'rows_affected' in output for: %s", tc.sql)
+						require.Equal(t, tc.wantRowsAffected, int64(gotAffected),
+							"expected rows_affected=%d, got %d for: %s",
+							tc.wantRowsAffected, int64(gotAffected), tc.sql)
+					}
+				})
+			}
+
+			// Cleanup: Drop test table
+			tr.Reset()
+			err = tr.Exec("sql", "DROP TABLE test_edge_cases")
+			require.NoError(t, err, "failed to drop test table")
+		})
+	}
+}
+
 // TestCmdSQL_Insert tests "sq sql QUERY --insert=dest.tbl".
 func TestCmdSQL_Insert(t *testing.T) {
 	for _, origin := range sakila.SQLLatest() {
