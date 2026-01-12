@@ -1,12 +1,13 @@
-package cli
+package dialect
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
-// TestIsQueryStatement validates SQL type detection.
-// This test demonstrates the logic used to route SQL statements correctly.
-func TestIsQueryStatement(t *testing.T) {
+// TestIsQueryString validates SQL type detection.
+func TestIsQueryString(t *testing.T) {
 	tests := []struct {
 		name     string
 		sql      string
@@ -28,9 +29,9 @@ func TestIsQueryStatement(t *testing.T) {
 		{"show only", "SHOW", true},
 
 		// With comments
-		{"single line comment", "-- comment\nSELECT 1", true},
-		{"block comment", "/* block comment */ SELECT 1", true},
-		{"multiple comments", "-- line 1\n-- line 2\nSELECT 1", true},
+		{"single line comment then select", "-- comment\nSELECT 1", true},
+		{"block comment then select", "/* block comment */ SELECT 1", true},
+		{"multiple comments then select", "-- line 1\n-- line 2\nSELECT 1", true},
 		{"comment with mixed case", "/* Comment */ select 1", true},
 
 		// === DDL/DML statements (should return false) ===
@@ -56,25 +57,43 @@ func TestIsQueryStatement(t *testing.T) {
 		// With comments
 		{"create with comment", "-- comment\nCREATE TABLE users (id INT)", false},
 		{"insert with comment", "/* comment */ INSERT INTO users VALUES (1)", false},
-
-		// Edge cases
-		{"empty string", "", true},                  // defaults to query
-		{"only whitespace", "   ", true},            // defaults to query
-		{"only comment", "-- just a comment", true}, // no actual SQL after comment
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := isQueryStatement(tt.sql)
-			if result != tt.expected {
-				t.Errorf("isQueryStatement(%q) = %v, want %v", tt.sql, result, tt.expected)
-			}
+			result, err := isQueryString(tt.sql)
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, result, "isQueryString(%q)", tt.sql)
 		})
 	}
 }
 
-// TestIsQueryStatement_RealWorld tests with real-world SQL examples.
-func TestIsQueryStatement_RealWorld(t *testing.T) {
+// TestIsQueryString_Errors tests error cases.
+func TestIsQueryString_Errors(t *testing.T) {
+	tests := []struct {
+		name    string
+		sql     string
+		wantErr string
+	}{
+		{"empty string", "", "empty SQL string"},
+		{"only whitespace", "   ", "empty SQL string"},
+		{"only line comment", "-- just a comment", "SQL string contains only comments"},
+		{"only block comment", "/* just a comment */", "SQL string contains only comments"},
+		{"multiple comments only", "-- line 1\n-- line 2\n/* block */", "SQL string contains only comments"},
+		{"unclosed block comment", "/* unclosed comment", "SQL string contains unclosed block comment"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := isQueryString(tt.sql)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
+// TestIsQueryString_RealWorld tests with real-world SQL examples.
+func TestIsQueryString_RealWorld(t *testing.T) {
 	tests := []struct {
 		name     string
 		sql      string
@@ -118,11 +137,56 @@ func TestIsQueryStatement_RealWorld(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := isQueryStatement(tt.sql)
-			if result != tt.expected {
-				t.Errorf("isQueryStatement failed for %s:\n  SQL: %s\n  Got: %v, Want: %v\n  Reason: %s",
-					tt.name, tt.sql, result, tt.expected, tt.reason)
-			}
+			result, err := isQueryString(tt.sql)
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, result, "Reason: %s", tt.reason)
+		})
+	}
+}
+
+// TestDefaultExecModeFor validates DefaultExecModeFor returns the correct ExecMode.
+func TestDefaultExecModeFor(t *testing.T) {
+	tests := []struct {
+		name     string
+		sql      string
+		expected ExecMode
+	}{
+		{"select", "SELECT * FROM users", ExecModeQuery},
+		{"with", "WITH cte AS (SELECT 1) SELECT * FROM cte", ExecModeQuery},
+		{"show", "SHOW TABLES", ExecModeQuery},
+		{"create", "CREATE TABLE users (id INT)", ExecModeExec},
+		{"insert", "INSERT INTO users VALUES (1)", ExecModeExec},
+		{"update", "UPDATE users SET name = 'test'", ExecModeExec},
+		{"delete", "DELETE FROM users", ExecModeExec},
+		{"drop", "DROP TABLE users", ExecModeExec},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := DefaultExecModeFor(tt.sql)
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// TestDefaultExecModeFor_Errors tests error cases.
+func TestDefaultExecModeFor_Errors(t *testing.T) {
+	tests := []struct {
+		name    string
+		sql     string
+		wantErr string
+	}{
+		{"empty string", "", "empty SQL string"},
+		{"only whitespace", "   ", "empty SQL string"},
+		{"only comment", "-- just a comment", "SQL string contains only comments"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := DefaultExecModeFor(tt.sql)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tt.wantErr)
 		})
 	}
 }

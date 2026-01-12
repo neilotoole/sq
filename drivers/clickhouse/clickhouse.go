@@ -97,6 +97,7 @@ func (d *driveri) Dialect() dialect.Dialect {
 		Type:           Type,
 		Placeholders:   placeholders,
 		Enquote:        stringz.BacktickQuote,
+		ExecModeFor:    dialect.DefaultExecModeFor,
 		MaxBatchValues: 10000, // ClickHouse handles large batches well
 		Ops:            dialect.DefaultOps(),
 		Joins:          jointype.All(),

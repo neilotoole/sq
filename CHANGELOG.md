@@ -16,6 +16,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [#520]: `sq add` and `sq ls` erroneously printed source password for SQL
+  Server URLs in some circumstances.
+
 - [#469]: Column widths were too wide when using `--no-header` flag. Header text
   is now excluded from column width calculation when headers are disabled.
   Thanks to [@majiayu000](https://github.com/majiayu000) for the fix.
@@ -1290,6 +1293,7 @@ make working with lots of sources much easier.
 [#469]: https://github.com/neilotoole/sq/issues/469
 [#504]: https://github.com/neilotoole/sq/issues/504
 [#506]: https://github.com/neilotoole/sq/issues/506
+[#520]: https://github.com/neilotoole/sq/issues/520
 
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2

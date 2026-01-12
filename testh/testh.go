@@ -658,7 +658,7 @@ func (h *Helper) QuerySLQ(query string, args map[string]string) (*RecordSink, er
 	sink := &RecordSink{}
 	recw := output.NewRecordWriterAdapter(h.Context, sink)
 
-	err = libsq.ExecuteSLQ(h.Context, qc, query, recw)
+	err = libsq.ExecSLQ(h.Context, qc, query, recw)
 	if err != nil {
 		return nil, err
 	}

@@ -2,8 +2,8 @@ package cli
 
 import (
 	"context"
-	"fmt"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -14,9 +14,8 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tuning"
+	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -116,51 +115,9 @@ func execSQL(cmd *cobra.Command, args []string) error {
 	return execSQLInsert(ctx, ru, activeSrc, destSrc, destTbl)
 }
 
-// isQueryStatement returns true if the SQL appears to be a query (SELECT)
-// that returns rows, false if it's a statement (CREATE, INSERT, UPDATE, etc.)
-// that should use ExecContext.
-func isQueryStatement(sql string) bool {
-	// Trim whitespace and convert to uppercase for comparison
-	sql = strings.TrimSpace(sql)
-	if sql == "" {
-		return true // default to query
-	}
-
-	// Remove leading comments
-	for strings.HasPrefix(sql, "--") || strings.HasPrefix(sql, "/*") {
-		if strings.HasPrefix(sql, "--") {
-			idx := strings.Index(sql, "\n")
-			if idx < 0 {
-				return true
-			}
-			sql = strings.TrimSpace(sql[idx+1:])
-		} else if strings.HasPrefix(sql, "/*") {
-			idx := strings.Index(sql, "*/")
-			if idx < 0 {
-				return true
-			}
-			sql = strings.TrimSpace(sql[idx+2:])
-		}
-	}
-
-	sqlUpper := strings.ToUpper(sql)
-
-	// Check for query statements (return rows)
-	queryPrefixes := []string{"SELECT", "WITH", "SHOW", "DESCRIBE", "DESC", "EXPLAIN"}
-	for _, prefix := range queryPrefixes {
-		if strings.HasPrefix(sqlUpper, prefix+" ") || strings.HasPrefix(sqlUpper, prefix+"\t") ||
-			strings.HasPrefix(sqlUpper, prefix+"\n") || strings.HasPrefix(sqlUpper, prefix+"\r") ||
-			sqlUpper == prefix {
-			return true
-		}
-	}
-
-	// Everything else (CREATE, INSERT, UPDATE, DELETE, DROP, ALTER, etc.) is a statement
-	return false
-}
-
-// execSQLPrint executes the SQL and prints resulting records
-// to the configured writer.
+// execSQLPrint executes the SQL input, and either prints the resulting records
+// (if the SQL input is a query), or executes the SQL input statement and prints
+// the count of affected rows from the statement execution.
 func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source) error {
 	args := ru.Args
 	grip, err := ru.Grips.Open(ctx, fromSrc)
@@ -171,14 +128,22 @@ func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source) erro
 	sql := args[0]
 
 	// Detect if this is a query (SELECT) or statement (CREATE, INSERT, etc.)
-	if !isQueryStatement(sql) {
-		// This is a DDL/DML statement, use ExecSQL
+	execMode, err := grip.SQLDriver().Dialect().ExecModeFor(sql)
+	if err != nil {
+		return err
+	}
+	lg.FromContext(ctx).Debug("Determined SQL exec mode for SQL input", lga.Mode, execMode)
+
+	if execMode != dialect.ExecModeQuery {
+		// ExecModeExec: use DB.Exec (returns affected count, not rows)
+		start := time.Now()
 		affected, execErr := libsq.ExecSQL(ctx, grip, nil, sql)
+		elapsed := time.Since(start)
 		if execErr != nil {
 			return execErr
 		}
-		_, _ = fmt.Fprintf(ru.Out, stringz.Plu("Affected %d row(s)\n", int(affected)), affected)
-		return nil
+
+		return ru.Writers.StmtExec.StmtExecuted(ctx, fromSrc, affected, elapsed)
 	}
 
 	// This is a query, use QuerySQL
@@ -222,20 +187,21 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 		tuning.OptRecBufSize.Get(destSrc.Options),
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
 	)
+
+	start := time.Now()
 	err = libsq.QuerySQL(ctx, fromGrip, nil, inserter, args[0])
 	if err != nil {
 		return errz.Wrapf(err, "insert to {%s} failed", source.Target(destSrc, destTbl))
 	}
 
 	affected, err := inserter.Wait() // Stop for the writer to finish processing
+	elapsed := time.Since(start)
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destSrc.Handle, destTbl)
 	}
 
-	lg.FromContext(ctx).Debug(lgm.RowsAffected, lga.Count, affected)
+	lg.FromContext(ctx).Debug("Rows inserted", lga.Target, source.Target(destSrc, destTbl),
+		lga.Count, affected, lga.Elapsed, elapsed)
 
-	// TODO: Should really use a Printer here
-	_, _ = fmt.Fprintf(ru.Out, stringz.Plu("Inserted %d row(s) into %s\n",
-		int(affected)), affected, source.Target(destSrc, destTbl))
-	return nil
+	return ru.Writers.RecordInsert.RecordsInserted(ctx, destSrc, destTbl, affected, elapsed)
 }

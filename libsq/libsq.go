@@ -1,5 +1,5 @@
 // Package libsq implements the core sq functionality.
-// The ExecuteSLQ function is the entrypoint for executing
+// The ExecSLQ function is the entrypoint for executing
 // a SLQ query, which may interact with several data sources.
 // The QuerySQL function executes a SQL query against a single
 // source. Both functions ultimately send their result records to
@@ -100,9 +100,14 @@ type RecordWriter interface {
 	Wait() (written int64, err error)
 }
 
-// ExecuteSLQ executes the slq query, writing the results to recw.
+// ExecSLQ executes the SLQ query, writing the results to recw.
 // The caller is responsible for closing qc.
-func ExecuteSLQ(ctx context.Context, qc *QueryContext, query string, recw RecordWriter) error {
+//
+// Note differences between ExecSLQ and ExecSQL: ExecSLQ executes a SLQ
+// statement (which is a sort of pipeline) which could result in multiple
+// backend SQL commands being executed against several different sources. By
+// contrast, ExecSQL executes SQL against a single source.
+func ExecSLQ(ctx context.Context, qc *QueryContext, query string, recw RecordWriter) error {
 	p, err := newPipeline(ctx, qc, query)
 	if err != nil {
 		return err
@@ -113,7 +118,7 @@ func ExecuteSLQ(ctx context.Context, qc *QueryContext, query string, recw Record
 
 // SLQ2SQL simulates execution of a SLQ query, but instead of executing
 // the resulting SQL query, that ultimate SQL is returned. Effectively it is
-// equivalent to libsq.ExecuteSLQ, but without the execution.
+// equivalent to libsq.ExecSLQ, but without the execution.
 func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (targetSQL string, err error) {
 	p, err := newPipeline(ctx, qc, query)
 	if err != nil {
@@ -127,6 +132,8 @@ func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (targetSQL str
 // It returns the number of rows affected. If db is non-nil, the statement
 // is executed against it. Otherwise, the connection is obtained from grip.
 // The caller is responsible for closing grip (and db, if non-nil).
+//
+// See also: QuerySQL.
 func ExecSQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 	stmt string, args ...any,
 ) (affected int64, err error) {
@@ -143,9 +150,11 @@ func ExecSQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 	result, err := db.ExecContext(ctx, stmt, args...)
 	bar.Stop()
 	if err != nil {
-		err = errz.Wrapf(errw(err), `SQL query against %s failed: %s`, grip.Source().Handle, stmt)
+		err = errz.Wrapf(errw(err), `SQL stmt against %s failed: %s`, grip.Source().Handle, stmt)
 		select {
 		case <-ctx.Done():
+			// If the context was canceled, it's probably more accurate
+			// to just return the context error.
 			log.Debug("Error received, but context was done", lga.Err, err)
 			return 0, ctx.Err()
 		default:
@@ -164,9 +173,12 @@ func ExecSQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 // QuerySQL executes the SQL query, writing the results to recw. If db is
 // non-nil, the query is executed against it. Otherwise, the connection is
 // obtained from grip.
+//
 // Note that QuerySQL may return before recw has finished writing, thus the
 // caller may wish to wait for recw to complete.
 // The caller is responsible for closing grip (and db, if non-nil).
+//
+// See also: ExecSQL.
 func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 	recw RecordWriter, query string, args ...any,
 ) error {
@@ -187,7 +199,7 @@ func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 		err = errz.Wrapf(errw(err), `SQL query against %s failed: %s`, grip.Source().Handle, query)
 		select {
 		case <-ctx.Done():
-			// If the context was cancelled, it's probably more accurate
+			// If the context was canceled, it's probably more accurate
 			// to just return the context error.
 			log.Debug("Error received, but context was done", lga.Err, err)
 			return ctx.Err()

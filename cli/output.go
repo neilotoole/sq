@@ -297,15 +297,17 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 	// flags and set the various writer fields depending upon which
 	// writers the format implements.
 	w = &output.Writers{
-		PrOut:    outCfg.outPr,
-		PrErr:    outCfg.errOutPr,
-		Record:   tablew.NewRecordWriter(outCfg.out, outCfg.outPr),
-		Metadata: tablew.NewMetadataWriter(outCfg.out, outCfg.outPr),
-		Source:   tablew.NewSourceWriter(outCfg.out, outCfg.outPr),
-		Ping:     tablew.NewPingWriter(outCfg.out, outCfg.outPr),
-		Error:    tablew.NewErrorWriter(outCfg.errOut, outCfg.errOutPr, OptErrorStack.Get(o)),
-		Version:  tablew.NewVersionWriter(outCfg.out, outCfg.outPr),
-		Config:   tablew.NewConfigWriter(outCfg.out, outCfg.outPr),
+		PrOut:        outCfg.outPr,
+		PrErr:        outCfg.errOutPr,
+		Record:       tablew.NewRecordWriter(outCfg.out, outCfg.outPr),
+		RecordInsert: tablew.NewRecordInsertWriter(outCfg.out, outCfg.outPr),
+		StmtExec:     tablew.NewStmtExecWriter(outCfg.out, outCfg.outPr),
+		Metadata:     tablew.NewMetadataWriter(outCfg.out, outCfg.outPr),
+		Source:       tablew.NewSourceWriter(outCfg.out, outCfg.outPr),
+		Ping:         tablew.NewPingWriter(outCfg.out, outCfg.outPr),
+		Error:        tablew.NewErrorWriter(outCfg.errOut, outCfg.errOutPr, OptErrorStack.Get(o)),
+		Version:      tablew.NewVersionWriter(outCfg.out, outCfg.outPr),
+		Config:       tablew.NewConfigWriter(outCfg.out, outCfg.outPr),
 	}
 
 	if OptErrorFormat.Get(o) == format.JSON {
@@ -316,7 +318,8 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 	//nolint:exhaustive
 	switch fm {
 	case format.JSON:
-		// No format specified, use JSON
+		w.RecordInsert = jsonw.NewRecordInsertWriter(outCfg.out, outCfg.outPr)
+		w.StmtExec = jsonw.NewStmtExecWriter(outCfg.out, outCfg.outPr)
 		w.Metadata = jsonw.NewMetadataWriter(outCfg.out, outCfg.outPr)
 		w.Source = jsonw.NewSourceWriter(outCfg.out, outCfg.outPr)
 		w.Version = jsonw.NewVersionWriter(outCfg.out, outCfg.outPr)
