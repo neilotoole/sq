@@ -64,7 +64,7 @@ require (
 	github.com/xuri/excelize/v2 v2.10.0 // BRITTLE
 	go.uber.org/atomic v1.11.0
 	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93
-	golang.org/x/mod v0.31.0
+	golang.org/x/mod v0.32.0
 	golang.org/x/sync v0.19.0
 	golang.org/x/sys v0.39.0
 	golang.org/x/term v0.38.0
