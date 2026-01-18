@@ -22,6 +22,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   row counts are correctly reported. Note that `sq sql` is designed to accept
   only a single SQL statement/query in the SQL input string; behavior is
   undefined for multiple statements in the input.
+  Thanks to [@drlukcyspin](https://github.com/drluckyspin) for the fix.
 
 - [#520]: `sq add` and `sq ls` erroneously printed source password for SQL
   Server URLs in some circumstances.
