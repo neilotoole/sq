@@ -12,7 +12,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
-## Unreleased
+## [v0.48.11] - 2026-01-18
 
 ### Fixed
 
@@ -1365,3 +1365,4 @@ make working with lots of sources much easier.
 [v0.48.4]: https://github.com/neilotoole/sq/compare/v0.48.3...v0.48.4
 [v0.48.5]: https://github.com/neilotoole/sq/compare/v0.48.4...v0.48.5
 [v0.48.10]: https://github.com/neilotoole/sq/compare/v0.48.5...v0.48.10
+[v0.48.11]: https://github.com/neilotoole/sq/compare/v0.48.10...v0.48.11
