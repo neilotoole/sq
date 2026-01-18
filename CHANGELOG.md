@@ -25,6 +25,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
+- Updated Go dependencies.
+
 ### Added
 
 ## [v0.48.10] - 2025-12-28
