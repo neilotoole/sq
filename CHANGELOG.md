@@ -17,8 +17,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 ### Fixed
 
 - [#502]: [`sq sql`](https://sq.io/docs/cmd/sql) now properly executes single
-  SQL statements (`INSERT`, `UPDATE`,`DELETE`, `CREATE`, `DROP`, etc.) instead
-  of incorrectly running them as queries.
+  SQL statements (`INSERT`, `UPDATE`, `DROP`, etc.) instead of incorrectly
+  running them as queries.
   - This fixes broken behavior with strict database drivers and ensures affected
     row counts are correctly reported. Note that `sq sql` is designed to accept
     only a single SQL statement/query in the SQL input string; behavior is
