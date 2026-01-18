@@ -30,16 +30,16 @@ require (
 	github.com/emirpasic/gods v1.18.1
 	github.com/fatih/color v1.18.0
 	github.com/go-sql-driver/mysql v1.9.3 // BRITTLE
-	github.com/goccy/go-yaml v1.19.1
-	github.com/google/renameio/v2 v2.0.1
+	github.com/goccy/go-yaml v1.19.2
+	github.com/google/renameio/v2 v2.0.2
 	github.com/google/uuid v1.6.0
 	github.com/h2non/filetype v1.1.3
 	github.com/itchyny/gojq v0.12.18
 	github.com/jackc/pgx/v5 v5.8.0 // BRITTLE
 	github.com/mattn/go-colorable v0.1.14
 	github.com/mattn/go-runewidth v0.0.19
-	github.com/mattn/go-sqlite3 v1.14.32 // BRITTLE
-	github.com/microsoft/go-mssqldb v1.9.5 // BRITTLE
+	github.com/mattn/go-sqlite3 v1.14.33 // BRITTLE
+	github.com/microsoft/go-mssqldb v1.9.6 // BRITTLE
 	github.com/mitchellh/go-wordwrap v1.0.1
 	github.com/muesli/mango-cobra v1.3.0
 	github.com/muesli/roff v0.1.0
@@ -64,12 +64,12 @@ require (
 	github.com/xo/dburl v0.24.2
 	github.com/xuri/excelize/v2 v2.10.0 // BRITTLE
 	go.uber.org/atomic v1.11.0
-	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93
-	golang.org/x/mod v0.31.0
+	golang.org/x/exp v0.0.0-20260112195511-716be5621a96
+	golang.org/x/mod v0.32.0
 	golang.org/x/sync v0.19.0
-	golang.org/x/sys v0.39.0
-	golang.org/x/term v0.38.0
-	golang.org/x/text v0.32.0
+	golang.org/x/sys v0.40.0
+	golang.org/x/term v0.39.0
+	golang.org/x/text v0.33.0
 )
 
 require (
@@ -125,5 +125,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.46.0 // indirect
 	golang.org/x/net v0.48.0 // indirect
+	golang.org/x/crypto v0.47.0 // indirect
+	golang.org/x/net v0.49.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
