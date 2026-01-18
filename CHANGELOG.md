@@ -16,6 +16,13 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [#502]: `sq sql` now properly executes single SQL statements (INSERT, UPDATE,
+  DELETE, CREATE, DROP, etc.) instead of incorrectly running them as queries.
+  This fixes broken behavior with strict database drivers and ensures affected
+  row counts are correctly reported. Note that `sq sql` is designed to accept
+  only a single SQL statement/query in the SQL input string; behavior is
+  undefined for multiple statements in the input.
+
 - [#520]: `sq add` and `sq ls` erroneously printed source password for SQL
   Server URLs in some circumstances.
 
@@ -1291,6 +1298,7 @@ make working with lots of sources much easier.
 [#415]: https://github.com/neilotoole/sq/issues/415
 [#446]: https://github.com/neilotoole/sq/issues/446
 [#469]: https://github.com/neilotoole/sq/issues/469
+[#502]: https://github.com/neilotoole/sq/pull/502
 [#504]: https://github.com/neilotoole/sq/issues/504
 [#506]: https://github.com/neilotoole/sq/issues/506
 [#520]: https://github.com/neilotoole/sq/issues/520
