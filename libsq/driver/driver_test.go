@@ -116,12 +116,20 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 
 	testCases := sakila.SQLAll()
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
 			th, src, drvr, _, db := testh.NewWith(t, handle)
+
+			// Skip ClickHouse: this test verifies that kind.Kind values roundtrip
+			// exactly through CreateTable -> TableColumnTypes -> RecordMeta.
+			// ClickHouse has inherent type limitations that prevent exact roundtrips:
+			//   - kind.Time -> DateTime -> kind.Datetime (no time-only type)
+			//   - kind.Bytes -> String -> kind.Text (binary stored as String)
+			// These are documented in drivers/clickhouse/README.md "Known Limitations".
+			if drvr.DriverMetadata().Type == drivertype.ClickHouse {
+				t.Skip("ClickHouse: kind.Time and kind.Bytes don't roundtrip exactly due to type system limitations")
+			}
 
 			tblName := stringz.UniqTableName(t.Name())
 			colNames, colKinds := fixt.ColNamePerKind(drvr.Dialect().IntBool, false, false)
