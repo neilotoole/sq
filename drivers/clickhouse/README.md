@@ -182,18 +182,34 @@ This causes `TestDriver_CreateTable_Minimal` to be skipped for ClickHouse.
 succeeds, but the count is unsupported. The CLI handles this gracefully by
 displaying "(rows copied: unsupported)" instead of an incorrect count.
 
-### 3. Batch Insert Argument Handling
+### 3. Batch Insert: Multi-Row Parameter Binding Not Supported
 
-`TestNewBatchInsert` fails with "expected 4 arguments, got 280" due to
-differences in how ClickHouse handles batch operations compared to traditional
-databases.
+The clickhouse-go driver does not support multi-row parameter binding. When sq
+generates `INSERT INTO t VALUES (?,?), (?,?)` with flattened arguments,
+clickhouse-go expects arguments for a **single row only**. This causes
+`TestNewBatchInsert` to fail with "expected 4 arguments, got 280".
 
-### 4. UPDATE Statement Syntax
+Forcing single-row inserts (`numRows=1`) fixes the argument count error, but
+causes connection state corruption after many `Exec` calls, resulting in
+"Unexpected packet Query received from client" errors. A proper fix requires
+using clickhouse-go's native Batch API.
+
+**Status**: `TestNewBatchInsert` is **skipped** for ClickHouse.
+See Development Log for full investigation details.
+
+### 4. UPDATE Statement: PrepareContext Limitation
 
 ClickHouse uses `ALTER TABLE ... UPDATE` syntax instead of standard SQL UPDATE.
-The `PrepareUpdateStmt` implementation generates this syntax, but it may not
-integrate seamlessly with all test frameworks expecting standard prepared
-statements.
+While sq's `PrepareUpdateStmt` correctly generates this syntax, clickhouse-go's
+`PrepareContext()` only supports **INSERT and SELECT statements**. Any other
+statement type (including ALTER TABLE) is rejected with "invalid INSERT query"
+because the driver incorrectly categorizes it as an INSERT and fails validation.
+
+Direct execution via `ExecContext()` works, but `PrepareUpdateStmt` requires
+`PrepareContext()` for parameter binding.
+
+**Status**: `TestSQLDriver_PrepareUpdateStmt` is **skipped** for ClickHouse.
+See Development Log for full investigation details.
 
 ## Usage Example
 
