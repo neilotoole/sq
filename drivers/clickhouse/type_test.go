@@ -169,7 +169,6 @@ func TestTypeMapping_ClickHouseSpecific(t *testing.T) {
 
 // TestTypeMapping_Nullable tests Nullable type handling.
 func TestTypeMapping_Nullable(t *testing.T) {
-	t.Skip("TODO: Fix NULL value scanning - driver needs special handling for sql.NullString")
 	tu.SkipShort(t, true)
 
 	th, src, _, _, _ := testh.NewWith(t, sakila.CH)

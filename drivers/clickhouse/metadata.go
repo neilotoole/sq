@@ -270,9 +270,18 @@ func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType) 
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
 	ogColNames := make([]string, len(colTypes))
 	for i, colType := range colTypes {
-		knd := kindFromClickHouseType(colType.DatabaseTypeName())
+		dbTypeName := colType.DatabaseTypeName()
+		knd := kindFromClickHouseType(dbTypeName)
 		colTypeData := record.NewColumnTypeData(colType, knd)
-		setScanType(colTypeData, knd)
+
+		// The ClickHouse driver may not report Nullable correctly via sql.ColumnType.Nullable(),
+		// so we detect it from the database type name (e.g., "Nullable(String)").
+		if isNullableType(dbTypeName) {
+			colTypeData.Nullable = true
+			colTypeData.HasNullable = true
+		}
+
+		setScanType(colTypeData, knd, colTypeData.Nullable)
 		sColTypeData[i] = colTypeData
 		ogColNames[i] = colTypeData.Name
 	}
@@ -299,9 +308,31 @@ func getNewRecordFunc(rowMeta record.Meta) driver.NewRecordFunc {
 }
 
 // setScanType sets the appropriate scan type for a column.
-func setScanType(colTypeData *record.ColumnTypeData, knd kind.Kind) {
-	// ClickHouse driver handles most type conversions automatically
-	// We just need to set the scan type based on the kind
+// For nullable columns, it uses the nullable scan types (e.g., sql.NullString)
+// to properly handle NULL values.
+func setScanType(colTypeData *record.ColumnTypeData, knd kind.Kind, nullable bool) {
+	if nullable {
+		// Use nullable scan types to properly handle NULL values
+		switch knd {
+		case kind.Unknown, kind.Null, kind.Text:
+			colTypeData.ScanType = sqlz.RTypeNullString
+		case kind.Decimal:
+			colTypeData.ScanType = sqlz.RTypeNullDecimal
+		case kind.Int:
+			colTypeData.ScanType = sqlz.RTypeNullInt64
+		case kind.Float:
+			colTypeData.ScanType = sqlz.RTypeNullFloat64
+		case kind.Bool:
+			colTypeData.ScanType = sqlz.RTypeNullBool
+		case kind.Datetime, kind.Date, kind.Time:
+			colTypeData.ScanType = sqlz.RTypeNullTime
+		case kind.Bytes:
+			colTypeData.ScanType = sqlz.RTypeBytes // []byte handles nil naturally
+		}
+		return
+	}
+
+	// Non-nullable columns use regular scan types
 	switch knd {
 	case kind.Unknown, kind.Null, kind.Text, kind.Decimal:
 		colTypeData.ScanType = sqlz.RTypeString
