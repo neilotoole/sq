@@ -276,3 +276,121 @@ See `testutils/docker-compose.yml` and `testutils/Testing.md` for details.
 ## License
 
 Same as main SQ project (MIT).
+
+## Development Log
+
+### 2026-01-19: Investigation of TestNewBatchInsert Failure
+
+#### Issue
+
+`TestNewBatchInsert/@sakila_ch25` fails with error:
+`clickhouse [Append]: clickhouse: expected 4 arguments, got 280`
+
+#### Root Cause Analysis
+
+The clickhouse-go driver does not support multi-row parameter binding like
+traditional SQL drivers. When sq generates a batch INSERT statement like:
+
+```sql
+INSERT INTO t VALUES (?,?,?,?), (?,?,?,?), ... -- 70 rows × 4 columns
+```
+
+And calls `Exec(vals...)` with all 280 values flattened, clickhouse-go rejects
+this because it expects arguments for a **single row only** (4 arguments), not
+multiple rows.
+
+This is a fundamental difference from MySQL, PostgreSQL, SQLite, and SQL Server,
+which all accept flattened multi-row arguments.
+
+#### Attempted Solution: Force numRows=1
+
+The initial approach was to override `PrepareInsertStmt` in the ClickHouse
+driver to always use `numRows=1`, regardless of the requested batch size:
+
+```go
+// In PrepareInsertStmt:
+const clickHouseNumRows = 1
+_ = numRows // Explicitly ignore the requested batch size
+stmt, err := driver.PrepareInsertStmt(
+    ctx, d, db, destTbl, destColsMeta.Names(), clickHouseNumRows)
+```
+
+This required broader changes to the `StmtExecer` type to track the actual
+batch size used by the prepared statement (vs. the requested batch size), so
+that `NewBatchInsert` could flush after the correct number of rows:
+
+1. Added `batchSize int` field to `StmtExecer` struct
+2. Added `BatchSize()` method to retrieve actual batch size
+3. Updated `NewBatchInsert` to use `inserter.BatchSize()` instead of the
+   passed-in `batchSize`
+4. Updated all 10 callers of `NewStmtExecer` across 5 driver files
+
+#### Result: Partial Success, New Problem
+
+The argument count error was **fixed** - the batch insert no longer fails with
+"expected 4 arguments, got 280". The inserts themselves succeed (no error from
+`bi.ErrCh`).
+
+However, a **new error** appeared when querying the data afterward:
+
+```text
+code: 101, message: Unexpected packet Query received from client
+```
+
+#### Connection State Corruption
+
+After performing 200 individual `Exec` calls (one per row) on the same prepared
+statement, the ClickHouse connection enters an invalid protocol state. When the
+connection is returned to the pool and reused for a subsequent SELECT query,
+the ClickHouse server rejects it with "Unexpected packet Query received".
+
+This appears to be a limitation of the clickhouse-go driver's native protocol
+implementation when using prepared statements with many repeated Exec calls.
+The connection is corrupted but not closed, so it gets reused incorrectly.
+
+#### Key Learnings
+
+1. **clickhouse-go's INSERT semantics differ fundamentally**: Unlike standard
+   database/sql drivers, clickhouse-go's prepared INSERT statements expect
+   arguments for exactly one row per Exec call.
+
+2. **Multi-row binding is not supported**: The clickhouse-go driver does not
+   support the common pattern of `INSERT INTO t VALUES (?,?), (?,?)` with
+   flattened arguments.
+
+3. **Single-row workaround has side effects**: While forcing `numRows=1` fixes
+   the argument count error, it causes connection state corruption after many
+   Exec calls on the same prepared statement.
+
+4. **Protocol state is fragile**: The ClickHouse native protocol apparently
+   maintains connection state that isn't properly reset after many statement
+   executions, making the connection unusable for subsequent operations.
+
+5. **Proper solution requires native Batch API**: The clickhouse-go driver
+   provides a dedicated Batch API (`conn.PrepareBatch()`) designed for bulk
+   inserts. This API handles the protocol correctly but requires significant
+   architectural changes to integrate with sq's driver abstraction.
+
+#### Potential Future Solutions
+
+1. **Use clickhouse-go's native Batch API**: Implement `PrepareBatch()` instead
+   of prepared statements for INSERT operations. This would require:
+   - New interface method in `driver.SQLDriver` for batch operations
+   - ClickHouse-specific implementation using `conn.PrepareBatch()`
+   - Integration with `NewBatchInsert` or a new batch insert path
+
+2. **Connection isolation**: Use dedicated connections for batch operations
+   that are not returned to the pool after completion.
+
+3. **Transaction wrapping**: Wrap batch inserts in transactions (though
+   ClickHouse has limited transaction support).
+
+4. **Periodic statement recreation**: Close and recreate the prepared statement
+   periodically during large batch inserts to reset connection state.
+
+#### References
+
+- [clickhouse-go Batch API](https://clickhouse.com/docs/en/integrations/go#batch)
+- Issue context: TestNewBatchInsert expects multi-row parameter binding that
+  clickhouse-go doesn't support
+- Error codes: ClickHouse protocol error 101 indicates unexpected packet type
