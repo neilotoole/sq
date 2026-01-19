@@ -63,7 +63,8 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 //
 //  2. ORDER BY clause is required for MergeTree. This defines the primary
 //     sort order for data storage and affects query performance. This function
-//     uses the first column as the ordering key.
+//     uses the first NOT NULL column as the ordering key. If no NOT NULL column
+//     exists, it uses tuple() which means no specific ordering.
 //
 //  3. Nullable types must be explicit. Unlike many SQL databases where columns
 //     are nullable by default, ClickHouse columns are non-nullable by default.
@@ -76,7 +77,7 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 //	  `col2` Nullable(Type2),
 //	  ...
 //	) ENGINE = MergeTree()
-//	ORDER BY `col1`
+//	ORDER BY `col1`  -- or ORDER BY tuple() if all columns are nullable
 func buildCreateTableStmt(tblDef *schema.Table) string {
 	sb := strings.Builder{}
 	sb.WriteString("CREATE TABLE ")
@@ -102,11 +103,22 @@ func buildCreateTableStmt(tblDef *schema.Table) string {
 
 	sb.WriteString("\n) ENGINE = MergeTree()\n")
 
-	// ORDER BY clause is required for MergeTree
-	// Use first column as the ordering key by default
-	if len(tblDef.Cols) > 0 {
-		sb.WriteString("ORDER BY ")
-		sb.WriteString(stringz.BacktickQuote(tblDef.Cols[0].Name))
+	// ORDER BY clause is required for MergeTree.
+	// ClickHouse does not allow nullable columns in the sorting key by default.
+	// Find the first NOT NULL column to use as the ordering key, or use tuple()
+	// if all columns are nullable (tuple() means no specific ordering).
+	sb.WriteString("ORDER BY ")
+	orderByCol := ""
+	for _, colDef := range tblDef.Cols {
+		if colDef.NotNull {
+			orderByCol = colDef.Name
+			break
+		}
+	}
+	if orderByCol != "" {
+		sb.WriteString(stringz.BacktickQuote(orderByCol))
+	} else {
+		sb.WriteString("tuple()")
 	}
 
 	return sb.String()
