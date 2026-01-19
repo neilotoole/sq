@@ -58,7 +58,7 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db *sql.DB, noSc
 	return md, nil
 }
 
-// getTablesMetadata returns metadata for all tables in the database.
+// getTablesMetadata returns metadata for all tables and views in the database.
 func getTablesMetadata(ctx context.Context, db *sql.DB, dbName string) ([]*metadata.Table, error) {
 	const query = `
 		SELECT
@@ -68,7 +68,6 @@ func getTablesMetadata(ctx context.Context, db *sql.DB, dbName string) ([]*metad
 			total_bytes
 		FROM system.tables
 		WHERE database = ?
-		  AND engine NOT IN ('View', 'MaterializedView')
 		ORDER BY name
 	`
 
@@ -88,9 +87,10 @@ func getTablesMetadata(ctx context.Context, db *sql.DB, dbName string) ([]*metad
 		}
 
 		tblMeta := &metadata.Table{
-			Name:      tblName,
-			TableType: "table",
-			RowCount:  totalRows.Int64,
+			Name:        tblName,
+			DBTableType: engine,
+			TableType:   tableTypeFromEngine(engine),
+			RowCount:    totalRows.Int64,
 		}
 
 		if totalBytes.Valid {
@@ -147,9 +147,10 @@ func getTableMetadata(ctx context.Context, db *sql.DB, dbName, tblName string) (
 	}
 
 	tblMeta := &metadata.Table{
-		Name:      tblName,
-		TableType: "table",
-		RowCount:  totalRows.Int64,
+		Name:        tblName,
+		DBTableType: engine,
+		TableType:   tableTypeFromEngine(engine),
+		RowCount:    totalRows.Int64,
 	}
 
 	if totalBytes.Valid {
@@ -220,6 +221,18 @@ func getColumnsMetadata(ctx context.Context, db *sql.DB, dbName, tblName string)
 	}
 
 	return cols, errw(rows.Err())
+}
+
+// tableTypeFromEngine returns the canonical table type (sqlz.TableTypeTable or
+// sqlz.TableTypeView) based on the ClickHouse engine type. Views have engine
+// "View" or "MaterializedView"; all other engines are considered tables.
+func tableTypeFromEngine(engine string) string {
+	switch engine {
+	case "View", "MaterializedView":
+		return sqlz.TableTypeView
+	default:
+		return sqlz.TableTypeTable
+	}
 }
 
 // isNullableType checks if a ClickHouse type string has Nullable as its

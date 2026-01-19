@@ -176,16 +176,13 @@ The following are known issues or edge cases that may need attention:
 - **Solution**: Changed from exact match `"FixedString"` to prefix matching
   `chType[:11] == "FixedString"`, correctly handling `FixedString(10)` etc.
 
-### 3. Views Not Included in Source Metadata
+### 3. ~~Views Not Included in Source Metadata~~ ✅ FIXED
 
-- **Location**: `metadata.go:69`
-- **Issue**: The `getTablesMetadata` query explicitly excludes views
-  (`engine NOT IN ('View', 'MaterializedView')`), so `SourceMetadata` never
-  returns views.
-- **Impact**: Inconsistency: `sq inspect` won't show views, but `sq ls` (via
-  `ListTableNames`) can list them.
-- **Fix**: Consider adding view support to `getTablesMetadata` or document this
-  as intentional behavior.
+- **Status**: Fixed by including views in metadata queries.
+- **Location**: `metadata.go`
+- **Solution**: Removed the `engine NOT IN ('View', 'MaterializedView')` filter.
+  Added `tableTypeFromEngine()` helper to set `TableType` to `sqlz.TableTypeView`
+  for View/MaterializedView engines, consistent with other SQL drivers.
 
 ### 4. ~~Silent Error in Column Metadata Retrieval~~ ✅ FIXED
 
