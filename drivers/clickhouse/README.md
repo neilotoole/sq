@@ -2,9 +2,9 @@
 
 ClickHouse database driver implementation for SQ using [clickhouse-go](https://github.com/ClickHouse/clickhouse-go).
 
-## Status
-
-✅ **Core implementation complete** - All MVP features implemented and building successfully.
+> [!WARNING]
+> All testing has been performed on **ClickHouse v25+**.
+> Behavior on versions below v25 is not guaranteed and is unsupported.
 
 ## Features Implemented
 
@@ -256,7 +256,7 @@ sq tbl drop @ch.old_table
 
 ## Requirements
 
-- ClickHouse Server 21.0 or later (23.8+ recommended for all features)
+- ClickHouse Server 25.0 or later (tested and supported version)
 - Go 1.19 or later
 - Docker (for integration tests)
 
