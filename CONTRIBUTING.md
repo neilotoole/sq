@@ -187,7 +187,7 @@ CSV, JSON etc. See the [sq.io drivers section](https://sq.io/docs/drivers).
 See [ARCHITECTURE.md](ARCHITECTURE.md) for a diagram that gives an overview of
 the `sq` architecture.
 
-There are two types of drivers: "SQL", and "non-SQL" (aka "Document") drivers.
+There are two varieties of drivers: "SQL", and "non-SQL" (aka "Document") drivers.
 These are defined by whether they implement just the
 [`driver.Driver`](libsq/driver/driver.go) interface, or also the
 [`driver.SQLDriver`](libsq/driver/driver.go) interface.
