@@ -394,3 +394,148 @@ The connection is corrupted but not closed, so it gets reused incorrectly.
 - Issue context: TestNewBatchInsert expects multi-row parameter binding that
   clickhouse-go doesn't support
 - Error codes: ClickHouse protocol error 101 indicates unexpected packet type
+
+### 2026-01-19: Investigation of TestSQLDriver_PrepareUpdateStmt Failure
+
+#### Issue
+
+`TestSQLDriver_PrepareUpdateStmt/@sakila_ch25` fails with error:
+
+```text
+invalid INSERT query: ALTER TABLE `actor__g9wtwk8r` UPDATE `first_name` = ?,
+`last_name` = ? WHERE actor_id = ?
+```
+
+#### Background: ClickHouse UPDATE Syntax
+
+ClickHouse does not support standard SQL `UPDATE` statements. Instead, it uses
+`ALTER TABLE ... UPDATE` syntax for row-level modifications:
+
+```sql
+-- Standard SQL (not supported by ClickHouse):
+UPDATE actor SET first_name = 'John' WHERE actor_id = 1;
+
+-- ClickHouse syntax:
+ALTER TABLE actor UPDATE first_name = 'John' WHERE actor_id = 1;
+```
+
+The sq ClickHouse driver's `PrepareUpdateStmt` implementation correctly
+generates the `ALTER TABLE ... UPDATE` syntax via `buildUpdateStmt()`.
+
+#### Root Cause: clickhouse-go PrepareContext Limitations
+
+The clickhouse-go driver's `db.PrepareContext()` function has strict
+limitations on what SQL statements can be prepared. It only supports:
+
+1. **INSERT statements** - For batch data insertion via the native protocol
+2. **SELECT statements** - For query execution
+
+When `PrepareContext()` receives any other statement type, it attempts to
+parse it as one of these two categories. The parsing logic appears to be:
+
+1. Check if statement starts with SELECT-like keywords → treat as query
+2. Otherwise → assume it's an INSERT and validate INSERT syntax
+
+When `ALTER TABLE ... UPDATE` is passed to `PrepareContext()`:
+
+1. It's not recognized as a SELECT
+2. clickhouse-go assumes it must be an INSERT
+3. INSERT syntax validation fails
+4. Error returned: "invalid INSERT query: ALTER TABLE ..."
+
+#### Code Path Analysis
+
+```go
+// In clickhouse.go PrepareUpdateStmt:
+query := buildUpdateStmt(destTbl, destColNames, where)
+// query = "ALTER TABLE `tbl` UPDATE `col1` = ?, `col2` = ? WHERE id = ?"
+
+stmt, err := db.PrepareContext(ctx, query)  // ← Fails here
+// Error: "invalid INSERT query: ALTER TABLE ..."
+```
+
+The `buildUpdateStmt` function correctly generates ClickHouse-compatible
+syntax, but `db.PrepareContext()` cannot handle it.
+
+#### Why This Differs from Direct Execution
+
+Interestingly, `ALTER TABLE ... UPDATE` works fine when executed directly:
+
+```go
+// This works:
+_, err := db.ExecContext(ctx, "ALTER TABLE t UPDATE col = 'value' WHERE id = 1")
+
+// This fails:
+stmt, err := db.PrepareContext(ctx, "ALTER TABLE t UPDATE col = ? WHERE id = ?")
+```
+
+The difference is that `ExecContext()` sends the query directly to ClickHouse
+server, while `PrepareContext()` goes through clickhouse-go's statement
+preparation logic which has the INSERT/SELECT restriction.
+
+#### clickhouse-go's Prepared Statement Architecture
+
+The clickhouse-go driver uses prepared statements primarily for:
+
+1. **Batch INSERTs**: Efficiently streaming rows via the native protocol
+2. **Parameterized SELECTs**: Safe query execution with bound parameters
+
+For other statement types (DDL, ALTER, etc.), the driver expects direct
+execution via `ExecContext()`. This is a design choice in clickhouse-go,
+not a ClickHouse server limitation.
+
+#### Key Learnings
+
+1. **clickhouse-go has a limited PrepareContext scope**: Only INSERT and
+   SELECT statements can be prepared. All other statement types must use
+   direct execution.
+
+2. **Error message is misleading**: "invalid INSERT query" doesn't mean the
+   query is malformed—it means clickhouse-go incorrectly categorized a
+   non-INSERT statement as an INSERT and then failed validation.
+
+3. **ALTER TABLE UPDATE cannot be parameterized via PrepareContext**: Even
+   though ClickHouse server supports parameterized ALTER TABLE UPDATE, the
+   Go driver doesn't support preparing such statements.
+
+4. **Workaround requires architectural change**: To support parameterized
+   UPDATE in ClickHouse, sq would need to either:
+   - Use string interpolation (security risk for user-provided values)
+   - Use `ExecContext` with positional args (if clickhouse-go supports it)
+   - Implement a custom parameter binding layer
+
+5. **This is separate from the batch insert issue**: While both involve
+   `PrepareContext()` limitations, they fail for different reasons:
+   - Batch INSERT fails due to multi-row parameter binding expectations
+   - UPDATE fails because ALTER TABLE syntax isn't recognized at all
+
+#### Potential Future Solutions
+
+1. **Direct ExecContext with parameters**: Investigate if clickhouse-go's
+   `ExecContext()` supports parameter binding for ALTER TABLE statements.
+   If so, `PrepareUpdateStmt` could be reimplemented without `PrepareContext`.
+
+2. **Query builder approach**: Build the complete query string with properly
+   escaped values, bypassing prepared statements entirely. This requires
+   careful escaping to prevent SQL injection.
+
+3. **clickhouse-go feature request**: Request support for preparing ALTER
+   TABLE statements in the clickhouse-go driver.
+
+4. **Alternative driver**: Evaluate if other ClickHouse Go drivers (e.g.,
+   `mailru/go-clickhouse`) have fewer PrepareContext limitations.
+
+#### Relationship to Known Limitations
+
+This issue is related to but distinct from the existing "Known Limitations"
+section item #4 (UPDATE Statement Syntax). That section documents the syntax
+difference; this investigation reveals that even with correct syntax, the
+prepared statement mechanism doesn't work.
+
+#### References
+
+- clickhouse-go source: Statement preparation logic in `conn.go`
+- ClickHouse ALTER TABLE UPDATE docs:
+  <https://clickhouse.com/docs/en/sql-reference/statements/alter/update>
+- Test: `TestSQLDriver_PrepareUpdateStmt/@sakila_ch25`
+- Error location: `drivers/clickhouse/clickhouse.go:828`
