@@ -177,7 +177,7 @@ type SQLDriver interface {
 	// Constraints (keys, defaults etc.) may not be copied. The
 	// number of copied rows is returned in copied. If the driver cannot
 	// determine the number of copied rows (e.g., ClickHouse doesn't report
-	// row counts for INSERT ... SELECT), [dialect.RowsAffectedUnavailable] (-1)
+	// row counts for INSERT ... SELECT), [dialect.RowsAffectedUnsupported] (-1)
 	// is returned.
 	CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable tablefq.T, copyData bool) (copied int64, err error)
 

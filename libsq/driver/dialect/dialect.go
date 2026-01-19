@@ -15,12 +15,14 @@ import (
 // all fields appropriately. See the driver packages (e.g., postgres, mysql)
 // for examples.
 type Dialect struct {
-	// TODO: Consider adding a field to indicate whether the dialect can report
-	// rows affected for bulk operations like INSERT ... SELECT. Some databases
-	// (e.g., ClickHouse) cannot report row counts for these operations, and
-	// currently this is handled by returning RowsAffectedUnavailable (-1) from
-	// methods like SQLDriver.CopyTable. A dialect field like "CanReportBulkRowsAffected"
-	// would allow callers to check upfront rather than handling the -1 case.
+	// TODO: Consider adding a bool field "RowsAffectedUnsupported" to indicate
+	// whether the dialect cannot report rows affected for bulk operations like
+	// INSERT ... SELECT. Some databases (e.g., ClickHouse) cannot report row
+	// counts for these operations, and currently this is handled by returning
+	// dialect.RowsAffectedUnsupported (-1) from methods like SQLDriver.CopyTable.
+	// Using "RowsAffectedUnsupported" (rather than "CanReportRowsAffected") means
+	// the zero value (false) represents the common case where rows ARE reported,
+	// following Go idioms for sensible zero values.
 
 	// Placeholders returns a string a SQL placeholders string.
 	// For example "(?, ?, ?)" or "($1, $2, $3), ($4, $5, $6)".
@@ -114,10 +116,10 @@ const (
 	ExecModeExec ExecMode = "exec"
 )
 
-// RowsAffectedUnavailable is a sentinel value (-1) returned by operations like
-// [driver.SQLDriver.CopyTable] when the number of affected rows cannot be
-// determined. Some databases (e.g., ClickHouse) do not report row counts for
-// certain operations like INSERT ... SELECT.
+// RowsAffectedUnsupported is a sentinel value (-1) returned by operations like
+// [driver.SQLDriver.CopyTable] when the database does not support reporting
+// the number of affected rows. Some databases (e.g., ClickHouse) do not report
+// row counts for certain operations like INSERT ... SELECT.
 //
 // Callers should check for this value before using the row count:
 //
@@ -125,15 +127,15 @@ const (
 //	if err != nil {
 //	    return err
 //	}
-//	if copied == dialect.RowsAffectedUnavailable {
-//	    // Row count unavailable; verify success via other means if needed
+//	if copied == dialect.RowsAffectedUnsupported {
+//	    // Row count unsupported by this database; verify success via other means
 //	} else {
 //	    fmt.Printf("Copied %d rows\n", copied)
 //	}
 //
-// This follows a common pattern where -1 indicates "unknown" (similar to
-// HTTP Content-Length: -1 for chunked encoding).
-const RowsAffectedUnavailable int64 = -1
+// This follows a common pattern where -1 indicates "unknown" or "unsupported"
+// (similar to HTTP Content-Length: -1 for chunked encoding).
+const RowsAffectedUnsupported int64 = -1
 
 // LogValue implements slog.LogValuer.
 func (m ExecMode) LogValue() slog.Value {

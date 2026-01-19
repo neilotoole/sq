@@ -151,14 +151,14 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 		tblHandles[1].handle, tblHandles[1].tbl)
 
 	if copyData {
-		// Handle the row count display. Some drivers (e.g., ClickHouse) cannot
-		// report row counts for INSERT ... SELECT operations and return
-		// dialect.RowsAffectedUnavailable (-1). In that case, we display a
-		// message indicating the count is unavailable rather than showing
+		// Handle the row count display. Some drivers (e.g., ClickHouse) do not
+		// support reporting row counts for INSERT ... SELECT operations and return
+		// dialect.RowsAffectedUnsupported (-1). In that case, we display a
+		// message indicating the count is unsupported rather than showing
 		// an incorrect "0 rows copied" message.
 		switch copied {
-		case dialect.RowsAffectedUnavailable:
-			msg += " (rows copied: unavailable)"
+		case dialect.RowsAffectedUnsupported:
+			msg += " (rows copied: unsupported)"
 		case 1:
 			msg += " (1 row copied)"
 		default:

@@ -725,7 +725,7 @@ func (d *driveri) CopyTable(
 	// returns 0 regardless of how many rows were actually copied. This is a
 	// fundamental limitation of ClickHouse's protocol, not a driver bug.
 	//
-	// To handle this, we return dialect.RowsAffectedUnavailable (-1) to signal
+	// To handle this, we return dialect.RowsAffectedUnsupported (-1) to signal
 	// to callers that the row count is unavailable. Callers (e.g., CLI, tests)
 	// should check for this value and either:
 	//   - Display an "unavailable" message to users
@@ -741,7 +741,7 @@ func (d *driveri) CopyTable(
 		return 0, errw(err)
 	}
 
-	return dialect.RowsAffectedUnavailable, nil
+	return dialect.RowsAffectedUnsupported, nil
 }
 
 // TableColumnTypes implements driver.SQLDriver.
