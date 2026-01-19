@@ -7,21 +7,23 @@ import (
 
 // Exported variables for testing unexported functions from external test packages.
 // These allow tests in *_test.go files (package clickhouse_test) to access
-// unexported functionality.
+// unexported functionality. The naming convention is to capitalize the first
+// letter of the unexported function name (e.g., buildCreateTableStmt becomes
+// BuildCreateTableStmt).
 
 // render.go exports.
 var (
-	ExportDbTypeNameFromKind   = dbTypeNameFromKind
-	ExportBuildCreateTableStmt = buildCreateTableStmt
-	ExportBuildUpdateStmt      = buildUpdateStmt
+	DbTypeNameFromKind   = dbTypeNameFromKind
+	BuildCreateTableStmt = buildCreateTableStmt
+	BuildUpdateStmt      = buildUpdateStmt
 )
 
 // metadata.go exports.
 var (
-	ExportKindFromClickHouseType  = kindFromClickHouseType
-	ExportIsNullableType          = isNullableType
-	ExportIsNullableTypeUnwrapped = isNullableTypeUnwrapped
-	ExportTableTypeFromEngine     = tableTypeFromEngine
+	KindFromClickHouseType  = kindFromClickHouseType
+	IsNullableType          = isNullableType
+	IsNullableTypeUnwrapped = isNullableTypeUnwrapped
+	TableTypeFromEngine     = tableTypeFromEngine
 )
 
 // Type aliases for function signatures used in tests.

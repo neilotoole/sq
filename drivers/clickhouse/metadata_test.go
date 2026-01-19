@@ -80,7 +80,7 @@ func TestKindFromClickHouseType(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.chType, func(t *testing.T) {
-			gotKind := clickhouse.ExportKindFromClickHouseType(tc.chType)
+			gotKind := clickhouse.KindFromClickHouseType(tc.chType)
 			require.Equal(t, tc.wantKind, gotKind, "Type %s", tc.chType)
 		})
 	}
@@ -105,7 +105,7 @@ func TestIsNullableType(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.typeName, func(t *testing.T) {
-			got := clickhouse.ExportIsNullableType(tc.typeName)
+			got := clickhouse.IsNullableType(tc.typeName)
 			require.Equal(t, tc.want, got)
 		})
 	}
@@ -140,7 +140,7 @@ func TestIsNullableTypeUnwrapped(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.typeName, func(t *testing.T) {
-			got := clickhouse.ExportIsNullableTypeUnwrapped(tc.typeName)
+			got := clickhouse.IsNullableTypeUnwrapped(tc.typeName)
 			require.Equal(t, tc.want, got,
 				"isNullableTypeUnwrapped(%q) = %v, want %v", tc.typeName, got, tc.want)
 		})
@@ -181,7 +181,7 @@ func TestLowCardinalityWrapperStripping(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.chType, func(t *testing.T) {
-			gotKind := clickhouse.ExportKindFromClickHouseType(tc.chType)
+			gotKind := clickhouse.KindFromClickHouseType(tc.chType)
 			require.Equal(t, tc.wantKind, gotKind,
 				"%s: expected %s but got %s", tc.desc, tc.wantKind, gotKind)
 		})
@@ -208,7 +208,7 @@ func TestNullableWrapperStripping(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.chType, func(t *testing.T) {
-			gotKind := clickhouse.ExportKindFromClickHouseType(tc.chType)
+			gotKind := clickhouse.KindFromClickHouseType(tc.chType)
 			require.Equal(t, tc.wantKind, gotKind)
 		})
 	}
@@ -248,7 +248,7 @@ func TestTableTypeFromEngine(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.engine, func(t *testing.T) {
-			got := clickhouse.ExportTableTypeFromEngine(tc.engine)
+			got := clickhouse.TableTypeFromEngine(tc.engine)
 			require.Equal(t, tc.wantType, got,
 				"tableTypeFromEngine(%q) = %q, want %q", tc.engine, got, tc.wantType)
 		})

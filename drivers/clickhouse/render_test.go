@@ -30,7 +30,7 @@ func TestDbTypeNameFromKind(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.kind.String(), func(t *testing.T) {
-			gotType := clickhouse.ExportDbTypeNameFromKind(tc.kind)
+			gotType := clickhouse.DbTypeNameFromKind(tc.kind)
 			require.Equal(t, tc.wantType, gotType)
 		})
 	}
@@ -45,7 +45,7 @@ func TestBuildCreateTableStmt(t *testing.T) {
 		[]string{"id", "name", "value"},
 		[]kind.Kind{kind.Int, kind.Text, kind.Float})
 
-	stmt := clickhouse.ExportBuildCreateTableStmt(tblDef)
+	stmt := clickhouse.BuildCreateTableStmt(tblDef)
 
 	// Verify statement contains expected components
 	require.Contains(t, stmt, "CREATE TABLE")
@@ -68,7 +68,7 @@ func TestBuildCreateTableStmt(t *testing.T) {
 	tblDef2.Cols[0].NotNull = true // id is NOT NULL
 	// name remains nullable (NotNull = false)
 
-	stmt2 := clickhouse.ExportBuildCreateTableStmt(tblDef2)
+	stmt2 := clickhouse.BuildCreateTableStmt(tblDef2)
 
 	// id should NOT be wrapped with Nullable
 	require.Contains(t, stmt2, "`id` Int64")
@@ -86,7 +86,7 @@ func TestBuildCreateTableStmt(t *testing.T) {
 		[]kind.Kind{kind.Text, kind.Int, kind.Float})
 	tblDef3.Cols[1].NotNull = true // not_null_col is NOT NULL
 
-	stmt3 := clickhouse.ExportBuildCreateTableStmt(tblDef3)
+	stmt3 := clickhouse.BuildCreateTableStmt(tblDef3)
 
 	// ORDER BY should use the first NOT NULL column, even if not first in table
 	require.Contains(t, stmt3, "ORDER BY `not_null_col`")
@@ -98,7 +98,7 @@ func TestBuildUpdateStmt(t *testing.T) {
 	cols := []string{"name", "value"}
 
 	// Test without WHERE clause
-	stmt := clickhouse.ExportBuildUpdateStmt(tblName, cols, "")
+	stmt := clickhouse.BuildUpdateStmt(tblName, cols, "")
 	require.Contains(t, stmt, "ALTER TABLE")
 	require.Contains(t, stmt, "`test_table`")
 	require.Contains(t, stmt, "UPDATE")
@@ -107,6 +107,6 @@ func TestBuildUpdateStmt(t *testing.T) {
 	require.NotContains(t, stmt, "WHERE")
 
 	// Test with WHERE clause
-	stmt = clickhouse.ExportBuildUpdateStmt(tblName, cols, "id = 123")
+	stmt = clickhouse.BuildUpdateStmt(tblName, cols, "id = 123")
 	require.Contains(t, stmt, "WHERE id = 123")
 }
