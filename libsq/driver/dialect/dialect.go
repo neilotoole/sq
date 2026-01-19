@@ -10,6 +10,27 @@ import (
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
+// RowsAffectedUnsupported is a sentinel value (-1) returned by operations like
+// [driver.SQLDriver.CopyTable] when the database does not support reporting
+// the number of affected rows. Some databases (e.g., ClickHouse) do not report
+// row counts for certain operations like INSERT ... SELECT.
+//
+// Callers should check for this value before using the row count:
+//
+//	copied, err := drvr.CopyTable(ctx, db, from, to, true)
+//	if err != nil {
+//	    return err
+//	}
+//	if copied == dialect.RowsAffectedUnsupported {
+//	    // Row count unsupported by this database; verify success via other means
+//	} else {
+//	    fmt.Printf("Copied %d rows\n", copied)
+//	}
+//
+// This follows a common pattern where -1 indicates "unknown" or "unsupported"
+// (similar to HTTP Content-Length: -1 for chunked encoding).
+const RowsAffectedUnsupported int64 = -1
+
 // Dialect holds driver-specific SQL dialect values and functions.
 // The zero value is not usable; each driver implementation must initialize
 // all fields appropriately. See the driver packages (e.g., postgres, mysql)
@@ -115,27 +136,6 @@ const (
 	// mode.
 	ExecModeExec ExecMode = "exec"
 )
-
-// RowsAffectedUnsupported is a sentinel value (-1) returned by operations like
-// [driver.SQLDriver.CopyTable] when the database does not support reporting
-// the number of affected rows. Some databases (e.g., ClickHouse) do not report
-// row counts for certain operations like INSERT ... SELECT.
-//
-// Callers should check for this value before using the row count:
-//
-//	copied, err := drvr.CopyTable(ctx, db, from, to, true)
-//	if err != nil {
-//	    return err
-//	}
-//	if copied == dialect.RowsAffectedUnsupported {
-//	    // Row count unsupported by this database; verify success via other means
-//	} else {
-//	    fmt.Printf("Copied %d rows\n", copied)
-//	}
-//
-// This follows a common pattern where -1 indicates "unknown" or "unsupported"
-// (similar to HTTP Content-Length: -1 for chunked encoding).
-const RowsAffectedUnsupported int64 = -1
 
 // LogValue implements slog.LogValuer.
 func (m ExecMode) LogValue() slog.Value {
