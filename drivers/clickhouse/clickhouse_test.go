@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tu"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/clickhouse"
@@ -19,9 +20,7 @@ var _ clickhouse.Provider // Ensure package is imported
 
 // TestSmoke is a basic smoke test for ClickHouse connectivity.
 func TestSmoke(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test")
-	}
+	tu.SkipShort(t, true)
 
 	th := testh.New(t)
 	src := th.Source(sakila.CH)
@@ -35,9 +34,7 @@ func TestSmoke(t *testing.T) {
 
 // TestDriver_CreateTable tests basic table creation.
 func TestDriver_CreateTable(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test")
-	}
+	tu.SkipShort(t, true)
 
 	const handle = "@clickhouse_test"
 	th, src, drvr, _, db := testh.NewWith(t, handle)
@@ -66,9 +63,7 @@ func TestDriver_CreateTable(t *testing.T) {
 
 // TestDriver_TableColumnTypes tests retrieving column type information.
 func TestDriver_TableColumnTypes(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test")
-	}
+	tu.SkipShort(t, true)
 
 	const handle = "@clickhouse_test"
 	th, src, drvr, _, db := testh.NewWith(t, handle)
@@ -93,9 +88,7 @@ func TestDriver_TableColumnTypes(t *testing.T) {
 
 // TestDriver_CopyTable tests table copying functionality.
 func TestDriver_CopyTable(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test")
-	}
+	tu.SkipShort(t, true)
 
 	const handle = "@clickhouse_test"
 	th, src, drvr, _, db := testh.NewWith(t, handle)
