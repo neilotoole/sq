@@ -1,3 +1,6 @@
+// This file implements the disk-based cache for HTTP downloads.
+// See the package documentation for an overview of the cache architecture.
+
 package downloader
 
 import (
@@ -21,29 +24,50 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 )
 
+// Log message constants for cache operations. These are used consistently
+// throughout the cache implementation for logging and error reporting.
 const (
+	// msgCloseCacheHeaderFile is logged when closing the cached response header file.
 	msgCloseCacheHeaderFile = "Close cached response header file"
-	msgCloseCacheBodyFile   = "Close cached response body file"
-	msgDeleteCache          = "Delete HTTP response cache"
+	// msgCloseCacheBodyFile is logged when closing the cached response body file.
+	msgCloseCacheBodyFile = "Close cached response body file"
+	// msgDeleteCache is logged when deleting the HTTP response cache directory.
+	msgDeleteCache = "Delete HTTP response cache"
 )
 
-// cache is a cache for an individual download. The cached response is
-// stored in two files, one for the header and one for the body, with
-// a checksum (of the body file) stored in a third file.
-// Use cache.paths to get the cache file paths.
+// cache manages the on-disk storage for a single download. The cached HTTP
+// response is stored as three files within a "main" subdirectory:
+//
+//   - header: The serialized HTTP response headers (via [httputil.DumpResponse])
+//   - body: The raw response body bytes
+//   - checksums.txt: SHA-256 checksum of the body file for integrity verification
+//
+// The cache uses a two-phase commit strategy to ensure atomicity:
+//
+//  1. New downloads are first written to a "staging" subdirectory
+//  2. Upon successful completion (all bytes received, checksum computed),
+//     the staging directory atomically replaces the main directory
+//
+// This prevents partial or corrupt downloads from replacing valid cached data.
+// If a download fails mid-stream, the staging directory is discarded and
+// the main cache (if any) remains intact.
+//
+// Use [cache.paths] to get the file paths, [cache.exists] to check validity,
+// and [cache.get] to retrieve a cached response.
 type cache struct {
-	// dir is the directory in which the cache files are stored.
-	// It is specific to a particular download. There are actually
-	// two subdirectories of dir: "main" and "staging". The staging dir
-	// is used to write new cache files, and on successful cache write,
-	// it is swapped with the main dir. This two-step "atomic-write-lite"
-	// exists so that a failed response read doesn't destroy the existing
-	// cache.
+	// dir is the root directory for this cache instance. It contains two
+	// subdirectories: "main" (the active cache) and "staging" (for writes
+	// in progress). The dir is specific to a particular download URL.
 	dir string
 }
 
-// paths returns the paths to the header, body, and checksum files for req.
-// It is not guaranteed that they exist.
+// paths returns the file paths to the header, body, and checksum files for
+// the given request. The paths are within the "main" subdirectory of [cache.dir].
+// Note that the files may not exist; use [cache.exists] to verify.
+//
+// For GET requests (or nil request), the files are named simply "header",
+// "body", and "checksums.txt". For other HTTP methods, the method name is
+// prefixed (e.g., "HEAD_header"), though in practice only GET is used.
 func (c *cache) paths(req *http.Request) (header, body, sum string) {
 	mainDir := filepath.Join(c.dir, "main")
 	if req == nil || req.Method == http.MethodGet {
@@ -60,9 +84,20 @@ func (c *cache) paths(req *http.Request) (header, body, sum string) {
 		filepath.Join(mainDir, req.Method+"_checksums.txt")
 }
 
-// exists returns true if the cache exists and is consistent.
-// If it's inconsistent, it will be automatically cleared.
-// See also: clearIfInconsistent.
+// exists reports whether a valid cache exists for the given request.
+//
+// A cache is considered valid if:
+//   - The header file exists and is non-empty
+//   - The body file exists
+//   - The checksums.txt file exists
+//   - The checksum in checksums.txt matches a freshly computed checksum of the body
+//
+// If the cache is inconsistent (some files exist but not others, or checksums
+// don't match), exists calls [cache.clearIfInconsistent] to clean up the
+// invalid state before returning false.
+//
+// The request is used to determine the cache file paths and to provide
+// context for logging.
 func (c *cache) exists(req *http.Request) bool {
 	if err := c.clearIfInconsistent(req); err != nil {
 		lg.FromContext(req.Context()).Error("Failed to clear inconsistent cache",
@@ -84,7 +119,21 @@ func (c *cache) exists(req *http.Request) bool {
 	return ok
 }
 
-// clearIfInconsistent deletes the cache if it is inconsistent.
+// clearIfInconsistent deletes the cache if it is in an inconsistent state.
+//
+// A cache is inconsistent if some but not all of the three required files
+// (header, body, checksums.txt) exist, or if the stored checksum doesn't match
+// a freshly computed checksum of the body file.
+//
+// An inconsistent cache can occur if:
+//   - A previous download was interrupted mid-write
+//   - Disk corruption affected some files
+//   - Manual tampering with cache files
+//
+// This method is called by [cache.exists] before checking validity. If the
+// cache is empty or fully consistent, this method is a no-op and returns nil.
+// If an inconsistency is detected, [cache.clear] is called to remove all
+// cache files.
 func (c *cache) clearIfInconsistent(req *http.Request) error {
 	mainDir := filepath.Join(c.dir, "main")
 	if !ioz.DirExists(mainDir) {
@@ -126,8 +175,27 @@ func (c *cache) clearIfInconsistent(req *http.Request) error {
 	return nil
 }
 
-// Get returns the cached http.Response for req if present, and nil
-// otherwise. The caller MUST close the returned response body.
+// get retrieves a cached HTTP response for the given request, if available.
+//
+// If no valid cache exists, get returns (nil, nil). A valid cache requires
+// the header file to exist and be accessible, and for the cached checksums
+// to match (see [cache.checksumsMatch]).
+//
+// On success, get returns the reconstructed [http.Response] with a readable
+// Body. The response is reconstructed by:
+//  1. Reading the serialized headers from the "header" file
+//  2. Opening the "body" file
+//  3. Concatenating them via [io.MultiReader]
+//  4. Parsing via [http.ReadResponse]
+//
+// The returned response's Body is wrapped with a notifier that closes the
+// underlying body file when Body.Close() is called. Therefore, it is CRITICAL
+// that the caller close the returned response body to avoid file descriptor
+// leaks.
+//
+// The context is used for:
+//   - Cancellation support via [contextio.NewReader]
+//   - Logging on errors
 func (c *cache) get(ctx context.Context, req *http.Request) (*http.Response, error) {
 	log := lg.FromContext(ctx)
 
@@ -178,7 +246,21 @@ func (c *cache) get(ctx context.Context, req *http.Request) (*http.Response, err
 	return resp, nil
 }
 
-// checksum returns the contents of the cached checksum file, if available.
+// cachedChecksum reads and returns the checksum stored in the cache's
+// checksums.txt file for the given request, if available.
+//
+// The checksums.txt file is written during cache promotion (see
+// [responseCacher.cachePromote]) and contains a single SHA-256 checksum
+// for the "body" file entry.
+//
+// Returns ("", false) if:
+//   - The checksums.txt file doesn't exist or isn't accessible
+//   - The file cannot be parsed
+//   - The file doesn't contain exactly one entry for "body"
+//
+// This method only reads the stored checksum; it does not verify that
+// the checksum matches the actual body file. Use [cache.checksumsMatch]
+// for validation.
 func (c *cache) cachedChecksum(req *http.Request) (sum checksum.Checksum, ok bool) {
 	_, _, fp := c.paths(req)
 	if !ioz.FileAccessible(fp) {
@@ -201,9 +283,22 @@ func (c *cache) cachedChecksum(req *http.Request) (sum checksum.Checksum, ok boo
 	return sum, ok
 }
 
-// checksumsMatch returns true (and the valid checksum) if there is a cached
-// checksum file for req, and there is a cached response body file, and a fresh
-// checksum calculated from that body file matches the cached checksum.
+// checksumsMatch validates the integrity of the cached body file by comparing
+// the stored checksum against a freshly computed checksum.
+//
+// This method performs the following steps:
+//  1. Reads the stored checksum from checksums.txt via [cache.cachedChecksum]
+//  2. Computes a fresh SHA-256 checksum of the body file
+//  3. Compares the two checksums
+//
+// Returns (checksum, true) if the checksums match, indicating the cache
+// is valid and uncorrupted. Returns ("", false) if:
+//   - No cached checksum exists
+//   - The body file cannot be read or checksummed
+//   - The checksums don't match (logs a warning about inconsistent cache)
+//
+// This is the authoritative method for validating cache integrity and is
+// called by [cache.exists] and [cache.get].
 func (c *cache) checksumsMatch(req *http.Request) (sum checksum.Checksum, ok bool) { //nolint:unparam
 	sum, ok = c.cachedChecksum(req)
 	if !ok {
@@ -224,7 +319,21 @@ func (c *cache) checksumsMatch(req *http.Request) (sum checksum.Checksum, ok boo
 	return sum, true
 }
 
-// clear deletes the cache entries from disk.
+// clear removes all cache data from disk, including both the main cache
+// and any staging data.
+//
+// The method performs two operations:
+//  1. Recursively deletes the entire cache directory (including "main" and
+//     "staging" subdirectories)
+//  2. Recreates the empty cache directory
+//
+// This ensures the cache is in a clean, empty state. If either operation
+// fails, the combined error is logged and returned. On success, an info
+// message is logged.
+//
+// This method is called by [cache.clearIfInconsistent] when corruption is
+// detected, and can be called directly via [Downloader.Clear] to manually
+// invalidate the cache.
 func (c *cache) clear(ctx context.Context) error {
 	deleteErr := errz.Wrap(os.RemoveAll(c.dir), "delete cache dir")
 	recreateErr := ioz.RequireDir(c.dir)
@@ -238,8 +347,24 @@ func (c *cache) clear(ctx context.Context) error {
 	return nil
 }
 
-// writeHeader updates the main cache header file from resp. The response body
-// is not written to the cache, nor is resp.Body closed.
+// writeHeader updates only the header file in the main cache from the
+// provided response, leaving the body file unchanged.
+//
+// This method is used when the server returns HTTP 304 Not Modified, indicating
+// that the cached body is still valid but the headers (such as cache-control
+// directives or dates) have been updated. In this case, only the header file
+// needs to be refreshed.
+//
+// The method:
+//  1. Serializes the response headers via [httputil.DumpResponse] (body=false)
+//  2. Ensures the main cache directory exists
+//  3. Writes the header bytes to the "header" file
+//
+// Note that resp.Body is NOT read or closed by this method; the caller
+// retains responsibility for the response body.
+//
+// This is distinct from [cache.newResponseCacher], which handles full
+// response caching including the body via the two-phase staging approach.
 func (c *cache) writeHeader(ctx context.Context, resp *http.Response) (err error) {
 	header, err := httputil.DumpResponse(resp, false)
 	if err != nil {
@@ -260,8 +385,27 @@ func (c *cache) writeHeader(ctx context.Context, resp *http.Response) (err error
 	return nil
 }
 
-// newResponseCacher returns a new responseCacher for resp.
-// On return, resp.Body will be nil.
+// newResponseCacher creates a new [responseCacher] to stream and cache the
+// response body.
+//
+// This method initiates the two-phase cache commit process:
+//  1. Creates the "staging" subdirectory within the cache directory
+//  2. Serializes and writes the response headers to staging/header
+//  3. Creates an empty staging/body file for streaming writes
+//  4. Returns a [responseCacher] that wraps resp.Body
+//
+// The returned [responseCacher] implements [io.ReadCloser]. As data is read
+// from it, the bytes are simultaneously written to the staging body file.
+// When [io.EOF] is received, [responseCacher] computes a checksum and atomically
+// promotes the staging directory to replace the main cache.
+//
+// IMPORTANT: On return, resp.Body is set to nil. The [responseCacher] now owns
+// the original response body and will close it appropriately. The caller should
+// read from the returned [responseCacher] instead of the original resp.Body.
+//
+// If any error occurs during setup (creating directories, writing header,
+// creating body file), the response body is closed and the error is returned.
+// The caller should not attempt to read from resp.Body in this case.
 func (c *cache) newResponseCacher(ctx context.Context, resp *http.Response) (*responseCacher, error) {
 	defer func() { resp.Body = nil }()
 
@@ -303,24 +447,63 @@ func (c *cache) newResponseCacher(ctx context.Context, resp *http.Response) (*re
 
 var _ io.ReadCloser = (*responseCacher)(nil)
 
-// responseCacher is an io.ReadCloser that wraps an [http.Response.Body],
-// appending bytes read via Read to a staging cache file, and then returning
-// those same bytes to the caller. It is conceptually similar to [io.TeeReader].
-// When Read receives [io.EOF] from the wrapped response body, the staging cache
-// is promoted and replaces the main cache. If an error occurs during Read, the
-// staging cache is discarded, and the main cache is left untouched. If an error
-// occurs during cache promotion (which happens on receipt of [io.EOF] from
-// resp.Body), the promotion error, not [io.EOF], is returned by Read. Thus, a
-// consumer of responseCacher will not receive [io.EOF] unless the cache is
-// successfully promoted.
+// responseCacher is an [io.ReadCloser] that wraps an [http.Response.Body],
+// simultaneously streaming bytes to the caller and caching them to disk.
+//
+// It functions similarly to [io.TeeReader]: bytes read from the wrapped
+// response body are written to a staging cache file before being returned
+// to the caller. This allows the download to be used immediately while also
+// being persisted for future use.
+//
+// # Cache Promotion
+//
+// When Read receives [io.EOF] from the wrapped response body, indicating the
+// download is complete, responseCacher performs cache promotion:
+//  1. Closes the staging body file
+//  2. Computes a SHA-256 checksum of the body
+//  3. Writes the checksum to staging/checksums.txt
+//  4. Atomically renames the staging directory to replace the main cache
+//
+// If promotion succeeds, [io.EOF] is returned to the caller. If promotion
+// fails, the promotion error is returned instead of [io.EOF], signaling that
+// the download completed but caching failed.
+//
+// # Error Handling
+//
+// If an error (other than [io.EOF]) occurs during Read, the staging cache is
+// immediately discarded and the main cache is left untouched. This ensures
+// that partial or corrupt downloads never replace valid cached data.
+//
+// # Thread Safety
+//
+// All methods are protected by a mutex for safe concurrent access, though
+// typical usage involves a single goroutine reading to completion.
 type responseCacher struct {
-	log        *slog.Logger
-	body       io.ReadCloser
-	closeErr   *error
-	f          *os.File
-	mainDir    string
+	// log is the logger for cache operations.
+	log *slog.Logger
+
+	// body is the wrapped HTTP response body being read and cached.
+	// Set to nil after the response is fully read or on error.
+	body io.ReadCloser
+
+	// closeErr stores the error from Close(), enabling idempotent Close calls.
+	// Once set, subsequent Close calls return this same error.
+	closeErr *error
+
+	// f is the open file handle for the staging body file being written to.
+	// Set to nil after the file is closed (on EOF or error).
+	f *os.File
+
+	// mainDir is the path to the main cache directory that will receive
+	// the promoted staging data on successful completion.
+	mainDir string
+
+	// stagingDir is the path to the staging directory where data is written
+	// during the download. Atomically renamed to mainDir on success.
 	stagingDir string
-	mu         sync.Mutex
+
+	// mu protects all fields for concurrent access.
+	mu sync.Mutex
 }
 
 // Read implements [io.Reader]. It reads into p from the wrapped response body,
@@ -372,8 +555,18 @@ func (r *responseCacher) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
-// cacheAppend appends n bytes from p to the staging cache. If an error occurs,
-// the staging cache is discarded, and the error is returned.
+// cacheAppend writes the first n bytes of p to the staging body file.
+//
+// This is an internal helper called by [responseCacher.Read] after successfully
+// reading bytes from the wrapped response body. The bytes are written to the
+// staging file so they can be persisted for future cache hits.
+//
+// If the write fails (e.g., disk full, I/O error), cacheAppend performs
+// cleanup: it closes the response body, closes and removes the staging body
+// file, and removes the staging directory. This ensures no partial data
+// remains. The wrapped error is returned to the caller.
+//
+// On success, returns nil.
 func (r *responseCacher) cacheAppend(p []byte, n int) error {
 	_, err := r.f.Write(p[:n])
 	if err == nil {
@@ -389,10 +582,26 @@ func (r *responseCacher) cacheAppend(p []byte, n int) error {
 	return errz.Wrap(err, "failed to append http response body bytes to staging cache")
 }
 
-// cachePromote is invoked by [Read] when it receives [io.EOF] from the wrapped
-// response body. It promotes the staging cache to main, and on success returns
-// nil. If an error occurs during promotion, the staging cache is discarded, and
-// the promotion error is returned.
+// cachePromote finalizes the cache by promoting the staging directory to main.
+//
+// This method is invoked by [responseCacher.Read] when it receives [io.EOF]
+// from the wrapped response body, indicating the download completed successfully.
+//
+// The promotion process:
+//  1. Stats the staging body file to get its size for logging
+//  2. Closes the staging body file
+//  3. Closes the wrapped response body
+//  4. Computes a SHA-256 checksum of the staging body file
+//  5. Writes the checksum to staging/checksums.txt
+//  6. Atomically renames the staging directory to replace the main directory
+//     (via [ioz.RenameDir], which handles cross-device moves if needed)
+//
+// If any step fails, the deferred cleanup removes the staging directory and
+// the error is returned. This ensures the main cache remains untouched on
+// failure.
+//
+// On success, logs an info message with the file size and returns nil. The
+// caller ([responseCacher.Read]) then returns [io.EOF] to its caller.
 func (r *responseCacher) cachePromote() error {
 	defer func() {
 		if r.f != nil {

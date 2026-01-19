@@ -1,3 +1,12 @@
+// Package downloader_test contains tests for the downloader package.
+//
+// The tests verify:
+//   - Basic download and caching behavior (TestDownloader)
+//   - HTTP redirect handling (TestDownloader_redirect)
+//   - SinkHandler callback recording (TestSinkHandler, TestSinkHandler_Uncached)
+//   - Cache preservation on failed refresh (TestCachePreservedOnFailedRefresh)
+//   - State.String() method (TestState_String)
+
 package downloader_test
 
 import (
@@ -29,6 +38,19 @@ import (
 	"github.com/neilotoole/sq/testh/tu"
 )
 
+// TestState_String verifies the String() method of the [downloader.State] type.
+//
+// This test uses a table-driven approach to verify that each state constant
+// (Uncached, Stale, Fresh, Transparent) produces the expected string
+// representation. It also verifies that an invalid/unknown state value
+// returns "unknown" rather than panicking.
+//
+// Test cases:
+//   - Uncached (0) -> "uncached"
+//   - Stale (1) -> "stale"
+//   - Fresh (2) -> "fresh"
+//   - Transparent (3) -> "transparent"
+//   - State(99) (invalid) -> "unknown"
 func TestState_String(t *testing.T) {
 	testCases := []struct {
 		state downloader.State
@@ -49,6 +71,32 @@ func TestState_String(t *testing.T) {
 	}
 }
 
+// TestDownloader is an integration test that exercises the complete download
+// and caching lifecycle using a real HTTP resource (sakila.ActorCSVURL).
+//
+// The test verifies the following behaviors:
+//
+//  1. Initial state: A new Downloader starts in [downloader.Uncached] state
+//     with no checksum available.
+//
+//  2. First download: Calling Get() on an uncached resource returns a stream
+//     (not a file path), and the state remains Uncached until the stream is
+//     fully read.
+//
+//  3. Streaming behavior: The stream is not "filled" until fully read. The
+//     cache file doesn't exist until the stream is drained (two-phase commit).
+//
+//  4. Cache population: After draining the stream, the Downloader transitions
+//     to [downloader.Fresh] state, and the cached file becomes accessible via
+//     CacheFile() and Checksum().
+//
+//  5. Subsequent requests: Calling Get() again returns the cached file path
+//     (not a stream), demonstrating cache hit behavior.
+//
+//  6. Cache clearing: Calling Clear() resets the Downloader to Uncached state
+//     and removes the cached checksum.
+//
+// This test requires network access to download the sakila actor CSV file.
 func TestDownloader(t *testing.T) {
 	const dlURL = sakila.ActorCSVURL
 	log := lgt.New(t)
@@ -127,6 +175,28 @@ func TestDownloader(t *testing.T) {
 	require.Empty(t, sum)
 }
 
+// TestDownloader_redirect verifies that [Downloader] correctly handles HTTP
+// redirects, following them to the final destination and caching appropriately.
+//
+// The test sets up a local HTTP server with two endpoints:
+//   - /redirect: Returns HTTP 302 redirect to /actual
+//   - /actual: Returns the content with Last-Modified header
+//
+// The test verifies:
+//
+//  1. First request: The Downloader follows the redirect from /redirect to
+//     /actual, returns a stream with the content, and ultimately caches it.
+//
+//  2. Second request: The Downloader returns the cached file (not a stream),
+//     demonstrating that the redirect was properly resolved and cached.
+//
+//  3. Conditional requests: The server supports If-Modified-Since, returning
+//     304 Not Modified if the content hasn't changed. This validates that
+//     the Downloader correctly handles cache revalidation with redirects.
+//
+// This is an important test because HTTP redirects add complexity to caching:
+// the cache must be keyed appropriately and conditional request headers must
+// be sent to the correct (final) URL.
 func TestDownloader_redirect(t *testing.T) {
 	const hello = `Hello World!`
 	serveBody := hello
@@ -198,6 +268,25 @@ func TestDownloader_redirect(t *testing.T) {
 	require.Equal(t, serveBody, gotBody)
 }
 
+// TestSinkHandler tests the [downloader.SinkHandler] type, which records
+// callback invocations for testing purposes.
+//
+// This test verifies:
+//
+//  1. Initial state: A newly created SinkHandler has empty slices for
+//     Errors, Downloaded, and Streams.
+//
+//  2. Cached callback: Invoking the Cached callback appends file paths to
+//     the Downloaded slice in order.
+//
+//  3. Error callback: Invoking the Error callback appends errors to the
+//     Errors slice in order.
+//
+//  4. Reset: Calling Reset() clears all slices, preparing the handler for
+//     reuse between test cases.
+//
+// Note: The Uncached callback is tested separately in [TestSinkHandler_Uncached]
+// because it requires a [streamcache.Stream] argument.
 func TestSinkHandler(t *testing.T) {
 	log := lgt.New(t)
 	h := downloader.NewSinkHandler(log)
@@ -231,6 +320,22 @@ func TestSinkHandler(t *testing.T) {
 	require.Empty(t, h.Streams)
 }
 
+// TestSinkHandler_Uncached tests the Uncached callback of [downloader.SinkHandler],
+// which is invoked when a download begins (no cache hit).
+//
+// This test verifies:
+//
+//  1. Uncached callback: Invoking the Uncached callback with a
+//     [streamcache.Stream] appends the stream to the Streams slice.
+//
+//  2. Stream identity: The stored stream is the exact same instance that
+//     was passed to the callback (verified with require.Same).
+//
+//  3. Reset cleanup: Calling Reset() closes the source reader of recorded
+//     streams (preventing resource leaks) and clears the Streams slice.
+//
+// The test creates a mock stream from a simple string reader to avoid
+// needing actual HTTP downloads.
 func TestSinkHandler_Uncached(t *testing.T) {
 	log := lgt.New(t)
 	h := downloader.NewSinkHandler(log)
@@ -248,6 +353,33 @@ func TestSinkHandler_Uncached(t *testing.T) {
 	require.Empty(t, h.Streams)
 }
 
+// TestCachePreservedOnFailedRefresh verifies that the cache is NOT overwritten
+// when a refresh attempt fails mid-download.
+//
+// This is a critical safety test for the two-phase cache commit strategy.
+// It ensures that if a download starts successfully but fails before completion
+// (e.g., connection dropped, server error mid-stream), the existing valid
+// cache remains intact rather than being replaced with corrupt/partial data.
+//
+// Test setup:
+//   - A local HTTP server that can be configured to fail mid-response
+//   - srvrShouldBodyError: When true, server sends partial body then closes
+//     the connection, causing io.ErrUnexpectedEOF on the client
+//   - Cache-Control headers are used to force cache revalidation
+//
+// Test phases:
+//
+//  1. Initial download: Successfully download and cache content. Record the
+//     file modification timestamps of the cache files (body, header, checksums).
+//
+//  2. Failed refresh: Configure server to fail mid-body, trigger a refresh.
+//     The download begins but fails with io.ErrUnexpectedEOF.
+//
+//  3. Verify preservation: Check that the cache file timestamps are unchanged,
+//     proving the failed download did not corrupt the existing cache.
+//
+// This test validates the atomicity guarantee of [responseCacher]: staging
+// data is only promoted to main cache on successful completion.
 func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	ctx := lg.NewContext(context.Background(), lgt.New(t))
 

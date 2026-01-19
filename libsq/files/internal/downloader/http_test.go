@@ -1,3 +1,10 @@
+// This file contains internal tests for the HTTP caching helper functions
+// in http.go. It uses package downloader (not downloader_test) to access
+// unexported functions like getDate, parseCacheControl, canStore, etc.
+//
+// These tests verify the RFC 7234 (HTTP Caching) and RFC 5861 (stale-if-error)
+// compliance of the cache control logic.
+
 package downloader
 
 import (
@@ -8,6 +15,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestGetDate tests the [getDate] function, which parses the HTTP Date header
+// from response headers.
+//
+// The Date header is essential for computing cache age per RFC 7234. This test
+// verifies:
+//   - Valid RFC 1123 formatted dates are parsed correctly
+//   - Missing Date header returns [errNoDateHeader]
+//   - Empty Date header returns [errNoDateHeader]
+//   - Malformed date strings return a parse error
 func TestGetDate(t *testing.T) {
 	testCases := []struct {
 		name      string
@@ -58,6 +74,16 @@ func TestGetDate(t *testing.T) {
 	}
 }
 
+// TestParseCacheControl tests the [parseCacheControl] function, which parses
+// the Cache-Control header into a map of directive names to values.
+//
+// This test verifies parsing of various Cache-Control formats:
+//   - Empty headers return empty map
+//   - Directives without values (no-cache, no-store)
+//   - Directives with values (max-age=3600)
+//   - Multiple comma-separated directives
+//   - Whitespace handling
+//   - RFC 5861 extension directive (stale-if-error)
 func TestParseCacheControl(t *testing.T) {
 	testCases := []struct {
 		name    string
@@ -109,6 +135,16 @@ func TestParseCacheControl(t *testing.T) {
 	}
 }
 
+// TestCanStore tests the [canStore] function, which determines whether a
+// response may be cached based on the no-store directive.
+//
+// Per RFC 7234 Section 3, the no-store directive indicates that a cache
+// MUST NOT store any part of the request or response. This test verifies:
+//   - Empty cache-control allows storage
+//   - Response no-store prevents storage
+//   - Request no-store prevents storage
+//   - Both no-store prevents storage
+//   - Other directives (max-age, no-cache) do not prevent storage
 func TestCanStore(t *testing.T) {
 	testCases := []struct {
 		name     string
@@ -156,6 +192,18 @@ func TestCanStore(t *testing.T) {
 	}
 }
 
+// TestHeaderAllCommaSepValues tests the [headerAllCommaSepValues] function,
+// which extracts all comma-separated values from an HTTP header.
+//
+// Per RFC 7230 Section 3.2.2, multiple header field instances with the same
+// name are equivalent to a single instance with comma-separated values.
+// This test verifies:
+//   - Empty headers return nil
+//   - Single value headers
+//   - Comma-separated values in a single header
+//   - Multiple header instances (same name, different values)
+//   - Whitespace trimming around values
+//   - Case-insensitive header name lookup
 func TestHeaderAllCommaSepValues(t *testing.T) {
 	testCases := []struct {
 		name    string
@@ -209,6 +257,17 @@ func TestHeaderAllCommaSepValues(t *testing.T) {
 	}
 }
 
+// TestGetEndToEndHeaders tests the [getEndToEndHeaders] function, which
+// filters HTTP headers to return only end-to-end headers (excluding hop-by-hop).
+//
+// Per RFC 7230 Section 6.1, hop-by-hop headers are meaningful only for a
+// single connection and must not be cached. This test verifies:
+//   - Empty headers return empty result
+//   - Standard hop-by-hop headers are filtered: Connection, Keep-Alive,
+//     Proxy-Authenticate, Proxy-Authorization, TE, Trailers, Transfer-Encoding,
+//     Upgrade
+//   - Headers listed in the Connection header value are also filtered
+//   - Content headers (Content-Type, etc.) are preserved as end-to-end
 func TestGetEndToEndHeaders(t *testing.T) {
 	testCases := []struct {
 		name        string
@@ -276,15 +335,52 @@ func TestGetEndToEndHeaders(t *testing.T) {
 	}
 }
 
-// mockClock is a mock timer for testing time-dependent functions.
+// mockClock is a mock implementation of the [timer] interface for testing
+// time-dependent cache functions like [getFreshness] and [canStaleOnError].
+//
+// By replacing the package-level [clock] variable with a mockClock, tests
+// can control the "elapsed time since response" without waiting for real
+// time to pass. This enables deterministic testing of cache freshness logic.
+//
+// Usage:
+//
+//	origClock := clock
+//	t.Cleanup(func() { clock = origClock })
+//	clock = &mockClock{elapsed: time.Hour}
 type mockClock struct {
+	// elapsed is the fixed duration returned by since(), representing
+	// how much time has "passed" since the response was generated.
 	elapsed time.Duration
 }
 
+// since returns the pre-configured elapsed duration, ignoring the input time.
+// This allows tests to simulate any cache age without actual time passage.
 func (m *mockClock) since(_ time.Time) time.Duration {
 	return m.elapsed
 }
 
+// TestGetFreshness comprehensively tests the [getFreshness] function, which
+// determines whether a cached response is Fresh, Stale, or Transparent based
+// on HTTP cache-control semantics.
+//
+// This test uses [mockClock] to control time-based freshness calculations.
+// It verifies RFC 7234 cache freshness rules:
+//
+// Request directives:
+//   - no-cache: Returns [Transparent] (bypass cache)
+//   - only-if-cached: Returns [Fresh] (use cache regardless of age)
+//   - max-age: Limits acceptable response age
+//   - min-fresh: Requires minimum remaining freshness
+//   - max-stale: Accepts stale responses within tolerance
+//
+// Response directives:
+//   - no-cache: Returns [Stale] (always revalidate)
+//   - max-age: Defines freshness lifetime
+//   - Expires header: Fallback when max-age absent
+//
+// Edge cases:
+//   - Missing Date header returns [Stale]
+//   - Request max-age overrides response max-age
 func TestGetFreshness(t *testing.T) {
 	// Save original clock and restore after test
 	origClock := clock
@@ -398,6 +494,26 @@ func TestGetFreshness(t *testing.T) {
 	}
 }
 
+// TestCanStaleOnError tests the [canStaleOnError] function, which implements
+// RFC 5861 (HTTP Cache-Control Extensions for Stale Content).
+//
+// The stale-if-error directive allows serving stale cached content when the
+// origin server returns an error. This test uses [mockClock] to control time
+// and verifies:
+//
+// Directive presence:
+//   - No stale-if-error: Returns false
+//   - Empty stale-if-error value: Allows any stale age (returns true)
+//   - stale-if-error in response headers
+//   - stale-if-error in request headers
+//
+// Time-based validation:
+//   - Within stale-if-error lifetime: Returns true
+//   - Exceeded stale-if-error lifetime: Returns false
+//
+// Edge cases:
+//   - Missing Date header: Returns false (can't compute age)
+//   - Invalid stale-if-error value: Returns false
 func TestCanStaleOnError(t *testing.T) {
 	// Save original clock and restore after test
 	origClock := clock
@@ -473,6 +589,24 @@ func TestCanStaleOnError(t *testing.T) {
 	}
 }
 
+// TestVaryMatches tests the [varyMatches] function, which determines whether
+// a cached response can be used for a new request based on the Vary header.
+//
+// The Vary header (RFC 7231 Section 7.1.4) lists request headers that the
+// server used to select the response representation. A cached response can
+// only be reused if the new request has matching values for all varied headers.
+//
+// When caching, the original request's varied header values are stored with
+// an "X-Varied-" prefix. This test verifies:
+//
+// Basic cases:
+//   - No Vary header: Always matches
+//   - Single Vary header that matches
+//   - Single Vary header that doesn't match
+//
+// Multiple headers:
+//   - Multiple varied headers that all match
+//   - Multiple varied headers where one doesn't match
 func TestVaryMatches(t *testing.T) {
 	testCases := []struct {
 		name       string
@@ -560,6 +694,16 @@ func TestVaryMatches(t *testing.T) {
 	}
 }
 
+// TestNewGatewayTimeoutResponse tests the [newGatewayTimeoutResponse] function,
+// which creates a synthetic HTTP 504 Gateway Timeout response.
+//
+// This response is used when a request includes "only-if-cached" but no valid
+// cached response exists. Per RFC 7234 Section 5.2.1.7, the cache should
+// return 504 rather than forwarding to the origin server.
+//
+// The test verifies:
+//   - A valid response object is returned (not nil)
+//   - The status code is 504 Gateway Timeout
 func TestNewGatewayTimeoutResponse(t *testing.T) {
 	req, err := http.NewRequest(http.MethodGet, "http://example.com", nil)
 	require.NoError(t, err)
@@ -569,6 +713,18 @@ func TestNewGatewayTimeoutResponse(t *testing.T) {
 	require.Equal(t, http.StatusGatewayTimeout, resp.StatusCode)
 }
 
+// TestCloneRequest tests the [cloneRequest] function, which creates a shallow
+// copy of an [http.Request] with a deep copy of the Header map.
+//
+// This function is used when the Downloader needs to modify headers (e.g.,
+// adding If-Modified-Since for conditional requests) without affecting the
+// original request.
+//
+// The test verifies:
+//   - The cloned request is a different object (not same pointer)
+//   - Headers are initially copied correctly
+//   - Modifying cloned headers does NOT affect original (deep copy)
+//   - URL and Method are preserved (shallow copy is sufficient)
 func TestCloneRequest(t *testing.T) {
 	original, err := http.NewRequest(http.MethodGet, "http://example.com", nil)
 	require.NoError(t, err)
