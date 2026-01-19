@@ -1,21 +1,14 @@
 package libsq_test
 
 import (
-	"fmt"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 )
-
-// uniqueTableName generates a unique table name for testing.
-func uniqueTableName(prefix string) string {
-	// Use timestamp to ensure uniqueness
-	return fmt.Sprintf("%s_%d", prefix, time.Now().UnixNano())
-}
 
 // TestQueryVsExec_DDL_CREATE demonstrates the semantic difference between
 // QueryContext and ExecContext when executing DDL statements.
@@ -43,7 +36,7 @@ func TestQueryVsExec_DDL_CREATE(t *testing.T) {
 			db, err := grip.DB(th.Context)
 			require.NoError(t, err)
 
-			tableName := uniqueTableName("test_query_vs_exec_create")
+			tableName := stringz.UniqTableName("test_query_vs_exec_create")
 			createSQL := `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`
 
 			// === WRONG WAY: Using QueryContext for CREATE TABLE ===
@@ -130,7 +123,7 @@ func TestQueryVsExec_DML_INSERT(t *testing.T) {
 			db, err := grip.DB(th.Context)
 			require.NoError(t, err)
 
-			tableName := uniqueTableName("test_query_vs_exec_insert")
+			tableName := stringz.UniqTableName("test_query_vs_exec_insert")
 
 			// Setup: Create test table
 			createSQL := `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`
@@ -220,7 +213,7 @@ func TestQueryVsExec_DML_UPDATE(t *testing.T) {
 			db, err := grip.DB(th.Context)
 			require.NoError(t, err)
 
-			tableName := uniqueTableName("test_query_vs_exec_update")
+			tableName := stringz.UniqTableName("test_query_vs_exec_update")
 
 			// Setup: Create test table with data
 			createSQL := `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`
@@ -286,7 +279,7 @@ func TestExecSQL_Function(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
 
-			tableName := uniqueTableName("test_execsql")
+			tableName := stringz.UniqTableName("test_execsql")
 
 			// Test CREATE TABLE
 			createSQL := `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`
