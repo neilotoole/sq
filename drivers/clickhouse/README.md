@@ -387,6 +387,64 @@ normalization) in `recordMetaFromColumnTypes()`. The table prefix is stripped
 from column names before passing to the munging mechanism, enabling consistent
 duplicate detection and renaming across all databases.
 
+### 2026-01-19: Array Type Handling in Multi-Source Joins
+
+#### Issue
+
+Multi-source join tests (`TestQuery_join_multi_source/n2/two-sources`) fail for
+ClickHouse with error:
+
+```text
+sql: Scan error on column index 11, name "special_features": unsupported Scan,
+storing driver.Value type []string into type *string
+```
+
+#### Root Cause
+
+ClickHouse Array types (e.g., `Array(String)`) are returned by the clickhouse-go
+driver as Go slices (e.g., `[]string`). When performing multi-source joins, sq
+copies data to a scratch SQLite database, but the array values can't be scanned
+into string fields.
+
+The issue occurs because:
+
+1. `kindFromClickHouseType()` correctly maps Array types to `kind.Text`
+2. `setScanType()` sets the scan type to `string` for `kind.Text`
+3. But the driver returns `[]string`, which can't be scanned into `*string`
+
+#### Solution
+
+Two changes in `drivers/clickhouse/metadata.go`:
+
+1. **Override scan type for Array columns**: After calling `setScanType()`,
+   detect Array types and override the scan type to `any`:
+
+   ```go
+   if strings.HasPrefix(dbTypeName, "Array") {
+       colTypeData.ScanType = sqlz.RTypeAny
+   }
+   ```
+
+2. **Convert arrays to strings in `getNewRecordFunc`**: The record transformation
+   function now detects slice values and converts them to comma-separated strings:
+
+   ```go
+   // Dereference *any if needed
+   actual := val
+   if ptr, ok := val.(*any); ok && ptr != nil {
+       actual = *ptr
+   }
+   // Convert slices to strings
+   converted := convertArrayToString(actual)
+   ```
+
+The `convertArrayToString()` function handles common array element types:
+`[]string`, `[]int`, `[]int8/16/32/64`, `[]uint8/16/32/64`, `[]float32/64`,
+`[]bool`.
+
+**Status**: **Resolved**. Array values are now properly converted to
+comma-separated string representation during record processing.
+
 ### 2026-01-19: Investigation of TestNewBatchInsert Failure
 
 #### Issue

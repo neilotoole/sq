@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"context"
 	"database/sql"
+	"strconv"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -440,6 +441,15 @@ func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType) 
 		}
 
 		setScanType(colTypeData, knd, colTypeData.Nullable)
+
+		// ClickHouse Array types need special handling. The driver returns slices
+		// (e.g., []string for Array(String)), but we've mapped them to kind.Text.
+		// Override the scan type to use any, which can accept slice values.
+		// The getNewRecordFunc will convert these to strings.
+		if strings.HasPrefix(dbTypeName, "Array") {
+			colTypeData.ScanType = sqlz.RTypeAny
+		}
+
 		sColTypeData[i] = colTypeData
 
 		// ClickHouse returns qualified column names (e.g., "actor.actor_id") for
@@ -472,10 +482,131 @@ func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType) 
 //
 // This is used by RecordMeta to provide the transformation function that
 // processes each row returned by a query.
+//
+// Special handling for ClickHouse Array types: When a column is an Array type,
+// its scan type is set to any (to accept []T values from the driver). This
+// function converts those slice values to comma-separated string representation
+// before passing them to NewRecordFromScanRow.
 func getNewRecordFunc(rowMeta record.Meta) driver.NewRecordFunc {
 	return func(row []any) (record.Record, error) {
+		// Convert any slice values (from Array columns) to strings.
+		// The row contains pointers (like *any) from the scan operation,
+		// so we need to dereference before checking for slice types.
+		for i, val := range row {
+			if val == nil {
+				continue
+			}
+
+			// Dereference *any if needed to get the actual value
+			actual := val
+			if ptr, ok := val.(*any); ok && ptr != nil {
+				actual = *ptr
+			}
+
+			// Convert slices to strings
+			converted := convertArrayToString(actual)
+			if converted != actual {
+				// If conversion happened, update the pointer's value
+				if ptr, ok := val.(*any); ok {
+					*ptr = converted
+				} else {
+					row[i] = converted
+				}
+			}
+		}
 		rec, _ := driver.NewRecordFromScanRow(rowMeta, row, nil)
 		return rec, nil
+	}
+}
+
+// convertArrayToString converts slice values to a comma-separated string
+// representation. If the value is not a slice, it is returned unchanged.
+// This is used to handle ClickHouse Array types which are scanned as Go slices
+// but need to be stored as text in sq's record system.
+func convertArrayToString(val any) any {
+	switch v := val.(type) {
+	case []string:
+		return strings.Join(v, ",")
+	case []int:
+		parts := make([]string, len(v))
+		for i, n := range v {
+			parts[i] = strconv.Itoa(n)
+		}
+		return strings.Join(parts, ",")
+	case []int8:
+		parts := make([]string, len(v))
+		for i, n := range v {
+			parts[i] = strconv.FormatInt(int64(n), 10)
+		}
+		return strings.Join(parts, ",")
+	case []int16:
+		parts := make([]string, len(v))
+		for i, n := range v {
+			parts[i] = strconv.FormatInt(int64(n), 10)
+		}
+		return strings.Join(parts, ",")
+	case []int32:
+		parts := make([]string, len(v))
+		for i, n := range v {
+			parts[i] = strconv.FormatInt(int64(n), 10)
+		}
+		return strings.Join(parts, ",")
+	case []int64:
+		parts := make([]string, len(v))
+		for i, n := range v {
+			parts[i] = strconv.FormatInt(n, 10)
+		}
+		return strings.Join(parts, ",")
+	case []uint:
+		parts := make([]string, len(v))
+		for i, n := range v {
+			parts[i] = strconv.FormatUint(uint64(n), 10)
+		}
+		return strings.Join(parts, ",")
+	case []uint8:
+		parts := make([]string, len(v))
+		for i, n := range v {
+			parts[i] = strconv.FormatUint(uint64(n), 10)
+		}
+		return strings.Join(parts, ",")
+	case []uint16:
+		parts := make([]string, len(v))
+		for i, n := range v {
+			parts[i] = strconv.FormatUint(uint64(n), 10)
+		}
+		return strings.Join(parts, ",")
+	case []uint32:
+		parts := make([]string, len(v))
+		for i, n := range v {
+			parts[i] = strconv.FormatUint(uint64(n), 10)
+		}
+		return strings.Join(parts, ",")
+	case []uint64:
+		parts := make([]string, len(v))
+		for i, n := range v {
+			parts[i] = strconv.FormatUint(n, 10)
+		}
+		return strings.Join(parts, ",")
+	case []float32:
+		parts := make([]string, len(v))
+		for i, n := range v {
+			parts[i] = strconv.FormatFloat(float64(n), 'f', -1, 32)
+		}
+		return strings.Join(parts, ",")
+	case []float64:
+		parts := make([]string, len(v))
+		for i, n := range v {
+			parts[i] = strconv.FormatFloat(n, 'f', -1, 64)
+		}
+		return strings.Join(parts, ",")
+	case []bool:
+		parts := make([]string, len(v))
+		for i, b := range v {
+			parts[i] = strconv.FormatBool(b)
+		}
+		return strings.Join(parts, ",")
+	default:
+		return val
 	}
 }
 
