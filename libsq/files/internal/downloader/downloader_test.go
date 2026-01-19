@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,6 +28,26 @@ import (
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
 )
+
+func TestState_String(t *testing.T) {
+	testCases := []struct {
+		state downloader.State
+		want  string
+	}{
+		{downloader.Uncached, "uncached"},
+		{downloader.Stale, "stale"},
+		{downloader.Fresh, "fresh"},
+		{downloader.Transparent, "transparent"},
+		{downloader.State(99), "unknown"}, // Unknown state
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.want, func(t *testing.T) {
+			got := tc.state.String()
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
 
 func TestDownloader(t *testing.T) {
 	const dlURL = sakila.ActorCSVURL
@@ -175,6 +196,56 @@ func TestDownloader_redirect(t *testing.T) {
 	gotBody = tu.ReadFileToString(t, gotFile)
 	t.Logf("got body: \n\n%s\n\n", gotBody)
 	require.Equal(t, serveBody, gotBody)
+}
+
+func TestSinkHandler(t *testing.T) {
+	log := lgt.New(t)
+	h := downloader.NewSinkHandler(log)
+	require.NotNil(t, h)
+
+	// Initially empty
+	require.Empty(t, h.Errors)
+	require.Empty(t, h.Downloaded)
+	require.Empty(t, h.Streams)
+
+	// Test Cached callback
+	h.Cached("/path/to/file1")
+	h.Cached("/path/to/file2")
+	require.Len(t, h.Downloaded, 2)
+	require.Equal(t, "/path/to/file1", h.Downloaded[0])
+	require.Equal(t, "/path/to/file2", h.Downloaded[1])
+
+	// Test Error callback
+	err1 := errors.New("error 1")
+	err2 := errors.New("error 2")
+	h.Error(err1)
+	h.Error(err2)
+	require.Len(t, h.Errors, 2)
+	require.Equal(t, err1, h.Errors[0])
+	require.Equal(t, err2, h.Errors[1])
+
+	// Test Reset
+	h.Reset()
+	require.Empty(t, h.Errors)
+	require.Empty(t, h.Downloaded)
+	require.Empty(t, h.Streams)
+}
+
+func TestSinkHandler_Uncached(t *testing.T) {
+	log := lgt.New(t)
+	h := downloader.NewSinkHandler(log)
+
+	// Create a mock stream using streamcache
+	r := io.NopCloser(strings.NewReader("test content"))
+	stream := streamcache.New(r)
+
+	h.Uncached(stream)
+	require.Len(t, h.Streams, 1)
+	require.Same(t, stream, h.Streams[0])
+
+	// Reset should close the stream source
+	h.Reset()
+	require.Empty(t, h.Streams)
 }
 
 func TestCachePreservedOnFailedRefresh(t *testing.T) {
