@@ -129,9 +129,8 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 			//   - kind.Bytes -> String -> kind.Text (binary stored as String)
 			// See drivers/clickhouse/README.md "Known Limitations" for details.
 			// This understanding may be incomplete or incorrect.
-			if drvr.DriverMetadata().Type == drivertype.ClickHouse {
-				t.Skip("ClickHouse: kind.Time and kind.Bytes don't roundtrip exactly (see README Known Limitations)")
-			}
+			tu.SkipIf(t, drvr.DriverMetadata().Type == drivertype.ClickHouse,
+				"ClickHouse: kind.Time and kind.Bytes don't roundtrip exactly (see README Known Limitations)")
 
 			tblName := stringz.UniqTableName(t.Name())
 			colNames, colKinds := fixt.ColNamePerKind(drvr.Dialect().IntBool, false, false)
