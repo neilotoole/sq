@@ -78,7 +78,7 @@ func TestExecContext_DML_INSERT(t *testing.T) {
 	testCases := []struct {
 		handle           string
 		createSQL        string
-		wantAffectedRows int64 // ClickHouse returns 0 for affected rows
+		wantAffectedRows int64 // Expected affected rows; ClickHouse returns 0 (see below)
 	}{
 		{
 			handle:           sakila.Pg,
@@ -104,7 +104,9 @@ func TestExecContext_DML_INSERT(t *testing.T) {
 			handle: sakila.CH,
 			createSQL: `CREATE TABLE ` + tableName +
 				` (id Int32, name String) ENGINE = MergeTree() ORDER BY id`,
-			wantAffectedRows: 0, // ClickHouse returns 0 for affected rows
+			// ClickHouse's protocol returns 0 from sql.Result.RowsAffected().
+			// See TestExecContext_DML_UPDATE for detailed explanation.
+			wantAffectedRows: 0,
 		},
 	}
 
@@ -148,7 +150,7 @@ func TestExecContext_DML_UPDATE(t *testing.T) {
 	testCases := []struct {
 		handle           string
 		createSQL        string
-		wantAffectedRows int64 // ClickHouse returns 0 for affected rows
+		wantAffectedRows int64 // Expected affected rows; ClickHouse returns 0 (see below)
 	}{
 		{
 			handle:           sakila.Pg,
@@ -177,7 +179,11 @@ func TestExecContext_DML_UPDATE(t *testing.T) {
 			createSQL: `CREATE TABLE ` + tableName +
 				` (id Int32, name String) ENGINE = MergeTree() ORDER BY id` +
 				` SETTINGS enable_block_number_column = 1, enable_block_offset_column = 1`,
-			wantAffectedRows: 0, // ClickHouse returns 0 for affected rows
+			// ClickHouse's protocol returns 0 for affected rows from sql.Result.RowsAffected().
+			// This is the raw driver behavior. Note that sq's higher-level driver methods
+			// (e.g., CopyTable) return dialect.RowsAffectedUnsupported (-1) to distinguish
+			// "unavailable" from "zero rows affected".
+			wantAffectedRows: 0,
 		},
 	}
 
