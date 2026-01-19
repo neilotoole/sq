@@ -1,9 +1,12 @@
 package source_test
 
 import (
+	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
@@ -752,4 +755,541 @@ func TestRedactSources(t *testing.T) {
 		// Verify original sources are not modified
 		require.Contains(t, src1.Location, "secret")
 	})
+}
+
+func TestReservedHandles(t *testing.T) {
+	handles := source.ReservedHandles()
+	require.NotEmpty(t, handles)
+
+	// Verify known reserved handles are present
+	require.Contains(t, handles, source.StdinHandle)
+	require.Contains(t, handles, source.ActiveHandle)
+	require.Contains(t, handles, source.ScratchHandle)
+	require.Contains(t, handles, source.JoinHandle)
+}
+
+func TestCollection_Clone(t *testing.T) {
+	t.Run("empty_collection", func(t *testing.T) {
+		coll := &source.Collection{}
+		clone := coll.Clone()
+		require.NotNil(t, clone)
+		require.Empty(t, clone.Sources())
+	})
+
+	t.Run("with_sources", func(t *testing.T) {
+		coll := &source.Collection{}
+		src1 := newSource("@src1")
+		src2 := newSource("@prod/src2")
+		require.NoError(t, coll.Add(src1))
+		require.NoError(t, coll.Add(src2))
+
+		_, err := coll.SetActive(src1.Handle, false)
+		require.NoError(t, err)
+
+		clone := coll.Clone()
+		require.NotNil(t, clone)
+		require.NotSame(t, coll, clone)
+
+		// Verify sources are cloned
+		cloneSrcs := clone.Sources()
+		require.Len(t, cloneSrcs, 2)
+
+		// Verify active handle is preserved
+		require.Equal(t, coll.ActiveHandle(), clone.ActiveHandle())
+
+		// Verify sources are deep copies
+		cloneSrc1, err := clone.Get("@src1")
+		require.NoError(t, err)
+		require.NotSame(t, src1, cloneSrc1)
+		require.Equal(t, src1.Handle, cloneSrc1.Handle)
+		require.Equal(t, src1.Location, cloneSrc1.Location)
+
+		// Verify modifying clone doesn't affect original
+		require.NoError(t, clone.Remove("@src1"))
+		_, err = coll.Get("@src1")
+		require.NoError(t, err, "original should still have @src1")
+	})
+}
+
+func TestCollection_Get(t *testing.T) {
+	coll := &source.Collection{}
+	src := newSource("@sakila")
+	require.NoError(t, coll.Add(src))
+
+	t.Run("existing", func(t *testing.T) {
+		got, err := coll.Get("@sakila")
+		require.NoError(t, err)
+		require.Equal(t, src, got)
+	})
+
+	t.Run("not_found", func(t *testing.T) {
+		got, err := coll.Get("@nonexistent")
+		require.Error(t, err)
+		require.Nil(t, got)
+	})
+
+	t.Run("invalid_handle", func(t *testing.T) {
+		got, err := coll.Get("invalid")
+		require.Error(t, err)
+		require.Nil(t, got)
+	})
+}
+
+func TestCollection_Scratch(t *testing.T) {
+	coll := &source.Collection{}
+
+	// Initially no scratch source
+	require.Nil(t, coll.Scratch())
+
+	// Add a source and set it as scratch
+	src := newSource("@scratch_db")
+	require.NoError(t, coll.Add(src))
+
+	got, err := coll.SetScratch(src.Handle)
+	require.NoError(t, err)
+	require.Equal(t, src, got)
+	require.Equal(t, src, coll.Scratch())
+
+	// Setting non-existent source as scratch should fail
+	_, err = coll.SetScratch("@nonexistent")
+	require.Error(t, err)
+}
+
+func TestCollection_Remove(t *testing.T) {
+	coll := &source.Collection{}
+	src := newSource("@sakila")
+	require.NoError(t, coll.Add(src))
+
+	require.True(t, coll.IsExistingSource("@sakila"))
+	require.NoError(t, coll.Remove("@sakila"))
+	require.False(t, coll.IsExistingSource("@sakila"))
+
+	// Removing non-existent source should error
+	require.Error(t, coll.Remove("@nonexistent"))
+}
+
+func TestCollection_Handles(t *testing.T) {
+	coll := &source.Collection{}
+
+	// Empty collection
+	require.Empty(t, coll.Handles())
+
+	// Add sources
+	require.NoError(t, coll.Add(newSource("@src1")))
+	require.NoError(t, coll.Add(newSource("@src2")))
+	require.NoError(t, coll.Add(newSource("@prod/src3")))
+
+	handles := coll.Handles()
+	require.Len(t, handles, 3)
+	require.Contains(t, handles, "@src1")
+	require.Contains(t, handles, "@src2")
+	require.Contains(t, handles, "@prod/src3")
+}
+
+func TestCollection_HandlesInGroup(t *testing.T) {
+	coll := &source.Collection{}
+	require.NoError(t, coll.Add(newSource("@src1")))
+	require.NoError(t, coll.Add(newSource("@prod/src2")))
+	require.NoError(t, coll.Add(newSource("@prod/src3")))
+	require.NoError(t, coll.Add(newSource("@prod/sub/src4")))
+
+	t.Run("root_group", func(t *testing.T) {
+		// Root group returns ALL handles
+		handles, err := coll.HandlesInGroup(source.RootGroup)
+		require.NoError(t, err)
+		require.Len(t, handles, 4)
+	})
+
+	t.Run("prod_group", func(t *testing.T) {
+		// prod group includes subgroups
+		handles, err := coll.HandlesInGroup("prod")
+		require.NoError(t, err)
+		require.Len(t, handles, 3)
+		require.Contains(t, handles, "@prod/src2")
+		require.Contains(t, handles, "@prod/src3")
+		require.Contains(t, handles, "@prod/sub/src4")
+	})
+
+	t.Run("prod_sub_group", func(t *testing.T) {
+		handles, err := coll.HandlesInGroup("prod/sub")
+		require.NoError(t, err)
+		require.Len(t, handles, 1)
+		require.Contains(t, handles, "@prod/sub/src4")
+	})
+
+	t.Run("nonexistent_group", func(t *testing.T) {
+		handles, err := coll.HandlesInGroup("nonexistent")
+		require.Error(t, err)
+		require.Empty(t, handles)
+	})
+}
+
+func TestCollection_Visit(t *testing.T) {
+	coll := &source.Collection{}
+	require.NoError(t, coll.Add(newSource("@src1")))
+	require.NoError(t, coll.Add(newSource("@src2")))
+	require.NoError(t, coll.Add(newSource("@src3")))
+
+	var visited []string
+	err := coll.Visit(func(src *source.Source) error {
+		visited = append(visited, src.Handle)
+		return nil
+	})
+	require.NoError(t, err)
+	require.Len(t, visited, 3)
+
+	// Test early termination on error
+	count := 0
+	err = coll.Visit(func(_ *source.Source) error {
+		count++
+		if count == 2 {
+			return errors.New("stop")
+		}
+		return nil
+	})
+	require.Error(t, err)
+	require.Equal(t, 2, count)
+}
+
+func TestCollection_Sources(t *testing.T) {
+	coll := &source.Collection{}
+
+	// Empty collection
+	require.Empty(t, coll.Sources())
+
+	// With sources
+	src1 := newSource("@src1")
+	src2 := newSource("@src2")
+	require.NoError(t, coll.Add(src1))
+	require.NoError(t, coll.Add(src2))
+
+	srcs := coll.Sources()
+	require.Len(t, srcs, 2)
+}
+
+func TestCollection_String(t *testing.T) {
+	coll := &source.Collection{}
+	require.NoError(t, coll.Add(newSource("@sakila")))
+
+	s := coll.String()
+	require.NotEmpty(t, s)
+}
+
+func TestCollection_MarshalJSON(t *testing.T) {
+	coll := &source.Collection{}
+
+	// Empty collection
+	data, err := json.Marshal(coll)
+	require.NoError(t, err)
+	require.NotNil(t, data)
+
+	// With sources
+	src1 := newSource("@src1")
+	src2 := newSource("@prod/src2")
+	require.NoError(t, coll.Add(src1))
+	require.NoError(t, coll.Add(src2))
+	_, err = coll.SetActive(src1.Handle, false)
+	require.NoError(t, err)
+	_, err = coll.SetScratch("@src1")
+	require.NoError(t, err)
+
+	data, err = json.Marshal(coll)
+	require.NoError(t, err)
+	require.Contains(t, string(data), "@src1")
+	require.Contains(t, string(data), "@prod/src2")
+	require.Contains(t, string(data), `"active.source":"@src1"`)
+	require.Contains(t, string(data), `"scratch":"@src1"`)
+}
+
+func TestCollection_UnmarshalJSON(t *testing.T) {
+	// Create and marshal a collection
+	original := &source.Collection{}
+	src1 := newSource("@src1")
+	src2 := newSource("@prod/src2")
+	require.NoError(t, original.Add(src1))
+	require.NoError(t, original.Add(src2))
+	_, err := original.SetActive(src1.Handle, false)
+	require.NoError(t, err)
+	_, err = original.SetScratch("@src1")
+	require.NoError(t, err)
+
+	data, err := json.Marshal(original)
+	require.NoError(t, err)
+
+	// Unmarshal into new collection
+	restored := &source.Collection{}
+	err = json.Unmarshal(data, restored)
+	require.NoError(t, err)
+
+	// Verify restored collection matches original
+	require.Equal(t, len(original.Sources()), len(restored.Sources()))
+	activeSrc := restored.Active()
+	require.NotNil(t, activeSrc)
+	require.Equal(t, "@src1", activeSrc.Handle)
+	scratch := restored.Scratch()
+	require.NotNil(t, scratch)
+	require.Equal(t, "@src1", scratch.Handle)
+
+	// Verify sources were restored
+	restoredSrc1, err := restored.Get("@src1")
+	require.NoError(t, err)
+	require.Equal(t, src1.Handle, restoredSrc1.Handle)
+	require.Equal(t, src1.Type, restoredSrc1.Type)
+	require.Equal(t, src1.Location, restoredSrc1.Location)
+}
+
+func TestCollection_MarshalYAML(t *testing.T) {
+	coll := &source.Collection{}
+
+	// Empty collection
+	data, err := yaml.Marshal(coll)
+	require.NoError(t, err)
+	require.NotNil(t, data)
+
+	// With sources
+	src1 := newSource("@src1")
+	src2 := newSource("@prod/src2")
+	require.NoError(t, coll.Add(src1))
+	require.NoError(t, coll.Add(src2))
+	_, err = coll.SetActive(src1.Handle, false)
+	require.NoError(t, err)
+
+	data, err = yaml.Marshal(coll)
+	require.NoError(t, err)
+	require.Contains(t, string(data), "@src1")
+	require.Contains(t, string(data), "@prod/src2")
+	require.Contains(t, string(data), "active.source")
+}
+
+func TestCollection_UnmarshalYAML(t *testing.T) {
+	// Create and marshal a collection
+	original := &source.Collection{}
+	src1 := newSource("@src1")
+	src2 := newSource("@prod/src2")
+	require.NoError(t, original.Add(src1))
+	require.NoError(t, original.Add(src2))
+	_, err := original.SetActive(src1.Handle, false)
+	require.NoError(t, err)
+
+	data, err := yaml.Marshal(original)
+	require.NoError(t, err)
+
+	// Unmarshal into new collection
+	restored := &source.Collection{}
+	err = yaml.Unmarshal(data, restored)
+	require.NoError(t, err)
+
+	// Verify restored collection matches original
+	require.Equal(t, len(original.Sources()), len(restored.Sources()))
+	activeSrc := restored.Active()
+	require.NotNil(t, activeSrc)
+	require.Equal(t, "@src1", activeSrc.Handle)
+
+	// Verify sources were restored
+	restoredSrc1, err := restored.Get("@src1")
+	require.NoError(t, err)
+	require.Equal(t, src1.Handle, restoredSrc1.Handle)
+	require.Equal(t, src1.Type, restoredSrc1.Type)
+}
+
+func TestGroup_String(t *testing.T) {
+	g := &source.Group{Name: "prod"}
+	require.Equal(t, "prod", g.String())
+
+	g = &source.Group{Name: source.RootGroup}
+	require.Equal(t, source.RootGroup, g.String())
+}
+
+func TestGroup_Counts(t *testing.T) {
+	// nil group
+	var g *source.Group
+	directSrc, totalSrc, directGroup, totalGroup := g.Counts()
+	require.Equal(t, 0, directSrc)
+	require.Equal(t, 0, totalSrc)
+	require.Equal(t, 0, directGroup)
+	require.Equal(t, 0, totalGroup)
+
+	// Group with sources and subgroups
+	g = &source.Group{
+		Name:    "root",
+		Sources: []*source.Source{newSource("@src1"), newSource("@src2")},
+		Groups: []*source.Group{
+			{
+				Name:    "sub1",
+				Sources: []*source.Source{newSource("@sub1/src1")},
+				Groups: []*source.Group{
+					{
+						Name:    "sub1/nested",
+						Sources: []*source.Source{newSource("@sub1/nested/src1")},
+					},
+				},
+			},
+			{
+				Name:    "sub2",
+				Sources: []*source.Source{newSource("@sub2/src1"), newSource("@sub2/src2")},
+			},
+		},
+	}
+
+	directSrc, totalSrc, directGroup, totalGroup = g.Counts()
+	require.Equal(t, 2, directSrc)   // @src1, @src2
+	require.Equal(t, 6, totalSrc)    // all sources
+	require.Equal(t, 2, directGroup) // sub1, sub2
+	require.Equal(t, 3, totalGroup)  // sub1, sub1/nested, sub2
+}
+
+func TestGroup_AllSources(t *testing.T) {
+	// nil group
+	var g *source.Group
+	require.Empty(t, g.AllSources())
+
+	// Group with nested sources
+	g = &source.Group{
+		Name:    "root",
+		Sources: []*source.Source{newSource("@src1")},
+		Groups: []*source.Group{
+			{
+				Name:    "sub1",
+				Sources: []*source.Source{newSource("@sub1/src1")},
+			},
+		},
+	}
+
+	srcs := g.AllSources()
+	require.Len(t, srcs, 2)
+}
+
+func TestGroup_AllGroups(t *testing.T) {
+	// nil group
+	var g *source.Group
+	require.Empty(t, g.AllGroups())
+
+	// Group with nested groups
+	g = &source.Group{
+		Name: "root",
+		Groups: []*source.Group{
+			{
+				Name: "sub1",
+				Groups: []*source.Group{
+					{Name: "sub1/nested"},
+				},
+			},
+			{Name: "sub2"},
+		},
+	}
+
+	groups := g.AllGroups()
+	require.Len(t, groups, 4) // root, sub1, sub1/nested, sub2
+}
+
+func TestRedactGroup(t *testing.T) {
+	// nil group - should not panic
+	source.RedactGroup(nil)
+
+	// Group with sources containing passwords
+	src := &source.Source{
+		Handle:   "@db",
+		Type:     drivertype.Pg,
+		Location: "postgres://user:secret_password@localhost/db",
+	}
+
+	g := &source.Group{
+		Name:    "prod",
+		Sources: []*source.Source{src},
+		Groups: []*source.Group{
+			{
+				Name: "prod/sub",
+				Sources: []*source.Source{
+					{
+						Handle:   "@db2",
+						Type:     drivertype.MySQL,
+						Location: "mysql://user:another_secret@localhost/db",
+					},
+				},
+			},
+		},
+	}
+
+	// Verify original location has password
+	require.Contains(t, g.Sources[0].Location, "secret_password")
+	require.Contains(t, g.Groups[0].Sources[0].Location, "another_secret")
+
+	source.RedactGroup(g)
+
+	// Verify locations are redacted
+	require.NotContains(t, g.Sources[0].Location, "secret_password")
+	require.NotContains(t, g.Groups[0].Sources[0].Location, "another_secret")
+}
+
+func TestVerifyIntegrity(t *testing.T) {
+	// nil collection
+	repaired, err := source.VerifyIntegrity(nil)
+	require.Error(t, err)
+	require.False(t, repaired)
+
+	// Valid collection
+	coll := &source.Collection{}
+	require.NoError(t, coll.Add(newSource("@src1")))
+	repaired, err = source.VerifyIntegrity(coll)
+	require.NoError(t, err)
+	require.False(t, repaired)
+
+	// Collection with duplicate handles would fail at Add time,
+	// so we test via the integrity check through active source
+	coll = &source.Collection{}
+	require.NoError(t, coll.Add(newSource("@src1")))
+	_, err = coll.SetActive("@src1", false)
+	require.NoError(t, err)
+
+	repaired, err = source.VerifyIntegrity(coll)
+	require.NoError(t, err)
+	require.False(t, repaired)
+}
+
+func TestSort(t *testing.T) {
+	srcs := []*source.Source{
+		newSource("@z_last"),
+		newSource("@a_first"),
+		newSource("@m_middle"),
+	}
+
+	source.Sort(srcs)
+	require.Equal(t, "@a_first", srcs[0].Handle)
+	require.Equal(t, "@m_middle", srcs[1].Handle)
+	require.Equal(t, "@z_last", srcs[2].Handle)
+
+	// With nils
+	srcs = []*source.Source{
+		newSource("@b"),
+		nil,
+		newSource("@a"),
+	}
+	source.Sort(srcs)
+	require.Nil(t, srcs[0])
+	require.Equal(t, "@a", srcs[1].Handle)
+	require.Equal(t, "@b", srcs[2].Handle)
+}
+
+func TestSortGroups(t *testing.T) {
+	groups := []*source.Group{
+		{Name: "z_last"},
+		{Name: "a_first"},
+		{Name: "m_middle"},
+	}
+
+	source.SortGroups(groups)
+	require.Equal(t, "a_first", groups[0].Name)
+	require.Equal(t, "m_middle", groups[1].Name)
+	require.Equal(t, "z_last", groups[2].Name)
+
+	// With nils
+	groups = []*source.Group{
+		{Name: "b"},
+		nil,
+		{Name: "a"},
+	}
+	source.SortGroups(groups)
+	require.Nil(t, groups[0])
+	require.Equal(t, "a", groups[1].Name)
+	require.Equal(t, "b", groups[2].Name)
 }

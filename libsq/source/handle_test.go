@@ -214,6 +214,101 @@ func TestSuggestHandle(t *testing.T) {
 	}
 }
 
+func TestIsValidHandle(t *testing.T) {
+	testCases := []struct {
+		in    string
+		valid bool
+	}{
+		{"", false},
+		{"@handle", true},
+		{"@h1", true},
+		{"@1handle", false},
+		{"handle", false},
+		{"@group/handle", true},
+		{"@", false},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
+			got := source.IsValidHandle(tc.in)
+			require.Equal(t, tc.valid, got)
+		})
+	}
+}
+
+func TestValidGroup(t *testing.T) {
+	testCases := []struct {
+		in      string
+		wantErr bool
+	}{
+		{"", false},         // root group is valid
+		{"/", false},        // root group is valid
+		{"prod", false},     // simple group
+		{"prod/sub", false}, // nested group
+		{" ", true},         // whitespace invalid
+		{"//", true},        // double slash invalid
+		{"/prod", true},     // leading slash invalid
+		{"prod/", true},     // trailing slash invalid
+		{"prod//sub", true}, // double slash invalid
+		{"1prod", true},     // starts with digit
+		{"@prod", true},     // @ not allowed
+		{"prod sub", true},  // space not allowed
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
+			err := source.ValidGroup(tc.in)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestTable_String(t *testing.T) {
+	testCases := []struct {
+		tbl  source.Table
+		want string
+	}{
+		{source.Table{Handle: "@sakila", Name: "actor"}, "@sakila.actor"},
+		{source.Table{Handle: "@prod/db", Name: "users"}, "@prod/db.users"},
+		{source.Table{Handle: "@src", Name: ""}, "@src."},
+		{source.Table{Handle: "", Name: "tbl"}, ".tbl"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.want, func(t *testing.T) {
+			got := tc.tbl.String()
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestHandle2SafePath(t *testing.T) {
+	testCases := []struct {
+		handle string
+		want   string
+	}{
+		{"@sakila", "sakila"},
+		{"@prod/sakila", "prod__sakila"},
+		{"@a/b/c/d", "a__b__c__d"},
+		{"@handle_with_underscore", "handle_with_underscore"},
+		{"", ""},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tu.Name(i, tc.handle), func(t *testing.T) {
+			got := source.Handle2SafePath(tc.handle)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
 func TestParseTableHandle(t *testing.T) {
 	testCases := []struct {
 		input  string
