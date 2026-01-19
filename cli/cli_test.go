@@ -103,11 +103,32 @@ func TestSmoke(t *testing.T) {
 	}
 }
 
+// TestCreateTable_bytes verifies that binary data (kind.Bytes) can be correctly
+// inserted into SQL databases via the driver's table creation and batch insert
+// mechanisms. This is a critical test because binary data handling varies
+// significantly across database drivers and requires proper encoding/escaping.
+//
+// The test performs the following steps for each SQL database:
+//  1. Creates a new table with two columns: a text column (col_name) and a
+//     bytes column (col_bytes)
+//  2. Reads a binary GIF image file (the Go gopher mascot) from the test fixtures
+//  3. Inserts a single row containing the filename and the raw image bytes
+//  4. Verifies that exactly 1 row was inserted successfully
+//  5. Cleans up by dropping the test table
+//
+// This exercises the full write path for binary data: schema creation via
+// CreateTable, type mapping for kind.Bytes to the database-specific binary type
+// (e.g., BLOB, BYTEA, VARBINARY), and data insertion via the batch insert
+// mechanism with proper binary encoding.
+//
+// Note: ClickHouse is skipped due to connection state corruption issues with
+// batch inserts (see drivers/clickhouse/README.md).
 func TestCreateTable_bytes(t *testing.T) {
 	for _, handle := range sakila.SQLLatest() {
-		handle := handle
 		t.Run(handle, func(t *testing.T) {
 			th, src, _, _, _ := testh.NewWith(t, handle)
+			tu.SkipIf(t, src.Type == drivertype.ClickHouse,
+				"ClickHouse: batch insert causes connection state corruption (see drivers/clickhouse/README.md)")
 			th.DiffDB(src)
 
 			tblDef := schema.NewTable(
