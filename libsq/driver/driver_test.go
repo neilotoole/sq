@@ -225,6 +225,16 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
 
 			th, src, drvr, _, db := testh.NewWith(t, handle)
 
+			// ClickHouse Skip: The clickhouse-go driver's PrepareContext() only
+			// supports INSERT and SELECT statements. ClickHouse uses
+			// "ALTER TABLE ... UPDATE" syntax instead of standard UPDATE, but
+			// PrepareContext() rejects this with "invalid INSERT query" because
+			// the driver misclassifies non-SELECT statements as INSERTs.
+			// Direct execution via ExecContext() works, but PrepareUpdateStmt
+			// relies on PrepareContext(). See README.md "Development Log".
+			tu.SkipIf(t, drvr.DriverMetadata().Type == drivertype.ClickHouse,
+				"ClickHouse: PrepareContext doesn't support ALTER TABLE UPDATE")
+
 			tblName := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
 
 			const (
