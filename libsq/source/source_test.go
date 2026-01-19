@@ -571,3 +571,185 @@ func TestSource_LogValue(t *testing.T) {
 
 	log.Debug("src with non-nil Options", lga.Src, src)
 }
+
+func TestSource_Clone(t *testing.T) {
+	t.Run("nil_source", func(t *testing.T) {
+		var src *source.Source
+		got := src.Clone()
+		require.Nil(t, got)
+	})
+
+	t.Run("full_source", func(t *testing.T) {
+		src := &source.Source{
+			Handle:   "@sakila",
+			Type:     drivertype.Pg,
+			Location: "postgres://user:pass@localhost/sakila",
+			Catalog:  "sakila",
+			Schema:   "public",
+			Options:  options.Options{"key1": "value1", "key2": 42},
+		}
+
+		got := src.Clone()
+		require.NotNil(t, got)
+		require.NotSame(t, src, got)
+		require.Equal(t, src.Handle, got.Handle)
+		require.Equal(t, src.Type, got.Type)
+		require.Equal(t, src.Location, got.Location)
+		require.Equal(t, src.Catalog, got.Catalog)
+		require.Equal(t, src.Schema, got.Schema)
+
+		// Verify Options is a deep copy
+		require.Equal(t, src.Options, got.Options)
+		got.Options["new_key"] = "new_value"
+		require.NotEqual(t, src.Options, got.Options)
+	})
+
+	t.Run("nil_options", func(t *testing.T) {
+		src := &source.Source{
+			Handle:   "@test",
+			Type:     drivertype.SQLite,
+			Location: "/tmp/test.db",
+		}
+
+		got := src.Clone()
+		require.NotNil(t, got)
+		require.Nil(t, got.Options)
+	})
+
+	t.Run("empty_options", func(t *testing.T) {
+		src := &source.Source{
+			Handle:   "@test",
+			Type:     drivertype.SQLite,
+			Location: "/tmp/test.db",
+			Options:  options.Options{},
+		}
+
+		got := src.Clone()
+		require.NotNil(t, got)
+		require.NotNil(t, got.Options)
+		require.Empty(t, got.Options)
+	})
+}
+
+func TestSource_String(t *testing.T) {
+	src := &source.Source{
+		Handle:   "@sakila",
+		Type:     drivertype.Pg,
+		Location: "postgres://user:p_ssW0rd@localhost/sakila",
+	}
+
+	got := src.String()
+	require.NotEmpty(t, got)
+	require.Contains(t, got, "@sakila")
+	require.Contains(t, got, "postgres")
+	// Password should be redacted
+	require.NotContains(t, got, "p_ssW0rd")
+	require.Contains(t, got, "xxxxx")
+}
+
+func TestSource_ShortLocation(t *testing.T) {
+	t.Run("nil_source", func(t *testing.T) {
+		var src *source.Source
+		got := src.ShortLocation()
+		require.Empty(t, got)
+	})
+
+	t.Run("postgres", func(t *testing.T) {
+		src := &source.Source{
+			Location: "postgres://user:pass@localhost/sakila",
+		}
+		got := src.ShortLocation()
+		require.Equal(t, "user@localhost/sakila", got)
+	})
+
+	t.Run("file_path", func(t *testing.T) {
+		src := &source.Source{
+			Location: "/path/to/data.xlsx",
+		}
+		got := src.ShortLocation()
+		require.Equal(t, "data.xlsx", got)
+	})
+}
+
+func TestSource_Group(t *testing.T) {
+	testCases := []struct {
+		handle string
+		want   string
+	}{
+		{handle: "@sakila", want: ""},
+		{handle: "@prod/sakila", want: "prod"},
+		{handle: "@prod/sub/sakila", want: "prod/sub"},
+		{handle: "@a/b/c/d/sakila", want: "a/b/c/d"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.handle, func(t *testing.T) {
+			src := &source.Source{Handle: tc.handle}
+			got := src.Group()
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestSource_RedactedLocation_nil(t *testing.T) {
+	var src *source.Source
+	got := src.RedactedLocation()
+	require.Empty(t, got)
+}
+
+func TestTarget(t *testing.T) {
+	t.Run("nil_source", func(t *testing.T) {
+		got := source.Target(nil, "actor")
+		require.Empty(t, got)
+	})
+
+	t.Run("with_source", func(t *testing.T) {
+		src := &source.Source{Handle: "@sakila"}
+		got := source.Target(src, "actor")
+		require.Equal(t, "@sakila.actor", got)
+	})
+}
+
+func TestRedactSources(t *testing.T) {
+	t.Run("empty_slice", func(t *testing.T) {
+		got := source.RedactSources()
+		require.Empty(t, got)
+	})
+
+	t.Run("nil_elements", func(t *testing.T) {
+		got := source.RedactSources(nil, nil)
+		require.Len(t, got, 2)
+		require.Nil(t, got[0])
+		require.Nil(t, got[1])
+	})
+
+	t.Run("mixed", func(t *testing.T) {
+		src1 := &source.Source{
+			Handle:   "@db1",
+			Location: "postgres://user:secret@localhost/db1",
+		}
+		src2 := &source.Source{
+			Handle:   "@db2",
+			Location: "/path/to/file.db",
+		}
+
+		got := source.RedactSources(src1, nil, src2)
+		require.Len(t, got, 3)
+
+		// Verify src1 is cloned and redacted
+		require.NotSame(t, src1, got[0])
+		require.Equal(t, src1.Handle, got[0].Handle)
+		require.Contains(t, got[0].Location, "xxxxx")
+		require.NotContains(t, got[0].Location, "secret")
+
+		// Verify nil is preserved
+		require.Nil(t, got[1])
+
+		// Verify src2 is cloned (no password to redact)
+		require.NotSame(t, src2, got[2])
+		require.Equal(t, src2.Location, got[2].Location)
+
+		// Verify original sources are not modified
+		require.Contains(t, src1.Location, "secret")
+	})
+}
