@@ -102,7 +102,7 @@ func getTablesMetadata(ctx context.Context, db *sql.DB, dbName string) ([]*metad
 	if err != nil {
 		return nil, errw(err)
 	}
-	defer rows.Close()
+	defer sqlz.CloseRows(lg.FromContext(ctx), rows)
 
 	var tables []*metadata.Table
 	for rows.Next() {
@@ -238,7 +238,7 @@ func getColumnsMetadata(ctx context.Context, db *sql.DB, dbName, tblName string)
 	if err != nil {
 		return nil, errw(err)
 	}
-	defer rows.Close()
+	defer sqlz.CloseRows(lg.FromContext(ctx), rows)
 
 	var cols []*metadata.Column
 	for rows.Next() {

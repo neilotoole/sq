@@ -55,6 +55,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 
 	_ "github.com/ClickHouse/clickhouse-go/v2" // ClickHouse driver
 
@@ -67,6 +68,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
@@ -348,7 +350,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	// (e.g. pgx for Postgres), clickhouse-go does not apply a default port.
 	loc, portAdded, err := locationWithDefaultPort(src.Location)
 	if err != nil {
-		return nil, err
+		return nil, errw(err)
 	}
 
 	if portAdded {
@@ -906,6 +908,12 @@ type grip struct {
 	// drvr is the driver that created this grip, used for accessing
 	// driver-level functionality.
 	drvr *driveri
+
+	// closeErr stores the error from closing the database connection.
+	closeErr error
+
+	// closeOnce ensures the database connection is closed only once.
+	closeOnce sync.Once
 }
 
 // DB implements driver.Grip.
@@ -923,19 +931,40 @@ func (g *grip) Source() *source.Source {
 	return g.src
 }
 
-// SourceMetadata implements driver.Grip.
+// SourceMetadata implements driver.Grip. It retrieves metadata for the source,
+// including database version, current database, and optionally table/column
+// information.
 func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
+	bar := progress.FromContext(ctx).NewUnitCounter(g.Source().Handle+": read schema", "item")
+	defer bar.Stop()
+	ctx = progress.NewBarContext(ctx, bar)
+
 	return getSourceMetadata(ctx, g.src, g.db, noSchema)
 }
 
-// TableMetadata implements driver.Grip.
+// TableMetadata implements driver.Grip. It retrieves metadata for a specific
+// table, including column information.
 func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
+	bar := progress.FromContext(ctx).NewUnitCounter(g.Source().Handle+"."+tblName+": read schema", "item")
+	defer bar.Stop()
+	ctx = progress.NewBarContext(ctx, bar)
+
 	return getTableMetadata(ctx, g.db, "", tblName)
 }
 
-// Close implements driver.Grip.
+// Close implements driver.Grip. It closes the database connection, ensuring
+// the close only happens once even if called multiple times.
 func (g *grip) Close() error {
-	return errz.Err(g.db.Close())
+	g.closeOnce.Do(func() {
+		g.closeErr = errw(g.db.Close())
+		if g.closeErr != nil {
+			g.log.Error(lgm.CloseDB, lga.Handle, g.src.Handle, lga.Err, g.closeErr)
+		} else {
+			g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
+		}
+	})
+
+	return g.closeErr
 }
 
 // getTableRecordMeta returns record metadata for specified columns in a table.
@@ -982,7 +1011,7 @@ func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
 //
 // If err is nil, errw returns nil (no wrapping of nil errors).
 //
-// Example wrapped error: "clickhouse: connection refused"
+// Example wrapped error: "clickhouse: connection refused".
 func errw(err error) error {
 	if err == nil {
 		return nil
