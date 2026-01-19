@@ -36,8 +36,7 @@ func TestSmoke(t *testing.T) {
 func TestDriver_CreateTable(t *testing.T) {
 	tu.SkipShort(t, true)
 
-	const handle = "@clickhouse_test"
-	th, src, drvr, _, db := testh.NewWith(t, handle)
+	th, src, drvr, _, db := testh.NewWith(t, sakila.CH)
 
 	tblName := stringz.UniqTableName(t.Name())
 	colNames := []string{"col_id", "col_name", "col_value"}
@@ -65,8 +64,7 @@ func TestDriver_CreateTable(t *testing.T) {
 func TestDriver_TableColumnTypes(t *testing.T) {
 	tu.SkipShort(t, true)
 
-	const handle = "@clickhouse_test"
-	th, src, drvr, _, db := testh.NewWith(t, handle)
+	th, src, drvr, _, db := testh.NewWith(t, sakila.CH)
 
 	tblName := stringz.UniqTableName(t.Name())
 	colNames, colKinds := fixt.ColNamePerKind(false, false, false)
@@ -90,8 +88,7 @@ func TestDriver_TableColumnTypes(t *testing.T) {
 func TestDriver_CopyTable(t *testing.T) {
 	tu.SkipShort(t, true)
 
-	const handle = "@clickhouse_test"
-	th, src, drvr, _, db := testh.NewWith(t, handle)
+	th, src, drvr, _, db := testh.NewWith(t, sakila.CH)
 
 	srcTblName := stringz.UniqTableName(t.Name() + "_src")
 	destTblName := stringz.UniqTableName(t.Name() + "_dest")
