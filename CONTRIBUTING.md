@@ -184,6 +184,9 @@ For the first release in a sequence, link to the release tag:
 In `sq` parlance, a "driver" implements a datasource type, e.g. Postgres, MySQL,
 CSV, JSON etc. See the [sq.io drivers section](https://sq.io/docs/drivers).
 
+See [ARCHITECTURE.md](ARCHITECTURE.md) for a diagram that gives an overview of
+the `sq` architecture.
+
 There are two types of drivers: "SQL", and "non-SQL" (aka "Document") drivers.
 These are defined by whether they implement just the
 [`driver.Driver`](libsq/driver/driver.go) interface, or also the
