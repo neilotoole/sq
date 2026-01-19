@@ -106,6 +106,33 @@ classDiagram
         }
     }
 
+    namespace drivers {
+        class `postgres.driveri` {
+            <<SQLDriver>>
+        }
+        class `mysql.driveri` {
+            <<SQLDriver>>
+        }
+        class `sqlite3.driveri` {
+            <<SQLDriver>>
+        }
+        class `sqlserver.driveri` {
+            <<SQLDriver>>
+        }
+        class `clickhouse.driveri` {
+            <<SQLDriver>>
+        }
+        class `csv.driveri` {
+            <<Driver>>
+        }
+        class `json.driveri` {
+            <<Driver>>
+        }
+        class `xlsx.Driver` {
+            <<Driver>>
+        }
+    }
+
     namespace libsq {
         class `libsq.QueryContext` {
             +source.Collection Collection
@@ -208,6 +235,8 @@ classDiagram
      for the columns of a Record"
     note for `record.FieldMeta` "FieldMeta provides metadata
      about a result column"
+    note for `postgres.driveri` "SQL drivers implement SQLDriver;
+     document drivers implement Driver only"
 
     %% ===== RELATIONSHIPS =====
     %% Configuration relationships
@@ -238,6 +267,16 @@ classDiagram
     `driver.Grip` ..> `source.Source` : references
     `driver.Grip` ..> `driver.SQLDriver` : references
     `driver.Grip` ..> `metadata.Source` : returns
+
+    %% Driver implementation relationships
+    `postgres.driveri` ..|> `driver.SQLDriver` : implements
+    `mysql.driveri` ..|> `driver.SQLDriver` : implements
+    `sqlite3.driveri` ..|> `driver.SQLDriver` : implements
+    `sqlserver.driveri` ..|> `driver.SQLDriver` : implements
+    `clickhouse.driveri` ..|> `driver.SQLDriver` : implements
+    `csv.driveri` ..|> `driver.Driver` : implements
+    `json.driveri` ..|> `driver.Driver` : implements
+    `xlsx.Driver` ..|> `driver.Driver` : implements
 
     %% Query execution relationships
     `libsq.QueryContext` *-- `source.Collection` : contains
