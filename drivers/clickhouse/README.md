@@ -295,6 +295,40 @@ Same as main SQ project (MIT).
 
 ## Development Log
 
+### 2026-01-19: ClickHouse Query Test Overrides
+
+Added `drivertype.ClickHouse` entries to all libsq query test cases that had
+`drivertype.MySQL` overrides. Both databases use backticks for identifier
+quoting, so the SQL strings are identical.
+
+#### Rownum Tests: Proper SQL Overrides Required
+
+Contrary to the original plan (which suggested excluding rownum tests like
+MySQL), ClickHouse needed proper SQL overrides with actual SQL strings.
+ClickHouse supports `row_number() OVER (ORDER BY 1)` syntax with backtick
+quoting, unlike MySQL which uses a different variable-based implementation.
+
+Example ClickHouse rownum override:
+
+```go
+drivertype.ClickHouse: "SELECT (row_number() OVER (ORDER BY 1)) AS `rownum()` FROM `actor`",
+```
+
+#### Join Tests: Pre-existing Column Naming Issue
+
+Some ClickHouse join tests fail due to a pre-existing issue with column naming
+behavior. When performing joins, ClickHouse returns column names in
+`table.column` format (e.g., `film_actor.actor_id`) instead of the munged names
+sq expects (e.g., `actor_id_1`).
+
+This affects `sinkFns` assertions in join tests that check for specific column
+names. The failures are unrelated to the SQL quoting task and were already
+failing before the ClickHouse override additions. The SQL string verification
+passes; only the column name assertions fail.
+
+**Status**: Known issue, requires investigation into ClickHouse's join result
+column naming behavior vs sq's column munging expectations.
+
 ### 2026-01-19: Investigation of TestNewBatchInsert Failure
 
 #### Issue
