@@ -31,10 +31,10 @@ func TestKindFromClickHouseType(t *testing.T) {
 
 		// String types
 		{"String", kind.Text},
-		{"FixedString", kind.Text},           // Base type (unlikely in practice)
-		{"FixedString(10)", kind.Text},       // ClickHouse returns this format
-		{"FixedString(255)", kind.Text},      // Various lengths
-		{"FixedString(1)", kind.Text},        // Minimum length
+		{"FixedString", kind.Text},      // Base type (unlikely in practice)
+		{"FixedString(10)", kind.Text},  // ClickHouse returns this format
+		{"FixedString(255)", kind.Text}, // Various lengths
+		{"FixedString(1)", kind.Text},   // Minimum length
 
 		// Boolean
 		{"Bool", kind.Bool},

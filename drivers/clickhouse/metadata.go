@@ -5,6 +5,8 @@ import (
 	"database/sql"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -99,7 +101,8 @@ func getTablesMetadata(ctx context.Context, db *sql.DB, dbName string) ([]*metad
 		// Get column metadata for this table
 		cols, colErr := getColumnsMetadata(ctx, db, dbName, tblName)
 		if colErr != nil {
-			// Log error but continue with other tables
+			lg.FromContext(ctx).Warn("Failed to get column metadata for table, skipping",
+				lga.Table, tblName, lga.DB, dbName, lga.Err, colErr)
 			continue
 		}
 		tblMeta.Columns = cols

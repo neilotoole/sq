@@ -187,14 +187,12 @@ The following are known issues or edge cases that may need attention:
 - **Fix**: Consider adding view support to `getTablesMetadata` or document this
   as intentional behavior.
 
-### 4. Silent Error in Column Metadata Retrieval
+### 4. ~~Silent Error in Column Metadata Retrieval~~ ✅ FIXED
 
-- **Location**: `metadata.go:101-104`
-- **Issue**: When `getColumnsMetadata` fails for a table, the error is silently
-  swallowed with `continue`. The comment says "Log error" but no logging occurs.
-- **Impact**: Diagnostic information is lost; tables with column retrieval errors
-  are silently skipped.
-- **Fix**: Add actual error logging or propagate the error.
+- **Status**: Fixed by adding proper warning logging via `lg.FromContext(ctx)`.
+- **Location**: `metadata.go`
+- **Solution**: Now logs a warning with table name, database, and error details
+  when column metadata retrieval fails for a table.
 
 ### 5. Created Tables Are Always Non-Nullable
 
