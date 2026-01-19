@@ -64,40 +64,6 @@ func buildCreateTableStmt(tblDef *schema.Table) string {
 	return sb.String()
 }
 
-// buildInsertStmt builds an INSERT statement for multiple rows.
-func buildInsertStmt(tbl string, cols []*schema.Column, numRows int) string {
-	sb := strings.Builder{}
-	sb.WriteString("INSERT INTO ")
-	sb.WriteString(stringz.BacktickQuote(tbl))
-	sb.WriteString(" (")
-
-	for i, col := range cols {
-		sb.WriteString(stringz.BacktickQuote(col.Name))
-		if i < len(cols)-1 {
-			sb.WriteString(", ")
-		}
-	}
-
-	sb.WriteString(") VALUES ")
-
-	// Build placeholders for each row
-	for i := 0; i < numRows; i++ {
-		sb.WriteString("(")
-		for j := range cols {
-			sb.WriteString("?")
-			if j < len(cols)-1 {
-				sb.WriteString(", ")
-			}
-		}
-		sb.WriteString(")")
-		if i < numRows-1 {
-			sb.WriteString(", ")
-		}
-	}
-
-	return sb.String()
-}
-
 // buildUpdateStmt builds an UPDATE statement.
 func buildUpdateStmt(tbl string, cols []string, where string) string {
 	sb := strings.Builder{}

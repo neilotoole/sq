@@ -204,13 +204,12 @@ The following are known issues or edge cases that may need attention:
 - **Fix**: Check `schema.Column` for nullable flag and wrap type with
   `Nullable(T)` when needed.
 
-### 6. Unused `buildInsertStmt` Function
+### 6. ~~Unused `buildInsertStmt` Function~~ ✅ FIXED
 
-- **Location**: `render.go:67-99`
-- **Issue**: This function exists but is never called. The driver uses
-  `driver.PrepareInsertStmt` instead.
-- **Impact**: Dead code.
-- **Fix**: Remove the unused function.
+- **Status**: Fixed by removing the unused function and its test.
+- **Location**: Was in `render.go`
+- **Solution**: Removed `buildInsertStmt` and `TestBuildInsertStmt` since the
+  driver uses `driver.PrepareInsertStmt` instead.
 
 ## Usage Example
 

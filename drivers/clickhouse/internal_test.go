@@ -255,31 +255,6 @@ func TestBuildCreateTableStmt(t *testing.T) {
 	require.Contains(t, stmt, "ORDER BY `id`") // First column
 }
 
-// TestBuildInsertStmt tests INSERT statement generation.
-func TestBuildInsertStmt(t *testing.T) {
-	tblName := "test_table"
-	cols := []*schema.Column{
-		{Name: "id", Kind: kind.Int},
-		{Name: "name", Kind: kind.Text},
-		{Name: "value", Kind: kind.Float},
-	}
-
-	// Test single row insert
-	stmt := buildInsertStmt(tblName, cols, 1)
-	require.Contains(t, stmt, "INSERT INTO")
-	require.Contains(t, stmt, "`test_table`")
-	require.Contains(t, stmt, "`id`")
-	require.Contains(t, stmt, "`name`")
-	require.Contains(t, stmt, "`value`")
-	require.Contains(t, stmt, "VALUES")
-	require.Contains(t, stmt, "(?, ?, ?)")
-	require.NotContains(t, stmt, "), (") // No second row
-
-	// Test multi-row insert
-	stmt = buildInsertStmt(tblName, cols, 3)
-	require.Contains(t, stmt, "VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?)")
-}
-
 // TestBuildUpdateStmt tests UPDATE statement generation.
 func TestBuildUpdateStmt(t *testing.T) {
 	tblName := "test_table"
