@@ -925,16 +925,3 @@ func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
 		return affected, nil
 	}
 }
-
-// errw wraps any error from the ClickHouse driver with a "clickhouse" prefix.
-// This provides consistent error identification across all driver operations.
-//
-// If err is nil, errw returns nil (no wrapping of nil errors).
-//
-// Example wrapped error: "clickhouse: connection refused".
-func errw(err error) error {
-	if err == nil {
-		return nil
-	}
-	return errz.Wrapf(err, "clickhouse")
-}
