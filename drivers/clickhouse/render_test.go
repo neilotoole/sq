@@ -20,7 +20,7 @@ func TestDbTypeNameFromKind(t *testing.T) {
 		{kind.Int, "Int64"},
 		{kind.Float, "Float64"},
 		{kind.Decimal, "Decimal(18,4)"},
-		{kind.Bool, "UInt8"},
+		{kind.Bool, "Bool"},
 		{kind.Datetime, "DateTime"},
 		{kind.Date, "Date"},
 		{kind.Time, "DateTime"},

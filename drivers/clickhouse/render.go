@@ -21,7 +21,7 @@ import (
 //	kind.Int     -> Int64 (64-bit signed integer)
 //	kind.Float   -> Float64 (double precision)
 //	kind.Decimal -> Decimal(18,4) (18 digits, 4 decimal places)
-//	kind.Bool    -> UInt8 (ClickHouse Bool is alias for UInt8)
+//	kind.Bool    -> Bool (native Bool type, available since ClickHouse 21.12)
 //	kind.Datetime-> DateTime
 //	kind.Date    -> Date
 //	kind.Time    -> DateTime (ClickHouse has no separate time-only type)
@@ -40,7 +40,7 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 	case kind.Decimal:
 		return "Decimal(18,4)"
 	case kind.Bool:
-		return "UInt8" // ClickHouse Bool is alias for UInt8
+		return "Bool"
 	case kind.Datetime:
 		return "DateTime"
 	case kind.Date:
