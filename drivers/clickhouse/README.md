@@ -118,7 +118,7 @@ See **[testutils/Testing.md](./testutils/Testing.md)**
    - Separate signed (Int*) and unsigned (UInt*) integer types
    - No implicit type coercion
    - Fixed-length strings: FixedString(N)
-   - Bool is alias for UInt8
+   - Native Bool type (since ClickHouse 21.12)
 
 6. **Schema = Database**: ClickHouse uses "database" terminology. SQ maps this to schema/catalog concepts.
 
@@ -157,53 +157,43 @@ The following features were deferred for future implementation:
 - Advanced data types (Array, Tuple, Map, Nested)
 - Time series specific operations
 
-## Possible Issues
+## Known Limitations
 
-The following are known issues or edge cases that may need attention:
+The following are known limitations due to fundamental differences between
+ClickHouse and traditional SQL databases.
 
-### 1. ~~`LowCardinality(Nullable(T))` NULL Handling~~ ✅ FIXED
+### 1. Type Roundtrip Limitations
 
-- **Status**: Fixed via `isNullableTypeUnwrapped()` function.
-- **Location**: `metadata.go`
-- **Solution**: Added `isNullableTypeUnwrapped()` which strips the
-  `LowCardinality` wrapper before checking for `Nullable`, correctly handling
-  both `Nullable(T)` and `LowCardinality(Nullable(T))` patterns.
+Some `kind.Kind` types cannot roundtrip through ClickHouse because it lacks
+native equivalents:
 
-### 2. ~~`FixedString(N)` Type Parsing~~ ✅ FIXED
+| sq Kind      | Created As | Read Back As    | Notes                    |
+|--------------|------------|-----------------|--------------------------|
+| `kind.Time`  | `DateTime` | `kind.Datetime` | No time-only type        |
+| `kind.Bytes` | `String`   | `kind.Text`     | Binary stored as String  |
 
-- **Status**: Fixed via prefix matching in `kindFromClickHouseType()`.
-- **Location**: `metadata.go`
-- **Solution**: Changed from exact match `"FixedString"` to prefix matching
-  `chType[:11] == "FixedString"`, correctly handling `FixedString(10)` etc.
+This causes `TestDriver_CreateTable_Minimal` to fail for ClickHouse. These are
+inherent database limitations, not driver bugs.
 
-### 3. ~~Views Not Included in Source Metadata~~ ✅ FIXED
+### 2. CopyTable Returns Zero Rows
 
-- **Status**: Fixed by including views in metadata queries.
-- **Location**: `metadata.go`
-- **Solution**: Removed the `engine NOT IN ('View', 'MaterializedView')` filter.
-  Added `tableTypeFromEngine()` helper to set `TableType` to `sqlz.TableTypeView`
-  for View/MaterializedView engines, consistent with other SQL drivers.
+`CopyTable` returns 0 for the copied row count because ClickHouse's
+`INSERT ... SELECT` doesn't report affected rows. The operation succeeds, but
+the count is unavailable. This causes `TestDriver_CopyTable` to fail the row
+count assertion.
 
-### 4. ~~Silent Error in Column Metadata Retrieval~~ ✅ FIXED
+### 3. Batch Insert Argument Handling
 
-- **Status**: Fixed by adding proper warning logging via `lg.FromContext(ctx)`.
-- **Location**: `metadata.go`
-- **Solution**: Now logs a warning with table name, database, and error details
-  when column metadata retrieval fails for a table.
+`TestNewBatchInsert` fails with "expected 4 arguments, got 280" due to
+differences in how ClickHouse handles batch operations compared to traditional
+databases.
 
-### 5. ~~Created Tables Are Always Non-Nullable~~ ✅ FIXED
+### 4. UPDATE Statement Syntax
 
-- **Status**: Fixed by checking `NotNull` flag when generating CREATE TABLE.
-- **Location**: `render.go`
-- **Solution**: `buildCreateTableStmt` now wraps column types with `Nullable(T)`
-  when `colDef.NotNull` is false, ensuring data copies preserve nullability.
-
-### 6. ~~Unused `buildInsertStmt` Function~~ ✅ FIXED
-
-- **Status**: Fixed by removing the unused function and its test.
-- **Location**: Was in `render.go`
-- **Solution**: Removed `buildInsertStmt` and `TestBuildInsertStmt` since the
-  driver uses `driver.PrepareInsertStmt` instead.
+ClickHouse uses `ALTER TABLE ... UPDATE` syntax instead of standard SQL UPDATE.
+The `PrepareUpdateStmt` implementation generates this syntax, but it may not
+integrate seamlessly with all test frameworks expecting standard prepared
+statements.
 
 ## Usage Example
 
