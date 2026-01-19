@@ -12,16 +12,15 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // TestTypeMapping tests the mapping between sq kinds and ClickHouse types.
 func TestTypeMapping(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test")
-	}
+	tu.SkipShort(t, true)
 
-	const handle = "@clickhouse_test"
-	th, src, drvr, _, db := testh.NewWith(t, handle)
+	th, src, drvr, _, db := testh.NewWith(t, sakila.CH)
 
 	tblName := stringz.UniqTableName(t.Name())
 
@@ -91,12 +90,9 @@ func TestTypeMapping(t *testing.T) {
 
 // TestTypeMapping_ClickHouseSpecific tests ClickHouse-specific types.
 func TestTypeMapping_ClickHouseSpecific(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test")
-	}
+	tu.SkipShort(t, true)
 
-	const handle = "@clickhouse_test"
-	th, src, _, _, _ := testh.NewWith(t, handle)
+	th, src, _, _, _ := testh.NewWith(t, sakila.CH)
 
 	// Create a table with ClickHouse-specific types using raw SQL
 	tblName := stringz.UniqTableName(t.Name())
@@ -174,13 +170,9 @@ func TestTypeMapping_ClickHouseSpecific(t *testing.T) {
 // TestTypeMapping_Nullable tests Nullable type handling.
 func TestTypeMapping_Nullable(t *testing.T) {
 	t.Skip("TODO: Fix NULL value scanning - driver needs special handling for sql.NullString")
+	tu.SkipShort(t, true)
 
-	if testing.Short() {
-		t.Skip("Skipping integration test")
-	}
-
-	const handle = "@clickhouse_test"
-	th, src, _, _, _ := testh.NewWith(t, handle)
+	th, src, _, _, _ := testh.NewWith(t, sakila.CH)
 
 	tblName := stringz.UniqTableName(t.Name())
 	createStmt := `
