@@ -269,35 +269,29 @@ func TestQueryVsExec_DML_UPDATE(t *testing.T) {
 // TestExecSQL_DDL_DML tests the libsq.ExecSQL function with DDL (CREATE, DROP)
 // and DML (INSERT, UPDATE, DELETE) statements across multiple databases.
 func TestExecSQL_DDL_DML(t *testing.T) {
-	tableName := stringz.UniqTableName("test_execsql")
+	tableName := stringz.UniqTableName(t.Name())
 
 	testCases := []struct {
-		name      string
 		handle    string
 		createSQL string
 	}{
 		{
-			name:      "postgres",
 			handle:    sakila.Pg,
 			createSQL: `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`,
 		},
 		{
-			name:      "sqlite",
 			handle:    sakila.SL3,
 			createSQL: `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`,
 		},
 		{
-			name:      "mysql",
 			handle:    sakila.My,
 			createSQL: `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`,
 		},
 		{
-			name:      "sqlserver",
 			handle:    sakila.MS,
 			createSQL: `CREATE TABLE ` + tableName + ` (id INTEGER, name NVARCHAR(MAX))`,
 		},
 		{
-			name:   "clickhouse",
 			handle: sakila.CH,
 			// ClickHouse requires special configuration for UPDATE/DELETE operations.
 			//
@@ -332,7 +326,7 @@ func TestExecSQL_DDL_DML(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.handle, func(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(tc.handle)
 
