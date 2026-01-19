@@ -178,3 +178,230 @@ For the first release in a sequence, link to the release tag:
 ```markdown
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 ```
+
+## New driver implementations
+
+In `sq` parlance, a "driver" implements a datasource type, e.g. Postgres, MySQL,
+CSV, JSON etc. See the [sq.io drivers section](https://sq.io/docs/drivers).
+
+There are two types of drivers: "SQL", and "non-SQL" (aka "Document") drivers.
+These are defined by whether they implement just the
+[`driver.Driver`](libsq/driver/driver.go) interface, or also the
+[`driver.SQLDriver`](libsq/driver/driver.go) interface.
+
+For the SQL drivers, it is expected that there exists a `sakiladb/DRIVER_NAME`
+docker image, where `DRIVER_NAME` matches the driver type string (e.g.,
+`sakiladb/postgres`, `sakiladb/mysql`, `sakiladb/clickhouse`). See the
+[sakiladb images](https://hub.docker.com/u/sakiladb). These images contain the
+Sakila dataset, enabling uniform integration tests across SQL drivers.
+
+> Note that `SQLite` is a special case, because, although it is a SQL-based
+> driver, it is also file-based. That is to say, SQLite implements the
+> `driver.SQLDriver` interface, but it does not need a standalone docker
+> container to serve up its SQL interface.
+
+**Getting started:** Examine an existing driver implementation as a reference.
+For SQL drivers, [`drivers/postgres`](drivers/postgres) or
+[`drivers/mysql`](drivers/mysql) are good templates. For document drivers, see
+[`drivers/csv`](drivers/csv) or [`drivers/json`](drivers/json).
+
+### All drivers
+
+#### Driver type registration
+
+Each driver defines a `Type` constant that corresponds to a value in
+[`libsq/source/drivertype/drivertype.go`](libsq/source/drivertype/drivertype.go).
+For example:
+
+```go
+// In libsq/source/drivertype/drivertype.go
+const ClickHouse = Type("clickhouse")
+
+// In drivers/clickhouse/clickhouse.go
+const Type = drivertype.ClickHouse
+```
+
+The driver type string (e.g., `"clickhouse"`) is used in:
+
+- Connection URL schemes: `clickhouse://host:port/database`
+- Source handles: `@my_clickhouse_db` (the handle itself is user-defined, but
+  the driver type determines how the source is processed)
+- The `sakiladb` docker image name: `sakiladb/clickhouse`
+
+#### Package structure
+
+A typical driver package contains:
+
+- **`{driver}.go`**: Main driver implementation (`Provider`, `Driver`,
+  connection handling).
+- **`grip.go`**: Database handle wrapper (`Grip` implementation).
+- **`metadata.go`**: Schema introspection and type mapping.
+- **`render.go`**: SQL statement generation (for SQL drivers).
+- **`errors.go`**: Driver-specific error handling and wrapping (optional).
+- **`internal_test.go`**: Exports unexported functions for external test
+  packages.
+- **`{driver}_test.go`**: Integration tests using the external test package.
+
+#### Test file organization
+
+Driver tests use Go's external test package pattern (`package driver_test`).
+To test unexported functions, create an `internal_test.go` file in the main
+package that exports them as variables:
+
+```go
+// internal_test.go
+package clickhouse
+
+// Exported variables for testing unexported functions from external test
+// packages. The naming convention is to capitalize the first letter of the
+// unexported function name (e.g., buildCreateTableStmt becomes
+// BuildCreateTableStmt).
+
+var (
+    KindFromDBTypeName   = kindFromDBTypeName
+    BuildCreateTableStmt = buildCreateTableStmt
+)
+```
+
+Then import and use these in your `*_test.go` files:
+
+```go
+// metadata_test.go
+package clickhouse_test
+
+import "github.com/neilotoole/sq/drivers/clickhouse"
+
+func TestKindFromDBTypeName(t *testing.T) {
+    got := clickhouse.KindFromDBTypeName("String")
+    require.Equal(t, kind.Text, got)
+}
+```
+
+#### Test handles
+
+Test handles for sakila sources are defined in
+[`testh/sakila/sakila.go`](testh/sakila/sakila.go). Add your driver's handle
+there:
+
+```go
+const (
+    CH25 = "@sakila_ch25"
+    CH   = CH25  // Alias for latest version
+)
+```
+
+Integration tests that require a running database should use `tu.SkipShort(t, true)`
+to skip when running in short mode (`go test -short`):
+
+```go
+func TestSmoke(t *testing.T) {
+    tu.SkipShort(t, true)
+
+    th := testh.New(t)
+    src := th.Source(sakila.CH)
+    // ... test code
+}
+```
+
+### SQL drivers
+
+#### Type mapping
+
+SQL drivers must map between the database's native types and sq's `kind.Kind`
+type system. Key considerations:
+
+- **Wrapper types**: Some databases use wrapper types like `Nullable(T)` or
+  `LowCardinality(T)` (ClickHouse). Your type mapping function must unwrap
+  these to determine the underlying kind.
+- **Parameterized types**: Types like `Decimal(18,4)`, `FixedString(255)`, or
+  `VARCHAR(100)` need prefix matching, not exact string comparison.
+- **Default to `kind.Text`**: Unknown types should map to `kind.Text` as a safe
+  fallback.
+
+Example pattern for handling wrapped types:
+
+```go
+func kindFromDBTypeName(dbType string) kind.Kind {
+    // Strip Nullable wrapper: Nullable(Int64) -> Int64
+    if strings.HasPrefix(dbType, "Nullable(") {
+        dbType = dbType[9 : len(dbType)-1]
+    }
+
+    // Strip LowCardinality wrapper
+    if strings.HasPrefix(dbType, "LowCardinality(") {
+        dbType = dbType[15 : len(dbType)-1]
+        return kindFromDBTypeName(dbType) // Recurse for nested wrappers
+    }
+
+    switch {
+    case dbType == "String", strings.HasPrefix(dbType, "FixedString"):
+        return kind.Text
+    case strings.HasPrefix(dbType, "Int"), strings.HasPrefix(dbType, "UInt"):
+        return kind.Int
+    // ... etc
+    default:
+        return kind.Text
+    }
+}
+```
+
+#### Database-specific quirks
+
+Document any database-specific behaviors that affect driver implementation:
+
+- **Transaction support**: Some databases (e.g., ClickHouse) don't support
+  traditional ACID transactions.
+- **DDL requirements**: ClickHouse's MergeTree engine requires an `ORDER BY`
+  clause, and nullable columns cannot be used in the sorting key.
+- **Update syntax**: Some databases use non-standard UPDATE syntax (e.g.,
+  ClickHouse uses `ALTER TABLE ... UPDATE`).
+- **Schema vs catalog**: Terminology varies between databases. Document how
+  your driver maps "catalog" and "schema" concepts.
+
+#### Nullable column handling
+
+When creating tables, be aware of how nullable columns interact with other
+database features. For example, in ClickHouse:
+
+```go
+// ClickHouse's MergeTree engine doesn't allow nullable columns in ORDER BY.
+// Find the first NOT NULL column, or use tuple() if all are nullable.
+orderByCol := ""
+for _, col := range tblDef.Cols {
+    if col.NotNull {
+        orderByCol = col.Name
+        break
+    }
+}
+if orderByCol != "" {
+    sb.WriteString("ORDER BY " + enquote(orderByCol))
+} else {
+    sb.WriteString("ORDER BY tuple()")
+}
+```
+
+#### Dialect configuration
+
+SQL drivers must return a properly configured `dialect.Dialect` from the
+`Dialect()` method. Key settings include:
+
+- **Enquote function**: How to quote identifiers (backticks, double quotes,
+  brackets).
+- **Placeholder style**: `?` for positional, `$1` for numbered.
+- **IntBool**: Whether the database uses integers (0/1) for boolean values.
+
+### Non-SQL drivers
+
+Non-SQL (document) drivers handle file-based data sources like CSV, JSON, and
+Excel files. These drivers implement only `driver.Driver`, not
+`driver.SQLDriver`.
+
+Key considerations:
+
+- **Ingest pattern**: Document drivers typically "ingest" data into a scratch
+  SQLite database for query execution. See
+  [`drivers/csv/ingest.go`](drivers/csv/ingest.go) for an example.
+- **Type detection**: Implement heuristics to detect column types from data
+  values. See [`drivers/csv/detect_field_kinds.go`](drivers/csv/detect_field_kinds.go).
+- **Header detection**: For tabular formats, detect whether the first row
+  contains headers. See [`drivers/csv/detect_header.go`](drivers/csv/detect_header.go).
