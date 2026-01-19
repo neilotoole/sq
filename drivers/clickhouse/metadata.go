@@ -256,7 +256,7 @@ func kindFromClickHouseType(chType string) kind.Kind {
 		return kind.Int
 	case "Float32", "Float64":
 		return kind.Float
-	case "String", "FixedString":
+	case "String":
 		return kind.Text
 	case "Bool":
 		return kind.Bool
@@ -267,6 +267,10 @@ func kindFromClickHouseType(chType string) kind.Kind {
 	case "UUID":
 		return kind.Text
 	default:
+		// Check for FixedString(N) types - ClickHouse returns "FixedString(10)" not "FixedString"
+		if len(chType) >= 11 && chType[:11] == "FixedString" {
+			return kind.Text
+		}
 		// Check for Decimal types
 		if len(chType) >= 7 && chType[:7] == "Decimal" {
 			return kind.Decimal

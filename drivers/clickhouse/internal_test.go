@@ -31,7 +31,10 @@ func TestKindFromClickHouseType(t *testing.T) {
 
 		// String types
 		{"String", kind.Text},
-		{"FixedString", kind.Text},
+		{"FixedString", kind.Text},           // Base type (unlikely in practice)
+		{"FixedString(10)", kind.Text},       // ClickHouse returns this format
+		{"FixedString(255)", kind.Text},      // Various lengths
+		{"FixedString(1)", kind.Text},        // Minimum length
 
 		// Boolean
 		{"Bool", kind.Bool},
@@ -58,10 +61,12 @@ func TestKindFromClickHouseType(t *testing.T) {
 		{"Nullable(Int64)", kind.Int},
 		{"Nullable(Float64)", kind.Float},
 		{"Nullable(DateTime)", kind.Datetime},
+		{"Nullable(FixedString(10))", kind.Text}, // FixedString with Nullable
 
 		// LowCardinality wrapper
 		{"LowCardinality(String)", kind.Text},
 		{"LowCardinality(Nullable(String))", kind.Text},
+		{"LowCardinality(FixedString(10))", kind.Text}, // FixedString with LowCardinality
 
 		// Unknown types default to text
 		{"SomeUnknownType", kind.Text},

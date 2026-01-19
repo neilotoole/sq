@@ -169,14 +169,12 @@ The following are known issues or edge cases that may need attention:
   `LowCardinality` wrapper before checking for `Nullable`, correctly handling
   both `Nullable(T)` and `LowCardinality(Nullable(T))` patterns.
 
-### 2. `FixedString(N)` Type Parsing
+### 2. ~~`FixedString(N)` Type Parsing~~ ✅ FIXED
 
-- **Location**: `metadata.go:244`
-- **Issue**: The code matches `"FixedString"` exactly, but ClickHouse returns
-  types like `"FixedString(10)"` with the length parameter.
-- **Impact**: Currently works by accident (falls through to default `kind.Text`),
-  but the matching logic is incorrect.
-- **Fix**: Use prefix matching: `strings.HasPrefix(chType, "FixedString")`.
+- **Status**: Fixed via prefix matching in `kindFromClickHouseType()`.
+- **Location**: `metadata.go`
+- **Solution**: Changed from exact match `"FixedString"` to prefix matching
+  `chType[:11] == "FixedString"`, correctly handling `FixedString(10)` etc.
 
 ### 3. Views Not Included in Source Metadata
 
