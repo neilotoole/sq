@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"net/url"
+	"strconv"
 	"strings"
 
 	_ "github.com/ClickHouse/clickhouse-go/v2" // ClickHouse driver
@@ -38,6 +40,26 @@ const (
 	// defaultPort is the default ClickHouse native protocol port.
 	defaultPort = 9000
 )
+
+// locationWithDefaultPort returns the location string with the default port
+// added if no port is specified. The second return value is true if the port
+// was added. Unlike some other database drivers (e.g. pgx for Postgres),
+// clickhouse-go does not apply a default port automatically.
+func locationWithDefaultPort(loc string) (string, bool, error) {
+	u, err := url.Parse(loc)
+	if err != nil {
+		return "", false, errz.Wrapf(err, "parse clickhouse location")
+	}
+
+	if u.Port() != "" {
+		// Port already specified, return as-is
+		return loc, false, nil
+	}
+
+	// No port specified, add the default port
+	u.Host = u.Hostname() + ":" + strconv.Itoa(defaultPort)
+	return u.String(), true, nil
+}
 
 // Provider is the ClickHouse implementation of driver.Provider.
 type Provider struct {
@@ -163,10 +185,27 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
 	ctx = options.NewContext(ctx, src.Options)
+	log := lg.FromContext(ctx)
 
-	// Parse the DSN to get connection details
-	// Expected format: clickhouse://user:password@host:port/database
-	db, err := sql.Open("clickhouse", src.Location)
+	// Apply default port if not specified. This is a fallback for legacy sources
+	// that may have been added before ValidateSource applied the default port.
+	// Unlike some other database drivers (e.g. pgx for Postgres), clickhouse-go
+	// does not apply a default port automatically.
+	loc, portAdded, err := locationWithDefaultPort(src.Location)
+	if err != nil {
+		return nil, err
+	}
+
+	if portAdded {
+		log.Debug("Applied default ClickHouse port at connection time",
+			lga.Src, src.Handle,
+			lga.Before, src.Location,
+			lga.After, loc,
+			lga.Default, defaultPort,
+		)
+	}
+
+	db, err := sql.Open("clickhouse", loc)
 	if err != nil {
 		return nil, errw(err)
 	}
@@ -181,6 +220,25 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	if src.Type != Type {
 		return nil, errz.Errorf("expected driver type {%s} but got {%s}", Type, src.Type)
 	}
+
+	// Apply default port if not specified. Unlike some other database drivers
+	// (e.g. pgx for Postgres), clickhouse-go does not apply a default port.
+	loc, portAdded, err := locationWithDefaultPort(src.Location)
+	if err != nil {
+		return nil, err
+	}
+
+	if portAdded {
+		d.log.Debug("Applied default ClickHouse port to source location",
+			lga.Src, src.Handle,
+			lga.Before, src.Location,
+			lga.After, loc,
+			lga.Default, defaultPort,
+		)
+		src = src.Clone()
+		src.Location = loc
+	}
+
 	return src, nil
 }
 

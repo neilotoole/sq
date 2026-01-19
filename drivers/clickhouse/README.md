@@ -62,6 +62,10 @@ clickhouse://default:@localhost:9000/default
 
 Default port: 9000 (native protocol), 8123 (HTTP)
 
+> **Note**: The port must be explicitly specified in the connection string. Unlike
+> other database drivers (Postgres, MySQL, SQL Server) which apply default ports
+> automatically, `clickhouse-go` does not.
+
 ## Testing
 
 **Quick Start:**
@@ -113,6 +117,11 @@ See **[testutils/Testing.md](./testutils/Testing.md)**
 7. **System Tables**: Metadata queried from `system.databases`, `system.tables`, `system.columns`
 
 8. **Views**: Distinguish regular views (engine='View') from materialized views (engine='MaterializedView')
+
+9. **Port Required in Connection String**: Unlike Postgres, MySQL, and SQL Server
+   drivers which apply default ports automatically, the `clickhouse-go` driver
+   requires the port to be explicitly specified in the connection string. Always
+   include `:9000` (native protocol) or `:8123` (HTTP) in the hostname.
 
 ## Implementation Files
 

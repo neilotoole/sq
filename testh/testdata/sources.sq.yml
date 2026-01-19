@@ -37,6 +37,9 @@ collection:
     - handle: '@sakila_az1'
       driver: sqlserver
       location: sqlserver://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_AZ1}?database=sakila
+    - handle: '@sakila_ch25'
+      driver: clickhouse
+      location: clickhouse://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_CH25}?database=sakila
     - handle: '@sakila_xlsx'
       driver: xlsx
       location: '${SQ_ROOT}/drivers/xlsx/testdata/sakila.xlsx'

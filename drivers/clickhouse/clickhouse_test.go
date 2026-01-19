@@ -3,6 +3,7 @@ package clickhouse_test
 import (
 	"testing"
 
+	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/clickhouse"
@@ -22,9 +23,8 @@ func TestSmoke(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	const handle = "@clickhouse_test"
 	th := testh.New(t)
-	src := th.Source(handle)
+	src := th.Source(sakila.CH)
 
 	// Test basic connectivity by querying version
 	sink, err := th.QuerySQL(src, nil, "SELECT version()")
