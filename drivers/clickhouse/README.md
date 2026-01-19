@@ -198,6 +198,132 @@ Direct execution via `ExecContext()` works, but `PrepareUpdateStmt` requires
 **Status**: `TestSQLDriver_PrepareUpdateStmt` is **skipped** for ClickHouse.
 See Development Log for full investigation details.
 
+## Array Type Architecture
+
+This section documents how sq handles array types from ClickHouse, and the
+broader architectural constraints that inform this design.
+
+### The Core Constraint: No `kind.Array`
+
+The sq type system (`kind.Kind`) defines only 11 scalar types:
+
+- `Unknown`, `Null`, `Text`, `Int`, `Float`, `Decimal`, `Bool`, `Bytes`,
+  `Datetime`, `Date`, `Time`
+
+There is intentionally **no `kind.Array` type**. The record system
+(`libsq/core/record/record.go`) restricts valid values to 8 primitive Go types:
+
+```go
+// Valid types: nil, int64, float64, decimal.Decimal, bool, string, []byte, time.Time
+```
+
+The `record.Valid()` function enforces this at runtime, rejecting any record
+containing types outside this set. This is called during query execution before
+records reach output writers.
+
+### Why This Design?
+
+1. **Cross-database abstraction**: sq supports PostgreSQL, MySQL, SQLite,
+   SQL Server, ClickHouse, plus non-SQL sources (CSV, JSON, XLSX). A minimal
+   common type set enables uniform querying across all sources.
+
+2. **Output format compatibility**: CSV, TSV, and text-table outputs have no
+   native array representation. JSON and YAML can represent arrays, but keeping
+   a unified record format simplifies the architecture.
+
+3. **Simplicity over completeness**: The 11 kinds cover the vast majority of
+   real-world use cases. Complex types (arrays, JSON, user-defined) are
+   relatively rare in typical queries.
+
+### How ClickHouse Arrays Are Handled
+
+ClickHouse has native `Array(T)` types (e.g., `Array(String)`, `Array(Int32)`).
+The sq ClickHouse driver handles these through a two-step process:
+
+1. **Kind mapping**: Array types are mapped to `kind.Text` via
+   `kindFromClickHouseType()` in `metadata.go`.
+
+2. **Scan type override**: After the standard `setScanType()` call, Array
+   columns have their scan type overridden to `sqlz.RTypeAny` (accepting Go
+   slices):
+
+   ```go
+   if strings.HasPrefix(dbTypeName, "Array") {
+       colTypeData.ScanType = sqlz.RTypeAny
+   }
+   ```
+
+3. **String conversion**: The `getNewRecordFunc()` detects slice values and
+   converts them to comma-separated strings via `convertArrayToString()`:
+
+   ```go
+   // Input:  []string{"Action", "Drama", "Comedy"}
+   // Output: "Action,Drama,Comedy"
+   ```
+
+   Supported array element types: `string`, `int*`, `uint*`, `float*`, `bool`.
+
+### Example Transformation
+
+When a ClickHouse query returns `Array(String)` data:
+
+| Stage              | Value                        | Type        |
+| ------------------ | ---------------------------- | ----------- |
+| ClickHouse returns | `["Action", "Drama"]`        | `[]string`  |
+| After scan         | `[]string{"Action", "Drama"}`| Go slice    |
+| After conversion   | `"Action,Drama"`             | `string`    |
+| In sq record       | `"Action,Drama"`             | `kind.Text` |
+
+### Comparison with Other Databases
+
+| Database       | Array Support            | sq Handling                   |
+| -------------- | ------------------------ | ----------------------------- |
+| **ClickHouse** | Native `Array(T)`        | Converted to CSV string       |
+| **PostgreSQL** | Native (`text[]`, etc.)  | Mapped to `kind.Text`         |
+| **MySQL**      | None (JSON has arrays)   | JSON stored as-is             |
+| **SQLite**     | None                     | N/A                           |
+| **SQL Server** | None (XML/JSON as text)  | Stored as text                |
+
+### Known Limitations and Trade-offs
+
+1. **Information loss**: `["Action", "Drama"]` becomes `"Action,Drama"`. The
+   original array structure cannot be reconstructed.
+
+2. **No round-trip fidelity**: Cannot distinguish between `"Action,Drama"` (a
+   string containing a comma) and `["Action", "Drama"]` (an array of two
+   strings).
+
+3. **Nested arrays flattened**: `[[1,2],[3,4]]` becomes `"1,2,3,4"` (structure
+   is completely lost).
+
+4. **Delimiter ambiguity**: If array elements contain commas, the CSV
+   representation may be ambiguous.
+
+5. **Multi-source joins**: When joining ClickHouse with other sources, data is
+   copied to a scratch SQLite database. Arrays must be serialized to text before
+   this copy operation, hence the conversion happens early in the pipeline.
+
+### Potential Future Directions
+
+1. **JSON serialization**: Instead of CSV, serialize arrays as JSON strings
+   (e.g., `["Action","Drama"]`). This preserves structure and enables potential
+   reconstruction, but still stores as `kind.Text`.
+
+2. **Add `kind.Array`**: A major architectural change that would require
+   updating the record validation, all drivers, and all output writers. This
+   would enable richer array support but at significant complexity cost.
+
+3. **Driver-specific handling**: The current approach—each driver converts
+   arrays to text at scan time. This is pragmatic but requires per-driver
+   implementation.
+
+### References
+
+- Record validation: `libsq/core/record/record.go:Valid()`
+- Kind types: `libsq/core/kind/kind.go`
+- ClickHouse array handling: `drivers/clickhouse/metadata.go:getNewRecordFunc()`
+- Array conversion: `drivers/clickhouse/metadata.go:convertArrayToString()`
+
 ## Development Log
 
 ### 2026-01-19: ClickHouse Query Test Overrides
