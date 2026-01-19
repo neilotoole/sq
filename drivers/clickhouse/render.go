@@ -45,7 +45,13 @@ func buildCreateTableStmt(tblDef *schema.Table) string {
 		sb.WriteString("  ")
 		sb.WriteString(stringz.BacktickQuote(colDef.Name))
 		sb.WriteString(" ")
-		sb.WriteString(dbTypeNameFromKind(colDef.Kind))
+
+		typeName := dbTypeNameFromKind(colDef.Kind)
+		if !colDef.NotNull {
+			// Wrap with Nullable for columns that allow NULL values
+			typeName = "Nullable(" + typeName + ")"
+		}
+		sb.WriteString(typeName)
 
 		if i < len(tblDef.Cols)-1 {
 			sb.WriteString(",\n")

@@ -236,6 +236,7 @@ func TestNullableWrapperStripping(t *testing.T) {
 
 // TestBuildCreateTableStmt tests CREATE TABLE statement generation.
 func TestBuildCreateTableStmt(t *testing.T) {
+	// Test with nullable columns (NotNull = false, the default)
 	tblDef := schema.NewTable("test_table",
 		[]string{"id", "name", "value"},
 		[]kind.Kind{kind.Int, kind.Text, kind.Float})
@@ -248,11 +249,29 @@ func TestBuildCreateTableStmt(t *testing.T) {
 	require.Contains(t, stmt, "`id`")
 	require.Contains(t, stmt, "`name`")
 	require.Contains(t, stmt, "`value`")
-	require.Contains(t, stmt, "Int64")
-	require.Contains(t, stmt, "String")
-	require.Contains(t, stmt, "Float64")
 	require.Contains(t, stmt, "ENGINE = MergeTree()")
 	require.Contains(t, stmt, "ORDER BY `id`") // First column
+
+	// By default, columns should be nullable (wrapped with Nullable)
+	require.Contains(t, stmt, "Nullable(Int64)")
+	require.Contains(t, stmt, "Nullable(String)")
+	require.Contains(t, stmt, "Nullable(Float64)")
+
+	// Test with non-nullable columns (NotNull = true)
+	tblDef2 := schema.NewTable("test_table2",
+		[]string{"id", "name"},
+		[]kind.Kind{kind.Int, kind.Text})
+	tblDef2.Cols[0].NotNull = true // id is NOT NULL
+	// name remains nullable (NotNull = false)
+
+	stmt2 := buildCreateTableStmt(tblDef2)
+
+	// id should NOT be wrapped with Nullable
+	require.Contains(t, stmt2, "`id` Int64")
+	require.NotContains(t, stmt2, "`id` Nullable")
+
+	// name should be wrapped with Nullable
+	require.Contains(t, stmt2, "`name` Nullable(String)")
 }
 
 // TestBuildUpdateStmt tests UPDATE statement generation.

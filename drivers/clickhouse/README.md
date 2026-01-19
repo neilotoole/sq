@@ -191,15 +191,12 @@ The following are known issues or edge cases that may need attention:
 - **Solution**: Now logs a warning with table name, database, and error details
   when column metadata retrieval fails for a table.
 
-### 5. Created Tables Are Always Non-Nullable
+### 5. ~~Created Tables Are Always Non-Nullable~~ ✅ FIXED
 
-- **Location**: `render.go:48`
-- **Issue**: `buildCreateTableStmt` creates all columns as non-nullable. There's
-  no support for creating nullable columns even if the source schema has them.
-- **Impact**: Data copies via `CopyTable` may fail if source has NULL values in
-  columns that become non-nullable in the destination.
-- **Fix**: Check `schema.Column` for nullable flag and wrap type with
-  `Nullable(T)` when needed.
+- **Status**: Fixed by checking `NotNull` flag when generating CREATE TABLE.
+- **Location**: `render.go`
+- **Solution**: `buildCreateTableStmt` now wraps column types with `Nullable(T)`
+  when `colDef.NotNull` is false, ensuring data copies preserve nullability.
 
 ### 6. ~~Unused `buildInsertStmt` Function~~ ✅ FIXED
 
