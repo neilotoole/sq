@@ -159,21 +159,21 @@ The following features were deferred for future implementation:
 
 ## Known Limitations
 
-The following are known limitations due to fundamental differences between
-ClickHouse and traditional SQL databases.
+The following are currently-understood limitations based on differences between
+ClickHouse and traditional SQL databases. This understanding may be incomplete
+or incorrect; contributions and corrections are welcome.
 
 ### 1. Type Roundtrip Limitations
 
-Some `kind.Kind` types cannot roundtrip through ClickHouse because it lacks
-native equivalents:
+Based on our current understanding, some `kind.Kind` types cannot roundtrip
+through ClickHouse because it lacks native equivalents:
 
 | sq Kind      | Created As | Read Back As    | Notes                    |
 |--------------|------------|-----------------|--------------------------|
 | `kind.Time`  | `DateTime` | `kind.Datetime` | No time-only type        |
 | `kind.Bytes` | `String`   | `kind.Text`     | Binary stored as String  |
 
-This causes `TestDriver_CreateTable_Minimal` to fail for ClickHouse. These are
-inherent database limitations, not driver bugs.
+This causes `TestDriver_CreateTable_Minimal` to be skipped for ClickHouse.
 
 ### 2. CopyTable Returns Zero Rows
 

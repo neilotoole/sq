@@ -123,12 +123,14 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 
 			// Skip ClickHouse: this test verifies that kind.Kind values roundtrip
 			// exactly through CreateTable -> TableColumnTypes -> RecordMeta.
-			// ClickHouse has inherent type limitations that prevent exact roundtrips:
+			// Based on our current understanding, ClickHouse has type limitations
+			// that prevent exact roundtrips:
 			//   - kind.Time -> DateTime -> kind.Datetime (no time-only type)
 			//   - kind.Bytes -> String -> kind.Text (binary stored as String)
-			// These are documented in drivers/clickhouse/README.md "Known Limitations".
+			// See drivers/clickhouse/README.md "Known Limitations" for details.
+			// This understanding may be incomplete or incorrect.
 			if drvr.DriverMetadata().Type == drivertype.ClickHouse {
-				t.Skip("ClickHouse: kind.Time and kind.Bytes don't roundtrip exactly due to type system limitations")
+				t.Skip("ClickHouse: kind.Time and kind.Bytes don't roundtrip exactly (see README Known Limitations)")
 			}
 
 			tblName := stringz.UniqTableName(t.Name())
