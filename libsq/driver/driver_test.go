@@ -18,6 +18,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
@@ -80,9 +81,8 @@ func TestDriver_TableExists(t *testing.T) {
 
 func TestDriver_CopyTable(t *testing.T) {
 	t.Parallel()
-	for _, handle := range sakila.SQLAll() {
-		handle := handle
 
+	for _, handle := range sakila.SQLAll() {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -91,15 +91,36 @@ func TestDriver_CopyTable(t *testing.T) {
 				"fromTable should have ActorCount rows beforehand")
 
 			toTable := stringz.UniqTableName(sakila.TblActor)
-			// First, test with copyData = true
+
+			// Test 1: CopyTable with copyData = true
+			// This should copy the table structure AND all data from the source table.
 			copied, err := drvr.CopyTable(th.Context, db, tablefq.From(sakila.TblActor), tablefq.From(toTable), true)
 			require.NoError(t, err)
-			require.Equal(t, int64(sakila.TblActorCount), copied)
+
+			// Handle dialect.RowsAffectedUnavailable: Some drivers (e.g., ClickHouse)
+			// cannot report row counts for INSERT ... SELECT operations due to
+			// database protocol limitations. In that case, CopyTable returns -1
+			// (dialect.RowsAffectedUnavailable) instead of the actual count.
+			//
+			// When this happens, we skip the assertion on the return value but still
+			// verify the data was actually copied by checking the destination table's
+			// row count directly. This ensures the test validates correctness even
+			// when the driver can't report the count.
+			if copied != dialect.RowsAffectedUnavailable {
+				require.Equal(t, int64(sakila.TblActorCount), copied)
+			} else {
+				t.Logf("Driver returned RowsAffectedUnavailable; verifying via row count")
+			}
 			require.Equal(t, int64(sakila.TblActorCount), th.RowCount(src, toTable))
 			defer th.DropTable(src, tablefq.From(toTable))
 
 			toTable = stringz.UniqTableName(sakila.TblActor)
-			// Then, with copyData = false
+
+			// Test 2: CopyTable with copyData = false
+			// This should copy only the table structure (schema), not the data.
+			// The returned count should always be 0 since no data is copied.
+			// Note: dialect.RowsAffectedUnavailable should NOT be returned here
+			// because when copyData=false, the driver knows exactly 0 rows were copied.
 			copied, err = drvr.CopyTable(th.Context, db, tablefq.From(sakila.TblActor), tablefq.From(toTable), false)
 			require.NoError(t, err)
 			require.Equal(t, int64(0), copied)

@@ -175,12 +175,12 @@ through ClickHouse because it lacks native equivalents:
 
 This causes `TestDriver_CreateTable_Minimal` to be skipped for ClickHouse.
 
-### 2. CopyTable Returns Zero Rows
+### 2. CopyTable Row Count Unavailable
 
-`CopyTable` returns 0 for the copied row count because ClickHouse's
+`CopyTable` returns `dialect.RowsAffectedUnavailable` (-1) because ClickHouse's
 `INSERT ... SELECT` doesn't report affected rows. The operation succeeds, but
-the count is unavailable. This causes `TestDriver_CopyTable` to fail the row
-count assertion.
+the count is unavailable. The CLI handles this gracefully by displaying
+"(rows copied: unavailable)" instead of an incorrect count.
 
 ### 3. Batch Insert Argument Handling
 

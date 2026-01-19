@@ -718,18 +718,30 @@ func (d *driveri) CopyTable(
 		return 0, nil
 	}
 
-	// Copy data using INSERT INTO ... SELECT
+	// Copy data using INSERT INTO ... SELECT.
+	//
+	// ClickHouse Limitation: ClickHouse does not report row counts for
+	// INSERT ... SELECT operations. The RowsAffected() method on sql.Result
+	// returns 0 regardless of how many rows were actually copied. This is a
+	// fundamental limitation of ClickHouse's protocol, not a driver bug.
+	//
+	// To handle this, we return dialect.RowsAffectedUnavailable (-1) to signal
+	// to callers that the row count is unavailable. Callers (e.g., CLI, tests)
+	// should check for this value and either:
+	//   - Display an "unavailable" message to users
+	//   - Verify success via an explicit row count query if needed
+	//
+	// See: drivers/clickhouse/README.md "Known Limitations" section.
 	query := fmt.Sprintf("INSERT INTO %s SELECT * FROM %s",
 		stringz.BacktickQuote(toTable.Table),
 		stringz.BacktickQuote(fromTable.Table))
 
-	result, err := db.ExecContext(ctx, query)
+	_, err = db.ExecContext(ctx, query)
 	if err != nil {
 		return 0, errw(err)
 	}
 
-	affected, err := result.RowsAffected()
-	return affected, errw(err)
+	return dialect.RowsAffectedUnavailable, nil
 }
 
 // TableColumnTypes implements driver.SQLDriver.

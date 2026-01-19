@@ -175,7 +175,10 @@ type SQLDriver interface {
 	// CopyTable copies fromTable into a new table toTable.
 	// If copyData is true, fromTable's data is also copied.
 	// Constraints (keys, defaults etc.) may not be copied. The
-	// number of copied rows is returned in copied.
+	// number of copied rows is returned in copied. If the driver cannot
+	// determine the number of copied rows (e.g., ClickHouse doesn't report
+	// row counts for INSERT ... SELECT), [dialect.RowsAffectedUnavailable] (-1)
+	// is returned.
 	CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable tablefq.T, copyData bool) (copied int64, err error)
 
 	// DropTable drops tbl from db. If ifExists is true, an "IF EXISTS"

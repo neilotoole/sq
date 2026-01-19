@@ -13,6 +13,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -150,7 +151,14 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 		tblHandles[1].handle, tblHandles[1].tbl)
 
 	if copyData {
+		// Handle the row count display. Some drivers (e.g., ClickHouse) cannot
+		// report row counts for INSERT ... SELECT operations and return
+		// dialect.RowsAffectedUnavailable (-1). In that case, we display a
+		// message indicating the count is unavailable rather than showing
+		// an incorrect "0 rows copied" message.
 		switch copied {
+		case dialect.RowsAffectedUnavailable:
+			msg += " (rows copied: unavailable)"
 		case 1:
 			msg += " (1 row copied)"
 		default:
