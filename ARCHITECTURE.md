@@ -33,6 +33,14 @@ classDiagram
             +MetadataWriter Metadata
             +ErrorWriter Error
         }
+
+        class `output.RecordWriter` {
+            <<interface>>
+            +Open(ctx, Meta) error
+            +WriteRecords(ctx, []Record) error
+            +Flush(ctx) error
+            +Close(ctx) error
+        }
     }
 
     namespace source {
@@ -130,6 +138,39 @@ classDiagram
         }
         class `xlsx.Driver` {
             <<Driver>>
+        }
+    }
+
+    namespace output {
+        class `jsonw.stdWriter` {
+            <<RecordWriter>>
+        }
+        class `jsonw.lineRecordWriter` {
+            <<RecordWriter>>
+        }
+        class `csvw.RecordWriter` {
+            <<RecordWriter>>
+        }
+        class `tablew.recordWriter` {
+            <<RecordWriter>>
+        }
+        class `yamlw.recordWriter` {
+            <<RecordWriter>>
+        }
+        class `htmlw.recordWriter` {
+            <<RecordWriter>>
+        }
+        class `xmlw.recordWriter` {
+            <<RecordWriter>>
+        }
+        class `xlsxw.recordWriter` {
+            <<RecordWriter>>
+        }
+        class `markdownw.RecordWriter` {
+            <<RecordWriter>>
+        }
+        class `raww.recordWriter` {
+            <<RecordWriter>>
         }
     }
 
@@ -237,6 +278,10 @@ classDiagram
      about a result column"
     note for `postgres.driveri` "SQL drivers implement SQLDriver;
      document drivers implement Driver only"
+    note for `output.RecordWriter` "Synchronous interface for
+     record output to various formats"
+    note for `jsonw.stdWriter` "Output writers implement
+     output.RecordWriter for various formats"
 
     %% ===== RELATIONSHIPS =====
     %% Configuration relationships
@@ -278,6 +323,18 @@ classDiagram
     `json.driveri` ..|> `driver.Driver` : implements
     `xlsx.Driver` ..|> `driver.Driver` : implements
 
+    %% Output RecordWriter implementation relationships
+    `jsonw.stdWriter` ..|> `output.RecordWriter` : implements
+    `jsonw.lineRecordWriter` ..|> `output.RecordWriter` : implements
+    `csvw.RecordWriter` ..|> `output.RecordWriter` : implements
+    `tablew.recordWriter` ..|> `output.RecordWriter` : implements
+    `yamlw.recordWriter` ..|> `output.RecordWriter` : implements
+    `htmlw.recordWriter` ..|> `output.RecordWriter` : implements
+    `xmlw.recordWriter` ..|> `output.RecordWriter` : implements
+    `xlsxw.recordWriter` ..|> `output.RecordWriter` : implements
+    `markdownw.RecordWriter` ..|> `output.RecordWriter` : implements
+    `raww.recordWriter` ..|> `output.RecordWriter` : implements
+
     %% Query execution relationships
     `libsq.QueryContext` *-- `source.Collection` : contains
     `libsq.QueryContext` *-- `driver.Grips` : contains
@@ -295,5 +352,6 @@ classDiagram
     %% Output relationships
     `libsq.RecordWriter` ..> `record.Record` : receives
     `libsq.RecordWriter` ..> `record.Meta` : uses
+    `output.Writers` --> `output.RecordWriter` : contains
     `output.Writers` ..> `libsq.RecordWriter` : consumes
 ```
