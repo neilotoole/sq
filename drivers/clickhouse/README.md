@@ -161,16 +161,13 @@ The following features were deferred for future implementation:
 
 The following are known issues or edge cases that may need attention:
 
-### 1. `LowCardinality(Nullable(T))` NULL Handling
+### 1. ~~`LowCardinality(Nullable(T))` NULL Handling~~ ✅ FIXED
 
-- **Location**: `metadata.go:279`
-- **Issue**: The `isNullableType()` function only checks if the outer wrapper is
-  `Nullable(...)`. For composite types like `LowCardinality(Nullable(String))`,
-  it returns `false` because the outer wrapper is `LowCardinality`.
-- **Impact**: NULL values in `LowCardinality(Nullable(T))` columns may not be
-  scanned correctly, potentially causing panics or incorrect data.
-- **Fix**: After stripping the `LowCardinality` wrapper, check again for
-  `Nullable`.
+- **Status**: Fixed via `isNullableTypeUnwrapped()` function.
+- **Location**: `metadata.go`
+- **Solution**: Added `isNullableTypeUnwrapped()` which strips the
+  `LowCardinality` wrapper before checking for `Nullable`, correctly handling
+  both `Nullable(T)` and `LowCardinality(Nullable(T))` patterns.
 
 ### 2. `FixedString(N)` Type Parsing
 

@@ -126,6 +126,42 @@ func TestIsNullableType(t *testing.T) {
 	}
 }
 
+// TestIsNullableTypeUnwrapped tests nullable detection after stripping wrappers.
+// This is critical for LowCardinality(Nullable(T)) types where the outer wrapper
+// is not Nullable but the inner type is.
+func TestIsNullableTypeUnwrapped(t *testing.T) {
+	testCases := []struct {
+		typeName string
+		want     bool
+	}{
+		// Non-nullable types
+		{"String", false},
+		{"Int64", false},
+		{"LowCardinality(String)", false},
+		{"LowCardinality(Int64)", false},
+		{"", false},
+
+		// Nullable types (direct)
+		{"Nullable(String)", true},
+		{"Nullable(Int64)", true},
+		{"Nullable(DateTime)", true},
+
+		// Nullable types wrapped in LowCardinality - the key case this function handles
+		{"LowCardinality(Nullable(String))", true},
+		{"LowCardinality(Nullable(Int64))", true},
+		{"LowCardinality(Nullable(Float64))", true},
+		{"LowCardinality(Nullable(DateTime))", true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.typeName, func(t *testing.T) {
+			got := isNullableTypeUnwrapped(tc.typeName)
+			require.Equal(t, tc.want, got,
+				"isNullableTypeUnwrapped(%q) = %v, want %v", tc.typeName, got, tc.want)
+		})
+	}
+}
+
 // TestLowCardinalityWrapperStripping specifically tests that LowCardinality
 // wrappers are correctly stripped to extract the inner type.
 // This test catches the off-by-one bug where chType[:14] was compared against

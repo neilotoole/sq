@@ -216,9 +216,24 @@ func getColumnsMetadata(ctx context.Context, db *sql.DB, dbName, tblName string)
 }
 
 // isNullableType checks if a ClickHouse type is nullable.
+// This only checks the outermost wrapper; use isNullableTypeUnwrapped
+// to handle LowCardinality(Nullable(T)) cases.
 func isNullableType(typeName string) bool {
 	// Nullable types are wrapped in Nullable(...)
 	return len(typeName) > 9 && typeName[:9] == "Nullable("
+}
+
+// isNullableTypeUnwrapped checks if a ClickHouse type is nullable,
+// after stripping any LowCardinality wrapper. This correctly handles
+// both Nullable(T) and LowCardinality(Nullable(T)) patterns.
+func isNullableTypeUnwrapped(typeName string) bool {
+	// Strip LowCardinality wrapper if present
+	// "LowCardinality(" is 15 characters
+	if len(typeName) > 16 && typeName[:15] == "LowCardinality(" {
+		typeName = typeName[15 : len(typeName)-1]
+	}
+
+	return isNullableType(typeName)
 }
 
 // kindFromClickHouseType maps ClickHouse type names to sq kinds.
@@ -275,8 +290,9 @@ func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType) 
 		colTypeData := record.NewColumnTypeData(colType, knd)
 
 		// The ClickHouse driver may not report Nullable correctly via sql.ColumnType.Nullable(),
-		// so we detect it from the database type name (e.g., "Nullable(String)").
-		if isNullableType(dbTypeName) {
+		// so we detect it from the database type name. This handles both Nullable(T) and
+		// LowCardinality(Nullable(T)) patterns.
+		if isNullableTypeUnwrapped(dbTypeName) {
 			colTypeData.Nullable = true
 			colTypeData.HasNullable = true
 		}
