@@ -16,25 +16,45 @@ import (
 // drivers accept QueryContext for DDL, it's semantically wrong per
 // database/sql documentation and fails on stricter drivers like ClickHouse.
 func TestExecContext_DDL_CREATE(t *testing.T) {
-	testCases := []string{
-		sakila.Pg12,
-		sakila.SL3,
+	tableName := stringz.UniqTableName(t.Name())
+
+	testCases := []struct {
+		handle    string
+		createSQL string
+	}{
+		{
+			handle:    sakila.Pg,
+			createSQL: `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`,
+		},
+		{
+			handle:    sakila.SL3,
+			createSQL: `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`,
+		},
+		{
+			handle:    sakila.My,
+			createSQL: `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`,
+		},
+		{
+			handle:    sakila.MS,
+			createSQL: `CREATE TABLE ` + tableName + ` (id INTEGER, name NVARCHAR(MAX))`,
+		},
+		{
+			handle: sakila.CH,
+			createSQL: `CREATE TABLE ` + tableName +
+				` (id Int32, name String) ENGINE = MergeTree() ORDER BY id`,
+		},
 	}
 
-	for _, handle := range testCases {
-		handle := handle
-		t.Run(handle, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.handle, func(t *testing.T) {
 			th := testh.New(t)
-			src := th.Source(handle)
+			src := th.Source(tc.handle)
 			grip := th.Open(src)
 
 			db, err := grip.DB(th.Context)
 			require.NoError(t, err)
 
-			tableName := stringz.UniqTableName(t.Name())
-			createSQL := `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`
-
-			result, err := db.ExecContext(th.Context, createSQL)
+			result, err := db.ExecContext(th.Context, tc.createSQL)
 			require.NoError(t, err)
 			require.NotNil(t, result)
 			t.Cleanup(func() {
@@ -53,24 +73,51 @@ func TestExecContext_DDL_CREATE(t *testing.T) {
 // TestExecContext_DML_INSERT verifies that ExecContext correctly handles
 // INSERT statements and returns accurate affected row counts.
 func TestExecContext_DML_INSERT(t *testing.T) {
-	testCases := []string{
-		sakila.Pg12,
-		sakila.SL3,
+	tableName := stringz.UniqTableName(t.Name())
+
+	testCases := []struct {
+		handle           string
+		createSQL        string
+		wantAffectedRows int64 // ClickHouse returns 0 for affected rows
+	}{
+		{
+			handle:           sakila.Pg,
+			createSQL:        `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`,
+			wantAffectedRows: 2,
+		},
+		{
+			handle:           sakila.SL3,
+			createSQL:        `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`,
+			wantAffectedRows: 2,
+		},
+		{
+			handle:           sakila.My,
+			createSQL:        `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`,
+			wantAffectedRows: 2,
+		},
+		{
+			handle:           sakila.MS,
+			createSQL:        `CREATE TABLE ` + tableName + ` (id INTEGER, name NVARCHAR(MAX))`,
+			wantAffectedRows: 2,
+		},
+		{
+			handle: sakila.CH,
+			createSQL: `CREATE TABLE ` + tableName +
+				` (id Int32, name String) ENGINE = MergeTree() ORDER BY id`,
+			wantAffectedRows: 0, // ClickHouse returns 0 for affected rows
+		},
 	}
 
-	for _, handle := range testCases {
-		handle := handle
-		t.Run(handle, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.handle, func(t *testing.T) {
 			th := testh.New(t)
-			src := th.Source(handle)
+			src := th.Source(tc.handle)
 			grip := th.Open(src)
 
 			db, err := grip.DB(th.Context)
 			require.NoError(t, err)
 
-			tableName := stringz.UniqTableName(t.Name())
-			createSQL := `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`
-			_, err = db.ExecContext(th.Context, createSQL)
+			_, err = db.ExecContext(th.Context, tc.createSQL)
 			require.NoError(t, err)
 			t.Cleanup(func() {
 				_, _ = db.ExecContext(th.Context, `DROP TABLE `+tableName)
@@ -82,7 +129,7 @@ func TestExecContext_DML_INSERT(t *testing.T) {
 
 			affected, err := result.RowsAffected()
 			require.NoError(t, err)
-			require.Equal(t, int64(2), affected)
+			require.Equal(t, tc.wantAffectedRows, affected)
 
 			// Verify data was inserted.
 			var count int
@@ -96,24 +143,54 @@ func TestExecContext_DML_INSERT(t *testing.T) {
 // TestExecContext_DML_UPDATE verifies that ExecContext correctly handles
 // UPDATE statements and returns accurate affected row counts.
 func TestExecContext_DML_UPDATE(t *testing.T) {
-	testCases := []string{
-		sakila.Pg12,
-		sakila.SL3,
+	tableName := stringz.UniqTableName(t.Name())
+
+	testCases := []struct {
+		handle           string
+		createSQL        string
+		wantAffectedRows int64 // ClickHouse returns 0 for affected rows
+	}{
+		{
+			handle:           sakila.Pg,
+			createSQL:        `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`,
+			wantAffectedRows: 2,
+		},
+		{
+			handle:           sakila.SL3,
+			createSQL:        `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`,
+			wantAffectedRows: 2,
+		},
+		{
+			handle:           sakila.My,
+			createSQL:        `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`,
+			wantAffectedRows: 2,
+		},
+		{
+			handle:           sakila.MS,
+			createSQL:        `CREATE TABLE ` + tableName + ` (id INTEGER, name NVARCHAR(MAX))`,
+			wantAffectedRows: 2,
+		},
+		{
+			handle: sakila.CH,
+			// ClickHouse requires lightweight update settings. See TestExecSQL_DDL_DML
+			// for detailed explanation of these settings.
+			createSQL: `CREATE TABLE ` + tableName +
+				` (id Int32, name String) ENGINE = MergeTree() ORDER BY id` +
+				` SETTINGS enable_block_number_column = 1, enable_block_offset_column = 1`,
+			wantAffectedRows: 0, // ClickHouse returns 0 for affected rows
+		},
 	}
 
-	for _, handle := range testCases {
-		handle := handle
-		t.Run(handle, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.handle, func(t *testing.T) {
 			th := testh.New(t)
-			src := th.Source(handle)
+			src := th.Source(tc.handle)
 			grip := th.Open(src)
 
 			db, err := grip.DB(th.Context)
 			require.NoError(t, err)
 
-			tableName := stringz.UniqTableName(t.Name())
-			createSQL := `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`
-			_, err = db.ExecContext(th.Context, createSQL)
+			_, err = db.ExecContext(th.Context, tc.createSQL)
 			require.NoError(t, err)
 			t.Cleanup(func() {
 				_, _ = db.ExecContext(th.Context, `DROP TABLE `+tableName)
@@ -129,7 +206,7 @@ func TestExecContext_DML_UPDATE(t *testing.T) {
 
 			affected, err := result.RowsAffected()
 			require.NoError(t, err)
-			require.Equal(t, int64(2), affected)
+			require.Equal(t, tc.wantAffectedRows, affected)
 		})
 	}
 }
