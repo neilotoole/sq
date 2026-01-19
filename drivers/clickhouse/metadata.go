@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"context"
 	"database/sql"
+	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -440,7 +441,16 @@ func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType) 
 
 		setScanType(colTypeData, knd, colTypeData.Nullable)
 		sColTypeData[i] = colTypeData
-		ogColNames[i] = colTypeData.Name
+
+		// ClickHouse returns qualified column names (e.g., "actor.actor_id") for
+		// JOIN queries, unlike other databases that return just "actor_id". Strip
+		// the table prefix so the column munging mechanism can detect duplicates
+		// and rename them consistently (e.g., "actor_id_1").
+		colName := colTypeData.Name
+		if idx := strings.LastIndex(colName, "."); idx != -1 {
+			colName = colName[idx+1:]
+		}
+		ogColNames[i] = colName
 	}
 
 	mungedColNames, err := driver.MungeResultColNames(ctx, ogColNames)
