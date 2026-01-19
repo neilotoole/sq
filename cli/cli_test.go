@@ -147,16 +147,39 @@ func TestCreateTable_bytes(t *testing.T) {
 	}
 }
 
-// TestOutputRaw verifies that the raw output format works.
-// We're particularly concerned that bytes output is correct.
+// TestOutputRaw verifies that the --raw output format correctly outputs binary
+// data without any encoding or transformation. This is critical for use cases
+// where users want to extract binary content (images, documents, etc.) directly
+// from a database to a file or pipe it to another program.
+//
+// The test performs the following steps for each SQL database:
+//  1. Reads a binary GIF image file (the Go gopher mascot) and validates it
+//     can be decoded as a valid GIF
+//  2. Creates a table with text and bytes columns, inserting the image data
+//  3. Queries the data back via libsq and verifies the bytes match exactly,
+//     confirming the database driver correctly handles binary roundtrip
+//  4. Tests CLI raw output to a file using "sq sql --raw --output=/path/to/file"
+//     and verifies the output file contains the exact original bytes and is
+//     a valid GIF
+//  5. Tests CLI raw output to stdout using "sq sql --raw" and verifies stdout
+//     contains the exact original bytes
+//
+// This exercises the complete binary data pipeline: storage in the database,
+// retrieval through the driver, and output through the CLI's raw format writer
+// without corruption or unwanted encoding (e.g., base64, hex).
+//
+// Note: ClickHouse is skipped due to connection state corruption issues with
+// batch inserts (see drivers/clickhouse/README.md).
 func TestOutputRaw(t *testing.T) {
 	t.Parallel()
 
 	for _, handle := range sakila.SQLLatest() {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
+
+			th, src, _, _, _ := testh.NewWith(t, handle)
+			tu.SkipIf(t, src.Type == drivertype.ClickHouse,
+				"ClickHouse: batch insert causes connection state corruption (see drivers/clickhouse/README.md)")
 
 			// Sanity check
 			wantBytes := proj.ReadFile(fixt.GopherPath)
@@ -169,8 +192,6 @@ func TestOutputRaw(t *testing.T) {
 				[]string{"col_name", "col_bytes"},
 				[]kind.Kind{kind.Text, kind.Bytes},
 			)
-
-			th, src, _, _, _ := testh.NewWith(t, handle)
 
 			// Create the table and insert data
 			insertRow := []any{fixt.GopherFilename, wantBytes}
