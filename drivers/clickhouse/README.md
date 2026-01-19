@@ -157,6 +157,68 @@ The following features were deferred for future implementation:
 - Advanced data types (Array, Tuple, Map, Nested)
 - Time series specific operations
 
+## Possible Issues
+
+The following are known issues or edge cases that may need attention:
+
+### 1. `LowCardinality(Nullable(T))` NULL Handling
+
+- **Location**: `metadata.go:279`
+- **Issue**: The `isNullableType()` function only checks if the outer wrapper is
+  `Nullable(...)`. For composite types like `LowCardinality(Nullable(String))`,
+  it returns `false` because the outer wrapper is `LowCardinality`.
+- **Impact**: NULL values in `LowCardinality(Nullable(T))` columns may not be
+  scanned correctly, potentially causing panics or incorrect data.
+- **Fix**: After stripping the `LowCardinality` wrapper, check again for
+  `Nullable`.
+
+### 2. `FixedString(N)` Type Parsing
+
+- **Location**: `metadata.go:244`
+- **Issue**: The code matches `"FixedString"` exactly, but ClickHouse returns
+  types like `"FixedString(10)"` with the length parameter.
+- **Impact**: Currently works by accident (falls through to default `kind.Text`),
+  but the matching logic is incorrect.
+- **Fix**: Use prefix matching: `strings.HasPrefix(chType, "FixedString")`.
+
+### 3. Views Not Included in Source Metadata
+
+- **Location**: `metadata.go:69`
+- **Issue**: The `getTablesMetadata` query explicitly excludes views
+  (`engine NOT IN ('View', 'MaterializedView')`), so `SourceMetadata` never
+  returns views.
+- **Impact**: Inconsistency: `sq inspect` won't show views, but `sq ls` (via
+  `ListTableNames`) can list them.
+- **Fix**: Consider adding view support to `getTablesMetadata` or document this
+  as intentional behavior.
+
+### 4. Silent Error in Column Metadata Retrieval
+
+- **Location**: `metadata.go:101-104`
+- **Issue**: When `getColumnsMetadata` fails for a table, the error is silently
+  swallowed with `continue`. The comment says "Log error" but no logging occurs.
+- **Impact**: Diagnostic information is lost; tables with column retrieval errors
+  are silently skipped.
+- **Fix**: Add actual error logging or propagate the error.
+
+### 5. Created Tables Are Always Non-Nullable
+
+- **Location**: `render.go:48`
+- **Issue**: `buildCreateTableStmt` creates all columns as non-nullable. There's
+  no support for creating nullable columns even if the source schema has them.
+- **Impact**: Data copies via `CopyTable` may fail if source has NULL values in
+  columns that become non-nullable in the destination.
+- **Fix**: Check `schema.Column` for nullable flag and wrap type with
+  `Nullable(T)` when needed.
+
+### 6. Unused `buildInsertStmt` Function
+
+- **Location**: `render.go:67-99`
+- **Issue**: This function exists but is never called. The driver uses
+  `driver.PrepareInsertStmt` instead.
+- **Impact**: Dead code.
+- **Fix**: Remove the unused function.
+
 ## Usage Example
 
 ```go
