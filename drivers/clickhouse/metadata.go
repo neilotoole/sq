@@ -15,7 +15,21 @@ import (
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
-// getSourceMetadata returns metadata for the ClickHouse source.
+// getSourceMetadata returns metadata for the ClickHouse source, including
+// database version, current database name, and optionally table/column metadata.
+//
+// Parameters:
+//   - src: The source configuration
+//   - db: The database connection
+//   - noSchema: If true, only returns basic metadata without table details
+//
+// The returned metadata includes:
+//   - Handle: The source handle (e.g., "@mydb")
+//   - Location: The connection string
+//   - Driver: drivertype.ClickHouse
+//   - DBVersion: ClickHouse server version from version()
+//   - Schema/Name: Current database from currentDatabase()
+//   - Tables: Table metadata (if noSchema is false)
 func getSourceMetadata(ctx context.Context, src *source.Source, db *sql.DB, noSchema bool) (*metadata.Source, error) {
 	md := &metadata.Source{
 		Handle:    src.Handle,
@@ -58,7 +72,20 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db *sql.DB, noSc
 	return md, nil
 }
 
-// getTablesMetadata returns metadata for all tables and views in the database.
+// getTablesMetadata returns metadata for all tables and views in the specified
+// database by querying the system.tables catalog table.
+//
+// For each table/view, it retrieves:
+//   - name: Table name
+//   - engine: ClickHouse engine type (MergeTree, View, MaterializedView, etc.)
+//   - total_rows: Row count (may be approximate for some engines)
+//   - total_bytes: Storage size in bytes
+//
+// Views (engine "View" or "MaterializedView") are included with TableType set
+// to sqlz.TableTypeView. All other engines are considered tables.
+//
+// If column metadata retrieval fails for a table, a warning is logged and the
+// table is skipped (not included in the result).
 func getTablesMetadata(ctx context.Context, db *sql.DB, dbName string) ([]*metadata.Table, error) {
 	const query = `
 		SELECT
@@ -117,9 +144,16 @@ func getTablesMetadata(ctx context.Context, db *sql.DB, dbName string) ([]*metad
 	return tables, nil
 }
 
-// getTableMetadata returns metadata for a specific table.
+// getTableMetadata returns metadata for a specific table, including its
+// columns, by querying system.tables and system.columns.
+//
+// Parameters:
+//   - dbName: Database name. If empty, uses currentDatabase().
+//   - tblName: Table name to retrieve metadata for.
+//
+// Returns an error if the table does not exist or cannot be queried.
 func getTableMetadata(ctx context.Context, db *sql.DB, dbName, tblName string) (*metadata.Table, error) {
-	// If dbName is empty, use currentDatabase()
+	// If dbName is empty, use currentDatabase().
 	if dbName == "" {
 		err := db.QueryRowContext(ctx, "SELECT currentDatabase()").Scan(&dbName)
 		if err != nil {
@@ -168,7 +202,24 @@ func getTableMetadata(ctx context.Context, db *sql.DB, dbName, tblName string) (
 	return tblMeta, nil
 }
 
-// getColumnsMetadata returns metadata for all columns in a table.
+// getColumnsMetadata returns metadata for all columns in a table by querying
+// the system.columns catalog table.
+//
+// For each column, it retrieves:
+//   - name: Column name
+//   - type: ClickHouse type string (e.g., "String", "Nullable(Int64)")
+//   - position: Column ordinal position (1-based in ClickHouse)
+//   - default_kind: Type of default (e.g., "DEFAULT", "MATERIALIZED")
+//   - default_expression: Default value expression
+//   - comment: Column comment
+//
+// The Kind field is derived from the ClickHouse type using kindFromClickHouseType.
+// The Nullable field is determined using isNullableType, which checks if the
+// outermost type wrapper is Nullable.
+//
+// Note: ClickHouse doesn't have traditional primary keys. The PrimaryKey field
+// is always set to false. The ORDER BY clause in MergeTree tables defines
+// sort order but not uniqueness constraints.
 func getColumnsMetadata(ctx context.Context, db *sql.DB, dbName, tblName string) ([]*metadata.Column, error) {
 	const query = `
 		SELECT
@@ -280,9 +331,30 @@ func isNullableTypeUnwrapped(typeName string) bool {
 	return isNullableType(typeName)
 }
 
-// kindFromClickHouseType maps ClickHouse type names to sq kinds.
+// kindFromClickHouseType maps ClickHouse type names to sq kind.Kind values.
 // It handles wrapped types like LowCardinality(T) and Nullable(T) by stripping
 // the wrappers to get the underlying base type for kind mapping.
+//
+// Type mapping:
+//
+//	ClickHouse Type          -> sq Kind
+//	----------------------------------------
+//	Int8, Int16, Int32, Int64   -> kind.Int
+//	UInt8, UInt16, UInt32, UInt64 -> kind.Int
+//	Float32, Float64            -> kind.Float
+//	String                      -> kind.Text
+//	FixedString(N)              -> kind.Text
+//	Bool                        -> kind.Bool
+//	Date, Date32                -> kind.Date
+//	DateTime, DateTime64        -> kind.Datetime
+//	UUID                        -> kind.Text
+//	Decimal(P,S)                -> kind.Decimal
+//	Array(T)                    -> kind.Text (serialized as text)
+//	Unknown types               -> kind.Text (safe fallback)
+//
+// Wrappers are stripped before mapping:
+//   - LowCardinality(Nullable(String)) -> "String" -> kind.Text
+//   - Nullable(Int64) -> "Int64" -> kind.Int
 func kindFromClickHouseType(chType string) kind.Kind {
 	// Strip LowCardinality wrapper if present. Must be done first since
 	// LowCardinality can wrap Nullable: LowCardinality(Nullable(String)).
@@ -332,7 +404,21 @@ func kindFromClickHouseType(chType string) kind.Kind {
 	}
 }
 
-// recordMetaFromColumnTypes creates record metadata from SQL column types.
+// recordMetaFromColumnTypes creates record metadata from SQL column types
+// returned by a query. This metadata is used to properly scan and transform
+// query results into sq records.
+//
+// For each column, it:
+//  1. Gets the database type name from sql.ColumnType.DatabaseTypeName()
+//  2. Maps the ClickHouse type to an sq kind using kindFromClickHouseType
+//  3. Determines nullability using isNullableTypeUnwrapped (handles
+//     LowCardinality(Nullable(T)) patterns)
+//  4. Sets the appropriate scan type based on kind and nullability
+//
+// The function uses isNullableTypeUnwrapped rather than isNullableType because
+// the ClickHouse driver reports full type strings like
+// "LowCardinality(Nullable(String))" where Nullable is not the outermost
+// wrapper. See isNullableTypeUnwrapped documentation for details.
 func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta, error) {
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
 	ogColNames := make([]string, len(colTypes))
@@ -370,7 +456,12 @@ func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType) 
 	return recMeta, nil
 }
 
-// getNewRecordFunc returns a NewRecordFunc for ClickHouse.
+// getNewRecordFunc returns a NewRecordFunc that transforms scanned row data
+// into sq records. The function uses the provided record.Meta to interpret
+// the raw scanned values and convert them to the appropriate Go types.
+//
+// This is used by RecordMeta to provide the transformation function that
+// processes each row returned by a query.
 func getNewRecordFunc(rowMeta record.Meta) driver.NewRecordFunc {
 	return func(row []any) (record.Record, error) {
 		rec, _ := driver.NewRecordFromScanRow(rowMeta, row, nil)
@@ -378,9 +469,27 @@ func getNewRecordFunc(rowMeta record.Meta) driver.NewRecordFunc {
 	}
 }
 
-// setScanType sets the appropriate scan type for a column.
-// For nullable columns, it uses the nullable scan types (e.g., sql.NullString)
-// to properly handle NULL values.
+// setScanType sets the appropriate Go reflect.Type for scanning a column's
+// values. The scan type determines what Go type will be used to receive values
+// from the database driver during row scanning.
+//
+// For nullable columns, it uses sql.Null* types (e.g., sql.NullString,
+// sql.NullInt64) which can represent NULL values. For non-nullable columns,
+// it uses the corresponding primitive types (string, int64, etc.).
+//
+// Scan type mapping:
+//
+//	Kind        | Nullable         | Non-Nullable
+//	------------|------------------|-------------
+//	Text        | sql.NullString   | string
+//	Int         | sql.NullInt64    | int64
+//	Float       | sql.NullFloat64  | float64
+//	Bool        | sql.NullBool     | bool
+//	Datetime    | sql.NullTime     | time.Time
+//	Date        | sql.NullTime     | time.Time
+//	Time        | sql.NullTime     | time.Time
+//	Decimal     | NullDecimal      | string
+//	Bytes       | []byte           | []byte
 func setScanType(colTypeData *record.ColumnTypeData, knd kind.Kind, nullable bool) {
 	if nullable {
 		// Use nullable scan types to properly handle NULL values

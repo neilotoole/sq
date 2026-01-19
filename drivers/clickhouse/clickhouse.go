@@ -1,4 +1,50 @@
-// Package clickhouse implements the sq driver for ClickHouse.
+// Package clickhouse implements the sq driver for ClickHouse, a column-oriented
+// OLAP database management system. This driver uses the clickhouse-go v2 library
+// to communicate with ClickHouse servers via the native TCP protocol.
+//
+// # Connection String Format
+//
+// ClickHouse connection strings follow the URL format:
+//
+//	clickhouse://[username:password@]host[:port]/database[?param=value]
+//
+// Examples:
+//
+//	clickhouse://default:@localhost:9000/default
+//	clickhouse://user:pass@host:9000/mydb?secure=true
+//
+// Unlike some database drivers (e.g., pgx for PostgreSQL), clickhouse-go does
+// not automatically apply a default port. This driver handles that by applying
+// port 9000 for non-secure connections or 9440 for secure connections (when
+// secure=true is specified).
+//
+// # ClickHouse-Specific Behavior
+//
+// ClickHouse differs from traditional SQL databases in several ways that affect
+// this driver's implementation:
+//
+//   - No ACID Transactions: ClickHouse is optimized for OLAP workloads and does
+//     not support traditional transactions. Inserts are atomic at the batch level.
+//
+//   - MergeTree Engine: All tables created by this driver use the MergeTree
+//     engine, which requires an ORDER BY clause. The first column is used as
+//     the ordering key by default.
+//
+//   - ALTER TABLE UPDATE: ClickHouse does not support standard UPDATE statements.
+//     Instead, this driver uses ALTER TABLE ... UPDATE syntax.
+//
+//   - Schema = Database: ClickHouse uses "database" terminology where other SQL
+//     databases use "schema". This driver maps both concepts to ClickHouse databases.
+//
+//   - Type System: ClickHouse has distinct signed (Int8-64) and unsigned (UInt8-64)
+//     integer types, nullable wrappers (Nullable(T)), and storage optimizations
+//     (LowCardinality(T)). See the metadata.go file for type mapping details.
+//
+// # Driver Registration
+//
+// The driver is registered with sq's driver registry via the Provider type:
+//
+//	registry.AddProvider(drivertype.ClickHouse, &clickhouse.Provider{Log: log})
 package clickhouse
 
 import (
@@ -75,7 +121,14 @@ func locationWithDefaultPort(loc string) (string, bool, error) {
 }
 
 // Provider is the ClickHouse implementation of driver.Provider.
+// It serves as a factory for creating ClickHouse driver instances.
+//
+// Provider is registered with sq's driver registry to handle sources
+// with the "clickhouse" driver type. When sq needs to interact with a
+// ClickHouse source, it calls DriverFor to obtain a driver instance.
 type Provider struct {
+	// Log is the logger used by driver instances created by this provider.
+	// It should be set before registering the provider with the driver registry.
 	Log *slog.Logger
 }
 
@@ -90,14 +143,34 @@ func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 
 var _ driver.SQLDriver = (*driveri)(nil)
 
-// driveri is the ClickHouse implementation of driver.Driver.
+// driveri is the ClickHouse implementation of driver.SQLDriver.
+// It provides all the database operations needed by sq to interact with
+// ClickHouse sources, including connection management, DDL operations
+// (CREATE TABLE, DROP TABLE, etc.), DML operations (INSERT, UPDATE),
+// and metadata retrieval.
+//
+// The "i" suffix follows the sq convention for internal driver implementations
+// that are not exported (e.g., driveri, grip).
 type driveri struct {
+	// log is the logger for driver operations. It is passed from the Provider
+	// when the driver is created via DriverFor.
 	log *slog.Logger
 }
 
-// ConnParams implements driver.SQLDriver.
+// ConnParams implements driver.SQLDriver. It returns the ClickHouse-specific
+// connection parameters that can be used in connection strings. Each parameter
+// maps to a list of valid values (or example values for open-ended parameters).
+//
+// Supported parameters:
+//   - dial_timeout: Connection timeout (e.g., "10s")
+//   - compress: Compression algorithm (true, false, lz4, zstd, gzip)
+//   - secure: Enable TLS (true, false)
+//   - skip_verify: Skip TLS certificate verification (true, false)
+//   - connection_open_strategy: Load balancing strategy (in_order, round_robin)
+//   - max_open_conns: Maximum open connections
+//   - max_idle_conns: Maximum idle connections
+//   - conn_max_lifetime: Connection maximum lifetime (e.g., "1h")
 func (d *driveri) ConnParams() map[string][]string {
-	// ClickHouse connection parameters
 	return map[string][]string{
 		"dial_timeout":             {"10s"},
 		"compress":                 {"true", "false", "lz4", "zstd", "gzip"},
@@ -126,21 +199,35 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 	}
 }
 
-// Dialect implements driver.SQLDriver.
+// Dialect implements driver.SQLDriver. It returns the SQL dialect configuration
+// for ClickHouse, which defines how SQL is generated for this database.
+//
+// Key dialect characteristics:
+//   - Placeholders: Uses ? for positional parameters (like MySQL)
+//   - Enquote: Uses backticks for identifier quoting (e.g., `table_name`)
+//   - MaxBatchValues: 10000 (ClickHouse is optimized for large batch inserts)
+//   - Joins: Supports all standard join types
 func (d *driveri) Dialect() dialect.Dialect {
 	return dialect.Dialect{
 		Type:           Type,
 		Placeholders:   placeholders,
 		Enquote:        stringz.BacktickQuote,
 		ExecModeFor:    dialect.DefaultExecModeFor,
-		MaxBatchValues: 10000, // ClickHouse handles large batches well
+		MaxBatchValues: 10000,
 		Ops:            dialect.DefaultOps(),
 		Joins:          jointype.All(),
 	}
 }
 
+// placeholders generates SQL placeholder strings for parameterized queries.
+// ClickHouse uses positional ? placeholders (like MySQL), not numbered
+// placeholders (like PostgreSQL's $1, $2).
+//
+// For example, placeholders(2, 3) returns "(?, ?), (?, ?), (?, ?)".
+//
+// This function is used by the dialect to generate INSERT statements with
+// multiple rows of values.
 func placeholders(numCols, numRows int) string {
-	// ClickHouse uses ? for placeholders
 	rows := make([]string, numRows)
 
 	var sb strings.Builder
@@ -160,7 +247,16 @@ func placeholders(numCols, numRows int) string {
 	return strings.Join(rows, driver.Comma)
 }
 
-// Renderer implements driver.SQLDriver.
+// Renderer implements driver.SQLDriver. It returns a SQL renderer configured
+// for ClickHouse's SQL dialect.
+//
+// The renderer maps sq's built-in functions to ClickHouse equivalents:
+//   - schema() -> currentDatabase()
+//   - catalog() -> currentDatabase()
+//
+// Both schema and catalog map to currentDatabase() because ClickHouse uses
+// "database" terminology where other SQL databases distinguish between
+// catalogs and schemas.
 func (d *driveri) Renderer() *render.Renderer {
 	r := render.NewDefaultRenderer()
 	r.FunctionNames[ast.FuncNameSchema] = "currentDatabase"
@@ -180,7 +276,16 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
 	return recMeta, mungeFn, nil
 }
 
-// Open implements driver.Driver.
+// Open implements driver.Driver. It opens a connection to the ClickHouse
+// source and returns a Grip (database handle) for performing operations.
+//
+// The connection process:
+//  1. Opens a database connection using doOpen
+//  2. Performs a ping to verify connectivity
+//  3. Returns a grip wrapping the connection
+//
+// The returned grip should be closed when no longer needed to release
+// the database connection.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
@@ -196,6 +301,11 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
 }
 
+// doOpen creates the underlying sql.DB connection to ClickHouse.
+// It handles default port application and connection pool configuration.
+//
+// This is an internal helper used by both Open (for normal connections)
+// and other methods that need temporary connections (e.g., Ping, Truncate).
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
 	ctx = options.NewContext(ctx, src.Options)
 	log := lg.FromContext(ctx)
@@ -289,7 +399,11 @@ func (d *driveri) DBProperties(ctx context.Context, db sqlz.DB) (map[string]any,
 	return props, nil
 }
 
-// Truncate implements driver.Driver.
+// Truncate implements driver.Driver. It removes all rows from the specified
+// table and returns the number of rows that were deleted.
+//
+// Note: The second parameter (cascade) is ignored for ClickHouse as it does
+// not support cascading truncates in the same way as other databases.
 func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, _ bool) (affected int64, err error) {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
@@ -314,29 +428,45 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	return affected, nil
 }
 
-// CreateSchema implements driver.SQLDriver.
+// CreateSchema implements driver.SQLDriver. It creates a new database in
+// ClickHouse.
+//
+// Note: ClickHouse uses "database" terminology where other SQL databases use
+// "schema". This method creates a ClickHouse database using CREATE DATABASE
+// IF NOT EXISTS syntax.
 func (d *driveri) CreateSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
-	// ClickHouse uses databases instead of schemas
 	stmt := "CREATE DATABASE IF NOT EXISTS " + stringz.BacktickQuote(schemaName)
 	_, err := db.ExecContext(ctx, stmt)
 	return errw(err)
 }
 
-// DropSchema implements driver.SQLDriver.
+// DropSchema implements driver.SQLDriver. It drops a database from ClickHouse.
+//
+// This uses DROP DATABASE IF EXISTS syntax, so it will not error if the
+// database does not exist.
 func (d *driveri) DropSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
 	stmt := "DROP DATABASE IF EXISTS " + stringz.BacktickQuote(schemaName)
 	_, err := db.ExecContext(ctx, stmt)
 	return errw(err)
 }
 
-// CreateTable implements driver.SQLDriver.
+// CreateTable implements driver.SQLDriver. It creates a new table in ClickHouse
+// using the MergeTree engine.
+//
+// The table is created with:
+//   - MergeTree engine (required for most ClickHouse operations)
+//   - ORDER BY clause using the first column (required by MergeTree)
+//   - Nullable wrappers for columns where NotNull is false
+//
+// See buildCreateTableStmt in render.go for the full CREATE TABLE generation.
 func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *schema.Table) error {
 	stmt := buildCreateTableStmt(tblDef)
 	_, err := db.ExecContext(ctx, stmt)
 	return errw(err)
 }
 
-// TableExists implements driver.SQLDriver.
+// TableExists implements driver.SQLDriver. It checks if a table exists in the
+// current database by querying system.tables.
 func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool, error) {
 	const query = `SELECT COUNT(*) FROM system.tables WHERE name = ? AND database = currentDatabase()`
 
@@ -473,7 +603,17 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 	return schemas, nil
 }
 
-// ListTableNames implements driver.SQLDriver.
+// ListTableNames implements driver.SQLDriver. It returns the names of tables
+// and/or views in the specified schema (database).
+//
+// Parameters:
+//   - schma: The database name. If empty, uses the current database.
+//   - tables: Include regular tables in the result.
+//   - views: Include views (View and MaterializedView engines) in the result.
+//
+// ClickHouse distinguishes tables from views via the engine field in
+// system.tables. Views have engine "View" or "MaterializedView"; all other
+// engines are considered tables.
 func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, tables, views bool) ([]string, error) {
 	if !tables && !views {
 		return []string{}, nil
@@ -489,8 +629,8 @@ func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, 
 		args = append(args, schma)
 	}
 
-	// ClickHouse uses 'engine' field to distinguish views from tables
-	// Views have engine = 'View' or 'MaterializedView'
+	// ClickHouse uses 'engine' field to distinguish views from tables.
+	// Views have engine = 'View' or 'MaterializedView'.
 	if tables && !views {
 		q += " AND engine NOT IN ('View', 'MaterializedView')"
 	} else if views && !tables {
@@ -529,12 +669,24 @@ func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (b
 	return count > 0, nil
 }
 
-// CopyTable implements driver.SQLDriver.
+// CopyTable implements driver.SQLDriver. It creates a copy of a table,
+// optionally including its data.
+//
+// The process:
+//  1. Retrieves the source table's schema (column names and types)
+//  2. Creates the destination table with the same schema using MergeTree engine
+//  3. If copyData is true, copies all rows using INSERT INTO ... SELECT
+//
+// Returns the number of rows copied (0 if copyData is false).
+//
+// Note: The destination table uses the MergeTree engine with the first column
+// as the ORDER BY key, which may differ from the source table's engine
+// configuration.
 func (d *driveri) CopyTable(
 	ctx context.Context, db sqlz.DB, fromTable, toTable tablefq.T, copyData bool,
 ) (int64, error) {
-	// First, get the schema of the source table
-	// Type assert sqlz.DB to *sql.DB for metadata functions
+	// First, get the schema of the source table.
+	// Type assert sqlz.DB to *sql.DB for metadata functions.
 	sqlDB, ok := db.(*sql.DB)
 	if !ok {
 		return 0, errz.New("expected *sql.DB")
@@ -609,7 +761,17 @@ func (d *driveri) TableColumnTypes(
 	return colTypes, errw(err)
 }
 
-// PrepareInsertStmt implements driver.SQLDriver.
+// PrepareInsertStmt implements driver.SQLDriver. It prepares a batch INSERT
+// statement for inserting multiple rows into a table.
+//
+// The returned StmtExecer handles value transformation (munging) to ensure
+// values are in the correct format for ClickHouse, and provides an execution
+// function for running the prepared statement.
+//
+// Parameters:
+//   - destTbl: The target table name
+//   - destColNames: Columns to insert into
+//   - numRows: Number of rows to insert per batch
 func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
 	numRows int,
 ) (*driver.StmtExecer, error) {
@@ -628,7 +790,17 @@ func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl str
 	return execer, nil
 }
 
-// PrepareUpdateStmt implements driver.SQLDriver.
+// PrepareUpdateStmt implements driver.SQLDriver. It prepares an UPDATE statement
+// for modifying rows in a table.
+//
+// Note: ClickHouse does not support standard SQL UPDATE statements. Instead,
+// this uses ALTER TABLE ... UPDATE syntax, which is ClickHouse's mechanism for
+// row-level updates. These updates are asynchronous and eventually consistent.
+//
+// Parameters:
+//   - destTbl: The target table name
+//   - destColNames: Columns to update
+//   - where: WHERE clause (without the "WHERE" keyword) to filter rows
 func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
 	where string,
 ) (*driver.StmtExecer, error) {
@@ -649,7 +821,11 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 	return execer, nil
 }
 
-// AlterTableAddColumn implements driver.SQLDriver.
+// AlterTableAddColumn implements driver.SQLDriver. It adds a new column to an
+// existing table using ALTER TABLE ... ADD COLUMN syntax.
+//
+// The column type is determined by dbTypeNameFromKind based on the provided
+// kind.Kind value.
 func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col string, knd kind.Kind) error {
 	q := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s",
 		stringz.BacktickQuote(tbl),
@@ -661,7 +837,8 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 	return errw(err)
 }
 
-// AlterTableRename implements driver.SQLDriver.
+// AlterTableRename implements driver.SQLDriver. It renames a table using
+// RENAME TABLE syntax.
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
 	q := fmt.Sprintf("RENAME TABLE %s TO %s",
 		stringz.BacktickQuote(tbl),
@@ -672,7 +849,8 @@ func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName
 	return errw(err)
 }
 
-// AlterTableRenameColumn implements driver.SQLDriver.
+// AlterTableRenameColumn implements driver.SQLDriver. It renames a column
+// using ALTER TABLE ... RENAME COLUMN syntax.
 func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
 	q := fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s",
 		stringz.BacktickQuote(tbl),
@@ -684,7 +862,10 @@ func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, c
 	return errw(err)
 }
 
-// DropTable implements driver.SQLDriver.
+// DropTable implements driver.SQLDriver. It drops a table from the database.
+//
+// If ifExists is true, uses DROP TABLE IF EXISTS to avoid errors when the
+// table doesn't exist.
 func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifExists bool) error {
 	var stmt string
 	if ifExists {
@@ -697,16 +878,33 @@ func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifEx
 	return errw(err)
 }
 
-// AlterTableColumnKinds is not yet implemented for ClickHouse.
+// AlterTableColumnKinds implements driver.SQLDriver. It is not yet implemented
+// for ClickHouse.
+//
+// ClickHouse does support ALTER TABLE ... MODIFY COLUMN for changing column
+// types, but this functionality has not been implemented in this driver yet.
 func (d *driveri) AlterTableColumnKinds(_ context.Context, _ sqlz.DB, _ string, _ []string, _ []kind.Kind) error {
 	return errz.New("not implemented")
 }
 
-// grip implements driver.Grip.
+// grip implements driver.Grip, which is a handle to an open database connection.
+// It provides access to the underlying sql.DB, the source configuration, and
+// metadata retrieval functions.
+//
+// The grip is returned by driveri.Open and should be closed when no longer
+// needed to release the database connection.
 type grip struct {
-	log  *slog.Logger
-	db   *sql.DB
-	src  *source.Source
+	// log is the logger for grip operations.
+	log *slog.Logger
+
+	// db is the underlying database connection.
+	db *sql.DB
+
+	// src is the source configuration for this connection.
+	src *source.Source
+
+	// drvr is the driver that created this grip, used for accessing
+	// driver-level functionality.
 	drvr *driveri
 }
 
@@ -741,6 +939,11 @@ func (g *grip) Close() error {
 }
 
 // getTableRecordMeta returns record metadata for specified columns in a table.
+// It queries the table with LIMIT 0 to get column type information, then
+// builds record.Meta with appropriate scan types for each column.
+//
+// This is used by PrepareInsertStmt and PrepareUpdateStmt to determine
+// how values should be transformed before being passed to ClickHouse.
 func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName string,
 	colNames []string,
 ) (record.Meta, error) {
@@ -753,6 +956,11 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 }
 
 // newStmtExecFunc returns a StmtExecFunc for executing prepared statements.
+// The returned function executes the statement with the given arguments and
+// returns the number of affected rows.
+//
+// This is used as part of the StmtExecer returned by PrepareInsertStmt and
+// PrepareUpdateStmt to provide the actual execution logic.
 func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
 	return func(ctx context.Context, args ...any) (int64, error) {
 		res, err := stmt.ExecContext(ctx, args...)
@@ -769,7 +977,12 @@ func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
 	}
 }
 
-// errw wraps any error from the ClickHouse driver.
+// errw wraps any error from the ClickHouse driver with a "clickhouse" prefix.
+// This provides consistent error identification across all driver operations.
+//
+// If err is nil, errw returns nil (no wrapping of nil errors).
+//
+// Example wrapped error: "clickhouse: connection refused"
 func errw(err error) error {
 	if err == nil {
 		return nil

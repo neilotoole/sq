@@ -8,7 +8,27 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
-// dbTypeNameFromKind maps sq kind to ClickHouse type name for CREATE TABLE.
+// dbTypeNameFromKind maps sq kind.Kind values to ClickHouse type names for use
+// in CREATE TABLE statements and other DDL operations.
+//
+// Type mapping:
+//
+//	sq Kind      -> ClickHouse Type
+//	--------------------------------
+//	kind.Unknown -> String
+//	kind.Null    -> String
+//	kind.Text    -> String
+//	kind.Int     -> Int64 (64-bit signed integer)
+//	kind.Float   -> Float64 (double precision)
+//	kind.Decimal -> Decimal(18,4) (18 digits, 4 decimal places)
+//	kind.Bool    -> UInt8 (ClickHouse Bool is alias for UInt8)
+//	kind.Datetime-> DateTime
+//	kind.Date    -> Date
+//	kind.Time    -> DateTime (ClickHouse has no separate time-only type)
+//	kind.Bytes   -> String (binary data stored as String)
+//
+// This is the inverse of kindFromClickHouseType in metadata.go, though not
+// a perfect round-trip since multiple ClickHouse types map to single sq kinds.
 func dbTypeNameFromKind(knd kind.Kind) string {
 	switch knd {
 	case kind.Unknown, kind.Null, kind.Text:
@@ -34,7 +54,29 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 }
 
 // buildCreateTableStmt builds a CREATE TABLE statement for ClickHouse.
-// ClickHouse requires an ENGINE and ORDER BY clause.
+//
+// ClickHouse tables differ from traditional SQL tables in several ways:
+//
+//  1. ENGINE clause is required. This function uses MergeTree(), ClickHouse's
+//     most common engine for OLAP workloads. MergeTree provides efficient
+//     data storage, compression, and query performance.
+//
+//  2. ORDER BY clause is required for MergeTree. This defines the primary
+//     sort order for data storage and affects query performance. This function
+//     uses the first column as the ordering key.
+//
+//  3. Nullable types must be explicit. Unlike many SQL databases where columns
+//     are nullable by default, ClickHouse columns are non-nullable by default.
+//     This function wraps types with Nullable(T) when colDef.NotNull is false.
+//
+// Generated SQL format:
+//
+//	CREATE TABLE `table_name` (
+//	  `col1` Type1,
+//	  `col2` Nullable(Type2),
+//	  ...
+//	) ENGINE = MergeTree()
+//	ORDER BY `col1`
 func buildCreateTableStmt(tblDef *schema.Table) string {
 	sb := strings.Builder{}
 	sb.WriteString("CREATE TABLE ")
@@ -70,7 +112,26 @@ func buildCreateTableStmt(tblDef *schema.Table) string {
 	return sb.String()
 }
 
-// buildUpdateStmt builds an UPDATE statement.
+// buildUpdateStmt builds an UPDATE statement using ClickHouse's ALTER TABLE
+// UPDATE syntax.
+//
+// ClickHouse does not support standard SQL UPDATE statements. Instead, row-level
+// updates are performed using ALTER TABLE ... UPDATE, which is an asynchronous
+// mutation operation. These updates:
+//
+//   - Are processed in the background by ClickHouse
+//   - May take time to complete depending on data volume
+//   - Are eventually consistent (not immediately visible)
+//   - Cannot be rolled back once started
+//
+// Generated SQL format:
+//
+//	ALTER TABLE `table_name` UPDATE `col1` = ?, `col2` = ? [WHERE condition]
+//
+// Parameters:
+//   - tbl: Table name to update
+//   - cols: Column names to set (values provided via ? placeholders)
+//   - where: WHERE clause without the "WHERE" keyword (empty for no filter)
 func buildUpdateStmt(tbl string, cols []string, where string) string {
 	sb := strings.Builder{}
 	sb.WriteString("ALTER TABLE ")
