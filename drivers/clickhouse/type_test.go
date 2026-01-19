@@ -1,3 +1,14 @@
+// Package clickhouse_test contains external tests for the ClickHouse driver.
+//
+// This file (type_test.go) contains integration tests that verify type mapping
+// and roundtrip behavior between sq's kind.Kind system and ClickHouse's native
+// types. These tests require a live ClickHouse instance and are skipped in
+// short mode.
+//
+// Test categories:
+//   - TestTypeMapping: Verifies sq kinds roundtrip through ClickHouse correctly
+//   - TestTypeMapping_ClickHouseSpecific: Tests native ClickHouse types (UInt*, Int*, etc.)
+//   - TestTypeMapping_Nullable: Tests Nullable(T) type handling and NULL values
 package clickhouse_test
 
 import (
@@ -16,7 +27,19 @@ import (
 	"github.com/neilotoole/sq/testh/tu"
 )
 
-// TestTypeMapping tests the mapping between sq kinds and ClickHouse types.
+// TestTypeMapping verifies that sq kind.Kind values correctly roundtrip through
+// ClickHouse. This is an integration test that:
+//
+//  1. Creates a table with columns for each testable kind
+//  2. Inserts a row with test values
+//  3. Queries the data back
+//  4. Verifies that column metadata reports the correct kind
+//
+// Note: Some kinds cannot fully roundtrip due to ClickHouse limitations:
+//   - kind.Time -> DateTime (no time-only type) -> kind.Datetime
+//   - kind.Bytes -> String (binary as String) -> kind.Text
+//
+// These limitations are documented in the README's "Known Limitations" section.
 func TestTypeMapping(t *testing.T) {
 	tu.SkipShort(t, true)
 
@@ -82,13 +105,26 @@ func TestTypeMapping(t *testing.T) {
 	}
 }
 
-// TestTypeMapping_ClickHouseSpecific tests ClickHouse-specific types.
+// TestTypeMapping_ClickHouseSpecific tests the mapping of ClickHouse's native
+// types to sq kinds. Unlike TestTypeMapping which starts with sq kinds, this
+// test creates a table using raw ClickHouse types and verifies they map to
+// the correct sq kinds when read back.
+//
+// This is important because ClickHouse has many types that map to the same
+// sq kind:
+//   - Int8, Int16, Int32, Int64, UInt8, UInt16, UInt32, UInt64 -> kind.Int
+//   - Float32, Float64 -> kind.Float
+//   - String, FixedString(N), UUID -> kind.Text
+//   - Date, Date32 -> kind.Date
+//   - DateTime, DateTime64 -> kind.Datetime
+//
+// The test verifies that all these types are correctly recognized and mapped.
 func TestTypeMapping_ClickHouseSpecific(t *testing.T) {
 	tu.SkipShort(t, true)
 
 	th, src, _, _, _ := testh.NewWith(t, sakila.CH)
 
-	// Create a table with ClickHouse-specific types using raw SQL
+	// Create a table with all major ClickHouse types using raw SQL
 	tblName := stringz.UniqTableName(t.Name())
 	createStmt := `
 		CREATE TABLE ` + stringz.BacktickQuote(tblName) + ` (
@@ -161,7 +197,20 @@ func TestTypeMapping_ClickHouseSpecific(t *testing.T) {
 	}
 }
 
-// TestTypeMapping_Nullable tests Nullable type handling.
+// TestTypeMapping_Nullable tests ClickHouse's Nullable(T) type wrapper handling.
+//
+// Unlike most SQL databases where columns are nullable by default, ClickHouse
+// columns are non-nullable by default. The Nullable(T) wrapper must be used
+// to allow NULL values. This test verifies:
+//
+//  1. Non-nullable columns are correctly identified as non-nullable in metadata
+//  2. Nullable columns are correctly identified as nullable in metadata
+//  3. NULL values can be inserted and retrieved from nullable columns
+//  4. The kind is correctly determined regardless of nullability
+//
+// The test creates a table with one non-nullable String column and one
+// Nullable(String) column, inserts a row with a NULL value, and verifies
+// the metadata and data are correct.
 func TestTypeMapping_Nullable(t *testing.T) {
 	tu.SkipShort(t, true)
 

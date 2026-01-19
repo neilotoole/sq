@@ -1,3 +1,13 @@
+// Package clickhouse_test contains external tests for the ClickHouse driver.
+//
+// This file (clickhouse_test.go) contains the main driver integration tests,
+// including dialect configuration tests and DDL operation tests. Tests that
+// require a live ClickHouse instance use tu.SkipShort to skip in short mode.
+//
+// Test categories:
+//   - Dialect tests: Verify SQL dialect configuration (placeholders, quoting)
+//   - DDL tests: Verify table creation, column types, copying
+//   - Smoke test: Basic connectivity verification
 package clickhouse_test
 
 import (
@@ -17,7 +27,9 @@ import (
 	"github.com/neilotoole/sq/testh/tu"
 )
 
-// TestDialectPlaceholders tests that the dialect uses ? placeholders.
+// TestDialectPlaceholders verifies that the ClickHouse dialect uses positional
+// ? placeholders (like MySQL) rather than numbered placeholders (like PostgreSQL's
+// $1, $2). This is a unit test that doesn't require a live database.
 func TestDialectPlaceholders(t *testing.T) {
 	p := &clickhouse.Provider{}
 	drvr, err := p.DriverFor(clickhouse.Type)
@@ -39,7 +51,11 @@ func TestDialectPlaceholders(t *testing.T) {
 	require.Equal(t, "(?, ?), (?, ?)", dialect.Placeholders(2, 2))
 }
 
-// TestDialectEnquote tests backtick quoting.
+// TestDialectEnquote verifies that the ClickHouse dialect uses backtick quoting
+// for identifiers (like MySQL) rather than double quotes (like PostgreSQL).
+// Example: table_name becomes `table_name`.
+//
+// This is a unit test that doesn't require a live database.
 func TestDialectEnquote(t *testing.T) {
 	p := &clickhouse.Provider{}
 	drvr, err := p.DriverFor(clickhouse.Type)
@@ -66,21 +82,33 @@ func TestDialectEnquote(t *testing.T) {
 	}
 }
 
-// TestSmoke is a basic smoke test for ClickHouse connectivity.
+// TestSmoke is a basic smoke test for ClickHouse connectivity. It verifies
+// that the driver can connect to ClickHouse and execute a simple query.
+//
+// This test requires a live ClickHouse instance and is skipped in short mode.
+// It queries the ClickHouse version using SELECT version() to verify the
+// connection works end-to-end.
 func TestSmoke(t *testing.T) {
 	tu.SkipShort(t, true)
 
 	th := testh.New(t)
 	src := th.Source(sakila.CH)
 
-	// Test basic connectivity by querying version
+	// Query ClickHouse version to verify connectivity
 	sink, err := th.QuerySQL(src, nil, "SELECT version()")
 	require.NoError(t, err)
 	require.Equal(t, 1, len(sink.Recs))
 	t.Logf("ClickHouse version: %v", sink.Recs[0][0])
 }
 
-// TestDriver_CreateTable tests basic table creation.
+// TestDriver_CreateTable tests the CreateTable DDL operation. It verifies that:
+//
+//  1. Tables can be created with the specified columns and types
+//  2. The table uses MergeTree engine (ClickHouse requirement)
+//  3. Data can be inserted and queried back from the created table
+//
+// This test requires a live ClickHouse instance and is skipped in short mode.
+// The created table is automatically cleaned up after the test.
 func TestDriver_CreateTable(t *testing.T) {
 	tu.SkipShort(t, true)
 
@@ -108,7 +136,17 @@ func TestDriver_CreateTable(t *testing.T) {
 	require.Equal(t, len(colNames), len(sink.RecMeta))
 }
 
-// TestDriver_TableColumnTypes tests retrieving column type information.
+// TestDriver_TableColumnTypes tests the TableColumnTypes method, which retrieves
+// sql.ColumnType information for a table's columns without executing a full query.
+//
+// This is used by PrepareInsertStmt and other methods that need to know column
+// types before inserting data. The test verifies that:
+//
+//  1. Column types can be retrieved for a newly created table
+//  2. The number of columns matches the table definition
+//  3. Column names are correctly reported
+//
+// This test requires a live ClickHouse instance and is skipped in short mode.
 func TestDriver_TableColumnTypes(t *testing.T) {
 	tu.SkipShort(t, true)
 
@@ -132,7 +170,20 @@ func TestDriver_TableColumnTypes(t *testing.T) {
 	}
 }
 
-// TestDriver_CopyTable tests table copying functionality.
+// TestDriver_CopyTable tests the CopyTable DDL operation, which creates a copy
+// of an existing table with the same schema, optionally including data.
+//
+// The test verifies that:
+//
+//  1. A new table is created with the same column structure
+//  2. When copyData is true, rows are copied to the destination table
+//  3. The destination table is queryable after the copy
+//
+// Known limitation: ClickHouse's INSERT ... SELECT does not report affected row
+// counts, so the returned count may be 0 even when rows are successfully copied.
+// This is documented in the README's "Known Limitations" section.
+//
+// This test requires a live ClickHouse instance and is skipped in short mode.
 func TestDriver_CopyTable(t *testing.T) {
 	tu.SkipShort(t, true)
 
@@ -141,7 +192,7 @@ func TestDriver_CopyTable(t *testing.T) {
 	srcTblName := stringz.UniqTableName(t.Name() + "_src")
 	destTblName := stringz.UniqTableName(t.Name() + "_dest")
 
-	// Create source table
+	// Create source table with test data
 	colNames := []string{"id", "name"}
 	colKinds := []kind.Kind{kind.Int, kind.Text}
 	tblDef := schema.NewTable(srcTblName, colNames, colKinds)
