@@ -7,6 +7,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 // TestKindFromClickHouseType tests type mapping from ClickHouse to sq kinds.
@@ -230,6 +231,47 @@ func TestNullableWrapperStripping(t *testing.T) {
 		t.Run(tc.chType, func(t *testing.T) {
 			gotKind := kindFromClickHouseType(tc.chType)
 			require.Equal(t, tc.wantKind, gotKind)
+		})
+	}
+}
+
+// TestTableTypeFromEngine tests that ClickHouse engine names are correctly
+// mapped to canonical table types (table vs view).
+func TestTableTypeFromEngine(t *testing.T) {
+	testCases := []struct {
+		engine   string
+		wantType string
+	}{
+		// View engines
+		{"View", sqlz.TableTypeView},
+		{"MaterializedView", sqlz.TableTypeView},
+
+		// Table engines (MergeTree family)
+		{"MergeTree", sqlz.TableTypeTable},
+		{"ReplacingMergeTree", sqlz.TableTypeTable},
+		{"SummingMergeTree", sqlz.TableTypeTable},
+		{"AggregatingMergeTree", sqlz.TableTypeTable},
+		{"CollapsingMergeTree", sqlz.TableTypeTable},
+		{"VersionedCollapsingMergeTree", sqlz.TableTypeTable},
+
+		// Other table engines
+		{"Log", sqlz.TableTypeTable},
+		{"TinyLog", sqlz.TableTypeTable},
+		{"Memory", sqlz.TableTypeTable},
+		{"Buffer", sqlz.TableTypeTable},
+		{"Distributed", sqlz.TableTypeTable},
+		{"Dictionary", sqlz.TableTypeTable},
+
+		// Unknown/future engines should default to table
+		{"SomeNewEngine", sqlz.TableTypeTable},
+		{"", sqlz.TableTypeTable},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.engine, func(t *testing.T) {
+			got := tableTypeFromEngine(tc.engine)
+			require.Equal(t, tc.wantType, got,
+				"tableTypeFromEngine(%q) = %q, want %q", tc.engine, got, tc.wantType)
 		})
 	}
 }
