@@ -41,6 +41,14 @@ classDiagram
             +Flush(ctx) error
             +Close(ctx) error
         }
+
+        class `files.Files` {
+            -map streams
+            -map downloaders
+            +NewReader(ctx, src) io.ReadCloser
+            +Size(src) int64
+            +Close() error
+        }
     }
 
     namespace source {
@@ -111,6 +119,15 @@ classDiagram
             +Source() *Source
             +SQLDriver() SQLDriver
             +Close() error
+        }
+
+        class `dialect.Dialect` {
+            +drivertype.Type Type
+            +Placeholders func
+            +Enquote func
+            +int MaxBatchValues
+            +bool IntBool
+            +bool Catalog
         }
     }
 
@@ -242,6 +259,21 @@ classDiagram
             +Kind() kind.Kind
             +Nullable() bool
         }
+
+        class `kind.Kind` {
+            <<enum>>
+            Unknown
+            Null
+            Text
+            Int
+            Float
+            Decimal
+            Bool
+            Bytes
+            Datetime
+            Date
+            Time
+        }
     }
 
     %% Notes (must be outside namespace blocks)
@@ -282,6 +314,12 @@ classDiagram
      record output to various formats"
     note for `jsonw.stdWriter` "Output writers implement
      output.RecordWriter for various formats"
+    note for `kind.Kind` "Unified data type abstraction
+     across all database implementations"
+    note for `dialect.Dialect` "SQL dialect-specific values
+     and functions for rendering"
+    note for `files.Files` "Centralized API for file access:
+     local, stdin, and remote HTTP"
 
     %% ===== RELATIONSHIPS =====
     %% Configuration relationships
@@ -354,4 +392,15 @@ classDiagram
     `libsq.RecordWriter` ..> `record.Meta` : uses
     `output.Writers` --> `output.RecordWriter` : contains
     `output.Writers` ..> `libsq.RecordWriter` : consumes
+
+    %% Kind relationships
+    `record.FieldMeta` --> `kind.Kind` : has
+    `metadata.Column` --> `kind.Kind` : has
+
+    %% Dialect relationships
+    `driver.SQLDriver` --> `dialect.Dialect` : has
+    `render.Renderer` --> `dialect.Dialect` : uses
+
+    %% Files relationships
+    `run.Run` *-- `files.Files` : contains
 ```
