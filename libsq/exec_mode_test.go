@@ -10,12 +10,12 @@ import (
 	"github.com/neilotoole/sq/testh/sakila"
 )
 
-// TestExecContext_DDL_CREATE verifies that ExecContext correctly handles
+// TestDBExecContext_DDL_CREATE verifies that DB.ExecContext correctly handles
 // CREATE TABLE statements. This test exists because QueryContext was
 // previously (incorrectly) used for all SQL statements. While lenient
 // drivers accept QueryContext for DDL, it's semantically wrong per
 // database/sql documentation and fails on stricter drivers like ClickHouse.
-func TestExecContext_DDL_CREATE(t *testing.T) {
+func TestDBExecContext_DDL_CREATE(t *testing.T) {
 	tableName := stringz.UniqTableName(t.Name())
 
 	testCases := []struct {
@@ -70,9 +70,9 @@ func TestExecContext_DDL_CREATE(t *testing.T) {
 	}
 }
 
-// TestExecContext_DML_INSERT verifies that ExecContext correctly handles
+// TestDBExecContext_DML_INSERT verifies that DB.ExecContext correctly handles
 // INSERT statements and returns accurate affected row counts.
-func TestExecContext_DML_INSERT(t *testing.T) {
+func TestDBExecContext_DML_INSERT(t *testing.T) {
 	tableName := stringz.UniqTableName(t.Name())
 
 	testCases := []struct {
@@ -142,9 +142,9 @@ func TestExecContext_DML_INSERT(t *testing.T) {
 	}
 }
 
-// TestExecContext_DML_UPDATE verifies that ExecContext correctly handles
+// TestDBExecContext_DML_UPDATE verifies that DB.ExecContext correctly handles
 // UPDATE statements and returns accurate affected row counts.
-func TestExecContext_DML_UPDATE(t *testing.T) {
+func TestDBExecContext_DML_UPDATE(t *testing.T) {
 	tableName := stringz.UniqTableName(t.Name())
 
 	testCases := []struct {
