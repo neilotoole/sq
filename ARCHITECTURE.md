@@ -73,6 +73,7 @@ classDiagram
         <<type alias>>
         []any
     }
+    note for `record.Record` "A Record represents a row of data returned from a query"
 
     class `record.Meta` {
         <<type alias>>
@@ -80,17 +81,28 @@ classDiagram
         +Names() []string
         +Kinds() []kind.Kind
     }
+    note for `record.Meta` "Meta holds column metadata for a result set"
+
+    class `record.FieldMeta` {
+        -ColumnTypeData data
+        -string mungedName
+        +Name() string
+        +Kind() kind.Kind
+        +Nullable() bool
+    }
 
     `source.Collection` "1" *-- "*" `source.Source` : contains
     `source.Source` --> "1" Type : has
     `driver.Registry` ..|> `driver.Provider` : implements
     `driver.Registry` --> `driver.Driver` : creates
     `driver.SQLDriver` --|> `driver.Driver` : extends
+    `driver.SQLDriver` ..> `record.Meta` : returns via RecordMeta()
     `driver.Driver` ..> `source.Source` : receives
     `driver.Driver` ..> `driver.Grip` : returns
     `driver.Grips` --> `driver.Provider` : uses
     `driver.Grips` o-- `driver.Grip` : caches
     `driver.Grip` ..> `source.Source` : references
     `driver.Grip` ..> `driver.SQLDriver` : references
-    `record.Meta` ..> `record.Record` : describes
+    `record.Meta` "1" *-- "*" `record.FieldMeta` : contains
+    `record.Meta` ..> `record.Record` : describes columns of
 ```
