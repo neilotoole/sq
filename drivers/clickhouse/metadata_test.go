@@ -7,24 +7,23 @@ import (
 
 	"github.com/neilotoole/sq/drivers/clickhouse"
 	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 var _ clickhouse.Provider // Ensure package is imported
 
 // TestMetadata_SourceMetadata tests source metadata retrieval.
 func TestMetadata_SourceMetadata(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test")
-	}
+	tu.SkipShort(t, true)
 
-	const handle = "@clickhouse_test"
 	th := testh.New(t)
-	src := th.Source(handle)
+	src := th.Source(sakila.CH)
 
 	md, err := th.SourceMetadata(src)
 	require.NoError(t, err)
 	require.NotNil(t, md)
-	require.Equal(t, handle, md.Handle)
+	require.Equal(t, sakila.CH, md.Handle)
 	require.NotEmpty(t, md.DBVersion)
 	t.Logf("Database version: %s", md.DBVersion)
 	t.Logf("Database name: %s", md.Name)
@@ -33,13 +32,10 @@ func TestMetadata_SourceMetadata(t *testing.T) {
 
 // TestMetadata_TableMetadata tests table metadata retrieval.
 func TestMetadata_TableMetadata(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test")
-	}
+	tu.SkipShort(t, true)
 
-	const handle = "@clickhouse_test"
 	th := testh.New(t)
-	src := th.Source(handle)
+	src := th.Source(sakila.CH)
 
 	// Create a test table so metadata has something to retrieve
 	th.ExecSQL(src, "CREATE TABLE IF NOT EXISTS test_table_meta (id Int64, name String) ENGINE = MergeTree() ORDER BY id")
@@ -65,12 +61,9 @@ func TestMetadata_TableMetadata(t *testing.T) {
 
 // TestMetadata_Catalogs tests catalog/database listing.
 func TestMetadata_Catalogs(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test")
-	}
+	tu.SkipShort(t, true)
 
-	const handle = "@clickhouse_test"
-	th, src, drvr, _, db := testh.NewWith(t, handle)
+	th, src, drvr, _, db := testh.NewWith(t, sakila.CH)
 
 	catalogs, err := drvr.ListCatalogs(th.Context, db)
 	require.NoError(t, err)
@@ -97,12 +90,9 @@ func TestMetadata_Catalogs(t *testing.T) {
 
 // TestMetadata_Schemas tests schema listing.
 func TestMetadata_Schemas(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test")
-	}
+	tu.SkipShort(t, true)
 
-	const handle = "@clickhouse_test"
-	th, src, drvr, _, db := testh.NewWith(t, handle)
+	th, src, drvr, _, db := testh.NewWith(t, sakila.CH)
 
 	schemas, err := drvr.ListSchemas(th.Context, db)
 	require.NoError(t, err)
@@ -124,12 +114,9 @@ func TestMetadata_Schemas(t *testing.T) {
 
 // TestMetadata_TableNames tests table name listing.
 func TestMetadata_TableNames(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test")
-	}
+	tu.SkipShort(t, true)
 
-	const handle = "@clickhouse_test"
-	th, src, drvr, _, db := testh.NewWith(t, handle)
+	th, src, drvr, _, db := testh.NewWith(t, sakila.CH)
 
 	// List all tables
 	tables, err := drvr.ListTableNames(th.Context, db, "", true, false)
