@@ -387,6 +387,7 @@ var coreDrivers = []drivertype.Type{
 	drivertype.MSSQL,
 	drivertype.SQLite,
 	drivertype.MySQL,
+	drivertype.ClickHouse,
 	drivertype.CSV,
 	drivertype.TSV,
 	drivertype.XLSX,
@@ -398,6 +399,7 @@ var sqlDrivers = []drivertype.Type{
 	drivertype.MSSQL,
 	drivertype.SQLite,
 	drivertype.MySQL,
+	drivertype.ClickHouse,
 }
 
 // docDrivers is a slice of the doc driver types.
