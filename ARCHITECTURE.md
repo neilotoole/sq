@@ -26,6 +26,12 @@ classDiagram
         +options.Options Options
     }
 
+    class `drivertype.Type` {
+        <<enum>>
+        string
+    }
+    note for `drivertype.Type` "Driver type enum, e.g. postgres, mysql, sqlite3, sqlserver, csv, xlsx, json"
+
     class `driver.Registry` {
         -map~Type,Provider~ providers
         +AddProvider(Type, Provider)
@@ -92,7 +98,8 @@ classDiagram
     }
 
     `source.Collection` "1" *-- "*" `source.Source` : contains
-    `source.Source` --> "1" Type : has
+    `source.Source` --> "1" `drivertype.Type` : has
+    `driver.Registry` --> `drivertype.Type` : indexes by
     `driver.Registry` ..|> `driver.Provider` : implements
     `driver.Registry` --> `driver.Driver` : creates
     `driver.SQLDriver` --|> `driver.Driver` : extends
