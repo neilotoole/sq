@@ -37,14 +37,21 @@ const (
 	// Type is the ClickHouse driver type.
 	Type = drivertype.ClickHouse
 
-	// defaultPort is the default ClickHouse native protocol port.
+	// defaultPort is the default ClickHouse native protocol port (non-secure).
 	defaultPort = 9000
+
+	// defaultSecurePort is the default ClickHouse native protocol port with TLS.
+	defaultSecurePort = 9440
 )
 
 // locationWithDefaultPort returns the location string with the default port
 // added if no port is specified. The second return value is true if the port
 // was added. Unlike some other database drivers (e.g. pgx for Postgres),
 // clickhouse-go does not apply a default port automatically.
+//
+// The default port depends on whether TLS is enabled:
+//   - Non-secure (default): 9000
+//   - Secure (secure=true): 9440
 func locationWithDefaultPort(loc string) (string, bool, error) {
 	u, err := url.Parse(loc)
 	if err != nil {
@@ -56,8 +63,14 @@ func locationWithDefaultPort(loc string) (string, bool, error) {
 		return loc, false, nil
 	}
 
+	// Determine the appropriate default port based on secure parameter
+	port := defaultPort
+	if u.Query().Get("secure") == "true" {
+		port = defaultSecurePort
+	}
+
 	// No port specified, add the default port
-	u.Host = u.Hostname() + ":" + strconv.Itoa(defaultPort)
+	u.Host = u.Hostname() + ":" + strconv.Itoa(port)
 	return u.String(), true, nil
 }
 

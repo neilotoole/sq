@@ -60,11 +60,19 @@ clickhouse://username:password@hostname:9000/database?param=value
 clickhouse://default:@localhost:9000/default
 ```
 
-Default port: 9000 (native protocol), 8123 (HTTP)
+Default ports:
+
+| Protocol | Non-Secure | Secure (TLS) |
+|----------|------------|--------------|
+| Native   | 9000       | 9440         |
+| HTTP     | 8123       | 8443         |
 
 > **Note**: The `clickhouse-go` driver does not apply default ports automatically
 > (unlike `pgx` for Postgres, etc.). However, sq's ClickHouse driver handles this
-> by applying port 9000 automatically if not specified in the connection string.
+> by applying the appropriate default port if not specified:
+>
+> - **9000** for non-secure connections (default)
+> - **9440** for secure connections (when `secure=true` is in the connection string)
 
 ## Testing
 
@@ -120,7 +128,8 @@ See **[testutils/Testing.md](./testutils/Testing.md)**
 
 9. **Default Port Handling**: The `clickhouse-go` driver does not apply default
    ports automatically (unlike `pgx` for Postgres, etc.). SQ handles this by
-   automatically applying port 9000 if not specified in the connection string.
+   automatically applying the appropriate port if not specified: 9000 for
+   non-secure connections, or 9440 for secure connections (`secure=true`).
 
 ## Implementation Files
 
