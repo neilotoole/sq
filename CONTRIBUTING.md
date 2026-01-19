@@ -201,8 +201,15 @@ Sakila dataset, enabling uniform integration tests across SQL drivers.
 > container to serve up its SQL interface.
 
 **Getting started:** Examine an existing driver implementation as a reference.
+
 For SQL drivers, [`drivers/postgres`](drivers/postgres) or
-[`drivers/mysql`](drivers/mysql) are good templates. For document drivers, see
+[`drivers/mysql`](drivers/mysql) are good templates.
+
+> As mentioned above, for SQL drivers, you'll need a `sakiladb/DRIVER_NAME`
+> docker image: [open a `sq` issue](https://github.com/neilotoole/sq/issues)
+> when you need that docker image.
+
+For document drivers, see
 [`drivers/csv`](drivers/csv) or [`drivers/json`](drivers/json).
 
 ### All drivers
