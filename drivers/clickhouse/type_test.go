@@ -77,12 +77,6 @@ func TestTypeMapping(t *testing.T) {
 
 	// Verify column kinds in metadata
 	for i, tc := range testCases {
-		// Note: Bool becomes UInt8 in ClickHouse, which maps back to Int
-		if tc.kind == kind.Bool {
-			require.Equal(t, kind.Int, sink.RecMeta[i].Kind(),
-				"Bool column should map to Int via UInt8")
-			continue
-		}
 		require.Equal(t, tc.kind, sink.RecMeta[i].Kind(),
 			"Kind mismatch for column %s", tc.colName)
 	}
