@@ -317,17 +317,168 @@ drivertype.ClickHouse: "SELECT (row_number() OVER (ORDER BY 1)) AS `rownum()` FR
 #### Join Tests: Pre-existing Column Naming Issue
 
 Some ClickHouse join tests fail due to a pre-existing issue with column naming
-behavior. When performing joins, ClickHouse returns column names in
-`table.column` format (e.g., `film_actor.actor_id`) instead of the munged names
-sq expects (e.g., `actor_id_1`).
+behavior in JOIN query results. This is a fundamental difference in how
+ClickHouse reports column metadata compared to other SQL databases.
 
-This affects `sinkFns` assertions in join tests that check for specific column
-names. The failures are unrelated to the SQL quoting task and were already
-failing before the ClickHouse override additions. The SQL string verification
-passes; only the column name assertions fail.
+##### The Problem
 
-**Status**: Known issue, requires investigation into ClickHouse's join result
-column naming behavior vs sq's column munging expectations.
+When executing JOIN queries, databases return column metadata via Go's
+`sql.ColumnType.Name()` method. Most databases (PostgreSQL, MySQL, SQLite,
+SQL Server) return just the column name:
+
+```text
+Query: SELECT * FROM actor JOIN film_actor ON actor.actor_id = film_actor.actor_id
+
+PostgreSQL/MySQL/SQLite column names:
+  actor_id, first_name, last_name, last_update, actor_id, film_id, last_update
+  |<-------- from actor -------->| |<----- from film_actor ----->|
+```
+
+ClickHouse, however, returns **qualified column names** in `table.column` format:
+
+```text
+ClickHouse column names:
+  actor.actor_id, actor.first_name, actor.last_name, actor.last_update,
+  film_actor.actor_id, film_actor.film_id, film_actor.last_update
+```
+
+##### How sq Handles Duplicate Column Names
+
+sq has a column munging mechanism (`driver.MungeResultColNames`) that handles
+duplicate column names in result sets. When columns have identical names, the
+default template renames them:
+
+```go
+// Default template: "{{.Name}}{{with .Recurrence}}_{{.}}{{end}}"
+// Input:  [actor_id, first_name, last_name, last_update, actor_id, film_id, last_update]
+// Output: [actor_id, first_name, last_name, last_update, actor_id_1, film_id, last_update_1]
+```
+
+This mechanism is defined in `libsq/driver/record.go` via `OptResultColRename`.
+
+##### Why ClickHouse Fails
+
+Because ClickHouse returns `actor.actor_id` and `film_actor.actor_id` as
+distinct names (not duplicates), sq's column munging doesn't trigger:
+
+```go
+// ClickHouse input (no duplicates detected):
+//   [actor.actor_id, actor.first_name, ..., film_actor.actor_id, film_actor.film_id, ...]
+// ClickHouse output (unchanged):
+//   [actor.actor_id, actor.first_name, ..., film_actor.actor_id, film_actor.film_id, ...]
+```
+
+The join tests use `assertSinkColMungedNames` to verify expected column names:
+
+```go
+// From libsq/query_join_test.go
+colsJoinActorFilmActor = []string{
+    "actor_id",
+    "first_name",
+    "last_name",
+    "last_update",
+    "actor_id_1",    // Expected: munged duplicate
+    "film_id",
+    "last_update_1", // Expected: munged duplicate
+}
+```
+
+But ClickHouse returns:
+
+```go
+// Actual ClickHouse result:
+[]string{
+    "actor.actor_id",
+    "actor.first_name",
+    "actor.last_name",
+    "actor.last_update",
+    "film_actor.actor_id",  // Not munged - different name
+    "film_actor.film_id",
+    "film_actor.last_update", // Not munged - different name
+}
+```
+
+##### Affected Tests
+
+The following tests in `libsq/query_join_test.go` fail for ClickHouse:
+
+| Test Function | Test Case | Reason |
+|--------------|-----------|--------|
+| `TestQuery_join_others` | `left_join` | `sinkFns` column name assertion |
+| `TestQuery_join_others` | `left_outer_join` | `sinkFns` column name assertion |
+| `TestQuery_join_others` | `right_join` | `sinkFns` column name assertion |
+| `TestQuery_join_others` | `right_outer_join` | `sinkFns` column name assertion |
+| `TestQuery_join_others` | `cross/actor-film_actor/no-constraint` | `sinkFns` column name assertion |
+
+Tests without `sinkFns` assertions pass because they only verify:
+
+- SQL string generation (via `wantSQL` and `override`)
+- Record count (via `wantRecCount`)
+
+##### Code Path Analysis
+
+1. Query executed via `libsq/engine.go`
+2. Results processed in `drivers/clickhouse/clickhouse.go:RecordMeta()`
+3. Column types passed to `drivers/clickhouse/metadata.go:recordMetaFromColumnTypes()`
+4. Column names extracted: `ogColNames[i] = colTypeData.Name` (line 443)
+5. Names passed to `driver.MungeResultColNames(ctx, ogColNames)` (line 446)
+6. Munging doesn't trigger because ClickHouse names are already unique
+
+##### Potential Solutions
+
+1. **ClickHouse-specific column name normalization**: Strip table prefix from
+   column names in `recordMetaFromColumnTypes` before passing to munging:
+
+   ```go
+   // Strip "table." prefix if present
+   name := colTypeData.Name
+   if idx := strings.LastIndex(name, "."); idx != -1 {
+       name = name[idx+1:]
+   }
+   ogColNames[i] = name
+   ```
+
+   **Trade-off**: Loses table context, may cause issues if user explicitly
+   wants qualified names.
+
+2. **Enhanced munging template**: Modify `OptResultColRename` to handle
+   qualified names by extracting the base column name for duplicate detection.
+
+   **Trade-off**: More complex template logic, may affect other databases.
+
+3. **ClickHouse setting**: Investigate if ClickHouse has a setting to return
+   unqualified column names in JOIN results. The `output_format_pretty_row_numbers`
+   and similar settings exist but may not apply here.
+
+4. **Test-level workaround**: Skip `sinkFns` assertions for ClickHouse in join
+   tests, or provide ClickHouse-specific expected column names.
+
+   **Trade-off**: Doesn't fix the underlying behavior difference.
+
+5. **Driver-level override**: Implement custom `RecordMeta` that normalizes
+   column names specifically for ClickHouse JOIN queries.
+
+##### Root Cause
+
+This is a fundamental behavior difference in the clickhouse-go driver and/or
+ClickHouse server itself. The `sql.ColumnType.Name()` method returns what
+ClickHouse reports, and ClickHouse chooses to return qualified names for
+JOIN queries to disambiguate columns from different tables.
+
+This behavior may be intentional from ClickHouse's perspective (providing
+explicit column provenance) but differs from the behavior of other databases
+that sq supports.
+
+##### References
+
+- Column munging logic: `libsq/driver/record.go:MungeResultColNames()` (line 662)
+- Rename template option: `libsq/driver/record.go:OptResultColRename` (line 605)
+- ClickHouse metadata: `drivers/clickhouse/metadata.go:recordMetaFromColumnTypes()`
+- Test expectations: `libsq/query_join_test.go:colsJoinActorFilmActor` (line 450)
+- Test helper: `libsq/query_test.go:assertSinkColMungedNames()` (line 252)
+
+**Status**: Known issue requiring architectural decision on how to handle
+ClickHouse's qualified column naming in JOIN results.
 
 ### 2026-01-19: Investigation of TestNewBatchInsert Failure
 
