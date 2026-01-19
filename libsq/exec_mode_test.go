@@ -268,22 +268,61 @@ func TestQueryVsExec_DML_UPDATE(t *testing.T) {
 
 // TestExecSQL_Function tests the libsq.ExecSQL function we added.
 func TestExecSQL_Function(t *testing.T) {
-	testCases := []string{
-		sakila.Pg12,
-		sakila.SL3,
+	tableName := stringz.UniqTableName("test_execsql")
+
+	testCases := []struct {
+		handle    string
+		createSQL string
+	}{
+		{
+			handle:    sakila.Pg,
+			createSQL: `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`,
+		},
+		{
+			handle:    sakila.SL3,
+			createSQL: `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`,
+		},
+		{
+			handle: sakila.CH,
+			// ClickHouse requires special configuration for UPDATE/DELETE operations.
+			//
+			// Unlike traditional RDBMS, ClickHouse was designed primarily for append-only
+			// analytics workloads. Historically, UPDATE and DELETE were only available as
+			// asynchronous "mutations" that rewrote entire data parts in the background.
+			//
+			// ClickHouse 22.8+ introduced "lightweight deletes" and later "lightweight
+			// updates" which execute synchronously like standard SQL, but these require
+			// special table settings to materialize hidden columns that track row positions:
+			//
+			//   - enable_block_number_column: Materializes the _block_number column,
+			//     which identifies which data block contains each row.
+			//
+			//   - enable_block_offset_column: Materializes the _block_offset column,
+			//     which identifies the row's position within its block.
+			//
+			// Together, these columns allow ClickHouse to locate and modify specific rows
+			// without rewriting entire data parts. Without these settings, UPDATE/DELETE
+			// statements fail with: "Lightweight updates are not supported. Lightweight
+			// updates are supported only for tables with materialized _block_number column."
+			//
+			// Note: ClickHouse UPDATE/DELETE return 0 for affected rows (unlike Postgres/
+			// SQLite), but the operations do execute successfully.
+			//
+			// See: https://clickhouse.com/docs/en/guides/developer/lightweight-update
+			// See: https://clickhouse.com/docs/en/guides/developer/lightweight-delete
+			createSQL: `CREATE TABLE ` + tableName +
+				` (id Int32, name String) ENGINE = MergeTree() ORDER BY id` +
+				` SETTINGS enable_block_number_column = 1, enable_block_offset_column = 1`,
+		},
 	}
 
-	for _, handle := range testCases {
-		handle := handle
-		t.Run(handle, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.handle, func(t *testing.T) {
 			th := testh.New(t)
-			src := th.Source(handle)
-
-			tableName := stringz.UniqTableName("test_execsql")
+			src := th.Source(tc.handle)
 
 			// Test CREATE TABLE
-			createSQL := `CREATE TABLE ` + tableName + ` (id INTEGER, name TEXT)`
-			affected := th.ExecSQL(src, createSQL)
+			affected := th.ExecSQL(src, tc.createSQL)
 			t.Logf("CREATE TABLE affected: %d rows (typically 0 for DDL)", affected)
 
 			// Test INSERT
