@@ -382,8 +382,10 @@ that sq supports.
 - Test expectations: `libsq/query_join_test.go:colsJoinActorFilmActor` (line 450)
 - Test helper: `libsq/query_test.go:assertSinkColMungedNames()` (line 252)
 
-**Status**: Known issue requiring architectural decision on how to handle
-ClickHouse's qualified column naming in JOIN results.
+**Status**: **Resolved**. Implemented Solution 1 (ClickHouse-specific column name
+normalization) in `recordMetaFromColumnTypes()`. The table prefix is stripped
+from column names before passing to the munging mechanism, enabling consistent
+duplicate detection and renaming across all databases.
 
 ### 2026-01-19: Investigation of TestNewBatchInsert Failure
 
