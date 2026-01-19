@@ -412,3 +412,5 @@ Key considerations:
   values. See [`drivers/csv/detect_field_kinds.go`](drivers/csv/detect_field_kinds.go).
 - **Header detection**: For tabular formats, detect whether the first row
   contains headers. See [`drivers/csv/detect_header.go`](drivers/csv/detect_header.go).
+
+
