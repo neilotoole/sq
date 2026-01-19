@@ -19,8 +19,8 @@ MySQL with Excel.
 `sq` outputs to a multitude of [formats](https://sq.io/docs/output#formats)
 including [JSON](https://sq.io/docs/output#json),
 [Excel](https://sq.io/docs/output#xlsx), [CSV](https://sq.io/docs/output#csv),
-[HTML](https://sq.io/docs/output#html), [Markdown](https://sq.io/docs/output#markdown) 
-and [XML](https://sq.io/docs/output#xml), and can [insert](https://sq.io/docs/output#insert) query 
+[HTML](https://sq.io/docs/output#html), [Markdown](https://sq.io/docs/output#markdown)
+and [XML](https://sq.io/docs/output#xml), and can [insert](https://sq.io/docs/output#insert) query
 results directly to a SQL database.
 
 `sq` can also [inspect](https://sq.io/docs/inspect) sources to view metadata about the source structure (tables,
@@ -79,7 +79,7 @@ $ docker run -it ghcr.io/neilotoole/sq zsh
 # Start detached (background) container named "sq-shell".
 $ docker run -d --name sq-shell ghcr.io/neilotoole/sq
 # Shell into that container.
-$ docker exec -it sq-shell zsh 
+$ docker exec -it sq-shell zsh
 ```
 
 #### Kubernetes
@@ -91,17 +91,19 @@ as well as general data wrangling.
 # Start pod named "sq-shell".
 $ kubectl run sq-shell --image ghcr.io/neilotoole/sq
 # Shell into the pod.
-$ kubectl exec -it sq-shell -- zsh 
+$ kubectl exec -it sq-shell -- zsh
 ```
 
-
-
 See other [install options](https://sq.io/docs/install/).
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Overview
 
 Use `sq help` to see command help. Docs are over at [sq.io](https://sq.io).
-Read the [overview](https://sq.io/docs/overview/), and 
+Read the [overview](https://sq.io/docs/overview/), and
 [tutorial](https://sq.io/docs/tutorial/). The [cookbook](https://sq.io/docs/cookbook/) has
 recipes for common tasks, and the [query guide](https://sq.io/docs/query) covers `sq`'s query language.
 
@@ -125,7 +127,7 @@ database, but this could also be [Postgres](https://sq.io/docs/drivers/postgres)
 [SQL Server](https://sq.io/docs/drivers/sqlserver) etc., or a document source such [Excel](https://sq.io/docs/drivers/xlsx) or
 [CSV](https://sq.io/docs/drivers/csv).
 
-Download the sample DB, and `sq add` the source. 
+Download the sample DB, and `sq add` the source.
 
 ```shell
 $ wget https://sq.io/testdata/sakila.db
@@ -160,12 +162,12 @@ $ sq ping
 
 > [!TIP]
 > Document sources such as CSV or Excel can be added from the local filesystem, or
-> from an HTTP URL. 
-> 
+> from an HTTP URL.
+>
 > ```shell
 > $ sq add https://acme.s3.amazonaws.com/sales.csv
 > ```
-> 
+>
 > ![sq inspect remote](./.images/sq_inspect_remote_s3.png)
 > See the [sources](https://sq.io/docs/source#download) docs for more.
 
@@ -245,7 +247,7 @@ There are many more options available. See the [diff docs](https://sq.io/docs/di
 
 ### Insert query results
 
-`sq` query results can be [output](https://sq.io/docs/output) in various formats 
+`sq` query results can be [output](https://sq.io/docs/output) in various formats
 ([`text`](https://sq.io/docs/output#text),
 [`json`](https://sq.io/docs/output#json),
 [`csv`](https://sq.io/docs/output#csv), etc.). Those results can also be "outputted"
