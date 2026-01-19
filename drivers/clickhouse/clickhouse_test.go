@@ -3,8 +3,6 @@ package clickhouse_test
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tu"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/clickhouse"
@@ -12,11 +10,61 @@ import (
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
+	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
-var _ clickhouse.Provider // Ensure package is imported
+// TestDialectPlaceholders tests that the dialect uses ? placeholders.
+func TestDialectPlaceholders(t *testing.T) {
+	p := &clickhouse.Provider{}
+	drvr, err := p.DriverFor(clickhouse.Type)
+	require.NoError(t, err)
+	sqlDrvr := drvr.(driver.SQLDriver)
+	dialect := sqlDrvr.Dialect()
+
+	// ClickHouse should use ? placeholders
+	// Test single column, single row
+	require.Equal(t, "(?)", dialect.Placeholders(1, 1))
+
+	// Test multiple columns, single row
+	require.Equal(t, "(?, ?, ?)", dialect.Placeholders(3, 1))
+
+	// Test single column, multiple rows
+	require.Equal(t, "(?), (?), (?)", dialect.Placeholders(1, 3))
+
+	// Test multiple columns, multiple rows
+	require.Equal(t, "(?, ?), (?, ?)", dialect.Placeholders(2, 2))
+}
+
+// TestDialectEnquote tests backtick quoting.
+func TestDialectEnquote(t *testing.T) {
+	p := &clickhouse.Provider{}
+	drvr, err := p.DriverFor(clickhouse.Type)
+	require.NoError(t, err)
+	sqlDrvr := drvr.(driver.SQLDriver)
+	dialect := sqlDrvr.Dialect()
+
+	testCases := []struct {
+		input string
+		want  string
+	}{
+		{"simple", "`simple`"},
+		{"table_name", "`table_name`"},
+		{"column", "`column`"},
+		{"CamelCase", "`CamelCase`"},
+		{"with space", "`with space`"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.input, func(t *testing.T) {
+			got := dialect.Enquote(tc.input)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
 
 // TestSmoke is a basic smoke test for ClickHouse connectivity.
 func TestSmoke(t *testing.T) {

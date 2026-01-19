@@ -1,50 +1,34 @@
 package clickhouse
 
 import (
-	"testing"
-
-	"github.com/stretchr/testify/require"
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/schema"
 )
 
-// TestDialectPlaceholders tests that the dialect uses ? placeholders.
-func TestDialectPlaceholders(t *testing.T) {
-	d := &driveri{}
-	dialect := d.Dialect()
+// Exported variables for testing unexported functions from external test packages.
+// These allow tests in *_test.go files (package clickhouse_test) to access
+// unexported functionality.
 
-	// ClickHouse should use ? placeholders
-	// Test single column, single row
-	require.Equal(t, "(?)", dialect.Placeholders(1, 1))
+// render.go exports.
+var (
+	ExportDbTypeNameFromKind   = dbTypeNameFromKind
+	ExportBuildCreateTableStmt = buildCreateTableStmt
+	ExportBuildUpdateStmt      = buildUpdateStmt
+)
 
-	// Test multiple columns, single row
-	require.Equal(t, "(?, ?, ?)", dialect.Placeholders(3, 1))
+// metadata.go exports.
+var (
+	ExportKindFromClickHouseType  = kindFromClickHouseType
+	ExportIsNullableType          = isNullableType
+	ExportIsNullableTypeUnwrapped = isNullableTypeUnwrapped
+	ExportTableTypeFromEngine     = tableTypeFromEngine
+)
 
-	// Test single column, multiple rows
-	require.Equal(t, "(?), (?), (?)", dialect.Placeholders(1, 3))
+// Type aliases for function signatures used in tests.
+type (
+	// KindFromClickHouseTypeFunc is the signature of kindFromClickHouseType.
+	KindFromClickHouseTypeFunc = func(chType string) kind.Kind
 
-	// Test multiple columns, multiple rows
-	require.Equal(t, "(?, ?), (?, ?)", dialect.Placeholders(2, 2))
-}
-
-// TestDialectEnquote tests backtick quoting.
-func TestDialectEnquote(t *testing.T) {
-	d := &driveri{}
-	dialect := d.Dialect()
-
-	testCases := []struct {
-		input string
-		want  string
-	}{
-		{"simple", "`simple`"},
-		{"table_name", "`table_name`"},
-		{"column", "`column`"},
-		{"CamelCase", "`CamelCase`"},
-		{"with space", "`with space`"},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.input, func(t *testing.T) {
-			got := dialect.Enquote(tc.input)
-			require.Equal(t, tc.want, got)
-		})
-	}
-}
+	// BuildCreateTableStmtFunc is the signature of buildCreateTableStmt.
+	BuildCreateTableStmtFunc = func(tblDef *schema.Table) string
+)
