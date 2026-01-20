@@ -24,8 +24,30 @@ import (
 )
 
 // TestCmdSQL_ExecMode runs a sequence of SQL CRUD commands (CREATE, SELECT,
-// UPDATE, etc.) against "sq sql". Some of these result in a query (SELECT), and
-// some result in an exec (CREATE, UPDATE, DROP, etc.).
+// INSERT, UPDATE, DELETE, DROP) against "sq sql" to verify that sq correctly
+// distinguishes between queries (which return result sets) and statements
+// (which return rows-affected counts).
+//
+// The test performs a complete CRUD lifecycle:
+//  1. CREATE TABLE - creates a test table (statement, rows_affected=0)
+//  2. SELECT - verifies table is empty (query, returns empty result set)
+//  3. INSERT x2 - inserts two rows (statements, rows_affected=1 each)
+//  4. SELECT - verifies both rows exist (query, returns 2 rows)
+//  5. UPDATE - modifies one row (statement, rows_affected=1)
+//  6. SELECT - verifies the update (query, returns modified value)
+//  7. DELETE - removes one row (statement, rows_affected=1)
+//  8. SELECT - verifies deletion (query, returns 1 row)
+//  9. DROP TABLE - cleans up (statement, rows_affected=0)
+//
+// This exercises:
+//   - SQL statement type detection (query vs statement)
+//   - Correct output format for each type (result set vs rows_affected)
+//   - Full CRUD operation support across all database drivers
+//   - Sequential statement execution maintaining table state
+//
+// Note: ClickHouse is skipped because it doesn't support standard SQL UPDATE
+// and DELETE statements. ClickHouse requires ALTER TABLE UPDATE/DELETE syntax
+// or lightweight mutations, which are not compatible with this test's approach.
 func TestCmdSQL_ExecMode(t *testing.T) {
 	t.Parallel()
 
@@ -107,6 +129,8 @@ func TestCmdSQL_ExecMode(t *testing.T) {
 
 			th := testh.New(t)
 			src := th.Source(handle) // Will skip test if source not available
+			tu.SkipIf(t, src.Type == drivertype.ClickHouse,
+				"ClickHouse: doesn't support standard UPDATE/DELETE statements")
 			tr := testrun.New(th.Context, t, nil)
 
 			// Set format to JSON so that subsequent runs are using JSON.
@@ -245,8 +269,26 @@ func TestCmdSQL_MultipleStatements(t *testing.T) {
 	}
 }
 
-// TestCmdSQL_ExecTypeEdgeCases tests edge cases for SQL type detection,
-// including comments, case variations, CTEs, and ALTER statements.
+// TestCmdSQL_ExecTypeEdgeCases tests edge cases for SQL statement type detection
+// to ensure sq correctly identifies queries vs statements regardless of formatting.
+//
+// The test verifies that sq handles:
+//   - Case variations: SELECT, select, SeLeCt all detected as queries
+//   - Lowercase statements: insert, update, delete detected as statements
+//   - Block comments: /* comment */ SELECT still detected as query
+//   - Common Table Expressions: WITH cte AS (...) SELECT detected as query
+//
+// For each case, the test verifies:
+//   - Queries return a result set (JSON array)
+//   - Statements return rows_affected count
+//
+// This is important because sq needs to determine the output format based on
+// whether the SQL is a query (returns data) or statement (returns affected count),
+// and this detection must work regardless of SQL formatting conventions.
+//
+// Note: ClickHouse is skipped because it doesn't support standard SQL UPDATE
+// and DELETE statements. ClickHouse requires ALTER TABLE UPDATE/DELETE syntax
+// or lightweight mutations, which are not compatible with this test's approach.
 func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 	t.Parallel()
 
@@ -330,6 +372,8 @@ func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 
 			th := testh.New(t)
 			src := th.Source(handle)
+			tu.SkipIf(t, src.Type == drivertype.ClickHouse,
+				"ClickHouse: doesn't support standard UPDATE/DELETE statements")
 			tr := testrun.New(th.Context, t, nil)
 
 			// Set format to JSON
