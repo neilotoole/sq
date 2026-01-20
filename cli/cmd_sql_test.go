@@ -15,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -378,22 +379,45 @@ func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 	}
 }
 
-// TestCmdSQL_Insert tests "sq sql QUERY --insert=dest.tbl".
+// TestCmdSQL_Insert tests the "sq sql QUERY --insert=@dest.tbl" functionality,
+// which executes a SQL query against one source and inserts the results into
+// a table in another (or the same) source. This is a key feature for cross-database
+// data transfer without requiring intermediate files.
+//
+// The test performs the following for each origin/destination database combination:
+//  1. Creates an empty copy of the actor table in the destination database
+//  2. Executes a SELECT query against the origin database's actor table
+//  3. Uses --insert to pipe results directly into the destination table
+//  4. Verifies all 200 actor rows were successfully transferred
+//
+// This exercises:
+//   - Cross-database querying and insertion (e.g., SQLite → PostgreSQL)
+//   - Same-database query-to-insert (e.g., PostgreSQL → PostgreSQL)
+//   - The batch insert mechanism for efficiently transferring multiple rows
+//   - Schema compatibility between different database engines
+//   - The CLI's ability to manage multiple source connections simultaneously
+//
+// The test matrix covers all combinations of supported SQL databases as both
+// origin (data source) and destination (insert target), ensuring the feature
+// works regardless of which databases are involved.
+//
+// Note: ClickHouse is skipped as a destination due to connection state corruption
+// issues with batch inserts (see drivers/clickhouse/README.md). ClickHouse works
+// fine as an origin (reading data), but the batch insert mechanism used for
+// writing corrupts the connection protocol state.
 func TestCmdSQL_Insert(t *testing.T) {
 	for _, origin := range sakila.SQLLatest() {
-		origin := origin
-
 		t.Run("origin_"+origin, func(t *testing.T) {
 			tu.SkipShort(t, origin == sakila.XLSX)
 
 			for _, dest := range sakila.SQLLatest() {
-				dest := dest
-
 				t.Run("dest_"+dest, func(t *testing.T) {
 					t.Parallel()
 
 					th := testh.New(t)
 					originSrc, destSrc := th.Source(origin), th.Source(dest)
+					tu.SkipIf(t, destSrc.Type == drivertype.ClickHouse,
+						"ClickHouse: batch insert causes connection state corruption (see drivers/clickhouse/README.md)")
 					originTbl := sakila.TblActor
 
 					if th.IsMonotable(originSrc) {
