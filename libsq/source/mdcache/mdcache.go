@@ -28,11 +28,9 @@ type Cache struct {
 	dbProps  *oncecache.Cache[string, map[string]any]
 }
 
-// New returns a new [Cache]. If log is non-nil, it will be used for logging
-// cache events.
-func New(log *slog.Logger, coll *source.Collection, grips *driver.Grips) *Cache {
-	_ = log
-
+// New returns a new [Cache]. The log parameter is currently unused but
+// reserved for future logging of cache events.
+func New(_ *slog.Logger, coll *source.Collection, grips *driver.Grips) *Cache {
 	c := &Cache{coll: coll, grips: grips}
 
 	c.tblMeta = oncecache.New[source.Table, *metadata.Table](
@@ -108,16 +106,22 @@ func (c *Cache) TableMetaPair(ctx context.Context, tbl1, tbl2 source.Table) (md1
 	return getPair(ctx, c.tblMeta, tbl1, tbl2)
 }
 
-// SourceMetaPair returns the [metadata.Source] pair for tbl1 and tbl2. The
+// SourceMetaPair returns the [metadata.Source] pair for src1 and src2. The
 // returned values are the internal cache entries, so the caller MUST NOT modify
 // them. Use [metadata.Source.Clone] if necessary.
 func (c *Cache) SourceMetaPair(ctx context.Context, src1, src2 *source.Source) (md1, md2 *metadata.Source, err error) {
+	if src1 == nil || src2 == nil {
+		return nil, nil, errz.New("src1 and src2 must not be nil")
+	}
 	return getPair(ctx, c.srcMeta, src1.Handle, src2.Handle)
 }
 
-// TableNamesPair returns the list of tables for tbl1 and tbl2. The returned
+// TableNamesPair returns the table names for src1 and src2. The returned
 // values are the internal cache entries, so the caller MUST NOT modify them.
 func (c *Cache) TableNamesPair(ctx context.Context, src1, src2 *source.Source) (tbls1, tbls2 []string, err error) {
+	if src1 == nil || src2 == nil {
+		return nil, nil, errz.New("src1 and src2 must not be nil")
+	}
 	return getPair(ctx, c.tblNames, src1.Handle, src2.Handle)
 }
 
@@ -126,6 +130,9 @@ func (c *Cache) TableNamesPair(ctx context.Context, src1, src2 *source.Source) (
 func (c *Cache) DBPropertiesPair(ctx context.Context,
 	src1, src2 *source.Source,
 ) (dbp1, dbp2 map[string]any, err error) {
+	if src1 == nil || src2 == nil {
+		return nil, nil, errz.New("src1 and src2 must not be nil")
+	}
 	return getPair(ctx, c.dbProps, src1.Handle, src2.Handle)
 }
 
@@ -162,7 +169,7 @@ func (c *Cache) fetchDBProps(ctx context.Context, handle string) (map[string]any
 		}
 		return nil, err
 	}
-	return dbProps, err
+	return dbProps, nil
 }
 
 func (c *Cache) fetchTableNames(ctx context.Context, handle string) ([]string, error) {
@@ -183,7 +190,7 @@ func (c *Cache) fetchTableNames(ctx context.Context, handle string) ([]string, e
 		}
 		return nil, err
 	}
-	return tbls, err
+	return tbls, nil
 }
 
 func (c *Cache) fetchTableMeta(ctx context.Context, tbl source.Table) (*metadata.Table, error) {
@@ -199,7 +206,7 @@ func (c *Cache) fetchTableMeta(ctx context.Context, tbl source.Table) (*metadata
 		}
 		return nil, err
 	}
-	return md, err
+	return md, nil
 }
 
 func (c *Cache) fetchSourceMeta(ctx context.Context, handle string) (*metadata.Source, error) {
@@ -215,7 +222,7 @@ func (c *Cache) fetchSourceMeta(ctx context.Context, handle string) (*metadata.S
 		}
 		return nil, err
 	}
-	return md, err
+	return md, nil
 }
 
 func (c *Cache) gripForTable(ctx context.Context, tbl source.Table) (grip driver.Grip, err error) {

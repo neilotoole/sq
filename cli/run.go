@@ -15,6 +15,7 @@ import (
 	v0_34_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.34.0" //nolint:revive
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/drivers/clickhouse"
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/json"
 	"github.com/neilotoole/sq/drivers/mysql"
@@ -285,6 +286,7 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 	dr.AddProvider(drivertype.Pg, &postgres.Provider{Log: log})
 	dr.AddProvider(drivertype.MSSQL, &sqlserver.Provider{Log: log})
 	dr.AddProvider(drivertype.MySQL, &mysql.Provider{Log: log})
+	dr.AddProvider(drivertype.ClickHouse, &clickhouse.Provider{Log: log})
 	csvp := &csv.Provider{Log: log, Ingester: ru.Grips, Files: ru.Files}
 	dr.AddProvider(drivertype.CSV, csvp)
 	dr.AddProvider(drivertype.TSV, csvp)

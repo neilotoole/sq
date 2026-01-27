@@ -18,6 +18,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
@@ -80,9 +81,8 @@ func TestDriver_TableExists(t *testing.T) {
 
 func TestDriver_CopyTable(t *testing.T) {
 	t.Parallel()
-	for _, handle := range sakila.SQLAll() {
-		handle := handle
 
+	for _, handle := range sakila.SQLAll() {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -91,15 +91,36 @@ func TestDriver_CopyTable(t *testing.T) {
 				"fromTable should have ActorCount rows beforehand")
 
 			toTable := stringz.UniqTableName(sakila.TblActor)
-			// First, test with copyData = true
+
+			// Test 1: CopyTable with copyData = true
+			// This should copy the table structure AND all data from the source table.
 			copied, err := drvr.CopyTable(th.Context, db, tablefq.From(sakila.TblActor), tablefq.From(toTable), true)
 			require.NoError(t, err)
-			require.Equal(t, int64(sakila.TblActorCount), copied)
+
+			// Handle dialect.RowsAffectedUnsupported: Some drivers (e.g., ClickHouse)
+			// cannot report row counts for INSERT ... SELECT operations due to
+			// database protocol limitations. In that case, CopyTable returns -1
+			// (dialect.RowsAffectedUnsupported) instead of the actual count.
+			//
+			// When this happens, we skip the assertion on the return value but still
+			// verify the data was actually copied by checking the destination table's
+			// row count directly. This ensures the test validates correctness even
+			// when the driver can't report the count.
+			if copied != dialect.RowsAffectedUnsupported {
+				require.Equal(t, int64(sakila.TblActorCount), copied)
+			} else {
+				t.Logf("Driver does not support reporting rows affected; verifying via row count")
+			}
 			require.Equal(t, int64(sakila.TblActorCount), th.RowCount(src, toTable))
 			defer th.DropTable(src, tablefq.From(toTable))
 
 			toTable = stringz.UniqTableName(sakila.TblActor)
-			// Then, with copyData = false
+
+			// Test 2: CopyTable with copyData = false
+			// This should copy only the table structure (schema), not the data.
+			// The returned count should always be 0 since no data is copied.
+			// Note: dialect.RowsAffectedUnsupported should NOT be returned here
+			// because when copyData=false, the driver knows exactly 0 rows were copied.
 			copied, err = drvr.CopyTable(th.Context, db, tablefq.From(sakila.TblActor), tablefq.From(toTable), false)
 			require.NoError(t, err)
 			require.Equal(t, int64(0), copied)
@@ -116,12 +137,21 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 
 	testCases := sakila.SQLAll()
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
 			th, src, drvr, _, db := testh.NewWith(t, handle)
+
+			// Skip ClickHouse: this test verifies that kind.Kind values roundtrip
+			// exactly through CreateTable -> TableColumnTypes -> RecordMeta.
+			// Based on our current understanding, ClickHouse has type limitations
+			// that prevent exact roundtrips:
+			//   - kind.Time -> DateTime -> kind.Datetime (no time-only type)
+			//   - kind.Bytes -> String -> kind.Text (binary stored as String)
+			// See drivers/clickhouse/README.md "Known Limitations" for details.
+			// This understanding may be incomplete or incorrect.
+			tu.SkipIf(t, drvr.DriverMetadata().Type == drivertype.ClickHouse,
+				"ClickHouse: kind.Time and kind.Bytes don't roundtrip exactly (see README Known Limitations)")
 
 			tblName := stringz.UniqTableName(t.Name())
 			colNames, colKinds := fixt.ColNamePerKind(drvr.Dialect().IntBool, false, false)
@@ -194,6 +224,16 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
 			t.Parallel()
 
 			th, src, drvr, _, db := testh.NewWith(t, handle)
+
+			// ClickHouse Skip: The clickhouse-go driver's PrepareContext() only
+			// supports INSERT and SELECT statements. ClickHouse uses
+			// "ALTER TABLE ... UPDATE" syntax instead of standard UPDATE, but
+			// PrepareContext() rejects this with "invalid INSERT query" because
+			// the driver misclassifies non-SELECT statements as INSERTs.
+			// Direct execution via ExecContext() works, but PrepareUpdateStmt
+			// relies on PrepareContext(). See README.md "Development Log".
+			tu.SkipIf(t, drvr.DriverMetadata().Type == drivertype.ClickHouse,
+				"ClickHouse: PrepareContext doesn't support ALTER TABLE UPDATE")
 
 			tblName := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
 
@@ -276,10 +316,20 @@ func TestNewBatchInsert(t *testing.T) {
 	const batchSize = 70
 
 	for _, handle := range sakila.SQLAll() {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			th, src, drvr, _, db := testh.NewWith(t, handle)
+
+			// ClickHouse Skip: The clickhouse-go driver does not support multi-row
+			// parameter binding. When sq generates "INSERT INTO t VALUES (?,?), (?,?)"
+			// with flattened args, clickhouse-go expects args for a single row only.
+			// Forcing single-row inserts (numRows=1) fixes that error, but causes
+			// connection state corruption after many Exec calls on the same prepared
+			// statement, resulting in "Unexpected packet Query received from client"
+			// on subsequent queries. A proper fix requires using clickhouse-go's
+			// native Batch API. See drivers/clickhouse/README.md "Development Log".
+			tu.SkipIf(t, drvr.DriverMetadata().Type == drivertype.ClickHouse,
+				"ClickHouse: clickhouse-go doesn't support multi-row parameter binding")
+
 			tblName := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, false)
 			conn, err := db.Conn(th.Context)
 			require.NoError(t, err)
@@ -337,6 +387,7 @@ var coreDrivers = []drivertype.Type{
 	drivertype.MSSQL,
 	drivertype.SQLite,
 	drivertype.MySQL,
+	drivertype.ClickHouse,
 	drivertype.CSV,
 	drivertype.TSV,
 	drivertype.XLSX,
@@ -348,6 +399,7 @@ var sqlDrivers = []drivertype.Type{
 	drivertype.MSSQL,
 	drivertype.SQLite,
 	drivertype.MySQL,
+	drivertype.ClickHouse,
 }
 
 // docDrivers is a slice of the doc driver types.

@@ -118,6 +118,14 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			loc: "clickhouse://sakila:p_ssW0rd@server:9000/sakila",
+			want: Fields{
+				DriverType: drivertype.ClickHouse, Scheme: "clickhouse", User: dbuser, Pass: dbpass, Hostname: "server", Port: 9000,
+				Name: "sakila",
+				DSN:  "clickhouse://sakila:p_ssW0rd@server:9000/sakila",
+			},
+		},
+		{
 			loc: "mysql://sakila:p_ssW0rd@localhost/sakila",
 			want: Fields{
 				DriverType: drivertype.MySQL, Scheme: "mysql", User: dbuser, Pass: dbpass, Hostname: "localhost",
@@ -134,7 +142,6 @@ func TestParse(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(1, Redact(tc.loc)), func(t *testing.T) {
 			if tc.windows && runtime.GOOS != "windows" {
 				return

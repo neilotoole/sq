@@ -17,9 +17,11 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // TestCmdSLQ_Insert_Create tests "sq QUERY --insert=@src.tbl".
@@ -50,20 +52,42 @@ func TestCmdSLQ_Insert_Create(t *testing.T) {
 	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 }
 
-// TestCmdSLQ_Insert tests "sq slq QUERY --insert=dest.tbl".
+// TestCmdSLQ_Insert tests the "sq slq QUERY --insert=@dest.tbl" functionality,
+// which executes an SLQ query against one source and inserts the results into
+// a table in another (or the same) source. This is similar to TestCmdSQL_Insert
+// but uses SLQ (sq's query language) instead of raw SQL.
+//
+// The test performs the following for each origin/destination database combination:
+//  1. Creates an empty copy of the actor table in the destination database
+//  2. Executes an SLQ query against the origin database's actor table
+//  3. Uses --insert to pipe results directly into the destination table
+//  4. Verifies all 200 actor rows were successfully transferred
+//
+// This exercises:
+//   - Cross-database querying via SLQ and insertion (e.g., SQLite → PostgreSQL)
+//   - Same-database query-to-insert (e.g., PostgreSQL → PostgreSQL)
+//   - The batch insert mechanism for efficiently transferring multiple rows
+//   - SLQ query parsing and execution across different database backends
+//   - The CLI's ability to manage multiple source connections simultaneously
+//
+// The test matrix covers all combinations of supported SQL databases as both
+// origin (data source) and destination (insert target).
+//
+// Note: ClickHouse is skipped as a destination due to connection state corruption
+// issues with batch inserts (see drivers/clickhouse/README.md). ClickHouse works
+// fine as an origin (reading data), but the batch insert mechanism used for
+// writing corrupts the connection protocol state.
 func TestCmdSLQ_Insert(t *testing.T) {
 	for _, origin := range sakila.SQLLatest() {
-		origin := origin
-
 		t.Run("origin_"+origin, func(t *testing.T) {
 			for _, dest := range sakila.SQLLatest() {
-				dest := dest
-
 				t.Run("dest_"+dest, func(t *testing.T) {
 					t.Parallel()
 
 					th := testh.New(t)
 					originSrc, destSrc := th.Source(origin), th.Source(dest)
+					tu.SkipIf(t, destSrc.Type == drivertype.ClickHouse,
+						"ClickHouse: batch insert causes connection state corruption (see drivers/clickhouse/README.md)")
 					srcTbl := sakila.TblActor
 					if th.IsMonotable(originSrc) {
 						srcTbl = source.MonotableName

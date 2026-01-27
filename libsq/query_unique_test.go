@@ -13,38 +13,53 @@ import (
 func TestQuery_unique(t *testing.T) {
 	testCases := []queryTestCase{
 		{
-			name:         "unique/single-col",
-			in:           `@sakila | .actor | .first_name | unique`,
-			wantSQL:      `SELECT DISTINCT "first_name" FROM "actor"`,
-			override:     driverMap{drivertype.MySQL: "SELECT DISTINCT `first_name` FROM `actor`"},
+			name:    "unique/single-col",
+			in:      `@sakila | .actor | .first_name | unique`,
+			wantSQL: `SELECT DISTINCT "first_name" FROM "actor"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT DISTINCT `first_name` FROM `actor`",
+				drivertype.ClickHouse: "SELECT DISTINCT `first_name` FROM `actor`",
+			},
 			wantRecCount: 128,
 		},
 		{
-			name:         "unique/no-col-with-parens",
-			in:           `@sakila | .actor | unique()`,
-			wantSQL:      `SELECT DISTINCT * FROM "actor"`,
-			override:     driverMap{drivertype.MySQL: "SELECT DISTINCT * FROM `actor`"},
+			name:    "unique/no-col-with-parens",
+			in:      `@sakila | .actor | unique()`,
+			wantSQL: `SELECT DISTINCT * FROM "actor"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT DISTINCT * FROM `actor`",
+				drivertype.ClickHouse: "SELECT DISTINCT * FROM `actor`",
+			},
 			wantRecCount: sakila.TblActorCount,
 		},
 		{
-			name:         "unique/no-col",
-			in:           `@sakila | .actor | unique`,
-			wantSQL:      `SELECT DISTINCT * FROM "actor"`,
-			override:     driverMap{drivertype.MySQL: "SELECT DISTINCT * FROM `actor`"},
+			name:    "unique/no-col",
+			in:      `@sakila | .actor | unique`,
+			wantSQL: `SELECT DISTINCT * FROM "actor"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT DISTINCT * FROM `actor`",
+				drivertype.ClickHouse: "SELECT DISTINCT * FROM `actor`",
+			},
 			wantRecCount: sakila.TblActorCount,
 		},
 		{
-			name:         "uniq/no-col",
-			in:           `@sakila | .actor | uniq`,
-			wantSQL:      `SELECT DISTINCT * FROM "actor"`,
-			override:     driverMap{drivertype.MySQL: "SELECT DISTINCT * FROM `actor`"},
+			name:    "uniq/no-col",
+			in:      `@sakila | .actor | uniq`,
+			wantSQL: `SELECT DISTINCT * FROM "actor"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT DISTINCT * FROM `actor`",
+				drivertype.ClickHouse: "SELECT DISTINCT * FROM `actor`",
+			},
 			wantRecCount: sakila.TblActorCount,
 		},
 		{
-			name:         "uniq/no-col-with-parens",
-			in:           `@sakila | .actor | uniq()`,
-			wantSQL:      `SELECT DISTINCT * FROM "actor"`,
-			override:     driverMap{drivertype.MySQL: "SELECT DISTINCT * FROM `actor`"},
+			name:    "uniq/no-col-with-parens",
+			in:      `@sakila | .actor | uniq()`,
+			wantSQL: `SELECT DISTINCT * FROM "actor"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT DISTINCT * FROM `actor`",
+				drivertype.ClickHouse: "SELECT DISTINCT * FROM `actor`",
+			},
 			wantRecCount: sakila.TblActorCount,
 		},
 	}
