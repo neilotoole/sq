@@ -14,7 +14,7 @@ package clickhouse
 import (
 	"errors"
 
-	"github.com/ClickHouse/clickhouse-go/v2"
+	clickhouse "github.com/ClickHouse/clickhouse-go/v2"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/driver"
