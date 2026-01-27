@@ -514,7 +514,10 @@ func getNewRecordFunc(rowMeta record.Meta) driver.NewRecordFunc {
 				}
 			}
 		}
-		rec, _ := driver.NewRecordFromScanRow(rowMeta, row, nil)
+		rec, err := driver.NewRecordFromScanRow(rowMeta, row, nil)
+		if err != nil {
+			return nil, err
+		}
 		return rec, nil
 	}
 }
