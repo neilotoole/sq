@@ -192,7 +192,7 @@ func getVersionFromBrewFormula(f []byte) (string, error) {
 			idx := strings.Index(val, "/tags/v")
 			if idx != -1 {
 				// Start after "/tags/v"
-				verStart := idx + 7
+				verStart := idx + len("/tags/v")
 				remainder := val[verStart:]
 				// Find the end at .tar.gz or .zip
 				if endIdx := strings.Index(remainder, ".tar.gz"); endIdx != -1 {
