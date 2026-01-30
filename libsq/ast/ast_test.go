@@ -71,7 +71,14 @@ func TestParseCatalogSchema(t *testing.T) {
 		{in: "1e", wantCatalog: "", wantSchema: "1e"},           // single digit + letter
 		{in: "123_", wantCatalog: "", wantSchema: "123_"},       // trailing underscore
 		{in: "_123", wantCatalog: "", wantSchema: "_123"},       // leading underscore (ID, not IDNUM)
-		{in: "007bond", wantCatalog: "", wantSchema: "007bond"}, // leading zeros
+		{in: "007bond", wantCatalog: "", wantSchema: "007bond"}, // leading zeros with letters
+		// Test pure numeric with leading zeros (issue #470)
+		{in: "007", wantCatalog: "", wantSchema: "007"},              // leading zeros only
+		{in: "00123", wantCatalog: "", wantSchema: "00123"},          // multiple leading zeros
+		{in: "007.008", wantCatalog: "007", wantSchema: "008"},       // leading zeros in both
+		{in: "00.00", wantCatalog: "00", wantSchema: "00"},           // double zeros
+		{in: "sakila.007", wantCatalog: "sakila", wantSchema: "007"}, // leading zeros as schema
+		{in: "007.dbo", wantCatalog: "007", wantSchema: "dbo"},       // leading zeros as catalog
 	}
 
 	for i, tc := range testCases {

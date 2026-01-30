@@ -907,6 +907,10 @@ func TestDriverCreateDropSchema_Numeric(t *testing.T) {
 		{"numeric_with_underscore", "456_test"},
 		{"numeric_long", "9876543210"},
 		{"numeric_mixed", "0a1b2c"},
+		// Test leading zeros (issue #470)
+		{"leading_zeros_short", "007"},
+		{"leading_zeros_long", "00123"},
+		{"leading_zeros_many", "000000"},
 	}
 
 	// Drivers that support schema creation.
