@@ -2,9 +2,10 @@
 """
 Split a SARIF file with multiple runs into separate files.
 
-GitHub Code Scanning requires each SARIF file to contain only ONE run per category.
-This script splits a SARIF file with multiple runs into separate files, each
-containing exactly one run.
+GitHub Code Scanning allows up to 20 runs per SARIF file. Some tools (such as
+Codacy) can produce SARIF files with more than 20 runs, which exceeds this
+limit. This script splits a SARIF file with multiple runs into separate files,
+each containing exactly one run to ensure compatibility with GitHub's limit.
 
 Usage:
     python split-sarif.py <input-sarif-file> <output-dir>
@@ -31,7 +32,7 @@ def split_sarif(input_file, output_dir):
         List of output file paths
     """
     # Read the input SARIF file
-    with open(input_file, 'r') as f:
+    with open(input_file, 'r', encoding='utf-8') as f:
         sarif_data = json.load(f)
 
     # Check if 'runs' exists
@@ -43,7 +44,7 @@ def split_sarif(input_file, output_dir):
     total_runs = len(runs)
 
     print(f"Total runs found: {total_runs}")
-    print(f"Creating one SARIF file per run...")
+    print("Creating one SARIF file per run...")
 
     # Create output directory if it doesn't exist
     Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -59,7 +60,7 @@ def split_sarif(input_file, output_dir):
             # Sanitize tool name for filename
             tool_name = tool_name.replace('/', '-').replace('\\', '-').replace(' ', '-')
 
-        # Add runAutomationDetails.id for unique category
+        # Add automationDetails.id for unique category
         # This is required by upload-sarif when uploading a directory of files
         # so each file has a distinct category
         run_id = f"codacy/{tool_name}/{i}"
@@ -77,8 +78,8 @@ def split_sarif(input_file, output_dir):
         output_file = os.path.join(output_dir, f'results-{i:02d}-{tool_name}.sarif')
 
         # Write the single run to file
-        with open(output_file, 'w') as f:
-            json.dump(single_run_sarif, f, indent=2)
+        with open(output_file, 'w', encoding='utf-8') as out:
+            json.dump(single_run_sarif, out, indent=2)
 
         output_files.append(output_file)
         print(f"  [{i}/{total_runs}] Created {os.path.basename(output_file)}")
@@ -87,6 +88,7 @@ def split_sarif(input_file, output_dir):
 
 
 def main():
+    """Entry point for the script."""
     if len(sys.argv) < 3:
         print(__doc__)
         sys.exit(1)
