@@ -12,6 +12,16 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## Upcoming
+
+### Fixed
+
+- [#532]: [`sq sql`](https://sq.io/docs/cmd/sql) now uses the
+  [`usql`](https://github.com/xo/usql) lib for SQL input mode determination
+  (does the SQL input execute a query or a statement?) replacing the custom
+  implementation introduced in `v0.48.11`. The `usql` impl is battle-tested:
+  there's no point reinventing that wheel.
+
 ## [v0.48.11] - 2026-01-18
 
 ### Fixed
@@ -1301,6 +1311,7 @@ make working with lots of sources much easier.
 [#504]: https://github.com/neilotoole/sq/issues/504
 [#506]: https://github.com/neilotoole/sq/issues/506
 [#520]: https://github.com/neilotoole/sq/issues/520
+[#532]: https://github.com/neilotoole/sq/issues/532
 
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
