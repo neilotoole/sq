@@ -9,6 +9,30 @@ import (
 	"github.com/neilotoole/sq/testh/tu"
 )
 
+// TestParseCatalogSchema_ErrorMessages verifies that error messages from
+// ParseCatalogSchema are informative and include context about what went wrong.
+func TestParseCatalogSchema_ErrorMessages(t *testing.T) {
+	testCases := []struct {
+		in          string
+		wantContain string // Error message should contain this substring
+	}{
+		{in: "", wantContain: "empty"},
+		{in: ".", wantContain: `"."`},                                        // Should mention the input
+		{in: ".dbo", wantContain: `".dbo"`},                                  // Should mention the input
+		{in: "catalog.schema.table", wantContain: "no valid selector found"}, // Too many components
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
+			_, _, err := ast.ParseCatalogSchema(tc.in)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tc.wantContain,
+				"error message should contain %q, got: %s", tc.wantContain, err.Error())
+		})
+	}
+}
+
 func TestParseCatalogSchema(t *testing.T) {
 	testCases := []struct {
 		in                      string
