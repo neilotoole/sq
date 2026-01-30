@@ -290,6 +290,7 @@ unaryOperator: '-' | '+' | '~' | '!';
 BOOL: 'true' | 'false';
 NULL: 'null';
 ID: [a-zA-Z_][a-zA-Z0-9_]*;
+IDNUM: [0-9]+ [a-zA-Z_] [a-zA-Z0-9_]*;
 WS: [ \t\r\n]+ -> skip;
 LPAR: '(';
 RPAR: ')';
@@ -322,7 +323,7 @@ NEQ: '!=';
 EQ: '==';
 
 
-NAME: '.' (ARG | ID | STRING);
+NAME: '.' (ARG | ID | STRING | INTF | IDNUM);
 
 // SEL can be .THING or .THING.OTHERTHING.
 // It can also be ."some name".OTHERTHING, etc.
@@ -378,5 +379,4 @@ LINECOMMENT: '#' .*? '\n' -> skip;
 //    | '[' ~']'* ']'
 //    | [A-Z_] [A-Z_0-9]*
 //; // TODO check: needs more chars in set
-
 
