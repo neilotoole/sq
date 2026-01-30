@@ -59,6 +59,14 @@ def split_sarif(input_file, output_dir):
             # Sanitize tool name for filename
             tool_name = tool_name.replace('/', '-').replace('\\', '-').replace(' ', '-')
 
+        # Add runAutomationDetails.id for unique category
+        # This is required by upload-sarif when uploading a directory of files
+        # so each file has a distinct category
+        run_id = f"codacy/{tool_name}/{i}"
+        if 'automationDetails' not in run:
+            run['automationDetails'] = {}
+        run['automationDetails']['id'] = run_id
+
         # Create a new SARIF object with a single run
         single_run_sarif = {
             **sarif_data,  # Copy all top-level properties
