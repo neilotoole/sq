@@ -13,6 +13,7 @@ import (
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/testh/tu"
 )
 
@@ -107,4 +108,34 @@ func Test_checkNeedsUpgrade_newerConfigVersion_prerelease(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, needsUpgrade)
 	require.Equal(t, "v99.0.0", foundVers)
+}
+
+// Test_Store_Load_newerConfigVersion verifies that Store.Load succeeds
+// (returns no error) when the config version is newer than the build version.
+// The sentinel error errConfigVersionNewerThanBuild should be handled
+// internally, logging a warning but allowing the config to load.
+func Test_Store_Load_newerConfigVersion(t *testing.T) {
+	// Set a non-prerelease build version.
+	setBuildVersion(t, "v0.48.0")
+
+	// Create a minimal valid config with a newer version.
+	cfgDir := t.TempDir()
+	cfgPath := filepath.Join(cfgDir, "sq.yml")
+	cfgContent := `config.version: v99.0.0
+`
+	err := os.WriteFile(cfgPath, []byte(cfgContent), 0o644)
+	require.NoError(t, err)
+
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+
+	store := &Store{
+		Path:            cfgPath,
+		OptionsRegistry: &options.Registry{},
+	}
+
+	// Load should succeed despite the config version being newer.
+	cfg, err := store.Load(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	require.Equal(t, "v99.0.0", cfg.Version)
 }
