@@ -24,9 +24,23 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
-- [#531]: [`sq version`](https://sq.io/docs/cmd/version) now returns faster by
-  reducing the update-check timeout from 2s to 500ms. Additionally, the version
-  check now uses the official homebrew-core formula instead of the legacy tap.
+- [#531]: Tweaks to `sq`'s version handling.
+  - [`sq version`](https://sq.io/docs/cmd/version) now returns faster by
+    reducing the update-check timeout from 2s to 500ms. Additionally, the
+    version check now uses the official
+    [homebrew-core formula][homebrew-core-formula] instead of the
+    [legacy tap][legacy-tap-formula]. There's still future work to be done here
+    to make it possible to configure or disable this update-check behavior.
+  - Relatedly, `sq` now warns instead of erroring when the config file's
+    `config.version` is newer than the `sq` build version. This allows users to
+    downgrade to older `sq` versions for testing or debugging, at the small risk
+    of config schema incompatibilities (which will likely error out). There's
+    future work to be done to improve how `sq` stamps the config schema version
+    in `sq.yml` (currently it uses the build version rather than tracking actual
+    config schema changes).
+
+[homebrew-core-formula]: https://raw.githubusercontent.com/Homebrew/homebrew-core/HEAD/Formula/s/sq.rb
+[legacy-tap-formula]: https://raw.githubusercontent.com/neilotoole/homebrew-sq/master/sq.rb
 
 ## [v0.48.11] - 2026-01-18
 
