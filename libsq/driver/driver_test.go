@@ -901,6 +901,7 @@ func TestDriverCreateDropSchema_Numeric(t *testing.T) {
 		name   string // test name
 		schema string // schema name to create
 	}{
+		{"pure_zero", "0"},
 		{"pure_numeric", "12345"},
 		{"numeric_prefixed", "123abc"},
 		{"numeric_with_underscore", "456_test"},

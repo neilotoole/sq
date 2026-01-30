@@ -12,6 +12,15 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## [Unreleased]
+
+### Fixed
+
+- [#470]: Numeric Postgres schemas (e.g., `10000`, `123abc`) can now be queried
+  using `--src.schema`. The SLQ grammar has been updated to support numeric and
+  numeric-prefixed identifiers in schema/catalog positions. Thanks to
+  [@majiayu000](https://github.com/majiayu000) for the initial fix.
+
 ## [v0.48.12] - 2026-01-30
 
 🫡: This patch release addresses issues reported by [@Dialga](https://github.com/Dialga).

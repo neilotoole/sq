@@ -338,6 +338,8 @@ EQ: '==';
 // Note: INTF is a lexer fragment, but ANTLR allows referencing fragments directly in
 // lexer rules. The fragment content is inlined. We use INTF here (instead of defining
 // a separate token) to avoid conflicts with the existing NN token (NN: INTF).
+// ANTLR's maximal munch rule ensures that inputs like "007bond" match IDNUM (the longest
+// possible token) rather than INTF followed by something else.
 NAME: '.' (ARG | ID | STRING | INTF | IDNUM);
 
 // SEL can be .THING or .THING.OTHERTHING.
