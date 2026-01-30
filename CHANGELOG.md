@@ -22,6 +22,12 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   implementation introduced in `v0.48.11`. The `usql` impl is battle-tested:
   there's no point reinventing that wheel.
 
+### Changed
+
+- [#531]: [`sq version`](https://sq.io/docs/cmd/version) now returns faster by
+  reducing the update-check timeout from 2s to 500ms. Additionally, the version
+  check now uses the official homebrew-core formula instead of the legacy tap.
+
 ## [v0.48.11] - 2026-01-18
 
 ### Fixed
@@ -1311,6 +1317,7 @@ make working with lots of sources much easier.
 [#504]: https://github.com/neilotoole/sq/issues/504
 [#506]: https://github.com/neilotoole/sq/issues/506
 [#520]: https://github.com/neilotoole/sq/issues/520
+[#531]: https://github.com/neilotoole/sq/issues/531
 [#532]: https://github.com/neilotoole/sq/issues/532
 
 
