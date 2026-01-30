@@ -12,17 +12,58 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
-## Unreleased
+## [v0.48.12] - 2026-01-30
+
+🫡: This patch release addresses issues reported by [@Dialga](https://github.com/Dialga).
 
 ### Fixed
+
+- [#532]: [`sq sql`](https://sq.io/docs/cmd/sql) now uses the
+  [`usql`](https://github.com/xo/usql) lib for SQL input mode determination
+  (does the SQL input execute a query or a statement?) replacing the custom
+  implementation introduced in `v0.48.11`. The `usql` impl is battle-tested:
+  there's no point reinventing that wheel.
+
+### Changed
+
+- [#531]: Several changes to `sq` version handling.
+  - [`sq version`](https://sq.io/docs/cmd/version) now returns faster by
+    reducing the update-check timeout from 2s to 500ms. Additionally, the
+    version check now uses the official
+    [homebrew-core formula][homebrew-core-formula] instead of the
+    [legacy tap][legacy-tap-formula]. There's still future work to be done here
+    to make it possible to configure or disable this update-check behavior.
+  - Relatedly, `sq` now warns instead of erroring when the config file's
+    `config.version` is newer than the `sq` build version. This allows users to
+    downgrade to older `sq` versions for testing or debugging, at the small risk
+    of config schema incompatibilities (which will likely error out). There's
+    future work to be done to improve how `sq` stamps the config schema version
+    in `sq.yml` (currently it uses the build version rather than tracking actual
+    config schema changes).
+
+[homebrew-core-formula]: https://raw.githubusercontent.com/Homebrew/homebrew-core/HEAD/Formula/s/sq.rb
+[legacy-tap-formula]: https://raw.githubusercontent.com/neilotoole/homebrew-sq/master/sq.rb
+
+## [v0.48.11] - 2026-01-18
+
+### Fixed
+
+- [#502]: [`sq sql`](https://sq.io/docs/cmd/sql) now properly executes single
+  SQL statements (`INSERT`, `UPDATE`, `DROP`, etc.) instead of incorrectly
+  running them as queries.
+  - This fixes broken behavior with strict database drivers and ensures affected
+    row counts are correctly reported. Note that `sq sql` is designed to accept
+    only a single SQL statement/query in the SQL input string; behavior is
+    undefined for multiple statements in the input.
+  - Thanks to [@drluckyspin](https://github.com/drluckyspin) for the fix.
+
+- [#520]: [`sq add`](https://sq.io/docs/cmd/add) and
+  [`sq ls`](https://sq.io/docs/cmd/ls) erroneously printed source password for
+  SQL Server URLs in some circumstances.
 
 - [#469]: Column widths were too wide when using `--no-header` flag. Header text
   is now excluded from column width calculation when headers are disabled.
   Thanks to [@majiayu000](https://github.com/majiayu000) for the fix.
-
-### Changed
-
-### Added
 
 ## [v0.48.10] - 2025-12-28
 
@@ -1288,8 +1329,12 @@ make working with lots of sources much easier.
 [#415]: https://github.com/neilotoole/sq/issues/415
 [#446]: https://github.com/neilotoole/sq/issues/446
 [#469]: https://github.com/neilotoole/sq/issues/469
+[#502]: https://github.com/neilotoole/sq/pull/502
 [#504]: https://github.com/neilotoole/sq/issues/504
 [#506]: https://github.com/neilotoole/sq/issues/506
+[#520]: https://github.com/neilotoole/sq/issues/520
+[#531]: https://github.com/neilotoole/sq/issues/531
+[#532]: https://github.com/neilotoole/sq/issues/532
 
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
@@ -1354,3 +1399,5 @@ make working with lots of sources much easier.
 [v0.48.4]: https://github.com/neilotoole/sq/compare/v0.48.3...v0.48.4
 [v0.48.5]: https://github.com/neilotoole/sq/compare/v0.48.4...v0.48.5
 [v0.48.10]: https://github.com/neilotoole/sq/compare/v0.48.5...v0.48.10
+[v0.48.11]: https://github.com/neilotoole/sq/compare/v0.48.10...v0.48.11
+[v0.48.12]: https://github.com/neilotoole/sq/compare/v0.48.12...v0.48.12

@@ -14,7 +14,7 @@ The generated `.go` files ultimately end up in package `libsq/ast/internal/slq`.
 in this directory should not be directly edited.
 
 The `libsq/ast.Parse` function takes a `SLQ` input string and returns an `*ast.AST`.
-The entrypoint that accepts the SLQ string is `libsq.ExecuteSLQ`, which ultimately
+The entrypoint that accepts the SLQ string is `libsq.ExecSLQ`, which ultimately
 invokes `ast.Parse`.
 
 ## Working with the grammar

@@ -188,6 +188,16 @@ func TestShortLocation(t *testing.T) {
 			want: "sq@localhost/sqtest",
 		},
 		{
+			name: "sqlserver-no-params",
+			loc:  "sqlserver://sq:p_ssw0rd@localhost",
+			want: "sq@localhost",
+		},
+		{
+			name: "sqlserver-with-param-no-database",
+			loc:  "sqlserver://sq:p_ssw0rd@localhost?encrypt=false",
+			want: "sq@localhost",
+		},
+		{
 			name: "postgres",
 			loc:  "postgres://sq:p_ssW0rd@localhost/sqtest?sslmode=disable",
 			want: "sq@localhost/sqtest",

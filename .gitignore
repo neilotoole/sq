@@ -6,6 +6,7 @@
 # Folders
 _obj
 _test
+__pycache__/
 
 # Architecture specific extensions/prefixes
 *.[568vq]
@@ -45,6 +46,7 @@ go.work*
 *.dump.sql
 # Some apps create temp files when editing, e.g. Excel with drivers/xlsx/testdata/~$test_header.xlsx
 **/testdata/~*
+tmp/
 
 gorelease-snapshot.sh
 magefile_local.go
