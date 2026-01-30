@@ -20,7 +20,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   [`usql`](https://github.com/xo/usql) lib for SQL input mode determination
   (does the SQL input execute a query or a statement?) replacing the custom
   implementation introduced in `v0.48.11`. The `usql` impl is battle-tested:
-  there's no point re-inventing that wheel.
+  there's no point reinventing that wheel.
 
 ## [v0.48.11] - 2026-01-18
 
