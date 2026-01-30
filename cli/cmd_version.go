@@ -182,7 +182,7 @@ func getVersionFromBrewFormula(f []byte) (string, error) {
 			val = val[9:]
 			val = strings.TrimSuffix(val, `"`)
 			if !semver.IsValid("v" + val) { // semver pkg requires "v" prefix
-				return "", errz.Errorf("invalid brew formula: invalid semver")
+				return "", errz.Errorf("invalid brew formula: invalid semver {%s}", val)
 			}
 			return val, nil
 		}
@@ -202,10 +202,12 @@ func getVersionFromBrewFormula(f []byte) (string, error) {
 				} else if endIdx := strings.Index(remainder, ".zip"); endIdx != -1 {
 					val = remainder[:endIdx]
 				} else {
+					// Unrecognized archive extension; skip and keep scanning
+					// for an explicit "version" line or other URL format.
 					continue
 				}
 				if !semver.IsValid("v" + val) {
-					return "", errz.Errorf("invalid brew formula: invalid semver in URL")
+					return "", errz.Errorf("invalid brew formula: invalid semver in URL {%s}", val)
 				}
 				return val, nil
 			}
