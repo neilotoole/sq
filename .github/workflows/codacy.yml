@@ -67,9 +67,38 @@ jobs:
       - name: Split SARIF file
         run: python3 .github/scripts/split-sarif.py results.sarif ./sarif-split
 
-      # Upload the directory of SARIF files
-      # The upload-sarif action handles gzip+base64 encoding automatically
+      # Upload each SARIF file individually via the API
+      # Files must be gzip-compressed and base64-encoded per GitHub API requirements
       - name: Upload SARIF results
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: ./sarif-split
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for sarif_file in ./sarif-split/*.sarif; do
+            if [ -f "$sarif_file" ]; then
+              filename=$(basename "$sarif_file" .sarif)
+              echo "Uploading $filename..."
+
+              # Gzip and base64 encode the file (required by GitHub API)
+              sarif_content=$(gzip -c "$sarif_file" | base64 -w0)
+
+              # Upload via API
+              response=$(curl -s -w "\n%{http_code}" -X POST \
+                -H "Authorization: token $GITHUB_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "https://api.github.com/repos/${{ github.repository }}/code-scanning/sarifs" \
+                -d @- <<EOFCURL
+          {"commit_sha":"${{ github.sha }}","ref":"${{ github.ref }}","sarif":"$sarif_content"}
+          EOFCURL
+              )
+              http_code=$(echo "$response" | tail -n1)
+              body=$(echo "$response" | sed '$d')
+
+              if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+                echo "✓ Uploaded $filename (HTTP $http_code)"
+              else
+                echo "✗ Failed to upload $filename (HTTP $http_code)"
+                echo "$body"
+              fi
+            fi
+          done
