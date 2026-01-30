@@ -61,6 +61,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/vbauerster/mpb/v8 v8.11.3 // BRITTLE
 	github.com/xo/dburl v0.24.2
+	github.com/xo/usql v0.20.8
 	github.com/xuri/excelize/v2 v2.10.0 // BRITTLE
 	go.uber.org/atomic v1.11.0
 	golang.org/x/exp v0.0.0-20260112195511-716be5621a96
@@ -70,8 +71,6 @@ require (
 	golang.org/x/term v0.39.0
 	golang.org/x/text v0.33.0
 )
-
-require github.com/xo/usql v0.20.8
 
 require (
 	dario.cat/mergo v1.0.2 // indirect
