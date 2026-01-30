@@ -92,7 +92,9 @@ func execVersion(cmd *cobra.Command, _ []string) error {
 	ctx, cancelFn := context.WithTimeout(cmd.Context(), time.Millisecond*500)
 	defer cancelFn()
 
-	resultCh := make(chan string)
+	// Buffered so the goroutine can complete its send even if ctx times out
+	// and no receiver is waiting, avoiding a goroutine leak.
+	resultCh := make(chan string, 1)
 	go func() {
 		var err error
 		v, err := fetchBrewVersion(ctx)
