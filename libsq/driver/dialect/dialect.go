@@ -118,9 +118,10 @@ func (m ExecMode) LogValue() slog.Value {
 // DefaultExecModeFor returns the ExecMode for a SQL string. It uses the usql
 // library (github.com/xo/usql) to determine whether the SQL should be executed
 // via DB.Query (returns rows) or DB.Exec (returns affected count). An error is
-// returned if the SQL string is empty or contains only whitespace/comments.
-// This function is intended for use by driver initialization code; callers
-// should use Dialect.ExecModeFor instead.
+// returned if the SQL string is empty, contains only whitespace/comments, or is
+// invalid/unparseable such that usql's FindPrefix cannot determine a statement
+// prefix. This function is intended for use by driver initialization code;
+// callers should use Dialect.ExecModeFor instead.
 //
 // See also: https://pkg.go.dev/github.com/xo/usql/drivers#QueryExecType
 func DefaultExecModeFor(sqlStr string) (ExecMode, error) {
