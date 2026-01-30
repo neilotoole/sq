@@ -144,6 +144,7 @@ func TestDefaultExecModeFor_Errors(t *testing.T) {
 		{"only line comment", "-- just a comment", "only comments"},
 		{"only block comment", "/* just a comment */", "only comments"},
 		{"multiple comments only", "-- line 1\n-- line 2\n/* block */", "only comments"},
+		{"unclosed block comment", "/* unclosed comment", "only comments"},
 	}
 
 	for _, tt := range tests {
