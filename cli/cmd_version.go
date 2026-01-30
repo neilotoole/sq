@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/spf13/cobra"
 	"golang.org/x/mod/semver"
 
@@ -111,9 +112,15 @@ func execVersion(cmd *cobra.Command, _ []string) error {
 }
 
 // fetchBrewVersion fetches the latest available sq version via
-// the published brew formula.
+// the published homebrew-core formula. Previously this function fetched from
+// the personal tap (neilotoole/homebrew-sq), but since sq was accepted into
+// homebrew-core, we now check there as it's the canonical source for most users
+// who install via "brew install sq".
 func fetchBrewVersion(ctx context.Context) (string, error) {
-	const u = `https://raw.githubusercontent.com/neilotoole/homebrew-sq/master/sq.rb`
+	// Old URL (personal tap): https://raw.githubusercontent.com/neilotoole/homebrew-sq/master/sq.rb
+	const u = `https://raw.githubusercontent.com/Homebrew/homebrew-core/HEAD/Formula/s/sq.rb`
+
+	lg.FromContext(ctx).Debug("Fetching brew formula for version check", lga.URL, u)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, http.NoBody)
 	if err != nil {
@@ -122,18 +129,18 @@ func fetchBrewVersion(ctx context.Context) (string, error) {
 
 	resp, err := http.DefaultClient.Do(req) //nolint:bodyclose
 	if err != nil {
-		return "", errz.Wrap(err, "failed to check sq brew repo")
+		return "", errz.Wrap(err, "failed to check sq brew formula")
 	}
 	defer ioz.Close(ctx, resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return "", errz.Errorf("failed to check sq brew repo: %d %s",
+		return "", errz.Errorf("failed to check sq brew formula: %d %s",
 			resp.StatusCode, http.StatusText(resp.StatusCode))
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", errz.Wrap(err, "failed to read sq brew repo body")
+		return "", errz.Wrap(err, "failed to read sq brew formula body")
 	}
 
 	return getVersionFromBrewFormula(body)
@@ -142,6 +149,10 @@ func fetchBrewVersion(ctx context.Context) (string, error) {
 // getVersionFromBrewFormula returns the first brew version
 // from f, which is a brew ruby formula. The version is returned
 // without a "v" prefix, e.g. "0.1.2", not "v0.1.2".
+//
+// It supports two formula formats:
+//   - Explicit version: `version "0.48.11"` (used by personal tap/GoReleaser)
+//   - URL-based version: `url ".../tags/v0.48.11.tar.gz"` (used by homebrew-core)
 func getVersionFromBrewFormula(f []byte) (string, error) {
 	var (
 		line string
@@ -157,14 +168,39 @@ func getVersionFromBrewFormula(f []byte) (string, error) {
 		}
 
 		val = strings.TrimSpace(line)
+
+		// Check for explicit version line: version "0.48.11"
 		if strings.HasPrefix(val, `version "`) {
-			// found it
 			val = val[9:]
 			val = strings.TrimSuffix(val, `"`)
 			if !semver.IsValid("v" + val) { // semver pkg requires "v" prefix
 				return "", errz.Errorf("invalid brew formula: invalid semver")
 			}
 			return val, nil
+		}
+
+		// Check for URL-based version (homebrew-core format):
+		// url "https://github.com/neilotoole/sq/archive/refs/tags/v0.48.11.tar.gz"
+		if strings.HasPrefix(val, `url "`) && strings.Contains(val, "/tags/v") {
+			// Extract version from URL pattern /tags/vX.Y.Z.tar.gz
+			idx := strings.Index(val, "/tags/v")
+			if idx != -1 {
+				// Start after "/tags/v"
+				verStart := idx + 7
+				remainder := val[verStart:]
+				// Find the end at .tar.gz or .zip
+				if endIdx := strings.Index(remainder, ".tar.gz"); endIdx != -1 {
+					val = remainder[:endIdx]
+				} else if endIdx := strings.Index(remainder, ".zip"); endIdx != -1 {
+					val = remainder[:endIdx]
+				} else {
+					continue
+				}
+				if !semver.IsValid("v" + val) {
+					return "", errz.Errorf("invalid brew formula: invalid semver in URL")
+				}
+				return val, nil
+			}
 		}
 
 		if strings.HasPrefix(line, "bottle") {
