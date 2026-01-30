@@ -580,3 +580,103 @@ func TestCmdInspect_NumericSchema(t *testing.T) {
 		})
 	}
 }
+
+// TestCmdInspect_NumericCatalogSchema tests "sq inspect --src.schema CATALOG.SCHEMA"
+// with numeric and numeric-prefixed identifiers in both catalog and schema positions.
+// This validates the full CATALOG.SCHEMA parsing flow for issue #470.
+// See: https://github.com/neilotoole/sq/issues/470
+func TestCmdInspect_NumericCatalogSchema(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	// Test cases with numeric catalog.schema combinations.
+	// Note: For PostgreSQL, "catalog" is the database name. Creating databases
+	// with numeric names requires special permissions, so we use the existing
+	// sakila database as the catalog and test numeric schemas within it.
+	testCases := []struct {
+		name   string
+		schema string
+	}{
+		{"pure_numeric", "77777"},
+		{"numeric_prefixed", "888xyz"},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			ctx := th.Context
+			src := th.Source(sakila.Pg)
+
+			// Create a unique schema name for this test.
+			schemaName := tc.schema + "_" + stringz.Uniq8()
+
+			// Create the numeric schema directly via SQL.
+			db := th.OpenDB(src)
+			_, err := db.ExecContext(ctx, fmt.Sprintf(`DROP SCHEMA IF EXISTS %q CASCADE`, schemaName))
+			require.NoError(t, err)
+			_, err = db.ExecContext(ctx, fmt.Sprintf(`CREATE SCHEMA %q`, schemaName))
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				_, _ = db.ExecContext(ctx, fmt.Sprintf(`DROP SCHEMA IF EXISTS %q CASCADE`, schemaName))
+			})
+
+			// Create a test table in the numeric schema.
+			tblName := "catschema_test_tbl"
+			_, err = db.ExecContext(ctx, fmt.Sprintf(`CREATE TABLE %q.%q (id serial PRIMARY KEY, val text)`,
+				schemaName, tblName))
+			require.NoError(t, err)
+
+			// Insert some test data.
+			_, err = db.ExecContext(ctx, fmt.Sprintf(`INSERT INTO %q.%q (val) VALUES ('a'), ('b'), ('c')`,
+				schemaName, tblName))
+			require.NoError(t, err)
+
+			// The catalog for PostgreSQL is the database name.
+			// For the sakila test database, this is "sakila".
+			catalogSchema := "sakila." + schemaName
+
+			// Run sq inspect with --src.schema in CATALOG.SCHEMA format.
+			tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+			err = tr.Exec(
+				"inspect",
+				"--src.schema", catalogSchema,
+				"--json",
+			)
+			require.NoError(t, err, "sq inspect --src.schema %q should succeed", catalogSchema)
+
+			// Parse the output.
+			srcMeta := &metadata.Source{}
+			require.NoError(t, json.Unmarshal(tr.Out.Bytes(), srcMeta))
+
+			// Verify the schema matches our numeric schema.
+			require.Equal(t, schemaName, srcMeta.Schema,
+				"inspect output should show the numeric schema")
+
+			// Verify our test table appears in the output.
+			tblNames := srcMeta.TableNames()
+			require.Contains(t, tblNames, tblName,
+				"inspect output should contain our test table")
+
+			// Also test with --src.schema using just the schema name (no catalog prefix)
+			// to confirm both formats work.
+			tr2 := testrun.New(th.Context, t, nil).Hush().Add(*src)
+			err = tr2.Exec(
+				"inspect",
+				"."+tblName,
+				"--src.schema", schemaName, // schema only, no catalog
+				"--json",
+			)
+			require.NoError(t, err, "sq inspect .%s --src.schema %q should succeed", tblName, schemaName)
+
+			tblMeta := &metadata.Table{}
+			require.NoError(t, json.Unmarshal(tr2.Out.Bytes(), tblMeta))
+			require.Equal(t, tblName, tblMeta.Name,
+				"table inspect should return correct table name")
+			require.Equal(t, int64(3), tblMeta.RowCount,
+				"table inspect should show correct row count")
+		})
+	}
+}
