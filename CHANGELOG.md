@@ -14,12 +14,19 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## [Unreleased]
 
-### Fixed
+### Added
 
-- [#470]: Numeric Postgres schemas (e.g., `10000`, `123abc`) can now be queried
-  using `--src.schema`. The SLQ grammar has been updated to support numeric and
-  numeric-prefixed identifiers in schema/catalog positions. Thanks to
-  [@majiayu000](https://github.com/majiayu000) for the initial fix.
+- [#470]: Previously, the `--src.schema=[CATALOG.]SCHEMA` flag did not allow
+  the schema or catalog name to begin with a digit. This is now permitted.
+  Kudos to [@majiayu000](https://github.com/majiayu000).
+
+  ```shell
+  # Inspect schema "123schema" via the @pg1 source
+  $ sq inspect @pg1 --src.schema=123schema
+
+  # Inspect schema "789schema" in catalog "456catalog" via the @pg1 source
+  $ sq inspect @pg1 --src.schema=456catalog.789schema
+  ```
 
 ## [v0.48.12] - 2026-01-30
 
