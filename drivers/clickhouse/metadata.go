@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -514,9 +515,9 @@ func getNewRecordFunc(rowMeta record.Meta) driver.NewRecordFunc {
 				}
 			}
 		}
-		rec, err := driver.NewRecordFromScanRow(rowMeta, row, nil)
-		if err != nil {
-			return nil, err
+		rec, skipped := driver.NewRecordFromScanRow(rowMeta, row, nil)
+		if len(skipped) > 0 {
+			return nil, errz.Errorf("expected zero skipped cols but have %d: %v", len(skipped), skipped)
 		}
 		return rec, nil
 	}
