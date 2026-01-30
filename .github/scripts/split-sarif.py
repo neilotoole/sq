@@ -69,9 +69,8 @@ def split_sarif(input_file, output_dir):
             if not tool_name:
                 tool_name = "unknown"
 
-        # Add automationDetails.id for unique category
-        # This is required by upload-sarif when uploading a directory of files
-        # so each file has a distinct category
+        # Add automationDetails.id so GitHub Code Scanning can uniquely
+        # categorize each uploaded SARIF file
         run_id = f"codacy/{tool_name}/{i}"
         if 'automationDetails' not in run:
             run['automationDetails'] = {}
