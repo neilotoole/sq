@@ -12,6 +12,22 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## [Unreleased]
+
+### Changed
+
+- [#470]: Previously, the `--src.schema=[CATALOG.]SCHEMA` flag did not allow
+  the schema or catalog name to begin with a digit. This is now permitted.
+  Kudos to [@majiayu000](https://github.com/majiayu000).
+
+  ```shell
+  # Inspect schema "123schema" via the @pg1 source
+  $ sq inspect @pg1 --src.schema=123schema
+
+  # Inspect schema "789schema" in catalog "456catalog" via the @pg1 source
+  $ sq inspect @pg1 --src.schema=456catalog.789schema
+  ```
+
 ## [v0.48.12] - 2026-01-30
 
 🫡: This patch release addresses issues reported by [@Dialga](https://github.com/Dialga).
@@ -1329,6 +1345,7 @@ make working with lots of sources much easier.
 [#415]: https://github.com/neilotoole/sq/issues/415
 [#446]: https://github.com/neilotoole/sq/issues/446
 [#469]: https://github.com/neilotoole/sq/issues/469
+[#470]: https://github.com/neilotoole/sq/issues/470
 [#502]: https://github.com/neilotoole/sq/pull/502
 [#504]: https://github.com/neilotoole/sq/issues/504
 [#506]: https://github.com/neilotoole/sq/issues/506

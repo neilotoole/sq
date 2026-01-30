@@ -16,6 +16,12 @@ func TestDoubleQuote(t *testing.T) {
 	}{
 		{in: ``, want: `""`},
 		{in: `"hello"`, want: `"""hello"""`},
+		// Numeric identifiers (issue #470: numeric schemas)
+		{in: `123`, want: `"123"`},
+		{in: `456abc`, want: `"456abc"`},
+		{in: `789_schema`, want: `"789_schema"`},
+		{in: `0`, want: `"0"`},
+		{in: `9876543210`, want: `"9876543210"`},
 	}
 
 	for _, tc := range testCases {
@@ -57,6 +63,10 @@ func TestBacktickQuote(t *testing.T) {
 	}{
 		{in: "", want: "``"},
 		{in: "`world`", want: "```world```"},
+		// Numeric identifiers (issue #470: numeric schemas)
+		{in: "123", want: "`123`"},
+		{in: "456abc", want: "`456abc`"},
+		{in: "789_schema", want: "`789_schema`"},
 	}
 
 	for _, tc := range testCases {
