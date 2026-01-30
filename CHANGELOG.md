@@ -12,7 +12,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
-## Upcoming
+## [v0.48.12] - 2026-01-30
+
+🫡: This patch release addresses issues reported by [@Dialga](https://github.com/Dialga).
 
 ### Fixed
 
@@ -24,7 +26,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
-- [#531]: Tweaks to `sq`'s version handling.
+- [#531]: Several changes to `sq` version handling.
   - [`sq version`](https://sq.io/docs/cmd/version) now returns faster by
     reducing the update-check timeout from 2s to 500ms. Additionally, the
     version check now uses the official
@@ -1398,3 +1400,4 @@ make working with lots of sources much easier.
 [v0.48.5]: https://github.com/neilotoole/sq/compare/v0.48.4...v0.48.5
 [v0.48.10]: https://github.com/neilotoole/sq/compare/v0.48.5...v0.48.10
 [v0.48.11]: https://github.com/neilotoole/sq/compare/v0.48.10...v0.48.11
+[v0.48.12]: https://github.com/neilotoole/sq/compare/v0.48.12...v0.48.12
