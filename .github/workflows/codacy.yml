@@ -67,12 +67,23 @@ jobs:
       - name: Split SARIF file
         run: python3 .github/scripts/split-sarif.py results.sarif ./sarif-split
 
+      # Verify split files were generated
+      - name: Verify split files exist
+        run: |
+          if [ ! -d "./sarif-split" ] || [ -z "$(ls -A ./sarif-split/*.sarif 2>/dev/null)" ]; then
+            echo "Error: No SARIF files were generated"
+            exit 1
+          fi
+          file_count=$(ls ./sarif-split/*.sarif | wc -l)
+          echo "Found $file_count SARIF file(s) to upload"
+
       # Upload each SARIF file individually via the API
       # Files must be gzip-compressed and base64-encoded per GitHub API requirements
       - name: Upload SARIF results
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          upload_failed=0
           for sarif_file in ./sarif-split/*.sarif; do
             if [ -f "$sarif_file" ]; then
               filename=$(basename "$sarif_file" .sarif)
@@ -99,6 +110,12 @@ jobs:
               else
                 echo "✗ Failed to upload $filename (HTTP $http_code)"
                 echo "$body"
+                upload_failed=1
               fi
             fi
           done
+
+          if [ "$upload_failed" -eq 1 ]; then
+            echo "Error: One or more SARIF uploads failed"
+            exit 1
+          fi

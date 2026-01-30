@@ -15,6 +15,7 @@ Example:
 """
 
 import json
+import re
 import sys
 import os
 from pathlib import Path
@@ -32,8 +33,12 @@ def split_sarif(input_file, output_dir):
         List of output file paths
     """
     # Read the input SARIF file
-    with open(input_file, 'r', encoding='utf-8') as f:
-        sarif_data = json.load(f)
+    try:
+        with open(input_file, 'r', encoding='utf-8') as f:
+            sarif_data = json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid JSON in '{input_file}': {e}")
+        return []
 
     # Check if 'runs' exists
     if 'runs' not in sarif_data:
@@ -57,8 +62,12 @@ def split_sarif(input_file, output_dir):
         tool_name = "unknown"
         if 'tool' in run and 'driver' in run['tool'] and 'name' in run['tool']['driver']:
             tool_name = run['tool']['driver']['name']
-            # Sanitize tool name for filename
-            tool_name = tool_name.replace('/', '-').replace('\\', '-').replace(' ', '-')
+            # Sanitize tool name for filename (remove/replace unsafe characters)
+            tool_name = re.sub(r'[<>:"/\\|?*\s]', '-', tool_name)
+            # Remove consecutive dashes and trim
+            tool_name = re.sub(r'-+', '-', tool_name).strip('-')
+            if not tool_name:
+                tool_name = "unknown"
 
         # Add automationDetails.id for unique category
         # This is required by upload-sarif when uploading a directory of files
@@ -78,8 +87,12 @@ def split_sarif(input_file, output_dir):
         output_file = os.path.join(output_dir, f'results-{i:02d}-{tool_name}.sarif')
 
         # Write the single run to file
-        with open(output_file, 'w', encoding='utf-8') as out:
-            json.dump(single_run_sarif, out, indent=2)
+        try:
+            with open(output_file, 'w', encoding='utf-8') as out:
+                json.dump(single_run_sarif, out, indent=2)
+        except OSError as e:
+            print(f"Error: Failed to write '{output_file}': {e}")
+            sys.exit(1)
 
         output_files.append(output_file)
         print(f"  [{i}/{total_runs}] Created {os.path.basename(output_file)}")
