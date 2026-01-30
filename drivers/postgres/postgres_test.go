@@ -349,8 +349,11 @@ func TestNumericSchema(t *testing.T) {
 	}
 }
 
-// TestNumericSchema_CatalogSchema tests parsing of numeric catalog.schema
-// combinations via the --src.schema flag.
+// TestNumericSchema_CatalogSchema tests that numeric and numeric-prefixed
+// identifiers work correctly in the CATALOG.SCHEMA format (e.g., "sakila.123")
+// used by the --src.schema flag. In PostgreSQL, catalog is the database name.
+// This validates the full parsing flow for issue #470.
+// See: https://github.com/neilotoole/sq/issues/470
 func TestNumericSchema_CatalogSchema(t *testing.T) {
 	t.Parallel()
 

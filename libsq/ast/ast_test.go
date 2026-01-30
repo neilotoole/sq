@@ -33,6 +33,11 @@ func TestParseCatalogSchema_ErrorMessages(t *testing.T) {
 	}
 }
 
+// TestParseCatalogSchema tests the ParseCatalogSchema function which parses
+// strings of the form "catalog.schema" or just "schema". It validates parsing
+// of standard identifiers, quoted identifiers, and numeric/numeric-prefixed
+// identifiers (issue #470).
+// See: https://github.com/neilotoole/sq/issues/470
 func TestParseCatalogSchema(t *testing.T) {
 	testCases := []struct {
 		in                      string

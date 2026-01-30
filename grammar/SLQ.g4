@@ -290,6 +290,10 @@ unaryOperator: '-' | '+' | '~' | '!';
 BOOL: 'true' | 'false';
 NULL: 'null';
 ID: [a-zA-Z_][a-zA-Z0-9_]*;
+
+// IDNUM matches numeric-prefixed identifiers that start with digits followed
+// by at least one letter or underscore. Examples: 123abc, 007bond, 456_schema.
+// This token was added to support numeric schema/catalog names (issue #470).
 IDNUM: [0-9]+ [a-zA-Z_] [a-zA-Z0-9_]*;
 WS: [ \t\r\n]+ -> skip;
 LPAR: '(';
