@@ -162,21 +162,17 @@ func fetchBrewVersion(ctx context.Context) (string, error) {
 //   - Explicit version: `version "0.48.11"` (used by personal tap/GoReleaser)
 //   - URL-based version: `url ".../tags/v0.48.11.tar.gz"` (used by homebrew-core)
 //
-// Explicit version always takes precedence over URL-based version, regardless
-// of the order they appear in the formula.
+// While scanning the formula (up to the "bottle" section), explicit version
+// takes precedence over URL-based version. A version declared after the
+// "bottle" section is not considered.
 func getVersionFromBrewFormula(f []byte) (string, error) {
 	var (
 		val        string
 		urlVersion string // URL-based version (fallback)
-		err        error
 	)
 
 	sc := bufio.NewScanner(bytes.NewReader(f))
 	for sc.Scan() {
-		if err = sc.Err(); err != nil {
-			return "", errz.Err(err)
-		}
-
 		val = strings.TrimSpace(sc.Text())
 
 		// Check for explicit version line: version "0.48.11"
