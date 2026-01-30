@@ -86,8 +86,8 @@ func (fs *Store) Load(ctx context.Context) (*config.Config, error) {
 		}
 		if errors.Is(err, errConfigVersionNewerThanBuild) {
 			log.Warn("Config version is newer than sq version; continuing anyway",
-				"config_version", foundVers,
-				"build_version", buildinfo.Version)
+				lga.ConfigVersion, foundVers,
+				lga.BuildVersion, buildinfo.Version)
 		}
 
 		if mightNeedUpgrade {
@@ -113,8 +113,8 @@ func (fs *Store) Load(ctx context.Context) (*config.Config, error) {
 			}
 			if errors.Is(err, errConfigVersionNewerThanBuild) {
 				log.Warn("Config version is newer than sq version; continuing anyway",
-					"config_version", foundVers,
-					"build_version", buildinfo.Version)
+					lga.ConfigVersion, foundVers,
+					lga.BuildVersion, buildinfo.Version)
 			}
 
 			if mightNeedUpgrade {
