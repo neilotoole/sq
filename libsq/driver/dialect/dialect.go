@@ -132,8 +132,9 @@ func DefaultExecModeFor(sqlStr string) (ExecMode, error) {
 
 	// Use usql's FindPrefix to extract the statement prefix (first 6 words).
 	// Parameters: (sql, allowCComments, allowHashComments, allowMultilineComments)
-	// Standard SQL uses -- and /* */ comments, not C-style // or hash #.
-	prefix := ustmt.FindPrefix(sqlStr, false, false, true)
+	// Standard SQL uses -- and /* */ comments, not C-style //; however, hash (#)
+	// comments are also enabled to support MySQL.
+	prefix := ustmt.FindPrefix(sqlStr, false, true, true)
 	if prefix == "" {
 		return "", errz.New("SQL string contains only comments or is invalid")
 	}

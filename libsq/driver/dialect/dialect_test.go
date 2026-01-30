@@ -58,6 +58,7 @@ func TestDefaultExecModeFor(t *testing.T) {
 		{"block comment then select", "/* block comment */ SELECT 1", ExecModeQuery},
 		{"multiple comments then select", "-- line 1\n-- line 2\nSELECT 1", ExecModeQuery},
 		{"comment with mixed case", "/* Comment */ select 1", ExecModeQuery},
+		{"hash comment then select", "# MySQL comment\nSELECT 1", ExecModeQuery},
 
 		// === DDL/DML statements (should return ExecModeExec) ===
 		{"create table", "CREATE TABLE users (id INT)", ExecModeExec},
