@@ -198,6 +198,37 @@ Direct execution via `ExecContext()` works, but `PrepareUpdateStmt` requires
 **Status**: `TestSQLDriver_PrepareUpdateStmt` is **skipped** for ClickHouse.
 See Development Log for full investigation details.
 
+### 5. CLI Tests Skipped: Batch Insert Connection Corruption
+
+Several CLI tests that involve inserting data into tables are skipped for
+ClickHouse when it is the **destination** database. These tests use the batch
+insert mechanism which triggers the connection state corruption described in
+limitation #3 above.
+
+**Skipped tests** (in `cli/` package):
+
+- `TestCreateTable_bytes` - Creates table and inserts binary data
+- `TestOutputRaw` - Tests raw binary output (requires data insertion)
+- `TestCmdSQL_Insert` - Tests `sq sql --insert=@dest.tbl` (ClickHouse as dest)
+- `TestCmdSLQ_Insert` - Tests `sq slq --insert=@dest.tbl` (ClickHouse as dest)
+
+Note: These tests pass when ClickHouse is the **origin** (reading data works
+fine); they only fail when ClickHouse is the destination for batch inserts.
+
+### 6. CLI Tests Skipped: Standard UPDATE/DELETE Not Supported
+
+ClickHouse does not support standard SQL `UPDATE` and `DELETE` statements.
+Instead, it requires `ALTER TABLE ... UPDATE` or `ALTER TABLE ... DELETE`
+syntax (lightweight mutations). Tests that execute standard CRUD operations
+are skipped for ClickHouse.
+
+**Skipped tests** (in `cli/` package):
+
+- `TestCmdSQL_ExecMode` - Runs full CRUD lifecycle (CREATE, INSERT, UPDATE,
+  DELETE, DROP)
+- `TestCmdSQL_ExecTypeEdgeCases` - Tests SQL type detection with various
+  statement types including UPDATE and DELETE
+
 ## Array Type Architecture
 
 This section documents how sq handles array types from ClickHouse, and the
