@@ -218,7 +218,7 @@ func getVersionFromBrewFormula(f []byte) (string, error) {
 	}
 
 	if sc.Err() != nil {
-		return "", errz.Wrap(err, "invalid brew formula")
+		return "", errz.Wrap(sc.Err(), "invalid brew formula")
 	}
 
 	return "", errz.New("invalid brew formula")
