@@ -70,11 +70,11 @@ jobs:
       # Verify split files were generated
       - name: Verify split files exist
         run: |
-          if [ ! -d "./sarif-split" ] || [ -z "$(ls -A ./sarif-split/*.sarif 2>/dev/null)" ]; then
+          if [ ! -d "./sarif-split" ] || [ -z "$(find ./sarif-split -maxdepth 1 -name '*.sarif' -print -quit 2>/dev/null)" ]; then
             echo "Error: No SARIF files were generated"
             exit 1
           fi
-          file_count=$(ls ./sarif-split/*.sarif | wc -l)
+          file_count=$(find ./sarif-split -maxdepth 1 -name '*.sarif' | wc -l)
           echo "Found $file_count SARIF file(s) to upload"
 
       # Upload each SARIF file individually via the API
