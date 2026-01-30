@@ -229,6 +229,7 @@ func (d *driveri) Dialect() dialect.Dialect {
 		Enquote:        stringz.DoubleQuote,
 		MaxBatchValues: 500,
 		Ops:            dialect.DefaultOps(),
+		ExecModeFor:    dialect.DefaultExecModeFor,
 		Joins:          jointype.All(),
 		Catalog:        false,
 	}

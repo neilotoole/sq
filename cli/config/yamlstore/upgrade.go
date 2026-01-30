@@ -2,6 +2,7 @@ package yamlstore
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strings"
 
@@ -153,8 +154,45 @@ func LoadVersionFromFile(path string) (string, error) {
 	return "", errz.Errorf("config file does not have a version field: %v", path)
 }
 
-// checkNeedsUpgrade checks on the config version, returning needsUpgrade
-// if applicable. The returned foundVers is a valid semver.
+// errConfigVersionNewerThanBuild is a sentinel error returned by
+// checkNeedsUpgrade when the config file's version is newer than the
+// current sq build version. This typically occurs when a user downgrades
+// to an older sq version for testing or compatibility purposes.
+//
+// Callers should handle this error gracefully by logging a warning and
+// continuing execution, rather than failing outright. This allows users
+// to run older sq versions against configs created by newer versions,
+// which is useful for:
+//   - Testing regressions in older versions
+//   - Temporary downgrades while waiting for bug fixes
+//   - Development and debugging scenarios
+//
+// Note that prerelease builds (e.g., v0.0.0-dev) are exempt from this
+// check and will not trigger this error.
+//
+// IMPLEMENTATION NOTE: The current config.version mechanism is not ideal.
+// Currently, sq always stamps config.version with the sq binary version
+// after any upgrade processing. However, config.version should semantically
+// represent the config schema version - i.e., the sq version in which the
+// config schema last changed in a way that requires migration. Since schema
+// changes are infrequent (only one upgrade exists: v0.34.0), the config
+// version gets "inflated" unnecessarily. For example, a config touched by
+// sq v0.48.0 gets stamped v0.48.0, but the schema hasn't changed since
+// v0.34.0, so sq v0.47.0 should be able to read it fine. This error and
+// its graceful handling work around this design limitation.
+var errConfigVersionNewerThanBuild = errors.New("config: config version is newer than sq version")
+
+// checkNeedsUpgrade checks the config file's version against the current sq
+// build version and determines if the config needs to be upgraded.
+//
+// Returns:
+//   - needsUpgrade: true if config version < build version (upgrade required)
+//   - foundVers: the semver version found in the config file
+//   - err: non-nil on version parsing errors, or errConfigVersionNewerThanBuild
+//     if config version > build version (for non-prerelease builds)
+//
+// When config version equals build version, returns (false, foundVers, nil).
+// Prerelease builds (e.g., v0.0.0-dev) are exempt from the newer-version check.
 func checkNeedsUpgrade(ctx context.Context, path string) (needsUpgrade bool, foundVers string, err error) {
 	foundVers, err = LoadVersionFromFile(path)
 	if err != nil {
@@ -180,8 +218,7 @@ func checkNeedsUpgrade(ctx context.Context, path string) (needsUpgrade bool, fou
 		// - user needs to upgrade sq
 		// - but we make an exception if sq is prerelease
 		if semver.Prerelease(buildVers) == "" {
-			return false, foundVers, errz.Errorf("config: version %q is newer than sq version %q: upgrade sq to a newer version",
-				foundVers, buildVers)
+			return false, foundVers, errConfigVersionNewerThanBuild
 		}
 		return false, foundVers, nil
 

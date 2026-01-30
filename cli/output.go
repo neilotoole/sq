@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
-
 	"github.com/fatih/color"
 	colorable "github.com/mattn/go-colorable"
 	wordwrap "github.com/mitchellh/go-wordwrap"
@@ -30,6 +28,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
@@ -298,15 +297,17 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 	// flags and set the various writer fields depending upon which
 	// writers the format implements.
 	w = &output.Writers{
-		PrOut:    outCfg.outPr,
-		PrErr:    outCfg.errOutPr,
-		Record:   tablew.NewRecordWriter(outCfg.out, outCfg.outPr),
-		Metadata: tablew.NewMetadataWriter(outCfg.out, outCfg.outPr),
-		Source:   tablew.NewSourceWriter(outCfg.out, outCfg.outPr),
-		Ping:     tablew.NewPingWriter(outCfg.out, outCfg.outPr),
-		Error:    tablew.NewErrorWriter(outCfg.errOut, outCfg.errOutPr, OptErrorStack.Get(o)),
-		Version:  tablew.NewVersionWriter(outCfg.out, outCfg.outPr),
-		Config:   tablew.NewConfigWriter(outCfg.out, outCfg.outPr),
+		PrOut:        outCfg.outPr,
+		PrErr:        outCfg.errOutPr,
+		Record:       tablew.NewRecordWriter(outCfg.out, outCfg.outPr),
+		RecordInsert: tablew.NewRecordInsertWriter(outCfg.out, outCfg.outPr),
+		StmtExec:     tablew.NewStmtExecWriter(outCfg.out, outCfg.outPr),
+		Metadata:     tablew.NewMetadataWriter(outCfg.out, outCfg.outPr),
+		Source:       tablew.NewSourceWriter(outCfg.out, outCfg.outPr),
+		Ping:         tablew.NewPingWriter(outCfg.out, outCfg.outPr),
+		Error:        tablew.NewErrorWriter(outCfg.errOut, outCfg.errOutPr, OptErrorStack.Get(o)),
+		Version:      tablew.NewVersionWriter(outCfg.out, outCfg.outPr),
+		Config:       tablew.NewConfigWriter(outCfg.out, outCfg.outPr),
 	}
 
 	if OptErrorFormat.Get(o) == format.JSON {
@@ -317,7 +318,8 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 	//nolint:exhaustive
 	switch fm {
 	case format.JSON:
-		// No format specified, use JSON
+		w.RecordInsert = jsonw.NewRecordInsertWriter(outCfg.out, outCfg.outPr)
+		w.StmtExec = jsonw.NewStmtExecWriter(outCfg.out, outCfg.outPr)
 		w.Metadata = jsonw.NewMetadataWriter(outCfg.out, outCfg.outPr)
 		w.Source = jsonw.NewSourceWriter(outCfg.out, outCfg.outPr)
 		w.Version = jsonw.NewVersionWriter(outCfg.out, outCfg.outPr)
@@ -546,9 +548,9 @@ func getOutputConfig(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup
 	}
 
 	switch {
-	case cmdFlagChanged(cmd, flag.FileOutput) || fm == format.Raw:
-		// For file or raw output, we don't decorate stdout with
-		// any colorable decorator.
+	case cmdFlagChanged(cmd, flag.FileOutput) || fm == format.Raw || fm == format.XLSX:
+		// For file, raw, or XLSX output, we don't decorate stdout with
+		// any colorable decorator. XLSX is binary and must not be modified.
 		outCfg.out = stdout
 		outCfg.outPr.EnableColor(false)
 	case cmd != nil && cmdFlagChanged(cmd, flag.FileOutput):
