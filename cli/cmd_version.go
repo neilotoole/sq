@@ -154,30 +154,33 @@ func fetchBrewVersion(ctx context.Context) (string, error) {
 	return getVersionFromBrewFormula(body)
 }
 
-// getVersionFromBrewFormula returns the first brew version
-// from f, which is a brew ruby formula. The version is returned
-// without a "v" prefix, e.g. "0.1.2", not "v0.1.2".
+// getVersionFromBrewFormula returns the brew version from f, which is a brew
+// ruby formula. The version is returned without a "v" prefix, e.g. "0.1.2",
+// not "v0.1.2".
 //
 // It supports two formula formats:
 //   - Explicit version: `version "0.48.11"` (used by personal tap/GoReleaser)
 //   - URL-based version: `url ".../tags/v0.48.11.tar.gz"` (used by homebrew-core)
+//
+// Explicit version always takes precedence over URL-based version, regardless
+// of the order they appear in the formula.
 func getVersionFromBrewFormula(f []byte) (string, error) {
 	var (
-		line string
-		val  string
-		err  error
+		val        string
+		urlVersion string // URL-based version (fallback)
+		err        error
 	)
 
 	sc := bufio.NewScanner(bytes.NewReader(f))
 	for sc.Scan() {
-		line = sc.Text()
 		if err = sc.Err(); err != nil {
 			return "", errz.Err(err)
 		}
 
-		val = strings.TrimSpace(line)
+		val = strings.TrimSpace(sc.Text())
 
 		// Check for explicit version line: version "0.48.11"
+		// Explicit version always takes precedence, so return immediately.
 		if strings.HasPrefix(val, `version "`) {
 			val = val[9:]
 			val = strings.TrimSuffix(val, `"`)
@@ -189,6 +192,7 @@ func getVersionFromBrewFormula(f []byte) (string, error) {
 
 		// Check for URL-based version (homebrew-core format):
 		// url "https://github.com/neilotoole/sq/archive/refs/tags/v0.48.11.tar.gz"
+		// Don't return immediately; continue scanning for explicit version.
 		if strings.HasPrefix(val, `url "`) && strings.Contains(val, "/tags/v") {
 			// Extract version from URL pattern /tags/vX.Y.Z.tar.gz
 			idx := strings.Index(val, "/tags/v")
@@ -202,25 +206,28 @@ func getVersionFromBrewFormula(f []byte) (string, error) {
 				} else if endIdx := strings.Index(remainder, ".zip"); endIdx != -1 {
 					val = remainder[:endIdx]
 				} else {
-					// Unrecognized archive extension; skip and keep scanning
-					// for an explicit "version" line or other URL format.
+					// Unrecognized archive extension; skip and keep scanning.
 					continue
 				}
 				if !semver.IsValid("v" + val) {
 					return "", errz.Errorf("invalid brew formula: invalid semver in URL {%s}", val)
 				}
-				return val, nil
+				urlVersion = val
 			}
 		}
 
 		if strings.HasPrefix(val, "bottle") {
-			// Gone too far
-			return "", errz.New("unable to parse brew formula")
+			// Reached the bottle section; stop scanning.
+			break
 		}
 	}
 
 	if sc.Err() != nil {
 		return "", errz.Wrap(sc.Err(), "invalid brew formula")
+	}
+
+	if urlVersion != "" {
+		return urlVersion, nil
 	}
 
 	return "", errz.New("invalid brew formula")

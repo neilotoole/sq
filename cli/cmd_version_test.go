@@ -66,10 +66,20 @@ func TestGetVersionFromBrewFormula_URLBased(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "explicit_version_takes_precedence",
+			name: "explicit_version_before_url",
 			input: `class Sq < Formula
   version "0.50.0"
   url "https://github.com/neilotoole/sq/archive/refs/tags/v0.48.3.tar.gz"
+
+  bottle do
+`,
+			wantVer: "0.50.0",
+		},
+		{
+			name: "explicit_version_after_url",
+			input: `class Sq < Formula
+  url "https://github.com/neilotoole/sq/archive/refs/tags/v0.48.3.tar.gz"
+  version "0.50.0"
 
   bottle do
 `,
