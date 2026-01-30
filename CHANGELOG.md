@@ -14,7 +14,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## [Unreleased]
 
-### Added
+### Changed
 
 - [#470]: Previously, the `--src.schema=[CATALOG.]SCHEMA` flag did not allow
   the schema or catalog name to begin with a digit. This is now permitted.
