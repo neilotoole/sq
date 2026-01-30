@@ -83,7 +83,13 @@ func execVersion(cmd *cobra.Command, _ []string) error {
 	// We'd like to display that there's an update available, but
 	// we don't want to wait around long for that.
 	// So, we swallow (but log) any error from the goroutine.
-	ctx, cancelFn := context.WithTimeout(cmd.Context(), time.Second*2)
+	//
+	// See also: https://github.com/neilotoole/sq/issues/531
+	//
+	// At some point, we could make the should-check-for-update behavior
+	// configurable. For now, we'll make this timeout pretty short so that
+	// "sq version" returns quickly even with low/slow/no-connectivity.
+	ctx, cancelFn := context.WithTimeout(cmd.Context(), time.Millisecond*500)
 	defer cancelFn()
 
 	resultCh := make(chan string)
