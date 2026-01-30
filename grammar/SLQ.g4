@@ -323,6 +323,17 @@ NEQ: '!=';
 EQ: '==';
 
 
+// NAME matches a dot followed by an identifier (table name, column name, or schema name).
+// The alternatives are:
+//   - ARG:    Argument reference, e.g., .$var
+//   - ID:     Standard identifier starting with letter/underscore, e.g., .actor, ._private
+//   - STRING: Quoted identifier, e.g., ."my table"
+//   - INTF:   Pure integer for numeric schema/catalog names, e.g., .123 (issue #470)
+//   - IDNUM:  Numeric-prefixed identifier, e.g., .123abc, .007bond (issue #470)
+//
+// Note: INTF is a lexer fragment, but ANTLR allows referencing fragments directly in
+// lexer rules. The fragment content is inlined. We use INTF here (instead of defining
+// a separate token) to avoid conflicts with the existing NN token (NN: INTF).
 NAME: '.' (ARG | ID | STRING | INTF | IDNUM);
 
 // SEL can be .THING or .THING.OTHERTHING.

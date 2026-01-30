@@ -34,6 +34,15 @@ func TestParseCatalogSchema(t *testing.T) {
 		{in: "123abc.def", wantCatalog: "123abc", wantSchema: "def"},
 		{in: "456.123abc", wantCatalog: "456", wantSchema: "123abc"},
 		{in: "123abc.456def", wantCatalog: "123abc", wantSchema: "456def"},
+		// Edge cases for numeric identifiers (issue #470)
+		{in: "0", wantCatalog: "", wantSchema: "0"},             // zero as schema
+		{in: "0.0", wantCatalog: "0", wantSchema: "0"},          // zero as both
+		{in: "0.123", wantCatalog: "0", wantSchema: "123"},      // zero as catalog
+		{in: "123e10", wantCatalog: "", wantSchema: "123e10"},   // looks like exp notation, but is IDNUM
+		{in: "1e", wantCatalog: "", wantSchema: "1e"},           // single digit + letter
+		{in: "123_", wantCatalog: "", wantSchema: "123_"},       // trailing underscore
+		{in: "_123", wantCatalog: "", wantSchema: "_123"},       // leading underscore (ID, not IDNUM)
+		{in: "007bond", wantCatalog: "", wantSchema: "007bond"}, // leading zeros
 	}
 
 	for i, tc := range testCases {
