@@ -104,12 +104,20 @@ minimum, the following drivers are bundled:
   postgres   PostgreSQL
   sqlserver  Microsoft SQL Server / Azure SQL Edge
   mysql      MySQL
+  clickhouse ClickHouse
   csv        Comma-Separated Values
   tsv        Tab-Separated Values
   json       JSON
   jsona      JSON Array: LF-delimited JSON arrays
   jsonl      JSON Lines: LF-delimited JSON objects
   xlsx       Microsoft Excel XLSX
+
+DRIVER NOTES:
+
+The clickhouse driver will automatically apply a default port if not
+specified: 9000 for non-secure, or 9440 for secure (when "secure=true"
+is in the connection string). This differs from the underlying clickhouse-go
+library, which does not apply a default port.
 
 If there isn't already an active source, the newly added source becomes the
 active source (but the active group does not change). Otherwise you can

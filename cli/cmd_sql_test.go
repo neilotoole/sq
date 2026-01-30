@@ -15,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -23,8 +24,30 @@ import (
 )
 
 // TestCmdSQL_ExecMode runs a sequence of SQL CRUD commands (CREATE, SELECT,
-// UPDATE, etc.) against "sq sql". Some of these result in a query (SELECT), and
-// some result in an exec (CREATE, UPDATE, DROP, etc.).
+// INSERT, UPDATE, DELETE, DROP) against "sq sql" to verify that sq correctly
+// distinguishes between queries (which return result sets) and statements
+// (which return rows-affected counts).
+//
+// The test performs a complete CRUD lifecycle:
+//  1. CREATE TABLE - creates a test table (statement, rows_affected=0)
+//  2. SELECT - verifies table is empty (query, returns empty result set)
+//  3. INSERT x2 - inserts two rows (statements, rows_affected=1 each)
+//  4. SELECT - verifies both rows exist (query, returns 2 rows)
+//  5. UPDATE - modifies one row (statement, rows_affected=1)
+//  6. SELECT - verifies the update (query, returns modified value)
+//  7. DELETE - removes one row (statement, rows_affected=1)
+//  8. SELECT - verifies deletion (query, returns 1 row)
+//  9. DROP TABLE - cleans up (statement, rows_affected=0)
+//
+// This exercises:
+//   - SQL statement type detection (query vs statement)
+//   - Correct output format for each type (result set vs rows_affected)
+//   - Full CRUD operation support across all database drivers
+//   - Sequential statement execution maintaining table state
+//
+// Note: ClickHouse is skipped because it doesn't support standard SQL UPDATE
+// and DELETE statements. ClickHouse requires ALTER TABLE UPDATE/DELETE syntax
+// or lightweight mutations, which are not compatible with this test's approach.
 func TestCmdSQL_ExecMode(t *testing.T) {
 	t.Parallel()
 
@@ -106,6 +129,8 @@ func TestCmdSQL_ExecMode(t *testing.T) {
 
 			th := testh.New(t)
 			src := th.Source(handle) // Will skip test if source not available
+			tu.SkipIf(t, src.Type == drivertype.ClickHouse,
+				"ClickHouse: doesn't support standard UPDATE/DELETE statements")
 			tr := testrun.New(th.Context, t, nil)
 
 			// Set format to JSON so that subsequent runs are using JSON.
@@ -244,8 +269,26 @@ func TestCmdSQL_MultipleStatements(t *testing.T) {
 	}
 }
 
-// TestCmdSQL_ExecTypeEdgeCases tests edge cases for SQL type detection,
-// including comments, case variations, CTEs, and ALTER statements.
+// TestCmdSQL_ExecTypeEdgeCases tests edge cases for SQL statement type detection
+// to ensure sq correctly identifies queries vs statements regardless of formatting.
+//
+// The test verifies that sq handles:
+//   - Case variations: SELECT, select, SeLeCt all detected as queries
+//   - Lowercase statements: insert, update, delete detected as statements
+//   - Block comments: /* comment */ SELECT still detected as query
+//   - Common Table Expressions: WITH cte AS (...) SELECT detected as query
+//
+// For each case, the test verifies:
+//   - Queries return a result set (JSON array)
+//   - Statements return rows_affected count
+//
+// This is important because sq needs to determine the output format based on
+// whether the SQL is a query (returns data) or statement (returns affected count),
+// and this detection must work regardless of SQL formatting conventions.
+//
+// Note: ClickHouse is skipped because it doesn't support standard SQL UPDATE
+// and DELETE statements. ClickHouse requires ALTER TABLE UPDATE/DELETE syntax
+// or lightweight mutations, which are not compatible with this test's approach.
 func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 	t.Parallel()
 
@@ -329,6 +372,8 @@ func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 
 			th := testh.New(t)
 			src := th.Source(handle)
+			tu.SkipIf(t, src.Type == drivertype.ClickHouse,
+				"ClickHouse: doesn't support standard UPDATE/DELETE statements")
 			tr := testrun.New(th.Context, t, nil)
 
 			// Set format to JSON
@@ -378,22 +423,45 @@ func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 	}
 }
 
-// TestCmdSQL_Insert tests "sq sql QUERY --insert=dest.tbl".
+// TestCmdSQL_Insert tests the "sq sql QUERY --insert=@dest.tbl" functionality,
+// which executes a SQL query against one source and inserts the results into
+// a table in another (or the same) source. This is a key feature for cross-database
+// data transfer without requiring intermediate files.
+//
+// The test performs the following for each origin/destination database combination:
+//  1. Creates an empty copy of the actor table in the destination database
+//  2. Executes a SELECT query against the origin database's actor table
+//  3. Uses --insert to pipe results directly into the destination table
+//  4. Verifies all 200 actor rows were successfully transferred
+//
+// This exercises:
+//   - Cross-database querying and insertion (e.g., SQLite → PostgreSQL)
+//   - Same-database query-to-insert (e.g., PostgreSQL → PostgreSQL)
+//   - The batch insert mechanism for efficiently transferring multiple rows
+//   - Schema compatibility between different database engines
+//   - The CLI's ability to manage multiple source connections simultaneously
+//
+// The test matrix covers all combinations of supported SQL databases as both
+// origin (data source) and destination (insert target), ensuring the feature
+// works regardless of which databases are involved.
+//
+// Note: ClickHouse is skipped as a destination due to connection state corruption
+// issues with batch inserts (see drivers/clickhouse/README.md). ClickHouse works
+// fine as an origin (reading data), but the batch insert mechanism used for
+// writing corrupts the connection protocol state.
 func TestCmdSQL_Insert(t *testing.T) {
 	for _, origin := range sakila.SQLLatest() {
-		origin := origin
-
 		t.Run("origin_"+origin, func(t *testing.T) {
 			tu.SkipShort(t, origin == sakila.XLSX)
 
 			for _, dest := range sakila.SQLLatest() {
-				dest := dest
-
 				t.Run("dest_"+dest, func(t *testing.T) {
 					t.Parallel()
 
 					th := testh.New(t)
 					originSrc, destSrc := th.Source(origin), th.Source(dest)
+					tu.SkipIf(t, destSrc.Type == drivertype.ClickHouse,
+						"ClickHouse: batch insert causes connection state corruption (see drivers/clickhouse/README.md)")
 					originTbl := sakila.TblActor
 
 					if th.IsMonotable(originSrc) {

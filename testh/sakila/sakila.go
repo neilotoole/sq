@@ -30,9 +30,17 @@ const (
 	MS17             = "@sakila_ms17"
 	MS19             = "@sakila_ms19"
 	MS               = MS19
+
 	// AZ1 is the handle for Azure SQL Edge v1.x.
+	// Note that Azure SQL Edge is basically the same thing as MS SQL Server.
+	// AZ is not well-supported in the sq codebase. It's possible it will be
+	// removed at some point.
 	AZ1 = "@sakila_az1"
 	AZ  = AZ1
+
+	CH25 = "@sakila_ch25"
+	// CH is the handle for the latest ClickHouse.
+	CH = CH25
 )
 
 // AllHandles returns all the typical sakila handles. It does not
@@ -50,6 +58,7 @@ func AllHandles() []string {
 		// MS17,
 		MS19,
 		AZ1,
+		CH25,
 		XLSX,
 	}
 }
@@ -68,6 +77,7 @@ func SQLAll() []string {
 		// MS17,
 		MS19,
 		AZ1,
+		CH25,
 	}
 }
 
@@ -85,6 +95,7 @@ func SQLAllExternal() []string {
 		// MS17,
 		MS19,
 		AZ1,
+		CH25,
 	}
 }
 
@@ -93,7 +104,7 @@ func SQLAllExternal() []string {
 // in addition to SQLAll to enable quicker iterative testing
 // during development.
 func SQLLatest() []string {
-	return []string{SL3, Pg, My, MS}
+	return []string{SL3, Pg, My, MS, CH}
 }
 
 // PgAll returns the handles for all postgres versions.

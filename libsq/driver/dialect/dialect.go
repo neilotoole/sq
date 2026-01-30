@@ -10,11 +10,41 @@ import (
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
+// RowsAffectedUnsupported is a sentinel value (-1) returned by operations like
+// [driver.SQLDriver.CopyTable] when the database does not support reporting
+// the number of affected rows. Some databases (e.g., ClickHouse) do not report
+// row counts for certain operations like INSERT ... SELECT.
+//
+// Callers should check for this value before using the row count:
+//
+//	copied, err := drvr.CopyTable(ctx, db, from, to, true)
+//	if err != nil {
+//	    return err
+//	}
+//	if copied == dialect.RowsAffectedUnsupported {
+//	    // Row count unsupported by this database; verify success via other means
+//	} else {
+//	    fmt.Printf("Copied %d rows\n", copied)
+//	}
+//
+// This follows a common pattern where -1 indicates "unknown" or "unsupported"
+// (similar to HTTP Content-Length: -1 for chunked encoding).
+const RowsAffectedUnsupported int64 = -1
+
 // Dialect holds driver-specific SQL dialect values and functions.
 // The zero value is not usable; each driver implementation must initialize
 // all fields appropriately. See the driver packages (e.g., postgres, mysql)
 // for examples.
 type Dialect struct {
+	// TODO: Consider adding a bool field "RowsAffectedUnsupported" to indicate
+	// whether the dialect cannot report rows affected for bulk operations like
+	// INSERT ... SELECT. Some databases (e.g., ClickHouse) cannot report row
+	// counts for these operations, and currently this is handled by returning
+	// dialect.RowsAffectedUnsupported (-1) from methods like SQLDriver.CopyTable.
+	// Using "RowsAffectedUnsupported" (rather than "CanReportRowsAffected") means
+	// the zero value (false) represents the common case where rows ARE reported,
+	// following Go idioms for sensible zero values.
+
 	// Placeholders returns a string a SQL placeholders string.
 	// For example "(?, ?, ?)" or "($1, $2, $3), ($4, $5, $6)".
 	Placeholders func(numCols, numRows int) string

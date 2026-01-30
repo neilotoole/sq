@@ -12,24 +12,33 @@ import (
 func TestQuery_groupby(t *testing.T) {
 	testCases := []queryTestCase{
 		{
-			name:         "group_by/single-term",
-			in:           `@sakila | .payment | .customer_id, sum(.amount) | group_by(.customer_id)`,
-			wantSQL:      `SELECT "customer_id", sum("amount") AS "sum(.amount)" FROM "payment" GROUP BY "customer_id"`,
-			override:     driverMap{drivertype.MySQL: "SELECT `customer_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`"},
+			name:    "group_by/single-term",
+			in:      `@sakila | .payment | .customer_id, sum(.amount) | group_by(.customer_id)`,
+			wantSQL: `SELECT "customer_id", sum("amount") AS "sum(.amount)" FROM "payment" GROUP BY "customer_id"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT `customer_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`",
+				drivertype.ClickHouse: "SELECT `customer_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`",
+			},
 			wantRecCount: 599,
 		},
 		{
-			name:         "alias-gb",
-			in:           `@sakila | .payment | .customer_id, sum(.amount) | gb(.customer_id)`,
-			wantSQL:      `SELECT "customer_id", sum("amount") AS "sum(.amount)" FROM "payment" GROUP BY "customer_id"`,
-			override:     driverMap{drivertype.MySQL: "SELECT `customer_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`"},
+			name:    "alias-gb",
+			in:      `@sakila | .payment | .customer_id, sum(.amount) | gb(.customer_id)`,
+			wantSQL: `SELECT "customer_id", sum("amount") AS "sum(.amount)" FROM "payment" GROUP BY "customer_id"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT `customer_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`",
+				drivertype.ClickHouse: "SELECT `customer_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`",
+			},
 			wantRecCount: 599,
 		},
 		{
-			name:         "group_by/multiple_terms",
-			in:           `@sakila | .payment | .customer_id, .staff_id, sum(.amount) | group_by(.customer_id, .staff_id)`,
-			wantSQL:      `SELECT "customer_id", "staff_id", sum("amount") AS "sum(.amount)" FROM "payment" GROUP BY "customer_id", "staff_id"`,
-			override:     driverMap{drivertype.MySQL: "SELECT `customer_id`, `staff_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`, `staff_id`"},
+			name:    "group_by/multiple_terms",
+			in:      `@sakila | .payment | .customer_id, .staff_id, sum(.amount) | group_by(.customer_id, .staff_id)`,
+			wantSQL: `SELECT "customer_id", "staff_id", sum("amount") AS "sum(.amount)" FROM "payment" GROUP BY "customer_id", "staff_id"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT `customer_id`, `staff_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`, `staff_id`",
+				drivertype.ClickHouse: "SELECT `customer_id`, `staff_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`, `staff_id`",
+			},
 			wantRecCount: 1198,
 		},
 		{
@@ -40,10 +49,13 @@ func TestQuery_groupby(t *testing.T) {
 			wantRecCount: 1,
 		},
 		{
-			name:         "group_by/having",
-			in:           `@sakila | .payment | .customer_id, sum(.amount) | group_by(.customer_id) | having(sum(.amount) > 100)`,
-			wantSQL:      `SELECT "customer_id", sum("amount") AS "sum(.amount)" FROM "payment" GROUP BY "customer_id" HAVING sum("amount") > 100`,
-			override:     driverMap{drivertype.MySQL: "SELECT `customer_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id` HAVING sum(`amount`) > 100"},
+			name:    "group_by/having",
+			in:      `@sakila | .payment | .customer_id, sum(.amount) | group_by(.customer_id) | having(sum(.amount) > 100)`,
+			wantSQL: `SELECT "customer_id", sum("amount") AS "sum(.amount)" FROM "payment" GROUP BY "customer_id" HAVING sum("amount") > 100`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT `customer_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id` HAVING sum(`amount`) > 100",
+				drivertype.ClickHouse: "SELECT `customer_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id` HAVING sum(`amount`) > 100",
+			},
 			wantRecCount: 395,
 		},
 	}
