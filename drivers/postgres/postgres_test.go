@@ -269,6 +269,144 @@ func createSimpleTable(ctx context.Context, db *sql.DB, schemaName, tblName stri
 	return nil
 }
 
+// TestNumericSchema verifies that numeric and numeric-prefixed schema names
+// work correctly in PostgreSQL. This tests the fix for issue #470 where
+// numeric schema names like "123" or "456abc" were rejected by the SLQ grammar.
+// See: https://github.com/neilotoole/sq/issues/470
+func TestNumericSchema(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name   string
+		schema string
+	}{
+		{"pure_numeric", "12345"},
+		{"numeric_prefixed", "123abc"},
+		{"numeric_with_underscore", "456_schema"},
+		{"leading_zero", "007bond"},
+		{"all_digits_long", "9876543210"},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			ctx := th.Context
+
+			src := th.Source(sakila.Pg)
+			db := th.OpenDB(src)
+			require.NoError(t, db.Ping())
+
+			// Make the schema name unique to avoid conflicts.
+			schemaName := tc.schema + "_" + stringz.Uniq8()
+
+			err := createSchema(ctx, db, schemaName)
+			require.NoError(t, err, "createSchema(%q) should succeed", schemaName)
+			t.Logf("Created numeric schema {%s} in {%s}", schemaName, src)
+
+			t.Cleanup(func() {
+				assert.NoError(t, dropSchema(ctx, db, schemaName))
+			})
+
+			// Create a test table in the numeric schema.
+			tblName := stringz.UniqSuffix("test_tbl")
+			const wantRowCount = 5
+			err = createSimpleTable(ctx, db, schemaName, tblName, wantRowCount)
+			require.NoError(t, err, "createSimpleTable in schema %q should succeed", schemaName)
+
+			// Create a new source pointing to the numeric schema.
+			// This tests the full flow: --src.schema parsing -> connection -> query.
+			src2 := src.Clone()
+			src2.Handle += "_numeric_schema"
+			src2.Location += "?search_path=" + schemaName
+
+			grip2 := th.Open(src2)
+			md2, err := grip2.SourceMetadata(ctx, false)
+			require.NoError(t, err, "SourceMetadata should succeed for numeric schema")
+			require.Equal(t, schemaName, md2.Schema,
+				"SourceMetadata.Schema should be the numeric schema name")
+
+			// Verify we can access the table metadata.
+			tblMeta2, err := grip2.TableMetadata(ctx, tblName)
+			require.NoError(t, err, "TableMetadata should succeed for table in numeric schema")
+			require.Equal(t, int64(wantRowCount), tblMeta2.RowCount,
+				"TableMetadata.RowCount should match")
+			require.Equal(t, tblName, tblMeta2.Name,
+				"TableMetadata.Name should match")
+
+			// Execute a direct SQL query against the table in the numeric schema.
+			// This verifies that numeric schema names are properly quoted in SQL.
+			db2, err := grip2.DB(ctx)
+			require.NoError(t, err)
+			q := fmt.Sprintf(`SELECT COUNT(*) FROM %q.%q`, schemaName, tblName)
+			var count int
+			err = db2.QueryRowContext(ctx, q).Scan(&count)
+			require.NoError(t, err, "SQL query in numeric schema should succeed")
+			require.Equal(t, wantRowCount, count, "Query should return expected row count")
+		})
+	}
+}
+
+// TestNumericSchema_CatalogSchema tests parsing of numeric catalog.schema
+// combinations via the --src.schema flag.
+func TestNumericSchema_CatalogSchema(t *testing.T) {
+	t.Parallel()
+
+	// Test numeric schema with catalog prefix (catalog.schema format).
+	// In PostgreSQL, catalog is the database name.
+	testCases := []struct {
+		name   string
+		schema string
+	}{
+		{"pure_numeric", "11111"},
+		{"numeric_prefixed", "222bbb"},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			ctx := th.Context
+
+			src := th.Source(sakila.Pg)
+			db := th.OpenDB(src)
+			require.NoError(t, db.Ping())
+
+			schemaName := tc.schema + "_" + stringz.Uniq8()
+
+			err := createSchema(ctx, db, schemaName)
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				assert.NoError(t, dropSchema(ctx, db, schemaName))
+			})
+
+			tblName := stringz.UniqSuffix("cat_tbl")
+			const wantRowCount = 3
+			err = createSimpleTable(ctx, db, schemaName, tblName, wantRowCount)
+			require.NoError(t, err)
+
+			// Access via search_path (simulating --src.schema).
+			src2 := src.Clone()
+			src2.Handle += "_cat_schema"
+			src2.Location += "?search_path=" + schemaName
+
+			grip2 := th.Open(src2)
+			md2, err := grip2.SourceMetadata(ctx, false)
+			require.NoError(t, err)
+			require.Equal(t, schemaName, md2.Schema)
+
+			// Verify table is accessible.
+			tblNames := md2.TableNames()
+			require.Contains(t, tblNames, tblName,
+				"TableNames should contain the test table")
+		})
+	}
+}
+
 func BenchmarkDatabase_SourceMetadata(b *testing.B) {
 	for _, handle := range sakila.PgAll() {
 		handle := handle
