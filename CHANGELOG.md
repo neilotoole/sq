@@ -12,7 +12,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
-# Upcoming
+## Upcoming
 
 ### Fixed
 
