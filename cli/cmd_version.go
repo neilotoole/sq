@@ -213,7 +213,7 @@ func getVersionFromBrewFormula(f []byte) (string, error) {
 			}
 		}
 
-		if strings.HasPrefix(line, "bottle") {
+		if strings.HasPrefix(val, "bottle") {
 			// Gone too far
 			return "", errz.New("unable to parse brew formula")
 		}

@@ -131,6 +131,7 @@ func Test_Store_Load_newerConfigVersion(t *testing.T) {
 	store := &Store{
 		Path:            cfgPath,
 		OptionsRegistry: &options.Registry{},
+		UpgradeRegistry: UpgradeRegistry{},
 	}
 
 	// Load should succeed despite the config version being newer.
