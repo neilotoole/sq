@@ -4,6 +4,7 @@ package yamlstore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -72,10 +73,21 @@ func (fs *Store) Load(ctx context.Context) (*config.Config, error) {
 	log := lg.FromContext(ctx)
 	log.Debug("Loading config from file", lga.Path, fs.Path)
 
-	if fs.UpgradeRegistry != nil {
-		mightNeedUpgrade, _, err := checkNeedsUpgrade(ctx, fs.Path)
-		if err != nil {
+	if fs.UpgradeRegistry != nil { //nolint:nestif
+		mightNeedUpgrade, foundVers, err := checkNeedsUpgrade(ctx, fs.Path)
+
+		// Handle errConfigVersionNewerThanBuild specially: log a warning but
+		// continue execution. This allows users to downgrade sq versions for
+		// testing or debugging purposes. The config was created by a newer sq
+		// version, so it may contain fields this version doesn't recognize,
+		// but we proceed optimistically. All other errors are fatal.
+		if err != nil && !errors.Is(err, errConfigVersionNewerThanBuild) {
 			return nil, errz.Wrapf(err, "config: %s", fs.Path)
+		}
+		if errors.Is(err, errConfigVersionNewerThanBuild) {
+			log.Warn("Config version is newer than sq version; continuing anyway",
+				"config_version", foundVers,
+				"build_version", buildinfo.Version)
 		}
 
 		if mightNeedUpgrade {
@@ -90,10 +102,19 @@ func (fs *Store) Load(ctx context.Context) (*config.Config, error) {
 			defer unlock()
 
 			// Lock is acquired; check again if config needs upgrade.
-			var foundVers string
+			// Note: we re-check because another process may have upgraded
+			// the config while we were waiting for the lock.
 			mightNeedUpgrade, foundVers, err = checkNeedsUpgrade(ctx, fs.Path)
-			if err != nil {
+
+			// Same handling as above: warn on newer config version, fail on
+			// other errors. See errConfigVersionNewerThanBuild documentation.
+			if err != nil && !errors.Is(err, errConfigVersionNewerThanBuild) {
 				return nil, errz.Wrapf(err, "config: %s", fs.Path)
+			}
+			if errors.Is(err, errConfigVersionNewerThanBuild) {
+				log.Warn("Config version is newer than sq version; continuing anyway",
+					"config_version", foundVers,
+					"build_version", buildinfo.Version)
 			}
 
 			if mightNeedUpgrade {
