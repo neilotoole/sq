@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"log/slog"
+	"maps"
 	"net/http"
 	"strings"
 	"time"
@@ -185,7 +186,7 @@ func getEndToEndHeaders(respHeaders http.Header) []string {
 		"Upgrade":             {},
 	}
 
-	for _, extra := range strings.Split(respHeaders.Get("connection"), ",") {
+	for extra := range strings.SplitSeq(respHeaders.Get("connection"), ",") {
 		// any header listed in connection, if present, is also considered hop-by-hop
 		if strings.Trim(extra, " ") != "" {
 			hopByHopHeaders[http.CanonicalHeaderKey(extra)] = struct{}{}
@@ -232,9 +233,7 @@ func cloneRequest(r *http.Request) *http.Request {
 	}
 	// deep copy of the Header
 	r2.Header = make(http.Header)
-	for k, s := range r.Header {
-		r2.Header[k] = s
-	}
+	maps.Copy(r2.Header, r.Header)
 	return r2
 }
 
@@ -243,7 +242,7 @@ type cacheControl map[string]string
 func parseCacheControl(headers http.Header) cacheControl {
 	cc := cacheControl{}
 	ccHeader := headers.Get("Cache-Control")
-	for _, part := range strings.Split(ccHeader, ",") {
+	for part := range strings.SplitSeq(ccHeader, ",") {
 		part = strings.Trim(part, " ")
 		if part == "" {
 			continue

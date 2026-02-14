@@ -86,7 +86,7 @@ func isCSV(ctx context.Context, cr *csv.Reader) (score float32) {
 	var recordCount, totalFieldCount int
 	var avgFields float32
 
-	for i := 0; i < maxRecords; i++ {
+	for range maxRecords {
 		select {
 		case <-ctx.Done():
 			return 0

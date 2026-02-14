@@ -471,7 +471,7 @@ func TestCodecDuration(t *testing.T) {
 
 func newValue(model any) reflect.Value {
 	if model == nil {
-		return reflect.New(reflect.TypeOf(&model).Elem())
+		return reflect.New(reflect.TypeFor[any]())
 	}
 	return reflect.New(reflect.TypeOf(model))
 }
@@ -553,7 +553,7 @@ type textValue struct {
 }
 
 func (v textValue) MarshalText() ([]byte, error) {
-	return []byte(fmt.Sprintf("(%d,%d)", v.x, v.y)), nil
+	return fmt.Appendf(nil, "(%d,%d)", v.x, v.y), nil
 }
 
 func (v *textValue) UnmarshalText(b []byte) error {

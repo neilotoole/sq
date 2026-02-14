@@ -227,8 +227,8 @@ func Parse(loc string) (*Fields, error) {
 
 	// sqlite3 is a special case, handle it now
 	const sqlitePrefix = "sqlite3://"
-	if strings.HasPrefix(loc, sqlitePrefix) {
-		fpath := strings.TrimPrefix(loc, sqlitePrefix)
+	if after, ok := strings.CutPrefix(loc, sqlitePrefix); ok {
+		fpath := after
 
 		fields.Scheme = "sqlite3"
 		fields.DriverType = drivertype.SQLite

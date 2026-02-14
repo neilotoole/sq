@@ -57,8 +57,8 @@ func (w *errorWriter) Error(systemErr, humanErr error) {
 			w.pr.StackError.Fprintln(buf, stack.Error.Error())
 		}
 
-		lines := strings.Split(stackPrint, "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(stackPrint, "\n")
+		for line := range lines {
 			w.pr.Stack.Fprint(buf, line)
 			buf.WriteByte('\n')
 		}

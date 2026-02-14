@@ -3,8 +3,6 @@ package jsonw
 import (
 	"io"
 
-	"github.com/samber/lo"
-
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source/location"
@@ -77,7 +75,7 @@ func (w *mdWriter) Catalogs(currentCatalog string, catalogs []string) error {
 	for i, c := range catalogs {
 		cats[i] = cat{Name: c}
 		if c == currentCatalog {
-			cats[i].Active = lo.ToPtr(true)
+			cats[i].Active = new(true)
 		}
 	}
 	return writeJSON(w.out, w.pr, cats)
@@ -92,7 +90,7 @@ func (w *mdWriter) Schemata(currentSchema string, schemas []*metadata.Schema) er
 	// We wrap each schema in a struct that has an "active" field,
 	// because we need to show the current schema in the output.
 	type wrapper struct { //nolint:govet // field alignment
-		metadata.Schema `json:",omitempty,inline"`
+		metadata.Schema `json:",inline"`
 		Active          *bool `json:"active,omitempty"`
 	}
 
@@ -100,7 +98,7 @@ func (w *mdWriter) Schemata(currentSchema string, schemas []*metadata.Schema) er
 	for i, s := range schemas {
 		a[i] = &wrapper{Schema: *s}
 		if s.Name == currentSchema {
-			a[i].Active = lo.ToPtr(true)
+			a[i].Active = new(true)
 		}
 	}
 

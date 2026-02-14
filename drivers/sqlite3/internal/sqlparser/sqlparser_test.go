@@ -54,7 +54,6 @@ func TestExtractTableNameFromCreateTableStmt(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			schema, table, err := sqlparser.ExtractTableIdentFromCreateTableStmt(tc.in, tc.unescape)
 			if tc.wantErr {

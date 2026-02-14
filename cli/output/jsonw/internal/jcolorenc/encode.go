@@ -344,7 +344,7 @@ func (e encoder) encodeArray(b []byte, p unsafe.Pointer, n int, size uintptr, t 
 
 	if n > 0 {
 		e.indenter.Push()
-		for i := 0; i < n; i++ {
+		for i := range n {
 			if i != 0 {
 				b = append(b, ',')
 			}
@@ -805,7 +805,7 @@ func (e encoder) encodeJSONMarshaler(b []byte, p unsafe.Pointer, t reflect.Type,
 	}
 
 	switch v.Kind() {
-	case reflect.Ptr, reflect.Interface:
+	case reflect.Pointer, reflect.Interface:
 		if v.IsNil() {
 			return e.clrs.AppendNull(b), nil
 		}
@@ -863,7 +863,7 @@ func (e encoder) encodeTextMarshaler(b []byte, p unsafe.Pointer, t reflect.Type,
 	}
 
 	switch v.Kind() {
-	case reflect.Ptr, reflect.Interface:
+	case reflect.Pointer, reflect.Interface:
 		if v.IsNil() {
 			return append(b, `null`...), nil
 		}

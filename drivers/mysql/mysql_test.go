@@ -17,7 +17,6 @@ func TestSmoke(t *testing.T) {
 	t.Parallel()
 
 	for _, handle := range sakila.MyAll() {
-		handle := handle
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -35,7 +34,6 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 
 	testCases := sakila.MyAll()
 	for _, handle := range testCases {
-		handle := handle
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -81,7 +79,6 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 func TestBug252_ShowCollation_uint64(t *testing.T) {
 	testCases := sakila.MyAll()
 	for _, handle := range testCases {
-		handle := handle
 		t.Run(handle, func(t *testing.T) {
 			th, src, _, _, _ := testh.NewWith(t, handle)
 
@@ -114,7 +111,6 @@ func TestNumericSchema(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

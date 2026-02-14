@@ -4,7 +4,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -17,7 +16,7 @@ func TestGenerateAlphaColName(t *testing.T) {
 	quantity := 704
 	colNames := make([]string, quantity)
 
-	for i := 0; i < quantity; i++ {
+	for i := range quantity {
 		colNames[i] = stringz.GenerateAlphaColName(i, false)
 	}
 
@@ -46,7 +45,7 @@ func TestGenerateAlphaColName(t *testing.T) {
 }
 
 func TestUUID(t *testing.T) {
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		u := stringz.Uniq32()
 		require.Equal(t, 32, len(u))
 	}
@@ -228,7 +227,6 @@ func TestValidIdent(t *testing.T) {
 		{in: "Hello_!!", wantErr: true},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(tc.in), func(t *testing.T) {
 			gotErr := stringz.ValidIdent(tc.in)
 			if tc.wantErr {
@@ -256,7 +254,6 @@ func TestStrings(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			got := stringz.Strings(tc.in)
 			require.Len(t, got, len(tc.in))
@@ -278,13 +275,12 @@ func TestStringsD(t *testing.T) {
 			want: []any{},
 		},
 		{
-			in:   []any{"hello", lo.ToPtr("hello"), 1, lo.ToPtr(1), true, lo.ToPtr(true)},
+			in:   []any{"hello", new("hello"), 1, new(1), true, new(true)},
 			want: []any{"hello", "hello", "1", "1", "true", "true"},
 		},
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			got := stringz.StringsD(tc.in)
 			require.Len(t, got, len(tc.in))
@@ -309,7 +305,6 @@ func TestShellEscape(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc), func(t *testing.T) {
 			got := stringz.ShellEscape(tc.in)
 			require.Equal(t, tc.want, got)
@@ -339,7 +334,6 @@ func TestEllipsify(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.input, tc.maxLen), func(t *testing.T) {
 			got := stringz.Ellipsify(tc.input, tc.maxLen)
 			t.Logf("%12q  -->  %12q", tc.input, got)
@@ -376,7 +370,6 @@ func TestEllipsifyASCII(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.input, tc.maxLen), func(t *testing.T) {
 			got := stringz.EllipsifyASCII(tc.input, tc.maxLen)
 			require.True(t, len(got) <= tc.maxLen)
@@ -404,7 +397,6 @@ func TestSanitizeFilename(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			got := stringz.SanitizeFilename(tc.in)
 			require.Equal(t, tc.want, got)

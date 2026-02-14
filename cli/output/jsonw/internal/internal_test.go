@@ -120,8 +120,6 @@ func TestEncode(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			pr := output.NewPrinting()
 			pr.Compact = !tc.pretty
@@ -185,8 +183,6 @@ func TestEncode_Slice(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			pr := output.NewPrinting()
 			pr.Compact = !tc.pretty
@@ -237,8 +233,6 @@ func TestEncode_SmallStruct(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(fmt.Sprintf("pretty_%v__color_%v", tc.pretty, tc.color), func(t *testing.T) {
 			pr := output.NewPrinting()
 			pr.Compact = !tc.pretty
@@ -292,8 +286,6 @@ func TestEncode_Map_Nested(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(fmt.Sprintf("pretty_%v__color_%v", tc.pretty, tc.color), func(t *testing.T) {
 			pr := output.NewPrinting()
 			pr.Compact = !tc.pretty
@@ -379,8 +371,6 @@ func TestEncode_Map_StringNotInterface(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(fmt.Sprintf("size_%d__pretty_%v__color_%v", len(tc.v), tc.pretty, tc.color), func(t *testing.T) {
 			pr := output.NewPrinting()
 			pr.Compact = !tc.pretty
@@ -444,8 +434,6 @@ func TestEncode_RawMessage(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			pr := output.NewPrinting()
 			pr.Compact = !tc.pretty
@@ -526,8 +514,6 @@ func TestEncode_Map_StringRawMessage(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		name := fmt.Sprintf("size_%d__pretty_%v__color_%v__sort_%v", len(tc.v), tc.pretty, tc.color, tc.sortMap)
 		t.Run(name, func(t *testing.T) {
 			pr := output.NewPrinting()
@@ -569,8 +555,6 @@ func TestEncode_BigStruct(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(fmt.Sprintf("pretty_%v__color_%v", tc.pretty, tc.color), func(t *testing.T) {
 			pr := output.NewPrinting()
 			pr.Compact = !tc.pretty

@@ -158,7 +158,6 @@ GROUP BY database_id) AS total_size_bytes`
 	g.SetLimit(tuning.OptErrgroupLimit.Get(src.Options))
 	tblMetas := make([]*metadata.Table, len(tblNames))
 	for i := range tblNames {
-		i := i
 		g.Go(func() error {
 			select {
 			case <-gCtx.Done():

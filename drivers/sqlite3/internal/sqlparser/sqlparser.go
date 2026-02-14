@@ -53,7 +53,7 @@ type antlrErrorListener struct {
 // SyntaxError implements antlr.ErrorListener.
 //
 //nolint:revive
-func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol interface{},
+func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol any,
 	line, column int, msg string, e antlr.RecognitionException,
 ) {
 	text := fmt.Sprintf("%s: syntax error: [%d:%d] %s", el.name, line, column, msg)

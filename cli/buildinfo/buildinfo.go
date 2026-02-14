@@ -37,7 +37,7 @@ var (
 type Info struct { //nolint:govet // field alignment
 	Version   string    `json:"version" yaml:"version"`
 	Commit    string    `json:"commit,omitempty" yaml:"commit,omitempty"`
-	Timestamp time.Time `json:"timestamp,omitempty" yaml:"timestamp,omitempty"`
+	Timestamp time.Time `json:"timestamp" yaml:"timestamp,omitempty"`
 }
 
 // String returns a string representation of Info.

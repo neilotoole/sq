@@ -191,10 +191,8 @@ func TestSplitInput(t *testing.T) {
 	}
 
 	for groupName, testGroup := range testCases {
-		testGroup := testGroup
 		t.Run(groupName, func(t *testing.T) {
 			for _, tc := range testGroup {
-				tc := tc
 				t.Run(tc.name, func(t *testing.T) {
 					stmts, stmtTypes, err := sqlparser.SplitSQL(
 						context.Background(),

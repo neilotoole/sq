@@ -2,6 +2,7 @@ package userdriver
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -115,11 +116,8 @@ func (t *TableMapping) PKCols() ([]*ColMapping, error) {
 	var cols []*ColMapping
 
 	for i := range t.Cols {
-		for j := range t.PrimaryKey {
-			if t.Cols[i].Name == t.PrimaryKey[j] {
-				cols = append(cols, t.Cols[i])
-				break
-			}
+		if slices.Contains(t.PrimaryKey, t.Cols[i].Name) {
+			cols = append(cols, t.Cols[i])
 		}
 	}
 
@@ -155,8 +153,6 @@ func (t *TableMapping) RequiredCols() []*ColMapping {
 	seqCols := t.SequenceCols()
 
 	for _, col := range t.Cols {
-		col := col
-
 		switch {
 		case col.Required, colIndex(pkCols, col) >= 0, colIndex(seqCols, col) >= 0:
 			cols = append(cols, col)

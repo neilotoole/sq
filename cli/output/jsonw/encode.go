@@ -284,7 +284,7 @@ func getFieldEncoders(recMeta record.Meta, pr *output.Printing) []func(b []byte,
 			formatTimeAsNumber:     pr.FormatTimeAsNumber,
 		}
 
-		for i := 0; i < len(recMeta); i++ {
+		for i := range recMeta {
 			switch recMeta[i].Kind() { //nolint:exhaustive
 			case kind.Time:
 				encodeFns[i] = enc.encodeTime
@@ -312,7 +312,7 @@ func getFieldEncoders(recMeta record.Meta, pr *output.Printing) []func(b []byte,
 		formatTime:             pr.FormatTime,
 		formatTimeAsNumber:     pr.FormatTimeAsNumber,
 	}
-	for i := 0; i < len(recMeta); i++ {
+	for i := range recMeta {
 		switch recMeta[i].Kind() { //nolint:exhaustive
 		case kind.Time:
 			encodeFns[i] = enc.encodeTime

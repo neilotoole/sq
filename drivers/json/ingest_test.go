@@ -96,8 +96,6 @@ func BenchmarkIngestJSONL_Flat(b *testing.B) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		newRdrFn := func(_ context.Context) (io.ReadCloser, error) { //nolint:unparam
 			return io.NopCloser(strings.NewReader(tc.input)), nil
 		}
@@ -192,8 +190,6 @@ func TestIngestJSONL_Flat(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -311,8 +307,6 @@ func TestScanObjectsInArray(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
-
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			t.Parallel()
 			log := lgt.New(t)
@@ -350,8 +344,6 @@ func TestScanObjectsInArray_Files(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tu.Name(tc.fname), func(t *testing.T) {
 			t.Parallel()
 			log := lgt.New(t)
@@ -396,8 +388,6 @@ func TestColumnOrderFlat(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
-
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			t.Parallel()
 
@@ -440,8 +430,6 @@ Ordino,42.55623,1.53319,AD,5,`
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

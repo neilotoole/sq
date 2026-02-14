@@ -337,8 +337,6 @@ func TestDatabaseTypes(t *testing.T) { //nolint:tparallel
 
 	testCases := sakila.MyAll()
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -398,8 +396,6 @@ func TestDatabaseTypeJSON(t *testing.T) {
 	// MySQL 5.6 doesn't support JSON type
 	testCases := []string{sakila.My57, sakila.My8}
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 

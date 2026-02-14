@@ -141,7 +141,6 @@ func TestRedactedLocation(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(tc.loc), func(t *testing.T) {
 			src := &source.Source{Location: tc.loc}
 			got := src.RedactedLocation()
@@ -215,7 +214,6 @@ func TestShortLocation(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			got := location.Short(tc.loc)
 			t.Logf("%s  -->  %s", tc.loc, got)

@@ -43,8 +43,6 @@ func TestRecordWriterAdapter(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -86,8 +84,6 @@ func TestRecordWriterAdapter_FlushAfterN(t *testing.T) {
 	recMeta := testh.NewRecordMeta([]string{"col_int"}, []kind.Kind{kind.Int})
 
 	for flushAfterN, wantFlushed := range testCases {
-		flushAfterN, wantFlushed := flushAfterN, wantFlushed
-
 		t.Run(fmt.Sprintf("flustAfter_%d__wantFlushed_%d", flushAfterN, wantFlushed), func(t *testing.T) {
 			t.Parallel()
 
@@ -101,7 +97,7 @@ func TestRecordWriterAdapter_FlushAfterN(t *testing.T) {
 			require.NoError(t, err)
 
 			// Write some records
-			for i := 0; i < writeRecCount; i++ {
+			for range writeRecCount {
 				recCh <- []any{1}
 			}
 			close(recCh)
@@ -141,7 +137,6 @@ func TestRecordWriterAdapter_FlushAfterDuration(t *testing.T) {
 	recMeta := testh.NewRecordMeta([]string{"col_int"}, []kind.Kind{kind.Int})
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(fmt.Sprintf("flushAfter_%s__wantFlushed_%d", tc.flushAfter, tc.wantFlushed), func(t *testing.T) {
 			t.Parallel()
 
@@ -156,7 +151,7 @@ func TestRecordWriterAdapter_FlushAfterDuration(t *testing.T) {
 			require.NoError(t, err)
 
 			// Write some records
-			for i := 0; i < writeRecCount; i++ {
+			for range writeRecCount {
 				recCh <- []any{1}
 				time.Sleep(sleepTime)
 			}

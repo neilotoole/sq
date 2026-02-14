@@ -108,7 +108,7 @@ func execXProgressHideOnWriter(cmd *cobra.Command, _ []string) error { //nolint:
 	var bars []progress.Bar
 	// var bar progress.Bar
 
-	for i := 0; i < wantBarCount; i++ {
+	for i := range wantBarCount {
 		bars = append(bars, pb.NewUnitCounter(fmt.Sprintf("counter-%d", i), "item"))
 	}
 

@@ -16,7 +16,6 @@ func TestDetectKindDatetime(t *testing.T) {
 	tm := time.Date(1989, 11, 9, 15, 17, 59, 123456700, denver)
 
 	for _, f := range datetimeFormats {
-		f := f
 		t.Run(tu.Name(f), func(t *testing.T) {
 			s := tm.Format(f)
 
@@ -50,7 +49,6 @@ func TestDetectKindDate(t *testing.T) {
 	}
 
 	for i, input := range valid {
-		input := input
 		t.Run(tu.Name("valid", i, input), func(t *testing.T) {
 			t.Log(input)
 			ok, gotF := detectKindDate(input)
@@ -71,7 +69,6 @@ func TestDetectKindDate(t *testing.T) {
 	}
 
 	for i, input := range invalid {
-		input := input
 		t.Run(tu.Name("invalid", i, input), func(t *testing.T) {
 			t.Log(input)
 			ok, gotF := detectKindDate(input)
@@ -94,7 +91,6 @@ func TestDetectKindTime(t *testing.T) {
 	}
 
 	for i, input := range valid {
-		input := input
 		t.Run(tu.Name("valid", i, input), func(t *testing.T) {
 			t.Log(input)
 			ok, gotF := detectKindTime(input)
@@ -116,7 +112,6 @@ func TestDetectKindTime(t *testing.T) {
 	}
 
 	for i, input := range invalid {
-		input := input
 		t.Run(tu.Name("invalid", i, input), func(t *testing.T) {
 			t.Log(input)
 			ok, gotF := detectKindTime(input)

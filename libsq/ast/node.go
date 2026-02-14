@@ -374,7 +374,7 @@ func FindNodes[T Node](ast *AST) []T {
 		return nodes
 	}
 	w := NewWalker(ast)
-	w.AddVisitor(reflect.TypeOf((*T)(nil)).Elem(), func(_ *Walker, node Node) error {
+	w.AddVisitor(reflect.TypeFor[T](), func(_ *Walker, node Node) error {
 		nodes = append(nodes, node.(T))
 		return nil
 	})
@@ -388,7 +388,7 @@ func FindNodes[T Node](ast *AST) []T {
 func FindFirstNode[T Node](ast *AST) T {
 	var node T
 	w := NewWalker(ast)
-	w.AddVisitor(reflect.TypeOf((*T)(nil)).Elem(), func(_ *Walker, n Node) error {
+	w.AddVisitor(reflect.TypeFor[T](), func(_ *Walker, n Node) error {
 		node, _ = n.(T)
 		return io.EOF // Return any error to halt the walk.
 	})
@@ -448,22 +448,22 @@ func NodePrevSegmentChild[T Node](node Node) (T, error) {
 
 // Results from reflect.TypeOf for node types.
 var (
-	typeAST                = reflect.TypeOf((*AST)(nil))
-	typeColSelectorNode    = reflect.TypeOf((*ColSelectorNode)(nil))
-	typeExprNode           = reflect.TypeOf((*ExprNode)(nil))
-	typeFuncNode           = reflect.TypeOf((*FuncNode)(nil))
-	typeGroupByNode        = reflect.TypeOf((*GroupByNode)(nil))
-	typeHavingNode         = reflect.TypeOf((*HavingNode)(nil))
-	typeHandleNode         = reflect.TypeOf((*HandleNode)(nil))
-	typeJoinNode           = reflect.TypeOf((*JoinNode)(nil))
-	typeNode               = reflect.TypeOf((*Node)(nil)).Elem()
-	_                      = reflect.TypeOf((*OperatorNode)(nil))
-	typeOrderByNode        = reflect.TypeOf((*OrderByNode)(nil))
-	typeRowRangeNode       = reflect.TypeOf((*RowRangeNode)(nil))
-	typeSegmentNode        = reflect.TypeOf((*SegmentNode)(nil))
-	_                      = reflect.TypeOf((*Selector)(nil)).Elem()
-	typeSelectorNode       = reflect.TypeOf((*SelectorNode)(nil))
-	typeTblColSelectorNode = reflect.TypeOf((*TblColSelectorNode)(nil))
-	typeTblSelectorNode    = reflect.TypeOf((*TblSelectorNode)(nil))
-	typeUniqueNode         = reflect.TypeOf((*UniqueNode)(nil))
+	typeAST                = reflect.TypeFor[*AST]()
+	typeColSelectorNode    = reflect.TypeFor[*ColSelectorNode]()
+	typeExprNode           = reflect.TypeFor[*ExprNode]()
+	typeFuncNode           = reflect.TypeFor[*FuncNode]()
+	typeGroupByNode        = reflect.TypeFor[*GroupByNode]()
+	typeHavingNode         = reflect.TypeFor[*HavingNode]()
+	typeHandleNode         = reflect.TypeFor[*HandleNode]()
+	typeJoinNode           = reflect.TypeFor[*JoinNode]()
+	typeNode               = reflect.TypeFor[Node]()
+	_                      = reflect.TypeFor[*OperatorNode]()
+	typeOrderByNode        = reflect.TypeFor[*OrderByNode]()
+	typeRowRangeNode       = reflect.TypeFor[*RowRangeNode]()
+	typeSegmentNode        = reflect.TypeFor[*SegmentNode]()
+	_                      = reflect.TypeFor[Selector]()
+	typeSelectorNode       = reflect.TypeFor[*SelectorNode]()
+	typeTblColSelectorNode = reflect.TypeFor[*TblColSelectorNode]()
+	typeTblSelectorNode    = reflect.TypeFor[*TblSelectorNode]()
+	typeUniqueNode         = reflect.TypeFor[*UniqueNode]()
 )

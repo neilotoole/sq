@@ -72,7 +72,7 @@ func diffRunes(before, after []rune) []Edit {
 func runes(b []byte) []rune {
 	n := utf8.RuneCount(b)
 	rs := make([]rune, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		r, sz := utf8.DecodeRune(b)
 		b = b[sz:]
 		rs[i] = r
@@ -100,7 +100,7 @@ func stringIsASCII(s string) bool {
 }
 
 func bytesIsASCII(s []byte) bool {
-	for i := 0; i < len(s); i++ {
+	for i := range s {
 		if s[i] >= utf8.RuneSelf {
 			return false
 		}

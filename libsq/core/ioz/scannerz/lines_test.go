@@ -53,8 +53,6 @@ func TestLineCount(t *testing.T) {
 	require.Equal(t, -1, scannerz.LineCount(ctx, nil, true))
 
 	for i, tc := range testCases {
-		tc := tc
-
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			count := scannerz.LineCount(ctx, strings.NewReader(tc.in), false)
 			require.Equal(t, tc.withEmpty, count)
@@ -106,7 +104,6 @@ func TestTrimHead(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(tc.in, tc.n), func(t *testing.T) {
 			got := scannerz.TrimHead(context.Background(), tc.in, tc.n)
 			require.Equal(t, tc.want, got)
@@ -127,7 +124,6 @@ func TestHead1(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.in, func(t *testing.T) {
 			got := scannerz.Head1(context.Background(), tc.in)
 			require.Equal(t, tc.want, got)

@@ -180,7 +180,7 @@ func RepeatJoin(s string, count int, sep string) string {
 
 	var b strings.Builder
 	b.Grow(len(s)*count + len(sep)*(count-1))
-	for i := 0; i < count; i++ {
+	for i := range count {
 		b.WriteString(s)
 		if i < count-1 {
 			b.WriteString(sep)
@@ -212,7 +212,7 @@ func SurroundSlice(a []string, w string) []string {
 	}
 	ret := make([]string, len(a))
 	sb := strings.Builder{}
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		sb.Grow(len(a[i]) + len(w)*2)
 		sb.WriteString(w)
 		sb.WriteString(a[i])
@@ -236,7 +236,7 @@ func PrefixSlice(a []string, prefix string) []string {
 	}
 	ret := make([]string, len(a))
 	sb := strings.Builder{}
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		sb.Grow(len(a[i]) + len(prefix))
 		sb.WriteString(prefix)
 		sb.WriteString(a[i])
@@ -458,7 +458,7 @@ func Val(i any) any {
 		switch v.Kind() { //nolint:exhaustive
 		default:
 			return v.Interface()
-		case reflect.Ptr, reflect.Interface:
+		case reflect.Pointer, reflect.Interface:
 			if v.IsNil() {
 				return nil
 			}

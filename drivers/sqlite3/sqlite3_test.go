@@ -206,8 +206,6 @@ func TestPathFromLocation(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.loc, func(t *testing.T) {
 			src := &source.Source{
 				Handle:   "@h1",
@@ -291,7 +289,6 @@ func TestMungeLocation(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			if tc.onlyForOS != "" && tc.onlyForOS != runtime.GOOS {
 				t.Skipf("Skipping because this test is only for OS {%s}, but have {%s}",

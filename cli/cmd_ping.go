@@ -162,7 +162,7 @@ func pingSources(ctx context.Context, dp driver.Provider, srcs []*source.Source,
 	// This func doesn't check for context.Canceled itself; instead
 	// it checks if any of the goroutines return that value on
 	// resultCh.
-	for i := 0; i < len(srcs); i++ {
+	for range srcs {
 		result := <-resultCh
 
 		switch {

@@ -45,7 +45,6 @@ func Test_getConfigDirFromFlag(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, strings.Join(tc.in, " ")), func(t *testing.T) {
 			got, gotOK, gotErr := getConfigDirFromFlag(tc.in)
 			if tc.wantErr {

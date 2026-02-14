@@ -46,8 +46,6 @@ func Test_isCSV(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
-
 		t.Run(fmt.Sprintf("%d %s", i, tc.input), func(t *testing.T) {
 			t.Parallel()
 
@@ -85,7 +83,6 @@ func Test_detectColKinds(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.name), func(t *testing.T) {
 			gotKinds, _, gotErr := detectColKinds(tc.recs)
 			if tc.wantErr {

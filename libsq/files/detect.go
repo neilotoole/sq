@@ -149,8 +149,6 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 
 	g, gCtx := errgroup.WithContext(ctx)
 	for _, detectFn := range fs.detectFns {
-		detectFn := detectFn
-
 		g.Go(func() error {
 			select {
 			case <-gCtx.Done():

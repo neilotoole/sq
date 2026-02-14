@@ -26,7 +26,6 @@ func TestSmoke(t *testing.T) {
 	t.Parallel()
 
 	for _, handle := range sakila.PgAll() {
-		handle := handle
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -45,8 +44,6 @@ func TestDriverBehavior(t *testing.T) {
 	testCases := sakila.PgAll()
 
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
@@ -91,8 +88,6 @@ func Test_VerifyDriverDoesNotReportNullability(t *testing.T) {
 	// postgres driver wrapper.
 	testCases := sakila.PgAll()
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -137,7 +132,6 @@ func TestGetTableColumnNames(t *testing.T) {
 	testCases := sakila.PgAll()
 
 	for _, handle := range testCases {
-		handle := handle
 		t.Run(handle, func(t *testing.T) {
 			th, _, _, _, db := testh.NewWith(t, handle)
 			colNames, err := postgres.GetTableColumnNames(th.Context, db, sakila.TblActor)
@@ -152,8 +146,6 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 
 	testCases := sakila.PgAll()
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -259,7 +251,7 @@ func createSimpleTable(ctx context.Context, db *sql.DB, schemaName, tblName stri
 
 	stmt = fmt.Sprintf("INSERT INTO %q.%q (NAME) VALUES ($1)", schemaName, tblName)
 
-	for i := 0; i < insertRowCount; i++ {
+	for i := range insertRowCount {
 		_, err = db.ExecContext(ctx, stmt, fmt.Sprintf("name-%d", i))
 		if err != nil {
 			return errz.Err(err)
@@ -288,7 +280,6 @@ func TestNumericSchema(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -368,7 +359,6 @@ func TestNumericSchema_CatalogSchema(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -412,7 +402,6 @@ func TestNumericSchema_CatalogSchema(t *testing.T) {
 
 func BenchmarkDatabase_SourceMetadata(b *testing.B) {
 	for _, handle := range sakila.PgAll() {
-		handle := handle
 		b.Run(handle, func(b *testing.B) {
 			th := testh.New(b, testh.OptNoLog())
 			grip := th.Open(th.Source(handle))

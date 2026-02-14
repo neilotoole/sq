@@ -23,7 +23,7 @@ func (n *ArgNode) Key() string {
 }
 
 // VisitArg implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitArg(ctx *slq.ArgContext) interface{} {
+func (v *parseTreeVisitor) VisitArg(ctx *slq.ArgContext) any {
 	node := &ArgNode{}
 	node.ctx = ctx
 	node.text = ctx.GetText()

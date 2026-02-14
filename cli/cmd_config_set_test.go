@@ -87,7 +87,6 @@ func TestSourceOptOverridesBaseOpt(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.fp, func(t *testing.T) {
 			ctx := context.Background()
 			tr := testrun.New(ctx, t, nil).Hush()
@@ -164,7 +163,6 @@ func TestColRenameOptsInteraction(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.fp, func(t *testing.T) {
 			ctx := context.Background()
 			tr := testrun.New(ctx, t, nil)

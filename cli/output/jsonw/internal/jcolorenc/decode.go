@@ -514,7 +514,7 @@ func (d decoder) decodeArray(b []byte, p unsafe.Pointer, n int, size uintptr, t 
 	b = b[1:]
 
 	var err error
-	for i := 0; i < n; i++ {
+	for i := range n {
 		b = skipSpaces(b)
 
 		if i != 0 {
@@ -990,7 +990,7 @@ func (d decoder) decodeEmbeddedStructPointer(b []byte, p unsafe.Pointer, t refle
 func (d decoder) decodePointer(b []byte, p unsafe.Pointer, t reflect.Type, decode decodeFunc) ([]byte, error) {
 	if hasNullPrefix(b) {
 		pp := *(*unsafe.Pointer)(p)
-		if pp != nil && t.Kind() == reflect.Ptr {
+		if pp != nil && t.Kind() == reflect.Pointer {
 			return decode(d, b, pp)
 		}
 		*(*unsafe.Pointer)(p) = nil
@@ -1010,8 +1010,8 @@ func (d decoder) decodeInterface(b []byte, p unsafe.Pointer) ([]byte, error) {
 	val := *(*any)(p)
 	*(*any)(p) = nil
 
-	if t := reflect.TypeOf(val); t != nil && t.Kind() == reflect.Ptr {
-		if v := reflect.ValueOf(val); v.IsNil() || t.Elem().Kind() != reflect.Ptr {
+	if t := reflect.TypeOf(val); t != nil && t.Kind() == reflect.Pointer {
+		if v := reflect.ValueOf(val); v.IsNil() || t.Elem().Kind() != reflect.Pointer {
 			// If the destination is nil the only value that is OK to decode is
 			// `null`, and the encoding/json package always nils the destination
 			// interface value in this case.
@@ -1092,7 +1092,7 @@ func (d decoder) decodeMaybeEmptyInterface(b []byte, p unsafe.Pointer, t reflect
 	}
 
 	if x := reflect.NewAt(t, p).Elem(); !x.IsNil() {
-		if e := x.Elem(); e.Kind() == reflect.Ptr {
+		if e := x.Elem(); e.Kind() == reflect.Pointer {
 			return Parse(b, e.Interface(), d.flags)
 		}
 	} else if t.NumMethod() == 0 { // empty interface
@@ -1189,5 +1189,5 @@ func (d decoder) decodeTextUnmarshaler(b []byte, p unsafe.Pointer, t reflect.Typ
 		value = "number"
 	}
 
-	return b, &UnmarshalTypeError{Value: value, Type: reflect.PtrTo(t)}
+	return b, &UnmarshalTypeError{Value: value, Type: reflect.PointerTo(t)}
 }

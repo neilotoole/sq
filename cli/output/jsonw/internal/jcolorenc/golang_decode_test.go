@@ -57,7 +57,7 @@ type PP struct {
 type SS string
 
 func (*SS) UnmarshalJSON(data []byte) error {
-	return &UnmarshalTypeError{Value: "number", Type: reflect.TypeOf(SS(""))}
+	return &UnmarshalTypeError{Value: "number", Type: reflect.TypeFor[SS]()}
 }
 
 // ifaceNumAsFloat64/ifaceNumAsNumber are used to test unmarshaling with and
@@ -107,11 +107,11 @@ func (u unmarshalerText) MarshalText() ([]byte, error) {
 }
 
 func (u *unmarshalerText) UnmarshalText(b []byte) error {
-	pos := bytes.IndexByte(b, ':')
-	if pos == -1 {
+	before, after, ok := bytes.Cut(b, []byte{':'})
+	if !ok {
 		return errors.New("missing separator")
 	}
-	u.A, u.B = string(b[:pos]), string(b[pos+1:])
+	u.A, u.B = string(before), string(after)
 	return nil
 }
 
@@ -125,7 +125,7 @@ type ustructText struct {
 type u8marshal uint8
 
 func (u8 u8marshal) MarshalText() ([]byte, error) {
-	return []byte(fmt.Sprintf("u%d", u8)), nil
+	return fmt.Appendf(nil, "u%d", u8), nil
 }
 
 var errMissingU8Prefix = errors.New("missing 'u' prefix")
@@ -279,13 +279,16 @@ type unexportedWithMethods struct{}
 
 func (unexportedWithMethods) F() {}
 
-func sliceAddr(x []int) *[]int                 { return &x }
-func mapAddr(x map[string]int) *map[string]int { return &x }
+//go:fix inline
+func sliceAddr(x []int) *[]int { return new(x) }
+
+//go:fix inline
+func mapAddr(x map[string]int) *map[string]int { return new(x) }
 
 type byteWithMarshalJSON byte
 
 func (b byteWithMarshalJSON) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf(`"Z%.2x"`, byte(b))), nil
+	return fmt.Appendf(nil, `"Z%.2x"`, byte(b)), nil
 }
 
 func (b *byteWithMarshalJSON) UnmarshalJSON(data []byte) error {
@@ -313,7 +316,7 @@ func (b *byteWithPtrMarshalJSON) UnmarshalJSON(data []byte) error {
 type byteWithMarshalText byte
 
 func (b byteWithMarshalText) MarshalText() ([]byte, error) {
-	return []byte(fmt.Sprintf(`Z%.2x`, byte(b))), nil
+	return fmt.Appendf(nil, `Z%.2x`, byte(b)), nil
 }
 
 func (b *byteWithMarshalText) UnmarshalText(data []byte) error {
@@ -341,7 +344,7 @@ func (b *byteWithPtrMarshalText) UnmarshalText(data []byte) error {
 type intWithMarshalJSON int
 
 func (b intWithMarshalJSON) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf(`"Z%.2x"`, int(b))), nil
+	return fmt.Appendf(nil, `"Z%.2x"`, int(b)), nil
 }
 
 func (b *intWithMarshalJSON) UnmarshalJSON(data []byte) error {
@@ -369,7 +372,7 @@ func (b *intWithPtrMarshalJSON) UnmarshalJSON(data []byte) error {
 type intWithMarshalText int
 
 func (b intWithMarshalText) MarshalText() ([]byte, error) {
-	return []byte(fmt.Sprintf(`Z%.2x`, int(b))), nil
+	return fmt.Appendf(nil, `Z%.2x`, int(b)), nil
 }
 
 func (b *intWithMarshalText) UnmarshalText(data []byte) error {
@@ -428,12 +431,12 @@ var unmarshalTests = []unmarshalTest{
 	//TODO
 	//{in: `"invalid: \uD834x\uDD1E"`, ptr: new(string), out: "invalid: \uFFFDx\uFFFD"},
 	{in: "null", ptr: new(any), out: nil},
-	{in: `{"X": [1,2,3], "Y": 4}`, ptr: new(T), out: T{Y: 4}, err: &UnmarshalTypeError{"array", reflect.TypeOf(""), 7, "T", "X"}},
-	{in: `{"X": 23}`, ptr: new(T), out: T{}, err: &UnmarshalTypeError{"number", reflect.TypeOf(""), 8, "T", "X"}},
+	{in: `{"X": [1,2,3], "Y": 4}`, ptr: new(T), out: T{Y: 4}, err: &UnmarshalTypeError{"array", reflect.TypeFor[string](), 7, "T", "X"}},
+	{in: `{"X": 23}`, ptr: new(T), out: T{}, err: &UnmarshalTypeError{"number", reflect.TypeFor[string](), 8, "T", "X"}},
 	{in: `{"x": 1}`, ptr: new(tx), out: tx{}},
 	{in: `{"x": 1}`, ptr: new(tx), out: tx{}},
 	{in: `{"x": 1}`, ptr: new(tx), err: fmt.Errorf("json: unknown field \"x\""), disallowUnknownFields: true},
-	{in: `{"S": 23}`, ptr: new(W), out: W{}, err: &UnmarshalTypeError{"number", reflect.TypeOf(SS("")), 0, "W", "S"}},
+	{in: `{"S": 23}`, ptr: new(W), out: W{}, err: &UnmarshalTypeError{"number", reflect.TypeFor[SS](), 0, "W", "S"}},
 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: float64(1), F2: int32(2), F3: Number("3")}},
 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: Number("1"), F2: int32(2), F3: Number("3")}, useNumber: true},
 	{in: `{"k1":1,"k2":"s","k3":[1,2.0,3e-3],"k4":{"kk1":"s","kk2":2}}`, ptr: new(any), out: ifaceNumAsFloat64},
@@ -552,32 +555,32 @@ var unmarshalTests = []unmarshalTest{
 	{
 		in:  `{"abc":"abc"}`,
 		ptr: new(map[int]string),
-		err: &UnmarshalTypeError{Value: "number abc", Type: reflect.TypeOf(0), Offset: 2},
+		err: &UnmarshalTypeError{Value: "number abc", Type: reflect.TypeFor[int](), Offset: 2},
 	},
 	{
 		in:  `{"256":"abc"}`,
 		ptr: new(map[uint8]string),
-		err: &UnmarshalTypeError{Value: "number 256", Type: reflect.TypeOf(uint8(0)), Offset: 2},
+		err: &UnmarshalTypeError{Value: "number 256", Type: reflect.TypeFor[uint8](), Offset: 2},
 	},
 	{
 		in:  `{"128":"abc"}`,
 		ptr: new(map[int8]string),
-		err: &UnmarshalTypeError{Value: "number 128", Type: reflect.TypeOf(int8(0)), Offset: 2},
+		err: &UnmarshalTypeError{Value: "number 128", Type: reflect.TypeFor[int8](), Offset: 2},
 	},
 	{
 		in:  `{"-1":"abc"}`,
 		ptr: new(map[uint8]string),
-		err: &UnmarshalTypeError{Value: "number -1", Type: reflect.TypeOf(uint8(0)), Offset: 2},
+		err: &UnmarshalTypeError{Value: "number -1", Type: reflect.TypeFor[uint8](), Offset: 2},
 	},
 	{
 		in:  `{"F":{"a":2,"3":4}}`,
 		ptr: new(map[string]map[int]int),
-		err: &UnmarshalTypeError{Value: "number a", Type: reflect.TypeOf(int(0)), Offset: 7},
+		err: &UnmarshalTypeError{Value: "number a", Type: reflect.TypeFor[int](), Offset: 7},
 	},
 	{
 		in:  `{"F":{"a":2,"3":4}}`,
 		ptr: new(map[string]map[uint]int),
-		err: &UnmarshalTypeError{Value: "number a", Type: reflect.TypeOf(uint(0)), Offset: 7},
+		err: &UnmarshalTypeError{Value: "number a", Type: reflect.TypeFor[uint](), Offset: 7},
 	},
 
 	// Map keys can be encoding.TextUnmarshalers.
@@ -588,8 +591,8 @@ var unmarshalTests = []unmarshalTest{
 	// Overwriting of data.
 	// This is different from package xml, but it's what we've always done.
 	// Now documented and tested.
-	{in: `[2]`, ptr: sliceAddr([]int{1}), out: []int{2}},
-	{in: `{"key": 2}`, ptr: mapAddr(map[string]int{"old": 0, "key": 1}), out: map[string]int{"key": 2}},
+	{in: `[2]`, ptr: new([]int{1}), out: []int{2}},
+	{in: `{"key": 2}`, ptr: new(map[string]int{"old": 0, "key": 1}), out: map[string]int{"key": 2}},
 
 	{
 		in: `{
@@ -722,12 +725,12 @@ var unmarshalTests = []unmarshalTest{
 	{
 		in:  `{"2009-11-10T23:00:00Z": "hello world"}`,
 		ptr: &map[Point]string{},
-		err: &UnmarshalTypeError{Value: "object", Type: reflect.TypeOf(map[Point]string{}), Offset: 1},
+		err: &UnmarshalTypeError{Value: "object", Type: reflect.TypeFor[map[Point]string](), Offset: 1},
 	},
 	{
 		in:  `{"asdf": "hello world"}`,
 		ptr: &map[unmarshaler]string{},
-		err: &UnmarshalTypeError{Value: "object", Type: reflect.TypeOf(map[unmarshaler]string{}), Offset: 1},
+		err: &UnmarshalTypeError{Value: "object", Type: reflect.TypeFor[map[unmarshaler]string](), Offset: 1},
 	},
 
 	// related to issue 13783.
@@ -827,7 +830,7 @@ var unmarshalTests = []unmarshalTest{
 			Value:  "string",
 			Struct: "V",
 			Field:  "V.F2",
-			Type:   reflect.TypeOf(int32(0)),
+			Type:   reflect.TypeFor[int32](),
 			Offset: 20,
 		},
 	},
@@ -838,7 +841,7 @@ var unmarshalTests = []unmarshalTest{
 			Value:  "string",
 			Struct: "V",
 			Field:  "V.F2",
-			Type:   reflect.TypeOf(int32(0)),
+			Type:   reflect.TypeFor[int32](),
 			Offset: 30,
 		},
 	},
@@ -914,24 +917,24 @@ var unmarshalTests = []unmarshalTest{
 	{
 		in:  `{"data":{"test1": "bob", "test2": 123}}`,
 		ptr: new(mapStringToStringData),
-		err: &UnmarshalTypeError{Value: "number", Type: reflect.TypeOf(""), Offset: 37, Struct: "mapStringToStringData", Field: "data"},
+		err: &UnmarshalTypeError{Value: "number", Type: reflect.TypeFor[string](), Offset: 37, Struct: "mapStringToStringData", Field: "data"},
 	},
 	{
 		in:  `{"data":{"test1": 123, "test2": "bob"}}`,
 		ptr: new(mapStringToStringData),
-		err: &UnmarshalTypeError{Value: "number", Type: reflect.TypeOf(""), Offset: 21, Struct: "mapStringToStringData", Field: "data"},
+		err: &UnmarshalTypeError{Value: "number", Type: reflect.TypeFor[string](), Offset: 21, Struct: "mapStringToStringData", Field: "data"},
 	},
 
 	// trying to decode JSON arrays or objects via TextUnmarshaler
 	{
 		in:  `[1, 2, 3]`,
 		ptr: new(MustNotUnmarshalText),
-		err: &UnmarshalTypeError{Value: "array", Type: reflect.TypeOf(&MustNotUnmarshalText{}), Offset: 1},
+		err: &UnmarshalTypeError{Value: "array", Type: reflect.TypeFor[*MustNotUnmarshalText](), Offset: 1},
 	},
 	{
 		in:  `{"foo": "bar"}`,
 		ptr: new(MustNotUnmarshalText),
-		err: &UnmarshalTypeError{Value: "object", Type: reflect.TypeOf(&MustNotUnmarshalText{}), Offset: 1},
+		err: &UnmarshalTypeError{Value: "object", Type: reflect.TypeFor[*MustNotUnmarshalText](), Offset: 1},
 	},
 	// #22369
 	{
@@ -941,7 +944,7 @@ var unmarshalTests = []unmarshalTest{
 			Value:  "string",
 			Struct: "T",
 			Field:  "PP.T.Y",
-			Type:   reflect.TypeOf(int(0)),
+			Type:   reflect.TypeFor[int](),
 			Offset: 29,
 		},
 	},
@@ -952,7 +955,7 @@ var unmarshalTests = []unmarshalTest{
 			Value:  "string",
 			Struct: "T",
 			Field:  "Ts.Y",
-			Type:   reflect.TypeOf(int(0)),
+			Type:   reflect.TypeFor[int](),
 			Offset: 29,
 		},
 	},

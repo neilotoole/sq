@@ -257,7 +257,6 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
@@ -387,7 +386,6 @@ func TestCompleteAddLocation_SQLServer(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
@@ -617,7 +615,6 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
@@ -778,7 +775,6 @@ func TestCompleteAddLocation_SQLite3(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
@@ -915,7 +911,6 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, tr, args...)
@@ -1116,7 +1111,6 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, tr, args...)
@@ -1246,7 +1240,6 @@ func TestCompleteAddLocation_History_SQLite3(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, tr, args...)
@@ -1289,7 +1282,6 @@ func TestParseLoc_stage(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.loc), func(t *testing.T) {
 			th := testh.New(t)
 			ru := th.Run()
@@ -1332,7 +1324,6 @@ func TestDoCompleteAddLocationFile(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			ctx := lg.NewContext(context.Background(), lgt.New(t))
 			t.Logf("input: %s", tc.in)

@@ -23,7 +23,6 @@ func TestParseCatalogSchema_ErrorMessages(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			_, _, err := ast.ParseCatalogSchema(tc.in)
 			require.Error(t, err)
@@ -82,7 +81,6 @@ func TestParseCatalogSchema(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			gotCatalog, gotSchema, gotErr := ast.ParseCatalogSchema(tc.in)
 			if tc.wantErr {

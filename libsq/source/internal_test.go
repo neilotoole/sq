@@ -27,7 +27,6 @@ func TestGroupsFilterOnlyDirectChildren(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.want), func(t *testing.T) {
 			got := groupsFilterOnlyDirectChildren(tc.parent, tc.groups)
 			require.EqualValues(t, tc.want, got)

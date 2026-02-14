@@ -68,7 +68,7 @@ func (ex *ExprElementNode) AddChild(child Node) error {
 }
 
 // VisitExprElement implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitExprElement(ctx *slq.ExprElementContext) interface{} {
+func (v *parseTreeVisitor) VisitExprElement(ctx *slq.ExprElementContext) any {
 	childCount := ctx.GetChildCount()
 	if childCount == 0 || childCount > 2 {
 		return errorf("parser: invalid expression: expected 1 or 2 children, but got %d: %v",

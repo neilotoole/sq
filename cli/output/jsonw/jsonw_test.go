@@ -139,8 +139,6 @@ func TestRecordWriters(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			colNames, kinds := fixt.ColNamePerKind(false, false, false)
@@ -209,8 +207,6 @@ func TestErrorWriter(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			buf := &bytes.Buffer{}
 			pr := output.NewPrinting()

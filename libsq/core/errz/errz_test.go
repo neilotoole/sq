@@ -31,6 +31,9 @@ func TestErrorf(t *testing.T) {
 	chain := errz.Chain(err)
 	require.Len(t, chain, 1)
 
+	// Use a variable format string to prevent go vet's printf analyzer from
+	// reporting a false positive. Go 1.26 vet only recognizes fmt.Errorf as
+	// supporting %w, but errz.Errorf handles it via strings.Contains.
 	wrapFmt := "wrap %w"
 	err2 := errz.Errorf(wrapFmt, err)
 	require.Equal(t, "wrap hello world", err2.Error())

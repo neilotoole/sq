@@ -162,7 +162,7 @@ func (v *parseTreeVisitor) VisitFunc(ctx *slq.FuncContext) any {
 // Although the "count" func has special handling in the grammar (because
 // it has a no-arg form, e.g. ".actor | count"), a regular FuncNode is
 // inserted into the AST.
-func (v *parseTreeVisitor) VisitCountFunc(ctx *slq.CountFuncContext) interface{} {
+func (v *parseTreeVisitor) VisitCountFunc(ctx *slq.CountFuncContext) any {
 	node := &FuncNode{fnName: "count"}
 	node.ctx = ctx
 	node.text = ctx.GetText()

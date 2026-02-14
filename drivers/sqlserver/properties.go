@@ -2,6 +2,7 @@ package sqlserver
 
 import (
 	"context"
+	"maps"
 
 	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -22,9 +23,7 @@ func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 		return nil, err
 	}
 
-	for k, v := range m2 {
-		m1[k] = v
-	}
+	maps.Copy(m1, m2)
 
 	return m1, nil
 }

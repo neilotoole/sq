@@ -54,12 +54,8 @@ func TestCmdSLQ_Insert_Create(t *testing.T) {
 // TestCmdSLQ_Insert tests "sq slq QUERY --insert=dest.tbl".
 func TestCmdSLQ_Insert(t *testing.T) {
 	for _, origin := range sakila.SQLLatest() {
-		origin := origin
-
 		t.Run("origin_"+origin, func(t *testing.T) {
 			for _, dest := range sakila.SQLLatest() {
-				dest := dest
-
 				t.Run("dest_"+dest, func(t *testing.T) {
 					t.Parallel()
 
@@ -145,12 +141,8 @@ func TestCmdSLQ_Join_cross_source(t *testing.T) {
 
 	// Attempt to join every SQL test source against every SQL test source.
 	for _, h1 := range handles {
-		h1 := h1
-
 		t.Run("origin_"+h1, func(t *testing.T) {
 			for _, h2 := range handles {
-				h2 := h2
-
 				t.Run("dest_"+h2, func(t *testing.T) {
 					t.Parallel()
 
@@ -268,7 +260,6 @@ func TestCmdSLQ_PreprocessFlagArgVars(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			got, gotErr := cli.PreprocessFlagArgVars(tc.in)
 			if tc.wantErr {
@@ -376,7 +367,6 @@ See: https://github.com/neilotoole/sq/issues/324`,
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.handle, func(t *testing.T) {
 			if tc.skipReason != "" {
 				t.Skip(tc.skipReason)
@@ -457,7 +447,6 @@ func TestCmdSLQ_NumericSchema(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
