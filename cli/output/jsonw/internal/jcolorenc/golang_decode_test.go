@@ -279,12 +279,6 @@ type unexportedWithMethods struct{}
 
 func (unexportedWithMethods) F() {}
 
-//go:fix inline
-func sliceAddr(x []int) *[]int { return new(x) }
-
-//go:fix inline
-func mapAddr(x map[string]int) *map[string]int { return new(x) }
-
 type byteWithMarshalJSON byte
 
 func (b byteWithMarshalJSON) MarshalJSON() ([]byte, error) {
