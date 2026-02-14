@@ -67,7 +67,7 @@ func TestParseCatalogSchema(t *testing.T) {
 		{in: "0", wantCatalog: "", wantSchema: "0"},             // zero as schema
 		{in: "0.0", wantCatalog: "0", wantSchema: "0"},          // zero as both
 		{in: "0.123", wantCatalog: "0", wantSchema: "123"},      // zero as catalog
-		{in: "123e10", wantCatalog: "", wantSchema: "123e10"},   // looks like exp notation, but is IDNUM
+		{in: "123e10", wantCatalog: "", wantSchema: "123e10"},   // resembles scientific notation, but matches IDNUM
 		{in: "1e", wantCatalog: "", wantSchema: "1e"},           // single digit + letter
 		{in: "123_", wantCatalog: "", wantSchema: "123_"},       // trailing underscore
 		{in: "_123", wantCatalog: "", wantSchema: "_123"},       // leading underscore (ID, not IDNUM)
