@@ -48,7 +48,7 @@ func Test_UpgradableLock(t *testing.T) {
 		for range 10 {
 			waitGroup.Go(func() {
 				m.RLock()
-				defer m.RLock()
+				defer m.RUnlock()
 			})
 		}
 		waitGroup.Wait()
