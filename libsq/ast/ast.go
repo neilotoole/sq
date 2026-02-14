@@ -211,8 +211,6 @@ func errorf(format string, v ...any) error {
 //
 // An error is returned if s is empty.
 func ParseCatalogSchema(s string) (catalog, schema string, err error) {
-	const errTpl = `invalid catalog.schema: %s`
-
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return "", "", errz.New("catalog.schema is empty")
@@ -234,18 +232,20 @@ func ParseCatalogSchema(s string) (catalog, schema string, err error) {
 
 	a, err := Parse(lg.Discard(), sel)
 	if err != nil {
-		return "", "", errz.Errorf(errTpl, s)
+		// Preserve original parse error for debugging.
+		return "", "", errz.Wrapf(err, "invalid catalog.schema %q", s)
 	}
 
 	if len(a.Segments()) != 1 {
-		return "", "", errz.Errorf(errTpl, s)
+		return "", "", errz.Errorf("invalid catalog.schema %q: expected single segment, got %d",
+			s, len(a.Segments()))
 	}
 
 	insp := NewInspector(a)
 
 	tblSel := insp.FindFirstTableSelector()
 	if tblSel == nil {
-		return "", "", errz.Errorf(errTpl, s)
+		return "", "", errz.Errorf("invalid catalog.schema %q: no valid selector found", s)
 	}
 
 	if tblSel.name1 == "" {
@@ -256,7 +256,7 @@ func ParseCatalogSchema(s string) (catalog, schema string, err error) {
 	}
 	switch schema {
 	case "":
-		return "", "", errz.Errorf(errTpl, s)
+		return "", "", errz.Errorf("invalid catalog.schema %q: schema name is required", s)
 	case schemaNameHack:
 		schema = ""
 	}

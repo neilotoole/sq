@@ -890,6 +890,101 @@ func TestDriverCreateDropSchema(t *testing.T) {
 	}
 }
 
+// TestDriverCreateDropSchema_Numeric tests creating and dropping schemas
+// with numeric and numeric-prefixed names. This validates that the grammar
+// changes in PR #515 (issue #470) work correctly across all SQL drivers.
+// See: https://github.com/neilotoole/sq/issues/470
+func TestDriverCreateDropSchema_Numeric(t *testing.T) {
+	// Test cases for numeric and numeric-prefixed schema names.
+	// These names require proper quoting in SQL generation.
+	numericSchemas := []struct {
+		name   string // test name
+		schema string // schema name to create
+	}{
+		{"pure_zero", "0"},
+		{"pure_numeric", "12345"},
+		{"numeric_prefixed", "123abc"},
+		{"numeric_with_underscore", "456_test"},
+		{"numeric_long", "9876543210"},
+		{"numeric_mixed", "0a1b2c"},
+		// Test leading zeros (issue #470)
+		{"leading_zeros_short", "007"},
+		{"leading_zeros_long", "00123"},
+		{"leading_zeros_many", "000000"},
+	}
+
+	// Drivers that support schema creation.
+	driverCases := []struct {
+		handle        string
+		defaultSchema string
+	}{
+		{sakila.Pg, "public"},
+		{sakila.My, "sakila"},
+		{sakila.MS, "dbo"},
+		// Note: SQLite doesn't support CREATE SCHEMA in the traditional sense.
+	}
+
+	for _, dc := range driverCases {
+		dc := dc
+		t.Run(dc.handle, func(t *testing.T) {
+			th, src, drvr, _, db := testh.NewWith(t, dc.handle)
+			ctx := th.Context
+
+			conn, err := db.Conn(ctx)
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				assert.NoError(t, conn.Close())
+			})
+
+			for _, nc := range numericSchemas {
+				nc := nc
+				t.Run(nc.name, func(t *testing.T) {
+					// Make schema name unique to avoid conflicts.
+					schemaName := nc.schema + "_" + stringz.Uniq8()
+
+					// Create the numeric schema.
+					err := drvr.CreateSchema(ctx, conn, schemaName)
+					require.NoError(t, err, "CreateSchema(%q) should succeed", schemaName)
+
+					t.Cleanup(func() {
+						dropErr := drvr.DropSchema(ctx, conn, schemaName)
+						assert.NoError(t, dropErr, "DropSchema(%q) cleanup should succeed", schemaName)
+					})
+
+					// Verify schema exists.
+					exists, err := drvr.SchemaExists(ctx, conn, schemaName)
+					require.NoError(t, err, "SchemaExists(%q) should not error", schemaName)
+					require.True(t, exists, "SchemaExists(%q) should return true", schemaName)
+
+					// Verify schema appears in list.
+					schemaNames, err := drvr.ListSchemas(ctx, conn)
+					require.NoError(t, err, "ListSchemas should not error")
+					require.Contains(t, schemaNames, schemaName,
+						"ListSchemas should contain %q", schemaName)
+
+					// Copy a table into the numeric schema.
+					destTblFQ := tablefq.T{Schema: schemaName, Table: stringz.UniqTableName("actor")}
+					srcTblFQ := tablefq.From(sakila.TblActor)
+					copied, err := drvr.CopyTable(ctx, conn, srcTblFQ, destTblFQ, true)
+					require.NoError(t, err, "CopyTable to numeric schema should succeed")
+					require.Equal(t, int64(sakila.TblActorCount), copied,
+						"CopyTable should copy all rows")
+
+					// Query the table in the numeric schema.
+					// The schema name must be properly quoted in the SQL.
+					q := fmt.Sprintf("SELECT * FROM %s.%s",
+						drvr.Dialect().Enquote(destTblFQ.Schema),
+						drvr.Dialect().Enquote(destTblFQ.Table))
+					sink, err := th.QuerySQL(src, conn, q)
+					require.NoError(t, err, "Query in numeric schema should succeed")
+					require.Equal(t, int64(sakila.TblActorCount), int64(len(sink.Recs)),
+						"Query should return all rows")
+				})
+			}
+		})
+	}
+}
+
 func TestSQLDriver_ErrWrap_IsErrNotExist(t *testing.T) {
 	for _, h := range sakila.SQLLatest() {
 		h := h

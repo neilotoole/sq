@@ -290,6 +290,12 @@ unaryOperator: '-' | '+' | '~' | '!';
 BOOL: 'true' | 'false';
 NULL: 'null';
 ID: [a-zA-Z_][a-zA-Z0-9_]*;
+
+// IDNUM matches numeric-prefixed identifiers that start with digits followed
+// by at least one letter or underscore. Examples: 123abc, 007bond, 456_schema.
+// This token was added to support numeric schema/catalog names (issue #470).
+IDNUM: [0-9]+ [a-zA-Z_] [a-zA-Z0-9_]*;
+
 WS: [ \t\r\n]+ -> skip;
 LPAR: '(';
 RPAR: ')';
@@ -311,6 +317,15 @@ NUMBER:
 
 fragment INTF: '0' | [1-9] [0-9]*; // no leading zeros
 
+// DIGITS matches pure digit sequences including those with leading zeros.
+// Examples: 007, 00123, 42. Used in NAME rule for numeric schema/catalog names.
+// Note: This is separate from INTF which disallows leading zeros (for NUMBER).
+// IMPORTANT: DIGITS must be defined AFTER NN to ensure that standard numbers
+// (without leading zeros) are matched by NN first. ANTLR gives priority to
+// tokens defined earlier when lengths are equal.
+// See issue #470.
+DIGITS: [0-9]+;
+
 fragment EXP:
 	[Ee] [+\-]? INTF; // \- since "-" means "range" inside [...]
 
@@ -322,7 +337,17 @@ NEQ: '!=';
 EQ: '==';
 
 
-NAME: '.' (ARG | ID | STRING);
+// NAME matches a dot followed by an identifier (table name, column name, or schema name).
+// The alternatives are:
+//   - ARG:    Argument reference, e.g., .$var
+//   - ID:     Standard identifier starting with letter/underscore, e.g., .actor, ._private
+//   - STRING: Quoted identifier, e.g., ."my table"
+//   - DIGITS: Pure digit sequence including leading zeros, e.g., .007, .00123 (issue #470)
+//   - IDNUM:  Numeric-prefixed identifier, e.g., .123abc, .007bond (issue #470)
+//
+// Note: ANTLR's maximal munch rule ensures that inputs like "007bond" match IDNUM (the
+// longest possible token) rather than DIGITS followed by something else.
+NAME: '.' (ARG | ID | STRING | DIGITS | IDNUM);
 
 // SEL can be .THING or .THING.OTHERTHING.
 // It can also be ."some name".OTHERTHING, etc.
@@ -378,5 +403,4 @@ LINECOMMENT: '#' .*? '\n' -> skip;
 //    | '[' ~']'* ']'
 //    | [A-Z_] [A-Z_0-9]*
 //; // TODO check: needs more chars in set
-
 

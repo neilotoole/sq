@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/spf13/cobra"
 	"golang.org/x/mod/semver"
 
@@ -20,6 +19,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 )
 
 func newVersionCmd() *cobra.Command {
