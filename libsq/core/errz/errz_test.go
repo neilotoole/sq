@@ -31,7 +31,8 @@ func TestErrorf(t *testing.T) {
 	chain := errz.Chain(err)
 	require.Len(t, chain, 1)
 
-	err2 := errz.Errorf("wrap %w", err)
+	wrapFmt := "wrap %w"
+	err2 := errz.Errorf(wrapFmt, err)
 	require.Equal(t, "wrap hello world", err2.Error())
 	chain2 := errz.Chain(err2)
 

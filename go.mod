@@ -3,7 +3,7 @@ module github.com/neilotoole/sq
 // NOTE: Some of these deps are marked with "BRITTLE". That means that extra
 // care needs to be taken when upgrading those versions, for various reasons.
 
-go 1.25.5
+go 1.26.0
 
 // godebug x509negativeserial=1 is set here because of an issue with older
 // SQL Server versions not doing the right thing with X509 certs (see RFC 5280).
