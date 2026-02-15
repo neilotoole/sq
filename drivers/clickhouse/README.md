@@ -175,7 +175,7 @@ welcome.
 <!-- markdownlint-disable MD013 MD060 -->
 | # | Limitation                          | Category      | Severity | Workaround                          |
 |---|-------------------------------------|---------------|----------|-------------------------------------|
-| 1 | Batch insert connection corruption  | Insert        | High     | Tests skipped; needs native Batch API |
+| 1 | ~~Batch insert connection corruption~~ | Insert      | ~~High~~ | **Resolved**: native Batch API      |
 | 2 | PrepareUpdateStmt not supported     | Update/Delete | High     | Tests skipped                       |
 | 3 | Standard UPDATE/DELETE not supported | Update/Delete | Medium   | Tests skipped                       |
 | 4 | Type roundtrip issues               | Types         | Low      | Tests skipped                       |
@@ -184,9 +184,17 @@ welcome.
 
 ### Insert Limitations
 
-#### 1. Batch Insert: Connection Corruption
+#### 1. Batch Insert: Connection Corruption (RESOLVED)
 
-##### Root Cause
+**Status**: Resolved. The ClickHouse driver now uses clickhouse-go's
+native Batch API (`PrepareBatch`/`Append`/`Send`) via the
+`SQLDriver.NewBatchInsert` method, bypassing the incompatible
+multi-row `INSERT` approach. All previously-skipped insert tests
+are now enabled.
+
+##### Historical Details
+
+###### Root Cause
 
 sq's generic `driver.PrepareInsertStmt` generates multi-row `INSERT`
 statements of the form:
@@ -208,7 +216,7 @@ receives 280 arguments but the column count is 4, it rejects with:
 expected 4 arguments, got 280
 ```
 
-##### Why the Obvious Workaround Fails
+###### Why the Obvious Workaround Fails
 
 Forcing single-row inserts (`numRows=1`) fixes the argument count
 mismatch, but causes ClickHouse native protocol state corruption
@@ -222,12 +230,14 @@ code: 101, message: Unexpected packet Query received from client
 The connection becomes invalid but is not closed by the driver, so
 subsequent queries on the same connection also fail.
 
-##### Proper Fix
+###### Solution
 
-The correct approach is to use clickhouse-go's native Batch API:
+The `SQLDriver` interface was extended with a `NewBatchInsert` method,
+allowing each driver to own its insert strategy. The ClickHouse
+implementation uses clickhouse-go's native Batch API:
 
 ```go
-batch, err := conn.PrepareBatch(ctx, "INSERT INTO t")
+batch, err := conn.PrepareBatch(ctx, "INSERT INTO t (c1, c2)")
 for _, row := range rows {
     batch.Append(row...)
 }
@@ -235,24 +245,7 @@ batch.Send()
 ```
 
 This API handles protocol state correctly and is optimized for
-ClickHouse's columnar batch semantics. It is the standard method
-used by Go programs that insert into ClickHouse at scale.
-
-##### Impact
-
-Several CLI tests that insert data into ClickHouse as the
-destination are skipped:
-
-- `TestNewBatchInsert` — multi-row batch insert test
-- `TestCreateTable_bytes` — creates table and inserts binary data
-- `TestOutputRaw` — raw binary output (requires data insertion)
-- `TestCmdSQL_Insert` — `sq sql --insert=@dest.tbl`
-  (ClickHouse as dest)
-- `TestCmdSLQ_Insert` — `sq slq --insert=@dest.tbl`
-  (ClickHouse as dest)
-
-Note: Tests pass when ClickHouse is the **origin** (reading data
-works fine); they only fail when ClickHouse is the destination.
+ClickHouse's columnar batch semantics.
 
 ### Update/Delete Limitations
 
@@ -480,10 +473,11 @@ and converting slice values to comma-separated strings in
 
 clickhouse-go does not support multi-row parameter binding.
 Single-row workaround causes connection state corruption after many
-`Exec` calls. Proper fix requires clickhouse-go's native Batch API
-(`conn.PrepareBatch()`).
+`Exec` calls. Fixed by adding `NewBatchInsert` to the `SQLDriver`
+interface and implementing it with clickhouse-go's native Batch API
+(`conn.PrepareBatch()`/`batch.Append()`/`batch.Send()`).
 
-**Status**: Tests skipped. See Known Limitation #3.
+**Status**: Resolved. See Known Limitation #1.
 
 ### PrepareUpdateStmt Failure (2026-01-19)
 

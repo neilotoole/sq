@@ -378,6 +378,13 @@ func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl str
 	return execer, nil
 }
 
+// NewBatchInsert implements driver.SQLDriver.
+func (d *driveri) NewBatchInsert(ctx context.Context, msg string, db sqlz.DB,
+	_ *source.Source, destTbl string, destColNames []string, batchSize int,
+) (*driver.BatchInsert, error) {
+	return driver.NewStdBatchInsert(ctx, msg, d, db, destTbl, destColNames, batchSize)
+}
+
 // PrepareUpdateStmt implements driver.SQLDriver.
 func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
 	where string,

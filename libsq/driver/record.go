@@ -377,14 +377,30 @@ func (bi *BatchInsert) Munge(rec []any) error {
 	return bi.mungeFn(rec)
 }
 
-// NewBatchInsert returns a new BatchInsert instance. The internal
-// goroutine is started.
+// NewBatchInsertFromCh constructs a BatchInsert from pre-created
+// channels. The caller is responsible for starting a goroutine
+// that reads from recCh, writes errors to errCh, and closes
+// errCh when done.
+func NewBatchInsertFromCh(recCh chan<- []any, errCh <-chan error,
+	written *atomic.Int64, mungeFn InsertMungeFunc,
+) *BatchInsert {
+	return &BatchInsert{
+		RecordCh: recCh,
+		ErrCh:    errCh,
+		written:  written,
+		mungeFn:  mungeFn,
+	}
+}
+
+// NewStdBatchInsert returns a new BatchInsert instance using the standard
+// multi-row INSERT approach. The internal goroutine is started.
+// Most SQL drivers delegate their NewBatchInsert method to this function.
 //
 // Note that the db arg must guarantee a single connection: that is,
 // it must be a sql.Conn or sql.Tx.
 //
 //nolint:gocognit
-func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
+func NewStdBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
 	destTbl string, destColNames []string, batchSize int,
 ) (*BatchInsert, error) {
 	log := lg.FromContext(ctx)

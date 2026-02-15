@@ -121,6 +121,16 @@ type SQLDriver interface {
 	PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
 		numRows int) (*StmtExecer, error)
 
+	// NewBatchInsert returns a BatchInsert for inserting records
+	// into destTbl. The db arg must guarantee a single connection
+	// (i.e., it must be a sql.Conn or sql.Tx). Most implementations
+	// delegate to driver.NewStdBatchInsert. The src arg provides
+	// access to the source DSN, which some drivers (e.g. ClickHouse)
+	// need to open native connections.
+	NewBatchInsert(ctx context.Context, msg string, db sqlz.DB,
+		src *source.Source, destTbl string, destColNames []string,
+		batchSize int) (*BatchInsert, error)
+
 	// PrepareUpdateStmt prepares a statement for updating destColNames in
 	// destTbl, using the supplied where clause (which may be empty).
 	// The where arg should use question mark "?" as the placeholder: it will

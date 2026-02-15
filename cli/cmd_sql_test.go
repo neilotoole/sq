@@ -444,11 +444,6 @@ func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 // The test matrix covers all combinations of supported SQL databases as both
 // origin (data source) and destination (insert target), ensuring the feature
 // works regardless of which databases are involved.
-//
-// Note: ClickHouse is skipped as a destination due to connection state corruption
-// issues with batch inserts (see drivers/clickhouse/README.md). ClickHouse works
-// fine as an origin (reading data), but the batch insert mechanism used for
-// writing corrupts the connection protocol state.
 func TestCmdSQL_Insert(t *testing.T) {
 	for _, origin := range sakila.SQLLatest() {
 		t.Run("origin_"+origin, func(t *testing.T) {
@@ -460,8 +455,6 @@ func TestCmdSQL_Insert(t *testing.T) {
 
 					th := testh.New(t)
 					originSrc, destSrc := th.Source(origin), th.Source(dest)
-					tu.SkipIf(t, destSrc.Type == drivertype.ClickHouse,
-						"ClickHouse: batch insert causes connection state corruption (see drivers/clickhouse/README.md)")
 					originTbl := sakila.TblActor
 
 					if th.IsMonotable(originSrc) {

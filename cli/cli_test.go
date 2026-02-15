@@ -118,15 +118,10 @@ func TestSmoke(t *testing.T) {
 // CreateTable, type mapping for kind.Bytes to the database-specific binary type
 // (e.g., BLOB, BYTEA, VARBINARY), and data insertion via the batch insert
 // mechanism with proper binary encoding.
-//
-// Note: ClickHouse is skipped due to connection state corruption issues with
-// batch inserts (see drivers/clickhouse/README.md).
 func TestCreateTable_bytes(t *testing.T) {
 	for _, handle := range sakila.SQLLatest() {
 		t.Run(handle, func(t *testing.T) {
 			th, src, _, _, _ := testh.NewWith(t, handle)
-			tu.SkipIf(t, src.Type == drivertype.ClickHouse,
-				"ClickHouse: batch insert causes connection state corruption (see drivers/clickhouse/README.md)")
 			th.DiffDB(src)
 
 			tblDef := schema.NewTable(
@@ -165,9 +160,6 @@ func TestCreateTable_bytes(t *testing.T) {
 // This exercises the complete binary data pipeline: storage in the database,
 // retrieval through the driver, and output through the CLI's raw format writer
 // without corruption or unwanted encoding (e.g., base64, hex).
-//
-// Note: ClickHouse is skipped due to connection state corruption issues with
-// batch inserts (see drivers/clickhouse/README.md).
 func TestOutputRaw(t *testing.T) {
 	t.Parallel()
 
@@ -176,8 +168,6 @@ func TestOutputRaw(t *testing.T) {
 			t.Parallel()
 
 			th, src, _, _, _ := testh.NewWith(t, handle)
-			tu.SkipIf(t, src.Type == drivertype.ClickHouse,
-				"ClickHouse: batch insert causes connection state corruption (see drivers/clickhouse/README.md)")
 
 			// Sanity check
 			wantBytes := proj.ReadFile(fixt.GopherPath)
