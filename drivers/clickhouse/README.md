@@ -186,17 +186,62 @@ welcome.
 
 #### 1. Batch Insert: Connection Corruption
 
-The clickhouse-go driver does not support multi-row parameter binding.
-When sq generates `INSERT INTO t VALUES (?,?), (?,?)` with flattened
-arguments, clickhouse-go expects arguments for a **single row only**.
+##### Root Cause
+
+sq's generic `driver.PrepareInsertStmt` generates multi-row `INSERT`
+statements of the form:
+
+```sql
+INSERT INTO t VALUES (?, ?), (?, ?), ...
+```
+
+with all argument values flattened into a single slice (e.g., 70 rows
+x 4 columns = 280 args). PostgreSQL, MySQL, and SQLite all support
+this multi-row parameter binding natively, so it works without
+modification for those drivers.
+
+However, clickhouse-go v2's prepared statement handler expects
+arguments for exactly **one row** per `ExecContext` call. When it
+receives 280 arguments but the column count is 4, it rejects with:
+
+```text
+expected 4 arguments, got 280
+```
+
+##### Why the Obvious Workaround Fails
 
 Forcing single-row inserts (`numRows=1`) fixes the argument count
-error but causes connection state corruption after many `Exec` calls,
-resulting in "Unexpected packet Query received from client" errors. A
-proper fix requires using clickhouse-go's native Batch API.
+mismatch, but causes ClickHouse native protocol state corruption
+after approximately 200 `Exec` calls on the same prepared statement.
+The connection produces:
 
-**Impact**: Several CLI tests that insert data into ClickHouse as
-the destination are skipped:
+```text
+code: 101, message: Unexpected packet Query received from client
+```
+
+The connection becomes invalid but is not closed by the driver, so
+subsequent queries on the same connection also fail.
+
+##### Proper Fix
+
+The correct approach is to use clickhouse-go's native Batch API:
+
+```go
+batch, err := conn.PrepareBatch(ctx, "INSERT INTO t")
+for _, row := range rows {
+    batch.Append(row...)
+}
+batch.Send()
+```
+
+This API handles protocol state correctly and is optimized for
+ClickHouse's columnar batch semantics. It is the standard method
+used by Go programs that insert into ClickHouse at scale.
+
+##### Impact
+
+Several CLI tests that insert data into ClickHouse as the
+destination are skipped:
 
 - `TestNewBatchInsert` — multi-row batch insert test
 - `TestCreateTable_bytes` — creates table and inserts binary data
@@ -208,9 +253,6 @@ the destination are skipped:
 
 Note: Tests pass when ClickHouse is the **origin** (reading data
 works fine); they only fail when ClickHouse is the destination.
-
-See [development log](../../.claude/memos/gh503-clickhouse-dev-log.memo.md)
-for full investigation details.
 
 ### Update/Delete Limitations
 
