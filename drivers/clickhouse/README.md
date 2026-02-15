@@ -324,7 +324,7 @@ welcome.
 |---|------------------------------------------------------------------------------------------|---------------|----------|--------------------------------------|
 | 1 | [~~Batch insert connection corruption~~](#1-batch-insert-connection-corruption-resolved) | Insert        | ~~High~~ | **Resolved**: native Batch API       |
 | 2 | [~~PrepareUpdateStmt not supported~~](#2-prepareupdatestmt-resolved)                     | Update/Delete | ~~High~~ | **Resolved**: ExecContext workaround |
-| 3 | [Standard UPDATE/DELETE not supported](#3-standard-updatedelete-not-supported)           | Update/Delete | Medium   | Tests skipped                        |
+| 3 | [Standard SQL UPDATE/DELETE syntax not supported](#3-standard-sql-updatedelete-syntax-not-supported) | Update/Delete | Medium   | Tests skipped                        |
 | 4 | [Type roundtrip issues](#4-type-roundtrip-issues)                                        | Types         | Low      | Tests skipped                        |
 | 5 | [CopyTable row count unsupported](#5-copytable-row-count-unsupported)                    | Metadata      | Low      | Handled in CLI                       |
 <!-- markdownlint-enable MD013 MD060 -->
@@ -509,7 +509,7 @@ Dedicated ClickHouse integration tests in
   updates all 200 rows
 - `TestDriver_PrepareUpdateStmt/null_value` — update column to NULL
 
-#### 3. Standard UPDATE/DELETE Not Supported
+#### 3. Standard SQL UPDATE/DELETE Syntax Not Supported
 
 ClickHouse does not support standard SQL `UPDATE` and `DELETE`
 syntax. Executing these statements produces an error:
