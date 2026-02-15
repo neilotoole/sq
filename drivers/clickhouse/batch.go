@@ -38,6 +38,7 @@ func (d *driveri) NewBatchInsert(ctx context.Context, msg string, db sqlz.DB,
 	src *source.Source, destTbl string, destColNames []string,
 ) (*driver.BatchInsert, error) {
 	batchSize := d.Dialect().MaxBatchValues
+	log := lg.FromContext(ctx)
 	if err := sqlz.RequireSingleConn(db); err != nil {
 		return nil, err
 	}
@@ -65,7 +66,7 @@ func (d *driveri) NewBatchInsert(ctx context.Context, msg string, db sqlz.DB,
 	// Get column metadata for the munge function.
 	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
-		_ = conn.Close()
+		lg.WarnIfCloseError(log, "Close clickhouse native conn", conn)
 		return nil, err
 	}
 
@@ -85,10 +86,9 @@ func (d *driveri) NewBatchInsert(ctx context.Context, msg string, db sqlz.DB,
 	recCh := make(chan []any, batchSize*8)
 	errCh := make(chan error, 1)
 	written := atomic.NewInt64(0)
-	log := lg.FromContext(ctx)
 
 	go func() {
-		defer conn.Close()
+		defer lg.WarnIfCloseError(log, "Close clickhouse native conn", conn)
 		defer close(errCh)
 		defer pbar.Stop()
 
@@ -103,7 +103,7 @@ func (d *driveri) NewBatchInsert(ctx context.Context, msg string, db sqlz.DB,
 		for {
 			select {
 			case <-ctx.Done():
-				_ = batch.Abort()
+				lg.WarnIfFuncError(log, "Abort clickhouse batch", batch.Abort)
 				errCh <- ctx.Err()
 				return
 
@@ -126,7 +126,7 @@ func (d *driveri) NewBatchInsert(ctx context.Context, msg string, db sqlz.DB,
 				}
 
 				if appendErr := batch.Append(rec...); appendErr != nil {
-					_ = batch.Abort()
+					lg.WarnIfFuncError(log, "Abort clickhouse batch", batch.Abort)
 					errCh <- errz.Wrapf(appendErr, "clickhouse batch append")
 					return
 				}

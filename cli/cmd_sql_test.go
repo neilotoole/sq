@@ -56,13 +56,19 @@ func TestCmdSQL_ExecMode(t *testing.T) {
 		// createSQL is the CREATE TABLE DDL for this driver.
 		createSQL string
 		// wantDMLRowsAffected is the expected rows_affected for INSERT/UPDATE/DELETE.
-		// Most drivers return 1; ClickHouse returns 0.
+		// Most drivers return 1; ClickHouse returns -1 (unsupported).
 		wantDMLRowsAffected int64
+		// wantDDLRowsAffected is the expected rows_affected for DDL statements
+		// (CREATE TABLE, DROP TABLE). Most drivers return 0; ClickHouse returns
+		// -1 because the CLI converts 0 to RowsAffectedUnsupported when the
+		// dialect has IsRowsAffectedUnsupported set.
+		wantDDLRowsAffected int64
 	}
 
 	defaultCfg := driverCfg{
 		createSQL:           "CREATE TABLE test_exec_type (id INTEGER, name VARCHAR(100))",
 		wantDMLRowsAffected: 1,
+		wantDDLRowsAffected: 0,
 	}
 
 	// driverCfgs maps handles to their driver-specific config. Handles not
@@ -74,9 +80,11 @@ func TestCmdSQL_ExecMode(t *testing.T) {
 			createSQL: "CREATE TABLE test_exec_type (id Int32, name String)" +
 				" ENGINE = MergeTree() ORDER BY id" +
 				" SETTINGS enable_block_number_column = 1, enable_block_offset_column = 1",
-			// ClickHouse does not report rows affected for DML. The CLI
-			// intercepts the raw 0 from the protocol and converts it to -1.
+			// ClickHouse does not report rows affected for any exec statement.
+			// The CLI intercepts the raw 0 from the protocol and converts it
+			// to -1 (RowsAffectedUnsupported) for both DML and DDL.
 			wantDMLRowsAffected: dialect.RowsAffectedUnsupported,
+			wantDDLRowsAffected: dialect.RowsAffectedUnsupported,
 		},
 	}
 
@@ -92,15 +100,12 @@ func TestCmdSQL_ExecMode(t *testing.T) {
 		// if isQuery is true. We use a single column to simplify verification.
 		wantQueryVals []string
 		// isDML is true for INSERT/UPDATE/DELETE statements where wantDMLRowsAffected
-		// from driverCfg should be used instead of wantRowsAffected.
+		// from driverCfg should be used. When false (DDL like CREATE/DROP),
+		// wantDDLRowsAffected from driverCfg is used instead.
 		isDML bool
-		// wantRowsAffected is the rows-affected count expected to be returned if
-		// isQuery is false and isDML is false (i.e., DDL like CREATE/DROP).
-		wantRowsAffected int64
 	}{
 		{
-			name:             "create_table",
-			wantRowsAffected: 0,
+			name: "create_table",
 		},
 		{
 			name:          "select_empty",
@@ -147,9 +152,8 @@ func TestCmdSQL_ExecMode(t *testing.T) {
 			wantQueryVals: []string{"Charlie"},
 		},
 		{
-			name:             "drop_table",
-			sql:              "DROP TABLE test_exec_type",
-			wantRowsAffected: 0,
+			name: "drop_table",
+			sql:  "DROP TABLE test_exec_type",
 		},
 	}
 
@@ -202,9 +206,11 @@ func TestCmdSQL_ExecMode(t *testing.T) {
 						}
 					} else {
 						// For statements, verify rows_affected.
-						wantAffected := tc.wantRowsAffected
+						var wantAffected int64
 						if tc.isDML {
 							wantAffected = cfg.wantDMLRowsAffected
+						} else {
+							wantAffected = cfg.wantDDLRowsAffected
 						}
 
 						result := tr.BindMap()

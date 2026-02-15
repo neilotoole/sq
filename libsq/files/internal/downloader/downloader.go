@@ -471,7 +471,9 @@ func (dl *Downloader) do(req *http.Request) (*http.Response, error) {
 
 	if resp.Body != nil && resp.Body != http.NoBody {
 		r := progress.NewReader(req.Context(), dl.name+": download", resp.ContentLength, resp.Body)
-		resp.Body, _ = r.(io.ReadCloser)
+		if rc, ok := r.(io.ReadCloser); ok {
+			resp.Body = rc
+		}
 	}
 	return resp, nil
 }

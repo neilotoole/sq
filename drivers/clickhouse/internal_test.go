@@ -49,7 +49,11 @@ var (
 	IsNullableType             = isNullableType
 	IsNullableTypeUnwrapped    = isNullableTypeUnwrapped
 	TableTypeFromEngine        = tableTypeFromEngine
+	ConvertArrayToString       = convertArrayToString
 )
+
+// clickhouse.go exports.
+var LocationWithDefaultPort = locationWithDefaultPort
 
 // errors.go exports.
 var (
