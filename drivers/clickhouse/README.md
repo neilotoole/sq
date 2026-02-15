@@ -863,3 +863,24 @@ WHERE), and NULL value updates. A nil-safety unit test for
 `libsq/driver/record_test.go:TestStmtExecer_Close_NilStmt`.
 
 **Status**: Resolved.
+
+### Batch Insert Edge Case Tests (2026-02-15)
+
+Added integration tests for batch insert edge cases in
+`drivers/clickhouse/batch_test.go`:
+
+- `TestBatchInsert_MultiBatch` — inserts 16049 payment rows across
+  2 batches (10000 + 6049), verifying `Written()` count and table
+  row count.
+- `TestBatchInsert_ContextCancel` — cancels context mid-insert,
+  verifies `context.Canceled` error on the error channel.
+- `TestBatchInsert_Empty` — closes `RecordCh` immediately, verifies
+  zero records written and no error.
+
+Also added `TestMetadata_UnusualColumnTypes` in
+`drivers/clickhouse/metadata_test.go` — creates a table with
+`Enum8`, `Array(Int32)`, `Map(String, String)`, and
+`Tuple(String, Int64)` columns, verifies metadata retrieval
+assigns `Kind` and `BaseType` for all columns.
+
+**Status**: Complete.
