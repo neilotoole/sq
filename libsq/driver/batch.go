@@ -183,8 +183,10 @@ func DefaultNewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db s
 					return
 				}
 
-				bi.written.Add(affected)
-				pbar.Incr(int(affected))
+				if affected >= 0 {
+					bi.written.Add(affected)
+					pbar.Incr(int(affected))
+				}
 				debugz.DebugSleep(ctx)
 
 				if rec == nil {
@@ -227,8 +229,10 @@ func DefaultNewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db s
 				return
 			}
 
-			bi.written.Add(affected)
-			pbar.Incr(int(affected))
+			if affected >= 0 {
+				bi.written.Add(affected)
+				pbar.Incr(int(affected))
+			}
 			debugz.DebugSleep(ctx)
 
 			// We're done

@@ -47,7 +47,9 @@ type DB interface {
 }
 
 // ExecAffected invokes db.ExecContext, returning the count of rows
-// affected and any error.
+// affected and any error. The returned count may be -1 per Go's
+// [sql.Result.RowsAffected] contract if the database does not support
+// reporting affected row counts.
 func ExecAffected(ctx context.Context, db Execer, query string, args ...any) (affected int64, err error) {
 	var res sql.Result
 	res, err = db.ExecContext(ctx, query, args...)

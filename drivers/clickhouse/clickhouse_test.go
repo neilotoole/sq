@@ -21,6 +21,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -35,20 +36,20 @@ func TestDialectPlaceholders(t *testing.T) {
 	drvr, err := p.DriverFor(clickhouse.Type)
 	require.NoError(t, err)
 	sqlDrvr := drvr.(driver.SQLDriver)
-	dialect := sqlDrvr.Dialect()
+	dlct := sqlDrvr.Dialect()
 
 	// ClickHouse should use ? placeholders
 	// Test single column, single row
-	require.Equal(t, "(?)", dialect.Placeholders(1, 1))
+	require.Equal(t, "(?)", dlct.Placeholders(1, 1))
 
 	// Test multiple columns, single row
-	require.Equal(t, "(?, ?, ?)", dialect.Placeholders(3, 1))
+	require.Equal(t, "(?, ?, ?)", dlct.Placeholders(3, 1))
 
 	// Test single column, multiple rows
-	require.Equal(t, "(?), (?), (?)", dialect.Placeholders(1, 3))
+	require.Equal(t, "(?), (?), (?)", dlct.Placeholders(1, 3))
 
 	// Test multiple columns, multiple rows
-	require.Equal(t, "(?, ?), (?, ?)", dialect.Placeholders(2, 2))
+	require.Equal(t, "(?, ?), (?, ?)", dlct.Placeholders(2, 2))
 }
 
 // TestDialectEnquote verifies that the ClickHouse dialect uses backtick quoting
@@ -61,7 +62,7 @@ func TestDialectEnquote(t *testing.T) {
 	drvr, err := p.DriverFor(clickhouse.Type)
 	require.NoError(t, err)
 	sqlDrvr := drvr.(driver.SQLDriver)
-	dialect := sqlDrvr.Dialect()
+	dlct := sqlDrvr.Dialect()
 
 	testCases := []struct {
 		input string
@@ -76,7 +77,7 @@ func TestDialectEnquote(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.input, func(t *testing.T) {
-			got := dialect.Enquote(tc.input)
+			got := dlct.Enquote(tc.input)
 			require.Equal(t, tc.want, got)
 		})
 	}
@@ -216,8 +217,8 @@ func TestDriver_AlterTableColumnKinds(t *testing.T) {
 // TestDriver_PrepareUpdateStmt tests ClickHouse-specific mutation behavior
 // for UPDATE operations. ClickHouse mutations (ALTER TABLE UPDATE) are
 // asynchronous by default; the driver appends "SETTINGS mutations_sync = 1"
-// to force synchronous execution. RowsAffected() always returns 0 regardless
-// of how many rows were actually modified.
+// to force synchronous execution. RowsAffected() is not supported for
+// mutations, so the driver returns dialect.RowsAffectedUnsupported (-1).
 //
 // This test requires a live ClickHouse instance and is skipped in short mode.
 // Each subtest copies sakila.TblActor (200 rows) to a disposable table.
@@ -242,7 +243,7 @@ func TestDriver_PrepareUpdateStmt(t *testing.T) {
 
 		affected, err := stmtExecer.Exec(th.Context, args...)
 		require.NoError(t, err)
-		require.Equal(t, int64(0), affected)
+		require.Equal(t, dialect.RowsAffectedUnsupported, affected)
 		require.NoError(t, stmtExecer.Close())
 
 		// Verify all 5 matching rows were updated.
@@ -285,7 +286,7 @@ func TestDriver_PrepareUpdateStmt(t *testing.T) {
 
 		affected, err := stmtExecer.Exec(th.Context, args...)
 		require.NoError(t, err)
-		require.Equal(t, int64(0), affected)
+		require.Equal(t, dialect.RowsAffectedUnsupported, affected)
 		require.NoError(t, stmtExecer.Close())
 
 		// Verify no rows were changed by spot-checking a few rows.
@@ -317,7 +318,7 @@ func TestDriver_PrepareUpdateStmt(t *testing.T) {
 
 		affected, err := stmtExecer.Exec(th.Context, args...)
 		require.NoError(t, err)
-		require.Equal(t, int64(0), affected)
+		require.Equal(t, dialect.RowsAffectedUnsupported, affected)
 		require.NoError(t, stmtExecer.Close())
 
 		// Verify all 200 rows have the new value.
@@ -345,7 +346,7 @@ func TestDriver_PrepareUpdateStmt(t *testing.T) {
 
 		affected, err := stmtExecer.Exec(th.Context, args...)
 		require.NoError(t, err)
-		require.Equal(t, int64(0), affected)
+		require.Equal(t, dialect.RowsAffectedUnsupported, affected)
 		require.NoError(t, stmtExecer.Close())
 
 		// Verify the column reads back as NULL.

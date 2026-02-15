@@ -43,7 +43,9 @@ type InsertMungeFunc func(vals record.Record) error
 // StmtExecFunc is provided by driver implementations to wrap
 // execution of a prepared statement. Typically the func will
 // perform some driver-specific action, such as managing
-// retryable errors.
+// retryable errors. Implementations may return
+// [dialect.RowsAffectedUnsupported] (-1) for affected when the
+// database does not report affected row counts.
 type StmtExecFunc func(ctx context.Context, args ...any) (affected int64, err error)
 
 // NewStmtExecer returns a new StmtExecer instance. The caller is responsible
@@ -91,6 +93,8 @@ func (x *StmtExecer) Munge(rec []any) error {
 
 // Exec executes the statement. The caller should invoke Munge on
 // each row of values prior to passing those values to Exec.
+// The returned affected count may be [dialect.RowsAffectedUnsupported]
+// (-1) if the driver does not report affected row counts.
 func (x *StmtExecer) Exec(ctx context.Context, args ...any) (affected int64, err error) {
 	return x.execFn(ctx, args...)
 }

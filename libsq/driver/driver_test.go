@@ -243,9 +243,10 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
 				// modified. The driver's PrepareUpdateStmt appends
 				// "SETTINGS mutations_sync = 1" to force synchronous execution
 				// (so the data is updated before the SELECT below), but
-				// RowsAffected() still returns 0.
+				// RowsAffected() still returns 0. The driver returns
+				// dialect.RowsAffectedUnsupported (-1) to signal "unknown".
 				// See https://github.com/ClickHouse/clickhouse-go/issues/1203
-				assert.Equal(t, int64(0), affected)
+				assert.Equal(t, dialect.RowsAffectedUnsupported, affected)
 			} else {
 				assert.Equal(t, int64(1), affected)
 			}

@@ -817,8 +817,9 @@ func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl str
 //
 // Even with mutations_sync = 1, ClickHouse does not report the number of
 // rows affected by a mutation. The sql.Result.RowsAffected() value returned
-// by the driver is always 0. The returned StmtExecer therefore always
-// returns 0 for affected rows, not the actual count.
+// by the driver is always 0. The returned StmtExecer therefore returns
+// [dialect.RowsAffectedUnsupported] (-1) to signal "unknown" rather than
+// a misleading 0.
 //
 // Implementation detail: clickhouse-go v2's PrepareContext() only supports
 // INSERT and SELECT statements. It internally classifies every non-SELECT
@@ -862,8 +863,9 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 		}
 		// ClickHouse does not report rows affected for mutations:
 		// RowsAffected() always returns 0 regardless of how many rows
-		// were actually modified. Return 0 unconditionally.
-		return 0, nil
+		// were actually modified. Return RowsAffectedUnsupported (-1)
+		// to signal "unknown" rather than a misleading 0.
+		return dialect.RowsAffectedUnsupported, nil
 	}
 
 	// Pass nil for stmt because we bypass PrepareContext() (see above).

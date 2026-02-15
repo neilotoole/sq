@@ -146,6 +146,10 @@ type SQLDriver interface {
 	// Use the returned StmtExecer per its documentation. It is the caller's
 	// responsibility to close the execer.
 	//
+	// The returned StmtExecer's Exec method may yield
+	// [dialect.RowsAffectedUnsupported] (-1) for affected rows if the driver
+	// cannot report the count (e.g. ClickHouse mutations).
+	//
 	// Note that db must guarantee a single connection: that is, db
 	// must be a sql.Conn or sql.Tx.
 	PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
@@ -175,7 +179,9 @@ type SQLDriver interface {
 	// Truncate truncates tbl in src. If arg reset is true, the
 	// identity counter for tbl should be reset, if supported
 	// by the driver. Some DB impls may reset the identity
-	// counter regardless of the val of reset.
+	// counter regardless of the val of reset. The returned affected
+	// count may be [dialect.RowsAffectedUnsupported] (-1) if the driver
+	// cannot determine the row count.
 	Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64, err error)
 
 	// TableExists returns true if there's an existing table tbl in db.
