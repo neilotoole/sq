@@ -19,7 +19,8 @@ import (
 )
 
 // getSourceMetadata returns metadata for the ClickHouse source, including
-// database version, current database name, and optionally table/column metadata.
+// database version, current database name, size, user, and optionally
+// table/column metadata.
 //
 // Parameters:
 //   - src: The source configuration
@@ -29,49 +30,67 @@ import (
 // The returned metadata includes:
 //   - Handle: The source handle (e.g., "@mydb")
 //   - Location: The connection string
-//   - Driver: drivertype.ClickHouse
+//   - Driver/DBDriver: drivertype.ClickHouse
 //   - DBVersion: ClickHouse server version from version()
-//   - Schema/Name: Current database from currentDatabase()
-//   - Tables: Table metadata (if noSchema is false)
+//   - DBProduct: "ClickHouse" plus version string
+//   - Schema/Name/FQName: Current database from currentDatabase()
+//   - User: Current user from currentUser()
+//   - Size: Total database size from system.tables
+//   - Tables: Table metadata with TableCount/ViewCount (if noSchema is false)
 func getSourceMetadata(ctx context.Context, src *source.Source, db *sql.DB, noSchema bool) (*metadata.Source, error) {
 	md := &metadata.Source{
-		Handle:    src.Handle,
-		Location:  src.Location,
-		Driver:    drivertype.ClickHouse,
-		DBVersion: "",
+		Handle:   src.Handle,
+		Location: src.Location,
+		Driver:   drivertype.ClickHouse,
+		DBDriver: drivertype.ClickHouse,
 	}
 
-	// Get database version
-	var version string
-	err := db.QueryRowContext(ctx, "SELECT version()").Scan(&version)
-	if err != nil {
-		// If we can't query version, just leave it empty
-		md.DBVersion = ""
-	} else {
-		md.DBVersion = version
-	}
-
-	// Get current database
-	var database string
-	err = db.QueryRowContext(ctx, "SELECT currentDatabase()").Scan(&database)
+	// Get database version, current database, current user in one query.
+	var version, database, user string
+	err := db.QueryRowContext(ctx,
+		"SELECT version(), currentDatabase(), currentUser()").
+		Scan(&version, &database, &user)
 	if err != nil {
 		return nil, errw(err)
 	}
+
+	md.DBVersion = version
+	md.DBProduct = "ClickHouse " + version
 	md.Schema = database
 	md.Name = database
+	md.FQName = database
+	md.User = user
+
+	// Get database size.
+	var size sql.NullInt64
+	err = db.QueryRowContext(ctx,
+		"SELECT SUM(total_bytes) FROM system.tables WHERE database = ?",
+		database).Scan(&size)
+	if err != nil {
+		return nil, errw(err)
+	}
+	if size.Valid {
+		md.Size = size.Int64
+	}
 
 	if noSchema {
-		// Don't fetch table metadata
 		return md, nil
 	}
 
-	// Get table metadata
-	tables, err := getTablesMetadata(ctx, db, database)
+	md.Tables, err = getTablesMetadata(ctx, db, database)
 	if err != nil {
 		return nil, err
 	}
 
-	md.Tables = tables
+	for _, tbl := range md.Tables {
+		switch tbl.TableType {
+		case sqlz.TableTypeTable:
+			md.TableCount++
+		case sqlz.TableTypeView:
+			md.ViewCount++
+		}
+	}
+
 	return md, nil
 }
 

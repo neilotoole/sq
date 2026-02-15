@@ -1,6 +1,7 @@
 package clickhouse_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -8,6 +9,7 @@ import (
 	"github.com/neilotoole/sq/drivers/clickhouse"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
@@ -265,11 +267,30 @@ func TestMetadata_SourceMetadata(t *testing.T) {
 	md, err := th.SourceMetadata(src)
 	require.NoError(t, err)
 	require.NotNil(t, md)
+
 	require.Equal(t, sakila.CH, md.Handle)
-	require.NotEmpty(t, md.DBVersion)
-	t.Logf("Database version: %s", md.DBVersion)
-	t.Logf("Database name: %s", md.Name)
-	t.Logf("Number of tables: %d", len(md.Tables))
+	require.NotEmpty(t, md.Location)
+	require.Equal(t, "sakila", md.Name)
+	require.Equal(t, md.Name, md.FQName)
+	require.Equal(t, md.Name, md.Schema)
+
+	require.Equal(t, drivertype.ClickHouse, md.Driver)
+	require.Equal(t, drivertype.ClickHouse, md.DBDriver)
+
+	// sq only supports ClickHouse v25+.
+	require.True(t, strings.HasPrefix(md.DBVersion, "25."),
+		"expected DBVersion to start with '25.', got: %s", md.DBVersion)
+	require.True(t, strings.HasPrefix(md.DBProduct, "ClickHouse 25."),
+		"expected DBProduct to start with 'ClickHouse 25.', got: %s", md.DBProduct)
+	require.Equal(t, "ClickHouse "+md.DBVersion, md.DBProduct)
+
+	require.Equal(t, "sakila", md.User)
+	require.Greater(t, md.Size, int64(0))
+
+	require.NotEmpty(t, md.Tables)
+	require.Greater(t, md.TableCount, int64(0))
+	require.Greater(t, md.ViewCount, int64(0))
+	require.Equal(t, int64(len(md.Tables)), md.TableCount+md.ViewCount)
 }
 
 // TestMetadata_TableMetadata tests table metadata retrieval.
