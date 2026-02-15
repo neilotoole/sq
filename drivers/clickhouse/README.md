@@ -292,7 +292,7 @@ Key design decisions:
   count directly via an `atomic.Int64` counter.
 
 - **`NewBatchInsert` constructor**: Added to
-  `libsq/driver/record.go` to allow the ClickHouse driver to
+  `libsq/driver/batch.go` to allow the ClickHouse driver to
   build a `BatchInsert` with its own goroutine and channels,
   without going through `DefaultNewBatchInsert`.
 
@@ -302,7 +302,7 @@ Key design decisions:
 | File | Change |
 |------|--------|
 | `libsq/driver/driver.go` | Added `NewBatchInsert` to `SQLDriver` interface |
-| `libsq/driver/record.go` | Renamed `NewBatchInsert` → `DefaultNewBatchInsert`; added `NewBatchInsert` |
+| `libsq/driver/batch.go` | `DefaultNewBatchInsert` (standard multi-row INSERT); `NewBatchInsert` (low-level constructor) |
 | `drivers/clickhouse/batch.go` | New: native Batch API implementation |
 | `drivers/postgres/postgres.go` | Added `NewBatchInsert` (delegates to `DefaultNewBatchInsert`) |
 | `drivers/mysql/mysql.go` | Added `NewBatchInsert` (delegates) |
