@@ -348,7 +348,7 @@ welcome.
 | 2 | [~~PrepareUpdateStmt not supported~~](#2-prepareupdatestmt-resolved)                     | Update/Delete | ~~High~~ | **Resolved**: ExecContext workaround |
 | 3 | [~~Standard SQL UPDATE/DELETE syntax not supported~~](#3-standard-sql-updatedelete-syntax-not-supported-resolved) | Update/Delete | ~~Medium~~ | **Resolved**: lightweight mutations |
 | 4 | [Type roundtrip issues](#4-type-roundtrip-issues)                                        | Types         | Low      | Tests skipped                        |
-| 5 | [DML rows affected unsupported](#5-dml-rows-affected-unsupported)                        | Metadata      | Low      | Handled in CLI and driver            |
+| 5 | [~~DML rows affected unsupported~~](#5-dml-rows-affected-unsupported-resolved)            | Metadata      | ~~Low~~  | **Resolved**: handled in CLI/driver  |
 <!-- markdownlint-enable MD013 MD060 -->
 
 ### Insert Limitations
@@ -562,7 +562,7 @@ Note that ClickHouse returns 0 for `rows_affected` on all DML
 operations (INSERT, UPDATE, DELETE), unlike traditional databases
 that return the actual count. sq converts this to
 `dialect.RowsAffectedUnsupported` (-1) at the driver and CLI
-layers. See [Limitation #5](#5-dml-rows-affected-unsupported).
+layers. See [Limitation #5](#5-dml-rows-affected-unsupported-resolved).
 
 ##### How sq Handles Updates
 
@@ -624,7 +624,11 @@ Go type and sq kind change on readback.
 
 ### Metadata Limitations
 
-#### 5. DML Rows Affected Unsupported
+#### 5. DML Rows Affected Unsupported (RESOLVED)
+
+**Status**: Resolved. ClickHouse does not report rows affected for
+DML operations; sq handles this by returning -1 as a sentinel value
+and displaying "rows affected: unsupported" in text output.
 
 ClickHouse does not report `RowsAffected()` for any DML operation
 (INSERT, UPDATE, DELETE, INSERT...SELECT). The protocol-level value
