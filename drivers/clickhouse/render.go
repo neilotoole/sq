@@ -158,9 +158,13 @@ func buildUpdateStmt(tbl string, cols []string, where string) string {
 		}
 	}
 
+	sb.WriteString(" WHERE ")
 	if where != "" {
-		sb.WriteString(" WHERE ")
 		sb.WriteString(where)
+	} else {
+		// ClickHouse requires a WHERE clause in ALTER TABLE ... UPDATE.
+		// Use "1" (always-true) to update all rows.
+		sb.WriteString("1")
 	}
 
 	return sb.String()

@@ -151,7 +151,7 @@ func TestBuildUpdateStmt(t *testing.T) {
 	require.Contains(t, stmt, "UPDATE")
 	require.Contains(t, stmt, "`name` = ?")
 	require.Contains(t, stmt, "`value` = ?")
-	require.NotContains(t, stmt, "WHERE")
+	require.Contains(t, stmt, "WHERE 1")
 
 	// Scenario 2: Update with WHERE clause - should filter rows
 	stmt = clickhouse.BuildUpdateStmt(tblName, cols, "id = 123")
