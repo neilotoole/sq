@@ -33,7 +33,7 @@ func (w *stmtExecWriter) StmtExecuted(_ context.Context, _ *source.Source,
 	var s string
 	switch affected {
 	case dialect.RowsAffectedUnsupported:
-		s = w.pr.Faint.Sprint("rows affected: unknown")
+		s = w.pr.Faint.Sprint("rows affected: unsupported")
 	case 1:
 		s = w.pr.Number.Sprintf("%d", affected)
 		s += w.pr.Normal.Sprint(" row affected")

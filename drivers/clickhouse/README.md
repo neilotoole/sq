@@ -635,8 +635,8 @@ is always 0.
 - **`sq sql` DML**: The CLI intercepts the raw 0 returned by
   ClickHouse and converts it to -1 via the
   `Dialect.IsRowsAffectedUnsupported` field.
-- The table writer displays "rows affected: unknown"; JSON outputs
-  -1 as a machine-readable sentinel.
+- The table writer displays "rows affected: unsupported"; JSON
+  outputs -1 as a machine-readable sentinel.
 
 ## Array Type Architecture
 
