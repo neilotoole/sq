@@ -193,8 +193,6 @@ func TestCmdAdd(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
-
 		t.Run(tu.Name(i, tc.wantHandle, tc.loc, tc.locFromHandle, tc.driver), func(t *testing.T) {
 			if tc.locFromHandle != "" {
 				th := testh.New(t)

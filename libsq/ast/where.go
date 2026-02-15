@@ -37,7 +37,7 @@ func (n *WhereNode) AddChild(node Node) error {
 }
 
 // VisitWhere implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitWhere(ctx *slq.WhereContext) interface{} {
+func (v *parseTreeVisitor) VisitWhere(ctx *slq.WhereContext) any {
 	node := &WhereNode{}
 	node.ctx = ctx
 	node.text = ctx.GetText()

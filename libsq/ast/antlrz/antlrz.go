@@ -35,11 +35,11 @@ func (l *TokenExtractor) Offset(prc antlr.ParserRuleContext) (start, stop int) {
 	stopLine := stopToken.GetLine() - 1
 	stopCol := stopToken.GetColumn() + len(stopToken.GetText())
 
-	for i := 0; i < startLine; i++ {
+	for i := range startLine {
 		startCol += len(l.lines[i]) + 1
 	}
 
-	for i := 0; i < stopLine; i++ {
+	for i := range stopLine {
 		stopCol += len(l.lines[i]) + 1
 	}
 

@@ -40,7 +40,7 @@ type Optionals struct {
 	Uo uint `json:"uo,omitempty"`
 
 	Str struct{} `json:"str"`
-	Sto struct{} `json:"sto,omitempty"`
+	Sto struct{} `json:"sto"`
 }
 
 var optionalsExpected = `{

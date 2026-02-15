@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
 	"strconv"
 	"strings"
@@ -565,9 +566,7 @@ func getTableRowCountsBatch(ctx context.Context, db sqlz.DB, tblNames []string) 
 			return nil, err
 		}
 
-		for k, v := range got {
-			all[k] = v
-		}
+		maps.Copy(all, got)
 	}
 
 	return all, nil

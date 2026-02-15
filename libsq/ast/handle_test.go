@@ -22,7 +22,6 @@ func TestExtractHandles(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.input, func(t *testing.T) {
 			a := mustParse(t, tc.input)
 			got := ExtractHandles(a)

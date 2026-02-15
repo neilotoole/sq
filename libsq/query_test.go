@@ -123,7 +123,6 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) { //nolint:thelper
 	}
 
 	for _, st := range subTests {
-		st := st
 		t.Run(st.name, func(t *testing.T) {
 			doExecQueryTestCase(t, st)
 		})
@@ -153,8 +152,6 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 
 	coll := th.NewCollection(handles...)
 	for _, src := range coll.Sources() {
-		src := src
-
 		if len(tc.onlyFor) > 0 && !slices.Contains(tc.onlyFor, src.Type) {
 			continue
 		}

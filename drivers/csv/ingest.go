@@ -305,7 +305,7 @@ func (r *crFilterReader) Read(p []byte) (n int, err error) {
 func readRecords(cr *csv.Reader, n int) ([][]string, error) {
 	recs := make([][]string, 0, n)
 
-	for i := 0; i < n; i++ {
+	for range n {
 		rec, err := cr.Read()
 		if err != nil {
 			if errors.Is(err, io.EOF) {

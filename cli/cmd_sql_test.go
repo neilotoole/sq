@@ -381,14 +381,10 @@ func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 // TestCmdSQL_Insert tests "sq sql QUERY --insert=dest.tbl".
 func TestCmdSQL_Insert(t *testing.T) {
 	for _, origin := range sakila.SQLLatest() {
-		origin := origin
-
 		t.Run("origin_"+origin, func(t *testing.T) {
 			tu.SkipShort(t, origin == sakila.XLSX)
 
 			for _, dest := range sakila.SQLLatest() {
-				dest := dest
-
 				t.Run("dest_"+dest, func(t *testing.T) {
 					t.Parallel()
 
@@ -518,7 +514,6 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		name := tu.Name(i, filepath.Base(filepath.Dir(tc.fpath)), filepath.Base(tc.fpath))
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

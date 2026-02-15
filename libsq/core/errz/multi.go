@@ -181,7 +181,7 @@ var (
 
 // _bufferPool is a pool of bytes.Buffers.
 var _bufferPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return &bytes.Buffer{}
 	},
 }

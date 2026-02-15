@@ -20,7 +20,6 @@ func TestLastHandlePart(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			got := cli.LastHandlePart(tc.in)
 			require.Equal(t, tc.want, got)

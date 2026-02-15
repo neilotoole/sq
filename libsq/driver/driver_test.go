@@ -29,8 +29,6 @@ func TestDriver_DropTable(t *testing.T) {
 	t.Parallel()
 
 	for _, handle := range sakila.SQLAll() {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -60,8 +58,6 @@ func TestDriver_DropTable(t *testing.T) {
 
 func TestDriver_TableExists(t *testing.T) {
 	for _, handle := range sakila.SQLAll() {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			th, _, drvr, _, db := testh.NewWith(t, handle)
 
@@ -81,8 +77,6 @@ func TestDriver_TableExists(t *testing.T) {
 func TestDriver_CopyTable(t *testing.T) {
 	t.Parallel()
 	for _, handle := range sakila.SQLAll() {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -116,8 +110,6 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 
 	testCases := sakila.SQLAll()
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -147,8 +139,6 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 func TestDriver_TableColumnTypes(t *testing.T) { //nolint:tparallel
 	testCases := sakila.SQLAll()
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			tu.SkipShort(t, handle == sakila.XLSX)
 			t.Parallel()
@@ -187,8 +177,6 @@ func TestDriver_TableColumnTypes(t *testing.T) { //nolint:tparallel
 func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
 	testCases := sakila.SQLAll()
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			tu.SkipShort(t, handle == sakila.XLSX)
 			t.Parallel()
@@ -232,8 +220,6 @@ func TestDriver_Ping(t *testing.T) {
 	testCases = append(testCases, sakila.CSVActor, sakila.CSVActorHTTP)
 
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			tu.SkipShort(t, handle == sakila.XLSX)
 
@@ -252,8 +238,6 @@ func TestDriver_Open(t *testing.T) {
 	testCases = append(testCases, sakila.CSVActor, sakila.CSVActorHTTP)
 
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			tu.SkipShort(t, handle == sakila.XLSX)
 			t.Parallel()
@@ -276,8 +260,6 @@ func TestNewBatchInsert(t *testing.T) {
 	const batchSize = 70
 
 	for _, handle := range sakila.SQLAll() {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			th, src, drvr, _, db := testh.NewWith(t, handle)
 			tblName := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, false)
@@ -380,8 +362,6 @@ func TestRegistry_DriversMetadata_SQL(t *testing.T) {
 	t.Parallel()
 
 	for _, typ := range sqlDrivers {
-		typ := typ
-
 		t.Run(typ.String(), func(t *testing.T) {
 			t.Parallel()
 
@@ -410,8 +390,6 @@ func TestRegistry_DriversMetadata_Doc(t *testing.T) {
 	t.Parallel()
 
 	for _, typ := range docDrivers {
-		typ := typ
-
 		t.Run(typ.String(), func(t *testing.T) {
 			t.Parallel()
 
@@ -433,8 +411,6 @@ func TestRegistry_DriversMetadata_Doc(t *testing.T) {
 
 func TestGrip_TableMetadata(t *testing.T) { //nolint:tparallel
 	for _, handle := range sakila.SQLAll() {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -452,8 +428,6 @@ func TestGrip_SourceMetadata(t *testing.T) {
 	t.Parallel()
 
 	for _, handle := range sakila.SQLAll() {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -471,8 +445,6 @@ func TestGrip_SourceMetadata(t *testing.T) {
 // with an empty schema arg.
 func TestSQLDriver_ListTableNames_ArgSchemaEmpty(t *testing.T) { //nolint:tparallel
 	for _, handle := range sakila.SQLLatest() {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -524,7 +496,6 @@ func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tpa
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -564,14 +535,12 @@ func TestGrip_SourceMetadata_concurrent(t *testing.T) { //nolint:tparallel
 
 	handles := sakila.SQLLatest()
 	for _, handle := range handles {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
 			th, _, _, grip, _ := testh.NewWith(t, handle)
 			g, gCtx := errgroup.WithContext(th.Context)
-			for i := 0; i < concurrency; i++ {
+			for range concurrency {
 				g.Go(func() error {
 					md, err := grip.SourceMetadata(gCtx, false)
 					require.NoError(t, err)
@@ -592,8 +561,6 @@ func TestSQLDriver_AlterTableAddColumn(t *testing.T) {
 	testCases := sakila.SQLLatest()
 
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			th, src, drvr, _, db := testh.NewWith(t, handle)
 
@@ -623,8 +590,6 @@ func TestSQLDriver_AlterTableRename(t *testing.T) {
 	testCases := sakila.SQLLatest()
 
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			th, src, drvr, grip, db := testh.NewWith(t, handle)
 
@@ -651,8 +616,6 @@ func TestSQLDriver_AlterTableRenameColumn(t *testing.T) {
 	testCases := sakila.SQLLatest()
 
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			th, src, drvr, grip, db := testh.NewWith(t, handle)
 
@@ -675,8 +638,6 @@ func TestSQLDriver_AlterTableRenameColumn(t *testing.T) {
 
 func TestSQLDriver_CurrentCatalog(t *testing.T) {
 	for _, handle := range sakila.SQLAll() {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			th, _, drvr, _, db := testh.NewWith(t, handle)
 			if !drvr.Dialect().Catalog {
@@ -708,8 +669,6 @@ func TestSQLDriver_CurrentSchemaCatalog(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.handle, func(t *testing.T) {
 			th, _, drvr, grip, db := testh.NewWith(t, tc.handle)
 
@@ -765,8 +724,6 @@ func TestSQLDriver_SchemaExists(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tu.Name(tc.handle, tc.schema, tc.wantOK), func(t *testing.T) {
 			t.Parallel()
 
@@ -804,8 +761,6 @@ func TestSQLDriver_CatalogExists(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tu.Name(tc.handle, tc.catalog, tc.wantOK), func(t *testing.T) {
 			t.Parallel()
 
@@ -834,7 +789,6 @@ func TestDriverCreateDropSchema(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.handle, func(t *testing.T) {
 			th, src, drvr, _, db := testh.NewWith(t, tc.handle)
 			ctx := th.Context
@@ -925,7 +879,6 @@ func TestDriverCreateDropSchema_Numeric(t *testing.T) {
 	}
 
 	for _, dc := range driverCases {
-		dc := dc
 		t.Run(dc.handle, func(t *testing.T) {
 			th, src, drvr, _, db := testh.NewWith(t, dc.handle)
 			ctx := th.Context
@@ -937,7 +890,6 @@ func TestDriverCreateDropSchema_Numeric(t *testing.T) {
 			})
 
 			for _, nc := range numericSchemas {
-				nc := nc
 				t.Run(nc.name, func(t *testing.T) {
 					// Make schema name unique to avoid conflicts.
 					schemaName := nc.schema + "_" + stringz.Uniq8()
@@ -987,7 +939,6 @@ func TestDriverCreateDropSchema_Numeric(t *testing.T) {
 
 func TestSQLDriver_ErrWrap_IsErrNotExist(t *testing.T) {
 	for _, h := range sakila.SQLLatest() {
-		h := h
 		t.Run(h, func(t *testing.T) {
 			th, _, _, _, _ := testh.NewWith(t, h)
 			_, err := th.QuerySLQ(h+".does_not_exist", nil)
@@ -1008,7 +959,6 @@ func TestMungeColNames(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			ctx := options.NewContext(context.Background(), options.Options{})
 			got, err := driver.MungeResultColNames(ctx, tc.in)

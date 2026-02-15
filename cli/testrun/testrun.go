@@ -179,7 +179,6 @@ func (tr *TestRun) Add(srcs ...source.Source) *TestRun {
 	hasActive := tr.Run.Config.Collection.Active() != nil
 
 	for _, src := range srcs {
-		src := src
 		require.NoError(tr.T, coll.Add(&src))
 	}
 

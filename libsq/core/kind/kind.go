@@ -3,6 +3,7 @@
 package kind
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -144,11 +145,5 @@ func parse(text string) (Kind, error) {
 }
 
 func containsKind(needle Kind, haystack ...Kind) bool {
-	for _, k := range haystack {
-		if k == needle {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(haystack, needle)
 }

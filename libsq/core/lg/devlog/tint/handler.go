@@ -371,8 +371,8 @@ func (h *handler) handleStackAttrs(buf *buffer, attrs []slog.Attr) {
 			buf.WriteStringIf(!h.noColor, ansiReset)
 			buf.WriteByte('\n')
 		}
-		lines := strings.Split(stackPrint, "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(stackPrint, "\n")
+		for line := range lines {
 			buf.WriteStringIf(!h.noColor, ansiStack)
 			buf.WriteString(line)
 			buf.WriteStringIf(!h.noColor, ansiReset)

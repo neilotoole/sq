@@ -28,8 +28,6 @@ func TestKind(t *testing.T) {
 	}
 
 	for knd, testText := range testCases {
-		knd, testText := knd, testText
-
 		t.Run(knd.String(), func(t *testing.T) {
 			gotBytes, err := knd.MarshalText()
 			require.NoError(t, err)
@@ -146,8 +144,6 @@ func TestDetector(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
-
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			kd := kind.NewDetector()
 

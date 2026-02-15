@@ -137,7 +137,7 @@ func createTypeTestTbls(th *testh.Helper, src *source.Source, nTimes int, withDa
 	baseTblName := stringz.UniqTableName(canonicalTblName)
 	placeholders := th.SQLDriverFor(src).Dialect().Placeholders(len(typeTestColNames), 1)
 
-	for i := 0; i < nTimes; i++ {
+	for i := range nTimes {
 		actualTblName := fmt.Sprintf("%s_%d", baseTblName, i)
 		createStmt := strings.Replace(string(tblDDL), canonicalTblName, actualTblName, 1)
 

@@ -154,12 +154,10 @@ func TestCompleteFlagActiveSchema_query_cmds(t *testing.T) { //nolint:tparallel
 	}
 
 	for _, cmdName := range []string{"slq", "sql"} {
-		cmdName := cmdName
 		t.Run(cmdName, func(t *testing.T) {
 			t.Parallel()
 
 			for i, tc := range testCases {
-				tc := tc
 				t.Run(tu.Name(i, tc.handles, tc.withFlagActiveSrc, tc.arg), func(t *testing.T) {
 					t.Parallel()
 
@@ -271,7 +269,6 @@ func TestCompleteFlagActiveSchema_inspect(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.handles, tc.withArgActiveSrc, tc.arg), func(t *testing.T) {
 			t.Parallel()
 
@@ -423,7 +420,6 @@ func TestCompleteFilterActiveGroup(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -507,9 +503,7 @@ func TestCompleteAllCobraRequestCmds(t *testing.T) {
 	}
 
 	for _, cobraCmd := range []string{cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd} {
-		cobraCmd := cobraCmd
 		for _, tc := range testCases {
-			tc := tc
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 				t.Run(cobraCmd, func(t *testing.T) {

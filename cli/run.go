@@ -309,8 +309,6 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 	}
 
 	for i, udd := range cfg.Ext.UserDrivers {
-		udd := udd
-
 		errs := userdriver.ValidateDriverDef(udd)
 		if len(errs) > 0 {
 			err = errz.Combine(errs...)

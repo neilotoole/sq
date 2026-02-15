@@ -72,8 +72,6 @@ func TestDatabase_SourceMetadata_MySQL(t *testing.T) {
 
 	handles := sakila.MyAll()
 	for _, handle := range handles {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -95,8 +93,6 @@ func TestDatabase_TableMetadata(t *testing.T) {
 	t.Parallel()
 
 	for _, handle := range sakila.MyAll() {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 

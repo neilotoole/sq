@@ -57,7 +57,6 @@ func TestQuery_expr_where(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			execQueryTestCase(t, tc)
 		})
@@ -156,7 +155,6 @@ func TestQuery_expr_literal(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.name), func(t *testing.T) {
 			execQueryTestCase(t, tc)
 		})
@@ -193,7 +191,6 @@ func TestQuery_expr_where_bool(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.name), func(t *testing.T) {
 			execQueryTestCase(t, tc)
 		})

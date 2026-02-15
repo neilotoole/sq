@@ -28,6 +28,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   $ sq inspect @pg1 --src.schema=456catalog.789schema
   ```
 
+- [#542]: Upgrade codebase to Go 1.26.
+
 ## [v0.48.12] - 2026-01-30
 
 🫡: This patch release addresses issues reported by [@Dialga](https://github.com/Dialga).
@@ -1352,6 +1354,7 @@ make working with lots of sources much easier.
 [#520]: https://github.com/neilotoole/sq/issues/520
 [#531]: https://github.com/neilotoole/sq/issues/531
 [#532]: https://github.com/neilotoole/sq/issues/532
+[#542]: https://github.com/neilotoole/sq/issues/542
 
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2

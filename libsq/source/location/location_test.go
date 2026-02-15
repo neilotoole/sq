@@ -28,7 +28,6 @@ func TestIsSQL(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.loc, func(t *testing.T) {
 			got := location.IsSQL(tc.loc)
 			require.Equal(t, tc.want, got)
@@ -72,7 +71,6 @@ func TestWithPassword(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(tc.loc), func(t *testing.T) {
 			t.Parallel()
 

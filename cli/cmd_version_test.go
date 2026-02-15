@@ -167,6 +167,12 @@ func TestCmdVersion(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, runtime.GOOS, m["host"].(map[string]any)["platform"])
 
+	// In test builds, Timestamp is zero (ldflags not set), so
+	// the "timestamp" field should be omitted from JSON output.
+	if bi.Timestamp.IsZero() {
+		require.NotContains(t, text, "timestamp")
+	}
+
 	// --yaml
 	tr = testrun.New(ctx, t, nil)
 	err = tr.Exec("version", "--yaml")
@@ -178,4 +184,10 @@ func TestCmdVersion(t *testing.T) {
 	err = ioz.UnmarshallYAML(tr.Out.Bytes(), &m)
 	require.NoError(t, err)
 	require.Equal(t, runtime.GOOS, m["host"].(map[string]any)["platform"])
+
+	// In test builds, Timestamp is zero (ldflags not set), so
+	// the "timestamp" field should be omitted from YAML output.
+	if bi.Timestamp.IsZero() {
+		require.NotContains(t, text, "timestamp")
+	}
 }

@@ -202,7 +202,7 @@ func (h Header) String() string {
 // It is colorized according to [Colors.Header], and terminates with newline.
 func Headerf(clrs *Colors, left, right string) Header {
 	if clrs == nil || clrs.Header == nil || clrs.IsMonochrome() {
-		return []byte(fmt.Sprintf("--- %s\n+++ %s\n", left, right))
+		return fmt.Appendf(nil, "--- %s\n+++ %s\n", left, right)
 	}
 
 	line1 := clrs.Header.Sprintf("--- %s", left) + "\n"

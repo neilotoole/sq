@@ -14,7 +14,7 @@ func detectColKinds(recs [][]string) ([]kind.Kind, []kind.MungeFunc, error) {
 	fieldCount := len(recs[0])
 
 	detectors := make([]*kind.Detector, len(recs[0]))
-	for i := 0; i < fieldCount; i++ {
+	for i := range fieldCount {
 		detectors[i] = kind.NewDetector()
 	}
 

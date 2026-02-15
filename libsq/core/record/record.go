@@ -189,7 +189,7 @@ func NewPair(row int, rec1, rec2 Record) Pair {
 // [Pair.Rec2] are the same record. [Pair.Equal] returns true for each pair.
 func NewIdenticalPairs(row int, recs ...Record) []Pair {
 	pairs := make([]Pair, len(recs))
-	for i := 0; i < len(recs); i++ {
+	for i := range recs {
 		pairs[i] = Pair{row: row + i, rec1: recs[i], rec2: recs[i], equal: true}
 	}
 	return pairs

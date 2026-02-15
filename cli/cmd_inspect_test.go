@@ -55,13 +55,10 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 	}
 
 	for _, tf := range testFormats {
-		tf := tf
 		t.Run(tf.format.String(), func(t *testing.T) {
 			t.Parallel()
 
 			for _, tc := range testCases {
-				tc := tc
-
 				t.Run(tc.handle, func(t *testing.T) {
 					t.Parallel()
 					tu.SkipWindowsIf(t, tc.handle == sakila.XLSX, "XLSX too slow on windows workflow")
@@ -92,7 +89,6 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 
 					t.Run("inspect_table", func(t *testing.T) {
 						for _, tblName := range gotTableNames {
-							tblName := tblName
 							t.Run(tblName, func(t *testing.T) {
 								tu.SkipShort(t, true)
 								tr2 := testrun.New(lg.NewContext(th.Context, lgt.New(t)), t, tr)
@@ -171,8 +167,6 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -200,7 +194,6 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 
 			t.Run("inspect_table", func(t *testing.T) {
 				for _, tblName := range tc.wantTbls {
-					tblName := tblName
 					t.Run(tblName, func(t *testing.T) {
 						tu.SkipShort(t, true)
 						t.Logf("Test: sq inspect .tbl")
@@ -306,8 +299,6 @@ func TestCmdInspect_stdin(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tu.Name(tc.fpath), func(t *testing.T) {
 			t.Parallel()
 
@@ -337,7 +328,7 @@ func TestCmdInspect_stdin(t *testing.T) {
 }
 
 func TestCmdInspect_mode_schemata(t *testing.T) {
-	active := lo.ToPtr(true)
+	active := new(true)
 
 	type schema struct {
 		Name    string `json:"schema" yaml:"schema"`
@@ -384,11 +375,8 @@ func TestCmdInspect_mode_schemata(t *testing.T) {
 	}
 
 	for _, fm := range []format.Format{format.JSON, format.YAML, format.Text} {
-		fm := fm
 		t.Run(fm.String(), func(t *testing.T) {
 			for _, tc := range testCases {
-				tc := tc
-
 				t.Run(tc.handle, func(t *testing.T) {
 					th := testh.New(t)
 					src := th.Source(tc.handle)
@@ -419,7 +407,7 @@ func TestCmdInspect_mode_schemata(t *testing.T) {
 }
 
 func TestCmdInspect_mode_catalogs(t *testing.T) {
-	active := lo.ToPtr(true)
+	active := new(true)
 	type catalog struct {
 		Catalog string `json:"catalog" yaml:"catalog"`
 		Active  *bool  `json:"active,omitempty" yaml:"active,omitempty"`
@@ -456,11 +444,8 @@ func TestCmdInspect_mode_catalogs(t *testing.T) {
 	}
 
 	for _, fm := range []format.Format{format.JSON, format.YAML, format.Text} {
-		fm := fm
 		t.Run(fm.String(), func(t *testing.T) {
 			for _, tc := range testCases {
-				tc := tc
-
 				t.Run(tc.handle, func(t *testing.T) {
 					th := testh.New(t)
 					src := th.Source(tc.handle)
@@ -507,7 +492,6 @@ func TestCmdInspect_NumericSchema(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -602,7 +586,6 @@ func TestCmdInspect_NumericCatalogSchema(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

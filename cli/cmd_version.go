@@ -197,10 +197,10 @@ func getVersionFromBrewFormula(f []byte) (string, error) {
 				verStart := idx + len("/tags/v")
 				remainder := val[verStart:]
 				// Find the end at .tar.gz or .zip
-				if endIdx := strings.Index(remainder, ".tar.gz"); endIdx != -1 {
-					val = remainder[:endIdx]
-				} else if endIdx := strings.Index(remainder, ".zip"); endIdx != -1 {
-					val = remainder[:endIdx]
+				if before, _, ok := strings.Cut(remainder, ".tar.gz"); ok {
+					val = before
+				} else if before, _, ok := strings.Cut(remainder, ".zip"); ok {
+					val = before
 				} else {
 					// Unrecognized archive extension; skip and keep scanning.
 					continue

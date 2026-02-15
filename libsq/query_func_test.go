@@ -63,7 +63,6 @@ func TestQuery_func(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			execQueryTestCase(t, tc)
 		})
@@ -163,7 +162,6 @@ func TestQuery_func_schema(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			execQueryTestCase(t, tc)
 		})
@@ -250,7 +248,6 @@ func TestQuery_func_catalog(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			execQueryTestCase(t, tc)
 		})
@@ -337,7 +334,6 @@ func TestQuery_func_rownum(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			execQueryTestCase(t, tc)
 		})

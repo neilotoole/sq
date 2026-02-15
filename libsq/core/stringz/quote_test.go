@@ -25,7 +25,6 @@ func TestDoubleQuote(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.in, func(t *testing.T) {
 			got := stringz.DoubleQuote(tc.in)
 			require.Equal(t, tc.want, got)
@@ -48,7 +47,6 @@ func TestStripDoubleQuote(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			got := stringz.StripDoubleQuote(tc.in)
 			require.Equal(t, tc.want, got)
@@ -70,7 +68,6 @@ func TestBacktickQuote(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.in, func(t *testing.T) {
 			got := stringz.BacktickQuote(tc.in)
 			require.Equal(t, tc.want, got)
@@ -88,7 +85,6 @@ func TestSingleQuote(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.in, func(t *testing.T) {
 			got := stringz.SingleQuote(tc.in)
 			require.Equal(t, tc.want, got)

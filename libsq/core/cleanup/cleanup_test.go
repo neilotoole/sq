@@ -15,8 +15,7 @@ func TestCleanup(t *testing.T) {
 
 	clnup := cleanup.New()
 
-	for i := 0; i < 5; i++ {
-		i := i
+	for i := range 5 {
 		clnup.AddE(func() error {
 			got = append(got, i)
 			return nil

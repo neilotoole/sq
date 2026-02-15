@@ -124,7 +124,7 @@ func (n *OrderByTermNode) String() string {
 }
 
 // VisitOrderBy implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitOrderBy(ctx *slq.OrderByContext) interface{} {
+func (v *parseTreeVisitor) VisitOrderBy(ctx *slq.OrderByContext) any {
 	if existing := FindNodes[*OrderByNode](v.cur.ast()); len(existing) > 0 {
 		return errorf("only one order_by() clause allowed")
 	}
@@ -145,16 +145,16 @@ func (v *parseTreeVisitor) VisitOrderBy(ctx *slq.OrderByContext) interface{} {
 }
 
 // VisitOrderByTerm implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitOrderByTerm(ctx *slq.OrderByTermContext) interface{} {
+func (v *parseTreeVisitor) VisitOrderByTerm(ctx *slq.OrderByTermContext) any {
 	node := &OrderByTermNode{}
 	node.parent = v.cur
 	node.ctx = ctx
 	node.text = ctx.GetText()
-	if strings.HasSuffix(node.text, "+") {
-		node.text = strings.TrimSuffix(node.text, "+")
+	if before, ok := strings.CutSuffix(node.text, "+"); ok {
+		node.text = before
 		node.direction = OrderByDirectionAsc
-	} else if strings.HasSuffix(node.text, "-") {
-		node.text = strings.TrimSuffix(node.text, "-")
+	} else if before, ok := strings.CutSuffix(node.text, "-"); ok {
+		node.text = before
 		node.direction = OrderByDirectionDesc
 	}
 

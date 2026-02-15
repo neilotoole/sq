@@ -134,7 +134,6 @@ func TestParse(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(1, Redact(tc.loc)), func(t *testing.T) {
 			if tc.windows && runtime.GOOS != "windows" {
 				return

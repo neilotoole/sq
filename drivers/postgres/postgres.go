@@ -107,7 +107,7 @@ func placeholders(numCols, numRows int) string {
 
 	n := 1
 	var sb strings.Builder
-	for i := 0; i < numRows; i++ {
+	for i := range numRows {
 		sb.Reset()
 		sb.WriteRune('(')
 		for j := 1; j <= numCols; j++ {

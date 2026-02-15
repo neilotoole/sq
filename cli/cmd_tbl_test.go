@@ -14,8 +14,6 @@ import (
 
 func TestCmdTblCopy(t *testing.T) { //nolint:tparallel
 	for _, handle := range sakila.SQLAll() {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -45,8 +43,6 @@ func TestCmdTblCopy(t *testing.T) { //nolint:tparallel
 
 func TestCmdTblDrop(t *testing.T) { //nolint:tparallel
 	for _, handle := range sakila.SQLAll() {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -82,8 +78,6 @@ func TestCmdTblTruncate(t *testing.T) {
 
 	testCases := []string{sakila.MS, sakila.My, sakila.Pg9}
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 

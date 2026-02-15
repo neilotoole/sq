@@ -28,10 +28,7 @@ func renderRange(_ *render.Context, rr *ast.RowRangeNode) (string, error) {
 		return "", nil
 	}
 
-	offset := 0
-	if rr.Offset > 0 {
-		offset = rr.Offset
-	}
+	offset := max(rr.Offset, 0)
 
 	var buf strings.Builder
 	buf.WriteString(fmt.Sprintf("OFFSET %d ROWS", offset))

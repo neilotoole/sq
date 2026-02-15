@@ -3,6 +3,7 @@ package dialect
 
 import (
 	"log/slog"
+	"maps"
 	"strings"
 
 	udrivers "github.com/xo/usql/drivers"
@@ -81,9 +82,7 @@ var defaultOps = map[string]string{
 // initialization code; callers should use Dialect.Ops instead.
 func DefaultOps() map[string]string {
 	ops := make(map[string]string, len(defaultOps))
-	for k, v := range defaultOps {
-		ops[k] = v
-	}
+	maps.Copy(ops, defaultOps)
 	return ops
 }
 

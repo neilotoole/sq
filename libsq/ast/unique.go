@@ -13,7 +13,7 @@ func (n *UniqueNode) String() string {
 }
 
 // VisitUniqueFunc implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitUniqueFunc(ctx *slq.UniqueFuncContext) interface{} {
+func (v *parseTreeVisitor) VisitUniqueFunc(ctx *slq.UniqueFuncContext) any {
 	node := &UniqueNode{}
 	node.ctx = ctx
 	node.text = ctx.GetText()

@@ -230,7 +230,7 @@ func completeMove(cmd *cobra.Command, args []string, toComplete string) ([]strin
 		items = stringz.SuffixSlice(items, "/")
 		h := lastHandlePart(arg0)
 		count := len(items)
-		for i := 0; i < count; i++ {
+		for i := range count {
 			// Also offer the group plus the original name.
 			items = append(items, items[i]+h)
 		}

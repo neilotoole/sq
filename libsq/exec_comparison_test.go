@@ -34,7 +34,6 @@ func TestQueryVsExec_DDL_CREATE(t *testing.T) {
 	}
 
 	for _, handle := range testCases {
-		handle := handle
 		t.Run(handle, func(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
@@ -121,7 +120,6 @@ func TestQueryVsExec_DML_INSERT(t *testing.T) {
 	}
 
 	for _, handle := range testCases {
-		handle := handle
 		t.Run(handle, func(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
@@ -211,7 +209,6 @@ func TestQueryVsExec_DML_UPDATE(t *testing.T) {
 	}
 
 	for _, handle := range testCases {
-		handle := handle
 		t.Run(handle, func(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
@@ -281,7 +278,6 @@ func TestExecSQL_Function(t *testing.T) {
 	}
 
 	for _, handle := range testCases {
-		handle := handle
 		t.Run(handle, func(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)

@@ -35,7 +35,7 @@ func TestDelayReader(t *testing.T) {
 
 	wg := &sync.WaitGroup{}
 	wg.Add(count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		go func(i int) {
 			defer wg.Done()
 			randRdr := ioz.LimitRandReader(limit)

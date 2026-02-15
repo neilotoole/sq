@@ -53,7 +53,7 @@ func GenerateLargeCSV(t *testing.T, fp string) {
 	paymentUTC := time.Now().UTC()
 	lastUpdateUTC := time.Now().UTC()
 	p := message.NewPrinter(language.English)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		if i%100000 == 0 {
 			// Flush occasionally
 			w.Flush()

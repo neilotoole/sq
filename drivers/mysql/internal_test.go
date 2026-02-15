@@ -97,8 +97,6 @@ func TestDSNFromLocation(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tu.Name(tc.loc, tc.parseTime), func(t *testing.T) {
 			src := &source.Source{
 				Handle:   "@testhandle",

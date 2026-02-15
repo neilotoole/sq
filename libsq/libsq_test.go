@@ -58,7 +58,6 @@ func TestQuerySQL_Smoke(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.handle, func(t *testing.T) {
 			tu.SkipShort(t, tc.handle == sakila.XLSX)
 			t.Parallel()
@@ -93,8 +92,6 @@ func TestQuerySQL_Smoke(t *testing.T) {
 func TestQuerySQL_Count(t *testing.T) { //nolint:tparallel
 	testCases := sakila.SQLAll()
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 

@@ -491,13 +491,13 @@ func (t *Table) printRow(columns [][]string, colKey int) {
 	for i, line := range columns {
 		length := len(line)
 		pad := max - length
-		for n := 0; n < pad; n++ {
+		for range pad {
 			columns[i] = append(columns[i], "  ")
 		}
 	}
 
-	for x := 0; x < max; x++ {
-		for y := 0; y < total; y++ {
+	for x := range max {
+		for y := range total {
 			// Check if border is set
 			fmt.Fprint(t.out, ConditionString(!t.borders.Left && y == 0, Empty, t.pColumn))
 
@@ -544,12 +544,10 @@ func (t *Table) parseDimension(str string, colKey, rowKey int) []string {
 		raw []string
 		max int
 	)
-	w := DisplayWidth(str)
-	// Calculate Width
-	// Check if with is grater than maximum width
-	if w > t.mW {
-		w = t.mW
-	}
+	w := min(
+		// Calculate Width
+		// Check if with is grater than maximum width
+		DisplayWidth(str), t.mW)
 
 	// Check if width exists
 	v, ok := t.cs[colKey]

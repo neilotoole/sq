@@ -20,8 +20,6 @@ func TestSmoke(t *testing.T) {
 	t.Parallel()
 
 	for _, handle := range sakila.MSAll() {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -71,8 +69,6 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 
 	testCases := []string{sakila.MS}
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -132,7 +128,6 @@ func TestNumericSchema(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

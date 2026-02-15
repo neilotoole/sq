@@ -65,7 +65,6 @@ func TestInt(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.key), func(t *testing.T) {
 			reg := &options.Registry{}
 
@@ -111,7 +110,6 @@ func TestBool(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.key), func(t *testing.T) {
 			reg := &options.Registry{}
 

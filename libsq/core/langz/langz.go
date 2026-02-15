@@ -95,7 +95,7 @@ func AlignMatrixWidth[T any](a [][]T, defaultVal T) {
 
 	var ragged bool
 	maxLen := len(a[0])
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		if len(a[i]) != maxLen {
 			ragged = true
 			maxLen = max(len(a[i]), maxLen)

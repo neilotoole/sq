@@ -177,7 +177,7 @@ func (w *recordWriter) writeRecord(ctx context.Context, rec record.Record) error
 		switch val := val.(type) {
 		default:
 			// should never happen
-			err = xml.EscapeText(tmpBuf, []byte(fmt.Sprintf("%v", val)))
+			err = xml.EscapeText(tmpBuf, fmt.Appendf(nil, "%v", val))
 			if err != nil {
 				return errz.Err(err)
 			}

@@ -84,7 +84,6 @@ func TestFileStore_Load(t *testing.T) {
 	}
 
 	for _, match := range good {
-		match := match
 		t.Run(tu.Name(match), func(t *testing.T) {
 			fs.Path = match
 			cfg, err := fs.Load(context.Background())
@@ -94,7 +93,6 @@ func TestFileStore_Load(t *testing.T) {
 	}
 
 	for _, match := range bad {
-		match := match
 		t.Run(tu.Name(match), func(t *testing.T) {
 			fs.Path = match
 			cfg, err := fs.Load(context.Background())

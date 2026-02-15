@@ -69,8 +69,6 @@ func TestSakilaInspectSheets(t *testing.T) {
 	tu.SkipShort(t, true)
 
 	for _, sheet := range sakilaSheets {
-		sheet := sheet
-
 		t.Run(sheet, func(t *testing.T) {
 			t.Parallel()
 			th := testh.New(t)
@@ -89,8 +87,6 @@ func BenchmarkInspectSheets(b *testing.B) {
 	tu.SkipShort(b, true)
 
 	for _, sheet := range sakilaSheets {
-		sheet := sheet
-
 		b.Run(sheet, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				th := testh.New(b)
@@ -113,8 +109,6 @@ func TestSakila_query_cmd(t *testing.T) {
 	tu.SkipShort(t, true)
 
 	for _, sheet := range sakilaSheets {
-		sheet := sheet
-
 		t.Run(sheet, func(t *testing.T) {
 			t.Parallel()
 			th := testh.New(t)
@@ -152,7 +146,6 @@ func TestOpenFileFormats(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.filename, func(t *testing.T) {
 			t.Parallel()
 
@@ -235,8 +228,6 @@ func TestSakila_query(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.sheet, func(t *testing.T) {
 			t.Parallel()
 			th := testh.New(t)
@@ -370,7 +361,6 @@ func TestDetectHeaderRow(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.filename, func(t *testing.T) {
 			ctx := context.Background()
 			fp := filepath.Join("testdata", tc.filename)
@@ -523,7 +513,6 @@ func TestDatetime(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.sheet, func(t *testing.T) {
 			t.Parallel()
 
@@ -538,7 +527,6 @@ func TestDatetime(t *testing.T) {
 			t.Log(sink.Recs[0])
 
 			for i, col := range sink.RecMeta.MungedNames() {
-				i, col := i, col
 				t.Run(col, func(t *testing.T) {
 					assert.Equal(t, tc.wantKinds[i].String(), sink.RecMeta.Kinds()[i].String())
 					if gotTime, ok := sink.Recs[0][i].(time.Time); ok {

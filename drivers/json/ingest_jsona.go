@@ -133,7 +133,7 @@ func ingestJSONA(ctx context.Context, job *ingestJob) error {
 	}
 
 	colNames := make([]string, len(colKinds))
-	for i := 0; i < len(colNames); i++ {
+	for i := range colNames {
 		colNames[i] = stringz.GenerateAlphaColName(i, true)
 	}
 
