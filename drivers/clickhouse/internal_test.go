@@ -53,9 +53,11 @@ var (
 
 // errors.go exports.
 var (
-	HasErrCode          = hasErrCode
-	IsErrUnknownTable   = isErrUnknownTable
-	ErrCodeUnknownTable = errCodeUnknownTable
+	HasErrCode             = hasErrCode
+	IsErrUnknownTable      = isErrUnknownTable
+	ErrCodeUnknownTable    = errCodeUnknownTable
+	IsErrUnknownDatabase   = isErrUnknownDatabase
+	ErrCodeUnknownDatabase = errCodeUnknownDatabase
 )
 
 // TestHasErrCode verifies that hasErrCode correctly identifies ClickHouse errors
@@ -83,6 +85,26 @@ func TestHasErrCode(t *testing.T) {
 	// but hasErrCode should still find the underlying ClickHouse error
 	err = errw(err)
 	require.True(t, hasErrCode(err, errCodeUnknownTable))
+}
+
+// TestHasErrCode_UnknownDatabase verifies that hasErrCode correctly identifies
+// ClickHouse UNKNOWN_DATABASE errors (code 81), even when wrapped.
+func TestHasErrCode_UnknownDatabase(t *testing.T) {
+	var err error
+	err = &clickhouse.Exception{
+		Code:    81,
+		Message: "Database no_such_db does not exist. (UNKNOWN_DATABASE)",
+	}
+
+	// Verify direct error detection.
+	require.True(t, hasErrCode(err, errCodeUnknownDatabase))
+	require.True(t, isErrUnknownDatabase(err))
+	require.False(t, isErrUnknownTable(err))
+
+	// Verify wrapped error detection.
+	err = errw(err)
+	require.True(t, hasErrCode(err, errCodeUnknownDatabase))
+	require.True(t, isErrUnknownDatabase(err))
 }
 
 // Type aliases for function signatures used in tests.

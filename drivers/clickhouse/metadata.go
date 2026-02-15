@@ -37,7 +37,7 @@ import (
 //   - User: Current user from currentUser()
 //   - Size: Total database size from system.tables
 //   - Tables: Table metadata with TableCount/ViewCount (if noSchema is false)
-func getSourceMetadata(ctx context.Context, src *source.Source, db *sql.DB, noSchema bool) (*metadata.Source, error) {
+func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSchema bool) (*metadata.Source, error) {
 	md := &metadata.Source{
 		Handle:   src.Handle,
 		Location: src.Location,
@@ -108,7 +108,7 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db *sql.DB, noSc
 //
 // If column metadata retrieval fails for a table, a warning is logged and the
 // table is skipped (not included in the result).
-func getTablesMetadata(ctx context.Context, db *sql.DB, dbName string) ([]*metadata.Table, error) {
+func getTablesMetadata(ctx context.Context, db sqlz.DB, dbName string) ([]*metadata.Table, error) {
 	const query = `
 		SELECT
 			name,
@@ -175,7 +175,7 @@ func getTablesMetadata(ctx context.Context, db *sql.DB, dbName string) ([]*metad
 //   - tblName: Table name to retrieve metadata for.
 //
 // Returns an error if the table does not exist or cannot be queried.
-func getTableMetadata(ctx context.Context, db *sql.DB, dbName, tblName string) (*metadata.Table, error) {
+func getTableMetadata(ctx context.Context, db sqlz.DB, dbName, tblName string) (*metadata.Table, error) {
 	// If dbName is empty, use currentDatabase().
 	if dbName == "" {
 		err := db.QueryRowContext(ctx, "SELECT currentDatabase()").Scan(&dbName)
@@ -244,7 +244,7 @@ func getTableMetadata(ctx context.Context, db *sql.DB, dbName, tblName string) (
 // Note: ClickHouse doesn't have traditional primary keys. The PrimaryKey field
 // is always set to false. The ORDER BY clause in MergeTree tables defines
 // sort order but not uniqueness constraints.
-func getColumnsMetadata(ctx context.Context, db *sql.DB, dbName, tblName string) ([]*metadata.Column, error) {
+func getColumnsMetadata(ctx context.Context, db sqlz.DB, dbName, tblName string) ([]*metadata.Column, error) {
 	const query = `
 		SELECT
 			name,

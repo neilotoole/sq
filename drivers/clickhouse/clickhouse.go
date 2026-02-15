@@ -695,21 +695,11 @@ func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (b
 // Note: The destination table always uses the MergeTree engine with
 // the first NOT NULL column as the ORDER BY key. This may differ from
 // the source table's engine and ordering configuration.
-//
-// Note: This method requires that db is a [*sql.DB] (not a [*sql.Conn]
-// or [*sql.Tx]) because [getTableMetadata] needs a [*sql.DB] to query
-// the system tables.
 func (d *driveri) CopyTable(
 	ctx context.Context, db sqlz.DB, fromTable, toTable tablefq.T, copyData bool,
 ) (int64, error) {
 	// First, get the schema of the source table.
-	// Type assert sqlz.DB to *sql.DB for metadata functions.
-	sqlDB, ok := db.(*sql.DB)
-	if !ok {
-		return 0, errz.New("expected *sql.DB")
-	}
-
-	srcTbl, err := getTableMetadata(ctx, sqlDB, "", fromTable.Table)
+	srcTbl, err := getTableMetadata(ctx, db, "", fromTable.Table)
 	if err != nil {
 		return 0, err
 	}
@@ -910,10 +900,11 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 // AlterTableAddColumn implements driver.SQLDriver. It adds a new column to an
 // existing table using ALTER TABLE ... ADD COLUMN syntax.
 //
-// The column type is determined by dbTypeNameFromKind based on the provided
-// kind.Kind value.
+// The column type is wrapped with Nullable() because sq defaults to nullable
+// columns (NotNull is false by default), but ClickHouse columns are
+// non-nullable by default. This matches the behavior of buildCreateTableStmt.
 func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col string, knd kind.Kind) error {
-	q := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s",
+	q := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s Nullable(%s)",
 		stringz.BacktickQuote(tbl),
 		stringz.BacktickQuote(col),
 		dbTypeNameFromKind(knd),
@@ -1019,22 +1010,18 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 
 // newStmtExecFunc returns a StmtExecFunc for executing prepared statements.
 // The returned function executes the statement with the given arguments and
-// returns the number of affected rows.
+// returns [dialect.RowsAffectedUnsupported] because ClickHouse does not
+// reliably report rows affected for INSERT operations.
 //
-// This is used as part of the StmtExecer returned by PrepareInsertStmt and
-// PrepareUpdateStmt to provide the actual execution logic.
+// This is used as part of the StmtExecer returned by PrepareInsertStmt
+// to provide the actual execution logic.
 func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
 	return func(ctx context.Context, args ...any) (int64, error) {
-		res, err := stmt.ExecContext(ctx, args...)
+		_, err := stmt.ExecContext(ctx, args...)
 		if err != nil {
 			return 0, errw(err)
 		}
 
-		affected, err := res.RowsAffected()
-		if err != nil {
-			return 0, errw(err)
-		}
-
-		return affected, nil
+		return dialect.RowsAffectedUnsupported, nil
 	}
 }

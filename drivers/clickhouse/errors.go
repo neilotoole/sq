@@ -25,7 +25,8 @@ import (
 //
 // Behavior:
 //   - If err is nil, returns nil (no-op for success cases)
-//   - If err is a ClickHouse UNKNOWN_TABLE error (code 60), wraps it in
+//   - If err is a ClickHouse UNKNOWN_TABLE error (code 60) or
+//     UNKNOWN_DATABASE error (code 81), wraps it in
 //     driver.NotExistError so callers can use errors.Is for detection
 //   - All other errors are wrapped with errz.Err for stack trace capture
 //
@@ -36,6 +37,8 @@ func errw(err error) error {
 	case err == nil:
 		return nil
 	case hasErrCode(err, errCodeUnknownTable):
+		return driver.NewNotExistError(err)
+	case hasErrCode(err, errCodeUnknownDatabase):
 		return driver.NewNotExistError(err)
 	default:
 		return errz.Err(err)
@@ -57,6 +60,13 @@ const (
 	// Example error message from ClickHouse:
 	//   "Table mydb.nonexistent doesn't exist. (UNKNOWN_TABLE)"
 	errCodeUnknownTable = int32(60)
+
+	// errCodeUnknownDatabase (code 81) is returned when a referenced database
+	// does not exist. This maps to driver.NotExistError in sq.
+	//
+	// Example error message from ClickHouse:
+	//   "Database no_such_db does not exist. (UNKNOWN_DATABASE)"
+	errCodeUnknownDatabase = int32(81)
 )
 
 // hasErrCode returns true if err (or any error in its chain) is a ClickHouse
@@ -90,4 +100,12 @@ func hasErrCode(err error, code int32) bool {
 // "not exists" error case. It works with wrapped errors.
 func isErrUnknownTable(err error) bool {
 	return hasErrCode(err, errCodeUnknownTable)
+}
+
+// isErrUnknownDatabase returns true if err is a ClickHouse UNKNOWN_DATABASE
+// error (code 81), indicating that a referenced database does not exist.
+//
+// This is a convenience wrapper around hasErrCode. It works with wrapped errors.
+func isErrUnknownDatabase(err error) bool {
+	return hasErrCode(err, errCodeUnknownDatabase)
 }
