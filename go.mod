@@ -19,6 +19,7 @@ godebug x509negativeserial=1
 
 require (
 	al.essio.dev/pkg/shellescape v1.6.0
+	github.com/ClickHouse/clickhouse-go/v2 v2.42.0
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/a8m/tree v0.0.0-20240104212747-2c8764a5f17e
 	github.com/antlr4-go/antlr/v4 v4.13.1
@@ -74,10 +75,6 @@ require (
 	golang.org/x/sys v0.41.0
 	golang.org/x/term v0.40.0
 	golang.org/x/text v0.34.0
-)
-
-require (
-	github.com/ClickHouse/clickhouse-go/v2 v2.42.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
