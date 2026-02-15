@@ -170,6 +170,49 @@ func TestDriver_TableColumnTypes(t *testing.T) {
 	}
 }
 
+// TestDriver_AlterTableColumnKinds tests the AlterTableColumnKinds DDL
+// operation, which changes the types of specified columns in an existing table.
+//
+// The test verifies that:
+//
+//  1. A column type can be changed from String to Int64
+//  2. The system.columns table reflects the new type
+//  3. Mismatched column/kind counts return an error
+//
+// This test requires a live ClickHouse instance and is skipped in short mode.
+func TestDriver_AlterTableColumnKinds(t *testing.T) {
+	tu.SkipShort(t, true)
+
+	th, src, drvr, _, db := testh.NewWith(t, sakila.CH)
+
+	tblName := stringz.UniqTableName(t.Name())
+	colNames := []string{"id", "val"}
+	colKinds := []kind.Kind{kind.Int, kind.Text}
+
+	tblDef := schema.NewTable(tblName, colNames, colKinds)
+	err := drvr.CreateTable(th.Context, db, tblDef)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
+
+	// Change "val" from Text (String) to Int (Int64).
+	err = drvr.AlterTableColumnKinds(th.Context, db, tblName,
+		[]string{"val"}, []kind.Kind{kind.Int})
+	require.NoError(t, err)
+
+	// Verify the column type changed in system.columns.
+	sink, err := th.QuerySQL(src, nil,
+		"SELECT type FROM system.columns WHERE table = '"+tblName+"' AND name = 'val'")
+	require.NoError(t, err)
+	require.Equal(t, 1, len(sink.Recs))
+	require.Equal(t, "Nullable(Int64)", sink.Recs[0][0])
+
+	// Verify mismatched column/kind counts return an error.
+	err = drvr.AlterTableColumnKinds(th.Context, db, tblName,
+		[]string{"val"}, []kind.Kind{kind.Int, kind.Text})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "mismatched count")
+}
+
 // TestDriver_CopyTable tests the CopyTable DDL operation, which creates a copy
 // of an existing table with the same schema, optionally including data.
 //

@@ -890,13 +890,32 @@ func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifEx
 	return errw(err)
 }
 
-// AlterTableColumnKinds implements driver.SQLDriver. It is not yet implemented
-// for ClickHouse.
-//
-// ClickHouse does support ALTER TABLE ... MODIFY COLUMN for changing column
-// types, but this functionality has not been implemented in this driver yet.
-func (d *driveri) AlterTableColumnKinds(_ context.Context, _ sqlz.DB, _ string, _ []string, _ []kind.Kind) error {
-	return errz.New("not implemented")
+// AlterTableColumnKinds implements driver.SQLDriver. It changes the types of
+// the specified columns using ALTER TABLE ... MODIFY COLUMN.
+func (d *driveri) AlterTableColumnKinds(ctx context.Context,
+	db sqlz.DB, tbl string, colNames []string, kinds []kind.Kind,
+) error {
+	if len(colNames) != len(kinds) {
+		return errz.Errorf(
+			"clickhouse: alter table column kinds: mismatched count"+
+				" of columns (%d) and kinds (%d)",
+			len(colNames), len(kinds),
+		)
+	}
+
+	for i, col := range colNames {
+		q := fmt.Sprintf("ALTER TABLE %s MODIFY COLUMN %s Nullable(%s)",
+			stringz.BacktickQuote(tbl),
+			stringz.BacktickQuote(col),
+			dbTypeNameFromKind(kinds[i]),
+		)
+
+		if _, err := db.ExecContext(ctx, q); err != nil {
+			return errw(err)
+		}
+	}
+
+	return nil
 }
 
 // getTableRecordMeta returns record metadata for specified columns in a table.

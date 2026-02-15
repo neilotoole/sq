@@ -180,7 +180,6 @@ welcome.
 | 3 | Batch insert connection corruption  | Insert        | High     | Tests skipped; needs native Batch API |
 | 4 | PrepareUpdateStmt not supported     | Update/Delete | Medium   | Tests skipped                       |
 | 5 | Standard UPDATE/DELETE not supported | Update/Delete | Medium   | Tests skipped                       |
-| 6 | AlterTableColumnKinds not implemented | DDL          | Low      | Returns error                       |
 <!-- markdownlint-enable MD013 MD060 -->
 
 ### Insert Limitations
@@ -261,15 +260,6 @@ it lacks native equivalents:
 ClickHouse's `INSERT ... SELECT` doesn't report affected rows. The
 CLI handles this gracefully by displaying
 "(rows copied: unsupported)".
-
-### DDL Limitations
-
-#### 6. AlterTableColumnKinds Not Implemented
-
-`AlterTableColumnKinds` is not yet implemented for ClickHouse.
-ClickHouse does support `ALTER TABLE ... MODIFY COLUMN` for changing
-column types, but this functionality has not been wired up in the
-driver yet. Calling this method returns an error.
 
 ## Array Type Architecture
 
