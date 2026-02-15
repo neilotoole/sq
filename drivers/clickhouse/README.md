@@ -257,6 +257,26 @@ affected. sq accounts for this by returning `0` from the
 `StmtExecer` and the test suite asserts `affected == 0` for
 ClickHouse.
 
+##### Future: Configurable `mutations_sync`
+
+Currently, sq unconditionally sets `mutations_sync = 1` for all
+ClickHouse mutations. This ensures correctness (mutations are
+visible immediately) but may not be desirable for all workloads.
+For example, bulk update pipelines may prefer asynchronous
+mutations (`mutations_sync = 0`) for higher throughput, accepting
+that data visibility is eventually consistent.
+
+A future enhancement could expose a ClickHouse-specific option
+(e.g., via `sq config set` or a source-level option) to control
+the `mutations_sync` value. Possible values:
+
+- `1` (current default): synchronous on current replica.
+- `0`: asynchronous (fire-and-forget).
+- `2`: synchronous across all replicas (strictest).
+
+This would allow users to trade off consistency vs performance
+based on their use case.
+
 ##### Why PrepareContext Cannot Be Used
 
 clickhouse-go v2's `PrepareContext()` internally classifies every
