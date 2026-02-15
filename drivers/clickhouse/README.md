@@ -495,7 +495,19 @@ other databases).
 
 Previously-skipped test that is now enabled:
 
-- `TestSQLDriver_PrepareUpdateStmt` — update via prepared statement
+- `TestSQLDriver_PrepareUpdateStmt` — shared update via prepared
+  statement (covers single-row, 2-column update across all SQL
+  drivers)
+
+Dedicated ClickHouse integration tests in
+`drivers/clickhouse/clickhouse_test.go`:
+
+- `TestDriver_PrepareUpdateStmt/multi_row` — update 5 rows via
+  WHERE `actor_id <= 5`
+- `TestDriver_PrepareUpdateStmt/no_match` — WHERE matches no rows
+- `TestDriver_PrepareUpdateStmt/update_all_rows` — empty WHERE
+  updates all 200 rows
+- `TestDriver_PrepareUpdateStmt/null_value` — update column to NULL
 
 #### 3. Standard UPDATE/DELETE Not Supported
 
@@ -747,5 +759,12 @@ affected row counts. The test asserts `affected == 0` for
 ClickHouse accordingly.
 
 See Known Limitation #2 for full details.
+
+Dedicated ClickHouse integration tests were added in
+`drivers/clickhouse/clickhouse_test.go:TestDriver_PrepareUpdateStmt`
+covering multi-row updates, no-match WHERE, update-all-rows (empty
+WHERE), and NULL value updates. A nil-safety unit test for
+`StmtExecer.Close()` was added in
+`libsq/driver/record_test.go:TestStmtExecer_Close_NilStmt`.
 
 **Status**: Resolved.
