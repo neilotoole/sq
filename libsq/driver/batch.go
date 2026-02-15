@@ -2,7 +2,6 @@ package driver
 
 import (
 	"context"
-	"math"
 
 	"go.uber.org/atomic"
 
@@ -102,11 +101,14 @@ func DefaultNewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db s
 	}
 
 	// Compute the max rows per batch from the driver's MaxBatchValues limit
-	// (total placeholder count) divided by the number of columns, rounded up.
-	// For example, with MaxBatchValues=1000 and 4 columns, batchSize is 250.
-	batchSize := int(math.Ceil(
-		float64(drvr.Dialect().MaxBatchValues) / float64(len(destColNames)),
-	))
+	// (total placeholder count) divided by the number of columns via floor
+	// division. For example, with MaxBatchValues=1000 and 4 columns,
+	// batchSize is 250. Floor division ensures the total placeholder count
+	// (batchSize * cols) never exceeds MaxBatchValues.
+	batchSize := drvr.Dialect().MaxBatchValues / len(destColNames)
+	if batchSize == 0 {
+		batchSize = 1
+	}
 
 	pbar := progress.FromContext(ctx).NewUnitCounter(msg, "rec")
 

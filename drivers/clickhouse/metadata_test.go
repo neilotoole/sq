@@ -1,6 +1,7 @@
 package clickhouse_test
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/neilotoole/sq/drivers/clickhouse"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh"
@@ -324,10 +326,12 @@ func TestMetadata_SourceMetadata(t *testing.T) {
 	require.Equal(t, drivertype.ClickHouse, md.DBDriver)
 
 	// sq only supports ClickHouse v25+.
-	require.True(t, strings.HasPrefix(md.DBVersion, "25."),
-		"expected DBVersion to start with '25.', got: %s", md.DBVersion)
-	require.True(t, strings.HasPrefix(md.DBProduct, "ClickHouse 25."),
-		"expected DBProduct to start with 'ClickHouse 25.', got: %s", md.DBProduct)
+	parts := strings.SplitN(md.DBVersion, ".", 2)
+	require.NotEmpty(t, parts, "expected DBVersion to have major.minor format, got: %s", md.DBVersion)
+	major, err := strconv.Atoi(parts[0])
+	require.NoError(t, err, "expected DBVersion major to be numeric, got: %s", md.DBVersion)
+	require.GreaterOrEqual(t, major, 25,
+		"expected DBVersion major >= 25, got: %s", md.DBVersion)
 	require.Equal(t, "ClickHouse "+md.DBVersion, md.DBProduct)
 
 	require.Equal(t, "sakila", md.User)
@@ -357,30 +361,32 @@ func TestMetadata_TableMetadata(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.CH)
 
+	tblName := stringz.UniqTableName("test_table_meta")
+
 	// Create a test table with a default expression.
-	th.ExecSQL(src, `CREATE TABLE IF NOT EXISTS test_table_meta (
+	th.ExecSQL(src, `CREATE TABLE IF NOT EXISTS `+tblName+` (
 		id Int64,
 		name String DEFAULT 'unknown'
 	) ENGINE = MergeTree() ORDER BY id`)
-	t.Cleanup(func() { th.ExecSQL(src, "DROP TABLE IF EXISTS test_table_meta") })
+	t.Cleanup(func() { th.ExecSQL(src, "DROP TABLE IF EXISTS "+tblName) })
 
 	md, err := th.SourceMetadata(src)
 	require.NoError(t, err)
 	require.NotNil(t, md)
 	require.NotEmpty(t, md.Tables, "Expected at least one table")
 
-	// Find the test_table_meta table.
+	// Find the test table.
 	var tbl *metadata.Table
 	for _, t2 := range md.Tables {
-		if t2.Name == "test_table_meta" {
+		if t2.Name == tblName {
 			tbl = t2
 			break
 		}
 	}
-	require.NotNil(t, tbl, "test_table_meta not found in metadata")
+	require.NotNil(t, tbl, "%s not found in metadata", tblName)
 
 	// Verify FQName.
-	require.Equal(t, "sakila.test_table_meta", tbl.FQName)
+	require.Equal(t, "sakila."+tblName, tbl.FQName)
 
 	// Verify columns.
 	require.Len(t, tbl.Columns, 2)
@@ -406,14 +412,14 @@ func TestMetadata_TableMetadata(t *testing.T) {
 func TestMetadata_Catalogs(t *testing.T) {
 	tu.SkipShort(t, true)
 
-	th, src, drvr, _, db := testh.NewWith(t, sakila.CH)
+	th, _, drvr, _, db := testh.NewWith(t, sakila.CH)
 
 	catalogs, err := drvr.ListCatalogs(th.Context, db)
 	require.NoError(t, err)
 	require.NotEmpty(t, catalogs)
 	t.Logf("Catalogs: %v", catalogs)
 
-	// Test catalog exists
+	// Test catalog exists.
 	currentCatalog, err := drvr.CurrentCatalog(th.Context, db)
 	require.NoError(t, err)
 	require.NotEmpty(t, currentCatalog)
@@ -423,26 +429,24 @@ func TestMetadata_Catalogs(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, exists)
 
-	// Test non-existent catalog
+	// Test non-existent catalog.
 	exists, err = drvr.CatalogExists(th.Context, db, "nonexistent_db_12345")
 	require.NoError(t, err)
 	require.False(t, exists)
-
-	_ = src
 }
 
 // TestMetadata_Schemas tests schema listing.
 func TestMetadata_Schemas(t *testing.T) {
 	tu.SkipShort(t, true)
 
-	th, src, drvr, _, db := testh.NewWith(t, sakila.CH)
+	th, _, drvr, _, db := testh.NewWith(t, sakila.CH)
 
 	schemas, err := drvr.ListSchemas(th.Context, db)
 	require.NoError(t, err)
 	require.NotEmpty(t, schemas)
 	t.Logf("Schemas: %v", schemas)
 
-	// Test schema exists
+	// Test schema exists.
 	currentSchema, err := drvr.CurrentSchema(th.Context, db)
 	require.NoError(t, err)
 	require.NotEmpty(t, currentSchema)
@@ -451,34 +455,30 @@ func TestMetadata_Schemas(t *testing.T) {
 	exists, err := drvr.SchemaExists(th.Context, db, currentSchema)
 	require.NoError(t, err)
 	require.True(t, exists)
-
-	_ = src
 }
 
 // TestMetadata_TableNames tests table name listing.
 func TestMetadata_TableNames(t *testing.T) {
 	tu.SkipShort(t, true)
 
-	th, src, drvr, _, db := testh.NewWith(t, sakila.CH)
+	th, _, drvr, _, db := testh.NewWith(t, sakila.CH)
 
-	// List all tables
+	// List all tables.
 	tables, err := drvr.ListTableNames(th.Context, db, "", true, false)
 	require.NoError(t, err)
 	t.Logf("Tables: %v", tables)
 
-	// List all views
+	// List all views.
 	views, err := drvr.ListTableNames(th.Context, db, "", false, true)
 	require.NoError(t, err)
 	t.Logf("Views: %v", views)
 
-	// List both tables and views
+	// List both tables and views.
 	all, err := drvr.ListTableNames(th.Context, db, "", true, true)
 	require.NoError(t, err)
 	t.Logf("All objects: %v", all)
 	require.GreaterOrEqual(t, len(all), len(tables))
 	require.GreaterOrEqual(t, len(all), len(views))
-
-	_ = src
 }
 
 // TestMetadata_UnusualColumnTypes tests that metadata retrieval handles

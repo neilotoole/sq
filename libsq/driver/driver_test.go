@@ -657,6 +657,7 @@ func TestSQLDriver_CurrentSchemaCatalog(t *testing.T) {
 		{sakila.Pg, "public", "sakila"},
 		{sakila.My, "sakila", "def"},
 		{sakila.MS, "dbo", "sakila"},
+		{sakila.CH, "sakila", "sakila"},
 	}
 
 	for _, tc := range testCases {
@@ -712,6 +713,9 @@ func TestSQLDriver_SchemaExists(t *testing.T) {
 		{handle: sakila.MS, schema: "INFORMATION_SCHEMA", wantOK: true},
 		{handle: sakila.MS, schema: "", wantOK: false},
 		{handle: sakila.MS, schema: "not_exist", wantOK: false},
+		{handle: sakila.CH, schema: "sakila", wantOK: true},
+		{handle: sakila.CH, schema: "", wantOK: false},
+		{handle: sakila.CH, schema: "not_exist", wantOK: false},
 	}
 
 	for _, tc := range testCases {
@@ -749,6 +753,10 @@ func TestSQLDriver_CatalogExists(t *testing.T) {
 		{handle: sakila.MS, catalog: "model", wantOK: true},
 		{handle: sakila.MS, catalog: "not_exist", wantOK: false},
 		{handle: sakila.MS, catalog: "", wantOK: false},
+		{handle: sakila.CH, catalog: "sakila", wantOK: true},
+		{handle: sakila.CH, catalog: "system", wantOK: true},
+		{handle: sakila.CH, catalog: "not_exist", wantOK: false},
+		{handle: sakila.CH, catalog: "", wantOK: false},
 	}
 
 	for _, tc := range testCases {
@@ -777,6 +785,10 @@ func TestDriverCreateDropSchema(t *testing.T) {
 		{sakila.Pg, "public"},
 		{sakila.My, "sakila"},
 		{sakila.MS, "dbo"},
+		// Note: ClickHouse is tested separately in
+		// drivers/clickhouse because CopyTable returns
+		// dialect.RowsAffectedUnsupported (-1) instead of
+		// the actual row count.
 	}
 
 	for _, tc := range testCases {

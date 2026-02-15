@@ -37,6 +37,9 @@ import (
 func (d *driveri) NewBatchInsert(ctx context.Context, msg string, db sqlz.DB,
 	src *source.Source, destTbl string, destColNames []string,
 ) (*driver.BatchInsert, error) {
+	// MaxBatchValues is used here as a rows-per-batch limit (not a placeholder
+	// count) because the native Batch API uses Append per row rather than
+	// generating SQL placeholders.
 	batchSize := d.Dialect().MaxBatchValues
 	log := lg.FromContext(ctx)
 	if err := sqlz.RequireSingleConn(db); err != nil {
@@ -83,7 +86,7 @@ func (d *driveri) NewBatchInsert(ctx context.Context, msg string, db sqlz.DB,
 		strings.Join(quotedCols, ", "))
 
 	pbar := progress.FromContext(ctx).NewUnitCounter(msg, "rec")
-	recCh := make(chan []any, batchSize*8)
+	recCh := make(chan []any, min(batchSize*8, 1024))
 	errCh := make(chan error, 1)
 	written := atomic.NewInt64(0)
 
@@ -122,6 +125,14 @@ func (d *driveri) NewBatchInsert(ctx context.Context, msg string, db sqlz.DB,
 					log.Debug("ClickHouse batch insert complete",
 						lga.Target, src.Handle+"."+destTbl,
 						lga.Count, written.Load())
+					return
+				}
+
+				if len(rec) != len(destColNames) {
+					lg.WarnIfFuncError(log, "Abort clickhouse batch", batch.Abort)
+					errCh <- errz.Errorf(
+						"clickhouse batch insert: record should have %d values but found %d",
+						len(destColNames), len(rec))
 					return
 				}
 

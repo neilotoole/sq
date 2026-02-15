@@ -309,8 +309,11 @@ func TestQuery_join_others(t *testing.T) {
 			name:    "full_outer_join",
 			in:      `@sakila | .actor | full_outer_join(.film_actor, .actor_id)`,
 			wantSQL: `SELECT * FROM "actor" FULL OUTER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id"`,
+			override: driverMap{
+				drivertype.ClickHouse: "SELECT * FROM `actor` FULL OUTER JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`",
+			},
 			// Note that MySQL doesn't support full outer join.
-			onlyFor:       []drivertype.Type{drivertype.SQLite, drivertype.Pg, drivertype.MSSQL},
+			onlyFor:       []drivertype.Type{drivertype.SQLite, drivertype.Pg, drivertype.MSSQL, drivertype.ClickHouse},
 			wantRecCount:  sakila.TblFilmActorCount,
 			repeatReplace: []string{string(jointype.FullOuter), jointype.FullOuterAlias},
 			sinkFns: []SinkTestFunc{

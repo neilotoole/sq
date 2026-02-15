@@ -522,9 +522,16 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 	return schemaName, nil
 }
 
-// ListCatalogs implements driver.SQLDriver.
+// ListCatalogs implements driver.SQLDriver. The first element of the returned
+// slice is the current catalog (database); the remaining are sorted
+// alphabetically.
 func (d *driveri) ListCatalogs(ctx context.Context, db sqlz.DB) ([]string, error) {
-	const query = `SELECT name FROM system.databases ORDER BY name`
+	catalogs := make([]string, 1, 3)
+	if err := db.QueryRowContext(ctx, `SELECT currentDatabase()`).Scan(&catalogs[0]); err != nil {
+		return nil, errw(err)
+	}
+
+	const query = `SELECT name FROM system.databases WHERE name != currentDatabase() ORDER BY name`
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
@@ -532,7 +539,6 @@ func (d *driveri) ListCatalogs(ctx context.Context, db sqlz.DB) ([]string, error
 	}
 	defer sqlz.CloseRows(lg.FromContext(ctx), rows)
 
-	var catalogs []string
 	for rows.Next() {
 		var catalog string
 		if err = rows.Scan(&catalog); err != nil {
@@ -702,7 +708,7 @@ func (d *driveri) CopyTable(
 	ctx context.Context, db sqlz.DB, fromTable, toTable tablefq.T, copyData bool,
 ) (int64, error) {
 	// First, get the schema of the source table.
-	srcTbl, err := getTableMetadata(ctx, db, "", fromTable.Table)
+	srcTbl, err := getTableMetadata(ctx, db, fromTable.Schema, fromTable.Table)
 	if err != nil {
 		return 0, err
 	}
@@ -781,7 +787,15 @@ func (d *driveri) TableColumnTypes(
 	defer lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
 
 	colTypes, err := rows.ColumnTypes()
-	return colTypes, errw(err)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+
+	return colTypes, nil
 }
 
 // PrepareInsertStmt implements driver.SQLDriver. It prepares a batch INSERT

@@ -73,6 +73,10 @@ func TestQuerySQL_Smoke(t *testing.T) {
 			handle:     sakila.XLSX,
 			fieldTypes: wantActorFieldTypes,
 		},
+		{
+			handle:     sakila.CH,
+			fieldTypes: wantActorFieldTypes,
+		},
 	}
 
 	for _, tc := range testCases {

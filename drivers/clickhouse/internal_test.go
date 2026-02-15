@@ -26,9 +26,6 @@ import (
 
 	clickhouse "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/stretchr/testify/require"
-
-	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/schema"
 )
 
 // Exported variables for testing unexported functions from external test packages.
@@ -110,12 +107,3 @@ func TestHasErrCode_UnknownDatabase(t *testing.T) {
 	require.True(t, hasErrCode(err, errCodeUnknownDatabase))
 	require.True(t, isErrUnknownDatabase(err))
 }
-
-// Type aliases for function signatures used in tests.
-type (
-	// KindFromClickHouseTypeFunc is the signature of kindFromClickHouseType.
-	KindFromClickHouseTypeFunc = func(chType string) kind.Kind
-
-	// BuildCreateTableStmtFunc is the signature of buildCreateTableStmt.
-	BuildCreateTableStmtFunc = func(tblDef *schema.Table) string
-)

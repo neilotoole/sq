@@ -67,7 +67,7 @@ func TestBatchInsert_MultiBatch(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, int64(sakila.TblPaymentCount), bi.Written())
 
-	require.NoError(t, conn.Close())
+	// Note: conn is closed by t.Cleanup registered above.
 
 	// Verify the table has the expected row count.
 	sink, err := th.QuerySQL(src, nil, "SELECT COUNT(*) FROM "+tblName)

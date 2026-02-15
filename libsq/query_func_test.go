@@ -168,6 +168,17 @@ func TestQuery_func_schema(t *testing.T) {
 				assertSinkColValue(0, "main"),
 			},
 		},
+		{
+			name:         "clickhouse-default",
+			in:           `@sakila | schema()`,
+			wantSQL:      "SELECT currentDatabase() AS `schema()`",
+			onlyFor:      []drivertype.Type{drivertype.ClickHouse},
+			wantRecCount: 1,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "schema()"),
+				assertSinkColValue(0, "sakila"),
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -252,6 +263,17 @@ func TestQuery_func_catalog(t *testing.T) {
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
 				assertSinkColValue(0, "default"),
+			},
+		},
+		{
+			name:         "clickhouse",
+			in:           `@sakila | catalog()`,
+			wantSQL:      "SELECT currentDatabase() AS `catalog()`",
+			onlyFor:      []drivertype.Type{drivertype.ClickHouse},
+			wantRecCount: 1,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "catalog()"),
+				assertSinkColValue(0, "sakila"),
 			},
 		},
 	}
