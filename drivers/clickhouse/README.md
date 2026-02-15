@@ -253,9 +253,9 @@ visible to subsequent queries.
 **Even with `mutations_sync = 1`, `RowsAffected()` still returns
 `0`.** This is a ClickHouse limitation — the mutation completes
 synchronously, but the server does not report how many rows were
-affected. sq accounts for this by returning `0` from the
-`StmtExecer` and the test suite asserts `affected == 0` for
-ClickHouse.
+affected. sq accounts for this by returning
+`dialect.RowsAffectedUnsupported` (-1) from the `StmtExecer` and
+the test suite asserts `affected == -1` for ClickHouse.
 
 ##### Future: Configurable `mutations_sync`
 
@@ -348,7 +348,7 @@ welcome.
 | 2 | [~~PrepareUpdateStmt not supported~~](#2-prepareupdatestmt-resolved)                     | Update/Delete | ~~High~~ | **Resolved**: ExecContext workaround |
 | 3 | [~~Standard SQL UPDATE/DELETE syntax not supported~~](#3-standard-sql-updatedelete-syntax-not-supported-resolved) | Update/Delete | ~~Medium~~ | **Resolved**: lightweight mutations |
 | 4 | [Type roundtrip issues](#4-type-roundtrip-issues)                                        | Types         | Low      | Tests skipped                        |
-| 5 | [CopyTable row count unsupported](#5-copytable-row-count-unsupported)                    | Metadata      | Low      | Handled in CLI                       |
+| 5 | [DML rows affected unsupported](#5-dml-rows-affected-unsupported)                        | Metadata      | Low      | Handled in CLI and driver            |
 <!-- markdownlint-enable MD013 MD060 -->
 
 ### Insert Limitations
@@ -510,9 +510,10 @@ Even with `mutations_sync = 1`, ClickHouse does not report the
 number of rows affected by a mutation. The
 `sql.Result.RowsAffected()` value returned by the driver is always
 0, regardless of how many rows were actually modified. The
-`StmtExecer` therefore always returns 0 for affected rows. The
+`StmtExecer` therefore returns
+`dialect.RowsAffectedUnsupported` (-1) for affected rows. The
 test `TestSQLDriver_PrepareUpdateStmt` accounts for this by
-asserting `affected == 0` for ClickHouse (vs `affected == 1` for
+asserting `affected == -1` for ClickHouse (vs `affected == 1` for
 other databases).
 
 Previously-skipped test that is now enabled:
@@ -559,7 +560,9 @@ DELETE FROM t WHERE id = 2;
 
 Note that ClickHouse returns 0 for `rows_affected` on all DML
 operations (INSERT, UPDATE, DELETE), unlike traditional databases
-that return the actual count.
+that return the actual count. sq converts this to
+`dialect.RowsAffectedUnsupported` (-1) at the driver and CLI
+layers. See [Limitation #5](#5-dml-rows-affected-unsupported).
 
 ##### How sq Handles Updates
 
@@ -587,7 +590,7 @@ are now enabled with per-handle driver configuration:
 - **`TestCmdSQL_ExecMode`** (`cli/cmd_sql_test.go`): Full CRUD
   lifecycle test (CREATE, INSERT, UPDATE, DELETE, DROP). Uses
   ClickHouse-specific `CREATE TABLE` DDL and expects
-  `rows_affected=0` for DML operations.
+  `rows_affected=-1` for DML operations.
 - **`TestCmdSQL_ExecTypeEdgeCases`** (`cli/cmd_sql_test.go`):
   SQL statement type detection with formatting variations (case
   sensitivity, block comments, CTEs). Uses ClickHouse-specific
@@ -621,12 +624,19 @@ Go type and sq kind change on readback.
 
 ### Metadata Limitations
 
-#### 5. CopyTable Row Count Unsupported
+#### 5. DML Rows Affected Unsupported
 
-`CopyTable` returns `dialect.RowsAffectedUnsupported` (-1) because
-ClickHouse's `INSERT ... SELECT` doesn't report affected rows. The
-CLI handles this gracefully by displaying
-"(rows copied: unsupported)".
+ClickHouse does not report `RowsAffected()` for any DML operation
+(INSERT, UPDATE, DELETE, INSERT...SELECT). The protocol-level value
+is always 0.
+
+- **`CopyTable`** and **`PrepareUpdateStmt`** return
+  `dialect.RowsAffectedUnsupported` (-1) directly from the driver.
+- **`sq sql` DML**: The CLI intercepts the raw 0 returned by
+  ClickHouse and converts it to -1 via the
+  `Dialect.IsRowsAffectedUnsupported` field.
+- The table writer displays "rows affected: unknown"; JSON outputs
+  -1 as a machine-readable sentinel.
 
 ## Array Type Architecture
 
@@ -830,8 +840,9 @@ returns immediately, before data is modified. Without
 The fix appends `SETTINGS mutations_sync = 1` to the query so the
 mutation completes synchronously. Even so, `RowsAffected()` always
 returns 0 for ClickHouse mutations — the driver does not track
-affected row counts. The test asserts `affected == 0` for
-ClickHouse accordingly.
+affected row counts. sq converts this to
+`dialect.RowsAffectedUnsupported` (-1), and the test asserts
+`affected == -1` for ClickHouse accordingly.
 
 See Known Limitation #2 for full details.
 
