@@ -320,13 +320,13 @@ welcome.
 ### Limitations Overview
 
 <!-- markdownlint-disable MD013 MD060 -->
-| # | Limitation                          | Category      | Severity | Workaround                          |
-|---|-------------------------------------|---------------|----------|-------------------------------------|
-| 1 | ~~Batch insert connection corruption~~ | Insert      | ~~High~~ | **Resolved**: native Batch API      |
-| 2 | ~~PrepareUpdateStmt not supported~~ | Update/Delete | ~~High~~ | **Resolved**: ExecContext workaround |
-| 3 | Standard UPDATE/DELETE not supported | Update/Delete | Medium   | Tests skipped                       |
-| 4 | Type roundtrip issues               | Types         | Low      | Tests skipped                       |
-| 5 | CopyTable row count unsupported     | Metadata      | Low      | Handled in CLI                      |
+| # | Limitation                                                                               | Category      | Severity | Workaround                           |
+|---|------------------------------------------------------------------------------------------|---------------|----------|--------------------------------------|
+| 1 | [~~Batch insert connection corruption~~](#1-batch-insert-connection-corruption-resolved) | Insert        | ~~High~~ | **Resolved**: native Batch API       |
+| 2 | [~~PrepareUpdateStmt not supported~~](#2-prepareupdatestmt-resolved)                     | Update/Delete | ~~High~~ | **Resolved**: ExecContext workaround |
+| 3 | [Standard UPDATE/DELETE not supported](#3-standard-updatedelete-not-supported)           | Update/Delete | Medium   | Tests skipped                        |
+| 4 | [Type roundtrip issues](#4-type-roundtrip-issues)                                        | Types         | Low      | Tests skipped                        |
+| 5 | [CopyTable row count unsupported](#5-copytable-row-count-unsupported)                    | Metadata      | Low      | Handled in CLI                       |
 <!-- markdownlint-enable MD013 MD060 -->
 
 ### Insert Limitations
