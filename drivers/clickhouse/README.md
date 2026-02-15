@@ -318,13 +318,44 @@ Key design decisions:
 
 #### 2. PrepareUpdateStmt Not Supported
 
+Reference: <https://github.com/ClickHouse/clickhouse-go/issues/1203>
+
 ClickHouse uses `ALTER TABLE ... UPDATE` syntax instead of standard
-SQL UPDATE. While sq's `PrepareUpdateStmt` correctly generates this
-syntax, clickhouse-go's `PrepareContext()` only supports **INSERT and
-SELECT statements**. Any other statement type is rejected with
-"invalid INSERT query". Direct execution via `ExecContext()` works,
-but `PrepareUpdateStmt` requires `PrepareContext()` for parameter
-binding.
+SQL `UPDATE`. The `PrepareUpdateStmt` method in `clickhouse.go:816`
+correctly generates this syntax via `buildUpdateStmt()` (defined in
+`render.go:147`), producing statements of the form:
+
+```sql
+ALTER TABLE `table_name` UPDATE `col1` = ?, `col2` = ? WHERE condition
+```
+
+However, the call to `db.PrepareContext(ctx, query)` at line 826
+fails because `clickhouse-go` v2's `PrepareContext()` internally
+classifies every non-`SELECT` statement as an `INSERT` and validates
+it accordingly. An `ALTER TABLE ... UPDATE` statement is rejected
+with the error `"invalid INSERT query"`.
+
+**Why direct execution works.** Other ClickHouse DDL/DML operations
+in the driver (`CreateTable`, `Truncate`, `DropSchema`,
+`AlterTableAddColumn`) succeed because they call `ExecContext()`
+directly, bypassing the prepared-statement code path entirely.
+`PrepareUpdateStmt` cannot do the same because it relies on
+`PrepareContext()` for parameter binding.
+
+**Impact scope.** `PrepareUpdateStmt` is only invoked in two
+places:
+
+- `TestSQLDriver_PrepareUpdateStmt` in
+  `libsq/driver/driver_test.go:211` (skipped for ClickHouse).
+- `drivers/userdriver/xmlud/xmlud.go:515`, the experimental XML
+  user driver, which is unlikely to be used with a ClickHouse
+  source.
+
+Normal `sq sql "ALTER TABLE ... UPDATE ..."` commands work fine
+because they go through direct execution, not prepared statements.
+
+**Upstream issue:**
+[clickhouse-go#1203](https://github.com/ClickHouse/clickhouse-go/issues/1203).
 
 **Status**: `TestSQLDriver_PrepareUpdateStmt` is **skipped**.
 
