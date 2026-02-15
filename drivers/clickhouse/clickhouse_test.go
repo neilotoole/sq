@@ -213,6 +213,152 @@ func TestDriver_AlterTableColumnKinds(t *testing.T) {
 	require.Contains(t, err.Error(), "mismatched count")
 }
 
+// TestDriver_PrepareUpdateStmt tests ClickHouse-specific mutation behavior
+// for UPDATE operations. ClickHouse mutations (ALTER TABLE UPDATE) are
+// asynchronous by default; the driver appends "SETTINGS mutations_sync = 1"
+// to force synchronous execution. RowsAffected() always returns 0 regardless
+// of how many rows were actually modified.
+//
+// This test requires a live ClickHouse instance and is skipped in short mode.
+// Each subtest copies sakila.TblActor (200 rows) to a disposable table.
+func TestDriver_PrepareUpdateStmt(t *testing.T) {
+	tu.SkipShort(t, true)
+
+	t.Run("multi_row", func(t *testing.T) {
+		// Update multiple rows: WHERE actor_id <= 5 matches 5 rows.
+		// ClickHouse RowsAffected() returns 0 for mutations.
+		th, src, drvr, _, db := testh.NewWith(t, sakila.CH)
+		tblName := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
+
+		destCols := []string{"first_name", "last_name"}
+		whereClause := "actor_id <= 5"
+		wantFirst := "UpdatedFirst"
+		wantLast := "UpdatedLast"
+		args := []any{wantFirst, wantLast}
+
+		stmtExecer, err := drvr.PrepareUpdateStmt(th.Context, db, tblName, destCols, whereClause)
+		require.NoError(t, err)
+		require.NoError(t, stmtExecer.Munge(args))
+
+		affected, err := stmtExecer.Exec(th.Context, args...)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), affected)
+		require.NoError(t, stmtExecer.Close())
+
+		// Verify all 5 matching rows were updated.
+		sink, err := th.QuerySQL(src, nil,
+			"SELECT "+stringz.BacktickQuote("actor_id")+", "+
+				stringz.BacktickQuote("first_name")+", "+
+				stringz.BacktickQuote("last_name")+
+				" FROM "+stringz.BacktickQuote(tblName)+
+				" WHERE actor_id <= 5 ORDER BY actor_id")
+		require.NoError(t, err)
+		require.Equal(t, 5, len(sink.Recs))
+		for _, rec := range sink.Recs {
+			require.Equal(t, wantFirst, stringz.Val(rec[1]))
+			require.Equal(t, wantLast, stringz.Val(rec[2]))
+		}
+
+		// Verify rows outside the WHERE clause are unchanged.
+		sink, err = th.QuerySQL(src, nil,
+			"SELECT "+stringz.BacktickQuote("first_name")+
+				" FROM "+stringz.BacktickQuote(tblName)+
+				" WHERE actor_id = 6")
+		require.NoError(t, err)
+		require.Equal(t, 1, len(sink.Recs))
+		require.NotEqual(t, wantFirst, stringz.Val(sink.Recs[0][0]))
+	})
+
+	t.Run("no_match", func(t *testing.T) {
+		// WHERE matches no rows: actor_id = 999 does not exist
+		// in the 200-row actor table. No error should be returned.
+		th, src, drvr, _, db := testh.NewWith(t, sakila.CH)
+		tblName := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
+
+		destCols := []string{"first_name"}
+		whereClause := "actor_id = 999"
+		args := []any{"ShouldNotAppear"}
+
+		stmtExecer, err := drvr.PrepareUpdateStmt(th.Context, db, tblName, destCols, whereClause)
+		require.NoError(t, err)
+		require.NoError(t, stmtExecer.Munge(args))
+
+		affected, err := stmtExecer.Exec(th.Context, args...)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), affected)
+		require.NoError(t, stmtExecer.Close())
+
+		// Verify no rows were changed by spot-checking a few rows.
+		sink, err := th.QuerySQL(src, nil,
+			"SELECT "+stringz.BacktickQuote("first_name")+
+				" FROM "+stringz.BacktickQuote(tblName)+
+				" WHERE actor_id IN (1, 100, 200)")
+		require.NoError(t, err)
+		require.Equal(t, 3, len(sink.Recs))
+		for _, rec := range sink.Recs {
+			require.NotEqual(t, "ShouldNotAppear", stringz.Val(rec[0]))
+		}
+	})
+
+	t.Run("update_all_rows", func(t *testing.T) {
+		// Empty WHERE clause updates all rows. buildUpdateStmt
+		// omits the WHERE clause entirely when where is "".
+		// ClickHouse RowsAffected() returns 0 for mutations.
+		th, src, drvr, _, db := testh.NewWith(t, sakila.CH)
+		tblName := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
+
+		destCols := []string{"first_name"}
+		wantFirst := "AllUpdated"
+		args := []any{wantFirst}
+
+		stmtExecer, err := drvr.PrepareUpdateStmt(th.Context, db, tblName, destCols, "")
+		require.NoError(t, err)
+		require.NoError(t, stmtExecer.Munge(args))
+
+		affected, err := stmtExecer.Exec(th.Context, args...)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), affected)
+		require.NoError(t, stmtExecer.Close())
+
+		// Verify all 200 rows have the new value.
+		sink, err := th.QuerySQL(src, nil,
+			"SELECT COUNT(*) FROM "+stringz.BacktickQuote(tblName)+
+				" WHERE "+stringz.BacktickQuote("first_name")+" = '"+wantFirst+"'")
+		require.NoError(t, err)
+		require.Equal(t, 1, len(sink.Recs))
+		require.Equal(t, int64(sakila.TblActorCount), stringz.Val(sink.Recs[0][0]))
+	})
+
+	t.Run("null_value", func(t *testing.T) {
+		// Update a column to NULL. ClickHouse Nullable columns
+		// should accept nil values via the mutation path.
+		th, src, drvr, _, db := testh.NewWith(t, sakila.CH)
+		tblName := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
+
+		destCols := []string{"first_name"}
+		whereClause := "actor_id = 1"
+		args := []any{nil}
+
+		stmtExecer, err := drvr.PrepareUpdateStmt(th.Context, db, tblName, destCols, whereClause)
+		require.NoError(t, err)
+		require.NoError(t, stmtExecer.Munge(args))
+
+		affected, err := stmtExecer.Exec(th.Context, args...)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), affected)
+		require.NoError(t, stmtExecer.Close())
+
+		// Verify the column reads back as NULL.
+		sink, err := th.QuerySQL(src, nil,
+			"SELECT "+stringz.BacktickQuote("first_name")+
+				" FROM "+stringz.BacktickQuote(tblName)+
+				" WHERE actor_id = 1")
+		require.NoError(t, err)
+		require.Equal(t, 1, len(sink.Recs))
+		require.Nil(t, stringz.Val(sink.Recs[0][0]))
+	})
+}
+
 // TestDriver_CopyTable tests the CopyTable DDL operation, which creates a copy
 // of an existing table with the same schema, optionally including data.
 //
