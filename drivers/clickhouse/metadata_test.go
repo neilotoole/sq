@@ -480,3 +480,52 @@ func TestMetadata_TableNames(t *testing.T) {
 
 	_ = src
 }
+
+// TestMetadata_UnusualColumnTypes tests that metadata retrieval handles
+// ClickHouse-specific types that don't have direct sq kind equivalents.
+// Types like Enum8, Array, Map, and Tuple should be assigned a Kind (falling
+// back to kind.Text) and have a non-empty BaseType.
+//
+// This test requires a live ClickHouse instance and is skipped in short mode.
+func TestMetadata_UnusualColumnTypes(t *testing.T) {
+	tu.SkipShort(t, true)
+
+	th := testh.New(t)
+	src := th.Source(sakila.CH)
+
+	const tblName = "test_unusual_col_types"
+
+	th.ExecSQL(src, "DROP TABLE IF EXISTS "+tblName)
+	th.ExecSQL(src, `CREATE TABLE `+tblName+` (
+		col_enum    Enum8('a' = 1, 'b' = 2, 'c' = 3),
+		col_array   Array(Int32),
+		col_map     Map(String, String),
+		col_tuple   Tuple(String, Int64)
+	) ENGINE = MergeTree() ORDER BY col_enum`)
+	t.Cleanup(func() { th.ExecSQL(src, "DROP TABLE IF EXISTS "+tblName) })
+
+	md, err := th.SourceMetadata(src)
+	require.NoError(t, err)
+	require.NotNil(t, md)
+
+	// Find the test table in source metadata.
+	var tbl *metadata.Table
+	for _, t2 := range md.Tables {
+		if t2.Name == tblName {
+			tbl = t2
+			break
+		}
+	}
+	require.NotNil(t, tbl, "table %s not found in metadata", tblName)
+	require.Len(t, tbl.Columns, 4)
+
+	for _, col := range tbl.Columns {
+		require.NotEmpty(t, col.BaseType,
+			"column %s: BaseType should not be empty", col.Name)
+		require.NotEmpty(t, col.Kind.String(),
+			"column %s: Kind should be assigned", col.Name)
+
+		t.Logf("  %s: kind=%s base_type=%s column_type=%s",
+			col.Name, col.Kind, col.BaseType, col.ColumnType)
+	}
+}
