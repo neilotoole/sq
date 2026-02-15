@@ -175,16 +175,16 @@ welcome.
 <!-- markdownlint-disable MD013 MD060 -->
 | # | Limitation                          | Category      | Severity | Workaround                          |
 |---|-------------------------------------|---------------|----------|-------------------------------------|
-| 1 | Type roundtrip issues               | Types         | Low      | Tests skipped                       |
-| 2 | CopyTable row count unsupported     | Metadata      | Low      | Handled in CLI                      |
-| 3 | Batch insert connection corruption  | Insert        | High     | Tests skipped; needs native Batch API |
-| 4 | PrepareUpdateStmt not supported     | Update/Delete | Medium   | Tests skipped                       |
-| 5 | Standard UPDATE/DELETE not supported | Update/Delete | Medium   | Tests skipped                       |
+| 1 | Batch insert connection corruption  | Insert        | High     | Tests skipped; needs native Batch API |
+| 2 | PrepareUpdateStmt not supported     | Update/Delete | High     | Tests skipped                       |
+| 3 | Standard UPDATE/DELETE not supported | Update/Delete | Medium   | Tests skipped                       |
+| 4 | Type roundtrip issues               | Types         | Low      | Tests skipped                       |
+| 5 | CopyTable row count unsupported     | Metadata      | Low      | Handled in CLI                      |
 <!-- markdownlint-enable MD013 MD060 -->
 
 ### Insert Limitations
 
-#### 3. Batch Insert: Connection Corruption
+#### 1. Batch Insert: Connection Corruption
 
 The clickhouse-go driver does not support multi-row parameter binding.
 When sq generates `INSERT INTO t VALUES (?,?), (?,?)` with flattened
@@ -214,7 +214,7 @@ for full investigation details.
 
 ### Update/Delete Limitations
 
-#### 4. PrepareUpdateStmt Not Supported
+#### 2. PrepareUpdateStmt Not Supported
 
 ClickHouse uses `ALTER TABLE ... UPDATE` syntax instead of standard
 SQL UPDATE. While sq's `PrepareUpdateStmt` correctly generates this
@@ -226,7 +226,7 @@ binding.
 
 **Status**: `TestSQLDriver_PrepareUpdateStmt` is **skipped**.
 
-#### 5. Standard UPDATE/DELETE Not Supported
+#### 3. Standard UPDATE/DELETE Not Supported
 
 ClickHouse does not support standard SQL `UPDATE` and `DELETE`
 statements. Instead, it requires `ALTER TABLE ... UPDATE` or
@@ -240,7 +240,7 @@ execute standard CRUD operations are skipped:
 
 ### Type Limitations
 
-#### 1. Type Roundtrip Issues
+#### 4. Type Roundtrip Issues
 
 Some `kind.Kind` types cannot roundtrip through ClickHouse because
 it lacks native equivalents:
@@ -254,7 +254,7 @@ it lacks native equivalents:
 
 ### Metadata Limitations
 
-#### 2. CopyTable Row Count Unsupported
+#### 5. CopyTable Row Count Unsupported
 
 `CopyTable` returns `dialect.RowsAffectedUnsupported` (-1) because
 ClickHouse's `INSERT ... SELECT` doesn't report affected rows. The
