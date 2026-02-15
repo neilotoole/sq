@@ -15,7 +15,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -45,11 +44,39 @@ import (
 //   - Full CRUD operation support across all database drivers
 //   - Sequential statement execution maintaining table state
 //
-// Note: ClickHouse is skipped because it doesn't support standard SQL UPDATE
-// and DELETE statements. ClickHouse requires ALTER TABLE UPDATE/DELETE syntax
-// or lightweight mutations, which are not compatible with this test's approach.
+// Note: ClickHouse requires special CREATE TABLE DDL (ENGINE, ORDER BY,
+// lightweight mutation settings) and always returns 0 for rows affected
+// on DML operations. Per-handle driver configs accommodate these differences.
 func TestCmdSQL_ExecMode(t *testing.T) {
 	t.Parallel()
+
+	// driverCfg holds per-handle configuration for driver-specific behavior.
+	type driverCfg struct {
+		// createSQL is the CREATE TABLE DDL for this driver.
+		createSQL string
+		// wantDMLRowsAffected is the expected rows_affected for INSERT/UPDATE/DELETE.
+		// Most drivers return 1; ClickHouse returns 0.
+		wantDMLRowsAffected int64
+	}
+
+	defaultCfg := driverCfg{
+		createSQL:           "CREATE TABLE test_exec_type (id INTEGER, name VARCHAR(100))",
+		wantDMLRowsAffected: 1,
+	}
+
+	// driverCfgs maps handles to their driver-specific config. Handles not
+	// present in this map use defaultCfg.
+	driverCfgs := map[string]driverCfg{
+		sakila.CH: {
+			// ClickHouse requires MergeTree engine and lightweight mutation settings
+			// for standard UPDATE/DELETE support. See libsq.TestExecSQL_DDL_DML.
+			createSQL: "CREATE TABLE test_exec_type (id Int32, name String)" +
+				" ENGINE = MergeTree() ORDER BY id" +
+				" SETTINGS enable_block_number_column = 1, enable_block_offset_column = 1",
+			// ClickHouse always returns 0 for rows affected on DML.
+			wantDMLRowsAffected: 0,
+		},
+	}
 
 	testCases := []struct {
 		// name is the name of the test.
@@ -62,13 +89,15 @@ func TestCmdSQL_ExecMode(t *testing.T) {
 		// wantQueryVals is the set of "name" column values expected to be returned
 		// if isQuery is true. We use a single column to simplify verification.
 		wantQueryVals []string
+		// isDML is true for INSERT/UPDATE/DELETE statements where wantDMLRowsAffected
+		// from driverCfg should be used instead of wantRowsAffected.
+		isDML bool
 		// wantRowsAffected is the rows-affected count expected to be returned if
-		// isQuery is false.
+		// isQuery is false and isDML is false (i.e., DDL like CREATE/DROP).
 		wantRowsAffected int64
 	}{
 		{
 			name:             "create_table",
-			sql:              "CREATE TABLE test_exec_type (id INTEGER, name VARCHAR(100))",
 			wantRowsAffected: 0,
 		},
 		{
@@ -78,14 +107,14 @@ func TestCmdSQL_ExecMode(t *testing.T) {
 			wantQueryVals: []string{},
 		},
 		{
-			name:             "insert_alice",
-			sql:              "INSERT INTO test_exec_type (id, name) VALUES (1, 'Alice')",
-			wantRowsAffected: 1,
+			name:  "insert_alice",
+			sql:   "INSERT INTO test_exec_type (id, name) VALUES (1, 'Alice')",
+			isDML: true,
 		},
 		{
-			name:             "insert_bob",
-			sql:              "INSERT INTO test_exec_type (id, name) VALUES (2, 'Bob')",
-			wantRowsAffected: 1,
+			name:  "insert_bob",
+			sql:   "INSERT INTO test_exec_type (id, name) VALUES (2, 'Bob')",
+			isDML: true,
 		},
 		{
 			name:          "select_two_rows",
@@ -94,9 +123,9 @@ func TestCmdSQL_ExecMode(t *testing.T) {
 			wantQueryVals: []string{"Alice", "Bob"},
 		},
 		{
-			name:             "update_alice",
-			sql:              "UPDATE test_exec_type SET name = 'Charlie' WHERE id = 1",
-			wantRowsAffected: 1,
+			name:  "update_alice",
+			sql:   "UPDATE test_exec_type SET name = 'Charlie' WHERE id = 1",
+			isDML: true,
 		},
 		{
 			name:          "select_one_row",
@@ -105,9 +134,9 @@ func TestCmdSQL_ExecMode(t *testing.T) {
 			wantQueryVals: []string{"Charlie"},
 		},
 		{
-			name:             "delete_bob",
-			sql:              "DELETE FROM test_exec_type WHERE id = 2",
-			wantRowsAffected: 1,
+			name:  "delete_bob",
+			sql:   "DELETE FROM test_exec_type WHERE id = 2",
+			isDML: true,
 		},
 		{
 			name:          "select_after_delete",
@@ -129,8 +158,12 @@ func TestCmdSQL_ExecMode(t *testing.T) {
 
 			th := testh.New(t)
 			src := th.Source(handle) // Will skip test if source not available
-			tu.SkipIf(t, src.Type == drivertype.ClickHouse,
-				"ClickHouse: doesn't support standard UPDATE/DELETE statements")
+
+			cfg, ok := driverCfgs[handle]
+			if !ok {
+				cfg = defaultCfg
+			}
+
 			tr := testrun.New(th.Context, t, nil)
 
 			// Set format to JSON so that subsequent runs are using JSON.
@@ -143,8 +176,13 @@ func TestCmdSQL_ExecMode(t *testing.T) {
 				t.Run(tc.name, func(t *testing.T) {
 					tr.Reset()
 
-					err := tr.Exec("sql", tc.sql)
-					require.NoError(t, err, "failed to execute: %s", tc.sql)
+					sql := tc.sql
+					if tc.name == "create_table" {
+						sql = cfg.createSQL
+					}
+
+					err := tr.Exec("sql", sql)
+					require.NoError(t, err, "failed to execute: %s", sql)
 
 					if tc.isQuery {
 						// For queries, verify we get the expected values.
@@ -162,11 +200,16 @@ func TestCmdSQL_ExecMode(t *testing.T) {
 						}
 					} else {
 						// For statements, verify rows_affected.
+						wantAffected := tc.wantRowsAffected
+						if tc.isDML {
+							wantAffected = cfg.wantDMLRowsAffected
+						}
+
 						result := tr.BindMap()
 						gotAffected, ok := result["rows_affected"].(float64)
 						require.True(t, ok, "expected 'rows_affected' in output")
-						require.Equal(t, tc.wantRowsAffected, int64(gotAffected),
-							"expected rows_affected=%d, got %d", tc.wantRowsAffected, int64(gotAffected))
+						require.Equal(t, wantAffected, int64(gotAffected),
+							"expected rows_affected=%d, got %d", wantAffected, int64(gotAffected))
 					}
 				})
 			}
@@ -286,17 +329,47 @@ func TestCmdSQL_MultipleStatements(t *testing.T) {
 // whether the SQL is a query (returns data) or statement (returns affected count),
 // and this detection must work regardless of SQL formatting conventions.
 //
-// Note: ClickHouse is skipped because it doesn't support standard SQL UPDATE
-// and DELETE statements. ClickHouse requires ALTER TABLE UPDATE/DELETE syntax
-// or lightweight mutations, which are not compatible with this test's approach.
+// Note: ClickHouse requires special CREATE TABLE DDL (ENGINE, ORDER BY,
+// lightweight mutation settings) and always returns 0 for rows affected
+// on DML operations. Per-handle driver configs accommodate these differences.
 func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 	t.Parallel()
 
+	// driverCfg holds per-handle configuration for driver-specific behavior.
+	type driverCfg struct {
+		// createSQL is the CREATE TABLE DDL for this driver.
+		createSQL string
+		// wantDMLRowsAffected is the expected rows_affected for INSERT/UPDATE/DELETE.
+		// Most drivers return 1; ClickHouse returns 0.
+		wantDMLRowsAffected int64
+	}
+
+	defaultCfg := driverCfg{
+		createSQL:           "CREATE TABLE test_edge_cases (id INTEGER, name VARCHAR(100))",
+		wantDMLRowsAffected: 1,
+	}
+
+	// driverCfgs maps handles to their driver-specific config. Handles not
+	// present in this map use defaultCfg.
+	driverCfgs := map[string]driverCfg{
+		sakila.CH: {
+			// ClickHouse requires MergeTree engine and lightweight mutation settings
+			// for standard UPDATE/DELETE support. See libsq.TestExecSQL_DDL_DML.
+			createSQL: "CREATE TABLE test_edge_cases (id Int32, name String)" +
+				" ENGINE = MergeTree() ORDER BY id" +
+				" SETTINGS enable_block_number_column = 1, enable_block_offset_column = 1",
+			// ClickHouse always returns 0 for rows affected on DML.
+			wantDMLRowsAffected: 0,
+		},
+	}
+
 	testCases := []struct {
-		name             string
-		sql              string
-		isQuery          bool
-		wantRowsAffected int64
+		name    string
+		sql     string
+		isQuery bool
+		// isDML is true for INSERT/UPDATE/DELETE statements where wantDMLRowsAffected
+		// from driverCfg should be used instead of a fixed value.
+		isDML bool
 	}{
 		// Lowercase variations
 		{
@@ -305,22 +378,19 @@ func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 			isQuery: true,
 		},
 		{
-			name:             "insert_lowercase",
-			sql:              "insert into test_edge_cases (id, name) values (10, 'Lowercase')",
-			isQuery:          false,
-			wantRowsAffected: 1,
+			name:  "insert_lowercase",
+			sql:   "insert into test_edge_cases (id, name) values (10, 'Lowercase')",
+			isDML: true,
 		},
 		{
-			name:             "update_lowercase",
-			sql:              "update test_edge_cases set name = 'Updated' where id = 10",
-			isQuery:          false,
-			wantRowsAffected: 1,
+			name:  "update_lowercase",
+			sql:   "update test_edge_cases set name = 'Updated' where id = 10",
+			isDML: true,
 		},
 		{
-			name:             "delete_lowercase",
-			sql:              "delete from test_edge_cases where id = 10",
-			isQuery:          false,
-			wantRowsAffected: 1,
+			name:  "delete_lowercase",
+			sql:   "delete from test_edge_cases where id = 10",
+			isDML: true,
 		},
 
 		// Mixed case
@@ -341,16 +411,14 @@ func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 			isQuery: true,
 		},
 		{
-			name:             "insert_with_block_comment",
-			sql:              "/* Insert comment */ INSERT INTO test_edge_cases (id, name) VALUES (30, 'BlockComment')",
-			isQuery:          false,
-			wantRowsAffected: 1,
+			name:  "insert_with_block_comment",
+			sql:   "/* Insert comment */ INSERT INTO test_edge_cases (id, name) VALUES (30, 'BlockComment')",
+			isDML: true,
 		},
 		{
-			name:             "delete_block_cleanup",
-			sql:              "DELETE FROM test_edge_cases WHERE id = 30",
-			isQuery:          false,
-			wantRowsAffected: 1,
+			name:  "delete_block_cleanup",
+			sql:   "DELETE FROM test_edge_cases WHERE id = 30",
+			isDML: true,
 		},
 
 		// WITH (Common Table Expressions)
@@ -372,8 +440,12 @@ func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 
 			th := testh.New(t)
 			src := th.Source(handle)
-			tu.SkipIf(t, src.Type == drivertype.ClickHouse,
-				"ClickHouse: doesn't support standard UPDATE/DELETE statements")
+
+			cfg, ok := driverCfgs[handle]
+			if !ok {
+				cfg = defaultCfg
+			}
+
 			tr := testrun.New(th.Context, t, nil)
 
 			// Set format to JSON
@@ -384,7 +456,7 @@ func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 
 			// Setup: Create test table and insert initial data
 			tr.Reset()
-			err := tr.Exec("sql", "CREATE TABLE test_edge_cases (id INTEGER, name VARCHAR(100))")
+			err := tr.Exec("sql", cfg.createSQL)
 			require.NoError(t, err, "failed to create test table")
 
 			tr.Reset()
@@ -408,9 +480,9 @@ func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 						result := tr.BindMap()
 						gotAffected, ok := result["rows_affected"].(float64)
 						require.True(t, ok, "expected 'rows_affected' in output for: %s", tc.sql)
-						require.Equal(t, tc.wantRowsAffected, int64(gotAffected),
+						require.Equal(t, cfg.wantDMLRowsAffected, int64(gotAffected),
 							"expected rows_affected=%d, got %d for: %s",
-							tc.wantRowsAffected, int64(gotAffected), tc.sql)
+							cfg.wantDMLRowsAffected, int64(gotAffected), tc.sql)
 					}
 				})
 			}

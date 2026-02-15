@@ -166,6 +166,8 @@ remains unmodified — a subsequent `SELECT` can return stale
 | Single-row insert | `INSERT INTO ... VALUES` | Yes | Synchronous (prepared statement) |
 | Copy table | `INSERT INTO ... SELECT` | Yes | Synchronous |
 | Update | `ALTER TABLE ... UPDATE` | **No** | Forced synchronous (`mutations_sync = 1`) |
+| Update | Standard `UPDATE` | Yes | Lightweight mutations (requires table settings) |
+| Delete | Standard `DELETE` | Yes | Lightweight mutations (requires table settings) |
 | Delete | `ALTER TABLE ... DELETE` | **No** | Not implemented in sq |
 | DDL (CREATE, DROP, TRUNCATE) | Standard DDL | Yes | Synchronous |
 <!-- markdownlint-enable MD013 MD060 -->
@@ -324,7 +326,7 @@ welcome.
 |---|------------------------------------------------------------------------------------------|---------------|----------|--------------------------------------|
 | 1 | [~~Batch insert connection corruption~~](#1-batch-insert-connection-corruption-resolved) | Insert        | ~~High~~ | **Resolved**: native Batch API       |
 | 2 | [~~PrepareUpdateStmt not supported~~](#2-prepareupdatestmt-resolved)                     | Update/Delete | ~~High~~ | **Resolved**: ExecContext workaround |
-| 3 | [Standard SQL UPDATE/DELETE syntax not supported](#3-standard-sql-updatedelete-syntax-not-supported) | Update/Delete | Medium   | Tests skipped                        |
+| 3 | [~~Standard SQL UPDATE/DELETE syntax not supported~~](#3-standard-sql-updatedelete-syntax-not-supported-resolved) | Update/Delete | ~~Medium~~ | **Resolved**: lightweight mutations |
 | 4 | [Type roundtrip issues](#4-type-roundtrip-issues)                                        | Types         | Low      | Tests skipped                        |
 | 5 | [CopyTable row count unsupported](#5-copytable-row-count-unsupported)                    | Metadata      | Low      | Handled in CLI                       |
 <!-- markdownlint-enable MD013 MD060 -->
@@ -509,20 +511,35 @@ Dedicated ClickHouse integration tests in
   updates all 200 rows
 - `TestDriver_PrepareUpdateStmt/null_value` — update column to NULL
 
-#### 3. Standard SQL UPDATE/DELETE Syntax Not Supported
+#### 3. Standard SQL UPDATE/DELETE Syntax Not Supported (RESOLVED)
 
-ClickHouse does not support standard SQL `UPDATE` and `DELETE`
-syntax. Executing these statements produces an error:
+**Status**: Resolved. Standard SQL `UPDATE` and `DELETE` work on
+ClickHouse tables that have lightweight mutation settings enabled.
+The previously-skipped CLI tests now pass with per-handle driver
+configuration that provides ClickHouse-specific `CREATE TABLE`
+DDL and expected `rows_affected` values.
+
+##### Background
+
+ClickHouse historically required `ALTER TABLE ... UPDATE/DELETE`
+syntax for mutations. However, ClickHouse 22.8+ introduced
+"lightweight" mutations that support standard SQL syntax when
+tables are created with the appropriate settings:
 
 ```sql
--- Standard SQL (fails on ClickHouse):
-UPDATE test_table SET name = 'Charlie' WHERE id = 1;
-DELETE FROM test_table WHERE id = 2;
+CREATE TABLE t (id Int32, name String)
+ENGINE = MergeTree() ORDER BY id
+SETTINGS enable_block_number_column = 1,
+         enable_block_offset_column = 1;
 
--- ClickHouse equivalent (lightweight mutations):
-ALTER TABLE test_table UPDATE name = 'Charlie' WHERE id = 1;
-ALTER TABLE test_table DELETE WHERE id = 2;
+-- Standard SQL now works:
+UPDATE t SET name = 'Charlie' WHERE id = 1;
+DELETE FROM t WHERE id = 2;
 ```
+
+Note that ClickHouse returns 0 for `rows_affected` on all DML
+operations (INSERT, UPDATE, DELETE), unlike traditional databases
+that return the actual count.
 
 ##### How sq Handles Updates
 
@@ -534,49 +551,26 @@ with `--update`) can update ClickHouse tables successfully. See
 Known Limitation #2 for details on the `ExecContext()` workaround
 and asynchronous mutation handling.
 
-##### What Remains Unsupported
+For raw SQL via `sq sql`, standard `UPDATE` and `DELETE` are sent
+to the database as-is — and work correctly on tables with the
+lightweight mutation settings above.
 
-Standard `DELETE` has no sq driver workaround yet — there is no
-`PrepareDeleteStmt` equivalent. The two skipped tests below
-exercise standard `UPDATE`/`DELETE` SQL directly via `sq sql`,
-which sends the SQL text to the database as-is. Because these
-tests bypass sq's driver abstraction, the `ALTER TABLE` rewriting
-that `PrepareUpdateStmt` performs is not available.
+##### Previously-Skipped Tests (Now Enabled)
 
-##### Skipped Tests
+The following tests were previously skipped for ClickHouse and
+are now enabled with per-handle driver configuration:
 
-Both tests are skipped for ClickHouse via:
+- **`TestCmdSQL_ExecMode`** (`cli/cmd_sql_test.go`): Full CRUD
+  lifecycle test (CREATE, INSERT, UPDATE, DELETE, DROP). Uses
+  ClickHouse-specific `CREATE TABLE` DDL and expects
+  `rows_affected=0` for DML operations.
+- **`TestCmdSQL_ExecTypeEdgeCases`** (`cli/cmd_sql_test.go`):
+  SQL statement type detection with formatting variations (case
+  sensitivity, block comments, CTEs). Uses ClickHouse-specific
+  DDL and expected values.
 
-```go
-tu.SkipIf(t, src.Type == drivertype.ClickHouse,
-    "ClickHouse: doesn't support standard UPDATE/DELETE statements")
-```
-
-**`TestCmdSQL_ExecMode`** (`cli/cmd_sql_test.go`): Full CRUD
-lifecycle test — CREATE, INSERT, UPDATE, DELETE, DROP — that
-verifies sq correctly distinguishes between queries (which return
-result sets) and statements (which return rows-affected counts).
-Skipped because the test executes standard SQL directly:
-
-```sql
--- Line 98:
-UPDATE test_exec_type SET name = 'Charlie' WHERE id = 1
--- Line 109:
-DELETE FROM test_exec_type WHERE id = 2
-```
-
-**`TestCmdSQL_ExecTypeEdgeCases`** (`cli/cmd_sql_test.go`): SQL
-statement type detection with formatting variations (case
-sensitivity, block comments, CTEs). Verifies that sq identifies
-queries vs statements regardless of SQL formatting conventions.
-Skipped because the test executes standard SQL directly:
-
-```sql
--- Line 315:
-update test_edge_cases set name = 'Updated' where id = 10
--- Line 321:
-delete from test_edge_cases where id = 10
-```
+See also `libsq.TestExecSQL_DDL_DML` for the lower-level test
+that first validated standard UPDATE/DELETE against ClickHouse.
 
 ### Type Limitations
 
