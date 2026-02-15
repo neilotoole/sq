@@ -10,7 +10,7 @@ ClickHouse database driver implementation for SQ using
 ## Requirements
 
 - **ClickHouse Server**: v25.0 or later (tested and supported)
-- **Go**: 1.19 or later
+- **Go**: 1.26 or later
 - **Docker**: Required for integration tests
 - **Dependency**: `github.com/ClickHouse/clickhouse-go/v2` v2.42.0
 
@@ -65,10 +65,10 @@ clickhouse://default:@localhost:9000/default
 | Native   | 9000       | 9440         |
 | HTTP     | 8123       | 8443         |
 
-> **Note**: The `clickhouse-go` driver does not apply default ports automatically
-> (unlike `pgx` for Postgres). SQ handles this by applying the appropriate
-> default port if not specified: **9000** for non-secure, **9440** for secure
-> (`secure=true`).
+> **Note**: The `clickhouse-go` driver does not apply default ports
+> automatically (unlike `pgx` for Postgres). SQ handles this by
+> applying the appropriate default port if not specified: **9000** for
+> non-secure, **9440** for secure (`secure=true`).
 
 ## Features
 
@@ -76,13 +76,14 @@ clickhouse://default:@localhost:9000/default
 
 - Provider and Driver registration
 - Connection management via clickhouse-go v2
-- ClickHouse-specific SQL dialect (`?` placeholders, backtick identifiers)
+- ClickHouse-specific SQL dialect (`?` placeholders, backtick
+  identifiers)
 
 ### Type System
 
 - Bidirectional type mapping (ClickHouse types ↔ `kind.Kind`)
-- Supported types: Int8-64, UInt8-64, Float32/64, String, FixedString, Date,
-  Date32, DateTime, DateTime64, Decimal, UUID, Bool
+- Supported types: Int8-64, UInt8-64, Float32/64, String, FixedString,
+  Date, Date32, DateTime, DateTime64, Decimal, UUID, Bool
 - Nullable handling: `Nullable(T)`
 - LowCardinality support: `LowCardinality(T)`
 
@@ -90,7 +91,8 @@ clickhouse://default:@localhost:9000/default
 
 - `CurrentCatalog()` / `CurrentSchema()` via `currentDatabase()`
 - `ListCatalogs()` / `ListSchemas()` from `system.databases`
-- Schema inspection via system tables (`system.tables`, `system.columns`)
+- Schema inspection via system tables (`system.tables`,
+  `system.columns`)
 - `CatalogExists()` / `SchemaExists()` checks
 
 ### DDL/DML
@@ -108,20 +110,36 @@ clickhouse://default:@localhost:9000/default
 - `RecordMeta()` with proper scan types
 - `TableExists()` / `ListTableNames()`
 
+## What Works
+
+The following capabilities are fully functional with ClickHouse:
+
+- **Reading/querying data**: Full support for SQ queries and native
+  SQL against ClickHouse sources.
+- **Schema introspection and metadata**: Inspect databases, tables,
+  columns, and views via system tables.
+- **Cross-source joins**: ClickHouse as a source in multi-source
+  joins (data copied to scratch SQLite DB).
+- **Table operations**: Copy, truncate, and drop tables.
+- **All output formats**: JSON, CSV, TSV, XLSX, text table, and all
+  other sq output formats.
+
 ## ClickHouse-Specific Behavior
 
-- **Transactions**: OLAP-optimized; no traditional ACID. Inserts are atomic at
-  batch level.
-- **Table Engine**: MergeTree required. SQ uses `ENGINE = MergeTree()` with
-  `ORDER BY` on first column.
-- **Updates**: Uses `ALTER TABLE ... UPDATE` syntax (not standard UPDATE).
-- **Schema/Catalog**: ClickHouse "database" maps to SQ schema/catalog concepts.
-- **System Tables**: Metadata from `system.databases`, `system.tables`,
-  `system.columns`.
+- **Transactions**: OLAP-optimized; no traditional ACID. Inserts are
+  atomic at batch level.
+- **Table Engine**: MergeTree required. SQ uses
+  `ENGINE = MergeTree()` with `ORDER BY` on first column.
+- **Updates**: Uses `ALTER TABLE ... UPDATE` syntax (not standard
+  UPDATE).
+- **Schema/Catalog**: ClickHouse "database" maps to SQ
+  schema/catalog concepts.
+- **System Tables**: Metadata from `system.databases`,
+  `system.tables`, `system.columns`.
 - **Views**: Regular (`engine='View'`) vs materialized
   (`engine='MaterializedView'`).
-- **Type System**: Separate signed/unsigned integers; no implicit coercion;
-  `FixedString(N)`; native Bool.
+- **Type System**: Separate signed/unsigned integers; no implicit
+  coercion; `FixedString(N)`; native Bool.
 
 ## Testing
 
@@ -133,7 +151,8 @@ go test -v -short                    # Unit tests (no DB required)
 ./testutils/test-sq-cli.sh           # CLI end-to-end tests
 ```
 
-See **[testutils/Testing.md](./testutils/Testing.md)** for detailed instructions.
+See **[testutils/Testing.md](./testutils/Testing.md)** for detailed
+instructions.
 
 ## Deferred Features (Post-MVP)
 
@@ -146,137 +165,164 @@ See **[testutils/Testing.md](./testutils/Testing.md)** for detailed instructions
 
 ## Known Limitations
 
-The following are currently-understood limitations based on differences between
-ClickHouse and traditional SQL databases. This understanding may be incomplete
-or incorrect; contributions and corrections are welcome.
+The following are currently-understood limitations based on differences
+between ClickHouse and traditional SQL databases. This understanding
+may be incomplete or incorrect; contributions and corrections are
+welcome.
 
-### 1. Type Roundtrip Limitations
+### Summary
 
-Based on our current understanding, some `kind.Kind` types cannot roundtrip
-through ClickHouse because it lacks native equivalents:
+<!-- markdownlint-disable MD013 MD060 -->
+| # | Limitation                          | Category      | Severity | Workaround                          |
+|---|-------------------------------------|---------------|----------|-------------------------------------|
+| 1 | Type roundtrip issues               | Types         | Low      | Tests skipped                       |
+| 2 | CopyTable row count unsupported     | Metadata      | Low      | Handled in CLI                      |
+| 3 | Batch insert connection corruption  | Insert        | High     | Tests skipped; needs native Batch API |
+| 4 | PrepareUpdateStmt not supported     | Update/Delete | Medium   | Tests skipped                       |
+| 5 | Standard UPDATE/DELETE not supported | Update/Delete | Medium   | Tests skipped                       |
+| 6 | AlterTableColumnKinds not implemented | DDL          | Low      | Returns error                       |
+<!-- markdownlint-enable MD013 MD060 -->
 
-| sq Kind      | Created As | Read Back As    | Notes                    |
-|--------------|------------|-----------------|--------------------------|
-| `kind.Time`  | `DateTime` | `kind.Datetime` | No time-only type        |
-| `kind.Bytes` | `String`   | `kind.Text`     | Binary stored as String  |
+### Insert Limitations
 
-This causes `TestDriver_CreateTable_Minimal` to be skipped for ClickHouse.
+#### 3. Batch Insert: Connection Corruption
 
-### 2. CopyTable Row Count Unsupported
+The clickhouse-go driver does not support multi-row parameter binding.
+When sq generates `INSERT INTO t VALUES (?,?), (?,?)` with flattened
+arguments, clickhouse-go expects arguments for a **single row only**.
 
-`CopyTable` returns `dialect.RowsAffectedUnsupported` (-1) because ClickHouse's
-`INSERT ... SELECT` doesn't support reporting affected rows. The operation
-succeeds, but the count is unsupported. The CLI handles this gracefully by
-displaying "(rows copied: unsupported)" instead of an incorrect count.
+Forcing single-row inserts (`numRows=1`) fixes the argument count
+error but causes connection state corruption after many `Exec` calls,
+resulting in "Unexpected packet Query received from client" errors. A
+proper fix requires using clickhouse-go's native Batch API.
 
-### 3. Batch Insert: Multi-Row Parameter Binding Not Supported
+**Impact**: Several CLI tests that insert data into ClickHouse as
+the destination are skipped:
 
-The clickhouse-go driver does not support multi-row parameter binding. When sq
-generates `INSERT INTO t VALUES (?,?), (?,?)` with flattened arguments,
-clickhouse-go expects arguments for a **single row only**. This causes
-`TestNewBatchInsert` to fail with "expected 4 arguments, got 280".
+- `TestNewBatchInsert` — multi-row batch insert test
+- `TestCreateTable_bytes` — creates table and inserts binary data
+- `TestOutputRaw` — raw binary output (requires data insertion)
+- `TestCmdSQL_Insert` — `sq sql --insert=@dest.tbl`
+  (ClickHouse as dest)
+- `TestCmdSLQ_Insert` — `sq slq --insert=@dest.tbl`
+  (ClickHouse as dest)
 
-Forcing single-row inserts (`numRows=1`) fixes the argument count error, but
-causes connection state corruption after many `Exec` calls, resulting in
-"Unexpected packet Query received from client" errors. A proper fix requires
-using clickhouse-go's native Batch API.
+Note: Tests pass when ClickHouse is the **origin** (reading data
+works fine); they only fail when ClickHouse is the destination.
 
-**Status**: `TestNewBatchInsert` is **skipped** for ClickHouse.
-See Development Log for full investigation details.
+See [development log](../../.claude/memos/gh503-clickhouse-dev-log.memo.md)
+for full investigation details.
 
-### 4. UPDATE Statement: PrepareContext Limitation
+### Update/Delete Limitations
 
-ClickHouse uses `ALTER TABLE ... UPDATE` syntax instead of standard SQL UPDATE.
-While sq's `PrepareUpdateStmt` correctly generates this syntax, clickhouse-go's
-`PrepareContext()` only supports **INSERT and SELECT statements**. Any other
-statement type (including ALTER TABLE) is rejected with "invalid INSERT query"
-because the driver incorrectly categorizes it as an INSERT and fails validation.
+#### 4. PrepareUpdateStmt Not Supported
 
-Direct execution via `ExecContext()` works, but `PrepareUpdateStmt` requires
-`PrepareContext()` for parameter binding.
+ClickHouse uses `ALTER TABLE ... UPDATE` syntax instead of standard
+SQL UPDATE. While sq's `PrepareUpdateStmt` correctly generates this
+syntax, clickhouse-go's `PrepareContext()` only supports **INSERT and
+SELECT statements**. Any other statement type is rejected with
+"invalid INSERT query". Direct execution via `ExecContext()` works,
+but `PrepareUpdateStmt` requires `PrepareContext()` for parameter
+binding.
 
-**Status**: `TestSQLDriver_PrepareUpdateStmt` is **skipped** for ClickHouse.
-See Development Log for full investigation details.
+**Status**: `TestSQLDriver_PrepareUpdateStmt` is **skipped**.
 
-### 5. CLI Tests Skipped: Batch Insert Connection Corruption
+#### 5. Standard UPDATE/DELETE Not Supported
 
-Several CLI tests that involve inserting data into tables are skipped for
-ClickHouse when it is the **destination** database. These tests use the batch
-insert mechanism which triggers the connection state corruption described in
-limitation #3 above.
+ClickHouse does not support standard SQL `UPDATE` and `DELETE`
+statements. Instead, it requires `ALTER TABLE ... UPDATE` or
+`ALTER TABLE ... DELETE` syntax (lightweight mutations). Tests that
+execute standard CRUD operations are skipped:
 
-**Skipped tests** (in `cli/` package):
+- `TestCmdSQL_ExecMode` — full CRUD lifecycle (CREATE, INSERT,
+  UPDATE, DELETE, DROP)
+- `TestCmdSQL_ExecTypeEdgeCases` — SQL type detection with
+  UPDATE/DELETE
 
-- `TestCreateTable_bytes` - Creates table and inserts binary data
-- `TestOutputRaw` - Tests raw binary output (requires data insertion)
-- `TestCmdSQL_Insert` - Tests `sq sql --insert=@dest.tbl` (ClickHouse as dest)
-- `TestCmdSLQ_Insert` - Tests `sq slq --insert=@dest.tbl` (ClickHouse as dest)
+### Type Limitations
 
-Note: These tests pass when ClickHouse is the **origin** (reading data works
-fine); they only fail when ClickHouse is the destination for batch inserts.
+#### 1. Type Roundtrip Issues
 
-### 6. CLI Tests Skipped: Standard UPDATE/DELETE Not Supported
+Some `kind.Kind` types cannot roundtrip through ClickHouse because
+it lacks native equivalents:
 
-ClickHouse does not support standard SQL `UPDATE` and `DELETE` statements.
-Instead, it requires `ALTER TABLE ... UPDATE` or `ALTER TABLE ... DELETE`
-syntax (lightweight mutations). Tests that execute standard CRUD operations
-are skipped for ClickHouse.
+| sq Kind      | Created As | Read Back As    | Notes               |
+|--------------|------------|-----------------|---------------------|
+| `kind.Time`  | `DateTime` | `kind.Datetime` | No time-only type   |
+| `kind.Bytes` | `String`   | `kind.Text`     | Binary as String    |
 
-**Skipped tests** (in `cli/` package):
+**Status**: `TestDriver_CreateTable_Minimal` is **skipped**.
 
-- `TestCmdSQL_ExecMode` - Runs full CRUD lifecycle (CREATE, INSERT, UPDATE,
-  DELETE, DROP)
-- `TestCmdSQL_ExecTypeEdgeCases` - Tests SQL type detection with various
-  statement types including UPDATE and DELETE
+### Metadata Limitations
+
+#### 2. CopyTable Row Count Unsupported
+
+`CopyTable` returns `dialect.RowsAffectedUnsupported` (-1) because
+ClickHouse's `INSERT ... SELECT` doesn't report affected rows. The
+CLI handles this gracefully by displaying
+"(rows copied: unsupported)".
+
+### DDL Limitations
+
+#### 6. AlterTableColumnKinds Not Implemented
+
+`AlterTableColumnKinds` is not yet implemented for ClickHouse.
+ClickHouse does support `ALTER TABLE ... MODIFY COLUMN` for changing
+column types, but this functionality has not been wired up in the
+driver yet. Calling this method returns an error.
 
 ## Array Type Architecture
 
-This section documents how sq handles array types from ClickHouse, and the
-broader architectural constraints that inform this design.
+This section documents how sq handles array types from ClickHouse,
+and the broader architectural constraints that inform this design.
 
 ### The Core Constraint: No `kind.Array`
 
 The sq type system (`kind.Kind`) defines only 11 scalar types:
 
-- `Unknown`, `Null`, `Text`, `Int`, `Float`, `Decimal`, `Bool`, `Bytes`,
-  `Datetime`, `Date`, `Time`
+- `Unknown`, `Null`, `Text`, `Int`, `Float`, `Decimal`, `Bool`,
+  `Bytes`, `Datetime`, `Date`, `Time`
 
 There is intentionally **no `kind.Array` type**. The record system
-(`libsq/core/record/record.go`) restricts valid values to 8 primitive Go types:
+(`libsq/core/record/record.go`) restricts valid values to 8
+primitive Go types:
 
 ```go
-// Valid types: nil, int64, float64, decimal.Decimal, bool, string, []byte, time.Time
+// Valid types: nil, int64, float64, decimal.Decimal, bool,
+//   string, []byte, time.Time
 ```
 
-The `record.Valid()` function enforces this at runtime, rejecting any record
-containing types outside this set. This is called during query execution before
-records reach output writers.
+The `record.Valid()` function enforces this at runtime, rejecting
+any record containing types outside this set.
 
 ### Why This Design?
 
-1. **Cross-database abstraction**: sq supports PostgreSQL, MySQL, SQLite,
-   SQL Server, ClickHouse, plus non-SQL sources (CSV, JSON, XLSX). A minimal
-   common type set enables uniform querying across all sources.
+1. **Cross-database abstraction**: sq supports PostgreSQL, MySQL,
+   SQLite, SQL Server, ClickHouse, plus non-SQL sources (CSV, JSON,
+   XLSX). A minimal common type set enables uniform querying across
+   all sources.
 
-2. **Output format compatibility**: CSV, TSV, and text-table outputs have no
-   native array representation. JSON and YAML can represent arrays, but keeping
-   a unified record format simplifies the architecture.
+2. **Output format compatibility**: CSV, TSV, and text-table outputs
+   have no native array representation. JSON and YAML can represent
+   arrays, but keeping a unified record format simplifies the
+   architecture.
 
-3. **Simplicity over completeness**: The 11 kinds cover the vast majority of
-   real-world use cases. Complex types (arrays, JSON, user-defined) are
-   relatively rare in typical queries.
+3. **Simplicity over completeness**: The 11 kinds cover the vast
+   majority of real-world use cases. Complex types (arrays, JSON,
+   user-defined) are relatively rare in typical queries.
 
 ### How ClickHouse Arrays Are Handled
 
-ClickHouse has native `Array(T)` types (e.g., `Array(String)`, `Array(Int32)`).
-The sq ClickHouse driver handles these through a two-step process:
+ClickHouse has native `Array(T)` types (e.g., `Array(String)`,
+`Array(Int32)`). The sq ClickHouse driver handles these through a
+two-step process:
 
 1. **Kind mapping**: Array types are mapped to `kind.Text` via
    `kindFromClickHouseType()` in `metadata.go`.
 
-2. **Scan type override**: After the standard `setScanType()` call, Array
-   columns have their scan type overridden to `sqlz.RTypeAny` (accepting Go
-   slices):
+2. **Scan type override**: After the standard `setScanType()` call,
+   Array columns have their scan type overridden to `sqlz.RTypeAny`
+   (accepting Go slices):
 
    ```go
    if strings.HasPrefix(dbTypeName, "Array") {
@@ -284,581 +330,134 @@ The sq ClickHouse driver handles these through a two-step process:
    }
    ```
 
-3. **String conversion**: The `getNewRecordFunc()` detects slice values and
-   converts them to comma-separated strings via `convertArrayToString()`:
+3. **String conversion**: The `getNewRecordFunc()` detects slice
+   values and converts them to comma-separated strings via
+   `convertArrayToString()`:
 
    ```go
    // Input:  []string{"Action", "Drama", "Comedy"}
    // Output: "Action,Drama,Comedy"
    ```
 
-   Supported array element types: `string`, `int*`, `uint*`, `float*`, `bool`.
+   Supported array element types: `string`, `int*`, `uint*`,
+   `float*`, `bool`.
 
 ### Example Transformation
 
 When a ClickHouse query returns `Array(String)` data:
 
-| Stage              | Value                        | Type        |
-| ------------------ | ---------------------------- | ----------- |
-| ClickHouse returns | `["Action", "Drama"]`        | `[]string`  |
-| After scan         | `[]string{"Action", "Drama"}`| Go slice    |
-| After conversion   | `"Action,Drama"`             | `string`    |
-| In sq record       | `"Action,Drama"`             | `kind.Text` |
+| Stage              | Value                         | Type        |
+|--------------------|-------------------------------|-------------|
+| ClickHouse returns | `["Action", "Drama"]`         | `[]string`  |
+| After scan         | `[]string{"Action", "Drama"}` | Go slice    |
+| After conversion   | `"Action,Drama"`              | `string`    |
+| In sq record       | `"Action,Drama"`              | `kind.Text` |
 
 ### Comparison with Other Databases
 
-| Database       | Array Support            | sq Handling                   |
-| -------------- | ------------------------ | ----------------------------- |
-| **ClickHouse** | Native `Array(T)`        | Converted to CSV string       |
-| **PostgreSQL** | Native (`text[]`, etc.)  | Mapped to `kind.Text`         |
-| **MySQL**      | None (JSON has arrays)   | JSON stored as-is             |
-| **SQLite**     | None                     | N/A                           |
-| **SQL Server** | None (XML/JSON as text)  | Stored as text                |
+| Database       | Array Support           | sq Handling             |
+|----------------|-------------------------|-------------------------|
+| **ClickHouse** | Native `Array(T)`       | Converted to CSV string |
+| **PostgreSQL** | Native (`text[]`, etc.) | Mapped to `kind.Text`   |
+| **MySQL**      | None (JSON has arrays)  | JSON stored as-is       |
+| **SQLite**     | None                    | N/A                     |
+| **SQL Server** | None (XML/JSON as text) | Stored as text          |
 
 ### Known Limitations and Trade-offs
 
-1. **Information loss**: `["Action", "Drama"]` becomes `"Action,Drama"`. The
-   original array structure cannot be reconstructed.
+1. **Information loss**: `["Action", "Drama"]` becomes
+   `"Action,Drama"`. The original array structure cannot be
+   reconstructed.
 
-2. **No round-trip fidelity**: Cannot distinguish between `"Action,Drama"` (a
-   string containing a comma) and `["Action", "Drama"]` (an array of two
-   strings).
+2. **No round-trip fidelity**: Cannot distinguish between
+   `"Action,Drama"` (a string containing a comma) and
+   `["Action", "Drama"]` (an array of two strings).
 
-3. **Nested arrays flattened**: `[[1,2],[3,4]]` becomes `"1,2,3,4"` (structure
-   is completely lost).
+3. **Nested arrays flattened**: `[[1,2],[3,4]]` becomes `"1,2,3,4"`
+   (structure is completely lost).
 
 4. **Delimiter ambiguity**: If array elements contain commas, the CSV
    representation may be ambiguous.
 
-5. **Multi-source joins**: When joining ClickHouse with other sources, data is
-   copied to a scratch SQLite database. Arrays must be serialized to text before
-   this copy operation, hence the conversion happens early in the pipeline.
+5. **Multi-source joins**: When joining ClickHouse with other sources,
+   data is copied to a scratch SQLite database. Arrays must be
+   serialized to text before this copy operation, hence the conversion
+   happens early in the pipeline.
 
 ### Potential Future Directions
 
-1. **JSON serialization**: Instead of CSV, serialize arrays as JSON strings
-   (e.g., `["Action","Drama"]`). This preserves structure and enables potential
-   reconstruction, but still stores as `kind.Text`.
+1. **JSON serialization**: Instead of CSV, serialize arrays as JSON
+   strings (e.g., `["Action","Drama"]`). This preserves structure and
+   enables potential reconstruction, but still stores as `kind.Text`.
 
-2. **Add `kind.Array`**: A major architectural change that would require
-   updating the record validation, all drivers, and all output writers. This
-   would enable richer array support but at significant complexity cost.
+2. **Add `kind.Array`**: A major architectural change that would
+   require updating the record validation, all drivers, and all output
+   writers. This would enable richer array support but at significant
+   complexity cost.
 
-3. **Driver-specific handling**: The current approach—each driver converts
-   arrays to text at scan time. This is pragmatic but requires per-driver
-   implementation.
+3. **Driver-specific handling**: The current approach — each driver
+   converts arrays to text at scan time. This is pragmatic but
+   requires per-driver implementation.
 
 ### References
 
 - Record validation: `libsq/core/record/record.go:Valid()`
 - Kind types: `libsq/core/kind/kind.go`
-- ClickHouse array handling: `drivers/clickhouse/metadata.go:getNewRecordFunc()`
-- Array conversion: `drivers/clickhouse/metadata.go:convertArrayToString()`
+- ClickHouse array handling:
+  `drivers/clickhouse/metadata.go:getNewRecordFunc()`
+- Array conversion:
+  `drivers/clickhouse/metadata.go:convertArrayToString()`
 
 ## Development Log
 
-### 2026-01-19: ClickHouse Query Test Overrides
+Condensed summaries of significant investigations during driver
+development. Full details are preserved in the
+[development log memo](../../.claude/memos/gh503-clickhouse-dev-log.memo.md).
 
-Added `drivertype.ClickHouse` entries to all libsq query test cases that had
-`drivertype.MySQL` overrides. Both databases use backticks for identifier
-quoting, so the SQL strings are identical.
+### Query Test Overrides (2026-01-19)
 
-#### Rownum Tests: Proper SQL Overrides Required
+Added `drivertype.ClickHouse` entries to all libsq query test cases
+with `drivertype.MySQL` overrides (both use backtick quoting).
+ClickHouse needed proper rownum SQL overrides using
+`row_number() OVER (ORDER BY 1)` syntax.
 
-Contrary to the original plan (which suggested excluding rownum tests like
-MySQL), ClickHouse needed proper SQL overrides with actual SQL strings.
-ClickHouse supports `row_number() OVER (ORDER BY 1)` syntax with backtick
-quoting, unlike MySQL which uses a different variable-based implementation.
+**Status**: Resolved.
 
-Example ClickHouse rownum override:
+### JOIN Column Naming (2026-01-19)
 
-```go
-drivertype.ClickHouse: "SELECT (row_number() OVER (ORDER BY 1)) AS `rownum()` FROM `actor`",
-```
+ClickHouse returns qualified column names in `table.column` format
+for JOIN queries, unlike other databases which return bare column
+names. This prevented sq's duplicate column munging from triggering.
+Fixed by stripping the table prefix in
+`recordMetaFromColumnTypes()` before passing names to the munging
+mechanism.
 
-#### Join Tests: Pre-existing Column Naming Issue
+**Status**: Resolved.
 
-Some ClickHouse join tests fail due to a pre-existing issue with column naming
-behavior in JOIN query results. This is a fundamental difference in how
-ClickHouse reports column metadata compared to other SQL databases.
+### Array Type Handling (2026-01-19)
 
-##### The Problem
+ClickHouse `Array(T)` types caused scan errors in multi-source joins
+because `[]string` values couldn't be scanned into `*string` fields.
+Fixed by overriding scan types for Array columns to `sqlz.RTypeAny`
+and converting slice values to comma-separated strings in
+`getNewRecordFunc()`.
 
-When executing JOIN queries, databases return column metadata via Go's
-`sql.ColumnType.Name()` method. Most databases (PostgreSQL, MySQL, SQLite,
-SQL Server) return just the column name:
+**Status**: Resolved.
 
-```text
-Query: SELECT * FROM actor JOIN film_actor ON actor.actor_id = film_actor.actor_id
+### Batch Insert Failure (2026-01-19)
 
-PostgreSQL/MySQL/SQLite column names:
-  actor_id, first_name, last_name, last_update, actor_id, film_id, last_update
-  |<-------- from actor -------->| |<----- from film_actor ----->|
-```
+clickhouse-go does not support multi-row parameter binding.
+Single-row workaround causes connection state corruption after many
+`Exec` calls. Proper fix requires clickhouse-go's native Batch API
+(`conn.PrepareBatch()`).
 
-ClickHouse, however, returns **qualified column names** in `table.column` format:
+**Status**: Tests skipped. See Known Limitation #3.
 
-```text
-ClickHouse column names:
-  actor.actor_id, actor.first_name, actor.last_name, actor.last_update,
-  film_actor.actor_id, film_actor.film_id, film_actor.last_update
-```
+### PrepareUpdateStmt Failure (2026-01-19)
 
-##### How sq Handles Duplicate Column Names
+clickhouse-go's `PrepareContext()` only supports INSERT and SELECT.
+`ALTER TABLE ... UPDATE` is rejected as "invalid INSERT query". Direct
+`ExecContext()` works but `PrepareUpdateStmt` requires
+`PrepareContext()` for parameter binding.
 
-sq has a column munging mechanism (`driver.MungeResultColNames`) that handles
-duplicate column names in result sets. When columns have identical names, the
-default template renames them:
-
-```go
-// Default template: "{{.Name}}{{with .Recurrence}}_{{.}}{{end}}"
-// Input:  [actor_id, first_name, last_name, last_update, actor_id, film_id, last_update]
-// Output: [actor_id, first_name, last_name, last_update, actor_id_1, film_id, last_update_1]
-```
-
-This mechanism is defined in `libsq/driver/record.go` via `OptResultColRename`.
-
-##### Why ClickHouse Fails
-
-Because ClickHouse returns `actor.actor_id` and `film_actor.actor_id` as
-distinct names (not duplicates), sq's column munging doesn't trigger:
-
-```go
-// ClickHouse input (no duplicates detected):
-//   [actor.actor_id, actor.first_name, ..., film_actor.actor_id, film_actor.film_id, ...]
-// ClickHouse output (unchanged):
-//   [actor.actor_id, actor.first_name, ..., film_actor.actor_id, film_actor.film_id, ...]
-```
-
-The join tests use `assertSinkColMungedNames` to verify expected column names:
-
-```go
-// From libsq/query_join_test.go
-colsJoinActorFilmActor = []string{
-    "actor_id",
-    "first_name",
-    "last_name",
-    "last_update",
-    "actor_id_1",    // Expected: munged duplicate
-    "film_id",
-    "last_update_1", // Expected: munged duplicate
-}
-```
-
-But ClickHouse returns:
-
-```go
-// Actual ClickHouse result:
-[]string{
-    "actor.actor_id",
-    "actor.first_name",
-    "actor.last_name",
-    "actor.last_update",
-    "film_actor.actor_id",  // Not munged - different name
-    "film_actor.film_id",
-    "film_actor.last_update", // Not munged - different name
-}
-```
-
-##### Affected Tests
-
-The following tests in `libsq/query_join_test.go` fail for ClickHouse:
-
-| Test Function | Test Case | Reason |
-|--------------|-----------|--------|
-| `TestQuery_join_others` | `left_join` | `sinkFns` column name assertion |
-| `TestQuery_join_others` | `left_outer_join` | `sinkFns` column name assertion |
-| `TestQuery_join_others` | `right_join` | `sinkFns` column name assertion |
-| `TestQuery_join_others` | `right_outer_join` | `sinkFns` column name assertion |
-| `TestQuery_join_others` | `cross/actor-film_actor/no-constraint` | `sinkFns` column name assertion |
-
-Tests without `sinkFns` assertions pass because they only verify:
-
-- SQL string generation (via `wantSQL` and `override`)
-- Record count (via `wantRecCount`)
-
-##### Code Path Analysis
-
-1. Query executed via `libsq/engine.go`
-2. Results processed in `drivers/clickhouse/clickhouse.go:RecordMeta()`
-3. Column types passed to `drivers/clickhouse/metadata.go:recordMetaFromColumnTypes()`
-4. Column names extracted: `ogColNames[i] = colTypeData.Name` (line 443)
-5. Names passed to `driver.MungeResultColNames(ctx, ogColNames)` (line 446)
-6. Munging doesn't trigger because ClickHouse names are already unique
-
-##### Potential Solutions
-
-1. **ClickHouse-specific column name normalization**: Strip table prefix from
-   column names in `recordMetaFromColumnTypes` before passing to munging:
-
-   ```go
-   // Strip "table." prefix if present
-   name := colTypeData.Name
-   if idx := strings.LastIndex(name, "."); idx != -1 {
-       name = name[idx+1:]
-   }
-   ogColNames[i] = name
-   ```
-
-   **Trade-off**: Loses table context, may cause issues if user explicitly
-   wants qualified names.
-
-2. **Enhanced munging template**: Modify `OptResultColRename` to handle
-   qualified names by extracting the base column name for duplicate detection.
-
-   **Trade-off**: More complex template logic, may affect other databases.
-
-3. **ClickHouse setting**: Investigate if ClickHouse has a setting to return
-   unqualified column names in JOIN results. The `output_format_pretty_row_numbers`
-   and similar settings exist but may not apply here.
-
-4. **Test-level workaround**: Skip `sinkFns` assertions for ClickHouse in join
-   tests, or provide ClickHouse-specific expected column names.
-
-   **Trade-off**: Doesn't fix the underlying behavior difference.
-
-5. **Driver-level override**: Implement custom `RecordMeta` that normalizes
-   column names specifically for ClickHouse JOIN queries.
-
-##### Root Cause
-
-This is a fundamental behavior difference in the clickhouse-go driver and/or
-ClickHouse server itself. The `sql.ColumnType.Name()` method returns what
-ClickHouse reports, and ClickHouse chooses to return qualified names for
-JOIN queries to disambiguate columns from different tables.
-
-This behavior may be intentional from ClickHouse's perspective (providing
-explicit column provenance) but differs from the behavior of other databases
-that sq supports.
-
-##### References
-
-- Column munging logic: `libsq/driver/record.go:MungeResultColNames()` (line 662)
-- Rename template option: `libsq/driver/record.go:OptResultColRename` (line 605)
-- ClickHouse metadata: `drivers/clickhouse/metadata.go:recordMetaFromColumnTypes()`
-- Test expectations: `libsq/query_join_test.go:colsJoinActorFilmActor` (line 450)
-- Test helper: `libsq/query_test.go:assertSinkColMungedNames()` (line 252)
-
-**Status**: **Resolved**. Implemented Solution 1 (ClickHouse-specific column name
-normalization) in `recordMetaFromColumnTypes()`. The table prefix is stripped
-from column names before passing to the munging mechanism, enabling consistent
-duplicate detection and renaming across all databases.
-
-### 2026-01-19: Array Type Handling in Multi-Source Joins
-
-#### Issue
-
-Multi-source join tests (`TestQuery_join_multi_source/n2/two-sources`) fail for
-ClickHouse with error:
-
-```text
-sql: Scan error on column index 11, name "special_features": unsupported Scan,
-storing driver.Value type []string into type *string
-```
-
-#### Root Cause
-
-ClickHouse Array types (e.g., `Array(String)`) are returned by the clickhouse-go
-driver as Go slices (e.g., `[]string`). When performing multi-source joins, sq
-copies data to a scratch SQLite database, but the array values can't be scanned
-into string fields.
-
-The issue occurs because:
-
-1. `kindFromClickHouseType()` correctly maps Array types to `kind.Text`
-2. `setScanType()` sets the scan type to `string` for `kind.Text`
-3. But the driver returns `[]string`, which can't be scanned into `*string`
-
-#### Solution
-
-Two changes in `drivers/clickhouse/metadata.go`:
-
-1. **Override scan type for Array columns**: After calling `setScanType()`,
-   detect Array types and override the scan type to `any`:
-
-   ```go
-   if strings.HasPrefix(dbTypeName, "Array") {
-       colTypeData.ScanType = sqlz.RTypeAny
-   }
-   ```
-
-2. **Convert arrays to strings in `getNewRecordFunc`**: The record transformation
-   function now detects slice values and converts them to comma-separated strings:
-
-   ```go
-   // Dereference *any if needed
-   actual := val
-   if ptr, ok := val.(*any); ok && ptr != nil {
-       actual = *ptr
-   }
-   // Convert slices to strings
-   converted := convertArrayToString(actual)
-   ```
-
-The `convertArrayToString()` function handles common array element types:
-`[]string`, `[]int`, `[]int8/16/32/64`, `[]uint8/16/32/64`, `[]float32/64`,
-`[]bool`.
-
-**Status**: **Resolved**. Array values are now properly converted to
-comma-separated string representation during record processing.
-
-### 2026-01-19: Investigation of TestNewBatchInsert Failure
-
-#### Issue
-
-`TestNewBatchInsert/@sakila_ch25` fails with error:
-`clickhouse [Append]: clickhouse: expected 4 arguments, got 280`
-
-#### Root Cause Analysis
-
-The clickhouse-go driver does not support multi-row parameter binding like
-traditional SQL drivers. When sq generates a batch INSERT statement like:
-
-```sql
-INSERT INTO t VALUES (?,?,?,?), (?,?,?,?), ... -- 70 rows × 4 columns
-```
-
-And calls `Exec(vals...)` with all 280 values flattened, clickhouse-go rejects
-this because it expects arguments for a **single row only** (4 arguments), not
-multiple rows.
-
-This is a fundamental difference from MySQL, PostgreSQL, SQLite, and SQL Server,
-which all accept flattened multi-row arguments.
-
-#### Attempted Solution: Force numRows=1
-
-The initial approach was to override `PrepareInsertStmt` in the ClickHouse
-driver to always use `numRows=1`, regardless of the requested batch size:
-
-```go
-// In PrepareInsertStmt:
-const clickHouseNumRows = 1
-_ = numRows // Explicitly ignore the requested batch size
-stmt, err := driver.PrepareInsertStmt(
-    ctx, d, db, destTbl, destColsMeta.Names(), clickHouseNumRows)
-```
-
-This required broader changes to the `StmtExecer` type to track the actual
-batch size used by the prepared statement (vs. the requested batch size), so
-that `NewBatchInsert` could flush after the correct number of rows:
-
-1. Added `batchSize int` field to `StmtExecer` struct
-2. Added `BatchSize()` method to retrieve actual batch size
-3. Updated `NewBatchInsert` to use `inserter.BatchSize()` instead of the
-   passed-in `batchSize`
-4. Updated all 10 callers of `NewStmtExecer` across 5 driver files
-
-#### Result: Partial Success, New Problem
-
-The argument count error was **fixed** - the batch insert no longer fails with
-"expected 4 arguments, got 280". The inserts themselves succeed (no error from
-`bi.ErrCh`).
-
-However, a **new error** appeared when querying the data afterward:
-
-```text
-code: 101, message: Unexpected packet Query received from client
-```
-
-#### Connection State Corruption
-
-After performing 200 individual `Exec` calls (one per row) on the same prepared
-statement, the ClickHouse connection enters an invalid protocol state. When the
-connection is returned to the pool and reused for a subsequent SELECT query,
-the ClickHouse server rejects it with "Unexpected packet Query received".
-
-This appears to be a limitation of the clickhouse-go driver's native protocol
-implementation when using prepared statements with many repeated Exec calls.
-The connection is corrupted but not closed, so it gets reused incorrectly.
-
-#### Key Learnings
-
-1. **clickhouse-go's INSERT semantics differ fundamentally**: Unlike standard
-   database/sql drivers, clickhouse-go's prepared INSERT statements expect
-   arguments for exactly one row per Exec call.
-
-2. **Multi-row binding is not supported**: The clickhouse-go driver does not
-   support the common pattern of `INSERT INTO t VALUES (?,?), (?,?)` with
-   flattened arguments.
-
-3. **Single-row workaround has side effects**: While forcing `numRows=1` fixes
-   the argument count error, it causes connection state corruption after many
-   Exec calls on the same prepared statement.
-
-4. **Protocol state is fragile**: The ClickHouse native protocol apparently
-   maintains connection state that isn't properly reset after many statement
-   executions, making the connection unusable for subsequent operations.
-
-5. **Proper solution requires native Batch API**: The clickhouse-go driver
-   provides a dedicated Batch API (`conn.PrepareBatch()`) designed for bulk
-   inserts. This API handles the protocol correctly but requires significant
-   architectural changes to integrate with sq's driver abstraction.
-
-#### Potential Future Solutions
-
-1. **Use clickhouse-go's native Batch API**: Implement `PrepareBatch()` instead
-   of prepared statements for INSERT operations. This would require:
-   - New interface method in `driver.SQLDriver` for batch operations
-   - ClickHouse-specific implementation using `conn.PrepareBatch()`
-   - Integration with `NewBatchInsert` or a new batch insert path
-
-2. **Connection isolation**: Use dedicated connections for batch operations
-   that are not returned to the pool after completion.
-
-3. **Transaction wrapping**: Wrap batch inserts in transactions (though
-   ClickHouse has limited transaction support).
-
-4. **Periodic statement recreation**: Close and recreate the prepared statement
-   periodically during large batch inserts to reset connection state.
-
-#### References
-
-- [clickhouse-go Batch API](https://clickhouse.com/docs/en/integrations/go#batch)
-- Issue context: TestNewBatchInsert expects multi-row parameter binding that
-  clickhouse-go doesn't support
-- Error codes: ClickHouse protocol error 101 indicates unexpected packet type
-
-### 2026-01-19: Investigation of TestSQLDriver_PrepareUpdateStmt Failure
-
-#### Issue
-
-`TestSQLDriver_PrepareUpdateStmt/@sakila_ch25` fails with error:
-
-```text
-invalid INSERT query: ALTER TABLE `actor__g9wtwk8r` UPDATE `first_name` = ?,
-`last_name` = ? WHERE actor_id = ?
-```
-
-#### Background: ClickHouse UPDATE Syntax
-
-ClickHouse does not support standard SQL `UPDATE` statements. Instead, it uses
-`ALTER TABLE ... UPDATE` syntax for row-level modifications:
-
-```sql
--- Standard SQL (not supported by ClickHouse):
-UPDATE actor SET first_name = 'John' WHERE actor_id = 1;
-
--- ClickHouse syntax:
-ALTER TABLE actor UPDATE first_name = 'John' WHERE actor_id = 1;
-```
-
-The sq ClickHouse driver's `PrepareUpdateStmt` implementation correctly
-generates the `ALTER TABLE ... UPDATE` syntax via `buildUpdateStmt()`.
-
-#### Root Cause: clickhouse-go PrepareContext Limitations
-
-The clickhouse-go driver's `db.PrepareContext()` function has strict
-limitations on what SQL statements can be prepared. It only supports:
-
-1. **INSERT statements** - For batch data insertion via the native protocol
-2. **SELECT statements** - For query execution
-
-When `PrepareContext()` receives any other statement type, it attempts to
-parse it as one of these two categories. The parsing logic appears to be:
-
-1. Check if statement starts with SELECT-like keywords → treat as query
-2. Otherwise → assume it's an INSERT and validate INSERT syntax
-
-When `ALTER TABLE ... UPDATE` is passed to `PrepareContext()`:
-
-1. It's not recognized as a SELECT
-2. clickhouse-go assumes it must be an INSERT
-3. INSERT syntax validation fails
-4. Error returned: "invalid INSERT query: ALTER TABLE ..."
-
-#### Code Path Analysis
-
-```go
-// In clickhouse.go PrepareUpdateStmt:
-query := buildUpdateStmt(destTbl, destColNames, where)
-// query = "ALTER TABLE `tbl` UPDATE `col1` = ?, `col2` = ? WHERE id = ?"
-
-stmt, err := db.PrepareContext(ctx, query)  // ← Fails here
-// Error: "invalid INSERT query: ALTER TABLE ..."
-```
-
-The `buildUpdateStmt` function correctly generates ClickHouse-compatible
-syntax, but `db.PrepareContext()` cannot handle it.
-
-#### Why This Differs from Direct Execution
-
-Interestingly, `ALTER TABLE ... UPDATE` works fine when executed directly:
-
-```go
-// This works:
-_, err := db.ExecContext(ctx, "ALTER TABLE t UPDATE col = 'value' WHERE id = 1")
-
-// This fails:
-stmt, err := db.PrepareContext(ctx, "ALTER TABLE t UPDATE col = ? WHERE id = ?")
-```
-
-The difference is that `ExecContext()` sends the query directly to ClickHouse
-server, while `PrepareContext()` goes through clickhouse-go's statement
-preparation logic which has the INSERT/SELECT restriction.
-
-#### clickhouse-go's Prepared Statement Architecture
-
-The clickhouse-go driver uses prepared statements primarily for:
-
-1. **Batch INSERTs**: Efficiently streaming rows via the native protocol
-2. **Parameterized SELECTs**: Safe query execution with bound parameters
-
-For other statement types (DDL, ALTER, etc.), the driver expects direct
-execution via `ExecContext()`. This is a design choice in clickhouse-go,
-not a ClickHouse server limitation.
-
-#### Key Learnings
-
-1. **clickhouse-go has a limited PrepareContext scope**: Only INSERT and
-   SELECT statements can be prepared. All other statement types must use
-   direct execution.
-
-2. **Error message is misleading**: "invalid INSERT query" doesn't mean the
-   query is malformed—it means clickhouse-go incorrectly categorized a
-   non-INSERT statement as an INSERT and then failed validation.
-
-3. **ALTER TABLE UPDATE cannot be parameterized via PrepareContext**: Even
-   though ClickHouse server supports parameterized ALTER TABLE UPDATE, the
-   Go driver doesn't support preparing such statements.
-
-4. **Workaround requires architectural change**: To support parameterized
-   UPDATE in ClickHouse, sq would need to either:
-   - Use string interpolation (security risk for user-provided values)
-   - Use `ExecContext` with positional args (if clickhouse-go supports it)
-   - Implement a custom parameter binding layer
-
-5. **This is separate from the batch insert issue**: While both involve
-   `PrepareContext()` limitations, they fail for different reasons:
-   - Batch INSERT fails due to multi-row parameter binding expectations
-   - UPDATE fails because ALTER TABLE syntax isn't recognized at all
-
-#### Potential Future Solutions
-
-1. **Direct ExecContext with parameters**: Investigate if clickhouse-go's
-   `ExecContext()` supports parameter binding for ALTER TABLE statements.
-   If so, `PrepareUpdateStmt` could be reimplemented without `PrepareContext`.
-
-2. **Query builder approach**: Build the complete query string with properly
-   escaped values, bypassing prepared statements entirely. This requires
-   careful escaping to prevent SQL injection.
-
-3. **clickhouse-go feature request**: Request support for preparing ALTER
-   TABLE statements in the clickhouse-go driver.
-
-4. **Alternative driver**: Evaluate if other ClickHouse Go drivers (e.g.,
-   `mailru/go-clickhouse`) have fewer PrepareContext limitations.
-
-#### Relationship to Known Limitations
-
-This issue is related to but distinct from the existing "Known Limitations"
-section item #4 (UPDATE Statement Syntax). That section documents the syntax
-difference; this investigation reveals that even with correct syntax, the
-prepared statement mechanism doesn't work.
-
-#### References
-
-- clickhouse-go source: Statement preparation logic in `conn.go`
-- ClickHouse ALTER TABLE UPDATE docs:
-  <https://clickhouse.com/docs/en/sql-reference/statements/alter/update>
-- Test: `TestSQLDriver_PrepareUpdateStmt/@sakila_ch25`
-- Error location: `drivers/clickhouse/clickhouse.go:828`
+**Status**: Tests skipped. See Known Limitation #4.
