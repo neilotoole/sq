@@ -294,6 +294,15 @@ func Parse(loc string) (*Fields, error) {
 	case "clickhouse":
 		fields.DriverType = drivertype.ClickHouse
 		fields.Name = strings.TrimPrefix(u.Path, "/")
+		if fields.Name == "" {
+			// ClickHouse also supports specifying the database via the
+			// ?database= query parameter (e.g.
+			// "clickhouse://localhost:9000?database=mydb").
+			u2, err := url.ParseRequestURI(loc)
+			if err == nil {
+				fields.Name = u2.Query().Get("database")
+			}
+		}
 	}
 
 	return fields, nil

@@ -23,6 +23,17 @@ import (
 // Batch API (PrepareBatch/Append/Send) instead of the standard multi-row
 // INSERT approach (see driver.DefaultNewBatchInsert), which doesn't work with
 // clickhouse-go due to its single-row parameter binding requirement.
+//
+// This method opens a separate native ClickHouse connection (via chv2.Open)
+// rather than using the sql.DB connection from the db parameter. This is
+// necessary because the native Batch API (PrepareBatch/Append/Send) is not
+// exposed through the database/sql interface. The db parameter is still used
+// to retrieve column metadata for value transformation (munging).
+//
+// ClickHouse does not support ACID transactions, so there is no transactional
+// consistency to maintain between this connection and the caller's sql.DB.
+// Each batch Send is atomic at the batch level—either all rows in a batch are
+// inserted or none are.
 func (d *driveri) NewBatchInsert(ctx context.Context, msg string, db sqlz.DB,
 	src *source.Source, destTbl string, destColNames []string,
 ) (*driver.BatchInsert, error) {

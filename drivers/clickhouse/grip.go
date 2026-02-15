@@ -14,6 +14,8 @@ import (
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
+var _ driver.Grip = (*grip)(nil)
+
 // grip implements driver.Grip, which is a handle to an open database connection.
 // It provides access to the underlying sql.DB, the source configuration, and
 // metadata retrieval functions.

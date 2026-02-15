@@ -9,7 +9,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -148,12 +147,10 @@ func getTablesMetadata(ctx context.Context, db sqlz.DB, dbName string) ([]*metad
 			tblMeta.Size = &bytes
 		}
 
-		// Get column metadata for this table
+		// Get column metadata for this table.
 		cols, colErr := getColumnsMetadata(ctx, db, dbName, tblName)
 		if colErr != nil {
-			lg.FromContext(ctx).Warn("Failed to get column metadata for table, skipping",
-				lga.Table, tblName, lga.DB, dbName, lga.Err, colErr)
-			continue
+			return nil, errz.Wrapf(colErr, "get column metadata for %s.%s", dbName, tblName)
 		}
 		tblMeta.Columns = cols
 
@@ -312,6 +309,15 @@ func tableTypeFromEngine(engine string) string {
 	}
 }
 
+// Type prefix lengths for ClickHouse wrapper types.
+const (
+	// nullablePrefixLen is the length of the "Nullable(" prefix string.
+	nullablePrefixLen = len("Nullable(")
+
+	// lowCardinalityPrefixLen is the length of the "LowCardinality(" prefix string.
+	lowCardinalityPrefixLen = len("LowCardinality(")
+)
+
 // isNullableType checks if a ClickHouse type string has Nullable as its
 // outermost wrapper. It returns true for "Nullable(String)" but false for
 // "LowCardinality(Nullable(String))" because the outer wrapper is LowCardinality.
@@ -324,7 +330,7 @@ func tableTypeFromEngine(engine string) string {
 // For query result processing where the ClickHouse driver may report types like
 // "LowCardinality(Nullable(String))", use isNullableTypeUnwrapped instead.
 func isNullableType(typeName string) bool {
-	return len(typeName) > 9 && typeName[:9] == "Nullable("
+	return len(typeName) > nullablePrefixLen && typeName[:nullablePrefixLen] == "Nullable("
 }
 
 // isNullableTypeUnwrapped checks if a ClickHouse type is nullable after
@@ -349,9 +355,8 @@ func isNullableType(typeName string) bool {
 // For schema metadata from system.columns, use isNullableType instead.
 func isNullableTypeUnwrapped(typeName string) bool {
 	// Strip LowCardinality wrapper if present.
-	// "LowCardinality(" is 15 characters.
-	if len(typeName) > 16 && typeName[:15] == "LowCardinality(" {
-		typeName = typeName[15 : len(typeName)-1]
+	if len(typeName) > lowCardinalityPrefixLen+1 && typeName[:lowCardinalityPrefixLen] == "LowCardinality(" {
+		typeName = typeName[lowCardinalityPrefixLen : len(typeName)-1]
 	}
 
 	return isNullableType(typeName)
@@ -368,15 +373,14 @@ func isNullableTypeUnwrapped(typeName string) bool {
 func baseTypeFromClickHouseType(chType string) string {
 	// Strip LowCardinality wrapper if present. Must be done first since
 	// LowCardinality can wrap Nullable: LowCardinality(Nullable(String)).
-	// "LowCardinality(" is 15 characters.
-	if len(chType) > 16 && chType[:15] == "LowCardinality(" {
-		chType = chType[15 : len(chType)-1]
+	if len(chType) > lowCardinalityPrefixLen+1 && chType[:lowCardinalityPrefixLen] == "LowCardinality(" {
+		chType = chType[lowCardinalityPrefixLen : len(chType)-1]
 	}
 
 	// Strip Nullable wrapper if present. After stripping LowCardinality above,
 	// we can use isNullableType which checks for direct Nullable(...) prefix.
 	if isNullableType(chType) {
-		chType = chType[9 : len(chType)-1]
+		chType = chType[nullablePrefixLen : len(chType)-1]
 	}
 
 	return chType

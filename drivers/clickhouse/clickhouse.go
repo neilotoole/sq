@@ -141,7 +141,10 @@ func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 	return &driveri{log: p.Log}, nil
 }
 
-var _ driver.SQLDriver = (*driveri)(nil)
+var (
+	_ driver.Provider  = (*Provider)(nil)
+	_ driver.SQLDriver = (*driveri)(nil)
+)
 
 // driveri is the ClickHouse implementation of driver.SQLDriver.
 // It provides all the database operations needed by sq to interact with
@@ -704,7 +707,7 @@ func (d *driveri) CopyTable(
 		return 0, err
 	}
 
-	// Create the destination table with same schema
+	// Create the destination table with same schema, preserving nullability.
 	destTblDef := &schema.Table{
 		Name: toTable.Table,
 		Cols: make([]*schema.Column, len(srcTbl.Columns)),
@@ -712,8 +715,9 @@ func (d *driveri) CopyTable(
 
 	for i, col := range srcTbl.Columns {
 		destTblDef.Cols[i] = &schema.Column{
-			Name: col.Name,
-			Kind: col.Kind,
+			Name:    col.Name,
+			Kind:    col.Kind,
+			NotNull: !col.Nullable,
 		}
 	}
 

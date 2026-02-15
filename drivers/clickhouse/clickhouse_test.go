@@ -336,6 +336,15 @@ func TestDriver_PrepareUpdateStmt(t *testing.T) {
 		th, src, drvr, _, db := testh.NewWith(t, sakila.CH)
 		tblName := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
 
+		// The source actor table has first_name as NOT NULL. CopyTable
+		// correctly preserves that constraint. We need to ALTER the column
+		// to Nullable for this test, since we want to verify NULL updates.
+		alterQ := "ALTER TABLE " + stringz.BacktickQuote(tblName) +
+			" MODIFY COLUMN " + stringz.BacktickQuote("first_name") +
+			" Nullable(String)"
+		_, err := db.ExecContext(th.Context, alterQ)
+		require.NoError(t, err)
+
 		destCols := []string{"first_name"}
 		whereClause := "actor_id = 1"
 		args := []any{nil}
