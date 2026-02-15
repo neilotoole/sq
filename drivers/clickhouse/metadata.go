@@ -137,6 +137,7 @@ func getTablesMetadata(ctx context.Context, db *sql.DB, dbName string) ([]*metad
 
 		tblMeta := &metadata.Table{
 			Name:        tblName,
+			FQName:      dbName + "." + tblName,
 			DBTableType: engine,
 			TableType:   tableTypeFromEngine(engine),
 			RowCount:    totalRows.Int64,
@@ -204,6 +205,7 @@ func getTableMetadata(ctx context.Context, db *sql.DB, dbName, tblName string) (
 
 	tblMeta := &metadata.Table{
 		Name:        tblName,
+		FQName:      dbName + "." + tblName,
 		DBTableType: engine,
 		TableType:   tableTypeFromEngine(engine),
 		RowCount:    totalRows.Int64,
@@ -274,10 +276,12 @@ func getColumnsMetadata(ctx context.Context, db *sql.DB, dbName, tblName string)
 		}
 
 		col := &metadata.Column{
-			Name:       colName,
-			Position:   int64(position),
-			Kind:       kindFromClickHouseType(colType),
-			ColumnType: colType,
+			Name:         colName,
+			Position:     int64(position),
+			BaseType:     baseTypeFromClickHouseType(colType),
+			Kind:         kindFromClickHouseType(colType),
+			ColumnType:   colType,
+			DefaultValue: defaultExpression.String,
 			// Use isNullableType (not isNullableTypeUnwrapped) because system.columns
 			// reports the declared type directly. If a column is declared as
 			// LowCardinality(Nullable(T)), that's what we get, and the column metadata
@@ -353,6 +357,31 @@ func isNullableTypeUnwrapped(typeName string) bool {
 	return isNullableType(typeName)
 }
 
+// baseTypeFromClickHouseType strips wrapper types (LowCardinality, Nullable)
+// from a ClickHouse type string and returns the unwrapped base type.
+//
+// Examples:
+//   - "Nullable(UInt16)" -> "UInt16"
+//   - "LowCardinality(Nullable(String))" -> "String"
+//   - "LowCardinality(String)" -> "String"
+//   - "String" -> "String"
+func baseTypeFromClickHouseType(chType string) string {
+	// Strip LowCardinality wrapper if present. Must be done first since
+	// LowCardinality can wrap Nullable: LowCardinality(Nullable(String)).
+	// "LowCardinality(" is 15 characters.
+	if len(chType) > 16 && chType[:15] == "LowCardinality(" {
+		chType = chType[15 : len(chType)-1]
+	}
+
+	// Strip Nullable wrapper if present. After stripping LowCardinality above,
+	// we can use isNullableType which checks for direct Nullable(...) prefix.
+	if isNullableType(chType) {
+		chType = chType[9 : len(chType)-1]
+	}
+
+	return chType
+}
+
 // kindFromClickHouseType maps ClickHouse type names to sq kind.Kind values.
 // It handles wrapped types like LowCardinality(T) and Nullable(T) by stripping
 // the wrappers to get the underlying base type for kind mapping.
@@ -378,18 +407,7 @@ func isNullableTypeUnwrapped(typeName string) bool {
 //   - LowCardinality(Nullable(String)) -> "String" -> kind.Text
 //   - Nullable(Int64) -> "Int64" -> kind.Int
 func kindFromClickHouseType(chType string) kind.Kind {
-	// Strip LowCardinality wrapper if present. Must be done first since
-	// LowCardinality can wrap Nullable: LowCardinality(Nullable(String)).
-	// "LowCardinality(" is 15 characters.
-	if len(chType) > 16 && chType[:15] == "LowCardinality(" {
-		chType = chType[15 : len(chType)-1]
-	}
-
-	// Strip Nullable wrapper if present. After stripping LowCardinality above,
-	// we can use isNullableType which checks for direct Nullable(...) prefix.
-	if isNullableType(chType) {
-		chType = chType[9 : len(chType)-1]
-	}
+	chType = baseTypeFromClickHouseType(chType)
 
 	switch chType {
 	case "UInt8", "UInt16", "UInt32", "UInt64":

@@ -44,10 +44,11 @@ var (
 
 // metadata.go exports.
 var (
-	KindFromClickHouseType  = kindFromClickHouseType
-	IsNullableType          = isNullableType
-	IsNullableTypeUnwrapped = isNullableTypeUnwrapped
-	TableTypeFromEngine     = tableTypeFromEngine
+	BaseTypeFromClickHouseType = baseTypeFromClickHouseType
+	KindFromClickHouseType     = kindFromClickHouseType
+	IsNullableType             = isNullableType
+	IsNullableTypeUnwrapped    = isNullableTypeUnwrapped
+	TableTypeFromEngine        = tableTypeFromEngine
 )
 
 // errors.go exports.

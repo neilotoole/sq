@@ -10,12 +10,53 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
 )
 
 var _ clickhouse.Provider // Ensure package is imported
+
+// TestBaseTypeFromClickHouseType tests unwrapping of ClickHouse type wrappers.
+func TestBaseTypeFromClickHouseType(t *testing.T) {
+	testCases := []struct {
+		chType   string
+		wantBase string
+	}{
+		// No wrappers.
+		{"String", "String"},
+		{"Int64", "Int64"},
+		{"UInt16", "UInt16"},
+		{"DateTime", "DateTime"},
+		{"FixedString(10)", "FixedString(10)"},
+		{"Decimal(18,4)", "Decimal(18,4)"},
+		{"Array(String)", "Array(String)"},
+
+		// Nullable wrapper.
+		{"Nullable(UInt16)", "UInt16"},
+		{"Nullable(String)", "String"},
+		{"Nullable(Int64)", "Int64"},
+		{"Nullable(DateTime)", "DateTime"},
+		{"Nullable(FixedString(10))", "FixedString(10)"},
+
+		// LowCardinality wrapper.
+		{"LowCardinality(String)", "String"},
+		{"LowCardinality(Int64)", "Int64"},
+
+		// LowCardinality(Nullable(...)) double wrapper.
+		{"LowCardinality(Nullable(String))", "String"},
+		{"LowCardinality(Nullable(Int64))", "Int64"},
+		{"LowCardinality(Nullable(Float64))", "Float64"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.chType, func(t *testing.T) {
+			got := clickhouse.BaseTypeFromClickHouseType(tc.chType)
+			require.Equal(t, tc.wantBase, got, "Type %s", tc.chType)
+		})
+	}
+}
 
 // TestKindFromClickHouseType tests type mapping from ClickHouse to sq kinds.
 func TestKindFromClickHouseType(t *testing.T) {
@@ -291,6 +332,17 @@ func TestMetadata_SourceMetadata(t *testing.T) {
 	require.Greater(t, md.TableCount, int64(0))
 	require.Greater(t, md.ViewCount, int64(0))
 	require.Equal(t, int64(len(md.Tables)), md.TableCount+md.ViewCount)
+
+	// Verify Table.FQName and Column.BaseType are populated.
+	for _, tbl := range md.Tables {
+		require.Equal(t, "sakila."+tbl.Name, tbl.FQName,
+			"Table %s: FQName should be database.table", tbl.Name)
+
+		for _, col := range tbl.Columns {
+			require.NotEmpty(t, col.BaseType,
+				"Table %s, Column %s: BaseType should not be empty", tbl.Name, col.Name)
+		}
+	}
 }
 
 // TestMetadata_TableMetadata tests table metadata retrieval.
@@ -300,8 +352,11 @@ func TestMetadata_TableMetadata(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.CH)
 
-	// Create a test table so metadata has something to retrieve
-	th.ExecSQL(src, "CREATE TABLE IF NOT EXISTS test_table_meta (id Int64, name String) ENGINE = MergeTree() ORDER BY id")
+	// Create a test table with a default expression.
+	th.ExecSQL(src, `CREATE TABLE IF NOT EXISTS test_table_meta (
+		id Int64,
+		name String DEFAULT 'unknown'
+	) ENGINE = MergeTree() ORDER BY id`)
 	t.Cleanup(func() { th.ExecSQL(src, "DROP TABLE IF EXISTS test_table_meta") })
 
 	md, err := th.SourceMetadata(src)
@@ -309,16 +364,36 @@ func TestMetadata_TableMetadata(t *testing.T) {
 	require.NotNil(t, md)
 	require.NotEmpty(t, md.Tables, "Expected at least one table")
 
-	// Check first table metadata
-	tbl := md.Tables[0]
-	require.NotEmpty(t, tbl.Name)
-	require.NotEmpty(t, tbl.Columns)
+	// Find the test_table_meta table.
+	var tbl *metadata.Table
+	for _, t2 := range md.Tables {
+		if t2.Name == "test_table_meta" {
+			tbl = t2
+			break
+		}
+	}
+	require.NotNil(t, tbl, "test_table_meta not found in metadata")
 
-	t.Logf("Table: %s", tbl.Name)
-	t.Logf("Columns: %d", len(tbl.Columns))
+	// Verify FQName.
+	require.Equal(t, "sakila.test_table_meta", tbl.FQName)
+
+	// Verify columns.
+	require.Len(t, tbl.Columns, 2)
+
+	idCol := tbl.Columns[0]
+	require.Equal(t, "id", idCol.Name)
+	require.Equal(t, "Int64", idCol.BaseType)
+	require.Empty(t, idCol.DefaultValue)
+
+	nameCol := tbl.Columns[1]
+	require.Equal(t, "name", nameCol.Name)
+	require.Equal(t, "String", nameCol.BaseType)
+	require.Equal(t, "'unknown'", nameCol.DefaultValue)
+
+	t.Logf("Table: %s (FQName: %s)", tbl.Name, tbl.FQName)
 	for _, col := range tbl.Columns {
-		t.Logf("  - %s: %s (kind: %s, nullable: %v)",
-			col.Name, col.ColumnType, col.Kind, col.Nullable)
+		t.Logf("  - %s: %s (base: %s, kind: %s, default: %q)",
+			col.Name, col.ColumnType, col.BaseType, col.Kind, col.DefaultValue)
 	}
 }
 
