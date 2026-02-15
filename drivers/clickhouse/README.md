@@ -347,7 +347,7 @@ welcome.
 | 1 | [~~Batch insert connection corruption~~](#1-batch-insert-connection-corruption-resolved) | Insert        | ~~High~~ | **Resolved**: native Batch API       |
 | 2 | [~~PrepareUpdateStmt not supported~~](#2-prepareupdatestmt-resolved)                     | Update/Delete | ~~High~~ | **Resolved**: ExecContext workaround |
 | 3 | [~~Standard SQL UPDATE/DELETE syntax not supported~~](#3-standard-sql-updatedelete-syntax-not-supported-resolved) | Update/Delete | ~~Medium~~ | **Resolved**: lightweight mutations |
-| 4 | [Type roundtrip issues](#4-type-roundtrip-issues)                                        | Types         | Low      | Tests skipped                        |
+| 4 | [Type roundtrip issues](#4-type-roundtrip-issues-544)                                        | Types         | Low      | Tests skipped                        |
 | 5 | [~~DML rows affected unsupported~~](#5-dml-rows-affected-unsupported-resolved)            | Metadata      | ~~Low~~  | **Resolved**: handled in CLI/driver  |
 <!-- markdownlint-enable MD013 MD060 -->
 
@@ -601,7 +601,7 @@ that first validated standard UPDATE/DELETE against ClickHouse.
 
 ### Type Limitations
 
-#### 4. Type Roundtrip Issues
+#### 4. Type Roundtrip Issues ([#544](https://github.com/neilotoole/sq/issues/544))
 
 Some `kind.Kind` types cannot roundtrip through ClickHouse because
 it lacks native equivalents:
