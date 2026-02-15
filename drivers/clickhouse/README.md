@@ -349,6 +349,7 @@ welcome.
 | 3 | [~~Standard SQL UPDATE/DELETE syntax not supported~~](#3-standard-sql-updatedelete-syntax-not-supported-resolved) | Update/Delete | ~~Medium~~ | **Resolved**: lightweight mutations  |                                                      |
 | 4 | [Type roundtrip issues](#4-type-roundtrip-issues-544)                                    | Types         | Low        | Tests skipped                        | [#544](https://github.com/neilotoole/sq/issues/544) |
 | 5 | [~~DML rows affected unsupported~~](#5-dml-rows-affected-unsupported-resolved)            | Metadata      | ~~Low~~    | **Resolved**: handled in CLI/driver  |                                                      |
+| 6 | [Array types flattened to text](#array-type-architecture)                                 | Types         | Low        | CSV string conversion                | [#545](https://github.com/neilotoole/sq/issues/545) |
 <!-- markdownlint-enable MD013 MD060 -->
 
 ### Insert Limitations
@@ -643,6 +644,10 @@ is always 0.
   outputs -1 as a machine-readable sentinel.
 
 ## Array Type Architecture
+
+> **Known Limitation #6**: Array types are flattened to CSV text,
+> resulting in information loss. Tracked in
+> [#545](https://github.com/neilotoole/sq/issues/545).
 
 This section documents how sq handles array types from ClickHouse,
 and the broader architectural constraints that inform this design.
