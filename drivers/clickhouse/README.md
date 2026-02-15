@@ -512,14 +512,71 @@ Dedicated ClickHouse integration tests in
 #### 3. Standard UPDATE/DELETE Not Supported
 
 ClickHouse does not support standard SQL `UPDATE` and `DELETE`
-statements. Instead, it requires `ALTER TABLE ... UPDATE` or
-`ALTER TABLE ... DELETE` syntax (lightweight mutations). Tests that
-execute standard CRUD operations are skipped:
+syntax. Executing these statements produces an error:
 
-- `TestCmdSQL_ExecMode` — full CRUD lifecycle (CREATE, INSERT,
-  UPDATE, DELETE, DROP)
-- `TestCmdSQL_ExecTypeEdgeCases` — SQL type detection with
-  UPDATE/DELETE
+```sql
+-- Standard SQL (fails on ClickHouse):
+UPDATE test_table SET name = 'Charlie' WHERE id = 1;
+DELETE FROM test_table WHERE id = 2;
+
+-- ClickHouse equivalent (lightweight mutations):
+ALTER TABLE test_table UPDATE name = 'Charlie' WHERE id = 1;
+ALTER TABLE test_table DELETE WHERE id = 2;
+```
+
+##### How sq Handles Updates
+
+sq's `PrepareUpdateStmt` (Known Limitation #2, now resolved)
+generates `ALTER TABLE ... UPDATE` syntax via `buildUpdateStmt()`
+in `drivers/clickhouse/render.go`. This means that sq operations
+that go through the driver abstraction layer (e.g., `sq tbl`
+with `--update`) can update ClickHouse tables successfully. See
+Known Limitation #2 for details on the `ExecContext()` workaround
+and asynchronous mutation handling.
+
+##### What Remains Unsupported
+
+Standard `DELETE` has no sq driver workaround yet — there is no
+`PrepareDeleteStmt` equivalent. The two skipped tests below
+exercise standard `UPDATE`/`DELETE` SQL directly via `sq sql`,
+which sends the SQL text to the database as-is. Because these
+tests bypass sq's driver abstraction, the `ALTER TABLE` rewriting
+that `PrepareUpdateStmt` performs is not available.
+
+##### Skipped Tests
+
+Both tests are skipped for ClickHouse via:
+
+```go
+tu.SkipIf(t, src.Type == drivertype.ClickHouse,
+    "ClickHouse: doesn't support standard UPDATE/DELETE statements")
+```
+
+**`TestCmdSQL_ExecMode`** (`cli/cmd_sql_test.go`): Full CRUD
+lifecycle test — CREATE, INSERT, UPDATE, DELETE, DROP — that
+verifies sq correctly distinguishes between queries (which return
+result sets) and statements (which return rows-affected counts).
+Skipped because the test executes standard SQL directly:
+
+```sql
+-- Line 98:
+UPDATE test_exec_type SET name = 'Charlie' WHERE id = 1
+-- Line 109:
+DELETE FROM test_exec_type WHERE id = 2
+```
+
+**`TestCmdSQL_ExecTypeEdgeCases`** (`cli/cmd_sql_test.go`): SQL
+statement type detection with formatting variations (case
+sensitivity, block comments, CTEs). Verifies that sq identifies
+queries vs statements regardless of SQL formatting conventions.
+Skipped because the test executes standard SQL directly:
+
+```sql
+-- Line 315:
+update test_edge_cases set name = 'Updated' where id = 10
+-- Line 321:
+delete from test_edge_cases where id = 10
+```
 
 ### Type Limitations
 
