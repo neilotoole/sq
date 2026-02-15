@@ -508,7 +508,7 @@ Dedicated ClickHouse integration tests in
   WHERE `actor_id <= 5`
 - `TestDriver_PrepareUpdateStmt/no_match` — WHERE matches no rows
 - `TestDriver_PrepareUpdateStmt/update_all_rows` — empty WHERE
-  updates all 200 rows
+  updates all 200 rows (uses `WHERE 1` fallback)
 - `TestDriver_PrepareUpdateStmt/null_value` — update column to NULL
 
 #### 3. Standard SQL UPDATE/DELETE Syntax Not Supported (RESOLVED)
@@ -545,7 +545,11 @@ that return the actual count.
 
 sq's `PrepareUpdateStmt` (Known Limitation #2, now resolved)
 generates `ALTER TABLE ... UPDATE` syntax via `buildUpdateStmt()`
-in `drivers/clickhouse/render.go`. This means that sq operations
+in `drivers/clickhouse/render.go`. When no `WHERE` clause is
+specified (update all rows), `buildUpdateStmt` emits `WHERE 1`
+because ClickHouse requires a `WHERE` clause in `ALTER TABLE
+... UPDATE` — without it, the appended `SETTINGS mutations_sync
+= 1` lands in an invalid position. This means that sq operations
 that go through the driver abstraction layer (e.g., `sq tbl`
 with `--update`) can update ClickHouse tables successfully. See
 Known Limitation #2 for details on the `ExecContext()` workaround
