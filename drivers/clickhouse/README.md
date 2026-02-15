@@ -100,7 +100,9 @@ clickhouse://default:@localhost:9000/default
 - `CreateTable()` with MergeTree engine and ORDER BY
 - `DropTable()` with IF EXISTS
 - `Truncate()` table
-- `PrepareInsertStmt()` for batch inserts
+- `NewBatchInsert()` using clickhouse-go's native Batch API
+  (`PrepareBatch`/`Append`/`Send`)
+- `PrepareInsertStmt()` for single-row prepared inserts
 - `PrepareUpdateStmt()` using ALTER TABLE UPDATE syntax
 - `CopyTable()` with or without data
 
@@ -116,6 +118,10 @@ The following capabilities are fully functional with ClickHouse:
 
 - **Reading/querying data**: Full support for SQ queries and native
   SQL against ClickHouse sources.
+- **Batch inserts**: Full support for inserting data into ClickHouse
+  using clickhouse-go's native Batch API. ClickHouse works as both
+  a source (origin) and destination for data operations including
+  `--insert` and cross-source copies.
 - **Schema introspection and metadata**: Inspect databases, tables,
   columns, and views via system tables.
 - **Cross-source joins**: ClickHouse as a source in multi-source
@@ -189,8 +195,18 @@ welcome.
 **Status**: Resolved. The ClickHouse driver now uses clickhouse-go's
 native Batch API (`PrepareBatch`/`Append`/`Send`) via the
 `SQLDriver.NewBatchInsert` method, bypassing the incompatible
-multi-row `INSERT` approach. All previously-skipped insert tests
-are now enabled.
+multi-row `INSERT` approach.
+
+Previously-skipped insert tests that are now enabled:
+
+- `TestNewBatchInsert` — multi-row batch insert test
+- `TestCreateTable_bytes` — creates table and inserts binary data
+- `TestCmdSQL_Insert` — `sq sql --insert=@dest.tbl`
+- `TestCmdSLQ_Insert` — `sq slq --insert=@dest.tbl`
+
+Note: `TestOutputRaw` remains skipped for ClickHouse, but for a
+different reason — the `kind.Bytes` type roundtrip limitation
+(see Known Limitation #4), not the batch insert issue.
 
 ##### Historical Details
 
@@ -232,9 +248,15 @@ subsequent queries on the same connection also fail.
 
 ###### Solution
 
-The `SQLDriver` interface was extended with a `NewBatchInsert` method,
-allowing each driver to own its insert strategy. The ClickHouse
-implementation uses clickhouse-go's native Batch API:
+The `SQLDriver` interface was extended with a `NewBatchInsert`
+method, allowing each driver to own its insert strategy. The
+existing standalone `NewBatchInsert` function was renamed to
+`DefaultNewBatchInsert` and serves as the default implementation that
+most drivers (Postgres, MySQL, SQLite, SQL Server) delegate to.
+
+The ClickHouse driver provides its own `NewBatchInsert`
+implementation in `drivers/clickhouse/batch.go` that uses
+clickhouse-go's native Batch API:
 
 ```go
 batch, err := conn.PrepareBatch(ctx, "INSERT INTO t (c1, c2)")
@@ -246,6 +268,51 @@ batch.Send()
 
 This API handles protocol state correctly and is optimized for
 ClickHouse's columnar batch semantics.
+
+Key design decisions:
+
+- **`*source.Source` in the signature**: ClickHouse needs
+  `src.Location` (the DSN) to call `clickhouse.ParseDSN` and
+  `clickhouse.Open` for a native connection. The `*sql.DB` /
+  `*sql.Tx` don't expose the DSN.
+
+- **Separate native connection**: clickhouse-go exposes two APIs:
+  `sql.Open("clickhouse", dsn)` returns `*sql.DB` (no
+  `PrepareBatch`); `clickhouse.Open(opts)` returns a native
+  `driver.Conn` (has `PrepareBatch`). The standard
+  `database/sql` connection can't access `PrepareBatch`, so a
+  separate native connection is opened for batch inserts.
+
+- **ClickHouse transactions are no-ops**: clickhouse-go's
+  `BeginTx` returns `self` and `Commit` is nil/no-op. Bypassing
+  the tx for inserts loses nothing.
+
+- **Row count tracking**: ClickHouse returns 0 for
+  `RowsAffected()`. The native Batch API goroutine tracks the
+  count directly via an `atomic.Int64` counter.
+
+- **`NewBatchInsert` constructor**: Added to
+  `libsq/driver/record.go` to allow the ClickHouse driver to
+  build a `BatchInsert` with its own goroutine and channels,
+  without going through `DefaultNewBatchInsert`.
+
+###### Files Changed
+
+<!-- markdownlint-disable MD013 MD060 -->
+| File | Change |
+|------|--------|
+| `libsq/driver/driver.go` | Added `NewBatchInsert` to `SQLDriver` interface |
+| `libsq/driver/record.go` | Renamed `NewBatchInsert` → `DefaultNewBatchInsert`; added `NewBatchInsert` |
+| `drivers/clickhouse/batch.go` | New: native Batch API implementation |
+| `drivers/postgres/postgres.go` | Added `NewBatchInsert` (delegates to `DefaultNewBatchInsert`) |
+| `drivers/mysql/mysql.go` | Added `NewBatchInsert` (delegates) |
+| `drivers/sqlite3/sqlite3.go` | Added `NewBatchInsert` (delegates) |
+| `drivers/sqlserver/sqlserver.go` | Added `NewBatchInsert` (delegates) |
+| `libsq/dbwriter.go` | Updated call site |
+| `testh/testh.go` | Updated call site |
+| `drivers/xlsx/ingest.go` | Updated call site |
+| `libsq/driver/driver_test.go` | Updated call site, removed ClickHouse skip |
+<!-- markdownlint-enable MD013 MD060 -->
 
 ### Update/Delete Limitations
 
@@ -285,7 +352,16 @@ it lacks native equivalents:
 | `kind.Time`  | `DateTime` | `kind.Datetime` | No time-only type   |
 | `kind.Bytes` | `String`   | `kind.Text`     | Binary as String    |
 
-**Status**: `TestDriver_CreateTable_Minimal` is **skipped**.
+The `kind.Bytes` roundtrip issue means binary data inserted as
+`[]byte` is read back as `string` (`kind.Text`). ClickHouse's
+`String` type is binary-safe, so the data is preserved, but the
+Go type and sq kind change on readback.
+
+**Status**: The following tests are **skipped** for ClickHouse:
+
+- `TestDriver_CreateTable_Minimal` — asserts kind roundtrip fidelity
+- `TestOutputRaw` — asserts `kind.Bytes` and `[]byte` type assertion
+  on readback (data is actually preserved, but typed as `string`)
 
 ### Metadata Limitations
 
@@ -469,15 +545,19 @@ and converting slice values to comma-separated strings in
 
 **Status**: Resolved.
 
-### Batch Insert Failure (2026-01-19)
+### Batch Insert Failure and Resolution (2026-01-19, resolved 2026-02-14)
 
 clickhouse-go does not support multi-row parameter binding.
 Single-row workaround causes connection state corruption after many
-`Exec` calls. Fixed by adding `NewBatchInsert` to the `SQLDriver`
-interface and implementing it with clickhouse-go's native Batch API
-(`conn.PrepareBatch()`/`batch.Append()`/`batch.Send()`).
+`Exec` calls. Resolved by adding `NewBatchInsert` to the `SQLDriver`
+interface and implementing a ClickHouse-specific version in
+`drivers/clickhouse/batch.go` using clickhouse-go's native Batch API
+(`conn.PrepareBatch()`/`batch.Append()`/`batch.Send()`). The
+existing `NewBatchInsert` function was renamed to `DefaultNewBatchInsert`;
+other drivers delegate to it. See Known Limitation #1 for full
+architectural details.
 
-**Status**: Resolved. See Known Limitation #1.
+**Status**: Resolved.
 
 ### PrepareUpdateStmt Failure (2026-01-19)
 

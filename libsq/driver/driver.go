@@ -124,9 +124,12 @@ type SQLDriver interface {
 	// NewBatchInsert returns a BatchInsert for inserting records
 	// into destTbl. The db arg must guarantee a single connection
 	// (i.e., it must be a sql.Conn or sql.Tx). Most implementations
-	// delegate to driver.NewStdBatchInsert. The src arg provides
-	// access to the source DSN, which some drivers (e.g. ClickHouse)
-	// need to open native connections.
+	// delegate to DefaultNewBatchInsert, which uses the standard
+	// multi-row INSERT approach. Drivers requiring custom insertion
+	// logic (e.g. ClickHouse's native Batch API) implement their own
+	// method using the lower-level NewBatchInsert constructor. The src
+	// arg provides access to the source DSN, which some drivers need
+	// to open native connections.
 	NewBatchInsert(ctx context.Context, msg string, db sqlz.DB,
 		src *source.Source, destTbl string, destColNames []string,
 		batchSize int) (*BatchInsert, error)

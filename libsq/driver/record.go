@@ -377,11 +377,22 @@ func (bi *BatchInsert) Munge(rec []any) error {
 	return bi.mungeFn(rec)
 }
 
-// NewBatchInsertFromCh constructs a BatchInsert from pre-created
-// channels. The caller is responsible for starting a goroutine
-// that reads from recCh, writes errors to errCh, and closes
-// errCh when done.
-func NewBatchInsertFromCh(recCh chan<- []any, errCh <-chan error,
+// NewBatchInsert is the low-level constructor for BatchInsert. It assembles
+// a BatchInsert from pre-created channels, an atomic write counter, and a
+// munge function. The caller is responsible for starting a goroutine that
+// reads from recCh, writes errors to errCh, and closes errCh when done.
+//
+// This constructor exists because BatchInsert has unexported fields (written,
+// mungeFn) that external packages cannot set directly. Drivers that implement
+// custom insertion logic (e.g. ClickHouse's native Batch API) use this
+// constructor to wrap their own channel-based goroutine in a BatchInsert.
+//
+// For the standard multi-row INSERT approach, most drivers should instead
+// delegate to DefaultNewBatchInsert, which creates the channels, starts the
+// goroutine, and returns a ready-to-use BatchInsert.
+//
+// See also: DefaultNewBatchInsert, SQLDriver.NewBatchInsert.
+func NewBatchInsert(recCh chan<- []any, errCh <-chan error,
 	written *atomic.Int64, mungeFn InsertMungeFunc,
 ) *BatchInsert {
 	return &BatchInsert{
@@ -392,15 +403,24 @@ func NewBatchInsertFromCh(recCh chan<- []any, errCh <-chan error,
 	}
 }
 
-// NewStdBatchInsert returns a new BatchInsert instance using the standard
-// multi-row INSERT approach. The internal goroutine is started.
-// Most SQL drivers delegate their NewBatchInsert method to this function.
+// DefaultNewBatchInsert returns a new BatchInsert instance using the standard
+// multi-row INSERT approach. It creates channels, prepares the INSERT
+// statement via drvr.PrepareInsertStmt, and starts an internal goroutine
+// that accumulates records into batches and executes them. The returned
+// BatchInsert's internal goroutine is already running.
+//
+// Most SQL drivers (Postgres, MySQL, SQLite, SQL Server) delegate their
+// SQLDriver.NewBatchInsert method to this function. Drivers that require
+// custom insertion logic (e.g. ClickHouse) implement their own method
+// and use the lower-level NewBatchInsert constructor instead.
 //
 // Note that the db arg must guarantee a single connection: that is,
-// it must be a sql.Conn or sql.Tx.
+// it must be a sql.Conn or sql.Tx. Otherwise, an error is returned.
+//
+// See also: NewBatchInsert, SQLDriver.NewBatchInsert.
 //
 //nolint:gocognit
-func NewStdBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
+func DefaultNewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
 	destTbl string, destColNames []string, batchSize int,
 ) (*BatchInsert, error) {
 	log := lg.FromContext(ctx)

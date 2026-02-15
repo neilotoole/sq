@@ -139,5 +139,5 @@ func (d *driveri) NewBatchInsert(ctx context.Context, msg string, db sqlz.DB,
 		}
 	}()
 
-	return driver.NewBatchInsertFromCh(recCh, errCh, written, mungeFn), nil
+	return driver.NewBatchInsert(recCh, errCh, written, mungeFn), nil
 }
