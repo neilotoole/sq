@@ -383,25 +383,46 @@ func baseTypeFromClickHouseType(chType string) string {
 }
 
 // kindFromClickHouseType maps ClickHouse type names to sq kind.Kind values.
-// It handles wrapped types like LowCardinality(T) and Nullable(T) by stripping
-// the wrappers to get the underlying base type for kind mapping.
+// It handles wrapped types like LowCardinality(T) and Nullable(T) by
+// first calling [baseTypeFromClickHouseType] to strip those wrappers,
+// then matching the resulting base type.
+//
+// Matching strategy:
+//
+// The function uses a two-tier approach. Bare type names (e.g. "DateTime",
+// "Int64") are matched exactly via a switch statement for performance.
+// Parameterized types that ClickHouse reports with parenthesized arguments
+// are matched via [strings.HasPrefix] in the default branch. This is
+// necessary because ClickHouse's system.columns table reports these types
+// with their full parameterization, not as bare names:
+//
+//   - DateTime64(3), DateTime64(6,'UTC'), DateTime('Europe/Berlin')
+//   - FixedString(10), FixedString(255)
+//   - Decimal(18,4), Decimal128(10)
+//   - Array(String), Array(Array(Int32))
+//
+// The prefix-based matching in the default branch is ordered so that
+// "DateTime" is checked first (to catch DateTime64(N) and DateTime('tz')
+// variants that didn't match the exact switch cases).
 //
 // Type mapping:
 //
-//	ClickHouse Type          -> sq Kind
-//	----------------------------------------
-//	Int8, Int16, Int32, Int64   -> kind.Int
-//	UInt8, UInt16, UInt32, UInt64 -> kind.Int
-//	Float32, Float64            -> kind.Float
-//	String                      -> kind.Text
-//	FixedString(N)              -> kind.Text
-//	Bool                        -> kind.Bool
-//	Date, Date32                -> kind.Date
-//	DateTime, DateTime64        -> kind.Datetime
-//	UUID                        -> kind.Text
-//	Decimal(P,S)                -> kind.Decimal
-//	Array(T)                    -> kind.Text (serialized as text)
-//	Unknown types               -> kind.Text (safe fallback)
+//	ClickHouse Type                  -> sq Kind
+//	---------------------------------------------------
+//	Int8, Int16, Int32, Int64        -> kind.Int
+//	UInt8, UInt16, UInt32, UInt64    -> kind.Int
+//	Float32, Float64                 -> kind.Float
+//	String                           -> kind.Text
+//	FixedString(N)                   -> kind.Text
+//	Bool                             -> kind.Bool
+//	Date, Date32                     -> kind.Date
+//	DateTime, DateTime64             -> kind.Datetime
+//	DateTime('tz'), DateTime64(N)    -> kind.Datetime
+//	DateTime64(N,'tz')               -> kind.Datetime
+//	UUID                             -> kind.Text
+//	Decimal(P,S)                     -> kind.Decimal
+//	Array(T)                         -> kind.Text (serialized as CSV text)
+//	Unknown types                    -> kind.Text (safe fallback)
 //
 // Wrappers are stripped before mapping:
 //   - LowCardinality(Nullable(String)) -> "String" -> kind.Text
@@ -427,19 +448,24 @@ func kindFromClickHouseType(chType string) kind.Kind {
 	case "UUID":
 		return kind.Text
 	default:
-		// Check for FixedString(N) types - ClickHouse returns "FixedString(10)" not "FixedString"
-		if len(chType) >= 11 && chType[:11] == "FixedString" {
+		// Check for DateTime/DateTime64 with parameters, e.g.
+		// DateTime('UTC'), DateTime64(3), DateTime64(6,'UTC').
+		if strings.HasPrefix(chType, "DateTime") {
+			return kind.Datetime
+		}
+		// Check for FixedString(N) types - ClickHouse returns "FixedString(10)" not "FixedString".
+		if strings.HasPrefix(chType, "FixedString") {
 			return kind.Text
 		}
-		// Check for Decimal types
-		if len(chType) >= 7 && chType[:7] == "Decimal" {
+		// Check for Decimal types.
+		if strings.HasPrefix(chType, "Decimal") {
 			return kind.Decimal
 		}
-		// Check for Array types
-		if len(chType) >= 5 && chType[:5] == "Array" {
+		// Check for Array types.
+		if strings.HasPrefix(chType, "Array") {
 			return kind.Text // Arrays serialized as text for now
 		}
-		// Default to text for unknown types
+		// Default to text for unknown types.
 		return kind.Text
 	}
 }

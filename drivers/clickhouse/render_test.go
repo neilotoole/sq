@@ -145,7 +145,8 @@ func TestBuildUpdateStmt(t *testing.T) {
 	cols := []string{"name", "value"}
 
 	// Scenario 1: Update without WHERE clause - should affect all rows
-	stmt := clickhouse.BuildUpdateStmt(tblName, cols, "")
+	stmt, err := clickhouse.BuildUpdateStmt(tblName, cols, "")
+	require.NoError(t, err)
 	require.Contains(t, stmt, "ALTER TABLE")
 	require.Contains(t, stmt, "`test_table`")
 	require.Contains(t, stmt, "UPDATE")
@@ -154,6 +155,11 @@ func TestBuildUpdateStmt(t *testing.T) {
 	require.Contains(t, stmt, "WHERE 1")
 
 	// Scenario 2: Update with WHERE clause - should filter rows
-	stmt = clickhouse.BuildUpdateStmt(tblName, cols, "id = 123")
+	stmt, err = clickhouse.BuildUpdateStmt(tblName, cols, "id = 123")
+	require.NoError(t, err)
 	require.Contains(t, stmt, "WHERE id = 123")
+
+	// Scenario 3: Empty columns should error
+	_, err = clickhouse.BuildUpdateStmt(tblName, nil, "")
+	require.Error(t, err)
 }

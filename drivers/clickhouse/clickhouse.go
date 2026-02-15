@@ -675,14 +675,30 @@ func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (b
 //
 // The process:
 //  1. Retrieves the source table's schema (column names and types)
-//  2. Creates the destination table with the same schema using MergeTree engine
-//  3. If copyData is true, copies all rows using INSERT INTO ... SELECT
+//     via [getTableMetadata], which queries ClickHouse system.columns.
+//  2. Creates the destination table with the same column schema using
+//     [driveri.CreateTable] (MergeTree engine, ORDER BY first NOT NULL
+//     column or tuple()).
+//  3. If copyData is true, copies all rows using INSERT INTO ... SELECT.
 //
-// Returns the number of rows copied (0 if copyData is false).
+// Both fromTable and toTable are rendered via [tblfmt], which preserves
+// any schema or catalog qualifiers present in the [tablefq.T] arguments.
 //
-// Note: The destination table uses the MergeTree engine with the first column
-// as the ORDER BY key, which may differ from the source table's engine
-// configuration.
+// Return values:
+//   - If copyData is false, returns (0, nil) — no rows copied.
+//   - If copyData is true, returns ([dialect.RowsAffectedUnsupported], nil)
+//     on success because ClickHouse does not report row counts for
+//     INSERT ... SELECT operations (RowsAffected() always returns 0).
+//     Callers that need the actual count must issue a separate
+//     SELECT COUNT(*) query.
+//
+// Note: The destination table always uses the MergeTree engine with
+// the first NOT NULL column as the ORDER BY key. This may differ from
+// the source table's engine and ordering configuration.
+//
+// Note: This method requires that db is a [*sql.DB] (not a [*sql.Conn]
+// or [*sql.Tx]) because [getTableMetadata] needs a [*sql.DB] to query
+// the system tables.
 func (d *driveri) CopyTable(
 	ctx context.Context, db sqlz.DB, fromTable, toTable tablefq.T, copyData bool,
 ) (int64, error) {
@@ -734,8 +750,8 @@ func (d *driveri) CopyTable(
 	//
 	// See: drivers/clickhouse/README.md "Known Limitations" section.
 	query := fmt.Sprintf("INSERT INTO %s SELECT * FROM %s",
-		stringz.BacktickQuote(toTable.Table),
-		stringz.BacktickQuote(fromTable.Table))
+		tblfmt(toTable),
+		tblfmt(fromTable))
 
 	_, err = db.ExecContext(ctx, query)
 	if err != nil {
@@ -824,18 +840,29 @@ func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl str
 //
 // Implementation detail: clickhouse-go v2's PrepareContext() only supports
 // INSERT and SELECT statements. It internally classifies every non-SELECT
-// statement as INSERT and validates accordingly, rejecting ALTER TABLE UPDATE
-// with "invalid INSERT query".
+// statement as INSERT and validates accordingly, rejecting ALTER TABLE
+// UPDATE with "invalid INSERT query".
 // See https://github.com/ClickHouse/clickhouse-go/issues/1203.
-// This method bypasses
-// PrepareContext() entirely and calls ExecContext() directly via a custom
-// StmtExecFunc closure. A nil stmt is passed to NewStmtExecer; the
-// StmtExecer.Close() method is nil-safe to support this pattern.
+//
+// To work around this, PrepareUpdateStmt bypasses PrepareContext()
+// entirely: it builds the ALTER TABLE UPDATE query string via
+// [buildUpdateStmt], appends "SETTINGS mutations_sync = 1" (so the
+// mutation completes synchronously), and wraps a direct ExecContext()
+// call in a [driver.StmtExecFunc] closure. A nil stmt is passed to
+// [driver.NewStmtExecer]; the StmtExecer.Close() method is nil-safe
+// to support this pattern.
+//
+// The returned [driver.StmtExecer] always reports
+// [dialect.RowsAffectedUnsupported] (-1) for affected rows because
+// ClickHouse's RowsAffected() returns 0 regardless of how many rows
+// were actually modified by a mutation.
 //
 // Parameters:
-//   - destTbl: The target table name
-//   - destColNames: Columns to update
-//   - where: WHERE clause (without the "WHERE" keyword) to filter rows
+//   - destTbl: the target table name.
+//   - destColNames: columns to update; must be non-empty (validated
+//     by [buildUpdateStmt]).
+//   - where: WHERE clause body without the "WHERE" keyword. Pass ""
+//     to update all rows.
 func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
 	where string,
 ) (*driver.StmtExecer, error) {
@@ -844,7 +871,10 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 		return nil, err
 	}
 
-	query := buildUpdateStmt(destTbl, destColNames, where)
+	query, err := buildUpdateStmt(destTbl, destColNames, where)
+	if err != nil {
+		return nil, err
+	}
 
 	// ClickHouse mutations (ALTER TABLE UPDATE) are asynchronous by default:
 	// the statement returns immediately, before the data is actually modified.
@@ -918,16 +948,24 @@ func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, c
 	return errw(err)
 }
 
-// DropTable implements driver.SQLDriver. It drops a table from the database.
+// DropTable implements driver.SQLDriver. It drops a table from the
+// database using ClickHouse's DROP TABLE statement.
 //
-// If ifExists is true, uses DROP TABLE IF EXISTS to avoid errors when the
-// table doesn't exist.
+// The table reference is rendered via [tblfmt], which preserves any
+// schema or catalog qualifiers present in the [tablefq.T] argument.
+// For example, a tablefq.T with Schema="mydb" and Table="actors"
+// produces DROP TABLE `mydb`.`actors`.
+//
+// If ifExists is true, the statement uses DROP TABLE IF EXISTS so
+// that dropping a non-existent table does not return an error. This
+// is used by cleanup paths (e.g. deferred drops in tests) where the
+// table may or may not exist.
 func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifExists bool) error {
 	var stmt string
 	if ifExists {
-		stmt = "DROP TABLE IF EXISTS " + stringz.BacktickQuote(tbl.Table)
+		stmt = "DROP TABLE IF EXISTS " + tblfmt(tbl)
 	} else {
-		stmt = "DROP TABLE " + stringz.BacktickQuote(tbl.Table)
+		stmt = "DROP TABLE " + tblfmt(tbl)
 	}
 
 	_, err := db.ExecContext(ctx, stmt)

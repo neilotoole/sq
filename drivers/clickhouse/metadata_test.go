@@ -93,6 +93,11 @@ func TestKindFromClickHouseType(t *testing.T) {
 		{"Date32", kind.Date},
 		{"DateTime", kind.Datetime},
 		{"DateTime64", kind.Datetime},
+		{"DateTime64(3)", kind.Datetime},       // Millisecond precision
+		{"DateTime64(6)", kind.Datetime},       // Microsecond precision
+		{"DateTime64(9)", kind.Datetime},       // Nanosecond precision
+		{"DateTime64(3,'UTC')", kind.Datetime}, // With timezone
+		{"DateTime('UTC')", kind.Datetime},     // DateTime with timezone
 
 		// UUID
 		{"UUID", kind.Text},

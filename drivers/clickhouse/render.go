@@ -3,10 +3,38 @@ package clickhouse
 import (
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/tablefq"
 )
+
+// tblfmt renders a table reference as a backtick-quoted identifier
+// suitable for use in ClickHouse SQL statements. It accepts either
+// a plain string table name or a [tablefq.T] fully-qualified table
+// reference. When the input includes schema or catalog qualifiers,
+// they are preserved in the output (e.g. "`mydb`.`mytable`").
+//
+// ClickHouse uses backtick quoting for identifiers, the same
+// convention as MySQL. The [stringz.BacktickQuote] function escapes
+// any embedded backticks by doubling them.
+//
+// This helper mirrors the tblfmt functions in the postgres, mysql,
+// and sqlserver drivers, ensuring that DDL/DML operations such as
+// [driveri.DropTable] and [driveri.CopyTable] correctly render
+// schema-qualified table names rather than silently discarding
+// the catalog/schema components.
+//
+// Examples:
+//
+//	tblfmt("actors")                              -> "`actors`"
+//	tblfmt(tablefq.T{Table: "actors"})            -> "`actors`"
+//	tblfmt(tablefq.T{Schema: "db", Table: "t"})   -> "`db`.`t`"
+func tblfmt[T string | tablefq.T](tbl T) string {
+	tfq := tablefq.From(tbl)
+	return tfq.Render(stringz.BacktickQuote)
+}
 
 // dbTypeNameFromKind maps sq kind.Kind values to ClickHouse type names for use
 // in CREATE TABLE statements and other DDL operations.
@@ -125,26 +153,50 @@ func buildCreateTableStmt(tblDef *schema.Table) string {
 }
 
 // buildUpdateStmt builds an UPDATE statement using ClickHouse's ALTER TABLE
-// UPDATE syntax.
+// UPDATE syntax. It returns an error if cols is empty, matching the
+// behavior of the equivalent function in the postgres, mysql, sqlite3,
+// and sqlserver drivers.
 //
-// ClickHouse does not support standard SQL UPDATE statements. Instead, row-level
-// updates are performed using ALTER TABLE ... UPDATE, which is an asynchronous
-// mutation operation. These updates:
+// ClickHouse does not support standard SQL UPDATE statements. Instead,
+// row-level updates are performed using ALTER TABLE ... UPDATE, which
+// is an asynchronous mutation operation. These updates:
 //
-//   - Are processed in the background by ClickHouse
-//   - May take time to complete depending on data volume
-//   - Are eventually consistent (not immediately visible)
-//   - Cannot be rolled back once started
+//   - Are processed in the background by ClickHouse.
+//   - May take time to complete depending on data volume.
+//   - Are eventually consistent (not immediately visible).
+//   - Cannot be rolled back once started.
+//
+// The caller ([driveri.PrepareUpdateStmt]) appends
+// "SETTINGS mutations_sync = 1" to force synchronous execution.
+//
+// A WHERE clause is always emitted. When the where parameter is empty,
+// the literal "1" (always-true) is used because ClickHouse requires
+// a WHERE clause in ALTER TABLE ... UPDATE. Without it, any appended
+// SETTINGS clause would land in an invalid syntactic position.
 //
 // Generated SQL format:
 //
-//	ALTER TABLE `table_name` UPDATE `col1` = ?, `col2` = ? [WHERE condition]
+//	ALTER TABLE `tbl` UPDATE `col1` = ?, `col2` = ? WHERE <condition>
+//
+// Example outputs:
+//
+//	buildUpdateStmt("actors", ["name"], "id = 1")
+//	  -> "ALTER TABLE `actors` UPDATE `name` = ? WHERE id = 1"
+//
+//	buildUpdateStmt("actors", ["name", "age"], "")
+//	  -> "ALTER TABLE `actors` UPDATE `name` = ?, `age` = ? WHERE 1"
 //
 // Parameters:
-//   - tbl: Table name to update
-//   - cols: Column names to set (values provided via ? placeholders)
-//   - where: WHERE clause without the "WHERE" keyword (empty for no filter)
-func buildUpdateStmt(tbl string, cols []string, where string) string {
+//   - tbl: table name to update (backtick-quoted in the output).
+//   - cols: column names to set; must be non-empty. Each column gets
+//     a positional "?" placeholder for the value.
+//   - where: WHERE clause body without the "WHERE" keyword. Pass ""
+//     to update all rows (emits "WHERE 1").
+func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
+	if len(cols) == 0 {
+		return "", errz.Errorf("no columns provided")
+	}
+
 	sb := strings.Builder{}
 	sb.WriteString("ALTER TABLE ")
 	sb.WriteString(stringz.BacktickQuote(tbl))
@@ -167,5 +219,5 @@ func buildUpdateStmt(tbl string, cols []string, where string) string {
 		sb.WriteString("1")
 	}
 
-	return sb.String()
+	return sb.String(), nil
 }
