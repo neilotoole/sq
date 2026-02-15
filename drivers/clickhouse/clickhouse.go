@@ -209,13 +209,14 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 //   - Joins: Supports all standard join types
 func (d *driveri) Dialect() dialect.Dialect {
 	return dialect.Dialect{
-		Type:           Type,
-		Placeholders:   placeholders,
-		Enquote:        stringz.BacktickQuote,
-		ExecModeFor:    dialect.DefaultExecModeFor,
-		MaxBatchValues: 10000,
-		Ops:            dialect.DefaultOps(),
-		Joins:          jointype.All(),
+		Type:                      Type,
+		Placeholders:              placeholders,
+		Enquote:                   stringz.BacktickQuote,
+		ExecModeFor:               dialect.DefaultExecModeFor,
+		MaxBatchValues:            10000,
+		Ops:                       dialect.DefaultOps(),
+		Joins:                     jointype.All(),
+		IsRowsAffectedUnsupported: true,
 	}
 }
 

@@ -40,15 +40,6 @@ const RowsAffectedUnsupported int64 = -1
 // all fields appropriately. See the driver packages (e.g., postgres, mysql)
 // for examples.
 type Dialect struct {
-	// TODO: Consider adding a bool field "RowsAffectedUnsupported" to indicate
-	// whether the dialect cannot report rows affected for bulk operations like
-	// INSERT ... SELECT. Some databases (e.g., ClickHouse) cannot report row
-	// counts for these operations, and currently this is handled by returning
-	// dialect.RowsAffectedUnsupported (-1) from methods like SQLDriver.CopyTable.
-	// Using "RowsAffectedUnsupported" (rather than "CanReportRowsAffected") means
-	// the zero value (false) represents the common case where rows ARE reported,
-	// following Go idioms for sensible zero values.
-
 	// Placeholders returns a string a SQL placeholders string.
 	// For example "(?, ?, ?)" or "($1, $2, $3), ($4, $5, $6)".
 	Placeholders func(numCols, numRows int) string
@@ -90,6 +81,16 @@ type Dialect struct {
 	// and schema (sakila.public.actor), whereas MySQL only supports schema
 	// (sakila.actor).
 	Catalog bool
+
+	// IsRowsAffectedUnsupported indicates that this dialect does not reliably
+	// report rows affected for DML operations via sql.Result.RowsAffected().
+	// When true, callers should treat a 0 return from ExecSQL as "unknown"
+	// rather than "zero rows". For example, ClickHouse always returns 0 for
+	// INSERT, UPDATE, and DELETE operations due to protocol-level limitations.
+	// The field name uses "Unsupported" (rather than "CanReportRowsAffected")
+	// so that the zero value (false) represents the common case where rows
+	// ARE reported, following Go idioms for sensible zero values.
+	IsRowsAffectedUnsupported bool
 }
 
 // String returns a log/debug-friendly representation.

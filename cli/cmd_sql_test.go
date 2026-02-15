@@ -14,6 +14,7 @@ import (
 	"github.com/neilotoole/sq/drivers/userdriver"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
@@ -73,8 +74,9 @@ func TestCmdSQL_ExecMode(t *testing.T) {
 			createSQL: "CREATE TABLE test_exec_type (id Int32, name String)" +
 				" ENGINE = MergeTree() ORDER BY id" +
 				" SETTINGS enable_block_number_column = 1, enable_block_offset_column = 1",
-			// ClickHouse always returns 0 for rows affected on DML.
-			wantDMLRowsAffected: 0,
+			// ClickHouse does not report rows affected for DML. The CLI
+			// intercepts the raw 0 from the protocol and converts it to -1.
+			wantDMLRowsAffected: dialect.RowsAffectedUnsupported,
 		},
 	}
 
@@ -358,8 +360,9 @@ func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 			createSQL: "CREATE TABLE test_edge_cases (id Int32, name String)" +
 				" ENGINE = MergeTree() ORDER BY id" +
 				" SETTINGS enable_block_number_column = 1, enable_block_offset_column = 1",
-			// ClickHouse always returns 0 for rows affected on DML.
-			wantDMLRowsAffected: 0,
+			// ClickHouse does not report rows affected for DML. The CLI
+			// intercepts the raw 0 from the protocol and converts it to -1.
+			wantDMLRowsAffected: dialect.RowsAffectedUnsupported,
 		},
 	}
 
