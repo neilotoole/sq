@@ -21,11 +21,12 @@ import (
 
 // NewBatchInsert implements driver.SQLDriver. It uses clickhouse-go's native
 // Batch API (PrepareBatch/Append/Send) instead of the standard multi-row
-// INSERT approach, which doesn't work with clickhouse-go due to its
-// single-row parameter binding requirement.
+// INSERT approach (see driver.DefaultNewBatchInsert), which doesn't work with
+// clickhouse-go due to its single-row parameter binding requirement.
 func (d *driveri) NewBatchInsert(ctx context.Context, msg string, db sqlz.DB,
-	src *source.Source, destTbl string, destColNames []string, batchSize int,
+	src *source.Source, destTbl string, destColNames []string,
 ) (*driver.BatchInsert, error) {
+	batchSize := d.Dialect().MaxBatchValues
 	if err := sqlz.RequireSingleConn(db); err != nil {
 		return nil, err
 	}

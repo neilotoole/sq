@@ -11,9 +11,6 @@ import (
 )
 
 func TestNewBatchInsert(t *testing.T) {
-	// This value is chosen as it's not a neat divisor of 200 (sakila.TblActorSize).
-	const batchSize = 70
-
 	for _, handle := range sakila.SQLAll() {
 		t.Run(handle, func(t *testing.T) {
 			th, src, drvr, _, db := testh.NewWith(t, handle)
@@ -34,7 +31,6 @@ func TestNewBatchInsert(t *testing.T) {
 				src,
 				tblName,
 				recMeta.Names(),
-				batchSize,
 			)
 			require.NoError(t, err)
 

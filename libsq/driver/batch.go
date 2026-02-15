@@ -17,12 +17,11 @@ import (
 // BatchInsert encapsulates inserting records to a db. The caller sends
 // (munged) records on recCh; the record values should be munged via
 // the Munge method prior to sending. Records are written to db in
-// batches of batchSize as passed to NewBatchInsert (the final batch may
-// be less than batchSize). The caller must close recCh to indicate that
-// all records have been sent, or cancel the ctx passed to
-// NewBatchInsert to stop the insertion goroutine. Any error is returned
-// on errCh. Processing is complete when errCh is closed: the caller
-// must select on errCh.
+// batches (the final batch may be smaller). The caller must close recCh
+// to indicate that all records have been sent, or cancel the ctx passed
+// to NewBatchInsert to stop the insertion goroutine. Any error is
+// returned on errCh. Processing is complete when errCh is closed: the
+// caller must select on errCh.
 type BatchInsert struct {
 	// RecordCh is the channel that the caller sends records on. The
 	// caller must close RecordCh when done.
@@ -94,13 +93,20 @@ func NewBatchInsert(recCh chan<- []any, errCh <-chan error,
 //
 //nolint:gocognit
 func DefaultNewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
-	destTbl string, destColNames []string, batchSize int,
+	destTbl string, destColNames []string,
 ) (*BatchInsert, error) {
 	log := lg.FromContext(ctx)
 
 	if err := sqlz.RequireSingleConn(db); err != nil {
 		return nil, err
 	}
+
+	// Compute the max rows per batch from the driver's MaxBatchValues limit
+	// (total placeholder count) divided by the number of columns, rounded up.
+	// For example, with MaxBatchValues=1000 and 4 columns, batchSize is 250.
+	batchSize := int(math.Ceil(
+		float64(drvr.Dialect().MaxBatchValues) / float64(len(destColNames)),
+	))
 
 	pbar := progress.FromContext(ctx).NewUnitCounter(msg, "rec")
 
@@ -231,11 +237,4 @@ func DefaultNewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db s
 	}()
 
 	return bi, nil
-}
-
-// MaxBatchRows returns the maximum number of rows allowed for a
-// batch insert for drvr. Note that the returned value may differ
-// for each database driver.
-func MaxBatchRows(drvr SQLDriver, numCols int) int {
-	return int(math.Ceil(float64(drvr.Dialect().MaxBatchValues) / float64(numCols)))
 }

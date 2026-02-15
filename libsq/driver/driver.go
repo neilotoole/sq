@@ -129,10 +129,11 @@ type SQLDriver interface {
 	// logic (e.g. ClickHouse's native Batch API) implement their own
 	// method using the lower-level NewBatchInsert constructor. The src
 	// arg provides access to the source DSN, which some drivers need
-	// to open native connections.
+	// to open native connections. Batch size is computed internally
+	// by each driver.
 	NewBatchInsert(ctx context.Context, msg string, db sqlz.DB,
 		src *source.Source, destTbl string, destColNames []string,
-		batchSize int) (*BatchInsert, error)
+	) (*BatchInsert, error)
 
 	// PrepareUpdateStmt prepares a statement for updating destColNames in
 	// destTbl, using the supplied where clause (which may be empty).
