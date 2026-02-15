@@ -168,6 +168,8 @@ func TestOutputRaw(t *testing.T) {
 			t.Parallel()
 
 			th, src, _, _, _ := testh.NewWith(t, handle)
+			tu.SkipIf(t, src.Type == drivertype.ClickHouse,
+				"ClickHouse: kind.Bytes roundtrips as kind.Text (see drivers/clickhouse/README.md Known Limitation #4)")
 
 			// Sanity check
 			wantBytes := proj.ReadFile(fixt.GopherPath)
