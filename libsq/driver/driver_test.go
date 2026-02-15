@@ -217,16 +217,6 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
 
 			th, src, drvr, _, db := testh.NewWith(t, handle)
 
-			// ClickHouse Skip: The clickhouse-go driver's PrepareContext() only
-			// supports INSERT and SELECT statements. ClickHouse uses
-			// "ALTER TABLE ... UPDATE" syntax instead of standard UPDATE, but
-			// PrepareContext() rejects this with "invalid INSERT query" because
-			// the driver misclassifies non-SELECT statements as INSERTs.
-			// Direct execution via ExecContext() works, but PrepareUpdateStmt
-			// relies on PrepareContext(). See README.md "Development Log".
-			tu.SkipIf(t, drvr.DriverMetadata().Type == drivertype.ClickHouse,
-				"ClickHouse: PrepareContext doesn't support ALTER TABLE UPDATE")
-
 			tblName := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
 
 			const (
@@ -246,7 +236,19 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
 
 			affected, err := stmtExecer.Exec(th.Context, args...)
 			require.NoError(t, err)
-			assert.Equal(t, int64(1), affected)
+			if drvr.DriverMetadata().Type == drivertype.ClickHouse {
+				// ClickHouse mutations (ALTER TABLE UPDATE) are asynchronous
+				// by default and do not report rows affected: RowsAffected()
+				// always returns 0 regardless of how many rows were actually
+				// modified. The driver's PrepareUpdateStmt appends
+				// "SETTINGS mutations_sync = 1" to force synchronous execution
+				// (so the data is updated before the SELECT below), but
+				// RowsAffected() still returns 0.
+				// See https://github.com/ClickHouse/clickhouse-go/issues/1203
+				assert.Equal(t, int64(0), affected)
+			} else {
+				assert.Equal(t, int64(1), affected)
+			}
 
 			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tblName+" WHERE actor_id = 1")
 

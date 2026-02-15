@@ -137,7 +137,8 @@ The following capabilities are fully functional with ClickHouse:
 - **Table Engine**: MergeTree required. SQ uses
   `ENGINE = MergeTree()` with `ORDER BY` on first column.
 - **Updates**: Uses `ALTER TABLE ... UPDATE` syntax (not standard
-  UPDATE).
+  UPDATE). See [Synchronous vs Asynchronous
+  Operations](#synchronous-vs-asynchronous-operations) below.
 - **Schema/Catalog**: ClickHouse "database" maps to SQ
   schema/catalog concepts.
 - **System Tables**: Metadata from `system.databases`,
@@ -146,6 +147,146 @@ The following capabilities are fully functional with ClickHouse:
   (`engine='MaterializedView'`).
 - **Type System**: Separate signed/unsigned integers; no implicit
   coercion; `FixedString(N)`; native Bool.
+
+### Synchronous vs Asynchronous Operations
+
+ClickHouse differs fundamentally from traditional SQL databases in
+how it handles write operations. Understanding which operations are
+synchronous and which are asynchronous is critical, because an
+asynchronous operation may return successfully while the data
+remains unmodified — a subsequent `SELECT` can return stale
+(pre-mutation) results.
+
+#### Operations Overview
+
+<!-- markdownlint-disable MD013 MD060 -->
+| Operation | SQL Form | Sync by Default? | sq Behavior |
+|-----------|----------|-------------------|-------------|
+| Batch insert | `INSERT INTO ... VALUES` | Yes | Synchronous (native Batch API) |
+| Single-row insert | `INSERT INTO ... VALUES` | Yes | Synchronous (prepared statement) |
+| Copy table | `INSERT INTO ... SELECT` | Yes | Synchronous |
+| Update | `ALTER TABLE ... UPDATE` | **No** | Forced synchronous (`mutations_sync = 1`) |
+| Delete | `ALTER TABLE ... DELETE` | **No** | Not implemented in sq |
+| DDL (CREATE, DROP, TRUNCATE) | Standard DDL | Yes | Synchronous |
+<!-- markdownlint-enable MD013 MD060 -->
+
+#### Inserts Are Synchronous
+
+ClickHouse inserts are **synchronous by default**. When an `INSERT`
+statement completes, the data is written and immediately visible to
+subsequent queries. This applies to all insert paths used by sq:
+
+- **Batch inserts** via clickhouse-go's native Batch API
+  (`PrepareBatch`/`Append`/`Send`): the `Send()` call blocks until
+  the server confirms the data is written.
+- **Single-row prepared inserts** via `PrepareInsertStmt`: each
+  `ExecContext()` call blocks until the row is written.
+- **Copy table** via `INSERT INTO ... SELECT`: the statement blocks
+  until all rows are copied.
+
+> **Note on `async_insert`**: ClickHouse has a server-side setting
+> called
+> [`async_insert`](https://clickhouse.com/docs/en/operations/settings/settings#async-insert)
+> that, when enabled, buffers inserts and commits them
+> asynchronously for higher throughput. If a ClickHouse server has
+> `async_insert = 1` enabled, inserts from sq would also be
+> affected — the `INSERT` would return before data is visible. This
+> is a server-level configuration choice; sq does not set or
+> override this setting. By default, `async_insert` is disabled
+> (`0`), and inserts are synchronous.
+
+#### Mutations Are Asynchronous (By Default)
+
+ClickHouse does not support standard SQL `UPDATE` or `DELETE`.
+Instead, it uses "lightweight mutations":
+
+```sql
+ALTER TABLE t UPDATE col = value WHERE condition
+ALTER TABLE t DELETE WHERE condition
+```
+
+**Mutations are asynchronous by default.** When the
+`ALTER TABLE ... UPDATE` statement returns, it has only _submitted_
+the mutation to ClickHouse's mutation queue. The actual data
+modification happens in the background. This means:
+
+1. The statement returns immediately, before any rows are modified.
+2. A `SELECT` issued right after the `ALTER TABLE ... UPDATE` may
+   return the **old (pre-mutation) data**.
+3. `RowsAffected()` always returns `0`, regardless of how many rows
+   were actually modified. ClickHouse does not track or report
+   affected row counts for mutations.
+
+This behavior is fundamental to ClickHouse's architecture.
+Mutations rewrite entire data parts (analogous to an LSM
+compaction), so they are intentionally deferred and batched.
+
+##### How sq Forces Synchronous Mutations
+
+sq's `PrepareUpdateStmt` appends `SETTINGS mutations_sync = 1` to
+every `ALTER TABLE ... UPDATE` query:
+
+```sql
+ALTER TABLE `t` UPDATE `col` = ? WHERE condition
+    SETTINGS mutations_sync = 1
+```
+
+The
+[`mutations_sync`](https://clickhouse.com/docs/en/operations/settings/settings#mutations_sync)
+setting controls whether the statement waits for the mutation to
+complete:
+
+<!-- markdownlint-disable MD013 MD060 -->
+| Value | Behavior |
+|-------|----------|
+| `0` (default) | Asynchronous: returns immediately, mutation runs in background |
+| `1` | Synchronous: waits for mutation to complete on the current replica |
+| `2` | Synchronous + replicated: waits for mutation on all replicas |
+<!-- markdownlint-enable MD013 MD060 -->
+
+sq uses `mutations_sync = 1` to ensure that when
+`PrepareUpdateStmt` returns, the data has been modified and is
+visible to subsequent queries.
+
+**Even with `mutations_sync = 1`, `RowsAffected()` still returns
+`0`.** This is a ClickHouse limitation — the mutation completes
+synchronously, but the server does not report how many rows were
+affected. sq accounts for this by returning `0` from the
+`StmtExecer` and the test suite asserts `affected == 0` for
+ClickHouse.
+
+##### Why PrepareContext Cannot Be Used
+
+clickhouse-go v2's `PrepareContext()` internally classifies every
+non-`SELECT` statement as an `INSERT` and validates it accordingly.
+An `ALTER TABLE ... UPDATE` statement is rejected with the error
+`"invalid INSERT query"`. This is an upstream limitation:
+[clickhouse-go#1203](https://github.com/ClickHouse/clickhouse-go/issues/1203).
+
+sq works around this by bypassing `PrepareContext()` entirely. The
+`PrepareUpdateStmt` method constructs a `StmtExecFunc` closure that
+calls `db.ExecContext()` directly, and passes `nil` for the
+prepared statement to `NewStmtExecer`. The `StmtExecer.Close()`
+method is nil-safe to support this pattern.
+
+#### DDL Is Synchronous
+
+DDL operations (`CREATE TABLE`, `DROP TABLE`, `TRUNCATE TABLE`,
+`ALTER TABLE ... ADD COLUMN`) are synchronous in ClickHouse. The
+statement blocks until the schema change is complete. sq calls
+these via `ExecContext()` directly, with no special handling needed.
+
+#### Comparison with Other Databases
+
+<!-- markdownlint-disable MD013 MD060 -->
+| Database | UPDATE Sync? | INSERT Sync? | RowsAffected for UPDATE? |
+|----------|-------------|-------------|--------------------------|
+| PostgreSQL | Yes | Yes | Yes (accurate count) |
+| MySQL | Yes | Yes | Yes (accurate count) |
+| SQLite | Yes | Yes | Yes (accurate count) |
+| SQL Server | Yes | Yes | Yes (accurate count) |
+| **ClickHouse** | **No** (forced via `mutations_sync = 1`) | Yes (unless `async_insert` is enabled) | **No** (always returns `0`) |
+<!-- markdownlint-enable MD013 MD060 -->
 
 ## Testing
 
@@ -176,13 +317,13 @@ between ClickHouse and traditional SQL databases. This understanding
 may be incomplete or incorrect; contributions and corrections are
 welcome.
 
-### Summary
+### Limitations Overview
 
 <!-- markdownlint-disable MD013 MD060 -->
 | # | Limitation                          | Category      | Severity | Workaround                          |
 |---|-------------------------------------|---------------|----------|-------------------------------------|
 | 1 | ~~Batch insert connection corruption~~ | Insert      | ~~High~~ | **Resolved**: native Batch API      |
-| 2 | PrepareUpdateStmt not supported     | Update/Delete | High     | Tests skipped                       |
+| 2 | ~~PrepareUpdateStmt not supported~~ | Update/Delete | ~~High~~ | **Resolved**: ExecContext workaround |
 | 3 | Standard UPDATE/DELETE not supported | Update/Delete | Medium   | Tests skipped                       |
 | 4 | Type roundtrip issues               | Types         | Low      | Tests skipped                       |
 | 5 | CopyTable row count unsupported     | Metadata      | Low      | Handled in CLI                      |
@@ -316,48 +457,45 @@ Key design decisions:
 
 ### Update/Delete Limitations
 
-#### 2. PrepareUpdateStmt Not Supported
+#### 2. PrepareUpdateStmt (RESOLVED)
 
 Reference: <https://github.com/ClickHouse/clickhouse-go/issues/1203>
 
-ClickHouse uses `ALTER TABLE ... UPDATE` syntax instead of standard
-SQL `UPDATE`. The `PrepareUpdateStmt` method in `clickhouse.go:816`
-correctly generates this syntax via `buildUpdateStmt()` (defined in
-`render.go:147`), producing statements of the form:
+**Status**: Resolved. The ClickHouse driver's `PrepareUpdateStmt`
+now bypasses `PrepareContext()` and uses `ExecContext()` directly
+via a custom `StmtExecFunc` closure. A `nil` stmt is passed to
+`NewStmtExecer` (the `Close()` method is nil-safe).
 
-```sql
-ALTER TABLE `table_name` UPDATE `col1` = ?, `col2` = ? WHERE condition
-```
+Previously, `PrepareUpdateStmt` called `db.PrepareContext(ctx, query)`
+which failed because clickhouse-go v2 internally classifies every
+non-`SELECT` statement as an `INSERT` and rejects
+`ALTER TABLE ... UPDATE` with `"invalid INSERT query"`.
 
-However, the call to `db.PrepareContext(ctx, query)` at line 826
-fails because `clickhouse-go` v2's `PrepareContext()` internally
-classifies every non-`SELECT` statement as an `INSERT` and validates
-it accordingly. An `ALTER TABLE ... UPDATE` statement is rejected
-with the error `"invalid INSERT query"`.
+The workaround follows the same pattern used by other ClickHouse
+DDL/DML operations in the driver (`CreateTable`, `Truncate`,
+`AlterTableAddColumn`), which all call `ExecContext()` directly.
 
-**Why direct execution works.** Other ClickHouse DDL/DML operations
-in the driver (`CreateTable`, `Truncate`, `DropSchema`,
-`AlterTableAddColumn`) succeed because they call `ExecContext()`
-directly, bypassing the prepared-statement code path entirely.
-`PrepareUpdateStmt` cannot do the same because it relies on
-`PrepareContext()` for parameter binding.
+##### Asynchronous Mutations and RowsAffected
 
-**Impact scope.** `PrepareUpdateStmt` is only invoked in two
-places:
+ClickHouse mutations (`ALTER TABLE ... UPDATE`) are asynchronous
+by default: the statement returns immediately, before the data is
+actually modified. A subsequent `SELECT` may still return stale
+(pre-mutation) data. To ensure the mutation completes before the
+method returns, the query appends `SETTINGS mutations_sync = 1`,
+which forces synchronous execution.
 
-- `TestSQLDriver_PrepareUpdateStmt` in
-  `libsq/driver/driver_test.go:211` (skipped for ClickHouse).
-- `drivers/userdriver/xmlud/xmlud.go:515`, the experimental XML
-  user driver, which is unlikely to be used with a ClickHouse
-  source.
+Even with `mutations_sync = 1`, ClickHouse does not report the
+number of rows affected by a mutation. The
+`sql.Result.RowsAffected()` value returned by the driver is always
+0, regardless of how many rows were actually modified. The
+`StmtExecer` therefore always returns 0 for affected rows. The
+test `TestSQLDriver_PrepareUpdateStmt` accounts for this by
+asserting `affected == 0` for ClickHouse (vs `affected == 1` for
+other databases).
 
-Normal `sq sql "ALTER TABLE ... UPDATE ..."` commands work fine
-because they go through direct execution, not prepared statements.
+Previously-skipped test that is now enabled:
 
-**Upstream issue:**
-[clickhouse-go#1203](https://github.com/ClickHouse/clickhouse-go/issues/1203).
-
-**Status**: `TestSQLDriver_PrepareUpdateStmt` is **skipped**.
+- `TestSQLDriver_PrepareUpdateStmt` — update via prepared statement
 
 #### 3. Standard UPDATE/DELETE Not Supported
 
@@ -485,7 +623,7 @@ When a ClickHouse query returns `Array(String)` data:
 | After conversion   | `"Action,Drama"`              | `string`    |
 | In sq record       | `"Action,Drama"`              | `kind.Text` |
 
-### Comparison with Other Databases
+### Array Support Across Databases
 
 | Database       | Array Support           | sq Handling             |
 |----------------|-------------------------|-------------------------|
@@ -590,11 +728,24 @@ architectural details.
 
 **Status**: Resolved.
 
-### PrepareUpdateStmt Failure (2026-01-19)
+### PrepareUpdateStmt Failure (2026-01-19, resolved 2026-02-14)
 
 clickhouse-go's `PrepareContext()` only supports INSERT and SELECT.
-`ALTER TABLE ... UPDATE` is rejected as "invalid INSERT query". Direct
-`ExecContext()` works but `PrepareUpdateStmt` requires
-`PrepareContext()` for parameter binding.
+`ALTER TABLE ... UPDATE` is rejected as "invalid INSERT query".
+Resolved by bypassing `PrepareContext()` and using `ExecContext()`
+directly via a custom `StmtExecFunc` closure, passing `nil` for the
+stmt parameter. `StmtExecer.Close()` was made nil-safe to support
+this.
 
-**Status**: Tests skipped. See Known Limitation #4.
+ClickHouse mutations are asynchronous by default: the statement
+returns immediately, before data is modified. Without
+`mutations_sync = 1`, a subsequent `SELECT` returns stale data.
+The fix appends `SETTINGS mutations_sync = 1` to the query so the
+mutation completes synchronously. Even so, `RowsAffected()` always
+returns 0 for ClickHouse mutations — the driver does not track
+affected row counts. The test asserts `affected == 0` for
+ClickHouse accordingly.
+
+See Known Limitation #2 for full details.
+
+**Status**: Resolved.

@@ -95,8 +95,16 @@ func (x *StmtExecer) Exec(ctx context.Context, args ...any) (affected int64, err
 	return x.execFn(ctx, args...)
 }
 
-// Close closes x's statement.
+// Close closes x's statement. It is nil-safe: if stmt is nil, Close
+// is a no-op. This supports drivers (e.g. ClickHouse) that bypass
+// PrepareContext() and pass nil for stmt to NewStmtExecer. ClickHouse
+// mutations (ALTER TABLE UPDATE) are asynchronous and RowsAffected()
+// returns 0; the driver uses ExecContext() directly instead of a
+// prepared statement, so stmt is nil.
 func (x *StmtExecer) Close() error {
+	if x.stmt == nil {
+		return nil
+	}
 	return errz.Err(x.stmt.Close())
 }
 

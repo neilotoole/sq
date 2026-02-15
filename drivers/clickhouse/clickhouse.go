@@ -807,7 +807,28 @@ func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl str
 //
 // Note: ClickHouse does not support standard SQL UPDATE statements. Instead,
 // this uses ALTER TABLE ... UPDATE syntax, which is ClickHouse's mechanism for
-// row-level updates. These updates are asynchronous and eventually consistent.
+// row-level updates.
+//
+// ClickHouse mutations are asynchronous by default: the ALTER TABLE UPDATE
+// statement returns immediately, before the data is actually modified. A
+// subsequent SELECT may still return stale (pre-mutation) data. To ensure
+// the mutation completes before this method returns, the query appends
+// SETTINGS mutations_sync = 1, which forces synchronous execution.
+//
+// Even with mutations_sync = 1, ClickHouse does not report the number of
+// rows affected by a mutation. The sql.Result.RowsAffected() value returned
+// by the driver is always 0. The returned StmtExecer therefore always
+// returns 0 for affected rows, not the actual count.
+//
+// Implementation detail: clickhouse-go v2's PrepareContext() only supports
+// INSERT and SELECT statements. It internally classifies every non-SELECT
+// statement as INSERT and validates accordingly, rejecting ALTER TABLE UPDATE
+// with "invalid INSERT query".
+// See https://github.com/ClickHouse/clickhouse-go/issues/1203.
+// This method bypasses
+// PrepareContext() entirely and calls ExecContext() directly via a custom
+// StmtExecFunc closure. A nil stmt is passed to NewStmtExecer; the
+// StmtExecer.Close() method is nil-safe to support this pattern.
 //
 // Parameters:
 //   - destTbl: The target table name
@@ -823,13 +844,33 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 
 	query := buildUpdateStmt(destTbl, destColNames, where)
 
-	stmt, err := db.PrepareContext(ctx, query)
-	if err != nil {
-		return nil, errw(err)
+	// ClickHouse mutations (ALTER TABLE UPDATE) are asynchronous by default:
+	// the statement returns immediately, before the data is actually modified.
+	// Without mutations_sync=1, a subsequent SELECT may return stale
+	// (pre-mutation) data. Append SETTINGS mutations_sync=1 so the mutation
+	// completes synchronously before ExecContext returns.
+	query += " SETTINGS mutations_sync = 1"
+
+	// clickhouse-go's PrepareContext only supports INSERT/SELECT,
+	// rejecting ALTER TABLE UPDATE with "invalid INSERT query".
+	// See https://github.com/ClickHouse/clickhouse-go/issues/1203
+	// Bypass PrepareContext and use ExecContext directly.
+	execFn := func(ctx context.Context, args ...any) (int64, error) {
+		_, err := db.ExecContext(ctx, query, args...)
+		if err != nil {
+			return 0, errw(err)
+		}
+		// ClickHouse does not report rows affected for mutations:
+		// RowsAffected() always returns 0 regardless of how many rows
+		// were actually modified. Return 0 unconditionally.
+		return 0, nil
 	}
 
-	execer := driver.NewStmtExecer(stmt, driver.DefaultInsertMungeFunc(destTbl, destColsMeta), newStmtExecFunc(stmt),
-		destColsMeta)
+	// Pass nil for stmt because we bypass PrepareContext() (see above).
+	// StmtExecer.Close() is nil-safe to support this.
+	execer := driver.NewStmtExecer(nil,
+		driver.DefaultInsertMungeFunc(destTbl, destColsMeta),
+		execFn, destColsMeta)
 	return execer, nil
 }
 
