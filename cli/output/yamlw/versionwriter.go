@@ -38,9 +38,12 @@ func (w *versionWriter) Version(bi buildinfo.Info, latestVersion string, hi host
 	cbi := cliBuildInfo{
 		Version:       bi.Version,
 		Commit:        bi.Commit,
-		Timestamp:     w.pr.FormatDatetime(bi.Timestamp),
 		LatestVersion: latestVersion,
 		Host:          hi,
+	}
+
+	if !bi.Timestamp.IsZero() {
+		cbi.Timestamp = w.pr.FormatDatetime(bi.Timestamp)
 	}
 
 	return writeYAML(w.out, w.p, cbi)

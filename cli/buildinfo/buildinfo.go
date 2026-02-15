@@ -35,9 +35,10 @@ var (
 
 // Info encapsulates Version, Commit and Timestamp.
 type Info struct { //nolint:govet // field alignment
-	Version   string    `json:"version" yaml:"version"`
-	Commit    string    `json:"commit,omitempty" yaml:"commit,omitempty"`
-	Timestamp time.Time `json:"timestamp,omitempty" yaml:"timestamp,omitempty"`
+	Version string `json:"version" yaml:"version"`
+	Commit  string `json:"commit,omitempty" yaml:"commit,omitempty"`
+	//nolint:revive // revive doesn't recognize yaml omitzero yet
+	Timestamp time.Time `json:"timestamp,omitzero" yaml:"timestamp,omitzero"`
 }
 
 // String returns a string representation of Info.

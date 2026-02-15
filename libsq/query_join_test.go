@@ -42,7 +42,6 @@ func TestQuery_join_args(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			execQueryTestCase(t, tc)
 		})
@@ -137,7 +136,6 @@ func TestQuery_join_inner(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			execQueryTestCase(t, tc)
 		})
@@ -240,7 +238,6 @@ func TestQuery_join_multi_source(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			execQueryTestCase(t, tc)
 		})
@@ -362,7 +359,6 @@ func TestQuery_join_others(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			execQueryTestCase(t, tc)
 		})
@@ -430,7 +426,6 @@ func TestQuery_table_alias(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.name), func(t *testing.T) {
 			execQueryTestCase(t, tc)
 		})

@@ -84,13 +84,13 @@ func (c *Colors) Clone() *Colors {
 		ShowHeader: c.ShowHeader,
 	}
 
-	c2.CmdTitle = toPtr(*c.CmdTitle)
-	c2.Header = toPtr(*c.Header)
-	c2.Section = toPtr(*c.Section)
-	c2.SectionComment = toPtr(*c.SectionComment)
-	c2.Deletion = toPtr(*c.Deletion)
-	c2.Insertion = toPtr(*c.Insertion)
-	c2.Context = toPtr(*c.Context)
+	c2.CmdTitle = new(*c.CmdTitle)
+	c2.Header = new(*c.Header)
+	c2.Section = new(*c.Section)
+	c2.SectionComment = new(*c.SectionComment)
+	c2.Deletion = new(*c.Deletion)
+	c2.Insertion = new(*c.Insertion)
+	c2.Context = new(*c.Context)
 
 	return c2
 }
@@ -150,9 +150,4 @@ type codes struct {
 	insertion      colorz.Seqs
 	deletion       colorz.Seqs
 	context        colorz.Seqs
-}
-
-// toPtr returns a pointer copy of value.
-func toPtr[T any](x T) *T {
-	return &x
 }

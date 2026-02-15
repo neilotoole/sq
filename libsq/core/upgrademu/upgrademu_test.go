@@ -45,13 +45,11 @@ func Test_UpgradableLock(t *testing.T) {
 		m.UpgradableRLock()
 
 		waitGroup := sync.WaitGroup{}
-		for i := 0; i < 10; i++ {
-			waitGroup.Add(1)
-			go func() {
+		for range 10 {
+			waitGroup.Go(func() {
 				m.RLock()
-				defer m.RLock()
-				waitGroup.Done()
-			}()
+				defer m.RUnlock()
+			})
 		}
 		waitGroup.Wait()
 		m.UpgradableRUnlock()

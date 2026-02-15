@@ -12,6 +12,56 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## [v0.49.0] - 2026-02-14
+
+### Changed
+
+- [#470]: Previously, the `--src.schema=[CATALOG.]SCHEMA` flag did not allow
+  the schema or catalog name to begin with a digit. This is now permitted.
+  Kudos to [@majiayu000](https://github.com/majiayu000).
+
+  ```shell
+  # Inspect schema "123schema" via the @pg1 source
+  $ sq inspect @pg1 --src.schema=123schema
+
+  # Inspect schema "789schema" in catalog "456catalog" via the @pg1 source
+  $ sq inspect @pg1 --src.schema=456catalog.789schema
+  ```
+
+- [#542]: Upgrade codebase to Go 1.26.
+
+## [v0.48.12] - 2026-01-30
+
+🫡: This patch release addresses issues reported by [@Dialga](https://github.com/Dialga).
+
+### Fixed
+
+- [#532]: [`sq sql`](https://sq.io/docs/cmd/sql) now uses the
+  [`usql`](https://github.com/xo/usql) lib for SQL input mode determination
+  (does the SQL input execute a query or a statement?) replacing the custom
+  implementation introduced in `v0.48.11`. The `usql` impl is battle-tested:
+  there's no point reinventing that wheel.
+
+### Changed
+
+- [#531]: Several changes to `sq` version handling.
+  - [`sq version`](https://sq.io/docs/cmd/version) now returns faster by
+    reducing the update-check timeout from 2s to 500ms. Additionally, the
+    version check now uses the official
+    [homebrew-core formula][homebrew-core-formula] instead of the
+    [legacy tap][legacy-tap-formula]. There's still future work to be done here
+    to make it possible to configure or disable this update-check behavior.
+  - Relatedly, `sq` now warns instead of erroring when the config file's
+    `config.version` is newer than the `sq` build version. This allows users to
+    downgrade to older `sq` versions for testing or debugging, at the small risk
+    of config schema incompatibilities (which will likely error out). There's
+    future work to be done to improve how `sq` stamps the config schema version
+    in `sq.yml` (currently it uses the build version rather than tracking actual
+    config schema changes).
+
+[homebrew-core-formula]: https://raw.githubusercontent.com/Homebrew/homebrew-core/HEAD/Formula/s/sq.rb
+[legacy-tap-formula]: https://raw.githubusercontent.com/neilotoole/homebrew-sq/master/sq.rb
+
 ## [v0.48.11] - 2026-01-18
 
 ### Fixed
@@ -1297,10 +1347,14 @@ make working with lots of sources much easier.
 [#415]: https://github.com/neilotoole/sq/issues/415
 [#446]: https://github.com/neilotoole/sq/issues/446
 [#469]: https://github.com/neilotoole/sq/issues/469
+[#470]: https://github.com/neilotoole/sq/issues/470
 [#502]: https://github.com/neilotoole/sq/pull/502
 [#504]: https://github.com/neilotoole/sq/issues/504
 [#506]: https://github.com/neilotoole/sq/issues/506
 [#520]: https://github.com/neilotoole/sq/issues/520
+[#531]: https://github.com/neilotoole/sq/issues/531
+[#532]: https://github.com/neilotoole/sq/issues/532
+[#542]: https://github.com/neilotoole/sq/issues/542
 
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
@@ -1366,3 +1420,5 @@ make working with lots of sources much easier.
 [v0.48.5]: https://github.com/neilotoole/sq/compare/v0.48.4...v0.48.5
 [v0.48.10]: https://github.com/neilotoole/sq/compare/v0.48.5...v0.48.10
 [v0.48.11]: https://github.com/neilotoole/sq/compare/v0.48.10...v0.48.11
+[v0.48.12]: https://github.com/neilotoole/sq/compare/v0.48.11...v0.48.12
+[v0.49.0]: https://github.com/neilotoole/sq/compare/v0.48.12...v0.49.0

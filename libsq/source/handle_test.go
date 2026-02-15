@@ -31,7 +31,6 @@ func TestIsValidGroup(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			gotValid := source.IsValidGroup(tc.in)
 			require.Equal(t, tc.valid, gotValid)
@@ -71,7 +70,6 @@ func TestValidHandle(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			gotErr := source.ValidHandle(tc.in)
 			if tc.wantErr {
@@ -195,7 +193,6 @@ func TestSuggestHandle(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.typ, tc.loc), func(t *testing.T) {
 			set := &source.Collection{}
 			for i := range tc.taken {
@@ -335,8 +332,6 @@ func TestParseTableHandle(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
-
 		t.Run(fmt.Sprintf("[%d]__%s", i, tc.input), func(t *testing.T) {
 			handle, table, err := source.ParseTableHandle(tc.input)
 			if tc.valid {

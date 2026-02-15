@@ -58,8 +58,6 @@ func TestRecordWriter(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			recMeta, recs := testh.RecordsFromTbl(t, tc.handle, tc.tbl)

@@ -195,8 +195,6 @@ func TestRecordMetadata(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.tbl, func(t *testing.T) {
 			t.Parallel()
 
@@ -325,8 +323,6 @@ func BenchmarkGetTblRowCounts(b *testing.B) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		b.Run(tc.name, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				counts, err := tc.fn(th.Context, db, tblNames)

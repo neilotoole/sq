@@ -321,7 +321,7 @@ func BenchmarkTypeFieldsCache(b *testing.B) {
 	// Dynamically generate many new types.
 	types := make([]reflect.Type, maxTypes)
 	fs := []reflect.StructField{{
-		Type:  reflect.TypeOf(""),
+		Type:  reflect.TypeFor[string](),
 		Index: []int{0},
 	}}
 	for i := range types {
@@ -343,7 +343,7 @@ func BenchmarkTypeFieldsCache(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				clearCache()
 				var wg sync.WaitGroup
-				for j := 0; j < nc; j++ {
+				for j := range nc {
 					wg.Add(1)
 					go func(j int) {
 						for _, t := range ts[(j*len(ts))/nc : ((j+1)*len(ts))/nc] {

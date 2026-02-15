@@ -125,7 +125,7 @@ func (d *driveri) Dialect() dialect.Dialect {
 
 func placeholders(numCols, numRows int) string {
 	rows := make([]string, numRows)
-	for i := 0; i < numRows; i++ {
+	for i := range numRows {
 		rows[i] = "(" + stringz.RepeatJoin("?", numCols, driver.Comma) + ")"
 	}
 	return strings.Join(rows, driver.Comma)

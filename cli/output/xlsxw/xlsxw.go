@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	excelize "github.com/xuri/excelize/v2"
 
@@ -133,7 +132,7 @@ func (w *recordWriter) getDecimalStyle(dec decimal.Decimal) (int, error) {
 		style.NumFmt = builtinNumFmtTwoPlaces
 	default:
 		// We need to create a custom format string, such as 0.00000
-		style.CustomNumFmt = lo.ToPtr("0." + strings.Repeat("0", places))
+		style.CustomNumFmt = new("0." + strings.Repeat("0", places))
 	}
 
 	styleID, err := w.xfile.NewStyle(style)

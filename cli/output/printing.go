@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
 	"github.com/neilotoole/sq/libsq/core/ioz"
@@ -237,31 +236,31 @@ func (pr *Printing) Clone() *Printing {
 		Diff:                   pr.Diff.Clone(),
 	}
 
-	pr2.Active = lo.ToPtr(*pr.Active)
-	pr2.Bold = lo.ToPtr(*pr.Bold)
-	pr2.Bool = lo.ToPtr(*pr.Bool)
-	pr2.Bytes = lo.ToPtr(*pr.Bytes)
-	pr2.Datetime = lo.ToPtr(*pr.Datetime)
-	pr2.Disabled = lo.ToPtr(*pr.Disabled)
-	pr2.Duration = lo.ToPtr(*pr.Duration)
-	pr2.Enabled = lo.ToPtr(*pr.Enabled)
-	pr2.Error = lo.ToPtr(*pr.Error)
-	pr2.Faint = lo.ToPtr(*pr.Faint)
-	pr2.Handle = lo.ToPtr(*pr.Handle)
-	pr2.Header = lo.ToPtr(*pr.Header)
-	pr2.Hilite = lo.ToPtr(*pr.Hilite)
-	pr2.Key = lo.ToPtr(*pr.Key)
-	pr2.Location = lo.ToPtr(*pr.Location)
-	pr2.Null = lo.ToPtr(*pr.Null)
-	pr2.Normal = lo.ToPtr(*pr.Normal)
-	pr2.Number = lo.ToPtr(*pr.Number)
-	pr2.Punc = lo.ToPtr(*pr.Punc)
-	pr2.String = lo.ToPtr(*pr.String)
-	pr2.Success = lo.ToPtr(*pr.Success)
-	pr2.Stack = lo.ToPtr(*pr.Stack)
-	pr2.StackError = lo.ToPtr(*pr.StackError)
-	pr2.StackErrorType = lo.ToPtr(*pr.StackErrorType)
-	pr2.Warning = lo.ToPtr(*pr.Warning)
+	pr2.Active = new(*pr.Active)
+	pr2.Bold = new(*pr.Bold)
+	pr2.Bool = new(*pr.Bool)
+	pr2.Bytes = new(*pr.Bytes)
+	pr2.Datetime = new(*pr.Datetime)
+	pr2.Disabled = new(*pr.Disabled)
+	pr2.Duration = new(*pr.Duration)
+	pr2.Enabled = new(*pr.Enabled)
+	pr2.Error = new(*pr.Error)
+	pr2.Faint = new(*pr.Faint)
+	pr2.Handle = new(*pr.Handle)
+	pr2.Header = new(*pr.Header)
+	pr2.Hilite = new(*pr.Hilite)
+	pr2.Key = new(*pr.Key)
+	pr2.Location = new(*pr.Location)
+	pr2.Null = new(*pr.Null)
+	pr2.Normal = new(*pr.Normal)
+	pr2.Number = new(*pr.Number)
+	pr2.Punc = new(*pr.Punc)
+	pr2.String = new(*pr.String)
+	pr2.Success = new(*pr.Success)
+	pr2.Stack = new(*pr.Stack)
+	pr2.StackError = new(*pr.StackError)
+	pr2.StackErrorType = new(*pr.StackErrorType)
+	pr2.Warning = new(*pr.Warning)
 
 	return pr2
 }

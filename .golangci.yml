@@ -377,6 +377,9 @@ linters:
           - revive
         path: drivers/json/
         text: var-naming
+      - linters:
+          - revive
+        text: "avoid package names that conflict with Go standard library package names"
     paths:
       - cli/output/jsonw/internal/jcolorenc
       - libsq/core/diffdoc/internal/go-udiff

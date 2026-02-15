@@ -209,7 +209,7 @@ func Parse(b []byte, x any, flags ParseFlags) ([]byte, error) {
 	t := reflect.TypeOf(x)
 	p := (*iface)(unsafe.Pointer(&x)).ptr
 
-	if t == nil || p == nil || t.Kind() != reflect.Ptr {
+	if t == nil || p == nil || t.Kind() != reflect.Pointer {
 		_, r, err := parseValue(skipSpaces(b))
 		r = skipSpaces(r)
 		if err != nil {

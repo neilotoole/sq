@@ -19,7 +19,7 @@ func doOrderBy(rc *Context, ob *ast.OrderByNode) (string, error) {
 
 	var sb strings.Builder
 	sb.WriteString("ORDER BY ")
-	for i := 0; i < len(terms); i++ {
+	for i := range terms {
 		if i > 0 {
 			sb.WriteString(", ")
 		}

@@ -84,8 +84,6 @@ func TestCopyRecords(t *testing.T) {
 	}
 
 	for name, recs := range testCases {
-		name, recs := name, recs
-
 		t.Run(name, func(t *testing.T) {
 			recs2 := record.CloneSlice(recs)
 			require.True(t, len(recs) == len(recs2))
@@ -143,7 +141,7 @@ func TestHelper_Files(t *testing.T) {
 
 	g, _ := errgroup.WithContext(th.Context)
 
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		g.Go(func() error {
 			r, fErr := fs.NewReader(th.Context, src, false)
 			require.NoError(t, fErr)

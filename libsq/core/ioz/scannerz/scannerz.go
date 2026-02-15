@@ -32,10 +32,9 @@ func NewScanner(ctx context.Context, r io.Reader) *bufio.Scanner {
 	sc := bufio.NewScanner(r)
 
 	limit := OptScanBufLimit.Get(options.FromContext(ctx)).Bytes()
-	initial := uint64(4096) // 4096 is the default initial bufio.Scanner buffer size.
-	if initial > limit {
-		initial = limit
-	}
+	initial := min(
+		// 4096 is the default initial bufio.Scanner buffer size.
+		uint64(4096), limit)
 
 	sc.Buffer(make([]byte, int(initial)), int(limit)) //nolint:gosec // ignore overflow concern
 	return sc

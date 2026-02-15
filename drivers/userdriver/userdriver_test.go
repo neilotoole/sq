@@ -26,8 +26,6 @@ func TestDriver(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -57,8 +55,6 @@ func TestValidateDriverDef_KnownGood(t *testing.T) {
 	testCases := []string{testsrc.PathDriverDefPpl, testsrc.PathDriverDefRSS}
 
 	for _, defFile := range testCases {
-		defFile := defFile
-
 		t.Run(defFile, func(t *testing.T) {
 			t.Parallel()
 
@@ -151,8 +147,6 @@ func TestValidateDriverDef(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 

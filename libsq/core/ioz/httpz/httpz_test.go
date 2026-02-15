@@ -158,13 +158,11 @@ func TestOptHeaderTimeout_vs_stdlib(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
 			slowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				for i := 0; i < numLines; i++ {
+				for i := range numLines {
 					select {
 					case <-r.Context().Done():
 						t.Logf("Server exiting due to: %v", r.Context().Err())

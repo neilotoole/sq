@@ -149,8 +149,6 @@ func (p *pipeline) executeTasks(ctx context.Context) error {
 	g.SetLimit(tuning.OptErrgroupLimit.Get(options.FromContext(ctx)))
 
 	for _, task := range p.tasks {
-		task := task
-
 		g.Go(func() error {
 			select {
 			case <-gCtx.Done():
@@ -381,7 +379,6 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 
 	tbls := jc.tables()
 	for _, tbl := range tbls {
-		tbl := tbl
 		handle := tbl.Handle()
 		if handle == "" {
 			handle = leftHandle

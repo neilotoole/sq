@@ -24,7 +24,6 @@ func TestTemplate(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.tpl), func(t *testing.T) {
 			got, gotErr := templatez.ExecuteTemplate(t.Name(), tc.tpl, tc.data)
 			t.Logf("\nTPL:   %s\nGOT:   %s\nERR:   %v", tc.tpl, got, gotErr)

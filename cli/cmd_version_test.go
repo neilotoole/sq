@@ -26,6 +26,99 @@ func TestGetVersionFromBrewFormula(t *testing.T) {
 	require.Equal(t, "0.20.0", vers)
 }
 
+func TestGetVersionFromBrewFormula_URLBased(t *testing.T) {
+	testCases := []struct {
+		name    string
+		input   string
+		wantVer string
+		wantErr bool
+	}{
+		{
+			name: "homebrew-core_tar.gz_format",
+			input: `class Sq < Formula
+  desc "swiss-army knife for data"
+  homepage "https://sq.io"
+  url "https://github.com/neilotoole/sq/archive/refs/tags/v0.48.3.tar.gz"
+  sha256 "abc123"
+  license "MIT"
+
+  bottle do
+`,
+			wantVer: "0.48.3",
+		},
+		{
+			name: "homebrew-core_zip_format",
+			input: `class Sq < Formula
+  url "https://github.com/neilotoole/sq/archive/refs/tags/v1.2.3.zip"
+  sha256 "abc123"
+
+  bottle do
+`,
+			wantVer: "1.2.3",
+		},
+		{
+			name: "invalid_semver_in_URL",
+			input: `class Sq < Formula
+  url "https://github.com/neilotoole/sq/archive/refs/tags/vnotvalid.tar.gz"
+
+  bottle do
+`,
+			wantErr: true,
+		},
+		{
+			name: "explicit_version_before_url",
+			input: `class Sq < Formula
+  version "0.50.0"
+  url "https://github.com/neilotoole/sq/archive/refs/tags/v0.48.3.tar.gz"
+
+  bottle do
+`,
+			wantVer: "0.50.0",
+		},
+		{
+			name: "explicit_version_after_url",
+			input: `class Sq < Formula
+  url "https://github.com/neilotoole/sq/archive/refs/tags/v0.48.3.tar.gz"
+  version "0.50.0"
+
+  bottle do
+`,
+			wantVer: "0.50.0",
+		},
+		{
+			name: "unrecognized_extension_falls_through_to_explicit_version",
+			input: `class Sq < Formula
+  url "https://github.com/neilotoole/sq/archive/refs/tags/v1.0.0.tar.xz"
+  version "0.48.11"
+
+  bottle do
+`,
+			wantVer: "0.48.11",
+		},
+		{
+			name: "no_version_found",
+			input: `class Sq < Formula
+  desc "swiss-army knife for data"
+
+  bottle do
+`,
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			vers, err := cli.GetVersionFromBrewFormula([]byte(tc.input))
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.wantVer, vers)
+		})
+	}
+}
+
 func TestFetchBrewVersion(t *testing.T) {
 	latest, err := cli.FetchBrewVersion(context.Background())
 	require.NoError(t, err)
@@ -74,6 +167,12 @@ func TestCmdVersion(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, runtime.GOOS, m["host"].(map[string]any)["platform"])
 
+	// In test builds, Timestamp is zero (ldflags not set), so
+	// the "timestamp" field should be omitted from JSON output.
+	if bi.Timestamp.IsZero() {
+		require.NotContains(t, text, "timestamp")
+	}
+
 	// --yaml
 	tr = testrun.New(ctx, t, nil)
 	err = tr.Exec("version", "--yaml")
@@ -85,4 +184,10 @@ func TestCmdVersion(t *testing.T) {
 	err = ioz.UnmarshallYAML(tr.Out.Bytes(), &m)
 	require.NoError(t, err)
 	require.Equal(t, runtime.GOOS, m["host"].(map[string]any)["platform"])
+
+	// In test builds, Timestamp is zero (ldflags not set), so
+	// the "timestamp" field should be omitted from YAML output.
+	if bi.Timestamp.IsZero() {
+		require.NotContains(t, text, "timestamp")
+	}
 }

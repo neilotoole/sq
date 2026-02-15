@@ -35,8 +35,6 @@ func TestSmoke(t *testing.T) {
 	testCases := []string{sakila.CSVActor, sakila.TSVActor, sakila.CSVActorHTTP}
 
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -96,14 +94,10 @@ func TestSakila_query(t *testing.T) {
 	}
 
 	for _, drvr := range []drivertype.Type{drivertype.CSV, drivertype.TSV} {
-		drvr := drvr
-
 		t.Run(drvr.String(), func(t *testing.T) {
 			t.Parallel()
 
 			for _, tc := range testCases {
-				tc := tc
-
 				t.Run(tc.file, func(t *testing.T) {
 					t.Parallel()
 
@@ -134,8 +128,6 @@ func TestQuerySQL_Count(t *testing.T) {
 
 	testCases := []string{sakila.CSVActor, sakila.TSVActor}
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -291,7 +283,6 @@ func TestIngest_Kind_Timestamp(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.file, func(t *testing.T) {
 			t.Parallel()
 
@@ -311,7 +302,6 @@ func TestIngest_Kind_Timestamp(t *testing.T) {
 			t.Log(sink.Recs[0])
 
 			for i, col := range sink.RecMeta.MungedNames() {
-				i, col := i, col
 				t.Run(col, func(t *testing.T) {
 					t.Logf("[%d] %s", i, col)
 					assert.Equal(t, kind.Datetime.String(), sink.RecMeta.Kinds()[i].String())
@@ -356,7 +346,6 @@ func TestIngest_Kind_Date(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.file, func(t *testing.T) {
 			t.Parallel()
 
@@ -376,7 +365,6 @@ func TestIngest_Kind_Date(t *testing.T) {
 			t.Log(sink.Recs[0])
 
 			for i, col := range sink.RecMeta.MungedNames() {
-				i, col := i, col
 				t.Run(col, func(t *testing.T) {
 					t.Logf("[%d] %s", i, col)
 					assert.Equal(t, kind.Date.String(), sink.RecMeta.Kinds()[i].String())
@@ -409,7 +397,6 @@ func TestIngest_Kind_Time(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.file, func(t *testing.T) {
 			t.Parallel()
 
@@ -429,7 +416,6 @@ func TestIngest_Kind_Time(t *testing.T) {
 			t.Log(sink.Recs[0])
 
 			for i, col := range sink.RecMeta.MungedNames() {
-				i, col := i, col
 				t.Run(col, func(t *testing.T) {
 					t.Logf("[%d] %s", i, col)
 					assert.Equal(t, kind.Time.String(), sink.RecMeta.Kinds()[i].String())

@@ -73,7 +73,7 @@ func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
 		return nil, errz.Errorf("corrupt config: invalid 'sources.items' field")
 	}
 
-	for i := 0; i < len(items); i++ {
+	for i := range items {
 		src, ok := items[i].(map[string]any)
 		if !ok {
 			return nil, errz.Errorf("corrupt config: invalid 'sources.items[%d]' field", i)
@@ -90,7 +90,7 @@ func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
 
 		srcOpts, ok := src["options"].(map[string]any)
 		if ok && srcOpts != nil {
-			if headers, ok := srcOpts["header"].([]interface{}); ok && len(headers) >= 1 {
+			if headers, ok := srcOpts["header"].([]any); ok && len(headers) >= 1 {
 				var hasHeader bool
 				switch v := headers[0].(type) {
 				case bool:

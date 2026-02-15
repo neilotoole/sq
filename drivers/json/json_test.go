@@ -98,8 +98,6 @@ func TestDriverDetectorFuncs(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tu.Name(tc.fn, tc.fname), func(t *testing.T) {
 			newRdrFn := func(_ context.Context) (io.ReadCloser, error) { return os.Open(filepath.Join("testdata", tc.fname)) }
 			detectFn := detectFns[tc.fn]

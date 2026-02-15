@@ -16,6 +16,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"slices"
 	"sync"
 	"time"
@@ -167,9 +168,7 @@ func (o Options) Clone() Options {
 	}
 
 	o2 := Options{}
-	for k, v := range o {
-		o2[k] = v
-	}
+	maps.Copy(o2, o)
 
 	return o2
 }
@@ -223,9 +222,7 @@ func Merge(base Options, overlays ...Options) Options {
 	}
 
 	for _, overlay := range overlays {
-		for k, v := range overlay {
-			o[k] = v
-		}
+		maps.Copy(o, overlay)
 	}
 	return o
 }

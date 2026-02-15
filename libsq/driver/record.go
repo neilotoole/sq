@@ -136,7 +136,7 @@ func NewRecordFromScanRow(meta record.Meta, row []any, skip []int) (rec record.R
 		mSkip[i] = struct{}{}
 	}
 
-	for i := 0; i < len(row); i++ {
+	for i := range row {
 		// we're skipping this column, but still need to copy the value.
 		if _, ok := mSkip[i]; ok {
 			rec[i] = row[i]
@@ -688,7 +688,7 @@ func doMungeColNames(tpl *template.Template, ogColNames []string) (colNames []st
 			Alpha: stringz.GenerateAlphaColName(i, false),
 		}
 
-		for j := 0; j < i; j++ {
+		for j := range i {
 			if ogColNames[j] == data.Name {
 				data.Recurrence++
 			}

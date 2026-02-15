@@ -30,8 +30,6 @@ func TestDriver_DropTable(t *testing.T) {
 	t.Parallel()
 
 	for _, handle := range sakila.SQLAll() {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -61,8 +59,6 @@ func TestDriver_DropTable(t *testing.T) {
 
 func TestDriver_TableExists(t *testing.T) {
 	for _, handle := range sakila.SQLAll() {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			th, _, drvr, _, db := testh.NewWith(t, handle)
 
@@ -177,8 +173,6 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 func TestDriver_TableColumnTypes(t *testing.T) { //nolint:tparallel
 	testCases := sakila.SQLAll()
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			tu.SkipShort(t, handle == sakila.XLSX)
 			t.Parallel()
@@ -217,8 +211,6 @@ func TestDriver_TableColumnTypes(t *testing.T) { //nolint:tparallel
 func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
 	testCases := sakila.SQLAll()
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			tu.SkipShort(t, handle == sakila.XLSX)
 			t.Parallel()
@@ -272,8 +264,6 @@ func TestDriver_Ping(t *testing.T) {
 	testCases = append(testCases, sakila.CSVActor, sakila.CSVActorHTTP)
 
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			tu.SkipShort(t, handle == sakila.XLSX)
 
@@ -292,8 +282,6 @@ func TestDriver_Open(t *testing.T) {
 	testCases = append(testCases, sakila.CSVActor, sakila.CSVActorHTTP)
 
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			tu.SkipShort(t, handle == sakila.XLSX)
 			t.Parallel()
@@ -432,8 +420,6 @@ func TestRegistry_DriversMetadata_SQL(t *testing.T) {
 	t.Parallel()
 
 	for _, typ := range sqlDrivers {
-		typ := typ
-
 		t.Run(typ.String(), func(t *testing.T) {
 			t.Parallel()
 
@@ -462,8 +448,6 @@ func TestRegistry_DriversMetadata_Doc(t *testing.T) {
 	t.Parallel()
 
 	for _, typ := range docDrivers {
-		typ := typ
-
 		t.Run(typ.String(), func(t *testing.T) {
 			t.Parallel()
 
@@ -485,8 +469,6 @@ func TestRegistry_DriversMetadata_Doc(t *testing.T) {
 
 func TestGrip_TableMetadata(t *testing.T) { //nolint:tparallel
 	for _, handle := range sakila.SQLAll() {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -504,8 +486,6 @@ func TestGrip_SourceMetadata(t *testing.T) {
 	t.Parallel()
 
 	for _, handle := range sakila.SQLAll() {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -523,8 +503,6 @@ func TestGrip_SourceMetadata(t *testing.T) {
 // with an empty schema arg.
 func TestSQLDriver_ListTableNames_ArgSchemaEmpty(t *testing.T) { //nolint:tparallel
 	for _, handle := range sakila.SQLLatest() {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -576,7 +554,6 @@ func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tpa
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -616,14 +593,12 @@ func TestGrip_SourceMetadata_concurrent(t *testing.T) { //nolint:tparallel
 
 	handles := sakila.SQLLatest()
 	for _, handle := range handles {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
 			th, _, _, grip, _ := testh.NewWith(t, handle)
 			g, gCtx := errgroup.WithContext(th.Context)
-			for i := 0; i < concurrency; i++ {
+			for range concurrency {
 				g.Go(func() error {
 					md, err := grip.SourceMetadata(gCtx, false)
 					require.NoError(t, err)
@@ -644,8 +619,6 @@ func TestSQLDriver_AlterTableAddColumn(t *testing.T) {
 	testCases := sakila.SQLLatest()
 
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			th, src, drvr, _, db := testh.NewWith(t, handle)
 
@@ -675,8 +648,6 @@ func TestSQLDriver_AlterTableRename(t *testing.T) {
 	testCases := sakila.SQLLatest()
 
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			th, src, drvr, grip, db := testh.NewWith(t, handle)
 
@@ -703,8 +674,6 @@ func TestSQLDriver_AlterTableRenameColumn(t *testing.T) {
 	testCases := sakila.SQLLatest()
 
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			th, src, drvr, grip, db := testh.NewWith(t, handle)
 
@@ -727,8 +696,6 @@ func TestSQLDriver_AlterTableRenameColumn(t *testing.T) {
 
 func TestSQLDriver_CurrentCatalog(t *testing.T) {
 	for _, handle := range sakila.SQLAll() {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			th, _, drvr, _, db := testh.NewWith(t, handle)
 			if !drvr.Dialect().Catalog {
@@ -760,8 +727,6 @@ func TestSQLDriver_CurrentSchemaCatalog(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.handle, func(t *testing.T) {
 			th, _, drvr, grip, db := testh.NewWith(t, tc.handle)
 
@@ -817,8 +782,6 @@ func TestSQLDriver_SchemaExists(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tu.Name(tc.handle, tc.schema, tc.wantOK), func(t *testing.T) {
 			t.Parallel()
 
@@ -856,8 +819,6 @@ func TestSQLDriver_CatalogExists(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tu.Name(tc.handle, tc.catalog, tc.wantOK), func(t *testing.T) {
 			t.Parallel()
 
@@ -886,7 +847,6 @@ func TestDriverCreateDropSchema(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.handle, func(t *testing.T) {
 			th, src, drvr, _, db := testh.NewWith(t, tc.handle)
 			ctx := th.Context
@@ -942,9 +902,101 @@ func TestDriverCreateDropSchema(t *testing.T) {
 	}
 }
 
+// TestDriverCreateDropSchema_Numeric tests creating and dropping schemas
+// with numeric and numeric-prefixed names. This validates that the grammar
+// changes in PR #515 (issue #470) work correctly across all SQL drivers.
+// See: https://github.com/neilotoole/sq/issues/470
+func TestDriverCreateDropSchema_Numeric(t *testing.T) {
+	// Test cases for numeric and numeric-prefixed schema names.
+	// These names require proper quoting in SQL generation.
+	numericSchemas := []struct {
+		name   string // test name
+		schema string // schema name to create
+	}{
+		{"pure_zero", "0"},
+		{"pure_numeric", "12345"},
+		{"numeric_prefixed", "123abc"},
+		{"numeric_with_underscore", "456_test"},
+		{"numeric_long", "9876543210"},
+		{"numeric_mixed", "0a1b2c"},
+		// Test leading zeros (issue #470)
+		{"leading_zeros_short", "007"},
+		{"leading_zeros_long", "00123"},
+		{"leading_zeros_many", "000000"},
+	}
+
+	// Drivers that support schema creation.
+	driverCases := []struct {
+		handle        string
+		defaultSchema string
+	}{
+		{sakila.Pg, "public"},
+		{sakila.My, "sakila"},
+		{sakila.MS, "dbo"},
+		// Note: SQLite doesn't support CREATE SCHEMA in the traditional sense.
+	}
+
+	for _, dc := range driverCases {
+		t.Run(dc.handle, func(t *testing.T) {
+			th, src, drvr, _, db := testh.NewWith(t, dc.handle)
+			ctx := th.Context
+
+			conn, err := db.Conn(ctx)
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				assert.NoError(t, conn.Close())
+			})
+
+			for _, nc := range numericSchemas {
+				t.Run(nc.name, func(t *testing.T) {
+					// Make schema name unique to avoid conflicts.
+					schemaName := nc.schema + "_" + stringz.Uniq8()
+
+					// Create the numeric schema.
+					err := drvr.CreateSchema(ctx, conn, schemaName)
+					require.NoError(t, err, "CreateSchema(%q) should succeed", schemaName)
+
+					t.Cleanup(func() {
+						dropErr := drvr.DropSchema(ctx, conn, schemaName)
+						assert.NoError(t, dropErr, "DropSchema(%q) cleanup should succeed", schemaName)
+					})
+
+					// Verify schema exists.
+					exists, err := drvr.SchemaExists(ctx, conn, schemaName)
+					require.NoError(t, err, "SchemaExists(%q) should not error", schemaName)
+					require.True(t, exists, "SchemaExists(%q) should return true", schemaName)
+
+					// Verify schema appears in list.
+					schemaNames, err := drvr.ListSchemas(ctx, conn)
+					require.NoError(t, err, "ListSchemas should not error")
+					require.Contains(t, schemaNames, schemaName,
+						"ListSchemas should contain %q", schemaName)
+
+					// Copy a table into the numeric schema.
+					destTblFQ := tablefq.T{Schema: schemaName, Table: stringz.UniqTableName("actor")}
+					srcTblFQ := tablefq.From(sakila.TblActor)
+					copied, err := drvr.CopyTable(ctx, conn, srcTblFQ, destTblFQ, true)
+					require.NoError(t, err, "CopyTable to numeric schema should succeed")
+					require.Equal(t, int64(sakila.TblActorCount), copied,
+						"CopyTable should copy all rows")
+
+					// Query the table in the numeric schema.
+					// The schema name must be properly quoted in the SQL.
+					q := fmt.Sprintf("SELECT * FROM %s.%s",
+						drvr.Dialect().Enquote(destTblFQ.Schema),
+						drvr.Dialect().Enquote(destTblFQ.Table))
+					sink, err := th.QuerySQL(src, conn, q)
+					require.NoError(t, err, "Query in numeric schema should succeed")
+					require.Equal(t, int64(sakila.TblActorCount), int64(len(sink.Recs)),
+						"Query should return all rows")
+				})
+			}
+		})
+	}
+}
+
 func TestSQLDriver_ErrWrap_IsErrNotExist(t *testing.T) {
 	for _, h := range sakila.SQLLatest() {
-		h := h
 		t.Run(h, func(t *testing.T) {
 			th, _, _, _, _ := testh.NewWith(t, h)
 			_, err := th.QuerySLQ(h+".does_not_exist", nil)
@@ -965,7 +1017,6 @@ func TestMungeColNames(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			ctx := options.NewContext(context.Background(), options.Options{})
 			got, err := driver.MungeResultColNames(ctx, tc.in)

@@ -4,7 +4,6 @@ import (
 	"io"
 
 	yamlp "github.com/goccy/go-yaml/printer"
-	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -83,7 +82,7 @@ func (w *mdWriter) Catalogs(currentCatalog string, catalogs []string) error {
 	for i, c := range catalogs {
 		cats[i] = cat{Name: c}
 		if c == currentCatalog {
-			cats[i].Active = lo.ToPtr(true)
+			cats[i].Active = new(true)
 		}
 	}
 	return writeYAML(w.out, w.yp, cats)
@@ -106,7 +105,7 @@ func (w *mdWriter) Schemata(currentSchema string, schemas []*metadata.Schema) er
 	for i, s := range schemas {
 		a[i] = &wrapper{Schema: *s}
 		if s.Name == currentSchema {
-			a[i].Active = lo.ToPtr(true)
+			a[i].Active = new(true)
 		}
 	}
 

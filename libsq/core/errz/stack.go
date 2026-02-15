@@ -112,7 +112,7 @@ func (f Frame) MarshalText() ([]byte, error) {
 	if name == unknown {
 		return []byte(name), nil
 	}
-	return []byte(fmt.Sprintf("%s %s:%d", name, f.file(), f.line())), nil
+	return fmt.Appendf(nil, "%s %s:%d", name, f.file(), f.line()), nil
 }
 
 // StackTrace contains a stack of Frames from innermost (newest)
@@ -206,7 +206,7 @@ type stackTracer interface {
 
 func (s *stack) stackTrace() *StackTrace {
 	f := make([]Frame, len(*s))
-	for i := 0; i < len(f); i++ {
+	for i := range f {
 		f[i] = Frame((*s)[i])
 	}
 	return &StackTrace{Frames: f}

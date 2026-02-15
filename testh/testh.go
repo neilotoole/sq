@@ -747,8 +747,6 @@ func (h *Helper) addUserDrivers() {
 	}
 
 	for _, userDriverDef := range userDriverDefs {
-		userDriverDef := userDriverDef
-
 		errs := userdriver.ValidateDriverDef(userDriverDef)
 		require.Empty(h.T, errs)
 

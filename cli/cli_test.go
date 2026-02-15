@@ -75,8 +75,6 @@ func TestSmoke(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(strings.Join(tc.a, "_"), func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
@@ -251,7 +249,6 @@ func TestExprNoSource(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			tr := testrun.New(context.Background(), t, nil).Hush()
 			err := tr.Exec("--csv", "--no-header", tc.in)

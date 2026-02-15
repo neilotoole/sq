@@ -22,8 +22,6 @@ func Test_detectHeaderRow(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
-
 		t.Run(tu.Name(i, tc.fp), func(t *testing.T) {
 			recs := readAllRecs(t, tc.comma, tc.fp)
 

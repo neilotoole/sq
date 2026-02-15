@@ -20,8 +20,6 @@ func TestSmoke(t *testing.T) {
 	t.Parallel()
 
 	for _, handle := range sakila.MSAll() {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -71,8 +69,6 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 
 	testCases := []string{sakila.MS}
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -111,6 +107,70 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 			require.True(t, ok)
 			require.NotNil(t, b)
 			require.Equal(t, 0, len(b), "b should be non-nil but zero length")
+		})
+	}
+}
+
+// TestNumericSchema tests that numeric and numeric-prefixed schema names
+// work correctly in SQL Server.
+// This tests the fix for issue #470.
+// See: https://github.com/neilotoole/sq/issues/470
+func TestNumericSchema(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name   string
+		schema string
+	}{
+		{"pure_numeric", "12345"},
+		{"numeric_prefixed", "123testschema"},
+		{"numeric_with_underscore", "456_schema"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			th, src, drvr, _, db := testh.NewWith(t, sakila.MS)
+			ctx := th.Context
+
+			// Make the schema name unique.
+			schemaName := tc.schema + "_" + stringz.Uniq8()
+
+			// Create the schema with a numeric name.
+			// In SQL Server, the schema name must be properly quoted.
+			err := drvr.CreateSchema(ctx, db, schemaName)
+			require.NoError(t, err, "CreateSchema(%q) should succeed for SQL Server", schemaName)
+
+			t.Cleanup(func() {
+				_ = drvr.DropSchema(ctx, db, schemaName)
+			})
+
+			// Verify the schema exists.
+			exists, err := drvr.SchemaExists(ctx, db, schemaName)
+			require.NoError(t, err)
+			require.True(t, exists, "SchemaExists(%q) should return true", schemaName)
+
+			// List schemas and verify our numeric schema appears.
+			schemas, err := drvr.ListSchemas(ctx, db)
+			require.NoError(t, err)
+			require.Contains(t, schemas, schemaName,
+				"ListSchemas should contain %q", schemaName)
+
+			// Copy a table to the new schema.
+			destTblFQ := tablefq.T{Schema: schemaName, Table: stringz.UniqTableName("actor")}
+			srcTblFQ := tablefq.From(sakila.TblActor)
+			copied, err := drvr.CopyTable(ctx, db, srcTblFQ, destTblFQ, true)
+			require.NoError(t, err, "CopyTable to numeric schema should succeed")
+			require.Equal(t, int64(sakila.TblActorCount), copied)
+
+			// Query the table in the numeric schema.
+			// The schema name must be properly double-quoted in the SQL.
+			q := `SELECT * FROM "` + destTblFQ.Schema + `"."` + destTblFQ.Table + `"`
+			sink, err := th.QuerySQL(src, nil, q)
+			require.NoError(t, err, "Query in numeric schema should succeed")
+			require.Equal(t, sakila.TblActorCount, len(sink.Recs),
+				"Query should return all rows")
 		})
 	}
 }

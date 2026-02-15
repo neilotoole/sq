@@ -65,7 +65,7 @@ func checkPingOutputCSV(t *testing.T, h *testrun.TestRun, srcs ...source.Source)
 		handles[src.Handle] = true
 	}
 
-	for i := 0; i < len(recs); i++ {
+	for i := range recs {
 		recHandle := recs[i][0]
 		require.True(t, handles[recHandle], "should have handle %s in map", recHandle)
 

@@ -31,7 +31,6 @@ func TestDecimal(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.in, tc.wantStr), func(t *testing.T) {
 			gotStr := stringz.FormatDecimal(tc.in)
 			require.Equal(t, tc.wantStr, gotStr)

@@ -53,7 +53,7 @@ func WrapWords(words []string, spc, lim, pen int) [][]string {
 	n := len(words)
 
 	length := make([][]int, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		length[i] = make([]int, n)
 		length[i][i] = utf8.RuneCountInString(words[i])
 		for j := i + 1; j < n; j++ {

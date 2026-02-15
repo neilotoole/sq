@@ -20,7 +20,6 @@ func Test_adjustHunkOffset(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.in, func(t *testing.T) {
 			got, err := adjustHunkOffset(tc.in, tc.offset)
 			if tc.wantErr {

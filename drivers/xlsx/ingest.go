@@ -276,7 +276,6 @@ func buildSheetTables(ctx context.Context, srcIngestHeader *bool, sheets []*xShe
 
 	g, gCtx := errgroup.WithContext(ctx)
 	for i := range sheets {
-		i := i
 		g.Go(func() error {
 			select {
 			case <-gCtx.Done():
@@ -373,7 +372,7 @@ func buildSheetTable(ctx context.Context, srcIngestHeader *bool, sheet *xSheet) 
 		firstDataRow = 1
 		copy(colNames, sheet.sampleRows[0])
 	} else {
-		for i := 0; i < maxCols; i++ {
+		for i := range maxCols {
 			colNames[i] = stringz.GenerateAlphaColName(i, false)
 		}
 	}
@@ -382,7 +381,7 @@ func buildSheetTable(ctx context.Context, srcIngestHeader *bool, sheet *xSheet) 
 	if firstDataRow >= len(sheet.sampleRows) {
 		// the sheet contains only one row (the header row). Let's
 		// explicitly set the column type nonetheless
-		for i := 0; i < maxCols; i++ {
+		for i := range maxCols {
 			colKinds[i] = kind.Text
 		}
 	} else {

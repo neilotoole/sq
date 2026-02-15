@@ -24,7 +24,6 @@ func TestQueryParamKeys(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.q), func(t *testing.T) {
 			got, gotErr := urlz.QueryParamKeys(tc.q)
 			if tc.wantErr {
@@ -51,7 +50,6 @@ func TestStripQuery(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc), func(t *testing.T) {
 			u, err := url.Parse(tc.in)
 			require.NoError(t, err)
@@ -73,7 +71,6 @@ func TestStripUser(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc), func(t *testing.T) {
 			u, err := url.Parse(tc.in)
 			require.NoError(t, err)
@@ -93,7 +90,6 @@ func TestStripScheme(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc), func(t *testing.T) {
 			u, err := url.Parse(tc.in)
 			require.NoError(t, err)
@@ -115,7 +111,6 @@ func TestStripSchemeAndUser(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc), func(t *testing.T) {
 			u, err := url.Parse(tc.in)
 			require.NoError(t, err)
@@ -144,7 +139,6 @@ func TestRenameQueryParamKey(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.q, tc.oldKey, tc.newKey), func(t *testing.T) {
 			got := urlz.RenameQueryParamKey(tc.q, tc.oldKey, tc.newKey)
 			require.Equal(t, tc.want, got)
@@ -166,7 +160,6 @@ func TestURLStripQuery(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc), func(t *testing.T) {
 			u, err := url.Parse(tc.in)
 			require.NoError(t, err)

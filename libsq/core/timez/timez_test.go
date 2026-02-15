@@ -52,7 +52,6 @@ func TestParseDateOrTimestampUTC(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			tm, err := timez.ParseDateOrTimestampUTC(tc.in)
 			if tc.wantErr {

@@ -367,6 +367,7 @@ See [CHANGELOG.md](./CHANGELOG.md).
 - Much inspiration is owed to [jq](https://jqlang.github.io/jq/).
 - See [`go.mod`](https://github.com/neilotoole/sq/blob/master/go.mod) for a list of third-party
   packages.
+- `sq` imports a bunch of [`usql`](https://github.com/xo/usql) functionality.
 - Additionally, `sq` incorporates modified versions of:
 	- [`olekukonko/tablewriter`](https://github.com/olekukonko/tablewriter)
 	- [`segmentio/encoding`](https://github.com/segmentio/encoding) for JSON encoding.

@@ -19,7 +19,6 @@ func TestSakila_SQL(t *testing.T) { //nolint:tparallel
 
 	handles := sakila.SQLAll()
 	for _, handle := range handles {
-		handle := handle
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -41,8 +40,6 @@ func TestSakila_XLSX(t *testing.T) {
 	//  enough not to break CI.
 
 	for _, handle := range handles {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
@@ -60,7 +57,6 @@ func TestSakila_CSV(t *testing.T) {
 
 	handles := []string{sakila.CSVActor, sakila.CSVActorNoHeader, sakila.TSVActor, sakila.TSVActorNoHeader}
 	for _, handle := range handles {
-		handle := handle
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 

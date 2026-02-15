@@ -52,7 +52,6 @@ func TestEqual(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.a, tc.b), func(t *testing.T) {
 			_, err := record.Valid(tc.a)
 			require.NoError(t, err)

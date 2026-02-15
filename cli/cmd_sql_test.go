@@ -586,7 +586,6 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		name := tu.Name(i, filepath.Base(filepath.Dir(tc.fpath)), filepath.Base(tc.fpath))
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

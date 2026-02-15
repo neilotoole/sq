@@ -51,8 +51,6 @@ func TestFiles_DetectType(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(filepath.Base(tc.loc), func(t *testing.T) {
 			ctx := lg.NewContext(context.Background(), lgt.New(t))
 			fs, err := files.New(
@@ -103,7 +101,6 @@ func TestFiles_DriverType(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(location.Redact(tc.loc)), func(t *testing.T) {
 			ctx := lg.NewContext(context.Background(), lgt.New(t))
 
@@ -142,8 +139,6 @@ func TestDetectMagicNumber(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(filepath.Base(tc.loc), func(t *testing.T) {
 			rFn := func(_ context.Context) (io.ReadCloser, error) { return os.Open(tc.loc) }
 
@@ -184,7 +179,7 @@ func TestFiles_NewReader(t *testing.T) {
 
 	g := &errgroup.Group{}
 
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		g.Go(func() error {
 			r, gErr := fs.NewReader(ctx, src, false)
 			require.NoError(t, gErr)
@@ -213,8 +208,6 @@ func TestFiles_Stdin(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tu.Name(tc.fpath), func(t *testing.T) {
 			th := testh.New(t)
 			fs := th.Files()

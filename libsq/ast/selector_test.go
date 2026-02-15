@@ -26,7 +26,6 @@ func TestColumnAlias(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(tc.in), func(t *testing.T) {
 			t.Parallel()
 

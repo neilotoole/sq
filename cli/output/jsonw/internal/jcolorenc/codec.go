@@ -4,6 +4,7 @@ import (
 	"encoding"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"reflect"
 	"sort"
 	"strconv"
@@ -55,9 +56,7 @@ func cacheStore(typ reflect.Type, cod codec, oldCodecs map[unsafe.Pointer]codec)
 	newCodecs := make(map[unsafe.Pointer]codec, len(oldCodecs)+1)
 	newCodecs[typeid(typ)] = cod
 
-	for t, c := range oldCodecs {
-		newCodecs[t] = c
-	}
+	maps.Copy(newCodecs, oldCodecs)
 
 	atomic.StorePointer(&cache, *(*unsafe.Pointer)(unsafe.Pointer(&newCodecs)))
 }
@@ -67,7 +66,7 @@ func typeid(t reflect.Type) unsafe.Pointer {
 }
 
 func constructCachedCodec(t reflect.Type, cache map[unsafe.Pointer]codec) codec {
-	c := constructCodec(t, map[reflect.Type]*structType{}, t.Kind() == reflect.Ptr)
+	c := constructCodec(t, map[reflect.Type]*structType{}, t.Kind() == reflect.Pointer)
 
 	if inlined(t) {
 		c.encode = constructInlineValueEncodeFunc(c.encode)
@@ -178,14 +177,14 @@ func constructCodec(t reflect.Type, seen map[reflect.Type]*structType, canAddr b
 	case reflect.Struct:
 		c = constructStructCodec(t, seen, canAddr)
 
-	case reflect.Ptr:
+	case reflect.Pointer:
 		c = constructPointerCodec(t, seen)
 
 	default:
 		c = constructUnsupportedTypeCodec(t)
 	}
 
-	p := reflect.PtrTo(t)
+	p := reflect.PointerTo(t)
 
 	if canAddr {
 		switch {
@@ -271,7 +270,7 @@ func constructSliceCodec(t reflect.Type, seen map[reflect.Type]*structType) code
 		// Go 1.7+ behavior: slices of byte types (and aliases) may override the
 		// default encoding and decoding behaviors by implementing marshaler and
 		// unmarshaler interfaces.
-		p := reflect.PtrTo(e)
+		p := reflect.PointerTo(e)
 		c := codec{}
 
 		switch {
@@ -353,7 +352,7 @@ func constructMapCodec(t reflect.Type, seen map[reflect.Type]*structType) codec 
 	kc := codec{}
 	vc := constructCodec(v, seen, false)
 
-	if k.Implements(textMarshalerType) || reflect.PtrTo(k).Implements(textUnmarshalerType) {
+	if k.Implements(textMarshalerType) || reflect.PointerTo(k).Implements(textUnmarshalerType) {
 		kc.encode = constructTextMarshalerEncodeFunc(k, false)
 		kc.decode = constructTextUnmarshalerDecodeFunc(k, true)
 
@@ -554,7 +553,7 @@ func appendStructFields(fields []structField, t reflect.Type, offset uintptr, se
 
 		if anonymous && !tag { // embedded
 			typ := f.Type
-			ptr := f.Type.Kind() == reflect.Ptr
+			ptr := f.Type.Kind() == reflect.Pointer
 
 			if ptr {
 				typ = f.Type.Elem()
@@ -598,7 +597,7 @@ func appendStructFields(fields []structField, t reflect.Type, offset uintptr, se
 			// programs:
 			typ := f.Type
 
-			if typ.Kind() == reflect.Ptr {
+			if typ.Kind() == reflect.Pointer {
 				typ = typ.Elem()
 			}
 
@@ -815,7 +814,7 @@ func align(align, size uintptr) uintptr {
 
 func inlined(t reflect.Type) bool {
 	switch t.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return true
 	case reflect.Map:
 		return true
@@ -893,7 +892,7 @@ func emptyFuncOf(t reflect.Type) emptyFunc {
 	case reflect.Float64:
 		return func(p unsafe.Pointer) bool { return *(*float64)(p) == 0 }
 
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return func(p unsafe.Pointer) bool { return *(*unsafe.Pointer)(p) == nil }
 
 	case reflect.Interface:
@@ -951,7 +950,7 @@ func unexpectedEOF(b []byte) error {
 var syntaxErrorMsgOffset = ^uintptr(0)
 
 func init() {
-	t := reflect.TypeOf(SyntaxError{})
+	t := reflect.TypeFor[SyntaxError]()
 	for i, n := 0, t.NumField(); i < n; i++ {
 		if f := t.Field(i); f.Type.Kind() == reflect.String {
 			syntaxErrorMsgOffset = f.Offset
@@ -1021,45 +1020,45 @@ func stringToBytes(s string) []byte {
 
 var (
 	nullType = reflect.TypeOf(nil)
-	boolType = reflect.TypeOf(false)
+	boolType = reflect.TypeFor[bool]()
 
-	intType   = reflect.TypeOf(int(0))
-	int8Type  = reflect.TypeOf(int8(0))
-	int16Type = reflect.TypeOf(int16(0))
-	int32Type = reflect.TypeOf(int32(0))
-	int64Type = reflect.TypeOf(int64(0))
+	intType   = reflect.TypeFor[int]()
+	int8Type  = reflect.TypeFor[int8]()
+	int16Type = reflect.TypeFor[int16]()
+	int32Type = reflect.TypeFor[int32]()
+	int64Type = reflect.TypeFor[int64]()
 
-	uintType    = reflect.TypeOf(uint(0))
-	uint8Type   = reflect.TypeOf(uint8(0))
-	uint16Type  = reflect.TypeOf(uint16(0))
-	uint32Type  = reflect.TypeOf(uint32(0))
-	uint64Type  = reflect.TypeOf(uint64(0))
-	uintptrType = reflect.TypeOf(uintptr(0))
+	uintType    = reflect.TypeFor[uint]()
+	uint8Type   = reflect.TypeFor[uint8]()
+	uint16Type  = reflect.TypeFor[uint16]()
+	uint32Type  = reflect.TypeFor[uint32]()
+	uint64Type  = reflect.TypeFor[uint64]()
+	uintptrType = reflect.TypeFor[uintptr]()
 
-	float32Type = reflect.TypeOf(float32(0))
-	float64Type = reflect.TypeOf(float64(0))
+	float32Type = reflect.TypeFor[float32]()
+	float64Type = reflect.TypeFor[float64]()
 
-	numberType     = reflect.TypeOf(json.Number(""))
-	stringType     = reflect.TypeOf("")
-	bytesType      = reflect.TypeOf(([]byte)(nil))
-	durationType   = reflect.TypeOf(time.Duration(0))
-	timeType       = reflect.TypeOf(time.Time{})
-	rawMessageType = reflect.TypeOf(RawMessage(nil))
+	numberType     = reflect.TypeFor[json.Number]()
+	stringType     = reflect.TypeFor[string]()
+	bytesType      = reflect.TypeFor[[]byte]()
+	durationType   = reflect.TypeFor[time.Duration]()
+	timeType       = reflect.TypeFor[time.Time]()
+	rawMessageType = reflect.TypeFor[RawMessage]()
 
-	numberPtrType     = reflect.PtrTo(numberType)
-	durationPtrType   = reflect.PtrTo(durationType)
-	timePtrType       = reflect.PtrTo(timeType)
-	rawMessagePtrType = reflect.PtrTo(rawMessageType)
+	numberPtrType     = reflect.PointerTo(numberType)
+	durationPtrType   = reflect.PointerTo(durationType)
+	timePtrType       = reflect.PointerTo(timeType)
+	rawMessagePtrType = reflect.PointerTo(rawMessageType)
 
-	sliceInterfaceType      = reflect.TypeOf(([]any)(nil))
-	mapStringInterfaceType  = reflect.TypeOf((map[string]any)(nil))
-	mapStringRawMessageType = reflect.TypeOf((map[string]RawMessage)(nil))
+	sliceInterfaceType      = reflect.TypeFor[[]any]()
+	mapStringInterfaceType  = reflect.TypeFor[map[string]any]()
+	mapStringRawMessageType = reflect.TypeFor[map[string]RawMessage]()
 
-	interfaceType       = reflect.TypeOf((*any)(nil)).Elem()
-	jsonMarshalerType   = reflect.TypeOf((*Marshaler)(nil)).Elem()
-	jsonUnmarshalerType = reflect.TypeOf((*Unmarshaler)(nil)).Elem()
-	textMarshalerType   = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
-	textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+	interfaceType       = reflect.TypeFor[any]()
+	jsonMarshalerType   = reflect.TypeFor[Marshaler]()
+	jsonUnmarshalerType = reflect.TypeFor[Unmarshaler]()
+	textMarshalerType   = reflect.TypeFor[encoding.TextMarshaler]()
+	textUnmarshalerType = reflect.TypeFor[encoding.TextUnmarshaler]()
 )
 
 // =============================================================================
@@ -1152,7 +1151,7 @@ func fmtFrac(buf []byte, v uint64, prec int) (nw int, nv uint64) {
 	// Omit trailing zeros up to and including decimal point.
 	w := len(buf)
 	print := false
-	for i := 0; i < prec; i++ {
+	for range prec {
 		digit := v % 10
 		print = print || digit != 0
 		if print {

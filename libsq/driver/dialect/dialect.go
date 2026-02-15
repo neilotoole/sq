@@ -3,7 +3,11 @@ package dialect
 
 import (
 	"log/slog"
+	"maps"
 	"strings"
+
+	udrivers "github.com/xo/usql/drivers"
+	ustmt "github.com/xo/usql/stmt"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/jointype"
@@ -108,9 +112,7 @@ var defaultOps = map[string]string{
 // initialization code; callers should use Dialect.Ops instead.
 func DefaultOps() map[string]string {
 	ops := make(map[string]string, len(defaultOps))
-	for k, v := range defaultOps {
-		ops[k] = v
-	}
+	maps.Copy(ops, defaultOps)
 	return ops
 }
 
@@ -142,69 +144,36 @@ func (m ExecMode) LogValue() slog.Value {
 	return slog.StringValue(string(m))
 }
 
-// DefaultExecModeFor returns the ExecMode for a SQL string. It returns
-// ExecModeQuery if the SQL appears to be a query (SELECT, WITH, SHOW, etc.)
-// that returns rows, or ExecModeExec if it's a statement (CREATE, INSERT,
-// UPDATE, etc.) that should use ExecContext. An error is returned if the SQL
-// string is empty or contains only whitespace/comments. This function is
-// intended for use by driver initialization code; callers should use
-// Dialect.ExecModeFor instead.
+// DefaultExecModeFor returns the ExecMode for a SQL string. It uses the usql
+// library (github.com/xo/usql) to determine whether the SQL should be executed
+// via DB.Query (returns rows) or DB.Exec (returns affected count). An error is
+// returned if the SQL string is empty, contains only whitespace/comments, or is
+// invalid/unparseable such that usql's FindPrefix cannot determine a statement
+// prefix. This function is intended for use by driver initialization code;
+// callers should use Dialect.ExecModeFor instead.
+//
+// See also: https://pkg.go.dev/github.com/xo/usql/drivers#QueryExecType
 func DefaultExecModeFor(sqlStr string) (ExecMode, error) {
-	query, err := isQueryString(sqlStr)
-	if err != nil {
-		return "", err
+	sqlStr = strings.TrimSpace(sqlStr)
+	if sqlStr == "" {
+		return "", errz.New("empty SQL string")
 	}
-	if query {
+
+	// Use usql's FindPrefix to extract the statement prefix (first 6 words).
+	// Parameters: (sql, allowCComments, allowHashComments, allowMultilineComments)
+	// Standard SQL uses -- and /* */ comments, not C-style //; however, hash (#)
+	// comments are also enabled to support MySQL.
+	prefix := ustmt.FindPrefix(sqlStr, false, true, true)
+	if prefix == "" {
+		return "", errz.New("SQL string contains only comments or is invalid")
+	}
+
+	// Use usql's QueryExecType to determine if this is a query or statement.
+	// Returns (stmtType, isQuery) where isQuery=true means use Query().
+	_, isQuery := udrivers.QueryExecType(prefix, sqlStr)
+
+	if isQuery {
 		return ExecModeQuery, nil
 	}
 	return ExecModeExec, nil
-}
-
-// isQueryString returns true if the SQL appears to be a query (SELECT, WITH,
-// SHOW, etc.) that returns rows, false if it's a statement (CREATE, INSERT,
-// UPDATE, etc.) that should use ExecContext. An error is returned if the SQL
-// string is empty or contains only whitespace/comments.
-func isQueryString(sqlStr string) (bool, error) {
-	sqlStr = strings.TrimSpace(sqlStr)
-	if sqlStr == "" {
-		return false, errz.New("empty SQL string")
-	}
-
-	// Remove leading comments
-	for strings.HasPrefix(sqlStr, "--") || strings.HasPrefix(sqlStr, "/*") {
-		if strings.HasPrefix(sqlStr, "--") {
-			idx := strings.Index(sqlStr, "\n")
-			if idx < 0 {
-				// Only a line comment, no actual SQL
-				return false, errz.New("SQL string contains only comments")
-			}
-			sqlStr = strings.TrimSpace(sqlStr[idx+1:])
-		} else if strings.HasPrefix(sqlStr, "/*") {
-			idx := strings.Index(sqlStr, "*/")
-			if idx < 0 {
-				return false, errz.New("SQL string contains unclosed block comment")
-			}
-			sqlStr = strings.TrimSpace(sqlStr[idx+2:])
-		}
-	}
-
-	// After stripping comments, check if there's any SQL left
-	if sqlStr == "" {
-		return false, errz.New("SQL string contains only comments")
-	}
-
-	sqlUpper := strings.ToUpper(sqlStr)
-
-	// Check for query statements (return rows)
-	queryPrefixes := []string{"SELECT", "WITH", "SHOW", "DESCRIBE", "DESC", "EXPLAIN"}
-	for _, prefix := range queryPrefixes {
-		if strings.HasPrefix(sqlUpper, prefix+" ") || strings.HasPrefix(sqlUpper, prefix+"\t") ||
-			strings.HasPrefix(sqlUpper, prefix+"\n") || strings.HasPrefix(sqlUpper, prefix+"\r") ||
-			sqlUpper == prefix {
-			return true, nil
-		}
-	}
-
-	// Everything else (CREATE, INSERT, UPDATE, DELETE, DROP, ALTER, etc.) is a statement
-	return false, nil
 }

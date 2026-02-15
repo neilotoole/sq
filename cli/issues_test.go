@@ -66,7 +66,7 @@ func TestGitHubIssue446_ScannerErrTooLong(t *testing.T) {
 
 func generateJSONLinesBlobWithLargeTokens(tokenSize, lines int) []byte {
 	buf := &bytes.Buffer{}
-	for i := 0; i < lines; i++ {
+	for i := range lines {
 		buf.WriteString(`{"id": "` + strconv.Itoa(i) + `", "name": "`)
 		buf.WriteString(strings.Repeat("x", tokenSize))
 		buf.WriteString(`"}`)

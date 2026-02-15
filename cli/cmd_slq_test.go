@@ -168,12 +168,8 @@ func TestCmdSLQ_Join_cross_source(t *testing.T) {
 
 	// Attempt to join every SQL test source against every SQL test source.
 	for _, h1 := range handles {
-		h1 := h1
-
 		t.Run("origin_"+h1, func(t *testing.T) {
 			for _, h2 := range handles {
-				h2 := h2
-
 				t.Run("dest_"+h2, func(t *testing.T) {
 					t.Parallel()
 
@@ -291,7 +287,6 @@ func TestCmdSLQ_PreprocessFlagArgVars(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			got, gotErr := cli.PreprocessFlagArgVars(tc.in)
 			if tc.wantErr {
@@ -399,7 +394,6 @@ See: https://github.com/neilotoole/sq/issues/324`,
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.handle, func(t *testing.T) {
 			if tc.skipReason != "" {
 				t.Skip(tc.skipReason)
@@ -459,6 +453,93 @@ See: https://github.com/neilotoole/sq/issues/324`,
 				"--src.schema", "information_schema",
 				"schema()"))
 			require.Equal(t, tc.expectSchemaFuncValue, tr.OutString())
+		})
+	}
+}
+
+// TestCmdSLQ_NumericSchema tests SLQ query execution against tables in schemas
+// with numeric or numeric-prefixed names. This validates the grammar fix for
+// issue #470 in the actual query execution path.
+// See: https://github.com/neilotoole/sq/issues/470
+func TestCmdSLQ_NumericSchema(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	testCases := []struct {
+		name   string
+		schema string
+	}{
+		{"pure_numeric", "99999"},
+		{"numeric_prefixed", "123query"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			ctx := th.Context
+			src := th.Source(sakila.Pg)
+
+			// Create unique schema name for this test.
+			schemaName := tc.schema + "_" + stringz.Uniq8()
+
+			// Create the numeric schema directly via SQL.
+			db := th.OpenDB(src)
+			_, err := db.ExecContext(ctx, fmt.Sprintf(`DROP SCHEMA IF EXISTS %q CASCADE`, schemaName))
+			require.NoError(t, err)
+			_, err = db.ExecContext(ctx, fmt.Sprintf(`CREATE SCHEMA %q`, schemaName))
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				_, _ = db.ExecContext(ctx, fmt.Sprintf(`DROP SCHEMA IF EXISTS %q CASCADE`, schemaName))
+			})
+
+			// Create a test table in the numeric schema.
+			tblName := "query_test_tbl"
+			_, err = db.ExecContext(ctx, fmt.Sprintf(
+				`CREATE TABLE %q.%q (id serial PRIMARY KEY, name text, value int)`,
+				schemaName, tblName))
+			require.NoError(t, err)
+
+			// Insert test data.
+			_, err = db.ExecContext(ctx, fmt.Sprintf(
+				`INSERT INTO %q.%q (name, value) VALUES ('alice', 10), ('bob', 20), ('charlie', 30)`,
+				schemaName, tblName))
+			require.NoError(t, err)
+
+			// Execute SLQ query with --src.schema pointing to numeric schema.
+			tr := testrun.New(ctx, t, nil).Hush().Add(*src)
+			err = tr.Exec(
+				"--csv", "-H",
+				"--src.schema", schemaName,
+				"."+tblName+" | .name, .value",
+			)
+			require.NoError(t, err, "sq query with --src.schema %q should succeed", schemaName)
+
+			// Verify query results.
+			got := tr.BindCSV()
+			want := [][]string{
+				{"alice", "10"},
+				{"bob", "20"},
+				{"charlie", "30"},
+			}
+			require.Equal(t, want, got, "query results should match expected data")
+
+			// Also test with a filter to exercise more of the query path.
+			tr2 := testrun.New(ctx, t, nil).Hush().Add(*src)
+			err = tr2.Exec(
+				"--csv", "-H",
+				"--src.schema", schemaName,
+				"."+tblName+" | .name, .value | where(.value > 15)",
+			)
+			require.NoError(t, err, "sq query with filter should succeed")
+
+			got2 := tr2.BindCSV()
+			want2 := [][]string{
+				{"bob", "20"},
+				{"charlie", "30"},
+			}
+			require.Equal(t, want2, got2, "filtered results should match")
 		})
 	}
 }

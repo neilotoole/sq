@@ -4,6 +4,7 @@ package metadata
 import (
 	"encoding/json"
 	"log/slog"
+	"maps"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -107,9 +108,7 @@ func (s *Source) Clone() *Source {
 
 	if s.DBProperties != nil {
 		s2.DBProperties = make(map[string]any, len(s.DBProperties))
-		for k, v := range s.DBProperties {
-			s2.DBProperties[k] = v
-		}
+		maps.Copy(s2.DBProperties, s.DBProperties)
 	}
 
 	if s.Tables != nil {

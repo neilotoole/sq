@@ -293,8 +293,6 @@ func TestDatabaseTypes(t *testing.T) {
 
 	testCases := []string{sakila.MS}
 	for _, handle := range testCases {
-		handle := handle
-
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
