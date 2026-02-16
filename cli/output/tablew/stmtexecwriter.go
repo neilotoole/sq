@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -29,11 +30,15 @@ func NewStmtExecWriter(out io.Writer, pr *output.Printing) output.StmtExecWriter
 func (w *stmtExecWriter) StmtExecuted(_ context.Context, _ *source.Source,
 	affected int64, elapsed time.Duration,
 ) error {
-	s := w.pr.Number.Sprintf("%d", affected)
-
-	if affected == 1 {
+	var s string
+	switch affected {
+	case dialect.RowsAffectedUnsupported:
+		s = w.pr.Faint.Sprint("rows affected: unsupported")
+	case 1:
+		s = w.pr.Number.Sprintf("%d", affected)
 		s += w.pr.Normal.Sprint(" row affected")
-	} else {
+	default:
+		s = w.pr.Number.Sprintf("%d", affected)
 		s += w.pr.Normal.Sprint(" rows affected")
 	}
 

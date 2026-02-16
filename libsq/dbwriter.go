@@ -122,15 +122,13 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 		}
 	}
 
-	batchSize := driver.MaxBatchRows(w.destGrip.SQLDriver(), len(recMeta.Names()))
-	w.bi, err = driver.NewBatchInsert(
+	w.bi, err = w.destGrip.SQLDriver().NewBatchInsert(
 		ctx,
 		w.msg,
-		w.destGrip.SQLDriver(),
 		tx,
+		w.destGrip.Source(),
 		w.destTbl,
 		recMeta.Names(),
-		batchSize,
 	)
 	if err != nil {
 		w.rollback(ctx, tx, err)

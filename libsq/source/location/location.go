@@ -23,6 +23,7 @@ var dbSchemes = []string{
 	"sqlserver",
 	"postgres",
 	"sqlite3",
+	"clickhouse",
 }
 
 // Filename returns the final component of the file/URL path.
@@ -290,6 +291,18 @@ func Parse(loc string) (*Fields, error) {
 	case "mysql":
 		fields.DriverType = drivertype.MySQL
 		fields.Name = strings.TrimPrefix(u.Path, "/")
+	case "clickhouse":
+		fields.DriverType = drivertype.ClickHouse
+		fields.Name = strings.TrimPrefix(u.Path, "/")
+		if fields.Name == "" {
+			// ClickHouse also supports specifying the database via the
+			// ?database= query parameter (e.g.
+			// "clickhouse://localhost:9000?database=mydb").
+			u2, err := url.ParseRequestURI(loc)
+			if err == nil {
+				fields.Name = u2.Query().Get("database")
+			}
+		}
 	}
 
 	return fields, nil

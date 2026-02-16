@@ -129,7 +129,9 @@ func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (targetSQL str
 
 // ExecSQL executes a SQL statement (DDL/DML) that doesn't return rows,
 // such as CREATE TABLE, INSERT, UPDATE, DELETE, DROP TABLE, etc.
-// It returns the number of rows affected. If db is non-nil, the statement
+// It returns the number of rows affected (which may be -1 per Go's
+// [sql.Result.RowsAffected] contract if the database does not support
+// reporting affected row counts). If db is non-nil, the statement
 // is executed against it. Otherwise, the connection is obtained from grip.
 // The caller is responsible for closing grip (and db, if non-nil).
 //

@@ -3,7 +3,6 @@
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/neilotoole/sq/blob/master/LICENSE)
 ![Main pipeline](https://github.com/neilotoole/sq/actions/workflows/main.yml/badge.svg)
 
-
 # sq data wrangler
 
 `sq` is a command line tool that provides jq-style access to
@@ -35,6 +34,30 @@ Find out more at [sq.io](https://sq.io).
 > The rest of this doc is mainly for `sq` end users and first-timers. Contributors (bug reports, feature requests, pull requests),
 > see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
+## Drivers
+
+`sq` knows how to deal with a data source type via a [driver](https://sq.io/docs/drivers)
+implementation. To view the installed/supported drivers:
+
+```shell
+$ sq driver ls
+DRIVER      DESCRIPTION
+sqlite3     SQLite
+postgres    PostgreSQL
+sqlserver   Microsoft SQL Server / Azure SQL Edge
+mysql       MySQL
+clickhouse  ClickHouse
+csv         Comma-Separated Values
+tsv         Tab-Separated Values
+json        JSON
+jsona       JSON Array: LF-delimited JSON arrays
+jsonl       JSON Lines: LF-delimited JSON objects
+xlsx        Microsoft Excel XLSX
+```
+
+> [!NOTE]
+> ClickHouse Driver support is currently in beta. Full details of support can be
+> found in the [ClickHouse README](drivers/clickhouse/README.md).
 
 ## Install
 
@@ -43,6 +66,7 @@ Find out more at [sq.io](https://sq.io).
 ```shell
 brew install sq
 ```
+
 > [!IMPORTANT]
 > `sq` is now a [core brew formula](https://formulae.brew.sh/formula/sq#default). Previously, `sq` was available via `brew install neilotoole/sq/sq`. If you have installed `sq` this way, you should uninstall it (`brew uninstall neilotoole/sq/sq`) before installing the new formula via `brew install sq`.
 
@@ -94,9 +118,11 @@ $ kubectl run sq-shell --image ghcr.io/neilotoole/sq
 $ kubectl exec -it sq-shell -- zsh
 ```
 
-
-
 See other [install options](https://sq.io/docs/install/).
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Overview
 
@@ -169,7 +195,6 @@ $ sq ping
 > ![sq inspect remote](./.images/sq_inspect_remote_s3.png)
 > See the [sources](https://sq.io/docs/source#download) docs for more.
 
-
 ### Query
 
 Fundamentally, `sq` is for querying data. The jq-style syntax is covered in
@@ -217,9 +242,9 @@ to a CSV file:
 ```shell
 $ sq inspect -j | jq -r '.tables[] | .name' | xargs -I % sq .% --csv --output %.csv
 $ ls
-actor.csv     city.csv	    customer_list.csv  film_category.csv  inventory.csv  rental.csv		     staff.csv
-address.csv   country.csv   film.csv	       film_list.csv	  language.csv	 sales_by_film_category.csv  staff_list.csv
-category.csv  customer.csv  film_actor.csv     film_text.csv	  payment.csv	 sales_by_store.csv	     store.csv
+actor.csv     city.csv      customer_list.csv  film_category.csv  inventory.csv  rental.csv                  staff.csv
+address.csv   country.csv   film.csv           film_list.csv      language.csv   sales_by_film_category.csv  staff_list.csv
+category.csv  customer.csv  film_actor.csv     film_text.csv      payment.csv    sales_by_store.csv          store.csv
 ```
 
 Note that you can also inspect an individual table:
@@ -242,14 +267,13 @@ Use [`--data`](https://sq.io/docs/diff#--data) to compare row data.
 
 There are many more options available. See the [diff docs](https://sq.io/docs/diff).
 
-
 ### Insert query results
 
 `sq` query results can be [output](https://sq.io/docs/output) in various formats
 ([`text`](https://sq.io/docs/output#text),
 [`json`](https://sq.io/docs/output#json),
 [`csv`](https://sq.io/docs/output#csv), etc.). Those results can also be "outputted"
-as an [*insert*](https://sq.io/docs/output#insert) into a database table.
+as an [_insert_](https://sq.io/docs/output#insert) into a database table.
 
 That is, you can use `sq` to insert results from a Postgres query into a MySQL table,
 or copy an Excel worksheet into a SQLite table, or a push a CSV file into
@@ -262,7 +286,6 @@ a SQL Server table etc.
 Here we query a CSV file, and insert the results into a Postgres table.
 
 ![sq query insert inspect](./.images/sq_query_insert_inspect.png)
-
 
 ### Cross-source joins
 
@@ -316,26 +339,6 @@ Similarly, you can inspect:
 $ cat ./example.xlsx | sq inspect
 ```
 
-## Drivers
-
-`sq` knows how to deal with a data source type via a [driver](https://sq.io/docs/drivers)
-implementation. To view the installed/supported drivers:
-
-```shell
-$ sq driver ls
-DRIVER     DESCRIPTION
-sqlite3    SQLite
-postgres   PostgreSQL
-sqlserver  Microsoft SQL Server / Azure SQL Edge
-mysql      MySQL
-csv        Comma-Separated Values
-tsv        Tab-Separated Values
-json       JSON
-jsona      JSON Array: LF-delimited JSON arrays
-jsonl      JSON Lines: LF-delimited JSON objects
-xlsx       Microsoft Excel XLSX
-```
-
 ## Output formats
 
 `sq` has many [output formats](https://sq.io/docs/output):
@@ -366,8 +369,8 @@ See [CHANGELOG.md](./CHANGELOG.md).
   packages.
 - `sq` imports a bunch of [`usql`](https://github.com/xo/usql) functionality.
 - Additionally, `sq` incorporates modified versions of:
-	- [`olekukonko/tablewriter`](https://github.com/olekukonko/tablewriter)
-	- [`segmentio/encoding`](https://github.com/segmentio/encoding) for JSON encoding.
+ - [`olekukonko/tablewriter`](https://github.com/olekukonko/tablewriter)
+ - [`segmentio/encoding`](https://github.com/segmentio/encoding) for JSON encoding.
 - The [_Sakila_](https://dev.mysql.com/doc/sakila/en/) example databases were lifted
   from [jOOQ](https://github.com/jooq/jooq), which in turn owe their heritage to earlier work on
   Sakila.

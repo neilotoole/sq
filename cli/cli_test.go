@@ -101,6 +101,23 @@ func TestSmoke(t *testing.T) {
 	}
 }
 
+// TestCreateTable_bytes verifies that binary data (kind.Bytes) can be correctly
+// inserted into SQL databases via the driver's table creation and batch insert
+// mechanisms. This is a critical test because binary data handling varies
+// significantly across database drivers and requires proper encoding/escaping.
+//
+// The test performs the following steps for each SQL database:
+//  1. Creates a new table with two columns: a text column (col_name) and a
+//     bytes column (col_bytes)
+//  2. Reads a binary GIF image file (the Go gopher mascot) from the test fixtures
+//  3. Inserts a single row containing the filename and the raw image bytes
+//  4. Verifies that exactly 1 row was inserted successfully
+//  5. Cleans up by dropping the test table
+//
+// This exercises the full write path for binary data: schema creation via
+// CreateTable, type mapping for kind.Bytes to the database-specific binary type
+// (e.g., BLOB, BYTEA, VARBINARY), and data insertion via the batch insert
+// mechanism with proper binary encoding.
 func TestCreateTable_bytes(t *testing.T) {
 	for _, handle := range sakila.SQLLatest() {
 		t.Run(handle, func(t *testing.T) {
@@ -123,14 +140,36 @@ func TestCreateTable_bytes(t *testing.T) {
 	}
 }
 
-// TestOutputRaw verifies that the raw output format works.
-// We're particularly concerned that bytes output is correct.
+// TestOutputRaw verifies that the --raw output format correctly outputs binary
+// data without any encoding or transformation. This is critical for use cases
+// where users want to extract binary content (images, documents, etc.) directly
+// from a database to a file or pipe it to another program.
+//
+// The test performs the following steps for each SQL database:
+//  1. Reads a binary GIF image file (the Go gopher mascot) and validates it
+//     can be decoded as a valid GIF
+//  2. Creates a table with text and bytes columns, inserting the image data
+//  3. Queries the data back via libsq and verifies the bytes match exactly,
+//     confirming the database driver correctly handles binary roundtrip
+//  4. Tests CLI raw output to a file using "sq sql --raw --output=/path/to/file"
+//     and verifies the output file contains the exact original bytes and is
+//     a valid GIF
+//  5. Tests CLI raw output to stdout using "sq sql --raw" and verifies stdout
+//     contains the exact original bytes
+//
+// This exercises the complete binary data pipeline: storage in the database,
+// retrieval through the driver, and output through the CLI's raw format writer
+// without corruption or unwanted encoding (e.g., base64, hex).
 func TestOutputRaw(t *testing.T) {
 	t.Parallel()
 
 	for _, handle := range sakila.SQLLatest() {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
+
+			th, src, _, _, _ := testh.NewWith(t, handle)
+			tu.SkipIf(t, src.Type == drivertype.ClickHouse,
+				"ClickHouse: kind.Bytes roundtrips as kind.Text (see drivers/clickhouse/README.md Known Limitation #4)")
 
 			// Sanity check
 			wantBytes := proj.ReadFile(fixt.GopherPath)
@@ -143,8 +182,6 @@ func TestOutputRaw(t *testing.T) {
 				[]string{"col_name", "col_bytes"},
 				[]kind.Kind{kind.Text, kind.Bytes},
 			)
-
-			th, src, _, _, _ := testh.NewWith(t, handle)
 
 			// Create the table and insert data
 			insertRow := []any{fixt.GopherFilename, wantBytes}

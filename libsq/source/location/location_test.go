@@ -25,6 +25,7 @@ func TestIsSQL(t *testing.T) {
 		{loc: "sqlserver://sq:p_ssW0rd@localhost?database=sqtest", want: true},
 		{loc: "postgres://sq:p_ssW0rd@localhost/sqtest?sslmode=disable", want: true},
 		{loc: "mysql://sq:p_ssW0rd@tcp(localhost:3306)/sqtest", want: true},
+		{loc: "clickhouse://sakila:p_ssW0rd@localhost:9000/sakila", want: true},
 	}
 
 	for _, tc := range testCases {
@@ -52,6 +53,11 @@ func TestWithPassword(t *testing.T) {
 			loc:  "postgres://sakila:p_ssW0rd@localhost/sakila",
 			pw:   "p_ssW0rd",
 			want: "postgres://sakila:p_ssW0rd@localhost/sakila",
+		},
+		{
+			loc:  "clickhouse://sakila:p_ssW0rd@localhost:9000/sakila",
+			pw:   "p_ssW0rd",
+			want: "clickhouse://sakila:p_ssW0rd@localhost:9000/sakila",
 		},
 		{
 			loc:  "postgres://sakila:p_ssW0rd@localhost/sakila",

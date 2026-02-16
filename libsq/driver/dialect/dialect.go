@@ -14,6 +14,27 @@ import (
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
+// RowsAffectedUnsupported is a sentinel value (-1) returned by operations like
+// [driver.SQLDriver.CopyTable] when the database does not support reporting
+// the number of affected rows. Some databases (e.g., ClickHouse) do not report
+// row counts for certain operations like INSERT ... SELECT.
+//
+// Callers should check for this value before using the row count:
+//
+//	copied, err := drvr.CopyTable(ctx, db, from, to, true)
+//	if err != nil {
+//	    return err
+//	}
+//	if copied == dialect.RowsAffectedUnsupported {
+//	    // Row count unsupported by this database; verify success via other means
+//	} else {
+//	    fmt.Printf("Copied %d rows\n", copied)
+//	}
+//
+// This follows a common pattern where -1 indicates "unknown" or "unsupported"
+// (similar to HTTP Content-Length: -1 for chunked encoding).
+const RowsAffectedUnsupported int64 = -1
+
 // Dialect holds driver-specific SQL dialect values and functions.
 // The zero value is not usable; each driver implementation must initialize
 // all fields appropriately. See the driver packages (e.g., postgres, mysql)
@@ -60,6 +81,16 @@ type Dialect struct {
 	// and schema (sakila.public.actor), whereas MySQL only supports schema
 	// (sakila.actor).
 	Catalog bool
+
+	// IsRowsAffectedUnsupported indicates that this dialect does not reliably
+	// report rows affected for DML operations via sql.Result.RowsAffected().
+	// When true, callers should treat a 0 return from ExecSQL as "unknown"
+	// rather than "zero rows". For example, ClickHouse always returns 0 for
+	// INSERT, UPDATE, and DELETE operations due to protocol-level limitations.
+	// The field name uses "Unsupported" (rather than "CanReportRowsAffected")
+	// so that the zero value (false) represents the common case where rows
+	// ARE reported, following Go idioms for sensible zero values.
+	IsRowsAffectedUnsupported bool
 }
 
 // String returns a log/debug-friendly representation.

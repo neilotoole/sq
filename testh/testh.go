@@ -22,6 +22,7 @@ import (
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/drivers/clickhouse"
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/json"
 	"github.com/neilotoole/sq/drivers/mysql"
@@ -182,6 +183,7 @@ func (h *Helper) init() {
 		h.registry.AddProvider(drivertype.Pg, &postgres.Provider{Log: h.Log()})
 		h.registry.AddProvider(drivertype.MSSQL, &sqlserver.Provider{Log: h.Log()})
 		h.registry.AddProvider(drivertype.MySQL, &mysql.Provider{Log: h.Log()})
+		h.registry.AddProvider(drivertype.ClickHouse, &clickhouse.Provider{Log: h.Log()})
 
 		csvp := &csv.Provider{Log: h.Log(), Ingester: h.grips, Files: h.files}
 		h.registry.AddProvider(drivertype.CSV, csvp)
@@ -297,7 +299,9 @@ func (h *Helper) Source(handle string) *source.Source {
 
 	// If the handle refers to an external database, we will skip
 	// the test if the envar for the handle is not set.
-	if stringz.InSlice(sakila.SQLAllExternal(), handle) {
+	// This includes sakila external sources and other external test sources like ClickHouse.
+	externalHandles := append(sakila.SQLAllExternal(), "@clickhouse_test")
+	if stringz.InSlice(externalHandles, handle) {
 		// Skip the test if the envar for the handle is not set
 		handleEnvar := "SQ_TEST_SRC__" + strings.ToUpper(strings.TrimPrefix(handle, "@"))
 		if envar, ok := os.LookupEnv(handleEnvar); !ok || strings.TrimSpace(envar) == "" {
@@ -359,7 +363,8 @@ func (h *Helper) SourceConfigured(handle string) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if !stringz.InSlice(sakila.SQLAllExternal(), handle) {
+	externalHandles := append(sakila.SQLAllExternal(), "@clickhouse_test")
+	if !stringz.InSlice(externalHandles, handle) {
 		// Non-SQL and SQLite sources are always available.
 		return true
 	}
@@ -506,15 +511,13 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 	require.NoError(h.T, err)
 	defer lg.WarnIfCloseError(h.Log(), lgm.CloseDB, conn)
 
-	batchSize := driver.MaxBatchRows(drvr, len(cols))
-	bi, err := driver.NewBatchInsert(
+	bi, err := drvr.NewBatchInsert(
 		h.Context,
 		libsq.MsgIngestRecords,
-		drvr,
 		conn,
+		src,
 		tbl,
 		cols,
-		batchSize,
 	)
 	require.NoError(h.T, err)
 

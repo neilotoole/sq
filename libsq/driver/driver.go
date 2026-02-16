@@ -121,6 +121,20 @@ type SQLDriver interface {
 	PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
 		numRows int) (*StmtExecer, error)
 
+	// NewBatchInsert returns a BatchInsert for inserting records
+	// into destTbl. The db arg must guarantee a single connection
+	// (i.e., it must be a sql.Conn or sql.Tx). Most implementations
+	// delegate to DefaultNewBatchInsert, which uses the standard
+	// multi-row INSERT approach. Drivers requiring custom insertion
+	// logic (e.g. ClickHouse's native Batch API) implement their own
+	// method using the lower-level NewBatchInsert constructor. The src
+	// arg provides access to the source DSN, which some drivers need
+	// to open native connections. Batch size is computed internally
+	// by each driver.
+	NewBatchInsert(ctx context.Context, msg string, db sqlz.DB,
+		src *source.Source, destTbl string, destColNames []string,
+	) (*BatchInsert, error)
+
 	// PrepareUpdateStmt prepares a statement for updating destColNames in
 	// destTbl, using the supplied where clause (which may be empty).
 	// The where arg should use question mark "?" as the placeholder: it will
@@ -131,6 +145,10 @@ type SQLDriver interface {
 	//
 	// Use the returned StmtExecer per its documentation. It is the caller's
 	// responsibility to close the execer.
+	//
+	// The returned StmtExecer's Exec method may yield
+	// [dialect.RowsAffectedUnsupported] (-1) for affected rows if the driver
+	// cannot report the count (e.g. ClickHouse mutations).
 	//
 	// Note that db must guarantee a single connection: that is, db
 	// must be a sql.Conn or sql.Tx.
@@ -161,7 +179,9 @@ type SQLDriver interface {
 	// Truncate truncates tbl in src. If arg reset is true, the
 	// identity counter for tbl should be reset, if supported
 	// by the driver. Some DB impls may reset the identity
-	// counter regardless of the val of reset.
+	// counter regardless of the val of reset. The returned affected
+	// count may be [dialect.RowsAffectedUnsupported] (-1) if the driver
+	// cannot determine the row count.
 	Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64, err error)
 
 	// TableExists returns true if there's an existing table tbl in db.
@@ -175,7 +195,10 @@ type SQLDriver interface {
 	// CopyTable copies fromTable into a new table toTable.
 	// If copyData is true, fromTable's data is also copied.
 	// Constraints (keys, defaults etc.) may not be copied. The
-	// number of copied rows is returned in copied.
+	// number of copied rows is returned in copied. If the driver cannot
+	// determine the number of copied rows (e.g., ClickHouse doesn't report
+	// row counts for INSERT ... SELECT), [dialect.RowsAffectedUnsupported] (-1)
+	// is returned.
 	CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable tablefq.T, copyData bool) (copied int64, err error)
 
 	// DropTable drops tbl from db. If ifExists is true, an "IF EXISTS"

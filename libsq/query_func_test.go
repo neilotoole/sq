@@ -19,10 +19,13 @@ const infoSchema = "information_schema"
 func TestQuery_func(t *testing.T) {
 	testCases := []queryTestCase{
 		{
-			name:         "max",
-			in:           `@sakila | .actor | max(.actor_id)`,
-			wantSQL:      `SELECT max("actor_id") AS "max(.actor_id)" FROM "actor"`,
-			override:     driverMap{drivertype.MySQL: "SELECT max(`actor_id`) AS `max(.actor_id)` FROM `actor`"},
+			name:    "max",
+			in:      `@sakila | .actor | max(.actor_id)`,
+			wantSQL: `SELECT max("actor_id") AS "max(.actor_id)" FROM "actor"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT max(`actor_id`) AS `max(.actor_id)` FROM `actor`",
+				drivertype.ClickHouse: "SELECT max(`actor_id`) AS `max(.actor_id)` FROM `actor`",
+			},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "max(.actor_id)"),
@@ -30,10 +33,13 @@ func TestQuery_func(t *testing.T) {
 			},
 		},
 		{
-			name:         "min",
-			in:           `@sakila | .actor | min(.actor_id)`,
-			wantSQL:      `SELECT min("actor_id") AS "min(.actor_id)" FROM "actor"`,
-			override:     driverMap{drivertype.MySQL: "SELECT min(`actor_id`) AS `min(.actor_id)` FROM `actor`"},
+			name:    "min",
+			in:      `@sakila | .actor | min(.actor_id)`,
+			wantSQL: `SELECT min("actor_id") AS "min(.actor_id)" FROM "actor"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT min(`actor_id`) AS `min(.actor_id)` FROM `actor`",
+				drivertype.ClickHouse: "SELECT min(`actor_id`) AS `min(.actor_id)` FROM `actor`",
+			},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "min(.actor_id)"),
@@ -41,10 +47,13 @@ func TestQuery_func(t *testing.T) {
 			},
 		},
 		{
-			name:         "avg",
-			in:           `@sakila | .actor | avg(.actor_id)`,
-			wantSQL:      `SELECT avg("actor_id") AS "avg(.actor_id)" FROM "actor"`,
-			override:     driverMap{drivertype.MySQL: "SELECT avg(`actor_id`) AS `avg(.actor_id)` FROM `actor`"},
+			name:    "avg",
+			in:      `@sakila | .actor | avg(.actor_id)`,
+			wantSQL: `SELECT avg("actor_id") AS "avg(.actor_id)" FROM "actor"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT avg(`actor_id`) AS `avg(.actor_id)` FROM `actor`",
+				drivertype.ClickHouse: "SELECT avg(`actor_id`) AS `avg(.actor_id)` FROM `actor`",
+			},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "avg(.actor_id)"),
@@ -159,6 +168,17 @@ func TestQuery_func_schema(t *testing.T) {
 				assertSinkColValue(0, "main"),
 			},
 		},
+		{
+			name:         "clickhouse-default",
+			in:           `@sakila | schema()`,
+			wantSQL:      "SELECT currentDatabase() AS `schema()`",
+			onlyFor:      []drivertype.Type{drivertype.ClickHouse},
+			wantRecCount: 1,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "schema()"),
+				assertSinkColValue(0, "sakila"),
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -245,6 +265,17 @@ func TestQuery_func_catalog(t *testing.T) {
 				assertSinkColValue(0, "default"),
 			},
 		},
+		{
+			name:         "clickhouse",
+			in:           `@sakila | catalog()`,
+			wantSQL:      "SELECT currentDatabase() AS `catalog()`",
+			onlyFor:      []drivertype.Type{drivertype.ClickHouse},
+			wantRecCount: 1,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "catalog()"),
+				assertSinkColValue(0, "sakila"),
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -265,7 +296,8 @@ func TestQuery_func_rownum(t *testing.T) {
 				drivertype.MSSQL: `SELECT (row_number() OVER (ORDER BY (SELECT NULL))) AS "rownum()" FROM "actor"`,
 				// We don't test the MySQL override because it uses a randomly generated variable value. E.g.
 				//  SELECT (@row_number_dw5ch2ss:=@row_number_dw5ch2ss + 1) AS `rownum()` FROM `actor`
-				drivertype.MySQL: ``,
+				drivertype.MySQL:      ``,
+				drivertype.ClickHouse: "SELECT (row_number() OVER (ORDER BY 1)) AS `rownum()` FROM `actor`",
 			},
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
@@ -279,8 +311,9 @@ func TestQuery_func_rownum(t *testing.T) {
 			in:      `@sakila | .actor | rownum() + 1`,
 			wantSQL: `SELECT (row_number() OVER (ORDER BY 1))+1 AS "rownum()+1" FROM "actor"`,
 			override: driverMap{
-				drivertype.MSSQL: `SELECT (row_number() OVER (ORDER BY (SELECT NULL)))+1 AS "rownum()+1" FROM "actor"`,
-				drivertype.MySQL: "",
+				drivertype.MSSQL:      `SELECT (row_number() OVER (ORDER BY (SELECT NULL)))+1 AS "rownum()+1" FROM "actor"`,
+				drivertype.MySQL:      "",
+				drivertype.ClickHouse: "SELECT (row_number() OVER (ORDER BY 1))+1 AS `rownum()+1` FROM `actor`",
 			},
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
@@ -294,8 +327,9 @@ func TestQuery_func_rownum(t *testing.T) {
 			in:      `@sakila | .actor | (rownum()-1):zero_index`,
 			wantSQL: `SELECT ((row_number() OVER (ORDER BY 1))-1) AS "zero_index" FROM "actor"`,
 			override: driverMap{
-				drivertype.MSSQL: `SELECT ((row_number() OVER (ORDER BY (SELECT NULL)))-1) AS "zero_index" FROM "actor"`,
-				drivertype.MySQL: "",
+				drivertype.MSSQL:      `SELECT ((row_number() OVER (ORDER BY (SELECT NULL)))-1) AS "zero_index" FROM "actor"`,
+				drivertype.MySQL:      "",
+				drivertype.ClickHouse: "SELECT ((row_number() OVER (ORDER BY 1))-1) AS `zero_index` FROM `actor`",
 			},
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
@@ -305,10 +339,13 @@ func TestQuery_func_rownum(t *testing.T) {
 			},
 		},
 		{
-			name:         "column_orderby",
-			in:           `@sakila | .actor | rownum(), .actor_id | order_by(.actor_id)`,
-			wantSQL:      `SELECT (row_number() OVER (ORDER BY "actor_id")) AS "rownum()", "actor_id" FROM "actor" ORDER BY "actor_id"`,
-			override:     driverMap{drivertype.MySQL: ""},
+			name:    "column_orderby",
+			in:      `@sakila | .actor | rownum(), .actor_id | order_by(.actor_id)`,
+			wantSQL: `SELECT (row_number() OVER (ORDER BY "actor_id")) AS "rownum()", "actor_id" FROM "actor" ORDER BY "actor_id"`,
+			override: driverMap{
+				drivertype.MySQL:      "",
+				drivertype.ClickHouse: "SELECT (row_number() OVER (ORDER BY `actor_id`)) AS `rownum()`, `actor_id` FROM `actor` ORDER BY `actor_id`",
+			},
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "rownum()"),
@@ -317,10 +354,13 @@ func TestQuery_func_rownum(t *testing.T) {
 			},
 		},
 		{
-			name:         "double_invocation",
-			in:           `@sakila | .actor | rownum():index1, .actor_id, rownum():index2 | order_by(.actor_id)`,
-			wantSQL:      `SELECT (row_number() OVER (ORDER BY "actor_id")) AS "index1", "actor_id", (row_number() OVER (ORDER BY "actor_id")) AS "index2" FROM "actor" ORDER BY "actor_id"`,
-			override:     driverMap{drivertype.MySQL: ""},
+			name:    "double_invocation",
+			in:      `@sakila | .actor | rownum():index1, .actor_id, rownum():index2 | order_by(.actor_id)`,
+			wantSQL: `SELECT (row_number() OVER (ORDER BY "actor_id")) AS "index1", "actor_id", (row_number() OVER (ORDER BY "actor_id")) AS "index2" FROM "actor" ORDER BY "actor_id"`,
+			override: driverMap{
+				drivertype.MySQL:      "",
+				drivertype.ClickHouse: "SELECT (row_number() OVER (ORDER BY `actor_id`)) AS `index1`, `actor_id`, (row_number() OVER (ORDER BY `actor_id`)) AS `index2` FROM `actor` ORDER BY `actor_id`",
+			},
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "index1"),

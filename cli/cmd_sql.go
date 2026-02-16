@@ -143,6 +143,15 @@ func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source) erro
 			return execErr
 		}
 
+		// Some databases (e.g. ClickHouse) don't reliably report rows
+		// affected for DML. The raw protocol returns 0, which is misleading
+		// because it implies "no rows were affected" when the truth is
+		// "we don't know." Convert 0 to -1 so the output layer can display
+		// an appropriate message.
+		if grip.SQLDriver().Dialect().IsRowsAffectedUnsupported && affected == 0 {
+			affected = dialect.RowsAffectedUnsupported
+		}
+
 		return ru.Writers.StmtExec.StmtExecuted(ctx, fromSrc, affected, elapsed)
 	}
 

@@ -1,10 +1,43 @@
-// Package downloader provides a mechanism for getting files from
-// HTTP/S URLs, making use of a mostly RFC-compliant cache.
+// Package downloader provides a mechanism for downloading files from HTTP/S
+// URLs, with support for RFC-compliant HTTP caching.
 //
-// The entrypoint is downloader.New.
+// # Overview
 //
-// Acknowledgement: This package is a heavily customized fork
-// of https://github.com/gregjones/httpcache, via bitcomplete/download.
+// The package implements a disk-based cache for HTTP downloads, supporting
+// standard HTTP cache-control semantics including freshness validation,
+// conditional requests (If-Modified-Since, If-None-Match), and the
+// stale-if-error extension (RFC 5861).
+//
+// # Usage
+//
+// The entrypoint is [New], which creates a [Downloader] for a specific URL.
+// Use [Downloader.Get] to retrieve the file, which returns either:
+//   - A filepath to an already-cached file (cache hit)
+//   - A [streamcache.Stream] for an in-progress download (cache miss)
+//   - An error if the download fails and no cached version is available
+//
+// # Cache Architecture
+//
+// The cache uses a two-stage write approach with "staging" and "main"
+// directories. New downloads are written to staging first, then atomically
+// promoted to main upon successful completion. This prevents partial or
+// corrupt downloads from polluting the cache.
+//
+// Each cached download consists of three files:
+//   - header: The HTTP response headers
+//   - body: The response body content
+//   - checksums.txt: SHA-256 checksum for integrity verification
+//
+// # Options
+//
+// The downloader respects two context options:
+//   - [OptCache]: Enable/disable caching (default: true)
+//   - [OptContinueOnError]: Return stale cache on refresh failure (default: true)
+//
+// # Acknowledgement
+//
+// This package is a heavily customized fork of
+// https://github.com/gregjones/httpcache, via bitcomplete/download.
 package downloader
 
 import (
@@ -31,6 +64,10 @@ import (
 	"github.com/neilotoole/sq/libsq/core/progress"
 )
 
+// OptContinueOnError controls behavior when a cache refresh fails. When true
+// (the default), the downloader returns the stale cached file instead of an
+// error. This enables "airplane mode" functionality where sq can continue
+// working with cached data when the network is unavailable.
 var OptContinueOnError = options.NewBool(
 	"download.refresh.ok-on-err",
 	nil,
@@ -44,6 +81,10 @@ download when the network is unavailable. If false, an error is returned instead
 	options.TagSource,
 )
 
+// OptCache controls whether downloads are cached to disk. When true (the
+// default), downloaded files are stored in the cache directory and reused
+// on subsequent requests if still fresh. When false, each request triggers
+// a new download and no caching occurs.
 var OptCache = options.NewBool(
 	"download.cache",
 	nil,
@@ -430,7 +471,9 @@ func (dl *Downloader) do(req *http.Request) (*http.Response, error) {
 
 	if resp.Body != nil && resp.Body != http.NoBody {
 		r := progress.NewReader(req.Context(), dl.name+": download", resp.ContentLength, resp.Body)
-		resp.Body, _ = r.(io.ReadCloser)
+		if rc, ok := r.(io.ReadCloser); ok {
+			resp.Body = rc
+		}
 	}
 	return resp, nil
 }
@@ -464,6 +507,10 @@ func (dl *Downloader) State(ctx context.Context) State {
 	return dl.state(dl.mustRequest(ctx))
 }
 
+// state returns the cache state for the given request. It reads the cached
+// response headers (if present) and evaluates freshness according to HTTP
+// cache-control semantics. Returns [Uncached] if there is no cache or if
+// the cache cannot be read.
 func (dl *Downloader) state(req *http.Request) State {
 	if !dl.isCacheable(req) {
 		return Uncached
@@ -555,6 +602,10 @@ func (dl *Downloader) Checksum(ctx context.Context) (sum checksum.Checksum, ok b
 	return dl.cache.cachedChecksum(req)
 }
 
+// isCacheable returns true if the request can be served from or stored to
+// the cache. A request is cacheable if caching is enabled, the HTTP method
+// is GET or HEAD, and the request does not include a Range header (partial
+// content requests are not cached).
 func (dl *Downloader) isCacheable(req *http.Request) bool {
 	if dl.cache == nil {
 		return false
