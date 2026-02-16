@@ -81,11 +81,57 @@ clickhouse://default:@localhost:9000/default
 
 ### Type System
 
-- Bidirectional type mapping (ClickHouse types ↔ `kind.Kind`)
-- Supported types: Int8-64, UInt8-64, Float32/64, String, FixedString,
-  Date, Date32, DateTime, DateTime64, Decimal, UUID, Bool
-- Nullable handling: `Nullable(T)`
-- LowCardinality support: `LowCardinality(T)`
+ClickHouse types are mapped to sq's `kind` type system. Because sq's
+kind system is coarser than ClickHouse's native types, the mapping is
+not a perfect round-trip. For example, `Int8` and `Int64` both become
+`kind.Int`, and `kind.Int` always maps back to `Int64`.
+
+Wrapper types are stripped before mapping: `Nullable(T)` and
+`LowCardinality(T)` are unwrapped to extract the base type. For
+example, `LowCardinality(Nullable(String))` is unwrapped to `String`,
+which maps to `kind.Text`.
+
+#### ClickHouse → sq (reading/querying)
+
+<!-- markdownlint-disable MD013 MD060 -->
+| ClickHouse Type                       | sq Kind         | Notes                              |
+|---------------------------------------|-----------------|------------------------------------|
+| `Int8`, `Int16`, `Int32`, `Int64`     | `kind.Int`      | All signed integers                |
+| `UInt8`, `UInt16`, `UInt32`, `UInt64` | `kind.Int`      | All unsigned integers              |
+| `Float32`, `Float64`                  | `kind.Float`    |                                    |
+| `Decimal(P,S)`, `Decimal128(S)`, etc. | `kind.Decimal`  | All Decimal variants               |
+| `Bool`                                | `kind.Bool`     |                                    |
+| `String`                              | `kind.Text`     |                                    |
+| `FixedString(N)`                      | `kind.Text`     |                                    |
+| `UUID`                                | `kind.Text`     |                                    |
+| `Date`, `Date32`                      | `kind.Date`     |                                    |
+| `DateTime`, `DateTime64`              | `kind.Datetime` | Including parameterized variants   |
+| `Array(T)`                            | `kind.Text`     | Serialized as comma-separated text |
+| `Enum8(...)`, `Enum16(...)`           | `kind.Text`     | Fallback to text                   |
+| `Map(K,V)`, `Tuple(...)`              | `kind.Text`     | Fallback to text                   |
+| Unknown types                         | `kind.Text`     | Safe fallback                      |
+<!-- markdownlint-enable MD013 MD060 -->
+
+#### sq → ClickHouse (writing/creating tables)
+
+<!-- markdownlint-disable MD013 MD060 -->
+| sq Kind                     | ClickHouse Type | Notes                            |
+|-----------------------------|-----------------|----------------------------------|
+| `kind.Text`                 | `String`        |                                  |
+| `kind.Int`                  | `Int64`         |                                  |
+| `kind.Float`                | `Float64`       |                                  |
+| `kind.Decimal`              | `Decimal(18,4)` |                                  |
+| `kind.Bool`                 | `Bool`          |                                  |
+| `kind.Date`                 | `Date`          |                                  |
+| `kind.Datetime`             | `DateTime`      |                                  |
+| `kind.Time`                 | `DateTime`      | ClickHouse has no time-only type |
+| `kind.Bytes`                | `String`        | Binary data stored as String     |
+| `kind.Unknown`, `kind.Null` | `String`        |                                  |
+<!-- markdownlint-enable MD013 MD060 -->
+
+Nullable columns are wrapped with `Nullable(T)` (e.g.,
+`Nullable(String)`, `Nullable(Int64)`). ClickHouse columns are
+non-nullable by default.
 
 ### Metadata
 
