@@ -56,7 +56,8 @@ xlsx        Microsoft Excel XLSX
 ```
 
 > [!NOTE]
->Clickhouse Driver support is currently in beta. Full details of support can be found in the [Clickhouse README](drivers/clickhouse/README.md).
+> ClickHouse Driver support is currently in beta. Full details of support can be
+> found in the [ClickHouse README](drivers/clickhouse/README.md).
 
 ## Install
 

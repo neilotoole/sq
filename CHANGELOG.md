@@ -12,6 +12,17 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## Unreleased
+
+### Added
+
+- 🐥 [#503]: Initial [ClickHouse](https://clickhouse.com) support. This is a
+  beta release of the ClickHouse functionality; please open an issue if you
+  find problems. Documentation is still WIP, see the
+  [ClickHouse README.md](drivers/clickhouse/README.md) in the interim.
+
+[#503]: https://github.com/neilotoole/sq/pull/503
+
 ## [v0.49.0] - 2026-02-14
 
 ### Changed
@@ -1355,7 +1366,6 @@ make working with lots of sources much easier.
 [#531]: https://github.com/neilotoole/sq/issues/531
 [#532]: https://github.com/neilotoole/sq/issues/532
 [#542]: https://github.com/neilotoole/sq/issues/542
-
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
