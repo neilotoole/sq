@@ -3,6 +3,7 @@ package tablew
 import (
 	"fmt"
 	"io"
+	"time"
 
 	"golang.org/x/mod/semver"
 
@@ -74,10 +75,15 @@ func (w *versionWriter) Version(bi buildinfo.Info, latestVersion string, hi host
 
 	// Follow GNU standards (mostly)
 	// https://www.gnu.org/prep/standards/html_node/_002d_002dversion.html#g_t_002d_002dversion
-	const notice = `MIT License:     https://opensource.org/license/mit
+	copyrightYear := bi.Timestamp.Year()
+	if bi.Timestamp.IsZero() {
+		copyrightYear = time.Now().Year()
+	}
+
+	notice := fmt.Sprintf(`MIT License:     https://opensource.org/license/mit
 Website:         https://sq.io
 Source code:     https://github.com/neilotoole/sq
-Notice:          Copyright (c) 2023 Neil O'Toole`
+Notice:          Copyright (c) %d The sq authors`, copyrightYear)
 	w.pr.Faint.Fprintln(w.out, notice)
 
 	return nil
