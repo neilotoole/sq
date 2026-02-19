@@ -6,9 +6,11 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/samber/lo"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/jointype"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
 )
@@ -431,6 +433,43 @@ func TestQuery_table_alias(t *testing.T) {
 	for i, tc := range testCases {
 		t.Run(tu.Name(i, tc.name), func(t *testing.T) {
 			execQueryTestCase(t, tc)
+		})
+	}
+}
+
+// TestQuery_join_cross_source_same_table_name is a regression test for
+// https://github.com/neilotoole/sq/issues/445
+// Cross-source joins should work when both sources have tables with the same name.
+func TestQuery_join_cross_source_same_table_name(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name         string
+		query        string
+		wantRecCount int
+	}{
+		{
+			name:         "no-alias",
+			query:        `@sakila_sl3 | .actor | join(@sakila_sl3_whitespace.actor, .actor_id) | .first_name`,
+			wantRecCount: sakila.TblActorCount,
+		},
+		{
+			name: "with-alias",
+			query: `@sakila_sl3 | .actor:a1 |` +
+				` join(@sakila_sl3_whitespace.actor:a2, .a1.actor_id == .a2.actor_id) | .a1.first_name`,
+			wantRecCount: sakila.TblActorCount,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			sink, err := th.QuerySLQ(tc.query, nil)
+			require.NoError(t, err)
+			require.Len(t, sink.Recs, tc.wantRecCount)
 		})
 	}
 }

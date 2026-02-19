@@ -177,6 +177,11 @@ func (n *TblSelectorNode) Alias() string {
 	return n.alias
 }
 
+// SetAlias sets the node's alias.
+func (n *TblSelectorNode) SetAlias(alias string) {
+	n.alias = alias
+}
+
 // Handle returns the handle, which may be empty.
 func (n *TblSelectorNode) Handle() string {
 	return n.handle
