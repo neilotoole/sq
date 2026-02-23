@@ -37,7 +37,7 @@ require (
 	github.com/itchyny/gojq v0.12.18
 	github.com/jackc/pgx/v5 v5.8.0 // BRITTLE
 	github.com/mattn/go-colorable v0.1.14
-	github.com/mattn/go-runewidth v0.0.19
+	github.com/mattn/go-runewidth v0.0.20
 	github.com/mattn/go-sqlite3 v1.14.34 // BRITTLE
 	github.com/microsoft/go-mssqldb v1.9.6 // BRITTLE
 	github.com/mitchellh/go-wordwrap v1.0.1
@@ -60,7 +60,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
-	github.com/vbauerster/mpb/v8 v8.11.3 // BRITTLE
+	github.com/vbauerster/mpb/v8 v8.12.0 // BRITTLE
 	github.com/xo/dburl v0.24.2
 	// Although usql is a large module, Go's DCE (Dead Code Elimination)
 	// mechanism shoujld minimize the impact on the sq binary size. Plus, there
@@ -90,8 +90,7 @@ require (
 	github.com/alecthomas/chroma/v2 v2.21.1 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/clipperhouse/stringish v0.1.1 // indirect
-	github.com/clipperhouse/uax29/v2 v2.3.0 // indirect
+	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/felixge/fgprof v0.9.3 // indirect
