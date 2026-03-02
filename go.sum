@@ -627,8 +627,8 @@ github.com/rs/zerolog v1.34.0/go.mod h1:bJsvje4Z08ROH4Nhs5iH600c3IkWhwp44iRc54W6
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/ryboe/q v1.0.25 h1:ljmF0hBTiynO9tDxJeOx1kJPFo7n4KjpSNAErel1VvM=
 github.com/ryboe/q v1.0.25/go.mod h1:LQNHKSLApMU2gIoL6WByaOBhtKNqEF6gV9SbMZLdySA=
-github.com/samber/lo v1.52.0 h1:Rvi+3BFHES3A8meP33VPAxiBZX/Aws5RxrschYGjomw=
-github.com/samber/lo v1.52.0/go.mod h1:4+MXEGsJzbKGaUEQFKBq2xtfuznW9oz/WrgyzMzRoM0=
+github.com/samber/lo v1.53.0 h1:t975lj2py4kJPQ6haz1QMgtId2gtmfktACxIXArw3HM=
+github.com/samber/lo v1.53.0/go.mod h1:4+MXEGsJzbKGaUEQFKBq2xtfuznW9oz/WrgyzMzRoM0=
 github.com/sclgo/impala-go v1.4.1 h1:31r2MQ2NL+ia0Ik0LoHFOzTE8akzQ5SiHakyUXMWUXI=
 github.com/sclgo/impala-go v1.4.1/go.mod h1:3qX0kRHejmoOjHkTtdLu/nxH0vitV9A+z+hGs15WTVw=
 github.com/segmentio/asm v1.2.1 h1:DTNbBqs57ioxAD4PrArqftgypG4/qNpXoJx8TVXxPR0=
