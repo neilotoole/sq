@@ -1,4 +1,5 @@
 <!-- Custom head -->
+{{ if eq hugo.Environment "production" }}
 <script>
   window.vmtrcq = window.vmtrcq || [];
   window.vmtrc = window.vmtrc || function () {
@@ -11,3 +12,4 @@
   id="vmtrc-scr"
   data-token="ZfGQ1PGAPvRqgAYY"
 ></script>
+{{ end }}
