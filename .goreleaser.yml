@@ -41,6 +41,7 @@ archives:
       - CHANGELOG.md
       - completions/*
       - manpages/*
+      - skills/**
 
 checksum:
   name_template: 'checksums.txt'
