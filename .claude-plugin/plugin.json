@@ -1,0 +1,14 @@
+{
+  "name": "sq",
+  "version": "1.0.0",
+  "description": "Agent skill for the sq CLI: SLQ and native SQL, sources and handles, output formats, inspect/diff/tbl, and per-driver notes for databases and file formats.",
+  "author": {
+    "name": "Todd Papaioannou",
+    "email": "drluckyspin@gmail.com",
+    "url": "https://github.com/drluckyspin"
+  },
+  "homepage": "https://sq.io",
+  "repository": "https://github.com/neilotoole/sq",
+  "license": "MIT",
+  "keywords": ["sq", "sql", "csv", "excel", "json", "data", "cli", "slq"]
+}
