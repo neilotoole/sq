@@ -13,7 +13,7 @@ sq add ./sakila.db
 sq add --driver=sqlite3 ./sakila.db
 ```
 
-`sq` can usually [detect](https://sq.io/docs/detect#driver-type) SQLite files; use `--driver=sqlite3` if needed.
+`sq` can usually [detect](https://sq.io/docs/detect/#driver-type) SQLite files; use `--driver=sqlite3` if needed.
 
 **Connection string form** with prefix `sqlite3://` and optional [parameters](https://github.com/mattn/go-sqlite3#connection-string):
 
