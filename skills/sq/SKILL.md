@@ -9,7 +9,6 @@ license: MIT
 compatibility: Requires the sq CLI on PATH; install from https://sq.io/docs/install/
 metadata:
   author: Todd Papaioannou
-  version: "0.50.0"
   homepage: https://sq.io
 ---
 
