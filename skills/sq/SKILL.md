@@ -1,7 +1,7 @@
 ---
 name: sq
 description: >-
-  Guides use of the sq CLI to query SQL databases and tabular files with SLQ (jq-like sql syntax)
+  Guides use of the sq CLI to query SQL databases and tabular files with SLQ (jq-like SQL syntax)
   or native SQL, manage sources, choose output formats, and run inspect, diff, and table
   commands. Use when the user mentions sq, SLQ, wrangling CSV/Excel/JSON/DB data, cross-source
   joins, or command-line data pipelines after installing sq from https://sq.io.
