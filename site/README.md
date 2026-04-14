@@ -2,8 +2,9 @@
 
 [![Netlify Status](https://api.netlify.com/api/v1/badges/7caea069-2a8d-4f0b-bafe-b053bbc5eb08/deploy-status)](https://app.netlify.com/sites/sq-web/deploys)
 
-This is the repo for the [sq.io](https://sq.io) website, which
-hosts documentations for [sq](https://github.com/neilotoole/sq).
+This directory is the source for the [sq.io](https://sq.io) website inside the
+[sq](https://github.com/neilotoole/sq) monorepo (`site/`). It hosts documentation for the
+[`sq`](https://github.com/neilotoole/sq) CLI.
 
 This site is built using:
 
@@ -16,13 +17,13 @@ Changes to the `master` branch kick off a redeploy on Netlify.
 
 ## Contributing
 
-You could [open an issue](https://github.com/neilotoole/sq-web/issues), but ideally you'd submit a
-pull request.
+Open an [issue](https://github.com/neilotoole/sq/issues) or submit a [pull request](https://github.com/neilotoole/sq/pulls)
+against [`neilotoole/sq`](https://github.com/neilotoole/sq) (not the archived `sq-web` repo).
 
-### 1. Clone this repo
+### 1. Clone the monorepo and enter this directory
 
 ```bash
-git clone https://github.com/neilotoole/sq-web.git && cd sq-web
+git clone https://github.com/neilotoole/sq.git && cd sq/site
 ```
 
 ### 2. Install dependencies
@@ -34,7 +35,7 @@ bun install
 ### 3. Make changes and test locally
 
 ```bash
-# Start a local webserver on http://localhost:1313 to test you changes.
+# Start a local webserver on http://localhost:1313 to test your changes.
 # Note that it may take a minute or longer for the site to be served (and
 # you may not receive any indication of this). Be patient.
 bun start
@@ -45,8 +46,7 @@ bun test
 
 ### 4. Submit a Pull Request
 
-Create a [Pull Request](https://github.com/neilotoole/sq-web/pulls), providing context
-for your changes.
+Create a PR in [`neilotoole/sq`](https://github.com/neilotoole/sq/pulls) with your changes under `site/`.
 
 ## Content Style Guide
 
@@ -68,8 +68,8 @@ The project uses GitHub Actions and Netlify for continuous integration:
 
 | Trigger                               | Action                                                |
 |---------------------------------------|-------------------------------------------------------|
-| Push to `master` or `develop`         | GitHub Actions runs linting and build checks          |
-| Pull request to `master` or `develop` | GitHub Actions CI + Netlify deploy preview            |
+| Push to `master`, `develop`, or `feature/import-sq-web` (and PRs) | `.github/workflows/site-ci.yml` runs lint + build when `site/**` changes |
+| Pull request                          | Netlify deploy preview (when configured)               |
 | Merge to `master`                     | Automatic production deploy to [sq.io](https://sq.io) |
 
 Netlify provides deploy previews for every PR with Lighthouse audits for performance,
