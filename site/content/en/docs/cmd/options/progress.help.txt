@@ -1,0 +1,4 @@
+Usage:
+  sq config set progress true
+
+Show progress bar for long-running operations.

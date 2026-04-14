@@ -1,0 +1,4 @@
+Usage:
+  sq config set verbose false
+
+Print verbose output.

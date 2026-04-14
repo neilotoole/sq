@@ -1,0 +1,8 @@
+Usage:
+  sq config set conn.max-idle 2
+
+Set the maximum number of connections in the idle connection pool. If
+conn.max-open is greater than 0 but less than the new conn.max-idle, then the
+new conn.max-idle will be reduced to match the conn.max-open limit.
+
+If n <= 0, no idle connections are retained.

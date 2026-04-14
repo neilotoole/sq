@@ -1,0 +1,73 @@
+{{ define "main" }}
+<section class="section container-fluid mt-n3 pb-3">
+  <div class="row justify-content-center">
+    <div class="col-lg-12 text-center">
+      <h1 class="mt-0">{{ .Title }}</h1>
+    </div>
+    <div class="col-lg-9 col-xl-8 text-center">
+      <!--      <p class="lead"><code>sq&nbsp;'.wrangle&nbsp;|&nbsp;.data'</code></p>-->
+      <p class="lead"><code>.wrangle&nbsp;|&nbsp;.data</code></p>
+
+    </div>
+  </div>
+  <div class="row justify-content-center">
+    <div class="col-lg-12 col-xl-12">
+      {{- .Content -}}
+    </div>
+  </div>
+
+</section>
+{{ end }}
+
+{{ define "sidebar-prefooter" }}
+<section class="section container-fluid mt-n3 pb-3">
+  <div class="row justify-content-center">
+      <div class="col-lg-5">
+        <h2 class="h4">SQL Sources</h2>
+        <p>
+          <code>sq</code> supports input from and output to common databases.
+        </p>
+        <ul>
+          <li><a href="/docs/drivers/postgres">Postgres</a></li>
+          <li><a href="/docs/drivers/sqlite">SQLite</a></li>
+          <li><a href="/docs/drivers/mysql">MySQL, MariaDB</a></li>
+          <li><a href="/docs/drivers/sqlserver">SQL Server, Azure SQL Edge</a></li>
+          <li><a href="/docs/drivers/clickhouse">ClickHouse</a></li>
+        </ul>
+      </div>
+      <div class="col-lg-5">
+        <h2 class="h4">Other Sources</h2>
+        <p>In addition to SQL sources, <code>sq</code> can import data from these formats:</p>
+        <ul>
+          <li><a href="/docs/drivers/xlsx">Excel XLSX</a></li>
+          <li><a href="/docs/drivers/csv">CSV</a></li>
+          <li><a href="/docs/drivers/csv/#delimiters">TSV</a></li>
+          <li><a href="/docs/drivers/json/#json">JSON</a></li>
+          <li><a href="/docs/drivers/json/#json-array">JSONA</a> <span class="mute">(JSON Array)</span></li>
+          <li><a href="/docs/drivers/json/#json-lines">JSONL</a> <span class="mute">(JSON Lines)</span></li>
+        </ul>
+      </div>
+      <div class="col-lg-5">
+        <h2 class="h4">Output Formats</h2>
+        <p>
+          <code>sq</code> can output to a plethora of <a href="/docs/output#formats">formats</a>,
+          or <a href="/docs/output#insert">insert</a> results directly to a database table.
+        </p>
+        <ul>
+          <li><a href="/docs/output#insert">INSERT</a> <span class="mute">to SQL databases</span></li>
+          <li><a href="/docs/output#xlsx">Excel XLSX</a></li>
+          <li><a href="/docs/output#csv">CSV</a></li>
+          <li><a href="/docs/output#tsv">TSV</a></li>
+          <li><a href="/docs/output#json">JSON</a></li>
+          <li><a href="/docs/output#jsonl">JSONL</a> <span class="mute">(JSON Lines)</span></li>
+          <li><a href="/docs/output#jsona">JSONA</a> <span class="mute">(JSON Array)</span></li>
+          <li><a href="/docs/output#xml">XML</a></li>
+          <li><a href="/docs/output#html">HTML</a></li>
+          <li><a href="/docs/output#markdown">Markdown</a></li>
+          <li><a href="/docs/output#raw">Raw</a> <span class="mute">(bytes)</span></li>
+        </ul>
+      </div>
+    </div>
+</section>
+{{ end }}
+

@@ -1,0 +1,22 @@
+# FIXME: DELETE THIS FILE
+### this adds headers to the file
+# Header rules for Netlify
+
+# Prevent embedding & provide XSS protection
+# Also preload resources to speed up and unblock rendering
+/*
+  X-XSS-Protection: 1; mode=block
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin;
+	Content-Security-Policy: default-src web.sq.io sq.io sq-web.netlify.app cdnjs.cloudflare.com 'self' code.jquery.com fonts.googleapis.com fonts.gstatic.com maxcdn.bootstrapcdn.com pbs.twimg.com platform.twitter.com  syndication.twitter.com www.youtube.com;
+	Content-Security-Policy: font-src 'self' web.sq.io sq.io sq-web.netlify.app cdnjs.cloudflare.com fonts.gstatic.com  fonts.googleapis.com github.com maxcdn.bootstrapcdn.com themes.googleusercontent.com 'self' use.fontawesome.com;
+	Content-Security-Policy: img-src web.sq.io sq.io sq-web.netlify.app 'self' orcid.org cdnjs.cloudflare.com i.ytimg.com media.giphy.com pbs.twimg.com platform.twitter.com syndication.twitter.com sq-web.netlify.com;
+	Content-Security-Policy: script-src  asciinema.org www.googletagmanager.com cdnjs.cloudflare.com code.jquery.com maxcdn.bootstrapcdn.com stackpath.bootstrapcdn.com 'self'  platform.twitter.com s3.amazonaws.com syndication.twitter.com cdn.syndication.twimg.com cdn.walkme.com;
+	Content-Security-Policy: style-src liberapay.com blog.rmhogervorst.nl cdnjs.cloudflare.com fonts.googleapis.com maxcdn.bootstrapcdn.com stackpath.bootstrapcdn.com platform.twitter.com 'self'  use.fontawesome.com code.jquery.com;
+	Content-Security-Policy: frame-src 'self' asciinema.org platform.twitter.com syndication.twitter.com www.youtube.com;
+  Content-Security-Policy: frame-ancestors 'self' asciinema.org;
+	Content-Security-Policy: form-action syndication.twitter.com;
+	Content-Security-Policy: media-src ssl.gstatic.com;
+
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  Permissions-Policy: geolocation=(), microphone=(), camera=()

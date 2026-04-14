@@ -1,0 +1,47 @@
+Set option value, for base config, or for a specified source.
+To get help for an individual option, use "sq config set OPTION --help".
+Use "sq config ls -v" to list available options.
+
+Usage:
+  sq config set OPTION VALUE
+
+Examples:
+  # Set base output format
+  $ sq config set format json
+
+  # Set base max DB connections
+  $ sq config set conn.max-open 10
+
+  # Set max DB connections for source @sakila
+  $ sq config set --src @sakila conn.max-open 50
+
+  # Delete an option (resets to default value)
+  $ sq config set -D conn.max-open
+
+  # Help for an individual option
+  $ sq config set conn.max-open --help
+
+Flags:
+  -t, --text         Output text
+  -h, --header       Print header row (default true)
+  -H, --no-header    Don't print header row
+  -j, --json         Output JSON
+  -c, --compact      Compact instead of pretty-printed output
+  -y, --yaml         Output YAML
+      --src string   Config for source
+  -D, --delete       Reset this option to default value
+      --help         help for set
+
+Global Flags:
+      --config string         Load config from here
+      --debug.pprof string    pprof profiling mode (default "off")
+      --error.format string   Error output format (default "text")
+  -E, --error.stack           Print error stack trace to stderr
+      --log                   Enable logging
+      --log.file string       Log file path (default "/Users/neilotoole/Library/Logs/sq/sq.log")
+      --log.format string     Log output format (text or json) (default "text")
+      --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+  -M, --monochrome            Don't print color output
+      --no-progress           Don't show progress bar
+      --no-redact             Don't redact passwords in output
+  -v, --verbose               Print verbose output

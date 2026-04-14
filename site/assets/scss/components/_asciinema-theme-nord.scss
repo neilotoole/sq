@@ -1,0 +1,173 @@
+// Nord theme for asciinema-player.
+// See: https://github.com/asciinema/asciinema-player/wiki/Custom-terminal-themes
+//
+// Based on Nord: https://github.com/arcticicestudio/nord
+$nord0: #2e3440;
+$nord1: #3b4252;
+$nord2: #434c5e;
+$nord3: #4c566a;
+$nord4: #d8dee9;
+$nord5: #e5e9f0;
+$nord6: #eceff4;
+$nord7:  #8fbcbb;
+$nord8:  #88c0d0;
+$nord9:  #81a1c1;
+$nord10: #5e81ac;
+$nord11: #bf616a;
+$nord12: #d08770;
+$nord13: #ebcb8b;
+$nord14: #a3be8c;
+$nord15: #b48ead;
+
+.asciinema-theme-nord .asciinema-terminal {
+  color: $nord6;                  /* default text color */
+  background-color: $nord0;       /* terminal background color */
+  border-color: $nord0;
+}
+
+.asciinema-theme-nord .fg-bg {    /* inverse for default text color */
+  color: $nord6;
+}
+
+.asciinema-theme-nord .bg-fg {    /* inverse for terminal background color */
+  background-color: $nord6;
+}
+
+.asciinema-theme-nord .fg-0 {
+  color: $nord1;
+}
+
+.asciinema-theme-nord .bg-0 {
+  background-color: $nord1;
+}
+
+.asciinema-theme-nord .fg-1 {
+  color: $nord11;
+}
+
+.asciinema-theme-nord .bg-1 {
+  background-color: $nord11;
+}
+
+.asciinema-theme-nord .fg-2 {
+  color: $nord14;
+}
+
+.asciinema-theme-nord .bg-2 {
+  background-color: $nord14;
+}
+
+.asciinema-theme-nord .fg-3 {
+  color: $nord13;
+}
+
+.asciinema-theme-nord .bg-3 {
+  background-color: $nord13;
+}
+
+.asciinema-theme-nord .fg-4 {
+  color: $nord9;
+}
+
+.asciinema-theme-nord .bg-4 {
+  background-color: $nord9;
+}
+
+.asciinema-theme-nord .fg-5 {
+  color: $nord15;
+}
+
+.asciinema-theme-nord .bg-5 {
+  background-color: $nord15;
+}
+
+.asciinema-theme-nord .fg-6 {
+  color: $nord8;
+}
+
+.asciinema-theme-nord .bg-6 {
+  background-color: $nord8;
+}
+
+.asciinema-theme-nord .fg-7 {
+  color: $nord6;
+}
+
+.asciinema-theme-nord .bg-7 {
+  background-color: $nord6;
+}
+
+.asciinema-theme-nord .fg-8 {
+  color: $nord1;
+}
+
+.asciinema-theme-nord .bg-8 {
+  background-color: $nord1;
+}
+
+.asciinema-theme-nord .fg-9 {
+  color: $nord11;
+}
+
+.asciinema-theme-nord .bg-9 {
+  background-color: $nord11;
+}
+
+.asciinema-theme-nord .fg-10 {
+  color: $nord14;
+}
+
+.asciinema-theme-nord .bg-10 {
+  background-color: $nord14;
+}
+
+.asciinema-theme-nord .fg-11 {
+  color: $nord13;
+}
+
+.asciinema-theme-nord .bg-11 {
+  background-color: $nord13;
+}
+
+.asciinema-theme-nord .fg-12 {
+  color: $nord9;
+}
+
+.asciinema-theme-nord .bg-12 {
+  background-color: $nord9;
+}
+
+.asciinema-theme-nord .fg-13 {
+  color: $nord15;
+}
+
+.asciinema-theme-nord .bg-13 {
+  background-color: $nord15;
+}
+
+.asciinema-theme-nord .fg-14 {
+  color: $nord8;
+}
+
+.asciinema-theme-nord .bg-14 {
+  background-color: $nord8;
+}
+
+.asciinema-theme-nord .fg-15 {
+  color: $nord6;
+}
+
+.asciinema-theme-nord .bg-15 {
+  background-color: $nord6;
+}
+
+.asciinema-theme-nord .fg-8,
+.asciinema-theme-nord .fg-9,
+.asciinema-theme-nord .fg-10,
+.asciinema-theme-nord .fg-11,
+.asciinema-theme-nord .fg-12,
+.asciinema-theme-nord .fg-13,
+.asciinema-theme-nord .fg-14,
+.asciinema-theme-nord .fg-15 {
+  font-weight: bold;
+}

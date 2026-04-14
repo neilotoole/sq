@@ -1,0 +1,14 @@
+Usage:
+  sq config set format.excel.time hh:mm:ss
+
+Time format string for Microsoft Excel time-only values. The exact format is
+specific to Excel, but is broadly similar to strftime.
+
+Examples:
+
+  "hh:mm:ss"         16:07:10
+  "h:mm am/pm"	     4:07 pm
+  "h:mm:ss AM/PM"    4:07:01 PM
+
+Note that time-only values are sometimes programmatically indistinguishable from
+datetime values. In that situation, use format.excel.datetime instead.

@@ -1,0 +1,482 @@
+$code-color: #8e7474;
+$code-bg-color: #eeeceb;
+$code-bg-color: #f8f8fa;
+$code-bg-color: #f5f5f7;
+
+//$code-bg-color: #eeecec;
+//$code-border-color: #f0e8e8;
+$code-border-color-distinct: #f0e8e8;
+
+//$code-border-color-distinct: blue;
+$code-border-color: #eeeceb;
+
+$pink-pale:#dfb9b5;
+
+$code-color-dark: #dfb9b5;
+$code-color-dark: $nord12;
+$code-color-dark: $nord13;
+$code-color-dark: $pink-pale;
+$code-bg-color-dark: #383838;
+$code-border-color-dark: #383838;
+$code-border-color-dark: #7b7a7a;
+
+$bg-main: #eeeceb;
+
+//$bg-main: #f4f2f1;
+//$bg-main: #faf8f6;
+//$bg-main: #faf8f6;
+$bg-main: #fefefe;
+
+$sq-logo-font-family: "Courier New", monospace;
+$sq-logo-color: $nord2;
+$sq-logo-color-dark: $nord13;
+
+//$sq-logo-color-dark: $pink-pale;
+
+body {
+  font-weight: 300;
+  font-family: "Nunito Sans", sans-serif;
+  font-size: 1em;
+  background-color: $bg-main;
+}
+
+p {
+  font-weight: 300;
+}
+
+blockquote {
+  font-size: 1em;
+}
+
+div.docs-sidebar {
+  background-color: $bg-main;
+}
+
+[data-dark-mode] div.docs-sidebar {
+  background-color: $gray-900;
+}
+
+h2 {
+  font-size: 1.3em;
+  padding-bottom: 8px;
+  border-bottom: 1px solid $nord4;
+  border-bottom-style: dashed;
+}
+
+[data-dark-mode] h2 {
+  border-bottom: 1px solid $nord1;
+  border-bottom-style: dashed;
+}
+
+h3 {
+  font-size: 1.1em;
+}
+
+h2.h4 {
+  font-size: 1em;
+}
+
+h4 {
+  font-size: 1em;
+}
+
+.mute {
+  opacity: 50%;
+}
+
+header.navbar {
+  a.navbar-brand {
+    margin-right: 0 !important;
+  }
+
+  ul.nav-main {
+    a.nav-link {
+      text-transform: uppercase;
+      font-weight: bold;
+      font-size: 0.8em;
+    }
+  }
+}
+
+// This is the "Commands" section of the sidebar.
+// Render the command name in monospace.
+nav.docs-links {
+  #section-c441ee50c88f6e5e3a7c69fc69dad8b8 {
+    a.docs-link {
+      font-family: $font-family-monospace;
+    }
+  }
+}
+
+nav.docs-links ul li a.docs-link.changelog {
+  font-weight: bold;
+  margin-top: 50px;
+  padding: 14px 0 12px 12px;
+  margin-bottom: 30px;
+  margin-right: 20px;
+  color: $nord10;
+  background-color: $code-bg-color;
+}
+
+[data-dark-mode] nav.docs-links ul li a.docs-link.changelog {
+  color: $nord13;
+  background-color: transparent;
+}
+
+div.tab-content > div:not(:has(>div.highlight)) {
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+main nav.d-xl-none {
+  margin-bottom: 20px;
+}
+
+.alert a {
+  text-decoration-style: dotted;
+}
+
+table > code,
+p > code,
+li > code,
+a > code,
+td > code,
+small > code,
+div.alert > div.w-100 > code,
+.tab-pane > code {
+  border-radius: 3px;
+  padding: 3px 6px;
+  font-size: 0.75em;
+  margin: 2px;
+  border: 1px solid $code-border-color;
+  background-color: $code-bg-color;
+  color: $code-color;
+}
+
+a > code,
+table > a > code,
+p > a > code,
+li > a > code,
+div.alert > div.w-100 > a > code,
+.tab-pane > a > code,
+body a > code:not(.hljs) {
+  color: $link-color;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.page-links nav ul li a code {
+  font-size: 0.8em;
+  text-decoration: none;
+  background-color: transparent;
+  border: none;
+  color: $body-color;
+}
+
+.page-links nav ul li a code:hover {
+  color: $link-color;
+}
+
+div.alert > div.w-100 {
+  line-height: 1.6em;
+}
+
+h2 > code:not(.hljs) {
+  padding: 5px 10px;
+  margin-bottom: 50px;
+  font-size: 0.9em;
+  color: $code-color;
+
+  //border: 1px solid $code-border-color;
+  //background-color: $code-bg-color;
+}
+
+h3 > code:not(.hljs) {
+  padding: 5px 10px;
+  margin-bottom: 50px;
+  font-size: 0.8em;
+  color: $code-color;
+
+  //border: 1px solid $code-border-color;
+  //background-color: $code-bg-color;
+}
+
+[data-dark-mode] code,
+[data-dark-mode] table > code,
+[data-dark-mode] p code,
+[data-dark-mode] li code,
+[data-dark-mode] div.alert > div.w-100 > code,
+[data-dark-mode] .tab-pane > code,
+[data-dark-mode] body code:not(.hljs) {
+  border-color: $code-bg-color-dark;
+  color: $code-color-dark;
+  background-color: $code-bg-color-dark;
+}
+
+[data-dark-mode] a > code,
+[data-dark-mode] table > a > code,
+[data-dark-mode] p > a > code,
+[data-dark-mode] li > a > code,
+[data-dark-mode] div.alert > div.w-100 > a > code,
+[data-dark-mode] .tab-pane > a > code,
+[data-dark-mode] body a > code:not(.hljs) {
+  color: $link-color-dark;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+[data-dark-mode] .page-links nav ul li a code {
+  font-size: 0.8em;
+  text-decoration: none;
+  background-color: transparent;
+  border: none;
+  color: $body-color-dark;
+}
+
+[data-dark-mode] .page-links nav ul li a code:hover {
+  color: $link-color-dark;
+}
+
+[data-dark-mode] h2 > code:not(.hljs) {
+  border: none;
+  background-color: transparent;
+  font-size: 1em;
+
+  //border-color: $code-bg-color-dark;
+  //color: $code-color-dark;
+}
+
+[data-dark-mode] h3 > code:not(.hljs) {
+  border: none;
+  background-color: transparent;
+  font-size: 0.9em;
+}
+
+[data-dark-mode] pre.chroma code {
+  background-color: $nord0;
+  color: $nord6;
+}
+
+.docs-sidebar {
+  background-color: $sidebar-bgcolor;
+}
+
+.docs-links::-webkit-scrollbar-track,
+.docs-toc::-webkit-scrollbar-track {
+  background: $sidebar-bgcolor;
+}
+
+.docs-links:hover::-webkit-scrollbar-track,
+.docs-toc:hover::-webkit-scrollbar-track {
+  background: $white;
+}
+
+.docs-links::-webkit-scrollbar-thumb,
+.docs-toc::-webkit-scrollbar-thumb {
+  background: $sidebar-bgcolor;
+}
+
+.docs-links:hover::-webkit-scrollbar-thumb,
+.docs-toc:hover::-webkit-scrollbar-thumb {
+  background: darken($white, 5%);
+}
+
+// Home page specifics
+body.home {
+  p.lead {
+    margin-top: 20px;
+    margin-bottom: 40px;
+
+    code {
+      padding: 10px 14px;
+      font-size: 1.3em;
+      font-weight: bold;
+    }
+  }
+
+  // This is the "Installation" H2 on the home page.
+  // We want it to sit right above the tabs.
+  h2#installation {
+    margin-bottom: 0;
+  }
+
+  div.bottom-panels > div {
+    text-align: start;
+    text-align: left;
+  }
+
+  div.bottom-panels ul {
+    padding-left: 1.4em;
+    font-size: 0.9rem;
+    line-height: 1.3rem;
+  }
+}
+
+// Tabs can have raw markdown inside them, with <code>. We need
+// to match this edge case specifically.
+.tabs-wrapper .tab-content .tab-pane > code {
+  padding: 3px 6px;
+}
+
+pre.chroma {
+  .btn.btn-copy {
+    font-size: 0.6rem;
+    font-family: $font-family-monospace;
+    text-transform: uppercase;
+    color: #f8f8fa;
+    background-color: #2f5086;
+    border-color: #2f5086;
+    margin-top: 4px;
+    margin-right: 4px;
+  }
+
+  .btn.btn-copy:hover {
+    color: #f8f8fa;
+    background-color: darken(#2f5086, 10%);
+    border-color: #26406b;
+  }
+}
+
+[data-dark-mode] pre.chroma {
+  border: none;
+}
+
+div.tabs-wrapper {
+  background-color: transparent;
+  margin-bottom: 1em;
+
+  nav.nav-tabs {
+    background-color: transparent;
+    padding-left: 10px;
+    padding-right: 10px;
+    justify-content: flex-end !important;
+    border: 0;
+
+    button {
+      background-color: transparent;
+      border-radius: 0;
+      border-top: none;
+      border-right: none;
+      border-left: none;
+      border-bottom: 2px solid transparent;
+      color: $gray-600;
+      padding-bottom: 2px;
+      padding-top: 2px;
+    }
+
+    button.active {
+      background-color: transparent;
+      color: $nord2;
+      font-weight: bolder;
+      border-bottom: 2px solid $gray-600;
+    }
+
+    button:hover {
+      background-color: transparent;
+      color: $nord9;
+      border-bottom: 2px solid $nord9;
+    }
+  }
+
+  div.tab-content {
+    padding: 0;
+
+    pre.chroma {
+      margin: 1px 0 0;
+    }
+  }
+}
+
+[data-dark-mode] div.tabs-wrapper {
+  nav.nav-tabs {
+    background-color: transparent;
+
+    button {
+      background-color: transparent;
+      color: $gray-600;
+    }
+
+    button:hover {
+      background-color: transparent;
+      color: $gray-500;
+      border-bottom: 2px solid $gray-500;
+    }
+
+    button.active {
+      background-color: transparent;
+      color: $white;
+      border-bottom: 2px solid white;
+    }
+  }
+}
+
+[data-dark-mode] div.sticky-top {
+  background-color: white;
+}
+
+footer {
+  text-align: center;
+  justify-content: center !important;
+
+  .row {
+    justify-content: center;
+  }
+
+  li.netlify-logo img {
+    scale: 75%;
+    opacity: 50%;
+  }
+}
+
+[data-dark-mode] footer {
+  background-color: darken($gray-800, 5%);
+}
+
+div.asciinema-player-wrapper {
+  margin-bottom: 20px;
+  margin-top: 20px;
+}
+
+//body.home div.highlight > pre.chroma {
+//  background-color: $code-bg-color;
+//  color: $code-color;
+//  border: 1px solid $code-border-color-distinct;
+//  //border-color: blue;
+//  //border: 1px solid green;
+//}
+//[data-dark-mode] body.home div.highlight > pre.chroma {
+//  background-color: $code-bg-color-dark;
+//  color: $code-color-dark;
+//  border: 1px solid $nord0;
+//  //border-color: blue;
+//  //border: 1px solid green;
+//}
+
+body.home h1.mt-0 {
+  font-family: $sq-logo-font-family;
+  color: $sq-logo-color;
+  font-size: 6em;
+}
+
+[data-dark-mode] body.home h1.mt-0 {
+  color: $sq-logo-color-dark;
+}
+
+div.sticky-top header.navbar a.navbar-brand {
+  font-family: $sq-logo-font-family;
+  color: $sq-logo-color;
+}
+
+[data-dark-mode] div.sticky-top header.navbar a.navbar-brand {
+  color: $sq-logo-color-dark !important;
+}
+
+#functions ~ h3 {
+  margin-top: 60px;
+  margin-bottom: 20px;
+}
+
+main > ul > li {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}

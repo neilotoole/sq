@@ -1,0 +1,28 @@
+Generate the autocompletion script for sq for the specified shell.
+See each sub-command's help for details on how to use the generated script.
+
+Usage:
+  sq completion [command]
+
+Available Commands:
+  bash        Generate the autocompletion script for bash
+  zsh         Generate the autocompletion script for zsh
+  fish        Generate the autocompletion script for fish
+  powershell  Generate the autocompletion script for powershell
+
+Global Flags:
+      --config string         Load config from here
+      --debug.pprof string    pprof profiling mode (default "off")
+      --error.format string   Error output format (default "text")
+  -E, --error.stack           Print error stack trace to stderr
+      --help                  Show help
+      --log                   Enable logging
+      --log.file string       Log file path (default "/Users/neilotoole/Library/Logs/sq/sq.log")
+      --log.format string     Log output format (text or json) (default "text")
+      --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+  -M, --monochrome            Don't print color output
+      --no-progress           Don't show progress bar
+      --no-redact             Don't redact passwords in output
+  -v, --verbose               Print verbose output
+
+Use "sq completion [command] --help" for more information about a command.

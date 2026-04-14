@@ -1,0 +1,13 @@
+Usage:
+  sq config set format.excel.datetime 'yyyy-mm-dd hh:mm'
+
+Timestamp format for datetime values: that is, for values that have both a date
+and time component. The exact format is specific to Microsoft Excel, but is
+broadly similar to strftime.
+
+Examples:
+
+  "yyyy-mm-dd hh:mm"           1989-11-09 16:07
+  "dd/mm/yy h:mm am/pm"        09/11/89 4:07 pm
+  "dd-mmm-yy h:mm:ss AM/PM"    09-Nov-89 4:07:01 PM
+

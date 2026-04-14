@@ -1,0 +1,146 @@
+sq is a swiss-army knife for wrangling data.
+
+  $ sq '@sakila_pg | .actor | where(.actor_id > 2) | .first_name, .last_name | .[0:10]'
+
+Use sq to query Postgres, SQLite, SQLServer, MySQL, CSV, Excel, etc,
+and output in text, JSON, CSV, Excel and so on, or write output to a
+database table.
+
+You can query using sq's own jq-like syntax, or in native SQL.
+
+Use "sq inspect" to view schema metadata. Use the "sq tbl" commands
+to copy, truncate and drop tables. Use "sq diff" to compare source
+metadata and row data.
+
+See docs and more: https://sq.io
+
+Usage:
+  sq [command]
+
+Examples:
+  # Add Postgres source.
+  $ sq add postgres://user@localhost/sakila -p
+  Password: ****
+
+  # List available data sources.
+  $ sq ls
+
+  # Set active data source.
+  $ sq src @sakila_pg
+
+  # Get specified cols from table address in active data source.
+  $ sq '.actor | .actor_id, .first_name, .last_name'
+
+  # Ping a data source.
+  $ sq ping @sakila_pg
+
+  # View metadata (schema, stats etc) for data source.
+  $ sq inspect @sakila_pg
+
+  # View metadata for a table.
+  $ sq inspect @sakila_pg.actor
+
+  # Output all rows from 'actor' table in JSON.
+  $ sq -j .actor
+
+  # Output in text format (with header).
+  $ sq -th .actor
+
+  # Output in text format (no header).
+  $ sq -tH .actor
+
+  # Output to a HTML file.
+  $ sq --html '@sakila_pg.actor' -o actor.html
+
+  # Join across data sources.
+  $ sq '@my1.person, @pg1.address | join(.uid) | .username, .email, .city'
+
+  # Insert query results into a table in another data source.
+  $ sq --insert=@pg1.person '@my1.person | .username, .email'
+
+  # Execute a database-native SQL query, specifying the source.
+  $ sq sql --src=@pg1 'SELECT uid, username, email FROM person LIMIT 2'
+
+  # Copy a table (in the same source).
+  $ sq tbl copy @sakila_pg.actor .actor2
+
+  # Truncate table.
+  $ sq tbl truncate @sakila_pg.actor2
+
+  # Drop table.
+  $ sq tbl drop @sakila_pg.actor2
+
+  # Pipe an Excel file and output the first 10 rows from sheet1
+  $ cat data.xlsx | sq '.sheet1 | .[0:10]'
+
+Available Commands:
+  add         Add data source
+  src         Get or set active data source
+  group       Get or set active group
+  ls          List sources and groups
+  mv          Move/rename sources and groups
+  rm          Remove data source or group
+  inspect     Inspect data source schema and stats
+  ping        Ping data sources
+  sql         Execute DB-native SQL query or statement
+  tbl         Useful table actions (copy, truncate, drop)
+  db          Useful database actions
+  diff        BETA: Compare sources, or tables
+  driver      Manage drivers
+  config      Manage config
+  cache       Manage cache
+  version     Show version info
+  help        Show help
+  completion  Generate the autocompletion script for the specified shell
+
+Flags:
+  -f, --format string                  Specify output format (default "text")
+  -t, --text                           Output text
+  -h, --header                         Print header row (default true)
+  -H, --no-header                      Don't print header row
+      --help                           Show help
+  -j, --json                           Output JSON
+  -A, --jsona                          Output LF-delimited JSON arrays
+  -J, --jsonl                          Output LF-delimited JSON objects
+  -C, --csv                            Output CSV
+      --tsv                            Output TSV
+      --html                           Output HTML table
+      --markdown                       Output Markdown
+  -r, --raw                            Output each record field in raw format without any encoding or delimiter
+  -x, --xlsx                           Output Excel XLSX
+      --xml                            Output XML
+  -y, --yaml                           Output YAML
+  -c, --compact                        Compact instead of pretty-printed output
+      --format.datetime string         Timestamp format: constant such as RFC3339 or a strftime format (default "RFC3339")
+      --format.datetime.number         Render numeric datetime value as number instead of string (default true)
+      --format.date string             Date format: constant such as DateOnly or a strftime format (default "DateOnly")
+      --format.date.number             Render numeric date value as number instead of string (default true)
+      --format.time string             Time format: constant such as TimeOnly or a strftime format (default "TimeOnly")
+      --format.time.number             Render numeric time value as number instead of string (default true)
+      --format.excel.datetime string   Timestamp format string for Excel datetime values (default "yyyy-mm-dd hh:mm")
+      --format.excel.date string       Date format string for Excel date-only values (default "yyyy-mm-dd")
+      --format.excel.time string       Time format string for Excel time-only values (default "hh:mm:ss")
+  -o, --output string                  Write output to <file> instead of stdout
+      --insert string                  Insert query results into @HANDLE.TABLE; if not existing, TABLE will be created
+      --src string                     Override active source for this query
+      --src.schema string              Override active schema (and/or catalog) for this query
+      --ingest.driver string           Explicitly specify driver to use for ingesting data
+      --ingest.header                  Ingest data has a header row
+      --no-cache                       Don't cache ingest data
+      --driver.csv.delim string        Delimiter for ingest CSV data (default "comma")
+      --driver.csv.empty-as-null       Treat ingest empty CSV fields as NULL (default true)
+      --version                        Print version info
+  -M, --monochrome                     Don't print color output
+      --no-progress                    Don't show progress bar
+      --no-redact                      Don't redact passwords in output
+  -v, --verbose                        Print verbose output
+      --debug.pprof string             pprof profiling mode (default "off")
+      --config string                  Load config from here
+      --log                            Enable logging
+      --log.file string                Log file path (default "/Users/neilotoole/Library/Logs/sq/sq.log")
+      --log.level string               Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+      --log.format string              Log output format (text or json) (default "text")
+      --error.format string            Error output format (default "text")
+  -E, --error.stack                    Print error stack trace to stderr
+
+Use "sq [command] --help" for more information about a command.

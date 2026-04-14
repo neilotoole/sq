@@ -1,0 +1,5 @@
+Usage:
+  sq config set driver.csv.empty-as-null true
+
+When true, empty CSV fields are treated as NULL. When false,
+the zero value for that type is used, e.g. empty string or 0.

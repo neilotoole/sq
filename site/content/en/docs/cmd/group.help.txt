@@ -1,0 +1,44 @@
+Get or set active group. If no argument provided, get the active group.
+Otherwise, set GROUP as the active group. An error is returned if GROUP does
+not exist.
+
+Use 'sq ls -g' to list groups.
+
+Usage:
+  sq group [GROUP]
+
+Examples:
+  # Get active group ("dev" in this case).
+  $ sq group
+  dev
+
+  # Set "prod" as active group
+  $ sq group prod
+  prod
+
+  # Reset to the root group
+  $ sq group /
+  /
+
+Flags:
+  -t, --text        Output text
+  -h, --header      Print header row (default true)
+  -H, --no-header   Don't print header row
+  -j, --json        Output JSON
+  -c, --compact     Compact instead of pretty-printed output
+  -y, --yaml        Output YAML
+      --help        help for group
+
+Global Flags:
+      --config string         Load config from here
+      --debug.pprof string    pprof profiling mode (default "off")
+      --error.format string   Error output format (default "text")
+  -E, --error.stack           Print error stack trace to stderr
+      --log                   Enable logging
+      --log.file string       Log file path (default "/Users/neilotoole/Library/Logs/sq/sq.log")
+      --log.format string     Log output format (text or json) (default "text")
+      --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+  -M, --monochrome            Don't print color output
+      --no-progress           Don't show progress bar
+      --no-redact             Don't redact passwords in output
+  -v, --verbose               Print verbose output

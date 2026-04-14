@@ -1,0 +1,5 @@
+Usage:
+  sq config set cache.lock.timeout 5s
+
+Wait timeout to acquire cache lock. During this period, retry will occur
+if the lock is already held by another process. If zero, no retry occurs.

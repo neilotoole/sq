@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build output
+public/
+resources/
+.hugo_build.lock
+
+# Netlify
+.netlify/
+
+# Linting artifacts
+.serve-lint/
+
+# OS files
+.DS_Store
+
+# IDE / Editor
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+
+# Local documentation (not for repo)
+CLAUDE.local.md
+.claude/
+
+# Benchmark artifacts (results vary per run)
+benchmark-results-*.txt
+
+# Local planning/testing docs
+BENCHMARK_PLAN.md
+BENCHMARK_README.md
+BUN_MIGRATION_TESTING.md
+
+# Personal notes
+TODO.md
+TODO_WEB.md
+scratch/

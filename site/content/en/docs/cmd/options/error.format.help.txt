@@ -1,0 +1,4 @@
+Usage:
+  sq config set error.format text
+
+The format to output errors in. Allowed formats are "text" or "json".
