@@ -217,8 +217,8 @@ aurs:
     #
     # Default: empty.
     # Since: v1.12
-    backup:
-#      - /etc/foo.conf # This should really include the sq config? ~/.config/sq/sq.yml
+    # sq user config is typically ~/.config/sq/sq.yml but is not installed by this package.
+    backup: []
 
     # Custom package instructions.
     #
