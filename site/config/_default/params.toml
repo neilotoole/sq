@@ -80,9 +80,9 @@ alertText = "sq v0.24.0 released"
 # repoHost [Github | Gitea | GitLab | Bitbucket | BitbucketServer ] is used for building the edit link based on git hoster
 repoHost = "GitHub"
 #repoHost = "Gitea"
-docsRepo = "https://github.com/neilotoole/sq-web"
+docsRepo = "https://github.com/neilotoole/sq"
 docsRepoBranch = "master"
-docsRepoSubPath = ""
+docsRepoSubPath = "site"
 editPage = true
 lastMod = true
 

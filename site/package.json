@@ -7,7 +7,7 @@
   "browserslist": [
     "defaults"
   ],
-  "repository": "https://github.com/neilotoole/sq-web",
+  "repository": "https://github.com/neilotoole/sq",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -37,7 +37,7 @@
     "lint:markdown-fix": "bunx markdownlint-cli2-fix \"*.md\" \"content/**/*.md\"",
     "server": "exec-bin node_modules/.bin/hugo/hugo server",
     "hugo:mod-get": "exec-bin node_modules/.bin/hugo/hugo mod get -u --logLevel info cj.rs/gohugo-asciinema",
-    "hugo:mod-init": "exec-bin node_modules/.bin/hugo/hugo mod init github.com/neilotoole/sq-web",
+    "hugo:mod-init": "exec-bin node_modules/.bin/hugo/hugo mod init github.com/neilotoole/sq/site",
     "test": "bun run --silent lint",
     "env": "env",
     "precheck": "bun --version",

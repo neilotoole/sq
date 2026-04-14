@@ -73,3 +73,9 @@ sakila_b*
 CLAUDE.md
 CLAUDE.local.md
 /.claude
+
+## Hugo site (site/)
+site/node_modules/
+site/public/
+site/resources/
+site/.hugo_build.lock
