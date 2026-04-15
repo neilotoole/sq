@@ -29,11 +29,5 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Install dependencies
-        run: bun install
-
-      - name: Run test script (lint)
-        run: bun run test
-
-      - name: Build production website
-        run: bun run build
+      - name: Install, lint, and build (make ci)
+        run: make ci

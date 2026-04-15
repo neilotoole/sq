@@ -5,7 +5,7 @@ For user documentation, see [sq.io](https://sq.io).
 
 ## Documentation site (`site/`)
 
-The [sq.io](https://sq.io) website is a [Hugo](https://gohugo.io) project in [`site/`](./site/). Tooling is **Bun**; from `site/` run `bun install`, `bun start` (local dev), `bun run test` (lint), and `bun run build` (production build). See [`site/README.md`](./site/README.md).
+The [sq.io](https://sq.io) website is a [Hugo](https://gohugo.io) project in [`site/`](./site/). From `site/`, use **`make`** for the usual workflow (`make deps`, `make site-dev`, `make site-test`, `make site-build`, or `make ci` to match CI). Bun equivalents are in [`site/README.md`](./site/README.md).
 
 Changes under `site/` are validated by [`.github/workflows/site-ci.yml`](./.github/workflows/site-ci.yml).
 

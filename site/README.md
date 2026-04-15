@@ -28,21 +28,30 @@ git clone https://github.com/neilotoole/sq.git && cd sq/site
 
 ### 2. Install dependencies
 
+From this directory (`site/`), use the **Makefile** (recommended) or Bun directly:
+
 ```bash
-bun install
+make deps
+# same as: bun install
 ```
 
 ### 3. Make changes and test locally
 
 ```bash
-# Start a local webserver on http://localhost:1313 to test your changes.
-# Note that it may take a minute or longer for the site to be served (and
-# you may not receive any indication of this). Be patient.
-bun start
+# Dev server at http://localhost:1313 (may take a minute to come up; be patient)
+make site-dev
+# same as: bun start
 
-# Run linters, link checks, etc.
-bun test
+# Lint + link check + etc. (same steps as CI: make ci runs deps, site-test, site-build)
+make site-test
+# same as: bun run test
+
+# Production build to public/
+make site-build
+# same as: bun run build
 ```
+
+One-shot check matching **Site CI** (`deps` → test → build): `make ci`.
 
 ### 4. Submit a Pull Request
 
@@ -79,14 +88,22 @@ your changes look correct.
 
 ### Commands
 
-Key Bun scripts defined in `package.json`:
+Prefer **`make`** from this directory for install, test, and production build (see `Makefile`).
+In **Common.make**, `make build` builds the **Docker** image, not the Hugo site; use **`make site-build`** for a normal production build to `public/`.
+
+| Make target      | Bun equivalent        | Description                                        |
+|------------------|-----------------------|----------------------------------------------------|
+| `make deps`      | `bun install`         | Install dependencies                               |
+| `make site-dev`  | `bun start`           | Local dev server with live reload                  |
+| `make site-test` | `bun run test`        | All linters (scripts, styles, markdown, links)     |
+| `make site-build`| `bun run build`       | Production site → `public/`                        |
+| `make ci`        | (sequence below)      | `deps`, then `site-test`, then `site-build` (CI)   |
+
+Other **package.json** scripts (call with `bun run …`):
 
 | Command                  | Description                                             |
 |--------------------------|---------------------------------------------------------|
-| `bun start`              | Start local dev server with live reload                 |
-| `bun run build`          | Build production site                                   |
 | `bun run preview`        | Build and serve locally at http://localhost:1313        |
-| `bun run lint`           | Run all linters (scripts, styles, markdown, links)      |
 | `bun run gen:cmd-help`   | Regenerate command help files in `content/en/docs/cmd/` |
 | `bun run gen:syntax-css` | Regenerate syntax highlighting CSS                      |
 
