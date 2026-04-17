@@ -1,6 +1,6 @@
 ---
 title: "sq config set"
-description: "Show config value"
+description: "Set config value"
 draft: false
 images: []
 menu:
