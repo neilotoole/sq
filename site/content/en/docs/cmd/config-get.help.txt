@@ -3,7 +3,7 @@ Use the -v flag to see all options. When flag --src is provided, show config
 just for that source.
 
 Usage:
-  sq config get
+  sq config get OPTION
 
 Examples:
   # Show individual base option
