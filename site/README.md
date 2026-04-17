@@ -77,7 +77,7 @@ The project uses GitHub Actions and Netlify for continuous integration:
 
 | Trigger                               | Action                                                |
 |---------------------------------------|-------------------------------------------------------|
-| Push to `master`, `develop`, or `feature/import-sq-web` (and PRs) | `.github/workflows/site-ci.yml` runs lint + build when `site/**` changes |
+| Push to `master` or `develop` (and PRs) | `.github/workflows/site-ci.yml` runs lint + build when `site/**` changes |
 | Pull request                          | Netlify deploy preview (when configured)               |
 | Merge to `master`                     | Automatic production deploy to [sq.io](https://sq.io) |
 
