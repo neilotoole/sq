@@ -54,7 +54,7 @@ Cross-source joins (e.g. CSV to Postgres): [Cross-source joins](https://sq.io/do
 
 Results can be printed as text, JSON, CSV, HTML, Markdown, XML, XLSX, etc. See [Output formats](https://sq.io/docs/output#formats) and [insert](https://sq.io/docs/output#insert) for writing query results into a database.
 
-Common flags: `-j` / `--json`, `-t` text, `-o` file; details in **`sq --help`** and the docs above.
+Common flags: `-j`/`--json`, `-t`/`--text`, `-o FILE`; details in **`sq --help`** and the docs above.
 
 ## Diff and table operations
 
