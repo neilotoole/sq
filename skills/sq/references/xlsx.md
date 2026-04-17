@@ -6,7 +6,7 @@ Microsoft [XLSX](https://www.microsoft.com/microsoft-365/excel) workbooks. **Rea
 
 ## Supported formats
 
-`.xlsx`, `.xlam`, `.xlsm`, `.xltm`, `.xltx`. Older **`.xls` / `.xlsb`** are not supported. Driver type remains **`xlsx`** for these extensions.
+Supported extensions: `.xlsx`, `.xlam`, `.xlsm`, `.xltm`, `.xltx`. The driver type for these supported formats remains **`xlsx`**. Older **`.xls` / `.xlsb`** files are unsupported and will not work with this driver.
 
 ## Add a source
 
