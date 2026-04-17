@@ -1,7 +1,7 @@
 # Reporting Security Issues
 
-The Doks team and community take security issues in Doks seriously. We appreciate your efforts to responsibly disclose your findings, and will make every effort to acknowledge your contributions.
+Please use sq's canonical security policy and contact process for reporting vulnerabilities.
 
-To report a security issue, email [security@getdoks.org](mailto:security@getdoks.org) and include the word "SECURITY" in the subject line.
+If this repository includes a root-level `SECURITY.md`, follow the instructions there rather than the site copy of this document.
 
-We'll endeavor to respond quickly, and will keep you updated throughout the process.
+Do not report security issues in public issue trackers, discussions, or pull requests.
