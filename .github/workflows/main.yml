@@ -5,6 +5,7 @@ on:
       - '**.md'
       - 'sq.json' # This is updated by scoop; no need to run a new build
       - '.github/workflows/*'
+      - 'site/**'
 
   # Allows this workflow to be manually triggered from the Actions tab
   workflow_dispatch:

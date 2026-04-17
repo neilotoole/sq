@@ -1,0 +1,8 @@
+Usage:
+  sq config set tuning.scan-buffer-limit 32MB
+
+Maximum size of the buffer used for scanning tokens. The buffer will start
+small and grow as needed, but will not exceed this limit.
+
+Use units B, KB, MB, GB, etc. For example, 64KB, or 10MB. If no unit specified,
+bytes are assumed.

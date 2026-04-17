@@ -1,0 +1,4 @@
+Usage:
+  sq config set log.file /Users/neilotoole/Library/Logs/sq/sq.log
+
+Path to log file. Empty value disables logging.

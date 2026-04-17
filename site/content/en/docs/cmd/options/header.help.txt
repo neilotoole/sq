@@ -1,0 +1,5 @@
+Usage:
+  sq config set header true
+
+Controls whether a header row is printed. This applies only to certain formats,
+such as "text" or "csv".

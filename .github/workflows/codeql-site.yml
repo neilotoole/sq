@@ -1,0 +1,49 @@
+# CodeQL for JavaScript under site/ (sq.io). Go is analyzed in codeql.yml.
+name: CodeQL site
+
+on:
+  push:
+    branches: [master, develop]
+    paths:
+      - "site/**"
+      - ".github/workflows/codeql-site.yml"
+  pull_request:
+    branches: [master, develop]
+    paths:
+      - "site/**"
+      - ".github/workflows/codeql-site.yml"
+  schedule:
+    - cron: "0 11 * * 5"
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ["javascript"]
+
+    defaults:
+      run:
+        working-directory: site
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3

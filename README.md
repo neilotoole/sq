@@ -124,6 +124,10 @@ See other [install options](https://sq.io/docs/install/).
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
+## Documentation site (sq.io)
+
+User-facing docs at [sq.io](https://sq.io) are built from the [`site/`](./site/) directory in this repository (Hugo + Bun + Netlify). To work on the website locally, see [`site/README.md`](./site/README.md). The standalone **`sq-web`** repository is **archived**; open issues and pull requests here against **`neilotoole/sq`** for doc and site changes.
+
 ## Overview
 
 Use `sq help` to see command help. Docs are over at [sq.io](https://sq.io).

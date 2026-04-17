@@ -1,0 +1,13 @@
+DRIVER     DESCRIPTION                            USER-DEFINED  DOC
+sqlite3    SQLite                                 false         https://github.com/mattn/go-sqlite3
+postgres   PostgreSQL                             false         https://github.com/jackc/pgx
+sqlserver  Microsoft SQL Server / Azure SQL Edge  false         https://github.com/microsoft/go-mssqldb
+mysql      MySQL                                  false         https://github.com/go-sql-driver/mysql
+csv        Comma-Separated Values                 false         https://en.wikipedia.org/wiki/Comma-separated_values
+tsv        Tab-Separated Values                   false         https://en.wikipedia.org/wiki/Tab-separated_values
+json       JSON                                   false         https://en.wikipedia.org/wiki/JSON
+jsona      JSON Array: LF-delimited JSON arrays   false         https://en.wikipedia.org/wiki/JSON
+jsonl      JSON Lines: LF-delimited JSON objects  false         https://en.wikipedia.org/wiki/JSON_streaming#Line-delimited_JSON
+xlsx       Microsoft Excel XLSX                   false         https://en.wikipedia.org/wiki/Microsoft_Excel
+ppl        People                                 true          
+rss        RSS (Really Simple Syndication)        true          https://en.wikipedia.org/wiki/RSS#Example

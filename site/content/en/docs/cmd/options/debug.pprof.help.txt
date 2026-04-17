@@ -1,0 +1,6 @@
+Usage:
+  sq config set debug.pprof off
+
+Configure pprof profiling, writing output to SQ_CONFIG/pprof. Allowed modes are:
+
+  off, cpu, mem, block, mutex, trace, thread, goroutine

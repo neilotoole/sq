@@ -1,0 +1,4 @@
+Usage:
+  sq config set debug.progress.sleep 0s
+
+DEBUG: Sleep during operations to facilitate testing progress bars.

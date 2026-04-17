@@ -1,0 +1,40 @@
+Generate the autocompletion script for the zsh shell.
+
+If shell completion is not already enabled in your environment you will need
+to enable it.  You can execute the following once:
+
+	echo "autoload -U compinit; compinit" >> ~/.zshrc
+
+To load completions in your current shell session:
+
+	source <(sq completion zsh)
+
+To load completions for every new session, execute once:
+
+#### Linux:
+
+	sq completion zsh > "${fpath[1]}/_sq"
+
+#### macOS:
+
+	sq completion zsh > $(brew --prefix)/share/zsh/site-functions/_sq
+
+You will need to start a new shell for this setup to take effect.
+
+Usage:
+  sq completion zsh [flags]
+
+Global Flags:
+      --config string         Load config from here
+      --debug.pprof string    pprof profiling mode (default "off")
+      --error.format string   Error output format (default "text")
+  -E, --error.stack           Print error stack trace to stderr
+      --help                  Show help
+      --log                   Enable logging
+      --log.file string       Log file path (default "/Users/neilotoole/Library/Logs/sq/sq.log")
+      --log.format string     Log output format (text or json) (default "text")
+      --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+  -M, --monochrome            Don't print color output
+      --no-progress           Don't show progress bar
+      --no-redact             Don't redact passwords in output
+  -v, --verbose               Print verbose output

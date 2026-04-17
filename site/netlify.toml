@@ -1,0 +1,88 @@
+[build]
+  publish = "public"
+  functions = "functions"
+
+[[redirects]]
+  from = "/version"
+  to = "/.netlify/functions/version"
+  status = 200
+  force = true
+
+[build.environment]
+  NODE_VERSION = "22"
+  BUN_VERSION = "latest"
+  HUGO_VERSION = "0.139.2"
+
+[context.production]
+  command = "bun run build"
+
+[context.deploy-preview]
+  command = "bun run build -- -b $DEPLOY_PRIME_URL"
+
+[context.branch-deploy]
+  command = "bun run build -- -b $DEPLOY_PRIME_URL"
+
+[context.next]
+  command = "bun run build"
+
+[context.next.environment]
+  HUGO_ENV = "next"
+
+[[plugins]]
+  package = "netlify-plugin-submit-sitemap"
+
+	[plugins.inputs]
+    baseUrl = "https://sq.io/"
+    sitemapPath = "/sitemap.xml"
+    ignorePeriod = 0
+    providers = [
+      "google",
+      "yandex"
+    ]
+
+[[plugins]]
+  package = "@netlify/plugin-lighthouse"
+
+  # optional, fails build when a category is below a threshold
+  [plugins.inputs.thresholds]
+#    performance = 0.9
+#    accessibility = 0.9
+#    best-practices = 0.9
+#    seo = 0.9
+#    pwa = 0.9
+
+# optional, deploy the lighthouse report to a path under your site
+[plugins.inputs]
+output_path = "reports/lighthouse.html"
+
+
+[dev]
+  framework = "#custom"
+  command = "bun run start"
+  targetPort = 1313
+  port = 8888
+  publish = "public"
+  autoLaunch = false
+
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "strict-origin"
+    Access-Control-Allow-Origin = "*"
+    Feature-Policy = "geolocation 'self'"
+    Cache-Control = "public, max-age=31536000"
+
+    Content-Security-Policy = '''
+      default-src 'self' 'unsafe-inline' sq.io web.sq.io sq-web.netlify.app;
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' sq.io web.sq.io sq-web.netlify.app asciinema.org www.googletagmanager.com;
+      frame-src 'self' 'unsafe-inline' sq.io web.sq.io sq-web.netlify.app asciinema.org;
+      connect-src 'self' sq.io web.sq.io sq-web.netlify.app asciinema.org www.google-analytics.com;
+      img-src 'self' 'unsafe-inline' data: https: sq.io web.sq.io sq-web.netlify.app www.netlify.com;
+      style-src 'self' 'unsafe-inline'  sq.io web.sq.io sq-web.netlify.app www.netlify.com fonts.googleapis.com;
+      font-src 'self' 'unsafe-inline' sq.io web.sq.io sq-web.netlify.app fonts.googleapis.com cdnjs.cloudflare.com fonts.gstatic.com  fonts.googleapis.com github.com maxcdn.bootstrapcdn.com themes.googleusercontent.com use.fontawesome.com
+      '''

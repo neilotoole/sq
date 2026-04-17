@@ -1,0 +1,38 @@
+Edit config or source options in the editor specified
+in envar $SQ_EDITOR or $EDITOR.
+
+Usage:
+  sq config edit [@HANDLE]
+
+Examples:
+  # Edit default options
+  $ sq config edit
+
+  # Edit default options, but show additional help/context.
+  $ sq config edit -v
+
+  # Edit config for source @sakila
+  $ sq config edit @sakila
+
+  # Same as above, with additional help/context.
+  $ sq config edit @sakila -v
+
+  # Use a different editor
+  $ SQ_EDITOR=nano sq config edit
+
+Flags:
+      --help   help for edit
+
+Global Flags:
+      --config string         Load config from here
+      --debug.pprof string    pprof profiling mode (default "off")
+      --error.format string   Error output format (default "text")
+  -E, --error.stack           Print error stack trace to stderr
+      --log                   Enable logging
+      --log.file string       Log file path (default "/Users/neilotoole/Library/Logs/sq/sq.log")
+      --log.format string     Log output format (text or json) (default "text")
+      --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+  -M, --monochrome            Don't print color output
+      --no-progress           Don't show progress bar
+      --no-redact             Don't redact passwords in output
+  -v, --verbose               Print verbose output

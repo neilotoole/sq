@@ -1,0 +1,125 @@
+<!-- Auto collapsible section menu -->
+<ul class="list-unstyled collapsible-sidebar">
+
+  {{ $currentPage := . -}}
+  {{ $section := $currentPage.Section -}}
+  {{ $active := in $currentPage.RelPermalink .RelPermalink }}
+  <li class="mb-1">
+    {{ $hackURL := "/docs/overview" }}
+    {{ $active := in $currentPage.RelPermalink $hackURL }}
+    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Overview</a>
+  </li>
+  <li class="mb-1">
+    {{ $hackURL := "/docs/install" }}
+    {{ $active := in $currentPage.RelPermalink $hackURL }}
+    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Install</a>
+  </li>
+  <li class="mb-1">
+    {{ $hackURL := "/docs/concepts" }}
+    {{ $active := in $currentPage.RelPermalink $hackURL }}
+    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Concepts</a>
+  </li>
+  <li class="mb-1">
+    {{ $hackURL := "/docs/query" }}
+    {{ $active := in $currentPage.RelPermalink $hackURL }}
+    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Query Guide</a>
+  </li>
+  <li class="mb-1">
+    {{ $hackURL := "/docs/source" }}
+    {{ $active := in $currentPage.RelPermalink $hackURL }}
+    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Sources</a>
+  </li>
+  <li class="mb-1">
+    {{ $hackURL := "/docs/inspect" }}
+    {{ $active := in $currentPage.RelPermalink $hackURL }}
+    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Inspect</a>
+  </li>
+  <li class="mb-1">
+    {{ $hackURL := "/docs/config" }}
+    {{ $active := in $currentPage.RelPermalink $hackURL }}
+    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Config</a>
+  </li>
+  <li class="mb-1">
+    {{ $hackURL := "/docs/detect" }}
+    {{ $active := in $currentPage.RelPermalink $hackURL }}
+    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Detect</a>
+  </li>
+  <li class="mb-1">
+    {{ $hackURL := "/docs/output" }}
+    {{ $active := in $currentPage.RelPermalink $hackURL }}
+    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Output</a>
+  </li>
+  <li class="mb-1">
+    {{ $hackURL := "/docs/diff" }}
+    {{ $active := in $currentPage.RelPermalink $hackURL }}
+    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Diff</a>
+  </li>
+  <li class="mb-1">
+    {{ $hackURL := "/docs/tutorial" }}
+    {{ $active := in $currentPage.RelPermalink $hackURL }}
+    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Tutorial</a>
+  </li>
+  <li class="mb-1">
+    {{ $hackURL := "/docs/cookbook" }}
+    {{ $active := in $currentPage.RelPermalink $hackURL }}
+    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Cookbook</a>
+  </li>
+
+
+  {{ range (where .Site.Sections "Section" "in" $section) }}
+    {{ range .Sections }}
+      {{ $active := in $currentPage.RelPermalink .RelPermalink }}
+      <li class="mb-1">
+        <button class="btn btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#section-{{ md5 .Title }}" aria-expanded="{{ if $active }}true{{ else }}false{{ end }}">
+          {{ .Title }}
+        </button>
+        <div class="collapse{{ if $active }} show{{ end }}" id="section-{{ md5 .Title }}">
+          <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
+            {{ range .Pages }}
+              {{ if .IsNode }}
+                {{ $active := in $currentPage.RelPermalink .RelPermalink }}
+                <li class="my-1 ms-3">
+                  <button class="btn btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#section-{{ md5 .Title }}" aria-expanded="{{ if $active }}true{{ else }}false{{ end }}">
+                    {{ .Title }}
+                  </button>
+                  <div class="collapse{{ if $active }} show{{ end }}" id="section-{{ md5 .Title }}">
+                    <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
+                      {{ range .Pages }}
+                        {{ if .IsNode }}
+                          {{ $active := in $currentPage.RelPermalink .RelPermalink }}
+                          <li class="my-1 ms-3">
+                            <button class="btn btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#section-{{ md5 .Title }}" aria-expanded="{{ if $active }}true{{ else }}false{{ end }}">
+                              {{ .Title }}
+                            </button>
+                            <div class="collapse{{ if $active }} show{{ end }}" id="section-{{ md5 .Title }}">
+                              <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
+                                {{ range .Pages }}
+                                  {{ $active := in $currentPage.RelPermalink .RelPermalink }}
+                                  <li><a class="docs-link rounded{{ if $active }} active{{ end }}" href="{{ .Permalink | absURL }}">{{ .Title }}</a></li>
+                                {{ end }}
+                              </ul>
+                            </div>
+                          </li>
+                        {{ else }}
+                          {{ $active := in $currentPage.RelPermalink .RelPermalink }}
+                          <li><a class="docs-link rounded{{ if $active }} active{{ end }}" href="{{ .Permalink | absURL }}">{{ .Title }}</a></li>
+                        {{ end }}
+                      {{ end }}
+                    </ul>
+                  </div>
+                </li>
+              {{ else }}
+                {{ $active := in $currentPage.RelPermalink .RelPermalink }}
+                <li><a class="docs-link rounded{{ if $active }} active{{ end }}" href="{{ (strings.TrimRight "/" .Permalink) | absURL }}">{{ .Title }}</a></li>
+              {{ end }}
+            {{ end }}
+          </ul>
+        </div>
+      </li>
+    {{ end }}
+  {{ end }}
+
+<!--  <li class="mb-1">-->
+<!--    <a class="docs-link changelog external rounded" href="https://github.com/neilotoole/sq/blob/master/CHANGELOG.md"> 🔔&nbsp; CHANGELOG</a>-->
+<!--  </li>-->
+</ul>

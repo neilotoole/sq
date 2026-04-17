@@ -1,0 +1,4 @@
+Usage:
+  sq config set progress.delay 2s
+
+Delay before showing a progress bar.

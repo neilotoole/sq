@@ -1,0 +1,122 @@
+BETA: Compare metadata, or row data, of sources and tables.
+
+CAUTION: This feature is in beta testing. Please report any issues:
+
+  https://github.com/neilotoole/sq/issues/new/choose
+
+When comparing sources ("source diff"), the default behavior is to diff the
+source overview, schema, and table row counts. Table row data is not compared.
+
+When comparing tables ("table diff"), the default is to diff table schema and
+row counts. Table row data is not compared.
+
+Use flags to specify the modes you want to compare. The available modes are:
+
+  --overview   source metadata, without schema (source diff only)
+  --dbprops    database/server properties (source diff only)
+  --schema     schema structure, for database or individual table
+  --counts     show row counts when using --schema
+  --data       row data values
+  --all        all of the above
+
+Flag --data diffs the values of each row in the compared tables, until the stop
+limit is reached. Use the --stop (-n) flag or the diff.stop config option to
+specify the stop limit. The default is 3.
+
+Use --format with --data to specify the format to render the diff records.
+Line-based formats (e.g. "text" or "jsonl") are often the most ergonomic,
+although "yaml" may be preferable for comparing column values. The available
+formats are:
+
+  text, csv, tsv,
+  json, jsona, jsonl,
+  markdown, html, xml, yaml
+
+The default format can be changed via:
+
+  $ sq config set diff.data.format FORMAT
+
+The --format flag only applies with data diffs (--data). Metadata diffs are
+always output in YAML.
+
+Note that --overview and --dbprops only apply to source diffs, not table diffs.
+
+Flag --unified (-U) controls the number of lines to show surrounding a diff.
+The default (3) can be changed via:
+
+  $ sq config set diff.lines N
+
+Exit status is 0 if inputs are the same, 1 if different, 2 on any error.
+
+Usage:
+  sq diff @HANDLE1[.TABLE] @HANDLE2[.TABLE] [--data]
+
+Examples:
+  Metadata diff
+  -------------
+
+  # Diff sources (compare default elements).
+  $ sq diff @prod/sakila @staging/sakila
+
+  # As above, but show 7 lines surrounding each diff.
+  $ sq diff @prod/sakila @staging/sakila -U7
+
+  # Diff sources, but only compare source overview.
+  $ sq diff @prod/sakila @staging/sakila --overview
+
+  # Diff sources, but only DB properties.
+  $ sq diff @prod/sakila @staging/sakila --dbprops
+
+  # Compare source overview, and DB properties.
+  $ sq diff @prod/sakila @staging/sakila -OB
+
+  # Diff sources, but only compare schema.
+  $ sq diff @prod/sakila @staging/sakila --schema
+
+  # Compare schema table structure, and row counts.
+  $ sq diff @prod/sakila @staging/sakila --SN
+
+  # Compare everything, including table data. Caution: can be slow.
+  $ sq diff @prod/sakila @staging/sakila --all
+
+  # Compare metadata of actor table in prod vs staging.
+  $ sq diff @prod/sakila.actor @staging/sakila.actor
+
+  Row data diff
+  -------------
+
+  # Compare data in the actor tables, stopping at the first difference.
+  $ sq diff @prod/sakila.actor @staging/sakila.actor --data --stop 1
+
+  # Compare data in the actor tables, but output in JSONL.
+  $ sq diff @prod/sakila.actor @staging/sakila.actor --data --format jsonl
+
+  # Compare data in all tables and views. Caution: may be slow.
+  $ sq diff @prod/sakila @staging/sakila --data --stop 0
+
+Flags:
+  -U, --unified int     Generate diffs with <n> lines of context (default 3)
+  -n, --stop int        Stop after <n> differences (default 3)
+  -f, --format string   Output format (json, csv…) when comparing data (default "text")
+  -O, --overview        Compare source overview
+  -B, --dbprops         Compare DB properties
+  -S, --schema          Compare schema structure
+  -N, --counts          When comparing table schema structure, include row counts
+  -d, --data            Compare values of each data row (caution: may be slow)
+  -a, --all             Compare everything (caution: may be slow)
+      --no-cache        Don't cache ingest data
+      --help            help for diff
+
+Global Flags:
+      --config string         Load config from here
+      --debug.pprof string    pprof profiling mode (default "off")
+      --error.format string   Error output format (default "text")
+  -E, --error.stack           Print error stack trace to stderr
+      --log                   Enable logging
+      --log.file string       Log file path (default "/Users/neilotoole/Library/Logs/sq/sq.log")
+      --log.format string     Log output format (text or json) (default "text")
+      --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+  -M, --monochrome            Don't print color output
+      --no-progress           Don't show progress bar
+      --no-redact             Don't redact passwords in output
+  -v, --verbose               Print verbose output

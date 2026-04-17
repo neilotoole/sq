@@ -1,0 +1,4 @@
+Usage:
+  sq config set log.level DEBUG
+
+Log level, one of: DEBUG, INFO, WARN, ERROR.

@@ -1,0 +1,7 @@
+Usage:
+  sq config set shell-completion.group-filter true
+
+When true, shell completion initially suggests only sources within the active
+group. When false, all sources are suggested. However, note that if the user
+continues to input a source handle that is outside the active group, completion
+will suggest all matching sources, regardless of this option's value.

@@ -1,0 +1,5 @@
+Usage:
+  sq config set driver.csv.delim comma
+
+Delimiter to use for CSV files. Default is "comma".
+Possible values are: comma, space, pipe, tab, colon, semi, period.

@@ -1,0 +1,11 @@
+Usage:
+  sq config set format.excel.date yyyy-mm-dd
+
+Date format string for Microsoft Excel date-only values. The exact format is
+specific to Excel, but is broadly similar to strftime.
+
+Examples:
+
+  "yyyy-mm-dd"	  1989-11-09
+  "dd/mm/yy"      09/11/89
+  "dd-mmm-yy"     09-Nov-89

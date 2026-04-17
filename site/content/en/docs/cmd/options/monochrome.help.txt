@@ -1,0 +1,4 @@
+Usage:
+  sq config set monochrome false
+
+Don't print color output.

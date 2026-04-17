@@ -1,0 +1,4 @@
+Usage:
+  sq config set log false
+
+Enable logging.

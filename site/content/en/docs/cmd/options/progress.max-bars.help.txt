@@ -1,0 +1,6 @@
+Usage:
+  sq config set progress.max-bars 5
+
+Limit the number of progress bars shown concurrently in the terminal. When the
+threshold is reached, further progress bars are grouped into a single group bar.
+If zero, no progress bar is rendered.

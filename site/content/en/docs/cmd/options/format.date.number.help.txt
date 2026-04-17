@@ -1,0 +1,14 @@
+Usage:
+  sq config set format.date.number true
+
+Render numeric date value as number instead of string, if possible. If
+format.date renders a numeric value (e.g. a year such as "1979"), that value is
+typically rendered as a string. For some output formats, such as JSON, it can be
+useful to instead render the value as a naked number instead of a string. Note
+that this option is no-op if the rendered value is not an integer.
+
+  format.date.number=false
+  [{"first_name":"PENELOPE","birth_year":"1979"}]
+  format.date.number=true
+  [{"first_name":"PENELOPE","birth_year":1979}]
+

@@ -1,0 +1,4 @@
+Usage:
+  sq config set conn.open-timeout 10s
+
+Max time to wait before a connection open timeout occurs.

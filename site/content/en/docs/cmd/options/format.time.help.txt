@@ -1,0 +1,12 @@
+Usage:
+  sq config set format.time TimeOnly
+
+Time format. This can be one of several predefined constants such as "TimeOnly"
+or "Unix", or a strftime format such as "%Y-%m-%d". Note that time values are
+sometimes programmatically indistinguishable from datetime values. In that
+situation, use format.datetime instead.
+
+Predefined values:
+  ANSIC, DateOnly, DateTime, ISO8601, ISO8601Z, RFC1123, RFC1123Z,
+  RFC3339, RFC3339Nano, RFC3339Z, RFC822, RFC822Z, RFC850,
+  TimeOnly, Unix, UnixDate, UnixMicro, UnixMilli, UnixNano

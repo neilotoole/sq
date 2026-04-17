@@ -3,6 +3,24 @@ and [discussion](https://github.com/neilotoole/sq/discussions).
 
 For user documentation, see [sq.io](https://sq.io).
 
+## Documentation site (`site/`)
+
+The [sq.io](https://sq.io) website is a [Hugo](https://gohugo.io) project in [`site/`](./site/). From `site/`, use **`make`** for the usual workflow (`make deps`, `make site-dev`, `make site-test`, `make site-build`, or `make ci` to match CI). Bun equivalents are in [`site/README.md`](./site/README.md).
+
+Changes under `site/` are validated by [`.github/workflows/site-ci.yml`](./.github/workflows/site-ci.yml).
+
+### Importing `sq-web` history (maintainers)
+
+The `site/` tree was merged from the former [`sq-web`](https://github.com/neilotoole/sq-web) repository using **`git subtree`** so file history is preserved. To pull equivalent updates from a remote that still tracks the old history, use `git subtree pull --prefix=site <remote> <branch>` (adjust remote and branch as needed).
+
+### Branch protection / rulesets (maintainers)
+
+Configure [**repository rulesets**](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets) so that pull requests touching **`site/**`** require the **Site CI** check (`site-ci.yml`), without requiring that check on Go-only PRs (path-scoped rules, or equivalent). Plain “required status” lists interact badly with workflows that use `paths` filters and do not run on every PR.
+
+### Netlify (maintainers)
+
+Production hosting for sq.io is on Netlify. After the monorepo migration, the Netlify site should use repository **`neilotoole/sq`**, **base directory** `site`, and the existing [`site/netlify.toml`](./site/netlify.toml). Re-link the repo in Netlify if needed; confirm deploy previews and the `/version` function.
+
 ## Tooling
 
 This documentation presumes you are on macOS. If not, adapt appropriately.
