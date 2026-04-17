@@ -1,0 +1,9 @@
+---
+# Codacy configuration.
+# See: https://docs.codacy.com/repositories-configure/codacy-configuration-file/
+#
+# Test fixtures contain fake credentials (e.g. the Sakila sample DB user) and
+# intentionally malformed inputs that trigger false positives from Checkov's
+# secret scanner and other linters. Exclude them from all engines.
+exclude_paths:
+  - "**/testdata/**"
