@@ -56,6 +56,7 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 	md.DBVersion = version
 	md.DBProduct = "ClickHouse " + version
 	md.Schema = database
+	md.Catalog = database
 	md.Name = database
 	md.FQName = database
 	md.User = user
