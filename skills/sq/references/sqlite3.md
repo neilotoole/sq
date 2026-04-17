@@ -24,7 +24,7 @@ sq add 'sqlite3://sakila.db?cache=shared&mode=rw'
 ## Create a new empty database
 
 ```shell
-sq add --driver sqlite3 hello.db
+sq add --driver=sqlite3 hello.db
 ```
 
 ## Notes
