@@ -108,7 +108,7 @@ count
 215439
 ```
 
-I'm sure millenials will scoff at that amateur number 👴🏻.
+I'm sure millennials will scoff at that amateur number 👴🏻.
 
 {{< alert icon="👉" >}}
 Note that you'll need to enable macOS [Full Disk Access](https://spin.atomicobject.com/search-imessage-sql/)
