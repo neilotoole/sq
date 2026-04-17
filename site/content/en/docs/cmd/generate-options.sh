@@ -7,7 +7,7 @@
 set -e
 
 # Always execute in this dir
-cd $(dirname "$0")
+cd "$(dirname "$0")"
 
 
 # For each option, we want to get the help text for that option
@@ -25,5 +25,5 @@ for opt in "${opt_keys[@]}"; do
 
   # Trim the last two lines, as they always contain a message linking
   # to the sq.io site: those lines are superfluous.
-  sq config set "$opt" --help | head -n -2 > "$dest"
+  sq config set "$opt" --help | sed '$d' | sed '$d' > "$dest"
 done
