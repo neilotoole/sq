@@ -83,13 +83,12 @@ func TestSQLiteMissingFunctions_gh527(t *testing.T) {
 		},
 	}
 
-	th := testh.New(t)
-	src := th.Source(sakila.SL3)
-
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
+			th := testh.New(t)
+			src := th.Source(sakila.SL3)
 			sink, err := th.QuerySQL(src, nil, tc.query)
 			require.NoErrorf(t, err, "function %q failed; see GH #527", tc.name)
 			require.Equal(t, 1, len(sink.Recs))
