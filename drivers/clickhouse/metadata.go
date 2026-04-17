@@ -32,7 +32,9 @@ import (
 //   - Driver/DBDriver: drivertype.ClickHouse
 //   - DBVersion: ClickHouse server version from version()
 //   - DBProduct: "ClickHouse" plus version string
-//   - Schema/Name/FQName: Current database from currentDatabase()
+//   - Schema/Catalog/Name/FQName: Current database from currentDatabase().
+//     ClickHouse uses a single "database" concept that maps to both schema
+//     and catalog in sq's model.
 //   - User: Current user from currentUser()
 //   - Size: Total database size from system.tables
 //   - Tables: Table metadata with TableCount/ViewCount (if noSchema is false)
@@ -56,6 +58,7 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 	md.DBVersion = version
 	md.DBProduct = "ClickHouse " + version
 	md.Schema = database
+	md.Catalog = database
 	md.Name = database
 	md.FQName = database
 	md.User = user

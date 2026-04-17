@@ -671,8 +671,8 @@ func TestSQLDriver_CurrentSchemaCatalog(t *testing.T) {
 			md, err := grip.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
 			require.NotNil(t, md)
-			require.Equal(t, md.Schema, tc.wantSchema)
-			require.Equal(t, md.Catalog, tc.wantCatalog)
+			require.Equal(t, tc.wantSchema, md.Schema)
+			require.Equal(t, tc.wantCatalog, md.Catalog)
 
 			gotSchemas, err := drvr.ListSchemas(th.Context, db)
 			require.NoError(t, err)
