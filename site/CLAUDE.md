@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is the sq.io website repository - a Hugo-based documentation site for the [sq](https://github.com/neilotoole/sq) CLI tool. The site uses the Doks theme, Bun tooling, and is deployed on Netlify.
+This is the source for the sq.io website under `site/` in the [sq](https://github.com/neilotoole/sq) monorepo. It is a Hugo-based documentation site for the `sq` CLI tool, uses the Doks theme and Bun tooling, and is deployed on Netlify.
 
 **Tech Stack:**
 - Hugo 0.122.0+ (extended version) - static site generator
@@ -17,14 +17,23 @@ This is the sq.io website repository - a Hugo-based documentation site for the [
 ### Local Development
 ```bash
 # Install dependencies (includes Hugo via hugo-installer)
+make deps
+# or
 bun install
 
 # Start local dev server at http://localhost:1313
 # Note: May take 1+ minute to start, be patient
+make site-dev
+# or
 bun start
 
 # Build production site (output to ./public)
+make site-build
+# or
 bun run build
+
+# One-shot CI-equivalent check (deps -> test -> build)
+make ci
 
 # Build and preview locally
 bun run preview
@@ -33,6 +42,8 @@ bun run preview
 ### Linting and Testing
 ```bash
 # Run all linters (scripts, styles, markdown, links)
+make site-test
+# or
 bun test
 # or
 bun run lint
@@ -129,8 +140,8 @@ Uses Hugo's built-in Chroma (not highlight.js):
 ## CI/CD Workflow
 
 **Triggers and actions:**
-- Push to `master` or `develop` → GitHub Actions runs linting and builds
-- PR to `master` or `develop` → CI + Netlify deploy preview
+- Push to `master` or `develop` with changes under `site/**` → GitHub Actions runs linting and builds
+- PR to `master` or `develop` with changes under `site/**` → CI + Netlify deploy preview
 - Merge to `master` → Auto-deploy to sq.io
 
 **Netlify configuration** (`netlify.toml`):

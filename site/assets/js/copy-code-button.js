@@ -12,12 +12,16 @@
 //
 // See also: /assets/scss/_copy-button.scss
 function createCopyButton(highlightDiv) {
+  const chromaDiv = highlightDiv.querySelector('pre.chroma');
+  if (!chromaDiv) {
+    return;
+  }
+
   const button = document.createElement('button');
   button.className = 'btn btn-copy';
   button.type = 'button';
   button.addEventListener('click', () => copyCodeToClipboard(button, highlightDiv));
 
-  const chromaDiv = highlightDiv.querySelector('pre.chroma')
   chromaDiv.insertBefore(button, chromaDiv.firstChild);
 }
 
@@ -25,7 +29,6 @@ document.querySelectorAll('.highlight').forEach((highlightDiv) => createCopyButt
 
 async function copyCodeToClipboard(button, highlightDiv) {
   const codeToCopy = highlightDiv.querySelector('.chroma > code').innerText;
-  console.log(codeToCopy)
   try {
     const result = await navigator.permissions.query({name: 'clipboard-write'});
     if (result.state == 'granted' || result.state == 'prompt') {

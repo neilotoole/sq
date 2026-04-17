@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------------------------------------
-# Common Makefile for sq-web (Hugo static site)
+# Common Makefile for sq-site (Hugo static site)
 # Version: 2.0
 # -----------------------------------------------------------------------------------------------------------
 # This Makefile provides Docker-based local testing for the Hugo static site.
@@ -30,7 +30,7 @@ all: help
 # -----------------------------------------------------------------------------------------------------------
 
 # Project name (used for Docker image/container naming)
-PROJECT_NAME := sq-web
+PROJECT_NAME := sq-site
 
 # Docker image and container names
 DOCKER_IMAGE := $(PROJECT_NAME):latest

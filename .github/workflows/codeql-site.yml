@@ -3,12 +3,12 @@ name: CodeQL site
 
 on:
   push:
-    branches: [master, develop, feature/import-sq-web]
+    branches: [master, develop]
     paths:
       - "site/**"
       - ".github/workflows/codeql-site.yml"
   pull_request:
-    branches: [master, develop, feature/import-sq-web]
+    branches: [master, develop]
     paths:
       - "site/**"
       - ".github/workflows/codeql-site.yml"

@@ -3,12 +3,12 @@ name: Site CI
 
 on:
   push:
-    branches: [master, develop, feature/import-sq-web]
+    branches: [master, develop]
     paths:
       - "site/**"
       - ".github/workflows/site-ci.yml"
   pull_request:
-    branches: [master, develop, feature/import-sq-web]
+    branches: [master, develop]
     paths:
       - "site/**"
       - ".github/workflows/site-ci.yml"
@@ -20,6 +20,9 @@ defaults:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -27,7 +30,17 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.2
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            site/node_modules
+          key: ${{ runner.os }}-site-bun-${{ hashFiles('site/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-site-bun-
 
       - name: Install, lint, and build (make ci)
         run: make ci
