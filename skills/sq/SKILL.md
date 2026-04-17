@@ -16,7 +16,7 @@ metadata:
 
 `sq` is a command-line tool for structured data: SQL databases and formats like CSV, TSV, JSON, and Excel. It combines SQL- and `jq`-style querying. Official documentation lives at [sq.io](https://sq.io/).
 
-This skill assumes **sq is already installed** and the user is **not** working from the `sq` source repository. Prefer **`sq help`**, **`sq <command> --help`**, and [sq.io](https://sq.io/) over guessing flags.
+This skill targets use of an already-installed `sq` binary rather than guidance on building from source. Prefer **`sq help`**, **`sq <command> --help`**, and [sq.io](https://sq.io/) over guessing flags.
 
 ## Verify the install
 

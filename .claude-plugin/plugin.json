@@ -9,6 +9,5 @@
   },
   "homepage": "https://sq.io",
   "repository": "https://github.com/neilotoole/sq",
-  "license": "MIT",
-  "keywords": ["sq", "sql", "csv", "excel", "json", "data", "cli", "slq"]
+  "license": "MIT"
 }

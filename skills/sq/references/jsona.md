@@ -18,5 +18,5 @@ Use **`@handle.data`**. Same flattening behavior as other JSON drivers where app
 
 ## Also see
 
-- [JSON drivers](https://sq.io/docs/drivers/json/) — full variant comparison  
-- JSON object files (`json`) and JSON Lines (`jsonl`) on the same documentation page  
+- [JSON drivers](https://sq.io/docs/drivers/json/) — full variant comparison
+- JSON object files (`json`) and JSON Lines (`jsonl`) on the same documentation page

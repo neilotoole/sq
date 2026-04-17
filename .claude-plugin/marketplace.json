@@ -5,8 +5,7 @@
     "email": "neilotoole@apache.org"
   },
   "metadata": {
-    "description": "Claude Code marketplace for sq (data wrangler) — CLI skills and references.",
-    "version": "1.0.0"
+    "description": "Claude Code marketplace for sq (data wrangler) — CLI skills and references."
   },
   "plugins": [
     {

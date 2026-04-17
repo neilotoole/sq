@@ -122,7 +122,11 @@ See other [install options](https://sq.io/docs/install/).
 
 ## Agent skills
 
-An [Agent Skills](https://agentskills.io/) canonical skill for this project lives at [`skills/sq/`](./skills/sq/). The **sq** skill is for helping coding assistants use the `sq` CLI effectively once it is installed: SLQ and native SQL, sources and `@` handles, output formats, `inspect`, `diff`, and `tbl` commands, plus extra context for specific databases and file formats when that matters. Everything in the skill defers to the official docs at [sq.io](https://sq.io/).
+An [Agent Skills](https://agentskills.io/) canonical skill for this project lives at
+[`skills/sq/`](./skills/sq/). The **sq** skill helps coding assistants use the `sq` CLI
+effectively once it is installed: SLQ and native SQL, sources and `@` handles, output
+formats, `inspect`, `diff`, and `tbl` commands, plus driver-specific context for databases
+and file formats. Everything in the skill defers to the official docs at [sq.io](https://sq.io/).
 
 ### Install with `npx skills`
 

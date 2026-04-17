@@ -17,4 +17,4 @@ Use **`@handle.data`**.
 
 ## Also see
 
-- [JSON drivers](https://sq.io/docs/drivers/json/) — all JSON variants  
+- [JSON drivers](https://sq.io/docs/drivers/json/) — all JSON variants
