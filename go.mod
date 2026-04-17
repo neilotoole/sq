@@ -52,7 +52,7 @@ require (
 	github.com/nightlyone/lockfile v1.0.0
 	github.com/otiai10/copy v1.14.1
 	github.com/pkg/profile v1.7.0
-	github.com/ryboe/q v1.0.25
+	github.com/ryboe/q v1.0.26
 	github.com/samber/lo v1.53.0
 	github.com/segmentio/encoding v0.5.4
 	github.com/sethvargo/go-retry v0.3.0
