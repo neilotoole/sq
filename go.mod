@@ -64,7 +64,7 @@ require (
 	github.com/xo/dburl v0.24.2
 	// Although usql is a large module, Go's DCE (Dead Code Elimination)
 	// mechanism should minimize the impact on the sq binary size. Plus, there
-	// is significant functionality in usql that sq may take advantageof in the
+	// is significant functionality in usql that sq may take advantag eof in the
 	// future.
 	github.com/xo/usql v0.21.4
 	github.com/xuri/excelize/v2 v2.10.1 // BRITTLE
