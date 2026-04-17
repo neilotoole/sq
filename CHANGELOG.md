@@ -12,6 +12,26 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## Unreleased
+
+### Changed
+
+- Updated Go dependencies, including `github.com/mattn/go-sqlite3` from
+  `v1.14.34` to `v1.14.42` (embedded SQLite `3.51.2` → `3.51.3`), which makes
+  newer SQLite built-ins such as [`unistr()`][sqlite-unistr] available in the
+  [`sq sql`](https://sq.io/docs/cmd/sql) command.
+
+### Fixed
+
+- [#555]: ClickHouse driver now populates `md.Catalog` in `SourceMetadata`,
+  matching the current ClickHouse database. Previously the field was left
+  empty, which caused `TestSQLDriver_CurrentSchemaCatalog` to fail for the
+  ClickHouse sakila source.
+
+[#555]: https://github.com/neilotoole/sq/issues/555
+[sqlite-unistr]: https://www.sqlite.org/lang_corefunc.html#unistr
+
+
 ## [v0.50.0] - 2026-02-16
 
 ### Added
