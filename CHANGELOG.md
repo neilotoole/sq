@@ -12,6 +12,18 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## Unreleased
+
+### Fixed
+
+- [#555]: ClickHouse driver now populates `md.Catalog` in `SourceMetadata`,
+  matching the current ClickHouse database. Previously the field was left
+  empty, which caused `TestSQLDriver_CurrentSchemaCatalog` to fail for the
+  ClickHouse sakila source.
+
+[#555]: https://github.com/neilotoole/sq/issues/555
+
+
 ## [v0.50.0] - 2026-02-16
 
 ### Added
