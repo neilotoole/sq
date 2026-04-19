@@ -6,21 +6,25 @@
 
 ## Add a source
 
-Location string should start with **`mysql://`**. Use [`sq add`](https://sq.io/docs/cmd/add):
+Location string should start with **`mysql://`**. Use [`sq add`](https://sq.io/docs/cmd/add)
+with **`-p`** so the password is prompted rather than embedded in the URL:
 
 ```shell
-sq add 'mysql://user:password@localhost/dbname'
+sq add -p 'mysql://user@localhost/dbname'
 ```
 
 Quote the URL if it contains special characters.
 
 ## Schema
 
-MySQL uses database names as schemas. To query a specific schema, use **`--src.schema`**
-or include it in the connection URL:
+MySQL uses database names as schemas. Use **`--src.schema`** to query a specific schema:
 
 ```shell
-sq add 'mysql://user:password@localhost/dbname'
+# Override schema at query time
+sq --src.schema=myschema '.mytable'
+
+# Or embed a default schema in the connection URL at add time
+sq add -p 'mysql://user@localhost/dbname' --src.schema myschema
 ```
 
 ## Auth and SSL

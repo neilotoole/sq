@@ -10,14 +10,15 @@ The ClickHouse driver is **beta**; behavior may change. Prefer reporting issues 
 
 ## Add a source
 
-Location string should start with **`clickhouse://`**. Use [`sq add`](https://sq.io/docs/cmd/add):
+Location string should start with **`clickhouse://`**. Use [`sq add`](https://sq.io/docs/cmd/add)
+with **`-p`** so the password is prompted rather than embedded in the URL:
 
 ```shell
-sq add 'clickhouse://default:@localhost:9000/default'
-sq add 'clickhouse://user:password@host:9000/database' --handle @ch
+sq add -p 'clickhouse://default@localhost:9000/default'
+sq add -p 'clickhouse://user@host:9000/database' --handle @ch
 ```
 
-**Connection pattern:** `clickhouse://username:password@hostname:port/database` with optional `?param=value`.
+**Connection pattern:** `clickhouse://username@hostname:port/database` with optional `?param=value`; use `-p` for the password.
 
 Default ports: native **9000** (non-TLS), **9440** (TLS when `secure=true`). If the port is omitted, `sq` applies the default for the security mode.
 

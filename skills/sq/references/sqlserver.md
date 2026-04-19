@@ -6,10 +6,11 @@
 
 ## Add a source
 
-Location string should start with **`sqlserver://`**. Use [`sq add`](https://sq.io/docs/cmd/add):
+Location string should start with **`sqlserver://`**. Use [`sq add`](https://sq.io/docs/cmd/add)
+with **`-p`** so the password is prompted rather than embedded in the URL:
 
 ```shell
-sq add 'sqlserver://user:password@localhost?database=dbname'
+sq add -p 'sqlserver://user@localhost?database=dbname'
 ```
 
 ## Schema and catalog
