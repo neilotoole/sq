@@ -120,13 +120,14 @@ checklist (merge `master`, run `make all`).
 
 Write commit messages in the imperative mood, focused on *what* changed and
 *why*. Keep the subject line under ~70 characters; use the body for detail.
-There's no need to add AI / Claude attribution text, this is assumed these days.
+There's no need to add AI / Claude attribution text; this is assumed these days.
 
 ## Drivers
 
 `sq` is driver-oriented: each supported data source type is implemented as a
 driver under [`drivers/`](./drivers/). When adding or modifying a driver,
-read the ["New driver implementations"](./CONTRIBUTING.md#new-driver-implementations)
+read the
+["New driver implementations"](./CONTRIBUTING.md#new-driver-implementations)
 section of `CONTRIBUTING.md` — it covers package structure, type mapping,
 dialect configuration, test handles, and the SQL-vs-document driver split.
 
