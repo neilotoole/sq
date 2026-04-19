@@ -1,0 +1,40 @@
+Make a copy of a table in the same database. The table data is also copied by default.
+
+Usage:
+  sq tbl copy @HANDLE.TABLE NEWTABLE
+
+Examples:
+  # Copy table "actor" in @sakila_sl3 to new table "actor2"
+  $ sq tbl copy @sakila_sl3.actor .actor2
+
+  # Copy table "actor" in active src to table "actor2"
+  $ sq tbl copy .actor .actor2
+
+  # Copy table "actor" in active src to generated table name (e.g. "@sakila_sl3.actor_copy__1ae03e9b")
+  $ sq tbl copy .actor
+
+  # Copy table structure, but don't copy table data
+  $ sq tbl copy --data=false .actor
+
+Flags:
+  -t, --text        Output text
+  -h, --header      Print header row (default true)
+  -H, --no-header   Don't print header row
+  -j, --json        Output JSON
+  -c, --compact     Compact instead of pretty-printed output
+      --data        Copy table data (default true)
+      --help        help for copy
+
+Global Flags:
+      --config string         Load config from here
+      --debug.pprof string    pprof profiling mode (default "off")
+      --error.format string   Error output format (default "text")
+  -E, --error.stack           Print error stack trace to stderr
+      --log                   Enable logging
+      --log.file string       Log file path (default "/Users/neilotoole/Library/Logs/sq/sq.log")
+      --log.format string     Log output format (text or json) (default "text")
+      --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+  -M, --monochrome            Don't print color output
+      --no-progress           Don't show progress bar
+      --no-redact             Don't redact passwords in output
+  -v, --verbose               Print verbose output

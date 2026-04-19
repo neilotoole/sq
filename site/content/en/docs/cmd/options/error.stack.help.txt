@@ -1,0 +1,5 @@
+Usage:
+  sq config set error.stack false
+
+Print error stack trace to stderr. This only applies when error.format is
+"text"; when error.format is "json", the stack trace is always printed.

@@ -1,0 +1,5 @@
+Usage:
+  sq config set debug.progress.force false
+
+DEBUG: Always render progress bars, even when stderr is not a terminal, or
+progress is not enabled. This is useful for testing the progress impl.

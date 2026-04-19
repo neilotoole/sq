@@ -1,0 +1,16 @@
+{
+  "config": {
+    "default": true,
+    "MD013": false,
+    "MD024": false,
+    "MD026": false,
+    "MD033": false,
+    "MD034": false
+  },
+  "ignores": [
+    "./node_modules/**/*.md",
+    "./CHANGELOG.md",
+    "./TODO_WEB.md",
+    "./scratch/**/*.md"
+  ]
+}

@@ -1,0 +1,29 @@
+Generate the autocompletion script for the fish shell.
+
+To load completions in your current shell session:
+
+	sq completion fish | source
+
+To load completions for every new session, execute once:
+
+	sq completion fish > ~/.config/fish/completions/sq.fish
+
+You will need to start a new shell for this setup to take effect.
+
+Usage:
+  sq completion fish [flags]
+
+Global Flags:
+      --config string         Load config from here
+      --debug.pprof string    pprof profiling mode (default "off")
+      --error.format string   Error output format (default "text")
+  -E, --error.stack           Print error stack trace to stderr
+      --help                  Show help
+      --log                   Enable logging
+      --log.file string       Log file path (default "/Users/neilotoole/Library/Logs/sq/sq.log")
+      --log.format string     Log output format (text or json) (default "text")
+      --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+  -M, --monochrome            Don't print color output
+      --no-progress           Don't show progress bar
+      --no-redact             Don't redact passwords in output
+  -v, --verbose               Print verbose output

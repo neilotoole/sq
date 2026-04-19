@@ -1,0 +1,4 @@
+Usage:
+  sq config set ingest.sample-size 256
+
+Specify the number of samples that a detector should take to determine type.

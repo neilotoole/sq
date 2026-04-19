@@ -1,0 +1,52 @@
+Ping data sources (or groups of sources) to check connection health.
+If no arguments provided, the active data source is pinged. Otherwise, ping
+the specified sources or groups.
+
+The exit code is 1 if ping fails for any of the sources.
+
+Usage:
+  sq ping [@HANDLE|GROUP]*
+
+Examples:
+  # Ping active data source.
+  $ sq ping
+
+  # Ping @my1 and @pg1.
+  $ sq ping @my1 @pg1
+
+  # Ping sources in the root group (i.e. all sources).
+  $ sq ping /
+
+  # Ping sources in the "prod" and "staging" groups.
+  $ sq ping prod staging
+
+  # Ping @my1 with 2s timeout.
+  $ sq ping @my1 --timeout 2s
+
+  # Output in TSV format.
+  $ sq ping --tsv @my1
+
+Flags:
+  -t, --text                    Output text
+  -h, --header                  Print header row (default true)
+  -H, --no-header               Don't print header row
+  -j, --json                    Output JSON
+  -C, --csv                     Output CSV
+      --tsv                     Output TSV
+  -c, --compact                 Compact instead of pretty-printed output
+      --ping.timeout duration   ping command timeout duration (default 10s)
+      --help                    help for ping
+
+Global Flags:
+      --config string         Load config from here
+      --debug.pprof string    pprof profiling mode (default "off")
+      --error.format string   Error output format (default "text")
+  -E, --error.stack           Print error stack trace to stderr
+      --log                   Enable logging
+      --log.file string       Log file path (default "/Users/neilotoole/Library/Logs/sq/sq.log")
+      --log.format string     Log output format (text or json) (default "text")
+      --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+  -M, --monochrome            Don't print color output
+      --no-progress           Don't show progress bar
+      --no-redact             Don't redact passwords in output
+  -v, --verbose               Print verbose output

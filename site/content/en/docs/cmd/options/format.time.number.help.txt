@@ -1,0 +1,14 @@
+Usage:
+  sq config set format.time.number true
+
+Render numeric time value as number instead of string, if possible. If format.time
+renders a numeric value (e.g. "59"), that value is typically rendered as a string.
+For some output formats, such as JSON, it can be useful to instead render the
+value as a naked number instead of a string. Note that this option is no-op if
+the rendered value is not an integer.
+
+  format.time.number=false
+  [{"first_name":"PENELOPE","favorite_minute":"59"}]
+  format.time.number=true
+  [{"first_name":"PENELOPE","favorite_minute":59}]
+

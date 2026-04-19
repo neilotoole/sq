@@ -1,0 +1,4 @@
+Usage:
+  sq config set redact true
+
+Redact passwords in output.

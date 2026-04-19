@@ -1,0 +1,70 @@
+Execute a SQL query or statement against the active source using the
+source's SQL dialect. Use flag --src=@HANDLE to specify an alternative
+source.
+
+Usage:
+  sq sql QUERY|STMT
+
+Examples:
+  # Select from active source
+  $ sq sql 'SELECT * FROM actor'
+
+  # Select from a specified source
+  $ sq sql --src=@sakila_pg12 'SELECT * FROM actor'
+
+  # Drop table @sakila_pg12.actor
+  $ sq sql --src=@sakila_pg12 'DROP TABLE actor'
+
+  # Select from active source and write results to @sakila_ms17.actor
+  $ sq sql 'SELECT * FROM actor' --insert=@sakila_ms17.actor
+
+Flags:
+  -f, --format string                  Specify output format (default "text")
+  -t, --text                           Output text
+  -h, --header                         Print header row (default true)
+  -H, --no-header                      Don't print header row
+  -j, --json                           Output JSON
+  -A, --jsona                          Output LF-delimited JSON arrays
+  -J, --jsonl                          Output LF-delimited JSON objects
+  -C, --csv                            Output CSV
+      --tsv                            Output TSV
+      --html                           Output HTML table
+      --markdown                       Output Markdown
+  -r, --raw                            Output each record field in raw format without any encoding or delimiter
+  -x, --xlsx                           Output Excel XLSX
+      --xml                            Output XML
+  -y, --yaml                           Output YAML
+  -c, --compact                        Compact instead of pretty-printed output
+      --format.datetime string         Timestamp format: constant such as RFC3339 or a strftime format (default "RFC3339")
+      --format.datetime.number         Render numeric datetime value as number instead of string (default true)
+      --format.date string             Date format: constant such as DateOnly or a strftime format (default "DateOnly")
+      --format.date.number             Render numeric date value as number instead of string (default true)
+      --format.time string             Time format: constant such as TimeOnly or a strftime format (default "TimeOnly")
+      --format.time.number             Render numeric time value as number instead of string (default true)
+      --format.excel.datetime string   Timestamp format string for Excel datetime values (default "yyyy-mm-dd hh:mm")
+      --format.excel.date string       Date format string for Excel date-only values (default "yyyy-mm-dd")
+      --format.excel.time string       Time format string for Excel time-only values (default "hh:mm:ss")
+  -o, --output string                  Write output to <file> instead of stdout
+      --insert string                  Insert query results into @HANDLE.TABLE; if not existing, TABLE will be created
+      --src string                     Override active source for this query
+      --src.schema string              Override active schema (and/or catalog) for this query
+      --ingest.driver string           Explicitly specify driver to use for ingesting data
+      --ingest.header                  Ingest data has a header row
+      --no-cache                       Don't cache ingest data
+      --driver.csv.delim string        Delimiter for ingest CSV data (default "comma")
+      --driver.csv.empty-as-null       Treat ingest empty CSV fields as NULL (default true)
+      --help                           help for sql
+
+Global Flags:
+      --config string         Load config from here
+      --debug.pprof string    pprof profiling mode (default "off")
+      --error.format string   Error output format (default "text")
+  -E, --error.stack           Print error stack trace to stderr
+      --log                   Enable logging
+      --log.file string       Log file path (default "/Users/neilotoole/Library/Logs/sq/sq.log")
+      --log.format string     Log output format (text or json) (default "text")
+      --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+  -M, --monochrome            Don't print color output
+      --no-progress           Don't show progress bar
+      --no-redact             Don't redact passwords in output
+  -v, --verbose               Print verbose output

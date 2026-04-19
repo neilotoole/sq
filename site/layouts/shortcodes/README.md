@@ -1,0 +1,2 @@
+- Note that tab.html and tabs.html have been lifted from: https://docs.rkvst.com/contributing/formatting-content/advanced-formatting/#tabbed-codeblock
+- Many of the other shortcodes have been lifted from [Docsy](https://docsy.dev)

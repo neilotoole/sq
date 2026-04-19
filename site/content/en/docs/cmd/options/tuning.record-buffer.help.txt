@@ -1,0 +1,4 @@
+Usage:
+  sq config set tuning.record-buffer 1024
+
+Controls the size of the channel for buffering records.

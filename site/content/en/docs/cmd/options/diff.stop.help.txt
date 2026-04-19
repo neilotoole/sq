@@ -1,0 +1,4 @@
+Usage:
+  sq config set diff.stop 3
+
+Stop after <n> differences are found. If n <= 0, no limit is applied.

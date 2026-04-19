@@ -1,0 +1,6 @@
+Usage:
+  sq config set config.lock.timeout 5s
+
+Wait timeout to acquire the config lock (which prevents multiple sq instances
+stepping on each other's config changes). During this period, retry will occur
+if the lock is already held by another process. If zero, no retry occurs.

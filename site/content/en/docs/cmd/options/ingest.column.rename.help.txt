@@ -1,0 +1,23 @@
+Usage:
+  sq config set ingest.column.rename '{{.Name}}{{with .Recurrence}}_{{.}}{{end}}'
+
+This Go text template is executed on ingested column names.
+Its primary purpose is to rename duplicate header column names in the
+ingested data. For example, given a CSV file with header row:
+
+  actor_id, first_name, actor_id
+
+The default template renames the columns to:
+
+  actor_id, first_name, actor_id_1
+
+The fields available in the template are:
+
+  .Name         column header name
+  .Index        zero-based index of the column in the header row
+  .Alpha        alphabetical index of the column, e.g. [A, B ... Z, AA, AB]
+  .Recurrence   nth recurrence of the colum name in the header row
+
+For a unique column name, e.g. "first_name" above, ".Recurrence" will be 0.
+For duplicate column names, ".Recurrence" will be 0 for the first instance,
+then 1 for the next instance, and so on.
