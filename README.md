@@ -120,9 +120,45 @@ $ kubectl exec -it sq-shell -- zsh
 
 See other [install options](https://sq.io/docs/install/).
 
-## Contributing
+## Agent skills
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md).
+An [Agent Skills](https://agentskills.io/) canonical skill for this project lives at
+[`skills/sq/`](./skills/sq/). The **sq** skill helps coding assistants use the `sq` CLI
+effectively once it is installed: SLQ and native SQL, sources and `@` handles, output
+formats, `inspect`, `diff`, and `tbl` commands, plus driver-specific context for databases
+and file formats. Everything in the skill defers to the official docs at [sq.io](https://sq.io/).
+
+### Install with `npx skills`
+
+To add **`sq`** from this repository:
+
+```shell
+npx skills add https://github.com/neilotoole/sq --skill sq
+```
+
+Adjust the URL if you use a fork or mirror.
+
+### Claude Code plugin
+
+[Claude Code](https://code.claude.com/docs/en/plugins) can load the skill as a **plugin** using
+[`.claude-plugin/plugin.json`](./.claude-plugin/plugin.json) and the
+[`.claude-plugin/marketplace.json`](./.claude-plugin/marketplace.json) catalog
+(marketplace **`sq-io`**, plugin **`sq`**). Add the marketplace, then install the plugin:
+
+```text
+/plugin marketplace add https://github.com/neilotoole/sq
+/plugin install sq@sq-io
+```
+
+For a local checkout, pass the repository path to `marketplace add` instead of the GitHub URL.
+Run `/reload-plugins` if the skill does not appear. See
+[plugin marketplaces](https://code.claude.com/docs/en/plugin-marketplaces) for more options
+(branches, updates, and troubleshooting).
+
+### Manual install
+
+Alternatively, copy [`skills/sq/`](./skills/sq/) into your agent’s skills directory, or open
+[`skills/sq/SKILL.md`](./skills/sq/SKILL.md) and follow the instructions there.
 
 ## Overview
 
@@ -354,6 +390,10 @@ $ cat ./example.xlsx | sq inspect
 - `--yaml`: [YAML](https://sq.io/docs/output#yaml)
 - `--markdown`: [Markdown](https://sq.io/docs/output#markdown)
 - `--raw`: [Raw](https://sq.io/docs/output#raw) (bytes)
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## CHANGELOG
 

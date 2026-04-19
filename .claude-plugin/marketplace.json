@@ -1,0 +1,26 @@
+{
+  "name": "sq-io",
+  "owner": {
+    "name": "Neil O'Toole",
+    "email": "neilotoole@apache.org"
+  },
+  "metadata": {
+    "description": "Claude Code marketplace for sq (data wrangler) — CLI skills and references."
+  },
+  "plugins": [
+    {
+      "name": "sq",
+      "source": "./",
+      "description": "Agent skill for using the sq CLI after install; progressive driver references and links to sq.io docs.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Todd Papaioannou",
+        "email": "drluckyspin@gmail.com"
+      },
+      "homepage": "https://sq.io",
+      "repository": "https://github.com/neilotoole/sq",
+      "license": "MIT",
+      "keywords": ["sq", "sql", "data", "cli", "slq"]
+    }
+  ]
+}
