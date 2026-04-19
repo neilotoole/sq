@@ -51,7 +51,7 @@ sq completion --help
 Requires [Go](https://go.dev/dl/).
 
 ```shell
-go install github.com/neilotoole/sq
+go install github.com/neilotoole/sq@latest
 ```
 
 ## Binaries

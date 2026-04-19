@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is the source for the sq.io website under `site/` in the [sq](https://github.com/neilotoole/sq) monorepo. It is a Hugo-based documentation site for the `sq` CLI tool, uses the Doks theme and Bun tooling, and is deployed on Netlify.
 
 **Tech Stack:**
-- Hugo 0.122.0+ (extended version) - static site generator
+- Hugo 0.139.2+ (extended version) - static site generator
 - Bun 1.2+ - JavaScript runtime and package manager
 - Doks theme (Hugo theme for documentation sites)
 - Netlify for hosting and CI/CD

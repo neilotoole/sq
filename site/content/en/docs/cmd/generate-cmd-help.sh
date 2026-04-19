@@ -7,7 +7,7 @@
 set -e
 
 # Always execute in this dir
-cd $(dirname "$0")
+cd -- "$(dirname "$0")"
 
 cmds=(
   "add"
@@ -80,5 +80,5 @@ for opt in "${opt_keys[@]}"; do
   # Trim the first two lines, as they contain generic text.
   # Also trim the last two lines, as they always contain a message linking
   # to the sq.io site: those lines are superfluous.
-  sq config set "$opt" --help | tail -n +3 | head -n -2 > "$dest"
+  sq config set "$opt" --help | tail -n +3 | sed '$d' | sed '$d' > "$dest"
 done

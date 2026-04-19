@@ -9,9 +9,11 @@ The [sq.io](https://sq.io) website is a [Hugo](https://gohugo.io) project in [`s
 
 Changes under `site/` are validated by [`.github/workflows/site-ci.yml`](./.github/workflows/site-ci.yml).
 
-### Importing `sq-web` history (maintainers)
+### `site/` import background (maintainers)
 
-The `site/` tree was merged from the former [`sq-web`](https://github.com/neilotoole/sq-web) repository using **`git subtree`** so file history is preserved. To pull equivalent updates from a remote that still tracks the old history, use `git subtree pull --prefix=site <remote> <branch>` (adjust remote and branch as needed).
+The `site/` tree was imported from the former
+[`sq-web`](https://github.com/neilotoole/sq-web) repository as a flat add.
+Prior history remains in the archived `sq-web` repository.
 
 ### Branch protection / rulesets (maintainers)
 
@@ -433,5 +435,4 @@ Key considerations:
   values. See [`drivers/csv/detect_field_kinds.go`](drivers/csv/detect_field_kinds.go).
 - **Header detection**: For tabular formats, detect whether the first row
   contains headers. See [`drivers/csv/detect_header.go`](drivers/csv/detect_header.go).
-
 

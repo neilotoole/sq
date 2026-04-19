@@ -20,7 +20,7 @@ values into the source.
 {{< /alert >}}
 ## Supported file formats
 
-The driver supports `.xlsx`, `.xlam`, `.xlsm`,`.xltm` and `.xltx`. Note that even
+The driver supports `.xlsx`, `.xlam`, `.xlsm`, `.xltm` and `.xltx`. Note that even
 if the file format is, say, `.xlam`, the driver type is still `xlsx`. The driver
 does not support the older `.xls` and `.xlsb` formats.
 

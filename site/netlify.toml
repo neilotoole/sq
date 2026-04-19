@@ -78,11 +78,11 @@ output_path = "reports/lighthouse.html"
     Cache-Control = "public, max-age=31536000"
 
     Content-Security-Policy = '''
-      default-src 'self' 'unsafe-inline' sq.io web.sq.io sq-web.netlify.app;
-      script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' sq.io web.sq.io sq-web.netlify.app asciinema.org www.googletagmanager.com;
-      frame-src 'self' 'unsafe-inline' sq.io web.sq.io sq-web.netlify.app asciinema.org;
-      connect-src 'self' sq.io web.sq.io sq-web.netlify.app asciinema.org www.google-analytics.com;
-      img-src 'self' 'unsafe-inline' data: https: sq.io web.sq.io sq-web.netlify.app www.netlify.com;
-      style-src 'self' 'unsafe-inline'  sq.io web.sq.io sq-web.netlify.app www.netlify.com fonts.googleapis.com;
-      font-src 'self' 'unsafe-inline' sq.io web.sq.io sq-web.netlify.app fonts.googleapis.com cdnjs.cloudflare.com fonts.gstatic.com  fonts.googleapis.com github.com maxcdn.bootstrapcdn.com themes.googleusercontent.com use.fontawesome.com
+      default-src 'self' 'unsafe-inline' sq.io;
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' sq.io asciinema.org www.googletagmanager.com;
+      frame-src 'self' 'unsafe-inline' sq.io asciinema.org;
+      connect-src 'self' sq.io asciinema.org www.google-analytics.com;
+      img-src 'self' 'unsafe-inline' data: https: sq.io www.netlify.com;
+      style-src 'self' 'unsafe-inline'  sq.io www.netlify.com fonts.googleapis.com;
+      font-src 'self' 'unsafe-inline' sq.io fonts.googleapis.com cdnjs.cloudflare.com fonts.gstatic.com  fonts.googleapis.com github.com maxcdn.bootstrapcdn.com themes.googleusercontent.com use.fontawesome.com
       '''

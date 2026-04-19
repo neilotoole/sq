@@ -91,9 +91,9 @@ fi
 # Check we're in the right directory
 print_test "Project directory"
 if [[ -f "package.json" ]] && command grep -q '"name": "sq.io"' package.json; then
-    print_pass "In sq-web project directory"
+    print_pass "In sq site/ project directory"
 else
-    print_fail "Not in sq-web project directory"
+    print_fail "Not in sq site/ project directory"
     exit 1
 fi
 

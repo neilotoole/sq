@@ -7,7 +7,7 @@
 # - At run, mount only content/layouts/assets/static/config for hot reload; no need to mount go.mod/go.sum.
 FROM oven/bun:1-debian
 
-ARG HUGO_VERSION=0.122.0
+ARG HUGO_VERSION=0.139.2
 
 # Install Go (Hugo modules), C++ (Hugo extended), and Hugo binary
 RUN apt-get update && apt-get install -y --no-install-recommends \

@@ -84,6 +84,6 @@
     "watch": "^1.0.2"
   },
   "otherDependencies": {
-    "hugo": "0.122.0"
+    "hugo": "0.139.2"
   }
 }

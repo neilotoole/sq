@@ -1,7 +1,7 @@
 var suggestions = document.getElementById('suggestions');
 var search = document.getElementById('search');
 
-if (search !== null) {
+if (search !== null && suggestions !== null) {
   document.addEventListener('keydown', inputFocus);
 }
 
@@ -16,24 +16,27 @@ function inputFocus(e) {
   }
 }
 
-document.addEventListener('click', function(event) {
+if (suggestions !== null) {
+  document.addEventListener('click', function(event) {
+    var isClickInsideElement = suggestions.contains(event.target);
 
-  var isClickInsideElement = suggestions.contains(event.target);
-
-  if (!isClickInsideElement) {
-    suggestions.classList.add('d-none');
-  }
-
-});
+    if (!isClickInsideElement) {
+      suggestions.classList.add('d-none');
+    }
+  });
+}
 
 /*
 Source:
   - https://dev.to/shubhamprakash/trap-focus-using-javascript-6a3
 */
 
-document.addEventListener('keydown',suggestionFocus);
+if (suggestions !== null) {
+  document.addEventListener('keydown', suggestionFocus);
+}
 
 function suggestionFocus(e) {
+  if (suggestions === null) return;
   const suggestionsHidden = suggestions.classList.contains('d-none');
   if (suggestionsHidden) return;
 
@@ -126,6 +129,8 @@ Source:
     );
   {{ end -}}
 
+  if (search === null || suggestions === null) return;
+
   search.addEventListener('input', show_results, true);
 
   function show_results(){
@@ -145,8 +150,14 @@ Source:
 
     // inform user that no results were found
     if (flatResults.size === 0 && searchQuery) {
-      const noResultsMessage = document.createElement('div')
-      noResultsMessage.innerHTML = `No results for "<strong>${searchQuery}</strong>"`
+      const noResultsMessage = document.createElement('div');
+      const strong = document.createElement('strong');
+      strong.textContent = searchQuery;
+      noResultsMessage.replaceChildren(
+        document.createTextNode('No results for "'),
+        strong,
+        document.createTextNode('"')
+      );
       noResultsMessage.classList.add("suggestion__no-results");
       suggestions.appendChild(noResultsMessage);
       return;
