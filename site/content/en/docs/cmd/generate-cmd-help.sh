@@ -47,19 +47,23 @@ cmds=(
 rm -f ./*.help.txt
 rm -f ./*.output.txt
 
+normalize_help_output() {
+  sed "s#${HOME}#\$HOME#g"
+}
+
 for cmd in "${cmds[@]}"; do
   # space -> dash, e.g. "driver ls" -> "driver-ls"
   dest="${cmd// /-}.help.txt"
 
   # shellcheck disable=SC2086
-  sq $cmd --help > "$dest"
+  sq $cmd --help | normalize_help_output > "$dest"
 done
 
 # Special handling for the root command.
-sq --help > sq.help.txt
+sq --help | normalize_help_output > sq.help.txt
 
 # Show output for some commands
-sq driver ls > driver-ls.output.txt
+sq driver ls | normalize_help_output > driver-ls.output.txt
 
 
 # For each option, we want to get the help text for that option
@@ -80,5 +84,5 @@ for opt in "${opt_keys[@]}"; do
   # Trim the first two lines, as they contain generic text.
   # Also trim the last two lines, as they always contain a message linking
   # to the sq.io site: those lines are superfluous.
-  sq config set "$opt" --help | tail -n +3 | sed '$d' | sed '$d' > "$dest"
+  sq config set "$opt" --help | tail -n +3 | sed '$d' | sed '$d' | normalize_help_output > "$dest"
 done

@@ -54,7 +54,7 @@ Empty sheets are ignored, and can't be queried.
 
 Excel sheets will often have a header row containing column names. If the sheet
 doesn't have a header row, by default `sq` will name the columns `A`, `B`, `C`, etc.
-(Note that the column naming behavior is [configurable](/docs/config/#ingestcolumnrename).
+(Note that the column naming behavior is [configurable](/docs/config/#ingestcolumnrename).)
 
 Generally, `sq` will automatically [detect](/docs/detect), for each sheet,
 whether or not the first row is a header row. If the header row detection

@@ -107,7 +107,7 @@ Note:
 
 CSV files will often have a header row containing column names. If the sheet
 doesn't have a header row, by default `sq` will name the columns `A`, `B`, `C`, etc.
-(Note that the column naming behavior is [configurable](/docs/config/#ingestcolumnrename).
+(Note that the column naming behavior is [configurable](/docs/config/#ingestcolumnrename).)
 
 Generally, `sq` will automatically [detect](/docs/detect)
 whether or not the first row of a CSV file is a header row. If the header row detection
