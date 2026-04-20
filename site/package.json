@@ -80,7 +80,7 @@
     "serve": "^14.2.0",
     "shx": "^0.3.4",
     "stylelint": "^14.16",
-    "stylelint-config-standard-scss": "^6.1",
+    "stylelint-config-standard-scss": "^17.0",
     "watch": "^1.0.2"
   },
   "otherDependencies": {
