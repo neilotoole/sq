@@ -1,0 +1,36 @@
+Truncate one or more tables. Note that this command
+only applies to SQL sources.
+
+Usage:
+  sq tbl truncate @HANDLE.TABLE|.TABLE
+
+Examples:
+  # truncate table "actor"" in source @sakila_sl3
+  $ sq tbl truncate @sakila_sl3.actor
+
+  # truncate table "payment"" in the active src
+  $ sq tbl truncate .payment
+
+  # truncate multiple tables
+  $ sq tbl truncate .payment @sakila_sl3.actor
+
+Flags:
+  -t, --text        Output text
+  -h, --header      Print header row (default true)
+  -H, --no-header   Don't print header row
+  -j, --json        Output JSON
+      --help        help for truncate
+
+Global Flags:
+      --config string         Load config from here
+      --debug.pprof string    pprof profiling mode (default "off")
+      --error.format string   Error output format (default "text")
+  -E, --error.stack           Print error stack trace to stderr
+      --log                   Enable logging
+      --log.file string       Log file path (default "/Users/neilotoole/Library/Logs/sq/sq.log")
+      --log.format string     Log output format (text or json) (default "text")
+      --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+  -M, --monochrome            Don't print color output
+      --no-progress           Don't show progress bar
+      --no-redact             Don't redact passwords in output
+  -v, --verbose               Print verbose output

@@ -1,0 +1,10 @@
+Usage:
+  sq config set format.datetime RFC3339
+
+Timestamp format. This can be one of several predefined constants such as
+"RFC3339" or "Unix", or a strftime format such as "%Y-%m-%d %H:%M:%S".
+
+Predefined values:
+  ANSIC, DateOnly, DateTime, ISO8601, ISO8601Z, RFC1123, RFC1123Z,
+  RFC3339, RFC3339Nano, RFC3339Z, RFC822, RFC822Z, RFC850,
+  TimeOnly, Unix, UnixDate, UnixMicro, UnixMilli, UnixNano

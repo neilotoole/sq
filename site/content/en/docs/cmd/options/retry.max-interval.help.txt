@@ -1,0 +1,6 @@
+Usage:
+  sq config set retry.max-interval 3s
+
+The maximum interval to wait between retries. If an operation is
+retryable (for example, if the DB has too many clients), repeated retry
+operations back off, typically using a Fibonacci backoff.

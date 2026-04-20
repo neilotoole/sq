@@ -1,0 +1,27 @@
+List installed drivers.
+
+Usage:
+  sq driver ls
+
+Flags:
+  -t, --text        Output text
+  -h, --header      Print header row (default true)
+  -H, --no-header   Don't print header row
+  -j, --json        Output JSON
+  -y, --yaml        Output YAML
+  -c, --compact     Compact instead of pretty-printed output
+      --help        help for ls
+
+Global Flags:
+      --config string         Load config from here
+      --debug.pprof string    pprof profiling mode (default "off")
+      --error.format string   Error output format (default "text")
+  -E, --error.stack           Print error stack trace to stderr
+      --log                   Enable logging
+      --log.file string       Log file path (default "/Users/neilotoole/Library/Logs/sq/sq.log")
+      --log.format string     Log output format (text or json) (default "text")
+      --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+  -M, --monochrome            Don't print color output
+      --no-progress           Don't show progress bar
+      --no-redact             Don't redact passwords in output
+  -v, --verbose               Print verbose output

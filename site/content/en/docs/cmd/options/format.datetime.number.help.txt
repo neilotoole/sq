@@ -1,0 +1,15 @@
+Usage:
+  sq config set format.datetime.number true
+
+Render numeric datetime value as number instead of string, if possible. If
+format.datetime renders a numeric value (e.g. a Unix timestamp such as
+"1591843854"), that value is typically rendered as a string. For some output
+formats, such as JSON, it can be useful to instead render the value as a naked
+number instead of a string. Note that this option is no-op if the rendered value
+is not an integer.
+
+  format.datetime.number=false
+  [{"first_name":"PENELOPE","last_update":"1591843854"}]
+  format.datetime.number=true
+  [{"first_name":"PENELOPE","last_update":1591843854}]
+

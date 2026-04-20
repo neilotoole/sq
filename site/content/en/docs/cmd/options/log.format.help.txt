@@ -1,0 +1,4 @@
+Usage:
+  sq config set log.format text
+
+Log output format. Allowed formats are "text" (human-friendly) or "json".

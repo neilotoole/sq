@@ -1,0 +1,8 @@
+Usage:
+  sq config set diff.max-hunk-size 5000
+
+Maximum size of individual diff hunks. A hunk is a segment of a diff that
+contains differing lines, as well as non-differing context lines before and
+after the difference. A hunk must be loaded into memory in its entirety; this
+setting prevents excessive memory usage. If a hunk would exceed this limit, it
+is split into multiple hunks; this still produces a well-formed diff.

@@ -1,0 +1,4 @@
+Usage:
+  sq config set diff.lines 3
+
+Generate diffs with <n> lines of context, where n >= 0.

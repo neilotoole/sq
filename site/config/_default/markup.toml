@@ -1,0 +1,38 @@
+defaultMarkdownHandler = "goldmark"
+
+[goldmark]
+  [goldmark.extensions]
+    linkify = false
+  [goldmark.parser]
+    autoHeadingID = true
+    autoHeadingIDType = "github"
+    [goldmark.parser.attribute]
+      block = true
+      title = true
+  [goldmark.renderer]
+    unsafe = true
+
+
+# See https://gohugo.io/getting-started/configuration-markup/#highlight
+# https://gohugo.io/content-management/syntax-highlighting/#generate-syntax-highlighter-css
+# Note that theme is not set from this config below, but from "/generate-syntax-css.sh",
+# which can be executed via "npm run gen:syntax-css". The "theme" attribute below is ignored.
+[highlight]
+  anchorLineNos = false
+  codeFences = true
+  guessSyntax = false
+  hl_Lines = ''
+  hl_inline = false
+  lineAnchors = ''
+  lineNoStart = 1
+  lineNos = false
+  lineNumbersInTable = false
+  noClasses = false
+  noHl = false
+  tabWidth = 4
+#  theme = "ignored"
+
+[tableOfContents]
+  endLevel = 3
+  ordered = false
+  startLevel = 2

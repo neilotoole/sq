@@ -1,0 +1,4 @@
+Usage:
+  sq config set ping.timeout 10s
+
+How long the ping command waits before timeout occurs. Example: 500ms or 2m10s.

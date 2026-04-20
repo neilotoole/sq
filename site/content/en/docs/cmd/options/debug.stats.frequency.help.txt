@@ -1,0 +1,5 @@
+Usage:
+  sq config set debug.stats.frequency 0s
+
+Memory usage sampling interval. If non-zero, peak memory usage is periodically
+sampled, and reported on exit. If zero, memory usage sampling is disabled.

@@ -1,0 +1,10 @@
+Usage:
+  sq config set diff.data.format text
+
+Specify the output format to use when comparing table data.
+
+Available formats:
+
+  text, csv, tsv,
+  json, jsona, jsonl,
+  markdown, html, xml, yaml

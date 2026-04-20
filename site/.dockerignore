@@ -1,0 +1,29 @@
+# Dependencies (installed in-container from package.json + bun.lock)
+node_modules
+.pnp
+.pnp.js
+
+# Build outputs (rebuilt in-container)
+public
+resources
+.hugo_build.lock
+
+# Git and CI
+.git
+.gitignore
+.github
+
+# IDE and OS
+.cursor
+.cursorignore
+.vscode
+.DS_Store
+*.log
+
+# Dev tooling not needed for Hugo build
+Makefile
+Common.make
+linkinator.sh
+linkinator.config.json
+BENCHMARK_README.md
+# scripts/ included so dev-server.js + version-fetch.js run in container

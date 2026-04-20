@@ -1,0 +1,6 @@
+Usage:
+  sq config set conn.max-open 0
+
+Maximum number of open connections to the database.
+
+A value of zero indicates no limit.

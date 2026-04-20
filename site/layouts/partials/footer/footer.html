@@ -1,0 +1,21 @@
+<footer class="footer text-muted">
+  <div class="container-{{ if .Site.Params.options.fullWidth }}fluid{{ else }}xxl{{ end }}">
+    <div class="row">
+      <div class="col-lg-8 order-last order-lg-first">
+        <ul class="list-inline">
+          {{ if not (hasPrefix .Site.BaseURL "http://localhost") -}}
+          <li class="list-inline-item netlify-logo"><a href="https://www.netlify.com"> <img src="https://www.netlify.com/v3/img/components/netlify-dark.svg" alt="Deploys by Netlify" /> </a>
+          </li>
+          {{ end -}}
+        </ul>
+      </div>
+<!--      <div class="col-lg-8 order-first order-lg-last text-lg-end">-->
+<!--        <ul class="list-inline">-->
+<!--          {{ range .Site.Menus.footer -}}-->
+<!--            <li class="list-inline-item"><a href="{{ .URL | relURL }}">{{ .Name }}</a></li>-->
+<!--          {{ end -}}-->
+<!--        </ul>-->
+<!--      </div>-->
+    </div>
+  </div>
+</footer>

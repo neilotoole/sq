@@ -1,0 +1,4 @@
+Usage:
+  sq config set https.insecure-skip-verify false
+
+Skip HTTPS TLS verification. Useful when downloading against self-signed certs.

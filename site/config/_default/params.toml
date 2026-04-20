@@ -1,0 +1,128 @@
+# Meta Data for SEO
+
+## Homepage
+title = "sq"
+titleSeparator = "|"
+titleAddition = "wrangle data"
+description = "sq data wrangler"
+
+## Documentation
+# docsVersion = "0.3"
+
+## Open Graph
+images = ["sq-wrangle3.png"]
+ogLocale = "en_US"
+domainTLD = "sq.io"
+titleHome = "sq data wrangler"
+
+## Twitter Cards
+#twitterSite = "@getdoks"
+#twitterCreator = "@henkverlinde"
+
+## JSON-LD
+# schemaType = "Person"
+schemaType = "Organization"
+schemaName = "sq"
+schemaAuthor = "Neil O'Toole"
+#schemaAuthorTwitter = "https://twitter.com/henkverlinde"
+schemaAuthorLinkedIn = "https://www.linkedin.com/in/neilot/"
+schemaAuthorGitHub = "https://github.com/neilotoole"
+schemaLocale = "en-US"
+schemaLogo = "sq-wrangle3.png"
+schemaLogoWidth = 1200
+schemaLogoHeight = 630
+schemaImage = "sq-wrangle3.png"
+schemaImageWidth = 1200
+schemaImageHeight = 630
+#schemaTwitter = "https://twitter.com/getdoks"
+schemaLinkedIn = ""
+schemaGitHub = "https://github.com/neilotoole/sq"
+#schemaSection = "blog"
+
+## Sitelinks Search Box
+siteLinksSearchBox = false
+
+## Chrome Browser
+themeColor = "#fff"
+
+# Images
+quality = 85
+bgColor = "#fff"
+landscapePhotoWidths = [900, 800, 700, 600, 500]
+portraitPhotoWidths = [800, 700, 600, 500]
+lqipWidth = "20x"
+smallLimit = "300"
+
+# Images
+imageResponsive = true
+imageConvertTo = "webp"
+imageImageSizes = ["480","720","1080","1280","1600","2048"]
+singleSize = false
+imageAddClass = "img-fluid lazyload blur-up"
+
+### Image template
+defaultImage = "sq-wrangle3.png" # put in `./assets/images/`
+fillImage = "1200x630 Center" # normalize image size
+
+# Footer
+footer = "Powered by <a class=\"text-muted\" href=\"https://www.netlify.com/\">Netlify</a>, <a class=\"text-muted\" href=\"https://gohugo.io/\">Hugo</a>, <a class=\"text-muted\" href=\"https://getdoks.org/\">Doks</a>, and <a class=\"text-muted\" href=\"https://asciinema.org/\">asciinema</a>."
+
+# Feed
+copyRight = "Copyright (c) 2023 Neil O'Toole"
+
+# Alert
+alert = false
+alertDismissable = true
+# alertText = "Introducing the Doks child theme, several DX + UX updates, and more! <a class=\"alert-link stretched-link\" href=\"https://getdoks.org/blog/doks-v0.2/\" target=\"_blank\" rel=\"noopener\">Check out Doks v0.2</a>"
+alertText = "sq v0.24.0 released"
+
+# Edit Page
+# repoHost [Github | Gitea | GitLab | Bitbucket | BitbucketServer ] is used for building the edit link based on git hoster
+repoHost = "GitHub"
+#repoHost = "Gitea"
+docsRepo = "https://github.com/neilotoole/sq"
+docsRepoBranch = "master"
+docsRepoSubPath = "site"
+editPage = true
+lastMod = true
+
+pygmentsCodeFences = true
+pygmentsUseClasses = true
+
+
+[sections]
+  sectionNav = ["docs"]
+
+[options]
+  lazySizes = true
+#  clipBoard = true
+  instantPage = true
+  flexSearch = true
+  searchSectionsShow = []
+  searchSectionsIndex = []
+  darkMode = true
+  bootStrapJs = true
+  breadCrumb = false
+#  highLight = false
+  kaTex = false
+  multilingualMode = false
+  docsVersioning = false
+  fullWidth = false
+  navbarSticky = true
+  toTopButton = false
+  scrollSpy = false # experimental; needs Bootstrap >= 5.2.0-beta1
+
+[menu]
+  [menu.section]
+    auto = true
+    collapsibleSidebar = true
+
+
+
+
+[asciinema.defaults]
+  theme = "nord"
+  loop = false
+  autoPlay = false
+  speed = 1.8
+  idleTimeLimit = 1.5

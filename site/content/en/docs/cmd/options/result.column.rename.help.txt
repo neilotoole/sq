@@ -1,0 +1,38 @@
+Usage:
+  sq config set result.column.rename '{{.Name}}{{with .Recurrence}}_{{.}}{{end}}'
+
+This Go text template is executed on the column names returned from the DB. Its
+primary purpose is to rename duplicate column names. For example, given a query
+that results in this SQL:
+
+  SELECT * FROM actor JOIN film_actor ON actor.actor_id = film_actor.actor_id
+
+The returned result set will have these column names:
+
+  actor_id, first_name, last_name, last_update, actor_id, film_id, last_update
+  |-              from "actor"               -| |-    from "film_actor"     -|
+
+Note the duplicate "actor_id" and "last_update" column names. When output in a
+format (such as JSON) that doesn't permit duplicate keys, only one of each
+duplicate column could appear.
+
+The fields available in the template are:
+
+  .Name         column name
+  .Index        zero-based index of the column in the result set
+  .Alpha        alphabetical index of the column, i.e. [A, B ... Z, AA, AB]
+  .Recurrence   nth recurrence of the colum name in the result set
+
+For a unique column name, e.g. "first_name" above, ".Recurrence" will be 0. For
+duplicate column names, ".Recurrence" will be 0 for the first instance, then 1
+for the next instance, and so on.
+
+Note that this option only applies when the result set contains duplicates. To
+rename result columns generally, use a column alias. Note also that this option
+applies globally; it cannot be set on a per-source basis. This is because it's
+ambiguous what would happen on a join where each source had a different renaming
+template.
+
+The default template renames the columns to:
+
+  actor_id, first_name, last_name, last_update, actor_id_1, film_id, last_update_1
