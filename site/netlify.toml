@@ -9,8 +9,9 @@
   force = true
 
 [build.environment]
+  # Pinned releases (not "latest") for security and reproducible, reviewable upgrades.
   NODE_VERSION = "22"
-  BUN_VERSION = "latest"
+  BUN_VERSION = "1.3.13"
   HUGO_VERSION = "0.139.2"
 
 [context.production]
