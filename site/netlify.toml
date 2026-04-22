@@ -65,6 +65,13 @@ output_path = "reports/lighthouse.html"
   publish = "public"
   autoLaunch = false
 
+# Asciicast v2 files are newline-delimited JSON. Netlify only auto-compresses
+# responses it treats as compressible text; without this, .cast is served with a
+# non-text Content-Type and skips Brotli/gzip (Lighthouse uses-text-compression).
+[[headers]]
+  for = "/casts/*"
+  [headers.values]
+    Content-Type = "application/json; charset=utf-8"
 
 [[headers]]
   for = "/*"
