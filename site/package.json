@@ -53,7 +53,7 @@
     "@babel/core": "^7.20",
     "@babel/preset-env": "^7.20",
     "@fullhuman/postcss-purgecss": "^5.0",
-    "@hyas/images": "^0.2.2",
+    "@hyas/images": "^3.2.0",
     "@netlify/plugin-lighthouse": "^6.0.4",
     "asciinema-player": "^3.0.1",
     "auto-changelog": "^2.4",
