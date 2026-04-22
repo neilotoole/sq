@@ -83,6 +83,6 @@ output_path = "reports/lighthouse.html"
       frame-src 'self' 'unsafe-inline' sq.io asciinema.org;
       connect-src 'self' sq.io asciinema.org www.google-analytics.com;
       img-src 'self' 'unsafe-inline' data: https: sq.io www.netlify.com;
-      style-src 'self' 'unsafe-inline'  sq.io www.netlify.com fonts.googleapis.com;
-      font-src 'self' 'unsafe-inline' sq.io fonts.googleapis.com cdnjs.cloudflare.com fonts.gstatic.com  fonts.googleapis.com github.com maxcdn.bootstrapcdn.com themes.googleusercontent.com use.fontawesome.com
+      style-src 'self' 'unsafe-inline' sq.io www.netlify.com;
+      font-src 'self' 'unsafe-inline' sq.io cdnjs.cloudflare.com github.com maxcdn.bootstrapcdn.com themes.googleusercontent.com use.fontawesome.com
       '''

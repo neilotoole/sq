@@ -39,5 +39,49 @@ site-build:
 site-dev:
 	bun start
 
+.PHONY: site-lighthouse-serve ## Build prod site and serve it locally with gzip/brotli on LH_PORT (default 8090); Ctrl+C to stop
+site-lighthouse-serve:
+	@LH_PORT="$${LH_PORT:-8090}"; \
+	echo "Building production site with baseURL http://localhost:$$LH_PORT/ …"; \
+	bun run clean; \
+	node_modules/.bin/hugo/hugo --gc --minify -b "http://localhost:$$LH_PORT/"; \
+	[ -f static/_redirects ] && cat static/_redirects >> public/_redirects 2>/dev/null || true; \
+	echo ""; echo "Serving public/ on http://localhost:$$LH_PORT (gzip/brotli enabled). Ctrl+C to stop."; \
+	bun scripts/lighthouse-server.ts --port "$$LH_PORT" --dir public
+
+.PHONY: site-lighthouse ## Build prod site, serve with gzip/brotli, run Lighthouse (mobile + desktop), tear down; overrides LH_PORT (8090) and LH_URL (built-in)
+site-lighthouse:
+	@LH_PORT="$${LH_PORT:-8090}"; \
+	LH_URL="http://localhost:$$LH_PORT"; \
+	echo "[1/4] Building production site (hugo --gc --minify -b $$LH_URL/) …"; \
+	bun run clean; \
+	node_modules/.bin/hugo/hugo --gc --minify -b "$$LH_URL/" >/dev/null; \
+	[ -f static/_redirects ] && cat static/_redirects >> public/_redirects 2>/dev/null || true; \
+	echo "[2/4] Starting prod-like static server (gzip/brotli) on $$LH_URL …"; \
+	bun scripts/lighthouse-server.ts --port "$$LH_PORT" --dir public >/tmp/lighthouse-server.log 2>&1 & \
+	SERVER_PID=$$!; \
+	trap "kill $$SERVER_PID 2>/dev/null || true" EXIT INT TERM; \
+	for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do \
+	  sleep 0.3; \
+	  curl -fsS -o /dev/null "$$LH_URL/" 2>/dev/null && break; \
+	done; \
+	curl -fsS -o /dev/null "$$LH_URL/" || { echo "ERROR: server did not come up"; tail -20 /tmp/lighthouse-server.log; exit 1; }; \
+	mkdir -p lighthouse-reports; \
+	echo "[3/4] Running Lighthouse (mobile, throttled)…"; \
+	bunx lighthouse "$$LH_URL" --form-factor=mobile \
+	  --output=html --output=json \
+	  --output-path=lighthouse-reports/mobile \
+	  --chrome-flags="--headless" --quiet; \
+	echo "[4/4] Running Lighthouse (desktop)…"; \
+	bunx lighthouse "$$LH_URL" --preset=desktop \
+	  --output=html --output=json \
+	  --output-path=lighthouse-reports/desktop \
+	  --chrome-flags="--headless" --quiet; \
+	kill $$SERVER_PID 2>/dev/null || true; \
+	echo ""; \
+	echo "Reports:"; \
+	echo "  → lighthouse-reports/mobile.report.html"; \
+	echo "  → lighthouse-reports/desktop.report.html"
+
 .PHONY: ci ## Install deps, lint, and production build (matches GitHub Site CI workflow)
 ci: deps site-test site-build
