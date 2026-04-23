@@ -4,7 +4,7 @@ const { getVersion } = require("./version-fetch.js");
 const CACHE_MAX_AGE = 300; // 5 minutes
 
 /**
- * JSON response with gzip or Brotli when the client advertises support and
+ * JSON response with Brotli or gzip when the client advertises support and
  * compression saves bytes. Netlify does not apply CDN compression to
  * function payloads the way it does for static files, so this keeps
  * Lighthouse's "Enable text compression" audit clean for GET /version.
@@ -41,16 +41,16 @@ function jsonResponse(statusCode, bodyObj, acceptEncoding) {
     };
   };
 
-  if (ae.includes("gzip")) {
-    const gz = zlib.gzipSync(raw);
-    const r = tryCompressed("gzip", gz);
+  if (ae.includes("br")) {
+    const br = zlib.brotliCompressSync(raw);
+    const r = tryCompressed("br", br);
     if (r) {
       return r;
     }
   }
-  if (ae.includes("br")) {
-    const br = zlib.brotliCompressSync(raw);
-    const r = tryCompressed("br", br);
+  if (ae.includes("gzip")) {
+    const gz = zlib.gzipSync(raw);
+    const r = tryCompressed("gzip", gz);
     if (r) {
       return r;
     }

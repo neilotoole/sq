@@ -96,16 +96,6 @@ const server = http.createServer(async (req, res) => {
       if (statusCode === 200) {
         headers["Cache-Control"] = "public, max-age=300";
       }
-      if (acceptEncoding.includes("gzip")) {
-        const gz = zlib.gzipSync(raw);
-        if (gz.length < raw.length) {
-          headers["Content-Encoding"] = "gzip";
-          headers.Vary = "Accept-Encoding";
-          res.writeHead(statusCode, headers);
-          res.end(gz);
-          return;
-        }
-      }
       if (acceptEncoding.includes("br")) {
         const br = zlib.brotliCompressSync(raw);
         if (br.length < raw.length) {
@@ -113,6 +103,16 @@ const server = http.createServer(async (req, res) => {
           headers.Vary = "Accept-Encoding";
           res.writeHead(statusCode, headers);
           res.end(br);
+          return;
+        }
+      }
+      if (acceptEncoding.includes("gzip")) {
+        const gz = zlib.gzipSync(raw);
+        if (gz.length < raw.length) {
+          headers["Content-Encoding"] = "gzip";
+          headers.Vary = "Accept-Encoding";
+          res.writeHead(statusCode, headers);
+          res.end(gz);
           return;
         }
       }
