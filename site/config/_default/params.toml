@@ -126,3 +126,15 @@ pygmentsUseClasses = true
   autoPlay = false
   speed = 1.8
   idleTimeLimit = 1.5
+
+# @hyas/images v3+ reads defaults from site.Params.hyas_images.defaults.
+# Missing values cause EXECUTE-AS-TEMPLATE failures when .Content is rendered.
+[hyas_images]
+  [hyas_images.defaults]
+    decoding = "async"
+    fetchpriority = "auto"
+    loading = "lazy"
+    widths = [480, 576, 768, 1025, 1200, 1440]
+    sizes = "auto"
+    process = ""
+    lqip = "16x webp q20"

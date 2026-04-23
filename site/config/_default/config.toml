@@ -96,6 +96,11 @@ rel  = "sitemap"
   [[module.mounts]]
     source = "static"
     target = "static"
+  # Also expose static/images as assets so @hyas/images v3+ render-image.html
+  # can resolve /images/*.png via resources.Get (it only searches assets/).
+  [[module.mounts]]
+    source = "static/images"
+    target = "assets/images"
   [[module.mounts]]
     source = "layouts"
     target = "layouts"
