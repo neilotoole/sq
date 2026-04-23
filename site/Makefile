@@ -96,7 +96,7 @@ site-lighthouse:
 	log_indent log_dim "[2/4] Starting prod-like static server (gzip/brotli)…"; \
 	bun scripts/lighthouse-server.ts --port "$(LH_PORT)" --dir public >/tmp/lighthouse-server.log 2>&1 & \
 	SERVER_PID=$$!; \
-	trap "kill $$SERVER_PID 2>/dev/null || true" EXIT INT TERM; \
+	trap 'kill $$SERVER_PID 2>/dev/null || true' EXIT INT TERM; \
 	for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do \
 	  sleep 0.3; \
 	  curl -fsS -o /dev/null "$(LH_URL)/" 2>/dev/null && break; \
