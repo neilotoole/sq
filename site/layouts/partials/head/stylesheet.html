@@ -4,7 +4,7 @@
   {{ $optsDef := dict "targetPath" "deferred.css" "enableSourceMap" true "includePaths" (slice "node_modules") -}}
   {{ $deferred := resources.Get "scss/deferred.scss" | toCSS $optsDef -}}
   <link rel="stylesheet" href="{{ $critical.Permalink | relURL }}">
-  <link rel="stylesheet" href="{{ $deferred.Permalink | relURL }}" media="print" onload="this.media='all'">
+  <link rel="preload" href="{{ $deferred.Permalink | relURL }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="{{ $deferred.Permalink | relURL }}"></noscript>
 {{ else -}}
   {{ $optsCrit := dict "targetPath" "critical.css" "outputStyle" "compressed" "includePaths" (slice "node_modules") -}}
@@ -14,7 +14,7 @@
   {{ $deferred := resources.Get "scss/deferred.scss" | toCSS $optsDef | postCSS (dict "config" "config/postcss.config.js") -}}
   {{ $defSec := $deferred | resources.Fingerprint "sha512" -}}
   <link rel="stylesheet" href="{{ $critSec.Permalink }}" integrity="{{ $critSec.Data.Integrity }}" crossorigin="anonymous">
-  <link rel="stylesheet" href="{{ $defSec.Permalink }}" integrity="{{ $defSec.Data.Integrity }}" crossorigin="anonymous" media="print" onload="this.media='all'">
+  <link rel="preload" href="{{ $defSec.Permalink }}" as="style" integrity="{{ $defSec.Data.Integrity }}" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="{{ $defSec.Permalink }}" integrity="{{ $defSec.Data.Integrity }}" crossorigin="anonymous"></noscript>
 {{ end -}}
 <noscript><style>img.lazyload { display: none; }</style></noscript>
