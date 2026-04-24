@@ -14,23 +14,74 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## Unreleased
 
+## [v0.51.0] - 2026-04-23
+
+### Added
+
+- [#552]: Agent-focused skill content under `skills/sq/` (prompts and
+  references) to help AI assistants use `sq`, plus related nfpm/AUR packaging
+  metadata. Kudos to [@drluckyspin](https://github.com/drluckyspin).
+
 ### Changed
 
-- Updated Go dependencies, including `github.com/mattn/go-sqlite3` from
-  `v1.14.34` to `v1.14.42` (embedded SQLite `3.51.2` → `3.51.3`), which makes
-  newer SQLite built-ins such as [`unistr()`][sqlite-unistr] available in the
-  [`sq sql`](https://sq.io/docs/cmd/sql) command.
+- [#562]: The [sq.io](https://sq.io) Hugo site now lives in-repo under
+  `site/`, with follow-up footer, navigation, and Lighthouse-oriented site
+  performance work ([#569], [#570], [#571], [#572]). Kudos to
+  [@drluckyspin](https://github.com/drluckyspin).
+- [#546]: [`sq version`](https://sq.io/docs/cmd/version) now prints the
+  copyright year from the build timestamp (falls back to the current year in
+  dev builds). Kudos to [@neilotoole](https://github.com/neilotoole).
+- [#557], [#558]: Updated Go module dependencies, including
+  `github.com/mattn/go-sqlite3` from `v1.14.34` to `v1.14.42` (embedded SQLite
+  `3.51.2` → `3.51.3`), which makes newer SQLite built-ins such as
+  [`unistr()`][sqlite-unistr] available in the
+  [`sq sql`](https://sq.io/docs/cmd/sql) command. Also bumps
+  `github.com/ClickHouse/clickhouse-go/v2` from `v2.42.0` to `v2.45.0`, plus
+  `github.com/xo/usql`, `github.com/jackc/pgx/v5`, and other libraries used by
+  `sq`. Kudos to [@neilotoole](https://github.com/neilotoole).
+- Documentation and examples: standardized syntax, clarified driver wording,
+  and added contributor / assistant guidance via `CLAUDE.md` ([#561]). Kudos to
+  [@neilotoole](https://github.com/neilotoole),
+  [@drluckyspin](https://github.com/drluckyspin), and GitHub Copilot on individual
+  commits.
+- [#560]: Codacy configuration now excludes `testdata/` from analysis. Kudos to
+  [@neilotoole](https://github.com/neilotoole).
+- [#527], [#559]: Added regression coverage for embedded SQLite version and
+  built-ins (`unistr()`, `iif()`, `if()`) so a future dependency downgrade
+  cannot silently drop them again. Kudos to
+  [@neilotoole](https://github.com/neilotoole).
 
 ### Fixed
 
-- [#555]: ClickHouse driver now populates `md.Catalog` in `SourceMetadata`,
-  matching the current ClickHouse database. Previously the field was left
-  empty, which caused `TestSQLDriver_CurrentSchemaCatalog` to fail for the
-  ClickHouse sakila source.
+- [#555], [#556]: ClickHouse driver now populates `md.Catalog` in
+  `SourceMetadata`, matching the current ClickHouse database. Previously the
+  field was left empty, which caused `TestSQLDriver_CurrentSchemaCatalog` to
+  fail for the ClickHouse sakila source. Kudos to
+  [@neilotoole](https://github.com/neilotoole).
+- Documentation and README: removed or redacted example values that could read
+  as live credentials when copy-pasted. Kudos to
+  [@neilotoole](https://github.com/neilotoole) and
+  [@drluckyspin](https://github.com/drluckyspin).
+- GoReleaser: corrected an invalid `backup` configuration value for release
+  archives. Kudos to [@drluckyspin](https://github.com/drluckyspin).
 
+[#527]: https://github.com/neilotoole/sq/issues/527
+[#546]: https://github.com/neilotoole/sq/pull/546
+[#552]: https://github.com/neilotoole/sq/pull/552
 [#555]: https://github.com/neilotoole/sq/issues/555
+[#556]: https://github.com/neilotoole/sq/pull/556
+[#557]: https://github.com/neilotoole/sq/pull/557
+[#558]: https://github.com/neilotoole/sq/pull/558
+[#559]: https://github.com/neilotoole/sq/pull/559
+[#560]: https://github.com/neilotoole/sq/pull/560
+[#561]: https://github.com/neilotoole/sq/pull/561
+[#562]: https://github.com/neilotoole/sq/pull/562
+[#569]: https://github.com/neilotoole/sq/pull/569
+[#570]: https://github.com/neilotoole/sq/pull/570
+[#571]: https://github.com/neilotoole/sq/pull/571
+[#572]: https://github.com/neilotoole/sq/pull/572
 [sqlite-unistr]: https://www.sqlite.org/lang_corefunc.html#unistr
-
+[v0.51.0]: https://github.com/neilotoole/sq/compare/v0.50.0...v0.51.0
 
 ## [v0.50.0] - 2026-02-16
 
