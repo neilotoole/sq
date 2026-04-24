@@ -72,6 +72,11 @@ maintainers; you do not need to worry about this if creating a PR.
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+**Scope:** Entries describe the **`sq` CLI and core libraries** (what ships in
+the release binary). Changes that **only** touch [`site/`](./site) (the sq.io
+Hugo site) do **not** need `CHANGELOG.md` updates unless a maintainer wants a
+release-note line tied to the `sq` product.
+
 ### Unreleased Section
 
 When there is work-in-progress, `CHANGELOG.md` uses an `## Unreleased` section
@@ -95,8 +100,9 @@ at the top for accumulating changes during development.
 1. **Starting new work**: Add an `## Unreleased` section at the top of the
    CHANGELOG with the standard subsection headers (Fixed, Changed, Added).
 
-2. **During development**: Add entries under `## Unreleased` as changes are
-   made. Each PR should update this section with its changes.
+2. **During development**: Add entries under `## Unreleased` for **CLI and
+   library** changes as they land (see **Scope** above). Site-only PRs can skip
+   the changelog.
 
 3. **At release time**: When creating a new version (e.g., `git tag v1.2.3`):
   - Replace `## Unreleased` with `## [v1.2.3] - YYYY-MM-DD`

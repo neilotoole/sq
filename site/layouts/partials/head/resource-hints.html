@@ -1,4 +1,7 @@
-<link href="https://fonts.googleapis.com/css?family=Nunito+Sans:300,400,600,700,800,900?display=swap" rel="stylesheet">
+{{/* Self-hosted Nunito Sans (see site/assets/scss/common/_fonts.scss).
+     Preload the roman variable font because body text (weight 300) is on the
+     LCP critical path. Italic is not preloaded. */}}
+<link rel="preload" as="font" type="font/woff2" href="{{ "fonts/vendor/nunito-sans/nunito-sans-v19-latin.woff2" | absURL }}" crossorigin>
 
 {{ if .Site.Params.options.kaTex -}}
   <link rel="preload" as="font" href="{{ "fonts/KaTeX_Main-Regular.woff2" | absURL }}" type="font/woff2" crossorigin>
