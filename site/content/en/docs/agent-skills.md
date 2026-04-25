@@ -1,5 +1,5 @@
 ---
-title: "Agent skills"
+title: "Agent Skills"
 description: >-
   Install the sq Agent Skill for Claude Code, Cursor, and other assistants that
   support the Agent Skills format.
