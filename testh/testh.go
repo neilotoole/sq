@@ -26,6 +26,7 @@ import (
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/json"
 	"github.com/neilotoole/sq/drivers/mysql"
+	"github.com/neilotoole/sq/drivers/oracle"
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/drivers/sqlserver"
@@ -184,6 +185,7 @@ func (h *Helper) init() {
 		h.registry.AddProvider(drivertype.MSSQL, &sqlserver.Provider{Log: h.Log()})
 		h.registry.AddProvider(drivertype.MySQL, &mysql.Provider{Log: h.Log()})
 		h.registry.AddProvider(drivertype.ClickHouse, &clickhouse.Provider{Log: h.Log()})
+		h.registry.AddProvider(drivertype.Oracle, &oracle.Provider{Log: h.Log()})
 
 		csvp := &csv.Provider{Log: h.Log(), Ingester: h.grips, Files: h.files}
 		h.registry.AddProvider(drivertype.CSV, csvp)
@@ -283,7 +285,9 @@ func (h *Helper) Add(src *source.Source) *source.Source {
 // Any external database source (that is, any SQL source other than SQLite3)
 // will have its location determined from an envar. Given a source @sakila_pg12,
 // its location is derived from an envar SQ_TEST_SRC__SAKILA_PG12. If that envar
-// is not set, the test calling this method will be skipped.
+// is not set, the test calling this method will be skipped. For @sakila_ora,
+// use SQ_TEST_SRC__SAKILA_ORA (host:port/service_name or other godror connect
+// descriptor after the @ in oracle://user:pass@…).
 //
 // If envar SQ_TEST_DIFFDB is true, DiffDB is run on every SQL source
 // returned by Source.

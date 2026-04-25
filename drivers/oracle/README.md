@@ -78,6 +78,13 @@ go test -v -short
 ./testutils/test-integration.sh --with-pg
 ```
 
+### `testh` / repo-wide tests
+
+When running `libsq` or other packages through `testh`, set
+`SQ_TEST_SRC__SAKILA_ORA` to the part of the DSN after `oracle://sakila:p_ssW0rd@`
+(host:port/service name, etc.), matching `testh/testdata/sources.sq.yml` for handle
+`@sakila_ora`. If unset, tests that require Oracle skip that source.
+
 For detailed testing instructions, including:
 
 - Unit vs integration test organization
