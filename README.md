@@ -130,7 +130,7 @@ documented at **[sq.io/docs/agent-skills](https://sq.io/docs/agent-skills)**.
 Quick install from GitHub:
 
 ```shell
-npx skills add https://github.com/neilotoole/sq --skill sq
+npx skills add neilotoole/sq
 ```
 
 ## Documentation site (sq.io)
