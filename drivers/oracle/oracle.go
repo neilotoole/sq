@@ -301,7 +301,9 @@ func (d *driveri) CatalogExists(_ context.Context, _ sqlz.DB, _ string) (bool, e
 
 // TableExists implements driver.SQLDriver.
 func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool, error) {
-	const query = `SELECT COUNT(*) FROM user_tables WHERE table_name = :1`
+	const query = `SELECT COUNT(*) FROM user_objects
+WHERE object_name = :1
+  AND object_type IN ('TABLE', 'VIEW', 'MATERIALIZED VIEW')`
 
 	var count int
 	err := db.QueryRowContext(ctx, query, strings.ToUpper(tbl)).Scan(&count)
@@ -347,6 +349,27 @@ ORDER BY table_name`
 		}
 
 		if err = rows.Err(); err != nil {
+			return nil, errw(err)
+		}
+
+		const queryMV = `SELECT mview_name FROM all_mviews
+WHERE owner = :1
+ORDER BY mview_name`
+		rowsMV, err := db.QueryContext(ctx, queryMV, owner)
+		if err != nil {
+			return nil, errw(err)
+		}
+		defer rowsMV.Close()
+
+		for rowsMV.Next() {
+			var name string
+			if err = rowsMV.Scan(&name); err != nil {
+				return nil, errw(err)
+			}
+			names = append(names, strings.ToLower(name))
+		}
+
+		if err = rowsMV.Err(); err != nil {
 			return nil, errw(err)
 		}
 	}
@@ -697,23 +720,29 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 
 // DBProperties implements driver.SQLDriver.
 func (d *driveri) DBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
-	const query = `SELECT
+	props := make(map[string]any)
+
+	const baseQuery = `SELECT
     (SELECT SYS_CONTEXT('USERENV', 'DB_NAME') FROM DUAL) AS db_name,
-    (SELECT version FROM v$instance) AS version,
     (SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM DUAL) AS current_schema
 FROM DUAL`
 
-	props := make(map[string]any)
-
-	var dbName, version, currentSchema string
-	err := db.QueryRowContext(ctx, query).Scan(&dbName, &version, &currentSchema)
-	if err != nil {
+	var dbName, currentSchema string
+	if err := db.QueryRowContext(ctx, baseQuery).Scan(&dbName, &currentSchema); err != nil {
 		return nil, errw(err)
 	}
 
 	props["db_name"] = dbName
-	props["version"] = version
 	props["current_schema"] = currentSchema
+
+	var version string
+	if err := db.QueryRowContext(ctx,
+		`SELECT version FROM v$instance WHERE ROWNUM = 1`).Scan(&version); err == nil {
+		props["version"] = version
+	} else if err := db.QueryRowContext(ctx,
+		`SELECT BANNER FROM v$version WHERE ROWNUM = 1`).Scan(&version); err == nil {
+		props["version"] = version
+	}
 
 	return props, nil
 }

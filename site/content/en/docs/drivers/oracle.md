@@ -42,9 +42,21 @@ user).
 
 ### Metadata visibility
 
-`sq inspect` metadata for Oracle is gathered from `USER_*` dictionary views for
-the connected schema. Listing table names with an explicit schema uses
-`ALL_TABLES` / `ALL_VIEWS` filtered by owner.
+`sq inspect` loads **base tables**, **views**, and **materialized views** from
+`USER_*` dictionary views for the connected schema. View rows use
+`TableType` `view`; materialized views use `TableType` `table` with
+`DBTableType` `MATERIALIZED VIEW` (so they contribute to `TableCount`).
+
+`ListTableNames(schema=...)` reads `ALL_TABLES`, `ALL_MVIEWS`, and `ALL_VIEWS`
+filtered by owner. `TableExists` checks `USER_OBJECTS` for `TABLE`, `VIEW`, or
+`MATERIALIZED VIEW`.
+
+**Synonyms** (resolving through `ALL_SYNONYMS` to base objects, including DB
+links) are not implemented yet.
+
+`DBProperties` always returns `db_name` and `current_schema` from
+`SYS_CONTEXT`. The `version` field prefers `v$instance` and falls back to
+`v$version` when `v$instance` is not readable.
 
 ### Requirements
 

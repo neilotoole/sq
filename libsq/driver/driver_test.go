@@ -16,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -435,6 +436,49 @@ func TestGrip_SourceMetadata(t *testing.T) {
 	}
 }
 
+func TestGrip_SourceMetadata_OracleViewsAndCounts(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	if !th.SourceConfigured(sakila.Ora) {
+		t.Skip("Oracle Sakila source not configured")
+	}
+
+	th, _, _, grip, _ := testh.NewWith(t, sakila.Ora)
+
+	md, err := grip.SourceMetadata(th.Context, false)
+	require.NoError(t, err)
+	require.NotNil(t, md)
+
+	require.Equal(t, int64(7), md.ViewCount)
+
+	view := md.Table(sakila.ViewFilmList)
+	require.NotNil(t, view, "film_list view should appear in SourceMetadata.Tables")
+	require.Equal(t, sqlz.TableTypeView, view.TableType)
+	require.Equal(t, "VIEW", view.DBTableType)
+
+	require.Equal(t, md.TableCount+md.ViewCount, int64(len(md.Tables)))
+}
+
+func TestSQLDriver_Oracle_TableExists_Objects(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	if !th.SourceConfigured(sakila.Ora) {
+		t.Skip("Oracle Sakila source not configured")
+	}
+
+	th, _, drvr, _, db := testh.NewWith(t, sakila.Ora)
+
+	ok, err := drvr.TableExists(th.Context, db, sakila.ViewFilmList)
+	require.NoError(t, err)
+	require.True(t, ok, "TableExists should be true for a view name")
+
+	ok, err = drvr.TableExists(th.Context, db, "not_a_real_table_name_xyz999")
+	require.NoError(t, err)
+	require.False(t, ok)
+}
+
 // TestSQLDriver_ListTableNames_ArgSchemaEmpty tests [driver.SQLDriver.ListTableNames]
 // with an empty schema arg.
 func TestSQLDriver_ListTableNames_ArgSchemaEmpty(t *testing.T) { //nolint:tparallel
@@ -502,10 +546,21 @@ func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tpa
 			require.NotNil(t, got)
 			require.True(t, len(got) == 0)
 
+			wantTables := tc.wantTables
+			if tc.handle == sakila.Ora {
+				// Oracle's "tables" list includes materialized views (ALL_MVIEWS).
+				var mviewCount int
+				err := db.QueryRowContext(th.Context,
+					`SELECT COUNT(*) FROM all_mviews WHERE owner = :1`,
+					strings.ToUpper(tc.schema)).Scan(&mviewCount)
+				require.NoError(t, err)
+				wantTables += mviewCount
+			}
+
 			got, err = drvr.ListTableNames(th.Context, db, tc.schema, true, false)
 			require.NoError(t, err)
 			require.NotNil(t, got)
-			require.Len(t, got, tc.wantTables)
+			require.Len(t, got, wantTables)
 
 			got, err = drvr.ListTableNames(th.Context, db, tc.schema, false, true)
 			require.NoError(t, err)
@@ -515,7 +570,7 @@ func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tpa
 			got, err = drvr.ListTableNames(th.Context, db, tc.schema, true, true)
 			require.NoError(t, err)
 			require.NotNil(t, got)
-			require.Len(t, got, tc.wantTables+tc.wantViews)
+			require.Len(t, got, wantTables+tc.wantViews)
 
 			gotCopy := append([]string(nil), got...)
 			slices.Sort(gotCopy)

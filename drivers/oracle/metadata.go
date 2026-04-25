@@ -4,10 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
+	"sort"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/progress"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -15,6 +19,8 @@ import (
 
 // getSourceMetadata returns metadata for the Oracle source.
 func getSourceMetadata(ctx context.Context, src *source.Source, db *sql.DB, noSchema bool) (*metadata.Source, error) {
+	log := lg.FromContext(ctx)
+
 	md := &metadata.Source{
 		Handle:    src.Handle,
 		Location:  src.Location,
@@ -52,71 +58,113 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db *sql.DB, noSc
 		return md, nil
 	}
 
-	// Get table metadata
-	tables, err := getTablesMetadata(ctx, db, schema)
+	tables, err := loadUserSchemaObjectsMetadata(ctx, log, src.Handle, db)
 	if err != nil {
 		return nil, err
 	}
 
 	md.Tables = tables
-	md.TableCount = int64(len(md.Tables))
-
-	if md.ViewCount, err = getViewCount(ctx, db); err != nil {
-		return nil, err
+	for _, tbl := range md.Tables {
+		switch tbl.TableType {
+		case sqlz.TableTypeTable:
+			md.TableCount++
+		case sqlz.TableTypeView:
+			md.ViewCount++
+		}
 	}
 
 	return md, nil
 }
 
-// getTablesMetadata returns metadata for all tables in the current schema.
-func getTablesMetadata(ctx context.Context, db *sql.DB, _ string) ([]*metadata.Table, error) {
-	const query = `SELECT table_name
-FROM user_tables
-WHERE temporary = 'N'
-ORDER BY table_name`
+// loadUserSchemaObjectsMetadata returns metadata for base tables, materialized
+// views, and views in the current schema (USER_* dictionary).
+func loadUserSchemaObjectsMetadata(
+	ctx context.Context, log *slog.Logger, handle string, db *sql.DB,
+) ([]*metadata.Table, error) {
+	baseNames, err := queryOracleObjectNames(ctx, db,
+		`SELECT table_name FROM user_tables WHERE temporary = 'N' ORDER BY table_name`)
+	if err != nil {
+		return nil, err
+	}
 
+	mviewNames, err := queryOracleObjectNames(ctx, db,
+		`SELECT mview_name FROM user_mviews ORDER BY mview_name`)
+	if err != nil {
+		return nil, err
+	}
+
+	viewNames, err := queryOracleObjectNames(ctx, db,
+		`SELECT view_name FROM user_views ORDER BY view_name`)
+	if err != nil {
+		return nil, err
+	}
+
+	nCap := len(baseNames) + len(mviewNames) + len(viewNames)
+	out := make([]*metadata.Table, 0, nCap)
+
+	for _, tblName := range baseNames {
+		tblMeta, err := getTableMetadata(ctx, db, tblName)
+		if err != nil {
+			log.Warn("oracle metadata: skipped base table (continuing)",
+				lga.Handle, handle,
+				lga.Table, tblName,
+				lga.Err, err,
+			)
+			continue
+		}
+		out = append(out, tblMeta)
+	}
+
+	for _, mvName := range mviewNames {
+		tblMeta, err := getMaterializedViewMetadata(ctx, db, mvName)
+		if err != nil {
+			log.Warn("oracle metadata: skipped materialized view (continuing)",
+				lga.Handle, handle,
+				lga.Table, mvName,
+				lga.Err, err,
+			)
+			continue
+		}
+		out = append(out, tblMeta)
+	}
+
+	for _, viewName := range viewNames {
+		tblMeta, err := getViewMetadata(ctx, db, viewName)
+		if err != nil {
+			log.Warn("oracle metadata: skipped view (continuing)",
+				lga.Handle, handle,
+				lga.Table, viewName,
+				lga.Err, err,
+			)
+			continue
+		}
+		out = append(out, tblMeta)
+	}
+
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Name < out[j].Name
+	})
+
+	return out, nil
+}
+
+func queryOracleObjectNames(ctx context.Context, db *sql.DB, query string) ([]string, error) {
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, errw(err)
 	}
 	defer rows.Close()
 
-	var tableNames []string
+	var names []string
 	for rows.Next() {
-		var tblName string
-		if err = rows.Scan(&tblName); err != nil {
+		var name string
+		if err = rows.Scan(&name); err != nil {
 			return nil, errw(err)
 		}
-		tableNames = append(tableNames, strings.ToLower(tblName))
+		names = append(names, strings.ToLower(name))
 	}
 
-	if err = rows.Err(); err != nil {
-		return nil, errw(err)
-	}
-
-	// Get metadata for each table
-	tables := make([]*metadata.Table, 0, len(tableNames))
-	for _, tblName := range tableNames {
-		tblMeta, err := getTableMetadata(ctx, db, tblName)
-		if err != nil {
-			// Log error but continue with other tables
-			continue
-		}
-		tables = append(tables, tblMeta)
-	}
-
-	return tables, nil
-}
-
-func getViewCount(ctx context.Context, db *sql.DB) (int64, error) {
-	const query = `SELECT COUNT(*) FROM user_views`
-
-	var count int64
-	if err := db.QueryRowContext(ctx, query).Scan(&count); err != nil {
-		return 0, errw(err)
-	}
-
-	return count, nil
+	return names, errw(rows.Err())
 }
 
 // getTableMetadata returns metadata for a specific table.
@@ -133,6 +181,7 @@ func getTableMetadata(ctx context.Context, db *sql.DB, tblName string) (*metadat
 FROM user_tables t
 LEFT JOIN user_tab_comments tc
     ON t.table_name = tc.table_name
+    AND tc.table_type = 'TABLE'
 LEFT JOIN (
     SELECT segment_name, SUM(bytes) AS bytes
     FROM user_segments
@@ -153,15 +202,93 @@ WHERE t.table_name = :1`
 	}
 
 	tblMeta := &metadata.Table{
-		Name:      strings.ToLower(tblName),
-		TableType: "table",
-		RowCount:  numRows.Int64,
-		Size:      &bytes,
-		Comment:   comment.String,
+		Name:        strings.ToLower(tblName),
+		TableType:   sqlz.TableTypeTable,
+		DBTableType: "TABLE",
+		RowCount:    numRows.Int64,
+		Size:        &bytes,
+		Comment:     comment.String,
 	}
 
 	// Get column metadata
 	cols, err := getColumnsMetadata(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
+	tblMeta.Columns = cols
+
+	return tblMeta, nil
+}
+
+// getViewMetadata returns metadata for a view (USER_VIEWS / USER_TAB_COLUMNS).
+func getViewMetadata(ctx context.Context, db *sql.DB, viewName string) (*metadata.Table, error) {
+	const q = `SELECT v.view_name, tc.comments
+FROM user_views v
+LEFT JOIN user_tab_comments tc
+    ON v.view_name = tc.table_name
+    AND tc.table_type = 'VIEW'
+WHERE v.view_name = :1`
+
+	var name string
+	var comment sql.NullString
+	if err := db.QueryRowContext(ctx, q, strings.ToUpper(viewName)).Scan(&name, &comment); err != nil {
+		return nil, errw(err)
+	}
+
+	tblMeta := &metadata.Table{
+		Name:        strings.ToLower(viewName),
+		TableType:   sqlz.TableTypeView,
+		DBTableType: "VIEW",
+		RowCount:    0,
+		Size:        nil,
+		Comment:     comment.String,
+	}
+
+	cols, err := getColumnsMetadata(ctx, db, viewName)
+	if err != nil {
+		return nil, err
+	}
+	tblMeta.Columns = cols
+
+	return tblMeta, nil
+}
+
+// getMaterializedViewMetadata returns metadata for a materialized view.
+func getMaterializedViewMetadata(ctx context.Context, db *sql.DB, mvName string) (*metadata.Table, error) {
+	const q = `SELECT m.mview_name, tc.comments, m.num_rows,
+    NVL(s.bytes, 0) AS bytes
+FROM user_mviews m
+LEFT JOIN user_tab_comments tc
+    ON m.mview_name = tc.table_name
+    AND tc.table_type = 'MATERIALIZED VIEW'
+LEFT JOIN (
+    SELECT segment_name, SUM(bytes) AS bytes
+    FROM user_segments
+    WHERE segment_type IN ('TABLE', 'MATERIALIZED VIEW')
+    GROUP BY segment_name
+) s ON m.mview_name = s.segment_name
+WHERE m.mview_name = :1`
+
+	var name string
+	var comment sql.NullString
+	var numRows sql.NullInt64
+	var bytes int64
+	if err := db.QueryRowContext(ctx, q, strings.ToUpper(mvName)).Scan(&name, &comment, &numRows, &bytes); err != nil {
+		return nil, errw(err)
+	}
+
+	tblMeta := &metadata.Table{
+		Name:        strings.ToLower(mvName),
+		TableType:   sqlz.TableTypeTable,
+		DBTableType: "MATERIALIZED VIEW",
+		RowCount:    numRows.Int64,
+		Comment:     comment.String,
+	}
+	if bytes > 0 {
+		tblMeta.Size = &bytes
+	}
+
+	cols, err := getColumnsMetadata(ctx, db, mvName)
 	if err != nil {
 		return nil, err
 	}

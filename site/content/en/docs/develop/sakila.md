@@ -105,6 +105,19 @@ $ sq add 'mysql://sakila:p_ssW0rd@localhost:3306/sakila' --handle @sakila_mysql
 @sakila_mysql  mysql  sakila@localhost:3306/sakila
 ```
 
+## Oracle
+
+There is no single official `sakiladb/oracle` image in the same way as MySQL or
+Postgres. For local development you can run Oracle Database Free (for example
+[`gvenzl/oracle-free`](https://hub.docker.com/r/gvenzl/oracle-free)) and load
+Sakila manually, or use the compose file under
+[`drivers/oracle/testutils/docker-compose.yml`](https://github.com/neilotoole/sq/blob/master/drivers/oracle/testutils/docker-compose.yml).
+
+Repo-wide tests that use handle `@sakila_ora` expect `sources.sq.yml` to expand
+`SQ_TEST_SRC__SAKILA_ORA` to the part of the DSN after
+`oracle://sakila:p_ssW0rd@`. See
+[`drivers/oracle/README.md`](https://github.com/neilotoole/sq/blob/master/drivers/oracle/README.md).
+
 ## Microsoft Excel XLSX
 
 To add a source with handle `@sakila_xlsx`, download [sakila.xlsx](https://sq.io/testdata/sakila.xlsx) and `sq add`.

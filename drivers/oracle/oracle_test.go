@@ -176,6 +176,42 @@ func TestSmoke(t *testing.T) {
 	log.Info("Smoke test passed", lga.Src, src)
 }
 
+// TestOracle_DBProperties_BestEffort verifies DBProperties returns core fields
+// even when v$instance is not readable (version may come from v$version).
+func TestOracle_DBProperties_BestEffort(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	skipIfNoOracle(t)
+
+	ctx := context.Background()
+	log := slog.Default()
+	ctx = lg.NewContext(ctx, log)
+
+	provider := &oracle.Provider{Log: log}
+	drvr, err := provider.DriverFor(drivertype.Oracle)
+	require.NoError(t, err)
+
+	sqlDrvr, ok := drvr.(driver.SQLDriver)
+	require.True(t, ok, "driver should implement driver.SQLDriver")
+
+	src := getTestSource(t)
+	grip, err := drvr.Open(ctx, src)
+	require.NoError(t, err)
+	defer grip.Close()
+
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	props, err := sqlDrvr.DBProperties(ctx, db)
+	require.NoError(t, err)
+	require.NotEmpty(t, props["db_name"])
+	require.NotEmpty(t, props["current_schema"])
+	if v, ok := props["version"].(string); ok {
+		require.NotEmpty(t, v)
+	}
+}
+
 // TestCurrentSchema tests the CurrentSchema method.
 func TestCurrentSchema(t *testing.T) {
 	if testing.Short() {
