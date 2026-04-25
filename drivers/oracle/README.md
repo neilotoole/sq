@@ -25,7 +25,8 @@ Oracle database driver implementation for SQ using [godror](https://github.com/g
 
 - ✅ CurrentSchema() - Query current schema via SYS_CONTEXT
 - ✅ ListSchemas() - List user schemas from all_users
-- ✅ Schema inspection via Oracle data dictionary (USER_TABLES, USER_TAB_COLUMNS, USER_CONSTRAINTS)
+- ✅ Schema inspection via Oracle data dictionary (`USER_TABLES`, `USER_VIEWS`,
+  `USER_MVIEWS`, `USER_TAB_COLUMNS`, `USER_CONSTRAINTS`)
 - ✅ Table and column metadata extraction
 - ✅ Primary key detection
 - ✅ Schema-scoped `ListTableNames()` via `ALL_TABLES` / `ALL_VIEWS` (`owner = :schema`)
@@ -128,11 +129,23 @@ See **[Testing.md](./testutils/Testing.md)**
 
 9. **Metadata visibility model**:
 
-   - `SourceMetadata` reads `USER_*` views for the connected schema and always
-     reports an empty `Catalog` (Oracle has no catalog concept).
-   - `ListTableNames(schema=...)` reads `ALL_TABLES` / `ALL_VIEWS` filtered by
-     owner, so the connected user must have dictionary visibility for that
-     owner's objects.
+   - `SourceMetadata` reads `USER_*` dictionary views for the connected schema,
+     reports an empty `Catalog`, and includes **base tables**, **views**, and
+     **materialized views** (MVs use `DBTableType` `MATERIALIZED VIEW` and
+     `TableType` `table` for `TableCount`).
+   - `ListTableNames(schema=...)` reads `ALL_TABLES`, `ALL_MVIEWS`, and
+     `ALL_VIEWS` filtered by owner; the user must have visibility on those
+     catalogs.
+   - `TableExists` checks `USER_OBJECTS` for `TABLE`, `VIEW`, and
+     `MATERIALIZED VIEW`.
+   - **`DBProperties`** always returns `db_name` and `current_schema` from
+     `SYS_CONTEXT`. The `version` field prefers `v$instance.version` and falls
+     back to `v$version` when `v$instance` is not readable.
+   - **Synonyms** (resolving `all_synonyms` to base objects, including DB
+     links) are not implemented yet.
+
+10. **Logging**: If a table, view, or MV fails during bulk metadata collection,
+    `sq` logs a warning and continues with other objects (similar to Postgres).
 
 ## Implementation Files
 
