@@ -119,7 +119,7 @@ $ kubectl exec -it sq-shell -- zsh
 
 ## See also
 
-- [Agent skills](/docs/agent-skills) — optional Agent Skill for Claude Code,
+- [Agent Skill](/docs/agent-skills) — optional Agent Skill for Claude Code,
   Cursor, and other assistants that support the
   [Agent Skills](https://agentskills.io/) format (after `sq` is installed).
 
