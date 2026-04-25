@@ -15,7 +15,7 @@ The **sq** [Agent Skill](https://agentskills.io/) helps coding assistants use an
 already-installed `sq` CLI: SLQ and native SQL, `@` handles, output formats,
 `inspect`, `diff`, and `tbl`, plus driver-specific notes under `references/`. It
 does **not** install the `sq` binary—[install `sq` first](/docs/install), then
-add the skill to your assistant.
+[add the skill](#install-the-skill) to your assistant.
 
 Canonical sources live in the GitHub repository under
 [`skills/sq/`](https://github.com/neilotoole/sq/tree/master/skills/sq/)
@@ -32,17 +32,17 @@ sq help
 sq driver ls
 ```
 
-## Install the skill
+## Install the skill {#install-the-skill}
 
 Pick one path below. Adjust GitHub URLs if you use a fork or mirror.
 
 ### `npx skills` (recommended)
 
 ```shell
-npx skills add https://github.com/neilotoole/sq --skill sq
+npx skills add neilotoole/sq
 ```
 
-This pulls the **`sq`** skill from the default branch of `neilotoole/sq`.
+This pulls the **`/sq`** skill from the default location of `http://github.com/neilotoole/sq`.
 
 ### Claude Code plugin
 
@@ -70,6 +70,14 @@ the GitHub URL. See Claude’s
 [plugin marketplaces](https://code.claude.com/docs/en/plugin-marketplaces) doc
 for branches, updates, and troubleshooting.
 
+### Cursor and other editors
+
+Follow your editor’s documentation for **Agent Skills** or **project skills**
+paths. The payload is the same tree as `skills/sq/` in this repository; only
+the install location differs by product and version. The easiest path
+is usually to use the `npx skills` [instructions flow](#install-the-skill), as this currently
+supports more than 20 different agents out of the box.
+
 ### Manual copy
 
 Copy the
@@ -78,12 +86,6 @@ into your agent’s skills location (see your tool’s Agent Skills documentatio
 for the expected directory layout), or open
 [`SKILL.md`](https://github.com/neilotoole/sq/blob/master/skills/sq/SKILL.md) and
 follow its headings.
-
-### Cursor and other editors
-
-Follow your editor’s documentation for **Agent Skills** or **project skills**
-paths. The payload is the same tree as `skills/sq/` in this repository; only
-the install location differs by product and version.
 
 ## Usage
 
