@@ -146,6 +146,9 @@ func placeholders(numCols, numRows int) string {
 // Renderer implements driver.SQLDriver.
 func (d *driveri) Renderer() *render.Renderer {
 	r := render.NewDefaultRenderer()
+	r.Range = renderRowRange
+	r.PreRender = append(r.PreRender, preRenderOracle)
+
 	r.FunctionNames[ast.FuncNameSchema] = "SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')"
 	r.FunctionOverrides[ast.FuncNameCatalog] = doRenderFuncCatalog
 	r.FunctionOverrides[ast.FuncNameRowNum] = renderFuncRowNum

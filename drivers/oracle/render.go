@@ -2,9 +2,12 @@ package oracle
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/ast"
+	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
@@ -92,6 +95,37 @@ var createTblKindDefaults = map[kind.Kind]string{
 	kind.Time:     "DEFAULT TIMESTAMP '1970-01-01 00:00:00'",
 	kind.Bytes:    "",            // Oracle doesn't support EMPTY_BLOB() as DEFAULT; omit default
 	kind.Unknown:  "DEFAULT ' '", // Oracle treats '' as NULL, use space instead
+}
+
+// renderRowRange renders OFFSET … FETCH … for Oracle 12c+ (no LIMIT/OFFSET).
+func renderRowRange(_ *render.Context, rr *ast.RowRangeNode) (string, error) {
+	if rr == nil {
+		return "", nil
+	}
+
+	if rr.Limit < 0 && rr.Offset < 0 {
+		return "", nil
+	}
+
+	offset := max(rr.Offset, 0)
+
+	var buf strings.Builder
+	buf.WriteString(fmt.Sprintf("OFFSET %d ROWS", offset))
+
+	if rr.Limit > -1 {
+		buf.WriteString(fmt.Sprintf(" FETCH NEXT %d ROWS ONLY", rr.Limit))
+	}
+
+	return buf.String(), nil
+}
+
+// preRenderOracle ensures ORDER BY exists when a row range is used; Oracle
+// requires ORDER BY before OFFSET/FETCH (same pattern as SQL Server).
+func preRenderOracle(_ *render.Context, f *render.Fragments) error {
+	if f.Range != "" && f.OrderBy == "" {
+		f.OrderBy = "ORDER BY (SELECT 0 FROM DUAL)"
+	}
+	return nil
 }
 
 // buildCreateTableStmt builds a CREATE TABLE statement for Oracle.
