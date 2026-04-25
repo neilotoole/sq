@@ -88,7 +88,6 @@ Generally you can use `install.sh`.
 If you need more control over the install,
 consult the [install.sh source code](https://raw.githubusercontent.com/neilotoole/sq/master/install.sh).
 
-
 ## Docker
 
 The [`ghcr.io/neilotoole/sq`](https://github.com/neilotoole/sq/pkgs/container/sq)
@@ -118,7 +117,11 @@ $ kubectl run sq-shell --image ghcr.io/neilotoole/sq
 $ kubectl exec -it sq-shell -- zsh
 ```
 
+## See also
 
+- [Agent skills](/docs/agent-skills) — optional Agent Skill for Claude Code,
+  Cursor, and other assistants that support the
+  [Agent Skills](https://agentskills.io/) format (after `sq` is installed).
 
 ## Upgrade
 
