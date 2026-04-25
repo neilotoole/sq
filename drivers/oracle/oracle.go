@@ -153,6 +153,7 @@ func (d *driveri) Renderer() *render.Renderer {
 	const oracleSchemaFrag = `SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')`
 	r.FunctionOverrides[ast.FuncNameSchema] = render.FuncOverrideString(oracleSchemaFrag)
 	r.FunctionOverrides[ast.FuncNameCatalog] = doRenderFuncCatalog
+	r.FunctionOverrides[ast.FuncNameRowNum] = renderFuncRowNum
 	return r
 }
 
@@ -160,6 +161,11 @@ func (d *driveri) Renderer() *render.Renderer {
 // so we return NULL.
 func doRenderFuncCatalog(_ *render.Context, _ *ast.FuncNode) (string, error) {
 	return "NULL", nil
+}
+
+// renderFuncRowNum renders the row number function.
+func renderFuncRowNum(_ *render.Context, _ *ast.FuncNode) (string, error) {
+	return "ROWNUM", nil
 }
 
 // Open implements driver.Driver.
