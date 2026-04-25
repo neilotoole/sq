@@ -28,6 +28,7 @@ Oracle database driver implementation for SQ using [godror](https://github.com/g
 - ✅ Schema inspection via Oracle data dictionary (USER_TABLES, USER_TAB_COLUMNS, USER_CONSTRAINTS)
 - ✅ Table and column metadata extraction
 - ✅ Primary key detection
+- ✅ Schema-scoped `ListTableNames()` via `ALL_TABLES` / `ALL_VIEWS` (`owner = :schema`)
 
 ### DDL Operations
 
@@ -124,6 +125,14 @@ See **[Testing.md](./testutils/Testing.md)**
    SELECT * FROM table
    OFFSET 10 ROWS FETCH NEXT 20 ROWS ONLY
    ```
+
+9. **Metadata visibility model**:
+
+   - `SourceMetadata` reads `USER_*` views for the connected schema and always
+     reports an empty `Catalog` (Oracle has no catalog concept).
+   - `ListTableNames(schema=...)` reads `ALL_TABLES` / `ALL_VIEWS` filtered by
+     owner, so the connected user must have dictionary visibility for that
+     owner's objects.
 
 ## Implementation Files
 

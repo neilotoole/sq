@@ -11,9 +11,11 @@ url: /docs/overview
 
 `sq` is the missing tool for wrangling data. A swiss-army knife for data.
 
-`sq` provides a [jq](https://jqlang.github.io/jq/)-style syntax to query, join, migrate, and export data from a variety of data sources,
-such as Postgres, SQLite, SQL Server, MySQL, ClickHouse, Excel or CSV, with the ability to fall back
-to actual SQL for trickier work. In essence, `sq` treats every data source as if it were a SQL database.
+`sq` provides a [jq](https://jqlang.github.io/jq/)-style syntax to query, join,
+migrate, and export data from a variety of data sources, such as Postgres,
+SQLite, SQL Server, MySQL, ClickHouse, Oracle, Excel or CSV, with the
+ability to fall back to actual SQL for trickier work. In essence, `sq` treats
+every data source as if it were a SQL database.
 `sq` also provides several handy commands such as `inspect`, `ping`, or `tbl copy`.
 
 ## Key Concepts
@@ -21,8 +23,10 @@ to actual SQL for trickier work. In essence, `sq` treats every data source as if
 - `sq` is the command-line utility itself.
 - A *source* is a specific data source such as a database instance, or Excel or CSV file etc. Each source
   has a:
-  - `driver`: such as [`postgres`](/docs/drivers/postgres), [`sqlserver`](/docs/drivers/sqlserver),
-    [`clickhouse`](/docs/drivers/clickhouse), [`csv`](/docs/drivers/csv), or [`xlsx`](/docs/drivers/xlsx).
+  - `driver`: such as [`postgres`](/docs/drivers/postgres),
+    [`sqlserver`](/docs/drivers/sqlserver),
+    [`oracle`](/docs/drivers/oracle), [`clickhouse`](/docs/drivers/clickhouse),
+    [`csv`](/docs/drivers/csv), or [`xlsx`](/docs/drivers/xlsx).
   - `location`: URI or filepath of the source, such as `postgres://sakila:****@localhost/sakila` or `/Users/neilotoole/sq/xl_demo.xlsx`.
   - `handle`: this is how `sq` refers to that particular *source*, e.g. `@sakila_pg`, `@prod/customer` or `@xl_demo`. The handle must begin with `@`.
 - [Active Source](/docs/concepts/#active-source) is the default source upon which `sq` acts if no other source is specified.

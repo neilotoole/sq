@@ -487,7 +487,7 @@ func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tpa
 		{handle: sakila.MS19, schema: "dbo", wantTables: 16, wantViews: 5},
 		{handle: sakila.SL3, schema: "main", wantTables: 16, wantViews: 5},
 		{handle: sakila.My8, schema: "sakila", wantTables: 16, wantViews: 7},
-		// Oracle ignores the schema arg for this API; counts are for the connected user.
+		// Oracle schemas are users; schema lookup is owner-scoped and case-insensitive.
 		{handle: sakila.Ora, schema: "SAKILA", wantTables: 16, wantViews: 7},
 	}
 

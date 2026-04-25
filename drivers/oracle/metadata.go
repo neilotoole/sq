@@ -19,7 +19,9 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db *sql.DB, noSc
 		Handle:    src.Handle,
 		Location:  src.Location,
 		Driver:    drivertype.Oracle,
+		DBDriver:  drivertype.Oracle,
 		DBVersion: "",
+		Catalog:   "",
 	}
 
 	// Get database version
@@ -42,6 +44,8 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db *sql.DB, noSc
 		return nil, errw(err)
 	}
 	md.Schema = strings.ToLower(schema)
+	md.Name = md.Schema
+	md.FQName = md.Schema
 
 	if noSchema {
 		// Don't fetch schema metadata
@@ -55,6 +59,12 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db *sql.DB, noSc
 	}
 
 	md.Tables = tables
+	md.TableCount = int64(len(md.Tables))
+
+	if md.ViewCount, err = getViewCount(ctx, db); err != nil {
+		return nil, err
+	}
+
 	return md, nil
 }
 
@@ -96,6 +106,17 @@ ORDER BY table_name`
 	}
 
 	return tables, nil
+}
+
+func getViewCount(ctx context.Context, db *sql.DB) (int64, error) {
+	const query = `SELECT COUNT(*) FROM user_views`
+
+	var count int64
+	if err := db.QueryRowContext(ctx, query).Scan(&count); err != nil {
+		return 0, errw(err)
+	}
+
+	return count, nil
 }
 
 // getTableMetadata returns metadata for a specific table.

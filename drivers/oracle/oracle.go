@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -312,12 +313,26 @@ func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool
 }
 
 // ListTableNames implements driver.SQLDriver.
-func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, _ string, tables, views bool) ([]string, error) {
+func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, tables, views bool) ([]string, error) {
 	names := []string{}
+	if !tables && !views {
+		return names, nil
+	}
+
+	if schma == "" {
+		var err error
+		schma, err = d.CurrentSchema(ctx, db)
+		if err != nil {
+			return nil, err
+		}
+	}
+	owner := strings.ToUpper(schma)
 
 	if tables {
-		const queryTables = `SELECT table_name FROM user_tables WHERE temporary = 'N' ORDER BY table_name`
-		rows, err := db.QueryContext(ctx, queryTables)
+		const queryTables = `SELECT table_name FROM all_tables
+WHERE owner = :1 AND temporary = 'N'
+ORDER BY table_name`
+		rows, err := db.QueryContext(ctx, queryTables, owner)
 		if err != nil {
 			return nil, errw(err)
 		}
@@ -337,8 +352,10 @@ func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, _ string, tabl
 	}
 
 	if views {
-		const queryViews = `SELECT view_name FROM user_views ORDER BY view_name`
-		rows, err := db.QueryContext(ctx, queryViews)
+		const queryViews = `SELECT view_name FROM all_views
+WHERE owner = :1
+ORDER BY view_name`
+		rows, err := db.QueryContext(ctx, queryViews, owner)
 		if err != nil {
 			return nil, errw(err)
 		}
@@ -357,6 +374,7 @@ func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, _ string, tabl
 		}
 	}
 
+	sort.Strings(names)
 	return names, nil
 }
 
