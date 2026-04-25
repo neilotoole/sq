@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -309,6 +310,7 @@ var coreDrivers = []drivertype.Type{
 	drivertype.SQLite,
 	drivertype.MySQL,
 	drivertype.ClickHouse,
+	drivertype.Oracle,
 	drivertype.CSV,
 	drivertype.TSV,
 	drivertype.XLSX,
@@ -321,6 +323,7 @@ var sqlDrivers = []drivertype.Type{
 	drivertype.SQLite,
 	drivertype.MySQL,
 	drivertype.ClickHouse,
+	drivertype.Oracle,
 }
 
 // docDrivers is a slice of the doc driver types.
@@ -484,6 +487,8 @@ func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tpa
 		{handle: sakila.MS19, schema: "dbo", wantTables: 16, wantViews: 5},
 		{handle: sakila.SL3, schema: "main", wantTables: 16, wantViews: 5},
 		{handle: sakila.My8, schema: "sakila", wantTables: 16, wantViews: 7},
+		// Oracle ignores the schema arg for this API; counts are for the connected user.
+		{handle: sakila.Ora, schema: "SAKILA", wantTables: 16, wantViews: 7},
 	}
 
 	for _, tc := range testCases {
@@ -658,6 +663,8 @@ func TestSQLDriver_CurrentSchemaCatalog(t *testing.T) {
 		{sakila.My, "sakila", "def"},
 		{sakila.MS, "dbo", "sakila"},
 		{sakila.CH, "sakila", "sakila"},
+		// Oracle: schema is the connected user; sq does not use a separate catalog.
+		{sakila.Ora, "SAKILA", ""},
 	}
 
 	for _, tc := range testCases {
@@ -666,17 +673,32 @@ func TestSQLDriver_CurrentSchemaCatalog(t *testing.T) {
 
 			gotSchema, err := drvr.CurrentSchema(th.Context, db)
 			require.NoError(t, err)
-			require.Equal(t, tc.wantSchema, gotSchema)
+			if drvr.DriverMetadata().Type == drivertype.Oracle {
+				require.True(t, strings.EqualFold(tc.wantSchema, gotSchema),
+					"schema got %q want ~%q", gotSchema, tc.wantSchema)
+			} else {
+				require.Equal(t, tc.wantSchema, gotSchema)
+			}
 
 			md, err := grip.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
 			require.NotNil(t, md)
-			require.Equal(t, tc.wantSchema, md.Schema)
-			require.Equal(t, tc.wantCatalog, md.Catalog)
+			require.Equal(t, gotSchema, md.Schema)
+			if drvr.DriverMetadata().Type == drivertype.Oracle {
+				require.Equal(t, "", md.Catalog)
+			} else {
+				require.Equal(t, tc.wantCatalog, md.Catalog)
+			}
 
 			gotSchemas, err := drvr.ListSchemas(th.Context, db)
 			require.NoError(t, err)
-			require.Contains(t, gotSchemas, gotSchema)
+			if drvr.DriverMetadata().Type == drivertype.Oracle {
+				require.True(t, slices.ContainsFunc(gotSchemas, func(s string) bool {
+					return strings.EqualFold(s, gotSchema)
+				}), "schemas should contain %q, got %v", gotSchema, gotSchemas)
+			} else {
+				require.Contains(t, gotSchemas, gotSchema)
+			}
 
 			if drvr.Dialect().Catalog {
 				gotCatalog, err := drvr.CurrentCatalog(th.Context, db)
@@ -716,6 +738,9 @@ func TestSQLDriver_SchemaExists(t *testing.T) {
 		{handle: sakila.CH, schema: "sakila", wantOK: true},
 		{handle: sakila.CH, schema: "", wantOK: false},
 		{handle: sakila.CH, schema: "not_exist", wantOK: false},
+		{handle: sakila.Ora, schema: "sakila", wantOK: true},
+		{handle: sakila.Ora, schema: "", wantOK: false},
+		{handle: sakila.Ora, schema: "not_exist", wantOK: false},
 	}
 
 	for _, tc := range testCases {
@@ -757,6 +782,9 @@ func TestSQLDriver_CatalogExists(t *testing.T) {
 		{handle: sakila.CH, catalog: "system", wantOK: true},
 		{handle: sakila.CH, catalog: "not_exist", wantOK: false},
 		{handle: sakila.CH, catalog: "", wantOK: false},
+		{handle: sakila.Ora, catalog: "sakila", wantOK: false, wantErr: true},
+		{handle: sakila.Ora, catalog: "X", wantOK: false, wantErr: true},
+		{handle: sakila.Ora, catalog: "", wantOK: false, wantErr: true},
 	}
 
 	for _, tc := range testCases {

@@ -41,7 +41,7 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db *sql.DB, noSc
 	if err != nil {
 		return nil, errw(err)
 	}
-	md.Schema = schema
+	md.Schema = strings.ToLower(schema)
 
 	if noSchema {
 		// Don't fetch schema metadata
@@ -77,7 +77,7 @@ ORDER BY table_name`
 		if err = rows.Scan(&tblName); err != nil {
 			return nil, errw(err)
 		}
-		tableNames = append(tableNames, tblName)
+		tableNames = append(tableNames, strings.ToLower(tblName))
 	}
 
 	if err = rows.Err(); err != nil {
@@ -132,7 +132,7 @@ WHERE t.table_name = :1`
 	}
 
 	tblMeta := &metadata.Table{
-		Name:      tblName,
+		Name:      strings.ToLower(tblName),
 		TableType: "table",
 		RowCount:  numRows.Int64,
 		Size:      &bytes,
@@ -201,7 +201,7 @@ ORDER BY c.column_id`
 		}
 
 		col := &metadata.Column{
-			Name:       colName,
+			Name:       strings.ToLower(colName),
 			Position:   int64(columnID),
 			Kind:       kindFromDBTypeName(lg.FromContext(ctx), colName, dataType),
 			ColumnType: fullTypeName,

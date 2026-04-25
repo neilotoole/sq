@@ -103,6 +103,22 @@ func enquoteOracle(s string) string {
 	return stringz.DoubleQuote(strings.ToUpper(s))
 }
 
+// oracleSubstWherePlaceholders maps each "?" in where to Oracle bind names
+// :start, :start+1, … for use after SET clause placeholders :1 … :n.
+func oracleSubstWherePlaceholders(where string, start int) string {
+	var b strings.Builder
+	for _, r := range where {
+		if r == '?' {
+			b.WriteString(":")
+			b.WriteString(strconv.Itoa(start))
+			start++
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
 // placeholders generates Oracle-style placeholders: (:1, :2, :3), (:4, :5, :6), ...
 func placeholders(numCols, numRows int) string {
 	rows := make([]string, numRows)
@@ -207,7 +223,7 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 	var name string
 	err := db.QueryRowContext(ctx,
 		"SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM DUAL").Scan(&name)
-	return name, errw(err)
+	return strings.ToLower(name), errw(err)
 }
 
 // ListSchemas implements driver.SQLDriver.
@@ -231,7 +247,7 @@ ORDER BY username`
 		if err = rows.Scan(&schema); err != nil {
 			return nil, errw(err)
 		}
-		schemas = append(schemas, schema)
+		schemas = append(schemas, strings.ToLower(schema))
 	}
 
 	if err = rows.Err(); err != nil {
@@ -314,7 +330,7 @@ func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, _ string, tabl
 			if err = rows.Scan(&name); err != nil {
 				return nil, errw(err)
 			}
-			names = append(names, name)
+			names = append(names, strings.ToLower(name))
 		}
 
 		if err = rows.Err(); err != nil {
@@ -335,7 +351,7 @@ func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, _ string, tabl
 			if err = rows.Scan(&name); err != nil {
 				return nil, errw(err)
 			}
-			names = append(names, name)
+			names = append(names, strings.ToLower(name))
 		}
 
 		if err = rows.Err(); err != nil {
@@ -649,7 +665,8 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 
 	query := fmt.Sprintf("UPDATE %s SET %s", destTblQuoted, strings.Join(setClause, ", "))
 	if where != "" {
-		query += " WHERE " + where
+		whereSQL := oracleSubstWherePlaceholders(where, len(destColNames)+1)
+		query += " WHERE " + whereSQL
 	}
 
 	stmt, err := db.PrepareContext(ctx, query)
