@@ -42,7 +42,7 @@ Pick one path below. Adjust GitHub URLs if you use a fork or mirror.
 npx skills add neilotoole/sq
 ```
 
-This pulls the **`/sq`** skill from the default location of `http://github.com/neilotoole/sq`.
+This pulls the **`/sq`** skill from the default location of `https://github.com/neilotoole/sq`.
 
 ### Claude Code plugin
 
