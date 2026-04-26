@@ -82,7 +82,7 @@
     "postcss": "^8.4",
     "postcss-cli": "^10.1",
     "purgecss-whitelister": "^2.4",
-    "serve": "^14.2.0",
+    "serve": "^14.2.6",
     "shx": "^0.3.4",
     "stylelint": "^14.16",
     "stylelint-config-standard-scss": "^6.1",
