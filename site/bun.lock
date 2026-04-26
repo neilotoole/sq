@@ -9,7 +9,7 @@
         "@babel/core": "^7.20",
         "@babel/preset-env": "^7.20",
         "@fullhuman/postcss-purgecss": "^5.0",
-        "@hyas/images": "^0.2.2",
+        "@hyas/images": "^3.2.0",
         "@netlify/plugin-lighthouse": "^6.0.4",
         "asciinema-player": "^3.0.1",
         "auto-changelog": "^2.4",
@@ -336,7 +336,7 @@
 
     "@humanwhocodes/object-schema": ["@humanwhocodes/object-schema@2.0.3", "", {}, "sha512-93zYdMES/c1D69yZiKDBj0V24vqNzB/koF26KPaagAfd3P/4gUlh3Dys5ogAK+Exi9QyzlD8x/08Zt7wIKcDcA=="],
 
-    "@hyas/images": ["@hyas/images@0.2.3", "", {}, "sha512-PoGQ8DC3erHHS9sAlsrrGOlfqV3RgmIFYhSWcigB/7tE6tUNj4j57T4MjmlEyNcawlVsHvCaoYqPaElQn24aaQ=="],
+    "@hyas/images": ["@hyas/images@3.2.0", "", {}, "sha512-z5l7NK9dmeCzhicx57DPBxznqm6vTmo9GzwxG0Zqg1GYEu2UzEEQ187GWvLZrh5AAOAhpC+xydNR8SYvccen2w=="],
 
     "@iarna/toml": ["@iarna/toml@2.2.5", "", {}, "sha512-trnsAYxU3xnS1gPHPyU961coFyLkh4gAD/0zQ5mymY4yOZ+CYvsPqUbOFSw0aDM4y0tV7tiFxL/1XfXPNC6IPg=="],
 
