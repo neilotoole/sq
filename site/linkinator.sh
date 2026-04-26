@@ -10,6 +10,13 @@ set -euo pipefail
 SERVER_PID=""
 SERVER_LOG=""
 
+# Fast mode: keep PR/local iteration snappy. Linkinator by default will crawl
+# third-party links too, which is valuable but can look "stuck" in automation
+# and is heavily network-dependent. Set to "internal" to only validate local
+# pages and assets served from the temporary lint server.
+# Values: "full" (default) | "internal"
+LINKINATOR_SCOPE="${LINKINATOR_SCOPE:-full}"
+
 cleanup() {
   if [[ -n "${SERVER_PID}" ]] && kill -0 "${SERVER_PID}" >/dev/null 2>&1; then
     kill "${SERVER_PID}" >/dev/null 2>&1 || true
@@ -21,6 +28,41 @@ cleanup() {
 }
 
 trap cleanup EXIT INT TERM
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  cat <<'EOF'
+linkinator.sh
+
+Build a temporary Hugo site into site/.serve-lint, serve it, then run
+linkinator against it.
+
+Environment:
+  LINKINATOR_SCOPE=full|internal
+    - full: crawl local site and follow third-party external links
+    - internal: only check site served from the temporary local server
+  LINKINATOR_PORT=<port>
+    - optional fixed port
+EOF
+  exit 0
+fi
+
+if [[ -n "${1:-}" && "${1:-}" != "internal" && "${1:-}" != "full" ]]; then
+  echo "Unknown argument: $1" >&2
+  echo "Use: $0 [full|internal]   or set LINKINATOR_SCOPE" >&2
+  exit 2
+fi
+
+if [[ -n "${1:-}" ]]; then
+  LINKINATOR_SCOPE="$1"
+fi
+
+case "${LINKINATOR_SCOPE}" in
+  full|internal) ;;
+  *)
+    echo "LINKINATOR_SCOPE must be 'full' or 'internal' (got: ${LINKINATOR_SCOPE})" >&2
+    exit 2
+    ;;
+esac
 
 pick_free_port() {
   python3 - <<'PY'
@@ -70,5 +112,17 @@ if [[ "${ready}" != "true" ]]; then
 fi
 
 echo "Server started"
-bunx linkinator --config ./linkinator.config.json -r "${base_url}"
+LINKINATOR_ARGS=(--config ./linkinator.config.json -r "${base_url}")
+if [[ "${LINKINATOR_SCOPE}" == "internal" ]]; then
+  # Do not follow arbitrary third-party http(s) pages from docs, but *do* keep
+  # following links to the local lint server (http://localhost:<port>/...).
+  #
+  # `linkinator` uses regex skip patterns; split http/https to avoid a single
+  # overly-broad `https?://` pattern that can accidentally match everything and
+  # scan 0 links.
+  LINKINATOR_ARGS+=(-s '^http://(?!127\\.0\\.0\\.1|localhost)')
+  LINKINATOR_ARGS+=(-s '^https://(?!127\\.0\\.0\\.1|localhost)')
+fi
+
+bunx linkinator "${LINKINATOR_ARGS[@]}"
 echo "Linkinator finished"
