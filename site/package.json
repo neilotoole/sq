@@ -79,7 +79,7 @@
     "netlify-plugin-submit-sitemap": "^0.4.0",
     "node-fetch": "^3.3.1",
     "nord": "^0.2.1",
-    "postcss": "^8.4",
+    "postcss": "^8.5",
     "postcss-cli": "^10.1",
     "purgecss-whitelister": "^2.4",
     "serve": "^14.2.0",
