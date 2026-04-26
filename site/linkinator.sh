@@ -120,8 +120,12 @@ if [[ "${LINKINATOR_SCOPE}" == "internal" ]]; then
   # `linkinator` uses regex skip patterns; split http/https to avoid a single
   # overly-broad `https?://` pattern that can accidentally match everything and
   # scan 0 links.
-  LINKINATOR_ARGS+=(-s '^http://(?!127\\.0\\.0\\.1|localhost)')
-  LINKINATOR_ARGS+=(-s '^https://(?!127\\.0\\.0\\.1|localhost)')
+  #
+  # In bash single-quoted strings, `\\.` is two literal backslashes + a dot, not
+  # a regex-escaped dot. Linkinator does `new RegExp(pattern)`; use `\.` here
+  # so argv contains one `\` before each `.` (literal IPv4 dots in the URL).
+  LINKINATOR_ARGS+=(-s '^http://(?!127\.0\.0\.1|localhost)')
+  LINKINATOR_ARGS+=(-s '^https://(?!127\.0\.0\.1|localhost)')
 fi
 
 bunx linkinator "${LINKINATOR_ARGS[@]}"
