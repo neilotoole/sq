@@ -1,6 +1,7 @@
 package libsq_test
 
 import (
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -10,11 +11,34 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
 )
+
+// oracleDoubleQuotedRE matches Postgres-style "identifier" segments in expected SQL.
+// Oracle's dialect enquotes by uppercasing the identifier; oracleSQL applies the same
+// transform so shared wantSQL strings can be reused for Oracle golden tests.
+var oracleDoubleQuotedRE = regexp.MustCompile(`"([^"]*)"`)
+
+// oracleSQL returns s with every double-quoted identifier uppercased inside the quotes,
+// matching drivers/oracle.enquoteOracle.
+func oracleSQL(s string) string {
+	return oracleDoubleQuotedRE.ReplaceAllStringFunc(s, func(m string) string {
+		inner := m[1 : len(m)-1]
+		return stringz.DoubleQuote(strings.ToUpper(inner))
+	})
+}
+
+func TestOracleSQL(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t,
+		`SELECT "ACTOR_ID" FROM "ACTOR" WHERE "FIRST_NAME" = 'x'`,
+		oracleSQL(`SELECT "actor_id" FROM "actor" WHERE "first_name" = 'x'`),
+	)
+}
 
 // driverMap is a map of drivertype.Type to a string.
 // It is used to specify a string for a specific driver.
@@ -171,6 +195,8 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 			want := tc.wantSQL
 			if overrideWant, ok := tc.override[src.Type]; ok {
 				want = overrideWant
+			} else if want != "" && src.Type == drivertype.Oracle {
+				want = oracleSQL(want)
 			}
 
 			_, err := coll.SetActive(src.Handle, false)

@@ -179,6 +179,16 @@ func TestQuery_func_schema(t *testing.T) {
 				assertSinkColValue(0, "sakila"),
 			},
 		},
+		{
+			name:         "oracle-default",
+			in:           `@sakila | schema()`,
+			wantSQL:      `SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') AS "schema()"`,
+			onlyFor:      []drivertype.Type{drivertype.Oracle},
+			wantRecCount: 1,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "schema()"),
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -274,6 +284,16 @@ func TestQuery_func_catalog(t *testing.T) {
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
 				assertSinkColValue(0, "sakila"),
+			},
+		},
+		{
+			name:         "oracle",
+			in:           `@sakila | catalog()`,
+			wantSQL:      `SELECT NULL AS "catalog()"`,
+			onlyFor:      []drivertype.Type{drivertype.Oracle},
+			wantRecCount: 1,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "catalog()"),
 			},
 		},
 	}

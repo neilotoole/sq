@@ -40,6 +40,12 @@ $ sq add postgres://sakila:p_ssW0rd@localhost/sakila
 @sakila_pg  postgres  sakila@localhost/sakila
 ```
 
+To add an Oracle data source (experimental):
+
+```shell
+sq add 'oracle://sakila:p_ssW0rd@localhost:1521/ORCLPDB1'
+```
+
 Note that flags can generally be omitted. If `--handle` is omitted,
 `sq` will generate a handle. In the example above, the generated handle
 is `@sakila_pg`. Usually `--driver` can also be omitted, and `sq`
