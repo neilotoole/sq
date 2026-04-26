@@ -15,6 +15,11 @@
     <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Install</a>
   </li>
   <li class="mb-1">
+    {{ $hackURL := "/docs/agent-skills" }}
+    {{ $active := in $currentPage.RelPermalink $hackURL }}
+    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Agent Skills</a>
+  </li>
+  <li class="mb-1">
     {{ $hackURL := "/docs/concepts" }}
     {{ $active := in $currentPage.RelPermalink $hackURL }}
     <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Concepts</a>

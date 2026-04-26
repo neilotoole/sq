@@ -24,16 +24,18 @@ to actual SQL for trickier work. In essence, `sq` treats every data source as if
   - `driver`: such as [`postgres`](/docs/drivers/postgres), [`sqlserver`](/docs/drivers/sqlserver),
     [`clickhouse`](/docs/drivers/clickhouse), [`csv`](/docs/drivers/csv), or [`xlsx`](/docs/drivers/xlsx).
   - `location`: URI or filepath of the source, such as `postgres://sakila:****@localhost/sakila` or `/Users/neilotoole/sq/xl_demo.xlsx`.
-  - `handle`: this is how `sq` refers to that particular _source_, e.g. `@sakila_pg`, `@prod/customer` or `@xl_demo`. The handle must begin with `@`.
+  - `handle`: this is how `sq` refers to that particular *source*, e.g. `@sakila_pg`, `@prod/customer` or `@xl_demo`. The handle must begin with `@`.
 - [Active Source](/docs/concepts/#active-source) is the default source upon which `sq` acts if no other source is specified.
-- [`sq inspect`](/docs/cmd/inspect) returns _metadata_ about your source, such as table names or number of rows.
+- [`sq inspect`](/docs/cmd/inspect) returns *metadata* about your source, such as table names or number of rows.
 
 Read more in [Concepts](/docs/concepts).
 
 ## Quick start
 
 1. [Install](/docs/install) `sq`.
+1. (Optional) If you use an AI coding assistant, add the [Agent skill](/docs/agent-skills) so it can steer queries and flags toward sq.io and `--help`.
 1. [Add](/docs/cmd/add/) a data source. We'll download and use a sample SQLite database file.
+
    ```shell
    # Download the sample db
    $ wget https://sq.io/testdata/sakila.db
@@ -42,7 +44,9 @@ Read more in [Concepts](/docs/concepts).
    $ sq add ./sakila.db --handle @demo
    @demo  sqlite3  sakila.db
    ```
+
 1. Inspect the source:
+
    ```shell
    $ sq inspect @demo
    SOURCE  DRIVER   NAME       FQ NAME         SIZE   TABLES  VIEWS  LOCATION
@@ -54,7 +58,9 @@ Read more in [Concepts](/docs/concepts).
    category                table  16     category_id, name, last_update
    [...]
    ```
+
 1. Run a query, getting the first three rows of the `actor` table:
+
    ```shell
    $ sq '@demo.actor | .[0:3]'
    actor_id  first_name  last_name  last_update
@@ -62,7 +68,9 @@ Read more in [Concepts](/docs/concepts).
    2         NICK        WAHLBERG   2020-02-15T06:59:28Z
    3         ED          CHASE      2020-02-15T06:59:28Z
    ```
+
 1. Run the query again, but output in a different format:
+
    ```shell
    $ sq '@demo.actor | .[0:3]' --jsonl
    {"actor_id": "1", "first_name": "PENELOPE", "last_name": "GUINESS", "last_update": "2020-02-15T06:59:28Z"}
@@ -146,7 +154,7 @@ Flags:
 
 ## Issues
 
-File any bug reports or other issues [here](https://github.com/neilotoole/sq/issues).
+File any bug reports or other issues in the [sq issue tracker](https://github.com/neilotoole/sq/issues).
 When filing a bug report, submit a [log file](/docs/config#logging).
 
 ## Config

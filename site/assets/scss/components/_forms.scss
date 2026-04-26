@@ -4,7 +4,7 @@
 }
 
 .search-form label {
-  @extend .form-group;
+  @extend .form-group !optional;
 
   font-weight: normal;
 }

@@ -423,13 +423,24 @@ footer {
   }
 
   li.netlify-logo img {
-    scale: 75%;
-    opacity: 50%;
+    opacity: 75%;
+  }
+
+  li.netlify-logo .netlify-badge-dark {
+    display: none;
   }
 }
 
 [data-dark-mode] footer {
   background-color: darken($gray-800, 5%);
+
+  li.netlify-logo .netlify-badge-light {
+    display: none;
+  }
+
+  li.netlify-logo .netlify-badge-dark {
+    display: inline;
+  }
 }
 
 div.asciinema-player-wrapper {
