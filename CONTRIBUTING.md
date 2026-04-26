@@ -1,3 +1,5 @@
+# Contributing
+
 `sq` welcomes new [issues](https://github.com/neilotoole/sq/issues), [pull requests](https://github.com/neilotoole/sq/pulls)
 and [discussion](https://github.com/neilotoole/sq/discussions).
 
@@ -6,6 +8,10 @@ For user documentation, see [sq.io](https://sq.io).
 ## Documentation site (`site/`)
 
 The [sq.io](https://sq.io) website is a [Hugo](https://gohugo.io) project in [`site/`](./site/). From `site/`, use **`make`** for the usual workflow (`make deps`, `make site-dev`, `make site-test`, `make site-build`, or `make ci` to match CI). Bun equivalents are in [`site/README.md`](./site/README.md).
+
+If you are changing anything under `site/`, read [`site/README.md`](./site/README.md)
+first: it explains the **stable** vs **full** link-check split, what PR CI blocks
+on, and what runs as informational/nightly follow-up.
 
 Changes under `site/` are validated by [`.github/workflows/site-ci.yml`](./.github/workflows/site-ci.yml).
 
@@ -105,9 +111,10 @@ at the top for accumulating changes during development.
    the changelog.
 
 3. **At release time**: When creating a new version (e.g., `git tag v1.2.3`):
-  - Replace `## Unreleased` with `## [v1.2.3] - YYYY-MM-DD`
-  - Remove empty subsections
-  - Add the version comparison link at the bottom of the file
+
+   - Replace `## Unreleased` with `## [v1.2.3] - YYYY-MM-DD`
+   - Remove empty subsections
+   - Add the version comparison link at the bottom of the file
 
 The `## Unreleased` section should not exist when there is no work-in-progress.
 
@@ -429,8 +436,7 @@ SQL drivers must return a properly configured `dialect.Dialect` from the
 ### Non-SQL drivers
 
 Non-SQL (document) drivers handle file-based data sources like CSV, JSON, and
-Excel files. These drivers implement only `driver.Driver`, not
-`driver.SQLDriver`.
+Excel files. These drivers implement only `driver.Driver`, not `driver.SQLDriver`.
 
 Key considerations:
 
@@ -441,4 +447,3 @@ Key considerations:
   values. See [`drivers/csv/detect_field_kinds.go`](drivers/csv/detect_field_kinds.go).
 - **Header detection**: For tabular formats, detect whether the first row
   contains headers. See [`drivers/csv/detect_header.go`](drivers/csv/detect_header.go).
-
