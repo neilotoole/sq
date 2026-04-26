@@ -47,8 +47,18 @@ DIM='\033[2m'
 # Description: Get current terminal width (max 120 chars)
 # -----------------------------------------------------------------------------------------------------------
 get_terminal_width() {
-    local width
-    width=$(tput cols)
+    local width=80
+
+    # Non-interactive shells (for example CI) may not have TERM set or a TTY.
+    # In that case, avoid tput errors and use a safe default.
+    if [[ -n "${TERM:-}" ]] && [[ -t 1 ]] && command -v tput >/dev/null 2>&1; then
+        width=$(tput cols 2>/dev/null || echo "")
+    fi
+
+    if ! [[ "$width" =~ ^[0-9]+$ ]]; then
+        width=80
+    fi
+
     if [ "$width" -gt 120 ]; then
         width=120
     fi
