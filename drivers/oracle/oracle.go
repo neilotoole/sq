@@ -576,6 +576,14 @@ func (d *driveri) RecordMeta(
 
 	for i, colType := range colTypes {
 		knd := kindFromDBTypeName(d.log, colType.Name(), colType.DatabaseTypeName())
+		// Refine bare NUMBER using precision/scale from the column type metadata.
+		// godror returns "NUMBER" (without precision) from DatabaseTypeName(), so
+		// DecimalSize() is required to distinguish integer-range columns.
+		if colType.DatabaseTypeName() == "NUMBER" && knd == kind.Decimal {
+			if precision, scale, ok := colType.DecimalSize(); ok && scale == 0 && precision > 0 && precision <= 19 {
+				knd = kind.Int
+			}
+		}
 		colTypeData := record.NewColumnTypeData(colType, knd)
 		d.setScanType(colTypeData, knd)
 		sColTypeData[i] = colTypeData

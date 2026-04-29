@@ -89,3 +89,41 @@ func TestDbTypeNameFromKind(t *testing.T) {
 	require.Equal(t, "BLOB", dbTypeNameFromKind(kind.Bytes))
 	require.Equal(t, "VARCHAR2(4000)", dbTypeNameFromKind(kind.Unknown))
 }
+
+// TestKindFromOracleNumber tests precision/scale inference for NUMBER columns.
+func TestKindFromOracleNumber(t *testing.T) {
+	testCases := []struct {
+		typeName string
+		want     kind.Kind
+	}{
+		{"NUMBER(1,0)", kind.Int},
+		{"NUMBER(10,0)", kind.Int},
+		{"NUMBER(18,0)", kind.Int},
+		{"NUMBER(19,0)", kind.Int},
+		{"NUMBER(20,0)", kind.Decimal}, // exceeds int64 range
+		{"NUMBER(10)", kind.Int},       // no explicit scale → treated as scale=0
+		{"NUMBER(1,1)", kind.Decimal},  // scale != 0
+		{"NUMBER(10,2)", kind.Decimal}, // fractional
+		{"NUMBER(0,0)", kind.Decimal},  // precision 0 not integer range
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.typeName, func(t *testing.T) {
+			t.Parallel()
+			got := kindFromOracleNumber(tc.typeName)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// TestKindFromDBTypeName_NumberPrefix tests that NUMBER(...) type names are
+// correctly dispatched to kindFromOracleNumber.
+func TestKindFromDBTypeName_NumberPrefix(t *testing.T) {
+	require.Equal(t, kind.Int, kindFromDBTypeName(nil, "col", "NUMBER(19,0)"))
+	require.Equal(t, kind.Int, kindFromDBTypeName(nil, "col", "NUMBER(10,0)"))
+	require.Equal(t, kind.Decimal, kindFromDBTypeName(nil, "col", "NUMBER(20,0)"))
+	require.Equal(t, kind.Decimal, kindFromDBTypeName(nil, "col", "NUMBER(10,2)"))
+	// Bare NUMBER (no precision) stays Decimal; callers refine via DecimalSize().
+	require.Equal(t, kind.Decimal, kindFromDBTypeName(nil, "col", "NUMBER"))
+}

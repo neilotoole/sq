@@ -351,7 +351,7 @@ ORDER BY c.column_id`
 		col := &metadata.Column{
 			Name:       strings.ToLower(colName),
 			Position:   int64(columnID),
-			Kind:       kindFromDBTypeName(lg.FromContext(ctx), colName, dataType),
+			Kind:       kindFromDBTypeName(lg.FromContext(ctx), colName, fullTypeName),
 			ColumnType: fullTypeName,
 			Nullable:   nullable == "Y",
 			Comment:    comment.String,

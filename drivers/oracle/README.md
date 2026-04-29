@@ -112,11 +112,11 @@ See **[Testing.md](./testutils/Testing.md)**
 
 5. **NUMBER Type Handling**:
 
-   - All NUMBER columns are currently mapped as Decimal for typing/scanning
-     purposes.
-   - Precision/scale-based inference (for example, treating `NUMBER(p,0)` as
-     Int) is not currently applied.
-   - NUMBER with no precision is also treated as Decimal.
+   - `NUMBER(p,0)` with `p` in the range 1–19 is mapped to `kind.Int`.
+   - `NUMBER` without explicit precision, or `NUMBER(p,s)` with `s > 0`, is
+     mapped to `kind.Decimal`.
+   - For query results, precision/scale is obtained via `ColumnType.DecimalSize()`.
+   - For schema inspection, precision/scale is read from the data dictionary.
 
 6. **BOOLEAN**: Oracle has no native BOOLEAN type. Uses NUMBER(1,0) instead.
 
