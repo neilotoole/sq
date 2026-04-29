@@ -3,9 +3,8 @@ package cli_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/neilotoole/sq/cli/testrun"
+	"github.com/stretchr/testify/require"
 )
 
 // TestBug520_LsShowsPassword tests https://github.com/neilotoole/sq/issues/520.
