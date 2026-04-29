@@ -19,8 +19,8 @@ func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind 
 
 	switch dbTypeName {
 	case "NUMBER":
-		// NUMBER can be Int or Decimal depending on precision/scale
-		// Default to Decimal, refine in setScanType based on precision/scale
+		// All NUMBER columns are mapped as Decimal. Precision/scale-based
+		// inference (e.g. NUMBER(p,0) → Int) is not currently applied.
 		return kind.Decimal
 	case "VARCHAR2", "NVARCHAR2", "CHAR", "NCHAR":
 		return kind.Text

@@ -7,14 +7,10 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 )
 
-// Oracle error codes - common ones to handle.
+// Oracle error codes currently used by the local error helpers.
 const (
-	errCodeTableNotFound      = 942   // ORA-00942: table or view does not exist
-	errCodeAlreadyExists      = 955   // ORA-00955: name is already used by an existing object
-	errCodeInvalidIdentifier  = 904   // ORA-00904: invalid identifier
-	errCodeTooManyConnections = 12516 // ORA-12516: TNS:listener could not find available handler
-	errCodeConnectionRefused  = 12541 // ORA-12541: TNS:no listener
-	errCodeInvalidUsername    = 1017  // ORA-01017: invalid username/password; logon denied
+	errCodeTableNotFound     = 942 // ORA-00942: table or view does not exist
+	errCodeInvalidIdentifier = 904 // ORA-00904: invalid identifier
 )
 
 // errw wraps Oracle errors, converting them to SQ error types.

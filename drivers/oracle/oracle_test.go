@@ -41,16 +41,17 @@ func skipIfNoOracle(t *testing.T) {
 	if dsn == "" {
 		dsn = testDSN
 	}
-	_ = dsn // Used for future configuration
-
-	db, err := sql.Open("godror", "testuser/testpass@localhost:1521/FREEPDB1")
+	db, err := sql.Open("godror", dsn)
 	if err != nil {
 		t.Skipf("Oracle not available: %v", err)
 		return
 	}
 	defer db.Close()
 
-	if err = db.Ping(); err != nil {
+	pingCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err = db.PingContext(pingCtx); err != nil {
 		errMsg := err.Error()
 
 		// Check for missing Oracle Instant Client library (DPI-1047)
@@ -102,7 +103,7 @@ See drivers/oracle/testutils/Testing.md for full setup instructions.`)
 			t.Skip(`Oracle database not reachable at localhost:1521.
 
 To start Oracle database:
-  cd drivers/oracle
+  cd drivers/oracle/testutils
   docker-compose up -d
 
 Wait 1-2 minutes for Oracle to initialize, then check status:

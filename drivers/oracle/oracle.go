@@ -409,18 +409,17 @@ ORDER BY view_name`
 
 // DropTable implements driver.SQLDriver.
 func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifExists bool) error {
-	var stmt string
 	tblName := stringz.DoubleQuote(strings.ToUpper(tbl.Table))
 
-	if ifExists {
-		// Oracle 12c+ supports IF EXISTS
-		stmt = fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE CONSTRAINTS", tblName)
-	} else {
-		stmt = fmt.Sprintf("DROP TABLE %s CASCADE CONSTRAINTS", tblName)
-	}
-
+	stmt := fmt.Sprintf("DROP TABLE %s CASCADE CONSTRAINTS", tblName)
 	_, err := db.ExecContext(ctx, stmt)
-	return errw(err)
+	if err != nil {
+		if ifExists && isErrTableNotExist(err) {
+			return nil
+		}
+		return errw(err)
+	}
+	return nil
 }
 
 // Truncate implements driver.SQLDriver.
@@ -439,13 +438,9 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 		return 0, errw(err)
 	}
 
-	// TRUNCATE with optional storage reset
-	truncateQuery := "TRUNCATE TABLE " + tblName
-	if reset {
-		truncateQuery += " DROP STORAGE" // Also resets sequences in Oracle
-	} else {
-		truncateQuery += " REUSE STORAGE"
-	}
+	// Oracle TRUNCATE does not reset sequences/identity counters.
+	// Ignore reset here rather than implying unsupported reseed semantics.
+	truncateQuery := "TRUNCATE TABLE " + tblName + " REUSE STORAGE"
 
 	_, err = db.ExecContext(ctx, truncateQuery)
 	if err != nil {
@@ -609,7 +604,7 @@ func (d *driveri) RecordMeta(
 						skip, meta.Name(), meta.DatabaseTypeName(), meta.Kind(), meta.ScanType()))
 			}
 			return nil, errz.Errorf("expected zero skipped cols but have %d:\n  %s",
-				skipped, strings.Join(skippedDetails, "\n  "))
+				len(skipped), strings.Join(skippedDetails, "\n  "))
 		}
 		return rec, nil
 	}
