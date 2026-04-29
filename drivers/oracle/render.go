@@ -80,7 +80,7 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 }
 
 // createTblKindDefaults is a map of kind.Kind to default value for CREATE TABLE.
-// NOTE: Oracle treats empty string ” as NULL, so we use a single space for text defaults.
+// NOTE: Oracle treats empty string '' as NULL, so we use a single space for text defaults.
 // Oracle also doesn't support function calls (like EMPTY_BLOB()) as DEFAULT values,
 // so BLOB columns with NOT NULL must be handled without a default.
 var createTblKindDefaults = map[kind.Kind]string{
