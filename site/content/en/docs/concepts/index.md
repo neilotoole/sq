@@ -170,13 +170,14 @@ but some drivers don't support the catalog mechanism. Here's a summary:
 
 <a name="catalog-schema-support"></a>
 
-| Driver                                | Default schema       | Catalog support?                                                                                              |
-|---------------------------------------|----------------------|---------------------------------------------------------------------------------------------------------------|
-| [Postgres](/docs/drivers/postgres)    | `public`             | Yes                                                                                                           |
-| [SQLite](/docs/drivers/sqlite)        | `main`               | No                                                                                                            |
-| [MySQL](/docs/drivers/mysql)          | Connection-dependent | [No](https://dev.mysql.com/doc/connector-odbc/en/connector-odbc-usagenotes-functionality-catalog-schema.html) |
-| [SQL server](/docs/drivers/sqlserver) | `dbo`                | Yes                                                                                                           |
-| [ClickHouse](/docs/drivers/clickhouse) | `default`            | Yes                                                                                                           |
+| Driver | Default schema | Catalog support? |
+| --- | --- | --- |
+| [Postgres](/docs/drivers/postgres) | `public` | Yes |
+| [SQLite](/docs/drivers/sqlite) | `main` | No |
+| [MySQL](/docs/drivers/mysql) | Connection-dependent | [No](https://dev.mysql.com/doc/connector-odbc/en/connector-odbc-usagenotes-functionality-catalog-schema.html) |
+| [SQL server](/docs/drivers/sqlserver) | `dbo` | Yes |
+| [ClickHouse](/docs/drivers/clickhouse) | `default` | Yes |
+| [Oracle](/docs/drivers/oracle) | Connected user | No |
 
 The SLQ functions [`schema()`](/docs/query#schema) and [`catalog()`](/docs/query#catalog) return
 the schema and catalog of the active source. See the docs for details of how each driver implements
@@ -187,4 +188,3 @@ You can override the active schema (and catalog) using the `--src.schema` flag
 for the [`sq`](/docs/cmd/sq#override-active-schema), [`sql`](/docs/cmd/sql/#active-source--schema)
 and [`inspect`](/docs/inspect#override-active-schema) commands.
 {{< /alert >}}
-

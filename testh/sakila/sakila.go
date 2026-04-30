@@ -41,6 +41,10 @@ const (
 	CH25 = "@sakila_ch25"
 	// CH is the handle for the latest ClickHouse.
 	CH = CH25
+
+	// Ora is the handle for Oracle Database (Sakila), when configured via
+	// SQ_TEST_SRC__SAKILA_ORA in the test sources config.
+	Ora = "@sakila_ora"
 )
 
 // AllHandles returns all the typical sakila handles. It does not
@@ -59,6 +63,7 @@ func AllHandles() []string {
 		MS19,
 		AZ1,
 		CH25,
+		Ora,
 		XLSX,
 	}
 }
@@ -78,6 +83,7 @@ func SQLAll() []string {
 		MS19,
 		AZ1,
 		CH25,
+		Ora,
 	}
 }
 
@@ -96,6 +102,7 @@ func SQLAllExternal() []string {
 		MS19,
 		AZ1,
 		CH25,
+		Ora,
 	}
 }
 
@@ -104,7 +111,7 @@ func SQLAllExternal() []string {
 // in addition to SQLAll to enable quicker iterative testing
 // during development.
 func SQLLatest() []string {
-	return []string{SL3, Pg, My, MS, CH}
+	return []string{SL3, Pg, My, MS, CH, Ora}
 }
 
 // PgAll returns the handles for all postgres versions.

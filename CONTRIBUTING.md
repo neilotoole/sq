@@ -346,6 +346,24 @@ func TestSmoke(t *testing.T) {
 }
 ```
 
+#### Oracle (optional)
+
+Some packages (for example [`libsq/driver`](libsq/driver)) run extra checks when
+an Oracle Sakila source is configured. Set `SQ_TEST_SRC__SAKILA_ORA` to the
+part of the DSN after `oracle://sakila:p_ssW0rd@`, as described in
+[`testh/testdata/sources.sq.yml`](testh/testdata/sources.sq.yml) and
+[`drivers/oracle/README.md`](drivers/oracle/README.md).
+
+For local Oracle Database, a minimal setup is
+[`drivers/oracle/testutils/docker-compose.yml`](drivers/oracle/testutils/docker-compose.yml)
+(Oracle Free plus Instant Client per that directory’s docs). When Oracle is
+reachable, you can narrow regression runs, for example:
+
+```shell
+go test ./libsq/driver/... -run 'Oracle|SourceMetadata_Oracle'
+go test ./drivers/oracle/... -short
+```
+
 ### SQL drivers
 
 #### Type mapping

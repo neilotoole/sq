@@ -12,6 +12,28 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## Unreleased
+
+### Added
+
+- 🐥 Experimental [Oracle Database](https://www.oracle.com/database/) driver
+  (`oracle`) using [godror](https://github.com/godror/godror). See the
+  [Oracle driver documentation](https://sq.io/docs/drivers/oracle/).
+  - Source metadata loads base tables, views, and materialized views from the
+    current schema (`USER_TABLES`, `USER_VIEWS`, `USER_MVIEWS`) and reports
+    `TableCount` / `ViewCount` accordingly. [@drluckyspin](https://github.com/drluckyspin)
+  - [`sq inspect`](https://sq.io/docs/cmd/inspect) and related flows can treat
+    views and materialized views like other relations: `TableExists` checks
+    `USER_OBJECTS`, and `ListTableNames` can include materialized views when
+    listing tables. [@drluckyspin](https://github.com/drluckyspin)
+  - Session/database properties (`db_name`, `current_schema`, and a
+    best-effort `version` from `V$INSTANCE` or `V$VERSION`) for tooling that
+    reads source metadata. [@drluckyspin](https://github.com/drluckyspin)
+  - SLQ rendering support for Oracle includes `ROWNUM`, `OFFSET` / `FETCH`
+    row ranges (with `ORDER BY` ensured when a range is used), and dialect
+    `ExecModeFor` / `NewBatchInsert` aligned with other SQL drivers.
+    [@drluckyspin](https://github.com/drluckyspin)
+
 ## [v0.50.2] - 2026-04-24
 
 ### Added

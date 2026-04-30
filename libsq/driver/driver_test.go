@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -309,6 +311,7 @@ var coreDrivers = []drivertype.Type{
 	drivertype.SQLite,
 	drivertype.MySQL,
 	drivertype.ClickHouse,
+	drivertype.Oracle,
 	drivertype.CSV,
 	drivertype.TSV,
 	drivertype.XLSX,
@@ -321,6 +324,7 @@ var sqlDrivers = []drivertype.Type{
 	drivertype.SQLite,
 	drivertype.MySQL,
 	drivertype.ClickHouse,
+	drivertype.Oracle,
 }
 
 // docDrivers is a slice of the doc driver types.
@@ -432,6 +436,49 @@ func TestGrip_SourceMetadata(t *testing.T) {
 	}
 }
 
+func TestGrip_SourceMetadata_OracleViewsAndCounts(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	if !th.SourceConfigured(sakila.Ora) {
+		t.Skip("Oracle Sakila source not configured")
+	}
+
+	th, _, _, grip, _ := testh.NewWith(t, sakila.Ora)
+
+	md, err := grip.SourceMetadata(th.Context, false)
+	require.NoError(t, err)
+	require.NotNil(t, md)
+
+	require.Equal(t, int64(7), md.ViewCount)
+
+	view := md.Table(sakila.ViewFilmList)
+	require.NotNil(t, view, "film_list view should appear in SourceMetadata.Tables")
+	require.Equal(t, sqlz.TableTypeView, view.TableType)
+	require.Equal(t, "VIEW", view.DBTableType)
+
+	require.Equal(t, md.TableCount+md.ViewCount, int64(len(md.Tables)))
+}
+
+func TestSQLDriver_Oracle_TableExists_Objects(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	if !th.SourceConfigured(sakila.Ora) {
+		t.Skip("Oracle Sakila source not configured")
+	}
+
+	th, _, drvr, _, db := testh.NewWith(t, sakila.Ora)
+
+	ok, err := drvr.TableExists(th.Context, db, sakila.ViewFilmList)
+	require.NoError(t, err)
+	require.True(t, ok, "TableExists should be true for a view name")
+
+	ok, err = drvr.TableExists(th.Context, db, "not_a_real_table_name_xyz999")
+	require.NoError(t, err)
+	require.False(t, ok)
+}
+
 // TestSQLDriver_ListTableNames_ArgSchemaEmpty tests [driver.SQLDriver.ListTableNames]
 // with an empty schema arg.
 func TestSQLDriver_ListTableNames_ArgSchemaEmpty(t *testing.T) { //nolint:tparallel
@@ -484,6 +531,8 @@ func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tpa
 		{handle: sakila.MS19, schema: "dbo", wantTables: 16, wantViews: 5},
 		{handle: sakila.SL3, schema: "main", wantTables: 16, wantViews: 5},
 		{handle: sakila.My8, schema: "sakila", wantTables: 16, wantViews: 7},
+		// Oracle schemas are users; schema lookup is owner-scoped and case-insensitive.
+		{handle: sakila.Ora, schema: "SAKILA", wantTables: 16, wantViews: 7},
 	}
 
 	for _, tc := range testCases {
@@ -497,10 +546,21 @@ func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tpa
 			require.NotNil(t, got)
 			require.True(t, len(got) == 0)
 
+			wantTables := tc.wantTables
+			if tc.handle == sakila.Ora {
+				// Oracle's "tables" list includes materialized views (ALL_MVIEWS).
+				var mviewCount int
+				err := db.QueryRowContext(th.Context,
+					`SELECT COUNT(*) FROM all_mviews WHERE owner = :1`,
+					strings.ToUpper(tc.schema)).Scan(&mviewCount)
+				require.NoError(t, err)
+				wantTables += mviewCount
+			}
+
 			got, err = drvr.ListTableNames(th.Context, db, tc.schema, true, false)
 			require.NoError(t, err)
 			require.NotNil(t, got)
-			require.Len(t, got, tc.wantTables)
+			require.Len(t, got, wantTables)
 
 			got, err = drvr.ListTableNames(th.Context, db, tc.schema, false, true)
 			require.NoError(t, err)
@@ -510,7 +570,7 @@ func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tpa
 			got, err = drvr.ListTableNames(th.Context, db, tc.schema, true, true)
 			require.NoError(t, err)
 			require.NotNil(t, got)
-			require.Len(t, got, tc.wantTables+tc.wantViews)
+			require.Len(t, got, wantTables+tc.wantViews)
 
 			gotCopy := append([]string(nil), got...)
 			slices.Sort(gotCopy)
@@ -658,6 +718,8 @@ func TestSQLDriver_CurrentSchemaCatalog(t *testing.T) {
 		{sakila.My, "sakila", "def"},
 		{sakila.MS, "dbo", "sakila"},
 		{sakila.CH, "sakila", "sakila"},
+		// Oracle: schema is the connected user; sq does not use a separate catalog.
+		{sakila.Ora, "SAKILA", ""},
 	}
 
 	for _, tc := range testCases {
@@ -666,17 +728,32 @@ func TestSQLDriver_CurrentSchemaCatalog(t *testing.T) {
 
 			gotSchema, err := drvr.CurrentSchema(th.Context, db)
 			require.NoError(t, err)
-			require.Equal(t, tc.wantSchema, gotSchema)
+			if drvr.DriverMetadata().Type == drivertype.Oracle {
+				require.True(t, strings.EqualFold(tc.wantSchema, gotSchema),
+					"schema got %q want ~%q", gotSchema, tc.wantSchema)
+			} else {
+				require.Equal(t, tc.wantSchema, gotSchema)
+			}
 
 			md, err := grip.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
 			require.NotNil(t, md)
-			require.Equal(t, tc.wantSchema, md.Schema)
-			require.Equal(t, tc.wantCatalog, md.Catalog)
+			require.Equal(t, gotSchema, md.Schema)
+			if drvr.DriverMetadata().Type == drivertype.Oracle {
+				require.Equal(t, "", md.Catalog)
+			} else {
+				require.Equal(t, tc.wantCatalog, md.Catalog)
+			}
 
 			gotSchemas, err := drvr.ListSchemas(th.Context, db)
 			require.NoError(t, err)
-			require.Contains(t, gotSchemas, gotSchema)
+			if drvr.DriverMetadata().Type == drivertype.Oracle {
+				require.True(t, slices.ContainsFunc(gotSchemas, func(s string) bool {
+					return strings.EqualFold(s, gotSchema)
+				}), "schemas should contain %q, got %v", gotSchema, gotSchemas)
+			} else {
+				require.Contains(t, gotSchemas, gotSchema)
+			}
 
 			if drvr.Dialect().Catalog {
 				gotCatalog, err := drvr.CurrentCatalog(th.Context, db)
@@ -716,6 +793,9 @@ func TestSQLDriver_SchemaExists(t *testing.T) {
 		{handle: sakila.CH, schema: "sakila", wantOK: true},
 		{handle: sakila.CH, schema: "", wantOK: false},
 		{handle: sakila.CH, schema: "not_exist", wantOK: false},
+		{handle: sakila.Ora, schema: "sakila", wantOK: true},
+		{handle: sakila.Ora, schema: "", wantOK: false},
+		{handle: sakila.Ora, schema: "not_exist", wantOK: false},
 	}
 
 	for _, tc := range testCases {
@@ -757,6 +837,9 @@ func TestSQLDriver_CatalogExists(t *testing.T) {
 		{handle: sakila.CH, catalog: "system", wantOK: true},
 		{handle: sakila.CH, catalog: "not_exist", wantOK: false},
 		{handle: sakila.CH, catalog: "", wantOK: false},
+		{handle: sakila.Ora, catalog: "sakila", wantOK: false, wantErr: true},
+		{handle: sakila.Ora, catalog: "X", wantOK: false, wantErr: true},
+		{handle: sakila.Ora, catalog: "", wantOK: false, wantErr: true},
 	}
 
 	for _, tc := range testCases {
