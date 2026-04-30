@@ -92,6 +92,7 @@ func TestDbTypeNameFromKind(t *testing.T) {
 
 // TestKindFromOracleNumber tests precision/scale inference for NUMBER columns.
 func TestKindFromOracleNumber(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		typeName string
 		want     kind.Kind

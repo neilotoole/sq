@@ -438,9 +438,14 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 		return 0, errw(err)
 	}
 
-	// Oracle TRUNCATE does not reset sequences/identity counters.
-	// Ignore reset here rather than implying unsupported reseed semantics.
-	truncateQuery := "TRUNCATE TABLE " + tblName + " REUSE STORAGE"
+	// reset maps to DROP STORAGE vs REUSE STORAGE. Oracle does not reset
+	// sequences via TRUNCATE; callers should not assume identity reseed.
+	truncateQuery := "TRUNCATE TABLE " + tblName
+	if reset {
+		truncateQuery += " DROP STORAGE"
+	} else {
+		truncateQuery += " REUSE STORAGE"
+	}
 
 	_, err = db.ExecContext(ctx, truncateQuery)
 	if err != nil {
