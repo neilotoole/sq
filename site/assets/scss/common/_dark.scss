@@ -305,6 +305,11 @@ $navbar-dark-active-color:          $link-color-dark;
   border-top: 1px solid $border-dark;
 }
 
+[data-dark-mode] body .docs-navigation a .card,
+[data-dark-mode] body .docs-navigation a .card .card-body {
+  color: $link-color-dark;
+}
+
 [data-dark-mode] body pre code::-webkit-scrollbar-thumb {
   background: $gray-400;
 }
