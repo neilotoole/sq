@@ -9,9 +9,16 @@ resources/
 
 # Netlify
 .netlify/
+# netlify-cli spins up a Deno process internally (for Edge Functions emulation)
+# which writes this lockfile even when we have no Edge Functions. Ignore unless
+# this project starts using site/netlify/edge-functions/.
+deno.lock
 
 # Linting artifacts
 .serve-lint/
+
+# Local Lighthouse reports (see `make site-lighthouse`)
+lighthouse-reports/
 
 # OS files
 .DS_Store
