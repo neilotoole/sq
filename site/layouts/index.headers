@@ -1,3 +1,8 @@
+# Asciicast v2 is newline-delimited JSON. Netlify compresses text types; .cast
+# defaults to application/octet-stream unless we set this (see site/netlify.toml).
+/casts/*
+  Content-Type: application/json; charset=utf-8
+
 /*
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
   X-Content-Type-Options: nosniff

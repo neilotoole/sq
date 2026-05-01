@@ -65,6 +65,13 @@ output_path = "reports/lighthouse.html"
   publish = "public"
   autoLaunch = false
 
+# Asciicast v2 files are newline-delimited JSON. Netlify only auto-compresses
+# responses it treats as compressible text; without this, .cast is served with a
+# non-text Content-Type and skips Brotli/gzip (Lighthouse uses-text-compression).
+[[headers]]
+  for = "/casts/*"
+  [headers.values]
+    Content-Type = "application/json; charset=utf-8"
 
 [[headers]]
   for = "/*"
@@ -84,6 +91,6 @@ output_path = "reports/lighthouse.html"
       frame-src 'self' 'unsafe-inline' sq.io asciinema.org;
       connect-src 'self' sq.io asciinema.org www.google-analytics.com;
       img-src 'self' 'unsafe-inline' data: https: sq.io www.netlify.com;
-      style-src 'self' 'unsafe-inline'  sq.io www.netlify.com fonts.googleapis.com;
-      font-src 'self' 'unsafe-inline' sq.io fonts.googleapis.com cdnjs.cloudflare.com fonts.gstatic.com  fonts.googleapis.com github.com maxcdn.bootstrapcdn.com themes.googleusercontent.com use.fontawesome.com
+      style-src 'self' 'unsafe-inline' sq.io www.netlify.com;
+      font-src 'self' 'unsafe-inline' sq.io cdnjs.cloudflare.com github.com maxcdn.bootstrapcdn.com themes.googleusercontent.com use.fontawesome.com
       '''

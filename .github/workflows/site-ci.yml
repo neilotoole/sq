@@ -44,3 +44,11 @@ jobs:
 
       - name: Install, lint, and build (make ci)
         run: make ci
+
+      # Full external link crawl is valuable but inherently flaky (third-party
+      # availability, rate limits, CI network slices). Keep PR merges gated on
+      # `make ci` (stable: scripts/styles/markdown + internal linkinator scope),
+      # but still surface external reachability problems in CI logs.
+      - name: Full external link check (informational)
+        continue-on-error: true
+        run: bun run lint:links
