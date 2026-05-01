@@ -1,3 +1,5 @@
+# Contributing
+
 `sq` welcomes new [issues](https://github.com/neilotoole/sq/issues), [pull requests](https://github.com/neilotoole/sq/pulls)
 and [discussion](https://github.com/neilotoole/sq/discussions).
 
@@ -6,6 +8,10 @@ For user documentation, see [sq.io](https://sq.io).
 ## Documentation site (`site/`)
 
 The [sq.io](https://sq.io) website is a [Hugo](https://gohugo.io) project in [`site/`](./site/). From `site/`, use **`make`** for the usual workflow (`make deps`, `make site-dev`, `make site-test`, `make site-build`, or `make ci` to match CI). Bun equivalents are in [`site/README.md`](./site/README.md).
+
+If you are changing anything under `site/`, read [`site/README.md`](./site/README.md)
+first: it explains the **stable** vs **full** link-check split, what PR CI blocks
+on, and what runs as informational/nightly follow-up.
 
 Changes under `site/` are validated by [`.github/workflows/site-ci.yml`](./.github/workflows/site-ci.yml).
 
@@ -72,6 +78,11 @@ maintainers; you do not need to worry about this if creating a PR.
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+**Scope:** Entries describe the **`sq` CLI and core libraries** (what ships in
+the release binary). Changes that **only** touch [`site/`](./site) (the sq.io
+Hugo site) do **not** need `CHANGELOG.md` updates unless a maintainer wants a
+release-note line tied to the `sq` product.
+
 ### Unreleased Section
 
 When there is work-in-progress, `CHANGELOG.md` uses an `## Unreleased` section
@@ -95,13 +106,15 @@ at the top for accumulating changes during development.
 1. **Starting new work**: Add an `## Unreleased` section at the top of the
    CHANGELOG with the standard subsection headers (Fixed, Changed, Added).
 
-2. **During development**: Add entries under `## Unreleased` as changes are
-   made. Each PR should update this section with its changes.
+2. **During development**: Add entries under `## Unreleased` for **CLI and
+   library** changes as they land (see **Scope** above). Site-only PRs can skip
+   the changelog.
 
 3. **At release time**: When creating a new version (e.g., `git tag v1.2.3`):
-  - Replace `## Unreleased` with `## [v1.2.3] - YYYY-MM-DD`
-  - Remove empty subsections
-  - Add the version comparison link at the bottom of the file
+
+   - Replace `## Unreleased` with `## [v1.2.3] - YYYY-MM-DD`
+   - Remove empty subsections
+   - Add the version comparison link at the bottom of the file
 
 The `## Unreleased` section should not exist when there is no work-in-progress.
 
@@ -423,8 +436,7 @@ SQL drivers must return a properly configured `dialect.Dialect` from the
 ### Non-SQL drivers
 
 Non-SQL (document) drivers handle file-based data sources like CSV, JSON, and
-Excel files. These drivers implement only `driver.Driver`, not
-`driver.SQLDriver`.
+Excel files. These drivers implement only `driver.Driver`, not `driver.SQLDriver`.
 
 Key considerations:
 
@@ -435,4 +447,3 @@ Key considerations:
   values. See [`drivers/csv/detect_field_kinds.go`](drivers/csv/detect_field_kinds.go).
 - **Header detection**: For tabular formats, detect whether the first row
   contains headers. See [`drivers/csv/detect_header.go`](drivers/csv/detect_header.go).
-

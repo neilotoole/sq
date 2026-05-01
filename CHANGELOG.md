@@ -12,25 +12,22 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
-## Unreleased
+## [v0.50.2] - 2026-04-24
+
+### Added
+
+- [#552]: Agent-focused skill content under `skills/sq/` (prompts and
+  references) to help AI assistants use `sq`, plus related nfpm/AUR packaging
+  metadata. Kudos to [@drluckyspin](https://github.com/drluckyspin).
 
 ### Changed
 
-- Updated Go dependencies, including `github.com/mattn/go-sqlite3` from
-  `v1.14.34` to `v1.14.42` (embedded SQLite `3.51.2` → `3.51.3`), which makes
-  newer SQLite built-ins such as [`unistr()`][sqlite-unistr] available in the
-  [`sq sql`](https://sq.io/docs/cmd/sql) command.
+- The [sq.io](https://sq.io) website is now hosted in the `./site/` dir instead
+  of in a separate repo.
 
 ### Fixed
 
-- [#555]: ClickHouse driver now populates `md.Catalog` in `SourceMetadata`,
-  matching the current ClickHouse database. Previously the field was left
-  empty, which caused `TestSQLDriver_CurrentSchemaCatalog` to fail for the
-  ClickHouse sakila source.
-
-[#555]: https://github.com/neilotoole/sq/issues/555
-[sqlite-unistr]: https://www.sqlite.org/lang_corefunc.html#unistr
-
+- [#555], [#556]: ClickHouse driver now populates `md.Catalog` correctly.
 
 ## [v0.50.0] - 2026-02-16
 
@@ -1392,6 +1389,22 @@ make working with lots of sources much easier.
 [#531]: https://github.com/neilotoole/sq/issues/531
 [#532]: https://github.com/neilotoole/sq/issues/532
 [#542]: https://github.com/neilotoole/sq/issues/542
+[#527]: https://github.com/neilotoole/sq/issues/527
+[#546]: https://github.com/neilotoole/sq/pull/546
+[#552]: https://github.com/neilotoole/sq/pull/552
+[#555]: https://github.com/neilotoole/sq/issues/555
+[#556]: https://github.com/neilotoole/sq/pull/556
+[#557]: https://github.com/neilotoole/sq/pull/557
+[#558]: https://github.com/neilotoole/sq/pull/558
+[#559]: https://github.com/neilotoole/sq/pull/559
+[#560]: https://github.com/neilotoole/sq/pull/560
+[#561]: https://github.com/neilotoole/sq/pull/561
+[#562]: https://github.com/neilotoole/sq/pull/562
+[#569]: https://github.com/neilotoole/sq/pull/569
+[#570]: https://github.com/neilotoole/sq/pull/570
+[#571]: https://github.com/neilotoole/sq/pull/571
+[#572]: https://github.com/neilotoole/sq/pull/572
+
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
@@ -1458,3 +1471,6 @@ make working with lots of sources much easier.
 [v0.48.11]: https://github.com/neilotoole/sq/compare/v0.48.10...v0.48.11
 [v0.48.12]: https://github.com/neilotoole/sq/compare/v0.48.11...v0.48.12
 [v0.49.0]: https://github.com/neilotoole/sq/compare/v0.48.12...v0.49.0
+[v0.50.0]: https://github.com/neilotoole/sq/compare/v0.49.0...v0.50.0
+[v0.50.2]: https://github.com/neilotoole/sq/compare/v0.50.0...v0.50.2
+

@@ -101,6 +101,7 @@ See [`CONTRIBUTING.md`](./CONTRIBUTING.md#changelogmd) for the full format.
 In short: work-in-progress goes under an `## Unreleased` section at the top
 with `Fixed` / `Changed` / `Added` subsections, and the first reference to
 an `sq` command in a release section links to its `sq.io` documentation.
+**Site-only** changes under `site/` do not require CHANGELOG entries.
 
 ### Git branch naming
 
