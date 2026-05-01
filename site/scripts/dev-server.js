@@ -7,6 +7,7 @@
 const http = require("http");
 const path = require("path");
 const fs = require("fs");
+const zlib = require("node:zlib");
 const { spawn } = require("child_process");
 const { getVersion } = require("./version-fetch.js");
 
@@ -85,16 +86,44 @@ const server = http.createServer(async (req, res) => {
   const pathname = req.url?.split("?")[0] ?? "/";
 
   if (req.method === "GET" && pathname === "/version") {
+    const acceptEncoding = (req.headers["accept-encoding"] || "").toLowerCase();
+    const sendJson = (statusCode, bodyObj) => {
+      const json = JSON.stringify(bodyObj);
+      const raw = Buffer.from(json, "utf8");
+      const headers = {
+        "Content-Type": "application/json; charset=utf-8",
+      };
+      if (statusCode === 200) {
+        headers["Cache-Control"] = "public, max-age=300";
+      }
+      if (acceptEncoding.includes("br")) {
+        const br = zlib.brotliCompressSync(raw);
+        if (br.length < raw.length) {
+          headers["Content-Encoding"] = "br";
+          headers.Vary = "Accept-Encoding";
+          res.writeHead(statusCode, headers);
+          res.end(br);
+          return;
+        }
+      }
+      if (acceptEncoding.includes("gzip")) {
+        const gz = zlib.gzipSync(raw);
+        if (gz.length < raw.length) {
+          headers["Content-Encoding"] = "gzip";
+          headers.Vary = "Accept-Encoding";
+          res.writeHead(statusCode, headers);
+          res.end(gz);
+          return;
+        }
+      }
+      res.writeHead(statusCode, headers);
+      res.end(json);
+    };
     try {
       const version = await getVersion();
-      res.writeHead(200, {
-        "Content-Type": "application/json",
-        "Cache-Control": "public, max-age=300",
-      });
-      res.end(JSON.stringify({ "latest-version": version }));
+      sendJson(200, { "latest-version": version });
     } catch (_) {
-      res.writeHead(503, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "unavailable" }));
+      sendJson(503, { error: "unavailable" });
     }
     return;
   }

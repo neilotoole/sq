@@ -42,9 +42,16 @@ make deps
 make site-dev
 # same as: bun start
 
-# Lint + link check + etc. (same steps as CI: make ci runs deps, site-test, site-build)
+# Stable checks (what PRs block on): scripts, styles, markdown, and internal links
 make site-test
-# same as: bun run test
+# same as: bun run test:ci
+
+# Optional: Docker smoke checks against a containerized dev server (:8080)
+make smoke-test
+
+# Optional: full link crawl (includes third-party URLs; can be noisy/slow)
+make site-test-full
+# same as: bun run test:full
 
 # Production build to public/
 make site-build
@@ -52,6 +59,29 @@ make site-build
 ```
 
 One-shot check matching **Site CI** (`deps` → test → build): `make ci`.
+
+### Site testing
+
+Think of site testing as two layers:
+
+1. **Stable checks (merge-blocking on PRs)**
+   `make ci` runs `make site-test`, which runs `bun run test:ci`. That includes
+   link checking against the **temporary local build** we serve for linting, but
+   it does **not** crawl arbitrary third-party websites. This is what you want
+   to be strict about: broken docs routes, missing local assets, bad internal
+   links, etc.
+
+2. **External link crawl (informational on PRs)**
+   GitHub Actions also runs a full `bun run lint:links` crawl after `make ci`.
+   That step is configured as **non-fatal** because third-party sites can be
+   slow, flaky, or rate-limit automated requests even when your change is fine.
+
+If you want the full external crawl locally, use `make site-test-full` (or
+`bun run lint:links`).
+
+**Heads up (`bun run test` vs CI):** `bun run test` currently runs the **full**
+lint pipeline (including external link crawling). PR CI uses `bun run test:ci`
+via `make site-test`, which is the **stable** lane.
 
 ### 4. Submit a Pull Request
 
@@ -77,9 +107,10 @@ The project uses GitHub Actions and Netlify for continuous integration:
 
 | Trigger                               | Action                                                |
 |---------------------------------------|-------------------------------------------------------|
-| Push to `master` or `develop` (and PRs) | `.github/workflows/site-ci.yml` runs lint + build when `site/**` changes |
+| Push to `master` or `develop` (and PRs) | `.github/workflows/site-ci.yml` runs `make ci` when `site/**` changes, plus an informational full link crawl |
 | Pull request                          | Netlify deploy preview (when configured)               |
 | Merge to `master`                     | Automatic production deploy to [sq.io](https://sq.io) |
+| Daily schedule / manual               | `.github/workflows/site-links-nightly.yml` runs a full external link crawl |
 
 Netlify provides deploy previews for every PR with Lighthouse audits for performance,
 accessibility, best practices, and SEO. Before merging, click through to the
@@ -95,7 +126,9 @@ In **Common.make**, `make build` builds the **Docker** image, not the Hugo site;
 |------------------|-----------------------|----------------------------------------------------|
 | `make deps`      | `bun install`         | Install dependencies                               |
 | `make site-dev`  | `bun start`           | Local dev server with live reload                  |
-| `make site-test` | `bun run test`        | All linters (scripts, styles, markdown, links)     |
+| `make smoke-test`| (script)              | Docker smoke checks (`validate-build.sh --start`)  |
+| `make site-test` | `bun run test:ci`     | Stable linters + internal link check               |
+| `make site-test-full` | `bun run test:full` | Full linters + external link crawl                 |
 | `make site-build`| `bun run build`       | Production site → `public/`                        |
 | `make ci`        | (sequence below)      | `deps`, then `site-test`, then `site-build` (CI)   |
 
@@ -115,9 +148,18 @@ included in the documentation pages.
 
 ### Link Checking
 
-The `bun run lint` command includes link checking via [linkinator](https://github.com/JustinBeckwith/linkinator).
-Some sites (e.g., StackOverflow) block automated crawlers, returning 403 errors in CI. These domains
-are excluded in `linkinator.config.json`.
+Link checking uses [linkinator](https://github.com/JustinBeckwith/linkinator).
+
+- **Stable / PR-blocking (`test:ci`)** uses `lint:links:internal`, which checks the
+  locally served build without following arbitrary third-party `http(s)` links.
+- **Full crawl (`lint:links`)** follows third-party links too. This is useful,
+  but inherently more flaky.
+
+Some sites (e.g., StackOverflow) block automated crawlers, returning 403 errors
+in CI. Those domains are excluded in `linkinator.config.json`.
+
+Note: `linkinator` timeouts are configured in **milliseconds** in
+`linkinator.config.json` (see linkinator CLI help).
 
 ## Redirects
 
