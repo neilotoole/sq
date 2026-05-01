@@ -1,10 +1,10 @@
 {
-  "concurrency": 100,
+  "concurrency": 10,
   "recurse": true,
   "retryErrors": true,
-  "retryErrorsCount": 1,
+  "retryErrorsCount": 3,
   "retryErrorsJitter": true,
   "skip": "https://dev.mysql.com, https://www.mysql.com, https://github.com, https://www.microsoft.com, https://stackoverflow.com, https://spin.atomicobject.com",
-  "timeout": 3,
+  "timeout": 25000,
   "verbosity": "warning"
 }

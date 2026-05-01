@@ -10,8 +10,8 @@ updates:
     schedule:
       interval: "weekly"
 
-  # Bun lockfile under site/ (Dependabot uses the npm ecosystem for lockfiles).
-  - package-ecosystem: "npm"
+  # Bun lockfile under site/ (use the bun ecosystem so Dependabot reads bun.lock).
+  - package-ecosystem: "bun"
     directory: "/site"
     schedule:
       interval: "weekly"
