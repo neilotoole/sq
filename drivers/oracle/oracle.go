@@ -76,7 +76,7 @@ func (d *driveri) ErrWrapFunc() func(error) error {
 func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
 		Type:        drivertype.Oracle,
-		Description: "Oracle Database",
+		Description: "Oracle",
 		Doc:         "https://github.com/godror/godror",
 		IsSQL:       true,
 		DefaultPort: 1521,
