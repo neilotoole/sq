@@ -112,9 +112,11 @@ See **[Testing.md](./testutils/Testing.md)**
 
 5. **NUMBER Type Handling**:
 
-   - NUMBER(p,0) where p ≤ 19 → treated as Int
-   - NUMBER(p,s) where s > 0 → treated as Decimal
-   - NUMBER with no precision → treated as Decimal
+   - `NUMBER(p,0)` with `p` in the range 1–19 is mapped to `kind.Int`.
+   - `NUMBER` without explicit precision, or `NUMBER(p,s)` with `s > 0`, is
+     mapped to `kind.Decimal`.
+   - For query results, precision/scale is obtained via `ColumnType.DecimalSize()`.
+   - For schema inspection, precision/scale is read from the data dictionary.
 
 6. **BOOLEAN**: Oracle has no native BOOLEAN type. Uses NUMBER(1,0) instead.
 

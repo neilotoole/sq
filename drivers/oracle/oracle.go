@@ -409,18 +409,17 @@ ORDER BY view_name`
 
 // DropTable implements driver.SQLDriver.
 func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifExists bool) error {
-	var stmt string
 	tblName := stringz.DoubleQuote(strings.ToUpper(tbl.Table))
 
-	if ifExists {
-		// Oracle 12c+ supports IF EXISTS
-		stmt = fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE CONSTRAINTS", tblName)
-	} else {
-		stmt = fmt.Sprintf("DROP TABLE %s CASCADE CONSTRAINTS", tblName)
-	}
-
+	stmt := fmt.Sprintf("DROP TABLE %s CASCADE CONSTRAINTS", tblName)
 	_, err := db.ExecContext(ctx, stmt)
-	return errw(err)
+	if err != nil {
+		if ifExists && isErrTableNotExist(err) {
+			return nil
+		}
+		return errw(err)
+	}
+	return nil
 }
 
 // Truncate implements driver.SQLDriver.
@@ -439,10 +438,11 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 		return 0, errw(err)
 	}
 
-	// TRUNCATE with optional storage reset
+	// reset maps to DROP STORAGE vs REUSE STORAGE. Oracle does not reset
+	// sequences via TRUNCATE; callers should not assume identity reseed.
 	truncateQuery := "TRUNCATE TABLE " + tblName
 	if reset {
-		truncateQuery += " DROP STORAGE" // Also resets sequences in Oracle
+		truncateQuery += " DROP STORAGE"
 	} else {
 		truncateQuery += " REUSE STORAGE"
 	}
@@ -581,6 +581,14 @@ func (d *driveri) RecordMeta(
 
 	for i, colType := range colTypes {
 		knd := kindFromDBTypeName(d.log, colType.Name(), colType.DatabaseTypeName())
+		// Refine bare NUMBER using precision/scale from the column type metadata.
+		// godror returns "NUMBER" (without precision) from DatabaseTypeName(), so
+		// DecimalSize() is required to distinguish integer-range columns.
+		if colType.DatabaseTypeName() == "NUMBER" && knd == kind.Decimal {
+			if precision, scale, ok := colType.DecimalSize(); ok && scale == 0 && precision > 0 && precision <= 19 {
+				knd = kind.Int
+			}
+		}
 		colTypeData := record.NewColumnTypeData(colType, knd)
 		d.setScanType(colTypeData, knd)
 		sColTypeData[i] = colTypeData
@@ -609,7 +617,7 @@ func (d *driveri) RecordMeta(
 						skip, meta.Name(), meta.DatabaseTypeName(), meta.Kind(), meta.ScanType()))
 			}
 			return nil, errz.Errorf("expected zero skipped cols but have %d:\n  %s",
-				skipped, strings.Join(skippedDetails, "\n  "))
+				len(skipped), strings.Join(skippedDetails, "\n  "))
 		}
 		return rec, nil
 	}

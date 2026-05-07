@@ -1216,6 +1216,11 @@ const (
 
 #### Step 3: Implement Provider & Driver
 
+> **Note**: The code snippets below are illustrative pseudocode showing the
+> general pattern. The actual implementation in `drivers/oracle/` may differ
+> in details such as connection handling, schema function names, and dialect
+> configuration.
+
 **File:** `drivers/oracle/oracle.go`
 
 ```go

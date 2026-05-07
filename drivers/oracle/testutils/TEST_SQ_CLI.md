@@ -71,7 +71,7 @@ The script supports the following environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SQ_BINARY` | `/Users/65720/Development/Projects/go/bin/sq` | Path to sq binary |
+| `SQ_BINARY` | `$GOPATH/bin/sq` or `sq` from `PATH` | Path to sq binary |
 | `ORACLE_DSN` | `oracle://testuser:testpass@localhost:1521/FREEPDB1` | Oracle connection string |
 | `POSTGRES_DSN` | `postgres://testuser:testpass@localhost:5432/sakila?sslmode=disable` | Postgres connection string |
 

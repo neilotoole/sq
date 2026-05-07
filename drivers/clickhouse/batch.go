@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"go.uber.org/atomic"
-
 	chv2 "github.com/ClickHouse/clickhouse-go/v2"
+	"go.uber.org/atomic"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
