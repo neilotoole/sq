@@ -98,8 +98,8 @@ disclosure**:
   database or file format (see the table in `SKILL.md`).
 
 The skill intentionally defers to **`sq help`**, **`sq <cmd> --help`**, and
-sq.io rather than duplicating full reference material. For the raw source, see
-[`SKILL.md` on GitHub](https://github.com/neilotoole/sq/blob/master/skills/sq/SKILL.md).
+[sq.io](https://sq.io/) rather than duplicating full reference material.
+For the raw source, see [`SKILL.md` on GitHub](https://github.com/neilotoole/sq/blob/master/skills/sq/SKILL.md).
 
 ## Updating
 
@@ -115,16 +115,20 @@ sq.io rather than duplicating full reference material. For the raw source, see
 
 ## FAQ
 
-**Does the skill replace reading sq.io?**
-No. It steers assistants toward official docs and `--help` output.
+### Does the skill replace reading the docs?
 
-**Do I need the skill to use sq?**
+No. It steers assistants toward this website and `sq --help` output.
+
+### Do I need the skill to use sq?
+
 No. It is optional context for AI-assisted workflows.
 
-**Air-gapped or offline?**
+### Air-gapped or offline?
+
 Copy `skills/sq/` from a release tarball or clone; you do not need `npx` if you
 install manually.
 
-**Forks**
-Point `npx skills add` and marketplace URLs at your fork’s GitHub URL or
+### Can I use a fork?
+
+Yes. Point `npx skills add` and marketplace URLs at your fork’s GitHub URL or
 local path.
