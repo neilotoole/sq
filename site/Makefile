@@ -5,7 +5,9 @@
 #
 # For day-to-day and CI-style work without Docker, prefer:
 #   make deps        — bun install
-#   make site-test   — bun run test (lint, link check, etc.; same as Site CI)
+#   make smoke-test  — docker smoke checks (./scripts/validate-build.sh --start)
+#   make site-test   — stable lint suite (bun run test:ci; internal link check)
+#   make site-test-full — full lint suite (bun run test:full; includes external link crawl)
 #   make site-build  — bun run build (Hugo → public/)
 #   make site-dev    — bun start (local dev server)
 #   make ci          — deps, then site-test, then site-build (matches GitHub Site CI)
@@ -44,13 +46,28 @@ deps:
 	bun install
 	@$(LOGGER) log_success "Dependencies installed"
 
-.PHONY: site-test ## Run lint suite (bun run test; scripts, styles, markdown, links)
+.PHONY: smoke-test ## Docker-based smoke tests (./scripts/validate-build.sh --start)
+smoke-test:
+	@$(LOGGER) log_separator
+	@$(LOGGER) log_info "Running docker smoke tests"
+	@./scripts/validate-build.sh --start
+	@$(LOGGER) log_success "Docker smoke tests passed"
+
+.PHONY: site-test ## Run stable lint suite (bun run test:ci; internal link check)
 site-test:
 	@$(LOGGER) log_separator
-	@$(LOGGER) log_info "Running site lint suite"
-	@$(LOGGER) log_indent log_dim "scripts, styles, markdown, links"
-	bun run test
+	@$(LOGGER) log_info "Running site lint suite (CI-stable)"
+	@$(LOGGER) log_indent log_dim "scripts, styles, markdown, internal links"
+	bun run test:ci
 	@$(LOGGER) log_success "Lint suite passed"
+
+.PHONY: site-test-full ## Run full lint suite including external link crawl (bun run test:full)
+site-test-full:
+	@$(LOGGER) log_separator
+	@$(LOGGER) log_info "Running full site lint suite"
+	@$(LOGGER) log_indent log_dim "scripts, styles, markdown, links (internal + external)"
+	bun run test:full
+	@$(LOGGER) log_success "Full lint suite passed"
 
 .PHONY: site-build ## Build production site to public/ (bun run build; Hugo)
 site-build:

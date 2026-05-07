@@ -51,7 +51,7 @@ LOGGER := source scripts/log.bash &&
 # Help (default target)
 # -----------------------------------------------------------------------------------------------------------
 
-.PHONY: help build check clean run run-detached down logs test ping
+.PHONY: help build check clean run run-detached down logs test smoke-test ping
 
 .PHONY: help ## Show this help message
 help:
@@ -201,12 +201,8 @@ clean:
 # Testing and health check
 # -----------------------------------------------------------------------------------------------------------
 
-.PHONY: test ## Run linting tests via Bun
-test:
-	@$(LOGGER) log_separator
-	@$(LOGGER) log_info "Running tests"
-	@./scripts/validate-build.sh --start
-	bun run test
+.PHONY: test ## Run docker smoke tests + stable site lint suite (see site/Makefile)
+test: smoke-test site-test
 	@$(LOGGER) log
 	@$(LOGGER) log_success "Tests completed"
 

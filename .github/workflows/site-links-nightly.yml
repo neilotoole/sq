@@ -1,0 +1,43 @@
+# Nightly external link crawl for sq.io (Hugo + Bun) under site/
+name: Site Links (nightly)
+
+on:
+  schedule:
+    # Daily at 07:15 UTC — offset from on-the-hour spikes.
+    - cron: "15 7 * * *"
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: site
+
+jobs:
+  links:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            site/node_modules
+          key: ${{ runner.os }}-site-bun-${{ hashFiles('site/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-site-bun-
+
+      - name: Install dependencies
+        run: make deps
+
+      - name: Full external link crawl
+        run: bun run lint:links
