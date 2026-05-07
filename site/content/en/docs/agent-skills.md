@@ -98,7 +98,7 @@ disclosure**:
   database or file format (see the table in `SKILL.md`).
 
 The skill intentionally defers to **`sq help`**, **`sq <cmd> --help`**, and
-[sq.io](https://sq.io) rather than duplicating full reference material.
+[sq.io](https://sq.io/) rather than duplicating full reference material.
 For the raw source, see [`SKILL.md` on GitHub](https://github.com/neilotoole/sq/blob/master/skills/sq/SKILL.md).
 
 ## Updating
