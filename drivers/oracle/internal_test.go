@@ -2,8 +2,10 @@ package oracle
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
+	goora "github.com/sijms/go-ora/v2/network"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -56,24 +58,39 @@ func TestPlaceholders(t *testing.T) {
 	}
 }
 
-// TestHasErrCode tests the hasErrCode function.
+// TestHasErrCode tests the hasErrCode function for nil, plain errors,
+// matching go-ora errors, and go-ora errors wrapped via fmt.Errorf.
 func TestHasErrCode(t *testing.T) {
-	// Test with nil error
 	assert.False(t, hasErrCode(nil, 942))
 
-	// Test with standard error (no code)
 	stdErr := errors.New("standard error")
 	assert.False(t, hasErrCode(stdErr, 942))
+
+	oraErr := goora.NewOracleError(942)
+	assert.True(t, hasErrCode(oraErr, 942), "should match raw go-ora OracleError")
+	assert.False(t, hasErrCode(oraErr, 904), "should not match a different code")
+
+	// Wire drivers commonly wrap their underlying errors; HasErrCode must
+	// still find the code via errors.As traversal.
+	wrapped := fmt.Errorf("exec: %w", oraErr)
+	assert.True(t, hasErrCode(wrapped, 942), "should match through fmt.Errorf wrapping")
 }
 
 // TestIsErrTableNotExist tests the isErrTableNotExist function.
 func TestIsErrTableNotExist(t *testing.T) {
-	// Test with nil error
 	assert.False(t, isErrTableNotExist(nil))
 
-	// Test with standard error
 	stdErr := errors.New("some error")
 	assert.False(t, isErrTableNotExist(stdErr))
+
+	// ORA-00942: this is the case that DropTable(ifExists=true) relies on.
+	assert.True(t, isErrTableNotExist(goora.NewOracleError(942)),
+		"ORA-00942 must be detected so DropTable can honor ifExists=true")
+	assert.True(t, isErrTableNotExist(fmt.Errorf("exec: %w", goora.NewOracleError(942))),
+		"ORA-00942 must be detected through fmt.Errorf wrapping")
+
+	assert.False(t, isErrTableNotExist(goora.NewOracleError(904)),
+		"ORA-00904 is a different error and must not match")
 }
 
 // TestDbTypeNameFromKind tests the type mapping from kind to Oracle types.

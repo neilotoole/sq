@@ -5,6 +5,8 @@ package orshared
 import (
 	"errors"
 
+	goora "github.com/sijms/go-ora/v2/network"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/driver"
 )
@@ -15,20 +17,28 @@ const (
 	ErrCodeInvalidIdentifier = 904 // ORA-00904: invalid identifier
 )
 
+// errCode reports the ORA-NNNNN code carried by err, or 0 if err does not
+// originate from a recognised Oracle wire driver.
+//
+// go-ora exposes the code as the exported field network.OracleError.ErrCode
+// (no Code() accessor), so a method-set type assertion does not match.
+func errCode(err error) int {
+	var oraErr *goora.OracleError
+	if errors.As(err, &oraErr) {
+		return oraErr.ErrCode
+	}
+	return 0
+}
+
 // Wrap converts driver errors to sq error types where applicable.
 func Wrap(err error) error {
 	if err == nil {
 		return nil
 	}
 
-	var oraErr interface{ Code() int }
-	if errors.As(err, &oraErr) {
-		code := oraErr.Code()
-
-		switch code {
-		case ErrCodeTableNotFound, ErrCodeInvalidIdentifier:
-			return driver.NewNotExistError(err)
-		}
+	switch errCode(err) {
+	case ErrCodeTableNotFound, ErrCodeInvalidIdentifier:
+		return driver.NewNotExistError(err)
 	}
 
 	return errz.Err(err)
@@ -36,16 +46,10 @@ func Wrap(err error) error {
 
 // HasErrCode reports whether err is an Oracle error with the given code.
 func HasErrCode(err error, code int) bool {
-	if err == nil {
+	if err == nil || code == 0 {
 		return false
 	}
-
-	var oraErr interface{ Code() int }
-	if errors.As(err, &oraErr) {
-		return oraErr.Code() == code
-	}
-
-	return false
+	return errCode(err) == code
 }
 
 // IsErrTableNotExist reports ORA-00942.
