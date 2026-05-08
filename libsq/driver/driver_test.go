@@ -651,9 +651,17 @@ func TestGrip_SourceMetadata_concurrent(t *testing.T) { //nolint:tparallel
 					md, err := grip.SourceMetadata(gCtx, false)
 					require.NoError(t, err)
 					require.NotNil(t, md)
-					gotTbl := md.Table(sakila.TblActor)
-					require.NotNil(t, gotTbl)
-					require.Equal(t, int64(sakila.TblActorCount), gotTbl.RowCount)
+					// Oracle returns identifiers in their stored case (upper for
+					// unquoted), so look up the table case-insensitively.
+					var found bool
+					for _, tbl := range md.Tables {
+						if strings.EqualFold(tbl.Name, sakila.TblActor) {
+							found = true
+							require.Equal(t, int64(sakila.TblActorCount), tbl.RowCount)
+							break
+						}
+					}
+					require.True(t, found, "table %q not in metadata", sakila.TblActor)
 					return nil
 				})
 			}
