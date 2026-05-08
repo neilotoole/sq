@@ -116,6 +116,25 @@ exporting test-only symbols.
    result sets.
 6. **Synonyms** — not resolved yet.
 
+### Known limitations
+
+Some `kind.Kind` values cannot roundtrip exactly through Oracle because
+the database lacks distinct native equivalents:
+
+| sq Kind     | Created as  | Read back as    | Notes                |
+| ----------- | ----------- | --------------- | -------------------- |
+| `kind.Date` | `DATE`      | `kind.Datetime` | Includes time-of-day |
+| `kind.Time` | `TIMESTAMP` | `kind.Datetime` | No time-only type    |
+
+Oracle's `DATE` is effectively a small datetime (precision down to seconds),
+so a `kind.Date` column round-trips back as `kind.Datetime`. Oracle has no
+standalone time-only type, so `kind.Time` is stored as `TIMESTAMP` and also
+returns as `kind.Datetime`. See [`render.go`](./render.go) for the full
+type mapping.
+
+The cross-driver `TestDriver_CreateTable_Minimal`, which asserts exact
+kind-roundtrip fidelity, is skipped for Oracle for this reason.
+
 ## Implementation files
 
 | File | Purpose |
