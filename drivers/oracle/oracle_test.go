@@ -569,3 +569,78 @@ func TestSakilaCrossDatabase(t *testing.T) {
 
 	log.Info("Cross-database test completed successfully")
 }
+
+// TestTableMetadata_DispatchByObjectType is a regression test covering both:
+//
+//   - The OWNER-column bug in getTableMetadata (USER_TABLES does not have an
+//     OWNER column, so the prior query raised ORA-00904 on every base table).
+//   - The dispatcher bug in grip.TableMetadata (it always called
+//     getTableMetadata, so inspecting a view failed with
+//     "sql: no rows in result set").
+//
+// It also serves as a high-level regression for the kindFromDBTypeName fix:
+// every column in a SAKILA view has a parameterized type (VARCHAR2(N) etc.)
+// and must resolve to a known kind rather than kind.Unknown.
+//
+// The test assumes the standard SAKILA fixture (table "actor", view
+// "customer_list").
+func TestTableMetadata_DispatchByObjectType(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	skipIfNoOracle(t)
+
+	ctx := context.Background()
+	log := slog.Default()
+	ctx = lg.NewContext(ctx, log)
+
+	provider := &oracle.Provider{Log: log}
+	drvr, err := provider.DriverFor(drivertype.Oracle)
+	require.NoError(t, err)
+
+	src := getTestSource(t)
+	grip, err := drvr.Open(ctx, src)
+	require.NoError(t, err)
+	defer grip.Close()
+
+	t.Run("table", func(t *testing.T) {
+		md, err := grip.TableMetadata(ctx, "actor")
+		require.NoError(t, err, "inspecting a base table must succeed")
+		require.NotNil(t, md)
+		assert.Equal(t, "actor", md.Name)
+		assert.Equal(t, "table", md.TableType)
+		assert.Equal(t, "TABLE", md.DBTableType)
+		assert.NotEmpty(t, md.Columns, "actor should have columns")
+
+		// Regression for kindFromDBTypeName: no parameterized type should
+		// classify as kind.Unknown.
+		for _, col := range md.Columns {
+			assert.NotEqual(t, kind.Unknown, col.Kind,
+				"column %s (%s) classified as Unknown", col.Name, col.ColumnType)
+		}
+	})
+
+	t.Run("view", func(t *testing.T) {
+		md, err := grip.TableMetadata(ctx, "customer_list")
+		require.NoError(t, err, "inspecting a view must succeed")
+		require.NotNil(t, md)
+		assert.Equal(t, "customer_list", md.Name)
+		assert.Equal(t, "view", md.TableType)
+		assert.Equal(t, "VIEW", md.DBTableType)
+		assert.NotEmpty(t, md.Columns)
+
+		// customer_list is composed entirely of VARCHAR2(N) and NUMBER
+		// columns; pre-fix, every VARCHAR2(N) classified as kind.Unknown.
+		for _, col := range md.Columns {
+			assert.NotEqual(t, kind.Unknown, col.Kind,
+				"column %s (%s) classified as Unknown", col.Name, col.ColumnType)
+		}
+	})
+
+	t.Run("missing object yields clean error", func(t *testing.T) {
+		_, err := grip.TableMetadata(ctx, "this_object_does_not_exist")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "does not exist",
+			"missing-object error should be descriptive, got: %v", err)
+	})
+}
