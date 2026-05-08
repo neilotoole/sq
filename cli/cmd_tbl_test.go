@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -8,6 +9,7 @@ import (
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 )
@@ -59,7 +61,14 @@ func TestCmdTblDrop(t *testing.T) { //nolint:tparallel
 
 			tblMeta, err := th.Open(src).TableMetadata(th.Context, destTblName)
 			require.NoError(t, err) // verify that the table exists
-			require.Equal(t, destTblName, tblMeta.Name)
+			// Oracle returns identifiers in their stored case (upper for
+			// unquoted), so compare table names case-insensitively.
+			if src.Type == drivertype.Oracle {
+				require.True(t, strings.EqualFold(destTblName, tblMeta.Name),
+					"table name got %q want ~%q", tblMeta.Name, destTblName)
+			} else {
+				require.Equal(t, destTblName, tblMeta.Name)
+			}
 			require.Equal(t, int64(sakila.TblActorCount), tblMeta.RowCount)
 
 			err = testrun.New(th.Context, t, nil).Add(*src).Exec("tbl", "drop", src.Handle+"."+destTblName)

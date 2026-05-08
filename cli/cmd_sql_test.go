@@ -16,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -198,9 +199,16 @@ func TestCmdSQL_ExecMode(t *testing.T) {
 						require.Len(t, results, len(tc.wantQueryVals),
 							"expected %d rows, got %d", len(tc.wantQueryVals), len(results))
 
+						// Oracle stores unquoted identifiers in upper case, so
+						// the JSON key for the projected column is "NAME".
+						nameCol := "name"
+						if src.Type == drivertype.Oracle {
+							nameCol = "NAME"
+						}
+
 						for i, wantVal := range tc.wantQueryVals {
-							gotVal, ok := results[i]["name"].(string)
-							require.True(t, ok, "expected 'name' column to be string")
+							gotVal, ok := results[i][nameCol].(string)
+							require.True(t, ok, "expected %q column to be string", nameCol)
 							require.Equal(t, wantVal, gotVal,
 								"row %d: expected name=%q, got %q", i, wantVal, gotVal)
 						}
