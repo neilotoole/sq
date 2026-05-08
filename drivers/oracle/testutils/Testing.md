@@ -38,7 +38,7 @@ integration DSN with `SQ_TEST_ORACLE_DSN`.
 For [`libsq/driver`](../../../libsq/driver) and related packages, set:
 
 ```bash
-export SQ_TEST_SRC__SAKILA_ORA=localhost:1521/FREEPDB1
+export SQ_TEST_SRC__SAKILA_ORA=localhost:1521/SAKILA
 ```
 
 Use any reachable host/port/service that matches
@@ -73,8 +73,8 @@ To run explicitly against `sakiladb/oracle`, for example:
 
 ```bash
 ORACLE_IMAGE=sakiladb/oracle:latest \
-ORACLE_HEALTHCHECK_DSN=sakila/p_ssW0rd@//localhost:1521/FREEPDB1 \
-SQ_TEST_ORACLE_DSN=oracle://sakila:p_ssW0rd@localhost:1521/FREEPDB1 \
+ORACLE_HEALTHCHECK_DSN=sakila/p_ssW0rd@//localhost:1521/SAKILA \
+SQ_TEST_ORACLE_DSN=oracle://sakila:p_ssW0rd@localhost:1521/SAKILA \
 ./test-integration.sh
 ```
 
@@ -86,7 +86,7 @@ SQ_TEST_ORACLE_DSN=oracle://sakila:p_ssW0rd@localhost:1521/FREEPDB1 \
   succeeds.
 - Wait until `docker compose ps` shows the oracle service healthy.
 - Confirm `SQ_TEST_ORACLE_DSN` matches your listener (default uses
-  `localhost:1521` and PDB `FREEPDB1`).
+  `localhost:1521` and PDB `SAKILA`).
 
 **Port 1521 already in use**
 

@@ -358,7 +358,7 @@ For local Oracle with Sakila sample data, run
 [`sakiladb/oracle`](https://github.com/sakiladb/oracle) (see Docker Hub
 `sakiladb/oracle`) or start the compose stack in
 [`drivers/oracle/testutils/docker-compose.yml`](drivers/oracle/testutils/docker-compose.yml).
-Then set `SQ_TEST_SRC__SAKILA_ORA` to `localhost:1521/FREEPDB1` (or your host
+Then set `SQ_TEST_SRC__SAKILA_ORA` to `localhost:1521/SAKILA` (or your host
 and PDB). The Go driver is pure Go ([go-ora](https://github.com/sijms/go-ora));
 no Instant Client is required. When Oracle is reachable, you can narrow
 regression runs, for example:

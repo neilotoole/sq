@@ -31,7 +31,7 @@ import (
 
 const (
 	// Default test DSN matches docker-compose (sakiladb/oracle).
-	testDSN = "oracle://sakila:p_ssW0rd@localhost:1521/FREEPDB1"
+	testDSN = "oracle://sakila:p_ssW0rd@localhost:1521/SAKILA"
 )
 
 // skipIfNoOracle skips the test if Oracle is not available.

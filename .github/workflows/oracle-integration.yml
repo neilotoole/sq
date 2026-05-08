@@ -44,8 +44,8 @@ jobs:
       - name: Oracle driver integration tests
         shell: bash
         env:
-          SQ_TEST_SRC__SAKILA_ORA: localhost:1521/FREEPDB1
-          SQ_TEST_ORACLE_DSN: oracle://sakila:p_ssW0rd@localhost:1521/FREEPDB1
+          SQ_TEST_SRC__SAKILA_OR23: localhost
+          SQ_TEST_ORACLE_DSN: oracle://sakila:p_ssW0rd@localhost:1521/SAKILA
         run: |
           set -euo pipefail
           go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v \

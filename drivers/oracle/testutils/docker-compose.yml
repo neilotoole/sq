@@ -4,7 +4,7 @@ services:
     ports:
       - "1521:1521"
     healthcheck:
-      test: ["CMD-SHELL", "sqlplus -L ${ORACLE_HEALTHCHECK_DSN:-sakila/p_ssW0rd@//localhost:1521/FREEPDB1} @/dev/null"]
+      test: ["CMD-SHELL", "sqlplus -L ${ORACLE_HEALTHCHECK_DSN:-sakila/p_ssW0rd@//localhost:1521/SAKILA} @/dev/null"]
       interval: 15s
       timeout: 10s
       retries: 40

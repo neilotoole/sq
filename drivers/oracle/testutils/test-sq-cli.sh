@@ -29,7 +29,7 @@ if [ -z "${SQ_BINARY:-}" ]; then
         SQ_BINARY="sq"  # Will fail later with helpful error message
     fi
 fi
-ORACLE_DSN="${ORACLE_DSN:-oracle://sakila:p_ssW0rd@localhost:1521/FREEPDB1}"
+ORACLE_DSN="${ORACLE_DSN:-oracle://sakila:p_ssW0rd@localhost:1521/SAKILA}"
 POSTGRES_DSN="${POSTGRES_DSN:-postgres://testuser:testpass@localhost:5432/sakila?sslmode=disable}"
 TEST_TABLE_PREFIX="SQ_TEST"
 
