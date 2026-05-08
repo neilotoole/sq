@@ -1235,7 +1235,7 @@ import (
     "github.com/neilotoole/sq/libsq/core/stringz"
     "log/slog"
 
-    _ "github.com/godror/godror" // Oracle driver
+    _ "github.com/sijms/go-ora/v2" // Oracle driver (database/sql name "oracle").
 )
 
 // Provider is the Oracle driver provider
@@ -1258,7 +1258,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
     return driver.Metadata{
         Type:        drivertype.Oracle,
         Description: "Oracle Database",
-        Doc:         "https://github.com/godror/godror",
+        Doc:         "https://github.com/sijms/go-ora",
         IsSQL:       true,
     }
 }
@@ -1271,7 +1271,8 @@ func (d *driveri) Dialect() dialect.Dialect {
         Joins:          jointype.All(),
         MaxBatchValues: 1000,
         Ops:            dialect.DefaultOps(),
-        Catalog:        false,  // Oracle uses schemas, not catalogs
+        Catalog:        false,   // Oracle uses schemas, not catalogs
+        IntBool:        true,    // BOOLEAN emulated as NUMBER(1,0)
     }
 }
 
@@ -1300,7 +1301,7 @@ func (d *driveri) Renderer() *render.Renderer {
 
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
     // Open Oracle connection
-    db, err := sql.Open("godror", src.Location)
+    db, err := sql.Open("oracle", src.Location)
     if err != nil {
         return nil, errz.Wrap(err, "open oracle connection")
     }

@@ -25,11 +25,16 @@ sq add 'oracle://user:password@host:1521/service_name'
 
 ## Connection string format
 
+The backing driver is pure Go ([go-ora](https://github.com/sijms/go-ora)).
+Use URL-style locations only:
+
 ```text
 oracle://username:password@hostname:1521/service_name
 oracle://username:password@hostname/service_name
-oracle://username:password@tns_alias
 ```
+
+`TNSNAMES.ora` aliases, Oracle Wallet, and Kerberos are not handled here.
+Those setups typically require Oracle client tooling or another SQL CLI.
 
 ## Notes
 
@@ -58,11 +63,21 @@ links) are not implemented yet.
 `SYS_CONTEXT`. The `version` field prefers `v$instance` and falls back to
 `v$version` when `v$instance` is not readable.
 
+### Database-specific quirks
+
+- **Transactions**: Same defaults as other SQL drivers via `database/sql`; DDL
+  commits open transactions.
+- **TRUNCATE** (`sq tbl` truncate): Oracle ignores identity sequence reset in
+  the sense of other databases; the driver's `reset` flag maps to
+  `DROP STORAGE` vs `REUSE STORAGE` on `TRUNCATE TABLE`.
+- **Empty strings**: Oracle treats empty string as `NULL`.
+- **`CREATE TABLE`**: Defaults avoid unsupported constructs (for example,
+  `EMPTY_BLOB()` cannot be used as a literal default); Oracle rejects defaults
+  some drivers accept elsewhere.
+
 ### Requirements
 
-The Oracle driver depends on
-[godror](https://github.com/godror/godror), which requires Oracle Instant
-Client.
+No Oracle Instant Client is required. The driver speaks Oracle Net in pure Go.
 
 ## Related
 

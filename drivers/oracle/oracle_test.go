@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	_ "github.com/sijms/go-ora/v2" // Registers database/sql driver name "oracle".
+
 	"github.com/neilotoole/sq/drivers/oracle"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -28,8 +30,8 @@ import (
 )
 
 const (
-	// Default test connection string for Oracle Free Docker.
-	testDSN = "oracle://testuser:testpass@localhost:1521/FREEPDB1"
+	// Default test DSN matches docker-compose (sakiladb/oracle).
+	testDSN = "oracle://sakila:p_ssW0rd@localhost:1521/FREEPDB1"
 )
 
 // skipIfNoOracle skips the test if Oracle is not available.
@@ -41,9 +43,9 @@ func skipIfNoOracle(t *testing.T) {
 	if dsn == "" {
 		dsn = testDSN
 	}
-	db, err := sql.Open("godror", dsn)
+	db, err := sql.Open("oracle", dsn)
 	if err != nil {
-		t.Skipf("Oracle not available: %v", err)
+		t.Skipf("Oracle driver open failed: %v", err)
 		return
 	}
 	defer db.Close()
@@ -54,66 +56,24 @@ func skipIfNoOracle(t *testing.T) {
 	if err = db.PingContext(pingCtx); err != nil {
 		errMsg := err.Error()
 
-		// Check for missing Oracle Instant Client library (DPI-1047)
-		if strings.Contains(errMsg, "DPI-1047") || strings.Contains(errMsg, "libclntsh") {
-			// Check for architecture mismatch (x86_64 vs arm64)
-			if strings.Contains(errMsg, "incompatible architecture") {
-				t.Skip(`Oracle Instant Client architecture mismatch.
+		// Check for connection refused (Oracle database not running).
+		if strings.Contains(errMsg, "connection refused") ||
+			strings.Contains(errMsg, "ORA-12541") ||
+			strings.Contains(errMsg, "no such host") ||
+			strings.Contains(errMsg, "i/o timeout") {
+			t.Skip(`Oracle database not reachable.
 
-You have an x86_64 (Intel) version installed, but need ARM64 (Apple Silicon).
+Start a local instance:
+  cd drivers/oracle/testutils && docker compose up -d
 
-To fix:
-  1. Uninstall x86_64 version: brew uninstall instantclient-basic
-  2. Download ARM64 version from:
-     https://www.oracle.com/database/technologies/instant-client/macos-arm64-downloads.html
-  3. Extract and install:
-     sudo mkdir -p /opt/oracle
-     unzip ~/Downloads/instantclient-basic-macos.arm64-*.zip -d /opt/oracle
-     mv /opt/oracle/instantclient_* /opt/oracle/instantclient
-  4. Set library path:
-     echo 'export DYLD_LIBRARY_PATH=/opt/oracle/instantclient:$DYLD_LIBRARY_PATH' >> ~/.zshrc
-     source ~/.zshrc
+If docker pull for sakiladb/oracle is denied in your environment, the test
+scripts auto-build a local image from github.com/sakiladb/oracle.
 
-See drivers/oracle/testutils/Testing.md for full setup instructions.`)
-				return
-			}
-
-			t.Skip(`Oracle Instant Client not installed.
-
-To run Oracle integration tests, install Oracle Instant Client:
-
-  macOS (Apple Silicon / ARM64):
-    Download from: https://www.oracle.com/database/technologies/instant-client/macos-arm64-downloads.html
-    Extract and set: export DYLD_LIBRARY_PATH=/path/to/instantclient:$DYLD_LIBRARY_PATH
-
-  macOS (Intel x86_64):
-    brew tap InstantClientTap/instantclient
-    brew install instantclient-basic
-
-  Linux:
-    See: https://oracle.github.io/odpi/doc/installation.html#linux
-
-Unit tests (go test -short) do not require Oracle Instant Client.
-See drivers/oracle/testutils/Testing.md for full setup instructions.`)
+Then set SQ_TEST_ORACLE_DSN if not using the default DSN. See
+drivers/oracle/testutils/Testing.md.`)
 			return
 		}
 
-		// Check for connection refused (Oracle database not running)
-		if strings.Contains(errMsg, "connection refused") || strings.Contains(errMsg, "ORA-12541") {
-			t.Skip(`Oracle database not reachable at localhost:1521.
-
-To start Oracle database:
-  cd drivers/oracle/testutils
-  docker-compose up -d
-
-Wait 1-2 minutes for Oracle to initialize, then check status:
-  docker-compose ps
-
-See drivers/oracle/testutils/Testing.md for full setup instructions.`)
-			return
-		}
-
-		// Generic skip message for other errors
 		t.Skipf("Oracle not available: %v", err)
 		return
 	}

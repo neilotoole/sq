@@ -29,12 +29,9 @@ if [ -z "${SQ_BINARY:-}" ]; then
         SQ_BINARY="sq"  # Will fail later with helpful error message
     fi
 fi
-ORACLE_DSN="${ORACLE_DSN:-oracle://testuser:testpass@localhost:1521/FREEPDB1}"
+ORACLE_DSN="${ORACLE_DSN:-oracle://sakila:p_ssW0rd@localhost:1521/FREEPDB1}"
 POSTGRES_DSN="${POSTGRES_DSN:-postgres://testuser:testpass@localhost:5432/sakila?sslmode=disable}"
 TEST_TABLE_PREFIX="SQ_TEST"
-
-# Set up Oracle Instant Client
-setup_oracle_instant_client || true
 
 # ==============================================================================
 # SQ-Specific Functions
@@ -77,11 +74,13 @@ check_prerequisites() {
 
 # Start database containers (Oracle and Postgres)
 start_containers() {
+    ensure_oracle_image
+
     log "Starting Containers"
     start_services oracle postgres
 
     # Wait for Oracle to be healthy
-    if ! wait_for_healthy "oracle" 180; then
+    if ! wait_for_healthy "oracle" 300; then
         log_error "Oracle did not become ready in time"
         return 1
     fi

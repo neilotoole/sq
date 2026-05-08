@@ -1,19 +1,14 @@
 services:
   oracle:
-    image: gvenzl/oracle-free:23-slim
+    image: ${ORACLE_IMAGE:-sakiladb/oracle:latest}
     ports:
       - "1521:1521"
-    environment:
-      ORACLE_PASSWORD: oracle_password
-      APP_USER: testuser
-      APP_USER_PASSWORD: testpass
-    volumes:
-      - oracle-data:/opt/oracle/oradata
     healthcheck:
-      test: ["CMD", "sqlplus", "-L", "testuser/testpass@//localhost:1521/FREEPDB1", "@/dev/null"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      test: ["CMD-SHELL", "sqlplus -L ${ORACLE_HEALTHCHECK_DSN:-sakila/p_ssW0rd@//localhost:1521/FREEPDB1} @/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 40
+      start_period: 120s
 
   postgres:
     image: postgres:15-alpine
@@ -33,5 +28,4 @@ services:
       retries: 5
 
 volumes:
-  oracle-data:
   postgres-data:

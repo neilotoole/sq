@@ -61,7 +61,7 @@ xlsx        Microsoft Excel XLSX
 > found in the [ClickHouse README](drivers/clickhouse/README.md).
 
 > [!NOTE]
-> **Oracle Driver (Experimental):** Oracle Database support is experimental. It requires Oracle Instant Client to be installed on your system. See the [Oracle driver docs](drivers/oracle/README.md) for installation and setup instructions.
+> **Oracle Driver (Experimental):** Oracle Database support is experimental. The driver uses pure Go ([go-ora](https://github.com/sijms/go-ora)) and does not require Oracle Instant Client. See the [Oracle driver docs](drivers/oracle/README.md) for setup.
 
 ## Install
 

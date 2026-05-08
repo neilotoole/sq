@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/godror/godror"
+	_ "github.com/sijms/go-ora/v2" // Registers database/sql driver name "oracle".
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
@@ -54,16 +54,15 @@ type driveri struct {
 }
 
 // ConnParams implements driver.SQLDriver.
+// go-ora accepts additional settings as URL query parameters; see:
+// https://github.com/sijms/go-ora
 func (d *driveri) ConnParams() map[string][]string {
-	// Oracle connection parameters
-	// godror supports many Oracle-specific parameters
 	return map[string][]string{
-		"connectionClass":      nil,
-		"poolMinSessions":      {"0"},
-		"poolMaxSessions":      {"1000"},
-		"poolIncrement":        {"1"},
-		"timezone":             nil,
-		"standaloneConnection": {"0", "1"},
+		"SSL":                {"false", "true"},
+		"ssl":                {"false", "true"},
+		"wallet":             nil,
+		"TRACE FILE":         nil,
+		"CONNECTION TIMEOUT": {"30"},
 	}
 }
 
@@ -77,7 +76,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
 		Type:        drivertype.Oracle,
 		Description: "Oracle",
-		Doc:         "https://github.com/godror/godror",
+		Doc:         "https://github.com/sijms/go-ora",
 		IsSQL:       true,
 		DefaultPort: 1521,
 	}
@@ -94,6 +93,8 @@ func (d *driveri) Dialect() dialect.Dialect {
 		Ops:            dialect.DefaultOps(),
 		Joins:          jointype.All(),
 		Catalog:        false, // Oracle uses schemas only
+		// BOOLEAN is emulated as NUMBER(1,0); drivers typically scan as integer.
+		IntBool: true,
 	}
 }
 
@@ -188,17 +189,12 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
 	ctx = options.NewContext(ctx, src.Options)
 
-	// Parse Oracle connection string
-	// godror expects: user/password@host:port/service_name
-	// or TNS alias: user/password@tnsalias
-	params, err := godror.ParseConnString(src.Location)
+	// go-ora expects a URL such as:
+	// oracle://user:password@host:1521/service_name
+	db, err := sql.Open("oracle", src.Location)
 	if err != nil {
 		return nil, errw(err)
 	}
-
-	// Open database connection using godror connector
-	// Note: Connection timeout is handled via context timeout at higher levels
-	db := sql.OpenDB(godror.NewConnector(params))
 	driver.ConfigureDB(ctx, db, src.Options)
 
 	return db, nil
@@ -582,8 +578,8 @@ func (d *driveri) RecordMeta(
 	for i, colType := range colTypes {
 		knd := kindFromDBTypeName(d.log, colType.Name(), colType.DatabaseTypeName())
 		// Refine bare NUMBER using precision/scale from the column type metadata.
-		// godror returns "NUMBER" (without precision) from DatabaseTypeName(), so
-		// DecimalSize() is required to distinguish integer-range columns.
+		// The wire driver may return "NUMBER" (without precision) from
+		// DatabaseTypeName(), so DecimalSize() distinguishes integer-range columns.
 		if colType.DatabaseTypeName() == "NUMBER" && knd == kind.Decimal {
 			if precision, scale, ok := colType.DecimalSize(); ok && scale == 0 && precision > 0 && precision <= 19 {
 				knd = kind.Int

@@ -1,217 +1,153 @@
 # Oracle Database Driver for SQ
 
-Oracle database driver implementation for SQ using [godror](https://github.com/godror/godror).
+Oracle database driver implementation for SQ using pure Go
+[go-ora](https://github.com/sijms/go-ora) (`database/sql` driver name `oracle`).
+No Oracle Instant Client or CGO is required for Oracle connectivity.
 
 ## Status
 
-✅ **Core implementation complete** - All MVP features implemented and building successfully.
+Core implementation complete (inspect, sql, SLQ, table operations, Sakila test
+integration via [`sakiladb/oracle`](https://github.com/sakiladb/oracle)).
 
 ## Features Implemented
 
 ### Core Driver Features
 
-- ✅ Provider and Driver registration
-- ✅ Connection management via godror
-- ✅ Oracle-specific SQL dialect (`:1, :2, :3` placeholders, double-quote identifiers)
-- ✅ Error handling with Oracle error codes (ORA-xxxxx)
+- Provider and driver registration
+- Connection management via [go-ora](https://github.com/sijms/go-ora)
+- Oracle-specific SQL dialect (`:1, :2, :3` placeholders, double-quote
+  identifiers)
+- Error handling for selected Oracle error codes (ORA-xxxxx)
 
 ### Type System
 
-- ✅ Bidirectional type mapping (Oracle types ↔ kind.Kind)
-- ✅ Support for: NUMBER, VARCHAR2, CHAR, CLOB, BLOB, DATE, TIMESTAMP, BINARY_FLOAT, BINARY_DOUBLE
-- ✅ BOOLEAN emulation using NUMBER(1,0)
+- Bidirectional type mapping (Oracle types ↔ `kind.Kind`)
+- Support for: NUMBER, VARCHAR2, CHAR, CLOB, BLOB, DATE, TIMESTAMP,
+  BINARY_FLOAT, BINARY_DOUBLE
+- BOOLEAN emulation using NUMBER(1,0); dialect sets `IntBool` because values
+  scan as integers
 
 ### Metadata Operations
 
-- ✅ CurrentSchema() - Query current schema via SYS_CONTEXT
-- ✅ ListSchemas() - List user schemas from all_users
-- ✅ Schema inspection via Oracle data dictionary (`USER_TABLES`, `USER_VIEWS`,
-  `USER_MVIEWS`, `USER_TAB_COLUMNS`, `USER_CONSTRAINTS`)
-- ✅ Table and column metadata extraction
-- ✅ Primary key detection
-- ✅ Schema-scoped `ListTableNames()` via `ALL_TABLES` / `ALL_VIEWS` (`owner = :schema`)
+- `CurrentSchema()` via `SYS_CONTEXT`
+- `ListSchemas()` via `all_users`
+- Schema inspection via `USER_TABLES`, `USER_VIEWS`, `USER_MVIEWS`,
+  `USER_TAB_COLUMNS`, `USER_CONSTRAINTS`
+- Primary key detection
+- Schema-scoped `ListTableNames()` via `ALL_TABLES` / `ALL_MVIEWS` /
+  `ALL_VIEWS` (`owner = :schema`)
 
-### DDL Operations
+### DDL / DML / Query
 
-- ✅ CreateTable() - Generate and execute CREATE TABLE statements
-- ✅ DropTable() - DROP TABLE with CASCADE CONSTRAINTS
-- ✅ AlterTableAddColumn() - Add columns to existing tables
-- ✅ AlterTableRename() - Rename tables
-- ✅ AlterTableRenameColumn() - Rename columns
-- ✅ Truncate() - TRUNCATE TABLE with optional storage reset
+- Create/drop/alter/truncate/copy patterns aligned with other SQL drivers
+- Batch insert / update preparation
+- `TableColumnTypes` / `RecordMeta`
 
-### DML Operations
+## Connection string format
 
-- ✅ PrepareInsertStmt() - Batch inserts with proper placeholders
-- ✅ PrepareUpdateStmt() - UPDATE statements with WHERE clauses
-- ✅ CopyTable() - Create table copies with or without data
-
-### Query Operations
-
-- ✅ TableColumnTypes() - Extract column type information
-- ✅ RecordMeta() - Record metadata with proper scan types
-- ✅ TableExists() - Check table existence
-- ✅ ListTableNames() - List tables and views
-
-## Connection String Format
-
-Oracle connection strings supported by godror:
+Use URL locations only (same style as `sq add`):
 
 ```bash
 oracle://username:password@hostname:1521/service_name
 oracle://username:password@hostname/service_name
-oracle://username:password@tns_alias
 ```
+
+Optional query parameters follow go-ora URL rules (SSL, traces, timeouts); see
+[go-ora](https://github.com/sijms/go-ora). `TNSNAMES.ora`, Oracle Wallet, and
+Kerberos are out of scope for this driver.
 
 ## Testing
 
-**Quick Start:**
+**Quick start:**
 
 ```bash
 cd drivers/oracle
 
-# Run unit tests only (no database required)
+# Unit tests only (no database)
 go test -v -short
 
-# Run integration tests (requires Oracle Instant Client + Docker)
+# Integration tests (Docker; pulls sakiladb/oracle via compose)
 ./testutils/test-integration.sh
 
-# Run all tests including cross-database (requires Postgres too)
+# Include Postgres for cross-database tests
 ./testutils/test-integration.sh --with-pg
 ```
 
 ### `testh` / repo-wide tests
 
-When running `libsq` or other packages through `testh`, set
-`SQ_TEST_SRC__SAKILA_ORA` to the part of the DSN after `oracle://sakila:p_ssW0rd@`
-(host:port/service name, etc.), matching `testh/testdata/sources.sq.yml` for handle
-`@sakila_ora`. If unset, tests that require Oracle skip that source.
+Set `SQ_TEST_SRC__SAKILA_ORA` to the part of the DSN after
+`oracle://sakila:p_ssW0rd@` (for example `localhost:1521/FREEPDB1`), matching
+[`testh/testdata/sources.sq.yml`](../../testh/testdata/sources.sq.yml) handle
+`@sakila_ora`. Recommended database image:
+[`sakiladb/oracle`](https://github.com/sakiladb/oracle) (`docker run -p
+1521:1521 sakiladb/oracle:latest`).
 
-For detailed testing instructions, including:
+Details: **[Testing.md](./testutils/Testing.md)**
 
-- Unit vs integration test organization
-- `testutils/test-integration.sh` script usage
-- Oracle Instant Client installation
-- Manual Docker setup
-- Cross-database testing (Postgres → Oracle)
-- Troubleshooting
+### Test package layout
 
-See **[Testing.md](./testutils/Testing.md)**
+[`internal_test.go`](./internal_test.go) stays in `package oracle` to cover
+unexported helpers (`placeholders`, `kindFromOracleNumber`, …).
+[`oracle_test.go`](./oracle_test.go) uses `package oracle_test` for integration
+tests. This differs from some other drivers; it keeps helper coverage without
+exporting test-only symbols.
 
-## Oracle-Specific Notes
+## Oracle-specific notes
 
-### Key Differences from Other Databases
+### Quirks (transactions, DDL, TRUNCATE, defaults)
 
-1. **Schema = User**: In Oracle, schemas are tied to users. There's no separate `CREATE SCHEMA` command.
+- **Catalog**: Oracle has schemas, not catalogs; `catalog()` renders `NULL`.
+- **Transactions**: Ordinary `database/sql` semantics; DDL commits an open
+  transaction.
+- **`sq tbl ... --truncate`**: Oracle does not reset sequences via `TRUNCATE`;
+  the driver's `reset` option maps to `TRUNCATE TABLE ... DROP STORAGE` vs
+  `REUSE STORAGE`.
+- **Empty strings**: treated as `NULL`.
+- **`CREATE TABLE`**: Avoid unsupported defaults (Oracle rejects some literals
+  other databases allow).
 
-2. **DATE Type**: Oracle's DATE type includes time (equivalent to DATETIME in other databases).
+### Key differences (summary)
 
-3. **DUAL Table**: Oracle requires `FROM DUAL` for scalar queries.
+1. **Schema = user** — no separate `CREATE SCHEMA`.
+2. **DATE** includes time.
+3. **`FROM DUAL`** for scalar selects (handled in rendered SQL where needed).
+4. **Quoted identifiers** — uppercase quoting matches Oracle conventions.
+5. **NUMBER** mapping uses dictionary precision/scale and `DecimalSize()` for
+   result sets.
+6. **Synonyms** — not resolved yet.
 
-4. **Identifiers**: Oracle folds unquoted identifiers to uppercase. SQ uses double quotes consistently.
+## Implementation files
 
-5. **NUMBER Type Handling**:
+| File | Purpose |
+| ---- | ------- |
+| `oracle.go` | `SQLDriver`, connection, DDL/DML |
+| `metadata.go` | Data dictionary queries |
+| `render.go` | Type mapping and rendering |
+| `grip.go` | Grip |
+| `errors.go` | Delegates to `orshared` |
+| `orshared/wrap.go` | Shared Oracle error-code wrapping |
+| `internal_test.go` | Short/unit tests |
+| `testutils/docker-compose.yml` | Local Oracle + Postgres |
 
-   - `NUMBER(p,0)` with `p` in the range 1–19 is mapped to `kind.Int`.
-   - `NUMBER` without explicit precision, or `NUMBER(p,s)` with `s > 0`, is
-     mapped to `kind.Decimal`.
-   - For query results, precision/scale is obtained via `ColumnType.DecimalSize()`.
-   - For schema inspection, precision/scale is read from the data dictionary.
+## Common Oracle error codes
 
-6. **BOOLEAN**: Oracle has no native BOOLEAN type. Uses NUMBER(1,0) instead.
+| Code | Description | SQ handling |
+| ---- | ------------- | ----------- |
+| ORA-00942 | Table/view not found | `NotExistError` |
+| ORA-00904 | Invalid identifier | `NotExistError` |
 
-7. **Empty Strings**: Oracle treats empty strings as NULL.
-
-8. **LIMIT/OFFSET**: Oracle 12c+ syntax:
-
-   ```sql
-   SELECT * FROM table
-   OFFSET 10 ROWS FETCH NEXT 20 ROWS ONLY
-   ```
-
-9. **Metadata visibility model**:
-
-   - `SourceMetadata` reads `USER_*` dictionary views for the connected schema,
-     reports an empty `Catalog`, and includes **base tables**, **views**, and
-     **materialized views** (MVs use `DBTableType` `MATERIALIZED VIEW` and
-     `TableType` `table` for `TableCount`).
-   - `ListTableNames(schema=...)` reads `ALL_TABLES`, `ALL_MVIEWS`, and
-     `ALL_VIEWS` filtered by owner; the user must have visibility on those
-     catalogs.
-   - `TableExists` checks `USER_OBJECTS` for `TABLE`, `VIEW`, and
-     `MATERIALIZED VIEW`.
-   - **`DBProperties`** always returns `db_name` and `current_schema` from
-     `SYS_CONTEXT`. The `version` field prefers `v$instance.version` and falls
-     back to `v$version` when `v$instance` is not readable.
-   - **Synonyms** (resolving `all_synonyms` to base objects, including DB
-     links) are not implemented yet.
-
-10. **Logging**: If a table, view, or MV fails during bulk metadata collection,
-    `sq` logs a warning and continues with other objects (similar to Postgres).
-
-## Implementation Files
-
-| File                           | Lines | Purpose                                                   |
-| ------------------------------ | ----- | --------------------------------------------------------- |
-| `oracle.go`                    | ~650  | Main driver, SQLDriver implementation, DDL/DML operations |
-| `metadata.go`                  | ~230  | Data dictionary queries for schema/table/column metadata  |
-| `render.go`                    | ~120  | Type mapping and SQL generation                           |
-| `grip.go`                      | ~70   | Connection grip implementation                            |
-| `errors.go`                    | ~60   | Oracle error code handling                                |
-| `internal_test.go`             | ~80   | Unit tests                                                |
-| `testutils/docker-compose.yml` | ~20   | Docker setup for integration tests                        |
-
-## What's Not Included (Post-MVP)
-
-The following features were deferred for future implementation:
-
-- External tools (exp/imp, expdp/impdp wrappers)
-- Advanced Oracle features (partitioning, materialized views)
-- Oracle-specific optimizations (hints, parallel query)
-- Full DBMS_METADATA integration
-- Sequence management helpers
-- IDENTITY column support details
-- Advanced constraint handling
-
-## Usage Example
-
-```go
-import (
-    "github.com/neilotoole/sq/drivers/oracle"
-    "github.com/neilotoole/sq/libsq/driver"
-    "github.com/neilotoole/sq/libsq/source/drivertype"
-)
-
-// Register the Oracle driver
-registry.AddProvider(drivertype.Oracle, &oracle.Provider{Log: log})
-
-// Use with SQ
-// sq add oracle://user:pass@localhost:1521/service_name
-// sq inspect @oracle_handle
-// sq '.actor | .first_name, .last_name' @oracle_handle
-```
-
-## Common Oracle Error Codes
-
-| Code      | Description          | SQ Handling                     |
-| --------- | -------------------- | ------------------------------- |
-| ORA-00942 | Table/view not found | Converted to NotExistError      |
-| ORA-00955 | Object name exists   | Converted to AlreadyExistsError |
-| ORA-00904 | Invalid identifier   | Converted to NotExistError      |
-| ORA-01017 | Invalid credentials  | Authentication error            |
-| ORA-12516 | No available handler | Connection pooling issue        |
-| ORA-12541 | No listener          | Connection refused              |
+Other errors pass through with standard wrapping.
 
 ## Requirements
 
-- Oracle 12c or later
-- Oracle Instant Client (for godror)
-- Go 1.19 or later
+- Oracle Database (12c+; CI/examples use Oracle Database 23 Free via
+  `sakiladb/oracle`)
+- Go toolchain matching the main module
 
 ## Dependencies
 
-- `github.com/godror/godror` v0.40.3 - Oracle driver for Go
+- [`github.com/sijms/go-ora/v2`](https://github.com/sijms/go-ora)
 
 ## License
 
-Same as main SQ project.
+Same as the main SQ project.

@@ -6,7 +6,6 @@
 # - Docker Compose detection and management
 # - Container lifecycle (start, stop, wait for healthy)
 # - Prerequisite checking
-# - Oracle Instant Client configuration
 #
 # Usage:
 #   source "${SCRIPT_DIR}/common.bash"
@@ -59,20 +58,57 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# ==============================================================================
-# Oracle Instant Client Configuration
-# ==============================================================================
+# Ensure that ORACLE_IMAGE is available locally.
+# The default is sakiladb/oracle:latest. If pull fails (e.g. private image),
+# we can build it locally from github.com/sakiladb/oracle.
+ensure_oracle_image() {
+    local image="${ORACLE_IMAGE:-sakiladb/oracle:latest}"
 
-# Set up Oracle Instant Client library path (macOS)
-# Call this before running any Oracle-related commands
-setup_oracle_instant_client() {
-    if [ -d "/opt/oracle/instantclient" ]; then
-        export DYLD_LIBRARY_PATH="/opt/oracle/instantclient:${DYLD_LIBRARY_PATH:-}"
-        log_indent log_dim "Oracle instant client found in ${DIM}/opt/oracle/instantclient${RESET}"
-        log_indent log_dim "DYLD_LIBRARY_PATH set to ${DIM}$DYLD_LIBRARY_PATH${RESET}"
+    if docker image inspect "$image" >/dev/null 2>&1; then
+        log_dim "Using local Oracle image: $image"
         return 0
     fi
-    return 1
+
+    log_dim "Attempting to pull Oracle image: $image"
+    if docker pull "$image" >/dev/null 2>&1; then
+        log_success "Pulled Oracle image: $image"
+        return 0
+    fi
+
+    # Only auto-build for sakiladb/oracle tags.
+    case "$image" in
+        sakiladb/oracle:*)
+            ;;
+        *)
+            log_error "Unable to pull Oracle image: $image"
+            log "Set ORACLE_IMAGE to a reachable image (or pre-load it locally)."
+            return 1
+            ;;
+    esac
+
+    if ! command_exists git; then
+        log_error "Cannot auto-build $image: git is not installed"
+        return 1
+    fi
+
+    local build_dir="${TMPDIR:-/tmp}/sq-sakiladb-oracle"
+    log_warning "Could not pull $image; building locally from github.com/sakiladb/oracle"
+
+    if [ -d "$build_dir/.git" ]; then
+        git -C "$build_dir" fetch --depth 1 origin master >/dev/null 2>&1 || true
+        git -C "$build_dir" reset --hard origin/master >/dev/null 2>&1 || true
+    else
+        rm -rf "$build_dir"
+        git clone --depth 1 https://github.com/sakiladb/oracle "$build_dir" >/dev/null 2>&1
+    fi
+
+    if ! docker build -t "$image" "$build_dir" >/dev/null; then
+        log_error "Failed to build local Oracle image: $image"
+        return 1
+    fi
+
+    log_success "Built local Oracle image: $image"
+    return 0
 }
 
 # ==============================================================================

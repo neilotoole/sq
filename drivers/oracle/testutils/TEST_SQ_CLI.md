@@ -35,7 +35,8 @@ The `test-sq-cli.sh` script validates the Oracle driver by running real-world op
 
 - Docker and Docker Compose installed and running
 - `sq` binary built and available
-- Oracle Instant Client installed (for connecting to Oracle)
+
+The Oracle driver is pure Go; no Instant Client installation is required.
 
 ## Usage
 
@@ -72,7 +73,7 @@ The script supports the following environment variables:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SQ_BINARY` | `$GOPATH/bin/sq` or `sq` from `PATH` | Path to sq binary |
-| `ORACLE_DSN` | `oracle://testuser:testpass@localhost:1521/FREEPDB1` | Oracle connection string |
+| `ORACLE_DSN` | `oracle://sakila:p_ssW0rd@localhost:1521/FREEPDB1` | Oracle connection string |
 | `POSTGRES_DSN` | `postgres://testuser:testpass@localhost:5432/sakila?sslmode=disable` | Postgres connection string |
 
 ## Test Sequence
@@ -203,12 +204,14 @@ SQ_BINARY=/correct/path/to/sq ./test-sq-cli.sh
 **Solution**:
 1. Ensure containers are running: `docker-compose ps`
 2. Check container logs: `docker-compose logs oracle`
-3. Verify connection strings are correct
-4. Ensure Oracle Instant Client is installed
+3. Verify connection strings match `docker-compose.yml` (default Oracle user is
+   `sakila`). No Instant Client is required for `sq`.
+4. If `sakiladb/oracle` pull is denied, rerun and let scripts auto-build from
+   `github.com/sakiladb/oracle`.
 
 ### Tests fail intermittently
 
-If tests fail due to timing issues, the containers may not be fully ready. The script waits up to 180s for Oracle and 60s for Postgres. If you have a slower system, you may need to adjust these timeouts in the script.
+If tests fail due to timing issues, the containers may not be fully ready. The script waits up to 300s for Oracle and 60s for Postgres. If you have a slower system, you may need to adjust these timeouts in the script.
 
 ## Comparison with Integration Tests
 

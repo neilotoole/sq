@@ -99,6 +99,9 @@ start_containers() {
         services="oracle postgres"
     fi
 
+    # Ensure Oracle image exists locally (pull, or build from sakiladb/oracle).
+    ensure_oracle_image
+
     log "Starting Containers"
 
     start_services $services
@@ -112,9 +115,6 @@ stop_containers() {
 # Function to run tests
 run_tests() {
     log "Running integration tests..."
-
-    # Set up Oracle Instant Client
-    setup_oracle_instant_client || true
 
     # Build test command - run from driver directory where Go files are located
     local test_cmd="go test -v -timeout $TIMEOUT"
@@ -162,7 +162,7 @@ main() {
     log ""
 
     # Wait for Oracle to be healthy
-    if ! wait_for_healthy "oracle" 180; then
+    if ! wait_for_healthy "oracle" 300; then
         log_error "Oracle failed to become healthy"
         show_service_logs oracle 50
         stop_containers

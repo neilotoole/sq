@@ -17,7 +17,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 ### Added
 
 - 🐥 Experimental [Oracle Database](https://www.oracle.com/database/) driver
-  (`oracle`) using [godror](https://github.com/godror/godror). See the
+  (`oracle`) using pure Go [go-ora](https://github.com/sijms/go-ora). See the
   [Oracle driver documentation](https://sq.io/docs/drivers/oracle/).
   - Source metadata loads base tables, views, and materialized views from the
     current schema (`USER_TABLES`, `USER_VIEWS`, `USER_MVIEWS`) and reports
@@ -33,6 +33,12 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     row ranges (with `ORDER BY` ensured when a range is used), and dialect
     `ExecModeFor` / `NewBatchInsert` aligned with other SQL drivers.
     [@drluckyspin](https://github.com/drluckyspin)
+
+### Changed
+
+- Oracle (`oracle`) database/sql backing switched from [godror](https://github.com/godror/godror)
+  (OCI / Instant Client) to [go-ora](https://github.com/sijms/go-ora). URLs remain
+  `oracle://user:pass@host:port/service`; Instant Client is no longer required.
 
 ## [v0.50.2] - 2026-04-24
 
