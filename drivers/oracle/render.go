@@ -42,22 +42,32 @@ func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind 
 		// Callers with access to precision/scale (e.g. via ColumnType.DecimalSize()
 		// or data dictionary columns) should refine this to kind.Int when appropriate.
 		return kind.Decimal
-	case "VARCHAR2", "NVARCHAR2", "CHAR", "NCHAR":
+	case "VARCHAR2", "NVARCHAR2", "CHAR", "NCHAR", "VARCHAR", "LONG", "LONGVARCHAR":
 		return kind.Text
-	case "CLOB", "NCLOB":
+	case "CLOB", "NCLOB", "OCICLOBLOCATOR", "OCISTRING":
 		return kind.Text
-	case "BLOB":
+	case "BLOB", "OCIBLOBLOCATOR", "OCIFILELOCATOR":
 		return kind.Bytes
-	case "RAW", "LONG RAW":
+	case "RAW", "LONG RAW", "VARRAW", "LONGRAW", "LONGVARRAW":
 		return kind.Bytes
-	case "DATE":
+	case "DATE", "OCIDATE":
 		// Oracle DATE includes time (equivalent to DATETIME)
 		return kind.Datetime
-	case "TIMESTAMP", "TIMESTAMP WITH TIME ZONE", "TIMESTAMP WITH LOCAL TIME ZONE":
+	// Data-dictionary forms come from USER_TAB_COLUMNS; the *DTY variants
+	// come from the go-ora wire driver's ColumnType.DatabaseTypeName().
+	case "TIMESTAMP", "TIMESTAMP WITH TIME ZONE", "TIMESTAMP WITH LOCAL TIME ZONE",
+		"TIMESTAMPDTY", "TIMESTAMPTZ", "TIMESTAMPTZ_DTY",
+		"TIMESTAMPLTZ_DTY", "TIMESTAMPELTZ":
 		return kind.Datetime
-	case "BINARY_FLOAT", "BINARY_DOUBLE", "FLOAT":
+	case "TIMETZ":
+		return kind.Time
+	case "BINARY_FLOAT", "BINARY_DOUBLE", "FLOAT",
+		"BFLOAT", "BDOUBLE", "IBFLOAT", "IBDOUBLE":
 		return kind.Float
-	case "INTERVAL DAY TO SECOND", "INTERVAL YEAR TO MONTH":
+	case "INTERVAL DAY TO SECOND", "INTERVAL YEAR TO MONTH",
+		"INTERVALYM", "INTERVALDS", "INTERVALYM_DTY", "INTERVALDS_DTY":
+		return kind.Text
+	case "ROWID", "UROWID":
 		return kind.Text
 	default:
 		if log != nil {

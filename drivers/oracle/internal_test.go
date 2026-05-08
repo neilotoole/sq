@@ -244,6 +244,18 @@ func TestKindFromDBTypeName(t *testing.T) {
 		"TIMESTAMP WITH LOCAL TIME ZONE":    kind.Datetime,
 		"TIMESTAMP(6) WITH LOCAL TIME ZONE": kind.Datetime,
 
+		// go-ora wire-driver type names (returned by
+		// sql.ColumnType.DatabaseTypeName() during query execution rather
+		// than the data-dictionary form). Mixed-case input here would arrive
+		// after ToUpper inside kindFromDBTypeName.
+		"TIMESTAMPDTY":     kind.Datetime,
+		"TIMESTAMPTZ_DTY":  kind.Datetime,
+		"TIMESTAMPLTZ_DTY": kind.Datetime,
+		"IBFLOAT":          kind.Float,
+		"IBDOUBLE":         kind.Float,
+		"INTERVALDS_DTY":   kind.Text,
+		"INTERVALYM_DTY":   kind.Text,
+
 		// Interval types (mapped to Text).
 		"INTERVAL DAY TO SECOND":       kind.Text,
 		"INTERVAL DAY(2) TO SECOND(6)": kind.Text,
