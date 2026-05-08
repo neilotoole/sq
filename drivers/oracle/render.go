@@ -127,6 +127,34 @@ func kindFromOracleNumber(typeName string) kind.Kind {
 	return kind.Int
 }
 
+// oracleScaleFloating is the Oracle wire-protocol sentinel for "no scale
+// specified" — the uint8 representation of signed int8 -1. It appears on
+// floating NUMBER results: COUNT(*), SUM, integer literals, and arithmetic
+// where Oracle does not pin down a scale.
+const oracleScaleFloating = 255
+
+// refineBareNumberKind refines a kind.Decimal classification for a bare-NUMBER
+// column using the precision/scale info from sql.ColumnType.DecimalSize(). It
+// returns kind.Int when the column's precision/scale indicate integer-range
+// values, and kind.Decimal otherwise (the safe default).
+//
+// COUNT(*), SUM, and integer literals come back as NUMBER(38, oracleScaleFloating);
+// other SQL drivers (Postgres, MySQL, …) return such aggregates as int64, so
+// we map the floating-scale form to kind.Int to match cross-driver convention.
+// NUMBER(p, 0) with p in [1..19] is also int-range.
+func refineBareNumberKind(precision, scale int64, ok bool) kind.Kind {
+	if !ok {
+		return kind.Decimal
+	}
+	switch {
+	case scale == oracleScaleFloating:
+		return kind.Int
+	case scale == 0 && precision > 0 && precision <= 19:
+		return kind.Int
+	}
+	return kind.Decimal
+}
+
 // dbTypeNameFromKind returns the Oracle database type name for the given kind.Kind.
 func dbTypeNameFromKind(knd kind.Kind) string {
 	switch knd {

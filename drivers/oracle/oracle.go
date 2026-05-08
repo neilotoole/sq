@@ -581,9 +581,7 @@ func (d *driveri) RecordMeta(
 		// The wire driver may return "NUMBER" (without precision) from
 		// DatabaseTypeName(), so DecimalSize() distinguishes integer-range columns.
 		if colType.DatabaseTypeName() == "NUMBER" && knd == kind.Decimal {
-			if precision, scale, ok := colType.DecimalSize(); ok && scale == 0 && precision > 0 && precision <= 19 {
-				knd = kind.Int
-			}
+			knd = refineBareNumberKind(colType.DecimalSize())
 		}
 		colTypeData := record.NewColumnTypeData(colType, knd)
 		d.setScanType(colTypeData, knd)

@@ -146,6 +146,38 @@ func TestKindFromDBTypeName_NumberPrefix(t *testing.T) {
 	require.Equal(t, kind.Decimal, kindFromDBTypeName(nil, "col", "NUMBER"))
 }
 
+// TestRefineBareNumberKind covers the bare-NUMBER refinement applied in
+// RecordMeta when the wire-level type name lacks precision/scale info.
+func TestRefineBareNumberKind(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name             string
+		precision, scale int64
+		ok               bool
+		want             kind.Kind
+	}{
+		// COUNT(*), SUM, integer literals — Oracle reports (38, 255).
+		{"floating_38_255", 38, oracleScaleFloating, true, kind.Int},
+		// Same shape, different precision — still floating.
+		{"floating_0_255", 0, oracleScaleFloating, true, kind.Int},
+		// NUMBER(p,0) with p in [1..19] is int range.
+		{"int_5_0", 5, 0, true, kind.Int},
+		{"int_19_0", 19, 0, true, kind.Int},
+		// Out of int64 range or non-zero scale stays decimal.
+		{"decimal_20_0", 20, 0, true, kind.Decimal},
+		{"decimal_10_2", 10, 2, true, kind.Decimal},
+		{"decimal_0_0", 0, 0, true, kind.Decimal},
+		// DecimalSize() not available — leave as decimal.
+		{"not_ok", 19, 0, false, kind.Decimal},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.want, refineBareNumberKind(tc.precision, tc.scale, tc.ok))
+		})
+	}
+}
+
 // TestStripTypeParams verifies the paren-stripping helper handles bare names,
 // trailing parens, and parens embedded in multi-word Oracle type names.
 func TestStripTypeParams(t *testing.T) {
