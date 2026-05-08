@@ -15,18 +15,26 @@ import (
 )
 
 // kindFromDBTypeName returns the kind.Kind for the given Oracle database type name.
-// When the type name includes precision/scale (e.g. "NUMBER(19,0)" from the data
-// dictionary), NUMBER(p,0) with p in [1..19] is mapped to kind.Int; otherwise
-// NUMBER is kind.Decimal. Callers that have a bare "NUMBER" type name and access
-// to ColumnType.DecimalSize() should refine the result themselves (see RecordMeta).
+// Parameter groups are stripped from the type name before matching, so callers
+// may pass either the bare form ("VARCHAR2", "TIMESTAMP") or the parameterized
+// form from the data dictionary ("VARCHAR2(91)", "TIMESTAMP(6) WITH TIME ZONE",
+// "INTERVAL DAY(2) TO SECOND(6)"). NUMBER is special-cased: when the type name
+// includes precision/scale (e.g. "NUMBER(19,0)"), NUMBER(p,0) with p in [1..19]
+// is mapped to kind.Int; otherwise NUMBER is kind.Decimal. Callers that have a
+// bare "NUMBER" type name and access to ColumnType.DecimalSize() should refine
+// the result themselves (see RecordMeta).
 func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind {
 	dbTypeName = strings.ToUpper(dbTypeName)
 
-	// Handle NUMBER with embedded precision/scale from the data dictionary
-	// (e.g. "NUMBER(19,0)", "NUMBER(10)").
+	// NUMBER's kind depends on its precision/scale, so it's parsed
+	// specially before the generic param-strip below.
 	if strings.HasPrefix(dbTypeName, "NUMBER(") {
 		return kindFromOracleNumber(dbTypeName)
 	}
+
+	// Strip parameter parens so e.g. "VARCHAR2(91)" or
+	// "TIMESTAMP(6) WITH TIME ZONE" match their bare form below.
+	dbTypeName = stripTypeParams(dbTypeName)
 
 	switch dbTypeName {
 	case "NUMBER":
@@ -60,6 +68,29 @@ func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind 
 		}
 		return kind.Unknown
 	}
+}
+
+// stripTypeParams removes parenthesized parameter groups from a type name and
+// collapses the resulting whitespace. It handles parens that appear in the
+// middle of multi-word Oracle type names (e.g. "TIMESTAMP(6) WITH TIME ZONE",
+// "INTERVAL DAY(2) TO SECOND(6)").
+func stripTypeParams(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	depth := 0
+	for _, r := range s {
+		switch {
+		case r == '(':
+			depth++
+		case r == ')':
+			if depth > 0 {
+				depth--
+			}
+		case depth == 0:
+			b.WriteRune(r)
+		}
+	}
+	return strings.Join(strings.Fields(b.String()), " ")
 }
 
 // kindFromOracleNumber parses precision and scale from a NUMBER type name that

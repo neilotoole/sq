@@ -128,3 +128,120 @@ func TestKindFromDBTypeName_NumberPrefix(t *testing.T) {
 	// Bare NUMBER (no precision) stays Decimal; callers refine via DecimalSize().
 	require.Equal(t, kind.Decimal, kindFromDBTypeName(nil, "col", "NUMBER"))
 }
+
+// TestStripTypeParams verifies the paren-stripping helper handles bare names,
+// trailing parens, and parens embedded in multi-word Oracle type names.
+func TestStripTypeParams(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		in, want string
+	}{
+		// Bare names pass through.
+		{"VARCHAR2", "VARCHAR2"},
+		{"DATE", "DATE"},
+		{"BLOB", "BLOB"},
+		{"LONG RAW", "LONG RAW"},
+
+		// Single-param trailing parens.
+		{"VARCHAR2(91)", "VARCHAR2"},
+		{"VARCHAR2(4000)", "VARCHAR2"},
+		{"RAW(16)", "RAW"},
+		{"FLOAT(126)", "FLOAT"},
+		{"CHAR(10)", "CHAR"},
+
+		// Two-param trailing parens.
+		{"NUMBER(10,2)", "NUMBER"},
+		{"NUMBER(19,0)", "NUMBER"},
+
+		// Interior parens within multi-word type names.
+		{"TIMESTAMP(6)", "TIMESTAMP"},
+		{"TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP WITH TIME ZONE"},
+		{"TIMESTAMP(9) WITH LOCAL TIME ZONE", "TIMESTAMP WITH LOCAL TIME ZONE"},
+		{"INTERVAL DAY(2) TO SECOND(6)", "INTERVAL DAY TO SECOND"},
+		{"INTERVAL YEAR(2) TO MONTH", "INTERVAL YEAR TO MONTH"},
+
+		// Whitespace handling: redundant spaces collapse, leading/trailing trim.
+		{"  VARCHAR2  ", "VARCHAR2"},
+		{"TIMESTAMP  WITH  TIME  ZONE", "TIMESTAMP WITH TIME ZONE"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.in, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.want, stripTypeParams(tc.in))
+		})
+	}
+}
+
+// TestKindFromDBTypeName covers the full set of Oracle type names we expect
+// to see from the data dictionary, including the parameterized forms that
+// were previously falling through to kind.Unknown.
+func TestKindFromDBTypeName(t *testing.T) {
+	t.Parallel()
+	testCases := map[string]kind.Kind{
+		// Parameterized character types observed in the bug report.
+		"VARCHAR2(91)":   kind.Text,
+		"VARCHAR2(50)":   kind.Text,
+		"VARCHAR2(10)":   kind.Text,
+		"VARCHAR2(20)":   kind.Text,
+		"VARCHAR2(6)":    kind.Text,
+		"VARCHAR2(128)":  kind.Text,
+		"VARCHAR2(4000)": kind.Text,
+		"VARCHAR2(25)":   kind.Text,
+		"NVARCHAR2(50)":  kind.Text,
+		"CHAR(1)":        kind.Text,
+		"NCHAR(10)":      kind.Text,
+
+		// Bare character types.
+		"VARCHAR2":  kind.Text,
+		"NVARCHAR2": kind.Text,
+		"CHAR":      kind.Text,
+		"NCHAR":     kind.Text,
+		"CLOB":      kind.Text,
+		"NCLOB":     kind.Text,
+
+		// Binary types.
+		"RAW(16)":   kind.Bytes,
+		"RAW(2000)": kind.Bytes,
+		"RAW":       kind.Bytes,
+		"BLOB":      kind.Bytes,
+		"LONG RAW":  kind.Bytes,
+
+		// Numeric types.
+		"FLOAT(126)":    kind.Float,
+		"FLOAT":         kind.Float,
+		"BINARY_FLOAT":  kind.Float,
+		"BINARY_DOUBLE": kind.Float,
+		"NUMBER":        kind.Decimal,
+		"NUMBER(19,0)":  kind.Int,
+		"NUMBER(20,0)":  kind.Decimal,
+		"NUMBER(10,2)":  kind.Decimal,
+
+		// Date/time types.
+		"DATE":                              kind.Datetime,
+		"TIMESTAMP":                         kind.Datetime,
+		"TIMESTAMP(6)":                      kind.Datetime,
+		"TIMESTAMP(9)":                      kind.Datetime,
+		"TIMESTAMP WITH TIME ZONE":          kind.Datetime,
+		"TIMESTAMP(6) WITH TIME ZONE":       kind.Datetime,
+		"TIMESTAMP WITH LOCAL TIME ZONE":    kind.Datetime,
+		"TIMESTAMP(6) WITH LOCAL TIME ZONE": kind.Datetime,
+
+		// Interval types (mapped to Text).
+		"INTERVAL DAY TO SECOND":       kind.Text,
+		"INTERVAL DAY(2) TO SECOND(6)": kind.Text,
+		"INTERVAL YEAR TO MONTH":       kind.Text,
+		"INTERVAL YEAR(2) TO MONTH":    kind.Text,
+
+		// Genuinely unknown types still default to Unknown.
+		"MYSTERIOUS_TYPE": kind.Unknown,
+	}
+
+	for dbTypeName, want := range testCases {
+		t.Run(dbTypeName, func(t *testing.T) {
+			t.Parallel()
+			got := kindFromDBTypeName(nil, "col", dbTypeName)
+			require.Equal(t, want, got, "%q should map to %s, got %s", dbTypeName, want, got)
+		})
+	}
+}
