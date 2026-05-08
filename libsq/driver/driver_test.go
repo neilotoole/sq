@@ -166,7 +166,18 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 			recMeta, _, err := drvr.RecordMeta(th.Context, colTypes)
 			require.NoError(t, err)
 
-			require.Equal(t, colNames, recMeta.Names())
+			gotNames := recMeta.Names()
+			// Oracle returns identifiers in their stored case (upper for
+			// unquoted), so column-name comparisons are case-insensitive.
+			if drvr.DriverMetadata().Type == drivertype.Oracle {
+				require.Len(t, gotNames, len(colNames))
+				for i := range gotNames {
+					require.True(t, strings.EqualFold(colNames[i], gotNames[i]),
+						"col name got %q want ~%q", gotNames[i], colNames[i])
+				}
+			} else {
+				require.Equal(t, colNames, gotNames)
+			}
 			require.Equal(t, colKinds, recMeta.Kinds())
 		})
 	}
@@ -181,6 +192,19 @@ func TestDriver_TableColumnTypes(t *testing.T) { //nolint:tparallel
 
 			th, src, drvr, _, db := testh.NewWith(t, handle)
 
+			// Oracle returns identifier names in their stored case (upper for
+			// unquoted), so column-name comparisons are case-insensitive.
+			isOracle := drvr.DriverMetadata().Type == drivertype.Oracle
+			eqName := func(want, got string) {
+				t.Helper()
+				if isOracle {
+					require.True(t, strings.EqualFold(want, got),
+						"col name got %q want ~%q", got, want)
+				} else {
+					require.Equal(t, want, got)
+				}
+			}
+
 			// Run the test both with and without data in the target table.
 			// Some driver implementations of rows.ColumnTypes behave
 			// differently depending upon whether the query returns rows
@@ -194,7 +218,7 @@ func TestDriver_TableColumnTypes(t *testing.T) { //nolint:tparallel
 				require.NoError(t, err)
 				require.Equal(t, len(sakila.TblActorCols()), len(colTypes))
 				for i := range colTypes {
-					require.Equal(t, sakila.TblActorCols()[i], colTypes[i].Name())
+					eqName(sakila.TblActorCols()[i], colTypes[i].Name())
 				}
 
 				// Try again, but requesting specific col names
@@ -203,7 +227,7 @@ func TestDriver_TableColumnTypes(t *testing.T) { //nolint:tparallel
 				require.NoError(t, err)
 				require.Equal(t, len(wantColNames), len(colTypes))
 				for i := range colTypes {
-					require.Equal(t, wantColNames[i], colTypes[i].Name())
+					eqName(wantColNames[i], colTypes[i].Name())
 				}
 			}
 		})
@@ -233,7 +257,18 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
 
 			stmtExecer, err := drvr.PrepareUpdateStmt(th.Context, db, tblName, destCols, whereClause)
 			require.NoError(t, err)
-			require.Equal(t, destCols, stmtExecer.DestMeta().Names())
+			gotNames := stmtExecer.DestMeta().Names()
+			// Oracle returns identifier names in their stored case (upper for
+			// unquoted), so column-name comparisons are case-insensitive.
+			if drvr.DriverMetadata().Type == drivertype.Oracle {
+				require.Len(t, gotNames, len(destCols))
+				for i := range gotNames {
+					require.True(t, strings.EqualFold(destCols[i], gotNames[i]),
+						"col name got %q want ~%q", gotNames[i], destCols[i])
+				}
+			} else {
+				require.Equal(t, destCols, gotNames)
+			}
 			require.NoError(t, stmtExecer.Munge(wantVals))
 
 			affected, err := stmtExecer.Exec(th.Context, args...)
@@ -413,7 +448,10 @@ func TestGrip_TableMetadata(t *testing.T) { //nolint:tparallel
 
 			tblMeta, err := grip.TableMetadata(th.Context, sakila.TblActor)
 			require.NoError(t, err)
-			require.Equal(t, sakila.TblActor, tblMeta.Name)
+			// Oracle preserves the database's stored case (upper for unquoted
+			// identifiers); other engines fold to lower.
+			require.True(t, strings.EqualFold(sakila.TblActor, tblMeta.Name),
+				"table name got %q want ~%q", tblMeta.Name, sakila.TblActor)
 			require.Equal(t, int64(sakila.TblActorCount), tblMeta.RowCount)
 		})
 	}
@@ -430,7 +468,8 @@ func TestGrip_SourceMetadata(t *testing.T) {
 
 			md, err := grip.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
-			require.Equal(t, sakila.TblActor, md.Tables[0].Name)
+			require.True(t, strings.EqualFold(sakila.TblActor, md.Tables[0].Name),
+				"first table name got %q want ~%q", md.Tables[0].Name, sakila.TblActor)
 			require.Equal(t, int64(sakila.TblActorCount), md.Tables[0].RowCount)
 		})
 	}
@@ -454,7 +493,8 @@ func TestGrip_SourceMetadata_OracleViewsAndCounts(t *testing.T) {
 	// (they rely on MySQL GROUP_CONCAT); see sakiladb/oracle schema notes.
 	require.Equal(t, int64(5), md.ViewCount)
 
-	view := md.Table(sakila.ViewFilmList)
+	// Oracle stores unquoted identifiers as upper, so look up by uppercase.
+	view := md.Table(strings.ToUpper(sakila.ViewFilmList))
 	require.NotNil(t, view, "film_list view should appear in SourceMetadata.Tables")
 	require.Equal(t, sqlz.TableTypeView, view.TableType)
 	require.Equal(t, "VIEW", view.DBTableType)
@@ -490,6 +530,17 @@ func TestSQLDriver_ListTableNames_ArgSchemaEmpty(t *testing.T) { //nolint:tparal
 
 			th, _, drvr, _, db := testh.NewWith(t, handle)
 
+			// Oracle returns identifiers in their stored case (upper for
+			// unquoted), so use case-folded name comparisons.
+			contains := func(haystack []string, needle string) bool {
+				for _, s := range haystack {
+					if strings.EqualFold(s, needle) {
+						return true
+					}
+				}
+				return false
+			}
+
 			got, err := drvr.ListTableNames(th.Context, db, "", false, false)
 			require.NoError(t, err)
 			require.NotNil(t, got)
@@ -498,20 +549,20 @@ func TestSQLDriver_ListTableNames_ArgSchemaEmpty(t *testing.T) { //nolint:tparal
 			got, err = drvr.ListTableNames(th.Context, db, "", true, false)
 			require.NoError(t, err)
 			require.NotNil(t, got)
-			require.Contains(t, got, sakila.TblActor)
-			require.NotContains(t, got, sakila.ViewFilmList)
+			require.True(t, contains(got, sakila.TblActor), "%v should contain ~%q", got, sakila.TblActor)
+			require.False(t, contains(got, sakila.ViewFilmList), "%v should not contain ~%q", got, sakila.ViewFilmList)
 
 			got, err = drvr.ListTableNames(th.Context, db, "", false, true)
 			require.NoError(t, err)
 			require.NotNil(t, got)
-			require.NotContains(t, got, sakila.TblActor)
-			require.Contains(t, got, sakila.ViewFilmList)
+			require.False(t, contains(got, sakila.TblActor), "%v should not contain ~%q", got, sakila.TblActor)
+			require.True(t, contains(got, sakila.ViewFilmList), "%v should contain ~%q", got, sakila.ViewFilmList)
 
 			got, err = drvr.ListTableNames(th.Context, db, "", true, true)
 			require.NoError(t, err)
 			require.NotNil(t, got)
-			require.Contains(t, got, sakila.TblActor)
-			require.Contains(t, got, sakila.ViewFilmList)
+			require.True(t, contains(got, sakila.TblActor), "%v should contain ~%q", got, sakila.TblActor)
+			require.True(t, contains(got, sakila.ViewFilmList), "%v should contain ~%q", got, sakila.ViewFilmList)
 
 			gotCopy := append([]string(nil), got...)
 			slices.Sort(gotCopy)
@@ -633,7 +684,17 @@ func TestSQLDriver_AlterTableAddColumn(t *testing.T) {
 			require.NoError(t, err)
 
 			gotCols := sink.RecMeta.Names()
-			require.Equal(t, wantCols, gotCols)
+			// Oracle returns identifier names in their stored case (upper for
+			// unquoted), so column-name comparisons are case-insensitive.
+			if drvr.DriverMetadata().Type == drivertype.Oracle {
+				require.Len(t, gotCols, len(wantCols))
+				for i := range gotCols {
+					require.True(t, strings.EqualFold(wantCols[i], gotCols[i]),
+						"col name got %q want ~%q", gotCols[i], wantCols[i])
+				}
+			} else {
+				require.Equal(t, wantCols, gotCols)
+			}
 
 			gotKinds := sink.RecMeta.Kinds()
 			require.Equal(t, wantKinds, gotKinds)
@@ -659,7 +720,9 @@ func TestSQLDriver_AlterTableRename(t *testing.T) {
 
 			md, err := grip.TableMetadata(th.Context, newName)
 			require.NoError(t, err)
-			require.Equal(t, newName, md.Name)
+			// Oracle returns the database's stored case (upper for unquoted).
+			require.True(t, strings.EqualFold(newName, md.Name),
+				"renamed-table name got %q want ~%q", md.Name, newName)
 			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+newName)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
@@ -683,7 +746,12 @@ func TestSQLDriver_AlterTableRenameColumn(t *testing.T) {
 
 			md, err := grip.TableMetadata(th.Context, tbl)
 			require.NoError(t, err)
-			require.NotNil(t, md.Column(newName))
+			// Oracle stores unquoted identifiers as upper; look up under that.
+			lookupName := newName
+			if drvr.DriverMetadata().Type == drivertype.Oracle {
+				lookupName = strings.ToUpper(newName)
+			}
+			require.NotNil(t, md.Column(lookupName), "%s column not found in %v", lookupName, md.Columns)
 			sink, err := th.QuerySQL(src, nil, fmt.Sprintf("SELECT %s FROM %s", newName, tbl))
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))

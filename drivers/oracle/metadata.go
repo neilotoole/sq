@@ -51,7 +51,7 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db *sql.DB, noSc
 	if err != nil {
 		return nil, errw(err)
 	}
-	md.Schema = strings.ToLower(schema)
+	md.Schema = schema
 	md.Name = md.Schema
 	md.FQName = md.Schema
 
@@ -163,7 +163,7 @@ func queryOracleObjectNames(ctx context.Context, db *sql.DB, query string) ([]st
 		if err = rows.Scan(&name); err != nil {
 			return nil, errw(err)
 		}
-		names = append(names, strings.ToLower(name))
+		names = append(names, name)
 	}
 
 	return names, errw(rows.Err())
@@ -187,8 +187,13 @@ ORDER BY CASE object_type
 END
 FETCH FIRST 1 ROW ONLY`
 
+	// Canonicalize to Oracle's stored case (upper for unquoted identifiers)
+	// so that the returned metadata's Name field reflects the database's
+	// actual identifier rather than echoing the caller's input case.
+	canonical := strings.ToUpper(name)
+
 	var objType string
-	err := db.QueryRowContext(ctx, q, strings.ToUpper(name)).Scan(&objType)
+	err := db.QueryRowContext(ctx, q, canonical).Scan(&objType)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errz.Errorf("table or view {%s} does not exist", name)
@@ -198,11 +203,11 @@ FETCH FIRST 1 ROW ONLY`
 
 	switch objType {
 	case "MATERIALIZED VIEW":
-		return getMaterializedViewMetadata(ctx, db, name)
+		return getMaterializedViewMetadata(ctx, db, canonical)
 	case "VIEW":
-		return getViewMetadata(ctx, db, name)
+		return getViewMetadata(ctx, db, canonical)
 	case "TABLE":
-		return getTableMetadata(ctx, db, name)
+		return getTableMetadata(ctx, db, canonical)
 	default:
 		return nil, errz.Errorf("unsupported Oracle object type %q for {%s}", objType, name)
 	}
@@ -241,7 +246,7 @@ WHERE t.table_name = :1`
 	}
 
 	tblMeta := &metadata.Table{
-		Name:        strings.ToLower(tblName),
+		Name:        tblName,
 		TableType:   sqlz.TableTypeTable,
 		DBTableType: "TABLE",
 		RowCount:    numRows.Int64,
@@ -275,7 +280,7 @@ WHERE v.view_name = :1`
 	}
 
 	tblMeta := &metadata.Table{
-		Name:        strings.ToLower(viewName),
+		Name:        viewName,
 		TableType:   sqlz.TableTypeView,
 		DBTableType: "VIEW",
 		RowCount:    0,
@@ -317,7 +322,7 @@ WHERE m.mview_name = :1`
 	}
 
 	tblMeta := &metadata.Table{
-		Name:        strings.ToLower(mvName),
+		Name:        mvName,
 		TableType:   sqlz.TableTypeTable,
 		DBTableType: "MATERIALIZED VIEW",
 		RowCount:    numRows.Int64,
@@ -388,7 +393,7 @@ ORDER BY c.column_id`
 		}
 
 		col := &metadata.Column{
-			Name:       strings.ToLower(colName),
+			Name:       colName,
 			Position:   int64(columnID),
 			Kind:       kindFromDBTypeName(lg.FromContext(ctx), colName, fullTypeName),
 			ColumnType: fullTypeName,

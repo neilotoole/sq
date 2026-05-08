@@ -224,7 +224,7 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 	var name string
 	err := db.QueryRowContext(ctx,
 		"SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM DUAL").Scan(&name)
-	return strings.ToLower(name), errw(err)
+	return name, errw(err)
 }
 
 // ListSchemas implements driver.SQLDriver.
@@ -248,7 +248,7 @@ ORDER BY username`
 		if err = rows.Scan(&schema); err != nil {
 			return nil, errw(err)
 		}
-		schemas = append(schemas, strings.ToLower(schema))
+		schemas = append(schemas, schema)
 	}
 
 	if err = rows.Err(); err != nil {
@@ -347,7 +347,7 @@ ORDER BY table_name`
 			if err = rows.Scan(&name); err != nil {
 				return nil, errw(err)
 			}
-			names = append(names, strings.ToLower(name))
+			names = append(names, name)
 		}
 
 		if err = rows.Err(); err != nil {
@@ -368,7 +368,7 @@ ORDER BY mview_name`
 			if err = rowsMV.Scan(&name); err != nil {
 				return nil, errw(err)
 			}
-			names = append(names, strings.ToLower(name))
+			names = append(names, name)
 		}
 
 		if err = rowsMV.Err(); err != nil {
@@ -391,7 +391,7 @@ ORDER BY view_name`
 			if err = rows.Scan(&name); err != nil {
 				return nil, errw(err)
 			}
-			names = append(names, strings.ToLower(name))
+			names = append(names, name)
 		}
 
 		if err = rows.Err(); err != nil {

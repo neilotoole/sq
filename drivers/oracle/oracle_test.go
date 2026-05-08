@@ -603,11 +603,13 @@ func TestTableMetadata_DispatchByObjectType(t *testing.T) {
 	require.NoError(t, err)
 	defer grip.Close()
 
+	// Oracle stores unquoted identifiers as upper case and the driver
+	// returns them verbatim — no case folding on output.
 	t.Run("table", func(t *testing.T) {
 		md, err := grip.TableMetadata(ctx, "actor")
 		require.NoError(t, err, "inspecting a base table must succeed")
 		require.NotNil(t, md)
-		assert.Equal(t, "actor", md.Name)
+		assert.Equal(t, "ACTOR", md.Name)
 		assert.Equal(t, "table", md.TableType)
 		assert.Equal(t, "TABLE", md.DBTableType)
 		assert.NotEmpty(t, md.Columns, "actor should have columns")
@@ -624,7 +626,7 @@ func TestTableMetadata_DispatchByObjectType(t *testing.T) {
 		md, err := grip.TableMetadata(ctx, "customer_list")
 		require.NoError(t, err, "inspecting a view must succeed")
 		require.NotNil(t, md)
-		assert.Equal(t, "customer_list", md.Name)
+		assert.Equal(t, "CUSTOMER_LIST", md.Name)
 		assert.Equal(t, "view", md.TableType)
 		assert.Equal(t, "VIEW", md.DBTableType)
 		assert.NotEmpty(t, md.Columns)
