@@ -3,11 +3,13 @@ package oracle
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sort"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/progress"
@@ -167,14 +169,52 @@ func queryOracleObjectNames(ctx context.Context, db *sql.DB, query string) ([]st
 	return names, errw(rows.Err())
 }
 
+// getObjectMetadata returns metadata for a single named schema object,
+// classifying it via USER_OBJECTS and dispatching to the appropriate
+// table/view/materialized-view loader. Names are case-insensitive (Oracle
+// stores unquoted identifiers as upper case).
+//
+// When an object name resolves to both a TABLE row and a MATERIALIZED VIEW
+// row (Oracle backs an MV with a base table of the same name), the MV
+// branch is preferred so that callers see the MV semantics.
+func getObjectMetadata(ctx context.Context, db *sql.DB, name string) (*metadata.Table, error) {
+	const q = `SELECT object_type FROM user_objects
+WHERE object_name = :1 AND object_type IN ('TABLE', 'VIEW', 'MATERIALIZED VIEW')
+ORDER BY CASE object_type
+    WHEN 'MATERIALIZED VIEW' THEN 1
+    WHEN 'VIEW' THEN 2
+    WHEN 'TABLE' THEN 3
+END
+FETCH FIRST 1 ROW ONLY`
+
+	var objType string
+	err := db.QueryRowContext(ctx, q, strings.ToUpper(name)).Scan(&objType)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errz.Errorf("table or view {%s} does not exist", name)
+		}
+		return nil, errw(err)
+	}
+
+	switch objType {
+	case "MATERIALIZED VIEW":
+		return getMaterializedViewMetadata(ctx, db, name)
+	case "VIEW":
+		return getViewMetadata(ctx, db, name)
+	case "TABLE":
+		return getTableMetadata(ctx, db, name)
+	default:
+		return nil, errz.Errorf("unsupported Oracle object type %q for {%s}", objType, name)
+	}
+}
+
 // getTableMetadata returns metadata for a specific table.
 func getTableMetadata(ctx context.Context, db *sql.DB, tblName string) (*metadata.Table, error) {
 	_ = progress.FromContext(ctx) // Future: use for progress tracking
 
+	// USER_TABLES is scoped to the current user, so it has no OWNER column;
+	// querying t.owner here previously raised ORA-00904.
 	const queryTable = `SELECT
-    t.owner,
-    t.table_name,
-    t.tablespace_name,
     t.num_rows,
     tc.comments,
     NVL(s.bytes, 0) AS bytes
@@ -190,13 +230,12 @@ LEFT JOIN (
 ) s ON t.table_name = s.segment_name
 WHERE t.table_name = :1`
 
-	var owner, tableName, tablespaceName sql.NullString
 	var numRows sql.NullInt64
 	var comment sql.NullString
 	var bytes int64
 
 	err := db.QueryRowContext(ctx, queryTable, strings.ToUpper(tblName)).Scan(
-		&owner, &tableName, &tablespaceName, &numRows, &comment, &bytes)
+		&numRows, &comment, &bytes)
 	if err != nil {
 		return nil, errw(err)
 	}

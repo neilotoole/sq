@@ -48,7 +48,7 @@ func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Tab
 	defer bar.Stop()
 	ctx = progress.NewBarContext(ctx, bar)
 
-	return getTableMetadata(ctx, g.db, tblName)
+	return getObjectMetadata(ctx, g.db, tblName)
 }
 
 // SourceMetadata implements driver.Grip.
