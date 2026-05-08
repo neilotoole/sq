@@ -450,7 +450,9 @@ func TestGrip_SourceMetadata_OracleViewsAndCounts(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, md)
 
-	require.Equal(t, int64(7), md.ViewCount)
+	// The SAKILA Oracle image omits actor_info and nicer_but_slower_film_list
+	// (they rely on MySQL GROUP_CONCAT); see sakiladb/oracle schema notes.
+	require.Equal(t, int64(5), md.ViewCount)
 
 	view := md.Table(sakila.ViewFilmList)
 	require.NotNil(t, view, "film_list view should appear in SourceMetadata.Tables")
@@ -532,7 +534,9 @@ func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tpa
 		{handle: sakila.SL3, schema: "main", wantTables: 16, wantViews: 5},
 		{handle: sakila.My8, schema: "sakila", wantTables: 16, wantViews: 7},
 		// Oracle schemas are users; schema lookup is owner-scoped and case-insensitive.
-		{handle: sakila.Ora, schema: "SAKILA", wantTables: 16, wantViews: 7},
+		// The SAKILA Oracle image omits the film_text table and the actor_info /
+		// nicer_but_slower_film_list views; see sakiladb/oracle schema notes.
+		{handle: sakila.Ora, schema: "SAKILA", wantTables: 15, wantViews: 5},
 	}
 
 	for _, tc := range testCases {
