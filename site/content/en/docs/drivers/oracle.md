@@ -15,6 +15,9 @@ The Oracle driver is experimental. Behavior may change as test coverage and
 edge-case support improve.
 {{< /alert >}}
 
+The driver uses pure Go [go-ora](https://github.com/sijms/go-ora) and does
+not require Oracle Instant Client, CGO, or OCI libraries.
+
 ## Add source
 
 Use [`sq add`](/docs/cmd/add) to add an Oracle source.
@@ -23,18 +26,34 @@ Use [`sq add`](/docs/cmd/add) to add an Oracle source.
 sq add 'oracle://user:password@host:1521/service_name'
 ```
 
+For the Sakila Oracle test image:
+
+```shell
+sq add 'oracle://sakila:p_ssW0rd@localhost:1521/SAKILA' --handle @sakila_ora
+```
+
 ## Connection string format
 
-The backing driver is pure Go ([go-ora](https://github.com/sijms/go-ora)).
-Use URL-style locations only:
+Use URL-style locations:
 
 ```text
 oracle://username:password@hostname:1521/service_name
 oracle://username:password@hostname/service_name
 ```
 
-`TNSNAMES.ora` aliases, Oracle Wallet, and Kerberos are not handled here.
-Those setups typically require Oracle client tooling or another SQL CLI.
+Query parameters are passed through to go-ora. Useful examples include SSL,
+wallet, trace, and timeout settings:
+
+```shell
+sq add 'oracle://user:password@host:1521/service_name?SSL=true'
+sq add 'oracle://user:password@host:1521/service_name?CONNECTION%20TIMEOUT=30'
+```
+
+Quote the location string when it contains `?`, `&`, spaces, or shell-special
+characters.
+
+`TNSNAMES.ora` aliases and Kerberos are not handled by `sq` directly. Use an
+Oracle URL location for `sq add`.
 
 ## Notes
 
@@ -44,6 +63,14 @@ Oracle does not implement catalogs in the same sense as Postgres or SQL
 Server. In `sq`, `catalog()` returns `NULL` for Oracle sources, and
 `schema()` returns the current Oracle schema (which maps to the connected
 user).
+
+Oracle schemas are users. `sq` can list schemas from `ALL_USERS`, but
+`CREATE SCHEMA` and `DROP SCHEMA` are not Oracle operations; create or drop
+Oracle users instead.
+
+Unquoted Oracle identifiers are stored uppercase. `sq` follows that convention
+when rendering quoted identifiers, so table and column names created through
+`sq` are typically visible in uppercase in Oracle metadata.
 
 ### Metadata visibility
 
@@ -63,6 +90,37 @@ links) are not implemented yet.
 `SYS_CONTEXT`. The `version` field prefers `v$instance` and falls back to
 `v$version` when `v$instance` is not readable.
 
+### SQL rendering
+
+Oracle SQL rendering differs from several other SQL drivers:
+
+- Bind placeholders use Oracle's numbered form: `:1`, `:2`, `:3`, and so on.
+- `rownum()` renders as `ROWNUM`.
+- `catalog()` renders as `NULL`; `schema()` renders the current schema via
+  `SYS_CONTEXT`.
+- Row ranges render using `OFFSET ... FETCH NEXT ... ROWS ONLY` for Oracle
+  12c and newer. When a row range has no explicit sort, `sq` adds an
+  Oracle-compatible `ORDER BY` expression before the row range.
+- Scalar selections that need a table source use `FROM DUAL` where required.
+
+### Type mapping
+
+Common Oracle types map to `sq` kinds as follows:
+
+| Oracle type | `sq` kind |
+| --- | --- |
+| `VARCHAR2`, `NVARCHAR2`, `CHAR`, `NCHAR`, `CLOB`, `NCLOB`, `ROWID` | `text` |
+| `NUMBER(p,0)` where `p` is 1-19 | `int` |
+| Other `NUMBER` values | `decimal` |
+| `BINARY_FLOAT`, `BINARY_DOUBLE`, `FLOAT` | `float` |
+| `DATE`, `TIMESTAMP`, `TIMESTAMP WITH TIME ZONE` | `datetime` |
+| `BLOB`, `RAW`, `LONG RAW` | `bytes` |
+| Interval types | `text` |
+
+When `sq` creates Oracle tables, it uses Oracle-native equivalents such as
+`NUMBER(19,0)` for `int`, `NUMBER(1,0)` for `bool`, `TIMESTAMP` for
+`datetime`, and `BLOB` for `bytes`.
+
 ### Database-specific quirks
 
 - **Transactions**: Same defaults as other SQL drivers via `database/sql`; DDL
@@ -74,6 +132,28 @@ links) are not implemented yet.
 - **`CREATE TABLE`**: Defaults avoid unsupported constructs (for example,
   `EMPTY_BLOB()` cannot be used as a literal default); Oracle rejects defaults
   some drivers accept elsewhere.
+- **Boolean values**: Oracle has no database-wide boolean column type in the
+  same sense as other SQL engines, so `sq` stores boolean columns as
+  `NUMBER(1,0)`.
+- **DATE and TIME round-tripping**: Oracle `DATE` includes time-of-day, and
+  Oracle has no standalone time-only column type. A `date` or `time` column
+  created by `sq` can inspect back as `datetime`.
+- **Column type changes**: `sq tbl` column-kind alteration is not implemented
+  for Oracle yet.
+
+## Local Sakila database
+
+For local development and integration tests, use
+[`sakiladb/oracle`](https://github.com/sakiladb/oracle):
+
+```shell
+docker run -d -p 1521:1521 sakiladb/oracle:latest
+sq add 'oracle://sakila:p_ssW0rd@localhost:1521/SAKILA' --handle @sakila_ora
+```
+
+The image uses Oracle Database Free with the Sakila sample schema. Startup can
+take several minutes; wait until the database is accepting connections before
+running `sq ping @sakila_ora` or integration tests.
 
 ### Requirements
 
@@ -82,3 +162,4 @@ No Oracle Instant Client is required. The driver speaks Oracle Net in pure Go.
 ## Related
 
 - [Oracle driver README](https://github.com/neilotoole/sq/blob/master/drivers/oracle/README.md)
+- [Sakila test databases](/docs/develop/sakila)

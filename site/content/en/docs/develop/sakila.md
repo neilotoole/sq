@@ -107,15 +107,29 @@ $ sq add 'mysql://sakila:p_ssW0rd@localhost:3306/sakila' --handle @sakila_mysql
 
 ## Oracle
 
-There is no single official `sakiladb/oracle` image in the same way as MySQL or
-Postgres. For local development you can run Oracle Database Free (for example
-[`gvenzl/oracle-free`](https://hub.docker.com/r/gvenzl/oracle-free)) and load
-Sakila manually, or use the compose file under
-[`drivers/oracle/testutils/docker-compose.yml`](https://github.com/neilotoole/sq/blob/master/drivers/oracle/testutils/docker-compose.yml).
+The Sakila database has been bundled into an Oracle Database Free
+[`sakiladb/oracle`](https://github.com/sakiladb/oracle) image.
+
+```shell
+$ docker run -d -p 1521:1521 sakiladb/oracle:latest
+# Wait a while...
+
+$ sq add 'oracle://sakila:p_ssW0rd@localhost:1521/SAKILA' --handle @sakila_ora
+@sakila_ora  oracle  sakila@localhost:1521/SAKILA
+```
+
+> It may take several minutes for docker to download and start the image.
+> Wait until Oracle is accepting connections before running `sq ping` or tests.
 
 Repo-wide tests that use handle `@sakila_ora` expect `sources.sq.yml` to expand
-`SQ_TEST_SRC__SAKILA_ORA` to the part of the DSN after
-`oracle://sakila:p_ssW0rd@`. See
+`SQ_TEST_SRC__SAKILA_OR23` to the host part of the DSN. For the docker command
+above:
+
+```shell
+export SQ_TEST_SRC__SAKILA_OR23=localhost
+```
+
+See
 [`drivers/oracle/README.md`](https://github.com/neilotoole/sq/blob/master/drivers/oracle/README.md).
 
 ## Microsoft Excel XLSX
