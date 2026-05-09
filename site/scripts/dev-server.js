@@ -1,7 +1,11 @@
 /**
  * Local dev server: runs Hugo on an internal port and handles GET /version
- * by fetching the Homebrew formula (same as the Netlify function).
+ * by downloading the latest sq version string (same as the Netlify function).
  * No Netlify required locally.
+ *
+ * site/Makefile passes SQ_SITE_OFFLINE=1 by default for site-local; use
+ * SQ_SITE_OFFLINE=0 make site-local to download that version. Running bun scripts/dev-server.js
+ * directly leaves SQ_SITE_OFFLINE unset (download unless SQ_SITE_OFFLINE=1).
  */
 
 const http = require("http");
@@ -119,6 +123,10 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(statusCode, headers);
       res.end(json);
     };
+    if (process.env.SQ_SITE_OFFLINE === "1") {
+      sendJson(503, { error: "offline" });
+      return;
+    }
     try {
       const version = await getVersion();
       sendJson(200, { "latest-version": version });

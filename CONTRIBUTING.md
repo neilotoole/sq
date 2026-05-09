@@ -7,7 +7,7 @@ For user documentation, see [sq.io](https://sq.io).
 
 ## Documentation site (`site/`)
 
-The [sq.io](https://sq.io) website is a [Hugo](https://gohugo.io) project in [`site/`](./site/). From `site/`, use **`make`** for the usual workflow (`make deps`, `make site-dev`, `make site-test`, `make site-build`, or `make ci` to match CI). Bun equivalents are in [`site/README.md`](./site/README.md).
+The [sq.io](https://sq.io) website is a [Hugo](https://gohugo.io) project in [`site/`](./site/). From `site/`, use **`make`** for the usual workflow (`make deps`, `make site-local`, `make site-test`, `make site-build`, or `make ci` to match CI). Bun equivalents are in [`site/README.md`](./site/README.md).
 
 If you are changing anything under `site/`, read [`site/README.md`](./site/README.md)
 first: it explains the **stable** vs **full** link-check split, what PR CI blocks

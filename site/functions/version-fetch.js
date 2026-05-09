@@ -1,5 +1,5 @@
 /**
- * Fetches the current sq version from the Homebrew formula (homebrew-core).
+ * Downloads the latest sq version string from the published formula file.
  * Port of the Go logic in sq's version command.
  * (Copy used by Netlify function; scripts/version-fetch.js is used by dev server.)
  */
@@ -51,7 +51,7 @@ function getVersionFromBrewFormula(body) {
   if (urlVersion) {
     return { version: urlVersion };
   }
-  return { error: "invalid brew formula" };
+  return { error: "invalid formula" };
 }
 
 async function getVersion() {
