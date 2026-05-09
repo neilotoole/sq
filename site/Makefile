@@ -9,8 +9,12 @@
 #   make site-test   — stable lint suite (bun run test:ci; internal link check)
 #   make site-test-full — full lint suite (bun run test:full; includes external link crawl)
 #   make site-build  — bun run build (Hugo → public/)
-#   make site-dev    — bun start (local dev server)
+#   make site-local  — local dev server (bun scripts/dev-server.js)
 #   make ci          — deps, then site-test, then site-build (matches GitHub Site CI)
+#
+# Local dev after a warm online run (bun install + Hugo modules resolved):
+#   make site-local  — GET /version skips downloading the sq version by default (no extra env).
+#   SQ_SITE_OFFLINE=0 make site-local  — download latest sq version for /version.
 #
 # Lighthouse harness (simulates Netlify-served production with gzip/brotli):
 #   make site-lighthouse        — build, serve, run Lighthouse (mobile + desktop), tear down
@@ -26,9 +30,12 @@ include Common.make
 # Configuration
 # -----------------------------------------------------------------------------------------------------------
 # Port used by the Lighthouse harness (prod build + gzip/brotli static server).
-# Chosen to avoid :8080 (Docker via `make run`) and :1313 (Hugo dev via `make site-dev`).
+# Chosen to avoid :8080 (Docker via `make run`) and :1313 (Hugo dev via `make site-local`).
 LH_PORT ?= 8090
 LH_URL  ?= http://localhost:$(LH_PORT)
+
+# site-local: skip downloading the sq version for GET /version (503 JSON). Override with SQ_SITE_OFFLINE=0.
+SQ_SITE_OFFLINE ?= 1
 
 
 # -----------------------------------------------------------------------------------------------------------
@@ -76,12 +83,13 @@ site-build:
 	bun run build
 	@$(LOGGER) log_success "Site built to public/"
 
-.PHONY: site-dev ## Start local dev server (bun start; http://localhost:1313)
-site-dev:
+.PHONY: site-local ## Start local dev server (Hugo on :1313; /version offline unless SQ_SITE_OFFLINE=0)
+site-local:
 	@$(LOGGER) log_separator
 	@$(LOGGER) log_info "Starting Hugo dev server"
 	@$(LOGGER) log_indent log_dim "http://localhost:1313 (Ctrl+C to stop)"
-	bun start
+	@$(LOGGER) log_indent log_dim "GET /version: offline stub (SQ_SITE_OFFLINE=0 to download sq version)"
+	SQ_SITE_OFFLINE=$(SQ_SITE_OFFLINE) bun scripts/dev-server.js
 
 .PHONY: site-lighthouse-serve ## Build prod site and serve it locally with gzip/brotli on LH_PORT (default 8090); Ctrl+C to stop
 site-lighthouse-serve:

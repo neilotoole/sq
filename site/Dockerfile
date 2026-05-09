@@ -37,6 +37,6 @@ RUN hugo mod get
 ENV HUGO_BASEURL=http://localhost:8080/
 EXPOSE 8080
 
-# Dev server proxies to Hugo and serves GET /version (fetches Homebrew; no Netlify).
+# Dev server proxies to Hugo and serves GET /version (downloads sq version; no Netlify).
 # SERVER_PORT=8080 so links use :8080; Hugo runs on 1314 inside the container.
 CMD ["sh", "-c", "SERVER_PORT=8080 HUGO_PORT=1314 bun scripts/dev-server.js"]
