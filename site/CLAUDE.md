@@ -23,7 +23,7 @@ bun install
 
 # Start local dev server at http://localhost:1313
 # Note: May take 1+ minute to start, be patient
-make site-dev
+make site-local
 # or
 bun start
 

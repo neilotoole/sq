@@ -39,7 +39,7 @@ make deps
 
 ```bash
 # Dev server at http://localhost:1313 (may take a minute to come up; be patient)
-make site-dev
+make site-local
 # same as: bun start
 
 # Stable checks (what PRs block on): scripts, styles, markdown, and internal links
@@ -125,7 +125,7 @@ In **Common.make**, `make build` builds the **Docker** image, not the Hugo site;
 | Make target      | Bun equivalent        | Description                                        |
 |------------------|-----------------------|----------------------------------------------------|
 | `make deps`      | `bun install`         | Install dependencies                               |
-| `make site-dev`  | `bun start`           | Local dev server with live reload                  |
+| `make site-local`| `bun scripts/dev-server.js` | Hugo dev server                                   |
 | `make smoke-test`| (script)              | Docker smoke checks (`validate-build.sh --start`)  |
 | `make site-test` | `bun run test:ci`     | Stable linters + internal link check               |
 | `make site-test-full` | `bun run test:full` | Full linters + external link crawl                 |

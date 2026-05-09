@@ -1,5 +1,5 @@
 /**
- * Fetches the current sq version from the Homebrew formula (homebrew-core).
+ * Downloads the latest sq version string from the published formula file.
  * Port of the Go logic in sq's version command.
  */
 
@@ -10,7 +10,7 @@ const FETCH_TIMEOUT_MS = 5000;
 const SEMVER_REGEX = /^\d+\.\d+\.\d+(-.+)?$/;
 
 /**
- * Parse the version from the brew formula body.
+ * Parse the version from the formula file body.
  * Supports: version "X.Y.Z" and url ".../tags/vX.Y.Z.tar.gz" or .zip.
  * Stops scanning at the "bottle" section.
  * @param {string} body - Raw formula file content
@@ -57,11 +57,11 @@ function getVersionFromBrewFormula(body) {
   if (urlVersion) {
     return { version: urlVersion };
   }
-  return { error: "invalid brew formula" };
+  return { error: "invalid formula" };
 }
 
 /**
- * Fetch the current sq version from the Homebrew formula.
+ * Download and parse the latest sq version from the formula URL.
  * @returns {Promise<string>} Version string without "v" prefix (e.g. "0.48.11")
  * @throws {Error} On fetch or parse failure
  */
