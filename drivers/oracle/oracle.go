@@ -154,7 +154,6 @@ func (d *driveri) Renderer() *render.Renderer {
 	const oracleSchemaFrag = `SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')`
 	r.FunctionOverrides[ast.FuncNameSchema] = render.FuncOverrideString(oracleSchemaFrag)
 	r.FunctionOverrides[ast.FuncNameCatalog] = doRenderFuncCatalog
-	r.FunctionOverrides[ast.FuncNameRowNum] = renderFuncRowNum
 	r.FunctionOverrides[ast.FuncNameAvg] = doRenderFuncAvg
 	r.FunctionOverrides[ast.FuncNameSum] = doRenderFuncSum
 	return r
@@ -194,11 +193,6 @@ func doRenderFuncSum(rc *render.Context, fn *ast.FuncNode) (string, error) {
 // so we return NULL.
 func doRenderFuncCatalog(_ *render.Context, _ *ast.FuncNode) (string, error) {
 	return "NULL", nil
-}
-
-// renderFuncRowNum renders the row number function.
-func renderFuncRowNum(_ *render.Context, _ *ast.FuncNode) (string, error) {
-	return "ROWNUM", nil
 }
 
 // Open implements driver.Driver.
