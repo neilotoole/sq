@@ -14,6 +14,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -245,11 +246,29 @@ WHERE t.table_name = :1`
 		return nil, errw(err)
 	}
 
+	// USER_TABLES.NUM_ROWS is a Cost-Based Optimizer statistics column, not a
+	// live row count. Oracle populates it only when statistics are gathered
+	// (DBMS_STATS.GATHER_TABLE_STATS, ANALYZE TABLE, or the auto-stats job);
+	// for freshly loaded schemas (e.g. a freshly seeded Sakila container)
+	// the column is NULL and would otherwise scan as zero. Other sq drivers
+	// (Postgres, MySQL, SQLite, …) report live counts in source/table
+	// metadata, so when NUM_ROWS is NULL we fall back to SELECT COUNT(*) to
+	// match that contract. When stats *do* exist we trust them, even if
+	// stale: gathering vs. recomputing is a DBA-controlled tradeoff and a
+	// full COUNT(*) on every metadata fetch would be unacceptably expensive
+	// on large tables.
+	rowCount := numRows.Int64
+	if !numRows.Valid {
+		if rowCount, err = liveRowCount(ctx, db, tblName); err != nil {
+			return nil, err
+		}
+	}
+
 	tblMeta := &metadata.Table{
 		Name:        tblName,
 		TableType:   sqlz.TableTypeTable,
 		DBTableType: "TABLE",
-		RowCount:    numRows.Int64,
+		RowCount:    rowCount,
 		Size:        &bytes,
 		Comment:     comment.String,
 	}
@@ -321,11 +340,23 @@ WHERE m.mview_name = :1`
 		return nil, errw(err)
 	}
 
+	// USER_MVIEWS.NUM_ROWS, like USER_TABLES.NUM_ROWS, is CBO-stats-derived
+	// and is NULL until DBMS_STATS / ANALYZE has run on the materialized
+	// view. See getTableMetadata for the full rationale; the same fallback
+	// applies here.
+	rowCount := numRows.Int64
+	if !numRows.Valid {
+		var err error
+		if rowCount, err = liveRowCount(ctx, db, mvName); err != nil {
+			return nil, err
+		}
+	}
+
 	tblMeta := &metadata.Table{
 		Name:        mvName,
 		TableType:   sqlz.TableTypeTable,
 		DBTableType: "MATERIALIZED VIEW",
-		RowCount:    numRows.Int64,
+		RowCount:    rowCount,
 		Comment:     comment.String,
 	}
 	if bytes > 0 {
@@ -339,6 +370,22 @@ WHERE m.mview_name = :1`
 	tblMeta.Columns = cols
 
 	return tblMeta, nil
+}
+
+// liveRowCount returns SELECT COUNT(*) for tblName. It exists as a fallback
+// path because Oracle's data-dictionary row counts (USER_TABLES.NUM_ROWS,
+// USER_MVIEWS.NUM_ROWS) are CBO statistics, populated only after stats are
+// gathered, and are NULL otherwise. tblName is expected to be the canonical
+// Oracle identifier as stored in the data dictionary (uppercase for
+// unquoted identifiers); it's re-quoted defensively to handle any
+// mixed-case input.
+func liveRowCount(ctx context.Context, db *sql.DB, tblName string) (int64, error) {
+	quoted := stringz.DoubleQuote(strings.ToUpper(tblName))
+	var count int64
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+quoted).Scan(&count); err != nil {
+		return 0, errw(err)
+	}
+	return count, nil
 }
 
 // getColumnsMetadata returns metadata for all columns in a table.
