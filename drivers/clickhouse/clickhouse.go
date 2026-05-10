@@ -772,9 +772,23 @@ func (d *driveri) TableColumnTypes(
 
 	colsClause := "*"
 	if len(colNames) > 0 {
-		var quotedCols []string
-		for _, col := range colNames {
-			quotedCols = append(quotedCols, enquote(col))
+		// ClickHouse identifiers in backtick-quoted form are case-sensitive,
+		// so a cross-source `--insert=@dest.tbl` from an UPPERCASE source
+		// (e.g. Oracle) would otherwise generate `ACTOR_ID` against a column
+		// stored as `actor_id` and fail with code 47. Translate input names
+		// back to the destination table's stored case.
+		actualColNames, err := getTableColumnNames(ctx, db, tblName)
+		if err != nil {
+			return nil, err
+		}
+		colNames, err = driver.ResolveTableColumnsFold(actualColNames, colNames)
+		if err != nil {
+			return nil, errz.Wrapf(err, "table %q", tblName)
+		}
+
+		quotedCols := make([]string, len(colNames))
+		for i, col := range colNames {
+			quotedCols[i] = enquote(col)
 		}
 		colsClause = strings.Join(quotedCols, driver.Comma)
 	}

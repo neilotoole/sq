@@ -227,6 +227,33 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, dbName, tblName string) (
 }
 
 // getColumnsMetadata returns metadata for all columns in a table by querying
+// getTableColumnNames returns the names of the table's columns in ordinal
+// order, querying system.columns scoped to currentDatabase().
+func getTableColumnNames(ctx context.Context, db sqlz.DB, tblName string) ([]string, error) {
+	const query = `SELECT name FROM system.columns
+		WHERE database = currentDatabase() AND table = ?
+		ORDER BY position`
+
+	rows, err := db.QueryContext(ctx, query, tblName)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(lg.FromContext(ctx), rows)
+
+	var names []string
+	for rows.Next() {
+		var name string
+		if err = rows.Scan(&name); err != nil {
+			return nil, errw(err)
+		}
+		names = append(names, name)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+	return names, nil
+}
+
 // the system.columns catalog table.
 //
 // For each column, it retrieves:

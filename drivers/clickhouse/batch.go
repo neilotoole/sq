@@ -65,7 +65,11 @@ func (d *driveri) NewBatchInsert(ctx context.Context, msg string, db sqlz.DB,
 		return nil, errz.Wrapf(err, "open clickhouse native connection for batch insert")
 	}
 
-	// Get column metadata for the munge function.
+	// Get column metadata for the munge function. getTableRecordMeta also
+	// case-folds destColNames to the destination table's stored case (see
+	// driver.ResolveTableColumnsFold), so destColsMeta.Names() carries the
+	// canonical-case names — the only ones ClickHouse will recognize when
+	// quoted into the INSERT query below.
 	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		lg.WarnIfCloseError(log, "Close clickhouse native conn", conn)
@@ -74,10 +78,13 @@ func (d *driveri) NewBatchInsert(ctx context.Context, msg string, db sqlz.DB,
 
 	mungeFn := driver.DefaultInsertMungeFunc(destTbl, destColsMeta)
 
-	// Build the INSERT query for PrepareBatch.
+	// Build the INSERT query for PrepareBatch using the canonical-case
+	// column names from destColsMeta, not the (possibly mismatched-case)
+	// destColNames input.
 	// Format: INSERT INTO `tbl` (`c1`, `c2`)
-	quotedCols := make([]string, len(destColNames))
-	for i, col := range destColNames {
+	canonicalCols := destColsMeta.Names()
+	quotedCols := make([]string, len(canonicalCols))
+	for i, col := range canonicalCols {
 		quotedCols[i] = stringz.BacktickQuote(col)
 	}
 	insertQuery := fmt.Sprintf("INSERT INTO %s (%s)",
