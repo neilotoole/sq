@@ -39,6 +39,21 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - Oracle (`oracle`) database/sql backing switched from [godror](https://github.com/godror/godror)
   (OCI / Instant Client) to [go-ora](https://github.com/sijms/go-ora). URLs remain
   `oracle://user:pass@host:port/service`; Instant Client is no longer required.
+- Oracle source identifiers are now emitted in their stored case (so unquoted
+  Oracle columns appear as `UPPERCASE` in output), preserving Oracle
+  conventions. Cross-source operations transparently translate column names
+  case-insensitively when writing to case-sensitive destinations such as
+  Postgres and ClickHouse.
+
+### Fixed
+
+- [`sq sql`](https://sq.io/docs/cmd/sql) and `sq slq` with `--insert=@dest.tbl`
+  from an Oracle source to a Postgres or ClickHouse destination now succeed.
+  Oracle's UPPERCASE column names are resolved case-insensitively against the
+  destination table's actual columns before being quoted into the INSERT
+  (previously failed with Postgres SQLSTATE 42703 / ClickHouse code 47).
+- `sq inspect` on Oracle now returns correct row counts when the
+  data-dictionary `NUM_ROWS` is NULL by falling back to a live `COUNT(*)`.
 
 ## [v0.50.2] - 2026-04-24
 
