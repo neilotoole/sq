@@ -166,6 +166,13 @@ func TestCmdSQL_ExecMode(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle) // Will skip test if source not available
 
+			// Belt-and-suspenders cleanup: registered before the create_table
+			// test case runs, so the table is dropped even if a subsequent
+			// test case fails before the drop_table case can execute.
+			// SQLDriver.DropTable uses ifExists=true, so this is a no-op
+			// when drop_table runs successfully.
+			t.Cleanup(func() { th.DropTable(src, tablefq.From("test_exec_type")) })
+
 			cfg, ok := driverCfgs[handle]
 			if !ok {
 				cfg = defaultCfg
@@ -458,6 +465,11 @@ func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
 
+			// Register cleanup before any DDL runs, so the table is dropped
+			// even if an early require.NoError aborts the test. DropTable
+			// uses ifExists=true under the hood.
+			t.Cleanup(func() { th.DropTable(src, tablefq.From("test_edge_cases")) })
+
 			cfg, ok := driverCfgs[handle]
 			if !ok {
 				cfg = defaultCfg
@@ -503,11 +515,6 @@ func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 					}
 				})
 			}
-
-			// Cleanup: Drop test table
-			tr.Reset()
-			err = tr.Exec("sql", "DROP TABLE test_edge_cases")
-			require.NoError(t, err, "failed to drop test table")
 		})
 	}
 }
