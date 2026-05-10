@@ -648,7 +648,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	if len(colNames) == 0 {
 		colNames = actualColNames
 	} else {
-		colNames, err = resolveTableColumnsFold(actualColNames, colNames)
+		colNames, err = driver.ResolveTableColumnsFold(actualColNames, colNames)
 		if err != nil {
 			return nil, errz.Wrapf(err, "table %q", tblName)
 		}
@@ -708,29 +708,6 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 	}
 
 	return destCols, nil
-}
-
-// resolveTableColumnsFold returns a slice the same length as src, where each
-// entry is the canonical-case match for the corresponding entry in src,
-// looked up in actual via case-insensitive comparison. The order of src is
-// preserved. It returns an error naming the first src entry that has no
-// match in actual.
-func resolveTableColumnsFold(actual, src []string) ([]string, error) {
-	out := make([]string, len(src))
-	for i, name := range src {
-		var canonical string
-		for _, a := range actual {
-			if strings.EqualFold(a, name) {
-				canonical = a
-				break
-			}
-		}
-		if canonical == "" {
-			return nil, errz.Errorf("column %q does not exist", name)
-		}
-		out[i] = canonical
-	}
-	return out, nil
 }
 
 // getTableColumnNames consults postgres's information_schema.columns table,
