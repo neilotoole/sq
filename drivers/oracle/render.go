@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -224,9 +225,30 @@ func renderRowRange(_ *render.Context, rr *ast.RowRangeNode) (string, error) {
 	return buf.String(), nil
 }
 
-// preRenderOracle ensures ORDER BY exists when a row range is used; Oracle
-// requires ORDER BY before OFFSET/FETCH (same pattern as SQL Server).
+// oracleTableAliasASRE matches `FROM|JOIN <tbl> AS <alias>` where both the
+// table reference (optionally schema-qualified) and alias are double-quoted
+// identifiers. Oracle rejects the AS keyword between a table reference and
+// its alias; column aliases (e.g. `SELECT col AS alias`) are unaffected.
+var oracleTableAliasASRE = regexp.MustCompile(
+	`((?:FROM|JOIN)\s+(?:"[^"]+"\.)?"[^"]+")\s+AS(\s+"[^"]+")`,
+)
+
+// stripOracleTableAliasAS removes the AS keyword from table-alias positions
+// in a rendered FROM/JOIN fragment. See oracleTableAliasASRE for matching
+// rules.
+func stripOracleTableAliasAS(s string) string {
+	return oracleTableAliasASRE.ReplaceAllString(s, "$1$2")
+}
+
+// preRenderOracle adapts the rendered fragments for Oracle's dialect:
+//   - Strips the AS keyword from table-alias positions in the FROM clause;
+//     Oracle accepts `FROM tbl alias` but not `FROM tbl AS alias`.
+//   - Ensures ORDER BY exists when a row range is used; Oracle requires
+//     ORDER BY before OFFSET/FETCH (same pattern as SQL Server).
 func preRenderOracle(_ *render.Context, f *render.Fragments) error {
+	if f.From != "" {
+		f.From = stripOracleTableAliasAS(f.From)
+	}
 	if f.Range != "" && f.OrderBy == "" {
 		f.OrderBy = "ORDER BY (SELECT 0 FROM DUAL)"
 	}

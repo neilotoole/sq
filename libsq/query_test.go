@@ -23,13 +23,23 @@ import (
 // transform so shared wantSQL strings can be reused for Oracle golden tests.
 var oracleDoubleQuotedRE = regexp.MustCompile(`"([^"]*)"`)
 
-// oracleSQL returns s with every double-quoted identifier uppercased inside the quotes,
-// matching drivers/oracle.enquoteOracle.
+// oracleTableAliasASRE matches `FROM|JOIN <tbl> AS <alias>` where the table
+// reference (optionally schema-qualified) and alias are double-quoted. Oracle
+// rejects the AS keyword between a table reference and its alias; oracleSQL
+// strips it so shared wantSQL strings stay reusable.
+var oracleTableAliasASRE = regexp.MustCompile(
+	`((?:FROM|JOIN)\s+(?:"[^"]+"\.)?"[^"]+")\s+AS(\s+"[^"]+")`,
+)
+
+// oracleSQL returns s with every double-quoted identifier uppercased inside the
+// quotes (matching drivers/oracle.enquoteOracle) and the AS keyword removed
+// from table-alias positions (matching drivers/oracle.preRenderOracle).
 func oracleSQL(s string) string {
-	return oracleDoubleQuotedRE.ReplaceAllStringFunc(s, func(m string) string {
+	s = oracleDoubleQuotedRE.ReplaceAllStringFunc(s, func(m string) string {
 		inner := m[1 : len(m)-1]
 		return stringz.DoubleQuote(strings.ToUpper(inner))
 	})
+	return oracleTableAliasASRE.ReplaceAllString(s, "$1$2")
 }
 
 func TestOracleSQL(t *testing.T) {
