@@ -1131,6 +1131,17 @@ func TestMungeColNames(t *testing.T) {
 		{[]string{"a", "b", "c"}, []string{"a", "b", "c"}},
 		{[]string{"a", "b", "a", "d"}, []string{"a", "b", "a_1", "d"}},
 		{[]string{"a", "b", "a", "b", "d", "a"}, []string{"a", "b", "a_1", "b_1", "d", "a_2"}},
+		// Case-insensitive duplicate detection: cross-source joins with
+		// Oracle (UPPERCASE) on one side and another driver (lowercase)
+		// on the other produce mixed-case column names. The munged form
+		// preserves the original case but the disambiguation suffix is
+		// applied as if names were case-folded.
+		{[]string{"A", "a"}, []string{"A", "a_1"}},
+		{[]string{"ID", "id", "Id"}, []string{"ID", "id_1", "Id_2"}},
+		{
+			[]string{"STORE_ID", "ADDRESS_ID", "address_id", "last_update", "LAST_UPDATE"},
+			[]string{"STORE_ID", "ADDRESS_ID", "address_id_1", "last_update", "LAST_UPDATE_1"},
+		},
 	}
 
 	for i, tc := range testCases {

@@ -206,7 +206,12 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 			if overrideWant, ok := tc.override[src.Type]; ok {
 				want = overrideWant
 			} else if want != "" && src.Type == drivertype.Oracle {
-				want = oracleSQL(want)
+				// Multi-source queries execute on the scratch database
+				// (SQLite by default), not the source's dialect, so the
+				// Oracle uppercase transform doesn't apply.
+				if len(testh.ExtractHandlesFromQuery(t, tc.in, false)) <= 1 {
+					want = oracleSQL(want)
+				}
 			}
 
 			_, err := coll.SetActive(src.Handle, false)
@@ -299,6 +304,23 @@ func assertSinkColMungedNames(names ...string) SinkTestFunc {
 	return func(tb testing.TB, sink *testh.RecordSink) {
 		tb.Helper()
 		gotNames := sink.RecMeta.MungedNames()
+		// Oracle uppercases quoted identifiers (table names, column names,
+		// and AS aliases — see enquoteOracle), so column-name assertions
+		// against Oracle compare case-insensitively. Test inputs and
+		// expected names stay in their natural lowercase form for
+		// consistency with other drivers.
+		if sink.SrcType == drivertype.Oracle && len(names) == len(gotNames) {
+			match := true
+			for i := range names {
+				if !strings.EqualFold(names[i], gotNames[i]) {
+					match = false
+					break
+				}
+			}
+			if match {
+				return
+			}
+		}
 		assert.Equal(tb, names, gotNames)
 	}
 }

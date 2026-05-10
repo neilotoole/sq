@@ -505,7 +505,12 @@ func doMungeColNames(tpl *template.Template, ogColNames []string) (colNames []st
 		}
 
 		for j := range i {
-			if ogColNames[j] == data.Name {
+			// Case-insensitive duplicate detection: SQL treats unquoted
+			// identifiers case-insensitively, and cross-source joins
+			// (e.g. Oracle UPPERCASE on one side, SQLite lowercase on
+			// the other) routinely produce mixed-case column names that
+			// should still be disambiguated as duplicates.
+			if strings.EqualFold(ogColNames[j], data.Name) {
 				data.Recurrence++
 			}
 		}
