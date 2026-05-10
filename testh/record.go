@@ -14,6 +14,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 var (
@@ -124,6 +125,12 @@ type RecordSink struct {
 
 	// Flushed tracks the times Flush was invoked.
 	Flushed []time.Time
+
+	// SrcType is the driver type of the source the sink received
+	// records from. Optional; populated by test runners that want
+	// driver-aware assertions (e.g. case-insensitive column-name
+	// checks for Oracle, where quoted aliases are uppercased).
+	SrcType drivertype.Type
 	mu      sync.Mutex
 }
 

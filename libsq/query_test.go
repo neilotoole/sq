@@ -233,6 +233,7 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 
 			sink, err := th.QuerySLQ(in, tc.args)
 			require.NoError(t, err)
+			sink.SrcType = src.Type
 			require.Equal(t, tc.wantRecCount, len(sink.Recs))
 
 			for i := range tc.sinkFns {
@@ -267,7 +268,19 @@ func assertSinkColValue(coli int, val any) SinkTestFunc {
 func assertSinkColName(coli int, name string) SinkTestFunc {
 	return func(tb testing.TB, sink *testh.RecordSink) {
 		tb.Helper()
-		assert.Equal(tb, name, sink.RecMeta[coli].Name(), "column %d", coli)
+		got := sink.RecMeta[coli].Name()
+		// Oracle uppercases quoted identifiers (table names, column names,
+		// and AS aliases — see enquoteOracle), so column-name assertions
+		// against Oracle compare case-insensitively. Test inputs and
+		// expected names stay in their natural lowercase form for
+		// consistency with other drivers.
+		if sink.SrcType == drivertype.Oracle {
+			if !strings.EqualFold(name, got) {
+				assert.Equal(tb, name, got, "column %d", coli)
+			}
+			return
+		}
+		assert.Equal(tb, name, got, "column %d", coli)
 	}
 }
 
