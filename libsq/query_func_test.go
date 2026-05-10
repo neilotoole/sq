@@ -53,6 +53,7 @@ func TestQuery_func(t *testing.T) {
 			override: driverMap{
 				drivertype.MySQL:      "SELECT avg(`actor_id`) AS `avg(.actor_id)` FROM `actor`",
 				drivertype.ClickHouse: "SELECT avg(`actor_id`) AS `avg(.actor_id)` FROM `actor`",
+				drivertype.Oracle:     `SELECT CAST(avg("ACTOR_ID") AS BINARY_DOUBLE) AS "AVG(.ACTOR_ID)" FROM "ACTOR"`,
 			},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{

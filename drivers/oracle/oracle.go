@@ -155,7 +155,21 @@ func (d *driveri) Renderer() *render.Renderer {
 	r.FunctionOverrides[ast.FuncNameSchema] = render.FuncOverrideString(oracleSchemaFrag)
 	r.FunctionOverrides[ast.FuncNameCatalog] = doRenderFuncCatalog
 	r.FunctionOverrides[ast.FuncNameRowNum] = renderFuncRowNum
+	r.FunctionOverrides[ast.FuncNameAvg] = doRenderFuncAvg
 	return r
+}
+
+// doRenderFuncAvg wraps avg() in CAST(... AS BINARY_DOUBLE). Oracle returns
+// AVG over an integer column as NUMBER(38, 255) (floating-scale, indistinguishable
+// from COUNT/SUM at the metadata layer), which classifies as kind.Int. AVG
+// can yield fractional values, so scanning into int64 fails. The cast pins
+// the result type to a float so it scans cleanly.
+func doRenderFuncAvg(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	inner, err := render.RenderFuncDefault(rc, fn)
+	if err != nil {
+		return "", err
+	}
+	return "CAST(" + inner + " AS BINARY_DOUBLE)", nil
 }
 
 // doRenderFuncCatalog renders the catalog function. Oracle doesn't have catalogs,
