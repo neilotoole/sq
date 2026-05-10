@@ -16,7 +16,7 @@ edge-case support improve.
 {{< /alert >}}
 
 The driver uses pure Go [go-ora](https://github.com/sijms/go-ora) and does
-not require Oracle Instant Client, CGO, or OCI libraries.
+not require Oracle Instant Client, CGo, or OCI libraries.
 
 ## Add source
 
@@ -41,7 +41,7 @@ oracle://username:password@hostname:1521/service_name
 oracle://username:password@hostname/service_name
 ```
 
-Query parameters are passed through to go-ora. Useful examples include SSL,
+Query parameters are passed through to `go-ora`. Useful examples include SSL,
 wallet, trace, and timeout settings:
 
 ```shell
@@ -72,6 +72,12 @@ Unquoted Oracle identifiers are stored uppercase. `sq` follows that convention
 when rendering quoted identifiers, so table and column names created through
 `sq` are typically visible in uppercase in Oracle metadata.
 
+Cross-source operations such as `--insert=@dest.tbl` from an Oracle source
+to a case-sensitive destination (Postgres, ClickHouse) translate column
+names case-insensitively against the destination table's actual columns
+before quoting them, so Oracle's UPPERCASE column names match the
+destination's stored case (typically lowercase) transparently.
+
 ### Metadata visibility
 
 `sq inspect` loads **base tables**, **views**, and **materialized views** from
@@ -95,13 +101,29 @@ links) are not implemented yet.
 Oracle SQL rendering differs from several other SQL drivers:
 
 - Bind placeholders use Oracle's numbered form: `:1`, `:2`, `:3`, and so on.
-- `rownum()` renders as `ROWNUM`.
-- `catalog()` renders as `NULL`; `schema()` renders the current schema via
-  `SYS_CONTEXT`.
+- `rownum()` renders as the portable `row_number() OVER (ORDER BY ...)`
+  window function, threading the query's `ORDER BY` through the window
+  definition. Oracle's `ROWNUM` pseudo-column is intentionally not used
+  because it is assigned at fetch time, *before* `ORDER BY` is applied,
+  which silently produces wrong row numbers when the query also sorts.
+- `catalog()` renders as `CAST(NULL AS VARCHAR2(1))` (a typed `NULL`);
+  `schema()` renders the current schema via `SYS_CONTEXT`. The cast is
+  required because go-ora drops rows whose only column is an untyped
+  literal `NULL`.
+- `avg()` and `sum()` are wrapped in `CAST(... AS BINARY_DOUBLE)`. Oracle
+  returns these aggregates as `NUMBER(38, 255)` regardless of operand type,
+  which `sq` would otherwise classify as `int`; the cast pins the result
+  to a float so fractional values scan cleanly. Tradeoff: integer-valued
+  sums lose precision past ~15-17 significant digits — use raw SQL for
+  lossless big-integer aggregation.
 - Row ranges render using `OFFSET ... FETCH NEXT ... ROWS ONLY` for Oracle
   12c and newer. When a row range has no explicit sort, `sq` adds an
   Oracle-compatible `ORDER BY` expression before the row range.
 - Scalar selections that need a table source use `FROM DUAL` where required.
+- The `AS` keyword is stripped from table-alias positions in `FROM`/`JOIN`
+  clauses (e.g. `FROM "tbl" AS "alias"` becomes `FROM "tbl" "alias"`).
+  Oracle accepts `FROM tbl alias` but rejects `FROM tbl AS alias`. Column
+  aliases (e.g. `SELECT col AS alias`) are unaffected.
 
 ### Type mapping
 
