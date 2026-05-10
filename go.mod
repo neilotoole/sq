@@ -57,7 +57,7 @@ require (
 	github.com/segmentio/encoding v0.5.4
 	github.com/sethvargo/go-retry v0.3.0
 	github.com/shopspring/decimal v1.4.0
-	github.com/sijms/go-ora/v2 v2.9.0
+	github.com/sijms/go-ora/v2 v2.9.1-0.20260319160952-ef646cf075eb
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
