@@ -96,7 +96,9 @@ exporting test-only symbols.
 
 ### Quirks (transactions, DDL, TRUNCATE, defaults)
 
-- **Catalog**: Oracle has schemas, not catalogs; `catalog()` renders `NULL`.
+- **Catalog**: `catalog()` renders as `SYS_CONTEXT('USERENV', 'DB_NAME')`,
+  which is the PDB name in multitenant deployments and the database name
+  otherwise.
 - **Transactions**: Ordinary `database/sql` semantics; DDL commits an open
   transaction.
 - **`sq tbl ... --truncate`**: Oracle does not reset sequences via `TRUNCATE`;

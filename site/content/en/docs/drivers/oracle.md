@@ -12,11 +12,14 @@ The `sq` Oracle driver implements connectivity for
 
 {{< alert icon="🧪" >}}
 The Oracle driver is experimental. Behavior may change as test coverage and
-edge-case support improve.
+edge-case support improve. So far the driver has been tested against a single
+Oracle version (Oracle Database 23ai Free, via the
+[`sakiladb/oracle`](https://github.com/sakiladb/oracle) image); broader
+version coverage is in progress.
 {{< /alert >}}
 
-The driver uses pure Go [go-ora](https://github.com/sijms/go-ora) and does
-not require Oracle Instant Client, CGo, or OCI libraries.
+The driver uses the pure-Go [go-ora](https://github.com/sijms/go-ora) driver
+and does not require Oracle Instant Client, CGo, or OCI libraries.
 
 ## Add source
 
@@ -59,14 +62,25 @@ Oracle URL location for `sq add`.
 
 ### Schema and catalog
 
-Oracle does not implement catalogs in the same sense as Postgres or SQL
-Server. In `sq`, `catalog()` returns `NULL` for Oracle sources, and
-`schema()` returns the current Oracle schema (which maps to the connected
-user).
+Oracle's catalog and schema concepts differ from other databases:
 
-Oracle schemas are users. `sq` can list schemas from `ALL_USERS`, but
-`CREATE SCHEMA` and `DROP SCHEMA` are not Oracle operations; create or drop
-Oracle users instead.
+- **Catalog**: in 12c and later, Oracle is multitenant — a Container
+  Database (CDB) hosts one or more Pluggable Databases (PDBs), and each
+  PDB is functionally an independent database with its own schemas, users,
+  and tables. The PDB is the catalog-equivalent. In a non-CDB or pre-12c
+  deployment there is just one database, which serves the same role.
+  In `sq`, `catalog()` returns `SYS_CONTEXT('USERENV', 'DB_NAME')`, which
+  yields the PDB name in multitenant deployments and the database name
+  otherwise.
+- **Schema**: Oracle schemas are users. In `sq`, `schema()` returns the
+  current Oracle schema (the connected user). `sq` can list schemas from
+  `ALL_USERS`, but `CREATE SCHEMA` and `DROP SCHEMA` are not Oracle
+  operations; create or drop Oracle users instead.
+
+The connection URL's *service name* is a connection-time routing identifier
+the listener uses to pick which database/PDB to attach you to. It is not
+itself the catalog — once the session is established, `catalog()` reflects
+the database/PDB the service routed you into.
 
 Unquoted Oracle identifiers are stored uppercase. `sq` follows that convention
 when rendering quoted identifiers, so table and column names created through
@@ -106,10 +120,9 @@ Oracle SQL rendering differs from several other SQL drivers:
   definition. Oracle's `ROWNUM` pseudo-column is intentionally not used
   because it is assigned at fetch time, *before* `ORDER BY` is applied,
   which silently produces wrong row numbers when the query also sorts.
-- `catalog()` renders as `CAST(NULL AS VARCHAR2(1))` (a typed `NULL`);
-  `schema()` renders the current schema via `SYS_CONTEXT`. The cast is
-  required because go-ora drops rows whose only column is an untyped
-  literal `NULL`.
+- `catalog()` renders as `SYS_CONTEXT('USERENV', 'DB_NAME')`, which yields
+  the PDB name in multitenant deployments and the database name in non-CDB
+  deployments. `schema()` renders as `SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')`.
 - `avg()` and `sum()` are wrapped in `CAST(... AS BINARY_DOUBLE)`. Oracle
   returns these aggregates as `NUMBER(38, 255)` regardless of operand type,
   which `sq` would otherwise classify as `int`; the cast pins the result
