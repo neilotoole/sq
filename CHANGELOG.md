@@ -21,30 +21,16 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   driver. No Oracle Instant Client or OCI native libraries are required, so
   Oracle support ships in the standard `sq` binary with no additional setup.
   See the [Oracle driver documentation](https://sq.io/docs/drivers/oracle/).
-  - Source metadata loads base tables, views, and materialized views from the
-    current schema (`USER_TABLES`, `USER_VIEWS`, `USER_MVIEWS`) and reports
-    `TableCount` / `ViewCount` accordingly. [@drluckyspin](https://github.com/drluckyspin)
-  - [`sq inspect`](https://sq.io/docs/cmd/inspect) and related flows can treat
-    views and materialized views like other relations: `TableExists` checks
-    `USER_OBJECTS`, and `ListTableNames` can include materialized views when
-    listing tables. [@drluckyspin](https://github.com/drluckyspin)
-  - Session/database properties (`db_name`, `current_schema`, and a
-    best-effort `version` from `V$INSTANCE` or `V$VERSION`) for tooling that
-    reads source metadata. [@drluckyspin](https://github.com/drluckyspin)
-  - SLQ rendering support for Oracle includes `ROWNUM`, `OFFSET` / `FETCH`
-    row ranges (with `ORDER BY` ensured when a range is used), and dialect
-    `ExecModeFor` / `NewBatchInsert` aligned with other SQL drivers.
-    [@drluckyspin](https://github.com/drluckyspin)
+  Thanks to [@drluckyspin](https://github.com/drluckyspin) for driving the
+  initial implementation.
 
 ### Fixed
 
-- [`sq sql`](https://sq.io/docs/cmd/sql) and `sq slq` with `--insert=@dest.tbl`
-  from an Oracle source to a Postgres or ClickHouse destination now succeed.
-  Oracle's UPPERCASE column names are resolved case-insensitively against the
-  destination table's actual columns before being quoted into the INSERT
-  (previously failed with Postgres SQLSTATE 42703 / ClickHouse code 47).
-- `sq inspect` on Oracle now returns correct row counts when the
-  data-dictionary `NUM_ROWS` is NULL by falling back to a live `COUNT(*)`.
+- Cross-source `--insert=@dest.tbl` from an Oracle source to a Postgres or
+  ClickHouse destination now succeeds; previously, Oracle's UPPERCASE column
+  names did not match the destination's stored case.
+- `sq inspect` on Oracle returns correct row counts when the data-dictionary
+  `NUM_ROWS` is NULL.
 
 ## [v0.50.2] - 2026-04-24
 
