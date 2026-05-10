@@ -183,7 +183,7 @@ func TestQuery_func_schema(t *testing.T) {
 		{
 			name:         "oracle-default",
 			in:           `@sakila | schema()`,
-			wantSQL:      `SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') AS "schema()"`,
+			wantSQL:      `SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') AS "schema()" FROM DUAL`,
 			onlyFor:      []drivertype.Type{drivertype.Oracle},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
@@ -290,7 +290,7 @@ func TestQuery_func_catalog(t *testing.T) {
 		{
 			name:         "oracle",
 			in:           `@sakila | catalog()`,
-			wantSQL:      `SELECT NULL AS "catalog()"`,
+			wantSQL:      `SELECT CAST(NULL AS VARCHAR2(1)) AS "catalog()" FROM DUAL`,
 			onlyFor:      []drivertype.Type{drivertype.Oracle},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{

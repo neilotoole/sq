@@ -241,12 +241,18 @@ func stripOracleTableAliasAS(s string) string {
 }
 
 // preRenderOracle adapts the rendered fragments for Oracle's dialect:
+//   - Injects `FROM DUAL` when the query has no FROM clause; Oracle's
+//     classic SQL grammar requires a row source for SELECT, and even on
+//     Oracle 23ai a literal-only projection like `SELECT NULL` returns
+//     zero rows via go-ora.
 //   - Strips the AS keyword from table-alias positions in the FROM clause;
 //     Oracle accepts `FROM tbl alias` but not `FROM tbl AS alias`.
 //   - Ensures ORDER BY exists when a row range is used; Oracle requires
 //     ORDER BY before OFFSET/FETCH (same pattern as SQL Server).
 func preRenderOracle(_ *render.Context, f *render.Fragments) error {
-	if f.From != "" {
+	if f.From == "" {
+		f.From = "FROM DUAL"
+	} else {
 		f.From = stripOracleTableAliasAS(f.From)
 	}
 	if f.Range != "" && f.OrderBy == "" {

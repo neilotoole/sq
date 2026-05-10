@@ -63,7 +63,28 @@ func TestPreRenderOracle_preservesExistingOrderBy(t *testing.T) {
 
 func TestPreRenderOracle_noOpWithoutRange(t *testing.T) {
 	t.Parallel()
-	f := &render.Fragments{OrderBy: ""}
+	f := &render.Fragments{From: "FROM \"X\"", OrderBy: ""}
 	require.NoError(t, preRenderOracle(nil, f))
 	require.Equal(t, "", f.OrderBy)
+}
+
+func TestPreRenderOracle_injectsFromDualWhenNoFrom(t *testing.T) {
+	t.Parallel()
+	f := &render.Fragments{}
+	require.NoError(t, preRenderOracle(nil, f))
+	require.Equal(t, "FROM DUAL", f.From)
+}
+
+func TestPreRenderOracle_preservesNonEmptyFrom(t *testing.T) {
+	t.Parallel()
+	f := &render.Fragments{From: `FROM "ACTOR"`}
+	require.NoError(t, preRenderOracle(nil, f))
+	require.Equal(t, `FROM "ACTOR"`, f.From)
+}
+
+func TestPreRenderOracle_stripsTableAliasASInJoin(t *testing.T) {
+	t.Parallel()
+	f := &render.Fragments{From: `FROM "STORE" AS "S" INNER JOIN "ADDRESS" AS "A" ON "S"."ID" = "A"."ID"`}
+	require.NoError(t, preRenderOracle(nil, f))
+	require.Equal(t, `FROM "STORE" "S" INNER JOIN "ADDRESS" "A" ON "S"."ID" = "A"."ID"`, f.From)
 }

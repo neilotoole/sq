@@ -189,10 +189,12 @@ func doRenderFuncSum(rc *render.Context, fn *ast.FuncNode) (string, error) {
 	return "CAST(" + inner + " AS BINARY_DOUBLE)", nil
 }
 
-// doRenderFuncCatalog renders the catalog function. Oracle doesn't have catalogs,
-// so we return NULL.
+// doRenderFuncCatalog renders the catalog function. Oracle doesn't have
+// catalogs, so we return a typed NULL. The cast is required because go-ora
+// drops rows whose only column is an untyped literal NULL — `SELECT NULL
+// FROM DUAL` returns zero rows via the wire driver, not one.
 func doRenderFuncCatalog(_ *render.Context, _ *ast.FuncNode) (string, error) {
-	return "NULL", nil
+	return "CAST(NULL AS VARCHAR2(1))", nil
 }
 
 // Open implements driver.Driver.
