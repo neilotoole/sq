@@ -290,11 +290,12 @@ func TestQuery_func_catalog(t *testing.T) {
 		{
 			name:         "oracle",
 			in:           `@sakila | catalog()`,
-			wantSQL:      `SELECT CAST(NULL AS VARCHAR2(1)) AS "catalog()" FROM DUAL`,
+			wantSQL:      `SELECT SYS_CONTEXT('USERENV', 'DB_NAME') AS "catalog()" FROM DUAL`,
 			onlyFor:      []drivertype.Type{drivertype.Oracle},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
+				assertSinkColValue(0, "SAKILA"),
 			},
 		},
 	}

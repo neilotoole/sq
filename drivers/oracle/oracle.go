@@ -152,8 +152,13 @@ func (d *driveri) Renderer() *render.Renderer {
 	r.PreRender = append(r.PreRender, preRenderOracle)
 
 	const oracleSchemaFrag = `SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')`
+	// Oracle's catalog-equivalent is the database name (DB_NAME). In a 12c+
+	// multitenant deployment, that's the PDB the session is attached to;
+	// in a non-CDB deployment, it's the single database. SYS_CONTEXT returns
+	// a typed VARCHAR2, so no CAST is needed (unlike a literal NULL).
+	const oracleCatalogFrag = `SYS_CONTEXT('USERENV', 'DB_NAME')`
 	r.FunctionOverrides[ast.FuncNameSchema] = render.FuncOverrideString(oracleSchemaFrag)
-	r.FunctionOverrides[ast.FuncNameCatalog] = doRenderFuncCatalog
+	r.FunctionOverrides[ast.FuncNameCatalog] = render.FuncOverrideString(oracleCatalogFrag)
 	r.FunctionOverrides[ast.FuncNameAvg] = doRenderFuncAvg
 	r.FunctionOverrides[ast.FuncNameSum] = doRenderFuncSum
 	return r
@@ -187,14 +192,6 @@ func doRenderFuncSum(rc *render.Context, fn *ast.FuncNode) (string, error) {
 		return "", err
 	}
 	return "CAST(" + inner + " AS BINARY_DOUBLE)", nil
-}
-
-// doRenderFuncCatalog renders the catalog function. Oracle doesn't have
-// catalogs, so we return a typed NULL. The cast is required because go-ora
-// drops rows whose only column is an untyped literal NULL — `SELECT NULL
-// FROM DUAL` returns zero rows via the wire driver, not one.
-func doRenderFuncCatalog(_ *render.Context, _ *ast.FuncNode) (string, error) {
-	return "CAST(NULL AS VARCHAR2(1))", nil
 }
 
 // Open implements driver.Driver.
