@@ -25,36 +25,69 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db *sql.DB, noSc
 	log := lg.FromContext(ctx)
 
 	md := &metadata.Source{
-		Handle:    src.Handle,
-		Location:  src.Location,
-		Driver:    drivertype.Oracle,
-		DBDriver:  drivertype.Oracle,
-		DBVersion: "",
-		Catalog:   "",
+		Handle:   src.Handle,
+		Location: src.Location,
+		Driver:   drivertype.Oracle,
+		DBDriver: drivertype.Oracle,
 	}
 
-	// Get database version
-	// Use v$version instead of v$instance as it's more accessible to regular users
-	var version string
-	err := db.QueryRowContext(ctx,
-		"SELECT BANNER FROM v$version WHERE ROWNUM = 1").Scan(&version)
-	if err != nil {
-		// If we can't query version (permissions issue), just leave it empty
-		md.DBVersion = ""
-	} else {
-		md.DBVersion = version
-	}
-
-	// Get current schema
-	var schema string
-	err = db.QueryRowContext(ctx,
-		"SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM DUAL").Scan(&schema)
-	if err != nil {
+	// One round-trip for the SYS_CONTEXT scalars: schema, session user, and
+	// database name (which serves as the catalog — see Renderer's catalog()
+	// override).
+	const summaryQuery = `SELECT
+    SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA'),
+    SYS_CONTEXT('USERENV', 'SESSION_USER'),
+    SYS_CONTEXT('USERENV', 'DB_NAME')
+FROM DUAL`
+	var schema, user, catalog string
+	if err := db.QueryRowContext(ctx, summaryQuery).Scan(&schema, &user, &catalog); err != nil {
 		return nil, errw(err)
 	}
 	md.Schema = schema
+	md.User = user
+	md.Catalog = catalog
 	md.Name = md.Schema
 	md.FQName = md.Schema
+
+	// DBProduct is the descriptive banner (e.g. "Oracle Database 23ai
+	// Free Release ..."). DBVersion prefers v$instance.version (numeric,
+	// e.g. "23.26.1.0.0") and falls back to the banner if v$instance is
+	// not readable.
+	var banner string
+	if err := db.QueryRowContext(ctx,
+		"SELECT BANNER FROM v$version WHERE ROWNUM = 1").Scan(&banner); err == nil {
+		md.DBProduct = banner
+	}
+	// Version preference order:
+	//   1. PRODUCT_COMPONENT_VERSION.VERSION_FULL — patch-level version
+	//      (e.g. "23.26.1.0.0"), readable by every user.
+	//   2. V$INSTANCE.VERSION — clean numeric version, but only DBAs can
+	//      see V$ views.
+	//   3. The BANNER as a last resort.
+	var version string
+	switch {
+	case db.QueryRowContext(ctx,
+		"SELECT version_full FROM product_component_version WHERE ROWNUM = 1",
+	).Scan(&version) == nil && version != "":
+		md.DBVersion = version
+	case db.QueryRowContext(ctx,
+		"SELECT version FROM v$instance WHERE ROWNUM = 1",
+	).Scan(&version) == nil && version != "":
+		md.DBVersion = version
+	default:
+		md.DBVersion = banner
+	}
+
+	// Size: total bytes of segments owned by the connected user (tables,
+	// indexes, LOBs, etc.). USER_SEGMENTS is readable by every user; the
+	// PDB- or database-wide equivalents (DBA_DATA_FILES) require DBA
+	// privileges and aren't appropriate for an ordinary application
+	// account. NVL guards against an empty user with no segments.
+	var size sql.NullInt64
+	if err := db.QueryRowContext(ctx,
+		"SELECT NVL(SUM(bytes), 0) FROM user_segments").Scan(&size); err == nil {
+		md.Size = size.Int64
+	}
 
 	if noSchema {
 		// Don't fetch schema metadata

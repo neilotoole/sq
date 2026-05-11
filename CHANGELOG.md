@@ -32,6 +32,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   and materialized views. Tables and materialized views fall back to a
   live `COUNT(*)` when the data-dictionary `NUM_ROWS` is NULL; views
   always use `COUNT(*)` since `USER_VIEWS` carries no row count.
+- `sq inspect` on Oracle now populates source-level `db_product` (the
+  full Oracle banner), `size` (sum of bytes from `USER_SEGMENTS`),
+  `catalog` (database / PDB name), and `user` (session user). `db_version`
+  is now the clean numeric version (e.g. `23.26.1.0.0`) read from
+  `PRODUCT_COMPONENT_VERSION.VERSION_FULL` instead of the long banner.
 
 ## [v0.50.2] - 2026-04-24
 
