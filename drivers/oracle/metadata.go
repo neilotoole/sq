@@ -109,6 +109,10 @@ FROM DUAL`
 
 	md.Tables = tables
 	for _, tbl := range md.Tables {
+		// Oracle's natural fully-qualified form is schema.table (the
+		// schema-qualified reference the user types in their own SQL).
+		// Catalog (= DB_NAME / PDB) is tracked separately on Source.
+		tbl.FQName = md.Schema + "." + tbl.Name
 		switch tbl.TableType {
 		case sqlz.TableTypeTable:
 			md.TableCount++
