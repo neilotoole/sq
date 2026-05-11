@@ -53,6 +53,7 @@ func TestQuery_func(t *testing.T) {
 			override: driverMap{
 				drivertype.MySQL:      "SELECT avg(`actor_id`) AS `avg(.actor_id)` FROM `actor`",
 				drivertype.ClickHouse: "SELECT avg(`actor_id`) AS `avg(.actor_id)` FROM `actor`",
+				drivertype.Oracle:     `SELECT CAST(avg("ACTOR_ID") AS BINARY_DOUBLE) AS "AVG(.ACTOR_ID)" FROM "ACTOR"`,
 			},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
@@ -179,6 +180,16 @@ func TestQuery_func_schema(t *testing.T) {
 				assertSinkColValue(0, "sakila"),
 			},
 		},
+		{
+			name:         "oracle-default",
+			in:           `@sakila | schema()`,
+			wantSQL:      `SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') AS "schema()" FROM DUAL`,
+			onlyFor:      []drivertype.Type{drivertype.Oracle},
+			wantRecCount: 1,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "schema()"),
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -274,6 +285,17 @@ func TestQuery_func_catalog(t *testing.T) {
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
 				assertSinkColValue(0, "sakila"),
+			},
+		},
+		{
+			name:         "oracle",
+			in:           `@sakila | catalog()`,
+			wantSQL:      `SELECT SYS_CONTEXT('USERENV', 'DB_NAME') AS "catalog()" FROM DUAL`,
+			onlyFor:      []drivertype.Type{drivertype.Oracle},
+			wantRecCount: 1,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "catalog()"),
+				assertSinkColValue(0, "SAKILA"),
 			},
 		},
 	}

@@ -9,13 +9,20 @@ import (
 )
 
 func doFunction(rc *Context, fn *ast.FuncNode) (string, error) {
-	sb := strings.Builder{}
 	fnName := strings.ToLower(fn.FuncName())
-
 	if f, ok := rc.Renderer.FunctionOverrides[fnName]; ok {
-		// The SQL function name has a custom renderer.
 		return f(rc, fn)
 	}
+	return RenderFuncDefault(rc, fn)
+}
+
+// RenderFuncDefault renders fn using the default function-render logic,
+// bypassing Renderer.FunctionOverrides. It's intended for FunctionOverrides
+// implementations that need to wrap the default rendering — e.g. wrapping
+// a SQL function call in a cast.
+func RenderFuncDefault(rc *Context, fn *ast.FuncNode) (string, error) {
+	sb := strings.Builder{}
+	fnName := strings.ToLower(fn.FuncName())
 
 	if f, ok := rc.Renderer.FunctionNames[fnName]; ok {
 		// The SLQ function name is mapped to a different SQL function

@@ -1,6 +1,7 @@
 package libsq_test
 
 import (
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -10,11 +11,44 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
 )
+
+// oracleDoubleQuotedRE matches Postgres-style "identifier" segments in expected SQL.
+// Oracle's dialect enquotes by uppercasing the identifier; oracleSQL applies the same
+// transform so shared wantSQL strings can be reused for Oracle golden tests.
+var oracleDoubleQuotedRE = regexp.MustCompile(`"([^"]*)"`)
+
+// oracleTableAliasASRE matches `FROM|JOIN <tbl> AS <alias>` where the table
+// reference (optionally schema-qualified) and alias are double-quoted. Oracle
+// rejects the AS keyword between a table reference and its alias; oracleSQL
+// strips it so shared wantSQL strings stay reusable.
+var oracleTableAliasASRE = regexp.MustCompile(
+	`((?:FROM|JOIN)\s+(?:"[^"]+"\.)?"[^"]+")\s+AS(\s+"[^"]+")`,
+)
+
+// oracleSQL returns s with every double-quoted identifier uppercased inside the
+// quotes (matching drivers/oracle.enquoteOracle) and the AS keyword removed
+// from table-alias positions (matching drivers/oracle.preRenderOracle).
+func oracleSQL(s string) string {
+	s = oracleDoubleQuotedRE.ReplaceAllStringFunc(s, func(m string) string {
+		inner := m[1 : len(m)-1]
+		return stringz.DoubleQuote(strings.ToUpper(inner))
+	})
+	return oracleTableAliasASRE.ReplaceAllString(s, "$1$2")
+}
+
+func TestOracleSQL(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t,
+		`SELECT "ACTOR_ID" FROM "ACTOR" WHERE "FIRST_NAME" = 'x'`,
+		oracleSQL(`SELECT "actor_id" FROM "actor" WHERE "first_name" = 'x'`),
+	)
+}
 
 // driverMap is a map of drivertype.Type to a string.
 // It is used to specify a string for a specific driver.
@@ -171,6 +205,13 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 			want := tc.wantSQL
 			if overrideWant, ok := tc.override[src.Type]; ok {
 				want = overrideWant
+			} else if want != "" && src.Type == drivertype.Oracle {
+				// Multi-source queries execute on the scratch database
+				// (SQLite by default), not the source's dialect, so the
+				// Oracle uppercase transform doesn't apply.
+				if len(testh.ExtractHandlesFromQuery(t, tc.in, false)) <= 1 {
+					want = oracleSQL(want)
+				}
 			}
 
 			_, err := coll.SetActive(src.Handle, false)
@@ -207,6 +248,7 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 
 			sink, err := th.QuerySLQ(in, tc.args)
 			require.NoError(t, err)
+			sink.SrcType = src.Type
 			require.Equal(t, tc.wantRecCount, len(sink.Recs))
 
 			for i := range tc.sinkFns {
@@ -241,7 +283,19 @@ func assertSinkColValue(coli int, val any) SinkTestFunc {
 func assertSinkColName(coli int, name string) SinkTestFunc {
 	return func(tb testing.TB, sink *testh.RecordSink) {
 		tb.Helper()
-		assert.Equal(tb, name, sink.RecMeta[coli].Name(), "column %d", coli)
+		got := sink.RecMeta[coli].Name()
+		// Oracle uppercases quoted identifiers (table names, column names,
+		// and AS aliases — see enquoteOracle), so column-name assertions
+		// against Oracle compare case-insensitively. Test inputs and
+		// expected names stay in their natural lowercase form for
+		// consistency with other drivers.
+		if sink.SrcType == drivertype.Oracle {
+			if !strings.EqualFold(name, got) {
+				assert.Equal(tb, name, got, "column %d", coli)
+			}
+			return
+		}
+		assert.Equal(tb, name, got, "column %d", coli)
 	}
 }
 
@@ -250,6 +304,23 @@ func assertSinkColMungedNames(names ...string) SinkTestFunc {
 	return func(tb testing.TB, sink *testh.RecordSink) {
 		tb.Helper()
 		gotNames := sink.RecMeta.MungedNames()
+		// Oracle uppercases quoted identifiers (table names, column names,
+		// and AS aliases — see enquoteOracle), so column-name assertions
+		// against Oracle compare case-insensitively. Test inputs and
+		// expected names stay in their natural lowercase form for
+		// consistency with other drivers.
+		if sink.SrcType == drivertype.Oracle && len(names) == len(gotNames) {
+			match := true
+			for i := range names {
+				if !strings.EqualFold(names[i], gotNames[i]) {
+					match = false
+					break
+				}
+			}
+			if match {
+				return
+			}
+		}
 		assert.Equal(tb, names, gotNames)
 	}
 }

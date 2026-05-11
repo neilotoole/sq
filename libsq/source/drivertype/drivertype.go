@@ -31,6 +31,9 @@ const (
 	// ClickHouse is for ClickHouse.
 	ClickHouse = Type("clickhouse")
 
+	// Oracle is for Oracle Database.
+	Oracle = Type("oracle")
+
 	// CSV is for Comma-Separated Values.
 	CSV = Type("csv")
 

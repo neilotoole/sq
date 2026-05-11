@@ -79,3 +79,27 @@ extension features.
 There is already a [feature request](https://github.com/neilotoole/sq/issues/86) to
 add [SpatiaLite](https://www.gaia-gis.it/fossil/libspatialite/index) support.
 {{< /alert >}}
+
+## Inspect field provenance
+
+`sq inspect` populates the fields below from SQLite pragmas, built-in
+functions, and the database file itself.
+
+### Source-level fields
+
+| Field | Source |
+| --- | --- |
+| `name` | DB file basename |
+| `schema` | first row of `pragma_database_list` (typically `main`) |
+| `catalog` | hardcoded `default` — SQLite has no catalog concept |
+| `user` | not populated — SQLite has no user model |
+| `db_product` | `"SQLite3 v" + db_version` |
+| `db_version` | `sqlite_version()` |
+| `size` | filesystem size of the DB file (`os.Stat`) |
+
+### Per-table fields
+
+| Field | Source |
+| --- | --- |
+| `row_count` | live `SELECT COUNT(*) FROM "tbl"` |
+| `size` | not reported — SQLite does not expose per-table storage |

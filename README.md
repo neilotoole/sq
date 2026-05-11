@@ -47,6 +47,7 @@ postgres    PostgreSQL
 sqlserver   Microsoft SQL Server / Azure SQL Edge
 mysql       MySQL
 clickhouse  ClickHouse
+oracle      Oracle Database (experimental)
 csv         Comma-Separated Values
 tsv         Tab-Separated Values
 json        JSON
@@ -58,6 +59,11 @@ xlsx        Microsoft Excel XLSX
 > [!NOTE]
 > ClickHouse Driver support is currently in beta. Full details of support can be
 > found in the [ClickHouse README](drivers/clickhouse/README.md).
+
+> [!NOTE]
+> **Oracle Driver (Experimental):** Oracle Database support is experimental.
+> The driver uses pure Go ([go-ora](https://github.com/sijms/go-ora)) and does
+> not require Oracle Instant Client. See the [Oracle driver docs](drivers/oracle/README.md) for setup.
 
 ## Install
 
@@ -161,7 +167,7 @@ $ sq ls
 
 Let's [add](https://sq.io/docs/cmd/add) a source. First we'll add a [SQLite](https://sq.io/docs/drivers/sqlite)
 database, but this could also be [Postgres](https://sq.io/docs/drivers/postgres),
-[SQL Server](https://sq.io/docs/drivers/sqlserver) etc., or a document source such [Excel](https://sq.io/docs/drivers/xlsx) or
+[SQL Server](https://sq.io/docs/drivers/sqlserver), [MySQL](https://sq.io/docs/drivers/mysql), [Oracle](https://sq.io/docs/drivers/oracle) etc., or a document source such as [Excel](https://sq.io/docs/drivers/xlsx) or
 [CSV](https://sq.io/docs/drivers/csv).
 
 Download the sample DB, and `sq add` the source.

@@ -313,7 +313,7 @@ func TestQuery_join_others(t *testing.T) {
 				drivertype.ClickHouse: "SELECT * FROM `actor` FULL OUTER JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`",
 			},
 			// Note that MySQL doesn't support full outer join.
-			onlyFor:       []drivertype.Type{drivertype.SQLite, drivertype.Pg, drivertype.MSSQL, drivertype.ClickHouse},
+			onlyFor:       []drivertype.Type{drivertype.SQLite, drivertype.Pg, drivertype.MSSQL, drivertype.ClickHouse, drivertype.Oracle},
 			wantRecCount:  sakila.TblFilmActorCount,
 			repeatReplace: []string{string(jointype.FullOuter), jointype.FullOuterAlias},
 			sinkFns: []SinkTestFunc{

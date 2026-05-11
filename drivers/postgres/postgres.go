@@ -633,17 +633,28 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	enquote := d.Dialect().Enquote
 	tblNameQuoted := enquote(tblName)
 
-	var query string
+	// Always fetch the table's actual column names. The SELECT below
+	// references columns via quoted (case-sensitive) identifiers, but
+	// source drivers can emit names in their own stored case — Oracle
+	// for example emits UPPERCASE — so a cross-source `--insert=@dest.tbl`
+	// would otherwise generate "ACTOR_ID" against a column stored as
+	// "actor_id" and fail with SQLSTATE 42703. resolveTableColumnsFold
+	// maps each input back to its canonical case.
+	actualColNames, err := getTableColumnNames(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
 
 	if len(colNames) == 0 {
-		// When the table is empty, and colNames are not provided,
-		// then we need to fetch the table col names independently.
-		var err error
-		colNames, err = getTableColumnNames(ctx, db, tblName)
+		colNames = actualColNames
+	} else {
+		colNames, err = driver.ResolveTableColumnsFold(actualColNames, colNames)
 		if err != nil {
-			return nil, err
+			return nil, errz.Wrapf(err, "table %q", tblName)
 		}
 	}
+
+	var query string
 
 	var sb strings.Builder
 	sb.WriteString("SELECT\n")

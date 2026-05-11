@@ -110,6 +110,7 @@ func TestQuery_expr_literal(t *testing.T) {
 			override: driverMap{
 				drivertype.MySQL:      "SELECT 1 AS `1`",
 				drivertype.ClickHouse: "SELECT 1 AS `1`",
+				drivertype.Oracle:     `SELECT 1 AS "1" FROM DUAL`,
 			},
 			wantRecCount: 1,
 			sinkFns:      []SinkTestFunc{assertSinkColValue(0, int64(1))},
@@ -121,6 +122,7 @@ func TestQuery_expr_literal(t *testing.T) {
 			override: driverMap{
 				drivertype.MySQL:      "SELECT 1+1 AS `1+1`",
 				drivertype.ClickHouse: "SELECT 1+1 AS `1+1`",
+				drivertype.Oracle:     `SELECT 1+1 AS "1+1" FROM DUAL`,
 			},
 			wantRecCount: 1,
 			sinkFns:      []SinkTestFunc{assertSinkColValue(0, int64(2))},

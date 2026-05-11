@@ -24,6 +24,7 @@ var dbSchemes = []string{
 	"postgres",
 	"sqlite3",
 	"clickhouse",
+	"oracle",
 }
 
 // Filename returns the final component of the file/URL path.
@@ -303,6 +304,9 @@ func Parse(loc string) (*Fields, error) {
 				fields.Name = u2.Query().Get("database")
 			}
 		}
+	case "oracle":
+		fields.DriverType = drivertype.Oracle
+		fields.Name = strings.TrimPrefix(u.Path, "/")
 	}
 
 	return fields, nil

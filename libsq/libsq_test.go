@@ -529,7 +529,7 @@ func TestDBExecContext_DML_UPDATE(t *testing.T) {
 //
 // # Test Coverage
 //
-// For each database (PostgreSQL, SQLite, MySQL, SQL Server, ClickHouse), this
+// For each database (PostgreSQL, SQLite, MySQL, SQL Server, ClickHouse, Oracle), this
 // test executes a complete DDL/DML lifecycle:
 //  1. CREATE TABLE - DDL statement, typically returns 0 affected rows.
 //  2. INSERT - DML statement, inserts 2 rows.
@@ -572,6 +572,7 @@ func TestExecSQL_DDL_DML(t *testing.T) {
 	testCases := []struct {
 		handle    string
 		createSQL string
+		insertSQL string
 	}{
 		{
 			handle:    sakila.Pg,
@@ -621,6 +622,13 @@ func TestExecSQL_DDL_DML(t *testing.T) {
 				` (id Int32, name String) ENGINE = MergeTree() ORDER BY id` +
 				` SETTINGS enable_block_number_column = 1, enable_block_offset_column = 1`,
 		},
+		{
+			handle:    sakila.Ora,
+			createSQL: `CREATE TABLE ` + tableName + ` (id NUMBER, name VARCHAR2(100))`,
+			// Oracle (pre-23c) does not support multi-row VALUES tuples in one INSERT.
+			insertSQL: `INSERT ALL INTO ` + tableName + ` (id, name) VALUES (1, 'Alice') ` +
+				`INTO ` + tableName + ` (id, name) VALUES (2, 'Bob') SELECT 1 FROM DUAL`,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -633,7 +641,10 @@ func TestExecSQL_DDL_DML(t *testing.T) {
 			t.Logf("CREATE TABLE affected: %d rows (typically 0 for DDL)", affected)
 
 			// Test INSERT
-			insertSQL := `INSERT INTO ` + tableName + ` (id, name) VALUES (1, 'Alice'), (2, 'Bob')`
+			insertSQL := tc.insertSQL
+			if insertSQL == "" {
+				insertSQL = `INSERT INTO ` + tableName + ` (id, name) VALUES (1, 'Alice'), (2, 'Bob')`
+			}
 			affected = th.ExecSQL(src, insertSQL)
 			// Note: Some drivers return 0 for INSERT, but ExecSQL still works correctly
 			t.Logf("INSERT affected: %d rows", affected)

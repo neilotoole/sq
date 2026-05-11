@@ -38,6 +38,10 @@ func TestBug520_LsShowsPassword(t *testing.T) {
 			name: "mysql: for regression/sanity check",
 			loc:  "mysql://sakila:p_ssW0rd@localhost/sakila",
 		},
+		{
+			name: "oracle: user/pass@host/service",
+			loc:  "oracle://sakila:p_ssW0rd@localhost:1521/ORCL",
+		},
 		// NOTE: SQLite is not included because it uses file paths, not URLs with passwords.
 	}
 

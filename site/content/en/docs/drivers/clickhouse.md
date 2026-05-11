@@ -126,6 +126,28 @@ comma-separated text values. For example, `["Action", "Drama"]` becomes
 cannot be reconstructed from the text representation.
 See [#545](https://github.com/neilotoole/sq/issues/545).
 
+### Inspect field provenance
+
+`sq inspect` populates the fields below from ClickHouse built-in functions
+and the `system.tables` catalog.
+
+#### Source-level fields
+
+| Field | Source |
+| --- | --- |
+| `name`, `schema`, `catalog` | `currentDatabase()` |
+| `user` | `currentUser()` |
+| `db_product` | `"ClickHouse " + version()` |
+| `db_version` | `version()` |
+| `size` | `SELECT SUM(total_bytes) FROM system.tables WHERE database = ?` |
+
+#### Per-table fields
+
+| Field | Source |
+| --- | --- |
+| `row_count` | `total_rows` from `system.tables` (note: approximate for some engines such as `MergeTree` family) |
+| `size` | `total_bytes` from `system.tables` |
+
 ## Related
 
 - [ClickHouse driver README](https://github.com/neilotoole/sq/blob/master/drivers/clickhouse/README.md)

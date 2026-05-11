@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -86,42 +88,53 @@ func TestDriver_CopyTable(t *testing.T) {
 			require.Equal(t, int64(sakila.TblActorCount), th.RowCount(src, sakila.TblActor),
 				"fromTable should have ActorCount rows beforehand")
 
-			toTable := stringz.UniqTableName(sakila.TblActor)
+			// Each block scopes its own toTable so that t.Cleanup's closure
+			// captures the correct name even if a later block reassigns. The
+			// cleanup is registered immediately after the name is generated
+			// so a failed assertion below still triggers DropTable — earlier
+			// versions registered cleanup via `defer` after the assertions,
+			// which left orphan tables (e.g. ACTOR__XXXXXX) in Oracle when
+			// any intermediate assertion failed.
+			{
+				toTable := stringz.UniqTableName(sakila.TblActor)
+				t.Cleanup(func() { th.DropTable(src, tablefq.From(toTable)) })
 
-			// Test 1: CopyTable with copyData = true
-			// This should copy the table structure AND all data from the source table.
-			copied, err := drvr.CopyTable(th.Context, db, tablefq.From(sakila.TblActor), tablefq.From(toTable), true)
-			require.NoError(t, err)
+				// Test 1: CopyTable with copyData = true
+				// This should copy the table structure AND all data from the source table.
+				copied, err := drvr.CopyTable(th.Context, db, tablefq.From(sakila.TblActor), tablefq.From(toTable), true)
+				require.NoError(t, err)
 
-			// Handle dialect.RowsAffectedUnsupported: Some drivers (e.g., ClickHouse)
-			// cannot report row counts for INSERT ... SELECT operations due to
-			// database protocol limitations. In that case, CopyTable returns -1
-			// (dialect.RowsAffectedUnsupported) instead of the actual count.
-			//
-			// When this happens, we skip the assertion on the return value but still
-			// verify the data was actually copied by checking the destination table's
-			// row count directly. This ensures the test validates correctness even
-			// when the driver can't report the count.
-			if copied != dialect.RowsAffectedUnsupported {
-				require.Equal(t, int64(sakila.TblActorCount), copied)
-			} else {
-				t.Logf("Driver does not support reporting rows affected; verifying via row count")
+				// Handle dialect.RowsAffectedUnsupported: Some drivers (e.g., ClickHouse)
+				// cannot report row counts for INSERT ... SELECT operations due to
+				// database protocol limitations. In that case, CopyTable returns -1
+				// (dialect.RowsAffectedUnsupported) instead of the actual count.
+				//
+				// When this happens, we skip the assertion on the return value but still
+				// verify the data was actually copied by checking the destination table's
+				// row count directly. This ensures the test validates correctness even
+				// when the driver can't report the count.
+				if copied != dialect.RowsAffectedUnsupported {
+					require.Equal(t, int64(sakila.TblActorCount), copied)
+				} else {
+					t.Logf("Driver does not support reporting rows affected; verifying via row count")
+				}
+				require.Equal(t, int64(sakila.TblActorCount), th.RowCount(src, toTable))
 			}
-			require.Equal(t, int64(sakila.TblActorCount), th.RowCount(src, toTable))
-			defer th.DropTable(src, tablefq.From(toTable))
 
-			toTable = stringz.UniqTableName(sakila.TblActor)
+			{
+				toTable := stringz.UniqTableName(sakila.TblActor)
+				t.Cleanup(func() { th.DropTable(src, tablefq.From(toTable)) })
 
-			// Test 2: CopyTable with copyData = false
-			// This should copy only the table structure (schema), not the data.
-			// The returned count should always be 0 since no data is copied.
-			// Note: dialect.RowsAffectedUnsupported should NOT be returned here
-			// because when copyData=false, the driver knows exactly 0 rows were copied.
-			copied, err = drvr.CopyTable(th.Context, db, tablefq.From(sakila.TblActor), tablefq.From(toTable), false)
-			require.NoError(t, err)
-			require.Equal(t, int64(0), copied)
-			require.Equal(t, int64(0), th.RowCount(src, toTable))
-			defer th.DropTable(src, tablefq.From(toTable))
+				// Test 2: CopyTable with copyData = false
+				// This should copy only the table structure (schema), not the data.
+				// The returned count should always be 0 since no data is copied.
+				// Note: dialect.RowsAffectedUnsupported should NOT be returned here
+				// because when copyData=false, the driver knows exactly 0 rows were copied.
+				copied, err := drvr.CopyTable(th.Context, db, tablefq.From(sakila.TblActor), tablefq.From(toTable), false)
+				require.NoError(t, err)
+				require.Equal(t, int64(0), copied)
+				require.Equal(t, int64(0), th.RowCount(src, toTable))
+			}
 		})
 	}
 }
@@ -149,6 +162,15 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 			tu.SkipIf(t, drvr.DriverMetadata().Type == drivertype.ClickHouse,
 				"ClickHouse: kind.Time and kind.Bytes don't roundtrip exactly (see README Known Limitations)")
 
+			// Skip Oracle: kind.Date and kind.Time don't roundtrip exactly.
+			// Oracle's DATE type stores down to seconds (it's effectively a small
+			// datetime), so kind.Date round-trips back as kind.Datetime. Oracle
+			// has no time-only type, so kind.Time is stored as TIMESTAMP and
+			// also reads back as kind.Datetime. See drivers/oracle/render.go and
+			// drivers/oracle/README.md "Known limitations" for details.
+			tu.SkipIf(t, drvr.DriverMetadata().Type == drivertype.Oracle,
+				"Oracle: kind.Date and kind.Time don't roundtrip exactly (see README Known limitations)")
+
 			tblName := stringz.UniqTableName(t.Name())
 			colNames, colKinds := fixt.ColNamePerKind(drvr.Dialect().IntBool, false, false)
 			tblDef := schema.NewTable(tblName, colNames, colKinds)
@@ -164,7 +186,18 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 			recMeta, _, err := drvr.RecordMeta(th.Context, colTypes)
 			require.NoError(t, err)
 
-			require.Equal(t, colNames, recMeta.Names())
+			gotNames := recMeta.Names()
+			// Oracle returns identifiers in their stored case (upper for
+			// unquoted), so column-name comparisons are case-insensitive.
+			if drvr.DriverMetadata().Type == drivertype.Oracle {
+				require.Len(t, gotNames, len(colNames))
+				for i := range gotNames {
+					require.True(t, strings.EqualFold(colNames[i], gotNames[i]),
+						"col name got %q want ~%q", gotNames[i], colNames[i])
+				}
+			} else {
+				require.Equal(t, colNames, gotNames)
+			}
 			require.Equal(t, colKinds, recMeta.Kinds())
 		})
 	}
@@ -179,6 +212,19 @@ func TestDriver_TableColumnTypes(t *testing.T) { //nolint:tparallel
 
 			th, src, drvr, _, db := testh.NewWith(t, handle)
 
+			// Oracle returns identifier names in their stored case (upper for
+			// unquoted), so column-name comparisons are case-insensitive.
+			isOracle := drvr.DriverMetadata().Type == drivertype.Oracle
+			eqName := func(want, got string) {
+				t.Helper()
+				if isOracle {
+					require.True(t, strings.EqualFold(want, got),
+						"col name got %q want ~%q", got, want)
+				} else {
+					require.Equal(t, want, got)
+				}
+			}
+
 			// Run the test both with and without data in the target table.
 			// Some driver implementations of rows.ColumnTypes behave
 			// differently depending upon whether the query returns rows
@@ -192,7 +238,7 @@ func TestDriver_TableColumnTypes(t *testing.T) { //nolint:tparallel
 				require.NoError(t, err)
 				require.Equal(t, len(sakila.TblActorCols()), len(colTypes))
 				for i := range colTypes {
-					require.Equal(t, sakila.TblActorCols()[i], colTypes[i].Name())
+					eqName(sakila.TblActorCols()[i], colTypes[i].Name())
 				}
 
 				// Try again, but requesting specific col names
@@ -201,7 +247,7 @@ func TestDriver_TableColumnTypes(t *testing.T) { //nolint:tparallel
 				require.NoError(t, err)
 				require.Equal(t, len(wantColNames), len(colTypes))
 				for i := range colTypes {
-					require.Equal(t, wantColNames[i], colTypes[i].Name())
+					eqName(wantColNames[i], colTypes[i].Name())
 				}
 			}
 		})
@@ -231,7 +277,18 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
 
 			stmtExecer, err := drvr.PrepareUpdateStmt(th.Context, db, tblName, destCols, whereClause)
 			require.NoError(t, err)
-			require.Equal(t, destCols, stmtExecer.DestMeta().Names())
+			gotNames := stmtExecer.DestMeta().Names()
+			// Oracle returns identifier names in their stored case (upper for
+			// unquoted), so column-name comparisons are case-insensitive.
+			if drvr.DriverMetadata().Type == drivertype.Oracle {
+				require.Len(t, gotNames, len(destCols))
+				for i := range gotNames {
+					require.True(t, strings.EqualFold(destCols[i], gotNames[i]),
+						"col name got %q want ~%q", gotNames[i], destCols[i])
+				}
+			} else {
+				require.Equal(t, destCols, gotNames)
+			}
 			require.NoError(t, stmtExecer.Munge(wantVals))
 
 			affected, err := stmtExecer.Exec(th.Context, args...)
@@ -309,6 +366,7 @@ var coreDrivers = []drivertype.Type{
 	drivertype.SQLite,
 	drivertype.MySQL,
 	drivertype.ClickHouse,
+	drivertype.Oracle,
 	drivertype.CSV,
 	drivertype.TSV,
 	drivertype.XLSX,
@@ -321,6 +379,7 @@ var sqlDrivers = []drivertype.Type{
 	drivertype.SQLite,
 	drivertype.MySQL,
 	drivertype.ClickHouse,
+	drivertype.Oracle,
 }
 
 // docDrivers is a slice of the doc driver types.
@@ -409,7 +468,10 @@ func TestGrip_TableMetadata(t *testing.T) { //nolint:tparallel
 
 			tblMeta, err := grip.TableMetadata(th.Context, sakila.TblActor)
 			require.NoError(t, err)
-			require.Equal(t, sakila.TblActor, tblMeta.Name)
+			// Oracle preserves the database's stored case (upper for unquoted
+			// identifiers); other engines fold to lower.
+			require.True(t, strings.EqualFold(sakila.TblActor, tblMeta.Name),
+				"table name got %q want ~%q", tblMeta.Name, sakila.TblActor)
 			require.Equal(t, int64(sakila.TblActorCount), tblMeta.RowCount)
 		})
 	}
@@ -426,10 +488,57 @@ func TestGrip_SourceMetadata(t *testing.T) {
 
 			md, err := grip.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
-			require.Equal(t, sakila.TblActor, md.Tables[0].Name)
+			require.True(t, strings.EqualFold(sakila.TblActor, md.Tables[0].Name),
+				"first table name got %q want ~%q", md.Tables[0].Name, sakila.TblActor)
 			require.Equal(t, int64(sakila.TblActorCount), md.Tables[0].RowCount)
 		})
 	}
+}
+
+func TestGrip_SourceMetadata_OracleViewsAndCounts(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	if !th.SourceConfigured(sakila.Ora) {
+		t.Skip("Oracle Sakila source not configured")
+	}
+
+	th, _, _, grip, _ := testh.NewWith(t, sakila.Ora)
+
+	md, err := grip.SourceMetadata(th.Context, false)
+	require.NoError(t, err)
+	require.NotNil(t, md)
+
+	// The SAKILA Oracle image omits actor_info and nicer_but_slower_film_list
+	// (they rely on MySQL GROUP_CONCAT); see sakiladb/oracle schema notes.
+	require.Equal(t, int64(5), md.ViewCount)
+
+	// Oracle stores unquoted identifiers as upper, so look up by uppercase.
+	view := md.Table(strings.ToUpper(sakila.ViewFilmList))
+	require.NotNil(t, view, "film_list view should appear in SourceMetadata.Tables")
+	require.Equal(t, sqlz.TableTypeView, view.TableType)
+	require.Equal(t, "VIEW", view.DBTableType)
+
+	require.Equal(t, md.TableCount+md.ViewCount, int64(len(md.Tables)))
+}
+
+func TestSQLDriver_Oracle_TableExists_Objects(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	if !th.SourceConfigured(sakila.Ora) {
+		t.Skip("Oracle Sakila source not configured")
+	}
+
+	th, _, drvr, _, db := testh.NewWith(t, sakila.Ora)
+
+	ok, err := drvr.TableExists(th.Context, db, sakila.ViewFilmList)
+	require.NoError(t, err)
+	require.True(t, ok, "TableExists should be true for a view name")
+
+	ok, err = drvr.TableExists(th.Context, db, "not_a_real_table_name_xyz999")
+	require.NoError(t, err)
+	require.False(t, ok)
 }
 
 // TestSQLDriver_ListTableNames_ArgSchemaEmpty tests [driver.SQLDriver.ListTableNames]
@@ -441,6 +550,17 @@ func TestSQLDriver_ListTableNames_ArgSchemaEmpty(t *testing.T) { //nolint:tparal
 
 			th, _, drvr, _, db := testh.NewWith(t, handle)
 
+			// Oracle returns identifiers in their stored case (upper for
+			// unquoted), so use case-folded name comparisons.
+			contains := func(haystack []string, needle string) bool {
+				for _, s := range haystack {
+					if strings.EqualFold(s, needle) {
+						return true
+					}
+				}
+				return false
+			}
+
 			got, err := drvr.ListTableNames(th.Context, db, "", false, false)
 			require.NoError(t, err)
 			require.NotNil(t, got)
@@ -449,20 +569,20 @@ func TestSQLDriver_ListTableNames_ArgSchemaEmpty(t *testing.T) { //nolint:tparal
 			got, err = drvr.ListTableNames(th.Context, db, "", true, false)
 			require.NoError(t, err)
 			require.NotNil(t, got)
-			require.Contains(t, got, sakila.TblActor)
-			require.NotContains(t, got, sakila.ViewFilmList)
+			require.True(t, contains(got, sakila.TblActor), "%v should contain ~%q", got, sakila.TblActor)
+			require.False(t, contains(got, sakila.ViewFilmList), "%v should not contain ~%q", got, sakila.ViewFilmList)
 
 			got, err = drvr.ListTableNames(th.Context, db, "", false, true)
 			require.NoError(t, err)
 			require.NotNil(t, got)
-			require.NotContains(t, got, sakila.TblActor)
-			require.Contains(t, got, sakila.ViewFilmList)
+			require.False(t, contains(got, sakila.TblActor), "%v should not contain ~%q", got, sakila.TblActor)
+			require.True(t, contains(got, sakila.ViewFilmList), "%v should contain ~%q", got, sakila.ViewFilmList)
 
 			got, err = drvr.ListTableNames(th.Context, db, "", true, true)
 			require.NoError(t, err)
 			require.NotNil(t, got)
-			require.Contains(t, got, sakila.TblActor)
-			require.Contains(t, got, sakila.ViewFilmList)
+			require.True(t, contains(got, sakila.TblActor), "%v should contain ~%q", got, sakila.TblActor)
+			require.True(t, contains(got, sakila.ViewFilmList), "%v should contain ~%q", got, sakila.ViewFilmList)
 
 			gotCopy := append([]string(nil), got...)
 			slices.Sort(gotCopy)
@@ -484,6 +604,10 @@ func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tpa
 		{handle: sakila.MS19, schema: "dbo", wantTables: 16, wantViews: 5},
 		{handle: sakila.SL3, schema: "main", wantTables: 16, wantViews: 5},
 		{handle: sakila.My8, schema: "sakila", wantTables: 16, wantViews: 7},
+		// Oracle schemas are users; schema lookup is owner-scoped and case-insensitive.
+		// The SAKILA Oracle image omits the film_text table and the actor_info /
+		// nicer_but_slower_film_list views; see sakiladb/oracle schema notes.
+		{handle: sakila.Ora, schema: "SAKILA", wantTables: 15, wantViews: 5},
 	}
 
 	for _, tc := range testCases {
@@ -497,10 +621,21 @@ func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tpa
 			require.NotNil(t, got)
 			require.True(t, len(got) == 0)
 
+			wantTables := tc.wantTables
+			if tc.handle == sakila.Ora {
+				// Oracle's "tables" list includes materialized views (ALL_MVIEWS).
+				var mviewCount int
+				err := db.QueryRowContext(th.Context,
+					`SELECT COUNT(*) FROM all_mviews WHERE owner = :1`,
+					strings.ToUpper(tc.schema)).Scan(&mviewCount)
+				require.NoError(t, err)
+				wantTables += mviewCount
+			}
+
 			got, err = drvr.ListTableNames(th.Context, db, tc.schema, true, false)
 			require.NoError(t, err)
 			require.NotNil(t, got)
-			require.Len(t, got, tc.wantTables)
+			require.Len(t, got, wantTables)
 
 			got, err = drvr.ListTableNames(th.Context, db, tc.schema, false, true)
 			require.NoError(t, err)
@@ -510,7 +645,7 @@ func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tpa
 			got, err = drvr.ListTableNames(th.Context, db, tc.schema, true, true)
 			require.NoError(t, err)
 			require.NotNil(t, got)
-			require.Len(t, got, tc.wantTables+tc.wantViews)
+			require.Len(t, got, wantTables+tc.wantViews)
 
 			gotCopy := append([]string(nil), got...)
 			slices.Sort(gotCopy)
@@ -536,9 +671,17 @@ func TestGrip_SourceMetadata_concurrent(t *testing.T) { //nolint:tparallel
 					md, err := grip.SourceMetadata(gCtx, false)
 					require.NoError(t, err)
 					require.NotNil(t, md)
-					gotTbl := md.Table(sakila.TblActor)
-					require.NotNil(t, gotTbl)
-					require.Equal(t, int64(sakila.TblActorCount), gotTbl.RowCount)
+					// Oracle returns identifiers in their stored case (upper for
+					// unquoted), so look up the table case-insensitively.
+					var found bool
+					for _, tbl := range md.Tables {
+						if strings.EqualFold(tbl.Name, sakila.TblActor) {
+							found = true
+							require.Equal(t, int64(sakila.TblActorCount), tbl.RowCount)
+							break
+						}
+					}
+					require.True(t, found, "table %q not in metadata", sakila.TblActor)
 					return nil
 				})
 			}
@@ -569,7 +712,17 @@ func TestSQLDriver_AlterTableAddColumn(t *testing.T) {
 			require.NoError(t, err)
 
 			gotCols := sink.RecMeta.Names()
-			require.Equal(t, wantCols, gotCols)
+			// Oracle returns identifier names in their stored case (upper for
+			// unquoted), so column-name comparisons are case-insensitive.
+			if drvr.DriverMetadata().Type == drivertype.Oracle {
+				require.Len(t, gotCols, len(wantCols))
+				for i := range gotCols {
+					require.True(t, strings.EqualFold(wantCols[i], gotCols[i]),
+						"col name got %q want ~%q", gotCols[i], wantCols[i])
+				}
+			} else {
+				require.Equal(t, wantCols, gotCols)
+			}
 
 			gotKinds := sink.RecMeta.Kinds()
 			require.Equal(t, wantKinds, gotKinds)
@@ -595,7 +748,9 @@ func TestSQLDriver_AlterTableRename(t *testing.T) {
 
 			md, err := grip.TableMetadata(th.Context, newName)
 			require.NoError(t, err)
-			require.Equal(t, newName, md.Name)
+			// Oracle returns the database's stored case (upper for unquoted).
+			require.True(t, strings.EqualFold(newName, md.Name),
+				"renamed-table name got %q want ~%q", md.Name, newName)
 			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+newName)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
@@ -619,7 +774,12 @@ func TestSQLDriver_AlterTableRenameColumn(t *testing.T) {
 
 			md, err := grip.TableMetadata(th.Context, tbl)
 			require.NoError(t, err)
-			require.NotNil(t, md.Column(newName))
+			// Oracle stores unquoted identifiers as upper; look up under that.
+			lookupName := newName
+			if drvr.DriverMetadata().Type == drivertype.Oracle {
+				lookupName = strings.ToUpper(newName)
+			}
+			require.NotNil(t, md.Column(lookupName), "%s column not found in %v", lookupName, md.Columns)
 			sink, err := th.QuerySQL(src, nil, fmt.Sprintf("SELECT %s FROM %s", newName, tbl))
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
@@ -658,6 +818,9 @@ func TestSQLDriver_CurrentSchemaCatalog(t *testing.T) {
 		{sakila.My, "sakila", "def"},
 		{sakila.MS, "dbo", "sakila"},
 		{sakila.CH, "sakila", "sakila"},
+		// Oracle: schema is the connected user; the catalog is DB_NAME
+		// (the PDB name in multitenant deployments).
+		{sakila.Ora, "SAKILA", "SAKILA"},
 	}
 
 	for _, tc := range testCases {
@@ -666,17 +829,28 @@ func TestSQLDriver_CurrentSchemaCatalog(t *testing.T) {
 
 			gotSchema, err := drvr.CurrentSchema(th.Context, db)
 			require.NoError(t, err)
-			require.Equal(t, tc.wantSchema, gotSchema)
+			if drvr.DriverMetadata().Type == drivertype.Oracle {
+				require.True(t, strings.EqualFold(tc.wantSchema, gotSchema),
+					"schema got %q want ~%q", gotSchema, tc.wantSchema)
+			} else {
+				require.Equal(t, tc.wantSchema, gotSchema)
+			}
 
 			md, err := grip.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
 			require.NotNil(t, md)
-			require.Equal(t, tc.wantSchema, md.Schema)
+			require.Equal(t, gotSchema, md.Schema)
 			require.Equal(t, tc.wantCatalog, md.Catalog)
 
 			gotSchemas, err := drvr.ListSchemas(th.Context, db)
 			require.NoError(t, err)
-			require.Contains(t, gotSchemas, gotSchema)
+			if drvr.DriverMetadata().Type == drivertype.Oracle {
+				require.True(t, slices.ContainsFunc(gotSchemas, func(s string) bool {
+					return strings.EqualFold(s, gotSchema)
+				}), "schemas should contain %q, got %v", gotSchema, gotSchemas)
+			} else {
+				require.Contains(t, gotSchemas, gotSchema)
+			}
 
 			if drvr.Dialect().Catalog {
 				gotCatalog, err := drvr.CurrentCatalog(th.Context, db)
@@ -685,6 +859,79 @@ func TestSQLDriver_CurrentSchemaCatalog(t *testing.T) {
 				gotCatalogs, err := drvr.ListCatalogs(th.Context, db)
 				require.NoError(t, err)
 				require.Contains(t, gotCatalogs, gotCatalog)
+			}
+		})
+	}
+}
+
+// TestSQLDriver_SourceMetadata_FieldCoverage asserts that each SQL driver
+// populates the source-level [metadata.Source] fields its real users see
+// in `sq inspect`. The expectation matrix per handle pins the current
+// per-driver behavior so any future driver change that drops a field
+// (or starts populating one) will be caught here.
+//
+//nolint:tparallel
+func TestSQLDriver_SourceMetadata_FieldCoverage(t *testing.T) {
+	testCases := []struct {
+		handle    string
+		wantUser  bool // SQLite has no auth; SQL Server doesn't populate it.
+		wantSize  bool // every SAKILA DB has data, so size > 0 is expected.
+		wantProps bool // DBProperties map should be non-empty.
+	}{
+		{handle: sakila.SL3, wantUser: false, wantSize: true, wantProps: true},
+		{handle: sakila.Pg, wantUser: true, wantSize: true, wantProps: true},
+		{handle: sakila.My, wantUser: true, wantSize: true, wantProps: true},
+		{handle: sakila.MS, wantUser: false, wantSize: true, wantProps: true},
+		{handle: sakila.CH, wantUser: true, wantSize: true, wantProps: true},
+		{handle: sakila.Ora, wantUser: true, wantSize: true, wantProps: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.handle, func(t *testing.T) {
+			t.Parallel()
+
+			th, _, _, grip, _ := testh.NewWith(t, tc.handle)
+			md, err := grip.SourceMetadata(th.Context, false)
+			require.NoError(t, err)
+			require.NotNil(t, md)
+
+			// Always-populated fields.
+			require.NotEmpty(t, md.Handle, "Handle")
+			require.NotEmpty(t, md.Location, "Location")
+			require.NotEmpty(t, md.Driver, "Driver")
+			require.NotEmpty(t, md.DBDriver, "DBDriver")
+			require.NotEmpty(t, md.Name, "Name")
+			require.NotEmpty(t, md.FQName, "FQName")
+			require.NotEmpty(t, md.Schema, "Schema")
+			require.NotEmpty(t, md.Catalog, "Catalog")
+			require.NotEmpty(t, md.DBProduct, "DBProduct")
+			require.NotEmpty(t, md.DBVersion, "DBVersion")
+			require.NotEmpty(t, md.Tables, "Tables")
+			require.Positive(t, md.TableCount, "TableCount")
+			// SAKILA includes views on every supported driver except where the
+			// upstream image omits them; assert non-zero where applicable.
+			require.NotZero(t, md.ViewCount, "ViewCount")
+
+			if tc.wantUser {
+				require.NotEmpty(t, md.User, "User")
+			}
+			if tc.wantSize {
+				require.Positive(t, md.Size, "Size")
+			}
+			if tc.wantProps {
+				require.NotEmpty(t, md.DBProperties, "DBProperties")
+			}
+
+			// Per-table invariants. Every table/view returned from
+			// SourceMetadata should carry the always-populated fields below
+			// regardless of driver — these are the columns users see in
+			// `sq inspect` and rely on for cross-source operations.
+			for _, tbl := range md.Tables {
+				require.NotEmpty(t, tbl.Name, "Table.Name on %s", tc.handle)
+				require.NotEmpty(t, tbl.FQName, "Table.FQName on %s.%s", tc.handle, tbl.Name)
+				require.NotEmpty(t, tbl.TableType, "Table.TableType on %s.%s", tc.handle, tbl.Name)
+				require.NotEmpty(t, tbl.DBTableType, "Table.DBTableType on %s.%s", tc.handle, tbl.Name)
+				require.NotNil(t, tbl.Columns, "Table.Columns on %s.%s", tc.handle, tbl.Name)
 			}
 		})
 	}
@@ -716,6 +963,9 @@ func TestSQLDriver_SchemaExists(t *testing.T) {
 		{handle: sakila.CH, schema: "sakila", wantOK: true},
 		{handle: sakila.CH, schema: "", wantOK: false},
 		{handle: sakila.CH, schema: "not_exist", wantOK: false},
+		{handle: sakila.Ora, schema: "sakila", wantOK: true},
+		{handle: sakila.Ora, schema: "", wantOK: false},
+		{handle: sakila.Ora, schema: "not_exist", wantOK: false},
 	}
 
 	for _, tc := range testCases {
@@ -757,6 +1007,9 @@ func TestSQLDriver_CatalogExists(t *testing.T) {
 		{handle: sakila.CH, catalog: "system", wantOK: true},
 		{handle: sakila.CH, catalog: "not_exist", wantOK: false},
 		{handle: sakila.CH, catalog: "", wantOK: false},
+		{handle: sakila.Ora, catalog: "sakila", wantOK: false, wantErr: true},
+		{handle: sakila.Ora, catalog: "X", wantOK: false, wantErr: true},
+		{handle: sakila.Ora, catalog: "", wantOK: false, wantErr: true},
 	}
 
 	for _, tc := range testCases {
@@ -959,6 +1212,17 @@ func TestMungeColNames(t *testing.T) {
 		{[]string{"a", "b", "c"}, []string{"a", "b", "c"}},
 		{[]string{"a", "b", "a", "d"}, []string{"a", "b", "a_1", "d"}},
 		{[]string{"a", "b", "a", "b", "d", "a"}, []string{"a", "b", "a_1", "b_1", "d", "a_2"}},
+		// Case-insensitive duplicate detection: cross-source joins with
+		// Oracle (UPPERCASE) on one side and another driver (lowercase)
+		// on the other produce mixed-case column names. The munged form
+		// preserves the original case but the disambiguation suffix is
+		// applied as if names were case-folded.
+		{[]string{"A", "a"}, []string{"A", "a_1"}},
+		{[]string{"ID", "id", "Id"}, []string{"ID", "id_1", "Id_2"}},
+		{
+			[]string{"STORE_ID", "ADDRESS_ID", "address_id", "last_update", "LAST_UPDATE"},
+			[]string{"STORE_ID", "ADDRESS_ID", "address_id_1", "last_update", "LAST_UPDATE_1"},
+		},
 	}
 
 	for i, tc := range testCases {

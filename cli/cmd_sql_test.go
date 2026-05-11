@@ -16,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -165,6 +166,13 @@ func TestCmdSQL_ExecMode(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle) // Will skip test if source not available
 
+			// Belt-and-suspenders cleanup: registered before the create_table
+			// test case runs, so the table is dropped even if a subsequent
+			// test case fails before the drop_table case can execute.
+			// SQLDriver.DropTable uses ifExists=true, so this is a no-op
+			// when drop_table runs successfully.
+			t.Cleanup(func() { th.DropTable(src, tablefq.From("test_exec_type")) })
+
 			cfg, ok := driverCfgs[handle]
 			if !ok {
 				cfg = defaultCfg
@@ -198,9 +206,16 @@ func TestCmdSQL_ExecMode(t *testing.T) {
 						require.Len(t, results, len(tc.wantQueryVals),
 							"expected %d rows, got %d", len(tc.wantQueryVals), len(results))
 
+						// Oracle stores unquoted identifiers in upper case, so
+						// the JSON key for the projected column is "NAME".
+						nameCol := "name"
+						if src.Type == drivertype.Oracle {
+							nameCol = "NAME"
+						}
+
 						for i, wantVal := range tc.wantQueryVals {
-							gotVal, ok := results[i]["name"].(string)
-							require.True(t, ok, "expected 'name' column to be string")
+							gotVal, ok := results[i][nameCol].(string)
+							require.True(t, ok, "expected %q column to be string", nameCol)
 							require.Equal(t, wantVal, gotVal,
 								"row %d: expected name=%q, got %q", i, wantVal, gotVal)
 						}
@@ -450,6 +465,11 @@ func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
 
+			// Register cleanup before any DDL runs, so the table is dropped
+			// even if an early require.NoError aborts the test. DropTable
+			// uses ifExists=true under the hood.
+			t.Cleanup(func() { th.DropTable(src, tablefq.From("test_edge_cases")) })
+
 			cfg, ok := driverCfgs[handle]
 			if !ok {
 				cfg = defaultCfg
@@ -495,11 +515,6 @@ func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 					}
 				})
 			}
-
-			// Cleanup: Drop test table
-			tr.Reset()
-			err = tr.Exec("sql", "DROP TABLE test_edge_cases")
-			require.NoError(t, err, "failed to drop test table")
 		})
 	}
 }

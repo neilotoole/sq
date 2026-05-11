@@ -18,6 +18,7 @@ func TestQuery_groupby(t *testing.T) {
 			override: driverMap{
 				drivertype.MySQL:      "SELECT `customer_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`",
 				drivertype.ClickHouse: "SELECT `customer_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`",
+				drivertype.Oracle:     `SELECT "CUSTOMER_ID", CAST(sum("AMOUNT") AS BINARY_DOUBLE) AS "SUM(.AMOUNT)" FROM "PAYMENT" GROUP BY "CUSTOMER_ID"`,
 			},
 			wantRecCount: 599,
 		},
@@ -28,6 +29,7 @@ func TestQuery_groupby(t *testing.T) {
 			override: driverMap{
 				drivertype.MySQL:      "SELECT `customer_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`",
 				drivertype.ClickHouse: "SELECT `customer_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`",
+				drivertype.Oracle:     `SELECT "CUSTOMER_ID", CAST(sum("AMOUNT") AS BINARY_DOUBLE) AS "SUM(.AMOUNT)" FROM "PAYMENT" GROUP BY "CUSTOMER_ID"`,
 			},
 			wantRecCount: 599,
 		},
@@ -38,6 +40,7 @@ func TestQuery_groupby(t *testing.T) {
 			override: driverMap{
 				drivertype.MySQL:      "SELECT `customer_id`, `staff_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`, `staff_id`",
 				drivertype.ClickHouse: "SELECT `customer_id`, `staff_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`, `staff_id`",
+				drivertype.Oracle:     `SELECT "CUSTOMER_ID", "STAFF_ID", CAST(sum("AMOUNT") AS BINARY_DOUBLE) AS "SUM(.AMOUNT)" FROM "PAYMENT" GROUP BY "CUSTOMER_ID", "STAFF_ID"`,
 			},
 			wantRecCount: 1198,
 		},
@@ -55,6 +58,7 @@ func TestQuery_groupby(t *testing.T) {
 			override: driverMap{
 				drivertype.MySQL:      "SELECT `customer_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id` HAVING sum(`amount`) > 100",
 				drivertype.ClickHouse: "SELECT `customer_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id` HAVING sum(`amount`) > 100",
+				drivertype.Oracle:     `SELECT "CUSTOMER_ID", CAST(sum("AMOUNT") AS BINARY_DOUBLE) AS "SUM(.AMOUNT)" FROM "PAYMENT" GROUP BY "CUSTOMER_ID" HAVING CAST(sum("AMOUNT") AS BINARY_DOUBLE) > 100`,
 			},
 			wantRecCount: 395,
 		},

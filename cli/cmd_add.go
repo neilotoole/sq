@@ -105,6 +105,7 @@ minimum, the following drivers are bundled:
   sqlserver  Microsoft SQL Server / Azure SQL Edge
   mysql      MySQL
   clickhouse ClickHouse
+  oracle     Oracle Database (experimental)
   csv        Comma-Separated Values
   tsv        Tab-Separated Values
   json       JSON
@@ -143,6 +144,9 @@ More examples:
 
   # Add a SQL Server source; will have generated handle @sakila
   $ sq add 'sqlserver://user:pass@localhost?database=sakila'
+
+  # Add an Oracle source (experimental)
+  $ sq add 'oracle://user:pass@localhost:1521/ORCLPDB1'
 
   # Add a SQLite DB, and immediately make it the active source
   $ sq add ./testdata/sqlite1.db --active

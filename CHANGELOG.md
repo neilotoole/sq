@@ -12,6 +12,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## [v0.51.0] - 2026-05-10
+
+### Added
+
+- 🐥 [#501]: Beta [Oracle](https://sq.io/docs/drivers/oracle) support, built on the pure-Go [go-ora](https://github.com/sijms/go-ora)
+  driver. No [InstantClient](https://www.oracle.com/database/technologies/instant-client.html) required.
+  Kudos to [@drluckyspin](https://github.com/drluckyspin) for indulging enterprise Larry habits.
+
 ## [v0.50.2] - 2026-04-24
 
 ### Added
@@ -1383,6 +1391,7 @@ make working with lots of sources much easier.
 [#469]: https://github.com/neilotoole/sq/issues/469
 [#470]: https://github.com/neilotoole/sq/issues/470
 [#502]: https://github.com/neilotoole/sq/pull/502
+[#501]: https://github.com/neilotoole/sq/pull/501
 [#504]: https://github.com/neilotoole/sq/issues/504
 [#506]: https://github.com/neilotoole/sq/issues/506
 [#520]: https://github.com/neilotoole/sq/issues/520
@@ -1473,4 +1482,5 @@ make working with lots of sources much easier.
 [v0.49.0]: https://github.com/neilotoole/sq/compare/v0.48.12...v0.49.0
 [v0.50.0]: https://github.com/neilotoole/sq/compare/v0.49.0...v0.50.0
 [v0.50.2]: https://github.com/neilotoole/sq/compare/v0.50.0...v0.50.2
+[v0.51.0]: https://github.com/neilotoole/sq/compare/v0.50.2...v0.51.0
 

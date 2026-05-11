@@ -267,11 +267,6 @@ $ sq inspect @sakila_pg --schemata --src.schema=inventory.
 ```
 {{< /alert >}}
 
-
-
-
-
-
 ## Remove
 
 Use [`sq rm`](/docs/cmd/rm) to remove a source (or [group](#groups) of sources).

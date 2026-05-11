@@ -382,22 +382,22 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 
 // DBProperties implements driver.SQLDriver.
 func (d *driveri) DBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
+	return getDBProperties(ctx, db)
+}
+
+// getDBProperties returns the ClickHouse session/database properties surfaced
+// by SourceMetadata.DBProperties. It's called both via the SQLDriver.DBProperties
+// method and inline from getSourceMetadata so the same query pattern is shared.
+func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 	props := make(map[string]any)
 
-	// Get ClickHouse version
-	var version string
-	err := db.QueryRowContext(ctx, "SELECT version()").Scan(&version)
+	var version, database string
+	err := db.QueryRowContext(ctx,
+		"SELECT version(), currentDatabase()").Scan(&version, &database)
 	if err != nil {
 		return nil, errw(err)
 	}
 	props["version"] = version
-
-	// Get current database
-	var database string
-	err = db.QueryRowContext(ctx, "SELECT currentDatabase()").Scan(&database)
-	if err != nil {
-		return nil, errw(err)
-	}
 	props["database"] = database
 
 	return props, nil
@@ -772,9 +772,23 @@ func (d *driveri) TableColumnTypes(
 
 	colsClause := "*"
 	if len(colNames) > 0 {
-		var quotedCols []string
-		for _, col := range colNames {
-			quotedCols = append(quotedCols, enquote(col))
+		// ClickHouse identifiers in backtick-quoted form are case-sensitive,
+		// so a cross-source `--insert=@dest.tbl` from an UPPERCASE source
+		// (e.g. Oracle) would otherwise generate `ACTOR_ID` against a column
+		// stored as `actor_id` and fail with code 47. Translate input names
+		// back to the destination table's stored case.
+		actualColNames, err := getTableColumnNames(ctx, db, tblName)
+		if err != nil {
+			return nil, err
+		}
+		colNames, err = driver.ResolveTableColumnsFold(actualColNames, colNames)
+		if err != nil {
+			return nil, errz.Wrapf(err, "table %q", tblName)
+		}
+
+		quotedCols := make([]string, len(colNames))
+		for i, col := range colNames {
+			quotedCols[i] = enquote(col)
 		}
 		colsClause = strings.Join(quotedCols, driver.Comma)
 	}
