@@ -19,7 +19,7 @@ godebug x509negativeserial=1
 
 require (
 	al.essio.dev/pkg/shellescape v1.6.0
-	github.com/ClickHouse/clickhouse-go/v2 v2.45.0
+	github.com/ClickHouse/clickhouse-go/v2 v2.46.0
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/a8m/tree v0.0.0-20240104212747-2c8764a5f17e
 	github.com/antlr4-go/antlr/v4 v4.13.1
@@ -29,7 +29,7 @@ require (
 	github.com/ecnepsnai/osquery v1.0.1
 	github.com/emirpasic/gods v1.18.1
 	github.com/fatih/color v1.19.0
-	github.com/go-sql-driver/mysql v1.9.3 // BRITTLE
+	github.com/go-sql-driver/mysql v1.10.0 // BRITTLE
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/renameio/v2 v2.0.2
 	github.com/google/uuid v1.6.0
@@ -38,8 +38,8 @@ require (
 	github.com/jackc/pgx/v5 v5.9.2 // BRITTLE
 	github.com/mattn/go-colorable v0.1.14
 	github.com/mattn/go-runewidth v0.0.23
-	github.com/mattn/go-sqlite3 v1.14.42 // BRITTLE
-	github.com/microsoft/go-mssqldb v1.9.8 // BRITTLE
+	github.com/mattn/go-sqlite3 v1.14.44 // BRITTLE
+	github.com/microsoft/go-mssqldb v1.10.0 // BRITTLE
 	github.com/mitchellh/go-wordwrap v1.0.1
 	github.com/muesli/mango-cobra v1.3.0
 	github.com/muesli/roff v0.1.0
@@ -70,12 +70,12 @@ require (
 	github.com/xo/usql v0.21.4
 	github.com/xuri/excelize/v2 v2.10.1 // BRITTLE
 	go.uber.org/atomic v1.11.0
-	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
-	golang.org/x/mod v0.35.0
+	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a
+	golang.org/x/mod v0.36.0
 	golang.org/x/sync v0.20.0
-	golang.org/x/sys v0.43.0
-	golang.org/x/term v0.42.0
-	golang.org/x/text v0.36.0
+	golang.org/x/sys v0.44.0
+	golang.org/x/term v0.43.0
+	golang.org/x/text v0.37.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
