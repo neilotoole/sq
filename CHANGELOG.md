@@ -17,26 +17,12 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 ### Added
 
 - 🐥 Experimental [Oracle](https://www.oracle.com/database/) driver
-   built on the pure-Go [go-ora](https://github.com/sijms/go-ora)
-  driver. No Oracle Instant Client or OCI native libraries are required, so
+  built on the pure-Go [go-ora](https://github.com/sijms/go-ora)
+  driver. No Oracle Instant Client or OCI native libraries are required;
   Oracle support ships in the standard `sq` binary with no additional setup.
   See the [Oracle driver documentation](https://sq.io/docs/drivers/oracle/).
-  Kudos to [@drluckyspin](https://github.com/drluckyspin) for advocating for Larry.
-
-### Fixed
-
-- Cross-source `--insert=@dest.tbl` from an Oracle source to a Postgres or
-  ClickHouse destination now succeeds; previously, Oracle's UPPERCASE column
-  names did not match the destination's stored case.
-- `sq inspect` on Oracle returns correct row counts for tables, views,
-  and materialized views. Tables and materialized views fall back to a
-  live `COUNT(*)` when the data-dictionary `NUM_ROWS` is NULL; views
-  always use `COUNT(*)` since `USER_VIEWS` carries no row count.
-- `sq inspect` on Oracle now populates source-level `db_product` (the
-  full Oracle banner), `size` (sum of bytes from `USER_SEGMENTS`),
-  `catalog` (database / PDB name), and `user` (session user). `db_version`
-  is now the clean numeric version (e.g. `23.26.1.0.0`) read from
-  `PRODUCT_COMPONENT_VERSION.VERSION_FULL` instead of the long banner.
+  Kudos to [@drluckyspin](https://github.com/drluckyspin) for indulging the
+  enterprise's Larry habit.
 
 ## [v0.50.2] - 2026-04-24
 
