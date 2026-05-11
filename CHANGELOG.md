@@ -17,7 +17,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 ### Added
 
 - 🐥 [#501]: Beta [Oracle](https://sq.io/docs/drivers/oracle) support, built on the pure-Go [go-ora](https://github.com/sijms/go-ora)
-  driver. No [InstantClient](https://www.oracle.com/database/technologies/instant-client.html) required.
+  driver. No [Instant Client](https://www.oracle.com/database/technologies/instant-client.html) required.
   Kudos to [@drluckyspin](https://github.com/drluckyspin) for indulging enterprise Larry habits.
 
 ## [v0.50.2] - 2026-04-24
