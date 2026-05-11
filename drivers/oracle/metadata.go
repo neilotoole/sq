@@ -89,6 +89,14 @@ FROM DUAL`
 		md.Size = size.Int64
 	}
 
+	// DBProperties surfaces driver-level session/version values via the
+	// shared SQLDriver helper.
+	props, err := getDBProperties(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	md.DBProperties = props
+
 	if noSchema {
 		// Don't fetch schema metadata
 		return md, nil

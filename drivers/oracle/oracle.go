@@ -753,6 +753,14 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 
 // DBProperties implements driver.SQLDriver.
 func (d *driveri) DBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
+	return getDBProperties(ctx, db)
+}
+
+// getDBProperties returns the Oracle session/database properties surfaced by
+// SourceMetadata.DBProperties. It's called both via the SQLDriver.DBProperties
+// method and inline from getSourceMetadata so a single round-trip pattern is
+// shared.
+func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 	props := make(map[string]any)
 
 	const baseQuery = `SELECT

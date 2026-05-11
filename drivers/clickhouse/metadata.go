@@ -75,6 +75,13 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 		md.Size = size.Int64
 	}
 
+	// DBProperties surfaces driver-level session/version values via the
+	// shared SQLDriver helper.
+	md.DBProperties, err = getDBProperties(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+
 	if noSchema {
 		return md, nil
 	}
