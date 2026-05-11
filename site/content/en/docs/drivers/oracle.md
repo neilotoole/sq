@@ -112,6 +112,32 @@ links) are not implemented yet.
 `SYS_CONTEXT`. The `version` field prefers `v$instance` and falls back to
 `v$version` when `v$instance` is not readable.
 
+### Inspect field provenance
+
+`sq inspect` populates the fields below from the Oracle data dictionary.
+Every column listed is readable by an ordinary user — no DBA privileges
+required.
+
+#### Source-level fields
+
+| Field | Source |
+| --- | --- |
+| `name`, `schema` | `SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')` |
+| `catalog` | `SYS_CONTEXT('USERENV', 'DB_NAME')` (PDB name in multitenant; database name otherwise) |
+| `user` | `SYS_CONTEXT('USERENV', 'SESSION_USER')` |
+| `db_product` | `BANNER` from `V$VERSION` (the full descriptive string, e.g. `Oracle Database 23ai Free Release …`) |
+| `db_version` | `VERSION_FULL` from `PRODUCT_COMPONENT_VERSION` (e.g. `23.26.1.0.0`); falls back to `V$INSTANCE.VERSION` (DBA-only) and finally to the banner |
+| `size` | `SUM(bytes)` over `USER_SEGMENTS` — bytes occupied by segments owned by the connected user. The PDB- or database-wide equivalents (`DBA_DATA_FILES`) require DBA privileges and are not used. |
+
+#### Per-table fields
+
+| Field | Source |
+| --- | --- |
+| `row_count` (tables, materialized views) | `NUM_ROWS` from `USER_TABLES` / `USER_MVIEWS`, with a live `SELECT COUNT(*)` fallback when the dictionary value is NULL (it stays NULL until `DBMS_STATS` / `ANALYZE` has run) |
+| `row_count` (views) | always live `SELECT COUNT(*)` — `USER_VIEWS` carries no row count |
+| `size` (tables, materialized views) | `SUM(bytes)` from `USER_SEGMENTS` for the matching segment name |
+| `size` (views) | not reported — views have no underlying segment |
+
 ### SQL rendering
 
 Oracle SQL rendering differs from several other SQL drivers:
