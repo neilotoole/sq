@@ -818,8 +818,9 @@ func TestSQLDriver_CurrentSchemaCatalog(t *testing.T) {
 		{sakila.My, "sakila", "def"},
 		{sakila.MS, "dbo", "sakila"},
 		{sakila.CH, "sakila", "sakila"},
-		// Oracle: schema is the connected user; sq does not use a separate catalog.
-		{sakila.Ora, "SAKILA", ""},
+		// Oracle: schema is the connected user; the catalog is DB_NAME
+		// (the PDB name in multitenant deployments).
+		{sakila.Ora, "SAKILA", "SAKILA"},
 	}
 
 	for _, tc := range testCases {
@@ -839,11 +840,7 @@ func TestSQLDriver_CurrentSchemaCatalog(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, md)
 			require.Equal(t, gotSchema, md.Schema)
-			if drvr.DriverMetadata().Type == drivertype.Oracle {
-				require.Equal(t, "", md.Catalog)
-			} else {
-				require.Equal(t, tc.wantCatalog, md.Catalog)
-			}
+			require.Equal(t, tc.wantCatalog, md.Catalog)
 
 			gotSchemas, err := drvr.ListSchemas(th.Context, db)
 			require.NoError(t, err)
