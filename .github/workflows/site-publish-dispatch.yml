@@ -1,0 +1,103 @@
+# Manually publish the sq.io site to Netlify production.
+#
+# This workflow is the ONLY path that pushes content to https://sq.io.
+# Netlify's git integration is configured (via site/netlify.toml's
+# `[context.production] ignore = "exit 0"`) to skip the production build on
+# master pushes, so production publishes happen only when an operator
+# explicitly triggers this workflow from the Actions tab.
+#
+# PR deploy previews from Netlify are unaffected — they run from the
+# `deploy-preview` context, not `production`.
+#
+# Required repo secrets (configure under Settings → Secrets and variables →
+# Actions):
+#   NETLIFY_AUTH_TOKEN   Personal access token with deploy rights on the
+#                        `sq-web` Netlify site.
+#   NETLIFY_SITE_ID      Netlify site ID for `sq-web` (the UUID, not the
+#                        slug).
+name: Site Publish (dispatch)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DEPLOY to confirm production publish to https://sq.io'
+        required: true
+        type: string
+      message:
+        description: 'Optional deploy message (shown in the Netlify deploy log)'
+        required: false
+        type: string
+
+defaults:
+  run:
+    working-directory: site
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    environment:
+      name: production
+      url: https://sq.io
+    steps:
+      - name: Validate confirmation input
+        if: inputs.confirm != 'DEPLOY'
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          echo "::error::Confirmation input must be exactly 'DEPLOY' (got: '${CONFIRM}')."
+          exit 1
+
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.bun/install/cache
+            site/node_modules
+          key: ${{ runner.os }}-site-bun-${{ hashFiles('site/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-site-bun-
+
+      # `make ci` runs deps, lint, and a production build into site/public.
+      # We intentionally re-run lint here rather than trusting Site CI: a
+      # manual publish should never bypass the gates that block PR merges.
+      - name: Install, lint, and build (make ci)
+        run: make ci
+
+      - name: Publish site/public to Netlify (production)
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          INPUT_MESSAGE: ${{ inputs.message }}
+          ACTOR: ${{ github.actor }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NETLIFY_AUTH_TOKEN:-}" ]; then
+            echo "::error::NETLIFY_AUTH_TOKEN secret is not set."
+            exit 1
+          fi
+          if [ -z "${NETLIFY_SITE_ID:-}" ]; then
+            echo "::error::NETLIFY_SITE_ID secret is not set."
+            exit 1
+          fi
+          if [ -n "${INPUT_MESSAGE:-}" ]; then
+            DEPLOY_MESSAGE="${INPUT_MESSAGE}"
+          else
+            DEPLOY_MESSAGE="Manual publish via workflow_dispatch by @${ACTOR} (${SHA})"
+          fi
+          bun x netlify-cli deploy \
+            --prod \
+            --dir=public \
+            --message "${DEPLOY_MESSAGE}"
