@@ -22,6 +22,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -877,13 +878,14 @@ func TestSQLDriver_SourceMetadata_FieldCoverage(t *testing.T) {
 		wantUser  bool // SQLite has no auth; SQL Server doesn't populate it.
 		wantSize  bool // every SAKILA DB has data, so size > 0 is expected.
 		wantProps bool // DBProperties map should be non-empty.
+		wantFKs   bool // FK metadata. ClickHouse has no FK support.
 	}{
-		{handle: sakila.SL3, wantUser: false, wantSize: true, wantProps: true},
-		{handle: sakila.Pg, wantUser: true, wantSize: true, wantProps: true},
-		{handle: sakila.My, wantUser: true, wantSize: true, wantProps: true},
-		{handle: sakila.MS, wantUser: false, wantSize: true, wantProps: true},
-		{handle: sakila.CH, wantUser: true, wantSize: true, wantProps: true},
-		{handle: sakila.Ora, wantUser: true, wantSize: true, wantProps: true},
+		{handle: sakila.SL3, wantUser: false, wantSize: true, wantProps: true, wantFKs: true},
+		{handle: sakila.Pg, wantUser: true, wantSize: true, wantProps: true, wantFKs: true},
+		{handle: sakila.My, wantUser: true, wantSize: true, wantProps: true, wantFKs: true},
+		{handle: sakila.MS, wantUser: false, wantSize: true, wantProps: true, wantFKs: true},
+		{handle: sakila.CH, wantUser: true, wantSize: true, wantProps: true, wantFKs: false},
+		{handle: sakila.Ora, wantUser: true, wantSize: true, wantProps: true, wantFKs: true},
 	}
 
 	for _, tc := range testCases {
@@ -933,8 +935,104 @@ func TestSQLDriver_SourceMetadata_FieldCoverage(t *testing.T) {
 				require.NotEmpty(t, tbl.DBTableType, "Table.DBTableType on %s.%s", tc.handle, tbl.Name)
 				require.NotNil(t, tbl.Columns, "Table.Columns on %s.%s", tc.handle, tbl.Name)
 			}
+
+			if tc.wantFKs {
+				// Indexes: every SAKILA driver creates a PK-backing
+				// index on language. Verify Table.Indexes is populated
+				// and includes a Primary entry covering language_id.
+				language := findTable(md.Tables, "language")
+				require.NotNil(t, language, "language table missing from %s", tc.handle)
+				require.NotEmpty(t, language.Indexes,
+					"language.Indexes should be populated on %s", tc.handle)
+				var langPK *metadata.Index
+				for _, idx := range language.Indexes {
+					if idx.Primary {
+						langPK = idx
+						break
+					}
+				}
+				require.NotNil(t, langPK,
+					"language should have a Primary index on %s", tc.handle)
+				require.True(t, langPK.Unique, "PK index must be unique on %s", tc.handle)
+				require.Equal(t, []string{"language_id"}, lowerAll(langPK.Columns),
+					"language PK index covers language_id on %s", tc.handle)
+			}
+
+			if tc.wantFKs {
+				// sakila.film.language_id references sakila.language.language_id
+				// across every supported SQL source, making it the canonical
+				// FK-coverage smoke check.
+				film := findTable(md.Tables, sakila.TblFilm)
+				require.NotNil(t, film, "film table missing from %s metadata", tc.handle)
+				langFK := findOutgoingFK(film, "language_id")
+				require.NotNil(t, langFK, "film.language_id outgoing FK missing on %s", tc.handle)
+				require.Equal(t, "language", strings.ToLower(langFK.RefTable),
+					"film.language_id should reference language on %s", tc.handle)
+				require.Equal(t, []string{"language_id"},
+					lowerAll(langFK.RefColumns),
+					"film.language_id ref columns on %s", tc.handle)
+
+				// Column back-reference.
+				langCol := findColumnCI(film, "language_id")
+				require.NotNil(t, langCol, "film.language_id column missing on %s", tc.handle)
+				require.Same(t, langFK, langCol.ForeignKey,
+					"Column.ForeignKey must share identity with Table.ForeignKeys[i] on %s", tc.handle)
+
+				// Incoming back-reference on language.
+				language := findTable(md.Tables, "language")
+				require.NotNil(t, language, "language table missing from %s metadata", tc.handle)
+				require.NotEmpty(t, language.ReferencedBy,
+					"language.ReferencedBy should include the film FK on %s", tc.handle)
+			}
 		})
 	}
+}
+
+// findTable returns the table whose Name matches name (case-insensitive,
+// since Oracle reports identifiers in upper case while other drivers
+// preserve case). Returns nil if no match.
+func findTable(tables []*metadata.Table, name string) *metadata.Table {
+	want := strings.ToLower(name)
+	for _, tbl := range tables {
+		if strings.ToLower(tbl.Name) == want {
+			return tbl
+		}
+	}
+	return nil
+}
+
+// findColumnCI returns the column on tbl whose Name matches name
+// case-insensitively, or nil.
+func findColumnCI(tbl *metadata.Table, name string) *metadata.Column {
+	want := strings.ToLower(name)
+	for _, col := range tbl.Columns {
+		if strings.ToLower(col.Name) == want {
+			return col
+		}
+	}
+	return nil
+}
+
+// findOutgoingFK returns the first single-column outgoing FK on tbl
+// whose referencing column matches colName (case-insensitive), or nil.
+func findOutgoingFK(tbl *metadata.Table, colName string) *metadata.ForeignKey {
+	want := strings.ToLower(colName)
+	for _, fk := range tbl.ForeignKeys {
+		if len(fk.Columns) == 1 && strings.ToLower(fk.Columns[0]) == want {
+			return fk
+		}
+	}
+	return nil
+}
+
+// lowerAll returns a copy of ss with every element lower-cased. Used to
+// normalize identifier casing across drivers (Oracle returns upper case).
+func lowerAll(ss []string) []string {
+	out := make([]string, len(ss))
+	for i, s := range ss {
+		out[i] = strings.ToLower(s)
+	}
+	return out
 }
 
 func TestSQLDriver_SchemaExists(t *testing.T) {

@@ -11,10 +11,9 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib" // postgres driver
+	_ "github.com/sijms/go-ora/v2"     // Registers database/sql driver name "oracle".
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	_ "github.com/sijms/go-ora/v2" // Registers database/sql driver name "oracle".
 
 	"github.com/neilotoole/sq/drivers/oracle"
 	"github.com/neilotoole/sq/libsq/core/kind"

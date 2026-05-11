@@ -162,6 +162,73 @@ Note that the `--overview` and `--dbprops` flags apply only to inspecting source
 not tables.
 {{< /alert >}}
 
+## Unique constraints and indexes
+
+In addition to foreign keys, each table reports its UNIQUE constraints
+and the physical indexes that back it:
+
+- `tables[].unique_constraints` — UNIQUE declarations (inline or via
+  `ALTER TABLE ADD CONSTRAINT`). Primary keys are reported separately
+  via `columns[].primary_key` and are not repeated here. Composite
+  members appear in declaration order.
+- `tables[].indexes` — physical indexes, including the implicit
+  PK-backing index, unique-constraint-backing indexes, and any
+  user-declared `CREATE INDEX` entries. Each entry carries `unique`,
+  `primary`, and a driver-specific `type` (e.g. `BTREE`, `HASH`,
+  `NONCLUSTERED`).
+
+For example, list non-unique indexes per table:
+
+```shell
+$ sq inspect -j @sakila_pg | jq -r '
+  .tables[]
+  | .name as $t
+  | .indexes[]?
+  | select(.unique == false)
+  | "\($t).\(.name) (\(.columns | join(\",\"))) [\(.type)]"'
+```
+
+## Foreign-key relationships
+
+`sq inspect` reports foreign-key constraints for any SQL source that
+supports them (SQLite, Postgres, MySQL, SQL Server, Oracle). The
+relationships appear in three places in the structured output:
+
+- `tables[].foreign_keys` — outgoing constraints declared on the
+  table.
+- `tables[].referenced_by` — incoming constraints declared on other
+  tables that point at this one. Useful for visualizing parent → child
+  edges without scanning the whole graph.
+- `tables[].columns[].foreign_key` — convenience back-reference on
+  each column that participates in an outgoing FK.
+
+Composite foreign keys and cross-schema references are supported. The
+`on_delete` and `on_update` referential actions are surfaced where the
+driver reports them (Oracle exposes `on_delete` only).
+
+For example, to list every parent → child relationship in the
+[Sakila](/docs/develop/sakila/) schema:
+
+```shell
+$ sq inspect -j @sakila_pg | jq -r '
+  .tables[]
+  | .name as $child
+  | .foreign_keys[]?
+  | "\($child).\(.columns | join(",")) -> \(.ref_table).\(.ref_columns | join(","))"'
+film.original_language_id -> language.language_id
+film.language_id -> language.language_id
+film_actor.actor_id -> actor.actor_id
+film_actor.film_id -> film.film_id
+...
+```
+
+The `--verbose` text output also gains an `FK` column listing the
+referenced table and columns for each FK column.
+
+{{< alert icon="👉" >}}
+ClickHouse has no foreign-key concept and so reports no FK metadata.
+{{< /alert >}}
+
 ## Override active schema
 
 By default, `sq inspect` uses the active [schema](/docs/concepts#schema--catalog)

@@ -12,6 +12,29 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## Unreleased
+
+### Added
+
+- [#498]: [`sq inspect`](https://sq.io/docs/cmd/inspect) now reports
+  foreign-key relationships. Each table carries a `foreign_keys` list
+  of outgoing constraints and a `referenced_by` list of incoming ones,
+  and each participating column carries a `foreign_key` back-reference
+  pointing at its outgoing constraint. Composite foreign keys and
+  cross-schema references are supported. Implemented for SQLite,
+  Postgres, MySQL, SQL Server, and Oracle. ClickHouse is skipped — it
+  has no foreign-key concept. The verbose text output also gains an
+  `FK` column showing the referenced table and columns.
+- `sq inspect` additionally reports `unique_constraints` (semantic
+  UNIQUE declarations) and `indexes` (physical indexes, including
+  PK-backing and unique-constraint-backing ones) per table. Composite
+  members are preserved in declaration order. Implemented across the
+  same SQL drivers as the foreign-key support above. The verbose text
+  output gains `INDEXES` and `UNIQUE CONSTRAINTS` columns alongside
+  `PK` and `FK`, listing the constraint/index names that each column
+  participates in (PK-backing indexes are filtered from `INDEXES`
+  since the `PK` column already conveys that information).
+
 ## [v0.51.0] - 2026-05-10
 
 ### Added
@@ -1388,6 +1411,7 @@ make working with lots of sources much easier.
 [#353]: https://github.com/neilotoole/sq/issues/353
 [#415]: https://github.com/neilotoole/sq/issues/415
 [#446]: https://github.com/neilotoole/sq/issues/446
+[#498]: https://github.com/neilotoole/sq/issues/498
 [#469]: https://github.com/neilotoole/sq/issues/469
 [#470]: https://github.com/neilotoole/sq/issues/470
 [#502]: https://github.com/neilotoole/sq/pull/502

@@ -348,7 +348,199 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 		return nil, errw(err)
 	}
 
+	tblMeta.ForeignKeys, err = getTableForeignKeys(ctx, db, tblMeta.Name)
+	if err != nil {
+		return nil, err
+	}
+	linkColumnForeignKeys(tblMeta)
+
+	tblMeta.UniqueConstraints, tblMeta.Indexes, err = getTableIndexes(ctx, db, tblMeta.Name)
+	if err != nil {
+		return nil, err
+	}
+
 	return tblMeta, nil
+}
+
+// getTableIndexes returns the unique constraints and the physical
+// indexes declared on tblName, using SQLite's pragma_index_list and
+// pragma_index_info. Unique constraints are derived from index_list
+// rows whose origin is 'u' (CREATE TABLE ... UNIQUE / ALTER TABLE ADD
+// CONSTRAINT ... UNIQUE); PK-backing indexes have origin 'pk'; manual
+// CREATE INDEX statements have origin 'c'.
+//
+// Returns (uniqueConstraints, indexes, error). Both slices may be nil
+// for tables without any constraints/indexes.
+func getTableIndexes(ctx context.Context, db sqlz.DB, tblName string) (
+	[]*metadata.UniqueConstraint, []*metadata.Index, error,
+) {
+	log := lg.FromContext(ctx)
+
+	// pragma_index_list returns: seq, name, unique, origin, partial.
+	const qList = `SELECT name, "unique", origin
+FROM pragma_index_list(?)
+ORDER BY seq`
+
+	rows, err := db.QueryContext(ctx, qList, tblName)
+	if err != nil {
+		return nil, nil, errw(err)
+	}
+
+	type indexInfo struct {
+		name, origin string
+		unique       bool
+	}
+	var infos []indexInfo
+	for rows.Next() {
+		var (
+			name, origin string
+			uniqueFlag   int64
+		)
+		if err = rows.Scan(&name, &uniqueFlag, &origin); err != nil {
+			sqlz.CloseRows(log, rows)
+			return nil, nil, errw(err)
+		}
+		infos = append(infos, indexInfo{name: name, origin: origin, unique: uniqueFlag != 0})
+	}
+	if err = rows.Err(); err != nil {
+		sqlz.CloseRows(log, rows)
+		return nil, nil, errw(err)
+	}
+	sqlz.CloseRows(log, rows)
+
+	var (
+		uniques []*metadata.UniqueConstraint
+		indexes []*metadata.Index
+	)
+	for _, info := range infos {
+		cols, err := getIndexColumns(ctx, db, info.name)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		idx := &metadata.Index{
+			Name:    info.name,
+			Table:   tblName,
+			Columns: cols,
+			Unique:  info.unique,
+			Primary: info.origin == "pk",
+		}
+		indexes = append(indexes, idx)
+
+		// origin='u' marks an index that backs a UNIQUE constraint
+		// declared in CREATE TABLE / ALTER TABLE. The PK is reported
+		// separately on Column.PrimaryKey, so we don't repeat it here.
+		if info.origin == "u" {
+			uniques = append(uniques, &metadata.UniqueConstraint{
+				Name:    info.name,
+				Table:   tblName,
+				Columns: cols,
+			})
+		}
+	}
+	return uniques, indexes, nil
+}
+
+// getIndexColumns returns the columns of an index in key order, using
+// SQLite's pragma_index_info. Expression-based index entries (with NULL
+// column name) are skipped.
+func getIndexColumns(ctx context.Context, db sqlz.DB, idxName string) ([]string, error) {
+	log := lg.FromContext(ctx)
+	const q = `SELECT name FROM pragma_index_info(?) ORDER BY seqno`
+	rows, err := db.QueryContext(ctx, q, idxName)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var cols []string
+	for rows.Next() {
+		var name sql.NullString
+		if err = rows.Scan(&name); err != nil {
+			return nil, errw(err)
+		}
+		if name.Valid {
+			cols = append(cols, name.String)
+		}
+	}
+	return cols, errw(rows.Err())
+}
+
+// linkColumnForeignKeys wires the Column.ForeignKey back-reference for
+// every column participating in one of tbl.ForeignKeys. It's the
+// per-table equivalent of metadata.LinkForeignKeys for callers that
+// have only a single Table on hand (e.g. TableMetadata).
+func linkColumnForeignKeys(tbl *metadata.Table) {
+	if tbl == nil {
+		return
+	}
+	for _, fk := range tbl.ForeignKeys {
+		if fk == nil {
+			continue
+		}
+		for _, colName := range fk.Columns {
+			if col := tbl.Column(colName); col != nil {
+				col.ForeignKey = fk
+			}
+		}
+	}
+}
+
+// getTableForeignKeys returns the outgoing foreign-key constraints
+// declared on tblName, using SQLite's pragma_foreign_key_list. Returns
+// nil if the table has no foreign keys. Composite foreign keys are
+// returned as a single ForeignKey whose Columns/RefColumns slices are
+// ordered by the pragma's seq field.
+func getTableForeignKeys(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.ForeignKey, error) {
+	log := lg.FromContext(ctx)
+	// pragma_foreign_key_list returns columns:
+	//   id, seq, table, from, to, on_update, on_delete, match
+	// One row per (constraint, column-pair). id groups composite FKs.
+	const q = `SELECT id, seq, "table", "from", "to", on_update, on_delete
+FROM pragma_foreign_key_list(?)
+ORDER BY id, seq`
+
+	rows, err := db.QueryContext(ctx, q, tblName)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var (
+		fks   []*metadata.ForeignKey
+		curID int64 = -1
+		curFK *metadata.ForeignKey
+	)
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			id, seq                  int64
+			refTable, fromCol, toCol string
+			onUpdate, onDelete       sql.NullString
+		)
+		if err = rows.Scan(&id, &seq, &refTable, &fromCol, &toCol, &onUpdate, &onDelete); err != nil {
+			return nil, errw(err)
+		}
+
+		if curFK == nil || id != curID {
+			curID = id
+			curFK = &metadata.ForeignKey{
+				Table:    tblName,
+				RefTable: refTable,
+				OnDelete: onDelete.String,
+				OnUpdate: onUpdate.String,
+			}
+			fks = append(fks, curFK)
+		}
+		curFK.Columns = append(curFK.Columns, fromCol)
+		curFK.RefColumns = append(curFK.RefColumns, toCol)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+	return fks, nil
 }
 
 // getAllTableMetadata gets metadata for each of the
@@ -487,6 +679,26 @@ ORDER BY m.name, p.cid
 
 	for i := range rowCounts {
 		tblMetas[i].RowCount = rowCounts[i]
+	}
+
+	// Populate outgoing foreign keys, unique constraints, and indexes
+	// per table. Cross-table linking (Column.ForeignKey and
+	// Table.ReferencedBy) is handled at the Source level by
+	// metadata.LinkForeignKeys.
+	for _, tblMeta := range tblMetas {
+		// pragma_foreign_key_list / index_list are only meaningful for
+		// tables, not views.
+		if tblMeta.TableType != sqlz.TableTypeTable {
+			continue
+		}
+		tblMeta.ForeignKeys, err = getTableForeignKeys(ctx, db, tblMeta.Name)
+		if err != nil {
+			return nil, err
+		}
+		tblMeta.UniqueConstraints, tblMeta.Indexes, err = getTableIndexes(ctx, db, tblMeta.Name)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return tblMetas, nil

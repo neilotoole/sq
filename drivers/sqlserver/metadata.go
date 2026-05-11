@@ -208,6 +208,12 @@ GROUP BY database_id) AS total_size_bytes`
 			md.ViewCount++
 		}
 	}
+
+	// Each Table.ForeignKeys slice was already populated by the per-table
+	// getTableMetadata call inside the errgroup above; now derive
+	// Column.ForeignKey and Table.ReferencedBy across the whole source.
+	metadata.LinkForeignKeys(md)
+
 	return md, nil
 }
 
@@ -324,7 +330,269 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 	}
 
 	tblMeta.Columns = cols
+
+	tblMeta.ForeignKeys, err = getMSSQLForeignKeys(ctx, db, tblCatalog, tblSchema, tblName)
+	if err != nil {
+		return nil, err
+	}
+	for _, fk := range tblMeta.ForeignKeys {
+		for _, colName := range fk.Columns {
+			if col := tblMeta.Column(colName); col != nil {
+				col.ForeignKey = fk
+			}
+		}
+	}
+
+	tblMeta.UniqueConstraints, err = getMSSQLUniqueConstraints(ctx, db, tblCatalog, tblSchema, tblName)
+	if err != nil {
+		return nil, err
+	}
+
+	tblMeta.Indexes, err = getMSSQLIndexes(ctx, db, tblSchema, tblName)
+	if err != nil {
+		return nil, err
+	}
+
 	return tblMeta, nil
+}
+
+// getMSSQLUniqueConstraints returns the UNIQUE constraints declared on
+// tables in the given catalog and schema. If tblName is empty,
+// constraints for every table in the schema are returned; otherwise
+// only constraints on tblName are returned.
+func getMSSQLUniqueConstraints(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblName string,
+) ([]*metadata.UniqueConstraint, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT
+  tc.CONSTRAINT_NAME,
+  tc.TABLE_NAME,
+  kcu.COLUMN_NAME,
+  kcu.ORDINAL_POSITION
+FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc
+JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE  AS kcu
+  ON  kcu.CONSTRAINT_CATALOG = tc.CONSTRAINT_CATALOG
+  AND kcu.CONSTRAINT_SCHEMA  = tc.CONSTRAINT_SCHEMA
+  AND kcu.CONSTRAINT_NAME    = tc.CONSTRAINT_NAME
+WHERE tc.CONSTRAINT_TYPE = 'UNIQUE'
+  AND tc.TABLE_CATALOG = @p1
+  AND tc.TABLE_SCHEMA  = @p2
+`
+	args := []any{tblCatalog, tblSchema}
+	if tblName != "" {
+		query += ` AND tc.TABLE_NAME = @p3`
+		args = append(args, tblName)
+	}
+	query += ` ORDER BY tc.TABLE_NAME, tc.CONSTRAINT_NAME, kcu.ORDINAL_POSITION`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	type ucKey struct {
+		table, name string
+	}
+	byKey := map[ucKey]*metadata.UniqueConstraint{}
+	var ucs []*metadata.UniqueConstraint
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			constraintName, ownerTable, columnName string
+			ordinalPosition                        int64
+		)
+		if err = rows.Scan(&constraintName, &ownerTable, &columnName, &ordinalPosition); err != nil {
+			return nil, errw(err)
+		}
+		k := ucKey{table: ownerTable, name: constraintName}
+		uc, ok := byKey[k]
+		if !ok {
+			uc = &metadata.UniqueConstraint{
+				Name:  constraintName,
+				Table: ownerTable,
+			}
+			byKey[k] = uc
+			ucs = append(ucs, uc)
+		}
+		uc.Columns = append(uc.Columns, columnName)
+	}
+	return ucs, errw(rows.Err())
+}
+
+// getMSSQLIndexes returns the physical indexes declared on tables in
+// the given schema. If tblName is empty, indexes for every table in
+// the schema are returned. Heap (type=0) entries and INCLUDE columns
+// are excluded.
+func getMSSQLIndexes(ctx context.Context, db sqlz.DB, tblSchema, tblName string) ([]*metadata.Index, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT
+  t.name           AS table_name,
+  i.name           AS index_name,
+  i.is_unique,
+  i.is_primary_key,
+  i.type_desc      AS index_type,
+  c.name           AS column_name,
+  ic.key_ordinal
+FROM sys.indexes        AS i
+JOIN sys.tables         AS t  ON t.object_id = i.object_id
+JOIN sys.schemas        AS s  ON s.schema_id = t.schema_id
+JOIN sys.index_columns  AS ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+JOIN sys.columns        AS c  ON c.object_id  = ic.object_id AND c.column_id = ic.column_id
+WHERE s.name = @p1
+  AND i.type > 0
+  AND ic.is_included_column = 0
+`
+	args := []any{tblSchema}
+	if tblName != "" {
+		query += ` AND t.name = @p2`
+		args = append(args, tblName)
+	}
+	query += ` ORDER BY t.name, i.name, ic.key_ordinal`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	type idxKey struct {
+		table, name string
+	}
+	byKey := map[idxKey]*metadata.Index{}
+	var indexes []*metadata.Index
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			tableName, indexName, indexType, columnName string
+			isUnique, isPrimary                         bool
+			keyOrdinal                                  int64
+		)
+		if err = rows.Scan(&tableName, &indexName, &isUnique, &isPrimary,
+			&indexType, &columnName, &keyOrdinal); err != nil {
+			return nil, errw(err)
+		}
+		k := idxKey{table: tableName, name: indexName}
+		idx, ok := byKey[k]
+		if !ok {
+			idx = &metadata.Index{
+				Name:    indexName,
+				Table:   tableName,
+				Unique:  isUnique,
+				Primary: isPrimary,
+				Type:    indexType,
+			}
+			byKey[k] = idx
+			indexes = append(indexes, idx)
+		}
+		idx.Columns = append(idx.Columns, columnName)
+	}
+	return indexes, errw(rows.Err())
+}
+
+// getMSSQLForeignKeys returns the outgoing foreign keys for tables in
+// the given catalog and schema. If tblName is empty, FKs for every
+// table in the schema are returned; otherwise only FKs declared on
+// tblName are returned. Composite foreign keys are collapsed into a
+// single ForeignKey ordered by constraint_column_id.
+//
+// SQL Server's INFORMATION_SCHEMA.KEY_COLUMN_USAGE does not expose
+// POSITION_IN_UNIQUE_CONSTRAINT, so this loader queries the sys.*
+// catalog views directly (sys.foreign_keys + sys.foreign_key_columns
+// joined to sys.objects / sys.columns / sys.schemas).
+//
+// Cross-table linking (Column.ForeignKey and Table.ReferencedBy) is
+// not performed here; callers must invoke metadata.LinkForeignKeys at
+// the source level.
+func getMSSQLForeignKeys(ctx context.Context, db sqlz.DB, _ /*tblCatalog*/, tblSchema, tblName string,
+) ([]*metadata.ForeignKey, error) {
+	log := lg.FromContext(ctx)
+
+	// fk.delete_referential_action_desc / update_referential_action_desc
+	// use underscored values ('NO_ACTION', 'SET_NULL'). REPLACE rewrites
+	// them to the space-separated form used by the other drivers
+	// ('NO ACTION', 'SET NULL').
+	query := `SELECT
+  fk.name                                                AS constraint_name,
+  parent_t.name                                          AS fk_table,
+  parent_c.name                                          AS fk_column,
+  fkc.constraint_column_id                               AS ordinal_position,
+  ref_s.name                                             AS ref_schema,
+  ref_t.name                                             AS ref_table,
+  ref_c.name                                             AS ref_column,
+  REPLACE(fk.delete_referential_action_desc, '_', ' ')   AS delete_rule,
+  REPLACE(fk.update_referential_action_desc, '_', ' ')   AS update_rule
+FROM sys.foreign_keys        AS fk
+JOIN sys.foreign_key_columns AS fkc      ON fkc.constraint_object_id = fk.object_id
+JOIN sys.objects             AS parent_t ON parent_t.object_id       = fkc.parent_object_id
+JOIN sys.schemas             AS parent_s ON parent_s.schema_id       = parent_t.schema_id
+JOIN sys.columns             AS parent_c ON parent_c.object_id       = fkc.parent_object_id
+                                        AND parent_c.column_id       = fkc.parent_column_id
+JOIN sys.objects             AS ref_t    ON ref_t.object_id          = fkc.referenced_object_id
+JOIN sys.schemas             AS ref_s    ON ref_s.schema_id          = ref_t.schema_id
+JOIN sys.columns             AS ref_c    ON ref_c.object_id          = fkc.referenced_object_id
+                                        AND ref_c.column_id          = fkc.referenced_column_id
+WHERE parent_s.name = @p1
+`
+	args := []any{tblSchema}
+	if tblName != "" {
+		query += ` AND parent_t.name = @p2`
+		args = append(args, tblName)
+	}
+	query += ` ORDER BY parent_t.name, fk.name, fkc.constraint_column_id`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	type fkKey struct {
+		table, name string
+	}
+	byKey := map[fkKey]*metadata.ForeignKey{}
+	var fks []*metadata.ForeignKey
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			constraintName, fkTable, fkColumn string
+			refSchema, refTable, refCol       string
+			deleteRule, updateRule            sql.NullString
+			ordinalPosition                   int64
+		)
+		if err = rows.Scan(&constraintName, &fkTable, &fkColumn, &ordinalPosition,
+			&refSchema, &refTable, &refCol, &deleteRule, &updateRule); err != nil {
+			return nil, errw(err)
+		}
+
+		k := fkKey{table: fkTable, name: constraintName}
+		fk, ok := byKey[k]
+		if !ok {
+			fk = &metadata.ForeignKey{
+				Name:      constraintName,
+				Table:     fkTable,
+				RefSchema: refSchema,
+				RefTable:  refTable,
+				OnDelete:  deleteRule.String,
+				OnUpdate:  updateRule.String,
+			}
+			byKey[k] = fk
+			fks = append(fks, fk)
+		}
+		fk.Columns = append(fk.Columns, fkColumn)
+		fk.RefColumns = append(fk.RefColumns, refCol)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+	return fks, nil
 }
 
 // getAllTables returns all of the table names, and the table types

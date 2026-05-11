@@ -403,6 +403,266 @@ func TestColumn_String(t *testing.T) {
 	require.Contains(t, got, "actor_id")
 }
 
+func TestForeignKey_Clone(t *testing.T) {
+	t.Run("nil_fk", func(t *testing.T) {
+		var fk *metadata.ForeignKey
+		require.Nil(t, fk.Clone())
+	})
+
+	t.Run("composite_fk", func(t *testing.T) {
+		fk := &metadata.ForeignKey{
+			Name:       "fk_film_actor",
+			Table:      "film_actor",
+			Columns:    []string{"film_id", "actor_id"},
+			RefSchema:  "public",
+			RefTable:   "film_actor_lookup",
+			RefColumns: []string{"film_id", "actor_id"},
+			OnDelete:   "CASCADE",
+			OnUpdate:   "NO ACTION",
+		}
+
+		got := fk.Clone()
+		require.NotSame(t, fk, got)
+		require.Equal(t, fk, got)
+
+		// Mutating clone slices must not affect the original.
+		got.Columns[0] = "mutated"
+		require.NotEqual(t, fk.Columns, got.Columns)
+	})
+}
+
+func TestLinkForeignKeys(t *testing.T) {
+	t.Run("nil_source", func(_ *testing.T) {
+		metadata.LinkForeignKeys(nil)
+	})
+
+	t.Run("empty_tables", func(t *testing.T) {
+		src := &metadata.Source{}
+		metadata.LinkForeignKeys(src)
+		require.Nil(t, src.Tables)
+	})
+
+	t.Run("simple_fk", func(t *testing.T) {
+		fk := &metadata.ForeignKey{
+			Name:       "fk_film_language",
+			Table:      "film",
+			Columns:    []string{"language_id"},
+			RefTable:   "language",
+			RefColumns: []string{"language_id"},
+		}
+
+		src := &metadata.Source{
+			Tables: []*metadata.Table{
+				{
+					Name: "film",
+					Columns: []*metadata.Column{
+						{Name: "film_id"},
+						{Name: "language_id"},
+					},
+					ForeignKeys: []*metadata.ForeignKey{fk},
+				},
+				{
+					Name: "language",
+					Columns: []*metadata.Column{
+						{Name: "language_id", PrimaryKey: true},
+					},
+				},
+			},
+		}
+
+		metadata.LinkForeignKeys(src)
+
+		film := src.Table("film")
+		require.NotNil(t, film)
+		require.Nil(t, film.Column("film_id").ForeignKey)
+		require.Same(t, fk, film.Column("language_id").ForeignKey)
+
+		language := src.Table("language")
+		require.Len(t, language.ReferencedBy, 1)
+		require.Same(t, fk, language.ReferencedBy[0])
+	})
+
+	t.Run("composite_fk_shares_pointer", func(t *testing.T) {
+		fk := &metadata.ForeignKey{
+			Name:       "fk_film_actor_lookup",
+			Table:      "film_actor",
+			Columns:    []string{"film_id", "actor_id"},
+			RefTable:   "film_actor_lookup",
+			RefColumns: []string{"film_id", "actor_id"},
+		}
+
+		src := &metadata.Source{
+			Tables: []*metadata.Table{
+				{
+					Name: "film_actor",
+					Columns: []*metadata.Column{
+						{Name: "film_id"},
+						{Name: "actor_id"},
+					},
+					ForeignKeys: []*metadata.ForeignKey{fk},
+				},
+				{
+					Name: "film_actor_lookup",
+					Columns: []*metadata.Column{
+						{Name: "film_id"},
+						{Name: "actor_id"},
+					},
+				},
+			},
+		}
+
+		metadata.LinkForeignKeys(src)
+
+		fa := src.Table("film_actor")
+		require.Same(t, fk, fa.Column("film_id").ForeignKey)
+		require.Same(t, fk, fa.Column("actor_id").ForeignKey)
+	})
+
+	t.Run("unresolved_ref_is_skipped", func(t *testing.T) {
+		fk := &metadata.ForeignKey{
+			Name:       "fk_to_external",
+			Table:      "local",
+			Columns:    []string{"external_id"},
+			RefSchema:  "other_schema",
+			RefTable:   "external_tbl",
+			RefColumns: []string{"id"},
+		}
+
+		src := &metadata.Source{
+			Tables: []*metadata.Table{
+				{
+					Name: "local",
+					Columns: []*metadata.Column{
+						{Name: "external_id"},
+					},
+					ForeignKeys: []*metadata.ForeignKey{fk},
+				},
+			},
+		}
+
+		metadata.LinkForeignKeys(src)
+
+		local := src.Table("local")
+		// Column back-ref is still set even though the referenced table
+		// is outside this Source.
+		require.Same(t, fk, local.Column("external_id").ForeignKey)
+		// No incoming back-ref appears anywhere within the Source.
+		require.Nil(t, local.ReferencedBy)
+	})
+
+	t.Run("idempotent", func(t *testing.T) {
+		fk := &metadata.ForeignKey{
+			Table:      "child",
+			Columns:    []string{"parent_id"},
+			RefTable:   "parent",
+			RefColumns: []string{"id"},
+		}
+
+		src := &metadata.Source{
+			Tables: []*metadata.Table{
+				{
+					Name:        "child",
+					Columns:     []*metadata.Column{{Name: "parent_id"}},
+					ForeignKeys: []*metadata.ForeignKey{fk},
+				},
+				{
+					Name:    "parent",
+					Columns: []*metadata.Column{{Name: "id"}},
+				},
+			},
+		}
+
+		metadata.LinkForeignKeys(src)
+		metadata.LinkForeignKeys(src)
+
+		require.Len(t, src.Table("parent").ReferencedBy, 1)
+		require.Same(t, fk, src.Table("parent").ReferencedBy[0])
+	})
+}
+
+func TestSource_Clone_RelinksForeignKeys(t *testing.T) {
+	fk := &metadata.ForeignKey{
+		Name:       "fk_film_language",
+		Table:      "film",
+		Columns:    []string{"language_id"},
+		RefTable:   "language",
+		RefColumns: []string{"language_id"},
+	}
+
+	src := &metadata.Source{
+		Tables: []*metadata.Table{
+			{
+				Name: "film",
+				Columns: []*metadata.Column{
+					{Name: "language_id"},
+				},
+				ForeignKeys: []*metadata.ForeignKey{fk},
+			},
+			{
+				Name:    "language",
+				Columns: []*metadata.Column{{Name: "language_id"}},
+			},
+		},
+	}
+	metadata.LinkForeignKeys(src)
+
+	got := src.Clone()
+	gotFilm := got.Table("film")
+	gotLanguage := got.Table("language")
+
+	require.NotNil(t, gotFilm.Column("language_id").ForeignKey)
+	// The clone's back-references must point at the clone's own
+	// ForeignKey objects, not the originals.
+	require.NotSame(t, fk, gotFilm.Column("language_id").ForeignKey)
+	require.Same(t, gotFilm.ForeignKeys[0], gotFilm.Column("language_id").ForeignKey)
+	require.Same(t, gotFilm.ForeignKeys[0], gotLanguage.ReferencedBy[0])
+}
+
+func TestUniqueConstraint_Clone(t *testing.T) {
+	t.Run("nil", func(t *testing.T) {
+		var uc *metadata.UniqueConstraint
+		require.Nil(t, uc.Clone())
+	})
+
+	t.Run("composite", func(t *testing.T) {
+		uc := &metadata.UniqueConstraint{
+			Name:    "uq_film_actor",
+			Table:   "film_actor",
+			Columns: []string{"film_id", "actor_id"},
+		}
+		got := uc.Clone()
+		require.NotSame(t, uc, got)
+		require.Equal(t, uc, got)
+
+		got.Columns[0] = "mutated"
+		require.NotEqual(t, uc.Columns, got.Columns)
+	})
+}
+
+func TestIndex_Clone(t *testing.T) {
+	t.Run("nil", func(t *testing.T) {
+		var idx *metadata.Index
+		require.Nil(t, idx.Clone())
+	})
+
+	t.Run("full", func(t *testing.T) {
+		idx := &metadata.Index{
+			Name:    "idx_film_language",
+			Table:   "film",
+			Columns: []string{"language_id"},
+			Unique:  false,
+			Primary: false,
+			Type:    "BTREE",
+		}
+		got := idx.Clone()
+		require.NotSame(t, idx, got)
+		require.Equal(t, idx, got)
+
+		got.Columns[0] = "mutated"
+		require.NotEqual(t, idx.Columns, got.Columns)
+	})
+}
+
 func TestSchema_Clone(t *testing.T) {
 	t.Run("nil_schema", func(t *testing.T) {
 		var s *metadata.Schema

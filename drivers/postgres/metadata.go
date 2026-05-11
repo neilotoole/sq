@@ -286,6 +286,28 @@ current_setting('server_version'), version(), "current_user"()`
 			md.ViewCount++
 		}
 	}
+
+	// Fetch foreign keys for all tables in one query, assign them to
+	// their owning tables, and derive the cross-table back-references.
+	allFKs, err := getPgForeignKeys(ctx, db, "")
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignForeignKeys(md.Tables, allFKs)
+	metadata.LinkForeignKeys(md)
+
+	allUCs, err := getPgUniqueConstraints(ctx, db, "")
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignUniqueConstraints(md.Tables, allUCs)
+
+	allIdxs, err := getPgIndexes(ctx, db, "")
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignIndexes(md.Tables, allIdxs)
+
 	return md, nil
 }
 
@@ -426,6 +448,28 @@ AND table_name = $1`
 	}
 
 	setTblMetaConstraints(log, tblMeta, pgConstraints)
+
+	tblMeta.ForeignKeys, err = getPgForeignKeys(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
+	for _, fk := range tblMeta.ForeignKeys {
+		for _, colName := range fk.Columns {
+			if col := tblMeta.Column(colName); col != nil {
+				col.ForeignKey = fk
+			}
+		}
+	}
+
+	tblMeta.UniqueConstraints, err = getPgUniqueConstraints(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
+
+	tblMeta.Indexes, err = getPgIndexes(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
 
 	return tblMeta, nil
 }
@@ -714,6 +758,260 @@ const (
 	constraintTypePK = "PRIMARY KEY"
 	constraintTypeFK = "FOREIGN KEY"
 )
+
+// getPgUniqueConstraints returns the UNIQUE constraints declared on
+// tables in the current catalog and schema. If tblName is empty,
+// constraints for every table in the current schema are returned;
+// otherwise only constraints on tblName are returned. Composite
+// constraints are collapsed into a single UniqueConstraint with
+// Columns ordered by ordinal_position.
+func getPgUniqueConstraints(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.UniqueConstraint, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT
+  tc.constraint_name,
+  tc.table_name,
+  kcu.column_name,
+  kcu.ordinal_position
+FROM information_schema.table_constraints AS tc
+JOIN information_schema.key_column_usage  AS kcu
+  ON  kcu.constraint_catalog = tc.constraint_catalog
+  AND kcu.constraint_schema  = tc.constraint_schema
+  AND kcu.constraint_name    = tc.constraint_name
+WHERE tc.constraint_type = 'UNIQUE'
+  AND tc.table_catalog = current_catalog
+  AND tc.table_schema  = current_schema()
+`
+	var args []any
+	if tblName != "" {
+		query += ` AND tc.table_name = $1`
+		args = append(args, tblName)
+	}
+	query += ` ORDER BY tc.table_name, tc.constraint_name, kcu.ordinal_position`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	type ucKey struct {
+		table, name string
+	}
+	byKey := map[ucKey]*metadata.UniqueConstraint{}
+	var ucs []*metadata.UniqueConstraint
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			constraintName, ownerTable, columnName string
+			ordinalPosition                        int64
+		)
+		if err = rows.Scan(&constraintName, &ownerTable, &columnName, &ordinalPosition); err != nil {
+			return nil, errw(err)
+		}
+		k := ucKey{table: ownerTable, name: constraintName}
+		uc, ok := byKey[k]
+		if !ok {
+			uc = &metadata.UniqueConstraint{
+				Name:  constraintName,
+				Table: ownerTable,
+			}
+			byKey[k] = uc
+			ucs = append(ucs, uc)
+		}
+		uc.Columns = append(uc.Columns, columnName)
+	}
+	return ucs, errw(rows.Err())
+}
+
+// getPgIndexes returns the physical indexes declared on tables in the
+// current schema. If tblName is empty, indexes for every table are
+// returned; otherwise only indexes on tblName are returned.
+//
+// pg_index.indkey is an int2vector of column attnums; unnest() WITH
+// ORDINALITY preserves the original key order when joining to
+// pg_attribute. Functional/expression indexes contribute rows with
+// attnum=0 (not present in pg_attribute) — those positions are skipped,
+// so an index that mixes columns and expressions appears with just the
+// direct column references.
+func getPgIndexes(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.Index, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT
+  t.relname        AS table_name,
+  c.relname        AS index_name,
+  ix.indisunique   AS is_unique,
+  ix.indisprimary  AS is_primary,
+  am.amname        AS index_type,
+  attr.attname     AS column_name,
+  k.ord            AS ordinal_position
+FROM pg_index            AS ix
+JOIN pg_class            AS c    ON c.oid = ix.indexrelid
+JOIN pg_class            AS t    ON t.oid = ix.indrelid
+JOIN pg_namespace        AS ns   ON ns.oid = c.relnamespace
+JOIN pg_am               AS am   ON am.oid = c.relam
+JOIN LATERAL unnest(ix.indkey::int2[]) WITH ORDINALITY AS k(attnum, ord) ON TRUE
+JOIN pg_attribute        AS attr ON attr.attrelid = t.oid AND attr.attnum = k.attnum
+WHERE ns.nspname = current_schema()
+  AND t.relkind IN ('r', 'p', 'm')
+  AND ix.indislive
+`
+	var args []any
+	if tblName != "" {
+		query += ` AND t.relname = $1`
+		args = append(args, tblName)
+	}
+	query += ` ORDER BY t.relname, c.relname, k.ord`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	type idxKey struct {
+		table, name string
+	}
+	byKey := map[idxKey]*metadata.Index{}
+	var indexes []*metadata.Index
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			tableName, indexName, indexType, columnName string
+			isUnique, isPrimary                         bool
+			ordinalPosition                             int64
+		)
+		if err = rows.Scan(&tableName, &indexName, &isUnique, &isPrimary,
+			&indexType, &columnName, &ordinalPosition); err != nil {
+			return nil, errw(err)
+		}
+		k := idxKey{table: tableName, name: indexName}
+		idx, ok := byKey[k]
+		if !ok {
+			idx = &metadata.Index{
+				Name:    indexName,
+				Table:   tableName,
+				Unique:  isUnique,
+				Primary: isPrimary,
+				Type:    strings.ToUpper(indexType),
+			}
+			byKey[k] = idx
+			indexes = append(indexes, idx)
+		}
+		idx.Columns = append(idx.Columns, columnName)
+	}
+	return indexes, errw(rows.Err())
+}
+
+// getPgForeignKeys returns the outgoing foreign-key constraints in the
+// current catalog and schema. If tblName is empty, FKs for every table
+// in the current schema are returned; otherwise only FKs declared on
+// tblName are returned.
+//
+// Composite foreign keys are returned as a single ForeignKey whose
+// Columns / RefColumns slices are ordered by the FK's column position.
+//
+// Cross-table linking (Column.ForeignKey and Table.ReferencedBy) is
+// not done here; callers must invoke [metadata.LinkForeignKeys] on the
+// owning [metadata.Source] after assigning FKs to tables.
+func getPgForeignKeys(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.ForeignKey, error) {
+	log := lg.FromContext(ctx)
+
+	// referential_constraints joined twice to key_column_usage: once
+	// for the referencing (FK) side and once for the referenced (PK)
+	// side. ccu.ordinal_position is matched to kcu.position_in_unique_constraint
+	// so composite keys line up positionally.
+	query := `SELECT
+  rc.constraint_name,
+  kcu.table_name              AS fk_table,
+  kcu.column_name             AS fk_column,
+  kcu.ordinal_position,
+  ccu.table_catalog           AS ref_catalog,
+  ccu.table_schema            AS ref_schema,
+  ccu.table_name              AS ref_table,
+  ccu.column_name             AS ref_column,
+  rc.delete_rule,
+  rc.update_rule
+FROM information_schema.referential_constraints AS rc
+JOIN information_schema.key_column_usage         AS kcu
+  ON  kcu.constraint_catalog = rc.constraint_catalog
+  AND kcu.constraint_schema  = rc.constraint_schema
+  AND kcu.constraint_name    = rc.constraint_name
+JOIN information_schema.key_column_usage         AS ccu
+  ON  ccu.constraint_catalog = rc.unique_constraint_catalog
+  AND ccu.constraint_schema  = rc.unique_constraint_schema
+  AND ccu.constraint_name    = rc.unique_constraint_name
+  AND ccu.ordinal_position   = kcu.position_in_unique_constraint
+WHERE kcu.table_catalog = current_catalog
+  AND kcu.table_schema  = current_schema()
+`
+	var args []any
+	if tblName != "" {
+		query += ` AND kcu.table_name = $1`
+		args = append(args, tblName)
+	}
+	query += ` ORDER BY kcu.table_name, rc.constraint_name, kcu.ordinal_position`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	type fkKey struct {
+		table, name string
+	}
+	byKey := map[fkKey]*metadata.ForeignKey{}
+	var fks []*metadata.ForeignKey
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			constraintName, fkTable, fkColumn       string
+			refCatalog, refSchema, refTable, refCol string
+			deleteRule, updateRule                  sql.NullString
+			ordinalPosition                         int64
+		)
+		if err = rows.Scan(&constraintName, &fkTable, &fkColumn, &ordinalPosition,
+			&refCatalog, &refSchema, &refTable, &refCol, &deleteRule, &updateRule); err != nil {
+			return nil, errw(err)
+		}
+
+		k := fkKey{table: fkTable, name: constraintName}
+		fk, ok := byKey[k]
+		if !ok {
+			fk = &metadata.ForeignKey{
+				Name:     constraintName,
+				Table:    fkTable,
+				RefTable: refTable,
+				OnDelete: deleteRule.String,
+				OnUpdate: updateRule.String,
+			}
+			// Omit catalog/schema when the reference is in the same
+			// catalog/schema, matching the "ref_catalog,omitempty"
+			// JSON output convention.
+			if refCatalog != "" {
+				fk.RefCatalog = refCatalog
+			}
+			if refSchema != "" {
+				fk.RefSchema = refSchema
+			}
+			byKey[k] = fk
+			fks = append(fks, fk)
+		}
+		fk.Columns = append(fk.Columns, fkColumn)
+		fk.RefColumns = append(fk.RefColumns, refCol)
+	}
+	if err = closeRows(rows); err != nil {
+		return nil, err
+	}
+	return fks, nil
+}
 
 // closeRows invokes rows.Err and rows.Close, returning
 // an error if either of those methods returned an error.

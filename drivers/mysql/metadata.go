@@ -205,7 +205,251 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 		return nil, err
 	}
 
+	tblMeta.ForeignKeys, err = getMySQLForeignKeys(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
+	for _, fk := range tblMeta.ForeignKeys {
+		for _, colName := range fk.Columns {
+			if col := tblMeta.Column(colName); col != nil {
+				col.ForeignKey = fk
+			}
+		}
+	}
+
+	tblMeta.UniqueConstraints, err = getMySQLUniqueConstraints(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
+
+	tblMeta.Indexes, err = getMySQLIndexes(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
+
 	return tblMeta, nil
+}
+
+// getMySQLUniqueConstraints returns the UNIQUE constraints declared on
+// tables in the current database. If tblName is empty, constraints for
+// every table are returned; otherwise only constraints on tblName are
+// returned. Composite constraints are collapsed into a single
+// UniqueConstraint with Columns ordered by ORDINAL_POSITION.
+func getMySQLUniqueConstraints(ctx context.Context, db sqlz.DB, tblName string,
+) ([]*metadata.UniqueConstraint, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT
+  tc.CONSTRAINT_NAME,
+  tc.TABLE_NAME,
+  kcu.COLUMN_NAME,
+  kcu.ORDINAL_POSITION
+FROM information_schema.TABLE_CONSTRAINTS AS tc
+JOIN information_schema.KEY_COLUMN_USAGE  AS kcu
+  ON  kcu.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
+  AND kcu.CONSTRAINT_NAME   = tc.CONSTRAINT_NAME
+  AND kcu.TABLE_NAME        = tc.TABLE_NAME
+WHERE tc.CONSTRAINT_TYPE = 'UNIQUE'
+  AND tc.CONSTRAINT_SCHEMA = DATABASE()
+`
+	var args []any
+	if tblName != "" {
+		query += ` AND tc.TABLE_NAME = ?`
+		args = append(args, tblName)
+	}
+	query += ` ORDER BY tc.TABLE_NAME, tc.CONSTRAINT_NAME, kcu.ORDINAL_POSITION`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	type ucKey struct {
+		table, name string
+	}
+	byKey := map[ucKey]*metadata.UniqueConstraint{}
+	var ucs []*metadata.UniqueConstraint
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			constraintName, ownerTable, columnName string
+			ordinalPosition                        int64
+		)
+		if err = rows.Scan(&constraintName, &ownerTable, &columnName, &ordinalPosition); err != nil {
+			return nil, errw(err)
+		}
+		k := ucKey{table: ownerTable, name: constraintName}
+		uc, ok := byKey[k]
+		if !ok {
+			uc = &metadata.UniqueConstraint{
+				Name:  constraintName,
+				Table: ownerTable,
+			}
+			byKey[k] = uc
+			ucs = append(ucs, uc)
+		}
+		uc.Columns = append(uc.Columns, columnName)
+	}
+	return ucs, errw(rows.Err())
+}
+
+// getMySQLIndexes returns the physical indexes declared on tables in
+// the current database. If tblName is empty, indexes for every table
+// are returned. INDEX_NAME='PRIMARY' is the MySQL convention for the
+// PK-backing index.
+func getMySQLIndexes(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.Index, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT
+  TABLE_NAME,
+  INDEX_NAME,
+  NON_UNIQUE,
+  COLUMN_NAME,
+  SEQ_IN_INDEX,
+  INDEX_TYPE
+FROM information_schema.STATISTICS
+WHERE TABLE_SCHEMA = DATABASE()
+`
+	var args []any
+	if tblName != "" {
+		query += ` AND TABLE_NAME = ?`
+		args = append(args, tblName)
+	}
+	query += ` ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	type idxKey struct {
+		table, name string
+	}
+	byKey := map[idxKey]*metadata.Index{}
+	var indexes []*metadata.Index
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			tableName, indexName, indexType string
+			columnName                      sql.NullString
+			nonUnique                       int64
+			seq                             int64
+		)
+		if err = rows.Scan(&tableName, &indexName, &nonUnique, &columnName, &seq, &indexType); err != nil {
+			return nil, errw(err)
+		}
+		k := idxKey{table: tableName, name: indexName}
+		idx, ok := byKey[k]
+		if !ok {
+			idx = &metadata.Index{
+				Name:    indexName,
+				Table:   tableName,
+				Unique:  nonUnique == 0,
+				Primary: indexName == "PRIMARY",
+				Type:    strings.ToUpper(indexType),
+			}
+			byKey[k] = idx
+			indexes = append(indexes, idx)
+		}
+		// COLUMN_NAME is NULL for functional/expression index entries.
+		if columnName.Valid {
+			idx.Columns = append(idx.Columns, columnName.String)
+		}
+	}
+	return indexes, errw(rows.Err())
+}
+
+// getMySQLForeignKeys returns the outgoing foreign keys declared in the
+// current database. If tblName is empty, foreign keys for every table
+// in the current database are returned; otherwise only FKs declared on
+// tblName are returned. Composite foreign keys are collapsed into a
+// single ForeignKey ordered by ORDINAL_POSITION.
+//
+// Cross-table linking (Column.ForeignKey and Table.ReferencedBy) is not
+// performed here; callers must invoke metadata.LinkForeignKeys at the
+// source level.
+func getMySQLForeignKeys(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.ForeignKey, error) {
+	log := lg.FromContext(ctx)
+
+	// KEY_COLUMN_USAGE conveniently carries the referenced side already
+	// (REFERENCED_TABLE_*), so we only need one join to pick up DELETE/UPDATE
+	// rules from REFERENTIAL_CONSTRAINTS.
+	query := `SELECT
+  rc.CONSTRAINT_NAME,
+  kcu.TABLE_NAME             AS fk_table,
+  kcu.COLUMN_NAME            AS fk_column,
+  kcu.ORDINAL_POSITION,
+  kcu.REFERENCED_TABLE_SCHEMA AS ref_schema,
+  kcu.REFERENCED_TABLE_NAME   AS ref_table,
+  kcu.REFERENCED_COLUMN_NAME  AS ref_column,
+  rc.DELETE_RULE,
+  rc.UPDATE_RULE
+FROM information_schema.REFERENTIAL_CONSTRAINTS AS rc
+JOIN information_schema.KEY_COLUMN_USAGE         AS kcu
+  ON  kcu.CONSTRAINT_SCHEMA = rc.CONSTRAINT_SCHEMA
+  AND kcu.CONSTRAINT_NAME   = rc.CONSTRAINT_NAME
+WHERE rc.CONSTRAINT_SCHEMA = DATABASE()
+`
+	var args []any
+	if tblName != "" {
+		query += ` AND kcu.TABLE_NAME = ?`
+		args = append(args, tblName)
+	}
+	query += ` ORDER BY kcu.TABLE_NAME, rc.CONSTRAINT_NAME, kcu.ORDINAL_POSITION`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	type fkKey struct {
+		table, name string
+	}
+	byKey := map[fkKey]*metadata.ForeignKey{}
+	var fks []*metadata.ForeignKey
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			constraintName, fkTable, fkColumn string
+			refTable, refCol                  string
+			refSchema, deleteRule, updateRule sql.NullString
+			ordinalPosition                   int64
+		)
+		if err = rows.Scan(&constraintName, &fkTable, &fkColumn, &ordinalPosition,
+			&refSchema, &refTable, &refCol, &deleteRule, &updateRule); err != nil {
+			return nil, errw(err)
+		}
+
+		k := fkKey{table: fkTable, name: constraintName}
+		fk, ok := byKey[k]
+		if !ok {
+			fk = &metadata.ForeignKey{
+				Name:      constraintName,
+				Table:     fkTable,
+				RefSchema: refSchema.String,
+				RefTable:  refTable,
+				OnDelete:  deleteRule.String,
+				OnUpdate:  updateRule.String,
+			}
+			byKey[k] = fk
+			fks = append(fks, fk)
+		}
+		fk.Columns = append(fk.Columns, fkColumn)
+		fk.RefColumns = append(fk.RefColumns, refCol)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+	return fks, nil
 }
 
 // getColumnMetadata returns column metadata for tblName.
@@ -325,6 +569,27 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 		case sqlz.TableTypeView:
 			md.ViewCount++
 		}
+	}
+
+	if !noSchema {
+		allFKs, err := getMySQLForeignKeys(ctx, db, "")
+		if err != nil {
+			return nil, err
+		}
+		metadata.AssignForeignKeys(md.Tables, allFKs)
+		metadata.LinkForeignKeys(md)
+
+		allUCs, err := getMySQLUniqueConstraints(ctx, db, "")
+		if err != nil {
+			return nil, err
+		}
+		metadata.AssignUniqueConstraints(md.Tables, allUCs)
+
+		allIdxs, err := getMySQLIndexes(ctx, db, "")
+		if err != nil {
+			return nil, err
+		}
+		metadata.AssignIndexes(md.Tables, allIdxs)
 	}
 
 	return md, nil

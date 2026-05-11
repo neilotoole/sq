@@ -146,6 +146,9 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 		"NAME",
 		"TYPE",
 		"PK",
+		"FK",
+		"INDEXES",
+		"UNIQUE CONSTRAINTS",
 	}
 	w.tbl.tblImpl.SetHeader(headers)
 	w.tbl.tblImpl.SetColTrans(0, w.tbl.pr.String.SprintFunc())
@@ -155,6 +158,9 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 	w.tbl.tblImpl.SetColTrans(4, w.tbl.pr.String.SprintFunc())
 	w.tbl.tblImpl.SetColTrans(5, w.tbl.pr.Faint.SprintFunc())
 	w.tbl.tblImpl.SetColTrans(6, w.tbl.pr.Faint.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(7, w.tbl.pr.Faint.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(8, w.tbl.pr.Faint.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(9, w.tbl.pr.Faint.SprintFunc())
 
 	var rows [][]string
 	var row []string
@@ -168,6 +174,14 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 	}
 
 	for _, tbl := range tbls {
+		// Build per-column lookups for indexes and unique constraints
+		// so each column row can list the entries it participates in.
+		// PK-backing indexes are filtered out of the INDEXES column
+		// because the PK column already conveys that information; the
+		// UNIQUE CONSTRAINTS column shows declared UNIQUEs separately.
+		idxByCol := indexNamesByColumn(tbl)
+		ucByCol := uniqueNamesByColumn(tbl)
+
 		row = []string{
 			tbl.Name,
 			tbl.TableType,
@@ -176,6 +190,9 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 			tbl.Columns[0].Name,
 			tbl.Columns[0].BaseType,
 			getPK(tbl.Columns[0]),
+			formatFKRef(tbl.Columns[0]),
+			strings.Join(idxByCol[tbl.Columns[0].Name], ", "),
+			strings.Join(ucByCol[tbl.Columns[0].Name], ", "),
 		}
 
 		rows = append(rows, row)
@@ -189,12 +206,68 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 				tbl.Columns[i].Name,
 				tbl.Columns[i].BaseType,
 				getPK(tbl.Columns[i]),
+				formatFKRef(tbl.Columns[i]),
+				strings.Join(idxByCol[tbl.Columns[i].Name], ", "),
+				strings.Join(ucByCol[tbl.Columns[i].Name], ", "),
 			}
 			rows = append(rows, row)
 		}
 	}
 
 	return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
+}
+
+// formatFKRef returns a short human-readable description of the FK that
+// col participates in, of the form "ref_table(ref_col)" — or for
+// composite FKs, "ref_table(ref_col1, ref_col2)". Returns the empty
+// string for non-FK columns.
+func formatFKRef(col *metadata.Column) string {
+	if col == nil || col.ForeignKey == nil {
+		return ""
+	}
+	fk := col.ForeignKey
+	target := fk.RefTable
+	if fk.RefSchema != "" {
+		target = fk.RefSchema + "." + target
+	}
+	return target + "(" + strings.Join(fk.RefColumns, ", ") + ")"
+}
+
+// indexNamesByColumn returns a column-name → []indexName lookup for
+// tbl, excluding PK-backing indexes (those are conveyed by the PK
+// column). Order across indexes follows their order in tbl.Indexes.
+func indexNamesByColumn(tbl *metadata.Table) map[string][]string {
+	if len(tbl.Indexes) == 0 {
+		return nil
+	}
+	out := make(map[string][]string, len(tbl.Columns))
+	for _, idx := range tbl.Indexes {
+		if idx == nil || idx.Primary {
+			continue
+		}
+		for _, colName := range idx.Columns {
+			out[colName] = append(out[colName], idx.Name)
+		}
+	}
+	return out
+}
+
+// uniqueNamesByColumn returns a column-name → []constraintName lookup
+// for tbl. Composite constraints show under each member column.
+func uniqueNamesByColumn(tbl *metadata.Table) map[string][]string {
+	if len(tbl.UniqueConstraints) == 0 {
+		return nil
+	}
+	out := make(map[string][]string, len(tbl.Columns))
+	for _, uc := range tbl.UniqueConstraints {
+		if uc == nil {
+			continue
+		}
+		for _, colName := range uc.Columns {
+			out[colName] = append(out[colName], uc.Name)
+		}
+	}
+	return out
 }
 
 func (w *mdWriter) printTables(tables []*metadata.Table) error {
