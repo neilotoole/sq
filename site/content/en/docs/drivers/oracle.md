@@ -15,11 +15,14 @@ The Oracle driver is experimental. Behavior may change as test coverage and
 edge-case support improve. So far the driver has been tested against a single
 Oracle version (Oracle Database 23ai Free, via the
 [`sakiladb/oracle`](https://github.com/sakiladb/oracle) image); broader
-version coverage is in progress.
+version coverage may come over time.
 {{< /alert >}}
 
 The driver uses the pure-Go [go-ora](https://github.com/sijms/go-ora) driver
-and does not require Oracle Instant Client, CGo, or OCI libraries.
+and does not require
+[Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client.html),
+[CGo](https://pkg.go.dev/cmd/cgo), or
+[OCI](https://en.wikipedia.org/wiki/Oracle_Call_Interface) libraries.
 
 ## Add source
 
