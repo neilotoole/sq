@@ -33,6 +33,15 @@ defaults:
   run:
     working-directory: site
 
+# Serialize production publishes. Two overlapping `--prod` deploys would
+# race on the production alias (last writer wins); queueing the second run
+# behind the first keeps the final state predictable. `cancel-in-progress`
+# is intentionally false — both runs should complete in order, never be
+# discarded mid-deploy.
+concurrency:
+  group: site-publish-production
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -45,10 +54,8 @@ jobs:
     steps:
       - name: Validate confirmation input
         if: inputs.confirm != 'DEPLOY'
-        env:
-          CONFIRM: ${{ inputs.confirm }}
         run: |
-          echo "::error::Confirmation input must be exactly 'DEPLOY' (got: '${CONFIRM}')."
+          echo "::error::Confirmation input must be exactly 'DEPLOY'."
           exit 1
 
       - name: Check out repository
@@ -57,7 +64,10 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.2
+          # Pin to the exact version Netlify uses for deploy previews
+          # (site/netlify.toml `BUN_VERSION`) so the manually-published
+          # production artifact matches what reviewers saw on preview.
+          bun-version: 1.3.13
 
       - name: Cache Bun dependencies
         uses: actions/cache@v5
