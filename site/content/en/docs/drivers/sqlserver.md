@@ -83,3 +83,27 @@ $ sq -H --src.schema=INFORMATION_SCHEMA 'schema()'
 dbo
 ```
 
+### Inspect field provenance
+
+`sq inspect` populates the fields below from SQL Server system catalog
+views and the `sp_spaceused` system procedure.
+
+#### Source-level fields
+
+| Field | Source |
+| --- | --- |
+| `name`, `catalog` | `DB_NAME()` |
+| `schema` | `SCHEMA_NAME()` (default schema for the connected user) |
+| `user` | not populated |
+| `db_product` | `@@VERSION` (full descriptive string) |
+| `db_version` | `SERVERPROPERTY('ProductVersion')` (numeric, e.g. `15.0.4123.1`) |
+| `size` | `SUM(size) * 8192` over `sys.master_files WHERE database_id = DB_ID()` — total bytes across all data files (`size` is in 8 KB pages) |
+
+#### Per-table fields
+
+| Field | Source |
+| --- | --- |
+| `row_count` (tables) | `sp_spaceused 'tbl'` |
+| `row_count` (views) | live `SELECT COUNT(*)` (`sp_spaceused` does not return a row count for views) |
+| `size` | `sp_spaceused 'tbl'` (reserved / data / index breakdown) |
+
