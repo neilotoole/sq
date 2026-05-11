@@ -864,6 +864,67 @@ func TestSQLDriver_CurrentSchemaCatalog(t *testing.T) {
 	}
 }
 
+// TestSQLDriver_SourceMetadata_FieldCoverage asserts that each SQL driver
+// populates the source-level [metadata.Source] fields its real users see
+// in `sq inspect`. The expectation matrix per handle pins the current
+// per-driver behavior so any future driver change that drops a field
+// (or starts populating one) will be caught here.
+//
+//nolint:tparallel
+func TestSQLDriver_SourceMetadata_FieldCoverage(t *testing.T) {
+	testCases := []struct {
+		handle    string
+		wantUser  bool // SQLite has no auth; SQL Server doesn't populate it.
+		wantSize  bool // every SAKILA DB has data, so size > 0 is expected.
+		wantProps bool // DBProperties map should be non-empty.
+	}{
+		{handle: sakila.SL3, wantUser: false, wantSize: true, wantProps: true},
+		{handle: sakila.Pg, wantUser: true, wantSize: true, wantProps: true},
+		{handle: sakila.My, wantUser: true, wantSize: true, wantProps: true},
+		{handle: sakila.MS, wantUser: false, wantSize: true, wantProps: true},
+		{handle: sakila.CH, wantUser: true, wantSize: true, wantProps: true},
+		{handle: sakila.Ora, wantUser: true, wantSize: true, wantProps: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.handle, func(t *testing.T) {
+			t.Parallel()
+
+			th, _, _, grip, _ := testh.NewWith(t, tc.handle)
+			md, err := grip.SourceMetadata(th.Context, false)
+			require.NoError(t, err)
+			require.NotNil(t, md)
+
+			// Always-populated fields.
+			require.NotEmpty(t, md.Handle, "Handle")
+			require.NotEmpty(t, md.Location, "Location")
+			require.NotEmpty(t, md.Driver, "Driver")
+			require.NotEmpty(t, md.DBDriver, "DBDriver")
+			require.NotEmpty(t, md.Name, "Name")
+			require.NotEmpty(t, md.FQName, "FQName")
+			require.NotEmpty(t, md.Schema, "Schema")
+			require.NotEmpty(t, md.Catalog, "Catalog")
+			require.NotEmpty(t, md.DBProduct, "DBProduct")
+			require.NotEmpty(t, md.DBVersion, "DBVersion")
+			require.NotEmpty(t, md.Tables, "Tables")
+			require.Positive(t, md.TableCount, "TableCount")
+			// SAKILA includes views on every supported driver except where the
+			// upstream image omits them; assert non-zero where applicable.
+			require.NotZero(t, md.ViewCount, "ViewCount")
+
+			if tc.wantUser {
+				require.NotEmpty(t, md.User, "User")
+			}
+			if tc.wantSize {
+				require.Positive(t, md.Size, "Size")
+			}
+			if tc.wantProps {
+				require.NotEmpty(t, md.DBProperties, "DBProperties")
+			}
+		})
+	}
+}
+
 func TestSQLDriver_SchemaExists(t *testing.T) {
 	t.Parallel()
 
