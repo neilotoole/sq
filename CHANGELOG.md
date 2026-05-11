@@ -28,8 +28,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - Cross-source `--insert=@dest.tbl` from an Oracle source to a Postgres or
   ClickHouse destination now succeeds; previously, Oracle's UPPERCASE column
   names did not match the destination's stored case.
-- `sq inspect` on Oracle returns correct row counts when the data-dictionary
-  `NUM_ROWS` is NULL.
+- `sq inspect` on Oracle returns correct row counts for tables, views,
+  and materialized views. Tables and materialized views fall back to a
+  live `COUNT(*)` when the data-dictionary `NUM_ROWS` is NULL; views
+  always use `COUNT(*)` since `USER_VIEWS` carries no row count.
 
 ## [v0.50.2] - 2026-04-24
 

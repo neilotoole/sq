@@ -298,11 +298,20 @@ WHERE v.view_name = :1`
 		return nil, errw(err)
 	}
 
+	// Views have no data-dictionary row count (USER_VIEWS doesn't carry
+	// one; the view is virtual). Match the behavior of other drivers
+	// (e.g. Postgres) by running a live COUNT(*) so `sq inspect` reports
+	// the actual cardinality the user would see when querying the view.
+	rowCount, err := liveRowCount(ctx, db, viewName)
+	if err != nil {
+		return nil, err
+	}
+
 	tblMeta := &metadata.Table{
 		Name:        viewName,
 		TableType:   sqlz.TableTypeView,
 		DBTableType: "VIEW",
-		RowCount:    0,
+		RowCount:    rowCount,
 		Size:        nil,
 		Comment:     comment.String,
 	}
