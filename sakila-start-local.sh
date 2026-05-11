@@ -15,7 +15,7 @@ docker run -d -p 5432:5432 --name sakiladb-pg sakiladb/postgres:12 &>/dev/null
 docker run -d -p 3306:3306 --name sakiladb-my sakiladb/mysql:8 &>/dev/null
 docker run -d -p 9000:9000 --name sakiladb-ch sakiladb/clickhouse:25 &>/dev/null
 docker run -d -p 1521:1521 --name sakiladb-or sakiladb/oracle:23 &>/dev/null
-docker run --platform=linux/amd64 -d -p 1433:1433 --name sakiladb-ms sakiladb/sqlserver:2019 &>/dev/null
+docker run -d -p 1433:1433 --name sakiladb-ms --platform=linux/amd64 sakiladb/sqlserver:2019 &>/dev/null
 
 sleep 5
 
