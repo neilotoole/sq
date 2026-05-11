@@ -47,7 +47,15 @@ FROM DUAL`
 	md.User = user
 	md.Catalog = catalog
 	md.Name = md.Schema
-	md.FQName = md.Schema
+	// Use the 3-part catalog.schema.name form when DB_NAME is available
+	// (it always is in modern Oracle, multitenant or non-CDB), matching
+	// the Postgres / SQL Server convention. Fall back to schema-only on
+	// the unlikely event that catalog is empty.
+	if md.Catalog != "" {
+		md.FQName = md.Catalog + "." + md.Schema
+	} else {
+		md.FQName = md.Schema
+	}
 
 	// DBProduct is the descriptive banner (e.g. "Oracle Database 23ai
 	// Free Release ..."). DBVersion prefers v$instance.version (numeric,
@@ -109,10 +117,14 @@ FROM DUAL`
 
 	md.Tables = tables
 	for _, tbl := range md.Tables {
-		// Oracle's natural fully-qualified form is schema.table (the
-		// schema-qualified reference the user types in their own SQL).
-		// Catalog (= DB_NAME / PDB) is tracked separately on Source.
-		tbl.FQName = md.Schema + "." + tbl.Name
+		// 3-part catalog.schema.name when catalog (DB_NAME) is available,
+		// matching the Postgres / SQL Server convention; 2-part schema.name
+		// fallback otherwise.
+		if md.Catalog != "" {
+			tbl.FQName = md.Catalog + "." + md.Schema + "." + tbl.Name
+		} else {
+			tbl.FQName = md.Schema + "." + tbl.Name
+		}
 		switch tbl.TableType {
 		case sqlz.TableTypeTable:
 			md.TableCount++
