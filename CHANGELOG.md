@@ -16,13 +16,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
-- 🐥 Experimental [Oracle](https://www.oracle.com/database/) driver
-  built on the pure-Go [go-ora](https://github.com/sijms/go-ora)
-  driver. No Oracle Instant Client or OCI native libraries are required;
-  Oracle support ships in the standard `sq` binary with no additional setup.
-  See the [Oracle driver documentation](https://sq.io/docs/drivers/oracle/).
-  Kudos to [@drluckyspin](https://github.com/drluckyspin) for indulging the
-  enterprise's Larry habit.
+- 🐥 Beta [Oracle](https://www.oracle.com/database/) support built on the pure-Go [go-ora](https://github.com/sijms/go-ora)
+  driver. No Oracle [InstantClient](https://www.oracle.com/database/technologies/instant-client.html) required; Oracle driver ships in the standard `sq` binary
+  with no additional setup. See the [docs](https://sq.io/docs/drivers/oracle/).
+  Kudos to [@drluckyspin](https://github.com/drluckyspin) for indulging enterprise Larry habits.
 
 ## [v0.50.2] - 2026-04-24
 
