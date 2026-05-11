@@ -177,7 +177,7 @@ but some drivers don't support the catalog mechanism. Here's a summary:
 | [MySQL](/docs/drivers/mysql) | Connection-dependent | [No](https://dev.mysql.com/doc/connector-odbc/en/connector-odbc-usagenotes-functionality-catalog-schema.html) |
 | [SQL server](/docs/drivers/sqlserver) | `dbo` | Yes |
 | [ClickHouse](/docs/drivers/clickhouse) | `default` | Yes |
-| [Oracle](/docs/drivers/oracle) | Connected user | Yes (PDB name in multitenant; database name otherwise) |
+| [Oracle](/docs/drivers/oracle) | Connected user | Read-only (`catalog()` returns the PDB / `DB_NAME`; not switchable at runtime — reconnect via a different service name) |
 
 The SLQ functions [`schema()`](/docs/query#schema) and [`catalog()`](/docs/query#catalog) return
 the schema and catalog of the active source. See the docs for details of how each driver implements

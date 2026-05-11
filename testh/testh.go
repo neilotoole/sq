@@ -285,8 +285,8 @@ func (h *Helper) Add(src *source.Source) *source.Source {
 // Any external database source (that is, any SQL source other than SQLite3)
 // will have its location determined from an envar. Given a source @sakila_pg12,
 // its location is derived from an envar SQ_TEST_SRC__SAKILA_PG12. If that envar
-// is not set, the test calling this method will be skipped. For @sakila_ora,
-// use SQ_TEST_SRC__SAKILA_ORA (host:port/service_name go-ora URL fragment after
+// is not set, the test calling this method will be skipped. For @sakila_or23,
+// use SQ_TEST_SRC__SAKILA_OR23 (host:port/service_name go-ora URL fragment after
 // the @ in oracle://user:pass@…).
 //
 // If envar SQ_TEST_DIFFDB is true, DiffDB is run on every SQL source
