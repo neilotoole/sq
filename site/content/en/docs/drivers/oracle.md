@@ -21,8 +21,7 @@ version coverage may come over time.
 The driver uses the pure-Go [go-ora](https://github.com/sijms/go-ora) driver
 and does not require
 [Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client.html),
-[CGo](https://pkg.go.dev/cmd/cgo), or
-[OCI](https://en.wikipedia.org/wiki/Oracle_Call_Interface) libraries.
+[OCI](https://en.wikipedia.org/wiki/Oracle_Call_Interface), or [CGo](https://pkg.go.dev/cmd/cgo).
 
 ## Add source
 
