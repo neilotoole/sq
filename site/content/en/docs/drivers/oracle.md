@@ -31,7 +31,7 @@ Use [`sq add`](/docs/cmd/add) to add an Oracle source.
 sq add 'oracle://user:password@host:1521/service_name'
 ```
 
-For the Sakila Oracle test image:
+For the [Sakila Oracle test image](https://hub.docker.com/repository/docker/sakiladb/oracle/general):
 
 ```shell
 sq add 'oracle://sakila:p_ssW0rd@localhost:1521/SAKILA' --handle @sakila_ora
