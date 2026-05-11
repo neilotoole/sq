@@ -921,6 +921,18 @@ func TestSQLDriver_SourceMetadata_FieldCoverage(t *testing.T) {
 			if tc.wantProps {
 				require.NotEmpty(t, md.DBProperties, "DBProperties")
 			}
+
+			// Per-table invariants. Every table/view returned from
+			// SourceMetadata should carry the always-populated fields below
+			// regardless of driver — these are the columns users see in
+			// `sq inspect` and rely on for cross-source operations.
+			for _, tbl := range md.Tables {
+				require.NotEmpty(t, tbl.Name, "Table.Name on %s", tc.handle)
+				require.NotEmpty(t, tbl.FQName, "Table.FQName on %s.%s", tc.handle, tbl.Name)
+				require.NotEmpty(t, tbl.TableType, "Table.TableType on %s.%s", tc.handle, tbl.Name)
+				require.NotEmpty(t, tbl.DBTableType, "Table.DBTableType on %s.%s", tc.handle, tbl.Name)
+				require.NotNil(t, tbl.Columns, "Table.Columns on %s.%s", tc.handle, tbl.Name)
+			}
 		})
 	}
 }
