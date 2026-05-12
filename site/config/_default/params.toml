@@ -120,6 +120,11 @@ pygmentsUseClasses = true
 
 
 
+[hyas_images.defaults]
+  decoding = "async"
+  fetchpriority = "auto"
+  loading = "lazy"
+
 [asciinema.defaults]
   theme = "nord"
   loop = false

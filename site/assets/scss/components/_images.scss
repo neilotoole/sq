@@ -1,3 +1,8 @@
+img {
+  max-width: 100%;
+  height: auto;
+}
+
 figure {
   margin: 0 0 1rem;
   display: inline-block;
@@ -6,8 +11,6 @@ figure {
 figure img {
   margin-bottom: 0.5rem;
   line-height: 1;
-  max-width: 100%;
-  height: auto;
 }
 
 figure figcaption {
