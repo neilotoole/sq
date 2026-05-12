@@ -52,6 +52,18 @@ jobs:
       name: production
       url: https://sq.io
     steps:
+      # Hard-fail on any non-master ref. `workflow_dispatch` exposes a "Use
+      # workflow from" branch picker in the Actions UI, so without this guard
+      # an operator could publish an arbitrary branch to https://sq.io. We
+      # prefer a loud failure over silently rewriting the operator's branch
+      # choice (e.g. via `actions/checkout` with `ref: master`), so intent
+      # and result always match.
+      - name: Reject non-master refs
+        if: github.ref != 'refs/heads/master'
+        run: |
+          echo "::error::This workflow must be run from the master branch."
+          exit 1
+
       - name: Validate confirmation input
         if: inputs.confirm != 'DEPLOY'
         run: |
