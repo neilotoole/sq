@@ -36,6 +36,8 @@ func newSLQCmd() *cobra.Command {
 
 	addQueryCmdFlags(cmd)
 
+	cmd.Flags().Bool(flag.DryRun, false, flag.DryRunUsage)
+
 	cmd.Flags().StringArray(flag.Arg, nil, flag.ArgUsage)
 
 	// Explicitly add flagVersion because people like to do "sq --version"
@@ -89,6 +91,13 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 
 	if err = applyCollectionOptions(cmd, coll); err != nil {
 		return err
+	}
+
+	if cmdFlagChanged(cmd, flag.DryRun) {
+		if cmdFlagChanged(cmd, flag.Insert) {
+			return errz.Errorf("--%s is not compatible with --%s", flag.Insert, flag.DryRun)
+		}
+		return execSLQDryRun(ctx, ru, mArgs)
 	}
 
 	if !cmdFlagChanged(cmd, flag.Insert) {
@@ -189,6 +198,33 @@ func execSLQPrint(ctx context.Context, ru *run.Run, mArgs map[string]string) err
 	}
 
 	return waitErr
+}
+
+// execSLQDryRun renders the SLQ query as SQL and writes the result via
+// ru.Writers.SQL, without executing the SQL. Honours --format: text/raw
+// produces plain SQL (with optional syntax highlighting); json/jsonl/yaml
+// produces a structured payload.
+func execSLQDryRun(ctx context.Context, ru *run.Run, mArgs map[string]string) error {
+	qc := run.NewQueryContext(ru, mArgs)
+
+	slq, err := preprocessUserSLQ(ctx, ru, ru.Args)
+	if err != nil {
+		return err
+	}
+
+	res, err := libsq.SLQ2SQL(ctx, qc, slq)
+	if err != nil {
+		return err
+	}
+
+	return ru.Writers.SQL.Render(output.SQLPayload{
+		SLQ:     slq,
+		SQL:     res.SQL,
+		Dialect: res.Dialect.String(),
+		Source:  res.SourceHandle,
+		Multi:   res.Multi,
+		Args:    mArgs,
+	})
 }
 
 // preprocessUserSLQ does a bit of validation and munging on the
