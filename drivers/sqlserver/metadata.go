@@ -336,6 +336,11 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 		return nil, err
 	}
 
+	tblMeta.FKIncoming, err = getMSSQLIncomingFKs(ctx, db, tblSchema, tblName)
+	if err != nil {
+		return nil, err
+	}
+
 	tblMeta.UniqueConstraints, err = getMSSQLUniqueConstraints(ctx, db, tblCatalog, tblSchema, tblName)
 	if err != nil {
 		return nil, err
@@ -508,13 +513,16 @@ func getMSSQLForeignKeys(ctx context.Context, db sqlz.DB, _ /*tblCatalog*/, tblS
 	// fk.delete_referential_action_desc / update_referential_action_desc
 	// use underscored values ('NO_ACTION', 'SET_NULL'). REPLACE rewrites
 	// them to the space-separated form used by the other drivers
-	// ('NO ACTION', 'SET NULL').
+	// ('NO ACTION', 'SET NULL'). NULLIF clears ref_schema when the
+	// referenced table is in the same schema, matching the
+	// normalization that metadata.LinkForeignKeys applies at the source
+	// level.
 	query := `SELECT
   fk.name                                                AS constraint_name,
   parent_t.name                                          AS fk_table,
   parent_c.name                                          AS fk_column,
   fkc.constraint_column_id                               AS ordinal_position,
-  ref_s.name                                             AS ref_schema,
+  NULLIF(ref_s.name, @p1)                                AS ref_schema,
   ref_t.name                                             AS ref_table,
   ref_c.name                                             AS ref_column,
   REPLACE(fk.delete_referential_action_desc, '_', ' ')   AS delete_rule,
@@ -555,7 +563,8 @@ WHERE parent_s.name = @p1
 
 		var (
 			constraintName, fkTable, fkColumn string
-			refSchema, refTable, refCol       string
+			refTable, refCol                  string
+			refSchema                         sql.NullString
 			deleteRule, updateRule            sql.NullString
 			ordinalPosition                   int64
 		)
@@ -570,7 +579,7 @@ WHERE parent_s.name = @p1
 			fk = &metadata.ForeignKey{
 				Name:      constraintName,
 				Table:     fkTable,
-				RefSchema: refSchema,
+				RefSchema: refSchema.String,
 				RefTable:  refTable,
 				OnDelete:  deleteRule.String,
 				OnUpdate:  updateRule.String,
@@ -585,6 +594,84 @@ WHERE parent_s.name = @p1
 		return nil, errw(err)
 	}
 	return fks, nil
+}
+
+// getMSSQLIncomingFKs returns the foreign-key constraints declared on
+// other tables in tblSchema whose referenced side is tblName. Same
+// query shape as getMSSQLForeignKeys, filtered on the *referenced*
+// table's schema/name rather than the parent's.
+func getMSSQLIncomingFKs(ctx context.Context, db sqlz.DB, tblSchema, tblName string,
+) ([]*metadata.ForeignKey, error) {
+	log := lg.FromContext(ctx)
+
+	const query = `SELECT
+  fk.name                                                AS constraint_name,
+  parent_t.name                                          AS fk_table,
+  parent_c.name                                          AS fk_column,
+  fkc.constraint_column_id                               AS ordinal_position,
+  ref_t.name                                             AS ref_table,
+  ref_c.name                                             AS ref_column,
+  REPLACE(fk.delete_referential_action_desc, '_', ' ')   AS delete_rule,
+  REPLACE(fk.update_referential_action_desc, '_', ' ')   AS update_rule
+FROM sys.foreign_keys        AS fk
+JOIN sys.foreign_key_columns AS fkc      ON fkc.constraint_object_id = fk.object_id
+JOIN sys.objects             AS parent_t ON parent_t.object_id       = fkc.parent_object_id
+JOIN sys.columns             AS parent_c ON parent_c.object_id       = fkc.parent_object_id
+                                        AND parent_c.column_id       = fkc.parent_column_id
+JOIN sys.objects             AS ref_t    ON ref_t.object_id          = fkc.referenced_object_id
+JOIN sys.schemas             AS ref_s    ON ref_s.schema_id          = ref_t.schema_id
+JOIN sys.columns             AS ref_c    ON ref_c.object_id          = fkc.referenced_object_id
+                                        AND ref_c.column_id          = fkc.referenced_column_id
+WHERE ref_s.name = @p1
+  AND ref_t.name = @p2
+ORDER BY parent_t.name, fk.name, fkc.constraint_column_id`
+
+	rows, err := db.QueryContext(ctx, query, tblSchema, tblName)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	type fkKey struct {
+		table, name string
+	}
+	byKey := map[fkKey]*metadata.ForeignKey{}
+	var fks []*metadata.ForeignKey
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			constraintName, fkTable, fkColumn string
+			refTable, refCol                  string
+			deleteRule, updateRule            sql.NullString
+			ordinalPosition                   int64
+		)
+		if err = rows.Scan(&constraintName, &fkTable, &fkColumn, &ordinalPosition,
+			&refTable, &refCol, &deleteRule, &updateRule); err != nil {
+			return nil, errw(err)
+		}
+
+		k := fkKey{table: fkTable, name: constraintName}
+		fk, ok := byKey[k]
+		if !ok {
+			fk = &metadata.ForeignKey{
+				Name:     constraintName,
+				Table:    fkTable,
+				RefTable: refTable,
+				OnDelete: deleteRule.String,
+				OnUpdate: updateRule.String,
+			}
+			// RefSchema intentionally left empty: the referenced table
+			// is the current one we're inspecting, which lives in
+			// tblSchema by construction.
+			byKey[k] = fk
+			fks = append(fks, fk)
+		}
+		fk.Columns = append(fk.Columns, fkColumn)
+		fk.RefColumns = append(fk.RefColumns, refCol)
+	}
+	return fks, errw(rows.Err())
 }
 
 // getAllTables returns all of the table names, and the table types

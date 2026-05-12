@@ -347,6 +347,11 @@ WHERE t.table_name = :1`
 		return nil, err
 	}
 
+	tblMeta.FKIncoming, err = getOracleIncomingFKs(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
+
 	tblMeta.UniqueConstraints, err = getOracleUniqueConstraints(ctx, db, tblName)
 	if err != nil {
 		return nil, err
@@ -505,14 +510,17 @@ func getOracleForeignKeys(ctx context.Context, db *sql.DB, tblName string,
 	// R_CONSTRAINT_NAME identifies the referenced unique/PK constraint;
 	// joining USER_CONS_COLUMNS twice on matching POSITION lines up the
 	// FK column with its corresponding parent column for composite keys.
+	// NULLIF clears ref_schema when the reference is in the current
+	// user's schema, matching the normalization that
+	// metadata.LinkForeignKeys applies at the source level.
 	query := `SELECT
     c.constraint_name,
-    c.table_name      AS fk_table,
-    fkc.column_name   AS fk_column,
-    fkc.position      AS ordinal_position,
-    c.r_owner         AS ref_schema,
-    pkc.table_name    AS ref_table,
-    pkc.column_name   AS ref_column,
+    c.table_name                                                       AS fk_table,
+    fkc.column_name                                                    AS fk_column,
+    fkc.position                                                       AS ordinal_position,
+    NULLIF(c.r_owner, SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA'))        AS ref_schema,
+    pkc.table_name                                                     AS ref_table,
+    pkc.column_name                                                    AS ref_column,
     c.delete_rule
 FROM user_constraints  c
 JOIN user_cons_columns fkc
@@ -571,6 +579,77 @@ WHERE c.constraint_type = 'R'`
 		return nil, errw(err)
 	}
 	return fks, nil
+}
+
+// getOracleIncomingFKs returns the foreign-key constraints declared on
+// other tables in the current schema whose referenced side is tblName.
+// USER_CONSTRAINTS scopes results to the current user's schema, so
+// cross-schema references from tables in other schemas are not
+// reported here.
+func getOracleIncomingFKs(ctx context.Context, db *sql.DB, tblName string,
+) ([]*metadata.ForeignKey, error) {
+	const query = `SELECT
+    c.constraint_name,
+    c.table_name      AS fk_table,
+    fkc.column_name   AS fk_column,
+    fkc.position      AS ordinal_position,
+    pk.table_name     AS ref_table,
+    pkc.column_name   AS ref_column,
+    c.delete_rule
+FROM user_constraints  c
+JOIN user_constraints  pk
+  ON  pk.constraint_name = c.r_constraint_name
+JOIN user_cons_columns fkc
+  ON  fkc.constraint_name = c.constraint_name
+JOIN user_cons_columns pkc
+  ON  pkc.constraint_name = c.r_constraint_name
+  AND pkc.position        = fkc.position
+WHERE c.constraint_type = 'R'
+  AND pk.table_name = :1
+ORDER BY c.table_name, c.constraint_name, fkc.position`
+
+	rows, err := db.QueryContext(ctx, query, strings.ToUpper(tblName))
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer rows.Close()
+
+	type fkKey struct {
+		table, name string
+	}
+	byKey := map[fkKey]*metadata.ForeignKey{}
+	var fks []*metadata.ForeignKey
+	for rows.Next() {
+		var (
+			constraintName, fkTable, fkColumn string
+			refTable, refCol                  string
+			deleteRule                        sql.NullString
+			ordinalPosition                   int64
+		)
+		if err = rows.Scan(&constraintName, &fkTable, &fkColumn, &ordinalPosition,
+			&refTable, &refCol, &deleteRule); err != nil {
+			return nil, errw(err)
+		}
+
+		k := fkKey{table: fkTable, name: constraintName}
+		fk, ok := byKey[k]
+		if !ok {
+			fk = &metadata.ForeignKey{
+				Name:     constraintName,
+				Table:    fkTable,
+				RefTable: refTable,
+				OnDelete: deleteRule.String,
+			}
+			// RefSchema intentionally left empty: the referenced table
+			// is the current one we're inspecting, which lives in the
+			// current schema by USER_CONSTRAINTS scoping.
+			byKey[k] = fk
+			fks = append(fks, fk)
+		}
+		fk.Columns = append(fk.Columns, fkColumn)
+		fk.RefColumns = append(fk.RefColumns, refCol)
+	}
+	return fks, errw(rows.Err())
 }
 
 // getViewMetadata returns metadata for a view (USER_VIEWS / USER_TAB_COLUMNS).

@@ -353,6 +353,11 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 		return nil, err
 	}
 
+	tblMeta.FKIncoming, err = getTableIncomingFKs(ctx, db, tblMeta.Name)
+	if err != nil {
+		return nil, err
+	}
+
 	tblMeta.UniqueConstraints, tblMeta.Indexes, err = getTableIndexes(ctx, db, tblMeta.Name)
 	if err != nil {
 		return nil, err
@@ -520,6 +525,68 @@ ORDER BY id, seq`
 		return nil, errw(err)
 	}
 	return fks, nil
+}
+
+// getTableIncomingFKs returns the foreign-key constraints declared on
+// other tables in this database whose referenced side is tblName. The
+// query joins sqlite_master to pragma_foreign_key_list so the entire
+// schema is swept in a single round-trip rather than via Go-side
+// iteration. SQLite's pragma_foreign_key_list is per-referencing-table,
+// so unlike the other drivers there's no native "what points at me?"
+// view to filter on directly.
+func getTableIncomingFKs(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.ForeignKey, error) {
+	log := lg.FromContext(ctx)
+
+	const q = `SELECT m.name AS fk_table, fkl.id, fkl.seq, fkl."from", fkl."to", fkl.on_update, fkl.on_delete
+FROM sqlite_master AS m
+JOIN pragma_foreign_key_list(m.name) AS fkl
+WHERE m.type = 'table'
+  AND m.name NOT LIKE 'sqlite_%'
+  AND fkl."table" = ?
+ORDER BY m.name, fkl.id, fkl.seq`
+
+	rows, err := db.QueryContext(ctx, q, tblName)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	type fkKey struct {
+		table string
+		id    int64
+	}
+	byKey := map[fkKey]*metadata.ForeignKey{}
+	var fks []*metadata.ForeignKey
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			fkTable            string
+			id, seq            int64
+			fromCol, toCol     string
+			onUpdate, onDelete sql.NullString
+		)
+		if err = rows.Scan(&fkTable, &id, &seq, &fromCol, &toCol, &onUpdate, &onDelete); err != nil {
+			return nil, errw(err)
+		}
+
+		k := fkKey{table: fkTable, id: id}
+		fk, ok := byKey[k]
+		if !ok {
+			fk = &metadata.ForeignKey{
+				Table:    fkTable,
+				RefTable: tblName,
+				OnDelete: onDelete.String,
+				OnUpdate: onUpdate.String,
+			}
+			byKey[k] = fk
+			fks = append(fks, fk)
+		}
+		fk.Columns = append(fk.Columns, fromCol)
+		fk.RefColumns = append(fk.RefColumns, toCol)
+	}
+	return fks, errw(rows.Err())
 }
 
 // getAllTableMetadata gets metadata for each of the

@@ -210,6 +210,11 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 		return nil, err
 	}
 
+	tblMeta.FKIncoming, err = getMySQLIncomingFKs(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
+
 	tblMeta.UniqueConstraints, err = getMySQLUniqueConstraints(ctx, db, tblName)
 	if err != nil {
 		return nil, err
@@ -371,15 +376,18 @@ func getMySQLForeignKeys(ctx context.Context, db sqlz.DB, tblName string) ([]*me
 
 	// KEY_COLUMN_USAGE conveniently carries the referenced side already
 	// (REFERENCED_TABLE_*), so we only need one join to pick up DELETE/UPDATE
-	// rules from REFERENTIAL_CONSTRAINTS.
+	// rules from REFERENTIAL_CONSTRAINTS. NULLIF clears RefSchema when
+	// the reference is in the current database — same normalization
+	// that metadata.LinkForeignKeys applies at the source level, so
+	// the per-table inspect path produces matching output.
 	query := `SELECT
   rc.CONSTRAINT_NAME,
-  kcu.TABLE_NAME             AS fk_table,
-  kcu.COLUMN_NAME            AS fk_column,
+  kcu.TABLE_NAME                                       AS fk_table,
+  kcu.COLUMN_NAME                                      AS fk_column,
   kcu.ORDINAL_POSITION,
-  kcu.REFERENCED_TABLE_SCHEMA AS ref_schema,
-  kcu.REFERENCED_TABLE_NAME   AS ref_table,
-  kcu.REFERENCED_COLUMN_NAME  AS ref_column,
+  NULLIF(kcu.REFERENCED_TABLE_SCHEMA, DATABASE())      AS ref_schema,
+  kcu.REFERENCED_TABLE_NAME                            AS ref_table,
+  kcu.REFERENCED_COLUMN_NAME                           AS ref_column,
   rc.DELETE_RULE,
   rc.UPDATE_RULE
 FROM information_schema.REFERENTIAL_CONSTRAINTS AS rc
@@ -442,6 +450,81 @@ WHERE rc.CONSTRAINT_SCHEMA = DATABASE()
 		return nil, errw(err)
 	}
 	return fks, nil
+}
+
+// getMySQLIncomingFKs returns the foreign-key constraints declared on
+// other tables in the current database whose referenced side is
+// tblName. Same query shape as getMySQLForeignKeys, filtered on the
+// REFERENCED_TABLE_NAME column rather than TABLE_NAME. Used by the
+// single-table inspect path to populate [Table.FKIncoming] without
+// walking every other table in Go.
+func getMySQLIncomingFKs(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.ForeignKey, error) {
+	log := lg.FromContext(ctx)
+
+	const query = `SELECT
+  rc.CONSTRAINT_NAME,
+  kcu.TABLE_NAME            AS fk_table,
+  kcu.COLUMN_NAME           AS fk_column,
+  kcu.ORDINAL_POSITION,
+  kcu.REFERENCED_TABLE_NAME AS ref_table,
+  kcu.REFERENCED_COLUMN_NAME AS ref_column,
+  rc.DELETE_RULE,
+  rc.UPDATE_RULE
+FROM information_schema.REFERENTIAL_CONSTRAINTS AS rc
+JOIN information_schema.KEY_COLUMN_USAGE         AS kcu
+  ON  kcu.CONSTRAINT_SCHEMA = rc.CONSTRAINT_SCHEMA
+  AND kcu.CONSTRAINT_NAME   = rc.CONSTRAINT_NAME
+WHERE rc.CONSTRAINT_SCHEMA           = DATABASE()
+  AND kcu.REFERENCED_TABLE_SCHEMA    = DATABASE()
+  AND kcu.REFERENCED_TABLE_NAME      = ?
+ORDER BY kcu.TABLE_NAME, rc.CONSTRAINT_NAME, kcu.ORDINAL_POSITION`
+
+	rows, err := db.QueryContext(ctx, query, tblName)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	type fkKey struct {
+		table, name string
+	}
+	byKey := map[fkKey]*metadata.ForeignKey{}
+	var fks []*metadata.ForeignKey
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			constraintName, fkTable, fkColumn string
+			refTable, refCol                  string
+			deleteRule, updateRule            sql.NullString
+			ordinalPosition                   int64
+		)
+		if err = rows.Scan(&constraintName, &fkTable, &fkColumn, &ordinalPosition,
+			&refTable, &refCol, &deleteRule, &updateRule); err != nil {
+			return nil, errw(err)
+		}
+
+		k := fkKey{table: fkTable, name: constraintName}
+		fk, ok := byKey[k]
+		if !ok {
+			fk = &metadata.ForeignKey{
+				Name:     constraintName,
+				Table:    fkTable,
+				RefTable: refTable,
+				OnDelete: deleteRule.String,
+				OnUpdate: updateRule.String,
+			}
+			// RefSchema intentionally left empty: the referenced table
+			// is the current one we're inspecting, which lives in
+			// DATABASE() by construction.
+			byKey[k] = fk
+			fks = append(fks, fk)
+		}
+		fk.Columns = append(fk.Columns, fkColumn)
+		fk.RefColumns = append(fk.RefColumns, refCol)
+	}
+	return fks, errw(rows.Err())
 }
 
 // getColumnMetadata returns column metadata for tblName.

@@ -462,12 +462,19 @@ AND table_name = $1`
 	return tblMeta, nil
 }
 
-// populateTableExtras loads outgoing FKs, unique constraints, and
-// indexes for tblMeta (filtered by tblMeta.Name). It is the per-table
-// counterpart to the bulk loaders called by getSourceMetadata.
+// populateTableExtras loads outgoing FKs, incoming FKs, unique
+// constraints, and indexes for tblMeta (filtered by tblMeta.Name). It
+// is the per-table counterpart to the bulk loaders called by
+// getSourceMetadata, and is what Grip.TableMetadata uses to give
+// single-table inspect the same FK shape as full-source inspect.
 func populateTableExtras(ctx context.Context, db sqlz.DB, tblMeta *metadata.Table) error {
 	var err error
 	tblMeta.FKOutgoing, err = getPgForeignKeys(ctx, db, tblMeta.Name)
+	if err != nil {
+		return err
+	}
+
+	tblMeta.FKIncoming, err = getPgIncomingFKs(ctx, db, tblMeta.Name)
 	if err != nil {
 		return err
 	}
@@ -938,15 +945,20 @@ func getPgForeignKeys(ctx context.Context, db sqlz.DB, tblName string) ([]*metad
 	// for the referencing (FK) side and once for the referenced (PK)
 	// side. ccu.ordinal_position is matched to kcu.position_in_unique_constraint
 	// so composite keys line up positionally.
+	// NULLIF clears RefCatalog / RefSchema when the reference is in the
+	// current catalog / schema. This way the per-table inspect path
+	// produces the same normalized shape that source-level inspect
+	// gets from [metadata.LinkForeignKeys], without needing a Go-side
+	// post-processing pass.
 	query := `SELECT
   rc.constraint_name,
-  kcu.table_name              AS fk_table,
-  kcu.column_name             AS fk_column,
+  kcu.table_name                                       AS fk_table,
+  kcu.column_name                                      AS fk_column,
   kcu.ordinal_position,
-  ccu.table_catalog           AS ref_catalog,
-  ccu.table_schema            AS ref_schema,
-  ccu.table_name              AS ref_table,
-  ccu.column_name             AS ref_column,
+  NULLIF(ccu.table_catalog, current_catalog)           AS ref_catalog,
+  NULLIF(ccu.table_schema, current_schema())           AS ref_schema,
+  ccu.table_name                                       AS ref_table,
+  ccu.column_name                                      AS ref_column,
   rc.delete_rule,
   rc.update_rule
 FROM information_schema.referential_constraints AS rc
@@ -985,13 +997,97 @@ WHERE kcu.table_catalog = current_catalog
 		debugz.DebugSleep(ctx)
 
 		var (
-			constraintName, fkTable, fkColumn       string
-			refCatalog, refSchema, refTable, refCol string
-			deleteRule, updateRule                  sql.NullString
-			ordinalPosition                         int64
+			constraintName, fkTable, fkColumn string
+			refTable, refCol                  string
+			refCatalog, refSchema             sql.NullString
+			deleteRule, updateRule            sql.NullString
+			ordinalPosition                   int64
 		)
 		if err = rows.Scan(&constraintName, &fkTable, &fkColumn, &ordinalPosition,
 			&refCatalog, &refSchema, &refTable, &refCol, &deleteRule, &updateRule); err != nil {
+			return nil, errw(err)
+		}
+
+		k := fkKey{table: fkTable, name: constraintName}
+		fk, ok := byKey[k]
+		if !ok {
+			fk = &metadata.ForeignKey{
+				Name:       constraintName,
+				Table:      fkTable,
+				RefCatalog: refCatalog.String,
+				RefSchema:  refSchema.String,
+				RefTable:   refTable,
+				OnDelete:   deleteRule.String,
+				OnUpdate:   updateRule.String,
+			}
+			byKey[k] = fk
+			fks = append(fks, fk)
+		}
+		fk.Columns = append(fk.Columns, fkColumn)
+		fk.RefColumns = append(fk.RefColumns, refCol)
+	}
+	if err = closeRows(rows); err != nil {
+		return nil, err
+	}
+	return fks, nil
+}
+
+// getPgIncomingFKs returns the foreign-key constraints declared on
+// other tables in the current schema whose referenced side is tblName.
+// The same query shape as getPgForeignKeys, but filtered on the
+// referenced (ccu) side rather than the referencing (kcu) side. Used
+// by the single-table inspect path to populate [Table.FKIncoming]
+// without walking every other table.
+func getPgIncomingFKs(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.ForeignKey, error) {
+	log := lg.FromContext(ctx)
+
+	const query = `SELECT
+  rc.constraint_name,
+  kcu.table_name              AS fk_table,
+  kcu.column_name             AS fk_column,
+  kcu.ordinal_position,
+  ccu.table_name              AS ref_table,
+  ccu.column_name             AS ref_column,
+  rc.delete_rule,
+  rc.update_rule
+FROM information_schema.referential_constraints AS rc
+JOIN information_schema.key_column_usage         AS kcu
+  ON  kcu.constraint_catalog = rc.constraint_catalog
+  AND kcu.constraint_schema  = rc.constraint_schema
+  AND kcu.constraint_name    = rc.constraint_name
+JOIN information_schema.key_column_usage         AS ccu
+  ON  ccu.constraint_catalog = rc.unique_constraint_catalog
+  AND ccu.constraint_schema  = rc.unique_constraint_schema
+  AND ccu.constraint_name    = rc.unique_constraint_name
+  AND ccu.ordinal_position   = kcu.position_in_unique_constraint
+WHERE ccu.table_catalog = current_catalog
+  AND ccu.table_schema  = current_schema()
+  AND ccu.table_name    = $1
+ORDER BY kcu.table_name, rc.constraint_name, kcu.ordinal_position`
+
+	rows, err := db.QueryContext(ctx, query, tblName)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	type fkKey struct {
+		table, name string
+	}
+	byKey := map[fkKey]*metadata.ForeignKey{}
+	var fks []*metadata.ForeignKey
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			constraintName, fkTable, fkColumn string
+			refTable, refCol                  string
+			deleteRule, updateRule            sql.NullString
+			ordinalPosition                   int64
+		)
+		if err = rows.Scan(&constraintName, &fkTable, &fkColumn, &ordinalPosition,
+			&refTable, &refCol, &deleteRule, &updateRule); err != nil {
 			return nil, errw(err)
 		}
 
@@ -1005,15 +1101,11 @@ WHERE kcu.table_catalog = current_catalog
 				OnDelete: deleteRule.String,
 				OnUpdate: updateRule.String,
 			}
-			// Omit catalog/schema when the reference is in the same
-			// catalog/schema, matching the "ref_catalog,omitempty"
-			// JSON output convention.
-			if refCatalog != "" {
-				fk.RefCatalog = refCatalog
-			}
-			if refSchema != "" {
-				fk.RefSchema = refSchema
-			}
+			// RefCatalog/RefSchema are left empty: the referenced
+			// table is the current one we're inspecting, which by
+			// construction lives in current_catalog / current_schema,
+			// so omitting matches the in-source convention used by
+			// [metadata.LinkForeignKeys].
 			byKey[k] = fk
 			fks = append(fks, fk)
 		}

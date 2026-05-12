@@ -302,6 +302,18 @@ func TestForeignKeys_Sakila(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, filmTbl.FKOutgoing,
 		"TableMetadata should populate Table.FKOutgoing for single-table inspect")
+
+	// Per-table TableMetadata also populates Table.FKIncoming. The
+	// language table is referenced by film (twice — language_id and
+	// original_language_id) and by nothing else.
+	languageTbl, err := grip.TableMetadata(th.Context, "language")
+	require.NoError(t, err)
+	require.NotEmpty(t, languageTbl.FKIncoming,
+		"TableMetadata should populate Table.FKIncoming for single-table inspect")
+	for _, fk := range languageTbl.FKIncoming {
+		require.Equal(t, sakila.TblFilm, fk.Table,
+			"every incoming FK on language should originate from film")
+	}
 }
 
 // TestIndexes_Sakila verifies that the sqlite3 driver populates index
