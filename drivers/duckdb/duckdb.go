@@ -430,23 +430,25 @@ func (d *driveri) DropTable(_ context.Context, _ sqlz.DB, _ tablefq.T, _ bool) e
 }
 
 // AlterTableRename implements driver.SQLDriver.
-func (d *driveri) AlterTableRename(_ context.Context, _ sqlz.DB, _, _ string) error {
-	return errz.New("not implemented")
+func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, oldName, newName string) error {
+	return alterTableRename(ctx, db, oldName, newName)
 }
 
 // AlterTableAddColumn implements driver.SQLDriver.
-func (d *driveri) AlterTableAddColumn(_ context.Context, _ sqlz.DB, _, _ string, _ kind.Kind) error {
-	return errz.New("not implemented")
+func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tblName, colName string, k kind.Kind) error {
+	return alterTableAddColumn(ctx, db, tblName, colName, k)
 }
 
 // AlterTableRenameColumn implements driver.SQLDriver.
-func (d *driveri) AlterTableRenameColumn(_ context.Context, _ sqlz.DB, _, _, _ string) error {
-	return errz.New("not implemented")
+func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tblName, oldCol, newCol string) error {
+	return alterTableRenameColumn(ctx, db, tblName, oldCol, newCol)
 }
 
 // AlterTableColumnKinds implements driver.SQLDriver.
-func (d *driveri) AlterTableColumnKinds(_ context.Context, _ sqlz.DB, _ string, _ []string, _ []kind.Kind) error {
-	return errz.New("not implemented")
+func (d *driveri) AlterTableColumnKinds(
+	ctx context.Context, db sqlz.DB, tblName string, colNames []string, kinds []kind.Kind,
+) error {
+	return alterTableColumnKinds(ctx, db, tblName, colNames, kinds)
 }
 
 // DBProperties implements driver.SQLDriver.
