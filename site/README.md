@@ -13,7 +13,8 @@ This site is built using:
 - [Bun](https://bun.sh) tooling
 - [Netlify](https://www.netlify.com) hosting
 
-Changes to the `master` branch kick off a redeploy on Netlify.
+Production publishes to [sq.io](https://sq.io) are **manual** — merges to
+`master` no longer auto-deploy. See [CI Workflow](#ci-workflow) below.
 
 ## Contributing
 
@@ -105,17 +106,26 @@ This is an important note for the reader.
 
 The project uses GitHub Actions and Netlify for continuous integration:
 
-| Trigger                               | Action                                                |
-|---------------------------------------|-------------------------------------------------------|
-| Push to `master` or `develop` (and PRs) | `.github/workflows/site-ci.yml` runs `make ci` when `site/**` changes, plus an informational full link crawl |
-| Pull request                          | Netlify deploy preview (when configured)               |
-| Merge to `master`                     | Automatic production deploy to [sq.io](https://sq.io) |
-| Daily schedule / manual               | `.github/workflows/site-links-nightly.yml` runs a full external link crawl |
+| Trigger                                 | Action                                                                                                                |
+|-----------------------------------------|-----------------------------------------------------------------------------------------------------------------------|
+| Push to `master` or `develop` (and PRs) | `.github/workflows/site-ci.yml` runs `make ci` when `site/**` changes, plus an informational full link crawl          |
+| Pull request                            | Netlify deploy preview (when configured)                                                                              |
+| Merge to `master`                       | **No auto-deploy.** Netlify's production build is suppressed via `[context.production] ignore = "exit 0"` in `netlify.toml` |
+| Manual `workflow_dispatch`              | `.github/workflows/site-publish-dispatch.yml` builds locally and uploads `site/public` to [sq.io](https://sq.io) via the Netlify CLI |
+| Daily schedule / manual                 | `.github/workflows/site-links-nightly.yml` runs a full external link crawl                                            |
 
-Netlify provides deploy previews for every PR with Lighthouse audits for performance,
-accessibility, best practices, and SEO. Before merging, click through to the
-deploy preview (e.g., `https://deploy-preview-59--sq-web.netlify.app`) to verify
-your changes look correct.
+Production publishes to [sq.io](https://sq.io) are manual-only. To deploy,
+go to the repo's **Actions** tab, pick **Site Publish (dispatch)**, click
+**Run workflow**, select the `master` branch, and type `DEPLOY` into the
+confirmation field. The workflow rejects any non-`master` ref and any
+confirmation value other than the literal string `DEPLOY`. Requires the
+`NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` repo secrets to be set.
+
+Netlify still provides deploy previews for every PR with Lighthouse audits for
+performance, accessibility, best practices, and SEO. Before merging, click
+through to the deploy preview (e.g.,
+`https://deploy-preview-59--sq-web.netlify.app`) to verify your changes look
+correct.
 
 ### Commands
 
