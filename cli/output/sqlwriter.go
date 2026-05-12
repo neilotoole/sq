@@ -25,8 +25,9 @@ type SQLPayload struct {
 	// handle.
 	Source string `json:"source" yaml:"source"`
 
-	// Multi is true if more than one source was involved in the SLQ
-	// (i.e. data was staged before the final SQL ran).
+	// Multi is true if more than one source is involved in the SLQ. If
+	// executed (not via --dry-run), data would be staged into the join
+	// DB before the final SQL ran. --dry-run itself does no staging.
 	Multi bool `json:"multi" yaml:"multi"`
 }
 

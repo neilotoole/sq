@@ -137,14 +137,18 @@ type RenderResult struct {
 	// source's handle.
 	SourceHandle string
 
-	// Multi is true if more than one source was involved in the SLQ
-	// (i.e. data was staged into the join DB before the final SQL ran).
+	// Multi is true if more than one source is involved in the SLQ.
+	// If executed (not via SLQ2SQL), data would be staged into the join
+	// DB before the final SQL ran. SLQ2SQL itself does no staging.
 	Multi bool
 }
 
-// SLQ2SQL simulates execution of a SLQ query: instead of executing the
-// resulting SQL query, the rendered SQL and target metadata are returned.
-// Effectively equivalent to libsq.ExecSLQ but without the execution.
+// SLQ2SQL renders a SLQ query into the SQL that would be executed
+// against the target database, without executing it. The pipeline
+// is built the same way as for ExecSLQ — sources referenced in the
+// query are opened (connection established, authentication round-trip)
+// so the target dialect can be determined, but no SQL is executed
+// and no data is moved.
 func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (*RenderResult, error) {
 	p, err := newPipeline(ctx, qc, query)
 	if err != nil {
