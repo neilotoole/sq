@@ -75,7 +75,7 @@
     "lazysizes": "^5.3",
     "linkinator": "^4.1.2",
     "markdownlint-cli2": "^0.6.0",
-    "netlify-cli": "^23.13.4",
+    "netlify-cli": "^25.0.1",
     "netlify-plugin-submit-sitemap": "^0.4.0",
     "node-fetch": "^3.3.1",
     "nord": "^0.2.1",
