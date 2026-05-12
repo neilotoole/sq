@@ -449,9 +449,28 @@ AND table_name = $1`
 
 	setTblMetaConstraints(log, tblMeta, pgConstraints)
 
-	tblMeta.ForeignKeys, err = getPgForeignKeys(ctx, db, tblName)
+	// Note: FK / unique-constraint / index loading is intentionally
+	// NOT done here. getTableMetadata is called once per table from
+	// getSourceMetadata's parallel errgroup, and getSourceMetadata
+	// already performs a single bulk query for each of those at the
+	// end. Adding per-table loads here would multiply the per-table
+	// queries N times (an N+1 pattern) and the bulk-loader results
+	// would just overwrite them anyway. For the per-table inspect
+	// path, the wrapping Grip.TableMetadata applies the loaders with
+	// a tblName filter.
+
+	return tblMeta, nil
+}
+
+// populateTableExtras loads outgoing FKs, unique constraints, and
+// indexes for tblMeta (filtered by tblMeta.Name) and wires the
+// Column.ForeignKey back-reference. It is the per-table counterpart
+// to the bulk loaders called by getSourceMetadata.
+func populateTableExtras(ctx context.Context, db sqlz.DB, tblMeta *metadata.Table) error {
+	var err error
+	tblMeta.ForeignKeys, err = getPgForeignKeys(ctx, db, tblMeta.Name)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	for _, fk := range tblMeta.ForeignKeys {
 		for _, colName := range fk.Columns {
@@ -461,17 +480,13 @@ AND table_name = $1`
 		}
 	}
 
-	tblMeta.UniqueConstraints, err = getPgUniqueConstraints(ctx, db, tblName)
+	tblMeta.UniqueConstraints, err = getPgUniqueConstraints(ctx, db, tblMeta.Name)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	tblMeta.Indexes, err = getPgIndexes(ctx, db, tblName)
-	if err != nil {
-		return nil, err
-	}
-
-	return tblMeta, nil
+	tblMeta.Indexes, err = getPgIndexes(ctx, db, tblMeta.Name)
+	return err
 }
 
 // pgTable holds query results for table metadata.
@@ -836,6 +851,11 @@ WHERE tc.constraint_type = 'UNIQUE'
 // attnum=0 (not present in pg_attribute) — those positions are skipped,
 // so an index that mixes columns and expressions appears with just the
 // direct column references.
+//
+// INCLUDE columns (Postgres 11+) are stored after the key columns in
+// indkey; restricting to ord <= ix.indnkeyatts keeps Index.Columns as
+// key-only, matching the contract documented on the type and the
+// SQL Server loader (which excludes INCLUDE columns explicitly).
 func getPgIndexes(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.Index, error) {
 	log := lg.FromContext(ctx)
 
@@ -857,6 +877,7 @@ JOIN pg_attribute        AS attr ON attr.attrelid = t.oid AND attr.attnum = k.at
 WHERE ns.nspname = current_schema()
   AND t.relkind IN ('r', 'p', 'm')
   AND ix.indislive
+  AND k.ord <= ix.indnkeyatts
 `
 	var args []any
 	if tblName != "" {

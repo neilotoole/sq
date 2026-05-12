@@ -604,9 +604,18 @@ func AssignIndexes(tables []*Table, idxs []*Index) {
 //   - appends the same *[ForeignKey] to the referenced table's
 //     [Table.ReferencedBy] slice
 //
-// Entries on Table.ReferencedBy are ordered first by the referencing
-// table's name and then by the original order they were declared on
-// that table, giving a stable result independent of map iteration.
+// Entries on Table.ReferencedBy follow the iteration order of s.Tables,
+// then the order of each table's ForeignKeys slice. Drivers that load
+// tables in name order (most do) therefore produce a deterministic
+// shape; consumers that need a strict sort should sort the slice
+// themselves.
+//
+// LinkForeignKeys also normalizes [ForeignKey.RefCatalog] and
+// [ForeignKey.RefSchema]: when they equal s.Catalog / s.Schema the
+// fields are cleared so the JSON / YAML output omits them and the
+// "same-schema reference" invariant the resolver below relies on holds
+// (a non-empty RefSchema after normalization marks the reference as
+// pointing outside this Source).
 //
 // LinkForeignKeys is idempotent: any pre-existing values in Column.ForeignKey
 // and Table.ReferencedBy are cleared before re-deriving. It is safe to call
@@ -639,18 +648,32 @@ func LinkForeignKeys(s *Source) {
 				continue
 			}
 
-			// Wire the column back-references on the referencing table.
+			// Normalize same-source qualifiers so they're omitted on
+			// output and so the cross-schema check below is reliable.
+			if fk.RefCatalog == s.Catalog {
+				fk.RefCatalog = ""
+			}
+			if fk.RefSchema == s.Schema {
+				fk.RefSchema = ""
+			}
+
+			// Wire the column back-references on the referencing
+			// (local) table — Column.ForeignKey always points at the
+			// outgoing FK regardless of where it lands.
 			for _, colName := range fk.Columns {
 				if col := tbl.Column(colName); col != nil {
 					col.ForeignKey = fk
 				}
 			}
 
-			// Append to the referenced table's incoming list, if we can
-			// resolve it within this Source. Cross-schema or cross-catalog
-			// references that don't resolve are silently skipped — the
-			// outgoing edge is still on Table.ForeignKeys for consumers
-			// that want to render external references.
+			// Only link to a local table when the reference is in
+			// this Source's catalog+schema. A non-empty RefCatalog or
+			// RefSchema after normalization means the target lives
+			// elsewhere; treat it as external so we don't incorrectly
+			// match a same-named table in the local schema.
+			if fk.RefCatalog != "" || fk.RefSchema != "" {
+				continue
+			}
 			if refTbl, ok := byName[fk.RefTable]; ok {
 				refTbl.ReferencedBy = append(refTbl.ReferencedBy, fk)
 			}

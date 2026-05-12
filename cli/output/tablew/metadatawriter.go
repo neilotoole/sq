@@ -219,8 +219,12 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 
 // formatFKRef returns a short human-readable description of the FK that
 // col participates in, of the form "ref_table(ref_col)" — or for
-// composite FKs, "ref_table(ref_col1, ref_col2)". Returns the empty
-// string for non-FK columns.
+// composite FKs, "ref_table(ref_col1, ref_col2)". Cross-schema and
+// cross-catalog references are qualified ("ref_schema.ref_table(...)"
+// or "ref_catalog.ref_schema.ref_table(...)"). Same-source references
+// stay unqualified — LinkForeignKeys clears RefCatalog / RefSchema
+// when they match the owning Source's catalog / schema. Returns the
+// empty string for non-FK columns.
 func formatFKRef(col *metadata.Column) string {
 	if col == nil || col.ForeignKey == nil {
 		return ""
@@ -229,6 +233,9 @@ func formatFKRef(col *metadata.Column) string {
 	target := fk.RefTable
 	if fk.RefSchema != "" {
 		target = fk.RefSchema + "." + target
+	}
+	if fk.RefCatalog != "" {
+		target = fk.RefCatalog + "." + target
 	}
 	return target + "(" + strings.Join(fk.RefColumns, ", ") + ")"
 }

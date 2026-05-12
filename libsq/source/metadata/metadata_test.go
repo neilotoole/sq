@@ -518,6 +518,81 @@ func TestLinkForeignKeys(t *testing.T) {
 		require.Same(t, fk, fa.Column("actor_id").ForeignKey)
 	})
 
+	t.Run("cross_schema_does_not_link_local_namesake", func(t *testing.T) {
+		// A FK that points at other_schema.users must NOT be linked to
+		// a local "users" table just because the name matches — the
+		// reference is in a different schema.
+		fk := &metadata.ForeignKey{
+			Name:       "fk_to_other_schema_users",
+			Table:      "audit",
+			Columns:    []string{"user_id"},
+			RefSchema:  "other_schema",
+			RefTable:   "users",
+			RefColumns: []string{"id"},
+		}
+
+		src := &metadata.Source{
+			Schema:  "public",
+			Catalog: "app",
+			Tables: []*metadata.Table{
+				{
+					Name:        "audit",
+					Columns:     []*metadata.Column{{Name: "user_id"}},
+					ForeignKeys: []*metadata.ForeignKey{fk},
+				},
+				{
+					Name:    "users", // local namesake — must not be matched
+					Columns: []*metadata.Column{{Name: "id"}},
+				},
+			},
+		}
+
+		metadata.LinkForeignKeys(src)
+
+		// Local "users" must not appear as a ReferencedBy target.
+		require.Nil(t, src.Table("users").ReferencedBy,
+			"local users.ReferencedBy must be empty when FK points to a different schema")
+		// Column.ForeignKey is still wired since it's a local back-ref.
+		require.Same(t, fk, src.Table("audit").Column("user_id").ForeignKey)
+	})
+
+	t.Run("same_schema_qualifiers_normalized", func(t *testing.T) {
+		// Drivers report RefSchema / RefCatalog populated even for
+		// same-schema refs (information_schema returns non-empty
+		// values). LinkForeignKeys should normalize them away so the
+		// JSON output omits the redundant qualifiers and the
+		// "ref-is-elsewhere" check above stays reliable.
+		fk := &metadata.ForeignKey{
+			Table:      "child",
+			Columns:    []string{"parent_id"},
+			RefCatalog: "app",
+			RefSchema:  "public",
+			RefTable:   "parent",
+			RefColumns: []string{"id"},
+		}
+		src := &metadata.Source{
+			Schema:  "public",
+			Catalog: "app",
+			Tables: []*metadata.Table{
+				{
+					Name:        "child",
+					Columns:     []*metadata.Column{{Name: "parent_id"}},
+					ForeignKeys: []*metadata.ForeignKey{fk},
+				},
+				{
+					Name:    "parent",
+					Columns: []*metadata.Column{{Name: "id"}},
+				},
+			},
+		}
+
+		metadata.LinkForeignKeys(src)
+
+		require.Equal(t, "", fk.RefCatalog, "same-catalog qualifier should be cleared")
+		require.Equal(t, "", fk.RefSchema, "same-schema qualifier should be cleared")
+		require.Len(t, src.Table("parent").ReferencedBy, 1)
+	})
+
 	t.Run("unresolved_ref_is_skipped", func(t *testing.T) {
 		fk := &metadata.ForeignKey{
 			Name:       "fk_to_external",
