@@ -30,3 +30,14 @@ func TestOpenSakila(t *testing.T) {
 		"SELECT count(*) FROM actor").Scan(&n))
 	require.Equal(t, 200, n)
 }
+
+// TestSLQ_BasicSelect verifies that the DuckDB render dialect can translate
+// a simple SLQ query into valid DuckDB SQL and execute it end-to-end through
+// the libsq pipeline.
+func TestSLQ_BasicSelect(t *testing.T) {
+	th := testh.New(t)
+
+	sink, err := th.QuerySLQ(`@sakila_duck | .actor | .first_name | .[0:5]`, nil)
+	require.NoError(t, err)
+	require.Len(t, sink.Recs, 5)
+}

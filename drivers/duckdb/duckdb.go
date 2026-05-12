@@ -11,7 +11,6 @@ import (
 	duckdbdriver "github.com/duckdb/duckdb-go/v2" // also registers the "duckdb" sql driver
 	"github.com/shopspring/decimal"
 
-	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -22,7 +21,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -134,19 +132,9 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	return nil, errz.New("not implemented")
 }
 
-// Dialect implements driver.SQLDriver.
-func (d *driveri) Dialect() dialect.Dialect {
-	return dialect.Dialect{}
-}
-
 // ErrWrapFunc implements driver.SQLDriver.
 func (d *driveri) ErrWrapFunc() func(error) error {
 	return func(err error) error { return errz.Err(err) }
-}
-
-// Renderer implements driver.SQLDriver.
-func (d *driveri) Renderer() *render.Renderer {
-	return nil
 }
 
 // CurrentSchema implements driver.SQLDriver.
