@@ -1,4 +1,4 @@
-package duckdb_smoke_test
+package duckdb_test
 
 import (
 	"database/sql"
