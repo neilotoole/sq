@@ -31,6 +31,7 @@ _testmain.go
 /.run
 /.idea
 /grammar/build
+/grammar/.antlr
 */~test$*
 /dist
 /dist-*
