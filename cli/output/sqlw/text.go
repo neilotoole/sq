@@ -58,7 +58,7 @@ func highlight(sql string, pr *output.Printing) (string, bool) {
 	var buf strings.Builder
 	buf.Grow(len(sql) * 2) // rough overhead allowance for escape codes
 	for _, tok := range iter.Tokens() {
-		clr := colorFor(tok.Type, pr)
+		clr := colorFor(tok, pr)
 		if clr == nil {
 			buf.WriteString(tok.Value)
 			continue
@@ -68,30 +68,36 @@ func highlight(sql string, pr *output.Printing) (string, bool) {
 	return buf.String(), true
 }
 
-// colorFor maps a chroma token type to the matching color slot in pr,
-// or nil if the token should be emitted without colorisation.
-func colorFor(tt chroma.TokenType, pr *output.Printing) *color.Color {
-	// Specific token types first (chroma puts TRUE/FALSE under
-	// KeywordConstant and NULL under NameBuiltin in the SQL lexer).
-	if tt == chroma.KeywordConstant {
-		return pr.Bool
-	}
-	if tt == chroma.NameBuiltin {
-		return pr.Null
-	}
-	// Sub-category groupings for literals (LiteralStringSingle's
-	// SubCategory is LiteralString, etc.).
+// colorFor maps a chroma token type (and its value) to the matching
+// color slot in pr, or nil if the token should be emitted without
+// colorisation. The value is needed because chroma's SQL lexer
+// classifies TRUE/FALSE/NULL as plain Keyword, so we recover the
+// finer-grained semantics from the token text.
+func colorFor(tok chroma.Token, pr *output.Printing) *color.Color {
+	tt := tok.Type
+
+	// Literals via sub-category.
 	if tt.SubCategory() == chroma.LiteralString {
 		return pr.String
 	}
 	if tt.SubCategory() == chroma.LiteralNumber {
 		return pr.Number
 	}
-	// Top-level categories for everything else.
+
 	cat := tt.Category()
+
+	// Keywords: separate booleans and NULL by value, since chroma's
+	// SQL lexer does not split them out into distinct token types.
 	if cat == chroma.Keyword {
+		switch strings.ToUpper(tok.Value) {
+		case "TRUE", "FALSE":
+			return pr.Bool
+		case "NULL":
+			return pr.Null
+		}
 		return pr.Key
 	}
+
 	if cat == chroma.Operator || cat == chroma.Punctuation {
 		return pr.Punc
 	}

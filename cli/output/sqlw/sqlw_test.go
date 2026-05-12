@@ -59,3 +59,27 @@ func TestTextWriter_NoColor(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "SELECT * FROM \"actor\"\n", buf.String())
 }
+
+// TestTextWriter_Color_TrueFalseNull verifies that TRUE/FALSE/NULL
+// receive their dedicated color slots (Bool/Null) rather than the
+// generic Keyword color, matching how the rest of sq colors those
+// values.
+func TestTextWriter_Color_TrueFalseNull(t *testing.T) {
+	buf := &bytes.Buffer{}
+	pr := newColorPrinting()
+	w := sqlw.NewTextWriter(buf, pr)
+
+	const sql = `SELECT TRUE, FALSE, NULL FROM "t"`
+	require.NoError(t, w.Render(output.SQLPayload{SQL: sql}))
+
+	got := buf.String()
+	// Each value should appear wrapped in its slot's escape sequence.
+	for _, val := range []string{"TRUE", "FALSE"} {
+		require.Contains(t, got, pr.Bool.Sprint(val),
+			"expected %q rendered with pr.Bool", val)
+	}
+	require.Contains(t, got, pr.Null.Sprint("NULL"),
+		"expected NULL rendered with pr.Null")
+	// SELECT keyword should NOT use the Bool color.
+	require.NotContains(t, got, pr.Bool.Sprint("SELECT"))
+}
