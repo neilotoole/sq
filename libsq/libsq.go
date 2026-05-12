@@ -22,6 +22,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 // QueryContext encapsulates the context a SLQ query is executed within.
@@ -116,15 +117,47 @@ func ExecSLQ(ctx context.Context, qc *QueryContext, query string, recw RecordWri
 	return p.execute(ctx, recw)
 }
 
-// SLQ2SQL simulates execution of a SLQ query, but instead of executing
-// the resulting SQL query, that ultimate SQL is returned. Effectively it is
-// equivalent to libsq.ExecSLQ, but without the execution.
-func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (targetSQL string, err error) {
+// RenderResult is the result of rendering a SLQ query to SQL via SLQ2SQL.
+// It carries the rendered SQL plus enough metadata to identify which
+// backend the SQL was rendered for.
+type RenderResult struct {
+	// SQL is the rendered SQL query that would be executed against the
+	// target database.
+	SQL string
+
+	// Dialect identifies the SQL dialect / driver type that SQL is
+	// rendered for (e.g. drivertype.Pg, drivertype.SQLite). When the
+	// SLQ involves multiple sources, this is the dialect of the join
+	// database that the final SQL runs against (typically SQLite).
+	Dialect drivertype.Type
+
+	// SourceHandle is the handle of the source that the SQL targets.
+	// For cross-source queries this is the join DB's handle (typically
+	// scratch). For queries with no active source this is the scratch
+	// source's handle.
+	SourceHandle string
+
+	// Multi is true if more than one source was involved in the SLQ
+	// (i.e. data was staged into the join DB before the final SQL ran).
+	Multi bool
+}
+
+// SLQ2SQL simulates execution of a SLQ query: instead of executing the
+// resulting SQL query, the rendered SQL and target metadata are returned.
+// Effectively equivalent to libsq.ExecSLQ but without the execution.
+func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (*RenderResult, error) {
 	p, err := newPipeline(ctx, qc, query)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return p.targetSQL, nil
+
+	src := p.targetGrip.Source()
+	return &RenderResult{
+		SQL:          p.targetSQL,
+		Dialect:      src.Type,
+		SourceHandle: src.Handle,
+		Multi:        len(p.tasks) > 0,
+	}, nil
 }
 
 // ExecSQL executes a SQL statement (DDL/DML) that doesn't return rows,

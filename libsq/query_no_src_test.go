@@ -40,15 +40,15 @@ func TestQuery_no_source(t *testing.T) {
 				Grips:      sources,
 			}
 
-			gotSQL, gotErr := libsq.SLQ2SQL(th.Context, qc, tc.in)
+			gotRes, gotErr := libsq.SLQ2SQL(th.Context, qc, tc.in)
 			if tc.wantErr {
 				require.Error(t, gotErr)
 				return
 			}
 
 			require.NoError(t, gotErr)
-			t.Log(gotSQL)
-			assert.Equal(t, tc.want, gotSQL)
+			t.Log(gotRes.SQL)
+			assert.Equal(t, tc.want, gotRes.SQL)
 		})
 	}
 }
