@@ -146,28 +146,42 @@ func (d *driveri) Renderer() *render.Renderer {
 }
 
 // CurrentSchema implements driver.SQLDriver.
-func (d *driveri) CurrentSchema(_ context.Context, _ sqlz.DB) (string, error) {
-	return "", errz.New("not implemented")
+func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error) {
+	var name string
+	if err := db.QueryRowContext(ctx, stmtCurrentSchema).Scan(&name); err != nil {
+		return "", errz.Err(err)
+	}
+	return name, nil
 }
 
 // ListSchemas implements driver.SQLDriver.
-func (d *driveri) ListSchemas(_ context.Context, _ sqlz.DB) ([]string, error) {
-	return nil, errz.New("not implemented")
+func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error) {
+	return listSchemas(ctx, db)
 }
 
 // ListSchemaMetadata implements driver.SQLDriver.
-func (d *driveri) ListSchemaMetadata(_ context.Context, _ sqlz.DB) ([]*metadata.Schema, error) {
-	return nil, errz.New("not implemented")
+func (d *driveri) ListSchemaMetadata(ctx context.Context, db sqlz.DB) ([]*metadata.Schema, error) {
+	return listSchemaMetadata(ctx, db)
 }
 
 // CurrentCatalog implements driver.SQLDriver.
-func (d *driveri) CurrentCatalog(_ context.Context, _ sqlz.DB) (string, error) {
-	return "", errz.New("not implemented")
+func (d *driveri) CurrentCatalog(ctx context.Context, db sqlz.DB) (string, error) {
+	var name string
+	if err := db.QueryRowContext(ctx, stmtCurrentCatalog).Scan(&name); err != nil {
+		return "", errz.Err(err)
+	}
+	return name, nil
 }
 
 // ListCatalogs implements driver.SQLDriver.
-func (d *driveri) ListCatalogs(_ context.Context, _ sqlz.DB) ([]string, error) {
-	return nil, errz.New("not implemented")
+// DuckDB treats each database file as a single catalog; we return only the
+// current one.
+func (d *driveri) ListCatalogs(ctx context.Context, db sqlz.DB) ([]string, error) {
+	name, err := d.CurrentCatalog(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	return []string{name}, nil
 }
 
 // TableColumnTypes implements driver.SQLDriver.
@@ -216,8 +230,8 @@ func (d *driveri) CatalogExists(_ context.Context, _ sqlz.DB, _ string) (bool, e
 }
 
 // SchemaExists implements driver.SQLDriver.
-func (d *driveri) SchemaExists(_ context.Context, _ sqlz.DB, _ string) (bool, error) {
-	return false, errz.New("not implemented")
+func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (bool, error) {
+	return schemaExists(ctx, db, schma)
 }
 
 // Truncate implements driver.SQLDriver.
@@ -226,13 +240,13 @@ func (d *driveri) Truncate(_ context.Context, _ *source.Source, _ string, _ bool
 }
 
 // TableExists implements driver.SQLDriver.
-func (d *driveri) TableExists(_ context.Context, _ sqlz.DB, _ string) (bool, error) {
-	return false, errz.New("not implemented")
+func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool, error) {
+	return tableExists(ctx, db, tbl)
 }
 
 // ListTableNames implements driver.SQLDriver.
-func (d *driveri) ListTableNames(_ context.Context, _ sqlz.DB, _ string, _, _ bool) ([]string, error) {
-	return nil, errz.New("not implemented")
+func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, tables, views bool) ([]string, error) {
+	return listTableNames(ctx, db, schma, tables, views)
 }
 
 // CopyTable implements driver.SQLDriver.
@@ -297,13 +311,17 @@ func (g *grip) Source() *source.Source {
 }
 
 // SourceMetadata implements driver.Grip.
-func (g *grip) SourceMetadata(_ context.Context, _ bool) (*metadata.Source, error) {
-	return nil, errz.New("not implemented")
+func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
+	return getSourceMetadata(ctx, g.src, g.db, noSchema)
 }
 
 // TableMetadata implements driver.Grip.
-func (g *grip) TableMetadata(_ context.Context, _ string) (*metadata.Table, error) {
-	return nil, errz.New("not implemented")
+func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
+	schemaName, err := g.drvr.CurrentSchema(ctx, g.db)
+	if err != nil {
+		return nil, err
+	}
+	return getTableMetadata(ctx, g.db, schemaName, tblName)
 }
 
 // Close implements driver.Grip.
