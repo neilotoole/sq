@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
+	"strings"
 	"time"
 
 	duckdbdriver "github.com/duckdb/duckdb-go/v2" // also registers the "duckdb" sql driver
@@ -19,6 +20,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
@@ -128,12 +130,21 @@ func dsnFromLocation(loc string) (string, error) {
 
 // Ping implements driver.Driver.
 func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
-	return errz.New("not implemented")
+	db, err := d.doOpen(ctx, src)
+	if err != nil {
+		return err
+	}
+	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
+
+	return errz.Wrapf(db.PingContext(ctx), "ping %s", src.Handle)
 }
 
 // ValidateSource implements driver.Driver.
 func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
-	return nil, errz.New("not implemented")
+	if src.Type != drivertype.DuckDB {
+		return nil, errz.Errorf("expected driver type {%s} but got {%s}", drivertype.DuckDB, src.Type)
+	}
+	return src, nil
 }
 
 // ErrWrapFunc implements driver.SQLDriver.
@@ -181,8 +192,42 @@ func (d *driveri) ListCatalogs(ctx context.Context, db sqlz.DB) ([]string, error
 }
 
 // TableColumnTypes implements driver.SQLDriver.
-func (d *driveri) TableColumnTypes(_ context.Context, _ sqlz.DB, _ string, _ []string) ([]*sql.ColumnType, error) {
-	return nil, errz.New("not implemented")
+func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName string,
+	colNames []string,
+) ([]*sql.ColumnType, error) {
+	// Use WHERE 0=1 to avoid fetching any rows while still getting type info.
+	// DuckDB (unlike SQLite) returns accurate column type metadata even with
+	// no rows, so LIMIT 0 or WHERE 0=1 is sufficient.
+	enquote := d.Dialect().Enquote
+	tblNameQuoted := enquote(tblName)
+
+	colsClause := "*"
+	if len(colNames) > 0 {
+		quoted := make([]string, len(colNames))
+		for i, c := range colNames {
+			quoted[i] = enquote(c)
+		}
+		colsClause = strings.Join(quoted, driver.Comma)
+	}
+
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE 0=1", colsClause, tblNameQuoted)
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	colTypes, err := rows.ColumnTypes()
+	if err != nil {
+		sqlz.CloseRows(d.log, rows)
+		return nil, errw(err)
+	}
+
+	if err = rows.Err(); err != nil {
+		sqlz.CloseRows(d.log, rows)
+		return nil, errw(err)
+	}
+
+	return colTypes, errw(rows.Close())
 }
 
 // RecordMeta implements driver.SQLDriver.
@@ -368,39 +413,38 @@ func newRecordFuncForDuckDB(recMeta record.Meta) driver.NewRecordFunc {
 	}
 }
 
-// PrepareInsertStmt implements driver.SQLDriver.
-func (d *driveri) PrepareInsertStmt(_ context.Context, _ sqlz.DB, _ string, _ []string, _ int) (*driver.StmtExecer, error) {
-	return nil, errz.New("not implemented")
-}
-
-// NewBatchInsert implements driver.SQLDriver.
-func (d *driveri) NewBatchInsert(_ context.Context, _ string, _ sqlz.DB, _ *source.Source, _ string, _ []string) (*driver.BatchInsert, error) {
-	return nil, errz.New("not implemented")
-}
-
-// PrepareUpdateStmt implements driver.SQLDriver.
-func (d *driveri) PrepareUpdateStmt(_ context.Context, _ sqlz.DB, _ string, _ []string, _ string) (*driver.StmtExecer, error) {
-	return nil, errz.New("not implemented")
-}
-
 // CreateTable implements driver.SQLDriver.
-func (d *driveri) CreateTable(_ context.Context, _ sqlz.DB, _ *schema.Table) error {
-	return errz.New("not implemented")
+func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *schema.Table) error {
+	stmt := buildCreateTableStmt(tblDef)
+	_, err := db.ExecContext(ctx, stmt)
+	return errw(err)
 }
 
 // CreateSchema implements driver.SQLDriver.
-func (d *driveri) CreateSchema(_ context.Context, _ sqlz.DB, _ string) error {
-	return errz.New("not implemented")
+func (d *driveri) CreateSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
+	stmt := fmt.Sprintf(`CREATE SCHEMA %q`, schemaName)
+	_, err := db.ExecContext(ctx, stmt)
+	return errz.Wrapf(errw(err), "duckdb: create schema {%s}", schemaName)
 }
 
 // DropSchema implements driver.SQLDriver.
-func (d *driveri) DropSchema(_ context.Context, _ sqlz.DB, _ string) error {
-	return errz.New("not implemented")
+func (d *driveri) DropSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
+	stmt := fmt.Sprintf(`DROP SCHEMA %q CASCADE`, schemaName)
+	_, err := db.ExecContext(ctx, stmt)
+	return errz.Wrapf(errw(err), "duckdb: drop schema {%s}", schemaName)
 }
 
-// CatalogExists implements driver.SQLDriver.
-func (d *driveri) CatalogExists(_ context.Context, _ sqlz.DB, _ string) (bool, error) {
-	return false, errz.New("not implemented")
+// CatalogExists implements driver.SQLDriver. DuckDB exposes a single catalog
+// per database file; we compare catalog against current_database().
+func (d *driveri) CatalogExists(ctx context.Context, db sqlz.DB, catalog string) (bool, error) {
+	if catalog == "" {
+		return false, nil
+	}
+	var current string
+	if err := db.QueryRowContext(ctx, stmtCurrentCatalog).Scan(&current); err != nil {
+		return false, errw(err)
+	}
+	return strings.EqualFold(catalog, current), nil
 }
 
 // SchemaExists implements driver.SQLDriver.
@@ -408,9 +452,23 @@ func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (b
 	return schemaExists(ctx, db, schma)
 }
 
-// Truncate implements driver.SQLDriver.
-func (d *driveri) Truncate(_ context.Context, _ *source.Source, _ string, _ bool) (int64, error) {
-	return 0, errz.New("not implemented")
+// Truncate implements driver.SQLDriver. DuckDB does not have a TRUNCATE
+// statement, so we use DELETE FROM and return the number of affected rows.
+// The reset parameter is ignored because DuckDB SEQUENCE objects reset
+// independently of the data and there is no direct analogue to SQLite's
+// sqlite_sequence.
+func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, _ bool) (int64, error) {
+	db, err := d.doOpen(ctx, src)
+	if err != nil {
+		return 0, errw(err)
+	}
+	defer lg.WarnIfFuncError(d.log, lgm.CloseDB, db.Close)
+
+	affected, err := sqlz.ExecAffected(ctx, db, fmt.Sprintf("DELETE FROM %q", tbl))
+	if err != nil {
+		return 0, errw(err)
+	}
+	return affected, nil
 }
 
 // TableExists implements driver.SQLDriver.
@@ -423,14 +481,42 @@ func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, 
 	return listTableNames(ctx, db, schma, tables, views)
 }
 
-// CopyTable implements driver.SQLDriver.
-func (d *driveri) CopyTable(_ context.Context, _ sqlz.DB, _, _ tablefq.T, _ bool) (int64, error) {
-	return 0, errz.New("not implemented")
+// CopyTable implements driver.SQLDriver. It creates toTbl as a copy of
+// fromTbl using DuckDB's "CREATE TABLE … AS SELECT …" syntax. When
+// copyData is false, an impossible WHERE clause eliminates all rows.
+func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
+	fromTbl, toTbl tablefq.T, copyData bool,
+) (int64, error) {
+	var stmt string
+	if copyData {
+		stmt = fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM %s",
+			toTbl.Render(stringz.DoubleQuote),
+			fromTbl.Render(stringz.DoubleQuote),
+		)
+	} else {
+		stmt = fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM %s WHERE 0=1",
+			toTbl.Render(stringz.DoubleQuote),
+			fromTbl.Render(stringz.DoubleQuote),
+		)
+	}
+
+	affected, err := sqlz.ExecAffected(ctx, db, stmt)
+	if err != nil {
+		return 0, errw(err)
+	}
+	return affected, nil
 }
 
 // DropTable implements driver.SQLDriver.
-func (d *driveri) DropTable(_ context.Context, _ sqlz.DB, _ tablefq.T, _ bool) error {
-	return errz.New("not implemented")
+func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifExists bool) error {
+	var stmt string
+	if ifExists {
+		stmt = "DROP TABLE IF EXISTS " + tbl.Render(stringz.DoubleQuote)
+	} else {
+		stmt = "DROP TABLE " + tbl.Render(stringz.DoubleQuote)
+	}
+	_, err := db.ExecContext(ctx, stmt)
+	return errw(err)
 }
 
 // AlterTableRename implements driver.SQLDriver.
@@ -455,9 +541,42 @@ func (d *driveri) AlterTableColumnKinds(
 	return alterTableColumnKinds(ctx, db, tblName, colNames, kinds)
 }
 
-// DBProperties implements driver.SQLDriver.
-func (d *driveri) DBProperties(_ context.Context, _ sqlz.DB) (map[string]any, error) {
-	return nil, errz.New("not implemented")
+// DBProperties implements driver.SQLDriver. It returns DuckDB's current
+// configuration settings as a map, queried from the duckdb_settings()
+// table-valued function.
+func (d *driveri) DBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
+	// duckdb_settings() returns (name VARCHAR, value VARCHAR, description VARCHAR,
+	// input_type VARCHAR, scope VARCHAR). The value column can be NULL for some
+	// settings.
+	const q = `SELECT name, value FROM duckdb_settings() ORDER BY name`
+
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(lg.FromContext(ctx), rows)
+
+	m := make(map[string]any)
+	for rows.Next() {
+		var (
+			name string
+			val  sql.NullString
+		)
+		if err = rows.Scan(&name, &val); err != nil {
+			return nil, errw(err)
+		}
+		if val.Valid {
+			m[name] = val.String
+		} else {
+			m[name] = nil
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+
+	return m, nil
 }
 
 // grip is a minimal placeholder for the DuckDB Grip implementation.
