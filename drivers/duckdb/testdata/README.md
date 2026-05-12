@@ -4,19 +4,33 @@
 files in `drivers/sqlite3/testdata/`, ported via the in-tree tool at
 `drivers/duckdb/internal/portsakila/`.
 
+## Additional fixtures
+
+| File | Description |
+|------|-------------|
+| `sakila-whitespace.duckdb` | Full sakila schema+data with three identifiers renamed to include whitespace: `actor.first_name` → `"first name"`, `actor.last_name` → `"last name"`, `film_actor` → `"film actor"`. Used to verify driver identifier-quoting. |
+| `sakila_diff.duckdb` | Copy of `sakila.duckdb` with one row mutated (`actor.first_name = 'CHANGED'` for `actor_id = 1`). Used by `sq diff` tests that expect exactly one row difference. |
+| `empty.duckdb` | Valid DuckDB file with no user schema. Used for empty-source edge-case tests. |
+| `misc.duckdb` | Two schemas (`foo`, `bar`) with simple tables. `foo.t1` has two rows; `bar.t2` has one. Used for multi-schema inspection tests. |
+| `blob.duckdb` | Single `blobs(id INTEGER, data BLOB)` table with two rows (one NULL blob). Used for BLOB type-mapping tests. |
+| `type_test.ddl` | SQL-only file (not a binary DB). Defines and populates a `type_test` table exercising every DuckDB type the driver maps to a `kind.Kind`. Executed by Phase 4 type-mapping tests. |
+
 ## Regenerating
 
-1. (If needed) update `drivers/sqlite3/testdata/sqlite-sakila-*.sql`.
-2. From the repo root, run:
+To rebuild all fixtures from scratch:
 
-   ```bash
-   go run ./drivers/duckdb/internal/portsakila/cmd/portsakila -build
-   ```
+```bash
+go run ./drivers/duckdb/internal/portsakila/cmd/portsakila
+```
 
-   This rewrites the `duckdb-sakila-*.sql` files AND rebuilds `sakila.duckdb`
-   in-process via the bundled `github.com/duckdb/duckdb-go/v2` binding. No
-   external `duckdb` CLI required; the libduckdb version that builds the
-   fixture is guaranteed to match the version used by the test suite.
+To rebuild only one fixture:
+
+```bash
+go run ./drivers/duckdb/internal/portsakila/cmd/portsakila -fixture sakila-whitespace
+```
+
+Available fixture names: `sakila`, `sakila-whitespace`, `sakila_diff`, `empty`,
+`misc`, `blob`, `type_test`.
 
 ## Divergences from SQLite sakila
 
