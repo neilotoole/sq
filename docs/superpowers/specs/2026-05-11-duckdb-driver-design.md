@@ -61,7 +61,7 @@ drivers/duckdb/
   *_test.go             see "Tests" section
 ```
 
-Backing SQL driver: `github.com/marcboeker/go-duckdb/v2` imported for side
+Backing SQL driver: `github.com/duckdb/duckdb-go/v2` imported for side
 effect, registered with `database/sql` as `duckdb`.
 
 ### Hook points in the rest of the codebase
@@ -89,7 +89,7 @@ fast cold-start, and SQLite is unbeatable there.
 
 ### Library
 
-`marcboeker/go-duckdb/v2` ships prebuilt static `libduckdb` for:
+`duckdb/duckdb-go/v2` ships prebuilt static `libduckdb` for:
 `darwin/amd64`, `darwin/arm64`, `linux/amd64`, `linux/arm64`,
 `windows/amd64`. ARM Windows is unsupported upstream, matching the existing
 `goreleaser` `ignore` rule for `windows/arm64`.
@@ -130,8 +130,8 @@ Compressed binary grows by ~40–60 MB. CHANGELOG flags this.
 
 ### `go.mod`
 
-Adds `marcboeker/go-duckdb/v2` and its transitive deps
-(`apache/arrow`, `google/flatbuffers`). Mark `marcboeker/go-duckdb/v2` as
+Adds `duckdb/duckdb-go/v2` and its transitive deps
+(`apache/arrow`, `google/flatbuffers`). Mark `duckdb/duckdb-go/v2` as
 `// BRITTLE` because version bumps may pull a different bundled libduckdb
 version with extension-API breakage.
 
@@ -153,7 +153,7 @@ These are load-bearing for the cross-platform / "all optional flags" story
 and must be confirmed in the first hour of implementation, before any other
 work proceeds. If any are wrong, revisit this design.
 
-1. `marcboeker/go-duckdb/v2` exposes a static-linking build mode (working
+1. `duckdb/duckdb-go/v2` exposes a static-linking build mode (working
    name `duckdb_use_static_lib`) that produces a self-contained binary on
    macOS, Linux, and Windows without requiring a system `libduckdb`.
 2. The static bundle includes the in-tree extensions listed above (or they
@@ -319,7 +319,7 @@ duckdb sakila.duckdb < ./duckdb-sakila-insert-data.sql
 
 `testdata/README.md` notes that contributors regenerating sakila need a
 `duckdb` CLI matching the version of `libduckdb` that
-`marcboeker/go-duckdb/v2` bundles (file-format compatibility within minor
+`duckdb/duckdb-go/v2` bundles (file-format compatibility within minor
 versions is stable but not guaranteed across majors). CI doesn't regenerate;
 it consumes the committed `.duckdb` files.
 
