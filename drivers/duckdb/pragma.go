@@ -39,7 +39,7 @@ var bundledExtensions = []string{
 // LOAD itself is per-connection and runs every time.
 var (
 	installOnce    sync.Once
-	installOnceErr error
+	errInstallOnce error
 )
 
 // loadExtensions installs (once per process) and loads (once per connection)
@@ -50,13 +50,13 @@ func loadExtensions(ctx context.Context, db *sql.DB) error {
 	installOnce.Do(func() {
 		for _, ext := range bundledExtensions {
 			if _, err := db.ExecContext(ctx, "INSTALL "+ext); err != nil {
-				installOnceErr = errz.Wrapf(errw(err), "INSTALL %s", ext)
+				errInstallOnce = errz.Wrapf(errw(err), "INSTALL %s", ext)
 				return
 			}
 		}
 	})
-	if installOnceErr != nil {
-		return installOnceErr
+	if errInstallOnce != nil {
+		return errInstallOnce
 	}
 	for _, ext := range bundledExtensions {
 		if _, err := db.ExecContext(ctx, "LOAD "+ext); err != nil {
