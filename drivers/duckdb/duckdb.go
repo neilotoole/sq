@@ -96,7 +96,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
 }
 
-func (d *driveri) doOpen(_ context.Context, src *source.Source) (*sql.DB, error) {
+func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
 	dsn, err := dsnFromLocation(src.Location)
 	if err != nil {
 		return nil, err
@@ -104,6 +104,10 @@ func (d *driveri) doOpen(_ context.Context, src *source.Source) (*sql.DB, error)
 	db, err := sql.Open(dbDrvr, dsn)
 	if err != nil {
 		return nil, errz.Err(err)
+	}
+	if err = applyConnInitSettings(ctx, db); err != nil {
+		_ = db.Close()
+		return nil, err
 	}
 	return db, nil
 }
@@ -134,7 +138,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 
 // ErrWrapFunc implements driver.SQLDriver.
 func (d *driveri) ErrWrapFunc() func(error) error {
-	return func(err error) error { return errz.Err(err) }
+	return errw
 }
 
 // CurrentSchema implements driver.SQLDriver.
