@@ -62,5 +62,13 @@ func TestExtension_fts5(t *testing.T) {
 	actorMeta2, err := th.TableMetadata(src, sakila.TblActor)
 	require.NoError(t, err)
 	require.Equal(t, actorMeta1.TableType, sqlz.TableTypeTable)
-	require.Equal(t, *actorMeta1, *actorMeta2)
+
+	// Table.ReferencedBy is derived across the full Source.Tables slice
+	// (so the source-meta path populates it for any table that another
+	// table FKs into), while the per-table TableMetadata path has no
+	// cross-table view and leaves it nil. Strip it for an apples-to-apples
+	// shape comparison; the dedicated FK tests cover ReferencedBy.
+	src1 := *actorMeta1
+	src1.ReferencedBy = nil
+	require.Equal(t, src1, *actorMeta2)
 }
