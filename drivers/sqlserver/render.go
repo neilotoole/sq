@@ -201,3 +201,22 @@ func renderFuncRowNum(rc *render.Context, fn *ast.FuncNode) (string, error) {
 	// - https://stackoverflow.com/a/50645278/6004734
 	return "(row_number() OVER (ORDER BY (SELECT NULL)))", nil
 }
+
+// mssqlBinaryCollate is appended to the column reference to force
+// code-point-aware binary comparison, making LIKE case-sensitive on
+// columns whose default collation is case-insensitive. Latin1_General_BIN2
+// is the standard binary collation that ships with every SQL Server
+// install and works for any Unicode input despite the "Latin1" name.
+const mssqlBinaryCollate = " COLLATE Latin1_General_BIN2"
+
+func renderFuncContainsCollate(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeOp(rc, fn, render.LikeContains, "LIKE", mssqlBinaryCollate)
+}
+
+func renderFuncStartsWithCollate(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeOp(rc, fn, render.LikeStartsWith, "LIKE", mssqlBinaryCollate)
+}
+
+func renderFuncEndsWithCollate(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeOp(rc, fn, render.LikeEndsWith, "LIKE", mssqlBinaryCollate)
+}
