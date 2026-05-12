@@ -205,15 +205,15 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 		return nil, err
 	}
 
-	tblMeta.FKOutgoing, err = getMySQLForeignKeys(ctx, db, tblName)
+	outgoing, err := getMySQLForeignKeys(ctx, db, tblName)
 	if err != nil {
 		return nil, err
 	}
-
-	tblMeta.FKIncoming, err = getMySQLIncomingFKs(ctx, db, tblName)
+	incoming, err := getMySQLIncomingFKs(ctx, db, tblName)
 	if err != nil {
 		return nil, err
 	}
+	tblMeta.FK = metadata.NewFKGroup(outgoing, incoming)
 
 	tblMeta.UniqueConstraints, err = getMySQLUniqueConstraints(ctx, db, tblName)
 	if err != nil {

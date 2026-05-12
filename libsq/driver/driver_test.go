@@ -975,8 +975,8 @@ func TestSQLDriver_SourceMetadata_FieldCoverage(t *testing.T) {
 				// Incoming back-reference on language.
 				language := findTable(md.Tables, "language")
 				require.NotNil(t, language, "language table missing from %s metadata", tc.handle)
-				require.NotEmpty(t, language.FKIncoming,
-					"language.FKIncoming should include the film FK on %s", tc.handle)
+				require.NotEmpty(t, language.FK.Incoming,
+					"language.FK.Incoming should include the film FK on %s", tc.handle)
 			}
 		})
 	}
@@ -998,8 +998,11 @@ func findTable(tables []*metadata.Table, name string) *metadata.Table {
 // findOutgoingFK returns the first single-column outgoing FK on tbl
 // whose referencing column matches colName (case-insensitive), or nil.
 func findOutgoingFK(tbl *metadata.Table, colName string) *metadata.ForeignKey {
+	if tbl.FK == nil {
+		return nil
+	}
 	want := strings.ToLower(colName)
-	for _, fk := range tbl.FKOutgoing {
+	for _, fk := range tbl.FK.Outgoing {
 		if len(fk.Columns) == 1 && strings.ToLower(fk.Columns[0]) == want {
 			return fk
 		}

@@ -348,15 +348,15 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 		return nil, errw(err)
 	}
 
-	tblMeta.FKOutgoing, err = getTableForeignKeys(ctx, db, tblMeta.Name)
+	outgoing, err := getTableForeignKeys(ctx, db, tblMeta.Name)
 	if err != nil {
 		return nil, err
 	}
-
-	tblMeta.FKIncoming, err = getTableIncomingFKs(ctx, db, tblMeta.Name)
+	incoming, err := getTableIncomingFKs(ctx, db, tblMeta.Name)
 	if err != nil {
 		return nil, err
 	}
+	tblMeta.FK = metadata.NewFKGroup(outgoing, incoming)
 
 	tblMeta.UniqueConstraints, tblMeta.Indexes, err = getTableIndexes(ctx, db, tblMeta.Name)
 	if err != nil {
@@ -728,18 +728,20 @@ ORDER BY m.name, p.cid
 	}
 
 	// Populate outgoing foreign keys, unique constraints, and indexes
-	// per table. Cross-table linking (Table.FKIncoming) is handled at
-	// the Source level by metadata.LinkForeignKeys.
+	// per table. Cross-table linking (FK.Incoming) is handled at the
+	// Source level by metadata.LinkForeignKeys.
 	for _, tblMeta := range tblMetas {
 		// pragma_foreign_key_list / index_list are only meaningful for
 		// tables, not views.
 		if tblMeta.TableType != sqlz.TableTypeTable {
 			continue
 		}
-		tblMeta.FKOutgoing, err = getTableForeignKeys(ctx, db, tblMeta.Name)
+		outgoing, err := getTableForeignKeys(ctx, db, tblMeta.Name)
 		if err != nil {
 			return nil, err
 		}
+		tblMeta.FK = metadata.NewFKGroup(outgoing, nil)
+
 		tblMeta.UniqueConstraints, tblMeta.Indexes, err = getTableIndexes(ctx, db, tblMeta.Name)
 		if err != nil {
 			return nil, err

@@ -260,7 +260,7 @@ func TestForeignKeys_Sakila(t *testing.T) {
 	film := md.Table(sakila.TblFilm)
 	require.NotNil(t, film, "table %s missing from source metadata", sakila.TblFilm)
 	var filmToLanguage *metadata.ForeignKey
-	for _, fk := range film.FKOutgoing {
+	for _, fk := range film.FK.Outgoing {
 		if len(fk.Columns) == 1 && fk.Columns[0] == "language_id" {
 			filmToLanguage = fk
 			break
@@ -274,24 +274,24 @@ func TestForeignKeys_Sakila(t *testing.T) {
 	language := md.Table("language")
 	require.NotNil(t, language)
 	var languageFromFilm *metadata.ForeignKey
-	for _, fk := range language.FKIncoming {
+	for _, fk := range language.FK.Incoming {
 		if fk.Table == sakila.TblFilm && len(fk.Columns) == 1 && fk.Columns[0] == "language_id" {
 			languageFromFilm = fk
 			break
 		}
 	}
-	require.NotNil(t, languageFromFilm, "language.FKIncoming should include film.language_id")
+	require.NotNil(t, languageFromFilm, "language.FK.Incoming should include film.language_id")
 	require.Same(t, filmToLanguage, languageFromFilm,
-		"language.FKIncoming entry must share identity with film.FKOutgoing entry")
+		"language.FK.Incoming entry must share identity with film.FK.Outgoing entry")
 
 	// film_actor has two outgoing FKs (to film and to actor) on its
 	// composite PK. The sakila.sqlite schema declares these as two
 	// independent single-column FKs.
 	filmActor := md.Table(sakila.TblFilmActor)
 	require.NotNil(t, filmActor)
-	require.NotEmpty(t, filmActor.FKOutgoing)
-	refs := make(map[string]bool, len(filmActor.FKOutgoing))
-	for _, fk := range filmActor.FKOutgoing {
+	require.NotEmpty(t, filmActor.FK.Outgoing)
+	refs := make(map[string]bool, len(filmActor.FK.Outgoing))
+	for _, fk := range filmActor.FK.Outgoing {
 		refs[fk.RefTable] = true
 	}
 	require.True(t, refs["film"], "film_actor should have FK to film")
@@ -300,17 +300,17 @@ func TestForeignKeys_Sakila(t *testing.T) {
 	// Per-table TableMetadata path also populates outgoing FKs.
 	filmTbl, err := grip.TableMetadata(th.Context, sakila.TblFilm)
 	require.NoError(t, err)
-	require.NotEmpty(t, filmTbl.FKOutgoing,
-		"TableMetadata should populate Table.FKOutgoing for single-table inspect")
+	require.NotEmpty(t, filmTbl.FK.Outgoing,
+		"TableMetadata should populate Table.FK.Outgoing for single-table inspect")
 
-	// Per-table TableMetadata also populates Table.FKIncoming. The
+	// Per-table TableMetadata also populates Table.FK.Incoming. The
 	// language table is referenced by film (twice — language_id and
 	// original_language_id) and by nothing else.
 	languageTbl, err := grip.TableMetadata(th.Context, "language")
 	require.NoError(t, err)
-	require.NotEmpty(t, languageTbl.FKIncoming,
-		"TableMetadata should populate Table.FKIncoming for single-table inspect")
-	for _, fk := range languageTbl.FKIncoming {
+	require.NotEmpty(t, languageTbl.FK.Incoming,
+		"TableMetadata should populate Table.FK.Incoming for single-table inspect")
+	for _, fk := range languageTbl.FK.Incoming {
 		require.Equal(t, sakila.TblFilm, fk.Table,
 			"every incoming FK on language should originate from film")
 	}

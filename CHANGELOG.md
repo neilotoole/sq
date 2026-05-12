@@ -17,13 +17,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 ### Added
 
 - [#498]: [`sq inspect`](https://sq.io/docs/cmd/inspect) now reports
-  foreign-key relationships. Each table carries an `fk_outgoing` list
-  of constraints declared on it and an `fk_incoming` list of
-  constraints declared on other tables that point at it. Composite
-  foreign keys and cross-schema references are supported. Implemented
-  for SQLite, Postgres, MySQL, SQL Server, and Oracle. ClickHouse is
-  skipped — it has no foreign-key concept. The verbose text output
-  also gains an `FK` column showing the referenced table and columns.
+  foreign-key relationships. Each table carries an `fk` object with
+  two slices: `fk.outgoing` (constraints declared on this table) and
+  `fk.incoming` (constraints declared on other tables that point at
+  it). Composite foreign keys and cross-schema references are
+  supported. Implemented for SQLite, Postgres, MySQL, SQL Server, and
+  Oracle. ClickHouse is skipped — it has no foreign-key concept. The
+  verbose text output also gains an `FK` column showing the
+  referenced table and columns.
 - `sq inspect` additionally reports `unique_constraints` (semantic
   UNIQUE declarations) and `indexes` (physical indexes, including
   PK-backing and unique-constraint-backing ones) per table. Composite

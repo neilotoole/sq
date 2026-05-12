@@ -172,18 +172,12 @@ type Table struct { //nolint:govet // field alignment
 	// Columns holds the metadata for the table's columns.
 	Columns []*Column `json:"columns" yaml:"columns"`
 
-	// FKOutgoing are the outgoing foreign-key constraints declared on
-	// this table (i.e. constraints whose referencing side is this table).
-	// May be nil for sources that don't support foreign keys, or for
-	// tables that declare none.
-	FKOutgoing []*ForeignKey `json:"fk_outgoing,omitempty" yaml:"fk_outgoing,omitempty"`
-
-	// FKIncoming are the incoming foreign-key constraints that point at
-	// this table (i.e. constraints declared on other tables whose
-	// referenced side is this table). This is derived from the outgoing
-	// foreign keys of every table in the source and is populated by
-	// [LinkForeignKeys] after all tables have been loaded.
-	FKIncoming []*ForeignKey `json:"fk_incoming,omitempty" yaml:"fk_incoming,omitempty"`
+	// FK groups the foreign-key relationships for this table: outgoing
+	// constraints declared on it, and incoming constraints declared on
+	// other tables that reference it. Nil for sources that don't
+	// support foreign keys or tables with no FK relationships in
+	// either direction.
+	FK *FKGroup `json:"fk,omitempty" yaml:"fk,omitempty"`
 
 	// UniqueConstraints are the unique-constraint declarations on this
 	// table (UNIQUE in CREATE TABLE, or ALTER TABLE ADD CONSTRAINT ...
@@ -231,18 +225,8 @@ func (t *Table) Clone() *Table {
 		}
 	}
 
-	if t.FKOutgoing != nil {
-		c.FKOutgoing = make([]*ForeignKey, len(t.FKOutgoing))
-		for i := range t.FKOutgoing {
-			c.FKOutgoing[i] = t.FKOutgoing[i].Clone()
-		}
-	}
-
-	if t.FKIncoming != nil {
-		c.FKIncoming = make([]*ForeignKey, len(t.FKIncoming))
-		for i := range t.FKIncoming {
-			c.FKIncoming[i] = t.FKIncoming[i].Clone()
-		}
+	if t.FK != nil {
+		c.FK = t.FK.Clone()
 	}
 
 	if t.UniqueConstraints != nil {
@@ -329,6 +313,56 @@ func (c *Column) Clone() *Column {
 		DefaultValue: c.DefaultValue,
 		Comment:      c.Comment,
 	}
+}
+
+// FKGroup groups the per-table foreign-key relationships under a
+// single parent so the JSON / YAML shape stays cohesive — both
+// directions of the same conceptual cluster live together under
+// `fk.outgoing` / `fk.incoming` rather than as flat siblings.
+// Drivers should construct one via [NewFKGroup] (or assign nil) so
+// the wrapper is omitted entirely when both slices are empty.
+type FKGroup struct {
+	// Outgoing are the foreign-key constraints declared on the owning
+	// table (constraints whose referencing side is this table).
+	Outgoing []*ForeignKey `json:"outgoing,omitempty" yaml:"outgoing,omitempty"`
+
+	// Incoming are the foreign-key constraints declared on other
+	// tables whose referenced side is the owning table. Derived
+	// cross-table by [LinkForeignKeys] for source-level inspect, or
+	// loaded directly by per-table inspect.
+	Incoming []*ForeignKey `json:"incoming,omitempty" yaml:"incoming,omitempty"`
+}
+
+// NewFKGroup returns a *FKGroup carrying the given outgoing and
+// incoming slices. If both are empty it returns nil so the caller
+// can assign directly to [Table.FK] without producing an empty
+// `fk: {}` object in JSON / YAML output.
+func NewFKGroup(outgoing, incoming []*ForeignKey) *FKGroup {
+	if len(outgoing) == 0 && len(incoming) == 0 {
+		return nil
+	}
+	return &FKGroup{Outgoing: outgoing, Incoming: incoming}
+}
+
+// Clone returns a deep copy of g. If g is nil, nil is returned.
+func (g *FKGroup) Clone() *FKGroup {
+	if g == nil {
+		return nil
+	}
+	c := &FKGroup{}
+	if g.Outgoing != nil {
+		c.Outgoing = make([]*ForeignKey, len(g.Outgoing))
+		for i := range g.Outgoing {
+			c.Outgoing[i] = g.Outgoing[i].Clone()
+		}
+	}
+	if g.Incoming != nil {
+		c.Incoming = make([]*ForeignKey, len(g.Incoming))
+		for i := range g.Incoming {
+			c.Incoming[i] = g.Incoming[i].Clone()
+		}
+	}
+	return c
 }
 
 // ForeignKey models a single foreign-key constraint between two tables.
@@ -515,10 +549,10 @@ func (i *Index) String() string {
 }
 
 // AssignForeignKeys groups fks by their referencing-table name (the
-// ForeignKey.Table field) and assigns each group to the matching entry
-// in tables. Tables with no matching FKs retain their existing
-// [Table.FKOutgoing] slice; callers that want to replace rather than
-// merge should clear the slice first.
+// ForeignKey.Table field) and assigns each group to the matching
+// entry's [Table.FK].Outgoing slice. Tables with no matching FKs
+// retain their existing FK group; callers that want to replace
+// rather than merge should clear the slice first.
 //
 // This helper exists so that driver implementations that fetch all
 // foreign keys in a single source-wide query (postgres, mysql,
@@ -541,7 +575,10 @@ func AssignForeignKeys(tables []*Table, fks []*ForeignKey) {
 			continue
 		}
 		if tblFKs, ok := byTable[tbl.Name]; ok {
-			tbl.FKOutgoing = tblFKs
+			if tbl.FK == nil {
+				tbl.FK = &FKGroup{}
+			}
+			tbl.FK.Outgoing = tblFKs
 		}
 	}
 }
@@ -598,15 +635,15 @@ func AssignIndexes(tables []*Table, idxs []*Index) {
 	}
 }
 
-// LinkForeignKeys derives [Table.FKIncoming] and normalizes FK
+// LinkForeignKeys derives [FKGroup.Incoming] and normalizes FK
 // qualifiers after the per-table outgoing foreign keys
-// ([Table.FKOutgoing]) have been populated by the driver. Specifically:
+// ([FKGroup.Outgoing]) have been populated by the driver. Specifically:
 //
 //   - For every outgoing FK whose referenced table is in s, append the
-//     same *[ForeignKey] pointer to that table's FKIncoming slice. This
-//     is the only step that genuinely requires a cross-table view —
-//     drivers see one table at a time and can't know which other
-//     tables point at it.
+//     same *[ForeignKey] pointer to that table's FK.Incoming slice.
+//     This is the only step that genuinely requires a cross-table
+//     view — drivers see one table at a time and can't know which
+//     other tables point at it.
 //   - Normalize [ForeignKey.RefCatalog] and [ForeignKey.RefSchema]:
 //     when they equal s.Catalog / s.Schema the fields are cleared so
 //     the JSON / YAML output omits them and the "same-schema
@@ -614,15 +651,19 @@ func AssignIndexes(tables []*Table, idxs []*Index) {
 //     RefSchema after normalization marks the reference as pointing
 //     outside this Source).
 //
-// Entries on Table.FKIncoming follow the iteration order of s.Tables,
-// then the order of each table's FKOutgoing slice. Drivers that load
+// Entries on FK.Incoming follow the iteration order of s.Tables, then
+// the order of each table's FK.Outgoing slice. Drivers that load
 // tables in name order (most do) therefore produce a deterministic
 // shape; consumers that need a strict sort should sort the slice
 // themselves.
 //
 // LinkForeignKeys is idempotent: any pre-existing values in
-// Table.FKIncoming are cleared before re-deriving. It is safe to call
+// FK.Incoming are cleared before re-deriving. It is safe to call
 // against a nil or empty Source.
+//
+// As a final cleanup, any [Table.FK] whose Outgoing and Incoming
+// slices are both empty is set back to nil so the wrapper object is
+// omitted from JSON / YAML output entirely.
 func LinkForeignKeys(s *Source) {
 	if s == nil || len(s.Tables) == 0 {
 		return
@@ -634,14 +675,16 @@ func LinkForeignKeys(s *Source) {
 			continue
 		}
 		byName[tbl.Name] = tbl
-		tbl.FKIncoming = nil
+		if tbl.FK != nil {
+			tbl.FK.Incoming = nil
+		}
 	}
 
 	for _, tbl := range s.Tables {
-		if tbl == nil {
+		if tbl == nil || tbl.FK == nil {
 			continue
 		}
-		for _, fk := range tbl.FKOutgoing {
+		for _, fk := range tbl.FK.Outgoing {
 			if fk == nil {
 				continue
 			}
@@ -664,8 +707,18 @@ func LinkForeignKeys(s *Source) {
 				continue
 			}
 			if refTbl, ok := byName[fk.RefTable]; ok {
-				refTbl.FKIncoming = append(refTbl.FKIncoming, fk)
+				if refTbl.FK == nil {
+					refTbl.FK = &FKGroup{}
+				}
+				refTbl.FK.Incoming = append(refTbl.FK.Incoming, fk)
 			}
+		}
+	}
+
+	// Drop any empty wrapper so JSON / YAML omit `fk: {}`.
+	for _, tbl := range s.Tables {
+		if tbl != nil && tbl.FK != nil && len(tbl.FK.Outgoing) == 0 && len(tbl.FK.Incoming) == 0 {
+			tbl.FK = nil
 		}
 	}
 }

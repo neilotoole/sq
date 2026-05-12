@@ -166,13 +166,13 @@ not tables.
 
 `sq inspect` reports foreign-key constraints for any SQL source that
 supports them (SQLite, Postgres, MySQL, SQL Server, Oracle). The
-relationships appear under two complementary keys on every table —
-the same FK shows up once under its owning table's `fk_outgoing` and
-once under the referenced table's `fk_incoming`:
+relationships appear under each table's `fk` object — the same FK
+shows up once under its owning table's `fk.outgoing` and once under
+the referenced table's `fk.incoming`:
 
-- `tables[].fk_outgoing` — constraints declared on this table (its
+- `tables[].fk.outgoing` — constraints declared on this table (its
   outgoing edges). Tells you what rows in this table depend on.
-- `tables[].fk_incoming` — constraints declared on other tables whose
+- `tables[].fk.incoming` — constraints declared on other tables whose
   referenced side is this table (its incoming edges). Tells you what
   depends on rows in this table. Useful for "blast radius" questions
   ("if I delete this row, what else breaks?") and for visualization
@@ -190,7 +190,7 @@ For example, to list every parent → child relationship in the
 $ sq inspect -j @sakila_pg | jq -r '
   .tables[]
   | .name as $child
-  | .fk_outgoing[]?
+  | .fk.outgoing[]?
   | "\($child).\(.columns | join(",")) -> \(.ref_table).\(.ref_columns | join(","))"'
 film.original_language_id -> language.language_id
 film.language_id -> language.language_id
@@ -211,7 +211,7 @@ idiomatic filter:
 ```shell
 # Composite foreign keys only
 $ sq inspect -j @sakila_pg | jq -r '
-  .tables[] | .fk_outgoing[]?
+  .tables[] | .fk.outgoing[]?
   | select((.columns | length) > 1)
   | "\(.table)(\(.columns | join(","))) -> \(.ref_table)(\(.ref_columns | join(",")))"'
 ```

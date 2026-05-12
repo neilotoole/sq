@@ -342,15 +342,15 @@ WHERE t.table_name = :1`
 	}
 	tblMeta.Columns = cols
 
-	tblMeta.FKOutgoing, err = getOracleForeignKeys(ctx, db, tblName)
+	outgoing, err := getOracleForeignKeys(ctx, db, tblName)
 	if err != nil {
 		return nil, err
 	}
-
-	tblMeta.FKIncoming, err = getOracleIncomingFKs(ctx, db, tblName)
+	incoming, err := getOracleIncomingFKs(ctx, db, tblName)
 	if err != nil {
 		return nil, err
 	}
+	tblMeta.FK = metadata.NewFKGroup(outgoing, incoming)
 
 	tblMeta.UniqueConstraints, err = getOracleUniqueConstraints(ctx, db, tblName)
 	if err != nil {

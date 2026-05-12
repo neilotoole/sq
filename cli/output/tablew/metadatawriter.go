@@ -223,11 +223,11 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 // tbl. For composite FKs each member column maps to the same FK
 // pointer. Returns nil if the table has no outgoing FKs.
 func outgoingFKByColumn(tbl *metadata.Table) map[string]*metadata.ForeignKey {
-	if len(tbl.FKOutgoing) == 0 {
+	if tbl.FK == nil || len(tbl.FK.Outgoing) == 0 {
 		return nil
 	}
 	out := make(map[string]*metadata.ForeignKey, len(tbl.Columns))
-	for _, fk := range tbl.FKOutgoing {
+	for _, fk := range tbl.FK.Outgoing {
 		if fk == nil {
 			continue
 		}

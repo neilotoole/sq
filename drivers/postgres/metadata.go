@@ -468,16 +468,15 @@ AND table_name = $1`
 // getSourceMetadata, and is what Grip.TableMetadata uses to give
 // single-table inspect the same FK shape as full-source inspect.
 func populateTableExtras(ctx context.Context, db sqlz.DB, tblMeta *metadata.Table) error {
-	var err error
-	tblMeta.FKOutgoing, err = getPgForeignKeys(ctx, db, tblMeta.Name)
+	outgoing, err := getPgForeignKeys(ctx, db, tblMeta.Name)
 	if err != nil {
 		return err
 	}
-
-	tblMeta.FKIncoming, err = getPgIncomingFKs(ctx, db, tblMeta.Name)
+	incoming, err := getPgIncomingFKs(ctx, db, tblMeta.Name)
 	if err != nil {
 		return err
 	}
+	tblMeta.FK = metadata.NewFKGroup(outgoing, incoming)
 
 	tblMeta.UniqueConstraints, err = getPgUniqueConstraints(ctx, db, tblMeta.Name)
 	if err != nil {

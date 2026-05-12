@@ -331,15 +331,15 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 
 	tblMeta.Columns = cols
 
-	tblMeta.FKOutgoing, err = getMSSQLForeignKeys(ctx, db, tblCatalog, tblSchema, tblName)
+	outgoing, err := getMSSQLForeignKeys(ctx, db, tblCatalog, tblSchema, tblName)
 	if err != nil {
 		return nil, err
 	}
-
-	tblMeta.FKIncoming, err = getMSSQLIncomingFKs(ctx, db, tblSchema, tblName)
+	incoming, err := getMSSQLIncomingFKs(ctx, db, tblSchema, tblName)
 	if err != nil {
 		return nil, err
 	}
+	tblMeta.FK = metadata.NewFKGroup(outgoing, incoming)
 
 	tblMeta.UniqueConstraints, err = getMSSQLUniqueConstraints(ctx, db, tblCatalog, tblSchema, tblName)
 	if err != nil {
