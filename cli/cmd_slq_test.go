@@ -3,16 +3,19 @@ package cli_test
 import (
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
 
+	goccy "github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli"
+	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
@@ -447,6 +450,133 @@ See: https://github.com/neilotoole/sq/issues/324`,
 			require.Equal(t, tc.expectSchemaFuncValue, tr.OutString())
 		})
 	}
+}
+
+// TestCmdSLQ_DryRun_Text verifies that --dry-run with the default
+// (text) format prints the rendered SQL without executing it.
+func TestCmdSLQ_DryRun_Text(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
+	require.NoError(t, tr.Exec("slq", "--dry-run", "--monochrome", src.Handle+".actor"))
+
+	out := strings.TrimSpace(tr.OutString())
+	require.True(t, strings.HasPrefix(strings.ToUpper(out), "SELECT"),
+		"expected SQL starting with SELECT, got: %s", out)
+	require.Contains(t, strings.ToLower(out), "actor")
+}
+
+// TestCmdSLQ_DryRun_JSON verifies that --dry-run --format=json emits
+// the structured payload.
+func TestCmdSLQ_DryRun_JSON(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
+	require.NoError(t, tr.Exec("slq", "--dry-run", "--format=json", src.Handle+".actor"))
+
+	var got output.SQLPayload
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
+	require.Equal(t, src.Handle+".actor", got.SLQ)
+	require.Contains(t, strings.ToUpper(got.SQL), "SELECT")
+	require.Contains(t, strings.ToLower(got.SQL), "actor")
+	require.Equal(t, "sqlite3", got.Dialect)
+	require.Equal(t, src.Handle, got.Source)
+	require.False(t, got.Multi)
+}
+
+// TestCmdSLQ_DryRun_JSONL verifies that --dry-run --format=jsonl emits
+// a single-line JSON payload.
+func TestCmdSLQ_DryRun_JSONL(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
+	require.NoError(t, tr.Exec("slq", "--dry-run", "--format=jsonl", src.Handle+".actor"))
+
+	// tr.Out.String() retains the trailing newline written by the JSONL writer;
+	// tr.OutString() would strip it. Use the raw buffer to verify exactly one
+	// newline (the trailing one), confirming compact single-line output.
+	out := tr.Out.String()
+	require.Equal(t, 1, strings.Count(out, "\n"))
+	require.True(t, strings.HasSuffix(out, "\n"))
+
+	var got output.SQLPayload
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(out)), &got))
+	require.Equal(t, "sqlite3", got.Dialect)
+}
+
+// TestCmdSLQ_DryRun_YAML verifies that --dry-run --format=yaml emits
+// the payload as YAML.
+func TestCmdSLQ_DryRun_YAML(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
+	require.NoError(t, tr.Exec("slq", "--dry-run", "--format=yaml", src.Handle+".actor"))
+
+	var got output.SQLPayload
+	require.NoError(t, goccy.Unmarshal(tr.Out.Bytes(), &got))
+	require.Equal(t, "sqlite3", got.Dialect)
+	require.Equal(t, src.Handle, got.Source)
+}
+
+// TestCmdSLQ_DryRun_CSV_FallsBackToText verifies that requesting a
+// format with no SQL writer of its own (e.g. csv) falls back to the
+// text writer, per the existing OptFormat fallback convention.
+func TestCmdSLQ_DryRun_CSV_FallsBackToText(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
+	require.NoError(t, tr.Exec("slq", "--dry-run", "--format=csv", "--monochrome", src.Handle+".actor"))
+
+	out := strings.TrimSpace(tr.OutString())
+	require.True(t, strings.HasPrefix(strings.ToUpper(out), "SELECT"))
+}
+
+// TestCmdSLQ_DryRun_InsertConflict verifies that combining --dry-run
+// with --insert is rejected.
+func TestCmdSLQ_DryRun_InsertConflict(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
+	err := tr.Exec("slq", "--dry-run", "--insert="+src.Handle+".foo", src.Handle+".actor")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "dry-run")
+}
+
+// TestCmdSLQ_DryRun_ArgSubstitution verifies that --arg values appear
+// in both the rendered SQL and the JSON payload's args field.
+func TestCmdSLQ_DryRun_ArgSubstitution(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
+	require.NoError(t, tr.Exec("slq",
+		"--dry-run", "--format=json",
+		"--arg", "name:TOM",
+		src.Handle+".actor | .first_name == $name"))
+
+	var got output.SQLPayload
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
+	require.Equal(t, "TOM", got.Args["name"])
+	require.Contains(t, got.SQL, "TOM")
+}
+
+// TestCmdSLQ_DryRun_NotOnSQLCmd verifies that --dry-run is not
+// available on the sq sql command (different command, different flag
+// set).
+func TestCmdSLQ_DryRun_NotOnSQLCmd(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
+	err := tr.Exec("sql", "--dry-run", "SELECT 1")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unknown flag")
 }
 
 // TestCmdSLQ_NumericSchema tests SLQ query execution against tables in schemas
