@@ -104,7 +104,7 @@ func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
 func writeInt(sb *strings.Builder, n int) {
 	// Fast path for column counts ≤ 9 (the common case).
 	if n >= 0 && n <= 9 {
-		sb.WriteByte('0' + byte(n))
+		_ = sb.WriteByte('0' + byte(n))
 		return
 	}
 	digits := [20]byte{}
