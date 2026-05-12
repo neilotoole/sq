@@ -346,6 +346,17 @@ func (h *Helper) Source(handle string) *source.Source {
 		src.Location = sqlite3.Prefix + dstPath
 	}
 
+	if src.Type == drivertype.DuckDB {
+		// DuckDB takes a process-exclusive lock on the file. Multiple parallel
+		// tests opening the same fixture cause "file in use" errors on Windows
+		// (POSIX is more forgiving). Copy the fixture per test, mirroring the
+		// SQLite pattern above.
+		srcPath := strings.TrimPrefix(src.Location, duckdb.Prefix)
+		dstPath := filepath.Join(tu.TempDir(t), filepath.Base(srcPath))
+		require.NoError(t, ioz.CopyFile(dstPath, srcPath, true))
+		src.Location = duckdb.Prefix + dstPath
+	}
+
 	h.srcCache[handle] = src
 
 	// envDiffDB is the name of the envar that controls whether the testing

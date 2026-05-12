@@ -3,6 +3,7 @@ package duckdb
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -314,43 +315,24 @@ func getPKColumnNames(ctx context.Context, db sqlz.DB, schemaName, tblName strin
 	return parts, nil
 }
 
-// getTableRowCounts returns row counts for the given tables using a single
-// UNION ALL query. The returned slice is parallel to tables.
+// getTableRowCounts returns row counts for the given tables. The returned
+// slice is parallel to tables. Each table is queried individually so that a
+// race with concurrent DROP TABLE in another session (common during parallel
+// test runs that share a fixture file) just yields a 0 count for that table
+// rather than failing the whole metadata fetch.
 func getTableRowCounts(ctx context.Context, db sqlz.DB, tables []*metadata.Table) ([]int64, error) {
-	log := lg.FromContext(ctx)
-
-	if len(tables) == 0 {
-		return nil, nil
-	}
-
-	var sb strings.Builder
-	for i, tbl := range tables {
-		if i > 0 {
-			sb.WriteString(" UNION ALL ")
-		}
-		// Use COUNT(*) on each table. Views are also counted this way.
-		fmt.Fprintf(&sb, "SELECT COUNT(*) FROM %q", tbl.Name)
-	}
-
-	rows, err := db.QueryContext(ctx, sb.String())
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-	defer sqlz.CloseRows(log, rows)
-
 	counts := make([]int64, len(tables))
-	i := 0
-	for rows.Next() {
-		if err = rows.Scan(&counts[i]); err != nil {
+	for i, tbl := range tables {
+		row := db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %q", tbl.Name))
+		if err := row.Scan(&counts[i]); err != nil {
+			// Tolerate NotExist (table dropped concurrently); leave count at 0.
+			if errors.Is(err, sql.ErrNoRows) ||
+				strings.Contains(err.Error(), "does not exist") {
+				continue
+			}
 			return nil, errz.Err(err)
 		}
-		i++
 	}
-
-	if err = rows.Err(); err != nil {
-		return nil, errz.Err(err)
-	}
-
 	return counts, nil
 }
 
