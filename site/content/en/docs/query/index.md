@@ -703,6 +703,37 @@ However, not every driver supports the catalog mechanism fully.
   than return `NULL` or an empty string, `sq`'s SQLite driver chooses to implement `catalog()` by returning
   the string `default`.
 
+### `contains`
+
+`contains(col, str)` is true when `col` contains `str` as a substring.
+Matching is always case-sensitive, regardless of the backend's default
+collation. See also: [`startswith`](#startswith), [`endswith`](#endswith).
+
+```shell
+$ sq '.actor | where(contains(.first_name, "AN"))'
+```
+
+The second argument must be a quoted string literal. Any `%`, `_`, or `|`
+characters in the literal are escaped automatically, so you don't need to
+think about `LIKE` wildcards.
+
+Under the hood, `sq` chooses the right primitive per driver to guarantee
+case-sensitive matching:
+
+- **Postgres / Oracle:** native `LIKE` (already case-sensitive).
+- **ClickHouse:** native `position()` function.
+- **MySQL:** `LIKE BINARY`, to force byte-level comparison.
+- **SQL Server:** `LIKE` with `COLLATE Latin1_General_BIN2`.
+- **SQLite:** `instr()` (SQLite's default `LIKE` is ASCII case-insensitive).
+
+A small portability caveat on SQLite: `contains(.col, "")` returns false
+(SQLite's `instr` of an empty needle is `0`), whereas every other driver
+treats an empty pattern as "matches every non-NULL row". The same applies
+to [`endswith`](#endswith). Avoid empty patterns for portability.
+
+Unlike jq's polymorphic `contains`, SLQ's `contains` is string-only: it
+does not operate on arrays or objects.
+
 ### `count`
 
 The no-arg `count` function returns the total number of rows.
@@ -743,6 +774,16 @@ quantity
 $ sq '.actor | count_unique(.first_name)'
 count_unique(.first_name)
 128
+```
+
+### `endswith`
+
+`endswith(col, str)` is true when `col` ends with `str`. Matching is always
+case-sensitive. See [`contains`](#contains) for the per-driver mechanism
+and escaping notes.
+
+```shell
+$ sq '.actor | where(endswith(.last_name, "son"))'
 ```
 
 ### `group_by`
@@ -969,6 +1010,16 @@ schema()
 dbo
 ```
 
+
+### `startswith`
+
+`startswith(col, str)` is true when `col` begins with `str`. Matching is
+always case-sensitive. See [`contains`](#contains) for the per-driver
+mechanism and escaping notes.
+
+```shell
+$ sq '.actor | where(startswith(.last_name, "Mc"))'
+```
 
 ### `sum`
 
