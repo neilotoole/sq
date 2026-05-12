@@ -23,6 +23,7 @@ var dbSchemes = []string{
 	"sqlserver",
 	"postgres",
 	"sqlite3",
+	"duckdb",
 	"clickhouse",
 	"oracle",
 }
@@ -105,8 +106,8 @@ func Short(loc string) string {
 		return loc
 	}
 
-	if u.Scheme == "sqlite3" {
-		// special handling for sqlite
+	if u.Scheme == "sqlite3" || u.Scheme == "duckdb" {
+		// special handling for file-based DBs (sqlite3, duckdb)
 		return path.Base(u.DSN)
 	}
 
@@ -227,8 +228,12 @@ func Parse(loc string) (*Fields, error) {
 		return fields, nil
 	}
 
-	// sqlite3 is a special case, handle it now
-	const sqlitePrefix = "sqlite3://"
+	// sqlite3 and duckdb are special cases: they are file-based DBs and their
+	// URIs don't follow the network-URL pattern used by postgres/mysql/etc.
+	const (
+		sqlitePrefix = "sqlite3://"
+		duckdbPrefix = "duckdb://"
+	)
 	if after, ok := strings.CutPrefix(loc, sqlitePrefix); ok {
 		fpath := after
 
@@ -237,6 +242,29 @@ func Parse(loc string) (*Fields, error) {
 		fields.DSN = fpath
 
 		// fpath could include params, e.g. "sqlite3://C:\sakila.db?param=val"
+		if i := strings.IndexRune(fpath, '?'); i >= 0 {
+			// Snip off the params
+			fpath = fpath[:i]
+		}
+
+		name := filepath.Base(fpath)
+		fields.Ext = filepath.Ext(name)
+		if fields.Ext != "" {
+			name = name[:len(name)-len(fields.Ext)]
+		}
+
+		fields.Name = name
+		return fields, nil
+	}
+
+	if after, ok := strings.CutPrefix(loc, duckdbPrefix); ok {
+		fpath := after
+
+		fields.Scheme = "duckdb"
+		fields.DriverType = drivertype.DuckDB
+		fields.DSN = fpath
+
+		// fpath could include params, e.g. "duckdb://C:\sakila.duckdb?param=val"
 		if i := strings.IndexRune(fpath, '?'); i >= 0 {
 			// Snip off the params
 			fpath = fpath[:i]
@@ -337,6 +365,11 @@ func isFpath(loc string) (fpath string, ok bool) {
 		return "", false
 	}
 
+	if strings.Contains(loc, "duckdb:") {
+		// Excludes "duckdb:my_file.duckdb" (malformed; missing the double-slash)
+		return "", false
+	}
+
 	fpath, err := filepath.Abs(loc)
 	if err != nil {
 		return "", false
@@ -401,9 +434,10 @@ func Redact(loc string) string {
 	switch {
 	case loc == "",
 		strings.HasPrefix(loc, "/"),
-		strings.HasPrefix(loc, "sqlite3://"):
+		strings.HasPrefix(loc, "sqlite3://"),
+		strings.HasPrefix(loc, "duckdb://"):
 
-		// REVISIT: If it's a sqlite URI, could it have auth details in there?
+		// REVISIT: If it's a sqlite/duckdb URI, could it have auth details in there?
 		// e.g. "?_auth_pass=foo"
 		return loc
 	case strings.HasPrefix(loc, "http://"), strings.HasPrefix(loc, "https://"):

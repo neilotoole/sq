@@ -88,6 +88,51 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			loc:     "duckdb:/path/to/sakila.duckdb",
+			wantErr: true,
+		}, // the scheme is malformed (should be "duckdb://...")
+		{
+			loc: "duckdb:///path/to/sakila.duckdb",
+			want: Fields{
+				DriverType: drivertype.DuckDB, Scheme: "duckdb", Name: "sakila", Ext: ".duckdb",
+				DSN: "/path/to/sakila.duckdb",
+			},
+		},
+		{
+			loc:     `duckdb://C:\path\to\sakila.duckdb`,
+			windows: true,
+			want: Fields{
+				DriverType: drivertype.DuckDB, Scheme: "duckdb", Name: "sakila", Ext: ".duckdb",
+				DSN: `C:\path\to\sakila.duckdb`,
+			},
+		},
+		{
+			loc:     `duckdb://C:\path\to\sakila.duckdb?param=val`,
+			windows: true,
+			want: Fields{
+				DriverType: drivertype.DuckDB, Scheme: "duckdb", Name: "sakila", Ext: ".duckdb",
+				DSN: `C:\path\to\sakila.duckdb?param=val`,
+			},
+		},
+		{
+			loc: "duckdb:///path/to/sakila",
+			want: Fields{
+				DriverType: drivertype.DuckDB, Scheme: "duckdb", Name: "sakila", DSN: "/path/to/sakila",
+			},
+		},
+		{
+			loc: "duckdb://path/to/sakila.db",
+			want: Fields{
+				DriverType: drivertype.DuckDB, Scheme: "duckdb", Name: "sakila", Ext: ".db", DSN: "path/to/sakila.db",
+			},
+		},
+		{
+			loc: "duckdb:///path/to/sakila.db",
+			want: Fields{
+				DriverType: drivertype.DuckDB, Scheme: "duckdb", Name: "sakila", Ext: ".db", DSN: "/path/to/sakila.db",
+			},
+		},
+		{
 			loc: "sqlserver://sakila:p_ssW0rd@localhost?database=sakila",
 			want: Fields{
 				DriverType: drivertype.MSSQL, Scheme: "sqlserver", User: dbuser, Pass: dbpass, Hostname: "localhost",
