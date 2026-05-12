@@ -12,6 +12,19 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## Unreleased
+
+### Added
+
+- [#499]: `sq` [slq](https://sq.io/docs/cmd/slq) command now supports
+  `--dry-run`, which prints the SQL that would be executed against the
+  target database instead of running it. Honours `--format`: with
+  `text` (the default) or `raw`, the rendered SQL is printed plain
+  (syntax-highlighted on TTYs); with `json`, `jsonl`, or `yaml`, a
+  structured payload is printed containing the original SLQ, the
+  rendered SQL, the dialect, the target source handle, and any
+  `--arg` values. Other formats fall back to text.
+
 ## [v0.51.0] - 2026-05-10
 
 ### Added
@@ -1390,8 +1403,9 @@ make working with lots of sources much easier.
 [#446]: https://github.com/neilotoole/sq/issues/446
 [#469]: https://github.com/neilotoole/sq/issues/469
 [#470]: https://github.com/neilotoole/sq/issues/470
-[#502]: https://github.com/neilotoole/sq/pull/502
+[#499]: https://github.com/neilotoole/sq/issues/499
 [#501]: https://github.com/neilotoole/sq/pull/501
+[#502]: https://github.com/neilotoole/sq/pull/502
 [#504]: https://github.com/neilotoole/sq/issues/504
 [#506]: https://github.com/neilotoole/sq/issues/506
 [#520]: https://github.com/neilotoole/sq/issues/520
