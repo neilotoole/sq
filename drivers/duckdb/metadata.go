@@ -274,7 +274,7 @@ func getColumnMetadata(ctx context.Context, db sqlz.DB, schemaName, tblName stri
 			Position:     colIndex,
 			BaseType:     dataType,
 			ColumnType:   dataType,
-			Kind:         kind.Unknown, // Task 4.2 will wire the full kind mapping.
+			Kind:         kindFromDBTypeName(dataType),
 			Nullable:     isNullable,
 			DefaultValue: colDefault.String,
 			Comment:      comment.String,
@@ -480,6 +480,56 @@ func listTableNames(ctx context.Context, db sqlz.DB, schemaName string, tables, 
 	}
 
 	return names, nil
+}
+
+// kindFromDBTypeName maps a DuckDB SQL type name to a kind.Kind.
+// Composite types (LIST/STRUCT/MAP) all map to kind.Text; they are projected
+// as JSON via to_json() at scan time (see RecordMeta in Task 4.3).
+//
+// DuckDB type names returned by duckdb_columns() include parametric forms
+// like "DECIMAL(18,4)" and composite forms like "INTEGER[]" or
+// "STRUCT(a INTEGER, b VARCHAR)". This function strips parameters and
+// detects composites before doing the scalar lookup.
+func kindFromDBTypeName(name string) kind.Kind {
+	upper := strings.ToUpper(strings.TrimSpace(name))
+
+	// Composites: detected by suffix-bracket or known prefixes.
+	if strings.HasSuffix(upper, "[]") ||
+		strings.HasPrefix(upper, "STRUCT") ||
+		strings.HasPrefix(upper, "MAP") ||
+		strings.HasPrefix(upper, "ENUM") {
+		return kind.Text
+	}
+
+	// Strip parameter parens (e.g. "DECIMAL(18,4)" -> "DECIMAL").
+	if i := strings.Index(upper, "("); i > 0 {
+		upper = strings.TrimSpace(upper[:i])
+	}
+
+	switch upper {
+	case "BOOLEAN", "BOOL":
+		return kind.Bool
+	case "TINYINT", "SMALLINT", "INTEGER", "INT", "INT4", "BIGINT", "INT8",
+		"HUGEINT", "INT128", "UTINYINT", "USMALLINT", "UINTEGER", "UBIGINT", "UHUGEINT":
+		return kind.Int
+	case "FLOAT", "REAL", "FLOAT4", "DOUBLE", "FLOAT8":
+		return kind.Float
+	case "DECIMAL", "NUMERIC":
+		return kind.Decimal
+	case "VARCHAR", "CHAR", "TEXT", "STRING", "BPCHAR", "JSON", "UUID", "INTERVAL", "BIT":
+		return kind.Text
+	case "BLOB", "BYTEA", "BINARY", "VARBINARY":
+		return kind.Bytes
+	case "DATE":
+		return kind.Date
+	case "TIME", "TIME WITH TIME ZONE", "TIMETZ":
+		return kind.Time
+	case "TIMESTAMP", "TIMESTAMP_S", "TIMESTAMP_MS", "TIMESTAMP_NS",
+		"TIMESTAMP WITH TIME ZONE", "TIMESTAMPTZ", "DATETIME":
+		return kind.Datetime
+	default:
+		return kind.Unknown
+	}
 }
 
 // tableExists reports whether a table or view named tblName exists
