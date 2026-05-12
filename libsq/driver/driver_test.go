@@ -972,17 +972,11 @@ func TestSQLDriver_SourceMetadata_FieldCoverage(t *testing.T) {
 					lowerAll(langFK.RefColumns),
 					"film.language_id ref columns on %s", tc.handle)
 
-				// Column back-reference.
-				langCol := findColumnCI(film, "language_id")
-				require.NotNil(t, langCol, "film.language_id column missing on %s", tc.handle)
-				require.Same(t, langFK, langCol.ForeignKey,
-					"Column.ForeignKey must share identity with Table.ForeignKeys[i] on %s", tc.handle)
-
 				// Incoming back-reference on language.
 				language := findTable(md.Tables, "language")
 				require.NotNil(t, language, "language table missing from %s metadata", tc.handle)
-				require.NotEmpty(t, language.ReferencedBy,
-					"language.ReferencedBy should include the film FK on %s", tc.handle)
+				require.NotEmpty(t, language.FKIncoming,
+					"language.FKIncoming should include the film FK on %s", tc.handle)
 			}
 		})
 	}
@@ -1001,23 +995,11 @@ func findTable(tables []*metadata.Table, name string) *metadata.Table {
 	return nil
 }
 
-// findColumnCI returns the column on tbl whose Name matches name
-// case-insensitively, or nil.
-func findColumnCI(tbl *metadata.Table, name string) *metadata.Column {
-	want := strings.ToLower(name)
-	for _, col := range tbl.Columns {
-		if strings.ToLower(col.Name) == want {
-			return col
-		}
-	}
-	return nil
-}
-
 // findOutgoingFK returns the first single-column outgoing FK on tbl
 // whose referencing column matches colName (case-insensitive), or nil.
 func findOutgoingFK(tbl *metadata.Table, colName string) *metadata.ForeignKey {
 	want := strings.ToLower(colName)
-	for _, fk := range tbl.ForeignKeys {
+	for _, fk := range tbl.FKOutgoing {
 		if len(fk.Columns) == 1 && strings.ToLower(fk.Columns[0]) == want {
 			return fk
 		}

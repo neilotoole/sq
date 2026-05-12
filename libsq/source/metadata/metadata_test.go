@@ -459,7 +459,7 @@ func TestLinkForeignKeys(t *testing.T) {
 						{Name: "film_id"},
 						{Name: "language_id"},
 					},
-					ForeignKeys: []*metadata.ForeignKey{fk},
+					FKOutgoing: []*metadata.ForeignKey{fk},
 				},
 				{
 					Name: "language",
@@ -474,15 +474,16 @@ func TestLinkForeignKeys(t *testing.T) {
 
 		film := src.Table("film")
 		require.NotNil(t, film)
-		require.Nil(t, film.Column("film_id").ForeignKey)
-		require.Same(t, fk, film.Column("language_id").ForeignKey)
+		require.Len(t, film.FKOutgoing, 1)
+		require.Same(t, fk, film.FKOutgoing[0])
 
 		language := src.Table("language")
-		require.Len(t, language.ReferencedBy, 1)
-		require.Same(t, fk, language.ReferencedBy[0])
+		require.Len(t, language.FKIncoming, 1)
+		require.Same(t, fk, language.FKIncoming[0],
+			"language.FKIncoming entry must share identity with the FK on film.FKOutgoing")
 	})
 
-	t.Run("composite_fk_shares_pointer", func(t *testing.T) {
+	t.Run("composite_fk_incoming_shares_pointer", func(t *testing.T) {
 		fk := &metadata.ForeignKey{
 			Name:       "fk_film_actor_lookup",
 			Table:      "film_actor",
@@ -499,7 +500,7 @@ func TestLinkForeignKeys(t *testing.T) {
 						{Name: "film_id"},
 						{Name: "actor_id"},
 					},
-					ForeignKeys: []*metadata.ForeignKey{fk},
+					FKOutgoing: []*metadata.ForeignKey{fk},
 				},
 				{
 					Name: "film_actor_lookup",
@@ -513,9 +514,10 @@ func TestLinkForeignKeys(t *testing.T) {
 
 		metadata.LinkForeignKeys(src)
 
-		fa := src.Table("film_actor")
-		require.Same(t, fk, fa.Column("film_id").ForeignKey)
-		require.Same(t, fk, fa.Column("actor_id").ForeignKey)
+		lookup := src.Table("film_actor_lookup")
+		require.Len(t, lookup.FKIncoming, 1,
+			"composite FK should appear once on the referenced table, not once per column")
+		require.Same(t, fk, lookup.FKIncoming[0])
 	})
 
 	t.Run("cross_schema_does_not_link_local_namesake", func(t *testing.T) {
@@ -536,9 +538,9 @@ func TestLinkForeignKeys(t *testing.T) {
 			Catalog: "app",
 			Tables: []*metadata.Table{
 				{
-					Name:        "audit",
-					Columns:     []*metadata.Column{{Name: "user_id"}},
-					ForeignKeys: []*metadata.ForeignKey{fk},
+					Name:       "audit",
+					Columns:    []*metadata.Column{{Name: "user_id"}},
+					FKOutgoing: []*metadata.ForeignKey{fk},
 				},
 				{
 					Name:    "users", // local namesake — must not be matched
@@ -549,11 +551,11 @@ func TestLinkForeignKeys(t *testing.T) {
 
 		metadata.LinkForeignKeys(src)
 
-		// Local "users" must not appear as a ReferencedBy target.
-		require.Nil(t, src.Table("users").ReferencedBy,
-			"local users.ReferencedBy must be empty when FK points to a different schema")
-		// Column.ForeignKey is still wired since it's a local back-ref.
-		require.Same(t, fk, src.Table("audit").Column("user_id").ForeignKey)
+		// Local "users" must not appear as an FKIncoming target.
+		require.Nil(t, src.Table("users").FKIncoming,
+			"local users.FKIncoming must be empty when FK points to a different schema")
+		// The outgoing FK is still on the audit table's FKOutgoing slice.
+		require.Len(t, src.Table("audit").FKOutgoing, 1)
 	})
 
 	t.Run("same_schema_qualifiers_normalized", func(t *testing.T) {
@@ -575,9 +577,9 @@ func TestLinkForeignKeys(t *testing.T) {
 			Catalog: "app",
 			Tables: []*metadata.Table{
 				{
-					Name:        "child",
-					Columns:     []*metadata.Column{{Name: "parent_id"}},
-					ForeignKeys: []*metadata.ForeignKey{fk},
+					Name:       "child",
+					Columns:    []*metadata.Column{{Name: "parent_id"}},
+					FKOutgoing: []*metadata.ForeignKey{fk},
 				},
 				{
 					Name:    "parent",
@@ -590,7 +592,7 @@ func TestLinkForeignKeys(t *testing.T) {
 
 		require.Equal(t, "", fk.RefCatalog, "same-catalog qualifier should be cleared")
 		require.Equal(t, "", fk.RefSchema, "same-schema qualifier should be cleared")
-		require.Len(t, src.Table("parent").ReferencedBy, 1)
+		require.Len(t, src.Table("parent").FKIncoming, 1)
 	})
 
 	t.Run("unresolved_ref_is_skipped", func(t *testing.T) {
@@ -610,7 +612,7 @@ func TestLinkForeignKeys(t *testing.T) {
 					Columns: []*metadata.Column{
 						{Name: "external_id"},
 					},
-					ForeignKeys: []*metadata.ForeignKey{fk},
+					FKOutgoing: []*metadata.ForeignKey{fk},
 				},
 			},
 		}
@@ -618,11 +620,11 @@ func TestLinkForeignKeys(t *testing.T) {
 		metadata.LinkForeignKeys(src)
 
 		local := src.Table("local")
-		// Column back-ref is still set even though the referenced table
-		// is outside this Source.
-		require.Same(t, fk, local.Column("external_id").ForeignKey)
+		// The outgoing FK is still on FKOutgoing even though the
+		// referenced table is outside this Source.
+		require.Len(t, local.FKOutgoing, 1)
 		// No incoming back-ref appears anywhere within the Source.
-		require.Nil(t, local.ReferencedBy)
+		require.Nil(t, local.FKIncoming)
 	})
 
 	t.Run("idempotent", func(t *testing.T) {
@@ -636,9 +638,9 @@ func TestLinkForeignKeys(t *testing.T) {
 		src := &metadata.Source{
 			Tables: []*metadata.Table{
 				{
-					Name:        "child",
-					Columns:     []*metadata.Column{{Name: "parent_id"}},
-					ForeignKeys: []*metadata.ForeignKey{fk},
+					Name:       "child",
+					Columns:    []*metadata.Column{{Name: "parent_id"}},
+					FKOutgoing: []*metadata.ForeignKey{fk},
 				},
 				{
 					Name:    "parent",
@@ -650,8 +652,8 @@ func TestLinkForeignKeys(t *testing.T) {
 		metadata.LinkForeignKeys(src)
 		metadata.LinkForeignKeys(src)
 
-		require.Len(t, src.Table("parent").ReferencedBy, 1)
-		require.Same(t, fk, src.Table("parent").ReferencedBy[0])
+		require.Len(t, src.Table("parent").FKIncoming, 1)
+		require.Same(t, fk, src.Table("parent").FKIncoming[0])
 	})
 }
 
@@ -671,7 +673,7 @@ func TestSource_Clone_RelinksForeignKeys(t *testing.T) {
 				Columns: []*metadata.Column{
 					{Name: "language_id"},
 				},
-				ForeignKeys: []*metadata.ForeignKey{fk},
+				FKOutgoing: []*metadata.ForeignKey{fk},
 			},
 			{
 				Name:    "language",
@@ -685,12 +687,13 @@ func TestSource_Clone_RelinksForeignKeys(t *testing.T) {
 	gotFilm := got.Table("film")
 	gotLanguage := got.Table("language")
 
-	require.NotNil(t, gotFilm.Column("language_id").ForeignKey)
-	// The clone's back-references must point at the clone's own
-	// ForeignKey objects, not the originals.
-	require.NotSame(t, fk, gotFilm.Column("language_id").ForeignKey)
-	require.Same(t, gotFilm.ForeignKeys[0], gotFilm.Column("language_id").ForeignKey)
-	require.Same(t, gotFilm.ForeignKeys[0], gotLanguage.ReferencedBy[0])
+	// The clone's incoming back-references must point at the clone's
+	// own ForeignKey objects, not the originals.
+	require.Len(t, gotFilm.FKOutgoing, 1)
+	require.NotSame(t, fk, gotFilm.FKOutgoing[0])
+	require.Len(t, gotLanguage.FKIncoming, 1)
+	require.Same(t, gotFilm.FKOutgoing[0], gotLanguage.FKIncoming[0],
+		"FKIncoming on the clone must share identity with the clone's own FKOutgoing entry")
 }
 
 func TestUniqueConstraint_Clone(t *testing.T) {

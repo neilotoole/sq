@@ -133,10 +133,9 @@ FROM DUAL`
 		}
 	}
 
-	// Each Table.ForeignKeys slice was already populated by the per-table
-	// getTableMetadata call inside loadUserSchemaObjectsMetadata above; now
-	// derive Column.ForeignKey and Table.ReferencedBy across the whole
-	// source.
+	// Each Table.FKOutgoing slice was already populated by the per-table
+	// getTableMetadata call inside loadUserSchemaObjectsMetadata above;
+	// now derive Table.FKIncoming across the whole source.
 	metadata.LinkForeignKeys(md)
 
 	return md, nil
@@ -343,16 +342,9 @@ WHERE t.table_name = :1`
 	}
 	tblMeta.Columns = cols
 
-	tblMeta.ForeignKeys, err = getOracleForeignKeys(ctx, db, tblName)
+	tblMeta.FKOutgoing, err = getOracleForeignKeys(ctx, db, tblName)
 	if err != nil {
 		return nil, err
-	}
-	for _, fk := range tblMeta.ForeignKeys {
-		for _, colName := range fk.Columns {
-			if col := tblMeta.Column(colName); col != nil {
-				col.ForeignKey = fk
-			}
-		}
 	}
 
 	tblMeta.UniqueConstraints, err = getOracleUniqueConstraints(ctx, db, tblName)

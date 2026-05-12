@@ -209,9 +209,9 @@ GROUP BY database_id) AS total_size_bytes`
 		}
 	}
 
-	// Each Table.ForeignKeys slice was already populated by the per-table
+	// Each Table.FKOutgoing slice was already populated by the per-table
 	// getTableMetadata call inside the errgroup above; now derive
-	// Column.ForeignKey and Table.ReferencedBy across the whole source.
+	// Table.FKIncoming across the whole source.
 	metadata.LinkForeignKeys(md)
 
 	return md, nil
@@ -331,16 +331,9 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 
 	tblMeta.Columns = cols
 
-	tblMeta.ForeignKeys, err = getMSSQLForeignKeys(ctx, db, tblCatalog, tblSchema, tblName)
+	tblMeta.FKOutgoing, err = getMSSQLForeignKeys(ctx, db, tblCatalog, tblSchema, tblName)
 	if err != nil {
 		return nil, err
-	}
-	for _, fk := range tblMeta.ForeignKeys {
-		for _, colName := range fk.Columns {
-			if col := tblMeta.Column(colName); col != nil {
-				col.ForeignKey = fk
-			}
-		}
 	}
 
 	tblMeta.UniqueConstraints, err = getMSSQLUniqueConstraints(ctx, db, tblCatalog, tblSchema, tblName)
@@ -506,9 +499,8 @@ WHERE s.name = @p1
 // catalog views directly (sys.foreign_keys + sys.foreign_key_columns
 // joined to sys.objects / sys.columns / sys.schemas).
 //
-// Cross-table linking (Column.ForeignKey and Table.ReferencedBy) is
-// not performed here; callers must invoke metadata.LinkForeignKeys at
-// the source level.
+// Cross-table linking (Table.FKIncoming) is not performed here;
+// callers must invoke metadata.LinkForeignKeys at the source level.
 func getMSSQLForeignKeys(ctx context.Context, db sqlz.DB, _ /*tblCatalog*/, tblSchema, tblName string,
 ) ([]*metadata.ForeignKey, error) {
 	log := lg.FromContext(ctx)

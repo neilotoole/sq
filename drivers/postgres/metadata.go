@@ -463,21 +463,13 @@ AND table_name = $1`
 }
 
 // populateTableExtras loads outgoing FKs, unique constraints, and
-// indexes for tblMeta (filtered by tblMeta.Name) and wires the
-// Column.ForeignKey back-reference. It is the per-table counterpart
-// to the bulk loaders called by getSourceMetadata.
+// indexes for tblMeta (filtered by tblMeta.Name). It is the per-table
+// counterpart to the bulk loaders called by getSourceMetadata.
 func populateTableExtras(ctx context.Context, db sqlz.DB, tblMeta *metadata.Table) error {
 	var err error
-	tblMeta.ForeignKeys, err = getPgForeignKeys(ctx, db, tblMeta.Name)
+	tblMeta.FKOutgoing, err = getPgForeignKeys(ctx, db, tblMeta.Name)
 	if err != nil {
 		return err
-	}
-	for _, fk := range tblMeta.ForeignKeys {
-		for _, colName := range fk.Columns {
-			if col := tblMeta.Column(colName); col != nil {
-				col.ForeignKey = fk
-			}
-		}
 	}
 
 	tblMeta.UniqueConstraints, err = getPgUniqueConstraints(ctx, db, tblMeta.Name)
@@ -936,9 +928,9 @@ WHERE ns.nspname = current_schema()
 // Composite foreign keys are returned as a single ForeignKey whose
 // Columns / RefColumns slices are ordered by the FK's column position.
 //
-// Cross-table linking (Column.ForeignKey and Table.ReferencedBy) is
-// not done here; callers must invoke [metadata.LinkForeignKeys] on the
-// owning [metadata.Source] after assigning FKs to tables.
+// Cross-table linking (Table.FKIncoming) is not done here; callers
+// must invoke [metadata.LinkForeignKeys] on the owning
+// [metadata.Source] after assigning FKs to tables.
 func getPgForeignKeys(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.ForeignKey, error) {
 	log := lg.FromContext(ctx)
 

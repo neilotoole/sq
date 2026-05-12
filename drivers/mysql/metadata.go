@@ -205,16 +205,9 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 		return nil, err
 	}
 
-	tblMeta.ForeignKeys, err = getMySQLForeignKeys(ctx, db, tblName)
+	tblMeta.FKOutgoing, err = getMySQLForeignKeys(ctx, db, tblName)
 	if err != nil {
 		return nil, err
-	}
-	for _, fk := range tblMeta.ForeignKeys {
-		for _, colName := range fk.Columns {
-			if col := tblMeta.Column(colName); col != nil {
-				col.ForeignKey = fk
-			}
-		}
 	}
 
 	tblMeta.UniqueConstraints, err = getMySQLUniqueConstraints(ctx, db, tblName)
@@ -371,9 +364,8 @@ WHERE TABLE_SCHEMA = DATABASE()
 // tblName are returned. Composite foreign keys are collapsed into a
 // single ForeignKey ordered by ORDINAL_POSITION.
 //
-// Cross-table linking (Column.ForeignKey and Table.ReferencedBy) is not
-// performed here; callers must invoke metadata.LinkForeignKeys at the
-// source level.
+// Cross-table linking (Table.FKIncoming) is not performed here;
+// callers must invoke metadata.LinkForeignKeys at the source level.
 func getMySQLForeignKeys(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.ForeignKey, error) {
 	log := lg.FromContext(ctx)
 

@@ -348,11 +348,10 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 		return nil, errw(err)
 	}
 
-	tblMeta.ForeignKeys, err = getTableForeignKeys(ctx, db, tblMeta.Name)
+	tblMeta.FKOutgoing, err = getTableForeignKeys(ctx, db, tblMeta.Name)
 	if err != nil {
 		return nil, err
 	}
-	linkColumnForeignKeys(tblMeta)
 
 	tblMeta.UniqueConstraints, tblMeta.Indexes, err = getTableIndexes(ctx, db, tblMeta.Name)
 	if err != nil {
@@ -464,26 +463,6 @@ func getIndexColumns(ctx context.Context, db sqlz.DB, idxName string) ([]string,
 		}
 	}
 	return cols, errw(rows.Err())
-}
-
-// linkColumnForeignKeys wires the Column.ForeignKey back-reference for
-// every column participating in one of tbl.ForeignKeys. It's the
-// per-table equivalent of metadata.LinkForeignKeys for callers that
-// have only a single Table on hand (e.g. TableMetadata).
-func linkColumnForeignKeys(tbl *metadata.Table) {
-	if tbl == nil {
-		return
-	}
-	for _, fk := range tbl.ForeignKeys {
-		if fk == nil {
-			continue
-		}
-		for _, colName := range fk.Columns {
-			if col := tbl.Column(colName); col != nil {
-				col.ForeignKey = fk
-			}
-		}
-	}
 }
 
 // getTableForeignKeys returns the outgoing foreign-key constraints
@@ -682,16 +661,15 @@ ORDER BY m.name, p.cid
 	}
 
 	// Populate outgoing foreign keys, unique constraints, and indexes
-	// per table. Cross-table linking (Column.ForeignKey and
-	// Table.ReferencedBy) is handled at the Source level by
-	// metadata.LinkForeignKeys.
+	// per table. Cross-table linking (Table.FKIncoming) is handled at
+	// the Source level by metadata.LinkForeignKeys.
 	for _, tblMeta := range tblMetas {
 		// pragma_foreign_key_list / index_list are only meaningful for
 		// tables, not views.
 		if tblMeta.TableType != sqlz.TableTypeTable {
 			continue
 		}
-		tblMeta.ForeignKeys, err = getTableForeignKeys(ctx, db, tblMeta.Name)
+		tblMeta.FKOutgoing, err = getTableForeignKeys(ctx, db, tblMeta.Name)
 		if err != nil {
 			return nil, err
 		}

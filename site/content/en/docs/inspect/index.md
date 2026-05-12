@@ -192,15 +192,18 @@ $ sq inspect -j @sakila_pg | jq -r '
 
 `sq inspect` reports foreign-key constraints for any SQL source that
 supports them (SQLite, Postgres, MySQL, SQL Server, Oracle). The
-relationships appear in three places in the structured output:
+relationships appear under two complementary keys on every table —
+the same FK shows up once under its owning table's `fk_outgoing` and
+once under the referenced table's `fk_incoming`:
 
-- `tables[].foreign_keys` — outgoing constraints declared on the
-  table.
-- `tables[].referenced_by` — incoming constraints declared on other
-  tables that point at this one. Useful for visualizing parent → child
-  edges without scanning the whole graph.
-- `tables[].columns[].foreign_key` — convenience back-reference on
-  each column that participates in an outgoing FK.
+- `tables[].fk_outgoing` — constraints declared on this table (its
+  outgoing edges). Tells you what rows in this table depend on.
+- `tables[].fk_incoming` — constraints declared on other tables whose
+  referenced side is this table (its incoming edges). Tells you what
+  depends on rows in this table. Useful for "blast radius" questions
+  ("if I delete this row, what else breaks?") and for visualization
+  tools that want to render the schema as a directed graph without
+  walking every table to discover incoming edges.
 
 Composite foreign keys and cross-schema references are supported. The
 `on_delete` and `on_update` referential actions are surfaced where the
@@ -213,7 +216,7 @@ For example, to list every parent → child relationship in the
 $ sq inspect -j @sakila_pg | jq -r '
   .tables[]
   | .name as $child
-  | .foreign_keys[]?
+  | .fk_outgoing[]?
   | "\($child).\(.columns | join(",")) -> \(.ref_table).\(.ref_columns | join(","))"'
 film.original_language_id -> language.language_id
 film.language_id -> language.language_id

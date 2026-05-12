@@ -117,10 +117,10 @@ func (s *Source) Clone() *Source {
 			s2.Tables[i] = s.Tables[i].Clone()
 		}
 
-		// Per-table Clone() copies outgoing ForeignKeys as independent
-		// values; re-derive the back-references so Column.ForeignKey and
-		// Table.ReferencedBy on the clone share identity with the cloned
-		// outgoing FKs rather than pointing at the originals.
+		// Per-table Clone() copies outgoing FKOutgoing as independent
+		// values; re-derive Table.FKIncoming so the clone's incoming
+		// list shares identity with the cloned outgoing FKs rather
+		// than pointing at the originals.
 		LinkForeignKeys(s2)
 	}
 
@@ -172,18 +172,18 @@ type Table struct { //nolint:govet // field alignment
 	// Columns holds the metadata for the table's columns.
 	Columns []*Column `json:"columns" yaml:"columns"`
 
-	// ForeignKeys are the outgoing foreign-key constraints declared on
+	// FKOutgoing are the outgoing foreign-key constraints declared on
 	// this table (i.e. constraints whose referencing side is this table).
 	// May be nil for sources that don't support foreign keys, or for
 	// tables that declare none.
-	ForeignKeys []*ForeignKey `json:"foreign_keys,omitempty" yaml:"foreign_keys,omitempty"`
+	FKOutgoing []*ForeignKey `json:"fk_outgoing,omitempty" yaml:"fk_outgoing,omitempty"`
 
-	// ReferencedBy are the incoming foreign-key constraints that point
-	// at this table (i.e. constraints declared on other tables whose
+	// FKIncoming are the incoming foreign-key constraints that point at
+	// this table (i.e. constraints declared on other tables whose
 	// referenced side is this table). This is derived from the outgoing
 	// foreign keys of every table in the source and is populated by
 	// [LinkForeignKeys] after all tables have been loaded.
-	ReferencedBy []*ForeignKey `json:"referenced_by,omitempty" yaml:"referenced_by,omitempty"`
+	FKIncoming []*ForeignKey `json:"fk_incoming,omitempty" yaml:"fk_incoming,omitempty"`
 
 	// UniqueConstraints are the unique-constraint declarations on this
 	// table (UNIQUE in CREATE TABLE, or ALTER TABLE ADD CONSTRAINT ...
@@ -231,17 +231,17 @@ func (t *Table) Clone() *Table {
 		}
 	}
 
-	if t.ForeignKeys != nil {
-		c.ForeignKeys = make([]*ForeignKey, len(t.ForeignKeys))
-		for i := range t.ForeignKeys {
-			c.ForeignKeys[i] = t.ForeignKeys[i].Clone()
+	if t.FKOutgoing != nil {
+		c.FKOutgoing = make([]*ForeignKey, len(t.FKOutgoing))
+		for i := range t.FKOutgoing {
+			c.FKOutgoing[i] = t.FKOutgoing[i].Clone()
 		}
 	}
 
-	if t.ReferencedBy != nil {
-		c.ReferencedBy = make([]*ForeignKey, len(t.ReferencedBy))
-		for i := range t.ReferencedBy {
-			c.ReferencedBy[i] = t.ReferencedBy[i].Clone()
+	if t.FKIncoming != nil {
+		c.FKIncoming = make([]*ForeignKey, len(t.FKIncoming))
+		for i := range t.FKIncoming {
+			c.FKIncoming[i] = t.FKIncoming[i].Clone()
 		}
 	}
 
@@ -287,6 +287,19 @@ func (t *Table) PKCols() []*Column {
 }
 
 // Column models metadata for a particular column of a data source.
+//
+// Column does not carry a foreign-key back-reference. The canonical
+// outgoing-FK list lives on [Table.FKOutgoing]; consumers that want a
+// per-column view can build one in two lines:
+//
+//	byCol := map[string]*ForeignKey{}
+//	for _, fk := range tbl.FKOutgoing {
+//	    for _, c := range fk.Columns { byCol[c] = fk }
+//	}
+//
+// Single-column FKs come out cleanly; composite FKs stay grouped on
+// the table where they belong (each member column maps to the same
+// composite ForeignKey).
 type Column struct { //nolint:govet // field alignment
 	Name         string    `json:"name" yaml:"name"`
 	Position     int64     `json:"position" yaml:"position"`
@@ -297,20 +310,9 @@ type Column struct { //nolint:govet // field alignment
 	Nullable     bool      `json:"nullable" yaml:"nullable"`
 	DefaultValue string    `json:"default_value,omitempty" yaml:"default_value,omitempty"`
 	Comment      string    `json:"comment,omitempty" yaml:"comment,omitempty"`
-
-	// ForeignKey is the outgoing foreign-key constraint that this column
-	// participates in, or nil if none. For composite foreign keys, this
-	// pointer references the same ForeignKey shared by every participating
-	// column. The canonical list lives on Table.ForeignKeys; this field is
-	// a convenience back-reference populated by [LinkForeignKeys].
-	ForeignKey *ForeignKey `json:"foreign_key,omitempty" yaml:"foreign_key,omitempty"`
 }
 
 // Clone returns a deep copy of c. If c is nil, nil is returned.
-//
-// Note that Column.ForeignKey is not carried across a Column-level clone:
-// it is a back-reference into the owning [Table]'s ForeignKeys slice and
-// must be re-linked at the [Source] level via [LinkForeignKeys].
 func (c *Column) Clone() *Column {
 	if c == nil {
 		return nil
@@ -331,8 +333,8 @@ func (c *Column) Clone() *Column {
 
 // ForeignKey models a single foreign-key constraint between two tables.
 // Constraints are populated by the driver from the perspective of the
-// referencing table (as Table.ForeignKeys); the corresponding incoming
-// entries on the referenced table's [Table.ReferencedBy] slice are
+// referencing table (as [Table.FKOutgoing]); the corresponding incoming
+// entries on the referenced table's [Table.FKIncoming] slice are
 // derived by [LinkForeignKeys] once all tables have been loaded.
 //
 // Composite foreign keys are represented by populating Columns and
@@ -515,7 +517,7 @@ func (i *Index) String() string {
 // AssignForeignKeys groups fks by their referencing-table name (the
 // ForeignKey.Table field) and assigns each group to the matching entry
 // in tables. Tables with no matching FKs retain their existing
-// [Table.ForeignKeys] slice; callers that want to replace rather than
+// [Table.FKOutgoing] slice; callers that want to replace rather than
 // merge should clear the slice first.
 //
 // This helper exists so that driver implementations that fetch all
@@ -539,7 +541,7 @@ func AssignForeignKeys(tables []*Table, fks []*ForeignKey) {
 			continue
 		}
 		if tblFKs, ok := byTable[tbl.Name]; ok {
-			tbl.ForeignKeys = tblFKs
+			tbl.FKOutgoing = tblFKs
 		}
 	}
 }
@@ -596,29 +598,30 @@ func AssignIndexes(tables []*Table, idxs []*Index) {
 	}
 }
 
-// LinkForeignKeys derives back-references on s after the per-table
-// outgoing foreign keys have been populated by the driver. Specifically,
-// for every entry in each Table.ForeignKeys it:
+// LinkForeignKeys derives [Table.FKIncoming] and normalizes FK
+// qualifiers after the per-table outgoing foreign keys
+// ([Table.FKOutgoing]) have been populated by the driver. Specifically:
 //
-//   - sets [Column.ForeignKey] on each participating local column
-//   - appends the same *[ForeignKey] to the referenced table's
-//     [Table.ReferencedBy] slice
+//   - For every outgoing FK whose referenced table is in s, append the
+//     same *[ForeignKey] pointer to that table's FKIncoming slice. This
+//     is the only step that genuinely requires a cross-table view —
+//     drivers see one table at a time and can't know which other
+//     tables point at it.
+//   - Normalize [ForeignKey.RefCatalog] and [ForeignKey.RefSchema]:
+//     when they equal s.Catalog / s.Schema the fields are cleared so
+//     the JSON / YAML output omits them and the "same-schema
+//     reference" invariant the resolver relies on holds (a non-empty
+//     RefSchema after normalization marks the reference as pointing
+//     outside this Source).
 //
-// Entries on Table.ReferencedBy follow the iteration order of s.Tables,
-// then the order of each table's ForeignKeys slice. Drivers that load
+// Entries on Table.FKIncoming follow the iteration order of s.Tables,
+// then the order of each table's FKOutgoing slice. Drivers that load
 // tables in name order (most do) therefore produce a deterministic
 // shape; consumers that need a strict sort should sort the slice
 // themselves.
 //
-// LinkForeignKeys also normalizes [ForeignKey.RefCatalog] and
-// [ForeignKey.RefSchema]: when they equal s.Catalog / s.Schema the
-// fields are cleared so the JSON / YAML output omits them and the
-// "same-schema reference" invariant the resolver below relies on holds
-// (a non-empty RefSchema after normalization marks the reference as
-// pointing outside this Source).
-//
-// LinkForeignKeys is idempotent: any pre-existing values in Column.ForeignKey
-// and Table.ReferencedBy are cleared before re-deriving. It is safe to call
+// LinkForeignKeys is idempotent: any pre-existing values in
+// Table.FKIncoming are cleared before re-deriving. It is safe to call
 // against a nil or empty Source.
 func LinkForeignKeys(s *Source) {
 	if s == nil || len(s.Tables) == 0 {
@@ -631,19 +634,14 @@ func LinkForeignKeys(s *Source) {
 			continue
 		}
 		byName[tbl.Name] = tbl
-		tbl.ReferencedBy = nil
-		for _, col := range tbl.Columns {
-			if col != nil {
-				col.ForeignKey = nil
-			}
-		}
+		tbl.FKIncoming = nil
 	}
 
 	for _, tbl := range s.Tables {
 		if tbl == nil {
 			continue
 		}
-		for _, fk := range tbl.ForeignKeys {
+		for _, fk := range tbl.FKOutgoing {
 			if fk == nil {
 				continue
 			}
@@ -657,15 +655,6 @@ func LinkForeignKeys(s *Source) {
 				fk.RefSchema = ""
 			}
 
-			// Wire the column back-references on the referencing
-			// (local) table — Column.ForeignKey always points at the
-			// outgoing FK regardless of where it lands.
-			for _, colName := range fk.Columns {
-				if col := tbl.Column(colName); col != nil {
-					col.ForeignKey = fk
-				}
-			}
-
 			// Only link to a local table when the reference is in
 			// this Source's catalog+schema. A non-empty RefCatalog or
 			// RefSchema after normalization means the target lives
@@ -675,7 +664,7 @@ func LinkForeignKeys(s *Source) {
 				continue
 			}
 			if refTbl, ok := byName[fk.RefTable]; ok {
-				refTbl.ReferencedBy = append(refTbl.ReferencedBy, fk)
+				refTbl.FKIncoming = append(refTbl.FKIncoming, fk)
 			}
 		}
 	}

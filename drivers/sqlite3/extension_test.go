@@ -63,12 +63,12 @@ func TestExtension_fts5(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, actorMeta1.TableType, sqlz.TableTypeTable)
 
-	// Table.ReferencedBy is derived across the full Source.Tables slice
+	// Table.FKIncoming is derived across the full Source.Tables slice
 	// (so the source-meta path populates it for any table that another
 	// table FKs into), while the per-table TableMetadata path has no
 	// cross-table view and leaves it nil. Strip it for an apples-to-apples
-	// shape comparison; the dedicated FK tests cover ReferencedBy.
+	// shape comparison; the dedicated FK tests cover FKIncoming.
 	src1 := *actorMeta1
-	src1.ReferencedBy = nil
+	src1.FKIncoming = nil
 	require.Equal(t, src1, *actorMeta2)
 }

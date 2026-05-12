@@ -174,11 +174,13 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 	}
 
 	for _, tbl := range tbls {
-		// Build per-column lookups for indexes and unique constraints
-		// so each column row can list the entries it participates in.
-		// PK-backing indexes are filtered out of the INDEXES column
-		// because the PK column already conveys that information; the
-		// UNIQUE CONSTRAINTS column shows declared UNIQUEs separately.
+		// Build per-column lookups for FKs, indexes, and unique
+		// constraints so each column row can list the entries it
+		// participates in. PK-backing indexes are filtered out of the
+		// INDEXES column because the PK column already conveys that
+		// information; the UNIQUE CONSTRAINTS column shows declared
+		// UNIQUEs separately.
+		fkByCol := outgoingFKByColumn(tbl)
 		idxByCol := indexNamesByColumn(tbl)
 		ucByCol := uniqueNamesByColumn(tbl)
 
@@ -190,7 +192,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 			tbl.Columns[0].Name,
 			tbl.Columns[0].BaseType,
 			getPK(tbl.Columns[0]),
-			formatFKRef(tbl.Columns[0]),
+			formatFKRef(fkByCol[tbl.Columns[0].Name]),
 			strings.Join(idxByCol[tbl.Columns[0].Name], ", "),
 			strings.Join(ucByCol[tbl.Columns[0].Name], ", "),
 		}
@@ -206,7 +208,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 				tbl.Columns[i].Name,
 				tbl.Columns[i].BaseType,
 				getPK(tbl.Columns[i]),
-				formatFKRef(tbl.Columns[i]),
+				formatFKRef(fkByCol[tbl.Columns[i].Name]),
 				strings.Join(idxByCol[tbl.Columns[i].Name], ", "),
 				strings.Join(ucByCol[tbl.Columns[i].Name], ", "),
 			}
@@ -217,19 +219,37 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 	return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 }
 
-// formatFKRef returns a short human-readable description of the FK that
-// col participates in, of the form "ref_table(ref_col)" — or for
-// composite FKs, "ref_table(ref_col1, ref_col2)". Cross-schema and
-// cross-catalog references are qualified ("ref_schema.ref_table(...)"
-// or "ref_catalog.ref_schema.ref_table(...)"). Same-source references
-// stay unqualified — LinkForeignKeys clears RefCatalog / RefSchema
-// when they match the owning Source's catalog / schema. Returns the
-// empty string for non-FK columns.
-func formatFKRef(col *metadata.Column) string {
-	if col == nil || col.ForeignKey == nil {
+// outgoingFKByColumn returns a column-name → *ForeignKey lookup for
+// tbl. For composite FKs each member column maps to the same FK
+// pointer. Returns nil if the table has no outgoing FKs.
+func outgoingFKByColumn(tbl *metadata.Table) map[string]*metadata.ForeignKey {
+	if len(tbl.FKOutgoing) == 0 {
+		return nil
+	}
+	out := make(map[string]*metadata.ForeignKey, len(tbl.Columns))
+	for _, fk := range tbl.FKOutgoing {
+		if fk == nil {
+			continue
+		}
+		for _, colName := range fk.Columns {
+			out[colName] = fk
+		}
+	}
+	return out
+}
+
+// formatFKRef returns a short human-readable description of fk, of
+// the form "ref_table(ref_col)" — or for composite FKs,
+// "ref_table(ref_col1, ref_col2)". Cross-schema and cross-catalog
+// references are qualified ("ref_schema.ref_table(...)" or
+// "ref_catalog.ref_schema.ref_table(...)"); same-source references
+// stay unqualified because LinkForeignKeys clears RefCatalog /
+// RefSchema when they match the owning Source's catalog / schema.
+// Returns the empty string when fk is nil.
+func formatFKRef(fk *metadata.ForeignKey) string {
+	if fk == nil {
 		return ""
 	}
-	fk := col.ForeignKey
 	target := fk.RefTable
 	if fk.RefSchema != "" {
 		target = fk.RefSchema + "." + target

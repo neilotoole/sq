@@ -237,23 +237,17 @@ func TestRecordMetadata(t *testing.T) {
 			require.Equal(t, len(tc.colsMeta), len(gotTblMeta.Columns))
 
 			for i := range tc.colsMeta {
-				// Strip the FK back-reference before comparison; FK
-				// population is covered by TestForeignKeys_Sakila and
-				// would otherwise force every column-level fixture to
-				// embed the full FK shape.
-				got := *gotTblMeta.Columns[i]
-				got.ForeignKey = nil
-				require.Equal(t, *tc.colsMeta[i], got)
+				require.Equal(t, *tc.colsMeta[i], *gotTblMeta.Columns[i])
 			}
 		})
 	}
 }
 
 // TestForeignKeys_Sakila verifies that the sqlite3 driver populates
-// foreign-key metadata from sakila.sqlite, that the cross-table
-// back-references are wired correctly via metadata.LinkForeignKeys,
-// and that the per-table TableMetadata path also returns outgoing
-// foreign keys with column back-refs populated.
+// foreign-key metadata from sakila.sqlite and that the cross-table
+// incoming back-references are wired correctly via
+// metadata.LinkForeignKeys. It also exercises the per-table
+// TableMetadata path.
 func TestForeignKeys_Sakila(t *testing.T) {
 	t.Parallel()
 
@@ -266,56 +260,48 @@ func TestForeignKeys_Sakila(t *testing.T) {
 	film := md.Table(sakila.TblFilm)
 	require.NotNil(t, film, "table %s missing from source metadata", sakila.TblFilm)
 	var filmToLanguage *metadata.ForeignKey
-	for _, fk := range film.ForeignKeys {
+	for _, fk := range film.FKOutgoing {
 		if len(fk.Columns) == 1 && fk.Columns[0] == "language_id" {
 			filmToLanguage = fk
 			break
 		}
 	}
-	require.NotNil(t, filmToLanguage, "film should have a FK on language_id")
+	require.NotNil(t, filmToLanguage, "film should have an outgoing FK on language_id")
 	require.Equal(t, "language", filmToLanguage.RefTable)
 	require.Equal(t, []string{"language_id"}, filmToLanguage.RefColumns)
-
-	// Column.ForeignKey back-reference populated.
-	langCol := film.Column("language_id")
-	require.NotNil(t, langCol)
-	require.Same(t, filmToLanguage, langCol.ForeignKey,
-		"film.language_id Column.ForeignKey must point at the outgoing FK")
 
 	// Incoming back-reference on language table.
 	language := md.Table("language")
 	require.NotNil(t, language)
 	var languageFromFilm *metadata.ForeignKey
-	for _, fk := range language.ReferencedBy {
+	for _, fk := range language.FKIncoming {
 		if fk.Table == sakila.TblFilm && len(fk.Columns) == 1 && fk.Columns[0] == "language_id" {
 			languageFromFilm = fk
 			break
 		}
 	}
-	require.NotNil(t, languageFromFilm, "language.ReferencedBy should include film.language_id")
+	require.NotNil(t, languageFromFilm, "language.FKIncoming should include film.language_id")
 	require.Same(t, filmToLanguage, languageFromFilm,
-		"language.ReferencedBy entry must share identity with film.ForeignKeys entry")
+		"language.FKIncoming entry must share identity with film.FKOutgoing entry")
 
 	// film_actor has two outgoing FKs (to film and to actor) on its
 	// composite PK. The sakila.sqlite schema declares these as two
 	// independent single-column FKs.
 	filmActor := md.Table(sakila.TblFilmActor)
 	require.NotNil(t, filmActor)
-	require.NotEmpty(t, filmActor.ForeignKeys)
-	refs := make(map[string]bool, len(filmActor.ForeignKeys))
-	for _, fk := range filmActor.ForeignKeys {
+	require.NotEmpty(t, filmActor.FKOutgoing)
+	refs := make(map[string]bool, len(filmActor.FKOutgoing))
+	for _, fk := range filmActor.FKOutgoing {
 		refs[fk.RefTable] = true
 	}
 	require.True(t, refs["film"], "film_actor should have FK to film")
 	require.True(t, refs["actor"], "film_actor should have FK to actor")
 
-	// Per-table TableMetadata path also populates outgoing FKs and
-	// the column back-reference.
+	// Per-table TableMetadata path also populates outgoing FKs.
 	filmTbl, err := grip.TableMetadata(th.Context, sakila.TblFilm)
 	require.NoError(t, err)
-	require.NotEmpty(t, filmTbl.ForeignKeys)
-	require.NotNil(t, filmTbl.Column("language_id").ForeignKey,
-		"TableMetadata should populate Column.ForeignKey for single-table inspect")
+	require.NotEmpty(t, filmTbl.FKOutgoing,
+		"TableMetadata should populate Table.FKOutgoing for single-table inspect")
 }
 
 // TestIndexes_Sakila verifies that the sqlite3 driver populates index
