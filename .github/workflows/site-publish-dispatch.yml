@@ -52,16 +52,16 @@ jobs:
       name: production
       url: https://sq.io
     steps:
-      # Hard-fail on any non-master ref. `workflow_dispatch` exposes a "Use
-      # workflow from" branch picker in the Actions UI, so without this guard
-      # an operator could publish an arbitrary branch to https://sq.io. We
-      # prefer a loud failure over silently rewriting the operator's branch
-      # choice (e.g. via `actions/checkout` with `ref: master`), so intent
-      # and result always match.
-      - name: Reject non-master refs
-        if: github.ref != 'refs/heads/master'
+      # Allow publishes from any branch (`refs/heads/*`) or any version tag
+      # (`refs/tags/v*` — matches v0.51.0, v1.0.0-rc1, etc.). Reject anything
+      # else (typically non-version tags like `latest` or `stable`) to catch
+      # obvious accidents from the Actions UI's "Use workflow from" picker.
+      # The typed `DEPLOY` confirmation below is the real fat-finger guard;
+      # this step is just a coarse sanity check on the ref shape.
+      - name: Reject unsupported refs
+        if: ${{ !(startsWith(github.ref, 'refs/heads/') || startsWith(github.ref, 'refs/tags/v')) }}
         run: |
-          echo "::error::This workflow must be run from the master branch."
+          echo "::error::This workflow can only publish from a branch or a v-prefixed version tag."
           exit 1
 
       - name: Validate confirmation input

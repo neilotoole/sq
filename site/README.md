@@ -116,10 +116,12 @@ The project uses GitHub Actions and Netlify for continuous integration:
 
 Production publishes to [sq.io](https://sq.io) are manual-only. To deploy,
 go to the repo's **Actions** tab, pick **Site Publish (dispatch)**, click
-**Run workflow**, select the `master` branch, and type `DEPLOY` into the
-confirmation field. The workflow rejects any non-`master` ref and any
-confirmation value other than the literal string `DEPLOY`. Requires the
-`NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` repo secrets to be set.
+**Run workflow**, select the ref you want to publish (any branch, or a
+`vX.Y.Z` tag), and type `DEPLOY` into the confirmation field. The workflow
+rejects refs that are neither a branch nor a `v`-prefixed version tag, and
+rejects any confirmation value other than the literal string `DEPLOY`.
+Requires the `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` repo secrets to be
+set.
 
 Netlify still provides deploy previews for every PR with Lighthouse audits for
 performance, accessibility, best practices, and SEO. Before merging, click
