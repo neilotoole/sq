@@ -157,6 +157,21 @@ func TestDetectMagicNumber(t *testing.T) {
 	}
 }
 
+func TestIsDuckDB(t *testing.T) {
+	// Construct a 16-byte buffer with "DUCK" at offset 8.
+	b := make([]byte, 16)
+	copy(b[8:12], []byte("DUCK"))
+	require.True(t, files.IsDuckDB(b))
+
+	// SQLite magic should not match.
+	require.False(t, files.IsDuckDB([]byte("SQLite format 3\x00")))
+
+	// nil / short buffers should not match.
+	require.False(t, files.IsDuckDB(nil))
+	require.False(t, files.IsDuckDB([]byte("DUCK")))
+	require.False(t, files.IsDuckDB(make([]byte, 11)))
+}
+
 func TestFiles_NewReader(t *testing.T) {
 	ctx := lg.NewContext(context.Background(), lgt.New(t))
 	fpath := sakila.PathCSVActor
