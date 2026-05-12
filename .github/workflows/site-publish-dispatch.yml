@@ -131,7 +131,25 @@ jobs:
           else
             DEPLOY_MESSAGE="Manual publish via workflow_dispatch by @${ACTOR} (${SHA})"
           fi
+
+          # Run the deploy with --json and parse the result. We don't trust
+          # the CLI's exit code alone: in some failure modes (post-processing
+          # error, partial upload that still gets aliased, etc.) the CLI has
+          # been observed to exit 0 even though the resulting deploy state is
+          # not `ready`. Capture the JSON to a file so we can both echo it
+          # into the run log and feed it to jq.
+          deploy_json=$(mktemp)
           bun x netlify-cli deploy \
             --prod \
             --dir=public \
-            --message "${DEPLOY_MESSAGE}"
+            --message "${DEPLOY_MESSAGE}" \
+            --json \
+            | tee "${deploy_json}"
+          state=$(jq -r '.deploy_state // .state // empty' "${deploy_json}")
+          deploy_url=$(jq -r '.deploy_url // .url // empty' "${deploy_json}")
+          echo "Deploy state: ${state:-<empty>}"
+          echo "Deploy URL:   ${deploy_url:-<empty>}"
+          if [ "${state}" != "ready" ]; then
+            echo "::error::Netlify deploy did not reach state=ready (got: ${state:-<empty>}). See JSON output above."
+            exit 1
+          fi
