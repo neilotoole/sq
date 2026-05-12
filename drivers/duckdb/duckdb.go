@@ -111,6 +111,10 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		_ = db.Close()
 		return nil, err
 	}
+	if err = loadExtensions(ctx, db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	return db, nil
 }
 
