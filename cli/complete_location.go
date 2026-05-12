@@ -110,6 +110,11 @@ func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) (
 		return locCompDoSQLite3(cmd, args, toComplete)
 	}
 
+	if strings.HasPrefix(toComplete, string(drivertype.DuckDB)) {
+		// Special handling for duckdb (file-based like sqlite).
+		return locCompDoDuckDB(cmd, args, toComplete)
+	}
+
 	return locCompDoGenericDriver(cmd, args, toComplete)
 }
 
@@ -400,6 +405,63 @@ func locCompDoSQLite3(cmd *cobra.Command, _ []string, toComplete string) ([]stri
 		}
 
 		paths[i] = "sqlite3://" + paths[i]
+	}
+
+	a := hist.locations()
+	a = append(a, paths...)
+	a = lo.Uniq(a)
+	a = stringz.FilterPrefix(toComplete, a...)
+	a = lo.Without(a, toComplete)
+
+	return a, locCompStdDirective
+}
+
+// locCompDoDuckDB completes a location starting with "duckdb://".
+// We have special handling for DuckDB, because it's not a generic
+// driver URL, but rather duckdb://FILE/PATH?param=X, similar to sqlite3.
+func locCompDoDuckDB(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	var (
+		ctx  = cmd.Context()
+		log  = lg.FromContext(ctx)
+		ru   = run.FromContext(ctx)
+		drvr driver.SQLDriver
+		err  error
+	)
+
+	if err = FinishRunInit(ctx, ru); err != nil {
+		log.Error("Init run", lga.Err, err)
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	if drvr, err = ru.DriverRegistry.SQLDriverFor(drivertype.DuckDB); err != nil {
+		// Shouldn't happen
+		log.Error("Cannot load driver", lga.Err, err)
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	hist := &locHistory{
+		coll: ru.Config.Collection,
+		typ:  drivertype.DuckDB,
+		log:  log,
+	}
+
+	du, err := dburl.Parse(toComplete)
+	if err == nil {
+		// Check if we're done with the filepath part, and on to conn params?
+		if du.RawQuery != "" || strings.HasSuffix(toComplete, "?") {
+			return locCompDoConnParams(du, hist, drvr, toComplete)
+		}
+	}
+
+	// Build a list of files.
+	start := strings.TrimPrefix(toComplete, "duckdb://")
+	paths := locCompListFiles(ctx, start)
+	for i := range paths {
+		if ioz.IsPathToRegularFile(paths[i]) && paths[i] == start {
+			paths[i] += "?"
+		}
+
+		paths[i] = "duckdb://" + paths[i]
 	}
 
 	a := hist.locations()
@@ -725,6 +787,7 @@ const (
 
 // locSchemes is the set of built-in (SQL) driver schemes.
 var locSchemes = []string{
+	"duckdb://",
 	"mysql://",
 	"postgres://",
 	"sqlite3://",

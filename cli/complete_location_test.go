@@ -23,6 +23,7 @@ import (
 )
 
 var locSchemes = []string{
+	"duckdb://",
 	"mysql://",
 	"postgres://",
 	"sqlite3://",

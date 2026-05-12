@@ -308,7 +308,7 @@ func checkStdinSource(ctx context.Context, ru *run.Run) (*source.Source, error) 
 		}
 	}
 
-	if typ != drivertype.SQLite {
+	if typ != drivertype.SQLite && typ != drivertype.DuckDB {
 		return newSource(
 			ctx,
 			ru.DriverRegistry,
@@ -319,9 +319,10 @@ func checkStdinSource(ctx context.Context, ru *run.Run) (*source.Source, error) 
 		)
 	}
 
-	// We have special handling to allow reading a sqlite db from stdin, e.g.:
+	// We have special handling to allow reading a sqlite or duckdb db from stdin, e.g.:
 	//
 	//  $ cat sakila.db | sq '.actor'
+	//  $ cat sakila.duckdb | sq '.actor'
 	//
 	// We create a temp file, and copy the stdin data to it from the reader
 	// returned from Files.NewReader for @stdin. Note that it's too late to copy
@@ -339,7 +340,7 @@ func checkStdinSource(ctx context.Context, ru *run.Run) (*source.Source, error) 
 		// Location has to be @stdin initially for Files.NewReader to work.
 		// We set Location to the temp file path below.
 		Location: source.StdinHandle,
-		Type:     drivertype.SQLite,
+		Type:     typ,
 	}
 
 	r, err := ru.Files.NewReader(ctx, src, true)
@@ -357,7 +358,11 @@ func checkStdinSource(ctx context.Context, ru *run.Run) (*source.Source, error) 
 		return nil, err
 	}
 
-	src.Location = "sqlite3://" + tmpFile.Name()
+	scheme := "sqlite3://"
+	if typ == drivertype.DuckDB {
+		scheme = "duckdb://"
+	}
+	src.Location = scheme + tmpFile.Name()
 	return src, nil
 }
 
