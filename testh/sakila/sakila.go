@@ -18,6 +18,11 @@ const (
 	TSVActorNoHeader = "@sakila_tsv_actor_noheader"
 	SL3              = "@sakila_sl3"
 	SL3Whitespace    = "@sakila_sl3_whitespace"
+	// Duck is the handle for the DuckDB sakila DB.
+	Duck = "@sakila_duck"
+	// DuckWhitespace is the handle for the DuckDB sakila DB
+	// with whitespace-containing identifiers.
+	DuckWhitespace = "@sakila_duck_whitespace"
 	Pg9              = "@sakila_pg9"
 	Pg10             = "@sakila_pg10"
 	Pg11             = "@sakila_pg11"
@@ -54,6 +59,7 @@ const (
 func AllHandles() []string {
 	return []string{
 		SL3,
+		Duck,
 		Pg9,
 		// Pg10,
 		// Pg11,
@@ -74,6 +80,7 @@ func AllHandles() []string {
 func SQLAll() []string {
 	return []string{
 		SL3,
+		Duck,
 		Pg9,
 		// Pg10,
 		// Pg11,

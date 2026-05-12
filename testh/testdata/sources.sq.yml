@@ -7,6 +7,12 @@ collection:
     - handle: '@sakila_sl3_whitespace'
       driver: sqlite3
       location: sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sakila_whitespace.db
+    - handle: '@sakila_duck'
+      driver: duckdb
+      location: duckdb://${SQ_ROOT}/drivers/duckdb/testdata/sakila.duckdb
+    - handle: '@sakila_duck_whitespace'
+      driver: duckdb
+      location: duckdb://${SQ_ROOT}/drivers/duckdb/testdata/sakila-whitespace.duckdb
     - handle: '@sakila_pg9'
       driver: postgres
       location: postgres://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_PG9}/sakila
