@@ -57,8 +57,7 @@ CREATE TABLE city (
   city VARCHAR(50) NOT NULL,
   country_id SMALLINT NOT NULL,
   last_update TIMESTAMP NOT NULL,
-  PRIMARY KEY  (city_id),
-  CONSTRAINT fk_city_country FOREIGN KEY (country_id) REFERENCES country (country_id) ON DELETE NO ACTION ON UPDATE CASCADE
+  PRIMARY KEY  (city_id)
 )
 ;
 CREATE  INDEX idx_fk_country_id ON city(country_id)
@@ -81,8 +80,7 @@ CREATE TABLE address (
   postal_code VARCHAR(10) DEFAULT NULL,
   phone VARCHAR(20) NOT NULL,
   last_update TIMESTAMP NOT NULL,
-  PRIMARY KEY  (address_id),
-  CONSTRAINT fk_address_city FOREIGN KEY (city_id) REFERENCES city (city_id) ON DELETE NO ACTION ON UPDATE CASCADE
+  PRIMARY KEY  (address_id)
 )
 ;
 
@@ -138,9 +136,7 @@ CREATE TABLE customer (
   active CHAR(1) DEFAULT 'Y' NOT NULL,
   create_date TIMESTAMP NOT NULL,
   last_update TIMESTAMP NOT NULL,
-  PRIMARY KEY  (customer_id),
-  CONSTRAINT fk_customer_store FOREIGN KEY (store_id) REFERENCES store (store_id) ON DELETE NO ACTION ON UPDATE CASCADE,
-  CONSTRAINT fk_customer_address FOREIGN KEY (address_id) REFERENCES address (address_id) ON DELETE NO ACTION ON UPDATE CASCADE
+  PRIMARY KEY  (customer_id)
 )
 ;
 
@@ -162,7 +158,7 @@ CREATE  INDEX idx_customer_last_name ON customer(last_name)
 CREATE TABLE film (
   film_id INT NOT NULL,
   title VARCHAR(255) NOT NULL,
-  description BLOB SUB_TYPE TEXT DEFAULT NULL,
+  description TEXT DEFAULT NULL,
   release_year VARCHAR(4) DEFAULT NULL,
   language_id SMALLINT NOT NULL,
   original_language_id SMALLINT DEFAULT NULL,
@@ -179,9 +175,7 @@ CREATE TABLE film (
                                                            special_features like '%Commentaries%' or
                                                            special_features like '%Deleted Scenes%' or
                                                            special_features like '%Behind the Scenes%'),
-  CONSTRAINT CHECK_special_rating CHECK(rating in ('G','PG','PG-13','R','NC-17')),
-  CONSTRAINT fk_film_language FOREIGN KEY (language_id) REFERENCES language (language_id) ,
-  CONSTRAINT fk_film_language_original FOREIGN KEY (original_language_id) REFERENCES language (language_id)
+  CONSTRAINT CHECK_special_rating CHECK(rating in ('G','PG','PG-13','R','NC-17'))
 )
 ;
 CREATE  INDEX idx_fk_language_id ON film(language_id)
@@ -201,9 +195,7 @@ CREATE TABLE film_actor (
   actor_id INT NOT NULL,
   film_id  INT NOT NULL,
   last_update TIMESTAMP NOT NULL,
-  PRIMARY KEY  (actor_id,film_id),
-  CONSTRAINT fk_film_actor_actor FOREIGN KEY (actor_id) REFERENCES actor (actor_id) ON DELETE NO ACTION ON UPDATE CASCADE,
-  CONSTRAINT fk_film_actor_film FOREIGN KEY (film_id) REFERENCES film (film_id) ON DELETE NO ACTION ON UPDATE CASCADE
+  PRIMARY KEY  (actor_id,film_id)
 )
 ;
 
@@ -226,9 +218,7 @@ CREATE TABLE film_category (
   film_id INT NOT NULL,
   category_id SMALLINT  NOT NULL,
   last_update TIMESTAMP NOT NULL,
-  PRIMARY KEY (film_id, category_id),
-  CONSTRAINT fk_film_category_film FOREIGN KEY (film_id) REFERENCES film (film_id) ON DELETE NO ACTION ON UPDATE CASCADE,
-  CONSTRAINT fk_film_category_category FOREIGN KEY (category_id) REFERENCES category (category_id) ON DELETE NO ACTION ON UPDATE CASCADE
+  PRIMARY KEY (film_id, category_id)
 )
 ;
 
@@ -249,7 +239,7 @@ CREATE  INDEX idx_fk_film_category_category ON film_category(category_id)
 CREATE TABLE film_text (
   film_id SMALLINT NOT NULL,
   title VARCHAR(255) NOT NULL,
-  description BLOB SUB_TYPE TEXT,
+  description TEXT,
   PRIMARY KEY  (film_id)
 )
 ;
@@ -263,9 +253,7 @@ CREATE TABLE inventory (
   film_id INT NOT NULL,
   store_id INT NOT NULL,
   last_update TIMESTAMP NOT NULL,
-  PRIMARY KEY  (inventory_id),
-  CONSTRAINT fk_inventory_store FOREIGN KEY (store_id) REFERENCES store (store_id) ON DELETE NO ACTION ON UPDATE CASCADE,
-  CONSTRAINT fk_inventory_film FOREIGN KEY (film_id) REFERENCES film (film_id) ON DELETE NO ACTION ON UPDATE CASCADE
+  PRIMARY KEY  (inventory_id)
 )
 ;
 
@@ -295,9 +283,7 @@ CREATE TABLE staff (
   username VARCHAR(16) NOT NULL,
   password VARCHAR(40) DEFAULT NULL,
   last_update TIMESTAMP NOT NULL,
-  PRIMARY KEY  (staff_id),
-  CONSTRAINT fk_staff_store FOREIGN KEY (store_id) REFERENCES store (store_id) ON DELETE NO ACTION ON UPDATE CASCADE,
-  CONSTRAINT fk_staff_address FOREIGN KEY (address_id) REFERENCES address (address_id) ON DELETE NO ACTION ON UPDATE CASCADE
+  PRIMARY KEY  (staff_id)
 )
 ;
 CREATE  INDEX idx_fk_staff_store_id ON staff(store_id)
@@ -319,9 +305,7 @@ CREATE TABLE store (
   manager_staff_id SMALLINT NOT NULL,
   address_id INT NOT NULL,
   last_update TIMESTAMP NOT NULL,
-  PRIMARY KEY  (store_id),
-  CONSTRAINT fk_store_staff FOREIGN KEY (manager_staff_id) REFERENCES staff (staff_id) ,
-  CONSTRAINT fk_store_address FOREIGN KEY (address_id) REFERENCES address (address_id)
+  PRIMARY KEY  (store_id)
 )
 ;
 
@@ -347,10 +331,7 @@ CREATE TABLE payment (
   amount DECIMAL(5,2) NOT NULL,
   payment_date TIMESTAMP NOT NULL,
   last_update TIMESTAMP NOT NULL,
-  PRIMARY KEY  (payment_id),
-  CONSTRAINT fk_payment_rental FOREIGN KEY (rental_id) REFERENCES rental (rental_id) ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT fk_payment_customer FOREIGN KEY (customer_id) REFERENCES customer (customer_id) ,
-  CONSTRAINT fk_payment_staff FOREIGN KEY (staff_id) REFERENCES staff (staff_id)
+  PRIMARY KEY  (payment_id)
 )
 ;
 CREATE  INDEX idx_fk_staff_id ON payment(staff_id)
@@ -370,10 +351,7 @@ CREATE TABLE rental (
   return_date TIMESTAMP DEFAULT NULL,
   staff_id SMALLINT  NOT NULL,
   last_update TIMESTAMP NOT NULL,
-  PRIMARY KEY (rental_id),
-  CONSTRAINT fk_rental_staff FOREIGN KEY (staff_id) REFERENCES staff (staff_id) ,
-  CONSTRAINT fk_rental_inventory FOREIGN KEY (inventory_id) REFERENCES inventory (inventory_id) ,
-  CONSTRAINT fk_rental_customer FOREIGN KEY (customer_id) REFERENCES customer (customer_id)
+  PRIMARY KEY (rental_id)
 )
 ;
 CREATE INDEX idx_rental_fk_inventory_id ON rental(inventory_id)
