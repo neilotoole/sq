@@ -329,7 +329,7 @@ func getTableRowCounts(ctx context.Context, db sqlz.DB, tables []*metadata.Table
 			sb.WriteString(" UNION ALL ")
 		}
 		// Use COUNT(*) on each table. Views are also counted this way.
-		sb.WriteString(fmt.Sprintf("SELECT COUNT(*) FROM %q", tbl.Name))
+		fmt.Fprintf(&sb, "SELECT COUNT(*) FROM %q", tbl.Name)
 	}
 
 	rows, err := db.QueryContext(ctx, sb.String())
