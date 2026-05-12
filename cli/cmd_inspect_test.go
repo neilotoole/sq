@@ -41,6 +41,7 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 		{sakila.TSVActor, []string{source.MonotableName}},
 		{sakila.XLSX, sakila.AllTbls()},
 		{sakila.SL3, sakila.AllTbls()},
+		{sakila.Duck, sakila.AllTbls()},
 		{sakila.Pg, lo.Without(sakila.AllTbls(), sakila.TblFilmText)}, // pg doesn't have film_text
 		{sakila.My, sakila.AllTbls()},
 		{sakila.MS, sakila.AllTbls()},
@@ -126,7 +127,10 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 						require.NotEmpty(t, srcMeta.DBDriver)
 						require.NotEmpty(t, srcMeta.DBProduct)
 						require.NotEmpty(t, srcMeta.DBVersion)
-						require.NotZero(t, srcMeta.Size)
+						// TODO: DuckDB driver does not yet populate metadata.Source.Size.
+						if src.Type != drivertype.DuckDB {
+							require.NotZero(t, srcMeta.Size)
+						}
 					})
 
 					t.Run("inspect_dbprops", func(t *testing.T) {
@@ -161,6 +165,7 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 		{sakila.TSVActor, []string{source.MonotableName}},
 		{sakila.XLSX, sakila.AllTbls()},
 		{sakila.SL3, sakila.AllTbls()},
+		{sakila.Duck, sakila.AllTbls()},
 		{sakila.Pg, lo.Without(sakila.AllTbls(), sakila.TblFilmText)}, // pg doesn't have film_text
 		{sakila.My, sakila.AllTbls()},
 		{sakila.MS, sakila.AllTbls()},
@@ -345,6 +350,12 @@ func TestCmdInspect_mode_schemata(t *testing.T) {
 			handle: sakila.SL3,
 			wantSchemata: []schema{
 				{Name: "main", Catalog: "default", Active: active},
+			},
+		},
+		{
+			handle: sakila.Duck,
+			wantSchemata: []schema{
+				{Name: "main", Catalog: "sakila", Owner: "duckdb", Active: active},
 			},
 		},
 		{

@@ -383,6 +383,12 @@ func TestCmdSLQ_FlagActiveSchema(t *testing.T) {
 			skipReason: `SQLite 'schema' support requires implementing 'ATTACH DATABASE'.
 See: https://github.com/neilotoole/sq/issues/324`,
 		},
+		{
+			handle: sakila.Duck,
+			skipReason: `DuckDB excludes information_schema from its referenceable schema
+list, so --src.schema=information_schema is not supported.
+See: https://github.com/neilotoole/sq/issues/437`,
+		},
 	}
 
 	for _, tc := range testCases {
