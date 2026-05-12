@@ -25,6 +25,11 @@ const (
 // supported driver.
 const likeEscapeChar = '|'
 
+// likeEscapeClause is the SQL fragment emitted after the pattern literal to
+// declare the escape character. Derived from likeEscapeChar so the two stay
+// in lock-step.
+var likeEscapeClause = " ESCAPE '" + string(likeEscapeChar) + "'"
+
 // EscapeLikePattern prefixes likeEscapeChar before each LIKE meta-character
 // (% and _) and before any literal occurrence of the escape char itself.
 // Exported for use by driver-specific overrides.
@@ -73,21 +78,25 @@ func ParseLikeArgs(rc *Context, fn *ast.FuncNode) (colSQL, literal string, err e
 			fn.FuncName(), len(children))
 	}
 
-	// The parser commonly wraps function arguments in an *ast.ExprNode.
-	// Unwrap to get the underlying leaf node.
-	colNode := unwrapSingleChild(children[0])
+	// SLQ parses function arguments as expression trees, so each child is
+	// typically wrapped in an *ast.ExprNode. Peel through single-child
+	// wrappers to reach the underlying selector and literal leaves; reject
+	// anything with internal branching.
+	colNode, ok := ast.NodeUnwrap[ast.Node](children[0])
+	if !ok {
+		return "", "", errz.Errorf(
+			"%s() first argument must be a column selector", fn.FuncName())
+	}
 	colSQL, err = renderSelectorNode(rc.Dialect, colNode)
 	if err != nil {
 		return "", "", errz.Wrapf(err,
 			"%s() first argument must be a column selector", fn.FuncName())
 	}
 
-	litNodeRaw := unwrapSingleChild(children[1])
-	litNode, ok := litNodeRaw.(*ast.LiteralNode)
+	litNode, ok := ast.NodeUnwrap[*ast.LiteralNode](children[1])
 	if !ok {
 		return "", "", errz.Errorf(
-			"%s() second argument must be a string literal, got %T",
-			fn.FuncName(), litNodeRaw)
+			"%s() second argument must be a string literal", fn.FuncName())
 	}
 	val, wasQuoted, err := unquoteLiteral(litNode.Text())
 	if err != nil {
@@ -101,26 +110,9 @@ func ParseLikeArgs(rc *Context, fn *ast.FuncNode) (colSQL, literal string, err e
 	return colSQL, val, nil
 }
 
-// unwrapSingleChild unwraps node if it is an *ast.ExprNode containing a
-// single child, recursively. This mirrors the convention used elsewhere
-// in the renderer where function arguments may be wrapped in an ExprNode.
-func unwrapSingleChild(node ast.Node) ast.Node {
-	for {
-		expr, ok := node.(*ast.ExprNode)
-		if !ok {
-			return node
-		}
-		kids := expr.Children()
-		if len(kids) != 1 {
-			return node
-		}
-		node = kids[0]
-	}
-}
-
 // RenderLikeOp renders the LIKE-based shape:
 //
-//	<colSQL><colCollate> <likeOp> '<pattern>' ESCAPE '|'
+//	<colSQL><colCollate> <likeOp> '<pattern>' ESCAPE '<likeEscapeChar>'
 //
 // likeOp is typically "LIKE" or "LIKE BINARY" (MySQL).
 // colCollate, when non-empty, is appended verbatim after the column reference
@@ -135,7 +127,7 @@ func RenderLikeOp(rc *Context, fn *ast.FuncNode, mode LikeMode, likeOp, colColla
 		return "", err
 	}
 	pattern := BuildLikePattern(lit, mode)
-	return colSQL + colCollate + " " + likeOp + " " + stringz.SingleQuote(pattern) + " ESCAPE '|'", nil
+	return colSQL + colCollate + " " + likeOp + " " + stringz.SingleQuote(pattern) + likeEscapeClause, nil
 }
 
 func doFuncContains(rc *Context, fn *ast.FuncNode) (string, error) {

@@ -19,6 +19,7 @@ func TestEscapeLikePattern(t *testing.T) {
 		{"%_|", "|%|_||"},
 		{"O'Brien", "O'Brien"}, // single quote is NOT a LIKE meta-char
 		{"100%_off|", "100|%|_off||"},
+		{"café_au_lait", "café|_au|_lait"}, // multi-byte UTF-8 round-trips correctly
 	}
 
 	for _, tc := range testCases {
