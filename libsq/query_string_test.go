@@ -27,7 +27,8 @@ func TestQuery_string_contains(t *testing.T) {
 			skipExec: true,
 		},
 		{
-			// Pair test: uppercase pattern matches exactly one row (ANGELA).
+			// Pair test: uppercase pattern matches both ANGELA rows in sakila
+			// (ANGELA HUDSON, ANGELA WITHERSPOON).
 			name:         "contains/case-sensitive-uppercase",
 			in:           `@sakila | .actor | where(contains(.first_name, "ANGELA"))`,
 			wantSQL:      `SELECT * FROM "actor" WHERE "first_name" LIKE '%ANGELA%' ESCAPE '|'`,
@@ -37,7 +38,7 @@ func TestQuery_string_contains(t *testing.T) {
 				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE '%ANGELA%' ESCAPE '|'`,
 				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` LIKE '%ANGELA%' ESCAPE '|'",
 			},
-			wantRecCount: 1,
+			wantRecCount: 2,
 		},
 		{
 			// Pair test: lowercase pattern matches zero rows on all drivers
