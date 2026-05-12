@@ -15,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/drivers/csv"
+	"github.com/neilotoole/sq/drivers/duckdb"
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -248,6 +249,17 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		}
 
 		lg.FromContext(ctx).Debug("Munged sqlite loc", lga.Before, locBefore, lga.After, loc)
+	}
+
+	if typ == drivertype.DuckDB {
+		locBefore := loc
+		// Special handling for DuckDB, because it's a file-based DB.
+		loc, err = duckdb.MungeLocation(loc)
+		if err != nil {
+			return err
+		}
+
+		lg.FromContext(ctx).Debug("Munged duckdb loc", lga.Before, locBefore, lga.After, loc)
 	}
 
 	// If the -p flag is set, sq looks for password input on stdin,

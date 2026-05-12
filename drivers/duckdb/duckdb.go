@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -130,6 +131,50 @@ func dsnFromLocation(loc string) (string, error) {
 		return "", errz.Errorf("invalid duckdb location: %q", loc)
 	}
 	return loc[len(Prefix):], nil
+}
+
+// MungeLocation takes a location argument (as received from the user)
+// and builds a duckdb location URL. Each of these forms are allowed:
+//
+//	duckdb:///path/to/foo.duckdb	--> duckdb:///path/to/foo.duckdb
+//	duckdb:foo.duckdb             --> duckdb:///current/working/dir/foo.duckdb
+//	duckdb:/foo.duckdb            --> duckdb:///foo.duckdb
+//	duckdb:./foo.duckdb           --> duckdb:///current/working/dir/foo.duckdb
+//	foo.duckdb                    --> duckdb:///current/working/dir/foo.duckdb
+//	/path/to/foo.duckdb           --> duckdb:///path/to/foo.duckdb
+//	:memory:                      --> duckdb://:memory:
+//	duckdb://:memory:             --> duckdb://:memory:
+//
+// The final file-path form is particularly nice for shell completion etc.
+//
+// Note that this function is OS-dependent, due to the use of pkg filepath.
+// Thus, on Windows, this is seen:
+//
+//	C:/Users/sq/foo.duckdb        --> duckdb://C:/Users/sq/foo.duckdb
+//
+// But that input location gets mangled on non-Windows OSes. This probably
+// isn't a problem in practice, but longer-term it may make sense to rewrite
+// MungeLocation to be OS-independent.
+func MungeLocation(loc string) (string, error) {
+	loc2 := strings.TrimSpace(loc)
+	if loc2 == "" {
+		return "", errz.New("location must not be empty")
+	}
+
+	if loc2 == ":memory:" || loc2 == Prefix+":memory:" {
+		return Prefix + ":memory:", nil
+	}
+
+	loc2 = strings.TrimPrefix(loc2, Prefix)
+	loc2 = strings.TrimPrefix(loc2, "duckdb:")
+
+	fp, err := filepath.Abs(loc2)
+	if err != nil {
+		return "", errz.Wrapf(err, "invalid location: %s", loc)
+	}
+
+	fp = filepath.ToSlash(fp)
+	return Prefix + fp, nil
 }
 
 // Ping implements driver.Driver.
