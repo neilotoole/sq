@@ -3,9 +3,13 @@ package duckdb
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log/slog"
+	"math/big"
+	"time"
 
-	_ "github.com/duckdb/duckdb-go/v2" // Import for side effect of loading the driver
+	duckdbdriver "github.com/duckdb/duckdb-go/v2" // also registers the "duckdb" sql driver
+	"github.com/shopspring/decimal"
 
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -190,8 +194,186 @@ func (d *driveri) TableColumnTypes(_ context.Context, _ sqlz.DB, _ string, _ []s
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(_ context.Context, _ []*sql.ColumnType) (record.Meta, driver.NewRecordFunc, error) {
-	return nil, nil, errz.New("not implemented")
+//
+// go-duckdb returns native Go values (not sql.Null* wrappers). NULL columns
+// are represented as nil in the driver.Value slice. The munge function
+// converts duckdb-specific types (Decimal, Interval, *big.Int, composites)
+// to sq's canonical record types.
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
+	record.Meta, driver.NewRecordFunc, error,
+) {
+	ctData := make([]*record.ColumnTypeData, len(colTypes))
+	ogColNames := make([]string, len(colTypes))
+	for i, ct := range colTypes {
+		dbTypeName := ct.DatabaseTypeName()
+		knd := kindFromDBTypeName(dbTypeName)
+		colTypeData := record.NewColumnTypeData(ct, knd)
+		// Always use *any as the scan target. go-duckdb delivers native Go
+		// values (int32, float32, string, time.Time, duckdb.Decimal, etc.)
+		// directly via the database/sql driver protocol. When the scan target
+		// is *any, database/sql stores the raw driver value inside the any,
+		// which our munge function then normalises into sq canonical types.
+		// Using typed scan targets (e.g. *int32) would require us to handle
+		// every pointer-to-concrete-type variant, which is fragile.
+		colTypeData.ScanType = sqlz.RTypeAny
+		ctData[i] = colTypeData
+		ogColNames[i] = colTypeData.Name
+	}
+
+	mungedNames, err := driver.MungeResultColNames(ctx, ogColNames)
+	if err != nil {
+		return nil, nil, errz.Err(err)
+	}
+
+	recMeta := make(record.Meta, len(colTypes))
+	for i := range ctData {
+		recMeta[i] = record.NewFieldMeta(ctData[i], mungedNames[i])
+	}
+
+	mungeFn := newRecordFuncForDuckDB(recMeta)
+	return recMeta, mungeFn, nil
+}
+
+// newRecordFuncForDuckDB returns a driver.NewRecordFunc that converts a row of
+// raw scan values returned by go-duckdb into a sq record.Record containing only
+// canonical types: nil, bool, int64, float64, decimal.Decimal, string, []byte,
+// time.Time.
+//
+// go-duckdb delivers native Go values directly (no sql.Null* wrappers); NULL
+// columns arrive as untyped nil. Exotic DuckDB-specific types are converted to
+// their closest sq canonical representation.
+func newRecordFuncForDuckDB(recMeta record.Meta) driver.NewRecordFunc {
+	return func(rowVals []any) (record.Record, error) {
+		rec := make(record.Record, len(rowVals))
+		for i, val := range rowVals {
+			if val == nil {
+				rec[i] = nil
+				continue
+			}
+
+			// Unwrap *any (used when ScanType is RTypeAny / unknown columns).
+			if ptr, ok := val.(*any); ok {
+				if ptr == nil || *ptr == nil {
+					rec[i] = nil
+					continue
+				}
+				val = *ptr
+			}
+
+			switch v := val.(type) {
+			// ---- boolean ----
+			case bool:
+				record.SetKindIfUnknown(recMeta, i, kind.Bool)
+				rec[i] = v
+
+			// ---- integers (go-duckdb uses fixed-width ints) ----
+			case int8:
+				record.SetKindIfUnknown(recMeta, i, kind.Int)
+				rec[i] = int64(v)
+			case int16:
+				record.SetKindIfUnknown(recMeta, i, kind.Int)
+				rec[i] = int64(v)
+			case int32:
+				record.SetKindIfUnknown(recMeta, i, kind.Int)
+				rec[i] = int64(v)
+			case int64:
+				record.SetKindIfUnknown(recMeta, i, kind.Int)
+				rec[i] = v
+			case uint8:
+				record.SetKindIfUnknown(recMeta, i, kind.Int)
+				rec[i] = int64(v)
+			case uint16:
+				record.SetKindIfUnknown(recMeta, i, kind.Int)
+				rec[i] = int64(v)
+			case uint32:
+				record.SetKindIfUnknown(recMeta, i, kind.Int)
+				rec[i] = int64(v)
+			case uint64:
+				record.SetKindIfUnknown(recMeta, i, kind.Int)
+				// uint64 may overflow int64 for very large values; truncate.
+				rec[i] = int64(v) //nolint:gosec
+
+			// ---- HUGEINT / UHUGEINT / BIGNUM (*big.Int) ----
+			// These can exceed int64 range; truncate to int64 (best effort).
+			case *big.Int:
+				record.SetKindIfUnknown(recMeta, i, kind.Int)
+				rec[i] = v.Int64()
+
+			// ---- floats ----
+			case float32:
+				record.SetKindIfUnknown(recMeta, i, kind.Float)
+				rec[i] = float64(v)
+			case float64:
+				record.SetKindIfUnknown(recMeta, i, kind.Float)
+				rec[i] = v
+
+			// ---- DECIMAL (duckdb.Decimal → shopspring decimal.Decimal) ----
+			case duckdbdriver.Decimal:
+				record.SetKindIfUnknown(recMeta, i, kind.Decimal)
+				// Convert via the string representation to avoid float precision loss.
+				d, err := decimal.NewFromString(v.String())
+				if err != nil {
+					// Fallback: use float64 approximation.
+					rec[i] = decimal.NewFromFloat(v.Float64())
+				} else {
+					rec[i] = d
+				}
+
+			// ---- string / text ----
+			case string:
+				record.SetKindIfUnknown(recMeta, i, kind.Text)
+				rec[i] = v
+
+			// ---- bytes / blob ----
+			case []byte:
+				if recMeta[i].Kind() == kind.Bytes {
+					b := make([]byte, len(v))
+					copy(b, v)
+					rec[i] = b
+				} else {
+					// UUID and similar types scan as []byte but are treated as text.
+					record.SetKindIfUnknown(recMeta, i, kind.Text)
+					rec[i] = string(v)
+				}
+
+			// ---- time.Time (TIMESTAMP, DATE, TIME) ----
+			case time.Time:
+				record.SetKindIfUnknown(recMeta, i, kind.Datetime)
+				rec[i] = v
+
+			// ---- INTERVAL (duckdb.Interval → string, deferred to Task 4.4) ----
+			case duckdbdriver.Interval:
+				record.SetKindIfUnknown(recMeta, i, kind.Text)
+				rec[i] = fmt.Sprintf("%d months %d days %d μs", v.Months, v.Days, v.Micros)
+
+			// ---- composite types: LIST ([]any), ARRAY ----
+			case []any:
+				record.SetKindIfUnknown(recMeta, i, kind.Text)
+				rec[i] = fmt.Sprintf("%v", v)
+
+			// ---- STRUCT (map[string]any) ----
+			case map[string]any:
+				record.SetKindIfUnknown(recMeta, i, kind.Text)
+				rec[i] = fmt.Sprintf("%v", v)
+
+			// ---- MAP (duckdb.OrderedMap) ----
+			case duckdbdriver.OrderedMap:
+				record.SetKindIfUnknown(recMeta, i, kind.Text)
+				rec[i] = v.String()
+
+			// ---- UNION (duckdb.Union) ----
+			case duckdbdriver.Union:
+				record.SetKindIfUnknown(recMeta, i, kind.Text)
+				rec[i] = fmt.Sprintf("%v", v.Value)
+
+			default:
+				// Unknown type: stringify as best-effort.
+				record.SetKindIfUnknown(recMeta, i, kind.Text)
+				rec[i] = fmt.Sprintf("%v", v)
+			}
+		}
+		return rec, nil
+	}
 }
 
 // PrepareInsertStmt implements driver.SQLDriver.
