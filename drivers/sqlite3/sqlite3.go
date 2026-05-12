@@ -256,6 +256,10 @@ func (d *driveri) Renderer() *render.Renderer {
 	const catalogFrag = `(SELECT 'default')`
 	r.FunctionOverrides[ast.FuncNameCatalog] = render.FuncOverrideString(catalogFrag)
 
+	r.FunctionOverrides[ast.FuncNameContains] = renderFuncContainsInstr
+	r.FunctionOverrides[ast.FuncNameStartsWith] = renderFuncStartsWithSubstr
+	r.FunctionOverrides[ast.FuncNameEndsWith] = renderFuncEndsWithSubstr
+
 	return r
 }
 

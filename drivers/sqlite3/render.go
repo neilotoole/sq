@@ -2,11 +2,16 @@ package sqlite3
 
 import (
 	"bytes"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 
+	"github.com/neilotoole/sq/libsq/ast"
+	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // createTblKindDefaults is a mapping of Kind to the value
@@ -134,4 +139,30 @@ func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+func renderFuncContainsInstr(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	colSQL, lit, err := render.ParseLikeArgs(rc, fn)
+	if err != nil {
+		return "", err
+	}
+	return "instr(" + colSQL + ", " + stringz.SingleQuote(lit) + ") > 0", nil
+}
+
+func renderFuncStartsWithSubstr(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	colSQL, lit, err := render.ParseLikeArgs(rc, fn)
+	if err != nil {
+		return "", err
+	}
+	n := utf8.RuneCountInString(lit)
+	return "substr(" + colSQL + ", 1, " + strconv.Itoa(n) + ") = " + stringz.SingleQuote(lit), nil
+}
+
+func renderFuncEndsWithSubstr(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	colSQL, lit, err := render.ParseLikeArgs(rc, fn)
+	if err != nil {
+		return "", err
+	}
+	n := utf8.RuneCountInString(lit)
+	return "substr(" + colSQL + ", -" + strconv.Itoa(n) + ") = " + stringz.SingleQuote(lit), nil
 }
