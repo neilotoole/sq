@@ -46,6 +46,11 @@ test-short:
 	@# See: https://pkg.go.dev/testing#Short
 	@go test -short -tags "$(BUILD_TAGS)" ./...
 
+.PHONY: test-duckdb
+test-duckdb:
+	@# Run only the DuckDB driver tests.
+	@go test -tags "$(BUILD_TAGS)" ./drivers/duckdb/...
+
 .PHONY: build
 build:
 	@# Build binary for the current (local) platform only; output to dist/sq.
