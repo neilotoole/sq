@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	goccy "github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -128,6 +129,29 @@ func TestJSONLWriter_SingleLine(t *testing.T) {
 func TestJSONWriter_OmitsEmptyArgs(t *testing.T) {
 	buf := &bytes.Buffer{}
 	w := sqlw.NewJSONWriter(buf, newMonochromePrinting())
+
+	p := samplePayload()
+	p.Args = nil
+	require.NoError(t, w.Render(p))
+
+	require.NotContains(t, buf.String(), "args")
+}
+
+func TestYAMLWriter_RoundTrip(t *testing.T) {
+	buf := &bytes.Buffer{}
+	w := sqlw.NewYAMLWriter(buf, newMonochromePrinting())
+	require.NoError(t, w.Render(samplePayload()))
+
+	require.True(t, strings.HasSuffix(buf.String(), "\n"))
+
+	var got output.SQLPayload
+	require.NoError(t, goccy.Unmarshal(buf.Bytes(), &got))
+	require.Equal(t, samplePayload(), got)
+}
+
+func TestYAMLWriter_OmitsEmptyArgs(t *testing.T) {
+	buf := &bytes.Buffer{}
+	w := sqlw.NewYAMLWriter(buf, newMonochromePrinting())
 
 	p := samplePayload()
 	p.Args = nil
