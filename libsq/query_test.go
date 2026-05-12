@@ -235,8 +235,8 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 				return
 			}
 
-			t.Logf("SQL:\n\n%s\n\n", gotRes.SQL)
 			require.NoError(t, gotErr)
+			t.Logf("SQL:\n\n%s\n\n", gotRes.SQL)
 
 			if want != "" {
 				require.Equal(t, want, gotRes.SQL)
