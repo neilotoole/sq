@@ -2,7 +2,9 @@ package sqlw_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -82,4 +84,54 @@ func TestTextWriter_Color_TrueFalseNull(t *testing.T) {
 		"expected NULL rendered with pr.Null")
 	// SELECT keyword should NOT use the Bool color.
 	require.NotContains(t, got, pr.Bool.Sprint("SELECT"))
+}
+
+func samplePayload() output.SQLPayload {
+	return output.SQLPayload{
+		SLQ:     `.actor | .first_name == "TOM"`,
+		SQL:     `SELECT * FROM "actor" WHERE "first_name" = 'TOM'`,
+		Dialect: "postgres",
+		Source:  "@sakila_pg",
+		Multi:   false,
+		Args:    map[string]string{"name": "TOM"},
+	}
+}
+
+func TestJSONWriter_Pretty(t *testing.T) {
+	buf := &bytes.Buffer{}
+	w := sqlw.NewJSONWriter(buf, newMonochromePrinting())
+	require.NoError(t, w.Render(samplePayload()))
+
+	// Pretty output spans multiple lines.
+	require.Greater(t, strings.Count(buf.String(), "\n"), 3)
+
+	var got output.SQLPayload
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
+	require.Equal(t, samplePayload(), got)
+}
+
+func TestJSONLWriter_SingleLine(t *testing.T) {
+	buf := &bytes.Buffer{}
+	w := sqlw.NewJSONLWriter(buf, newMonochromePrinting())
+	require.NoError(t, w.Render(samplePayload()))
+
+	out := buf.String()
+	// JSONL has exactly one trailing newline and no internal newlines.
+	require.Equal(t, 1, strings.Count(out, "\n"))
+	require.True(t, strings.HasSuffix(out, "\n"))
+
+	var got output.SQLPayload
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(out)), &got))
+	require.Equal(t, samplePayload(), got)
+}
+
+func TestJSONWriter_OmitsEmptyArgs(t *testing.T) {
+	buf := &bytes.Buffer{}
+	w := sqlw.NewJSONWriter(buf, newMonochromePrinting())
+
+	p := samplePayload()
+	p.Args = nil
+	require.NoError(t, w.Render(p))
+
+	require.NotContains(t, buf.String(), "args")
 }
