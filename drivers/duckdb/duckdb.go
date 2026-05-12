@@ -530,26 +530,27 @@ func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, 
 	return listTableNames(ctx, db, schma, tables, views)
 }
 
-// CopyTable implements driver.SQLDriver. It creates toTbl as a copy of
-// fromTbl using DuckDB's "CREATE TABLE … AS SELECT …" syntax. When
-// copyData is false, an impossible WHERE clause eliminates all rows.
+// CopyTable implements driver.SQLDriver. It creates toTbl with the schema of
+// fromTbl, then optionally inserts the data. CREATE TABLE AS SELECT in DuckDB
+// reports 0 rows affected (it's a DDL statement), so when copying data we
+// split into a schema-only CREATE followed by INSERT … SELECT to get an
+// accurate row count.
 func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 	fromTbl, toTbl tablefq.T, copyData bool,
 ) (int64, error) {
-	var stmt string
-	if copyData {
-		stmt = fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM %s",
-			toTbl.Render(stringz.DoubleQuote),
-			fromTbl.Render(stringz.DoubleQuote),
-		)
-	} else {
-		stmt = fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM %s WHERE 0=1",
-			toTbl.Render(stringz.DoubleQuote),
-			fromTbl.Render(stringz.DoubleQuote),
-		)
+	toQ := toTbl.Render(stringz.DoubleQuote)
+	fromQ := fromTbl.Render(stringz.DoubleQuote)
+
+	createStmt := fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM %s WHERE 0=1", toQ, fromQ)
+	if _, err := db.ExecContext(ctx, createStmt); err != nil {
+		return 0, errw(err)
+	}
+	if !copyData {
+		return 0, nil
 	}
 
-	affected, err := sqlz.ExecAffected(ctx, db, stmt)
+	insertStmt := fmt.Sprintf("INSERT INTO %s SELECT * FROM %s", toQ, fromQ)
+	affected, err := sqlz.ExecAffected(ctx, db, insertStmt)
 	if err != nil {
 		return 0, errw(err)
 	}
