@@ -106,7 +106,10 @@ func NewDefaultRenderer() *Renderer {
 		Join:       doJoin,
 		Function:   doFunction,
 		FunctionOverrides: map[string]func(rc *Context, fn *ast.FuncNode) (string, error){
-			ast.FuncNameRowNum: doFuncRowNum,
+			ast.FuncNameRowNum:     doFuncRowNum,
+			ast.FuncNameContains:   doFuncContains,
+			ast.FuncNameStartsWith: doFuncStartsWith,
+			ast.FuncNameEndsWith:   doFuncEndsWith,
 		},
 		FunctionNames: map[string]string{},
 		Literal:       doLiteral,
