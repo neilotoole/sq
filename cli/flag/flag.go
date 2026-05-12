@@ -46,6 +46,11 @@ const (
 	Insert      = "insert"
 	InsertUsage = "Insert query results into @HANDLE.TABLE; if not existing, TABLE will be created"
 
+	DryRun      = "dry-run"
+	DryRunUsage = "Don't execute the query. Print the SQL that would run against the target database. " +
+		"For cross-source queries, prints the SQL executed against the join database after data is staged. " +
+		"With --format=json or --format=yaml, prints a structured payload (slq, sql, dialect, source, ...)."
+
 	JSON       = "json"
 	JSONShort  = "j"
 	JSONUsage  = "Output JSON"
