@@ -23,9 +23,10 @@ func TestExtensions_AllBundledExtensionsLoadAndAreCallable(t *testing.T) {
 
 	ctx := context.Background()
 
-	// INSTALL + LOAD all bundled extensions. This mirrors what loadExtensions
-	// does on every real driver connection, and is required here because the
-	// test opens a raw *sql.DB rather than going through driveri.doOpen.
+	// INSTALL + LOAD all bundled extensions. This mirrors what connInitFn
+	// (in pragma.go) does on every real driver connection, and is required
+	// here because the test opens a raw *sql.DB rather than going through
+	// driveri.doOpen.
 	bundled := []string{
 		"json", "parquet", "icu", "fts", "httpfs", "excel",
 		"inet", "autocomplete", "tpch", "tpcds",

@@ -106,9 +106,11 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	if err != nil {
 		return nil, err
 	}
-	// Use duckdb-go's connector with a per-connection init function so that
-	// LOAD <extension> and SET enable_progress_bar run on every pooled
-	// connection — DuckDB's LOAD and SET are session-scoped.
+	// Use duckdb-go's connector with a per-connection init function
+	// (connInitFn). On each new pooled connection it runs INSTALL (memoized
+	// once per process), LOAD for every bundled extension, and SET
+	// enable_progress_bar — DuckDB's LOAD and SET are session-scoped, so
+	// they must repeat on every connection.
 	connector, err := duckdbdriver.NewConnector(dsn, connInitFn)
 	if err != nil {
 		return nil, errz.Err(err)
@@ -164,14 +166,17 @@ func PathFromLocation(src *source.Source) (string, error) {
 // MungeLocation takes a location argument (as received from the user)
 // and builds a duckdb location URL. Each of these forms are allowed:
 //
-//	duckdb:///path/to/foo.duckdb	--> duckdb:///path/to/foo.duckdb
-//	duckdb:foo.duckdb             --> duckdb:///current/working/dir/foo.duckdb
-//	duckdb:/foo.duckdb            --> duckdb:///foo.duckdb
-//	duckdb:./foo.duckdb           --> duckdb:///current/working/dir/foo.duckdb
-//	foo.duckdb                    --> duckdb:///current/working/dir/foo.duckdb
-//	/path/to/foo.duckdb           --> duckdb:///path/to/foo.duckdb
-//	:memory:                      --> duckdb://:memory:
-//	duckdb://:memory:             --> duckdb://:memory:
+//	duckdb:///path/to/foo.duckdb               --> duckdb:///path/to/foo.duckdb
+//	duckdb:foo.duckdb                          --> duckdb:///current/working/dir/foo.duckdb
+//	duckdb:/foo.duckdb                         --> duckdb:///foo.duckdb
+//	duckdb:./foo.duckdb                        --> duckdb:///current/working/dir/foo.duckdb
+//	foo.duckdb                                 --> duckdb:///current/working/dir/foo.duckdb
+//	/path/to/foo.duckdb                        --> duckdb:///path/to/foo.duckdb
+//	:memory:                                   --> duckdb://:memory:
+//	duckdb://:memory:                          --> duckdb://:memory:
+//	duckdb:///path/to/foo.duckdb?access_mode=READ_ONLY
+//	                                           --> duckdb:///path/to/foo.duckdb?access_mode=READ_ONLY
+//	:memory:?threads=1                         --> duckdb://:memory:?threads=1
 //
 // The final file-path form is particularly nice for shell completion etc.
 //

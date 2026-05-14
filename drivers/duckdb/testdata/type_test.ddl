@@ -1,5 +1,8 @@
 -- type_test.ddl exercises every DuckDB type that the driver maps to a kind.Kind.
 DROP TABLE IF EXISTS type_test;
+DROP TYPE IF EXISTS type_test_mood;
+
+CREATE TYPE type_test_mood AS ENUM ('happy', 'sad', 'neutral');
 
 CREATE TABLE type_test (
     col_bool       BOOLEAN,
@@ -27,12 +30,15 @@ CREATE TABLE type_test (
     col_list       INTEGER[],
     col_struct     STRUCT(a INTEGER, b VARCHAR),
     col_map        MAP(VARCHAR, INTEGER),
-    col_enum       VARCHAR  -- ENUM is created separately
+    col_enum       type_test_mood
 );
 
+-- col_ubigint uses UBIGINT max (2^64 - 1) so that the truncation-to-int64
+-- warn path in newRecordFuncForDuckDB is actually exercised. col_hugeint
+-- exceeds 2^63 so its truncation warn path is also exercised.
 INSERT INTO type_test VALUES (
     TRUE, 1, 2, 3, 4, 99999999999999999999::HUGEINT,
-    1, 2, 3, 4,
+    1, 2, 3, 18446744073709551615,
     1.5, 2.5, 3.1415,
     'hello', '\x01\x02'::BLOB,
     DATE '2026-05-11', TIME '12:34:56', TIMESTAMP '2026-05-11 12:34:56', TIMESTAMPTZ '2026-05-11 12:34:56+00',
@@ -42,5 +48,5 @@ INSERT INTO type_test VALUES (
     [10, 20, 30],
     {a: 1, b: 'x'},
     MAP { 'k1': 1, 'k2': 2 },
-    'green'
+    'happy'
 );

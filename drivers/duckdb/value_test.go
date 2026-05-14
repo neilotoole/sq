@@ -97,8 +97,10 @@ func TestRecordMeta_TypeSpectrum(t *testing.T) {
 		"col_enum":        "string",
 	}
 
+	gotColumns := make(map[string]bool, len(recMeta))
 	for i, fm := range recMeta {
 		name := fm.Name()
+		gotColumns[name] = true
 		wantType, ok := wantTypes[name]
 		if !ok {
 			t.Errorf("unexpected column in type_test: %s", name)
@@ -107,6 +109,13 @@ func TestRecordMeta_TypeSpectrum(t *testing.T) {
 		gotType := goType(rec[i])
 		require.Equal(t, wantType, gotType,
 			"col %s: want Go type %s, got %s (value=%v)", name, wantType, gotType, rec[i])
+	}
+
+	// Catch the reverse direction too: if type_test.ddl drops a column that
+	// wantTypes still names, the loop above would silently miss it.
+	for name := range wantTypes {
+		require.True(t, gotColumns[name],
+			"col %s in wantTypes but missing from type_test result", name)
 	}
 }
 
@@ -158,12 +167,19 @@ func TestOpen_Memory(t *testing.T) {
 	require.Equal(t, 3, cnt)
 }
 
-// TestConcurrentOpen exercises the connector init fn (extension INSTALL + LOAD
-// + SET) under concurrent first-time use. Regression coverage for the
-// "INSTALL once per process / LOAD per connection" contract: before the
-// connector refactor, parallel opens against fresh DBs raced on the on-disk
-// extension cache; before the sync.Once-on-success fix, a single failure
-// poisoned the process.
+// TestConcurrentOpen exercises the connector init fn (extension INSTALL +
+// LOAD + SET) under concurrent open. Regression coverage for the "INSTALL
+// once per process / LOAD per connection" contract: before the connector
+// refactor, parallel opens against fresh DBs raced on the on-disk extension
+// cache. The installExtensions mutex+bool pattern in pragma.go is
+// deliberately NOT sync.Once, so that a transient install failure (disk
+// full, antivirus) does not permanently poison the process.
+//
+// Note: by the time this test runs, earlier tests in the package have
+// already flipped installComplete=true, so the 8 goroutines below mainly
+// exercise concurrent LOAD + SET via connInitFn rather than concurrent
+// INSTALL. Coverage for the once-on-failure retry contract requires a
+// mocked driver.ExecerContext and is tracked as a follow-up.
 func TestConcurrentOpen(t *testing.T) {
 	dir := t.TempDir()
 	th := testh.New(t)

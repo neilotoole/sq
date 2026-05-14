@@ -13,7 +13,7 @@ files in `drivers/sqlite3/testdata/`, ported via the in-tree tool at
 | `empty.duckdb` | Valid DuckDB file with no user schema. Used for empty-source edge-case tests. |
 | `misc.duckdb` | Two schemas (`foo`, `bar`) with simple tables. `foo.t1` has two rows; `bar.t2` has one. Used for multi-schema inspection tests. |
 | `blob.duckdb` | Single `blobs(id INTEGER, data BLOB)` table with two rows (one NULL blob). Used for BLOB type-mapping tests. |
-| `type_test.ddl` | SQL-only file (not a binary DB). Defines and populates a `type_test` table exercising every DuckDB type the driver maps to a `kind.Kind`. Executed by Phase 4 type-mapping tests. |
+| `type_test.ddl` | SQL-only file (not a binary DB). Defines and populates a `type_test` table exercising every DuckDB type the driver maps to a `kind.Kind`. Executed by the type-mapping tests in `db_type_test.go` and `value_test.go`. |
 
 ## Regenerating
 

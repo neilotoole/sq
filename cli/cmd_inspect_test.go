@@ -127,10 +127,7 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 						require.NotEmpty(t, srcMeta.DBDriver)
 						require.NotEmpty(t, srcMeta.DBProduct)
 						require.NotEmpty(t, srcMeta.DBVersion)
-						// TODO: DuckDB driver does not yet populate metadata.Source.Size.
-						if src.Type != drivertype.DuckDB {
-							require.NotZero(t, srcMeta.Size)
-						}
+						require.NotZero(t, srcMeta.Size)
 					})
 
 					t.Run("inspect_dbprops", func(t *testing.T) {

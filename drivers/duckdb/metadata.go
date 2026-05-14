@@ -488,8 +488,9 @@ func listTableNames(ctx context.Context, db sqlz.DB, schemaName string, tables, 
 }
 
 // kindFromDBTypeName maps a DuckDB SQL type name to a kind.Kind.
-// Composite types (LIST/STRUCT/MAP/ENUM) all map to kind.Text; native
-// go-duckdb composite values are stringified in newRecordFuncForDuckDB.
+// Composite types (LIST/ARRAY rendered as "T[]", STRUCT, MAP, ENUM) all
+// map to kind.Text; native go-duckdb composite values are stringified in
+// newRecordFuncForDuckDB.
 //
 // DuckDB type names returned by duckdb_columns() include parametric forms
 // like "DECIMAL(18,4)" and composite forms like "INTEGER[]" or
