@@ -11,10 +11,8 @@ import (
 )
 
 // TestOpenSakila verifies that the DuckDB driver can open the sakila test
-// fixture and execute a basic count query via the raw *sql.DB. This bypasses
-// the libsq record-processing pipeline (which depends on RecordMeta —
-// implemented in Phase 4 Task 4.3) and so should pass once the driver
-// scaffold (Phase 1) and sakila fixtures (Phase 2) are in place.
+// fixture and execute a basic count query via the raw *sql.DB, bypassing the
+// libsq record-processing pipeline.
 func TestOpenSakila(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.Duck)

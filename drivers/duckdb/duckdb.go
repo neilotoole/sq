@@ -5,9 +5,11 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"math"
 	"math/big"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	duckdbdriver "github.com/duckdb/duckdb-go/v2" // also registers the "duckdb" sql driver
@@ -104,30 +106,25 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	if err != nil {
 		return nil, err
 	}
-	db, err := sql.Open(dbDrvr, dsn)
+	// Use duckdb-go's connector with a per-connection init function so that
+	// LOAD <extension> and SET enable_progress_bar run on every pooled
+	// connection — DuckDB's LOAD and SET are session-scoped.
+	connector, err := duckdbdriver.NewConnector(dsn, connInitFn)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	if err = applyConnInitSettings(ctx, db); err != nil {
-		_ = db.Close()
-		return nil, err
-	}
-	if err = loadExtensions(ctx, db); err != nil {
-		_ = db.Close()
-		return nil, err
-	}
+	db := sql.OpenDB(connector)
+	driver.ConfigureDB(ctx, db, src.Options)
 	return db, nil
 }
 
 // dsnFromLocation converts an sq location string ("duckdb:///path/to.duckdb?param=val")
-// into the DSN form expected by go-duckdb.
-// go-duckdb accepts either "" (in-memory) or a file path with optional "?key=val&..."
-// query suffix. Strip the "duckdb://" prefix; preserve query string.
+// into the DSN form expected by go-duckdb. Requires the "duckdb://" prefix;
+// preserves the rest verbatim (including ":memory:" and "?key=val&..."
+// query suffix). go-duckdb accepts either "" (in-memory), ":memory:", or
+// a file path, with an optional query suffix.
 func dsnFromLocation(loc string) (string, error) {
-	if loc == Prefix || loc == Prefix+":memory:" {
-		return "", nil
-	}
-	if len(loc) < len(Prefix) {
+	if !strings.HasPrefix(loc, Prefix) {
 		return "", errz.Errorf("invalid duckdb location: %q", loc)
 	}
 	return loc[len(Prefix):], nil
@@ -137,14 +134,31 @@ func dsnFromLocation(loc string) (string, error) {
 // DuckDB location, or "" for an in-memory or malformed location. Any
 // "?key=val&..." DSN query suffix is stripped.
 func filePathFromLocation(loc string) string {
-	if loc == Prefix || loc == Prefix+":memory:" || !strings.HasPrefix(loc, Prefix) {
+	if !strings.HasPrefix(loc, Prefix) {
 		return ""
 	}
 	p := loc[len(Prefix):]
 	if i := strings.IndexByte(p, '?'); i >= 0 {
 		p = p[:i]
 	}
+	if p == "" || p == ":memory:" {
+		return ""
+	}
 	return p
+}
+
+// PathFromLocation returns the absolute file path for a file-backed DuckDB
+// source. Returns an error for non-DuckDB sources and for in-memory
+// (":memory:") locations.
+func PathFromLocation(src *source.Source) (string, error) {
+	if src.Type != drivertype.DuckDB {
+		return "", errz.Errorf("driver {%s} does not support {%s}", drivertype.DuckDB, src.Type)
+	}
+	p := filePathFromLocation(src.Location)
+	if p == "" {
+		return "", errz.Errorf("duckdb source has no file path: %s", src.RedactedLocation())
+	}
+	return p, nil
 }
 
 // MungeLocation takes a location argument (as received from the user)
@@ -175,19 +189,27 @@ func MungeLocation(loc string) (string, error) {
 		return "", errz.New("location must not be empty")
 	}
 
-	if loc2 == ":memory:" || loc2 == Prefix+":memory:" {
+	// Detect the :memory: sentinel, optionally preceded by the duckdb scheme
+	// and optionally followed by a "?key=val&..." query suffix.
+	bare := strings.TrimPrefix(loc2, Prefix)
+	bare = strings.TrimPrefix(bare, "duckdb:")
+	pathPart, queryPart, hasQuery := strings.Cut(bare, "?")
+	if pathPart == ":memory:" {
+		if hasQuery {
+			return Prefix + ":memory:?" + queryPart, nil
+		}
 		return Prefix + ":memory:", nil
 	}
 
-	loc2 = strings.TrimPrefix(loc2, Prefix)
-	loc2 = strings.TrimPrefix(loc2, "duckdb:")
-
-	fp, err := filepath.Abs(loc2)
+	fp, err := filepath.Abs(pathPart)
 	if err != nil {
 		return "", errz.Wrapf(err, "invalid location: %s", loc)
 	}
 
 	fp = filepath.ToSlash(fp)
+	if hasQuery {
+		return Prefix + fp + "?" + queryPart, nil
+	}
 	return Prefix + fp, nil
 }
 
@@ -330,7 +352,7 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
 		recMeta[i] = record.NewFieldMeta(ctData[i], mungedNames[i])
 	}
 
-	mungeFn := newRecordFuncForDuckDB(recMeta)
+	mungeFn := newRecordFuncForDuckDB(d.log, recMeta)
 	return recMeta, mungeFn, nil
 }
 
@@ -342,7 +364,7 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
 // go-duckdb delivers native Go values directly (no sql.Null* wrappers); NULL
 // columns arrive as untyped nil. Exotic DuckDB-specific types are converted to
 // their closest sq canonical representation.
-func newRecordFuncForDuckDB(recMeta record.Meta) driver.NewRecordFunc {
+func newRecordFuncForDuckDB(log *slog.Logger, recMeta record.Meta) driver.NewRecordFunc {
 	return func(rowVals []any) (record.Record, error) {
 		rec := make(record.Record, len(rowVals))
 		for i, val := range rowVals {
@@ -390,13 +412,20 @@ func newRecordFuncForDuckDB(recMeta record.Meta) driver.NewRecordFunc {
 				rec[i] = int64(v)
 			case uint64:
 				record.SetKindIfUnknown(recMeta, i, kind.Int)
-				// uint64 may overflow int64 for very large values; truncate.
-				rec[i] = int64(v) //nolint:gosec
+				if v > math.MaxInt64 {
+					log.Warn("duckdb: UBIGINT exceeds int64; truncating",
+						"value", v, "col", recMeta[i].Name())
+				}
+				rec[i] = int64(v)
 
 			// ---- HUGEINT / UHUGEINT / BIGNUM (*big.Int) ----
 			// These can exceed int64 range; truncate to int64 (best effort).
 			case *big.Int:
 				record.SetKindIfUnknown(recMeta, i, kind.Int)
+				if !v.IsInt64() {
+					log.Warn("duckdb: HUGEINT/UHUGEINT exceeds int64; truncating",
+						"value", v.String(), "col", recMeta[i].Name())
+				}
 				rec[i] = v.Int64()
 
 			// ---- floats ----
@@ -413,7 +442,11 @@ func newRecordFuncForDuckDB(recMeta record.Meta) driver.NewRecordFunc {
 				// Convert via the string representation to avoid float precision loss.
 				d, err := decimal.NewFromString(v.String())
 				if err != nil {
-					// Fallback: use float64 approximation.
+					// String parse failed (would indicate a duckdb-go bug); fall
+					// back to the float64 approximation and warn, since silently
+					// losing decimal precision is worse than a noisy log entry.
+					log.Warn("duckdb: failed to parse Decimal string; falling back to float64",
+						"decimal_string", v.String(), "col", recMeta[i].Name(), "err", err)
 					rec[i] = decimal.NewFromFloat(v.Float64())
 				} else {
 					rec[i] = d
@@ -441,7 +474,7 @@ func newRecordFuncForDuckDB(recMeta record.Meta) driver.NewRecordFunc {
 				record.SetKindIfUnknown(recMeta, i, kind.Datetime)
 				rec[i] = v
 
-			// ---- INTERVAL (duckdb.Interval → string, deferred to Task 4.4) ----
+			// ---- INTERVAL (duckdb.Interval → string) ----
 			case duckdbdriver.Interval:
 				record.SetKindIfUnknown(recMeta, i, kind.Text)
 				rec[i] = fmt.Sprintf("%d months %d days %d μs", v.Months, v.Days, v.Micros)
@@ -467,7 +500,10 @@ func newRecordFuncForDuckDB(recMeta record.Meta) driver.NewRecordFunc {
 				rec[i] = fmt.Sprintf("%v", v.Value)
 
 			default:
-				// Unknown type: stringify as best-effort.
+				// Unknown type: stringify as best-effort and warn so the
+				// fallback is observable rather than a silent string coercion.
+				log.Warn("duckdb: unknown scan value type; stringifying",
+					"go_type", fmt.Sprintf("%T", v), "col", recMeta[i].Name())
 				record.SetKindIfUnknown(recMeta, i, kind.Text)
 				rec[i] = fmt.Sprintf("%v", v)
 			}
@@ -515,8 +551,8 @@ func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (b
 	return schemaExists(ctx, db, schma)
 }
 
-// Truncate implements driver.SQLDriver. DuckDB does not have a TRUNCATE
-// statement, so we use DELETE FROM and return the number of affected rows.
+// Truncate implements driver.SQLDriver. Implemented as DELETE FROM (rather
+// than DuckDB's TRUNCATE) so we can return an accurate affected-rows count.
 // The reset parameter is ignored because DuckDB SEQUENCE objects reset
 // independently of the data and there is no direct analogue to SQLite's
 // sqlite_sequence.
@@ -643,13 +679,19 @@ func (d *driveri) DBProperties(ctx context.Context, db sqlz.DB) (map[string]any,
 	return m, nil
 }
 
-// grip is a minimal placeholder for the DuckDB Grip implementation.
-// It will be replaced by a full implementation in Task 1.4.
+// grip is the DuckDB implementation of driver.Grip.
 type grip struct {
-	log  *slog.Logger
-	db   *sql.DB
-	src  *source.Source
-	drvr *driveri
+	closeErr error
+	log      *slog.Logger
+	db       *sql.DB
+	src      *source.Source
+	drvr     *driveri
+
+	// closeOnce guards Close so that subsequent calls are no-op and return
+	// the same error. DuckDB takes a process-exclusive lock on the database
+	// file; calling Close multiple times can produce file-handle errors on
+	// Windows.
+	closeOnce sync.Once
 }
 
 var _ driver.Grip = (*grip)(nil)
@@ -683,7 +725,16 @@ func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Tab
 	return getTableMetadata(ctx, g.db, schemaName, tblName)
 }
 
-// Close implements driver.Grip.
+// Close implements driver.Grip. Subsequent calls are no-op and return the
+// same error.
 func (g *grip) Close() error {
-	return errz.Err(g.db.Close())
+	g.closeOnce.Do(func() {
+		g.closeErr = errw(g.db.Close())
+		if g.closeErr != nil {
+			g.log.Error(lgm.CloseDB, lga.Handle, g.src.Handle, lga.Err, g.closeErr)
+		} else {
+			g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
+		}
+	})
+	return g.closeErr
 }

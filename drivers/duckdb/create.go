@@ -9,7 +9,8 @@ import (
 )
 
 // createTblKindDefaults maps kind.Kind to the DEFAULT clause used when
-// building a CREATE TABLE statement for a NOT NULL column that has a default.
+// building a CREATE TABLE statement for a column that has a default
+// (regardless of NOT NULL).
 var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive // kind.Null is intentionally omitted
 	kind.Text:     `DEFAULT ''`,
 	kind.Int:      `DEFAULT 0`,
@@ -24,8 +25,11 @@ var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive // kind.Nu
 }
 
 // buildCreateTableStmt builds a DuckDB CREATE TABLE statement from tblDef.
-// It honours PKColName, AutoIncrement, NotNull, HasDefault, and Unique.
-// Foreign-key constraints are deliberately omitted for now.
+// It honours PKColName, NotNull, HasDefault, and Unique. AutoIncrement is
+// intentionally ignored: DuckDB has no AUTOINCREMENT keyword (callers wanting
+// SERIAL-style behaviour use SEQUENCE objects), and a PRIMARY KEY alone is
+// sufficient for sq's use cases. Foreign-key constraints are deliberately
+// omitted for now.
 func buildCreateTableStmt(tblDef *schema.Table) string {
 	sb := strings.Builder{}
 	sb.WriteString(`CREATE TABLE "`)
@@ -40,10 +44,6 @@ func buildCreateTableStmt(tblDef *schema.Table) string {
 
 		if col.Name == tblDef.PKColName {
 			sb.WriteString(" PRIMARY KEY")
-			// DuckDB uses SEQUENCE or SERIAL-style for auto-increment;
-			// the cleanest approach is to override the type to BIGINT and
-			// omit AUTOINCREMENT (DuckDB does not support AUTOINCREMENT).
-			// The PK constraint itself is sufficient for most sq use-cases.
 		}
 
 		if col.HasDefault {

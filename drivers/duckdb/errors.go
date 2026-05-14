@@ -15,15 +15,11 @@ func errw(err error) error {
 		return nil
 	}
 	msg := err.Error()
-	switch {
-	case (strings.Contains(msg, "Catalog Error: Table") ||
+	if (strings.Contains(msg, "Catalog Error: Table") ||
 		strings.Contains(msg, "Catalog Error: View") ||
 		strings.Contains(msg, "Catalog Error: Schema")) &&
-		strings.Contains(msg, "does not exist"):
+		strings.Contains(msg, "does not exist") {
 		return driver.NewNotExistError(err)
-	case strings.Contains(msg, "already exists"):
-		return errz.Err(err)
-	default:
-		return errz.Err(err)
 	}
+	return errz.Err(err)
 }

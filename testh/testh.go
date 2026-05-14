@@ -351,7 +351,8 @@ func (h *Helper) Source(handle string) *source.Source {
 		// tests opening the same fixture cause "file in use" errors on Windows
 		// (POSIX is more forgiving). Copy the fixture per test, mirroring the
 		// SQLite pattern above.
-		srcPath := strings.TrimPrefix(src.Location, duckdb.Prefix)
+		srcPath, err := duckdb.PathFromLocation(src)
+		require.NoError(t, err)
 		dstPath := filepath.Join(tu.TempDir(t), filepath.Base(srcPath))
 		require.NoError(t, ioz.CopyFile(dstPath, srcPath, true))
 		src.Location = duckdb.Prefix + dstPath

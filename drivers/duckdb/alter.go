@@ -13,7 +13,7 @@ import (
 func alterTableRename(ctx context.Context, db sqlz.DB, oldName, newName string) error {
 	q := fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, oldName, newName)
 	_, err := db.ExecContext(ctx, q)
-	return errz.Wrapf(errz.Err(err),
+	return errz.Wrapf(errw(err),
 		"duckdb: alter table: failed to rename table {%s} to {%s}", oldName, newName)
 }
 
@@ -22,7 +22,7 @@ func alterTableAddColumn(ctx context.Context, db sqlz.DB, tblName, colName strin
 	dbType := dbTypeNameFromKind(k)
 	q := fmt.Sprintf(`ALTER TABLE %q ADD COLUMN %q %s`, tblName, colName, dbType)
 	_, err := db.ExecContext(ctx, q)
-	return errz.Wrapf(errz.Err(err),
+	return errz.Wrapf(errw(err),
 		"duckdb: alter table: failed to add column {%s} to table {%s}", colName, tblName)
 }
 
@@ -30,7 +30,7 @@ func alterTableAddColumn(ctx context.Context, db sqlz.DB, tblName, colName strin
 func alterTableRenameColumn(ctx context.Context, db sqlz.DB, tblName, oldCol, newCol string) error {
 	q := fmt.Sprintf(`ALTER TABLE %q RENAME COLUMN %q TO %q`, tblName, oldCol, newCol)
 	_, err := db.ExecContext(ctx, q)
-	return errz.Wrapf(errz.Err(err),
+	return errz.Wrapf(errw(err),
 		"duckdb: alter table: failed to rename column {%s.%s} to {%s}", tblName, oldCol, newCol)
 }
 
@@ -50,7 +50,7 @@ func alterTableColumnKinds(
 		dbType := dbTypeNameFromKind(kinds[i])
 		q := fmt.Sprintf(`ALTER TABLE %q ALTER COLUMN %q SET DATA TYPE %s`, tblName, col, dbType)
 		if _, err := db.ExecContext(ctx, q); err != nil {
-			return errz.Wrapf(errz.Err(err),
+			return errz.Wrapf(errw(err),
 				"duckdb: alter table: failed to set data type of column {%s.%s} to {%s}",
 				tblName, col, dbType)
 		}
