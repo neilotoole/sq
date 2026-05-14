@@ -269,6 +269,7 @@ const (
 // Paths for sakila resources.
 const (
 	PathSL3              = "drivers/sqlite3/testdata/sakila.db"
+	PathDuck             = "drivers/duckdb/testdata/sakila.duckdb"
 	PathXLSX             = "drivers/xlsx/testdata/sakila.xlsx"
 	PathXLSXSubset       = "drivers/xlsx/testdata/sakila_subset.xlsx"
 	PathXLSXActorHeader  = "drivers/xlsx/testdata/actor_header.xlsx"

@@ -136,6 +136,7 @@ func TestDetectMagicNumber(t *testing.T) {
 	}{
 		{loc: proj.Abs(sakila.PathSL3), wantType: drivertype.SQLite, wantScore: 1.0},
 		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: drivertype.SQLite, wantScore: 1.0},
+		{loc: proj.Abs(sakila.PathDuck), wantType: drivertype.DuckDB, wantScore: 1.0},
 	}
 
 	for _, tc := range testCases {
@@ -220,6 +221,7 @@ func TestFiles_Stdin(t *testing.T) {
 		{fpath: proj.Abs(sakila.PathCSVActor), wantType: drivertype.CSV},
 		{fpath: proj.Abs(sakila.PathTSVActor), wantType: drivertype.TSV},
 		{fpath: proj.Abs(sakila.PathXLSX), wantType: drivertype.XLSX},
+		{fpath: proj.Abs(sakila.PathDuck), wantType: drivertype.DuckDB},
 	}
 
 	for _, tc := range testCases {

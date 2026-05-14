@@ -2,11 +2,16 @@ package duckdb_test
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/record"
+	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 )
@@ -54,6 +59,141 @@ func TestTableMetadata_Actor(t *testing.T) {
 	require.Contains(t, colNames, "first_name")
 	require.Contains(t, colNames, "last_name")
 	require.Contains(t, colNames, "last_update")
+}
+
+// TestTableMetadata_PrimaryKey verifies that the UNNEST-based PK extraction
+// in metadata.go correctly marks PK columns on both single-column and
+// composite-PK tables. This is the contract the round-2 UNNEST rewrite
+// established; the prior string-split implementation would also have
+// passed this for simple identifiers but would have mis-split names
+// containing comma or space.
+func TestTableMetadata_PrimaryKey(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.Duck)
+	grip := th.Open(src)
+	ctx := context.Background()
+
+	t.Run("single_pk", func(t *testing.T) {
+		md, err := grip.TableMetadata(ctx, "actor")
+		require.NoError(t, err)
+		pkCols := pkColumnNames(md.Columns)
+		require.Equal(t, []string{"actor_id"}, pkCols)
+	})
+
+	t.Run("composite_pk", func(t *testing.T) {
+		md, err := grip.TableMetadata(ctx, "film_actor")
+		require.NoError(t, err)
+		pkCols := pkColumnNames(md.Columns)
+		require.ElementsMatch(t, []string{"actor_id", "film_id"}, pkCols)
+	})
+}
+
+// TestSourceMetadata_Misc verifies multi-schema enumeration against the
+// testdata/misc.duckdb fixture (foo, bar schemas).
+func TestSourceMetadata_Misc(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@misc",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://" + filepath.Join("testdata", "misc.duckdb"),
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+
+	ctx := context.Background()
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	schemas, err := drvr.ListSchemas(ctx, db)
+	require.NoError(t, err)
+	require.Subset(t, schemas, []string{"foo", "bar"})
+
+	fooTables, err := drvr.ListTableNames(ctx, db, "foo", true, true)
+	require.NoError(t, err)
+	require.Equal(t, []string{"t1"}, fooTables)
+
+	barTables, err := drvr.ListTableNames(ctx, db, "bar", true, true)
+	require.NoError(t, err)
+	require.Equal(t, []string{"t2"}, barTables)
+}
+
+// TestSourceMetadata_Empty verifies that an empty (schemaless) DuckDB
+// source surfaces sensible metadata: catalog/schema set, table count zero.
+func TestSourceMetadata_Empty(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@empty",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://" + filepath.Join("testdata", "empty.duckdb"),
+	}
+	th.Add(src)
+	grip := th.Open(src)
+
+	md, err := grip.SourceMetadata(context.Background(), false)
+	require.NoError(t, err)
+	require.NotEmpty(t, md.Name)
+	require.NotEmpty(t, md.Schema)
+	require.Zero(t, md.TableCount)
+	require.Zero(t, md.ViewCount)
+	require.Empty(t, md.Tables)
+}
+
+// TestRecordMeta_BlobScan verifies BLOB and NULL-BLOB rows scan cleanly
+// through the type munge against the testdata/blob.duckdb fixture.
+func TestRecordMeta_BlobScan(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@blob",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://" + filepath.Join("testdata", "blob.duckdb"),
+	}
+	th.Add(src)
+	grip := th.Open(src)
+
+	ctx := context.Background()
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	rows, err := db.QueryContext(ctx, `SELECT id, data FROM blobs ORDER BY id`)
+	require.NoError(t, err)
+	defer rows.Close()
+
+	colTypes, err := rows.ColumnTypes()
+	require.NoError(t, err)
+	recMeta, newRecFn, err := grip.SQLDriver().RecordMeta(ctx, colTypes)
+	require.NoError(t, err)
+	require.Equal(t, kind.Bytes, recMeta[1].Kind())
+
+	var recs []record.Record
+	for rows.Next() {
+		scanRow := recMeta.NewScanRow()
+		require.NoError(t, rows.Scan(scanRow...))
+		rec, err := newRecFn(scanRow)
+		require.NoError(t, err)
+		recs = append(recs, rec)
+	}
+	require.NoError(t, rows.Err())
+	require.Len(t, recs, 2)
+
+	// Row 1: BLOB \x00\x01\x02\x03
+	_, ok := recs[0][1].([]byte)
+	require.True(t, ok, "row 1 BLOB should scan as []byte, got %T", recs[0][1])
+	require.Equal(t, []byte{0x00, 0x01, 0x02, 0x03}, recs[0][1])
+
+	// Row 2: NULL BLOB.
+	require.Nil(t, recs[1][1])
+}
+
+// pkColumnNames returns the names of columns where PrimaryKey is true.
+func pkColumnNames(cols []*metadata.Column) []string {
+	var names []string
+	for _, c := range cols {
+		if c.PrimaryKey {
+			names = append(names, c.Name)
+		}
+	}
+	return names
 }
 
 // TestRecordMeta_BasicQuery verifies that RecordMeta correctly maps a

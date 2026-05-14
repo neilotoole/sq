@@ -154,6 +154,24 @@ func TestCmdAdd(t *testing.T) {
 			wantType:   drivertype.SQLite,
 		},
 		{
+			// duckdb with scheme
+			loc:        "duckdb://" + proj.Abs(sakila.PathDuck),
+			wantHandle: "@sakila",
+			wantType:   drivertype.DuckDB,
+		},
+		{
+			// duckdb without scheme, absolute path
+			loc:        proj.Abs(sakila.PathDuck),
+			wantHandle: "@sakila",
+			wantType:   drivertype.DuckDB,
+		},
+		{
+			// duckdb without scheme, relative path
+			loc:        proj.Rel(sakila.PathDuck),
+			wantHandle: "@sakila",
+			wantType:   drivertype.DuckDB,
+		},
+		{
 			locFromHandle: sakila.Pg,
 			wantHandle:    "@sakila",
 			wantType:      drivertype.Pg,
