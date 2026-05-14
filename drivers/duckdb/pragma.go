@@ -51,8 +51,9 @@ func installExtensions(execer driver.ExecerContext) error {
 // DuckDB's LOAD and SET are session-scoped, so they must run per-connection.
 //
 // go-duckdb's connector init callback does not propagate the caller's
-// context, so this function uses context.Background() — the user's
-// --timeout will not interrupt a hung INSTALL/LOAD/SET on first connection.
+// context, so this function uses context.Background(). The user's
+// --timeout cannot interrupt INSTALL (once per process) or the LOAD + SET
+// that run on every new pooled connection.
 func connInitFn(execer driver.ExecerContext) error {
 	ctx := context.Background()
 	if err := installExtensions(execer); err != nil {

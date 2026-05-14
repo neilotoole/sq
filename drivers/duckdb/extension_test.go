@@ -26,7 +26,7 @@ func TestExtensions_AllBundledExtensionsLoadAndAreCallable(t *testing.T) {
 	// INSTALL + LOAD all bundled extensions. This mirrors what connInitFn
 	// (in pragma.go) does on every real driver connection, and is required
 	// here because the test opens a raw *sql.DB rather than going through
-	// driveri.doOpen.
+	// driveri.doOpen. Keep in sync with bundledExtensions in pragma.go.
 	bundled := []string{
 		"json", "parquet", "icu", "fts", "httpfs", "excel",
 		"inet", "autocomplete", "tpch", "tpcds",

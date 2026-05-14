@@ -331,10 +331,14 @@ func getPKColumnNames(ctx context.Context, db sqlz.DB, schemaName, tblName strin
 // slice is parallel to tables. Each table is queried individually so that a
 // race with concurrent DROP TABLE in another session (common during parallel
 // test runs that share a fixture file) just yields a 0 count for that table
-// rather than failing the whole metadata fetch. The fallback is narrowed
-// to typed NotExistError so a legitimate "column does not exist" or
-// "schema does not exist" error is surfaced rather than silently coerced
-// to a zero row count.
+// rather than failing the whole metadata fetch.
+//
+// The fallback uses the typed *driver.NotExistError, so any catalog-level
+// "does not exist" error that errw recognizes (Table, View, Schema) is
+// coerced to a zero row count. A concurrent schema drop is therefore
+// also swallowed, which is acceptable for the parallel-test scenario this
+// guards. Errors not recognized by errw (e.g. column not found, syntax
+// errors, connection failures) surface unchanged.
 func getTableRowCounts(ctx context.Context, db sqlz.DB, schemaName string,
 	tables []*metadata.Table,
 ) ([]int64, error) {

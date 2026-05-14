@@ -169,11 +169,12 @@ func TestOpen_Memory(t *testing.T) {
 
 // TestConcurrentOpen exercises the connector init fn (extension INSTALL +
 // LOAD + SET) under concurrent open. Regression coverage for the "INSTALL
-// once per process / LOAD per connection" contract: before the connector
-// refactor, parallel opens against fresh DBs raced on the on-disk extension
-// cache. The installExtensions mutex+bool pattern in pragma.go is
-// deliberately NOT sync.Once, so that a transient install failure (disk
-// full, antivirus) does not permanently poison the process.
+// once per process / LOAD per connection" contract. Without process-level
+// memoization of INSTALL, parallel opens against fresh DBs race on the
+// on-disk extension cache (manifests as "Could not move file: Access is
+// denied" on Windows). The installExtensions mutex+bool pattern in
+// pragma.go is deliberately NOT sync.Once, so that a transient install
+// failure (disk full, antivirus) does not permanently poison the process.
 //
 // Note: by the time this test runs, earlier tests in the package have
 // already flipped installComplete=true, so the 8 goroutines below mainly

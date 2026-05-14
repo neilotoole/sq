@@ -2,7 +2,6 @@ package duckdb_test
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -61,12 +60,15 @@ func TestTableMetadata_Actor(t *testing.T) {
 	require.Contains(t, colNames, "last_update")
 }
 
-// TestTableMetadata_PrimaryKey verifies that the UNNEST-based PK extraction
-// in metadata.go correctly marks PK columns on both single-column and
-// composite-PK tables. This is the contract the round-2 UNNEST rewrite
-// established; the prior string-split implementation would also have
-// passed this for simple identifiers but would have mis-split names
-// containing comma or space.
+// TestTableMetadata_PrimaryKey asserts the contract of stmtPrimaryKeys (in
+// metadata.go): it uses UNNEST so each PK column name is returned as its
+// own row. A string-split implementation would pass simple identifiers
+// but mis-split column names containing a comma or space.
+//
+// The single_pk + composite_pk subtests cover the basic shape (simple
+// identifiers, single + multi-column). The whitespace_identifier subtest
+// builds an in-memory DB with a PK column name containing a space and a
+// comma, which is what UNNEST is actually load-bearing for.
 func TestTableMetadata_PrimaryKey(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.Duck)
@@ -86,18 +88,38 @@ func TestTableMetadata_PrimaryKey(t *testing.T) {
 		pkCols := pkColumnNames(md.Columns)
 		require.ElementsMatch(t, []string{"actor_id", "film_id"}, pkCols)
 	})
+
+	t.Run("whitespace_identifier", func(t *testing.T) {
+		// Open a separate :memory: source so we don't pollute the shared
+		// sakila fixture with an ad-hoc table.
+		memSrc := &source.Source{
+			Handle:   "@pk_whitespace",
+			Type:     drivertype.DuckDB,
+			Location: "duckdb://:memory:",
+		}
+		th.Add(memSrc)
+		memGrip := th.Open(memSrc)
+		memDB, err := memGrip.DB(ctx)
+		require.NoError(t, err)
+
+		// "first, last" contains both a comma and a space — exactly what a
+		// string-split implementation would mishandle.
+		_, err = memDB.ExecContext(ctx,
+			`CREATE TABLE t ("first, last" VARCHAR, "age" INTEGER, PRIMARY KEY ("first, last"))`)
+		require.NoError(t, err)
+
+		md, err := memGrip.TableMetadata(ctx, "t")
+		require.NoError(t, err)
+		pkCols := pkColumnNames(md.Columns)
+		require.Equal(t, []string{"first, last"}, pkCols)
+	})
 }
 
 // TestSourceMetadata_Misc verifies multi-schema enumeration against the
 // testdata/misc.duckdb fixture (foo, bar schemas).
 func TestSourceMetadata_Misc(t *testing.T) {
 	th := testh.New(t)
-	src := &source.Source{
-		Handle:   "@misc",
-		Type:     drivertype.DuckDB,
-		Location: "duckdb://" + filepath.Join("testdata", "misc.duckdb"),
-	}
-	th.Add(src)
+	src := th.Source("@miscdb_duck")
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 
@@ -118,16 +140,12 @@ func TestSourceMetadata_Misc(t *testing.T) {
 	require.Equal(t, []string{"t2"}, barTables)
 }
 
-// TestSourceMetadata_Empty verifies that an empty (schemaless) DuckDB
-// source surfaces sensible metadata: catalog/schema set, table count zero.
+// TestSourceMetadata_Empty verifies that a DuckDB source with no user
+// tables surfaces sensible metadata: catalog/schema set, table/view
+// counts zero.
 func TestSourceMetadata_Empty(t *testing.T) {
 	th := testh.New(t)
-	src := &source.Source{
-		Handle:   "@empty",
-		Type:     drivertype.DuckDB,
-		Location: "duckdb://" + filepath.Join("testdata", "empty.duckdb"),
-	}
-	th.Add(src)
+	src := th.Source("@emptydb_duck")
 	grip := th.Open(src)
 
 	md, err := grip.SourceMetadata(context.Background(), false)
@@ -143,12 +161,7 @@ func TestSourceMetadata_Empty(t *testing.T) {
 // through the type munge against the testdata/blob.duckdb fixture.
 func TestRecordMeta_BlobScan(t *testing.T) {
 	th := testh.New(t)
-	src := &source.Source{
-		Handle:   "@blob",
-		Type:     drivertype.DuckDB,
-		Location: "duckdb://" + filepath.Join("testdata", "blob.duckdb"),
-	}
-	th.Add(src)
+	src := th.Source("@blobdb_duck")
 	grip := th.Open(src)
 
 	ctx := context.Background()

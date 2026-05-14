@@ -134,6 +134,15 @@ collection:
     - handle: '@blobdb'
       driver: sqlite3
       location: 'sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/blob.db'
+    - handle: '@miscdb_duck'
+      driver: duckdb
+      location: 'duckdb://${SQ_ROOT}/drivers/duckdb/testdata/misc.duckdb'
+    - handle: '@emptydb_duck'
+      driver: duckdb
+      location: 'duckdb://${SQ_ROOT}/drivers/duckdb/testdata/empty.duckdb'
+    - handle: '@blobdb_duck'
+      driver: duckdb
+      location: 'duckdb://${SQ_ROOT}/drivers/duckdb/testdata/blob.duckdb'
     - handle: '@clickhouse_test'
       driver: clickhouse
       location: clickhouse://testuser:testpass@${SQ_TEST_SRC__CLICKHOUSE_TEST}/testdb

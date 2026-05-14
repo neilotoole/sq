@@ -802,6 +802,16 @@ func TestCompleteAddLocation_DuckDB(t *testing.T) {
 		wantResult cobra.ShellCompDirective
 	}{
 		{
+			args:       []string{"d"},
+			want:       []string{"duckdb://", "duck.duckdb"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"du"},
+			want:       []string{"duckdb://", "duck.duckdb"},
+			wantResult: stdDirective,
+		},
+		{
 			args:       []string{"duckdb:"},
 			want:       []string{"duckdb://"},
 			wantResult: stdDirective,
