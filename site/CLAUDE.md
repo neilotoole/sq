@@ -140,12 +140,13 @@ Uses Hugo's built-in Chroma (not highlight.js):
 ## CI/CD Workflow
 
 **Triggers and actions:**
-- Push to `master` or `develop` with changes under `site/**` → GitHub Actions runs linting and builds
+- Push to `master` or `develop` with changes under `site/**` → GitHub Actions runs linting and builds (no deploy)
 - PR to `master` or `develop` with changes under `site/**` → CI + Netlify deploy preview
-- Merge to `master` → Auto-deploy to sq.io
+- Merge to `master` → **No auto-deploy.** Netlify's production build is suppressed via `[context.production] ignore = "exit 0"` in `netlify.toml`.
+- Production publishes to https://sq.io happen only via the manual `Site Publish (dispatch)` workflow in GitHub Actions (`.github/workflows/site-publish-dispatch.yml`), which builds locally and uploads via the Netlify CLI. Requires the `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` repo secrets.
 
 **Netlify configuration** (`netlify.toml`):
-- Build command: `bun run build`
+- Build command: `bun run build` (deploy previews only; production is skipped via `ignore`)
 - Publish directory: `public`
 - Plugins: Lighthouse audits, sitemap submission
 - Deploy previews include full Lighthouse reports
