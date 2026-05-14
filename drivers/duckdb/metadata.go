@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -106,6 +107,14 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 	}
 	md.Schema = schema
 	md.FQName = md.Name + "." + schema
+
+	if fp := filePathFromLocation(src.Location); fp != "" {
+		fi, err := os.Stat(fp)
+		if err != nil {
+			return nil, errz.Err(err)
+		}
+		md.Size = fi.Size()
+	}
 
 	if noSchema {
 		// Caller only wants catalog-level info; skip per-table enumeration.

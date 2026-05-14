@@ -133,6 +133,20 @@ func dsnFromLocation(loc string) (string, error) {
 	return loc[len(Prefix):], nil
 }
 
+// filePathFromLocation returns the on-disk file path for a file-backed
+// DuckDB location, or "" for an in-memory or malformed location. Any
+// "?key=val&..." DSN query suffix is stripped.
+func filePathFromLocation(loc string) string {
+	if loc == Prefix || loc == Prefix+":memory:" || !strings.HasPrefix(loc, Prefix) {
+		return ""
+	}
+	p := loc[len(Prefix):]
+	if i := strings.IndexByte(p, '?'); i >= 0 {
+		p = p[:i]
+	}
+	return p
+}
+
 // MungeLocation takes a location argument (as received from the user)
 // and builds a duckdb location URL. Each of these forms are allowed:
 //
