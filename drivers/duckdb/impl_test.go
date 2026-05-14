@@ -173,11 +173,12 @@ func TestCopyTable_DataAndSchema(t *testing.T) {
 	require.NoError(t, db.QueryRowContext(ctx, `SELECT count(*) FROM "copy_no_data"`).Scan(&cnt))
 	require.Equal(t, int64(0), cnt)
 
-	// Data copy.
+	// Data copy. CopyTable splits CTAS into CREATE + INSERT … SELECT
+	// specifically so RowsAffected returns the actual inserted row count.
 	to2 := tablefq.New("copy_with_data")
 	affected, err = drvr.CopyTable(ctx, db, from, to2, true)
 	require.NoError(t, err)
-	_ = affected // DuckDB CREATE TABLE AS may return -1 for affected rows
+	require.Equal(t, int64(3), affected)
 
 	require.NoError(t, db.QueryRowContext(ctx, `SELECT count(*) FROM "copy_with_data"`).Scan(&cnt))
 	require.Equal(t, int64(3), cnt)
