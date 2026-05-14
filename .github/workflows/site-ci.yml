@@ -30,14 +30,13 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.2
+          # Keep in sync with site/netlify.toml `BUN_VERSION`.
+          bun-version: 1.3.13
 
-      - name: Cache Bun dependencies
+      - name: Cache Bun download cache
         uses: actions/cache@v5
         with:
-          path: |
-            ~/.bun/install/cache
-            site/node_modules
+          path: ~/.bun/install/cache
           key: ${{ runner.os }}-site-bun-${{ hashFiles('site/bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-site-bun-
