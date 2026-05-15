@@ -21,23 +21,23 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   extensions (`json`, `parquet`, `icu`, `fts`, `httpfs`, `excel`, `inet`,
   `autocomplete`, `tpch`, `tpcds`).
   See the [driver docs](https://sq.io/docs/drivers/duckdb).
-- [#602]: [`sq`](https://sq.io/docs/cmd/sq) now features a `--render-sql` flag, which prints the SQL (derived from
-  `SLQ` input, e.g. `.actor | .[0:2]`) that would be
+- [#602]: [`sq`](https://sq.io/docs/cmd/sq) now features a [`--render-sql`](https://sq.io/docs/cmd/sq/#render-sql)
+  flag, which prints the SQL (derived from `SLQ` input) that would be
   executed against the target database, _instead_ of running it. Honours `--format` with:
   - `text` or `raw`: the rendered SQL is printed.
-  - `json`, `jsonl`, or `yaml`: a structured payload is printed containing the
+  - `json` or `yaml`: a structured payload is printed containing the
     original SLQ, the rendered SQL, the dialect and information about the
     sources that the query touches.
     ```yaml
-    # sq --render-sql --yaml '@sakila/local/pg.actor | join(@sakila/local/my.film_actor, .actor_id) | .first_name, .last_name, .film_id | .[0:5]'
-    slq: "@sakila/local/pg.actor | join(@sakila/local/my.film_actor, .actor_id) | .first_name, .last_name, .film_id | .[0:5]"
+    # $ sq --render-sql --yaml '@sakila/pg.actor | join(@sakila/my.film_actor, .actor_id) | .first_name, .last_name, .film_id | .[0:5]'
+    slq: "@sakila/pg.actor | join(@sakila/my.film_actor, .actor_id) | .first_name, .last_name, .film_id | .[0:5]"
     sql: SELECT "first_name", "last_name", "film_id" FROM "actor" INNER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id" LIMIT 5 OFFSET 0
     dialect: sqlite3
     sources:
       target: "@join_xukcx3ye"
       inputs:
-      - "@sakila/local/pg"
-      - "@sakila/local/my"
+      - "@sakila/pg"
+      - "@sakila/my"
     ```
 
 ### Changed

@@ -69,6 +69,40 @@ But you can also use `--output` (`-o`) to specify a file:
 $ sq --csv .actor -o actor.csv
 ```
 
+## Render SQL
+
+Use `--render-sql` to print the SQL that `sq` would execute against the
+target database, instead of running the query. Handy for debugging,
+learning the SLQ-to-SQL mapping, or piping the rendered SQL into another
+tool.
+
+```sql
+-- $ sq --render-sql '.actor | .[0:2]'
+SELECT * FROM "actor" LIMIT 2 OFFSET 0
+```
+
+With `--json` or `--yaml`, `sq` prints a
+structured payload containing the original SLQ, the rendered SQL, the
+dialect, the sources the query touches, and any `--arg` values:
+
+```yaml
+# $ sq --render-sql --yaml --arg first TOM '.actor | where(.first_name == $first) | .[0:2]'
+args:
+  first: TOM
+slq: .actor | where(.first_name == $first) | .[0:2]
+sql: SELECT * FROM "actor" WHERE "first_name" = 'TOM' LIMIT 2 OFFSET 0
+dialect: sqlite3
+sources:
+  target: "@sakila"
+  inputs:
+  - "@sakila"
+```
+
+For cross-source queries, the rendered SQL targets the synthetic join
+database; `sources.target` is the synthetic handle, and `sources.inputs`
+lists the user sources that would be staged into it. Other output
+formats (`csv`, `html`, `markdown`, etc.) fall back to plain text.
+
 ## Override active source
 
 As explained in the [sources](/docs/source#active-source) section,
@@ -143,38 +177,6 @@ projects   apollo
 
 Note that not every database implements catalog support (this includes MySQL
 and SQLite). See the driver support [matrix](/docs/concepts#catalog-schema-support).
-
-## Render SQL
-
-Use `--render-sql` to print the SQL that `sq` would execute against the
-target database, instead of running SLQthe query. Handy for debugging,
-learning the SLQ-to-SQL mapping, or piping the rendered SQL into another
-tool.
-
-```shell
-$ sq --render-sql '.actor | .[0:2]'
-SELECT * FROM "actor" LIMIT 2 OFFSET 0
-```
-
-With `--json` or `--yaml`, `sq` prints a
-structured payload containing the original SLQ, the rendered SQL, the
-dialect, the sources the query touches, and any `--arg` values:
-
-```shell
-$ sq --render-sql --yaml '.actor | .[0:2]'
-slq: ".actor | .[0:2]"
-sql: SELECT * FROM "actor" LIMIT 2 OFFSET 0
-dialect: sqlite3
-sources:
-  target: "@sakila"
-  inputs:
-  - "@sakila"
-```
-
-For cross-source queries, the rendered SQL targets the synthetic join
-database; `sources.target` is the synthetic handle, and `sources.inputs`
-lists the user sources that would be staged into it. Other output
-formats (`csv`, `html`, `markdown`, etc.) fall back to plain text.
 
 ## Reference
 
