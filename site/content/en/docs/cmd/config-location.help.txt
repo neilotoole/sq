@@ -6,11 +6,11 @@ Usage:
 Examples:
   # Print config location
   $ sq config location
-  /Users/neilotoole/.config/sq
+  $HOME/.config/sq
 
   # Print location, also show origin (flag, env, default)
   $ sq config location -v
-  /Users/neilotoole/.config/sq
+  $HOME/.config/sq
   Origin: env
 
 Flags:
@@ -27,7 +27,7 @@ Global Flags:
       --error.format string   Error output format (default "text")
   -E, --error.stack           Print error stack trace to stderr
       --log                   Enable logging
-      --log.file string       Log file path (default "/Users/neilotoole/Library/Logs/sq/sq.log")
+      --log.file string       Log file path (default "$HOME/Library/Logs/sq/sq.log")
       --log.format string     Log output format (text or json) (default "text")
       --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
   -M, --monochrome            Don't print color output

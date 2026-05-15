@@ -18,7 +18,7 @@ const (
 )
 
 // errCode reports the ORA-NNNNN code carried by err, or 0 if err does not
-// originate from a recognised Oracle wire driver.
+// originate from a recognized Oracle wire driver.
 //
 // go-ora exposes the code as the exported field network.OracleError.ErrCode
 // (no Code() accessor), so a method-set type assertion does not match.

@@ -323,7 +323,7 @@ func Test_MSSQLDB_DriverIssue196(t *testing.T) {
 	t.Parallel()
 
 	// Note that although this test only checks BINARY, the same
-	// behaviour is expected of VARBINARY.
+	// behavior is expected of VARBINARY.
 	const (
 		canonicalTblName = "type_test_issue_196"
 		insertTpl        = "INSERT INTO %s (col_binary_n) VALUES %s"

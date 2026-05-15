@@ -9,7 +9,7 @@ import (
 )
 
 // NewYAMLWriter returns an output.SQLWriter that emits an SQLPayload as
-// YAML. Output is colourised via yamlw to match sq's other YAML output.
+// YAML. Output is colorized via yamlw to match sq's other YAML output.
 func NewYAMLWriter(out io.Writer, pr *output.Printing) *YAMLWriter {
 	return &YAMLWriter{out: out, pr: pr}
 }
