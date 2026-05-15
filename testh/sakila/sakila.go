@@ -18,18 +18,23 @@ const (
 	TSVActorNoHeader = "@sakila_tsv_actor_noheader"
 	SL3              = "@sakila_sl3"
 	SL3Whitespace    = "@sakila_sl3_whitespace"
-	Pg9              = "@sakila_pg9"
-	Pg10             = "@sakila_pg10"
-	Pg11             = "@sakila_pg11"
-	Pg12             = "@sakila_pg12"
-	Pg               = Pg12
-	My56             = "@sakila_my56"
-	My57             = "@sakila_my57"
-	My8              = "@sakila_my8"
-	My               = My8
-	MS17             = "@sakila_ms17"
-	MS19             = "@sakila_ms19"
-	MS               = MS19
+	// Duck is the handle for the DuckDB sakila DB.
+	Duck = "@sakila_duck"
+	// DuckWhitespace is the handle for the DuckDB sakila DB
+	// with whitespace-containing identifiers.
+	DuckWhitespace = "@sakila_duck_whitespace"
+	Pg9            = "@sakila_pg9"
+	Pg10           = "@sakila_pg10"
+	Pg11           = "@sakila_pg11"
+	Pg12           = "@sakila_pg12"
+	Pg             = Pg12
+	My56           = "@sakila_my56"
+	My57           = "@sakila_my57"
+	My8            = "@sakila_my8"
+	My             = My8
+	MS17           = "@sakila_ms17"
+	MS19           = "@sakila_ms19"
+	MS             = MS19
 
 	// AZ1 is the handle for Azure SQL Edge v1.x.
 	// Note that Azure SQL Edge is basically the same thing as MS SQL Server.
@@ -54,6 +59,7 @@ const (
 func AllHandles() []string {
 	return []string{
 		SL3,
+		Duck,
 		Pg9,
 		// Pg10,
 		// Pg11,
@@ -74,6 +80,7 @@ func AllHandles() []string {
 func SQLAll() []string {
 	return []string{
 		SL3,
+		Duck,
 		Pg9,
 		// Pg10,
 		// Pg11,
@@ -262,6 +269,7 @@ const (
 // Paths for sakila resources.
 const (
 	PathSL3              = "drivers/sqlite3/testdata/sakila.db"
+	PathDuck             = "drivers/duckdb/testdata/sakila.duckdb"
 	PathXLSX             = "drivers/xlsx/testdata/sakila.xlsx"
 	PathXLSXSubset       = "drivers/xlsx/testdata/sakila_subset.xlsx"
 	PathXLSXActorHeader  = "drivers/xlsx/testdata/actor_header.xlsx"

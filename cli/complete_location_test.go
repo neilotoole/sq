@@ -23,6 +23,7 @@ import (
 )
 
 var locSchemes = []string{
+	"duckdb://",
 	"mysql://",
 	"postgres://",
 	"sqlite3://",
@@ -770,6 +771,100 @@ func TestCompleteAddLocation_SQLite3(t *testing.T) {
 				"sqlite3://my.db?_locking_mode=NORMAL&cache=false",
 				"sqlite3://my.db?_locking_mode=NORMAL&cache=FAST",
 			},
+			wantResult: stdDirective,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
+			args := append([]string{"add"}, tc.args...)
+			got := testComplete(t, nil, args...)
+			assert.Equal(t, tc.wantResult, got.result, got.directives)
+			assert.Equal(t, tc.want, got.values)
+		})
+	}
+}
+
+// TestCompleteAddLocation_DuckDB is a smoke test for the DuckDB completion
+// path: scheme partial → "duckdb://", file enumeration under the prefix,
+// and query-param completion driven by ConnParams. Mirrors the shape of
+// TestCompleteAddLocation_SQLite3 but smaller (the SQLite test covers the
+// shared file-based driver completion code path exhaustively).
+func TestCompleteAddLocation_DuckDB(t *testing.T) {
+	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
+
+	wd := tu.Chdir(t, filepath.Join("testdata", "add_location_duck"))
+	t.Logf("Working dir: %s", wd)
+
+	testCases := []struct {
+		args       []string
+		want       []string
+		wantResult cobra.ShellCompDirective
+	}{
+		{
+			args:       []string{"d"},
+			want:       []string{"duckdb://", "duck.duckdb"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"du"},
+			want:       []string{"duckdb://", "duck.duckdb"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"duckdb:"},
+			want:       []string{"duckdb://"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"duckdb:/"},
+			want:       []string{"duckdb://"},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"duckdb://"},
+			want: []string{
+				"duckdb://duck.duckdb",
+				"duckdb://other.duckdb",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"duckdb://duck"},
+			want:       []string{"duckdb://duck.duckdb"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"duckdb://duck.duckdb"},
+			want:       []string{"duckdb://duck.duckdb?"},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"duckdb://duck.duckdb?"},
+			want: []string{
+				"duckdb://duck.duckdb?access_mode=",
+				"duckdb://duck.duckdb?default_null_order=",
+				"duckdb://duck.duckdb?default_order=",
+				"duckdb://duck.duckdb?enable_external_access=",
+				"duckdb://duck.duckdb?enable_object_cache=",
+				"duckdb://duck.duckdb?memory_limit=",
+				"duckdb://duck.duckdb?temp_directory=",
+				"duckdb://duck.duckdb?threads=",
+				"duckdb://duck.duckdb?wal_autocheckpoint=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"duckdb://duck.duckdb?access_mode="},
+			want: []string{
+				"duckdb://duck.duckdb?access_mode=READ_ONLY",
+				"duckdb://duck.duckdb?access_mode=READ_WRITE",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"duckdb://duck.duckdb?access_mode=READ_ONLY"},
+			want:       []string{"duckdb://duck.duckdb?access_mode=READ_ONLY&"},
 			wantResult: stdDirective,
 		},
 	}

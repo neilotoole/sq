@@ -16,6 +16,13 @@
 
 [context.production]
   command = "bun run build"
+  # Production publishes to https://sq.io happen only via the manual
+  # `Site Publish (dispatch)` GitHub Actions workflow, which builds locally
+  # and uploads via the Netlify CLI. An `ignore` command that exits 0 tells
+  # Netlify to skip the production build entirely whenever its git
+  # integration fires (e.g. on master pushes). PR deploy previews are
+  # unaffected — they use the `deploy-preview` context.
+  ignore = "exit 0"
 
 [context.deploy-preview]
   command = "bun run build -- -b $DEPLOY_PRIME_URL"

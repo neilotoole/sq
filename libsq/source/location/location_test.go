@@ -22,6 +22,7 @@ func TestIsSQL(t *testing.T) {
 		{loc: "https://path/to/data.xlsx", want: false},
 		{loc: "http://path/to/data.xlsx", want: false},
 		{loc: "sqlite3:///path/to/sqlite.db", want: true},
+		{loc: "duckdb:///path/to/duck.duckdb", want: true},
 		{loc: "sqlserver://sq:p_ssW0rd@localhost?database=sqtest", want: true},
 		{loc: "postgres://sq:p_ssW0rd@localhost/sqtest?sslmode=disable", want: true},
 		{loc: "mysql://sq:p_ssW0rd@tcp(localhost:3306)/sqtest", want: true},

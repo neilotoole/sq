@@ -19,6 +19,9 @@ const (
 	// SQLite is for sqlite3.
 	SQLite = Type("sqlite3")
 
+	// DuckDB is for duckdb.
+	DuckDB = Type("duckdb")
+
 	// Pg is for Postgres.
 	Pg = Type("postgres")
 

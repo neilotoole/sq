@@ -54,6 +54,12 @@ func (fs *Files) DetectType(ctx context.Context, handle, loc string) (drivertype
 	}
 
 	if fields.Ext != "" {
+		// Check DuckDB extensions before falling through to the MIME lookup,
+		// since .duckdb and .ddb have no registered MIME type.
+		if typ, ok := driverFromFileExt(fields.Ext); ok {
+			return typ, nil
+		}
+
 		mtype := mime.TypeByExtension(fields.Ext)
 		if mtype == "" {
 			log.Debug("unknown mime type", lga.Type, mtype)
@@ -199,6 +205,25 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 
 var _ TypeDetectFunc = DetectMagicNumber
 
+// typeDuckDB is the filetype.Type registered for DuckDB files.
+// The matcher is also registered here at package initialization time via the
+// filetype.AddMatcher call below (its return value is assigned to the blank
+// identifier to avoid a gochecknoinits violation while still registering the
+// matcher at startup).
+var typeDuckDB = filetype.AddType("duckdb", "application/vnd.duckdb")
+
+// Register the DuckDB magic-byte matcher with the h2non/filetype library.
+// DuckDB stores the ASCII bytes "DUCK" at offset 8 of the file header.
+//
+//nolint:gochecknoglobals
+var _ = filetype.AddMatcher(typeDuckDB, IsDuckDB)
+
+// IsDuckDB reports whether b is the start of a DuckDB database file.
+// DuckDB stores the magic bytes "DUCK" at offset 8 of the file header.
+func IsDuckDB(b []byte) bool {
+	return len(b) >= 12 && string(b[8:12]) == "DUCK"
+}
+
 // DetectMagicNumber is a TypeDetectFunc that detects the "magic number"
 // from the start of files.
 func DetectMagicNumber(ctx context.Context, newRdrFn NewReaderFunc,
@@ -237,7 +262,20 @@ func DetectMagicNumber(ctx context.Context, newRdrFn NewReaderFunc,
 		return drivertype.XLSX, 1.0, errz.Errorf("Microsoft XLS (%s) not currently supported", ftype)
 	case matchers.TypeSqlite:
 		return drivertype.SQLite, 1.0, nil
+	case typeDuckDB:
+		return drivertype.DuckDB, 1.0, nil
 	}
+}
+
+// driverFromFileExt returns the driver type for file extensions that have no
+// registered MIME type (and thus cannot be detected via driverFromMediaType).
+// Currently this covers the DuckDB extensions .duckdb and .ddb.
+func driverFromFileExt(ext string) (typ drivertype.Type, ok bool) {
+	switch strings.ToLower(ext) {
+	case ".duckdb", ".ddb":
+		return drivertype.DuckDB, true
+	}
+	return drivertype.None, false
 }
 
 // driverFromMediaType returns the driver type corresponding to mediatype.

@@ -16,6 +16,13 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
+- DuckDB driver ([#437](https://github.com/neilotoole/sq/issues/437)):
+  [`sq`](https://sq.io/docs/cmd/sq) can now read and write DuckDB databases
+  via the `duckdb://` scheme. The driver supports the full DuckDB type system,
+  statically links the standard set of in-tree extensions (`json`, `parquet`,
+  `icu`, `fts`, `httpfs`, `excel`, `inet`, `autocomplete`, `tpch`, `tpcds`),
+  and works on macOS (amd64/arm64), Linux (amd64/arm64), and Windows (amd64).
+  See [DuckDB driver docs](https://sq.io/docs/drivers/duckdb).
 - [#498]: [`sq inspect`](https://sq.io/docs/cmd/inspect) now reports
   foreign-key relationships. Each table carries an `fk` object with
   two slices: `fk.outgoing` (constraints declared on this table) and
