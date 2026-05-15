@@ -489,7 +489,7 @@ func TestCmdSLQ_DryRun_JSON(t *testing.T) {
 	require.Contains(t, strings.ToLower(got.SQL), "actor")
 	require.Equal(t, "sqlite3", got.Dialect)
 	require.Equal(t, src.Handle, got.Source)
-	require.False(t, got.Multi)
+	require.Equal(t, []string{src.Handle}, got.Sources)
 }
 
 // TestCmdSLQ_DryRun_JSONL verifies that --dry-run --format=jsonl emits

@@ -137,10 +137,13 @@ type RenderResult struct {
 	// source's handle.
 	SourceHandle string
 
-	// Multi is true if more than one source is involved in the SLQ.
-	// If executed (not via SLQ2SQL), data would be staged into the join
-	// DB before the final SQL ran. SLQ2SQL itself does no staging.
-	Multi bool
+	// Sources is the set of input source handles referenced by the SLQ.
+	// For single-source queries this is a one-element slice equal to
+	// SourceHandle. For cross-source queries it is the inputs that
+	// would be staged into the join DB (SourceHandle, in that case,
+	// names the join DB rather than any of these inputs). SLQ2SQL
+	// itself does no staging.
+	Sources []string
 }
 
 // SLQ2SQL renders a SLQ query into the SQL that would be executed
@@ -160,8 +163,34 @@ func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (*RenderResult
 		SQL:          p.targetSQL,
 		Dialect:      src.Type,
 		SourceHandle: src.Handle,
-		Multi:        len(p.tasks) > 0,
+		Sources:      p.inputSourceHandles(),
 	}, nil
+}
+
+// inputSourceHandles returns the set of source handles that the SLQ
+// references as inputs, in stable order. For cross-source queries
+// these are the handles of the sources that would be staged into
+// the join DB; for single-source queries the result is a one-element
+// slice equal to p.targetGrip's handle.
+func (p *pipeline) inputSourceHandles() []string {
+	seen := map[string]bool{}
+	var handles []string
+	for _, t := range p.tasks {
+		jt, ok := t.(*joinCopyTask)
+		if !ok {
+			continue
+		}
+		h := jt.fromGrip.Source().Handle
+		if h == "" || seen[h] {
+			continue
+		}
+		seen[h] = true
+		handles = append(handles, h)
+	}
+	if len(handles) == 0 {
+		handles = []string{p.targetGrip.Source().Handle}
+	}
+	return handles
 }
 
 // ExecSQL executes a SQL statement (DDL/DML) that doesn't return rows,

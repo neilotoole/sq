@@ -22,13 +22,16 @@ type SQLPayload struct {
 
 	// Source is the handle of the source that SQL targets, e.g.
 	// "@sakila_pg". For cross-source queries this is the join DB's
-	// handle.
+	// handle, distinct from any of the input handles in Sources.
 	Source string `json:"source" yaml:"source"`
 
-	// Multi is true if more than one source is involved in the SLQ. If
-	// executed (not via --dry-run), data would be staged into the join
-	// DB before the final SQL ran. --dry-run itself does no staging.
-	Multi bool `json:"multi" yaml:"multi"`
+	// Sources is the set of input source handles referenced by the
+	// SLQ. For single-source queries it has one element equal to
+	// Source. For cross-source queries it lists the input sources
+	// whose data would be staged into the join DB named by Source;
+	// in that case Source is not itself in Sources. --dry-run does
+	// no staging.
+	Sources []string `json:"sources" yaml:"sources"`
 }
 
 // SQLWriter writes an SQLPayload in some format-specific

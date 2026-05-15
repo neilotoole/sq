@@ -93,7 +93,7 @@ func samplePayload() output.SQLPayload {
 		SQL:     `SELECT * FROM "actor" WHERE "first_name" = 'TOM'`,
 		Dialect: "postgres",
 		Source:  "@sakila_pg",
-		Multi:   false,
+		Sources: []string{"@sakila_pg"},
 		Args:    map[string]string{"name": "TOM"},
 	}
 }
