@@ -138,14 +138,3 @@ DuckDB's `to_json(col)` is planned as a follow-up — see [#609](https://github.
   this is rarely a problem, but scripts that parallelize `sq` against the same
   file should serialize writes. Read-only access (`access_mode=READ_ONLY`) from
   multiple processes is safe.
-
-- **Sakila FOREIGN KEY constraints.** The bundled test Sakila database for
-  DuckDB preserves 21 of the 22 FOREIGN KEY constraints from the
-  MySQL/SQLite source. The one omission is `fk_store_staff` (store →
-  staff): the store/staff cycle cannot be represented in DuckDB because
-  both `staff.store_id` and `store.manager_staff_id` are `NOT NULL`,
-  DuckDB enforces FKs at INSERT time, and DuckDB has no deferral or
-  disable mechanism. `ON DELETE CASCADE` / `SET NULL` / `SET DEFAULT`
-  clauses are also stripped (DuckDB only supports `NO ACTION`). This
-  does not affect `sq`'s behavior against real-world DuckDB databases
-  the user creates themselves.
