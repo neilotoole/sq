@@ -12,6 +12,7 @@ import (
 	"github.com/fatih/color"
 
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 // NewTextWriter returns an output.SQLWriter that emits plain SQL
@@ -37,15 +38,25 @@ func (w *TextWriter) Render(p output.SQLPayload) error {
 			sql = h
 		}
 	}
-	_, err := io.WriteString(w.out, sql+"\n")
-	return err
+	if _, err := io.WriteString(w.out, sql+"\n"); err != nil {
+		return errz.Err(err)
+	}
+	return nil
 }
 
 // highlight tokenises sql with chroma's SQL lexer and emits each token
 // through the corresponding *color.Color slot from pr. Returns
-// (highlighted, true) on success, or (sql, false) if the lexer or
-// tokenisation fails — caller is expected to fall back to plain sql.
-func highlight(sql string, pr *output.Printing) (string, bool) {
+// (highlighted, true) on success, or (sql, false) if the lexer is
+// missing, tokenisation fails, or the iterator panics — caller is
+// expected to fall back to plain sql. Chroma's docs note that iterators
+// "may propagate [errors] in a panic", so the recover is required.
+func highlight(sql string, pr *output.Printing) (out string, ok bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			out, ok = sql, false
+		}
+	}()
+
 	lexer := lexers.Get("sql")
 	if lexer == nil {
 		return sql, false
@@ -57,7 +68,7 @@ func highlight(sql string, pr *output.Printing) (string, bool) {
 
 	var buf strings.Builder
 	buf.Grow(len(sql) * 2) // rough overhead allowance for escape codes
-	for _, tok := range iter.Tokens() {
+	for tok := iter(); tok != chroma.EOF; tok = iter() {
 		clr := colorFor(tok, pr)
 		if clr == nil {
 			buf.WriteString(tok.Value)
@@ -88,11 +99,13 @@ func colorFor(tok chroma.Token, pr *output.Printing) *color.Color {
 
 	// Keywords: separate booleans and NULL by value, since chroma's
 	// SQL lexer does not split them out into distinct token types.
+	// EqualFold avoids per-token allocations from strings.ToUpper.
 	if cat == chroma.Keyword {
-		switch strings.ToUpper(tok.Value) {
-		case "TRUE", "FALSE":
+		switch {
+		case strings.EqualFold(tok.Value, "TRUE"),
+			strings.EqualFold(tok.Value, "FALSE"):
 			return pr.Bool
-		case "NULL":
+		case strings.EqualFold(tok.Value, "NULL"):
 			return pr.Null
 		}
 		return pr.Key

@@ -26,6 +26,12 @@ func newMonochromePrinting() *output.Printing {
 // of the test. Without this, NO_COLOR env vars or parallel tests
 // touching the global can suppress ANSI output and make the
 // "should contain ANSI escapes" assertions flaky.
+//
+// CAUTION: tests that call this MUST NOT call t.Parallel(), because
+// the cleanup restores color.NoColor and a parallel sibling could
+// observe either value. If parallelism is needed, refactor to avoid
+// mutating color.NoColor (e.g. wire color decisions exclusively
+// through output.Printing).
 func newColorPrinting(t *testing.T) *output.Printing {
 	t.Helper()
 	prev := color.NoColor
