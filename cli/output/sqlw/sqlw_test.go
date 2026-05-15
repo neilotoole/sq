@@ -149,6 +149,49 @@ func TestYAMLWriter_RoundTrip(t *testing.T) {
 	require.Equal(t, samplePayload(), got)
 }
 
+func TestJSONWriter_Color(t *testing.T) {
+	buf := &bytes.Buffer{}
+	w := sqlw.NewJSONWriter(buf, newColorPrinting())
+	require.NoError(t, w.Render(samplePayload()))
+
+	got := buf.String()
+	require.Contains(t, got, "\x1b[", "expected ANSI escape codes in colored JSON output")
+	// Stripping ANSI should leave valid JSON that round-trips.
+	var p output.SQLPayload
+	require.NoError(t, json.Unmarshal([]byte(stripANSI(got)), &p))
+	require.Equal(t, samplePayload(), p)
+}
+
+func TestJSONLWriter_Color(t *testing.T) {
+	buf := &bytes.Buffer{}
+	w := sqlw.NewJSONLWriter(buf, newColorPrinting())
+	require.NoError(t, w.Render(samplePayload()))
+
+	got := buf.String()
+	require.Contains(t, got, "\x1b[", "expected ANSI escape codes in colored JSONL output")
+	// JSONL stays single-line (one trailing newline, no internal newlines)
+	// even after colourising.
+	stripped := stripANSI(got)
+	require.Equal(t, 1, strings.Count(stripped, "\n"))
+	require.True(t, strings.HasSuffix(stripped, "\n"))
+
+	var p output.SQLPayload
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(stripped)), &p))
+	require.Equal(t, samplePayload(), p)
+}
+
+func TestYAMLWriter_Color(t *testing.T) {
+	buf := &bytes.Buffer{}
+	w := sqlw.NewYAMLWriter(buf, newColorPrinting())
+	require.NoError(t, w.Render(samplePayload()))
+
+	got := buf.String()
+	require.Contains(t, got, "\x1b[", "expected ANSI escape codes in colored YAML output")
+	var p output.SQLPayload
+	require.NoError(t, goccy.Unmarshal([]byte(stripANSI(got)), &p))
+	require.Equal(t, samplePayload(), p)
+}
+
 func TestYAMLWriter_OmitsEmptyArgs(t *testing.T) {
 	buf := &bytes.Buffer{}
 	w := sqlw.NewYAMLWriter(buf, newMonochromePrinting())

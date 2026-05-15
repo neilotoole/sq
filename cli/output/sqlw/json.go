@@ -1,23 +1,22 @@
 package sqlw
 
 import (
-	"encoding/json"
 	"io"
 
 	"github.com/neilotoole/sq/cli/output"
-	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/cli/output/jsonw"
 )
 
 // NewJSONWriter returns an output.SQLWriter that emits an SQLPayload as
-// pretty-printed JSON. The indent string is taken from pr.Indent
-// (typically two spaces). The Compact field on pr is honoured: if
-// true, output is compact.
+// pretty-printed JSON. Output honours the colour palette in pr when
+// colour is enabled, matching the rest of sq's JSON output.
 func NewJSONWriter(out io.Writer, pr *output.Printing) *JSONWriter {
 	return &JSONWriter{out: out, pr: pr, compact: pr.Compact}
 }
 
 // NewJSONLWriter returns an output.SQLWriter that emits an SQLPayload as
-// compact one-line JSON, suitable for jsonl pipelines.
+// compact one-line JSON, suitable for jsonl pipelines. Colour is honoured
+// when pr has colour enabled.
 func NewJSONLWriter(out io.Writer, pr *output.Printing) *JSONWriter {
 	return &JSONWriter{out: out, pr: pr, compact: true}
 }
@@ -33,28 +32,10 @@ type JSONWriter struct {
 
 // Render implements output.SQLWriter.
 func (w *JSONWriter) Render(p output.SQLPayload) error {
-	var (
-		b   []byte
-		err error
-	)
-	if w.compact {
-		b, err = json.Marshal(p)
-	} else {
-		indent := w.pr.Indent
-		if indent == "" {
-			indent = "  "
-		}
-		b, err = json.MarshalIndent(p, "", indent)
+	pr := w.pr
+	if pr.Compact != w.compact {
+		pr = pr.Clone()
+		pr.Compact = w.compact
 	}
-	if err != nil {
-		return errz.Err(err)
-	}
-
-	if _, err = w.out.Write(b); err != nil {
-		return errz.Err(err)
-	}
-	if _, err = w.out.Write([]byte("\n")); err != nil {
-		return errz.Err(err)
-	}
-	return nil
+	return jsonw.WriteJSON(w.out, pr, p)
 }

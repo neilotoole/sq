@@ -21,9 +21,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   target database instead of running it. Honours `--format`: with
   `text` (the default) or `raw`, the rendered SQL is printed plain
   (syntax-highlighted on TTYs); with `json`, `jsonl`, or `yaml`, a
-  structured payload is printed containing the original SLQ, the
-  rendered SQL, the dialect, the target source handle, and any
-  `--arg` values. Other formats fall back to text.
+  structured payload is printed (colourised on TTYs) containing the
+  original SLQ, the rendered SQL, the dialect, the target source
+  handle, and any `--arg` values. Other formats fall back to text.
 - DuckDB driver ([#437](https://github.com/neilotoole/sq/issues/437)):
   [`sq`](https://sq.io/docs/cmd/sq) can now read and write DuckDB databases
   via the `duckdb://` scheme. The driver supports the full DuckDB type system,

@@ -10,6 +10,13 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
+// WriteJSON prints a JSON representation of v to out, using specs
+// from pr. It honours pr.Compact, pr.Indent, and the colour palette
+// derived from pr.
+func WriteJSON(out io.Writer, pr *output.Printing, v any) error {
+	return writeJSON(out, pr, v)
+}
+
 // writeJSON prints a JSON representation of v to out, using specs
 // from pr.
 func writeJSON(out io.Writer, pr *output.Printing, v any) error {
