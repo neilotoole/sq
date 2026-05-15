@@ -28,8 +28,14 @@ var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive // kind.Nu
 // It honours PKColName, NotNull, HasDefault, and Unique. AutoIncrement is
 // intentionally ignored: DuckDB has no AUTOINCREMENT keyword (callers wanting
 // SERIAL-style behaviour use SEQUENCE objects), and a PRIMARY KEY alone is
-// sufficient for sq's use cases. Foreign-key constraints are deliberately
-// omitted for now.
+// sufficient for sq's use cases.
+//
+// [schema.Column.ForeignKey] is not emitted as a REFERENCES clause. This
+// matches postgres / sqlserver / oracle and avoids the topological-sort
+// problem that `sq tbl copy` would otherwise hit when destination tables
+// are created in arbitrary order. FK relationships declared in the source
+// schema are still introspectable on the DuckDB destination via
+// `sq inspect` (see drivers/duckdb/metadata.go).
 func buildCreateTableStmt(tblDef *schema.Table) string {
 	sb := strings.Builder{}
 	sb.WriteString(`CREATE TABLE "`)

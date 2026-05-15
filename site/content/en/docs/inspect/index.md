@@ -165,8 +165,8 @@ not tables.
 ## Foreign-key relationships
 
 `sq inspect` reports foreign-key constraints for any SQL source that
-supports them (SQLite, Postgres, MySQL, SQL Server, Oracle). The
-relationships appear under each table's `fk` object — the same FK
+supports them (SQLite, Postgres, MySQL, SQL Server, Oracle, DuckDB).
+The relationships appear under each table's `fk` object — the same FK
 shows up once under its owning table's `fk.outgoing` and once under
 the referenced table's `fk.incoming`:
 
@@ -181,7 +181,9 @@ the referenced table's `fk.incoming`:
 
 Composite foreign keys and cross-schema references are supported. The
 `on_delete` and `on_update` referential actions are surfaced where the
-driver reports them (Oracle exposes `on_delete` only).
+driver reports them (Oracle exposes `on_delete` only; DuckDB's
+`duckdb_constraints()` view doesn't expose either action, so both
+fields are left empty for DuckDB sources).
 
 For example, to list every parent → child relationship in the
 [Sakila](/docs/develop/sakila/) schema:
@@ -238,7 +240,11 @@ and the physical indexes that back it:
   PK-backing index, unique-constraint-backing indexes, and any
   user-declared `CREATE INDEX` entries. Each entry carries `unique`,
   `primary`, and a driver-specific `type` (e.g. `BTREE`, `HASH`,
-  `NONCLUSTERED`).
+  `NONCLUSTERED`). DuckDB is the exception: its `duckdb_indexes()`
+  catalog only lists explicit `CREATE INDEX` definitions, so
+  PK-backing and UNIQUE-backing indexes don't appear there. The PK
+  and UNIQUE information is still available via
+  `columns[].primary_key` and `unique_constraints`.
 
 For example, list non-unique indexes per table:
 

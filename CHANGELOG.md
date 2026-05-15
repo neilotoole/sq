@@ -28,10 +28,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   two slices: `fk.outgoing` (constraints declared on this table) and
   `fk.incoming` (constraints declared on other tables that point at
   it). Composite foreign keys and cross-schema references are
-  supported. Implemented for SQLite, Postgres, MySQL, SQL Server, and
-  Oracle. ClickHouse is skipped — it has no foreign-key concept. The
-  verbose text output also gains an `FK` column showing the
-  referenced table and columns.
+  supported. Implemented for SQLite, Postgres, MySQL, SQL Server,
+  Oracle, and DuckDB. ClickHouse is skipped — it has no foreign-key
+  concept. The verbose text output also gains an `FK` column showing
+  the referenced table and columns.
 - `sq inspect` additionally reports `unique_constraints` (semantic
   UNIQUE declarations) and `indexes` (physical indexes, including
   PK-backing and unique-constraint-backing ones) per table. Composite
@@ -40,7 +40,12 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   output gains `INDEXES` and `UNIQUE CONSTRAINTS` columns alongside
   `PK` and `FK`, listing the constraint/index names that each column
   participates in (PK-backing indexes are filtered from `INDEXES`
-  since the `PK` column already conveys that information).
+  since the `PK` column already conveys that information). DuckDB
+  reports only explicitly-declared indexes — its system catalog
+  doesn't expose the implicit indexes that back primary keys or
+  unique constraints, so those don't appear in `indexes` (but the
+  PK / UNIQUE info is still surfaced via `Column.primary_key` and
+  `unique_constraints`).
 
 ## [v0.51.0] - 2026-05-10
 

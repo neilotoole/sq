@@ -184,6 +184,40 @@ func TestPathFromLocation(t *testing.T) {
 	}
 }
 
+// TestParseDuckDBIndexExpressions covers the shapes that
+// duckdb_indexes().expressions emits without needing a live DB.
+func TestParseDuckDBIndexExpressions(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want []string
+	}{
+		{in: "[email]", want: []string{"email"}},
+		{in: "[store_id, film_id]", want: []string{"store_id", "film_id"}},
+		// Reserved-word column → DuckDB re-quotes as `'"name"'`.
+		{in: `['"name"']`, want: []string{"name"}},
+		// Mixed: bare + re-quoted.
+		{in: `['"name"', email]`, want: []string{"name", "email"}},
+		// Functional expression → no plain column ref → empty result.
+		{in: `['(lower(email))']`, want: []string{}},
+		// Mixed simple + functional → only the simple key survives.
+		{in: `[name, '(lower(email))']`, want: []string{"name"}},
+		// Pathological / unparseable inputs return nil.
+		{in: "", want: nil},
+		{in: "[]", want: nil},
+		{in: "not-a-list", want: nil},
+	}
+	for _, tc := range testCases {
+		t.Run(tu.Name(tc.in), func(t *testing.T) {
+			got := parseDuckDBIndexExpressions(tc.in)
+			if len(tc.want) == 0 {
+				require.Empty(t, got)
+				return
+			}
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
 // TestConnParams asserts the whitelist's keys and known-value enumerations,
 // so a typo (e.g. "READ ONLY") that would silently degrade tab completion
 // is caught.
