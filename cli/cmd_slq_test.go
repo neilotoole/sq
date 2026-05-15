@@ -16,6 +16,7 @@ import (
 
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
@@ -611,6 +612,46 @@ func TestCmdSLQ_RenderSQL_InvalidSLQ(t *testing.T) {
 	require.Error(t, err)
 	require.Empty(t, strings.TrimSpace(tr.OutString()),
 		"stdout should be empty on error, got: %s", tr.OutString())
+}
+
+// TestRenderSQLSupportsFormat is a parity test pinning the
+// renderSQLSupportsFormat allow-list to format.All(). Adding a new
+// format.Format to format.All() will fail this test until the new
+// format is added to the case table (and, importantly, until a
+// corresponding writer dispatch is added to newWriters or the
+// new format is explicitly listed as falling back to text).
+func TestRenderSQLSupportsFormat(t *testing.T) {
+	cases := []struct {
+		fm        format.Format
+		supported bool
+	}{
+		{format.Text, true},
+		{format.Raw, true},
+		{format.JSON, true},
+		{format.JSONL, true},
+		{format.YAML, true},
+		{format.JSONA, false},
+		{format.CSV, false},
+		{format.TSV, false},
+		{format.HTML, false},
+		{format.Markdown, false},
+		{format.XML, false},
+		{format.XLSX, false},
+	}
+
+	seen := make(map[format.Format]bool, len(cases))
+	for _, tc := range cases {
+		t.Run(string(tc.fm), func(t *testing.T) {
+			seen[tc.fm] = true
+			require.Equal(t, tc.supported, cli.RenderSQLSupportsFormat(tc.fm))
+		})
+	}
+
+	for _, fm := range format.All() {
+		require.True(t, seen[fm],
+			"format %q missing from TestRenderSQLSupportsFormat cases; "+
+				"add it (and a writer dispatch in newWriters if appropriate)", fm)
+	}
 }
 
 // TestCmdSLQ_RenderSQL_ExplicitFalse verifies that an explicit

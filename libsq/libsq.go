@@ -141,11 +141,12 @@ type RenderResult struct {
 	Target string `json:"target" yaml:"target"`
 
 	// Inputs is the set of input source handles referenced by the SLQ,
-	// in stable order with no duplicates. For single-source queries this
-	// is a one-element slice equal to Target. For cross-source queries
-	// these are the inputs that would be staged into the join DB; Target
-	// in that case names the join DB rather than any of these inputs.
-	// SLQ2SQL itself does no staging.
+	// deduplicated and in a deterministic but unspecified order (callers
+	// must not rely on it matching the textual order in the SLQ). For
+	// single-source queries this is a one-element slice equal to Target.
+	// For cross-source queries these are the inputs that would be staged
+	// into the join DB; Target in that case names the join DB rather
+	// than any of these inputs. SLQ2SQL itself does no staging.
 	Inputs []string `json:"inputs" yaml:"inputs"`
 }
 
@@ -188,11 +189,13 @@ func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (*RenderResult
 }
 
 // inputSourceHandles returns the set of source handles that the SLQ
-// references as inputs, in stable order. For cross-source queries
-// these are the handles of the sources that would be staged into
-// the join DB. When the pipeline has no joinCopyTasks — single-source
-// queries, and the no-active-source / scratch-source case — the
-// result is a one-element slice equal to p.targetGrip's handle.
+// references as inputs, deduplicated and in p.tasks walk order (which
+// is deterministic for a given pipeline but is not the same as the
+// handles' textual order in the SLQ). For cross-source queries these
+// are the handles of the sources that would be staged into the join
+// DB. When the pipeline has no joinCopyTasks — single-source queries,
+// and the no-active-source / scratch-source case — the result is a
+// one-element slice equal to p.targetGrip's handle.
 func (p *pipeline) inputSourceHandles() []string {
 	seen := map[string]bool{}
 	var handles []string

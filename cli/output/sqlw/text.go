@@ -87,8 +87,16 @@ func highlight(sql string, pr *output.Printing) (out string, ok bool) {
 func colorFor(tok chroma.Token, pr *output.Printing) *color.Color {
 	tt := tok.Type
 
-	// Literals via sub-category.
+	// Literals via sub-category. Note: SQL's chroma lexer uses
+	// LiteralStringDouble for "…" and LiteralStringBacktick for `…`,
+	// both of which are *identifier* quoting in standard SQL (and
+	// MySQL respectively), NOT string literals. Coloring them as
+	// pr.String would make `SELECT "actor"` look identical to
+	// SELECT 'actor', which is misleading. Leave them uncoloured.
 	if tt.SubCategory() == chroma.LiteralString {
+		if tt == chroma.LiteralStringDouble || tt == chroma.LiteralStringBacktick {
+			return nil
+		}
 		return pr.String
 	}
 	if tt.SubCategory() == chroma.LiteralNumber {

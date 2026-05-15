@@ -80,6 +80,42 @@ func TestTextWriter_NoColor(t *testing.T) {
 	require.Equal(t, "SELECT * FROM \"actor\"\n", buf.String())
 }
 
+// TestTextWriter_Color_DoubleQuotedIdentifiers verifies that
+// "double-quoted" identifiers (the standard SQL quoting for
+// table/column names) are NOT colored with pr.String — that slot
+// is reserved for actual string literals like 'TOM'. chroma's SQL
+// lexer emits double-quoted text as LiteralStringDouble and
+// single-quoted text as LiteralStringSingle; both share the
+// LiteralString sub-category, so colorFor must distinguish them.
+func TestTextWriter_Color_DoubleQuotedIdentifiers(t *testing.T) {
+	buf := &bytes.Buffer{}
+	pr := newColorPrinting(t)
+	w := sqlw.NewTextWriter(buf, pr)
+
+	const sql = `SELECT "first_name" FROM "actor" WHERE "first_name" = 'TOM'`
+	require.NoError(t, w.Render(output.SQLPayload{SQL: sql}))
+
+	got := buf.String()
+	require.Equal(t, sql+"\n", stripANSI(got), "round-trip text must match")
+
+	// Double-quoted identifiers must appear in the colored output
+	// without any color escapes wrapping their characters — i.e. the
+	// raw substring "actor" is present verbatim.
+	require.Contains(t, got, `"actor"`,
+		"double-quoted identifier should appear with no ANSI codes around it")
+	require.Contains(t, got, `"first_name"`,
+		"double-quoted identifier should appear with no ANSI codes around it")
+
+	// Single-quoted literals must NOT appear verbatim — chroma tokenises
+	// them as separate quote/content tokens, each wrapped in pr.String
+	// escapes. The presence of pr.String on the 'TOM' content confirms
+	// the literal-string path is still firing for genuine string literals.
+	require.NotContains(t, got, `'TOM'`,
+		"single-quoted literal should be colorised, not appear verbatim")
+	require.Contains(t, got, pr.String.Sprint("TOM"),
+		"string literal content should be wrapped in pr.String")
+}
+
 // TestTextWriter_Color_TrueFalseNull verifies that TRUE/FALSE/NULL
 // receive their dedicated color slots (Bool/Null) rather than the
 // generic Keyword color, matching how the rest of sq colors those

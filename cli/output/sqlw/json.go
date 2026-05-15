@@ -7,9 +7,12 @@ import (
 	"github.com/neilotoole/sq/cli/output/jsonw"
 )
 
-// NewJSONWriter returns an output.SQLWriter that emits an SQLPayload as
-// pretty-printed JSON. Output honours the colour palette in pr when
-// colour is enabled, matching the rest of sq's JSON output.
+// NewJSONWriter returns an output.SQLWriter that emits an SQLPayload
+// as JSON, pretty-printed by default but compact when pr.Compact is
+// true. For unconditionally single-line output (e.g. for jsonl
+// pipelines), use [NewJSONLWriter] instead. Output honours the colour
+// palette in pr when colour is enabled, matching the rest of sq's
+// JSON output.
 func NewJSONWriter(out io.Writer, pr *output.Printing) *JSONWriter {
 	return &JSONWriter{out: out, pr: pr, compact: pr.Compact}
 }
