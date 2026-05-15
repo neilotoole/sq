@@ -49,7 +49,7 @@ const (
 	RenderSQL      = "render-sql"
 	RenderSQLUsage = "Render the SLQ to SQL without executing it. " +
 		"For cross-source queries, renders the final SQL that would run against the join database (no data is staged). " +
-		"With --format=json or --format=yaml, prints a structured payload (slq, sql, dialect, sources, ...)."
+		"With --format=json, --format=jsonl, or --format=yaml, prints a structured payload (slq, sql, dialect, sources, ...)."
 
 	JSON       = "json"
 	JSONShort  = "j"

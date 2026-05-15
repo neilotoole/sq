@@ -572,6 +572,23 @@ func TestCmdSLQ_RenderSQL_ArgSubstitution(t *testing.T) {
 	require.Contains(t, got.SQL, "TOM")
 }
 
+// TestCmdSLQ_RenderSQL_ExplicitFalse verifies that an explicit
+// --render-sql=false does not trigger render-only mode; the query
+// should execute normally and emit records, not SQL text.
+func TestCmdSLQ_RenderSQL_ExplicitFalse(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
+	require.NoError(t, tr.Exec("slq", "--render-sql=false", "--format=json", src.Handle+".actor"))
+
+	// A real query result is a JSON array of records; a render-sql JSON
+	// payload would be a single object starting with '{'.
+	out := strings.TrimSpace(tr.OutString())
+	require.True(t, strings.HasPrefix(out, "["),
+		"expected query results (JSON array), got: %s", out)
+}
+
 // TestCmdSLQ_RenderSQL_NotOnSQLCmd verifies that --render-sql is not
 // available on the sq sql command (different command, different flag
 // set).

@@ -16,7 +16,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
-- [#499]: `sq` [slq](https://sq.io/docs/cmd/slq) command now supports
+- [#499]: [`sq`](https://sq.io/docs/cmd/sq) (slq) now supports
   `--render-sql`, which prints the SQL that would be executed against
   the target database instead of running it. Honours `--format`: with
   `text` (the default) or `raw`, the rendered SQL is printed plain

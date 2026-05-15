@@ -93,7 +93,7 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if cmdFlagChanged(cmd, flag.RenderSQL) {
+	if cmdFlagIsSetTrue(cmd, flag.RenderSQL) {
 		if cmdFlagChanged(cmd, flag.Insert) {
 			return errz.Errorf("--%s is not compatible with --%s", flag.Insert, flag.RenderSQL)
 		}
