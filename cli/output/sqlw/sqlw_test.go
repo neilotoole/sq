@@ -80,14 +80,13 @@ func TestTextWriter_NoColor(t *testing.T) {
 	require.Equal(t, "SELECT * FROM \"actor\"\n", buf.String())
 }
 
-// TestTextWriter_Color_DoubleQuotedIdentifiers verifies that
-// "double-quoted" identifiers (the standard SQL quoting for
-// table/column names) are NOT colored with pr.String — that slot
-// is reserved for actual string literals like 'TOM'. chroma's SQL
-// lexer emits double-quoted text as LiteralStringDouble and
-// single-quoted text as LiteralStringSingle; both share the
-// LiteralString sub-category, so colorFor must distinguish them.
-func TestTextWriter_Color_DoubleQuotedIdentifiers(t *testing.T) {
+// TestTextWriter_Color_StringQuoteSlot verifies the quote-vs-content
+// slot routing for chroma's LiteralString family: content (between
+// quotes) is colored with pr.String, while the quote characters
+// themselves (single, double, or backtick) are dimmed with pr.Faint
+// so the user can distinguish a string literal like 'TOM' from a
+// double-quoted identifier like "actor" by the dimness of the quote.
+func TestTextWriter_Color_StringQuoteSlot(t *testing.T) {
 	buf := &bytes.Buffer{}
 	pr := newColorPrinting(t)
 	w := sqlw.NewTextWriter(buf, pr)
@@ -98,22 +97,19 @@ func TestTextWriter_Color_DoubleQuotedIdentifiers(t *testing.T) {
 	got := buf.String()
 	require.Equal(t, sql+"\n", stripANSI(got), "round-trip text must match")
 
-	// Double-quoted identifiers must appear in the colored output
-	// without any color escapes wrapping their characters — i.e. the
-	// raw substring "actor" is present verbatim.
-	require.Contains(t, got, `"actor"`,
-		"double-quoted identifier should appear with no ANSI codes around it")
-	require.Contains(t, got, `"first_name"`,
-		"double-quoted identifier should appear with no ANSI codes around it")
-
-	// Single-quoted literals must NOT appear verbatim — chroma tokenises
-	// them as separate quote/content tokens, each wrapped in pr.String
-	// escapes. The presence of pr.String on the 'TOM' content confirms
-	// the literal-string path is still firing for genuine string literals.
-	require.NotContains(t, got, `'TOM'`,
-		"single-quoted literal should be colorised, not appear verbatim")
+	// Content tokens use pr.String.
+	require.Contains(t, got, pr.String.Sprint("actor"),
+		"identifier content should be wrapped in pr.String")
+	require.Contains(t, got, pr.String.Sprint("first_name"),
+		"identifier content should be wrapped in pr.String")
 	require.Contains(t, got, pr.String.Sprint("TOM"),
 		"string literal content should be wrapped in pr.String")
+
+	// Quote characters use pr.Faint.
+	require.Contains(t, got, pr.Faint.Sprint(`"`),
+		"double-quote character should be wrapped in pr.Faint")
+	require.Contains(t, got, pr.Faint.Sprint(`'`),
+		"single-quote character should be wrapped in pr.Faint")
 }
 
 // TestTextWriter_Color_TrueFalseNull verifies that TRUE/FALSE/NULL

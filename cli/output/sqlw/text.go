@@ -87,15 +87,20 @@ func highlight(sql string, pr *output.Printing) (out string, ok bool) {
 func colorFor(tok chroma.Token, pr *output.Printing) *color.Color {
 	tt := tok.Type
 
-	// Literals via sub-category. Note: SQL's chroma lexer uses
-	// LiteralStringDouble for "…" and LiteralStringBacktick for `…`,
-	// both of which are *identifier* quoting in standard SQL (and
-	// MySQL respectively), NOT string literals. Coloring them as
-	// pr.String would make `SELECT "actor"` look identical to
-	// SELECT 'actor', which is misleading. Leave them uncoloured.
+	// Literals via sub-category. chroma's SQL lexer emits the opening
+	// quote, the content, and the closing quote as separate tokens
+	// (all under LiteralStringSingle / LiteralStringDouble). Route
+	// the content to pr.String (green) and the quote characters
+	// themselves to pr.Faint so the user can visually distinguish
+	// a string literal like 'TOM' from a double-quoted identifier
+	// like "actor" by the dimness of the quote, while still
+	// highlighting the content uniformly.
 	if tt.SubCategory() == chroma.LiteralString {
-		if tt == chroma.LiteralStringDouble || tt == chroma.LiteralStringBacktick {
-			return nil
+		if len(tok.Value) > 0 {
+			switch tok.Value[0] {
+			case '"', '\'', '`':
+				return pr.Faint
+			}
 		}
 		return pr.String
 	}
