@@ -133,10 +133,28 @@ FROM DUAL`
 		}
 	}
 
-	// Each Table.FK.Outgoing slice was already populated by the
-	// per-table getTableMetadata call inside
-	// loadUserSchemaObjectsMetadata above; now derive
-	// Table.FK.Incoming across the whole source.
+	// Fetch FKs / unique constraints / indexes in three bulk queries
+	// instead of 3N per-table calls inside loadUserSchemaObjectsMetadata.
+	// The Assign* helpers route each result to its owning table, and
+	// LinkForeignKeys derives FK.Incoming across the whole source.
+	allFKs, err := getOracleForeignKeys(ctx, db, "")
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignForeignKeys(md.Tables, allFKs)
+
+	allUCs, err := getOracleUniqueConstraints(ctx, db, "")
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignUniqueConstraints(md.Tables, allUCs)
+
+	allIdxs, err := getOracleIndexes(ctx, db, "")
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignIndexes(md.Tables, allIdxs)
+
 	metadata.LinkForeignKeys(md)
 
 	return md, nil
@@ -278,14 +296,17 @@ FETCH FIRST 1 ROW ONLY`
 }
 
 // getTableMetadata returns metadata for a specific table. The
-// loadIncomingFKs flag controls whether [getOracleIncomingFKs] is
-// invoked: source-level inspect passes false because
-// [metadata.LinkForeignKeys] derives incoming edges across the whole
-// source once every per-table outgoing FK list is loaded, and the
-// per-table incoming query work would otherwise be wasted. The
-// single-table inspect path passes true so the standalone
-// [metadata.Table] carries its incoming edges directly.
-func getTableMetadata(ctx context.Context, db *sql.DB, tblName string, loadIncomingFKs bool,
+// loadConstraints flag controls whether per-table FK /
+// unique-constraint / index queries are issued:
+//
+//   - Source-level inspect passes false. [getSourceMetadata] runs
+//     three bulk loaders after the table-iteration loop, which is 3
+//     round-trips total instead of 3N. [metadata.LinkForeignKeys]
+//     then derives [FK.Incoming] across the whole source.
+//   - Single-table inspect (grip.TableMetadata) passes true so the
+//     standalone [metadata.Table] carries its FK / unique-constraint /
+//     index metadata directly, including [FK.Incoming].
+func getTableMetadata(ctx context.Context, db *sql.DB, tblName string, loadConstraints bool,
 ) (*metadata.Table, error) {
 	_ = progress.FromContext(ctx) // Future: use for progress tracking
 
@@ -351,16 +372,19 @@ WHERE t.table_name = :1`
 	}
 	tblMeta.Columns = cols
 
+	// Source-level inspect skips per-table FK / UC / Index queries
+	// entirely; [getSourceMetadata] runs three bulk loaders below.
+	if !loadConstraints {
+		return tblMeta, nil
+	}
+
 	outgoing, err := getOracleForeignKeys(ctx, db, tblName)
 	if err != nil {
 		return nil, err
 	}
-	var incoming []*metadata.ForeignKey
-	if loadIncomingFKs {
-		incoming, err = getOracleIncomingFKs(ctx, db, tblName)
-		if err != nil {
-			return nil, err
-		}
+	incoming, err := getOracleIncomingFKs(ctx, db, tblName)
+	if err != nil {
+		return nil, err
 	}
 	tblMeta.FK = metadata.NewFKGroup(outgoing, incoming)
 

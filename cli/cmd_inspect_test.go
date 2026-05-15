@@ -28,6 +28,77 @@ import (
 	"github.com/neilotoole/sq/testh/tu"
 )
 
+// TestCmdInspect_FKMetadata_JSON pins the end-to-end JSON shape of the
+// FK / unique-constraint / index metadata added by #498. It runs against
+// every SQL driver that supports foreign keys (i.e. everything except
+// ClickHouse) and asserts the canonical sakila edge
+// film.language_id → language.language_id round-trips through the CLI
+// JSON output, with the matching incoming back-reference on the
+// language side. A driver regression that stopped populating
+// Table.FK.Outgoing would surface here even if every driver-level test
+// still passes.
+func TestCmdInspect_FKMetadata_JSON(t *testing.T) {
+	testCases := []string{
+		sakila.SL3,
+		sakila.Duck,
+		sakila.Pg,
+		sakila.My,
+		sakila.MS,
+		sakila.Ora,
+	}
+
+	for _, handle := range testCases {
+		t.Run(handle, func(t *testing.T) {
+			if handle != sakila.SL3 && handle != sakila.Duck {
+				tu.SkipShort(t, true)
+			}
+			t.Parallel()
+
+			th := testh.New(t)
+			src := th.Source(handle)
+			tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+			require.NoError(t, tr.Exec("inspect", "--json"))
+
+			srcMeta := &metadata.Source{}
+			require.NoError(t, json.Unmarshal(tr.Out.Bytes(), srcMeta))
+
+			var film, language *metadata.Table
+			for _, tbl := range srcMeta.Tables {
+				switch strings.ToLower(tbl.Name) {
+				case sakila.TblFilm:
+					film = tbl
+				case "language":
+					language = tbl
+				}
+			}
+			require.NotNil(t, film, "film table missing from %s JSON", handle)
+			require.NotNil(t, language, "language table missing from %s JSON", handle)
+
+			require.NotNil(t, film.FK, "film.fk wrapper must be present on %s", handle)
+			require.NotEmpty(t, film.FK.Outgoing,
+				"film.fk.outgoing must be non-empty on %s", handle)
+
+			var langFK *metadata.ForeignKey
+			for _, fk := range film.FK.Outgoing {
+				if len(fk.Columns) == 1 && strings.EqualFold(fk.Columns[0], "language_id") {
+					langFK = fk
+					break
+				}
+			}
+			require.NotNil(t, langFK,
+				"film.fk.outgoing should include a single-column FK on language_id (%s)", handle)
+			require.Equal(t, "language", strings.ToLower(langFK.RefTable))
+			require.Equal(t, []string{"language_id"},
+				[]string{strings.ToLower(langFK.RefColumns[0])})
+
+			require.NotNil(t, language.FK,
+				"language.fk wrapper must be present (has incoming FKs) on %s", handle)
+			require.NotEmpty(t, language.FK.Incoming,
+				"language.fk.incoming should include the film FK on %s", handle)
+		})
+	}
+}
+
 // TestCmdInspect_json_yaml tests "sq inspect" for
 // the JSON and YAML formats.
 func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel

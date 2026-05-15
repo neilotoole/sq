@@ -875,19 +875,29 @@ func TestSQLDriver_CurrentSchemaCatalog(t *testing.T) {
 //
 //nolint:tparallel
 func TestSQLDriver_SourceMetadata_FieldCoverage(t *testing.T) {
+	// wantPKIndex pins whether the driver surfaces the PK-backing
+	// index as a [metadata.Index] entry. DuckDB's duckdb_indexes()
+	// doesn't expose the implicit PK index, so it leaves the PK
+	// information on Column.PrimaryKey only.
 	testCases := []struct {
-		handle    string
-		wantUser  bool // SQLite has no auth; SQL Server doesn't populate it.
-		wantSize  bool // every SAKILA DB has data, so size > 0 is expected.
-		wantProps bool // DBProperties map should be non-empty.
-		wantFKs   bool // FK metadata. ClickHouse has no FK support.
+		handle      string
+		wantUser    bool // SQLite has no auth; SQL Server doesn't populate it.
+		wantSize    bool // every SAKILA DB has data, so size > 0 is expected.
+		wantProps   bool // DBProperties map should be non-empty.
+		wantFKs     bool // FK metadata. ClickHouse has no FK support.
+		wantPKIndex bool // PK-backing index surfaced as a [metadata.Index] entry.
 	}{
-		{handle: sakila.SL3, wantUser: false, wantSize: true, wantProps: true, wantFKs: true},
-		{handle: sakila.Pg, wantUser: true, wantSize: true, wantProps: true, wantFKs: true},
-		{handle: sakila.My, wantUser: true, wantSize: true, wantProps: true, wantFKs: true},
-		{handle: sakila.MS, wantUser: false, wantSize: true, wantProps: true, wantFKs: true},
-		{handle: sakila.CH, wantUser: true, wantSize: true, wantProps: true, wantFKs: false},
-		{handle: sakila.Ora, wantUser: true, wantSize: true, wantProps: true, wantFKs: true},
+		{handle: sakila.SL3, wantUser: false, wantSize: true, wantProps: true, wantFKs: true, wantPKIndex: true},
+		{handle: sakila.Pg, wantUser: true, wantSize: true, wantProps: true, wantFKs: true, wantPKIndex: true},
+		{handle: sakila.My, wantUser: true, wantSize: true, wantProps: true, wantFKs: true, wantPKIndex: true},
+		{handle: sakila.MS, wantUser: false, wantSize: true, wantProps: true, wantFKs: true, wantPKIndex: true},
+		{handle: sakila.CH, wantUser: true, wantSize: true, wantProps: true, wantFKs: false, wantPKIndex: false},
+		{handle: sakila.Ora, wantUser: true, wantSize: true, wantProps: true, wantFKs: true, wantPKIndex: true},
+		// DuckDB's getSourceMetadata doesn't populate Source.DBProperties
+		// today (the driver exposes DBProperties via its SQLDriver method
+		// but doesn't wire it into source-level inspect). DuckDB also
+		// doesn't surface PK-backing indexes via duckdb_indexes().
+		{handle: sakila.Duck, wantUser: false, wantSize: true, wantProps: false, wantFKs: true, wantPKIndex: false},
 	}
 
 	for _, tc := range testCases {
@@ -938,10 +948,12 @@ func TestSQLDriver_SourceMetadata_FieldCoverage(t *testing.T) {
 				require.NotNil(t, tbl.Columns, "Table.Columns on %s.%s", tc.handle, tbl.Name)
 			}
 
-			if tc.wantFKs {
-				// Indexes: every SAKILA driver creates a PK-backing
-				// index on language. Verify Table.Indexes is populated
-				// and includes a Primary entry covering language_id.
+			if tc.wantPKIndex {
+				// Most SAKILA drivers create a PK-backing index that
+				// surfaces in duckdb-style catalog views as a regular
+				// Index entry. Verify Table.Indexes includes it.
+				// DuckDB intentionally doesn't expose PK-backing indexes
+				// in duckdb_indexes(), so this assertion is gated.
 				language := findTable(md.Tables, "language")
 				require.NotNil(t, language, "language table missing from %s", tc.handle)
 				require.NotEmpty(t, language.Indexes,

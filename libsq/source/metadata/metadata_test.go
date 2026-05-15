@@ -658,6 +658,64 @@ func TestLinkForeignKeys(t *testing.T) {
 		require.Len(t, src.Table("parent").FK.Incoming, 1)
 		require.Same(t, fk, src.Table("parent").FK.Incoming[0])
 	})
+
+	t.Run("empty_catalog_and_schema", func(t *testing.T) {
+		// SQLite (and DuckDB in some configurations) leave Source.Schema
+		// empty or treat it semantically as "no schema qualifier". A
+		// driver that doesn't populate FK.RefCatalog / FK.RefSchema for
+		// same-source references should still get its FKs linked.
+		sameSrc := &metadata.ForeignKey{
+			Table:      "child",
+			Columns:    []string{"parent_id"},
+			RefTable:   "parent",
+			RefColumns: []string{"id"},
+		}
+		// And an FK whose RefSchema is non-empty (external reference)
+		// must still be skipped — non-empty RefSchema means "outside
+		// this Source" regardless of whether Source.Schema is empty.
+		external := &metadata.ForeignKey{
+			Table:      "child",
+			Columns:    []string{"audit_id"},
+			RefTable:   "audit_log",
+			RefColumns: []string{"id"},
+			RefSchema:  "other_schema",
+		}
+
+		src := &metadata.Source{
+			Catalog: "",
+			Schema:  "",
+			Tables: []*metadata.Table{
+				{
+					Name:    "child",
+					Columns: []*metadata.Column{{Name: "parent_id"}, {Name: "audit_id"}},
+					FK:      metadata.NewFKGroup([]*metadata.ForeignKey{sameSrc, external}, nil),
+				},
+				{
+					Name:    "parent",
+					Columns: []*metadata.Column{{Name: "id"}},
+				},
+				{
+					// A locally-named table that shouldn't be linked to
+					// because the FK's RefSchema marks it as external.
+					Name:    "audit_log",
+					Columns: []*metadata.Column{{Name: "id"}},
+				},
+			},
+		}
+
+		metadata.LinkForeignKeys(src)
+
+		parent := src.Table("parent")
+		require.NotNil(t, parent.FK)
+		require.Equal(t, []*metadata.ForeignKey{sameSrc}, parent.FK.Incoming,
+			"same-source FK must link even when Source.Catalog/Schema are empty")
+
+		audit := src.Table("audit_log")
+		require.Nil(t, audit.FK,
+			"FK with non-empty RefSchema must not link to a same-named local table")
+		require.Equal(t, "other_schema", external.RefSchema,
+			"RefSchema must remain unchanged when it doesn't match Source.Schema")
+	})
 }
 
 func TestSource_Clone_RelinksForeignKeys(t *testing.T) {
@@ -697,6 +755,17 @@ func TestSource_Clone_RelinksForeignKeys(t *testing.T) {
 	require.Len(t, gotLanguage.FK.Incoming, 1)
 	require.Same(t, gotFilm.FK.Outgoing[0], gotLanguage.FK.Incoming[0],
 		"FK.Incoming on the clone must share identity with the clone's own FK.Outgoing entry")
+
+	// And conversely: the original source's incoming back-reference
+	// must still point at the original FK pointer, not at any cloned
+	// value. Catches pointer-aliasing regressions where Clone mutates
+	// the source it cloned from.
+	origLanguage := src.Table("language")
+	require.Len(t, origLanguage.FK.Incoming, 1)
+	require.Same(t, fk, origLanguage.FK.Incoming[0],
+		"original Source.FK.Incoming must be unaffected by Clone()")
+	require.NotSame(t, gotFilm.FK.Outgoing[0], origLanguage.FK.Incoming[0],
+		"clone and original FK.Incoming must not share pointer identity")
 }
 
 func TestUniqueConstraint_Clone(t *testing.T) {
@@ -793,5 +862,132 @@ func TestSchema_LogValue(t *testing.T) {
 
 		got := s.LogValue()
 		require.NotEmpty(t, got.String())
+	})
+}
+
+func TestAssignForeignKeys(t *testing.T) {
+	t.Run("empty_fks_noop", func(t *testing.T) {
+		tables := []*metadata.Table{{Name: "actor"}}
+		metadata.AssignForeignKeys(tables, nil)
+		require.Nil(t, tables[0].FK)
+	})
+
+	t.Run("basic_assignment", func(t *testing.T) {
+		fkLang := &metadata.ForeignKey{Table: "film", RefTable: "language"}
+		tables := []*metadata.Table{
+			{Name: "actor"},
+			{Name: "film"},
+			{Name: "language"},
+		}
+		metadata.AssignForeignKeys(tables, []*metadata.ForeignKey{fkLang})
+		require.Nil(t, tables[0].FK, "actor has no FKs; should be untouched")
+		require.NotNil(t, tables[1].FK)
+		require.Equal(t, []*metadata.ForeignKey{fkLang}, tables[1].FK.Outgoing)
+		require.Nil(t, tables[2].FK, "language has no outgoing FKs and no Assign* should touch it")
+	})
+
+	t.Run("nil_fk_entry_skipped", func(t *testing.T) {
+		fkOK := &metadata.ForeignKey{Table: "film", RefTable: "language"}
+		tables := []*metadata.Table{{Name: "film"}}
+		metadata.AssignForeignKeys(tables, []*metadata.ForeignKey{nil, fkOK, nil})
+		require.NotNil(t, tables[0].FK)
+		require.Equal(t, []*metadata.ForeignKey{fkOK}, tables[0].FK.Outgoing)
+	})
+
+	t.Run("replaces_existing_outgoing", func(t *testing.T) {
+		old := &metadata.ForeignKey{Table: "film", RefTable: "old_ref"}
+		new1 := &metadata.ForeignKey{Table: "film", RefTable: "language"}
+		new2 := &metadata.ForeignKey{Table: "film", RefTable: "category"}
+		tables := []*metadata.Table{
+			{Name: "film", FK: &metadata.FKGroup{Outgoing: []*metadata.ForeignKey{old}}},
+		}
+		metadata.AssignForeignKeys(tables, []*metadata.ForeignKey{new1, new2})
+		require.Equal(t, []*metadata.ForeignKey{new1, new2}, tables[0].FK.Outgoing,
+			"AssignForeignKeys should fully replace Outgoing, not merge")
+	})
+
+	t.Run("preserves_existing_incoming", func(t *testing.T) {
+		incoming := &metadata.ForeignKey{Table: "film_actor", RefTable: "actor"}
+		fkOut := &metadata.ForeignKey{Table: "actor", RefTable: "external"}
+		tables := []*metadata.Table{
+			{Name: "actor", FK: &metadata.FKGroup{Incoming: []*metadata.ForeignKey{incoming}}},
+		}
+		metadata.AssignForeignKeys(tables, []*metadata.ForeignKey{fkOut})
+		require.Equal(t, []*metadata.ForeignKey{fkOut}, tables[0].FK.Outgoing)
+		require.Equal(t, []*metadata.ForeignKey{incoming}, tables[0].FK.Incoming,
+			"AssignForeignKeys must not clobber pre-existing Incoming")
+	})
+
+	t.Run("unmatched_fk_dropped", func(t *testing.T) {
+		fkOrphan := &metadata.ForeignKey{Table: "missing_table", RefTable: "language"}
+		tables := []*metadata.Table{{Name: "film"}}
+		metadata.AssignForeignKeys(tables, []*metadata.ForeignKey{fkOrphan})
+		require.Nil(t, tables[0].FK, "FK referencing a table not in the slice should not land anywhere")
+	})
+}
+
+func TestAssignUniqueConstraints(t *testing.T) {
+	t.Run("empty_ucs_noop", func(t *testing.T) {
+		tables := []*metadata.Table{{Name: "actor"}}
+		metadata.AssignUniqueConstraints(tables, nil)
+		require.Nil(t, tables[0].UniqueConstraints)
+	})
+
+	t.Run("basic_assignment", func(t *testing.T) {
+		uc := &metadata.UniqueConstraint{Name: "u_email", Table: "customer", Columns: []string{"email"}}
+		tables := []*metadata.Table{{Name: "customer"}, {Name: "actor"}}
+		metadata.AssignUniqueConstraints(tables, []*metadata.UniqueConstraint{uc})
+		require.Equal(t, []*metadata.UniqueConstraint{uc}, tables[0].UniqueConstraints)
+		require.Nil(t, tables[1].UniqueConstraints)
+	})
+
+	t.Run("nil_uc_entry_skipped", func(t *testing.T) {
+		uc := &metadata.UniqueConstraint{Name: "u", Table: "t"}
+		tables := []*metadata.Table{{Name: "t"}}
+		metadata.AssignUniqueConstraints(tables, []*metadata.UniqueConstraint{nil, uc, nil})
+		require.Equal(t, []*metadata.UniqueConstraint{uc}, tables[0].UniqueConstraints)
+	})
+
+	t.Run("replaces_existing", func(t *testing.T) {
+		old := &metadata.UniqueConstraint{Name: "u_old", Table: "t"}
+		new1 := &metadata.UniqueConstraint{Name: "u_new", Table: "t"}
+		tables := []*metadata.Table{
+			{Name: "t", UniqueConstraints: []*metadata.UniqueConstraint{old}},
+		}
+		metadata.AssignUniqueConstraints(tables, []*metadata.UniqueConstraint{new1})
+		require.Equal(t, []*metadata.UniqueConstraint{new1}, tables[0].UniqueConstraints)
+	})
+}
+
+func TestAssignIndexes(t *testing.T) {
+	t.Run("empty_idxs_noop", func(t *testing.T) {
+		tables := []*metadata.Table{{Name: "actor"}}
+		metadata.AssignIndexes(tables, nil)
+		require.Nil(t, tables[0].Indexes)
+	})
+
+	t.Run("basic_assignment", func(t *testing.T) {
+		idx := &metadata.Index{Name: "idx_last_name", Table: "actor", Columns: []string{"last_name"}}
+		tables := []*metadata.Table{{Name: "actor"}, {Name: "film"}}
+		metadata.AssignIndexes(tables, []*metadata.Index{idx})
+		require.Equal(t, []*metadata.Index{idx}, tables[0].Indexes)
+		require.Nil(t, tables[1].Indexes)
+	})
+
+	t.Run("nil_idx_entry_skipped", func(t *testing.T) {
+		idx := &metadata.Index{Name: "i", Table: "t"}
+		tables := []*metadata.Table{{Name: "t"}}
+		metadata.AssignIndexes(tables, []*metadata.Index{nil, idx, nil})
+		require.Equal(t, []*metadata.Index{idx}, tables[0].Indexes)
+	})
+
+	t.Run("replaces_existing", func(t *testing.T) {
+		old := &metadata.Index{Name: "i_old", Table: "t"}
+		new1 := &metadata.Index{Name: "i_new", Table: "t"}
+		tables := []*metadata.Table{
+			{Name: "t", Indexes: []*metadata.Index{old}},
+		}
+		metadata.AssignIndexes(tables, []*metadata.Index{new1})
+		require.Equal(t, []*metadata.Index{new1}, tables[0].Indexes)
 	})
 }

@@ -209,24 +209,46 @@ GROUP BY database_id) AS total_size_bytes`
 		}
 	}
 
-	// Each Table.FK.Outgoing slice was already populated by the
-	// per-table getTableMetadata call inside the errgroup above; now
-	// derive Table.FK.Incoming across the whole source.
+	// Fetch FKs / unique constraints / indexes in three bulk queries
+	// rather than 3N per-table calls inside the errgroup above. The
+	// Assign* helpers route each result to its owning table by name,
+	// and LinkForeignKeys derives FK.Incoming across the whole source.
+	allFKs, err := getMSSQLForeignKeys(ctx, db, catalog, schema, "")
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignForeignKeys(md.Tables, allFKs)
+
+	allUCs, err := getMSSQLUniqueConstraints(ctx, db, catalog, schema, "")
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignUniqueConstraints(md.Tables, allUCs)
+
+	allIdxs, err := getMSSQLIndexes(ctx, db, schema, "")
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignIndexes(md.Tables, allIdxs)
+
 	metadata.LinkForeignKeys(md)
 
 	return md, nil
 }
 
 // getTableMetadata builds the [metadata.Table] for a single
-// (catalog, schema, table). The loadIncomingFKs flag controls whether
-// [getMSSQLIncomingFKs] is invoked: source-level inspect passes false
-// because [metadata.LinkForeignKeys] derives incoming edges across the
-// whole source after all per-table outgoing FKs are loaded, and the
-// per-table incoming query work would otherwise be wasted. The
-// single-table inspect path passes true so the standalone
-// [metadata.Table] carries its incoming edges directly.
+// (catalog, schema, table). The loadConstraints flag controls whether
+// per-table FK / unique-constraint / index queries are issued:
+//
+//   - Source-level inspect passes false. [getSourceMetadata] runs
+//     three bulk loaders after the per-table errgroup completes, which
+//     is 3 round-trips total instead of 3N. [metadata.LinkForeignKeys]
+//     then derives [FK.Incoming] across the whole source.
+//   - Single-table inspect (grip.TableMetadata) passes true so the
+//     standalone [metadata.Table] carries its FK / unique-constraint /
+//     index metadata directly, including [FK.Incoming].
 func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
-	tblSchema, tblName, tblType string, loadIncomingFKs bool,
+	tblSchema, tblName, tblType string, loadConstraints bool,
 ) (*metadata.Table, error) {
 	const tplTblUsage = `sp_spaceused '%s'`
 
@@ -339,16 +361,19 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 
 	tblMeta.Columns = cols
 
+	// Source-level inspect skips per-table FK / UC / Index queries
+	// entirely; [getSourceMetadata] runs three bulk loaders below.
+	if !loadConstraints {
+		return tblMeta, nil
+	}
+
 	outgoing, err := getMSSQLForeignKeys(ctx, db, tblCatalog, tblSchema, tblName)
 	if err != nil {
 		return nil, err
 	}
-	var incoming []*metadata.ForeignKey
-	if loadIncomingFKs {
-		incoming, err = getMSSQLIncomingFKs(ctx, db, tblSchema, tblName)
-		if err != nil {
-			return nil, err
-		}
+	incoming, err := getMSSQLIncomingFKs(ctx, db, tblSchema, tblName)
+	if err != nil {
+		return nil, err
 	}
 	tblMeta.FK = metadata.NewFKGroup(outgoing, incoming)
 
@@ -615,6 +640,13 @@ func getMSSQLIncomingFKs(ctx context.Context, db sqlz.DB, tblSchema, tblName str
 ) ([]*metadata.ForeignKey, error) {
 	log := lg.FromContext(ctx)
 
+	// The referencing-side schema filter (parent_s.name = @p1) keeps
+	// the result scoped to FKs whose owning table also lives in
+	// tblSchema. Without it, a cross-schema FK (e.g. otherschema.child
+	// → tblSchema.tblName) would appear here even though the
+	// referencing table isn't part of the schema being inspected,
+	// producing an [FK.Incoming] entry pointing at a table that
+	// source-level inspect would never include in [Source.Tables].
 	const query = `SELECT
   fk.name                                                AS constraint_name,
   parent_t.name                                          AS fk_table,
@@ -627,14 +659,16 @@ func getMSSQLIncomingFKs(ctx context.Context, db sqlz.DB, tblSchema, tblName str
 FROM sys.foreign_keys        AS fk
 JOIN sys.foreign_key_columns AS fkc      ON fkc.constraint_object_id = fk.object_id
 JOIN sys.objects             AS parent_t ON parent_t.object_id       = fkc.parent_object_id
+JOIN sys.schemas             AS parent_s ON parent_s.schema_id       = parent_t.schema_id
 JOIN sys.columns             AS parent_c ON parent_c.object_id       = fkc.parent_object_id
                                         AND parent_c.column_id       = fkc.parent_column_id
 JOIN sys.objects             AS ref_t    ON ref_t.object_id          = fkc.referenced_object_id
 JOIN sys.schemas             AS ref_s    ON ref_s.schema_id          = ref_t.schema_id
 JOIN sys.columns             AS ref_c    ON ref_c.object_id          = fkc.referenced_object_id
                                         AND ref_c.column_id          = fkc.referenced_column_id
-WHERE ref_s.name = @p1
-  AND ref_t.name = @p2
+WHERE parent_s.name = @p1
+  AND ref_s.name    = @p1
+  AND ref_t.name    = @p2
 ORDER BY parent_t.name, fk.name, fkc.constraint_column_id`
 
 	rows, err := db.QueryContext(ctx, query, tblSchema, tblName)
