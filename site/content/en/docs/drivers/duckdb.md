@@ -117,18 +117,18 @@ the list above covers the parameters most commonly used from the CLI.
 | `DATE`                                                   | `date`       |                                                    |
 | `TIME`, `TIME WITH TIME ZONE`                            | `time`       |                                                    |
 | `TIMESTAMP`, `TIMESTAMP_S/MS/NS`, `TIMESTAMPTZ`         | `datetime`   |                                                    |
-| `INTERVAL`                                               | `text`       | ISO 8601 duration string.                          |
+| `INTERVAL`                                               | `text`       | `"<months> months <days> days <micros> μs"` (see [#612](https://github.com/neilotoole/sq/issues/612)). |
 | `UUID`                                                   | `text`       | Hex-dash form.                                     |
 | `JSON`                                                   | `text`       | Already JSON.                                      |
-| `LIST` / `ARRAY`                                         | `text`       | Projected via `to_json(col)` at scan time.         |
-| `STRUCT`                                                 | `text`       | Projected via `to_json(col)` at scan time.         |
-| `MAP`                                                    | `text`       | Projected via `to_json(col)` at scan time.         |
+| `LIST` / `ARRAY`                                         | `text`       | Go-style stringification; JSON projection planned ([#609](https://github.com/neilotoole/sq/issues/609)). |
+| `STRUCT`                                                 | `text`       | Go-style stringification; JSON projection planned ([#609](https://github.com/neilotoole/sq/issues/609)). |
+| `MAP`                                                    | `text`       | Go-style stringification; JSON projection planned ([#609](https://github.com/neilotoole/sq/issues/609)). |
 | `ENUM`                                                   | `text`       | Underlying value.                                  |
 | `BIT`                                                    | `text`       | Bit-string.                                        |
 
-Composite types (`LIST`, `STRUCT`, `MAP`) are projected to JSON text at scan
-time. First-class `kind.Array` / `kind.Struct` support is planned as a
-follow-up.
+Composite types (`LIST`, `STRUCT`, `MAP`) are currently stringified via Go's
+default formatting (`fmt.Sprintf("%v", v)`). First-class JSON projection via
+DuckDB's `to_json(col)` is planned as a follow-up — see [#609](https://github.com/neilotoole/sq/issues/609).
 
 ## Limitations
 
