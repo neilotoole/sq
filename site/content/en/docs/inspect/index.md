@@ -257,6 +257,25 @@ $ sq inspect -j @sakila_pg | jq -r '
   | "\($t).\(.name) (\(.columns | join(\",\"))) [\(.type)]"'
 ```
 
+### Text output dedupes UC- and PK-backing indexes
+
+The `INDEXES` column of `sq inspect --verbose` text output hides any
+index whose existence is already conveyed elsewhere:
+
+- PK-backing indexes are dropped from `INDEXES` because the `PK`
+  column already marks the participating columns.
+- UNIQUE-constraint-backing indexes are dropped from `INDEXES` when a
+  matching entry appears under `UNIQUE CONSTRAINTS` (matched by
+  column-set, not name, so SQLite's auto-generated
+  `sqlite_autoindex_*` names dedupe correctly).
+- Standalone `CREATE UNIQUE INDEX` definitions that have no
+  declared constraint still appear under `INDEXES`.
+
+This is a verbose-text-output choice only. The JSON and YAML formats
+always emit the full `tables[].indexes` slice — every physical index,
+including the PK- and UC-backing ones — so tooling consuming the
+machine-readable forms sees the complete picture.
+
 ## Override active schema
 
 By default, `sq inspect` uses the active [schema](/docs/concepts#schema--catalog)
