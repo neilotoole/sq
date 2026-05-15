@@ -16,35 +16,35 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
-- [#499]: [`sq`](https://sq.io/docs/cmd/sq) (slq) now supports
-  `--render-sql`, which prints the SQL that would be executed against
-  the target database instead of running it. Honours `--format`: with
-  `text` (the default) or `raw`, the rendered SQL is printed plain
-  (syntax-highlighted on TTYs); with `json`, `jsonl`, or `yaml`, a
-  structured payload is printed (colourised on TTYs) containing the
-  original SLQ, the rendered SQL, the dialect, a `sources` group
-  (`sources.target` is the handle the SQL would execute against;
-  `sources.inputs` lists the user-named handles referenced by the
-  SLQ), and any `--arg` values. For single-source queries
-  `sources.target` matches the single entry in `sources.inputs`;
-  for cross-source queries `sources.target` is the synthetic join
-  DB and `sources.inputs` lists the user sources that would be
-  staged into it. Other formats fall back to text.
-- DuckDB driver ([#437](https://github.com/neilotoole/sq/issues/437)):
-  [`sq`](https://sq.io/docs/cmd/sq) can now read and write DuckDB databases
-  via the `duckdb://` scheme. The driver supports the full DuckDB type system,
-  statically links the standard set of in-tree extensions (`json`, `parquet`,
-  `icu`, `fts`, `httpfs`, `excel`, `inet`, `autocomplete`, `tpch`, `tpcds`),
-  and works on macOS (amd64/arm64), Linux (amd64/arm64), and Windows (amd64).
-  See [DuckDB driver docs](https://sq.io/docs/drivers/duckdb).
+- 🐥🦆 [#437]: Beta [DuckDB](https://duckdb.org) support. The `duck` [driver](https://sq.io/docs/drivers/duckdb)
+  supports most of the DuckDB type system; and includes a standard set of in-tree
+  extensions (`json`, `parquet`, `icu`, `fts`, `httpfs`, `excel`, `inet`,
+  `autocomplete`, `tpch`, `tpcds`).
+  See the [driver docs](https://sq.io/docs/drivers/duckdb).
+- [#602]: [`sq`](https://sq.io/docs/cmd/sq) now features a `--render-sql` flag, which prints the SQL (derived from
+  `SLQ` input, e.g. `.actor | .[0:2]`) that would be
+  executed against the target database, _instead_ of running it. Honours `--format` with:
+  - `text` or `raw`: the rendered SQL is printed.
+  - `json`, `jsonl`, or `yaml`: a structured payload is printed containing the
+    original SLQ, the rendered SQL, the dialect and information about the
+    sources that the query touches.
+    ```yaml
+    # sq --render-sql --yaml '@sakila/local/pg.actor | join(@sakila/local/my.film_actor, .actor_id) | .first_name, .last_name, .film_id | .[0:5]'
+    slq: "@sakila/local/pg.actor | join(@sakila/local/my.film_actor, .actor_id) | .first_name, .last_name, .film_id | .[0:5]"
+    sql: SELECT "first_name", "last_name", "film_id" FROM "actor" INNER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id" LIMIT 5 OFFSET 0
+    dialect: sqlite3
+    sources:
+      target: "@join_xukcx3ye"
+      inputs:
+      - "@sakila/local/pg"
+      - "@sakila/local/my"
+    ```
 
 ### Changed
 
-- ☢️ [#499]: `libsq.SLQ2SQL` now returns `*libsq.RenderResult` instead of
-  `string`. The struct carries the rendered SQL plus the target dialect
-  (`Dialect`), the handle of the source the SQL targets (`Target`), and
-  the user-named source handles referenced by the SLQ (`Inputs`).
-  Library consumers must update call sites; the `sq` CLI is unaffected.
+- ☢️ [#499]: `libsq.SLQ2SQL` now returns a structured `*libsq.RenderResult` type
+  instead of `string`. Any `libsq` library consumers must update call sites; the
+  `sq` CLI is unaffected.
 
 ## [v0.51.0] - 2026-05-10
 
@@ -1421,6 +1421,7 @@ make working with lots of sources much easier.
 [#340]: https://github.com/neilotoole/sq/pull/340
 [#353]: https://github.com/neilotoole/sq/issues/353
 [#415]: https://github.com/neilotoole/sq/issues/415
+[#437]: https://github.com/neilotoole/sq/issues/437
 [#446]: https://github.com/neilotoole/sq/issues/446
 [#469]: https://github.com/neilotoole/sq/issues/469
 [#470]: https://github.com/neilotoole/sq/issues/470
@@ -1448,6 +1449,7 @@ make working with lots of sources much easier.
 [#570]: https://github.com/neilotoole/sq/pull/570
 [#571]: https://github.com/neilotoole/sq/pull/571
 [#572]: https://github.com/neilotoole/sq/pull/572
+[#602]: https://github.com/neilotoole/sq/pull/602
 
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
