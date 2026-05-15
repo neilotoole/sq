@@ -74,11 +74,12 @@ func TestRecordMeta_TypeSpectrum(t *testing.T) {
 		"col_smallint":    "int64",
 		"col_int":         "int64",
 		"col_bigint":      "int64",
-		"col_hugeint":     "int64",
+		"col_hugeint":     "decimal.Decimal",
+		"col_uhugeint":    "decimal.Decimal",
 		"col_utinyint":    "int64",
 		"col_usmallint":   "int64",
 		"col_uint":        "int64",
-		"col_ubigint":     "int64",
+		"col_ubigint":     "decimal.Decimal",
 		"col_float":       "float64",
 		"col_double":      "float64",
 		"col_decimal":     "decimal.Decimal",
@@ -139,6 +140,69 @@ func goType(v any) string {
 		return "nil"
 	default:
 		return "unknown"
+	}
+}
+
+// TestRecordMeta_HugeIntPrecision asserts that HUGEINT, UHUGEINT, and
+// UBIGINT values that exceed int64 range round-trip through the type munge
+// without precision loss — they are promoted to decimal.Decimal rather
+// than truncated to int64.
+func TestRecordMeta_HugeIntPrecision(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@hugeint_test",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://:memory:",
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	const (
+		hugeIntMax  = "170141183460469231731687303715884105727" // 2^127 - 1
+		uHugeIntMax = "340282366920938463463374607431768211455" // 2^128 - 1
+		uBigIntMax  = "18446744073709551615"                    // 2^64 - 1
+	)
+	cases := []struct {
+		name  string
+		query string
+		want  string
+	}{
+		{"hugeint_max", "SELECT " + hugeIntMax + "::HUGEINT", hugeIntMax},
+		// HUGEINT min + 1. The literal -2^127 can't be expressed as
+		// "-2^127::HUGEINT" — DuckDB parses that as unary negation of a
+		// positive 2^127 literal that doesn't fit in INT128. min + 1 is
+		// sufficient to exercise the large-negative path.
+		{"hugeint_min_plus_one", "SELECT -" + hugeIntMax + "::HUGEINT", "-" + hugeIntMax},
+		{"uhugeint_max", "SELECT " + uHugeIntMax + "::UHUGEINT", uHugeIntMax},
+		{"ubigint_max", "SELECT " + uBigIntMax + "::UBIGINT", uBigIntMax},
+		// HUGEINT value within int64 range — still promoted to decimal for
+		// column-type consistency.
+		{"hugeint_small", "SELECT 42::HUGEINT", "42"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rows, err := db.QueryContext(th.Context, tc.query)
+			require.NoError(t, err)
+			defer rows.Close()
+
+			colTypes, err := rows.ColumnTypes()
+			require.NoError(t, err)
+			recMeta, newRecFn, err := grip.SQLDriver().RecordMeta(th.Context, colTypes)
+			require.NoError(t, err)
+
+			require.True(t, rows.Next())
+			scanRow := recMeta.NewScanRow()
+			require.NoError(t, rows.Scan(scanRow...))
+			rec, err := newRecFn(scanRow)
+			require.NoError(t, err)
+
+			d, ok := rec[0].(decimal.Decimal)
+			require.True(t, ok, "expected decimal.Decimal, got %T (value=%v)", rec[0], rec[0])
+			require.Equal(t, tc.want, d.String())
+		})
 	}
 }
 

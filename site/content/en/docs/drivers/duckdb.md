@@ -108,8 +108,8 @@ the list above covers the parameters most commonly used from the CLI.
 | DuckDB type                                              | `sq` kind    | Notes                                              |
 |----------------------------------------------------------|--------------|----------------------------------------------------|
 | `BOOLEAN`                                                | `bool`       |                                                    |
-| `TINYINT` … `BIGINT`, `UTINYINT` … `UBIGINT`           | `int`        |                                                    |
-| `HUGEINT`, `UHUGEINT`                                    | `int`        | Values ≥ 2^63 may truncate; follow-up planned.     |
+| `TINYINT` … `BIGINT`, `UTINYINT`, `USMALLINT`, `UINTEGER` | `int`     |                                                    |
+| `HUGEINT`, `UHUGEINT`, `UBIGINT`, `INT128`               | `decimal`    | Promoted to `decimal` because values can exceed `int64`. |
 | `FLOAT`, `REAL`, `DOUBLE`                                | `float`      |                                                    |
 | `DECIMAL(p,s)`                                           | `decimal`    |                                                    |
 | `VARCHAR`, `TEXT`, `STRING`                              | `text`       |                                                    |
@@ -138,10 +138,6 @@ follow-up.
   this is rarely a problem, but scripts that parallelize `sq` against the same
   file should serialize writes. Read-only access (`access_mode=READ_ONLY`) from
   multiple processes is safe.
-
-- **HUGEINT truncation.** `HUGEINT` and `UHUGEINT` values that exceed `int64`
-  range (≥ 2^63) are currently truncated when scanned. A follow-up will add
-  fallback to string representation for out-of-range values.
 
 - **Sakila FOREIGN KEY constraints.** The bundled test Sakila database for
   DuckDB omits several FOREIGN KEY constraints that exist in the original

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
-	"math"
 	"math/big"
 	"path/filepath"
 	"strings"
@@ -416,22 +415,19 @@ func newRecordFuncForDuckDB(log *slog.Logger, recMeta record.Meta) driver.NewRec
 				record.SetKindIfUnknown(recMeta, i, kind.Int)
 				rec[i] = int64(v)
 			case uint64:
-				record.SetKindIfUnknown(recMeta, i, kind.Int)
-				if v > math.MaxInt64 {
-					log.Warn("duckdb: UBIGINT exceeds int64; truncating",
-						"value", v, "col", recMeta[i].Name())
-				}
-				rec[i] = int64(v)
+				// UBIGINT can exceed int64 range (max = 2^64 - 1).
+				// Promote to decimal.Decimal for lossless representation.
+				record.SetKindIfUnknown(recMeta, i, kind.Decimal)
+				rec[i] = decimal.NewFromBigInt(new(big.Int).SetUint64(v), 0)
 
 			// ---- HUGEINT / UHUGEINT / BIGNUM (*big.Int) ----
-			// These can exceed int64 range; truncate to int64 (best effort).
 			case *big.Int:
-				record.SetKindIfUnknown(recMeta, i, kind.Int)
-				if !v.IsInt64() {
-					log.Warn("duckdb: HUGEINT/UHUGEINT exceeds int64; truncating",
-						"value", v.String(), "col", recMeta[i].Name())
-				}
-				rec[i] = v.Int64()
+				// HUGEINT (signed 128-bit, max ~1.7e38) and UHUGEINT
+				// (unsigned 128-bit, max ~3.4e38) both exceed int64 and
+				// uint64. Promote to decimal.Decimal for lossless
+				// representation.
+				record.SetKindIfUnknown(recMeta, i, kind.Decimal)
+				rec[i] = decimal.NewFromBigInt(v, 0)
 
 			// ---- floats ----
 			case float32:

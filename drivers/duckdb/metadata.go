@@ -520,8 +520,16 @@ func kindFromDBTypeName(name string) kind.Kind {
 	case "BOOLEAN", "BOOL":
 		return kind.Bool
 	case "TINYINT", "SMALLINT", "INTEGER", "INT", "INT4", "BIGINT", "INT8",
-		"HUGEINT", "INT128", "UTINYINT", "USMALLINT", "UINTEGER", "UBIGINT", "UHUGEINT":
+		"UTINYINT", "USMALLINT", "UINTEGER":
 		return kind.Int
+	case "HUGEINT", "INT128", "UBIGINT", "UHUGEINT":
+		// These types can exceed int64 range:
+		// - UBIGINT  max = 2^64 - 1 ≈ 1.8e19
+		// - HUGEINT  max = 2^127 - 1 ≈ 1.7e38
+		// - UHUGEINT max = 2^128 - 1 ≈ 3.4e38
+		// Promote to kind.Decimal so values round-trip losslessly via
+		// decimal.Decimal rather than truncating to int64.
+		return kind.Decimal
 	case "FLOAT", "REAL", "FLOAT4", "DOUBLE", "FLOAT8":
 		return kind.Float
 	case "DECIMAL", "NUMERIC":

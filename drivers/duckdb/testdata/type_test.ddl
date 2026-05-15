@@ -11,6 +11,7 @@ CREATE TABLE type_test (
     col_int        INTEGER,
     col_bigint     BIGINT,
     col_hugeint    HUGEINT,
+    col_uhugeint   UHUGEINT,
     col_utinyint   UTINYINT,
     col_usmallint  USMALLINT,
     col_uint       UINTEGER,
@@ -33,11 +34,13 @@ CREATE TABLE type_test (
     col_enum       type_test_mood
 );
 
--- col_ubigint uses UBIGINT max (2^64 - 1) so that the truncation-to-int64
--- warn path in newRecordFuncForDuckDB is actually exercised. col_hugeint
--- exceeds 2^63 so its truncation warn path is also exercised.
+-- col_hugeint, col_uhugeint, and col_ubigint each carry a value that
+-- exceeds int64 range, so newRecordFuncForDuckDB promotes them to
+-- decimal.Decimal rather than truncating to int64. UHUGEINT max is
+-- 2^128 - 1 = 340282366920938463463374607431768211455.
 INSERT INTO type_test VALUES (
     TRUE, 1, 2, 3, 4, 99999999999999999999::HUGEINT,
+    340282366920938463463374607431768211455::UHUGEINT,
     1, 2, 3, 18446744073709551615,
     1.5, 2.5, 3.1415,
     'hello', '\x01\x02'::BLOB,
