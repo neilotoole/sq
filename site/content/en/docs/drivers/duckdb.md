@@ -132,8 +132,7 @@ DuckDB's `to_json(col)` is planned as a follow-up — see [#609](https://github.
 
 ## Limitations
 
-- **Single writer per file.** DuckDB enforces a single writer per database
-  file. If two `sq` processes open the same `.duckdb` file simultaneously, the
+- **DuckDB enforces a single writer per database file.** If two `sq` processes open the same `.duckdb` file simultaneously, the
   second will receive a lock error. For `sq`'s typical single-shot CLI usage
   this is rarely a problem, but scripts that parallelize `sq` against the same
   file should serialize writes. Read-only access (`access_mode=READ_ONLY`) from
