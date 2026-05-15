@@ -797,6 +797,15 @@ LEFT JOIN user_col_comments cc
 WHERE c.table_name = :1
 ORDER BY c.column_id`
 
+	// Collect the table's primary-key column names up front in one
+	// query so the scan loop can flag PK columns via a map lookup
+	// instead of issuing one COUNT(*) per column (a per-column round
+	// trip was the previous shape — quadratic on wide tables).
+	pkCols, err := getOraclePKColumnNames(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
+
 	rows, err := db.QueryContext(ctx, query, strings.ToUpper(tblName))
 	if err != nil {
 		return nil, errw(err)
@@ -836,14 +845,8 @@ ORDER BY c.column_id`
 			ColumnType: fullTypeName,
 			Nullable:   nullable == "Y",
 			Comment:    comment.String,
+			PrimaryKey: pkCols[colName],
 		}
-
-		// Check if primary key
-		isPK, err := isColumnPrimaryKey(ctx, db, tblName, colName)
-		if err != nil {
-			return nil, err
-		}
-		col.PrimaryKey = isPK
 
 		cols = append(cols, col)
 	}
@@ -851,23 +854,30 @@ ORDER BY c.column_id`
 	return cols, errw(rows.Err())
 }
 
-// isColumnPrimaryKey checks if a column is part of a primary key.
-func isColumnPrimaryKey(ctx context.Context, db *sql.DB, tblName, colName string) (bool, error) {
-	const query = `SELECT COUNT(*)
+// getOraclePKColumnNames returns the primary-key column names for
+// tblName as a set keyed by the column name. Returns an empty
+// (non-nil) map when the table has no primary key.
+func getOraclePKColumnNames(ctx context.Context, db *sql.DB, tblName string) (map[string]bool, error) {
+	const query = `SELECT cols.column_name
 FROM user_constraints cons
 INNER JOIN user_cons_columns cols
     ON cons.constraint_name = cols.constraint_name
 WHERE cons.table_name = :1
-  AND cols.column_name = :2
   AND cons.constraint_type = 'P'`
 
-	var count int
-	err := db.QueryRowContext(ctx, query,
-		strings.ToUpper(tblName),
-		strings.ToUpper(colName)).Scan(&count)
+	rows, err := db.QueryContext(ctx, query, strings.ToUpper(tblName))
 	if err != nil {
-		return false, errw(err)
+		return nil, errw(err)
 	}
+	defer rows.Close()
 
-	return count > 0, nil
+	pkCols := map[string]bool{}
+	for rows.Next() {
+		var col string
+		if err = rows.Scan(&col); err != nil {
+			return nil, errw(err)
+		}
+		pkCols[col] = true
+	}
+	return pkCols, errw(rows.Err())
 }

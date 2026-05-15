@@ -184,6 +184,21 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 		idxByCol := indexNamesByColumn(tbl)
 		ucByCol := uniqueNamesByColumn(tbl)
 
+		// Tables with no visible columns (e.g. an empty view, or a
+		// SQLite virtual table whose schema isn't reflected through
+		// pragma_table_info) would otherwise index out of range on the
+		// header row below. Emit a single summary row and continue.
+		if len(tbl.Columns) == 0 {
+			rows = append(rows, []string{
+				tbl.Name,
+				tbl.TableType,
+				strconv.FormatInt(tbl.RowCount, 10),
+				w.tbl.pr.Faint.Sprintf("%d", 0),
+				"", "", "", "", "", "",
+			})
+			continue
+		}
+
 		row = []string{
 			tbl.Name,
 			tbl.TableType,

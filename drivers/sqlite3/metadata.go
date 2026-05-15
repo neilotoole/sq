@@ -348,6 +348,15 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 		return nil, errw(err)
 	}
 
+	// pragma_foreign_key_list / pragma_index_list are only meaningful
+	// for real tables — views have no FKs or indexes, and SQLite
+	// virtual tables (FTS5, r-tree, etc.) can error on these pragmas
+	// depending on the module. Mirror the same guard the source-level
+	// path uses in getAllTableMetadata.
+	if tblMeta.TableType != sqlz.TableTypeTable {
+		return tblMeta, nil
+	}
+
 	outgoing, err := getTableForeignKeys(ctx, db, tblMeta.Name)
 	if err != nil {
 		return nil, err
@@ -537,11 +546,15 @@ ORDER BY id, seq`
 func getTableIncomingFKs(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.ForeignKey, error) {
 	log := lg.FromContext(ctx)
 
+	// Filter virtual tables out of the m.type='table' set: their
+	// pragma_foreign_key_list may error on some VTAB modules and they
+	// can't carry FK constraints anyway.
 	const q = `SELECT m.name AS fk_table, fkl.id, fkl.seq, fkl."from", fkl."to", fkl.on_update, fkl.on_delete
 FROM sqlite_master AS m
 JOIN pragma_foreign_key_list(m.name) AS fkl
 WHERE m.type = 'table'
   AND m.name NOT LIKE 'sqlite_%'
+  AND substr(COALESCE(m.sql, ''), 1, 20) != 'CREATE VIRTUAL TABLE'
   AND fkl."table" = ?
 ORDER BY m.name, fkl.id, fkl.seq`
 

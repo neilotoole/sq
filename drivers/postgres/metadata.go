@@ -246,7 +246,7 @@ current_setting('server_version'), version(), "current_user"()`
 
 			if mdErr != nil {
 				switch {
-				case isErrRelationNotExist(err):
+				case isErrRelationNotExist(mdErr):
 					// For example, if the table is dropped while we're collecting
 					// metadata, we log a warning and suppress the error.
 					log.Warn("metadata collection: table not found (continuing regardless)",
@@ -254,7 +254,7 @@ current_setting('server_version'), version(), "current_user"()`
 						lga.Err, mdErr,
 					)
 				default:
-					return err
+					return mdErr
 				}
 			}
 
