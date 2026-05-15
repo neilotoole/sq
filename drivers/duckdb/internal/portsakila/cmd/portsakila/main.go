@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	_ "github.com/duckdb/duckdb-go/v2"
 
@@ -84,14 +85,28 @@ func main() {
 	}
 }
 
-// portFile reads a SQL file from srcDir, runs it through Port, and writes the
-// result to dstDir under dstName.
+// portFile reads a SQL file from srcDir, runs it through the appropriate
+// portsakila entrypoint (chosen by filename), and writes the result to
+// dstDir under dstName. Schema/insert-data/drop-objects files need
+// topological reordering to satisfy DuckDB's at-CREATE-and-at-INSERT
+// FK enforcement; other files just need the generic transforms.
 func portFile(srcName, dstName string) error {
 	in, err := os.ReadFile(filepath.Join(srcDir, srcName))
 	if err != nil {
 		return fmt.Errorf("read %s: %w", srcName, err)
 	}
-	out, err := portsakila.Port(string(in))
+	var portFn func(string) (string, error)
+	switch {
+	case strings.Contains(srcName, "schema"):
+		portFn = portsakila.PortSchema
+	case strings.Contains(srcName, "insert-data"):
+		portFn = portsakila.PortInsertData
+	case strings.Contains(srcName, "drop-objects"):
+		portFn = portsakila.PortDropObjects
+	default:
+		portFn = portsakila.Port
+	}
+	out, err := portFn(string(in))
 	if err != nil {
 		return fmt.Errorf("port %s: %w", srcName, err)
 	}
@@ -154,10 +169,10 @@ func buildSakila(ctx context.Context) error {
 // schema+data, then the whitespace-alter SQL applied on top.
 //
 // The whitespace-alter renames actor.first_name → "first name",
-// actor.last_name → "last name", and film_actor → "film actor".
-//
-// DuckDB refuses to rename a column or table that has dependent views or
-// indexes. We must therefore:
+// actor.last_name → "last name", and film_actor → "film actor". DuckDB
+// rejects ALTER on a table that has any dependent constraint (including
+// incoming FKs), so this build path uses a no-FK variant of the schema —
+// the main sakila.duckdb fixture keeps its 21 FKs. We must also:
 //  1. Drop the film_list view (references actor.first_name/last_name and film_actor).
 //  2. Drop idx_actor_last_name (index on actor.last_name).
 //  3. Drop idx_fk_film_actor_actor and idx_fk_film_actor_film (indexes on film_actor).
@@ -172,13 +187,21 @@ func buildSakilaWhitespace(ctx context.Context) error {
 	}
 	defer db.Close()
 
-	for _, f := range []string{
-		filepath.Join(dstDir, "duckdb-sakila-schema.sql"),
-		filepath.Join(dstDir, "duckdb-sakila-insert-data.sql"),
-	} {
-		if err := execFile(ctx, db, f); err != nil {
-			return err
-		}
+	// Re-port the source schema WITHOUT FKs for this build path. The
+	// schema-with-FKs file on disk would block the renames below.
+	schemaIn, err := os.ReadFile(filepath.Join(srcDir, "sqlite-sakila-schema.sql"))
+	if err != nil {
+		return fmt.Errorf("read source schema: %w", err)
+	}
+	schemaSQL, err := portsakila.PortSchemaWithoutFKs(string(schemaIn))
+	if err != nil {
+		return fmt.Errorf("port schema (no FKs): %w", err)
+	}
+	if _, err := db.ExecContext(ctx, schemaSQL); err != nil {
+		return fmt.Errorf("exec schema (no FKs): %w", err)
+	}
+	if err := execFile(ctx, db, filepath.Join(dstDir, "duckdb-sakila-insert-data.sql")); err != nil {
+		return err
 	}
 
 	// Drop dependents before rename.

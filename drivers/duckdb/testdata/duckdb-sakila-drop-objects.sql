@@ -32,31 +32,31 @@ DROP TABLE rental
 ;
 DROP TABLE inventory
 ;
-DROP TABLE film_text
-;
 DROP TABLE film_category
 ;
 DROP TABLE film_actor
 ;
-DROP TABLE film
+DROP TABLE film_text
 ;
-DROP TABLE language
+DROP TABLE film
 ;
 DROP TABLE customer
 ;
-DROP TABLE actor
-;
-DROP TABLE category
+DROP TABLE staff
 ;
 DROP TABLE store
 ;
 DROP TABLE address
 ;
-DROP TABLE staff
-;
 DROP TABLE city
 ;
 DROP TABLE country
+;
+DROP TABLE category
+;
+DROP TABLE language
+;
+DROP TABLE actor
 ;
 
 -- Procedures and views
@@ -66,5 +66,6 @@ DROP TABLE country
 --drop function inventory_held_by_customer;
 --drop function inventory_in_stock;
 --drop procedure rewards_report;
+
 
 
