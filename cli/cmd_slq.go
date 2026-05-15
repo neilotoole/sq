@@ -36,6 +36,9 @@ func newSLQCmd() *cobra.Command {
 
 	addQueryCmdFlags(cmd)
 
+	// --render-sql is registered here on slq (the active command); the
+	// same flag is mirrored on the root cmd so it shows up in
+	// `sq --help` (see cmd_root.go). Keep the two registrations in sync.
 	cmd.Flags().Bool(flag.RenderSQL, false, flag.RenderSQLUsage)
 
 	cmd.Flags().StringArray(flag.Arg, nil, flag.ArgUsage)
@@ -201,11 +204,26 @@ func execSLQPrint(ctx context.Context, ru *run.Run, mArgs map[string]string) err
 }
 
 // execSLQRenderSQL renders the SLQ query as SQL and writes the result via
-// ru.Writers.SQL, without executing the SQL. Honours --format: text/raw
-// produces plain SQL (with optional syntax highlighting); json/jsonl/yaml
-// produces a structured payload.
+// ru.Writers.SQL, without executing the SQL.
+//
+// Honoured --format values:
+//   - text (default), raw: plain SQL; on a color-enabled TTY the SQL
+//     is syntax-highlighted via chroma using sq's palette.
+//   - json, jsonl, yaml: structured payload (see [output.SQLPayload]).
+//
+// Any other format (csv, tsv, html, markdown, xml, xlsx, jsona) falls
+// back to the text writer. The fallback is deliberate — those formats
+// don't have a natural representation for a single rendered statement —
+// but a log.Warn is emitted so the substitution is discoverable to
+// anyone running with verbose / debug logging.
 func execSLQRenderSQL(ctx context.Context, ru *run.Run, mArgs map[string]string) error {
 	qc := run.NewQueryContext(ru, mArgs)
+
+	if fm := getFormat(ru.Cmd, ru.Config.Options); !renderSQLSupportsFormat(fm) {
+		lg.FromContext(ctx).Warn(
+			"--render-sql has no writer for the requested format; falling back to text",
+			"format", fm)
+	}
 
 	slq, err := preprocessUserSLQ(ctx, ru, ru.Args)
 	if err != nil {
@@ -227,6 +245,20 @@ func execSLQRenderSQL(ctx context.Context, ru *run.Run, mArgs map[string]string)
 		},
 		Args: mArgs,
 	})
+}
+
+// renderSQLSupportsFormat reports whether --render-sql has a dedicated
+// writer for fm. Formats not in this set fall back to the text writer
+// in [newWriters]; see [execSLQRenderSQL] for the rationale and the
+// accompanying log.Warn.
+func renderSQLSupportsFormat(fm format.Format) bool {
+	//nolint:exhaustive // explicit allow-list; other formats intentionally fall back to text.
+	switch fm {
+	case format.Text, format.Raw, format.JSON, format.JSONL, format.YAML:
+		return true
+	default:
+		return false
+	}
 }
 
 // preprocessUserSLQ does a bit of validation and munging on the

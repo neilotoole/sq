@@ -20,12 +20,9 @@ type SQLPayload struct {
 	// (e.g. "postgres", "sqlite3", "mysql") that SQL was rendered for.
 	Dialect string `json:"dialect" yaml:"dialect"`
 
-	// Sources describes the source handles involved in the query:
-	// the SQL's execution target plus the user-named inputs the SLQ
-	// references. The two coincide for single-source queries; for
-	// cross-source queries Target is the synthetic join DB and
-	// Inputs lists the user sources whose data would be staged into
-	// it. --render-sql does no staging.
+	// Sources is the [SQLSources] describing where the SQL would
+	// execute (Target) and which user-named handles the SLQ
+	// references (Inputs).
 	Sources SQLSources `json:"sources" yaml:"sources"`
 }
 

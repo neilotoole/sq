@@ -173,9 +173,10 @@ func newRenderResult(sql string, dialect drivertype.Type, target string, inputs 
 // SLQ2SQL renders a SLQ query into the SQL that would be executed
 // against the target database, without executing it. The pipeline
 // is built the same way as for ExecSLQ — sources referenced in the
-// query are opened (connection established, authentication round-trip)
-// so the target dialect can be determined, but no SQL is executed
-// and no data is moved.
+// query are opened (which, for SQL sources, performs an auth
+// round-trip; for document sources, may ingest the file into the
+// scratch DB) so the target dialect can be determined. The rendered
+// query SQL itself is not executed and no result records are read.
 func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (*RenderResult, error) {
 	p, err := newPipeline(ctx, qc, query)
 	if err != nil {
@@ -189,8 +190,9 @@ func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (*RenderResult
 // inputSourceHandles returns the set of source handles that the SLQ
 // references as inputs, in stable order. For cross-source queries
 // these are the handles of the sources that would be staged into
-// the join DB; for single-source queries the result is a one-element
-// slice equal to p.targetGrip's handle.
+// the join DB. When the pipeline has no joinCopyTasks — single-source
+// queries, and the no-active-source / scratch-source case — the
+// result is a one-element slice equal to p.targetGrip's handle.
 func (p *pipeline) inputSourceHandles() []string {
 	seen := map[string]bool{}
 	var handles []string

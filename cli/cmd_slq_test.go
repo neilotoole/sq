@@ -531,6 +531,9 @@ func TestCmdSLQ_RenderSQL_YAML(t *testing.T) {
 // TestCmdSLQ_RenderSQL_CSV_FallsBackToText verifies that requesting a
 // format with no SQL writer of its own (e.g. csv) falls back to the
 // text writer, per the existing OptFormat fallback convention.
+// execSLQRenderSQL logs a Warn when this happens; the test only
+// asserts the user-visible output (plain SQL), since the log goes
+// through the slog handler and is not surfaced on stderr.
 func TestCmdSLQ_RenderSQL_CSV_FallsBackToText(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)

@@ -12,7 +12,9 @@ import (
 
 // WriteJSON prints a JSON representation of v to out, using specs
 // from pr. It honours pr.Compact, pr.Indent, and the colour palette
-// derived from pr.
+// derived from pr. The underlying [jcolorenc.Encoder.Encode] always
+// appends a trailing newline, so callers do not (and must not) write
+// one themselves.
 func WriteJSON(out io.Writer, pr *output.Printing, v any) error {
 	return writeJSON(out, pr, v)
 }
