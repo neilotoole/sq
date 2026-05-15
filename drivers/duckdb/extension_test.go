@@ -8,6 +8,8 @@ import (
 
 	_ "github.com/duckdb/duckdb-go/v2"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/drivers/duckdb"
 )
 
 // TestExtensions_AllBundledExtensionsLoadAndAreCallable verifies that every
@@ -26,12 +28,8 @@ func TestExtensions_AllBundledExtensionsLoadAndAreCallable(t *testing.T) {
 	// INSTALL + LOAD all bundled extensions. This mirrors what connInitFn
 	// (in pragma.go) does on every real driver connection, and is required
 	// here because the test opens a raw *sql.DB rather than going through
-	// driveri.doOpen. Keep in sync with bundledExtensions in pragma.go.
-	bundled := []string{
-		"json", "parquet", "icu", "fts", "httpfs", "excel",
-		"inet", "autocomplete", "tpch", "tpcds",
-	}
-	for _, ext := range bundled {
+	// driveri.doOpen.
+	for _, ext := range duckdb.BundledExtensions() {
 		_, err := db.ExecContext(ctx, "INSTALL "+ext)
 		require.NoError(t, err, "INSTALL %s failed", ext)
 		_, err = db.ExecContext(ctx, "LOAD "+ext)

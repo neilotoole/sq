@@ -17,6 +17,13 @@ var bundledExtensions = []string{
 	"inet", "autocomplete", "tpch", "tpcds",
 }
 
+// BundledExtensions returns the names of DuckDB extensions statically linked
+// into the binary. Tests use this to assert the bundle matches the runtime
+// LOAD set; callers should not mutate the returned slice.
+func BundledExtensions() []string {
+	return bundledExtensions
+}
+
 // Extension install state is process-wide. INSTALL touches the on-disk
 // extension cache; running it from multiple goroutines simultaneously fails
 // on Windows ("Could not move file: Access is denied") because of stricter

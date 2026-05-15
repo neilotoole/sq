@@ -7,6 +7,8 @@ import (
 
 	_ "github.com/duckdb/duckdb-go/v2"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/drivers/duckdb"
 )
 
 // TestSmokeStaticBundle verifies that we can open an in-memory DuckDB,
@@ -22,9 +24,7 @@ func TestSmokeStaticBundle(t *testing.T) {
 	t.Logf("DuckDB version: %s", version)
 	require.True(t, strings.HasPrefix(version, "v"))
 
-	// Required bundled extensions per spec.
-	exts := []string{"json", "parquet", "icu", "fts", "httpfs", "excel", "inet", "autocomplete", "tpch", "tpcds"}
-	for _, ext := range exts {
+	for _, ext := range duckdb.BundledExtensions() {
 		t.Run(ext, func(t *testing.T) {
 			_, err := db.Exec("INSTALL " + ext)
 			require.NoError(t, err, "INSTALL %s failed", ext)
