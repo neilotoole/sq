@@ -3,7 +3,7 @@ Use the -v flag to see all options. When flag --src is provided, show config
 just for that source.
 
 Usage:
-  sq config get OPTION
+  sq config get
 
 Examples:
   # Show individual base option
@@ -31,7 +31,7 @@ Global Flags:
       --error.format string   Error output format (default "text")
   -E, --error.stack           Print error stack trace to stderr
       --log                   Enable logging
-      --log.file string       Log file path (default "/Users/neilotoole/Library/Logs/sq/sq.log")
+      --log.file string       Log file path (default "$HOME/Library/Logs/sq/sq.log")
       --log.format string     Log output format (text or json) (default "text")
       --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
   -M, --monochrome            Don't print color output
