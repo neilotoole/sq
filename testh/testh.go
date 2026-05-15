@@ -351,11 +351,16 @@ func (h *Helper) Source(handle string) *source.Source {
 		// tests opening the same fixture cause "file in use" errors on Windows
 		// (POSIX is more forgiving). Copy the fixture per test, mirroring the
 		// SQLite pattern above.
+		//
+		// Skip when there is no on-disk file (e.g. duckdb://:memory: sources
+		// registered in sources.sq.yml): in-memory DBs are inherently per-
+		// connection so each test already gets its own.
 		srcPath, err := duckdb.PathFromLocation(src)
-		require.NoError(t, err)
-		dstPath := filepath.Join(tu.TempDir(t), filepath.Base(srcPath))
-		require.NoError(t, ioz.CopyFile(dstPath, srcPath, true))
-		src.Location = duckdb.Prefix + dstPath
+		if err == nil {
+			dstPath := filepath.Join(tu.TempDir(t), filepath.Base(srcPath))
+			require.NoError(t, ioz.CopyFile(dstPath, srcPath, true))
+			src.Location = duckdb.Prefix + dstPath
+		}
 	}
 
 	h.srcCache[handle] = src

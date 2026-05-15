@@ -392,7 +392,7 @@ func newRecordFuncForDuckDB(log *slog.Logger, recMeta record.Meta) driver.NewRec
 				record.SetKindIfUnknown(recMeta, i, kind.Bool)
 				rec[i] = v
 
-			// ---- integers (go-duckdb uses fixed-width ints) ----
+			// ---- fixed-width ints (≤ 32-bit) → int64 ----
 			case int8:
 				record.SetKindIfUnknown(recMeta, i, kind.Int)
 				rec[i] = int64(v)
@@ -414,13 +414,15 @@ func newRecordFuncForDuckDB(log *slog.Logger, recMeta record.Meta) driver.NewRec
 			case uint32:
 				record.SetKindIfUnknown(recMeta, i, kind.Int)
 				rec[i] = int64(v)
+
+			// ---- UBIGINT (uint64) → decimal ----
 			case uint64:
 				// UBIGINT can exceed int64 range (max = 2^64 - 1).
 				// Promote to decimal.Decimal for lossless representation.
 				record.SetKindIfUnknown(recMeta, i, kind.Decimal)
 				rec[i] = decimal.NewFromBigInt(new(big.Int).SetUint64(v), 0)
 
-			// ---- HUGEINT / UHUGEINT / BIGNUM (*big.Int) ----
+			// ---- HUGEINT / UHUGEINT (*big.Int) → decimal ----
 			case *big.Int:
 				// HUGEINT (signed 128-bit, max ~1.7e38) and UHUGEINT
 				// (unsigned 128-bit, max ~3.4e38) both exceed int64 and

@@ -59,8 +59,15 @@ func alterTableColumnKinds(
 }
 
 // dbTypeNameFromKind returns the DuckDB column type name for a kind.Kind.
-// The mapping mirrors kindFromDBTypeName (in metadata.go) to ensure
-// round-trip consistency.
+// The mapping mirrors kindFromDBTypeName (in metadata.go) for the common
+// case.
+//
+// Note: HUGEINT/UHUGEINT/UBIGINT/INT128 columns map to kind.Decimal at
+// scan time, so this function emits them back as DECIMAL(38,9) on DDL
+// round-trip — losing the original integer-type semantics and clipping
+// HUGEINT values above ~1e38 (38 vs 39 digits). For round-trip-sensitive
+// callers, consult metadata.Column.BaseType instead. Documented as a
+// known follow-up in the PR introducing this driver.
 func dbTypeNameFromKind(k kind.Kind) string {
 	switch k {
 	case kind.Bool:
