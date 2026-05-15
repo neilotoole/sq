@@ -57,7 +57,7 @@ func TestTextWriter_NoColor(t *testing.T) {
 		SLQ:     `.actor`,
 		SQL:     `SELECT * FROM "actor"`,
 		Dialect: "postgres",
-		Source:  "@sakila_pg",
+		Sources: output.SQLSources{Target: "@sakila_pg", Inputs: []string{"@sakila_pg"}},
 	})
 	require.NoError(t, err)
 	require.Equal(t, "SELECT * FROM \"actor\"\n", buf.String())
@@ -92,9 +92,11 @@ func samplePayload() output.SQLPayload {
 		SLQ:     `.actor | .first_name == "TOM"`,
 		SQL:     `SELECT * FROM "actor" WHERE "first_name" = 'TOM'`,
 		Dialect: "postgres",
-		Source:  "@sakila_pg",
-		Sources: []string{"@sakila_pg"},
-		Args:    map[string]string{"name": "TOM"},
+		Sources: output.SQLSources{
+			Target: "@sakila_pg",
+			Inputs: []string{"@sakila_pg"},
+		},
+		Args: map[string]string{"name": "TOM"},
 	}
 }
 

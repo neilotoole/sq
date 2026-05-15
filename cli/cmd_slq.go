@@ -221,9 +221,11 @@ func execSLQDryRun(ctx context.Context, ru *run.Run, mArgs map[string]string) er
 		SLQ:     slq,
 		SQL:     res.SQL,
 		Dialect: res.Dialect.String(),
-		Source:  res.SourceHandle,
-		Sources: res.Sources,
-		Args:    mArgs,
+		Sources: output.SQLSources{
+			Target: res.SourceHandle,
+			Inputs: res.Sources,
+		},
+		Args: mArgs,
 	})
 }
 

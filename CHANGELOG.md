@@ -22,12 +22,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   `text` (the default) or `raw`, the rendered SQL is printed plain
   (syntax-highlighted on TTYs); with `json`, `jsonl`, or `yaml`, a
   structured payload is printed (colourised on TTYs) containing the
-  original SLQ, the rendered SQL, the dialect, the target source
-  handle, the list of input source handles referenced by the SLQ,
-  and any `--arg` values. For cross-source queries the target
-  source is the synthetic join DB; the input sources are the
-  user-named handles that would be staged into it. Other formats
-  fall back to text.
+  original SLQ, the rendered SQL, the dialect, a `sources` group
+  (`sources.target` is the handle the SQL would execute against;
+  `sources.inputs` lists the user-named handles referenced by the
+  SLQ), and any `--arg` values. For single-source queries
+  `sources.target` matches the single entry in `sources.inputs`;
+  for cross-source queries `sources.target` is the synthetic join
+  DB and `sources.inputs` lists the user sources that would be
+  staged into it. Other formats fall back to text.
 - DuckDB driver ([#437](https://github.com/neilotoole/sq/issues/437)):
   [`sq`](https://sq.io/docs/cmd/sq) can now read and write DuckDB databases
   via the `duckdb://` scheme. The driver supports the full DuckDB type system,

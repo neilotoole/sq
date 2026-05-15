@@ -488,8 +488,8 @@ func TestCmdSLQ_DryRun_JSON(t *testing.T) {
 	require.Contains(t, strings.ToUpper(got.SQL), "SELECT")
 	require.Contains(t, strings.ToLower(got.SQL), "actor")
 	require.Equal(t, "sqlite3", got.Dialect)
-	require.Equal(t, src.Handle, got.Source)
-	require.Equal(t, []string{src.Handle}, got.Sources)
+	require.Equal(t, src.Handle, got.Sources.Target)
+	require.Equal(t, []string{src.Handle}, got.Sources.Inputs)
 }
 
 // TestCmdSLQ_DryRun_JSONL verifies that --dry-run --format=jsonl emits
@@ -525,7 +525,7 @@ func TestCmdSLQ_DryRun_YAML(t *testing.T) {
 	var got output.SQLPayload
 	require.NoError(t, goccy.Unmarshal(tr.Out.Bytes(), &got))
 	require.Equal(t, "sqlite3", got.Dialect)
-	require.Equal(t, src.Handle, got.Source)
+	require.Equal(t, src.Handle, got.Sources.Target)
 }
 
 // TestCmdSLQ_DryRun_CSV_FallsBackToText verifies that requesting a

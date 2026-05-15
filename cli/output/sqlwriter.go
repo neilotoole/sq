@@ -20,18 +20,31 @@ type SQLPayload struct {
 	// (e.g. "postgres", "sqlite3", "mysql") that SQL was rendered for.
 	Dialect string `json:"dialect" yaml:"dialect"`
 
-	// Source is the handle of the source that SQL targets, e.g.
-	// "@sakila_pg". For cross-source queries this is the join DB's
-	// handle, distinct from any of the input handles in Sources.
-	Source string `json:"source" yaml:"source"`
+	// Sources describes the source handles involved in the query:
+	// the SQL's execution target plus the user-named inputs the SLQ
+	// references. The two coincide for single-source queries; for
+	// cross-source queries Target is the synthetic join DB and
+	// Inputs lists the user sources whose data would be staged into
+	// it. --dry-run does no staging.
+	Sources SQLSources `json:"sources" yaml:"sources"`
+}
 
-	// Sources is the set of input source handles referenced by the
+// SQLSources groups the source handles involved in a --dry-run
+// payload, distinguishing where the rendered SQL would execute
+// (Target) from the user-named inputs the SLQ references (Inputs).
+type SQLSources struct {
+	// Target is the handle of the source the rendered SQL would be
+	// executed against. For single-source queries this is the user
+	// source itself. For cross-source queries it is the synthetic
+	// join DB's handle (typically "@join_…"), distinct from any of
+	// the inputs in Inputs.
+	Target string `json:"target" yaml:"target"`
+
+	// Inputs is the set of input source handles referenced by the
 	// SLQ. For single-source queries it has one element equal to
-	// Source. For cross-source queries it lists the input sources
-	// whose data would be staged into the join DB named by Source;
-	// in that case Source is not itself in Sources. --dry-run does
-	// no staging.
-	Sources []string `json:"sources" yaml:"sources"`
+	// Target. For cross-source queries it lists the user sources
+	// whose data would be staged into the join DB named by Target.
+	Inputs []string `json:"inputs" yaml:"inputs"`
 }
 
 // SQLWriter writes an SQLPayload in some format-specific
