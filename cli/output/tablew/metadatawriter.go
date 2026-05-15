@@ -173,18 +173,37 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 		return w.tbl.pr.Bool.Sprint("pk")
 	}
 
+	// formatIdxCell turns the per-column index entries into a single
+	// comma-joined cell. UC-backing entries are wrapped in parens and
+	// styled with [Printing.Subdued] (italic + faint) so they read as
+	// secondary citizens: still visible, but visually deemphasized
+	// because UNIQUE CONSTRAINTS already names the same thing. PK
+	// filtering happens upstream in [indexEntriesByColumn]; nothing
+	// to do here for PK-backing entries.
+	formatIdxCell := func(entries []indexEntry) string {
+		if len(entries) == 0 {
+			return ""
+		}
+		parts := make([]string, len(entries))
+		for i, e := range entries {
+			if e.backing {
+				parts[i] = w.tbl.pr.Subdued.Sprint("(" + e.name + ")")
+			} else {
+				parts[i] = e.name
+			}
+		}
+		return strings.Join(parts, ", ")
+	}
+
 	for _, tbl := range tbls {
 		// Build per-column lookups for FKs, indexes, and unique
 		// constraints so each column row can list the entries it
-		// participates in. PK-backing and UC-backing indexes are
-		// filtered out of the INDEXES column to avoid duplicating
-		// information that already appears under the dedicated PK
-		// or UNIQUE CONSTRAINTS columns. See [indexNamesByColumn]
-		// for the full rationale and edge cases (e.g. standalone
-		// CREATE UNIQUE INDEX with no matching constraint still
-		// shows up).
+		// participates in. PK-backing indexes are dropped (the PK
+		// column already conveys that information); UC-backing
+		// indexes are kept but tagged so the renderer can mute them.
+		// See [indexEntriesByColumn] for the full pairing rules.
 		fkByCol := outgoingFKByColumn(tbl)
-		idxByCol := indexNamesByColumn(tbl)
+		idxByCol := indexEntriesByColumn(tbl)
 		ucByCol := uniqueNamesByColumn(tbl)
 
 		// Tables with no visible columns (e.g. an empty view, or a
@@ -211,7 +230,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 			tbl.Columns[0].BaseType,
 			getPK(tbl.Columns[0]),
 			formatFKRef(fkByCol[tbl.Columns[0].Name]),
-			strings.Join(idxByCol[tbl.Columns[0].Name], ", "),
+			formatIdxCell(idxByCol[tbl.Columns[0].Name]),
 			strings.Join(ucByCol[tbl.Columns[0].Name], ", "),
 		}
 
@@ -227,7 +246,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 				tbl.Columns[i].BaseType,
 				getPK(tbl.Columns[i]),
 				formatFKRef(fkByCol[tbl.Columns[i].Name]),
-				strings.Join(idxByCol[tbl.Columns[i].Name], ", "),
+				formatIdxCell(idxByCol[tbl.Columns[i].Name]),
 				strings.Join(ucByCol[tbl.Columns[i].Name], ", "),
 			}
 			rows = append(rows, row)
@@ -278,43 +297,47 @@ func formatFKRef(fk *metadata.ForeignKey) string {
 	return target + "(" + strings.Join(fk.RefColumns, ", ") + ")"
 }
 
-// indexNamesByColumn returns a column-name → []indexName lookup for
-// tbl, with two categories of physical indexes deliberately filtered
-// out so the verbose-text view stays readable:
+// indexEntry is a single entry in the INDEXES column. The backing
+// flag signals that the index merely backs a UNIQUE constraint
+// already listed under UNIQUE CONSTRAINTS — the renderer mutes those
+// entries (parens + [Printing.Subdued]) so they read as secondary
+// citizens without being hidden entirely.
+type indexEntry struct {
+	name    string
+	backing bool
+}
+
+// indexEntriesByColumn returns a column-name → []indexEntry lookup
+// for tbl. PK-backing indexes are filtered (the PK column already
+// conveys that information); every other physical index appears in
+// the result, with backing=true marking the one that backs each
+// declared [metadata.UniqueConstraint].
 //
-//   - PK-backing indexes (idx.Primary). Their existence is already
-//     conveyed by the PK column, so repeating the index name adds
+// Pairing rules:
+//
+//   - PK-backing indexes (idx.Primary) are dropped: their existence
+//     is conveyed by the PK column, so listing them in INDEXES adds
 //     nothing.
-//   - UC-backing indexes — unique indexes whose key columns match a
-//     declared [metadata.UniqueConstraint] in tbl.UniqueConstraints.
-//     The UC name shows under the UNIQUE CONSTRAINTS column for the
-//     same columns, so listing the (typically identical) index name
-//     under INDEXES is pure visual duplication. Indexes whose name
-//     differs from the UC's (SQLite's auto-named sqlite_autoindex_*,
-//     or any case where a DBA manually named the backing index) are
-//     still suppressed thanks to the column-set match.
+//   - UC-backing pairing is column-set based, not name based, so
+//     SQLite's auto-named sqlite_autoindex_* entries match cleanly.
+//   - At most one matching unique index is bound per UC. A schema
+//     may legitimately carry multiple unique indexes over the same
+//     columns (e.g. a UNIQUE constraint plus a manually-created
+//     CREATE UNIQUE INDEX); only the one acting as the constraint's
+//     backing gets backing=true. The rest stay as plain entries.
+//   - A user-declared unique index whose columns don't match any
+//     declared UC — e.g. CREATE UNIQUE INDEX foo ON t(x) without a
+//     matching CONSTRAINT bar UNIQUE (x) — gets backing=false.
 //
-// User-declared unique indexes that *don't* back a formal constraint
-// — e.g. `CREATE UNIQUE INDEX foo ON t(x)` without a matching
-// `CONSTRAINT bar UNIQUE (x)` — still appear under INDEXES, because
-// no UC has matching columns.
-//
-// The JSON / YAML output keeps the full [Table.Indexes] slice
-// unmodified; this dedup is opinionated to the text renderer only.
+// JSON / YAML output keeps the full [Table.Indexes] slice unmodified;
+// the muting and PK filtering are opinionated to the text renderer.
 //
 // Order across indexes follows their order in tbl.Indexes.
-func indexNamesByColumn(tbl *metadata.Table) map[string][]string {
+func indexEntriesByColumn(tbl *metadata.Table) map[string][]indexEntry {
 	if len(tbl.Indexes) == 0 {
 		return nil
 	}
 
-	// Pair each declared UC with at most one matching unique index
-	// (the implicit backing index). A schema may legitimately carry
-	// multiple unique indexes over the same columns — e.g. a UNIQUE
-	// constraint plus a manually-created `CREATE UNIQUE INDEX` —
-	// and only the one acting as the constraint's backing index
-	// should be hidden. Column-set match is used (not name match)
-	// so SQLite's auto-generated sqlite_autoindex_* still dedupes.
 	// \x00 as the join separator can't appear in any real SQL
 	// identifier, so the keys are collision-free.
 	ucColKeys := make([]string, 0, len(tbl.UniqueConstraints))
@@ -341,13 +364,14 @@ func indexNamesByColumn(tbl *metadata.Table) map[string][]string {
 		}
 	}
 
-	out := make(map[string][]string, len(tbl.Columns))
+	out := make(map[string][]indexEntry, len(tbl.Columns))
 	for _, idx := range tbl.Indexes {
-		if idx == nil || idx.Primary || isUCBacking[idx] {
+		if idx == nil || idx.Primary {
 			continue
 		}
+		entry := indexEntry{name: idx.Name, backing: isUCBacking[idx]}
 		for _, colName := range idx.Columns {
-			out[colName] = append(out[colName], idx.Name)
+			out[colName] = append(out[colName], entry)
 		}
 	}
 	return out

@@ -257,24 +257,41 @@ $ sq inspect -j @sakila_pg | jq -r '
   | "\($t).\(.name) (\(.columns | join(\",\"))) [\(.type)]"'
 ```
 
-### Text output dedupes UC- and PK-backing indexes
+### How verbose text marks redundant index entries
 
-The `INDEXES` column of `sq inspect --verbose` text output hides any
-index whose existence is already conveyed elsewhere:
+The `INDEXES` column of `sq inspect --verbose` text output applies
+two display rules so the column reads cleanly without losing
+information:
 
-- PK-backing indexes are dropped from `INDEXES` because the `PK`
-  column already marks the participating columns.
-- UNIQUE-constraint-backing indexes are dropped from `INDEXES` when a
-  matching entry appears under `UNIQUE CONSTRAINTS` (matched by
-  column-set, not name, so SQLite's auto-generated
-  `sqlite_autoindex_*` names dedupe correctly).
-- Standalone `CREATE UNIQUE INDEX` definitions that have no
-  declared constraint still appear under `INDEXES`.
+- **PK-backing indexes are dropped** entirely. The `PK` column
+  already marks the participating columns; repeating the implicit
+  index name adds nothing.
+- **UNIQUE-constraint-backing indexes are shown muted**, with the
+  index name wrapped in parentheses and rendered in a subdued style
+  (italic + faint, on color terminals). The UC name also appears
+  under `UNIQUE CONSTRAINTS`, so the parens signal "this is the
+  implicit backing index" while keeping the name visible. The match
+  is by column-set, not name, so SQLite's auto-generated
+  `sqlite_autoindex_*` entries pair up with the right UC.
 
-This is a verbose-text-output choice only. The JSON and YAML formats
-always emit the full `tables[].indexes` slice — every physical index,
-including the PK- and UC-backing ones — so tooling consuming the
-machine-readable forms sees the complete picture.
+```text
+NAME     TYPE   ROWS  COLS  NAME        TYPE     PK  FK  INDEXES                                 UNIQUE CONSTRAINTS
+demo_uc  table  0     5     id          int4     pk
+                            email       varchar          (demo_uc_email_key), idx_solo_unique    demo_uc_email_key
+                            first_name  varchar          (uniq_full_name)                        uniq_full_name
+                            last_name   varchar          (uniq_full_name)                        uniq_full_name
+                            nickname    varchar          idx_demo_nickname
+```
+
+A user-declared `CREATE UNIQUE INDEX` that doesn't back any formal
+constraint (e.g. `idx_solo_unique` above) renders unmuted, alongside
+the parenthesized constraint-backing entry.
+
+These display rules apply only to the verbose text renderer. The
+JSON and YAML formats always emit the full `tables[].indexes` slice
+— every physical index, including PK- and UC-backing ones — so
+tooling consuming the machine-readable forms sees the complete
+picture.
 
 ## Override active schema
 
