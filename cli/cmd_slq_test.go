@@ -572,6 +572,44 @@ func TestCmdSLQ_RenderSQL_ArgSubstitution(t *testing.T) {
 	require.Contains(t, got.SQL, "TOM")
 }
 
+// TestCmdSLQ_RenderSQL_CrossSource verifies that a cross-source SLQ
+// (SQLite + CSV) renders against the synthetic join DB. Sources.Target
+// should be the @join_<uniq> handle, Inputs should list both user-named
+// handles, and Dialect should be the scratch SQLite dialect.
+func TestCmdSLQ_RenderSQL_CrossSource(t *testing.T) {
+	th := testh.New(t)
+	sl3 := th.Source(sakila.SL3)
+	csvSrc := th.Source(sakila.CSVActor)
+
+	tr := testrun.New(th.Context, t, nil).Add(*sl3, *csvSrc).Hush()
+	require.NoError(t, tr.Exec("slq",
+		"--render-sql", "--format=json",
+		"@sakila_sl3.actor | join(@sakila_csv_actor.data, .actor_id)"))
+
+	var got output.SQLPayload
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
+	require.True(t, strings.HasPrefix(got.Sources.Target, "@join_"),
+		"expected Sources.Target to start with @join_, got: %s", got.Sources.Target)
+	require.ElementsMatch(t,
+		[]string{sakila.SL3, sakila.CSVActor},
+		got.Sources.Inputs)
+	require.Equal(t, "sqlite3", got.Dialect,
+		"join DB dialect should be the scratch sqlite3")
+}
+
+// TestCmdSLQ_RenderSQL_InvalidSLQ verifies that an unparseable SLQ
+// surfaces an error and does not print partial SQL to stdout.
+func TestCmdSLQ_RenderSQL_InvalidSLQ(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
+	err := tr.Exec("slq", "--render-sql", "@no_such_handle.foo")
+	require.Error(t, err)
+	require.Empty(t, strings.TrimSpace(tr.OutString()),
+		"stdout should be empty on error, got: %s", tr.OutString())
+}
+
 // TestCmdSLQ_RenderSQL_ExplicitFalse verifies that an explicit
 // --render-sql=false does not trigger render-only mode; the query
 // should execute normally and emit records, not SQL text.

@@ -120,30 +120,54 @@ func ExecSLQ(ctx context.Context, qc *QueryContext, query string, recw RecordWri
 // RenderResult is the result of rendering a SLQ query to SQL via SLQ2SQL.
 // It carries the rendered SQL plus enough metadata to identify which
 // backend the SQL was rendered for.
+//
+// Invariants enforced by [newRenderResult]: SQL is non-empty, Target is
+// non-empty, and Inputs is non-empty.
 type RenderResult struct {
 	// SQL is the rendered SQL query that would be executed against the
 	// target database.
-	SQL string
+	SQL string `json:"sql" yaml:"sql"`
 
 	// Dialect identifies the SQL dialect / driver type that SQL is
 	// rendered for (e.g. drivertype.Pg, drivertype.SQLite). When the
 	// SLQ involves multiple sources, this is the dialect of the join
 	// database that the final SQL runs against (typically SQLite).
-	Dialect drivertype.Type
+	Dialect drivertype.Type `json:"dialect" yaml:"dialect"`
 
-	// SourceHandle is the handle of the source that the SQL targets.
-	// For cross-source queries this is the synthetic join DB handle,
+	// Target is the handle of the source that the SQL targets. For
+	// cross-source queries this is the synthetic join DB handle,
 	// generated as "@join_<uniq>" (see libsq/driver/grips.go). For
 	// queries with no active source this is the scratch source's handle.
-	SourceHandle string
+	Target string `json:"target" yaml:"target"`
 
-	// Sources is the set of input source handles referenced by the SLQ.
-	// For single-source queries this is a one-element slice equal to
-	// SourceHandle. For cross-source queries it is the inputs that
-	// would be staged into the join DB (SourceHandle, in that case,
-	// names the join DB rather than any of these inputs). SLQ2SQL
-	// itself does no staging.
-	Sources []string
+	// Inputs is the set of input source handles referenced by the SLQ,
+	// in stable order with no duplicates. For single-source queries this
+	// is a one-element slice equal to Target. For cross-source queries
+	// these are the inputs that would be staged into the join DB; Target
+	// in that case names the join DB rather than any of these inputs.
+	// SLQ2SQL itself does no staging.
+	Inputs []string `json:"inputs" yaml:"inputs"`
+}
+
+// newRenderResult constructs a RenderResult, returning an error if any
+// invariant is violated. This is the only producer in this package; the
+// invariants are documented on RenderResult.
+func newRenderResult(sql string, dialect drivertype.Type, target string, inputs []string) (*RenderResult, error) {
+	if sql == "" {
+		return nil, errz.New("render result: SQL is empty")
+	}
+	if target == "" {
+		return nil, errz.New("render result: target handle is empty")
+	}
+	if len(inputs) == 0 {
+		return nil, errz.New("render result: inputs is empty")
+	}
+	return &RenderResult{
+		SQL:     sql,
+		Dialect: dialect,
+		Target:  target,
+		Inputs:  inputs,
+	}, nil
 }
 
 // SLQ2SQL renders a SLQ query into the SQL that would be executed
@@ -159,12 +183,7 @@ func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (*RenderResult
 	}
 
 	src := p.targetGrip.Source()
-	return &RenderResult{
-		SQL:          p.targetSQL,
-		Dialect:      src.Type,
-		SourceHandle: src.Handle,
-		Sources:      p.inputSourceHandles(),
-	}, nil
+	return newRenderResult(p.targetSQL, src.Type, src.Handle, p.inputSourceHandles())
 }
 
 // inputSourceHandles returns the set of source handles that the SLQ

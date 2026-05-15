@@ -41,9 +41,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 ### Changed
 
 - ☢️ [#499]: `libsq.SLQ2SQL` now returns `*libsq.RenderResult` instead of
-  `string`. The struct carries the rendered SQL plus the target dialect,
-  source handle, and input source handles. Library consumers must update
-  call sites; the `sq` CLI is unaffected.
+  `string`. The struct carries the rendered SQL plus the target dialect
+  (`Dialect`), the handle of the source the SQL targets (`Target`), and
+  the user-named source handles referenced by the SLQ (`Inputs`).
+  Library consumers must update call sites; the `sq` CLI is unaffected.
 
 ## [v0.51.0] - 2026-05-10
 

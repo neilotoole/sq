@@ -214,7 +214,7 @@ func execSLQRenderSQL(ctx context.Context, ru *run.Run, mArgs map[string]string)
 
 	res, err := libsq.SLQ2SQL(ctx, qc, slq)
 	if err != nil {
-		return err
+		return errz.Wrap(err, "render SQL")
 	}
 
 	return ru.Writers.SQL.Render(output.SQLPayload{
@@ -222,8 +222,8 @@ func execSLQRenderSQL(ctx context.Context, ru *run.Run, mArgs map[string]string)
 		SQL:     res.SQL,
 		Dialect: res.Dialect.String(),
 		Sources: output.SQLSources{
-			Target: res.SourceHandle,
-			Inputs: res.Sources,
+			Target: res.Target,
+			Inputs: res.Inputs,
 		},
 		Args: mArgs,
 	})
