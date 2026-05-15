@@ -101,9 +101,10 @@ func PortDropObjects(in string) (string, error) {
 
 // Port translates a SQLite sakila SQL file into a DuckDB-compatible form
 // using the generic transforms only (no reordering). This entrypoint is
-// used for files that don't need topological ordering — e.g. the DELETE-
-// data script, which is already in reverse-topological order in the
-// source.
+// used for files that don't need topological ordering: the delete-data
+// script (already in reverse-topological order in the source) and the
+// whitespace-alter / whitespace-restore scripts (which target specific
+// pre-named tables).
 func Port(in string) (string, error) {
 	out := stripTriggers(in)
 	out = stripAutoincrement(out)
@@ -205,8 +206,8 @@ func stripCycleBreakerFK(s string) string {
 }
 
 // reTrailingCommaBeforeParen matches a trailing comma left behind after
-// the cycle-breaker FK constraint line is stripped from the last column
-// before ")".
+// a FK constraint line is stripped from the last column before ")".
+// Used by both stripCycleBreakerFK and stripAllFKConstraintLines.
 var reTrailingCommaBeforeParen = regexp.MustCompile(`(?m),\s*\n\s*\)`)
 
 // replaceBlobSubTypeText replaces the Firebird-heritage "BLOB SUB_TYPE TEXT"
@@ -336,25 +337,34 @@ func reorderInsertChunks(s string, order []string) (string, error) {
 			curStart = positions[i][0]
 		}
 	}
-	// Final chunk extends to EOF (or to the next non-INSERT block — we
-	// approximate by EOF, since the SQLite dump ends with COMMIT after
-	// the last INSERT).
+	// Final chunk provisionally extends to EOF; we trim it back below
+	// once we detect the end-of-INSERTs marker.
 	chunks = append(chunks, chunk{name: curName, start: curStart, end: len(s)})
 
-	// Detect the end of the INSERT region: anything after the last chunk's
-	// natural end is the epilogue. We find this by locating the COMMIT
-	// keyword in the trailing region, if present.
+	// Detect the end of the INSERT region: scan the final chunk for a
+	// transaction-terminator marker (the SQLite sakila dump ends with
+	// "END TRANSACTION;" on some files and "COMMIT" on others). Anything
+	// from that marker onward becomes the epilogue. Without this, if
+	// topoOrder is ever permuted, a non-payment-tail table would inherit
+	// the trailer's content in its chunk.
 	prologue := s[:chunks[0].start]
-	lastChunkEnd := chunks[len(chunks)-1].end
-	// Scan the final chunk for a COMMIT marker that signals end-of-INSERTs.
-	// If found, trim the chunk and move COMMIT+after into the epilogue.
+	lastChunkStart := chunks[len(chunks)-1].start
+	lastChunkBody := s[lastChunkStart:]
+	terminatorIdx := -1
+	for _, marker := range []string{"\nEND TRANSACTION", "\nCOMMIT"} {
+		if idx := strings.Index(lastChunkBody, marker); idx >= 0 {
+			if terminatorIdx < 0 || idx < terminatorIdx {
+				terminatorIdx = idx
+			}
+		}
+	}
 	var epilogue string
-	if commitIdx := strings.Index(s[chunks[len(chunks)-1].start:], "\nCOMMIT"); commitIdx >= 0 {
-		commitAbs := chunks[len(chunks)-1].start + commitIdx + 1 // +1 to skip the leading \n
-		chunks[len(chunks)-1].end = commitAbs
-		epilogue = s[commitAbs:]
+	if terminatorIdx >= 0 {
+		termAbs := lastChunkStart + terminatorIdx + 1 // +1 to skip the leading \n
+		chunks[len(chunks)-1].end = termAbs
+		epilogue = s[termAbs:]
 	} else {
-		epilogue = s[lastChunkEnd:]
+		epilogue = s[chunks[len(chunks)-1].end:]
 	}
 
 	// Build the chunk map.
@@ -455,16 +465,25 @@ func reorderDropTables(s string, order []string) (string, error) {
 		var b strings.Builder
 		b.WriteString(line)
 		b.WriteString("\n")
-		// Consume following lines until we eat a ";" line.
+		// Consume following lines until we eat a ";" line. Bound the
+		// look-ahead: a well-formed DROP statement places ";" on the
+		// very next non-blank line; allowing more than a handful of
+		// blank lines would mean the input is malformed.
+		const maxLookAhead = 5
+		terminated := false
 		j := i + 1
-		for j < len(lines) {
+		for j < len(lines) && j-i <= maxLookAhead {
 			next := strings.TrimSpace(lines[j])
 			b.WriteString(lines[j])
 			b.WriteString("\n")
 			if next == ";" {
+				terminated = true
 				break
 			}
 			j++
+		}
+		if !terminated {
+			return "", fmt.Errorf("drop-objects: DROP TABLE %s missing ';' terminator within %d lines", name, maxLookAhead)
 		}
 		drops[name] = b.String()
 		i = j

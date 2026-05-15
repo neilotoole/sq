@@ -41,8 +41,8 @@ func TestStripAutoincrement(t *testing.T) {
 
 func TestStripCycleBreakerFK_DropsOnlyStoreStaff(t *testing.T) {
 	// Test that ONLY fk_store_staff is stripped — every other FK is
-	// preserved. This is the cycle-breaker that lets us preserve 17
-	// of 18 sakila FKs.
+	// preserved. This is the cycle-breaker that lets us preserve 21
+	// of 22 sakila FKs.
 	in := `CREATE TABLE store (
   store_id INTEGER NOT NULL PRIMARY KEY,
   manager_staff_id SMALLINT NOT NULL,
@@ -88,6 +88,59 @@ func TestStripCycleBreakerFK_NoCycleBreaker(t *testing.T) {
 	out, err := Port(in)
 	require.NoError(t, err)
 	require.Equal(t, in, out)
+}
+
+func TestStripFKActionClauses(t *testing.T) {
+	// Each subtest is an exact mapping from a FK constraint line with an
+	// ON DELETE / ON UPDATE clause (which DuckDB rejects) to the same
+	// line with the clause stripped.
+	testCases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "on_update_cascade",
+			in:   `CONSTRAINT fk FOREIGN KEY (x) REFERENCES y(z) ON UPDATE CASCADE`,
+			want: `CONSTRAINT fk FOREIGN KEY (x) REFERENCES y(z)`,
+		},
+		{
+			name: "on_delete_no_action_on_update_cascade",
+			in:   `CONSTRAINT fk FOREIGN KEY (x) REFERENCES y(z) ON DELETE NO ACTION ON UPDATE CASCADE`,
+			want: `CONSTRAINT fk FOREIGN KEY (x) REFERENCES y(z)`,
+		},
+		{
+			name: "on_delete_set_null",
+			in:   `CONSTRAINT fk FOREIGN KEY (x) REFERENCES y(z) ON DELETE SET NULL`,
+			want: `CONSTRAINT fk FOREIGN KEY (x) REFERENCES y(z)`,
+		},
+		{
+			name: "on_delete_set_default",
+			in:   `CONSTRAINT fk FOREIGN KEY (x) REFERENCES y(z) ON DELETE SET DEFAULT`,
+			want: `CONSTRAINT fk FOREIGN KEY (x) REFERENCES y(z)`,
+		},
+		{
+			name: "on_delete_restrict",
+			in:   `CONSTRAINT fk FOREIGN KEY (x) REFERENCES y(z) ON DELETE RESTRICT`,
+			want: `CONSTRAINT fk FOREIGN KEY (x) REFERENCES y(z)`,
+		},
+		{
+			name: "no_action_clauses_unchanged",
+			in:   `CONSTRAINT fk FOREIGN KEY (x) REFERENCES y(z)`,
+			want: `CONSTRAINT fk FOREIGN KEY (x) REFERENCES y(z)`,
+		},
+		{
+			name: "trailing_comma_preserved",
+			in:   `CONSTRAINT fk FOREIGN KEY (x) REFERENCES y(z) ON UPDATE CASCADE,`,
+			want: `CONSTRAINT fk FOREIGN KEY (x) REFERENCES y(z),`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, stripFKActionClauses(tc.in))
+		})
+	}
 }
 
 func TestReplaceBlobSubTypeText(t *testing.T) {
@@ -140,7 +193,8 @@ func TestPortSchema_RealSakilaSchema(t *testing.T) {
 	inFKs := strings.Count(string(in), "FOREIGN KEY")
 	outFKs := strings.Count(out, "FOREIGN KEY")
 	require.Equal(t, inFKs-1, outFKs,
-		"want 17 of 18 FKs preserved (input had %d, output has %d)", inFKs, outFKs)
+		"want %d of %d FKs preserved (input had %d, output has %d)",
+		inFKs-1, inFKs, inFKs, outFKs)
 
 	// Preservation checks: every table/index/view from the input remains.
 	for _, kw := range []string{"CREATE TABLE", "CREATE  INDEX", "CREATE INDEX", "CREATE VIEW"} {

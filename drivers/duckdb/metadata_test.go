@@ -60,6 +60,27 @@ func TestTableMetadata_Actor(t *testing.T) {
 	require.Contains(t, colNames, "last_update")
 }
 
+// TestSakilaFixture_ForeignKeyCount pins the bundled sakila.duckdb
+// fixture to 21 FK constraints (22 in the source minus the
+// fk_store_staff cycle-breaker). Detects regressions in the portsakila
+// tool that produce a fixture with the wrong FK count — those wouldn't
+// surface in unit tests since the fixture is regenerated via a separate
+// `go run ./.../portsakila` invocation.
+func TestSakilaFixture_ForeignKeyCount(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.Duck)
+	grip := th.Open(src)
+	db, err := grip.DB(context.Background())
+	require.NoError(t, err)
+
+	var got int
+	require.NoError(t, db.QueryRowContext(context.Background(),
+		`SELECT count(*) FROM duckdb_constraints() WHERE constraint_type = 'FOREIGN KEY'`,
+	).Scan(&got))
+	require.Equal(t, 21, got,
+		"sakila.duckdb must have 21 of 22 FKs preserved (only fk_store_staff is stripped)")
+}
+
 // TestTableMetadata_PrimaryKey asserts the contract of stmtPrimaryKeys (in
 // metadata.go): it uses UNNEST so each PK column name is returned as its
 // own row. A string-split implementation would pass simple identifiers
