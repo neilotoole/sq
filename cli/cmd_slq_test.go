@@ -458,14 +458,14 @@ See: https://github.com/neilotoole/sq/issues/437`,
 	}
 }
 
-// TestCmdSLQ_DryRun_Text verifies that --dry-run with the default
+// TestCmdSLQ_RenderSQL_Text verifies that --render-sql with the default
 // (text) format prints the rendered SQL without executing it.
-func TestCmdSLQ_DryRun_Text(t *testing.T) {
+func TestCmdSLQ_RenderSQL_Text(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
 
 	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
-	require.NoError(t, tr.Exec("slq", "--dry-run", "--monochrome", src.Handle+".actor"))
+	require.NoError(t, tr.Exec("slq", "--render-sql", "--monochrome", src.Handle+".actor"))
 
 	out := strings.TrimSpace(tr.OutString())
 	require.True(t, strings.HasPrefix(strings.ToUpper(out), "SELECT"),
@@ -473,14 +473,14 @@ func TestCmdSLQ_DryRun_Text(t *testing.T) {
 	require.Contains(t, strings.ToLower(out), "actor")
 }
 
-// TestCmdSLQ_DryRun_JSON verifies that --dry-run --format=json emits
-// the structured payload.
-func TestCmdSLQ_DryRun_JSON(t *testing.T) {
+// TestCmdSLQ_RenderSQL_JSON verifies that --render-sql --format=json
+// emits the structured payload.
+func TestCmdSLQ_RenderSQL_JSON(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
 
 	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
-	require.NoError(t, tr.Exec("slq", "--dry-run", "--format=json", src.Handle+".actor"))
+	require.NoError(t, tr.Exec("slq", "--render-sql", "--format=json", src.Handle+".actor"))
 
 	var got output.SQLPayload
 	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
@@ -492,14 +492,14 @@ func TestCmdSLQ_DryRun_JSON(t *testing.T) {
 	require.Equal(t, []string{src.Handle}, got.Sources.Inputs)
 }
 
-// TestCmdSLQ_DryRun_JSONL verifies that --dry-run --format=jsonl emits
-// a single-line JSON payload.
-func TestCmdSLQ_DryRun_JSONL(t *testing.T) {
+// TestCmdSLQ_RenderSQL_JSONL verifies that --render-sql --format=jsonl
+// emits a single-line JSON payload.
+func TestCmdSLQ_RenderSQL_JSONL(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
 
 	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
-	require.NoError(t, tr.Exec("slq", "--dry-run", "--format=jsonl", src.Handle+".actor"))
+	require.NoError(t, tr.Exec("slq", "--render-sql", "--format=jsonl", src.Handle+".actor"))
 
 	// tr.Out.String() retains the trailing newline written by the JSONL writer;
 	// tr.OutString() would strip it. Use the raw buffer to verify exactly one
@@ -513,14 +513,14 @@ func TestCmdSLQ_DryRun_JSONL(t *testing.T) {
 	require.Equal(t, "sqlite3", got.Dialect)
 }
 
-// TestCmdSLQ_DryRun_YAML verifies that --dry-run --format=yaml emits
-// the payload as YAML.
-func TestCmdSLQ_DryRun_YAML(t *testing.T) {
+// TestCmdSLQ_RenderSQL_YAML verifies that --render-sql --format=yaml
+// emits the payload as YAML.
+func TestCmdSLQ_RenderSQL_YAML(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
 
 	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
-	require.NoError(t, tr.Exec("slq", "--dry-run", "--format=yaml", src.Handle+".actor"))
+	require.NoError(t, tr.Exec("slq", "--render-sql", "--format=yaml", src.Handle+".actor"))
 
 	var got output.SQLPayload
 	require.NoError(t, goccy.Unmarshal(tr.Out.Bytes(), &got))
@@ -528,41 +528,41 @@ func TestCmdSLQ_DryRun_YAML(t *testing.T) {
 	require.Equal(t, src.Handle, got.Sources.Target)
 }
 
-// TestCmdSLQ_DryRun_CSV_FallsBackToText verifies that requesting a
+// TestCmdSLQ_RenderSQL_CSV_FallsBackToText verifies that requesting a
 // format with no SQL writer of its own (e.g. csv) falls back to the
 // text writer, per the existing OptFormat fallback convention.
-func TestCmdSLQ_DryRun_CSV_FallsBackToText(t *testing.T) {
+func TestCmdSLQ_RenderSQL_CSV_FallsBackToText(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
 
 	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
-	require.NoError(t, tr.Exec("slq", "--dry-run", "--format=csv", "--monochrome", src.Handle+".actor"))
+	require.NoError(t, tr.Exec("slq", "--render-sql", "--format=csv", "--monochrome", src.Handle+".actor"))
 
 	out := strings.TrimSpace(tr.OutString())
 	require.True(t, strings.HasPrefix(strings.ToUpper(out), "SELECT"))
 }
 
-// TestCmdSLQ_DryRun_InsertConflict verifies that combining --dry-run
-// with --insert is rejected.
-func TestCmdSLQ_DryRun_InsertConflict(t *testing.T) {
+// TestCmdSLQ_RenderSQL_InsertConflict verifies that combining
+// --render-sql with --insert is rejected.
+func TestCmdSLQ_RenderSQL_InsertConflict(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
 
 	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
-	err := tr.Exec("slq", "--dry-run", "--insert="+src.Handle+".foo", src.Handle+".actor")
+	err := tr.Exec("slq", "--render-sql", "--insert="+src.Handle+".foo", src.Handle+".actor")
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "dry-run")
+	require.Contains(t, err.Error(), "render-sql")
 }
 
-// TestCmdSLQ_DryRun_ArgSubstitution verifies that --arg values appear
-// in both the rendered SQL and the JSON payload's args field.
-func TestCmdSLQ_DryRun_ArgSubstitution(t *testing.T) {
+// TestCmdSLQ_RenderSQL_ArgSubstitution verifies that --arg values
+// appear in both the rendered SQL and the JSON payload's args field.
+func TestCmdSLQ_RenderSQL_ArgSubstitution(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
 
 	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
 	require.NoError(t, tr.Exec("slq",
-		"--dry-run", "--format=json",
+		"--render-sql", "--format=json",
 		"--arg", "name:TOM",
 		src.Handle+".actor | .first_name == $name"))
 
@@ -572,15 +572,15 @@ func TestCmdSLQ_DryRun_ArgSubstitution(t *testing.T) {
 	require.Contains(t, got.SQL, "TOM")
 }
 
-// TestCmdSLQ_DryRun_NotOnSQLCmd verifies that --dry-run is not
+// TestCmdSLQ_RenderSQL_NotOnSQLCmd verifies that --render-sql is not
 // available on the sq sql command (different command, different flag
 // set).
-func TestCmdSLQ_DryRun_NotOnSQLCmd(t *testing.T) {
+func TestCmdSLQ_RenderSQL_NotOnSQLCmd(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
 
 	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
-	err := tr.Exec("sql", "--dry-run", "SELECT 1")
+	err := tr.Exec("sql", "--render-sql", "SELECT 1")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "unknown flag")
 }

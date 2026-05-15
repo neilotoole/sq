@@ -17,8 +17,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 ### Added
 
 - [#499]: `sq` [slq](https://sq.io/docs/cmd/slq) command now supports
-  `--dry-run`, which prints the SQL that would be executed against the
-  target database instead of running it. Honours `--format`: with
+  `--render-sql`, which prints the SQL that would be executed against
+  the target database instead of running it. Honours `--format`: with
   `text` (the default) or `raw`, the rendered SQL is printed plain
   (syntax-highlighted on TTYs); with `json`, `jsonl`, or `yaml`, a
   structured payload is printed (colourised on TTYs) containing the

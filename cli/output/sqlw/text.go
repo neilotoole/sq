@@ -1,6 +1,6 @@
 // Package sqlw provides output.SQLWriter implementations for the
-// --dry-run mode of the slq command, where the rendered SQL is printed
-// instead of being executed.
+// --render-sql mode of the slq command, where the rendered SQL is
+// printed instead of being executed.
 package sqlw
 
 import (

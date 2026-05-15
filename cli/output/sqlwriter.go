@@ -1,9 +1,9 @@
 package output
 
-// SQLPayload is the structured form of a dry-run result: enough
+// SQLPayload is the structured form of a --render-sql result: enough
 // information to either eyeball the SQL or round-trip it back into a
 // future render. Consumed by SQLWriter implementations and produced by
-// the slq command's --dry-run path.
+// the slq command's --render-sql path.
 type SQLPayload struct {
 	// Args is the --arg map supplied to the query, if any.
 	// Values are already substituted into SQL; Args is reported so
@@ -25,11 +25,11 @@ type SQLPayload struct {
 	// references. The two coincide for single-source queries; for
 	// cross-source queries Target is the synthetic join DB and
 	// Inputs lists the user sources whose data would be staged into
-	// it. --dry-run does no staging.
+	// it. --render-sql does no staging.
 	Sources SQLSources `json:"sources" yaml:"sources"`
 }
 
-// SQLSources groups the source handles involved in a --dry-run
+// SQLSources groups the source handles involved in a --render-sql
 // payload, distinguishing where the rendered SQL would execute
 // (Target) from the user-named inputs the SLQ references (Inputs).
 type SQLSources struct {
@@ -49,7 +49,7 @@ type SQLSources struct {
 
 // SQLWriter writes an SQLPayload in some format-specific
 // representation: plain SQL text, a JSON/YAML object, etc. Used by
-// the slq command's --dry-run path.
+// the slq command's --render-sql path.
 type SQLWriter interface {
 	// Render writes p to the writer's output. It is expected to be
 	// called exactly once per invocation.

@@ -46,10 +46,10 @@ const (
 	Insert      = "insert"
 	InsertUsage = "Insert query results into @HANDLE.TABLE; if not existing, TABLE will be created"
 
-	DryRun      = "dry-run"
-	DryRunUsage = "Don't execute the query. Print the SQL that would run against the target database. " +
-		"For cross-source queries, prints the final SQL that would run against the join database (no data is staged). " +
-		"With --format=json or --format=yaml, prints a structured payload (slq, sql, dialect, source, ...)."
+	RenderSQL      = "render-sql"
+	RenderSQLUsage = "Render the SLQ to SQL without executing it. " +
+		"For cross-source queries, renders the final SQL that would run against the join database (no data is staged). " +
+		"With --format=json or --format=yaml, prints a structured payload (slq, sql, dialect, sources, ...)."
 
 	JSON       = "json"
 	JSONShort  = "j"

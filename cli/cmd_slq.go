@@ -36,7 +36,7 @@ func newSLQCmd() *cobra.Command {
 
 	addQueryCmdFlags(cmd)
 
-	cmd.Flags().Bool(flag.DryRun, false, flag.DryRunUsage)
+	cmd.Flags().Bool(flag.RenderSQL, false, flag.RenderSQLUsage)
 
 	cmd.Flags().StringArray(flag.Arg, nil, flag.ArgUsage)
 
@@ -93,11 +93,11 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if cmdFlagChanged(cmd, flag.DryRun) {
+	if cmdFlagChanged(cmd, flag.RenderSQL) {
 		if cmdFlagChanged(cmd, flag.Insert) {
-			return errz.Errorf("--%s is not compatible with --%s", flag.Insert, flag.DryRun)
+			return errz.Errorf("--%s is not compatible with --%s", flag.Insert, flag.RenderSQL)
 		}
-		return execSLQDryRun(ctx, ru, mArgs)
+		return execSLQRenderSQL(ctx, ru, mArgs)
 	}
 
 	if !cmdFlagChanged(cmd, flag.Insert) {
@@ -200,11 +200,11 @@ func execSLQPrint(ctx context.Context, ru *run.Run, mArgs map[string]string) err
 	return waitErr
 }
 
-// execSLQDryRun renders the SLQ query as SQL and writes the result via
+// execSLQRenderSQL renders the SLQ query as SQL and writes the result via
 // ru.Writers.SQL, without executing the SQL. Honours --format: text/raw
 // produces plain SQL (with optional syntax highlighting); json/jsonl/yaml
 // produces a structured payload.
-func execSLQDryRun(ctx context.Context, ru *run.Run, mArgs map[string]string) error {
+func execSLQRenderSQL(ctx context.Context, ru *run.Run, mArgs map[string]string) error {
 	qc := run.NewQueryContext(ru, mArgs)
 
 	slq, err := preprocessUserSLQ(ctx, ru, ru.Args)
