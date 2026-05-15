@@ -117,10 +117,10 @@ func (s *Source) Clone() *Source {
 			s2.Tables[i] = s.Tables[i].Clone()
 		}
 
-		// Per-table Clone() copies outgoing FKOutgoing as independent
-		// values; re-derive Table.FKIncoming so the clone's incoming
-		// list shares identity with the cloned outgoing FKs rather
-		// than pointing at the originals.
+		// Per-table Clone() copies FK.Outgoing as independent values;
+		// re-derive FK.Incoming so the clone's incoming list shares
+		// identity with the cloned outgoing FKs rather than pointing
+		// at the originals.
 		LinkForeignKeys(s2)
 	}
 
@@ -273,12 +273,14 @@ func (t *Table) PKCols() []*Column {
 // Column models metadata for a particular column of a data source.
 //
 // Column does not carry a foreign-key back-reference. The canonical
-// outgoing-FK list lives on [Table.FKOutgoing]; consumers that want a
-// per-column view can build one in two lines:
+// outgoing-FK list lives on [Table.FK].Outgoing; consumers that want
+// a per-column view can build one in two lines:
 //
 //	byCol := map[string]*ForeignKey{}
-//	for _, fk := range tbl.FKOutgoing {
-//	    for _, c := range fk.Columns { byCol[c] = fk }
+//	if tbl.FK != nil {
+//	    for _, fk := range tbl.FK.Outgoing {
+//	        for _, c := range fk.Columns { byCol[c] = fk }
+//	    }
 //	}
 //
 // Single-column FKs come out cleanly; composite FKs stay grouped on
@@ -367,9 +369,9 @@ func (g *FKGroup) Clone() *FKGroup {
 
 // ForeignKey models a single foreign-key constraint between two tables.
 // Constraints are populated by the driver from the perspective of the
-// referencing table (as [Table.FKOutgoing]); the corresponding incoming
-// entries on the referenced table's [Table.FKIncoming] slice are
-// derived by [LinkForeignKeys] once all tables have been loaded.
+// referencing table (as [Table.FK].Outgoing); the corresponding
+// incoming entries on the referenced table's [Table.FK].Incoming slice
+// are derived by [LinkForeignKeys] once all tables have been loaded.
 //
 // Composite foreign keys are represented by populating Columns and
 // RefColumns with multiple entries in matching positional order.
@@ -549,14 +551,17 @@ func (i *Index) String() string {
 }
 
 // AssignForeignKeys groups fks by their referencing-table name (the
-// ForeignKey.Table field) and assigns each group to the matching
-// entry's [Table.FK].Outgoing slice. Tables with no matching FKs
-// retain their existing FK group; callers that want to replace
-// rather than merge should clear the slice first.
+// [ForeignKey.Table] field) and assigns each group to the matching
+// entry's [Table.FK].Outgoing slice, replacing any previously-assigned
+// outgoing slice on that table. Tables with no matching FKs are left
+// untouched (their existing [Table.FK] is not modified). Callers that
+// want to fully reset outgoing FKs on all tables should clear the
+// slices themselves before calling.
 //
 // This helper exists so that driver implementations that fetch all
 // foreign keys in a single source-wide query (postgres, mysql,
-// sqlserver, oracle) don't each have to repeat the same grouping loop.
+// sqlserver, oracle, duckdb) don't each have to repeat the same
+// grouping loop.
 func AssignForeignKeys(tables []*Table, fks []*ForeignKey) {
 	if len(fks) == 0 {
 		return

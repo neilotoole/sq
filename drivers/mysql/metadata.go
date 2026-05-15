@@ -369,7 +369,7 @@ WHERE TABLE_SCHEMA = DATABASE()
 // tblName are returned. Composite foreign keys are collapsed into a
 // single ForeignKey ordered by ORDINAL_POSITION.
 //
-// Cross-table linking (Table.FKIncoming) is not performed here;
+// Cross-table linking (Table.FK.Incoming) is not performed here;
 // callers must invoke metadata.LinkForeignKeys at the source level.
 func getMySQLForeignKeys(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.ForeignKey, error) {
 	log := lg.FromContext(ctx)
@@ -456,7 +456,7 @@ WHERE rc.CONSTRAINT_SCHEMA = DATABASE()
 // other tables in the current database whose referenced side is
 // tblName. Same query shape as getMySQLForeignKeys, filtered on the
 // REFERENCED_TABLE_NAME column rather than TABLE_NAME. Used by the
-// single-table inspect path to populate [Table.FKIncoming] without
+// single-table inspect path to populate [Table.FK].Incoming without
 // walking every other table in Go.
 func getMySQLIncomingFKs(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.ForeignKey, error) {
 	log := lg.FromContext(ctx)

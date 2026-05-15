@@ -133,9 +133,10 @@ FROM DUAL`
 		}
 	}
 
-	// Each Table.FKOutgoing slice was already populated by the per-table
-	// getTableMetadata call inside loadUserSchemaObjectsMetadata above;
-	// now derive Table.FKIncoming across the whole source.
+	// Each Table.FK.Outgoing slice was already populated by the
+	// per-table getTableMetadata call inside
+	// loadUserSchemaObjectsMetadata above; now derive
+	// Table.FK.Incoming across the whole source.
 	metadata.LinkForeignKeys(md)
 
 	return md, nil
@@ -168,7 +169,7 @@ func loadUserSchemaObjectsMetadata(
 	out := make([]*metadata.Table, 0, nCap)
 
 	for _, tblName := range baseNames {
-		tblMeta, err := getTableMetadata(ctx, db, tblName)
+		tblMeta, err := getTableMetadata(ctx, db, tblName, false)
 		if err != nil {
 			log.Warn("oracle metadata: skipped base table (continuing)",
 				lga.Handle, handle,
@@ -270,14 +271,22 @@ FETCH FIRST 1 ROW ONLY`
 	case "VIEW":
 		return getViewMetadata(ctx, db, canonical)
 	case "TABLE":
-		return getTableMetadata(ctx, db, canonical)
+		return getTableMetadata(ctx, db, canonical, true)
 	default:
 		return nil, errz.Errorf("unsupported Oracle object type %q for {%s}", objType, name)
 	}
 }
 
-// getTableMetadata returns metadata for a specific table.
-func getTableMetadata(ctx context.Context, db *sql.DB, tblName string) (*metadata.Table, error) {
+// getTableMetadata returns metadata for a specific table. The
+// loadIncomingFKs flag controls whether [getOracleIncomingFKs] is
+// invoked: source-level inspect passes false because
+// [metadata.LinkForeignKeys] derives incoming edges across the whole
+// source once every per-table outgoing FK list is loaded, and the
+// per-table incoming query work would otherwise be wasted. The
+// single-table inspect path passes true so the standalone
+// [metadata.Table] carries its incoming edges directly.
+func getTableMetadata(ctx context.Context, db *sql.DB, tblName string, loadIncomingFKs bool,
+) (*metadata.Table, error) {
 	_ = progress.FromContext(ctx) // Future: use for progress tracking
 
 	// USER_TABLES is scoped to the current user, so it has no OWNER column;
@@ -346,9 +355,12 @@ WHERE t.table_name = :1`
 	if err != nil {
 		return nil, err
 	}
-	incoming, err := getOracleIncomingFKs(ctx, db, tblName)
-	if err != nil {
-		return nil, err
+	var incoming []*metadata.ForeignKey
+	if loadIncomingFKs {
+		incoming, err = getOracleIncomingFKs(ctx, db, tblName)
+		if err != nil {
+			return nil, err
+		}
 	}
 	tblMeta.FK = metadata.NewFKGroup(outgoing, incoming)
 

@@ -623,7 +623,7 @@ func TestLinkForeignKeys(t *testing.T) {
 		metadata.LinkForeignKeys(src)
 
 		local := src.Table("local")
-		// The outgoing FK is still on FKOutgoing even though the
+		// The outgoing FK is still on FK.Outgoing even though the
 		// referenced table is outside this Source.
 		require.Len(t, local.FK.Outgoing, 1)
 		// No incoming back-ref appears anywhere within the Source.
@@ -696,7 +696,7 @@ func TestSource_Clone_RelinksForeignKeys(t *testing.T) {
 	require.NotSame(t, fk, gotFilm.FK.Outgoing[0])
 	require.Len(t, gotLanguage.FK.Incoming, 1)
 	require.Same(t, gotFilm.FK.Outgoing[0], gotLanguage.FK.Incoming[0],
-		"FKIncoming on the clone must share identity with the clone's own FKOutgoing entry")
+		"FK.Incoming on the clone must share identity with the clone's own FK.Outgoing entry")
 }
 
 func TestUniqueConstraint_Clone(t *testing.T) {

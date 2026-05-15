@@ -839,6 +839,24 @@ WHERE tc.constraint_type = 'UNIQUE'
 	return ucs, errw(rows.Err())
 }
 
+// pgIndexHasIndnkeyatts reports whether pg_index has the indnkeyatts
+// column. The column was added in Postgres 11 alongside INCLUDE-column
+// support; older versions (PG 9.x / 10.x) don't expose it and would
+// fail to parse a query that references it.
+func pgIndexHasIndnkeyatts(ctx context.Context, db sqlz.DB) (bool, error) {
+	const q = `SELECT EXISTS (
+  SELECT 1 FROM pg_attribute
+  WHERE attrelid = 'pg_catalog.pg_index'::regclass
+    AND attname  = 'indnkeyatts'
+    AND NOT attisdropped
+)`
+	var ok bool
+	if err := db.QueryRowContext(ctx, q).Scan(&ok); err != nil {
+		return false, errw(err)
+	}
+	return ok, nil
+}
+
 // getPgIndexes returns the physical indexes declared on tables in the
 // current schema. If tblName is empty, indexes for every table are
 // returned; otherwise only indexes on tblName are returned.
@@ -854,8 +872,22 @@ WHERE tc.constraint_type = 'UNIQUE'
 // indkey; restricting to ord <= ix.indnkeyatts keeps Index.Columns as
 // key-only, matching the contract documented on the type and the
 // SQL Server loader (which excludes INCLUDE columns explicitly).
+// pg_index.indnkeyatts itself only exists on PG 11+, so the filter is
+// added at runtime based on column-existence detection — PG 9/10 don't
+// have INCLUDE columns, so the filter is a no-op there.
 func getPgIndexes(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.Index, error) {
 	log := lg.FromContext(ctx)
+
+	hasIndnkeyatts, err := pgIndexHasIndnkeyatts(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+
+	keyOnlyFilter := ""
+	if hasIndnkeyatts {
+		keyOnlyFilter = `
+  AND k.ord <= ix.indnkeyatts`
+	}
 
 	query := `SELECT
   t.relname        AS table_name,
@@ -874,8 +906,7 @@ JOIN LATERAL unnest(ix.indkey::int2[]) WITH ORDINALITY AS k(attnum, ord) ON TRUE
 JOIN pg_attribute        AS attr ON attr.attrelid = t.oid AND attr.attnum = k.attnum
 WHERE ns.nspname = current_schema()
   AND t.relkind IN ('r', 'p', 'm')
-  AND ix.indislive
-  AND k.ord <= ix.indnkeyatts
+  AND ix.indislive` + keyOnlyFilter + `
 `
 	var args []any
 	if tblName != "" {
@@ -934,7 +965,7 @@ WHERE ns.nspname = current_schema()
 // Composite foreign keys are returned as a single ForeignKey whose
 // Columns / RefColumns slices are ordered by the FK's column position.
 //
-// Cross-table linking (Table.FKIncoming) is not done here; callers
+// Cross-table linking (Table.FK.Incoming) is not done here; callers
 // must invoke [metadata.LinkForeignKeys] on the owning
 // [metadata.Source] after assigning FKs to tables.
 func getPgForeignKeys(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.ForeignKey, error) {
@@ -1035,7 +1066,7 @@ WHERE kcu.table_catalog = current_catalog
 // other tables in the current schema whose referenced side is tblName.
 // The same query shape as getPgForeignKeys, but filtered on the
 // referenced (ccu) side rather than the referencing (kcu) side. Used
-// by the single-table inspect path to populate [Table.FKIncoming]
+// by the single-table inspect path to populate [Table.FK].Incoming
 // without walking every other table.
 func getPgIncomingFKs(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.ForeignKey, error) {
 	log := lg.FromContext(ctx)

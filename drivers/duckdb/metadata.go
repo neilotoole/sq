@@ -759,11 +759,11 @@ func parseDuckDBIndexExpressions(s string) []string {
 	}
 
 	var (
-		parts        []string
-		buf          strings.Builder
-		inSingle     bool
-		inDouble     bool
-		prevBackslsh bool
+		parts         []string
+		buf           strings.Builder
+		inSingle      bool
+		inDouble      bool
+		prevBackslash bool
 	)
 	flush := func() {
 		parts = append(parts, strings.TrimSpace(buf.String()))
@@ -771,12 +771,12 @@ func parseDuckDBIndexExpressions(s string) []string {
 	}
 	for _, r := range inner {
 		switch {
-		case prevBackslsh:
+		case prevBackslash:
 			buf.WriteRune(r)
-			prevBackslsh = false
+			prevBackslash = false
 		case r == '\\':
 			buf.WriteRune(r)
-			prevBackslsh = true
+			prevBackslash = true
 		case r == '\'' && !inDouble:
 			buf.WriteRune(r)
 			inSingle = !inSingle

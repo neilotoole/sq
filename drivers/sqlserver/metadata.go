@@ -165,7 +165,7 @@ GROUP BY database_id) AS total_size_bytes`
 			default:
 			}
 
-			tblMeta, gErr := getTableMetadata(gCtx, db, catalog, schema, tblNames[i], tblTypes[i])
+			tblMeta, gErr := getTableMetadata(gCtx, db, catalog, schema, tblNames[i], tblTypes[i], false)
 			if gErr != nil {
 				if hasErrCode(gErr, errCodeObjectNotExist) {
 					// This can happen if the table is dropped while
@@ -209,16 +209,24 @@ GROUP BY database_id) AS total_size_bytes`
 		}
 	}
 
-	// Each Table.FKOutgoing slice was already populated by the per-table
-	// getTableMetadata call inside the errgroup above; now derive
-	// Table.FKIncoming across the whole source.
+	// Each Table.FK.Outgoing slice was already populated by the
+	// per-table getTableMetadata call inside the errgroup above; now
+	// derive Table.FK.Incoming across the whole source.
 	metadata.LinkForeignKeys(md)
 
 	return md, nil
 }
 
+// getTableMetadata builds the [metadata.Table] for a single
+// (catalog, schema, table). The loadIncomingFKs flag controls whether
+// [getMSSQLIncomingFKs] is invoked: source-level inspect passes false
+// because [metadata.LinkForeignKeys] derives incoming edges across the
+// whole source after all per-table outgoing FKs are loaded, and the
+// per-table incoming query work would otherwise be wasted. The
+// single-table inspect path passes true so the standalone
+// [metadata.Table] carries its incoming edges directly.
 func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
-	tblSchema, tblName, tblType string,
+	tblSchema, tblName, tblType string, loadIncomingFKs bool,
 ) (*metadata.Table, error) {
 	const tplTblUsage = `sp_spaceused '%s'`
 
@@ -335,9 +343,12 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 	if err != nil {
 		return nil, err
 	}
-	incoming, err := getMSSQLIncomingFKs(ctx, db, tblSchema, tblName)
-	if err != nil {
-		return nil, err
+	var incoming []*metadata.ForeignKey
+	if loadIncomingFKs {
+		incoming, err = getMSSQLIncomingFKs(ctx, db, tblSchema, tblName)
+		if err != nil {
+			return nil, err
+		}
 	}
 	tblMeta.FK = metadata.NewFKGroup(outgoing, incoming)
 
@@ -504,7 +515,7 @@ WHERE s.name = @p1
 // catalog views directly (sys.foreign_keys + sys.foreign_key_columns
 // joined to sys.objects / sys.columns / sys.schemas).
 //
-// Cross-table linking (Table.FKIncoming) is not performed here;
+// Cross-table linking (Table.FK.Incoming) is not performed here;
 // callers must invoke metadata.LinkForeignKeys at the source level.
 func getMSSQLForeignKeys(ctx context.Context, db sqlz.DB, _ /*tblCatalog*/, tblSchema, tblName string,
 ) ([]*metadata.ForeignKey, error) {
