@@ -26,7 +26,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   executed against the target database, _instead_ of running it. Honors `--format` with:
   - `text` or `raw`: the rendered SQL is printed.
   - `json` or `yaml`: a structured payload is printed containing the
-    original SLQ, the rendered SQL, any [`--args`](https://sq.io/docs/cmd/sq/#predefined-variables),
+    original SLQ, the rendered SQL, any [`--arg`](https://sq.io/docs/cmd/sq/#predefined-variables),
     the dialect and information about the sources that the query touches.
     ```yaml
     # $ sq --render-sql --yaml '@sakila/pg.actor | join(@sakila/my.film_actor, .actor_id) | .first_name, .last_name, .film_id | .[0:5]'
