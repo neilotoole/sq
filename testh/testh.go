@@ -24,6 +24,7 @@ import (
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/drivers/clickhouse"
 	"github.com/neilotoole/sq/drivers/csv"
+	"github.com/neilotoole/sq/drivers/duckdb"
 	"github.com/neilotoole/sq/drivers/json"
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/drivers/oracle"
@@ -181,6 +182,7 @@ func (h *Helper) init() {
 		h.Cleanup.AddC(h.grips)
 
 		h.registry.AddProvider(drivertype.SQLite, &sqlite3.Provider{Log: h.Log()})
+		h.registry.AddProvider(drivertype.DuckDB, &duckdb.Provider{Log: h.Log()})
 		h.registry.AddProvider(drivertype.Pg, &postgres.Provider{Log: h.Log()})
 		h.registry.AddProvider(drivertype.MSSQL, &sqlserver.Provider{Log: h.Log()})
 		h.registry.AddProvider(drivertype.MySQL, &mysql.Provider{Log: h.Log()})
@@ -342,6 +344,23 @@ func (h *Helper) Source(handle string) *source.Source {
 		dstPath := filepath.Join(tu.TempDir(t), filepath.Base(srcPath))
 		require.NoError(t, ioz.CopyFile(dstPath, srcPath, true))
 		src.Location = sqlite3.Prefix + dstPath
+	}
+
+	if src.Type == drivertype.DuckDB {
+		// DuckDB takes a process-exclusive lock on the file. Multiple parallel
+		// tests opening the same fixture cause "file in use" errors on Windows
+		// (POSIX is more forgiving). Copy the fixture per test, mirroring the
+		// SQLite pattern above.
+		//
+		// Skip when there is no on-disk file (e.g. duckdb://:memory: sources
+		// registered in sources.sq.yml): in-memory DBs are inherently per-
+		// connection so each test already gets its own.
+		srcPath, err := duckdb.PathFromLocation(src)
+		if err == nil {
+			dstPath := filepath.Join(tu.TempDir(t), filepath.Base(srcPath))
+			require.NoError(t, ioz.CopyFile(dstPath, srcPath, true))
+			src.Location = duckdb.Prefix + dstPath
+		}
 	}
 
 	h.srcCache[handle] = src
