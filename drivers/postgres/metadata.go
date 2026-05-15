@@ -875,6 +875,13 @@ func pgIndexHasIndnkeyatts(ctx context.Context, db sqlz.DB) (bool, error) {
 // pg_index.indnkeyatts itself only exists on PG 11+, so the filter is
 // added at runtime based on column-existence detection — PG 9/10 don't
 // have INCLUDE columns, so the filter is a no-op there.
+//
+// ix.indisvalid filters out indexes that are being built (`CREATE INDEX
+// CONCURRENTLY` in progress) or failed; it has been part of pg_index
+// since Postgres 8.0, so it's safe for every sq-supported version.
+// We deliberately don't use ix.indislive here — that flag was only
+// added in PG 9.3 and would prevent the query from parsing on older
+// servers.
 func getPgIndexes(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.Index, error) {
 	log := lg.FromContext(ctx)
 
@@ -906,7 +913,7 @@ JOIN LATERAL unnest(ix.indkey::int2[]) WITH ORDINALITY AS k(attnum, ord) ON TRUE
 JOIN pg_attribute        AS attr ON attr.attrelid = t.oid AND attr.attnum = k.attnum
 WHERE ns.nspname = current_schema()
   AND t.relkind IN ('r', 'p', 'm')
-  AND ix.indislive` + keyOnlyFilter + `
+  AND ix.indisvalid` + keyOnlyFilter + `
 `
 	var args []any
 	if tblName != "" {
