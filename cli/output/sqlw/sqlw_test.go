@@ -221,7 +221,7 @@ func TestJSONLWriter_Color(t *testing.T) {
 	got := buf.String()
 	require.Contains(t, got, "\x1b[", "expected ANSI escape codes in colored JSONL output")
 	// JSONL stays single-line (one trailing newline, no internal newlines)
-	// even after colourising.
+	// even after colorizing.
 	stripped := stripANSI(got)
 	require.Equal(t, 1, strings.Count(stripped, "\n"))
 	require.True(t, strings.HasSuffix(stripped, "\n"))

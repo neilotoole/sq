@@ -206,7 +206,7 @@ func execSLQPrint(ctx context.Context, ru *run.Run, mArgs map[string]string) err
 // execSLQRenderSQL renders the SLQ query as SQL and writes the result via
 // ru.Writers.SQL, without executing the SQL.
 //
-// Honoured --format values:
+// Honored --format values:
 //   - text (default), raw: plain SQL; on a color-enabled TTY the SQL
 //     is syntax-highlighted via chroma using sq's palette.
 //   - json, jsonl, yaml: structured payload (see [output.SQLPayload]).

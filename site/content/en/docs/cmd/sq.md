@@ -72,7 +72,7 @@ $ sq --csv .actor -o actor.csv
 ## Render SQL
 
 Use `--render-sql` to print the SQL that `sq` would execute against the
-target database, instead of running the query. Handy for debugging,
+target database, instead of running the SLQ query. Handy for debugging,
 learning the SLQ-to-SQL mapping, or piping the rendered SQL into another
 tool.
 

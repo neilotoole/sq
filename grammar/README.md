@@ -13,7 +13,7 @@ The grammar is **not yet stable**: it may change in any new `sq` release.
 - [SLQ at a glance](#slq-at-a-glance)
 - [How SLQ becomes SQL](#how-slq-becomes-sql)
 - [Query structure](#query-structure)
-- [Element catalogue](#element-catalogue)
+- [Element catalog](#element-catalog)
 - [Lexical layer](#lexical-layer)
 - [Operator precedence](#operator-precedence)
 - [Working with the grammar](#working-with-the-grammar)
@@ -157,7 +157,7 @@ A few enforced rules:
 - The first segment's selector is interpreted as a table selector, not a
   column selector (`narrowTblSel`).
 
-## Element catalogue
+## Element catalog
 
 Quick reference for every element kind. See [`SLQ.g4`](./SLQ.g4) for the
 exact grammar and the sample queries in `testdata/` for live examples.
