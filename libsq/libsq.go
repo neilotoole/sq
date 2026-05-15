@@ -22,6 +22,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 // QueryContext encapsulates the context a SLQ query is executed within.
@@ -116,15 +117,104 @@ func ExecSLQ(ctx context.Context, qc *QueryContext, query string, recw RecordWri
 	return p.execute(ctx, recw)
 }
 
-// SLQ2SQL simulates execution of a SLQ query, but instead of executing
-// the resulting SQL query, that ultimate SQL is returned. Effectively it is
-// equivalent to libsq.ExecSLQ, but without the execution.
-func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (targetSQL string, err error) {
+// RenderResult is the result of rendering a SLQ query to SQL via SLQ2SQL.
+// It carries the rendered SQL plus enough metadata to identify which
+// backend the SQL was rendered for.
+//
+// Invariants enforced by [newRenderResult]: SQL is non-empty, Target is
+// non-empty, and Inputs is non-empty.
+type RenderResult struct {
+	// SQL is the rendered SQL query that would be executed against the
+	// target database.
+	SQL string `json:"sql" yaml:"sql"`
+
+	// Dialect identifies the SQL dialect / driver type that SQL is
+	// rendered for (e.g. drivertype.Pg, drivertype.SQLite). When the
+	// SLQ involves multiple sources, this is the dialect of the join
+	// database that the final SQL runs against (typically SQLite).
+	Dialect drivertype.Type `json:"dialect" yaml:"dialect"`
+
+	// Target is the handle of the source that the SQL targets. For
+	// cross-source queries this is the synthetic join DB handle,
+	// generated as "@join_<uniq>" (see libsq/driver/grips.go). For
+	// queries with no active source this is the scratch source's handle.
+	Target string `json:"target" yaml:"target"`
+
+	// Inputs is the set of input source handles referenced by the SLQ,
+	// deduplicated and in a deterministic but unspecified order (callers
+	// must not rely on it matching the textual order in the SLQ). For
+	// single-source queries this is a one-element slice equal to Target.
+	// For cross-source queries these are the inputs that would be staged
+	// into the join DB; Target in that case names the join DB rather
+	// than any of these inputs. SLQ2SQL itself does no staging.
+	Inputs []string `json:"inputs" yaml:"inputs"`
+}
+
+// newRenderResult constructs a RenderResult, returning an error if any
+// invariant is violated. This is the only producer in this package; the
+// invariants are documented on RenderResult.
+func newRenderResult(sql string, dialect drivertype.Type, target string, inputs []string) (*RenderResult, error) {
+	if sql == "" {
+		return nil, errz.New("render result: SQL is empty")
+	}
+	if target == "" {
+		return nil, errz.New("render result: target handle is empty")
+	}
+	if len(inputs) == 0 {
+		return nil, errz.New("render result: inputs is empty")
+	}
+	return &RenderResult{
+		SQL:     sql,
+		Dialect: dialect,
+		Target:  target,
+		Inputs:  inputs,
+	}, nil
+}
+
+// SLQ2SQL renders a SLQ query into the SQL that would be executed
+// against the target database, without executing it. The pipeline
+// is built the same way as for ExecSLQ — sources referenced in the
+// query are opened (which, for SQL sources, performs an auth
+// round-trip; for document sources, may ingest the file into the
+// scratch DB) so the target dialect can be determined. The rendered
+// query SQL itself is not executed and no result records are read.
+func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (*RenderResult, error) {
 	p, err := newPipeline(ctx, qc, query)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return p.targetSQL, nil
+
+	src := p.targetGrip.Source()
+	return newRenderResult(p.targetSQL, src.Type, src.Handle, p.inputSourceHandles())
+}
+
+// inputSourceHandles returns the set of source handles that the SLQ
+// references as inputs, deduplicated and in p.tasks walk order (which
+// is deterministic for a given pipeline but is not the same as the
+// handles' textual order in the SLQ). For cross-source queries these
+// are the handles of the sources that would be staged into the join
+// DB. When the pipeline has no joinCopyTasks — single-source queries,
+// and the no-active-source / scratch-source case — the result is a
+// one-element slice equal to p.targetGrip's handle.
+func (p *pipeline) inputSourceHandles() []string {
+	seen := map[string]bool{}
+	var handles []string
+	for _, t := range p.tasks {
+		jt, ok := t.(*joinCopyTask)
+		if !ok {
+			continue
+		}
+		h := jt.fromGrip.Source().Handle
+		if h == "" || seen[h] {
+			continue
+		}
+		seen[h] = true
+		handles = append(handles, h)
+	}
+	if len(handles) == 0 {
+		handles = []string{p.targetGrip.Source().Handle}
+	}
+	return handles
 }
 
 // ExecSQL executes a SQL statement (DDL/DML) that doesn't return rows,

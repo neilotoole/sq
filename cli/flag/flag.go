@@ -46,6 +46,15 @@ const (
 	Insert      = "insert"
 	InsertUsage = "Insert query results into @HANDLE.TABLE; if not existing, TABLE will be created"
 
+	RenderSQL      = "render-sql"
+	RenderSQLUsage = "Render the SLQ to SQL without executing it. " +
+		"For cross-source queries, renders the final SQL that would run against the join database " +
+		"(no cross-source join data is staged, though referenced sources are still opened — " +
+		"and document sources may still be ingested into the scratch DB — to determine the dialect). " +
+		"With --format=json, --format=jsonl, or --format=yaml, prints a structured payload containing " +
+		"the SLQ, the SQL, the dialect, the sources, and any --arg values. " +
+		"Other formats (csv, html, markdown, etc.) fall back to plain text."
+
 	JSON       = "json"
 	JSONShort  = "j"
 	JSONUsage  = "Output JSON"

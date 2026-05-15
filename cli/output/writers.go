@@ -202,6 +202,7 @@ type Writers struct {
 	Ping         PingWriter
 	Version      VersionWriter
 	Config       ConfigWriter
+	SQL          SQLWriter
 }
 
 // NewRecordWriterFunc is a func type that returns an output.RecordWriter.

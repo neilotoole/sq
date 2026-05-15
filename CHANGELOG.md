@@ -16,6 +16,20 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
+- [#499]: [`sq`](https://sq.io/docs/cmd/sq) (slq) now supports
+  `--render-sql`, which prints the SQL that would be executed against
+  the target database instead of running it. Honours `--format`: with
+  `text` (the default) or `raw`, the rendered SQL is printed plain
+  (syntax-highlighted on TTYs); with `json`, `jsonl`, or `yaml`, a
+  structured payload is printed (colourised on TTYs) containing the
+  original SLQ, the rendered SQL, the dialect, a `sources` group
+  (`sources.target` is the handle the SQL would execute against;
+  `sources.inputs` lists the user-named handles referenced by the
+  SLQ), and any `--arg` values. For single-source queries
+  `sources.target` matches the single entry in `sources.inputs`;
+  for cross-source queries `sources.target` is the synthetic join
+  DB and `sources.inputs` lists the user sources that would be
+  staged into it. Other formats fall back to text.
 - DuckDB driver ([#437](https://github.com/neilotoole/sq/issues/437)):
   [`sq`](https://sq.io/docs/cmd/sq) can now read and write DuckDB databases
   via the `duckdb://` scheme. The driver supports the full DuckDB type system,
@@ -23,6 +37,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   `icu`, `fts`, `httpfs`, `excel`, `inet`, `autocomplete`, `tpch`, `tpcds`),
   and works on macOS (amd64/arm64), Linux (amd64/arm64), and Windows (amd64).
   See [DuckDB driver docs](https://sq.io/docs/drivers/duckdb).
+
+### Changed
+
+- ☢️ [#499]: `libsq.SLQ2SQL` now returns `*libsq.RenderResult` instead of
+  `string`. The struct carries the rendered SQL plus the target dialect
+  (`Dialect`), the handle of the source the SQL targets (`Target`), and
+  the user-named source handles referenced by the SLQ (`Inputs`).
+  Library consumers must update call sites; the `sq` CLI is unaffected.
 
 ## [v0.51.0] - 2026-05-10
 
@@ -1402,8 +1424,9 @@ make working with lots of sources much easier.
 [#446]: https://github.com/neilotoole/sq/issues/446
 [#469]: https://github.com/neilotoole/sq/issues/469
 [#470]: https://github.com/neilotoole/sq/issues/470
-[#502]: https://github.com/neilotoole/sq/pull/502
+[#499]: https://github.com/neilotoole/sq/issues/499
 [#501]: https://github.com/neilotoole/sq/pull/501
+[#502]: https://github.com/neilotoole/sq/pull/502
 [#504]: https://github.com/neilotoole/sq/issues/504
 [#506]: https://github.com/neilotoole/sq/issues/506
 [#520]: https://github.com/neilotoole/sq/issues/520
