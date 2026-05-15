@@ -38,6 +38,13 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   and works on macOS (amd64/arm64), Linux (amd64/arm64), and Windows (amd64).
   See [DuckDB driver docs](https://sq.io/docs/drivers/duckdb).
 
+### Changed
+
+- ☢️ [#499]: `libsq.SLQ2SQL` now returns `*libsq.RenderResult` instead of
+  `string`. The struct carries the rendered SQL plus the target dialect,
+  source handle, and input source handles. Library consumers must update
+  call sites; the `sq` CLI is unaffected.
+
 ## [v0.51.0] - 2026-05-10
 
 ### Added

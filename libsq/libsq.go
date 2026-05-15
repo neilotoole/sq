@@ -132,9 +132,9 @@ type RenderResult struct {
 	Dialect drivertype.Type
 
 	// SourceHandle is the handle of the source that the SQL targets.
-	// For cross-source queries this is the join DB's handle (typically
-	// scratch). For queries with no active source this is the scratch
-	// source's handle.
+	// For cross-source queries this is the synthetic join DB handle,
+	// generated as "@join_<uniq>" (see libsq/driver/grips.go). For
+	// queries with no active source this is the scratch source's handle.
 	SourceHandle string
 
 	// Sources is the set of input source handles referenced by the SLQ.

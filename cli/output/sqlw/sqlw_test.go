@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fatih/color"
 	goccy "github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
 
@@ -20,7 +21,17 @@ func newMonochromePrinting() *output.Printing {
 	return pr
 }
 
-func newColorPrinting() *output.Printing {
+// newColorPrinting returns a *output.Printing with color enabled, and
+// pins fatih/color's package-level NoColor to false for the duration
+// of the test. Without this, NO_COLOR env vars or parallel tests
+// touching the global can suppress ANSI output and make the
+// "should contain ANSI escapes" assertions flaky.
+func newColorPrinting(t *testing.T) *output.Printing {
+	t.Helper()
+	prev := color.NoColor
+	color.NoColor = false
+	t.Cleanup(func() { color.NoColor = prev })
+
 	pr := output.NewPrinting()
 	pr.EnableColor(true)
 	return pr
@@ -28,7 +39,7 @@ func newColorPrinting() *output.Printing {
 
 func TestTextWriter_Color(t *testing.T) {
 	buf := &bytes.Buffer{}
-	w := sqlw.NewTextWriter(buf, newColorPrinting())
+	w := sqlw.NewTextWriter(buf, newColorPrinting(t))
 
 	const sql = `SELECT * FROM "actor" WHERE "first_name" = 'TOM'`
 
@@ -69,7 +80,7 @@ func TestTextWriter_NoColor(t *testing.T) {
 // values.
 func TestTextWriter_Color_TrueFalseNull(t *testing.T) {
 	buf := &bytes.Buffer{}
-	pr := newColorPrinting()
+	pr := newColorPrinting(t)
 	w := sqlw.NewTextWriter(buf, pr)
 
 	const sql = `SELECT TRUE, FALSE, NULL FROM "t"`
@@ -153,7 +164,7 @@ func TestYAMLWriter_RoundTrip(t *testing.T) {
 
 func TestJSONWriter_Color(t *testing.T) {
 	buf := &bytes.Buffer{}
-	w := sqlw.NewJSONWriter(buf, newColorPrinting())
+	w := sqlw.NewJSONWriter(buf, newColorPrinting(t))
 	require.NoError(t, w.Render(samplePayload()))
 
 	got := buf.String()
@@ -166,7 +177,7 @@ func TestJSONWriter_Color(t *testing.T) {
 
 func TestJSONLWriter_Color(t *testing.T) {
 	buf := &bytes.Buffer{}
-	w := sqlw.NewJSONLWriter(buf, newColorPrinting())
+	w := sqlw.NewJSONLWriter(buf, newColorPrinting(t))
 	require.NoError(t, w.Render(samplePayload()))
 
 	got := buf.String()
@@ -184,7 +195,7 @@ func TestJSONLWriter_Color(t *testing.T) {
 
 func TestYAMLWriter_Color(t *testing.T) {
 	buf := &bytes.Buffer{}
-	w := sqlw.NewYAMLWriter(buf, newColorPrinting())
+	w := sqlw.NewYAMLWriter(buf, newColorPrinting(t))
 	require.NoError(t, w.Render(samplePayload()))
 
 	got := buf.String()
