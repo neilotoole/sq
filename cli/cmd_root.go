@@ -98,6 +98,12 @@ See docs and more: https://sq.io`,
 
 	addQueryCmdFlags(cmd)
 
+	// --render-sql is an slq-only flag, but mirror it on the root cmd
+	// so it shows up in `sq --help` (the slq subcommand is hidden, so
+	// the slq registration alone isn't surfaced). `sq sql` still rejects
+	// the flag because it's not added to the sql subcommand.
+	cmd.Flags().Bool(flag.RenderSQL, false, flag.RenderSQLUsage)
+
 	cmd.Flags().Bool(flag.Version, false, flag.VersionUsage)
 
 	addOptionFlag(cmd.PersistentFlags(), OptMonochrome)

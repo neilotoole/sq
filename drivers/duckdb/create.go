@@ -25,9 +25,9 @@ var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive // kind.Nu
 }
 
 // buildCreateTableStmt builds a DuckDB CREATE TABLE statement from tblDef.
-// It honours PKColName, NotNull, HasDefault, and Unique. AutoIncrement is
+// It honors PKColName, NotNull, HasDefault, and Unique. AutoIncrement is
 // intentionally ignored: DuckDB has no AUTOINCREMENT keyword (callers wanting
-// SERIAL-style behaviour use SEQUENCE objects), and a PRIMARY KEY alone is
+// SERIAL-style behavior use SEQUENCE objects), and a PRIMARY KEY alone is
 // sufficient for sq's use cases.
 //
 // [schema.Column.ForeignKey] is not emitted as a REFERENCES clause. This

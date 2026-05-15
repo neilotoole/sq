@@ -16,13 +16,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
-- DuckDB driver ([#437](https://github.com/neilotoole/sq/issues/437)):
-  [`sq`](https://sq.io/docs/cmd/sq) can now read and write DuckDB databases
-  via the `duckdb://` scheme. The driver supports the full DuckDB type system,
-  statically links the standard set of in-tree extensions (`json`, `parquet`,
-  `icu`, `fts`, `httpfs`, `excel`, `inet`, `autocomplete`, `tpch`, `tpcds`),
-  and works on macOS (amd64/arm64), Linux (amd64/arm64), and Windows (amd64).
-  See [DuckDB driver docs](https://sq.io/docs/drivers/duckdb).
+- 🐥🦆 [#437]: Beta [DuckDB](https://duckdb.org) support. The `duck` [driver](https://sq.io/docs/drivers/duckdb)
+  supports most of the DuckDB type system; and includes a standard set of in-tree
+  extensions (`json`, `parquet`, `icu`, `fts`, `httpfs`, `excel`, `inet`,
+  `autocomplete`, `tpch`, `tpcds`).
+  See the [driver docs](https://sq.io/docs/drivers/duckdb).
 - [#498]: [`sq inspect`](https://sq.io/docs/cmd/inspect) now reports
   foreign-key relationships. Each table carries an `fk` object with
   two slices: `fk.outgoing` (constraints declared on this table) and
@@ -46,6 +44,30 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   unique constraints, so those don't appear in `indexes` (but the
   PK / UNIQUE info is still surfaced via `Column.primary_key` and
   `unique_constraints`).
+- [#602]: [`sq`](https://sq.io/docs/cmd/sq) now features a [`--render-sql`](https://sq.io/docs/cmd/sq/#render-sql)
+  flag, which prints the SQL (derived from `SLQ` input) that would be
+  executed against the target database, _instead_ of running it. Honors `--format` with:
+  - `text` or `raw`: the rendered SQL is printed.
+  - `json` or `yaml`: a structured payload is printed containing the
+    original SLQ, the rendered SQL, any [`--arg`](https://sq.io/docs/cmd/sq/#predefined-variables),
+    the dialect and information about the sources that the query touches.
+    ```yaml
+    # $ sq --render-sql --yaml '@sakila/pg.actor | join(@sakila/my.film_actor, .actor_id) | .first_name, .last_name, .film_id | .[0:5]'
+    slq: "@sakila/pg.actor | join(@sakila/my.film_actor, .actor_id) | .first_name, .last_name, .film_id | .[0:5]"
+    sql: SELECT "first_name", "last_name", "film_id" FROM "actor" INNER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id" LIMIT 5 OFFSET 0
+    dialect: sqlite3
+    sources:
+      target: "@join_xukcx3ye"
+      inputs:
+      - "@sakila/pg"
+      - "@sakila/my"
+    ```
+
+### Changed
+
+- ☢️ [#499]: `libsq.SLQ2SQL` now returns a structured `*libsq.RenderResult` type
+  instead of `string`. Any `libsq` library consumers must update call sites; the
+  `sq` CLI is unaffected.
 
 ## [v0.51.0] - 2026-05-10
 
@@ -1422,12 +1444,14 @@ make working with lots of sources much easier.
 [#340]: https://github.com/neilotoole/sq/pull/340
 [#353]: https://github.com/neilotoole/sq/issues/353
 [#415]: https://github.com/neilotoole/sq/issues/415
+[#437]: https://github.com/neilotoole/sq/issues/437
 [#446]: https://github.com/neilotoole/sq/issues/446
 [#498]: https://github.com/neilotoole/sq/issues/498
 [#469]: https://github.com/neilotoole/sq/issues/469
 [#470]: https://github.com/neilotoole/sq/issues/470
-[#502]: https://github.com/neilotoole/sq/pull/502
+[#499]: https://github.com/neilotoole/sq/issues/499
 [#501]: https://github.com/neilotoole/sq/pull/501
+[#502]: https://github.com/neilotoole/sq/pull/502
 [#504]: https://github.com/neilotoole/sq/issues/504
 [#506]: https://github.com/neilotoole/sq/issues/506
 [#520]: https://github.com/neilotoole/sq/issues/520
@@ -1449,6 +1473,7 @@ make working with lots of sources much easier.
 [#570]: https://github.com/neilotoole/sq/pull/570
 [#571]: https://github.com/neilotoole/sq/pull/571
 [#572]: https://github.com/neilotoole/sq/pull/572
+[#602]: https://github.com/neilotoole/sq/pull/602
 
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2

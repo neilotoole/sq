@@ -120,23 +120,23 @@ required.
 
 #### Source-level fields
 
-| Field | Source |
-| --- | --- |
-| `name`, `schema` | `SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')` |
-| `catalog` | `SYS_CONTEXT('USERENV', 'DB_NAME')` (PDB name in multitenant; database name otherwise) |
-| `user` | `SYS_CONTEXT('USERENV', 'SESSION_USER')` |
-| `db_product` | `BANNER` from `V$VERSION` (the full descriptive string, e.g. `Oracle Database 23ai Free Release …`) |
-| `db_version` | `VERSION_FULL` from `PRODUCT_COMPONENT_VERSION` (e.g. `23.26.1.0.0`); falls back to `V$INSTANCE.VERSION` (DBA-only) and finally to the banner |
-| `size` | `SUM(bytes)` over `USER_SEGMENTS` — bytes occupied by segments owned by the connected user. The PDB- or database-wide equivalents (`DBA_DATA_FILES`) require DBA privileges and are not used. |
+| Field            | Source                                                                                                                                                                                        |
+|------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `name`, `schema` | `SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')`                                                                                                                                                    |
+| `catalog`        | `SYS_CONTEXT('USERENV', 'DB_NAME')` (PDB name in multitenant; database name otherwise)                                                                                                        |
+| `user`           | `SYS_CONTEXT('USERENV', 'SESSION_USER')`                                                                                                                                                      |
+| `db_product`     | `BANNER` from `V$VERSION` (the full descriptive string, e.g. `Oracle Database 23ai Free Release …`)                                                                                           |
+| `db_version`     | `VERSION_FULL` from `PRODUCT_COMPONENT_VERSION` (e.g. `23.26.1.0.0`); falls back to `V$INSTANCE.VERSION` (DBA-only) and finally to the banner                                                 |
+| `size`           | `SUM(bytes)` over `USER_SEGMENTS` — bytes occupied by segments owned by the connected user. The PDB- or database-wide equivalents (`DBA_DATA_FILES`) require DBA privileges and are not used. |
 
 #### Per-table fields
 
-| Field | Source |
-| --- | --- |
+| Field                                    | Source                                                                                                                                                                         |
+|------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `row_count` (tables, materialized views) | `NUM_ROWS` from `USER_TABLES` / `USER_MVIEWS`, with a live `SELECT COUNT(*)` fallback when the dictionary value is NULL (it stays NULL until `DBMS_STATS` / `ANALYZE` has run) |
-| `row_count` (views) | always live `SELECT COUNT(*)` — `USER_VIEWS` carries no row count |
-| `size` (tables, materialized views) | `SUM(bytes)` from `USER_SEGMENTS` for the matching segment name |
-| `size` (views) | not reported — views have no underlying segment |
+| `row_count` (views)                      | always live `SELECT COUNT(*)` — `USER_VIEWS` carries no row count                                                                                                              |
+| `size` (tables, materialized views)      | `SUM(bytes)` from `USER_SEGMENTS` for the matching segment name                                                                                                                |
+| `size` (views)                           | not reported — views have no underlying segment                                                                                                                                |
 
 ### SQL rendering
 
@@ -170,15 +170,15 @@ Oracle SQL rendering differs from several other SQL drivers:
 
 Common Oracle types map to `sq` kinds as follows:
 
-| Oracle type | `sq` kind |
-| --- | --- |
-| `VARCHAR2`, `NVARCHAR2`, `CHAR`, `NCHAR`, `CLOB`, `NCLOB`, `ROWID` | `text` |
-| `NUMBER(p,0)` where `p` is 1-19 | `int` |
-| Other `NUMBER` values | `decimal` |
-| `BINARY_FLOAT`, `BINARY_DOUBLE`, `FLOAT` | `float` |
-| `DATE`, `TIMESTAMP`, `TIMESTAMP WITH TIME ZONE` | `datetime` |
-| `BLOB`, `RAW`, `LONG RAW` | `bytes` |
-| Interval types | `text` |
+| Oracle type                                                        | `sq` kind  |
+|--------------------------------------------------------------------|------------|
+| `VARCHAR2`, `NVARCHAR2`, `CHAR`, `NCHAR`, `CLOB`, `NCLOB`, `ROWID` | `text`     |
+| `NUMBER(p,0)` where `p` is 1-19                                    | `int`      |
+| Other `NUMBER` values                                              | `decimal`  |
+| `BINARY_FLOAT`, `BINARY_DOUBLE`, `FLOAT`                           | `float`    |
+| `DATE`, `TIMESTAMP`, `TIMESTAMP WITH TIME ZONE`                    | `datetime` |
+| `BLOB`, `RAW`, `LONG RAW`                                          | `bytes`    |
+| Interval types                                                     | `text`     |
 
 When `sq` creates Oracle tables, it uses Oracle-native equivalents such as
 `NUMBER(19,0)` for `int`, `NUMBER(1,0)` for `bool`, `TIMESTAMP` for

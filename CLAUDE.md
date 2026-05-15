@@ -84,6 +84,13 @@ so they're skipped under `go test -short`. See
 [`CONTRIBUTING.md`](./CONTRIBUTING.md#test-handles) for driver test handle
 conventions.
 
+### English spelling
+
+Use US English in all prose: code comments, godoc, user-facing strings,
+commit messages, PR descriptions, CHANGELOG entries, and site docs. For
+example, "honors" not "honours", "color" not "colour", "behavior" not
+"behaviour", "optimize" not "optimise".
+
 ### Markdown
 
 - Wrap lines at 80 characters where feasible.

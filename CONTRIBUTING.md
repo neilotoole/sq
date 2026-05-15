@@ -197,6 +197,7 @@ helpful:
 - Provide concrete examples with shell commands
 - Link to documentation for detailed features
 - Be specific about what changed and why
+- Use US English (e.g. "honors" not "honours", "color" not "colour")
 
 ### Version Links
 

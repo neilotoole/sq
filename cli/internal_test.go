@@ -14,6 +14,7 @@ var (
 	LastHandlePart            = lastHandlePart
 	GetVersionFromBrewFormula = getVersionFromBrewFormula
 	FetchBrewVersion          = fetchBrewVersion
+	RenderSQLSupportsFormat   = renderSQLSupportsFormat
 )
 
 // DoTestParseLocStage is a helper to test the

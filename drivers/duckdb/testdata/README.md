@@ -50,7 +50,7 @@ Available fixture names: `sakila`, `sakila-whitespace`, `sakila_diff`, `empty`,
   topologically) keeps every other constraint intact. `ON DELETE
   CASCADE`, `SET NULL`, and `SET DEFAULT` clauses are stripped from FKs
   too (DuckDB only supports the default `NO ACTION`); sq's read-mostly
-  tests do not exercise cascade behaviour, so this is invisible in
+  tests do not exercise cascade behavior, so this is invisible in
   practice. The `sakila-whitespace.duckdb` variant strips FKs entirely
   because DuckDB rejects `ALTER` on tables with dependent constraints.
 - **No `BLOB SUB_TYPE TEXT`.** This Firebird-heritage type alias is

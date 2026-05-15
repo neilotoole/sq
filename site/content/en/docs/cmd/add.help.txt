@@ -76,12 +76,21 @@ minimum, the following drivers are bundled:
   postgres   PostgreSQL
   sqlserver  Microsoft SQL Server / Azure SQL Edge
   mysql      MySQL
+  clickhouse ClickHouse
+  oracle     Oracle Database (experimental)
   csv        Comma-Separated Values
   tsv        Tab-Separated Values
   json       JSON
   jsona      JSON Array: LF-delimited JSON arrays
   jsonl      JSON Lines: LF-delimited JSON objects
   xlsx       Microsoft Excel XLSX
+
+DRIVER NOTES:
+
+The clickhouse driver will automatically apply a default port if not
+specified: 9000 for non-secure, or 9440 for secure (when "secure=true"
+is in the connection string). This differs from the underlying clickhouse-go
+library, which does not apply a default port.
 
 If there isn't already an active source, the newly added source becomes the
 active source (but the active group does not change). Otherwise you can
@@ -107,6 +116,9 @@ More examples:
 
   # Add a SQL Server source; will have generated handle @sakila
   $ sq add 'sqlserver://user:pass@localhost?database=sakila'
+
+  # Add an Oracle source (experimental)
+  $ sq add 'oracle://user:pass@localhost:1521/ORCLPDB1'
 
   # Add a SQLite DB, and immediately make it the active source
   $ sq add ./testdata/sqlite1.db --active
@@ -149,7 +161,7 @@ Global Flags:
       --error.format string   Error output format (default "text")
   -E, --error.stack           Print error stack trace to stderr
       --log                   Enable logging
-      --log.file string       Log file path (default "/Users/neilotoole/Library/Logs/sq/sq.log")
+      --log.file string       Log file path (default "$HOME/Library/Logs/sq/sq.log")
       --log.format string     Log output format (text or json) (default "text")
       --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
   -M, --monochrome            Don't print color output

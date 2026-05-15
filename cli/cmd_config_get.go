@@ -11,7 +11,7 @@ import (
 
 func newConfigGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
+		Use:   "get OPTION",
 		Short: "Show config option",
 		Long: `Show config option. By default, only explicitly set options are shown.
 Use the -v flag to see all options. When flag --src is provided, show config
