@@ -17,6 +17,7 @@ import (
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/drivers/clickhouse"
 	"github.com/neilotoole/sq/drivers/csv"
+	"github.com/neilotoole/sq/drivers/duckdb"
 	"github.com/neilotoole/sq/drivers/json"
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/drivers/oracle"
@@ -284,6 +285,7 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 	ru.Cleanup.AddC(ru.MDCache)
 
 	dr.AddProvider(drivertype.SQLite, &sqlite3.Provider{Log: log})
+	dr.AddProvider(drivertype.DuckDB, &duckdb.Provider{Log: log})
 	dr.AddProvider(drivertype.Pg, &postgres.Provider{Log: log})
 	dr.AddProvider(drivertype.MSSQL, &sqlserver.Provider{Log: log})
 	dr.AddProvider(drivertype.MySQL, &mysql.Provider{Log: log})

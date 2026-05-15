@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/samber/lo"
@@ -41,6 +42,7 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 		{sakila.TSVActor, []string{source.MonotableName}},
 		{sakila.XLSX, sakila.AllTbls()},
 		{sakila.SL3, sakila.AllTbls()},
+		{sakila.Duck, sakila.AllTbls()},
 		{sakila.Pg, lo.Without(sakila.AllTbls(), sakila.TblFilmText)}, // pg doesn't have film_text
 		{sakila.My, sakila.AllTbls()},
 		{sakila.MS, sakila.AllTbls()},
@@ -161,6 +163,7 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 		{sakila.TSVActor, []string{source.MonotableName}},
 		{sakila.XLSX, sakila.AllTbls()},
 		{sakila.SL3, sakila.AllTbls()},
+		{sakila.Duck, sakila.AllTbls()},
 		{sakila.Pg, lo.Without(sakila.AllTbls(), sakila.TblFilmText)}, // pg doesn't have film_text
 		{sakila.My, sakila.AllTbls()},
 		{sakila.MS, sakila.AllTbls()},
@@ -282,19 +285,37 @@ func TestCmdInspect_stdin(t *testing.T) {
 
 	testCases := []struct {
 		fpath    string
-		wantErr  bool
 		wantType drivertype.Type
-		wantTbls []string
+		// wantLocPrefix is the expected prefix of md.Location. For
+		// document drivers (CSV/TSV) it's the entire @stdin handle. For
+		// file-backed SQL drivers (SQLite/DuckDB), the stdin handler in
+		// cli/source.go copies the stdin bytes to a temp file and
+		// rewrites the location to e.g. "duckdb:///tmp/stdin_*.db" —
+		// in that case wantLocPrefix is just the scheme.
+		wantLocPrefix string
+		// wantTblContains is a table name that md.TableNames() must
+		// contain. For document drivers this is source.MonotableName;
+		// for sakila fixtures it's a representative table.
+		wantTblContains string
+		wantErr         bool
 	}{
 		{
-			fpath:    proj.Abs(sakila.PathCSVActor),
-			wantType: drivertype.CSV,
-			wantTbls: []string{source.MonotableName},
+			fpath:           proj.Abs(sakila.PathCSVActor),
+			wantType:        drivertype.CSV,
+			wantTblContains: source.MonotableName,
+			wantLocPrefix:   source.StdinHandle,
 		},
 		{
-			fpath:    proj.Abs(sakila.PathTSVActor),
-			wantType: drivertype.TSV,
-			wantTbls: []string{source.MonotableName},
+			fpath:           proj.Abs(sakila.PathTSVActor),
+			wantType:        drivertype.TSV,
+			wantTblContains: source.MonotableName,
+			wantLocPrefix:   source.StdinHandle,
+		},
+		{
+			fpath:           proj.Abs(sakila.PathDuck),
+			wantType:        drivertype.DuckDB,
+			wantTblContains: "actor",
+			wantLocPrefix:   "duckdb://",
 		},
 	}
 
@@ -321,8 +342,9 @@ func TestCmdInspect_stdin(t *testing.T) {
 			require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
 			require.Equal(t, tc.wantType, md.Driver)
 			require.Equal(t, source.StdinHandle, md.Handle)
-			require.Equal(t, source.StdinHandle, md.Location)
-			require.Equal(t, tc.wantTbls, md.TableNames())
+			require.True(t, strings.HasPrefix(md.Location, tc.wantLocPrefix),
+				"expected Location to start with %q, got %q", tc.wantLocPrefix, md.Location)
+			require.Contains(t, md.TableNames(), tc.wantTblContains)
 		})
 	}
 }
@@ -345,6 +367,12 @@ func TestCmdInspect_mode_schemata(t *testing.T) {
 			handle: sakila.SL3,
 			wantSchemata: []schema{
 				{Name: "main", Catalog: "default", Active: active},
+			},
+		},
+		{
+			handle: sakila.Duck,
+			wantSchemata: []schema{
+				{Name: "main", Catalog: "sakila", Owner: "duckdb", Active: active},
 			},
 		},
 		{

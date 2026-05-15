@@ -136,6 +136,7 @@ func TestDetectMagicNumber(t *testing.T) {
 	}{
 		{loc: proj.Abs(sakila.PathSL3), wantType: drivertype.SQLite, wantScore: 1.0},
 		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: drivertype.SQLite, wantScore: 1.0},
+		{loc: proj.Abs(sakila.PathDuck), wantType: drivertype.DuckDB, wantScore: 1.0},
 	}
 
 	for _, tc := range testCases {
@@ -155,6 +156,21 @@ func TestDetectMagicNumber(t *testing.T) {
 			require.Equal(t, tc.wantScore, score)
 		})
 	}
+}
+
+func TestIsDuckDB(t *testing.T) {
+	// Construct a 16-byte buffer with "DUCK" at offset 8.
+	b := make([]byte, 16)
+	copy(b[8:12], []byte("DUCK"))
+	require.True(t, files.IsDuckDB(b))
+
+	// SQLite magic should not match.
+	require.False(t, files.IsDuckDB([]byte("SQLite format 3\x00")))
+
+	// nil / short buffers should not match.
+	require.False(t, files.IsDuckDB(nil))
+	require.False(t, files.IsDuckDB([]byte("DUCK")))
+	require.False(t, files.IsDuckDB(make([]byte, 11)))
 }
 
 func TestFiles_NewReader(t *testing.T) {
@@ -205,6 +221,7 @@ func TestFiles_Stdin(t *testing.T) {
 		{fpath: proj.Abs(sakila.PathCSVActor), wantType: drivertype.CSV},
 		{fpath: proj.Abs(sakila.PathTSVActor), wantType: drivertype.TSV},
 		{fpath: proj.Abs(sakila.PathXLSX), wantType: drivertype.XLSX},
+		{fpath: proj.Abs(sakila.PathDuck), wantType: drivertype.DuckDB},
 	}
 
 	for _, tc := range testCases {
