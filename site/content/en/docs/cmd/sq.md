@@ -100,8 +100,24 @@ sources:
 
 For cross-source queries, the rendered SQL targets the synthetic join
 database; `sources.target` is the synthetic handle, and `sources.inputs`
-lists the user sources that would be staged into it. Other output
-formats (`csv`, `html`, `markdown`, etc.) fall back to plain text.
+lists each user source that would be staged into it. For example, joining
+the `actor` table from a Postgres Sakila against the `film_actor` table
+from a MySQL Sakila:
+
+```yaml
+# $ sq --render-sql --yaml '@sakila/pg.actor | join(@sakila/my.film_actor, .actor_id) | .first_name, .last_name, .film_id | .[0:5]'
+slq: "@sakila/pg.actor | join(@sakila/my.film_actor, .actor_id) | .first_name, .last_name, .film_id | .[0:5]"
+sql: SELECT "first_name", "last_name", "film_id" FROM "actor" INNER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id" LIMIT 5 OFFSET 0
+dialect: sqlite3
+sources:
+  target: "@join_xukcx3ye"
+  inputs:
+  - "@sakila/pg"
+  - "@sakila/my"
+```
+
+`sources.target` is the synthesized SQLite join DB into which both
+inputs are staged before the rendered SQL runs against it.
 
 ## Override active source
 
