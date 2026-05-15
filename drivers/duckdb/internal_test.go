@@ -209,11 +209,17 @@ func TestParseDuckDBIndexExpressions(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tu.Name(tc.in), func(t *testing.T) {
 			got := parseDuckDBIndexExpressions(tc.in)
-			if len(tc.want) == 0 {
+			switch {
+			case tc.want == nil:
+				require.Nil(t, got,
+					"unparseable input must return a nil slice, not an empty one")
+			case len(tc.want) == 0:
+				require.NotNil(t, got,
+					"a parsed list with no plain column refs must return an empty (non-nil) slice")
 				require.Empty(t, got)
-				return
+			default:
+				require.Equal(t, tc.want, got)
 			}
-			require.Equal(t, tc.want, got)
 		})
 	}
 }

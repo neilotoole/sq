@@ -229,7 +229,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 			tbl.Columns[0].Name,
 			tbl.Columns[0].BaseType,
 			getPK(tbl.Columns[0]),
-			formatFKRef(fkByCol[tbl.Columns[0].Name]),
+			formatFKRefs(fkByCol[tbl.Columns[0].Name]),
 			formatIdxCell(idxByCol[tbl.Columns[0].Name]),
 			strings.Join(ucByCol[tbl.Columns[0].Name], ", "),
 		}
@@ -245,7 +245,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 				tbl.Columns[i].Name,
 				tbl.Columns[i].BaseType,
 				getPK(tbl.Columns[i]),
-				formatFKRef(fkByCol[tbl.Columns[i].Name]),
+				formatFKRefs(fkByCol[tbl.Columns[i].Name]),
 				formatIdxCell(idxByCol[tbl.Columns[i].Name]),
 				strings.Join(ucByCol[tbl.Columns[i].Name], ", "),
 			}
@@ -256,20 +256,24 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 	return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 }
 
-// outgoingFKByColumn returns a column-name → *ForeignKey lookup for
-// tbl. For composite FKs each member column maps to the same FK
-// pointer. Returns nil if the table has no outgoing FKs.
-func outgoingFKByColumn(tbl *metadata.Table) map[string]*metadata.ForeignKey {
+// outgoingFKByColumn returns a column-name → []*ForeignKey lookup for
+// tbl, preserving the order each column was encountered in
+// [FKGroup.Outgoing]. For composite FKs each member column lists the
+// same FK pointer; for a column that participates in multiple
+// outgoing FK constraints (unusual but valid), every entry is kept
+// so the renderer can show all of them. Returns nil if the table has
+// no outgoing FKs.
+func outgoingFKByColumn(tbl *metadata.Table) map[string][]*metadata.ForeignKey {
 	if tbl.FK == nil || len(tbl.FK.Outgoing) == 0 {
 		return nil
 	}
-	out := make(map[string]*metadata.ForeignKey, len(tbl.Columns))
+	out := make(map[string][]*metadata.ForeignKey, len(tbl.Columns))
 	for _, fk := range tbl.FK.Outgoing {
 		if fk == nil {
 			continue
 		}
 		for _, colName := range fk.Columns {
-			out[colName] = fk
+			out[colName] = append(out[colName], fk)
 		}
 	}
 	return out
@@ -295,6 +299,22 @@ func formatFKRef(fk *metadata.ForeignKey) string {
 		target = fk.RefCatalog + "." + target
 	}
 	return target + "(" + strings.Join(fk.RefColumns, ", ") + ")"
+}
+
+// formatFKRefs joins one or more [formatFKRef] outputs with ", ".
+// Returns the empty string when fks is empty so the table cell stays
+// blank for columns with no outgoing FK participation.
+func formatFKRefs(fks []*metadata.ForeignKey) string {
+	if len(fks) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(fks))
+	for _, fk := range fks {
+		if s := formatFKRef(fk); s != "" {
+			parts = append(parts, s)
+		}
+	}
+	return strings.Join(parts, ", ")
 }
 
 // indexEntry is a single entry in the INDEXES column. The backing

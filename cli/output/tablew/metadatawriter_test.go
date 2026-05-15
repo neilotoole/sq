@@ -129,7 +129,9 @@ func TestUniqueNamesByColumn(t *testing.T) {
 }
 
 // TestOutgoingFKByColumn pins the per-column FK lookup. For composite
-// FKs, every member column maps to the same FK pointer.
+// FKs, every member column maps to the same FK pointer. Columns that
+// participate in multiple outgoing FK constraints retain every entry
+// in declaration order.
 func TestOutgoingFKByColumn(t *testing.T) {
 	composite := &metadata.ForeignKey{
 		Name:       "fk_demo_composite",
@@ -145,16 +147,40 @@ func TestOutgoingFKByColumn(t *testing.T) {
 		RefTable:   "other",
 		RefColumns: []string{"id"},
 	}
+	// Second outgoing FK that also constrains column "c" — exercises
+	// the multi-FK-per-column case the renderer must preserve.
+	overlap := &metadata.ForeignKey{
+		Name:       "fk_demo_overlap",
+		Table:      "demo",
+		Columns:    []string{"c"},
+		RefTable:   "alt",
+		RefColumns: []string{"id"},
+	}
 
 	tbl := &metadata.Table{
 		Columns: []*metadata.Column{{Name: "a"}, {Name: "b"}, {Name: "c"}},
-		FK:      metadata.NewFKGroup([]*metadata.ForeignKey{composite, single}, nil),
+		FK:      metadata.NewFKGroup([]*metadata.ForeignKey{composite, single, overlap}, nil),
 	}
 	got := outgoingFKByColumn(tbl)
-	require.Same(t, composite, got["a"])
-	require.Same(t, composite, got["b"],
+	require.Equal(t, []*metadata.ForeignKey{composite}, got["a"])
+	require.Equal(t, []*metadata.ForeignKey{composite}, got["b"],
 		"composite FK columns must share the same *ForeignKey pointer")
-	require.Same(t, single, got["c"])
+	require.Same(t, composite, got["a"][0])
+	require.Same(t, composite, got["b"][0])
+	require.Equal(t, []*metadata.ForeignKey{single, overlap}, got["c"],
+		"a column constrained by multiple FKs retains every entry in declaration order")
+}
+
+// TestFormatFKRefs covers joining of multi-FK column entries.
+func TestFormatFKRefs(t *testing.T) {
+	a := &metadata.ForeignKey{RefTable: "parent", RefColumns: []string{"x"}}
+	b := &metadata.ForeignKey{RefTable: "alt", RefColumns: []string{"id"}}
+
+	require.Empty(t, formatFKRefs(nil))
+	require.Empty(t, formatFKRefs([]*metadata.ForeignKey{}))
+	require.Equal(t, "parent(x)", formatFKRefs([]*metadata.ForeignKey{a}))
+	require.Equal(t, "parent(x), alt(id)",
+		formatFKRefs([]*metadata.ForeignKey{a, b}))
 }
 
 // TestIndexEntriesByColumn_NoUCs verifies that when the table has no
