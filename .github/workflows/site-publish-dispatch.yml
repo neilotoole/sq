@@ -130,12 +130,14 @@ jobs:
             DEPLOY_MESSAGE="Manual publish via workflow_dispatch by @${ACTOR} (${SHA})"
           fi
 
-          # Run the deploy with --json and parse the result. We don't trust
-          # the CLI's exit code alone: in some failure modes (post-processing
-          # error, partial upload that still gets aliased, etc.) the CLI has
-          # been observed to exit 0 even though the resulting deploy state is
-          # not `ready`. Capture the JSON to a file so we can both echo it
-          # into the run log and feed it to jq.
+          # Run the deploy with --json. The CLI's --json output reports
+          # site_id, deploy_id, deploy_url, etc. — but no `state` field —
+          # so we can't infer success from JSON alone. We also don't fully
+          # trust the CLI exit code: in some failure modes (post-processing
+          # error, partial upload that still gets aliased) the CLI has been
+          # observed to exit 0 even though the resulting deploy is not
+          # `ready`. Capture the JSON to a file so we can echo it into the
+          # run log and extract deploy_id for the API poll below.
           deploy_json=$(mktemp)
           bun x netlify-cli deploy \
             --prod \
@@ -143,11 +145,41 @@ jobs:
             --message "${DEPLOY_MESSAGE}" \
             --json \
             | tee "${deploy_json}"
-          state=$(jq -r '.deploy_state // .state // empty' "${deploy_json}")
+
+          deploy_id=$(jq -r '.deploy_id // empty' "${deploy_json}")
           deploy_url=$(jq -r '.deploy_url // .url // empty' "${deploy_json}")
-          echo "Deploy state: ${state:-<empty>}"
-          echo "Deploy URL:   ${deploy_url:-<empty>}"
-          if [ "${state}" != "ready" ]; then
-            echo "::error::Netlify deploy did not reach state=ready (got: ${state:-<empty>}). See JSON output above."
+          echo "Deploy ID:  ${deploy_id:-<empty>}"
+          echo "Deploy URL: ${deploy_url:-<empty>}"
+          if [ -z "${deploy_id}" ]; then
+            echo "::error::netlify-cli did not return a deploy_id; cannot verify state."
             exit 1
           fi
+
+          # Authoritative state check: poll the Netlify API until the deploy
+          # reaches a terminal state. Production deploys typically settle
+          # within seconds of the CLI returning, but allow ~2.5 minutes of
+          # headroom for post-processing (CDN warm, edge-function build).
+          # Transient curl failures are retried rather than fatal.
+          state=""
+          for attempt in $(seq 1 30); do
+            body=$(curl -fsS \
+              -H "Authorization: Bearer ${NETLIFY_AUTH_TOKEN}" \
+              "https://api.netlify.com/api/v1/sites/${NETLIFY_SITE_ID}/deploys/${deploy_id}") \
+              || { echo "Attempt ${attempt}: API call failed, will retry"; sleep 5; continue; }
+            state=$(jq -r '.state // empty' <<<"${body}")
+            echo "Attempt ${attempt}: state=${state:-<empty>}"
+            case "${state}" in
+              ready) break ;;
+              error|rejected)
+                echo "::error::Deploy ${deploy_id} ended in state=${state}."
+                exit 1
+                ;;
+            esac
+            sleep 5
+          done
+
+          if [ "${state}" != "ready" ]; then
+            echo "::error::Deploy ${deploy_id} did not reach state=ready after polling (last state: ${state:-<empty>})."
+            exit 1
+          fi
+          echo "Deploy ${deploy_id} reached state=ready."
