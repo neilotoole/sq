@@ -54,7 +54,7 @@ type schemaNode struct {
 }
 
 // schemaTree is the middle pane's model.
-type schemaTree struct { //nolint:govet // field grouping favors readability over alignment.
+type schemaTree struct {
 	// root is the synthetic top-level container; its children are the
 	// visible top-level groups. We render starting at root.children.
 	root *schemaNode
@@ -62,11 +62,20 @@ type schemaTree struct { //nolint:govet // field grouping favors readability ove
 	handle string
 	theme  theme
 
+	// filter is the active case-insensitive substring filter; "" = none.
+	filter string
+
 	// selected is the visible-row index of the cursor.
 	selected int
 
 	// loaded is true once setTableNames has been called.
 	loaded bool
+}
+
+// setFilter narrows visible nodes to those whose label (or any
+// descendant label) contains f (case-insensitive). Empty f clears.
+func (tr *schemaTree) setFilter(f string) {
+	tr.filter = strings.ToLower(f)
 }
 
 func newSchemaTree(handle string, th theme) *schemaTree {
@@ -222,11 +231,15 @@ func (tr *schemaTree) walk(fn func(*schemaNode) bool) {
 
 // visibleNodes flattens the tree to the rows the user can see, in
 // rendering order. A child is included iff every ancestor (excluding
-// the synthetic root) is expanded.
+// the synthetic root) is expanded. When a filter is active, nodes
+// (and their ancestors) that don't match are pruned.
 func (tr *schemaTree) visibleNodes() []*schemaNode {
 	var out []*schemaNode
 	var rec func(n *schemaNode)
 	rec = func(n *schemaNode) {
+		if tr.filter != "" && !tr.nodeMatches(n) {
+			return
+		}
 		out = append(out, n)
 		if n.expanded {
 			for _, c := range n.children {
@@ -238,6 +251,23 @@ func (tr *schemaTree) visibleNodes() []*schemaNode {
 		rec(c)
 	}
 	return out
+}
+
+// nodeMatches returns true if n (or any descendant) matches the
+// current filter. Group rows match if they have any matching child.
+func (tr *schemaTree) nodeMatches(n *schemaNode) bool {
+	if tr.filter == "" {
+		return true
+	}
+	if strings.Contains(strings.ToLower(n.label), tr.filter) {
+		return true
+	}
+	for _, c := range n.children {
+		if tr.nodeMatches(c) {
+			return true
+		}
+	}
+	return false
 }
 
 func (tr *schemaTree) visibleCount() int { return len(tr.visibleNodes()) }

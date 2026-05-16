@@ -41,6 +41,24 @@ func TestSourcesPane_DownUp(t *testing.T) {
 	require.Equal(t, 1, p.selected)
 }
 
+func TestSourcesPane_Filter(t *testing.T) {
+	srcs := mkSources("@alpha", "@beta", "@gamma", "@delta")
+	p := newSourcesPane(srcs, srcs[0], newTheme(true))
+
+	p.setFilter("a")
+	visible := p.visibleSources()
+	require.Len(t, visible, 4) // all 4 handles contain 'a'
+
+	p.setFilter("be")
+	visible = p.visibleSources()
+	require.Len(t, visible, 1)
+	require.Equal(t, "@beta", visible[0].Handle)
+
+	p.setFilter("")
+	visible = p.visibleSources()
+	require.Len(t, visible, 4)
+}
+
 func TestSourcesPane_View_ListsHandles(t *testing.T) {
 	srcs := mkSources("@one", "@two", "@three")
 	p := newSourcesPane(srcs, srcs[0], newTheme(true))

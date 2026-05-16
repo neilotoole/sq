@@ -70,6 +70,7 @@ type Model struct {
 	sendFn      func(tea.Msg)
 	focusedTbl  string
 	finalHandle string
+	filterBuf   string
 	keys        keyMap
 	theme       theme
 	cfg         Config
@@ -77,6 +78,7 @@ type Model struct {
 	height      int
 	focused     paneID
 	quitting    bool
+	filtering   bool
 }
 
 // previewBuffer holds in-memory preview rows for the focused table.
@@ -195,10 +197,42 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case previewStartedMsg:
 		return m, nil
 	case tea.KeyMsg:
+		if m.filtering {
+			switch msg.Type { //nolint:exhaustive // we only care about a handful of key types in filter mode.
+			case tea.KeyEnter:
+				m.filtering = false
+				return m, nil
+			case tea.KeyEsc:
+				m.filtering = false
+				m.filterBuf = ""
+				m.applyFilter("")
+				return m, nil
+			case tea.KeyBackspace:
+				if len(m.filterBuf) > 0 {
+					m.filterBuf = m.filterBuf[:len(m.filterBuf)-1]
+					m.applyFilter(m.filterBuf)
+				}
+				return m, nil
+			case tea.KeyRunes:
+				m.filterBuf += string(msg.Runes)
+				m.applyFilter(m.filterBuf)
+				return m, nil
+			}
+		}
 		if key.Matches(msg, m.keys.Quit) {
 			m.recordFinalHandle()
 			m.quitting = true
 			return m, tea.Quit
+		}
+		if key.Matches(msg, m.keys.Filter) {
+			m.filtering = true
+			m.filterBuf = ""
+			return m, nil
+		}
+		if key.Matches(msg, m.keys.ClearFilt) {
+			m.filterBuf = ""
+			m.applyFilter("")
+			return m, nil
 		}
 		if key.Matches(msg, m.keys.Tab) {
 			m.focused = (m.focused + 1) % numPanes
@@ -232,7 +266,23 @@ func (m *Model) View() string {
 	detCol := m.detail.view(m.focused == paneDetail, m.width-2*col, body)
 
 	row := lipgloss.JoinHorizontal(lipgloss.Top, srcCol, schCol, detCol)
-	return m.theme.Title.Render("sq explore") + "\n" + row + "\n"
+	title := m.theme.Title.Render("sq explore")
+	if m.filtering {
+		title += "  /" + m.filterBuf + "▏"
+	}
+	return title + "\n" + row + "\n"
+}
+
+// applyFilter pushes the filter string to whichever pane is focused.
+func (m *Model) applyFilter(f string) {
+	switch m.focused {
+	case paneSources:
+		m.sources.setFilter(f)
+	case paneSchema:
+		m.schema.setFilter(f)
+	case paneDetail:
+		// no-op: detail pane doesn't support filtering yet.
+	}
 }
 
 // currentAddress returns "@src" or "@src.table" for the current focus.

@@ -234,6 +234,20 @@ func TestModel_PressR_TriggersPreviewFetch(t *testing.T) {
 	require.Equal(t, "@x.actor", previewQueries[0])
 }
 
+func TestModel_Filter_FiltersSourcesPane(t *testing.T) {
+	srcs := mkSources("@alpha", "@beta", "@gamma")
+	cfg := Config{Sources: srcs, FocusedSrc: srcs[0], NoColor: true}
+	m, _ := NewModel(cfg)
+	m.Update(tea.WindowSizeMsg{Width: 150, Height: 30})
+
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}})
+
+	out := m.View()
+	require.Contains(t, out, "@beta")
+	require.NotContains(t, out, "@gamma")
+}
+
 func TestRun_QuitImmediately(t *testing.T) {
 	src := &source.Source{Handle: "@test"}
 	cfg := Config{
