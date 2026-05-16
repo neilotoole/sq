@@ -31,6 +31,13 @@ func (f *fakeFetcher) FetchTableMeta(_ context.Context, _, table string) (*metad
 	return &metadata.Table{Name: table}, nil
 }
 
+func (f *fakeFetcher) RefreshSource(_ context.Context, handle string) ([]string, error) {
+	if err, ok := f.tableErr[handle]; ok {
+		return nil, err
+	}
+	return f.tableNames[handle], nil
+}
+
 func TestFetchTableNames_Cmd_DispatchesMsg(t *testing.T) {
 	f := &fakeFetcher{tableNames: map[string][]string{"@x": {"a", "b"}}}
 	cmd := fetchTableNamesCmd(context.Background(), f, "@x")

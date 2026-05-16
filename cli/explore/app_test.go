@@ -264,6 +264,46 @@ func TestModel_HelpToggle(t *testing.T) {
 	require.NotContains(t, out, "↑/k")
 }
 
+func TestModel_PressR_Capital_TriggersRefresh(t *testing.T) {
+	src := &source.Source{Handle: "@x"}
+	cfg := Config{Sources: []*source.Source{src}, FocusedSrc: src, NoColor: true}
+	m, _ := NewModel(cfg)
+
+	calls := 0
+	f := &fakeFetcher{tableNames: map[string][]string{"@x": {"a"}}}
+	m.fetcher = &refreshSpy{base: f, calls: &calls}
+
+	m.Update(tea.WindowSizeMsg{Width: 150, Height: 30})
+	m.focused = paneSources
+
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'R'}})
+	require.NotNil(t, cmd)
+	cmd()
+	require.Equal(t, 1, calls)
+}
+
+type refreshSpy struct {
+	base  metaFetcher
+	calls *int
+}
+
+func (r *refreshSpy) FetchSourceOverview(ctx context.Context, h string) (*sourceOverview, error) {
+	return r.base.FetchSourceOverview(ctx, h)
+}
+
+func (r *refreshSpy) FetchTableNames(ctx context.Context, h string) ([]string, error) {
+	return r.base.FetchTableNames(ctx, h)
+}
+
+func (r *refreshSpy) FetchTableMeta(ctx context.Context, h, t string) (*metadata.Table, error) {
+	return r.base.FetchTableMeta(ctx, h, t)
+}
+
+func (r *refreshSpy) RefreshSource(ctx context.Context, h string) ([]string, error) {
+	*r.calls++
+	return r.base.RefreshSource(ctx, h)
+}
+
 func TestRun_QuitImmediately(t *testing.T) {
 	src := &source.Source{Handle: "@test"}
 	cfg := Config{

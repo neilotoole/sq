@@ -25,6 +25,9 @@ type metaFetcher interface {
 	// FetchTableMeta returns full metadata for a single table. Backed
 	// by MDCache.TableMeta.
 	FetchTableMeta(ctx context.Context, handle, tableName string) (*metadata.Table, error)
+
+	// RefreshSource forces a fresh fetch, bypassing any cache.
+	RefreshSource(ctx context.Context, handle string) ([]string, error)
 }
 
 // sourceOverview is the cheap-overview shape — the subset of
@@ -81,6 +84,15 @@ func fetchTableMetaCmd(ctx context.Context, f metaFetcher, handle, tableName str
 	}
 }
 
+// refreshSourceCmd returns a tea.Cmd that forces a fresh metadata fetch
+// (bypassing the mdcache) and dispatches a tableNamesLoadedMsg.
+func refreshSourceCmd(ctx context.Context, f metaFetcher, handle string) tea.Cmd {
+	return func() tea.Msg {
+		names, err := f.RefreshSource(ctx, handle)
+		return tableNamesLoadedMsg{handle: handle, names: names, err: err}
+	}
+}
+
 // runFetcher adapts *run.Run to the metaFetcher interface.
 type runFetcher struct {
 	ru *run.Run
@@ -119,6 +131,28 @@ func (rf *runFetcher) FetchTableNames(ctx context.Context, handle string) ([]str
 
 func (rf *runFetcher) FetchTableMeta(ctx context.Context, handle, tableName string) (*metadata.Table, error) {
 	return rf.ru.MDCache.TableMeta(ctx, source.Table{Handle: handle, Name: tableName})
+}
+
+// RefreshSource forces a fresh fetch of source metadata, bypassing the
+// mdcache, and returns the table names from the refreshed metadata.
+func (rf *runFetcher) RefreshSource(ctx context.Context, handle string) ([]string, error) {
+	src, err := rf.ru.Config.Collection.Get(handle)
+	if err != nil {
+		return nil, err
+	}
+	grip, err := rf.ru.Grips.Open(ctx, src)
+	if err != nil {
+		return nil, err
+	}
+	md, err := grip.SourceMetadata(ctx, true)
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(md.Tables))
+	for _, t := range md.Tables {
+		names = append(names, t.Name)
+	}
+	return names, nil
 }
 
 // previewFunc is the signature used to launch a preview-row stream.

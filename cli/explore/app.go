@@ -248,6 +248,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.helpOpen = !m.helpOpen
 			return m, nil
 		}
+		if key.Matches(msg, m.keys.Refresh) {
+			if m.fetcher != nil && m.focusedSrc != nil {
+				m.schema = newSchemaTree(m.focusedSrc.Handle, m.theme)
+				return m, refreshSourceCmd(context.Background(), m.fetcher, m.focusedSrc.Handle)
+			}
+			return m, nil
+		}
 		return m, m.routeKey(msg)
 	}
 	return m, nil
