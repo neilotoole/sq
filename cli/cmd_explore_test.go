@@ -48,3 +48,13 @@ func TestCmdExplore_ParseTableHandle(t *testing.T) {
 	require.NoError(t, err, "context-aware table argument should be accepted")
 	_ = context.Background
 }
+
+func TestCmdExplore_EmitHandle_WithNoTUI(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+	tr := testrun.New(th.Context, t, nil).Add(*src)
+	err := tr.Exec("explore", "--no-tui", "--emit-handle", src.Handle+".actor")
+	require.NoError(t, err)
+	require.Contains(t, tr.Out.String(), src.Handle+".actor",
+		"the emitted handle should appear in stdout under --no-tui")
+}
