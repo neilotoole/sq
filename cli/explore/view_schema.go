@@ -365,8 +365,12 @@ func (tr *schemaTree) view(focused bool, width, height int) string {
 		default:
 			line += "  " + n.label
 		}
-		if i == tr.selected && focused {
-			line = tr.theme.ItemSel.Render(line)
+		if i == tr.selected {
+			if focused {
+				line = tr.theme.ItemSel.Render(line)
+			} else {
+				line = tr.theme.ItemCursor.Render(line)
+			}
 		}
 		b.WriteString(line)
 		if i < end-1 {

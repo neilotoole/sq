@@ -119,8 +119,12 @@ func (p *sourcesPane) view(focused bool, width, height int) string {
 		if s == p.active {
 			line = p.theme.ItemActiv.Render(s.Handle)
 		}
-		if i == p.selected && focused {
-			line = p.theme.ItemSel.Render(line)
+		if i == p.selected {
+			if focused {
+				line = p.theme.ItemSel.Render(line)
+			} else {
+				line = p.theme.ItemCursor.Render(line)
+			}
 		}
 		b.WriteString(line)
 		if i < end-1 {

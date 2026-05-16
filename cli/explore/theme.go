@@ -16,18 +16,34 @@ const (
 // theme holds the lipgloss styles the UI uses. Constructing it once
 // per program run lets the test suite pass in a no-color theme.
 type theme struct {
-	Title     lipgloss.Style // pane titles ("Sources", "Schema (…)") — blue + bold, like sq's Header.
-	Pane      lipgloss.Style // unfocused pane border.
-	PaneFocus lipgloss.Style // focused pane border (hi-blue, like sq's Hilite).
-	Item      lipgloss.Style // default list item.
-	ItemSel   lipgloss.Style // selected list item (reverse video for visibility regardless of palette).
-	ItemActiv lipgloss.Style // active source — green + bold, like sq's Active.
-	Handle    lipgloss.Style // source handle — blue, like sq's Handle.
-	Number    lipgloss.Style // numeric values — cyan, like sq's Number.
-	Location  lipgloss.Style // location URLs / paths — green, like sq's Location.
-	Faint     lipgloss.Style // de-emphasized text — faint, like sq's Faint.
-	Error     lipgloss.Style // error messages — red + bold.
-	Help      lipgloss.Style // the always-visible top help line.
+	// Title styles pane titles ("Sources", "Schema (…)") — blue + bold,
+	// like sq's Header.
+	Title lipgloss.Style
+	// Pane is the unfocused pane border.
+	Pane lipgloss.Style
+	// PaneFocus is the focused pane border (hi-blue, like sq's Hilite).
+	PaneFocus lipgloss.Style
+	// Item is the default list-item style.
+	Item lipgloss.Style
+	// ItemSel styles the selected row in the focused pane (reverse).
+	ItemSel lipgloss.Style
+	// ItemCursor styles the selected row in an unfocused pane so the
+	// cursor position is still visible (underline + faint).
+	ItemCursor lipgloss.Style
+	// ItemActiv styles the active source — green + bold, like sq's Active.
+	ItemActiv lipgloss.Style
+	// Handle is a source handle — blue, like sq's Handle.
+	Handle lipgloss.Style
+	// Number is numeric values — cyan, like sq's Number.
+	Number lipgloss.Style
+	// Location is for source location URLs / paths — green, like sq's Location.
+	Location lipgloss.Style
+	// Faint de-emphasizes text — like sq's Faint.
+	Faint lipgloss.Style
+	// Error styles error messages — red + bold.
+	Error lipgloss.Style
+	// Help styles the always-visible top help line.
+	Help lipgloss.Style
 }
 
 // newTheme returns a theme. If noColor is true, every style has its
@@ -47,14 +63,15 @@ func newTheme(noColor bool) theme {
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color(colorHiBlue)).
 			Padding(0, 1),
-		Item:      lipgloss.NewStyle(),
-		ItemSel:   lipgloss.NewStyle().Reverse(true),
-		ItemActiv: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(colorGreen)),
-		Handle:    lipgloss.NewStyle().Foreground(lipgloss.Color(colorBlue)),
-		Number:    lipgloss.NewStyle().Foreground(lipgloss.Color(colorCyan)),
-		Location:  lipgloss.NewStyle().Foreground(lipgloss.Color(colorGreen)),
-		Faint:     lipgloss.NewStyle().Faint(true),
-		Error:     lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(colorRed)),
-		Help:      lipgloss.NewStyle().Faint(true),
+		Item:       lipgloss.NewStyle(),
+		ItemSel:    lipgloss.NewStyle().Reverse(true),
+		ItemCursor: lipgloss.NewStyle().Underline(true).Faint(true),
+		ItemActiv:  lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(colorGreen)),
+		Handle:     lipgloss.NewStyle().Foreground(lipgloss.Color(colorBlue)),
+		Number:     lipgloss.NewStyle().Foreground(lipgloss.Color(colorCyan)),
+		Location:   lipgloss.NewStyle().Foreground(lipgloss.Color(colorGreen)),
+		Faint:      lipgloss.NewStyle().Faint(true),
+		Error:      lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(colorRed)),
+		Help:       lipgloss.NewStyle().Faint(true),
 	}
 }
