@@ -4,8 +4,6 @@ import "github.com/charmbracelet/bubbles/key"
 
 // keyMap holds every key binding the TUI uses. It is the single source
 // of truth for both Update routing and the help footer.
-//
-//nolint:unused // consumed by the Model in later phases.
 type keyMap struct {
 	Up        key.Binding
 	Down      key.Binding
@@ -26,7 +24,6 @@ type keyMap struct {
 	Quit      key.Binding
 }
 
-//nolint:unused // consumed by the Model in later phases.
 func defaultKeys() keyMap {
 	return keyMap{
 		Up:        key.NewBinding(key.WithKeys("k", "up"), key.WithHelp("↑/k", "up")),
