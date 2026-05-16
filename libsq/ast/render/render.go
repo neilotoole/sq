@@ -297,11 +297,13 @@ func decodeStringLiteralBody(body string) (string, error) {
 			if i+4 >= len(body) {
 				return "", errz.Errorf(`malformed string literal: short \u escape`)
 			}
-			r, err := strconv.ParseUint(body[i+1:i+5], 16, 32)
+			// 4 hex digits ⇒ value fits in uint16; cast through uint16
+			// before rune to make the conversion provably safe.
+			r, err := strconv.ParseUint(body[i+1:i+5], 16, 16)
 			if err != nil {
 				return "", errz.Wrap(err, `malformed string literal: invalid \u escape`)
 			}
-			b.WriteRune(rune(r))
+			b.WriteRune(rune(uint16(r)))
 			i += 4
 			continue
 		default:
