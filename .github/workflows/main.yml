@@ -215,7 +215,7 @@ jobs:
       - name: Install toolchain dependencies
         run: |
           sudo apt update
-          sudo apt install -y gcc-aarch64-linux-gnu
+          sudo apt install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
       - name: GoReleaser (build linux-arm64 binaries)
         uses: goreleaser/goreleaser-action@v7
