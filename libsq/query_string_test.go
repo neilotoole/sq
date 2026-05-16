@@ -104,6 +104,23 @@ func TestQuery_string_contains(t *testing.T) {
 			wantRecCount: 0,
 		},
 		{
+			// SLQ STRING tokens support JSON-style backslash escapes (see
+			// grammar/SLQ.g4 STRING/ESC). The renderer decodes them via
+			// unquoteLiteral so `"\n"` is a real newline in the search
+			// pattern, not the two characters `\` + `n`. Sakila first_names
+			// contain no embedded newlines, so the count is 0.
+			name:    "contains/decodes-newline-escape",
+			in:      `@sakila | .actor | where(contains(.first_name, "a\nb"))`,
+			wantSQL: "SELECT * FROM \"actor\" WHERE \"first_name\" LIKE '%a\nb%' ESCAPE '|'",
+			override: driverMap{
+				drivertype.SQLite:     "SELECT * FROM \"actor\" WHERE instr(\"first_name\", 'a\nb') > 0",
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY '%a\nb%' ESCAPE '|'",
+				drivertype.MSSQL:      "SELECT * FROM \"actor\" WHERE \"first_name\" COLLATE Latin1_General_BIN2 LIKE '%a\nb%' ESCAPE '|'",
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE position(`first_name`, 'a\nb') > 0",
+			},
+			wantRecCount: 0,
+		},
+		{
 			// Empty pattern matches every non-NULL row on all drivers.
 			// SQLite's instr-based path already returns this naturally:
 			// instr(col, '') = 1, so the `> 0` test is true for any
@@ -164,6 +181,11 @@ func TestQuery_string_contains(t *testing.T) {
 func TestQuery_string_startswith(t *testing.T) {
 	testCases := []queryTestCase{
 		{
+			// Pair test: uppercase prefix "GU" matches 3 sakila last_names
+			// (GUINESS, GUARDINO, GUERIN). Executed to prove the renderer
+			// actually matches non-empty prefixes — without a row-count
+			// assertion, a renderer that never matched any prefix would
+			// still pass the lowercase no-match case below.
 			name:    "startswith/basic-uppercase",
 			in:      `@sakila | .actor | where(startswith(.last_name, "GU"))`,
 			wantSQL: `SELECT * FROM "actor" WHERE "last_name" LIKE 'GU%' ESCAPE '|'`,
@@ -173,7 +195,7 @@ func TestQuery_string_startswith(t *testing.T) {
 				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "last_name" COLLATE Latin1_General_BIN2 LIKE 'GU%' ESCAPE '|'`,
 				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE startsWith(`last_name`, 'GU')",
 			},
-			skipExec: true,
+			wantRecCount: 3,
 		},
 		{
 			name:    "startswith/case-sensitive-lowercase-no-match",
@@ -238,6 +260,12 @@ func TestQuery_string_startswith(t *testing.T) {
 func TestQuery_string_endswith(t *testing.T) {
 	testCases := []queryTestCase{
 		{
+			// Pair test: uppercase suffix "SON" matches 9 sakila last_names
+			// (JACKSON, JOHANSSON, NEESON, DAVIS-SON variants, etc.).
+			// Executed to prove the renderer actually matches non-empty
+			// suffixes — without this assertion, a renderer that never
+			// matched any suffix would still pass the lowercase no-match
+			// case below.
 			name:    "endswith/basic-uppercase",
 			in:      `@sakila | .actor | where(endswith(.last_name, "SON"))`,
 			wantSQL: `SELECT * FROM "actor" WHERE "last_name" LIKE '%SON' ESCAPE '|'`,
@@ -247,7 +275,7 @@ func TestQuery_string_endswith(t *testing.T) {
 				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "last_name" COLLATE Latin1_General_BIN2 LIKE '%SON' ESCAPE '|'`,
 				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE endsWith(`last_name`, 'SON')",
 			},
-			skipExec: true,
+			wantRecCount: 9,
 		},
 		{
 			name:    "endswith/case-sensitive-lowercase-no-match",
