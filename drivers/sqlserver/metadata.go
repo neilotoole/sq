@@ -363,7 +363,10 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 
 	// Source-level inspect skips per-table FK / UC / Index queries
 	// entirely; [getSourceMetadata] runs three bulk loaders below.
-	if !loadConstraints {
+	// Views (and other non-table relations) carry no FKs, UCs, or
+	// indexes, so single-table inspect skips them too rather than
+	// issuing four pointless round-trips.
+	if !loadConstraints || tblMeta.TableType != sqlz.TableTypeTable {
 		return tblMeta, nil
 	}
 
