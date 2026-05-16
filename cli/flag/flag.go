@@ -46,6 +46,9 @@ const (
 	Insert      = "insert"
 	InsertUsage = "Insert query results into @HANDLE.TABLE; if not existing, TABLE will be created"
 
+	RenderSQL      = "render-sql"
+	RenderSQLUsage = `Render the SLQ to SQL without executing it`
+
 	JSON       = "json"
 	JSONShort  = "j"
 	JSONUsage  = "Output JSON"

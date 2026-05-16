@@ -74,6 +74,7 @@ sakila_b*
 ## AI stuff
 CLAUDE.local.md
 /.claude
+/docs/superpowers/
 
 ## Hugo site (site/)
 site/node_modules/

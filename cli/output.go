@@ -21,6 +21,7 @@ import (
 	"github.com/neilotoole/sq/cli/output/jsonw"
 	"github.com/neilotoole/sq/cli/output/markdownw"
 	"github.com/neilotoole/sq/cli/output/raww"
+	"github.com/neilotoole/sq/cli/output/sqlw"
 	"github.com/neilotoole/sq/cli/output/tablew"
 	"github.com/neilotoole/sq/cli/output/xlsxw"
 	"github.com/neilotoole/sq/cli/output/xmlw"
@@ -308,6 +309,7 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 		Error:        tablew.NewErrorWriter(outCfg.errOut, outCfg.errOutPr, OptErrorStack.Get(o)),
 		Version:      tablew.NewVersionWriter(outCfg.out, outCfg.outPr),
 		Config:       tablew.NewConfigWriter(outCfg.out, outCfg.outPr),
+		SQL:          sqlw.NewTextWriter(outCfg.out, outCfg.outPr),
 	}
 
 	if OptErrorFormat.Get(o) == format.JSON {
@@ -325,6 +327,10 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 		w.Version = jsonw.NewVersionWriter(outCfg.out, outCfg.outPr)
 		w.Ping = jsonw.NewPingWriter(outCfg.out, outCfg.outPr)
 		w.Config = jsonw.NewConfigWriter(outCfg.out, outCfg.outPr)
+		w.SQL = sqlw.NewJSONWriter(outCfg.out, outCfg.outPr)
+
+	case format.JSONL:
+		w.SQL = sqlw.NewJSONLWriter(outCfg.out, outCfg.outPr)
 
 	case format.Text:
 		// Don't delete this case, it's actually needed due to
@@ -341,6 +347,7 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 		w.Metadata = yamlw.NewMetadataWriter(outCfg.out, outCfg.outPr)
 		w.Source = yamlw.NewSourceWriter(outCfg.out, outCfg.outPr)
 		w.Version = yamlw.NewVersionWriter(outCfg.out, outCfg.outPr)
+		w.SQL = sqlw.NewYAMLWriter(outCfg.out, outCfg.outPr)
 	default:
 	}
 

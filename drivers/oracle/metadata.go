@@ -133,6 +133,30 @@ FROM DUAL`
 		}
 	}
 
+	// Fetch FKs / unique constraints / indexes in three bulk queries
+	// instead of 3N per-table calls inside loadUserSchemaObjectsMetadata.
+	// The Assign* helpers route each result to its owning table, and
+	// LinkForeignKeys derives FK.Incoming across the whole source.
+	allFKs, err := getOracleForeignKeys(ctx, db, "")
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignForeignKeys(log, md.Tables, allFKs)
+
+	allUCs, err := getOracleUniqueConstraints(ctx, db, "")
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignUniqueConstraints(log, md.Tables, allUCs)
+
+	allIdxs, err := getOracleIndexes(ctx, db, "")
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignIndexes(log, md.Tables, allIdxs)
+
+	metadata.LinkForeignKeys(log, md)
+
 	return md, nil
 }
 
@@ -163,7 +187,7 @@ func loadUserSchemaObjectsMetadata(
 	out := make([]*metadata.Table, 0, nCap)
 
 	for _, tblName := range baseNames {
-		tblMeta, err := getTableMetadata(ctx, db, tblName)
+		tblMeta, err := getTableMetadata(ctx, db, tblName, false)
 		if err != nil {
 			log.Warn("oracle metadata: skipped base table (continuing)",
 				lga.Handle, handle,
@@ -265,14 +289,25 @@ FETCH FIRST 1 ROW ONLY`
 	case "VIEW":
 		return getViewMetadata(ctx, db, canonical)
 	case "TABLE":
-		return getTableMetadata(ctx, db, canonical)
+		return getTableMetadata(ctx, db, canonical, true)
 	default:
 		return nil, errz.Errorf("unsupported Oracle object type %q for {%s}", objType, name)
 	}
 }
 
-// getTableMetadata returns metadata for a specific table.
-func getTableMetadata(ctx context.Context, db *sql.DB, tblName string) (*metadata.Table, error) {
+// getTableMetadata returns metadata for a specific table. The
+// loadConstraints flag controls whether per-table FK /
+// unique-constraint / index queries are issued:
+//
+//   - Source-level inspect passes false. [getSourceMetadata] runs
+//     three bulk loaders after the table-iteration loop, which is 3
+//     round-trips total instead of 3N. [metadata.LinkForeignKeys]
+//     then derives [FK.Incoming] across the whole source.
+//   - Single-table inspect (grip.TableMetadata) passes true so the
+//     standalone [metadata.Table] carries its FK / unique-constraint /
+//     index metadata directly, including [FK.Incoming].
+func getTableMetadata(ctx context.Context, db *sql.DB, tblName string, loadConstraints bool,
+) (*metadata.Table, error) {
 	_ = progress.FromContext(ctx) // Future: use for progress tracking
 
 	// USER_TABLES is scoped to the current user, so it has no OWNER column;
@@ -337,7 +372,325 @@ WHERE t.table_name = :1`
 	}
 	tblMeta.Columns = cols
 
+	// Source-level inspect skips per-table FK / UC / Index queries
+	// entirely; [getSourceMetadata] runs three bulk loaders below.
+	if !loadConstraints {
+		return tblMeta, nil
+	}
+
+	outgoing, err := getOracleForeignKeys(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
+	incoming, err := getOracleIncomingFKs(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
+	tblMeta.FK = metadata.NewFKGroup(outgoing, incoming)
+
+	tblMeta.UniqueConstraints, err = getOracleUniqueConstraints(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
+
+	tblMeta.Indexes, err = getOracleIndexes(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
+
 	return tblMeta, nil
+}
+
+// getOracleUniqueConstraints returns the UNIQUE constraints declared
+// on tables in the current Oracle schema. If tblName is empty,
+// constraints for every base table are returned; otherwise only
+// constraints on tblName are returned. tblName is upper-cased to match
+// Oracle's stored identifier convention.
+func getOracleUniqueConstraints(ctx context.Context, db *sql.DB, tblName string,
+) ([]*metadata.UniqueConstraint, error) {
+	log := lg.FromContext(ctx)
+	query := `SELECT
+    c.constraint_name,
+    c.table_name,
+    cc.column_name,
+    cc.position
+FROM user_constraints  c
+JOIN user_cons_columns cc
+  ON  cc.constraint_name = c.constraint_name
+WHERE c.constraint_type = 'U'`
+	var args []any
+	if tblName != "" {
+		query += ` AND c.table_name = :1`
+		args = append(args, strings.ToUpper(tblName))
+	}
+	query += ` ORDER BY c.table_name, c.constraint_name, cc.position`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	type ucKey struct {
+		table, name string
+	}
+	byKey := map[ucKey]*metadata.UniqueConstraint{}
+	var ucs []*metadata.UniqueConstraint
+	for rows.Next() {
+		var (
+			constraintName, ownerTable, columnName string
+			position                               int64
+		)
+		if err = rows.Scan(&constraintName, &ownerTable, &columnName, &position); err != nil {
+			return nil, errw(err)
+		}
+		k := ucKey{table: ownerTable, name: constraintName}
+		uc, ok := byKey[k]
+		if !ok {
+			uc = &metadata.UniqueConstraint{
+				Name:  constraintName,
+				Table: ownerTable,
+			}
+			byKey[k] = uc
+			ucs = append(ucs, uc)
+		}
+		uc.Columns = append(uc.Columns, columnName)
+	}
+	return ucs, errw(rows.Err())
+}
+
+// getOracleIndexes returns the physical indexes declared on tables in
+// the current Oracle schema. If tblName is empty, indexes for every
+// base table are returned. PK-backing indexes are detected via a LEFT
+// JOIN against USER_CONSTRAINTS type='P'.
+//
+// LOB- and system-generated indexes (e.g. on hidden CLOB segments) are
+// excluded via index_type not in ('LOB', 'CLUSTER') and a generated=NO
+// filter.
+func getOracleIndexes(ctx context.Context, db *sql.DB, tblName string) ([]*metadata.Index, error) {
+	log := lg.FromContext(ctx)
+	query := `SELECT
+    i.table_name,
+    i.index_name,
+    CASE WHEN i.uniqueness = 'UNIQUE' THEN 1 ELSE 0 END AS is_unique,
+    CASE WHEN pk.constraint_name IS NOT NULL THEN 1 ELSE 0 END AS is_primary,
+    i.index_type,
+    ic.column_name,
+    ic.column_position
+FROM user_indexes      i
+JOIN user_ind_columns  ic
+  ON  ic.index_name = i.index_name
+  AND ic.table_name = i.table_name
+LEFT JOIN user_constraints pk
+  ON  pk.index_name      = i.index_name
+  AND pk.table_name      = i.table_name
+  AND pk.constraint_type = 'P'
+WHERE i.index_type NOT IN ('LOB', 'CLUSTER')
+  AND i.generated = 'N'`
+	var args []any
+	if tblName != "" {
+		query += ` AND i.table_name = :1`
+		args = append(args, strings.ToUpper(tblName))
+	}
+	query += ` ORDER BY i.table_name, i.index_name, ic.column_position`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	type idxKey struct {
+		table, name string
+	}
+	byKey := map[idxKey]*metadata.Index{}
+	var indexes []*metadata.Index
+	for rows.Next() {
+		var (
+			tableName, indexName, indexType, columnName string
+			isUnique, isPrimary                         int64
+			columnPosition                              int64
+		)
+		if err = rows.Scan(&tableName, &indexName, &isUnique, &isPrimary,
+			&indexType, &columnName, &columnPosition); err != nil {
+			return nil, errw(err)
+		}
+		k := idxKey{table: tableName, name: indexName}
+		idx, ok := byKey[k]
+		if !ok {
+			idx = &metadata.Index{
+				Name:    indexName,
+				Table:   tableName,
+				Unique:  isUnique == 1,
+				Primary: isPrimary == 1,
+				Type:    indexType,
+			}
+			byKey[k] = idx
+			indexes = append(indexes, idx)
+		}
+		idx.Columns = append(idx.Columns, columnName)
+	}
+	return indexes, errw(rows.Err())
+}
+
+// getOracleForeignKeys returns the outgoing foreign-key constraints
+// declared on tables in the current Oracle schema. If tblName is empty,
+// FKs for every base table in the schema are returned; otherwise only
+// FKs declared on tblName are returned. tblName is matched after
+// upper-casing, since Oracle stores unquoted identifiers in upper case.
+//
+// Oracle exposes only the DELETE_RULE on USER_CONSTRAINTS; there is no
+// ON UPDATE referential action, so [ForeignKey.OnUpdate] is left empty
+// for this driver. Cross-table linking is not done here; callers must
+// invoke metadata.LinkForeignKeys at the source level.
+func getOracleForeignKeys(ctx context.Context, db *sql.DB, tblName string,
+) ([]*metadata.ForeignKey, error) {
+	log := lg.FromContext(ctx)
+	// USER_CONSTRAINTS rows of type 'R' are referential constraints (FKs).
+	// R_CONSTRAINT_NAME identifies the referenced unique/PK constraint;
+	// joining USER_CONS_COLUMNS twice on matching POSITION lines up the
+	// FK column with its corresponding parent column for composite keys.
+	// NULLIF clears ref_schema when the reference is in the current
+	// user's schema, matching the normalization that
+	// metadata.LinkForeignKeys applies at the source level.
+	query := `SELECT
+    c.constraint_name,
+    c.table_name                                                       AS fk_table,
+    fkc.column_name                                                    AS fk_column,
+    fkc.position                                                       AS ordinal_position,
+    NULLIF(c.r_owner, SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA'))        AS ref_schema,
+    pkc.table_name                                                     AS ref_table,
+    pkc.column_name                                                    AS ref_column,
+    c.delete_rule
+FROM user_constraints  c
+JOIN user_cons_columns fkc
+  ON  fkc.constraint_name = c.constraint_name
+JOIN user_cons_columns pkc
+  ON  pkc.constraint_name = c.r_constraint_name
+  AND pkc.position        = fkc.position
+WHERE c.constraint_type = 'R'`
+	var args []any
+	if tblName != "" {
+		query += ` AND c.table_name = :1`
+		args = append(args, strings.ToUpper(tblName))
+	}
+	query += ` ORDER BY c.table_name, c.constraint_name, fkc.position`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	type fkKey struct {
+		table, name string
+	}
+	byKey := map[fkKey]*metadata.ForeignKey{}
+	var fks []*metadata.ForeignKey
+	for rows.Next() {
+		var (
+			constraintName, fkTable, fkColumn string
+			refTable, refCol                  string
+			refSchema, deleteRule             sql.NullString
+			ordinalPosition                   int64
+		)
+		if err = rows.Scan(&constraintName, &fkTable, &fkColumn, &ordinalPosition,
+			&refSchema, &refTable, &refCol, &deleteRule); err != nil {
+			return nil, errw(err)
+		}
+
+		k := fkKey{table: fkTable, name: constraintName}
+		fk, ok := byKey[k]
+		if !ok {
+			fk = &metadata.ForeignKey{
+				Name:      constraintName,
+				Table:     fkTable,
+				RefSchema: refSchema.String,
+				RefTable:  refTable,
+				OnDelete:  deleteRule.String,
+			}
+			byKey[k] = fk
+			fks = append(fks, fk)
+		}
+		fk.Columns = append(fk.Columns, fkColumn)
+		fk.RefColumns = append(fk.RefColumns, refCol)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+	return fks, nil
+}
+
+// getOracleIncomingFKs returns the foreign-key constraints declared on
+// other tables in the current schema whose referenced side is tblName.
+// USER_CONSTRAINTS scopes results to the current user's schema, so
+// cross-schema references from tables in other schemas are not
+// reported here.
+func getOracleIncomingFKs(ctx context.Context, db *sql.DB, tblName string,
+) ([]*metadata.ForeignKey, error) {
+	log := lg.FromContext(ctx)
+	const query = `SELECT
+    c.constraint_name,
+    c.table_name      AS fk_table,
+    fkc.column_name   AS fk_column,
+    fkc.position      AS ordinal_position,
+    pk.table_name     AS ref_table,
+    pkc.column_name   AS ref_column,
+    c.delete_rule
+FROM user_constraints  c
+JOIN user_constraints  pk
+  ON  pk.constraint_name = c.r_constraint_name
+JOIN user_cons_columns fkc
+  ON  fkc.constraint_name = c.constraint_name
+JOIN user_cons_columns pkc
+  ON  pkc.constraint_name = c.r_constraint_name
+  AND pkc.position        = fkc.position
+WHERE c.constraint_type = 'R'
+  AND pk.table_name = :1
+ORDER BY c.table_name, c.constraint_name, fkc.position`
+
+	rows, err := db.QueryContext(ctx, query, strings.ToUpper(tblName))
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	type fkKey struct {
+		table, name string
+	}
+	byKey := map[fkKey]*metadata.ForeignKey{}
+	var fks []*metadata.ForeignKey
+	for rows.Next() {
+		var (
+			constraintName, fkTable, fkColumn string
+			refTable, refCol                  string
+			deleteRule                        sql.NullString
+			ordinalPosition                   int64
+		)
+		if err = rows.Scan(&constraintName, &fkTable, &fkColumn, &ordinalPosition,
+			&refTable, &refCol, &deleteRule); err != nil {
+			return nil, errw(err)
+		}
+
+		k := fkKey{table: fkTable, name: constraintName}
+		fk, ok := byKey[k]
+		if !ok {
+			fk = &metadata.ForeignKey{
+				Name:     constraintName,
+				Table:    fkTable,
+				RefTable: refTable,
+				OnDelete: deleteRule.String,
+			}
+			// RefSchema intentionally left empty: the referenced table
+			// is the current one we're inspecting, which lives in the
+			// current schema by USER_CONSTRAINTS scoping.
+			byKey[k] = fk
+			fks = append(fks, fk)
+		}
+		fk.Columns = append(fk.Columns, fkColumn)
+		fk.RefColumns = append(fk.RefColumns, refCol)
+	}
+	return fks, errw(rows.Err())
 }
 
 // getViewMetadata returns metadata for a view (USER_VIEWS / USER_TAB_COLUMNS).
@@ -473,6 +826,15 @@ LEFT JOIN user_col_comments cc
 WHERE c.table_name = :1
 ORDER BY c.column_id`
 
+	// Collect the table's primary-key column names up front in one
+	// query so the scan loop can flag PK columns via a map lookup
+	// instead of issuing one COUNT(*) per column (a per-column round
+	// trip was the previous shape — quadratic on wide tables).
+	pkCols, err := getOraclePKColumnNames(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
+
 	rows, err := db.QueryContext(ctx, query, strings.ToUpper(tblName))
 	if err != nil {
 		return nil, errw(err)
@@ -512,14 +874,8 @@ ORDER BY c.column_id`
 			ColumnType: fullTypeName,
 			Nullable:   nullable == "Y",
 			Comment:    comment.String,
+			PrimaryKey: pkCols[colName],
 		}
-
-		// Check if primary key
-		isPK, err := isColumnPrimaryKey(ctx, db, tblName, colName)
-		if err != nil {
-			return nil, err
-		}
-		col.PrimaryKey = isPK
 
 		cols = append(cols, col)
 	}
@@ -527,23 +883,31 @@ ORDER BY c.column_id`
 	return cols, errw(rows.Err())
 }
 
-// isColumnPrimaryKey checks if a column is part of a primary key.
-func isColumnPrimaryKey(ctx context.Context, db *sql.DB, tblName, colName string) (bool, error) {
-	const query = `SELECT COUNT(*)
+// getOraclePKColumnNames returns the primary-key column names for
+// tblName as a set keyed by the column name. Returns an empty
+// (non-nil) map when the table has no primary key.
+func getOraclePKColumnNames(ctx context.Context, db *sql.DB, tblName string) (map[string]bool, error) {
+	log := lg.FromContext(ctx)
+	const query = `SELECT cols.column_name
 FROM user_constraints cons
 INNER JOIN user_cons_columns cols
     ON cons.constraint_name = cols.constraint_name
 WHERE cons.table_name = :1
-  AND cols.column_name = :2
   AND cons.constraint_type = 'P'`
 
-	var count int
-	err := db.QueryRowContext(ctx, query,
-		strings.ToUpper(tblName),
-		strings.ToUpper(colName)).Scan(&count)
+	rows, err := db.QueryContext(ctx, query, strings.ToUpper(tblName))
 	if err != nil {
-		return false, errw(err)
+		return nil, errw(err)
 	}
+	defer sqlz.CloseRows(log, rows)
 
-	return count > 0, nil
+	pkCols := map[string]bool{}
+	for rows.Next() {
+		var col string
+		if err = rows.Scan(&col); err != nil {
+			return nil, errw(err)
+		}
+		pkCols[col] = true
+	}
+	return pkCols, errw(rows.Err())
 }

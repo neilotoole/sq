@@ -1,0 +1,185 @@
+# Manually publish the sq.io site to Netlify production.
+#
+# This workflow is the ONLY path that pushes content to https://sq.io.
+# Netlify's git integration is configured (via site/netlify.toml's
+# `[context.production] ignore = "exit 0"`) to skip the production build on
+# master pushes, so production publishes happen only when an operator
+# explicitly triggers this workflow from the Actions tab.
+#
+# PR deploy previews from Netlify are unaffected — they run from the
+# `deploy-preview` context, not `production`.
+#
+# Required repo secrets (configure under Settings → Secrets and variables →
+# Actions):
+#   NETLIFY_AUTH_TOKEN   Personal access token with deploy rights on the
+#                        `sq-web` Netlify site.
+#   NETLIFY_SITE_ID      Netlify site ID for `sq-web` (the UUID, not the
+#                        slug).
+name: Site Publish (dispatch)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DEPLOY to confirm production publish to https://sq.io'
+        required: true
+        type: string
+      message:
+        description: 'Optional deploy message (shown in the Netlify deploy log)'
+        required: false
+        type: string
+
+# Serialize production publishes. Two overlapping `--prod` deploys would
+# race on the production alias (last writer wins); queueing the second run
+# behind the first keeps the final state predictable. `cancel-in-progress`
+# is intentionally false — both runs should complete in order, never be
+# discarded mid-deploy.
+concurrency:
+  group: site-publish-production
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    environment:
+      name: production
+      url: https://sq.io
+    steps:
+      # Allow publishes from any branch (`refs/heads/*`) or any SemVer-style
+      # v-tag — `vMAJOR.MINOR.PATCH` with optional pre-release (`-alpha`,
+      # `-rc.1`, etc.) and/or build metadata (`+build.123`). Reject anything
+      # else (e.g. non-version tags like `latest`, `stable`, or a `v`-prefixed
+      # word like `vacation`). The typed `DEPLOY` confirmation below is the
+      # real fat-finger guard; this step is just a coarse sanity check on
+      # the ref shape, hence a permissive SemVer regex rather than a strict
+      # spec-compliant one.
+      - name: Reject unsupported refs
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          if [[ "${REF}" == refs/heads/* ]]; then
+            echo "Accepting branch ref."
+            exit 0
+          fi
+          if [[ "${REF}" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Accepting SemVer v-tag."
+            exit 0
+          fi
+          echo "::error::This workflow can only publish from a branch or a SemVer-style v-tag (vMAJOR.MINOR.PATCH, with optional pre-release/build metadata)."
+          exit 1
+
+      - name: Validate confirmation input
+        if: inputs.confirm != 'DEPLOY'
+        run: |
+          echo "::error::Confirmation input must be exactly 'DEPLOY'."
+          exit 1
+
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          # Pin to the exact version Netlify uses for deploy previews
+          # (site/netlify.toml `BUN_VERSION`) so the manually-published
+          # production artifact matches what reviewers saw on preview.
+          bun-version: 1.3.13
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.bun/install/cache
+            site/node_modules
+          key: ${{ runner.os }}-site-bun-${{ hashFiles('site/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-site-bun-
+
+      # `make ci` runs deps, lint, and a production build into site/public.
+      # We intentionally re-run lint here rather than trusting Site CI: a
+      # manual publish should never bypass the gates that block PR merges.
+      - name: Install, lint, and build (make ci)
+        working-directory: site
+        run: make ci
+
+      - name: Publish site/public to Netlify (production)
+        working-directory: site
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          INPUT_MESSAGE: ${{ inputs.message }}
+          ACTOR: ${{ github.actor }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NETLIFY_AUTH_TOKEN:-}" ]; then
+            echo "::error::NETLIFY_AUTH_TOKEN secret is not set."
+            exit 1
+          fi
+          if [ -z "${NETLIFY_SITE_ID:-}" ]; then
+            echo "::error::NETLIFY_SITE_ID secret is not set."
+            exit 1
+          fi
+          if [ -n "${INPUT_MESSAGE:-}" ]; then
+            DEPLOY_MESSAGE="${INPUT_MESSAGE}"
+          else
+            DEPLOY_MESSAGE="Manual publish via workflow_dispatch by @${ACTOR} (${SHA})"
+          fi
+
+          # Run the deploy with --json. The CLI's --json output reports
+          # site_id, deploy_id, deploy_url, etc. — but no `state` field —
+          # so we can't infer success from JSON alone. We also don't fully
+          # trust the CLI exit code: in some failure modes (post-processing
+          # error, partial upload that still gets aliased) the CLI has been
+          # observed to exit 0 even though the resulting deploy is not
+          # `ready`. Capture the JSON to a file so we can echo it into the
+          # run log and extract deploy_id for the API poll below.
+          deploy_json=$(mktemp)
+          bun x netlify-cli deploy \
+            --prod \
+            --dir=public \
+            --message "${DEPLOY_MESSAGE}" \
+            --json \
+            | tee "${deploy_json}"
+
+          deploy_id=$(jq -r '.deploy_id // empty' "${deploy_json}")
+          deploy_url=$(jq -r '.deploy_url // .url // empty' "${deploy_json}")
+          echo "Deploy ID:  ${deploy_id:-<empty>}"
+          echo "Deploy URL: ${deploy_url:-<empty>}"
+          if [ -z "${deploy_id}" ]; then
+            echo "::error::netlify-cli did not return a deploy_id; cannot verify state."
+            exit 1
+          fi
+
+          # Authoritative state check: poll the Netlify API until the deploy
+          # reaches a terminal state. Production deploys typically settle
+          # within seconds of the CLI returning, but allow ~2.5 minutes of
+          # headroom for post-processing (CDN warm, edge-function build).
+          # Transient curl failures are retried rather than fatal.
+          state=""
+          for attempt in $(seq 1 30); do
+            body=$(curl -fsS \
+              -H "Authorization: Bearer ${NETLIFY_AUTH_TOKEN}" \
+              "https://api.netlify.com/api/v1/sites/${NETLIFY_SITE_ID}/deploys/${deploy_id}") \
+              || { echo "Attempt ${attempt}: API call failed, will retry"; sleep 5; continue; }
+            state=$(jq -r '.state // empty' <<<"${body}")
+            echo "Attempt ${attempt}: state=${state:-<empty>}"
+            case "${state}" in
+              ready) break ;;
+              error|rejected)
+                echo "::error::Deploy ${deploy_id} ended in state=${state}."
+                exit 1
+                ;;
+            esac
+            sleep 5
+          done
+
+          if [ "${state}" != "ready" ]; then
+            echo "::error::Deploy ${deploy_id} did not reach state=ready after polling (last state: ${state:-<empty>})."
+            exit 1
+          fi
+          echo "Deploy ${deploy_id} reached state=ready."

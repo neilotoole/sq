@@ -48,6 +48,7 @@ sqlserver   Microsoft SQL Server / Azure SQL Edge
 mysql       MySQL
 clickhouse  ClickHouse
 oracle      Oracle Database (experimental)
+duckdb      DuckDB
 csv         Comma-Separated Values
 tsv         Tab-Separated Values
 json        JSON

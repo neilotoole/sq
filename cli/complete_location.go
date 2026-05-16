@@ -110,6 +110,11 @@ func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) (
 		return locCompDoSQLite3(cmd, args, toComplete)
 	}
 
+	if strings.HasPrefix(toComplete, string(drivertype.DuckDB)) {
+		// Special handling for duckdb (file-based like sqlite).
+		return locCompDoDuckDB(cmd, args, toComplete)
+	}
+
 	return locCompDoGenericDriver(cmd, args, toComplete)
 }
 
@@ -358,6 +363,22 @@ func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, /
 // We have special handling for SQLite, because it's not a generic
 // driver URL, but rather sqlite3://FILE/PATH?param=X.
 func locCompDoSQLite3(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return locCompDoFileBasedDriver(cmd, drivertype.SQLite, "sqlite3://", toComplete)
+}
+
+// locCompDoDuckDB completes a location starting with "duckdb://".
+// We have special handling for DuckDB, because it's not a generic
+// driver URL, but rather duckdb://FILE/PATH?param=X, similar to sqlite3.
+func locCompDoDuckDB(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return locCompDoFileBasedDriver(cmd, drivertype.DuckDB, "duckdb://", toComplete)
+}
+
+// locCompDoFileBasedDriver completes a location for a file-backed SQL driver
+// (currently SQLite and DuckDB). Both share the same scheme://FILE/PATH?param=X
+// structure; only the scheme prefix and drivertype constant differ.
+func locCompDoFileBasedDriver(cmd *cobra.Command, typ drivertype.Type, scheme, toComplete string) (
+	[]string, cobra.ShellCompDirective,
+) {
 	var (
 		ctx  = cmd.Context()
 		log  = lg.FromContext(ctx)
@@ -371,15 +392,15 @@ func locCompDoSQLite3(cmd *cobra.Command, _ []string, toComplete string) ([]stri
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	if drvr, err = ru.DriverRegistry.SQLDriverFor(drivertype.SQLite); err != nil {
-		// Shouldn't happen
+	if drvr, err = ru.DriverRegistry.SQLDriverFor(typ); err != nil {
+		// Shouldn't happen.
 		log.Error("Cannot load driver", lga.Err, err)
 		return nil, cobra.ShellCompDirectiveError
 	}
 
 	hist := &locHistory{
 		coll: ru.Config.Collection,
-		typ:  drivertype.SQLite,
+		typ:  typ,
 		log:  log,
 	}
 
@@ -392,14 +413,13 @@ func locCompDoSQLite3(cmd *cobra.Command, _ []string, toComplete string) ([]stri
 	}
 
 	// Build a list of files.
-	start := strings.TrimPrefix(toComplete, "sqlite3://")
+	start := strings.TrimPrefix(toComplete, scheme)
 	paths := locCompListFiles(ctx, start)
 	for i := range paths {
 		if ioz.IsPathToRegularFile(paths[i]) && paths[i] == start {
 			paths[i] += "?"
 		}
-
-		paths[i] = "sqlite3://" + paths[i]
+		paths[i] = scheme + paths[i]
 	}
 
 	a := hist.locations()
@@ -725,6 +745,7 @@ const (
 
 // locSchemes is the set of built-in (SQL) driver schemes.
 var locSchemes = []string{
+	"duckdb://",
 	"mysql://",
 	"postgres://",
 	"sqlite3://",

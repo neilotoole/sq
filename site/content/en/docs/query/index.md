@@ -347,7 +347,7 @@ whitespace, shell tokens, long strings, etc..
 $ sq --arg last "O'Toole" '.actor | where(.last_name == $last)'
 
 # Value containing double-quote
-sq --arg first 'Elvis "The King"' '.actor | .first_name == $first'
+sq --arg first 'Elvis "The King"' '.actor | where(.first_name == $first)'
 ```
 
 It's common to combine `sq --arg` with shell variables:

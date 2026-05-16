@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/samber/lo"
@@ -27,6 +28,77 @@ import (
 	"github.com/neilotoole/sq/testh/tu"
 )
 
+// TestCmdInspect_FKMetadata_JSON pins the end-to-end JSON shape of the
+// FK / unique-constraint / index metadata added by #498. It runs against
+// every SQL driver that supports foreign keys (i.e. everything except
+// ClickHouse) and asserts the canonical sakila edge
+// film.language_id → language.language_id round-trips through the CLI
+// JSON output, with the matching incoming back-reference on the
+// language side. A driver regression that stopped populating
+// Table.FK.Outgoing would surface here even if every driver-level test
+// still passes.
+func TestCmdInspect_FKMetadata_JSON(t *testing.T) {
+	testCases := []string{
+		sakila.SL3,
+		sakila.Duck,
+		sakila.Pg,
+		sakila.My,
+		sakila.MS,
+		sakila.Ora,
+	}
+
+	for _, handle := range testCases {
+		t.Run(handle, func(t *testing.T) {
+			if handle != sakila.SL3 && handle != sakila.Duck {
+				tu.SkipShort(t, true)
+			}
+			t.Parallel()
+
+			th := testh.New(t)
+			src := th.Source(handle)
+			tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+			require.NoError(t, tr.Exec("inspect", "--json"))
+
+			srcMeta := &metadata.Source{}
+			require.NoError(t, json.Unmarshal(tr.Out.Bytes(), srcMeta))
+
+			var film, language *metadata.Table
+			for _, tbl := range srcMeta.Tables {
+				switch strings.ToLower(tbl.Name) {
+				case sakila.TblFilm:
+					film = tbl
+				case "language":
+					language = tbl
+				}
+			}
+			require.NotNil(t, film, "film table missing from %s JSON", handle)
+			require.NotNil(t, language, "language table missing from %s JSON", handle)
+
+			require.NotNil(t, film.FK, "film.fk wrapper must be present on %s", handle)
+			require.NotEmpty(t, film.FK.Outgoing,
+				"film.fk.outgoing must be non-empty on %s", handle)
+
+			var langFK *metadata.ForeignKey
+			for _, fk := range film.FK.Outgoing {
+				if len(fk.Columns) == 1 && strings.EqualFold(fk.Columns[0], "language_id") {
+					langFK = fk
+					break
+				}
+			}
+			require.NotNil(t, langFK,
+				"film.fk.outgoing should include a single-column FK on language_id (%s)", handle)
+			require.Equal(t, "language", strings.ToLower(langFK.RefTable))
+			require.Equal(t, []string{"language_id"},
+				[]string{strings.ToLower(langFK.RefColumns[0])})
+
+			require.NotNil(t, language.FK,
+				"language.fk wrapper must be present (has incoming FKs) on %s", handle)
+			require.NotEmpty(t, language.FK.Incoming,
+				"language.fk.incoming should include the film FK on %s", handle)
+		})
+	}
+}
+
 // TestCmdInspect_json_yaml tests "sq inspect" for
 // the JSON and YAML formats.
 func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
@@ -41,6 +113,7 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 		{sakila.TSVActor, []string{source.MonotableName}},
 		{sakila.XLSX, sakila.AllTbls()},
 		{sakila.SL3, sakila.AllTbls()},
+		{sakila.Duck, sakila.AllTbls()},
 		{sakila.Pg, lo.Without(sakila.AllTbls(), sakila.TblFilmText)}, // pg doesn't have film_text
 		{sakila.My, sakila.AllTbls()},
 		{sakila.MS, sakila.AllTbls()},
@@ -161,6 +234,7 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 		{sakila.TSVActor, []string{source.MonotableName}},
 		{sakila.XLSX, sakila.AllTbls()},
 		{sakila.SL3, sakila.AllTbls()},
+		{sakila.Duck, sakila.AllTbls()},
 		{sakila.Pg, lo.Without(sakila.AllTbls(), sakila.TblFilmText)}, // pg doesn't have film_text
 		{sakila.My, sakila.AllTbls()},
 		{sakila.MS, sakila.AllTbls()},
@@ -282,19 +356,37 @@ func TestCmdInspect_stdin(t *testing.T) {
 
 	testCases := []struct {
 		fpath    string
-		wantErr  bool
 		wantType drivertype.Type
-		wantTbls []string
+		// wantLocPrefix is the expected prefix of md.Location. For
+		// document drivers (CSV/TSV) it's the entire @stdin handle. For
+		// file-backed SQL drivers (SQLite/DuckDB), the stdin handler in
+		// cli/source.go copies the stdin bytes to a temp file and
+		// rewrites the location to e.g. "duckdb:///tmp/stdin_*.db" —
+		// in that case wantLocPrefix is just the scheme.
+		wantLocPrefix string
+		// wantTblContains is a table name that md.TableNames() must
+		// contain. For document drivers this is source.MonotableName;
+		// for sakila fixtures it's a representative table.
+		wantTblContains string
+		wantErr         bool
 	}{
 		{
-			fpath:    proj.Abs(sakila.PathCSVActor),
-			wantType: drivertype.CSV,
-			wantTbls: []string{source.MonotableName},
+			fpath:           proj.Abs(sakila.PathCSVActor),
+			wantType:        drivertype.CSV,
+			wantTblContains: source.MonotableName,
+			wantLocPrefix:   source.StdinHandle,
 		},
 		{
-			fpath:    proj.Abs(sakila.PathTSVActor),
-			wantType: drivertype.TSV,
-			wantTbls: []string{source.MonotableName},
+			fpath:           proj.Abs(sakila.PathTSVActor),
+			wantType:        drivertype.TSV,
+			wantTblContains: source.MonotableName,
+			wantLocPrefix:   source.StdinHandle,
+		},
+		{
+			fpath:           proj.Abs(sakila.PathDuck),
+			wantType:        drivertype.DuckDB,
+			wantTblContains: "actor",
+			wantLocPrefix:   "duckdb://",
 		},
 	}
 
@@ -321,8 +413,9 @@ func TestCmdInspect_stdin(t *testing.T) {
 			require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
 			require.Equal(t, tc.wantType, md.Driver)
 			require.Equal(t, source.StdinHandle, md.Handle)
-			require.Equal(t, source.StdinHandle, md.Location)
-			require.Equal(t, tc.wantTbls, md.TableNames())
+			require.True(t, strings.HasPrefix(md.Location, tc.wantLocPrefix),
+				"expected Location to start with %q, got %q", tc.wantLocPrefix, md.Location)
+			require.Contains(t, md.TableNames(), tc.wantTblContains)
 		})
 	}
 }
@@ -345,6 +438,12 @@ func TestCmdInspect_mode_schemata(t *testing.T) {
 			handle: sakila.SL3,
 			wantSchemata: []schema{
 				{Name: "main", Catalog: "default", Active: active},
+			},
+		},
+		{
+			handle: sakila.Duck,
+			wantSchemata: []schema{
+				{Name: "main", Catalog: "sakila", Owner: "duckdb", Active: active},
 			},
 		},
 		{

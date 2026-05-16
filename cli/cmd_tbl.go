@@ -247,7 +247,7 @@ only applies to SQL sources.`,
   $ sq tbl drop .payment
 
   # drop multiple tables
-  $ sq drop .payment @sakila_sl3.actor`,
+  $ sq tbl drop .payment @sakila_sl3.actor`,
 	}
 
 	return cmd

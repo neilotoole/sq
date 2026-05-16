@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -240,6 +241,113 @@ func TestRecordMetadata(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestForeignKeys_Sakila verifies that the sqlite3 driver populates
+// foreign-key metadata from sakila.sqlite and that the cross-table
+// incoming back-references are wired correctly via
+// metadata.LinkForeignKeys. It also exercises the per-table
+// TableMetadata path.
+func TestForeignKeys_Sakila(t *testing.T) {
+	t.Parallel()
+
+	th, _, _, grip, _ := testh.NewWith(t, sakila.SL3)
+	md, err := grip.SourceMetadata(th.Context, false)
+	require.NoError(t, err)
+	require.NotNil(t, md)
+
+	// film.language_id -> language.language_id (single-column FK).
+	film := md.Table(sakila.TblFilm)
+	require.NotNil(t, film, "table %s missing from source metadata", sakila.TblFilm)
+	var filmToLanguage *metadata.ForeignKey
+	for _, fk := range film.FK.Outgoing {
+		if len(fk.Columns) == 1 && fk.Columns[0] == "language_id" {
+			filmToLanguage = fk
+			break
+		}
+	}
+	require.NotNil(t, filmToLanguage, "film should have an outgoing FK on language_id")
+	require.Equal(t, "language", filmToLanguage.RefTable)
+	require.Equal(t, []string{"language_id"}, filmToLanguage.RefColumns)
+
+	// Incoming back-reference on language table.
+	language := md.Table("language")
+	require.NotNil(t, language)
+	var languageFromFilm *metadata.ForeignKey
+	for _, fk := range language.FK.Incoming {
+		if fk.Table == sakila.TblFilm && len(fk.Columns) == 1 && fk.Columns[0] == "language_id" {
+			languageFromFilm = fk
+			break
+		}
+	}
+	require.NotNil(t, languageFromFilm, "language.FK.Incoming should include film.language_id")
+	require.Same(t, filmToLanguage, languageFromFilm,
+		"language.FK.Incoming entry must share identity with film.FK.Outgoing entry")
+
+	// film_actor has two outgoing FKs (to film and to actor) on its
+	// composite PK. The sakila.sqlite schema declares these as two
+	// independent single-column FKs.
+	filmActor := md.Table(sakila.TblFilmActor)
+	require.NotNil(t, filmActor)
+	require.NotEmpty(t, filmActor.FK.Outgoing)
+	refs := make(map[string]bool, len(filmActor.FK.Outgoing))
+	for _, fk := range filmActor.FK.Outgoing {
+		refs[fk.RefTable] = true
+	}
+	require.True(t, refs["film"], "film_actor should have FK to film")
+	require.True(t, refs["actor"], "film_actor should have FK to actor")
+
+	// Per-table TableMetadata path also populates outgoing FKs.
+	filmTbl, err := grip.TableMetadata(th.Context, sakila.TblFilm)
+	require.NoError(t, err)
+	require.NotEmpty(t, filmTbl.FK.Outgoing,
+		"TableMetadata should populate Table.FK.Outgoing for single-table inspect")
+
+	// Per-table TableMetadata also populates Table.FK.Incoming. The
+	// language table is referenced by film (twice — language_id and
+	// original_language_id) and by nothing else.
+	languageTbl, err := grip.TableMetadata(th.Context, "language")
+	require.NoError(t, err)
+	require.NotEmpty(t, languageTbl.FK.Incoming,
+		"TableMetadata should populate Table.FK.Incoming for single-table inspect")
+	for _, fk := range languageTbl.FK.Incoming {
+		require.Equal(t, sakila.TblFilm, fk.Table,
+			"every incoming FK on language should originate from film")
+	}
+}
+
+// TestIndexes_Sakila verifies that the sqlite3 driver populates index
+// and unique-constraint metadata from sakila.sqlite. Sakila has no
+// declared UNIQUE constraints, but it does carry a CREATE INDEX on
+// film.language_id and a PK-backing autoindex on every table.
+func TestIndexes_Sakila(t *testing.T) {
+	t.Parallel()
+
+	th, _, _, grip, _ := testh.NewWith(t, sakila.SL3)
+	md, err := grip.SourceMetadata(th.Context, false)
+	require.NoError(t, err)
+	require.NotNil(t, md)
+
+	film := md.Table(sakila.TblFilm)
+	require.NotNil(t, film)
+	require.NotEmpty(t, film.Indexes, "film should report indexes")
+
+	// At least one of film's indexes covers language_id (created by
+	// the sakila schema for FK-join performance).
+	var langIdx *metadata.Index
+	for _, idx := range film.Indexes {
+		if slices.Contains(idx.Columns, "language_id") {
+			langIdx = idx
+			break
+		}
+	}
+	require.NotNil(t, langIdx, "film should have an index covering language_id")
+	require.False(t, langIdx.Primary, "language_id index is not the PK")
+
+	// Verify single-table TableMetadata path also populates indexes.
+	filmTbl, err := grip.TableMetadata(th.Context, sakila.TblFilm)
+	require.NoError(t, err)
+	require.NotEmpty(t, filmTbl.Indexes, "TableMetadata should populate Table.Indexes")
 }
 
 func TestPayments(t *testing.T) {

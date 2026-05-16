@@ -228,18 +228,18 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 				tc.beforeRun(tc, th, qc)
 			}
 
-			gotSQL, gotErr := libsq.SLQ2SQL(th.Context, qc, in)
+			gotRes, gotErr := libsq.SLQ2SQL(th.Context, qc, in)
 			if tc.wantErr {
 				assert.Error(t, gotErr)
 				t.Logf("ERROR: %v", gotErr)
 				return
 			}
 
-			t.Logf("SQL:\n\n%s\n\n", gotSQL)
 			require.NoError(t, gotErr)
+			t.Logf("SQL:\n\n%s\n\n", gotRes.SQL)
 
 			if want != "" {
-				require.Equal(t, want, gotSQL)
+				require.Equal(t, want, gotRes.SQL)
 			}
 
 			if tc.skipExec {

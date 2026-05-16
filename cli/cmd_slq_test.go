@@ -3,16 +3,20 @@ package cli_test
 import (
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
 
+	goccy "github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli"
+	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
@@ -383,6 +387,12 @@ func TestCmdSLQ_FlagActiveSchema(t *testing.T) {
 			skipReason: `SQLite 'schema' support requires implementing 'ATTACH DATABASE'.
 See: https://github.com/neilotoole/sq/issues/324`,
 		},
+		{
+			handle: sakila.Duck,
+			skipReason: `DuckDB excludes information_schema from its referenceable schema
+list, so --src.schema=information_schema is not supported.
+See: https://github.com/neilotoole/sq/issues/437`,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -447,6 +457,231 @@ See: https://github.com/neilotoole/sq/issues/324`,
 			require.Equal(t, tc.expectSchemaFuncValue, tr.OutString())
 		})
 	}
+}
+
+// TestCmdSLQ_RenderSQL_Text verifies that --render-sql with the default
+// (text) format prints the rendered SQL without executing it.
+func TestCmdSLQ_RenderSQL_Text(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
+	require.NoError(t, tr.Exec("slq", "--render-sql", "--monochrome", src.Handle+".actor"))
+
+	out := strings.TrimSpace(tr.OutString())
+	require.True(t, strings.HasPrefix(strings.ToUpper(out), "SELECT"),
+		"expected SQL starting with SELECT, got: %s", out)
+	require.Contains(t, strings.ToLower(out), "actor")
+}
+
+// TestCmdSLQ_RenderSQL_JSON verifies that --render-sql --format=json
+// emits the structured payload.
+func TestCmdSLQ_RenderSQL_JSON(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
+	require.NoError(t, tr.Exec("slq", "--render-sql", "--format=json", src.Handle+".actor"))
+
+	var got output.SQLPayload
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
+	require.Equal(t, src.Handle+".actor", got.SLQ)
+	require.Contains(t, strings.ToUpper(got.SQL), "SELECT")
+	require.Contains(t, strings.ToLower(got.SQL), "actor")
+	require.Equal(t, "sqlite3", got.Dialect)
+	require.Equal(t, src.Handle, got.Sources.Target)
+	require.Equal(t, []string{src.Handle}, got.Sources.Inputs)
+}
+
+// TestCmdSLQ_RenderSQL_JSONL verifies that --render-sql --format=jsonl
+// emits a single-line JSON payload.
+func TestCmdSLQ_RenderSQL_JSONL(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
+	require.NoError(t, tr.Exec("slq", "--render-sql", "--format=jsonl", src.Handle+".actor"))
+
+	// tr.Out.String() retains the trailing newline written by the JSONL writer;
+	// tr.OutString() would strip it. Use the raw buffer to verify exactly one
+	// newline (the trailing one), confirming compact single-line output.
+	out := tr.Out.String()
+	require.Equal(t, 1, strings.Count(out, "\n"))
+	require.True(t, strings.HasSuffix(out, "\n"))
+
+	var got output.SQLPayload
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(out)), &got))
+	require.Equal(t, "sqlite3", got.Dialect)
+}
+
+// TestCmdSLQ_RenderSQL_YAML verifies that --render-sql --format=yaml
+// emits the payload as YAML.
+func TestCmdSLQ_RenderSQL_YAML(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
+	require.NoError(t, tr.Exec("slq", "--render-sql", "--format=yaml", src.Handle+".actor"))
+
+	var got output.SQLPayload
+	require.NoError(t, goccy.Unmarshal(tr.Out.Bytes(), &got))
+	require.Equal(t, "sqlite3", got.Dialect)
+	require.Equal(t, src.Handle, got.Sources.Target)
+}
+
+// TestCmdSLQ_RenderSQL_CSV_FallsBackToText verifies that requesting a
+// format with no SQL writer of its own (e.g. csv) falls back to the
+// text writer, per the existing OptFormat fallback convention.
+// execSLQRenderSQL logs a Warn when this happens; the test only
+// asserts the user-visible output (plain SQL), since the log goes
+// through the slog handler and is not surfaced on stderr.
+func TestCmdSLQ_RenderSQL_CSV_FallsBackToText(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
+	require.NoError(t, tr.Exec("slq", "--render-sql", "--format=csv", "--monochrome", src.Handle+".actor"))
+
+	out := strings.TrimSpace(tr.OutString())
+	require.True(t, strings.HasPrefix(strings.ToUpper(out), "SELECT"))
+}
+
+// TestCmdSLQ_RenderSQL_InsertConflict verifies that combining
+// --render-sql with --insert is rejected.
+func TestCmdSLQ_RenderSQL_InsertConflict(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
+	err := tr.Exec("slq", "--render-sql", "--insert="+src.Handle+".foo", src.Handle+".actor")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "render-sql")
+}
+
+// TestCmdSLQ_RenderSQL_ArgSubstitution verifies that --arg values
+// appear in both the rendered SQL and the JSON payload's args field.
+func TestCmdSLQ_RenderSQL_ArgSubstitution(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
+	require.NoError(t, tr.Exec("slq",
+		"--render-sql", "--format=json",
+		"--arg", "name:TOM",
+		src.Handle+".actor | .first_name == $name"))
+
+	var got output.SQLPayload
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
+	require.Equal(t, "TOM", got.Args["name"])
+	require.Contains(t, got.SQL, "TOM")
+}
+
+// TestCmdSLQ_RenderSQL_CrossSource verifies that a cross-source SLQ
+// (SQLite + CSV) renders against the synthetic join DB. Sources.Target
+// should be the @join_<uniq> handle, Inputs should list both user-named
+// handles, and Dialect should be the scratch SQLite dialect.
+func TestCmdSLQ_RenderSQL_CrossSource(t *testing.T) {
+	th := testh.New(t)
+	sl3 := th.Source(sakila.SL3)
+	csvSrc := th.Source(sakila.CSVActor)
+
+	tr := testrun.New(th.Context, t, nil).Add(*sl3, *csvSrc).Hush()
+	require.NoError(t, tr.Exec("slq",
+		"--render-sql", "--format=json",
+		"@sakila_sl3.actor | join(@sakila_csv_actor.data, .actor_id)"))
+
+	var got output.SQLPayload
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
+	require.True(t, strings.HasPrefix(got.Sources.Target, "@join_"),
+		"expected Sources.Target to start with @join_, got: %s", got.Sources.Target)
+	require.ElementsMatch(t,
+		[]string{sakila.SL3, sakila.CSVActor},
+		got.Sources.Inputs)
+	require.Equal(t, "sqlite3", got.Dialect,
+		"join DB dialect should be the scratch sqlite3")
+}
+
+// TestCmdSLQ_RenderSQL_InvalidSLQ verifies that an unparseable SLQ
+// surfaces an error and does not print partial SQL to stdout.
+func TestCmdSLQ_RenderSQL_InvalidSLQ(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
+	err := tr.Exec("slq", "--render-sql", "@no_such_handle.foo")
+	require.Error(t, err)
+	require.Empty(t, strings.TrimSpace(tr.OutString()),
+		"stdout should be empty on error, got: %s", tr.OutString())
+}
+
+// TestRenderSQLSupportsFormat is a parity test pinning the
+// renderSQLSupportsFormat allow-list to format.All(). Adding a new
+// format.Format to format.All() will fail this test until the new
+// format is added to the case table (and, importantly, until a
+// corresponding writer dispatch is added to newWriters or the
+// new format is explicitly listed as falling back to text).
+func TestRenderSQLSupportsFormat(t *testing.T) {
+	cases := []struct {
+		fm        format.Format
+		supported bool
+	}{
+		{format.Text, true},
+		{format.Raw, true},
+		{format.JSON, true},
+		{format.JSONL, true},
+		{format.YAML, true},
+		{format.JSONA, false},
+		{format.CSV, false},
+		{format.TSV, false},
+		{format.HTML, false},
+		{format.Markdown, false},
+		{format.XML, false},
+		{format.XLSX, false},
+	}
+
+	seen := make(map[format.Format]bool, len(cases))
+	for _, tc := range cases {
+		t.Run(string(tc.fm), func(t *testing.T) {
+			seen[tc.fm] = true
+			require.Equal(t, tc.supported, cli.RenderSQLSupportsFormat(tc.fm))
+		})
+	}
+
+	for _, fm := range format.All() {
+		require.True(t, seen[fm],
+			"format %q missing from TestRenderSQLSupportsFormat cases; "+
+				"add it (and a writer dispatch in newWriters if appropriate)", fm)
+	}
+}
+
+// TestCmdSLQ_RenderSQL_ExplicitFalse verifies that an explicit
+// --render-sql=false does not trigger render-only mode; the query
+// should execute normally and emit records, not SQL text.
+func TestCmdSLQ_RenderSQL_ExplicitFalse(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
+	require.NoError(t, tr.Exec("slq", "--render-sql=false", "--format=json", src.Handle+".actor"))
+
+	// A real query result is a JSON array of records; a render-sql JSON
+	// payload would be a single object starting with '{'.
+	out := strings.TrimSpace(tr.OutString())
+	require.True(t, strings.HasPrefix(out, "["),
+		"expected query results (JSON array), got: %s", out)
+}
+
+// TestCmdSLQ_RenderSQL_NotOnSQLCmd verifies that --render-sql is not
+// available on the sq sql command (different command, different flag
+// set).
+func TestCmdSLQ_RenderSQL_NotOnSQLCmd(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
+	err := tr.Exec("sql", "--render-sql", "SELECT 1")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unknown flag")
 }
 
 // TestCmdSLQ_NumericSchema tests SLQ query execution against tables in schemas

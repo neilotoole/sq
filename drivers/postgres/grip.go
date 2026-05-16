@@ -45,7 +45,14 @@ func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Tab
 	defer bar.Stop()
 	ctx = progress.NewBarContext(ctx, bar)
 
-	return getTableMetadata(ctx, g.db, tblName)
+	tblMeta, err := getTableMetadata(ctx, g.db, tblName)
+	if err != nil {
+		return nil, err
+	}
+	if err = populateTableExtras(ctx, g.db, tblMeta); err != nil {
+		return nil, err
+	}
+	return tblMeta, nil
 }
 
 // SourceMetadata implements driver.Grip.

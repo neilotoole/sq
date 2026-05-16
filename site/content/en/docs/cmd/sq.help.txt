@@ -129,6 +129,7 @@ Flags:
       --no-cache                       Don't cache ingest data
       --driver.csv.delim string        Delimiter for ingest CSV data (default "comma")
       --driver.csv.empty-as-null       Treat ingest empty CSV fields as NULL (default true)
+      --render-sql                     Render the SLQ to SQL without executing it
       --version                        Print version info
   -M, --monochrome                     Don't print color output
       --no-progress                    Don't show progress bar
@@ -137,7 +138,7 @@ Flags:
       --debug.pprof string             pprof profiling mode (default "off")
       --config string                  Load config from here
       --log                            Enable logging
-      --log.file string                Log file path (default "/Users/neilotoole/Library/Logs/sq/sq.log")
+      --log.file string                Log file path (default "$HOME/Library/Logs/sq/sq.log")
       --log.level string               Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
       --log.format string              Log output format (text or json) (default "text")
       --error.format string            Error output format (default "text")
