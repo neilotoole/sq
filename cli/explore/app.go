@@ -57,11 +57,12 @@ const (
 // the struct.
 type Model struct {
 	focusedSrc *source.Source
-	//nolint:unused // populated by later phases when async loads fail.
-	lastErr error
+	lastErr    error
 	// ru is set by RunWithIO and consumed by Phase 4+ for metadata fetches.
 	ru          *run.Run
 	sources     *sourcesPane
+	schema      *schemaTree
+	fetcher     metaFetcher
 	focusedTbl  string
 	finalHandle string
 	keys        keyMap
@@ -90,6 +91,7 @@ func NewModel(cfg Config) (*Model, error) {
 		focusedTbl: cfg.FocusedTable,
 	}
 	m.sources = newSourcesPane(cfg.Sources, cfg.FocusedSrc, m.theme)
+	m.schema = newSchemaTree(cfg.FocusedSrc.Handle, m.theme)
 	return m, nil
 }
 
@@ -98,9 +100,17 @@ func NewModel(cfg Config) (*Model, error) {
 // tea.Quit. Callers consult this after tea.Program.Run.
 func (m *Model) FinalHandle() string { return m.finalHandle }
 
-// Init satisfies tea.Model. v1 returns nil; later phases dispatch the
-// initial fetches here.
-func (m *Model) Init() tea.Cmd { return nil }
+// Init satisfies tea.Model. It dispatches the initial source-overview
+// and table-names fetches for the focused source.
+func (m *Model) Init() tea.Cmd {
+	if m.fetcher == nil {
+		return nil
+	}
+	return tea.Batch(
+		fetchSourceOverviewCmd(context.Background(), m.fetcher, m.focusedSrc.Handle),
+		fetchTableNamesCmd(context.Background(), m.fetcher, m.focusedSrc.Handle),
+	)
+}
 
 // Update routes messages. The v1 model handles only the quit and
 // window-size paths.
@@ -109,6 +119,28 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		return m, nil
+	case sourceOverviewLoadedMsg:
+		if msg.err != nil {
+			m.lastErr = msg.err
+		}
+		// Detail pane is added in Phase 5; for now we accept the overview
+		// and store nothing further.
+		_ = msg.meta
+		return m, nil
+	case tableNamesLoadedMsg:
+		if msg.err != nil {
+			m.lastErr = msg.err
+			return m, nil
+		}
+		m.schema.setTableNames(msg.names)
+		return m, nil
+	case tableMetaLoadedMsg:
+		if msg.err != nil {
+			m.lastErr = msg.err
+			return m, nil
+		}
+		m.schema.setTableMeta(msg.tableName, msg.meta)
 		return m, nil
 	case tea.KeyMsg:
 		if key.Matches(msg, m.keys.Quit) {
@@ -145,9 +177,9 @@ func (m *Model) View() string {
 	body := m.height - 2 // 1 for title, 1 for help footer.
 
 	srcCol := m.sources.view(m.focused == paneSources, col, body)
-	// Later phases supply the schema and detail panes; for now show
-	// placeholders so the layout reads correctly during dev.
-	schCol := m.theme.Pane.Width(col).Height(body).Render("Schema\n(pending)")
+	schCol := m.schema.view(m.focused == paneSchema, col, body)
+	// Later phases supply the detail pane; for now show a placeholder so
+	// the layout reads correctly during dev.
 	detCol := m.theme.Pane.Width(m.width - 2*col).Height(body).Render("Detail\n(pending)")
 
 	row := lipgloss.JoinHorizontal(lipgloss.Top, srcCol, schCol, detCol)
@@ -174,16 +206,37 @@ func (m *Model) recordFinalHandle() {
 }
 
 // routeKey dispatches a non-global key message to the focused pane.
-// Later phases extend the switch with paneSchema and paneDetail cases.
+// Later phases extend the switch with the paneDetail case.
 func (m *Model) routeKey(msg tea.KeyMsg) tea.Cmd {
-	if m.focused == paneSources {
-		cmd := m.sources.update(msg, m.keys)
-		// When the user moves selection in the sources pane, also
-		// reset the focused source for downstream panes. Other panes
-		// react to focusedSrc changes in later phases.
-		m.focusedSrc = m.sources.selectedSource()
-		m.focusedTbl = ""
-		return cmd
+	switch m.focused {
+	case paneSources:
+		m.sources.update(msg, m.keys)
+		newSrc := m.sources.selectedSource()
+		if newSrc != m.focusedSrc {
+			m.focusedSrc = newSrc
+			m.focusedTbl = ""
+			m.schema = newSchemaTree(newSrc.Handle, m.theme)
+			if m.fetcher != nil {
+				return tea.Batch(
+					fetchSourceOverviewCmd(context.Background(), m.fetcher, newSrc.Handle),
+					fetchTableNamesCmd(context.Background(), m.fetcher, newSrc.Handle),
+				)
+			}
+		}
+		return nil
+	case paneSchema:
+		needsFetch, tblName := m.schema.update(msg, m.keys)
+		if needsFetch && m.fetcher != nil {
+			return fetchTableMetaCmd(context.Background(), m.fetcher, m.focusedSrc.Handle, tblName)
+		}
+		// Update focusedTbl for the detail pane (Phase 5) to react to.
+		if t := m.schema.selectedTableName(); t != "" {
+			m.focusedTbl = t
+		}
+		return nil
+	case paneDetail:
+		// Detail pane key handling lands in Phase 5.
+		return nil
 	}
 	return nil
 }
@@ -204,6 +257,9 @@ func RunWithIO(ctx context.Context, ru *run.Run, cfg Config, out, errOut io.Writ
 		return "", err
 	}
 	m.ru = ru
+	if ru != nil {
+		m.fetcher = newRunFetcher(ru)
+	}
 
 	opts := []tea.ProgramOption{
 		tea.WithContext(ctx),

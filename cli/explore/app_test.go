@@ -97,6 +97,57 @@ func TestModel_SourcesPane_DownMovesSelection(t *testing.T) {
 	require.Equal(t, srcs[1], m.sources.selectedSource())
 }
 
+func TestModel_Init_DispatchesTableNamesFetch(t *testing.T) {
+	src := &source.Source{Handle: "@x"}
+	cfg := Config{Sources: []*source.Source{src}, FocusedSrc: src, NoColor: true}
+	m, _ := NewModel(cfg)
+	m.fetcher = &fakeFetcher{tableNames: map[string][]string{"@x": {"a"}}}
+
+	cmd := m.Init()
+	require.NotNil(t, cmd, "Init should dispatch initial fetches")
+	// Init returns tea.Batch, which produces a tea.BatchMsg containing
+	// the sub-Cmds. Sanity-check that calling it doesn't panic and
+	// produces a non-nil message.
+	msg := cmd()
+	require.NotNil(t, msg)
+}
+
+func TestModel_TableNamesLoaded_PopulatesSchemaPane(t *testing.T) {
+	src := &source.Source{Handle: "@x"}
+	cfg := Config{Sources: []*source.Source{src}, FocusedSrc: src, NoColor: true}
+	m, _ := NewModel(cfg)
+
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
+	m.Update(tableNamesLoadedMsg{handle: "@x", names: []string{"actor", "film"}})
+
+	out := m.View()
+	require.Contains(t, out, "tables (2)")
+}
+
+func TestModel_ExpandTable_DispatchesTableMetaFetch(t *testing.T) {
+	src := &source.Source{Handle: "@x"}
+	cfg := Config{Sources: []*source.Source{src}, FocusedSrc: src, NoColor: true}
+	m, _ := NewModel(cfg)
+	m.fetcher = &fakeFetcher{}
+
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
+	m.Update(tableNamesLoadedMsg{handle: "@x", names: []string{"actor"}})
+	// Focus the schema pane.
+	m.focused = paneSchema
+	// Expand "tables (1)".
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeySpace})
+	require.Nil(t, cmd, "expanding the group itself doesn't fetch")
+
+	// Move down to "actor".
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	_, cmd = m.Update(tea.KeyMsg{Type: tea.KeySpace})
+	require.NotNil(t, cmd, "expanding an unloaded table should dispatch a fetch")
+	msg := cmd()
+	loaded, ok := msg.(tableMetaLoadedMsg)
+	require.True(t, ok, "expected tableMetaLoadedMsg, got %T", msg)
+	require.Equal(t, "actor", loaded.tableName)
+}
+
 func TestRun_QuitImmediately(t *testing.T) {
 	src := &source.Source{Handle: "@test"}
 	cfg := Config{

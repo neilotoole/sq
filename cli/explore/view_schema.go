@@ -283,8 +283,6 @@ func (tr *schemaTree) move(delta int) {
 // (the table's children haven't been built yet because we don't have
 // its metadata). The caller (schemaPane.update) uses this signal to
 // emit a fetchTableMetaCmd.
-//
-//nolint:unparam // needsFetch is consumed by (*schemaTree).update in Phase 4.3.
 func (tr *schemaTree) toggleExpand(idx int) (needsFetch bool, tableName string) {
 	vs := tr.visibleNodes()
 	if idx < 0 || idx >= len(vs) {
@@ -310,8 +308,6 @@ func (tr *schemaTree) toggleExpand(idx int) (needsFetch bool, tableName string) 
 
 // view renders the tree at given width/height with the cursor styled
 // if focused.
-//
-//nolint:unused // consumed in Phase 4.3.
 func (tr *schemaTree) view(focused bool, width, height int) string {
 	var b strings.Builder
 	title := tr.theme.Title.Render("Schema (" + tr.handle + ")")
@@ -347,11 +343,10 @@ func (tr *schemaTree) view(focused bool, width, height int) string {
 	return style.Width(width).Height(height).Render(b.String())
 }
 
-// update routes a key message scoped to the tree. Returns a tea.Cmd
-// if the action triggers a fetch (e.g. expanding an unloaded table).
-//
-//nolint:unused // consumed in Phase 4.3.
-func (tr *schemaTree) update(msg tea.KeyMsg, keys keyMap) (cmd tea.Cmd, needsFetch bool, tableName string) {
+// update routes a key message scoped to the tree. Returns (needsFetch,
+// tableName) when the action triggers a fetch (e.g. expanding an
+// unloaded table); the caller dispatches the corresponding tea.Cmd.
+func (tr *schemaTree) update(msg tea.KeyMsg, keys keyMap) (needsFetch bool, tableName string) {
 	switch {
 	case key.Matches(msg, keys.Down):
 		tr.move(1)
@@ -367,5 +362,5 @@ func (tr *schemaTree) update(msg tea.KeyMsg, keys keyMap) (cmd tea.Cmd, needsFet
 	case key.Matches(msg, keys.Space), key.Matches(msg, keys.Enter), key.Matches(msg, keys.Right):
 		needsFetch, tableName = tr.toggleExpand(tr.selected)
 	}
-	return nil, needsFetch, tableName
+	return needsFetch, tableName
 }

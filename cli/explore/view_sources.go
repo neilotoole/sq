@@ -38,7 +38,7 @@ func (p *sourcesPane) selectedSource() *source.Source {
 }
 
 // update handles a key message scoped to this pane.
-func (p *sourcesPane) update(msg tea.KeyMsg, keys keyMap) tea.Cmd {
+func (p *sourcesPane) update(msg tea.KeyMsg, keys keyMap) {
 	switch {
 	case key.Matches(msg, keys.Down):
 		if p.selected < len(p.sources)-1 {
@@ -55,7 +55,6 @@ func (p *sourcesPane) update(msg tea.KeyMsg, keys keyMap) tea.Cmd {
 			p.selected = len(p.sources) - 1
 		}
 	}
-	return nil
 }
 
 // view renders the pane at the given width/height.

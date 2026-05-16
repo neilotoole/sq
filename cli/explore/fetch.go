@@ -80,16 +80,12 @@ func fetchTableMetaCmd(ctx context.Context, f metaFetcher, handle, tableName str
 }
 
 // runFetcher adapts *run.Run to the metaFetcher interface.
-//
-//nolint:unused // wired up in Phase 4.3.
 type runFetcher struct {
 	ru *run.Run
 }
 
-//nolint:unused // wired up in Phase 4.3.
 func newRunFetcher(ru *run.Run) *runFetcher { return &runFetcher{ru: ru} }
 
-//nolint:unused // wired up in Phase 4.3.
 func (rf *runFetcher) FetchSourceOverview(ctx context.Context, handle string) (*sourceOverview, error) {
 	src, err := rf.ru.Config.Collection.Get(handle)
 	if err != nil {
@@ -115,12 +111,10 @@ func (rf *runFetcher) FetchSourceOverview(ctx context.Context, handle string) (*
 	}, nil
 }
 
-//nolint:unused // wired up in Phase 4.3.
 func (rf *runFetcher) FetchTableNames(ctx context.Context, handle string) ([]string, error) {
 	return rf.ru.MDCache.TableNames(ctx, handle)
 }
 
-//nolint:unused // wired up in Phase 4.3.
 func (rf *runFetcher) FetchTableMeta(ctx context.Context, handle, tableName string) (*metadata.Table, error) {
 	return rf.ru.MDCache.TableMeta(ctx, source.Table{Handle: handle, Name: tableName})
 }
