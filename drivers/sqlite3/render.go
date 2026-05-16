@@ -164,5 +164,12 @@ func renderFuncEndsWithSubstr(rc *render.Context, fn *ast.FuncNode) (string, err
 		return "", err
 	}
 	n := utf8.RuneCountInString(lit)
+	if n == 0 {
+		// SQLite evaluates substr(col, -0) as substr(col, 0), which returns
+		// the full string, so the naive `substr(col, -N) = ''` shape would
+		// be false for every row. Match the LIKE-based drivers, where
+		// `col LIKE '%'` matches every non-NULL row.
+		return colSQL + " IS NOT NULL", nil
+	}
 	return "substr(" + colSQL + ", -" + strconv.Itoa(n) + ") = " + stringz.SingleQuote(lit), nil
 }

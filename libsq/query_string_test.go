@@ -104,6 +104,23 @@ func TestQuery_string_contains(t *testing.T) {
 			wantRecCount: 0,
 		},
 		{
+			// Empty pattern matches every non-NULL row on all drivers.
+			// SQLite's instr-based path already returns this naturally:
+			// instr(col, '') = 1, so the `> 0` test is true for any
+			// non-NULL row. Tested here to lock in the cross-driver
+			// invariant alongside startswith/endswith.
+			name:    "contains/empty-pattern-matches-all",
+			in:      `@sakila | .actor | where(contains(.first_name, ""))`,
+			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE '%%' ESCAPE '|'`,
+			override: driverMap{
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE instr("first_name", '') > 0`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY '%%' ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE '%%' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE position(`first_name`, '') > 0",
+			},
+			wantRecCount: 200,
+		},
+		{
 			name:    "contains/wrong-arg-count",
 			in:      `@sakila | .actor | where(contains(.first_name))`,
 			wantErr: true,
@@ -161,6 +178,21 @@ func TestQuery_string_startswith(t *testing.T) {
 			},
 			wantRecCount: 0,
 		},
+		{
+			// Empty pattern matches every non-NULL row on all drivers.
+			// SQLite's substr(col, 1, 0) returns '', which equals ''
+			// naturally — no special-case needed (unlike endswith).
+			name:    "startswith/empty-pattern-matches-all",
+			in:      `@sakila | .actor | where(startswith(.last_name, ""))`,
+			wantSQL: `SELECT * FROM "actor" WHERE "last_name" LIKE '%' ESCAPE '|'`,
+			override: driverMap{
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE substr("last_name", 1, 0) = ''`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `last_name` LIKE BINARY '%' ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "last_name" COLLATE Latin1_General_BIN2 LIKE '%' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE startsWith(`last_name`, '')",
+			},
+			wantRecCount: 200,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -208,6 +240,23 @@ func TestQuery_string_endswith(t *testing.T) {
 				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE endsWith(`first_name`, '_x')",
 			},
 			wantRecCount: 0,
+		},
+		{
+			// Empty pattern matches every non-NULL row on all drivers.
+			// SQLite's substr-based path would naively be false for every
+			// row (substr(col, -0) returns the full string); the renderer
+			// special-cases this to `col IS NOT NULL`. See
+			// drivers/sqlite3/render.go:renderFuncEndsWithSubstr.
+			name:    "endswith/empty-pattern-matches-all",
+			in:      `@sakila | .actor | where(endswith(.last_name, ""))`,
+			wantSQL: `SELECT * FROM "actor" WHERE "last_name" LIKE '%' ESCAPE '|'`,
+			override: driverMap{
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "last_name" IS NOT NULL`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `last_name` LIKE BINARY '%' ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "last_name" COLLATE Latin1_General_BIN2 LIKE '%' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE endsWith(`last_name`, '')",
+			},
+			wantRecCount: 200,
 		},
 	}
 
