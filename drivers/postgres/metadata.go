@@ -467,7 +467,15 @@ AND table_name = $1`
 // is the per-table counterpart to the bulk loaders called by
 // getSourceMetadata, and is what Grip.TableMetadata uses to give
 // single-table inspect the same FK shape as full-source inspect.
+//
+// Views (and other non-table relations) carry no FKs, UCs, or
+// indexes, so populateTableExtras returns immediately for them and
+// avoids the four extra round-trips.
 func populateTableExtras(ctx context.Context, db sqlz.DB, tblMeta *metadata.Table) error {
+	if tblMeta.TableType != sqlz.TableTypeTable {
+		return nil
+	}
+
 	outgoing, err := getPgForeignKeys(ctx, db, tblMeta.Name)
 	if err != nil {
 		return err

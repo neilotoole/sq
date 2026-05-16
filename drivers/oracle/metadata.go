@@ -408,6 +408,7 @@ WHERE t.table_name = :1`
 // Oracle's stored identifier convention.
 func getOracleUniqueConstraints(ctx context.Context, db *sql.DB, tblName string,
 ) ([]*metadata.UniqueConstraint, error) {
+	log := lg.FromContext(ctx)
 	query := `SELECT
     c.constraint_name,
     c.table_name,
@@ -428,7 +429,7 @@ WHERE c.constraint_type = 'U'`
 	if err != nil {
 		return nil, errw(err)
 	}
-	defer rows.Close()
+	defer sqlz.CloseRows(log, rows)
 
 	type ucKey struct {
 		table, name string
@@ -467,6 +468,7 @@ WHERE c.constraint_type = 'U'`
 // excluded via index_type not in ('LOB', 'CLUSTER') and a generated=NO
 // filter.
 func getOracleIndexes(ctx context.Context, db *sql.DB, tblName string) ([]*metadata.Index, error) {
+	log := lg.FromContext(ctx)
 	query := `SELECT
     i.table_name,
     i.index_name,
@@ -481,6 +483,7 @@ JOIN user_ind_columns  ic
   AND ic.table_name = i.table_name
 LEFT JOIN user_constraints pk
   ON  pk.index_name      = i.index_name
+  AND pk.table_name      = i.table_name
   AND pk.constraint_type = 'P'
 WHERE i.index_type NOT IN ('LOB', 'CLUSTER')
   AND i.generated = 'N'`
@@ -495,7 +498,7 @@ WHERE i.index_type NOT IN ('LOB', 'CLUSTER')
 	if err != nil {
 		return nil, errw(err)
 	}
-	defer rows.Close()
+	defer sqlz.CloseRows(log, rows)
 
 	type idxKey struct {
 		table, name string
@@ -542,6 +545,7 @@ WHERE i.index_type NOT IN ('LOB', 'CLUSTER')
 // invoke metadata.LinkForeignKeys at the source level.
 func getOracleForeignKeys(ctx context.Context, db *sql.DB, tblName string,
 ) ([]*metadata.ForeignKey, error) {
+	log := lg.FromContext(ctx)
 	// USER_CONSTRAINTS rows of type 'R' are referential constraints (FKs).
 	// R_CONSTRAINT_NAME identifies the referenced unique/PK constraint;
 	// joining USER_CONS_COLUMNS twice on matching POSITION lines up the
@@ -576,7 +580,7 @@ WHERE c.constraint_type = 'R'`
 	if err != nil {
 		return nil, errw(err)
 	}
-	defer rows.Close()
+	defer sqlz.CloseRows(log, rows)
 
 	type fkKey struct {
 		table, name string
@@ -624,6 +628,7 @@ WHERE c.constraint_type = 'R'`
 // reported here.
 func getOracleIncomingFKs(ctx context.Context, db *sql.DB, tblName string,
 ) ([]*metadata.ForeignKey, error) {
+	log := lg.FromContext(ctx)
 	const query = `SELECT
     c.constraint_name,
     c.table_name      AS fk_table,
@@ -648,7 +653,7 @@ ORDER BY c.table_name, c.constraint_name, fkc.position`
 	if err != nil {
 		return nil, errw(err)
 	}
-	defer rows.Close()
+	defer sqlz.CloseRows(log, rows)
 
 	type fkKey struct {
 		table, name string

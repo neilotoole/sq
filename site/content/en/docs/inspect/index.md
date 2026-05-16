@@ -179,11 +179,19 @@ the referenced table's `fk.incoming`:
   tools that want to render the schema as a directed graph without
   walking every table to discover incoming edges.
 
-Composite foreign keys and cross-schema references are supported. The
-`on_delete` and `on_update` referential actions are surfaced where the
-driver reports them (Oracle exposes `on_delete` only; DuckDB's
-`duckdb_constraints()` view doesn't expose either action, so both
-fields are left empty for DuckDB sources).
+Composite foreign keys are supported by every driver. Cross-schema
+and cross-catalog references are reported by Postgres, MySQL, and
+SQL Server. Oracle reports cross-schema references via `ref_schema`
+for *outgoing* FKs only — `fk.incoming` is scoped to the current
+user's schema, so FKs from tables in other schemas are not surfaced.
+DuckDB's `duckdb_constraints()` view does not expose the referenced
+table's schema, so a DuckDB FK that crosses schemas is reported as
+same-schema.
+
+The `on_delete` and `on_update` referential actions are surfaced
+where the driver reports them (Oracle exposes `on_delete` only;
+DuckDB's `duckdb_constraints()` view doesn't expose either action, so
+both fields are left empty for DuckDB sources).
 
 For example, to list every parent → child relationship in the
 [Sakila](/docs/develop/sakila/) schema:

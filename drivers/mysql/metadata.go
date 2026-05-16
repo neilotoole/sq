@@ -205,6 +205,13 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 		return nil, err
 	}
 
+	// FK / unique-constraint / index introspection is only meaningful
+	// for real tables. Views show up in INFORMATION_SCHEMA.TABLES but
+	// carry no FKs, UCs, or indexes, so skip the four extra round-trips.
+	if tblMeta.TableType != sqlz.TableTypeTable {
+		return tblMeta, nil
+	}
+
 	outgoing, err := getMySQLForeignKeys(ctx, db, tblName)
 	if err != nil {
 		return nil, err

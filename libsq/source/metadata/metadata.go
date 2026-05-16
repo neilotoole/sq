@@ -83,7 +83,7 @@ func (s *Source) Table(tblName string) *Table {
 	return nil
 }
 
-// Clone returns a deep copy of md. If md is nil, nil is returned.
+// Clone returns a deep copy of s. If s is nil, nil is returned.
 func (s *Source) Clone() *Source {
 	if s == nil {
 		return s
@@ -187,11 +187,22 @@ type Table struct { //nolint:govet // field alignment
 	// are returned with their columns in declaration order.
 	UniqueConstraints []*UniqueConstraint `json:"unique_constraints,omitempty" yaml:"unique_constraints,omitempty"`
 
-	// Indexes are the physical indexes that back this table — including
-	// the implicit unique index that implements each unique constraint
-	// and primary key. Use [Index.Unique] / [Index.Primary] to
-	// distinguish kinds. Non-unique secondary indexes (e.g. created via
-	// CREATE INDEX for performance) also appear here.
+	// Indexes are the physical indexes that back this table. Use
+	// [Index.Unique] / [Index.Primary] to distinguish kinds. Non-unique
+	// secondary indexes (e.g. created via CREATE INDEX for performance)
+	// always appear here. Driver coverage of implicit constraint-backing
+	// indexes varies:
+	//
+	//   - postgres, mysql, sqlserver, sqlite3: the implicit unique index
+	//     that backs each primary key and unique constraint is reported.
+	//   - oracle: only user-named indexes are reported (auto-named
+	//     SYS_C… indexes from inline PRIMARY KEY / UNIQUE declarations
+	//     are filtered out). PK membership is still available via
+	//     [Column.PrimaryKey].
+	//   - duckdb: only indexes from explicit CREATE INDEX statements are
+	//     reported. PK / UNIQUE-backing indexes are not surfaced by the
+	//     duckdb_indexes() catalog; PK / unique info is still available
+	//     via [Column.PrimaryKey] and [Table.UniqueConstraints].
 	Indexes []*Index `json:"indexes,omitempty" yaml:"indexes,omitempty"`
 }
 
@@ -276,16 +287,17 @@ func (t *Table) PKCols() []*Column {
 // outgoing-FK list lives on [Table.FK].Outgoing; consumers that want
 // a per-column view can build one in two lines:
 //
-//	byCol := map[string]*ForeignKey{}
+//	byCol := map[string][]*ForeignKey{}
 //	if tbl.FK != nil {
 //	    for _, fk := range tbl.FK.Outgoing {
-//	        for _, c := range fk.Columns { byCol[c] = fk }
+//	        for _, c := range fk.Columns { byCol[c] = append(byCol[c], fk) }
 //	    }
 //	}
 //
-// Single-column FKs come out cleanly; composite FKs stay grouped on
-// the table where they belong (each member column maps to the same
-// composite ForeignKey).
+// Composite FKs stay grouped on the table where they belong (each
+// member column lists the same composite ForeignKey pointer). A
+// column that participates in multiple outgoing FK constraints —
+// unusual but valid SQL — keeps every entry.
 type Column struct { //nolint:govet // field alignment
 	Name         string    `json:"name" yaml:"name"`
 	Position     int64     `json:"position" yaml:"position"`
@@ -347,6 +359,14 @@ func NewFKGroup(outgoing, incoming []*ForeignKey) *FKGroup {
 }
 
 // Clone returns a deep copy of g. If g is nil, nil is returned.
+//
+// Only Outgoing is deep-copied; Incoming is left nil because it is a
+// derived back-reference whose pointer identity must match the
+// Outgoing entries on the (cloned) source's other tables — a
+// requirement [Source.Clone] satisfies by re-running [LinkForeignKeys]
+// over the cloned tables. Callers cloning an *FKGroup standalone
+// (outside of [Source.Clone]) must call [LinkForeignKeys] themselves
+// before reading Incoming.
 func (g *FKGroup) Clone() *FKGroup {
 	if g == nil {
 		return nil
@@ -356,12 +376,6 @@ func (g *FKGroup) Clone() *FKGroup {
 		c.Outgoing = make([]*ForeignKey, len(g.Outgoing))
 		for i := range g.Outgoing {
 			c.Outgoing[i] = g.Outgoing[i].Clone()
-		}
-	}
-	if g.Incoming != nil {
-		c.Incoming = make([]*ForeignKey, len(g.Incoming))
-		for i := range g.Incoming {
-			c.Incoming[i] = g.Incoming[i].Clone()
 		}
 	}
 	return c

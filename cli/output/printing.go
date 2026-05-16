@@ -99,8 +99,10 @@ type Printing struct {
 
 	// Subdued is the color for visually secondary elements — items
 	// included for completeness but already conveyed elsewhere.
-	// Typically renders as [color.Faint] + [color.Italic], so it's
-	// strictly more muted than [Faint] in color terminals.
+	// Typically renders as [color.Faint] + [color.Italic]; the faint
+	// attribute matches plain [Faint] intensity while the italic
+	// attribute makes the element visually distinct from [Faint]
+	// content on the same line.
 	Subdued *color.Color
 
 	// Success is the color for success elements.
