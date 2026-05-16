@@ -18,8 +18,6 @@ type quitMsg struct {
 // sourceOverviewLoadedMsg is dispatched when a source's overview
 // metadata (noSchema=true) returns. err is non-nil if the load failed;
 // the UI surfaces the error inline rather than exiting.
-//
-//nolint:unused // dispatched in later phases.
 type sourceOverviewLoadedMsg struct {
 	meta   *metadata.Source
 	err    error
@@ -28,8 +26,6 @@ type sourceOverviewLoadedMsg struct {
 
 // tableNamesLoadedMsg is dispatched when MDCache.TableNames returns
 // for handle.
-//
-//nolint:unused // dispatched in later phases.
 type tableNamesLoadedMsg struct {
 	err    error
 	handle string
@@ -38,8 +34,6 @@ type tableNamesLoadedMsg struct {
 
 // tableMetaLoadedMsg is dispatched when MDCache.TableMeta returns
 // for handle.tableName.
-//
-//nolint:unused // dispatched in later phases.
 type tableMetaLoadedMsg struct {
 	meta      *metadata.Table
 	err       error
