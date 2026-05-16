@@ -248,6 +248,22 @@ func TestModel_Filter_FiltersSourcesPane(t *testing.T) {
 	require.NotContains(t, out, "@gamma")
 }
 
+func TestModel_HelpToggle(t *testing.T) {
+	m := newTestModel(t)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
+
+	out := m.View()
+	require.NotContains(t, out, "↑/k", "help is hidden by default")
+
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
+	out = m.View()
+	require.Contains(t, out, "↑/k", "help footer should be visible after ?")
+
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
+	out = m.View()
+	require.NotContains(t, out, "↑/k")
+}
+
 func TestRun_QuitImmediately(t *testing.T) {
 	src := &source.Source{Handle: "@test"}
 	cfg := Config{
