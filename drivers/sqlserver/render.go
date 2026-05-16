@@ -209,14 +209,21 @@ func renderFuncRowNum(rc *render.Context, fn *ast.FuncNode) (string, error) {
 // install and works for any Unicode input despite the "Latin1" name.
 const mssqlBinaryCollate = " COLLATE Latin1_General_BIN2"
 
+// mssqlLikeExtraMeta lists the SQL Server-specific LIKE meta-characters
+// not handled by the default escape list. `[` opens a character class
+// (e.g. `[A-Z]` matches any uppercase letter) and `]` closes one; both
+// must be escaped so contains/startswith/endswith match the literal
+// substring rather than a class expression.
+const mssqlLikeExtraMeta = "[]"
+
 func renderFuncContainsCollate(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	return render.RenderLikeOp(rc, fn, render.LikeContains, "LIKE", mssqlBinaryCollate)
+	return render.RenderLikeOp(rc, fn, render.LikeContains, "LIKE", mssqlBinaryCollate, mssqlLikeExtraMeta)
 }
 
 func renderFuncStartsWithCollate(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	return render.RenderLikeOp(rc, fn, render.LikeStartsWith, "LIKE", mssqlBinaryCollate)
+	return render.RenderLikeOp(rc, fn, render.LikeStartsWith, "LIKE", mssqlBinaryCollate, mssqlLikeExtraMeta)
 }
 
 func renderFuncEndsWithCollate(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	return render.RenderLikeOp(rc, fn, render.LikeEndsWith, "LIKE", mssqlBinaryCollate)
+	return render.RenderLikeOp(rc, fn, render.LikeEndsWith, "LIKE", mssqlBinaryCollate, mssqlLikeExtraMeta)
 }

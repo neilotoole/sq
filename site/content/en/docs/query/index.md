@@ -715,7 +715,10 @@ $ sq '.actor | where(contains(.first_name, "AN"))'
 
 The second argument must be a quoted string literal. Any `%`, `_`, or `|`
 characters in the literal are escaped automatically, so you don't need to
-think about `LIKE` wildcards.
+think about `LIKE` wildcards. On SQL Server, `[` and `]` are also escaped
+because SQL Server's `LIKE` treats `[...]` as a character class (e.g.
+without escaping, `contains(.col, "[A-Z]")` would match any uppercase
+letter instead of the literal `[A-Z]` substring).
 
 Under the hood, `sq` chooses the right primitive per driver to guarantee
 case-sensitive matching:

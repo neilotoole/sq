@@ -121,6 +121,25 @@ func TestQuery_string_contains(t *testing.T) {
 			wantRecCount: 200,
 		},
 		{
+			// SQL Server's LIKE treats `[...]` as a character-class
+			// wildcard (e.g. `[A-Z]` matches any uppercase letter). The
+			// SQL Server renderer escapes `[` and `]` so the literal
+			// substring semantics hold. Sakila first_names contain no
+			// literal `[A-Z]` substring, so the expected count is 0; if
+			// bracket escaping regressed, this query would match every
+			// row whose first_name has an uppercase letter (all 200).
+			name:    "contains/sqlserver-bracket-class-is-literal",
+			in:      `@sakila | .actor | where(contains(.first_name, "[A-Z]"))`,
+			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE '%[A-Z]%' ESCAPE '|'`,
+			override: driverMap{
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE instr("first_name", '[A-Z]') > 0`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY '%[A-Z]%' ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE '%|[A-Z|]%' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE position(`first_name`, '[A-Z]') > 0",
+			},
+			wantRecCount: 0,
+		},
+		{
 			name:    "contains/wrong-arg-count",
 			in:      `@sakila | .actor | where(contains(.first_name))`,
 			wantErr: true,

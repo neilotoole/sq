@@ -32,15 +32,18 @@ var likeEscapeClause = " ESCAPE '" + string(likeEscapeChar) + "'"
 
 // EscapeLikePattern prefixes likeEscapeChar before each LIKE meta-character
 // (% and _) and before any literal occurrence of the escape char itself.
-// Exported for use by driver-specific overrides.
-func EscapeLikePattern(s string) string {
-	if !strings.ContainsAny(s, "%_|") {
+// extraMeta lists additional characters the driver treats as LIKE meta-chars
+// and that must therefore be escaped (e.g. "[" and "]" for SQL Server's
+// character classes). Pass "" for dialects whose LIKE meta-chars are limited
+// to % and _. Exported for use by driver-specific overrides.
+func EscapeLikePattern(s, extraMeta string) string {
+	if !strings.ContainsAny(s, "%_|"+extraMeta) {
 		return s
 	}
 	var b strings.Builder
 	b.Grow(len(s) + 4)
 	for _, r := range s {
-		if r == '%' || r == '_' || r == likeEscapeChar {
+		if r == '%' || r == '_' || r == likeEscapeChar || strings.ContainsRune(extraMeta, r) {
 			b.WriteRune(likeEscapeChar)
 		}
 		b.WriteRune(r)
@@ -50,9 +53,10 @@ func EscapeLikePattern(s string) string {
 
 // BuildLikePattern returns the LIKE-pattern string (without surrounding
 // quotes or the ESCAPE clause) for the given mode and (already-unquoted)
-// literal value. Exported for use by driver-specific overrides.
-func BuildLikePattern(s string, mode LikeMode) string {
-	escaped := EscapeLikePattern(s)
+// literal value. See [EscapeLikePattern] for extraMeta.
+// Exported for use by driver-specific overrides.
+func BuildLikePattern(s string, mode LikeMode, extraMeta string) string {
+	escaped := EscapeLikePattern(s, extraMeta)
 	switch mode {
 	case LikeContains:
 		return "%" + escaped + "%"
@@ -118,26 +122,28 @@ func ParseLikeArgs(rc *Context, fn *ast.FuncNode) (colSQL, literal string, err e
 // colCollate, when non-empty, is appended verbatim after the column reference
 // (e.g. " COLLATE Latin1_General_BIN2" — note the leading space). It's the
 // caller's responsibility to include the leading space.
+// See [EscapeLikePattern] for extraMeta.
 //
 // Used by the default-renderer overrides and by MySQL/SQL Server overrides.
 // SQLite uses a different shape and does not call this function.
-func RenderLikeOp(rc *Context, fn *ast.FuncNode, mode LikeMode, likeOp, colCollate string) (string, error) {
+func RenderLikeOp(rc *Context, fn *ast.FuncNode, mode LikeMode, likeOp, colCollate, extraMeta string,
+) (string, error) {
 	colSQL, lit, err := ParseLikeArgs(rc, fn)
 	if err != nil {
 		return "", err
 	}
-	pattern := BuildLikePattern(lit, mode)
+	pattern := BuildLikePattern(lit, mode, extraMeta)
 	return colSQL + colCollate + " " + likeOp + " " + stringz.SingleQuote(pattern) + likeEscapeClause, nil
 }
 
 func doFuncContains(rc *Context, fn *ast.FuncNode) (string, error) {
-	return RenderLikeOp(rc, fn, LikeContains, "LIKE", "")
+	return RenderLikeOp(rc, fn, LikeContains, "LIKE", "", "")
 }
 
 func doFuncStartsWith(rc *Context, fn *ast.FuncNode) (string, error) {
-	return RenderLikeOp(rc, fn, LikeStartsWith, "LIKE", "")
+	return RenderLikeOp(rc, fn, LikeStartsWith, "LIKE", "", "")
 }
 
 func doFuncEndsWith(rc *Context, fn *ast.FuncNode) (string, error) {
-	return RenderLikeOp(rc, fn, LikeEndsWith, "LIKE", "")
+	return RenderLikeOp(rc, fn, LikeEndsWith, "LIKE", "", "")
 }
