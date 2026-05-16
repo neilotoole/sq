@@ -230,6 +230,242 @@ func pkColumnNames(cols []*metadata.Column) []string {
 	return names
 }
 
+// TestSourceMetadata_ForeignKeys verifies that source-level inspect against
+// the sakila DuckDB fixture populates Table.FK.Outgoing on the referencing
+// tables and Table.FK.Incoming on the referenced tables, including for
+// composite-PK link tables (film_actor, film_category).
+func TestSourceMetadata_ForeignKeys(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.Duck)
+	grip := th.Open(src)
+
+	md, err := grip.SourceMetadata(context.Background(), false)
+	require.NoError(t, err)
+
+	tblByName := make(map[string]*metadata.Table, len(md.Tables))
+	for _, tbl := range md.Tables {
+		tblByName[tbl.Name] = tbl
+	}
+
+	// film_actor links actor + film with single-column FKs.
+	filmActor := tblByName["film_actor"]
+	require.NotNil(t, filmActor)
+	require.NotNil(t, filmActor.FK)
+	outgoingRefs := make([]string, 0, len(filmActor.FK.Outgoing))
+	for _, fk := range filmActor.FK.Outgoing {
+		outgoingRefs = append(outgoingRefs, fk.RefTable)
+	}
+	require.ElementsMatch(t, []string{"actor", "film"}, outgoingRefs)
+
+	// actor.FK.Incoming should include the FK from film_actor.
+	actor := tblByName["actor"]
+	require.NotNil(t, actor)
+	require.NotNil(t, actor.FK)
+	incomingFromActor := make([]string, 0, len(actor.FK.Incoming))
+	for _, fk := range actor.FK.Incoming {
+		incomingFromActor = append(incomingFromActor, fk.Table)
+	}
+	require.Contains(t, incomingFromActor, "film_actor")
+
+	// The sakila fixture's portsakila tool preserves 21 of 22 FKs
+	// (fk_store_staff is the cycle-breaker). Verify the source-wide
+	// outgoing count matches.
+	totalOutgoing := 0
+	for _, tbl := range md.Tables {
+		if tbl.FK != nil {
+			totalOutgoing += len(tbl.FK.Outgoing)
+		}
+	}
+	require.Equal(t, 21, totalOutgoing,
+		"sakila DuckDB fixture should report 21 outgoing FK constraints")
+}
+
+// TestTableMetadata_ForeignKeys verifies per-table inspect populates
+// outgoing and incoming FKs.
+func TestTableMetadata_ForeignKeys(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.Duck)
+	grip := th.Open(src)
+	ctx := context.Background()
+
+	t.Run("outgoing", func(t *testing.T) {
+		md, err := grip.TableMetadata(ctx, "film")
+		require.NoError(t, err)
+		require.NotNil(t, md.FK)
+		// film has FKs to language (language_id, original_language_id).
+		refs := make([]string, 0, len(md.FK.Outgoing))
+		for _, fk := range md.FK.Outgoing {
+			refs = append(refs, fk.RefTable)
+		}
+		require.Contains(t, refs, "language")
+	})
+
+	t.Run("incoming", func(t *testing.T) {
+		md, err := grip.TableMetadata(ctx, "actor")
+		require.NoError(t, err)
+		require.NotNil(t, md.FK)
+		owners := make([]string, 0, len(md.FK.Incoming))
+		for _, fk := range md.FK.Incoming {
+			owners = append(owners, fk.Table)
+		}
+		require.Contains(t, owners, "film_actor")
+	})
+}
+
+// TestTableMetadata_CompositeForeignKey verifies that DuckDB composite FKs
+// (multi-column REFERENCES) are populated with paired Columns / RefColumns.
+func TestTableMetadata_CompositeForeignKey(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@composite_fk_duck",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://:memory:",
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	ctx := context.Background()
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(ctx,
+		`CREATE TABLE parent (a INT, b INT, PRIMARY KEY (a, b))`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `CREATE TABLE child (
+        x INT, y INT,
+        FOREIGN KEY (x, y) REFERENCES parent (a, b)
+    )`)
+	require.NoError(t, err)
+
+	md, err := grip.TableMetadata(ctx, "child")
+	require.NoError(t, err)
+	require.NotNil(t, md.FK)
+	require.Len(t, md.FK.Outgoing, 1)
+	fk := md.FK.Outgoing[0]
+	require.Equal(t, "parent", fk.RefTable)
+	require.Equal(t, []string{"x", "y"}, fk.Columns)
+	require.Equal(t, []string{"a", "b"}, fk.RefColumns)
+}
+
+// TestTableMetadata_UniqueConstraints verifies UNIQUE-constraint
+// introspection on inline and composite forms.
+func TestTableMetadata_UniqueConstraints(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@unique_duck",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://:memory:",
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	ctx := context.Background()
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(ctx, `CREATE TABLE t (
+        id INT PRIMARY KEY,
+        email VARCHAR UNIQUE,
+        first VARCHAR,
+        last VARCHAR,
+        UNIQUE (first, last)
+    )`)
+	require.NoError(t, err)
+
+	md, err := grip.TableMetadata(ctx, "t")
+	require.NoError(t, err)
+	require.Len(t, md.UniqueConstraints, 2)
+
+	colSets := make([][]string, 0, 2)
+	for _, uc := range md.UniqueConstraints {
+		require.Equal(t, "t", uc.Table)
+		colSets = append(colSets, uc.Columns)
+	}
+	require.Contains(t, colSets, []string{"email"})
+	require.Contains(t, colSets, []string{"first", "last"})
+}
+
+// TestTableMetadata_Indexes verifies that user-declared indexes are
+// populated, that unique flags are honored, that composite indexes
+// preserve column order, that reserved-word columns (which DuckDB
+// re-quotes in duckdb_indexes().expressions) are unwrapped, and that
+// functional-index keys are stripped from Columns.
+func TestTableMetadata_Indexes(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@indexes_duck",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://:memory:",
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	ctx := context.Background()
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(ctx, `CREATE TABLE t (id INT, name VARCHAR, email VARCHAR)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `CREATE INDEX ix_name ON t(name)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `CREATE UNIQUE INDEX ix_email ON t(email)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `CREATE INDEX ix_lower_email ON t(LOWER(email))`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `CREATE INDEX ix_comp ON t(name, email)`)
+	require.NoError(t, err)
+
+	md, err := grip.TableMetadata(ctx, "t")
+	require.NoError(t, err)
+
+	idxByName := make(map[string]*metadata.Index, len(md.Indexes))
+	for _, idx := range md.Indexes {
+		idxByName[idx.Name] = idx
+	}
+
+	// DuckDB re-quotes "name" because it collides with a reserved word —
+	// the parser must unwrap the single-quoted-double-quoted form.
+	require.Contains(t, idxByName, "ix_name")
+	require.Equal(t, []string{"name"}, idxByName["ix_name"].Columns)
+	require.False(t, idxByName["ix_name"].Unique)
+
+	require.Contains(t, idxByName, "ix_email")
+	require.Equal(t, []string{"email"}, idxByName["ix_email"].Columns)
+	require.True(t, idxByName["ix_email"].Unique)
+
+	// Composite indexes must preserve declaration order across the
+	// reserved-word / bare-identifier mix.
+	require.Contains(t, idxByName, "ix_comp")
+	require.Equal(t, []string{"name", "email"}, idxByName["ix_comp"].Columns)
+
+	// Functional-only indexes are dropped because no key is a plain
+	// column reference (Columns ends up empty, so the index is omitted).
+	require.NotContains(t, idxByName, "ix_lower_email")
+}
+
+// TestSourceMetadata_SkipsFKMetadataOnViews ensures the FK / index /
+// unique introspection path doesn't error against a schema that has
+// views in addition to tables.
+func TestSourceMetadata_SkipsFKMetadataOnViews(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@views_duck",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://:memory:",
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	ctx := context.Background()
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(ctx, `CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `CREATE VIEW v AS SELECT id FROM t`)
+	require.NoError(t, err)
+
+	md, err := grip.SourceMetadata(ctx, false)
+	require.NoError(t, err)
+	require.Len(t, md.Tables, 2)
+}
+
 // TestRecordMeta_BasicQuery verifies that RecordMeta correctly maps a
 // simple query's column types to record.Meta with the right kinds.
 func TestRecordMeta_BasicQuery(t *testing.T) {

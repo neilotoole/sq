@@ -1,9 +1,13 @@
 package duckdb
 
 import (
+	"bytes"
+	"encoding/json"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -182,6 +186,91 @@ func TestPathFromLocation(t *testing.T) {
 			require.Equal(t, tc.want, got)
 		})
 	}
+}
+
+// TestParseDuckDBIndexExpressions covers the shapes that
+// duckdb_indexes().expressions emits without needing a live DB.
+func TestParseDuckDBIndexExpressions(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want []string
+	}{
+		{in: "[email]", want: []string{"email"}},
+		{in: "[store_id, film_id]", want: []string{"store_id", "film_id"}},
+		// Reserved-word column → DuckDB re-quotes as `'"name"'`.
+		{in: `['"name"']`, want: []string{"name"}},
+		// Mixed: bare + re-quoted.
+		{in: `['"name"', email]`, want: []string{"name", "email"}},
+		// Functional expression → no plain column ref → empty result.
+		{in: `['(lower(email))']`, want: []string{}},
+		// Mixed simple + functional → only the simple key survives.
+		{in: `[name, '(lower(email))']`, want: []string{"name"}},
+		// Pathological / unparseable inputs return nil.
+		{in: "", want: nil},
+		{in: "[]", want: nil},
+		{in: "not-a-list", want: nil},
+	}
+	for _, tc := range testCases {
+		t.Run(tu.Name(tc.in), func(t *testing.T) {
+			got := parseDuckDBIndexExpressions(tc.in)
+			switch {
+			case tc.want == nil:
+				require.Nil(t, got,
+					"unparseable input must return a nil slice, not an empty one")
+			case len(tc.want) == 0:
+				require.NotNil(t, got,
+					"a parsed list with no plain column refs must return an empty (non-nil) slice")
+				require.Empty(t, got)
+			default:
+				require.Equal(t, tc.want, got)
+			}
+		})
+	}
+}
+
+// TestLogDroppedDuckDBIndex pins the warn-vs-debug discrimination
+// added so that a future format change in duckdb_indexes().expressions
+// surfaces as a warning, while legitimate empty / functional-only
+// indexes log only at debug level.
+func TestLogDroppedDuckDBIndex(t *testing.T) {
+	testCases := []struct {
+		name      string
+		exprList  string
+		wantLevel string // "DEBUG" or "WARN"
+	}{
+		{"canonical_empty", "[]", "DEBUG"},
+		{"empty_with_spaces", "[ ]", "DEBUG"},
+		{"all_functional", "['(lower(email))']", "DEBUG"},
+		{"all_functional_multi", "['(lower(email))', '(upper(name))']", "DEBUG"},
+		// Anything that doesn't look like a `[...]` list — a genuine
+		// format change. These must warn so the issue is visible.
+		{"unbracketed", "not-a-list", "WARN"},
+		{"empty_string", "", "WARN"},
+		{"unclosed_bracket", "[email", "WARN"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			log := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+			logDroppedDuckDBIndex(log, "tbl", "idx", tc.exprList)
+
+			line := strings.TrimSpace(buf.String())
+			require.NotEmpty(t, line, "logDroppedDuckDBIndex must emit one entry per call")
+
+			var entry map[string]any
+			require.NoError(t, json.Unmarshal([]byte(line), &entry))
+			require.Equal(t, tc.wantLevel, entry["level"],
+				"input %q must log at %s level; got entry: %v", tc.exprList, tc.wantLevel, entry)
+			require.Equal(t, tc.exprList, entry["expressions"])
+		})
+	}
+
+	t.Run("nil_logger_is_safe", func(t *testing.T) {
+		require.NotPanics(t, func() {
+			logDroppedDuckDBIndex(nil, "tbl", "idx", "[]")
+		})
+	})
 }
 
 // TestConnParams asserts the whitelist's keys and known-value enumerations,

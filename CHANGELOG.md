@@ -21,6 +21,37 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   extensions (`json`, `parquet`, `icu`, `fts`, `httpfs`, `excel`, `inet`,
   `autocomplete`, `tpch`, `tpcds`).
   See the [driver docs](https://sq.io/docs/drivers/duckdb).
+- [#498]: [`sq inspect`](https://sq.io/docs/cmd/inspect) now reports
+  foreign-key relationships. Each table carries an `fk` object with
+  two slices: `fk.outgoing` (constraints declared on this table) and
+  `fk.incoming` (constraints declared on other tables that point at
+  it). Composite foreign keys and cross-schema references are
+  supported. Implemented for SQLite, Postgres, MySQL, SQL Server,
+  Oracle, and DuckDB. ClickHouse is skipped — it has no foreign-key
+  concept. The verbose text output also gains an `FK` column showing
+  the referenced table and columns.
+- `sq inspect` additionally reports `unique_constraints` (semantic
+  UNIQUE declarations) and `indexes` (physical indexes, including
+  PK-backing and unique-constraint-backing ones) per table. Composite
+  members are preserved in declaration order. Implemented across the
+  same SQL drivers as the foreign-key support above. The verbose text
+  output gains `INDEXES` and `UNIQUE CONSTRAINTS` columns alongside
+  `PK` and `FK`, listing the constraint/index names that each column
+  participates in (PK-backing indexes are filtered from `INDEXES`
+  since the `PK` column already conveys that information). DuckDB
+  reports only explicitly-declared indexes — its system catalog
+  doesn't expose the implicit indexes that back primary keys or
+  unique constraints, so those don't appear in `indexes` (but the
+  PK / UNIQUE info is still surfaced via `Column.primary_key` and
+  `unique_constraints`).
+  When a driver's bulk loader returns FK / UC / Index rows for a
+  table that's no longer in the source (or an outgoing FK that
+  references a table not present), the discrepancy is reported at
+  warn level (visible under `-v`) rather than silently dropped.
+  Verbose text output mutes UC-backing index entries in the
+  `INDEXES` column (rendered in parens at reduced intensity) so the
+  primary listing isn't cluttered while the relationship between
+  constraint and index remains discoverable.
 - [#602]: [`sq`](https://sq.io/docs/cmd/sq) now features a [`--render-sql`](https://sq.io/docs/cmd/sq/#render-sql)
   flag, which prints the SQL (derived from `SLQ` input) that would be
   executed against the target database, _instead_ of running it. Honors `--format` with:
@@ -1423,6 +1454,7 @@ make working with lots of sources much easier.
 [#415]: https://github.com/neilotoole/sq/issues/415
 [#437]: https://github.com/neilotoole/sq/issues/437
 [#446]: https://github.com/neilotoole/sq/issues/446
+[#498]: https://github.com/neilotoole/sq/issues/498
 [#469]: https://github.com/neilotoole/sq/issues/469
 [#470]: https://github.com/neilotoole/sq/issues/470
 [#499]: https://github.com/neilotoole/sq/issues/499

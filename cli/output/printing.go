@@ -97,6 +97,14 @@ type Printing struct {
 	// String is the color for string values.
 	String *color.Color
 
+	// Subdued is the color for visually secondary elements — items
+	// included for completeness but already conveyed elsewhere.
+	// Typically renders as [color.Faint] + [color.Italic]; the faint
+	// attribute matches plain [Faint] intensity while the italic
+	// attribute makes the element visually distinct from [Faint]
+	// content on the same line.
+	Subdued *color.Color
+
 	// Success is the color for success elements.
 	Success *color.Color
 
@@ -202,6 +210,7 @@ func NewPrinting() *Printing {
 		Number:                 color.New(color.FgCyan),
 		Punc:                   color.New(color.Bold),
 		String:                 color.New(color.FgGreen),
+		Subdued:                color.New(color.Faint, color.Italic),
 		Stack:                  color.New(color.Faint),
 		StackError:             color.New(color.FgYellow, color.Faint),
 		StackErrorType:         color.New(color.FgGreen, color.Faint),
@@ -256,6 +265,7 @@ func (pr *Printing) Clone() *Printing {
 	pr2.Number = new(*pr.Number)
 	pr2.Punc = new(*pr.Punc)
 	pr2.String = new(*pr.String)
+	pr2.Subdued = new(*pr.Subdued)
 	pr2.Success = new(*pr.Success)
 	pr2.Stack = new(*pr.Stack)
 	pr2.StackError = new(*pr.StackError)
@@ -311,6 +321,7 @@ func (pr *Printing) colors() []*color.Color {
 		pr.StackError,
 		pr.StackErrorType,
 		pr.String,
+		pr.Subdued,
 		pr.Success,
 		pr.Warning,
 	}

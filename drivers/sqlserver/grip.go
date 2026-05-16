@@ -62,7 +62,7 @@ WHERE TABLE_NAME = @p1`
 
 	// TODO: getTableMetadata can cause deadlock in the DB. Needs further investigation.
 	// But a quick hack would be to use retry on a deadlock error.
-	return getTableMetadata(ctx, g.db, catalog, schema, tblName, tblType)
+	return getTableMetadata(ctx, g.db, catalog, schema, tblName, tblType, true)
 }
 
 // SourceMetadata implements driver.Grip.
