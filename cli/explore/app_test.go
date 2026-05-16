@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // helper: build a *Model with a fixed source and no I/O.
@@ -146,6 +147,39 @@ func TestModel_ExpandTable_DispatchesTableMetaFetch(t *testing.T) {
 	loaded, ok := msg.(tableMetaLoadedMsg)
 	require.True(t, ok, "expected tableMetaLoadedMsg, got %T", msg)
 	require.Equal(t, "actor", loaded.tableName)
+}
+
+func TestModel_DetailFollowsSchemaFocus(t *testing.T) {
+	src := &source.Source{Handle: "@x"}
+	cfg := Config{Sources: []*source.Source{src}, FocusedSrc: src, NoColor: true}
+	m, _ := NewModel(cfg)
+	m.fetcher = &fakeFetcher{
+		tableNames: map[string][]string{"@x": {"actor"}},
+	}
+
+	m.Update(tea.WindowSizeMsg{Width: 150, Height: 30})
+
+	m.Update(tableNamesLoadedMsg{handle: "@x", names: []string{"actor"}})
+	m.Update(tableMetaLoadedMsg{
+		handle:    "@x",
+		tableName: "actor",
+		meta: &metadata.Table{
+			Name:    "actor",
+			Columns: []*metadata.Column{{Name: "actor_id", PrimaryKey: true}},
+		},
+	})
+
+	m.focused = paneSchema
+	// Expand "tables (1)"
+	m.Update(tea.KeyMsg{Type: tea.KeySpace})
+	// Move down to "actor"
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	// Enter to open in detail.
+	m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	out := m.View()
+	require.Contains(t, out, "actor_id")
+	require.Contains(t, out, "PK")
 }
 
 func TestRun_QuitImmediately(t *testing.T) {

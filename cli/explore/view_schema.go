@@ -343,6 +343,45 @@ func (tr *schemaTree) view(focused bool, width, height int) string {
 	return style.Width(width).Height(height).Render(b.String())
 }
 
+// selectedDetail returns the "open this in detail" target — either a
+// *metadata.Table, *metadata.Column, or nil — for the current
+// selection. Useful when the user presses Enter.
+func (tr *schemaTree) selectedDetail() (tbl *metadata.Table, col *metadata.Column) {
+	n := tr.selectedNode()
+	if n == nil {
+		return nil, nil
+	}
+	switch n.kind { //nolint:exhaustive // other kinds have no detail target.
+	case nodeTable:
+		return n.tableMeta, nil
+	case nodeColumn:
+		tableMeta := tr.findTableMeta(n.tableName)
+		if tableMeta != nil {
+			for _, c := range tableMeta.Columns {
+				if c.Name == n.label {
+					return nil, c
+				}
+			}
+		}
+	case nodeGroupColumns, nodeGroupIndexes, nodeGroupFK, nodeGroupUniques:
+		return tr.findTableMeta(n.tableName), nil
+	}
+	return nil, nil
+}
+
+// findTableMeta returns the cached metadata for the named table, or nil.
+func (tr *schemaTree) findTableMeta(tableName string) *metadata.Table {
+	var out *metadata.Table
+	tr.walk(func(n *schemaNode) bool {
+		if n.kind == nodeTable && n.tableName == tableName {
+			out = n.tableMeta
+			return false
+		}
+		return true
+	})
+	return out
+}
+
 // update routes a key message scoped to the tree. Returns (needsFetch,
 // tableName) when the action triggers a fetch (e.g. expanding an
 // unloaded table); the caller dispatches the corresponding tea.Cmd.

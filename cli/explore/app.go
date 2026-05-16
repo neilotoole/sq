@@ -62,6 +62,7 @@ type Model struct {
 	ru          *run.Run
 	sources     *sourcesPane
 	schema      *schemaTree
+	detail      *detailPane
 	fetcher     metaFetcher
 	focusedTbl  string
 	finalHandle string
@@ -92,6 +93,7 @@ func NewModel(cfg Config) (*Model, error) {
 	}
 	m.sources = newSourcesPane(cfg.Sources, cfg.FocusedSrc, m.theme)
 	m.schema = newSchemaTree(cfg.FocusedSrc.Handle, m.theme)
+	m.detail = newDetailPane(m.theme)
 	return m, nil
 }
 
@@ -123,10 +125,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case sourceOverviewLoadedMsg:
 		if msg.err != nil {
 			m.lastErr = msg.err
+			return m, nil
 		}
-		// Detail pane is added in Phase 5; for now we accept the overview
-		// and store nothing further.
-		_ = msg.meta
+		m.detail.setSource(msg.meta)
 		return m, nil
 	case tableNamesLoadedMsg:
 		if msg.err != nil {
@@ -141,6 +142,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.schema.setTableMeta(msg.tableName, msg.meta)
+		if m.focusedTbl == msg.tableName && m.detail.kind != detailColumn {
+			m.detail.setTable(msg.meta)
+		}
 		return m, nil
 	case tea.KeyMsg:
 		if key.Matches(msg, m.keys.Quit) {
@@ -162,8 +166,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View satisfies tea.Model. It composes the three panes into a single
-// frame. Schema and detail panes are placeholders until later phases
-// supply their implementations.
+// frame.
 func (m *Model) View() string {
 	if m.quitting {
 		return ""
@@ -178,9 +181,7 @@ func (m *Model) View() string {
 
 	srcCol := m.sources.view(m.focused == paneSources, col, body)
 	schCol := m.schema.view(m.focused == paneSchema, col, body)
-	// Later phases supply the detail pane; for now show a placeholder so
-	// the layout reads correctly during dev.
-	detCol := m.theme.Pane.Width(m.width - 2*col).Height(body).Render("Detail\n(pending)")
+	detCol := m.detail.view(m.focused == paneDetail, m.width-2*col, body)
 
 	row := lipgloss.JoinHorizontal(lipgloss.Top, srcCol, schCol, detCol)
 	return m.theme.Title.Render("sq explore") + "\n" + row + "\n"
@@ -229,8 +230,16 @@ func (m *Model) routeKey(msg tea.KeyMsg) tea.Cmd {
 		if needsFetch && m.fetcher != nil {
 			return fetchTableMetaCmd(context.Background(), m.fetcher, m.focusedSrc.Handle, tblName)
 		}
-		// Update focusedTbl for the detail pane (Phase 5) to react to.
-		if t := m.schema.selectedTableName(); t != "" {
+		if key.Matches(msg, m.keys.Enter) {
+			tbl, col := m.schema.selectedDetail()
+			switch {
+			case col != nil:
+				m.detail.setColumn(col)
+			case tbl != nil:
+				m.detail.setTable(tbl)
+				m.focusedTbl = tbl.Name
+			}
+		} else if t := m.schema.selectedTableName(); t != "" {
 			m.focusedTbl = t
 		}
 		return nil

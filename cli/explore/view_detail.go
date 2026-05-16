@@ -41,18 +41,14 @@ func (d *detailPane) setTable(t *metadata.Table) {
 	d.col = nil
 }
 
-// setColumn switches the pane to column-detail mode. Wired up in Phase 5.2.
-//
-//nolint:unused
+// setColumn switches the pane to column-detail mode.
 func (d *detailPane) setColumn(c *metadata.Column) {
 	d.kind = detailColumn
 	d.col = c
 }
 
 // view renders the appropriate sub-view at width/height. The focused
-// flag selects the focused border style; callers wire focus in Phase 5.2.
-//
-//nolint:unparam // focused is wired through in Phase 5.2.
+// flag selects the focused border style.
 func (d *detailPane) view(focused bool, width, height int) string {
 	var body string
 	switch d.kind {
