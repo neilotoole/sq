@@ -29,10 +29,6 @@ on:
         required: false
         type: string
 
-defaults:
-  run:
-    working-directory: site
-
 # Serialize production publishes. Two overlapping `--prod` deploys would
 # race on the production alias (last writer wins); queueing the second run
 # behind the first keeps the final state predictable. `cancel-in-progress`
@@ -107,9 +103,11 @@ jobs:
       # We intentionally re-run lint here rather than trusting Site CI: a
       # manual publish should never bypass the gates that block PR merges.
       - name: Install, lint, and build (make ci)
+        working-directory: site
         run: make ci
 
       - name: Publish site/public to Netlify (production)
+        working-directory: site
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
