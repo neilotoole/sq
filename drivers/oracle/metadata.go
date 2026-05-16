@@ -887,6 +887,7 @@ ORDER BY c.column_id`
 // tblName as a set keyed by the column name. Returns an empty
 // (non-nil) map when the table has no primary key.
 func getOraclePKColumnNames(ctx context.Context, db *sql.DB, tblName string) (map[string]bool, error) {
+	log := lg.FromContext(ctx)
 	const query = `SELECT cols.column_name
 FROM user_constraints cons
 INNER JOIN user_cons_columns cols
@@ -898,7 +899,7 @@ WHERE cons.table_name = :1
 	if err != nil {
 		return nil, errw(err)
 	}
-	defer rows.Close()
+	defer sqlz.CloseRows(log, rows)
 
 	pkCols := map[string]bool{}
 	for rows.Next() {

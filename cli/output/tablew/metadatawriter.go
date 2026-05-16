@@ -215,7 +215,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 				tbl.Name,
 				tbl.TableType,
 				strconv.FormatInt(tbl.RowCount, 10),
-				w.tbl.pr.Faint.Sprintf("%d", 0),
+				"0",
 				"", "", "", "", "", "",
 			})
 			continue
@@ -225,7 +225,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 			tbl.Name,
 			tbl.TableType,
 			strconv.FormatInt(tbl.RowCount, 10),
-			w.tbl.pr.Faint.Sprintf("%d", len(tbl.Columns)),
+			strconv.Itoa(len(tbl.Columns)),
 			tbl.Columns[0].Name,
 			tbl.Columns[0].BaseType,
 			getPK(tbl.Columns[0]),
