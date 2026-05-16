@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -26,6 +27,7 @@ func newTestModel(t *testing.T) *Model {
 	}
 	m, err := NewModel(cfg)
 	require.NoError(t, err)
+	m.sendFn = func(msg tea.Msg) { m.Update(msg) }
 	return m
 }
 
@@ -180,6 +182,56 @@ func TestModel_DetailFollowsSchemaFocus(t *testing.T) {
 	out := m.View()
 	require.Contains(t, out, "actor_id")
 	require.Contains(t, out, "PK")
+}
+
+func TestModel_PressR_TriggersPreviewFetch(t *testing.T) {
+	src := &source.Source{Handle: "@x"}
+	cfg := Config{Sources: []*source.Source{src}, FocusedSrc: src, NoColor: true, PreviewRows: 50}
+	m, _ := NewModel(cfg)
+
+	var (
+		mu             sync.Mutex
+		previewQueries []string
+	)
+	m.fetcher = &fakeFetcher{
+		tableNames: map[string][]string{"@x": {"actor"}},
+	}
+	m.previewFn = func(_ context.Context, send func(any), handle, table string, _ int) {
+		mu.Lock()
+		previewQueries = append(previewQueries, handle+"."+table)
+		mu.Unlock()
+		send(previewMetaLoadedMsg{handle: handle, tableName: table})
+	}
+	m.sendFn = func(msg tea.Msg) { m.Update(msg) }
+
+	m.Update(tea.WindowSizeMsg{Width: 150, Height: 30})
+	m.Update(tableNamesLoadedMsg{handle: "@x", names: []string{"actor"}})
+	m.Update(tableMetaLoadedMsg{
+		handle: "@x", tableName: "actor",
+		meta: &metadata.Table{Name: "actor", Columns: []*metadata.Column{{Name: "id"}}},
+	})
+
+	m.focused = paneSchema
+	// Expand "tables (1)"
+	m.Update(tea.KeyMsg{Type: tea.KeySpace})
+	// Move to "actor"
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	// Enter to open the table in detail.
+	m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	// Press 'r' to trigger preview.
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+	require.NotNil(t, cmd, "pressing r should produce a tea.Cmd")
+	// Execute the Cmd to actually invoke previewFn.
+	cmd()
+	// Allow goroutine to run.
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(previewQueries) == 1
+	}, time.Second, 10*time.Millisecond)
+	mu.Lock()
+	defer mu.Unlock()
+	require.Equal(t, "@x.actor", previewQueries[0])
 }
 
 func TestRun_QuitImmediately(t *testing.T) {

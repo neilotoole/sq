@@ -59,8 +59,6 @@ type previewRowsAppendedMsg struct {
 }
 
 // previewErrMsg is dispatched when the preview pipeline errors.
-//
-//nolint:unused // dispatched in later phases.
 type previewErrMsg struct {
 	err       error
 	handle    string

@@ -2,10 +2,12 @@ package explore
 
 import (
 	"context"
+	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
@@ -117,4 +119,27 @@ func (rf *runFetcher) FetchTableNames(ctx context.Context, handle string) ([]str
 
 func (rf *runFetcher) FetchTableMeta(ctx context.Context, handle, tableName string) (*metadata.Table, error) {
 	return rf.ru.MDCache.TableMeta(ctx, source.Table{Handle: handle, Name: tableName})
+}
+
+// previewFunc is the signature used to launch a preview-row stream.
+// Kept as a function value so tests can substitute a stub.
+type previewFunc func(ctx context.Context, send func(any), handle, table string, n int)
+
+// runPreview is the production implementation of previewFunc. It
+// constructs a previewWriter (which streams up to n records via send)
+// and executes the SLQ query in a goroutine. Errors are reported back
+// to the caller via send(previewErrMsg{...}).
+func (rf *runFetcher) runPreview(ctx context.Context, send func(any), handle, table string, n int) {
+	pw := newPreviewWriter(handle, table, n, send)
+	qc := &libsq.QueryContext{
+		Collection: rf.ru.Config.Collection,
+		Grips:      rf.ru.Grips,
+	}
+	// SLQ row-limit: `@handle.table | .[0:N]`.
+	query := fmt.Sprintf("%s.%s | .[0:%d]", handle, table, n)
+	go func() {
+		if err := libsq.ExecSLQ(ctx, qc, query, pw); err != nil {
+			send(previewErrMsg{handle: handle, tableName: table, err: err})
+		}
+	}()
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -19,11 +20,12 @@ const (
 
 // detailPane is the rightmost pane.
 type detailPane struct {
-	src   *metadata.Source
-	tbl   *metadata.Table
-	col   *metadata.Column
-	theme theme
-	kind  detailKind
+	src     *metadata.Source
+	tbl     *metadata.Table
+	col     *metadata.Column
+	preview *previewBuffer
+	theme   theme
+	kind    detailKind
 }
 
 func newDetailPane(th theme) *detailPane { return &detailPane{theme: th} }
@@ -46,6 +48,10 @@ func (d *detailPane) setColumn(c *metadata.Column) {
 	d.kind = detailColumn
 	d.col = c
 }
+
+// setPreview stores the preview buffer to render under the detail pane.
+// Replaces any earlier preview.
+func (d *detailPane) setPreview(p *previewBuffer) { d.preview = p }
 
 // view renders the appropriate sub-view at width/height. The focused
 // flag selects the focused border style.
@@ -156,7 +162,42 @@ func (d *detailPane) viewTable() string {
 			fmt.Fprintf(&b, "  %s (%s)\n", uc.Name, strings.Join(uc.Columns, ", "))
 		}
 	}
+	if d.preview != nil {
+		b.WriteString("\n")
+		fmt.Fprintf(&b, "%s\n", d.theme.Title.Render(fmt.Sprintf("preview (%d rows)", len(d.preview.rows))))
+		switch {
+		case d.preview.err != nil:
+			b.WriteString(d.theme.Error.Render(d.preview.err.Error()))
+			b.WriteString("\n")
+		case len(d.preview.rows) == 0 && !d.preview.done:
+			b.WriteString(d.theme.Faint.Render("(loading)"))
+			b.WriteString("\n")
+		default:
+			for i, r := range d.preview.rows {
+				if i >= 10 {
+					fmt.Fprintf(&b, "… %d more\n", len(d.preview.rows)-10)
+					break
+				}
+				b.WriteString(formatRecord(r))
+				b.WriteString("\n")
+			}
+		}
+	}
 	return b.String()
+}
+
+// formatRecord renders a single record as a pipe-separated row. Long
+// values are truncated at 30 chars.
+func formatRecord(r record.Record) string {
+	parts := make([]string, len(r))
+	for i, v := range r {
+		s := fmt.Sprintf("%v", v)
+		if len(s) > 30 {
+			s = s[:27] + "…"
+		}
+		parts[i] = s
+	}
+	return strings.Join(parts, " │ ")
 }
 
 func (d *detailPane) viewColumn() string {

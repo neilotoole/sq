@@ -12,6 +12,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -64,6 +65,9 @@ type Model struct {
 	schema      *schemaTree
 	detail      *detailPane
 	fetcher     metaFetcher
+	previewFn   previewFunc
+	preview     *previewBuffer
+	sendFn      func(tea.Msg)
 	focusedTbl  string
 	finalHandle string
 	keys        keyMap
@@ -73,6 +77,27 @@ type Model struct {
 	height      int
 	focused     paneID
 	quitting    bool
+}
+
+// previewBuffer holds in-memory preview rows for the focused table.
+// Fields are mutated only on the tea event loop goroutine (in Update).
+type previewBuffer struct {
+	err       error
+	handle    string
+	tableName string
+	meta      record.Meta
+	rows      []record.Record
+	done      bool
+}
+
+// previewStartedMsg is the completion message for the Cmd that kicks
+// off the preview goroutine. It carries no state — the actual data
+// arrives via subsequent previewMetaLoadedMsg / previewRowsAppendedMsg
+// dispatched by previewWriter through sendFn.
+type previewStartedMsg struct {
+	handle    string
+	tableName string
+	count     int
 }
 
 // NewModel constructs the root model. Returns an error only if the
@@ -145,6 +170,29 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.focusedTbl == msg.tableName && m.detail.kind != detailColumn {
 			m.detail.setTable(msg.meta)
 		}
+		return m, nil
+	case previewMetaLoadedMsg:
+		if m.preview == nil || m.preview.tableName != msg.tableName || m.preview.handle != msg.handle {
+			m.preview = &previewBuffer{handle: msg.handle, tableName: msg.tableName}
+		}
+		m.preview.meta = msg.recMeta
+		m.detail.setPreview(m.preview)
+		return m, nil
+	case previewRowsAppendedMsg:
+		if m.preview == nil || m.preview.tableName != msg.tableName {
+			return m, nil
+		}
+		m.preview.rows = append(m.preview.rows, msg.rows...)
+		m.preview.done = msg.done
+		m.detail.setPreview(m.preview)
+		return m, nil
+	case previewErrMsg:
+		if m.preview != nil && m.preview.tableName == msg.tableName {
+			m.preview.err = msg.err
+			m.detail.setPreview(m.preview)
+		}
+		return m, nil
+	case previewStartedMsg:
 		return m, nil
 	case tea.KeyMsg:
 		if key.Matches(msg, m.keys.Quit) {
@@ -242,12 +290,43 @@ func (m *Model) routeKey(msg tea.KeyMsg) tea.Cmd {
 		} else if t := m.schema.selectedTableName(); t != "" {
 			m.focusedTbl = t
 		}
+		if key.Matches(msg, m.keys.Preview) {
+			return m.startPreview()
+		}
 		return nil
 	case paneDetail:
-		// Detail pane key handling lands in Phase 5.
+		if key.Matches(msg, m.keys.Preview) {
+			return m.startPreview()
+		}
 		return nil
 	}
 	return nil
+}
+
+// startPreview begins (or restarts) the preview for the currently
+// focused table. The returned tea.Cmd launches the previewFn goroutine;
+// that goroutine delivers previewMetaLoadedMsg / previewRowsAppendedMsg /
+// previewErrMsg back into the tea runtime via m.sendFn (captured from
+// tea.Program at Run time).
+func (m *Model) startPreview() tea.Cmd {
+	if m.previewFn == nil || m.focusedTbl == "" {
+		return nil
+	}
+	handle, table := m.focusedSrc.Handle, m.focusedTbl
+	n := m.cfg.PreviewRows
+	m.preview = &previewBuffer{handle: handle, tableName: table}
+	m.detail.setPreview(m.preview)
+	send := m.sendFn
+	if send == nil {
+		send = func(_ tea.Msg) {}
+	}
+	previewFn := m.previewFn
+	return func() tea.Msg {
+		go previewFn(context.Background(), func(msg any) {
+			send(msg.(tea.Msg))
+		}, handle, table, n)
+		return previewStartedMsg{handle: handle, tableName: table, count: n}
+	}
 }
 
 // Run starts the explore TUI and blocks until the user quits or the
@@ -267,7 +346,9 @@ func RunWithIO(ctx context.Context, ru *run.Run, cfg Config, out, errOut io.Writ
 	}
 	m.ru = ru
 	if ru != nil {
-		m.fetcher = newRunFetcher(ru)
+		rf := newRunFetcher(ru)
+		m.fetcher = rf
+		m.previewFn = rf.runPreview
 	}
 
 	opts := []tea.ProgramOption{
@@ -284,6 +365,9 @@ func RunWithIO(ctx context.Context, ru *run.Run, cfg Config, out, errOut io.Writ
 	}
 
 	p := tea.NewProgram(m, opts...)
+	// Capture p.Send so async dispatchers (e.g. previewWriter) can
+	// inject messages into the runtime.
+	m.sendFn = func(msg tea.Msg) { p.Send(msg) }
 	finalModel, err := p.Run()
 	if err != nil && !errors.Is(err, context.Canceled) &&
 		!errors.Is(err, tea.ErrProgramKilled) {
