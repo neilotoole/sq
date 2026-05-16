@@ -1,6 +1,7 @@
 package explore
 
 import (
+	"context"
 	"errors"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -125,4 +126,17 @@ func (m *Model) recordFinalHandle() {
 	if m.cfg.EmitHandle {
 		m.finalHandle = m.currentAddress()
 	}
+}
+
+// Run is the entry point invoked from the cobra command. It opens a
+// tea.Program with the given Config and returns the last-focused
+// handle (empty unless Config.EmitHandle was true).
+//
+// v1 stub: returns immediately without starting the TUI. The real
+// implementation is added in Phase 2 Task 2.3.
+func Run(ctx context.Context, ru any, cfg Config) (finalHandle string, err error) {
+	_ = ctx
+	_ = ru
+	_ = cfg
+	return "", errors.New("explore.Run not yet wired")
 }
