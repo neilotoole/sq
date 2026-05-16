@@ -39,6 +39,17 @@ type Config struct {
 	NoColor bool
 }
 
+// paneID enumerates the focusable panes. They cycle left-to-right.
+type paneID int
+
+const (
+	paneSources paneID = iota
+	paneSchema
+	paneDetail
+
+	numPanes = 3
+)
+
 // Model is the root tea.Model. It composes the three panes and routes
 // keystrokes to the focused one. Panes are added in later phases; v1
 // keeps fields here so subsequent tasks can extend without re-defining
@@ -56,6 +67,7 @@ type Model struct {
 	cfg         Config
 	width       int
 	height      int
+	focused     paneID
 	quitting    bool
 }
 
@@ -99,6 +111,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.recordFinalHandle()
 			m.quitting = true
 			return m, tea.Quit
+		}
+		if key.Matches(msg, m.keys.Tab) {
+			m.focused = (m.focused + 1) % numPanes
+			return m, nil
+		}
+		if key.Matches(msg, m.keys.ShiftTab) {
+			m.focused = (m.focused + numPanes - 1) % numPanes
+			return m, nil
 		}
 	}
 	return m, nil

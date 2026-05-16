@@ -51,6 +51,23 @@ func TestModel_View_ContainsHandle(t *testing.T) {
 	tm.WaitFinished(t, teatest.WithFinalTimeout(2*time.Second))
 }
 
+func TestModel_TabCyclesPanes(t *testing.T) {
+	m := newTestModel(t)
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(120, 30))
+	defer tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+
+	require.Equal(t, paneSources, m.focused)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
+	require.Eventually(t, func() bool { return m.focused == paneSchema }, time.Second, 10*time.Millisecond)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
+	require.Eventually(t, func() bool { return m.focused == paneDetail }, time.Second, 10*time.Millisecond)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
+	require.Eventually(t, func() bool { return m.focused == paneSources }, time.Second, 10*time.Millisecond)
+}
+
 func TestRun_QuitImmediately(t *testing.T) {
 	src := &source.Source{Handle: "@test"}
 	cfg := Config{
