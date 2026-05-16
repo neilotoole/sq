@@ -2,7 +2,9 @@ package metadata_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -11,6 +13,31 @@ import (
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
+
+// newJSONLog returns a *slog.Logger that records each entry into buf
+// as a single JSON line, and a parseEntries helper that decodes the
+// buffer into one map per emitted entry. The JSON handler is more
+// robust for assertions than the text handler because attribute keys
+// are preserved structurally — `require.Contains(buf, "ghost")` would
+// match the value of any attribute, but parseEntries lets tests pin
+// the *attribute name* the value lives under.
+func newJSONLog(buf *bytes.Buffer, level slog.Level) *slog.Logger {
+	return slog.New(slog.NewJSONHandler(buf, &slog.HandlerOptions{Level: level}))
+}
+
+func parseEntries(t *testing.T, buf *bytes.Buffer) []map[string]any {
+	t.Helper()
+	var entries []map[string]any
+	for line := range strings.SplitSeq(strings.TrimRight(buf.String(), "\n"), "\n") {
+		if line == "" {
+			continue
+		}
+		var entry map[string]any
+		require.NoError(t, json.Unmarshal([]byte(line), &entry), "log line: %s", line)
+		entries = append(entries, entry)
+	}
+	return entries
+}
 
 func TestSource_Table(t *testing.T) {
 	testCases := []struct {
@@ -725,7 +752,7 @@ func TestLinkForeignKeys(t *testing.T) {
 		// the operator can spot driver-side bugs or transiently dropped
 		// tables.
 		var buf bytes.Buffer
-		log := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn}))
+		log := newJSONLog(&buf, slog.LevelWarn)
 		bad := &metadata.ForeignKey{
 			Name:       "fk_film_typo",
 			Table:      "film",
@@ -742,10 +769,45 @@ func TestLinkForeignKeys(t *testing.T) {
 			},
 		}
 		metadata.LinkForeignKeys(log, src)
-		out := buf.String()
-		require.Contains(t, out, "level=WARN")
-		require.Contains(t, out, "fk_film_typo")
-		require.Contains(t, out, "lanugage")
+		entries := parseEntries(t, &buf)
+		require.Len(t, entries, 1)
+		require.Equal(t, "WARN", entries[0]["level"])
+		require.Equal(t, "fk_film_typo", entries[0]["constraint"])
+		require.Equal(t, "film", entries[0]["table"])
+		require.Equal(t, "lanugage", entries[0]["ref_table"])
+	})
+
+	t.Run("mixed_resolved_and_unknown_refs", func(t *testing.T) {
+		// A real driver run will mix valid FKs and the occasional
+		// unknown-ref edge case in the same call. The unknown one
+		// must warn AND the valid ones must still be linked.
+		var buf bytes.Buffer
+		log := newJSONLog(&buf, slog.LevelWarn)
+		good := &metadata.ForeignKey{
+			Name: "fk_film_language", Table: "film",
+			Columns: []string{"language_id"}, RefTable: "language", RefColumns: []string{"language_id"},
+		}
+		bad := &metadata.ForeignKey{
+			Name: "fk_film_typo", Table: "film",
+			Columns: []string{"category_id"}, RefTable: "categroy", RefColumns: []string{"id"},
+		}
+		src := &metadata.Source{
+			Tables: []*metadata.Table{
+				{Name: "film", FK: metadata.NewFKGroup([]*metadata.ForeignKey{good, bad}, nil)},
+				{Name: "language"},
+				{Name: "category"},
+			},
+		}
+		metadata.LinkForeignKeys(log, src)
+		entries := parseEntries(t, &buf)
+		require.Len(t, entries, 1, "exactly one warn for the unknown ref; the valid FK must not produce noise")
+		require.Equal(t, "categroy", entries[0]["ref_table"])
+
+		require.Len(t, src.Table("language").FK.Incoming, 1,
+			"the valid FK must still link Incoming despite the sibling typo")
+		require.Same(t, good, src.Table("language").FK.Incoming[0])
+		require.Nil(t, src.Table("category").FK,
+			"category got no incoming link because the typo'd FK didn't reach it")
 	})
 }
 
@@ -958,14 +1020,39 @@ func TestAssignForeignKeys(t *testing.T) {
 
 	t.Run("unmatched_fk_warns_when_logger_present", func(t *testing.T) {
 		var buf bytes.Buffer
-		log := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn}))
+		log := newJSONLog(&buf, slog.LevelWarn)
 		fkOrphan := &metadata.ForeignKey{Name: "fk_orphan", Table: "ghost", RefTable: "language"}
 		tables := []*metadata.Table{{Name: "film"}}
 		metadata.AssignForeignKeys(log, tables, []*metadata.ForeignKey{fkOrphan})
-		out := buf.String()
-		require.Contains(t, out, "level=WARN")
-		require.Contains(t, out, "ghost",
-			"warn payload must name the unknown owning table so the operator can diagnose case-folding / filter mismatches")
+		entries := parseEntries(t, &buf)
+		require.Len(t, entries, 1)
+		require.Equal(t, "WARN", entries[0]["level"])
+		require.Equal(t, "ghost", entries[0]["table"],
+			"warn payload must name the unknown owning table under the `table` attribute")
+		require.Equal(t, "foreign key", entries[0]["kind"])
+		require.EqualValues(t, 1, entries[0]["dropped"])
+	})
+
+	t.Run("multi_orphan_warns_in_sorted_order", func(t *testing.T) {
+		var buf bytes.Buffer
+		log := newJSONLog(&buf, slog.LevelWarn)
+		// Insertion order is deliberately scrambled so any non-sorted
+		// implementation would surface a different log sequence.
+		fks := []*metadata.ForeignKey{
+			{Name: "fk_z", Table: "zeta"},
+			{Name: "fk_a", Table: "alpha"},
+			{Name: "fk_m", Table: "mike"},
+		}
+		tables := []*metadata.Table{{Name: "film"}}
+		metadata.AssignForeignKeys(log, tables, fks)
+		entries := parseEntries(t, &buf)
+		require.Len(t, entries, 3)
+		var got []string
+		for _, e := range entries {
+			got = append(got, e["table"].(string))
+		}
+		require.Equal(t, []string{"alpha", "mike", "zeta"}, got,
+			"warnOrphans must emit warns in lexicographic order so log output is reproducible")
 	})
 }
 
@@ -1000,6 +1087,20 @@ func TestAssignUniqueConstraints(t *testing.T) {
 		metadata.AssignUniqueConstraints(nil, tables, []*metadata.UniqueConstraint{new1})
 		require.Equal(t, []*metadata.UniqueConstraint{new1}, tables[0].UniqueConstraints)
 	})
+
+	t.Run("unmatched_uc_warns_when_logger_present", func(t *testing.T) {
+		var buf bytes.Buffer
+		log := newJSONLog(&buf, slog.LevelWarn)
+		uc := &metadata.UniqueConstraint{Name: "u_ghost", Table: "ghost", Columns: []string{"id"}}
+		tables := []*metadata.Table{{Name: "film"}}
+		metadata.AssignUniqueConstraints(log, tables, []*metadata.UniqueConstraint{uc})
+		entries := parseEntries(t, &buf)
+		require.Len(t, entries, 1)
+		require.Equal(t, "WARN", entries[0]["level"])
+		require.Equal(t, "ghost", entries[0]["table"])
+		require.Equal(t, "unique constraint", entries[0]["kind"],
+			"the warn must label the kind so operators can grep for unique-constraint drops specifically")
+	})
 }
 
 func TestAssignIndexes(t *testing.T) {
@@ -1033,4 +1134,74 @@ func TestAssignIndexes(t *testing.T) {
 		metadata.AssignIndexes(nil, tables, []*metadata.Index{new1})
 		require.Equal(t, []*metadata.Index{new1}, tables[0].Indexes)
 	})
+
+	t.Run("unmatched_idx_warns_when_logger_present", func(t *testing.T) {
+		var buf bytes.Buffer
+		log := newJSONLog(&buf, slog.LevelWarn)
+		idx := &metadata.Index{Name: "i_ghost", Table: "ghost", Columns: []string{"id"}}
+		tables := []*metadata.Table{{Name: "film"}}
+		metadata.AssignIndexes(log, tables, []*metadata.Index{idx})
+		entries := parseEntries(t, &buf)
+		require.Len(t, entries, 1)
+		require.Equal(t, "WARN", entries[0]["level"])
+		require.Equal(t, "ghost", entries[0]["table"])
+		require.Equal(t, "index", entries[0]["kind"])
+	})
+}
+
+// TestFKGroup_Clone_StandaloneDropsIncoming locks the contract
+// promised in [FKGroup.Clone]'s godoc — a standalone clone (not via
+// [Source.Clone]) has Incoming == nil because LinkForeignKeys needs
+// the whole source to re-derive back-references.
+func TestFKGroup_Clone_StandaloneDropsIncoming(t *testing.T) {
+	t.Run("nil_receiver", func(t *testing.T) {
+		var g *metadata.FKGroup
+		require.Nil(t, g.Clone())
+	})
+
+	t.Run("incoming_dropped_outgoing_deep_copied", func(t *testing.T) {
+		outFK := &metadata.ForeignKey{Name: "fk_out", Table: "child", RefTable: "parent"}
+		incFK := &metadata.ForeignKey{Name: "fk_in", Table: "other", RefTable: "child"}
+		g := &metadata.FKGroup{
+			Outgoing: []*metadata.ForeignKey{outFK},
+			Incoming: []*metadata.ForeignKey{incFK},
+		}
+		clone := g.Clone()
+		require.NotNil(t, clone)
+		require.Nil(t, clone.Incoming,
+			"standalone FKGroup.Clone must leave Incoming nil; use Source.Clone to re-link")
+		require.Len(t, clone.Outgoing, 1)
+		require.NotSame(t, outFK, clone.Outgoing[0],
+			"Outgoing entries must be deep-copied, not aliased to the original")
+		require.Equal(t, outFK.Name, clone.Outgoing[0].Name)
+	})
+}
+
+// TestSource_Clone_NilLoggerSilencesWarnings locks the contract from
+// [Source.Clone]'s godoc — Clone passes nil to LinkForeignKeys, so a
+// programmatically-constructed source with an unresolved FK clones
+// cleanly with zero log output. Callers wanting those warnings must
+// call LinkForeignKeys with a real logger themselves.
+func TestSource_Clone_NilLoggerSilencesWarnings(t *testing.T) {
+	prev := slog.Default()
+	var buf bytes.Buffer
+	slog.SetDefault(newJSONLog(&buf, slog.LevelDebug))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	bad := &metadata.ForeignKey{
+		Name: "fk_typo", Table: "film",
+		Columns: []string{"language_id"}, RefTable: "lanugage", RefColumns: []string{"id"},
+	}
+	src := &metadata.Source{
+		Tables: []*metadata.Table{
+			{Name: "film", FK: metadata.NewFKGroup([]*metadata.ForeignKey{bad}, nil)},
+			{Name: "language"},
+		},
+	}
+
+	clone := src.Clone()
+	require.NotNil(t, clone)
+	require.Empty(t, buf.String(),
+		"Source.Clone must not emit log entries — programmatic callers wanting "+
+			"validation should call LinkForeignKeys with a real logger")
 }

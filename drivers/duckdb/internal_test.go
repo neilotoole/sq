@@ -1,9 +1,13 @@
 package duckdb
 
 import (
+	"bytes"
+	"encoding/json"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -222,6 +226,51 @@ func TestParseDuckDBIndexExpressions(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestLogDroppedDuckDBIndex pins the warn-vs-debug discrimination
+// added so that a future format change in duckdb_indexes().expressions
+// surfaces as a warning, while legitimate empty / functional-only
+// indexes log only at debug level.
+func TestLogDroppedDuckDBIndex(t *testing.T) {
+	testCases := []struct {
+		name      string
+		exprList  string
+		wantLevel string // "DEBUG" or "WARN"
+	}{
+		{"canonical_empty", "[]", "DEBUG"},
+		{"empty_with_spaces", "[ ]", "DEBUG"},
+		{"all_functional", "['(lower(email))']", "DEBUG"},
+		{"all_functional_multi", "['(lower(email))', '(upper(name))']", "DEBUG"},
+		// Anything that doesn't look like a `[...]` list — a genuine
+		// format change. These must warn so the issue is visible.
+		{"unbracketed", "not-a-list", "WARN"},
+		{"empty_string", "", "WARN"},
+		{"unclosed_bracket", "[email", "WARN"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			log := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+			logDroppedDuckDBIndex(log, "tbl", "idx", tc.exprList)
+
+			line := strings.TrimSpace(buf.String())
+			require.NotEmpty(t, line, "logDroppedDuckDBIndex must emit one entry per call")
+
+			var entry map[string]any
+			require.NoError(t, json.Unmarshal([]byte(line), &entry))
+			require.Equal(t, tc.wantLevel, entry["level"],
+				"input %q must log at %s level; got entry: %v", tc.exprList, tc.wantLevel, entry)
+			require.Equal(t, tc.exprList, entry["expressions"])
+		})
+	}
+
+	t.Run("nil_logger_is_safe", func(t *testing.T) {
+		require.NotPanics(t, func() {
+			logDroppedDuckDBIndex(nil, "tbl", "idx", "[]")
+		})
+	})
 }
 
 // TestConnParams asserts the whitelist's keys and known-value enumerations,

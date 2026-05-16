@@ -44,6 +44,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   unique constraints, so those don't appear in `indexes` (but the
   PK / UNIQUE info is still surfaced via `Column.primary_key` and
   `unique_constraints`).
+  When a driver's bulk loader returns FK / UC / Index rows for a
+  table that's no longer in the source (or an outgoing FK that
+  references a table not present), the discrepancy is reported at
+  warn level (visible under `-v`) rather than silently dropped.
+  Verbose text output mutes UC-backing index entries in the
+  `INDEXES` column (rendered in parens at reduced intensity) so the
+  primary listing isn't cluttered while the relationship between
+  constraint and index remains discoverable.
 - [#602]: [`sq`](https://sq.io/docs/cmd/sq) now features a [`--render-sql`](https://sq.io/docs/cmd/sq/#render-sql)
   flag, which prints the SQL (derived from `SLQ` input) that would be
   executed against the target database, _instead_ of running it. Honors `--format` with:

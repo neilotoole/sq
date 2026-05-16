@@ -1,10 +1,13 @@
 package tablew
 
 import (
+	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -248,4 +251,72 @@ func TestFormatFKRef_CrossCatalog(t *testing.T) {
 			require.Equal(t, tc.want, formatFKRef(tc.fk))
 		})
 	}
+}
+
+// TestPrintTablesVerbose_COLSPlainNumeric exercises the full
+// printTablesVerbose path to lock the round-3 fix that emits the COLS
+// cell as a plain numeric string. The column-3 transformer is
+// pr.Number; pre-styling the cell would double-wrap ANSI codes. Tests
+// run with color disabled so the assertion is on the raw character
+// content of the cell (no escape-code interleaving), which is enough
+// to catch a regression that re-introduces Faint.Sprintf wrapping —
+// the wrapped form contains additional non-numeric runs even after
+// color stripping.
+func TestPrintTablesVerbose_COLSPlainNumeric(t *testing.T) {
+	tbls := []*metadata.Table{
+		{
+			Name:      "actor",
+			TableType: "table",
+			RowCount:  200,
+			Columns: []*metadata.Column{
+				{Name: "actor_id", BaseType: "INTEGER", PrimaryKey: true},
+				{Name: "first_name", BaseType: "TEXT"},
+			},
+		},
+		{
+			// Column-less table: exercises the len(tbl.Columns) == 0
+			// short-circuit that also pre-styled "0" before round-3.
+			Name:      "empty_view",
+			TableType: "view",
+			RowCount:  0,
+			Columns:   nil,
+		},
+	}
+
+	var buf bytes.Buffer
+	pr := output.NewPrinting()
+	pr.EnableColor(false)
+	w := NewMetadataWriter(&buf, pr).(*mdWriter)
+	require.NoError(t, w.printTablesVerbose(tbls))
+
+	out := buf.String()
+	require.NotEmpty(t, out)
+
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	// Locate each table's leading row — they're the ones that start
+	// with the table name (column-continuation rows start with
+	// whitespace because NAME / TYPE / ROWS / COLS are blanked out).
+	var actorRow, emptyRow string
+	for _, line := range lines {
+		switch {
+		case strings.HasPrefix(line, "actor "):
+			actorRow = line
+		case strings.HasPrefix(line, "empty_view"):
+			emptyRow = line
+		}
+	}
+	require.NotEmpty(t, actorRow, "actor row not found in output: %q", out)
+	require.NotEmpty(t, emptyRow, "empty_view row not found in output: %q", out)
+
+	// With color disabled the COLS cell should be a bare numeric
+	// surrounded by table-padding whitespace. A regression that
+	// pre-styled the cell would inject ANSI escape codes; even
+	// disabled, the wrong code path leaves visible artefacts.
+	require.Regexp(t, `\s2\s`, actorRow,
+		"actor row COLS cell must render as a bare numeric (no double-style wrapping)")
+	require.Regexp(t, `\s0\s`, emptyRow,
+		"empty_view row COLS cell must render as a bare 0 (no double-style wrapping)")
+	require.NotContains(t, actorRow, "\x1b[",
+		"with color disabled the row must contain no ANSI escape sequences")
+	require.NotContains(t, emptyRow, "\x1b[")
 }

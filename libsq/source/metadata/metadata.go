@@ -224,6 +224,11 @@ func (t *Table) String() string {
 }
 
 // Clone returns a deep copy of t. If t is nil, nil is returned.
+//
+// If t.FK.Incoming was previously populated by [LinkForeignKeys],
+// the clone's FK.Incoming will be nil — see [FKGroup.Clone] for the
+// rationale. Use [Source.Clone] to clone a table inside a source and
+// have its incoming back-references re-derived automatically.
 func (t *Table) Clone() *Table {
 	if t == nil {
 		return nil
@@ -699,6 +704,10 @@ func AssignIndexes(log *slog.Logger, tables []*Table, idxs []*Index) {
 // Both are worth surfacing; the structured attributes let operators
 // disambiguate.
 //
+// The "dropped" attribute counts the number of metadata objects
+// (composite-FK / UC / Index records, where one record may span
+// multiple raw SQL rows) — not raw SQL rows.
+//
 // Owning-table names are sorted before emission so the log entry
 // order is deterministic across runs.
 func warnOrphans[T any](log *slog.Logger, label string, orphans map[string][]T) {
@@ -714,7 +723,7 @@ func warnOrphans[T any](log *slog.Logger, label string, orphans map[string][]T) 
 		log.Warn("metadata: dropped rows for unknown owning table",
 			slog.String("kind", label),
 			slog.String("table", name),
-			slog.Int("rows", len(orphans[name])),
+			slog.Int("dropped", len(orphans[name])),
 		)
 	}
 }
