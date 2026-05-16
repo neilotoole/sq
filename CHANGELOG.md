@@ -12,7 +12,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
-## Unreleased
+## [v0.52.0] - 2026-05-15
 
 ### Added
 
@@ -27,8 +27,6 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   no foreign-key concept). Composite and cross-schema references are
   supported; see the driver-specific caveats in the
   [inspect docs](https://sq.io/docs/cmd/inspect).
-- Verbose `sq inspect` output gains `FK`, `INDEXES`, and
-  `UNIQUE CONSTRAINTS` columns alongside `PK`.
 - [#602]: [`sq`](https://sq.io/docs/cmd/sq) now features a [`--render-sql`](https://sq.io/docs/cmd/sq/#render-sql)
   flag, which prints the SQL (derived from `SLQ` input) that would be
   executed against the target database, _instead_ of running it. Honors `--format` with:
@@ -1529,4 +1527,5 @@ make working with lots of sources much easier.
 [v0.50.0]: https://github.com/neilotoole/sq/compare/v0.49.0...v0.50.0
 [v0.50.2]: https://github.com/neilotoole/sq/compare/v0.50.0...v0.50.2
 [v0.51.0]: https://github.com/neilotoole/sq/compare/v0.50.2...v0.51.0
+[v0.52.0]: https://github.com/neilotoole/sq/compare/v0.51.0...v0.52.0
 
