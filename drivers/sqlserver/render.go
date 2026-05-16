@@ -217,13 +217,25 @@ const mssqlBinaryCollate = " COLLATE Latin1_General_BIN2"
 const mssqlLikeExtraMeta = "[]"
 
 func renderFuncContainsCollate(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	return render.RenderLikeOp(rc, fn, render.LikeContains, "LIKE", mssqlBinaryCollate, mssqlLikeExtraMeta)
+	return render.RenderLikeOp(rc, fn, render.LikeOpts{
+		Mode:       render.LikeContains,
+		ColCollate: mssqlBinaryCollate,
+		ExtraMeta:  mssqlLikeExtraMeta,
+	})
 }
 
 func renderFuncStartsWithCollate(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	return render.RenderLikeOp(rc, fn, render.LikeStartsWith, "LIKE", mssqlBinaryCollate, mssqlLikeExtraMeta)
+	return render.RenderLikeOp(rc, fn, render.LikeOpts{
+		Mode:       render.LikeStartsWith,
+		ColCollate: mssqlBinaryCollate,
+		ExtraMeta:  mssqlLikeExtraMeta,
+	})
 }
 
 func renderFuncEndsWithCollate(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	return render.RenderLikeOp(rc, fn, render.LikeEndsWith, "LIKE", mssqlBinaryCollate, mssqlLikeExtraMeta)
+	return render.RenderLikeOp(rc, fn, render.LikeOpts{
+		Mode:       render.LikeEndsWith,
+		ColCollate: mssqlBinaryCollate,
+		ExtraMeta:  mssqlLikeExtraMeta,
+	})
 }

@@ -113,6 +113,7 @@ func TestQuery_string_contains(t *testing.T) {
 			in:      `@sakila | .actor | where(contains(.first_name, ""))`,
 			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE '%%' ESCAPE '|'`,
 			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" LIKE '%%' ESCAPE '|'`,
 				drivertype.SQLite:     `SELECT * FROM "actor" WHERE instr("first_name", '') > 0`,
 				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY '%%' ESCAPE '|'",
 				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE '%%' ESCAPE '|'`,
@@ -132,6 +133,7 @@ func TestQuery_string_contains(t *testing.T) {
 			in:      `@sakila | .actor | where(contains(.first_name, "[A-Z]"))`,
 			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE '%[A-Z]%' ESCAPE '|'`,
 			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" LIKE '%[A-Z]%' ESCAPE '|'`,
 				drivertype.SQLite:     `SELECT * FROM "actor" WHERE instr("first_name", '[A-Z]') > 0`,
 				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY '%[A-Z]%' ESCAPE '|'",
 				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE '%|[A-Z|]%' ESCAPE '|'`,
@@ -140,14 +142,14 @@ func TestQuery_string_contains(t *testing.T) {
 			wantRecCount: 0,
 		},
 		{
-			name:    "contains/wrong-arg-count",
-			in:      `@sakila | .actor | where(contains(.first_name))`,
-			wantErr: true,
+			name:            "contains/wrong-arg-count",
+			in:              `@sakila | .actor | where(contains(.first_name))`,
+			wantErrContains: "contains() requires exactly 2 arguments",
 		},
 		{
-			name:    "contains/non-literal-pattern",
-			in:      `@sakila | .actor | where(contains(.first_name, .last_name))`,
-			wantErr: true,
+			name:            "contains/non-literal-pattern",
+			in:              `@sakila | .actor | where(contains(.first_name, .last_name))`,
+			wantErrContains: "contains() second argument must be a string literal",
 		},
 	}
 
@@ -205,12 +207,23 @@ func TestQuery_string_startswith(t *testing.T) {
 			in:      `@sakila | .actor | where(startswith(.last_name, ""))`,
 			wantSQL: `SELECT * FROM "actor" WHERE "last_name" LIKE '%' ESCAPE '|'`,
 			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "last_name" LIKE '%' ESCAPE '|'`,
 				drivertype.SQLite:     `SELECT * FROM "actor" WHERE substr("last_name", 1, 0) = ''`,
 				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `last_name` LIKE BINARY '%' ESCAPE '|'",
 				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "last_name" COLLATE Latin1_General_BIN2 LIKE '%' ESCAPE '|'`,
 				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE startsWith(`last_name`, '')",
 			},
 			wantRecCount: 200,
+		},
+		{
+			name:            "startswith/wrong-arg-count",
+			in:              `@sakila | .actor | where(startswith(.last_name))`,
+			wantErrContains: "startswith() requires exactly 2 arguments",
+		},
+		{
+			name:            "startswith/non-literal-pattern",
+			in:              `@sakila | .actor | where(startswith(.last_name, .first_name))`,
+			wantErrContains: "startswith() second argument must be a string literal",
 		},
 	}
 
@@ -264,18 +277,31 @@ func TestQuery_string_endswith(t *testing.T) {
 			// Empty pattern matches every non-NULL row on all drivers.
 			// SQLite's substr-based path would naively be false for every
 			// row (substr(col, -0) returns the full string); the renderer
-			// special-cases this to `col IS NOT NULL`. See
+			// special-cases this to `col LIKE '%'` so NULL handling matches
+			// the LIKE-based drivers (including under negation, where
+			// `col IS NOT NULL` would diverge). See
 			// drivers/sqlite3/render.go:renderFuncEndsWithSubstr.
 			name:    "endswith/empty-pattern-matches-all",
 			in:      `@sakila | .actor | where(endswith(.last_name, ""))`,
 			wantSQL: `SELECT * FROM "actor" WHERE "last_name" LIKE '%' ESCAPE '|'`,
 			override: driverMap{
-				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "last_name" IS NOT NULL`,
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "last_name" LIKE '%' ESCAPE '|'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "last_name" LIKE '%'`,
 				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `last_name` LIKE BINARY '%' ESCAPE '|'",
 				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "last_name" COLLATE Latin1_General_BIN2 LIKE '%' ESCAPE '|'`,
 				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE endsWith(`last_name`, '')",
 			},
 			wantRecCount: 200,
+		},
+		{
+			name:            "endswith/wrong-arg-count",
+			in:              `@sakila | .actor | where(endswith(.last_name))`,
+			wantErrContains: "endswith() requires exactly 2 arguments",
+		},
+		{
+			name:            "endswith/non-literal-pattern",
+			in:              `@sakila | .actor | where(endswith(.last_name, .first_name))`,
+			wantErrContains: "endswith() second argument must be a string literal",
 		},
 	}
 

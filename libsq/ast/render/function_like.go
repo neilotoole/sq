@@ -30,13 +30,14 @@ const likeEscapeChar = '|'
 // in lock-step.
 var likeEscapeClause = " ESCAPE '" + string(likeEscapeChar) + "'"
 
-// EscapeLikePattern prefixes likeEscapeChar before each LIKE meta-character
+// escapeLikePattern prefixes likeEscapeChar before each LIKE meta-character
 // (% and _) and before any literal occurrence of the escape char itself.
 // extraMeta lists additional characters the driver treats as LIKE meta-chars
 // and that must therefore be escaped (e.g. "[" and "]" for SQL Server's
 // character classes). Pass "" for dialects whose LIKE meta-chars are limited
-// to % and _. Exported for use by driver-specific overrides.
-func EscapeLikePattern(s, extraMeta string) string {
+// to % and _. Passing characters in extraMeta that overlap with %, _, or the
+// escape char is harmless: the built-in branch matches first.
+func escapeLikePattern(s, extraMeta string) string {
 	if !strings.ContainsAny(s, "%_|"+extraMeta) {
 		return s
 	}
@@ -51,12 +52,11 @@ func EscapeLikePattern(s, extraMeta string) string {
 	return b.String()
 }
 
-// BuildLikePattern returns the LIKE-pattern string (without surrounding
+// buildLikePattern returns the LIKE-pattern string (without surrounding
 // quotes or the ESCAPE clause) for the given mode and (already-unquoted)
-// literal value. See [EscapeLikePattern] for extraMeta.
-// Exported for use by driver-specific overrides.
-func BuildLikePattern(s string, mode LikeMode, extraMeta string) string {
-	escaped := EscapeLikePattern(s, extraMeta)
+// literal value. See [escapeLikePattern] for extraMeta.
+func buildLikePattern(s string, mode LikeMode, extraMeta string) string {
+	escaped := escapeLikePattern(s, extraMeta)
 	switch mode {
 	case LikeContains:
 		return "%" + escaped + "%"
@@ -93,8 +93,7 @@ func ParseLikeArgs(rc *Context, fn *ast.FuncNode) (colSQL, literal string, err e
 	}
 	colSQL, err = renderSelectorNode(rc.Dialect, colNode)
 	if err != nil {
-		return "", "", errz.Wrapf(err,
-			"%s() first argument must be a column selector", fn.FuncName())
+		return "", "", errz.Wrapf(err, "%s() first argument", fn.FuncName())
 	}
 
 	litNode, ok := ast.NodeUnwrap[*ast.LiteralNode](children[1])
@@ -104,7 +103,7 @@ func ParseLikeArgs(rc *Context, fn *ast.FuncNode) (colSQL, literal string, err e
 	}
 	val, wasQuoted, err := unquoteLiteral(litNode.Text())
 	if err != nil {
-		return "", "", err
+		return "", "", errz.Wrapf(err, "%s() second argument", fn.FuncName())
 	}
 	if !wasQuoted {
 		return "", "", errz.Errorf(
@@ -114,36 +113,52 @@ func ParseLikeArgs(rc *Context, fn *ast.FuncNode) (colSQL, literal string, err e
 	return colSQL, val, nil
 }
 
+// LikeOpts configures [RenderLikeOp]. Only Mode is required.
+type LikeOpts struct {
+	// Mode selects which substring-matching shape to render.
+	Mode LikeMode
+
+	// Op is the LIKE operator. Defaults to "LIKE"; MySQL uses "LIKE BINARY"
+	// to force byte-level comparison.
+	Op string
+
+	// ColCollate, when non-empty, is appended verbatim after the column
+	// reference (e.g. " COLLATE Latin1_General_BIN2" — note the leading
+	// space). Callers must include the leading space.
+	ColCollate string
+
+	// ExtraMeta lists characters the driver treats as LIKE meta-chars in
+	// addition to % and _ (e.g. "[]" for SQL Server's character classes).
+	ExtraMeta string
+}
+
 // RenderLikeOp renders the LIKE-based shape:
 //
-//	<colSQL><colCollate> <likeOp> '<pattern>' ESCAPE '<likeEscapeChar>'
-//
-// likeOp is typically "LIKE" or "LIKE BINARY" (MySQL).
-// colCollate, when non-empty, is appended verbatim after the column reference
-// (e.g. " COLLATE Latin1_General_BIN2" — note the leading space). It's the
-// caller's responsibility to include the leading space.
-// See [EscapeLikePattern] for extraMeta.
+//	<colSQL><opts.ColCollate> <opts.Op> '<pattern>' ESCAPE '<likeEscapeChar>'
 //
 // Used by the default-renderer overrides and by MySQL/SQL Server overrides.
-// SQLite uses a different shape and does not call this function.
-func RenderLikeOp(rc *Context, fn *ast.FuncNode, mode LikeMode, likeOp, colCollate, extraMeta string,
-) (string, error) {
+// SQLite and ClickHouse use different shapes and do not call this function.
+func RenderLikeOp(rc *Context, fn *ast.FuncNode, opts LikeOpts) (string, error) {
 	colSQL, lit, err := ParseLikeArgs(rc, fn)
 	if err != nil {
 		return "", err
 	}
-	pattern := BuildLikePattern(lit, mode, extraMeta)
-	return colSQL + colCollate + " " + likeOp + " " + stringz.SingleQuote(pattern) + likeEscapeClause, nil
+	op := opts.Op
+	if op == "" {
+		op = "LIKE"
+	}
+	pattern := buildLikePattern(lit, opts.Mode, opts.ExtraMeta)
+	return colSQL + opts.ColCollate + " " + op + " " + stringz.SingleQuote(pattern) + likeEscapeClause, nil
 }
 
 func doFuncContains(rc *Context, fn *ast.FuncNode) (string, error) {
-	return RenderLikeOp(rc, fn, LikeContains, "LIKE", "", "")
+	return RenderLikeOp(rc, fn, LikeOpts{Mode: LikeContains})
 }
 
 func doFuncStartsWith(rc *Context, fn *ast.FuncNode) (string, error) {
-	return RenderLikeOp(rc, fn, LikeStartsWith, "LIKE", "", "")
+	return RenderLikeOp(rc, fn, LikeOpts{Mode: LikeStartsWith})
 }
 
 func doFuncEndsWith(rc *Context, fn *ast.FuncNode) (string, error) {
-	return RenderLikeOp(rc, fn, LikeEndsWith, "LIKE", "", "")
+	return RenderLikeOp(rc, fn, LikeOpts{Mode: LikeEndsWith})
 }

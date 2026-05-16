@@ -34,7 +34,7 @@ func TestEscapeLikePattern(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.in+"/extra="+tc.extraMeta, func(t *testing.T) {
-			got := EscapeLikePattern(tc.in, tc.extraMeta)
+			got := escapeLikePattern(tc.in, tc.extraMeta)
 			require.Equal(t, tc.want, got)
 		})
 	}
@@ -63,7 +63,7 @@ func TestBuildLikePattern(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(string(tc.mode)+"/"+tc.in+"/extra="+tc.extraMeta, func(t *testing.T) {
-			got := BuildLikePattern(tc.in, tc.mode, tc.extraMeta)
+			got := buildLikePattern(tc.in, tc.mode, tc.extraMeta)
 			require.Equal(t, tc.want, got)
 		})
 	}

@@ -723,7 +723,11 @@ letter instead of the literal `[A-Z]` substring).
 Under the hood, `sq` chooses the right primitive per driver to guarantee
 case-sensitive matching:
 
-- **Postgres / Oracle:** native `LIKE` (already case-sensitive).
+- **Postgres / DuckDB:** native `LIKE` (already case-sensitive).
+- **Oracle:** native `LIKE` (case-sensitive when `NLS_COMP=BINARY`,
+  which is Oracle's default; sessions that set `NLS_COMP=LINGUISTIC`
+  with a case-insensitive `NLS_SORT` will get case-insensitive
+  matching).
 - **ClickHouse:** native `position()` function.
 - **MySQL:** `LIKE BINARY`, to force byte-level comparison.
 - **SQL Server:** `LIKE` with `COLLATE Latin1_General_BIN2`.
