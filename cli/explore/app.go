@@ -267,25 +267,31 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// View satisfies tea.Model. It composes the three panes into a single
-// frame.
+// Width thresholds for the three-mode View layout.
+const (
+	widthFullThreshold  = 100 // below this, drop sources pane to a header.
+	widthStackThreshold = 70  // below this, stack vertically.
+)
+
+// View satisfies tea.Model. It composes the panes into a single frame,
+// choosing a layout based on terminal width.
 func (m *Model) View() string {
-	if m.quitting {
-		return ""
-	}
-	if m.width == 0 || m.height == 0 {
-		// First frame before a WindowSizeMsg arrives.
+	if m.quitting || m.width == 0 || m.height == 0 {
 		return ""
 	}
 
-	col := m.width / numPanes
 	body := m.height - 2 // 1 for title, 1 for help footer.
 
-	srcCol := m.sources.view(m.focused == paneSources, col, body)
-	schCol := m.schema.view(m.focused == paneSchema, col, body)
-	detCol := m.detail.view(m.focused == paneDetail, m.width-2*col, body)
+	var row string
+	switch {
+	case m.width >= widthFullThreshold:
+		row = m.viewWide(body)
+	case m.width >= widthStackThreshold:
+		row = m.viewCompact(body)
+	default:
+		row = m.viewStacked(body)
+	}
 
-	row := lipgloss.JoinHorizontal(lipgloss.Top, srcCol, schCol, detCol)
 	title := m.theme.Title.Render("sq explore")
 	if m.filtering {
 		title += "  /" + m.filterBuf + "▏"
@@ -295,6 +301,37 @@ func (m *Model) View() string {
 		out += m.theme.Help.Render(m.helpFooter())
 	}
 	return out
+}
+
+// viewWide is the three-pane side-by-side layout used when the terminal
+// is at least widthFullThreshold columns wide.
+func (m *Model) viewWide(body int) string {
+	col := m.width / numPanes
+	srcCol := m.sources.view(m.focused == paneSources, col, body)
+	schCol := m.schema.view(m.focused == paneSchema, col, body)
+	detCol := m.detail.view(m.focused == paneDetail, m.width-2*col, body)
+	return lipgloss.JoinHorizontal(lipgloss.Top, srcCol, schCol, detCol)
+}
+
+// viewCompact drops the sources pane to a header line and shows the
+// schema + detail panes side by side.
+func (m *Model) viewCompact(body int) string {
+	head := m.theme.Faint.Render("source: " + m.currentAddress())
+	col := m.width / 2
+	schCol := m.schema.view(m.focused == paneSchema, col, body-1)
+	detCol := m.detail.view(m.focused == paneDetail, m.width-col, body-1)
+	return head + "\n" + lipgloss.JoinHorizontal(lipgloss.Top, schCol, detCol)
+}
+
+// viewStacked stacks the header, schema, and detail panes vertically
+// for very narrow terminals.
+func (m *Model) viewStacked(body int) string {
+	schH := (body - 1) / 2
+	detH := body - 1 - schH
+	head := m.theme.Faint.Render("source: " + m.currentAddress())
+	schView := m.schema.view(m.focused == paneSchema, m.width, schH)
+	detView := m.detail.view(m.focused == paneDetail, m.width, detH)
+	return head + "\n" + schView + "\n" + detView
 }
 
 // helpFooter returns the key-help summary rendered in the footer when

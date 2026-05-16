@@ -248,6 +248,14 @@ func TestModel_Filter_FiltersSourcesPane(t *testing.T) {
 	require.NotContains(t, out, "@gamma")
 }
 
+func TestModel_View_NarrowTerminal_StacksPanes(t *testing.T) {
+	m := newTestModel(t)
+	m.Update(tea.WindowSizeMsg{Width: 60, Height: 30})
+	out := m.View()
+	// In stacked mode, the focused source handle still appears.
+	require.Contains(t, out, "@test")
+}
+
 func TestModel_HelpToggle(t *testing.T) {
 	m := newTestModel(t)
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
