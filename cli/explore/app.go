@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -69,6 +70,7 @@ type Model struct {
 	previewFn   previewFunc
 	preview     *previewBuffer
 	sendFn      func(tea.Msg)
+	copyFn      func(string) error
 	focusedTbl  string
 	finalHandle string
 	filterBuf   string
@@ -123,6 +125,7 @@ func NewModel(cfg Config) (*Model, error) {
 	m.sources = newSourcesPane(cfg.Sources, cfg.FocusedSrc, m.theme)
 	m.schema = newSchemaTree(cfg.FocusedSrc.Handle, m.theme)
 	m.detail = newDetailPane(m.theme)
+	m.copyFn = clipboard.WriteAll
 	return m, nil
 }
 
@@ -255,6 +258,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+		if key.Matches(msg, m.keys.Copy) {
+			m.copyCurrentAddress()
+			return m, nil
+		}
 		return m, m.routeKey(msg)
 	}
 	return m, nil
@@ -316,6 +323,17 @@ func (m *Model) applyFilter(f string) {
 	case paneDetail:
 		// no-op: detail pane doesn't support filtering yet.
 	}
+}
+
+// copyCurrentAddress writes the current address to the system clipboard
+// via m.copyFn. It is best-effort: errors are swallowed so the TUI keeps
+// running on platforms where no clipboard is available.
+func (m *Model) copyCurrentAddress() {
+	addr := m.currentAddress()
+	if addr == "" || m.copyFn == nil {
+		return
+	}
+	_ = m.copyFn(addr)
 }
 
 // currentAddress returns "@src" or "@src.table" for the current focus.

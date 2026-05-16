@@ -304,6 +304,23 @@ func (r *refreshSpy) RefreshSource(ctx context.Context, h string) ([]string, err
 	return r.base.RefreshSource(ctx, h)
 }
 
+func TestModel_PressY_CopiesHandle(t *testing.T) {
+	srcs := mkSources("@one", "@two")
+	cfg := Config{Sources: srcs, FocusedSrc: srcs[1], NoColor: true}
+	m, _ := NewModel(cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
+
+	var copied string
+	m.copyFn = func(s string) error { copied = s; return nil }
+
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	require.Equal(t, "@two", copied)
+
+	m.focusedTbl = "actor"
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	require.Equal(t, "@two.actor", copied)
+}
+
 func TestRun_QuitImmediately(t *testing.T) {
 	src := &source.Source{Handle: "@test"}
 	cfg := Config{
