@@ -738,11 +738,18 @@ func getTableIndexes(ctx context.Context, db sqlz.DB, schemaName, tblName string
 
 // logDroppedDuckDBIndex emits a log entry for an index dropped from
 // the metadata because [parseDuckDBIndexExpressions] returned no
-// usable plain-column entries. A trivial `[]` (empty index) is
-// logged at debug level; anything else — a malformed list, an index
-// whose keys are all functional, an unrecognized DuckDB output
-// format — is logged at warn level so a future format change is
-// visible in operator logs rather than silently voiding indexes.
+// usable plain-column entries. Three cases are distinguished:
+//
+//   - Empty list ("[]" / "[ ]"): an index with no key columns. Debug
+//     level — uncommon but well-formed DuckDB output.
+//   - Well-formed list with no plain-column tokens (e.g.
+//     "['(lower(email))']"): a functional / expression-only index.
+//     Debug level — this is legitimate DuckDB usage; the index is
+//     dropped from [metadata.Table.Indexes] because [Index.Columns]
+//     is documented as plain identifiers only.
+//   - Anything else (no surrounding brackets, garbled output): a
+//     genuine surprise — likely a DuckDB output-format change.
+//     Warn level so it's visible in operator logs.
 func logDroppedDuckDBIndex(log *slog.Logger, tblName, idxName, exprList string) {
 	if log == nil {
 		return
@@ -752,11 +759,14 @@ func logDroppedDuckDBIndex(log *slog.Logger, tblName, idxName, exprList string) 
 		slog.String("index", idxName),
 		slog.String("expressions", exprList),
 	}
-	if strings.TrimSpace(exprList) == "[]" {
-		log.Debug("duckdb: dropping index with no key columns", attrs...)
+	trimmed := strings.TrimSpace(exprList)
+	// Well-formed `[...]` shape — either empty or all-functional;
+	// either case is legitimate DuckDB output, not a format change.
+	if strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]") {
+		log.Debug("duckdb: dropping index with no plain-column keys", attrs...)
 		return
 	}
-	log.Warn("duckdb: dropping index whose expressions yielded no plain column keys", attrs...)
+	log.Warn("duckdb: dropping index whose expressions string is in an unrecognized format", attrs...)
 }
 
 // parseDuckDBIndexExpressions parses the stringified list returned in

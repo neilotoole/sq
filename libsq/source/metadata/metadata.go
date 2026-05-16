@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"maps"
+	"sort"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -84,6 +85,15 @@ func (s *Source) Table(tblName string) *Table {
 }
 
 // Clone returns a deep copy of s. If s is nil, nil is returned.
+//
+// Clone re-runs [LinkForeignKeys] with a nil logger on the result so
+// the cloned tables' FK.Incoming slices point at the cloned outgoing
+// FK objects rather than at the originals. Passing nil suppresses
+// warnings about unresolved FK targets — callers that construct a
+// *Source programmatically (i.e. not via a driver's
+// getSourceMetadata) and want to surface those should call
+// [LinkForeignKeys] themselves with a real logger before cloning, or
+// after Clone to revalidate.
 func (s *Source) Clone() *Source {
 	if s == nil {
 		return s
@@ -365,9 +375,14 @@ func NewFKGroup(outgoing, incoming []*ForeignKey) *FKGroup {
 // derived back-reference whose pointer identity must match the
 // Outgoing entries on the (cloned) source's other tables — a
 // requirement [Source.Clone] satisfies by re-running [LinkForeignKeys]
-// over the cloned tables. Callers cloning an *FKGroup standalone
-// (outside of [Source.Clone]) must call [LinkForeignKeys] themselves
-// before reading Incoming.
+// over the cloned tables.
+//
+// Cloning an *FKGroup (or a parent *Table via [Table.Clone]) outside
+// of a [Source.Clone] does NOT reconstruct Incoming, and cannot —
+// [LinkForeignKeys] needs the whole source to know which other tables
+// hold the corresponding outgoing FKs. Standalone clones therefore
+// have Incoming == nil; if you need the incoming view, clone the
+// owning *Source and read FK.Incoming from the cloned table.
 func (g *FKGroup) Clone() *FKGroup {
 	if g == nil {
 		return nil
@@ -672,18 +687,34 @@ func AssignIndexes(log *slog.Logger, tables []*Table, idxs []*Index) {
 
 // warnOrphans emits one log.Warn per owning-table name in orphans;
 // callers pass label ("foreign key", "unique constraint", "index")
-// for the message. orphans is the residual map left after the bulk
-// loader's rows have been distributed — a non-empty map means the
-// driver returned rows referencing a table that isn't in the source.
+// to identify the kind via a structured attribute. orphans is the
+// residual map left after the bulk loader's rows have been
+// distributed — a non-empty map means the driver returned rows
+// referencing a table that isn't in the source.
+//
+// In production this can fire on benign races (a table dropped
+// between enumeration and per-table load — see the warn-suppress
+// paths in the postgres and oracle source-level inspect) as well as
+// on real driver bugs (case-folding mismatches, typos in bulk SQL).
+// Both are worth surfacing; the structured attributes let operators
+// disambiguate.
+//
+// Owning-table names are sorted before emission so the log entry
+// order is deterministic across runs.
 func warnOrphans[T any](log *slog.Logger, label string, orphans map[string][]T) {
 	if log == nil || len(orphans) == 0 {
 		return
 	}
-	for tblName, items := range orphans {
-		log.Warn("metadata: dropped "+label+" rows for unknown table",
+	names := make([]string, 0, len(orphans))
+	for name := range orphans {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		log.Warn("metadata: dropped rows for unknown owning table",
 			slog.String("kind", label),
-			slog.String("table", tblName),
-			slog.Int("rows", len(items)),
+			slog.String("table", name),
+			slog.Int("rows", len(orphans[name])),
 		)
 	}
 }
@@ -772,6 +803,11 @@ func LinkForeignKeys(log *slog.Logger, s *Source) {
 				}
 				refTbl.FK.Incoming = append(refTbl.FK.Incoming, fk)
 			} else if log != nil {
+				// Benign in some production scenarios: a table dropped
+				// between enumeration and the per-table errgroup load,
+				// or (oracle) a parent table whose per-table fetch was
+				// warn-suppressed. Also surfaces real driver bugs
+				// (case-folding mismatches, typos in bulk FK SQL).
 				log.Warn("metadata: outgoing FK references unknown table",
 					slog.String("constraint", fk.Name),
 					slog.String("table", fk.Table),

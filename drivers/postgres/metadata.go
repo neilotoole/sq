@@ -294,7 +294,6 @@ current_setting('server_version'), version(), "current_user"()`
 		return nil, err
 	}
 	metadata.AssignForeignKeys(log, md.Tables, allFKs)
-	metadata.LinkForeignKeys(log, md)
 
 	allUCs, err := getPgUniqueConstraints(ctx, db, "")
 	if err != nil {
@@ -307,6 +306,11 @@ current_setting('server_version'), version(), "current_user"()`
 		return nil, err
 	}
 	metadata.AssignIndexes(log, md.Tables, allIdxs)
+
+	// Derive incoming FK back-references last so the Assign* helpers
+	// have fully populated the source. Matches the call order in the
+	// other bulk-loader drivers (mysql, sqlserver, oracle, duckdb).
+	metadata.LinkForeignKeys(log, md)
 
 	return md, nil
 }
@@ -775,10 +779,7 @@ func setTblMetaConstraints(log *slog.Logger, tblMeta *metadata.Table, pgConstrai
 	}
 }
 
-const (
-	constraintTypePK = "PRIMARY KEY"
-	constraintTypeFK = "FOREIGN KEY"
-)
+const constraintTypePK = "PRIMARY KEY"
 
 // getPgUniqueConstraints returns the UNIQUE constraints declared on
 // tables in the current catalog and schema. If tblName is empty,
