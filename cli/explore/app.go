@@ -154,27 +154,21 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		return m, nil
 	case sourceOverviewLoadedMsg:
-		if msg.err != nil {
-			m.lastErr = msg.err
-			return m, nil
+		if m.acceptFetch(msg.handle, msg.err) {
+			m.detail.setSource(msg.meta)
 		}
-		m.detail.setSource(msg.meta)
 		return m, nil
 	case tableNamesLoadedMsg:
-		if msg.err != nil {
-			m.lastErr = msg.err
-			return m, nil
+		if m.acceptFetch(msg.handle, msg.err) {
+			m.schema.setTableNames(msg.names)
 		}
-		m.schema.setTableNames(msg.names)
 		return m, nil
 	case tableMetaLoadedMsg:
-		if msg.err != nil {
-			m.lastErr = msg.err
-			return m, nil
-		}
-		m.schema.setTableMeta(msg.tableName, msg.meta)
-		if m.focusedTbl == msg.tableName && m.detail.kind != detailColumn {
-			m.detail.setTable(msg.meta)
+		if m.acceptFetch(msg.handle, msg.err) {
+			m.schema.setTableMeta(msg.tableName, msg.meta)
+			if m.focusedTbl == msg.tableName && m.detail.kind != detailColumn {
+				m.detail.setTable(msg.meta)
+			}
 		}
 		return m, nil
 	case previewMetaLoadedMsg:
@@ -291,7 +285,7 @@ func (m *Model) View() string {
 	if m.filtering {
 		top += "  " + m.theme.Title.Render("/"+m.filterBuf+"▏")
 	}
-	return top + "\n" + row + "\n"
+	return top + "\n" + row
 }
 
 // viewWide is the three-pane side-by-side layout used when the terminal
@@ -376,6 +370,18 @@ func (m *Model) currentAddress() string {
 	return m.focusedSrc.Handle + "." + m.focusedTbl
 }
 
+// acceptFetch decides whether a fetch-result message should be applied
+// to model state. It records the error and returns false when the
+// fetch failed, when no source is focused, or when the message is for
+// a source the user has already moved past.
+func (m *Model) acceptFetch(handle string, err error) bool {
+	if err != nil {
+		m.lastErr = err
+		return false
+	}
+	return m.focusedSrc != nil && handle == m.focusedSrc.Handle
+}
+
 // recordFinalHandle stashes the address to emit on quit. It's a no-op
 // when EmitHandle is false.
 func (m *Model) recordFinalHandle() {
@@ -395,6 +401,10 @@ func (m *Model) routeKey(msg tea.KeyMsg) tea.Cmd {
 			m.focusedSrc = newSrc
 			m.focusedTbl = ""
 			m.schema = newSchemaTree(newSrc.Handle, m.theme)
+			// Reset the detail pane so the previous source's data
+			// doesn't linger while the new fetch is in flight.
+			m.detail = newDetailPane(m.theme)
+			m.preview = nil
 			if m.fetcher != nil {
 				return tea.Batch(
 					fetchSourceOverviewCmd(context.Background(), m.fetcher, newSrc.Handle),

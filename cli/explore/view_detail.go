@@ -73,7 +73,7 @@ func (d *detailPane) view(focused bool, width, height int) string {
 	if focused {
 		style = d.theme.PaneFocus
 	}
-	return style.Width(width).Height(height).Render(body)
+	return style.Width(width).Height(height).MaxHeight(height).Render(body)
 }
 
 func (d *detailPane) viewSource() string {
