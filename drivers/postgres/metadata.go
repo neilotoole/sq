@@ -293,20 +293,20 @@ current_setting('server_version'), version(), "current_user"()`
 	if err != nil {
 		return nil, err
 	}
-	metadata.AssignForeignKeys(md.Tables, allFKs)
-	metadata.LinkForeignKeys(md)
+	metadata.AssignForeignKeys(log, md.Tables, allFKs)
+	metadata.LinkForeignKeys(log, md)
 
 	allUCs, err := getPgUniqueConstraints(ctx, db, "")
 	if err != nil {
 		return nil, err
 	}
-	metadata.AssignUniqueConstraints(md.Tables, allUCs)
+	metadata.AssignUniqueConstraints(log, md.Tables, allUCs)
 
 	allIdxs, err := getPgIndexes(ctx, db, "")
 	if err != nil {
 		return nil, err
 	}
-	metadata.AssignIndexes(md.Tables, allIdxs)
+	metadata.AssignIndexes(log, md.Tables, allIdxs)
 
 	return md, nil
 }

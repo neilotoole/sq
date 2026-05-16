@@ -654,24 +654,26 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 	}
 
 	if !noSchema {
+		log := lg.FromContext(ctx)
+
 		allFKs, err := getMySQLForeignKeys(ctx, db, "")
 		if err != nil {
 			return nil, err
 		}
-		metadata.AssignForeignKeys(md.Tables, allFKs)
-		metadata.LinkForeignKeys(md)
+		metadata.AssignForeignKeys(log, md.Tables, allFKs)
+		metadata.LinkForeignKeys(log, md)
 
 		allUCs, err := getMySQLUniqueConstraints(ctx, db, "")
 		if err != nil {
 			return nil, err
 		}
-		metadata.AssignUniqueConstraints(md.Tables, allUCs)
+		metadata.AssignUniqueConstraints(log, md.Tables, allUCs)
 
 		allIdxs, err := getMySQLIndexes(ctx, db, "")
 		if err != nil {
 			return nil, err
 		}
-		metadata.AssignIndexes(md.Tables, allIdxs)
+		metadata.AssignIndexes(log, md.Tables, allIdxs)
 	}
 
 	return md, nil

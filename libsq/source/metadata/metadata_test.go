@@ -1,6 +1,8 @@
 package metadata_test
 
 import (
+	"bytes"
+	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -433,12 +435,12 @@ func TestForeignKey_Clone(t *testing.T) {
 
 func TestLinkForeignKeys(t *testing.T) {
 	t.Run("nil_source", func(_ *testing.T) {
-		metadata.LinkForeignKeys(nil)
+		metadata.LinkForeignKeys(nil, nil)
 	})
 
 	t.Run("empty_tables", func(t *testing.T) {
 		src := &metadata.Source{}
-		metadata.LinkForeignKeys(src)
+		metadata.LinkForeignKeys(nil, src)
 		require.Nil(t, src.Tables)
 	})
 
@@ -470,7 +472,7 @@ func TestLinkForeignKeys(t *testing.T) {
 			},
 		}
 
-		metadata.LinkForeignKeys(src)
+		metadata.LinkForeignKeys(nil, src)
 
 		film := src.Table("film")
 		require.NotNil(t, film)
@@ -512,7 +514,7 @@ func TestLinkForeignKeys(t *testing.T) {
 			},
 		}
 
-		metadata.LinkForeignKeys(src)
+		metadata.LinkForeignKeys(nil, src)
 
 		lookup := src.Table("film_actor_lookup")
 		require.Len(t, lookup.FK.Incoming, 1,
@@ -549,7 +551,7 @@ func TestLinkForeignKeys(t *testing.T) {
 			},
 		}
 
-		metadata.LinkForeignKeys(src)
+		metadata.LinkForeignKeys(nil, src)
 
 		// Local "users" must not appear as an incoming-FK target.
 		// LinkForeignKeys drops the empty FK wrapper entirely, so FK
@@ -591,7 +593,7 @@ func TestLinkForeignKeys(t *testing.T) {
 			},
 		}
 
-		metadata.LinkForeignKeys(src)
+		metadata.LinkForeignKeys(nil, src)
 
 		require.Equal(t, "", fk.RefCatalog, "same-catalog qualifier should be cleared")
 		require.Equal(t, "", fk.RefSchema, "same-schema qualifier should be cleared")
@@ -620,7 +622,7 @@ func TestLinkForeignKeys(t *testing.T) {
 			},
 		}
 
-		metadata.LinkForeignKeys(src)
+		metadata.LinkForeignKeys(nil, src)
 
 		local := src.Table("local")
 		// The outgoing FK is still on FK.Outgoing even though the
@@ -652,8 +654,8 @@ func TestLinkForeignKeys(t *testing.T) {
 			},
 		}
 
-		metadata.LinkForeignKeys(src)
-		metadata.LinkForeignKeys(src)
+		metadata.LinkForeignKeys(nil, src)
+		metadata.LinkForeignKeys(nil, src)
 
 		require.Len(t, src.Table("parent").FK.Incoming, 1)
 		require.Same(t, fk, src.Table("parent").FK.Incoming[0])
@@ -703,7 +705,7 @@ func TestLinkForeignKeys(t *testing.T) {
 			},
 		}
 
-		metadata.LinkForeignKeys(src)
+		metadata.LinkForeignKeys(nil, src)
 
 		parent := src.Table("parent")
 		require.NotNil(t, parent.FK)
@@ -715,6 +717,35 @@ func TestLinkForeignKeys(t *testing.T) {
 			"FK with non-empty RefSchema must not link to a same-named local table")
 		require.Equal(t, "other_schema", external.RefSchema,
 			"RefSchema must remain unchanged when it doesn't match Source.Schema")
+	})
+
+	t.Run("missing_ref_table_warns_when_logger_present", func(t *testing.T) {
+		// An in-source FK (no RefCatalog / RefSchema) whose RefTable
+		// doesn't match any table in s should surface a warn entry so
+		// the operator can spot driver-side bugs or transiently dropped
+		// tables.
+		var buf bytes.Buffer
+		log := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn}))
+		bad := &metadata.ForeignKey{
+			Name:       "fk_film_typo",
+			Table:      "film",
+			Columns:    []string{"language_id"},
+			RefTable:   "lanugage", // typo — no such table in the source.
+			RefColumns: []string{"language_id"},
+		}
+		src := &metadata.Source{
+			Schema:  "public",
+			Catalog: "app",
+			Tables: []*metadata.Table{
+				{Name: "film", FK: metadata.NewFKGroup([]*metadata.ForeignKey{bad}, nil)},
+				{Name: "language"},
+			},
+		}
+		metadata.LinkForeignKeys(log, src)
+		out := buf.String()
+		require.Contains(t, out, "level=WARN")
+		require.Contains(t, out, "fk_film_typo")
+		require.Contains(t, out, "lanugage")
 	})
 }
 
@@ -742,7 +773,7 @@ func TestSource_Clone_RelinksForeignKeys(t *testing.T) {
 			},
 		},
 	}
-	metadata.LinkForeignKeys(src)
+	metadata.LinkForeignKeys(nil, src)
 
 	got := src.Clone()
 	gotFilm := got.Table("film")
@@ -868,7 +899,7 @@ func TestSchema_LogValue(t *testing.T) {
 func TestAssignForeignKeys(t *testing.T) {
 	t.Run("empty_fks_noop", func(t *testing.T) {
 		tables := []*metadata.Table{{Name: "actor"}}
-		metadata.AssignForeignKeys(tables, nil)
+		metadata.AssignForeignKeys(nil, tables, nil)
 		require.Nil(t, tables[0].FK)
 	})
 
@@ -879,7 +910,7 @@ func TestAssignForeignKeys(t *testing.T) {
 			{Name: "film"},
 			{Name: "language"},
 		}
-		metadata.AssignForeignKeys(tables, []*metadata.ForeignKey{fkLang})
+		metadata.AssignForeignKeys(nil, tables, []*metadata.ForeignKey{fkLang})
 		require.Nil(t, tables[0].FK, "actor has no FKs; should be untouched")
 		require.NotNil(t, tables[1].FK)
 		require.Equal(t, []*metadata.ForeignKey{fkLang}, tables[1].FK.Outgoing)
@@ -889,7 +920,7 @@ func TestAssignForeignKeys(t *testing.T) {
 	t.Run("nil_fk_entry_skipped", func(t *testing.T) {
 		fkOK := &metadata.ForeignKey{Table: "film", RefTable: "language"}
 		tables := []*metadata.Table{{Name: "film"}}
-		metadata.AssignForeignKeys(tables, []*metadata.ForeignKey{nil, fkOK, nil})
+		metadata.AssignForeignKeys(nil, tables, []*metadata.ForeignKey{nil, fkOK, nil})
 		require.NotNil(t, tables[0].FK)
 		require.Equal(t, []*metadata.ForeignKey{fkOK}, tables[0].FK.Outgoing)
 	})
@@ -901,7 +932,7 @@ func TestAssignForeignKeys(t *testing.T) {
 		tables := []*metadata.Table{
 			{Name: "film", FK: &metadata.FKGroup{Outgoing: []*metadata.ForeignKey{old}}},
 		}
-		metadata.AssignForeignKeys(tables, []*metadata.ForeignKey{new1, new2})
+		metadata.AssignForeignKeys(nil, tables, []*metadata.ForeignKey{new1, new2})
 		require.Equal(t, []*metadata.ForeignKey{new1, new2}, tables[0].FK.Outgoing,
 			"AssignForeignKeys should fully replace Outgoing, not merge")
 	})
@@ -912,7 +943,7 @@ func TestAssignForeignKeys(t *testing.T) {
 		tables := []*metadata.Table{
 			{Name: "actor", FK: &metadata.FKGroup{Incoming: []*metadata.ForeignKey{incoming}}},
 		}
-		metadata.AssignForeignKeys(tables, []*metadata.ForeignKey{fkOut})
+		metadata.AssignForeignKeys(nil, tables, []*metadata.ForeignKey{fkOut})
 		require.Equal(t, []*metadata.ForeignKey{fkOut}, tables[0].FK.Outgoing)
 		require.Equal(t, []*metadata.ForeignKey{incoming}, tables[0].FK.Incoming,
 			"AssignForeignKeys must not clobber pre-existing Incoming")
@@ -921,22 +952,34 @@ func TestAssignForeignKeys(t *testing.T) {
 	t.Run("unmatched_fk_dropped", func(t *testing.T) {
 		fkOrphan := &metadata.ForeignKey{Table: "missing_table", RefTable: "language"}
 		tables := []*metadata.Table{{Name: "film"}}
-		metadata.AssignForeignKeys(tables, []*metadata.ForeignKey{fkOrphan})
+		metadata.AssignForeignKeys(nil, tables, []*metadata.ForeignKey{fkOrphan})
 		require.Nil(t, tables[0].FK, "FK referencing a table not in the slice should not land anywhere")
+	})
+
+	t.Run("unmatched_fk_warns_when_logger_present", func(t *testing.T) {
+		var buf bytes.Buffer
+		log := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn}))
+		fkOrphan := &metadata.ForeignKey{Name: "fk_orphan", Table: "ghost", RefTable: "language"}
+		tables := []*metadata.Table{{Name: "film"}}
+		metadata.AssignForeignKeys(log, tables, []*metadata.ForeignKey{fkOrphan})
+		out := buf.String()
+		require.Contains(t, out, "level=WARN")
+		require.Contains(t, out, "ghost",
+			"warn payload must name the unknown owning table so the operator can diagnose case-folding / filter mismatches")
 	})
 }
 
 func TestAssignUniqueConstraints(t *testing.T) {
 	t.Run("empty_ucs_noop", func(t *testing.T) {
 		tables := []*metadata.Table{{Name: "actor"}}
-		metadata.AssignUniqueConstraints(tables, nil)
+		metadata.AssignUniqueConstraints(nil, tables, nil)
 		require.Nil(t, tables[0].UniqueConstraints)
 	})
 
 	t.Run("basic_assignment", func(t *testing.T) {
 		uc := &metadata.UniqueConstraint{Name: "u_email", Table: "customer", Columns: []string{"email"}}
 		tables := []*metadata.Table{{Name: "customer"}, {Name: "actor"}}
-		metadata.AssignUniqueConstraints(tables, []*metadata.UniqueConstraint{uc})
+		metadata.AssignUniqueConstraints(nil, tables, []*metadata.UniqueConstraint{uc})
 		require.Equal(t, []*metadata.UniqueConstraint{uc}, tables[0].UniqueConstraints)
 		require.Nil(t, tables[1].UniqueConstraints)
 	})
@@ -944,7 +987,7 @@ func TestAssignUniqueConstraints(t *testing.T) {
 	t.Run("nil_uc_entry_skipped", func(t *testing.T) {
 		uc := &metadata.UniqueConstraint{Name: "u", Table: "t"}
 		tables := []*metadata.Table{{Name: "t"}}
-		metadata.AssignUniqueConstraints(tables, []*metadata.UniqueConstraint{nil, uc, nil})
+		metadata.AssignUniqueConstraints(nil, tables, []*metadata.UniqueConstraint{nil, uc, nil})
 		require.Equal(t, []*metadata.UniqueConstraint{uc}, tables[0].UniqueConstraints)
 	})
 
@@ -954,7 +997,7 @@ func TestAssignUniqueConstraints(t *testing.T) {
 		tables := []*metadata.Table{
 			{Name: "t", UniqueConstraints: []*metadata.UniqueConstraint{old}},
 		}
-		metadata.AssignUniqueConstraints(tables, []*metadata.UniqueConstraint{new1})
+		metadata.AssignUniqueConstraints(nil, tables, []*metadata.UniqueConstraint{new1})
 		require.Equal(t, []*metadata.UniqueConstraint{new1}, tables[0].UniqueConstraints)
 	})
 }
@@ -962,14 +1005,14 @@ func TestAssignUniqueConstraints(t *testing.T) {
 func TestAssignIndexes(t *testing.T) {
 	t.Run("empty_idxs_noop", func(t *testing.T) {
 		tables := []*metadata.Table{{Name: "actor"}}
-		metadata.AssignIndexes(tables, nil)
+		metadata.AssignIndexes(nil, tables, nil)
 		require.Nil(t, tables[0].Indexes)
 	})
 
 	t.Run("basic_assignment", func(t *testing.T) {
 		idx := &metadata.Index{Name: "idx_last_name", Table: "actor", Columns: []string{"last_name"}}
 		tables := []*metadata.Table{{Name: "actor"}, {Name: "film"}}
-		metadata.AssignIndexes(tables, []*metadata.Index{idx})
+		metadata.AssignIndexes(nil, tables, []*metadata.Index{idx})
 		require.Equal(t, []*metadata.Index{idx}, tables[0].Indexes)
 		require.Nil(t, tables[1].Indexes)
 	})
@@ -977,7 +1020,7 @@ func TestAssignIndexes(t *testing.T) {
 	t.Run("nil_idx_entry_skipped", func(t *testing.T) {
 		idx := &metadata.Index{Name: "i", Table: "t"}
 		tables := []*metadata.Table{{Name: "t"}}
-		metadata.AssignIndexes(tables, []*metadata.Index{nil, idx, nil})
+		metadata.AssignIndexes(nil, tables, []*metadata.Index{nil, idx, nil})
 		require.Equal(t, []*metadata.Index{idx}, tables[0].Indexes)
 	})
 
@@ -987,7 +1030,7 @@ func TestAssignIndexes(t *testing.T) {
 		tables := []*metadata.Table{
 			{Name: "t", Indexes: []*metadata.Index{old}},
 		}
-		metadata.AssignIndexes(tables, []*metadata.Index{new1})
+		metadata.AssignIndexes(nil, tables, []*metadata.Index{new1})
 		require.Equal(t, []*metadata.Index{new1}, tables[0].Indexes)
 	})
 }

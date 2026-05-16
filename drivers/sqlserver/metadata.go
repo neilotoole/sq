@@ -217,21 +217,21 @@ GROUP BY database_id) AS total_size_bytes`
 	if err != nil {
 		return nil, err
 	}
-	metadata.AssignForeignKeys(md.Tables, allFKs)
+	metadata.AssignForeignKeys(log, md.Tables, allFKs)
 
 	allUCs, err := getMSSQLUniqueConstraints(ctx, db, catalog, schema, "")
 	if err != nil {
 		return nil, err
 	}
-	metadata.AssignUniqueConstraints(md.Tables, allUCs)
+	metadata.AssignUniqueConstraints(log, md.Tables, allUCs)
 
 	allIdxs, err := getMSSQLIndexes(ctx, db, schema, "")
 	if err != nil {
 		return nil, err
 	}
-	metadata.AssignIndexes(md.Tables, allIdxs)
+	metadata.AssignIndexes(log, md.Tables, allIdxs)
 
-	metadata.LinkForeignKeys(md)
+	metadata.LinkForeignKeys(log, md)
 
 	return md, nil
 }

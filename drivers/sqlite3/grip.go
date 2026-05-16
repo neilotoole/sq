@@ -136,7 +136,7 @@ func (g *grip) getSourceMetadata(ctx context.Context, noSchema bool) (*metadata.
 		}
 	}
 
-	metadata.LinkForeignKeys(md)
+	metadata.LinkForeignKeys(lg.FromContext(ctx), md)
 
 	return md, nil
 }

@@ -141,21 +141,21 @@ FROM DUAL`
 	if err != nil {
 		return nil, err
 	}
-	metadata.AssignForeignKeys(md.Tables, allFKs)
+	metadata.AssignForeignKeys(log, md.Tables, allFKs)
 
 	allUCs, err := getOracleUniqueConstraints(ctx, db, "")
 	if err != nil {
 		return nil, err
 	}
-	metadata.AssignUniqueConstraints(md.Tables, allUCs)
+	metadata.AssignUniqueConstraints(log, md.Tables, allUCs)
 
 	allIdxs, err := getOracleIndexes(ctx, db, "")
 	if err != nil {
 		return nil, err
 	}
-	metadata.AssignIndexes(md.Tables, allIdxs)
+	metadata.AssignIndexes(log, md.Tables, allIdxs)
 
-	metadata.LinkForeignKeys(md)
+	metadata.LinkForeignKeys(log, md)
 
 	return md, nil
 }

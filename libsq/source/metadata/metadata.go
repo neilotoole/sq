@@ -120,8 +120,9 @@ func (s *Source) Clone() *Source {
 		// Per-table Clone() copies FK.Outgoing as independent values;
 		// re-derive FK.Incoming so the clone's incoming list shares
 		// identity with the cloned outgoing FKs rather than pointing
-		// at the originals.
-		LinkForeignKeys(s2)
+		// at the originals. A nil logger is fine here — the original
+		// source was already validated when it was first linked.
+		LinkForeignKeys(nil, s2)
 	}
 
 	return s2
@@ -568,15 +569,19 @@ func (i *Index) String() string {
 // [ForeignKey.Table] field) and assigns each group to the matching
 // entry's [Table.FK].Outgoing slice, replacing any previously-assigned
 // outgoing slice on that table. Tables with no matching FKs are left
-// untouched (their existing [Table.FK] is not modified). Callers that
-// want to fully reset outgoing FKs on all tables should clear the
-// slices themselves before calling.
+// untouched (their existing [Table.FK] is not modified).
 //
 // This helper exists so that driver implementations that fetch all
 // foreign keys in a single source-wide query (postgres, mysql,
 // sqlserver, oracle, duckdb) don't each have to repeat the same
 // grouping loop.
-func AssignForeignKeys(tables []*Table, fks []*ForeignKey) {
+//
+// Any FK whose [ForeignKey.Table] does not match a table in tables
+// is dropped. When log is non-nil, the names of the dropped FKs are
+// reported at warn level so a driver case-folding mismatch or a
+// table that was filtered out after the bulk loader ran doesn't
+// silently lose FK data.
+func AssignForeignKeys(log *slog.Logger, tables []*Table, fks []*ForeignKey) {
 	if len(fks) == 0 {
 		return
 	}
@@ -598,14 +603,18 @@ func AssignForeignKeys(tables []*Table, fks []*ForeignKey) {
 				tbl.FK = &FKGroup{}
 			}
 			tbl.FK.Outgoing = tblFKs
+			delete(byTable, tbl.Name)
 		}
 	}
+
+	warnOrphans(log, "foreign key", byTable)
 }
 
 // AssignUniqueConstraints groups ucs by their owning-table name and
 // assigns each group to the matching entry in tables. The analog of
-// [AssignForeignKeys] for unique-constraint slices.
-func AssignUniqueConstraints(tables []*Table, ucs []*UniqueConstraint) {
+// [AssignForeignKeys] for unique-constraint slices, including the
+// warn-on-orphan behavior.
+func AssignUniqueConstraints(log *slog.Logger, tables []*Table, ucs []*UniqueConstraint) {
 	if len(ucs) == 0 {
 		return
 	}
@@ -624,14 +633,18 @@ func AssignUniqueConstraints(tables []*Table, ucs []*UniqueConstraint) {
 		}
 		if tblUCs, ok := byTable[tbl.Name]; ok {
 			tbl.UniqueConstraints = tblUCs
+			delete(byTable, tbl.Name)
 		}
 	}
+
+	warnOrphans(log, "unique constraint", byTable)
 }
 
 // AssignIndexes groups idxs by their owning-table name and assigns
 // each group to the matching entry in tables. The analog of
-// [AssignForeignKeys] for index slices.
-func AssignIndexes(tables []*Table, idxs []*Index) {
+// [AssignForeignKeys] for index slices, including the warn-on-orphan
+// behavior.
+func AssignIndexes(log *slog.Logger, tables []*Table, idxs []*Index) {
 	if len(idxs) == 0 {
 		return
 	}
@@ -650,7 +663,28 @@ func AssignIndexes(tables []*Table, idxs []*Index) {
 		}
 		if tblIdxs, ok := byTable[tbl.Name]; ok {
 			tbl.Indexes = tblIdxs
+			delete(byTable, tbl.Name)
 		}
+	}
+
+	warnOrphans(log, "index", byTable)
+}
+
+// warnOrphans emits one log.Warn per owning-table name in orphans;
+// callers pass label ("foreign key", "unique constraint", "index")
+// for the message. orphans is the residual map left after the bulk
+// loader's rows have been distributed — a non-empty map means the
+// driver returned rows referencing a table that isn't in the source.
+func warnOrphans[T any](log *slog.Logger, label string, orphans map[string][]T) {
+	if log == nil || len(orphans) == 0 {
+		return
+	}
+	for tblName, items := range orphans {
+		log.Warn("metadata: dropped "+label+" rows for unknown table",
+			slog.String("kind", label),
+			slog.String("table", tblName),
+			slog.Int("rows", len(items)),
+		)
 	}
 }
 
@@ -683,7 +717,14 @@ func AssignIndexes(tables []*Table, idxs []*Index) {
 // As a final cleanup, any [Table.FK] whose Outgoing and Incoming
 // slices are both empty is set back to nil so the wrapper object is
 // omitted from JSON / YAML output entirely.
-func LinkForeignKeys(s *Source) {
+//
+// When log is non-nil, an FK that appears to be in-source (empty
+// RefCatalog / RefSchema after normalization) but whose RefTable
+// isn't present in s is reported at warn level. This surfaces driver
+// bugs (typos in bulk FK SQL, case-folding mismatches) and
+// transiently dropped tables that would otherwise leave the
+// inspect output silently inconsistent.
+func LinkForeignKeys(log *slog.Logger, s *Source) {
 	if s == nil || len(s.Tables) == 0 {
 		return
 	}
@@ -730,6 +771,12 @@ func LinkForeignKeys(s *Source) {
 					refTbl.FK = &FKGroup{}
 				}
 				refTbl.FK.Incoming = append(refTbl.FK.Incoming, fk)
+			} else if log != nil {
+				log.Warn("metadata: outgoing FK references unknown table",
+					slog.String("constraint", fk.Name),
+					slog.String("table", fk.Table),
+					slog.String("ref_table", fk.RefTable),
+				)
 			}
 		}
 	}

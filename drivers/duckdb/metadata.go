@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"regexp"
 	"strings"
@@ -249,25 +250,26 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 	// Populate FK / unique-constraint / index metadata at the schema level
 	// in three batched queries, then let LinkForeignKeys derive incoming
 	// edges across tables.
+	log := lg.FromContext(ctx)
 	fks, err := getSchemaForeignKeys(ctx, db, schema)
 	if err != nil {
 		return nil, err
 	}
-	metadata.AssignForeignKeys(md.Tables, fks)
+	metadata.AssignForeignKeys(log, md.Tables, fks)
 
 	ucs, err := getSchemaUniqueConstraints(ctx, db, schema)
 	if err != nil {
 		return nil, err
 	}
-	metadata.AssignUniqueConstraints(md.Tables, ucs)
+	metadata.AssignUniqueConstraints(log, md.Tables, ucs)
 
 	idxs, err := getSchemaIndexes(ctx, db, schema)
 	if err != nil {
 		return nil, err
 	}
-	metadata.AssignIndexes(md.Tables, idxs)
+	metadata.AssignIndexes(log, md.Tables, idxs)
 
-	metadata.LinkForeignKeys(md)
+	metadata.LinkForeignKeys(log, md)
 
 	return md, nil
 }
@@ -688,6 +690,7 @@ func getSchemaIndexes(ctx context.Context, db sqlz.DB, schemaName string,
 		}
 		cols := parseDuckDBIndexExpressions(exprList)
 		if len(cols) == 0 {
+			logDroppedDuckDBIndex(log, tblName, idxName, exprList)
 			continue
 		}
 		idxs = append(idxs, &metadata.Index{
@@ -720,6 +723,7 @@ func getTableIndexes(ctx context.Context, db sqlz.DB, schemaName, tblName string
 		}
 		cols := parseDuckDBIndexExpressions(exprList)
 		if len(cols) == 0 {
+			logDroppedDuckDBIndex(log, tblName, idxName, exprList)
 			continue
 		}
 		idxs = append(idxs, &metadata.Index{
@@ -730,6 +734,29 @@ func getTableIndexes(ctx context.Context, db sqlz.DB, schemaName, tblName string
 		})
 	}
 	return idxs, errw(rows.Err())
+}
+
+// logDroppedDuckDBIndex emits a log entry for an index dropped from
+// the metadata because [parseDuckDBIndexExpressions] returned no
+// usable plain-column entries. A trivial `[]` (empty index) is
+// logged at debug level; anything else — a malformed list, an index
+// whose keys are all functional, an unrecognized DuckDB output
+// format — is logged at warn level so a future format change is
+// visible in operator logs rather than silently voiding indexes.
+func logDroppedDuckDBIndex(log *slog.Logger, tblName, idxName, exprList string) {
+	if log == nil {
+		return
+	}
+	attrs := []any{
+		slog.String("table", tblName),
+		slog.String("index", idxName),
+		slog.String("expressions", exprList),
+	}
+	if strings.TrimSpace(exprList) == "[]" {
+		log.Debug("duckdb: dropping index with no key columns", attrs...)
+		return
+	}
+	log.Warn("duckdb: dropping index whose expressions yielded no plain column keys", attrs...)
 }
 
 // parseDuckDBIndexExpressions parses the stringified list returned in
