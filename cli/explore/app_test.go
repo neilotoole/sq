@@ -2,6 +2,7 @@ package explore
 
 import (
 	"bytes"
+	"context"
 	"testing"
 	"time"
 
@@ -48,4 +49,28 @@ func TestModel_View_ContainsHandle(t *testing.T) {
 	}, teatest.WithDuration(2*time.Second), teatest.WithCheckInterval(10*time.Millisecond))
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(2*time.Second))
+}
+
+func TestRun_QuitImmediately(t *testing.T) {
+	src := &source.Source{Handle: "@test"}
+	cfg := Config{
+		Sources:    []*source.Source{src},
+		FocusedSrc: src,
+		NoColor:    true,
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := RunWithIO(ctx, nil, cfg, &bytes.Buffer{}, &bytes.Buffer{})
+		done <- err
+	}()
+	cancel()
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(3 * time.Second):
+		t.Fatal("RunWithIO did not return after ctx cancel")
+	}
 }

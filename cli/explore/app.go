@@ -3,10 +3,14 @@ package explore
 import (
 	"context"
 	"errors"
+	"io"
+	"os"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"golang.org/x/term"
 
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -42,7 +46,9 @@ type Config struct {
 type Model struct {
 	focusedSrc *source.Source
 	//nolint:unused // populated by later phases when async loads fail.
-	lastErr     error
+	lastErr error
+	// ru is set by RunWithIO and consumed by Phase 4+ for metadata fetches.
+	ru          *run.Run
 	focusedTbl  string
 	finalHandle string
 	keys        keyMap
@@ -128,15 +134,55 @@ func (m *Model) recordFinalHandle() {
 	}
 }
 
-// Run is the entry point invoked from the cobra command. It opens a
-// tea.Program with the given Config and returns the last-focused
-// handle (empty unless Config.EmitHandle was true).
-//
-// v1 stub: returns immediately without starting the TUI. The real
-// implementation is added in Phase 2 Task 2.3.
-func Run(ctx context.Context, ru any, cfg Config) (finalHandle string, err error) {
-	_ = ctx
-	_ = ru
-	_ = cfg
-	return "", errors.New("explore.Run not yet wired")
+// Run starts the explore TUI and blocks until the user quits or the
+// context is cancelled. It returns the last-focused handle (empty
+// unless Config.EmitHandle was true).
+func Run(ctx context.Context, ru *run.Run, cfg Config) (finalHandle string, err error) {
+	return RunWithIO(ctx, ru, cfg, os.Stdout, os.Stderr)
+}
+
+// RunWithIO is Run with explicit I/O so tests can substitute writers.
+// ru may be nil in tests that exercise only the model.
+func RunWithIO(ctx context.Context, ru *run.Run, cfg Config, out, errOut io.Writer) (string, error) {
+	_ = errOut // reserved for future error/log routing.
+	m, err := NewModel(cfg)
+	if err != nil {
+		return "", err
+	}
+	m.ru = ru
+
+	opts := []tea.ProgramOption{
+		tea.WithContext(ctx),
+		tea.WithOutput(out),
+		tea.WithAltScreen(),
+		tea.WithMouseCellMotion(),
+	}
+	// When stdin isn't a TTY (e.g. under `go test`), disable input
+	// rather than letting bubbletea fall through to opening /dev/tty,
+	// which fails in non-interactive environments.
+	if !isTerminal(os.Stdin) {
+		opts = append(opts, tea.WithInput(nil))
+	}
+
+	p := tea.NewProgram(m, opts...)
+	finalModel, err := p.Run()
+	if err != nil && !errors.Is(err, context.Canceled) &&
+		!errors.Is(err, tea.ErrProgramKilled) {
+		return "", err
+	}
+	fm, ok := finalModel.(*Model)
+	if !ok {
+		return "", errors.New("explore: final model has unexpected type")
+	}
+	return fm.FinalHandle(), nil
+}
+
+// isTerminal reports whether f is a terminal. It exists so RunWithIO
+// can degrade gracefully under `go test`, where stdin is a pipe or
+// /dev/null.
+func isTerminal(f *os.File) bool {
+	if f == nil {
+		return false
+	}
+	return term.IsTerminal(int(f.Fd()))
 }
