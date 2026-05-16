@@ -337,7 +337,7 @@ func (tr *schemaTree) toggleExpand(idx int) (needsFetch bool, tableName string) 
 }
 
 // view renders the tree at given width/height with the cursor styled
-// if focused.
+// if focused. Long lists scroll so the selected row stays in view.
 func (tr *schemaTree) view(focused bool, width, height int) string {
 	var b strings.Builder
 	title := tr.theme.Title.Render("Schema (" + tr.handle + ")")
@@ -345,7 +345,13 @@ func (tr *schemaTree) view(focused bool, width, height int) string {
 	b.WriteString("\n")
 
 	vs := tr.visibleNodes()
-	for i, n := range vs {
+	avail := height - 3
+	if avail < 1 {
+		avail = 1
+	}
+	start, end := scrollWindow(tr.selected, len(vs), avail)
+	for i := start; i < end; i++ {
+		n := vs[i]
 		line := strings.Repeat("  ", n.depth)
 		switch {
 		case n.kind == nodeLoading:
@@ -363,14 +369,16 @@ func (tr *schemaTree) view(focused bool, width, height int) string {
 			line = tr.theme.ItemSel.Render(line)
 		}
 		b.WriteString(line)
-		b.WriteString("\n")
+		if i < end-1 {
+			b.WriteString("\n")
+		}
 	}
 
 	style := tr.theme.Pane
 	if focused {
 		style = tr.theme.PaneFocus
 	}
-	return style.Width(width).Height(height).Render(b.String())
+	return style.Width(width).Height(height).MaxHeight(height).Render(b.String())
 }
 
 // selectedDetail returns the "open this in detail" target — either a

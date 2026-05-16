@@ -82,7 +82,6 @@ type Model struct {
 	focused     paneID
 	quitting    bool
 	filtering   bool
-	helpOpen    bool
 }
 
 // previewBuffer holds in-memory preview rows for the focused table.
@@ -247,10 +246,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.focused = (m.focused + numPanes - 1) % numPanes
 			return m, nil
 		}
-		if key.Matches(msg, m.keys.Help) {
-			m.helpOpen = !m.helpOpen
-			return m, nil
-		}
 		if key.Matches(msg, m.keys.Refresh) {
 			if m.fetcher != nil && m.focusedSrc != nil {
 				m.schema = newSchemaTree(m.focusedSrc.Handle, m.theme)
@@ -292,15 +287,11 @@ func (m *Model) View() string {
 		row = m.viewStacked(body)
 	}
 
-	title := m.theme.Title.Render("sq explore")
+	top := m.theme.Help.Render(m.helpLine())
 	if m.filtering {
-		title += "  /" + m.filterBuf + "▏"
+		top += "  " + m.theme.Title.Render("/"+m.filterBuf+"▏")
 	}
-	out := title + "\n" + row + "\n"
-	if m.helpOpen {
-		out += m.theme.Help.Render(m.helpFooter())
-	}
-	return out
+	return top + "\n" + row + "\n"
 }
 
 // viewWide is the three-pane side-by-side layout used when the terminal
@@ -334,20 +325,21 @@ func (m *Model) viewStacked(body int) string {
 	return head + "\n" + schView + "\n" + detView
 }
 
-// helpFooter returns the key-help summary rendered in the footer when
-// helpOpen is true.
-func (m *Model) helpFooter() string {
-	bindings := []key.Binding{
-		m.keys.Up, m.keys.Down, m.keys.Left, m.keys.Right,
-		m.keys.Tab, m.keys.Enter, m.keys.Space,
-		m.keys.Filter, m.keys.Preview, m.keys.Refresh, m.keys.Copy, m.keys.Help, m.keys.Quit,
-	}
-	parts := make([]string, 0, len(bindings))
-	for _, b := range bindings {
-		h := b.Help()
-		parts = append(parts, h.Key+" "+h.Desc)
-	}
-	return strings.Join(parts, "  ")
+// helpLine returns the always-visible top-line key summary. It is
+// kept concise so it fits on a standard terminal width without wrap.
+func (m *Model) helpLine() string {
+	return strings.Join([]string{
+		"j/k nav",
+		"h/l pane",
+		"tab cycle",
+		"enter open",
+		"space expand",
+		"/ filter",
+		"r preview",
+		"R refresh",
+		"y copy",
+		"q quit",
+	}, "  ")
 }
 
 // applyFilter pushes the filter string to whichever pane is focused.

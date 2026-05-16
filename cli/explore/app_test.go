@@ -256,20 +256,15 @@ func TestModel_View_NarrowTerminal_StacksPanes(t *testing.T) {
 	require.Contains(t, out, "@test")
 }
 
-func TestModel_HelpToggle(t *testing.T) {
+func TestModel_HelpLineAlwaysVisible(t *testing.T) {
 	m := newTestModel(t)
-	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
+	m.Update(tea.WindowSizeMsg{Width: 200, Height: 30})
 
 	out := m.View()
-	require.NotContains(t, out, "↑/k", "help is hidden by default")
-
-	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
-	out = m.View()
-	require.Contains(t, out, "↑/k", "help footer should be visible after ?")
-
-	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
-	out = m.View()
-	require.NotContains(t, out, "↑/k")
+	// The condensed help line shows several binding hints on every frame.
+	for _, want := range []string{"j/k nav", "tab cycle", "/ filter", "q quit"} {
+		require.Contains(t, out, want, "help line should always include %q", want)
+	}
 }
 
 func TestModel_PressR_Capital_TriggersRefresh(t *testing.T) {

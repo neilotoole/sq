@@ -33,8 +33,9 @@ keyboard-driven navigation.
 | `r` | (Re)fetch preview rows |
 | `R` | Refetch metadata (bypass cache) |
 | `y` | Copy current handle to clipboard |
-| `?` | Toggle the key-help footer |
 | `q` / `ctrl+c` | Quit |
+
+The full key reference is always shown across the top of the TUI.
 
 ## Shell composition
 

@@ -93,7 +93,8 @@ func (p *sourcesPane) update(msg tea.KeyMsg, keys keyMap) {
 	}
 }
 
-// view renders the pane at the given width/height.
+// view renders the pane at the given width/height, scrolling the list
+// so the selected row stays in view.
 func (p *sourcesPane) view(focused bool, width, height int) string {
 	var b strings.Builder
 	title := p.theme.Title.Render("Sources")
@@ -102,8 +103,16 @@ func (p *sourcesPane) view(focused bool, width, height int) string {
 		fmt.Fprintf(&b, " (/%s)", p.filter)
 	}
 	b.WriteString("\n")
+
 	vs := p.visibleSources()
-	for i, s := range vs {
+	// Available content rows = height - 2 (border) - 1 (title row).
+	avail := height - 3
+	if avail < 1 {
+		avail = 1
+	}
+	start, end := scrollWindow(p.selected, len(vs), avail)
+	for i := start; i < end; i++ {
+		s := vs[i]
 		line := s.Handle
 		if s == p.active {
 			line = p.theme.ItemActiv.Render(line)
@@ -112,11 +121,37 @@ func (p *sourcesPane) view(focused bool, width, height int) string {
 			line = p.theme.ItemSel.Render(line)
 		}
 		b.WriteString(line)
-		b.WriteString("\n")
+		if i < end-1 {
+			b.WriteString("\n")
+		}
 	}
+
 	style := p.theme.Pane
 	if focused {
 		style = p.theme.PaneFocus
 	}
-	return style.Width(width).Height(height).Render(b.String())
+	return style.Width(width).Height(height).MaxHeight(height).Render(b.String())
+}
+
+// scrollWindow computes [start, end) item indices to render given the
+// selected cursor, total item count, and the number of rows we can
+// show. The selected row is kept in the visible window; at boundaries
+// the window butts against the start or end of the list.
+func scrollWindow(selected, total, view int) (start, end int) {
+	if view >= total {
+		return 0, total
+	}
+	start = selected - view/2
+	if start < 0 {
+		start = 0
+	}
+	end = start + view
+	if end > total {
+		end = total
+		start = end - view
+		if start < 0 {
+			start = 0
+		}
+	}
+	return start, end
 }
