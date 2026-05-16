@@ -3,6 +3,7 @@ package explore
 import (
 	"bytes"
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -66,6 +67,34 @@ func TestModel_TabCyclesPanes(t *testing.T) {
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
 	require.Eventually(t, func() bool { return m.focused == paneSources }, time.Second, 10*time.Millisecond)
+}
+
+func TestModel_View_ContainsAllSources(t *testing.T) {
+	srcs := mkSources("@one", "@two", "@three")
+	cfg := Config{
+		Sources:    srcs,
+		FocusedSrc: srcs[0],
+		NoColor:    true,
+	}
+	m, err := NewModel(cfg)
+	require.NoError(t, err)
+
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
+	out := m.View()
+	for _, h := range []string{"@one", "@two", "@three"} {
+		require.True(t, strings.Contains(out, h), "view should list %q; got: %s", h, out)
+	}
+}
+
+func TestModel_SourcesPane_DownMovesSelection(t *testing.T) {
+	srcs := mkSources("@a", "@b")
+	cfg := Config{Sources: srcs, FocusedSrc: srcs[0], NoColor: true}
+	m, _ := NewModel(cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
+
+	require.Equal(t, srcs[0], m.sources.selectedSource())
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	require.Equal(t, srcs[1], m.sources.selectedSource())
 }
 
 func TestRun_QuitImmediately(t *testing.T) {

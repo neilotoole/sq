@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"golang.org/x/term"
 
 	"github.com/neilotoole/sq/cli/run"
@@ -60,6 +61,7 @@ type Model struct {
 	lastErr error
 	// ru is set by RunWithIO and consumed by Phase 4+ for metadata fetches.
 	ru          *run.Run
+	sources     *sourcesPane
 	focusedTbl  string
 	finalHandle string
 	keys        keyMap
@@ -80,13 +82,15 @@ func NewModel(cfg Config) (*Model, error) {
 	if cfg.PreviewRows == 0 {
 		cfg.PreviewRows = 100
 	}
-	return &Model{
+	m := &Model{
 		cfg:        cfg,
 		keys:       defaultKeys(),
 		theme:      newTheme(cfg.NoColor),
 		focusedSrc: cfg.FocusedSrc,
 		focusedTbl: cfg.FocusedTable,
-	}, nil
+	}
+	m.sources = newSourcesPane(cfg.Sources, cfg.FocusedSrc, m.theme)
+	return m, nil
 }
 
 // FinalHandle returns the address that was focused at quit time,
@@ -120,19 +124,34 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.focused = (m.focused + numPanes - 1) % numPanes
 			return m, nil
 		}
+		return m, m.routeKey(msg)
 	}
 	return m, nil
 }
 
-// View satisfies tea.Model. Phase 1 prints a single-line placeholder
-// that names the focused handle; later phases compose pane views.
+// View satisfies tea.Model. It composes the three panes into a single
+// frame. Schema and detail panes are placeholders until later phases
+// supply their implementations.
 func (m *Model) View() string {
 	if m.quitting {
 		return ""
 	}
-	title := m.theme.Title.Render("sq explore")
-	body := m.theme.Item.Render(m.currentAddress())
-	return title + "\n" + body + "\n"
+	if m.width == 0 || m.height == 0 {
+		// First frame before a WindowSizeMsg arrives.
+		return ""
+	}
+
+	col := m.width / numPanes
+	body := m.height - 2 // 1 for title, 1 for help footer.
+
+	srcCol := m.sources.view(m.focused == paneSources, col, body)
+	// Later phases supply the schema and detail panes; for now show
+	// placeholders so the layout reads correctly during dev.
+	schCol := m.theme.Pane.Width(col).Height(body).Render("Schema\n(pending)")
+	detCol := m.theme.Pane.Width(m.width - 2*col).Height(body).Render("Detail\n(pending)")
+
+	row := lipgloss.JoinHorizontal(lipgloss.Top, srcCol, schCol, detCol)
+	return m.theme.Title.Render("sq explore") + "\n" + row + "\n"
 }
 
 // currentAddress returns "@src" or "@src.table" for the current focus.
@@ -152,6 +171,21 @@ func (m *Model) recordFinalHandle() {
 	if m.cfg.EmitHandle {
 		m.finalHandle = m.currentAddress()
 	}
+}
+
+// routeKey dispatches a non-global key message to the focused pane.
+// Later phases extend the switch with paneSchema and paneDetail cases.
+func (m *Model) routeKey(msg tea.KeyMsg) tea.Cmd {
+	if m.focused == paneSources {
+		cmd := m.sources.update(msg, m.keys)
+		// When the user moves selection in the sources pane, also
+		// reset the focused source for downstream panes. Other panes
+		// react to focusedSrc changes in later phases.
+		m.focusedSrc = m.sources.selectedSource()
+		m.focusedTbl = ""
+		return cmd
+	}
+	return nil
 }
 
 // Run starts the explore TUI and blocks until the user quits or the

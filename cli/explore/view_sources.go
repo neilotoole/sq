@@ -30,8 +30,6 @@ func newSourcesPane(sources []*source.Source, focused *source.Source, th theme) 
 
 // selectedSource returns the currently highlighted source, or nil if
 // the list is empty.
-//
-//nolint:unused // mounted in Phase 3.3.
 func (p *sourcesPane) selectedSource() *source.Source {
 	if len(p.sources) == 0 {
 		return nil
@@ -40,8 +38,6 @@ func (p *sourcesPane) selectedSource() *source.Source {
 }
 
 // update handles a key message scoped to this pane.
-//
-//nolint:unparam // tea.Cmd return is required by the pane contract; future phases will emit cmds.
 func (p *sourcesPane) update(msg tea.KeyMsg, keys keyMap) tea.Cmd {
 	switch {
 	case key.Matches(msg, keys.Down):
