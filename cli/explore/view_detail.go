@@ -2,6 +2,7 @@ package explore
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/record"
@@ -81,21 +82,31 @@ func (d *detailPane) viewSource() string {
 		return d.theme.Faint.Render("(loading)")
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s\n", d.theme.Title.Render(d.src.Handle))
-	if d.src.DBProduct != "" {
-		fmt.Fprintf(&b, "driver:    %s\n", d.src.DBProduct)
-	} else if d.src.Driver != "" {
-		fmt.Fprintf(&b, "driver:    %s\n", d.src.Driver)
+	fmt.Fprintf(&b, "%s\n", d.theme.Handle.Render(d.src.Handle))
+	switch {
+	case d.src.DBProduct != "":
+		fmt.Fprintf(&b, "%s %s\n", d.theme.Faint.Render("driver:"), d.src.DBProduct)
+	case d.src.Driver != "":
+		fmt.Fprintf(&b, "%s %s\n", d.theme.Faint.Render("driver:"), d.src.Driver)
 	}
 	if d.src.Location != "" {
-		fmt.Fprintf(&b, "location:  %s\n", d.src.Location)
+		fmt.Fprintf(&b, "%s %s\n", d.theme.Faint.Render("location:"), d.theme.Location.Render(d.src.Location))
 	}
-	fmt.Fprintf(&b, "tables: %d\n", d.src.TableCount)
-	fmt.Fprintf(&b, "views: %d\n", d.src.ViewCount)
+	d.writeLabeledInt(&b, "tables:", d.src.TableCount)
+	d.writeLabeledInt(&b, "views:", d.src.ViewCount)
 	if d.src.Size > 0 {
-		fmt.Fprintf(&b, "size:   %d bytes\n", d.src.Size)
+		fmt.Fprintf(&b, "%s %s bytes\n",
+			d.theme.Faint.Render("size:"),
+			d.theme.Number.Render(strconv.FormatInt(d.src.Size, 10)))
 	}
 	return b.String()
+}
+
+// writeLabeledInt writes "<faint-label> <cyan-int>\n" to b.
+func (d *detailPane) writeLabeledInt(b *strings.Builder, label string, n int64) {
+	fmt.Fprintf(b, "%s %s\n",
+		d.theme.Faint.Render(label),
+		d.theme.Number.Render(strconv.FormatInt(n, 10)))
 }
 
 func (d *detailPane) viewTable() string {
@@ -105,11 +116,13 @@ func (d *detailPane) viewTable() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s\n", d.theme.Title.Render(d.tbl.Name))
 	if d.tbl.TableType != "" {
-		fmt.Fprintf(&b, "type:  %s\n", d.tbl.TableType)
+		fmt.Fprintf(&b, "%s %s\n", d.theme.Faint.Render("type:"), d.tbl.TableType)
 	}
-	fmt.Fprintf(&b, "rows: %d\n", d.tbl.RowCount)
+	d.writeLabeledInt(&b, "rows:", d.tbl.RowCount)
 	if d.tbl.Size != nil {
-		fmt.Fprintf(&b, "size:  %d bytes\n", *d.tbl.Size)
+		fmt.Fprintf(&b, "%s %s bytes\n",
+			d.theme.Faint.Render("size:"),
+			d.theme.Number.Render(strconv.FormatInt(*d.tbl.Size, 10)))
 	}
 	b.WriteString("\n")
 
@@ -123,7 +136,12 @@ func (d *detailPane) viewTable() string {
 			if !c.Nullable {
 				flag += " NOT NULL"
 			}
-			fmt.Fprintf(&b, "%2d %-20s %s%s\n", i+1, c.Name, c.BaseType, flag)
+			fmt.Fprintf(&b, "%s %-20s %s%s\n",
+				d.theme.Faint.Render(fmt.Sprintf("%2d", i+1)),
+				c.Name,
+				d.theme.Faint.Render(c.BaseType),
+				d.theme.Faint.Render(flag),
+			)
 		}
 		b.WriteString("\n")
 	}

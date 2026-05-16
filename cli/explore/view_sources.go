@@ -113,9 +113,11 @@ func (p *sourcesPane) view(focused bool, width, height int) string {
 	start, end := scrollWindow(p.selected, len(vs), avail)
 	for i := start; i < end; i++ {
 		s := vs[i]
-		line := s.Handle
+		// Color every handle to match sq's Handle palette; the active
+		// source overrides with Active styling (green + bold).
+		line := p.theme.Handle.Render(s.Handle)
 		if s == p.active {
-			line = p.theme.ItemActiv.Render(line)
+			line = p.theme.ItemActiv.Render(s.Handle)
 		}
 		if i == p.selected && focused {
 			line = p.theme.ItemSel.Render(line)
