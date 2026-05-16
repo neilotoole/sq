@@ -726,10 +726,14 @@ case-sensitive matching:
 - **SQL Server:** `LIKE` with `COLLATE Latin1_General_BIN2`.
 - **SQLite:** `instr()` (SQLite's default `LIKE` is ASCII case-insensitive).
 
-A small portability caveat on SQLite: `contains(.col, "")` returns false
-(SQLite's `instr` of an empty needle is `0`), whereas every other driver
-treats an empty pattern as "matches every non-NULL row". The same applies
-to [`endswith`](#endswith). Avoid empty patterns for portability.
+A small portability caveat on SQLite: [`endswith`](#endswith)`(.col, "")`
+returns false because `substr(col, -0)` returns the full string (SQLite
+treats `-0` as `0` and selects from the start), so the equality check
+against `''` is false. Every other driver treats an empty pattern as
+"matches every non-NULL row". `contains(.col, "")` and
+[`startswith`](#startswith)`(.col, "")` behave consistently across all
+drivers — only `endswith` diverges. Avoid empty patterns to dodge the
+issue entirely.
 
 Unlike jq's polymorphic `contains`, SLQ's `contains` is string-only: it
 does not operate on arrays or objects.
