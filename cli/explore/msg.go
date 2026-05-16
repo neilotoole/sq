@@ -43,8 +43,6 @@ type tableMetaLoadedMsg struct {
 
 // previewMetaLoadedMsg is dispatched by the preview RecordWriter
 // when the record-stream's header (column meta) arrives.
-//
-//nolint:unused // dispatched in later phases.
 type previewMetaLoadedMsg struct {
 	handle    string
 	tableName string
@@ -53,8 +51,6 @@ type previewMetaLoadedMsg struct {
 
 // previewRowsAppendedMsg carries a batch of preview rows from the
 // custom RecordWriter to the detail pane.
-//
-//nolint:unused // dispatched in later phases.
 type previewRowsAppendedMsg struct {
 	handle    string
 	tableName string
