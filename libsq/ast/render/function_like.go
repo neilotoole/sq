@@ -149,7 +149,14 @@ type LikeOpts struct {
 //
 // Used by the default-renderer overrides and by MySQL/SQL Server overrides.
 // SQLite and ClickHouse use different shapes and do not call this function.
+//
+// Callers must pass either opts.IgnoreCase or a CI-aware opts.Op
+// (e.g. "ILIKE") / opts.ColCollate, never both — combining them
+// produces semantically nonsensical SQL and panics at render time.
 func RenderLikeOp(rc *Context, fn *ast.FuncNode, opts LikeOpts) (string, error) {
+	if opts.IgnoreCase && (opts.Op != "" || opts.ColCollate != "") {
+		panic("RenderLikeOp: IgnoreCase is mutually exclusive with Op and ColCollate")
+	}
 	colSQL, lit, err := ParseLikeArgs(rc, fn)
 	if err != nil {
 		return "", err
@@ -230,7 +237,14 @@ type LikeRawOpts struct {
 // is bound verbatim: % and _ are wildcards, not escaped. Single
 // quotes inside the literal are still properly escaped by
 // SingleQuote.
+//
+// Callers must pass either opts.IgnoreCase or a CI-aware opts.Op
+// (e.g. "ILIKE") / opts.ColCollate, never both — combining them
+// produces semantically nonsensical SQL and panics at render time.
 func RenderLikeRaw(rc *Context, fn *ast.FuncNode, opts LikeRawOpts) (string, error) {
+	if opts.IgnoreCase && (opts.Op != "" || opts.ColCollate != "") {
+		panic("RenderLikeRaw: IgnoreCase is mutually exclusive with Op and ColCollate")
+	}
 	colSQL, lit, err := ParseLikeArgs(rc, fn)
 	if err != nil {
 		return "", err

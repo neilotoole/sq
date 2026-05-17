@@ -685,10 +685,9 @@ func TestQuery_string_like(t *testing.T) {
 			wantRecCount: 0,
 		},
 		{
-			// User-controlled `_` wildcard (single-char wildcard).
-			// PENELOPE is 8 chars; pattern is `P_N_____` -> 7 underscores
-			// after P_N... actually use a cleaner example: `PEN_LOPE`
-			// (1 underscore in position 4) matches PENELOPE.
+			// `PEN_LOPE` has a single-char wildcard (`_`) in position 4,
+			// matching the 4 PENELOPE rows in sakila. Demonstrates that
+			// `_` is treated as a wildcard, not auto-escaped.
 			name:    "like/single-char-wildcard",
 			in:      `@sakila | .actor | where(like(.first_name, "PEN_LOPE"))`,
 			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE 'PEN_LOPE' ESCAPE '|'`,

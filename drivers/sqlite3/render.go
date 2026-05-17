@@ -193,13 +193,10 @@ func renderFuncIEndsWithLike(rc *render.Context, fn *ast.FuncNode) (string, erro
 	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeEndsWith})
 }
 
-// renderFuncLike and renderFuncILike both render to plain LIKE on
-// SQLite. SQLite's LIKE is ASCII case-insensitive by default, so
-// both functions behave the same; this is a documented quirk.
+// renderFuncLike renders SLQ's like and ilike on SQLite. Both
+// register the same function because SQLite's default LIKE is
+// ASCII case-insensitive, so the two are structurally
+// indistinguishable on this driver — a documented quirk.
 func renderFuncLike(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	return render.RenderLikeRaw(rc, fn, render.LikeRawOpts{})
-}
-
-func renderFuncILike(rc *render.Context, fn *ast.FuncNode) (string, error) {
 	return render.RenderLikeRaw(rc, fn, render.LikeRawOpts{})
 }
