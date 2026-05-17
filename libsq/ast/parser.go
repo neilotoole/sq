@@ -52,7 +52,7 @@ type antlrErrorListener struct {
 
 // SyntaxError implements antlr.ErrorListener.
 func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol any,
-	line, column int, msg string, e antlr.RecognitionException,
+	line, column int, msg string, _ antlr.RecognitionException,
 ) {
 	iss := ParseIssue{
 		Stage:     el.name,
@@ -75,18 +75,22 @@ func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offending
 		el.recognizer = recognizer
 	}
 
-	if e != nil {
-		if p, ok := recognizer.(antlr.Parser); ok {
-			set := p.GetExpectedTokens()
-			if set != nil {
-				ivs := set.GetIntervals()
-				pairs := make([][2]int, 0, len(ivs))
-				for _, iv := range ivs {
-					pairs = append(pairs, [2]int{iv.Start, iv.Stop})
-				}
-				iss.expectedTypes = collectExpectedTokenTypes(pairs)
+	if p, ok := recognizer.(antlr.Parser); ok {
+		set := p.GetExpectedTokens()
+		if set != nil {
+			ivs := set.GetIntervals()
+			pairs := make([][2]int, 0, len(ivs))
+			for _, iv := range ivs {
+				pairs = append(pairs, [2]int{iv.Start, iv.Stop})
 			}
+			iss.expectedTypes = collectExpectedTokenTypes(pairs)
 		}
+	}
+
+	if iss.Token != "" && len(iss.expectedTypes) > 0 && el.recognizer != nil {
+		literals := el.recognizer.GetLiteralNames()
+		candidates := expectedTokenLiterals(iss.expectedTypes, literals)
+		iss.Suggestion = suggestForToken(iss.Token, candidates)
 	}
 
 	el.issues = append(el.issues, iss)

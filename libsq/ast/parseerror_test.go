@@ -57,3 +57,24 @@ func TestParse_SyntaxErrorMsg_LexerError(t *testing.T) {
 	require.Equal(t, -1, iss.StopChar)
 	require.Equal(t, "unexpected '# bad'", iss.Msg)
 }
+
+func TestParse_DidYouMean(t *testing.T) {
+	// "mx" should suggest "max" because both are short and edit distance 1.
+	_, err := Parse(lg.Discard(), ".actor | mx(.id)")
+	require.Error(t, err)
+
+	var pe *ParseError
+	require.True(t, errors.As(err, &pe))
+	require.NotEmpty(t, pe.Issues)
+	require.Equal(t, "max", pe.Issues[0].Suggestion)
+}
+
+func TestParse_NoSuggestionForFarToken(t *testing.T) {
+	_, err := Parse(lg.Discard(), ".actor | this_is_invalid(.id)")
+	require.Error(t, err)
+
+	var pe *ParseError
+	require.True(t, errors.As(err, &pe))
+	require.NotEmpty(t, pe.Issues)
+	require.Empty(t, pe.Issues[0].Suggestion, "no close match should produce no suggestion")
+}
