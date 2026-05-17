@@ -1,0 +1,1 @@
+@mydb1 | .actor | where(like(.first_name, "Pen%"))
