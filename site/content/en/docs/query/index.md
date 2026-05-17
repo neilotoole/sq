@@ -997,17 +997,14 @@ loaded — same caveat as [`icontains`](#icontains).
 ClickHouse emits a trailing `ESCAPE '|'` clause, reserving `|` as the
 LIKE escape character. Practical consequences:
 
-- On Postgres, Oracle, and SQLite, a pattern containing `|` that
-  isn't followed by `%`, `_`, or another `|` will raise a runtime
-  error. SQLite's docs state: "If the ESCAPE character occurs before
-  any other character, then it is an error."
-- On MySQL and SQL Server, `|` followed by `%`, `_`, or another `|`
-  matches that character literally — i.e. `like(.col, "10|%")` matches
-  the substring `10%`. A bare `|` not followed by an escape target is
-  treated according to each driver's own `LIKE`-pattern rules and is
-  **not portable** — treat such patterns as undefined behavior and
-  avoid them. SQLite handles escape-pairs (`|%`, `|_`, `||`) the same
-  way, but a bare `|` raises a runtime error like Postgres/Oracle.
+- On Postgres, Oracle, SQLite, and SQL Server (strict drivers), a
+  pattern containing `|` not followed by `%`, `_`, `[`, `]`, or
+  another `|` raises a runtime error (e.g. "invalid escape sequence").
+- On MySQL (the only lenient driver), `|` followed by `%`, `_`, or
+  another `|` matches that character literally — i.e.
+  `like(.col, "10|%")` matches the substring `10%`. A bare `|` not
+  followed by an escape target is silently dropped. Don't rely on
+  this; behavior may differ between MySQL versions.
 - On ClickHouse, the `ESCAPE` clause is omitted entirely, so `|` is
   always a literal character with no special meaning.
 
