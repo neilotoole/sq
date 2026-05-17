@@ -59,7 +59,7 @@ func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offending
 		Col:       column,
 		StartChar: -1,
 		StopChar:  -1,
-		Msg:       msg, // overwritten in Task 2
+		Msg:       "",
 	}
 
 	if tok, ok := offendingSymbol.(antlr.Token); ok && tok != nil {
@@ -67,6 +67,8 @@ func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offending
 		iss.StartChar = tok.GetStart()
 		iss.StopChar = tok.GetStop()
 	}
+
+	iss.Msg = buildIssueMsg(iss.Token, msg)
 
 	el.issues = append(el.issues, iss)
 }
@@ -291,4 +293,26 @@ func (v *parseTreeVisitor) VisitTerminal(ctx antlr.TerminalNode) any {
 func (v *parseTreeVisitor) VisitErrorNode(ctx antlr.ErrorNode) any {
 	v.log.Debug("Error node", lga.Val, ctx.GetText())
 	return nil
+}
+
+// buildIssueMsg produces a terse, sq-flavored error message from
+// the offending token text and ANTLR's raw message. We discard
+// ANTLR's "expecting {...}" enumeration because it's rarely
+// actionable for users.
+func buildIssueMsg(token, antlrMsg string) string {
+	if token != "" && token != "<EOF>" {
+		return fmt.Sprintf("unexpected '%s'", token)
+	}
+	if token == "<EOF>" {
+		return "unexpected end of input"
+	}
+	// Lexer error: no token formed. ANTLR's lexer messages are
+	// usually compact and useful as-is (e.g. "token recognition
+	// error at: '#'"). Strip the "token recognition error at: "
+	// prefix to make it terser.
+	const lexerPrefix = "token recognition error at: "
+	if strings.HasPrefix(antlrMsg, lexerPrefix) {
+		return "unexpected " + strings.TrimPrefix(antlrMsg, lexerPrefix)
+	}
+	return antlrMsg
 }
