@@ -339,3 +339,94 @@ func TestQuery_string_endswith(t *testing.T) {
 		})
 	}
 }
+
+//nolint:exhaustive,lll
+func TestQuery_string_icontains(t *testing.T) {
+	testCases := []queryTestCase{
+		{
+			// Pair test: lowercase pattern matches 2 ANGELA rows in
+			// sakila despite the data being stored UPPERCASE. This
+			// proves case-insensitivity is wired through correctly.
+			name:    "icontains/case-insensitive-lowercase-match",
+			in:      `@sakila | .actor | where(icontains(.first_name, "angela"))`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER('%angela%') ESCAPE '|'`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE '%angela%' ESCAPE '|'`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE '%angela%' ESCAPE '|'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE '%angela%' ESCAPE '|'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER('%angela%') ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE '%angela%' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE positionCaseInsensitive(`first_name`, 'angela') > 0",
+			},
+			wantRecCount: 2,
+		},
+		{
+			// Pair test: uppercase pattern also matches the same 2 rows
+			// — case is ignored on both sides.
+			name:    "icontains/case-insensitive-uppercase-match",
+			in:      `@sakila | .actor | where(icontains(.first_name, "ANGELA"))`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER('%ANGELA%') ESCAPE '|'`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE '%ANGELA%' ESCAPE '|'`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE '%ANGELA%' ESCAPE '|'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE '%ANGELA%' ESCAPE '|'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER('%ANGELA%') ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE '%ANGELA%' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE positionCaseInsensitive(`first_name`, 'ANGELA') > 0",
+			},
+			wantRecCount: 2,
+		},
+		{
+			// Pair test: pattern that exists nowhere returns 0 rows.
+			name:         "icontains/no-match",
+			in:           `@sakila | .actor | where(icontains(.first_name, "xyzzy"))`,
+			wantRecCount: 0,
+		},
+		{
+			// Escape semantics still apply (% is auto-escaped) — same as
+			// contains. Sakila first_names contain no literal %.
+			name:    "icontains/escapes-percent",
+			in:      `@sakila | .actor | where(icontains(.first_name, "50%"))`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER('%50|%%') ESCAPE '|'`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE '%50|%%' ESCAPE '|'`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE '%50|%%' ESCAPE '|'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE '%50|%%' ESCAPE '|'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER('%50|%%') ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE '%50|%%' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE positionCaseInsensitive(`first_name`, '50%') > 0",
+			},
+			wantRecCount: 0,
+		},
+		{
+			name:    "icontains/empty-pattern-matches-all",
+			in:      `@sakila | .actor | where(icontains(.first_name, ""))`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER('%%') ESCAPE '|'`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE '%%' ESCAPE '|'`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE '%%' ESCAPE '|'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE '%%' ESCAPE '|'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER('%%') ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE '%%' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE positionCaseInsensitive(`first_name`, '') > 0",
+			},
+			wantRecCount: 200,
+		},
+		{
+			name:            "icontains/wrong-arg-count",
+			in:              `@sakila | .actor | where(icontains(.first_name))`,
+			wantErrContains: "icontains() requires exactly 2 arguments",
+		},
+		{
+			name:            "icontains/non-literal-pattern",
+			in:              `@sakila | .actor | where(icontains(.first_name, .last_name))`,
+			wantErrContains: "icontains() second argument must be a string literal",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			execQueryTestCase(t, tc)
+		})
+	}
+}
