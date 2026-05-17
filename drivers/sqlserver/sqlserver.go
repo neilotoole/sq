@@ -154,6 +154,11 @@ func (d *driveri) Renderer() *render.Renderer {
 	r.FunctionOverrides[ast.FuncNameContains] = renderFuncContainsCollate
 	r.FunctionOverrides[ast.FuncNameStartsWith] = renderFuncStartsWithCollate
 	r.FunctionOverrides[ast.FuncNameEndsWith] = renderFuncEndsWithCollate
+	r.FunctionOverrides[ast.FuncNameIContains] = renderFuncIContainsCollate
+	r.FunctionOverrides[ast.FuncNameIStartsWith] = renderFuncIStartsWithCollate
+	r.FunctionOverrides[ast.FuncNameIEndsWith] = renderFuncIEndsWithCollate
+	r.FunctionOverrides[ast.FuncNameLike] = renderFuncLikeCollate
+	r.FunctionOverrides[ast.FuncNameILike] = renderFuncILikeCollate
 
 	defaultLiteralFn := r.Literal
 	r.Literal = func(rc *render.Context, lit *ast.LiteralNode) (string, error) {
