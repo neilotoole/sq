@@ -978,6 +978,14 @@ case-sensitive under its default `NLS_COMP=BINARY` setting; sessions that
 set `NLS_COMP=LINGUISTIC` with a case-insensitive `NLS_SORT` get
 case-insensitive matching — same caveat as [`contains`](#contains).
 
+**SQL Server character classes:** SQL Server's `LIKE` treats `[…]` as
+a character-class wildcard (e.g. `[A-Z]` matches any uppercase
+letter). `like` and `ilike` pass the pattern through verbatim, so on
+SQL Server `like(.col, "[abc]")` matches a single character — `a`,
+`b`, or `c` — whereas on every other driver it matches the literal
+three-character substring `[abc]`. Use [`contains`](#contains) if you
+need portable literal-substring matching.
+
 **SQLite quirk:** SQLite's default `LIKE` is ASCII case-insensitive,
 so on SQLite `like` behaves the same as [`ilike`](#ilike) for ASCII
 input. This matches SQLite's standard semantics rather than
@@ -987,15 +995,17 @@ overriding them globally via `PRAGMA case_sensitive_like`.
 ClickHouse emits a trailing `ESCAPE '|'` clause, reserving `|` as the
 LIKE escape character. Practical consequences:
 
-- On Postgres, Oracle, and other strict drivers, a pattern containing
-  `|` that isn't followed by `%`, `_`, or another `|` will raise a
-  runtime `invalid escape sequence` error.
-- On lenient drivers (MySQL, SQLite, SQL Server), `|` followed by `%`
-  or `_` matches that character literally — i.e. `like(.col, "10|%")`
-  matches the substring `10%`. A bare `|` not followed by `%`, `_`, or
-  another `|` is treated according to each driver's own `LIKE`-pattern
-  rules and is **not portable**; treat such patterns as undefined
-  behavior and avoid them.
+- On Postgres, Oracle, and SQLite, a pattern containing `|` that
+  isn't followed by `%`, `_`, or another `|` will raise a runtime
+  error. SQLite's docs state: "If the ESCAPE character occurs before
+  any other character, then it is an error."
+- On MySQL and SQL Server, `|` followed by `%`, `_`, or another `|`
+  matches that character literally — i.e. `like(.col, "10|%")` matches
+  the substring `10%`. A bare `|` not followed by an escape target is
+  treated according to each driver's own `LIKE`-pattern rules and is
+  **not portable** — treat such patterns as undefined behavior and
+  avoid them. SQLite handles escape-pairs (`|%`, `|_`, `||`) the same
+  way, but a bare `|` raises a runtime error like Postgres/Oracle.
 - On ClickHouse, the `ESCAPE` clause is omitted entirely, so `|` is
   always a literal character with no special meaning.
 
@@ -1003,8 +1013,9 @@ If you need portable literal-`%` / literal-`_` matching, use
 [`contains`](#contains) (which auto-escapes wildcards in the
 literal). The current `like` / `ilike` ESCAPE semantics may be
 revisited in a future version; see issue
-[#628](https://github.com/neilotoole/sq/issues/628) for the related
-column-as-pattern follow-up.
+[#629](https://github.com/neilotoole/sq/issues/629). A separate
+follow-up, [#628](https://github.com/neilotoole/sq/issues/628),
+tracks column-as-pattern support.
 
 An empty pattern matches only empty strings (`col = ''`) — not every
 non-NULL row, in contrast with [`contains`](#contains)`(.col, "")`.
