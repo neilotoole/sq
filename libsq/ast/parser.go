@@ -311,8 +311,8 @@ func buildIssueMsg(token, antlrMsg string) string {
 	// error at: '#'"). Strip the "token recognition error at: "
 	// prefix to make it terser.
 	const lexerPrefix = "token recognition error at: "
-	if strings.HasPrefix(antlrMsg, lexerPrefix) {
-		return "unexpected " + strings.TrimPrefix(antlrMsg, lexerPrefix)
+	if after, ok := strings.CutPrefix(antlrMsg, lexerPrefix); ok {
+		return "unexpected " + after
 	}
 	return antlrMsg
 }

@@ -55,5 +55,5 @@ func TestParse_SyntaxErrorMsg_LexerError(t *testing.T) {
 	require.Empty(t, iss.Token, "lexer errors produce no offending token")
 	require.Equal(t, -1, iss.StartChar, "lexer errors have no char span")
 	require.Equal(t, -1, iss.StopChar)
-	require.Contains(t, iss.Msg, "unexpected")
+	require.Equal(t, "unexpected '# bad'", iss.Msg)
 }
