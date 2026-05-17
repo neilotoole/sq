@@ -179,23 +179,23 @@ func doFuncEndsWith(rc *Context, fn *ast.FuncNode) (string, error) {
 	return RenderLikeOp(rc, fn, LikeOpts{Mode: LikeEndsWith})
 }
 
-func doFuncIContains(rc *Context, fn *ast.FuncNode) (string, error) { //nolint:unused
+func doFuncIContains(rc *Context, fn *ast.FuncNode) (string, error) {
 	return RenderLikeOp(rc, fn, LikeOpts{Mode: LikeContains, IgnoreCase: true})
 }
 
-func doFuncIStartsWith(rc *Context, fn *ast.FuncNode) (string, error) { //nolint:unused
+func doFuncIStartsWith(rc *Context, fn *ast.FuncNode) (string, error) {
 	return RenderLikeOp(rc, fn, LikeOpts{Mode: LikeStartsWith, IgnoreCase: true})
 }
 
-func doFuncIEndsWith(rc *Context, fn *ast.FuncNode) (string, error) { //nolint:unused
+func doFuncIEndsWith(rc *Context, fn *ast.FuncNode) (string, error) {
 	return RenderLikeOp(rc, fn, LikeOpts{Mode: LikeEndsWith, IgnoreCase: true})
 }
 
-func doFuncLike(rc *Context, fn *ast.FuncNode) (string, error) { //nolint:unused
+func doFuncLike(rc *Context, fn *ast.FuncNode) (string, error) {
 	return RenderLikeRaw(rc, fn, LikeRawOpts{})
 }
 
-func doFuncILike(rc *Context, fn *ast.FuncNode) (string, error) { //nolint:unused
+func doFuncILike(rc *Context, fn *ast.FuncNode) (string, error) {
 	return RenderLikeRaw(rc, fn, LikeRawOpts{IgnoreCase: true})
 }
 
