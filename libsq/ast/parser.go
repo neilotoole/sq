@@ -18,19 +18,18 @@ import (
 func parseSLQ(log *slog.Logger, input string) (*slq.QueryContext, error) {
 	lex := slq.NewSLQLexer(antlr.NewInputStream(input))
 	lex.RemoveErrorListeners() // the generated lexer has default listeners we don't want
-	lexErrs := &antlrErrorListener{name: "lexer", log: log}
+	lexErrs := &antlrErrorListener{name: "lexer", log: log, input: input}
 	lex.AddErrorListener(lexErrs)
 
 	p := slq.NewSLQParser(antlr.NewCommonTokenStream(lex, 0))
 	p.RemoveErrorListeners() // the generated parser has default listeners we don't want
-	parseErrs := &antlrErrorListener{name: "parser", log: log}
+	parseErrs := &antlrErrorListener{name: "parser", log: log, input: input}
 	p.AddErrorListener(parseErrs)
 
 	qCtx := p.Query()
 	if err := lexErrs.error(); err != nil {
 		return nil, errz.Err(err)
 	}
-
 	if err := parseErrs.error(); err != nil {
 		return nil, errz.Err(err)
 	}
@@ -41,10 +40,10 @@ func parseSLQ(log *slog.Logger, input string) (*slq.QueryContext, error) {
 var _ antlr.ErrorListener = (*antlrErrorListener)(nil)
 
 type antlrErrorListener struct {
-	err      error
 	log      *slog.Logger
-	name     string
-	errs     []string
+	name     string // "lexer" or "parser"
+	input    string
+	issues   []ParseIssue
 	warnings []string
 }
 
@@ -54,8 +53,22 @@ type antlrErrorListener struct {
 func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol any,
 	line, column int, msg string, e antlr.RecognitionException,
 ) {
-	text := fmt.Sprintf("%s: syntax error: [%d:%d] %s", el.name, line, column, msg)
-	el.errs = append(el.errs, text)
+	iss := ParseIssue{
+		Stage:     el.name,
+		Line:      line,
+		Col:       column,
+		StartChar: -1,
+		StopChar:  -1,
+		Msg:       msg, // overwritten in Task 2
+	}
+
+	if tok, ok := offendingSymbol.(antlr.Token); ok && tok != nil {
+		iss.Token = tok.GetText()
+		iss.StartChar = tok.GetStart()
+		iss.StopChar = tok.GetStop()
+	}
+
+	el.issues = append(el.issues, iss)
 }
 
 // ReportAmbiguity implements antlr.ErrorListener.
@@ -91,35 +104,23 @@ func (el *antlrErrorListener) ReportContextSensitivity(recognizer antlr.Parser, 
 }
 
 func (el *antlrErrorListener) error() error {
-	if el.err == nil && len(el.errs) > 0 {
-		msg := strings.Join(el.errs, "\n")
-		el.err = &parseError{msg: msg}
+	if len(el.issues) == 0 {
+		return nil
 	}
-	return el.err
+	return &ParseError{Input: el.input, Issues: el.issues}
 }
 
 func (el *antlrErrorListener) String() string {
-	if len(el.errs)+len(el.warnings) == 0 {
+	if len(el.issues)+len(el.warnings) == 0 {
 		return el.name + ": no issues"
 	}
-
-	strs := make([]string, 0, len(el.errs)+len(el.warnings))
-	strs = append(strs, el.errs...)
+	strs := make([]string, 0, len(el.issues)+len(el.warnings))
+	for _, iss := range el.issues {
+		strs = append(strs, fmt.Sprintf("%s: syntax error: [%d:%d] %s",
+			el.name, iss.Line, iss.Col, iss.Msg))
+	}
 	strs = append(strs, el.warnings...)
-
 	return strings.Join(strs, "\n")
-}
-
-// parseError represents an error in lexing/parsing input.
-type parseError struct {
-	msg string
-	// TODO: parse error should include more detail, such as
-	// the offending token, position, etc.
-}
-
-// Error implements error.
-func (p *parseError) Error() string {
-	return p.msg
 }
 
 var _ slq.SLQVisitor = (*parseTreeVisitor)(nil)
