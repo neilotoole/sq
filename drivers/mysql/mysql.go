@@ -137,6 +137,16 @@ func (d *driveri) Renderer() *render.Renderer {
 	r.FunctionNames[ast.FuncNameSchema] = "DATABASE"
 	r.FunctionOverrides[ast.FuncNameCatalog] = doRenderFuncCatalog
 	r.FunctionOverrides[ast.FuncNameRowNum] = renderFuncRowNum
+	r.FunctionOverrides[ast.FuncNameContains] = renderFuncContainsBinary
+	r.FunctionOverrides[ast.FuncNameStartsWith] = renderFuncStartsWithBinary
+	r.FunctionOverrides[ast.FuncNameEndsWith] = renderFuncEndsWithBinary
+	// MySQL CI matchers (icontains, istartswith, iendswith, ilike)
+	// deliberately fall through to the default renderer, which emits
+	// LOWER(col) LIKE LOWER(pat) ESCAPE '|'. The default is portable
+	// across MySQL collation configurations — do not mirror the
+	// LIKE BINARY pattern below for the i* family or ilike, or
+	// case-insensitivity will break on case-sensitive collations.
+	r.FunctionOverrides[ast.FuncNameLike] = renderFuncLikeBinary
 	return r
 }
 

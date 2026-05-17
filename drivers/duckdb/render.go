@@ -58,5 +58,6 @@ func (d *driveri) Renderer() *render.Renderer {
 	// DuckDB uses the same schema/catalog function names as Postgres.
 	r.FunctionNames[ast.FuncNameSchema] = "current_schema"
 	r.FunctionNames[ast.FuncNameCatalog] = "current_database"
+	render.RegisterILikeFamily(r)
 	return r
 }
