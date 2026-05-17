@@ -144,6 +144,9 @@ type LikeOpts struct {
 //
 //	<colSQL><opts.ColCollate> <opts.Op> '<pattern>' ESCAPE '<likeEscapeChar>'
 //
+// When opts.IgnoreCase is true, both <colSQL> and the quoted pattern
+// are wrapped in LOWER(...) before assembly.
+//
 // Used by the default-renderer overrides and by MySQL/SQL Server overrides.
 // SQLite and ClickHouse use different shapes and do not call this function.
 func RenderLikeOp(rc *Context, fn *ast.FuncNode, opts LikeOpts) (string, error) {
@@ -205,7 +208,8 @@ type LikeRawOpts struct {
 	Op string
 
 	// ColCollate, when non-empty, is appended verbatim after the column
-	// reference (e.g. " COLLATE Latin1_General_BIN2").
+	// reference (e.g. " COLLATE Latin1_General_BIN2" — note the leading
+	// space). Callers must include the leading space.
 	ColCollate string
 
 	// OmitEscape, when true, suppresses the trailing " ESCAPE '|'"
