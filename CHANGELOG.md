@@ -14,6 +14,17 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## Unreleased
 
+### Fixed
+
+- [#445]: Cross-source [`join`](https://sq.io/docs/query#join) no longer
+  fails when the participating sources contain tables with the same
+  name (e.g. `@src1.actor | join(@src2.actor, .actor_id)`). Previously
+  the second table copy into the join scratch DB collided with the
+  first (`table "actor" already exists`); now colliding unaliased
+  participants are given numeric-suffixed aliases (`actor`, `actor_2`,
+  ...) so the scratch tables are unique and the rendered SQL is
+  well-formed.
+
 ### Added
 
 - [#601]: New SLQ functions for substring matching: `contains(col, str)`,
@@ -1448,6 +1459,7 @@ make working with lots of sources much easier.
 [#353]: https://github.com/neilotoole/sq/issues/353
 [#415]: https://github.com/neilotoole/sq/issues/415
 [#437]: https://github.com/neilotoole/sq/issues/437
+[#445]: https://github.com/neilotoole/sq/issues/445
 [#446]: https://github.com/neilotoole/sq/issues/446
 [#498]: https://github.com/neilotoole/sq/issues/498
 [#469]: https://github.com/neilotoole/sq/issues/469

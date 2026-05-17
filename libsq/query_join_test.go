@@ -6,9 +6,11 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/samber/lo"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/jointype"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
 )
@@ -366,6 +368,30 @@ func TestQuery_join_others(t *testing.T) {
 			execQueryTestCase(t, tc)
 		})
 	}
+}
+
+// TestQuery_join_cross_source_same_table_name is a regression test for
+// https://github.com/neilotoole/sq/issues/445.
+//
+// When two cross-source join participants share a table name (here, both
+// SQLite sakila variants have an "actor" table), the join scratch DB
+// receives two "CREATE TABLE actor" attempts and the second collides;
+// additionally, the rendered SQL references "actor" on both sides of the
+// join (e.g. FROM actor INNER JOIN actor ON actor.actor_id = actor.actor_id),
+// which is malformed regardless of the collision.
+func TestQuery_join_cross_source_same_table_name(t *testing.T) {
+	t.Parallel()
+
+	q := fmt.Sprintf(
+		`%s.actor | join(%s.actor, .actor_id) | .first_name`,
+		sakila.SL3, sakila.SL3Whitespace,
+	)
+
+	th := testh.New(t)
+	sink, err := th.QuerySLQ(q, nil)
+	require.NoError(t, err)
+	require.Len(t, sink.Recs, sakila.TblActorCount)
+	require.Equal(t, []string{"first_name"}, sink.RecMeta.MungedNames())
 }
 
 // TestQuery_table_alias is tested with the joins, because table aliases

@@ -378,6 +378,34 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 	// TODO: verify not empty
 
 	tbls := jc.tables()
+
+	// When two participants resolve to the same destination table name in
+	// the join scratch DB (e.g. two sources each contributing an "actor"
+	// table with no user alias), the second CREATE TABLE collides and the
+	// rendered FROM/ON clauses become ambiguous. For any colliding table
+	// without a user-provided alias, synthesize a numeric-suffixed alias
+	// (actor, actor_2, actor_3, ...) so the existing SyncTblNameAlias
+	// flow below produces unique scratch table names and well-formed SQL.
+	// The first occurrence keeps its original name to minimize SQL drift
+	// for callers that reference it. User-provided aliases are left alone:
+	// a deliberately colliding alias is a user error and SQL surfaces it.
+	dstNameCount := map[string]int{}
+	for _, tbl := range tbls {
+		dstNameCount[tbl.TblAliasOrName().Table]++
+	}
+	dstNameSeen := map[string]int{}
+	for _, tbl := range tbls {
+		name := tbl.TblAliasOrName().Table
+		if dstNameCount[name] <= 1 || tbl.Alias() != "" {
+			continue
+		}
+		dstNameSeen[name]++
+		if dstNameSeen[name] == 1 {
+			continue
+		}
+		tbl.SetAlias(fmt.Sprintf("%s_%d", name, dstNameSeen[name]))
+	}
+
 	for _, tbl := range tbls {
 		handle := tbl.Handle()
 		if handle == "" {
