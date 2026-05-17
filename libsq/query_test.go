@@ -75,6 +75,10 @@ type queryTestCase struct {
 	// wantErr indicates that an error is expected
 	wantErr bool
 
+	// wantErrContains, when non-empty, requires that the returned error
+	// message contains this substring. Implies wantErr=true.
+	wantErrContains string
+
 	// wantSQL is the desired SQL. If empty, the returned SQL is
 	// not tested (but is still executed).
 	wantSQL string
@@ -229,8 +233,11 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 			}
 
 			gotRes, gotErr := libsq.SLQ2SQL(th.Context, qc, in)
-			if tc.wantErr {
-				assert.Error(t, gotErr)
+			if tc.wantErr || tc.wantErrContains != "" {
+				require.Error(t, gotErr)
+				if tc.wantErrContains != "" {
+					require.ErrorContains(t, gotErr, tc.wantErrContains)
+				}
 				t.Logf("ERROR: %v", gotErr)
 				return
 			}
