@@ -70,10 +70,11 @@ func buildLikePattern(s string, mode LikeMode, extraMeta string) string {
 }
 
 // ParseLikeArgs validates the shape of a substring-matching function call
-// (contains/startswith/endswith) and returns the rendered column SQL and
-// the unquoted literal value. The first argument must be a column selector;
-// the second must be a quoted string literal. Other shapes are rejected
-// with a clear error. Exported for use by driver-specific overrides.
+// (contains/startswith/endswith and their case-insensitive companions,
+// plus like/ilike) and returns the rendered column SQL and the unquoted
+// literal value. The first argument must be a column selector; the second
+// must be a quoted string literal. Other shapes are rejected with a clear
+// error. Exported for use by driver-specific overrides.
 func ParseLikeArgs(rc *Context, fn *ast.FuncNode) (colSQL, literal string, err error) {
 	children := fn.Children()
 	if len(children) != 2 {
