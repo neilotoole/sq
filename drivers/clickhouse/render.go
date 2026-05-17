@@ -259,3 +259,45 @@ func renderFuncEndsWith(rc *render.Context, fn *ast.FuncNode) (string, error) {
 	}
 	return "endsWith(" + colSQL + ", " + stringz.SingleQuote(lit) + ")", nil
 }
+
+// renderFuncIContains renders SLQ's icontains(col, "lit") using
+// ClickHouse's case-insensitive positionCaseInsensitive function.
+// Literal pattern is bound as-is; % and _ have no special meaning.
+func renderFuncIContains(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	colSQL, lit, err := render.ParseLikeArgs(rc, fn)
+	if err != nil {
+		return "", err
+	}
+	return "positionCaseInsensitive(" + colSQL + ", " + stringz.SingleQuote(lit) + ") > 0", nil
+}
+
+// renderFuncIStartsWith uses startsWithCaseInsensitive.
+func renderFuncIStartsWith(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	colSQL, lit, err := render.ParseLikeArgs(rc, fn)
+	if err != nil {
+		return "", err
+	}
+	return "startsWithCaseInsensitive(" + colSQL + ", " + stringz.SingleQuote(lit) + ")", nil
+}
+
+// renderFuncIEndsWith uses endsWithCaseInsensitive.
+func renderFuncIEndsWith(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	colSQL, lit, err := render.ParseLikeArgs(rc, fn)
+	if err != nil {
+		return "", err
+	}
+	return "endsWithCaseInsensitive(" + colSQL + ", " + stringz.SingleQuote(lit) + ")", nil
+}
+
+// renderFuncLike uses ClickHouse's native LIKE. ClickHouse's LIKE
+// does not support an ESCAPE clause, so RenderLikeRaw is called
+// with OmitEscape=true.
+func renderFuncLike(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeRaw(rc, fn, render.LikeRawOpts{OmitEscape: true})
+}
+
+// renderFuncILike uses ClickHouse's native ILIKE. Like LIKE, ILIKE
+// does not support ESCAPE.
+func renderFuncILike(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeRaw(rc, fn, render.LikeRawOpts{Op: "ILIKE", OmitEscape: true})
+}

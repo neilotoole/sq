@@ -277,6 +277,11 @@ func (d *driveri) Renderer() *render.Renderer {
 	r.FunctionOverrides[ast.FuncNameContains] = renderFuncContains
 	r.FunctionOverrides[ast.FuncNameStartsWith] = renderFuncStartsWith
 	r.FunctionOverrides[ast.FuncNameEndsWith] = renderFuncEndsWith
+	r.FunctionOverrides[ast.FuncNameIContains] = renderFuncIContains
+	r.FunctionOverrides[ast.FuncNameIStartsWith] = renderFuncIStartsWith
+	r.FunctionOverrides[ast.FuncNameIEndsWith] = renderFuncIEndsWith
+	r.FunctionOverrides[ast.FuncNameLike] = renderFuncLike
+	r.FunctionOverrides[ast.FuncNameILike] = renderFuncILike
 	return r
 }
 
