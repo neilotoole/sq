@@ -73,7 +73,8 @@ sakila_b*
 
 ## AI stuff
 CLAUDE.local.md
-/.claude
+/.claude/*
+!.claude/skills
 /docs/superpowers/
 
 ## Hugo site (site/)
