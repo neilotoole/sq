@@ -14,6 +14,18 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## Unreleased
 
+### Changed
+
+- [#629]: [`like`](https://sq.io/docs/query#like) and
+  [`ilike`](https://sq.io/docs/query#ilike) no longer emit a trailing
+  `ESCAPE '|'` clause. `|` is now a normal literal character on every
+  driver, removing the pre-#629 cross-driver divergence (runtime error
+  on Postgres/Oracle/SQLite/SQL Server, silent drop on MySQL). For
+  literal `%`/`_` matching, use [`contains`](https://sq.io/docs/query#contains)
+  / [`icontains`](https://sq.io/docs/query#icontains), which
+  auto-escape wildcards. The [`contains`](https://sq.io/docs/query#contains)
+  family is unchanged and still emits `ESCAPE '|'`.
+
 ### Added
 
 - [#601]: New SLQ functions for substring matching: `contains(col, str)`,
@@ -1479,6 +1491,7 @@ make working with lots of sources much easier.
 [#601]: https://github.com/neilotoole/sq/issues/601
 [#602]: https://github.com/neilotoole/sq/pull/602
 [#615]: https://github.com/neilotoole/sq/issues/615
+[#629]: https://github.com/neilotoole/sq/issues/629
 
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2

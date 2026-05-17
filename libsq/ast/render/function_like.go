@@ -250,11 +250,6 @@ type LikeRawOpts struct {
 	// space). Callers must include the leading space.
 	ColCollate string
 
-	// OmitEscape, when true, suppresses the trailing " ESCAPE '|'"
-	// clause. Used for drivers (e.g. ClickHouse) that don't support
-	// an ESCAPE clause on LIKE.
-	OmitEscape bool
-
 	// IgnoreCase, when true, wraps the column and literal in LOWER(...).
 	// IgnoreCase is mutually exclusive with non-empty Op and ColCollate:
 	// LOWER-wrapping handles case-insensitivity portably without needing
@@ -269,7 +264,11 @@ type LikeRawOpts struct {
 // like / ilike functions. Unlike [RenderLikeOp], the literal pattern
 // is bound verbatim: % and _ are wildcards, not escaped. Single
 // quotes inside the literal are still properly escaped by
-// SingleQuote.
+// SingleQuote. No ESCAPE clause is emitted, so the engine has no
+// reserved escape character; `|` (and every other character) is a
+// normal literal. Users who need literal `%` / `_` matching should
+// use [RenderLikeOp] (SLQ's contains family), which auto-escapes
+// wildcards in the pattern.
 //
 // opts.IgnoreCase is mutually exclusive with opts.Op and opts.ColCollate:
 // the LOWER-wrapping strategy stands alone, and combining it with a
@@ -291,9 +290,5 @@ func RenderLikeRaw(rc *Context, fn *ast.FuncNode, opts LikeRawOpts) (string, err
 		colSQL = "LOWER(" + colSQL + ")"
 		litSQL = "LOWER(" + litSQL + ")"
 	}
-	out := colSQL + opts.ColCollate + " " + op + " " + litSQL
-	if !opts.OmitEscape {
-		out += likeEscapeClause
-	}
-	return out, nil
+	return colSQL + opts.ColCollate + " " + op + " " + litSQL, nil
 }
