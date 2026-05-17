@@ -430,3 +430,91 @@ func TestQuery_string_icontains(t *testing.T) {
 		})
 	}
 }
+
+//nolint:exhaustive,lll
+func TestQuery_string_istartswith(t *testing.T) {
+	testCases := []queryTestCase{
+		{
+			// Pair test: lowercase prefix matches 3 sakila last_names
+			// (GUINESS, GUARDINO, GUERIN) despite storage being UPPERCASE.
+			name:    "istartswith/case-insensitive-lowercase-match",
+			in:      `@sakila | .actor | where(istartswith(.last_name, "gu"))`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("last_name") LIKE LOWER('gu%') ESCAPE '|'`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "last_name" ILIKE 'gu%' ESCAPE '|'`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "last_name" ILIKE 'gu%' ESCAPE '|'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "last_name" LIKE 'gu%' ESCAPE '|'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`last_name`) LIKE LOWER('gu%') ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "last_name" COLLATE Latin1_General_CI_AS LIKE 'gu%' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE startsWithCaseInsensitive(`last_name`, 'gu')",
+			},
+			wantRecCount: 3,
+		},
+		{
+			// Pair test: uppercase prefix matches the same 3 rows.
+			name:    "istartswith/case-insensitive-uppercase-match",
+			in:      `@sakila | .actor | where(istartswith(.last_name, "GU"))`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("last_name") LIKE LOWER('GU%') ESCAPE '|'`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "last_name" ILIKE 'GU%' ESCAPE '|'`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "last_name" ILIKE 'GU%' ESCAPE '|'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "last_name" LIKE 'GU%' ESCAPE '|'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`last_name`) LIKE LOWER('GU%') ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "last_name" COLLATE Latin1_General_CI_AS LIKE 'GU%' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE startsWithCaseInsensitive(`last_name`, 'GU')",
+			},
+			wantRecCount: 3,
+		},
+		{
+			// Pair test: prefix that exists nowhere returns 0 rows.
+			name:         "istartswith/no-match",
+			in:           `@sakila | .actor | where(istartswith(.last_name, "xyzzy"))`,
+			wantRecCount: 0,
+		},
+		{
+			// Escape semantics still apply (% is auto-escaped).
+			name:    "istartswith/escapes-percent",
+			in:      `@sakila | .actor | where(istartswith(.first_name, "50%"))`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER('50|%%') ESCAPE '|'`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE '50|%%' ESCAPE '|'`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE '50|%%' ESCAPE '|'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE '50|%%' ESCAPE '|'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER('50|%%') ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE '50|%%' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE startsWithCaseInsensitive(`first_name`, '50%')",
+			},
+			wantRecCount: 0,
+		},
+		{
+			name:    "istartswith/empty-pattern-matches-all",
+			in:      `@sakila | .actor | where(istartswith(.last_name, ""))`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("last_name") LIKE LOWER('%') ESCAPE '|'`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "last_name" ILIKE '%' ESCAPE '|'`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "last_name" ILIKE '%' ESCAPE '|'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "last_name" LIKE '%' ESCAPE '|'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`last_name`) LIKE LOWER('%') ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "last_name" COLLATE Latin1_General_CI_AS LIKE '%' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `last_name` IS NOT NULL",
+			},
+			wantRecCount: 200,
+		},
+		{
+			name:            "istartswith/wrong-arg-count",
+			in:              `@sakila | .actor | where(istartswith(.last_name))`,
+			wantErrContains: "istartswith() requires exactly 2 arguments",
+		},
+		{
+			name:            "istartswith/non-literal-pattern",
+			in:              `@sakila | .actor | where(istartswith(.last_name, .first_name))`,
+			wantErrContains: "istartswith() second argument must be a string literal",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			execQueryTestCase(t, tc)
+		})
+	}
+}
