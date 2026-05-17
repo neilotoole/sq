@@ -137,6 +137,9 @@ func (d *driveri) Renderer() *render.Renderer {
 	r.FunctionNames[ast.FuncNameSchema] = "DATABASE"
 	r.FunctionOverrides[ast.FuncNameCatalog] = doRenderFuncCatalog
 	r.FunctionOverrides[ast.FuncNameRowNum] = renderFuncRowNum
+	r.FunctionOverrides[ast.FuncNameContains] = renderFuncContainsBinary
+	r.FunctionOverrides[ast.FuncNameStartsWith] = renderFuncStartsWithBinary
+	r.FunctionOverrides[ast.FuncNameEndsWith] = renderFuncEndsWithBinary
 	return r
 }
 

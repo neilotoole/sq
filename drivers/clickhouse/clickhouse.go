@@ -257,14 +257,26 @@ func placeholders(numCols, numRows int) string {
 // The renderer maps sq's built-in functions to ClickHouse equivalents:
 //   - schema() -> currentDatabase()
 //   - catalog() -> currentDatabase()
+//   - contains(col, lit) -> position(col, 'lit') > 0
+//   - startswith(col, lit) -> startsWith(col, 'lit')
+//   - endswith(col, lit) -> endsWith(col, 'lit')
 //
 // Both schema and catalog map to currentDatabase() because ClickHouse uses
 // "database" terminology where other SQL databases distinguish between
 // catalogs and schemas.
+//
+// The substring-matching overrides exist because ClickHouse doesn't support
+// the LIKE ... ESCAPE clause that the default renderer emits. Instead we
+// use ClickHouse's first-class case-sensitive substring functions, which
+// take literal strings rather than LIKE patterns, so no wildcard escaping
+// is required.
 func (d *driveri) Renderer() *render.Renderer {
 	r := render.NewDefaultRenderer()
 	r.FunctionNames[ast.FuncNameSchema] = "currentDatabase"
 	r.FunctionNames[ast.FuncNameCatalog] = "currentDatabase"
+	r.FunctionOverrides[ast.FuncNameContains] = renderFuncContains
+	r.FunctionOverrides[ast.FuncNameStartsWith] = renderFuncStartsWith
+	r.FunctionOverrides[ast.FuncNameEndsWith] = renderFuncEndsWith
 	return r
 }
 

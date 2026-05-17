@@ -703,6 +703,43 @@ However, not every driver supports the catalog mechanism fully.
   than return `NULL` or an empty string, `sq`'s SQLite driver chooses to implement `catalog()` by returning
   the string `default`.
 
+### `contains`
+
+`contains(col, str)` is true when `col` contains `str` as a substring.
+Matching is always case-sensitive, regardless of the backend's default
+collation. See also: [`startswith`](#startswith), [`endswith`](#endswith).
+
+```shell
+$ sq '.actor | where(contains(.first_name, "AN"))'
+```
+
+The second argument must be a quoted string literal. Any `%`, `_`, or `|`
+characters in the literal are escaped automatically, so you don't need to
+think about `LIKE` wildcards. On SQL Server, `[` and `]` are also escaped
+because SQL Server's `LIKE` treats `[...]` as a character class (e.g.
+without escaping, `contains(.col, "[A-Z]")` would match any uppercase
+letter instead of the literal `[A-Z]` substring).
+
+Under the hood, `sq` chooses the right primitive per driver to guarantee
+case-sensitive matching:
+
+- **Postgres / DuckDB:** native `LIKE` (already case-sensitive).
+- **Oracle:** native `LIKE` (case-sensitive when `NLS_COMP=BINARY`,
+  which is Oracle's default; sessions that set `NLS_COMP=LINGUISTIC`
+  with a case-insensitive `NLS_SORT` will get case-insensitive
+  matching).
+- **ClickHouse:** native `position()` function.
+- **MySQL:** `LIKE BINARY`, to force byte-level comparison.
+- **SQL Server:** `LIKE` with `COLLATE Latin1_General_BIN2`.
+- **SQLite:** `instr()` (SQLite's default `LIKE` is ASCII case-insensitive).
+
+An empty pattern matches every non-NULL row, consistent across all
+drivers. That is, `contains(.col, "")`, [`startswith`](#startswith)`(.col, "")`,
+and [`endswith`](#endswith)`(.col, "")` each behave like `.col IS NOT NULL`.
+
+Unlike jq's polymorphic `contains`, SLQ's `contains` is string-only: it
+does not operate on arrays or objects.
+
 ### `count`
 
 The no-arg `count` function returns the total number of rows.
@@ -743,6 +780,16 @@ quantity
 $ sq '.actor | count_unique(.first_name)'
 count_unique(.first_name)
 128
+```
+
+### `endswith`
+
+`endswith(col, str)` is true when `col` ends with `str`. Matching is always
+case-sensitive. See [`contains`](#contains) for the per-driver mechanism
+and escaping notes.
+
+```shell
+$ sq '.actor | where(endswith(.last_name, "son"))'
 ```
 
 ### `group_by`
@@ -969,6 +1016,16 @@ schema()
 dbo
 ```
 
+
+### `startswith`
+
+`startswith(col, str)` is true when `col` begins with `str`. Matching is
+always case-sensitive. See [`contains`](#contains) for the per-driver
+mechanism and escaping notes.
+
+```shell
+$ sq '.actor | where(startswith(.last_name, "Mc"))'
+```
 
 ### `sum`
 

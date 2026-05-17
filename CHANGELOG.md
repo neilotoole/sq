@@ -12,6 +12,16 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## Unreleased
+
+### Added
+
+- [#601]: New SLQ functions for substring matching: `contains(col, str)`,
+  `startswith(col, str)`, and `endswith(col, str)`. Always case-sensitive,
+  with `%`, `_`, and the escape character automatically escaped in the
+  user literal. See [Query language](https://sq.io/docs/query) for
+  details.
+
 ## [v0.52.0] - 2026-05-15
 
 ### Added
@@ -1456,6 +1466,7 @@ make working with lots of sources much easier.
 [#570]: https://github.com/neilotoole/sq/pull/570
 [#571]: https://github.com/neilotoole/sq/pull/571
 [#572]: https://github.com/neilotoole/sq/pull/572
+[#601]: https://github.com/neilotoole/sq/issues/601
 [#602]: https://github.com/neilotoole/sq/pull/602
 
 

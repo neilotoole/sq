@@ -2,6 +2,7 @@
 package render
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/ast"
@@ -106,7 +107,10 @@ func NewDefaultRenderer() *Renderer {
 		Join:       doJoin,
 		Function:   doFunction,
 		FunctionOverrides: map[string]func(rc *Context, fn *ast.FuncNode) (string, error){
-			ast.FuncNameRowNum: doFuncRowNum,
+			ast.FuncNameRowNum:     doFuncRowNum,
+			ast.FuncNameContains:   doFuncContains,
+			ast.FuncNameStartsWith: doFuncStartsWith,
+			ast.FuncNameEndsWith:   doFuncEndsWith,
 		},
 		FunctionNames: map[string]string{},
 		Literal:       doLiteral,
@@ -230,15 +234,18 @@ func AppendSQL(existing, add string) string {
 }
 
 // unquoteLiteral returns true if s is a double-quoted string, and also returns
-// the value with the quotes stripped. An error is returned if the string
-// is malformed.
+// the value with the quotes stripped and JSON-style backslash escapes decoded
+// (see grammar/SLQ.g4 STRING/ESC: \", \\, \/, \b, \f, \n, \r, \t, \uXXXX).
+// An error is returned if the string is malformed.
 func unquoteLiteral(s string) (val string, ok bool, err error) {
 	hasPrefix := strings.HasPrefix(s, `"`)
 	hasSuffix := strings.HasSuffix(s, `"`)
 
 	if hasPrefix && hasSuffix {
-		val = strings.TrimPrefix(s, `"`)
-		val = strings.TrimSuffix(val, `"`)
+		val, err = decodeStringLiteralBody(s[1 : len(s)-1])
+		if err != nil {
+			return "", false, err
+		}
 		return val, true, nil
 	}
 
@@ -247,6 +254,64 @@ func unquoteLiteral(s string) (val string, ok bool, err error) {
 	}
 
 	return s, false, nil
+}
+
+// decodeStringLiteralBody decodes the body of a SLQ STRING token (the
+// characters between the surrounding double quotes), translating the
+// backslash escapes permitted by grammar/SLQ.g4 (\", \\, \/, \b, \f, \n,
+// \r, \t, \uXXXX) into their actual rune values. Unescaped characters are
+// passed through verbatim. Iteration is byte-based because all escape
+// characters are ASCII; multi-byte UTF-8 sequences outside escapes pass
+// through byte-for-byte unchanged.
+func decodeStringLiteralBody(body string) (string, error) {
+	if !strings.Contains(body, `\`) {
+		return body, nil
+	}
+	var b strings.Builder
+	b.Grow(len(body))
+	for i := 0; i < len(body); i++ {
+		c := body[i]
+		if c != '\\' {
+			_ = b.WriteByte(c)
+			continue
+		}
+		i++
+		if i >= len(body) {
+			return "", errz.Errorf("malformed string literal: dangling backslash")
+		}
+		var decoded byte
+		switch esc := body[i]; esc {
+		case '"', '\\', '/':
+			decoded = esc
+		case 'b':
+			decoded = '\b'
+		case 'f':
+			decoded = '\f'
+		case 'n':
+			decoded = '\n'
+		case 'r':
+			decoded = '\r'
+		case 't':
+			decoded = '\t'
+		case 'u':
+			if i+4 >= len(body) {
+				return "", errz.Errorf(`malformed string literal: short \u escape`)
+			}
+			// 4 hex digits ⇒ value fits in uint16; cast through uint16
+			// before rune to make the conversion provably safe.
+			r, err := strconv.ParseUint(body[i+1:i+5], 16, 16)
+			if err != nil {
+				return "", errz.Wrap(err, `malformed string literal: invalid \u escape`)
+			}
+			b.WriteRune(rune(uint16(r)))
+			i += 4
+			continue
+		default:
+			return "", errz.Errorf(`malformed string literal: invalid escape \%c`, esc)
+		}
+		_ = b.WriteByte(decoded)
+	}
+	return b.String(), nil
 }
 
 // FuncOverrideString returns a function that always returns s.

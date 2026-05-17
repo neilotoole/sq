@@ -201,3 +201,41 @@ func renderFuncRowNum(rc *render.Context, fn *ast.FuncNode) (string, error) {
 	// - https://stackoverflow.com/a/50645278/6004734
 	return "(row_number() OVER (ORDER BY (SELECT NULL)))", nil
 }
+
+// mssqlBinaryCollate is appended to the column reference to force
+// code-point-aware binary comparison, making LIKE case-sensitive on
+// columns whose default collation is case-insensitive. Latin1_General_BIN2
+// is the standard binary collation that ships with every SQL Server
+// install and works for any Unicode input despite the "Latin1" name.
+const mssqlBinaryCollate = " COLLATE Latin1_General_BIN2"
+
+// mssqlLikeExtraMeta lists the SQL Server-specific LIKE meta-characters
+// not handled by the default escape list. `[` opens a character class
+// (e.g. `[A-Z]` matches any uppercase letter) and `]` closes one; both
+// must be escaped so contains/startswith/endswith match the literal
+// substring rather than a class expression.
+const mssqlLikeExtraMeta = "[]"
+
+func renderFuncContainsCollate(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeOp(rc, fn, render.LikeOpts{
+		Mode:       render.LikeContains,
+		ColCollate: mssqlBinaryCollate,
+		ExtraMeta:  mssqlLikeExtraMeta,
+	})
+}
+
+func renderFuncStartsWithCollate(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeOp(rc, fn, render.LikeOpts{
+		Mode:       render.LikeStartsWith,
+		ColCollate: mssqlBinaryCollate,
+		ExtraMeta:  mssqlLikeExtraMeta,
+	})
+}
+
+func renderFuncEndsWithCollate(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeOp(rc, fn, render.LikeOpts{
+		Mode:       render.LikeEndsWith,
+		ColCollate: mssqlBinaryCollate,
+		ExtraMeta:  mssqlLikeExtraMeta,
+	})
+}

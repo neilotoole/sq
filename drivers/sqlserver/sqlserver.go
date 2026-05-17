@@ -151,6 +151,9 @@ func (d *driveri) Renderer() *render.Renderer {
 	r.FunctionNames[ast.FuncNameSchema] = "SCHEMA_NAME"
 	r.FunctionNames[ast.FuncNameCatalog] = "DB_NAME"
 	r.FunctionOverrides[ast.FuncNameRowNum] = renderFuncRowNum
+	r.FunctionOverrides[ast.FuncNameContains] = renderFuncContainsCollate
+	r.FunctionOverrides[ast.FuncNameStartsWith] = renderFuncStartsWithCollate
+	r.FunctionOverrides[ast.FuncNameEndsWith] = renderFuncEndsWithCollate
 
 	defaultLiteralFn := r.Literal
 	r.Literal = func(rc *render.Context, lit *ast.LiteralNode) (string, error) {
