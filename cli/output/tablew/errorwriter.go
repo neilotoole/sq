@@ -2,11 +2,14 @@ package tablew
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
 
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/output/commonw"
+	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
@@ -25,6 +28,15 @@ func NewErrorWriter(w io.Writer, pr *output.Printing, stacktrace bool) output.Er
 
 // Error implements output.ErrorWriter.
 func (w *errorWriter) Error(systemErr, humanErr error) {
+	var pe *ast.ParseError
+	if errors.As(systemErr, &pe) {
+		commonw.RenderParseError(w.w, w.pr, pe)
+		// Skip the trailing stack trace block for parse errors — there's
+		// nothing useful in a parser stack and it just noises up the
+		// user-facing output.
+		return
+	}
+
 	fmt.Fprintln(w.w, w.pr.Error.Sprintf("sq: %v", humanErr))
 	if !w.stacktrace {
 		return
