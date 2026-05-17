@@ -24,22 +24,22 @@ func NewErrorWriter(log *slog.Logger, out io.Writer, pr *output.Printing) output
 	return &errorWriter{log: log, out: out, pr: pr}
 }
 
-type errorDetail struct {
-	ParseError *parseErrorJSON `json:"parse_error,omitempty"`
+type errorDetail struct { //nolint:govet // declaration order is the JSON output order
 	Error      string          `json:"error"`
 	BaseError  string          `json:"base_error,omitempty"`
 	Tree       string          `json:"tree,omitempty"`
 	Stack      []*stack        `json:"stack,omitempty"`
+	ParseError *parseErrorJSON `json:"parse_error,omitempty"`
 }
 
-type parseIssueJSON struct {
-	Token      string `json:"token,omitempty"`
-	Msg        string `json:"msg"`
-	Suggestion string `json:"suggestion,omitempty"`
+type parseIssueJSON struct { //nolint:govet // declaration order is the JSON output order
 	Line       int    `json:"line"`
 	Col        int    `json:"col"`
 	StartChar  int    `json:"start_char"`
 	StopChar   int    `json:"stop_char"`
+	Token      string `json:"token,omitempty"`
+	Msg        string `json:"msg"`
+	Suggestion string `json:"suggestion,omitempty"`
 }
 
 type parseErrorJSON struct {
