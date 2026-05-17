@@ -118,8 +118,9 @@ type LikeOpts struct {
 	// Mode selects which substring-matching shape to render.
 	Mode LikeMode
 
-	// Op is the LIKE operator. Defaults to "LIKE"; MySQL uses "LIKE BINARY"
-	// to force byte-level comparison.
+	// Op is the LIKE operator. Defaults to "LIKE". Drivers force
+	// case-sensitivity here (MySQL "LIKE BINARY") or case-insensitivity
+	// (Postgres "ILIKE").
 	Op string
 
 	// ColCollate, when non-empty, is appended verbatim after the column
@@ -127,9 +128,16 @@ type LikeOpts struct {
 	// space). Callers must include the leading space.
 	ColCollate string
 
-	// ExtraMeta lists characters the driver treats as LIKE meta-chars in
-	// addition to % and _ (e.g. "[]" for SQL Server's character classes).
+	// ExtraMeta lists characters the driver treats as LIKE meta-chars
+	// in addition to % and _ (e.g. "[]" for SQL Server).
 	ExtraMeta string
+
+	// IgnoreCase, when true and no driver-specific Op is supplied,
+	// wraps the column and literal in LOWER(...) for portable ASCII
+	// case-insensitive matching. Driver overrides that emit ILIKE or
+	// an explicit CI collation should leave this false and supply Op
+	// / ColCollate instead.
+	IgnoreCase bool
 }
 
 // RenderLikeOp renders the LIKE-based shape:
@@ -148,7 +156,12 @@ func RenderLikeOp(rc *Context, fn *ast.FuncNode, opts LikeOpts) (string, error) 
 		op = "LIKE"
 	}
 	pattern := buildLikePattern(lit, opts.Mode, opts.ExtraMeta)
-	return colSQL + opts.ColCollate + " " + op + " " + stringz.SingleQuote(pattern) + likeEscapeClause, nil
+	litSQL := stringz.SingleQuote(pattern)
+	if opts.IgnoreCase {
+		colSQL = "LOWER(" + colSQL + ")"
+		litSQL = "LOWER(" + litSQL + ")"
+	}
+	return colSQL + opts.ColCollate + " " + op + " " + litSQL + likeEscapeClause, nil
 }
 
 func doFuncContains(rc *Context, fn *ast.FuncNode) (string, error) {
@@ -161,4 +174,72 @@ func doFuncStartsWith(rc *Context, fn *ast.FuncNode) (string, error) {
 
 func doFuncEndsWith(rc *Context, fn *ast.FuncNode) (string, error) {
 	return RenderLikeOp(rc, fn, LikeOpts{Mode: LikeEndsWith})
+}
+
+func doFuncIContains(rc *Context, fn *ast.FuncNode) (string, error) { //nolint:unused
+	return RenderLikeOp(rc, fn, LikeOpts{Mode: LikeContains, IgnoreCase: true})
+}
+
+func doFuncIStartsWith(rc *Context, fn *ast.FuncNode) (string, error) { //nolint:unused
+	return RenderLikeOp(rc, fn, LikeOpts{Mode: LikeStartsWith, IgnoreCase: true})
+}
+
+func doFuncIEndsWith(rc *Context, fn *ast.FuncNode) (string, error) { //nolint:unused
+	return RenderLikeOp(rc, fn, LikeOpts{Mode: LikeEndsWith, IgnoreCase: true})
+}
+
+func doFuncLike(rc *Context, fn *ast.FuncNode) (string, error) { //nolint:unused
+	return RenderLikeRaw(rc, fn, LikeRawOpts{})
+}
+
+func doFuncILike(rc *Context, fn *ast.FuncNode) (string, error) { //nolint:unused
+	return RenderLikeRaw(rc, fn, LikeRawOpts{IgnoreCase: true})
+}
+
+// LikeRawOpts configures [RenderLikeRaw], the user-wildcard-controlled
+// shape used by SLQ's like / ilike functions.
+type LikeRawOpts struct {
+	// Op is the LIKE operator. Defaults to "LIKE". Drivers force
+	// case-sensitivity here (MySQL "LIKE BINARY") or case-insensitivity
+	// (Postgres "ILIKE").
+	Op string
+
+	// ColCollate, when non-empty, is appended verbatim after the column
+	// reference (e.g. " COLLATE Latin1_General_BIN2").
+	ColCollate string
+
+	// OmitEscape, when true, suppresses the trailing " ESCAPE '|'"
+	// clause. Used for drivers (e.g. ClickHouse) that don't support
+	// an ESCAPE clause on LIKE.
+	OmitEscape bool
+
+	// IgnoreCase, when true and no driver-specific Op is supplied,
+	// wraps the column and literal in LOWER(...).
+	IgnoreCase bool
+}
+
+// RenderLikeRaw renders the user-controlled LIKE shape used by SLQ's
+// like / ilike functions. Unlike [RenderLikeOp], the literal pattern
+// is bound verbatim: % and _ are wildcards, not escaped. Single
+// quotes inside the literal are still properly escaped by
+// SingleQuote.
+func RenderLikeRaw(rc *Context, fn *ast.FuncNode, opts LikeRawOpts) (string, error) {
+	colSQL, lit, err := ParseLikeArgs(rc, fn)
+	if err != nil {
+		return "", err
+	}
+	op := opts.Op
+	if op == "" {
+		op = "LIKE"
+	}
+	litSQL := stringz.SingleQuote(lit)
+	if opts.IgnoreCase {
+		colSQL = "LOWER(" + colSQL + ")"
+		litSQL = "LOWER(" + litSQL + ")"
+	}
+	out := colSQL + opts.ColCollate + " " + op + " " + litSQL
+	if !opts.OmitEscape {
+		out += likeEscapeClause
+	}
+	return out, nil
 }
