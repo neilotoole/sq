@@ -901,8 +901,9 @@ Per-driver implementation:
 
 - **Postgres / DuckDB:** native `ILIKE`.
 - **MySQL / Oracle:** `LOWER(col) LIKE LOWER(pat) ESCAPE '|'`,
-  explicitly lowercasing both sides for portability across collation
-  configurations.
+  via the default renderer (no driver-specific override). Explicit
+  lowercasing on both sides keeps the shape portable across
+  collation configurations.
 - **SQL Server:** `LIKE` with `COLLATE Latin1_General_CI_AS`.
 - **SQLite:** `LIKE ... ESCAPE '|'` (SQLite's default LIKE is ASCII
   case-insensitive; non-ASCII characters are not case-folded unless
