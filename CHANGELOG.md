@@ -21,6 +21,12 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   with `%`, `_`, and the escape character automatically escaped in the
   user literal. See [Query language](https://sq.io/docs/query) for
   details.
+- [#615]: New SLQ functions for case-insensitive matching:
+  `icontains(col, str)`, `istartswith(col, str)`,
+  `iendswith(col, str)`. New functions for user-controlled wildcard
+  patterns: `like(col, pat)` and `ilike(col, pat)`. See
+  [Query language](https://sq.io/docs/query) for per-driver behavior
+  and the SQLite ASCII-CI quirk note.
 
 ## [v0.52.0] - 2026-05-15
 
@@ -1468,6 +1474,7 @@ make working with lots of sources much easier.
 [#572]: https://github.com/neilotoole/sq/pull/572
 [#601]: https://github.com/neilotoole/sq/issues/601
 [#602]: https://github.com/neilotoole/sq/pull/602
+[#615]: https://github.com/neilotoole/sq/issues/615
 
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
