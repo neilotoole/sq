@@ -261,3 +261,7 @@ func renderFuncStartsWithBinary(rc *render.Context, fn *ast.FuncNode) (string, e
 func renderFuncEndsWithBinary(rc *render.Context, fn *ast.FuncNode) (string, error) {
 	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeEndsWith, Op: "LIKE BINARY"})
 }
+
+func renderFuncLikeBinary(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeRaw(rc, fn, render.LikeRawOpts{Op: "LIKE BINARY"})
+}

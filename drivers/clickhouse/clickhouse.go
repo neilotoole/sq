@@ -260,6 +260,15 @@ func placeholders(numCols, numRows int) string {
 //   - contains(col, lit) -> position(col, 'lit') > 0
 //   - startswith(col, lit) -> startsWith(col, 'lit')
 //   - endswith(col, lit) -> endsWith(col, 'lit')
+//   - icontains(col, lit) -> positionCaseInsensitive(col, 'lit') > 0
+//   - istartswith(col, lit) -> startsWithCaseInsensitive(col, 'lit')
+//     (special-cased to length(col) >= 0 for empty pattern to preserve
+//     NULL propagation under negation).
+//   - iendswith(col, lit) -> endsWithCaseInsensitive(col, 'lit')
+//     (same empty-pattern special case as istartswith).
+//   - like(col, lit) -> col LIKE 'lit' (no ESCAPE clause; ClickHouse
+//     LIKE doesn't accept ESCAPE).
+//   - ilike(col, lit) -> col ILIKE 'lit' (no ESCAPE clause).
 //
 // Both schema and catalog map to currentDatabase() because ClickHouse uses
 // "database" terminology where other SQL databases distinguish between
@@ -277,6 +286,11 @@ func (d *driveri) Renderer() *render.Renderer {
 	r.FunctionOverrides[ast.FuncNameContains] = renderFuncContains
 	r.FunctionOverrides[ast.FuncNameStartsWith] = renderFuncStartsWith
 	r.FunctionOverrides[ast.FuncNameEndsWith] = renderFuncEndsWith
+	r.FunctionOverrides[ast.FuncNameIContains] = renderFuncIContains
+	r.FunctionOverrides[ast.FuncNameIStartsWith] = renderFuncIStartsWith
+	r.FunctionOverrides[ast.FuncNameIEndsWith] = renderFuncIEndsWith
+	r.FunctionOverrides[ast.FuncNameLike] = renderFuncLike
+	r.FunctionOverrides[ast.FuncNameILike] = renderFuncILike
 	return r
 }
 

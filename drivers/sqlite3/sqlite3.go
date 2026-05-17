@@ -259,6 +259,14 @@ func (d *driveri) Renderer() *render.Renderer {
 	r.FunctionOverrides[ast.FuncNameContains] = renderFuncContainsInstr
 	r.FunctionOverrides[ast.FuncNameStartsWith] = renderFuncStartsWithSubstr
 	r.FunctionOverrides[ast.FuncNameEndsWith] = renderFuncEndsWithSubstr
+	r.FunctionOverrides[ast.FuncNameIContains] = renderFuncIContainsLike
+	r.FunctionOverrides[ast.FuncNameIStartsWith] = renderFuncIStartsWithLike
+	r.FunctionOverrides[ast.FuncNameIEndsWith] = renderFuncIEndsWithLike
+	// SQLite's default LIKE is ASCII case-insensitive, so like and
+	// ilike are structurally identical — both register the same
+	// renderer to make the equivalence explicit.
+	r.FunctionOverrides[ast.FuncNameLike] = renderFuncLike
+	r.FunctionOverrides[ast.FuncNameILike] = renderFuncLike
 
 	return r
 }

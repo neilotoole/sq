@@ -209,6 +209,13 @@ func renderFuncRowNum(rc *render.Context, fn *ast.FuncNode) (string, error) {
 // install and works for any Unicode input despite the "Latin1" name.
 const mssqlBinaryCollate = " COLLATE Latin1_General_BIN2"
 
+// mssqlCICollate is appended to the column reference for the
+// case-insensitive matchers. Latin1_General_CI_AS is the standard
+// CI/accent-sensitive collation shipped with every SQL Server
+// install; it behaves correctly for Unicode input despite the
+// "Latin1" name.
+const mssqlCICollate = " COLLATE Latin1_General_CI_AS"
+
 // mssqlLikeExtraMeta lists the SQL Server-specific LIKE meta-characters
 // not handled by the default escape list. `[` opens a character class
 // (e.g. `[A-Z]` matches any uppercase letter) and `]` closes one; both
@@ -237,5 +244,41 @@ func renderFuncEndsWithCollate(rc *render.Context, fn *ast.FuncNode) (string, er
 		Mode:       render.LikeEndsWith,
 		ColCollate: mssqlBinaryCollate,
 		ExtraMeta:  mssqlLikeExtraMeta,
+	})
+}
+
+func renderFuncIContainsCollate(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeOp(rc, fn, render.LikeOpts{
+		Mode:       render.LikeContains,
+		ColCollate: mssqlCICollate,
+		ExtraMeta:  mssqlLikeExtraMeta,
+	})
+}
+
+func renderFuncIStartsWithCollate(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeOp(rc, fn, render.LikeOpts{
+		Mode:       render.LikeStartsWith,
+		ColCollate: mssqlCICollate,
+		ExtraMeta:  mssqlLikeExtraMeta,
+	})
+}
+
+func renderFuncIEndsWithCollate(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeOp(rc, fn, render.LikeOpts{
+		Mode:       render.LikeEndsWith,
+		ColCollate: mssqlCICollate,
+		ExtraMeta:  mssqlLikeExtraMeta,
+	})
+}
+
+func renderFuncLikeCollate(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeRaw(rc, fn, render.LikeRawOpts{
+		ColCollate: mssqlBinaryCollate,
+	})
+}
+
+func renderFuncILikeCollate(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeRaw(rc, fn, render.LikeRawOpts{
+		ColCollate: mssqlCICollate,
 	})
 }

@@ -175,3 +175,28 @@ func renderFuncEndsWithSubstr(rc *render.Context, fn *ast.FuncNode) (string, err
 	}
 	return "substr(" + colSQL + ", -" + strconv.Itoa(n) + ") = " + stringz.SingleQuote(lit), nil
 }
+
+// SQLite's default LIKE is ASCII case-insensitive, so the i* family
+// uses plain LIKE rather than the instr/substr shape that
+// contains/startswith/endswith use for case-sensitivity. Non-ASCII
+// characters are not case-folded — that's a SQLite limitation.
+
+func renderFuncIContainsLike(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeContains})
+}
+
+func renderFuncIStartsWithLike(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeStartsWith})
+}
+
+func renderFuncIEndsWithLike(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeEndsWith})
+}
+
+// renderFuncLike renders SLQ's like and ilike on SQLite. Both
+// register the same function because SQLite's default LIKE is
+// ASCII case-insensitive, so the two are structurally
+// indistinguishable on this driver — a documented quirk.
+func renderFuncLike(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeRaw(rc, fn, render.LikeRawOpts{})
+}

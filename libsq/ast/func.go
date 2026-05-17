@@ -19,6 +19,11 @@ const (
 	FuncNameContains    = "contains"
 	FuncNameStartsWith  = "startswith"
 	FuncNameEndsWith    = "endswith"
+	FuncNameIContains   = "icontains"
+	FuncNameIStartsWith = "istartswith"
+	FuncNameIEndsWith   = "iendswith"
+	FuncNameLike        = "like"
+	FuncNameILike       = "ilike"
 )
 
 var (
