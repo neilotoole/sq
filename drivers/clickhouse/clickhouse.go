@@ -289,7 +289,10 @@ func (d *driveri) Renderer() *render.Renderer {
 	r.FunctionOverrides[ast.FuncNameIContains] = renderFuncIContains
 	r.FunctionOverrides[ast.FuncNameIStartsWith] = renderFuncIStartsWith
 	r.FunctionOverrides[ast.FuncNameIEndsWith] = renderFuncIEndsWith
-	r.FunctionOverrides[ast.FuncNameLike] = renderFuncLike
+	// FuncNameLike falls through to the default doFuncLike: ClickHouse's
+	// LIKE matches the default RenderLikeRaw shape exactly. ILike needs
+	// an override because the default emits LOWER(col) LIKE LOWER(pat),
+	// whereas ClickHouse supports native ILIKE.
 	r.FunctionOverrides[ast.FuncNameILike] = renderFuncILike
 	return r
 }
