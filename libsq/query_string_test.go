@@ -704,3 +704,96 @@ func TestQuery_string_like(t *testing.T) {
 		})
 	}
 }
+
+//nolint:exhaustive,lll
+func TestQuery_string_ilike(t *testing.T) {
+	testCases := []queryTestCase{
+		{
+			// Pair test: lowercase wildcard pattern matches 4 PENELOPEs
+			// on every driver, demonstrating case-insensitive wildcard
+			// matching.
+			name:    "ilike/wildcard-prefix-lowercase-match",
+			in:      `@sakila | .actor | where(ilike(.first_name, "pen%"))`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER('pen%') ESCAPE '|'`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE 'pen%' ESCAPE '|'`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE 'pen%' ESCAPE '|'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE 'pen%' ESCAPE '|'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER('pen%') ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE 'pen%' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` ILIKE 'pen%'",
+			},
+			wantRecCount: 4,
+		},
+		{
+			// Pair test: uppercase wildcard pattern also matches the
+			// same 4 PENELOPEs.
+			name:    "ilike/wildcard-prefix-uppercase-match",
+			in:      `@sakila | .actor | where(ilike(.first_name, "PEN%"))`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER('PEN%') ESCAPE '|'`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE 'PEN%' ESCAPE '|'`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE 'PEN%' ESCAPE '|'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE 'PEN%' ESCAPE '|'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER('PEN%') ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE 'PEN%' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` ILIKE 'PEN%'",
+			},
+			wantRecCount: 4,
+		},
+		{
+			// No-match: pattern that exists nowhere returns 0 rows.
+			name:         "ilike/no-match",
+			in:           `@sakila | .actor | where(ilike(.first_name, "xyzzy%"))`,
+			wantRecCount: 0,
+		},
+		{
+			// User-controlled `_` wildcard, mixed case — pen_lope matches
+			// 4 PENELOPEs on every driver under CI.
+			name:    "ilike/single-char-wildcard-mixed-case",
+			in:      `@sakila | .actor | where(ilike(.first_name, "pen_LOPE"))`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER('pen_LOPE') ESCAPE '|'`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE 'pen_LOPE' ESCAPE '|'`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE 'pen_LOPE' ESCAPE '|'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE 'pen_LOPE' ESCAPE '|'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER('pen_LOPE') ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE 'pen_LOPE' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` ILIKE 'pen_LOPE'",
+			},
+			wantRecCount: 4,
+		},
+		{
+			// Empty pattern matches only empty strings (real LIKE
+			// semantics). Sakila has no empty first_names → 0 rows.
+			name:    "ilike/empty-pattern-matches-empty-strings-only",
+			in:      `@sakila | .actor | where(ilike(.first_name, ""))`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER('') ESCAPE '|'`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE '' ESCAPE '|'`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE '' ESCAPE '|'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE '' ESCAPE '|'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER('') ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE '' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` ILIKE ''",
+			},
+			wantRecCount: 0,
+		},
+		{
+			name:            "ilike/wrong-arg-count",
+			in:              `@sakila | .actor | where(ilike(.first_name))`,
+			wantErrContains: "ilike() requires exactly 2 arguments",
+		},
+		{
+			name:            "ilike/non-literal-pattern",
+			in:              `@sakila | .actor | where(ilike(.first_name, .last_name))`,
+			wantErrContains: "ilike() second argument must be a string literal",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			execQueryTestCase(t, tc)
+		})
+	}
+}
