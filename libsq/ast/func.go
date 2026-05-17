@@ -16,6 +16,14 @@ const (
 	FuncNameCatalog     = "catalog"
 	FuncNameSum         = "sum"
 	FuncNameRowNum      = "rownum"
+	FuncNameContains    = "contains"
+	FuncNameStartsWith  = "startswith"
+	FuncNameEndsWith    = "endswith"
+	FuncNameIContains   = "icontains"
+	FuncNameIStartsWith = "istartswith"
+	FuncNameIEndsWith   = "iendswith"
+	FuncNameLike        = "like"
+	FuncNameILike       = "ilike"
 )
 
 var (

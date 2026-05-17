@@ -1,0 +1,1 @@
+@mydb1 | .actor | where(istartswith(.last_name, "mc"))
