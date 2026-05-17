@@ -496,7 +496,7 @@ func TestQuery_string_istartswith(t *testing.T) {
 				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "last_name" LIKE '%' ESCAPE '|'`,
 				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`last_name`) LIKE LOWER('%') ESCAPE '|'",
 				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "last_name" COLLATE Latin1_General_CI_AS LIKE '%' ESCAPE '|'`,
-				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `last_name` IS NOT NULL",
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE length(`last_name`) >= 0",
 			},
 			wantRecCount: 200,
 		},
@@ -576,8 +576,10 @@ func TestQuery_string_iendswith(t *testing.T) {
 		},
 		{
 			// Empty pattern matches every non-NULL row. ClickHouse special-cases
-			// this to `IS NOT NULL` because endsWithCaseInsensitive(col, '')
-			// returns false in ClickHouse (unlike the case-sensitive endsWith).
+			// this to length(col) >= 0 because endsWithCaseInsensitive(col, '')
+			// returns false in ClickHouse (unlike the case-sensitive endsWith),
+			// and length(NULL) = NULL so the expression NULL-propagates correctly
+			// under negation.
 			name:    "iendswith/empty-pattern-matches-all",
 			in:      `@sakila | .actor | where(iendswith(.last_name, ""))`,
 			wantSQL: `SELECT * FROM "actor" WHERE LOWER("last_name") LIKE LOWER('%') ESCAPE '|'`,
@@ -587,7 +589,7 @@ func TestQuery_string_iendswith(t *testing.T) {
 				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "last_name" LIKE '%' ESCAPE '|'`,
 				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`last_name`) LIKE LOWER('%') ESCAPE '|'",
 				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "last_name" COLLATE Latin1_General_CI_AS LIKE '%' ESCAPE '|'`,
-				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `last_name` IS NOT NULL",
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE length(`last_name`) >= 0",
 			},
 			wantRecCount: 200,
 		},

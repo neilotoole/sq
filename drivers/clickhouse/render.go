@@ -271,28 +271,40 @@ func renderFuncIContains(rc *render.Context, fn *ast.FuncNode) (string, error) {
 	return "positionCaseInsensitive(" + colSQL + ", " + stringz.SingleQuote(lit) + ") > 0", nil
 }
 
-// renderFuncIStartsWith uses startsWithCaseInsensitive. An empty prefix
-// always matches, so the empty-literal case emits col IS NOT NULL.
+// renderFuncIStartsWith uses startsWithCaseInsensitive. ClickHouse
+// returns FALSE for startsWithCaseInsensitive(col, empty-string) on
+// any non-NULL column (unlike positionCaseInsensitive(col, empty-string)
+// > 0, which returns TRUE). To preserve the cross-driver invariant that
+// an empty pattern matches every non-NULL row, and to keep NULL
+// propagation symmetric across the matchers under negation, emit
+// length(col) >= 0 as a NULL-propagating always-true expression
+// when the literal is empty.
 func renderFuncIStartsWith(rc *render.Context, fn *ast.FuncNode) (string, error) {
 	colSQL, lit, err := render.ParseLikeArgs(rc, fn)
 	if err != nil {
 		return "", err
 	}
 	if lit == "" {
-		return colSQL + " IS NOT NULL", nil
+		return "length(" + colSQL + ") >= 0", nil
 	}
 	return "startsWithCaseInsensitive(" + colSQL + ", " + stringz.SingleQuote(lit) + ")", nil
 }
 
-// renderFuncIEndsWith uses endsWithCaseInsensitive. An empty suffix
-// always matches, so the empty-literal case emits col IS NOT NULL.
+// renderFuncIEndsWith uses endsWithCaseInsensitive. ClickHouse
+// returns FALSE for endsWithCaseInsensitive(col, empty-string) on
+// any non-NULL column (unlike positionCaseInsensitive(col, empty-string)
+// > 0, which returns TRUE). To preserve the cross-driver invariant that
+// an empty pattern matches every non-NULL row, and to keep NULL
+// propagation symmetric across the matchers under negation, emit
+// length(col) >= 0 as a NULL-propagating always-true expression
+// when the literal is empty.
 func renderFuncIEndsWith(rc *render.Context, fn *ast.FuncNode) (string, error) {
 	colSQL, lit, err := render.ParseLikeArgs(rc, fn)
 	if err != nil {
 		return "", err
 	}
 	if lit == "" {
-		return colSQL + " IS NOT NULL", nil
+		return "length(" + colSQL + ") >= 0", nil
 	}
 	return "endsWithCaseInsensitive(" + colSQL + ", " + stringz.SingleQuote(lit) + ")", nil
 }
