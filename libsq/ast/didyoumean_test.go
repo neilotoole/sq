@@ -20,3 +20,38 @@ func TestExpectedTokenLiterals_SkipsSymbolicOnly(t *testing.T) {
 	got := expectedTokenLiterals(expected, literalNames)
 	require.Equal(t, []string{"sum"}, got)
 }
+
+func TestSuggestForToken(t *testing.T) {
+	candidates := []string{
+		"sum", "avg", "max", "min", "count", "contains",
+		"icontains", "startswith", "endswith",
+	}
+
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"close-typo-max", "mx", "max"},
+		{"close-typo-count", "cont", "count"},
+		{"close-typo-contains", "containz", "contains"},
+		{"exact-match-not-suggested", "max", ""}, // not a typo
+		{"too-far", "this_is_invalid", ""},
+		{"empty", "", ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := suggestForToken(tc.in, candidates)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestMaxEditDistance(t *testing.T) {
+	require.Equal(t, 1, maxEditDistance(1))
+	require.Equal(t, 1, maxEditDistance(4))
+	require.Equal(t, 2, maxEditDistance(5))
+	require.Equal(t, 2, maxEditDistance(9))
+	require.Equal(t, 3, maxEditDistance(10))
+	require.Equal(t, 3, maxEditDistance(50))
+}
