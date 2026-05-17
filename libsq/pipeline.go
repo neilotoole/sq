@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
@@ -395,15 +396,23 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 	//     numeric-suffixed alias (name_2, name_3, ...) picked to be
 	//     unique against every other destination in use, including any
 	//     pre-existing name that happens to match a generated suffix.
+	//
+	// Collision checks are case-insensitive: the join scratch DB is
+	// always SQLite (see Grips.OpenJoin), and SQLite compares identifier
+	// names case-insensitively even when double-quoted, so "Actor" and
+	// "actor" would still collide at CREATE TABLE time. Original casing
+	// is preserved in the assigned alias and copied destination name —
+	// only the membership-test key is folded.
 	used := map[string]bool{}
 	for _, tbl := range tbls {
 		if tbl.Alias() == "" {
 			continue
 		}
-		if used[tbl.Alias()] {
+		key := strings.ToLower(tbl.Alias())
+		if used[key] {
 			return "", nil, errz.Errorf("cross-source join: duplicate table alias %q", tbl.Alias())
 		}
-		used[tbl.Alias()] = true
+		used[key] = true
 	}
 	// keepsBare keys nodes by pointer identity; relies on jc.tables()
 	// returning the same *ast.TblSelectorNode instances across the loops
@@ -414,10 +423,11 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 			continue
 		}
 		name := tbl.Table().Table
-		if used[name] {
+		key := strings.ToLower(name)
+		if used[key] {
 			continue
 		}
-		used[name] = true
+		used[key] = true
 		keepsBare[tbl] = true
 	}
 	log := lg.FromContext(ctx)
@@ -428,11 +438,11 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 		name := tbl.Table().Table
 		n := 2
 		candidate := fmt.Sprintf("%s_%d", name, n)
-		for used[candidate] {
+		for used[strings.ToLower(candidate)] {
 			n++
 			candidate = fmt.Sprintf("%s_%d", name, n)
 		}
-		used[candidate] = true
+		used[strings.ToLower(candidate)] = true
 		tbl.SetAlias(candidate)
 		log.Debug("Synthesized cross-source join alias to avoid table-name collision",
 			lga.Handle, tbl.Handle(), lga.From, name, lga.To, candidate)

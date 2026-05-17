@@ -448,6 +448,32 @@ func TestQuery_join_cross_source_duplicate_user_alias(t *testing.T) {
 	require.ErrorContains(t, err, "duplicate table alias")
 }
 
+// TestQuery_join_cross_source_case_insensitive_collision exercises the
+// case-folded collision check: SQLite (the join scratch DB) compares
+// identifier names case-insensitively even when double-quoted, so
+// CREATE TABLE "Actor" then CREATE TABLE "actor" would collide at the
+// scratch-DB level. The rename loop must therefore treat "Actor" and
+// "actor" as the same name when deciding which participant gets to
+// keep its bare name versus get a synthesized suffix.
+func TestQuery_join_cross_source_case_insensitive_collision(t *testing.T) {
+	t.Parallel()
+
+	// SQLite resolves ".Actor" on the source side case-insensitively
+	// (finds the lowercase "actor" table), so the source-side fetch
+	// works. The AST then carries "Actor" (as the user typed it) into
+	// the scratch DB.
+	q := fmt.Sprintf(
+		`%s.Actor | join(%s.actor, .actor_id) | .first_name`,
+		sakila.SL3, sakila.SL3Whitespace,
+	)
+
+	th := testh.New(t)
+	sink, err := th.QuerySLQ(q, nil)
+	require.NoError(t, err)
+	require.Len(t, sink.Recs, sakila.TblActorCount)
+	require.Equal(t, []string{"first_name"}, sink.RecMeta.MungedNames())
+}
+
 // TestQuery_table_alias is tested with the joins, because table aliases
 // are primarily for use with join.
 //

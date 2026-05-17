@@ -56,9 +56,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   participants are given numeric-suffixed aliases (`actor`, `actor_2`,
   ...), picked to also avoid any other participant's destination name
   so the scratch tables are unique and the rendered SQL is well-formed.
-  Two user-supplied aliases that collide are now reported up front
-  (`cross-source join: duplicate table alias "..."`) instead of
-  surfacing later as an opaque scratch-DB error.
+  Collision detection is case-insensitive (matching SQLite's identifier
+  semantics for the join scratch DB), so `Actor` and `actor` are now
+  also treated as collisions. Two user-supplied aliases that collide
+  are reported up front (`cross-source join: duplicate table alias
+  "..."`) instead of surfacing later as an opaque scratch-DB error.
 
 ## [v0.52.0] - 2026-05-15
 
