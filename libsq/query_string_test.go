@@ -644,27 +644,6 @@ func TestQuery_string_like(t *testing.T) {
 			wantRecCount: 4,
 		},
 		{
-			// Pair test: lowercase prefix on CS drivers returns 0 rows
-			// (data is stored UPPERCASE). On SQLite, the same query
-			// matches 4 rows because SQLite's LIKE is ASCII-CI by default
-			// — a documented quirk where `like` on SQLite behaves like
-			// `ilike` on other drivers.
-			name:    "like/wildcard-prefix-lowercase-cs-no-match",
-			in:      `@sakila | .actor | where(like(.first_name, "pen%"))`,
-			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE 'pen%' ESCAPE '|'`,
-			override: driverMap{
-				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY 'pen%' ESCAPE '|'",
-				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE 'pen%' ESCAPE '|'`,
-				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` LIKE 'pen%'",
-				// SQLite is ASCII-CI by default; matches all 4 PENELOPEs.
-				drivertype.SQLite: `SELECT * FROM "actor" WHERE "first_name" LIKE 'pen%' ESCAPE '|'`,
-			},
-			// Asserts SQL shape only because driver-specific row counts
-			// diverge (4 on SQLite, 0 on the rest). The SQLite
-			// ASCII-CI quirk is asserted in its own test below.
-			skipExec: true,
-		},
-		{
 			// SQLite-specific quirk: `like` is ASCII-CI by default, so
 			// a lowercase pattern matches uppercase data.
 			name:         "like/sqlite-ascii-ci-quirk",

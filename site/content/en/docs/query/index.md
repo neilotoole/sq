@@ -992,7 +992,10 @@ LIKE escape character. Practical consequences:
   runtime `invalid escape sequence` error.
 - On lenient drivers (MySQL, SQLite, SQL Server), `|` followed by `%`
   or `_` matches that character literally — i.e. `like(.col, "10|%")`
-  matches the substring `10%`. A bare `|` may be silently dropped.
+  matches the substring `10%`. A bare `|` not followed by `%`, `_`, or
+  another `|` is treated according to each driver's own `LIKE`-pattern
+  rules and is **not portable**; treat such patterns as undefined
+  behavior and avoid them.
 - On ClickHouse, the `ESCAPE` clause is omitted entirely, so `|` is
   always a literal character with no special meaning.
 
