@@ -68,7 +68,3 @@ func TestBuildLikePattern(t *testing.T) {
 		})
 	}
 }
-
-// IgnoreCase wrapping is exercised end-to-end by integration tests in
-// libsq/query_string_test.go. No unit-level test is possible here
-// without a *render.Context.

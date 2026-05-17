@@ -594,6 +594,20 @@ func TestQuery_string_iendswith(t *testing.T) {
 			wantRecCount: 200,
 		},
 		{
+			// NULL-propagation regression: in the SQLite sakila, all 603
+			// address rows have NULL address2. With correct NULL
+			// propagation, iendswith(NULL, "") = NULL, which is excluded
+			// by WHERE, so the result must be 0 rows. A buggy
+			// implementation that uses col IS NOT NULL instead of
+			// length(col) >= 0 on ClickHouse would return all rows under
+			// negation; the ClickHouse SQL shape for the empty-pattern
+			// case is separately pinned by iendswith/empty-pattern-matches-all.
+			name:         "iendswith/null-column-empty-pattern-propagates-null",
+			in:           `@sakila | .address | where(iendswith(.address2, ""))`,
+			onlyFor:      []drivertype.Type{drivertype.SQLite},
+			wantRecCount: 0,
+		},
+		{
 			name:            "iendswith/wrong-arg-count",
 			in:              `@sakila | .actor | where(iendswith(.last_name))`,
 			wantErrContains: "iendswith() requires exactly 2 arguments",
@@ -658,6 +672,17 @@ func TestQuery_string_like(t *testing.T) {
 			wantSQL:      `SELECT * FROM "actor" WHERE "first_name" LIKE 'pen%' ESCAPE '|'`,
 			onlyFor:      []drivertype.Type{drivertype.SQLite},
 			wantRecCount: 4,
+		},
+		{
+			// Companion to like/sqlite-ascii-ci-quirk: on case-sensitive
+			// drivers, lowercase pattern matches zero rows because data is
+			// stored UPPERCASE. SQLite is excluded via onlyFor because its
+			// default LIKE is ASCII-CI (covered by the sqlite-ascii-ci-quirk
+			// test above).
+			name:         "like/wildcard-prefix-lowercase-non-sqlite-no-match",
+			in:           `@sakila | .actor | where(like(.first_name, "pen%"))`,
+			onlyFor:      []drivertype.Type{drivertype.Pg, drivertype.DuckDB, drivertype.MySQL, drivertype.MSSQL, drivertype.ClickHouse, drivertype.Oracle},
+			wantRecCount: 0,
 		},
 		{
 			// User-controlled `_` wildcard (single-char wildcard).

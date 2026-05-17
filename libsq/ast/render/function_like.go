@@ -132,11 +132,11 @@ type LikeOpts struct {
 	// in addition to % and _ (e.g. "[]" for SQL Server).
 	ExtraMeta string
 
-	// IgnoreCase, when true and no driver-specific Op is supplied,
-	// wraps the column and literal in LOWER(...) for portable ASCII
-	// case-insensitive matching. Driver overrides that emit ILIKE or
-	// an explicit CI collation should leave this false and supply Op
-	// / ColCollate instead.
+	// IgnoreCase, when true, wraps the column and literal in LOWER(...).
+	// Callers should use either IgnoreCase or a CI-aware Op (e.g. ILIKE)
+	// or ColCollate — not both. The wrapping is applied unconditionally
+	// when IgnoreCase is true; combining it with Op or ColCollate
+	// produces syntactically valid but semantically nonsensical SQL.
 	IgnoreCase bool
 }
 
@@ -217,8 +217,11 @@ type LikeRawOpts struct {
 	// an ESCAPE clause on LIKE.
 	OmitEscape bool
 
-	// IgnoreCase, when true and no driver-specific Op is supplied,
-	// wraps the column and literal in LOWER(...).
+	// IgnoreCase, when true, wraps the column and literal in LOWER(...).
+	// Callers should use either IgnoreCase or a CI-aware Op (e.g. ILIKE)
+	// or ColCollate — not both. The wrapping is applied unconditionally
+	// when IgnoreCase is true; combining it with Op or ColCollate
+	// produces syntactically valid but semantically nonsensical SQL.
 	IgnoreCase bool
 }
 

@@ -973,7 +973,10 @@ $ sq '.actor | where(like(.last_name, "Mc_"))'
 ```
 
 Matching is case-sensitive on Postgres, DuckDB, MySQL (`LIKE BINARY`),
-SQL Server (`COLLATE Latin1_General_BIN2`), Oracle, and ClickHouse.
+SQL Server (`COLLATE Latin1_General_BIN2`), and ClickHouse. **Oracle** is
+case-sensitive under its default `NLS_COMP=BINARY` setting; sessions that
+set `NLS_COMP=LINGUISTIC` with a case-insensitive `NLS_SORT` get
+case-insensitive matching — same caveat as [`contains`](#contains).
 
 **SQLite quirk:** SQLite's default `LIKE` is ASCII case-insensitive,
 so on SQLite `like` behaves the same as [`ilike`](#ilike) for ASCII
