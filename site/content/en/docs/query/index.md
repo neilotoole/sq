@@ -941,10 +941,14 @@ $ sq '.actor | where(ilike(.first_name, "pen%"))'
 Per-driver implementation:
 
 - **Postgres / DuckDB:** native `ILIKE`.
-- **MySQL / Oracle:** `LOWER(col) LIKE LOWER(pat) ESCAPE '|'`.
+- **MySQL / Oracle:** `LOWER(col) LIKE LOWER(pat)`.
 - **SQL Server:** `LIKE` with `COLLATE Latin1_General_CI_AS`.
-- **SQLite:** `LIKE ... ESCAPE '|'` (already ASCII-CI by default).
-- **ClickHouse:** native `ILIKE` (no `ESCAPE` clause).
+- **SQLite:** plain `LIKE` (already ASCII-CI by default).
+- **ClickHouse:** native `ILIKE`.
+
+No `ESCAPE '|'` clause is emitted on any driver — see [`like`](#like)
+for escape behavior. For literal `%` / `_` matching, use
+[`icontains`](#icontains), which auto-escapes wildcards.
 
 ### `istartswith`
 
@@ -994,29 +998,15 @@ overriding them globally via `PRAGMA case_sensitive_like`.
 Non-ASCII characters are not case-folded unless the ICU extension is
 loaded — same caveat as [`icontains`](#icontains).
 
-**v1 limitation — engine escape character:** every driver except
-ClickHouse emits a trailing `ESCAPE '|'` clause, reserving `|` as the
-LIKE escape character. Practical consequences:
-
-- On Postgres, DuckDB, Oracle, SQLite, and SQL Server (strict
-  drivers), a pattern containing `|` not followed by `%`, `_`, `[`,
-  `]`, or another `|` raises a runtime error (e.g. "invalid escape
-  sequence").
-- On MySQL (the only lenient driver), `|` followed by `%`, `_`, or
-  another `|` matches that character literally — i.e.
-  `like(.col, "10|%")` matches the substring `10%`. A bare `|` not
-  followed by an escape target is silently dropped. Don't rely on
-  this; behavior may differ between MySQL versions.
-- On ClickHouse, the `ESCAPE` clause is omitted entirely, so `|` is
-  always a literal character with no special meaning.
-
-If you need portable literal-`%` / literal-`_` matching, use
-[`contains`](#contains) (which auto-escapes wildcards in the
-literal). The current `like` / `ilike` ESCAPE semantics may be
-revisited in a future version; see issue
-[#629](https://github.com/neilotoole/sq/issues/629). A separate
-follow-up, [#628](https://github.com/neilotoole/sq/issues/628),
-tracks column-as-pattern support.
+No `ESCAPE '|'` clause is emitted on any driver, so `|` is a literal
+character in the pattern. Other engine-default escape semantics remain
+driver-specific — notably MySQL's default backslash escape (`\`) still
+applies in `LIKE` patterns unless the session sets the
+`NO_BACKSLASH_ESCAPES` SQL mode. If you need to match a literal `%` or
+`_` rather than treat them as wildcards, use [`contains`](#contains),
+which auto-escapes wildcards in the pattern. For column-as-pattern
+(`like(.col_a, .col_b)`), see
+[issue #628](https://github.com/neilotoole/sq/issues/628).
 
 An empty pattern matches only empty strings (`col = ''`) — not every
 non-NULL row, in contrast with [`contains`](#contains)`(.col, "")`.

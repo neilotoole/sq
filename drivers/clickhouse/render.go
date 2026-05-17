@@ -309,15 +309,8 @@ func renderFuncIEndsWith(rc *render.Context, fn *ast.FuncNode) (string, error) {
 	return "endsWithCaseInsensitive(" + colSQL + ", " + stringz.SingleQuote(lit) + ")", nil
 }
 
-// renderFuncLike uses ClickHouse's native LIKE. ClickHouse's LIKE
-// does not support an ESCAPE clause, so RenderLikeRaw is called
-// with OmitEscape=true.
-func renderFuncLike(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	return render.RenderLikeRaw(rc, fn, render.LikeRawOpts{OmitEscape: true})
-}
-
-// renderFuncILike uses ClickHouse's native ILIKE. Like LIKE, ILIKE
-// does not support ESCAPE.
+// renderFuncILike uses ClickHouse's native ILIKE rather than the
+// default LOWER(col) LIKE LOWER(pat) shape.
 func renderFuncILike(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	return render.RenderLikeRaw(rc, fn, render.LikeRawOpts{Op: "ILIKE", OmitEscape: true})
+	return render.RenderLikeRaw(rc, fn, render.LikeRawOpts{Op: "ILIKE"})
 }

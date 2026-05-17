@@ -663,10 +663,10 @@ func TestQuery_string_like(t *testing.T) {
 			// same 4 rows (see SQLite-quirk pair test below).
 			name:    "like/wildcard-prefix-uppercase",
 			in:      `@sakila | .actor | where(like(.first_name, "PEN%"))`,
-			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE 'PEN%' ESCAPE '|'`,
+			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE 'PEN%'`,
 			override: driverMap{
-				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY 'PEN%' ESCAPE '|'",
-				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE 'PEN%' ESCAPE '|'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY 'PEN%'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE 'PEN%'`,
 				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` LIKE 'PEN%'",
 			},
 			wantRecCount: 4,
@@ -676,7 +676,7 @@ func TestQuery_string_like(t *testing.T) {
 			// a lowercase pattern matches uppercase data.
 			name:         "like/sqlite-ascii-ci-quirk",
 			in:           `@sakila | .actor | where(like(.first_name, "pen%"))`,
-			wantSQL:      `SELECT * FROM "actor" WHERE "first_name" LIKE 'pen%' ESCAPE '|'`,
+			wantSQL:      `SELECT * FROM "actor" WHERE "first_name" LIKE 'pen%'`,
 			onlyFor:      []drivertype.Type{drivertype.SQLite},
 			wantRecCount: 4,
 		},
@@ -697,10 +697,10 @@ func TestQuery_string_like(t *testing.T) {
 			// `_` is treated as a wildcard, not auto-escaped.
 			name:    "like/single-char-wildcard",
 			in:      `@sakila | .actor | where(like(.first_name, "PEN_LOPE"))`,
-			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE 'PEN_LOPE' ESCAPE '|'`,
+			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE 'PEN_LOPE'`,
 			override: driverMap{
-				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY 'PEN_LOPE' ESCAPE '|'",
-				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE 'PEN_LOPE' ESCAPE '|'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY 'PEN_LOPE'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE 'PEN_LOPE'`,
 				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` LIKE 'PEN_LOPE'",
 			},
 			wantRecCount: 4,
@@ -711,30 +711,52 @@ func TestQuery_string_like(t *testing.T) {
 			// non-NULL row. Sakila has no empty first_names → 0 rows.
 			name:    "like/empty-pattern-matches-empty-strings-only",
 			in:      `@sakila | .actor | where(like(.first_name, ""))`,
-			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE '' ESCAPE '|'`,
+			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE ''`,
 			override: driverMap{
-				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY '' ESCAPE '|'",
-				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE '' ESCAPE '|'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY ''",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE ''`,
 				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` LIKE ''",
 			},
 			wantRecCount: 0,
 		},
 		{
-			// Pin the SQL shape for `|` in the pattern. The engine reserves
-			// `|` as the ESCAPE character on every driver except ClickHouse,
-			// which omits the ESCAPE clause entirely. Runtime behavior of
-			// a bare `|` diverges (silently dropped on lenient drivers,
-			// "invalid escape sequence" runtime error on Postgres/Oracle),
-			// so we don't exec — see the v1-limitation note in the docs.
-			name:    "like/escape-char-in-pattern-pins-shape",
+			// `|` is a literal character on every driver: no `ESCAPE '|'`
+			// clause is emitted, so `a|b` matches the literal substring
+			// `a|b` (no sakila actor first_name contains it → 0 rows).
+			// Pinning this shape guards against the pre-#629 regression
+			// where `ESCAPE '|'` made bare `|` either a runtime error
+			// or a silently-dropped character depending on the driver.
+			// Other driver-default escape semantics (e.g. MySQL's `\`)
+			// are out of scope and unchanged.
+			name:    "like/bare-pipe-is-literal",
 			in:      `@sakila | .actor | where(like(.first_name, "a|b"))`,
-			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE 'a|b' ESCAPE '|'`,
+			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE 'a|b'`,
 			override: driverMap{
-				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY 'a|b' ESCAPE '|'",
-				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE 'a|b' ESCAPE '|'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY 'a|b'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE 'a|b'`,
 				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` LIKE 'a|b'",
 			},
-			skipExec: true,
+			wantRecCount: 0,
+		},
+		{
+			// Stronger discriminator than like/bare-pipe-is-literal: this
+			// pattern would have returned 4 rows on pre-#629 MySQL (the
+			// lenient driver, which silently dropped a bare `|` not
+			// followed by a meta-char), because `|PEN%` collapsed to
+			// `PEN%` and matched the 4 PENELOPEs. Post-#629 every driver
+			// treats `|` as literal, so `|PEN%` only matches names
+			// starting with `|PEN` — none in sakila → 0 rows. Pre-#629
+			// strict drivers (PG/DuckDB/Oracle/SQLite/SQL Server) would
+			// have raised a runtime "invalid escape sequence" here.
+			name:    "like/literal-pipe-prefix",
+			in:      `@sakila | .actor | where(like(.first_name, "|PEN%"))`,
+			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE '|PEN%'`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY '|PEN%'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE '|PEN%'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` LIKE '|PEN%'",
+			},
+			wantRecCount: 0,
 		},
 		{
 			name:            "like/wrong-arg-count",
@@ -755,7 +777,7 @@ func TestQuery_string_like(t *testing.T) {
 	}
 }
 
-//nolint:exhaustive,lll
+//nolint:exhaustive
 func TestQuery_string_ilike(t *testing.T) {
 	testCases := []queryTestCase{
 		{
@@ -764,13 +786,13 @@ func TestQuery_string_ilike(t *testing.T) {
 			// matching.
 			name:    "ilike/wildcard-prefix-lowercase-match",
 			in:      `@sakila | .actor | where(ilike(.first_name, "pen%"))`,
-			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER('pen%') ESCAPE '|'`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER('pen%')`,
 			override: driverMap{
-				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE 'pen%' ESCAPE '|'`,
-				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE 'pen%' ESCAPE '|'`,
-				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE 'pen%' ESCAPE '|'`,
-				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER('pen%') ESCAPE '|'",
-				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE 'pen%' ESCAPE '|'`,
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE 'pen%'`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE 'pen%'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE 'pen%'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER('pen%')",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE 'pen%'`,
 				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` ILIKE 'pen%'",
 			},
 			wantRecCount: 4,
@@ -780,13 +802,13 @@ func TestQuery_string_ilike(t *testing.T) {
 			// same 4 PENELOPEs.
 			name:    "ilike/wildcard-prefix-uppercase-match",
 			in:      `@sakila | .actor | where(ilike(.first_name, "PEN%"))`,
-			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER('PEN%') ESCAPE '|'`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER('PEN%')`,
 			override: driverMap{
-				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE 'PEN%' ESCAPE '|'`,
-				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE 'PEN%' ESCAPE '|'`,
-				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE 'PEN%' ESCAPE '|'`,
-				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER('PEN%') ESCAPE '|'",
-				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE 'PEN%' ESCAPE '|'`,
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE 'PEN%'`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE 'PEN%'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE 'PEN%'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER('PEN%')",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE 'PEN%'`,
 				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` ILIKE 'PEN%'",
 			},
 			wantRecCount: 4,
@@ -802,13 +824,13 @@ func TestQuery_string_ilike(t *testing.T) {
 			// 4 PENELOPEs on every driver under CI.
 			name:    "ilike/single-char-wildcard-mixed-case",
 			in:      `@sakila | .actor | where(ilike(.first_name, "pen_LOPE"))`,
-			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER('pen_LOPE') ESCAPE '|'`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER('pen_LOPE')`,
 			override: driverMap{
-				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE 'pen_LOPE' ESCAPE '|'`,
-				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE 'pen_LOPE' ESCAPE '|'`,
-				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE 'pen_LOPE' ESCAPE '|'`,
-				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER('pen_LOPE') ESCAPE '|'",
-				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE 'pen_LOPE' ESCAPE '|'`,
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE 'pen_LOPE'`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE 'pen_LOPE'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE 'pen_LOPE'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER('pen_LOPE')",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE 'pen_LOPE'`,
 				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` ILIKE 'pen_LOPE'",
 			},
 			wantRecCount: 4,
@@ -818,14 +840,33 @@ func TestQuery_string_ilike(t *testing.T) {
 			// semantics). Sakila has no empty first_names → 0 rows.
 			name:    "ilike/empty-pattern-matches-empty-strings-only",
 			in:      `@sakila | .actor | where(ilike(.first_name, ""))`,
-			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER('') ESCAPE '|'`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER('')`,
 			override: driverMap{
-				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE '' ESCAPE '|'`,
-				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE '' ESCAPE '|'`,
-				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE '' ESCAPE '|'`,
-				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER('') ESCAPE '|'",
-				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE '' ESCAPE '|'`,
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE ''`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE ''`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE ''`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER('')",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE ''`,
 				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` ILIKE ''",
+			},
+			wantRecCount: 0,
+		},
+		{
+			// ILIKE-renderer mirror of like/literal-pipe-prefix. Catches
+			// any future re-introduction of a default `ESCAPE '|'` on the
+			// ILIKE path (which would silently drop the leading `|` on
+			// MySQL via the LOWER-wrap default renderer and surface 4
+			// PENELOPEs instead of 0).
+			name:    "ilike/literal-pipe-prefix",
+			in:      `@sakila | .actor | where(ilike(.first_name, "|pen%"))`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER('|pen%')`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE '|pen%'`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE '|pen%'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE '|pen%'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER('|pen%')",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE '|pen%'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` ILIKE '|pen%'",
 			},
 			wantRecCount: 0,
 		},
