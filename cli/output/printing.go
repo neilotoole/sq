@@ -55,6 +55,10 @@ type Printing struct {
 	// Error is the color for error elements such as an error message.
 	Error *color.Color
 
+	// ErrorHilite is the color used to highlight the offending span
+	// of input in a syntax error report.
+	ErrorHilite *color.Color
+
 	// Faint is the color for faint elements - the opposite of Hilite.
 	Faint *color.Color
 
@@ -199,6 +203,7 @@ func NewPrinting() *Printing {
 		Duration:               color.New(color.FgGreen, color.Faint),
 		Enabled:                color.New(color.FgGreen, color.Faint),
 		Error:                  color.New(color.FgRed, color.Bold),
+		ErrorHilite:            color.New(color.BgRed, color.FgHiWhite, color.Bold),
 		Faint:                  color.New(color.Faint),
 		Handle:                 color.New(color.FgBlue),
 		Header:                 color.New(color.FgBlue),
@@ -254,6 +259,7 @@ func (pr *Printing) Clone() *Printing {
 	pr2.Duration = new(*pr.Duration)
 	pr2.Enabled = new(*pr.Enabled)
 	pr2.Error = new(*pr.Error)
+	pr2.ErrorHilite = new(*pr.ErrorHilite)
 	pr2.Faint = new(*pr.Faint)
 	pr2.Handle = new(*pr.Handle)
 	pr2.Header = new(*pr.Header)
@@ -307,6 +313,7 @@ func (pr *Printing) colors() []*color.Color {
 		pr.Duration,
 		pr.Enabled,
 		pr.Error,
+		pr.ErrorHilite,
 		pr.Faint,
 		pr.Handle,
 		pr.Header,
