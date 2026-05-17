@@ -379,31 +379,67 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 
 	tbls := jc.tables()
 
-	// When two participants resolve to the same destination table name in
-	// the join scratch DB (e.g. two sources each contributing an "actor"
-	// table with no user alias), the second CREATE TABLE collides and the
-	// rendered FROM/ON clauses become ambiguous. For any colliding table
-	// without a user-provided alias, synthesize a numeric-suffixed alias
-	// (actor, actor_2, actor_3, ...) so the existing SyncTblNameAlias
-	// flow below produces unique scratch table names and well-formed SQL.
-	// The first occurrence keeps its original name to minimize SQL drift
-	// for callers that reference it. User-provided aliases are left alone:
-	// a deliberately colliding alias is a user error and SQL surfaces it.
-	dstNameCount := map[string]int{}
+	// Every cross-source join participant is copied into the join scratch
+	// DB under a destination name taken from its user alias (if any) or
+	// its bare table name. When two participants resolve to the same
+	// destination, the second CREATE TABLE collides and the rendered
+	// FROM/ON would also reference the same name on both sides
+	// (ambiguous regardless). Disambiguate as follows:
+	//
+	//   - User aliases are sacrosanct. Two colliding user aliases are a
+	//     user error and rejected up front.
+	//   - Each unaliased participant tries to claim its bare table name;
+	//     the first occurrence wins it, unless a user alias elsewhere
+	//     already claimed that name.
+	//   - The remaining unaliased participants get a synthesized
+	//     numeric-suffixed alias (name_2, name_3, ...) picked to be
+	//     unique against every other destination in use, including any
+	//     pre-existing name that happens to match a generated suffix.
+	userAlias := map[string]bool{}
 	for _, tbl := range tbls {
-		dstNameCount[tbl.TblAliasOrName().Table]++
+		if tbl.Alias() == "" {
+			continue
+		}
+		if userAlias[tbl.Alias()] {
+			return "", nil, errz.Errorf("cross-source join: duplicate table alias %q", tbl.Alias())
+		}
+		userAlias[tbl.Alias()] = true
 	}
-	dstNameSeen := map[string]int{}
+	keepsBare := map[*ast.TblSelectorNode]bool{}
+	bareTaken := map[string]bool{}
 	for _, tbl := range tbls {
-		name := tbl.TblAliasOrName().Table
-		if dstNameCount[name] <= 1 || tbl.Alias() != "" {
+		if tbl.Alias() != "" {
 			continue
 		}
-		dstNameSeen[name]++
-		if dstNameSeen[name] == 1 {
+		name := tbl.Table().Table
+		if userAlias[name] || bareTaken[name] {
 			continue
 		}
-		tbl.SetAlias(fmt.Sprintf("%s_%d", name, dstNameSeen[name]))
+		bareTaken[name] = true
+		keepsBare[tbl] = true
+	}
+	used := map[string]bool{}
+	for name := range userAlias {
+		used[name] = true
+	}
+	for name := range bareTaken {
+		used[name] = true
+	}
+	for _, tbl := range tbls {
+		if tbl.Alias() != "" || keepsBare[tbl] {
+			continue
+		}
+		name := tbl.Table().Table
+		n := 2
+		candidate := fmt.Sprintf("%s_%d", name, n)
+		for used[candidate] {
+			n++
+			candidate = fmt.Sprintf("%s_%d", name, n)
+		}
+		used[candidate] = true
+		tbl.SetAlias(candidate)
+		lg.FromContext(ctx).Debug("Synthesized cross-source join alias to avoid table-name collision",
+			lga.From, name, lga.To, candidate)
 	}
 
 	for _, tbl := range tbls {

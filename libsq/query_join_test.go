@@ -373,25 +373,59 @@ func TestQuery_join_others(t *testing.T) {
 // TestQuery_join_cross_source_same_table_name is a regression test for
 // https://github.com/neilotoole/sq/issues/445.
 //
-// When two cross-source join participants share a table name (here, both
-// SQLite sakila variants have an "actor" table), the join scratch DB
-// receives two "CREATE TABLE actor" attempts and the second collides;
-// additionally, the rendered SQL references "actor" on both sides of the
-// join (e.g. FROM actor INNER JOIN actor ON actor.actor_id = actor.actor_id),
-// which is malformed regardless of the collision.
+// When two cross-source join participants share a table name, the join
+// scratch DB receives two "CREATE TABLE <name>" attempts and the second
+// collides; additionally, the rendered SQL references the same name on
+// both sides of the join (e.g. FROM actor INNER JOIN actor ON
+// actor.actor_id = actor.actor_id), which is malformed regardless of
+// the collision.
+//
+// SL3 and SL3Whitespace are used purely as two distinct local SQLite
+// sources whose schemas happen to both contain an "actor" table; the
+// whitespace aspect of SL3Whitespace is incidental to this regression.
+// The three-way subtest also exercises the synthesized suffix counter
+// past `_2`, guarding against off-by-one regressions and ensuring a
+// synthesized name doesn't shadow another participant's bare name.
 func TestQuery_join_cross_source_same_table_name(t *testing.T) {
 	t.Parallel()
 
-	q := fmt.Sprintf(
-		`%s.actor | join(%s.actor, .actor_id) | .first_name`,
-		sakila.SL3, sakila.SL3Whitespace,
-	)
+	testCases := []struct {
+		name      string
+		query     string
+		wantCount int
+	}{
+		{
+			name: "two-sources",
+			query: fmt.Sprintf(
+				`%s.actor | join(%s.actor, .actor_id) | .first_name`,
+				sakila.SL3, sakila.SL3Whitespace,
+			),
+			wantCount: sakila.TblActorCount,
+		},
+		{
+			// Unqualified ".first_name" would be ambiguous across three
+			// actor tables; ".actor.first_name" qualifies it against
+			// the first participant, which keeps its bare name.
+			name: "three-sources",
+			query: fmt.Sprintf(
+				`%s.actor | join(%s.actor, .actor_id) | join(%s.actor, .actor_id) | .actor.first_name`,
+				sakila.SL3, sakila.SL3Whitespace, sakila.SL3,
+			),
+			wantCount: sakila.TblActorCount,
+		},
+	}
 
-	th := testh.New(t)
-	sink, err := th.QuerySLQ(q, nil)
-	require.NoError(t, err)
-	require.Len(t, sink.Recs, sakila.TblActorCount)
-	require.Equal(t, []string{"first_name"}, sink.RecMeta.MungedNames())
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			sink, err := th.QuerySLQ(tc.query, nil)
+			require.NoError(t, err)
+			require.Len(t, sink.Recs, tc.wantCount)
+			require.Equal(t, []string{"first_name"}, sink.RecMeta.MungedNames())
+		})
+	}
 }
 
 // TestQuery_table_alias is tested with the joins, because table aliases

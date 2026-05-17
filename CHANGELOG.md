@@ -54,8 +54,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   the second table copy into the join scratch DB collided with the
   first (`table "actor" already exists`); now colliding unaliased
   participants are given numeric-suffixed aliases (`actor`, `actor_2`,
-  ...) so the scratch tables are unique and the rendered SQL is
-  well-formed.
+  ...), picked to also avoid any other participant's destination name
+  so the scratch tables are unique and the rendered SQL is well-formed.
+  Two user-supplied aliases that collide are now reported up front
+  (`cross-source join: duplicate table alias "..."`) instead of
+  surfacing later as an opaque scratch-DB error.
 
 ## [v0.52.0] - 2026-05-15
 
