@@ -261,3 +261,23 @@ func renderFuncStartsWithBinary(rc *render.Context, fn *ast.FuncNode) (string, e
 func renderFuncEndsWithBinary(rc *render.Context, fn *ast.FuncNode) (string, error) {
 	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeEndsWith, Op: "LIKE BINARY"})
 }
+
+func renderFuncIContainsLower(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeContains, IgnoreCase: true})
+}
+
+func renderFuncIStartsWithLower(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeStartsWith, IgnoreCase: true})
+}
+
+func renderFuncIEndsWithLower(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeEndsWith, IgnoreCase: true})
+}
+
+func renderFuncLikeBinary(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeRaw(rc, fn, render.LikeRawOpts{Op: "LIKE BINARY"})
+}
+
+func renderFuncILikeLower(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeRaw(rc, fn, render.LikeRawOpts{IgnoreCase: true})
+}

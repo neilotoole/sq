@@ -140,6 +140,11 @@ func (d *driveri) Renderer() *render.Renderer {
 	r.FunctionOverrides[ast.FuncNameContains] = renderFuncContainsBinary
 	r.FunctionOverrides[ast.FuncNameStartsWith] = renderFuncStartsWithBinary
 	r.FunctionOverrides[ast.FuncNameEndsWith] = renderFuncEndsWithBinary
+	r.FunctionOverrides[ast.FuncNameIContains] = renderFuncIContainsLower
+	r.FunctionOverrides[ast.FuncNameIStartsWith] = renderFuncIStartsWithLower
+	r.FunctionOverrides[ast.FuncNameIEndsWith] = renderFuncIEndsWithLower
+	r.FunctionOverrides[ast.FuncNameLike] = renderFuncLikeBinary
+	r.FunctionOverrides[ast.FuncNameILike] = renderFuncILikeLower
 	return r
 }
 
