@@ -40,16 +40,17 @@ func parseSLQ(log *slog.Logger, input string) (*slq.QueryContext, error) {
 var _ antlr.ErrorListener = (*antlrErrorListener)(nil)
 
 type antlrErrorListener struct {
-	log      *slog.Logger
-	name     string // "lexer" or "parser"
-	input    string
-	issues   []ParseIssue
-	warnings []string
+	// recognizer is the parser/lexer the listener is attached to. Used
+	// to look up literal names when building did-you-mean suggestions.
+	recognizer antlr.Recognizer
+	log        *slog.Logger
+	name       string // "lexer" or "parser"
+	input      string
+	issues     []ParseIssue
+	warnings   []string
 }
 
 // SyntaxError implements antlr.ErrorListener.
-//
-//nolint:revive
 func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol any,
 	line, column int, msg string, e antlr.RecognitionException,
 ) {
@@ -69,6 +70,24 @@ func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offending
 	}
 
 	iss.Msg = buildIssueMsg(iss.Token, msg)
+
+	if el.recognizer == nil {
+		el.recognizer = recognizer
+	}
+
+	if e != nil {
+		if p, ok := recognizer.(antlr.Parser); ok {
+			set := p.GetExpectedTokens()
+			if set != nil {
+				ivs := set.GetIntervals()
+				pairs := make([][2]int, 0, len(ivs))
+				for _, iv := range ivs {
+					pairs = append(pairs, [2]int{iv.Start, iv.Stop})
+				}
+				iss.expectedTypes = collectExpectedTokenTypes(pairs)
+			}
+		}
+	}
 
 	el.issues = append(el.issues, iss)
 }

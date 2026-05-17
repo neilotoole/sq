@@ -33,6 +33,11 @@ type ParseIssue struct {
 	// Suggestion is an optional did-you-mean candidate.
 	Suggestion string
 
+	// expectedTypes is the set of token IDs ANTLR expected at this
+	// point. Unexported because callers shouldn't rely on raw ANTLR
+	// token numbering — it's only used internally to compute Suggestion.
+	expectedTypes []int
+
 	// Line is the 1-based line number where the issue was detected.
 	Line int
 
