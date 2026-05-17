@@ -130,6 +130,10 @@ func (d *driveri) Renderer() *render.Renderer {
 	r := render.NewDefaultRenderer()
 	r.FunctionNames[ast.FuncNameSchema] = "current_schema"
 	r.FunctionNames[ast.FuncNameCatalog] = "current_database"
+	r.FunctionOverrides[ast.FuncNameIContains] = renderFuncIContains
+	r.FunctionOverrides[ast.FuncNameIStartsWith] = renderFuncIStartsWith
+	r.FunctionOverrides[ast.FuncNameIEndsWith] = renderFuncIEndsWith
+	r.FunctionOverrides[ast.FuncNameILike] = renderFuncILike
 	return r
 }
 
