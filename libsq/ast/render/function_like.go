@@ -133,10 +133,12 @@ type LikeOpts struct {
 	ExtraMeta string
 
 	// IgnoreCase, when true, wraps the column and literal in LOWER(...).
-	// Callers should use either IgnoreCase or a CI-aware Op (e.g. ILIKE)
-	// or ColCollate — not both. The wrapping is applied unconditionally
-	// when IgnoreCase is true; combining it with Op or ColCollate
-	// produces syntactically valid but semantically nonsensical SQL.
+	// IgnoreCase is mutually exclusive with non-empty Op and ColCollate:
+	// LOWER-wrapping handles case-insensitivity portably without needing
+	// a driver-specific operator or collation, and combining the
+	// strategies produces redundant or semantically incoherent SQL
+	// (e.g. LOWER(col) COLLATE Latin1_General_CI_AS LIKE LOWER(pat)).
+	// Combining them panics at render time.
 	IgnoreCase bool
 }
 
@@ -150,9 +152,9 @@ type LikeOpts struct {
 // Used by the default-renderer overrides and by MySQL/SQL Server overrides.
 // SQLite and ClickHouse use different shapes and do not call this function.
 //
-// Callers must pass either opts.IgnoreCase or a CI-aware opts.Op
-// (e.g. "ILIKE") / opts.ColCollate, never both — combining them
-// produces semantically nonsensical SQL and panics at render time.
+// opts.IgnoreCase is mutually exclusive with opts.Op and opts.ColCollate:
+// the LOWER-wrapping strategy stands alone, and combining it with a
+// non-default operator or collation panics at render time.
 func RenderLikeOp(rc *Context, fn *ast.FuncNode, opts LikeOpts) (string, error) {
 	if opts.IgnoreCase && (opts.Op != "" || opts.ColCollate != "") {
 		panic("RenderLikeOp: IgnoreCase is mutually exclusive with Op and ColCollate")
@@ -225,10 +227,12 @@ type LikeRawOpts struct {
 	OmitEscape bool
 
 	// IgnoreCase, when true, wraps the column and literal in LOWER(...).
-	// Callers should use either IgnoreCase or a CI-aware Op (e.g. ILIKE)
-	// or ColCollate — not both. The wrapping is applied unconditionally
-	// when IgnoreCase is true; combining it with Op or ColCollate
-	// produces syntactically valid but semantically nonsensical SQL.
+	// IgnoreCase is mutually exclusive with non-empty Op and ColCollate:
+	// LOWER-wrapping handles case-insensitivity portably without needing
+	// a driver-specific operator or collation, and combining the
+	// strategies produces redundant or semantically incoherent SQL
+	// (e.g. LOWER(col) COLLATE Latin1_General_CI_AS LIKE LOWER(pat)).
+	// Combining them panics at render time.
 	IgnoreCase bool
 }
 
@@ -238,9 +242,9 @@ type LikeRawOpts struct {
 // quotes inside the literal are still properly escaped by
 // SingleQuote.
 //
-// Callers must pass either opts.IgnoreCase or a CI-aware opts.Op
-// (e.g. "ILIKE") / opts.ColCollate, never both — combining them
-// produces semantically nonsensical SQL and panics at render time.
+// opts.IgnoreCase is mutually exclusive with opts.Op and opts.ColCollate:
+// the LOWER-wrapping strategy stands alone, and combining it with a
+// non-default operator or collation panics at render time.
 func RenderLikeRaw(rc *Context, fn *ast.FuncNode, opts LikeRawOpts) (string, error) {
 	if opts.IgnoreCase && (opts.Op != "" || opts.ColCollate != "") {
 		panic("RenderLikeRaw: IgnoreCase is mutually exclusive with Op and ColCollate")
