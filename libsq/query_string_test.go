@@ -413,6 +413,21 @@ func TestQuery_string_icontains(t *testing.T) {
 			wantRecCount: 200,
 		},
 		{
+			// ClickHouse NULL-propagation test for the position*Insensitive
+			// path. icontains on ClickHouse emits positionCaseInsensitive(col,
+			// pat) > 0, which is a different mechanism than the length(col)
+			// >= 0 guard used by istartswith/iendswith for empty patterns.
+			// positionCaseInsensitive(NULL, '') returns NULL, NULL > 0 is
+			// NULL, WHERE filters NULL → returns only the non-NULL rows.
+			// Sakila's ClickHouse address table has 599 non-NULL address2
+			// values out of 603 rows, proving icontains NULL-propagates
+			// correctly through positionCaseInsensitive.
+			name:         "icontains/null-column-empty-pattern-propagates-null-ch",
+			in:           `@sakila | .address | where(icontains(.address2, ""))`,
+			onlyFor:      []drivertype.Type{drivertype.ClickHouse},
+			wantRecCount: 599,
+		},
+		{
 			name:            "icontains/wrong-arg-count",
 			in:              `@sakila | .actor | where(icontains(.first_name))`,
 			wantErrContains: "icontains() requires exactly 2 arguments",
