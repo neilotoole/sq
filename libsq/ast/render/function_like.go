@@ -208,6 +208,34 @@ func doFuncILike(rc *Context, fn *ast.FuncNode) (string, error) {
 	return RenderLikeRaw(rc, fn, LikeRawOpts{IgnoreCase: true})
 }
 
+// RegisterILikeFamily registers the four case-insensitive matchers
+// (icontains, istartswith, iendswith, ilike) on r to use native
+// ILIKE rather than the default LOWER(col) LIKE LOWER(pat) shape.
+// Used by drivers whose dialect supports ILIKE (currently Postgres
+// and DuckDB).
+func RegisterILikeFamily(r *Renderer) {
+	r.FunctionOverrides[ast.FuncNameIContains] = doFuncIContainsILike
+	r.FunctionOverrides[ast.FuncNameIStartsWith] = doFuncIStartsWithILike
+	r.FunctionOverrides[ast.FuncNameIEndsWith] = doFuncIEndsWithILike
+	r.FunctionOverrides[ast.FuncNameILike] = doFuncILikeILike
+}
+
+func doFuncIContainsILike(rc *Context, fn *ast.FuncNode) (string, error) {
+	return RenderLikeOp(rc, fn, LikeOpts{Mode: LikeContains, Op: "ILIKE"})
+}
+
+func doFuncIStartsWithILike(rc *Context, fn *ast.FuncNode) (string, error) {
+	return RenderLikeOp(rc, fn, LikeOpts{Mode: LikeStartsWith, Op: "ILIKE"})
+}
+
+func doFuncIEndsWithILike(rc *Context, fn *ast.FuncNode) (string, error) {
+	return RenderLikeOp(rc, fn, LikeOpts{Mode: LikeEndsWith, Op: "ILIKE"})
+}
+
+func doFuncILikeILike(rc *Context, fn *ast.FuncNode) (string, error) {
+	return RenderLikeRaw(rc, fn, LikeRawOpts{Op: "ILIKE"})
+}
+
 // LikeRawOpts configures [RenderLikeRaw], the user-wildcard-controlled
 // shape used by SLQ's like / ilike functions.
 type LikeRawOpts struct {

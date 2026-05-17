@@ -58,25 +58,6 @@ func (d *driveri) Renderer() *render.Renderer {
 	// DuckDB uses the same schema/catalog function names as Postgres.
 	r.FunctionNames[ast.FuncNameSchema] = "current_schema"
 	r.FunctionNames[ast.FuncNameCatalog] = "current_database"
-	r.FunctionOverrides[ast.FuncNameIContains] = renderFuncIContains
-	r.FunctionOverrides[ast.FuncNameIStartsWith] = renderFuncIStartsWith
-	r.FunctionOverrides[ast.FuncNameIEndsWith] = renderFuncIEndsWith
-	r.FunctionOverrides[ast.FuncNameILike] = renderFuncILike
+	render.RegisterILikeFamily(r)
 	return r
-}
-
-func renderFuncIContains(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeContains, Op: "ILIKE"})
-}
-
-func renderFuncIStartsWith(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeStartsWith, Op: "ILIKE"})
-}
-
-func renderFuncIEndsWith(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeEndsWith, Op: "ILIKE"})
-}
-
-func renderFuncILike(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	return render.RenderLikeRaw(rc, fn, render.LikeRawOpts{Op: "ILIKE"})
 }

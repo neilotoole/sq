@@ -5,8 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/ast"
-	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/schema"
@@ -141,20 +139,4 @@ func replacePlaceholders(input string) string {
 	}
 
 	return sb.String()
-}
-
-func renderFuncIContains(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeContains, Op: "ILIKE"})
-}
-
-func renderFuncIStartsWith(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeStartsWith, Op: "ILIKE"})
-}
-
-func renderFuncIEndsWith(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeEndsWith, Op: "ILIKE"})
-}
-
-func renderFuncILike(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	return render.RenderLikeRaw(rc, fn, render.LikeRawOpts{Op: "ILIKE"})
 }
