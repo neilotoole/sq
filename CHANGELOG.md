@@ -18,12 +18,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 - [#629]: [`like`](https://sq.io/docs/query#like) and
   [`ilike`](https://sq.io/docs/query#ilike) no longer emit a trailing
-  `ESCAPE '|'` clause. `|` is now a normal literal character on every
-  driver, removing the pre-#629 cross-driver divergence (runtime error
-  on Postgres/Oracle/SQLite/SQL Server, silent drop on MySQL). For
-  literal `%`/`_` matching, use [`contains`](https://sq.io/docs/query#contains)
-  / [`icontains`](https://sq.io/docs/query#icontains), which
-  auto-escape wildcards. The [`contains`](https://sq.io/docs/query#contains)
+  `ESCAPE '|'` clause. `|` is now a literal character on every driver,
+  removing the pre-#629 cross-driver divergence (runtime error on
+  Postgres/DuckDB/Oracle/SQLite/SQL Server, silent drop on MySQL).
+  Other engine-default escape semantics (e.g. MySQL's default
+  backslash escape) remain driver-specific. For literal `%`/`_`
+  matching, use [`contains`](https://sq.io/docs/query#contains) /
+  [`icontains`](https://sq.io/docs/query#icontains), which auto-escape
+  wildcards. The [`contains`](https://sq.io/docs/query#contains)
   family is unchanged and still emits `ESCAPE '|'`.
 
 ### Added

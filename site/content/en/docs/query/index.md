@@ -946,9 +946,9 @@ Per-driver implementation:
 - **SQLite:** plain `LIKE` (already ASCII-CI by default).
 - **ClickHouse:** native `ILIKE`.
 
-No `ESCAPE` clause is emitted on any driver — see [`like`](#like)
-for escape behavior and the [`icontains`](#icontains) cross-reference
-for literal `%` / `_` matching.
+No `ESCAPE '|'` clause is emitted on any driver — see [`like`](#like)
+for escape behavior. For literal `%` / `_` matching, use
+[`icontains`](#icontains), which auto-escapes wildcards.
 
 ### `istartswith`
 
@@ -998,11 +998,14 @@ overriding them globally via `PRAGMA case_sensitive_like`.
 Non-ASCII characters are not case-folded unless the ICU extension is
 loaded — same caveat as [`icontains`](#icontains).
 
-No `ESCAPE` clause is emitted on any driver, so `|` (and every other
-character) is a literal in the pattern. If you need to match a
-literal `%` or `_` rather than treat them as wildcards, use
-[`contains`](#contains), which auto-escapes wildcards in the
-pattern. For column-as-pattern (`like(.col_a, .col_b)`), see
+No `ESCAPE '|'` clause is emitted on any driver, so `|` is a literal
+character in the pattern. Other engine-default escape semantics remain
+driver-specific — notably MySQL's default backslash escape (`\`) still
+applies in `LIKE` patterns unless the session sets the
+`NO_BACKSLASH_ESCAPES` SQL mode. If you need to match a literal `%` or
+`_` rather than treat them as wildcards, use [`contains`](#contains),
+which auto-escapes wildcards in the pattern. For column-as-pattern
+(`like(.col_a, .col_b)`), see
 [issue #628](https://github.com/neilotoole/sq/issues/628).
 
 An empty pattern matches only empty strings (`col = ''`) — not every

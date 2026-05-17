@@ -264,11 +264,13 @@ type LikeRawOpts struct {
 // like / ilike functions. Unlike [RenderLikeOp], the literal pattern
 // is bound verbatim: % and _ are wildcards, not escaped. Single
 // quotes inside the literal are still properly escaped by
-// SingleQuote. No ESCAPE clause is emitted, so the engine has no
-// reserved escape character; `|` (and every other character) is a
-// normal literal. Users who need literal `%` / `_` matching should
-// use [RenderLikeOp] (SLQ's contains family), which auto-escapes
-// wildcards in the pattern.
+// SingleQuote. No `ESCAPE '|'` clause is emitted, so `|` is a literal
+// character on every driver. Other engine-default escape semantics
+// remain driver-specific — notably MySQL's default backslash escape
+// (`\`) still applies in `LIKE` patterns unless the session sets the
+// `NO_BACKSLASH_ESCAPES` SQL mode. Users who need literal `%` / `_`
+// matching should use [RenderLikeOp] (SLQ's contains family), which
+// auto-escapes wildcards in the pattern.
 //
 // opts.IgnoreCase is mutually exclusive with opts.Op and opts.ColCollate:
 // the LOWER-wrapping strategy stands alone, and combining it with a

@@ -720,13 +720,14 @@ func TestQuery_string_like(t *testing.T) {
 			wantRecCount: 0,
 		},
 		{
-			// `|` is a normal literal character on every driver: no ESCAPE
-			// clause is emitted, so the engine has no reserved escape
-			// character and `a|b` matches the literal substring `a|b`
-			// (no sakila actor first_name contains it → 0 rows). Pinning
-			// this shape guards against the pre-#629 regression where
-			// `ESCAPE '|'` made bare `|` either a runtime error or a
-			// silently-dropped character depending on the driver.
+			// `|` is a literal character on every driver: no `ESCAPE '|'`
+			// clause is emitted, so `a|b` matches the literal substring
+			// `a|b` (no sakila actor first_name contains it → 0 rows).
+			// Pinning this shape guards against the pre-#629 regression
+			// where `ESCAPE '|'` made bare `|` either a runtime error
+			// or a silently-dropped character depending on the driver.
+			// Other driver-default escape semantics (e.g. MySQL's `\`)
+			// are out of scope and unchanged.
 			name:    "like/bare-pipe-is-literal",
 			in:      `@sakila | .actor | where(like(.first_name, "a|b"))`,
 			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE 'a|b'`,
@@ -734,6 +735,26 @@ func TestQuery_string_like(t *testing.T) {
 				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY 'a|b'",
 				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE 'a|b'`,
 				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` LIKE 'a|b'",
+			},
+			wantRecCount: 0,
+		},
+		{
+			// Stronger discriminator than like/bare-pipe-is-literal: this
+			// pattern would have returned 4 rows on pre-#629 MySQL (the
+			// lenient driver, which silently dropped a bare `|` not
+			// followed by a meta-char), because `|PEN%` collapsed to
+			// `PEN%` and matched the 4 PENELOPEs. Post-#629 every driver
+			// treats `|` as literal, so `|PEN%` only matches names
+			// starting with `|PEN` — none in sakila → 0 rows. Pre-#629
+			// strict drivers (PG/DuckDB/Oracle/SQLite/SQL Server) would
+			// have raised a runtime "invalid escape sequence" here.
+			name:    "like/literal-pipe-prefix",
+			in:      `@sakila | .actor | where(like(.first_name, "|PEN%"))`,
+			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE '|PEN%'`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY '|PEN%'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE '|PEN%'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` LIKE '|PEN%'",
 			},
 			wantRecCount: 0,
 		},
@@ -827,6 +848,25 @@ func TestQuery_string_ilike(t *testing.T) {
 				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER('')",
 				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE ''`,
 				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` ILIKE ''",
+			},
+			wantRecCount: 0,
+		},
+		{
+			// ILIKE-renderer mirror of like/literal-pipe-prefix. Catches
+			// any future re-introduction of a default `ESCAPE '|'` on the
+			// ILIKE path (which would silently drop the leading `|` on
+			// MySQL via the LOWER-wrap default renderer and surface 4
+			// PENELOPEs instead of 0).
+			name:    "ilike/literal-pipe-prefix",
+			in:      `@sakila | .actor | where(ilike(.first_name, "|pen%"))`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER('|pen%')`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE '|pen%'`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE '|pen%'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE '|pen%'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER('|pen%')",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE '|pen%'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` ILIKE '|pen%'",
 			},
 			wantRecCount: 0,
 		},
