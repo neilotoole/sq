@@ -2,11 +2,16 @@ package sqlite3
 
 import (
 	"bytes"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 
+	"github.com/neilotoole/sq/libsq/ast"
+	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // createTblKindDefaults is a mapping of Kind to the value
@@ -134,4 +139,64 @@ func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+func renderFuncContainsInstr(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	colSQL, lit, err := render.ParseLikeArgs(rc, fn)
+	if err != nil {
+		return "", err
+	}
+	return "instr(" + colSQL + ", " + stringz.SingleQuote(lit) + ") > 0", nil
+}
+
+func renderFuncStartsWithSubstr(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	colSQL, lit, err := render.ParseLikeArgs(rc, fn)
+	if err != nil {
+		return "", err
+	}
+	n := utf8.RuneCountInString(lit)
+	return "substr(" + colSQL + ", 1, " + strconv.Itoa(n) + ") = " + stringz.SingleQuote(lit), nil
+}
+
+func renderFuncEndsWithSubstr(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	colSQL, lit, err := render.ParseLikeArgs(rc, fn)
+	if err != nil {
+		return "", err
+	}
+	n := utf8.RuneCountInString(lit)
+	if n == 0 {
+		// SQLite evaluates substr(col, -0) as substr(col, 0), which returns
+		// the full string, so the naive `substr(col, -N) = ''` shape would
+		// be false for every row. Emit `col LIKE '%'` to match the LIKE-based
+		// drivers exactly — including NULL propagation under negation, which
+		// `col IS NOT NULL` would not preserve. SQLite's default LIKE case
+		// sensitivity is irrelevant here because `%` matches any character.
+		return colSQL + " LIKE '%'", nil
+	}
+	return "substr(" + colSQL + ", -" + strconv.Itoa(n) + ") = " + stringz.SingleQuote(lit), nil
+}
+
+// SQLite's default LIKE is ASCII case-insensitive, so the i* family
+// uses plain LIKE rather than the instr/substr shape that
+// contains/startswith/endswith use for case-sensitivity. Non-ASCII
+// characters are not case-folded — that's a SQLite limitation.
+
+func renderFuncIContainsLike(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeContains})
+}
+
+func renderFuncIStartsWithLike(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeStartsWith})
+}
+
+func renderFuncIEndsWithLike(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeEndsWith})
+}
+
+// renderFuncLike renders SLQ's like and ilike on SQLite. Both
+// register the same function because SQLite's default LIKE is
+// ASCII case-insensitive, so the two are structurally
+// indistinguishable on this driver — a documented quirk.
+func renderFuncLike(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeRaw(rc, fn, render.LikeRawOpts{})
 }

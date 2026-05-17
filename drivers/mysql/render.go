@@ -249,3 +249,19 @@ func renderFuncRowNum(rc *render.Context, _ *ast.FuncNode) (string, error) { //n
 	// e.g. (@row_number_abcd1234:=@row_number_abcd1234 + 1)
 	return "(" + variable + ":=" + variable + " + 1)", nil
 }
+
+func renderFuncContainsBinary(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeContains, Op: "LIKE BINARY"})
+}
+
+func renderFuncStartsWithBinary(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeStartsWith, Op: "LIKE BINARY"})
+}
+
+func renderFuncEndsWithBinary(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeEndsWith, Op: "LIKE BINARY"})
+}
+
+func renderFuncLikeBinary(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeRaw(rc, fn, render.LikeRawOpts{Op: "LIKE BINARY"})
+}
