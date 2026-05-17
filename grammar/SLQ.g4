@@ -158,6 +158,14 @@ funcName
 	| 'schema'
 	| 'catalog'
 	| 'rownum'
+	| 'contains'
+	| 'startswith'
+	| 'endswith'
+	| 'icontains'
+	| 'istartswith'
+	| 'iendswith'
+	| 'like'
+	| 'ilike'
 	| PROPRIETARY_FUNC_NAME
   ;
 

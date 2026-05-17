@@ -3,6 +3,8 @@ package clickhouse
 import (
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/ast"
+	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/schema"
@@ -220,4 +222,102 @@ func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
 	}
 
 	return sb.String(), nil
+}
+
+// renderFuncContains renders SLQ's contains(col, "lit") using ClickHouse's
+// native position() function. ClickHouse doesn't support LIKE ... ESCAPE,
+// so we bypass LIKE entirely. position(haystack, needle) returns the
+// 1-based position of needle in haystack, or 0 if not found, and it
+// performs a case-sensitive literal (non-pattern) match — no escaping
+// of % or _ is needed.
+func renderFuncContains(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	colSQL, lit, err := render.ParseLikeArgs(rc, fn)
+	if err != nil {
+		return "", err
+	}
+	return "position(" + colSQL + ", " + stringz.SingleQuote(lit) + ") > 0", nil
+}
+
+// renderFuncStartsWith renders SLQ's startswith(col, "lit") using
+// ClickHouse's native startsWith() function. The function takes literal
+// strings rather than LIKE patterns, so no wildcard escaping is needed.
+func renderFuncStartsWith(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	colSQL, lit, err := render.ParseLikeArgs(rc, fn)
+	if err != nil {
+		return "", err
+	}
+	return "startsWith(" + colSQL + ", " + stringz.SingleQuote(lit) + ")", nil
+}
+
+// renderFuncEndsWith renders SLQ's endswith(col, "lit") using ClickHouse's
+// native endsWith() function. The function takes literal strings rather
+// than LIKE patterns, so no wildcard escaping is needed.
+func renderFuncEndsWith(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	colSQL, lit, err := render.ParseLikeArgs(rc, fn)
+	if err != nil {
+		return "", err
+	}
+	return "endsWith(" + colSQL + ", " + stringz.SingleQuote(lit) + ")", nil
+}
+
+// renderFuncIContains renders SLQ's icontains(col, "lit") using
+// ClickHouse's case-insensitive positionCaseInsensitive function.
+// Literal pattern is bound as-is; % and _ have no special meaning.
+func renderFuncIContains(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	colSQL, lit, err := render.ParseLikeArgs(rc, fn)
+	if err != nil {
+		return "", err
+	}
+	return "positionCaseInsensitive(" + colSQL + ", " + stringz.SingleQuote(lit) + ") > 0", nil
+}
+
+// renderFuncIStartsWith uses startsWithCaseInsensitive. ClickHouse
+// returns FALSE for startsWithCaseInsensitive(col, empty-string) on
+// any non-NULL column (unlike positionCaseInsensitive(col, empty-string)
+// > 0, which returns TRUE). To preserve the cross-driver invariant that
+// an empty pattern matches every non-NULL row, and to keep NULL
+// propagation symmetric across the matchers under negation, emit
+// length(col) >= 0 as a NULL-propagating always-true expression
+// when the literal is empty.
+func renderFuncIStartsWith(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	colSQL, lit, err := render.ParseLikeArgs(rc, fn)
+	if err != nil {
+		return "", err
+	}
+	if lit == "" {
+		return "length(" + colSQL + ") >= 0", nil
+	}
+	return "startsWithCaseInsensitive(" + colSQL + ", " + stringz.SingleQuote(lit) + ")", nil
+}
+
+// renderFuncIEndsWith uses endsWithCaseInsensitive. ClickHouse
+// returns FALSE for endsWithCaseInsensitive(col, empty-string) on
+// any non-NULL column (unlike positionCaseInsensitive(col, empty-string)
+// > 0, which returns TRUE). To preserve the cross-driver invariant that
+// an empty pattern matches every non-NULL row, and to keep NULL
+// propagation symmetric across the matchers under negation, emit
+// length(col) >= 0 as a NULL-propagating always-true expression
+// when the literal is empty.
+func renderFuncIEndsWith(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	colSQL, lit, err := render.ParseLikeArgs(rc, fn)
+	if err != nil {
+		return "", err
+	}
+	if lit == "" {
+		return "length(" + colSQL + ") >= 0", nil
+	}
+	return "endsWithCaseInsensitive(" + colSQL + ", " + stringz.SingleQuote(lit) + ")", nil
+}
+
+// renderFuncLike uses ClickHouse's native LIKE. ClickHouse's LIKE
+// does not support an ESCAPE clause, so RenderLikeRaw is called
+// with OmitEscape=true.
+func renderFuncLike(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeRaw(rc, fn, render.LikeRawOpts{OmitEscape: true})
+}
+
+// renderFuncILike uses ClickHouse's native ILIKE. Like LIKE, ILIKE
+// does not support ESCAPE.
+func renderFuncILike(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	return render.RenderLikeRaw(rc, fn, render.LikeRawOpts{Op: "ILIKE", OmitEscape: true})
 }
