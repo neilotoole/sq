@@ -689,6 +689,23 @@ func TestQuery_string_like(t *testing.T) {
 			wantRecCount: 0,
 		},
 		{
+			// Pin the SQL shape for `|` in the pattern. The engine reserves
+			// `|` as the ESCAPE character on every driver except ClickHouse,
+			// which omits the ESCAPE clause entirely. Runtime behavior of
+			// a bare `|` diverges (silently dropped on lenient drivers,
+			// "invalid escape sequence" runtime error on Postgres/Oracle),
+			// so we don't exec — see the v1-limitation note in the docs.
+			name:    "like/escape-char-in-pattern-pins-shape",
+			in:      `@sakila | .actor | where(like(.first_name, "a|b"))`,
+			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE 'a|b' ESCAPE '|'`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY 'a|b' ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE 'a|b' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` LIKE 'a|b'",
+			},
+			skipExec: true,
+		},
+		{
 			name:            "like/wrong-arg-count",
 			in:              `@sakila | .actor | where(like(.first_name))`,
 			wantErrContains: "like() requires exactly 2 arguments",
