@@ -608,6 +608,19 @@ func TestQuery_string_iendswith(t *testing.T) {
 			wantRecCount: 0,
 		},
 		{
+			// ClickHouse companion to the SQLite NULL test above. On ClickHouse,
+			// iendswith(.col, "") emits `length(col) >= 0`, which evaluates as
+			// TRUE for non-NULL rows and NULL-propagates (NULL >= 0 = NULL,
+			// filtered out by WHERE) for NULL rows. Sakila's ClickHouse address
+			// table has 599 non-NULL address2 values, so the empty-pattern query
+			// returns exactly those — proving NULL doesn't leak as TRUE under
+			// the `length(col) >= 0` guard.
+			name:         "iendswith/null-column-empty-pattern-propagates-null-ch",
+			in:           `@sakila | .address | where(iendswith(.address2, ""))`,
+			onlyFor:      []drivertype.Type{drivertype.ClickHouse},
+			wantRecCount: 599,
+		},
+		{
 			name:            "iendswith/wrong-arg-count",
 			in:              `@sakila | .actor | where(iendswith(.last_name))`,
 			wantErrContains: "iendswith() requires exactly 2 arguments",

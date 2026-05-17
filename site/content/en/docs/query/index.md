@@ -990,6 +990,8 @@ need portable literal-substring matching.
 so on SQLite `like` behaves the same as [`ilike`](#ilike) for ASCII
 input. This matches SQLite's standard semantics rather than
 overriding them globally via `PRAGMA case_sensitive_like`.
+Non-ASCII characters are not case-folded unless the ICU extension is
+loaded — same caveat as [`icontains`](#icontains).
 
 **v1 limitation — engine escape character:** every driver except
 ClickHouse emits a trailing `ESCAPE '|'` clause, reserving `|` as the
