@@ -609,3 +609,98 @@ func TestQuery_string_iendswith(t *testing.T) {
 		})
 	}
 }
+
+//nolint:exhaustive,lll
+func TestQuery_string_like(t *testing.T) {
+	testCases := []queryTestCase{
+		{
+			// Basic wildcard prefix matches 4 PENELOPE rows on all CS
+			// drivers. On SQLite (ASCII-CI), the same query matches the
+			// same 4 rows (see SQLite-quirk pair test below).
+			name:    "like/wildcard-prefix-uppercase",
+			in:      `@sakila | .actor | where(like(.first_name, "PEN%"))`,
+			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE 'PEN%' ESCAPE '|'`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY 'PEN%' ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE 'PEN%' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` LIKE 'PEN%'",
+			},
+			wantRecCount: 4,
+		},
+		{
+			// Pair test: lowercase prefix on CS drivers returns 0 rows
+			// (data is stored UPPERCASE). On SQLite, the same query
+			// matches 4 rows because SQLite's LIKE is ASCII-CI by default
+			// — a documented quirk where `like` on SQLite behaves like
+			// `ilike` on other drivers.
+			name:    "like/wildcard-prefix-lowercase-cs-no-match",
+			in:      `@sakila | .actor | where(like(.first_name, "pen%"))`,
+			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE 'pen%' ESCAPE '|'`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY 'pen%' ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE 'pen%' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` LIKE 'pen%'",
+				// SQLite is ASCII-CI by default; matches all 4 PENELOPEs.
+				drivertype.SQLite: `SELECT * FROM "actor" WHERE "first_name" LIKE 'pen%' ESCAPE '|'`,
+			},
+			// Asserts SQL shape only because driver-specific row counts
+			// diverge (4 on SQLite, 0 on the rest). The SQLite
+			// ASCII-CI quirk is asserted in its own test below.
+			skipExec: true,
+		},
+		{
+			// SQLite-specific quirk: `like` is ASCII-CI by default, so
+			// a lowercase pattern matches uppercase data.
+			name:         "like/sqlite-ascii-ci-quirk",
+			in:           `@sakila | .actor | where(like(.first_name, "pen%"))`,
+			wantSQL:      `SELECT * FROM "actor" WHERE "first_name" LIKE 'pen%' ESCAPE '|'`,
+			onlyFor:      []drivertype.Type{drivertype.SQLite},
+			wantRecCount: 4,
+		},
+		{
+			// User-controlled `_` wildcard (single-char wildcard).
+			// PENELOPE is 8 chars; pattern is `P_N_____` -> 7 underscores
+			// after P_N... actually use a cleaner example: `PEN_LOPE`
+			// (1 underscore in position 4) matches PENELOPE.
+			name:    "like/single-char-wildcard",
+			in:      `@sakila | .actor | where(like(.first_name, "PEN_LOPE"))`,
+			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE 'PEN_LOPE' ESCAPE '|'`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY 'PEN_LOPE' ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE 'PEN_LOPE' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` LIKE 'PEN_LOPE'",
+			},
+			wantRecCount: 4,
+		},
+		{
+			// Empty pattern matches only empty strings (real LIKE
+			// semantics), unlike contains/icontains which match every
+			// non-NULL row. Sakila has no empty first_names → 0 rows.
+			name:    "like/empty-pattern-matches-empty-strings-only",
+			in:      `@sakila | .actor | where(like(.first_name, ""))`,
+			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE '' ESCAPE '|'`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY '' ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE '' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` LIKE ''",
+			},
+			wantRecCount: 0,
+		},
+		{
+			name:            "like/wrong-arg-count",
+			in:              `@sakila | .actor | where(like(.first_name))`,
+			wantErrContains: "like() requires exactly 2 arguments",
+		},
+		{
+			name:            "like/non-literal-pattern",
+			in:              `@sakila | .actor | where(like(.first_name, .last_name))`,
+			wantErrContains: "like() second argument must be a string literal",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			execQueryTestCase(t, tc)
+		})
+	}
+}
