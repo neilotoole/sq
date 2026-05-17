@@ -518,3 +518,94 @@ func TestQuery_string_istartswith(t *testing.T) {
 		})
 	}
 }
+
+//nolint:exhaustive,lll
+func TestQuery_string_iendswith(t *testing.T) {
+	testCases := []queryTestCase{
+		{
+			// Pair test: lowercase suffix matches 9 sakila last_names
+			// (JACKSON, JOHANSSON, NEESON, …) despite storage being UPPERCASE.
+			name:    "iendswith/case-insensitive-lowercase-match",
+			in:      `@sakila | .actor | where(iendswith(.last_name, "son"))`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("last_name") LIKE LOWER('%son') ESCAPE '|'`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "last_name" ILIKE '%son' ESCAPE '|'`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "last_name" ILIKE '%son' ESCAPE '|'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "last_name" LIKE '%son' ESCAPE '|'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`last_name`) LIKE LOWER('%son') ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "last_name" COLLATE Latin1_General_CI_AS LIKE '%son' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE endsWithCaseInsensitive(`last_name`, 'son')",
+			},
+			wantRecCount: 9,
+		},
+		{
+			// Pair test: uppercase suffix matches the same 9 rows.
+			name:    "iendswith/case-insensitive-uppercase-match",
+			in:      `@sakila | .actor | where(iendswith(.last_name, "SON"))`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("last_name") LIKE LOWER('%SON') ESCAPE '|'`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "last_name" ILIKE '%SON' ESCAPE '|'`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "last_name" ILIKE '%SON' ESCAPE '|'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "last_name" LIKE '%SON' ESCAPE '|'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`last_name`) LIKE LOWER('%SON') ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "last_name" COLLATE Latin1_General_CI_AS LIKE '%SON' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE endsWithCaseInsensitive(`last_name`, 'SON')",
+			},
+			wantRecCount: 9,
+		},
+		{
+			// Pair test: suffix that exists nowhere returns 0 rows.
+			name:         "iendswith/no-match",
+			in:           `@sakila | .actor | where(iendswith(.last_name, "xyzzy"))`,
+			wantRecCount: 0,
+		},
+		{
+			// Escape semantics still apply (_ is auto-escaped).
+			name:    "iendswith/escapes-underscore",
+			in:      `@sakila | .actor | where(iendswith(.first_name, "_x"))`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER('%|_x') ESCAPE '|'`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE '%|_x' ESCAPE '|'`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE '%|_x' ESCAPE '|'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE '%|_x' ESCAPE '|'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER('%|_x') ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE '%|_x' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE endsWithCaseInsensitive(`first_name`, '_x')",
+			},
+			wantRecCount: 0,
+		},
+		{
+			// Empty pattern matches every non-NULL row. ClickHouse special-cases
+			// this to `IS NOT NULL` because endsWithCaseInsensitive(col, '')
+			// returns false in ClickHouse (unlike the case-sensitive endsWith).
+			name:    "iendswith/empty-pattern-matches-all",
+			in:      `@sakila | .actor | where(iendswith(.last_name, ""))`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("last_name") LIKE LOWER('%') ESCAPE '|'`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "last_name" ILIKE '%' ESCAPE '|'`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "last_name" ILIKE '%' ESCAPE '|'`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "last_name" LIKE '%' ESCAPE '|'`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`last_name`) LIKE LOWER('%') ESCAPE '|'",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "last_name" COLLATE Latin1_General_CI_AS LIKE '%' ESCAPE '|'`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `last_name` IS NOT NULL",
+			},
+			wantRecCount: 200,
+		},
+		{
+			name:            "iendswith/wrong-arg-count",
+			in:              `@sakila | .actor | where(iendswith(.last_name))`,
+			wantErrContains: "iendswith() requires exactly 2 arguments",
+		},
+		{
+			name:            "iendswith/non-literal-pattern",
+			in:              `@sakila | .actor | where(iendswith(.last_name, .first_name))`,
+			wantErrContains: "iendswith() second argument must be a string literal",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			execQueryTestCase(t, tc)
+		})
+	}
+}

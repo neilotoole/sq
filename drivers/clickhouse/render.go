@@ -272,7 +272,7 @@ func renderFuncIContains(rc *render.Context, fn *ast.FuncNode) (string, error) {
 }
 
 // renderFuncIStartsWith uses startsWithCaseInsensitive. An empty prefix
-// always matches, so the empty-literal case emits a literal true (1).
+// always matches, so the empty-literal case emits col IS NOT NULL.
 func renderFuncIStartsWith(rc *render.Context, fn *ast.FuncNode) (string, error) {
 	colSQL, lit, err := render.ParseLikeArgs(rc, fn)
 	if err != nil {
@@ -284,11 +284,15 @@ func renderFuncIStartsWith(rc *render.Context, fn *ast.FuncNode) (string, error)
 	return "startsWithCaseInsensitive(" + colSQL + ", " + stringz.SingleQuote(lit) + ")", nil
 }
 
-// renderFuncIEndsWith uses endsWithCaseInsensitive.
+// renderFuncIEndsWith uses endsWithCaseInsensitive. An empty suffix
+// always matches, so the empty-literal case emits col IS NOT NULL.
 func renderFuncIEndsWith(rc *render.Context, fn *ast.FuncNode) (string, error) {
 	colSQL, lit, err := render.ParseLikeArgs(rc, fn)
 	if err != nil {
 		return "", err
+	}
+	if lit == "" {
+		return colSQL + " IS NOT NULL", nil
 	}
 	return "endsWithCaseInsensitive(" + colSQL + ", " + stringz.SingleQuote(lit) + ")", nil
 }
