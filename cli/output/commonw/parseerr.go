@@ -47,12 +47,16 @@ func RenderParseError(w io.Writer, pr *output.Printing, pe *ast.ParseError) {
 		// Compute span within srcLine.
 		start, stop := spanWithinLine(srcLine, iss)
 
+		// srcLine is sliced as runes because StartChar/StopChar are rune
+		// indices (ANTLR-go InputStream uses []rune internally).
+		srcRunes := []rune(srcLine)
+
 		// Emit the input line, hiliting the offending span if we have one.
 		fmt.Fprint(w, "  ")
-		if start >= 0 && stop >= start && stop <= len(srcLine) {
-			fmt.Fprint(w, srcLine[:start])
-			pr.ErrorHilite.Fprint(w, srcLine[start:stop])
-			fmt.Fprint(w, srcLine[stop:])
+		if start >= 0 && stop >= start && stop <= len(srcRunes) {
+			fmt.Fprint(w, string(srcRunes[:start]))
+			pr.ErrorHilite.Fprint(w, string(srcRunes[start:stop]))
+			fmt.Fprint(w, string(srcRunes[stop:]))
 		} else {
 			fmt.Fprint(w, srcLine)
 		}
@@ -73,43 +77,41 @@ func RenderParseError(w io.Writer, pr *output.Printing, pe *ast.ParseError) {
 	}
 }
 
-// spanWithinLine returns the [start, stop) byte offsets within srcLine
+// spanWithinLine returns the [start, stop) rune offsets within srcLine
 // that the issue's offending span covers. Returns (-1, -1) when the
 // span isn't available.
 //
-// StartChar/StopChar are 0-based absolute offsets into the full input;
-// for a single-line SLQ query they translate directly to offsets in
-// srcLine. For multi-line input we fall back to iss.Col + len(iss.Token).
+// StartChar/StopChar are 0-based absolute rune offsets into the full
+// input (ANTLR-go InputStream stores input as []rune). For a single-line
+// SLQ query they translate directly to offsets in srcLine. For multi-line
+// input we fall back to iss.Col + rune-length of iss.Token.
 func spanWithinLine(srcLine string, iss ast.ParseIssue) (start, stop int) {
+	srcRunes := []rune(srcLine)
 	if iss.StartChar < 0 {
 		// No token info — derive from Col.
-		if iss.Col < 0 || iss.Col > len(srcLine) {
+		if iss.Col < 0 || iss.Col > len(srcRunes) {
 			return -1, -1
 		}
 		// Highlight one character at Col if no token text.
-		end := iss.Col + len(iss.Token)
+		tokenRunes := len([]rune(iss.Token))
+		end := iss.Col + tokenRunes
 		if end == iss.Col {
 			end = iss.Col + 1
 		}
-		if end > len(srcLine) {
-			end = len(srcLine)
-		}
+		end = min(end, len(srcRunes))
 		return iss.Col, end
 	}
 
-	// Single-line input is the common case.
-	if !strings.ContainsRune(srcLine, '\n') &&
-		iss.StartChar <= len(srcLine) && iss.StopChar < len(srcLine) {
+	// Single-line common case: absolute offsets fall within this line.
+	if iss.StartChar <= len(srcRunes) && iss.StopChar < len(srcRunes) {
 		return iss.StartChar, iss.StopChar + 1
 	}
 
 	// Multi-line fallback.
-	if iss.Col < 0 || iss.Col > len(srcLine) {
+	if iss.Col < 0 || iss.Col > len(srcRunes) {
 		return -1, -1
 	}
-	end := iss.Col + len(iss.Token)
-	if end > len(srcLine) {
-		end = len(srcLine)
-	}
+	end := iss.Col + len([]rune(iss.Token))
+	end = min(end, len(srcRunes))
 	return iss.Col, end
 }
