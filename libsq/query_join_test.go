@@ -428,6 +428,26 @@ func TestQuery_join_cross_source_same_table_name(t *testing.T) {
 	}
 }
 
+// TestQuery_join_cross_source_duplicate_user_alias asserts that two
+// user-supplied table aliases that collide in a cross-source join are
+// rejected with a clear error before any scratch-DB work runs, rather
+// than surfacing later as an opaque CREATE TABLE failure attributed to
+// the internal @join_<x> handle. Pins the contract introduced alongside
+// the #445 fix.
+func TestQuery_join_cross_source_duplicate_user_alias(t *testing.T) {
+	t.Parallel()
+
+	q := fmt.Sprintf(
+		`%s | .actor:foo | join(%s.actor:foo, .foo.actor_id == .foo.actor_id) | .first_name`,
+		sakila.SL3, sakila.SL3Whitespace,
+	)
+
+	th := testh.New(t)
+	_, err := th.QuerySLQ(q, nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "duplicate table alias")
+}
+
 // TestQuery_table_alias is tested with the joins, because table aliases
 // are primarily for use with join.
 //

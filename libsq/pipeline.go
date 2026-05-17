@@ -389,42 +389,38 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 	//   - User aliases are sacrosanct. Two colliding user aliases are a
 	//     user error and rejected up front.
 	//   - Each unaliased participant tries to claim its bare table name;
-	//     the first occurrence wins it, unless a user alias elsewhere
-	//     already claimed that name.
+	//     the first unaliased occurrence encountered wins it, unless a
+	//     user alias elsewhere already claimed that name.
 	//   - The remaining unaliased participants get a synthesized
 	//     numeric-suffixed alias (name_2, name_3, ...) picked to be
 	//     unique against every other destination in use, including any
 	//     pre-existing name that happens to match a generated suffix.
-	userAlias := map[string]bool{}
+	used := map[string]bool{}
 	for _, tbl := range tbls {
 		if tbl.Alias() == "" {
 			continue
 		}
-		if userAlias[tbl.Alias()] {
+		if used[tbl.Alias()] {
 			return "", nil, errz.Errorf("cross-source join: duplicate table alias %q", tbl.Alias())
 		}
-		userAlias[tbl.Alias()] = true
+		used[tbl.Alias()] = true
 	}
+	// keepsBare keys nodes by pointer identity; relies on jc.tables()
+	// returning the same *ast.TblSelectorNode instances across the loops
+	// below.
 	keepsBare := map[*ast.TblSelectorNode]bool{}
-	bareTaken := map[string]bool{}
 	for _, tbl := range tbls {
 		if tbl.Alias() != "" {
 			continue
 		}
 		name := tbl.Table().Table
-		if userAlias[name] || bareTaken[name] {
+		if used[name] {
 			continue
 		}
-		bareTaken[name] = true
+		used[name] = true
 		keepsBare[tbl] = true
 	}
-	used := map[string]bool{}
-	for name := range userAlias {
-		used[name] = true
-	}
-	for name := range bareTaken {
-		used[name] = true
-	}
+	log := lg.FromContext(ctx)
 	for _, tbl := range tbls {
 		if tbl.Alias() != "" || keepsBare[tbl] {
 			continue
@@ -438,8 +434,8 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 		}
 		used[candidate] = true
 		tbl.SetAlias(candidate)
-		lg.FromContext(ctx).Debug("Synthesized cross-source join alias to avoid table-name collision",
-			lga.From, name, lga.To, candidate)
+		log.Debug("Synthesized cross-source join alias to avoid table-name collision",
+			lga.Handle, tbl.Handle(), lga.From, name, lga.To, candidate)
 	}
 
 	for _, tbl := range tbls {
