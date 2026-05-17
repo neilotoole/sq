@@ -20,9 +20,15 @@ by [Neil O'Toole](https://github.com/neilotoole).
 
 ## SLQ
 
-`SLQ` is the formal name of `sq`'s query language, similar to [jq](https://jqlang.github.io/jq/)'s syntax.
-The [Antlr](https://www.antlr.org) grammar
+`SLQ` is the formal name of `sq`'s [query](/docs/query) language, similar to
+[jq](https://jqlang.github.io/jq/)'s syntax. The [Antlr](https://www.antlr.org) grammar
 is available on [GitHub](https://github.com/neilotoole/sq/tree/master/grammar).
+Ultimately, `SLQ` is transpiled to SQL, which is executed against the target
+data source.
+
+{{< alert icon="👉" >}}
+Use [`--render-sql`](/docs/cmd/sq#render-sql) to preview the SQL.
+{{< /alert >}}
 
 ## Source
 
@@ -170,14 +176,14 @@ but some drivers don't support the catalog mechanism. Here's a summary:
 
 <a name="catalog-schema-support"></a>
 
-| Driver | Default schema | Catalog support? |
-| --- | --- | --- |
-| [Postgres](/docs/drivers/postgres) | `public` | Yes |
-| [SQLite](/docs/drivers/sqlite) | `main` | No |
-| [MySQL](/docs/drivers/mysql) | Connection-dependent | [No](https://dev.mysql.com/doc/connector-odbc/en/connector-odbc-usagenotes-functionality-catalog-schema.html) |
-| [SQL server](/docs/drivers/sqlserver) | `dbo` | Yes |
-| [ClickHouse](/docs/drivers/clickhouse) | `default` | Yes |
-| [Oracle](/docs/drivers/oracle) | Connected user | Read-only (`catalog()` returns the PDB / `DB_NAME`; not switchable at runtime — reconnect via a different service name) |
+| Driver                                 | Default schema       | Catalog support?                                                                                                        |
+|----------------------------------------|----------------------|-------------------------------------------------------------------------------------------------------------------------|
+| [Postgres](/docs/drivers/postgres)     | `public`             | Yes                                                                                                                     |
+| [SQLite](/docs/drivers/sqlite)         | `main`               | No                                                                                                                      |
+| [MySQL](/docs/drivers/mysql)           | Connection-dependent | [No](https://dev.mysql.com/doc/connector-odbc/en/connector-odbc-usagenotes-functionality-catalog-schema.html)           |
+| [SQL server](/docs/drivers/sqlserver)  | `dbo`                | Yes                                                                                                                     |
+| [ClickHouse](/docs/drivers/clickhouse) | `default`            | Yes                                                                                                                     |
+| [Oracle](/docs/drivers/oracle)         | Connected user       | Read-only (`catalog()` returns the PDB / `DB_NAME`; not switchable at runtime — reconnect via a different service name) |
 
 The SLQ functions [`schema()`](/docs/query#schema) and [`catalog()`](/docs/query#catalog) return
 the schema and catalog of the active source. See the docs for details of how each driver implements
