@@ -211,10 +211,7 @@ func TestRenderParseError_MutesStringQuotes(t *testing.T) {
 	// escape codes (proving we emit the quotes and the inner content with
 	// different colors). Use generous slack to capture all SGR codes for
 	// the surrounding quote characters.
-	regionEnd := innerIdx + len(".first_name") + 64 // slack for closing quote SGR codes
-	if regionEnd > len(out) {
-		regionEnd = len(out)
-	}
+	regionEnd := min(innerIdx+len(".first_name")+64, len(out)) // slack for closing quote SGR codes
 	region := out[max(0, innerIdx-64):regionEnd]
 	// Extract the SGR-code substring of pr.Faint and pr.String (between
 	// the `\x1b[` prefix and the `m` terminator).
