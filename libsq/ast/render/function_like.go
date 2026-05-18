@@ -69,6 +69,36 @@ func buildLikePattern(s string, mode LikeMode, extraMeta string) string {
 	}
 }
 
+// parseLikeColArg is the shared LHS parser for the LIKE-family
+// arg-validation helpers. It checks the arg count, renders the first
+// argument (which must be a column selector), and returns the raw RHS
+// child node for the caller to unwrap and dispatch on. The two callers
+// (ParseLikeArgs and ParseLikePatternArgs) have different RHS contracts,
+// so RHS handling stays in each caller.
+//
+// SLQ parses function arguments as expression trees, so each child is
+// typically wrapped in an *ast.ExprNode. NodeUnwrap peels those
+// single-child wrappers to reach the underlying selector / literal
+// leaves; nodes with internal branching are rejected.
+func parseLikeColArg(rc *Context, fn *ast.FuncNode) (colSQL string, rhsChild ast.Node, err error) {
+	children := fn.Children()
+	if len(children) != 2 {
+		return "", nil, errz.Errorf(
+			"%s() requires exactly 2 arguments (column, pattern), got %d",
+			fn.FuncName(), len(children))
+	}
+	colNode, ok := ast.NodeUnwrap[ast.Node](children[0])
+	if !ok {
+		return "", nil, errz.Errorf(
+			"%s() first argument must be a column selector", fn.FuncName())
+	}
+	colSQL, err = renderSelectorNode(rc.Dialect, colNode)
+	if err != nil {
+		return "", nil, errz.Wrapf(err, "%s() first argument", fn.FuncName())
+	}
+	return colSQL, children[1], nil
+}
+
 // ParseLikeArgs validates the shape of a substring-matching function call
 // (contains/startswith/endswith and their case-insensitive companions)
 // and returns the rendered column SQL and the unquoted literal value.
@@ -79,28 +109,11 @@ func buildLikePattern(s string, mode LikeMode, extraMeta string) string {
 // For like / ilike, which additionally accept a column selector as the
 // second argument, use [ParseLikePatternArgs].
 func ParseLikeArgs(rc *Context, fn *ast.FuncNode) (colSQL, literal string, err error) {
-	children := fn.Children()
-	if len(children) != 2 {
-		return "", "", errz.Errorf(
-			"%s() requires exactly 2 arguments (column, pattern), got %d",
-			fn.FuncName(), len(children))
-	}
-
-	// SLQ parses function arguments as expression trees, so each child is
-	// typically wrapped in an *ast.ExprNode. Peel through single-child
-	// wrappers to reach the underlying selector and literal leaves; reject
-	// anything with internal branching.
-	colNode, ok := ast.NodeUnwrap[ast.Node](children[0])
-	if !ok {
-		return "", "", errz.Errorf(
-			"%s() first argument must be a column selector", fn.FuncName())
-	}
-	colSQL, err = renderSelectorNode(rc.Dialect, colNode)
+	colSQL, rhsChild, err := parseLikeColArg(rc, fn)
 	if err != nil {
-		return "", "", errz.Wrapf(err, "%s() first argument", fn.FuncName())
+		return "", "", err
 	}
-
-	litNode, ok := ast.NodeUnwrap[*ast.LiteralNode](children[1])
+	litNode, ok := ast.NodeUnwrap[*ast.LiteralNode](rhsChild)
 	if !ok {
 		return "", "", errz.Errorf(
 			"%s() second argument must be a string literal", fn.FuncName())
@@ -128,24 +141,11 @@ func ParseLikeArgs(rc *Context, fn *ast.FuncNode) (colSQL, literal string, err e
 // second-argument node type at parse time. Exported for use by
 // driver-specific overrides.
 func ParseLikePatternArgs(rc *Context, fn *ast.FuncNode) (colSQL, rhsSQL string, err error) {
-	children := fn.Children()
-	if len(children) != 2 {
-		return "", "", errz.Errorf(
-			"%s() requires exactly 2 arguments (column, pattern), got %d",
-			fn.FuncName(), len(children))
-	}
-
-	colNode, ok := ast.NodeUnwrap[ast.Node](children[0])
-	if !ok {
-		return "", "", errz.Errorf(
-			"%s() first argument must be a column selector", fn.FuncName())
-	}
-	colSQL, err = renderSelectorNode(rc.Dialect, colNode)
+	colSQL, rhsChild, err := parseLikeColArg(rc, fn)
 	if err != nil {
-		return "", "", errz.Wrapf(err, "%s() first argument", fn.FuncName())
+		return "", "", err
 	}
-
-	rhsNode, ok := ast.NodeUnwrap[ast.Node](children[1])
+	rhsNode, ok := ast.NodeUnwrap[ast.Node](rhsChild)
 	if !ok {
 		return "", "", errz.Errorf(
 			"%s() second argument must be a string literal or column selector",

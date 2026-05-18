@@ -38,9 +38,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   `where(like(.events.message, .rules.pattern))`. NULL values on
   the RHS yield NULL from `LIKE`, which `WHERE` treats as false
   (standard SQL semantics). The [`contains`](https://sq.io/docs/query#contains)
-  family stays literal-only by design: its auto-escape of wildcards
-  in the user pattern cannot be performed when the pattern is
-  resolved at execution time.
+  family stays literal-only: its render-time auto-escape of `%`/`_`
+  in the user pattern doesn't extend to a runtime column value, and
+  the per-driver SQL-level escaping that would replace it is out of
+  scope for v1.
 
 ### Changed
 

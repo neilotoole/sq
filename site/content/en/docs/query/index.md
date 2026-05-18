@@ -1034,9 +1034,11 @@ false (row excluded); this matches standard SQL semantics. Wildcards
 pattern — they are not auto-escaped, since the value isn't known
 until execution.
 
-The [`contains`](#contains) family stays literal-only by design: its
-auto-escape of wildcards in the user pattern can't be performed when
-the pattern is a column reference resolved at query time.
+The [`contains`](#contains) family stays literal-only by design. Its
+auto-escape of wildcards in the user pattern is performed at SLQ-render
+time over a known string; extending it to a column RHS would require
+emitting per-driver SQL-level escaping (e.g. nested `REPLACE` chains)
+that's out of scope for v1.
 
 ### `max`
 

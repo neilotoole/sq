@@ -776,6 +776,24 @@ func TestQuery_string_like(t *testing.T) {
 			wantRecCount: 0,
 		},
 		{
+			// Positive-match column-RHS: every row matches itself. No
+			// wildcards, so plain LIKE is an exact match — and a row's
+			// first_name is always exactly equal to its own first_name
+			// → all 200 sakila actors match on every driver. Catches
+			// regressions where column-RHS renders syntactically valid
+			// SQL but evaluates false for every row (which the 0-row
+			// tests above could not distinguish from "feature broken").
+			name:    "like/column-rhs-self-reference-matches-all",
+			in:      `@sakila | .actor | where(like(.first_name, .first_name))`,
+			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE "first_name"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY `first_name`",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE "first_name"`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` LIKE `first_name`",
+			},
+			wantRecCount: 200,
+		},
+		{
 			// Column-as-pattern with table-qualified selectors. Pins
 			// that *ast.TblColSelectorNode renders correctly on the RHS
 			// (not just the LHS, which the literal-pattern tests above
@@ -972,6 +990,25 @@ func TestQuery_string_ilike(t *testing.T) {
 				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` ILIKE `last_name`",
 			},
 			wantRecCount: 0,
+		},
+		{
+			// Positive-match column-RHS for ilike (mirror of the like
+			// equivalent). Every row matches itself case-insensitively
+			// → all 200 actors. Catches the same regression class on
+			// the ILIKE renderer path: column-RHS renders valid SQL
+			// but evaluates false for every row.
+			name:    "ilike/column-rhs-self-reference-matches-all",
+			in:      `@sakila | .actor | where(ilike(.first_name, .first_name))`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER("first_name")`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE "first_name"`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE "first_name"`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE "first_name"`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER(`first_name`)",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE "first_name"`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` ILIKE `first_name`",
+			},
+			wantRecCount: 200,
 		},
 		{
 			// Column-as-pattern with table-qualified selectors for ilike.
