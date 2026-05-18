@@ -98,7 +98,8 @@ check_hugo:
 		HUGO_VERSION=$$(hugo version 2>/dev/null | grep -o 'v[0-9.]*' | head -1); \
 		$(LOGGER) log_info_dim "Hugo $$HUGO_VERSION is installed (system)."; \
 	else \
-		$(LOGGER) log_warning "Hugo not found. Run 'bun install' to install via hugo-installer."; \
+		$(LOGGER) log_error "Hugo not found. Run 'bun install' to install via hugo-installer."; \
+		exit 1; \
 	fi
 
 # Check if Docker is installed (required for Docker targets)

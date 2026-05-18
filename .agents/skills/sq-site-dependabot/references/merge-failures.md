@@ -70,6 +70,8 @@ gh pr merge <n> --squash --delete-branch
 8. `@dependabot rebase` on next PR
 
 Script template: [`../scripts/merge-next.sh`](../scripts/merge-next.sh) (consent-gated).
+Requires `gh pr checkout <n>`, clean tree, passing `gh pr checks` (Layer A), then
+Layer B. Set `ALLOW_DIRTY_TREE=1` only to override the clean-tree guard.
 
 ## Post-batch
 

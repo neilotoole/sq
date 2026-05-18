@@ -14,10 +14,12 @@ This catches failures that `make ci` and stale GitHub checks miss.
 
 ## Prerequisites
 
-1. PR branch checked out; `cd site && make ci` already passed (recommended).
-2. `site/.env` filled from `.env.example` (see
+1. PR branch checked out at **`headRefOid`** (`gh pr checkout <n>`); **clean**
+   working tree (uncommitted `site/` changes validate the wrong tree).
+2. `cd site && make ci` already passed (recommended).
+3. `site/.env` filled from `.env.example` (see
    [tool-bootstrap.md](./tool-bootstrap.md)).
-3. Phase 0: `check-tools.sh --netlify` or `make check-netlify`
+4. Phase 0: `check-tools.sh --netlify` or `make check-netlify`
 
 ## Command
 

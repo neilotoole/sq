@@ -47,11 +47,11 @@ From repository root:
 ```bash
 gh pr list --author 'app/dependabot' --state open \
   --json number,title,headRefName,mergeable,statusCheckRollup \
-  --jq '.[] | select(.title | test("go|gomod|golang"; "i"))'
+  --jq '.[] | select(.headRefName | test("^dependabot/")) | select(.title | test("go|gomod|golang"; "i"))'
 ```
 
-Confirm the PR does **not** only touch `site/`. If it touches both, split
-judgment: site hunks → `sq-site-dependabot`.
+Confirm the PR does **not** only touch `site/` (`gh pr diff <n> --name-only`). If it
+touches both, split judgment: site hunks → `sq-site-dependabot`.
 
 ## Phase 2 — Risk
 

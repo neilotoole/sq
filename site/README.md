@@ -76,6 +76,10 @@ One-shot check matching **Site CI** (`deps` → test → build): `make ci`.
 
 **Netlify deploy-preview validate** (Dependabot Full mode / Layer B):
 
+Check out the **PR branch** at its current head (`gh pr checkout <n>`) with a
+**clean** working tree before validating — Layer B uploads the local `site/`
+tree, not GitHub’s PR ref.
+
 ```bash
 make check-netlify                        # once per machine / after editing site/.env
 export MESSAGE="PR #573 dependabot shx"   # optional

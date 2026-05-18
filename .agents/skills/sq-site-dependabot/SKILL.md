@@ -55,8 +55,11 @@ From repository root:
 ```bash
 gh pr list --author 'app/dependabot' --state open \
   --json number,title,headRefName,mergeable,statusCheckRollup,createdAt \
-  --jq '.[] | select(.headRefName | test("dependabot|site"))'
+  --jq '.[] | select(.headRefName | test("^dependabot/"))'
 ```
+
+Confirm each candidate touches `site/` (`gh pr diff <n> --name-only`). Treat the list as
+**candidates** — refine by path if the filter is too broad.
 
 For each PR:
 
@@ -125,12 +128,16 @@ in the verdict.
 
 Only with explicit user consent per PR or batch.
 
-Template script (sets `CONFIRM_MERGE=1` only after consent):
+Template script (sets `CONFIRM_MERGE=1` only after consent). Checkout the PR
+first; working tree must match `headRefOid` (clean tree, or `ALLOW_DIRTY_TREE=1`):
 
 ```bash
+gh pr checkout 573
 CONFIRM_MERGE=1 PR=573 MESSAGE="dependabot shx" \
   ./.agents/skills/sq-site-dependabot/scripts/merge-next.sh
 ```
+
+`merge-next.sh` enforces Layer A (`gh pr checks`), HEAD = `headRefOid`, then Layer B.
 
 Happy path:
 

@@ -40,7 +40,8 @@ set shell variables — create these two values:
 2. **`NETLIFY_SITE_ID`**
    - [Netlify dashboard](https://app.netlify.com/) → select the **sq.io** site →
      **Site configuration** → **General** → **Site ID** (UUID, not the site URL
-     slug).
+     slug). The CLI may show an internal name such as `sq-web`; the UUID must
+     match this site (badge in [`site/README.md`](../../../../site/README.md)).
    - Or from `site/`: `bun x netlify-cli link` (select the sq.io site), then
      `bun x netlify-cli status` (shows site id).
 
