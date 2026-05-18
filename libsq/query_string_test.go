@@ -169,16 +169,34 @@ func TestQuery_string_contains(t *testing.T) {
 			wantErrContains: "contains() second argument must be a string literal",
 		},
 		{
-			// #640: a 1-arg function around a column is no longer
-			// silently stripped to its inner selector. Pre-#640
-			// `max(.last_name)` walked through to `.last_name` via
-			// NodeUnwrap and produced a different surface error
-			// (selector-when-literal-expected). Post-#640 the wrapper
-			// is preserved as a FuncNode and renderSelectorNode rejects
-			// it with the user-friendly framing. Pins the new behavior
-			// for the contains-family RHS dispatch.
+			// #640: a 1-arg function around the RHS is no longer
+			// silently walked through. With `max(.last_name)` here the
+			// inner leaf is itself non-literal, so the user-visible
+			// error message is the same pre- and post-#640 — what
+			// changed is the dispatch path (pre-#640 the type assertion
+			// failed on `.last_name`; post-#640 it fails on the FuncNode
+			// itself because unwrapExpr stops there). The genuinely
+			// silent-strip case is when the inner leaf IS a literal —
+			// pinned separately by `contains/function-wrapped-literal-rhs-rejected`
+			// below.
 			name:            "contains/function-wrapped-rhs-rejected",
 			in:              `@sakila | .actor | where(contains(.first_name, max(.last_name)))`,
+			wantErrContains: "contains() second argument must be a string literal",
+		},
+		{
+			// #640: the canonical silent-strip pre-fix case. A 1-arg
+			// function around a string literal RHS would have been
+			// walked through by NodeUnwrap[*ast.LiteralNode], reaching
+			// the inner literal and silently accepting it — so
+			// `contains(.first_name, _strftime("X"))` would have
+			// rendered as `... LIKE '%X%' ESCAPE '|'` as if the user
+			// had typed `contains(.first_name, "X")`. Post-#640
+			// unwrapExpr stops at the FuncNode and the literal type
+			// assertion fails. Uses a SLQ PROPRIETARY_FUNC_NAME (which
+			// the grammar admits without arity/type gating) so a real
+			// 1-arg-function-over-literal input is reachable.
+			name:            "contains/function-wrapped-literal-rhs-rejected",
+			in:              `@sakila | .actor | where(contains(.first_name, _strftime("X")))`,
 			wantErrContains: "contains() second argument must be a string literal",
 		},
 		{
@@ -864,24 +882,39 @@ func TestQuery_string_like(t *testing.T) {
 		},
 		{
 			// A binary-expression RHS (here, a comparison) is rejected:
-			// the unwrap helper sees branching and the parser surfaces
-			// the expected-shape error. Pins the non-literal-non-selector
-			// branch of the ParseLikePatternArgs RHS dispatch — the
-			// numeric test above only covers the unquoted-literal branch.
+			// unwrapExpr sees branching (>1 children) and stops on the
+			// ExprNode, so the literal type assertion fails and the
+			// selector renderer rejects the ExprNode itself. Pins the
+			// non-literal-non-selector branch of the
+			// ParseLikePatternArgs RHS dispatch — the numeric test
+			// above only covers the unquoted-literal branch.
 			name:            "like/expression-rhs-rejected",
 			in:              `@sakila | .actor | where(like(.first_name, .last_name == .first_name))`,
 			wantErrContains: "like() second argument must be a string literal or column selector",
 		},
 		{
 			// #640: pre-fix, a 1-arg function around a column on the RHS
-			// was silently stripped to the inner selector (so
-			// `like(.first_name, max(.last_name))` rendered as
-			// `LIKE "last_name"`). Post-fix, unwrapExpr stops at the
-			// FuncNode and renderSelectorNode rejects it with the
-			// user-friendly framing. The most consequential regression
-			// guard for the strict-unwrap change.
+			// was silently stripped to the inner selector — so
+			// `like(.first_name, max(.last_name))` rendered the RHS as
+			// a bare column reference to `.last_name`. Post-fix,
+			// unwrapExpr stops at the FuncNode and renderSelectorNode
+			// rejects it with the user-friendly framing. The most
+			// consequential regression guard for the strict-unwrap
+			// change against the column-RHS dispatch.
 			name:            "like/function-wrapped-rhs-rejected",
 			in:              `@sakila | .actor | where(like(.first_name, max(.last_name)))`,
+			wantErrContains: "like() second argument must be a string literal or column selector",
+		},
+		{
+			// #640 mirror for the literal RHS dispatch: pre-fix a 1-arg
+			// function around a string literal was walked through and
+			// the inner literal was silently accepted as the pattern.
+			// Post-fix unwrapExpr stops at the FuncNode and the literal
+			// type assertion fails. Uses a PROPRIETARY_FUNC_NAME
+			// (admitted by the grammar without arity gating) for a
+			// realistic 1-arg-function-over-literal input.
+			name:            "like/function-wrapped-literal-rhs-rejected",
+			in:              `@sakila | .actor | where(like(.first_name, _strftime("X")))`,
 			wantErrContains: "like() second argument must be a string literal or column selector",
 		},
 		{
@@ -1102,10 +1135,19 @@ func TestQuery_string_ilike(t *testing.T) {
 			// #640 mirror: 1-arg function around a column on the RHS is
 			// no longer silently stripped to the inner selector. Pre-fix
 			// `ilike(.first_name, max(.last_name))` would have rendered
-			// as `LIKE LOWER("last_name")` / `ILIKE "last_name"` via
-			// the silent strip.
+			// the RHS as a bare column reference to `.last_name`
+			// (dialect-specific quoting) via the silent strip. Post-fix
+			// unwrapExpr stops at the FuncNode and the renderer rejects.
 			name:            "ilike/function-wrapped-rhs-rejected",
 			in:              `@sakila | .actor | where(ilike(.first_name, max(.last_name)))`,
+			wantErrContains: "ilike() second argument must be a string literal or column selector",
+		},
+		{
+			// #640 mirror of like/function-wrapped-literal-rhs-rejected:
+			// pre-fix a 1-arg function around a string literal was
+			// walked through and the inner literal silently accepted.
+			name:            "ilike/function-wrapped-literal-rhs-rejected",
+			in:              `@sakila | .actor | where(ilike(.first_name, _strftime("X")))`,
 			wantErrContains: "ilike() second argument must be a string literal or column selector",
 		},
 	}

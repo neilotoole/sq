@@ -70,13 +70,18 @@ func buildLikePattern(s string, mode LikeMode, extraMeta string) string {
 }
 
 // unwrapExpr peels nested [*ast.ExprNode] wrappers from node, stopping
-// at the first non-ExprNode (or at any ExprNode with != 1 child).
-// Unlike [ast.NodeUnwrap], this does not walk through user-meaningful
-// nodes like [*ast.FuncNode] or operator nodes — those are returned
-// as-is so the caller can reject them with a clear error rather than
-// silently stripping the wrapper and matching against the inner leaf
-// (see #640).
+// at the first non-ExprNode. An [*ast.ExprNode] with zero or more-than-one
+// children is also returned unchanged (the "!=1 children" cases).
+//
+// Unlike [ast.NodeUnwrap], which walks through any single-child chain
+// regardless of node kind, this stops at user-meaningful nodes like
+// [*ast.FuncNode] so the caller can reject them with a clear error
+// rather than silently stripping the wrapper and matching against the
+// inner leaf (see #640). A nil input is returned unchanged.
 func unwrapExpr(node ast.Node) ast.Node {
+	if node == nil {
+		return node
+	}
 	for {
 		expr, ok := node.(*ast.ExprNode)
 		if !ok {
