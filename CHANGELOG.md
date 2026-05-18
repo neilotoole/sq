@@ -56,6 +56,20 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   [`icontains`](https://sq.io/docs/query#icontains), which auto-escape
   wildcards. The [`contains`](https://sq.io/docs/query#contains)
   family is unchanged and still emits `ESCAPE '|'`.
+- [#640]: The LIKE-family argument parsers
+  ([`contains`](https://sq.io/docs/query#contains) and friends, plus
+  [`like`](https://sq.io/docs/query#like) /
+  [`ilike`](https://sq.io/docs/query#ilike)) no longer silently strip
+  single-arg function or operator wrappers around the column / literal
+  arguments. Pre-#640, an input like `like(.first_name, max(.last_name))`
+  walked through the `max(...)` wrapper and rendered as if the user
+  had written `like(.first_name, .last_name)`. Post-#640, such inputs
+  are rejected with the existing `"must be a string literal [or
+  column selector]"` error message. Only the syntactic `*ast.ExprNode`
+  wrappers SLQ inserts around function arguments are peeled;
+  user-meaningful nodes (`*ast.FuncNode`, operator nodes) are
+  preserved so the parser can reject them with a clear error rather
+  than silently mishandle them.
 
 ### Fixed
 
@@ -1528,6 +1542,7 @@ make working with lots of sources much easier.
 [#615]: https://github.com/neilotoole/sq/issues/615
 [#628]: https://github.com/neilotoole/sq/issues/628
 [#629]: https://github.com/neilotoole/sq/issues/629
+[#640]: https://github.com/neilotoole/sq/issues/640
 
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2

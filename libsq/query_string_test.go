@@ -168,6 +168,29 @@ func TestQuery_string_contains(t *testing.T) {
 			in:              `@sakila | .actor | where(contains(.first_name, .last_name))`,
 			wantErrContains: "contains() second argument must be a string literal",
 		},
+		{
+			// #640: a 1-arg function around a column is no longer
+			// silently stripped to its inner selector. Pre-#640
+			// `max(.last_name)` walked through to `.last_name` via
+			// NodeUnwrap and produced a different surface error
+			// (selector-when-literal-expected). Post-#640 the wrapper
+			// is preserved as a FuncNode and renderSelectorNode rejects
+			// it with the user-friendly framing. Pins the new behavior
+			// for the contains-family RHS dispatch.
+			name:            "contains/function-wrapped-rhs-rejected",
+			in:              `@sakila | .actor | where(contains(.first_name, max(.last_name)))`,
+			wantErrContains: "contains() second argument must be a string literal",
+		},
+		{
+			// #640: a 1-arg function around the column LHS is no longer
+			// silently stripped. parseLikeColArg is shared across all 8
+			// like-family functions, so this single test guards the LHS
+			// dispatch for contains/startswith/endswith and their
+			// i-variants, plus like/ilike.
+			name:            "contains/function-wrapped-lhs-rejected",
+			in:              `@sakila | .actor | where(contains(max(.first_name), "X"))`,
+			wantErrContains: "contains() first argument must be a column selector",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -841,12 +864,24 @@ func TestQuery_string_like(t *testing.T) {
 		},
 		{
 			// A binary-expression RHS (here, a comparison) is rejected:
-			// NodeUnwrap sees branching and the parser surfaces the
-			// expected-shape error. Pins the !ok branch of the
-			// ParseLikePatternArgs RHS dispatch — the numeric test above
-			// only covers the unquoted-literal branch.
+			// the unwrap helper sees branching and the parser surfaces
+			// the expected-shape error. Pins the non-literal-non-selector
+			// branch of the ParseLikePatternArgs RHS dispatch — the
+			// numeric test above only covers the unquoted-literal branch.
 			name:            "like/expression-rhs-rejected",
 			in:              `@sakila | .actor | where(like(.first_name, .last_name == .first_name))`,
+			wantErrContains: "like() second argument must be a string literal or column selector",
+		},
+		{
+			// #640: pre-fix, a 1-arg function around a column on the RHS
+			// was silently stripped to the inner selector (so
+			// `like(.first_name, max(.last_name))` rendered as
+			// `LIKE "last_name"`). Post-fix, unwrapExpr stops at the
+			// FuncNode and renderSelectorNode rejects it with the
+			// user-friendly framing. The most consequential regression
+			// guard for the strict-unwrap change.
+			name:            "like/function-wrapped-rhs-rejected",
+			in:              `@sakila | .actor | where(like(.first_name, max(.last_name)))`,
 			wantErrContains: "like() second argument must be a string literal or column selector",
 		},
 		{
@@ -1061,6 +1096,16 @@ func TestQuery_string_ilike(t *testing.T) {
 			// renderer path.
 			name:            "ilike/expression-rhs-rejected",
 			in:              `@sakila | .actor | where(ilike(.first_name, .last_name == .first_name))`,
+			wantErrContains: "ilike() second argument must be a string literal or column selector",
+		},
+		{
+			// #640 mirror: 1-arg function around a column on the RHS is
+			// no longer silently stripped to the inner selector. Pre-fix
+			// `ilike(.first_name, max(.last_name))` would have rendered
+			// as `LIKE LOWER("last_name")` / `ILIKE "last_name"` via
+			// the silent strip.
+			name:            "ilike/function-wrapped-rhs-rejected",
+			in:              `@sakila | .actor | where(ilike(.first_name, max(.last_name)))`,
 			wantErrContains: "ilike() second argument must be a string literal or column selector",
 		},
 	}
