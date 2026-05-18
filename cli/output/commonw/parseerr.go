@@ -5,6 +5,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/fatih/color"
+
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/ast"
 )
@@ -19,9 +21,12 @@ import (
 //
 //	did you mean '<suggestion>'?  // only if Suggestion is set
 //
-// When pr's colors are enabled, the offending span in the input line
-// is rendered with pr.ErrorHilite. The caret line uses the same
-// underlying color.
+// When pr's colors are enabled, the input line is colorized per-token
+// using sq's standard palette (handle, key, keyword, number, string,
+// punc, etc.), with pr.ErrorHilite overlayed on the offending span.
+// The caret line uses pr.Error.
+//
+// Multi-line input falls back to plain text with hilite overlay only.
 func RenderParseError(w io.Writer, pr *output.Printing, pe *ast.ParseError) {
 	if pe == nil || len(pe.Issues) == 0 {
 		return
@@ -51,14 +56,26 @@ func RenderParseError(w io.Writer, pr *output.Printing, pe *ast.ParseError) {
 		// indices (ANTLR-go InputStream uses []rune internally).
 		srcRunes := []rune(srcLine)
 
-		// Emit the input line, hiliting the offending span if we have one.
+		// Emit the input line. For single-line input we use token-driven
+		// colorization (handle/keyword/number/etc.) with pr.ErrorHilite
+		// overlayed on the offending span. For multi-line input we fall
+		// back to plain text plus hilite, since token positions are global
+		// rune offsets and the line-extraction work for multi-line isn't
+		// implemented yet.
 		fmt.Fprint(w, "  ")
-		if start >= 0 && stop >= start && stop <= len(srcRunes) {
-			fmt.Fprint(w, string(srcRunes[:start]))
-			pr.ErrorHilite.Fprint(w, string(srcRunes[start:stop]))
-			fmt.Fprint(w, string(srcRunes[stop:]))
-		} else {
-			fmt.Fprint(w, srcLine)
+		multiLine := strings.Contains(pe.Input, "\n")
+		switch {
+		case multiLine:
+			if start >= 0 && stop >= start && stop <= len(srcRunes) {
+				fmt.Fprint(w, string(srcRunes[:start]))
+				pr.ErrorHilite.Fprint(w, string(srcRunes[start:stop]))
+				fmt.Fprint(w, string(srcRunes[stop:]))
+			} else {
+				fmt.Fprint(w, srcLine)
+			}
+		default:
+			tokens := ast.Tokenize(pe.Input)
+			renderColorizedLine(w, pr, srcRunes, tokens, start, stop)
 		}
 		fmt.Fprintln(w)
 
@@ -74,6 +91,90 @@ func RenderParseError(w io.Writer, pr *output.Printing, pe *ast.ParseError) {
 			fmt.Fprintln(w)
 			fmt.Fprintf(w, "did you mean '%s'?\n", iss.Suggestion)
 		}
+	}
+}
+
+// colorForKind returns the *color.Color to use when rendering a token
+// of the given kind, or nil if the token should render in default color.
+func colorForKind(pr *output.Printing, kind ast.TokenKind) *color.Color {
+	switch kind {
+	case ast.TokenHandle:
+		return pr.Handle
+	case ast.TokenName:
+		return pr.Key
+	case ast.TokenKeyword:
+		return pr.Bold
+	case ast.TokenNumber:
+		return pr.Number
+	case ast.TokenString:
+		return pr.String
+	case ast.TokenBool:
+		return pr.Bool
+	case ast.TokenNull:
+		return pr.Null
+	case ast.TokenPunc:
+		return pr.Punc
+	case ast.TokenIdentifier, ast.TokenUnknown:
+		// Render in default color (no ANSI codes).
+		return nil
+	}
+	return nil
+}
+
+// renderColorizedLine writes srcRunes to w with per-token coloring from
+// pr's palette, overlaying pr.ErrorHilite on the [hiliteStart, hiliteStop)
+// span. tokens is the result of ast.Tokenize on the full input; only
+// tokens that fall inside [0, len(srcRunes)) are used. Suitable only for
+// single-line input (lineStartOffset == 0).
+func renderColorizedLine(
+	w io.Writer,
+	pr *output.Printing,
+	srcRunes []rune,
+	tokens []ast.Token,
+	hiliteStart, hiliteStop int,
+) {
+	// Build per-rune color map.
+	colors := make([]*color.Color, len(srcRunes))
+	for _, tok := range tokens {
+		c := colorForKind(pr, tok.Kind)
+		if c == nil {
+			continue
+		}
+		// Token positions are rune offsets in the full input; for
+		// single-line use they index directly into srcRunes.
+		hi := tok.Stop
+		if hi >= len(srcRunes) {
+			hi = len(srcRunes) - 1
+		}
+		for i := tok.Start; i <= hi; i++ {
+			if i >= 0 {
+				colors[i] = c
+			}
+		}
+	}
+	// Overlay ErrorHilite for the offending span.
+	if hiliteStart >= 0 && hiliteStop > hiliteStart {
+		end := min(hiliteStop, len(srcRunes))
+		for i := hiliteStart; i < end; i++ {
+			if i >= 0 {
+				colors[i] = pr.ErrorHilite
+			}
+		}
+	}
+	// Walk runs of same color.
+	i := 0
+	for i < len(srcRunes) {
+		j := i + 1
+		for j < len(srcRunes) && colors[j] == colors[i] {
+			j++
+		}
+		segment := string(srcRunes[i:j])
+		if colors[i] != nil {
+			colors[i].Fprint(w, segment)
+		} else {
+			fmt.Fprint(w, segment)
+		}
+		i = j
 	}
 }
 
