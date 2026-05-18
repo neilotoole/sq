@@ -177,23 +177,21 @@ func TestQuery_string_contains(t *testing.T) {
 			// failed on `.last_name`; post-#640 it fails on the FuncNode
 			// itself because unwrapExpr stops there). The genuinely
 			// silent-strip case is when the inner leaf IS a literal —
-			// pinned separately by `contains/function-wrapped-literal-rhs-rejected`
-			// below.
+			// pinned separately by `contains/function-wrapped-literal-rhs-rejected`.
 			name:            "contains/function-wrapped-rhs-rejected",
 			in:              `@sakila | .actor | where(contains(.first_name, max(.last_name)))`,
 			wantErrContains: "contains() second argument must be a string literal",
 		},
 		{
-			// #640: the canonical silent-strip pre-fix case. A 1-arg
-			// function around a string literal RHS would have been
-			// walked through by NodeUnwrap[*ast.LiteralNode], reaching
-			// the inner literal and silently accepting it — so
+			// #640: the canonical silent-strip pre-fix case. Pre-fix a
+			// 1-arg function around a string literal was walked through
+			// and the inner literal silently accepted — so
 			// `contains(.first_name, _strftime("X"))` would have
 			// rendered as `... LIKE '%X%' ESCAPE '|'` as if the user
 			// had typed `contains(.first_name, "X")`. Post-#640
 			// unwrapExpr stops at the FuncNode and the literal type
 			// assertion fails. Uses a SLQ PROPRIETARY_FUNC_NAME (which
-			// the grammar admits without arity/type gating) so a real
+			// the grammar admits without arity gating) so a real
 			// 1-arg-function-over-literal input is reachable.
 			name:            "contains/function-wrapped-literal-rhs-rejected",
 			in:              `@sakila | .actor | where(contains(.first_name, _strftime("X")))`,

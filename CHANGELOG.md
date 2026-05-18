@@ -69,9 +69,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   around function arguments are peeled; user-meaningful nodes (notably
   `*ast.FuncNode`) are preserved so the parser can reject them with a
   clear error rather than silently mishandle them. (Operator wrappers
-  such as `-42` were already rejected by the previous parser via the
-  branching guard — only function wrappers had the silent-strip
-  behavior.)
+  such as `-42` were unaffected — they parse with multiple children at
+  the wrapper, which the previous parser already rejected; only
+  single-arg function wrappers had the silent-strip behavior.)
 
 ### Fixed
 
