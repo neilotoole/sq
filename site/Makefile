@@ -29,7 +29,7 @@
 
 include Common.make
 
-# checkenv.bash from code-red-base (site/scripts/checkenv.bash); validates .env
+# checkenv.bash (site/scripts/checkenv.bash) validates .env via check-env target
 CHECKENV_SCRIPT := ./scripts/checkenv.bash
 
 # -----------------------------------------------------------------------------------------------------------

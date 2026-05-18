@@ -70,8 +70,7 @@ cd site && make check-netlify
 - **Bun:** [bun.sh](https://bun.sh) — pin to `site/netlify.toml` /
   [site-ci.yml](../../../../.github/workflows/site-ci.yml)
 - **Netlify CLI:** `cd site && bun install` (devDependency)
-- **checkenv:** `site/scripts/checkenv.bash` (from
-  [code-red-base](https://github.com/Bain/code-red-base))
+- **checkenv:** `site/scripts/checkenv.bash` (via `make check-env --merge`)
 
 ## Working directory
 
