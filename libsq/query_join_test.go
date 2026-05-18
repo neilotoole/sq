@@ -6,9 +6,12 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/samber/lo"
+	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/jointype"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
 )
@@ -366,6 +369,145 @@ func TestQuery_join_others(t *testing.T) {
 			execQueryTestCase(t, tc)
 		})
 	}
+}
+
+// TestQuery_join_cross_source_same_table_name is a regression test for
+// https://github.com/neilotoole/sq/issues/445.
+//
+// When two cross-source join participants share a table name, the join
+// scratch DB receives two "CREATE TABLE <name>" attempts and the second
+// collides; additionally, the rendered SQL references the same name on
+// both sides of the join (e.g. FROM actor INNER JOIN actor ON
+// actor.actor_id = actor.actor_id), which is malformed regardless of
+// the collision.
+//
+// SL3 and SL3Whitespace are used purely as two distinct local SQLite
+// sources whose schemas happen to both contain an "actor" table; the
+// whitespace aspect of SL3Whitespace is incidental to this regression.
+// The three-way subtest also exercises the synthesized suffix counter
+// past `_2`, guarding against off-by-one regressions and ensuring a
+// synthesized name doesn't shadow another participant's bare name.
+func TestQuery_join_cross_source_same_table_name(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name      string
+		query     string
+		wantCount int
+	}{
+		{
+			name: "two-sources",
+			query: fmt.Sprintf(
+				`%s.actor | join(%s.actor, .actor_id) | .first_name`,
+				sakila.SL3, sakila.SL3Whitespace,
+			),
+			wantCount: sakila.TblActorCount,
+		},
+		{
+			// Unqualified ".first_name" would be ambiguous across three
+			// actor tables; ".actor.first_name" qualifies it against
+			// the first participant, which keeps its bare name.
+			name: "three-sources",
+			query: fmt.Sprintf(
+				`%s.actor | join(%s.actor, .actor_id) | join(%s.actor, .actor_id) | .actor.first_name`,
+				sakila.SL3, sakila.SL3Whitespace, sakila.SL3,
+			),
+			wantCount: sakila.TblActorCount,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			sink, err := th.QuerySLQ(tc.query, nil)
+			require.NoError(t, err)
+			require.Len(t, sink.Recs, tc.wantCount)
+			require.Equal(t, []string{"first_name"}, sink.RecMeta.MungedNames())
+		})
+	}
+}
+
+// TestQuery_join_cross_source_duplicate_user_alias asserts that two
+// user-supplied table aliases that collide in a cross-source join are
+// rejected with a clear error before any scratch-DB work runs, rather
+// than surfacing later as an opaque CREATE TABLE failure attributed to
+// the internal @join_<x> handle. Pins the contract introduced alongside
+// the #445 fix.
+func TestQuery_join_cross_source_duplicate_user_alias(t *testing.T) {
+	t.Parallel()
+
+	q := fmt.Sprintf(
+		`%s | .actor:foo | join(%s.actor:foo, .foo.actor_id == .foo.actor_id) | .first_name`,
+		sakila.SL3, sakila.SL3Whitespace,
+	)
+
+	th := testh.New(t)
+	_, err := th.QuerySLQ(q, nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "duplicate table alias")
+}
+
+// TestQuery_join_cross_source_strips_catalog_schema asserts that any
+// Catalog/Schema overrides set on a source (via `sq add --catalog X
+// --schema Y` or config) are not leaked into the SQL rendered against
+// the join scratch DB. The scratch DB only knows the bare table names
+// copied into it; emitting `"X"."Y"."actor"` against it would fail
+// with `no such table`. The fix in joinCrossSource normalizes each
+// participant's AST table value to a scratch-local form after the
+// copy task is captured.
+func TestQuery_join_cross_source_strips_catalog_schema(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	coll := th.NewCollection(sakila.SL3, sakila.SL3Whitespace)
+
+	// Simulate a source whose user-config carries explicit overrides.
+	// The values are not real SQLite schemas (SQLite has no concept of
+	// either), but specifyTableFully will still copy them onto the AST.
+	src, err := coll.Get(sakila.SL3)
+	require.NoError(t, err)
+	src.Catalog = "fake_catalog"
+	src.Schema = "fake_schema"
+
+	qc := &libsq.QueryContext{Collection: coll, Grips: th.Grips()}
+	q := fmt.Sprintf(
+		`%s.actor | join(%s.actor, .actor_id) | .first_name`,
+		sakila.SL3, sakila.SL3Whitespace,
+	)
+	res, err := libsq.SLQ2SQL(th.Context, qc, q)
+	require.NoError(t, err)
+	require.NotContains(t, res.SQL, "fake_catalog",
+		"join SQL leaked source-side catalog into the scratch-DB query: %s", res.SQL)
+	require.NotContains(t, res.SQL, "fake_schema",
+		"join SQL leaked source-side schema into the scratch-DB query: %s", res.SQL)
+}
+
+// TestQuery_join_cross_source_case_insensitive_collision exercises the
+// case-folded collision check: SQLite (the join scratch DB) compares
+// identifier names case-insensitively even when double-quoted, so
+// CREATE TABLE "Actor" then CREATE TABLE "actor" would collide at the
+// scratch-DB level. The rename loop must therefore treat "Actor" and
+// "actor" as the same name when deciding which participant gets to
+// keep its bare name versus get a synthesized suffix.
+func TestQuery_join_cross_source_case_insensitive_collision(t *testing.T) {
+	t.Parallel()
+
+	// SQLite resolves ".Actor" on the source side case-insensitively
+	// (finds the lowercase "actor" table), so the source-side fetch
+	// works. The AST then carries "Actor" (as the user typed it) into
+	// the scratch DB.
+	q := fmt.Sprintf(
+		`%s.Actor | join(%s.actor, .actor_id) | .first_name`,
+		sakila.SL3, sakila.SL3Whitespace,
+	)
+
+	th := testh.New(t)
+	sink, err := th.QuerySLQ(q, nil)
+	require.NoError(t, err)
+	require.Len(t, sink.Recs, sakila.TblActorCount)
+	require.Equal(t, []string{"first_name"}, sink.RecMeta.MungedNames())
 }
 
 // TestQuery_table_alias is tested with the joins, because table aliases

@@ -14,20 +14,6 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## Unreleased
 
-### Changed
-
-- [#629]: [`like`](https://sq.io/docs/query#like) and
-  [`ilike`](https://sq.io/docs/query#ilike) no longer emit a trailing
-  `ESCAPE '|'` clause. `|` is now a literal character on every driver,
-  removing the pre-#629 cross-driver divergence (runtime error on
-  Postgres/DuckDB/Oracle/SQLite/SQL Server, silent drop on MySQL).
-  Other engine-default escape semantics (e.g. MySQL's default
-  backslash escape) remain driver-specific. For literal `%`/`_`
-  matching, use [`contains`](https://sq.io/docs/query#contains) /
-  [`icontains`](https://sq.io/docs/query#icontains), which auto-escape
-  wildcards. The [`contains`](https://sq.io/docs/query#contains)
-  family is unchanged and still emits `ESCAPE '|'`.
-
 ### Added
 
 - [#601]: New SLQ functions for substring matching: `contains(col, str)`,
@@ -45,6 +31,41 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   [`ilike`](https://sq.io/docs/query#ilike) (`%` and `_` are
   wildcards). See [Query language](https://sq.io/docs/query) for
   per-driver behavior and SQLite ASCII-CI quirks.
+
+### Changed
+
+- [#629]: [`like`](https://sq.io/docs/query#like) and
+  [`ilike`](https://sq.io/docs/query#ilike) no longer emit a trailing
+  `ESCAPE '|'` clause. `|` is now a literal character on every driver,
+  removing the pre-#629 cross-driver divergence (runtime error on
+  Postgres/DuckDB/Oracle/SQLite/SQL Server, silent drop on MySQL).
+  Other engine-default escape semantics (e.g. MySQL's default
+  backslash escape) remain driver-specific. For literal `%`/`_`
+  matching, use [`contains`](https://sq.io/docs/query#contains) /
+  [`icontains`](https://sq.io/docs/query#icontains), which auto-escape
+  wildcards. The [`contains`](https://sq.io/docs/query#contains)
+  family is unchanged and still emits `ESCAPE '|'`.
+
+### Fixed
+
+- [#445]: Cross-source [`join`](https://sq.io/docs/query#join) no longer
+  fails when the participating sources contain tables with the same
+  name (e.g. `@src1.actor | join(@src2.actor, .actor_id)`). Previously
+  the second table copy into the join scratch DB collided with the
+  first (`table "actor" already exists`); now colliding unaliased
+  participants are given numeric-suffixed aliases (`actor`, `actor_2`,
+  ...), picked to also avoid any other participant's destination name
+  so the scratch tables are unique and the rendered SQL is well-formed.
+  Collision detection is case-insensitive (matching SQLite's identifier
+  semantics for the join scratch DB), so `Actor` and `actor` are now
+  also treated as collisions. Two user-supplied aliases that collide
+  are reported up front (`cross-source join: duplicate table alias
+  "..."`) instead of surfacing later as an opaque scratch-DB error.
+  As a related fix, any source-level catalog/schema overrides on a
+  cross-source join participant are now dropped from the scratch-DB
+  SQL — the scratch DB only knows bare table names, so emitting
+  `"catalog"."schema"."actor"` against it would have failed with
+  `no such table`. Source-side fetches still use the qualified name.
 
 ## [v0.52.0] - 2026-05-15
 
@@ -1462,6 +1483,7 @@ make working with lots of sources much easier.
 [#353]: https://github.com/neilotoole/sq/issues/353
 [#415]: https://github.com/neilotoole/sq/issues/415
 [#437]: https://github.com/neilotoole/sq/issues/437
+[#445]: https://github.com/neilotoole/sq/issues/445
 [#446]: https://github.com/neilotoole/sq/issues/446
 [#498]: https://github.com/neilotoole/sq/issues/498
 [#469]: https://github.com/neilotoole/sq/issues/469
