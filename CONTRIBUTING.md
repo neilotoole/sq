@@ -5,6 +5,15 @@ and [discussion](https://github.com/neilotoole/sq/discussions).
 
 For user documentation, see [sq.io](https://sq.io).
 
+For AI coding assistants working in this repo, see [AGENTS.md](./AGENTS.md)
+(cross-agent guidance and contributor [Agent Skills](https://agentskills.io/specification)
+under [`.agents/skills/`](./.agents/skills/)). Install into your agent with
+`npx skills add neilotoole/sq --skill <name>` (see
+[AGENTS.md](./AGENTS.md#installing-and-verifying-skills-npx-skills)). Claude Code
+also uses [`.claude/skills`](./.claude/skills) (symlink to `.agents/skills`
+when checked out). On Windows, if symlinks are unavailable, use WSL, `npx skills
+add`, or copy `.agents/skills` under `.claude/skills`.
+
 ## Documentation site (`site/`)
 
 The [sq.io](https://sq.io) website is a [Hugo](https://gohugo.io) project in [`site/`](./site/). From `site/`, use **`make`** for the usual workflow (`make deps`, `make site-local`, `make site-test`, `make site-build`, or `make ci` to match CI). Bun equivalents are in [`site/README.md`](./site/README.md).
@@ -14,6 +23,12 @@ first: it explains the **stable** vs **full** link-check split, what PR CI block
 on, and what runs as informational/nightly follow-up.
 
 Changes under `site/` are validated by [`.github/workflows/site-ci.yml`](./.github/workflows/site-ci.yml).
+
+To triage or merge a batch of **Dependabot PRs** for `site/`, use the
+[`sq-site-dependabot`](./.agents/skills/sq-site-dependabot/) agent skill (invoke
+explicitly in your agent, e.g. `/sq-site-dependabot` in Cursor). See
+[AGENTS.md](./AGENTS.md#agent-skills-contributors) and
+[`.agents/skills/sq-site-dependabot/`](./.agents/skills/sq-site-dependabot/).
 
 ### `site/` import background (maintainers)
 

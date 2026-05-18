@@ -11,7 +11,7 @@
 # Available Commands:
 #   help                    : Show this help message
 #   build                   : Build the Docker image
-#   check                   : Verify required tools (Bun, Hugo, Docker)
+#   check-docker            : Verify Docker workflow tools (Bun, Hugo, Docker)
 #   clean                   : Clean build artifacts and Docker resources
 #   down                    : Stop and remove the container
 #   logs                    : Show container logs
@@ -51,7 +51,7 @@ LOGGER := source scripts/log.bash &&
 # Help (default target)
 # -----------------------------------------------------------------------------------------------------------
 
-.PHONY: help build check clean run run-detached down logs test smoke-test ping
+.PHONY: help build check-docker clean run run-detached down logs test smoke-test ping
 
 .PHONY: help ## Show this help message
 help:
@@ -73,6 +73,12 @@ help:
 # Check environment
 # -----------------------------------------------------------------------------------------------------------
 
+# Print a separator and a message
+check_header:
+	@$(LOGGER) log_separator
+	@$(LOGGER) log_info "Checking required dependencies"
+	@echo ""
+
 # Check if Bun is installed
 check_bun:
 	@if command -v bun >/dev/null 2>&1; then \
@@ -92,7 +98,8 @@ check_hugo:
 		HUGO_VERSION=$$(hugo version 2>/dev/null | grep -o 'v[0-9.]*' | head -1); \
 		$(LOGGER) log_info_dim "Hugo $$HUGO_VERSION is installed (system)."; \
 	else \
-		$(LOGGER) log_warning "Hugo not found. Run 'bun install' to install via hugo-installer."; \
+		$(LOGGER) log_error "Hugo not found. Run 'bun install' to install via hugo-installer."; \
+		exit 1; \
 	fi
 
 # Check if Docker is installed (required for Docker targets)
@@ -105,7 +112,34 @@ check_docker:
 		exit 1; \
 	fi
 
-# Check all dependencies
+# Check Netlify CLI (site devDependency; run from site/ after bun install)
+check_netlify_cli:
+	@if bun x netlify-cli --version >/dev/null 2>&1; then \
+		NETLIFY_VER=$$(bun x netlify-cli --version 2>/dev/null | head -1); \
+		$(LOGGER) log_info_dim "Netlify CLI $$NETLIFY_VER (via bun x)."; \
+	else \
+		$(LOGGER) log_error "Netlify CLI not available. Run: bun install"; \
+		exit 1; \
+	fi
+
+# Check jq and curl (Netlify deploy API polling)
+check_jq:
+	@if command -v jq >/dev/null 2>&1; then \
+		$(LOGGER) log_info_dim "jq is installed."; \
+	else \
+		$(LOGGER) log_error "jq is not installed (brew install jq)."; \
+		exit 1; \
+	fi
+
+check_curl:
+	@if command -v curl >/dev/null 2>&1; then \
+		$(LOGGER) log_info_dim "curl is installed."; \
+	else \
+		$(LOGGER) log_error "curl is not installed."; \
+		exit 1; \
+	fi
+
+# Check all dependencies (Docker workflow)
 check_deps:
 	@$(LOGGER) log_separator
 	@$(LOGGER) log_info "Checking Dependencies"
@@ -114,8 +148,8 @@ check_deps:
 	@$(MAKE) check_hugo
 
 
-.PHONY: check ## Verify required tools are installed
-check: check_deps
+.PHONY: check-docker ## Verify Docker workflow tools (Bun, Hugo, Docker)
+check-docker: check_deps
 
 
 # -----------------------------------------------------------------------------------------------------------
@@ -125,7 +159,7 @@ check: check_deps
 export DOCKER_BUILDKIT := 1
 
 .PHONY: build ## Build the Docker image
-build: check
+build: check-docker
 	@$(LOGGER) log_separator
 	@$(LOGGER) log_info "Building Docker image: $(DOCKER_IMAGE)"
 	docker build -t $(DOCKER_IMAGE) .

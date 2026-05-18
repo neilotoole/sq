@@ -1,11 +1,10 @@
-# CLAUDE.md
+# AGENTS.md
 
-Guidance for AI coding assistants (Claude Code, Copilot, Cursor, etc.) and
+Guidance for AI coding assistants (Claude Code, Copilot, Cursor, Codex, etc.) and
 human contributors working in this repo.
 
-For **agent skills** (Dependabot triage under `.agents/skills/`), `npx skills`
-install, symlink layout, and expanded cross-agent notes, see
-[AGENTS.md](./AGENTS.md).
+For Claude Code, [`CLAUDE.md`](./CLAUDE.md) mirrors the essentials here and links
+to this file for expanded contributor content.
 
 ## About `sq`
 
@@ -146,3 +145,70 @@ dialect configuration, test handles, and the SQL-vs-document driver split.
 For a visual map of the driver interfaces (`driver.Driver`,
 `driver.SQLDriver`, `driver.Grip`, `driver.Registry`) and how they relate to
 the rest of the system, see [`ARCHITECTURE.md`](./ARCHITECTURE.md).
+
+## Agent skills (contributors)
+
+This repo ships [Agent Skills](https://agentskills.io/specification) for
+**maintainer** workflows. They live under [`.agents/skills/`](.agents/skills/).
+
+- [`.agents/skills/`](.agents/skills/) — contributors (Dependabot triage, etc.)
+- [`skills/sq/`](skills/sq/SKILL.md) — end users of the `sq` CLI (distribution)
+
+Claude Code discovers the same tree via [`.claude/skills`](.claude/skills)
+(symlink to `.agents/skills`). Cursor and Codex load `.agents/skills/`
+directly. On Windows, if symlinks are unavailable, use WSL or duplicate the
+tree as documented in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+
+### Skills in this repo
+
+- [`sq-site-dependabot`](.agents/skills/sq-site-dependabot/) — Dependabot PRs
+  for [`site/`](site/) (Bun / Hugo).
+- [`sq-gomod-dependabot`](.agents/skills/sq-gomod-dependabot/) — Dependabot
+  PRs for Go modules at repo root.
+
+Invoke explicitly when your agent supports it (e.g. `/sq-site-dependabot` in
+Cursor, `$sq-site-dependabot` in Codex) or ask to “clear site dependabot PRs”.
+
+**Site Dependabot Full mode** needs Netlify credentials in `site/.env`
+(gitignored; copy from `site/.env.example`). Variables:
+`NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID` (same as
+[Site Publish (dispatch)](./.github/workflows/site-publish-dispatch.yml)
+secrets). How to obtain them: see
+[tool-bootstrap.md](./.agents/skills/sq-site-dependabot/references/tool-bootstrap.md#getting-tokens-netlify-ui).
+
+From `site/`: `make check-netlify`, then `make ci` and `make site-netlify-validate`
+on the PR branch.
+See [`.agents/skills/sq-site-dependabot/`](.agents/skills/sq-site-dependabot/).
+
+### Installing and verifying skills (`npx skills`)
+
+Use the [Skills CLI](https://skills.sh/docs/cli) (no global install required):
+
+```bash
+npx skills add <owner/repo> --skill <skill-name>
+```
+
+**From this repository on GitHub** (install into your agent’s skill directories):
+
+```bash
+npx skills add neilotoole/sq --skill sq-site-dependabot
+npx skills add neilotoole/sq --skill sq-gomod-dependabot
+```
+
+**From a local checkout** (verify before opening a PR that touches skills):
+
+```bash
+npx skills add . -l
+npx skills add . --skill sq-site-dependabot -y
+```
+
+The `-l` / `--list` flag prints discoverable skills and descriptions without
+installing. Use `-y` to skip prompts in CI or scripts.
+
+**In-repo discovery (no install):** Cursor and Codex load
+[`.agents/skills/`](.agents/skills/) from the working tree. Claude Code also
+reads [`.claude/skills`](.claude/skills) when the symlink to `.agents/skills`
+is present.
+
+Optional: set `DISABLE_TELEMETRY=1` to opt out of anonymous Skills CLI
+telemetry ([docs](https://skills.sh/docs/cli)).
