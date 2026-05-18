@@ -495,19 +495,32 @@ merge_env_files() {
       if grep -q "^${var}=" "$env_file"; then
         # Variable exists in .env, get its value
         value=$(get_complete_var_value "$env_file" "$var")
+        # Redact sensitive variable values in log output (*_TOKEN, *_KEY, *_SECRET).
+        case "$var" in
+          *_TOKEN | *_KEY | *_SECRET) display_value="[redacted]" ;;
+          *) display_value="$value" ;;
+        esac
+        case "$var" in
+          *_TOKEN | *_KEY | *_SECRET) display_example="[redacted]" ;;
+          *) display_example="$example_value" ;;
+        esac
         # Check if the value is empty
         if [ -n "$value" ]; then
           # Variable has a non-empty value, use that value
-          log_dim "  ${GREEN}✓${RESET} $var ${DIM}(using value ${value} from $env_file)"
+          log_dim "  ${GREEN}✓${RESET} $var ${DIM}(using value ${display_value} from $env_file)"
           echo "$var=$value" >>"$output_file"
         else
           # Variable exists but has empty value, use value from .env.example
-          log_dim "  ${YELLOW}~${RESET} $var ${DIM}(empty in $env_file, using ${example_value} from $example_file)"
+          log_dim "  ${YELLOW}~${RESET} $var ${DIM}(empty in $env_file, using ${display_example} from $example_file)"
           echo "$var=$example_value" >>"$output_file"
         fi
       else
         # Variable doesn't exist in .env, use value from .env.example
-        log_dim "  ${RED}+${RESET} $var ${DIM}(missing from $env_file, using ${example_value} from $example_file)"
+        case "$var" in
+          *_TOKEN | *_KEY | *_SECRET) display_example="[redacted]" ;;
+          *) display_example="$example_value" ;;
+        esac
+        log_dim "  ${RED}+${RESET} $var ${DIM}(missing from $env_file, using ${display_example} from $example_file)"
         echo "$var=$example_value" >>"$output_file"
       fi
     else

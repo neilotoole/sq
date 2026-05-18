@@ -24,7 +24,7 @@ fi
 cd "${SITE_DIR}"
 
 ENV_FILE="${PWD}/.env"
-if [ -z "${NETLIFY_AUTH_TOKEN:-}" ] && [ -f "${ENV_FILE}" ]; then
+if { [ -z "${NETLIFY_AUTH_TOKEN:-}" ] || [ -z "${NETLIFY_SITE_ID:-}" ]; } && [ -f "${ENV_FILE}" ]; then
 	set -a
 	# shellcheck disable=SC1090
 	. "${ENV_FILE}"
