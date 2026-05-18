@@ -949,9 +949,9 @@ Per-driver implementation:
 - **ClickHouse:** native `ILIKE`.
 
 No `ESCAPE '|'` clause is emitted on any driver — see [`like`](#like)
-for escape behavior and column-as-pattern semantics. For literal
-`%` / `_` matching, use [`icontains`](#icontains), which auto-escapes
-wildcards.
+for escape behavior and [Column as pattern](#column-as-pattern) for
+column-RHS semantics. For literal `%` / `_` matching, use
+[`icontains`](#icontains), which auto-escapes wildcards.
 
 ### `istartswith`
 
@@ -1022,16 +1022,17 @@ The pattern argument can be a column selector instead of a quoted
 string literal, enabling column-vs-column matching:
 
 ```shell
-$ sq '.events | where(like(.message, .pattern))'
 $ sq '.actor | where(ilike(.first_name, .last_name))'
+$ sq '.events | where(like(.message, .pattern))'
 ```
 
-Useful for fuzzy joins, matching stored rules against incoming data,
-and similar data-wrangling workflows. NULL values in the RHS column
-yield NULL from `LIKE`, which `WHERE` treats as false (row excluded);
-this matches standard SQL semantics. Wildcards (`%`, `_`) in the RHS
-column's data behave exactly as in a literal pattern — they are not
-auto-escaped, since the value isn't known until execution.
+Useful for matching stored rules against incoming data, correlated
+pattern lookups, and similar data-wrangling workflows. NULL values
+in the RHS column yield NULL from `LIKE`, which `WHERE` treats as
+false (row excluded); this matches standard SQL semantics. Wildcards
+(`%`, `_`) in the RHS column's data behave exactly as in a literal
+pattern — they are not auto-escaped, since the value isn't known
+until execution.
 
 The [`contains`](#contains) family stays literal-only by design: its
 auto-escape of wildcards in the user pattern can't be performed when

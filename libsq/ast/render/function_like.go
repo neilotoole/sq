@@ -167,7 +167,7 @@ func ParseLikePatternArgs(rc *Context, fn *ast.FuncNode) (colSQL, rhsSQL string,
 
 	rhsSQL, err = renderSelectorNode(rc.Dialect, rhsNode)
 	if err != nil {
-		return "", "", errz.Errorf(
+		return "", "", errz.Wrapf(err,
 			"%s() second argument must be a string literal or column selector",
 			fn.FuncName())
 	}

@@ -821,6 +821,36 @@ func TestQuery_string_like(t *testing.T) {
 			in:              `@sakila | .actor | where(like(.first_name, 42))`,
 			wantErrContains: "like() second argument must be a quoted string literal or column selector",
 		},
+		{
+			// A binary-expression RHS (here, a comparison) is rejected:
+			// NodeUnwrap sees branching and the parser surfaces the
+			// expected-shape error. Pins the !ok branch of the
+			// ParseLikePatternArgs RHS dispatch — the numeric test above
+			// only covers the unquoted-literal branch.
+			name:            "like/expression-rhs-rejected",
+			in:              `@sakila | .actor | where(like(.first_name, .last_name == .first_name))`,
+			wantErrContains: "like() second argument must be a string literal or column selector",
+		},
+		{
+			// *ast.TblSelectorNode RHS (`.actor` — bare table, not a
+			// column) is silently accepted: renderSelectorNode renders
+			// it as a quoted identifier, producing nonsensical-but-valid
+			// SQL. The current lenient stance is consistent with where /
+			// orderby, which use the same selector helper. We pin the
+			// SQL shape (skipExec since the resulting query references
+			// an identifier that doesn't resolve to a column at runtime)
+			// so any future stricter dispatch in ParseLikePatternArgs is
+			// a deliberate change, not silent drift.
+			name:    "like/table-selector-rhs-renders-as-identifier",
+			in:      `@sakila | .actor | where(like(.first_name, .actor))`,
+			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE "actor"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY `actor`",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE "actor"`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` LIKE `actor`",
+			},
+			skipExec: true,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -988,6 +1018,13 @@ func TestQuery_string_ilike(t *testing.T) {
 			name:            "ilike/numeric-rhs-rejected",
 			in:              `@sakila | .actor | where(ilike(.first_name, 42))`,
 			wantErrContains: "ilike() second argument must be a quoted string literal or column selector",
+		},
+		{
+			// Mirror of like/expression-rhs-rejected for the ILIKE
+			// renderer path.
+			name:            "ilike/expression-rhs-rejected",
+			in:              `@sakila | .actor | where(ilike(.first_name, .last_name == .first_name))`,
+			wantErrContains: "ilike() second argument must be a string literal or column selector",
 		},
 	}
 

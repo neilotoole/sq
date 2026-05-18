@@ -32,9 +32,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   wildcards). See [Query language](https://sq.io/docs/query) for
   per-driver behavior and SQLite ASCII-CI quirks.
 - [#628]: [`like`](https://sq.io/docs/query#like) and
-  [`ilike`](https://sq.io/docs/query#ilike) now accept a column
-  selector as the pattern argument (in addition to the existing
-  quoted-literal form), enabling column-vs-column matching such as
+  [`ilike`](https://sq.io/docs/query#ilike) now accept either a
+  quoted string literal or a column selector as the pattern argument,
+  enabling column-vs-column matching such as
   `where(like(.events.message, .rules.pattern))`. NULL values on
   the RHS yield NULL from `LIKE`, which `WHERE` treats as false
   (standard SQL semantics). The [`contains`](https://sq.io/docs/query#contains)
