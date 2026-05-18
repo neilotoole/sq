@@ -92,7 +92,7 @@ GitHub Actions secrets.
 
 Runs `netlify-cli deploy --build --context deploy-preview` and polls the
 Netlify API until `state=ready`. See
-[`.agents/skills/sq-site-dependabot/`](../../.agents/skills/sq-site-dependabot/).
+[`.agents/skills/sq-site-dependabot/`](../.agents/skills/sq-site-dependabot/).
 
 ### Site testing
 
