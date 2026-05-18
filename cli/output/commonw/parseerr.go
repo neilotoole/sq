@@ -34,6 +34,16 @@ func RenderParseError(w io.Writer, pr *output.Printing, pe *ast.ParseError) {
 
 	lines := strings.Split(pe.Input, "\n")
 
+	// Tokenize once for syntax-aware coloring of the input line.
+	// Skipped for multi-line input (we fall back to plain rendering there
+	// because token positions are global rune offsets and per-line slicing
+	// isn't implemented yet).
+	multiLine := strings.Contains(pe.Input, "\n")
+	var tokens []ast.Token
+	if !multiLine {
+		tokens = ast.Tokenize(pe.Input)
+	}
+
 	for i, iss := range pe.Issues {
 		if i > 0 {
 			fmt.Fprintln(w)
@@ -63,7 +73,6 @@ func RenderParseError(w io.Writer, pr *output.Printing, pe *ast.ParseError) {
 		// rune offsets and the line-extraction work for multi-line isn't
 		// implemented yet.
 		fmt.Fprint(w, "  ")
-		multiLine := strings.Contains(pe.Input, "\n")
 		switch {
 		case multiLine:
 			if start >= 0 && stop >= start && stop <= len(srcRunes) {
@@ -74,7 +83,6 @@ func RenderParseError(w io.Writer, pr *output.Printing, pe *ast.ParseError) {
 				fmt.Fprint(w, srcLine)
 			}
 		default:
-			tokens := ast.Tokenize(pe.Input)
 			renderColorizedLine(w, pr, srcRunes, tokens, start, stop)
 		}
 		fmt.Fprintln(w)
@@ -156,9 +164,7 @@ func renderColorizedLine(
 	if hiliteStart >= 0 && hiliteStop > hiliteStart {
 		end := min(hiliteStop, len(srcRunes))
 		for i := hiliteStart; i < end; i++ {
-			if i >= 0 {
-				colors[i] = pr.ErrorHilite
-			}
+			colors[i] = pr.ErrorHilite
 		}
 	}
 	// Walk runs of same color.

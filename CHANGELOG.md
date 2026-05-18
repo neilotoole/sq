@@ -46,9 +46,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   wildcards. The [`contains`](https://sq.io/docs/query#contains)
   family is unchanged and still emits `ESCAPE '|'`.
 - Syntax errors from invalid SLQ input are now reported with the offending
-  span highlighted in the original query and a terse, sq-flavored message,
-  replacing ANTLR's verbose `expecting {...}` dump. Typo'd identifiers may
-  receive a `did you mean '<name>'?` suggestion (e.g., `mx` → `max`).
+  span highlighted in the original query, the input line syntax-colored
+  per sq's standard palette (handles, selectors, keywords, numbers,
+  strings, punctuation), and a terse, sq-flavored message replacing
+  ANTLR's verbose `expecting {...}` dump. Typo'd identifiers may receive
+  a `did you mean '<name>'?` suggestion (e.g., `mx` → `max`).
 - The structured `parse_error` field is included in `--json` error output,
   carrying `input` and `issues[].{line, col, start_char, stop_char, token,
   msg, suggestion}` for programmatic consumers.
