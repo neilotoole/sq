@@ -69,7 +69,8 @@ cp .env.example .env
 make check-netlify
 ```
 
-`check-netlify` runs `scripts/checkenv.bash` against `.env`.
+`check-netlify` runs `scripts/checkenv.bash --merge` against `.env` (sync keys
+from `.env.example`, then validate; no interactive prompts).
 `.env` is gitignored; never commit it.
 
 One-shot check matching **Site CI** (`deps` → test → build): `make ci`.

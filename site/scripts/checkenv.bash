@@ -84,7 +84,7 @@ show_help() {
     log_dim "  1. Checks if .env files exist, creates them from .env.example if missing"
     log_dim "  2. Validates that all required variables from .env.example are present"
     log_dim "  3. Ensures all variables have non-empty values"
-    log_dim "  4. In merge mode: creates .env.new with missing variables filled from .env.example"
+    log_dim "  4. In merge mode: syncs .env from .env.example, then validates (no prompts; for make check-env)"
 }
 
 
@@ -174,11 +174,12 @@ process_env_files() {
         fi
 
         if [ "$MERGE_MODE" = true ]; then
-            # Merge mode: create .env.new with missing variables
+            # Merge mode: sync keys from .env.example, then validate (no prompts).
             merge_env_files "$env_file"
+            check_env_file "$env_file" || exit 1
         else
             # Normal mode: check and validate environment file
-            check_env_file "$env_file"
+            check_env_file "$env_file" || exit 1
         fi
     done
 }
@@ -342,6 +343,12 @@ check_env_vars() {
           log_indent log_warning " - $var"
         done
 
+        if [ "$MERGE_MODE" = true ]; then
+          log_verbose "Merge mode: syncing missing keys from ${DIM}$example_file${RESET}..."
+          merge_env_files "$env_file"
+          return 0
+        fi
+
         # Ask user if they want to create a merged file
         log " " # Insert a blank line for readability
         log "Would you like to create a merged file with missing variables from ${DIM}$example_file${RESET} ?"
@@ -402,6 +409,11 @@ check_env_values() {
     done
 
     if [ -f "$example_file" ]; then
+      if [ "$MERGE_MODE" = true ]; then
+        log_error "Can not continue with empty values in ${DIM}$env_file${RESET} (fill secrets; see ${DIM}$example_file${RESET})."
+        return 1
+      fi
+
       # Offer to merge values from .env.example (preserves any existing values the user has set)
       log
       log_info "Would you like to fill empty variables with values from ${DIM}$example_file${RESET}${BLUE}?"

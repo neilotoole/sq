@@ -18,7 +18,7 @@ Maintainers store credentials in **`site/.env`** (gitignored). Template:
 cd site
 cp .env.example .env
 # Edit .env — see "Getting tokens" below
-make check-netlify    # tools + checkenv.bash validates .env
+make check-netlify    # tools + checkenv.bash --merge validates .env (non-interactive)
 ```
 
 `make site-netlify-validate` loads `.env` automatically after `check-netlify`

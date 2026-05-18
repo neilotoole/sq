@@ -160,7 +160,7 @@ check: check_header check_bun check_hugo check_netlify_cli check_jq check_curl
 
 .PHONY: check-env ## Validate .env via checkenv.bash (.env.example)
 check-env:
-	@$(CHECKENV_SCRIPT) .env
+	@$(CHECKENV_SCRIPT) --merge .env
 
 .PHONY: check-netlify ## make check plus validated .env (Netlify API credentials)
 check-netlify: check check-env

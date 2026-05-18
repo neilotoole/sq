@@ -39,6 +39,8 @@ gh pr view <next> --json mergeable
   re-run from clean `make ci`.
 - **Missing `site/.env`:** Copy `site/.env.example`, fill tokens, run
   `make check-netlify`. No Full automation until set (note in verdict).
+- **`checkenv` hangs:** `make check-env` uses `--merge` (non-interactive); empty
+  `NETLIFY_*` values fail fast — fill `site/.env`, do not leave placeholders.
 - **Merge blocked (reviews, permissions):** Stop; check `gh pr view` merge state;
   approve from a non-author account or adjust branch protection.
 - **Head SHA changed mid-batch:** Re-run validation for affected PRs.
