@@ -65,7 +65,7 @@
     "auto-changelog": "^2.4",
     "autoprefixer": "^10.4",
     "bootstrap": "^5.2.3",
-    "esbuild": "^0.17.0",
+    "esbuild": "^0.28.0",
     "eslint": "^9",
     "exec-bin": "^1.0.0",
     "flexsearch": "^0.8",
