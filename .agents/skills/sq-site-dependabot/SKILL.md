@@ -31,7 +31,7 @@ risk tiers, Netlify validation, merge scripts, and references).
    and `npx skills add` usage.
 2. From `site/`, run `make ci` before merging any site dependency PR.
 3. Confirm the Netlify deploy preview is green on the PR’s current head SHA
-   before approve/merge.
+   before approving or merging.
 
 Do not merge site Dependabot PRs in bulk without rebasing between merges (shared
 `bun.lock`).
