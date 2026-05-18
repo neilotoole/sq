@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
@@ -378,6 +379,75 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 	// TODO: verify not empty
 
 	tbls := jc.tables()
+
+	// Every cross-source join participant is copied into the join scratch
+	// DB under a destination name taken from its user alias (if any) or
+	// its bare table name. When two participants resolve to the same
+	// destination, the second CREATE TABLE collides and the rendered
+	// FROM/ON would also reference the same name on both sides
+	// (ambiguous regardless). Disambiguate as follows:
+	//
+	//   - User aliases are sacrosanct. Two colliding user aliases are a
+	//     user error and rejected up front.
+	//   - Each unaliased participant tries to claim its bare table name;
+	//     the first unaliased occurrence encountered wins it, unless a
+	//     user alias elsewhere already claimed that name.
+	//   - The remaining unaliased participants get a synthesized
+	//     numeric-suffixed alias (name_2, name_3, ...) picked to be
+	//     unique against every other destination in use, including any
+	//     pre-existing name that happens to match a generated suffix.
+	//
+	// Collision checks are case-insensitive: the join scratch DB is
+	// always SQLite (see Grips.OpenJoin), and SQLite compares identifier
+	// names case-insensitively even when double-quoted, so "Actor" and
+	// "actor" would still collide at CREATE TABLE time. Original casing
+	// is preserved in the assigned alias and copied destination name —
+	// only the membership-test key is folded.
+	used := map[string]bool{}
+	for _, tbl := range tbls {
+		if tbl.Alias() == "" {
+			continue
+		}
+		key := strings.ToLower(tbl.Alias())
+		if used[key] {
+			return "", nil, errz.Errorf("cross-source join: duplicate table alias %q", tbl.Alias())
+		}
+		used[key] = true
+	}
+	// keepsBare keys nodes by pointer identity; relies on jc.tables()
+	// returning the same *ast.TblSelectorNode instances across the loops
+	// below.
+	keepsBare := map[*ast.TblSelectorNode]bool{}
+	for _, tbl := range tbls {
+		if tbl.Alias() != "" {
+			continue
+		}
+		name := tbl.Table().Table
+		key := strings.ToLower(name)
+		if used[key] {
+			continue
+		}
+		used[key] = true
+		keepsBare[tbl] = true
+	}
+	log := lg.FromContext(ctx)
+	for _, tbl := range tbls {
+		if tbl.Alias() != "" || keepsBare[tbl] {
+			continue
+		}
+		name := tbl.Table().Table
+		n := 2
+		candidate := fmt.Sprintf("%s_%d", name, n)
+		for used[strings.ToLower(candidate)] {
+			n++
+			candidate = fmt.Sprintf("%s_%d", name, n)
+		}
+		used[strings.ToLower(candidate)] = true
+		tbl.SetAlias(candidate)
+		log.Debug("Synthesized cross-source join alias to avoid table-name collision",
+			lga.Handle, tbl.Handle(), lga.From, name, lga.To, candidate)
+	}
+
 	for _, tbl := range tbls {
 		handle := tbl.Handle()
 		if handle == "" {
@@ -400,6 +470,18 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 		}
 
 		tbl.SyncTblNameAlias()
+
+		// specifyTableFully populated the AST node's table value with
+		// any Catalog/Schema overrides from the source. Those are
+		// source-side qualifiers and would render as
+		// "catalog"."schema"."table" against the scratch DB, which
+		// only knows the bare table name we copied into it. Normalize
+		// the AST table to scratch-local form before rndr.Join below.
+		// The copy task above already captured the source-qualified
+		// fromTbl, so this doesn't affect the source-side fetch.
+		if t := tbl.Table(); t.Catalog != "" || t.Schema != "" {
+			tbl.SetTable(tablefq.New(t.Table))
+		}
 
 		p.tasks = append(p.tasks, task)
 	}
