@@ -166,6 +166,82 @@ func TestRenderParseError_MultiLineInput(t *testing.T) {
 	require.NotContains(t, got, "also_bad")
 }
 
+func TestRenderParseError_MutesStringQuotes(t *testing.T) {
+	color.NoColor = false
+	t.Cleanup(func() { color.NoColor = true })
+
+	input := `@sakila/local/sl3 | .actor | gibberish | ".first_name"`
+	pe := &ast.ParseError{
+		Input: input,
+		Issues: []ast.ParseIssue{
+			{
+				Line:      1,
+				Col:       29,
+				StartChar: 29,
+				StopChar:  37,
+				Token:     "gibberish",
+				Msg:       "unexpected 'gibberish'",
+			},
+		},
+	}
+
+	pr := newColorPrinting()
+	buf := &bytes.Buffer{}
+	commonw.RenderParseError(buf, pr, pe)
+	out := buf.String()
+
+	// Locate the inner content of the string token. When color is on the
+	// quote characters carry their own SGR codes, so the literal
+	// `".first_name"` won't appear as a contiguous substring; search for
+	// the inner text instead.
+	innerIdx := strings.Index(out, ".first_name")
+	require.NotEqual(t, -1, innerIdx, "inner string token content not found in output")
+
+	// The byte immediately before the opening `"` must be an ANSI SGR
+	// terminator (`m`) — i.e., we just emitted a color escape for the
+	// faint quote. Same for the inner-content boundary and the closing
+	// quote. Easier to check: confirm pr.Faint's ANSI bytes appear near
+	// the string token.
+	faintEsc := pr.Faint.Sprint("")
+	stringEsc := pr.String.Sprint("")
+	require.NotEmpty(t, faintEsc, "pr.Faint should emit a non-empty SGR sequence when color is on")
+	require.NotEmpty(t, stringEsc, "pr.String should emit a non-empty SGR sequence when color is on")
+
+	// Region around the string token must contain BOTH faint and string
+	// escape codes (proving we emit the quotes and the inner content with
+	// different colors). Use generous slack to capture all SGR codes for
+	// the surrounding quote characters.
+	regionEnd := innerIdx + len(".first_name") + 64 // slack for closing quote SGR codes
+	if regionEnd > len(out) {
+		regionEnd = len(out)
+	}
+	region := out[max(0, innerIdx-64):regionEnd]
+	// Extract the SGR-code substring of pr.Faint and pr.String (between
+	// the `\x1b[` prefix and the `m` terminator).
+	faintCode := sgrCode(faintEsc)
+	stringCode := sgrCode(stringEsc)
+	require.NotEqual(t, faintCode, stringCode,
+		"pr.Faint and pr.String must differ (otherwise the test can't tell them apart)")
+	require.Contains(t, region, faintCode, "expected pr.Faint SGR around string quote characters")
+	require.Contains(t, region, stringCode, "expected pr.String SGR inside string content")
+}
+
+// sgrCode extracts the parameter portion of a single SGR escape
+// sequence (e.g. "\x1b[2m" -> "[2m"). Used by the test to compare
+// pr.Faint vs pr.String escape codes without depending on the exact
+// numeric SGR values.
+func sgrCode(s string) string {
+	i := strings.Index(s, "\x1b")
+	if i == -1 {
+		return ""
+	}
+	j := strings.Index(s[i:], "m")
+	if j == -1 {
+		return s[i:]
+	}
+	return s[i : i+j+1]
+}
+
 func TestRenderParseError_ColorizesHandle(t *testing.T) {
 	// Force color rendering even when the env says no terminal.
 	color.NoColor = false

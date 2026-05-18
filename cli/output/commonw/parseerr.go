@@ -164,6 +164,11 @@ func renderColorizedLine(
 				colors[i] = c
 			}
 		}
+		// For string tokens (e.g. ".first_name"), mute the surrounding
+		// quote characters so the content reads as the focus.
+		if tok.Kind == ast.TokenString {
+			muteStringQuotes(colors, pr.Faint, tok.Start, hi)
+		}
 	}
 	// Overlay ErrorHilite for the offending span.
 	if hiliteStart >= 0 && hiliteStop > hiliteStart {
@@ -186,6 +191,23 @@ func renderColorizedLine(
 			fmt.Fprint(w, segment)
 		}
 		i = j
+	}
+}
+
+// muteStringQuotes re-paints the first and last positions of a string token
+// in colors with faint, so the surrounding quote characters are visually
+// muted while the inner content keeps the string color. The guard hi >
+// start avoids muting a single-rune token (which can't be a valid quoted
+// string, but is cheap defensive coding).
+func muteStringQuotes(colors []*color.Color, faint *color.Color, start, hi int) {
+	if hi <= start {
+		return
+	}
+	if start >= 0 && start < len(colors) {
+		colors[start] = faint
+	}
+	if hi >= 0 && hi < len(colors) {
+		colors[hi] = faint
 	}
 }
 
