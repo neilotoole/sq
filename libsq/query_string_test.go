@@ -759,14 +759,67 @@ func TestQuery_string_like(t *testing.T) {
 			wantRecCount: 0,
 		},
 		{
+			// Column-as-pattern (#628): RHS is a column selector, not a
+			// quoted literal. No actor in sakila has first_name equal to
+			// last_name (pattern has no wildcards, so plain LIKE is an
+			// exact match on case-sensitive drivers; SQLite's default
+			// LIKE is ASCII-CI but still no exact case-insensitive
+			// match exists either) → 0 rows on every driver.
+			name:    "like/column-rhs",
+			in:      `@sakila | .actor | where(like(.first_name, .last_name))`,
+			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE "last_name"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `first_name` LIKE BINARY `last_name`",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_BIN2 LIKE "last_name"`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` LIKE `last_name`",
+			},
+			wantRecCount: 0,
+		},
+		{
+			// Column-as-pattern with table-qualified selectors. Pins
+			// that *ast.TblColSelectorNode renders correctly on the RHS
+			// (not just the LHS, which the literal-pattern tests above
+			// already covered implicitly).
+			name:    "like/column-rhs-table-prefixed",
+			in:      `@sakila | .actor | where(like(.actor.first_name, .actor.last_name))`,
+			wantSQL: `SELECT * FROM "actor" WHERE "actor"."first_name" LIKE "actor"."last_name"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE `actor`.`first_name` LIKE BINARY `actor`.`last_name`",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "actor"."first_name" COLLATE Latin1_General_BIN2 LIKE "actor"."last_name"`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `actor`.`first_name` LIKE `actor`.`last_name`",
+			},
+			wantRecCount: 0,
+		},
+		{
+			// NULL semantics for column-RHS: sakila's address.address2
+			// is nullable and mostly NULL. `col LIKE NULL` returns NULL
+			// on every driver, and WHERE treats NULL as false, so those
+			// rows are filtered out. Non-NULL address2 values never
+			// equal their address column either → 0 rows total.
+			// Documents standard SQL behavior (issue #628 open
+			// question 3) and pins that column-RHS doesn't error on
+			// NULL pattern values.
+			name:    "like/column-rhs-null-handling",
+			in:      `@sakila | .address | where(like(.address, .address2))`,
+			wantSQL: `SELECT * FROM "address" WHERE "address" LIKE "address2"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT * FROM `address` WHERE `address` LIKE BINARY `address2`",
+				drivertype.MSSQL:      `SELECT * FROM "address" WHERE "address" COLLATE Latin1_General_BIN2 LIKE "address2"`,
+				drivertype.ClickHouse: "SELECT * FROM `address` WHERE `address` LIKE `address2`",
+			},
+			wantRecCount: 0,
+		},
+		{
 			name:            "like/wrong-arg-count",
 			in:              `@sakila | .actor | where(like(.first_name))`,
 			wantErrContains: "like() requires exactly 2 arguments",
 		},
 		{
-			name:            "like/non-literal-pattern",
-			in:              `@sakila | .actor | where(like(.first_name, .last_name))`,
-			wantErrContains: "like() second argument must be a string literal",
+			// Numeric (unquoted) literal RHS is still rejected post-#628;
+			// only string literals and column selectors are accepted.
+			name:            "like/numeric-rhs-rejected",
+			in:              `@sakila | .actor | where(like(.first_name, 42))`,
+			wantErrContains: "like() second argument must be a quoted string literal or column selector",
 		},
 	}
 
@@ -777,7 +830,7 @@ func TestQuery_string_like(t *testing.T) {
 	}
 }
 
-//nolint:exhaustive
+//nolint:exhaustive,lll
 func TestQuery_string_ilike(t *testing.T) {
 	testCases := []queryTestCase{
 		{
@@ -871,14 +924,70 @@ func TestQuery_string_ilike(t *testing.T) {
 			wantRecCount: 0,
 		},
 		{
+			// Column-as-pattern (#628) for ilike. Case-insensitive
+			// column-vs-column comparison: no actor has first_name
+			// matching last_name case-insensitively → 0 rows on
+			// every driver. Pins the LOWER-wrap on both sides
+			// (default / MySQL / Oracle paths) and the native
+			// ILIKE variants (PG / DuckDB / ClickHouse).
+			name:    "ilike/column-rhs",
+			in:      `@sakila | .actor | where(ilike(.first_name, .last_name))`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("first_name") LIKE LOWER("last_name")`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "first_name" ILIKE "last_name"`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "first_name" ILIKE "last_name"`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "first_name" LIKE "last_name"`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`first_name`) LIKE LOWER(`last_name`)",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "first_name" COLLATE Latin1_General_CI_AS LIKE "last_name"`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `first_name` ILIKE `last_name`",
+			},
+			wantRecCount: 0,
+		},
+		{
+			// Column-as-pattern with table-qualified selectors for ilike.
+			// Pins TblColSelectorNode rendering on the RHS under LOWER
+			// wrap (where applicable) and inside the COLLATE clause.
+			name:    "ilike/column-rhs-table-prefixed",
+			in:      `@sakila | .actor | where(ilike(.actor.first_name, .actor.last_name))`,
+			wantSQL: `SELECT * FROM "actor" WHERE LOWER("actor"."first_name") LIKE LOWER("actor"."last_name")`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "actor" WHERE "actor"."first_name" ILIKE "actor"."last_name"`,
+				drivertype.DuckDB:     `SELECT * FROM "actor" WHERE "actor"."first_name" ILIKE "actor"."last_name"`,
+				drivertype.SQLite:     `SELECT * FROM "actor" WHERE "actor"."first_name" LIKE "actor"."last_name"`,
+				drivertype.MySQL:      "SELECT * FROM `actor` WHERE LOWER(`actor`.`first_name`) LIKE LOWER(`actor`.`last_name`)",
+				drivertype.MSSQL:      `SELECT * FROM "actor" WHERE "actor"."first_name" COLLATE Latin1_General_CI_AS LIKE "actor"."last_name"`,
+				drivertype.ClickHouse: "SELECT * FROM `actor` WHERE `actor`.`first_name` ILIKE `actor`.`last_name`",
+			},
+			wantRecCount: 0,
+		},
+		{
+			// NULL semantics for ilike column-RHS, mirroring the like
+			// equivalent. Most address2 values are NULL → ILIKE NULL
+			// is NULL → WHERE filters → 0 rows.
+			name:    "ilike/column-rhs-null-handling",
+			in:      `@sakila | .address | where(ilike(.address, .address2))`,
+			wantSQL: `SELECT * FROM "address" WHERE LOWER("address") LIKE LOWER("address2")`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT * FROM "address" WHERE "address" ILIKE "address2"`,
+				drivertype.DuckDB:     `SELECT * FROM "address" WHERE "address" ILIKE "address2"`,
+				drivertype.SQLite:     `SELECT * FROM "address" WHERE "address" LIKE "address2"`,
+				drivertype.MySQL:      "SELECT * FROM `address` WHERE LOWER(`address`) LIKE LOWER(`address2`)",
+				drivertype.MSSQL:      `SELECT * FROM "address" WHERE "address" COLLATE Latin1_General_CI_AS LIKE "address2"`,
+				drivertype.ClickHouse: "SELECT * FROM `address` WHERE `address` ILIKE `address2`",
+			},
+			wantRecCount: 0,
+		},
+		{
 			name:            "ilike/wrong-arg-count",
 			in:              `@sakila | .actor | where(ilike(.first_name))`,
 			wantErrContains: "ilike() requires exactly 2 arguments",
 		},
 		{
-			name:            "ilike/non-literal-pattern",
-			in:              `@sakila | .actor | where(ilike(.first_name, .last_name))`,
-			wantErrContains: "ilike() second argument must be a string literal",
+			// Numeric (unquoted) literal RHS is still rejected post-#628;
+			// only string literals and column selectors are accepted.
+			name:            "ilike/numeric-rhs-rejected",
+			in:              `@sakila | .actor | where(ilike(.first_name, 42))`,
+			wantErrContains: "ilike() second argument must be a quoted string literal or column selector",
 		},
 	}
 

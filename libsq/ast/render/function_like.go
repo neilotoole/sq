@@ -70,11 +70,14 @@ func buildLikePattern(s string, mode LikeMode, extraMeta string) string {
 }
 
 // ParseLikeArgs validates the shape of a substring-matching function call
-// (contains/startswith/endswith and their case-insensitive companions,
-// plus like/ilike) and returns the rendered column SQL and the unquoted
-// literal value. The first argument must be a column selector; the second
-// must be a quoted string literal. Other shapes are rejected with a clear
-// error. Exported for use by driver-specific overrides.
+// (contains/startswith/endswith and their case-insensitive companions)
+// and returns the rendered column SQL and the unquoted literal value.
+// The first argument must be a column selector; the second must be a
+// quoted string literal. Other shapes are rejected with a clear error.
+// Exported for use by driver-specific overrides.
+//
+// For like / ilike, which additionally accept a column selector as the
+// second argument, use [ParseLikePatternArgs].
 func ParseLikeArgs(rc *Context, fn *ast.FuncNode) (colSQL, literal string, err error) {
 	children := fn.Children()
 	if len(children) != 2 {
@@ -112,6 +115,63 @@ func ParseLikeArgs(rc *Context, fn *ast.FuncNode) (colSQL, literal string, err e
 			fn.FuncName())
 	}
 	return colSQL, val, nil
+}
+
+// ParseLikePatternArgs is the like / ilike companion to [ParseLikeArgs].
+// It validates the shape of a user-controlled-wildcard function call and
+// returns the rendered column SQL for the first argument plus the
+// rendered SQL for the second argument, which may be either a quoted
+// string literal (returned single-quoted, ready to splice into the
+// emitted LIKE clause) or a column selector (rendered via the dialect's
+// selector renderer). Mixed-form calls — like(.col, "lit") and
+// like(.col, .other_col) — are both accepted and dispatch on the
+// second-argument node type at parse time. Exported for use by
+// driver-specific overrides.
+func ParseLikePatternArgs(rc *Context, fn *ast.FuncNode) (colSQL, rhsSQL string, err error) {
+	children := fn.Children()
+	if len(children) != 2 {
+		return "", "", errz.Errorf(
+			"%s() requires exactly 2 arguments (column, pattern), got %d",
+			fn.FuncName(), len(children))
+	}
+
+	colNode, ok := ast.NodeUnwrap[ast.Node](children[0])
+	if !ok {
+		return "", "", errz.Errorf(
+			"%s() first argument must be a column selector", fn.FuncName())
+	}
+	colSQL, err = renderSelectorNode(rc.Dialect, colNode)
+	if err != nil {
+		return "", "", errz.Wrapf(err, "%s() first argument", fn.FuncName())
+	}
+
+	rhsNode, ok := ast.NodeUnwrap[ast.Node](children[1])
+	if !ok {
+		return "", "", errz.Errorf(
+			"%s() second argument must be a string literal or column selector",
+			fn.FuncName())
+	}
+
+	if lit, isLit := rhsNode.(*ast.LiteralNode); isLit {
+		val, wasQuoted, errLit := unquoteLiteral(lit.Text())
+		if errLit != nil {
+			return "", "", errz.Wrapf(errLit, "%s() second argument", fn.FuncName())
+		}
+		if !wasQuoted {
+			return "", "", errz.Errorf(
+				"%s() second argument must be a quoted string literal or column selector",
+				fn.FuncName())
+		}
+		return colSQL, stringz.SingleQuote(val), nil
+	}
+
+	rhsSQL, err = renderSelectorNode(rc.Dialect, rhsNode)
+	if err != nil {
+		return "", "", errz.Errorf(
+			"%s() second argument must be a string literal or column selector",
+			fn.FuncName())
+	}
+	return colSQL, rhsSQL, nil
 }
 
 // LikeOpts configures [RenderLikeOp]. Only Mode is required.
@@ -261,13 +321,16 @@ type LikeRawOpts struct {
 }
 
 // RenderLikeRaw renders the user-controlled LIKE shape used by SLQ's
-// like / ilike functions. Unlike [RenderLikeOp], the literal pattern
-// is bound verbatim: % and _ are wildcards, not escaped. Single
-// quotes inside the literal are still properly escaped by
-// SingleQuote. No `ESCAPE '|'` clause is emitted, so `|` is a literal
-// character on every driver. Other engine-default escape semantics
-// remain driver-specific — notably MySQL's default backslash escape
-// (`\`) still applies in `LIKE` patterns unless the session sets the
+// like / ilike functions. Unlike [RenderLikeOp], the pattern is bound
+// verbatim: % and _ are wildcards, not auto-escaped. The pattern may
+// be either a quoted string literal (single quotes inside are escaped
+// by SingleQuote) or a column selector (resolved per-row at execution
+// time). See [ParseLikePatternArgs] for the dispatch.
+//
+// No `ESCAPE '|'` clause is emitted, so `|` is a literal character on
+// every driver. Other engine-default escape semantics remain
+// driver-specific — notably MySQL's default backslash escape (`\`)
+// still applies in `LIKE` patterns unless the session sets the
 // `NO_BACKSLASH_ESCAPES` SQL mode. Users who need literal `%` / `_`
 // matching should use [RenderLikeOp] (SLQ's contains family), which
 // auto-escapes wildcards in the pattern.
@@ -279,7 +342,7 @@ func RenderLikeRaw(rc *Context, fn *ast.FuncNode, opts LikeRawOpts) (string, err
 	if opts.IgnoreCase && (opts.Op != "" || opts.ColCollate != "") {
 		panic("RenderLikeRaw: IgnoreCase is mutually exclusive with Op and ColCollate")
 	}
-	colSQL, lit, err := ParseLikeArgs(rc, fn)
+	colSQL, rhsSQL, err := ParseLikePatternArgs(rc, fn)
 	if err != nil {
 		return "", err
 	}
@@ -287,10 +350,9 @@ func RenderLikeRaw(rc *Context, fn *ast.FuncNode, opts LikeRawOpts) (string, err
 	if op == "" {
 		op = "LIKE"
 	}
-	litSQL := stringz.SingleQuote(lit)
 	if opts.IgnoreCase {
 		colSQL = "LOWER(" + colSQL + ")"
-		litSQL = "LOWER(" + litSQL + ")"
+		rhsSQL = "LOWER(" + rhsSQL + ")"
 	}
-	return colSQL + opts.ColCollate + " " + op + " " + litSQL, nil
+	return colSQL + opts.ColCollate + " " + op + " " + rhsSQL, nil
 }

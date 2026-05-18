@@ -932,10 +932,12 @@ matches every non-NULL row.
 
 `ilike(col, pattern)` is the case-insensitive counterpart to
 [`like`](#like). `%` and `_` are wildcards in `pattern` and are not
-auto-escaped.
+auto-escaped. As with `like`, `pattern` may be either a quoted string
+literal or a column selector.
 
 ```shell
 $ sq '.actor | where(ilike(.first_name, "pen%"))'
+$ sq '.actor | where(ilike(.first_name, .last_name))'
 ```
 
 Per-driver implementation:
@@ -947,8 +949,9 @@ Per-driver implementation:
 - **ClickHouse:** native `ILIKE`.
 
 No `ESCAPE '|'` clause is emitted on any driver — see [`like`](#like)
-for escape behavior. For literal `%` / `_` matching, use
-[`icontains`](#icontains), which auto-escapes wildcards.
+for escape behavior and column-as-pattern semantics. For literal
+`%` / `_` matching, use [`icontains`](#icontains), which auto-escapes
+wildcards.
 
 ### `istartswith`
 
@@ -970,7 +973,9 @@ matches every non-NULL row.
 `like(col, pattern)` exposes raw `LIKE`-pattern matching, where `%`
 matches any sequence and `_` matches any single character. Unlike
 [`contains`](#contains) and friends, wildcards in `pattern` are
-**not** auto-escaped: the user controls them.
+**not** auto-escaped: the user controls them. `pattern` may be either
+a quoted string literal or a column selector — see [Column as
+pattern](#column-as-pattern) below.
 
 ```shell
 $ sq '.actor | where(like(.first_name, "Pen%"))'
@@ -1004,14 +1009,33 @@ driver-specific — notably MySQL's default backslash escape (`\`) still
 applies in `LIKE` patterns unless the session sets the
 `NO_BACKSLASH_ESCAPES` SQL mode. If you need to match a literal `%` or
 `_` rather than treat them as wildcards, use [`contains`](#contains),
-which auto-escapes wildcards in the pattern. For column-as-pattern
-(`like(.col_a, .col_b)`), see
-[issue #628](https://github.com/neilotoole/sq/issues/628).
+which auto-escapes wildcards in the pattern.
 
 An empty pattern matches only empty strings (`col = ''`) — not every
 non-NULL row, in contrast with [`contains`](#contains)`(.col, "")`.
 That difference is intentional and matches standard SQL `LIKE`
 semantics.
+
+#### Column as pattern
+
+The pattern argument can be a column selector instead of a quoted
+string literal, enabling column-vs-column matching:
+
+```shell
+$ sq '.events | where(like(.message, .pattern))'
+$ sq '.actor | where(ilike(.first_name, .last_name))'
+```
+
+Useful for fuzzy joins, matching stored rules against incoming data,
+and similar data-wrangling workflows. NULL values in the RHS column
+yield NULL from `LIKE`, which `WHERE` treats as false (row excluded);
+this matches standard SQL semantics. Wildcards (`%`, `_`) in the RHS
+column's data behave exactly as in a literal pattern — they are not
+auto-escaped, since the value isn't known until execution.
+
+The [`contains`](#contains) family stays literal-only by design: its
+auto-escape of wildcards in the user pattern can't be performed when
+the pattern is a column reference resolved at query time.
 
 ### `max`
 

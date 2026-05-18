@@ -31,6 +31,16 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   [`ilike`](https://sq.io/docs/query#ilike) (`%` and `_` are
   wildcards). See [Query language](https://sq.io/docs/query) for
   per-driver behavior and SQLite ASCII-CI quirks.
+- [#628]: [`like`](https://sq.io/docs/query#like) and
+  [`ilike`](https://sq.io/docs/query#ilike) now accept a column
+  selector as the pattern argument (in addition to the existing
+  quoted-literal form), enabling column-vs-column matching such as
+  `where(like(.events.message, .rules.pattern))`. NULL values on
+  the RHS yield NULL from `LIKE`, which `WHERE` treats as false
+  (standard SQL semantics). The [`contains`](https://sq.io/docs/query#contains)
+  family stays literal-only by design: its auto-escape of wildcards
+  in the user pattern cannot be performed when the pattern is
+  resolved at execution time.
 
 ### Changed
 
@@ -1515,6 +1525,7 @@ make working with lots of sources much easier.
 [#601]: https://github.com/neilotoole/sq/issues/601
 [#602]: https://github.com/neilotoole/sq/pull/602
 [#615]: https://github.com/neilotoole/sq/issues/615
+[#628]: https://github.com/neilotoole/sq/issues/628
 [#629]: https://github.com/neilotoole/sq/issues/629
 
 
