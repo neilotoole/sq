@@ -1,7 +1,7 @@
 # Risk tiers (site Dependabot)
 
 Classify every open site PR before ordering merges. Read this file during
-**Phase 2 — Discovery** (Audit mode) and when drafting the verdict template.
+**Phase 2 — Risk classification** (Audit mode) and when drafting the verdict template.
 
 ## T0 — Trivial (merge first)
 
