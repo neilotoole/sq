@@ -65,13 +65,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   through the `max(...)` wrapper and rendered as if the user had
   written `like(.first_name, .last_name)`. Post-#640, such inputs are
   rejected with the existing `"must be a string literal or column selector"`
-  error message. Only the syntactic `*ast.ExprNode` wrappers SLQ inserts
-  around function arguments are peeled; user-meaningful nodes (notably
-  `*ast.FuncNode`) are preserved so the parser can reject them with a
-  clear error rather than silently mishandle them. (Operator wrappers
-  such as `-42` were unaffected — they parse with multiple children at
-  the wrapper, which the previous parser already rejected; only
-  single-arg function wrappers had the silent-strip behavior.)
+  error message. Operator wrappers such as `-42` were unaffected — only
+  single-arg function wrappers had the silent-strip behavior.
 
 ### Fixed
 
