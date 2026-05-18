@@ -101,6 +101,16 @@ func TestRenderParseError_MultipleIssues(t *testing.T) {
 	got := buf.String()
 	require.Contains(t, got, "unexpected 'bad1'")
 	require.Contains(t, got, "unexpected 'bad2'")
+
+	// Verify the issues are separated by a blank line (the inter-issue
+	// separator in RenderParseError). This guards against the separator
+	// being silently removed.
+	firstHdr := strings.Index(got, "unexpected 'bad1'")
+	secondHdr := strings.Index(got, "unexpected 'bad2'")
+	require.NotEqual(t, -1, firstHdr)
+	require.NotEqual(t, -1, secondHdr)
+	between := got[firstHdr:secondHdr]
+	require.Contains(t, between, "\n\nsq:", "expected blank-line separator before second issue header")
 }
 
 func TestRenderParseError_NegativeSpanFallback(t *testing.T) {
@@ -126,6 +136,34 @@ func TestRenderParseError_NegativeSpanFallback(t *testing.T) {
 	got := buf.String()
 	require.Contains(t, got, "syntax error at line 1, col 8: unexpected '#'")
 	require.Contains(t, got, ".actor # bad")
+}
+
+func TestRenderParseError_MultiLineInput(t *testing.T) {
+	pe := &ast.ParseError{
+		Input: ".actor | bad\n.director | also_bad",
+		Issues: []ast.ParseIssue{
+			{
+				Line:      1,
+				Col:       9,
+				StartChar: 9,
+				StopChar:  11,
+				Token:     "bad",
+				Msg:       "unexpected 'bad'",
+			},
+		},
+	}
+
+	buf := &bytes.Buffer{}
+	commonw.RenderParseError(buf, newMonoPrinting(), pe)
+	got := buf.String()
+
+	require.Contains(t, got, "syntax error at line 1, col 10: unexpected 'bad'")
+	require.Contains(t, got, ".actor | bad")
+	// Multi-line fallback still emits the caret line.
+	require.Contains(t, got, "~~~")
+	// The second input line should NOT appear in the rendered output
+	// (we render the offending line only).
+	require.NotContains(t, got, "also_bad")
 }
 
 func TestRenderParseError_ColorizesHandle(t *testing.T) {

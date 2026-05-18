@@ -79,3 +79,17 @@ func TestParse_NoSuggestionForFarToken(t *testing.T) {
 	require.NotEmpty(t, pe.Issues)
 	require.Empty(t, pe.Issues[0].Suggestion, "no close match should produce no suggestion")
 }
+
+func TestParse_EOF_TruncatedInput(t *testing.T) {
+	// Trailing pipe with no RHS triggers ANTLR's <EOF> offending token.
+	_, err := Parse(lg.Discard(), ".actor |")
+	require.Error(t, err)
+
+	var pe *ParseError
+	require.True(t, errors.As(err, &pe))
+	require.NotEmpty(t, pe.Issues)
+	iss := pe.Issues[0]
+	require.Equal(t, "parser", iss.stage)
+	require.Equal(t, "unexpected end of input", iss.Msg,
+		"<EOF> offending token should yield the canonical 'unexpected end of input' message")
+}

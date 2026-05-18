@@ -55,3 +55,22 @@ func TestMaxEditDistance(t *testing.T) {
 	require.Equal(t, 3, maxEditDistance(10))
 	require.Equal(t, 3, maxEditDistance(50))
 }
+
+func TestCollectExpectedTokenTypes(t *testing.T) {
+	tests := []struct {
+		name string
+		in   [][2]int
+		want []int
+	}{
+		{"nil", nil, nil},
+		{"empty", [][2]int{}, nil},
+		{"single-element", [][2]int{{3, 3}}, []int{3}},
+		{"range", [][2]int{{3, 5}}, []int{3, 4, 5}},
+		{"multiple", [][2]int{{1, 1}, {3, 5}, {10, 10}}, []int{1, 3, 4, 5, 10}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, collectExpectedTokenTypes(tc.in))
+		})
+	}
+}

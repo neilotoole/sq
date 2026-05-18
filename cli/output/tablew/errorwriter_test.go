@@ -51,3 +51,34 @@ func TestErrorWriter_NonParseError(t *testing.T) {
 	w.Error(err, err)
 	require.Contains(t, buf.String(), "sq: something broke")
 }
+
+func TestErrorWriter_ParseError_SuppressesStacktraceEvenWhenEnabled(t *testing.T) {
+	pe := &ast.ParseError{
+		Input: ".actor | bad",
+		Issues: []ast.ParseIssue{
+			{
+				Line:      1,
+				Col:       9,
+				StartChar: 9,
+				StopChar:  11,
+				Token:     "bad",
+				Msg:       "unexpected 'bad'",
+			},
+		},
+	}
+	wrapped := errz.Err(pe)
+
+	buf := &bytes.Buffer{}
+	pr := output.NewPrinting()
+	pr.EnableColor(false)
+	// stacktrace=true: parse errors should still suppress the stack.
+	w := tablew.NewErrorWriter(buf, pr, true)
+	w.Error(wrapped, wrapped)
+
+	got := buf.String()
+	require.Contains(t, got, "syntax error")
+	require.NotContains(t, got, "goroutine",
+		"parse errors should not include goroutine stack traces")
+	require.NotContains(t, got, "tRunner",
+		"parse errors should not include testing framework frames")
+}
