@@ -14,9 +14,11 @@ import (
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/output/commonw"
 	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/cli/output/jsonw"
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
@@ -119,6 +121,12 @@ func PrintError(ctx context.Context, ru *run.Run, err error) {
 		// The user wants JSON, either via defaults or flags.
 		jw := jsonw.NewErrorWriter(log, errOut, pr)
 		jw.Error(err, humanErr)
+		return
+	}
+
+	var pe *ast.ParseError
+	if errors.As(err, &pe) {
+		commonw.RenderParseError(errOut, pr, pe)
 		return
 	}
 
