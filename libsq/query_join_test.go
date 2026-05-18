@@ -8,6 +8,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/jointype"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
@@ -446,6 +447,41 @@ func TestQuery_join_cross_source_duplicate_user_alias(t *testing.T) {
 	_, err := th.QuerySLQ(q, nil)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "duplicate table alias")
+}
+
+// TestQuery_join_cross_source_strips_catalog_schema asserts that any
+// Catalog/Schema overrides set on a source (via `sq add --catalog X
+// --schema Y` or config) are not leaked into the SQL rendered against
+// the join scratch DB. The scratch DB only knows the bare table names
+// copied into it; emitting `"X"."Y"."actor"` against it would fail
+// with `no such table`. The fix in joinCrossSource normalizes each
+// participant's AST table value to a scratch-local form after the
+// copy task is captured.
+func TestQuery_join_cross_source_strips_catalog_schema(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	coll := th.NewCollection(sakila.SL3, sakila.SL3Whitespace)
+
+	// Simulate a source whose user-config carries explicit overrides.
+	// The values are not real SQLite schemas (SQLite has no concept of
+	// either), but specifyTableFully will still copy them onto the AST.
+	src, err := coll.Get(sakila.SL3)
+	require.NoError(t, err)
+	src.Catalog = "fake_catalog"
+	src.Schema = "fake_schema"
+
+	qc := &libsq.QueryContext{Collection: coll, Grips: th.Grips()}
+	q := fmt.Sprintf(
+		`%s.actor | join(%s.actor, .actor_id) | .first_name`,
+		sakila.SL3, sakila.SL3Whitespace,
+	)
+	res, err := libsq.SLQ2SQL(th.Context, qc, q)
+	require.NoError(t, err)
+	require.NotContains(t, res.SQL, "fake_catalog",
+		"join SQL leaked source-side catalog into the scratch-DB query: %s", res.SQL)
+	require.NotContains(t, res.SQL, "fake_schema",
+		"join SQL leaked source-side schema into the scratch-DB query: %s", res.SQL)
 }
 
 // TestQuery_join_cross_source_case_insensitive_collision exercises the

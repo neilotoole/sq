@@ -471,6 +471,18 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 
 		tbl.SyncTblNameAlias()
 
+		// specifyTableFully populated the AST node's table value with
+		// any Catalog/Schema overrides from the source. Those are
+		// source-side qualifiers and would render as
+		// "catalog"."schema"."table" against the scratch DB, which
+		// only knows the bare table name we copied into it. Normalize
+		// the AST table to scratch-local form before rndr.Join below.
+		// The copy task above already captured the source-qualified
+		// fromTbl, so this doesn't affect the source-side fetch.
+		if t := tbl.Table(); t.Catalog != "" || t.Schema != "" {
+			tbl.SetTable(tablefq.New(t.Table))
+		}
+
 		p.tasks = append(p.tasks, task)
 	}
 

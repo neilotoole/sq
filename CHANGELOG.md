@@ -61,6 +61,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   also treated as collisions. Two user-supplied aliases that collide
   are reported up front (`cross-source join: duplicate table alias
   "..."`) instead of surfacing later as an opaque scratch-DB error.
+  As a related fix, any source-level catalog/schema overrides on a
+  cross-source join participant are now dropped from the scratch-DB
+  SQL — the scratch DB only knows bare table names, so emitting
+  `"catalog"."schema"."actor"` against it would have failed with
+  `no such table`. Source-side fetches still use the qualified name.
 
 ## [v0.52.0] - 2026-05-15
 
