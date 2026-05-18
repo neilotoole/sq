@@ -30,7 +30,6 @@ func TestRenderParseError_SingleIssue(t *testing.T) {
 		Input: ".actor | this_is_invalid(.first_name)",
 		Issues: []ast.ParseIssue{
 			{
-				Stage:     "parser",
 				Line:      1,
 				Col:       9,
 				StartChar: 9,
@@ -57,7 +56,6 @@ func TestRenderParseError_WithSuggestion(t *testing.T) {
 		Input: ".actor | mx(.id)",
 		Issues: []ast.ParseIssue{
 			{
-				Stage:      "parser",
 				Line:       1,
 				Col:        9,
 				StartChar:  9,
@@ -79,7 +77,6 @@ func TestRenderParseError_MultipleIssues(t *testing.T) {
 		Input: ".actor | bad1 | bad2",
 		Issues: []ast.ParseIssue{
 			{
-				Stage:     "parser",
 				Line:      1,
 				Col:       9,
 				StartChar: 9,
@@ -88,7 +85,6 @@ func TestRenderParseError_MultipleIssues(t *testing.T) {
 				Msg:       "unexpected 'bad1'",
 			},
 			{
-				Stage:     "parser",
 				Line:      1,
 				Col:       16,
 				StartChar: 16,
@@ -107,13 +103,14 @@ func TestRenderParseError_MultipleIssues(t *testing.T) {
 	require.Contains(t, got, "unexpected 'bad2'")
 }
 
-func TestRenderParseError_NoSpan(t *testing.T) {
-	// Lexer error: StartChar == -1. Should still render a usable message.
+func TestRenderParseError_NegativeSpanFallback(t *testing.T) {
+	// Defensive: StartChar == -1 with no Token. Should still render a usable
+	// message. Real lexer errors now synthesize a Token (see A3), but this
+	// exercises the renderer's fallback path.
 	pe := &ast.ParseError{
 		Input: ".actor # bad",
 		Issues: []ast.ParseIssue{
 			{
-				Stage:     "lexer",
 				Line:      1,
 				Col:       7,
 				StartChar: -1,
@@ -141,7 +138,6 @@ func TestRenderParseError_ColorizesHandle(t *testing.T) {
 		Input: input,
 		Issues: []ast.ParseIssue{
 			{
-				Stage:     "parser",
 				Line:      1,
 				Col:       29,
 				StartChar: 29,

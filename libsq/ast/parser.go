@@ -55,7 +55,7 @@ func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offending
 	line, column int, msg string, _ antlr.RecognitionException,
 ) {
 	iss := ParseIssue{
-		Stage:     el.name,
+		stage:     el.name,
 		Line:      line,
 		Col:       column,
 		StartChar: -1,
@@ -69,28 +69,44 @@ func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offending
 		iss.StopChar = tok.GetStop()
 	}
 
+	// Lexer-stage errors don't carry a token. Synthesize a single-character
+	// span at column so the renderer can mark exactly one rune (matching the
+	// terse message produced below). column is 0-based.
+	if iss.Token == "" && el.name == "lexer" {
+		runes := []rune(el.input)
+		if column >= 0 && column < len(runes) {
+			iss.Token = string(runes[column])
+			iss.StartChar = column
+			iss.StopChar = column
+		}
+	}
+
 	iss.Msg = buildIssueMsg(iss.Token, msg)
 
+	// Capture recognizer for literal-name lookup below.
 	if el.recognizer == nil {
 		el.recognizer = recognizer
 	}
 
-	if p, ok := recognizer.(antlr.Parser); ok {
-		set := p.GetExpectedTokens()
-		if set != nil {
-			ivs := set.GetIntervals()
-			pairs := make([][2]int, 0, len(ivs))
-			for _, iv := range ivs {
-				pairs = append(pairs, [2]int{iv.Start, iv.Stop})
+	// Compute did-you-mean Suggestion (parser stage only; lexer doesn't
+	// expose an expected-token set). The expected-types slice is intentionally
+	// local — it's only used here.
+	if iss.Token != "" {
+		if p, ok := recognizer.(antlr.Parser); ok {
+			if set := p.GetExpectedTokens(); set != nil {
+				ivs := set.GetIntervals()
+				pairs := make([][2]int, 0, len(ivs))
+				for _, iv := range ivs {
+					pairs = append(pairs, [2]int{iv.Start, iv.Stop})
+				}
+				expectedTypes := collectExpectedTokenTypes(pairs)
+				if len(expectedTypes) > 0 {
+					literals := el.recognizer.GetLiteralNames()
+					candidates := expectedTokenLiterals(expectedTypes, literals)
+					iss.Suggestion = suggestForToken(iss.Token, candidates)
+				}
 			}
-			iss.expectedTypes = collectExpectedTokenTypes(pairs)
 		}
-	}
-
-	if iss.Token != "" && len(iss.expectedTypes) > 0 && el.recognizer != nil {
-		literals := el.recognizer.GetLiteralNames()
-		candidates := expectedTokenLiterals(iss.expectedTypes, literals)
-		iss.Suggestion = suggestForToken(iss.Token, candidates)
 	}
 
 	el.issues = append(el.issues, iss)
@@ -142,7 +158,7 @@ func (el *antlrErrorListener) String() string {
 	strs := make([]string, 0, len(el.issues)+len(el.warnings))
 	for _, iss := range el.issues {
 		strs = append(strs, fmt.Sprintf("%s: syntax error: [%d:%d] %s",
-			el.name, iss.Line, iss.Col, iss.Msg))
+			iss.stage, iss.Line, iss.Col, iss.Msg))
 	}
 	strs = append(strs, el.warnings...)
 	return strings.Join(strs, "\n")

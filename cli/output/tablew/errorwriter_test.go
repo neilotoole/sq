@@ -18,7 +18,6 @@ func TestErrorWriter_ParseError(t *testing.T) {
 		Input: ".actor | this_is_invalid(.first_name)",
 		Issues: []ast.ParseIssue{
 			{
-				Stage:     "parser",
 				Line:      1,
 				Col:       9,
 				StartChar: 9,

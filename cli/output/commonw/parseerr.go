@@ -210,8 +210,15 @@ func spanWithinLine(srcLine string, iss ast.ParseIssue) (start, stop int) {
 	}
 
 	// Single-line common case: absolute offsets fall within this line.
-	if iss.StartChar <= len(srcRunes) && iss.StopChar < len(srcRunes) {
-		return iss.StartChar, iss.StopChar + 1
+	// StopChar == len(srcRunes) is valid for EOF-synthesized tokens; clamp
+	// the stop offset rather than silently falling through to the multi-line
+	// fallback.
+	if iss.StartChar >= 0 && iss.StartChar <= len(srcRunes) {
+		end := iss.StopChar + 1
+		if end > len(srcRunes) {
+			end = len(srcRunes)
+		}
+		return iss.StartChar, end
 	}
 
 	// Multi-line fallback.

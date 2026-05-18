@@ -21,8 +21,10 @@ type ParseError struct {
 
 // ParseIssue describes a single syntax error.
 type ParseIssue struct {
-	// Stage is "lexer" or "parser".
-	Stage string
+	// stage is "lexer" or "parser". Diagnostic-only; not surfaced in
+	// user-facing output or the JSON wire form. Internal to the listener
+	// pipeline (used only by antlrErrorListener.String() for debug logs).
+	stage string
 
 	// Token is the text of the offending token, or "" for lexer errors.
 	Token string
@@ -33,15 +35,12 @@ type ParseIssue struct {
 	// Suggestion is an optional did-you-mean candidate.
 	Suggestion string
 
-	// expectedTypes is the set of token IDs ANTLR expected at this
-	// point. Unexported because callers shouldn't rely on raw ANTLR
-	// token numbering — it's only used internally to compute Suggestion.
-	expectedTypes []int
-
 	// Line is the 1-based line number where the issue was detected.
 	Line int
 
 	// Col is the 0-based column on Line where the issue was detected.
+	// User-facing renderings (Error() and cli/output/commonw.RenderParseError)
+	// display this as Col+1 (1-based) for human readability.
 	Col int
 
 	// StartChar is the 0-based char offset into ParseError.Input where
@@ -62,7 +61,7 @@ func (e *ParseError) Error() string {
 	parts := make([]string, 0, len(e.Issues))
 	for _, iss := range e.Issues {
 		parts = append(parts, fmt.Sprintf("syntax error at line %d, col %d: %s",
-			iss.Line, iss.Col, iss.Msg))
+			iss.Line, iss.Col+1, iss.Msg))
 	}
 	return strings.Join(parts, "; ")
 }
