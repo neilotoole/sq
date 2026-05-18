@@ -14,6 +14,24 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## Unreleased
 
+### Added
+
+- [#601]: New SLQ functions for substring matching: `contains(col, str)`,
+  `startswith(col, str)`, and `endswith(col, str)`. Always case-sensitive,
+  with `%`, `_`, and the escape character automatically escaped in the
+  user literal. See [Query language](https://sq.io/docs/query) for
+  details.
+- [#615]: New SLQ functions. Case-insensitive substring matchers
+  [`icontains`](https://sq.io/docs/query#icontains),
+  [`istartswith`](https://sq.io/docs/query#istartswith),
+  [`iendswith`](https://sq.io/docs/query#iendswith) (auto-escape
+  `%`/`_`/`|` in the pattern, matching the `contains` family from
+  [#601]). New user-controlled wildcard matchers
+  [`like`](https://sq.io/docs/query#like) and
+  [`ilike`](https://sq.io/docs/query#ilike) (`%` and `_` are
+  wildcards). See [Query language](https://sq.io/docs/query) for
+  per-driver behavior and SQLite ASCII-CI quirks.
+
 ### Changed
 
 - [#629]: [`like`](https://sq.io/docs/query#like) and
@@ -35,23 +53,26 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   carrying `input` and `issues[].{line, col, start_char, stop_char, token,
   msg, suggestion}` for programmatic consumers.
 
-### Added
+### Fixed
 
-- [#601]: New SLQ functions for substring matching: `contains(col, str)`,
-  `startswith(col, str)`, and `endswith(col, str)`. Always case-sensitive,
-  with `%`, `_`, and the escape character automatically escaped in the
-  user literal. See [Query language](https://sq.io/docs/query) for
-  details.
-- [#615]: New SLQ functions. Case-insensitive substring matchers
-  [`icontains`](https://sq.io/docs/query#icontains),
-  [`istartswith`](https://sq.io/docs/query#istartswith),
-  [`iendswith`](https://sq.io/docs/query#iendswith) (auto-escape
-  `%`/`_`/`|` in the pattern, matching the `contains` family from
-  [#601]). New user-controlled wildcard matchers
-  [`like`](https://sq.io/docs/query#like) and
-  [`ilike`](https://sq.io/docs/query#ilike) (`%` and `_` are
-  wildcards). See [Query language](https://sq.io/docs/query) for
-  per-driver behavior and SQLite ASCII-CI quirks.
+- [#445]: Cross-source [`join`](https://sq.io/docs/query#join) no longer
+  fails when the participating sources contain tables with the same
+  name (e.g. `@src1.actor | join(@src2.actor, .actor_id)`). Previously
+  the second table copy into the join scratch DB collided with the
+  first (`table "actor" already exists`); now colliding unaliased
+  participants are given numeric-suffixed aliases (`actor`, `actor_2`,
+  ...), picked to also avoid any other participant's destination name
+  so the scratch tables are unique and the rendered SQL is well-formed.
+  Collision detection is case-insensitive (matching SQLite's identifier
+  semantics for the join scratch DB), so `Actor` and `actor` are now
+  also treated as collisions. Two user-supplied aliases that collide
+  are reported up front (`cross-source join: duplicate table alias
+  "..."`) instead of surfacing later as an opaque scratch-DB error.
+  As a related fix, any source-level catalog/schema overrides on a
+  cross-source join participant are now dropped from the scratch-DB
+  SQL — the scratch DB only knows bare table names, so emitting
+  `"catalog"."schema"."actor"` against it would have failed with
+  `no such table`. Source-side fetches still use the qualified name.
 
 ## [v0.52.0] - 2026-05-15
 
@@ -1469,6 +1490,7 @@ make working with lots of sources much easier.
 [#353]: https://github.com/neilotoole/sq/issues/353
 [#415]: https://github.com/neilotoole/sq/issues/415
 [#437]: https://github.com/neilotoole/sq/issues/437
+[#445]: https://github.com/neilotoole/sq/issues/445
 [#446]: https://github.com/neilotoole/sq/issues/446
 [#498]: https://github.com/neilotoole/sq/issues/498
 [#469]: https://github.com/neilotoole/sq/issues/469
