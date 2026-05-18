@@ -82,6 +82,9 @@ site/node_modules/
 site/public/
 site/resources/
 site/.hugo_build.lock
+site/.env
+site/.env.bak
+site/.env.new
 
 # Local Netlify folder
 .netlify

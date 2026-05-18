@@ -1,0 +1,53 @@
+# High-risk packages (site/)
+
+Package-specific notes for **T3/T4** or elevated **T2** PRs. Cross-check the
+Dependabot PR title and `site/bun.lock` diff against this list.
+
+## `@hyas/images` (T4)
+
+- Build-time image processing; can change dimensions, formats, and page weight.
+- **Hold** bulk merges; verify key doc pages and hero images on deploy preview.
+- Replacement/alternate PRs may be needed if Dependabot cannot auto-resolve
+  (see sq repo history: held PRs, manual migration).
+
+## ESLint ecosystem (T3 when major)
+
+- Flat config (`eslint.config.js`) — major bumps often need rule fixes across
+  `site/scripts/`, `site/bunfig.toml`, and content tooling.
+- Run `make site-test` after merge; expect multi-file lint fixes in a follow-up
+  commit if merging a major without a dedicated migration branch.
+
+## Stylelint (T3 when major)
+
+- Can fail on Doks/Hugo template-adjacent CSS and custom properties.
+- Compare `stylelint.config.*` changelog; run `bun run lint:styles` locally.
+
+## `flexsearch` / search index (T4)
+
+- Affects client-side search behavior and index build scripts.
+- Smoke-test search on preview (`/` site search UI) before merge.
+
+## `linkinator` (T2–T3)
+
+- Timeout and skip-list changes affect CI noise, not just dependency version.
+- Full external crawl remains **non-blocking** on PRs; do not block T0/T1 merges
+  on nightly/external flake unless `make site-test` fails.
+
+## Netlify plugins (T2)
+
+- `@netlify/plugin-lighthouse` — failed plugin can fail deploy preview checks
+  even when `make ci` passes.
+- `netlify-plugin-submit-sitemap` — production-oriented; preview still runs
+  plugin hooks — watch build log for plugin errors.
+
+## Hugo / Doks / Hyas stack (T3–T4)
+
+- `hugo`, `hugo-mod-*`, theme-related modules: read release notes for breaking
+  template API changes.
+- Pin alignment: `site/netlify.toml` `HUGO_VERSION` and CI must stay consistent
+  after bump PRs (sometimes a separate maintainer commit is required).
+
+## When in doubt
+
+- Classify as **T2** minimum, run **Validate** mode, and set verdict **hold**
+  until a human confirms preview + Lighthouse.

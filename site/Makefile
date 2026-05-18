@@ -10,7 +10,10 @@
 #   make site-test-full — full lint suite (bun run test:full; includes external link crawl)
 #   make site-build  — bun run build (Hugo → public/)
 #   make site-local  — local dev server (bun scripts/dev-server.js)
+#   make check       — Bun, Hugo, Netlify CLI, jq, curl (Site CI / Dependabot)
+#   make check-netlify — make check + checkenv on .env (see .env.example)
 #   make ci          — deps, then site-test, then site-build (matches GitHub Site CI)
+#   make site-netlify-validate — Netlify deploy-preview CLI check (needs NETLIFY_*)
 #
 # Local dev after a warm online run (bun install + Hugo modules resolved):
 #   make site-local  — GET /version skips downloading the sq version by default (no extra env).
@@ -25,6 +28,9 @@
 # -----------------------------------------------------------------------------------------------------------
 
 include Common.make
+
+# checkenv.bash from code-red-base (site/scripts/checkenv.bash); validates .env
+CHECKENV_SCRIPT := ./scripts/checkenv.bash
 
 # -----------------------------------------------------------------------------------------------------------
 # Configuration
@@ -147,7 +153,26 @@ site-lighthouse:
 	log_indent log_dim "→ lighthouse-reports/mobile.report.html"; \
 	log_indent log_dim "→ lighthouse-reports/desktop.report.html"
 
+.PHONY: check ## Verify Site CI / Dependabot tools (Bun, Hugo, Netlify CLI, jq, curl)
+check: check_header check_bun check_hugo check_netlify_cli check_jq check_curl
+	@echo ""
+	@$(LOGGER) log_success "Tooling check passed"
+
+.PHONY: check-env ## Validate .env via checkenv.bash (.env.example)
+check-env:
+	@$(CHECKENV_SCRIPT) .env
+
+.PHONY: check-netlify ## make check plus validated .env (Netlify API credentials)
+check-netlify: check check-env
+
 .PHONY: ci ## Install deps, lint, and production build (matches GitHub Site CI workflow)
 ci: deps site-test site-build
 	@$(LOGGER) log_separator
 	@$(LOGGER) log_success "CI pipeline completed (deps, lint, build)"
+
+.PHONY: site-netlify-validate ## Netlify deploy-preview build + API poll until ready (NETLIFY_AUTH_TOKEN, NETLIFY_SITE_ID)
+site-netlify-validate: check-netlify
+	@$(LOGGER) log_separator
+	@$(LOGGER) log_info "Netlify deploy-preview validate (remote build)"
+	@set -a && . ./.env && set +a && ./scripts/netlify-deploy-validate.sh
+	@$(LOGGER) log_success "Netlify deploy reached state=ready"

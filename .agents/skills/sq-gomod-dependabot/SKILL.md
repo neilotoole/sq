@@ -11,28 +11,86 @@ compatibility: >-
 metadata:
   author: Todd Papaioannou
   homepage: https://sq.io
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # sq-gomod-dependabot
 
-Placeholder skill for Go module Dependabot PRs. Expand when gomod PR volume
-warrants a detailed workflow.
+Maintainer workflow for Dependabot PRs updating [`go.mod`](../../../go.mod) /
+[`go.sum`](../../../go.sum) at the repository root. For [`site/`](../../../site/)
+Bun/Hugo PRs, use [`sq-site-dependabot`](../sq-site-dependabot/SKILL.md).
 
-## When to use
+No `bun.lock` sequencing — multiple gomod PRs are less coupled than site PRs,
+but still prefer merging after CI is green.
 
-- Dependabot PRs updating `go.mod` / `go.sum` at the repository root
-- Not for [`site/`](../../../site/) Bun/Hugo dependency PRs (use
-  `sq-site-dependabot`)
+## Operating modes
 
-## Minimal workflow
+| Mode         | Actions                          | Merge       |
+| ------------ | -------------------------------- | ----------- |
+| **Audit**    | List/classify; direct vs indirect| No          |
+| **Validate** | Diff review; `make test-short`   | No          |
+| **Full**     | Validate + merge with consent    | Per PR      |
 
-1. `gh auth status` — GitHub CLI required.
-2. Review the diff: direct vs indirect dependency, security advisory if any.
-3. `make test-short` (or `make test` for broader coverage).
-4. `gh pr merge --squash --delete-branch` after required checks pass.
+Default to **Audit** unless the user asks to merge.
 
-No `bun.lock` sequencing issue; multiple gomod PRs are less coupled than site
-PRs.
+## Phase 0 — Tool bootstrap
+
+```bash
+command -v gh >/dev/null && gh auth status
+command -v go >/dev/null && go version
+```
+
+## Phase 1 — Discovery
+
+From repository root:
+
+```bash
+gh pr list --author 'app/dependabot' --state open \
+  --json number,title,headRefName,mergeable,statusCheckRollup \
+  --jq '.[] | select(.title | test("go|gomod|golang"; "i"))'
+```
+
+Confirm the PR does **not** only touch `site/`. If it touches both, split
+judgment: site hunks → `sq-site-dependabot`.
+
+## Phase 2 — Risk
+
+| Level    | Examples                         | Action              |
+| -------- | -------------------------------- | ------------------- |
+| Low      | Patch indirect, test-only modules| Merge after CI      |
+| Medium   | Direct minor/patch runtime dep   | Notes + test-short  |
+| High     | Major, `replace`, breaking sec   | Hold; full review   |
+
+## Phase 3 — Validate
+
+On PR branch:
+
+```bash
+make test-short
+# or make test for full driver integration (Docker)
+```
+
+Review `go mod why` / diff for unexpected indirect churn.
+
+## Phase 4 — Merge (consent-gated)
+
+After required checks pass:
+
+```bash
+gh pr merge <n> --squash --delete-branch
+```
+
+Use `--admin` only when the user explicitly requests and checks are green.
+
+## Verdict template
+
+```markdown
+## Dependabot gomod PR #NNN — <module>
+
+- **Direct/indirect:** …
+- **CI:** pass / fail
+- **make test-short:** pass / fail
+- **Verdict:** merge | hold
+```
 
 See [AGENTS.md](../../../AGENTS.md#agent-skills-contributors).

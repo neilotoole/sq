@@ -151,10 +151,8 @@ the rest of the system, see [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 This repo ships [Agent Skills](https://agentskills.io/specification) for
 **maintainer** workflows. They live under [`.agents/skills/`](.agents/skills/).
 
-| Location | Audience |
-|----------|----------|
-| [`.agents/skills/`](.agents/skills/) | Contributors (Dependabot triage, etc.) |
-| [`skills/sq/`](skills/sq/SKILL.md) | End users of the `sq` CLI (distribution; not repo auto-discovery) |
+- [`.agents/skills/`](.agents/skills/) — contributors (Dependabot triage, etc.)
+- [`skills/sq/`](skills/sq/SKILL.md) — end users of the `sq` CLI (distribution)
 
 Claude Code discovers the same tree via [`.claude/skills`](.claude/skills)
 (symlink to `.agents/skills`). Cursor and Codex load `.agents/skills/`
@@ -163,16 +161,24 @@ tree as documented in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ### Skills in this repo
 
-| Skill | Use when |
-|-------|----------|
-| [`sq-site-dependabot`](.agents/skills/sq-site-dependabot/) | Triaging or merging Dependabot PRs for [`site/`](site/) (Bun / Hugo). |
-| [`sq-gomod-dependabot`](.agents/skills/sq-gomod-dependabot/) | Dependabot PRs for Go modules at repo root (placeholder). |
+- [`sq-site-dependabot`](.agents/skills/sq-site-dependabot/) — Dependabot PRs
+  for [`site/`](site/) (Bun / Hugo).
+- [`sq-gomod-dependabot`](.agents/skills/sq-gomod-dependabot/) — Dependabot
+  PRs for Go modules at repo root.
 
 Invoke explicitly when your agent supports it (e.g. `/sq-site-dependabot` in
 Cursor, `$sq-site-dependabot` in Codex) or ask to “clear site dependabot PRs”.
 
-Full site-dependabot workflow content lands in a follow-up PR; this scaffold
-adds directories and docs only.
+**Site Dependabot Full mode** needs Netlify credentials in `site/.env`
+(gitignored; copy from `site/.env.example`). Variables:
+`NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID` (same as
+[Site Publish (dispatch)](./.github/workflows/site-publish-dispatch.yml)
+secrets). How to obtain them: see
+[tool-bootstrap.md](./.agents/skills/sq-site-dependabot/references/tool-bootstrap.md#getting-tokens-netlify-ui).
+
+From `site/`: `make check-netlify`, then `make ci` and `make site-netlify-validate`
+on the PR branch.
+See [`.agents/skills/sq-site-dependabot/`](.agents/skills/sq-site-dependabot/).
 
 ### Installing and verifying skills (`npx skills`)
 
