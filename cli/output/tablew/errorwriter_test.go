@@ -52,7 +52,7 @@ func TestErrorWriter_NonParseError(t *testing.T) {
 	require.Contains(t, buf.String(), "sq: something broke")
 }
 
-func TestErrorWriter_ParseError_SuppressesStacktraceEvenWhenEnabled(t *testing.T) {
+func TestErrorWriter_ParseError_StacktraceHonored(t *testing.T) {
 	pe := &ast.ParseError{
 		Input: ".actor | bad",
 		Issues: []ast.ParseIssue{
@@ -68,17 +68,21 @@ func TestErrorWriter_ParseError_SuppressesStacktraceEvenWhenEnabled(t *testing.T
 	}
 	wrapped := errz.Err(pe)
 
-	buf := &bytes.Buffer{}
+	// With stacktrace=false: no stack frames.
+	bufOff := &bytes.Buffer{}
 	pr := output.NewPrinting()
 	pr.EnableColor(false)
-	// stacktrace=true: parse errors should still suppress the stack.
-	w := tablew.NewErrorWriter(buf, pr, true)
-	w.Error(wrapped, wrapped)
+	wOff := tablew.NewErrorWriter(bufOff, pr, false)
+	wOff.Error(wrapped, wrapped)
+	require.Contains(t, bufOff.String(), "syntax error")
+	require.NotContains(t, bufOff.String(), "goroutine")
 
-	got := buf.String()
-	require.Contains(t, got, "syntax error")
-	require.NotContains(t, got, "goroutine",
-		"parse errors should not include goroutine stack traces")
-	require.NotContains(t, got, "tRunner",
-		"parse errors should not include testing framework frames")
+	// With stacktrace=true: parse error rendering PLUS stack frames.
+	bufOn := &bytes.Buffer{}
+	wOn := tablew.NewErrorWriter(bufOn, pr, true)
+	wOn.Error(wrapped, wrapped)
+	require.Contains(t, bufOn.String(), "syntax error",
+		"parse error message should appear above the stack")
+	require.NotEqual(t, bufOff.String(), bufOn.String(),
+		"stacktrace=true should produce different output than stacktrace=false")
 }

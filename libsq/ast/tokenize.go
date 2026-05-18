@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
 
@@ -48,6 +49,35 @@ const (
 	TokenPunc
 )
 
+// String returns a human-readable name for the kind, suitable for
+// logs and test failure messages. The strings are not part of any
+// public API contract.
+func (k TokenKind) String() string {
+	switch k {
+	case TokenHandle:
+		return "handle"
+	case TokenName:
+		return "name"
+	case TokenIdentifier:
+		return "identifier"
+	case TokenKeyword:
+		return "keyword"
+	case TokenNumber:
+		return "number"
+	case TokenString:
+		return "string"
+	case TokenBool:
+		return "bool"
+	case TokenNull:
+		return "null"
+	case TokenPunc:
+		return "punc"
+	case TokenUnknown:
+		return "unknown"
+	}
+	return fmt.Sprintf("TokenKind(%d)", int(k))
+}
+
 // Token is a single lexed token from an SLQ input.
 type Token struct {
 	// Text is the raw token text from the input.
@@ -69,8 +99,8 @@ type Token struct {
 }
 
 // Tokenize runs the SLQ lexer over input and returns visible (non-skipped)
-// tokens. Whitespace and line comments are skipped by the grammar
-// (-> skip), so they don't appear in the returned slice. On lex errors
+// tokens. Whitespace and line comments are not returned; the lexer discards
+// them before this function sees the token stream. On lex errors
 // (e.g., an unrecognized character) the lexer's default error recovery
 // is suppressed; partial output is returned with no error indication.
 func Tokenize(input string) []Token {

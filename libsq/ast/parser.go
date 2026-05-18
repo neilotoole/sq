@@ -13,8 +13,8 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
-// parseSLQ processes SLQ input text according to the rules of the SQL grammar,
-// and returns a parse tree. It executes both lexer and parser phases.
+// parseSLQ processes SLQ input text and returns a parse tree. It
+// executes both lexer and parser phases.
 func parseSLQ(log *slog.Logger, input string) (*slq.QueryContext, error) {
 	lex := slq.NewSLQLexer(antlr.NewInputStream(input))
 	lex.RemoveErrorListeners() // the generated lexer has default listeners we don't want
@@ -39,6 +39,10 @@ func parseSLQ(log *slog.Logger, input string) (*slq.QueryContext, error) {
 
 var _ antlr.ErrorListener = (*antlrErrorListener)(nil)
 
+// antlrErrorListener collects lexer and parser errors emitted by ANTLR
+// during parseSLQ and converts them into a structured ParseError. One
+// instance is attached to the lexer and a separate instance to the
+// parser; their issues are checked independently by parseSLQ.
 type antlrErrorListener struct {
 	// recognizer is the parser/lexer the listener is attached to. Used
 	// to look up literal names when building did-you-mean suggestions.
@@ -83,7 +87,8 @@ func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offending
 
 	iss.Msg = buildIssueMsg(iss.Token, msg)
 
-	// Capture recognizer for literal-name lookup below.
+	// Capture the recognizer on first call; used below to resolve expected
+	// token IDs to literal names when computing did-you-mean suggestions.
 	if el.recognizer == nil {
 		el.recognizer = recognizer
 	}
@@ -334,10 +339,11 @@ func (v *parseTreeVisitor) VisitErrorNode(ctx antlr.ErrorNode) any {
 	return nil
 }
 
-// buildIssueMsg produces a terse, sq-flavored error message from
-// the offending token text and ANTLR's raw message. We discard
-// ANTLR's "expecting {...}" enumeration because it's rarely
-// actionable for users.
+// buildIssueMsg produces a terse, sq-flavored error message. When token
+// is non-empty it returns "unexpected '<token>'" (or "unexpected end of
+// input" for the synthetic <EOF> token), ignoring antlrMsg. For lexer
+// errors with no token, it falls back to antlrMsg with ANTLR's
+// "token recognition error at: " prefix stripped.
 func buildIssueMsg(token, antlrMsg string) string {
 	if token != "" && token != "<EOF>" {
 		return fmt.Sprintf("unexpected '%s'", token)

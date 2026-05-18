@@ -11,6 +11,13 @@ import (
 	"github.com/neilotoole/sq/libsq/ast"
 )
 
+const (
+	// parseErrIndent is the two-space prefix used before input and caret lines.
+	parseErrIndent = "  "
+	// parseErrCaret is the repeated character that marks the offending span.
+	parseErrCaret = "~"
+)
+
 // RenderParseError writes a multi-line, position-highlighted error
 // rendering of pe to w. For each issue:
 //
@@ -35,9 +42,9 @@ func RenderParseError(w io.Writer, pr *output.Printing, pe *ast.ParseError) {
 	lines := strings.Split(pe.Input, "\n")
 
 	// Tokenize once for syntax-aware coloring of the input line.
-	// Skipped for multi-line input (we fall back to plain rendering there
-	// because token positions are global rune offsets and per-line slicing
-	// isn't implemented yet).
+	// Multi-line input uses the plain text + hilite fallback because
+	// per-line slicing of tokens (which carry global rune offsets) is
+	// not implemented.
 	multiLine := strings.Contains(pe.Input, "\n")
 	var tokens []ast.Token
 	if !multiLine {
@@ -62,17 +69,14 @@ func RenderParseError(w io.Writer, pr *output.Printing, pe *ast.ParseError) {
 		// Compute span within srcLine.
 		start, stop := spanWithinLine(srcLine, iss)
 
-		// srcLine is sliced as runes because StartChar/StopChar are rune
-		// indices (ANTLR-go InputStream uses []rune internally).
 		srcRunes := []rune(srcLine)
 
 		// Emit the input line. For single-line input we use token-driven
 		// colorization (handle/keyword/number/etc.) with pr.ErrorHilite
 		// overlayed on the offending span. For multi-line input we fall
-		// back to plain text plus hilite, since token positions are global
-		// rune offsets and the line-extraction work for multi-line isn't
-		// implemented yet.
-		fmt.Fprint(w, "  ")
+		// back to plain text plus hilite; per-line slicing of tokens
+		// (which carry global rune offsets) is not implemented.
+		fmt.Fprint(w, parseErrIndent)
 		switch {
 		case multiLine:
 			if start >= 0 && stop >= start && stop <= len(srcRunes) {
@@ -89,9 +93,9 @@ func RenderParseError(w io.Writer, pr *output.Printing, pe *ast.ParseError) {
 
 		// Caret line.
 		if start >= 0 && stop > start {
-			fmt.Fprint(w, "  ")
+			fmt.Fprint(w, parseErrIndent)
 			fmt.Fprint(w, strings.Repeat(" ", start))
-			pr.Error.Fprint(w, strings.Repeat("~", stop-start))
+			pr.Error.Fprint(w, strings.Repeat(parseErrCaret, stop-start))
 			fmt.Fprintln(w)
 		}
 
@@ -131,9 +135,10 @@ func colorForKind(pr *output.Printing, kind ast.TokenKind) *color.Color {
 
 // renderColorizedLine writes srcRunes to w with per-token coloring from
 // pr's palette, overlaying pr.ErrorHilite on the [hiliteStart, hiliteStop)
-// span. tokens is the result of ast.Tokenize on the full input; only
-// tokens that fall inside [0, len(srcRunes)) are used. Suitable only for
-// single-line input (lineStartOffset == 0).
+// span. tokens are the result of ast.Tokenize on the FULL input; the
+// caller must ensure positions in tokens index directly into srcRunes
+// (i.e., the input is single-line, or the line being rendered starts at
+// rune offset 0).
 func renderColorizedLine(
 	w io.Writer,
 	pr *output.Printing,
@@ -188,10 +193,8 @@ func renderColorizedLine(
 // that the issue's offending span covers. Returns (-1, -1) when the
 // span isn't available.
 //
-// StartChar/StopChar are 0-based absolute rune offsets into the full
-// input (ANTLR-go InputStream stores input as []rune). For a single-line
-// SLQ query they translate directly to offsets in srcLine. For multi-line
-// input we fall back to iss.Col + rune-length of iss.Token.
+// Token positions are 0-based rune offsets per ParseIssue's contract;
+// they index directly into srcRunes for single-line input.
 func spanWithinLine(srcLine string, iss ast.ParseIssue) (start, stop int) {
 	srcRunes := []rune(srcLine)
 	if iss.StartChar < 0 {
@@ -214,10 +217,7 @@ func spanWithinLine(srcLine string, iss ast.ParseIssue) (start, stop int) {
 	// the stop offset rather than silently falling through to the multi-line
 	// fallback.
 	if iss.StartChar >= 0 && iss.StartChar <= len(srcRunes) {
-		end := iss.StopChar + 1
-		if end > len(srcRunes) {
-			end = len(srcRunes)
-		}
+		end := min(iss.StopChar+1, len(srcRunes))
 		return iss.StartChar, end
 	}
 

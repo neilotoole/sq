@@ -31,15 +31,16 @@ func (w *errorWriter) Error(systemErr, humanErr error) {
 	var pe *ast.ParseError
 	if errors.As(systemErr, &pe) {
 		commonw.RenderParseError(w.w, w.pr, pe)
-		// Skip the trailing stack trace block for parse errors — there's
-		// nothing useful in a parser stack and it just noises up the
-		// user-facing output.
-		return
-	}
-
-	fmt.Fprintln(w.w, w.pr.Error.Sprintf("sq: %v", humanErr))
-	if !w.stacktrace {
-		return
+		// Render the stack trace below only when --error.stack is set.
+		// ANTLR internals aren't useful, but the wrapping errz frames may be.
+		if !w.stacktrace {
+			return
+		}
+	} else {
+		fmt.Fprintln(w.w, w.pr.Error.Sprintf("sq: %v", humanErr))
+		if !w.stacktrace {
+			return
+		}
 	}
 
 	stacks := errz.Stacks(systemErr)

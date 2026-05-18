@@ -67,7 +67,7 @@ func (w *errorWriter) Error(systemErr, humanErr error) {
 
 	if !w.pr.Verbose {
 		ed := errorDetail{Error: humanErr.Error()}
-		if hasParseErr {
+		if hasParseErr && len(pe.Issues) > 0 {
 			ed.ParseError = toParseErrorJSON(pe)
 		}
 		_ = writeJSON(w.out, pr, ed)
@@ -79,7 +79,7 @@ func (w *errorWriter) Error(systemErr, humanErr error) {
 		BaseError: systemErr.Error(),
 		Tree:      errz.SprintTreeTypes(systemErr),
 	}
-	if hasParseErr {
+	if hasParseErr && len(pe.Issues) > 0 {
 		ed.ParseError = toParseErrorJSON(pe)
 	}
 

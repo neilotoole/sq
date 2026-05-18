@@ -86,3 +86,10 @@ func TestTokenize_EmptyInput(t *testing.T) {
 	got := Tokenize("")
 	require.Empty(t, got)
 }
+
+func TestTokenKind_String(t *testing.T) {
+	require.Equal(t, "handle", TokenHandle.String())
+	require.Equal(t, "keyword", TokenKeyword.String())
+	require.Equal(t, "unknown", TokenUnknown.String())
+	require.Equal(t, "TokenKind(999)", TokenKind(999).String())
+}
