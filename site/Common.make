@@ -112,13 +112,16 @@ check_docker:
 		exit 1; \
 	fi
 
-# Check Netlify CLI (site devDependency; run from site/ after bun install)
+# Check Netlify CLI (site devDependency; Layer B uses bun x — brew alone is not enough)
 check_netlify_cli:
 	@if bun x netlify-cli --version >/dev/null 2>&1; then \
 		NETLIFY_VER=$$(bun x netlify-cli --version 2>/dev/null | head -1); \
 		$(LOGGER) log_info_dim "Netlify CLI $$NETLIFY_VER (via bun x)."; \
+	elif command -v netlify >/dev/null 2>&1 && netlify --version >/dev/null 2>&1; then \
+		NETLIFY_VER=$$(netlify --version 2>/dev/null | head -1); \
+		$(LOGGER) log_warning "Netlify CLI $$NETLIFY_VER on PATH only; run 'bun install' in site/ for lockfile CLI (required for site-netlify-validate)."; \
 	else \
-		$(LOGGER) log_error "Netlify CLI not available. Run: bun install"; \
+		$(LOGGER) log_error "Netlify CLI not available. From site/: bun install"; \
 		exit 1; \
 	fi
 

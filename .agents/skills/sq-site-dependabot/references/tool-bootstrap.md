@@ -9,6 +9,20 @@ fails and install or authenticate before continuing.
 - **Site tools** — `cd site && make check`. Validate, Full.
 - **Netlify env** — `cd site && make check-netlify`. Layer B, Full only.
 
+### Agents and fresh checkouts
+
+`check-tools.sh` runs `bun install` in `site/` when `bun x netlify-cli` is not
+available (common in sandboxes without `node_modules`). Requires network access.
+
+- **Do not rely on `brew install netlify-cli` alone** — `make site-netlify-validate`
+  invokes `bun x netlify-cli` (lockfile-pinned devDependency).
+- `make check` may warn if only a global `netlify` is on PATH; install site deps
+  before Full mode.
+- `SKIP_SITE_DEPS=1` — skip auto `bun install` when deps are already present.
+- **Cursor / agent sandbox:** `make check` runs `bun x netlify-cli`. If Phase 0
+  fails after `bun install`, re-run with permissions that allow executing
+  `site/node_modules` binaries (not only `brew install netlify-cli`).
+
 ## Netlify credentials (Validate Layer B / Full only)
 
 Maintainers store credentials in **`site/.env`** (gitignored). Template:
@@ -69,7 +83,8 @@ cd site && make check-netlify
   `PAGER=less` does not pause at `(END)` mid-run.
 - **Bun:** [bun.sh](https://bun.sh) — pin to `site/netlify.toml` /
   [site-ci.yml](../../../../.github/workflows/site-ci.yml)
-- **Netlify CLI:** `cd site && bun install` (devDependency)
+- **Netlify CLI:** `cd site && bun install` then `bun x netlify-cli --version`
+  (not brew-only for Layer B)
 - **checkenv:** `site/scripts/checkenv.bash` (via `make check-env --merge`)
 
 ## Working directory
