@@ -39,12 +39,17 @@ Default to **Audit** unless the user says "merge", "clear them", or "full".
 Run first in every mode. Stop on failure.
 
 ```bash
-# gh auth + site tooling (see site/Makefile: make check)
+# gh auth + site deps (bun install if needed) + make check
 .agents/skills/sq-site-dependabot/scripts/check-tools.sh
 # Full / Layer B (+ NETLIFY_* via make check-netlify):
 .agents/skills/sq-site-dependabot/scripts/check-tools.sh --netlify
-# Or: gh api user -q .login && cd site && make check-netlify
+# Or: gh api user -q .login && cd site && bun install && make check-netlify
 ```
+
+`check-tools.sh` runs `bun install` in `site/` when `bun x netlify-cli` is missing
+(fresh clone, agent sandbox). Needs network. `SKIP_SITE_DEPS=1` skips that step.
+Layer B (`site-netlify-validate`) always uses `bun x netlify-cli` — a global/brew
+CLI does not replace `bun install`.
 
 Details: [references/tool-bootstrap.md](references/tool-bootstrap.md).
 

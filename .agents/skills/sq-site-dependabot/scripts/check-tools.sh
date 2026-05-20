@@ -22,11 +22,41 @@ fi
 gh_login=$(gh api user -q .login)
 echo "Logged in as ${gh_login}"
 
-echo "==> Site tooling (make check)"
 if [ ! -d "${SITE_DIR}" ]; then
 	echo "site/ not found at ${SITE_DIR}" >&2
 	exit 1
 fi
+
+# Netlify CLI is a site devDependency (bun x netlify-cli). Agents and fresh
+# checkouts often lack node_modules; install before make check. Layer B also
+# requires bun x (brew netlify alone is not enough for site-netlify-validate).
+netlify_cli_in_node_modules() {
+	[ -f "${SITE_DIR}/node_modules/netlify-cli/package.json" ]
+}
+
+ensure_site_deps() {
+	if [ "${SKIP_SITE_DEPS:-}" = "1" ]; then
+		echo "==> Site dependencies (skipped: SKIP_SITE_DEPS=1)"
+		return 0
+	fi
+	echo "==> Site dependencies"
+	if netlify_cli_in_node_modules; then
+		echo "netlify-cli present in site/node_modules"
+		return 0
+	fi
+	echo "netlify-cli not in node_modules; running bun install (needs network)…"
+	(cd "${SITE_DIR}" && bun install)
+	if ! netlify_cli_in_node_modules; then
+		echo "error: netlify-cli still missing after bun install" >&2
+		echo "From site/: bun install. Full mode requires bun x, not only brew netlify-cli." >&2
+		exit 1
+	fi
+	echo "netlify-cli installed (verify with: cd site && bun x netlify-cli --version)"
+}
+
+ensure_site_deps
+
+echo "==> Site tooling (make check)"
 if [ "${1:-}" = "--netlify" ]; then
 	(cd "${SITE_DIR}" && make check-netlify)
 else

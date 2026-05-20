@@ -45,6 +45,14 @@ if ! command -v jq >/dev/null 2>&1; then
 	exit 1
 fi
 
+if ! bun x netlify-cli --version >/dev/null 2>&1; then
+	log_error "netlify-cli not available via bun x (run: cd site && bun install)."
+	if command -v netlify >/dev/null 2>&1; then
+		log_error "A global/brew netlify CLI is on PATH; site-netlify-validate requires the lockfile devDependency."
+	fi
+	exit 1
+fi
+
 DEPLOY_MESSAGE="${MESSAGE:-dependabot-validate $(date -u +%Y-%m-%dT%H:%MZ)}"
 deploy_json=$(mktemp)
 trap 'rm -f "${deploy_json}"' EXIT
