@@ -39,7 +39,9 @@ See [site/README.md](../../../../site/README.md#site-testing).
 
 **Pending check:** poll ~5 minutes; do not merge on assumptions.
 
-**Failed check:** do not merge; open Netlify build log; compare with Layer B.
+**Failed check:** do not merge. Triage with
+[netlify-build-debug.md](./netlify-build-debug.md) or
+`debug-netlify-pr.sh <pr>`; compare with Layer B after install/build succeeds.
 
 ## Netlify CLI validate (Layer B)
 

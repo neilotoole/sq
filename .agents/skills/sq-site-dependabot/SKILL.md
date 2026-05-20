@@ -105,8 +105,9 @@ After `make ci` on the PR branch:
 3. Open deploy-preview URL; confirm published (not building/failed)
 4. T1+: review `@netlify/plugin-lighthouse` on preview if available
 
-If pending: poll ~5 min. If failed: do not merge; see
-[references/merge-failures.md](references/merge-failures.md).
+If pending: poll ~5 min. If failed: do not merge; run
+`debug-netlify-pr.sh <n>` or see [references/netlify-build-debug.md](references/netlify-build-debug.md);
+recovery steps in [references/merge-failures.md](references/merge-failures.md).
 
 ### Layer B — Netlify CLI (required in Full mode)
 
@@ -197,3 +198,4 @@ Per PR (GitHub comment or chat):
 - [ci-and-checks.md](references/ci-and-checks.md)
 - [netlify-cli-validate.md](references/netlify-cli-validate.md)
 - [merge-failures.md](references/merge-failures.md)
+- [netlify-build-debug.md](references/netlify-build-debug.md)
