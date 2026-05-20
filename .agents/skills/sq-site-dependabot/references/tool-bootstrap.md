@@ -84,6 +84,7 @@ cd site && make check-netlify
   [site-ci.yml](../../../../.github/workflows/site-ci.yml)
 - **Netlify CLI:** `cd site && bun install` then `bun x netlify-cli --version`
   (not brew-only for Layer B)
+- **Failed preview debug:** `.agents/skills/sq-site-dependabot/scripts/debug-netlify-pr.sh <pr>`
 - **checkenv:** `site/scripts/checkenv.bash` (via `make check-env --merge`)
 
 ## Working directory

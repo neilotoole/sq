@@ -33,6 +33,16 @@ Dependabot PR title and `site/bun.lock` diff against this list.
 - Full external crawl remains **non-blocking** on PRs; do not block T0/T1 merges
   on nightly/external flake unless `make site-test` fails.
 
+## `netlify-cli` (T2; can fail Layer A while Site CI passes)
+
+- Bumping `netlify-cli` runs the **new** package `postinstall` during `bun install`
+  on Netlify deploy previews (it is a site devDependency).
+- If preview fails at **Install dependencies**, reproduce with
+  `cd site && bun install` on the PR branch; use
+  [netlify-build-debug.md](./netlify-build-debug.md).
+- Example (#621): v26.0.2 postinstall failed on Netlify (Node 22) — `execa` CJS
+  vs ESM in `@netlify/config`; hold until upstream fix or verified override.
+
 ## Netlify plugins (T2)
 
 - `@netlify/plugin-lighthouse` — failed plugin can fail deploy preview checks

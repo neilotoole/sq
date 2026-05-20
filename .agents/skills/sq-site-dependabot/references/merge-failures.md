@@ -33,8 +33,10 @@ gh pr view <next> --json mergeable
   `@dependabot rebase` or close/reopen; do not skip to the next PR with conflicts.
 - **Site CI fails after rebase:** Hold that PR; `make ci` locally; T3 vs real
   breakage; no merge until green.
-- **Netlify preview failed or pending:** Do not merge; open build log; run
-  `make site-netlify-validate` to reproduce.
+- **Netlify preview failed or pending:** Do not merge. Run
+  [`debug-netlify-pr.sh`](../scripts/debug-netlify-pr.sh) or follow
+  [netlify-build-debug.md](./netlify-build-debug.md); then
+  `make site-netlify-validate` on a fixed branch if needed.
 - **`site-netlify-validate` failed:** Do not merge; compare Layer A log; fix;
   re-run from clean `make ci`.
 - **Missing `site/.env`:** Copy `site/.env.example`, fill tokens, run
