@@ -27,7 +27,14 @@ echo "==> Netlify-related check lines"
 gh pr checks "${PR}" 2>&1 | /usr/bin/grep -iE 'netlify|sq-web|Header rules|Redirect|Pages changed' || true
 
 CHECKS_OUT=$(mktemp)
-trap 'rm -f "${DEPLOY_JSON}" "${CHECKS_OUT}"' EXIT
+DEPLOY_JSON=""
+cleanup() {
+	rm -f "${CHECKS_OUT}"
+	if [ -n "${DEPLOY_JSON}" ]; then
+		rm -f "${DEPLOY_JSON}"
+	fi
+}
+trap cleanup EXIT
 gh pr checks "${PR}" >"${CHECKS_OUT}" 2>&1 || true
 DEPLOY_ID=$(/usr/bin/grep -oE 'deploys/[a-f0-9]{24}' "${CHECKS_OUT}" | head -1 | /usr/bin/cut -d/ -f2 || true)
 
