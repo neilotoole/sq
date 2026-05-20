@@ -14,10 +14,9 @@ fails and install or authenticate before continuing.
 `check-tools.sh` runs `bun install` in `site/` when `bun x netlify-cli` is not
 available (common in sandboxes without `node_modules`). Requires network access.
 
-- **Do not rely on `brew install netlify-cli` alone** — `make site-netlify-validate`
-  invokes `bun x netlify-cli` (lockfile-pinned devDependency).
-- `make check` may warn if only a global `netlify` is on PATH; install site deps
-  before Full mode.
+- **Do not rely on `brew install netlify-cli` alone** — `make check` and
+  `make site-netlify-validate` require `bun x netlify-cli` (lockfile devDependency).
+  A global/brew `netlify` on PATH does not satisfy the check.
 - `SKIP_SITE_DEPS=1` — skip auto `bun install` when deps are already present.
 - **Cursor / agent sandbox:** `make check` runs `bun x netlify-cli`. If Phase 0
   fails after `bun install`, re-run with permissions that allow executing
