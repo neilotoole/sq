@@ -26,8 +26,9 @@ Changes under `site/` are validated by [`.github/workflows/site-ci.yml`](./.gith
 
 To triage or merge a batch of **Dependabot PRs** for `site/`, use the
 [`sq-site-dependabot`](./.agents/skills/sq-site-dependabot/) agent skill (invoke
-explicitly in your agent, e.g. `/sq-site-dependabot` in Cursor). Full workflow
-content may still be expanding across PRs; see [AGENTS.md](./AGENTS.md#agent-skills-contributors).
+explicitly in your agent, e.g. `/sq-site-dependabot` in Cursor). See
+[AGENTS.md](./AGENTS.md#agent-skills-contributors) and
+[`.agents/skills/sq-site-dependabot/`](./.agents/skills/sq-site-dependabot/).
 
 ### `site/` import background (maintainers)
 

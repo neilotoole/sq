@@ -1,6 +1,6 @@
 # sq.io website
 
-[![Netlify Status](https://api.netlify.com/api/v1/badges/7caea069-2a8d-4f0b-bafe-b053bbc5eb08/deploy-status)](https://app.netlify.com/sites/sq-web/deploys)
+[![Netlify Status](https://api.netlify.com/api/v1/badges/7caea069-2a8d-4f0b-bafe-b053bbc5eb08/deploy-status)](https://app.netlify.com/)
 
 This directory is the source for the [sq.io](https://sq.io) website inside the
 [sq](https://github.com/neilotoole/sq) monorepo (`site/`). It hosts documentation for the
@@ -19,7 +19,7 @@ Production publishes to [sq.io](https://sq.io) are **manual** — merges to
 ## Contributing
 
 Open an [issue](https://github.com/neilotoole/sq/issues) or submit a [pull request](https://github.com/neilotoole/sq/pulls)
-against [`neilotoole/sq`](https://github.com/neilotoole/sq) (not the archived `sq-web` repo).
+against [`neilotoole/sq`](https://github.com/neilotoole/sq) in this monorepo.
 
 ### 1. Clone the monorepo and enter this directory
 
@@ -59,7 +59,40 @@ make site-build
 # same as: bun run build
 ```
 
+Verify local tooling (Bun, Hugo, Netlify CLI, jq, curl): `make check`.
+
+**Netlify API credentials** (maintainers only, for `make site-netlify-validate`):
+
+```bash
+cp .env.example .env
+# Edit .env — see .env.example for where to get each value
+make check-netlify
+```
+
+`check-netlify` runs `scripts/checkenv.bash --merge` against `.env` (sync keys
+from `.env.example`, then validate; no interactive prompts).
+`.env` is gitignored; never commit it.
+
 One-shot check matching **Site CI** (`deps` → test → build): `make ci`.
+
+**Netlify deploy-preview validate** (Dependabot Full mode / Layer B):
+
+Check out the **PR branch** at its current head (`gh pr checkout <n>`) with a
+**clean** working tree before validating — Layer B uploads the local `site/`
+tree, not GitHub’s PR ref.
+
+```bash
+make check-netlify                        # once per machine / after editing site/.env
+export MESSAGE="PR #573 dependabot shx"   # optional
+make site-netlify-validate
+```
+
+Same variables as [Site Publish (dispatch)](../.github/workflows/site-publish-dispatch.yml)
+GitHub Actions secrets.
+
+Runs `netlify-cli deploy --build --context deploy-preview` and polls the
+Netlify API until `state=ready`. See
+[`.agents/skills/sq-site-dependabot/`](../.agents/skills/sq-site-dependabot/).
 
 ### Site testing
 
@@ -128,7 +161,7 @@ set.
 Netlify still provides deploy previews for every PR with Lighthouse audits for
 performance, accessibility, best practices, and SEO. Before merging, click
 through to the deploy preview (e.g.,
-`https://deploy-preview-59--sq-web.netlify.app`) to verify your changes look
+the deploy-preview URL from the PR checks) to verify your changes look
 correct.
 
 ### Commands
@@ -138,6 +171,8 @@ In **Common.make**, `make build` builds the **Docker** image, not the Hugo site;
 
 | Make target      | Bun equivalent        | Description                                        |
 |------------------|-----------------------|----------------------------------------------------|
+| `make check`     | —                     | Verify Bun, Hugo, Netlify CLI, jq, curl            |
+| `make check-netlify` | —                 | `make check` + `checkenv` on `.env`              |
 | `make deps`      | `bun install`         | Install dependencies                               |
 | `make site-local`| `bun scripts/dev-server.js` | Hugo dev server                                   |
 | `make smoke-test`| (script)              | Docker smoke checks (`validate-build.sh --start`)  |
@@ -145,6 +180,7 @@ In **Common.make**, `make build` builds the **Docker** image, not the Hugo site;
 | `make site-test-full` | `bun run test:full` | Full linters + external link crawl                 |
 | `make site-build`| `bun run build`       | Production site → `public/`                        |
 | `make ci`        | (sequence below)      | `deps`, then `site-test`, then `site-build` (CI)   |
+| `make site-netlify-validate` | — | Netlify deploy-preview build + API poll (`NETLIFY_*`) |
 
 Other **package.json** scripts (call with `bun run …`):
 
