@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -25,7 +24,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/libsq/core/termz"
 )
 
 // PrintError is the centralized function for printing
@@ -130,12 +128,12 @@ func PrintError(ctx context.Context, ru *run.Run, err error) {
 		return
 	}
 
-	// The user didn't want JSON, so we just print to stderr.
-	if termz.IsColorTerminal(os.Stderr) {
-		pr.Error.Fprintln(os.Stderr, "sq: "+err.Error())
-	} else {
-		fmt.Fprintln(os.Stderr, "sq: "+err.Error())
-	}
+	// Not JSON and not a renderable parse error: print the plain error to
+	// errOut, consistent with the JSON and parse-error paths above. pr already
+	// carries the correct color setting for errOut (getOutputConfig sets it,
+	// or it defaults to a no-color NewPrinting), so there's no need for a
+	// separate terminal check against os.Stderr.
+	pr.Error.Fprintln(errOut, "sq: "+err.Error())
 }
 
 // bootstrapIsFormatJSON is a last-gasp attempt to check if the user

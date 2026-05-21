@@ -89,3 +89,17 @@ func TestPrintError_ParseError_Bootstrap(t *testing.T) {
 	require.Contains(t, got, "syntax error at line 1, col 10: unexpected 'this_is_invalid'")
 	require.Contains(t, got, "~~~", "bootstrap path should still render the caret")
 }
+
+// TestPrintError_GenericError_Bootstrap asserts that a non-parse error in the
+// bootstrap fallback also reaches errOut (not os.Stderr directly), so all
+// three bootstrap branches (JSON, parse error, generic) write consistently.
+func TestPrintError_GenericError_Bootstrap(t *testing.T) {
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	tr.Run.Writers = nil // force the bootstrap fallback path
+
+	cli.PrintError(th.Context, tr.Run, errz.New("something broke"))
+
+	require.Contains(t, tr.ErrOut.String(), "sq: something broke",
+		"generic bootstrap error must reach errOut, consistent with the parse-error path")
+}
