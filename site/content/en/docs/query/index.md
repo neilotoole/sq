@@ -454,6 +454,12 @@ $ sq '.actor:a
 
 Table aliases work like [column aliases](#column-aliases).
 
+Aliases also serve to disambiguate
+[cross-source joins](#cross-source-joins) where participants happen
+to share a table name; see
+[Same-name tables across sources](#same-name-tables-across-sources)
+below.
+
 Note that table aliases aren't
 restricted to join scenarios. You can generally use them anywhere you reference a table,
 although it's often somewhat pointless:
@@ -576,6 +582,49 @@ Given a two-source join:
 Given that this naive implementation perform a full copy of both tables, cross-source joins
 are only suitable for smaller datasets.
 {{< /alert >}}
+
+#### Same-name tables across sources
+
+When two sources contribute tables with the same name, the join DB
+can only hold one table by that name. `sq` resolves this automatically:
+the first occurrence keeps its bare name, and subsequent ones get a
+numeric-suffixed alias (`actor`, `actor_2`, `actor_3`, ...).
+
+```shell
+$ sq '@src1.actor | join(@src2.actor, .actor_id) | .first_name'
+```
+
+The rendered SQL against the join DB is well-formed:
+
+```sql
+SELECT "first_name"
+FROM "actor"
+INNER JOIN "actor_2" ON "actor"."actor_id" = "actor_2"."actor_id"
+```
+
+The same applies when both names differ only in case. `sq` treats
+`Actor` and `actor` as colliding because the join DB (SQLite) compares
+identifier names case-insensitively even when double-quoted.
+
+If you have already given each participant a distinct
+[table alias](#table-aliases), that wins and no rename happens:
+
+```shell
+$ sq '@src1.actor:a | join(@src2.actor:b, .a.actor_id == .b.actor_id) | .a.first_name'
+```
+
+But two participants in the same cross-source join cannot share an
+explicit alias. The following is rejected up front:
+
+```shell
+$ sq '@src1.actor:x | join(@src2.actor:x, .x.actor_id == .x.actor_id) | .first_name'
+sq: cross-source join: duplicate table alias "x"
+```
+
+Give them different aliases to fix.
+
+Run with `-v` to see a debug log line at the point each synthesized
+alias is assigned (handle, original name, and the synthesized name).
 
 ### Ambiguous columns
 
