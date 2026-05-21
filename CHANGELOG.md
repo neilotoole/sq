@@ -61,6 +61,16 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   [`icontains`](https://sq.io/docs/query#icontains), which auto-escape
   wildcards. The [`contains`](https://sq.io/docs/query#contains)
   family is unchanged and still emits `ESCAPE '|'`.
+- [#637]: Syntax errors from invalid SLQ input are now reported with the
+  offending span highlighted in the original query, the input line
+  syntax-colored per sq's standard palette (handles, selectors, keywords,
+  numbers, strings, punctuation), and a terse, sq-flavored message
+  replacing ANTLR's verbose `expecting {...}` dump. Typo'd identifiers
+  may receive a `did you mean '<name>'?` suggestion (e.g., `mx` → `max`).
+- [#637]: The structured `parse_error` field is included in `--json`
+  error output, carrying `input` and `issues[].{line, col, token, msg,
+  suggestion}`, plus rune-offset `start_char`/`stop_char` when a precise
+  span is available, for programmatic consumers.
 - [#640]: The LIKE-family argument parsers
   ([`contains`](https://sq.io/docs/query#contains) and friends, plus
   [`like`](https://sq.io/docs/query#like) /
@@ -1547,6 +1557,7 @@ make working with lots of sources much easier.
 [#615]: https://github.com/neilotoole/sq/issues/615
 [#628]: https://github.com/neilotoole/sq/issues/628
 [#629]: https://github.com/neilotoole/sq/issues/629
+[#637]: https://github.com/neilotoole/sq/pull/637
 [#640]: https://github.com/neilotoole/sq/issues/640
 
 

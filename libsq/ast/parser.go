@@ -13,24 +13,25 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
-// parseSLQ processes SLQ input text according to the rules of the SQL grammar,
-// and returns a parse tree. It executes both lexer and parser phases.
+// parseSLQ processes SLQ input text and returns a parse tree. It
+// executes both lexer and parser phases.
 func parseSLQ(log *slog.Logger, input string) (*slq.QueryContext, error) {
 	lex := slq.NewSLQLexer(antlr.NewInputStream(input))
 	lex.RemoveErrorListeners() // the generated lexer has default listeners we don't want
-	lexErrs := &antlrErrorListener{name: "lexer", log: log}
+	lexErrs := &antlrErrorListener{name: "lexer", log: log, input: input}
 	lex.AddErrorListener(lexErrs)
 
 	p := slq.NewSLQParser(antlr.NewCommonTokenStream(lex, 0))
 	p.RemoveErrorListeners() // the generated parser has default listeners we don't want
-	parseErrs := &antlrErrorListener{name: "parser", log: log}
+	parseErrs := &antlrErrorListener{name: "parser", log: log, input: input}
 	p.AddErrorListener(parseErrs)
 
 	qCtx := p.Query()
+	lexErrs.logDiagnostics()
+	parseErrs.logDiagnostics()
 	if err := lexErrs.error(); err != nil {
 		return nil, errz.Err(err)
 	}
-
 	if err := parseErrs.error(); err != nil {
 		return nil, errz.Err(err)
 	}
@@ -40,22 +41,94 @@ func parseSLQ(log *slog.Logger, input string) (*slq.QueryContext, error) {
 
 var _ antlr.ErrorListener = (*antlrErrorListener)(nil)
 
+// antlrErrorListener collects lexer and parser errors emitted by ANTLR
+// during parseSLQ and converts them into a structured ParseError. One
+// instance is attached to the lexer and a separate instance to the
+// parser; their issues are checked independently by parseSLQ.
 type antlrErrorListener struct {
-	err      error
-	log      *slog.Logger
-	name     string
-	errs     []string
-	warnings []string
+	// recognizer is the parser/lexer the listener is attached to. Used
+	// to look up literal names when building did-you-mean suggestions.
+	recognizer antlr.Recognizer
+	log        *slog.Logger
+	name       string // "lexer" or "parser"
+	input      string
+	issues     []ParseIssue
+	warnings   []string
+	// inputRunes lazily caches []rune(input) so multiple lexer errors on the
+	// same input don't each re-convert the whole string. See inputRuneSlice.
+	inputRunes []rune
+}
+
+// inputRuneSlice returns input as a rune slice, converting once and caching
+// the result for reuse across multiple lexer errors.
+func (el *antlrErrorListener) inputRuneSlice() []rune {
+	if el.inputRunes == nil {
+		el.inputRunes = []rune(el.input)
+	}
+	return el.inputRunes
 }
 
 // SyntaxError implements antlr.ErrorListener.
-//
-//nolint:revive
 func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol any,
-	line, column int, msg string, e antlr.RecognitionException,
+	line, column int, msg string, _ antlr.RecognitionException,
 ) {
-	text := fmt.Sprintf("%s: syntax error: [%d:%d] %s", el.name, line, column, msg)
-	el.errs = append(el.errs, text)
+	iss := ParseIssue{
+		stage: el.name,
+		Line:  line,
+		Col:   column,
+		Msg:   "",
+	}
+
+	if tok, ok := offendingSymbol.(antlr.Token); ok && tok != nil {
+		iss.Token = tok.GetText()
+		// The synthetic <EOF> token reports Stop == Start-1, yielding an
+		// empty span (see Span.Empty) that marks the end-of-input position.
+		iss.Span = &Span{Start: tok.GetStart(), Stop: tok.GetStop()}
+	}
+
+	// Lexer-stage errors don't carry a token. ANTLR reports the position as
+	// (line, column) where column is 0-based *within the line*, not an
+	// absolute offset into the input. Convert to an absolute rune offset so
+	// multi-line input maps to the correct rune, then synthesize a
+	// single-character span there (matching the terse message produced below).
+	if iss.Token == "" && el.name == "lexer" {
+		runes := el.inputRuneSlice()
+		if off := runeOffsetForLineCol(runes, line, column); off >= 0 && off < len(runes) {
+			iss.Token = string(runes[off])
+			iss.Span = &Span{Start: off, Stop: off}
+		}
+	}
+
+	iss.Msg = buildIssueMsg(iss.Token, msg)
+
+	// Capture the recognizer on first call; used below to resolve expected
+	// token IDs to literal names when computing did-you-mean suggestions.
+	if el.recognizer == nil {
+		el.recognizer = recognizer
+	}
+
+	// Compute did-you-mean Suggestion (parser stage only; lexer doesn't
+	// expose an expected-token set). The expected-types slice is intentionally
+	// local — it's only used here.
+	if iss.Token != "" {
+		if p, ok := recognizer.(antlr.Parser); ok {
+			if set := p.GetExpectedTokens(); set != nil {
+				ivs := set.GetIntervals()
+				pairs := make([][2]int, 0, len(ivs))
+				for _, iv := range ivs {
+					pairs = append(pairs, [2]int{iv.Start, iv.Stop})
+				}
+				expectedTypes := collectExpectedTokenTypes(pairs)
+				if len(expectedTypes) > 0 {
+					literals := el.recognizer.GetLiteralNames()
+					candidates := expectedTokenLiterals(expectedTypes, literals)
+					iss.Suggestion = suggestForToken(iss.Token, candidates)
+				}
+			}
+		}
+	}
+
+	el.issues = append(el.issues, iss)
 }
 
 // ReportAmbiguity implements antlr.ErrorListener.
@@ -91,35 +164,32 @@ func (el *antlrErrorListener) ReportContextSensitivity(recognizer antlr.Parser, 
 }
 
 func (el *antlrErrorListener) error() error {
-	if el.err == nil && len(el.errs) > 0 {
-		msg := strings.Join(el.errs, "\n")
-		el.err = &parseError{msg: msg}
+	if len(el.issues) == 0 {
+		return nil
 	}
-	return el.err
+	return &ParseError{Input: el.input, Issues: el.issues}
+}
+
+// logDiagnostics emits the listener's collected issues and warnings to its
+// logger at debug level. No-op when there's no logger or nothing to report.
+func (el *antlrErrorListener) logDiagnostics() {
+	if el.log == nil || len(el.issues)+len(el.warnings) == 0 {
+		return
+	}
+	el.log.Debug("SLQ parse diagnostics", lga.Val, el.String())
 }
 
 func (el *antlrErrorListener) String() string {
-	if len(el.errs)+len(el.warnings) == 0 {
+	if len(el.issues)+len(el.warnings) == 0 {
 		return el.name + ": no issues"
 	}
-
-	strs := make([]string, 0, len(el.errs)+len(el.warnings))
-	strs = append(strs, el.errs...)
+	strs := make([]string, 0, len(el.issues)+len(el.warnings))
+	for _, iss := range el.issues {
+		strs = append(strs, fmt.Sprintf("%s: syntax error: [%d:%d] %s",
+			iss.stage, iss.Line, iss.Col, iss.Msg))
+	}
 	strs = append(strs, el.warnings...)
-
 	return strings.Join(strs, "\n")
-}
-
-// parseError represents an error in lexing/parsing input.
-type parseError struct {
-	msg string
-	// TODO: parse error should include more detail, such as
-	// the offending token, position, etc.
-}
-
-// Error implements error.
-func (p *parseError) Error() string {
-	return p.msg
 }
 
 var _ slq.SLQVisitor = (*parseTreeVisitor)(nil)
@@ -290,4 +360,51 @@ func (v *parseTreeVisitor) VisitTerminal(ctx antlr.TerminalNode) any {
 func (v *parseTreeVisitor) VisitErrorNode(ctx antlr.ErrorNode) any {
 	v.log.Debug("Error node", lga.Val, ctx.GetText())
 	return nil
+}
+
+// runeOffsetForLineCol converts a 1-based line and 0-based column (as
+// reported by ANTLR's SyntaxError, where column is relative to the start of
+// the line) into an absolute 0-based rune offset into runes. Lines are
+// delimited by '\n', matching the convention ANTLR uses to advance its line
+// counter. It returns -1 if line < 1, col < 0, or line is beyond the input.
+// A col that overshoots the line is not detected — the returned offset may
+// be >= len(runes), so callers must bounds-check.
+func runeOffsetForLineCol(runes []rune, line, col int) int {
+	if line < 1 || col < 0 {
+		return -1
+	}
+	i, cur := 0, 1
+	for i < len(runes) && cur < line {
+		if runes[i] == '\n' {
+			cur++
+		}
+		i++
+	}
+	if cur < line {
+		return -1 // line beyond input
+	}
+	return i + col
+}
+
+// buildIssueMsg produces a terse, sq-flavored error message. When token
+// is non-empty it returns "unexpected '<token>'" (or "unexpected end of
+// input" for the synthetic <EOF> token), ignoring antlrMsg. For lexer
+// errors with no token, it falls back to antlrMsg with ANTLR's
+// "token recognition error at: " prefix stripped.
+func buildIssueMsg(token, antlrMsg string) string {
+	if token != "" && token != "<EOF>" {
+		return fmt.Sprintf("unexpected '%s'", token)
+	}
+	if token == "<EOF>" {
+		return "unexpected end of input"
+	}
+	// Lexer error: no token formed. ANTLR's lexer messages are
+	// usually compact and useful as-is (e.g. "token recognition
+	// error at: '#'"). Strip the "token recognition error at: "
+	// prefix to make it terser.
+	const lexerPrefix = "token recognition error at: "
+	if after, ok := strings.CutPrefix(antlrMsg, lexerPrefix); ok {
+		return "unexpected " + after
+	}
+	return antlrMsg
 }
