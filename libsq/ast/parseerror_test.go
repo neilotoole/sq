@@ -103,6 +103,11 @@ func TestRuneOffsetForLineCol(t *testing.T) {
 	}
 }
 
+func TestParseIssue_DisplayCol(t *testing.T) {
+	require.Equal(t, 1, ParseIssue{Col: 0}.DisplayCol(), "0-based Col 0 displays as col 1")
+	require.Equal(t, 10, ParseIssue{Col: 9}.DisplayCol())
+}
+
 func TestSpan_Empty(t *testing.T) {
 	require.False(t, Span{Start: 3, Stop: 5}.Empty())
 	require.False(t, Span{Start: 3, Stop: 3}.Empty(), "single-rune span is not empty")

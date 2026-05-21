@@ -70,10 +70,17 @@ type ParseIssue struct {
 	// Line is the 1-based line number where the issue was detected.
 	Line int
 
-	// Col is the 0-based column on Line where the issue was detected.
-	// User-facing renderings (Error() and cli/output/commonw.RenderParseError)
-	// display this as Col+1 (1-based) for human readability.
+	// Col is the 0-based column on Line where the issue was detected. It is
+	// kept 0-based to match Span's rune offsets and ANTLR's reported column;
+	// human-facing renderings use DisplayCol for the 1-based value.
 	Col int
+}
+
+// DisplayCol returns the 1-based column for human-facing output (Col is
+// stored 0-based). Use this for messages shown to users; the raw 0-based
+// Col is what the JSON wire form emits for programmatic consumers.
+func (iss ParseIssue) DisplayCol() int {
+	return iss.Col + 1
 }
 
 // Error implements error. Returns a single-line summary suitable for
@@ -85,7 +92,7 @@ func (e *ParseError) Error() string {
 	parts := make([]string, 0, len(e.Issues))
 	for _, iss := range e.Issues {
 		parts = append(parts, fmt.Sprintf("syntax error at line %d, col %d: %s",
-			iss.Line, iss.Col+1, iss.Msg))
+			iss.Line, iss.DisplayCol(), iss.Msg))
 	}
 	return strings.Join(parts, "; ")
 }

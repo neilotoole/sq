@@ -56,7 +56,7 @@ func RenderParseError(w io.Writer, pr *output.Printing, pe *ast.ParseError) {
 			fmt.Fprintln(w)
 		}
 		pr.Error.Fprintf(w, "sq: syntax error at line %d, col %d: %s\n",
-			iss.Line, iss.Col+1, iss.Msg)
+			iss.Line, iss.DisplayCol(), iss.Msg)
 		fmt.Fprintln(w)
 
 		// Pick the source line. Line is 1-based.
