@@ -43,7 +43,7 @@ func TestQuery_string_contains(t *testing.T) {
 		{
 			// Pair test: lowercase pattern matches zero rows on all drivers
 			// because sakila first_names are stored UPPERCASE. This is the
-			// behavioural assertion that proves case sensitivity.
+			// behavioral assertion that proves case sensitivity.
 			name:    "contains/case-sensitive-lowercase-no-match",
 			in:      `@sakila | .actor | where(contains(.first_name, "angela"))`,
 			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE '%angela%' ESCAPE '|'`,
