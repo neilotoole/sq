@@ -160,6 +160,9 @@ jobs:
           # within seconds of the CLI returning, but allow ~2.5 minutes of
           # headroom for post-processing (CDN warm, edge-function build).
           # Transient curl failures are retried rather than fatal.
+          #
+          # TODO: Share this poll loop with site/scripts/netlify-deploy-validate.sh
+          # (deploy-preview uses --build; production uses --prod --dir=public).
           state=""
           for attempt in $(seq 1 30); do
             body=$(curl -fsS \

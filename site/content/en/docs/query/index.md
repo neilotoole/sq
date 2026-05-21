@@ -454,6 +454,12 @@ $ sq '.actor:a
 
 Table aliases work like [column aliases](#column-aliases).
 
+Aliases also serve to disambiguate
+[cross-source joins](#cross-source-joins) where participants happen
+to share a table name; see
+[Same-name tables across sources](#same-name-tables-across-sources)
+below.
+
 Note that table aliases aren't
 restricted to join scenarios. You can generally use them anywhere you reference a table,
 although it's often somewhat pointless:
@@ -576,6 +582,49 @@ Given a two-source join:
 Given that this naive implementation perform a full copy of both tables, cross-source joins
 are only suitable for smaller datasets.
 {{< /alert >}}
+
+#### Same-name tables across sources
+
+When two sources contribute tables with the same name, the join DB
+can only hold one table by that name. `sq` resolves this automatically:
+the first occurrence keeps its bare name, and subsequent ones get a
+numeric-suffixed alias (`actor`, `actor_2`, `actor_3`, ...).
+
+```shell
+$ sq '@src1.actor | join(@src2.actor, .actor_id) | .first_name'
+```
+
+The rendered SQL against the join DB is well-formed:
+
+```sql
+SELECT "first_name"
+FROM "actor"
+INNER JOIN "actor_2" ON "actor"."actor_id" = "actor_2"."actor_id"
+```
+
+The same applies when both names differ only in case. `sq` treats
+`Actor` and `actor` as colliding because the join DB (SQLite) compares
+identifier names case-insensitively even when double-quoted.
+
+If you have already given each participant a distinct
+[table alias](#table-aliases), that wins and no rename happens:
+
+```shell
+$ sq '@src1.actor:a | join(@src2.actor:b, .a.actor_id == .b.actor_id) | .a.first_name'
+```
+
+But two participants in the same cross-source join cannot share an
+explicit alias. The following is rejected up front:
+
+```shell
+$ sq '@src1.actor:x | join(@src2.actor:x, .x.actor_id == .x.actor_id) | .first_name'
+sq: cross-source join: duplicate table alias "x"
+```
+
+Give them different aliases to fix.
+
+Run with `-v` to see a debug log line at the point each synthesized
+alias is assigned (handle, original name, and the synthesized name).
 
 ### Ambiguous columns
 
@@ -703,6 +752,47 @@ However, not every driver supports the catalog mechanism fully.
   than return `NULL` or an empty string, `sq`'s SQLite driver chooses to implement `catalog()` by returning
   the string `default`.
 
+### `contains`
+
+`contains(col, str)` is true when `col` contains `str` as a substring.
+Matching is always case-sensitive, regardless of the backend's default
+collation. See also: [`startswith`](#startswith), [`endswith`](#endswith).
+
+```shell
+$ sq '.actor | where(contains(.first_name, "AN"))'
+```
+
+The second argument must be a quoted string literal. Any `%`, `_`, or `|`
+characters in the literal are escaped automatically, so you don't need to
+think about `LIKE` wildcards. On SQL Server, `[` and `]` are also escaped
+because SQL Server's `LIKE` treats `[...]` as a character class (e.g.
+without escaping, `contains(.col, "[A-Z]")` would match any uppercase
+letter instead of the literal `[A-Z]` substring).
+
+Under the hood, `sq` chooses the right primitive per driver to guarantee
+case-sensitive matching:
+
+- **Postgres / DuckDB:** native `LIKE` (already case-sensitive).
+- **Oracle:** native `LIKE` (case-sensitive when `NLS_COMP=BINARY`,
+  which is Oracle's default; sessions that set `NLS_COMP=LINGUISTIC`
+  with a case-insensitive `NLS_SORT` will get case-insensitive
+  matching).
+- **ClickHouse:** native `position()` function.
+- **MySQL:** `LIKE BINARY`, to force byte-level comparison.
+- **SQL Server:** `LIKE` with `COLLATE Latin1_General_BIN2`.
+- **SQLite:** `instr()` (SQLite's default `LIKE` is ASCII case-insensitive).
+
+An empty pattern matches every non-NULL row, consistent across all
+drivers. That is, `contains(.col, "")`, [`startswith`](#startswith)`(.col, "")`,
+and [`endswith`](#endswith)`(.col, "")` each behave like `.col IS NOT NULL`.
+
+Unlike jq's polymorphic `contains`, SLQ's `contains` is string-only: it
+does not operate on arrays or objects.
+
+For case-insensitive matching, use [`icontains`](#icontains). For
+matching user-controlled wildcard patterns (where `%` and `_` are
+significant), use [`like`](#like) / [`ilike`](#ilike).
+
 ### `count`
 
 The no-arg `count` function returns the total number of rows.
@@ -744,6 +834,20 @@ $ sq '.actor | count_unique(.first_name)'
 count_unique(.first_name)
 128
 ```
+
+### `endswith`
+
+`endswith(col, str)` is true when `col` ends with `str`. Matching is always
+case-sensitive. See [`contains`](#contains) for the per-driver mechanism
+and escaping notes.
+
+```shell
+$ sq '.actor | where(endswith(.last_name, "son"))'
+```
+
+For case-insensitive matching, use [`iendswith`](#iendswith). For
+matching user-controlled wildcard patterns (where `%` and `_` are
+significant), use [`like`](#like) / [`ilike`](#ilike).
 
 ### `group_by`
 
@@ -830,6 +934,160 @@ SELECT "customer_id", sum("amount") AS "sum(.amount)" FROM "payment"
 GROUP BY "customer_id" HAVING sum("amount") > 180 AND sum("amount") < 195
 ```
 
+### `icontains`
+
+`icontains(col, str)` is true when `col` contains `str` as a
+substring, **case-insensitively**. The case-sensitive counterpart is
+[`contains`](#contains); see that section for escaping behavior
+(`%`, `_`, and the engine escape character are auto-escaped before
+being bound).
+
+```shell
+$ sq '.actor | where(icontains(.first_name, "angela"))'
+```
+
+Per-driver implementation:
+
+- **Postgres / DuckDB:** native `ILIKE`.
+- **MySQL / Oracle:** `LOWER(col) LIKE LOWER(pat) ESCAPE '|'`,
+  via the default renderer (no driver-specific override). Explicit
+  lowercasing on both sides keeps the shape portable across
+  collation configurations.
+- **SQL Server:** `LIKE` with `COLLATE Latin1_General_CI_AS`.
+- **SQLite:** `LIKE ... ESCAPE '|'` (SQLite's default LIKE is ASCII
+  case-insensitive; non-ASCII characters are not case-folded unless
+  the ICU extension is loaded).
+- **ClickHouse:** native `positionCaseInsensitive()`.
+
+An empty pattern matches every non-NULL row, consistent across
+drivers — same as [`contains`](#contains).
+
+### `iendswith`
+
+`iendswith(col, str)` is true when `col` ends with `str`,
+**case-insensitively**. The case-sensitive counterpart is
+[`endswith`](#endswith); see [`contains`](#contains) for escaping
+behavior.
+
+```shell
+$ sq '.actor | where(iendswith(.last_name, "son"))'
+```
+
+Per-driver implementation mirrors [`icontains`](#icontains); on
+ClickHouse, `endsWithCaseInsensitive()` is used. An empty pattern
+matches every non-NULL row.
+
+### `ilike`
+
+`ilike(col, pattern)` is the case-insensitive counterpart to
+[`like`](#like). `%` and `_` are wildcards in `pattern` and are not
+auto-escaped. As with `like`, `pattern` may be either a quoted string
+literal or a column selector.
+
+```shell
+$ sq '.actor | where(ilike(.first_name, "pen%"))'
+$ sq '.actor | where(ilike(.first_name, .last_name))'
+```
+
+Per-driver implementation:
+
+- **Postgres / DuckDB:** native `ILIKE`.
+- **MySQL / Oracle:** `LOWER(col) LIKE LOWER(pat)`.
+- **SQL Server:** `LIKE` with `COLLATE Latin1_General_CI_AS`.
+- **SQLite:** plain `LIKE` (already ASCII-CI by default).
+- **ClickHouse:** native `ILIKE`.
+
+No `ESCAPE '|'` clause is emitted on any driver — see [`like`](#like)
+for escape behavior and [Column as pattern](#column-as-pattern) for
+column-RHS semantics. For literal `%` / `_` matching, use
+[`icontains`](#icontains), which auto-escapes wildcards.
+
+### `istartswith`
+
+`istartswith(col, str)` is true when `col` starts with `str`,
+**case-insensitively**. The case-sensitive counterpart is
+[`startswith`](#startswith); see [`contains`](#contains) for escaping
+behavior.
+
+```shell
+$ sq '.actor | where(istartswith(.last_name, "mc"))'
+```
+
+Per-driver implementation mirrors [`icontains`](#icontains); on
+ClickHouse, `startsWithCaseInsensitive()` is used. An empty pattern
+matches every non-NULL row.
+
+### `like`
+
+`like(col, pattern)` exposes raw `LIKE`-pattern matching, where `%`
+matches any sequence and `_` matches any single character. Unlike
+[`contains`](#contains) and friends, wildcards in `pattern` are
+**not** auto-escaped: the user controls them. `pattern` may be either
+a quoted string literal or a column selector — see [Column as
+pattern](#column-as-pattern) below.
+
+```shell
+$ sq '.actor | where(like(.first_name, "Pen%"))'
+$ sq '.actor | where(like(.last_name, "Mc_"))'
+```
+
+Matching is case-sensitive on Postgres, DuckDB, MySQL (`LIKE BINARY`),
+SQL Server (`COLLATE Latin1_General_BIN2`), and ClickHouse. **Oracle** is
+case-sensitive under its default `NLS_COMP=BINARY` setting; sessions that
+set `NLS_COMP=LINGUISTIC` with a case-insensitive `NLS_SORT` get
+case-insensitive matching — same caveat as [`contains`](#contains).
+
+**SQL Server character classes:** SQL Server's `LIKE` treats `[…]` as
+a character-class wildcard (e.g. `[A-Z]` matches any uppercase
+letter). `like` and `ilike` pass the pattern through verbatim, so on
+SQL Server `like(.col, "[abc]")` matches a single character — `a`,
+`b`, or `c` — whereas on every other driver it matches the literal
+three-character substring `[abc]`. Use [`contains`](#contains) if you
+need portable literal-substring matching.
+
+**SQLite quirk:** SQLite's default `LIKE` is ASCII case-insensitive,
+so on SQLite `like` behaves the same as [`ilike`](#ilike) for ASCII
+input. This matches SQLite's standard semantics rather than
+overriding them globally via `PRAGMA case_sensitive_like`.
+Non-ASCII characters are not case-folded unless the ICU extension is
+loaded — same caveat as [`icontains`](#icontains).
+
+No `ESCAPE '|'` clause is emitted on any driver, so `|` is a literal
+character in the pattern. Other engine-default escape semantics remain
+driver-specific — notably MySQL's default backslash escape (`\`) still
+applies in `LIKE` patterns unless the session sets the
+`NO_BACKSLASH_ESCAPES` SQL mode. If you need to match a literal `%` or
+`_` rather than treat them as wildcards, use [`contains`](#contains),
+which auto-escapes wildcards in the pattern.
+
+An empty pattern matches only empty strings (`col = ''`) — not every
+non-NULL row, in contrast with [`contains`](#contains)`(.col, "")`.
+That difference is intentional and matches standard SQL `LIKE`
+semantics.
+
+#### Column as pattern
+
+The pattern argument can be a column selector instead of a quoted
+string literal, enabling column-vs-column matching:
+
+```shell
+$ sq '.actor | where(ilike(.first_name, .last_name))'
+$ sq '.events | where(like(.message, .pattern))'
+```
+
+Useful for matching stored rules against incoming data, correlated
+pattern lookups, and similar data-wrangling workflows. NULL values
+in the RHS column yield NULL from `LIKE`, which `WHERE` treats as
+false (row excluded); this matches standard SQL semantics. Wildcards
+(`%`, `_`) in the RHS column's data behave exactly as in a literal
+pattern — they are not auto-escaped, since the value isn't known
+until execution.
+
+The [`contains`](#contains) family stays literal-only by design. Its
+auto-escape of wildcards in the user pattern is performed at SLQ-render
+time over a known string; extending it to a column RHS would require
+emitting per-driver SQL-level escaping (e.g. nested `REPLACE` chains)
+that's out of scope for v1.
 
 ### `max`
 
@@ -969,6 +1227,20 @@ schema()
 dbo
 ```
 
+
+### `startswith`
+
+`startswith(col, str)` is true when `col` begins with `str`. Matching is
+always case-sensitive. See [`contains`](#contains) for the per-driver
+mechanism and escaping notes.
+
+```shell
+$ sq '.actor | where(startswith(.last_name, "Mc"))'
+```
+
+For case-insensitive matching, use [`istartswith`](#istartswith). For
+matching user-controlled wildcard patterns (where `%` and `_` are
+significant), use [`like`](#like) / [`ilike`](#ilike).
 
 ### `sum`
 
