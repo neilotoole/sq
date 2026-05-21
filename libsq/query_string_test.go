@@ -43,7 +43,7 @@ func TestQuery_string_contains(t *testing.T) {
 		{
 			// Pair test: lowercase pattern matches zero rows on all drivers
 			// because sakila first_names are stored UPPERCASE. This is the
-			// behavioural assertion that proves case sensitivity.
+			// behavioral assertion that proves case sensitivity.
 			name:    "contains/case-sensitive-lowercase-no-match",
 			in:      `@sakila | .actor | where(contains(.first_name, "angela"))`,
 			wantSQL: `SELECT * FROM "actor" WHERE "first_name" LIKE '%angela%' ESCAPE '|'`,
@@ -164,9 +164,64 @@ func TestQuery_string_contains(t *testing.T) {
 			wantErrContains: "contains() requires exactly 2 arguments",
 		},
 		{
+			// The contains family rejects an unquoted (numeric) literal RHS:
+			// 42 is a *ast.LiteralNode, but unquoteLiteral reports
+			// wasQuoted == false, so ParseLikeArgs hits its quoted-literal
+			// branch (distinct from the non-literal branch the cases below
+			// cover). Mirrors like/numeric-rhs-rejected; without it the
+			// contains family's wasQuoted guard is otherwise untested.
+			name:            "contains/numeric-rhs-rejected",
+			in:              `@sakila | .actor | where(contains(.first_name, 42))`,
+			wantErrContains: "contains() second argument must be a quoted string literal",
+		},
+		{
+			// ParseLikeArgs is shared by all six contains-family functions
+			// (contains/startswith/endswith and their i-variants), so the
+			// contains RHS rejection tests guard the literal dispatch for
+			// the whole family. like / ilike use ParseLikePatternArgs and
+			// are pinned separately under TestQuery_string_like.
 			name:            "contains/non-literal-pattern",
 			in:              `@sakila | .actor | where(contains(.first_name, .last_name))`,
-			wantErrContains: "contains() second argument must be a string literal",
+			wantErrContains: "contains() second argument must be a string literal, got *ast.ColSelectorNode",
+		},
+		{
+			// #640: a 1-arg function around the RHS is no longer
+			// silently walked through. With `max(.last_name)` here the
+			// inner leaf is itself non-literal, so the user-visible
+			// error message is the same pre- and post-#640 — what
+			// changed is the dispatch path (pre-#640 the type assertion
+			// failed on `.last_name`; post-#640 it fails on the FuncNode
+			// itself because unwrapExpr stops there). The genuinely
+			// silent-strip case is when the inner leaf IS a literal —
+			// pinned separately by `contains/function-wrapped-literal-rhs-rejected`.
+			name:            "contains/function-wrapped-rhs-rejected",
+			in:              `@sakila | .actor | where(contains(.first_name, max(.last_name)))`,
+			wantErrContains: "contains() second argument must be a string literal, got *ast.FuncNode",
+		},
+		{
+			// #640: the canonical silent-strip pre-fix case. Pre-fix a
+			// 1-arg function around a string literal was walked through
+			// and the inner literal silently accepted — so
+			// `contains(.first_name, _strftime("X"))` would have
+			// rendered as `... LIKE '%X%' ESCAPE '|'` as if the user
+			// had typed `contains(.first_name, "X")`. Post-#640
+			// unwrapExpr stops at the FuncNode and the literal type
+			// assertion fails. Uses a SLQ PROPRIETARY_FUNC_NAME (which
+			// the grammar admits without arity gating) so a real
+			// 1-arg-function-over-literal input is reachable.
+			name:            "contains/function-wrapped-literal-rhs-rejected",
+			in:              `@sakila | .actor | where(contains(.first_name, _strftime("X")))`,
+			wantErrContains: "contains() second argument must be a string literal, got *ast.FuncNode",
+		},
+		{
+			// #640: a 1-arg function around the column LHS is no longer
+			// silently stripped. parseLikeColArg is shared across all 8
+			// like-family functions, so this single test guards the LHS
+			// dispatch for contains/startswith/endswith and their
+			// i-variants, plus like/ilike.
+			name:            "contains/function-wrapped-lhs-rejected",
+			in:              `@sakila | .actor | where(contains(max(.first_name), "X"))`,
+			wantErrContains: "contains() first argument must be a column selector",
 		},
 	}
 
@@ -840,13 +895,54 @@ func TestQuery_string_like(t *testing.T) {
 			wantErrContains: "like() second argument must be a quoted string literal or column selector",
 		},
 		{
+			// A negative numeric literal is rejected like a positive one.
+			// Per the grammar (NUMBER: '-'? INTF) `-42` lexes as a single
+			// signed-number token, so it reaches ParseLikePatternArgs as
+			// one *ast.LiteralNode and is rejected as unquoted — it is NOT
+			// a unary-operator expression (the multi-child operator/
+			// expression case is pinned by `like/expression-rhs-rejected`
+			// above). Guards against a future lexer change that split
+			// `-42` into a `-` operator and `42`, which would alter the
+			// dispatch path.
+			name:            "like/negative-numeric-rhs-rejected",
+			in:              `@sakila | .actor | where(like(.first_name, -42))`,
+			wantErrContains: "like() second argument must be a quoted string literal or column selector",
+		},
+		{
 			// A binary-expression RHS (here, a comparison) is rejected:
-			// NodeUnwrap sees branching and the parser surfaces the
-			// expected-shape error. Pins the !ok branch of the
-			// ParseLikePatternArgs RHS dispatch — the numeric test above
-			// only covers the unquoted-literal branch.
+			// unwrapExpr sees branching (>1 children) and stops on the
+			// ExprNode, so the literal type assertion fails and the
+			// selector renderer rejects the ExprNode itself. Pins the
+			// non-literal-non-selector branch of the
+			// ParseLikePatternArgs RHS dispatch — the numeric test
+			// above only covers the unquoted-literal branch.
 			name:            "like/expression-rhs-rejected",
 			in:              `@sakila | .actor | where(like(.first_name, .last_name == .first_name))`,
+			wantErrContains: "like() second argument must be a string literal or column selector",
+		},
+		{
+			// #640: pre-fix, a 1-arg function around a column on the RHS
+			// was silently stripped to the inner selector — so
+			// `like(.first_name, max(.last_name))` rendered the RHS as
+			// a bare column reference to `.last_name`. Post-fix,
+			// unwrapExpr stops at the FuncNode and renderSelectorNode
+			// rejects it with the user-friendly framing. The most
+			// consequential regression guard for the strict-unwrap
+			// change against the column-RHS dispatch.
+			name:            "like/function-wrapped-rhs-rejected",
+			in:              `@sakila | .actor | where(like(.first_name, max(.last_name)))`,
+			wantErrContains: "like() second argument must be a string literal or column selector",
+		},
+		{
+			// #640 mirror for the literal RHS dispatch: pre-fix a 1-arg
+			// function around a string literal was walked through and
+			// the inner literal was silently accepted as the pattern.
+			// Post-fix unwrapExpr stops at the FuncNode and the literal
+			// type assertion fails. Uses a PROPRIETARY_FUNC_NAME
+			// (admitted by the grammar without arity gating) for a
+			// realistic 1-arg-function-over-literal input.
+			name:            "like/function-wrapped-literal-rhs-rejected",
+			in:              `@sakila | .actor | where(like(.first_name, _strftime("X")))`,
 			wantErrContains: "like() second argument must be a string literal or column selector",
 		},
 		{
@@ -1061,6 +1157,25 @@ func TestQuery_string_ilike(t *testing.T) {
 			// renderer path.
 			name:            "ilike/expression-rhs-rejected",
 			in:              `@sakila | .actor | where(ilike(.first_name, .last_name == .first_name))`,
+			wantErrContains: "ilike() second argument must be a string literal or column selector",
+		},
+		{
+			// #640 mirror: 1-arg function around a column on the RHS is
+			// no longer silently stripped to the inner selector. Pre-fix
+			// `ilike(.first_name, max(.last_name))` would have rendered
+			// the RHS as a bare column reference to `.last_name`
+			// (dialect-specific quoting) via the silent strip. Post-fix
+			// unwrapExpr stops at the FuncNode and the renderer rejects.
+			name:            "ilike/function-wrapped-rhs-rejected",
+			in:              `@sakila | .actor | where(ilike(.first_name, max(.last_name)))`,
+			wantErrContains: "ilike() second argument must be a string literal or column selector",
+		},
+		{
+			// #640 mirror of like/function-wrapped-literal-rhs-rejected:
+			// pre-fix a 1-arg function around a string literal was
+			// walked through and the inner literal silently accepted.
+			name:            "ilike/function-wrapped-literal-rhs-rejected",
+			in:              `@sakila | .actor | where(ilike(.first_name, _strftime("X")))`,
 			wantErrContains: "ilike() second argument must be a string literal or column selector",
 		},
 	}

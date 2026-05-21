@@ -69,6 +69,34 @@ func buildLikePattern(s string, mode LikeMode, extraMeta string) string {
 	}
 }
 
+// unwrapExpr peels nested [*ast.ExprNode] wrappers from node, stopping
+// at the first non-ExprNode, or at any ExprNode without exactly one
+// child.
+//
+// Unlike [ast.NodeUnwrap], which walks through any single-child chain
+// regardless of node kind, this stops at user-meaningful nodes like
+// [*ast.FuncNode] so the caller can reject them with a clear error
+// rather than silently stripping the wrapper and matching against the
+// inner leaf (see #640).
+//
+// Precondition: node is non-nil. Callers in this package get this
+// invariant for free — the SLQ AST visitor never inserts nil children,
+// and the arg-count guard in [parseLikeColArg] rejects under-arity
+// before any child is accessed.
+func unwrapExpr(node ast.Node) ast.Node {
+	for {
+		expr, ok := node.(*ast.ExprNode)
+		if !ok {
+			return node
+		}
+		children := expr.Children()
+		if len(children) != 1 {
+			return node
+		}
+		node = children[0]
+	}
+}
+
 // parseLikeColArg is the shared LHS parser for the LIKE-family
 // arg-validation helpers. It checks the arg count, renders the first
 // argument (which must be a column selector), and returns the raw RHS
@@ -77,9 +105,11 @@ func buildLikePattern(s string, mode LikeMode, extraMeta string) string {
 // so RHS handling stays in each caller.
 //
 // SLQ parses function arguments as expression trees, so each child is
-// typically wrapped in an *ast.ExprNode. NodeUnwrap peels those
-// single-child wrappers to reach the underlying selector / literal
-// leaves; nodes with internal branching are rejected.
+// typically wrapped in an [*ast.ExprNode]. [unwrapExpr] peels those
+// syntactic wrappers to reach the underlying selector / literal leaves
+// without walking through user-meaningful nodes such as function
+// calls, which are left intact for rejection — the LHS column here in
+// parseLikeColArg, the RHS in each caller.
 func parseLikeColArg(rc *Context, fn *ast.FuncNode) (colSQL string, rhsChild ast.Node, err error) {
 	children := fn.Children()
 	if len(children) != 2 {
@@ -87,14 +117,11 @@ func parseLikeColArg(rc *Context, fn *ast.FuncNode) (colSQL string, rhsChild ast
 			"%s() requires exactly 2 arguments (column, pattern), got %d",
 			fn.FuncName(), len(children))
 	}
-	colNode, ok := ast.NodeUnwrap[ast.Node](children[0])
-	if !ok {
-		return "", nil, errz.Errorf(
-			"%s() first argument must be a column selector", fn.FuncName())
-	}
+	colNode := unwrapExpr(children[0])
 	colSQL, err = renderSelectorNode(rc.Dialect, colNode)
 	if err != nil {
-		return "", nil, errz.Wrapf(err, "%s() first argument", fn.FuncName())
+		return "", nil, errz.Wrapf(err,
+			"%s() first argument must be a column selector", fn.FuncName())
 	}
 	return colSQL, children[1], nil
 }
@@ -113,10 +140,12 @@ func ParseLikeArgs(rc *Context, fn *ast.FuncNode) (colSQL, literal string, err e
 	if err != nil {
 		return "", "", err
 	}
-	litNode, ok := ast.NodeUnwrap[*ast.LiteralNode](rhsChild)
+	rhsNode := unwrapExpr(rhsChild)
+	litNode, ok := rhsNode.(*ast.LiteralNode)
 	if !ok {
 		return "", "", errz.Errorf(
-			"%s() second argument must be a string literal", fn.FuncName())
+			"%s() second argument must be a string literal, got %T: %s",
+			fn.FuncName(), rhsNode, rhsNode.Text())
 	}
 	val, wasQuoted, err := unquoteLiteral(litNode.Text())
 	if err != nil {
@@ -145,12 +174,7 @@ func ParseLikePatternArgs(rc *Context, fn *ast.FuncNode) (colSQL, rhsSQL string,
 	if err != nil {
 		return "", "", err
 	}
-	rhsNode, ok := ast.NodeUnwrap[ast.Node](rhsChild)
-	if !ok {
-		return "", "", errz.Errorf(
-			"%s() second argument must be a string literal or column selector",
-			fn.FuncName())
-	}
+	rhsNode := unwrapExpr(rhsChild)
 
 	if lit, isLit := rhsNode.(*ast.LiteralNode); isLit {
 		val, wasQuoted, errLit := unquoteLiteral(lit.Text())
