@@ -49,3 +49,19 @@ func TestSchemaTree_SetTableMeta(t *testing.T) {
 	// "tables", "film", "columns (2)", "id", "title" — 5.
 	require.Equal(t, 5, tr.visibleCount())
 }
+
+func TestSchemaTree_SetFilter_ClampsSelection(t *testing.T) {
+	tr := newSchemaTree("@x", newTheme(true))
+	tr.setTableNames([]string{"actor", "film", "city", "country"})
+	// Expand the "tables" group so the individual tables are visible.
+	tr.toggleExpand(0)
+	// Park the cursor on the last visible row.
+	tr.selected = tr.visibleCount() - 1
+	require.Positive(t, tr.selected)
+
+	// Filtering to a single match must clamp the cursor into range so
+	// the view still has a highlighted row.
+	tr.setFilter("actor")
+	require.Less(t, tr.selected, tr.visibleCount())
+	require.NotNil(t, tr.selectedNode())
+}

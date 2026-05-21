@@ -3,9 +3,11 @@ package explore
 import (
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -59,4 +61,17 @@ func TestDetailPane_LoadingFallback(t *testing.T) {
 	d := newDetailPane(newTheme(true))
 	out := d.view(false, 60, 20)
 	require.Contains(t, out, "(loading)")
+}
+
+func TestFormatRecord_TruncatesByRune(t *testing.T) {
+	// A value longer than 30 runes, all multi-byte: truncation must
+	// produce valid UTF-8 (27 runes + ellipsis), never a split rune.
+	long := strings.Repeat("é", 40)
+	out := formatRecord(record.Record{long})
+	require.True(t, utf8.ValidString(out), "truncated output must be valid UTF-8")
+	require.True(t, strings.HasSuffix(out, "…"))
+	require.Equal(t, 28, utf8.RuneCountInString(out), "27 kept runes + ellipsis")
+
+	// Short values are passed through unchanged.
+	require.Equal(t, "héllo", formatRecord(record.Record{"héllo"}))
 }

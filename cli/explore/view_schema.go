@@ -76,6 +76,15 @@ type schemaTree struct {
 // descendant label) contains f (case-insensitive). Empty f clears.
 func (tr *schemaTree) setFilter(f string) {
 	tr.filter = strings.ToLower(f)
+	// Clamp the cursor into the new visible range so the selection
+	// doesn't fall off the end after the filter narrows the tree.
+	if n := tr.visibleCount(); n > 0 {
+		if tr.selected >= n {
+			tr.selected = n - 1
+		}
+	} else {
+		tr.selected = 0
+	}
 }
 
 func newSchemaTree(handle string, th theme) *schemaTree {

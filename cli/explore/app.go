@@ -3,6 +3,7 @@ package explore
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -14,6 +15,8 @@ import (
 	"golang.org/x/term"
 
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -364,14 +367,17 @@ func (m *Model) applyFilter(f string) {
 }
 
 // copyCurrentAddress writes the current address to the system clipboard
-// via m.copyFn. It is best-effort: errors are swallowed so the TUI keeps
-// running on platforms where no clipboard is available.
+// via m.copyFn. A failure (e.g. no clipboard backend on a headless host)
+// is surfaced via m.lastErr and logged, but never stops the TUI.
 func (m *Model) copyCurrentAddress() {
 	addr := m.currentAddress()
 	if addr == "" || m.copyFn == nil {
 		return
 	}
-	_ = m.copyFn(addr)
+	if err := m.copyFn(addr); err != nil {
+		m.lastErr = fmt.Errorf("copy to clipboard failed: %w", err)
+		lg.FromContext(m.baseCtx()).Warn("explore: clipboard copy failed", lga.Err, err)
+	}
 }
 
 // currentAddress returns "@src" or "@src.table" for the current focus.
@@ -390,11 +396,18 @@ func (m *Model) currentAddress() string {
 // fetch failed, when no source is focused, or when the message is for
 // a source the user has already moved past.
 func (m *Model) acceptFetch(handle string, err error) bool {
+	stale := m.focusedSrc == nil || handle != m.focusedSrc.Handle
 	if err != nil {
-		m.lastErr = err
+		lg.FromContext(m.baseCtx()).Error("explore: metadata fetch failed",
+			lga.Src, handle, lga.Err, err)
+		// Only surface errors for the source the user is looking at; a
+		// late failure from a source they navigated past is irrelevant.
+		if !stale {
+			m.lastErr = err
+		}
 		return false
 	}
-	if m.focusedSrc == nil || handle != m.focusedSrc.Handle {
+	if stale {
 		return false
 	}
 	// Successful fetch for the focused source: clear any stale error.

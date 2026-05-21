@@ -447,3 +447,27 @@ func TestModel_Enter_FetchesUnloadedTable(t *testing.T) {
 	require.NotNil(t, cmd, "Enter on an unloaded table should dispatch a meta fetch")
 	require.Equal(t, "actor", m.focusedTbl)
 }
+
+func TestModel_FetchError_StaleHandleNotShown(t *testing.T) {
+	src := &source.Source{Handle: "@x"}
+	cfg := Config{Sources: []*source.Source{src}, FocusedSrc: src, NoColor: true}
+	m, _ := NewModel(cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
+
+	// An error for a source the user has navigated past must not surface.
+	m.Update(tableNamesLoadedMsg{handle: "@other", err: errors.New("stale boom")})
+	require.NoError(t, m.lastErr)
+	require.NotContains(t, m.View(), "stale boom")
+}
+
+func TestModel_CopyHandle_SurfacesClipboardError(t *testing.T) {
+	src := &source.Source{Handle: "@x"}
+	cfg := Config{Sources: []*source.Source{src}, FocusedSrc: src, NoColor: true}
+	m, _ := NewModel(cfg)
+	m.copyFn = func(string) error { return errors.New("no clipboard utilities available") }
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
+
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	require.Error(t, m.lastErr)
+	require.Contains(t, m.View(), "copy to clipboard failed")
+}

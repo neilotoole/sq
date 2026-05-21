@@ -10,6 +10,8 @@ import (
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -189,6 +191,8 @@ func (rf *runFetcher) runPreview(ctx context.Context, send func(any), handle, ta
 		// program shutdown cancels the parent ctx (context.Canceled).
 		// Neither is a real error, so don't surface them to the user.
 		if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, errz.ErrStop) {
+			lg.FromContext(ctx).Error("explore: preview query failed",
+				lga.Src, handle, lga.Table, table, lga.Err, err)
 			send(previewErrMsg{handle: handle, tableName: table, err: err})
 		}
 		// Honor the RecordWriter contract: Wait invokes the Open cancelFn.

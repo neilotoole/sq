@@ -28,7 +28,7 @@ func defaultKeys() keyMap {
 		Up:        key.NewBinding(key.WithKeys("k", "up"), key.WithHelp("↑/k", "up")),
 		Down:      key.NewBinding(key.WithKeys("j", "down"), key.WithHelp("↓/j", "down")),
 		Left:      key.NewBinding(key.WithKeys("h", "left"), key.WithHelp("←/h", "pane left")),
-		Right:     key.NewBinding(key.WithKeys("l", "right"), key.WithHelp("→/l", "pane right / expand")),
+		Right:     key.NewBinding(key.WithKeys("l", "right"), key.WithHelp("→/l", "pane right")),
 		Top:       key.NewBinding(key.WithKeys("g"), key.WithHelp("g", "top")),
 		Bottom:    key.NewBinding(key.WithKeys("G"), key.WithHelp("G", "bottom")),
 		Enter:     key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open")),

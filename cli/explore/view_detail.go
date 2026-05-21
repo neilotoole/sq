@@ -210,8 +210,9 @@ func formatRecord(r record.Record) string {
 	parts := make([]string, len(r))
 	for i, v := range r {
 		s := fmt.Sprintf("%v", v)
-		if len(s) > 30 {
-			s = s[:27] + "…"
+		// Truncate by rune, not byte, so multi-byte UTF-8 isn't split.
+		if rs := []rune(s); len(rs) > 30 {
+			s = string(rs[:27]) + "…"
 		}
 		parts[i] = s
 	}

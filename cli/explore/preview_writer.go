@@ -96,8 +96,9 @@ func (pw *previewWriter) run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			flush(true)
-			// Per the RecordWriter contract, surface ctx cancellation on
-			// errCh so the pipeline stops promptly.
+			// Per the RecordWriter contract, record the cancellation for
+			// Wait and surface it on errCh so the pipeline stops promptly.
+			pw.waitErr = ctx.Err()
 			pw.errCh <- ctx.Err()
 			return
 		case rec, ok := <-pw.recCh:

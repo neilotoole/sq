@@ -29,6 +29,7 @@ cmds=(
   "config edit"
   "diff"
   "driver ls"
+  "explore"
   "group"
   "help"
   "inspect"
