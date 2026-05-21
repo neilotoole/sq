@@ -5,6 +5,15 @@ and [discussion](https://github.com/neilotoole/sq/discussions).
 
 For user documentation, see [sq.io](https://sq.io).
 
+For AI coding assistants working in this repo, see [AGENTS.md](./AGENTS.md)
+(cross-agent guidance and contributor [Agent Skills](https://agentskills.io/specification)
+under [`.agents/skills/`](./.agents/skills/)). Install into your agent with
+`npx skills add neilotoole/sq --skill <name>` (see
+[AGENTS.md](./AGENTS.md#installing-and-verifying-skills-npx-skills)). Claude Code
+also uses [`.claude/skills`](./.claude/skills) (symlink to `.agents/skills`
+when checked out). On Windows, if symlinks are unavailable, use WSL, `npx skills
+add`, or copy `.agents/skills` under `.claude/skills`.
+
 ## Documentation site (`site/`)
 
 The [sq.io](https://sq.io) website is a [Hugo](https://gohugo.io) project in [`site/`](./site/). From `site/`, use **`make`** for the usual workflow (`make deps`, `make site-local`, `make site-test`, `make site-build`, or `make ci` to match CI). Bun equivalents are in [`site/README.md`](./site/README.md).
@@ -14,6 +23,12 @@ first: it explains the **stable** vs **full** link-check split, what PR CI block
 on, and what runs as informational/nightly follow-up.
 
 Changes under `site/` are validated by [`.github/workflows/site-ci.yml`](./.github/workflows/site-ci.yml).
+
+To triage or merge a batch of **Dependabot PRs** for `site/`, use the
+[`sq-site-dependabot`](./.agents/skills/sq-site-dependabot/) agent skill (invoke
+explicitly in your agent, e.g. `/sq-site-dependabot` in Cursor). See
+[AGENTS.md](./AGENTS.md#agent-skills-contributors) and
+[`.agents/skills/sq-site-dependabot/`](./.agents/skills/sq-site-dependabot/).
 
 ### `site/` import background (maintainers)
 
@@ -68,6 +83,8 @@ Use the usual GitHub process to open a PR. Before you do so, please:
 
 - Merge the latest `master` into your branch: `git merge origin/master`.
 - Run `make all`.
+- If the PR adds a **new driver type**, complete the
+  [driver ship checklist](#driver-ship-checklist) (sq.io and `skills/sq/`).
 
 ## CHANGELOG.md
 
@@ -248,6 +265,39 @@ For SQL drivers, [`drivers/postgres`](drivers/postgres) or
 
 For document drivers, see
 [`drivers/csv`](drivers/csv) or [`drivers/json`](drivers/json).
+
+### Driver ship checklist
+
+When you **add a new driver type** (a new value in `sq driver ls`), ship **code,
+site docs, and the end-user agent skill** in the same PR. Treat missing
+documentation as incomplete work — this is what keeps [sq.io](https://sq.io),
+`npx skills add`, and coding agents aligned with the binary.
+
+1. **Driver package** — `drivers/{driver}/` (and registration in
+   [`cli/run.go`](cli/run.go); see [ARCHITECTURE.md](ARCHITECTURE.md#extension-guide)).
+2. **Driver type** — constant in
+   [`libsq/source/drivertype/drivertype.go`](libsq/source/drivertype/drivertype.go).
+3. **Tests** — integration tests; for SQL drivers, a `sakiladb/{driver}` image
+   and handle in [`testh/sakila/sakila.go`](testh/sakila/sakila.go) when
+   applicable.
+4. **sq.io docs** — new page
+   `site/content/en/docs/drivers/{driver}.md` (follow an existing driver page;
+   link from [`site/content/en/docs/drivers/_index.md`](site/content/en/docs/drivers/_index.md)).
+5. **End-user agent skill** — required for every new driver:
+   - Add `skills/sq/references/{driver}.md` (short CLI-focused summary;
+     **canonical detail stays on sq.io**). Copy
+     [`skills/sq/references/postgres.md`](skills/sq/references/postgres.md)
+     (SQL) or [`skills/sq/references/csv.md`](skills/sq/references/csv.md)
+     (document).
+   - Update the driver table and `sq driver ls` examples in
+     [`skills/sq/SKILL.md`](skills/sq/SKILL.md).
+   - Run `markdownlint 'skills/sq/**/*.md' --ignore node_modules` (or
+     `markdownlint 'skills/sq/**/*.md' --ignore node_modules --fix`).
+6. **CHANGELOG** — add an `## Unreleased` / `Added` entry when the driver is
+   user-visible (maintainers may edit wording at release time).
+
+Optional: `drivers/{driver}/README.md` for maintainers (connection strings,
+local Docker, env vars for tests).
 
 ### All drivers
 

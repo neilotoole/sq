@@ -1,11 +1,10 @@
-# CLAUDE.md
+# AGENTS.md
 
-Guidance for AI coding assistants (Claude Code, Copilot, Cursor, etc.) and
+Guidance for AI coding assistants (Claude Code, Copilot, Cursor, Codex, etc.) and
 human contributors working in this repo.
 
-For **agent skills** (Dependabot triage under `.agents/skills/`), `npx skills`
-install, symlink layout, and expanded cross-agent notes, see
-[AGENTS.md](./AGENTS.md).
+For Claude Code, [`CLAUDE.md`](./CLAUDE.md) mirrors the essentials here and links
+to this file for expanded contributor content.
 
 ## About `sq`
 
@@ -144,11 +143,78 @@ read the
 section of `CONTRIBUTING.md` — it covers package structure, type mapping,
 dialect configuration, test handles, and the SQL-vs-document driver split.
 
-**Adding a new driver type:** complete the
+**Adding a new driver type:** you must complete the
 [driver ship checklist](./CONTRIBUTING.md#driver-ship-checklist) in the same
-PR (`site/content/en/docs/drivers/` plus `skills/sq/SKILL.md` and
-`skills/sq/references/{driver}.md`). See [AGENTS.md](./AGENTS.md#drivers).
+PR — including [`site/content/en/docs/drivers/`](site/content/en/docs/drivers/)
+and [`skills/sq/`](skills/sq/SKILL.md) (`SKILL.md` driver table plus
+`references/{driver}.md`). Do not mark driver work done until those files are
+updated; copy an existing `skills/sq/references/*.md` as a template.
 
 For a visual map of the driver interfaces (`driver.Driver`,
 `driver.SQLDriver`, `driver.Grip`, `driver.Registry`) and how they relate to
 the rest of the system, see [`ARCHITECTURE.md`](./ARCHITECTURE.md).
+
+## Agent skills (contributors)
+
+This repo ships [Agent Skills](https://agentskills.io/specification) for
+**maintainer** workflows. They live under [`.agents/skills/`](.agents/skills/).
+
+| Location | Audience |
+|----------|----------|
+| [`.agents/skills/`](.agents/skills/) | Contributors (Dependabot triage, etc.) |
+| [`skills/sq/`](skills/sq/SKILL.md) | End users of the `sq` CLI (distribution; not repo auto-discovery) |
+
+When you **add a new driver type**, update [`skills/sq/`](skills/sq/SKILL.md)
+per the [driver ship checklist](./CONTRIBUTING.md#driver-ship-checklist): add
+`references/{driver}.md` and a row in `SKILL.md`.
+
+Claude Code discovers the same tree via [`.claude/skills`](.claude/skills)
+(symlink to `.agents/skills`). Cursor and Codex load `.agents/skills/`
+directly. On Windows, if symlinks are unavailable, use WSL or duplicate the
+tree as documented in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+
+### Skills in this repo
+
+| Skill | Use when |
+|-------|----------|
+| [`sq-site-dependabot`](.agents/skills/sq-site-dependabot/) | Triaging or merging Dependabot PRs for [`site/`](site/) (Bun / Hugo). |
+| [`sq-gomod-dependabot`](.agents/skills/sq-gomod-dependabot/) | Dependabot PRs for Go modules at repo root (placeholder). |
+
+Invoke explicitly when your agent supports it (e.g. `/sq-site-dependabot` in
+Cursor, `$sq-site-dependabot` in Codex) or ask to “clear site dependabot PRs”.
+
+Full site-dependabot workflow content lands in a follow-up PR; this scaffold
+adds directories and docs only.
+
+### Installing and verifying skills (`npx skills`)
+
+Use the [Skills CLI](https://skills.sh/docs/cli) (no global install required):
+
+```bash
+npx skills add <owner/repo> --skill <skill-name>
+```
+
+**From this repository on GitHub** (install into your agent’s skill directories):
+
+```bash
+npx skills add neilotoole/sq --skill sq-site-dependabot
+npx skills add neilotoole/sq --skill sq-gomod-dependabot
+```
+
+**From a local checkout** (verify before opening a PR that touches skills):
+
+```bash
+npx skills add . -l
+npx skills add . --skill sq-site-dependabot -y
+```
+
+The `-l` / `--list` flag prints discoverable skills and descriptions without
+installing. Use `-y` to skip prompts in CI or scripts.
+
+**In-repo discovery (no install):** Cursor and Codex load
+[`.agents/skills/`](.agents/skills/) from the working tree. Claude Code also
+reads [`.claude/skills`](.claude/skills) when the symlink to `.agents/skills`
+is present.
+
+Optional: set `DISABLE_TELEMETRY=1` to opt out of anonymous Skills CLI
+telemetry ([docs](https://skills.sh/docs/cli)).
