@@ -378,6 +378,38 @@ func sgrCode(s string) string {
 	return s[i : i+j+1]
 }
 
+func TestRenderParseError_MultiLineColorHilite(t *testing.T) {
+	// Multi-line input uses the plain-text + ErrorHilite overlay path (not
+	// per-token colorization). With color on, the offending span must be
+	// wrapped in pr.ErrorHilite's SGR codes.
+	color.NoColor = false
+	t.Cleanup(func() { color.NoColor = true })
+
+	pe := &ast.ParseError{
+		Input: ".actor | bad\n.director | x",
+		Issues: []ast.ParseIssue{
+			{
+				Line:  1,
+				Col:   9,
+				Span:  &ast.Span{Start: 9, Stop: 11},
+				Token: "bad",
+				Msg:   "unexpected 'bad'",
+			},
+		},
+	}
+
+	pr := newColorPrinting()
+	buf := &bytes.Buffer{}
+	commonw.RenderParseError(buf, pr, pe)
+	out := buf.String()
+
+	hiliteCode := sgrCode(pr.ErrorHilite.Sprint(""))
+	require.NotEmpty(t, hiliteCode, "pr.ErrorHilite should emit an SGR sequence when color is on")
+	require.Contains(t, out, hiliteCode,
+		"multi-line offending span must be wrapped in pr.ErrorHilite SGR codes")
+	require.Contains(t, out, "bad")
+}
+
 func TestRenderParseError_ColorizesHandle(t *testing.T) {
 	// Force color rendering even when the env says no terminal.
 	color.NoColor = false

@@ -27,13 +27,15 @@ const (
 	// TokenName is a dotted identifier like .actor or .first_name.
 	TokenName
 
-	// TokenIdentifier is a bare identifier (no leading dot or @).
+	// TokenIdentifier is a bare identifier (no leading dot or @), including
+	// $-prefixed argument references like $name.
 	TokenIdentifier
 
 	// TokenKeyword is a reserved word (sum, avg, max, WHERE, GROUP_BY, etc.).
 	TokenKeyword
 
-	// TokenNumber is a numeric literal.
+	// TokenNumber is a numeric literal, or a digit-led token the lexer treats
+	// numerically (e.g. 007, 123abc).
 	TokenNumber
 
 	// TokenString is a quoted string literal.
