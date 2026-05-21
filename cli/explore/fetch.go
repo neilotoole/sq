@@ -2,13 +2,16 @@ package explore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -54,6 +57,7 @@ func fetchSourceOverviewCmd(ctx context.Context, f metaFetcher, handle string) t
 		if ov != nil {
 			m.meta = &metadata.Source{
 				Handle:     ov.Handle,
+				Driver:     drivertype.Type(ov.Driver),
 				Location:   ov.Location,
 				DBProduct:  ov.DBProduct,
 				DBVersion:  ov.DBVersion,
@@ -144,7 +148,10 @@ func (rf *runFetcher) RefreshSource(ctx context.Context, handle string) ([]strin
 	if err != nil {
 		return nil, err
 	}
-	md, err := grip.SourceMetadata(ctx, true)
+	// noSchema must be false: SourceMetadata returns early (before
+	// populating md.Tables) when noSchema is true, so a true here would
+	// always yield an empty table list and blank the schema pane on R.
+	md, err := grip.SourceMetadata(ctx, false)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +171,12 @@ type previewFunc func(ctx context.Context, send func(any), handle, table string,
 // and executes the SLQ query in a goroutine. Errors are reported back
 // to the caller via send(previewErrMsg{...}).
 func (rf *runFetcher) runPreview(ctx context.Context, send func(any), handle, table string, n int) {
-	pw := newPreviewWriter(handle, table, n, send)
+	// The writer stops the pipeline once it has enough rows by cancelling
+	// this context with cause errz.ErrStop, rather than invoking the
+	// cancelFn that ExecSLQ passes to Open — the RecordWriter contract
+	// reserves that cancelFn for Wait.
+	ctx, stop := context.WithCancelCause(ctx)
+	pw := newPreviewWriter(handle, table, n, send, func() { stop(errz.ErrStop) })
 	qc := &libsq.QueryContext{
 		Collection: rf.ru.Config.Collection,
 		Grips:      rf.ru.Grips,
@@ -172,8 +184,15 @@ func (rf *runFetcher) runPreview(ctx context.Context, send func(any), handle, ta
 	// SLQ row-limit: `@handle.table | .[0:N]`.
 	query := fmt.Sprintf("%s.%s | .[0:%d]", handle, table, n)
 	go func() {
-		if err := libsq.ExecSLQ(ctx, qc, query, pw); err != nil {
+		err := libsq.ExecSLQ(ctx, qc, query, pw)
+		// A capped preview stops the pipeline (cause errz.ErrStop), and
+		// program shutdown cancels the parent ctx (context.Canceled).
+		// Neither is a real error, so don't surface them to the user.
+		if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, errz.ErrStop) {
 			send(previewErrMsg{handle: handle, tableName: table, err: err})
 		}
+		// Honor the RecordWriter contract: Wait invokes the Open cancelFn.
+		_, _ = pw.Wait()
+		stop(nil)
 	}()
 }

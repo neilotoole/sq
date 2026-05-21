@@ -3,6 +3,7 @@ package explore
 import (
 	"bytes"
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	"github.com/charmbracelet/x/exp/teatest"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
@@ -56,20 +58,25 @@ func TestModel_View_ContainsHandle(t *testing.T) {
 }
 
 func TestModel_TabCyclesPanes(t *testing.T) {
+	// Drive Update synchronously rather than via teatest: reading
+	// m.focused while the teatest program mutates it on its own
+	// goroutine is a data race (caught by `go test -race`).
 	m := newTestModel(t)
-	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(120, 30))
-	defer tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
 	require.Equal(t, paneSources, m.focused)
 
-	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
-	require.Eventually(t, func() bool { return m.focused == paneSchema }, time.Second, 10*time.Millisecond)
+	m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	require.Equal(t, paneSchema, m.focused)
 
-	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
-	require.Eventually(t, func() bool { return m.focused == paneDetail }, time.Second, 10*time.Millisecond)
+	m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	require.Equal(t, paneDetail, m.focused)
 
-	tm.Send(tea.KeyMsg{Type: tea.KeyTab})
-	require.Eventually(t, func() bool { return m.focused == paneSources }, time.Second, 10*time.Millisecond)
+	m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	require.Equal(t, paneSources, m.focused)
+
+	// shift+tab cycles backward.
+	m.Update(tea.KeyMsg{Type: tea.KeyShiftTab})
+	require.Equal(t, paneDetail, m.focused)
 }
 
 func TestModel_View_ContainsAllSources(t *testing.T) {
@@ -346,4 +353,97 @@ func TestRun_QuitImmediately(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("RunWithIO did not return after ctx cancel")
 	}
+}
+
+func TestModel_LeftRightCyclePaneFocus(t *testing.T) {
+	m := newTestModel(t)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
+	require.Equal(t, paneSources, m.focused)
+
+	// 'l' / right moves focus to the next pane.
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+	require.Equal(t, paneSchema, m.focused)
+	m.Update(tea.KeyMsg{Type: tea.KeyRight})
+	require.Equal(t, paneDetail, m.focused)
+
+	// 'h' / left moves focus to the previous pane.
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+	require.Equal(t, paneSchema, m.focused)
+	m.Update(tea.KeyMsg{Type: tea.KeyLeft})
+	require.Equal(t, paneSources, m.focused)
+}
+
+func TestModel_PreviewMsgs_IgnoredForStaleHandle(t *testing.T) {
+	m := newTestModel(t)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
+	// The active preview is for @test.actor.
+	m.preview = &previewBuffer{handle: "@test", tableName: "actor"}
+
+	// A late batch from a different source that happens to share the
+	// table name must not be appended to the current preview.
+	m.Update(previewRowsAppendedMsg{
+		handle: "@other", tableName: "actor",
+		rows: []record.Record{{nil}}, done: true,
+	})
+	require.Empty(t, m.preview.rows, "rows from a different handle must be ignored")
+	require.False(t, m.preview.done, "done from a different handle must be ignored")
+
+	// A late error from that stale source must not be applied either.
+	m.Update(previewErrMsg{handle: "@other", tableName: "actor", err: errors.New("boom")})
+	require.NoError(t, m.preview.err, "error from a different handle must be ignored")
+}
+
+func TestModel_EmptyFilteredSources_NoNavPanic(t *testing.T) {
+	srcs := mkSources("@a", "@b")
+	cfg := Config{Sources: srcs, FocusedSrc: srcs[0], NoColor: true}
+	m, _ := NewModel(cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
+
+	// Filter the sources pane down to a non-matching string.
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'z'}})
+	m.Update(tea.KeyMsg{Type: tea.KeyEnter}) // leave filter mode
+	require.Nil(t, m.sources.selectedSource(), "no source should match the filter")
+
+	// Navigating and selecting with an empty list must not panic.
+	require.NotPanics(t, func() {
+		m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+		m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	})
+	require.Equal(t, srcs[0], m.focusedSrc, "focus should be unchanged when no source is selectable")
+}
+
+func TestModel_FetchError_SurfacedInView(t *testing.T) {
+	src := &source.Source{Handle: "@x"}
+	cfg := Config{Sources: []*source.Source{src}, FocusedSrc: src, NoColor: true}
+	m, _ := NewModel(cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
+
+	m.Update(tableNamesLoadedMsg{handle: "@x", err: errors.New("connection refused")})
+	require.Contains(t, m.View(), "connection refused",
+		"a failed metadata fetch should surface its error in the view")
+
+	// A subsequent successful fetch clears the error.
+	m.Update(tableNamesLoadedMsg{handle: "@x", names: []string{"actor"}})
+	require.NotContains(t, m.View(), "connection refused", "a successful fetch should clear the stale error")
+}
+
+func TestModel_Enter_FetchesUnloadedTable(t *testing.T) {
+	src := &source.Source{Handle: "@x"}
+	cfg := Config{Sources: []*source.Source{src}, FocusedSrc: src, NoColor: true}
+	m, _ := NewModel(cfg)
+	m.fetcher = &fakeFetcher{tableNames: map[string][]string{"@x": {"actor"}}}
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
+	m.Update(tableNamesLoadedMsg{handle: "@x", names: []string{"actor"}})
+
+	m.focused = paneSchema
+	// Expand the "tables" group (space), then move to "actor".
+	m.Update(tea.KeyMsg{Type: tea.KeySpace})
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+
+	// Enter opens the table; its metadata isn't loaded yet, so it must
+	// dispatch a fetch and focus the table.
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	require.NotNil(t, cmd, "Enter on an unloaded table should dispatch a meta fetch")
+	require.Equal(t, "actor", m.focusedTbl)
 }

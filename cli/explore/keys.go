@@ -20,7 +20,6 @@ type keyMap struct {
 	Preview   key.Binding
 	Refresh   key.Binding
 	Copy      key.Binding
-	Help      key.Binding
 	Quit      key.Binding
 }
 
@@ -41,7 +40,6 @@ func defaultKeys() keyMap {
 		Preview:   key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "preview rows")),
 		Refresh:   key.NewBinding(key.WithKeys("R"), key.WithHelp("R", "refresh metadata")),
 		Copy:      key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "copy handle")),
-		Help:      key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "toggle help")),
 		Quit:      key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
 	}
 }

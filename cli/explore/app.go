@@ -61,6 +61,9 @@ const (
 type Model struct {
 	focusedSrc *source.Source
 	lastErr    error
+	// ctx is the program's lifecycle context, set by RunWithIO. Fetch and
+	// preview commands derive from it so they cancel on program exit.
+	ctx context.Context
 	// ru is set by RunWithIO and consumed by Phase 4+ for metadata fetches.
 	ru          *run.Run
 	sources     *sourcesPane
@@ -133,6 +136,15 @@ func NewModel(cfg Config) (*Model, error) {
 // tea.Quit. Callers consult this after tea.Program.Run.
 func (m *Model) FinalHandle() string { return m.finalHandle }
 
+// baseCtx returns the program's lifecycle context, or context.Background
+// when none was set (e.g. in model-only tests that bypass RunWithIO).
+func (m *Model) baseCtx() context.Context {
+	if m.ctx != nil {
+		return m.ctx
+	}
+	return context.Background()
+}
+
 // Init satisfies tea.Model. It dispatches the initial source-overview
 // and table-names fetches for the focused source.
 func (m *Model) Init() tea.Cmd {
@@ -140,8 +152,8 @@ func (m *Model) Init() tea.Cmd {
 		return nil
 	}
 	return tea.Batch(
-		fetchSourceOverviewCmd(context.Background(), m.fetcher, m.focusedSrc.Handle),
-		fetchTableNamesCmd(context.Background(), m.fetcher, m.focusedSrc.Handle),
+		fetchSourceOverviewCmd(m.baseCtx(), m.fetcher, m.focusedSrc.Handle),
+		fetchTableNamesCmd(m.baseCtx(), m.fetcher, m.focusedSrc.Handle),
 	)
 }
 
@@ -179,7 +191,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.detail.setPreview(m.preview)
 		return m, nil
 	case previewRowsAppendedMsg:
-		if m.preview == nil || m.preview.tableName != msg.tableName {
+		if m.preview == nil || m.preview.tableName != msg.tableName || m.preview.handle != msg.handle {
 			return m, nil
 		}
 		m.preview.rows = append(m.preview.rows, msg.rows...)
@@ -187,7 +199,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.detail.setPreview(m.preview)
 		return m, nil
 	case previewErrMsg:
-		if m.preview != nil && m.preview.tableName == msg.tableName {
+		if m.preview != nil && m.preview.tableName == msg.tableName && m.preview.handle == msg.handle {
 			m.preview.err = msg.err
 			m.detail.setPreview(m.preview)
 		}
@@ -232,18 +244,18 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.applyFilter("")
 			return m, nil
 		}
-		if key.Matches(msg, m.keys.Tab) {
+		if key.Matches(msg, m.keys.Tab) || key.Matches(msg, m.keys.Right) {
 			m.focused = (m.focused + 1) % numPanes
 			return m, nil
 		}
-		if key.Matches(msg, m.keys.ShiftTab) {
+		if key.Matches(msg, m.keys.ShiftTab) || key.Matches(msg, m.keys.Left) {
 			m.focused = (m.focused + numPanes - 1) % numPanes
 			return m, nil
 		}
 		if key.Matches(msg, m.keys.Refresh) {
 			if m.fetcher != nil && m.focusedSrc != nil {
 				m.schema = newSchemaTree(m.focusedSrc.Handle, m.theme)
-				return m, refreshSourceCmd(context.Background(), m.fetcher, m.focusedSrc.Handle)
+				return m, refreshSourceCmd(m.baseCtx(), m.fetcher, m.focusedSrc.Handle)
 			}
 			return m, nil
 		}
@@ -284,6 +296,9 @@ func (m *Model) View() string {
 	top := m.theme.Help.Render(m.helpLine())
 	if m.filtering {
 		top += "  " + m.theme.Title.Render("/"+m.filterBuf+"▏")
+	}
+	if m.lastErr != nil {
+		top += "  " + m.theme.Error.Render("error: "+m.lastErr.Error())
 	}
 	return top + "\n" + row
 }
@@ -379,7 +394,12 @@ func (m *Model) acceptFetch(handle string, err error) bool {
 		m.lastErr = err
 		return false
 	}
-	return m.focusedSrc != nil && handle == m.focusedSrc.Handle
+	if m.focusedSrc == nil || handle != m.focusedSrc.Handle {
+		return false
+	}
+	// Successful fetch for the focused source: clear any stale error.
+	m.lastErr = nil
+	return true
 }
 
 // recordFinalHandle stashes the address to emit on quit. It's a no-op
@@ -397,7 +417,9 @@ func (m *Model) routeKey(msg tea.KeyMsg) tea.Cmd {
 	case paneSources:
 		m.sources.update(msg, m.keys)
 		newSrc := m.sources.selectedSource()
-		if newSrc != m.focusedSrc {
+		// newSrc is nil when the pane is filtered down to zero sources;
+		// keep the current focus rather than dereferencing a nil source.
+		if newSrc != nil && newSrc != m.focusedSrc {
 			m.focusedSrc = newSrc
 			m.focusedTbl = ""
 			m.schema = newSchemaTree(newSrc.Handle, m.theme)
@@ -407,8 +429,8 @@ func (m *Model) routeKey(msg tea.KeyMsg) tea.Cmd {
 			m.preview = nil
 			if m.fetcher != nil {
 				return tea.Batch(
-					fetchSourceOverviewCmd(context.Background(), m.fetcher, newSrc.Handle),
-					fetchTableNamesCmd(context.Background(), m.fetcher, newSrc.Handle),
+					fetchSourceOverviewCmd(m.baseCtx(), m.fetcher, newSrc.Handle),
+					fetchTableNamesCmd(m.baseCtx(), m.fetcher, newSrc.Handle),
 				)
 			}
 		}
@@ -416,7 +438,7 @@ func (m *Model) routeKey(msg tea.KeyMsg) tea.Cmd {
 	case paneSchema:
 		needsFetch, tblName := m.schema.update(msg, m.keys)
 		if needsFetch && m.fetcher != nil {
-			return fetchTableMetaCmd(context.Background(), m.fetcher, m.focusedSrc.Handle, tblName)
+			return fetchTableMetaCmd(m.baseCtx(), m.fetcher, m.focusedSrc.Handle, tblName)
 		}
 		if key.Matches(msg, m.keys.Enter) {
 			tbl, col := m.schema.selectedDetail()
@@ -426,6 +448,15 @@ func (m *Model) routeKey(msg tea.KeyMsg) tea.Cmd {
 			case tbl != nil:
 				m.detail.setTable(tbl)
 				m.focusedTbl = tbl.Name
+			default:
+				// Opening a table whose metadata isn't loaded yet: focus
+				// it and fetch, so the detail pane fills in on arrival.
+				if name := m.schema.selectedTableName(); name != "" {
+					m.focusedTbl = name
+					if m.fetcher != nil {
+						return fetchTableMetaCmd(m.baseCtx(), m.fetcher, m.focusedSrc.Handle, name)
+					}
+				}
 			}
 		} else if t := m.schema.selectedTableName(); t != "" {
 			m.focusedTbl = t
@@ -461,8 +492,9 @@ func (m *Model) startPreview() tea.Cmd {
 		send = func(_ tea.Msg) {}
 	}
 	previewFn := m.previewFn
+	ctx := m.baseCtx()
 	return func() tea.Msg {
-		go previewFn(context.Background(), func(msg any) {
+		go previewFn(ctx, func(msg any) {
 			send(msg.(tea.Msg))
 		}, handle, table, n)
 		return previewStartedMsg{handle: handle, tableName: table, count: n}
@@ -484,6 +516,7 @@ func RunWithIO(ctx context.Context, ru *run.Run, cfg Config, out, errOut io.Writ
 	if err != nil {
 		return "", err
 	}
+	m.ctx = ctx
 	m.ru = ru
 	if ru != nil {
 		rf := newRunFetcher(ru)

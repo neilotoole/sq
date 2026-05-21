@@ -22,6 +22,7 @@ import (
 type previewWriter struct {
 	dispatch func(any) // typically tea.Program.Send.
 	cancelFn context.CancelFunc
+	stopFn   func() // stops the upstream pipeline once the row cap is hit.
 	recCh    chan record.Record
 	errCh    chan error
 	doneCh   chan struct{}
@@ -34,7 +35,7 @@ type previewWriter struct {
 	started  bool
 }
 
-func newPreviewWriter(handle, table string, capRows int, dispatch func(any)) *previewWriter {
+func newPreviewWriter(handle, table string, capRows int, dispatch func(any), stopFn func()) *previewWriter {
 	if capRows < 1 {
 		capRows = 100
 	}
@@ -43,6 +44,7 @@ func newPreviewWriter(handle, table string, capRows int, dispatch func(any)) *pr
 		table:    table,
 		capRows:  int64(capRows),
 		dispatch: dispatch,
+		stopFn:   stopFn,
 		errCh:    make(chan error, 1),
 		doneCh:   make(chan struct{}),
 	}
@@ -94,6 +96,9 @@ func (pw *previewWriter) run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			flush(true)
+			// Per the RecordWriter contract, surface ctx cancellation on
+			// errCh so the pipeline stops promptly.
+			pw.errCh <- ctx.Err()
 			return
 		case rec, ok := <-pw.recCh:
 			if !ok {
@@ -105,9 +110,11 @@ func (pw *previewWriter) run(ctx context.Context) {
 			batch = append(batch, rec)
 			if pw.written >= pw.capRows {
 				flush(true)
-				// Tell the upstream pipeline we're done.
-				if pw.cancelFn != nil {
-					pw.cancelFn()
+				// Stop the upstream pipeline. Use the preview's stop func
+				// (cancel with cause errz.ErrStop) rather than the Open
+				// cancelFn, which the RecordWriter contract reserves for Wait.
+				if pw.stopFn != nil {
+					pw.stopFn()
 				}
 				// Drain any remaining records sent before the
 				// pipeline sees the cancel, to avoid blocking the
@@ -130,11 +137,15 @@ func (pw *previewWriter) run(ctx context.Context) {
 // Wait satisfies the libsq.RecordWriter interface.
 func (pw *previewWriter) Wait() (int64, error) {
 	pw.mu.Lock()
-	started := pw.started
+	started, cancelFn := pw.started, pw.cancelFn
 	pw.mu.Unlock()
 	if !started {
 		return 0, nil
 	}
 	<-pw.doneCh
+	// Per the RecordWriter contract, Wait invokes the Open cancelFn.
+	if cancelFn != nil {
+		cancelFn()
+	}
 	return pw.written, pw.waitErr
 }

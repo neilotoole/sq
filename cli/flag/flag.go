@@ -224,5 +224,5 @@ const (
 	ExploreNoTUIUsage = "Do not start the TUI; print the source overview instead"
 
 	ExplorePreviewRows      = "preview-rows"
-	ExplorePreviewRowsUsage = "Max rows fetched for the preview pane (default 100)"
+	ExplorePreviewRowsUsage = "Max rows fetched for the preview pane"
 )

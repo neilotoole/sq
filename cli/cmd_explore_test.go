@@ -1,7 +1,6 @@
 package cli_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -46,7 +45,6 @@ func TestCmdExplore_ParseTableHandle(t *testing.T) {
 	tr := testrun.New(th.Context, t, nil).Add(*src)
 	err := tr.Exec("explore", "--no-tui", src.Handle+".actor")
 	require.NoError(t, err, "context-aware table argument should be accepted")
-	_ = context.Background
 }
 
 func TestCmdExplore_EmitHandle_WithNoTUI(t *testing.T) {

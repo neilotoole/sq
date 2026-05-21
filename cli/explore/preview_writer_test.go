@@ -32,7 +32,8 @@ func drainMsgs(t *testing.T, ch <-chan any, n int) []any {
 
 func TestPreviewWriter_EmitsMetaThenRows(t *testing.T) {
 	msgCh := make(chan any, 16)
-	pw := newPreviewWriter("@x", "actor", 3, func(m any) { msgCh <- m })
+	stopped := false
+	pw := newPreviewWriter("@x", "actor", 3, func(m any) { msgCh <- m }, func() { stopped = true })
 
 	recMeta := record.Meta{}
 	cancelled := false
@@ -57,11 +58,13 @@ func TestPreviewWriter_EmitsMetaThenRows(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(2), written)
 	_ = errCh
-	require.False(t, cancelled, "should not cancel when caller closes recCh below cap")
+	require.False(t, stopped, "should not stop the pipeline when caller closes recCh below cap")
+	require.True(t, cancelled, "Wait must invoke the Open cancelFn per the RecordWriter contract")
 }
 
 func TestPreviewWriter_CancelsAtCap(t *testing.T) {
-	pw := newPreviewWriter("@x", "actor", 2, func(_ any) {})
+	stopped := false
+	pw := newPreviewWriter("@x", "actor", 2, func(_ any) {}, func() { stopped = true })
 
 	cancelled := false
 	cancel := func() { cancelled = true }
@@ -71,9 +74,9 @@ func TestPreviewWriter_CancelsAtCap(t *testing.T) {
 	go func() {
 		recCh <- record.Record{nil}
 		recCh <- record.Record{nil}
-		// Writer should cancel and drain after the 2nd record.
+		// Writer should stop and drain after the 2nd record.
 		// A 3rd send simulates the upstream producer not yet noticing
-		// the cancel — the writer's drain goroutine should absorb it
+		// the stop — the writer's drain goroutine should absorb it
 		// without blocking. We send with a goroutine + select so the
 		// test isn't itself blocking forever.
 		select {
@@ -85,12 +88,13 @@ func TestPreviewWriter_CancelsAtCap(t *testing.T) {
 	written, err := pw.Wait()
 	require.NoError(t, err)
 	require.Equal(t, int64(2), written, "should have written exactly capRows records")
-	require.True(t, cancelled, "writer must invoke cancelFn at row cap")
+	require.True(t, stopped, "writer must stop the pipeline at row cap")
+	require.True(t, cancelled, "Wait must invoke the Open cancelFn per the RecordWriter contract")
 }
 
 func TestPreviewWriter_NoRowsBeforeClose(t *testing.T) {
 	msgCh := make(chan any, 16)
-	pw := newPreviewWriter("@x", "actor", 100, func(m any) { msgCh <- m })
+	pw := newPreviewWriter("@x", "actor", 100, func(m any) { msgCh <- m }, func() {})
 
 	recCh, errCh, err := pw.Open(context.Background(), func() {}, record.Meta{})
 	require.NoError(t, err)

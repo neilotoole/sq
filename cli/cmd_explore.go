@@ -85,12 +85,17 @@ func execExplore(cmd *cobra.Command, args []string) error {
 		return runExploreNoTUI(ctx, ru, src, emit, table)
 	}
 
+	o, err := getOptionsFromCmd(cmd)
+	if err != nil {
+		return err
+	}
+
 	cfg := explore.Config{
 		Sources:      ru.Config.Collection.Sources(),
 		FocusedSrc:   src,
 		FocusedTable: table,
 		EmitHandle:   emit,
-		NoColor:      noColorFor(ru),
+		NoColor:      noColorFor(ru) || OptMonochrome.Get(o),
 		PreviewRows:  previewRows,
 	}
 
@@ -129,18 +134,21 @@ func runExploreNoTUI(ctx context.Context, ru *run.Run, src *source.Source, emit 
 	return nil
 }
 
-// isStdoutTTY returns true when ru.Out is connected to a terminal.
+// isStdoutTTY returns true when the original stdout is a terminal. It
+// checks ru.Stdout (the underlying fd), not the decorated ru.Out: in
+// tests ru.Out is a buffer while os.Stdout may still be a TTY, so a
+// fallback to os.Stdout would wrongly try to start the TUI.
 func isStdoutTTY(ru *run.Run) bool {
 	type fd interface{ Fd() uintptr }
-	if f, ok := ru.Out.(fd); ok {
+	if f, ok := ru.Stdout.(fd); ok {
 		return term.IsTerminal(int(f.Fd()))
 	}
-	return term.IsTerminal(int(os.Stdout.Fd()))
+	return false
 }
 
-// noColorFor centralizes the "is color disabled" decision. v1 honors
-// NO_COLOR per https://no-color.org; reading from ru.Config /
-// output.Options is a v2 enhancement when those surfaces stabilize.
+// noColorFor reports whether color is disabled via NO_COLOR
+// (https://no-color.org). The caller also honors the merged
+// --monochrome / -M option (see execExplore).
 func noColorFor(ru *run.Run) bool {
 	_ = ru
 	return os.Getenv("NO_COLOR") != ""
