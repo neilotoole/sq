@@ -10,7 +10,8 @@ to this file for expanded contributor content.
 
 `sq` is a command-line data wrangler providing jq-style access to structured
 data sources (SQL databases like Postgres, MySQL, SQLite, SQL Server,
-ClickHouse; and document formats like CSV, JSON, Excel). User docs live at
+ClickHouse, Oracle, DuckDB; and document formats like CSV, JSON, Excel). User
+docs live at
 [sq.io](https://sq.io).
 
 ## Key documents
@@ -142,6 +143,13 @@ read the
 section of `CONTRIBUTING.md` — it covers package structure, type mapping,
 dialect configuration, test handles, and the SQL-vs-document driver split.
 
+**Adding a new driver type:** you must complete the
+[driver ship checklist](./CONTRIBUTING.md#driver-ship-checklist) in the same
+PR — including [`site/content/en/docs/drivers/`](site/content/en/docs/drivers/)
+and [`skills/sq/`](skills/sq/SKILL.md) (`SKILL.md` driver table plus
+`references/{driver}.md`). Do not mark driver work done until those files are
+updated; copy an existing `skills/sq/references/*.md` as a template.
+
 For a visual map of the driver interfaces (`driver.Driver`,
 `driver.SQLDriver`, `driver.Grip`, `driver.Registry`) and how they relate to
 the rest of the system, see [`ARCHITECTURE.md`](./ARCHITECTURE.md).
@@ -155,6 +163,10 @@ This repo ships [Agent Skills](https://agentskills.io/specification) for
 |----------|----------|
 | [`.agents/skills/`](.agents/skills/) | Contributors (Dependabot triage, etc.) |
 | [`skills/sq/`](skills/sq/SKILL.md) | End users of the `sq` CLI (distribution; not repo auto-discovery) |
+
+When you **add a new driver type**, update [`skills/sq/`](skills/sq/SKILL.md)
+per the [driver ship checklist](./CONTRIBUTING.md#driver-ship-checklist): add
+`references/{driver}.md` and a row in `SKILL.md`.
 
 Claude Code discovers the same tree via [`.claude/skills`](.claude/skills)
 (symlink to `.agents/skills`). Cursor and Codex load `.agents/skills/`
