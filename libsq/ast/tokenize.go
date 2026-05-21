@@ -100,9 +100,13 @@ type Token struct {
 
 // Tokenize runs the SLQ lexer over input and returns visible (non-skipped)
 // tokens. Whitespace and line comments are not returned; the lexer discards
-// them before this function sees the token stream. On lex errors
-// (e.g., an unrecognized character) the lexer's default error recovery
-// is suppressed; partial output is returned with no error indication.
+// them before this function sees the token stream. Error reporting is
+// suppressed by removing the lexer's error listeners: on a lex error (e.g.,
+// an unrecognized character) the lexer still performs its default recovery
+// (skipping the offending input) and Tokenize returns whatever tokens it
+// produced, with no error indication. Tokenize is for presentation only
+// (syntax-aware colorization); authoritative error reporting is done by
+// parseSLQ.
 func Tokenize(input string) []Token {
 	if input == "" {
 		return nil

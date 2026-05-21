@@ -73,15 +73,17 @@ func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offending
 		iss.StopChar = tok.GetStop()
 	}
 
-	// Lexer-stage errors don't carry a token. Synthesize a single-character
-	// span at column so the renderer can mark exactly one rune (matching the
-	// terse message produced below). column is 0-based.
+	// Lexer-stage errors don't carry a token. ANTLR reports the position as
+	// (line, column) where column is 0-based *within the line*, not an
+	// absolute offset into the input. Convert to an absolute rune offset so
+	// multi-line input maps to the correct rune, then synthesize a
+	// single-character span there (matching the terse message produced below).
 	if iss.Token == "" && el.name == "lexer" {
 		runes := []rune(el.input)
-		if column >= 0 && column < len(runes) {
-			iss.Token = string(runes[column])
-			iss.StartChar = column
-			iss.StopChar = column
+		if off := runeOffsetForLineCol(runes, line, column); off >= 0 && off < len(runes) {
+			iss.Token = string(runes[off])
+			iss.StartChar = off
+			iss.StopChar = off
 		}
 	}
 
@@ -337,6 +339,28 @@ func (v *parseTreeVisitor) VisitTerminal(ctx antlr.TerminalNode) any {
 func (v *parseTreeVisitor) VisitErrorNode(ctx antlr.ErrorNode) any {
 	v.log.Debug("Error node", lga.Val, ctx.GetText())
 	return nil
+}
+
+// runeOffsetForLineCol converts a 1-based line and 0-based column (as
+// reported by ANTLR's SyntaxError, where column is relative to the start of
+// the line) into an absolute 0-based rune offset into runes. Lines are
+// delimited by '\n', matching the convention ANTLR uses to advance its line
+// counter. It returns -1 if line or col is out of range.
+func runeOffsetForLineCol(runes []rune, line, col int) int {
+	if line < 1 || col < 0 {
+		return -1
+	}
+	i, cur := 0, 1
+	for i < len(runes) && cur < line {
+		if runes[i] == '\n' {
+			cur++
+		}
+		i++
+	}
+	if cur < line {
+		return -1 // line beyond input
+	}
+	return i + col
 }
 
 // buildIssueMsg produces a terse, sq-flavored error message. When token

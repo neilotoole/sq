@@ -164,8 +164,9 @@ func renderColorizedLine(
 				colors[i] = c
 			}
 		}
-		// For string tokens (e.g. ".first_name"), mute the surrounding
-		// quote characters so the content reads as the focus.
+		// For string tokens (e.g. the SLQ literal "bob", whose double
+		// quotes are part of the token), mute the surrounding quote
+		// characters so the content reads as the focus.
 		if tok.Kind == ast.TokenString {
 			muteStringQuotes(colors, pr.Faint, tok.Start, hi)
 		}

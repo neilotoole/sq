@@ -59,6 +59,53 @@ func TestParse_SyntaxErrorMsg_LexerError(t *testing.T) {
 	require.Equal(t, "unexpected '#'", iss.Msg)
 }
 
+func TestParse_SyntaxErrorMsg_LexerError_MultiLine(t *testing.T) {
+	// '#' is unrecognized mid-input; here it sits on line 2. ANTLR reports
+	// the error column as 0-based *within the line* (col 5), so the listener
+	// must convert (line, col) to an absolute rune offset (12) when
+	// synthesizing the span. A naive runes[col] lookup would mark the wrong
+	// rune ('r' from line 1) and emit wrong start/stop offsets.
+	//
+	//	.actor\n.foo # bad
+	//	0123456 789...   ^-- '#' is rune 12
+	_, err := Parse(lg.Discard(), ".actor\n.foo # bad")
+	require.Error(t, err)
+
+	var pe *ParseError
+	require.True(t, errors.As(err, &pe))
+	require.NotEmpty(t, pe.Issues)
+	iss := pe.Issues[0]
+	require.Equal(t, "lexer", iss.stage)
+	require.Equal(t, 2, iss.Line)
+	require.Equal(t, 5, iss.Col, "0-based col within line 2")
+	require.Equal(t, "#", iss.Token, "token synthesized at the absolute rune offset, not runes[col]")
+	require.Equal(t, 12, iss.StartChar, "absolute rune offset of '#' in the full input")
+	require.Equal(t, 12, iss.StopChar)
+	require.Equal(t, "unexpected '#'", iss.Msg)
+}
+
+func TestRuneOffsetForLineCol(t *testing.T) {
+	const input = ".actor\n.foo # bad\nx"
+	runes := []rune(input)
+	testCases := []struct {
+		line, col int
+		want      int
+	}{
+		{1, 0, 0},   // first rune
+		{1, 6, 6},   // the '\n' position (col == line length)
+		{2, 0, 7},   // first rune of line 2
+		{2, 5, 12},  // the '#'
+		{3, 0, 18},  // first rune of line 3 ('x')
+		{0, 0, -1},  // invalid line
+		{1, -1, -1}, // invalid col
+		{99, 0, -1}, // line beyond input
+	}
+	for _, tc := range testCases {
+		got := runeOffsetForLineCol(runes, tc.line, tc.col)
+		require.Equal(t, tc.want, got, "line=%d col=%d", tc.line, tc.col)
+	}
+}
+
 func TestParse_DidYouMean(t *testing.T) {
 	// "mx" should suggest "max" because both are short and edit distance 1.
 	_, err := Parse(lg.Discard(), ".actor | mx(.id)")

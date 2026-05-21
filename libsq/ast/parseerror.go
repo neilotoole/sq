@@ -43,12 +43,15 @@ type ParseIssue struct {
 	// display this as Col+1 (1-based) for human readability.
 	Col int
 
-	// StartChar is the 0-based char offset into ParseError.Input where
-	// the offending span begins. -1 if not available.
+	// StartChar is the 0-based rune (Unicode code point) offset into
+	// ParseError.Input where the offending span begins. -1 if not available.
+	// It is a rune offset, not a byte offset, so it indexes correctly into
+	// []rune(Input) even for non-ASCII text.
 	StartChar int
 
-	// StopChar is the 0-based, inclusive char offset where the offending
-	// span ends. -1 if not available.
+	// StopChar is the 0-based, inclusive rune (Unicode code point) offset
+	// where the offending span ends. -1 if not available. Like StartChar,
+	// it is a rune offset, not a byte offset.
 	StopChar int
 }
 
