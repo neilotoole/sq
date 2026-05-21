@@ -64,11 +64,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   Pre-#640, an input like `like(.first_name, max(.last_name))` walked
   through the `max(...)` wrapper and rendered as if the user had
   written `like(.first_name, .last_name)`. Post-#640, such inputs are
-  rejected with the existing argument-type error: `"must be a string
-  literal or column selector"` for `like` / `ilike`, and `"must be a
-  string literal"` for the `contains` family. Operator wrappers such
-  as `-42` were unaffected — only single-arg function wrappers had the
-  silent-strip behavior.
+  rejected with the existing argument-type error. The `like` / `ilike`
+  parsers report `"must be a string literal or column selector"`; the
+  `contains` family reports `"must be a string literal"`. Operator
+  wrappers such as `-42` were unaffected — only single-arg function
+  wrappers had the silent-strip behavior.
 
 ### Fixed
 
