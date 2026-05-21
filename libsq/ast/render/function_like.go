@@ -108,7 +108,8 @@ func unwrapExpr(node ast.Node) ast.Node {
 // typically wrapped in an [*ast.ExprNode]. [unwrapExpr] peels those
 // syntactic wrappers to reach the underlying selector / literal leaves
 // without walking through user-meaningful nodes such as function
-// calls, which are left intact for the caller to reject.
+// calls, which are left intact for rejection — the LHS column here in
+// parseLikeColArg, the RHS in each caller.
 func parseLikeColArg(rc *Context, fn *ast.FuncNode) (colSQL string, rhsChild ast.Node, err error) {
 	children := fn.Children()
 	if len(children) != 2 {

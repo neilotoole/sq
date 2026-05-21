@@ -164,6 +164,17 @@ func TestQuery_string_contains(t *testing.T) {
 			wantErrContains: "contains() requires exactly 2 arguments",
 		},
 		{
+			// The contains family rejects an unquoted (numeric) literal RHS:
+			// 42 is a *ast.LiteralNode, but unquoteLiteral reports
+			// wasQuoted == false, so ParseLikeArgs hits its quoted-literal
+			// branch (distinct from the non-literal branch the cases below
+			// cover). Mirrors like/numeric-rhs-rejected; without it the
+			// contains family's wasQuoted guard is otherwise untested.
+			name:            "contains/numeric-rhs-rejected",
+			in:              `@sakila | .actor | where(contains(.first_name, 42))`,
+			wantErrContains: "contains() second argument must be a quoted string literal",
+		},
+		{
 			// ParseLikeArgs is shared by all six contains-family functions
 			// (contains/startswith/endswith and their i-variants), so the
 			// contains RHS rejection tests guard the literal dispatch for
