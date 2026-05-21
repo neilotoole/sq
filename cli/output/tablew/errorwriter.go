@@ -29,7 +29,7 @@ func NewErrorWriter(w io.Writer, pr *output.Printing, stacktrace bool) output.Er
 // Error implements output.ErrorWriter.
 func (w *errorWriter) Error(systemErr, humanErr error) {
 	var pe *ast.ParseError
-	if errors.As(systemErr, &pe) {
+	if errors.As(systemErr, &pe) && len(pe.Issues) > 0 {
 		commonw.RenderParseError(w.w, w.pr, pe)
 		// Render the stack trace below only when --error.stack is set.
 		// ANTLR internals aren't useful, but the wrapping errz frames may be.

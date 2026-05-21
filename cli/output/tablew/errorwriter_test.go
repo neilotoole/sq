@@ -40,6 +40,24 @@ func TestErrorWriter_ParseError(t *testing.T) {
 	require.Contains(t, got, "~~~~~~~~~~~~~~~")
 }
 
+func TestErrorWriter_ParseError_EmptyIssuesFallsBack(t *testing.T) {
+	// A *ast.ParseError with no Issues must not yield empty output:
+	// RenderParseError is a no-op for empty Issues, so the writer must fall
+	// back to the generic "sq: <err>" print.
+	pe := &ast.ParseError{Input: ".actor", Issues: nil}
+	wrapped := errz.Err(pe)
+
+	buf := &bytes.Buffer{}
+	pr := output.NewPrinting()
+	pr.EnableColor(false)
+	w := tablew.NewErrorWriter(buf, pr, false)
+	w.Error(wrapped, wrapped)
+
+	got := buf.String()
+	require.NotEmpty(t, got, "empty-Issues ParseError must still produce output")
+	require.Contains(t, got, "sq:", "must fall back to the generic error print")
+}
+
 func TestErrorWriter_NonParseError(t *testing.T) {
 	// Generic errors should still print as before.
 	buf := &bytes.Buffer{}
