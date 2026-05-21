@@ -103,6 +103,12 @@ func TestRuneOffsetForLineCol(t *testing.T) {
 	}
 }
 
+func TestSpan_Empty(t *testing.T) {
+	require.False(t, Span{Start: 3, Stop: 5}.Empty())
+	require.False(t, Span{Start: 3, Stop: 3}.Empty(), "single-rune span is not empty")
+	require.True(t, Span{Start: 8, Stop: 7}.Empty(), "<EOF>-style span (Stop < Start) is empty")
+}
+
 func TestParse_RuneOffsets_NonASCII(t *testing.T) {
 	// 'é' is a multibyte rune: "gibberish" begins at rune offset 18 but byte
 	// offset 19. Span carries RUNE offsets so non-ASCII input indexes

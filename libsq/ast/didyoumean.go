@@ -9,7 +9,8 @@ import (
 // with only a symbolic name (e.g. NAME, NUMBER, STRING) are skipped, as are
 // punctuation/operator literals (e.g. "|", "==", "("): a typo'd identifier
 // is never meaningfully "close" to an operator, so suggesting one is noise.
-// Only alphabetic-word literals (keywords, function names) are returned.
+// Only word-like literals (letters and underscores, per isAlphaWord — e.g.
+// keywords and function names) are returned.
 func expectedTokenLiterals(tokenTypes []int, literalNames []string) []string {
 	out := make([]string, 0, len(tokenTypes))
 	for _, ttype := range tokenTypes {

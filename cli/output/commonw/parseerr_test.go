@@ -252,6 +252,60 @@ func TestRenderParseError_EOFCaret(t *testing.T) {
 		"EOF should still produce a single caret at the end position")
 }
 
+func TestRenderParseError_MultiLineCaret_MultibytePrecedingLine(t *testing.T) {
+	// Line 1 holds a multibyte rune ('é'); the error is on line 2. lineStart
+	// must be computed in RUNES (len([]rune("café"))+1 = 5), not bytes (6),
+	// or the line-2 caret shifts. Span.Start is the absolute rune offset (14)
+	// of "gibberish".
+	pe := &ast.ParseError{
+		Input: "café\n.actor | gibberish",
+		Issues: []ast.ParseIssue{
+			{
+				Line:  2,
+				Col:   9,
+				Span:  &ast.Span{Start: 14, Stop: 22},
+				Token: "gibberish",
+				Msg:   "unexpected 'gibberish'",
+			},
+		},
+	}
+
+	buf := &bytes.Buffer{}
+	commonw.RenderParseError(buf, newMonoPrinting(), pe)
+	got := buf.String()
+
+	require.Contains(t, got, "syntax error at line 2, col 10:")
+	// 2-space indent + 9 line-local columns = 11 spaces, then 9 tildes under
+	// "gibberish". A byte-based lineStart would shift this left by one.
+	require.Equal(t, strings.Repeat(" ", 11)+strings.Repeat("~", 9), caretLine(got),
+		"lineStart must use the rune length of the preceding line, not bytes")
+}
+
+func TestRenderParseError_EOFCaret_LaterLine(t *testing.T) {
+	// EOF on line 2: the empty span's absolute Start (10) must map to the
+	// line-local end position via lineStart (2) and still emit a single caret.
+	pe := &ast.ParseError{
+		Input: "x\n.actor |",
+		Issues: []ast.ParseIssue{
+			{
+				Line:  2,
+				Col:   8,
+				Span:  &ast.Span{Start: 10, Stop: 9},
+				Token: "<EOF>",
+				Msg:   "unexpected end of input",
+			},
+		},
+	}
+
+	buf := &bytes.Buffer{}
+	commonw.RenderParseError(buf, newMonoPrinting(), pe)
+	got := buf.String()
+
+	require.Contains(t, got, "syntax error at line 2, col 9:")
+	require.Equal(t, strings.Repeat(" ", 10)+"~", caretLine(got),
+		"EOF caret on a later line must map to the line-local end position")
+}
+
 func TestRenderParseError_MutesStringQuotes(t *testing.T) {
 	color.NoColor = false
 	t.Cleanup(func() { color.NoColor = true })

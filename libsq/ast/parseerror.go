@@ -23,6 +23,11 @@ type ParseError struct {
 // ParseError.Input. Both bounds are 0-based rune (Unicode code point)
 // offsets — not byte offsets — so they index correctly into []rune(Input)
 // even for non-ASCII text. Stop is inclusive.
+//
+// Normally Start <= Stop. The sole exception is an empty span (see Empty),
+// where Stop == Start-1: the synthetic <EOF> token uses this to mark a
+// position with no extent (e.g. "unexpected end of input"). Renderers place
+// a caret at Start; the JSON wire form omits the offsets for an empty span.
 type Span struct {
 	// Start is the rune offset where the span begins.
 	Start int
@@ -32,9 +37,16 @@ type Span struct {
 	Stop int
 }
 
-// ParseIssue describes a single syntax error. Field order groups the
-// pointer/reference fields ahead of the scalar ints to satisfy govet's
-// fieldalignment; it is not otherwise significant.
+// Empty reports whether the span covers no runes (Stop < Start), as for the
+// synthetic <EOF> token. An empty span marks the position Start without
+// extent.
+func (s Span) Empty() bool {
+	return s.Stop < s.Start
+}
+
+// ParseIssue describes a single syntax error. Field order is dictated by
+// govet's fieldalignment (pointer-bearing fields first); it is not otherwise
+// significant — the struct is built and read by field name.
 type ParseIssue struct {
 	// Span is the rune-offset range of the offending text within
 	// ParseError.Input, or nil if positional offsets aren't available

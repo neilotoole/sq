@@ -69,6 +69,8 @@ func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offending
 
 	if tok, ok := offendingSymbol.(antlr.Token); ok && tok != nil {
 		iss.Token = tok.GetText()
+		// The synthetic <EOF> token reports Stop == Start-1, yielding an
+		// empty span (see Span.Empty) that marks the end-of-input position.
 		iss.Span = &Span{Start: tok.GetStart(), Stop: tok.GetStop()}
 	}
 

@@ -119,7 +119,10 @@ func toParseErrorJSON(pe *ast.ParseError) *parseErrorJSON {
 			Msg:        iss.Msg,
 			Suggestion: iss.Suggestion,
 		}
-		if iss.Span != nil {
+		// Emit char offsets only for a real span. An empty span (e.g. the
+		// <EOF> token, Stop < Start) has no extent, so omit the offsets and
+		// let consumers fall back to line/col, matching the nil-span case.
+		if iss.Span != nil && !iss.Span.Empty() {
 			start, stop := iss.Span.Start, iss.Span.Stop
 			ij.StartChar, ij.StopChar = &start, &stop
 		}
