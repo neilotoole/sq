@@ -107,7 +107,12 @@ func PrintError(ctx context.Context, ru *run.Run, err error) {
 		errOut = os.Stderr
 	}
 	if pr == nil {
+		// Deep fallback: getOutputConfig didn't run (e.g. ru or its
+		// Stdout/Stderr was nil), so we can't tell whether errOut is a color
+		// terminal. NewPrinting enables color by default; disable it here so
+		// the fallback never writes ANSI codes to a redirected stderr.
 		pr = output.NewPrinting()
+		pr.EnableColor(false)
 	}
 
 	// Execute the cleanup before we print the error.
@@ -129,10 +134,10 @@ func PrintError(ctx context.Context, ru *run.Run, err error) {
 	}
 
 	// Not JSON and not a renderable parse error: print the plain error to
-	// errOut, consistent with the JSON and parse-error paths above. pr already
-	// carries the correct color setting for errOut (getOutputConfig sets it,
-	// or it defaults to a no-color NewPrinting), so there's no need for a
-	// separate terminal check against os.Stderr.
+	// errOut, consistent with the JSON and parse-error paths above. pr carries
+	// the correct color setting for errOut (getOutputConfig matches errOutPr to
+	// the errOut writer; the pr == nil fallback above forces no color), so
+	// there's no need for a separate terminal check against os.Stderr.
 	pr.Error.Fprintln(errOut, "sq: "+err.Error())
 }
 
