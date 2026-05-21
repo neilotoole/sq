@@ -235,7 +235,14 @@ func spanWithinLine(srcLine string, lineStart int, iss ast.ParseIssue) (start, s
 	if iss.Span != nil {
 		ls := iss.Span.Start - lineStart
 		if ls >= 0 && ls <= len(srcRunes) {
-			return ls, min(iss.Span.Stop-lineStart+1, len(srcRunes))
+			end := min(iss.Span.Stop-lineStart+1, len(srcRunes))
+			if end <= ls {
+				// Zero-width span (e.g. the synthetic <EOF> token, whose Stop
+				// is Start-1): emit a single-rune caret at the position so the
+				// error still gets a visible marker.
+				end = ls + 1
+			}
+			return ls, end
 		}
 	}
 

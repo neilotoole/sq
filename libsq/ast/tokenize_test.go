@@ -82,6 +82,23 @@ func TestTokenize_RuneOffsets(t *testing.T) {
 	require.Equal(t, 17, got[2].Stop)
 }
 
+func TestTokenize_RuneOffsets_NonASCII(t *testing.T) {
+	// 'é' is a multibyte rune. Start/Stop are RUNE offsets, so tokens after
+	// it must not be shifted by the extra byte: byte offsets would put '|' at
+	// 8 and "gibberish" at 10.
+	input := `"café" | gibberish`
+	got := Tokenize(input)
+	require.Len(t, got, 3, "expected three visible tokens")
+	require.Equal(t, `"café"`, got[0].Text)
+	require.Equal(t, 0, got[0].Start)
+	require.Equal(t, 5, got[0].Stop) // inclusive: closing '"' is rune 5
+	require.Equal(t, "|", got[1].Text)
+	require.Equal(t, 7, got[1].Start)
+	require.Equal(t, "gibberish", got[2].Text)
+	require.Equal(t, 9, got[2].Start)
+	require.Equal(t, 17, got[2].Stop)
+}
+
 func TestTokenize_EmptyInput(t *testing.T) {
 	got := Tokenize("")
 	require.Empty(t, got)

@@ -224,6 +224,34 @@ func TestRenderParseError_NonASCIICaret(t *testing.T) {
 		"caret must align by rune offset, not byte offset")
 }
 
+func TestRenderParseError_EOFCaret(t *testing.T) {
+	// The synthetic <EOF> token has a zero-width span (Stop < Start). The
+	// renderer must still emit a single caret at the end-of-input position
+	// rather than suppressing the caret line.
+	pe := &ast.ParseError{
+		Input: ".actor |",
+		Issues: []ast.ParseIssue{
+			{
+				Line:  1,
+				Col:   8,
+				Span:  &ast.Span{Start: 8, Stop: 7},
+				Token: "<EOF>",
+				Msg:   "unexpected end of input",
+			},
+		},
+	}
+
+	buf := &bytes.Buffer{}
+	commonw.RenderParseError(buf, newMonoPrinting(), pe)
+	got := buf.String()
+
+	require.Contains(t, got, "unexpected end of input")
+	// 2-space indent + 8 columns (length of ".actor |") = 10 spaces, then a
+	// single caret at the end-of-input position.
+	require.Equal(t, strings.Repeat(" ", 10)+"~", caretLine(got),
+		"EOF should still produce a single caret at the end position")
+}
+
 func TestRenderParseError_MutesStringQuotes(t *testing.T) {
 	color.NoColor = false
 	t.Cleanup(func() { color.NoColor = true })
