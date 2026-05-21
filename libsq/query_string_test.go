@@ -164,9 +164,14 @@ func TestQuery_string_contains(t *testing.T) {
 			wantErrContains: "contains() requires exactly 2 arguments",
 		},
 		{
+			// ParseLikeArgs is shared by all six contains-family functions
+			// (contains/startswith/endswith and their i-variants), so the
+			// contains RHS rejection tests guard the literal dispatch for
+			// the whole family. like / ilike use ParseLikePatternArgs and
+			// are pinned separately under TestQuery_string_like.
 			name:            "contains/non-literal-pattern",
 			in:              `@sakila | .actor | where(contains(.first_name, .last_name))`,
-			wantErrContains: "contains() second argument must be a string literal",
+			wantErrContains: "contains() second argument must be a string literal, got *ast.ColSelectorNode",
 		},
 		{
 			// #640: a 1-arg function around the RHS is no longer
@@ -180,7 +185,7 @@ func TestQuery_string_contains(t *testing.T) {
 			// pinned separately by `contains/function-wrapped-literal-rhs-rejected`.
 			name:            "contains/function-wrapped-rhs-rejected",
 			in:              `@sakila | .actor | where(contains(.first_name, max(.last_name)))`,
-			wantErrContains: "contains() second argument must be a string literal",
+			wantErrContains: "contains() second argument must be a string literal, got *ast.FuncNode",
 		},
 		{
 			// #640: the canonical silent-strip pre-fix case. Pre-fix a
@@ -195,7 +200,7 @@ func TestQuery_string_contains(t *testing.T) {
 			// 1-arg-function-over-literal input is reachable.
 			name:            "contains/function-wrapped-literal-rhs-rejected",
 			in:              `@sakila | .actor | where(contains(.first_name, _strftime("X")))`,
-			wantErrContains: "contains() second argument must be a string literal",
+			wantErrContains: "contains() second argument must be a string literal, got *ast.FuncNode",
 		},
 		{
 			// #640: a 1-arg function around the column LHS is no longer
@@ -876,6 +881,20 @@ func TestQuery_string_like(t *testing.T) {
 			// only string literals and column selectors are accepted.
 			name:            "like/numeric-rhs-rejected",
 			in:              `@sakila | .actor | where(like(.first_name, 42))`,
+			wantErrContains: "like() second argument must be a quoted string literal or column selector",
+		},
+		{
+			// A negative numeric literal is rejected like a positive one.
+			// Per the grammar (NUMBER: '-'? INTF) `-42` lexes as a single
+			// signed-number token, so it reaches ParseLikePatternArgs as
+			// one *ast.LiteralNode and is rejected as unquoted — it is NOT
+			// a unary-operator expression (the multi-child operator/
+			// expression case is pinned by `like/expression-rhs-rejected`
+			// above). Guards against a future lexer change that split
+			// `-42` into a `-` operator and `42`, which would alter the
+			// dispatch path.
+			name:            "like/negative-numeric-rhs-rejected",
+			in:              `@sakila | .actor | where(like(.first_name, -42))`,
 			wantErrContains: "like() second argument must be a quoted string literal or column selector",
 		},
 		{

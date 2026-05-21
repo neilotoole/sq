@@ -66,9 +66,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   written `like(.first_name, .last_name)`. Post-#640, such inputs are
   rejected with the existing argument-type error. The `like` / `ilike`
   parsers report `"must be a string literal or column selector"`; the
-  `contains` family reports `"must be a string literal"`. Operator
-  wrappers such as `-42` were unaffected — only single-arg function
-  wrappers had the silent-strip behavior.
+  `contains` family reports `"must be a string literal"`. Only
+  single-arg function wrappers were ever silently stripped; other
+  non-string arguments — a bare numeric literal such as `-42`, or a
+  binary expression — were always rejected.
 
 ### Fixed
 

@@ -107,7 +107,8 @@ func unwrapExpr(node ast.Node) ast.Node {
 // SLQ parses function arguments as expression trees, so each child is
 // typically wrapped in an [*ast.ExprNode]. [unwrapExpr] peels those
 // syntactic wrappers to reach the underlying selector / literal leaves
-// without walking through user-meaningful nodes.
+// without walking through user-meaningful nodes such as function
+// calls, which are left intact for the caller to reject.
 func parseLikeColArg(rc *Context, fn *ast.FuncNode) (colSQL string, rhsChild ast.Node, err error) {
 	children := fn.Children()
 	if len(children) != 2 {
@@ -138,10 +139,12 @@ func ParseLikeArgs(rc *Context, fn *ast.FuncNode) (colSQL, literal string, err e
 	if err != nil {
 		return "", "", err
 	}
-	litNode, ok := unwrapExpr(rhsChild).(*ast.LiteralNode)
+	rhsNode := unwrapExpr(rhsChild)
+	litNode, ok := rhsNode.(*ast.LiteralNode)
 	if !ok {
 		return "", "", errz.Errorf(
-			"%s() second argument must be a string literal", fn.FuncName())
+			"%s() second argument must be a string literal, got %T: %s",
+			fn.FuncName(), rhsNode, rhsNode.Text())
 	}
 	val, wasQuoted, err := unquoteLiteral(litNode.Text())
 	if err != nil {
