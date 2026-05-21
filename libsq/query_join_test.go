@@ -513,7 +513,7 @@ func TestQuery_join_cross_source_case_insensitive_collision(t *testing.T) {
 // TestQuery_table_alias is tested with the joins, because table aliases
 // are primarily for use with join.
 //
-//nolint:exhaustive
+//nolint:exhaustive,lll
 func TestQuery_table_alias(t *testing.T) {
 	testCases := []queryTestCase{
 		{
@@ -568,6 +568,32 @@ func TestQuery_table_alias(t *testing.T) {
 				assertSinkColName(0, "oy vey"),
 			},
 		},
+		{
+			name:    "gh633/handle-table-alias-no-join",
+			in:      `@sakila.actor:a | .a.first_name`,
+			wantSQL: `SELECT "a"."first_name" FROM "actor" AS "a"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT `a`.`first_name` FROM `actor` AS `a`",
+				drivertype.ClickHouse: "SELECT `a`.`first_name` FROM `actor` AS `a`",
+			},
+			wantRecCount: sakila.TblActorCount,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "first_name"),
+			},
+		},
+		{
+			name:    "gh633/handle-table-alias-single-source-join",
+			in:      `@sakila.actor:a | join(.film_actor:fa, .a.actor_id == .fa.actor_id) | .a.first_name`,
+			wantSQL: `SELECT "a"."first_name" FROM "actor" AS "a" INNER JOIN "film_actor" AS "fa" ON "a"."actor_id" = "fa"."actor_id"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT `a`.`first_name` FROM `actor` AS `a` INNER JOIN `film_actor` AS `fa` ON `a`.`actor_id` = `fa`.`actor_id`",
+				drivertype.ClickHouse: "SELECT `a`.`first_name` FROM `actor` AS `a` INNER JOIN `film_actor` AS `fa` ON `a`.`actor_id` = `fa`.`actor_id`",
+			},
+			wantRecCount: sakila.TblFilmActorCount,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "first_name"),
+			},
+		},
 	}
 
 	for i, tc := range testCases {
@@ -575,6 +601,37 @@ func TestQuery_table_alias(t *testing.T) {
 			execQueryTestCase(t, tc)
 		})
 	}
+}
+
+// TestQuery_gh633_handle_table_alias_cross_source is a regression test for
+// #633: a cross-source join whose left side uses the handleTable:alias form
+// (@handle.tbl:alias) must render a real join and project exactly the selected
+// columns, rather than collapsing to `SELECT * FROM <tbl>`. Cross-source SQL is
+// rendered through a scratch DB and not asserted as an exact string; the
+// discriminator is the executed column set (2 projected columns vs SELECT *).
+func TestQuery_gh633_handle_table_alias_cross_source(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	coll := th.NewCollection(sakila.SL3, sakila.SL3Whitespace)
+	qc := &libsq.QueryContext{Collection: coll, Grips: th.Grips()}
+
+	query := fmt.Sprintf(
+		`%s.actor:a | join(%s.actor:b, .a.actor_id == .b.actor_id) | .a.first_name, .b.actor_id`,
+		sakila.SL3, sakila.SL3Whitespace,
+	)
+
+	res, err := libsq.SLQ2SQL(th.Context, qc, query)
+	require.NoError(t, err)
+	require.Contains(t, res.SQL, "JOIN",
+		"cross-source join must render a JOIN, not collapse to SELECT *: %s", res.SQL)
+	require.Contains(t, res.SQL, "first_name")
+
+	sink, err := th.QuerySLQ(query, nil)
+	require.NoError(t, err)
+	require.Len(t, sink.Recs, sakila.TblActorCount)
+	require.Equal(t, []string{"first_name", "actor_id"}, sink.RecMeta.MungedNames(),
+		"must project exactly the two selected columns, not every column")
 }
 
 var (
