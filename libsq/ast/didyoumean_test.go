@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -47,6 +48,9 @@ func TestSuggestForToken(t *testing.T) {
 		{"exact-match-not-suggested", "max", ""}, // not a typo
 		{"too-far", "this_is_invalid", ""},
 		{"empty", "", ""},
+		// A pathologically long token must be cheaply rejected (rune-length
+		// difference far exceeds the threshold), not run through Levenshtein.
+		{"pathologically-long", strings.Repeat("z", 4096), ""},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

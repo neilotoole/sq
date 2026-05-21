@@ -54,6 +54,18 @@ type antlrErrorListener struct {
 	input      string
 	issues     []ParseIssue
 	warnings   []string
+	// inputRunes lazily caches []rune(input) so multiple lexer errors on the
+	// same input don't each re-convert the whole string. See inputRuneSlice.
+	inputRunes []rune
+}
+
+// inputRuneSlice returns input as a rune slice, converting once and caching
+// the result for reuse across multiple lexer errors.
+func (el *antlrErrorListener) inputRuneSlice() []rune {
+	if el.inputRunes == nil {
+		el.inputRunes = []rune(el.input)
+	}
+	return el.inputRunes
 }
 
 // SyntaxError implements antlr.ErrorListener.
@@ -80,7 +92,7 @@ func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offending
 	// multi-line input maps to the correct rune, then synthesize a
 	// single-character span there (matching the terse message produced below).
 	if iss.Token == "" && el.name == "lexer" {
-		runes := []rune(el.input)
+		runes := el.inputRuneSlice()
 		if off := runeOffsetForLineCol(runes, line, column); off >= 0 && off < len(runes) {
 			iss.Token = string(runes[off])
 			iss.Span = &Span{Start: off, Stop: off}

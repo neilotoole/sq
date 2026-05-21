@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/fatih/color"
 
@@ -41,6 +42,16 @@ func RenderParseError(w io.Writer, pr *output.Printing, pe *ast.ParseError) {
 
 	lines := strings.Split(pe.Input, "\n")
 
+	// Precompute each line's global rune start offset (lines are '\n'-
+	// delimited; +1 per newline) so spanWithinLine can map an issue's absolute
+	// span offsets to line-local without re-scanning preceding lines per issue.
+	lineStarts := make([]int, len(lines))
+	runeOff := 0
+	for li, ln := range lines {
+		lineStarts[li] = runeOff
+		runeOff += utf8.RuneCountInString(ln) + 1
+	}
+
 	// Tokenize once for syntax-aware coloring of the input line.
 	// Multi-line input uses the plain text + hilite fallback because
 	// per-line slicing of tokens (which carry global rune offsets) is
@@ -66,16 +77,9 @@ func RenderParseError(w io.Writer, pr *output.Printing, pe *ast.ParseError) {
 		}
 		srcLine := lines[lineIdx]
 
-		// Compute the global rune offset of srcLine's first rune so the
-		// issue's absolute span offsets can be mapped onto this line. Lines
-		// are '\n'-delimited (the +1 accounts for the newline).
-		lineStart := 0
-		for k := range lineIdx {
-			lineStart += len([]rune(lines[k])) + 1
-		}
-
-		// Compute span within srcLine.
-		start, stop := spanWithinLine(srcLine, lineStart, iss)
+		// Compute span within srcLine, mapping the issue's absolute span
+		// offsets onto this line via the precomputed line start offset.
+		start, stop := spanWithinLine(srcLine, lineStarts[lineIdx], iss)
 
 		srcRunes := []rune(srcLine)
 

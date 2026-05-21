@@ -2,6 +2,7 @@ package ast
 
 import (
 	"strings"
+	"unicode/utf8"
 )
 
 // expectedTokenLiterals returns the literal forms (quotes stripped) of
@@ -54,17 +55,24 @@ func suggestForToken(token string, candidates []string) string {
 	if token == "" || len(candidates) == 0 {
 		return ""
 	}
-	threshold := maxEditDistance(len(token))
+	tokenLen := utf8.RuneCountInString(token)
+	threshold := maxEditDistance(tokenLen)
 	best := ""
 	bestDist := threshold + 1
 	for _, c := range candidates {
 		if c == token {
 			return "" // exact match isn't a typo
 		}
-		d := levenshtein(token, c)
-		if d < bestDist {
+		// Edit distance is at least the rune-length difference, so skip
+		// candidates that can't possibly be within threshold. This avoids the
+		// O(n*m) Levenshtein matrix (and its []rune(token) allocation) for a
+		// pathologically long offending token.
+		if d := tokenLen - utf8.RuneCountInString(c); d > threshold || -d > threshold {
+			continue
+		}
+		if dist := levenshtein(token, c); dist < bestDist {
 			best = c
-			bestDist = d
+			bestDist = dist
 		}
 	}
 	if bestDist > threshold {

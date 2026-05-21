@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -11,6 +12,55 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/testh"
 )
+
+// e2eErrorDetail and friends mirror the relevant subset of sq's JSON error
+// wire form for the end-to-end test below.
+type e2eErrorDetail struct {
+	Error      string         `json:"error"`
+	ParseError *e2eParseError `json:"parse_error"`
+}
+
+type e2eParseError struct {
+	Issues []e2eParseIssue `json:"issues"`
+}
+
+type e2eParseIssue struct {
+	Col int    `json:"col"`
+	Msg string `json:"msg"`
+}
+
+// TestPrintError_ParseError_EndToEnd runs a malformed SLQ query through the
+// real CLI and asserts the rich, position-highlighted error reaches stderr
+// in text mode, and the structured parse_error reaches --json output. This
+// guards the full chain (query -> ast.Parse -> error propagation -> writer)
+// that the other tests, which hand-build a ParseError, do not exercise.
+func TestPrintError_ParseError_EndToEnd(t *testing.T) {
+	const badQuery = ".actor | this_is_invalid(.first_name)"
+
+	t.Run("text", func(t *testing.T) {
+		th := testh.New(t)
+		tr := testrun.New(th.Context, t, nil)
+		require.Error(t, tr.Exec("slq", badQuery))
+		got := tr.ErrOut.String()
+		require.Contains(t, got, "syntax error at line 1, col 10: unexpected 'this_is_invalid'")
+		require.Contains(t, got, "~~~", "expected the caret line in the rich render")
+	})
+
+	t.Run("json", func(t *testing.T) {
+		// Error output format is controlled by error.format, independent of
+		// the record-output --json/--format flag.
+		th := testh.New(t)
+		tr := testrun.New(th.Context, t, nil)
+		require.Error(t, tr.Exec("slq", "--error.format=json", badQuery))
+
+		var got e2eErrorDetail
+		require.NoError(t, json.Unmarshal(tr.ErrOut.Bytes(), &got))
+		require.NotNil(t, got.ParseError, "parse_error must be present in --json error output")
+		require.NotEmpty(t, got.ParseError.Issues)
+		require.Equal(t, 9, got.ParseError.Issues[0].Col, "JSON col is 0-based")
+		require.Contains(t, got.ParseError.Issues[0].Msg, "unexpected 'this_is_invalid'")
+	})
+}
 
 // TestPrintError_ParseError_Bootstrap covers PrintError's bootstrap fallback
 // (ru.Writers == nil), where a *ast.ParseError is rendered directly instead

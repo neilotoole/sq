@@ -92,6 +92,28 @@ func TestJSONErrorWriter_ParseError_NoSpan(t *testing.T) {
 	require.Contains(t, raw, `"col"`, "col is always present")
 }
 
+func TestJSONErrorWriter_ParseError_Suggestion(t *testing.T) {
+	// The did-you-mean suggestion must reach the JSON wire form.
+	pe := &ast.ParseError{
+		Input: ".actor | mx(.id)",
+		Issues: []ast.ParseIssue{
+			{Line: 1, Col: 9, Span: &ast.Span{Start: 9, Stop: 10}, Token: "mx", Msg: "unexpected 'mx'", Suggestion: "max"},
+		},
+	}
+	wrapped := errz.Err(pe)
+
+	buf := &bytes.Buffer{}
+	pr := output.NewPrinting()
+	pr.EnableColor(false)
+	w := jsonw.NewErrorWriter(slog.Default(), buf, pr)
+	w.Error(wrapped, wrapped)
+
+	var got testErrorDetailJSON
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
+	require.NotNil(t, got.ParseError)
+	require.Equal(t, "max", got.ParseError.Issues[0].Suggestion)
+}
+
 func TestJSONErrorWriter_ParseError_EmptySpanOmitted(t *testing.T) {
 	// The <EOF> token yields an empty span (Stop < Start). The wire form must
 	// omit start_char/stop_char rather than serialize a backwards range.
