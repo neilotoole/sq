@@ -2,11 +2,14 @@ package tablew
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
 
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/output/commonw"
+	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
@@ -25,9 +28,19 @@ func NewErrorWriter(w io.Writer, pr *output.Printing, stacktrace bool) output.Er
 
 // Error implements output.ErrorWriter.
 func (w *errorWriter) Error(systemErr, humanErr error) {
-	fmt.Fprintln(w.w, w.pr.Error.Sprintf("sq: %v", humanErr))
-	if !w.stacktrace {
-		return
+	var pe *ast.ParseError
+	if errors.As(systemErr, &pe) && len(pe.Issues) > 0 {
+		commonw.RenderParseError(w.w, w.pr, pe)
+		// Render the stack trace below only when --error.stack is set.
+		// ANTLR internals aren't useful, but the wrapping errz frames may be.
+		if !w.stacktrace {
+			return
+		}
+	} else {
+		fmt.Fprintln(w.w, w.pr.Error.Sprintf("sq: %v", humanErr))
+		if !w.stacktrace {
+			return
+		}
 	}
 
 	stacks := errz.Stacks(systemErr)

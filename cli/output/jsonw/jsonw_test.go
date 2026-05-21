@@ -83,12 +83,12 @@ func TestRecordWriters(t *testing.T) {
 	)
 
 	testCases := []struct {
+		factoryFn func(io.Writer, *output.Printing) output.RecordWriter
 		name      string
+		want      string
 		pretty    bool
 		color     bool
-		factoryFn func(io.Writer, *output.Printing) output.RecordWriter
 		multiline bool
-		want      string
 	}{
 		{
 			name:      "std_no_pretty",
@@ -188,9 +188,9 @@ func TestRecordWriters(t *testing.T) {
 func TestErrorWriter(t *testing.T) {
 	testCases := []struct {
 		name   string
+		want   string
 		pretty bool
 		color  bool
-		want   string
 	}{
 		{
 			name:   "no_pretty",
