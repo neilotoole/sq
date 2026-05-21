@@ -83,6 +83,8 @@ Use the usual GitHub process to open a PR. Before you do so, please:
 
 - Merge the latest `master` into your branch: `git merge origin/master`.
 - Run `make all`.
+- If the PR adds a **new driver type**, complete the
+  [driver ship checklist](#driver-ship-checklist) (sq.io and `skills/sq/`).
 
 ## CHANGELOG.md
 
@@ -263,6 +265,39 @@ For SQL drivers, [`drivers/postgres`](drivers/postgres) or
 
 For document drivers, see
 [`drivers/csv`](drivers/csv) or [`drivers/json`](drivers/json).
+
+### Driver ship checklist
+
+When you **add a new driver type** (a new value in `sq driver ls`), ship **code,
+site docs, and the end-user agent skill** in the same PR. Treat missing
+documentation as incomplete work — this is what keeps [sq.io](https://sq.io),
+`npx skills add`, and coding agents aligned with the binary.
+
+1. **Driver package** — `drivers/{driver}/` (and registration in
+   [`cli/run.go`](cli/run.go); see [ARCHITECTURE.md](ARCHITECTURE.md#extension-guide)).
+2. **Driver type** — constant in
+   [`libsq/source/drivertype/drivertype.go`](libsq/source/drivertype/drivertype.go).
+3. **Tests** — integration tests; for SQL drivers, a `sakiladb/{driver}` image
+   and handle in [`testh/sakila/sakila.go`](testh/sakila/sakila.go) when
+   applicable.
+4. **sq.io docs** — new page
+   `site/content/en/docs/drivers/{driver}.md` (follow an existing driver page;
+   link from [`site/content/en/docs/drivers/_index.md`](site/content/en/docs/drivers/_index.md)).
+5. **End-user agent skill** — required for every new driver:
+   - Add `skills/sq/references/{driver}.md` (short CLI-focused summary;
+     **canonical detail stays on sq.io**). Copy
+     [`skills/sq/references/postgres.md`](skills/sq/references/postgres.md)
+     (SQL) or [`skills/sq/references/csv.md`](skills/sq/references/csv.md)
+     (document).
+   - Update the driver table and `sq driver ls` examples in
+     [`skills/sq/SKILL.md`](skills/sq/SKILL.md).
+   - Run `markdownlint 'skills/sq/**/*.md' --ignore node_modules` (or
+     `markdownlint 'skills/sq/**/*.md' --ignore node_modules --fix`).
+6. **CHANGELOG** — add an `## Unreleased` / `Added` entry when the driver is
+   user-visible (maintainers may edit wording at release time).
+
+Optional: `drivers/{driver}/README.md` for maintainers (connection strings,
+local Docker, env vars for tests).
 
 ### All drivers
 

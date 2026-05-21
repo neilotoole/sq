@@ -26,7 +26,8 @@ sq help
 sq driver ls
 ```
 
-`sq driver ls` lists drivers available in this build (e.g. `postgres`, `sqlite3`, `csv`).
+`sq driver ls` lists drivers available in this build (e.g. `postgres`, `duckdb`,
+`oracle`, `sqlite3`, `csv`).
 
 ## Sources and handles
 
@@ -68,10 +69,12 @@ When the task involves a **specific driver** (connection strings, options, cavea
 | Driver (as in `sq driver ls`) | Reference                                            |
 | ----------------------------- | ---------------------------------------------------- |
 | `sqlite3`                     | [references/sqlite3.md](references/sqlite3.md)       |
+| `duckdb`                      | [references/duckdb.md](references/duckdb.md)         |
 | `postgres`                    | [references/postgres.md](references/postgres.md)     |
 | `sqlserver`                   | [references/sqlserver.md](references/sqlserver.md)   |
 | `mysql`                       | [references/mysql.md](references/mysql.md)           |
 | `clickhouse`                  | [references/clickhouse.md](references/clickhouse.md) |
+| `oracle`                      | [references/oracle.md](references/oracle.md)         |
 | `csv`                         | [references/csv.md](references/csv.md)               |
 | `tsv`                         | [references/tsv.md](references/tsv.md)               |
 | `json`                        | [references/json.md](references/json.md)             |

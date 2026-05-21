@@ -11,7 +11,8 @@ install, symlink layout, and expanded cross-agent notes, see
 
 `sq` is a command-line data wrangler providing jq-style access to structured
 data sources (SQL databases like Postgres, MySQL, SQLite, SQL Server,
-ClickHouse; and document formats like CSV, JSON, Excel). User docs live at
+ClickHouse, Oracle, DuckDB; and document formats like CSV, JSON, Excel). User
+docs live at
 [sq.io](https://sq.io).
 
 ## Key documents
@@ -142,6 +143,11 @@ read the
 ["New driver implementations"](./CONTRIBUTING.md#new-driver-implementations)
 section of `CONTRIBUTING.md` — it covers package structure, type mapping,
 dialect configuration, test handles, and the SQL-vs-document driver split.
+
+**Adding a new driver type:** complete the
+[driver ship checklist](./CONTRIBUTING.md#driver-ship-checklist) in the same
+PR (`site/content/en/docs/drivers/` plus `skills/sq/SKILL.md` and
+`skills/sq/references/{driver}.md`). See [AGENTS.md](./AGENTS.md#drivers).
 
 For a visual map of the driver interfaces (`driver.Driver`,
 `driver.SQLDriver`, `driver.Grip`, `driver.Registry`) and how they relate to

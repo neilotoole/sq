@@ -1518,6 +1518,12 @@ func TestOracle_KindToDBType(t *testing.T) {
 }
 ```
 
+#### Step 7: Documentation and agent skill
+
+Complete the [driver ship checklist](CONTRIBUTING.md#driver-ship-checklist):
+sq.io page under `site/content/en/docs/drivers/`, plus
+`skills/sq/references/{driver}.md` and an entry in `skills/sq/SKILL.md`.
+
 ### Adding a New Data Type
 
 To add support for a new data type (e.g., `UUID`, `JSON`, `Geometry`):
