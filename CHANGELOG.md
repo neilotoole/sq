@@ -63,8 +63,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   replacing ANTLR's verbose `expecting {...}` dump. Typo'd identifiers
   may receive a `did you mean '<name>'?` suggestion (e.g., `mx` → `max`).
 - [#637]: The structured `parse_error` field is included in `--json`
-  error output, carrying `input` and `issues[].{line, col, start_char,
-  stop_char, token, msg, suggestion}` for programmatic consumers.
+  error output, carrying `input` and `issues[].{line, col, token, msg,
+  suggestion}`, plus rune-offset `start_char`/`stop_char` when a precise
+  span is available, for programmatic consumers.
 
 ### Fixed
 

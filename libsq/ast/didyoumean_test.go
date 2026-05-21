@@ -21,6 +21,15 @@ func TestExpectedTokenLiterals_SkipsSymbolicOnly(t *testing.T) {
 	require.Equal(t, []string{"sum"}, got)
 }
 
+func TestExpectedTokenLiterals_SkipsPunctuation(t *testing.T) {
+	// Operator/punctuation literals aren't useful did-you-mean targets;
+	// only alphabetic-word literals (keywords, function names) are kept.
+	literalNames := []string{"", "'sum'", "'|'", "'=='", "'where'", "'('"}
+	expected := []int{1, 2, 3, 4, 5}
+	got := expectedTokenLiterals(expected, literalNames)
+	require.Equal(t, []string{"sum", "where"}, got)
+}
+
 func TestSuggestForToken(t *testing.T) {
 	candidates := []string{
 		"sum", "avg", "max", "min", "count", "contains",

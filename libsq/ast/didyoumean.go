@@ -5,9 +5,11 @@ import (
 )
 
 // expectedTokenLiterals returns the literal forms (quotes stripped) of
-// the expected token types whose literal name is non-empty. Tokens that
-// have only a symbolic name (e.g. NAME, NUMBER, STRING) are skipped
-// because their literal text is not a useful suggestion target.
+// the expected token types that make useful did-you-mean targets. Tokens
+// with only a symbolic name (e.g. NAME, NUMBER, STRING) are skipped, as are
+// punctuation/operator literals (e.g. "|", "==", "("): a typo'd identifier
+// is never meaningfully "close" to an operator, so suggesting one is noise.
+// Only alphabetic-word literals (keywords, function names) are returned.
 func expectedTokenLiterals(tokenTypes []int, literalNames []string) []string {
 	out := make([]string, 0, len(tokenTypes))
 	for _, ttype := range tokenTypes {
@@ -20,7 +22,7 @@ func expectedTokenLiterals(tokenTypes []int, literalNames []string) []string {
 		}
 		// ANTLR literal names look like "'sum'" — strip the surrounding quotes.
 		lit = strings.Trim(lit, "'")
-		if lit == "" {
+		if lit == "" || !isAlphaWord(lit) {
 			continue
 		}
 		out = append(out, lit)

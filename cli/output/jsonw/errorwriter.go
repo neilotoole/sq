@@ -35,8 +35,8 @@ type errorDetail struct { //nolint:govet // declaration order is the JSON output
 type parseIssueJSON struct { //nolint:govet // declaration order is the JSON output order
 	Line       int    `json:"line"`
 	Col        int    `json:"col"`
-	StartChar  int    `json:"start_char"`
-	StopChar   int    `json:"stop_char"`
+	StartChar  *int   `json:"start_char,omitempty"`
+	StopChar   *int   `json:"stop_char,omitempty"`
 	Token      string `json:"token,omitempty"`
 	Msg        string `json:"msg"`
 	Suggestion string `json:"suggestion,omitempty"`
@@ -112,15 +112,18 @@ func toParseErrorJSON(pe *ast.ParseError) *parseErrorJSON {
 		Issues: make([]parseIssueJSON, len(pe.Issues)),
 	}
 	for i, iss := range pe.Issues {
-		out.Issues[i] = parseIssueJSON{
+		ij := parseIssueJSON{
 			Line:       iss.Line,
 			Col:        iss.Col,
-			StartChar:  iss.StartChar,
-			StopChar:   iss.StopChar,
 			Token:      iss.Token,
 			Msg:        iss.Msg,
 			Suggestion: iss.Suggestion,
 		}
+		if iss.Span != nil {
+			start, stop := iss.Span.Start, iss.Span.Stop
+			ij.StartChar, ij.StopChar = &start, &stop
+		}
+		out.Issues[i] = ij
 	}
 	return out
 }

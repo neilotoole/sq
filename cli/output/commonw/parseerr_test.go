@@ -30,12 +30,11 @@ func TestRenderParseError_SingleIssue(t *testing.T) {
 		Input: ".actor | this_is_invalid(.first_name)",
 		Issues: []ast.ParseIssue{
 			{
-				Line:      1,
-				Col:       9,
-				StartChar: 9,
-				StopChar:  23,
-				Token:     "this_is_invalid",
-				Msg:       "unexpected 'this_is_invalid'",
+				Line:  1,
+				Col:   9,
+				Span:  &ast.Span{Start: 9, Stop: 23},
+				Token: "this_is_invalid",
+				Msg:   "unexpected 'this_is_invalid'",
 			},
 		},
 	}
@@ -58,8 +57,7 @@ func TestRenderParseError_WithSuggestion(t *testing.T) {
 			{
 				Line:       1,
 				Col:        9,
-				StartChar:  9,
-				StopChar:   10,
+				Span:       &ast.Span{Start: 9, Stop: 10},
 				Token:      "mx",
 				Msg:        "unexpected 'mx'",
 				Suggestion: "max",
@@ -77,20 +75,18 @@ func TestRenderParseError_MultipleIssues(t *testing.T) {
 		Input: ".actor | bad1 | bad2",
 		Issues: []ast.ParseIssue{
 			{
-				Line:      1,
-				Col:       9,
-				StartChar: 9,
-				StopChar:  12,
-				Token:     "bad1",
-				Msg:       "unexpected 'bad1'",
+				Line:  1,
+				Col:   9,
+				Span:  &ast.Span{Start: 9, Stop: 12},
+				Token: "bad1",
+				Msg:   "unexpected 'bad1'",
 			},
 			{
-				Line:      1,
-				Col:       16,
-				StartChar: 16,
-				StopChar:  19,
-				Token:     "bad2",
-				Msg:       "unexpected 'bad2'",
+				Line:  1,
+				Col:   16,
+				Span:  &ast.Span{Start: 16, Stop: 19},
+				Token: "bad2",
+				Msg:   "unexpected 'bad2'",
 			},
 		},
 	}
@@ -113,20 +109,17 @@ func TestRenderParseError_MultipleIssues(t *testing.T) {
 	require.Contains(t, between, "\n\nsq:", "expected blank-line separator before second issue header")
 }
 
-func TestRenderParseError_NegativeSpanFallback(t *testing.T) {
-	// Defensive: StartChar == -1 with no Token. Should still render a usable
-	// message. Real lexer errors now synthesize a Token (see A3), but this
-	// exercises the renderer's fallback path.
+func TestRenderParseError_NoSpanFallback(t *testing.T) {
+	// Defensive: nil Span with no Token. Should still render a usable message
+	// from Line/Col. Real lexer errors now synthesize a Token and Span, but
+	// this exercises the renderer's fallback path.
 	pe := &ast.ParseError{
 		Input: ".actor # bad",
 		Issues: []ast.ParseIssue{
 			{
-				Line:      1,
-				Col:       7,
-				StartChar: -1,
-				StopChar:  -1,
-				Token:     "",
-				Msg:       "unexpected '#'",
+				Line: 1,
+				Col:  7,
+				Msg:  "unexpected '#'",
 			},
 		},
 	}
@@ -143,12 +136,11 @@ func TestRenderParseError_MultiLineInput(t *testing.T) {
 		Input: ".actor | bad\n.director | also_bad",
 		Issues: []ast.ParseIssue{
 			{
-				Line:      1,
-				Col:       9,
-				StartChar: 9,
-				StopChar:  11,
-				Token:     "bad",
-				Msg:       "unexpected 'bad'",
+				Line:  1,
+				Col:   9,
+				Span:  &ast.Span{Start: 9, Stop: 11},
+				Token: "bad",
+				Msg:   "unexpected 'bad'",
 			},
 		},
 	}
@@ -166,6 +158,72 @@ func TestRenderParseError_MultiLineInput(t *testing.T) {
 	require.NotContains(t, got, "also_bad")
 }
 
+// caretLine returns the first line of rendered output containing a caret
+// (the "~~~" run), or "" if none. Used to assert exact caret placement.
+func caretLine(rendered string) string {
+	for ln := range strings.SplitSeq(rendered, "\n") {
+		if strings.Contains(ln, "~") {
+			return ln
+		}
+	}
+	return ""
+}
+
+func TestRenderParseError_MultiLineCaretOnLaterLine(t *testing.T) {
+	// Short first line, error on line 2. Span carries ABSOLUTE rune offsets
+	// (Start=11), but the caret must land under the token's line-local column
+	// (9), matching the "col 10" header. Regression test for spanWithinLine
+	// treating absolute offsets as line-local (caret shifted by the line's
+	// start offset and truncated).
+	pe := &ast.ParseError{
+		Input: "a\n.actor | this_is_invalid",
+		Issues: []ast.ParseIssue{
+			{
+				Line:  2,
+				Col:   9,
+				Span:  &ast.Span{Start: 11, Stop: 25},
+				Token: "this_is_invalid",
+				Msg:   "unexpected 'this_is_invalid'",
+			},
+		},
+	}
+
+	buf := &bytes.Buffer{}
+	commonw.RenderParseError(buf, newMonoPrinting(), pe)
+	got := buf.String()
+
+	require.Contains(t, got, "syntax error at line 2, col 10:")
+	// 2-space indent + 9 line-local columns = 11 spaces, then 15 tildes
+	// covering "this_is_invalid".
+	require.Equal(t, strings.Repeat(" ", 11)+strings.Repeat("~", 15), caretLine(got),
+		"caret must sit under the token at its line-local column, not shifted by lineStart")
+}
+
+func TestRenderParseError_NonASCIICaret(t *testing.T) {
+	// A multibyte rune ('é') precedes the offending span; the caret must be
+	// placed by rune offset so it sits directly under "gibberish".
+	pe := &ast.ParseError{
+		Input: `.actor | "café" | gibberish`,
+		Issues: []ast.ParseIssue{
+			{
+				Line:  1,
+				Col:   18,
+				Span:  &ast.Span{Start: 18, Stop: 26},
+				Token: "gibberish",
+				Msg:   "unexpected 'gibberish'",
+			},
+		},
+	}
+
+	buf := &bytes.Buffer{}
+	commonw.RenderParseError(buf, newMonoPrinting(), pe)
+	got := buf.String()
+
+	// 2-space indent + 18 runes before "gibberish" = 20 spaces, then 9 tildes.
+	require.Equal(t, strings.Repeat(" ", 20)+strings.Repeat("~", 9), caretLine(got),
+		"caret must align by rune offset, not byte offset")
+}
+
 func TestRenderParseError_MutesStringQuotes(t *testing.T) {
 	color.NoColor = false
 	t.Cleanup(func() { color.NoColor = true })
@@ -175,12 +233,11 @@ func TestRenderParseError_MutesStringQuotes(t *testing.T) {
 		Input: input,
 		Issues: []ast.ParseIssue{
 			{
-				Line:      1,
-				Col:       29,
-				StartChar: 29,
-				StopChar:  37,
-				Token:     "gibberish",
-				Msg:       "unexpected 'gibberish'",
+				Line:  1,
+				Col:   29,
+				Span:  &ast.Span{Start: 29, Stop: 37},
+				Token: "gibberish",
+				Msg:   "unexpected 'gibberish'",
 			},
 		},
 	}
@@ -249,12 +306,11 @@ func TestRenderParseError_ColorizesHandle(t *testing.T) {
 		Input: input,
 		Issues: []ast.ParseIssue{
 			{
-				Line:      1,
-				Col:       29,
-				StartChar: 29,
-				StopChar:  37,
-				Token:     "gibberish",
-				Msg:       "unexpected 'gibberish'",
+				Line:  1,
+				Col:   29,
+				Span:  &ast.Span{Start: 29, Stop: 37},
+				Token: "gibberish",
+				Msg:   "unexpected 'gibberish'",
 			},
 		},
 	}

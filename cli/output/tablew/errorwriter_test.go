@@ -18,12 +18,11 @@ func TestErrorWriter_ParseError(t *testing.T) {
 		Input: ".actor | this_is_invalid(.first_name)",
 		Issues: []ast.ParseIssue{
 			{
-				Line:      1,
-				Col:       9,
-				StartChar: 9,
-				StopChar:  23,
-				Token:     "this_is_invalid",
-				Msg:       "unexpected 'this_is_invalid'",
+				Line:  1,
+				Col:   9,
+				Span:  &ast.Span{Start: 9, Stop: 23},
+				Token: "this_is_invalid",
+				Msg:   "unexpected 'this_is_invalid'",
 			},
 		},
 	}
@@ -57,12 +56,11 @@ func TestErrorWriter_ParseError_StacktraceHonored(t *testing.T) {
 		Input: ".actor | bad",
 		Issues: []ast.ParseIssue{
 			{
-				Line:      1,
-				Col:       9,
-				StartChar: 9,
-				StopChar:  11,
-				Token:     "bad",
-				Msg:       "unexpected 'bad'",
+				Line:  1,
+				Col:   9,
+				Span:  &ast.Span{Start: 9, Stop: 11},
+				Token: "bad",
+				Msg:   "unexpected 'bad'",
 			},
 		},
 	}

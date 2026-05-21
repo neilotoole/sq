@@ -43,12 +43,11 @@ func TestJSONErrorWriter_ParseError(t *testing.T) {
 		Input: ".actor | this_is_invalid(.first_name)",
 		Issues: []ast.ParseIssue{
 			{
-				Line:      1,
-				Col:       9,
-				StartChar: 9,
-				StopChar:  23,
-				Token:     "this_is_invalid",
-				Msg:       "unexpected 'this_is_invalid'",
+				Line:  1,
+				Col:   9,
+				Span:  &ast.Span{Start: 9, Stop: 23},
+				Token: "this_is_invalid",
+				Msg:   "unexpected 'this_is_invalid'",
 			},
 		},
 	}
@@ -70,17 +69,39 @@ func TestJSONErrorWriter_ParseError(t *testing.T) {
 	require.Equal(t, 23, got.ParseError.Issues[0].StopChar)
 }
 
+func TestJSONErrorWriter_ParseError_NoSpan(t *testing.T) {
+	// A ParseIssue with nil Span must omit start_char/stop_char from the
+	// wire form rather than emit a sentinel value.
+	pe := &ast.ParseError{
+		Input: ".actor # bad",
+		Issues: []ast.ParseIssue{
+			{Line: 1, Col: 7, Msg: "unexpected '#'"},
+		},
+	}
+	wrapped := errz.Err(pe)
+
+	buf := &bytes.Buffer{}
+	pr := output.NewPrinting()
+	pr.EnableColor(false)
+	w := jsonw.NewErrorWriter(slog.Default(), buf, pr)
+	w.Error(wrapped, wrapped)
+
+	raw := buf.String()
+	require.NotContains(t, raw, "start_char", "nil Span must omit start_char")
+	require.NotContains(t, raw, "stop_char", "nil Span must omit stop_char")
+	require.Contains(t, raw, `"col"`, "col is always present")
+}
+
 func TestJSONErrorWriter_ParseError_Verbose(t *testing.T) {
 	pe := &ast.ParseError{
 		Input: ".actor | bad",
 		Issues: []ast.ParseIssue{
 			{
-				Line:      1,
-				Col:       9,
-				StartChar: 9,
-				StopChar:  11,
-				Token:     "bad",
-				Msg:       "unexpected 'bad'",
+				Line:  1,
+				Col:   9,
+				Span:  &ast.Span{Start: 9, Stop: 11},
+				Token: "bad",
+				Msg:   "unexpected 'bad'",
 			},
 		},
 	}

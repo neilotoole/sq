@@ -25,8 +25,7 @@ func TestParse_ParseErrorPopulated(t *testing.T) {
 	require.Equal(t, 1, first.Line)
 	require.Equal(t, 9, first.Col, "0-based col of 'this_is_invalid' in input")
 	require.Equal(t, "this_is_invalid", first.Token)
-	require.Equal(t, 9, first.StartChar)
-	require.Equal(t, 23, first.StopChar, "inclusive end of 'this_is_invalid'")
+	require.Equal(t, &Span{Start: 9, Stop: 23}, first.Span, "rune span of 'this_is_invalid'")
 }
 
 func TestParse_SyntaxErrorMsg_Terse(t *testing.T) {
@@ -54,8 +53,7 @@ func TestParse_SyntaxErrorMsg_LexerError(t *testing.T) {
 	iss := pe.Issues[0]
 	require.Equal(t, "lexer", iss.stage)
 	require.Equal(t, "#", iss.Token, "lexer errors synthesize a single-char token at the error column")
-	require.Equal(t, 7, iss.StartChar)
-	require.Equal(t, 7, iss.StopChar)
+	require.Equal(t, &Span{Start: 7, Stop: 7}, iss.Span)
 	require.Equal(t, "unexpected '#'", iss.Msg)
 }
 
@@ -79,8 +77,7 @@ func TestParse_SyntaxErrorMsg_LexerError_MultiLine(t *testing.T) {
 	require.Equal(t, 2, iss.Line)
 	require.Equal(t, 5, iss.Col, "0-based col within line 2")
 	require.Equal(t, "#", iss.Token, "token synthesized at the absolute rune offset, not runes[col]")
-	require.Equal(t, 12, iss.StartChar, "absolute rune offset of '#' in the full input")
-	require.Equal(t, 12, iss.StopChar)
+	require.Equal(t, &Span{Start: 12, Stop: 12}, iss.Span, "absolute rune span of '#' in the full input")
 	require.Equal(t, "unexpected '#'", iss.Msg)
 }
 
@@ -104,6 +101,26 @@ func TestRuneOffsetForLineCol(t *testing.T) {
 		got := runeOffsetForLineCol(runes, tc.line, tc.col)
 		require.Equal(t, tc.want, got, "line=%d col=%d", tc.line, tc.col)
 	}
+}
+
+func TestParse_RuneOffsets_NonASCII(t *testing.T) {
+	// 'é' is a multibyte rune: "gibberish" begins at rune offset 18 but byte
+	// offset 19. Span carries RUNE offsets so non-ASCII input indexes
+	// correctly into []rune(Input); a byte-based regression would shift the
+	// span by one per preceding multibyte rune.
+	input := `.actor | "café" | gibberish`
+	_, err := Parse(lg.Discard(), input)
+	require.Error(t, err)
+
+	var pe *ParseError
+	require.True(t, errors.As(err, &pe))
+	require.NotEmpty(t, pe.Issues)
+	iss := pe.Issues[0]
+	require.Equal(t, "gibberish", iss.Token)
+	require.Equal(t, &Span{Start: 18, Stop: 26}, iss.Span)
+	// The span must round-trip to the offending token via runes, not bytes.
+	runes := []rune(input)
+	require.Equal(t, "gibberish", string(runes[iss.Span.Start:iss.Span.Stop+1]))
 }
 
 func TestParse_DidYouMean(t *testing.T) {

@@ -27,6 +27,8 @@ func parseSLQ(log *slog.Logger, input string) (*slq.QueryContext, error) {
 	p.AddErrorListener(parseErrs)
 
 	qCtx := p.Query()
+	lexErrs.logDiagnostics()
+	parseErrs.logDiagnostics()
 	if err := lexErrs.error(); err != nil {
 		return nil, errz.Err(err)
 	}
@@ -59,18 +61,15 @@ func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offending
 	line, column int, msg string, _ antlr.RecognitionException,
 ) {
 	iss := ParseIssue{
-		stage:     el.name,
-		Line:      line,
-		Col:       column,
-		StartChar: -1,
-		StopChar:  -1,
-		Msg:       "",
+		stage: el.name,
+		Line:  line,
+		Col:   column,
+		Msg:   "",
 	}
 
 	if tok, ok := offendingSymbol.(antlr.Token); ok && tok != nil {
 		iss.Token = tok.GetText()
-		iss.StartChar = tok.GetStart()
-		iss.StopChar = tok.GetStop()
+		iss.Span = &Span{Start: tok.GetStart(), Stop: tok.GetStop()}
 	}
 
 	// Lexer-stage errors don't carry a token. ANTLR reports the position as
@@ -82,8 +81,7 @@ func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offending
 		runes := []rune(el.input)
 		if off := runeOffsetForLineCol(runes, line, column); off >= 0 && off < len(runes) {
 			iss.Token = string(runes[off])
-			iss.StartChar = off
-			iss.StopChar = off
+			iss.Span = &Span{Start: off, Stop: off}
 		}
 	}
 
@@ -156,6 +154,15 @@ func (el *antlrErrorListener) error() error {
 		return nil
 	}
 	return &ParseError{Input: el.input, Issues: el.issues}
+}
+
+// logDiagnostics emits the listener's collected issues and warnings to its
+// logger at debug level. No-op when there's no logger or nothing to report.
+func (el *antlrErrorListener) logDiagnostics() {
+	if el.log == nil || len(el.issues)+len(el.warnings) == 0 {
+		return
+	}
+	el.log.Debug("SLQ parse diagnostics", lga.Val, el.String())
 }
 
 func (el *antlrErrorListener) String() string {
@@ -345,7 +352,9 @@ func (v *parseTreeVisitor) VisitErrorNode(ctx antlr.ErrorNode) any {
 // reported by ANTLR's SyntaxError, where column is relative to the start of
 // the line) into an absolute 0-based rune offset into runes. Lines are
 // delimited by '\n', matching the convention ANTLR uses to advance its line
-// counter. It returns -1 if line or col is out of range.
+// counter. It returns -1 if line < 1, col < 0, or line is beyond the input.
+// A col that overshoots the line is not detected — the returned offset may
+// be >= len(runes), so callers must bounds-check.
 func runeOffsetForLineCol(runes []rune, line, col int) int {
 	if line < 1 || col < 0 {
 		return -1

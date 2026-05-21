@@ -30,7 +30,7 @@ const (
 //
 // When pr's colors are enabled, the input line is colorized per-token
 // using sq's standard palette (handle, key, keyword, number, string,
-// punc, etc.), with pr.ErrorHilite overlayed on the offending span.
+// punc, etc.), with pr.ErrorHilite overlaid on the offending span.
 // The caret line uses pr.Error.
 //
 // Multi-line input falls back to plain text with hilite overlay only.
@@ -66,14 +66,22 @@ func RenderParseError(w io.Writer, pr *output.Printing, pe *ast.ParseError) {
 		}
 		srcLine := lines[lineIdx]
 
+		// Compute the global rune offset of srcLine's first rune so the
+		// issue's absolute span offsets can be mapped onto this line. Lines
+		// are '\n'-delimited (the +1 accounts for the newline).
+		lineStart := 0
+		for k := range lineIdx {
+			lineStart += len([]rune(lines[k])) + 1
+		}
+
 		// Compute span within srcLine.
-		start, stop := spanWithinLine(srcLine, iss)
+		start, stop := spanWithinLine(srcLine, lineStart, iss)
 
 		srcRunes := []rune(srcLine)
 
 		// Emit the input line. For single-line input we use token-driven
 		// colorization (handle/keyword/number/etc.) with pr.ErrorHilite
-		// overlayed on the offending span. For multi-line input we fall
+		// overlaid on the offending span. For multi-line input we fall
 		// back to plain text plus hilite; per-line slicing of tokens
 		// (which carry global rune offsets) is not implemented.
 		fmt.Fprint(w, parseErrIndent)
@@ -212,43 +220,33 @@ func muteStringQuotes(colors []*color.Color, faint *color.Color, start, hi int) 
 	}
 }
 
-// spanWithinLine returns the [start, stop) rune offsets within srcLine
-// that the issue's offending span covers. Returns (-1, -1) when the
-// span isn't available.
-//
-// Token positions are 0-based rune offsets per ParseIssue's contract;
-// they index directly into srcRunes for single-line input.
-func spanWithinLine(srcLine string, iss ast.ParseIssue) (start, stop int) {
+// spanWithinLine returns the [start, stop) rune offsets within srcLine that
+// the issue's offending span covers, or (-1, -1) when no span is available.
+// lineStart is the global rune offset of srcLine's first rune within the
+// full input; it maps the issue's absolute Span offsets (per ParseIssue's
+// contract) onto offsets local to srcLine.
+func spanWithinLine(srcLine string, lineStart int, iss ast.ParseIssue) (start, stop int) {
 	srcRunes := []rune(srcLine)
-	if iss.StartChar < 0 {
-		// No token info — derive from Col.
-		if iss.Col < 0 || iss.Col > len(srcRunes) {
-			return -1, -1
+
+	// Prefer the precise span when available, converted to line-local
+	// offsets. Span.Stop is inclusive, so the exclusive stop is Stop+1.
+	// Clamp to the line length: Span.Stop can sit at end-of-line for
+	// EOF-synthesized tokens.
+	if iss.Span != nil {
+		ls := iss.Span.Start - lineStart
+		if ls >= 0 && ls <= len(srcRunes) {
+			return ls, min(iss.Span.Stop-lineStart+1, len(srcRunes))
 		}
-		// Highlight one character at Col if no token text.
-		tokenRunes := len([]rune(iss.Token))
-		end := iss.Col + tokenRunes
-		if end == iss.Col {
-			end = iss.Col + 1
-		}
-		end = min(end, len(srcRunes))
-		return iss.Col, end
 	}
 
-	// Single-line common case: absolute offsets fall within this line.
-	// StopChar == len(srcRunes) is valid for EOF-synthesized tokens; clamp
-	// the stop offset rather than silently falling through to the multi-line
-	// fallback.
-	if iss.StartChar >= 0 && iss.StartChar <= len(srcRunes) {
-		end := min(iss.StopChar+1, len(srcRunes))
-		return iss.StartChar, end
-	}
-
-	// Multi-line fallback.
+	// Fall back to the line-local Col (+ token rune width). Col is
+	// line-relative, so it needs no lineStart adjustment.
 	if iss.Col < 0 || iss.Col > len(srcRunes) {
 		return -1, -1
 	}
 	end := iss.Col + len([]rune(iss.Token))
-	end = min(end, len(srcRunes))
-	return iss.Col, end
+	if end == iss.Col {
+		end = iss.Col + 1 // no token text: highlight a single rune
+	}
+	return iss.Col, min(end, len(srcRunes))
 }

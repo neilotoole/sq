@@ -19,11 +19,31 @@ type ParseError struct {
 	Issues []ParseIssue
 }
 
-// ParseIssue describes a single syntax error.
+// Span is a rune-offset range identifying offending text within
+// ParseError.Input. Both bounds are 0-based rune (Unicode code point)
+// offsets — not byte offsets — so they index correctly into []rune(Input)
+// even for non-ASCII text. Stop is inclusive.
+type Span struct {
+	// Start is the rune offset where the span begins.
+	Start int
+
+	// Stop is the inclusive rune offset where the span ends. For a
+	// single-rune span, Stop == Start.
+	Stop int
+}
+
+// ParseIssue describes a single syntax error. Field order groups the
+// pointer/reference fields ahead of the scalar ints to satisfy govet's
+// fieldalignment; it is not otherwise significant.
 type ParseIssue struct {
+	// Span is the rune-offset range of the offending text within
+	// ParseError.Input, or nil if positional offsets aren't available
+	// (some lexer errors). When nil, renderers fall back to Line/Col.
+	Span *Span
+
 	// stage is "lexer" or "parser". Diagnostic-only; not surfaced in
-	// user-facing output or the JSON wire form. Internal to the listener
-	// pipeline (used only by antlrErrorListener.String() for debug logs).
+	// user-facing output or the JSON wire form. Read only by
+	// antlrErrorListener.String(), which parseSLQ logs at debug level.
 	stage string
 
 	// Token is the text of the offending token, or "" for lexer errors.
@@ -42,17 +62,6 @@ type ParseIssue struct {
 	// User-facing renderings (Error() and cli/output/commonw.RenderParseError)
 	// display this as Col+1 (1-based) for human readability.
 	Col int
-
-	// StartChar is the 0-based rune (Unicode code point) offset into
-	// ParseError.Input where the offending span begins. -1 if not available.
-	// It is a rune offset, not a byte offset, so it indexes correctly into
-	// []rune(Input) even for non-ASCII text.
-	StartChar int
-
-	// StopChar is the 0-based, inclusive rune (Unicode code point) offset
-	// where the offending span ends. -1 if not available. Like StartChar,
-	// it is a rune offset, not a byte offset.
-	StopChar int
 }
 
 // Error implements error. Returns a single-line summary suitable for
