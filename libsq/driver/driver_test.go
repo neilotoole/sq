@@ -96,8 +96,10 @@ func TestDriver_TableExists_MultipleSchemas(t *testing.T) {
 	// already schema-scoped (or single-schema, for SQLite, whose unqualified
 	// sqlite_master never sees attached schemas) and serve here as contract
 	// guards against future regressions. Oracle is omitted because its
-	// CreateSchema is unsupported, and ClickHouse because CopyTable can't report
-	// rows affected (it's covered separately under drivers/clickhouse).
+	// CreateSchema is unsupported, and ClickHouse because this CopyTable-based
+	// cross-schema flow doesn't behave consistently for it; both already scope
+	// TableExists to the current schema (Oracle via user_objects, ClickHouse
+	// via currentDatabase()), so neither was affected by #484.
 	testCases := []struct {
 		handle        string
 		defaultSchema string
