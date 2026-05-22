@@ -6,10 +6,29 @@ package udiff
 
 import (
 	"bytes"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/neilotoole/sq/libsq/core/diffdoc/internal/go-udiff/lcs"
 )
+
+// Lines computes differences between two strings. All edits are at line boundaries.
+func Lines(before, after string) []Edit {
+	beforeLines, bOffsets := splitLines(before)
+	afterLines, _ := splitLines(after)
+	diffs := lcs.DiffLines(beforeLines, afterLines)
+
+	// Convert from LCS diffs to Edits
+	res := make([]Edit, len(diffs))
+	for i, d := range diffs {
+		res[i] = Edit{
+			Start: bOffsets[d.Start],
+			End:   bOffsets[d.End],
+			New:   strings.Join(afterLines[d.ReplStart:d.ReplEnd], ""),
+		}
+	}
+	return res
+}
 
 // Strings computes the differences between two strings.
 // The resulting edits respect rune boundaries.
@@ -18,7 +37,7 @@ func Strings(before, after string) []Edit {
 		return nil // common case
 	}
 
-	if stringIsASCII(before) && stringIsASCII(after) {
+	if isASCII(before) && isASCII(after) {
 		// TODO(adonovan): opt: specialize diffASCII for strings.
 		return diffASCII([]byte(before), []byte(after))
 	}
@@ -32,7 +51,7 @@ func Bytes(before, after []byte) []Edit {
 		return nil // common case
 	}
 
-	if bytesIsASCII(before) && bytesIsASCII(after) {
+	if isASCII(before) && isASCII(after) {
 		return diffASCII(before, after)
 	}
 	return diffRunes(runes(before), runes(after))
@@ -44,7 +63,7 @@ func diffASCII(before, after []byte) []Edit {
 	// Convert from LCS diffs.
 	res := make([]Edit, len(diffs))
 	for i, d := range diffs {
-		res[i] = Edit{Start: d.Start, End: d.End, New: string(after[d.ReplStart:d.ReplEnd])}
+		res[i] = Edit{d.Start, d.End, string(after[d.ReplStart:d.ReplEnd])}
 	}
 	return res
 }
@@ -62,45 +81,35 @@ func diffRunes(before, after []rune) []Edit {
 		utf8Len += runesLen(before[lastEnd:d.Start]) // text between edits
 		start := utf8Len
 		utf8Len += runesLen(before[d.Start:d.End]) // text deleted by this edit
-		res[i] = Edit{Start: start, End: utf8Len, New: string(after[d.ReplStart:d.ReplEnd])}
+		res[i] = Edit{start, utf8Len, string(after[d.ReplStart:d.ReplEnd])}
 		lastEnd = d.End
 	}
 	return res
 }
 
 // runes is like []rune(string(bytes)) without the duplicate allocation.
-func runes(b []byte) []rune {
-	n := utf8.RuneCount(b)
-	rs := make([]rune, n)
+func runes(bytes []byte) []rune {
+	n := utf8.RuneCount(bytes)
+	runes := make([]rune, n)
 	for i := range n {
-		r, sz := utf8.DecodeRune(b)
-		b = b[sz:]
-		rs[i] = r
+		r, sz := utf8.DecodeRune(bytes)
+		bytes = bytes[sz:]
+		runes[i] = r
 	}
-	return rs
+	return runes
 }
 
 // runesLen returns the length in bytes of the UTF-8 encoding of runes.
-func runesLen(runes []rune) (length int) {
+func runesLen(runes []rune) (len int) {
 	for _, r := range runes {
-		length += utf8.RuneLen(r)
+		len += utf8.RuneLen(r)
 	}
-	return length
+	return len
 }
 
-// stringIsASCII reports whether s contains only ASCII.
-// TODO(adonovan): combine when x/tools allows generics.
-func stringIsASCII(s string) bool {
+// isASCII reports whether s contains only ASCII.
+func isASCII[S string | []byte](s S) bool {
 	for i := 0; i < len(s); i++ {
-		if s[i] >= utf8.RuneSelf {
-			return false
-		}
-	}
-	return true
-}
-
-func bytesIsASCII(s []byte) bool {
-	for i := range s {
 		if s[i] >= utf8.RuneSelf {
 			return false
 		}

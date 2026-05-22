@@ -98,6 +98,12 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   `"catalog"."schema"."actor"` against it would have failed with
   `no such table`. Source-side fetches still use the qualified name.
 
+- [#630]: Re-vendored the internal `go-udiff` diff package from
+  `aymanbagabas/go-udiff` `v0.4.1`. This resolves an intermittent CI failure
+  in the package's `TestRandOld`, which depended on the deprecated global
+  `math/rand` seed; the refreshed upstream uses a per-test PRNG. Diff output
+  is unchanged.
+
 ## [v0.52.0] - 2026-05-15
 
 ### Added
@@ -1549,6 +1555,7 @@ make working with lots of sources much easier.
 [#615]: https://github.com/neilotoole/sq/issues/615
 [#628]: https://github.com/neilotoole/sq/issues/628
 [#629]: https://github.com/neilotoole/sq/issues/629
+[#630]: https://github.com/neilotoole/sq/issues/630
 [#633]: https://github.com/neilotoole/sq/issues/633
 [#637]: https://github.com/neilotoole/sq/pull/637
 [#640]: https://github.com/neilotoole/sq/issues/640
