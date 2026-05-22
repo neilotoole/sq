@@ -16,46 +16,34 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
-- [#601]: New SLQ functions for substring matching: `contains(col, str)`,
-  `startswith(col, str)`, and `endswith(col, str)`. Always case-sensitive,
-  with `%`, `_`, and the escape character automatically escaped in the
-  user literal. See [Query language](https://sq.io/docs/query) for
-  details.
-- [#615]: New SLQ functions. Case-insensitive substring matchers
-  [`icontains`](https://sq.io/docs/query#icontains),
-  [`istartswith`](https://sq.io/docs/query#istartswith),
-  [`iendswith`](https://sq.io/docs/query#iendswith) (auto-escape
-  `%`/`_`/`|` in the pattern, matching the `contains` family from
-  [#601]). New user-controlled wildcard matchers
-  [`like`](https://sq.io/docs/query#like) and
-  [`ilike`](https://sq.io/docs/query#ilike) (`%` and `_` are
-  wildcards). See [Query language](https://sq.io/docs/query) for
-  per-driver behavior and SQLite ASCII-CI quirks.
-- [#628]: [`like`](https://sq.io/docs/query#like) and
-  [`ilike`](https://sq.io/docs/query#ilike) now accept either a
-  quoted string literal or a column selector as the pattern argument,
-  enabling column-vs-column matching such as
-  `where(like(.events.message, .rules.pattern))`. NULL values on
-  the RHS yield NULL from `LIKE`, which `WHERE` treats as false
-  (standard SQL semantics). The [`contains`](https://sq.io/docs/query#contains)
-  family stays literal-only: its render-time auto-escape of `%`/`_`
-  in the user pattern doesn't extend to a runtime column value, and
-  the per-driver SQL-level escaping that would replace it is out of
-  scope for v1.
+- [#601], [#615], [#628], [#629], [#640]: New SLQ string-matching functions.
+  See [Query language](https://sq.io/docs/query) for per-driver behavior and
+  SQLite ASCII-CI quirks.
+  - Case-sensitive literal substring matchers
+    [`contains`](https://sq.io/docs/query#contains),
+    [`startswith`](https://sq.io/docs/query#startswith), and
+    [`endswith`](https://sq.io/docs/query#endswith).
+  - Case-insensitive variants
+    [`icontains`](https://sq.io/docs/query#icontains),
+    [`istartswith`](https://sq.io/docs/query#istartswith), and
+    [`iendswith`](https://sq.io/docs/query#iendswith).
+  - The `contains` family auto-escapes `%`, `_`, and the escape character
+    (`|`) in the user literal.
+  - User-controlled wildcard matchers [`like`](https://sq.io/docs/query#like)
+    and [`ilike`](https://sq.io/docs/query#ilike): `%` and `_` are wildcards,
+    and `|` is a literal character on every driver (no `ESCAPE` clause). Both
+    accept either a quoted string literal or a column selector as the pattern,
+    enabling column-vs-column matching such as
+    `where(like(.events.message, .rules.pattern))`; a NULL pattern yields
+    NULL, which `WHERE` treats as false (standard SQL semantics). The
+    `contains` family stays literal-only (no column-selector pattern): its
+    render-time wildcard escaping can't extend to a runtime column value.
+  - All LIKE-family parsers require each argument to be a string literal
+    (or a column selector, for `like`/`ilike`); function-wrapped or other
+    non-string arguments are rejected.
 
 ### Changed
 
-- [#629]: [`like`](https://sq.io/docs/query#like) and
-  [`ilike`](https://sq.io/docs/query#ilike) no longer emit a trailing
-  `ESCAPE '|'` clause. `|` is now a literal character on every driver,
-  removing the pre-#629 cross-driver divergence (runtime error on
-  Postgres/DuckDB/Oracle/SQLite/SQL Server, silent drop on MySQL).
-  Other engine-default escape semantics (e.g. MySQL's default
-  backslash escape) remain driver-specific. For literal `%`/`_`
-  matching, use [`contains`](https://sq.io/docs/query#contains) /
-  [`icontains`](https://sq.io/docs/query#icontains), which auto-escape
-  wildcards. The [`contains`](https://sq.io/docs/query#contains)
-  family is unchanged and still emits `ESCAPE '|'`.
 - [#637]: Syntax errors from invalid SLQ input are now reported with the
   offending span highlighted in the original query, the input line
   syntax-colored per sq's standard palette (handles, selectors, keywords,
@@ -66,20 +54,6 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   error output, carrying `input` and `issues[].{line, col, token, msg,
   suggestion}`, plus rune-offset `start_char`/`stop_char` when a precise
   span is available, for programmatic consumers.
-- [#640]: The LIKE-family argument parsers
-  ([`contains`](https://sq.io/docs/query#contains) and friends, plus
-  [`like`](https://sq.io/docs/query#like) /
-  [`ilike`](https://sq.io/docs/query#ilike)) no longer silently strip
-  single-arg function wrappers around the column / literal arguments.
-  Pre-#640, an input like `like(.first_name, max(.last_name))` walked
-  through the `max(...)` wrapper and rendered as if the user had
-  written `like(.first_name, .last_name)`. Post-#640, such inputs are
-  rejected with the existing argument-type error. The `like` / `ilike`
-  parsers report `"must be a string literal or column selector"`; the
-  `contains` family reports `"must be a string literal"`. Only
-  single-arg function wrappers were ever silently stripped; other
-  non-string arguments — a bare numeric literal such as `-42`, or a
-  binary expression — were always rejected.
 
 ### Fixed
 
