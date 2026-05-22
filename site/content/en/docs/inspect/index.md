@@ -84,6 +84,58 @@ $ sq inspect -j | jq -r '.tables[] | .name'
 
 See more examples in the [cookbook](/docs/cookbook).
 
+### `--markdown`
+
+The `--markdown` format renders a schema document suited for embedding in
+project docs or a pull request: a source overview, per-table
+column / key / constraint / index detail, and a
+[Mermaid](https://mermaid.js.org) entity-relationship diagram. The diagram
+renders inline on GitHub, GitLab, and most Markdown viewers, showing every
+table and its foreign-key relationships.
+
+```shell
+$ sq inspect @sakila_sl3 --markdown
+```
+
+The output begins with the source overview and the ER diagram (truncated
+here):
+
+````markdown
+# @sakila_sl3
+
+| Property | Value |
+| --- | --- |
+| Name | sakila.db |
+| Driver | sqlite3 |
+| Tables | 16 |
+| Views | 5 |
+
+## Entity Relationship Diagram
+
+```mermaid
+erDiagram
+    actor {
+        int actor_id PK
+        text first_name
+        text last_name
+        datetime last_update
+    }
+    film_actor {
+        int actor_id PK,FK
+        int film_id PK,FK
+        datetime last_update
+    }
+    actor ||--o{ film_actor : ""
+    film ||--o{ film_actor : ""
+```
+````
+
+Each table then gets its own section with a column table and its
+foreign-key, unique-constraint, and index detail. Inspecting a single table
+(`sq inspect @sakila_sl3.film_actor --markdown`) renders a focused diagram of
+just that table and its directly-related neighbors, followed by the same
+per-table detail.
+
 ## Source overview
 
 Sometimes you don't need the full schema, but still want to view the source

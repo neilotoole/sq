@@ -41,6 +41,13 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   - All LIKE-family parsers require each argument to be a string literal
     (or a column selector, for `like`/`ilike`); function-wrapped or other
     non-string arguments are rejected.
+- [`sq inspect`](https://sq.io/docs/inspect) gains a `--markdown` output
+  format that renders a schema document: a source overview, per-table
+  column / key / constraint / index detail, and a
+  [Mermaid](https://mermaid.js.org) entity-relationship diagram. Whole-source
+  inspection diagrams every table and its foreign-key relationships;
+  single-table inspection (`sq inspect @src.table --markdown`) renders a
+  focused diagram of the table and its directly-related neighbors.
 
 ### Changed
 

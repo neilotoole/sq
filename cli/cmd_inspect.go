@@ -47,7 +47,8 @@ is supplied, the default is to show the source metadata and schema.
   --schemata:  List the schemas available in the source's active catalog.
 
 Use --verbose with --text format to see more detail. The --json and --yaml
-formats both show extensive detail.`,
+formats both show extensive detail. The --markdown format renders a schema
+document that includes a Mermaid entity-relationship diagram.`,
 		Example: `  # Inspect active data source.
   $ sq inspect
 
@@ -62,6 +63,9 @@ formats both show extensive detail.`,
 
   # Show output in YAML.
   $ sq inspect --yaml @pg1
+
+  # Show output as a Markdown schema doc with a Mermaid ER diagram.
+  $ sq inspect --markdown @pg1
 
   # Show only the DB properties for @pg1.
   $ sq inspect --dbprops @pg1
@@ -92,6 +96,7 @@ formats both show extensive detail.`,
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	addOptionFlag(cmd.Flags(), OptCompact)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
+	cmd.Flags().Bool(flag.Markdown, false, flag.MarkdownUsage)
 
 	cmd.Flags().BoolP(flag.InspectOverview, flag.InspectOverviewShort, false, flag.InspectOverviewUsage)
 	cmd.Flags().BoolP(flag.InspectDBProps, flag.InspectDBPropsShort, false, flag.InspectDBPropsUsage)

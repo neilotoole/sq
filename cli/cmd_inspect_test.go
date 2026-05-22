@@ -314,6 +314,48 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 	}
 }
 
+// TestCmdInspect_markdown exercises the Markdown output format end to
+// end against the sakila SQLite source (no Docker required), covering
+// whole-source output (with a Mermaid ER diagram), single-table output
+// (with a focused diagram), and overview mode (which omits the diagram).
+func TestCmdInspect_markdown(t *testing.T) { //nolint:tparallel
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+	tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+	require.NoError(t, tr.Exec("inspect", "--"+format.Markdown.String()))
+
+	out := tr.Out.String()
+	require.Contains(t, out, "# "+src.Handle)
+	require.Contains(t, out, "```mermaid")
+	require.Contains(t, out, "erDiagram")
+	// Canonical sakila edge: film references language.
+	require.Contains(t, out, "language ||--o{ film")
+	require.Contains(t, out, "## Tables")
+	require.Contains(t, out, "### film")
+
+	t.Run("table", func(t *testing.T) {
+		tr2 := testrun.New(th.Context, t, tr)
+		require.NoError(t, tr2.Exec("inspect", src.Handle+".film_actor", "--"+format.Markdown.String()))
+		out := tr2.Out.String()
+		require.Contains(t, out, "# film_actor")
+		require.Contains(t, out, "```mermaid")
+		require.Contains(t, out, "| Column | Type | Null | Key |")
+		require.Contains(t, out, "**Foreign keys:**")
+	})
+
+	t.Run("overview", func(t *testing.T) {
+		tr2 := testrun.New(th.Context, t, tr)
+		require.NoError(t, tr2.Exec(
+			"inspect", sakila.SL3, "--"+flag.InspectOverview, "--"+format.Markdown.String()))
+		out := tr2.Out.String()
+		require.Contains(t, out, "# "+src.Handle)
+		require.NotContains(t, out, "```mermaid")
+		require.NotContains(t, out, "## Tables")
+	})
+}
+
 func TestCmdInspect_smoke(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
