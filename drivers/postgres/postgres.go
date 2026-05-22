@@ -552,8 +552,12 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 
 // TableExists implements driver.SQLDriver.
 func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool, error) {
+	// Scope to the current schema. Without table_schema = current_schema() the
+	// COUNT spans every schema, so a table name that exists in two schemas
+	// would return 2 and the old "count == 1" check wrongly reported the table
+	// as absent (#484). Match on the current schema and treat any hit as exists.
 	const query = `SELECT COUNT(*) FROM information_schema.tables
-WHERE table_name = $1`
+WHERE table_schema = current_schema() AND table_name = $1`
 
 	var count int64
 	err := db.QueryRowContext(ctx, query, tbl).Scan(&count)
@@ -561,7 +565,7 @@ WHERE table_name = $1`
 		return false, errw(err)
 	}
 
-	return count == 1, nil
+	return count > 0, nil
 }
 
 // ListTableNames implements driver.SQLDriver.

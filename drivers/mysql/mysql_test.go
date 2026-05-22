@@ -156,3 +156,47 @@ func TestNumericSchema(t *testing.T) {
 		})
 	}
 }
+
+// TestTableExists_CurrentSchema is a regression test for #484: TableExists
+// must be scoped to the connection's current schema. When the same table
+// name exists in two schemas, the previous unscoped COUNT(*) returned 2, so
+// TableExists wrongly reported the table as absent and sq tried to CREATE the
+// already-existing table, failing the insert. In MySQL a schema is a database.
+func TestTableExists_CurrentSchema(t *testing.T) {
+	t.Parallel()
+
+	for _, handle := range sakila.MyAll() {
+		t.Run(handle, func(t *testing.T) {
+			t.Parallel()
+
+			th, _, drvr, _, db := testh.NewWith(t, handle)
+			ctx := th.Context
+
+			tblName := stringz.UniqTableName(t.Name())
+			otherSchema := stringz.UniqTableName("gh484_other")
+
+			// Create the table in the current (sakila) schema.
+			_, err := db.ExecContext(ctx, "CREATE TABLE `"+tblName+"` (id INT)")
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				_, _ = db.ExecContext(ctx, "DROP TABLE IF EXISTS `"+tblName+"`")
+			})
+
+			// Create a second schema holding a table of the SAME name, so the
+			// name now exists in two schemas (the #484 scenario).
+			_, err = db.ExecContext(ctx, "CREATE DATABASE `"+otherSchema+"`")
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				_, _ = db.ExecContext(ctx, "DROP DATABASE IF EXISTS `"+otherSchema+"`")
+			})
+			_, err = db.ExecContext(ctx, "CREATE TABLE `"+otherSchema+"`.`"+tblName+"` (id INT)")
+			require.NoError(t, err)
+
+			exists, err := drvr.TableExists(ctx, db, tblName)
+			require.NoError(t, err)
+			require.True(t, exists,
+				"TableExists must find the table in the current schema even when "+
+					"the name also exists in another schema (#484)")
+		})
+	}
+}
