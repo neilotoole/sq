@@ -51,6 +51,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   single-table inspection (`sq inspect @src.table --markdown`) renders that
   same focused diagram. Identifiers and the column type, key, and default
   values are rendered as inline code.
+- `sq inspect` now honors the generic `--format`/`-f` flag (e.g.
+  `sq inspect -f markdown`), matching the query command; previously only the
+  per-format boolean flags such as `--markdown` were accepted.
 
 ### Changed
 

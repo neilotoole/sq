@@ -361,6 +361,50 @@ func TestCmdInspect_markdown(t *testing.T) { //nolint:tparallel
 	})
 }
 
+// TestCmdInspect_formatFlag verifies that the generic --format / -f flag
+// selects the inspect output format, matching the query command's
+// behavior — not just the per-format boolean flags such as --markdown.
+func TestCmdInspect_formatFlag(t *testing.T) { //nolint:tparallel
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	// Each spelling of the flag should yield the Markdown document.
+	for name, args := range map[string][]string{
+		"long":        {"inspect", "--format", "markdown"},
+		"long_equals": {"inspect", "--format=markdown"},
+		"short":       {"inspect", "-f", "markdown"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+			require.NoError(t, tr.Exec(args...))
+			out := tr.Out.String()
+			require.Contains(t, out, "# "+src.Handle)
+			require.Contains(t, out, "```mermaid")
+			require.Contains(t, out, "## Tables")
+		})
+	}
+
+	// A non-default format selected via -f routes correctly too.
+	t.Run("json", func(t *testing.T) {
+		tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+		require.NoError(t, tr.Exec("inspect", "-f", "json"))
+		md := &metadata.Source{}
+		require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
+		require.Equal(t, src.Handle, md.Handle)
+	})
+
+	// An explicit boolean format flag still wins over --format.
+	t.Run("bool_flag_precedence", func(t *testing.T) {
+		tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+		require.NoError(t, tr.Exec("inspect", "--format", "markdown", "--"+flag.JSON))
+		md := &metadata.Source{}
+		require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
+		require.Equal(t, src.Handle, md.Handle)
+	})
+}
+
 func TestCmdInspect_smoke(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)

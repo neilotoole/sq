@@ -8,10 +8,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -92,6 +94,11 @@ document that includes a Mermaid entity-relationship diagram.`,
   $ cat data.xlsx | sq inspect`,
 	}
 
+	addOptionFlag(cmd.Flags(), OptFormat)
+	panicOn(cmd.RegisterFlagCompletionFunc(
+		OptFormat.Flag().Name,
+		completeStrings(-1, stringz.Strings(format.All())...),
+	))
 	addTextFormatFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	addOptionFlag(cmd.Flags(), OptCompact)

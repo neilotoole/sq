@@ -95,6 +95,9 @@ table and its foreign-key relationships.
 
 ```shell
 $ sq inspect @sakila_sl3 --markdown
+
+# Equivalent, using the generic format flag:
+$ sq inspect @sakila_sl3 -f markdown
 ```
 
 The output begins with the source overview and the ER diagram (truncated
