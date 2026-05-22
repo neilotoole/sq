@@ -437,6 +437,12 @@ func TestDriver_CopyTable_TargetSchema(t *testing.T) {
 	t.Cleanup(func() { assert.NoError(t, drvr.DropSchema(ctx, db, otherSchema)) })
 
 	tblName := stringz.UniqTableName("actor_652")
+	// Defensively drop tblName from the current database too. If the #652 fix
+	// regresses (or the test fails before its assertions), CopyTable could
+	// create the table in the current database, where DropSchema(otherSchema)
+	// would not reap it; this avoids leaking an orphan table into sakila.
+	t.Cleanup(func() { assert.NoError(t, drvr.DropTable(ctx, db, tablefq.From(tblName), true)) })
+
 	_, err := drvr.CopyTable(ctx, db, tablefq.From(sakila.TblActor),
 		tablefq.T{Schema: otherSchema, Table: tblName}, true)
 	require.NoError(t, err)
