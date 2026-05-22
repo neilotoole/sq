@@ -42,7 +42,8 @@ th, td { border: 1px solid #ccc; padding: 0.3rem 0.6rem; text-align: left; verti
 th { background: #f2f2f2; }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   background: rgba(127,127,127,0.15); padding: 0.1em 0.3em; border-radius: 3px; }
-pre.mermaid { background: transparent; }
+pre.mermaid { background: #fff; border: 1px solid #ddd; border-radius: 8px;
+  padding: 1rem; overflow-x: auto; }
 .summary { color: #666; margin: 0.2rem 0; }
 @media (prefers-color-scheme: dark) {
   body { background: #1e1e1e; color: #ddd; }
@@ -76,13 +77,13 @@ func (w *metadataWriter) writeDocument(
 	return nil
 }
 
-// mermaidInit is the Mermaid initialization call. It picks the dark theme
-// when the page is viewed under a dark color scheme (matching the document's
-// own prefers-color-scheme styling) so the relationship lines stay legible on
-// a dark background; otherwise it uses the default light theme. The choice is
-// made once at load; toggling the OS theme requires a reload.
-const mermaidInit = "mermaid.initialize({ startOnLoad: true, " +
-	"theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default' });\n"
+// mermaidInit is the Mermaid initialization call. It always uses the default
+// (light) theme; the diagram is rendered on a light panel (see cssStyles
+// pre.mermaid) so it stays legible even when the page is in dark mode. We
+// don't use Mermaid's "dark" theme because in v11 it leaves the ER focal
+// table's header and attribute-row backgrounds light while switching text to
+// light (unreadable), and those colors aren't reachable via themeVariables.
+const mermaidInit = "mermaid.initialize({ startOnLoad: true });\n"
 
 // writeMermaidScript writes the <script> that loads and initializes Mermaid:
 // the inlined vendored bundle when embed is set, else a pinned CDN import.
