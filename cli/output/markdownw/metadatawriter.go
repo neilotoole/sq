@@ -243,7 +243,7 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 		hasComment = hasComment || col.Comment != ""
 	}
 
-	headers := []string{"Column", "Type", "Null", "Key"}
+	headers := []string{"Column", "Type", "Nullable", "Key"}
 	aligns := []string{"---", "---", ":---:", ":---:"}
 	if hasDefault {
 		headers = append(headers, "Default")

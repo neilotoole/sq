@@ -108,7 +108,7 @@ erDiagram
     actor ||--o{ film_actor : "fk_film_actor_actor"
 ` + "```" + `
 
-| Column | Type | Null | Key |
+| Column | Type | Nullable | Key |
 | --- | --- | :---: | :---: |
 | ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` |  | ` + "`PK`" + ` |
 | ` + "`first_name`" + ` | ` + "`TEXT`" + ` |  |  |
@@ -137,7 +137,7 @@ erDiagram
     actor ||--o{ film_actor : "fk_film_actor_actor"
 ` + "```" + `
 
-| Column | Type | Null | Key |
+| Column | Type | Nullable | Key |
 | --- | --- | :---: | :---: |
 | ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` |  | ` + "`PK,FK`" + ` |
 | ` + "`film_id`" + ` | ` + "`INTEGER`" + ` |  | ` + "`PK`" + ` |
@@ -224,7 +224,7 @@ erDiagram
     actor ||--o{ film_actor : "fk_film_actor_actor"
 ` + "```" + `
 
-| Column | Type | Null | Key |
+| Column | Type | Nullable | Key |
 | --- | --- | :---: | :---: |
 | ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` |  | ` + "`PK,FK`" + ` |
 | ` + "`film_id`" + ` | ` + "`INTEGER`" + ` |  | ` + "`PK`" + ` |
