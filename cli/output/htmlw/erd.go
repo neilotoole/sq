@@ -153,7 +153,7 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 		hasDefault = hasDefault || col.DefaultValue != ""
 		hasComment = hasComment || col.Comment != ""
 	}
-	headers := []string{"Column", "Type", "Nullable", "Key"}
+	headers := []string{"Column", "Type", "Nullable", "PK", "FK", "Unique"}
 	if hasDefault {
 		headers = append(headers, "Default")
 	}
@@ -167,7 +167,9 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 			htmlCode(col.Name),
 			htmlCode(col.ColumnType),
 			checkMark(col.Nullable),
-			htmlCode(commonw.ColumnKey(col, fkCols, ucCols)),
+			checkMark(col.PrimaryKey),
+			checkMark(fkCols[col.Name]),
+			checkMark(ucCols[col.Name]),
 		}
 		if hasDefault {
 			row = append(row, htmlCode(col.DefaultValue))

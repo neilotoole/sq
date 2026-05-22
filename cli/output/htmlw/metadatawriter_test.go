@@ -86,6 +86,9 @@ func TestMetadataWriter_SourceMetadata(t *testing.T) {
 	require.Contains(t, got, `<pre class="mermaid">`)
 	require.Contains(t, got, "actor ||--o{ film_actor")
 	require.Contains(t, got, "<td><code>actor_id</code></td>")
+	// The Key column is split into PK / FK / Unique ✓ columns.
+	require.Contains(t, got, "<th>PK</th>")
+	require.Contains(t, got, "<th>FK</th>")
 	require.Contains(t, got, "cdn.jsdelivr.net/npm/mermaid@11")
 	// The diagram renders on a light panel so the default-theme tables and
 	// connector lines stay legible even when the page is in dark mode.

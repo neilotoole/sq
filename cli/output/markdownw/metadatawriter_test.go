@@ -108,10 +108,10 @@ erDiagram
     actor ||--o{ film_actor : "fk_film_actor_actor"
 ` + "```" + `
 
-| Column | Type | Nullable | Key |
-| --- | --- | :---: | :---: |
-| ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` |  | ` + "`PK`" + ` |
-| ` + "`first_name`" + ` | ` + "`TEXT`" + ` |  |  |
+| Column | Type | Nullable | PK | FK | Unique |
+| --- | --- | :---: | :---: | :---: | :---: |
+| ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` |  | ✓ |  |  |
+| ` + "`first_name`" + ` | ` + "`TEXT`" + ` |  |  |  |  |
 
 **Foreign keys:**
 
@@ -137,10 +137,10 @@ erDiagram
     actor ||--o{ film_actor : "fk_film_actor_actor"
 ` + "```" + `
 
-| Column | Type | Nullable | Key |
-| --- | --- | :---: | :---: |
-| ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` |  | ` + "`PK,FK`" + ` |
-| ` + "`film_id`" + ` | ` + "`INTEGER`" + ` |  | ` + "`PK`" + ` |
+| Column | Type | Nullable | PK | FK | Unique |
+| --- | --- | :---: | :---: | :---: | :---: |
+| ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` |  | ✓ | ✓ |  |
+| ` + "`film_id`" + ` | ` + "`INTEGER`" + ` |  | ✓ |  |  |
 
 **Foreign keys:**
 
@@ -224,10 +224,10 @@ erDiagram
     actor ||--o{ film_actor : "fk_film_actor_actor"
 ` + "```" + `
 
-| Column | Type | Nullable | Key |
-| --- | --- | :---: | :---: |
-| ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` |  | ` + "`PK,FK`" + ` |
-| ` + "`film_id`" + ` | ` + "`INTEGER`" + ` |  | ` + "`PK`" + ` |
+| Column | Type | Nullable | PK | FK | Unique |
+| --- | --- | :---: | :---: | :---: | :---: |
+| ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` |  | ✓ | ✓ |  |
+| ` + "`film_id`" + ` | ` + "`INTEGER`" + ` |  | ✓ |  |  |
 
 **Foreign keys:**
 

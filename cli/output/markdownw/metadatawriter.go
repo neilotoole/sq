@@ -243,8 +243,8 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 		hasComment = hasComment || col.Comment != ""
 	}
 
-	headers := []string{"Column", "Type", "Nullable", "Key"}
-	aligns := []string{"---", "---", ":---:", ":---:"}
+	headers := []string{"Column", "Type", "Nullable", "PK", "FK", "Unique"}
+	aligns := []string{"---", "---", ":---:", ":---:", ":---:", ":---:"}
 	if hasDefault {
 		headers = append(headers, "Default")
 		aligns = append(aligns, "---")
@@ -263,7 +263,9 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 			mdCodeCell(col.Name),
 			mdCodeCell(col.ColumnType),
 			checkMark(col.Nullable),
-			mdCodeCell(commonw.ColumnKey(col, fkCols, ucCols)),
+			checkMark(col.PrimaryKey),
+			checkMark(fkCols[col.Name]),
+			checkMark(ucCols[col.Name]),
 		}
 		if hasDefault {
 			cells = append(cells, mdCodeCell(col.DefaultValue))

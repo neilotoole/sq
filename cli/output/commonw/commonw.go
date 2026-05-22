@@ -39,22 +39,6 @@ func NewVerboseOpt(opt options.Opt, o options.Options) VerboseOpt {
 	return v
 }
 
-// ColumnKey returns the combined "PK,FK,UK" marker for a column, or "" when
-// the column participates in no key.
-func ColumnKey(col *metadata.Column, fkCols, ucCols map[string]bool) string {
-	var parts []string
-	if col.PrimaryKey {
-		parts = append(parts, "PK")
-	}
-	if fkCols[col.Name] {
-		parts = append(parts, "FK")
-	}
-	if ucCols[col.Name] {
-		parts = append(parts, "UK")
-	}
-	return strings.Join(parts, ",")
-}
-
 // FKColumnSet returns the set of column names on tbl that participate in any
 // outgoing foreign key.
 func FKColumnSet(tbl *metadata.Table) map[string]bool {
