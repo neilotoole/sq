@@ -61,6 +61,40 @@ func TestTableDiagram_focused(t *testing.T) {
 `, got)
 }
 
+// TestTableDiagram_nilCardIndex tests the single-table inspect path where
+// cardIndex is nil. Neighbor cardinality falls back to the default "||--o{".
+// The actor table has an incoming FK from film_actor (established via
+// LinkForeignKeys), so the edge should appear in the output.
+func TestTableDiagram_nilCardIndex(t *testing.T) {
+	tables := testTables()
+	actor := tables[0]
+	got := mermaid.TableDiagram(actor, nil)
+	require.Equal(t, `erDiagram
+    actor {
+        int actor_id PK
+        text first_name
+    }
+    actor ||--o{ film_actor : "fk_film_actor_actor"
+`, got)
+}
+
+// TestTableDiagram_incomingFK_withIndex tests the incoming-FK branch with a
+// populated cardIndex. The actor table receives an FK from film_actor;
+// film_actor.actor_id is part of a composite PK so the cardinality is still
+// "||--o{" (not one-to-one).
+func TestTableDiagram_incomingFK_withIndex(t *testing.T) {
+	tables := testTables()
+	actor := tables[0]
+	got := mermaid.TableDiagram(actor, mermaid.Index(tables))
+	require.Equal(t, `erDiagram
+    actor {
+        int actor_id PK
+        text first_name
+    }
+    actor ||--o{ film_actor : "fk_film_actor_actor"
+`, got)
+}
+
 func TestSourceDiagram_quoting(t *testing.T) {
 	src := &metadata.Source{Handle: "@q", Tables: []*metadata.Table{{
 		Name: "weird table", TableType: "table",
@@ -70,10 +104,12 @@ func TestSourceDiagram_quoting(t *testing.T) {
 		},
 	}}}
 	got := mermaid.SourceDiagram(src.Tables)
-	require.Contains(t, got, `"weird table" {`)
-	require.Contains(t, got, "int id_col PK")
-	require.Contains(t, got, "text zip_code")
-	require.NotContains(t, got, `"id col"`)
+	require.Equal(t, `erDiagram
+    "weird table" {
+        int id_col PK
+        text zip_code
+    }
+`, got)
 }
 
 func TestSourceDiagram_empty(t *testing.T) {
