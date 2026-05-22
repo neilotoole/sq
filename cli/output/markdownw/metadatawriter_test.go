@@ -110,8 +110,8 @@ erDiagram
 
 | Column | Type | Null | Key |
 | --- | --- | :---: | :---: |
-| ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` | no | ` + "`PK`" + ` |
-| ` + "`first_name`" + ` | ` + "`TEXT`" + ` | no |  |
+| ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` |  | ` + "`PK`" + ` |
+| ` + "`first_name`" + ` | ` + "`TEXT`" + ` |  |  |
 
 **Foreign keys:**
 
@@ -139,8 +139,8 @@ erDiagram
 
 | Column | Type | Null | Key |
 | --- | --- | :---: | :---: |
-| ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` | no | ` + "`PK,FK`" + ` |
-| ` + "`film_id`" + ` | ` + "`INTEGER`" + ` | no | ` + "`PK`" + ` |
+| ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` |  | ` + "`PK,FK`" + ` |
+| ` + "`film_id`" + ` | ` + "`INTEGER`" + ` |  | ` + "`PK`" + ` |
 
 **Foreign keys:**
 
@@ -226,8 +226,8 @@ erDiagram
 
 | Column | Type | Null | Key |
 | --- | --- | :---: | :---: |
-| ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` | no | ` + "`PK,FK`" + ` |
-| ` + "`film_id`" + ` | ` + "`INTEGER`" + ` | no | ` + "`PK`" + ` |
+| ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` |  | ` + "`PK,FK`" + ` |
+| ` + "`film_id`" + ` | ` + "`INTEGER`" + ` |  | ` + "`PK`" + ` |
 
 **Foreign keys:**
 

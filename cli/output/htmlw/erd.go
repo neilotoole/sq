@@ -166,7 +166,7 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 		row := []string{
 			htmlCode(col.Name),
 			htmlCode(col.ColumnType),
-			yesNo(col.Nullable),
+			checkMark(col.Nullable),
 			htmlCode(commonw.ColumnKey(col, fkCols, ucCols)),
 		}
 		if hasDefault {

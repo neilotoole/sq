@@ -262,7 +262,7 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 		cells := []string{
 			mdCodeCell(col.Name),
 			mdCodeCell(col.ColumnType),
-			yesNo(col.Nullable),
+			checkMark(col.Nullable),
 			mdCodeCell(commonw.ColumnKey(col, fkCols, ucCols)),
 		}
 		if hasDefault {
