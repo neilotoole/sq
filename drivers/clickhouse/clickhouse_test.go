@@ -13,6 +13,7 @@ package clickhouse_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/clickhouse"
@@ -415,4 +416,47 @@ func TestDriver_CopyTable(t *testing.T) {
 	sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+stringz.BacktickQuote(destTblName))
 	require.NoError(t, err)
 	require.Equal(t, 1, len(sink.Recs))
+}
+
+// TestDriver_CopyTable_TargetSchema is a regression test for
+// https://github.com/neilotoole/sq/issues/652. CopyTable must create the
+// destination table in toTable.Schema, not in the connection's current
+// database. Previously CopyTable built the CREATE statement from the bare
+// table name (dropping the schema), so the table was created in the current
+// database even though the data-copy INSERT targeted <schema>.<table>: with
+// copyData=true the INSERT then failed ("table doesn't exist"), and with
+// copyData=false the table was silently created in the wrong database.
+func TestDriver_CopyTable_TargetSchema(t *testing.T) {
+	tu.SkipShort(t, true)
+
+	th, src, drvr, _, db := testh.NewWith(t, sakila.CH)
+	ctx := th.Context
+
+	otherSchema := "test_schema_" + stringz.Uniq8()
+	require.NoError(t, drvr.CreateSchema(ctx, db, otherSchema))
+	t.Cleanup(func() { assert.NoError(t, drvr.DropSchema(ctx, db, otherSchema)) })
+
+	tblName := stringz.UniqTableName("actor_652")
+	_, err := drvr.CopyTable(ctx, db, tablefq.From(sakila.TblActor),
+		tablefq.T{Schema: otherSchema, Table: tblName}, true)
+	require.NoError(t, err)
+
+	// The table must be created in otherSchema, not the current database.
+	var inOther, inCurrent int
+	require.NoError(t, db.QueryRowContext(ctx,
+		"SELECT count(*) FROM system.tables WHERE database = ? AND name = ?",
+		otherSchema, tblName).Scan(&inOther))
+	require.Equal(t, 1, inOther,
+		"table should be created in target schema %q, not the current database", otherSchema)
+
+	require.NoError(t, db.QueryRowContext(ctx,
+		"SELECT count(*) FROM system.tables WHERE database = currentDatabase() AND name = ?",
+		tblName).Scan(&inCurrent))
+	require.Equal(t, 0, inCurrent, "table must not be created in the current database")
+
+	// The copied data must be queryable in the target schema.
+	sink, err := th.QuerySQL(src, nil,
+		"SELECT * FROM "+stringz.BacktickQuote(otherSchema)+"."+stringz.BacktickQuote(tblName))
+	require.NoError(t, err)
+	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 }

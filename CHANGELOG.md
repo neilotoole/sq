@@ -57,6 +57,15 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [#652]: [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy) into a different
+  schema on a ClickHouse source now creates the destination table in the
+  target schema. The ClickHouse driver built the `CREATE TABLE` from the bare
+  table name (dropping the schema), so the table was created in the current
+  database while the data-copy `INSERT` targeted the schema-qualified name —
+  the copy then failed with "table doesn't exist" when copying data, or
+  silently landed in the wrong database otherwise. The `CREATE` is now
+  schema-qualified, matching the `INSERT` and the other SQL drivers.
+
 - [#484]:
   [`--insert`](https://sq.io/docs/tutorial#insert--modify) into a MySQL or
   Postgres table no longer fails when a same-named table exists in another
@@ -1549,6 +1558,7 @@ make working with lots of sources much easier.
 [#633]: https://github.com/neilotoole/sq/issues/633
 [#637]: https://github.com/neilotoole/sq/pull/637
 [#640]: https://github.com/neilotoole/sq/issues/640
+[#652]: https://github.com/neilotoole/sq/issues/652
 
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2

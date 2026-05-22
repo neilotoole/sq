@@ -109,9 +109,18 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 //	) ENGINE = MergeTree()
 //	ORDER BY `col1`  -- or ORDER BY tuple() if all columns are nullable
 func buildCreateTableStmt(tblDef *schema.Table) string {
+	return buildCreateTableStmtName(stringz.BacktickQuote(tblDef.Name), tblDef)
+}
+
+// buildCreateTableStmtName builds a CREATE TABLE statement using qtblName as the
+// table name. qtblName must already be quoted and may be schema-qualified (e.g.
+// `db`.`tbl`); CopyTable passes a schema-qualified name (tblfmt(toTable)) so the
+// destination table is created in toTable's schema rather than the connection's
+// current database. See https://github.com/neilotoole/sq/issues/652.
+func buildCreateTableStmtName(qtblName string, tblDef *schema.Table) string {
 	sb := strings.Builder{}
 	sb.WriteString("CREATE TABLE ")
-	sb.WriteString(stringz.BacktickQuote(tblDef.Name))
+	sb.WriteString(qtblName)
 	sb.WriteString(" (\n")
 
 	for i, colDef := range tblDef.Cols {
