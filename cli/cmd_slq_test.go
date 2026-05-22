@@ -55,6 +55,60 @@ func TestCmdSLQ_Insert_Create(t *testing.T) {
 	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 }
 
+// TestCmdSLQ_Insert_MultipleSchemas is an end-to-end regression test for
+// https://github.com/neilotoole/sq/issues/484. Inserting into a table that
+// also exists in another schema of the destination must succeed. Before the
+// fix, the MySQL/Postgres TableExists check counted the table name across all
+// schemas, so the create-if-not-exists hook (libsq.DBWriterCreateTableIfNotExistsHook)
+// misjudged existence: with the name present in two schemas it reported the
+// table as missing and tried to CREATE the already-existing table, failing
+// with "table already exists" — exactly the symptom reported in #484.
+//
+// This drives the full --insert path (the hook -> TableExists -> CreateTable),
+// which the unit test TestDriver_TableExists_MultipleSchemas does not exercise.
+// Only MySQL and Postgres were affected, so only those are tested here.
+func TestCmdSLQ_Insert_MultipleSchemas(t *testing.T) {
+	for _, dest := range []string{sakila.Pg, sakila.My} {
+		t.Run(dest, func(t *testing.T) {
+			th, destSrc, drvr, _, db := testh.NewWith(t, dest)
+			ctx := th.Context
+
+			conn, err := db.Conn(ctx)
+			require.NoError(t, err)
+			t.Cleanup(func() { assert.NoError(t, conn.Close()) })
+
+			// destTbl is an empty actor copy in the current schema; it stands in
+			// for the user's pre-existing destination table. th.CopyTable
+			// registers its own cleanup.
+			destTbl := th.CopyTable(true, destSrc, tablefq.From(sakila.TblActor), tablefq.T{}, false)
+
+			// Create a same-named table in another schema to trigger #484: the
+			// name now exists in two schemas at once.
+			otherSchema := "test_schema_" + stringz.Uniq8()
+			require.NoError(t, drvr.CreateSchema(ctx, conn, otherSchema))
+			t.Cleanup(func() { assert.NoError(t, drvr.DropSchema(ctx, conn, otherSchema)) })
+			_, err = drvr.CopyTable(ctx, conn, tablefq.From(sakila.TblActor),
+				tablefq.T{Schema: otherSchema, Table: destTbl}, false)
+			require.NoError(t, err)
+
+			// Insert actor rows into the current-schema table. Before the fix
+			// this failed with "table already exists" because TableExists saw
+			// the name in both schemas and the hook tried to re-CREATE it.
+			tr := testrun.New(ctx, t, nil).Add(*destSrc)
+			insertTo := fmt.Sprintf("%s.%s", destSrc.Handle, destTbl)
+			cols := stringz.PrefixSlice(sakila.TblActorCols(), ".")
+			query := fmt.Sprintf("%s.%s | %s", destSrc.Handle, sakila.TblActor, strings.Join(cols, ", "))
+
+			err = tr.Exec("slq", "--insert="+insertTo, query)
+			require.NoError(t, err)
+
+			sink, err := th.QuerySQL(destSrc, nil, "select * from "+destTbl)
+			require.NoError(t, err)
+			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
+		})
+	}
+}
+
 // TestCmdSLQ_Insert tests the "sq slq QUERY --insert=@dest.tbl" functionality,
 // which executes an SLQ query against one source and inserts the results into
 // a table in another (or the same) source. This is similar to TestCmdSQL_Insert
