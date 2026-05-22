@@ -141,6 +141,37 @@ and default values are rendered as inline code. Inspecting a single table
 (`sq inspect @sakila_sl3.film_actor --markdown`) renders that same per-table
 section on its own.
 
+### `--html`
+
+The `--html` format renders the same schema document as the `--markdown`
+format — a source overview, per-table column / key / constraint / index
+detail, and a [Mermaid](https://mermaid.js.org) entity-relationship diagram —
+but as a standalone HTML page. The diagrams are rendered client-side by
+Mermaid.js, so the page can be opened directly in a browser.
+
+```shell
+$ sq inspect @sakila_sl3 --html
+
+# Equivalent, using the generic format flag:
+$ sq inspect @sakila_sl3 -f html
+
+# Write the document to a file with the --output (-o) flag:
+$ sq inspect @sakila_sl3 --html -o sakila-schema.html
+```
+
+By default, the page loads Mermaid.js from a CDN, producing a small file that
+requires internet access to render the diagram. To produce a fully
+self-contained document that renders offline, enable the `format.html.embed`
+option, which inlines the Mermaid.js library:
+
+```shell
+$ sq config set format.html.embed true
+```
+
+As with `--markdown`, the `--overview` (`-O`) mode omits the schema and
+diagram, and inspecting a single table
+(`sq inspect @sakila_sl3.film_actor --html`) renders just that table's section.
+
 ## Source overview
 
 Sometimes you don't need the full schema, but still want to view the source
