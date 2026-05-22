@@ -347,7 +347,10 @@ func TestCmdInspect_markdown(t *testing.T) { //nolint:tparallel
 		require.Contains(t, out, "# `film_actor`")
 		require.Contains(t, out, "```mermaid")
 		require.Contains(t, out, "| Column | Type | Null | Key |")
+		// Foreign keys render as a unified table with a Direction column.
 		require.Contains(t, out, "**Foreign keys:**")
+		require.Contains(t, out, "| Direction | From | To | Constraint | On update | On delete |")
+		require.Contains(t, out, "| outgoing |")
 	})
 
 	t.Run("overview", func(t *testing.T) {

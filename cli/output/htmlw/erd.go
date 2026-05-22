@@ -169,32 +169,25 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 }
 
 func (w *metadataWriter) writeForeignKeys(buf *bytes.Buffer, tbl *metadata.Table) {
-	if tbl.FK != nil && len(tbl.FK.Outgoing) > 0 {
-		fks := append([]*metadata.ForeignKey(nil), tbl.FK.Outgoing...)
-		slices.SortFunc(fks, compareFK)
-		buf.WriteString("<p><strong>Foreign keys:</strong></p>\n<ul>\n")
-		for _, fk := range fks {
-			line := fmt.Sprintf("<li>%s → %s",
-				htmlCode(strings.Join(fk.Columns, ", ")), htmlCode(formatFKRef(fk)))
-			if extra := fkExtra(fk); extra != "" {
-				line += " (" + extra + ")"
-			}
-			buf.WriteString(line + "</li>\n")
-		}
-		buf.WriteString("</ul>\n")
+	rows := commonw.FKRows(tbl)
+	if len(rows) == 0 {
+		return
 	}
 
-	if tbl.FK != nil && len(tbl.FK.Incoming) > 0 {
-		fks := append([]*metadata.ForeignKey(nil), tbl.FK.Incoming...)
-		slices.SortFunc(fks, compareFK)
-		buf.WriteString("<p><strong>Referenced by:</strong></p>\n<ul>\n")
-		for _, fk := range fks {
-			fmt.Fprintf(buf, "<li>%s → %s</li>\n",
-				htmlCode(fmt.Sprintf("%s(%s)", fk.Table, strings.Join(fk.Columns, ", "))),
-				htmlCode(formatFKRef(fk)))
-		}
-		buf.WriteString("</ul>\n")
+	buf.WriteString("<p><strong>Foreign keys:</strong></p>\n")
+	headers := []string{"Direction", "From", "To", "Constraint", "On update", "On delete"}
+	cells := make([][]string, 0, len(rows))
+	for _, r := range rows {
+		cells = append(cells, []string{
+			html.EscapeString(r.Direction),
+			htmlCode(r.From),
+			htmlCode(r.To),
+			htmlCode(r.Constraint),
+			html.EscapeString(r.OnUpdate),
+			html.EscapeString(r.OnDelete),
+		})
 	}
+	writeTableEl(buf, headers, cells)
 }
 
 func (w *metadataWriter) writeUniqueConstraints(buf *bytes.Buffer, tbl *metadata.Table) {
@@ -248,54 +241,9 @@ func (w *metadataWriter) writeIndexes(buf *bytes.Buffer, tbl *metadata.Table) {
 	buf.WriteString("</ul>\n")
 }
 
-// formatFKRef returns "ref_table(ref_col, ...)" for fk, qualified with the
-// referenced schema/catalog when the reference points outside this source.
-func formatFKRef(fk *metadata.ForeignKey) string {
-	if fk == nil {
-		return ""
-	}
-	target := fk.RefTable
-	if fk.RefSchema != "" {
-		target = fk.RefSchema + "." + target
-	}
-	if fk.RefCatalog != "" {
-		target = fk.RefCatalog + "." + target
-	}
-	return target + "(" + strings.Join(fk.RefColumns, ", ") + ")"
-}
-
-// fkExtra returns an HTML parenthetical summary of a foreign key's
-// constraint name and referential actions, or "" when none are reported.
-func fkExtra(fk *metadata.ForeignKey) string {
-	var parts []string
-	if fk.Name != "" {
-		parts = append(parts, "constraint "+htmlCode(fk.Name))
-	}
-	if fk.OnDelete != "" {
-		parts = append(parts, "on delete "+html.EscapeString(strings.ToLower(fk.OnDelete)))
-	}
-	if fk.OnUpdate != "" {
-		parts = append(parts, "on update "+html.EscapeString(strings.ToLower(fk.OnUpdate)))
-	}
-	return strings.Join(parts, ", ")
-}
-
 func compareTables(a, b *metadata.Table) int {
 	if a.TableType == b.TableType {
 		return cmp.Compare(a.Name, b.Name)
 	}
 	return cmp.Compare(a.TableType, b.TableType)
-}
-
-func compareFK(a, b *metadata.ForeignKey) int {
-	if c := cmp.Compare(a.Name, b.Name); c != 0 {
-		return c
-	}
-	if c := cmp.Compare(a.Table, b.Table); c != 0 {
-		return c
-	}
-	if c := cmp.Compare(a.RefTable, b.RefTable); c != 0 {
-		return c
-	}
-	return cmp.Compare(strings.Join(a.Columns, ","), strings.Join(b.Columns, ","))
 }

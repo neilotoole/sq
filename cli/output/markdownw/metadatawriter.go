@@ -276,29 +276,23 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 }
 
 func (w *metadataWriter) writeForeignKeys(buf *bytes.Buffer, tbl *metadata.Table) {
-	if tbl.FK != nil && len(tbl.FK.Outgoing) > 0 {
-		fks := append([]*metadata.ForeignKey(nil), tbl.FK.Outgoing...)
-		slices.SortFunc(fks, compareFK)
-
-		buf.WriteString("\n**Foreign keys:**\n\n")
-		for _, fk := range fks {
-			line := fmt.Sprintf("- `%s` → `%s`", strings.Join(fk.Columns, ", "), formatFKRef(fk))
-			if extra := fkExtra(fk); extra != "" {
-				line += " (" + extra + ")"
-			}
-			buf.WriteString(line + "\n")
-		}
+	rows := commonw.FKRows(tbl)
+	if len(rows) == 0 {
+		return
 	}
 
-	if tbl.FK != nil && len(tbl.FK.Incoming) > 0 {
-		fks := append([]*metadata.ForeignKey(nil), tbl.FK.Incoming...)
-		slices.SortFunc(fks, compareFK)
-
-		buf.WriteString("\n**Referenced by:**\n\n")
-		for _, fk := range fks {
-			fmt.Fprintf(buf, "- `%s(%s)` → `%s`\n",
-				fk.Table, strings.Join(fk.Columns, ", "), formatFKRef(fk))
-		}
+	buf.WriteString("\n**Foreign keys:**\n\n")
+	writeTableRow(buf, "Direction", "From", "To", "Constraint", "On update", "On delete")
+	writeTableRow(buf, "---", "---", "---", "---", "---", "---")
+	for _, r := range rows {
+		writeTableRow(buf,
+			r.Direction,
+			mdCodeCell(r.From),
+			mdCodeCell(r.To),
+			mdCodeCell(r.Constraint),
+			r.OnUpdate,
+			r.OnDelete,
+		)
 	}
 }
 
@@ -356,59 +350,11 @@ func (w *metadataWriter) writeIndexes(buf *bytes.Buffer, tbl *metadata.Table) {
 	}
 }
 
-// fkExtra returns a parenthetical summary of a foreign key's constraint
-// name and referential actions, or "" when none are reported.
-func fkExtra(fk *metadata.ForeignKey) string {
-	var parts []string
-	if fk.Name != "" {
-		parts = append(parts, "constraint `"+fk.Name+"`")
-	}
-	if fk.OnDelete != "" {
-		parts = append(parts, "on delete "+strings.ToLower(fk.OnDelete))
-	}
-	if fk.OnUpdate != "" {
-		parts = append(parts, "on update "+strings.ToLower(fk.OnUpdate))
-	}
-	return strings.Join(parts, ", ")
-}
-
-// formatFKRef returns "ref_table(ref_col, ...)" for fk, qualified with
-// the referenced schema/catalog when the reference points outside this
-// source. Same-source references stay unqualified because
-// [metadata.LinkForeignKeys] clears RefCatalog / RefSchema when they
-// match the owning source.
-func formatFKRef(fk *metadata.ForeignKey) string {
-	if fk == nil {
-		return ""
-	}
-	target := fk.RefTable
-	if fk.RefSchema != "" {
-		target = fk.RefSchema + "." + target
-	}
-	if fk.RefCatalog != "" {
-		target = fk.RefCatalog + "." + target
-	}
-	return target + "(" + strings.Join(fk.RefColumns, ", ") + ")"
-}
-
 func compareTables(a, b *metadata.Table) int {
 	if a.TableType == b.TableType {
 		return cmp.Compare(a.Name, b.Name)
 	}
 	return cmp.Compare(a.TableType, b.TableType)
-}
-
-func compareFK(a, b *metadata.ForeignKey) int {
-	if c := cmp.Compare(a.Name, b.Name); c != 0 {
-		return c
-	}
-	if c := cmp.Compare(a.Table, b.Table); c != 0 {
-		return c
-	}
-	if c := cmp.Compare(a.RefTable, b.RefTable); c != 0 {
-		return c
-	}
-	return cmp.Compare(strings.Join(a.Columns, ","), strings.Join(b.Columns, ","))
 }
 
 // writeKVRow writes a "| key | value |" row, skipping empty values.

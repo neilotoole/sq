@@ -2,7 +2,9 @@
 package commonw
 
 import (
+	"cmp"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -87,4 +89,101 @@ func UCColumnSet(tbl *metadata.Table) map[string]bool {
 		}
 	}
 	return set
+}
+
+// FKRow is a single foreign-key relationship flattened for tabular
+// rendering, in either direction relative to the owning table. The fields
+// are plain (unwrapped) strings; callers apply any format-specific
+// code-wrapping or escaping. From and To always read referencing → referenced;
+// Direction identifies which side is the owning table.
+type FKRow struct {
+	// Direction is "outgoing" (a constraint declared on the owning table)
+	// or "incoming" (a constraint on another table that references the
+	// owning table).
+	Direction string
+
+	// From is the referencing side, formatted "table(col, ...)".
+	From string
+
+	// To is the referenced side, formatted "[catalog.][schema.]table(col, ...)".
+	To string
+
+	// Constraint is the constraint name, or "" when the source doesn't
+	// expose one (e.g. some SQLite tables).
+	Constraint string
+
+	// OnUpdate and OnDelete are the lower-cased referential actions (e.g.
+	// "cascade", "no action"), or "" when not reported by the source.
+	OnUpdate string
+	OnDelete string
+}
+
+// FKRows flattens tbl's outgoing and incoming foreign keys into rows for
+// tabular rendering. Outgoing rows (sorted) precede incoming rows (sorted).
+// Returns nil when tbl has no foreign keys in either direction.
+func FKRows(tbl *metadata.Table) []FKRow {
+	if tbl == nil || tbl.FK == nil {
+		return nil
+	}
+
+	outgoing := slices.Clone(tbl.FK.Outgoing)
+	slices.SortFunc(outgoing, compareFK)
+	incoming := slices.Clone(tbl.FK.Incoming)
+	slices.SortFunc(incoming, compareFK)
+
+	rows := make([]FKRow, 0, len(outgoing)+len(incoming))
+	for _, fk := range outgoing {
+		if fk != nil {
+			rows = append(rows, newFKRow("outgoing", fk))
+		}
+	}
+	for _, fk := range incoming {
+		if fk != nil {
+			rows = append(rows, newFKRow("incoming", fk))
+		}
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	return rows
+}
+
+func newFKRow(direction string, fk *metadata.ForeignKey) FKRow {
+	return FKRow{
+		Direction:  direction,
+		From:       fk.Table + "(" + strings.Join(fk.Columns, ", ") + ")",
+		To:         fkRef(fk),
+		Constraint: fk.Name,
+		OnUpdate:   strings.ToLower(fk.OnUpdate),
+		OnDelete:   strings.ToLower(fk.OnDelete),
+	}
+}
+
+// fkRef returns "[catalog.][schema.]ref_table(ref_col, ...)" for fk,
+// qualified with the referenced schema/catalog when the reference points
+// outside this source. Same-source references stay unqualified because
+// [metadata.LinkForeignKeys] clears RefCatalog / RefSchema when they match
+// the owning source.
+func fkRef(fk *metadata.ForeignKey) string {
+	target := fk.RefTable
+	if fk.RefSchema != "" {
+		target = fk.RefSchema + "." + target
+	}
+	if fk.RefCatalog != "" {
+		target = fk.RefCatalog + "." + target
+	}
+	return target + "(" + strings.Join(fk.RefColumns, ", ") + ")"
+}
+
+func compareFK(a, b *metadata.ForeignKey) int {
+	if c := cmp.Compare(a.Name, b.Name); c != 0 {
+		return c
+	}
+	if c := cmp.Compare(a.Table, b.Table); c != 0 {
+		return c
+	}
+	if c := cmp.Compare(a.RefTable, b.RefTable); c != 0 {
+		return c
+	}
+	return cmp.Compare(strings.Join(a.Columns, ","), strings.Join(b.Columns, ","))
 }
