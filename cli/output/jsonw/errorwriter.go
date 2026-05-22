@@ -40,7 +40,8 @@ type parseIssueJSON struct { //nolint:govet // declaration order is the JSON out
 	Col  int `json:"col"`
 	// StartChar and StopChar are 0-based rune offsets into Input (from the
 	// issue's Span), suitable for slicing []rune(Input) directly. Omitted when
-	// the issue has no span (e.g. the synthetic <EOF> token).
+	// the issue has no usable span: either a nil span (some lexer errors) or
+	// an empty span (Stop < Start, e.g. the synthetic <EOF> token).
 	StartChar  *int   `json:"start_char,omitempty"`
 	StopChar   *int   `json:"stop_char,omitempty"`
 	Token      string `json:"token,omitempty"`
