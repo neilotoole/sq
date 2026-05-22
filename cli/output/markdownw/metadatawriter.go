@@ -12,6 +12,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/output/internal/mermaid"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source/location"
@@ -53,7 +54,7 @@ func (w *metadataWriter) SourceMetadata(md *metadata.Source, showSchema bool) er
 		if len(tables) > 0 {
 			// Every table is known here, so its per-table ERD can infer
 			// cardinality consistently with the whole-source diagram above.
-			byName := tableIndex(tables)
+			byName := mermaid.Index(tables)
 			buf.WriteString("\n## Tables\n")
 			for _, tbl := range tables {
 				buf.WriteString("\n")
