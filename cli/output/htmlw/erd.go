@@ -29,7 +29,8 @@ func (w *metadataWriter) SourceMetadata(md *metadata.Source, showSchema bool) er
 		writeMermaidBlock(b, mermaid.SourceDiagram(tables), "erd", 2)
 		if len(tables) > 0 {
 			byName := mermaid.Index(tables)
-			b.WriteString("<h2>Tables</h2>\n")
+			b.WriteString(`<h2 id="tables" class="sq-tables">` +
+				`<a class="sq-anchor" href="#tables">Tables</a></h2>` + "\n")
 			for _, tbl := range tables {
 				w.writeTableSection(b, tbl, 3, byName)
 			}

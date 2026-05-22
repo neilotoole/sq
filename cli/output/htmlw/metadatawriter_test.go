@@ -77,7 +77,7 @@ func TestMetadataWriter_SourceMetadata(t *testing.T) {
 	require.Contains(t, got, "<!doctype html>")
 	require.Contains(t, got, "<title>@test</title>")
 	require.Contains(t, got, "<h1>@test</h1>")
-	require.Contains(t, got, "<h2>Tables</h2>")
+	require.Contains(t, got, `<h2 id="tables" class="sq-tables">`)
 	// Per-table headings are prominent (sq-table class) and deep-linkable
 	// (id + self-link), e.g. #actor.
 	require.Contains(t, got, `<h3 id="actor" class="sq-table">`)
@@ -120,7 +120,7 @@ func TestMetadataWriter_SourceMetadata_overview(t *testing.T) {
 	require.NoError(t, w.SourceMetadata(newTestSource(), false))
 	got := buf.String()
 	require.NotContains(t, got, `class="mermaid"`)
-	require.NotContains(t, got, "<h2>Tables</h2>")
+	require.NotContains(t, got, `id="tables"`)
 }
 
 // TestMetadataWriter_indexesAndUniqueConstraints checks that indexes and

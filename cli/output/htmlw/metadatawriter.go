@@ -37,6 +37,8 @@ const cssStyles = `:root { color-scheme: light dark; }
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.5; max-width: 70rem; margin: 2rem auto; padding: 0 1rem; }
 h1, h2, h3, h4 { line-height: 1.25; }
+.sq-tables { font-size: 1.9rem; margin-top: 3.5rem; padding-top: 1.5rem;
+  border-top: 3px solid #bbb; }
 .sq-table { font-size: 1.6rem; margin-top: 2.5rem; padding-top: 1.25rem;
   border-top: 2px solid #d0d0d0; }
 .sq-table code { font-size: inherit; background: none; padding: 0; }
@@ -57,6 +59,7 @@ pre.mermaid { background: #fff; border: 1px solid #ddd; border-radius: 8px;
   th, td { border-color: #444; }
   th { background: #2a2a2a; }
   .summary { color: #aaa; }
+  .sq-tables { border-top-color: #555; }
   .sq-table { border-top-color: #444; }
 }
 #sq-erd-overlay { position: fixed; inset: 0; z-index: 1000; display: none;
