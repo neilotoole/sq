@@ -57,6 +57,17 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [#484]:
+  [`--insert`](https://sq.io/docs/tutorial#insert--modify) into a MySQL or
+  Postgres table no longer fails when a same-named table exists in another
+  schema. The drivers' `TableExists` check queried `information_schema.tables`
+  filtered only by table name, so a name present in two schemas returned
+  `COUNT(*) = 2`; the `== 1` test then reported the table as missing and `sq`
+  tried to `CREATE` it, which the database rejected with "table already
+  exists". The lookup is now scoped to the connection's current schema
+  (`DATABASE()` for MySQL, `CURRENT_SCHEMA()` for Postgres) and treats any
+  match as existing, matching the other SQL drivers.
+
 - [#633]: A [query](https://sq.io/docs/query) using the single-segment
   `@handle.table:alias` form on the left of a pipeline (e.g.
   `@sakila.actor:a | .a.first_name`) no longer silently collapses to
@@ -1502,6 +1513,7 @@ make working with lots of sources much easier.
 [#437]: https://github.com/neilotoole/sq/issues/437
 [#445]: https://github.com/neilotoole/sq/issues/445
 [#446]: https://github.com/neilotoole/sq/issues/446
+[#484]: https://github.com/neilotoole/sq/issues/484
 [#498]: https://github.com/neilotoole/sq/issues/498
 [#469]: https://github.com/neilotoole/sq/issues/469
 [#470]: https://github.com/neilotoole/sq/issues/470
