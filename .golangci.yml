@@ -380,6 +380,14 @@ linters:
       - linters:
           - revive
         text: "avoid package names that conflict with Go standard library package names"
+      # sq's diff is line-oriented, so it deliberately uses the line-based
+      # myers.ComputeEdits. Upstream go-udiff (v0.4.1+) annotated it as
+      # deprecated/"moribund", but the non-deprecated rune-based alternatives
+      # would change diff output. Suppress SA1019 only for these call sites.
+      - linters:
+          - staticcheck
+        path: libsq/core/diffdoc/compute(_test)?\.go
+        text: ComputeEdits is deprecated
     paths:
       - cli/output/jsonw/internal/jcolorenc
       - libsq/core/diffdoc/internal/go-udiff
