@@ -100,3 +100,49 @@ func TestFKRows(t *testing.T) {
 		require.Empty(t, rows[0].Constraint) // unnamed constraint
 	})
 }
+
+func TestIndexRows(t *testing.T) {
+	require.Nil(t, commonw.IndexRows(nil))
+	require.Nil(t, commonw.IndexRows(&metadata.Table{Name: "t"}))
+
+	tbl := &metadata.Table{
+		Name: "film",
+		Indexes: []*metadata.Index{
+			{Name: "idx_title", Columns: []string{"title"}, Type: "BTREE"},
+			{Name: "film_pkey", Columns: []string{"film_id"}, Unique: true, Primary: true, Type: "BTREE"},
+			{Name: "film_uq", Columns: []string{"a", "b"}, Unique: true},
+		},
+	}
+
+	rows := commonw.IndexRows(tbl)
+	require.Len(t, rows, 3)
+	// Sorted by name; Type is lower-cased; composite columns joined.
+	require.Equal(t, commonw.IndexRow{
+		Name: "film_pkey", Columns: "film_id", Unique: true, Primary: true, Type: "btree",
+	}, rows[0])
+	require.Equal(t, commonw.IndexRow{
+		Name: "film_uq", Columns: "a, b", Unique: true,
+	}, rows[1])
+	require.Equal(t, commonw.IndexRow{
+		Name: "idx_title", Columns: "title", Type: "btree",
+	}, rows[2])
+}
+
+func TestUCRows(t *testing.T) {
+	require.Nil(t, commonw.UCRows(nil))
+	require.Nil(t, commonw.UCRows(&metadata.Table{Name: "t"}))
+
+	tbl := &metadata.Table{
+		Name: "t",
+		UniqueConstraints: []*metadata.UniqueConstraint{
+			{Name: "t_email_key", Columns: []string{"email"}},
+			{Name: "", Columns: []string{"x", "y"}}, // unnamed
+		},
+	}
+
+	rows := commonw.UCRows(tbl)
+	require.Len(t, rows, 2)
+	// Sorted by name; the unnamed constraint (empty name) sorts first.
+	require.Equal(t, commonw.UCRow{Name: "", Columns: "x, y"}, rows[0])
+	require.Equal(t, commonw.UCRow{Name: "t_email_key", Columns: "email"}, rows[1])
+}

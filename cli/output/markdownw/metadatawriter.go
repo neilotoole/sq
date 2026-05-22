@@ -297,56 +297,36 @@ func (w *metadataWriter) writeForeignKeys(buf *bytes.Buffer, tbl *metadata.Table
 }
 
 func (w *metadataWriter) writeUniqueConstraints(buf *bytes.Buffer, tbl *metadata.Table) {
-	if len(tbl.UniqueConstraints) == 0 {
+	rows := commonw.UCRows(tbl)
+	if len(rows) == 0 {
 		return
 	}
 
-	ucs := append([]*metadata.UniqueConstraint(nil), tbl.UniqueConstraints...)
-	slices.SortFunc(ucs, func(a, b *metadata.UniqueConstraint) int {
-		if c := cmp.Compare(a.Name, b.Name); c != 0 {
-			return c
-		}
-		return cmp.Compare(strings.Join(a.Columns, ","), strings.Join(b.Columns, ","))
-	})
-
 	buf.WriteString("\n**Unique constraints:**\n\n")
-	for _, uc := range ucs {
-		name := uc.Name
-		if name == "" {
-			name = "(unnamed)"
-		}
-		fmt.Fprintf(buf, "- `%s` (%s)\n", name, strings.Join(uc.Columns, ", "))
+	writeTableRow(buf, "Constraint", "Columns")
+	writeTableRow(buf, "---", "---")
+	for _, r := range rows {
+		writeTableRow(buf, mdCodeCell(r.Name), mdCodeCell(r.Columns))
 	}
 }
 
 func (w *metadataWriter) writeIndexes(buf *bytes.Buffer, tbl *metadata.Table) {
-	if len(tbl.Indexes) == 0 {
+	rows := commonw.IndexRows(tbl)
+	if len(rows) == 0 {
 		return
 	}
 
-	idxs := append([]*metadata.Index(nil), tbl.Indexes...)
-	slices.SortFunc(idxs, func(a, b *metadata.Index) int {
-		return cmp.Compare(a.Name, b.Name)
-	})
-
 	buf.WriteString("\n**Indexes:**\n\n")
-	for _, idx := range idxs {
-		var tags []string
-		switch {
-		case idx.Primary:
-			tags = append(tags, "primary")
-		case idx.Unique:
-			tags = append(tags, "unique")
-		}
-		if idx.Type != "" {
-			tags = append(tags, strings.ToLower(idx.Type))
-		}
-
-		line := fmt.Sprintf("- `%s` (%s)", idx.Name, strings.Join(idx.Columns, ", "))
-		if len(tags) > 0 {
-			line += " — " + strings.Join(tags, ", ")
-		}
-		buf.WriteString(line + "\n")
+	writeTableRow(buf, "Index", "Columns", "Unique", "Primary", "Type")
+	writeTableRow(buf, "---", "---", ":---:", ":---:", "---")
+	for _, r := range rows {
+		writeTableRow(buf,
+			mdCodeCell(r.Name),
+			mdCodeCell(r.Columns),
+			checkMark(r.Unique),
+			checkMark(r.Primary),
+			r.Type,
+		)
 	}
 }
 

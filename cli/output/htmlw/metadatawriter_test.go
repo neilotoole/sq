@@ -100,6 +100,35 @@ func TestMetadataWriter_SourceMetadata_overview(t *testing.T) {
 	require.NotContains(t, got, "<h2>Tables</h2>")
 }
 
+// TestMetadataWriter_indexesAndUniqueConstraints checks that indexes and
+// unique constraints render as <table> elements with the expected columns.
+func TestMetadataWriter_indexesAndUniqueConstraints(t *testing.T) {
+	tbl := &metadata.Table{
+		Name: "t", TableType: "table", RowCount: 1,
+		Columns: []*metadata.Column{{Name: "id", ColumnType: "int"}},
+		Indexes: []*metadata.Index{
+			{Name: "t_pkey", Columns: []string{"id"}, Unique: true, Primary: true, Type: "BTREE"},
+			{Name: "t_name_idx", Columns: []string{"name"}},
+		},
+		UniqueConstraints: []*metadata.UniqueConstraint{
+			{Name: "t_email_key", Columns: []string{"email"}},
+		},
+	}
+
+	buf := &bytes.Buffer{}
+	w := htmlw.NewMetadataWriter(buf, output.NewPrinting(), false)
+	require.NoError(t, w.TableMetadata(tbl))
+	got := buf.String()
+
+	require.Contains(t, got, "<th>Index</th>")
+	require.Contains(t, got, "<th>Unique</th>")
+	require.Contains(t, got, "<td><code>t_pkey</code></td>")
+	require.Contains(t, got, "<td>✓</td>")
+	require.Contains(t, got, "<td>btree</td>")
+	require.Contains(t, got, "<th>Constraint</th>")
+	require.Contains(t, got, "<td><code>t_email_key</code></td>")
+}
+
 func TestMetadataWriter_embed(t *testing.T) {
 	buf := &bytes.Buffer{}
 	w := htmlw.NewMetadataWriter(buf, output.NewPrinting(), true)

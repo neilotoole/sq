@@ -177,6 +177,37 @@ func TestMetadataWriter_SourceMetadata_overview(t *testing.T) {
 	require.Equal(t, want, buf.String())
 }
 
+// TestMetadataWriter_indexesAndUniqueConstraints checks that indexes and
+// unique constraints render as tables (the test source used elsewhere has
+// neither). Type is empty for one index, exercising the blank cell.
+func TestMetadataWriter_indexesAndUniqueConstraints(t *testing.T) {
+	tbl := &metadata.Table{
+		Name: "t", TableType: "table", RowCount: 1,
+		Columns: []*metadata.Column{{Name: "id", ColumnType: "int"}},
+		Indexes: []*metadata.Index{
+			{Name: "t_pkey", Columns: []string{"id"}, Unique: true, Primary: true, Type: "BTREE"},
+			{Name: "t_name_idx", Columns: []string{"name"}},
+		},
+		UniqueConstraints: []*metadata.UniqueConstraint{
+			{Name: "t_email_key", Columns: []string{"email"}},
+		},
+	}
+
+	buf := &bytes.Buffer{}
+	w := markdownw.NewMetadataWriter(buf, output.NewPrinting())
+	require.NoError(t, w.TableMetadata(tbl))
+	out := buf.String()
+
+	require.Contains(t, out, "**Indexes:**")
+	require.Contains(t, out, "| Index | Columns | Unique | Primary | Type |")
+	require.Contains(t, out, "| `t_pkey` | `id` | ✓ | ✓ | btree |")
+	require.Contains(t, out, "| `t_name_idx` | `name` |  |  |  |")
+
+	require.Contains(t, out, "**Unique constraints:**")
+	require.Contains(t, out, "| Constraint | Columns |")
+	require.Contains(t, out, "| `t_email_key` | `email` |")
+}
+
 func TestMetadataWriter_TableMetadata(t *testing.T) {
 	const want = `# ` + "`film_actor`" + `
 

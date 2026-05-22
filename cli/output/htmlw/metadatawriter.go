@@ -112,6 +112,15 @@ func yesNo(b bool) string {
 	return "no"
 }
 
+// checkMark returns "✓" when b is true, else "" — for boolean table cells
+// such as an index's Unique / Primary columns.
+func checkMark(b bool) string {
+	if b {
+		return "✓"
+	}
+	return ""
+}
+
 // writeTableEl writes a simple <table> with the given headers and rows. Each
 // cell is written verbatim (callers pre-escape / wrap as needed).
 func writeTableEl(buf *bytes.Buffer, headers []string, rows [][]string) {

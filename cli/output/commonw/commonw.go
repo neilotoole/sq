@@ -187,3 +187,97 @@ func compareFK(a, b *metadata.ForeignKey) int {
 	}
 	return cmp.Compare(strings.Join(a.Columns, ","), strings.Join(b.Columns, ","))
 }
+
+// IndexRow is a single index flattened for tabular rendering. Name and
+// Columns are plain (unwrapped) strings; callers apply any format-specific
+// code-wrapping or escaping.
+type IndexRow struct { //nolint:govet // field order mirrors the rendered columns
+	// Name is the index name as reported by the source (may be
+	// engine-generated, e.g. "sqlite_autoindex_film_actor_1").
+	Name string
+
+	// Columns are the indexed columns joined as "col, col".
+	Columns string
+
+	// Unique reports whether the index enforces uniqueness.
+	Unique bool
+
+	// Primary reports whether the index backs the primary key (a subset
+	// of Unique).
+	Primary bool
+
+	// Type is the lower-cased access-method name (e.g. "btree", "gist"),
+	// or "" when the source doesn't report it (e.g. SQLite).
+	Type string
+}
+
+// IndexRows flattens tbl's indexes into rows for tabular rendering, sorted
+// by index name. Returns nil when tbl has no indexes.
+func IndexRows(tbl *metadata.Table) []IndexRow {
+	if tbl == nil || len(tbl.Indexes) == 0 {
+		return nil
+	}
+
+	idxs := slices.Clone(tbl.Indexes)
+	slices.SortFunc(idxs, func(a, b *metadata.Index) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+
+	rows := make([]IndexRow, 0, len(idxs))
+	for _, idx := range idxs {
+		if idx == nil {
+			continue
+		}
+		rows = append(rows, IndexRow{
+			Name:    idx.Name,
+			Columns: strings.Join(idx.Columns, ", "),
+			Unique:  idx.Unique,
+			Primary: idx.Primary,
+			Type:    strings.ToLower(idx.Type),
+		})
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	return rows
+}
+
+// UCRow is a single unique constraint flattened for tabular rendering. Name
+// and Columns are plain (unwrapped) strings; callers apply any
+// format-specific code-wrapping or escaping.
+type UCRow struct {
+	// Name is the constraint name, or "" when the source doesn't expose
+	// one (some SQLite cases).
+	Name string
+
+	// Columns are the constrained columns joined as "col, col".
+	Columns string
+}
+
+// UCRows flattens tbl's unique constraints into rows for tabular rendering,
+// sorted by name then columns. Returns nil when tbl has none.
+func UCRows(tbl *metadata.Table) []UCRow {
+	if tbl == nil || len(tbl.UniqueConstraints) == 0 {
+		return nil
+	}
+
+	ucs := slices.Clone(tbl.UniqueConstraints)
+	slices.SortFunc(ucs, func(a, b *metadata.UniqueConstraint) int {
+		if c := cmp.Compare(a.Name, b.Name); c != 0 {
+			return c
+		}
+		return cmp.Compare(strings.Join(a.Columns, ","), strings.Join(b.Columns, ","))
+	})
+
+	rows := make([]UCRow, 0, len(ucs))
+	for _, uc := range ucs {
+		if uc == nil {
+			continue
+		}
+		rows = append(rows, UCRow{Name: uc.Name, Columns: strings.Join(uc.Columns, ", ")})
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	return rows
+}

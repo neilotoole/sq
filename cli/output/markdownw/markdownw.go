@@ -149,6 +149,15 @@ func escapeMarkdown(s string) string {
 	return s
 }
 
+// checkMark returns "✓" when b is true, else "" — for centered boolean
+// table cells such as an index's Unique / Primary columns.
+func checkMark(b bool) string {
+	if b {
+		return "✓"
+	}
+	return ""
+}
+
 // mdCode renders s as a Markdown inline-code span (backtick-quoted), used
 // for identifiers such as table and column names so they read as code
 // rather than prose. An empty string yields an empty span (no backticks).

@@ -7,7 +7,6 @@ import (
 	"html"
 	"slices"
 	"strconv"
-	"strings"
 
 	"github.com/neilotoole/sq/cli/output/commonw"
 	"github.com/neilotoole/sq/cli/output/internal/mermaid"
@@ -191,54 +190,36 @@ func (w *metadataWriter) writeForeignKeys(buf *bytes.Buffer, tbl *metadata.Table
 }
 
 func (w *metadataWriter) writeUniqueConstraints(buf *bytes.Buffer, tbl *metadata.Table) {
-	if len(tbl.UniqueConstraints) == 0 {
+	rows := commonw.UCRows(tbl)
+	if len(rows) == 0 {
 		return
 	}
-	ucs := append([]*metadata.UniqueConstraint(nil), tbl.UniqueConstraints...)
-	slices.SortFunc(ucs, func(a, b *metadata.UniqueConstraint) int {
-		if c := cmp.Compare(a.Name, b.Name); c != 0 {
-			return c
-		}
-		return cmp.Compare(strings.Join(a.Columns, ","), strings.Join(b.Columns, ","))
-	})
-	buf.WriteString("<p><strong>Unique constraints:</strong></p>\n<ul>\n")
-	for _, uc := range ucs {
-		name := uc.Name
-		if name == "" {
-			name = "(unnamed)"
-		}
-		fmt.Fprintf(buf, "<li>%s (%s)</li>\n",
-			htmlCode(name), html.EscapeString(strings.Join(uc.Columns, ", ")))
+	buf.WriteString("<p><strong>Unique constraints:</strong></p>\n")
+	cells := make([][]string, 0, len(rows))
+	for _, r := range rows {
+		cells = append(cells, []string{htmlCode(r.Name), htmlCode(r.Columns)})
 	}
-	buf.WriteString("</ul>\n")
+	writeTableEl(buf, []string{"Constraint", "Columns"}, cells)
 }
 
 func (w *metadataWriter) writeIndexes(buf *bytes.Buffer, tbl *metadata.Table) {
-	if len(tbl.Indexes) == 0 {
+	rows := commonw.IndexRows(tbl)
+	if len(rows) == 0 {
 		return
 	}
-	idxs := append([]*metadata.Index(nil), tbl.Indexes...)
-	slices.SortFunc(idxs, func(a, b *metadata.Index) int { return cmp.Compare(a.Name, b.Name) })
-	buf.WriteString("<p><strong>Indexes:</strong></p>\n<ul>\n")
-	for _, idx := range idxs {
-		var tags []string
-		switch {
-		case idx.Primary:
-			tags = append(tags, "primary")
-		case idx.Unique:
-			tags = append(tags, "unique")
-		}
-		if idx.Type != "" {
-			tags = append(tags, strings.ToLower(idx.Type))
-		}
-		line := fmt.Sprintf("<li>%s (%s)",
-			htmlCode(idx.Name), html.EscapeString(strings.Join(idx.Columns, ", ")))
-		if len(tags) > 0 {
-			line += " — " + html.EscapeString(strings.Join(tags, ", "))
-		}
-		buf.WriteString(line + "</li>\n")
+	buf.WriteString("<p><strong>Indexes:</strong></p>\n")
+	headers := []string{"Index", "Columns", "Unique", "Primary", "Type"}
+	cells := make([][]string, 0, len(rows))
+	for _, r := range rows {
+		cells = append(cells, []string{
+			htmlCode(r.Name),
+			htmlCode(r.Columns),
+			checkMark(r.Unique),
+			checkMark(r.Primary),
+			html.EscapeString(r.Type),
+		})
 	}
-	buf.WriteString("</ul>\n")
+	writeTableEl(buf, headers, cells)
 }
 
 func compareTables(a, b *metadata.Table) int {

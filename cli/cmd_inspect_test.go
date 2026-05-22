@@ -351,6 +351,9 @@ func TestCmdInspect_markdown(t *testing.T) { //nolint:tparallel
 		require.Contains(t, out, "**Foreign keys:**")
 		require.Contains(t, out, "| Direction | From | To | Constraint | On update | On delete |")
 		require.Contains(t, out, "| outgoing |")
+		// Indexes render as a table too (film_actor has a primary index).
+		require.Contains(t, out, "**Indexes:**")
+		require.Contains(t, out, "| Index | Columns | Unique | Primary | Type |")
 	})
 
 	t.Run("overview", func(t *testing.T) {
