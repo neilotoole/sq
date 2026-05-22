@@ -83,6 +83,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [#633]: A [query](https://sq.io/docs/query) using the single-segment
+  `@handle.table:alias` form on the left of a pipeline (e.g.
+  `@sakila.actor:a | .a.first_name`) no longer silently collapses to
+  `SELECT * FROM <table>`. The grammar previously had no alias slot on the
+  `handleTable` rule, so the parser's error recovery silently discarded the
+  alias and every downstream segment (projections, joins, etc.). The
+  multi-segment form `@sakila | .actor:a | ...` was unaffected.
+
 - [#445]: Cross-source [`join`](https://sq.io/docs/query#join) no longer
   fails when the participating sources contain tables with the same
   name (e.g. `@src1.actor | join(@src2.actor, .actor_id)`). Previously
@@ -1552,6 +1560,7 @@ make working with lots of sources much easier.
 [#615]: https://github.com/neilotoole/sq/issues/615
 [#628]: https://github.com/neilotoole/sq/issues/628
 [#629]: https://github.com/neilotoole/sq/issues/629
+[#633]: https://github.com/neilotoole/sq/issues/633
 [#637]: https://github.com/neilotoole/sq/pull/637
 [#640]: https://github.com/neilotoole/sq/issues/640
 

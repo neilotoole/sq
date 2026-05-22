@@ -442,11 +442,11 @@ arg : ARG;
 // the source segment to be elided:
 //
 //     @sakila.actor             -- equivalent to: @sakila | .actor
-//     @sakila.actor:a           -- with alias on the table (in handleTable's
-//                                   parent context, not in the lexer itself)
+//     @sakila.actor:a           -- with alias on the table (the trailing
+//                                   `(alias)?` on the handleTable rule)
 
-// handleTable is `@source.table`.
-handleTable: HANDLE NAME;
+// handleTable is `@source.table`, with an optional trailing alias.
+handleTable: HANDLE NAME (alias)?;
 
 // handle is a bare source handle: `@source`.
 handle: HANDLE;
