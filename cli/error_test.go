@@ -25,8 +25,9 @@ type e2eParseError struct {
 }
 
 type e2eParseIssue struct {
-	Col int    `json:"col"`
-	Msg string `json:"msg"`
+	Line int    `json:"line"`
+	Col  int    `json:"col"`
+	Msg  string `json:"msg"`
 }
 
 // TestPrintError_ParseError_EndToEnd runs a malformed SLQ query through the
@@ -57,7 +58,9 @@ func TestPrintError_ParseError_EndToEnd(t *testing.T) {
 		require.NoError(t, json.Unmarshal(tr.ErrOut.Bytes(), &got))
 		require.NotNil(t, got.ParseError, "parse_error must be present in --json error output")
 		require.NotEmpty(t, got.ParseError.Issues)
-		require.Equal(t, 9, got.ParseError.Issues[0].Col, "JSON col is 0-based")
+		require.Equal(t, 1, got.ParseError.Issues[0].Line, "JSON line is 1-based")
+		require.Equal(t, 10, got.ParseError.Issues[0].Col,
+			"JSON col is 1-based, matching the text output's 'col 10'")
 		require.Contains(t, got.ParseError.Issues[0].Msg, "unexpected 'this_is_invalid'")
 	})
 }

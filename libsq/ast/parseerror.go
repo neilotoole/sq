@@ -72,13 +72,26 @@ type ParseIssue struct {
 
 	// Col is the 0-based column on Line where the issue was detected. It is
 	// kept 0-based to match Span's rune offsets and ANTLR's reported column;
-	// human-facing renderings use DisplayCol for the 1-based value.
+	// all output renderings (text and --json alike) use DisplayCol for the
+	// 1-based value users and consumers see.
 	Col int
 }
 
-// DisplayCol returns the 1-based column for human-facing output (Col is
-// stored 0-based). Use this for messages shown to users; the raw 0-based
-// Col is what the JSON wire form emits for programmatic consumers.
+// DisplayCol returns the 1-based column for output (Col is stored 0-based).
+//
+// Every output channel reports 1-based line/col: the text error message and
+// the --json wire form both route the column through DisplayCol. We emit
+// 1-based, not the raw 0-based Col, because that's the universal human
+// convention — every compiler (gcc, go, rustc), linter, and editor status bar
+// counts line/col from 1. A reader who sees "col 0" for the first column, or
+// "col 4" for the 5th character, assumes a bug, and "line 4" that means
+// "editor line 5" is a cross-referencing papercut. Even LSP, which is 0-based
+// on the wire, is translated to 1-based by editors before display: 0-based
+// human output has essentially no successful precedent.
+//
+// Col stays 0-based in storage to index []rune(Input) directly and align with
+// Span's rune offsets; the 0-based machine offsets are exposed separately as
+// start_char/stop_char for programmatic consumers that need to slice the input.
 func (iss ParseIssue) DisplayCol() int {
 	return iss.Col + 1
 }

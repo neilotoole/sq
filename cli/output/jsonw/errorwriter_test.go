@@ -65,6 +65,12 @@ func TestJSONErrorWriter_ParseError(t *testing.T) {
 	require.Equal(t, pe.Input, got.ParseError.Input)
 	require.Len(t, got.ParseError.Issues, 1)
 	require.Equal(t, "this_is_invalid", got.ParseError.Issues[0].Token)
+	// line/col are 1-based human coordinates: a 0-based Col of 9 surfaces as
+	// col 10, matching the text error output.
+	require.Equal(t, 1, got.ParseError.Issues[0].Line)
+	require.Equal(t, 10, got.ParseError.Issues[0].Col)
+	// start_char/stop_char stay 0-based rune offsets, so start_char (9) is
+	// deliberately one less than col (10) for the same position.
 	require.Equal(t, 9, got.ParseError.Issues[0].StartChar)
 	require.Equal(t, 23, got.ParseError.Issues[0].StopChar)
 }
