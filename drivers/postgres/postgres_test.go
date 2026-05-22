@@ -20,6 +20,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestSmoke(t *testing.T) {
@@ -427,6 +428,7 @@ func TestIsErrRelationDoesNotExist(t *testing.T) {
 // TableExists wrongly reported the table as absent and sq tried to CREATE the
 // already-existing table, failing the insert.
 func TestTableExists_CurrentSchema(t *testing.T) {
+	tu.SkipShort(t, true)
 	t.Parallel()
 
 	for _, handle := range sakila.PgAll() {
@@ -439,7 +441,8 @@ func TestTableExists_CurrentSchema(t *testing.T) {
 			tblName := stringz.UniqTableName(t.Name())
 			otherSchema := stringz.UniqTableName("gh484_other")
 
-			// Create the table in the current schema (public).
+			// Create the table in the current schema (current_schema(),
+			// whatever search_path resolves it to — typically public).
 			_, err := db.ExecContext(ctx, `CREATE TABLE "`+tblName+`" (id int)`)
 			require.NoError(t, err)
 			t.Cleanup(func() {

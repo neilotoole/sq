@@ -11,6 +11,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestSmoke(t *testing.T) {
@@ -163,6 +164,7 @@ func TestNumericSchema(t *testing.T) {
 // TableExists wrongly reported the table as absent and sq tried to CREATE the
 // already-existing table, failing the insert. In MySQL a schema is a database.
 func TestTableExists_CurrentSchema(t *testing.T) {
+	tu.SkipShort(t, true)
 	t.Parallel()
 
 	for _, handle := range sakila.MyAll() {
