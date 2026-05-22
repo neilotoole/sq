@@ -94,6 +94,7 @@ func TestMetadataWriter_SourceMetadata(t *testing.T) {
 	// Foreign keys render as a table with a Direction column; the test
 	// source has both an outgoing FK (film_actor → actor) and the matching
 	// incoming back-reference (on actor). The section label is a <caption>.
+	require.Contains(t, got, "<caption>Columns</caption>")
 	require.Contains(t, got, "<caption>Foreign keys</caption>")
 	require.Contains(t, got, "<th>Direction</th>")
 	require.Contains(t, got, "<td>outgoing</td>")

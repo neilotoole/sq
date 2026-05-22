@@ -164,7 +164,7 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 		}
 		rows = append(rows, row)
 	}
-	writeTableEl(buf, "", headers, rows)
+	writeTableEl(buf, "Columns", headers, rows)
 }
 
 func (w *metadataWriter) writeForeignKeys(buf *bytes.Buffer, tbl *metadata.Table) {
