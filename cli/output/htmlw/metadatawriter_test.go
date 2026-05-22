@@ -83,6 +83,10 @@ func TestMetadataWriter_SourceMetadata(t *testing.T) {
 	require.Contains(t, got, "actor ||--o{ film_actor")
 	require.Contains(t, got, "<td><code>actor_id</code></td>")
 	require.Contains(t, got, "cdn.jsdelivr.net/npm/mermaid@11")
+	// Mermaid theme syncs with the page's color scheme so relationship
+	// lines stay legible in dark mode.
+	require.Contains(t, got,
+		"theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default'")
 	// Foreign keys render as a table with a Direction column; the test
 	// source has both an outgoing FK (film_actor → actor) and the matching
 	// incoming back-reference (on actor).
@@ -137,4 +141,7 @@ func TestMetadataWriter_embed(t *testing.T) {
 	require.Greater(t, len(got), 500_000, "embedded output inlines the mermaid library")
 	require.NotContains(t, got, "cdn.jsdelivr.net")
 	require.Contains(t, got, "mermaid.initialize")
+	// Theme sync applies to the embedded path too.
+	require.Contains(t, got,
+		"theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default'")
 }

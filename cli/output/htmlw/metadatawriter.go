@@ -76,6 +76,14 @@ func (w *metadataWriter) writeDocument(
 	return nil
 }
 
+// mermaidInit is the Mermaid initialization call. It picks the dark theme
+// when the page is viewed under a dark color scheme (matching the document's
+// own prefers-color-scheme styling) so the relationship lines stay legible on
+// a dark background; otherwise it uses the default light theme. The choice is
+// made once at load; toggling the OS theme requires a reload.
+const mermaidInit = "mermaid.initialize({ startOnLoad: true, " +
+	"theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default' });\n"
+
 // writeMermaidScript writes the <script> that loads and initializes Mermaid:
 // the inlined vendored bundle when embed is set, else a pinned CDN import.
 func (w *metadataWriter) writeMermaidScript(buf *bytes.Buffer) error {
@@ -87,12 +95,14 @@ func (w *metadataWriter) writeMermaidScript(buf *bytes.Buffer) error {
 		buf.WriteString("<script>")
 		buf.Write(js)
 		buf.WriteString("</script>\n")
-		buf.WriteString("<script>mermaid.initialize({ startOnLoad: true });</script>\n")
+		buf.WriteString("<script>")
+		buf.WriteString(mermaidInit)
+		buf.WriteString("</script>\n")
 		return nil
 	}
 	buf.WriteString("<script type=\"module\">\n")
 	buf.WriteString("import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/+esm';\n")
-	buf.WriteString("mermaid.initialize({ startOnLoad: true });\n")
+	buf.WriteString(mermaidInit)
 	buf.WriteString("</script>\n")
 	return nil
 }
