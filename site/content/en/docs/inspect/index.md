@@ -130,11 +130,13 @@ erDiagram
 ```
 ````
 
-Each table then gets its own section with a column table and its
-foreign-key, unique-constraint, and index detail. Inspecting a single table
-(`sq inspect @sakila_sl3.film_actor --markdown`) renders a focused diagram of
-just that table and its directly-related neighbors, followed by the same
-per-table detail.
+Each table then gets its own section, led by a focused diagram of just that
+table and its directly-related neighbors (related tables appear as bare,
+column-less boxes), followed by a column table and the table's foreign-key,
+unique-constraint, and index detail. Identifiers and the column type, key,
+and default values are rendered as inline code. Inspecting a single table
+(`sq inspect @sakila_sl3.film_actor --markdown`) renders that same per-table
+section on its own.
 
 ## Source overview
 

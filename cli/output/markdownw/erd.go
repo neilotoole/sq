@@ -39,39 +39,55 @@ func (w *metadataWriter) writeSourceERD(buf *bytes.Buffer, tables []*metadata.Ta
 		}
 	}
 
-	w.renderERD(buf, tables, sortDedupEdges(edges))
+	w.renderERD(buf, tables, sortDedupEdges(edges), 2)
 }
 
 // writeTableERD writes a focused entity-relationship diagram for a
-// single table: the table's own entity block plus edges to the tables
-// it references and that reference it. Neighbor tables, whose columns
-// aren't available in a single-table inspect, are rendered by Mermaid
-// as empty entity boxes referenced by the edges.
-func (w *metadataWriter) writeTableERD(buf *bytes.Buffer, tbl *metadata.Table) {
-	byName := map[string]*metadata.Table{tbl.Name: tbl}
+// single table: the table's own entity block (its columns) plus an edge
+// for every foreign key it participates in. Related tables are rendered
+// by Mermaid as bare, column-less entity boxes — the edges point at just
+// the neighbor's name, not a full diagram of it.
+//
+// headingLevel sets the Markdown '#' level of the diagram's heading: 2
+// for a single-table inspect (under a level-1 table heading) and 4 for a
+// per-table diagram nested under a whole-source inspect's level-3 table
+// heading. cardIndex, when non-nil, supplies neighbor tables for
+// cardinality inference (whole-source inspect, where every table is
+// known), keeping per-table cardinality consistent with the whole-source
+// diagram; pass nil for a single-table inspect, where only tbl is known
+// and the neighbor side falls back to the default cardinality.
+func (w *metadataWriter) writeTableERD(
+	buf *bytes.Buffer, tbl *metadata.Table, headingLevel int, cardIndex map[string]*metadata.Table,
+) {
+	if cardIndex == nil {
+		cardIndex = map[string]*metadata.Table{tbl.Name: tbl}
+	}
 
 	var edges []erdEdge
 	if tbl.FK != nil {
 		for _, fk := range tbl.FK.Outgoing {
-			if e, ok := fkEdge(fk, byName); ok {
+			if e, ok := fkEdge(fk, cardIndex); ok {
 				edges = append(edges, e)
 			}
 		}
 		for _, fk := range tbl.FK.Incoming {
-			if e, ok := fkEdge(fk, byName); ok {
+			if e, ok := fkEdge(fk, cardIndex); ok {
 				edges = append(edges, e)
 			}
 		}
 	}
 
-	w.renderERD(buf, []*metadata.Table{tbl}, sortDedupEdges(edges))
+	w.renderERD(buf, []*metadata.Table{tbl}, sortDedupEdges(edges), headingLevel)
 }
 
-// renderERD writes the "## Entity Relationship Diagram" section: a
-// fenced ```mermaid erDiagram with an entity block per table in
-// entities that has columns, followed by edges. It writes nothing when
-// there is neither an entity block nor an edge to draw.
-func (w *metadataWriter) renderERD(buf *bytes.Buffer, entities []*metadata.Table, edges []erdEdge) {
+// renderERD writes the "Entity Relationship Diagram" section at the given
+// Markdown heading level: a fenced ```mermaid erDiagram with an entity
+// block per table in entities that has columns, followed by edges. It
+// writes nothing when there is neither an entity block nor an edge to
+// draw.
+func (w *metadataWriter) renderERD(
+	buf *bytes.Buffer, entities []*metadata.Table, edges []erdEdge, headingLevel int,
+) {
 	var withCols []*metadata.Table
 	for _, t := range entities {
 		if len(t.Columns) > 0 {
@@ -82,7 +98,8 @@ func (w *metadataWriter) renderERD(buf *bytes.Buffer, entities []*metadata.Table
 		return
 	}
 
-	buf.WriteString("\n## Entity Relationship Diagram\n\n```mermaid\nerDiagram\n")
+	fmt.Fprintf(buf, "\n%s Entity Relationship Diagram\n\n```mermaid\nerDiagram\n",
+		strings.Repeat("#", headingLevel))
 
 	for _, t := range withCols {
 		fkCols := fkColumnSet(t)

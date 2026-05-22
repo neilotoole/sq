@@ -333,13 +333,18 @@ func TestCmdInspect_markdown(t *testing.T) { //nolint:tparallel
 	// Canonical sakila edge: film references language.
 	require.Contains(t, out, "language ||--o{ film")
 	require.Contains(t, out, "## Tables")
-	require.Contains(t, out, "### film")
+	// Table names are backtick-quoted in their headings.
+	require.Contains(t, out, "### `film`")
+	// Whole-source diagram is level 2; each table also gets its own
+	// focused level-4 diagram.
+	require.Contains(t, out, "## Entity Relationship Diagram")
+	require.Contains(t, out, "#### Entity Relationship Diagram")
 
 	t.Run("table", func(t *testing.T) {
 		tr2 := testrun.New(th.Context, t, tr)
 		require.NoError(t, tr2.Exec("inspect", src.Handle+".film_actor", "--"+format.Markdown.String()))
 		out := tr2.Out.String()
-		require.Contains(t, out, "# film_actor")
+		require.Contains(t, out, "# `film_actor`")
 		require.Contains(t, out, "```mermaid")
 		require.Contains(t, out, "| Column | Type | Null | Key |")
 		require.Contains(t, out, "**Foreign keys:**")

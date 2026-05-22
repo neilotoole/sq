@@ -93,27 +93,49 @@ erDiagram
 
 ## Tables
 
-### actor
+### ` + "`actor`" + `
 
 table · 200 rows
 
+#### Entity Relationship Diagram
+
+` + "```mermaid" + `
+erDiagram
+    actor {
+        int actor_id PK
+        text first_name
+    }
+    actor ||--o{ film_actor : "fk_film_actor_actor"
+` + "```" + `
+
 | Column | Type | Null | Key |
 | --- | --- | :---: | :---: |
-| actor_id | INTEGER | no | PK |
-| first_name | TEXT | no |  |
+| ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` | no | ` + "`PK`" + ` |
+| ` + "`first_name`" + ` | ` + "`TEXT`" + ` | no |  |
 
 **Referenced by:**
 
 - ` + "`film_actor(actor_id)`" + ` → ` + "`actor(actor_id)`" + `
 
-### film_actor
+### ` + "`film_actor`" + `
 
 table · 5462 rows
 
+#### Entity Relationship Diagram
+
+` + "```mermaid" + `
+erDiagram
+    film_actor {
+        int actor_id PK,FK
+        int film_id PK
+    }
+    actor ||--o{ film_actor : "fk_film_actor_actor"
+` + "```" + `
+
 | Column | Type | Null | Key |
 | --- | --- | :---: | :---: |
-| actor_id | INTEGER | no | PK,FK |
-| film_id | INTEGER | no | PK |
+| ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` | no | ` + "`PK,FK`" + ` |
+| ` + "`film_id`" + ` | ` + "`INTEGER`" + ` | no | ` + "`PK`" + ` |
 
 **Foreign keys:**
 
@@ -148,7 +170,7 @@ func TestMetadataWriter_SourceMetadata_overview(t *testing.T) {
 }
 
 func TestMetadataWriter_TableMetadata(t *testing.T) {
-	const want = `# film_actor
+	const want = `# ` + "`film_actor`" + `
 
 table · 5462 rows
 
@@ -165,8 +187,8 @@ erDiagram
 
 | Column | Type | Null | Key |
 | --- | --- | :---: | :---: |
-| actor_id | INTEGER | no | PK,FK |
-| film_id | INTEGER | no | PK |
+| ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` | no | ` + "`PK,FK`" + ` |
+| ` + "`film_id`" + ` | ` + "`INTEGER`" + ` | no | ` + "`PK`" + ` |
 
 **Foreign keys:**
 

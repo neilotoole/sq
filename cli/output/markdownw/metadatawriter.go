@@ -51,10 +51,14 @@ func (w *metadataWriter) SourceMetadata(md *metadata.Source, showSchema bool) er
 		w.writeSourceERD(buf, tables)
 
 		if len(tables) > 0 {
+			// Every table is known here, so its per-table ERD can infer
+			// cardinality consistently with the whole-source diagram above.
+			byName := tableIndex(tables)
 			buf.WriteString("\n## Tables\n")
 			for _, tbl := range tables {
 				buf.WriteString("\n")
 				writeTableHeading(buf, tbl, 3)
+				w.writeTableERD(buf, tbl, 4, byName)
 				w.writeTableBody(buf, tbl)
 			}
 		}
@@ -68,7 +72,7 @@ func (w *metadataWriter) SourceMetadata(md *metadata.Source, showSchema bool) er
 func (w *metadataWriter) TableMetadata(md *metadata.Table) error {
 	buf := &bytes.Buffer{}
 	writeTableHeading(buf, md, 1)
-	w.writeTableERD(buf, md)
+	w.writeTableERD(buf, md, 2, nil)
 	w.writeTableBody(buf, md)
 
 	_, err := buf.WriteTo(w.out)
@@ -194,7 +198,7 @@ func (w *metadataWriter) writeSourceOverview(buf *bytes.Buffer, md *metadata.Sou
 // writeTableHeading writes a heading (at the given '#' level) for tbl,
 // followed by a one-line summary and the table comment (if any).
 func writeTableHeading(buf *bytes.Buffer, tbl *metadata.Table, level int) {
-	fmt.Fprintf(buf, "%s %s\n\n", strings.Repeat("#", level), tbl.Name)
+	fmt.Fprintf(buf, "%s %s\n\n", strings.Repeat("#", level), mdCode(tbl.Name))
 
 	typ := tbl.TableType
 	if typ == "" {
@@ -254,13 +258,13 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 
 	for _, col := range tbl.Columns {
 		cells := []string{
-			escapeMarkdown(col.Name),
-			escapeMarkdown(col.ColumnType),
+			mdCodeCell(col.Name),
+			mdCodeCell(col.ColumnType),
 			yesNo(col.Nullable),
-			columnKey(col, fkCols, ucCols),
+			mdCodeCell(columnKey(col, fkCols, ucCols)),
 		}
 		if hasDefault {
-			cells = append(cells, escapeMarkdown(col.DefaultValue))
+			cells = append(cells, mdCodeCell(col.DefaultValue))
 		}
 		if hasComment {
 			cells = append(cells, escapeMarkdown(col.Comment))

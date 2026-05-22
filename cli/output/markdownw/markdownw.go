@@ -148,3 +148,27 @@ func escapeMarkdown(s string) string {
 	s = strings.ReplaceAll(s, "\n", "<br/>")
 	return s
 }
+
+// mdCode renders s as a Markdown inline-code span (backtick-quoted), used
+// for identifiers such as table and column names so they read as code
+// rather than prose. An empty string yields an empty span (no backticks).
+func mdCode(s string) string {
+	if s == "" {
+		return ""
+	}
+	return "`" + s + "`"
+}
+
+// mdCodeCell renders s as a Markdown inline-code span for use inside a
+// table cell, escaping the pipe and newline characters that would
+// otherwise break the cell. An empty string yields an empty cell (no
+// backticks).
+func mdCodeCell(s string) string {
+	if s == "" {
+		return ""
+	}
+	s = strings.ReplaceAll(s, "\r\n", " ")
+	s = strings.ReplaceAll(s, "\n", " ")
+	s = strings.ReplaceAll(s, "|", `\|`)
+	return "`" + s + "`"
+}
