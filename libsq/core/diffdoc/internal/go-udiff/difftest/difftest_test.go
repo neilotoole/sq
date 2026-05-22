@@ -19,6 +19,9 @@ import (
 
 // check that the TestCases match diff -u output
 func TestVerifyUnified(t *testing.T) {
+	if _, err := exec.LookPath("diff"); err != nil {
+		t.Skip("skipping: diff tool not found in PATH")
+	}
 	for _, test := range difftest.TestCases {
 		t.Run(test.Name, func(t *testing.T) {
 			if test.NoDiff {

@@ -2,8 +2,9 @@
 #
 # revendor.sh re-imports the go-udiff package from upstream
 # github.com/aymanbagabas/go-udiff, rewriting import paths to sq's
-# internal vendor path. It rewrites its own directory in place,
-# preserving only this script and the UPSTREAM marker.
+# internal vendor path, then applying the sq-local patches under
+# sq-patches/. It rewrites its own directory in place, preserving only
+# this script, the UPSTREAM marker, and the sq-patches/ directory.
 #
 # Usage:
 #   ./revendor.sh [git-ref]
@@ -39,9 +40,19 @@ rm -rf "$stage/.git" "$stage/.github" "$stage/scripts" "$stage/Makefile" \
 find "$stage" -type f -name '*.go' -print0 \
   | xargs -0 perl -i -pe "s{\\Q$OLD_PATH\\E}{$NEW_PATH}g"
 
-# Replace vendored content, preserving this script and the marker.
+# Apply sq-local patches on top of the import-rewritten tree. These live
+# under sq-patches/ (preserved across syncs). set -e aborts if a patch no
+# longer applies, signaling it must be regenerated against the new upstream.
+shopt -s nullglob
+for p in "$VENDOR_DIR"/sq-patches/*.patch; do
+  echo "Applying sq-patch $(basename "$p")"
+  ( cd "$stage" && git apply -p1 "$p" )
+done
+shopt -u nullglob
+
+# Replace vendored content, preserving this script, the marker, and sq-patches/.
 find "$VENDOR_DIR" -mindepth 1 -maxdepth 1 \
-     ! -name 'revendor.sh' ! -name 'UPSTREAM' -exec rm -rf {} +
+     ! -name 'revendor.sh' ! -name 'UPSTREAM' ! -name 'sq-patches' -exec rm -rf {} +
 cp -R "$stage/." "$VENDOR_DIR/"
 
 # Record provenance.

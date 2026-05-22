@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package diff computes differences between text files or strings.
+// Package udiff computes differences between text files or strings.
 package udiff
 
 import (

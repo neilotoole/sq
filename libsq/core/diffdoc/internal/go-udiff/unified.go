@@ -32,7 +32,7 @@ func Unified(oldLabel, newLabel, old, new string) string {
 // ToUnified applies the edits to content and returns a unified diff,
 // with contextLines lines of (unchanged) context around each diff hunk.
 // The old and new labels are the names of the content and result files.
-// It returns an error if the edits are inconsistent; see ApplyEdits.
+// It returns an error if the edits are inconsistent; see Apply.
 func ToUnified(oldLabel, newLabel, content string, edits []Edit, contextLines int) (string, error) {
 	u, err := toUnified(oldLabel, newLabel, content, edits, contextLines)
 	if err != nil {
@@ -279,6 +279,9 @@ func ApplyUnified(udiffs, bef string) (string, error) {
 		switch l[0] {
 		case '@': // The @@ line
 			m := atregexp.FindStringSubmatch(l)
+			if m == nil {
+				return "", fmt.Errorf("malformed hunk header %q", l)
+			}
 			fromLine, err := strconv.Atoi(m[1])
 			if err != nil {
 				return "", fmt.Errorf("missing line number in %q", l)

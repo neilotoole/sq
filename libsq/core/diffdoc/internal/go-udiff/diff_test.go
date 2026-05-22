@@ -119,6 +119,9 @@ func TestLineEdits(t *testing.T) {
 }
 
 func TestToUnified(t *testing.T) {
+	if _, err := exec.LookPath("patch"); err != nil {
+		t.Skip("skipping: patch tool not found in PATH")
+	}
 	for _, tc := range difftest.TestCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			nedits := diff.Lines(tc.In, tc.Out)
