@@ -1,0 +1,105 @@
+package htmlw_test
+
+import (
+	"bytes"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/output/htmlw"
+	"github.com/neilotoole/sq/libsq/source/metadata"
+)
+
+func TestMetadataWriter_Catalogs(t *testing.T) {
+	buf := &bytes.Buffer{}
+	w := htmlw.NewMetadataWriter(buf, output.NewPrinting(), false)
+	require.NoError(t, w.Catalogs("sakila", []string{"sakila", "other"}))
+
+	got := buf.String()
+	require.Contains(t, got, "<!doctype html>")
+	require.Contains(t, got, "<table>")
+	require.Contains(t, got, "<td><code>sakila</code></td>")
+	require.NotContains(t, got, `class="mermaid"`)
+}
+
+func TestMetadataWriter_Schemata(t *testing.T) {
+	buf := &bytes.Buffer{}
+	w := htmlw.NewMetadataWriter(buf, output.NewPrinting(), false)
+	require.NoError(t, w.Schemata("public", []*metadata.Schema{
+		{Name: "public", Catalog: "sakila", Owner: "alice"},
+	}))
+	require.Contains(t, buf.String(), "<code>public</code>")
+}
+
+func TestMetadataWriter_escaping(t *testing.T) {
+	buf := &bytes.Buffer{}
+	w := htmlw.NewMetadataWriter(buf, output.NewPrinting(), false)
+	require.NoError(t, w.Catalogs("", []string{"a<b>&c"}))
+	got := buf.String()
+	require.Contains(t, got, "a&lt;b&gt;&amp;c")
+	require.NotContains(t, got, "a<b>&c")
+}
+
+func newTestSource() *metadata.Source {
+	actor := &metadata.Table{
+		Name: "actor", TableType: "table", RowCount: 200,
+		Columns: []*metadata.Column{
+			{Name: "actor_id", Position: 1, PrimaryKey: true, ColumnType: "INTEGER"},
+			{Name: "first_name", Position: 2, ColumnType: "TEXT"},
+		},
+	}
+	filmActor := &metadata.Table{
+		Name: "film_actor", TableType: "table", RowCount: 5462,
+		Columns: []*metadata.Column{
+			{Name: "actor_id", Position: 1, PrimaryKey: true, ColumnType: "INTEGER"},
+			{Name: "film_id", Position: 2, PrimaryKey: true, ColumnType: "INTEGER"},
+		},
+		FK: &metadata.FKGroup{Outgoing: []*metadata.ForeignKey{{
+			Name: "fk_film_actor_actor", Table: "film_actor", Columns: []string{"actor_id"},
+			RefTable: "actor", RefColumns: []string{"actor_id"},
+		}}},
+	}
+	src := &metadata.Source{
+		Handle: "@test", Name: "testdb", Schema: "main", Size: 1048576,
+		TableCount: 2, ViewCount: 0, Tables: []*metadata.Table{actor, filmActor},
+	}
+	metadata.LinkForeignKeys(nil, src)
+	return src
+}
+
+func TestMetadataWriter_SourceMetadata(t *testing.T) {
+	buf := &bytes.Buffer{}
+	w := htmlw.NewMetadataWriter(buf, output.NewPrinting(), false)
+	require.NoError(t, w.SourceMetadata(newTestSource(), true))
+
+	got := buf.String()
+	require.Contains(t, got, "<!doctype html>")
+	require.Contains(t, got, "<title>@test</title>")
+	require.Contains(t, got, "<h1>@test</h1>")
+	require.Contains(t, got, "<h2>Tables</h2>")
+	require.Contains(t, got, "<h3><code>actor</code></h3>")
+	require.Contains(t, got, `<pre class="mermaid">`)
+	require.Contains(t, got, "actor ||--o{ film_actor")
+	require.Contains(t, got, "<td><code>actor_id</code></td>")
+	require.Contains(t, got, "cdn.jsdelivr.net/npm/mermaid@11")
+}
+
+func TestMetadataWriter_SourceMetadata_overview(t *testing.T) {
+	buf := &bytes.Buffer{}
+	w := htmlw.NewMetadataWriter(buf, output.NewPrinting(), false)
+	require.NoError(t, w.SourceMetadata(newTestSource(), false))
+	got := buf.String()
+	require.NotContains(t, got, `class="mermaid"`)
+	require.NotContains(t, got, "<h2>Tables</h2>")
+}
+
+func TestMetadataWriter_embed(t *testing.T) {
+	buf := &bytes.Buffer{}
+	w := htmlw.NewMetadataWriter(buf, output.NewPrinting(), true)
+	require.NoError(t, w.SourceMetadata(newTestSource(), true))
+	got := buf.String()
+	require.Greater(t, len(got), 500_000, "embedded output inlines the mermaid library")
+	require.NotContains(t, got, "cdn.jsdelivr.net")
+	require.Contains(t, got, "mermaid.initialize")
+}
