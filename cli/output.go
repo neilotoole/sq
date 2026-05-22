@@ -364,6 +364,9 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 
 	case format.Markdown:
 		w.Metadata = markdownw.NewMetadataWriter(outCfg.out, outCfg.outPr)
+
+	case format.HTML:
+		w.Metadata = htmlw.NewMetadataWriter(outCfg.out, outCfg.outPr, OptHTMLEmbed.Get(o))
 	default:
 	}
 

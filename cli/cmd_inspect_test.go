@@ -361,6 +361,36 @@ func TestCmdInspect_markdown(t *testing.T) { //nolint:tparallel
 	})
 }
 
+// TestCmdInspect_html exercises the HTML output format for "sq inspect"
+// against the sakila SQLite source (no Docker required), via both the
+// --html boolean flag and the generic --format=html flag. The default
+// (non-embedded) document loads Mermaid.js from a CDN.
+func TestCmdInspect_html(t *testing.T) { //nolint:tparallel
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	for name, args := range map[string][]string{
+		"bool_flag":   {"inspect", "--" + flag.HTML},
+		"format_flag": {"inspect", "--format=html"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+			require.NoError(t, tr.Exec(args...))
+			out := tr.Out.String()
+			require.Contains(t, out, "<!doctype html>")
+			require.Contains(t, out, "<h1>"+src.Handle+"</h1>")
+			require.Contains(t, out, "<h2>Tables</h2>")
+			require.Contains(t, out, `<pre class="mermaid">`)
+			// Canonical sakila edge: film references language.
+			require.Contains(t, out, "language ||--o{ film")
+			// Default output (embed=false) loads Mermaid from a CDN.
+			require.Contains(t, out, "cdn.jsdelivr.net/npm/mermaid@11")
+		})
+	}
+}
+
 // TestCmdInspect_formatFlag verifies that the generic --format / -f flag
 // selects the inspect output format, matching the query command's
 // behavior — not just the per-format boolean flags such as --markdown.
@@ -403,6 +433,36 @@ func TestCmdInspect_formatFlag(t *testing.T) { //nolint:tparallel
 		require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
 		require.Equal(t, src.Handle, md.Handle)
 	})
+}
+
+// TestCmdInspect_OutputFlag verifies that "sq inspect --output=<file>"
+// writes the metadata document to the file instead of stdout.
+func TestCmdInspect_OutputFlag(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+	tr := testrun.New(th.Context, t, nil).Add(*src)
+
+	outputFile, err := os.CreateTemp("", t.Name())
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, outputFile.Close())
+		require.NoError(t, os.Remove(outputFile.Name()))
+	})
+
+	require.NoError(t, tr.Exec(
+		"inspect", "--"+format.Markdown.String(), "-o", outputFile.Name()))
+
+	// Nothing should have been written to stdout.
+	require.Empty(t, tr.Out.String())
+
+	got, err := os.ReadFile(outputFile.Name())
+	require.NoError(t, err)
+	out := string(got)
+	require.Contains(t, out, "# "+src.Handle)
+	require.Contains(t, out, "```mermaid")
+	require.Contains(t, out, "## Tables")
 }
 
 func TestCmdInspect_smoke(t *testing.T) {

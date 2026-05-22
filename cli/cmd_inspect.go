@@ -49,8 +49,9 @@ is supplied, the default is to show the source metadata and schema.
   --schemata:  List the schemas available in the source's active catalog.
 
 Use --verbose with --text format to see more detail. The --json and --yaml
-formats both show extensive detail. The --markdown format renders a schema
-document that includes a Mermaid entity-relationship diagram.`,
+formats both show extensive detail. The --markdown and --html formats each
+render a schema document that includes a Mermaid entity-relationship diagram;
+--html produces a standalone page (use --output to save it to a file).`,
 		Example: `  # Inspect active data source.
   $ sq inspect
 
@@ -68,6 +69,12 @@ document that includes a Mermaid entity-relationship diagram.`,
 
   # Show output as a Markdown schema doc with a Mermaid ER diagram.
   $ sq inspect --markdown @pg1
+
+  # Show output as a standalone HTML schema doc with a Mermaid ER diagram.
+  $ sq inspect --html @pg1
+
+  # Write the HTML schema doc to a file instead of stdout.
+  $ sq inspect --html @pg1 -o pg1-schema.html
 
   # Show only the DB properties for @pg1.
   $ sq inspect --dbprops @pg1
@@ -104,6 +111,7 @@ document that includes a Mermaid entity-relationship diagram.`,
 	addOptionFlag(cmd.Flags(), OptCompact)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 	cmd.Flags().Bool(flag.Markdown, false, flag.MarkdownUsage)
+	cmd.Flags().Bool(flag.HTML, false, flag.HTMLUsage)
 
 	cmd.Flags().BoolP(flag.InspectOverview, flag.InspectOverviewShort, false, flag.InspectOverviewUsage)
 	cmd.Flags().BoolP(flag.InspectDBProps, flag.InspectDBPropsShort, false, flag.InspectDBPropsUsage)
@@ -116,6 +124,8 @@ document that includes a Mermaid entity-relationship diagram.`,
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSchema,
 		activeSchemaCompleter{getActiveSourceViaArgs}.complete))
 	addOptionFlag(cmd.Flags(), driver.OptIngestCache)
+
+	cmd.Flags().StringP(flag.FileOutput, flag.FileOutputShort, "", flag.FileOutputUsage)
 
 	cmd.Flags().StringP(flag.Input, flag.InputShort, "", flag.InputUsage)
 	panicOn(cmd.Flags().MarkHidden(flag.Input)) // Hide for now; this is mostly used for testing.

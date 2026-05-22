@@ -51,9 +51,18 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   single-table inspection (`sq inspect @src.table --markdown`) renders that
   same focused diagram. Identifiers and the column type, key, and default
   values are rendered as inline code.
+- `sq inspect` also gains an `--html` output format (equivalently
+  `--format=html`) that renders the same schema document — overview, per-table
+  detail, and Mermaid ER diagrams — as a standalone HTML page. By default the
+  page loads Mermaid.js from a CDN; set the `format.html.embed` option to
+  inline the library for a fully offline, self-contained document. Combine with
+  `--output`/`-o` to save the page to a file.
 - `sq inspect` now honors the generic `--format`/`-f` flag (e.g.
   `sq inspect -f markdown`), matching the query command; previously only the
   per-format boolean flags such as `--markdown` were accepted.
+- `sq inspect` now accepts the `--output`/`-o` flag to write its output to a
+  file instead of stdout (e.g. `sq inspect --html @pg1 -o pg1-schema.html`),
+  matching `sq query` and `sq db dump`.
 
 ### Changed
 
