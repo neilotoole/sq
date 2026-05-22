@@ -37,11 +37,12 @@ func (v *parseTreeVisitor) VisitHandle(ctx *slq.HandleContext) any {
 func (v *parseTreeVisitor) VisitHandleTable(ctx *slq.HandleTableContext) any {
 	node := &TblSelectorNode{}
 	node.parent = v.cur
-	node.ctx = ctx
-	// ctx.GetText() now includes any trailing ":alias"; keep node.text to the
-	// handle+table portion (HANDLE + NAME, where NAME carries its leading dot)
-	// so debug/inspector output stays clean.
-	node.text = ctx.HANDLE().GetText() + ctx.NAME().GetText()
+	// Anchor ctx/text on the NAME token (the table), not the whole
+	// handleTable: NAME excludes both the handle and any trailing ":alias",
+	// so Node.Text() reports just the table reference. This mirrors
+	// VisitJoinTable. The handle is still reported via Handle()/String().
+	node.ctx = ctx.NAME()
+	node.text = ctx.NAME().GetText()
 
 	node.handle = ctx.HANDLE().GetText()
 
@@ -56,8 +57,10 @@ func (v *parseTreeVisitor) VisitHandleTable(ctx *slq.HandleTableContext) any {
 	}
 
 	// Optional trailing alias, e.g. @sakila.actor:a. Mirror VisitJoinTable:
-	// make the new node current and visit the alias, which sets node.alias
-	// (this path also handles reserved-word and quoted aliases).
+	// make the new node current and visit the alias, which sets node.alias.
+	// VisitAlias reads ID and quoted (STRING) aliases; reserved-word aliases
+	// (the ALIAS_RESERVED token, e.g. :count) are not attached here, matching
+	// the existing joinTable and ".tbl:alias" selector paths.
 	if ctx.Alias() != nil {
 		aliasCtx, ok := ctx.Alias().(*slq.AliasContext)
 		if !ok {

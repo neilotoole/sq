@@ -594,6 +594,22 @@ func TestQuery_table_alias(t *testing.T) {
 				assertSinkColName(0, "first_name"),
 			},
 		},
+		{
+			// Exercises the quoted (STRING) alias branch of VisitAlias
+			// through the new handleTable path; the table-whitespace-alias
+			// case above only covers the multi-segment `@h | .tbl:"..."` form.
+			name:    "gh633/handle-table-whitespace-alias",
+			in:      `@sakila.actor:"oy vey" | ."oy vey".first_name`,
+			wantSQL: `SELECT "oy vey"."first_name" FROM "actor" AS "oy vey"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT `oy vey`.`first_name` FROM `actor` AS `oy vey`",
+				drivertype.ClickHouse: "SELECT `oy vey`.`first_name` FROM `actor` AS `oy vey`",
+			},
+			wantRecCount: sakila.TblActorCount,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "first_name"),
+			},
+		},
 	}
 
 	for i, tc := range testCases {
