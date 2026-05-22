@@ -84,6 +84,10 @@ func TestMetadataWriter_SourceMetadata(t *testing.T) {
 	require.Contains(t, got, `<a class="sq-anchor" href="#actor"><code>actor</code></a>`)
 	require.Contains(t, got, ".sq-table {")
 	require.Contains(t, got, `<pre class="mermaid">`)
+	// The ER-diagram headings are deep-linkable too: #erd for the
+	// whole-source diagram, #<table>-erd for each per-table diagram.
+	require.Contains(t, got, `<h2 id="erd">`)
+	require.Contains(t, got, `id="actor-erd"`)
 	require.Contains(t, got, "actor ||--o{ film_actor")
 	require.Contains(t, got, "<td><code>actor_id</code></td>")
 	// The Key column is split into PK / FK / Unique ✓ columns.

@@ -26,7 +26,7 @@ func (w *metadataWriter) SourceMetadata(md *metadata.Source, showSchema bool) er
 		}
 		tables := append([]*metadata.Table(nil), md.Tables...)
 		slices.SortFunc(tables, compareTables)
-		writeMermaidBlock(b, mermaid.SourceDiagram(tables), 2)
+		writeMermaidBlock(b, mermaid.SourceDiagram(tables), "erd", 2)
 		if len(tables) > 0 {
 			byName := mermaid.Index(tables)
 			b.WriteString("<h2>Tables</h2>\n")
@@ -56,14 +56,17 @@ func (w *metadataWriter) TableMetadata(md *metadata.Table) error {
 }
 
 // writeMermaidBlock writes an "Entity Relationship Diagram" heading (at the
-// given level) and a <pre class="mermaid"> block. It writes nothing when src
-// is empty. The diagram source is HTML-escaped; the browser decodes it back
-// to text for Mermaid via the element's textContent.
-func writeMermaidBlock(buf *bytes.Buffer, src string, headingLevel int) {
+// given level, with a deep-linkable id + hover "#" self-link) and a
+// <pre class="mermaid"> block. It writes nothing when src is empty. The diagram
+// source is HTML-escaped; the browser decodes it back to text for Mermaid via
+// the element's textContent.
+func writeMermaidBlock(buf *bytes.Buffer, src, id string, headingLevel int) {
 	if src == "" {
 		return
 	}
-	fmt.Fprintf(buf, "<h%d>Entity Relationship Diagram</h%d>\n", headingLevel, headingLevel)
+	fmt.Fprintf(buf,
+		"<h%d id=\"%s\"><a class=\"sq-anchor\" href=\"#%s\">Entity Relationship Diagram</a></h%d>\n",
+		headingLevel, id, id, headingLevel)
 	buf.WriteString("<pre class=\"mermaid\">\n")
 	buf.WriteString(html.EscapeString(src))
 	buf.WriteString("</pre>\n")
@@ -105,7 +108,7 @@ func (w *metadataWriter) writeTableSection(
 	buf *bytes.Buffer, tbl *metadata.Table, level int, cardIndex map[string]*metadata.Table,
 ) {
 	w.writeTableHeading(buf, tbl, level)
-	writeMermaidBlock(buf, mermaid.TableDiagram(tbl, cardIndex), level+1)
+	writeMermaidBlock(buf, mermaid.TableDiagram(tbl, cardIndex), tableSlug(tbl.Name)+"-erd", level+1)
 	w.writeColumns(buf, tbl)
 	w.writeForeignKeys(buf, tbl)
 	w.writeUniqueConstraints(buf, tbl)
