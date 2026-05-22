@@ -69,12 +69,12 @@ func TestMetadataWriter_SourceMetadata(t *testing.T) {
 
 | Property | Value |
 | --- | --- |
-| Name | testdb |
-| Driver | sqlite3 |
-| Schema | main |
-| Size | 1.0MB |
-| Tables | 2 |
-| Views | 0 |
+| Name | ` + "`testdb`" + ` |
+| Driver | ` + "`sqlite3`" + ` |
+| Schema | ` + "`main`" + ` |
+| Size | ` + "`1.0MB`" + ` |
+| Tables | ` + "`2`" + ` |
+| Views | ` + "`0`" + ` |
 
 ## Entity Relationship Diagram
 
@@ -165,10 +165,10 @@ func TestMetadataWriter_SourceMetadata_overview(t *testing.T) {
 
 | Property | Value |
 | --- | --- |
-| Name | testdb |
-| Driver | sqlite3 |
-| Schema | main |
-| Size | 1.0MB |
+| Name | ` + "`testdb`" + ` |
+| Driver | ` + "`sqlite3`" + ` |
+| Schema | ` + "`main`" + ` |
+| Size | ` + "`1.0MB`" + ` |
 `
 
 	buf := &bytes.Buffer{}

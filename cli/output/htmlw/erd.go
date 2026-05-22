@@ -80,7 +80,7 @@ func (w *metadataWriter) writeSourceOverview(buf *bytes.Buffer, md *metadata.Sou
 	rows := [][]string{}
 	addRow := func(k, v string) {
 		if v != "" {
-			rows = append(rows, []string{html.EscapeString(k), html.EscapeString(v)})
+			rows = append(rows, []string{html.EscapeString(k), htmlCode(v)})
 		}
 	}
 	addRow("Name", md.Name)

@@ -339,12 +339,13 @@ func compareTables(a, b *metadata.Table) int {
 	return cmp.Compare(a.TableType, b.TableType)
 }
 
-// writeKVRow writes a "| key | value |" row, skipping empty values.
+// writeKVRow writes a "| key | value |" row, skipping empty values. The value
+// is rendered as inline code (the key is a plain label).
 func writeKVRow(buf *bytes.Buffer, k, v string) {
 	if v == "" {
 		return
 	}
-	writeTableRow(buf, k, escapeMarkdown(v))
+	writeTableRow(buf, k, mdCodeCell(v))
 }
 
 // writeTableRow writes a single Markdown table row from cells.
