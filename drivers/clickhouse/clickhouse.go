@@ -756,9 +756,9 @@ func (d *driveri) CopyTable(
 		}
 	}
 
-	// Build the CREATE with the schema-qualified destination name so the table
-	// lands in toTable's schema rather than the current database; the INSERT
-	// below targets the same qualified name. See issue #652.
+	// Build the CREATE from tblfmt(toTable) so that, when toTable.Schema is set,
+	// the table lands in that schema rather than the current database; the
+	// INSERT below targets the same name. See issue #652.
 	createStmt := buildCreateTableStmtName(tblfmt(toTable), destTblDef)
 	if _, err = db.ExecContext(ctx, createStmt); err != nil {
 		return 0, errw(err)

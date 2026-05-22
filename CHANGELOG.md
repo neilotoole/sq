@@ -57,14 +57,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
-- [#652]: [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy) into a different
-  schema on a ClickHouse source now creates the destination table in the
-  target schema. The ClickHouse driver built the `CREATE TABLE` from the bare
-  table name (dropping the schema), so the table was created in the current
-  database while the data-copy `INSERT` targeted the schema-qualified name —
-  the copy then failed with "table doesn't exist" when copying data, or
-  silently landed in the wrong database otherwise. The `CREATE` is now
-  schema-qualified, matching the `INSERT` and the other SQL drivers.
+- [#652]: The ClickHouse driver now creates a copied table in its target
+  schema (ClickHouse database) when the copy specifies one, rather than always
+  in the connection's current database. `CopyTable` built the `CREATE TABLE`
+  from the bare table name while the data-copy `INSERT` used the
+  schema-qualified name, so a cross-schema copy created the table in the wrong
+  database (and failed outright when also copying data). ClickHouse now matches
+  the other SQL drivers' `CopyTable`. No CLI command targets a cross-schema
+  copy today, so this is a latent driver-level fix surfaced while testing #484.
 
 - [#484]:
   [`--insert`](https://sq.io/docs/tutorial#insert--modify) into a MySQL or

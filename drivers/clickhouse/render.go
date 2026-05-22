@@ -114,9 +114,10 @@ func buildCreateTableStmt(tblDef *schema.Table) string {
 
 // buildCreateTableStmtName builds a CREATE TABLE statement using qtblName as the
 // table name. qtblName must already be quoted and may be schema-qualified (e.g.
-// `db`.`tbl`); CopyTable passes a schema-qualified name (tblfmt(toTable)) so the
-// destination table is created in toTable's schema rather than the connection's
-// current database. See https://github.com/neilotoole/sq/issues/652.
+// `db`.`tbl`); CopyTable passes tblfmt(toTable), which is schema-qualified when
+// toTable.Schema is set, so the destination table is then created in that schema
+// rather than the connection's current database. See
+// https://github.com/neilotoole/sq/issues/652.
 func buildCreateTableStmtName(qtblName string, tblDef *schema.Table) string {
 	sb := strings.Builder{}
 	sb.WriteString("CREATE TABLE ")
