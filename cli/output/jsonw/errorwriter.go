@@ -33,8 +33,15 @@ type errorDetail struct { //nolint:govet // declaration order is the JSON output
 }
 
 type parseIssueJSON struct { //nolint:govet // declaration order is the JSON output order
-	Line       int    `json:"line"`
-	Col        int    `json:"col"`
+	// Line and Col are 1-based human coordinates: the position a person would
+	// count to in the input. They match the line/col shown in the text error
+	// output. For 0-based machine offsets into the input, use StartChar/StopChar.
+	Line int `json:"line"`
+	Col  int `json:"col"`
+	// StartChar and StopChar are 0-based rune offsets into Input (from the
+	// issue's Span), suitable for slicing []rune(Input) directly. Omitted when
+	// the issue has no usable span: either a nil span (some lexer errors) or
+	// an empty span (Stop < Start, e.g. the synthetic <EOF> token).
 	StartChar  *int   `json:"start_char,omitempty"`
 	StopChar   *int   `json:"stop_char,omitempty"`
 	Token      string `json:"token,omitempty"`
@@ -113,8 +120,12 @@ func toParseErrorJSON(pe *ast.ParseError) *parseErrorJSON {
 	}
 	for i, iss := range pe.Issues {
 		ij := parseIssueJSON{
-			Line:       iss.Line,
-			Col:        iss.Col,
+			Line: iss.Line,
+			// DisplayCol yields the 1-based column. iss.Col is stored 0-based
+			// (to index runes and align with Span); the wire form emits the
+			// 1-based value so JSON consumers see the same column as the text
+			// output, with no per-axis 0-vs-1 mismatch.
+			Col:        iss.DisplayCol(),
 			Token:      iss.Token,
 			Msg:        iss.Msg,
 			Suggestion: iss.Suggestion,

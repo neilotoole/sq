@@ -53,7 +53,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [#637]: The structured `parse_error` field is included in `--json`
   error output, carrying `input` and `issues[].{line, col, token, msg,
   suggestion}`, plus rune-offset `start_char`/`stop_char` when a precise
-  span is available, for programmatic consumers.
+  span is available, for programmatic consumers. Both `line` and `col` are
+  1-based, matching the text error output and the position a person counts
+  to; the 0-based `start_char`/`stop_char` offsets remain available for
+  slicing the input directly.
 
 ### Fixed
 

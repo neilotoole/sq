@@ -65,6 +65,12 @@ func TestJSONErrorWriter_ParseError(t *testing.T) {
 	require.Equal(t, pe.Input, got.ParseError.Input)
 	require.Len(t, got.ParseError.Issues, 1)
 	require.Equal(t, "this_is_invalid", got.ParseError.Issues[0].Token)
+	// line/col are 1-based human coordinates: a 0-based Col of 9 surfaces as
+	// col 10, matching the text error output.
+	require.Equal(t, 1, got.ParseError.Issues[0].Line)
+	require.Equal(t, 10, got.ParseError.Issues[0].Col)
+	// start_char/stop_char stay 0-based rune offsets, so start_char (9) is
+	// deliberately one less than col (10) for the same position.
 	require.Equal(t, 9, got.ParseError.Issues[0].StartChar)
 	require.Equal(t, 23, got.ParseError.Issues[0].StopChar)
 }
@@ -90,6 +96,13 @@ func TestJSONErrorWriter_ParseError_NoSpan(t *testing.T) {
 	require.NotContains(t, raw, "start_char", "nil Span must omit start_char")
 	require.NotContains(t, raw, "stop_char", "nil Span must omit stop_char")
 	require.Contains(t, raw, `"col"`, "col is always present")
+
+	// Even with no span, the 1-based human col must still be reported.
+	var got testErrorDetailJSON
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
+	require.Equal(t, 1, got.ParseError.Issues[0].Line)
+	require.Equal(t, 8, got.ParseError.Issues[0].Col,
+		"Col 7 (0-based) must surface as col 8 even when no span is emitted")
 }
 
 func TestJSONErrorWriter_ParseError_Suggestion(t *testing.T) {
@@ -135,6 +148,12 @@ func TestJSONErrorWriter_ParseError_EmptySpanOmitted(t *testing.T) {
 	require.NotContains(t, raw, "start_char", "empty (EOF) span must omit start_char")
 	require.NotContains(t, raw, "stop_char", "empty (EOF) span must omit stop_char")
 	require.Contains(t, raw, `"col"`, "col is always present")
+
+	// The empty-span <EOF> case still reports a 1-based human col.
+	var got testErrorDetailJSON
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
+	require.Equal(t, 9, got.ParseError.Issues[0].Col,
+		"Col 8 (0-based) must surface as col 9 for the <EOF> empty-span case")
 }
 
 func TestJSONErrorWriter_ParseError_MixedSpans(t *testing.T) {
