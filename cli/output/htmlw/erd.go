@@ -7,6 +7,7 @@ import (
 	"html"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/neilotoole/sq/cli/output/commonw"
 	"github.com/neilotoole/sq/cli/output/internal/mermaid"
@@ -112,7 +113,19 @@ func (w *metadataWriter) writeTableSection(
 }
 
 func (w *metadataWriter) writeTableHeading(buf *bytes.Buffer, tbl *metadata.Table, level int) {
-	fmt.Fprintf(buf, "<h%d><code>%s</code></h%d>\n", level, html.EscapeString(tbl.Name), level)
+	// The heading carries an id (e.g. #city) so a table's section is
+	// deep-linkable, and is a self-link that reveals a "#" on hover. The
+	// sq-table class adds the section-separator + larger treatment, but only
+	// for per-table sections within a larger doc (level > 1); a single-table
+	// doc's level-1 heading is already the document title.
+	slug := tableSlug(tbl.Name)
+	class := ""
+	if level > 1 {
+		class = ` class="sq-table"`
+	}
+	fmt.Fprintf(buf,
+		"<h%d id=\"%s\"%s><a class=\"sq-anchor\" href=\"#%s\"><code>%s</code></a></h%d>\n",
+		level, slug, class, slug, html.EscapeString(tbl.Name), level)
 
 	typ := tbl.TableType
 	if typ == "" {
@@ -224,4 +237,26 @@ func compareTables(a, b *metadata.Table) int {
 		return cmp.Compare(a.Name, b.Name)
 	}
 	return cmp.Compare(a.TableType, b.TableType)
+}
+
+// tableSlug returns an HTML id / URL fragment for a table name: characters
+// outside [A-Za-z0-9_-] are replaced with '-' (case preserved), so common
+// names like "city" and "film_actor" are used verbatim (#city, #film_actor)
+// while unusual names stay valid and space-free. Table names are unique within
+// a schema, so the resulting ids are unique within a document.
+func tableSlug(name string) string {
+	var b strings.Builder
+	b.Grow(len(name))
+	for _, r := range name {
+		switch {
+		case r == '_' || r == '-',
+			r >= 'a' && r <= 'z',
+			r >= 'A' && r <= 'Z',
+			r >= '0' && r <= '9':
+			b.WriteRune(r)
+		default:
+			b.WriteByte('-')
+		}
+	}
+	return b.String()
 }

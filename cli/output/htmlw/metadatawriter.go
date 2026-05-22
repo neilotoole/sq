@@ -37,6 +37,12 @@ const cssStyles = `:root { color-scheme: light dark; }
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.5; max-width: 70rem; margin: 2rem auto; padding: 0 1rem; }
 h1, h2, h3, h4 { line-height: 1.25; }
+.sq-table { font-size: 1.6rem; margin-top: 2.5rem; padding-top: 1.25rem;
+  border-top: 2px solid #d0d0d0; }
+.sq-table code { font-size: inherit; background: none; padding: 0; }
+.sq-anchor { color: inherit; text-decoration: none; }
+.sq-anchor:hover::after { content: "#"; margin-left: 0.4em; color: #888;
+  font-weight: normal; }
 table { border-collapse: collapse; margin: 1rem 0; }
 caption { text-align: left; font-weight: 600; margin-bottom: 0.3rem; }
 th, td { border: 1px solid #ccc; padding: 0.3rem 0.6rem; text-align: left; vertical-align: top; }
@@ -51,6 +57,7 @@ pre.mermaid { background: #fff; border: 1px solid #ddd; border-radius: 8px;
   th, td { border-color: #444; }
   th { background: #2a2a2a; }
   .summary { color: #aaa; }
+  .sq-table { border-top-color: #444; }
 }
 #sq-erd-overlay { position: fixed; inset: 0; z-index: 1000; display: none;
   background: rgba(0,0,0,0.85); }
