@@ -12,6 +12,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/output/commonw"
 	"github.com/neilotoole/sq/cli/output/internal/mermaid"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -231,8 +232,8 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 		return
 	}
 
-	fkCols := fkColumnSet(tbl)
-	ucCols := ucColumnSet(tbl)
+	fkCols := commonw.FKColumnSet(tbl)
+	ucCols := commonw.UCColumnSet(tbl)
 
 	// Only include the Default / Comment columns when at least one
 	// column populates them, keeping the common case clean.
@@ -262,7 +263,7 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 			mdCodeCell(col.Name),
 			mdCodeCell(col.ColumnType),
 			yesNo(col.Nullable),
-			mdCodeCell(columnKey(col, fkCols, ucCols)),
+			mdCodeCell(commonw.ColumnKey(col, fkCols, ucCols)),
 		}
 		if hasDefault {
 			cells = append(cells, mdCodeCell(col.DefaultValue))
@@ -388,58 +389,6 @@ func formatFKRef(fk *metadata.ForeignKey) string {
 		target = fk.RefCatalog + "." + target
 	}
 	return target + "(" + strings.Join(fk.RefColumns, ", ") + ")"
-}
-
-// columnKey returns the combined "PK,FK,UK" marker for a column, or ""
-// when the column participates in no key.
-func columnKey(col *metadata.Column, fkCols, ucCols map[string]bool) string {
-	var parts []string
-	if col.PrimaryKey {
-		parts = append(parts, "PK")
-	}
-	if fkCols[col.Name] {
-		parts = append(parts, "FK")
-	}
-	if ucCols[col.Name] {
-		parts = append(parts, "UK")
-	}
-	return strings.Join(parts, ",")
-}
-
-// fkColumnSet returns the set of column names on tbl that participate in
-// any outgoing foreign key.
-func fkColumnSet(tbl *metadata.Table) map[string]bool {
-	if tbl.FK == nil {
-		return nil
-	}
-	set := make(map[string]bool)
-	for _, fk := range tbl.FK.Outgoing {
-		if fk == nil {
-			continue
-		}
-		for _, c := range fk.Columns {
-			set[c] = true
-		}
-	}
-	return set
-}
-
-// ucColumnSet returns the set of column names on tbl that participate in
-// any unique constraint.
-func ucColumnSet(tbl *metadata.Table) map[string]bool {
-	if len(tbl.UniqueConstraints) == 0 {
-		return nil
-	}
-	set := make(map[string]bool)
-	for _, uc := range tbl.UniqueConstraints {
-		if uc == nil {
-			continue
-		}
-		for _, c := range uc.Columns {
-			set[c] = true
-		}
-	}
-	return set
 }
 
 func compareTables(a, b *metadata.Table) int {
