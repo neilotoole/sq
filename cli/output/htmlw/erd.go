@@ -98,7 +98,7 @@ func (w *metadataWriter) writeSourceOverview(buf *bytes.Buffer, md *metadata.Sou
 		addRow("Views", strconv.FormatInt(md.ViewCount, 10))
 	}
 	addRow("Location", loc)
-	writeTableEl(buf, "", []string{"Property", "Value"}, rows)
+	writeTableEl(buf, "", "", []string{"Property", "Value"}, rows)
 }
 
 func (w *metadataWriter) writeTableSection(
@@ -177,7 +177,7 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 		}
 		rows = append(rows, row)
 	}
-	writeTableEl(buf, "Columns", headers, rows)
+	writeTableEl(buf, "Columns", tableSlug(tbl.Name)+"-columns", headers, rows)
 }
 
 func (w *metadataWriter) writeForeignKeys(buf *bytes.Buffer, tbl *metadata.Table) {
@@ -198,7 +198,7 @@ func (w *metadataWriter) writeForeignKeys(buf *bytes.Buffer, tbl *metadata.Table
 			html.EscapeString(r.OnDelete),
 		})
 	}
-	writeTableEl(buf, "Foreign keys", headers, cells)
+	writeTableEl(buf, "Foreign keys", tableSlug(tbl.Name)+"-foreign-keys", headers, cells)
 }
 
 func (w *metadataWriter) writeUniqueConstraints(buf *bytes.Buffer, tbl *metadata.Table) {
@@ -210,7 +210,8 @@ func (w *metadataWriter) writeUniqueConstraints(buf *bytes.Buffer, tbl *metadata
 	for _, r := range rows {
 		cells = append(cells, []string{htmlCode(r.Name), htmlCode(r.Columns)})
 	}
-	writeTableEl(buf, "Unique constraints", []string{"Constraint", "Columns"}, cells)
+	writeTableEl(buf, "Unique constraints", tableSlug(tbl.Name)+"-unique-constraints",
+		[]string{"Constraint", "Columns"}, cells)
 }
 
 func (w *metadataWriter) writeIndexes(buf *bytes.Buffer, tbl *metadata.Table) {
@@ -229,7 +230,7 @@ func (w *metadataWriter) writeIndexes(buf *bytes.Buffer, tbl *metadata.Table) {
 			html.EscapeString(r.Type),
 		})
 	}
-	writeTableEl(buf, "Indexes", headers, cells)
+	writeTableEl(buf, "Indexes", tableSlug(tbl.Name)+"-indexes", headers, cells)
 }
 
 func compareTables(a, b *metadata.Table) int {

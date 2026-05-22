@@ -97,9 +97,11 @@ func TestMetadataWriter_SourceMetadata(t *testing.T) {
 	require.Contains(t, got, "cursor: zoom-in")
 	// Foreign keys render as a table with a Direction column; the test
 	// source has both an outgoing FK (film_actor → actor) and the matching
-	// incoming back-reference (on actor). The section label is a <caption>.
-	require.Contains(t, got, "<caption>Columns</caption>")
-	require.Contains(t, got, "<caption>Foreign keys</caption>")
+	// incoming back-reference (on actor). The section label is a
+	// deep-linkable <caption>: a table-scoped id + a "#" self-link.
+	require.Contains(t, got, `<caption id="actor-columns">`)
+	require.Contains(t, got, `<caption id="film_actor-foreign-keys">`)
+	require.Contains(t, got, `<a class="sq-anchor" href="#actor-columns">Columns</a>`)
 	require.Contains(t, got, "<th>Direction</th>")
 	require.Contains(t, got, "<td>outgoing</td>")
 	require.Contains(t, got, "<td>incoming</td>")
@@ -134,13 +136,13 @@ func TestMetadataWriter_indexesAndUniqueConstraints(t *testing.T) {
 	require.NoError(t, w.TableMetadata(tbl))
 	got := buf.String()
 
-	require.Contains(t, got, "<caption>Indexes</caption>")
+	require.Contains(t, got, `<caption id="t-indexes">`)
 	require.Contains(t, got, "<th>Index</th>")
 	require.Contains(t, got, "<th>Unique</th>")
 	require.Contains(t, got, "<td><code>t_pkey</code></td>")
 	require.Contains(t, got, "<td>✓</td>")
 	require.Contains(t, got, "<td>btree</td>")
-	require.Contains(t, got, "<caption>Unique constraints</caption>")
+	require.Contains(t, got, `<caption id="t-unique-constraints">`)
 	require.Contains(t, got, "<th>Constraint</th>")
 	require.Contains(t, got, "<td><code>t_email_key</code></td>")
 }

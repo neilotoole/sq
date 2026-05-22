@@ -210,13 +210,22 @@ func checkMark(b bool) string {
 	return ""
 }
 
-// writeTableEl writes a simple <table> with the given headers and rows, and
-// an optional <caption> (omitted when caption is ""). The caption is HTML-
-// escaped; each cell is written verbatim (callers pre-escape / wrap as needed).
-func writeTableEl(buf *bytes.Buffer, caption string, headers []string, rows [][]string) {
+// writeTableEl writes a simple <table> with the given headers and rows, and an
+// optional <caption> (omitted when caption is ""). When captionID is non-empty
+// the caption is rendered as a deep-linkable self-link (id + #captionID). The
+// caption is HTML-escaped; each cell is written verbatim (callers pre-escape).
+func writeTableEl(buf *bytes.Buffer, caption, captionID string, headers []string, rows [][]string) {
 	buf.WriteString("<table>\n")
-	if caption != "" {
+	switch {
+	case caption == "":
+	case captionID == "":
 		fmt.Fprintf(buf, "<caption>%s</caption>\n", html.EscapeString(caption))
+	default:
+		// Deep-linkable caption: an id + a self-link that reveals a "#" on
+		// hover (same .sq-anchor affordance as the table headings).
+		fmt.Fprintf(buf,
+			"<caption id=\"%s\"><a class=\"sq-anchor\" href=\"#%s\">%s</a></caption>\n",
+			captionID, captionID, html.EscapeString(caption))
 	}
 	buf.WriteString("<thead>\n<tr>")
 	for _, h := range headers {
@@ -250,7 +259,7 @@ func (w *metadataWriter) DBProperties(props map[string]any) error {
 			}
 			rows = append(rows, []string{htmlCode(k), html.EscapeString(fmt.Sprintf("%v", v))})
 		}
-		writeTableEl(b, "", []string{"Property", "Value"}, rows)
+		writeTableEl(b, "", "", []string{"Property", "Value"}, rows)
 	})
 	if err != nil {
 		return err
@@ -274,7 +283,7 @@ func (w *metadataWriter) DriverMetadata(drvrs []driver.Metadata) error {
 				yesNo(md.UserDefined),
 			})
 		}
-		writeTableEl(b, "", []string{"Driver", "Description", "User-defined"}, rows)
+		writeTableEl(b, "", "", []string{"Driver", "Description", "User-defined"}, rows)
 	})
 	if err != nil {
 		return err
@@ -298,7 +307,7 @@ func (w *metadataWriter) Catalogs(currentCatalog string, catalogs []string) erro
 			}
 			rows = append(rows, []string{htmlCode(c), active})
 		}
-		writeTableEl(b, "", []string{"Catalog", "Active"}, rows)
+		writeTableEl(b, "", "", []string{"Catalog", "Active"}, rows)
 	})
 	if err != nil {
 		return err
@@ -324,7 +333,7 @@ func (w *metadataWriter) Schemata(currentSchema string, schemas []*metadata.Sche
 				htmlCode(s.Name), htmlCode(s.Catalog), html.EscapeString(s.Owner), active,
 			})
 		}
-		writeTableEl(b, "", []string{"Schema", "Catalog", "Owner", "Active"}, rows)
+		writeTableEl(b, "", "", []string{"Schema", "Catalog", "Owner", "Active"}, rows)
 	})
 	if err != nil {
 		return err
