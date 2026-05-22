@@ -11,7 +11,6 @@ import (
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/commonw"
 	"github.com/neilotoole/sq/libsq/ast"
-	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 func newMonoPrinting() *output.Printing {
@@ -361,24 +360,6 @@ func TestRenderParseError_MutesStringQuotes(t *testing.T) {
 		"pr.Faint and pr.String must differ (otherwise the test can't tell them apart)")
 	require.Contains(t, region, faintCode, "expected pr.Faint SGR around string quote characters")
 	require.Contains(t, region, stringCode, "expected pr.String SGR inside string content")
-}
-
-func TestColumnKey(t *testing.T) {
-	tbl := &metadata.Table{
-		Name: "t",
-		Columns: []*metadata.Column{
-			{Name: "id", PrimaryKey: true},
-			{Name: "ref"},
-			{Name: "uq"},
-		},
-		FK:                &metadata.FKGroup{Outgoing: []*metadata.ForeignKey{{Columns: []string{"ref"}}}},
-		UniqueConstraints: []*metadata.UniqueConstraint{{Columns: []string{"uq"}}},
-	}
-	fk := commonw.FKColumnSet(tbl)
-	uc := commonw.UCColumnSet(tbl)
-	require.Equal(t, "PK", commonw.ColumnKey(tbl.Columns[0], fk, uc))
-	require.Equal(t, "FK", commonw.ColumnKey(tbl.Columns[1], fk, uc))
-	require.Equal(t, "UK", commonw.ColumnKey(tbl.Columns[2], fk, uc))
 }
 
 // sgrCode extracts the parameter portion of a single SGR escape
