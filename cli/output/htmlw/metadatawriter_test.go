@@ -86,6 +86,11 @@ func TestMetadataWriter_SourceMetadata(t *testing.T) {
 	// The diagram renders on a light panel so the default-theme tables and
 	// connector lines stay legible even when the page is in dark mode.
 	require.Contains(t, got, "pre.mermaid { background: #fff;")
+	// Diagrams are click-to-zoom: panzoom is loaded (CDN here) and the
+	// overlay module + cursor affordance are present.
+	require.Contains(t, got, "panzoom@9/+esm")
+	require.Contains(t, got, "sq-erd-overlay")
+	require.Contains(t, got, "cursor: zoom-in")
 	// Foreign keys render as a table with a Direction column; the test
 	// source has both an outgoing FK (film_actor → actor) and the matching
 	// incoming back-reference (on actor). The section label is a <caption>.
@@ -143,4 +148,8 @@ func TestMetadataWriter_embed(t *testing.T) {
 	require.Greater(t, len(got), 500_000, "embedded output inlines the mermaid library")
 	require.NotContains(t, got, "cdn.jsdelivr.net")
 	require.Contains(t, got, "mermaid.initialize")
+	// The click-to-zoom overlay works offline too: panzoom is vendored
+	// (no CDN import) and the overlay module is present.
+	require.Contains(t, got, "sq-erd-overlay")
+	require.NotContains(t, got, "panzoom@9/+esm")
 }

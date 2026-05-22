@@ -12,3 +12,10 @@ func TestMermaidJS(t *testing.T) {
 	require.Greater(t, len(js), 500_000, "decompressed mermaid bundle should be sizable")
 	require.Contains(t, string(js), "mermaid")
 }
+
+func TestPanzoomJS(t *testing.T) {
+	js, err := panzoomJS()
+	require.NoError(t, err)
+	require.Greater(t, len(js), 10_000, "decompressed panzoom bundle should be sizable")
+	require.Contains(t, string(js), "panzoom")
+}

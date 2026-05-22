@@ -44,7 +44,7 @@ th { background: #f2f2f2; }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   background: rgba(127,127,127,0.15); padding: 0.1em 0.3em; border-radius: 3px; }
 pre.mermaid { background: #fff; border: 1px solid #ddd; border-radius: 8px;
-  padding: 1rem; overflow-x: auto; }
+  padding: 1rem; overflow-x: auto; cursor: zoom-in; }
 .summary { color: #666; margin: 0.2rem 0; }
 @media (prefers-color-scheme: dark) {
   body { background: #1e1e1e; color: #ddd; }
@@ -52,6 +52,16 @@ pre.mermaid { background: #fff; border: 1px solid #ddd; border-radius: 8px;
   th { background: #2a2a2a; }
   .summary { color: #aaa; }
 }
+#sq-erd-overlay { position: fixed; inset: 0; z-index: 1000; display: none;
+  background: rgba(0,0,0,0.85); }
+#sq-erd-overlay.open { display: block; }
+#sq-erd-overlay .sq-erd-stage { position: absolute; inset: 0; overflow: hidden;
+  background: #fff; cursor: grab; }
+#sq-erd-overlay .sq-erd-stage svg { width: 100%; height: 100%; max-width: none; }
+#sq-erd-overlay .sq-erd-bar { position: absolute; top: 0.75rem; right: 0.75rem;
+  display: flex; gap: 0.5rem; z-index: 1; }
+#sq-erd-overlay .sq-erd-bar button { font: inherit; cursor: pointer; color: #111;
+  background: #fff; border: 1px solid #ccc; border-radius: 6px; padding: 0.3rem 0.7rem; }
 `
 
 // writeDocument writes a complete standalone HTML document: <head> (charset,
@@ -84,27 +94,87 @@ func (w *metadataWriter) writeDocument(
 // don't use Mermaid's "dark" theme because in v11 it leaves the ER focal
 // table's header and attribute-row backgrounds light while switching text to
 // light (unreadable), and those colors aren't reachable via themeVariables.
+//
+// erdOverlayJS is appended after it: a vanilla-JS module that makes each
+// rendered diagram open in a fullscreen, panzoom-able overlay on click. It
+// uses event delegation, so it is independent of Mermaid's async render
+// timing, and references panzoom, which writeMermaidScript loads alongside
+// Mermaid (vendored UMD global in embed mode, ESM import otherwise).
 const mermaidInit = "mermaid.initialize({ startOnLoad: true });\n"
 
-// writeMermaidScript writes the <script> that loads and initializes Mermaid:
-// the inlined vendored bundle when embed is set, else a pinned CDN import.
+const erdOverlayJS = `(function(){
+  var overlay, stage, pz;
+  function build(){
+    overlay = document.createElement('div');
+    overlay.id = 'sq-erd-overlay';
+    var bar = document.createElement('div'); bar.className = 'sq-erd-bar';
+    var reset = document.createElement('button'); reset.type = 'button'; reset.textContent = 'Reset';
+    var close = document.createElement('button'); close.type = 'button'; close.textContent = '✕ Close';
+    bar.appendChild(reset); bar.appendChild(close);
+    stage = document.createElement('div'); stage.className = 'sq-erd-stage';
+    overlay.appendChild(bar); overlay.appendChild(stage);
+    document.body.appendChild(overlay);
+    close.addEventListener('click', hide);
+    reset.addEventListener('click', function(){ if (pz) { pz.moveTo(0,0); pz.zoomAbs(0,0,1); } });
+    overlay.addEventListener('click', function(e){ if (e.target === overlay) hide(); });
+  }
+  function show(svg){
+    if (!overlay) build();
+    stage.textContent = '';
+    // Clone keeps its id: Mermaid scopes its internal <style> rules (e.g.
+    // fill:none on relationship paths) to "#<svg-id> ...", so dropping the id
+    // would make every edge render as a solid black blob. The resulting
+    // duplicate id is invalid but harmless here. Only the inline sizing style
+    // is stripped so the clone can fill the stage.
+    var clone = svg.cloneNode(true);
+    clone.removeAttribute('style');
+    stage.appendChild(clone);
+    overlay.classList.add('open');
+    pz = panzoom(clone, { maxZoom: 40, minZoom: 0.1, smoothScroll: false });
+  }
+  function hide(){
+    if (pz) { pz.dispose(); pz = null; }
+    if (overlay) { overlay.classList.remove('open'); stage.textContent = ''; }
+  }
+  document.addEventListener('click', function(e){
+    if (overlay && overlay.classList.contains('open')) return;
+    var pre = e.target.closest ? e.target.closest('pre.mermaid') : null;
+    if (!pre) return;
+    var svg = pre.querySelector('svg');
+    if (svg) show(svg);
+  });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') hide(); });
+})();
+`
+
+// writeMermaidScript writes the <script>s that load and initialize Mermaid and
+// panzoom and wire up the click-to-zoom overlay: inlined vendored bundles when
+// embed is set, else pinned CDN imports.
 func (w *metadataWriter) writeMermaidScript(buf *bytes.Buffer) error {
 	if w.embed {
-		js, err := mermaidJS()
+		mjs, err := mermaidJS()
+		if err != nil {
+			return err
+		}
+		pjs, err := panzoomJS()
 		if err != nil {
 			return err
 		}
 		buf.WriteString("<script>")
-		buf.Write(js)
-		buf.WriteString("</script>\n")
-		buf.WriteString("<script>")
+		buf.Write(mjs)
+		buf.WriteString("</script>\n<script>")
+		buf.Write(pjs)
+		buf.WriteString("</script>\n<script>")
 		buf.WriteString(mermaidInit)
+		buf.WriteString(erdOverlayJS)
 		buf.WriteString("</script>\n")
 		return nil
 	}
 	buf.WriteString("<script type=\"module\">\n")
 	buf.WriteString("import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/+esm';\n")
+	buf.WriteString("import panzoom from 'https://cdn.jsdelivr.net/npm/panzoom@9/+esm';\n")
 	buf.WriteString(mermaidInit)
+	buf.WriteString(erdOverlayJS)
 	buf.WriteString("</script>\n")
 	return nil
 }
