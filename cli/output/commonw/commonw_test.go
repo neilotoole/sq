@@ -99,6 +99,21 @@ func TestFKRows(t *testing.T) {
 		require.Equal(t, "cat.sch.other(x, y)", rows[0].To)
 		require.Empty(t, rows[0].Constraint) // unnamed constraint
 	})
+
+	t.Run("no_action_omitted", func(t *testing.T) {
+		tbl := &metadata.Table{
+			Name: "t",
+			FK: &metadata.FKGroup{Outgoing: []*metadata.ForeignKey{{
+				Table: "t", Columns: []string{"a"},
+				RefTable: "u", RefColumns: []string{"id"},
+				OnUpdate: "NO ACTION", OnDelete: "SET NULL",
+			}}},
+		}
+		rows := commonw.FKRows(tbl)
+		require.Len(t, rows, 1)
+		require.Empty(t, rows[0].OnUpdate, `"NO ACTION" is omitted`)
+		require.Equal(t, "set null", rows[0].OnDelete)
+	})
 }
 
 func TestIndexRows(t *testing.T) {

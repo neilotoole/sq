@@ -154,9 +154,20 @@ func newFKRow(direction string, fk *metadata.ForeignKey) FKRow {
 		From:       fk.Table + "(" + strings.Join(fk.Columns, ", ") + ")",
 		To:         fkRef(fk),
 		Constraint: fk.Name,
-		OnUpdate:   strings.ToLower(fk.OnUpdate),
-		OnDelete:   strings.ToLower(fk.OnDelete),
+		OnUpdate:   fkAction(fk.OnUpdate),
+		OnDelete:   fkAction(fk.OnDelete),
 	}
+}
+
+// fkAction lower-cases a referential action, returning "" for the SQL
+// default "NO ACTION" — which is the implied behavior and just noise in
+// output — so the On update / On delete cells stay blank for it.
+func fkAction(s string) string {
+	s = strings.ToLower(s)
+	if s == "no action" {
+		return ""
+	}
+	return s
 }
 
 // fkRef returns "[catalog.][schema.]ref_table(ref_col, ...)" for fk,

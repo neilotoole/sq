@@ -120,7 +120,7 @@ erDiagram
 | incoming | ` + "`film_actor(actor_id)`" +
 		` | ` + "`actor(actor_id)`" +
 		` | ` + "`fk_film_actor_actor`" +
-		` | cascade | no action |
+		` | cascade |  |
 
 ### ` + "`film_actor`" + `
 
@@ -149,7 +149,7 @@ erDiagram
 | outgoing | ` + "`film_actor(actor_id)`" +
 		` | ` + "`actor(actor_id)`" +
 		` | ` + "`fk_film_actor_actor`" +
-		` | cascade | no action |
+		` | cascade |  |
 `
 
 	buf := &bytes.Buffer{}
@@ -236,7 +236,7 @@ erDiagram
 | outgoing | ` + "`film_actor(actor_id)`" +
 		` | ` + "`actor(actor_id)`" +
 		` | ` + "`fk_film_actor_actor`" +
-		` | cascade | no action |
+		` | cascade |  |
 `
 
 	src := newTestSource()
