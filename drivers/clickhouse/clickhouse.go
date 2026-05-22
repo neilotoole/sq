@@ -714,9 +714,9 @@ func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (b
 // The process:
 //  1. Retrieves the source table's schema (column names and types)
 //     via [getTableMetadata], which queries ClickHouse system.columns.
-//  2. Creates the destination table with the same column schema using
-//     [driveri.CreateTable] (MergeTree engine, ORDER BY first NOT NULL
-//     column or tuple()).
+//  2. Creates the destination table with the same column schema by executing
+//     a schema-qualified CREATE (MergeTree engine, ORDER BY first NOT NULL
+//     column or tuple()) so the table lands in toTable's schema; see #652.
 //  3. If copyData is true, copies all rows using INSERT INTO ... SELECT.
 //
 // Both fromTable and toTable are rendered via [tblfmt], which preserves
@@ -756,8 +756,12 @@ func (d *driveri) CopyTable(
 		}
 	}
 
-	if err = d.CreateTable(ctx, db, destTblDef); err != nil {
-		return 0, err
+	// Build the CREATE from tblfmt(toTable) so that, when toTable.Schema is set,
+	// the table lands in that schema rather than the current database; the
+	// INSERT below targets the same name. See issue #652.
+	createStmt := buildCreateTableStmtName(tblfmt(toTable), destTblDef)
+	if _, err = db.ExecContext(ctx, createStmt); err != nil {
+		return 0, errw(err)
 	}
 
 	if !copyData {

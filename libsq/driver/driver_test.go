@@ -95,11 +95,9 @@ func TestDriver_TableExists_MultipleSchemas(t *testing.T) {
 	// Only MySQL and Postgres were affected by #484. The other drivers were
 	// already schema-scoped (or single-schema, for SQLite, whose unqualified
 	// sqlite_master never sees attached schemas) and serve here as contract
-	// guards against future regressions. Oracle is omitted because its
-	// CreateSchema is unsupported, and ClickHouse because its CopyTable doesn't
-	// honor the target schema (#652); both already scope TableExists to the
-	// current schema (Oracle via user_objects, ClickHouse via currentDatabase()),
-	// so neither was affected by #484.
+	// guards against future regressions; ClickHouse, included since its
+	// CopyTable was fixed to honor the target schema (#652), also guards that.
+	// Oracle is omitted because its CreateSchema is unsupported.
 	testCases := []struct {
 		handle        string
 		defaultSchema string
@@ -109,6 +107,7 @@ func TestDriver_TableExists_MultipleSchemas(t *testing.T) {
 		{sakila.Pg, "public"},
 		{sakila.My, "sakila"},
 		{sakila.MS, "dbo"},
+		{sakila.CH, "sakila"},
 	}
 
 	for _, tc := range testCases {

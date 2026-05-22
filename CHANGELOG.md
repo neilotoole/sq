@@ -60,6 +60,15 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [#652]: The ClickHouse driver now creates a copied table in its target
+  schema (ClickHouse database) when the copy specifies one, rather than always
+  in the connection's current database. `CopyTable` built the `CREATE TABLE`
+  from the bare table name while the data-copy `INSERT` used the
+  schema-qualified name, so a cross-schema copy created the table in the wrong
+  database (and failed outright when also copying data). ClickHouse now matches
+  the other SQL drivers' `CopyTable`. No CLI command targets a cross-schema
+  copy today, so this is a latent driver-level fix surfaced while testing #484.
+
 - [#484]:
   [`--insert`](https://sq.io/docs/tutorial#insert--modify) into a MySQL or
   Postgres table no longer fails when a same-named table exists in another
@@ -1559,6 +1568,7 @@ make working with lots of sources much easier.
 [#633]: https://github.com/neilotoole/sq/issues/633
 [#637]: https://github.com/neilotoole/sq/pull/637
 [#640]: https://github.com/neilotoole/sq/issues/640
+[#652]: https://github.com/neilotoole/sq/issues/652
 
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2

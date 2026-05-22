@@ -128,6 +128,24 @@ func TestBuildCreateTableStmt(t *testing.T) {
 	require.Contains(t, stmt3, "ORDER BY `not_null_col`")
 }
 
+// TestBuildCreateTableStmtName_SchemaQualified is a short-mode (no live
+// ClickHouse) regression guard for https://github.com/neilotoole/sq/issues/652:
+// a schema-qualified, already-quoted table name must be rendered verbatim in
+// the CREATE TABLE statement — the schema qualifier must not be dropped.
+// CopyTable passes such a name via tblfmt(toTable).
+func TestBuildCreateTableStmtName_SchemaQualified(t *testing.T) {
+	tblDef := schema.NewTable("actor", []string{"id"}, []kind.Kind{kind.Int})
+
+	stmt := clickhouse.BuildCreateTableStmtName("`mydb`.`actor`", tblDef)
+	require.Contains(t, stmt, "CREATE TABLE `mydb`.`actor` (")
+	require.NotContains(t, stmt, "CREATE TABLE `actor` (",
+		"#652: the schema qualifier must not be dropped")
+	require.Contains(t, stmt, "ENGINE = MergeTree()")
+
+	// The bare-name delegation via buildCreateTableStmt is unchanged.
+	require.Contains(t, clickhouse.BuildCreateTableStmt(tblDef), "CREATE TABLE `actor` (")
+}
+
 // TestBuildUpdateStmt tests UPDATE statement generation using ClickHouse's
 // ALTER TABLE UPDATE syntax.
 //
