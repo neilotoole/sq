@@ -97,7 +97,7 @@ func (w *metadataWriter) writeSourceOverview(buf *bytes.Buffer, md *metadata.Sou
 		addRow("Views", strconv.FormatInt(md.ViewCount, 10))
 	}
 	addRow("Location", loc)
-	writeTableEl(buf, []string{"Property", "Value"}, rows)
+	writeTableEl(buf, "", []string{"Property", "Value"}, rows)
 }
 
 func (w *metadataWriter) writeTableSection(
@@ -164,7 +164,7 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 		}
 		rows = append(rows, row)
 	}
-	writeTableEl(buf, headers, rows)
+	writeTableEl(buf, "", headers, rows)
 }
 
 func (w *metadataWriter) writeForeignKeys(buf *bytes.Buffer, tbl *metadata.Table) {
@@ -173,7 +173,6 @@ func (w *metadataWriter) writeForeignKeys(buf *bytes.Buffer, tbl *metadata.Table
 		return
 	}
 
-	buf.WriteString("<p><strong>Foreign keys:</strong></p>\n")
 	headers := []string{"Direction", "From", "To", "Constraint", "On update", "On delete"}
 	cells := make([][]string, 0, len(rows))
 	for _, r := range rows {
@@ -186,7 +185,7 @@ func (w *metadataWriter) writeForeignKeys(buf *bytes.Buffer, tbl *metadata.Table
 			html.EscapeString(r.OnDelete),
 		})
 	}
-	writeTableEl(buf, headers, cells)
+	writeTableEl(buf, "Foreign keys", headers, cells)
 }
 
 func (w *metadataWriter) writeUniqueConstraints(buf *bytes.Buffer, tbl *metadata.Table) {
@@ -194,12 +193,11 @@ func (w *metadataWriter) writeUniqueConstraints(buf *bytes.Buffer, tbl *metadata
 	if len(rows) == 0 {
 		return
 	}
-	buf.WriteString("<p><strong>Unique constraints:</strong></p>\n")
 	cells := make([][]string, 0, len(rows))
 	for _, r := range rows {
 		cells = append(cells, []string{htmlCode(r.Name), htmlCode(r.Columns)})
 	}
-	writeTableEl(buf, []string{"Constraint", "Columns"}, cells)
+	writeTableEl(buf, "Unique constraints", []string{"Constraint", "Columns"}, cells)
 }
 
 func (w *metadataWriter) writeIndexes(buf *bytes.Buffer, tbl *metadata.Table) {
@@ -207,7 +205,6 @@ func (w *metadataWriter) writeIndexes(buf *bytes.Buffer, tbl *metadata.Table) {
 	if len(rows) == 0 {
 		return
 	}
-	buf.WriteString("<p><strong>Indexes:</strong></p>\n")
 	headers := []string{"Index", "Columns", "Unique", "Primary", "Type"}
 	cells := make([][]string, 0, len(rows))
 	for _, r := range rows {
@@ -219,7 +216,7 @@ func (w *metadataWriter) writeIndexes(buf *bytes.Buffer, tbl *metadata.Table) {
 			html.EscapeString(r.Type),
 		})
 	}
-	writeTableEl(buf, headers, cells)
+	writeTableEl(buf, "Indexes", headers, cells)
 }
 
 func compareTables(a, b *metadata.Table) int {

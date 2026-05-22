@@ -38,6 +38,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helve
   line-height: 1.5; max-width: 70rem; margin: 2rem auto; padding: 0 1rem; }
 h1, h2, h3, h4 { line-height: 1.25; }
 table { border-collapse: collapse; margin: 1rem 0; }
+caption { text-align: left; font-weight: 600; margin-bottom: 0.3rem; }
 th, td { border: 1px solid #ccc; padding: 0.3rem 0.6rem; text-align: left; vertical-align: top; }
 th { background: #f2f2f2; }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -132,10 +133,15 @@ func checkMark(b bool) string {
 	return ""
 }
 
-// writeTableEl writes a simple <table> with the given headers and rows. Each
-// cell is written verbatim (callers pre-escape / wrap as needed).
-func writeTableEl(buf *bytes.Buffer, headers []string, rows [][]string) {
-	buf.WriteString("<table>\n<thead>\n<tr>")
+// writeTableEl writes a simple <table> with the given headers and rows, and
+// an optional <caption> (omitted when caption is ""). The caption is HTML-
+// escaped; each cell is written verbatim (callers pre-escape / wrap as needed).
+func writeTableEl(buf *bytes.Buffer, caption string, headers []string, rows [][]string) {
+	buf.WriteString("<table>\n")
+	if caption != "" {
+		fmt.Fprintf(buf, "<caption>%s</caption>\n", html.EscapeString(caption))
+	}
+	buf.WriteString("<thead>\n<tr>")
 	for _, h := range headers {
 		fmt.Fprintf(buf, "<th>%s</th>", html.EscapeString(h))
 	}
@@ -167,7 +173,7 @@ func (w *metadataWriter) DBProperties(props map[string]any) error {
 			}
 			rows = append(rows, []string{htmlCode(k), html.EscapeString(fmt.Sprintf("%v", v))})
 		}
-		writeTableEl(b, []string{"Property", "Value"}, rows)
+		writeTableEl(b, "", []string{"Property", "Value"}, rows)
 	})
 	if err != nil {
 		return err
@@ -191,7 +197,7 @@ func (w *metadataWriter) DriverMetadata(drvrs []driver.Metadata) error {
 				yesNo(md.UserDefined),
 			})
 		}
-		writeTableEl(b, []string{"Driver", "Description", "User-defined"}, rows)
+		writeTableEl(b, "", []string{"Driver", "Description", "User-defined"}, rows)
 	})
 	if err != nil {
 		return err
@@ -215,7 +221,7 @@ func (w *metadataWriter) Catalogs(currentCatalog string, catalogs []string) erro
 			}
 			rows = append(rows, []string{htmlCode(c), active})
 		}
-		writeTableEl(b, []string{"Catalog", "Active"}, rows)
+		writeTableEl(b, "", []string{"Catalog", "Active"}, rows)
 	})
 	if err != nil {
 		return err
@@ -241,7 +247,7 @@ func (w *metadataWriter) Schemata(currentSchema string, schemas []*metadata.Sche
 				htmlCode(s.Name), htmlCode(s.Catalog), html.EscapeString(s.Owner), active,
 			})
 		}
-		writeTableEl(b, []string{"Schema", "Catalog", "Owner", "Active"}, rows)
+		writeTableEl(b, "", []string{"Schema", "Catalog", "Owner", "Active"}, rows)
 	})
 	if err != nil {
 		return err
