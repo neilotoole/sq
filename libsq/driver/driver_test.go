@@ -92,11 +92,18 @@ func TestDriver_TableExists(t *testing.T) {
 //     as present, so --insert skipped CREATE and the subsequent INSERT failed
 //     because the table was absent from the current schema.
 func TestDriver_TableExists_MultipleSchemas(t *testing.T) {
+	// Only MySQL and Postgres were affected by #484. The other drivers were
+	// already schema-scoped (or single-schema, for SQLite, whose unqualified
+	// sqlite_master never sees attached schemas) and serve here as contract
+	// guards against future regressions. Oracle is omitted because its
+	// CreateSchema is unsupported, and ClickHouse because CopyTable can't report
+	// rows affected (it's covered separately under drivers/clickhouse).
 	testCases := []struct {
 		handle        string
 		defaultSchema string
 	}{
 		{sakila.SL3, "main"},
+		{sakila.Duck, "main"},
 		{sakila.Pg, "public"},
 		{sakila.My, "sakila"},
 		{sakila.MS, "dbo"},
@@ -104,7 +111,7 @@ func TestDriver_TableExists_MultipleSchemas(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.handle, func(t *testing.T) {
-			th, src, drvr, _, db := testh.NewWith(t, tc.handle)
+			th, _, drvr, _, db := testh.NewWith(t, tc.handle)
 			ctx := th.Context
 
 			conn, err := db.Conn(ctx)
@@ -140,7 +147,7 @@ func TestDriver_TableExists_MultipleSchemas(t *testing.T) {
 			// Now create the table in the current schema too, so the name
 			// exists in two schemas at once.
 			currentTblFQ := tablefq.From(tblName)
-			t.Cleanup(func() { th.DropTable(src, currentTblFQ) })
+			t.Cleanup(func() { assert.NoError(t, drvr.DropTable(ctx, conn, currentTblFQ, true)) })
 			_, err = drvr.CopyTable(ctx, conn, srcTblFQ, currentTblFQ, false)
 			require.NoError(t, err)
 

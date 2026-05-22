@@ -552,6 +552,10 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 
 // TableExists implements driver.SQLDriver.
 func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool, error) {
+	// Scope to the current schema via CURRENT_SCHEMA() so a same-named table in
+	// another schema isn't counted (see issue #484). With the table_schema
+	// predicate, the count is 0 or 1, so > 0 means the table exists in the
+	// current schema; don't drop the predicate or the count can exceed 1.
 	const query = `SELECT COUNT(*) FROM information_schema.tables
 WHERE table_schema = CURRENT_SCHEMA() AND table_name = $1`
 

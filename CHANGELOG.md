@@ -65,8 +65,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   `COUNT(*) = 2`; the `== 1` test then reported the table as missing and `sq`
   tried to `CREATE` it, which the database rejected with "table already
   exists". The lookup is now scoped to the connection's current schema
-  (`DATABASE()` for MySQL, `CURRENT_SCHEMA()` for Postgres) and treats any
-  match as existing, matching the other SQL drivers.
+  (`DATABASE()` for MySQL, `CURRENT_SCHEMA()` for Postgres), as the other SQL
+  drivers already scope theirs.
 
 - [#633]: A [query](https://sq.io/docs/query) using the single-segment
   `@handle.table:alias` form on the left of a pipeline (e.g.
