@@ -31,6 +31,7 @@ func (w *metadataWriter) SourceMetadata(md *metadata.Source, showSchema bool) er
 			byName := mermaid.Index(tables)
 			b.WriteString(`<h2 id="tables" class="sq-tables">` +
 				`<a class="sq-anchor" href="#tables">Tables</a></h2>` + "\n")
+			writeTablesTOC(b, tables)
 			for _, tbl := range tables {
 				w.writeTableSection(b, tbl, 3, byName)
 			}
@@ -54,6 +55,18 @@ func (w *metadataWriter) TableMetadata(md *metadata.Table) error {
 	}
 	_, err = buf.WriteTo(w.out)
 	return err
+}
+
+// writeTablesTOC writes a compact, wrapping table-of-contents: a link to each
+// table/view section (in the given order), styled as code chips. Each links to
+// the section's id (see tableSlug / writeTableHeading).
+func writeTablesTOC(buf *bytes.Buffer, tables []*metadata.Table) {
+	buf.WriteString("<nav class=\"sq-toc\">\n")
+	for _, tbl := range tables {
+		fmt.Fprintf(buf, "<a href=\"#%s\"><code>%s</code></a>\n",
+			tableSlug(tbl.Name), html.EscapeString(tbl.Name))
+	}
+	buf.WriteString("</nav>\n")
 }
 
 // writeMermaidBlock writes an "Entity Relationship Diagram" heading (at the

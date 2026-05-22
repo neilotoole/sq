@@ -93,6 +93,8 @@ erDiagram
 
 ## Tables
 
+[` + "`actor`" + `](#actor) · [` + "`film_actor`" + `](#film_actor)
+
 ### ` + "`actor`" + `
 
 table · 200 rows

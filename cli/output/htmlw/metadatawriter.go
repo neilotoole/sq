@@ -45,6 +45,10 @@ h1, h2, h3, h4 { line-height: 1.25; }
 .sq-anchor { color: inherit; text-decoration: none; }
 .sq-anchor:hover::after { content: "#"; margin-left: 0.4em; color: #888;
   font-weight: normal; }
+.sq-toc { display: flex; flex-wrap: wrap; gap: 0.4rem 0.8rem;
+  margin: 0.75rem 0 1.5rem; }
+.sq-toc a { text-decoration: none; }
+.sq-toc a:hover { text-decoration: underline; }
 table { border-collapse: collapse; margin: 1rem 0; }
 caption { text-align: left; font-weight: 600; margin-bottom: 0.3rem; }
 th, td { border: 1px solid #ccc; padding: 0.3rem 0.6rem; text-align: left; vertical-align: top; }

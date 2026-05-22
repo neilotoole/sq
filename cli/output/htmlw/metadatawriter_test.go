@@ -78,6 +78,9 @@ func TestMetadataWriter_SourceMetadata(t *testing.T) {
 	require.Contains(t, got, "<title>@test</title>")
 	require.Contains(t, got, "<h1>@test</h1>")
 	require.Contains(t, got, `<h2 id="tables" class="sq-tables">`)
+	// A table-of-contents under the Tables heading links to each section.
+	require.Contains(t, got, `<nav class="sq-toc">`)
+	require.Contains(t, got, `<a href="#actor"><code>actor</code></a>`)
 	// Per-table headings are prominent (sq-table class) and deep-linkable
 	// (id + self-link), e.g. #actor.
 	require.Contains(t, got, `<h3 id="actor" class="sq-table">`)
