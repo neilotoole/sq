@@ -46,7 +46,7 @@ require (
 	github.com/muesli/mango-cobra v1.3.0
 	github.com/muesli/roff v0.1.0
 	github.com/ncruces/go-strftime v1.0.0
-	github.com/neilotoole/oncecache v0.0.1
+	github.com/neilotoole/oncecache v0.1.0
 	github.com/neilotoole/shelleditor v0.4.1
 	github.com/neilotoole/slogt v1.1.0
 	github.com/neilotoole/streamcache v0.3.5
