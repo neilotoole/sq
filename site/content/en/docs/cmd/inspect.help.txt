@@ -76,23 +76,24 @@ Examples:
   $ cat data.xlsx | sq inspect
 
 Flags:
-  -f, --format string       Specify output format (default "text")
-  -t, --text                Output text
-  -h, --header              Print header row (default true)
-  -H, --no-header           Don't print header row
-  -j, --json                Output JSON
-  -c, --compact             Compact instead of pretty-printed output
-  -y, --yaml                Output YAML
-      --markdown            Output a Markdown schema document
-      --html                Output a standalone HTML schema document
-  -O, --overview            Show metadata only (no schema)
-  -p, --dbprops             Show DB properties only
-  -C, --catalogs            List catalogs only
-  -S, --schemata            List schemas (in current catalog) only
-      --src.schema string   Override active schema (and/or catalog) for this query
-      --no-cache            Don't cache ingest data
-  -o, --output string       Write output to <file> instead of stdout
-      --help                help for inspect
+  -f, --format string              Specify output format (default "text")
+  -t, --text                       Output text
+  -h, --header                     Print header row (default true)
+  -H, --no-header                  Don't print header row
+  -j, --json                       Output JSON
+  -c, --compact                    Compact instead of pretty-printed output
+  -y, --yaml                       Output YAML
+      --markdown                   Output a Markdown schema document
+      --html                       Output a standalone HTML schema document
+      --format.html.embed-assets   Embed assets (Mermaid.js) in HTML output for offline use
+  -O, --overview                   Show metadata only (no schema)
+  -p, --dbprops                    Show DB properties only
+  -C, --catalogs                   List catalogs only
+  -S, --schemata                   List schemas (in current catalog) only
+      --src.schema string          Override active schema (and/or catalog) for this query
+      --no-cache                   Don't cache ingest data
+  -o, --output string              Write output to <file> instead of stdout
+      --help                       help for inspect
 
 Global Flags:
       --config string         Load config from here

@@ -13,7 +13,7 @@ func (f *Format) UnmarshalText(text []byte) error {
 	default:
 		return errz.Errorf("unknown output format {%s}", string(text))
 	case JSON, JSONA, JSONL, Text, Raw,
-		HTML, Markdown, XLSX, XML,
+		HTML, Markdown, MermaidERD, XLSX, XML,
 		CSV, TSV, YAML:
 	case "table":
 		// Legacy: the "text" format used to be named "table".
@@ -37,12 +37,16 @@ const (
 	JSONA    Format = "jsona"
 	HTML     Format = "html"
 	Markdown Format = "markdown"
-	XLSX     Format = "xlsx"
-	XML      Format = "xml"
-	CSV      Format = "csv"
-	TSV      Format = "tsv"
-	Raw      Format = "raw"
-	YAML     Format = "yaml"
+	// MermaidERD emits a bare Mermaid.js erDiagram. It's implemented only for
+	// sq inspect (source and table schema diagrams), so it's deliberately
+	// absent from All: query commands have no record writer for it.
+	MermaidERD Format = "mermaid-erd"
+	XLSX       Format = "xlsx"
+	XML        Format = "xml"
+	CSV        Format = "csv"
+	TSV        Format = "tsv"
+	Raw        Format = "raw"
+	YAML       Format = "yaml"
 )
 
 // All returns a new slice containing all format.Format values.
