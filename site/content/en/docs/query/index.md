@@ -1193,7 +1193,7 @@ for escape behavior and [Column as pattern](#column-as-pattern) for
 column-RHS semantics. For literal `%` / `_` matching, use
 [`icontains`](#icontains), which auto-escapes wildcards.
 
-## Metadata functions
+## Other functions
 
 ### `catalog`
 
@@ -1258,9 +1258,6 @@ $ sq --src.schema information_schema 'schema()'
 schema()
 dbo
 ```
-
-
-## Other functions
 
 ### `rownum`
 
