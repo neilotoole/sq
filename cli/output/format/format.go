@@ -50,6 +50,10 @@ const (
 )
 
 // All returns a new slice containing all format.Format values.
+//
+// All deliberately omits MermaidERD: it's an inspect-only metadata format with
+// no record writer, so advertising it for query commands (shell completion,
+// format parity) would be misleading. See MermaidERD's doc comment.
 func All() []Format {
 	return []Format{
 		Text,

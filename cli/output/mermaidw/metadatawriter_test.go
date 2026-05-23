@@ -122,6 +122,32 @@ func TestMetadataWriter_unsupported(t *testing.T) {
 	require.Empty(t, buf.String())
 }
 
+// TestMetadataWriter_emptyDiagram verifies that a source/table with nothing
+// to diagram (no columns, no foreign keys) returns an error and writes
+// nothing, rather than silently emitting empty output.
+func TestMetadataWriter_emptyDiagram(t *testing.T) {
+	buf := &bytes.Buffer{}
+	w := mermaidw.NewMetadataWriter(buf, output.NewPrinting())
+
+	// Source with a single column-less table: nothing to render.
+	src := &metadata.Source{
+		Handle: "@empty", Name: "empty", Driver: drivertype.Type("sqlite3"),
+		Tables: []*metadata.Table{{Name: "t", TableType: "table"}},
+	}
+	require.ErrorContains(t, w.SourceMetadata(src, true), "mermaid-erd")
+	require.Empty(t, buf.String())
+
+	// Source with no tables at all.
+	buf.Reset()
+	require.ErrorContains(t, w.SourceMetadata(&metadata.Source{Handle: "@e"}, true), "mermaid-erd")
+	require.Empty(t, buf.String())
+
+	// Single column-less table.
+	buf.Reset()
+	require.ErrorContains(t, w.TableMetadata(&metadata.Table{Name: "t", TableType: "table"}), "mermaid-erd")
+	require.Empty(t, buf.String())
+}
+
 // TestMetadataWriter_mermaidQuoting verifies that names which aren't
 // bare-identifier-safe are handled the same way the markdown/html writers
 // handle them: entity (table) names are double-quoted, but attribute

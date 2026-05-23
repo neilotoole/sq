@@ -26,6 +26,13 @@ var _ output.MetadataWriter = (*metadataWriter)(nil)
 var errUnsupported = errz.New(
 	"the mermaid-erd format supports only source and table schema diagrams")
 
+// errNothingToRender is returned when there's no diagram to draw, i.e. no
+// tables with columns and no foreign keys. Unlike markdownw/htmlw, where the
+// ERD is one section of a larger document, here the diagram is the entire
+// output, so an empty render is an error rather than silent empty output.
+var errNothingToRender = errz.New(
+	"the mermaid-erd format has nothing to render: no columns or foreign keys found")
+
 // metadataWriter implements output.MetadataWriter for the "mermaid-erd"
 // format, emitting bare Mermaid.js erDiagram source.
 type metadataWriter struct {
@@ -53,14 +60,23 @@ func (w *metadataWriter) SourceMetadata(md *metadata.Source, showSchema bool) er
 	tables := append([]*metadata.Table(nil), md.Tables...)
 	slices.SortFunc(tables, compareTables)
 
-	_, err := io.WriteString(w.out, mermaid.SourceDiagram(tables))
-	return err
+	return w.writeDiagram(mermaid.SourceDiagram(tables))
 }
 
 // TableMetadata implements output.MetadataWriter, writing a focused
 // single-table ERD.
 func (w *metadataWriter) TableMetadata(md *metadata.Table) error {
-	_, err := io.WriteString(w.out, mermaid.TableDiagram(md, nil))
+	return w.writeDiagram(mermaid.TableDiagram(md, nil))
+}
+
+// writeDiagram writes the rendered diagram source to w.out, returning
+// errNothingToRender when src is empty (the mermaid package returns "" when
+// there's nothing to draw).
+func (w *metadataWriter) writeDiagram(src string) error {
+	if src == "" {
+		return errNothingToRender
+	}
+	_, err := io.WriteString(w.out, src)
 	return err
 }
 
