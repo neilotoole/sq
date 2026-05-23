@@ -72,7 +72,7 @@
     "globals": "^17.6.0",
     "hugo-installer": ">=4.0.1",
     "instant.page": "^5.1",
-    "katex": "^0.16",
+    "katex": "^0.17",
     "lazysizes": "^5.3",
     "linkinator": "^7.6.1",
     "markdownlint-cli2": "^0.22.1",
