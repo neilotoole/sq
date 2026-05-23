@@ -58,7 +58,7 @@ func (w *metadataWriter) SourceMetadata(md *metadata.Source, showSchema bool) er
 			byName := mermaid.Index(tables)
 			tablesTitle := "Tables"
 			if commonw.HasViews(tables) {
-				tablesTitle = "Tables & Views"
+				tablesTitle = "Tables & views"
 			}
 			fmt.Fprintf(buf, "\n## %s\n\n", tablesTitle)
 			writeTablesTOC(buf, tables)
@@ -238,7 +238,6 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 	}
 
 	fkCols := commonw.FKColumnSet(tbl)
-	ucCols := commonw.UCColumnSet(tbl)
 
 	// Only include the Default / Comment columns when at least one
 	// column populates them, keeping the common case clean.
@@ -248,8 +247,8 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 		hasComment = hasComment || col.Comment != ""
 	}
 
-	headers := []string{"Column", "Type", "Nullable", "PK", "FK", "Unique"}
-	aligns := []string{"---", "---", ":---:", ":---:", ":---:", ":---:"}
+	headers := []string{"Column", "Type", "Nullable", "PK", "FK"}
+	aligns := []string{"---", "---", ":---:", ":---:", ":---:"}
 	if hasDefault {
 		headers = append(headers, "Default")
 		aligns = append(aligns, "---")
@@ -270,7 +269,6 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 			checkMark(col.Nullable),
 			checkMark(col.PrimaryKey),
 			checkMark(fkCols[col.Name]),
-			checkMark(ucCols[col.Name]),
 		}
 		if hasDefault {
 			cells = append(cells, mdCodeCell(col.DefaultValue))

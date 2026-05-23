@@ -158,7 +158,7 @@ func TestMetadataWriter_indexesAndUniqueConstraints(t *testing.T) {
 	require.Contains(t, got, "<td><code>t_email_key</code></td>")
 }
 
-// TestMetadataWriter_views checks the "Tables & Views" heading and the
+// TestMetadataWriter_views checks the "Tables & views" heading and the
 // tinted view-chip class (sq-view) in the TOC; table chips stay plain.
 func TestMetadataWriter_views(t *testing.T) {
 	src := &metadata.Source{
@@ -175,7 +175,7 @@ func TestMetadataWriter_views(t *testing.T) {
 	require.NoError(t, w.SourceMetadata(src, true))
 	got := buf.String()
 
-	require.Contains(t, got, "Tables &amp; Views")                  // heading, & escaped
+	require.Contains(t, got, "Tables &amp; views")                  // heading, & escaped
 	require.Contains(t, got, ".sq-toc a.sq-view code")              // tint rule present
 	require.Contains(t, got, `<a class="sq-view" href="#v_films">`) // view chip tinted
 	require.Contains(t, got, `<a href="#t_actor">`)                 // table chip plain

@@ -31,7 +31,7 @@ func (w *metadataWriter) SourceMetadata(md *metadata.Source, showSchema bool) er
 			byName := mermaid.Index(tables)
 			tablesTitle := "Tables"
 			if commonw.HasViews(tables) {
-				tablesTitle = "Tables & Views"
+				tablesTitle = "Tables & views"
 			}
 			fmt.Fprintf(b,
 				`<h2 id="tables" class="sq-tables"><a class="sq-anchor" href="#tables">%s</a></h2>`+"\n",
@@ -172,14 +172,13 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 		return
 	}
 	fkCols := commonw.FKColumnSet(tbl)
-	ucCols := commonw.UCColumnSet(tbl)
 
 	var hasDefault, hasComment bool
 	for _, col := range tbl.Columns {
 		hasDefault = hasDefault || col.DefaultValue != ""
 		hasComment = hasComment || col.Comment != ""
 	}
-	headers := []string{"Column", "Type", "Nullable", "PK", "FK", "Unique"}
+	headers := []string{"Column", "Type", "Nullable", "PK", "FK"}
 	if hasDefault {
 		headers = append(headers, "Default")
 	}
@@ -195,7 +194,6 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 			checkMark(col.Nullable),
 			checkMark(col.PrimaryKey),
 			checkMark(fkCols[col.Name]),
-			checkMark(ucCols[col.Name]),
 		}
 		if hasDefault {
 			row = append(row, htmlCode(col.DefaultValue))

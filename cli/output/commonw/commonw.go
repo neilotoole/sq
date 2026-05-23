@@ -57,24 +57,6 @@ func FKColumnSet(tbl *metadata.Table) map[string]bool {
 	return set
 }
 
-// UCColumnSet returns the set of column names on tbl that participate in any
-// unique constraint.
-func UCColumnSet(tbl *metadata.Table) map[string]bool {
-	if len(tbl.UniqueConstraints) == 0 {
-		return nil
-	}
-	set := make(map[string]bool)
-	for _, uc := range tbl.UniqueConstraints {
-		if uc == nil {
-			continue
-		}
-		for _, c := range uc.Columns {
-			set[c] = true
-		}
-	}
-	return set
-}
-
 // IsView reports whether tbl is a view (rather than a table). Table.TableType
 // is the driver-independent "table" / "view" value.
 func IsView(tbl *metadata.Table) bool {

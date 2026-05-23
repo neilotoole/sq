@@ -110,10 +110,10 @@ erDiagram
     actor ||--o{ film_actor : "fk_film_actor_actor"
 ` + "```" + `
 
-| Column | Type | Nullable | PK | FK | Unique |
-| --- | --- | :---: | :---: | :---: | :---: |
-| ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` |  | ✓ |  |  |
-| ` + "`first_name`" + ` | ` + "`TEXT`" + ` |  |  |  |  |
+| Column | Type | Nullable | PK | FK |
+| --- | --- | :---: | :---: | :---: |
+| ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` |  | ✓ |  |
+| ` + "`first_name`" + ` | ` + "`TEXT`" + ` |  |  |  |
 
 **Foreign keys:**
 
@@ -139,10 +139,10 @@ erDiagram
     actor ||--o{ film_actor : "fk_film_actor_actor"
 ` + "```" + `
 
-| Column | Type | Nullable | PK | FK | Unique |
-| --- | --- | :---: | :---: | :---: | :---: |
-| ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` |  | ✓ | ✓ |  |
-| ` + "`film_id`" + ` | ` + "`INTEGER`" + ` |  | ✓ |  |  |
+| Column | Type | Nullable | PK | FK |
+| --- | --- | :---: | :---: | :---: |
+| ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` |  | ✓ | ✓ |
+| ` + "`film_id`" + ` | ` + "`INTEGER`" + ` |  | ✓ |  |
 
 **Foreign keys:**
 
@@ -211,7 +211,7 @@ func TestMetadataWriter_indexesAndUniqueConstraints(t *testing.T) {
 }
 
 // TestMetadataWriter_views checks that a source with views renders the
-// "Tables & Views" heading and italicizes view links in the TOC (tables
+// "Tables & views" heading and italicizes view links in the TOC (tables
 // stay plain).
 func TestMetadataWriter_views(t *testing.T) {
 	src := &metadata.Source{
@@ -228,7 +228,7 @@ func TestMetadataWriter_views(t *testing.T) {
 	require.NoError(t, w.SourceMetadata(src, true))
 	out := buf.String()
 
-	require.Contains(t, out, "## Tables & Views")
+	require.Contains(t, out, "## Tables & views")
 	require.Contains(t, out, "[`t_actor`](#t_actor)")      // table link: plain
 	require.Contains(t, out, "*[`v_films`](#v_films)*")    // view link: italicized
 	require.NotContains(t, out, "*[`t_actor`](#t_actor)*") // table not italicized
@@ -250,10 +250,10 @@ erDiagram
     actor ||--o{ film_actor : "fk_film_actor_actor"
 ` + "```" + `
 
-| Column | Type | Nullable | PK | FK | Unique |
-| --- | --- | :---: | :---: | :---: | :---: |
-| ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` |  | ✓ | ✓ |  |
-| ` + "`film_id`" + ` | ` + "`INTEGER`" + ` |  | ✓ |  |  |
+| Column | Type | Nullable | PK | FK |
+| --- | --- | :---: | :---: | :---: |
+| ` + "`actor_id`" + ` | ` + "`INTEGER`" + ` |  | ✓ | ✓ |
+| ` + "`film_id`" + ` | ` + "`INTEGER`" + ` |  | ✓ |  |
 
 **Foreign keys:**
 

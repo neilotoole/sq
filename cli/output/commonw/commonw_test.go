@@ -9,24 +9,19 @@ import (
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
-func TestColumnSets(t *testing.T) {
+func TestFKColumnSet(t *testing.T) {
 	tbl := &metadata.Table{
 		Name: "t",
 		FK: &metadata.FKGroup{Outgoing: []*metadata.ForeignKey{
 			{Columns: []string{"ref"}},
 			{Columns: []string{"id_ref"}},
 		}},
-		UniqueConstraints: []*metadata.UniqueConstraint{{Columns: []string{"uq"}}},
 	}
 
 	fk := commonw.FKColumnSet(tbl)
 	require.True(t, fk["ref"])
 	require.True(t, fk["id_ref"])
-	require.False(t, fk["uq"])
-
-	uc := commonw.UCColumnSet(tbl)
-	require.True(t, uc["uq"])
-	require.False(t, uc["ref"])
+	require.False(t, fk["other"])
 }
 
 func TestViews(t *testing.T) {
