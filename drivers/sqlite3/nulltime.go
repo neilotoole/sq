@@ -55,9 +55,13 @@ func (n *nullTime) Scan(src any) error {
 		return nil
 	case float64:
 		// SQLite REAL storage (e.g. a Julian day) for a time column. mattn
-		// returns these as float64 with no conversion; we don't try to
-		// interpret them as instants, but preserve the value as text so the
-		// query doesn't hard-fail (the goal of #471).
+		// returns these as float64 with no conversion. We don't interpret them
+		// as instants; we preserve the value rather than hard-failing the query
+		// (the goal of #471). It is deliberately rendered as text, not kept as a
+		// float64: the column's kind stays Datetime/Date, and the datetime
+		// encoders in the JSON and YAML writers accept only time.Time or string
+		// — handing them a float64 would reintroduce the very scan failure this
+		// change removes. Text is the one form every output writer renders.
 		*n = nullTime{String: strconv.FormatFloat(v, 'f', -1, 64), Valid: true}
 		return nil
 	default:

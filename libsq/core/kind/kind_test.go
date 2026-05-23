@@ -82,7 +82,13 @@ const (
 	fixtDatetimeAnsic   = "Mon Jan 2 15:04:05 2006"
 	fixtDatetimeUnix    = "Mon Jan 2 15:04:05 MST 2006"
 	fixtDatetimeRFC3339 = "2002-10-02T10:00:00-05:00"
-	fixtDatetimeMicro   = "2024-01-15 12:34:56.123456"
+	// fixtDatetimeMicro is space-separated with fractional seconds. The detector
+	// matches it via the existing DateHourMinuteSecond layout
+	// ("2006-01-02 15:04:05"): Go's time.Parse accepts a trailing fractional
+	// second even when the layout omits one, so no dedicated fractional layout
+	// is needed. Adding an optional-fractional layout to datetimeFormats would
+	// also break TestDetectKindDatetime's per-layout round-trip.
+	fixtDatetimeMicro = "2024-01-15 12:34:56.123456"
 )
 
 func TestDetector(t *testing.T) {
