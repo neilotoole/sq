@@ -40,21 +40,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
-- [#637]: Improved `SLQ` syntax-error reporting in both text and
-  JSON [error formats](https://sq.io/docs/config#errorformat):
-  - Text output highlights the offending span in the original query,
-    syntax-colors the input line per sq's standard palette (handles,
-    selectors, keywords, numbers, strings, punctuation), and replaces
-    ANTLR's verbose `expecting {...}` dump with a terse, sq-flavored
-    message. Typo'd identifiers may receive a `did you mean '<name>'?`
-    suggestion (e.g., `mx` → `max`).
-  - JSON output includes a structured `parse_error` field,
-    carrying `input` and `issues[].{line, col, token, msg, suggestion}`,
-    plus rune-offset `start_char`/`stop_char` when a precise span is
-    available, for programmatic consumers. Both `line` and `col` are
-    1-based, matching the text error output and the position a person
-    counts to; the 0-based `start_char`/`stop_char` offsets remain
-    available for slicing the input directly.
+- [#637]: Richer `SLQ` syntax-error reporting in both text and
+  JSON [error formats](https://sq.io/docs/config#errorformat).
+  You can set the new config option [`error.format.text.verbose`](https://sq.io/docs/config#errorformattextverbose)
+  to `false` if you prefer the previous (less-verbose) `text` error format.
+  ![sq text error reporting: verbose vs. summary](site/static/images/repo/sq_error_reporting_options.png)
 
 ### Fixed
 
@@ -65,15 +55,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [#652]: The [ClickHouse driver](https://sq.io/docs/drivers/clickhouse) now
   creates a copied table in its target schema (ClickHouse database) when the
   copy specifies one, rather than always in the connection's current database.
-  - `CopyTable`
-    built the `CREATE TABLE` from the bare table name while the data-copy
+  - `CopyTable` built the `CREATE TABLE` from the bare table name while the data-copy
     `INSERT` used the schema-qualified name, so a cross-schema copy created the
-    table in the wrong
-    database (and failed outright when also copying data). ClickHouse now
-    matches
-    the other SQL drivers' `CopyTable`. No CLI command targets a cross-schema
-    copy today, so this is a latent driver-level fix surfaced while testing
-    #484.
+    table in the wrong database (and failed outright when also copying data). ClickHouse now
+    matches the other SQL drivers' `CopyTable`. No CLI command targets a cross-schema
+    copy today, so this is a latent driver-level fix surfaced while testing [#484].
 - [#484]:
   [`--insert`](https://sq.io/docs/tutorial#insert--modify) into a MySQL or
   Postgres table no longer fails when a same-named table exists in another

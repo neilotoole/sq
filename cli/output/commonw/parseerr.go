@@ -19,6 +19,31 @@ const (
 	parseErrCaret = "~"
 )
 
+// writeIssueSummary writes the one-line "sq: syntax error ..." summary for a
+// single issue. It is shared by [RenderParseError] and
+// [RenderParseErrorSummary] so the two renderings can't drift.
+func writeIssueSummary(w io.Writer, pr *output.Printing, iss ast.ParseIssue) {
+	pr.Error.Fprintf(w, "sq: syntax error at line %d, col %d: %s\n",
+		iss.Line, iss.DisplayCol(), iss.Msg)
+}
+
+// RenderParseErrorSummary writes only the one-line summary for each issue in
+// pe, e.g.:
+//
+//	sq: syntax error at line 1, col 10: unexpected 'mx'
+//
+// It omits the highlighted input line, caret, and "did you mean" suggestion
+// that [RenderParseError] emits. This is the rendering used when the
+// error.format.text.verbose option is false.
+func RenderParseErrorSummary(w io.Writer, pr *output.Printing, pe *ast.ParseError) {
+	if pe == nil || len(pe.Issues) == 0 {
+		return
+	}
+	for _, iss := range pe.Issues {
+		writeIssueSummary(w, pr, iss)
+	}
+}
+
 // RenderParseError writes a multi-line, position-highlighted error
 // rendering of pe to w. For each issue:
 //
@@ -66,8 +91,7 @@ func RenderParseError(w io.Writer, pr *output.Printing, pe *ast.ParseError) {
 		if i > 0 {
 			fmt.Fprintln(w)
 		}
-		pr.Error.Fprintf(w, "sq: syntax error at line %d, col %d: %s\n",
-			iss.Line, iss.DisplayCol(), iss.Msg)
+		writeIssueSummary(w, pr, iss)
 		fmt.Fprintln(w)
 
 		// Pick the source line. Line is 1-based.
@@ -111,9 +135,15 @@ func RenderParseError(w io.Writer, pr *output.Printing, pe *ast.ParseError) {
 			fmt.Fprintln(w)
 		}
 
+		// "did you mean 'max'?" directly follows the caret line (no blank
+		// line). The quotes are faint and the suggestion itself takes the
+		// string color, so the candidate reads as the focus.
 		if iss.Suggestion != "" {
-			fmt.Fprintln(w)
-			fmt.Fprintf(w, "did you mean '%s'?\n", iss.Suggestion)
+			fmt.Fprint(w, "did you mean ")
+			pr.Faint.Fprint(w, "'")
+			pr.String.Fprint(w, iss.Suggestion)
+			pr.Faint.Fprint(w, "'")
+			fmt.Fprintln(w, "?")
 		}
 	}
 }

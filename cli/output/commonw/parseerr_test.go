@@ -450,3 +450,67 @@ func TestRenderParseError_ColorizesHandle(t *testing.T) {
 		"expected an ANSI SGR byte immediately before '@', not a space: "+
 			"handle does not appear to be colorized")
 }
+
+func TestRenderParseError_SuggestionNoBlankLine(t *testing.T) {
+	pe := &ast.ParseError{
+		Input: ".actor | mx(.id)",
+		Issues: []ast.ParseIssue{
+			{
+				Line:       1,
+				Col:        9,
+				Span:       &ast.Span{Start: 9, Stop: 10},
+				Token:      "mx",
+				Msg:        "unexpected 'mx'",
+				Suggestion: "max",
+			},
+		},
+	}
+
+	buf := &bytes.Buffer{}
+	commonw.RenderParseError(buf, newMonoPrinting(), pe)
+	got := buf.String()
+
+	require.Contains(t, got, "did you mean 'max'?")
+	// The suggestion must immediately follow the caret line, with no blank
+	// line in between.
+	require.NotContains(t, got, "\n\ndid you mean",
+		"there must be no blank line above the 'did you mean' suggestion")
+}
+
+func TestRenderParseError_SuggestionColorized(t *testing.T) {
+	color.NoColor = false
+	t.Cleanup(func() { color.NoColor = true })
+
+	pe := &ast.ParseError{
+		Input: ".actor | mx(.id)",
+		Issues: []ast.ParseIssue{
+			{
+				Line:       1,
+				Col:        9,
+				Span:       &ast.Span{Start: 9, Stop: 10},
+				Token:      "mx",
+				Msg:        "unexpected 'mx'",
+				Suggestion: "max",
+			},
+		},
+	}
+
+	pr := newColorPrinting()
+	buf := &bytes.Buffer{}
+	commonw.RenderParseError(buf, pr, pe)
+	out := buf.String()
+
+	// "max" appears only in the suggestion (the input and message use "mx").
+	idx := strings.Index(out, "max")
+	require.NotEqual(t, -1, idx, "suggestion candidate not found in output")
+
+	faintCode := sgrCode(pr.Faint.Sprint(""))
+	stringCode := sgrCode(pr.String.Sprint(""))
+	require.NotEqual(t, faintCode, stringCode)
+
+	// The suggestion region must carry BOTH the faint SGR (the surrounding
+	// quotes) and the string SGR (the candidate text).
+	region := out[max(0, idx-32):min(idx+len("max")+32, len(out))]
+	require.Contains(t, region, faintCode, "expected faint SGR around suggestion quotes")
+	require.Contains(t, region, stringCode, "expected string SGR on the suggestion text")
+}
