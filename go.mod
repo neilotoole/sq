@@ -50,7 +50,7 @@ require (
 	github.com/neilotoole/shelleditor v0.4.1
 	github.com/neilotoole/slogt v1.1.0
 	github.com/neilotoole/streamcache v0.3.5
-	github.com/neilotoole/tailbuf v0.0.4
+	github.com/neilotoole/tailbuf v0.1.1
 	github.com/nightlyone/lockfile v1.0.0
 	github.com/otiai10/copy v1.14.1
 	github.com/pkg/profile v1.7.0
