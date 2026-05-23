@@ -27,20 +27,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     [`icontains`](https://sq.io/docs/query#icontains),
     [`istartswith`](https://sq.io/docs/query#istartswith), and
     [`iendswith`](https://sq.io/docs/query#iendswith).
-  - The `contains` family auto-escapes `%`, `_`, and the escape character
-    (`|`) in the user literal.
   - User-controlled wildcard matchers [`like`](https://sq.io/docs/query#like)
-    and [`ilike`](https://sq.io/docs/query#ilike): `%` and `_` are wildcards,
-    and `|` is a literal character on every driver (no `ESCAPE` clause). Both
-    accept either a quoted string literal or a column selector as the pattern,
-    enabling column-vs-column matching such as
-    `where(like(.events.message, .rules.pattern))`; a NULL pattern yields
-    NULL, which `WHERE` treats as false (standard SQL semantics). The
-    `contains` family stays literal-only (no column-selector pattern): its
-    render-time wildcard escaping can't extend to a runtime column value.
-  - All LIKE-family parsers require each argument to be a string literal
-    (or a column selector, for `like`/`ilike`); function-wrapped or other
-    non-string arguments are rejected.
+    and [`ilike`](https://sq.io/docs/query#ilike): `%` and `_` are wildcards.
 - [`sq inspect`](https://sq.io/docs/inspect) now has [`--markdown`](https://sq.io/docs/inspect#--markdown)
   and [`--html`](https://sq.io/docs/inspect#--html) output formats that generate
   schema documents with embedded entity relationship diagrams.
@@ -66,57 +54,39 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 ### Fixed
 
 - [#652]: The [ClickHouse driver](https://sq.io/docs/drivers/clickhouse) now
-  creates a copied table in its target schema (ClickHouse database) when the copy
-  specifies one, rather than always in the connection's current database. `CopyTable`
-  built the `CREATE TABLE` from the bare table name while the data-copy `INSERT` used the
-  schema-qualified name, so a cross-schema copy created the table in the wrong
-  database (and failed outright when also copying data). ClickHouse now matches
-  the other SQL drivers' `CopyTable`. No CLI command targets a cross-schema
-  copy today, so this is a latent driver-level fix surfaced while testing #484.
-
+  creates a copied table in its target schema (ClickHouse database) when the
+  copy specifies one, rather than always in the connection's current database.
+  - `CopyTable`
+    built the `CREATE TABLE` from the bare table name while the data-copy
+    `INSERT` used the schema-qualified name, so a cross-schema copy created the
+    table in the wrong
+    database (and failed outright when also copying data). ClickHouse now
+    matches
+    the other SQL drivers' `CopyTable`. No CLI command targets a cross-schema
+    copy today, so this is a latent driver-level fix surfaced while testing
+    #484.
 - [#484]:
   [`--insert`](https://sq.io/docs/tutorial#insert--modify) into a MySQL or
   Postgres table no longer fails when a same-named table exists in another
-  schema. The drivers' `TableExists` check queried `information_schema.tables`
-  filtered only by table name, so a name present in two schemas returned
-  `COUNT(*) = 2`; the `== 1` test then reported the table as missing and `sq`
-  tried to `CREATE` it, which the database rejected with "table already
-  exists". The lookup is now scoped to the connection's current schema
-  (`DATABASE()` for MySQL, `CURRENT_SCHEMA()` for Postgres), as the other SQL
-  drivers already scope theirs.
-
+  schema.
+  - The drivers' `TableExists` check queried `information_schema.tables`
+    filtered only by table name, so a name present in two schemas returned
+    `COUNT(*) = 2`; the `== 1` test then reported the table as missing and `sq`
+    tried to `CREATE` it, which the database rejected with "table already
+    exists". The lookup is now scoped to the connection's current schema
+    (`DATABASE()` for MySQL, `CURRENT_SCHEMA()` for Postgres), as the other SQL
+    drivers already scope theirs.
 - [#633]: A [query](https://sq.io/docs/query) using the single-segment
   `@handle.table:alias` form on the left of a pipeline (e.g.
   `@sakila.actor:a | .a.first_name`) no longer silently collapses to
-  `SELECT * FROM <table>`. The grammar previously had no alias slot on the
-  `handleTable` rule, so the parser's error recovery silently discarded the
-  alias and every downstream segment (projections, joins, etc.). The
-  multi-segment form `@sakila | .actor:a | ...` was unaffected.
-
+  `SELECT * FROM <table>`.
+  - The grammar previously had no alias slot on the
+    `handleTable` rule, so the parser's error recovery silently discarded the
+    alias and every downstream segment (projections, joins, etc.). The
+    multi-segment form `@sakila | .actor:a | ...` was unaffected.
 - [#445]: Cross-source [`join`](https://sq.io/docs/query#join) no longer
   fails when the participating sources contain tables with the same
-  name (e.g. `@src1.actor | join(@src2.actor, .actor_id)`). Previously
-  the second table copy into the join scratch DB collided with the
-  first (`table "actor" already exists`); now colliding unaliased
-  participants are given numeric-suffixed aliases (`actor`, `actor_2`,
-  ...), picked to also avoid any other participant's destination name
-  so the scratch tables are unique and the rendered SQL is well-formed.
-  Collision detection is case-insensitive (matching SQLite's identifier
-  semantics for the join scratch DB), so `Actor` and `actor` are now
-  also treated as collisions. Two user-supplied aliases that collide
-  are reported up front (`cross-source join: duplicate table alias "..."`)
-  instead of surfacing later as an opaque scratch-DB error.
-  As a related fix, any source-level catalog/schema overrides on a
-  cross-source join participant are now dropped from the scratch-DB
-  SQL — the scratch DB only knows bare table names, so emitting
-  `"catalog"."schema"."actor"` against it would have failed with
-  `no such table`. Source-side fetches still use the qualified name.
-
-- [#630]: Re-vendored the internal `go-udiff` diff package from
-  `aymanbagabas/go-udiff` `v0.4.1`. This resolves an intermittent CI failure
-  in the package's `TestRandOld`, which depended on the deprecated global
-  `math/rand` seed; the refreshed upstream uses a per-test PRNG. Diff output
-  is unchanged.
+  name (e.g. `@src1.actor | join(@src2.actor, .actor_id)`).
 
 ## [v0.52.0] - 2026-05-15
 
