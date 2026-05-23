@@ -138,8 +138,9 @@ rendered right in your browser.
 By default, the page loads Mermaid.js from a CDN, producing a small file that
 requires internet access to render the diagram. To produce a fully
 self-contained document that renders offline, inline the Mermaid.js library
-via the `format.html.embed-assets` option. Set it persistently with `sq config
-set`, or per invocation with the matching `--format.html.embed-assets` flag:
+via the `format.html.embed-assets` option. Set it persistently with
+`sq config set`, or per invocation with the matching
+`--format.html.embed-assets` flag:
 
 ```shell
 # Persistently, for all HTML output.
