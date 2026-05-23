@@ -189,6 +189,168 @@ actor_id  first_name  last_name  last_update
 172       GROUCHO     WILLIAMS   2020-06-11T02:50:54Z
 ```
 
+## Grouping and sorting
+
+These constructs shape the result set after filtering. Like
+[`where`](#filter-results-where), each maps to a SQL clause: `group_by` and
+`having` to `GROUP BY` / `HAVING`, `order_by` to `ORDER BY`, and `unique` to
+`DISTINCT`.
+
+### `group_by`
+
+Use `group_by` to [group](https://en.wikipedia.org/wiki/Group_by_(SQL)) results.
+
+```shell
+$ sq '.payment | .customer_id, sum(.amount) | group_by(.customer_id)'
+```
+
+This translates into:
+
+```sql
+SELECT "customer_id", sum("amount") FROM "payment" GROUP BY "customer_id"
+```
+
+You can use multiple terms in `group_by`:
+
+```shell
+$ sq '.payment | .customer_id, .staff_id, sum(.amount) | group_by(.customer_id, .staff_id)'
+```
+
+You can also use functions inside `group_by`. For example, to group the payment
+amount by month:
+
+```shell
+$ sq '.payment | _strftime("%Y/%m", .payment_date), sum(.amount) | group_by(_strftime("%Y/%m", .payment_date))'
+strftime('%Y/%m', "payment_date")  sum("amount")
+2005/05                            4824.429999999861
+2005/06                            9631.87999999961
+```
+
+That translates into:
+
+```sql
+SELECT strftime('%Y/%m', "payment_date"), sum("amount") FROM "payment"
+GROUP BY strftime('%Y/%m', "payment_date")
+```
+
+In practice, you probably want to use [column aliases](#column-aliases):
+
+```shell
+$ sq '.payment | _strftime("%Y/%m", .payment_date):month, sum(.amount):amount | group_by(.month)'
+month    amount
+2005/05  4824.429999999861
+2005/06  9631.87999999961
+```
+
+{{< alert icon="👉" >}}
+Note the `_strftime` function in the example above, and in particular note the
+leading underscore. That function is
+[proprietary](#proprietary-functions)
+to [SQLite](https://www.sqlite.org/lang_datefunc.html): it won't work with Postgres,
+MySQL etc. `sq` passes functions through
+to the backend, and some of those functions won't be portable to other data sources.
+
+TLDR: Use [proprietary functions](#proprietary-functions) with caution.
+{{< /alert >}}
+
+{{< alert icon="👉" >}}
+You can also use the `gb` synonym for brevity.
+```shell
+$ sq '.payment | .customer_id, sum(.amount) | gb(.customer_id)'
+```
+{{< /alert >}}
+
+### `having`
+
+Use `having` to filter results after grouping. It must always be preceded
+by [`group_by`](#group_by).
+
+```shell
+$ sq '.payment | .customer_id, sum(.amount) |
+group_by(.customer_id) | having(sum(.amount) > 180 && sum(.amount) < 195)'
+customer_id  sum(.amount)
+178          194.61
+459          186.62
+137          194.61
+```
+
+That renders to something like:
+
+```sql
+SELECT "customer_id", sum("amount") AS "sum(.amount)" FROM "payment"
+GROUP BY "customer_id" HAVING sum("amount") > 180 AND sum("amount") < 195
+```
+
+### `order_by`
+
+Use `order_by` to sort results.
+
+```shell
+$ sq '.actor | order_by(.first_name)'
+actor_id  first_name  last_name  last_update
+71        ADAM        GRANT      2006-02-15T04:34:33Z
+132       ADAM        HOPPER     2006-02-15T04:34:33Z
+```
+
+This translates to:
+
+```sql
+SELECT * FROM "actor" ORDER BY "first_name"
+```
+
+Change the sort order by appending `+` (ascending) or `-` (descending)
+to the column selector:
+
+```shell
+$ sq '.actor | order_by(.first_name+, .last_name-)'
+actor_id  first_name  last_name  last_update
+132       ADAM        HOPPER     2006-02-15T04:34:33Z
+71        ADAM        GRANT      2006-02-15T04:34:33Z
+```
+
+That query becomes:
+
+```sql
+SELECT * FROM "actor" ORDER BY "first_name" ASC, "last_name" DESC
+```
+
+{{< alert icon="👉" >}}
+For interoperability with jq, you can use the
+[`sort_by`](https://jqlang.github.io/jq/manual/v1.6/#sort,sort_by(path_expression))
+synonym:
+
+```shell
+$ sq '.actor | sort_by(.first_name)'
+```
+
+And there's also the `ob` synonym for brevity:
+```shell
+$ sq '.actor | ob(.first_name)'
+```
+{{< /alert >}}
+
+### `unique`
+
+`unique` filters results, returning only unique values.
+
+```shell
+# Return only unique first names
+$ sq '.actor | .first_name | unique'
+```
+
+`unique` maps to the SQL `DISTINCT` keyword:
+
+```sql
+SELECT DISTINCT "first_name" FROM "actor"
+```
+
+{{< alert icon="👉" >}}
+You can also use the `uniq` synonym:
+```shell
+$ sq '.actor | .first_name | uniq'
+```
+{{< /alert >}}
+
 ## Row range
 
 You can limit the number of returned rows using the row range construct `.[x:y]`.
@@ -708,6 +870,13 @@ $ sq '.actor | xjoin(.film_actor)'
 
 ## Functions
 
+`sq` ships a small "standard library" of portable functions that behave
+(more or less) the same whether the backing DB is Postgres, MySQL, etc. They
+are grouped below by purpose. For functions specific to a single backend, see
+[proprietary functions](#proprietary-functions).
+
+## Aggregate functions
+
 ### `avg`
 
 `avg` returns the average of all non-null values of the column.
@@ -717,81 +886,6 @@ $ sq '.payment | avg(.amount)'
 avg(.amount)
 4.2006673312974065
 ```
-
-### `catalog`
-
-`catalog` returns the default [catalog](/docs/concepts#schema--catalog) of the DB connection.
-See also: [`schema`](#schema).
-
-```shell
-# Postgres source
-$ sq 'catalog()'
-sakila
-
-# Switch to SQL Server source
-$ sq src @sakila/ms19
-$ sq 'schema()'
-dbo
-```
-
-`catalog` honors the `--src.schema` flag, when used in
-the `catalog.schema` form. For example:
-
-```shell
-$ sq --src.schema postgres.information_scheam 'catalog(), schema()'
-catalog()  schema()
-postgres   public
-````
-
-However, not every driver supports the catalog mechanism fully.
-
-- MySQL treats catalog and schema as somewhat [interchangeable](https://dev.mysql.com/doc/connector-odbc/en/connector-odbc-usagenotes-functionality-catalog-schema.html).
-  It's a mess. But, looking into `INFORMATION_SCHEMA.SCHEMATA`, MySQL lists `CATALOG_NAME` as `def` (for `default`).
-  Thus, with a MySQL source, `catalog()` returns the value of `CATALOG_NAME`, i.e. `def`.
-- SQLite doesn't support catalogs at all. Nor does it implement `INFORMATION_SCHEMA`. Rather
-  than return `NULL` or an empty string, `sq`'s SQLite driver chooses to implement `catalog()` by returning
-  the string `default`.
-
-### `contains`
-
-`contains(col, str)` is true when `col` contains `str` as a substring.
-Matching is always case-sensitive, regardless of the backend's default
-collation. See also: [`startswith`](#startswith), [`endswith`](#endswith).
-
-```shell
-$ sq '.actor | where(contains(.first_name, "AN"))'
-```
-
-The second argument must be a quoted string literal. Any `%`, `_`, or `|`
-characters in the literal are escaped automatically, so you don't need to
-think about `LIKE` wildcards. On SQL Server, `[` and `]` are also escaped
-because SQL Server's `LIKE` treats `[...]` as a character class (e.g.
-without escaping, `contains(.col, "[A-Z]")` would match any uppercase
-letter instead of the literal `[A-Z]` substring).
-
-Under the hood, `sq` chooses the right primitive per driver to guarantee
-case-sensitive matching:
-
-- **Postgres / DuckDB:** native `LIKE` (already case-sensitive).
-- **Oracle:** native `LIKE` (case-sensitive when `NLS_COMP=BINARY`,
-  which is Oracle's default; sessions that set `NLS_COMP=LINGUISTIC`
-  with a case-insensitive `NLS_SORT` will get case-insensitive
-  matching).
-- **ClickHouse:** native `position()` function.
-- **MySQL:** `LIKE BINARY`, to force byte-level comparison.
-- **SQL Server:** `LIKE` with `COLLATE Latin1_General_BIN2`.
-- **SQLite:** `instr()` (SQLite's default `LIKE` is ASCII case-insensitive).
-
-An empty pattern matches every non-NULL row, consistent across all
-drivers. That is, `contains(.col, "")`, [`startswith`](#startswith)`(.col, "")`,
-and [`endswith`](#endswith)`(.col, "")` each behave like `.col IS NOT NULL`.
-
-Unlike jq's polymorphic `contains`, SLQ's `contains` is string-only: it
-does not operate on arrays or objects.
-
-For case-insensitive matching, use [`icontains`](#icontains). For
-matching user-controlled wildcard patterns (where `%` and `_` are
-significant), use [`like`](#like) / [`ilike`](#ilike).
 
 ### `count`
 
@@ -835,104 +929,86 @@ count_unique(.first_name)
 128
 ```
 
-### `endswith`
+### `max`
 
-`endswith(col, str)` is true when `col` ends with `str`. Matching is always
-case-sensitive. See [`contains`](#contains) for the per-driver mechanism
-and escaping notes.
+`max` returns the maximum value of the column.
 
 ```shell
-$ sq '.actor | where(endswith(.last_name, "son"))'
+$ sq '.payment | max(.amount)'
+max(.amount)
+11.99
 ```
 
-For case-insensitive matching, use [`iendswith`](#iendswith). For
+### `min`
+
+`min` returns the minimum non-null value of the column.
+
+```shell
+$ sq '.payment | min(.amount)'
+min(.amount)
+0
+```
+
+### `sum`
+
+`sum` returns the sum of all non-null values for the column. If there are no
+input rows, null is returned.
+
+```shell
+$ sq '.payment | sum(.amount)'
+sum(.amount)
+67416.50999999208
+```
+
+## String functions
+
+These functions test a column against a string and return a boolean, so
+they're typically used inside [`where`](#filter-results-where). Each
+case-sensitive function has a case-insensitive counterpart prefixed with `i`
+(for example [`contains`](#contains) / [`icontains`](#icontains)). The
+[`like`](#like) / [`ilike`](#ilike) pair exposes raw SQL `LIKE` wildcards;
+the other functions treat their argument as a literal substring.
+
+### `contains`
+
+`contains(col, str)` is true when `col` contains `str` as a substring.
+Matching is always case-sensitive, regardless of the backend's default
+collation. See also: [`startswith`](#startswith), [`endswith`](#endswith).
+
+```shell
+$ sq '.actor | where(contains(.first_name, "AN"))'
+```
+
+The second argument must be a quoted string literal. Any `%`, `_`, or `|`
+characters in the literal are escaped automatically, so you don't need to
+think about `LIKE` wildcards. On SQL Server, `[` and `]` are also escaped
+because SQL Server's `LIKE` treats `[...]` as a character class (e.g.
+without escaping, `contains(.col, "[A-Z]")` would match any uppercase
+letter instead of the literal `[A-Z]` substring).
+
+Under the hood, `sq` chooses the right primitive per driver to guarantee
+case-sensitive matching:
+
+- **Postgres / DuckDB:** native `LIKE` (already case-sensitive).
+- **Oracle:** native `LIKE` (case-sensitive when `NLS_COMP=BINARY`,
+  which is Oracle's default; sessions that set `NLS_COMP=LINGUISTIC`
+  with a case-insensitive `NLS_SORT` will get case-insensitive
+  matching).
+- **ClickHouse:** native `position()` function.
+- **MySQL:** `LIKE BINARY`, to force byte-level comparison.
+- **SQL Server:** `LIKE` with `COLLATE Latin1_General_BIN2`.
+- **SQLite:** `instr()` (SQLite's default `LIKE` is ASCII case-insensitive).
+
+An empty pattern matches every non-NULL row, consistent across all
+drivers. That is, `contains(.col, "")`, [`startswith`](#startswith)`(.col, "")`,
+and [`endswith`](#endswith)`(.col, "")` each behave like `.col IS NOT NULL`.
+
+Unlike jq's polymorphic `contains`, SLQ's `contains` is string-only: it
+does not operate on arrays or objects.
+
+For case-insensitive matching, use [`icontains`](#icontains). For
 matching user-controlled wildcard patterns (where `%` and `_` are
 significant), use [`like`](#like) / [`ilike`](#ilike).
-
-### `group_by`
-
-Use `group_by` to [group](https://en.wikipedia.org/wiki/Group_by_(SQL)) results.
-
-```shell
-$ sq '.payment | .customer_id, sum(.amount) | group_by(.customer_id)'
-```
-
-This translates into:
-
-```sql
-SELECT "customer_id", sum("amount") FROM "payment" GROUP BY "customer_id"
-```
-
-You can use multiple terms in `group_by`:
-
-```shell
-$ sq '.payment | .customer_id, .staff_id, sum(.amount) | group_by(.customer_id, .staff_id)'
-```
-
-You can also use functions inside `group_by`. For example, to group the payment
-amount by month:
-
-```shell
-$ sq '.payment | _strftime("%Y/%m", .payment_date), sum(.amount) | group_by(_strftime("%Y/%m", .payment_date))'
-strftime('%Y/%m', "payment_date")  sum("amount")
-2005/05                            4824.429999999861
-2005/06                            9631.87999999961
-```
-
-That translates into:
-
-```sql
-SELECT strftime('%Y/%m', "payment_date"), sum("amount") FROM "payment"
-GROUP BY strftime('%Y/%m', "payment_date")
-```
-
-In practice, you probably want to use [column aliases](#column-aliases):
-
-```shell
-$ sq '.payment | _strftime("%Y/%m", .payment_date):month, sum(.amount):amount | group_by(.month)'
-month    amount
-2005/05  4824.429999999861
-2005/06  9631.87999999961
-```
-
-{{< alert icon="👉" >}}
-Note the `_strftime` function in the example above, and in particular note the
-leading underscore. That function is
-[proprietary](#proprietary-functions)
-to [SQLite](https://www.sqlite.org/lang_datefunc.html): it won't work with Postgres,
-MySQL etc. `sq` passes functions through
-to the backend, and some of those functions won't be portable to other data sources.
-
-TLDR: Use [proprietary functions](#proprietary-functions) with caution.
-{{< /alert >}}
-
-{{< alert icon="👉" >}}
-You can also use the `gb` synonym for brevity.
-```shell
-$ sq '.payment | .customer_id, sum(.amount) | gb(.customer_id)'
-```
-{{< /alert >}}
-
-### `having`
-
-Use `having` to filter results after grouping. The `having` function must
-always be preceded by [`group_by`](#groupby).
-
-```shell
-$ sq '.payment | .customer_id, sum(.amount) |
-group_by(.customer_id) | having(sum(.amount) > 180 && sum(.amount) < 195)'
-customer_id  sum(.amount)
-178          194.61
-459          186.62
-137          194.61
-```
-
-That renders to something like:
-
-```sql
-SELECT "customer_id", sum("amount") AS "sum(.amount)" FROM "payment"
-GROUP BY "customer_id" HAVING sum("amount") > 180 AND sum("amount") < 195
-```
 
 ### `icontains`
 
@@ -962,45 +1038,19 @@ Per-driver implementation:
 An empty pattern matches every non-NULL row, consistent across
 drivers — same as [`contains`](#contains).
 
-### `iendswith`
+### `startswith`
 
-`iendswith(col, str)` is true when `col` ends with `str`,
-**case-insensitively**. The case-sensitive counterpart is
-[`endswith`](#endswith); see [`contains`](#contains) for escaping
-behavior.
-
-```shell
-$ sq '.actor | where(iendswith(.last_name, "son"))'
-```
-
-Per-driver implementation mirrors [`icontains`](#icontains); on
-ClickHouse, `endsWithCaseInsensitive()` is used. An empty pattern
-matches every non-NULL row.
-
-### `ilike`
-
-`ilike(col, pattern)` is the case-insensitive counterpart to
-[`like`](#like). `%` and `_` are wildcards in `pattern` and are not
-auto-escaped. As with `like`, `pattern` may be either a quoted string
-literal or a column selector.
+`startswith(col, str)` is true when `col` begins with `str`. Matching is
+always case-sensitive. See [`contains`](#contains) for the per-driver
+mechanism and escaping notes.
 
 ```shell
-$ sq '.actor | where(ilike(.first_name, "pen%"))'
-$ sq '.actor | where(ilike(.first_name, .last_name))'
+$ sq '.actor | where(startswith(.last_name, "Mc"))'
 ```
 
-Per-driver implementation:
-
-- **Postgres / DuckDB:** native `ILIKE`.
-- **MySQL / Oracle:** `LOWER(col) LIKE LOWER(pat)`.
-- **SQL Server:** `LIKE` with `COLLATE Latin1_General_CI_AS`.
-- **SQLite:** plain `LIKE` (already ASCII-CI by default).
-- **ClickHouse:** native `ILIKE`.
-
-No `ESCAPE '|'` clause is emitted on any driver — see [`like`](#like)
-for escape behavior and [Column as pattern](#column-as-pattern) for
-column-RHS semantics. For literal `%` / `_` matching, use
-[`icontains`](#icontains), which auto-escapes wildcards.
+For case-insensitive matching, use [`istartswith`](#istartswith). For
+matching user-controlled wildcard patterns (where `%` and `_` are
+significant), use [`like`](#like) / [`ilike`](#ilike).
 
 ### `istartswith`
 
@@ -1015,6 +1065,35 @@ $ sq '.actor | where(istartswith(.last_name, "mc"))'
 
 Per-driver implementation mirrors [`icontains`](#icontains); on
 ClickHouse, `startsWithCaseInsensitive()` is used. An empty pattern
+matches every non-NULL row.
+
+### `endswith`
+
+`endswith(col, str)` is true when `col` ends with `str`. Matching is always
+case-sensitive. See [`contains`](#contains) for the per-driver mechanism
+and escaping notes.
+
+```shell
+$ sq '.actor | where(endswith(.last_name, "son"))'
+```
+
+For case-insensitive matching, use [`iendswith`](#iendswith). For
+matching user-controlled wildcard patterns (where `%` and `_` are
+significant), use [`like`](#like) / [`ilike`](#ilike).
+
+### `iendswith`
+
+`iendswith(col, str)` is true when `col` ends with `str`,
+**case-insensitively**. The case-sensitive counterpart is
+[`endswith`](#endswith); see [`contains`](#contains) for escaping
+behavior.
+
+```shell
+$ sq '.actor | where(iendswith(.last_name, "son"))'
+```
+
+Per-driver implementation mirrors [`icontains`](#icontains); on
+ClickHouse, `endsWithCaseInsensitive()` is used. An empty pattern
 matches every non-NULL row.
 
 ### `like`
@@ -1089,108 +1168,62 @@ time over a known string; extending it to a column RHS would require
 emitting per-driver SQL-level escaping (e.g. nested `REPLACE` chains)
 that's out of scope for v1.
 
-### `max`
+### `ilike`
 
-`max` returns the maximum value of the column.
-
-```shell
-$ sq '.payment | max(.amount)'
-max(.amount)
-11.99
-```
-
-### `min`
-
-`min` returns the minimum non-null value of the column.
+`ilike(col, pattern)` is the case-insensitive counterpart to
+[`like`](#like). `%` and `_` are wildcards in `pattern` and are not
+auto-escaped. As with `like`, `pattern` may be either a quoted string
+literal or a column selector.
 
 ```shell
-$ sq '.payment | min(.amount)'
-min(.amount)
-0
+$ sq '.actor | where(ilike(.first_name, "pen%"))'
+$ sq '.actor | where(ilike(.first_name, .last_name))'
 ```
 
-### `order_by`
+Per-driver implementation:
 
-Use `order_by` to sort results.
+- **Postgres / DuckDB:** native `ILIKE`.
+- **MySQL / Oracle:** `LOWER(col) LIKE LOWER(pat)`.
+- **SQL Server:** `LIKE` with `COLLATE Latin1_General_CI_AS`.
+- **SQLite:** plain `LIKE` (already ASCII-CI by default).
+- **ClickHouse:** native `ILIKE`.
+
+No `ESCAPE '|'` clause is emitted on any driver — see [`like`](#like)
+for escape behavior and [Column as pattern](#column-as-pattern) for
+column-RHS semantics. For literal `%` / `_` matching, use
+[`icontains`](#icontains), which auto-escapes wildcards.
+
+## Other functions
+
+### `catalog`
+
+`catalog` returns the default [catalog](/docs/concepts#schema--catalog) of the DB connection.
+See also: [`schema`](#schema).
 
 ```shell
-$ sq '.actor | order_by(.first_name)'
-actor_id  first_name  last_name  last_update
-71        ADAM        GRANT      2006-02-15T04:34:33Z
-132       ADAM        HOPPER     2006-02-15T04:34:33Z
+# Postgres source
+$ sq 'catalog()'
+sakila
 ```
 
-This translates to:
-
-```sql
-SELECT * FROM "actor" ORDER BY "first_name"
-```
-
-Change the sort order by appending `+` (ascending) or `-` (descending)
-to the column selector:
+`catalog` honors the `--src.schema` flag, when used in
+the `catalog.schema` form. For example:
 
 ```shell
-$ sq '.actor | order_by(.first_name+, .last_name-)'
-actor_id  first_name  last_name  last_update
-132       ADAM        HOPPER     2006-02-15T04:34:33Z
-71        ADAM        GRANT      2006-02-15T04:34:33Z
+# Override both catalog and schema via the catalog.schema form
+$ sq --src.schema postgres.information_schema 'catalog(), schema()'
+catalog()  schema()
+postgres   information_schema
 ```
 
-That query becomes:
+However, not every driver supports the catalog mechanism fully.
 
-```sql
-SELECT * FROM "actor" ORDER BY "first_name" ASC, "last_name" DESC
-```
-
-{{< alert icon="👉" >}}
-For interoperability with jq, you can use the
-[`sort_by`](https://jqlang.github.io/jq/manual/v1.6/#sort,sort_by(path_expression))
-synonym:
-
-```shell
-$ sq '.actor | sort_by(.first_name)'
-```
-
-And there's also the `ob` synonym for brevity:
-```shell
-$ sq '.actor | ob(.first_name)'
-```
-{{< /alert >}}
-
-### `rownum`
-
-`rownum` returns the one-indexed row number of the current row.
-
-```shell
-$ sq '.actor | rownum(), .first_name | order_by(.first_name)'
-rownum()  first_name
-1         ADAM
-2         ADAM
-3         AL
-```
-
-`rownum` should typically be invoked in conjunction with `order_by`,
-or the order of the rows may be undefined.
-
-It's trivial to return zero-indexed row numbers: simply subtract 1 from the result.
-
-```shell
-$ sq '.actor | rownum()-1, .first_name | order_by(.first_name)'
-rownum()-1  first_name
-0           ADAM
-1           ADAM
-2           AL
-```
-
-Although, you may want to use a column alias:
-
-```shell
-$ sq '.actor | rownum()-1:index, .first_name | order_by(.first_name)'
-index  first_name
-0       ADAM
-1       ADAM
-2       AL
-```
+- MySQL treats catalog and schema as somewhat [interchangeable](https://dev.mysql.com/doc/connector-odbc/en/connector-odbc-usagenotes-functionality-catalog-schema.html).
+  It's a mess. But, looking into `INFORMATION_SCHEMA.SCHEMATA`, MySQL lists `CATALOG_NAME` as `def` (for `default`).
+  Thus, with a MySQL source, `catalog()` returns the value of `CATALOG_NAME`, i.e. `def`.
+- SQLite doesn't support catalogs at all. Nor does it implement `INFORMATION_SCHEMA`. Rather
+  than return `NULL` or an empty string, `sq`'s SQLite driver chooses to implement `catalog()` by returning
+  the string `default`.
 
 ### `schema`
 
@@ -1227,53 +1260,40 @@ schema()
 dbo
 ```
 
+### `rownum`
 
-### `startswith`
-
-`startswith(col, str)` is true when `col` begins with `str`. Matching is
-always case-sensitive. See [`contains`](#contains) for the per-driver
-mechanism and escaping notes.
+`rownum` returns the one-indexed row number of the current row.
 
 ```shell
-$ sq '.actor | where(startswith(.last_name, "Mc"))'
+$ sq '.actor | rownum(), .first_name | order_by(.first_name)'
+rownum()  first_name
+1         ADAM
+2         ADAM
+3         AL
 ```
 
-For case-insensitive matching, use [`istartswith`](#istartswith). For
-matching user-controlled wildcard patterns (where `%` and `_` are
-significant), use [`like`](#like) / [`ilike`](#ilike).
+`rownum` should typically be invoked in conjunction with [`order_by`](#order_by),
+or the order of the rows may be undefined.
 
-### `sum`
-
-`sum` returns the sum of all non-null values for the column. If there are no
-input rows, null is returned.
+It's trivial to return zero-indexed row numbers: simply subtract 1 from the result.
 
 ```shell
-$ sq '.payment | sum(.amount)'
-sum(.amount)
-67416.50999999208
+$ sq '.actor | rownum()-1, .first_name | order_by(.first_name)'
+rownum()-1  first_name
+0           ADAM
+1           ADAM
+2           AL
 ```
 
-### `unique`
-
-`unique` filters results, returning only unique values.
+Although, you may want to use a column alias:
 
 ```shell
-# Return only unique first names
-$ sq '.actor | .first_name | unique'
+$ sq '.actor | rownum()-1:index, .first_name | order_by(.first_name)'
+index  first_name
+0       ADAM
+1       ADAM
+2       AL
 ```
-
-The function maps to the SQL `DISTINCT` keyword:
-
-```sql
-SELECT DISTINCT "first_name" FROM "actor"
-```
-
-{{< alert icon="👉" >}}
-You can also use the `uniq` synonym:
-```shell
-$ sq '.actor | .first_name | uniq'
-```
-{{< /alert >}}
 
 ## Proprietary functions
 
