@@ -45,8 +45,9 @@ jobs:
           set -e
 
           # We tee the go test output to a file, so that "tparse" can
-          # render pretty output below.
-          go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json -cover ./... | tee gotest.out.json
+          # render pretty output below. "-coverprofile" writes a coverage
+          # profile to coverage.out for upload to Codecov.
+          go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json -cover -coverprofile=coverage.out ./... | tee gotest.out.json
 
       - name: 'Test output'
         if: always()
@@ -55,6 +56,15 @@ jobs:
           set -e
           go install github.com/mfridman/tparse@${{ env.TPARSE_VERSION }}
           tparse -all -sort=elapsed -file gotest.out.json
+
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v6
+        with:
+          files: ./coverage.out
+          flags: ${{ matrix.os }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
 
   test-windows:
@@ -161,7 +171,7 @@ jobs:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
       - name: Upload assets (darwin)
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: dist-darwin
           path: dist-darwin
@@ -192,7 +202,7 @@ jobs:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
       - name: Upload assets (linux-amd64)
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: dist-linux-amd64
           path: dist-linux
@@ -228,7 +238,7 @@ jobs:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
       - name: Upload assets (linux-arm64)
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: dist-linux-arm64
           path: dist-linux
@@ -261,7 +271,7 @@ jobs:
 
 
       - name: Upload assets (windows)
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: dist-windows
           path: dist-windows
@@ -289,25 +299,25 @@ jobs:
           go-version-file: go.mod
 
       - name: Download darwin artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-darwin
           path: dist-darwin
 
       - name: Download linux-amd64 artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-linux-amd64
           path: dist-linux
 
       - name: Download linux-arm64 artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-linux-arm64
           path: dist-linux
 
       - name: Download windows artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-windows
           path: dist-windows

@@ -1,0 +1,23 @@
+# Codecov configuration.
+# See https://docs.codecov.com/docs/codecov-yaml for all options.
+#
+# Coverage is uploaded from the test-nix matrix (ubuntu + macos) in
+# .github/workflows/main.yml, tagged per-OS via flags. Checks are
+# informational so they report status without blocking PR merges.
+
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
+
+comment:
+  layout: "reach, diff, flags, files"
+  require_changes: false
+
+flag_management:
+  default_rules:
+    carryforward: true
