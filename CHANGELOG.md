@@ -47,14 +47,15 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
-- [#637]: Improved SLQ syntax-error reporting in both text and JSON output:
+- [#637]: Improved `SLQ` syntax-error reporting in both text and
+  JSON [error formats](https://sq.io/docs/config#errorformat):
   - Text output highlights the offending span in the original query,
     syntax-colors the input line per sq's standard palette (handles,
     selectors, keywords, numbers, strings, punctuation), and replaces
     ANTLR's verbose `expecting {...}` dump with a terse, sq-flavored
     message. Typo'd identifiers may receive a `did you mean '<name>'?`
     suggestion (e.g., `mx` → `max`).
-  - JSON output (`--json`) includes a structured `parse_error` field,
+  - JSON output includes a structured `parse_error` field,
     carrying `input` and `issues[].{line, col, token, msg, suggestion}`,
     plus rune-offset `start_char`/`stop_char` when a precise span is
     available, for programmatic consumers. Both `line` and `col` are
