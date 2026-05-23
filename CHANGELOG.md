@@ -48,6 +48,12 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [#471]: The SQLite driver no longer fails with `unsupported Scan, storing
+  driver.Value type string into type *time.Time` when a `DATETIME`/`DATE`
+  column stores text that `mattn/go-sqlite3` doesn't natively convert — most
+  commonly Rails' microsecond-precision `datetime(6)` columns. `sq` now
+  re-runs the same timestamp parse and falls back to the raw text only when
+  the value is genuinely unparseable.
 - `sq <command> --format=FORMAT` (e.g. `sq inspect --format=xlsx`) no longer
   fails with a spurious "diff does not support output format" error. The
   format check for [`sq diff`](https://sq.io/docs/diff) was being applied to
@@ -1505,6 +1511,7 @@ make working with lots of sources much easier.
 [#498]: https://github.com/neilotoole/sq/issues/498
 [#469]: https://github.com/neilotoole/sq/issues/469
 [#470]: https://github.com/neilotoole/sq/issues/470
+[#471]: https://github.com/neilotoole/sq/issues/471
 [#499]: https://github.com/neilotoole/sq/issues/499
 [#501]: https://github.com/neilotoole/sq/pull/501
 [#502]: https://github.com/neilotoole/sq/pull/502
