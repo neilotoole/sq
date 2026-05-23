@@ -209,6 +209,25 @@ func TestMetadataWriter_indexesAndUniqueConstraints(t *testing.T) {
 	require.Contains(t, out, "| `t_email_key` | `email` |")
 }
 
+// TestMetadataWriter_backtickIdentifier checks that an identifier containing a
+// backtick renders as a valid widened-fence code span rather than a broken
+// single-backtick span.
+func TestMetadataWriter_backtickIdentifier(t *testing.T) {
+	tbl := &metadata.Table{
+		Name: "t", TableType: "table", RowCount: 1,
+		Columns: []*metadata.Column{{Name: "a`b", ColumnType: "int"}},
+	}
+
+	buf := &bytes.Buffer{}
+	w := markdownw.NewMetadataWriter(buf, output.NewPrinting())
+	require.NoError(t, w.TableMetadata(tbl))
+	out := buf.String()
+
+	// The fence widens to two backticks so the embedded backtick is literal
+	// rather than closing the span early.
+	require.Contains(t, out, "``a`b``")
+}
+
 // TestMetadataWriter_views checks that a source with views renders the
 // "Tables & views" heading and italicizes view links in the TOC (tables
 // stay plain).

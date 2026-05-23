@@ -159,7 +159,7 @@ func escapeMarkdown(s string) string {
 func writeTablesTOC(buf *bytes.Buffer, tables []*metadata.Table) {
 	links := make([]string, len(tables))
 	for i, tbl := range tables {
-		link := fmt.Sprintf("[`%s`](#%s)", tbl.Name, mdAnchor(tbl.Name))
+		link := fmt.Sprintf("[%s](#%s)", mdCode(tbl.Name), mdAnchor(tbl.Name))
 		if commonw.IsView(tbl) {
 			// Markdown can't tint the link like HTML; italicize views instead.
 			link = "*" + link + "*"
@@ -202,7 +202,7 @@ func mdCode(s string) string {
 	if s == "" {
 		return ""
 	}
-	return "`" + s + "`"
+	return mdCodeSpan(s)
 }
 
 // mdCodeCell renders s as a Markdown inline-code span for use inside a
@@ -216,5 +216,31 @@ func mdCodeCell(s string) string {
 	s = strings.ReplaceAll(s, "\r\n", " ")
 	s = strings.ReplaceAll(s, "\n", " ")
 	s = strings.ReplaceAll(s, "|", `\|`)
-	return "`" + s + "`"
+	return mdCodeSpan(s)
+}
+
+// mdCodeSpan wraps non-empty s in a backtick-delimited inline-code span. The
+// fence is one backtick longer than the longest backtick run in s, so embedded
+// backticks can't close the span early; and when s starts or ends with a
+// backtick it's padded with a space, which CommonMark strips as a matching
+// leading/trailing pair. Ordinary identifiers (no backticks) get a plain
+// single-backtick span.
+func mdCodeSpan(s string) string {
+	longest, cur := 0, 0
+	for _, r := range s {
+		if r == '`' {
+			cur++
+			if cur > longest {
+				longest = cur
+			}
+		} else {
+			cur = 0
+		}
+	}
+	fence := strings.Repeat("`", longest+1)
+	pad := ""
+	if strings.HasPrefix(s, "`") || strings.HasSuffix(s, "`") {
+		pad = " "
+	}
+	return fence + pad + s + pad + fence
 }

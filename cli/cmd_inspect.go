@@ -13,7 +13,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -102,16 +101,27 @@ render a schema document that includes a Mermaid entity-relationship diagram;
 	}
 
 	addOptionFlag(cmd.Flags(), OptFormat)
+	// Only suggest the formats inspect actually implements a metadata writer
+	// for; any other format falls back to text output (see newWriters), so
+	// offering e.g. csv/xlsx/xml here would imply support that doesn't exist.
 	panicOn(cmd.RegisterFlagCompletionFunc(
 		OptFormat.Flag().Name,
-		completeStrings(-1, stringz.Strings(format.All())...),
+		completeStrings(-1,
+			format.Text.String(),
+			format.JSON.String(),
+			format.YAML.String(),
+			format.Markdown.String(),
+			format.HTML.String(),
+		),
 	))
 	addTextFormatFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	addOptionFlag(cmd.Flags(), OptCompact)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
-	cmd.Flags().Bool(flag.Markdown, false, flag.MarkdownUsage)
-	cmd.Flags().Bool(flag.HTML, false, flag.HTMLUsage)
+	// Override the generic flag usage: for inspect these emit a schema
+	// document (with a Mermaid ER diagram), not a Markdown/HTML data table.
+	cmd.Flags().Bool(flag.Markdown, false, "Output a Markdown schema document")
+	cmd.Flags().Bool(flag.HTML, false, "Output a standalone HTML schema document")
 
 	cmd.Flags().BoolP(flag.InspectOverview, flag.InspectOverviewShort, false, flag.InspectOverviewUsage)
 	cmd.Flags().BoolP(flag.InspectDBProps, flag.InspectDBPropsShort, false, flag.InspectDBPropsUsage)

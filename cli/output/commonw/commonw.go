@@ -79,9 +79,9 @@ type FKRow struct {
 	// that references this one).
 	Direction string
 
-	// Local is this table's side, qualified with the table name:
-	// "film.language_id" for a single column, "film(col1, col2)" for a
-	// composite key.
+	// Local is this table's column(s), bare — the owning table is implied by
+	// the surrounding section, so it's "language_id" for a single column and
+	// "(col1, col2)" for a composite key.
 	Local string
 
 	// Remote is the other table's side: the referenced
