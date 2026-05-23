@@ -20,22 +20,31 @@ func TestNullTimeScan(t *testing.T) {
 		isTime  bool
 		want    time.Time
 		wantStr string
+		wantErr bool
 	}{
 		{name: "nil", src: nil, valid: false},
 		{name: "time", src: tm, valid: true, isTime: true, want: tm},
 		{name: "rails_micro", src: "2024-01-15 12:34:56.123456", valid: true, isTime: true, want: railsInstant},
 		{name: "rfc3339_z", src: "2024-01-15T12:34:56Z", valid: true, isTime: true, want: tm},
+		{name: "rfc3339_micro_z", src: "2024-01-15T12:34:56.123456Z", valid: true, isTime: true, want: railsInstant},
 		{name: "date_only", src: "2024-01-15", valid: true, isTime: true, want: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)},
 		{name: "junk", src: "not-a-date", valid: true, isTime: false, wantStr: "not-a-date"},
 		{name: "epoch_seconds", src: int64(1700000000), valid: true, isTime: true, want: epochInstant},
 		{name: "epoch_millis", src: int64(1700000000000), valid: true, isTime: true, want: epochInstant},
 		{name: "bytes_micro", src: []byte("2024-01-15 12:34:56.123456"), valid: true, isTime: true, want: railsInstant},
+		{name: "float_real", src: float64(2460000.5), valid: true, isTime: false, wantStr: "2460000.5"},
+		{name: "unsupported_type", src: true, wantErr: true},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var nt nullTime
-			require.NoError(t, nt.Scan(tc.src))
+			err := nt.Scan(tc.src)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
 			require.Equal(t, tc.valid, nt.Valid)
 			require.Equal(t, tc.isTime, nt.IsTime)
 			if tc.isTime {

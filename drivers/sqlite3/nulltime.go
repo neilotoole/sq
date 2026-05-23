@@ -2,6 +2,7 @@ package sqlite3
 
 import (
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -51,6 +52,13 @@ func (n *nullTime) Scan(src any) error {
 		return nil
 	case int64:
 		*n = nullTime{Time: epochToTime(v), Valid: true, IsTime: true}
+		return nil
+	case float64:
+		// SQLite REAL storage (e.g. a Julian day) for a time column. mattn
+		// returns these as float64 with no conversion; we don't try to
+		// interpret them as instants, but preserve the value as text so the
+		// query doesn't hard-fail (the goal of #471).
+		*n = nullTime{String: strconv.FormatFloat(v, 'f', -1, 64), Valid: true}
 		return nil
 	default:
 		return errz.Errorf("sqlite3: cannot scan %T into nullTime", src)
