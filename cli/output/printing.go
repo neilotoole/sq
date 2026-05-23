@@ -25,6 +25,15 @@ type Printing struct {
 	// Defaults to timez.DefaultDate.
 	FormatDate func(time time.Time) string
 
+	// GeneratedAt is the time the output was generated (UTC). When non-zero,
+	// inspect's Markdown/HTML schema documents include a provenance line. A
+	// zero value omits it (e.g. in unit tests).
+	GeneratedAt time.Time
+
+	// GeneratedBy is the command that produced the output, e.g.
+	// "sq inspect @sakila/pg --html". Rendered alongside GeneratedAt.
+	GeneratedBy string
+
 	// Active is the color for an active handle (or group, etc).
 	Active *color.Color
 
