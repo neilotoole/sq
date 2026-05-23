@@ -120,7 +120,7 @@ erDiagram
 
 | Relationship (→ references · ← referenced by) | Constraint | On update | On delete |
 | --- | --- | --- | --- |
-| ` + "`actor.actor_id`" + ` ← ` +
+| ` + "`actor_id`" + ` ← ` +
 		"`film_actor.actor_id`" +
 		` | ` + "`fk_film_actor_actor`" + ` | cascade |  |
 
@@ -148,7 +148,7 @@ erDiagram
 
 | Relationship (→ references · ← referenced by) | Constraint | On update | On delete |
 | --- | --- | --- | --- |
-| ` + "`film_actor.actor_id`" + ` → ` +
+| ` + "`actor_id`" + ` → ` +
 		"`actor.actor_id`" +
 		` | ` + "`fk_film_actor_actor`" + ` | cascade |  |
 `
@@ -281,7 +281,7 @@ erDiagram
 
 | Relationship (→ references · ← referenced by) | Constraint | On update | On delete |
 | --- | --- | --- | --- |
-| ` + "`film_actor.actor_id`" + ` → ` +
+| ` + "`actor_id`" + ` → ` +
 		"`actor.actor_id`" +
 		` | ` + "`fk_film_actor_actor`" + ` | cascade |  |
 `

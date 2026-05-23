@@ -119,7 +119,7 @@ func FKRows(tbl *metadata.Table) []FKRow {
 		}
 		rows = append(rows, FKRow{
 			Direction:  "outgoing",
-			Local:      qualify(tbl.Name, fk.Columns),
+			Local:      bareCols(fk.Columns),
 			Remote:     qualify(refPrefix(fk), fk.RefColumns),
 			Constraint: fk.Name,
 			OnUpdate:   fkAction(fk.OnUpdate),
@@ -132,7 +132,7 @@ func FKRows(tbl *metadata.Table) []FKRow {
 		}
 		rows = append(rows, FKRow{
 			Direction:  "incoming",
-			Local:      qualify(tbl.Name, fk.RefColumns),
+			Local:      bareCols(fk.RefColumns),
 			Remote:     qualify(fk.Table, fk.Columns),
 			Constraint: fk.Name,
 			OnUpdate:   fkAction(fk.OnUpdate),
@@ -145,14 +145,26 @@ func FKRows(tbl *metadata.Table) []FKRow {
 	return rows
 }
 
-// qualify renders columns qualified by a table prefix: "t.col" for a single
-// column (dot notation), "t(col1, col2)" for a composite key (the paren form
-// keeps the columns unambiguous). Used for both sides of an FK relationship.
+// qualify renders the remote (other table) side of an FK relationship,
+// qualified by a table prefix: "t.col" for a single column (dot notation),
+// "t(col1, col2)" for a composite key (the paren form keeps the columns
+// unambiguous).
 func qualify(prefix string, cols []string) string {
 	if len(cols) == 1 {
 		return prefix + "." + cols[0]
 	}
 	return prefix + "(" + strings.Join(cols, ", ") + ")"
+}
+
+// bareCols renders the local (this table) side of an FK relationship as the
+// column(s) only, without a table prefix — the owning table is already implied
+// by the surrounding section. A single column is returned as-is; a composite
+// key is parenthesized: "(col1, col2)".
+func bareCols(cols []string) string {
+	if len(cols) == 1 {
+		return cols[0]
+	}
+	return "(" + strings.Join(cols, ", ") + ")"
 }
 
 // fkAction lower-cases a referential action, returning "" for the SQL

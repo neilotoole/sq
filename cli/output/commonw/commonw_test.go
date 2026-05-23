@@ -71,18 +71,17 @@ func TestFKRows(t *testing.T) {
 		rows := commonw.FKRows(tbl)
 		require.Len(t, rows, 3)
 
-		// Outgoing rows precede incoming; actions are lower-cased. Rows are
-		// anchored on the owning table ("film"): Local is film's side.
+		// Outgoing rows precede incoming; actions are lower-cased. The Local
+		// side is the bare owning column; Remote keeps its table qualifier.
 		require.Equal(t, commonw.FKRow{
-			Direction: "outgoing", Local: "film.language_id", Remote: "language.language_id",
+			Direction: "outgoing", Local: "language_id", Remote: "language.language_id",
 			Constraint: "film_language_id_fkey", OnUpdate: "cascade", OnDelete: "restrict",
 		}, rows[0])
 
-		// Incoming rows sort by constraint name (film_actor_ before inventory_),
-		// and anchor on film's referenced column.
+		// Incoming rows sort by constraint name (film_actor_ before inventory_).
 		require.Equal(t, "incoming", rows[1].Direction)
 		require.Equal(t, "film_actor_film_id_fkey", rows[1].Constraint)
-		require.Equal(t, "film.film_id", rows[1].Local)
+		require.Equal(t, "film_id", rows[1].Local)
 		require.Equal(t, "film_actor.film_id", rows[1].Remote)
 		require.Equal(t, "inventory_film_id_fkey", rows[2].Constraint)
 	})
@@ -98,7 +97,7 @@ func TestFKRows(t *testing.T) {
 		}
 		rows := commonw.FKRows(tbl)
 		require.Len(t, rows, 1)
-		require.Equal(t, "t(a, b)", rows[0].Local) // composite local → paren form
+		require.Equal(t, "(a, b)", rows[0].Local) // composite local → bare paren form
 		require.Equal(t, "cat.sch.other(x, y)", rows[0].Remote)
 		require.Empty(t, rows[0].Constraint) // unnamed constraint
 	})

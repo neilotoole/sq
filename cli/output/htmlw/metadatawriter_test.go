@@ -117,11 +117,12 @@ func TestMetadataWriter_SourceMetadata(t *testing.T) {
 	require.Contains(t, got,
 		`<th>Relationship <span class="fk-legend">(<span class="fk-out">→</span> references · `+
 			`<span class="fk-in">←</span> referenced by)</span></th>`)
-	// Outgoing: this table's column → referenced; incoming: ← referencing.
+	// Outgoing: this table's bare column → referenced; incoming: ← referencing.
+	// The owning-table prefix is dropped on the left (it's implied here).
 	require.Contains(t, got,
-		`<code>film_actor.actor_id</code> <span class="fk-out">→</span> <code>actor.actor_id</code>`)
+		`<code>actor_id</code> <span class="fk-out">→</span> <code>actor.actor_id</code>`)
 	require.Contains(t, got,
-		`<code>actor.actor_id</code> <span class="fk-in">←</span> <code>film_actor.actor_id</code>`)
+		`<code>actor_id</code> <span class="fk-in">←</span> <code>film_actor.actor_id</code>`)
 }
 
 func TestMetadataWriter_SourceMetadata_overview(t *testing.T) {

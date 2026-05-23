@@ -354,7 +354,7 @@ func TestCmdInspect_markdown(t *testing.T) { //nolint:tparallel
 		// (this table's column → referenced, or ← referencing).
 		require.Contains(t, out, "**Foreign keys:**")
 		require.Contains(t, out, "| Relationship (→ references · ← referenced by) | Constraint | On update | On delete |")
-		require.Contains(t, out, "`film_actor.actor_id` → ")
+		require.Contains(t, out, "`actor_id` → ")
 		// Indexes render as a table too (film_actor has a primary index).
 		require.Contains(t, out, "**Indexes:**")
 		require.Contains(t, out, "| Index | Columns | Unique | Primary | Type |")
