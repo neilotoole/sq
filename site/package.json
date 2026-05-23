@@ -74,7 +74,7 @@
     "instant.page": "^5.1",
     "katex": "^0.16",
     "lazysizes": "^5.3",
-    "linkinator": "^4.1.2",
+    "linkinator": "^7.6.1",
     "markdownlint-cli2": "^0.22.1",
     "netlify-cli": "^25.0.1",
     "netlify-plugin-submit-sitemap": "^0.4.0",
