@@ -9,6 +9,7 @@ import (
 var (
 	KindFromDBTypeName = kindFromDBTypeName
 	GetTblRowCounts    = getTblRowCounts
+	RTypeNullTime      = rtypeNullTime
 )
 
 func TestPlaceholders(t *testing.T) {

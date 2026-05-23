@@ -34,9 +34,10 @@ import (
 
 // render.go exports.
 var (
-	DbTypeNameFromKind   = dbTypeNameFromKind
-	BuildCreateTableStmt = buildCreateTableStmt
-	BuildUpdateStmt      = buildUpdateStmt
+	DbTypeNameFromKind       = dbTypeNameFromKind
+	BuildCreateTableStmt     = buildCreateTableStmt
+	BuildCreateTableStmtName = buildCreateTableStmtName
+	BuildUpdateStmt          = buildUpdateStmt
 )
 
 // metadata.go exports.

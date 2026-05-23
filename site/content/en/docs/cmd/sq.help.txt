@@ -111,6 +111,7 @@ Flags:
       --xml                            Output XML
   -y, --yaml                           Output YAML
   -c, --compact                        Compact instead of pretty-printed output
+      --format.html.embed-assets       Embed assets (Mermaid.js) in HTML output for offline use
       --format.datetime string         Timestamp format: constant such as RFC3339 or a strftime format (default "RFC3339")
       --format.datetime.number         Render numeric datetime value as number instead of string (default true)
       --format.date string             Date format: constant such as DateOnly or a strftime format (default "DateOnly")

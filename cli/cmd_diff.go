@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"slices"
+
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
@@ -54,16 +56,13 @@ var OptDiffDataFormat = format.NewOpt(
 	"diff.data.format",
 	&options.Flag{Name: "format", Short: 'f'},
 	format.Text,
-	func(f format.Format) error {
-		switch f { //nolint:exhaustive
-		case format.Text, format.CSV, format.TSV,
-			format.JSON, format.JSONA, format.JSONL,
-			format.Markdown, format.HTML, format.XML, format.YAML:
-			return nil
-		default:
-			return errz.Errorf("diff does not support output format {%s}", f)
-		}
-	},
+	// No validFn here: this opt shares the "format" flag name with OptFormat
+	// (see output.go), so getOptionsFromFlags populates it on every command
+	// that has a --format flag. A validFn would therefore reject --format
+	// values globally, not just for diff — e.g. blocking
+	// "sq inspect --format=mermaid-erd". Diff validates its own format against
+	// diffFormats in getDiffRecordWriter instead.
+	nil,
 	"Output format (json, csv…) when comparing data",
 	`Specify the output format to use when comparing table data.
 
@@ -364,6 +363,12 @@ func isAnyDiffModeFlagChanged(cmd *cobra.Command) bool {
 }
 
 func getDiffRecordWriter(f format.Format, pr *output.Printing, lines int) (diff.RecordHunkWriter, error) {
+	// diffFormats is the set of text-based formats diff can render; other
+	// formats (xlsx, raw, mermaid-erd, …) have no meaningful line-based diff.
+	if !slices.Contains(diffFormats, f) {
+		return nil, errz.Errorf("diff does not support output format {%s}", f)
+	}
+
 	switch f { //nolint:exhaustive
 	// We've only implemented an "optimized" (and I say that loosely) diff writer
 	// for a handful of formats. There's no technical reason the others can't be

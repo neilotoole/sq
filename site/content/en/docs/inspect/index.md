@@ -84,6 +84,101 @@ $ sq inspect -j | jq -r '.tables[] | .name'
 
 See more examples in the [cookbook](/docs/cookbook).
 
+### `--markdown`
+
+The `--markdown` format renders a schema document suited for embedding in
+project docs or a pull request: a source overview, per-table
+column / key / constraint / index detail, and a
+[Mermaid](https://mermaid.js.org) entity-relationship diagram. The diagram
+renders inline on GitHub, GitLab, and most Markdown viewers, showing every
+table and its foreign-key relationships.
+
+```shell
+# Redirect output to sakila.md
+$ sq inspect @sakila_pg --markdown > sakila.md
+
+# Or just use the -o/--output flag
+$ sq inspect @sakila_pg --markdown -o sakila.md
+
+# Output just for the actor table.
+$ sq inspect @sakila_pg.actor --markdown -o actor.md
+```
+
+![sq_inspect_markdown ](sq_inspect_md.png)
+
+### `--html`
+
+The `--html` format renders the same schema document as the `--markdown`
+format — a source overview, per-table column / key / constraint / index
+detail, and a [Mermaid](https://mermaid.js.org) entity-relationship diagram —
+but as a standalone HTML page. The diagrams are rendered client-side by
+Mermaid.js, so the page can be opened directly in a browser.
+
+```shell
+$ sq inspect @sakila_pg --html
+
+# Equivalent, using the generic format flag:
+$ sq inspect @sakila_pg -f html
+
+# Write the document to a file with the --output (-o) flag:
+$ sq inspect @sakila_pg --html -o sakila.html
+
+# Or to open directly in a browser (macOS):
+$ sq inspect @sakila_pg --html > sakila.html && open sakila.html
+```
+
+![sq_inspect_html](sq_inspect_html.png)
+
+{{< alert icon="👉" >}}
+See the [**live example**](/examples/sakila.html): the `--html` schema document
+for the Postgres [sakila](https://github.com/jOOQ/sakila) sample database,
+rendered right in your browser.
+{{< /alert >}}
+
+By default, the page loads Mermaid.js from a CDN, producing a small file that
+requires internet access to render the diagram. To produce a fully
+self-contained document that renders offline, inline the Mermaid.js library
+via the `format.html.embed-assets` option. Set it persistently with
+`sq config set`, or per invocation with the matching
+`--format.html.embed-assets` flag:
+
+```shell
+# Persistently, for all HTML output.
+$ sq config set format.html.embed-assets true
+
+# Or per invocation (overrides config for this run).
+$ sq inspect @sakila_sl3 --html --format.html.embed-assets
+```
+
+As with `--markdown`, the `--overview` (`-O`) mode omits the schema and
+diagram, and inspecting a single table
+(`sq inspect @sakila_sl3.film_actor --html`) renders just that table's section.
+
+### `mermaid-erd`
+
+The `mermaid-erd` format emits just the bare
+[Mermaid](https://mermaid.js.org) entity-relationship diagram source — the
+same diagram embedded in the `--markdown` and `--html` schema documents, but
+with nothing wrapped around it (no code fence, no HTML page). It's handy for
+pasting into a Markdown file, the [Mermaid live editor](https://mermaid.live),
+or a docs pipeline. There's no dedicated flag for it; select it via the
+generic `--format` (`-f`) flag:
+
+```shell
+# Whole-source ERD.
+$ sq inspect @sakila_pg --format=mermaid-erd
+
+# Just the film_actor table (and its related tables).
+$ sq inspect @sakila_pg.film_actor -f mermaid-erd
+
+# Write the diagram to a file.
+$ sq inspect @sakila_pg -f mermaid-erd -o sakila.mmd
+```
+
+The format covers only source and single-table schema inspection. Operations
+with no diagram — such as `--overview` (`-O`), `--catalogs`, or `--dbprops` —
+return an error rather than empty output.
+
 ## Source overview
 
 Sometimes you don't need the full schema, but still want to view the source

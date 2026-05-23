@@ -78,6 +78,92 @@ func TestDriver_TableExists(t *testing.T) {
 	}
 }
 
+// TestDriver_TableExists_MultipleSchemas is a regression test for
+// https://github.com/neilotoole/sq/issues/484. TableExists must scope its
+// lookup to the connection's current schema. Previously the MySQL and Postgres
+// drivers queried information_schema.tables filtered only by table name (no
+// schema predicate) and compared COUNT(*) == 1, so a table whose name also
+// existed in another schema produced the wrong result:
+//
+//   - Same-named table in two schemas: COUNT(*) == 2, so the "== 1" check
+//     reported the table as missing, and --insert tried (and failed) to CREATE
+//     an already-existing table ("Table 'x' already exists").
+//   - Same-named table only in another schema: COUNT(*) == 1 reported the table
+//     as present, so --insert skipped CREATE and the subsequent INSERT failed
+//     because the table was absent from the current schema.
+func TestDriver_TableExists_MultipleSchemas(t *testing.T) {
+	// Only MySQL and Postgres were affected by #484. The other drivers were
+	// already schema-scoped (or single-schema, for SQLite, whose unqualified
+	// sqlite_master never sees attached schemas) and serve here as contract
+	// guards against future regressions; ClickHouse, included since its
+	// CopyTable was fixed to honor the target schema (#652), also guards that.
+	// Oracle is omitted because its CreateSchema is unsupported.
+	testCases := []struct {
+		handle        string
+		defaultSchema string
+	}{
+		{sakila.SL3, "main"},
+		{sakila.Duck, "main"},
+		{sakila.Pg, "public"},
+		{sakila.My, "sakila"},
+		{sakila.MS, "dbo"},
+		{sakila.CH, "sakila"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.handle, func(t *testing.T) {
+			th, _, drvr, _, db := testh.NewWith(t, tc.handle)
+			ctx := th.Context
+
+			conn, err := db.Conn(ctx)
+			require.NoError(t, err)
+			t.Cleanup(func() { assert.NoError(t, conn.Close()) })
+
+			gotSchema, err := drvr.CurrentSchema(ctx, conn)
+			require.NoError(t, err)
+			require.Equal(t, tc.defaultSchema, gotSchema)
+
+			// otherSchema holds a same-named table that must NOT be mistaken
+			// for one in the current schema.
+			otherSchema := "test_schema_" + stringz.Uniq8()
+			require.NoError(t, drvr.CreateSchema(ctx, conn, otherSchema))
+			t.Cleanup(func() { assert.NoError(t, drvr.DropSchema(ctx, conn, otherSchema)) })
+
+			tblName := stringz.UniqTableName("actor_484")
+			srcTblFQ := tablefq.From(sakila.TblActor)
+
+			// Create the table in otherSchema only.
+			_, err = drvr.CopyTable(ctx, conn, srcTblFQ, tablefq.T{Schema: otherSchema, Table: tblName}, false)
+			require.NoError(t, err)
+
+			// TableExists checks the current schema, where the table does not
+			// yet exist, so it must report false even though the name exists in
+			// otherSchema.
+			exists, err := drvr.TableExists(ctx, conn, tblName)
+			require.NoError(t, err)
+			require.False(t, exists,
+				"table %q exists only in schema %q, not in current schema %q",
+				tblName, otherSchema, tc.defaultSchema)
+
+			// Now create the table in the current schema too, so the name
+			// exists in two schemas at once.
+			currentTblFQ := tablefq.From(tblName)
+			t.Cleanup(func() { assert.NoError(t, drvr.DropTable(ctx, conn, currentTblFQ, true)) })
+			_, err = drvr.CopyTable(ctx, conn, srcTblFQ, currentTblFQ, false)
+			require.NoError(t, err)
+
+			// TableExists must now report true: the table is present in the
+			// current schema, even though the same name also exists in
+			// otherSchema.
+			exists, err = drvr.TableExists(ctx, conn, tblName)
+			require.NoError(t, err)
+			require.True(t, exists,
+				"table %q exists in current schema %q (and also in %q)",
+				tblName, tc.defaultSchema, otherSchema)
+		})
+	}
+}
+
 func TestDriver_CopyTable(t *testing.T) {
 	t.Parallel()
 

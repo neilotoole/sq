@@ -31,7 +31,7 @@ func TestErrorWriter_ParseError(t *testing.T) {
 	buf := &bytes.Buffer{}
 	pr := output.NewPrinting()
 	pr.EnableColor(false)
-	w := tablew.NewErrorWriter(buf, pr, false)
+	w := tablew.NewErrorWriter(buf, pr, false, true)
 	w.Error(wrapped, wrapped)
 
 	got := buf.String()
@@ -50,7 +50,7 @@ func TestErrorWriter_ParseError_EmptyIssuesFallsBack(t *testing.T) {
 	buf := &bytes.Buffer{}
 	pr := output.NewPrinting()
 	pr.EnableColor(false)
-	w := tablew.NewErrorWriter(buf, pr, false)
+	w := tablew.NewErrorWriter(buf, pr, false, true)
 	w.Error(wrapped, wrapped)
 
 	got := buf.String()
@@ -63,7 +63,7 @@ func TestErrorWriter_NonParseError(t *testing.T) {
 	buf := &bytes.Buffer{}
 	pr := output.NewPrinting()
 	pr.EnableColor(false)
-	w := tablew.NewErrorWriter(buf, pr, false)
+	w := tablew.NewErrorWriter(buf, pr, false, true)
 	err := errors.New("something broke")
 	w.Error(err, err)
 	require.Contains(t, buf.String(), "sq: something broke")
@@ -88,17 +88,48 @@ func TestErrorWriter_ParseError_StacktraceHonored(t *testing.T) {
 	bufOff := &bytes.Buffer{}
 	pr := output.NewPrinting()
 	pr.EnableColor(false)
-	wOff := tablew.NewErrorWriter(bufOff, pr, false)
+	wOff := tablew.NewErrorWriter(bufOff, pr, false, true)
 	wOff.Error(wrapped, wrapped)
 	require.Contains(t, bufOff.String(), "syntax error")
 	require.NotContains(t, bufOff.String(), "goroutine")
 
 	// With stacktrace=true: parse error rendering PLUS stack frames.
 	bufOn := &bytes.Buffer{}
-	wOn := tablew.NewErrorWriter(bufOn, pr, true)
+	wOn := tablew.NewErrorWriter(bufOn, pr, true, true)
 	wOn.Error(wrapped, wrapped)
 	require.Contains(t, bufOn.String(), "syntax error",
 		"parse error message should appear above the stack")
 	require.NotEqual(t, bufOff.String(), bufOn.String(),
 		"stacktrace=true should produce different output than stacktrace=false")
+}
+
+func TestErrorWriter_ParseError_NonVerbose(t *testing.T) {
+	// With verbose=false, only the one-line summary is shown: no input line,
+	// caret, or "did you mean" suggestion.
+	pe := &ast.ParseError{
+		Input: ".actor | mx(.first_name)",
+		Issues: []ast.ParseIssue{
+			{
+				Line:       1,
+				Col:        9,
+				Span:       &ast.Span{Start: 9, Stop: 10},
+				Token:      "mx",
+				Msg:        "unexpected 'mx'",
+				Suggestion: "max",
+			},
+		},
+	}
+	wrapped := errz.Err(pe)
+
+	buf := &bytes.Buffer{}
+	pr := output.NewPrinting()
+	pr.EnableColor(false)
+	w := tablew.NewErrorWriter(buf, pr, false, false)
+	w.Error(wrapped, wrapped)
+
+	got := buf.String()
+	require.Contains(t, got, "sq: syntax error at line 1, col 10: unexpected 'mx'")
+	require.NotContains(t, got, "did you mean", "suggestion must be omitted when not verbose")
+	require.NotContains(t, got, "~", "caret line must be omitted when not verbose")
+	require.NotContains(t, got, ".actor | mx", "input line must be omitted when not verbose")
 }

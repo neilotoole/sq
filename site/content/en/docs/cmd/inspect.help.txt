@@ -19,7 +19,9 @@ is supplied, the default is to show the source metadata and schema.
   --schemata:  List the schemas available in the source's active catalog.
 
 Use --verbose with --text format to see more detail. The --json and --yaml
-formats both show extensive detail.
+formats both show extensive detail. The --markdown and --html formats each
+render a schema document that includes a Mermaid entity-relationship diagram;
+--html produces a standalone page (use --output to save it to a file).
 
 Usage:
   sq inspect [@HANDLE|@HANDLE.TABLE|.TABLE]
@@ -39,6 +41,15 @@ Examples:
 
   # Show output in YAML.
   $ sq inspect --yaml @pg1
+
+  # Show output as a Markdown schema doc with a Mermaid ER diagram.
+  $ sq inspect --markdown @pg1
+
+  # Show output as a standalone HTML schema doc with a Mermaid ER diagram.
+  $ sq inspect --html @pg1
+
+  # Write the HTML schema doc to a file instead of stdout.
+  $ sq inspect --html @pg1 -o pg1-schema.html
 
   # Show only the DB properties for @pg1.
   $ sq inspect --dbprops @pg1
@@ -65,19 +76,24 @@ Examples:
   $ cat data.xlsx | sq inspect
 
 Flags:
-  -t, --text                Output text
-  -h, --header              Print header row (default true)
-  -H, --no-header           Don't print header row
-  -j, --json                Output JSON
-  -c, --compact             Compact instead of pretty-printed output
-  -y, --yaml                Output YAML
-  -O, --overview            Show metadata only (no schema)
-  -p, --dbprops             Show DB properties only
-  -C, --catalogs            List catalogs only
-  -S, --schemata            List schemas (in current catalog) only
-      --src.schema string   Override active schema (and/or catalog) for this query
-      --no-cache            Don't cache ingest data
-      --help                help for inspect
+  -f, --format string              Specify output format (default "text")
+  -t, --text                       Output text
+  -h, --header                     Print header row (default true)
+  -H, --no-header                  Don't print header row
+  -j, --json                       Output JSON
+  -c, --compact                    Compact instead of pretty-printed output
+  -y, --yaml                       Output YAML
+      --markdown                   Output a Markdown schema document
+      --html                       Output a standalone HTML schema document
+      --format.html.embed-assets   Embed assets (Mermaid.js) in HTML output for offline use
+  -O, --overview                   Show metadata only (no schema)
+  -p, --dbprops                    Show DB properties only
+  -C, --catalogs                   List catalogs only
+  -S, --schemata                   List schemas (in current catalog) only
+      --src.schema string          Override active schema (and/or catalog) for this query
+      --no-cache                   Don't cache ingest data
+  -o, --output string              Write output to <file> instead of stdout
+      --help                       help for inspect
 
 Global Flags:
       --config string         Load config from here

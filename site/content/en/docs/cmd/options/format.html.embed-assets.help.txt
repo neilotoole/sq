@@ -1,0 +1,7 @@
+Usage:
+  sq config set format.html.embed-assets false
+
+When true, sq inspect's HTML output inlines all assets — notably the
+Mermaid.js library — so the document is fully self-contained and renders
+offline. When false (default), Mermaid.js is loaded from a CDN, producing a
+much smaller file that requires internet access to render the diagram.

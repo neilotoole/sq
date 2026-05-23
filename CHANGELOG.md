@@ -21,91 +21,78 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   preview across every supported source type with keyboard-driven navigation.
   Use `--emit-handle` (`-q`) to compose with the shell:
   `sq $(sq explore -q @src) --csv > rows.csv`.
-- [#601]: New SLQ functions for substring matching: `contains(col, str)`,
-  `startswith(col, str)`, and `endswith(col, str)`. Always case-sensitive,
-  with `%`, `_`, and the escape character automatically escaped in the
-  user literal. See [Query language](https://sq.io/docs/query) for
-  details.
-- [#615]: New SLQ functions. Case-insensitive substring matchers
-  [`icontains`](https://sq.io/docs/query#icontains),
-  [`istartswith`](https://sq.io/docs/query#istartswith),
-  [`iendswith`](https://sq.io/docs/query#iendswith) (auto-escape
-  `%`/`_`/`|` in the pattern, matching the `contains` family from
-  [#601]). New user-controlled wildcard matchers
-  [`like`](https://sq.io/docs/query#like) and
-  [`ilike`](https://sq.io/docs/query#ilike) (`%` and `_` are
-  wildcards). See [Query language](https://sq.io/docs/query) for
-  per-driver behavior and SQLite ASCII-CI quirks.
-- [#628]: [`like`](https://sq.io/docs/query#like) and
-  [`ilike`](https://sq.io/docs/query#ilike) now accept either a
-  quoted string literal or a column selector as the pattern argument,
-  enabling column-vs-column matching such as
-  `where(like(.events.message, .rules.pattern))`. NULL values on
-  the RHS yield NULL from `LIKE`, which `WHERE` treats as false
-  (standard SQL semantics). The [`contains`](https://sq.io/docs/query#contains)
-  family stays literal-only: its render-time auto-escape of `%`/`_`
-  in the user pattern doesn't extend to a runtime column value, and
-  the per-driver SQL-level escaping that would replace it is out of
-  scope for v1.
+- [#601], [#615], [#628], [#629], [#640]: New `SLQ` string-matching functions.
+  See [Query Guide](https://sq.io/docs/query) for per-driver behavior and
+  SQLite ASCII-CI quirks.
+  - Case-sensitive literal substring matchers
+    [`contains`](https://sq.io/docs/query#contains),
+    [`startswith`](https://sq.io/docs/query#startswith), and
+    [`endswith`](https://sq.io/docs/query#endswith).
+  - Case-insensitive variants
+    [`icontains`](https://sq.io/docs/query#icontains),
+    [`istartswith`](https://sq.io/docs/query#istartswith), and
+    [`iendswith`](https://sq.io/docs/query#iendswith).
+  - User-controlled wildcard matchers [`like`](https://sq.io/docs/query#like)
+    and [`ilike`](https://sq.io/docs/query#ilike): `%` and `_` are wildcards.
+- [`sq inspect`](https://sq.io/docs/inspect) now has [`--markdown`](https://sq.io/docs/inspect#--markdown)
+  and [`--html`](https://sq.io/docs/inspect#--html) output formats that generate
+  schema documents with embedded entity relationship diagrams.
+- `sq inspect` also gained a
+  [`mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd) output format
+  (`--format=mermaid-erd`) that emits the bare
+  [Mermaid](https://mermaid.js.org) entity-relationship diagram source for
+  source and table schema inspection, with no surrounding document.
 
 ### Changed
 
-- [#629]: [`like`](https://sq.io/docs/query#like) and
-  [`ilike`](https://sq.io/docs/query#ilike) no longer emit a trailing
-  `ESCAPE '|'` clause. `|` is now a literal character on every driver,
-  removing the pre-#629 cross-driver divergence (runtime error on
-  Postgres/DuckDB/Oracle/SQLite/SQL Server, silent drop on MySQL).
-  Other engine-default escape semantics (e.g. MySQL's default
-  backslash escape) remain driver-specific. For literal `%`/`_`
-  matching, use [`contains`](https://sq.io/docs/query#contains) /
-  [`icontains`](https://sq.io/docs/query#icontains), which auto-escape
-  wildcards. The [`contains`](https://sq.io/docs/query#contains)
-  family is unchanged and still emits `ESCAPE '|'`.
-- [#637]: Syntax errors from invalid SLQ input are now reported with the
-  offending span highlighted in the original query, the input line
-  syntax-colored per sq's standard palette (handles, selectors, keywords,
-  numbers, strings, punctuation), and a terse, sq-flavored message
-  replacing ANTLR's verbose `expecting {...}` dump. Typo'd identifiers
-  may receive a `did you mean '<name>'?` suggestion (e.g., `mx` → `max`).
-- [#637]: The structured `parse_error` field is included in `--json`
-  error output, carrying `input` and `issues[].{line, col, token, msg,
-  suggestion}`, plus rune-offset `start_char`/`stop_char` when a precise
-  span is available, for programmatic consumers.
-- [#640]: The LIKE-family argument parsers
-  ([`contains`](https://sq.io/docs/query#contains) and friends, plus
-  [`like`](https://sq.io/docs/query#like) /
-  [`ilike`](https://sq.io/docs/query#ilike)) no longer silently strip
-  single-arg function wrappers around the column / literal arguments.
-  Pre-#640, an input like `like(.first_name, max(.last_name))` walked
-  through the `max(...)` wrapper and rendered as if the user had
-  written `like(.first_name, .last_name)`. Post-#640, such inputs are
-  rejected with the existing argument-type error. The `like` / `ilike`
-  parsers report `"must be a string literal or column selector"`; the
-  `contains` family reports `"must be a string literal"`. Only
-  single-arg function wrappers were ever silently stripped; other
-  non-string arguments — a bare numeric literal such as `-42`, or a
-  binary expression — were always rejected.
+- [#637]: Richer `SLQ` syntax-error reporting in both text and
+  JSON [error formats](https://sq.io/docs/config#errorformat).
+  You can set the new config option [`error.format.text.verbose`](https://sq.io/docs/config#errorformattextverbose)
+  to `false` if you prefer the previous (less-verbose) `text` error format.
+  ![sq text error reporting: verbose vs. summary](site/static/images/repo/sq_error_reporting_options.png)
 
 ### Fixed
 
+- [#471]: The SQLite driver no longer fails with `unsupported Scan, storing
+  driver.Value type string into type *time.Time` when a `DATETIME`/`DATE`
+  column stores text that `mattn/go-sqlite3` doesn't natively convert — most
+  commonly Rails' microsecond-precision `datetime(6)` columns. `sq` now
+  re-runs the same timestamp parse and falls back to the raw text only when
+  the value is genuinely unparseable.
+- `sq <command> --format=FORMAT` (e.g. `sq inspect --format=xlsx`) no longer
+  fails with a spurious "diff does not support output format" error. The
+  format check for [`sq diff`](https://sq.io/docs/diff) was being applied to
+  every command's `--format` flag; it's now scoped to `sq diff` itself.
+- [#652]: The [ClickHouse driver](https://sq.io/docs/drivers/clickhouse) now
+  creates a copied table in its target schema (ClickHouse database) when the
+  copy specifies one, rather than always in the connection's current database.
+  - `CopyTable` built the `CREATE TABLE` from the bare table name while the data-copy
+    `INSERT` used the schema-qualified name, so a cross-schema copy created the
+    table in the wrong database (and failed outright when also copying data). ClickHouse now
+    matches the other SQL drivers' `CopyTable`. No CLI command targets a cross-schema
+    copy today, so this is a latent driver-level fix surfaced while testing [#484].
+- [#484]:
+  [`--insert`](https://sq.io/docs/tutorial#insert--modify) into a MySQL or
+  Postgres table no longer fails when a same-named table exists in another
+  schema.
+  - The drivers' `TableExists` check queried `information_schema.tables`
+    filtered only by table name, so a name present in two schemas returned
+    `COUNT(*) = 2`; the `== 1` test then reported the table as missing and `sq`
+    tried to `CREATE` it, which the database rejected with "table already
+    exists". The lookup is now scoped to the connection's current schema
+    (`DATABASE()` for MySQL, `CURRENT_SCHEMA()` for Postgres), as the other SQL
+    drivers already scope theirs.
+- [#633]: A [query](https://sq.io/docs/query) using the single-segment
+  `@handle.table:alias` form on the left of a pipeline (e.g.
+  `@sakila.actor:a | .a.first_name`) no longer silently collapses to
+  `SELECT * FROM <table>`.
+  - The grammar previously had no alias slot on the
+    `handleTable` rule, so the parser's error recovery silently discarded the
+    alias and every downstream segment (projections, joins, etc.). The
+    multi-segment form `@sakila | .actor:a | ...` was unaffected.
 - [#445]: Cross-source [`join`](https://sq.io/docs/query#join) no longer
   fails when the participating sources contain tables with the same
-  name (e.g. `@src1.actor | join(@src2.actor, .actor_id)`). Previously
-  the second table copy into the join scratch DB collided with the
-  first (`table "actor" already exists`); now colliding unaliased
-  participants are given numeric-suffixed aliases (`actor`, `actor_2`,
-  ...), picked to also avoid any other participant's destination name
-  so the scratch tables are unique and the rendered SQL is well-formed.
-  Collision detection is case-insensitive (matching SQLite's identifier
-  semantics for the join scratch DB), so `Actor` and `actor` are now
-  also treated as collisions. Two user-supplied aliases that collide
-  are reported up front (`cross-source join: duplicate table alias
-  "..."`) instead of surfacing later as an opaque scratch-DB error.
-  As a related fix, any source-level catalog/schema overrides on a
-  cross-source join participant are now dropped from the scratch-DB
-  SQL — the scratch DB only knows bare table names, so emitting
-  `"catalog"."schema"."actor"` against it would have failed with
-  `no such table`. Source-side fetches still use the qualified name.
+  name (e.g. `@src1.actor | join(@src2.actor, .actor_id)`).
 
 ## [v0.52.0] - 2026-05-15
 
@@ -1525,9 +1512,11 @@ make working with lots of sources much easier.
 [#437]: https://github.com/neilotoole/sq/issues/437
 [#445]: https://github.com/neilotoole/sq/issues/445
 [#446]: https://github.com/neilotoole/sq/issues/446
+[#484]: https://github.com/neilotoole/sq/issues/484
 [#498]: https://github.com/neilotoole/sq/issues/498
 [#469]: https://github.com/neilotoole/sq/issues/469
 [#470]: https://github.com/neilotoole/sq/issues/470
+[#471]: https://github.com/neilotoole/sq/issues/471
 [#499]: https://github.com/neilotoole/sq/issues/499
 [#501]: https://github.com/neilotoole/sq/pull/501
 [#502]: https://github.com/neilotoole/sq/pull/502
@@ -1557,8 +1546,11 @@ make working with lots of sources much easier.
 [#615]: https://github.com/neilotoole/sq/issues/615
 [#628]: https://github.com/neilotoole/sq/issues/628
 [#629]: https://github.com/neilotoole/sq/issues/629
+[#630]: https://github.com/neilotoole/sq/issues/630
+[#633]: https://github.com/neilotoole/sq/issues/633
 [#637]: https://github.com/neilotoole/sq/pull/637
 [#640]: https://github.com/neilotoole/sq/issues/640
+[#652]: https://github.com/neilotoole/sq/issues/652
 
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2

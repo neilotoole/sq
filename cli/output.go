@@ -20,6 +20,7 @@ import (
 	"github.com/neilotoole/sq/cli/output/htmlw"
 	"github.com/neilotoole/sq/cli/output/jsonw"
 	"github.com/neilotoole/sq/cli/output/markdownw"
+	"github.com/neilotoole/sq/cli/output/mermaidw"
 	"github.com/neilotoole/sq/cli/output/raww"
 	"github.com/neilotoole/sq/cli/output/sqlw"
 	"github.com/neilotoole/sq/cli/output/tablew"
@@ -90,6 +91,23 @@ command, sq falls back to "text". Available formats:
 		options.TagOutput,
 	)
 
+	// OptErrorFormatTextVerbose controls how much of an SLQ parse error is
+	// shown in text error output. It is config-only (no CLI flag).
+	OptErrorFormatTextVerbose = options.NewBool(
+		"error.format.text.verbose",
+		nil,
+		true,
+		"Show full multi-line text error reporting",
+		`When true (default), syntax errors shown in "text" error format include the
+full report: the offending span highlighted in the original query, plus any
+"did you mean" suggestion. When false, only the first summary line is shown
+(e.g. "sq: syntax error at line 1, col 10: unexpected 'mx'").
+
+This only applies when error.format is "text"; "json" error output always
+includes the full structured parse_error.`,
+		options.TagOutput,
+	)
+
 	OptVerbose = options.NewBool(
 		"verbose",
 		&options.Flag{Short: 'v'},
@@ -136,6 +154,19 @@ sampled, and reported on exit. If zero, memory usage sampling is disabled.`,
 		false,
 		"Compact instead of pretty-printed output",
 		`Compact instead of pretty-printed output.`,
+		options.TagOutput,
+	)
+
+	// OptHTMLEmbedAssets controls whether sq inspect's HTML output inlines assets.
+	OptHTMLEmbedAssets = options.NewBool(
+		"format.html.embed-assets",
+		nil,
+		false,
+		"Embed assets (Mermaid.js) in HTML output for offline use",
+		`When true, sq inspect's HTML output inlines all assets — notably the
+Mermaid.js library — so the document is fully self-contained and renders
+offline. When false (default), Mermaid.js is loaded from a CDN, producing a
+much smaller file that requires internet access to render the diagram.`,
 		options.TagOutput,
 	)
 
@@ -306,10 +337,11 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 		Metadata:     tablew.NewMetadataWriter(outCfg.out, outCfg.outPr),
 		Source:       tablew.NewSourceWriter(outCfg.out, outCfg.outPr),
 		Ping:         tablew.NewPingWriter(outCfg.out, outCfg.outPr),
-		Error:        tablew.NewErrorWriter(outCfg.errOut, outCfg.errOutPr, OptErrorStack.Get(o)),
-		Version:      tablew.NewVersionWriter(outCfg.out, outCfg.outPr),
-		Config:       tablew.NewConfigWriter(outCfg.out, outCfg.outPr),
-		SQL:          sqlw.NewTextWriter(outCfg.out, outCfg.outPr),
+		Error: tablew.NewErrorWriter(outCfg.errOut, outCfg.errOutPr,
+			OptErrorStack.Get(o), OptErrorFormatTextVerbose.Get(o)),
+		Version: tablew.NewVersionWriter(outCfg.out, outCfg.outPr),
+		Config:  tablew.NewConfigWriter(outCfg.out, outCfg.outPr),
+		SQL:     sqlw.NewTextWriter(outCfg.out, outCfg.outPr),
 	}
 
 	if OptErrorFormat.Get(o) == format.JSON {
@@ -348,6 +380,15 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 		w.Source = yamlw.NewSourceWriter(outCfg.out, outCfg.outPr)
 		w.Version = yamlw.NewVersionWriter(outCfg.out, outCfg.outPr)
 		w.SQL = sqlw.NewYAMLWriter(outCfg.out, outCfg.outPr)
+
+	case format.Markdown:
+		w.Metadata = markdownw.NewMetadataWriter(outCfg.out, outCfg.outPr)
+
+	case format.HTML:
+		w.Metadata = htmlw.NewMetadataWriter(outCfg.out, outCfg.outPr, OptHTMLEmbedAssets.Get(o))
+
+	case format.MermaidERD:
+		w.Metadata = mermaidw.NewMetadataWriter(outCfg.out, outCfg.outPr)
 	default:
 	}
 
@@ -390,6 +431,10 @@ func getRecordWriterFunc(f format.Format) output.NewRecordWriterFunc {
 		return yamlw.NewRecordWriter
 	case format.Raw:
 		return raww.NewRecordWriter
+	case format.MermaidERD:
+		// mermaid-erd is a metadata-only (sq inspect) format; it has no
+		// record writer, so callers fall back to text for record output.
+		return nil
 	default:
 		return nil
 	}

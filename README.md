@@ -9,7 +9,7 @@
 structured data sources: SQL databases, or document formats like CSV or Excel.
 It is the lovechild of sql+jq.
 
-![sq](.images/splash.png)
+![sq](site/static/images/repo/splash.png)
 
 `sq` executes jq-like [queries](https://sq.io/docs/query), or database-native [SQL](https://sq.io/docs/cmd/sql/).
 It can [join](https://sq.io/docs/query#cross-source-joins) across sources: join a CSV file to a Postgres table, or
@@ -212,7 +212,7 @@ $ sq ping
 > $ sq add https://acme.s3.amazonaws.com/sales.csv
 > ```
 >
-> ![sq inspect remote](./.images/sq_inspect_remote_s3.png)
+> ![sq inspect remote](site/static/images/repo/sq_inspect_remote_s3.png)
 > See the [sources](https://sq.io/docs/source#download) docs for more.
 
 ### Query
@@ -220,12 +220,12 @@ $ sq ping
 Fundamentally, `sq` is for querying data. The jq-style syntax is covered in
 detail in the [query guide](https://sq.io/docs/query).
 
-![sq query where slq](./.images/sq_query_where_slq.png)
+![sq query where slq](site/static/images/repo/sq_query_where_slq.png)
 
 The above query selected some rows from the `actor` table. You could also
 use [native SQL](https://sq.io/docs/cmd/sql), e.g.:
 
-![sq query where sql](./.images/sq_query_where_sql.png)
+![sq query where sql](site/static/images/repo/sq_query_where_sql.png)
 
 But we're flying a bit blind here: how did we know about the `actor` table?
 
@@ -233,12 +233,12 @@ But we're flying a bit blind here: how did we know about the `actor` table?
 
 [`sq inspect`](https://sq.io/docs/inspect) is your friend.
 
-![sq inspect](./.images/sq_inspect_source_text.png)
+![sq inspect](site/static/images/repo/sq_inspect_source_text.png)
 
 Use [`sq inspect -v`](https://sq.io/docs/cmd/inspect) to see more detail.
 Or use [`-j`](https://sq.io/docs/output#json) to get JSON output:
 
-![sq inspect -j](./.images/sq_inspect_sakila_sqlite_json.png)
+![sq inspect -j](site/static/images/repo/sq_inspect_sakila_sqlite_json.png)
 
 Combine `sq inspect` with [jq](https://jqlang.github.io/jq/) for some useful capabilities.
 Here's how to [list](https://sq.io/docs/cookbook#list-table-names)
@@ -269,7 +269,7 @@ category.csv  customer.csv  film_actor.csv     film_text.csv      payment.csv   
 
 Note that you can also inspect an individual table:
 
-![sq inspect actor verbose](./.images/sq_inspect_actor_verbose.png)
+![sq inspect actor verbose](site/static/images/repo/sq_inspect_actor_verbose.png)
 
 Read more about [`sq inspect`](https://sq.io/docs/inspect).
 
@@ -279,11 +279,11 @@ Use [`sq diff`](https://sq.io/docs/diff) to compare metadata, or row data, for s
 
 The default behavior is to diff table schema and row counts. Table row data is not compared in this mode.
 
-![sq diff](.images/sq_diff_src_default.png)
+![sq diff](site/static/images/repo/sq_diff_src_default.png)
 
 Use [`--data`](https://sq.io/docs/diff#--data) to compare row data.
 
-![sq diff data](.images/sq_diff_table_data.png)
+![sq diff data](site/static/images/repo/sq_diff_table_data.png)
 
 There are many more options available. See the [diff docs](https://sq.io/docs/diff).
 
@@ -305,7 +305,7 @@ a SQL Server table etc.
 
 Here we query a CSV file, and insert the results into a Postgres table.
 
-![sq query insert inspect](./.images/sq_query_insert_inspect.png)
+![sq query insert inspect](site/static/images/repo/sq_query_insert_inspect.png)
 
 ### Cross-source joins
 
@@ -321,7 +321,7 @@ Postgres table, or join a CSV file with MySQL, and so on.
 
 This example joins a Postgres database, an Excel worksheet, and a CSV file.
 
-![sq join multi source](./.images/sq_join_multi_source.png)
+![sq join multi source](site/static/images/repo/sq_join_multi_source.png)
 
 Read more about cross-source joins in the [query guide](https://sq.io/docs/query#joins).
 

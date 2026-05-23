@@ -115,10 +115,10 @@ func setScanType(ctx context.Context, colType *record.ColumnTypeData) {
 		scanType = sqlz.RTypeBytes
 
 	case kind.Datetime:
-		scanType = sqlz.RTypeNullTime
+		scanType = rtypeNullTime
 
 	case kind.Date:
-		scanType = sqlz.RTypeNullTime
+		scanType = rtypeNullTime
 
 	case kind.Time:
 		scanType = sqlz.RTypeNullString

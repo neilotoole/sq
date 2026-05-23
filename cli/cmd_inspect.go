@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -47,7 +48,9 @@ is supplied, the default is to show the source metadata and schema.
   --schemata:  List the schemas available in the source's active catalog.
 
 Use --verbose with --text format to see more detail. The --json and --yaml
-formats both show extensive detail.`,
+formats both show extensive detail. The --markdown and --html formats each
+render a schema document that includes a Mermaid entity-relationship diagram;
+--html produces a standalone page (use --output to save it to a file).`,
 		Example: `  # Inspect active data source.
   $ sq inspect
 
@@ -62,6 +65,15 @@ formats both show extensive detail.`,
 
   # Show output in YAML.
   $ sq inspect --yaml @pg1
+
+  # Show output as a Markdown schema doc with a Mermaid ER diagram.
+  $ sq inspect --markdown @pg1
+
+  # Show output as a standalone HTML schema doc with a Mermaid ER diagram.
+  $ sq inspect --html @pg1
+
+  # Write the HTML schema doc to a file instead of stdout.
+  $ sq inspect --html @pg1 -o pg1-schema.html
 
   # Show only the DB properties for @pg1.
   $ sq inspect --dbprops @pg1
@@ -88,10 +100,31 @@ formats both show extensive detail.`,
   $ cat data.xlsx | sq inspect`,
 	}
 
+	addOptionFlag(cmd.Flags(), OptFormat)
+	// Only suggest the formats inspect actually implements a metadata writer
+	// for; any other format falls back to text output (see newWriters), so
+	// offering e.g. csv/xlsx/xml here would imply support that doesn't exist.
+	panicOn(cmd.RegisterFlagCompletionFunc(
+		OptFormat.Flag().Name,
+		completeStrings(-1,
+			format.Text.String(),
+			format.JSON.String(),
+			format.YAML.String(),
+			format.Markdown.String(),
+			format.HTML.String(),
+			format.MermaidERD.String(),
+		),
+	))
 	addTextFormatFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	addOptionFlag(cmd.Flags(), OptCompact)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
+	// Override the generic flag usage: for inspect these emit a schema
+	// document (with a Mermaid ER diagram), not a Markdown/HTML data table.
+	cmd.Flags().Bool(flag.Markdown, false, "Output a Markdown schema document")
+	cmd.Flags().Bool(flag.HTML, false, "Output a standalone HTML schema document")
+	// Modifier for --html / -f=html: inline assets (Mermaid.js) for offline use.
+	addOptionFlag(cmd.Flags(), OptHTMLEmbedAssets)
 
 	cmd.Flags().BoolP(flag.InspectOverview, flag.InspectOverviewShort, false, flag.InspectOverviewUsage)
 	cmd.Flags().BoolP(flag.InspectDBProps, flag.InspectDBPropsShort, false, flag.InspectDBPropsUsage)
@@ -104,6 +137,8 @@ formats both show extensive detail.`,
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSchema,
 		activeSchemaCompleter{getActiveSourceViaArgs}.complete))
 	addOptionFlag(cmd.Flags(), driver.OptIngestCache)
+
+	cmd.Flags().StringP(flag.FileOutput, flag.FileOutputShort, "", flag.FileOutputUsage)
 
 	cmd.Flags().StringP(flag.Input, flag.InputShort, "", flag.InputUsage)
 	panicOn(cmd.Flags().MarkHidden(flag.Input)) // Hide for now; this is mostly used for testing.
