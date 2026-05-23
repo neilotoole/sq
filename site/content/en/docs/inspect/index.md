@@ -129,6 +129,12 @@ $ sq inspect @sakila_pg --html > sakila.html && open sakila.html
 
 ![sq_inspect_html](sq_inspect_html.png)
 
+{{< alert icon="👉" >}}
+See the [**live example**](/examples/sakila.html): the `--html` schema document
+for the Postgres [sakila](https://github.com/jOOQ/sakila) sample database,
+rendered right in your browser.
+{{< /alert >}}
+
 By default, the page loads Mermaid.js from a CDN, producing a small file that
 requires internet access to render the diagram. To produce a fully
 self-contained document that renders offline, enable the `format.html.embed`
