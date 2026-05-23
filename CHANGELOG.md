@@ -16,8 +16,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
-- [#601], [#615], [#628], [#629], [#640]: New SLQ string-matching functions.
-  See [Query language](https://sq.io/docs/query) for per-driver behavior and
+- [#601], [#615], [#628], [#629], [#640]: New `SLQ` string-matching functions.
+  See [Query Guide](https://sq.io/docs/query) for per-driver behavior and
   SQLite ASCII-CI quirks.
   - Case-sensitive literal substring matchers
     [`contains`](https://sq.io/docs/query#contains),
@@ -41,45 +41,26 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   - All LIKE-family parsers require each argument to be a string literal
     (or a column selector, for `like`/`ilike`); function-wrapped or other
     non-string arguments are rejected.
-- [`sq inspect`](https://sq.io/docs/inspect) gains a [`--markdown`](https://sq.io/docs/inspect#--markdown) output
-  format that renders a schema document: a source overview, per-table
-  column / key / constraint / index detail, and
-  [Mermaid](https://mermaid.js.org) entity-relationship diagrams. Whole-source
-  inspection diagrams every table and its foreign-key relationships, and each
-  table's section also leads with a focused diagram of just that table and its
-  directly-related neighbors (related tables appear as bare boxes);
-  single-table inspection (`sq inspect @src.table --markdown`) renders that
-  same focused diagram. Identifiers and the column type, key, and default
-  values are rendered as inline code.
-- `sq inspect` also gains an [`--html`](https://sq.io/docs/inspect#--html)  output format (equivalently
-  `--format=html`) that renders the same schema document — overview, per-table
-  detail, and Mermaid ER diagrams — as a standalone HTML page. By default the
-  page loads Mermaid.js from a CDN; set the `format.html.embed-assets` option
-  (or pass the `--format.html.embed-assets` flag) to inline the library for a
-  fully offline, self-contained document. Combine with `--output`/`-o` to save
-  the page to a file.
-- `sq inspect` now honors the generic `--format`/`-f` flag (e.g.
-  `sq inspect -f markdown`), matching the query command; previously only the
-  per-format boolean flags such as `--markdown` were accepted.
-- `sq inspect` now accepts the `--output`/`-o` flag to write its output to a
-  file instead of stdout (e.g. `sq inspect --html @pg1 -o pg1-schema.html`),
-  matching `sq query` and `sq db dump`.
+- [`sq inspect`](https://sq.io/docs/inspect) now has [`--markdown`](https://sq.io/docs/inspect#--markdown)
+  and [`--html`](https://sq.io/docs/inspect#--html) output formats that generate
+  schema documents with embedded entity relationship diagrams.
 
 ### Changed
 
-- [#637]: Syntax errors from invalid SLQ input are now reported with the
-  offending span highlighted in the original query, the input line
-  syntax-colored per sq's standard palette (handles, selectors, keywords,
-  numbers, strings, punctuation), and a terse, sq-flavored message
-  replacing ANTLR's verbose `expecting {...}` dump. Typo'd identifiers
-  may receive a `did you mean '<name>'?` suggestion (e.g., `mx` → `max`).
-- [#637]: The structured `parse_error` field is included in `--json`
-  error output, carrying `input` and `issues[].{line, col, token, msg,
-  suggestion}`, plus rune-offset `start_char`/`stop_char` when a precise
-  span is available, for programmatic consumers. Both `line` and `col` are
-  1-based, matching the text error output and the position a person counts
-  to; the 0-based `start_char`/`stop_char` offsets remain available for
-  slicing the input directly.
+- [#637]: Improved SLQ syntax-error reporting in both text and JSON output:
+  - Text output highlights the offending span in the original query,
+    syntax-colors the input line per sq's standard palette (handles,
+    selectors, keywords, numbers, strings, punctuation), and replaces
+    ANTLR's verbose `expecting {...}` dump with a terse, sq-flavored
+    message. Typo'd identifiers may receive a `did you mean '<name>'?`
+    suggestion (e.g., `mx` → `max`).
+  - JSON output (`--json`) includes a structured `parse_error` field,
+    carrying `input` and `issues[].{line, col, token, msg, suggestion}`,
+    plus rune-offset `start_char`/`stop_char` when a precise span is
+    available, for programmatic consumers. Both `line` and `col` are
+    1-based, matching the text error output and the position a person
+    counts to; the 0-based `start_char`/`stop_char` offsets remain
+    available for slicing the input directly.
 
 ### Fixed
 
