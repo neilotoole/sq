@@ -42,7 +42,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     selectors, keywords, numbers, strings, punctuation), and replaces
     ANTLR's verbose `expecting {...}` dump with a terse, sq-flavored
     message. Typo'd identifiers may receive a `did you mean '<name>'?`
-    suggestion (e.g., `mx` → `max`).
+    suggestion (e.g., `mx` → `max`). Set the new
+    [`error.format.text.verbose`](https://sq.io/docs/config#errorformattextverbose)
+    option to `false` to show only the first summary line.
   - JSON output includes a structured `parse_error` field,
     carrying `input` and `issues[].{line, col, token, msg, suggestion}`,
     plus rune-offset `start_char`/`stop_char` when a precise span is

@@ -18,19 +18,26 @@ type errorWriter struct {
 	w          io.Writer
 	pr         *output.Printing
 	stacktrace bool
+	verbose    bool
 }
 
-// NewErrorWriter returns an output.ErrorWriter that
-// outputs in text format.
-func NewErrorWriter(w io.Writer, pr *output.Printing, stacktrace bool) output.ErrorWriter {
-	return &errorWriter{w: w, pr: pr, stacktrace: stacktrace}
+// NewErrorWriter returns an output.ErrorWriter that outputs in text format.
+// When verbose is true, an SLQ parse error is rendered in full (highlighted
+// span plus any "did you mean" suggestion); when false, only the one-line
+// summary is shown. See the error.format.text.verbose option.
+func NewErrorWriter(w io.Writer, pr *output.Printing, stacktrace, verbose bool) output.ErrorWriter {
+	return &errorWriter{w: w, pr: pr, stacktrace: stacktrace, verbose: verbose}
 }
 
 // Error implements output.ErrorWriter.
 func (w *errorWriter) Error(systemErr, humanErr error) {
 	var pe *ast.ParseError
 	if errors.As(systemErr, &pe) && len(pe.Issues) > 0 {
-		commonw.RenderParseError(w.w, w.pr, pe)
+		if w.verbose {
+			commonw.RenderParseError(w.w, w.pr, pe)
+		} else {
+			commonw.RenderParseErrorSummary(w.w, w.pr, pe)
+		}
 		// Render the stack trace below only when --error.stack is set.
 		// ANTLR internals aren't useful, but the wrapping errz frames may be.
 		if !w.stacktrace {
