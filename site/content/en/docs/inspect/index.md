@@ -154,6 +154,31 @@ As with `--markdown`, the `--overview` (`-O`) mode omits the schema and
 diagram, and inspecting a single table
 (`sq inspect @sakila_sl3.film_actor --html`) renders just that table's section.
 
+### `mermaid-erd`
+
+The `mermaid-erd` format emits just the bare
+[Mermaid](https://mermaid.js.org) entity-relationship diagram source — the
+same diagram embedded in the `--markdown` and `--html` schema documents, but
+with nothing wrapped around it (no code fence, no HTML page). It's handy for
+pasting into a Markdown file, the [Mermaid live editor](https://mermaid.live),
+or a docs pipeline. There's no dedicated flag for it; select it via the
+generic `--format` (`-f`) flag:
+
+```shell
+# Whole-source ERD.
+$ sq inspect @sakila_pg --format=mermaid-erd
+
+# Just the film_actor table (and its related tables).
+$ sq inspect @sakila_pg.film_actor -f mermaid-erd
+
+# Write the diagram to a file.
+$ sq inspect @sakila_pg -f mermaid-erd -o sakila.mmd
+```
+
+The format covers only source and single-table schema inspection. Operations
+with no diagram — such as `--overview` (`-O`), `--catalogs`, or `--dbprops` —
+return an error rather than empty output.
+
 ## Source overview
 
 Sometimes you don't need the full schema, but still want to view the source
