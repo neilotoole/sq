@@ -29,8 +29,13 @@ func (w *metadataWriter) SourceMetadata(md *metadata.Source, showSchema bool) er
 		writeMermaidBlock(b, mermaid.SourceDiagram(tables), "erd", 2)
 		if len(tables) > 0 {
 			byName := mermaid.Index(tables)
-			b.WriteString(`<h2 id="tables" class="sq-tables">` +
-				`<a class="sq-anchor" href="#tables">Tables</a></h2>` + "\n")
+			tablesTitle := "Tables"
+			if commonw.HasViews(tables) {
+				tablesTitle = "Tables & Views"
+			}
+			fmt.Fprintf(b,
+				`<h2 id="tables" class="sq-tables"><a class="sq-anchor" href="#tables">%s</a></h2>`+"\n",
+				html.EscapeString(tablesTitle))
 			writeTablesTOC(b, tables)
 			for _, tbl := range tables {
 				w.writeTableSection(b, tbl, 3, byName)
@@ -63,8 +68,12 @@ func (w *metadataWriter) TableMetadata(md *metadata.Table) error {
 func writeTablesTOC(buf *bytes.Buffer, tables []*metadata.Table) {
 	buf.WriteString("<nav class=\"sq-toc\">\n")
 	for _, tbl := range tables {
-		fmt.Fprintf(buf, "<a href=\"#%s\"><code>%s</code></a>\n",
-			tableSlug(tbl.Name), html.EscapeString(tbl.Name))
+		class := ""
+		if commonw.IsView(tbl) {
+			class = ` class="sq-view"`
+		}
+		fmt.Fprintf(buf, "<a%s href=\"#%s\"><code>%s</code></a>\n",
+			class, tableSlug(tbl.Name), html.EscapeString(tbl.Name))
 	}
 	buf.WriteString("</nav>\n")
 }

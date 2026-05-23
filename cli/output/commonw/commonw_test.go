@@ -29,6 +29,18 @@ func TestColumnSets(t *testing.T) {
 	require.False(t, uc["ref"])
 }
 
+func TestViews(t *testing.T) {
+	tbl := &metadata.Table{Name: "t", TableType: "table"}
+	view := &metadata.Table{Name: "v", TableType: "view"}
+
+	require.False(t, commonw.IsView(tbl))
+	require.True(t, commonw.IsView(view))
+	require.False(t, commonw.IsView(nil))
+
+	require.False(t, commonw.HasViews([]*metadata.Table{tbl}))
+	require.True(t, commonw.HasViews([]*metadata.Table{tbl, view}))
+}
+
 func TestFKRows(t *testing.T) {
 	t.Run("nil_and_empty", func(t *testing.T) {
 		require.Nil(t, commonw.FKRows(nil))

@@ -210,6 +210,30 @@ func TestMetadataWriter_indexesAndUniqueConstraints(t *testing.T) {
 	require.Contains(t, out, "| `t_email_key` | `email` |")
 }
 
+// TestMetadataWriter_views checks that a source with views renders the
+// "Tables & Views" heading and italicizes view links in the TOC (tables
+// stay plain).
+func TestMetadataWriter_views(t *testing.T) {
+	src := &metadata.Source{
+		Handle: "@test", Name: "db", Driver: drivertype.Type("sqlite3"),
+		Schema: "main", Size: 1024, TableCount: 1, ViewCount: 1,
+		Tables: []*metadata.Table{
+			{Name: "t_actor", TableType: "table", Columns: []*metadata.Column{{Name: "id", ColumnType: "int"}}},
+			{Name: "v_films", TableType: "view", Columns: []*metadata.Column{{Name: "id", ColumnType: "int"}}},
+		},
+	}
+
+	buf := &bytes.Buffer{}
+	w := markdownw.NewMetadataWriter(buf, output.NewPrinting())
+	require.NoError(t, w.SourceMetadata(src, true))
+	out := buf.String()
+
+	require.Contains(t, out, "## Tables & Views")
+	require.Contains(t, out, "[`t_actor`](#t_actor)")      // table link: plain
+	require.Contains(t, out, "*[`v_films`](#v_films)*")    // view link: italicized
+	require.NotContains(t, out, "*[`t_actor`](#t_actor)*") // table not italicized
+}
+
 func TestMetadataWriter_TableMetadata(t *testing.T) {
 	const want = `# ` + "`film_actor`" + `
 

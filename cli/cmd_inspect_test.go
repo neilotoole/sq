@@ -387,7 +387,7 @@ func TestCmdInspect_html(t *testing.T) { //nolint:tparallel
 			out := tr.Out.String()
 			require.Contains(t, out, "<!doctype html>")
 			require.Contains(t, out, "<h1>"+src.Handle+"</h1>")
-			require.Contains(t, out, "<h2>Tables</h2>")
+			require.Contains(t, out, `<h2 id="tables" class="sq-tables">`)
 			require.Contains(t, out, `<pre class="mermaid">`)
 			// Canonical sakila edge: film references language.
 			require.Contains(t, out, "language ||--o{ film")

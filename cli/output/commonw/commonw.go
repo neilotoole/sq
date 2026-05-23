@@ -75,6 +75,17 @@ func UCColumnSet(tbl *metadata.Table) map[string]bool {
 	return set
 }
 
+// IsView reports whether tbl is a view (rather than a table). Table.TableType
+// is the driver-independent "table" / "view" value.
+func IsView(tbl *metadata.Table) bool {
+	return tbl != nil && tbl.TableType == "view"
+}
+
+// HasViews reports whether tables contains any view.
+func HasViews(tables []*metadata.Table) bool {
+	return slices.ContainsFunc(tables, IsView)
+}
+
 // FKRow is a single foreign-key relationship flattened for tabular
 // rendering, in either direction relative to the owning table. The fields
 // are plain (unwrapped) strings; callers apply any format-specific

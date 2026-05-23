@@ -47,8 +47,9 @@ h1, h2, h3, h4 { line-height: 1.25; }
   font-weight: normal; }
 .sq-toc { display: flex; flex-wrap: wrap; gap: 0.4rem 0.8rem;
   margin: 0.75rem 0 1.5rem; }
-.sq-toc a { text-decoration: none; }
+.sq-toc a { color: inherit; text-decoration: none; }
 .sq-toc a:hover { text-decoration: underline; }
+.sq-toc a.sq-view code { color: #2563eb; font-style: italic; }
 table { border-collapse: collapse; margin: 1rem 0; }
 caption { text-align: left; font-weight: 600; margin-bottom: 0.3rem; }
 th, td { border: 1px solid #ccc; padding: 0.3rem 0.6rem; text-align: left; vertical-align: top; }
@@ -65,6 +66,7 @@ pre.mermaid { background: #fff; border: 1px solid #ddd; border-radius: 8px;
   .summary { color: #aaa; }
   .sq-tables { border-top-color: #555; }
   .sq-table { border-top-color: #444; }
+  .sq-toc a.sq-view code { color: #8ab4f8; }
 }
 #sq-erd-overlay { position: fixed; inset: 0; z-index: 1000; display: none;
   background: rgba(0,0,0,0.85); }

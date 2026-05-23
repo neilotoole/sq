@@ -8,6 +8,7 @@ import (
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/htmlw"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -155,6 +156,29 @@ func TestMetadataWriter_indexesAndUniqueConstraints(t *testing.T) {
 	require.Contains(t, got, `<caption id="t-unique-constraints">`)
 	require.Contains(t, got, "<th>Constraint</th>")
 	require.Contains(t, got, "<td><code>t_email_key</code></td>")
+}
+
+// TestMetadataWriter_views checks the "Tables & Views" heading and the
+// tinted view-chip class (sq-view) in the TOC; table chips stay plain.
+func TestMetadataWriter_views(t *testing.T) {
+	src := &metadata.Source{
+		Handle: "@test", Name: "db", Driver: drivertype.Type("sqlite3"),
+		Schema: "main", Size: 1024, TableCount: 1, ViewCount: 1,
+		Tables: []*metadata.Table{
+			{Name: "t_actor", TableType: "table", Columns: []*metadata.Column{{Name: "id", ColumnType: "int"}}},
+			{Name: "v_films", TableType: "view", Columns: []*metadata.Column{{Name: "id", ColumnType: "int"}}},
+		},
+	}
+
+	buf := &bytes.Buffer{}
+	w := htmlw.NewMetadataWriter(buf, output.NewPrinting(), false)
+	require.NoError(t, w.SourceMetadata(src, true))
+	got := buf.String()
+
+	require.Contains(t, got, "Tables &amp; Views")                  // heading, & escaped
+	require.Contains(t, got, ".sq-toc a.sq-view code")              // tint rule present
+	require.Contains(t, got, `<a class="sq-view" href="#v_films">`) // view chip tinted
+	require.Contains(t, got, `<a href="#t_actor">`)                 // table chip plain
 }
 
 func TestMetadataWriter_embed(t *testing.T) {

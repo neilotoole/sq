@@ -56,7 +56,11 @@ func (w *metadataWriter) SourceMetadata(md *metadata.Source, showSchema bool) er
 			// Every table is known here, so its per-table ERD can infer
 			// cardinality consistently with the whole-source diagram above.
 			byName := mermaid.Index(tables)
-			buf.WriteString("\n## Tables\n\n")
+			tablesTitle := "Tables"
+			if commonw.HasViews(tables) {
+				tablesTitle = "Tables & Views"
+			}
+			fmt.Fprintf(buf, "\n## %s\n\n", tablesTitle)
 			writeTablesTOC(buf, tables)
 			for _, tbl := range tables {
 				buf.WriteString("\n")

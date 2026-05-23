@@ -16,6 +16,7 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/output/commonw"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -158,7 +159,12 @@ func escapeMarkdown(s string) string {
 func writeTablesTOC(buf *bytes.Buffer, tables []*metadata.Table) {
 	links := make([]string, len(tables))
 	for i, tbl := range tables {
-		links[i] = fmt.Sprintf("[`%s`](#%s)", tbl.Name, mdAnchor(tbl.Name))
+		link := fmt.Sprintf("[`%s`](#%s)", tbl.Name, mdAnchor(tbl.Name))
+		if commonw.IsView(tbl) {
+			// Markdown can't tint the link like HTML; italicize views instead.
+			link = "*" + link + "*"
+		}
+		links[i] = link
 	}
 	buf.WriteString(strings.Join(links, " · ") + "\n")
 }
