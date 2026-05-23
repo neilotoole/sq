@@ -82,6 +82,7 @@ const (
 	fixtDatetimeAnsic   = "Mon Jan 2 15:04:05 2006"
 	fixtDatetimeUnix    = "Mon Jan 2 15:04:05 MST 2006"
 	fixtDatetimeRFC3339 = "2002-10-02T10:00:00-05:00"
+	fixtDatetimeMicro   = "2024-01-15 12:34:56.123456"
 )
 
 func TestDetector(t *testing.T) {
@@ -141,6 +142,7 @@ func TestDetector(t *testing.T) {
 		{in: []any{time.RFC1123}, want: kind.Datetime, wantMunge: true},
 		{in: []any{time.RFC1123Z}, want: kind.Datetime, wantMunge: true},
 		{in: []any{fixtDatetimeRFC3339}, want: kind.Datetime, wantMunge: true},
+		{in: []any{fixtDatetimeMicro}, want: kind.Datetime, wantMunge: true},
 	}
 
 	for i, tc := range testCases {
