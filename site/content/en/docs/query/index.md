@@ -1204,21 +1204,16 @@ See also: [`schema`](#schema).
 # Postgres source
 $ sq 'catalog()'
 sakila
-
-# Switch to SQL Server source
-$ sq src @sakila/ms19
-$ sq 'schema()'
-dbo
 ```
 
 `catalog` honors the `--src.schema` flag, when used in
 the `catalog.schema` form. For example:
 
 ```shell
-$ sq --src.schema postgres.information_scheam 'catalog(), schema()'
+$ sq --src.schema postgres.information_schema 'catalog(), schema()'
 catalog()  schema()
-postgres   public
-````
+postgres   information_schema
+```
 
 However, not every driver supports the catalog mechanism fully.
 
