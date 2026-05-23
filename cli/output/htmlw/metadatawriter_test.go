@@ -204,7 +204,7 @@ func TestMetadataWriter_provenance(t *testing.T) {
 	require.Contains(t, srcBuf.String(), want)
 	require.Contains(t, srcBuf.String(), ".sq-gen {")         // style rule present
 	require.Contains(t, srcBuf.String(), ".sq-gen a:hover {") // underline on hover only
-	require.Contains(t, srcBuf.String(), ".sq-gen a { text-decoration: none;")
+	require.Contains(t, srcBuf.String(), ".sq-gen a { color: #2563eb;")
 
 	tblBuf := &bytes.Buffer{}
 	require.NoError(t, htmlw.NewMetadataWriter(tblBuf, pr, false).TableMetadata(newTestSource().Tables[0]))

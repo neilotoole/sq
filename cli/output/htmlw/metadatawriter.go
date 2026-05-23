@@ -63,7 +63,7 @@ pre.mermaid { background: #fff; border: 1px solid #ddd; border-radius: 8px;
   padding: 1rem; overflow-x: auto; cursor: zoom-in; }
 .summary { color: #666; margin: 0.2rem 0; }
 .sq-gen { color: #666; font-size: 0.85em; margin: -0.4rem 0 1.5rem; }
-.sq-gen a { text-decoration: none; }
+.sq-gen a { color: #2563eb; text-decoration: none; }
 .sq-gen a:hover { text-decoration: underline; }
 @media (prefers-color-scheme: dark) {
   body { background: #1e1e1e; color: #ddd; }
@@ -71,6 +71,7 @@ pre.mermaid { background: #fff; border: 1px solid #ddd; border-radius: 8px;
   th { background: #2a2a2a; }
   .summary { color: #aaa; }
   .sq-gen { color: #aaa; }
+  .sq-gen a { color: #8ab4f8; }
   .sq-tables { border-top-color: #555; }
   .sq-table { border-top-color: #444; }
   .sq-toc a.sq-view code { color: #8ab4f8; }
