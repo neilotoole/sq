@@ -50,6 +50,9 @@ h1, h2, h3, h4 { line-height: 1.25; }
 .sq-toc a { color: inherit; text-decoration: none; }
 .sq-toc a:hover { text-decoration: underline; }
 .sq-toc a.sq-view code { color: #2563eb; font-style: italic; }
+.fk-out { color: #2563eb; }
+.fk-in { color: #15803d; }
+.fk-legend { font-weight: normal; font-size: 0.85em; color: #888; }
 table { border-collapse: collapse; margin: 1rem 0; }
 caption { text-align: left; font-weight: 600; margin-bottom: 0.3rem; }
 th, td { border: 1px solid #ccc; padding: 0.3rem 0.6rem; text-align: left; vertical-align: top; }
@@ -67,6 +70,8 @@ pre.mermaid { background: #fff; border: 1px solid #ddd; border-radius: 8px;
   .sq-tables { border-top-color: #555; }
   .sq-table { border-top-color: #444; }
   .sq-toc a.sq-view code { color: #8ab4f8; }
+  .fk-out { color: #6ea8fe; }
+  .fk-in { color: #a6d189; }
 }
 #sq-erd-overlay { position: fixed; inset: 0; z-index: 1000; display: none;
   background: rgba(0,0,0,0.85); }
@@ -222,7 +227,8 @@ func checkMark(b bool) string {
 // writeTableEl writes a simple <table> with the given headers and rows, and an
 // optional <caption> (omitted when caption is ""). When captionID is non-empty
 // the caption is rendered as a deep-linkable self-link (id + #captionID). The
-// caption is HTML-escaped; each cell is written verbatim (callers pre-escape).
+// caption is HTML-escaped; headers and cells are written verbatim (callers
+// pre-escape, or pass intentional markup such as a styled column legend).
 func writeTableEl(buf *bytes.Buffer, caption, captionID string, headers []string, rows [][]string) {
 	buf.WriteString("<table>\n")
 	switch {
@@ -238,7 +244,7 @@ func writeTableEl(buf *bytes.Buffer, caption, captionID string, headers []string
 	}
 	buf.WriteString("<thead>\n<tr>")
 	for _, h := range headers {
-		fmt.Fprintf(buf, "<th>%s</th>", html.EscapeString(h))
+		fmt.Fprintf(buf, "<th>%s</th>", h)
 	}
 	buf.WriteString("</tr>\n</thead>\n<tbody>\n")
 	for _, row := range rows {

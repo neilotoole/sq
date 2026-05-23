@@ -287,17 +287,15 @@ func (w *metadataWriter) writeForeignKeys(buf *bytes.Buffer, tbl *metadata.Table
 	}
 
 	buf.WriteString("\n**Foreign keys:**\n\n")
-	writeTableRow(buf, "Direction", "From", "To", "Constraint", "On update", "On delete")
-	writeTableRow(buf, "---", "---", "---", "---", "---", "---")
+	writeTableRow(buf, "Relationship (→ references · ← referenced by)", "Constraint", "On update", "On delete")
+	writeTableRow(buf, "---", "---", "---", "---")
 	for _, r := range rows {
-		writeTableRow(buf,
-			r.Direction,
-			mdCodeCell(r.From),
-			mdCodeCell(r.To),
-			mdCodeCell(r.Constraint),
-			r.OnUpdate,
-			r.OnDelete,
-		)
+		arrow := "→"
+		if r.Direction == "incoming" {
+			arrow = "←"
+		}
+		rel := mdCodeCell(r.Local) + " " + arrow + " " + mdCodeCell(r.Remote)
+		writeTableRow(buf, rel, mdCodeCell(r.Constraint), r.OnUpdate, r.OnDelete)
 	}
 }
 

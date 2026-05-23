@@ -212,13 +212,19 @@ func (w *metadataWriter) writeForeignKeys(buf *bytes.Buffer, tbl *metadata.Table
 		return
 	}
 
-	headers := []string{"Direction", "From", "To", "Constraint", "On update", "On delete"}
+	relHeader := `Relationship <span class="fk-legend">(` +
+		`<span class="fk-out">→</span> references · ` +
+		`<span class="fk-in">←</span> referenced by)</span>`
+	headers := []string{relHeader, "Constraint", "On update", "On delete"}
 	cells := make([][]string, 0, len(rows))
 	for _, r := range rows {
+		arrow := `<span class="fk-out">→</span>`
+		if r.Direction == "incoming" {
+			arrow = `<span class="fk-in">←</span>`
+		}
+		rel := htmlCode(r.Local) + " " + arrow + " " + htmlCode(r.Remote)
 		cells = append(cells, []string{
-			html.EscapeString(r.Direction),
-			htmlCode(r.From),
-			htmlCode(r.To),
+			rel,
 			htmlCode(r.Constraint),
 			html.EscapeString(r.OnUpdate),
 			html.EscapeString(r.OnDelete),

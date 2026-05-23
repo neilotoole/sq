@@ -347,10 +347,11 @@ func TestCmdInspect_markdown(t *testing.T) { //nolint:tparallel
 		require.Contains(t, out, "# `film_actor`")
 		require.Contains(t, out, "```mermaid")
 		require.Contains(t, out, "| Column | Type | Nullable | PK | FK |")
-		// Foreign keys render as a unified table with a Direction column.
+		// Foreign keys render as a single anchored "Relationship" column
+		// (this table's column → referenced, or ← referencing).
 		require.Contains(t, out, "**Foreign keys:**")
-		require.Contains(t, out, "| Direction | From | To | Constraint | On update | On delete |")
-		require.Contains(t, out, "| outgoing |")
+		require.Contains(t, out, "| Relationship (→ references · ← referenced by) | Constraint | On update | On delete |")
+		require.Contains(t, out, "`film_actor.actor_id` → ")
 		// Indexes render as a table too (film_actor has a primary index).
 		require.Contains(t, out, "**Indexes:**")
 		require.Contains(t, out, "| Index | Columns | Unique | Primary | Type |")

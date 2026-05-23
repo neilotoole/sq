@@ -117,12 +117,11 @@ erDiagram
 
 **Foreign keys:**
 
-| Direction | From | To | Constraint | On update | On delete |
-| --- | --- | --- | --- | --- | --- |
-| incoming | ` + "`film_actor(actor_id)`" +
-		` | ` + "`actor(actor_id)`" +
-		` | ` + "`fk_film_actor_actor`" +
-		` | cascade |  |
+| Relationship (→ references · ← referenced by) | Constraint | On update | On delete |
+| --- | --- | --- | --- |
+| ` + "`actor.actor_id`" + ` ← ` +
+		"`film_actor.actor_id`" +
+		` | ` + "`fk_film_actor_actor`" + ` | cascade |  |
 
 ### ` + "`film_actor`" + `
 
@@ -146,12 +145,11 @@ erDiagram
 
 **Foreign keys:**
 
-| Direction | From | To | Constraint | On update | On delete |
-| --- | --- | --- | --- | --- | --- |
-| outgoing | ` + "`film_actor(actor_id)`" +
-		` | ` + "`actor(actor_id)`" +
-		` | ` + "`fk_film_actor_actor`" +
-		` | cascade |  |
+| Relationship (→ references · ← referenced by) | Constraint | On update | On delete |
+| --- | --- | --- | --- |
+| ` + "`film_actor.actor_id`" + ` → ` +
+		"`actor.actor_id`" +
+		` | ` + "`fk_film_actor_actor`" + ` | cascade |  |
 `
 
 	buf := &bytes.Buffer{}
@@ -257,12 +255,11 @@ erDiagram
 
 **Foreign keys:**
 
-| Direction | From | To | Constraint | On update | On delete |
-| --- | --- | --- | --- | --- | --- |
-| outgoing | ` + "`film_actor(actor_id)`" +
-		` | ` + "`actor(actor_id)`" +
-		` | ` + "`fk_film_actor_actor`" +
-		` | cascade |  |
+| Relationship (→ references · ← referenced by) | Constraint | On update | On delete |
+| --- | --- | --- | --- |
+| ` + "`film_actor.actor_id`" + ` → ` +
+		"`actor.actor_id`" +
+		` | ` + "`fk_film_actor_actor`" + ` | cascade |  |
 `
 
 	src := newTestSource()

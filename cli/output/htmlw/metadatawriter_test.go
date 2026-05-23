@@ -106,16 +106,21 @@ func TestMetadataWriter_SourceMetadata(t *testing.T) {
 	require.Contains(t, got, "panzoom@9/+esm")
 	require.Contains(t, got, "sq-erd-overlay")
 	require.Contains(t, got, "cursor: zoom-in")
-	// Foreign keys render as a table with a Direction column; the test
-	// source has both an outgoing FK (film_actor → actor) and the matching
-	// incoming back-reference (on actor). The section label is a
-	// deep-linkable <caption>: a table-scoped id + a "#" self-link.
+	// Foreign keys render as a single anchored "Relationship" column; the
+	// test source has an outgoing FK (film_actor → actor) and its matching
+	// incoming back-reference (on actor), distinguished by colored arrows.
+	// The section label is a deep-linkable <caption>.
 	require.Contains(t, got, `<caption id="actor-columns">`)
 	require.Contains(t, got, `<caption id="film_actor-foreign-keys">`)
 	require.Contains(t, got, `<a class="sq-anchor" href="#actor-columns">Columns</a>`)
-	require.Contains(t, got, "<th>Direction</th>")
-	require.Contains(t, got, "<td>outgoing</td>")
-	require.Contains(t, got, "<td>incoming</td>")
+	require.Contains(t, got,
+		`<th>Relationship <span class="fk-legend">(<span class="fk-out">→</span> references · `+
+			`<span class="fk-in">←</span> referenced by)</span></th>`)
+	// Outgoing: this table's column → referenced; incoming: ← referencing.
+	require.Contains(t, got,
+		`<code>film_actor.actor_id</code> <span class="fk-out">→</span> <code>actor.actor_id</code>`)
+	require.Contains(t, got,
+		`<code>actor.actor_id</code> <span class="fk-in">←</span> <code>film_actor.actor_id</code>`)
 }
 
 func TestMetadataWriter_SourceMetadata_overview(t *testing.T) {

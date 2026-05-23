@@ -68,36 +68,40 @@ func HasViews(tables []*metadata.Table) bool {
 	return slices.ContainsFunc(tables, IsView)
 }
 
-// FKRow is a single foreign-key relationship flattened for tabular
-// rendering, in either direction relative to the owning table. The fields
-// are plain (unwrapped) strings; callers apply any format-specific
-// code-wrapping or escaping. From and To always read referencing → referenced;
-// Direction identifies which side is the owning table.
+// FKRow is a single foreign-key relationship flattened for tabular rendering,
+// anchored on the owning ("this") table: Local is this table's side and Remote
+// the other table's side, with Direction indicating which way the reference
+// points. Local and Remote are plain (unwrapped) strings; callers apply any
+// format-specific code-wrapping or escaping.
 type FKRow struct {
-	// Direction is "outgoing" (a constraint declared on the owning table)
-	// or "incoming" (a constraint on another table that references the
-	// owning table).
+	// Direction is "outgoing" (a foreign key declared on this table,
+	// referencing another) or "incoming" (a foreign key on another table
+	// that references this one).
 	Direction string
 
-	// From is the referencing side, formatted "table(col, ...)".
-	From string
+	// Local is this table's side, qualified with the table name:
+	// "film.language_id" for a single column, "film(col1, col2)" for a
+	// composite key.
+	Local string
 
-	// To is the referenced side, formatted "[catalog.][schema.]table(col, ...)".
-	To string
+	// Remote is the other table's side: the referenced
+	// "[catalog.][schema.]table(col, ...)" for outgoing rows, or the
+	// referencing "table(col, ...)" for incoming rows.
+	Remote string
 
 	// Constraint is the constraint name, or "" when the source doesn't
 	// expose one (e.g. some SQLite tables).
 	Constraint string
 
 	// OnUpdate and OnDelete are the lower-cased referential actions (e.g.
-	// "cascade", "no action"), or "" when not reported by the source.
+	// "cascade"), or "" when not reported or for the SQL-default "NO ACTION".
 	OnUpdate string
 	OnDelete string
 }
 
 // FKRows flattens tbl's outgoing and incoming foreign keys into rows for
-// tabular rendering. Outgoing rows (sorted) precede incoming rows (sorted).
-// Returns nil when tbl has no foreign keys in either direction.
+// tabular rendering, anchored on tbl. Outgoing rows (sorted) precede incoming
+// rows (sorted). Returns nil when tbl has no foreign keys in either direction.
 func FKRows(tbl *metadata.Table) []FKRow {
 	if tbl == nil || tbl.FK == nil {
 		return nil
@@ -110,14 +114,30 @@ func FKRows(tbl *metadata.Table) []FKRow {
 
 	rows := make([]FKRow, 0, len(outgoing)+len(incoming))
 	for _, fk := range outgoing {
-		if fk != nil {
-			rows = append(rows, newFKRow("outgoing", fk))
+		if fk == nil {
+			continue
 		}
+		rows = append(rows, FKRow{
+			Direction:  "outgoing",
+			Local:      qualify(tbl.Name, fk.Columns),
+			Remote:     qualify(refPrefix(fk), fk.RefColumns),
+			Constraint: fk.Name,
+			OnUpdate:   fkAction(fk.OnUpdate),
+			OnDelete:   fkAction(fk.OnDelete),
+		})
 	}
 	for _, fk := range incoming {
-		if fk != nil {
-			rows = append(rows, newFKRow("incoming", fk))
+		if fk == nil {
+			continue
 		}
+		rows = append(rows, FKRow{
+			Direction:  "incoming",
+			Local:      qualify(tbl.Name, fk.RefColumns),
+			Remote:     qualify(fk.Table, fk.Columns),
+			Constraint: fk.Name,
+			OnUpdate:   fkAction(fk.OnUpdate),
+			OnDelete:   fkAction(fk.OnDelete),
+		})
 	}
 	if len(rows) == 0 {
 		return nil
@@ -125,15 +145,14 @@ func FKRows(tbl *metadata.Table) []FKRow {
 	return rows
 }
 
-func newFKRow(direction string, fk *metadata.ForeignKey) FKRow {
-	return FKRow{
-		Direction:  direction,
-		From:       fk.Table + "(" + strings.Join(fk.Columns, ", ") + ")",
-		To:         fkRef(fk),
-		Constraint: fk.Name,
-		OnUpdate:   fkAction(fk.OnUpdate),
-		OnDelete:   fkAction(fk.OnDelete),
+// qualify renders columns qualified by a table prefix: "t.col" for a single
+// column (dot notation), "t(col1, col2)" for a composite key (the paren form
+// keeps the columns unambiguous). Used for both sides of an FK relationship.
+func qualify(prefix string, cols []string) string {
+	if len(cols) == 1 {
+		return prefix + "." + cols[0]
 	}
+	return prefix + "(" + strings.Join(cols, ", ") + ")"
 }
 
 // fkAction lower-cases a referential action, returning "" for the SQL
@@ -147,12 +166,11 @@ func fkAction(s string) string {
 	return s
 }
 
-// fkRef returns "[catalog.][schema.]ref_table(ref_col, ...)" for fk,
-// qualified with the referenced schema/catalog when the reference points
-// outside this source. Same-source references stay unqualified because
-// [metadata.LinkForeignKeys] clears RefCatalog / RefSchema when they match
-// the owning source.
-func fkRef(fk *metadata.ForeignKey) string {
+// refPrefix returns the referenced table name for fk, qualified with the
+// referenced schema/catalog when the reference points outside this source.
+// Same-source references stay unqualified because [metadata.LinkForeignKeys]
+// clears RefCatalog / RefSchema when they match the owning source.
+func refPrefix(fk *metadata.ForeignKey) string {
 	target := fk.RefTable
 	if fk.RefSchema != "" {
 		target = fk.RefSchema + "." + target
@@ -160,7 +178,7 @@ func fkRef(fk *metadata.ForeignKey) string {
 	if fk.RefCatalog != "" {
 		target = fk.RefCatalog + "." + target
 	}
-	return target + "(" + strings.Join(fk.RefColumns, ", ") + ")"
+	return target
 }
 
 func compareFK(a, b *metadata.ForeignKey) int {
