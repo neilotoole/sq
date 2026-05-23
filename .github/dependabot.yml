@@ -15,3 +15,10 @@ updates:
     directory: "/site"
     schedule:
       interval: "weekly"
+
+  # GitHub Actions used in .github/workflows/ (directory "/" is the repo root;
+  # Dependabot discovers all workflow files beneath it).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
