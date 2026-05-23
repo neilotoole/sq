@@ -71,6 +71,11 @@ tempdiff
 sakila_a*
 sakila_b*
 
+# sq inspect schema-doc scratch output (manual testing in repo root)
+/sakila.html
+/sakila.md
+/actor.md
+
 ## AI stuff
 CLAUDE.local.md
 /.claude/*

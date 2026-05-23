@@ -314,6 +314,167 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 	}
 }
 
+// TestCmdInspect_markdown exercises the Markdown output format end to
+// end against the sakila SQLite source (no Docker required), covering
+// whole-source output (with a Mermaid ER diagram), single-table output
+// (with a focused diagram), and overview mode (which omits the diagram).
+func TestCmdInspect_markdown(t *testing.T) { //nolint:tparallel
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+	tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+	require.NoError(t, tr.Exec("inspect", "--"+format.Markdown.String()))
+
+	out := tr.Out.String()
+	require.Contains(t, out, "# "+src.Handle)
+	// A "`sq inspect` @ `<timestamp>`" provenance line is rendered under the
+	// title (the CLI stamps Printing with a timestamp; see run.go).
+	require.Contains(t, out, "[`sq inspect`](https://sq.io/docs/inspect) @ `")
+	require.Contains(t, out, "```mermaid")
+	require.Contains(t, out, "erDiagram")
+	// Canonical sakila edge: film references language.
+	require.Contains(t, out, "language ||--o{ film")
+	require.Contains(t, out, "## Tables")
+	// Table names are backtick-quoted in their headings.
+	require.Contains(t, out, "### `film`")
+	// Whole-source diagram is level 2; each table also gets its own
+	// focused level-4 diagram.
+	require.Contains(t, out, "## Entity Relationship Diagram")
+	require.Contains(t, out, "#### Entity Relationship Diagram")
+
+	t.Run("table", func(t *testing.T) {
+		tr2 := testrun.New(th.Context, t, tr)
+		require.NoError(t, tr2.Exec("inspect", src.Handle+".film_actor", "--"+format.Markdown.String()))
+		out := tr2.Out.String()
+		require.Contains(t, out, "# `film_actor`")
+		require.Contains(t, out, "```mermaid")
+		require.Contains(t, out, "| Column | Type | Nullable | PK | FK |")
+		// Foreign keys render as a single anchored "Relationship" column
+		// (this table's column → referenced, or ← referencing).
+		require.Contains(t, out, "**Foreign keys:**")
+		require.Contains(t, out, "| Relationship (→ references · ← referenced by) | Constraint | On update | On delete |")
+		require.Contains(t, out, "`actor_id` → ")
+		// Indexes render as a table too (film_actor has a primary index).
+		require.Contains(t, out, "**Indexes:**")
+		require.Contains(t, out, "| Index | Columns | Unique | Primary | Type |")
+	})
+
+	t.Run("overview", func(t *testing.T) {
+		tr2 := testrun.New(th.Context, t, tr)
+		require.NoError(t, tr2.Exec(
+			"inspect", sakila.SL3, "--"+flag.InspectOverview, "--"+format.Markdown.String()))
+		out := tr2.Out.String()
+		require.Contains(t, out, "# "+src.Handle)
+		require.NotContains(t, out, "```mermaid")
+		require.NotContains(t, out, "## Tables")
+	})
+}
+
+// TestCmdInspect_html exercises the HTML output format for "sq inspect"
+// against the sakila SQLite source (no Docker required), via both the
+// --html boolean flag and the generic --format=html flag. The default
+// (non-embedded) document loads Mermaid.js from a CDN.
+func TestCmdInspect_html(t *testing.T) { //nolint:tparallel
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	for name, args := range map[string][]string{
+		"bool_flag":   {"inspect", "--" + flag.HTML},
+		"format_flag": {"inspect", "--format=html"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+			require.NoError(t, tr.Exec(args...))
+			out := tr.Out.String()
+			require.Contains(t, out, "<!doctype html>")
+			require.Contains(t, out, "<h1>"+src.Handle+"</h1>")
+			require.Contains(t, out, `<h2 id="tables" class="sq-tables">`)
+			require.Contains(t, out, `<pre class="mermaid">`)
+			// Canonical sakila edge: film references language.
+			require.Contains(t, out, "language ||--o{ film")
+			// Default output (embed=false) loads Mermaid from a CDN.
+			require.Contains(t, out, "cdn.jsdelivr.net/npm/mermaid@11")
+		})
+	}
+}
+
+// TestCmdInspect_formatFlag verifies that the generic --format / -f flag
+// selects the inspect output format, matching the query command's
+// behavior — not just the per-format boolean flags such as --markdown.
+func TestCmdInspect_formatFlag(t *testing.T) { //nolint:tparallel
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	// Each spelling of the flag should yield the Markdown document.
+	for name, args := range map[string][]string{
+		"long":        {"inspect", "--format", "markdown"},
+		"long_equals": {"inspect", "--format=markdown"},
+		"short":       {"inspect", "-f", "markdown"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+			require.NoError(t, tr.Exec(args...))
+			out := tr.Out.String()
+			require.Contains(t, out, "# "+src.Handle)
+			require.Contains(t, out, "```mermaid")
+			require.Contains(t, out, "## Tables")
+		})
+	}
+
+	// A non-default format selected via -f routes correctly too.
+	t.Run("json", func(t *testing.T) {
+		tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+		require.NoError(t, tr.Exec("inspect", "-f", "json"))
+		md := &metadata.Source{}
+		require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
+		require.Equal(t, src.Handle, md.Handle)
+	})
+
+	// An explicit boolean format flag still wins over --format.
+	t.Run("bool_flag_precedence", func(t *testing.T) {
+		tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+		require.NoError(t, tr.Exec("inspect", "--format", "markdown", "--"+flag.JSON))
+		md := &metadata.Source{}
+		require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
+		require.Equal(t, src.Handle, md.Handle)
+	})
+}
+
+// TestCmdInspect_OutputFlag verifies that "sq inspect --output=<file>"
+// writes the metadata document to the file instead of stdout.
+func TestCmdInspect_OutputFlag(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+	tr := testrun.New(th.Context, t, nil).Add(*src)
+
+	outputFile, err := os.CreateTemp("", t.Name())
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, outputFile.Close())
+		require.NoError(t, os.Remove(outputFile.Name()))
+	})
+
+	require.NoError(t, tr.Exec(
+		"inspect", "--"+format.Markdown.String(), "-o", outputFile.Name()))
+
+	// Nothing should have been written to stdout.
+	require.Empty(t, tr.Out.String())
+
+	got, err := os.ReadFile(outputFile.Name())
+	require.NoError(t, err)
+	out := string(got)
+	require.Contains(t, out, "# "+src.Handle)
+	require.Contains(t, out, "```mermaid")
+	require.Contains(t, out, "## Tables")
+}
+
 func TestCmdInspect_smoke(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)

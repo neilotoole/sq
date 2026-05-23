@@ -139,6 +139,19 @@ sampled, and reported on exit. If zero, memory usage sampling is disabled.`,
 		options.TagOutput,
 	)
 
+	// OptHTMLEmbed controls whether sq inspect's HTML output inlines assets.
+	OptHTMLEmbed = options.NewBool(
+		"format.html.embed",
+		nil,
+		false,
+		"Embed assets (Mermaid.js) in HTML output for offline use",
+		`When true, sq inspect's HTML output inlines all assets — notably the
+Mermaid.js library — so the document is fully self-contained and renders
+offline. When false (default), Mermaid.js is loaded from a CDN, producing a
+much smaller file that requires internet access to render the diagram.`,
+		options.TagOutput,
+	)
+
 	timeLayoutsList = "Predefined values:\n" + scannerz.IndentLines(
 		context.Background(),
 		wordwrap.WrapString(strings.Join(timez.NamedLayouts(), ", "), 64),
@@ -348,6 +361,12 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 		w.Source = yamlw.NewSourceWriter(outCfg.out, outCfg.outPr)
 		w.Version = yamlw.NewVersionWriter(outCfg.out, outCfg.outPr)
 		w.SQL = sqlw.NewYAMLWriter(outCfg.out, outCfg.outPr)
+
+	case format.Markdown:
+		w.Metadata = markdownw.NewMetadataWriter(outCfg.out, outCfg.outPr)
+
+	case format.HTML:
+		w.Metadata = htmlw.NewMetadataWriter(outCfg.out, outCfg.outPr, OptHTMLEmbed.Get(o))
 	default:
 	}
 

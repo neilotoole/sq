@@ -41,6 +41,28 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   - All LIKE-family parsers require each argument to be a string literal
     (or a column selector, for `like`/`ilike`); function-wrapped or other
     non-string arguments are rejected.
+- [`sq inspect`](https://sq.io/docs/inspect) gains a `--markdown` output
+  format that renders a schema document: a source overview, per-table
+  column / key / constraint / index detail, and
+  [Mermaid](https://mermaid.js.org) entity-relationship diagrams. Whole-source
+  inspection diagrams every table and its foreign-key relationships, and each
+  table's section also leads with a focused diagram of just that table and its
+  directly-related neighbors (related tables appear as bare boxes);
+  single-table inspection (`sq inspect @src.table --markdown`) renders that
+  same focused diagram. Identifiers and the column type, key, and default
+  values are rendered as inline code.
+- `sq inspect` also gains an `--html` output format (equivalently
+  `--format=html`) that renders the same schema document — overview, per-table
+  detail, and Mermaid ER diagrams — as a standalone HTML page. By default the
+  page loads Mermaid.js from a CDN; set the `format.html.embed` option to
+  inline the library for a fully offline, self-contained document. Combine with
+  `--output`/`-o` to save the page to a file.
+- `sq inspect` now honors the generic `--format`/`-f` flag (e.g.
+  `sq inspect -f markdown`), matching the query command; previously only the
+  per-format boolean flags such as `--markdown` were accepted.
+- `sq inspect` now accepts the `--output`/`-o` flag to write its output to a
+  file instead of stdout (e.g. `sq inspect --html @pg1 -o pg1-schema.html`),
+  matching `sq query` and `sq db dump`.
 
 ### Changed
 
