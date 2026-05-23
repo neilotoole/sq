@@ -297,6 +297,12 @@ See also: [Excel date/time format reference](https://support.microsoft.com/en-gb
 
 See also: [Excel date/time format reference](https://support.microsoft.com/en-gb/office/format-numbers-as-dates-or-times-418bd3fe-0577-47c8-8caa-b4d30c528309#bm2)
 
+### `format.html.embed-assets`
+{{< readfile file="../cmd/options/format.html.embed-assets.help.txt" code="true" lang="text" >}}
+
+This option applies to [`sq inspect`](/docs/inspect)'s HTML output. As with
+other options, it can be set per invocation via the matching
+`--format.html.embed-assets` flag.
 
 ### `header`
 {{< readfile file="../cmd/options/header.help.txt" code="true" lang="text" >}}

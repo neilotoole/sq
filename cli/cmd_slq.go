@@ -459,6 +459,10 @@ func addResultFormatFlags(cmd *cobra.Command) {
 	cmd.MarkFlagsMutuallyExclusive(flag.OutputFormatFlags...)
 
 	addOptionFlag(cmd.Flags(), OptCompact)
+	// --format.html.embed-assets rides along wherever --html / -f=html is
+	// available. It currently only affects sq inspect's HTML output (the
+	// Mermaid ERD); for query --html (a plain data table) it's a no-op.
+	addOptionFlag(cmd.Flags(), OptHTMLEmbedAssets)
 }
 
 // extractFlagArgsValues returns a map {key:value} of predefined variables

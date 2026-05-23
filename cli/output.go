@@ -139,9 +139,9 @@ sampled, and reported on exit. If zero, memory usage sampling is disabled.`,
 		options.TagOutput,
 	)
 
-	// OptHTMLEmbed controls whether sq inspect's HTML output inlines assets.
-	OptHTMLEmbed = options.NewBool(
-		"format.html.embed",
+	// OptHTMLEmbedAssets controls whether sq inspect's HTML output inlines assets.
+	OptHTMLEmbedAssets = options.NewBool(
+		"format.html.embed-assets",
 		nil,
 		false,
 		"Embed assets (Mermaid.js) in HTML output for offline use",
@@ -366,7 +366,7 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 		w.Metadata = markdownw.NewMetadataWriter(outCfg.out, outCfg.outPr)
 
 	case format.HTML:
-		w.Metadata = htmlw.NewMetadataWriter(outCfg.out, outCfg.outPr, OptHTMLEmbed.Get(o))
+		w.Metadata = htmlw.NewMetadataWriter(outCfg.out, outCfg.outPr, OptHTMLEmbedAssets.Get(o))
 	default:
 	}
 

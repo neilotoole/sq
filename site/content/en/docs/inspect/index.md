@@ -137,11 +137,16 @@ rendered right in your browser.
 
 By default, the page loads Mermaid.js from a CDN, producing a small file that
 requires internet access to render the diagram. To produce a fully
-self-contained document that renders offline, enable the `format.html.embed`
-option, which inlines the Mermaid.js library:
+self-contained document that renders offline, inline the Mermaid.js library
+via the `format.html.embed-assets` option. Set it persistently with `sq config
+set`, or per invocation with the matching `--format.html.embed-assets` flag:
 
 ```shell
-$ sq config set format.html.embed true
+# Persistently, for all HTML output.
+$ sq config set format.html.embed-assets true
+
+# Or per invocation (overrides config for this run).
+$ sq inspect @sakila_sl3 --html --format.html.embed-assets
 ```
 
 As with `--markdown`, the `--overview` (`-O`) mode omits the schema and

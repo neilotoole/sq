@@ -41,7 +41,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   - All LIKE-family parsers require each argument to be a string literal
     (or a column selector, for `like`/`ilike`); function-wrapped or other
     non-string arguments are rejected.
-- [`sq inspect`](https://sq.io/docs/inspect) gains a `--markdown` output
+- [`sq inspect`](https://sq.io/docs/inspect) gains a [`--markdown`](https://sq.io/docs/inspect#--markdown) output
   format that renders a schema document: a source overview, per-table
   column / key / constraint / index detail, and
   [Mermaid](https://mermaid.js.org) entity-relationship diagrams. Whole-source
@@ -51,12 +51,13 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   single-table inspection (`sq inspect @src.table --markdown`) renders that
   same focused diagram. Identifiers and the column type, key, and default
   values are rendered as inline code.
-- `sq inspect` also gains an `--html` output format (equivalently
+- `sq inspect` also gains an [`--html`](https://sq.io/docs/inspect#--html)  output format (equivalently
   `--format=html`) that renders the same schema document — overview, per-table
   detail, and Mermaid ER diagrams — as a standalone HTML page. By default the
-  page loads Mermaid.js from a CDN; set the `format.html.embed` option to
-  inline the library for a fully offline, self-contained document. Combine with
-  `--output`/`-o` to save the page to a file.
+  page loads Mermaid.js from a CDN; set the `format.html.embed-assets` option
+  (or pass the `--format.html.embed-assets` flag) to inline the library for a
+  fully offline, self-contained document. Combine with `--output`/`-o` to save
+  the page to a file.
 - `sq inspect` now honors the generic `--format`/`-f` flag (e.g.
   `sq inspect -f markdown`), matching the query command; previously only the
   per-format boolean flags such as `--markdown` were accepted.
@@ -82,10 +83,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
-- [#652]: The ClickHouse driver now creates a copied table in its target
-  schema (ClickHouse database) when the copy specifies one, rather than always
-  in the connection's current database. `CopyTable` built the `CREATE TABLE`
-  from the bare table name while the data-copy `INSERT` used the
+- [#652]: The [ClickHouse driver](https://sq.io/docs/drivers/clickhouse) now
+  creates a copied table in its target schema (ClickHouse database) when the copy
+  specifies one, rather than always in the connection's current database. `CopyTable`
+  built the `CREATE TABLE` from the bare table name while the data-copy `INSERT` used the
   schema-qualified name, so a cross-schema copy created the table in the wrong
   database (and failed outright when also copying data). ClickHouse now matches
   the other SQL drivers' `CopyTable`. No CLI command targets a cross-schema
@@ -121,8 +122,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   Collision detection is case-insensitive (matching SQLite's identifier
   semantics for the join scratch DB), so `Actor` and `actor` are now
   also treated as collisions. Two user-supplied aliases that collide
-  are reported up front (`cross-source join: duplicate table alias
-  "..."`) instead of surfacing later as an opaque scratch-DB error.
+  are reported up front (`cross-source join: duplicate table alias "..."`)
+  instead of surfacing later as an opaque scratch-DB error.
   As a related fix, any source-level catalog/schema overrides on a
   cross-source join participant are now dropped from the scratch-DB
   SQL — the scratch DB only knows bare table names, so emitting
