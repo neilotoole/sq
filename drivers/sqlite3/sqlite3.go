@@ -527,6 +527,11 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 			}
 			record.SetKindIfUnknown(meta, i, kind.Datetime)
 		case *nullTime:
+			// No SetKindIfUnknown call (unlike the sibling cases): a *nullTime
+			// dest is only allocated for columns already classified as
+			// kind.Datetime/kind.Date, so the kind is never unknown here. The
+			// value is the parsed time, or the raw string when the stored text
+			// didn't match a known datetime layout.
 			switch {
 			case !col.Valid:
 				rec[i] = nil
