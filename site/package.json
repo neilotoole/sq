@@ -85,7 +85,7 @@
     "purgecss-whitelister": "^2.4",
     "serve": "^14.2.6",
     "shx": "^0.4.0",
-    "stylelint": "^16",
+    "stylelint": "^17",
     "stylelint-config-standard-scss": "^17",
     "watch": "^1.0.2"
   },
