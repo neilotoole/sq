@@ -674,8 +674,8 @@ github.com/uber-go/tally v3.3.17+incompatible h1:nFHIuW3VQ22wItiE9kPXic8dEgExWOs
 github.com/uber-go/tally v3.3.17+incompatible/go.mod h1:YDTIBxdXyOU/sCWilKB4bgyufu1cEi0jdVnRdxvjnmU=
 github.com/uber/athenadriver v1.1.15 h1:z/hivAcXmGgUCVoXgVvwwIzc4auTeF3TCmwyFTtd8NE=
 github.com/uber/athenadriver v1.1.15/go.mod h1:RnKD7+9Aup8iuFfhK+I26U+z137IXWeoLaEZDepd0Eg=
-github.com/vbauerster/mpb/v8 v8.12.0 h1:+gneY3ifzc88tKDzOtfG8k8gfngCx615S2ZmFM4liWg=
-github.com/vbauerster/mpb/v8 v8.12.0/go.mod h1:V02YIuMVo301Y1VE9VtZlD8s84OMsk+EKN6mwvf/588=
+github.com/vbauerster/mpb/v8 v8.12.1 h1:pyj3yQ2ZGQJgUXm4h17QpR+eERaNz5OQ1ftPSEE/sMM=
+github.com/vbauerster/mpb/v8 v8.12.1/go.mod h1:XLXRfStkw/6i5k0aQltijDHT1Z93fD1DVwmIdcFUp6k=
 github.com/vertica/vertica-sql-go v1.3.5 h1:IrfH2WIgzZ45yDHyjVFrXU2LuKNIjF5Nwi90a6cfgUI=
 github.com/vertica/vertica-sql-go v1.3.5/go.mod h1:jnn2GFuv+O2Jcjktb7zyc4Utlbu9YVqpHH/lx63+1M4=
 github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb h1:zGWFAtiMcyryUHoUjUJX0/lt1H2+i2Ka2n+D3DImSNo=
