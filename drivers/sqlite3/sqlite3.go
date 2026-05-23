@@ -526,6 +526,15 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 				rec[i] = nil
 			}
 			record.SetKindIfUnknown(meta, i, kind.Datetime)
+		case *nullTime:
+			switch {
+			case !col.Valid:
+				rec[i] = nil
+			case col.IsTime:
+				rec[i] = col.Time
+			default:
+				rec[i] = col.String
+			}
 		case *time.Time:
 			rec[i] = *col
 			record.SetKindIfUnknown(meta, i, kind.Datetime)

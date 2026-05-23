@@ -153,7 +153,7 @@ func TestRecordMetadata(t *testing.T) {
 			colKinds: []kind.Kind{kind.Int, kind.Text, kind.Text, kind.Datetime},
 			scanTypes: []reflect.Type{
 				sqlz.RTypeNullInt64, sqlz.RTypeNullString, sqlz.RTypeNullString,
-				sqlz.RTypeNullTime,
+				sqlite3.RTypeNullTime,
 			},
 			colsMeta: []*metadata.Column{
 				{Name: "actor_id", Position: 0, PrimaryKey: true, BaseType: "INTEGER", ColumnType: "INTEGER", Kind: kind.Int, Nullable: false},
@@ -167,7 +167,7 @@ func TestRecordMetadata(t *testing.T) {
 			rowCount:  sakila.TblFilmActorCount,
 			colNames:  sakila.TblFilmActorCols(),
 			colKinds:  []kind.Kind{kind.Int, kind.Int, kind.Datetime},
-			scanTypes: []reflect.Type{sqlz.RTypeNullInt64, sqlz.RTypeNullInt64, sqlz.RTypeNullTime},
+			scanTypes: []reflect.Type{sqlz.RTypeNullInt64, sqlz.RTypeNullInt64, sqlite3.RTypeNullTime},
 			colsMeta: []*metadata.Column{
 				{Name: "actor_id", Position: 0, PrimaryKey: true, BaseType: "INT", ColumnType: "INT", Kind: kind.Int, Nullable: false},
 				{Name: "film_id", Position: 1, PrimaryKey: true, BaseType: "INT", ColumnType: "INT", Kind: kind.Int, Nullable: false},
@@ -181,7 +181,7 @@ func TestRecordMetadata(t *testing.T) {
 			colKinds: []kind.Kind{kind.Int, kind.Int, kind.Int, kind.Int, kind.Decimal, kind.Datetime, kind.Datetime},
 			scanTypes: []reflect.Type{
 				sqlz.RTypeNullInt64, sqlz.RTypeNullInt64, sqlz.RTypeNullInt64,
-				sqlz.RTypeNullInt64, sqlz.RTypeNullDecimal, sqlz.RTypeNullTime, sqlz.RTypeNullTime,
+				sqlz.RTypeNullInt64, sqlz.RTypeNullDecimal, sqlite3.RTypeNullTime, sqlite3.RTypeNullTime,
 			},
 			colsMeta: []*metadata.Column{
 				{Name: "payment_id", Position: 0, PrimaryKey: true, BaseType: "INT", ColumnType: "INT", Kind: kind.Int, Nullable: false},

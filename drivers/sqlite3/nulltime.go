@@ -13,7 +13,7 @@ import (
 
 // rtypeNullTime is the reflect.Type of nullTime. setScanType uses it as the
 // scan destination for SQLite columns mapped to kind.Datetime or kind.Date.
-var rtypeNullTime = reflect.TypeFor[nullTime]() //nolint:unused // wired in a later task
+var rtypeNullTime = reflect.TypeFor[nullTime]()
 
 // nullTime is the scan destination for SQLite columns mapped to a time kind
 // (kind.Datetime, kind.Date). It exists because mattn/go-sqlite3 only converts
