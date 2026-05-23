@@ -401,6 +401,47 @@ func TestCmdInspect_html(t *testing.T) { //nolint:tparallel
 	}
 }
 
+// TestCmdInspect_mermaidERD exercises the "mermaid-erd" output format
+// against the sakila SQLite source (no Docker required). It emits bare
+// Mermaid erDiagram source — no Markdown fence, no HTML wrapper — for
+// whole-source and single-table inspection, and errors for operations
+// (such as overview) that have no diagram representation.
+func TestCmdInspect_mermaidERD(t *testing.T) { //nolint:tparallel
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+	tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+	require.NoError(t, tr.Exec("inspect", "--format="+format.MermaidERD.String()))
+
+	out := tr.Out.String()
+	require.True(t, strings.HasPrefix(out, "erDiagram"),
+		"output should be bare Mermaid source starting with erDiagram")
+	// Canonical sakila edge: film references language.
+	require.Contains(t, out, "language ||--o{ film")
+	// No Markdown fence and no HTML wrapper — just the diagram.
+	require.NotContains(t, out, "```mermaid")
+	require.NotContains(t, out, "<!doctype html>")
+
+	t.Run("table", func(t *testing.T) {
+		tr2 := testrun.New(th.Context, t, tr)
+		require.NoError(t, tr2.Exec(
+			"inspect", src.Handle+".film_actor", "-f", format.MermaidERD.String()))
+		out := tr2.Out.String()
+		require.True(t, strings.HasPrefix(out, "erDiagram"))
+		require.Contains(t, out, "film_actor {")
+		require.NotContains(t, out, "```mermaid")
+	})
+
+	t.Run("overview", func(t *testing.T) {
+		tr2 := testrun.New(th.Context, t, tr)
+		err := tr2.Exec(
+			"inspect", sakila.SL3, "--"+flag.InspectOverview, "-f", format.MermaidERD.String())
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "mermaid-erd")
+	})
+}
+
 // TestCmdInspect_formatFlag verifies that the generic --format / -f flag
 // selects the inspect output format, matching the query command's
 // behavior — not just the per-format boolean flags such as --markdown.

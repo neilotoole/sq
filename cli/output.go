@@ -20,6 +20,7 @@ import (
 	"github.com/neilotoole/sq/cli/output/htmlw"
 	"github.com/neilotoole/sq/cli/output/jsonw"
 	"github.com/neilotoole/sq/cli/output/markdownw"
+	"github.com/neilotoole/sq/cli/output/mermaidw"
 	"github.com/neilotoole/sq/cli/output/raww"
 	"github.com/neilotoole/sq/cli/output/sqlw"
 	"github.com/neilotoole/sq/cli/output/tablew"
@@ -385,6 +386,9 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 
 	case format.HTML:
 		w.Metadata = htmlw.NewMetadataWriter(outCfg.out, outCfg.outPr, OptHTMLEmbedAssets.Get(o))
+
+	case format.MermaidERD:
+		w.Metadata = mermaidw.NewMetadataWriter(outCfg.out, outCfg.outPr)
 	default:
 	}
 
@@ -427,6 +431,10 @@ func getRecordWriterFunc(f format.Format) output.NewRecordWriterFunc {
 		return yamlw.NewRecordWriter
 	case format.Raw:
 		return raww.NewRecordWriter
+	case format.MermaidERD:
+		// mermaid-erd is a metadata-only (sq inspect) format; it has no
+		// record writer, so callers fall back to text for record output.
+		return nil
 	default:
 		return nil
 	}

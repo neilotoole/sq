@@ -112,6 +112,7 @@ render a schema document that includes a Mermaid entity-relationship diagram;
 			format.YAML.String(),
 			format.Markdown.String(),
 			format.HTML.String(),
+			format.MermaidERD.String(),
 		),
 	))
 	addTextFormatFlags(cmd)

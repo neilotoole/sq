@@ -32,6 +32,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [`sq inspect`](https://sq.io/docs/inspect) now has [`--markdown`](https://sq.io/docs/inspect#--markdown)
   and [`--html`](https://sq.io/docs/inspect#--html) output formats that generate
   schema documents with embedded entity relationship diagrams.
+- `sq inspect` also gained a
+  [`mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd) output format
+  (`--format=mermaid-erd`) that emits the bare
+  [Mermaid](https://mermaid.js.org) entity-relationship diagram source for
+  source and table schema inspection, with no surrounding document.
 
 ### Changed
 
@@ -43,6 +48,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- `sq <command> --format=FORMAT` (e.g. `sq inspect --format=xlsx`) no longer
+  fails with a spurious "diff does not support output format" error. The
+  format check for [`sq diff`](https://sq.io/docs/diff) was being applied to
+  every command's `--format` flag; it's now scoped to `sq diff` itself.
 - [#652]: The [ClickHouse driver](https://sq.io/docs/drivers/clickhouse) now
   creates a copied table in its target schema (ClickHouse database) when the
   copy specifies one, rather than always in the connection's current database.
