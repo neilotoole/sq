@@ -262,8 +262,8 @@ $ sq '.payment | .customer_id, sum(.amount) | gb(.customer_id)'
 
 ### `having`
 
-Use `having` to filter results after grouping. The `having` function must
-always be preceded by [`group_by`](#group_by).
+Use `having` to filter results after grouping. It must always be preceded
+by [`group_by`](#group_by).
 
 ```shell
 $ sq '.payment | .customer_id, sum(.amount) |
@@ -338,7 +338,7 @@ $ sq '.actor | ob(.first_name)'
 $ sq '.actor | .first_name | unique'
 ```
 
-The function maps to the SQL `DISTINCT` keyword:
+`unique` maps to the SQL `DISTINCT` keyword:
 
 ```sql
 SELECT DISTINCT "first_name" FROM "actor"
