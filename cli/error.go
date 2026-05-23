@@ -129,7 +129,11 @@ func PrintError(ctx context.Context, ru *run.Run, err error) {
 
 	var pe *ast.ParseError
 	if errors.As(err, &pe) && len(pe.Issues) > 0 {
-		commonw.RenderParseError(errOut, pr, pe)
+		if OptErrorFormatTextVerbose.Get(opts) {
+			commonw.RenderParseError(errOut, pr, pe)
+		} else {
+			commonw.RenderParseErrorSummary(errOut, pr, pe)
+		}
 		return
 	}
 

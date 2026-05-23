@@ -322,6 +322,7 @@ linters:
             - bytes.Buffer.WriteRune
             - strings.Builder.WriteString
             - strings.Builder.WriteRune
+            - strings.Builder.WriteByte
             - strings.Builder.Write
           disabled: false
         - name: unnecessary-stmt

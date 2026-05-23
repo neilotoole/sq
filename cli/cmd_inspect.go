@@ -122,6 +122,8 @@ render a schema document that includes a Mermaid entity-relationship diagram;
 	// document (with a Mermaid ER diagram), not a Markdown/HTML data table.
 	cmd.Flags().Bool(flag.Markdown, false, "Output a Markdown schema document")
 	cmd.Flags().Bool(flag.HTML, false, "Output a standalone HTML schema document")
+	// Modifier for --html / -f=html: inline assets (Mermaid.js) for offline use.
+	addOptionFlag(cmd.Flags(), OptHTMLEmbedAssets)
 
 	cmd.Flags().BoolP(flag.InspectOverview, flag.InspectOverviewShort, false, flag.InspectOverviewUsage)
 	cmd.Flags().BoolP(flag.InspectDBProps, flag.InspectDBPropsShort, false, flag.InspectDBPropsUsage)

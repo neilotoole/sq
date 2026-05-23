@@ -120,3 +120,10 @@ else ifeq ($(shell uname -s),Linux)
 else
 	goreleaser build --snapshot --clean --single-target -f .goreleaser-windows.yml
 endif
+
+.PHONY: site-local
+site-local:
+	@# Start the local sq.io dev server by delegating to site/Makefile.
+	@# See site/Makefile and site/CLAUDE.md for the full set of site targets.
+	$(MAKE) -C site site-local
+

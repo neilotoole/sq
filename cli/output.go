@@ -90,6 +90,23 @@ command, sq falls back to "text". Available formats:
 		options.TagOutput,
 	)
 
+	// OptErrorFormatTextVerbose controls how much of an SLQ parse error is
+	// shown in text error output. It is config-only (no CLI flag).
+	OptErrorFormatTextVerbose = options.NewBool(
+		"error.format.text.verbose",
+		nil,
+		true,
+		"Show full multi-line text error reporting",
+		`When true (default), syntax errors shown in "text" error format include the
+full report: the offending span highlighted in the original query, plus any
+"did you mean" suggestion. When false, only the first summary line is shown
+(e.g. "sq: syntax error at line 1, col 10: unexpected 'mx'").
+
+This only applies when error.format is "text"; "json" error output always
+includes the full structured parse_error.`,
+		options.TagOutput,
+	)
+
 	OptVerbose = options.NewBool(
 		"verbose",
 		&options.Flag{Short: 'v'},
@@ -139,9 +156,9 @@ sampled, and reported on exit. If zero, memory usage sampling is disabled.`,
 		options.TagOutput,
 	)
 
-	// OptHTMLEmbed controls whether sq inspect's HTML output inlines assets.
-	OptHTMLEmbed = options.NewBool(
-		"format.html.embed",
+	// OptHTMLEmbedAssets controls whether sq inspect's HTML output inlines assets.
+	OptHTMLEmbedAssets = options.NewBool(
+		"format.html.embed-assets",
 		nil,
 		false,
 		"Embed assets (Mermaid.js) in HTML output for offline use",
@@ -319,10 +336,11 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 		Metadata:     tablew.NewMetadataWriter(outCfg.out, outCfg.outPr),
 		Source:       tablew.NewSourceWriter(outCfg.out, outCfg.outPr),
 		Ping:         tablew.NewPingWriter(outCfg.out, outCfg.outPr),
-		Error:        tablew.NewErrorWriter(outCfg.errOut, outCfg.errOutPr, OptErrorStack.Get(o)),
-		Version:      tablew.NewVersionWriter(outCfg.out, outCfg.outPr),
-		Config:       tablew.NewConfigWriter(outCfg.out, outCfg.outPr),
-		SQL:          sqlw.NewTextWriter(outCfg.out, outCfg.outPr),
+		Error: tablew.NewErrorWriter(outCfg.errOut, outCfg.errOutPr,
+			OptErrorStack.Get(o), OptErrorFormatTextVerbose.Get(o)),
+		Version: tablew.NewVersionWriter(outCfg.out, outCfg.outPr),
+		Config:  tablew.NewConfigWriter(outCfg.out, outCfg.outPr),
+		SQL:     sqlw.NewTextWriter(outCfg.out, outCfg.outPr),
 	}
 
 	if OptErrorFormat.Get(o) == format.JSON {
@@ -366,7 +384,7 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 		w.Metadata = markdownw.NewMetadataWriter(outCfg.out, outCfg.outPr)
 
 	case format.HTML:
-		w.Metadata = htmlw.NewMetadataWriter(outCfg.out, outCfg.outPr, OptHTMLEmbed.Get(o))
+		w.Metadata = htmlw.NewMetadataWriter(outCfg.out, outCfg.outPr, OptHTMLEmbedAssets.Get(o))
 	default:
 	}
 

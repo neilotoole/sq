@@ -1,0 +1,10 @@
+Usage:
+  sq config set error.format.text.verbose true
+
+When true (default), syntax errors shown in "text" error format include the
+full report: the offending span highlighted in the original query, plus any
+"did you mean" suggestion. When false, only the first summary line is shown
+(e.g. "sq: syntax error at line 1, col 10: unexpected 'mx'").
+
+This only applies when error.format is "text"; "json" error output always
+includes the full structured parse_error.
