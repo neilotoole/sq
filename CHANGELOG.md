@@ -16,8 +16,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
-- [#601], [#615], [#628], [#629], [#640]: New SLQ string-matching functions.
-  See [Query language](https://sq.io/docs/query) for per-driver behavior and
+- [#601], [#615], [#628], [#629], [#640]: New `SLQ` string-matching functions.
+  See [Query Guide](https://sq.io/docs/query) for per-driver behavior and
   SQLite ASCII-CI quirks.
   - Case-sensitive literal substring matchers
     [`contains`](https://sq.io/docs/query#contains),
@@ -27,113 +27,52 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     [`icontains`](https://sq.io/docs/query#icontains),
     [`istartswith`](https://sq.io/docs/query#istartswith), and
     [`iendswith`](https://sq.io/docs/query#iendswith).
-  - The `contains` family auto-escapes `%`, `_`, and the escape character
-    (`|`) in the user literal.
   - User-controlled wildcard matchers [`like`](https://sq.io/docs/query#like)
-    and [`ilike`](https://sq.io/docs/query#ilike): `%` and `_` are wildcards,
-    and `|` is a literal character on every driver (no `ESCAPE` clause). Both
-    accept either a quoted string literal or a column selector as the pattern,
-    enabling column-vs-column matching such as
-    `where(like(.events.message, .rules.pattern))`; a NULL pattern yields
-    NULL, which `WHERE` treats as false (standard SQL semantics). The
-    `contains` family stays literal-only (no column-selector pattern): its
-    render-time wildcard escaping can't extend to a runtime column value.
-  - All LIKE-family parsers require each argument to be a string literal
-    (or a column selector, for `like`/`ilike`); function-wrapped or other
-    non-string arguments are rejected.
-- [`sq inspect`](https://sq.io/docs/inspect) gains a `--markdown` output
-  format that renders a schema document: a source overview, per-table
-  column / key / constraint / index detail, and
-  [Mermaid](https://mermaid.js.org) entity-relationship diagrams. Whole-source
-  inspection diagrams every table and its foreign-key relationships, and each
-  table's section also leads with a focused diagram of just that table and its
-  directly-related neighbors (related tables appear as bare boxes);
-  single-table inspection (`sq inspect @src.table --markdown`) renders that
-  same focused diagram. Identifiers and the column type, key, and default
-  values are rendered as inline code.
-- `sq inspect` also gains an `--html` output format (equivalently
-  `--format=html`) that renders the same schema document — overview, per-table
-  detail, and Mermaid ER diagrams — as a standalone HTML page. By default the
-  page loads Mermaid.js from a CDN; set the `format.html.embed` option to
-  inline the library for a fully offline, self-contained document. Combine with
-  `--output`/`-o` to save the page to a file.
-- `sq inspect` now honors the generic `--format`/`-f` flag (e.g.
-  `sq inspect -f markdown`), matching the query command; previously only the
-  per-format boolean flags such as `--markdown` were accepted.
-- `sq inspect` now accepts the `--output`/`-o` flag to write its output to a
-  file instead of stdout (e.g. `sq inspect --html @pg1 -o pg1-schema.html`),
-  matching `sq query` and `sq db dump`.
+    and [`ilike`](https://sq.io/docs/query#ilike): `%` and `_` are wildcards.
+- [`sq inspect`](https://sq.io/docs/inspect) now has [`--markdown`](https://sq.io/docs/inspect#--markdown)
+  and [`--html`](https://sq.io/docs/inspect#--html) output formats that generate
+  schema documents with embedded entity relationship diagrams.
 
 ### Changed
 
-- [#637]: Syntax errors from invalid SLQ input are now reported with the
-  offending span highlighted in the original query, the input line
-  syntax-colored per sq's standard palette (handles, selectors, keywords,
-  numbers, strings, punctuation), and a terse, sq-flavored message
-  replacing ANTLR's verbose `expecting {...}` dump. Typo'd identifiers
-  may receive a `did you mean '<name>'?` suggestion (e.g., `mx` → `max`).
-- [#637]: The structured `parse_error` field is included in `--json`
-  error output, carrying `input` and `issues[].{line, col, token, msg,
-  suggestion}`, plus rune-offset `start_char`/`stop_char` when a precise
-  span is available, for programmatic consumers. Both `line` and `col` are
-  1-based, matching the text error output and the position a person counts
-  to; the 0-based `start_char`/`stop_char` offsets remain available for
-  slicing the input directly.
+- [#637]: Richer `SLQ` syntax-error reporting in both text and
+  JSON [error formats](https://sq.io/docs/config#errorformat).
+  You can set the new config option [`error.format.text.verbose`](https://sq.io/docs/config#errorformattextverbose)
+  to `false` if you prefer the previous (less-verbose) `text` error format.
+  ![sq text error reporting: verbose vs. summary](site/static/images/repo/sq_error_reporting_options.png)
 
 ### Fixed
 
-- [#652]: The ClickHouse driver now creates a copied table in its target
-  schema (ClickHouse database) when the copy specifies one, rather than always
-  in the connection's current database. `CopyTable` built the `CREATE TABLE`
-  from the bare table name while the data-copy `INSERT` used the
-  schema-qualified name, so a cross-schema copy created the table in the wrong
-  database (and failed outright when also copying data). ClickHouse now matches
-  the other SQL drivers' `CopyTable`. No CLI command targets a cross-schema
-  copy today, so this is a latent driver-level fix surfaced while testing #484.
-
+- [#652]: The [ClickHouse driver](https://sq.io/docs/drivers/clickhouse) now
+  creates a copied table in its target schema (ClickHouse database) when the
+  copy specifies one, rather than always in the connection's current database.
+  - `CopyTable` built the `CREATE TABLE` from the bare table name while the data-copy
+    `INSERT` used the schema-qualified name, so a cross-schema copy created the
+    table in the wrong database (and failed outright when also copying data). ClickHouse now
+    matches the other SQL drivers' `CopyTable`. No CLI command targets a cross-schema
+    copy today, so this is a latent driver-level fix surfaced while testing [#484].
 - [#484]:
   [`--insert`](https://sq.io/docs/tutorial#insert--modify) into a MySQL or
   Postgres table no longer fails when a same-named table exists in another
-  schema. The drivers' `TableExists` check queried `information_schema.tables`
-  filtered only by table name, so a name present in two schemas returned
-  `COUNT(*) = 2`; the `== 1` test then reported the table as missing and `sq`
-  tried to `CREATE` it, which the database rejected with "table already
-  exists". The lookup is now scoped to the connection's current schema
-  (`DATABASE()` for MySQL, `CURRENT_SCHEMA()` for Postgres), as the other SQL
-  drivers already scope theirs.
-
+  schema.
+  - The drivers' `TableExists` check queried `information_schema.tables`
+    filtered only by table name, so a name present in two schemas returned
+    `COUNT(*) = 2`; the `== 1` test then reported the table as missing and `sq`
+    tried to `CREATE` it, which the database rejected with "table already
+    exists". The lookup is now scoped to the connection's current schema
+    (`DATABASE()` for MySQL, `CURRENT_SCHEMA()` for Postgres), as the other SQL
+    drivers already scope theirs.
 - [#633]: A [query](https://sq.io/docs/query) using the single-segment
   `@handle.table:alias` form on the left of a pipeline (e.g.
   `@sakila.actor:a | .a.first_name`) no longer silently collapses to
-  `SELECT * FROM <table>`. The grammar previously had no alias slot on the
-  `handleTable` rule, so the parser's error recovery silently discarded the
-  alias and every downstream segment (projections, joins, etc.). The
-  multi-segment form `@sakila | .actor:a | ...` was unaffected.
-
+  `SELECT * FROM <table>`.
+  - The grammar previously had no alias slot on the
+    `handleTable` rule, so the parser's error recovery silently discarded the
+    alias and every downstream segment (projections, joins, etc.). The
+    multi-segment form `@sakila | .actor:a | ...` was unaffected.
 - [#445]: Cross-source [`join`](https://sq.io/docs/query#join) no longer
   fails when the participating sources contain tables with the same
-  name (e.g. `@src1.actor | join(@src2.actor, .actor_id)`). Previously
-  the second table copy into the join scratch DB collided with the
-  first (`table "actor" already exists`); now colliding unaliased
-  participants are given numeric-suffixed aliases (`actor`, `actor_2`,
-  ...), picked to also avoid any other participant's destination name
-  so the scratch tables are unique and the rendered SQL is well-formed.
-  Collision detection is case-insensitive (matching SQLite's identifier
-  semantics for the join scratch DB), so `Actor` and `actor` are now
-  also treated as collisions. Two user-supplied aliases that collide
-  are reported up front (`cross-source join: duplicate table alias
-  "..."`) instead of surfacing later as an opaque scratch-DB error.
-  As a related fix, any source-level catalog/schema overrides on a
-  cross-source join participant are now dropped from the scratch-DB
-  SQL — the scratch DB only knows bare table names, so emitting
-  `"catalog"."schema"."actor"` against it would have failed with
-  `no such table`. Source-side fetches still use the qualified name.
-
-- [#630]: Re-vendored the internal `go-udiff` diff package from
-  `aymanbagabas/go-udiff` `v0.4.1`. This resolves an intermittent CI failure
-  in the package's `TestRandOld`, which depended on the deprecated global
-  `math/rand` seed; the refreshed upstream uses a per-test PRNG. Diff output
-  is unchanged.
+  name (e.g. `@src1.actor | join(@src2.actor, .actor_id)`).
 
 ## [v0.52.0] - 2026-05-15
 
