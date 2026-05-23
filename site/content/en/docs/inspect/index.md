@@ -94,52 +94,17 @@ renders inline on GitHub, GitLab, and most Markdown viewers, showing every
 table and its foreign-key relationships.
 
 ```shell
-$ sq inspect @sakila_sl3 --markdown
+# Redirect output to sakila.md
+$ sq inspect @sakila_pg --markdown > sakila.md
 
-# Equivalent, using the generic format flag:
-$ sq inspect @sakila_sl3 -f markdown
+# Or just use the -o/--output flag
+$ sq inspect @sakila_pg --markdown -o sakila.md
+
+# Output just for the actor table.
+$ sq inspect @sakila_pg.actor --markdown -o actor.md
 ```
 
-The output begins with the source overview and the ER diagram (truncated
-here):
-
-````markdown
-# @sakila_sl3
-
-| Property | Value |
-| --- | --- |
-| Name | sakila.db |
-| Driver | sqlite3 |
-| Tables | 16 |
-| Views | 5 |
-
-## Entity Relationship Diagram
-
-```mermaid
-erDiagram
-    actor {
-        int actor_id PK
-        text first_name
-        text last_name
-        datetime last_update
-    }
-    film_actor {
-        int actor_id PK,FK
-        int film_id PK,FK
-        datetime last_update
-    }
-    actor ||--o{ film_actor : ""
-    film ||--o{ film_actor : ""
-```
-````
-
-Each table then gets its own section, led by a focused diagram of just that
-table and its directly-related neighbors (related tables appear as bare,
-column-less boxes), followed by a column table and the table's foreign-key,
-unique-constraint, and index detail. Identifiers and the column type, key,
-and default values are rendered as inline code. Inspecting a single table
-(`sq inspect @sakila_sl3.film_actor --markdown`) renders that same per-table
-section on its own.
+![sq_inspect_markdown ](sq_inspect_md.png)
 
 ### `--html`
 
@@ -150,14 +115,19 @@ but as a standalone HTML page. The diagrams are rendered client-side by
 Mermaid.js, so the page can be opened directly in a browser.
 
 ```shell
-$ sq inspect @sakila_sl3 --html
+$ sq inspect @sakila_pg --html
 
 # Equivalent, using the generic format flag:
-$ sq inspect @sakila_sl3 -f html
+$ sq inspect @sakila_pg -f html
 
 # Write the document to a file with the --output (-o) flag:
-$ sq inspect @sakila_sl3 --html -o sakila-schema.html
+$ sq inspect @sakila_pg --html -o sakila.html
+
+# Or to open directly in a browser (macOS):
+$ sq inspect @sakila_pg --html > sakila.html && open sakila.html
 ```
+
+![sq_inspect_html](sq_inspect_html.png)
 
 By default, the page loads Mermaid.js from a CDN, producing a small file that
 requires internet access to render the diagram. To produce a fully
