@@ -1210,6 +1210,7 @@ sakila
 the `catalog.schema` form. For example:
 
 ```shell
+# Override both catalog and schema via the catalog.schema form
 $ sq --src.schema postgres.information_schema 'catalog(), schema()'
 catalog()  schema()
 postgres   information_schema
