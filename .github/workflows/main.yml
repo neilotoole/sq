@@ -46,8 +46,10 @@ jobs:
 
           # We tee the go test output to a file, so that "tparse" can
           # render pretty output below. "-coverprofile" writes a coverage
-          # profile to coverage.out for upload to Codecov.
-          go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json -cover -coverprofile=coverage.out ./... | tee gotest.out.json
+          # profile to coverage.out for upload to Codecov. "-coverpkg=./..."
+          # attributes coverage across all packages (e.g. integration tests
+          # exercising other packages), giving a more representative total.
+          go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json -cover -coverpkg=./... -coverprofile=coverage.out ./... | tee gotest.out.json
 
       - name: 'Test output'
         if: always()
