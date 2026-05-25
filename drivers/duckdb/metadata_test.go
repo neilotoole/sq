@@ -401,7 +401,7 @@ func TestTableMetadata_Indexes(t *testing.T) {
 	db, err := grip.DB(ctx)
 	require.NoError(t, err)
 
-	_, err = db.ExecContext(ctx, `CREATE TABLE t (id INT, name VARCHAR, email VARCHAR)`)
+	_, err = db.ExecContext(ctx, `CREATE TABLE t (id INT, name VARCHAR, email VARCHAR, "a""b" INTEGER)`)
 	require.NoError(t, err)
 	_, err = db.ExecContext(ctx, `CREATE INDEX ix_name ON t(name)`)
 	require.NoError(t, err)
@@ -412,6 +412,8 @@ func TestTableMetadata_Indexes(t *testing.T) {
 	_, err = db.ExecContext(ctx, `CREATE INDEX ix_comp ON t(name, email)`)
 	require.NoError(t, err)
 	_, err = db.ExecContext(ctx, `CREATE INDEX ix_mixed ON t(name, LOWER(email))`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `CREATE INDEX ix_quotecol ON t("a""b")`)
 	require.NoError(t, err)
 
 	md, err := grip.TableMetadata(ctx, "t")
@@ -445,6 +447,12 @@ func TestTableMetadata_Indexes(t *testing.T) {
 	// key position becomes the empty-string sentinel.
 	require.Contains(t, idxByName, "ix_mixed")
 	require.Equal(t, []string{"name", ""}, idxByName["ix_mixed"].Columns)
+
+	// A column whose name contains a double-quote (DuckDB emits it as
+	// `'"a""b"'` in the expressions list) must round-trip to its real
+	// name, not be misclassified as an expression sentinel.
+	require.Contains(t, idxByName, "ix_quotecol")
+	require.Equal(t, []string{`a"b`}, idxByName["ix_quotecol"].Columns)
 }
 
 // TestSourceMetadata_SkipsFKMetadataOnViews ensures the FK / index /
