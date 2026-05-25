@@ -55,7 +55,8 @@ jobs:
       - name: 'Go tests'
         shell: bash
         run: |
-          set -e
+          # pipefail so a `go test` failure isn't masked by the `| tee` below.
+          set -eo pipefail
 
           # Instrument coverage only on the ubuntu-24.04 runner (uploaded to
           # Codecov below); macOS runs a plain test to keep the matrix fast.
