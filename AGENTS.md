@@ -97,14 +97,17 @@ example, "honors" not "honours", "color" not "colour", "behavior" not
 
 ### Markdown
 
-- Wrap lines at 80 characters where feasible.
-- Run `markdownlint` on any markdown file you create or modify. Fix all
-  issues before committing.
+- Wrap lines at 100 characters where feasible.
+- Lint any markdown file you create or modify with the repo's single tool,
+  `markdownlint-cli2`. Fix all issues before committing.
 
 ```bash
-markdownlint '**/*.md' --ignore node_modules
-markdownlint '**/*.md' --ignore node_modules --fix
+make lint-markdown        # root + skills + non-site READMEs
+bun run lint:markdown-fix # autofix the above
 ```
+
+`site/` markdown is linted by its own config; from `site/` run
+`bun run lint:markdown` (or `make -C site site-test`).
 
 ### `CHANGELOG.md`
 

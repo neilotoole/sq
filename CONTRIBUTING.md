@@ -302,8 +302,8 @@ documentation as incomplete work — this is what keeps [sq.io](https://sq.io),
      (document).
    - Update the driver table and `sq driver ls` examples in
      [`skills/sq/SKILL.md`](skills/sq/SKILL.md).
-   - Run `markdownlint 'skills/sq/**/*.md' --ignore node_modules` (or
-     `markdownlint 'skills/sq/**/*.md' --ignore node_modules --fix`).
+   - Run `make lint-markdown` (or `bun run lint:markdown-fix` to autofix);
+     `skills/**` is covered by the repo-root markdownlint config.
 6. **CHANGELOG** — add an `## Unreleased` / `Added` entry when the driver is
    user-visible (maintainers may edit wording at release time).
 
