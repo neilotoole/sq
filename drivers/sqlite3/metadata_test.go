@@ -18,10 +18,13 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestSimple(t *testing.T) {
@@ -460,4 +463,44 @@ func benchGetTblRowCountsBaseline(ctx context.Context, db sqlz.DB, tblNames []st
 	}
 
 	return tblCounts, nil
+}
+
+// TestIndexes_ExpressionArity verifies that a functional/expression key
+// position is preserved as an empty-string sentinel (so composite arity
+// and position survive), and that an all-expression index is omitted.
+func TestIndexes_ExpressionArity(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@idx_arity_sl3",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "idx_arity.db"),
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	ctx := context.Background()
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(ctx, `CREATE TABLE t (a INT, b TEXT, c INT)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `CREATE INDEX ix_mixed ON t (a, lower(b), c)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `CREATE INDEX ix_allexpr ON t (lower(b))`)
+	require.NoError(t, err)
+
+	md, err := grip.TableMetadata(ctx, "t")
+	require.NoError(t, err)
+
+	idxByName := make(map[string]*metadata.Index, len(md.Indexes))
+	for _, idx := range md.Indexes {
+		idxByName[idx.Name] = idx
+	}
+
+	require.Contains(t, idxByName, "ix_mixed")
+	require.Equal(t, []string{"a", "", "c"}, idxByName["ix_mixed"].Columns,
+		"the lower(b) key position must be the empty-string sentinel")
+	require.NotContains(t, idxByName, "ix_allexpr",
+		"an all-expression index must be omitted")
 }

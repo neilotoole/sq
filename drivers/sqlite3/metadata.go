@@ -430,6 +430,11 @@ ORDER BY seq`
 		if err != nil {
 			return nil, nil, err
 		}
+		if metadata.AllExpressionKeys(cols) {
+			log.Debug("sqlite3: dropping index with only expression keys",
+				"table", tblName, "index", info.name)
+			continue
+		}
 
 		idx := &metadata.Index{
 			Name:    info.name,
@@ -455,8 +460,9 @@ ORDER BY seq`
 }
 
 // getIndexColumns returns the columns of an index in key order, using
-// SQLite's pragma_index_info. Expression-based index entries (with NULL
-// column name) are skipped.
+// SQLite's pragma_index_info. Expression-based index entries (with a NULL
+// column name) are recorded as the empty-string sentinel; see
+// metadata.Index.Columns.
 func getIndexColumns(ctx context.Context, db sqlz.DB, idxName string) ([]string, error) {
 	log := lg.FromContext(ctx)
 	const q = `SELECT name FROM pragma_index_info(?) ORDER BY seqno`
@@ -472,9 +478,11 @@ func getIndexColumns(ctx context.Context, db sqlz.DB, idxName string) ([]string,
 		if err = rows.Scan(&name); err != nil {
 			return nil, errw(err)
 		}
-		if name.Valid {
-			cols = append(cols, name.String)
-		}
+		// A NULL name marks an expression key position; record the
+		// empty-string sentinel so Columns preserves the index's key
+		// arity and the position of the expression. See
+		// metadata.Index.Columns.
+		cols = append(cols, name.String)
 	}
 	return cols, errw(rows.Err())
 }
