@@ -1177,6 +1177,28 @@ func TestFKGroup_Clone_StandaloneDropsIncoming(t *testing.T) {
 	})
 }
 
+func TestAllExpressionKeys(t *testing.T) {
+	testCases := []struct {
+		name string
+		cols []string
+		want bool
+	}{
+		{name: "nil", cols: nil, want: false},
+		{name: "empty", cols: []string{}, want: false},
+		{name: "single_expr", cols: []string{""}, want: true},
+		{name: "all_expr", cols: []string{"", ""}, want: true},
+		{name: "single_col", cols: []string{"a"}, want: false},
+		{name: "mixed_leading_col", cols: []string{"a", ""}, want: false},
+		{name: "mixed_trailing_col", cols: []string{"", "c"}, want: false},
+		{name: "all_cols", cols: []string{"a", "b"}, want: false},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, metadata.AllExpressionKeys(tc.cols))
+		})
+	}
+}
+
 // TestSource_Clone_NilLoggerSilencesWarnings locks the contract from
 // [Source.Clone]'s godoc — Clone passes nil to LinkForeignKeys, so a
 // programmatically-constructed source with an unresolved FK clones
