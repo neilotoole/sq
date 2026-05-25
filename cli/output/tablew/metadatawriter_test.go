@@ -186,6 +186,28 @@ func TestFormatFKRefs(t *testing.T) {
 		formatFKRefs([]*metadata.ForeignKey{a, b}))
 }
 
+// TestIndexEntriesByColumn_SkipsExpressionSentinel verifies that an
+// empty-string sentinel key (a functional/expression index position)
+// is not attached to any column and creates no dead "" bucket.
+func TestIndexEntriesByColumn_SkipsExpressionSentinel(t *testing.T) {
+	tbl := &metadata.Table{
+		Name: "t",
+		Columns: []*metadata.Column{
+			{Name: "a"}, {Name: "c"},
+		},
+		Indexes: []*metadata.Index{
+			{Name: "ix_expr", Table: "t", Columns: []string{"a", "", "c"}},
+		},
+	}
+
+	got := indexEntriesByColumn(tbl)
+
+	require.Len(t, got["a"], 1)
+	require.Equal(t, "ix_expr", got["a"][0].name)
+	require.Len(t, got["c"], 1)
+	require.Empty(t, got[""], "the sentinel key must not create a \"\" bucket")
+}
+
 // TestIndexEntriesByColumn_NoUCs verifies that when the table has no
 // UNIQUE constraints, every non-PK index is kept and tagged
 // backing=false. The PK-backing index is still filtered.
