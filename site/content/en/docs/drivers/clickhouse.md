@@ -150,6 +150,8 @@ and the `system.tables` catalog.
 
 ## Related
 
+<!-- markdownlint-disable-next-line MD013 -->
 - [ClickHouse driver README](https://github.com/neilotoole/sq/blob/master/drivers/clickhouse/README.md)
 - [#544](https://github.com/neilotoole/sq/issues/544) — Type roundtrip issues (`kind.Time`, `kind.Bytes`)
-- [#545](https://github.com/neilotoole/sq/issues/545) — Array types flattened to CSV text (information loss)
+- [#545](https://github.com/neilotoole/sq/issues/545) — Array types flattened to CSV text
+  (information loss)

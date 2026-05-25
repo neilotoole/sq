@@ -146,10 +146,10 @@ count
 
 ## Override active schema
 
-Similarly, you can override the active [schema](/docs/concepts#schema--catalog) using `--src.schema`. For example,
+Similarly, you can override the active [schema](/docs/concepts#schema--catalog)
+using `--src.schema`. For example,
 let's say you have a Postgres source `@customers`, with a schema for each
 customer. Use `--src.schema=SCHEMA_NAME` to override the active schema:
-
 
 ```shell
 $ sq --src.schema=acme '.orders | count'

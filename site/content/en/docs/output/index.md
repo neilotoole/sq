@@ -55,7 +55,6 @@ it frequently modifies the behavior of other `sq` commands.
 `-v` works with a significant number of `sq` commands. Give it a try.
 It can also be set via [config](/docs/config#verbose).
 
-
 ### header
 
 Some formats optionally display a header row. This is controlled via
@@ -69,8 +68,8 @@ Or set via [config](/docs/config#header). The default is to print the header.
 For some formats, the `--compact` (`-c`) flag prints compact instead of
 pretty-printed output. It can also be set via [config](/docs/config#compact).
 
-JSON is the main use case for `--compact`. This example outputs a query in compact JSON (`-jc`), followed by the same
-query in pretty JSON.
+JSON is the main use case for `--compact`. This example outputs a query in compact JSON (`-jc`),
+followed by the same query in pretty JSON.
 
 ![sq query -jc](sq_query_json_compact.png)
 
@@ -79,7 +78,6 @@ query in pretty JSON.
 Use `--monochrome` (`-M`) flag to output without color. Or set via [config](/docs/config#monochrome).
 
 ![sq query -M](sq_query_monochrome.png)
-
 
 ### datetime
 
@@ -96,7 +94,6 @@ format, such as `%Y/%m/%d %H:%M:%S`.
 Similarly [`--format.date`](/docs/config/#formatdate)
 and [`--format.time`](/docs/config/#formattime) control the rendering of
 date and time values.
-
 
 {{< alert icon="👉" >}}
 Microsoft Excel uses its own format string mechanism,
@@ -136,7 +133,6 @@ compact instead of pretty-printed JSON.
 
 ![sq query --jsonl](sq_query_jsonl.png)
 
-
 <a id="tsv" />
 
 <a id="csv" />
@@ -148,20 +144,17 @@ Its twin `tsv` (`-T`) outputs [Tab-Separated Values](https://en.wikipedia.org/wi
 
 ![sq query csv](sq_query_csv_tsv.png)
 
-
 ### markdown
 
 `markdown` outputs markdown tables.
 
 ![sq query --markdown](sq_query_markdown.png)
 
-
 ### html
 
 `html` outputs a table in a HTML document.
 
 ![sq query --html](sq_query_html.png)
-
 
 ### xml
 
@@ -178,16 +171,19 @@ Its twin `tsv` (`-T`) outputs [Tab-Separated Values](https://en.wikipedia.org/wi
 There are three config options for controlling date/time output.
 Note that these format strings are distinct from [`format.datetime`](https://sq.io/docs/config#formatdatetime)
 and friends, because Excel has its own format string mechanism.
-- [`format.excel.datetime`](/docs/config#formatexceldatetime): Controls datetime format, e.g. `2023-08-03 16:07:01`.
-- [`format.excel.date`](/docs/config#formatexceldatetime): Controls date-only format, e.g. `2023-08-03`.
-- [`format.excel.time`](/docs/config#formatexceldatetime): Controls time-only format, e.g. `4:07 pm`.
+
+- [`format.excel.datetime`](/docs/config#formatexceldatetime): Controls datetime format,
+  e.g. `2023-08-03 16:07:01`.
+- [`format.excel.date`](/docs/config#formatexceldatetime): Controls date-only format,
+  e.g. `2023-08-03`.
+- [`format.excel.time`](/docs/config#formatexceldatetime): Controls time-only format,
+  e.g. `4:07 pm`.
 
 ### yaml
 
 `yaml` (`-y`) outputs YAML.
 
 ![sq query --yaml](sq_query_yaml.png)
-
 
 ### raw
 
@@ -213,8 +209,8 @@ On macOS, a handy trick is to pipe `BLOB` output directly to `Preview.app`.
 ```shell
 $ sq '.images | .data | .[0]' --raw | open -f -a Preview.app
 ```
-{{< /alert >}}
 
+{{< /alert >}}
 
 ## Insert
 
@@ -228,4 +224,3 @@ Inserted 2 rows into @sakila/pg12.actor_import
 ```
 
 ![sq query --insert](sq_query_insert.png)
-

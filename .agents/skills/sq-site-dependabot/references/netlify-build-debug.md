@@ -49,6 +49,7 @@ Read these fields first:
 | `review_id` | PR number when Git-integrated |
 
 Example (**PR #621**): `state: error`, `error_message`:
+<!-- markdownlint-disable-next-line MD013 -->
 `Failed during stage 'Install dependencies': dependency_installation script returned non-zero exit code: 1`
 
 ## 3. Netlify API — build record

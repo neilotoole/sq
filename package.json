@@ -1,0 +1,15 @@
+{
+  "name": "sq-markdownlint",
+  "private": true,
+  "description": "Markdown linting for the sq repository (non-site markdown).",
+  "engines": {
+    "bun": ">=1.2"
+  },
+  "devDependencies": {
+    "markdownlint-cli2": "^0.22.1"
+  },
+  "scripts": {
+    "lint:markdown": "markdownlint-cli2",
+    "lint:markdown-fix": "markdownlint-cli2 --fix"
+  }
+}

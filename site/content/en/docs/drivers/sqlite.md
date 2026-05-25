@@ -42,7 +42,6 @@ $ sq add 'sqlite3://sakila.db?cache=shared&mode=rw'
 The full set of supported parameters can be found in the `mattn/sqlite3`
 [docs](https://github.com/mattn/go-sqlite3#connection-string).
 
-
 ## Create new SQLite DB
 
 You can use `sq` to create a new, empty, SQLite DB file.
@@ -54,7 +53,8 @@ $ sq add --driver sqlite3 hello.db
 
 ## Extensions
 
-The SQLite driver has several [extensions](https://github.com/mattn/go-sqlite3#feature--extension-list) baked in.
+The SQLite driver has several
+[extensions](https://github.com/mattn/go-sqlite3#feature--extension-list) baked in.
 
 {{< alert icon="🐥" >}}
 `sq`'s SQLite extension support is in early access. There is no special handling

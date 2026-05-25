@@ -15,4 +15,3 @@ See the [config](/docs/config) section for an overview of `sq` configuration.
 ## Reference
 
 {{< readfile file="config-location.help.txt" code="true" lang="text" >}}
-

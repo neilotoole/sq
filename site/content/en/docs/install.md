@@ -65,7 +65,10 @@ brew install sq
 ```
 
 {{< alert icon="👉" >}}
-`sq` is now a [core brew formula](https://formulae.brew.sh/formula/sq#default). Previously, `sq` was available via `brew install neilotoole/sq/sq`. If you have installed `sq` this way, you should uninstall it (`brew uninstall neilotoole/sq/sq`) before installing the new formula via `brew install sq`.
+`sq` is now a [core brew formula](https://formulae.brew.sh/formula/sq#default). Previously,
+`sq` was available via `brew install neilotoole/sq/sq`. If you have installed `sq` this way,
+you should uninstall it (`brew uninstall neilotoole/sq/sq`) before installing the new formula
+via `brew install sq`.
 {{< /alert >}}
 
 ## Windows
