@@ -82,7 +82,35 @@ jobs:
           fail_ci_if_error: false
 
 
-  test-windows:
+  test-windows-smoke:
+    # Fast Windows check for the draft-PR dev loop: compile everything (catches
+    # CGO/SQLite breakage) and run only the focused smoke suite.
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == true
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Build
+        run: go build -tags '${{ env.BUILD_TAGS }}' -v ./...
+
+      - name: Smoke tests
+        run: go test -tags '${{ env.BUILD_TAGS }}' -timeout 10m -v ./test/smoke/...
+
+  test-windows-full:
+    # Full Windows suite. Runs on Ready (non-draft) PRs, master merges,
+    # release tags, and the nightly schedule.
+    if: >-
+      (github.event_name == 'pull_request' && github.event.pull_request.draft == false)
+      || (github.event_name == 'push' && github.ref == 'refs/heads/master')
+      || startsWith(github.ref, 'refs/tags/v')
+      || github.event_name == 'schedule'
+      || github.event_name == 'workflow_dispatch'
     runs-on: windows-2022
     steps:
     # Copied from https://github.com/mattn/go-sqlite3/blob/master/.github/workflows/go.yaml#L73
@@ -96,7 +124,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v6
       with:
-        fetch-depth: 0
+        fetch-depth: 1
 
     - name: Set up Go
       uses: actions/setup-go@v6
@@ -119,7 +147,7 @@ jobs:
 
         # We send the Go test output to a file, so that "tparse" can
         # render pretty output below.
-        go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json -cover ./... > gotest.out.json
+        go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json ./... > gotest.out.json
 
     - name: 'Test output'
       if: always()
@@ -297,7 +325,7 @@ jobs:
     needs:
       - lint
       - test-nix
-      - test-windows
+      - test-windows-full
       - binaries-darwin
       - binaries-linux-amd64
       - binaries-linux-arm64
