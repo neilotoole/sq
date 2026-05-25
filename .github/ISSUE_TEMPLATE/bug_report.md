@@ -7,18 +7,19 @@ assignees: ''
 
 ---
 
-**Describe the bug**
+## Describe the bug
+
 A clear and concise description of what the bug is.
 
-**To Reproduce**
+## To Reproduce
 
 Steps to reproduce the behavior.
 
-**Expected behavior**
+## Expected behavior
 
 A clear and concise description of what you expected to happen.
 
-**`sq` version**
+## `sq` version
 
 Paste the output of `sq version --yaml` into the code block below:
 
@@ -38,7 +39,7 @@ host:
   variant_version: "13.4"
 ```
 
-**Source details**
+## Source details
 
 If your issue pertains to a particular source (e.g. a Postgres database),
 paste the output of `sq inspect --overview --yaml @your_source` into the
@@ -60,7 +61,7 @@ user: sakila
 size: 17359727
 ```
 
-**Logs**
+## Logs
 
 If appropriate, attach your `sq` [log file](https://sq.io/docs/config/#logging).
 
@@ -69,10 +70,10 @@ The exception is if you know for sure that only a particular snippet of
 the log file is relevant: then you can paste that short snippet. Be sure
 to enclose it in a code block.
 
-**Screenshots**
+## Screenshots
 
 If applicable, add screenshots to help explain your problem.
 
-**Additional context**
+## Additional context
 
 Add any other context about the problem here.

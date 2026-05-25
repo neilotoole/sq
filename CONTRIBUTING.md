@@ -16,7 +16,10 @@ add`, or copy `.agents/skills` under `.claude/skills`.
 
 ## Documentation site (`site/`)
 
-The [sq.io](https://sq.io) website is a [Hugo](https://gohugo.io) project in [`site/`](./site/). From `site/`, use **`make`** for the usual workflow (`make deps`, `make site-local`, `make site-test`, `make site-build`, or `make ci` to match CI). Bun equivalents are in [`site/README.md`](./site/README.md).
+The [sq.io](https://sq.io) website is a [Hugo](https://gohugo.io) project in
+[`site/`](./site/). From `site/`, use **`make`** for the usual workflow (`make deps`,
+`make site-local`, `make site-test`, `make site-build`, or `make ci` to match CI). Bun
+equivalents are in [`site/README.md`](./site/README.md).
 
 If you are changing anything under `site/`, read [`site/README.md`](./site/README.md)
 first: it explains the **stable** vs **full** link-check split, what PR CI blocks
@@ -38,11 +41,19 @@ Prior history remains in the archived `sq-web` repository.
 
 ### Branch protection / rulesets (maintainers)
 
-Configure [**repository rulesets**](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets) so that pull requests touching **`site/**`** require the **Site CI** check (`site-ci.yml`), without requiring that check on Go-only PRs (path-scoped rules, or equivalent). Plain “required status” lists interact badly with workflows that use `paths` filters and do not run on every PR.
+Configure [**repository rulesets**][rulesets] so that pull requests touching **`site/**`**
+require the **Site CI** check (`site-ci.yml`), without requiring that check on Go-only PRs
+(path-scoped rules, or equivalent). Plain “required status” lists interact badly with
+workflows that use `paths` filters and do not run on every PR.
+
+[rulesets]: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets
 
 ### Netlify (maintainers)
 
-Production hosting for sq.io is on Netlify. After the monorepo migration, the Netlify site should use repository **`neilotoole/sq`**, **base directory** `site`, and the existing [`site/netlify.toml`](./site/netlify.toml). Re-link the repo in Netlify if needed; confirm deploy previews and the `/version` function.
+Production hosting for sq.io is on Netlify. After the monorepo migration, the Netlify site
+should use repository **`neilotoole/sq`**, **base directory** `site`, and the existing
+[`site/netlify.toml`](./site/netlify.toml). Re-link the repo in Netlify if needed; confirm
+deploy previews and the `/version` function.
 
 ## Tooling
 
