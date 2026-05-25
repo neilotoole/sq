@@ -49,9 +49,18 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   You can set the new config option [`error.format.text.verbose`](https://sq.io/docs/config#errorformattextverbose)
   to `false` if you prefer the previous (less-verbose) `text` error format.
   ![sq text error reporting: verbose vs. summary](site/static/images/repo/sq_error_reporting_options.png)
+- [#617], [#618]: `sq inspect` now omits an index whose key positions are
+  *all* expressions (previously MySQL and SQLite reported such an index
+  with an empty `columns` list).
 
 ### Fixed
 
+- [#617], [#618]: `sq inspect` now preserves the true key arity and
+  position of indexes that contain functional/expression keys. A key
+  like `lower(b)` in `CREATE INDEX ix ON t (a, lower(b), c)` is reported
+  as an empty-string entry in the index's `columns`, so it is no longer
+  indistinguishable from a real two-column `(a, c)`. Applies to SQLite,
+  DuckDB, MySQL, and Postgres.
 - [#612]: DuckDB [`INTERVAL`](https://sq.io/docs/drivers/duckdb) values now
   render in DuckDB's native, round-trippable text form (e.g.
   `1 year 2 months 3 days 04:05:06.789`) instead of the previous ad-hoc
@@ -133,7 +142,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   [inspect docs](https://sq.io/docs/cmd/inspect).
 - [#602]: [`sq`](https://sq.io/docs/cmd/sq) now features a [`--render-sql`](https://sq.io/docs/cmd/sq/#render-sql)
   flag, which prints the SQL (derived from `SLQ` input) that would be
-  executed against the target database, _instead_ of running it. Honors `--format` with:
+  executed against the target database, *instead* of running it. Honors `--format` with:
   - `text` or `raw`: the rendered SQL is printed.
   - `json` or `yaml`: a structured payload is printed containing the
     original SLQ, the rendered SQL, any [`--arg`](https://sq.io/docs/cmd/sq/#predefined-variables),
@@ -690,8 +699,8 @@ you encounter any weirdness.
 
 - The  `--exec` and `--query` flags for [`sq sql`](https://sq.io/docs/cmd/sql) were removed in
   the preceding release ([v0.43.1]).
-  That was probably a bit hasty, especially because it's possible those flags _could_ be reintroduced
-  when the _query vs exec_ situation is figured out. So, those two flags are now restored, in
+  That was probably a bit hasty, especially because it's possible those flags *could* be reintroduced
+  when the *query vs exec* situation is figured out. So, those two flags are now restored, in
   that their use won't cause an error, but they've been hidden from command help, and remain no-op.
 
 ## [v0.43.1] - 2023-11-19
@@ -1589,6 +1598,8 @@ make working with lots of sources much easier.
 [#612]: https://github.com/neilotoole/sq/issues/612
 [#613]: https://github.com/neilotoole/sq/issues/613
 [#615]: https://github.com/neilotoole/sq/issues/615
+[#617]: https://github.com/neilotoole/sq/issues/617
+[#618]: https://github.com/neilotoole/sq/issues/618
 [#628]: https://github.com/neilotoole/sq/issues/628
 [#629]: https://github.com/neilotoole/sq/issues/629
 [#630]: https://github.com/neilotoole/sq/issues/630

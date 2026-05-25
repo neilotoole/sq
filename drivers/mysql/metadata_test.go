@@ -10,8 +10,12 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestKindFromDBTypeName(t *testing.T) {
@@ -112,4 +116,44 @@ func TestGetTableRowCounts(t *testing.T) {
 	require.Len(t, counts, 2)
 	require.Equal(t, int64(sakila.TblActorCount), counts[sakila.TblActor])
 	require.Equal(t, int64(sakila.TblFilmCount), counts[sakila.TblFilm])
+}
+
+// TestIndexes_ExpressionArity_MySQL verifies that MySQL 8 functional
+// index keys (COLUMN_NAME NULL in INFORMATION_SCHEMA.STATISTICS) are
+// preserved as empty-string sentinels, keeping composite arity/position.
+func TestIndexes_ExpressionArity_MySQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.My) // sakila.My == MySQL 8 (functional indexes)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("idx_arity")
+	_, err := db.ExecContext(th.Context,
+		"CREATE TABLE "+tbl+" (a INT, b VARCHAR(64), c INT)")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+
+	_, err = db.ExecContext(th.Context,
+		"CREATE INDEX ix_mixed ON "+tbl+" (a, (LOWER(b)), c)")
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context,
+		"CREATE INDEX ix_allexpr ON "+tbl+" ((LOWER(b)))")
+	require.NoError(t, err)
+
+	md, err := th.Open(src).TableMetadata(th.Context, tbl)
+	require.NoError(t, err)
+
+	var mixed *metadata.Index
+	for _, idx := range md.Indexes {
+		require.NotEqual(t, "ix_allexpr", idx.Name,
+			"an all-expression index must be omitted")
+		if idx.Name == "ix_mixed" {
+			mixed = idx
+		}
+	}
+	require.NotNil(t, mixed, "ix_mixed should be reported")
+	require.Equal(t, []string{"a", "", "c"}, mixed.Columns,
+		"the (LOWER(b)) key position must be the empty-string sentinel")
 }

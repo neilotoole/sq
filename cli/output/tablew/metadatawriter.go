@@ -391,6 +391,12 @@ func indexEntriesByColumn(tbl *metadata.Table) map[string][]indexEntry {
 		}
 		entry := indexEntry{name: idx.Name, backing: isUCBacking[idx]}
 		for _, colName := range idx.Columns {
+			if colName == "" {
+				// Expression key position (sentinel): no real column to
+				// attach to. The column-oriented text view can't show
+				// expression keys; JSON/YAML carry the full arity.
+				continue
+			}
 			out[colName] = append(out[colName], entry)
 		}
 	}

@@ -145,6 +145,20 @@ func TestIndexRows(t *testing.T) {
 	}, rows[2])
 }
 
+func TestIndexRows_OmitsExpressionSentinel(t *testing.T) {
+	tbl := &metadata.Table{
+		Name: "t",
+		Indexes: []*metadata.Index{
+			{Name: "ix_mixed", Columns: []string{"a", "", "c"}},
+		},
+	}
+
+	rows := commonw.IndexRows(tbl)
+	require.Len(t, rows, 1)
+	require.Equal(t, "a, c", rows[0].Columns,
+		"expression-key sentinels must be omitted from the joined column string")
+}
+
 func TestUCRows(t *testing.T) {
 	require.Nil(t, commonw.UCRows(nil))
 	require.Nil(t, commonw.UCRows(&metadata.Table{Name: "t"}))

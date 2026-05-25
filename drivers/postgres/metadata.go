@@ -873,9 +873,10 @@ func pgIndexHasIndnkeyatts(ctx context.Context, db sqlz.DB) (bool, error) {
 // pg_index.indkey is an int2vector of column attnums; unnest() WITH
 // ORDINALITY preserves the original key order when joining to
 // pg_attribute. Functional/expression indexes contribute rows with
-// attnum=0 (not present in pg_attribute) — those positions are skipped,
-// so an index that mixes columns and expressions appears with just the
-// direct column references.
+// attnum=0 (not present in pg_attribute); the LEFT JOIN yields a NULL
+// attname for those positions, which is stored as the empty-string
+// sentinel so Index.Columns preserves key arity. Indexes whose every
+// key position is an expression are omitted entirely.
 //
 // INCLUDE columns (Postgres 11+) are stored after the key columns in
 // indkey; restricting to ord <= ix.indnkeyatts keeps Index.Columns as
@@ -919,7 +920,7 @@ JOIN pg_class            AS t    ON t.oid = ix.indrelid
 JOIN pg_namespace        AS ns   ON ns.oid = c.relnamespace
 JOIN pg_am               AS am   ON am.oid = c.relam
 JOIN LATERAL unnest(ix.indkey::int2[]) WITH ORDINALITY AS k(attnum, ord) ON TRUE
-JOIN pg_attribute        AS attr ON attr.attrelid = t.oid AND attr.attnum = k.attnum
+LEFT JOIN pg_attribute   AS attr ON attr.attrelid = t.oid AND attr.attnum = k.attnum
 WHERE ns.nspname = current_schema()
   AND t.relkind IN ('r', 'p', 'm')
   AND ix.indisvalid` + keyOnlyFilter + `
@@ -947,9 +948,10 @@ WHERE ns.nspname = current_schema()
 		debugz.DebugSleep(ctx)
 
 		var (
-			tableName, indexName, indexType, columnName string
-			isUnique, isPrimary                         bool
-			ordinalPosition                             int64
+			tableName, indexName, indexType string
+			columnName                      sql.NullString
+			isUnique, isPrimary             bool
+			ordinalPosition                 int64
 		)
 		if err = rows.Scan(&tableName, &indexName, &isUnique, &isPrimary,
 			&indexType, &columnName, &ordinalPosition); err != nil {
@@ -968,9 +970,26 @@ WHERE ns.nspname = current_schema()
 			byKey[k] = idx
 			indexes = append(indexes, idx)
 		}
-		idx.Columns = append(idx.Columns, columnName)
+		// attnum=0 in pg_index.indkey marks an expression key position;
+		// the LEFT JOIN yields a NULL attname there. Record the
+		// empty-string sentinel (columnName.String == "") so Columns
+		// preserves the index's key arity. See metadata.Index.Columns.
+		idx.Columns = append(idx.Columns, columnName.String)
 	}
-	return indexes, errw(rows.Err())
+	if err := rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+	// Omit indexes whose key positions are all expressions.
+	kept := indexes[:0]
+	for _, idx := range indexes {
+		if metadata.AllExpressionKeys(idx.Columns) {
+			log.Debug("postgres: dropping index with only expression keys",
+				"table", idx.Table, "index", idx.Name)
+			continue
+		}
+		kept = append(kept, idx)
+	}
+	return kept, nil
 }
 
 // getPgForeignKeys returns the outgoing foreign-key constraints in the
