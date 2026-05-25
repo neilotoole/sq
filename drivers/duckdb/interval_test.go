@@ -94,3 +94,38 @@ func TestFormatInterval_MinInt64(t *testing.T) {
 	require.True(t, strings.HasPrefix(got, "-"), "want negative sign, got %q", got)
 	require.Equal(t, 2, strings.Count(got, ":"), "want HH:MM:SS shape, got %q", got)
 }
+
+// TestFormatInterval_RoundTrip asserts that a rendered interval string can
+// be re-ingested by DuckDB to produce the identical interval value.
+func TestFormatInterval_RoundTrip(t *testing.T) {
+	db, err := sql.Open("duckdb", "")
+	require.NoError(t, err)
+	defer func() { require.NoError(t, db.Close()) }()
+
+	exprs := []string{
+		"INTERVAL '1 year 2 months 3 days 4 hours 5 minutes 6.789 seconds'",
+		"INTERVAL '-25 months'",
+		"INTERVAL '1 month -2 days'",
+		"INTERVAL '-1 day -12 hours'",
+		"INTERVAL '1 month -3 hours 30 minutes'",
+		"INTERVAL '1000000 seconds'",
+		"INTERVAL '0.000003 seconds'",
+		"INTERVAL '0 seconds'",
+	}
+
+	for _, expr := range exprs {
+		t.Run(expr, func(t *testing.T) {
+			var orig duckdbdriver.Interval
+			require.NoError(t, db.QueryRow("SELECT "+expr).Scan(&orig))
+
+			rendered := duckdb.FormatInterval(orig)
+
+			var got duckdbdriver.Interval
+			require.NoError(t,
+				db.QueryRow("SELECT CAST(? AS INTERVAL)", rendered).Scan(&got),
+				"rendered=%q did not re-parse", rendered)
+
+			require.Equal(t, orig, got, "round-trip mismatch for rendered=%q", rendered)
+		})
+	}
+}
