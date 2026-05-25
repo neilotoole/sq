@@ -14,6 +14,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestSmoke(t *testing.T) {
@@ -109,6 +110,52 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 			require.Equal(t, 0, len(b), "b should be non-nil but zero length")
 		})
 	}
+}
+
+// TestSourceMetadata_ScopedToCurrentSchema verifies that source-level
+// inspect returns only tables in the source's current schema, not tables
+// from other schemas that the connected user happens to be able to see.
+// This is a regression test for issue #613.
+// See: https://github.com/neilotoole/sq/issues/613
+func TestSourceMetadata_ScopedToCurrentSchema(t *testing.T) {
+	// Deliberately not parallel: this runs a full source-level inspect
+	// (many concurrent per-table metadata queries) and creates/drops a
+	// schema. Running it in the sequential phase keeps it from deadlocking
+	// against the DDL performed by the parallel tests in this package.
+	tu.SkipShort(t, true)
+
+	th, _, drvr, grip, db := testh.NewWith(t, sakila.MS)
+	ctx := th.Context
+
+	// Create a second schema and copy dbo.actor into it under the SAME
+	// name. getAllTables must be scoped to the source's current schema
+	// (dbo); otherwise it returns "actor" twice (once per schema), and the
+	// per-table metadata for both rows collides on the bare table name,
+	// yielding a duplicate "actor" entry in the source metadata.
+	otherSchema := "gh613_" + stringz.Uniq8()
+	require.NoError(t, drvr.CreateSchema(ctx, db, otherSchema))
+	t.Cleanup(func() {
+		assert.NoError(t, drvr.DropSchema(ctx, db, otherSchema))
+	})
+
+	destTblFQ := tablefq.T{Schema: otherSchema, Table: sakila.TblActor}
+	srcTblFQ := tablefq.From(sakila.TblActor)
+	_, err := drvr.CopyTable(ctx, db, srcTblFQ, destTblFQ, true)
+	require.NoError(t, err, "CopyTable into other schema should succeed")
+
+	md, err := grip.SourceMetadata(ctx, false)
+	require.NoError(t, err)
+	require.Equal(t, "dbo", md.Schema)
+
+	var actorCount int
+	for _, name := range md.TableNames() {
+		if name == sakila.TblActor {
+			actorCount++
+		}
+	}
+	require.Equal(t, 1, actorCount,
+		"source-level inspect must return tables only from the current schema, "+
+			"so %q must appear exactly once", sakila.TblActor)
 }
 
 // TestNumericSchema tests that numeric and numeric-prefixed schema names

@@ -149,7 +149,7 @@ GROUP BY database_id) AS total_size_bytes`
 		return md, nil
 	}
 
-	tblNames, tblTypes, err := getAllTables(ctx, db)
+	tblNames, tblTypes, err := getAllTables(ctx, db, schema)
 	if err != nil {
 		return nil, err
 	}
@@ -723,15 +723,19 @@ ORDER BY parent_t.name, fk.name, fkc.constraint_column_id`
 }
 
 // getAllTables returns all of the table names, and the table types
-// (i.e. "BASE TABLE" or "VIEW").
-func getAllTables(ctx context.Context, db sqlz.DB) (tblNames, tblTypes []string, err error) {
+// (i.e. "BASE TABLE" or "VIEW") in the given schema. The query is scoped to
+// tblSchema because the connected user typically sees tables across multiple
+// schemas (at minimum dbo + INFORMATION_SCHEMA); without the filter, tables
+// outside the source's current schema leak into source-level inspect, and
+// same-named tables across schemas collide on the bare table name. See #613.
+func getAllTables(ctx context.Context, db sqlz.DB, tblSchema string) (tblNames, tblTypes []string, err error) {
 	log := lg.FromContext(ctx)
 
 	const query = `SELECT TABLE_NAME, TABLE_TYPE FROM INFORMATION_SCHEMA.TABLES
-WHERE TABLE_TYPE='BASE TABLE' OR TABLE_TYPE='VIEW'
+WHERE TABLE_SCHEMA = @p1 AND (TABLE_TYPE = 'BASE TABLE' OR TABLE_TYPE = 'VIEW')
 ORDER BY TABLE_NAME ASC, TABLE_TYPE ASC`
 
-	rows, err := db.QueryContext(ctx, query)
+	rows, err := db.QueryContext(ctx, query, tblSchema)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -48,6 +48,15 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [#613]: [`sq inspect`](https://sq.io/docs/inspect) of a SQL Server source no
+  longer returns tables from schemas other than the source's current schema.
+  - `getAllTables` queried `INFORMATION_SCHEMA.TABLES` without a `TABLE_SCHEMA`
+    filter, so source-level inspect returned every table the connected user
+    could see (e.g. `dbo` plus any other schema). Cross-schema tables surfaced
+    with empty foreign-key / unique-constraint / index metadata, and a
+    same-named table in another schema collided with the real one on its bare
+    name. The query is now scoped to the current schema, as the Postgres,
+    Oracle, and DuckDB drivers already scope theirs.
 - [#471]: The SQLite driver no longer fails with `unsupported Scan, storing
   driver.Value type string into type *time.Time` when a `DATETIME`/`DATE`
   column stores text that `mattn/go-sqlite3` doesn't natively convert — most
@@ -1538,6 +1547,7 @@ make working with lots of sources much easier.
 [#572]: https://github.com/neilotoole/sq/pull/572
 [#601]: https://github.com/neilotoole/sq/issues/601
 [#602]: https://github.com/neilotoole/sq/pull/602
+[#613]: https://github.com/neilotoole/sq/issues/613
 [#615]: https://github.com/neilotoole/sq/issues/615
 [#628]: https://github.com/neilotoole/sq/issues/628
 [#629]: https://github.com/neilotoole/sq/issues/629
