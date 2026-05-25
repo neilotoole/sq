@@ -45,9 +45,18 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   You can set the new config option [`error.format.text.verbose`](https://sq.io/docs/config#errorformattextverbose)
   to `false` if you prefer the previous (less-verbose) `text` error format.
   ![sq text error reporting: verbose vs. summary](site/static/images/repo/sq_error_reporting_options.png)
+- `sq inspect` now omits an index whose key positions are *all*
+  expressions (previously MySQL and SQLite reported such an index with
+  an empty `columns` list).
 
 ### Fixed
 
+- [#617], [#618]: `sq inspect` now preserves the true key arity and
+  position of indexes that contain functional/expression keys. A key
+  like `lower(b)` in `CREATE INDEX ix ON t (a, lower(b), c)` is reported
+  as an empty-string entry in the index's `columns`, so it is no longer
+  indistinguishable from a real two-column `(a, c)`. Applies to SQLite,
+  DuckDB, MySQL, and Postgres.
 - [#613]: [`sq inspect`](https://sq.io/docs/inspect) of a SQL Server source no
   longer returns tables from schemas other than the source's current schema.
   - `getAllTables` queried `INFORMATION_SCHEMA.TABLES` without a `TABLE_SCHEMA`
@@ -1549,6 +1558,8 @@ make working with lots of sources much easier.
 [#602]: https://github.com/neilotoole/sq/pull/602
 [#613]: https://github.com/neilotoole/sq/issues/613
 [#615]: https://github.com/neilotoole/sq/issues/615
+[#617]: https://github.com/neilotoole/sq/issues/617
+[#618]: https://github.com/neilotoole/sq/issues/618
 [#628]: https://github.com/neilotoole/sq/issues/628
 [#629]: https://github.com/neilotoole/sq/issues/629
 [#630]: https://github.com/neilotoole/sq/issues/630
