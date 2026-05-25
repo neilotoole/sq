@@ -15,6 +15,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/ioz"
@@ -62,6 +63,13 @@ func TestWindowsSmoke(t *testing.T) {
 	})
 
 	t.Run("dirs", func(t *testing.T) {
+		// Keep this hermetic: pin the env vars that config/cache resolution
+		// consults to known absolute temp paths, so an ambient (possibly
+		// relative) SQ_CONFIG or XDG_CACHE_HOME can't skew the result.
+		tmp := t.TempDir()
+		t.Setenv(config.EnvarConfig, filepath.Join(tmp, "config"))
+		t.Setenv("XDG_CACHE_HOME", filepath.Join(tmp, "cache"))
+
 		cfgDir, _, err := yamlstore.ConfigDir(nil)
 		require.NoError(t, err)
 		require.NotEmpty(t, cfgDir)
