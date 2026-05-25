@@ -42,6 +42,8 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
+          # Excludes generated examples (vendored minified JS); see config file.
+          config-file: ./.github/codeql/codeql-site-config.yml
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v4

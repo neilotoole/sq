@@ -12,7 +12,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@master
+        uses: Homebrew/actions/setup-homebrew@6eaeff80e7e5c43087c0e5eb5aa82120399e9c91 # master
 
       - name: Test brew
         shell: bash
@@ -174,7 +174,7 @@ jobs:
     steps:
       - name: Set up Homebrew
         id: set-up-homebrew
-        uses: Homebrew/actions/setup-homebrew@master
+        uses: Homebrew/actions/setup-homebrew@6eaeff80e7e5c43087c0e5eb5aa82120399e9c91 # master
 
       - name: Test install via brew
         shell: bash

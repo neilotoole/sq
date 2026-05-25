@@ -61,7 +61,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: always()
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6
         with:
           files: ./coverage.out
           flags: ${{ matrix.os }}
@@ -140,7 +140,7 @@ jobs:
           go-version-file: go.mod
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9
+        uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee # v9
         with:
           skip-cache: true
           install-mode: 'binary'
@@ -163,7 +163,7 @@ jobs:
           go-version-file: go.mod
 
       - name: GoReleaser (build darwin binaries)
-        uses: goreleaser/goreleaser-action@v7
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -194,7 +194,7 @@ jobs:
           go-version-file: go.mod
 
       - name: GoReleaser (build linux-amd64 binaries)
-        uses: goreleaser/goreleaser-action@v7
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -230,7 +230,7 @@ jobs:
           sudo apt install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
       - name: GoReleaser (build linux-arm64 binaries)
-        uses: goreleaser/goreleaser-action@v7
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -262,7 +262,7 @@ jobs:
           go-version-file: go.mod
 
       - name: GoReleaser (build windows binaries)
-        uses: goreleaser/goreleaser-action@v7
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -326,7 +326,7 @@ jobs:
 
 
       - name: GoReleaser (publish)
-        uses: goreleaser/goreleaser-action@v7
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
