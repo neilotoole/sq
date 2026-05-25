@@ -59,6 +59,11 @@ func TestAlias_ReservedWordApplied(t *testing.T) {
 		{"join-table", `@sakila | .actor | join(.film_actor:count, .actor.actor_id == .film_actor.actor_id)`},
 		{"expr-element", `@sakila | .actor | (1+2):count`},
 		{"func", `@sakila | .actor | sum(.actor_id):count`},
+		// count is special-cased in the grammar (VisitCountFunc) and was the
+		// original motivation for the removed reserved-word hack, so cover
+		// both the bare and parenthesized forms explicitly.
+		{"func-count-bare", `@sakila | .actor | count:count`},
+		{"func-count-paren", `@sakila | .actor | count(.first_name):count`},
 	}
 
 	for _, tc := range testCases {
@@ -68,8 +73,14 @@ func TestAlias_ReservedWordApplied(t *testing.T) {
 			log := lgt.New(t)
 			ast, err := Parse(log, tc.in)
 			require.NoError(t, err)
-			require.Contains(t, collectAliases(ast), "count",
-				"alias %q should be applied for %q", "count", tc.in)
+			// Exact match, not Contains: every test query carries exactly one
+			// alias (the one under test), so asserting the whole slice equals
+			// ["count"] catches a dropped alias (empty slice), the previously
+			// observed expr mangling (e.g. "(1+2):count"), and the count()
+			// default-alias tautology (a bare count defaults its alias to
+			// "count", which a presence check would not distinguish).
+			require.Equal(t, []string{"count"}, collectAliases(ast),
+				"%q should be the only alias, exactly %q", tc.in, "count")
 		})
 	}
 }

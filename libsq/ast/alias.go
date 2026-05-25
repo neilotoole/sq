@@ -15,7 +15,7 @@ import (
 // The shapes are:
 //
 //   - ID: e.g. ":given_name" yields "given_name".
-//   - STRING: e.g. a double-quoted ":<...>" yields the unquoted text.
+//   - STRING: e.g. the quoted form :"given name" yields "given name".
 //   - ALIAS_RESERVED: e.g. ":count" yields "count". ALIAS_RESERVED is a
 //     pre-baked ":keyword" token (e.g. ":count") that the grammar uses to
 //     work around the lexer otherwise tokenizing the keyword; the leading
