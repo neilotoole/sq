@@ -1,7 +1,6 @@
 package duckdb
 
 import (
-	"math"
 	"strconv"
 	"strings"
 
@@ -59,26 +58,24 @@ func pluralUnit(n int64, unit string) string {
 // microsecond remainder written with up to six digits and trailing zeros
 // trimmed, and is omitted entirely when zero.
 func formatIntervalTime(micros int64) string {
-	sign := ""
-	if micros < 0 {
-		sign = "-"
-		if micros == math.MinInt64 {
-			// Negating math.MinInt64 overflows int64, so clamp to MaxInt64.
-			// This is 1 microsecond short of the true magnitude, a value no
-			// real DuckDB interval reaches.
-			micros = math.MaxInt64
-		} else {
-			micros = -micros
-		}
-	}
-
+	// Decompose on the signed value: Go integer division truncates toward
+	// zero, so each component inherits micros' sign. Magnitudes are then
+	// displayed under a single leading sign. This never negates micros
+	// itself (which would overflow for math.MinInt64); no component can
+	// reach math.MinInt64 (|hours| <= ~2.6e9, |mins|,|s| < 60, |frac| < 1e6),
+	// so negating each is always safe and exact.
 	const usPerSec = 1_000_000
 	secs := micros / usPerSec
 	frac := micros % usPerSec
-
 	hours := secs / 3600
 	mins := (secs % 3600) / 60
 	s := secs % 60
+
+	sign := ""
+	if micros < 0 {
+		sign = "-"
+		hours, mins, s, frac = -hours, -mins, -s, -frac
+	}
 
 	var b strings.Builder
 	b.WriteString(sign)

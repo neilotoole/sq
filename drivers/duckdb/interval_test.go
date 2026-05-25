@@ -86,16 +86,15 @@ func TestFormatInterval_OracleCrossCheck(t *testing.T) {
 }
 
 // TestFormatInterval_MinInt64 guards against int64 negation overflow: the
-// magnitude of math.MinInt64 micros must not wrap to a bogus positive value.
-// The formatter clamps math.MinInt64 to math.MaxInt64 (1µs short of the true
-// magnitude, a value no real DuckDB interval reaches), so the output is exact
-// and deterministic.
+// magnitude of math.MinInt64 micros must be rendered exactly, not wrapped to
+// a bogus value. The formatter decomposes on the signed value, so the output
+// is exact and deterministic.
 func TestFormatInterval_MinInt64(t *testing.T) {
 	var got string
 	require.NotPanics(t, func() {
 		got = duckdb.FormatInterval(duckdbdriver.Interval{Micros: math.MinInt64})
 	})
-	require.Equal(t, "-2562047788:00:54.775807", got)
+	require.Equal(t, "-2562047788:00:54.775808", got)
 }
 
 // TestFormatInterval_RoundTrip asserts that a rendered interval string can
