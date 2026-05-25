@@ -45,7 +45,7 @@ INSERT INTO type_test VALUES (
     1.5, 2.5, 3.1415,
     'hello', '\x01\x02'::BLOB,
     DATE '2026-05-11', TIME '12:34:56', TIMESTAMP '2026-05-11 12:34:56', TIMESTAMPTZ '2026-05-11 12:34:56+00',
-    INTERVAL 1 DAY,
+    INTERVAL '1 year 2 months 3 days 4 hours 5 minutes 6.789 seconds',
     '12345678-1234-5678-1234-567812345678'::UUID,
     '{"a":1}',
     [10, 20, 30],

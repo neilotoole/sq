@@ -117,7 +117,7 @@ the list above covers the parameters most commonly used from the CLI.
 | `DATE`                                                    | `date`     |                                                                                                          |
 | `TIME`, `TIME WITH TIME ZONE`                             | `time`     |                                                                                                          |
 | `TIMESTAMP`, `TIMESTAMP_S/MS/NS`, `TIMESTAMPTZ`           | `datetime` |                                                                                                          |
-| `INTERVAL`                                                | `text`     | `"<months> months <days> days <micros> μs"` (see [#612](https://github.com/neilotoole/sq/issues/612)).   |
+| `INTERVAL`                                                | `text`     | DuckDB's native text form; typed kinds tracked in [#681](https://github.com/neilotoole/sq/issues/681).   |
 | `UUID`                                                    | `text`     | Hex-dash form.                                                                                           |
 | `JSON`                                                    | `text`     | Already JSON.                                                                                            |
 | `LIST` / `ARRAY`                                          | `text`     | Go-style stringification; JSON projection planned ([#609](https://github.com/neilotoole/sq/issues/609)). |

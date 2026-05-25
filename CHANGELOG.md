@@ -61,6 +61,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   as an empty-string entry in the index's `columns`, so it is no longer
   indistinguishable from a real two-column `(a, c)`. Applies to SQLite,
   DuckDB, MySQL, and Postgres.
+- [#612]: DuckDB [`INTERVAL`](https://sq.io/docs/drivers/duckdb) values now
+  render in DuckDB's native, round-trippable text form (e.g.
+  `1 year 2 months 3 days 04:05:06.789`) instead of the previous ad-hoc
+  Go-style `μs` string.
 - [#613]: [`sq inspect`](https://sq.io/docs/inspect) of a SQL Server source no
   longer returns tables from schemas other than the source's current schema.
   - `getAllTables` queried `INFORMATION_SCHEMA.TABLES` without a `TABLE_SCHEMA`
@@ -1591,6 +1595,7 @@ make working with lots of sources much easier.
 [#572]: https://github.com/neilotoole/sq/pull/572
 [#601]: https://github.com/neilotoole/sq/issues/601
 [#602]: https://github.com/neilotoole/sq/pull/602
+[#612]: https://github.com/neilotoole/sq/issues/612
 [#613]: https://github.com/neilotoole/sq/issues/613
 [#615]: https://github.com/neilotoole/sq/issues/615
 [#617]: https://github.com/neilotoole/sq/issues/617
