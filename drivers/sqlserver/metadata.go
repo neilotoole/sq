@@ -737,7 +737,7 @@ ORDER BY TABLE_NAME ASC, TABLE_TYPE ASC`
 
 	rows, err := db.QueryContext(ctx, query, tblSchema)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errw(err)
 	}
 	defer sqlz.CloseRows(log, rows)
 
