@@ -11,7 +11,7 @@ url: /docs/tutorial
 
 This tutorial walks through `sq`'s features.
 
-If you haven't installed `sq`, see [here](/docs/install). If you've already
+If you haven't installed `sq`, see the [install docs](/docs/install). If you've already
 installed `sq`, check that you're on a
 recent version like so:
 
@@ -69,8 +69,9 @@ Let's step through the above:
 
 - `sq ls`: list the current [sources](/docs/source). There are none.
 - `wget`: download a [SQLite](/docs/drivers/sqlite) datafile to use for this demo.
-- `sq add`: add a source. The [_driver type_](/docs/concepts/#driver-type) is [detected](/docs/detect/#driver-type)
-  to be `sqlite3`, and we give this _source_ the handle `@tutorial_db`.
+- `sq add`: add a source. The [_driver type_](/docs/concepts/#driver-type) is
+  [detected](/docs/detect/#driver-type) to be `sqlite3`, and we give this _source_ the
+  handle `@tutorial_db`.
 - `sq ls`: lists the sources again; this time we see our new `@tutorial_db` source.
 - `sq ls -v`: lists the sources yet again, this time [verbosely](/docs/config/#verbose) (`-v`).
 - `sq inspect`: [inspects](/docs/inspect) `@tutorial_db`, showing the structure of the source.
@@ -333,11 +334,13 @@ $ sq ping @film_csv @tutorial_db
 
 ## SQL Sources
 
-Having read this far, you can be forgiven for thinking that `sq` only deals with file formats such as CSV
-or even SQLite, but that is not the case. Let's add some SQL databases.
+Having read this far, you can be forgiven for thinking that `sq` only deals with file formats
+such as CSV or even SQLite, but that is not the case. Let's add some SQL databases.
 
-First we'll do [Postgres](/docs/drivers/postgres); we'll start a pre-built [Sakila](https://dev.mysql.com/doc/sakila/en/sakila-introduction.html)
-database via docker on port (note that it will take a moment for the Postgres container to start up):
+First we'll do [Postgres](/docs/drivers/postgres); we'll start a pre-built
+[Sakila](https://dev.mysql.com/doc/sakila/en/sakila-introduction.html)
+database via docker on port (note that it will take a moment for the Postgres container to
+start up):
 
 ```shell
 $ docker run -d -p 5432:5432 sakiladb/postgres:latest
@@ -374,7 +377,6 @@ $ sq ping @sakila_pg
 @sakila_pg      29ms  pong
 ```
 
-
 Now we'll add and start a MySQL instance of _Sakila_:
 
 ```shell
@@ -396,8 +398,9 @@ actor_id  first_name  last_name  last_update
 
 In addition to JSON, CSV, etc., `sq` can write query results to database tables.
 
-We'll use the `film_category` table as an example: the table is in both `@sakila_pg` and `@sakila_my`. We're going to
-truncate the table in `@sakila_my` and then repopulate via a query against `@sakila_pg`.
+We'll use the `film_category` table as an example: the table is in both `@sakila_pg` and
+`@sakila_my`. We're going to truncate the table in `@sakila_my` and then repopulate via a
+query against `@sakila_pg`.
 
 ```shell
 # First, set the active source to @sakila_my for convenience.
@@ -421,8 +424,9 @@ $ sq tbl copy .film_category .film_category_bak
 Copied table: @sakila_my.film_category --> @sakila_my.film_category_bak (1000 rows copied)
 ```
 
-> Note that the `sq tbl copy` makes use each database's own table copy functionality. Thus `sq tbl copy` can't be used
-> to directly copy a table from one database to another. But `sq` provides a means of doing this, keep reading.
+> Note that the `sq tbl copy` makes use each database's own table copy functionality.
+> Thus `sq tbl copy` can't be used to directly copy a table from one database to another.
+> But `sq` provides a means of doing this, keep reading.
 
 Truncate the `@sakila_my.film_category` table:
 
@@ -435,8 +439,8 @@ count
 0
 ```
 
-The `@sakila_my.film_category` table is now empty. But we can repopulate it via a query against `@sakila_pg`. For this
-example, we'll just do `500` rows.
+The `@sakila_my.film_category` table is now empty. But we can repopulate it via a query
+against `@sakila_pg`. For this example, we'll just do `500` rows.
 
 ```shell
 $ sq '@sakila_pg.film_category | .[0:500]' --insert @sakila_my.film_category

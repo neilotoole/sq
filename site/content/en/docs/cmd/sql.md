@@ -44,7 +44,6 @@ sakila         pg_catalog            pg_statistic_ext_data                  BASE
 [...]
 ```
 
-
 ## Reference
 
 {{< readfile file="sql.help.txt" code="true" lang="text" >}}

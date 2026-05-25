@@ -24,7 +24,6 @@ based upon user feedback. If you find a bug, please open an
 General feedback can be left on the [diff discussion](https://github.com/neilotoole/sq/discussions/238).
 {{< /alert >}}
 
-
 Use flags to specify the elements you want to compare. The available elements are:
 
 - `--overview`: source metadata, without schema (source diff only)
@@ -44,8 +43,8 @@ $ sq diff @sakila/staging @sakila/prod --overview --dbprops --schema
 # Shorthand
 $ sq diff @sakila/staging @sakila/prod -OBS
 ```
-{{< /alert >}}
 
+{{< /alert >}}
 
 ## Default behavior
 
@@ -72,7 +71,6 @@ $ sq diff @sakila/staging @sakila/prod
 
 ![sq diff source default](sq_diff_src_default.png)
 
-
 ## `--data`
 
 To compare row data, use the `--data` (`-d`) flag.
@@ -83,7 +81,6 @@ $ sq diff @sakila/staging.actor @sakila/prod.actor --data
 ```
 
 ![sq diff table data](sq_diff_table_data.png)
-
 
 ### `--stop`
 
@@ -106,7 +103,6 @@ $ sq diff @sakila/staging.actor @sakila/prod.actor --data -n1
 $ sq diff @sakila/staging.actor @sakila/prod.actor --data --stop 0
 ```
 
-
 ### `--format`
 
 Use the `--format` (`-f`) flag with `--data` to specify the row data output format.
@@ -124,12 +120,10 @@ The `--format` flag only works in conjunction with row data diff (`--data`). Met
 diff (e.g. `--schema`) is currently always output in YAML.
 {{< /alert >}}
 
-
 ## `--schema`
 
 Use `--schema` (`-S`) to compare only schema/structure. This applies both
 to source diff and table diff.
-
 
 ```shell
 # Compare the structure of every table/view in staging vs prod.
@@ -183,7 +177,6 @@ large tables.
 $ sq diff @sakila/staging @sakila/prod --all
 ```
 
-
 ## `--unified` (lines)
 
 You can control the number of surrounding lines using the `--unified` (`-U`) flag.
@@ -202,9 +195,7 @@ $ sq diff @sakila/staging.actor @sakila/prod.actor --data -U5
 You can set the default number of lines
 via [`sq config set diff.lines`](/docs/config/#difflines).
 
-
 {{< alert icon="👉" >}}
 The `--unified` flag could easily have been named `--lines` or such, but we
 stick with `--unified` for alignment with the familiar `diff` and `git diff` commands.
 {{< /alert >}}
-

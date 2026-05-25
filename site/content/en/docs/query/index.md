@@ -9,7 +9,7 @@ toc: true
 url: /docs/query
 ---
 
-`sq` implements a [jq ](https://jqlang.github.io/jq/)-style query language, formally
+`sq` implements a [jq](https://jqlang.github.io/jq/)-style query language, formally
 known as [`SLQ`](https://github.com/neilotoole/sq/tree/master/grammar).
 
 Behind the scenes, all `sq` queries execute against a SQL database. This is true even for
@@ -27,7 +27,6 @@ and execute database-native SQL queries using the [`sq sql`](/docs/cmd/sql) comm
 The `sq` query command has many flags. See the [`sq`](/docs/cmd/sq) command reference
 for details.
 {{< /alert >}}
-
 
 ## Fundamentals
 
@@ -103,8 +102,8 @@ $ sq --src.schema inventory.public '.products'
 # Query using the "public" schema of @sakila_pg's "inventory" catalog.
 $ sq --src @sakila_pg --src.schema inventory.public '.products'
 ```
-{{< /alert >}}
 
+{{< /alert >}}
 
 ## Filter results (`where`)
 
@@ -134,7 +133,6 @@ $ sq '.actor | select(.first_name == "TOM")'
 
 For discussion of `where()` vs `select()`, see this [issue](https://github.com/neilotoole/sq/issues/254).
 {{< /alert >}}
-
 
 ## Operators
 
@@ -255,9 +253,11 @@ TLDR: Use [proprietary functions](#proprietary-functions) with caution.
 
 {{< alert icon="👉" >}}
 You can also use the `gb` synonym for brevity.
+
 ```shell
 $ sq '.payment | .customer_id, sum(.amount) | gb(.customer_id)'
 ```
+
 {{< /alert >}}
 
 ### `having`
@@ -324,9 +324,11 @@ $ sq '.actor | sort_by(.first_name)'
 ```
 
 And there's also the `ob` synonym for brevity:
+
 ```shell
 $ sq '.actor | ob(.first_name)'
 ```
+
 {{< /alert >}}
 
 ### `unique`
@@ -346,9 +348,11 @@ SELECT DISTINCT "first_name" FROM "actor"
 
 {{< alert icon="👉" >}}
 You can also use the `uniq` synonym:
+
 ```shell
 $ sq '.actor | .first_name | uniq'
 ```
+
 {{< /alert >}}
 
 ## Row range
@@ -557,8 +561,8 @@ The most terse `sq` query to express this is:
 ```shell
 $ sq '.actor | join(.film_actor, .actor_id) | join(.film, .film_id) | .first_name, .last_name, .title'
 ```
-![sq join actor film_actor film using](sq_query_join_actor_film_actor_film_using.png)
 
+![sq join actor film_actor film using](sq_query_join_actor_film_actor_film_using.png)
 
 The general form of a join is:
 
@@ -1223,16 +1227,19 @@ postgres   information_schema
 
 However, not every driver supports the catalog mechanism fully.
 
-- MySQL treats catalog and schema as somewhat [interchangeable](https://dev.mysql.com/doc/connector-odbc/en/connector-odbc-usagenotes-functionality-catalog-schema.html).
-  It's a mess. But, looking into `INFORMATION_SCHEMA.SCHEMATA`, MySQL lists `CATALOG_NAME` as `def` (for `default`).
-  Thus, with a MySQL source, `catalog()` returns the value of `CATALOG_NAME`, i.e. `def`.
+- MySQL treats catalog and schema as somewhat
+  [interchangeable](https://dev.mysql.com/doc/connector-odbc/en/connector-odbc-usagenotes-functionality-catalog-schema.html).
+  It's a mess. But, looking into `INFORMATION_SCHEMA.SCHEMATA`, MySQL lists `CATALOG_NAME` as
+  `def` (for `default`). Thus, with a MySQL source, `catalog()` returns the value of
+  `CATALOG_NAME`, i.e. `def`.
 - SQLite doesn't support catalogs at all. Nor does it implement `INFORMATION_SCHEMA`. Rather
-  than return `NULL` or an empty string, `sq`'s SQLite driver chooses to implement `catalog()` by returning
-  the string `default`.
+  than return `NULL` or an empty string, `sq`'s SQLite driver chooses to implement `catalog()`
+  by returning the string `default`.
 
 ### `schema`
 
-`schema` returns the default [schema](/docs/concepts#schema--catalog) of the DB connection. See also: [`catalog`](#catalog).
+`schema` returns the default [schema](/docs/concepts#schema--catalog) of the DB connection.
+See also: [`catalog`](#catalog).
 
 ```shell
 # Postgres source
@@ -1245,8 +1252,7 @@ $ sq 'schema()'
 dbo
 ```
 
-
-`schema` honors the `--src.schema` flag, except for [SQL Server]().
+`schema` honors the `--src.schema` flag, except for [SQL Server](/docs/drivers/sqlserver).
 This is because SQL Server does not permit setting the default
 schema on a per-connection basis (it can only be changed per-user). Thus, `schema()`
 always returns the user's default schema, which is typically `dbo`.

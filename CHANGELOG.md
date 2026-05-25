@@ -1,3 +1,7 @@
+<!-- CHANGELOG is hand-maintained release notes: long lines (MD013), tab-aligned
+     pasted command/test output in code blocks (MD010), and many issue-reference
+     link definitions (MD053) are intentional and intrinsic to the format. -->
+<!-- markdownlint-configure-file { "MD013": false, "MD010": false, "MD053": false } -->
 # CHANGELOG
 
 All notable changes to this project will be documented in this file.
@@ -130,6 +134,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   - `json` or `yaml`: a structured payload is printed containing the
     original SLQ, the rendered SQL, any [`--arg`](https://sq.io/docs/cmd/sq/#predefined-variables),
     the dialect and information about the sources that the query touches.
+
     ```yaml
     # $ sq --render-sql --yaml '@sakila/pg.actor | join(@sakila/my.film_actor, .actor_id) | .first_name, .last_name, .film_id | .[0:5]'
     slq: "@sakila/pg.actor | join(@sakila/my.film_actor, .actor_id) | .first_name, .last_name, .film_id | .[0:5]"
@@ -188,7 +193,6 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 [#503]: https://github.com/neilotoole/sq/pull/503
 [v0.50.0]: https://github.com/neilotoole/sq/compare/v0.49.0...v0.50.0
-
 
 ## [v0.49.0] - 2026-02-14
 
@@ -302,6 +306,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   ```plaintext
   $ sq config set tuning.scan-buffer-limit 64MB   # or 1024B, 64KB, 1GB, etc.
   ```
+
   A more useful error message is also now returned when the buffer limit is exceeded
   (the error suggests adjusting `tuning.scan-buffer-limit`).
 
@@ -309,7 +314,6 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 - Renamed config option `tuning.buffer-mem-limit` to [`tuning.buffer-spill-limit`](https://sq.io/docs/config/#tuningbuffer-spill-limit).
   The new name better reflects the purpose of the option.
-
 
 ## [v0.48.4] - 2024-11-24
 
@@ -374,6 +378,7 @@ This release features significant improvements to [`sq diff`](https://sq.io/docs
   count
   215439
   ```
+
   I'm sure that number makes me an amateur with these millenials 👴🏻.
 
   > Note that you'll need to enable macOS [Full Disk Access](https://spin.atomicobject.com/search-imessage-sql/) to read the `chat.db` file.
@@ -403,7 +408,6 @@ This release features significant improvements to [`sq diff`](https://sq.io/docs
 
 - Minor fiddling with the color scheme for some command output.
 
-
 ## [v0.47.4] - 2024-02-09
 
 Patch release with changes to flags.
@@ -431,7 +435,6 @@ release for recent headline features.
   to `stderr`. This was poor default behavior, flooding the user terminal, so the default is now no stack trace.
   To restore the previous behavior, use the new `-E` (`--error.stack`) flag, or set the [`error.stack`](https://sq.io/docs/config#errorstack) config option.
 
-
 ### Changed
 
 - The [`--src.schema`](https://sq.io/docs/source#source-override) flag (as used in [`sq inspect`](https://sq.io/docs/cmd/inspect),
@@ -447,7 +450,6 @@ release for recent headline features.
 - The [`--src.schema`](https://sq.io/docs/source#source-override) flag is now validated. Previously, if you provided a non-existing catalog or schema
   value, `sq` would silently ignore it and use the defaults. This could mislead the user into thinking that
   they were getting valid results from the non-existent catalog or schema. Now an error is returned.
-
 
 ## [v0.47.3] - 2024-02-03
 
@@ -480,7 +482,6 @@ for recent headline features.
 - `sq` was failing to write config when there was no pre-existing config file. This was due to
   a bug in the newly-introduced (as of `v0.47.0`) config locking mechanism. Fixed.
 
-
 ## [v0.47.1] - 2024-01-29
 
 This is a tiny bugfix release for a runtime issue on some Linux distros. See
@@ -491,7 +492,6 @@ for recent headline features.
 
 - `sq` [panicked](https://github.com/neilotoole/sq/actions/runs/7701355729/job/20987599862#step:3:383) on some Linux distros that don't include timezone data (`tzdata`). It's now
   explicitly [imported](https://wawand.co/blog/posts/go-timezonedata-go115/).
-
 
 ## [v0.47.0] - 2024-01-29
 
@@ -603,6 +603,7 @@ you encounter any weirdness.
   # Now
   $ sq '.payment | .customer_id, sum(.amount) | gb(.customer_id) | ob(.customer_id)'
   ```
+
 - [#340]: [`sq inspect`](https://sq.io/docs/cmd/inspect): added flag shorthand `-C`
   for `--catalogs` and `-S` for `--schemata`. These were the only `inspect`
   flags without shorthand.
@@ -653,6 +654,7 @@ you encounter any weirdness.
 
 - [`sq inspect`](https://sq.io/docs/inspect) has two new flags:
   - [`--schemata`](https://sq.io/docs/inspect#schemata): list the source's schemas
+
     ```shell
     $ sq inspect @sakila/pg12 --schemata -y
     - schema: information_schema
@@ -663,7 +665,9 @@ you encounter any weirdness.
       owner: sakila
       active: true
     ```
+
   - [`--catalogs`](https://sq.io/docs/inspect#catalogs): list the source's catalogs
+
     ```shell
     $ sq inspect @sakila/pg12 --catalogs
     CATALOG
@@ -725,7 +729,6 @@ you encounter any weirdness.
 
 - [#308]: Fix to allow build on [32-bit systems](https://github.com/void-linux/void-packages/pull/45023).
   Thanks [@icp](https://github.com/icp1994).
-
 
 ## [v0.42.0] - 2023-08-22
 
@@ -832,7 +835,6 @@ discover anything strange, please [open an issue](https://github.com/neilotoole/
 
 - Fixed bug where source-specific config wasn't being propagated.
 
-
 ## [v0.40.0] - 2023-07-03
 
 This release features a complete overhaul of the [`join`](https://sq.io/docs/query#joins)
@@ -856,10 +858,9 @@ mechanism.
   the join types such as `left_outer_join`, `cross_join`, etc. are
   implemented ([docs](https://sq.io/docs/query#join-types)).
 
-
 ### Changed
 
--  ☢️ [#12]: The table [join](https://sq.io/docs/query#joins) mechanism has been
+- ☢️ [#12]: The table [join](https://sq.io/docs/query#joins) mechanism has been
    completely overhauled. Now there's support for multiple joins. See [docs](https://sq.io/docs/query#joins).
 
    ```shell
@@ -869,6 +870,7 @@ mechanism.
    # Now, an arbitrary number of joins
    $ sq '.actor | join(.film_actor, .actor_id) | join(.film, .film_id)'
    ```
+
 - ☢️ The alias for `--jsonl` (JSON Lines) has been changed to `-J`.
 
 ### Fixed
@@ -889,6 +891,7 @@ mechanism.
 - [#263]: `sq version` now outputs host OS details with `--verbose`, `--json`
   and `--yaml` flags. The motivation behind this is bug submission: we want
   to know which OS/arch the user is on. E.g. for `sq version -j`:
+
 ```json
 {
   "version": "v0.38.1",
@@ -905,6 +908,7 @@ mechanism.
   }
 }
 ```
+
 - [#263]: The output of `sq inspect` and `sq inspect -v` has been refactored
   significantly, and should now be easier to work with ([docs](https://sq.io/docs/inspect)).
 
@@ -934,6 +938,7 @@ to SLQ (`sq`'s query language).
   # Now
   $ sq '.actor | where(.actor_id <= 2)'
   ```
+
 - [#256]: Column-only queries are now possible. This has the neat side effect
   that `sq` can now be used as a calculator.
 
@@ -942,6 +947,7 @@ to SLQ (`sq`'s query language).
   1+2
   3
   ```
+
   You may want to use `--no-header` (`-H`) when using `sq` as a calculator.
 
   ```shell
@@ -961,6 +967,7 @@ to SLQ (`sq`'s query language).
   PENELOPE    X            GUINESS
   NICK        X            WAHLBERG
   ```
+
 - Lots of expressions that previously failed badly, now work.
 
   ```shell
@@ -969,6 +976,7 @@ to SLQ (`sq`'s query language).
   PENELOPE    3
   NICK        3
   ```
+
 - [#258]: Column aliases can now be arbitrary strings, instead of only a
   valid identifier.
 
@@ -1004,6 +1012,7 @@ to SLQ (`sq`'s query language).
 
 - ☢️ [Proprietary database functions](https://sq.io/docs/query#proprietary-functions) are now
   invoked by prefixing the function name with an underscore. For example:
+
   ```shell
   # mysql "date_format" func
   $ sq '@sakila/mysql | .payment | _date_format(.payment_date, "%m")'
@@ -1067,7 +1076,6 @@ The major feature is the long-gestating [`sq diff`](https://sq.io/docs/diff).
 - `sq config get OPT --text` now prints only the value, not `KEY VALUE`.
   If you want to see key and value, consider using `--yaml`, or `--text --verbose`.
 
-
 ## [v0.34.2] - 2023-05-08
 
 ### Fixed
@@ -1099,11 +1107,13 @@ Alas, this release has several minor breaking changes ☢️.
 - `--config` flag is now honored globally.
 - Many more knobs are exposed in config.
 - Logging is much more configurable. There are new knobs:
+
   ```shell
   $ sq config set log true
   $ sq config set log.level INFO
   $ sq config set log.file /var/log/sq.log
   ```
+
   There are also equivalent flags  (`--log`, `--log.file` and `--log.level`) and
   envars (`SQ_LOG`, `SQ_LOG_FILE` and `SQ_LOG_LEVEL`).
 - Several more commands support YAML output:
@@ -1112,7 +1122,6 @@ Alas, this release has several minor breaking changes ☢️.
   - [`sq mv`](https://sq.io/docs/cmd/mv)
   - [`sq rm`](https://sq.io/docs/cmd/rm)
   - [`sq src`](https://sq.io/docs/cmd/src)
-
 
 ### Changed
 
@@ -1129,6 +1138,7 @@ Alas, this release has several minor breaking changes ☢️.
 - ☢️ The flag to explicitly specify a driver when piping input to `sq` has been
   renamed from `--driver` to `--ingest.driver`. This change aligns
   the naming of the ingest options and reduces ambiguity.
+
   ```shell
   # previously
   $ cat mystery.data | sq --driver=csv '.data'
@@ -1136,8 +1146,10 @@ Alas, this release has several minor breaking changes ☢️.
   # now
   $ cat mystery.data | sq --ingest.driver=csv '.data'
   ```
+
 - ☢️ `sq add` no longer has the generic `--opts x=y` mechanism. This flag was
   ambiguous and confusing. Instead, use explicit option flags.
+
   ```shell
   # previously
   $ sq add ./actor.csv --opts=header=false
@@ -1145,9 +1157,11 @@ Alas, this release has several minor breaking changes ☢️.
   # now
   $ sq add ./actor.csv --ingest.header=false
    ```
+
 - ☢️ The short form of the `sq add --handle` flag has been changed from `-h` to
   `-n`. While this is not ideal, the `-h` shorthand is already in use everywhere
   else as the short form of `--header`.
+
     ```shell
   # previously
   $ sq add ./actor.csv -h @actor
@@ -1155,6 +1169,7 @@ Alas, this release has several minor breaking changes ☢️.
   # now
   $ sq add ./actor.csv -n @actor
    ```
+
 - ☢️ The `--pretty` flag has been removed. Its only previous use was with the
   `json` format, where if `--pretty=false` would output the JSON in compact form.
   To better align with jq, there is now a `--compact` / `-c` flag that behaves
@@ -1207,12 +1222,14 @@ make working with lots of sources much easier.
   ```shell
   $ sq add ./actor.csv --opts=header=true
   ````
+
   This change makes working with CSV files significantly lower friction.
   A command like the below now almost always works as expected:
 
   ```shell
   $ cat ./actor.csv | sq .data
   ```
+
   Support for Excel/XLSX header detection is in [#191].
 
 ### Fixed
@@ -1229,11 +1246,13 @@ make working with lots of sources much easier.
 
 - [#173]: Predefined variables via `--arg`
   flag ([docs](https://sq.io/docs/query#predefined-variables)):
+
   ```shell
   $ sq --arg first TOM '.actor | .first_name == $first'
   ```
 
 ### Changes
+
 - Use `--md` instead of `--markdown` for outputting Markdown.
 
 ### Fixed
@@ -1247,14 +1266,19 @@ make working with lots of sources much easier.
 ### Added
 
 - [#164]: Implemented `unique` function ([docs](https://sq.io/docs/query#unique)):
+
   ```shell
   $ sq '.actor | .first_name | unique'
   ```
+
   This is equivalent to:
+
   ```sql
   SELECT DISTINCT first_name FROM actor
   ```
+
 - Implemented `count_unique` function ([docs](https://sq.io/docs/query#count_unique)).
+
   ```shell
   $ sq '.actor | count_unique(.first_name)'
   ```
@@ -1266,6 +1290,7 @@ make working with lots of sources much easier.
   - ☢️ The "star" version (`.actor | count(*)`) is no longer supported; use the
     naked version instead.
 - Function columns are now named according to the `sq` token, not the SQL token.
+
   ```shell
   # previous behavior
   $ sq '.actor | max(.actor_id)'
@@ -1568,7 +1593,6 @@ make working with lots of sources much easier.
 [#646]: https://github.com/neilotoole/sq/issues/646
 [#652]: https://github.com/neilotoole/sq/issues/652
 
-
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4
@@ -1638,4 +1662,3 @@ make working with lots of sources much easier.
 [v0.50.2]: https://github.com/neilotoole/sq/compare/v0.50.0...v0.50.2
 [v0.51.0]: https://github.com/neilotoole/sq/compare/v0.50.2...v0.51.0
 [v0.52.0]: https://github.com/neilotoole/sq/compare/v0.51.0...v0.52.0
-

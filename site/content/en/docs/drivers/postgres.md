@@ -20,7 +20,6 @@ with `postgres://`. For example:
 sq add 'postgres://sakila:p_ssW0rd@localhost/sakila'
 ```
 
-
 ### Non-default schema
 
 By default, the Postgres driver connects to the default `public` schema.
@@ -32,6 +31,7 @@ For example, to use the `customer` schema:
 ```shell
 sq add 'postgres://sakila:p_ssW0rd@localhost/sakila?search_path=customer'
 ```
+
 Note that the location string should be quoted due to the `?` character.
 
 ## Inspect field provenance

@@ -18,6 +18,7 @@ is [ingested](/docs/source#ingest) and [cached](/docs/source#cache).
 Note also that an Excel source is read-only; you can't [insert](/docs/output#insert)
 values into the source.
 {{< /alert >}}
+
 ## Supported file formats
 
 The driver supports `.xlsx`, `.xlam`, `.xlsm`, `.xltm` and `.xltx`. Note that even
@@ -41,7 +42,6 @@ an absolute path when saved to `sq`'s config).
 The `sq add` command accepts a `--driver=TYPE` flag, e.g. `--driver=xlsx`. However,
 in practice this flag can be omitted, because sq can [detect](/docs/detect/#driver-type)
 the driver type. {{< /alert >}}
-
 
 ## Worksheets
 
@@ -91,7 +91,6 @@ actor_id, first_name, actor_id_1
 ```
 
 The renaming behavior is configurable via [`ingest.column.rename`](/docs/config#ingestcolumnrename).
-
 
 ## Column kind
 

@@ -1,0 +1,45 @@
+# markdownlint-cli2 configuration for the sq repo root and all non-site
+# markdown (root docs, skills/, and driver/cli/libsq READMEs).
+#
+# There is ONE markdown linter in this repo: markdownlint-cli2. Each zone has a
+# .markdownlint-cli2.yaml: site/ is excluded here and linted by its own CI
+# workflow; skills/ is linted as part of THIS invocation, its config merged on
+# top of this one via markdownlint-cli2's directory-tree config resolution.
+# Docs: https://github.com/DavidAnson/markdownlint-cli2
+
+# Skip anything gitignored (e.g. scratch/, docs/superpowers/).
+gitignore: true
+
+globs:
+  - "**/*.md"
+
+ignores:
+  # site/ is linted by its own config via the Site CI workflow.
+  - "site/**"
+  # .claude/skills is a symlink to .agents/skills (Claude Code skill discovery);
+  # linting it would double-lint the canonical .agents/skills files. The rest of
+  # .claude/ is gitignored editor/agent config.
+  - ".claude/**"
+  - "**/node_modules/**"
+  # Test fixtures.
+  - "**/testdata/**/*.md"
+  # Vendored third-party docs.
+  - "libsq/core/diffdoc/internal/go-udiff/**"
+  - "cli/output/jsonw/internal/jcolorenc/**"
+
+config:
+  default: true
+  # 100-char line width; code blocks and tables are exempt.
+  MD013:
+    line_length: 100
+    code_blocks: false
+    tables: false
+  # Allow repeated section names (e.g. CHANGELOG "Fixed"/"Added" per version).
+  MD024:
+    siblings_only: true
+  # Deliberate "$ cmd" command examples (README etc.); mirrors the site config.
+  MD014: false
+  # READMEs use inline HTML.
+  MD033: false
+  # Allow bare URLs.
+  MD034: false

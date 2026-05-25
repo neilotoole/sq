@@ -1,12 +1,16 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this
+repository.
 
 ## Project Overview
 
-This is the source for the sq.io website under `site/` in the [sq](https://github.com/neilotoole/sq) monorepo. It is a Hugo-based documentation site for the `sq` CLI tool, uses the Doks theme and Bun tooling, and is deployed on Netlify.
+This is the source for the sq.io website under `site/` in the
+[sq](https://github.com/neilotoole/sq) monorepo. It is a Hugo-based documentation site
+for the `sq` CLI tool, uses the Doks theme and Bun tooling, and is deployed on Netlify.
 
 **Tech Stack:**
+
 - Hugo 0.139.2+ (extended version) - static site generator
 - Bun 1.2+ - JavaScript runtime and package manager
 - Doks theme (Hugo theme for documentation sites)
@@ -15,6 +19,7 @@ This is the source for the sq.io website under `site/` in the [sq](https://githu
 ## Development Commands
 
 ### Local Development
+
 ```bash
 # Install dependencies (includes Hugo via hugo-installer)
 make deps
@@ -40,6 +45,7 @@ bun run preview
 ```
 
 ### Linting and Testing
+
 ```bash
 # Run all linters (scripts, styles, markdown, links)
 make site-test
@@ -61,6 +67,7 @@ bun run lint:markdown-fix
 ```
 
 ### Content Generation
+
 ```bash
 # Regenerate sq command help documentation
 # Requires sq CLI to be installed and in PATH
@@ -75,6 +82,7 @@ bun run gen:syntax-css
 ### Content Organization
 
 **Content structure:**
+
 - `content/en/docs/` - Main documentation in English
   - `cmd/` - Auto-generated command documentation (see below)
   - `drivers/` - Database driver docs
@@ -84,6 +92,7 @@ bun run gen:syntax-css
   - `overview.md`, `install.md` - Key landing pages
 
 **Hugo modules:**
+
 - Uses `cj.rs/gohugo-asciinema` module for embedded terminal recordings
 - Module defined in `go.mod`, cached by Hugo
 
@@ -118,6 +127,7 @@ The `content/en/docs/cmd/` directory contains auto-generated help text for sq co
 ### Configuration
 
 Hugo configuration is split by environment:
+
 - `config/_default/` - Base config (config.toml, params.toml, menus, etc.)
 - `config/production/` - Production overrides
 - `config/next/` - Staging/next environment
@@ -125,6 +135,7 @@ Hugo configuration is split by environment:
 ### Syntax Highlighting
 
 Uses Hugo's built-in Chroma (not highlight.js):
+
 - Themes: Nord (light and dark modes)
 - Generation: `generate-syntax-css.sh` creates SCSS files
 - Output: `assets/scss/components/_syntax.scss` and `_syntax-dark.scss`
@@ -132,6 +143,7 @@ Uses Hugo's built-in Chroma (not highlight.js):
 ### Link Checking
 
 `linkinator.sh`:
+
 1. Builds a fresh site with Hugo
 2. Starts a local server at http://localhost:31317
 3. Runs linkinator against the local build
@@ -140,12 +152,19 @@ Uses Hugo's built-in Chroma (not highlight.js):
 ## CI/CD Workflow
 
 **Triggers and actions:**
-- Push to `master` or `develop` with changes under `site/**` → GitHub Actions runs linting and builds (no deploy)
+
+- Push to `master` or `develop` with changes under `site/**` →
+  GitHub Actions runs linting and builds (no deploy)
 - PR to `master` or `develop` with changes under `site/**` → CI + Netlify deploy preview
-- Merge to `master` → **No auto-deploy.** Netlify's production build is suppressed via `[context.production] ignore = "exit 0"` in `netlify.toml`.
-- Production publishes to https://sq.io happen only via the manual `Site Publish (dispatch)` workflow in GitHub Actions (`.github/workflows/site-publish-dispatch.yml`), which builds locally and uploads via the Netlify CLI. Requires the `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` repo secrets.
+- Merge to `master` → **No auto-deploy.** Netlify's production build is suppressed via
+  `[context.production] ignore = "exit 0"` in `netlify.toml`.
+- Production publishes to https://sq.io happen only via the manual
+  `Site Publish (dispatch)` workflow in GitHub Actions
+  (`.github/workflows/site-publish-dispatch.yml`), which builds locally and uploads
+  via the Netlify CLI. Requires the `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` repo secrets.
 
 **Netlify configuration** (`netlify.toml`):
+
 - Build command: `bun run build` (deploy previews only; production is skipped via `ignore`)
 - Publish directory: `public`
 - Plugins: Lighthouse audits, sitemap submission
@@ -166,7 +185,8 @@ Include terminal recordings using the asciicast shortcode:
 - `poster="npt:0:20"` sets cover image at 20 seconds
 - Usually do NOT set `autoPlay="true"`
 
-**Module cache issue:** If you see "shortcode 'asciicast' not found", run `bun install` to refresh Hugo modules.
+**Module cache issue:** If you see "shortcode 'asciicast' not found", run `bun install` to
+refresh Hugo modules.
 
 ### Alerts
 
@@ -181,7 +201,8 @@ Important note for readers.
 ## Redirects
 
 - **Hugo aliases:** Use Hugo's `alias` front matter for content-based redirects
-- **Static redirects:** Add entries to `static/_redirects` for non-content redirects (Netlify format)
+- **Static redirects:** Add entries to `static/_redirects` for non-content redirects
+  (Netlify format)
   - Automatically appended to `public/_redirects` during build
 
 ## Important Notes
@@ -191,4 +212,5 @@ Important note for readers.
 - **Build time:** Initial local server start can take 1+ minute
 - **Command help:** The `gen:cmd-help` script requires the `sq` CLI installed locally
 - **Module cache:** Run `bun install` if Hugo module issues occur
-- **Lockfile:** Project uses `bun.lock` (text-based lockfile, introduced in Bun 1.2+) for dependency management
+- **Lockfile:** Project uses `bun.lock` (text-based lockfile, introduced in Bun 1.2+) for
+  dependency management
