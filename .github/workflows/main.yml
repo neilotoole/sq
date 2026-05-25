@@ -41,7 +41,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -57,12 +57,19 @@ jobs:
         run: |
           set -e
 
-          # We tee the go test output to a file, so that "tparse" can
-          # render pretty output below. "-coverprofile" writes a coverage
-          # profile to coverage.out for upload to Codecov. "-coverpkg=./..."
+          # Instrument coverage only on the ubuntu-24.04 runner (uploaded to
+          # Codecov below); macOS runs a plain test to keep the matrix fast.
+          # If the matrix gains another ubuntu image, update the check below.
+          # "-coverpkg=./..."
           # attributes coverage across all packages (e.g. integration tests
           # exercising other packages), giving a more representative total.
-          go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json -cover -coverpkg=./... -coverprofile=coverage.out ./... | tee gotest.out.json
+          cover_args=()
+          if [ "${{ matrix.os }}" = "ubuntu-24.04" ]; then
+            cover_args=(-cover -coverpkg=./... -coverprofile=coverage.out)
+          fi
+
+          go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json \
+            "${cover_args[@]}" ./... | tee gotest.out.json
 
       - name: 'Test output'
         if: always()
@@ -73,7 +80,7 @@ jobs:
           tparse -all -sort=elapsed -file gotest.out.json
 
       - name: Upload coverage to Codecov
-        if: always()
+        if: always() && matrix.os == 'ubuntu-24.04'
         uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6
         with:
           files: ./coverage.out
@@ -163,7 +170,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Lint GH workflow files
         run: |
