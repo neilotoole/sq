@@ -1,6 +1,7 @@
 package duckdb_test
 
 import (
+	"database/sql"
 	"math"
 	"strings"
 	"testing"
@@ -39,6 +40,46 @@ func TestFormatInterval(t *testing.T) {
 		t.Run(tc.want, func(t *testing.T) {
 			iv := duckdbdriver.Interval{Months: tc.months, Days: tc.days, Micros: tc.micros}
 			require.Equal(t, tc.want, duckdb.FormatInterval(iv))
+		})
+	}
+}
+
+// TestFormatInterval_OracleCrossCheck asserts FormatInterval byte-matches
+// DuckDB's own ::VARCHAR rendering across a matrix of interval expressions,
+// including negative and mixed-sign values. DuckDB is the spec.
+func TestFormatInterval_OracleCrossCheck(t *testing.T) {
+	db, err := sql.Open("duckdb", "")
+	require.NoError(t, err)
+	defer func() { require.NoError(t, db.Close()) }()
+
+	exprs := []string{
+		"INTERVAL '1 year 2 months 3 days 4 hours 5 minutes 6.789 seconds'",
+		"INTERVAL '25 months'",
+		"INTERVAL '-25 months'",
+		"INTERVAL '12 months'",
+		"INTERVAL '-1 month'",
+		"INTERVAL '1 month -2 days'",
+		"INTERVAL '14 days'",
+		"INTERVAL '1 day 12 hours'",
+		"INTERVAL '-1 day -12 hours'",
+		"INTERVAL '1 month -3 hours 30 minutes'",
+		"INTERVAL '-3 hours'",
+		"INTERVAL '24 hours'",
+		"INTERVAL '1000000 seconds'",
+		"INTERVAL '0.000003 seconds'",
+		"INTERVAL '0 seconds'",
+	}
+
+	for _, expr := range exprs {
+		t.Run(expr, func(t *testing.T) {
+			var iv duckdbdriver.Interval
+			require.NoError(t, db.QueryRow("SELECT "+expr).Scan(&iv))
+
+			var want string
+			require.NoError(t, db.QueryRow("SELECT ("+expr+")::VARCHAR").Scan(&want))
+
+			require.Equal(t, want, duckdb.FormatInterval(iv),
+				"expr=%s struct=%+v", expr, iv)
 		})
 	}
 }
