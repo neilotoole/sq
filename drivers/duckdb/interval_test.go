@@ -3,7 +3,6 @@ package duckdb_test
 import (
 	"database/sql"
 	"math"
-	"strings"
 	"testing"
 
 	duckdbdriver "github.com/duckdb/duckdb-go/v2"
@@ -34,6 +33,8 @@ func TestFormatInterval(t *testing.T) {
 		{0, 0, 1000000000000, "277:46:40"},
 		{0, 0, 3, "00:00:00.000003"},
 		{0, 0, 0, "00:00:00"},
+		{0, 0, -1500000, "-00:00:01.5"},
+		{-1, 0, 3600000000, "-1 month 01:00:00"},
 	}
 
 	for _, tc := range testCases {
@@ -86,13 +87,15 @@ func TestFormatInterval_OracleCrossCheck(t *testing.T) {
 
 // TestFormatInterval_MinInt64 guards against int64 negation overflow: the
 // magnitude of math.MinInt64 micros must not wrap to a bogus positive value.
+// The formatter clamps math.MinInt64 to math.MaxInt64 (1µs short of the true
+// magnitude, a value no real DuckDB interval reaches), so the output is exact
+// and deterministic.
 func TestFormatInterval_MinInt64(t *testing.T) {
 	var got string
 	require.NotPanics(t, func() {
 		got = duckdb.FormatInterval(duckdbdriver.Interval{Micros: math.MinInt64})
 	})
-	require.True(t, strings.HasPrefix(got, "-"), "want negative sign, got %q", got)
-	require.Equal(t, 2, strings.Count(got, ":"), "want HH:MM:SS shape, got %q", got)
+	require.Equal(t, "-2562047788:00:54.775807", got)
 }
 
 // TestFormatInterval_RoundTrip asserts that a rendered interval string can
