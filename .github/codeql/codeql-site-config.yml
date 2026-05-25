@@ -1,0 +1,12 @@
+# CodeQL configuration for the JavaScript analysis of the sq.io site
+# (see .github/workflows/codeql-site.yml).
+#
+# Paths are relative to the repository root (CodeQL's source root), regardless
+# of the workflow's `working-directory: site` default.
+name: "CodeQL site config"
+
+paths-ignore:
+  # Generated sq HTML exports embedding vendored, minified third-party JS
+  # (e.g. the Mermaid.js bundle in sakila.html). CodeQL flags issues inside
+  # that minified library; they are not sq source and are not actionable here.
+  - "site/static/examples"
