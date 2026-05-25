@@ -11,26 +11,15 @@
 #
 name: "CodeQL"
 
-# Go analysis only when Go/module inputs change (site JS is codeql-site.yml).
+# CodeQL is slow, so it's kept off the PR/dev loop (site JS is codeql-site.yml).
+# It runs nightly against master and on release tags (v*), where it's part of
+# release validation, plus on demand via workflow_dispatch.
 on:
   workflow_dispatch:
   push:
-    branches: [master]
-    paths:
-      - "**/*.go"
-      - "go.mod"
-      - "go.sum"
-      - ".github/workflows/codeql.yml"
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    branches: [master]
-    paths:
-      - "**/*.go"
-      - "go.mod"
-      - "go.sum"
-      - ".github/workflows/codeql.yml"
+    tags: ['v*']
   schedule:
-    - cron: '36 10 * * 0'
+    - cron: '36 10 * * *' # Nightly (UTC).
 
 concurrency:
   group: codeql-${{ github.event_name }}-${{ github.ref }}
@@ -41,10 +30,6 @@ concurrency:
 jobs:
   analyze:
     name: Analyze
-    # Skip on draft PRs; a draft can't be merged anyway, and marking it Ready
-    # (ready_for_review) triggers a scan. master pushes + the weekly schedule
-    # still scan.
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     permissions:
       actions: read
