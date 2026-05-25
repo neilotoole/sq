@@ -118,6 +118,15 @@ func TestRecordMeta_TypeSpectrum(t *testing.T) {
 		require.True(t, gotColumns[name],
 			"col %s in wantTypes but missing from type_test result", name)
 	}
+
+	// col_interval renders in DuckDB's native canonical text form
+	// (see FormatInterval); the fixture value is
+	// "1 year 2 months 3 days 4 hours 5 minutes 6.789 seconds".
+	for i, fm := range recMeta {
+		if fm.Name() == "col_interval" {
+			require.Equal(t, "1 year 2 months 3 days 04:05:06.789", rec[i])
+		}
+	}
 }
 
 func goType(v any) string {

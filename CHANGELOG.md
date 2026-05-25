@@ -52,6 +52,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [#612]: DuckDB [`INTERVAL`](https://sq.io/docs/drivers/duckdb) values now
+  render in DuckDB's native, round-trippable text form (e.g.
+  `1 year 2 months 3 days 04:05:06.789`) instead of the previous ad-hoc
+  Go-style `μs` string.
 - [#613]: [`sq inspect`](https://sq.io/docs/inspect) of a SQL Server source no
   longer returns tables from schemas other than the source's current schema.
   - `getAllTables` queried `INFORMATION_SCHEMA.TABLES` without a `TABLE_SCHEMA`
@@ -1582,6 +1586,7 @@ make working with lots of sources much easier.
 [#572]: https://github.com/neilotoole/sq/pull/572
 [#601]: https://github.com/neilotoole/sq/issues/601
 [#602]: https://github.com/neilotoole/sq/pull/602
+[#612]: https://github.com/neilotoole/sq/issues/612
 [#613]: https://github.com/neilotoole/sq/issues/613
 [#615]: https://github.com/neilotoole/sq/issues/615
 [#628]: https://github.com/neilotoole/sq/issues/628

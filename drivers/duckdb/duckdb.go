@@ -480,7 +480,7 @@ func newRecordFuncForDuckDB(log *slog.Logger, recMeta record.Meta) driver.NewRec
 			// ---- INTERVAL (duckdb.Interval → string) ----
 			case duckdbdriver.Interval:
 				record.SetKindIfUnknown(recMeta, i, kind.Text)
-				rec[i] = fmt.Sprintf("%d months %d days %d μs", v.Months, v.Days, v.Micros)
+				rec[i] = FormatInterval(v)
 
 			// ---- composite types: LIST ([]any), ARRAY ----
 			case []any:
