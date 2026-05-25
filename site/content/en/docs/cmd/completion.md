@@ -17,7 +17,6 @@ generating shell completion scripts.
 See the docs for one of the subcommands to generate a
 script for your shell of choice.
 
-
 - [`bash`](/docs/cmd/completion-bash)
 - [`zsh`](/docs/cmd/completion-zsh)
 - [`fish`](/docs/cmd/completion-fish)

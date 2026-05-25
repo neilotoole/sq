@@ -21,23 +21,28 @@ every data source as if it were a SQL database.
 ## Key Concepts
 
 - `sq` is the command-line utility itself.
-- A *source* is a specific data source such as a database instance, or Excel or CSV file etc. Each source
-  has a:
+- A *source* is a specific data source such as a database instance, or Excel or CSV file etc.
+  Each source has a:
   - `driver`: such as [`postgres`](/docs/drivers/postgres),
     [`sqlserver`](/docs/drivers/sqlserver),
     [`oracle`](/docs/drivers/oracle), [`clickhouse`](/docs/drivers/clickhouse),
     [`csv`](/docs/drivers/csv), or [`xlsx`](/docs/drivers/xlsx).
-  - `location`: URI or filepath of the source, such as `postgres://sakila:****@localhost/sakila` or `/Users/neilotoole/sq/xl_demo.xlsx`.
-  - `handle`: this is how `sq` refers to that particular *source*, e.g. `@sakila_pg`, `@prod/customer` or `@xl_demo`. The handle must begin with `@`.
-- [Active Source](/docs/concepts/#active-source) is the default source upon which `sq` acts if no other source is specified.
-- [`sq inspect`](/docs/cmd/inspect) returns *metadata* about your source, such as table names or number of rows.
+  - `location`: URI or filepath of the source, such as `postgres://sakila:****@localhost/sakila`
+    or `/Users/neilotoole/sq/xl_demo.xlsx`.
+  - `handle`: this is how `sq` refers to that particular *source*, e.g. `@sakila_pg`,
+    `@prod/customer` or `@xl_demo`. The handle must begin with `@`.
+- [Active Source](/docs/concepts/#active-source) is the default source upon which `sq` acts
+  if no other source is specified.
+- [`sq inspect`](/docs/cmd/inspect) returns *metadata* about your source, such as table names
+  or number of rows.
 
 Read more in [Concepts](/docs/concepts).
 
 ## Quick start
 
 1. [Install](/docs/install) `sq`.
-1. (Optional) If you use an AI coding assistant, add the [Agent skill](/docs/agent-skills) so it can steer queries and flags toward sq.io and `--help`.
+1. (Optional) If you use an AI coding assistant, add the [Agent skill](/docs/agent-skills)
+   so it can steer queries and flags toward sq.io and `--help`.
 1. [Add](/docs/cmd/add/) a data source. We'll download and use a sample SQLite database file.
 
    ```shell
@@ -158,7 +163,8 @@ Flags:
 
 ## Issues
 
-File any bug reports or other issues in the [sq issue tracker](https://github.com/neilotoole/sq/issues).
+File any bug reports or other issues in the
+[sq issue tracker](https://github.com/neilotoole/sq/issues).
 When filing a bug report, submit a [log file](/docs/config#logging).
 
 ## Config

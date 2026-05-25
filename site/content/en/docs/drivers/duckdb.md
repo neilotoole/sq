@@ -88,43 +88,43 @@ Pass parameters as URL query strings after the file path:
 $ sq add 'duckdb:///path/db.duckdb?memory_limit=4GB&threads=4'
 ```
 
-| Parameter               | Values                  | Description                               |
-|-------------------------|-------------------------|-------------------------------------------|
-| `access_mode`           | `READ_WRITE`, `READ_ONLY` | Open the database read-only             |
-| `memory_limit`          | e.g. `4GB`              | Maximum memory DuckDB may use             |
-| `threads`               | integer                 | Number of threads                         |
-| `default_order`         | `ASC`, `DESC`           | Default sort order                        |
-| `default_null_order`    | `NULLS_FIRST`, `NULLS_LAST` | Default NULL sort position           |
-| `enable_external_access`| `true`, `false`         | Allow reading from external files/URLs    |
-| `enable_object_cache`   | `true`, `false`         | Cache metadata for remote objects         |
-| `temp_directory`        | path                    | Directory for temporary files             |
-| `wal_autocheckpoint`    | e.g. `1000`             | WAL autocheckpoint threshold (pages)      |
+| Parameter                | Values                       | Description                            |
+|--------------------------|------------------------------|----------------------------------------|
+| `access_mode`            | `READ_WRITE`, `READ_ONLY`    | Open the database read-only            |
+| `memory_limit`           | e.g. `4GB`                   | Maximum memory DuckDB may use          |
+| `threads`                | integer                      | Number of threads                      |
+| `default_order`          | `ASC`, `DESC`                | Default sort order                     |
+| `default_null_order`     | `NULLS_FIRST`, `NULLS_LAST`  | Default NULL sort position             |
+| `enable_external_access` | `true`, `false`              | Allow reading from external files/URLs |
+| `enable_object_cache`    | `true`, `false`              | Cache metadata for remote objects      |
+| `temp_directory`         | path                         | Directory for temporary files          |
+| `wal_autocheckpoint`     | e.g. `1000`                  | WAL autocheckpoint threshold (pages)   |
 
 DuckDB supports [many more settings](https://duckdb.org/docs/configuration/overview);
 the list above covers the parameters most commonly used from the CLI.
 
 ## Type mapping
 
-| DuckDB type                                              | `sq` kind    | Notes                                              |
-|----------------------------------------------------------|--------------|----------------------------------------------------|
-| `BOOLEAN`                                                | `bool`       |                                                    |
-| `TINYINT` … `BIGINT`, `UTINYINT`, `USMALLINT`, `UINTEGER` | `int`     |                                                    |
-| `HUGEINT`, `UHUGEINT`, `UBIGINT`, `INT128`               | `decimal`    | Promoted to `decimal` because values can exceed `int64`. |
-| `FLOAT`, `REAL`, `DOUBLE`                                | `float`      |                                                    |
-| `DECIMAL(p,s)`                                           | `decimal`    |                                                    |
-| `VARCHAR`, `TEXT`, `STRING`                              | `text`       |                                                    |
-| `BLOB`, `BYTEA`                                          | `bytes`      |                                                    |
-| `DATE`                                                   | `date`       |                                                    |
-| `TIME`, `TIME WITH TIME ZONE`                            | `time`       |                                                    |
-| `TIMESTAMP`, `TIMESTAMP_S/MS/NS`, `TIMESTAMPTZ`         | `datetime`   |                                                    |
-| `INTERVAL`                                               | `text`       | `"<months> months <days> days <micros> μs"` (see [#612](https://github.com/neilotoole/sq/issues/612)). |
-| `UUID`                                                   | `text`       | Hex-dash form.                                     |
-| `JSON`                                                   | `text`       | Already JSON.                                      |
-| `LIST` / `ARRAY`                                         | `text`       | Go-style stringification; JSON projection planned ([#609](https://github.com/neilotoole/sq/issues/609)). |
-| `STRUCT`                                                 | `text`       | Go-style stringification; JSON projection planned ([#609](https://github.com/neilotoole/sq/issues/609)). |
-| `MAP`                                                    | `text`       | Go-style stringification; JSON projection planned ([#609](https://github.com/neilotoole/sq/issues/609)). |
-| `ENUM`                                                   | `text`       | Underlying value.                                  |
-| `BIT`                                                    | `text`       | Bit-string.                                        |
+| DuckDB type                                               | `sq` kind  | Notes                                                                                                    |
+|-----------------------------------------------------------|------------|----------------------------------------------------------------------------------------------------------|
+| `BOOLEAN`                                                 | `bool`     |                                                                                                          |
+| `TINYINT` … `BIGINT`, `UTINYINT`, `USMALLINT`, `UINTEGER` | `int`      |                                                                                                          |
+| `HUGEINT`, `UHUGEINT`, `UBIGINT`, `INT128`                | `decimal`  | Promoted to `decimal` because values can exceed `int64`.                                                 |
+| `FLOAT`, `REAL`, `DOUBLE`                                 | `float`    |                                                                                                          |
+| `DECIMAL(p,s)`                                            | `decimal`  |                                                                                                          |
+| `VARCHAR`, `TEXT`, `STRING`                               | `text`     |                                                                                                          |
+| `BLOB`, `BYTEA`                                           | `bytes`    |                                                                                                          |
+| `DATE`                                                    | `date`     |                                                                                                          |
+| `TIME`, `TIME WITH TIME ZONE`                             | `time`     |                                                                                                          |
+| `TIMESTAMP`, `TIMESTAMP_S/MS/NS`, `TIMESTAMPTZ`           | `datetime` |                                                                                                          |
+| `INTERVAL`                                                | `text`     | `"<months> months <days> days <micros> μs"` (see [#612](https://github.com/neilotoole/sq/issues/612)).   |
+| `UUID`                                                    | `text`     | Hex-dash form.                                                                                           |
+| `JSON`                                                    | `text`     | Already JSON.                                                                                            |
+| `LIST` / `ARRAY`                                          | `text`     | Go-style stringification; JSON projection planned ([#609](https://github.com/neilotoole/sq/issues/609)). |
+| `STRUCT`                                                  | `text`     | Go-style stringification; JSON projection planned ([#609](https://github.com/neilotoole/sq/issues/609)). |
+| `MAP`                                                     | `text`     | Go-style stringification; JSON projection planned ([#609](https://github.com/neilotoole/sq/issues/609)). |
+| `ENUM`                                                    | `text`     | Underlying value.                                                                                        |
+| `BIT`                                                     | `text`     | Bit-string.                                                                                              |
 
 Composite types (`LIST`, `STRUCT`, `MAP`) are currently stringified via Go's
 default formatting (`fmt.Sprintf("%v", v)`). First-class JSON projection via
@@ -132,8 +132,8 @@ DuckDB's `to_json(col)` is planned as a follow-up — see [#609](https://github.
 
 ## Limitations
 
-- **DuckDB enforces a single writer per database file.** If two `sq` processes open the same `.duckdb` file simultaneously, the
-  second will receive a lock error. For `sq`'s typical single-shot CLI usage
-  this is rarely a problem, but scripts that parallelize `sq` against the same
-  file should serialize writes. Read-only access (`access_mode=READ_ONLY`) from
-  multiple processes is safe.
+- **DuckDB enforces a single writer per database file.** If two `sq` processes open the same
+  `.duckdb` file simultaneously, the second will receive a lock error. For `sq`'s typical
+  single-shot CLI usage this is rarely a problem, but scripts that parallelize `sq` against the
+  same file should serialize writes. Read-only access (`access_mode=READ_ONLY`) from multiple
+  processes is safe.

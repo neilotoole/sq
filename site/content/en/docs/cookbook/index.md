@@ -10,9 +10,10 @@ url: /docs/cookbook
 This cookbook demonstrates how to perform various tasks using `sq`.
 
 - If not otherwise specified, assume the `@sakila_sl3` data source is present.
-  See [here](/docs/develop/sakila#sqlite) to add that source.
+  See the [SQLite section of the sakila page](/docs/develop/sakila#sqlite) to
+  add that source.
 - The snippets were created on macOS (using `zsh`).
-- Some of these examples require [jq ](https://jqlang.github.io/jq/).
+- Some of these examples require [jq](https://jqlang.github.io/jq/).
 
 ## List table names
 
@@ -55,7 +56,6 @@ The above snippet will:
 - pipe those table names to `xargs`
 - `xargs` invokes `sq .% --csv --output %.csv` for each table name (e.g. `sq .actor --csv --output actor.csv`)
 - thus the content of each table is outputted in CSV format to an individual `.csv` file.
-
 
 ## Import JSON Array to database
 
