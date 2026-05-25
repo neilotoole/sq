@@ -45,7 +45,7 @@ $ sq driver ls
 DRIVER      DESCRIPTION
 sqlite3     SQLite
 postgres    PostgreSQL
-sqlserver   Microsoft SQL Server
+sqlserver   Microsoft SQL Server / Azure SQL Edge
 mysql       MySQL
 clickhouse  ClickHouse
 oracle      Oracle
