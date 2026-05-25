@@ -49,9 +49,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   You can set the new config option [`error.format.text.verbose`](https://sq.io/docs/config#errorformattextverbose)
   to `false` if you prefer the previous (less-verbose) `text` error format.
   ![sq text error reporting: verbose vs. summary](site/static/images/repo/sq_error_reporting_options.png)
-- `sq inspect` now omits an index whose key positions are *all*
-  expressions (previously MySQL and SQLite reported such an index with
-  an empty `columns` list).
+- [#617], [#618]: `sq inspect` now omits an index whose key positions are
+  *all* expressions (previously MySQL and SQLite reported such an index
+  with an empty `columns` list).
 
 ### Fixed
 

@@ -138,15 +138,19 @@ func TestIndexes_ExpressionArity_MySQL(t *testing.T) {
 	_, err = db.ExecContext(th.Context,
 		"CREATE INDEX ix_mixed ON "+tbl+" (a, (LOWER(b)), c)")
 	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context,
+		"CREATE INDEX ix_allexpr ON "+tbl+" ((LOWER(b)))")
+	require.NoError(t, err)
 
 	md, err := th.Open(src).TableMetadata(th.Context, tbl)
 	require.NoError(t, err)
 
 	var mixed *metadata.Index
 	for _, idx := range md.Indexes {
+		require.NotEqual(t, "ix_allexpr", idx.Name,
+			"an all-expression index must be omitted")
 		if idx.Name == "ix_mixed" {
 			mixed = idx
-			break
 		}
 	}
 	require.NotNil(t, mixed, "ix_mixed should be reported")

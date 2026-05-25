@@ -745,8 +745,8 @@ func getTableIndexes(ctx context.Context, db sqlz.DB, schemaName, tblName string
 //   - Well-formed list with no plain-column tokens (e.g.
 //     "['(lower(email))']"): a functional / expression-only index.
 //     Debug level — this is legitimate DuckDB usage; the index is
-//     dropped from [metadata.Table.Indexes] because [Index.Columns]
-//     is documented as plain identifiers only.
+//     dropped from [metadata.Table.Indexes] because every key is an
+//     expression (see [metadata.AllExpressionKeys]).
 //   - Anything else (no surrounding brackets, garbled output): a
 //     genuine surprise — likely a DuckDB output-format change.
 //     Warn level so it's visible in operator logs.

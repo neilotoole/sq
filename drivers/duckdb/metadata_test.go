@@ -387,7 +387,7 @@ func TestTableMetadata_UniqueConstraints(t *testing.T) {
 // populated, that unique flags are honored, that composite indexes
 // preserve column order, that reserved-word columns (which DuckDB
 // re-quotes in duckdb_indexes().expressions) are unwrapped, and that
-// functional-index keys are stripped from Columns.
+// functional-index keys become empty-string sentinels in Columns.
 func TestTableMetadata_Indexes(t *testing.T) {
 	th := testh.New(t)
 	src := &source.Source{
@@ -437,8 +437,8 @@ func TestTableMetadata_Indexes(t *testing.T) {
 	require.Contains(t, idxByName, "ix_comp")
 	require.Equal(t, []string{"name", "email"}, idxByName["ix_comp"].Columns)
 
-	// Functional-only indexes are dropped because no key is a plain
-	// column reference (Columns ends up empty, so the index is omitted).
+	// Functional-only indexes are dropped because every key is an
+	// expression (Columns is all sentinels), so the index is omitted.
 	require.NotContains(t, idxByName, "ix_lower_email")
 
 	// A mixed plain/expression index preserves arity: the LOWER(email)
