@@ -127,11 +127,17 @@ func TestSourceMetadata_ScopedToCurrentSchema(t *testing.T) {
 	th, _, drvr, grip, db := testh.NewWith(t, sakila.MS)
 	ctx := th.Context
 
-	// Create a second schema and copy dbo.actor into it under the SAME
-	// name. getAllTables must be scoped to the source's current schema
-	// (dbo); otherwise it returns "actor" twice (once per schema), and the
-	// per-table metadata for both rows collides on the bare table name,
-	// yielding a duplicate "actor" entry in the source metadata.
+	// Copy dbo.actor into a second schema under the SAME name. The same
+	// name is deliberate, and is what makes this a deterministic regression
+	// signal: an unscoped getAllTables returns "actor" twice (once per
+	// schema), and the per-table metadata for both rows resolves to dbo.actor
+	// and collides on the bare table name, yielding a duplicate "actor" entry.
+	//
+	// A *uniquely*-named table in the other schema would NOT distinguish the
+	// bug from the fix: the per-table loader (sp_spaceused, which resolves the
+	// bare name against dbo) silently skips a cross-schema table that has no
+	// dbo counterpart, so it never reaches md.Tables whether getAllTables is
+	// scoped or not. The collision is therefore the symptom to assert on.
 	otherSchema := "gh613_" + stringz.Uniq8()
 	require.NoError(t, drvr.CreateSchema(ctx, db, otherSchema))
 	t.Cleanup(func() {
@@ -154,8 +160,9 @@ func TestSourceMetadata_ScopedToCurrentSchema(t *testing.T) {
 		}
 	}
 	require.Equal(t, 1, actorCount,
-		"source-level inspect must return tables only from the current schema, "+
-			"so %q must appear exactly once", sakila.TblActor)
+		"source-level inspect must be scoped to the current schema: the "+
+			"same-named %q in another schema must not produce a duplicate entry",
+		sakila.TblActor)
 }
 
 // TestNumericSchema tests that numeric and numeric-prefixed schema names
