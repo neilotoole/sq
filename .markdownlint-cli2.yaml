@@ -1,9 +1,10 @@
 # markdownlint-cli2 configuration for the sq repo root and all non-site
 # markdown (root docs, skills/, and driver/cli/libsq READMEs).
 #
-# There is ONE markdown linter in this repo: markdownlint-cli2. site/ and
-# skills/ carry their own .markdownlint-cli2.yaml files that merge on top of
-# this one via markdownlint-cli2's directory-tree config resolution.
+# There is ONE markdown linter in this repo: markdownlint-cli2. Each zone has a
+# .markdownlint-cli2.yaml: site/ is excluded here and linted by its own CI
+# workflow; skills/ is linted as part of THIS invocation, its config merged on
+# top of this one via markdownlint-cli2's directory-tree config resolution.
 # Docs: https://github.com/DavidAnson/markdownlint-cli2
 
 # Skip anything gitignored (e.g. scratch/, docs/superpowers/).
@@ -15,6 +16,10 @@ globs:
 ignores:
   # site/ is linted by its own config via the Site CI workflow.
   - "site/**"
+  # .claude/skills is a symlink to .agents/skills (Claude Code skill discovery);
+  # linting it would double-lint the canonical .agents/skills files. The rest of
+  # .claude/ is gitignored editor/agent config.
+  - ".claude/**"
   - "**/node_modules/**"
   # Test fixtures.
   - "**/testdata/**/*.md"
