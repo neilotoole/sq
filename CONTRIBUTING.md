@@ -86,6 +86,19 @@ Use the usual GitHub process to open a PR. Before you do so, please:
 - If the PR adds a **new driver type**, complete the
   [driver ship checklist](#driver-ship-checklist) (sq.io and `skills/sq/`).
 
+### CI: the fast loop and the slow jobs
+
+CI is PR-centric: a branch gets CI once a pull request exists. Every push to a
+PR runs lint, the Linux/macOS tests, and a fast **Windows smoke** test
+(`test/smoke/`); the in-progress run for a superseded commit is cancelled when
+you push again. The same fast set runs on merges to master.
+
+The slow jobs — the **full Windows suite** and **CodeQL** — are kept off the
+dev loop. They run **nightly** against master and on **release tags** (`v*`),
+where the full Windows suite gates `publish` and CodeQL runs as part of release
+validation. You can also run either on demand from the Actions tab via **Run
+workflow** (`workflow_dispatch`).
+
 ## CHANGELOG.md
 
 The [CHANGELOG.md](./CHANGELOG.md) file is sacrosanct, in that it *must* be updated every
