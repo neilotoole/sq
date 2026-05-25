@@ -89,15 +89,18 @@ Use the usual GitHub process to open a PR. Before you do so, please:
 ### CI: the fast loop and the slow jobs
 
 CI is PR-centric: a branch gets CI once a pull request exists. Every push to a
-PR runs lint, the Linux/macOS tests, and a fast **Windows smoke** test
-(`test/smoke/`); the in-progress run for a superseded commit is cancelled when
-you push again. The same fast set runs on merges to master.
+PR runs lint, a fast `-short` pass of the Linux/macOS tests, and a **Windows
+smoke** test (`test/smoke/`); the in-progress run for a superseded commit is
+cancelled when you push again. The same fast set runs on merges to master.
 
-The slow jobs — the **full Windows suite** and **CodeQL** — are kept off the
-dev loop. They run **nightly** against master and on **release tags** (`v*`),
-where the full Windows suite gates `publish` and CodeQL runs as part of release
-validation. You can also run either on demand from the Actions tab via **Run
-workflow** (`workflow_dispatch`).
+The slow jobs are kept off the dev loop and run **nightly** against master and
+on **release tags** (`v*`): the **full Linux/macOS suite** (no `-short`, with
+coverage), the **full Windows suite** (gates `publish`), and **CodeQL**
+(release validation). You can also run any of them on demand from the Actions
+tab via **Run workflow** (`workflow_dispatch`).
+
+Mark long-running tests with `tu.SkipShort` so they stay out of the dev loop
+but still run in the nightly/release suites.
 
 ## CHANGELOG.md
 
