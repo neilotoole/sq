@@ -1,14 +1,27 @@
 name: Main Pipeline
 on:
-  push:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
       - '**.md'
-      - 'sq.json' # This is updated by scoop; no need to run a new build
-      - '.github/workflows/*'
+      - 'sq.json' # Updated by scoop; no need to run a new build.
       - 'site/**'
+  push:
+    # No paths-ignore on push: master merges and release tags must always run
+    # (paths filtering on tag pushes is unreliable and could skip a release).
+    branches: [master]
+    tags: ['v*']
+  schedule:
+    - cron: '17 9 * * *' # Nightly full suite vs master (UTC; tunable).
 
-  # Allows this workflow to be manually triggered from the Actions tab
+  # Allows this workflow to be manually triggered from the Actions tab.
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: >-
+    ${{ github.ref != 'refs/heads/master'
+        && !startsWith(github.ref, 'refs/tags/v') }}
 
 env:
   GORELEASER_VERSION: 2.13.3
