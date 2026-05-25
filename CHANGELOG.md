@@ -94,6 +94,16 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     `handleTable` rule, so the parser's error recovery silently discarded the
     alias and every downstream segment (projections, joins, etc.). The
     multi-segment form `@sakila | .actor:a | ...` was unaffected.
+- [#646]: A [query](https://sq.io/docs/query) whose alias is a reserved word
+  (e.g. `.actor | .first_name:count`, `@sakila.actor:count`, or
+  `join(.film_actor:count, ...)`) now applies that alias instead of silently
+  dropping it. An alias that is an argument reference (e.g. `:$x`) is now
+  rejected with a clear error rather than silently discarded.
+  - Alias extraction only read the `ID` and quoted `STRING` tokens, so the
+    `ALIAS_RESERVED` (`:count`) and `ARG` (`:$x`) tokens that the grammar
+    already permits resolved to an empty alias on column, table, and
+    expression nodes; only the no-arg `func` form had a workaround. Extraction
+    is now shared across every alias position.
 - [#445]: Cross-source [`join`](https://sq.io/docs/query#join) no longer
   fails when the participating sources contain tables with the same
   name (e.g. `@src1.actor | join(@src2.actor, .actor_id)`).
@@ -1555,6 +1565,7 @@ make working with lots of sources much easier.
 [#633]: https://github.com/neilotoole/sq/issues/633
 [#637]: https://github.com/neilotoole/sq/pull/637
 [#640]: https://github.com/neilotoole/sq/issues/640
+[#646]: https://github.com/neilotoole/sq/issues/646
 [#652]: https://github.com/neilotoole/sq/issues/652
 
 

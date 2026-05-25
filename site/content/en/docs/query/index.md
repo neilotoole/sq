@@ -415,6 +415,11 @@ PENELOPE
 NICK
 ```
 
+The alias may even be a reserved word such as `count`; `sq` quotes it in the
+generated SQL, so `.first_name:count` renders as `"first_name" AS "count"`.
+An [argument](#predefined-variables) reference such as `$x` can't be used as
+an alias, however.
+
 ## Whitespace names
 
 If a table or column name has whitespace, surround the name in quotes.

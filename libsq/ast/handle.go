@@ -58,9 +58,8 @@ func (v *parseTreeVisitor) VisitHandleTable(ctx *slq.HandleTableContext) any {
 
 	// Optional trailing alias, e.g. @sakila.actor:a. Mirror VisitJoinTable:
 	// make the new node current and visit the alias, which sets node.alias.
-	// VisitAlias reads ID and quoted (STRING) aliases; reserved-word aliases
-	// (the ALIAS_RESERVED token, e.g. :count) are not attached here, matching
-	// the existing joinTable and ".tbl:alias" selector paths.
+	// VisitAlias handles every alias shape (ID, quoted STRING, and reserved
+	// words such as :count); an argument reference (e.g. :$x) is rejected.
 	if ctx.Alias() != nil {
 		aliasCtx, ok := ctx.Alias().(*slq.AliasContext)
 		if !ok {
