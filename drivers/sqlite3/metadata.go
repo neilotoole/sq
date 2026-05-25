@@ -448,6 +448,9 @@ ORDER BY seq`
 		// origin='u' marks an index that backs a UNIQUE constraint
 		// declared in CREATE TABLE / ALTER TABLE. The PK is reported
 		// separately on Column.PrimaryKey, so we don't repeat it here.
+		// SQLite prohibits expressions in UNIQUE constraints, so an
+		// origin='u' index is always plain-column: cols never carries
+		// the "" expression sentinel on this branch.
 		if info.origin == "u" {
 			uniques = append(uniques, &metadata.UniqueConstraint{
 				Name:    info.name,
