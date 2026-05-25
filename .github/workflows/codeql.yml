@@ -22,6 +22,7 @@ on:
       - "go.sum"
       - ".github/workflows/codeql.yml"
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [master]
     paths:
       - "**/*.go"
@@ -31,9 +32,19 @@ on:
   schedule:
     - cron: '36 10 * * 0'
 
+concurrency:
+  group: codeql-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: >-
+    ${{ github.ref != 'refs/heads/master'
+        && !startsWith(github.ref, 'refs/tags/v') }}
+
 jobs:
   analyze:
     name: Analyze
+    # Skip on draft PRs; a draft can't be merged anyway, and marking it Ready
+    # (ready_for_review) triggers a scan. master pushes + the weekly schedule
+    # still scan.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     permissions:
       actions: read
