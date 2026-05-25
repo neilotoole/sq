@@ -201,6 +201,11 @@ func TestParseDuckDBIndexExpressions(t *testing.T) {
 		{in: `['"name"']`, want: []string{"name"}},
 		// Mixed: bare + re-quoted.
 		{in: `['"name"', email]`, want: []string{"name", "email"}},
+		// Column name containing a double-quote: DuckDB escapes it by
+		// doubling, e.g. a"b → `'"a""b"'`. Must unquote to the real name,
+		// not be misclassified as an expression sentinel.
+		{in: `['"a""b"']`, want: []string{`a"b`}},
+		{in: `['"a""b"', normal]`, want: []string{`a"b`, "normal"}},
 		// Functional expression → recorded as a single sentinel.
 		{in: `['(lower(email))']`, want: []string{""}},
 		// Mixed simple + functional → sentinel preserves arity/position.

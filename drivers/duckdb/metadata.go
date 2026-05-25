@@ -182,9 +182,12 @@ var reIdxBareCol = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 // reIdxQuotedCol matches a single-quote-wrapped double-quoted identifier,
 // the form DuckDB emits in expressions when the column was originally
-// quoted in the DDL or collides with a reserved word, e.g. `'"name"'`.
-// The captured group is the bare identifier.
-var reIdxQuotedCol = regexp.MustCompile(`^'"([^"]+)"'$`)
+// quoted in the DDL or collides with a reserved word, e.g. `'"name"'`. An
+// embedded double-quote in the column name is escaped by doubling it, so a
+// column named a"b is emitted as `'"a""b"'`; the inner pattern allows those
+// doubled quotes. The captured group is the (still-escaped) identifier;
+// callers must un-double the quotes to recover the original name.
+var reIdxQuotedCol = regexp.MustCompile(`^'"((?:[^"]|"")*)"'$`)
 
 // getSourceMetadata builds a *metadata.Source for src using db.
 // When noSchema is true, column-level metadata is skipped for each table
@@ -835,7 +838,10 @@ func parseDuckDBIndexExpressions(s string) []string {
 		case reIdxBareCol.MatchString(p):
 			out = append(out, p)
 		case reIdxQuotedCol.MatchString(p):
-			out = append(out, reIdxQuotedCol.FindStringSubmatch(p)[1])
+			// Un-double any escaped quotes to recover the real column
+			// name (DuckDB emits a"b as `'"a""b"'`).
+			name := strings.ReplaceAll(reIdxQuotedCol.FindStringSubmatch(p)[1], `""`, `"`)
+			out = append(out, name)
 		default:
 			// Functional / expression key: record the empty-string
 			// sentinel so Columns preserves the index's key arity.
