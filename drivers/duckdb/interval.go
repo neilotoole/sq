@@ -59,14 +59,19 @@ func pluralUnit(n int64, unit string) string {
 // trimmed, and is omitted entirely when zero.
 func formatIntervalTime(micros int64) string {
 	sign := ""
+	// Compute the magnitude in uint64 so that math.MinInt64, whose negation
+	// overflows int64, is handled correctly.
+	var mag uint64
 	if micros < 0 {
 		sign = "-"
-		micros = -micros
+		mag = uint64(-(micros + 1)) + 1
+	} else {
+		mag = uint64(micros)
 	}
 
 	const usPerSec = 1_000_000
-	secs := micros / usPerSec
-	frac := micros % usPerSec
+	secs := mag / usPerSec
+	frac := mag % usPerSec
 
 	hours := secs / 3600
 	mins := (secs % 3600) / 60
@@ -76,7 +81,7 @@ func formatIntervalTime(micros int64) string {
 	b.WriteString(sign)
 
 	// Hours: minimum two digits, unbounded above.
-	hs := strconv.FormatInt(hours, 10)
+	hs := strconv.FormatUint(hours, 10)
 	if len(hs) < 2 {
 		b.WriteByte('0')
 	}
@@ -87,7 +92,7 @@ func formatIntervalTime(micros int64) string {
 	writePad2(&b, s)
 
 	if frac != 0 {
-		fs := strconv.FormatInt(frac, 10)
+		fs := strconv.FormatUint(frac, 10)
 		fs = strings.Repeat("0", 6-len(fs)) + fs // left-pad to 6 digits
 		fs = strings.TrimRight(fs, "0")          // trim trailing zeros
 		b.WriteByte('.')
@@ -98,9 +103,9 @@ func formatIntervalTime(micros int64) string {
 }
 
 // writePad2 writes n to b, zero-padded to a minimum of two digits.
-func writePad2(b *strings.Builder, n int64) {
+func writePad2(b *strings.Builder, n uint64) {
 	if n < 10 {
 		b.WriteByte('0')
 	}
-	b.WriteString(strconv.FormatInt(n, 10))
+	b.WriteString(strconv.FormatUint(n, 10))
 }

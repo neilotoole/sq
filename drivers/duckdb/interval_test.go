@@ -1,6 +1,8 @@
 package duckdb_test
 
 import (
+	"math"
+	"strings"
 	"testing"
 
 	duckdbdriver "github.com/duckdb/duckdb-go/v2"
@@ -39,4 +41,15 @@ func TestFormatInterval(t *testing.T) {
 			require.Equal(t, tc.want, duckdb.FormatInterval(iv))
 		})
 	}
+}
+
+// TestFormatInterval_MinInt64 guards against int64 negation overflow: the
+// magnitude of math.MinInt64 micros must not wrap to a bogus positive value.
+func TestFormatInterval_MinInt64(t *testing.T) {
+	var got string
+	require.NotPanics(t, func() {
+		got = duckdb.FormatInterval(duckdbdriver.Interval{Micros: math.MinInt64})
+	})
+	require.True(t, strings.HasPrefix(got, "-"), "want negative sign, got %q", got)
+	require.Equal(t, 2, strings.Count(got, ":"), "want HH:MM:SS shape, got %q", got)
 }
