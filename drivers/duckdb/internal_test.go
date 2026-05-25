@@ -201,10 +201,10 @@ func TestParseDuckDBIndexExpressions(t *testing.T) {
 		{in: `['"name"']`, want: []string{"name"}},
 		// Mixed: bare + re-quoted.
 		{in: `['"name"', email]`, want: []string{"name", "email"}},
-		// Functional expression → no plain column ref → empty result.
-		{in: `['(lower(email))']`, want: []string{}},
-		// Mixed simple + functional → only the simple key survives.
-		{in: `[name, '(lower(email))']`, want: []string{"name"}},
+		// Functional expression → recorded as a single sentinel.
+		{in: `['(lower(email))']`, want: []string{""}},
+		// Mixed simple + functional → sentinel preserves arity/position.
+		{in: `[name, '(lower(email))']`, want: []string{"name", ""}},
 		// Pathological / unparseable inputs return nil.
 		{in: "", want: nil},
 		{in: "[]", want: nil},

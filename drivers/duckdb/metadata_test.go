@@ -411,6 +411,8 @@ func TestTableMetadata_Indexes(t *testing.T) {
 	require.NoError(t, err)
 	_, err = db.ExecContext(ctx, `CREATE INDEX ix_comp ON t(name, email)`)
 	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `CREATE INDEX ix_mixed ON t(name, LOWER(email))`)
+	require.NoError(t, err)
 
 	md, err := grip.TableMetadata(ctx, "t")
 	require.NoError(t, err)
@@ -438,6 +440,11 @@ func TestTableMetadata_Indexes(t *testing.T) {
 	// Functional-only indexes are dropped because no key is a plain
 	// column reference (Columns ends up empty, so the index is omitted).
 	require.NotContains(t, idxByName, "ix_lower_email")
+
+	// A mixed plain/expression index preserves arity: the LOWER(email)
+	// key position becomes the empty-string sentinel.
+	require.Contains(t, idxByName, "ix_mixed")
+	require.Equal(t, []string{"name", ""}, idxByName["ix_mixed"].Columns)
 }
 
 // TestSourceMetadata_SkipsFKMetadataOnViews ensures the FK / index /
