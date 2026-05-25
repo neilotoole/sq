@@ -1,3 +1,7 @@
+<!-- CHANGELOG is hand-maintained release notes: long lines (MD013), tab-aligned
+     pasted command/test output in code blocks (MD010), and many issue-reference
+     link definitions (MD053) are intentional and intrinsic to the format. -->
+<!-- markdownlint-configure-file { "MD013": false, "MD010": false, "MD053": false } -->
 # CHANGELOG
 
 All notable changes to this project will be documented in this file.
