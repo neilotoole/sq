@@ -45,10 +45,10 @@ $ sq driver ls
 DRIVER      DESCRIPTION
 sqlite3     SQLite
 postgres    PostgreSQL
-sqlserver   Microsoft SQL Server / Azure SQL Edge
+sqlserver   Microsoft SQL Server
 mysql       MySQL
 clickhouse  ClickHouse
-oracle      Oracle Database (experimental)
+oracle      Oracle
 duckdb      DuckDB
 csv         Comma-Separated Values
 tsv         Tab-Separated Values
