@@ -7,11 +7,13 @@ on:
     paths:
       - "site/**"
       - ".github/workflows/codeql-site.yml"
+      - ".github/codeql/codeql-site-config.yml"
   pull_request:
     branches: [master, develop]
     paths:
       - "site/**"
       - ".github/workflows/codeql-site.yml"
+      - ".github/codeql/codeql-site-config.yml"
   schedule:
     - cron: "0 11 * * 5"
 
