@@ -1,0 +1,32 @@
+# markdownlint-cli2 config for the sq.io Hugo site (site/).
+# Run via `bun run lint:markdown` (package.json) and the Site CI workflow.
+config:
+  default: true
+  # 100-char line width; code blocks and tables are exempt.
+  MD013:
+    line_length: 100
+    code_blocks: false
+    tables: false
+  # Allow repeated headings (recurring section names across the site's pages).
+  MD024: false
+  # Allow trailing punctuation in headings (e.g. FAQ-style "?").
+  MD026: false
+  # Hugo content uses inline HTML.
+  MD033: false
+  # Bare URLs are allowed.
+  MD034: false
+  # Deliberate "$ cmd" documentation style (~400 lines); not defects.
+  MD014: false
+  # Hugo generates/cross-references heading anchors that markdownlint cannot
+  # resolve; enforcing this rule produces false positives.
+  MD051: false
+# The #655 fix: globs live in the config so check (`markdownlint-cli2`) and
+# fix (`markdownlint-cli2 --fix`) lint the same files.
+globs:
+  - "*.md"
+  - "content/**/*.md"
+ignores:
+  - "./node_modules/**/*.md"
+  - "./CHANGELOG.md"
+  - "./TODO_WEB.md"
+  - "./scratch/**/*.md"
