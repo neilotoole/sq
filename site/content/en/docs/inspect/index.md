@@ -47,6 +47,7 @@ metadata, and the schema structure (tables, columns, etc.).
 ```shell
 $ sq inspect @sakila_pg
 ```
+
 ![sq inspect source text](sq_inspect_source_text.png)
 
 ### `--verbose`
@@ -185,7 +186,6 @@ Sometimes you don't need the full schema, but still want to view the source
 metadata. Use the `--overview` (`-O`) mode to see just the top-level metadata.
 This excludes the schema structure, and is also much faster to complete.
 
-
 ![sq inspect overview text](sq_inspect_source_overview_text.png)
 
 Well, that's not a lot of detail. The `--yaml` output is more useful:
@@ -234,7 +234,6 @@ To list the schemas in a specific catalog, supply `CATALOG.` to the
 $ sq inspect @sakila/pg12 --schemata --src.schema inventory.
 ````
 
-
 ## Inspect table
 
 In additional to inspecting a source, you can drill down on a specific table.
@@ -242,6 +241,7 @@ In additional to inspecting a source, you can drill down on a specific table.
 ```shell
 $ sq inspect @sakila_pg.actor
 ```
+
 ![sq inspect table text](sq_inspect_table_text.png)
 
 Use `--verbose` mode for more detail:
@@ -400,8 +400,9 @@ picture.
 
 By default, `sq inspect` uses the active [schema](/docs/concepts#schema--catalog)
 for the source. You can override the active schema (and catalog)
-using the [`--src.schema`](/docs/source#source-override) flag. See the [sources](/docs/source#source-override) section
-for a fuller explanation of `--src.schema`, but here's a quick example of
+using the [`--src.schema`](/docs/source#source-override) flag. See the
+[sources](/docs/source#source-override) section for a fuller explanation of `--src.schema`,
+but here's a quick example of
 inspecting Postgres's `information_schema` schema:
 
 ```shell

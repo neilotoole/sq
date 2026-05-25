@@ -1,10 +1,10 @@
+# sq data wrangler
+
 [![Go Reference](https://pkg.go.dev/badge/github.com/neilotoole/sq.svg)](https://pkg.go.dev/github.com/neilotoole/sq)
 [![Go Report Card](https://goreportcard.com/badge/neilotoole/sq)](https://goreportcard.com/report/neilotoole/sq)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/neilotoole/sq/blob/master/LICENSE)
 ![Main pipeline](https://github.com/neilotoole/sq/actions/workflows/main.yml/badge.svg)
 [![codecov](https://codecov.io/gh/neilotoole/sq/graph/badge.svg)](https://codecov.io/gh/neilotoole/sq)
-
-# sq data wrangler
 
 `sq` is a command line tool that provides jq-style access to
 structured data sources: SQL databases, or document formats like CSV or Excel.
@@ -12,9 +12,9 @@ It is the lovechild of sql+jq.
 
 ![sq](site/static/images/repo/splash.png)
 
-`sq` executes jq-like [queries](https://sq.io/docs/query), or database-native [SQL](https://sq.io/docs/cmd/sql/).
-It can [join](https://sq.io/docs/query#cross-source-joins) across sources: join a CSV file to a Postgres table, or
-MySQL with Excel.
+`sq` executes jq-like [queries](https://sq.io/docs/query), or database-native
+[SQL](https://sq.io/docs/cmd/sql/). It can [join](https://sq.io/docs/query#cross-source-joins)
+across sources: join a CSV file to a Postgres table, or MySQL with Excel.
 
 `sq` outputs to a multitude of [formats](https://sq.io/docs/output#formats)
 including [JSON](https://sq.io/docs/output#json),
@@ -23,17 +23,17 @@ including [JSON](https://sq.io/docs/output#json),
 and [XML](https://sq.io/docs/output#xml), and can [insert](https://sq.io/docs/output#insert) query
 results directly to a SQL database.
 
-`sq` can also [inspect](https://sq.io/docs/inspect) sources to view metadata about the source structure (tables,
-columns, size). You can use [`sq diff`](https://sq.io/docs/diff) to compare tables, or
-entire databases. `sq` has commands for common database operations to
+`sq` can also [inspect](https://sq.io/docs/inspect) sources to view metadata about the
+source structure (tables, columns, size). You can use [`sq diff`](https://sq.io/docs/diff)
+to compare tables, or entire databases. `sq` has commands for common database operations to
 [copy](https://sq.io/docs/cmd/tbl-copy), [truncate](https://sq.io/docs/cmd/tbl-truncate),
 and [drop](https://sq.io/docs/cmd/tbl-drop) tables.
 
 Find out more at [sq.io](https://sq.io).
 
 > [!TIP]
-> The rest of this doc is mainly for `sq` end users and first-timers. Contributors (bug reports, feature requests, pull requests),
-> see [CONTRIBUTING.md](./CONTRIBUTING.md).
+> The rest of this doc is mainly for `sq` end users and first-timers. Contributors
+> (bug reports, feature requests, pull requests), see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Drivers
 
@@ -48,7 +48,7 @@ postgres    PostgreSQL
 sqlserver   Microsoft SQL Server / Azure SQL Edge
 mysql       MySQL
 clickhouse  ClickHouse
-oracle      Oracle Database (experimental)
+oracle      Oracle
 duckdb      DuckDB
 csv         Comma-Separated Values
 tsv         Tab-Separated Values
@@ -61,7 +61,7 @@ xlsx        Microsoft Excel XLSX
 > [!NOTE]
 > ClickHouse Driver support is currently in beta. Full details of support can be
 > found in the [ClickHouse README](drivers/clickhouse/README.md).
-
+>
 > [!NOTE]
 > **Oracle Driver (Experimental):** Oracle Database support is experimental.
 > The driver uses pure Go ([go-ora](https://github.com/sijms/go-ora)) and does
@@ -76,7 +76,10 @@ brew install sq
 ```
 
 > [!IMPORTANT]
-> `sq` is now a [core brew formula](https://formulae.brew.sh/formula/sq#default). Previously, `sq` was available via `brew install neilotoole/sq/sq`. If you have installed `sq` this way, you should uninstall it (`brew uninstall neilotoole/sq/sq`) before installing the new formula via `brew install sq`.
+> `sq` is now a [core brew formula](https://formulae.brew.sh/formula/sq#default). Previously,
+> `sq` was available via `brew install neilotoole/sq/sq`. If you have installed `sq` this way,
+> you should uninstall it (`brew uninstall neilotoole/sq/sq`) before installing the new formula
+> via `brew install sq`.
 
 ### Linux
 
@@ -143,7 +146,10 @@ npx skills add neilotoole/sq
 
 ## Documentation site (sq.io)
 
-User-facing docs at [sq.io](https://sq.io) are built from the [`site/`](./site/) directory in this repository (Hugo + Bun + Netlify). To work on the website locally, see [`site/README.md`](./site/README.md). The standalone **`sq-web`** repository is **archived**; open issues and pull requests here against **`neilotoole/sq`** for doc and site changes.
+User-facing docs at [sq.io](https://sq.io) are built from the [`site/`](./site/) directory
+in this repository (Hugo + Bun + Netlify). To work on the website locally, see
+[`site/README.md`](./site/README.md). The standalone **`sq-web`** repository is **archived**;
+open issues and pull requests here against **`neilotoole/sq`** for doc and site changes.
 
 ## Overview
 
@@ -155,8 +161,8 @@ recipes for common tasks, and the [query guide](https://sq.io/docs/query) covers
 The major concept is: `sq` operates on data sources, which are treated as SQL databases (even if the
 source is really a CSV or XLSX file etc.).
 
-In a nutshell, you [`sq add`](https://sq.io/docs/cmd/add) a source (giving it a [`handle`](https://sq.io/docs/concepts#handle)), and then execute commands against the
-source.
+In a nutshell, you [`sq add`](https://sq.io/docs/cmd/add) a source (giving it a
+[`handle`](https://sq.io/docs/concepts#handle)), and then execute commands against the source.
 
 ### Sources
 
@@ -167,9 +173,12 @@ $ sq ls
 
 ```
 
-Let's [add](https://sq.io/docs/cmd/add) a source. First we'll add a [SQLite](https://sq.io/docs/drivers/sqlite)
-database, but this could also be [Postgres](https://sq.io/docs/drivers/postgres),
-[SQL Server](https://sq.io/docs/drivers/sqlserver), [MySQL](https://sq.io/docs/drivers/mysql), [Oracle](https://sq.io/docs/drivers/oracle) etc., or a document source such as [Excel](https://sq.io/docs/drivers/xlsx) or
+Let's [add](https://sq.io/docs/cmd/add) a source. First we'll add a
+[SQLite](https://sq.io/docs/drivers/sqlite) database, but this could also be
+[Postgres](https://sq.io/docs/drivers/postgres),
+[SQL Server](https://sq.io/docs/drivers/sqlserver),
+[MySQL](https://sq.io/docs/drivers/mysql), [Oracle](https://sq.io/docs/drivers/oracle) etc.,
+or a document source such as [Excel](https://sq.io/docs/drivers/xlsx) or
 [CSV](https://sq.io/docs/drivers/csv).
 
 Download the sample DB, and `sq add` the source.
@@ -194,8 +203,8 @@ $ sq src
 The [`sq ping`](https://sq.io/docs/cmd/ping) command simply pings the source
 to verify that it's available.
 
-[`sq src`](https://sq.io/docs/cmd/src) lists the [_active source_](https://sq.io/docs/source#active-source), which in our
-case is `@sakila`.
+[`sq src`](https://sq.io/docs/cmd/src) lists the
+[_active source_](https://sq.io/docs/source#active-source), which in our case is `@sakila`.
 You can change the active source using `sq src @other_src`.
 When there's an active source specified, you can usually omit the handle from `sq` commands.
 Thus you could instead do:
@@ -276,9 +285,11 @@ Read more about [`sq inspect`](https://sq.io/docs/inspect).
 
 ### Diff
 
-Use [`sq diff`](https://sq.io/docs/diff) to compare metadata, or row data, for sources, or individual tables.
+Use [`sq diff`](https://sq.io/docs/diff) to compare metadata, or row data, for sources,
+or individual tables.
 
-The default behavior is to diff table schema and row counts. Table row data is not compared in this mode.
+The default behavior is to diff table schema and row counts. Table row data is not compared
+in this mode.
 
 ![sq diff](site/static/images/repo/sq_diff_src_default.png)
 
@@ -302,7 +313,8 @@ a SQL Server table etc.
 
 > [!TIP]
 > If you want to copy a table inside the same (database) source,
-> use [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy) instead, which uses the database's native table copy functionality.
+> use [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy) instead, which uses the database's
+> native table copy functionality.
 
 Here we query a CSV file, and insert the results into a Postgres table.
 
@@ -394,8 +406,8 @@ See [CHANGELOG.md](./CHANGELOG.md).
   packages.
 - `sq` imports a bunch of [`usql`](https://github.com/xo/usql) functionality.
 - Additionally, `sq` incorporates modified versions of:
- - [`olekukonko/tablewriter`](https://github.com/olekukonko/tablewriter)
- - [`segmentio/encoding`](https://github.com/segmentio/encoding) for JSON encoding.
+  - [`olekukonko/tablewriter`](https://github.com/olekukonko/tablewriter)
+  - [`segmentio/encoding`](https://github.com/segmentio/encoding) for JSON encoding.
 - The [_Sakila_](https://dev.mysql.com/doc/sakila/en/) example databases were lifted
   from [jOOQ](https://github.com/jooq/jooq), which in turn owe their heritage to earlier work on
   Sakila.
@@ -415,7 +427,11 @@ See [CHANGELOG.md](./CHANGELOG.md).
 - [`rq`](https://github.com/dflemstr/rq)
 - [`miller`](https://github.com/johnkerl/miller)
 - [`jsoncolor`](https://github.com/neilotoole/jsoncolor) is a JSON colorizer created for `sq`.
-- [`streamcache`](https://github.com/neilotoole/streamcache) is a Go in-memory byte cache mechanism created for `sq`.
-- [`fifomu`](https://github.com/neilotoole/fifomu) is a FIFO mutex, used by `streamcache`, and thus upstream in `sq`.
-- [`tailbuf`](https://github.com/neilotoole/tailbuf) is a fixed-size object tail buffer created for `sq`.
-- [`oncecache`](https://github.com/neilotoole/oncecache) is an in-memory object cache created for `sq`.
+- [`streamcache`](https://github.com/neilotoole/streamcache) is a Go in-memory byte cache
+  mechanism created for `sq`.
+- [`fifomu`](https://github.com/neilotoole/fifomu) is a FIFO mutex, used by `streamcache`,
+  and thus upstream in `sq`.
+- [`tailbuf`](https://github.com/neilotoole/tailbuf) is a fixed-size object tail buffer
+  created for `sq`.
+- [`oncecache`](https://github.com/neilotoole/oncecache) is an in-memory object cache
+  created for `sq`.

@@ -84,8 +84,8 @@ with [document source](#document-source).
 
 ## Document source
 
-A [document source](/docs/source#document-source) is a source backed by a document or file such as [CSV](/docs/drivers/csv) or
-[XLSX](/docs/drivers/xlsx). Some functionality
+A [document source](/docs/source#document-source) is a source backed by a document or file
+such as [CSV](/docs/drivers/csv) or [XLSX](/docs/drivers/xlsx). Some functionality
 is not available for document sources. For example, `sq` doesn't provide a mechanism to insert query
 results into a CSV file. Contrast with [SQL source](#sql-source). A document source's data
 is automatically [ingested](/docs/source#ingest) by `sq`. The document source's location
@@ -128,7 +128,7 @@ is useful for a quick reminder of table and column names:
 
 `sq inspect` comes into its own when used with the `--json` flag, which outputs voluminous info
 on the data source. It is a frequent practice to combine `sq inspect`
-with [jq ](https://jqlang.github.io/jq/).
+with [jq](https://jqlang.github.io/jq/).
 For example, to list the tables of the active source:
 
 ```shell
@@ -142,6 +142,7 @@ category
 See more examples in the [cookbook](/docs/cookbook).
 
 <a id="scratch-db"></a>
+
 ## Ingest DB
 
 [Ingest DB](/docs/source#ingest) refers to the temporary ("_ingest_") database that `sq` uses for under-the-hood

@@ -6,6 +6,7 @@ draft: false
 images: []
 ---
 
+<!-- markdownlint-disable-next-line MD013 -->
 {{< asciicast src="/casts/home-quick.cast"  poster="npt:0:25" rows=10 autoPlay=true speed=3 idleTimeLimit=3 >}}
 
 `sq` is a free/libre [open-source](https://github.com/neilotoole/sq) data wrangling swiss-army knife
@@ -21,19 +22,19 @@ sq '@postgres_db | .actor | .first_name, .last_name | .[0:5]'
 
 {{< tabs name="sq-install" >}}
 {{{< tab name="mac" codelang="shell" >}}brew install sq{{< /tab >}}
+<!-- markdownlint-disable-next-line MD013 -->
 {{< tab name="linux" codelang="shell" >}}/bin/sh -c "$(curl -fsSL https://sq.io/install.sh)"{{< /tab >}}}
 {{< tab name="win" codelang="shell">}}scoop bucket add sq https://github.com/neilotoole/sq
 scoop install sq{{< /tab >}}}
-{{% tab name="more" %}}Install options for `apt`, `yum`, `apk`, `pacman`, `yay` over [here](/docs/install).{{% /tab %}}}
+<!-- markdownlint-disable-next-line MD013 -->
+{{% tab name="more" %}}Install options for `apt`, `yum`, `apk`, `pacman`, `yay` on the [install page](/docs/install).{{% /tab %}}}
 {{< /tabs >}}
-
 
 For help, `sq help` is your starting point. And then see the [docs](/docs/overview).
 
 ### Let's get this out of the way
 
 `sq` is pronounced like _seek_. Its query language, `SLQ`, is pronounced like _sleek_.
-
 
 ## Feature Highlights
 
@@ -48,12 +49,11 @@ Use the [diff](/docs/diff) command to compare source metadata or row values.
 
 ### Import Excel worksheet into Postgres table
 
-[Insert](/docs/output#insert) the contents of an Excel XLSX worksheet (from a sheet named `actor`) into
-a new Postgres table named `xl_actor`. Note that the import mechanism
+[Insert](/docs/output#insert) the contents of an Excel XLSX worksheet (from a sheet named `actor`)
+into a new Postgres table named `xl_actor`. Note that the import mechanism
 is reasonably sophisticated in that it tries to preserve data types.
 
 {{< asciicast src="/casts/excel-to-postgres.cast" poster="npt:0:5" rows=5 >}}
-
 
 ### View metadata for a database
 
@@ -87,6 +87,7 @@ extract the table names; pipe the table names
 to `xargs`, invoking `sq` once for each table, outputting a CSV file per table. This snippet
 was tested on macOS.
 
+<!-- markdownlint-disable-next-line MD013 -->
 {{< asciicast src="/casts/export-all-tables-to-csv.cast" poster="npt:0:22" idleTimeLimit=0.5 rows=6 speed=2.5 >}}
 
 If you instead wanted to use `sql` mode:
@@ -118,7 +119,8 @@ $ sq rm @actor_tsv            # remove a source
 
 ### Database table commands
 
-Convenient commands that act on database tables: [copy](/docs/cmd/tbl-copy), [truncate](/docs/cmd/tbl-truncate), [drop](/docs/cmd/tbl-drop).
+Convenient commands that act on database tables:
+[copy](/docs/cmd/tbl-copy), [truncate](/docs/cmd/tbl-truncate), [drop](/docs/cmd/tbl-drop).
 
 Note that `sq tbl copy` only applies within a single database.
 If you want to copy a table from one database to another,
@@ -134,7 +136,8 @@ $ sq tbl drop .actor2         # drop table "actor2"
 
 ### Query JSONL (e.g. log files)
 
-[JSONL](/docs/output#jsonl) output is a row of JSON per line (hence "JSON Lines"). Lots of log output is like this.
+[JSONL](/docs/output#jsonl) output is a row of JSON per line (hence "JSON Lines").
+Lots of log output is like this.
 We can use `sq`'s own [log](/docs/config/#logging) output as an example:
 
 ```json lines
@@ -142,4 +145,6 @@ We can use `sq`'s own [log](/docs/config/#logging) output as an example:
 {"level":"debug","time":"00:07:48.800016","caller":"source/files.go:323:(*Files).Close","msg":"Files.Close invoked: has 1 clean funcs"}
 {"level":"debug","time":"00:07:48.800031","caller":"source/files.go:61:NewFiles.func1","msg":"About to clean fscache from dir: /var/folders/68/qthwmfm93zl4mqdw_7wvsv7w0000gn/T/sq_files_fscache_2273841732"}
 ```
+
+<!-- markdownlint-disable-next-line MD013 -->
 {{< asciicast src="/casts/query-jsonl-log-file.cast" poster="npt:0:17" idleTimeLimit=0.5 rows=5 speed=2 >}}

@@ -405,16 +405,18 @@ classDiagram
     `run.Run` *-- `files.Files` : contains
 ```
 
-
 ---
 
 ## SQ Architecture Documentation
 
 ## Overview
 
-**SQ** is a data wrangler CLI tool that provides jq-style access to structured data sources including SQL databases (PostgreSQL, MySQL, SQLite, SQL Server) and document formats (CSV, JSON, Excel, etc.). It supports cross-source joins and query execution.
+**SQ** is a data wrangler CLI tool that provides jq-style access to structured data sources
+including SQL databases (PostgreSQL, MySQL, SQLite, SQL Server) and document formats
+(CSV, JSON, Excel, etc.). It supports cross-source joins and query execution.
 
-This document focuses on the architecture with special attention to SQL dialects and data types, which are the primary extension points for adding new database support.
+This document focuses on the architecture with special attention to SQL dialects and data
+types, which are the primary extension points for adding new database support.
 
 ## Table of Contents
 
@@ -429,7 +431,7 @@ This document focuses on the architecture with special attention to SQL dialects
 
 ## Project Structure
 
-```
+```text
 sq/
 ├── cli/                          # Command-line interface & commands
 │   ├── run.go                    # Bootstrap & driver initialization (lines 276-341)
@@ -536,6 +538,7 @@ type Dialect struct {
 ### Dialect Implementations
 
 #### PostgreSQL
+
 **Location:** `drivers/postgres/postgres.go:91-102`
 
 ```go
@@ -568,6 +571,7 @@ func placeholders(numCols, numRows int) string {
 ```
 
 #### MySQL
+
 **Location:** `drivers/mysql/mysql.go:111-123`
 
 ```go
@@ -595,6 +599,7 @@ func placeholders(numCols, numRows int) string {
 ```
 
 #### SQLite
+
 **Location:** `drivers/sqlite3/sqlite3.go`
 
 ```go
@@ -612,6 +617,7 @@ func (d *driveri) Dialect() dialect.Dialect {
 ```
 
 #### SQL Server
+
 **Location:** `drivers/sqlserver/sqlserver.go`
 
 ```go
@@ -634,12 +640,12 @@ func enquote(s string) string {
 
 ### Dialect Comparison Table
 
-| Database | Location | Type Const | Placeholders | Quote | IntBool | Catalog | Full Outer Join |
-|----------|----------|------------|--------------|-------|---------|---------|-----------------|
-| PostgreSQL | `drivers/postgres/` | `drivertype.Pg` | `$1, $2...` | `"` | No | Yes | Yes |
-| MySQL | `drivers/mysql/` | `drivertype.MySQL` | `?` | `` ` `` | Yes | No | No |
-| SQLite | `drivers/sqlite3/` | `drivertype.SQLite` | `?` | `"` | No | No | No |
-| SQL Server | `drivers/sqlserver/` | `drivertype.MSSQL` | `@p1, @p2...` | `[ ]` | No | Yes | Yes |
+| Database   | Location             | Type Const          | Placeholders  | Quote   | IntBool | Catalog | Full Outer Join |
+| ---------- | -------------------- | ------------------- | ------------- | ------- | ------- | ------- | --------------- |
+| PostgreSQL | `drivers/postgres/`  | `drivertype.Pg`     | `$1, $2...`   | `"`     | No      | Yes     | Yes             |
+| MySQL      | `drivers/mysql/`     | `drivertype.MySQL`  | `?`           | `` ` `` | Yes     | No      | No              |
+| SQLite     | `drivers/sqlite3/`   | `drivertype.SQLite` | `?`           | `"`     | No      | No      | No              |
+| SQL Server | `drivers/sqlserver/` | `drivertype.MSSQL`  | `@p1, @p2...` | `[ ]`   | No      | Yes     | Yes             |
 
 ---
 
@@ -649,7 +655,8 @@ func enquote(s string) string {
 
 **Location:** `libsq/core/kind/kind.go`
 
-The `Kind` type provides a generic abstraction over all data types. This is the canonical type system that all drivers map to/from:
+The `Kind` type provides a generic abstraction over all data types. This is the canonical
+type system that all drivers map to/from:
 
 ```go
 type Kind int
@@ -679,6 +686,7 @@ Each driver implements **bidirectional type mapping**:
 #### PostgreSQL Type Mapping
 
 ##### DB Type → Kind
+
 **Location:** `drivers/postgres/metadata.go:29-91`
 
 ```go
@@ -717,6 +725,7 @@ func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind 
 ```
 
 ##### Kind → DB Type
+
 **Location:** `drivers/postgres/render.go:22-47`
 
 ```go
@@ -751,6 +760,7 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 #### MySQL Type Mapping
 
 ##### DB Type → Kind
+
 **Location:** `drivers/mysql/metadata.go`
 
 ```go
@@ -795,6 +805,7 @@ func kindFromDBTypeName(colName, dbTypeName string) kind.Kind {
 ```
 
 ##### Kind → DB Type
+
 **Location:** `drivers/mysql/render.go:16-39`
 
 ```go
@@ -831,6 +842,7 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 SQLite uses **type affinity** rules for flexible type handling.
 
 ##### DB Type → Kind
+
 **Location:** `drivers/sqlite3/metadata.go:211-237`
 
 ```go
@@ -874,6 +886,7 @@ func determineKind(colName, typeName string, hasDefault bool) kind.Kind {
 ```
 
 ##### Kind → DB Type
+
 **Location:** `drivers/sqlite3/metadata.go:240-265`
 
 ```go
@@ -1095,7 +1108,7 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *schema.Ta
 
 SQ parses queries into an AST structure:
 
-```
+```text
 SelectNode (root)
   ├─ TblSelectorNode (FROM table)
   ├─ Columns (SELECT columns)
@@ -1162,6 +1175,7 @@ type FuncRenderer func(ctx *Context, fn *ast.FuncNode) (string, error)
 Each driver can customize the renderer:
 
 **PostgreSQL** (`postgres.go:127-133`):
+
 ```go
 func (d *driveri) Renderer() *render.Renderer {
     r := render.NewDefaultRenderer()
@@ -1172,6 +1186,7 @@ func (d *driveri) Renderer() *render.Renderer {
 ```
 
 **MySQL** (`mysql.go:134-140`):
+
 ```go
 func (d *driveri) Renderer() *render.Renderer {
     r := render.NewDefaultRenderer()
@@ -1197,6 +1212,7 @@ This guide uses Oracle as an example.
 Create a new directory: `drivers/oracle/`
 
 Files to create:
+
 - `oracle.go` - Provider, driver implementation, dialect
 - `metadata.go` - Schema inspection, type mapping (DB Type → Kind)
 - `render.go` - Type conversion (Kind → DB Type)
@@ -1571,6 +1587,7 @@ func (k Kind) MarshalText() ([]byte, error) {
 For **each** SQL driver, update the type mapping functions:
 
 **PostgreSQL** (`drivers/postgres/metadata.go`):
+
 ```go
 func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind {
     switch strings.ToUpper(dbTypeName) {
@@ -1585,6 +1602,7 @@ func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind 
 ```
 
 **PostgreSQL** (`drivers/postgres/render.go`):
+
 ```go
 func dbTypeNameFromKind(knd kind.Kind) string {
     switch knd {
@@ -1599,6 +1617,7 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 ```
 
 **MySQL** (`drivers/mysql/metadata.go`):
+
 ```go
 func kindFromDBTypeName(colName, dbTypeName string) kind.Kind {
     dbTypeName = strings.ToUpper(dbTypeName)
@@ -1616,6 +1635,7 @@ func kindFromDBTypeName(colName, dbTypeName string) kind.Kind {
 ```
 
 **MySQL** (`drivers/mysql/render.go`):
+
 ```go
 func dbTypeNameFromKind(knd kind.Kind) string {
     switch knd {
@@ -1664,7 +1684,7 @@ To add support for a new document format (e.g., Parquet, Avro):
 
 #### Step 1: Create Driver Package
 
-```
+```text
 drivers/parquet/
 ├── parquet.go       # Provider, driver implementation
 ├── ingest.go        # Data ingestion logic
@@ -1782,26 +1802,31 @@ func FinishRunInit(cfg *config.Config, ru *Run, ...) error {
 ## Key Design Patterns
 
 ### 1. Provider/Factory Pattern
+
 - `Provider` interface creates `Driver` instances
 - Enables lazy instantiation and polymorphism
 - Supports dependency injection
 
 ### 2. Strategy Pattern (Dialect)
+
 - `Dialect` encapsulates database-specific behavior
 - Placeholders, quoting, operators vary by database
 - Renderer uses Dialect for code generation
 
 ### 3. Adapter Pattern (Kind)
+
 - `Kind` provides universal type abstraction
 - Each driver adapts DB types ↔ Kind
 - Enables cross-database operations
 
 ### 4. Template Method (Rendering)
+
 - Base `Renderer` provides structure
 - Drivers override specific methods
 - Flexible for future extensions
 
 ### 5. Bridge Pattern (Grip)
+
 - `Grip` decouples driver from connection
 - Allows multiple connection implementations
 - Supports caching, pooling, transformation
@@ -1812,42 +1837,42 @@ func FinishRunInit(cfg *config.Config, ru *Run, ...) error {
 
 ### SQL Dialects
 
-| Component | File Location | Lines |
-|-----------|---------------|-------|
-| Dialect struct | `libsq/driver/dialect/dialect.go` | - |
-| PostgreSQL dialect | `drivers/postgres/postgres.go` | 91-102 |
-| MySQL dialect | `drivers/mysql/mysql.go` | 111-123 |
-| SQLite dialect | `drivers/sqlite3/sqlite3.go` | - |
-| SQL Server dialect | `drivers/sqlserver/sqlserver.go` | - |
+| Component          | File Location                       | Lines   |
+| ------------------ | ----------------------------------- | ------- |
+| Dialect struct     | `libsq/driver/dialect/dialect.go`   | -       |
+| PostgreSQL dialect | `drivers/postgres/postgres.go`      | 91-102  |
+| MySQL dialect      | `drivers/mysql/mysql.go`            | 111-123 |
+| SQLite dialect     | `drivers/sqlite3/sqlite3.go`        | -       |
+| SQL Server dialect | `drivers/sqlserver/sqlserver.go`    | -       |
 
 ### Data Types
 
-| Component | File Location | Lines |
-|-----------|---------------|-------|
-| Kind enum | `libsq/core/kind/kind.go` | - |
-| PostgreSQL: DB→Kind | `drivers/postgres/metadata.go` | 29-91 |
-| PostgreSQL: Kind→DB | `drivers/postgres/render.go` | 22-47 |
-| MySQL: DB→Kind | `drivers/mysql/metadata.go` | - |
-| MySQL: Kind→DB | `drivers/mysql/render.go` | 16-39 |
-| SQLite: DB→Kind | `drivers/sqlite3/metadata.go` | 211-237 |
-| SQLite: Kind→DB | `drivers/sqlite3/metadata.go` | 240-265 |
+| Component            | File Location                      | Lines   |
+| -------------------- | ---------------------------------- | ------- |
+| Kind enum            | `libsq/core/kind/kind.go`          | -       |
+| PostgreSQL: DB→Kind  | `drivers/postgres/metadata.go`     | 29-91   |
+| PostgreSQL: Kind→DB  | `drivers/postgres/render.go`       | 22-47   |
+| MySQL: DB→Kind       | `drivers/mysql/metadata.go`        | -       |
+| MySQL: Kind→DB       | `drivers/mysql/render.go`          | 16-39   |
+| SQLite: DB→Kind      | `drivers/sqlite3/metadata.go`      | 211-237 |
+| SQLite: Kind→DB      | `drivers/sqlite3/metadata.go`      | 240-265 |
 
 ### Driver Framework
 
-| Component | File Location | Lines |
-|-----------|---------------|-------|
-| Driver interfaces | `libsq/driver/driver.go` | - |
-| Driver registry | `libsq/driver/registry.go` | - |
-| Driver types enum | `libsq/source/drivertype/drivertype.go` | - |
-| Driver registration | `cli/run.go` | 276-341 |
+| Component            | File Location                              | Lines   |
+| -------------------- | ------------------------------------------ | ------- |
+| Driver interfaces    | `libsq/driver/driver.go`                   | -       |
+| Driver registry      | `libsq/driver/registry.go`                 | -       |
+| Driver types enum    | `libsq/source/drivertype/drivertype.go`    | -       |
+| Driver registration  | `cli/run.go`                               | 276-341 |
 
 ### Rendering
 
-| Component | File Location | Lines |
-|-----------|---------------|-------|
-| Renderer struct | `libsq/ast/render/render.go` | - |
-| AST definitions | `libsq/ast/ast.go` | - |
-| Query parser | `libsq/ast/parser.go` | - |
+| Component       | File Location                   | Lines |
+| --------------- | ------------------------------- | ----- |
+| Renderer struct | `libsq/ast/render/render.go`    | -     |
+| AST definitions | `libsq/ast/ast.go`              | -     |
+| Query parser    | `libsq/ast/parser.go`           | -     |
 
 ---
 
@@ -1855,13 +1880,17 @@ func FinishRunInit(cfg *config.Config, ru *Run, ...) error {
 
 The SQ architecture is built on several key principles:
 
-1. **Universal Type Abstraction**: The `Kind` enum provides a common type system that all drivers map to, enabling cross-database compatibility.
+1. **Universal Type Abstraction**: The `Kind` enum provides a common type system that all
+   drivers map to, enabling cross-database compatibility.
 
-2. **Dialect-Aware Rendering**: Each database defines its `Dialect` with specific placeholder styles, quoting rules, and operator mappings. The renderer uses these to generate correct SQL.
+2. **Dialect-Aware Rendering**: Each database defines its `Dialect` with specific placeholder
+   styles, quoting rules, and operator mappings. The renderer uses these to generate correct SQL.
 
-3. **Pluggable Driver System**: The Provider/Factory pattern with centralized registration makes it easy to add new databases and document formats.
+3. **Pluggable Driver System**: The Provider/Factory pattern with centralized registration makes
+   it easy to add new databases and document formats.
 
-4. **Bidirectional Type Mapping**: Every SQL driver implements both DB Type → Kind and Kind → DB Type conversions, ensuring seamless data flow.
+4. **Bidirectional Type Mapping**: Every SQL driver implements both DB Type → Kind and Kind → DB
+   Type conversions, ensuring seamless data flow.
 
 5. **Clean Separation of Concerns**:
    - **AST**: Query structure (database-agnostic)
@@ -1869,4 +1898,6 @@ The SQ architecture is built on several key principles:
    - **Driver**: Database-specific implementation
    - **Renderer**: SQL code generation
 
-To extend SQ with new databases or types, follow the patterns established in existing drivers, focusing on the three critical components: **Dialect definition**, **Type mapping**, and **Driver implementation**.
+To extend SQ with new databases or types, follow the patterns established in existing drivers,
+focusing on the three critical components: **Dialect definition**, **Type mapping**, and
+**Driver implementation**.

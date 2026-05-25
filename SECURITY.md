@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Vulnerabilities are only addressed for 
+Vulnerabilities are only addressed for
 
 | Version | Supported          |
 | ------- | ------------------ |
