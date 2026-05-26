@@ -191,7 +191,7 @@ $ sq inspect @sakila_pg -f mermaid-erd -o sakila.mmd
 ```
 
 ```mermaid
-%% sq inspect @sakila/pg.actor -f mermaid-erd
+%% sq inspect @sakila_pg.actor -f mermaid-erd
 erDiagram
     actor {
         int actor_id PK
