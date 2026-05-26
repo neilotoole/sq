@@ -194,6 +194,57 @@ The format covers only source and single-table schema inspection. Operations
 with no diagram — such as `--overview` (`-O`), `--catalogs`, or `--dbprops` —
 return an error rather than empty output.
 
+### `svg-erd`
+
+The `svg-erd` format renders the schema entity-relationship diagram directly
+to an **SVG image**, without piping the diagram source through a separate
+rendering toolchain. The diagram is laid out and rendered natively by an
+embedded [Graphviz](https://graphviz.org) engine, so it needs no external
+tools, no browser, and no network access. Each table is drawn as a box of its
+columns (with type and `PK`/`FK` markers) and foreign keys as crow's-foot
+relationship edges. Select it via the generic `--format` (`-f`) flag:
+
+```shell
+# Whole-source ERD to a file.
+$ sq inspect @sakila_pg --format=svg-erd -o sakila-schema.svg
+
+# Just the actor table (and its related tables).
+$ sq inspect @sakila_pg.actor -f svg-erd -o actor.svg
+
+# SVG is text, so it can also go to stdout / a pipe.
+$ sq inspect @sakila_pg -f svg-erd > sakila-schema.svg
+```
+
+### `png-erd`
+
+The `png-erd` format renders the same entity-relationship diagram as
+`svg-erd`, but as a **PNG image** — convenient for dropping a schema picture
+into a README, ticket, or chat message. Like `svg-erd`, it's rendered natively
+by the embedded Graphviz engine.
+
+PNG is binary, so `png-erd` requires a file target: pass `-o`/`--output` (or
+redirect stdout). Writing it directly to a terminal is refused, to avoid
+corrupting the terminal.
+
+```shell
+$ sq inspect @sakila_pg --format=png-erd -o sakila-schema.png
+
+# Single table.
+$ sq inspect @sakila_pg.actor -f png-erd -o actor.png
+```
+
+Like `mermaid-erd`, both `svg-erd` and `png-erd` cover only source and
+single-table schema inspection; operations with no diagram (`--overview`,
+`--catalogs`, `--dbprops`) return an error.
+
+{{< alert icon="👉" >}}
+The `svg-erd` and `png-erd` diagrams are laid out by Graphviz, so they look
+different from the [Mermaid](https://mermaid.js.org) diagrams produced by the
+`markdown`, `html`, and `mermaid-erd` formats. Use `mermaid-erd` when you want
+the Mermaid layout; use `svg-erd` / `png-erd` when you want a self-contained
+image file with no external rendering step.
+{{< /alert >}}
+
 ## Source overview
 
 Sometimes you don't need the full schema, but still want to view the source

@@ -1,9 +1,11 @@
 package cli_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"image/png"
 	"os"
 	"strings"
 	"testing"
@@ -11,6 +13,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/cli/testrun"
@@ -440,6 +443,105 @@ func TestCmdInspect_mermaidERD(t *testing.T) { //nolint:tparallel
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "mermaid-erd")
 	})
+}
+
+// TestCmdInspect_svgERD exercises the "svg-erd" output format against the
+// sakila SQLite source (no Docker required). It renders the schema ERD to an
+// SVG image — valid SVG markup carrying the table names — for whole-source
+// and single-table inspection.
+func TestCmdInspect_svgERD(t *testing.T) { //nolint:tparallel
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+	tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+	require.NoError(t, tr.Exec("inspect", "--format="+format.SVGERD.String()))
+
+	out := tr.Out.String()
+	require.Contains(t, out, "<svg", "output should be SVG markup")
+	require.Contains(t, out, "film")
+	require.Contains(t, out, "language")
+	// Not the Mermaid source, Markdown, or HTML wrapper.
+	require.NotContains(t, out, "erDiagram")
+	require.NotContains(t, out, "```mermaid")
+
+	t.Run("table", func(t *testing.T) {
+		tr2 := testrun.New(th.Context, t, tr)
+		require.NoError(t, tr2.Exec(
+			"inspect", src.Handle+".film_actor", "-f", format.SVGERD.String()))
+		out := tr2.Out.String()
+		require.Contains(t, out, "<svg")
+		require.Contains(t, out, "film_actor")
+	})
+}
+
+// TestCmdInspect_pngERD exercises the "png-erd" output format. PNG is binary,
+// so it requires a file target (-o/--output); the rendered file must decode
+// as a non-empty PNG image.
+func TestCmdInspect_pngERD(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+	tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+
+	outputFile, err := os.CreateTemp("", t.Name()+"*.png")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, outputFile.Close())
+		require.NoError(t, os.Remove(outputFile.Name()))
+	})
+
+	require.NoError(t, tr.Exec(
+		"inspect", "--format="+format.PNGERD.String(), "-o", outputFile.Name()))
+
+	// Nothing should have been written to stdout.
+	require.Empty(t, tr.Out.String())
+
+	got, err := os.ReadFile(outputFile.Name())
+	require.NoError(t, err)
+	require.True(t, strings.HasPrefix(string(got), "\x89PNG\r\n\x1a\n"),
+		"output file should start with the PNG magic bytes")
+	img, err := png.Decode(bytes.NewReader(got))
+	require.NoError(t, err)
+	require.Positive(t, img.Bounds().Dx())
+	require.Positive(t, img.Bounds().Dy())
+}
+
+// TestErrBinaryFormatToTerminal pins the guard that refuses to write the
+// binary png-erd format to a terminal: it errors only for png-erd, only when
+// no file target is set, and only when stdout is a terminal. svg-erd (text)
+// and any non-terminal destination are always allowed.
+func TestErrBinaryFormatToTerminal(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name             string
+		fm               format.Format
+		fileOutputSet    bool
+		stdoutIsTerminal bool
+		wantErr          bool
+	}{
+		{"png_to_terminal", format.PNGERD, false, true, true},
+		{"png_to_terminal_with_output", format.PNGERD, true, true, false},
+		{"png_to_pipe", format.PNGERD, false, false, false},
+		{"svg_to_terminal", format.SVGERD, false, true, false},
+		{"text_to_terminal", format.Text, false, true, false},
+		{"json_to_terminal", format.JSON, false, true, false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := cli.ErrBinaryFormatToTerminal(tc.fm, tc.fileOutputSet, tc.stdoutIsTerminal)
+			if tc.wantErr {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), format.PNGERD.String())
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
 }
 
 // TestCmdInspect_formatFlag verifies that the generic --format / -f flag

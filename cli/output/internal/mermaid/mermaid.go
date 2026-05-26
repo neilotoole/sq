@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/output/internal/erdmodel"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -71,11 +72,7 @@ func TableDiagram(tbl *metadata.Table, cardIndex map[string]*metadata.Table) str
 
 // Index returns a name→table lookup, for use as TableDiagram's cardIndex.
 func Index(tables []*metadata.Table) map[string]*metadata.Table {
-	byName := make(map[string]*metadata.Table, len(tables))
-	for _, t := range tables {
-		byName[t.Name] = t
-	}
-	return byName
+	return erdmodel.Index(tables)
 }
 
 // render builds the erDiagram source: an entity block per table in entities
@@ -95,12 +92,12 @@ func render(entities []*metadata.Table, edges []erdEdge) string {
 	buf := &strings.Builder{}
 	buf.WriteString("erDiagram\n")
 	for _, t := range withCols {
-		fkCols := fkColumnSet(t)
+		fkCols := erdmodel.FKColumnSet(t)
 		fmt.Fprintf(buf, "    %s {\n", ident(t.Name))
 		for _, col := range t.Columns {
 			typ := attrWord(col.Kind.String())
 			name := attrWord(col.Name)
-			if keys := keyMarker(col, fkCols); keys != "" {
+			if keys := erdmodel.KeyMarker(col, fkCols); keys != "" {
 				fmt.Fprintf(buf, "        %s %s %s\n", typ, name, keys)
 			} else {
 				fmt.Fprintf(buf, "        %s %s\n", typ, name)
@@ -114,118 +111,41 @@ func render(entities []*metadata.Table, edges []erdEdge) string {
 	return buf.String()
 }
 
-// fkEdge builds the erdEdge for a single foreign key. Returns false for
-// references that point outside this source (non-empty RefCatalog/RefSchema
-// after metadata.LinkForeignKeys normalization).
+// fkEdge builds the erdEdge for a single foreign key, mapping the
+// renderer-neutral cardinality from [erdmodel.Resolve] to Mermaid's
+// cardinality tokens. Returns false for references that point outside this
+// source (non-empty RefCatalog/RefSchema after metadata.LinkForeignKeys
+// normalization).
 //
-// Cardinality is inferred from the child (referencing) table when it's
-// available in byName: the parent side is "|o" (zero-or-one) when any FK
-// column is nullable, else "||" (exactly one); the child side is "||"
-// (one-to-one) when the FK columns are themselves unique on the child,
-// else "o{" (zero-or-many). When the child table isn't available the
-// default "||--o{" is used.
+// The parent side is "|o" (zero-or-one) when the relationship's parent is
+// optional, else "||" (exactly one); the child side is "||" (one-to-one)
+// when the child is unique, else "o{" (zero-or-many). When the child table
+// isn't available for inference the default "||--o{" is used.
 func fkEdge(fk *metadata.ForeignKey, byName map[string]*metadata.Table) (erdEdge, bool) {
-	if fk == nil || fk.RefCatalog != "" || fk.RefSchema != "" {
+	e, ok := erdmodel.Resolve(fk, byName)
+	if !ok {
 		return erdEdge{}, false
 	}
 
 	parentCard, childCard := "||", "o{"
-	if child := byName[fk.Table]; child != nil {
-		if fkColumnsNullable(child, fk.Columns) {
-			parentCard = "|o"
-		}
-		if fkColumnsUnique(child, fk.Columns) {
-			childCard = "||"
-		}
+	if e.Card.ParentOptional {
+		parentCard = "|o"
+	}
+	if e.Card.ChildUnique {
+		childCard = "||"
 	}
 
 	label := `""`
-	if fk.Name != "" {
-		label = `"` + mermaidQuoteSafe.Replace(fk.Name) + `"`
+	if e.Label != "" {
+		label = `"` + mermaidQuoteSafe.Replace(e.Label) + `"`
 	}
 
 	return erdEdge{
-		parent: fk.RefTable,
-		child:  fk.Table,
+		parent: e.Parent,
+		child:  e.Child,
 		card:   parentCard + "--" + childCard,
 		label:  label,
 	}, true
-}
-
-// fkColumnsNullable reports whether any of the named columns on tbl is
-// nullable.
-func fkColumnsNullable(tbl *metadata.Table, cols []string) bool {
-	for _, name := range cols {
-		if c := tbl.Column(name); c != nil && c.Nullable {
-			return true
-		}
-	}
-	return false
-}
-
-// fkColumnsUnique reports whether cols form the primary key or a unique
-// constraint on tbl (i.e. the referencing side is itself unique, making
-// the relationship one-to-one).
-func fkColumnsUnique(tbl *metadata.Table, cols []string) bool {
-	var pk []string
-	for _, c := range tbl.Columns {
-		if c.PrimaryKey {
-			pk = append(pk, c.Name)
-		}
-	}
-	if sameColSet(pk, cols) {
-		return true
-	}
-	for _, uc := range tbl.UniqueConstraints {
-		if uc != nil && sameColSet(uc.Columns, cols) {
-			return true
-		}
-	}
-	return false
-}
-
-// sameColSet reports whether a and b contain the same column names,
-// ignoring order. An empty set never matches.
-func sameColSet(a, b []string) bool {
-	if len(a) == 0 || len(a) != len(b) {
-		return false
-	}
-	aa := append([]string(nil), a...)
-	bb := append([]string(nil), b...)
-	slices.Sort(aa)
-	slices.Sort(bb)
-	return slices.Equal(aa, bb)
-}
-
-// keyMarker returns the "PK", "FK", or "PK,FK" attribute marker for a
-// column in a Mermaid entity block, or "" when the column is neither.
-func keyMarker(col *metadata.Column, fkCols map[string]bool) string {
-	var parts []string
-	if col.PrimaryKey {
-		parts = append(parts, "PK")
-	}
-	if fkCols[col.Name] {
-		parts = append(parts, "FK")
-	}
-	return strings.Join(parts, ",")
-}
-
-// fkColumnSet returns the set of column names on tbl that participate in any
-// outgoing foreign key.
-func fkColumnSet(tbl *metadata.Table) map[string]bool {
-	if tbl.FK == nil {
-		return nil
-	}
-	set := make(map[string]bool)
-	for _, fk := range tbl.FK.Outgoing {
-		if fk == nil {
-			continue
-		}
-		for _, c := range fk.Columns {
-			set[c] = true
-		}
-	}
-	return set
 }
 
 // sortDedupEdges sorts edges into a deterministic order and removes exact
