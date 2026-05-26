@@ -28,20 +28,23 @@ func colorize(src string, pr *output.Printing) string {
 	return strings.Join(lines, "\n")
 }
 
-// reCardinality detects a relationship line by an ER cardinality glyph
-// (| o } {) adjacent to the --/.. connector, rather than a bare --/.. (which
-// can appear inside a quoted label).
-var reCardinality = regexp.MustCompile(`[|}o{](?:--|\.\.)|(?:--|\.\.)[|}o{]`)
-
 // Per-line token regexes, each capturing every character (including
 // whitespace) so reassembly is lossless: stripping the emitted ANSI escapes
 // reproduces the input exactly. Entity operands may be quoted (sq quotes any
 // name that isn't a bare identifier), so they match "..." or a bare token.
+//
+// The relationship operator is an ER cardinality token — glyphs (| o } {)
+// around a --/.. connector — rather than any non-space run. Requiring a real
+// cardinality token here is what distinguishes a relationship from a 3-token
+// attribute line ("int id PK"), and stops a quoted entity name that merely
+// contains a "--" substring from being misread as a relationship.
+const cardOp = `[|}o{]+(?:--|\.\.)[|}o{]+`
+
 var (
 	reComment     = regexp.MustCompile(`^(\s*)(%%.*)$`)
 	reKeyword     = regexp.MustCompile(`^(\s*)(erDiagram)(\s*)$`)
-	reRelLabel    = regexp.MustCompile(`^(\s*)("[^"]*"|\S+)(\s+)(\S+)(\s+)("[^"]*"|\S+)(\s+:\s+)(".*")(\s*)$`)
-	reRel         = regexp.MustCompile(`^(\s*)("[^"]*"|\S+)(\s+)(\S+)(\s+)("[^"]*"|\S+)(\s*)$`)
+	reRelLabel    = regexp.MustCompile(`^(\s*)("[^"]*"|\S+)(\s+)(` + cardOp + `)(\s+)("[^"]*"|\S+)(\s+:\s+)(".*")(\s*)$`)
+	reRel         = regexp.MustCompile(`^(\s*)("[^"]*"|\S+)(\s+)(` + cardOp + `)(\s+)("[^"]*"|\S+)(\s*)$`)
 	reEntityOpen  = regexp.MustCompile(`^(\s*)("[^"]*"|\S+)(\s*)(\{)(\s*)$`)
 	reEntityClose = regexp.MustCompile(`^(\s*)(\})(\s*)$`)
 	// reAttr matches "type name [keys]" where keys is PK/FK/UK, comma- or
@@ -65,9 +68,18 @@ func colorizeLine(line string, pr *output.Printing) string {
 		return assemble(reComment, line, nil, pr.Faint)
 	case trimmed == "erDiagram":
 		return assemble(reKeyword, line, nil, pr.Key, nil)
-	case reCardinality.MatchString(trimmed):
-		// LEFT op RIGHT [: "label"]: entities -> Header, operator -> Punc,
-		// label -> String; the " : " separator stays default.
+	case trimmed == "}":
+		return assemble(reEntityClose, line, nil, pr.Punc, nil)
+	case strings.HasSuffix(trimmed, "{"):
+		// NAME {: name -> Header, brace -> Punc. Checked before the
+		// relationship branch so a quoted name containing a cardinality-like
+		// substring (e.g. "weird o--table") is still colorized as an entity.
+		return assemble(reEntityOpen, line, nil, pr.Header, nil, pr.Punc, nil)
+	default:
+		// Relationship: LEFT op RIGHT [: "label"]; entities -> Header,
+		// operator -> Punc, label -> String, the " : " separator stays default.
+		// The strict cardinality operator (see the regex block) keeps an
+		// attribute line ("int id PK") from matching here.
 		if s, ok := assembleOK(reRelLabel, line,
 			nil, pr.Header, nil, pr.Punc, nil, pr.Header, nil, pr.String, nil); ok {
 			return s
@@ -76,13 +88,6 @@ func colorizeLine(line string, pr *output.Printing) string {
 			nil, pr.Header, nil, pr.Punc, nil, pr.Header, nil); ok {
 			return s
 		}
-		return line
-	case strings.HasSuffix(trimmed, "{"):
-		// NAME {: name -> Header, brace -> Punc.
-		return assemble(reEntityOpen, line, nil, pr.Header, nil, pr.Punc, nil)
-	case trimmed == "}":
-		return assemble(reEntityClose, line, nil, pr.Punc, nil)
-	default:
 		// Attribute: type -> Number, name -> default, keys -> Key.
 		return assemble(reAttr, line, nil, pr.Number, nil, nil, pr.Key, nil)
 	}

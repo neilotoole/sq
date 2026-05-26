@@ -62,6 +62,13 @@ func TestColorizeLine(t *testing.T) {
 			in:   `    "weird table" {`,
 			want: "    " + pr.Header.Sprint(`"weird table"`) + " " + pr.Punc.Sprint("{"),
 		},
+		// A quoted entity name can contain an ER-cardinality substring (e.g.
+		// "o--"); relationship detection must not mistake this entity-open line
+		// for a relationship and leave it uncolored.
+		"entity_open_quoted_cardinality_substring": {
+			in:   `    "weird o--table" {`,
+			want: "    " + pr.Header.Sprint(`"weird o--table"`) + " " + pr.Punc.Sprint("{"),
+		},
 		"entity_close": {
 			in:   "    }",
 			want: "    " + pr.Punc.Sprint("}"),
