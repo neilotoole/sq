@@ -227,6 +227,11 @@ $ sq inspect @sakila_pg.actor -f svg-erd -o actor.svg
 $ sq inspect @sakila_pg -f svg-erd > sakila-schema.svg
 ```
 
+The rendered diagram looks like this (here the whole [sakila](https://github.com/jOOQ/sakila)
+schema); `png-erd` produces the same image as a PNG:
+
+![sq inspect schema ERD image](sq_inspect_erd.png)
+
 ### `png-erd`
 
 The `png-erd` format renders the same entity-relationship diagram as
