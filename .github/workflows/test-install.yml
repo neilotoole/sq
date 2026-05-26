@@ -214,16 +214,31 @@ jobs:
           iex "& {$(irm get.scoop.sh)} -RunAsAdmin"
 
           scoop bucket add sq https://github.com/neilotoole/sq
-          scoop install sq
 
-          $gotVersion = sq version
-          echo "-------- sq version --------"
-          echo $gotVersion
-          echo "----------------------------"
+          # Install explicitly from our bucket (sq/sq), not the unqualified
+          # 'sq': Scoop's community 'main' bucket also carries an 'sq' manifest,
+          # and an unqualified install resolves to it (serving an older version).
+          # The manifest in our bucket is bumped shortly after the tag is pushed,
+          # and this job runs in the same release pipeline, so refresh and retry
+          # until the bucket serves the just-released version or we time out.
+          # See https://github.com/neilotoole/sq/issues/688.
+          $want = "sq $env:GITHUB_REF_NAME"
+          $deadline = (Get-Date).AddMinutes(20)
+          $ok = $false
+          $attempt = 0
+          while ((Get-Date) -lt $deadline) {
+            $attempt++
+            scoop update *> $null
+            scoop uninstall sq *> $null
+            scoop install sq/sq *> $null
+            $got = (sq version | Select-Object -First 1)
+            Write-Host "Attempt ${attempt}: got '$got' (want '$want')"
+            if ($got -eq $want) { $ok = $true; break }
+            Start-Sleep -Seconds 30
+          }
 
-          if ($gotVersion -ne "sq ${{github.ref_name}}") {
-            echo "Wanted: sq ${{github.ref_name}}"
-            echo "Actual: $gotVersion"
-            echo "Incorrect version number"
+          if (-not $ok) {
+            Write-Host "Timed out waiting for Scoop to serve $want"
             exit 1
           }
+          Write-Host "OK: installed $got"
