@@ -170,21 +170,14 @@ else
     print_fail "Docs overview returned ${DOC_CODE}"
 fi
 
-# 6. /version returns 200 and valid JSON with .latest-version
-print_test "GET /version returns 200 and valid JSON with .latest-version"
+# 6. Version badge is baked into the homepage HTML at build time (vX.Y.Z).
+print_test "Version badge baked into homepage (vX.Y.Z)"
 if [[ "$HOMEPAGE_OK" != true ]]; then
-    print_fail "Homepage did not respond; cannot check /version"
+    print_fail "Homepage did not respond; cannot check version badge"
+elif echo "$BODY" | grep -qE 'navbar-version[^<]*>v[0-9]+\.[0-9]+\.[0-9]+'; then
+    print_pass "Version badge present in homepage HTML"
 else
-    VERSION_RESP=$(curl -sS -w "\n%{http_code}" "${BASE_URL}/version" 2>/dev/null || echo -e "\n000")
-    VERSION_BODY=$(echo "$VERSION_RESP" | sed '$d')
-    VERSION_CODE=$(echo "$VERSION_RESP" | tail -n 1)
-    if [[ "$VERSION_CODE" != "200" ]]; then
-        print_fail "GET /version did not return 200 and valid JSON with .latest-version (got ${VERSION_CODE})"
-    elif ! echo "$VERSION_BODY" | jq -e '.["latest-version"]' >/dev/null 2>&1; then
-        print_fail "GET /version did not return 200 and valid JSON with .latest-version (response body missing .latest-version or invalid JSON)"
-    else
-        print_pass "GET /version returned 200 and valid JSON with .latest-version"
-    fi
+    print_fail "Version badge (navbar-version > vX.Y.Z) not found in homepage HTML"
 fi
 
 # 7. Relative links must not have target="_blank" (render-link regression)
