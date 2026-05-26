@@ -11,8 +11,7 @@ aliases:
 - /docs/drivers/sql-server
 ---
 The `sq` SQL Server driver implements connectivity for
-the Microsoft [SQL Server](https://www.microsoft.com/en-us/sql-server) and
-[Azure SQL Edge](https://azure.microsoft.com/en-us/products/azure-sql/edge/) databases.
+Microsoft [SQL Server](https://www.microsoft.com/en-us/sql-server).
 The driver implements all optional driver features.
 
 ## Add source

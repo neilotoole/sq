@@ -1,6 +1,6 @@
 # Microsoft SQL Server (`sqlserver` driver)
 
-[SQL Server](https://www.microsoft.com/sql-server) and [Azure SQL Edge](https://azure.microsoft.com/products/azure-sql-edge/). Driver implements all optional `sq` features.
+[SQL Server](https://www.microsoft.com/sql-server). Driver implements all optional `sq` features.
 
 **Canonical docs:** [SQL Server driver](https://sq.io/docs/drivers/sqlserver/)
 

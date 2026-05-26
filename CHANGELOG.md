@@ -16,6 +16,15 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## Unreleased
+
+### Changed
+
+- The `sqlserver` driver description shown by
+  [`sq driver ls`](https://sq.io/docs/cmd/driver-ls) is now simply "Microsoft SQL
+  Server", dropping the trailing "/ Azure SQL Edge" (Azure SQL Edge was retired by
+  Microsoft on 2025-09-30).
+
 ## [v0.53.0] - 2026-05-25
 
 ### Added

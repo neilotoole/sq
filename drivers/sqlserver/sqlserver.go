@@ -96,7 +96,7 @@ func (d *driveri) ErrWrapFunc() func(error) error {
 func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
 		Type:        drivertype.MSSQL,
-		Description: "Microsoft SQL Server / Azure SQL Edge",
+		Description: "Microsoft SQL Server",
 		Doc:         "https://github.com/microsoft/go-mssqldb",
 		IsSQL:       true,
 		DefaultPort: 1433,
