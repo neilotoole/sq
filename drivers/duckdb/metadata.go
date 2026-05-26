@@ -182,9 +182,12 @@ var reIdxBareCol = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 // reIdxQuotedCol matches a single-quote-wrapped double-quoted identifier,
 // the form DuckDB emits in expressions when the column was originally
-// quoted in the DDL or collides with a reserved word, e.g. `'"name"'`.
-// The captured group is the bare identifier.
-var reIdxQuotedCol = regexp.MustCompile(`^'"([^"]+)"'$`)
+// quoted in the DDL or collides with a reserved word, e.g. `'"name"'`. An
+// embedded double-quote in the column name is escaped by doubling it, so a
+// column named a"b is emitted as `'"a""b"'`; the inner pattern allows those
+// doubled quotes. The captured group is the (still-escaped) identifier;
+// callers must un-double the quotes to recover the original name.
+var reIdxQuotedCol = regexp.MustCompile(`^'"((?:[^"]|"")*)"'$`)
 
 // getSourceMetadata builds a *metadata.Source for src using db.
 // When noSchema is true, column-level metadata is skipped for each table
@@ -667,10 +670,10 @@ func getTableUniqueConstraints(ctx context.Context, db sqlz.DB, schemaName, tblN
 }
 
 // getSchemaIndexes returns every user-declared index in schemaName.
-// Index keys that aren't plain column identifiers (i.e. functional
-// indexes like `CREATE INDEX ix ON t(LOWER(c))`) are dropped from
-// [metadata.Index.Columns]; indexes whose every key is an expression
-// are omitted entirely.
+// Index keys that aren't plain column identifiers (functional indexes
+// like `CREATE INDEX ix ON t(LOWER(c))`) are recorded as the empty-string
+// sentinel in [metadata.Index.Columns]; indexes whose every key is an
+// expression are omitted entirely.
 func getSchemaIndexes(ctx context.Context, db sqlz.DB, schemaName string,
 ) ([]*metadata.Index, error) {
 	log := lg.FromContext(ctx)
@@ -689,7 +692,7 @@ func getSchemaIndexes(ctx context.Context, db sqlz.DB, schemaName string,
 			return nil, errw(err)
 		}
 		cols := parseDuckDBIndexExpressions(exprList)
-		if len(cols) == 0 {
+		if len(cols) == 0 || metadata.AllExpressionKeys(cols) {
 			logDroppedDuckDBIndex(log, tblName, idxName, exprList)
 			continue
 		}
@@ -722,7 +725,7 @@ func getTableIndexes(ctx context.Context, db sqlz.DB, schemaName, tblName string
 			return nil, errw(err)
 		}
 		cols := parseDuckDBIndexExpressions(exprList)
-		if len(cols) == 0 {
+		if len(cols) == 0 || metadata.AllExpressionKeys(cols) {
 			logDroppedDuckDBIndex(log, tblName, idxName, exprList)
 			continue
 		}
@@ -745,8 +748,8 @@ func getTableIndexes(ctx context.Context, db sqlz.DB, schemaName, tblName string
 //   - Well-formed list with no plain-column tokens (e.g.
 //     "['(lower(email))']"): a functional / expression-only index.
 //     Debug level — this is legitimate DuckDB usage; the index is
-//     dropped from [metadata.Table.Indexes] because [Index.Columns]
-//     is documented as plain identifiers only.
+//     dropped from [metadata.Table.Indexes] because every key is an
+//     expression (see [metadata.AllExpressionKeys]).
 //   - Anything else (no surrounding brackets, garbled output): a
 //     genuine surprise — likely a DuckDB output-format change.
 //     Warn level so it's visible in operator logs.
@@ -770,16 +773,17 @@ func logDroppedDuckDBIndex(log *slog.Logger, tblName, idxName, exprList string) 
 }
 
 // parseDuckDBIndexExpressions parses the stringified list returned in
-// duckdb_indexes().expressions and returns the keys that are plain
-// column identifiers, in declaration order. Functional / expression
-// keys are dropped, matching the contract on [metadata.Index.Columns].
+// duckdb_indexes().expressions and returns the keys in declaration order.
+// Plain column identifiers are returned as-is. Functional / expression
+// keys are recorded as the empty-string sentinel, matching the contract
+// on [metadata.Index.Columns].
 //
 // The DuckDB output format is a bracket-wrapped, comma-separated list:
 //
 //	"[last_name]"                       (single column)
 //	"[store_id, film_id]"               (composite)
-//	"['(lower(email))']"                (functional — dropped)
-//	"[name, '(lower(email))']"          (mixed — only `name` kept)
+//	"['(lower(email))']"                (functional — sentinel "")
+//	"[name, '(lower(email))']"          (mixed — `name`, then sentinel "")
 //
 // Column names that themselves contain a comma or space would round-trip
 // as double-quoted identifiers in the list (e.g. `["first, last"]`).
@@ -834,7 +838,14 @@ func parseDuckDBIndexExpressions(s string) []string {
 		case reIdxBareCol.MatchString(p):
 			out = append(out, p)
 		case reIdxQuotedCol.MatchString(p):
-			out = append(out, reIdxQuotedCol.FindStringSubmatch(p)[1])
+			// Un-double any escaped quotes to recover the real column
+			// name (DuckDB emits a"b as `'"a""b"'`).
+			name := strings.ReplaceAll(reIdxQuotedCol.FindStringSubmatch(p)[1], `""`, `"`)
+			out = append(out, name)
+		default:
+			// Functional / expression key: record the empty-string
+			// sentinel so Columns preserves the index's key arity.
+			out = append(out, "")
 		}
 	}
 	return out

@@ -10,8 +10,21 @@ updates:
     schedule:
       interval: "weekly"
 
+  # Bun lockfile at the repo root (markdown linting toolchain: markdownlint-cli2).
+  - package-ecosystem: "bun"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
   # Bun lockfile under site/ (use the bun ecosystem so Dependabot reads bun.lock).
   - package-ecosystem: "bun"
     directory: "/site"
+    schedule:
+      interval: "weekly"
+
+  # GitHub Actions used in .github/workflows/ (directory "/" is the repo root;
+  # Dependabot discovers all workflow files beneath it).
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
       interval: "weekly"

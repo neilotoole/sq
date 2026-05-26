@@ -246,9 +246,18 @@ func IndexRows(tbl *metadata.Table) []IndexRow {
 		if idx == nil {
 			continue
 		}
+		// Expression/functional key positions are empty-string sentinels
+		// in idx.Columns (see [metadata.Index.Columns]); omit them from the
+		// joined display string. JSON/YAML output carries the full arity.
+		cols := make([]string, 0, len(idx.Columns))
+		for _, c := range idx.Columns {
+			if c != "" {
+				cols = append(cols, c)
+			}
+		}
 		rows = append(rows, IndexRow{
 			Name:    idx.Name,
-			Columns: strings.Join(idx.Columns, ", "),
+			Columns: strings.Join(cols, ", "),
 			Unique:  idx.Unique,
 			Primary: idx.Primary,
 			Type:    strings.ToLower(idx.Type),

@@ -16,7 +16,10 @@ add`, or copy `.agents/skills` under `.claude/skills`.
 
 ## Documentation site (`site/`)
 
-The [sq.io](https://sq.io) website is a [Hugo](https://gohugo.io) project in [`site/`](./site/). From `site/`, use **`make`** for the usual workflow (`make deps`, `make site-local`, `make site-test`, `make site-build`, or `make ci` to match CI). Bun equivalents are in [`site/README.md`](./site/README.md).
+The [sq.io](https://sq.io) website is a [Hugo](https://gohugo.io) project in
+[`site/`](./site/). From `site/`, use **`make`** for the usual workflow (`make deps`,
+`make site-local`, `make site-test`, `make site-build`, or `make ci` to match CI). Bun
+equivalents are in [`site/README.md`](./site/README.md).
 
 If you are changing anything under `site/`, read [`site/README.md`](./site/README.md)
 first: it explains the **stable** vs **full** link-check split, what PR CI blocks
@@ -38,11 +41,19 @@ Prior history remains in the archived `sq-web` repository.
 
 ### Branch protection / rulesets (maintainers)
 
-Configure [**repository rulesets**](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets) so that pull requests touching **`site/**`** require the **Site CI** check (`site-ci.yml`), without requiring that check on Go-only PRs (path-scoped rules, or equivalent). Plain “required status” lists interact badly with workflows that use `paths` filters and do not run on every PR.
+Configure [**repository rulesets**][rulesets] so that pull requests touching **`site/**`**
+require the **Site CI** check (`site-ci.yml`), without requiring that check on Go-only PRs
+(path-scoped rules, or equivalent). Plain “required status” lists interact badly with
+workflows that use `paths` filters and do not run on every PR.
+
+[rulesets]: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets
 
 ### Netlify (maintainers)
 
-Production hosting for sq.io is on Netlify. After the monorepo migration, the Netlify site should use repository **`neilotoole/sq`**, **base directory** `site`, and the existing [`site/netlify.toml`](./site/netlify.toml). Re-link the repo in Netlify if needed; confirm deploy previews and the `/version` function.
+Production hosting for sq.io is on Netlify. After the monorepo migration, the Netlify site
+should use repository **`neilotoole/sq`**, **base directory** `site`, and the existing
+[`site/netlify.toml`](./site/netlify.toml). Re-link the repo in Netlify if needed; confirm
+deploy previews and the `/version` function.
 
 ## Tooling
 
@@ -85,6 +96,22 @@ Use the usual GitHub process to open a PR. Before you do so, please:
 - Run `make all`.
 - If the PR adds a **new driver type**, complete the
   [driver ship checklist](#driver-ship-checklist) (sq.io and `skills/sq/`).
+
+### CI: the fast loop and the slow jobs
+
+CI is PR-centric: a branch gets CI once a pull request exists. Every push to a
+PR runs lint, a fast `-short` pass of the Linux/macOS tests, and a **Windows
+smoke** test (`test/smoke/`); the in-progress run for a superseded commit is
+cancelled when you push again. The same fast set runs on merges to master.
+
+The slow jobs are kept off the dev loop and run **nightly** against master and
+on **release tags** (`v*`): the **full Linux/macOS suite** (no `-short`, with
+coverage), the **full Windows suite** (gates `publish`), and **CodeQL**
+(release validation). You can also run any of them on demand from the Actions
+tab via **Run workflow** (`workflow_dispatch`).
+
+Mark long-running tests with `tu.SkipShort` so they stay out of the dev loop
+but still run in the nightly/release suites.
 
 ## CHANGELOG.md
 
@@ -291,8 +318,8 @@ documentation as incomplete work — this is what keeps [sq.io](https://sq.io),
      (document).
    - Update the driver table and `sq driver ls` examples in
      [`skills/sq/SKILL.md`](skills/sq/SKILL.md).
-   - Run `markdownlint 'skills/sq/**/*.md' --ignore node_modules` (or
-     `markdownlint 'skills/sq/**/*.md' --ignore node_modules --fix`).
+   - Run `make lint-markdown` (or `bun run lint:markdown-fix` to autofix);
+     `skills/**` is covered by the repo-root markdownlint config.
 6. **CHANGELOG** — add an `## Unreleased` / `Added` entry when the driver is
    user-visible (maintainers may edit wording at release time).
 

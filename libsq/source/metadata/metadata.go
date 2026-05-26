@@ -542,9 +542,14 @@ type Index struct { //nolint:govet // field alignment
 	// Table is the bare name of the owning table.
 	Table string `json:"table" yaml:"table"`
 
-	// Columns are the indexed column names, in key order. Expressions
-	// (e.g. functional indexes) are not represented here; only direct
-	// column references appear.
+	// Columns holds one entry per index key position, in key order. A
+	// plain-column key is its column name; a functional or expression
+	// key (e.g. lower(b)) is represented by the empty string "". Thus
+	// len(Columns) equals the index's true key count, and the position
+	// of an expression key is preserved. An index whose key positions
+	// are all expressions is omitted from reported metadata entirely.
+	// INCLUDE / covering columns are not key positions and do not
+	// appear here. See [AllExpressionKeys].
 	Columns []string `json:"columns" yaml:"columns"`
 
 	// Unique reports whether the index enforces uniqueness on Columns.
@@ -583,6 +588,23 @@ func (i *Index) Clone() *Index {
 func (i *Index) String() string {
 	bytes, _ := json.Marshal(i)
 	return string(bytes)
+}
+
+// AllExpressionKeys reports whether every entry in an index's key
+// columns is the empty-string expression sentinel — that is, the index
+// has no plain-column key positions and should be omitted from reported
+// metadata. It returns false for an empty slice (a degenerate keyless
+// index is left for the caller to handle). See [Index.Columns].
+func AllExpressionKeys(cols []string) bool {
+	if len(cols) == 0 {
+		return false
+	}
+	for _, c := range cols {
+		if c != "" {
+			return false
+		}
+	}
+	return true
 }
 
 // AssignForeignKeys groups fks by their referencing-table name (the

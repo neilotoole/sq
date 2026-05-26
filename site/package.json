@@ -37,7 +37,7 @@
     "lint:styles": "bunx stylelint \"assets/scss/**/*.{css,sass,scss,sss,less}\"",
     "lint:styles-fix": "bunx stylelint --fix \"assets/scss/**/*.{css,sass,scss,sss,less}\"",
     "lint:markdown": "bunx markdownlint-cli2",
-    "lint:markdown-fix": "bunx markdownlint-cli2-fix \"*.md\" \"content/**/*.md\"",
+    "lint:markdown-fix": "bunx markdownlint-cli2 --fix",
     "server": "exec-bin node_modules/.bin/hugo/hugo server",
     "hugo:mod-get": "exec-bin node_modules/.bin/hugo/hugo mod get -u --logLevel info cj.rs/gohugo-asciinema",
     "hugo:mod-init": "exec-bin node_modules/.bin/hugo/hugo mod init github.com/neilotoole/sq/site",
@@ -54,9 +54,9 @@
     "gen:syntax-css": "./generate-syntax-css.sh"
   },
   "devDependencies": {
-    "@babel/cli": "^7.20",
-    "@babel/core": "^7.20",
-    "@babel/preset-env": "^7.20",
+    "@babel/cli": "^7.29",
+    "@babel/core": "^7.29",
+    "@babel/preset-env": "^7.29",
     "@eslint/js": "^10.0.1",
     "@fullhuman/postcss-purgecss": "^8.0",
     "@hyas/images": "^3",

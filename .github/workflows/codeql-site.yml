@@ -7,11 +7,13 @@ on:
     paths:
       - "site/**"
       - ".github/workflows/codeql-site.yml"
+      - ".github/codeql/codeql-site-config.yml"
   pull_request:
     branches: [master, develop]
     paths:
       - "site/**"
       - ".github/workflows/codeql-site.yml"
+      - ".github/codeql/codeql-site-config.yml"
   schedule:
     - cron: "0 11 * * 5"
 
@@ -42,6 +44,8 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
+          # Excludes generated examples (vendored minified JS); see config file.
+          config-file: ./.github/codeql/codeql-site-config.yml
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v4

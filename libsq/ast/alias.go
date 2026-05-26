@@ -7,17 +7,53 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
+// extractAliasValue returns the alias value from ctx, handling every token
+// shape permitted by the grammar's alias rule:
+//
+//	alias: ALIAS_RESERVED | ':' (ARG | ID | STRING)
+//
+// The shapes are:
+//
+//   - ID: e.g. ":given_name" yields "given_name".
+//   - STRING: e.g. the quoted form :"given name" yields "given name".
+//   - ALIAS_RESERVED: e.g. ":count" yields "count". ALIAS_RESERVED is a
+//     pre-baked ":keyword" token (e.g. ":count") that the grammar uses to
+//     work around the lexer otherwise tokenizing the keyword; the leading
+//     colon is trimmed to recover the name.
+//   - ARG: e.g. ":$x" is rejected. An ARG (e.g. "$x") is a parameter
+//     reference, not a name, and sq does not substitute it in the alias
+//     position. Rather than silently produce a literal "$x" column, it is
+//     reported as an error.
+//
+// It returns ("", nil) when ctx is nil or carries no alias token.
+func extractAliasValue(ctx slq.IAliasContext) (string, error) {
+	if ctx == nil {
+		return "", nil
+	}
+
+	switch {
+	case ctx.ID() != nil:
+		return ctx.ID().GetText(), nil
+	case ctx.STRING() != nil:
+		return stringz.StripDoubleQuote(ctx.STRING().GetText()), nil
+	case ctx.ALIAS_RESERVED() != nil:
+		return strings.TrimPrefix(ctx.ALIAS_RESERVED().GetText(), ":"), nil
+	case ctx.ARG() != nil:
+		return "", errorf("alias may not be an argument reference: %s", ctx.ARG().GetText())
+	default:
+		return "", nil
+	}
+}
+
 // VisitAlias implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
-	if ctx == nil || ctx.ID() == nil && ctx.GetText() == "" {
+	if ctx == nil {
 		return nil
 	}
 
-	var alias string
-	if ctx.ID() != nil {
-		alias = ctx.ID().GetText()
-	} else if ctx.STRING() != nil {
-		alias = stringz.StripDoubleQuote(ctx.STRING().GetText())
+	alias, err := extractAliasValue(ctx)
+	if err != nil {
+		return err
 	}
 
 	switch node := v.cur.(type) {
@@ -28,32 +64,7 @@ func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
 	case *ExprElementNode:
 		node.alias = alias
 	case *FuncNode:
-		if alias != "" {
-			node.alias = alias
-			return nil
-		}
-
-		// NOTE: The grammar has a dodgy hack to deal with no-arg funcs
-		// with an alias that is a reserved word.
-		//
-		// For example, let's start with this snippet. Note that "count" is
-		// a function, equivalent to count().
-		//
-		//   .actor | count
-		//
-		// Then add an alias that is a reserved word, such as a function name.
-		// In this example, we will use an alias of "count" as well.
-		//
-		//   .actor | count:count
-		//
-		// Well, the grammar doesn't know how to handle this. Most likely the
-		// grammar could be refactored to deal with this more gracefully. The
-		// hack is to look at the full text of the context (e.g. ":count"),
-		// instead of just ID, and look for the alias after the colon.
-
-		text := ctx.GetText()
-		node.alias = strings.TrimPrefix(text, ":")
-
+		node.alias = alias
 	default:
 		return errorf("alias not allowed for type %T: %v", node, ctx.GetText())
 	}

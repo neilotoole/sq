@@ -27,7 +27,8 @@ You can also pass an absolute filepath (and, in fact, any relative path is expan
 an absolute path when saved to `sq`'s config).
 
 Usually you can omit the `--driver=csv` flag, because `sq` will inspect the file contents
-and [detect](/docs/detect/#driver-type) that it's a CSV file. However, it's safer to explicitly specify the flag.
+and [detect](/docs/detect/#driver-type) that it's a CSV file. However, it's safer to
+explicitly specify the flag.
 
 ```shell
 sq add --driver=csv ./actor.csv
@@ -94,7 +95,8 @@ Note:
 
 - `comma` is the default. You generally never need to specify this.
 - `tab` is the delimiter for TSV files. Because this is such a common variant, `sq` allows
-  you to specify `--driver=tsv` instead. But usually `sq` will [detect](/docs/detect/#driver-type) that it's a TSV file.
+  you to specify `--driver=tsv` instead. But usually `sq` will
+  [detect](/docs/detect/#driver-type) that it's a TSV file.
   The following are equivalent:
 
   ```shell
@@ -138,7 +140,6 @@ actor_id, first_name, actor_id_1
 ```
 
 The renaming behavior is configurable via [`ingest.column.rename`](/docs/config#ingestcolumnrename).
-
 
 ## Column kind
 

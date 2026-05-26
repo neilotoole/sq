@@ -362,12 +362,26 @@ WHERE TABLE_SCHEMA = DATABASE()
 			byKey[k] = idx
 			indexes = append(indexes, idx)
 		}
-		// COLUMN_NAME is NULL for functional/expression index entries.
-		if columnName.Valid {
-			idx.Columns = append(idx.Columns, columnName.String)
-		}
+		// COLUMN_NAME is NULL for functional/expression key positions
+		// (MySQL 8 functional indexes). Record the empty-string sentinel
+		// so Columns preserves the index's key arity and the position of
+		// the expression key. See metadata.Index.Columns.
+		idx.Columns = append(idx.Columns, columnName.String)
 	}
-	return indexes, errw(rows.Err())
+	if err := rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+	// Omit indexes whose key positions are all expressions.
+	kept := indexes[:0]
+	for _, idx := range indexes {
+		if metadata.AllExpressionKeys(idx.Columns) {
+			log.Debug("mysql: dropping index with only expression keys",
+				"table", idx.Table, "index", idx.Name)
+			continue
+		}
+		kept = append(kept, idx)
+	}
+	return kept, nil
 }
 
 // getMySQLForeignKeys returns the outgoing foreign keys declared in the

@@ -101,7 +101,9 @@ $ sq add --ingest.header=false ./actor_no_header.csv
 
 {{< alert icon="👉" >}}
 If `sq` fails to detect the header row correctly in your data, but it seems
-like it should be able to, please [open an issue](https://github.com/neilotoole/sq/issues/new/choose), and attach a copy of your data (sanitized
+like it should be able to, please
+[open an issue](https://github.com/neilotoole/sq/issues/new/choose),
+and attach a copy of your data (sanitized
 if necessary).
 {{< /alert >}}
 
@@ -230,7 +232,6 @@ kinds, e.g. `null` and `unknown`, but the end-user
 is typically not exposed to them.
 {{< /alert >}}
 
-
 ### Kind detection
 
 When `sq` ingests untyped data, it samples multiple values from each column.
@@ -243,7 +244,6 @@ In practice, `sq` runs the sample data through a series of parsing functions. If
 a parsing function fails, that kind is eliminated. For some kinds there are
 multiple parsing functions to try. In particular, there are many date and time formats
 that `sq` can parse.
-
 
 ### Date/time formats
 

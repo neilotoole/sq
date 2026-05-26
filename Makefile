@@ -33,7 +33,7 @@ ifeq ($(UNAME_S),Darwin)
 endif
 
 .PHONY: all
-all: gen fmt lint test build install
+all: gen fmt lint lint-markdown test build install
 
 .PHONY: test
 test:
@@ -66,6 +66,14 @@ lint:
 	go tool -modfile=tools/golangci-lint/go.mod golangci-lint version
 	go tool -modfile=tools/golangci-lint/go.mod golangci-lint run --output.tab.path stdout
 	@shellcheck ./install.sh
+
+.PHONY: lint-markdown
+lint-markdown:
+	@# Lint all non-site markdown (root docs, skills/, driver/cli/libsq READMEs).
+	@# site/ has its own markdownlint config and is linted by the Site CI workflow.
+	@# Uses the pinned markdownlint-cli2 from the root package.json (NOT a system build).
+	@bun install --frozen-lockfile
+	@bun run lint:markdown
 
 .PHONY: gen
 gen:

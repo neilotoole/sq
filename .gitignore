@@ -82,6 +82,9 @@ CLAUDE.local.md
 !/.claude/skills
 /docs/superpowers/
 
+## Node / Bun (root markdown linting)
+/node_modules/
+
 ## Hugo site (site/)
 site/node_modules/
 site/public/

@@ -1,14 +1,26 @@
 name: Main Pipeline
 on:
-  push:
+  pull_request:
     paths-ignore:
       - '**.md'
-      - 'sq.json' # This is updated by scoop; no need to run a new build
-      - '.github/workflows/*'
+      - 'sq.json' # Updated by scoop; no need to run a new build.
       - 'site/**'
+  push:
+    # No paths-ignore on push: master merges and release tags must always run
+    # (paths filtering on tag pushes is unreliable and could skip a release).
+    branches: [master]
+    tags: ['v*']
+  schedule:
+    - cron: '17 9 * * *' # Nightly full suite vs master (UTC; tunable).
 
-  # Allows this workflow to be manually triggered from the Actions tab
+  # Allows this workflow to be manually triggered from the Actions tab.
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: >-
+    ${{ github.ref != 'refs/heads/master'
+        && !startsWith(github.ref, 'refs/tags/v') }}
 
 env:
   GORELEASER_VERSION: 2.13.3
@@ -24,11 +36,17 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    env:
+      # Full run (no -short, with coverage) nightly, on release tags, and on
+      # manual dispatch. The PR/master dev loop runs -short without coverage,
+      # skipping long-running tests (e.g. large-fixture JSON/XLSX ingest).
+      FULL_RUN: ${{ github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -42,11 +60,27 @@ jobs:
       - name: 'Go tests'
         shell: bash
         run: |
-          set -e
+          # pipefail so a `go test` failure isn't masked by the `| tee` below.
+          set -eo pipefail
 
-          # We tee the go test output to a file, so that "tparse" can
-          # render pretty output below.
-          go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json -cover ./... | tee gotest.out.json
+          test_args=()
+          cover_args=()
+          if [ "${FULL_RUN}" = "true" ]; then
+            # Full run: instrument coverage on the ubuntu-24.04 runner only
+            # (uploaded to Codecov below); macOS runs without coverage.
+            # "-coverpkg=./..." attributes coverage across all packages (e.g.
+            # integration tests exercising other packages).
+            if [ "${{ matrix.os }}" = "ubuntu-24.04" ]; then
+              cover_args=(-cover -coverpkg=./... -coverprofile=coverage.out)
+            fi
+          else
+            # Dev loop (PRs, master merges): skip long-running tests. The full
+            # suite runs nightly and on release tags.
+            test_args=(-short)
+          fi
+
+          go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json \
+            "${test_args[@]}" "${cover_args[@]}" ./... | tee gotest.out.json
 
       - name: 'Test output'
         if: always()
@@ -56,8 +90,47 @@ jobs:
           go install github.com/mfridman/tparse@${{ env.TPARSE_VERSION }}
           tparse -all -sort=elapsed -file gotest.out.json
 
+      - name: Upload coverage to Codecov
+        if: always() && matrix.os == 'ubuntu-24.04' && env.FULL_RUN == 'true'
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6
+        with:
+          files: ./coverage.out
+          flags: ${{ matrix.os }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
-  test-windows:
+
+  test-windows-smoke:
+    # Fast Windows check for the dev loop: compile everything (catches
+    # CGO/SQLite breakage) and run only the focused smoke suite. Runs on every
+    # PR and on master merges; the full suite runs nightly and on release tags.
+    if: >-
+      github.event_name == 'pull_request'
+      || (github.event_name == 'push' && github.ref == 'refs/heads/master')
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Build
+        run: go build -tags '${{ env.BUILD_TAGS }}' -v ./...
+
+      - name: Smoke tests
+        run: go test -tags '${{ env.BUILD_TAGS }}' -timeout 10m -v ./test/smoke/...
+
+  test-windows-full:
+    # Full Windows suite. Runs nightly against master, on release tags (it
+    # gates publish), and on manual dispatch — not on PRs or master merges,
+    # which get the fast smoke check above.
+    if: >-
+      startsWith(github.ref, 'refs/tags/v')
+      || github.event_name == 'schedule'
+      || github.event_name == 'workflow_dispatch'
     runs-on: windows-2022
     steps:
     # Copied from https://github.com/mattn/go-sqlite3/blob/master/.github/workflows/go.yaml#L73
@@ -71,7 +144,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v6
       with:
-        fetch-depth: 0
+        fetch-depth: 1
 
     - name: Set up Go
       uses: actions/setup-go@v6
@@ -94,7 +167,7 @@ jobs:
 
         # We send the Go test output to a file, so that "tparse" can
         # render pretty output below.
-        go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json -cover ./... > gotest.out.json
+        go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json ./... > gotest.out.json
 
     - name: 'Test output'
       if: always()
@@ -110,7 +183,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Lint GH workflow files
         run: |
@@ -128,7 +201,7 @@ jobs:
           go-version-file: go.mod
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9
+        uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee # v9
         with:
           skip-cache: true
           install-mode: 'binary'
@@ -151,7 +224,7 @@ jobs:
           go-version-file: go.mod
 
       - name: GoReleaser (build darwin binaries)
-        uses: goreleaser/goreleaser-action@v7
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -161,7 +234,7 @@ jobs:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
       - name: Upload assets (darwin)
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: dist-darwin
           path: dist-darwin
@@ -182,7 +255,7 @@ jobs:
           go-version-file: go.mod
 
       - name: GoReleaser (build linux-amd64 binaries)
-        uses: goreleaser/goreleaser-action@v7
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -192,7 +265,7 @@ jobs:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
       - name: Upload assets (linux-amd64)
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: dist-linux-amd64
           path: dist-linux
@@ -218,7 +291,7 @@ jobs:
           sudo apt install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
       - name: GoReleaser (build linux-arm64 binaries)
-        uses: goreleaser/goreleaser-action@v7
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -228,7 +301,7 @@ jobs:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
       - name: Upload assets (linux-arm64)
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: dist-linux-arm64
           path: dist-linux
@@ -250,7 +323,7 @@ jobs:
           go-version-file: go.mod
 
       - name: GoReleaser (build windows binaries)
-        uses: goreleaser/goreleaser-action@v7
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -261,7 +334,7 @@ jobs:
 
 
       - name: Upload assets (windows)
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: dist-windows
           path: dist-windows
@@ -272,7 +345,7 @@ jobs:
     needs:
       - lint
       - test-nix
-      - test-windows
+      - test-windows-full
       - binaries-darwin
       - binaries-linux-amd64
       - binaries-linux-arm64
@@ -289,32 +362,32 @@ jobs:
           go-version-file: go.mod
 
       - name: Download darwin artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-darwin
           path: dist-darwin
 
       - name: Download linux-amd64 artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-linux-amd64
           path: dist-linux
 
       - name: Download linux-arm64 artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-linux-arm64
           path: dist-linux
 
       - name: Download windows artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-windows
           path: dist-windows
 
 
       - name: GoReleaser (publish)
-        uses: goreleaser/goreleaser-action@v7
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}

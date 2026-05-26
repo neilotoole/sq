@@ -75,6 +75,26 @@ func TestQuery_cols(t *testing.T) {
 			wantRecCount: sakila.TblActorCount,
 		},
 		{
+			// A reserved word (the ALIAS_RESERVED token, e.g. :count) used as
+			// a column alias is applied, not silently dropped. See issue #646.
+			name:    "cols-alias-reserved-word",
+			in:      `@sakila | .actor | .first_name:count`,
+			wantSQL: `SELECT "first_name" AS "count" FROM "actor"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT `first_name` AS `count` FROM `actor`",
+				drivertype.ClickHouse: "SELECT `first_name` AS `count` FROM `actor`",
+			},
+			wantRecCount: sakila.TblActorCount,
+		},
+		{
+			// An argument reference (the ARG token, e.g. :$x) is not a valid
+			// alias and is rejected rather than silently dropped. See #646.
+			name:            "cols-alias-arg-rejected",
+			in:              `@sakila | .actor | .first_name:$x`,
+			wantErr:         true,
+			wantErrContains: "alias may not be an argument reference",
+		},
+		{
 			name:    "handle-table/cols",
 			in:      `@sakila.actor | .first_name, .last_name`,
 			wantSQL: `SELECT "first_name", "last_name" FROM "actor"`,

@@ -423,6 +423,10 @@ A non-exhaustive list of things that have bitten contributors:
 - **Aliasing a keyword.** Always works via the `:keyword` form thanks to
   `ALIAS_RESERVED`, but only for the keywords listed there. New
   keywords need to be added.
+- **Arg references aren't aliases.** `:$x` is grammatically accepted (the
+  `alias` rule's `ARG` branch) but rejected at AST-build time — an argument
+  reference is a value placeholder, not a name. Use a plain or quoted alias
+  instead.
 - **`narrowing` passes can reject grammatically-valid input.** Some
   errors only surface at AST-build time (e.g. `having` without
   `group_by`, multiple row ranges). Grep `libsq/ast` for `verify*` /

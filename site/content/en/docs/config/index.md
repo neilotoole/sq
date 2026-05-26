@@ -15,8 +15,10 @@ data [sources](/docs/source) and [groups](/docs/source/#groups), and a plethora
 of configuration options. That's what this section is about. There are two levels
 of options:
 
-- Base config, consisting of many options. Each option is a key-value pair, e.g. `format=json`, or `conn.max-open=50`
-- Source-specific config. Each source can have its own value for, say, `conn.max-open`. If an option is not explicitly set on a source, the source inherits that
+- Base config, consisting of many options. Each option is a key-value pair,
+  e.g. `format=json`, or `conn.max-open=50`
+- Source-specific config. Each source can have its own value for, say, `conn.max-open`.
+  If an option is not explicitly set on a source, the source inherits that
   option value from base config.
 
 ## Commands
@@ -25,7 +27,6 @@ of options:
 [`set`](#set), and [`edit`](#edit) config. The config commands provide extensive
 shell-completion, so feel free to hit `TAB` while
 entering a command, and `sq` will guide you.
-
 
 ### `location`
 
@@ -119,7 +120,8 @@ To get help for a specific option, execute `sq config set OPTION --help`.
 
 ### `edit`
 
-In the spirit of [`kubectl edit`](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#edit),
+In the spirit of
+[`kubectl edit`](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#edit),
 you can edit base config or source-specific config via the
 default editor, as defined in envar `$EDITOR` or `$SQ_EDITOR`.
 
@@ -180,8 +182,8 @@ overriding the config file. For example:
 ```shell
 export SQ_LOG=true; export SQ_LOG_LEVEL=DEBUG; export SQ_LOG_FORMAT=text; export SQ_LOG_FILE=./sq.log
 ```
-{{< /alert >}}
 
+{{< /alert >}}
 
 ## Options
 
@@ -195,112 +197,148 @@ some options can apply to a source, and also have a base value. For example,
 to a database. This option can be set for base config, but can also be set for
 an individual source, overriding the base config.
 
-
 ## CLI
 
 ### `log`
+
 {{< readfile file="../cmd/options/log.help.txt" code="true" lang="text" >}}
 
 ### `log.file`
+
 {{< readfile file="../cmd/options/log.file.help.txt" code="true" lang="text" >}}
 
 ### `log.format`
+
 {{< readfile file="../cmd/options/log.format.help.txt" code="true" lang="text" >}}
 
 ### `log.level`
+
 {{< readfile file="../cmd/options/log.level.help.txt" code="true" lang="text" >}}
 
 ### `error.format`
+
 {{< readfile file="../cmd/options/error.format.help.txt" code="true" lang="text" >}}
 
 ### `error.stack`
+
 {{< readfile file="../cmd/options/error.stack.help.txt" code="true" lang="text" >}}
 
 ### `error.format.text.verbose`
+
 {{< readfile file="../cmd/options/error.format.text.verbose.help.txt" code="true" lang="text" >}}
 
 ### `ping.timeout`
+
 {{< readfile file="../cmd/options/ping.timeout.help.txt" code="true" lang="text" >}}
 
 ### `http.request.timeout`
+
 {{< readfile file="../cmd/options/http.request.timeout.help.txt" code="true" lang="text" >}}
 
 ### `http.response.timeout`
+
 {{< readfile file="../cmd/options/http.response.timeout.help.txt" code="true" lang="text" >}}
 
 ### `https.insecure-skip-verify`
+
 {{< readfile file="../cmd/options/https.insecure-skip-verify.help.txt" code="true" lang="text" >}}
 
 ### `download.cache`
+
 {{< readfile file="../cmd/options/download.cache.help.txt" code="true" lang="text" >}}
 
 ### `download.refresh.ok-on-err`
+
 {{< readfile file="../cmd/options/download.refresh.ok-on-err.help.txt" code="true" lang="text" >}}
 
 ### `progress`
+
 {{< readfile file="../cmd/options/progress.help.txt" code="true" lang="text" >}}
 
 ### `progress.delay`
+
 {{< readfile file="../cmd/options/progress.delay.help.txt" code="true" lang="text" >}}
 
 ### `progress.max-bars`
+
 {{< readfile file="../cmd/options/progress.max-bars.help.txt" code="true" lang="text" >}}
 
 ### `shell-completion.timeout`
+
 {{< readfile file="../cmd/options/shell-completion.timeout.help.txt" code="true" lang="text" >}}
 
 ### `shell-completion.group-filter`
+
+<!-- markdownlint-disable-next-line MD013 -->
 {{< readfile file="../cmd/options/shell-completion.group-filter.help.txt" code="true" lang="text" >}}
 
 ### `shell-completion.log`
+
 {{< readfile file="../cmd/options/shell-completion.log.help.txt" code="true" lang="text" >}}
 
 ### `config.lock.timeout`
+
 {{< readfile file="../cmd/options/config.lock.timeout.help.txt" code="true" lang="text" >}}
 
 <a id="formatting"></a>
+
 ## Output
 
 ### `compact`
+
 {{< readfile file="../cmd/options/compact.help.txt" code="true" lang="text" >}}
 
 ### `format`
+
 {{< readfile file="../cmd/options/format.help.txt" code="true" lang="text" >}}
 
 ### `format.datetime`
+
 {{< readfile file="../cmd/options/format.datetime.help.txt" code="true" lang="text" >}}
 
 ### `format.datetime.number`
+
 {{< readfile file="../cmd/options/format.datetime.number.help.txt" code="true" lang="text" >}}
 
 ### `format.date`
+
 {{< readfile file="../cmd/options/format.date.help.txt" code="true" lang="text" >}}
 
 ### `format.date.number`
+
 {{< readfile file="../cmd/options/format.date.number.help.txt" code="true" lang="text" >}}
 
 ### `format.time`
+
 {{< readfile file="../cmd/options/format.time.help.txt" code="true" lang="text" >}}
 
 ### `format.time.number`
+
 {{< readfile file="../cmd/options/format.time.number.help.txt" code="true" lang="text" >}}
 
 ### `format.excel.datetime`
+
 {{< readfile file="../cmd/options/format.excel.datetime.help.txt" code="true" lang="text" >}}
 
+<!-- markdownlint-disable-next-line MD013 -->
 See also: [Excel date/time format reference](https://support.microsoft.com/en-gb/office/format-numbers-as-dates-or-times-418bd3fe-0577-47c8-8caa-b4d30c528309#bm2)
 
 ### `format.excel.date`
+
 {{< readfile file="../cmd/options/format.excel.date.help.txt" code="true" lang="text" >}}
 
+<!-- markdownlint-disable-next-line MD013 -->
 See also: [Excel date/time format reference](https://support.microsoft.com/en-gb/office/format-numbers-as-dates-or-times-418bd3fe-0577-47c8-8caa-b4d30c528309#bm2)
 
 ### `format.excel.time`
+
 {{< readfile file="../cmd/options/format.excel.time.help.txt" code="true" lang="text" >}}
 
+<!-- markdownlint-disable-next-line MD013 -->
 See also: [Excel date/time format reference](https://support.microsoft.com/en-gb/office/format-numbers-as-dates-or-times-418bd3fe-0577-47c8-8caa-b4d30c528309#bm2)
 
 ### `format.html.embed-assets`
+
 {{< readfile file="../cmd/options/format.html.embed-assets.help.txt" code="true" lang="text" >}}
 
 This option applies to [`sq inspect`](/docs/inspect)'s HTML output. As with
@@ -308,12 +346,15 @@ other options, it can be set per invocation via the matching
 `--format.html.embed-assets` flag.
 
 ### `header`
+
 {{< readfile file="../cmd/options/header.help.txt" code="true" lang="text" >}}
 
 ### `monochrome`
+
 {{< readfile file="../cmd/options/monochrome.help.txt" code="true" lang="text" >}}
 
 ### `verbose`
+
 {{< readfile file="../cmd/options/verbose.help.txt" code="true" lang="text" >}}
 
 ### `redact`
@@ -358,7 +399,6 @@ Thus, the second `actor_id` column becomes `actor_id_1`. Let's say you instead
 wanted the column to be renamed to `actor_id:1`. Change the template value to
 use `:` instead of `_`.
 
-
 ```shell
 $ sq config set result.column.rename '{{.Name}}{{with .Recurrence}}:{{.}}{{end}}'
 ```
@@ -383,19 +423,21 @@ $ sq .actor
 {{< alert icon="👉" >}}
 Note that [`ingest.column.rename`](#ingestcolumnrename) and
 [`result.column.rename`](#resultcolumnrename) are distinct options.
-The _ingest_ option is applied to ingest data (e.g. a CSV file) column names before the data is sent to
-the database (pre-processing). The _result_ option, by contrast, is applied
+The _ingest_ option is applied to ingest data (e.g. a CSV file) column names
+before the data is sent to the database (pre-processing).
+The _result_ option, by contrast, is applied
 to result set column names after the data is returned from the database (post-processing).
 It is possible (and normal) to use both options.
 {{< /alert >}}
 
 ### `diff.data.format`
+
 {{< readfile file="../cmd/options/diff.data.format.help.txt" code="true" lang="text" >}}
 
 ### `diff.lines`
 
-Configures the number of context lines that [`sq diff`](/docs/diff) shows before and after a difference.
-You can use the `--unified` (`-U`) flag, e.g.:
+Configures the number of context lines that [`sq diff`](/docs/diff) shows before and after
+a difference. You can use the `--unified` (`-U`) flag, e.g.:
 
 ```shell
 $ sq diff @prod/sales.payments @staging/sales.payments -U4
@@ -405,7 +447,8 @@ $ sq diff @prod/sales.payments @staging/sales.payments -U4
 
 ### `diff.stop`
 
-Configures the default stop-after value for [`sq diff`](/docs/diff). You can use the `--stop` (`-n`) flag, e.g.:
+Configures the default stop-after value for [`sq diff`](/docs/diff).
+You can use the `--stop` (`-n`) flag, e.g.:
 
 ```shell
 $ sq diff @prod/sales.payments @staging/sales.payments -n10
@@ -415,47 +458,55 @@ Note that `diff.stop` only applies to table row data diffs, not to metadata diff
 
 {{< readfile file="../cmd/options/diff.stop.help.txt" code="true" lang="text" >}}
 
-
-
-
-
-
 ### `diff.max-hunk-size`
+
 {{< readfile file="../cmd/options/diff.max-hunk-size.help.txt" code="true" lang="text" >}}
 
 ## Tuning
 
 ### `conn.max-idle`
+
 {{< readfile file="../cmd/options/conn.max-idle.help.txt" code="true" lang="text" >}}
 
 ### `conn.max-idle-time`
+
 {{< readfile file="../cmd/options/conn.max-idle-time.help.txt" code="true" lang="text" >}}
 
 ### `conn.max-lifetime`
+
 {{< readfile file="../cmd/options/conn.max-lifetime.help.txt" code="true" lang="text" >}}
 
 ### `conn.max-open`
+
 {{< readfile file="../cmd/options/conn.max-open.help.txt" code="true" lang="text" >}}
 
 ### `conn.open-timeout`
+
 {{< readfile file="../cmd/options/conn.open-timeout.help.txt" code="true" lang="text" >}}
 
 ### `retry.max-interval`
+
 {{< readfile file="../cmd/options/retry.max-interval.help.txt" code="true" lang="text" >}}
 
 ### `tuning.errgroup-limit`
+
 {{< readfile file="../cmd/options/tuning.errgroup-limit.help.txt" code="true" lang="text" >}}
 
 ### `tuning.output-flush-threshold`
+
+<!-- markdownlint-disable-next-line MD013 -->
 {{< readfile file="../cmd/options/tuning.output-flush-threshold.help.txt" code="true" lang="text" >}}
 
 ### `tuning.record-buffer`
+
 {{< readfile file="../cmd/options/tuning.record-buffer.help.txt" code="true" lang="text" >}}
 
 ### `tuning.buffer-spill-limit`
+
 {{< readfile file="../cmd/options/tuning.buffer-spill-limit.help.txt" code="true" lang="text" >}}
 
 ### `tuning.scan-buffer-limit`
+
 {{< readfile file="../cmd/options/tuning.scan-buffer-limit.help.txt" code="true" lang="text" >}}
 
 ## Ingest
@@ -469,30 +520,35 @@ commands.
 {{< readfile file="../cmd/options/ingest.cache.help.txt" code="true" lang="text" >}}
 
 ### `cache.lock.timeout`
+
 {{< readfile file="../cmd/options/cache.lock.timeout.help.txt" code="true" lang="text" >}}
 
 ### `ingest.column.rename`
+
 {{< readfile file="../cmd/options/ingest.column.rename.help.txt" code="true" lang="text" >}}
 
 {{< alert icon="👉" >}}
 Note that [`ingest.column.rename`](#ingestcolumnrename) and
 [`result.column.rename`](#resultcolumnrename) are distinct options.
-The _ingest_ option is applied to ingest data (e.g. a CSV file) column names before the data is sent to
-the database (pre-processing). The _result_ option, by contrast, is applied
+The _ingest_ option is applied to ingest data (e.g. a CSV file) column names
+before the data is sent to the database (pre-processing).
+The _result_ option, by contrast, is applied
 to result set column names after the data is returned from the database (post-processing).
 It is possible (and normal) to use both options.
 {{< /alert >}}
 
 ### `ingest.header`
+
 {{< readfile file="../cmd/options/ingest.header.help.txt" code="true" lang="text" >}}
 
 ### `ingest.sample-size`
+
 {{< readfile file="../cmd/options/ingest.sample-size.help.txt" code="true" lang="text" >}}
 
 ### `driver.csv.delim`
+
 {{< readfile file="../cmd/options/driver.csv.delim.help.txt" code="true" lang="text" >}}
 
 ### `driver.csv.empty-as-null`
+
 {{< readfile file="../cmd/options/driver.csv.empty-as-null.help.txt" code="true" lang="text" >}}
-
-

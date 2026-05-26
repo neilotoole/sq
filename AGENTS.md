@@ -97,14 +97,17 @@ example, "honors" not "honours", "color" not "colour", "behavior" not
 
 ### Markdown
 
-- Wrap lines at 80 characters where feasible.
-- Run `markdownlint` on any markdown file you create or modify. Fix all
-  issues before committing.
+- Wrap lines at 100 characters where feasible.
+- Lint any markdown file you create or modify with the repo's single tool,
+  `markdownlint-cli2`. Fix all issues before committing.
 
 ```bash
-markdownlint '**/*.md' --ignore node_modules
-markdownlint '**/*.md' --ignore node_modules --fix
+make lint-markdown        # root + skills + non-site READMEs
+bun run lint:markdown-fix # autofix the above
 ```
+
+`site/` markdown is linted by its own config; from `site/` run
+`bun run lint:markdown` (or `make -C site site-test`).
 
 ### `CHANGELOG.md`
 
@@ -159,10 +162,10 @@ the rest of the system, see [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 This repo ships [Agent Skills](https://agentskills.io/specification) for
 **maintainer** workflows. They live under [`.agents/skills/`](.agents/skills/).
 
-| Location | Audience |
-|----------|----------|
-| [`.agents/skills/`](.agents/skills/) | Contributors (Dependabot triage, etc.) |
-| [`skills/sq/`](skills/sq/SKILL.md) | End users of the `sq` CLI (distribution; not repo auto-discovery) |
+| Location                             | Audience                                                          |
+| ------------------------------------ | ----------------------------------------------------------------- |
+| [`.agents/skills/`](.agents/skills/) | Contributors (Dependabot triage, etc.)                            |
+| [`skills/sq/`](skills/sq/SKILL.md)   | End users of the `sq` CLI (distribution; not repo auto-discovery) |
 
 When you **add a new driver type**, update [`skills/sq/`](skills/sq/SKILL.md)
 per the [driver ship checklist](./CONTRIBUTING.md#driver-ship-checklist): add
@@ -175,10 +178,10 @@ tree as documented in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ### Skills in this repo
 
-| Skill | Use when |
-|-------|----------|
-| [`sq-site-dependabot`](.agents/skills/sq-site-dependabot/) | Triaging or merging Dependabot PRs for [`site/`](site/) (Bun / Hugo). |
-| [`sq-gomod-dependabot`](.agents/skills/sq-gomod-dependabot/) | Dependabot PRs for Go modules at repo root (placeholder). |
+| Skill                                                        | Use when                                                              |
+| ------------------------------------------------------------ | --------------------------------------------------------------------- |
+| [`sq-site-dependabot`](.agents/skills/sq-site-dependabot/)   | Triaging or merging Dependabot PRs for [`site/`](site/) (Bun / Hugo). |
+| [`sq-gomod-dependabot`](.agents/skills/sq-gomod-dependabot/) | Dependabot PRs for Go modules at repo root (placeholder).             |
 
 Invoke explicitly when your agent supports it (e.g. `/sq-site-dependabot` in
 Cursor, `$sq-site-dependabot` in Codex) or ask to “clear site dependabot PRs”.

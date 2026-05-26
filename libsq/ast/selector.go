@@ -7,7 +7,6 @@ import (
 	antlr "github.com/antlr4-go/antlr/v4"
 
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 )
 
@@ -19,11 +18,8 @@ func (v *parseTreeVisitor) VisitSelectorElement(ctx *slq.SelectorElementContext)
 	}
 
 	if aliasCtx := ctx.Alias(); aliasCtx != nil {
-		if aliasCtx.ID() != nil {
-			node.alias = aliasCtx.ID().GetText()
-		}
-		if aliasCtx.STRING() != nil {
-			node.alias = stringz.StripDoubleQuote(aliasCtx.STRING().GetText())
+		if node.alias, err = extractAliasValue(aliasCtx); err != nil {
+			return err
 		}
 	}
 

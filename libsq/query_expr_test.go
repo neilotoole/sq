@@ -199,6 +199,22 @@ func TestQuery_expr_literal(t *testing.T) {
 			},
 			wantRecCount: sakila.TblActorCount,
 		},
+		{
+			// A reserved word as an expression alias is applied, and the
+			// expression is no longer mangled into the alias. See issue #646.
+			name:    "table/addition_alias_reserved_word",
+			in:      `@sakila | .actor | (1+2):count`,
+			wantSQL: `SELECT (1+2) AS "count" FROM "actor"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT (1+2) AS `count` FROM `actor`",
+				drivertype.ClickHouse: "SELECT (1+2) AS `count` FROM `actor`",
+			},
+			sinkFns: []SinkTestFunc{
+				assertSinkColValue(0, int64(3)),
+				assertSinkColName(0, "count"),
+			},
+			wantRecCount: sakila.TblActorCount,
+		},
 	}
 
 	for i, tc := range testCases {

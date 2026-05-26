@@ -3,7 +3,7 @@ module github.com/neilotoole/sq
 // NOTE: Some of these deps are marked with "BRITTLE". That means that extra
 // care needs to be taken when upgrading those versions, for various reasons.
 
-go 1.26.1
+go 1.26.3
 
 // godebug x509negativeserial=1 is set here because of an issue with older
 // SQL Server versions not doing the right thing with X509 certs (see RFC 5280).
@@ -49,7 +49,7 @@ require (
 	github.com/neilotoole/oncecache v0.1.0
 	github.com/neilotoole/shelleditor v0.4.1
 	github.com/neilotoole/slogt v1.1.0
-	github.com/neilotoole/streamcache v0.3.5
+	github.com/neilotoole/streamcache v0.4.0
 	github.com/neilotoole/tailbuf v0.1.1
 	github.com/nightlyone/lockfile v1.0.0
 	github.com/otiai10/copy v1.14.1
@@ -155,7 +155,7 @@ require (
 	github.com/muesli/mango-pflag v0.2.0 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/nathan-fiscaletti/consolesize-go v0.0.0-20260406063853-3bac975de715 // indirect
-	github.com/neilotoole/fifomu v0.1.2 // indirect
+	github.com/neilotoole/fifomu v0.2.0 // indirect
 	github.com/otiai10/mint v1.6.3 // indirect
 	github.com/paulmach/orb v0.13.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.26 // indirect

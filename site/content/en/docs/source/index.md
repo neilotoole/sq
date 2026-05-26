@@ -30,7 +30,6 @@ You can override this behavior via the global `--no-redact` flag, or by setting
 the [`redact`](/docs/config#redact) config option to `false`,
 {{< /alert >}}
 
-
 `sq` provides a set of commands to [add](#add), [list](#list-sources), [rename](#move)
 and [remove](#remove) sources.
 
@@ -70,8 +69,8 @@ The location completion mechanism suggests usernames, hostnames (from history),
 database names, and even values for query params (e.g. `?sslmode=disable`) for
 each supported database. It never suggests passwords.
 
+<!-- markdownlint-disable-next-line MD013 -->
 {{< asciicast src="/casts/src-add-location-completion-pg.cast" poster="npt:0:8" idleTimeLimit=0.5 rows=6 speed=1.5 >}}
-
 
 ## List sources
 
@@ -265,6 +264,7 @@ e.g. the `inventory` catalog, specify `CATALOG.`:
 # List the schemas in the "inventory" catalog of @sakila_pg.
 $ sq inspect @sakila_pg --schemata --src.schema=inventory.
 ```
+
 {{< /alert >}}
 
 ## Remove
@@ -349,6 +349,7 @@ $ sq ls
 @prod_customer  csv  customer.csv
 @prod_sales     csv  sales.csv
 ```
+
 Now, if you have dozens (or hundreds) of sources, interacting with them
 becomes burdensome. Enter the _groups_ mechanism. Let's add these sources instead:
 `@dev/customer`, `@dev/sales`, `@prod/customer`, `@prod/sales`.
@@ -439,7 +440,6 @@ Here's a real-world example:
 
 If you want to get really crazy, try the JSON output (`sq ls -gj`).
 
-
 {{< alert icon="👉" >}}
 You may have noticed by now that groups are _implicit_. A group "exists" when
 there exists a source that has the group's path in the handle. Thus, there
@@ -456,7 +456,6 @@ $ sq rm my/group
 
 These commands are effectively batch operations on the sources in each group.
 {{< /alert >}}
-
 
 ## Document source
 
@@ -541,5 +540,3 @@ $ sq cache clear @active
 # Disable the cache for @sakila_csv
 $ sq cache disable @sakila_csv
 ```
-
-
