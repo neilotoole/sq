@@ -7,7 +7,7 @@
   otherwise render as flat, uncolored text. Rather than pull in a client-side
   highlighter, we tokenize the small, stable erDiagram grammar here and wrap
   each token in a span that reuses Chroma's Nord palette classes (.k, .kt,
-  .nc, .s, .o, .p, .c1). Coloring therefore tracks the existing light/dark
+  .nc, .n, .s, .o, .p, .c1). Coloring therefore tracks the existing light/dark
   syntax themes (_syntax.scss / _syntax-dark.scss) with no extra CSS or JS.
 
   Note: this deliberately emits `language-mermaid-erd`, NOT `language-mermaid`,
@@ -34,22 +34,30 @@
   {{- else if eq $trim "erDiagram" -}}
     {{- /* Diagram-type keyword. */ -}}
     {{- $h = $e | replaceRE `^(\s*)(erDiagram)\s*$` `${1}<span class="k">${2}</span>` -}}
-  {{- else if findRE `(--|\.\.)` $trim -}}
-    {{- /* Relationship: LEFT  op  RIGHT [: "label"] */ -}}
+  {{- else if findRE `[|}o{](?:--|\.\.)|(?:--|\.\.)[|}o{]` $trim -}}
+    {{- /* Relationship: LEFT  op  RIGHT [: "label"]. We detect it by an ER
+          cardinality operator — a `--`/`..` line with a cardinality glyph
+          (| o } {) adjacent — rather than a bare `--`/`..`, so dashes inside a
+          quoted column comment don't masquerade as a relationship. Entity
+          names may be quoted (sq quotes any name that isn't a bare
+          identifier), so each operand matches "..." (which can contain
+          spaces) or a bare token. */ -}}
     {{- if findRE `:\s+".*"\s*$` $e -}}
-      {{- $h = $e | replaceRE `^(\s*)(\S+)(\s+)(\S+)(\s+)(\S+)(\s+:\s+)(".*")\s*$` `${1}<span class="nc">${2}</span>${3}<span class="o">${4}</span>${5}<span class="nc">${6}</span><span class="p">${7}</span><span class="s">${8}</span>` -}}
+      {{- $h = $e | replaceRE `^(\s*)("[^"]*"|\S+)(\s+)(\S+)(\s+)("[^"]*"|\S+)(\s+:\s+)(".*")\s*$` `${1}<span class="nc">${2}</span>${3}<span class="o">${4}</span>${5}<span class="nc">${6}</span><span class="p">${7}</span><span class="s">${8}</span>` -}}
     {{- else -}}
-      {{- $h = $e | replaceRE `^(\s*)(\S+)(\s+)(\S+)(\s+)(\S+)\s*$` `${1}<span class="nc">${2}</span>${3}<span class="o">${4}</span>${5}<span class="nc">${6}</span>` -}}
+      {{- $h = $e | replaceRE `^(\s*)("[^"]*"|\S+)(\s+)(\S+)(\s+)("[^"]*"|\S+)\s*$` `${1}<span class="nc">${2}</span>${3}<span class="o">${4}</span>${5}<span class="nc">${6}</span>` -}}
     {{- end -}}
   {{- else if hasSuffix $trim "{" -}}
-    {{- /* Entity block open: NAME { */ -}}
-    {{- $h = $e | replaceRE `^(\s*)(\S+)(\s*)(\{)\s*$` `${1}<span class="nc">${2}</span>${3}<span class="p">${4}</span>` -}}
+    {{- /* Entity block open: NAME { (NAME may be quoted). */ -}}
+    {{- $h = $e | replaceRE `^(\s*)("[^"]*"|\S+)(\s*)(\{)\s*$` `${1}<span class="nc">${2}</span>${3}<span class="p">${4}</span>` -}}
   {{- else if eq $trim "}" -}}
     {{- /* Entity block close. */ -}}
     {{- $h = $e | replaceRE `^(\s*)(\})\s*$` `${1}<span class="p">${2}</span>` -}}
   {{- else -}}
-    {{- /* Attribute: type name [PK|FK|UK ...] ["comment"] */ -}}
-    {{- $h = $e | replaceRE `^(\s*)(\S+)(\s+)(\S+)((?:\s+(?:PK|FK|UK))*)(\s+".*")?\s*$` `${1}<span class="kt">${2}</span>${3}<span class="n">${4}</span><span class="k">${5}</span><span class="s">${6}</span>` -}}
+    {{- /* Attribute: type name [keys] ["comment"]. The name may be quoted;
+          keys are PK/FK/UK, comma- or space-joined (sq joins with a comma,
+          e.g. "PK,FK"). */ -}}
+    {{- $h = $e | replaceRE `^(\s*)(\S+)(\s+)("[^"]*"|\S+)(\s+(?:PK|FK|UK)(?:[ ,](?:PK|FK|UK))*)?(\s+".*")?\s*$` `${1}<span class="kt">${2}</span>${3}<span class="n">${4}</span><span class="k">${5}</span><span class="s">${6}</span>` -}}
   {{- end -}}
   {{- $out = $out | append $h -}}
 {{- end -}}
