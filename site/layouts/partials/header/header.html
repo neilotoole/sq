@@ -15,7 +15,9 @@
       <a class="navbar-brand order-0 mb-0" href="{{ "/" | absLangURL }}" aria-label="{{ .Site.Params.Title }}">
         {{ .Site.Params.Title }}
       </a>
-      <a id="sq-version" class="navbar-version" href="https://github.com/neilotoole/sq/releases" rel="noopener noreferrer" aria-label="sq releases">···</a>
+      {{ with site.Data.release.latest_version -}}
+      <a class="navbar-version" href="https://github.com/neilotoole/sq/releases" rel="noopener noreferrer" aria-label="sq releases">v{{ . }}</a>
+      {{- end }}
     </div>
 
     {{ if (in .Site.Params.sections.sectionNav .Section) -}}
