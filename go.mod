@@ -32,6 +32,7 @@ require (
 	github.com/emirpasic/gods v1.18.1
 	github.com/fatih/color v1.19.0
 	github.com/go-sql-driver/mysql v1.10.0 // BRITTLE
+	github.com/goccy/go-graphviz v0.2.10
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/renameio/v2 v2.0.2
 	github.com/google/uuid v1.6.0
@@ -80,8 +81,6 @@ require (
 	golang.org/x/text v0.37.0
 	gopkg.in/yaml.v3 v3.0.1
 )
-
-require github.com/goccy/go-graphviz v0.2.10
 
 require (
 	dario.cat/mergo v1.0.2 // indirect
