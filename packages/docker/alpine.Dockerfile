@@ -24,9 +24,12 @@ RUN ./alpine-mssql-tools-install.sh
 ENV PATH=$PATH:/opt/mssql-tools18/bin
 
 # Install sq from the binary GoReleaser placed at the build-context root.
+# `sq completion bash` doubles as a liveness check that the copied binary runs.
+# We deliberately avoid `sq version` here: it makes a best-effort (non-fatal)
+# network call to check for updates, which would reintroduce a build-time
+# network dependency — the very thing this approach removes.
 COPY sq /usr/local/bin/sq
 RUN chmod +x /usr/local/bin/sq \
-    && sq version --yaml \
     && mkdir -p /etc/bash_completion.d/ \
     && sq completion bash > /etc/bash_completion.d/sq \
     && echo "source /etc/bash/bash_completion.sh" >> /etc/bash/bashrc

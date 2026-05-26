@@ -23,8 +23,10 @@ builds:
       - v1
     prebuilt:
       # The CI job downloads both linux release artifacts into dist-linux/.
-      # amd64 -> dist-linux/sq_linux_amd64_v1/sq ; arm64 -> dist-linux/sq_linux_arm64/sq
-      path: dist-linux/sq_linux_{{ .Arch }}{{ with .Amd64 }}_{{ . }}{{ end }}/sq
+      # amd64 -> dist-linux/sq_linux_amd64_v1/sq ; arm64 -> dist-linux/sq_linux_arm64_v8.0/sq
+      # (the goarm64 default v8.0 suffix is always appended). Mirrors the
+      # prebuilt path template in .goreleaser.yml.
+      path: dist-linux/sq_linux_{{ .Arch }}{{ with .Amd64 }}_{{ . }}{{ end }}{{ with .Arm64 }}_{{ . }}{{ end }}/sq
     binary: sq
 
 # This run only builds/pushes images; it must not create or modify a GitHub
@@ -40,7 +42,7 @@ dockers:
     dockerfile: packages/docker/alpine.Dockerfile
     use: buildx
     image_templates:
-      - "ghcr.io/neilotoole/sq:{{ .Version }}-amd64"
+      - "ghcr.io/neilotoole/sq:{{ .Tag }}-amd64"
     build_flag_templates:
       - "--platform=linux/amd64"
     extra_files:
@@ -55,7 +57,7 @@ dockers:
     dockerfile: packages/docker/alpine.Dockerfile
     use: buildx
     image_templates:
-      - "ghcr.io/neilotoole/sq:{{ .Version }}-arm64"
+      - "ghcr.io/neilotoole/sq:{{ .Tag }}-arm64"
     build_flag_templates:
       - "--platform=linux/arm64"
     extra_files:
@@ -65,17 +67,17 @@ dockers:
       - packages/docker/entrypoint.sh
 
 # Stitch the per-arch images into multi-arch manifest tags. The per-arch
-# `:{{ .Version }}-{amd64,arm64}` images must be pushed first (done above) so
+# `:{{ .Tag }}-{amd64,arm64}` images must be pushed first (done above) so
 # the manifests can reference them.
 docker_manifests:
-  - name_template: "ghcr.io/neilotoole/sq:{{ .Version }}"
+  - name_template: "ghcr.io/neilotoole/sq:{{ .Tag }}"
     image_templates:
-      - "ghcr.io/neilotoole/sq:{{ .Version }}-amd64"
-      - "ghcr.io/neilotoole/sq:{{ .Version }}-arm64"
+      - "ghcr.io/neilotoole/sq:{{ .Tag }}-amd64"
+      - "ghcr.io/neilotoole/sq:{{ .Tag }}-arm64"
   - name_template: "ghcr.io/neilotoole/sq:latest"
     image_templates:
-      - "ghcr.io/neilotoole/sq:{{ .Version }}-amd64"
-      - "ghcr.io/neilotoole/sq:{{ .Version }}-arm64"
+      - "ghcr.io/neilotoole/sq:{{ .Tag }}-amd64"
+      - "ghcr.io/neilotoole/sq:{{ .Tag }}-arm64"
 
 # Keyless cosign signing of the published manifests, matching the prior
 # docker-publish workflow.
