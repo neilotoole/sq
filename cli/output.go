@@ -616,10 +616,6 @@ func getOutputConfig(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup
 		// color processing either.
 		outCfg.out = stdout
 		outCfg.outPr.EnableColor(false)
-	case cmd != nil && cmdFlagChanged(cmd, flag.FileOutput):
-		// stdout is an actual regular file on disk, so no color.
-		outCfg.out = colorable.NewNonColorable(stdout)
-		outCfg.outPr.EnableColor(false)
 	case termz.IsColorTerminal(stdout) && !monochrome:
 		// stdout is a color terminal and we're colorizing.
 		outCfg.out = colorable.NewColorable(stdout.(*os.File))

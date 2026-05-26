@@ -144,6 +144,47 @@ func TestSourceDiagram_neutralizesControlChars(t *testing.T) {
 	require.NotContains(t, got, "fk\tparent", "raw tab must not leak into the diagram")
 }
 
+// TestSourceDiagram_multipleFKsSamePair pins the real-schema case where one
+// child references the same parent twice with differing nullability (like
+// sakila's film.language_id NOT NULL and film.original_language_id nullable,
+// both → language). The two edges must render with different parent-side
+// arrowheads: "tee" (exactly one) for the NOT NULL FK and "teeodot"
+// (zero-or-one) for the nullable one.
+func TestSourceDiagram_multipleFKsSamePair(t *testing.T) {
+	language := &metadata.Table{
+		Name: "language", TableType: "table",
+		Columns: []*metadata.Column{
+			{Name: "language_id", Position: 1, PrimaryKey: true, ColumnType: "INTEGER", Kind: kind.Int},
+		},
+	}
+	film := &metadata.Table{
+		Name: "film", TableType: "table",
+		Columns: []*metadata.Column{
+			{Name: "film_id", Position: 1, PrimaryKey: true, ColumnType: "INTEGER", Kind: kind.Int},
+			{Name: "language_id", Position: 2, ColumnType: "INTEGER", Kind: kind.Int},
+			{Name: "original_language_id", Position: 3, Nullable: true, ColumnType: "INTEGER", Kind: kind.Int},
+		},
+		FK: &metadata.FKGroup{Outgoing: []*metadata.ForeignKey{
+			{
+				Name: "fk_film_language", Table: "film", Columns: []string{"language_id"},
+				RefTable: "language", RefColumns: []string{"language_id"},
+			},
+			{
+				Name: "fk_film_language_original", Table: "film", Columns: []string{"original_language_id"},
+				RefTable: "language", RefColumns: []string{"language_id"},
+			},
+		}},
+	}
+	src := &metadata.Source{Handle: "@s", Tables: []*metadata.Table{language, film}}
+	metadata.LinkForeignKeys(nil, src)
+	got := erddot.SourceDiagram(src.Tables)
+
+	require.Contains(t, got,
+		`"language" -> "film" [dir=both, arrowtail=tee, arrowhead=crowodot, label="fk_film_language"]`)
+	require.Contains(t, got,
+		`"language" -> "film" [dir=both, arrowtail=teeodot, arrowhead=crowodot, label="fk_film_language_original"]`)
+}
+
 // TestCardinalityParity verifies that the DOT renderer and the Mermaid
 // renderer agree on cardinality for a range of FK shapes: they share
 // erdmodel.Resolve, so an optional/unique relationship that Mermaid draws

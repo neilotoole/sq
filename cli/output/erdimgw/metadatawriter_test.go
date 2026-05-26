@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"image/png"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -131,4 +132,34 @@ func TestNothingToRender(t *testing.T) {
 	buf.Reset()
 	require.Error(t, w.TableMetadata(&metadata.Table{Name: "t", TableType: "table"}))
 	require.Empty(t, buf.String())
+}
+
+// TestConcurrentRender exercises the package-level renderMu: go-graphviz's
+// WASM runtime isn't safe for concurrent use, so the writer serializes
+// rendering. Driving many renders concurrently (each to its own buffer) must
+// still produce a valid SVG every time. Run under -race, this also guards
+// against a future refactor accidentally dropping the lock.
+func TestConcurrentRender(t *testing.T) {
+	t.Parallel()
+
+	const goroutines = 8
+	var wg sync.WaitGroup
+	errs := make([]error, goroutines)
+	outs := make([]string, goroutines)
+
+	for i := range goroutines {
+		wg.Go(func() {
+			buf := &bytes.Buffer{}
+			errs[i] = erdimgw.NewSVGMetadataWriter(buf, output.NewPrinting()).
+				SourceMetadata(newTestSource(), true)
+			outs[i] = buf.String()
+		})
+	}
+	wg.Wait()
+
+	for i := range goroutines {
+		require.NoError(t, errs[i])
+		require.Contains(t, outs[i], "<svg")
+		require.Contains(t, outs[i], "film_actor")
+	}
 }

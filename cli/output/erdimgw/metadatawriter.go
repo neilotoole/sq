@@ -107,6 +107,9 @@ func (w *metadataWriter) render(dot string) error {
 	if err != nil {
 		return errz.Err(err)
 	}
+	// Close only tears down the WASM runtime/graph after Render has already
+	// written every byte to w.out; a teardown error can't corrupt or truncate
+	// the emitted image, and the process is short-lived, so it's safe to drop.
 	defer func() { _ = g.Close() }()
 	g.SetLayout(graphviz.DOT)
 
@@ -116,6 +119,8 @@ func (w *metadataWriter) render(dot string) error {
 	}
 	defer func() { _ = graph.Close() }()
 
+	// Render writes the whole image in a single Write; its error (including any
+	// write failure to w.out) is surfaced here.
 	return errz.Err(g.Render(w.ctx, graph, w.format, w.out))
 }
 
