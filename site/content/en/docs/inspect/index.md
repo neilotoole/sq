@@ -42,6 +42,8 @@ repeatedly inspect the same `stdin` data, you should probably just [`sq add`](#a
 This output includes the source
 metadata, and the schema structure (tables, columns, etc.).
 
+## Output formats
+
 <a id="--text-default"></a>
 
 ### `text` (default)
@@ -52,7 +54,7 @@ $ sq inspect @sakila_pg
 
 ![sq inspect source text](sq_inspect_source_text.png)
 
-### `--verbose`
+<a id="--verbose"></a>
 
 To see more detail, use the `--verbose` (`-v`) flag with the `text` format.
 
