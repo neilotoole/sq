@@ -62,8 +62,6 @@
 {{ $scrollLock := resources.Get "js/scroll-lock.js" | js.Build -}}
 {{ $slice = $slice | append $scrollLock -}}
 
-{{ $ghStars := resources.Get "js/gh-stars.js" | js.Build -}}
-
 {{ if .Site.Params.options.toTopButton -}}
   {{ $toTopButton := resources.Get "js/to-top.js" -}}
   {{ $toTopButton := $toTopButton | js.Build -}}
@@ -84,7 +82,6 @@
     <script src="{{ $katexAutoRender.RelPermalink }}" onload="renderMathInElement(document.body);" defer></script>
   {{ end -}}
   <script src="{{ $js.RelPermalink }}" defer></script>
-  <script src="{{ $ghStars.RelPermalink }}" defer></script>
   {{ with .Params.mermaid -}}
     <script src="{{ $mermaid.RelPermalink }}" defer></script>
   {{ end -}}
@@ -106,8 +103,6 @@
     <script src="{{ $katexAutoRender.RelPermalink }}" integrity="{{ $katexAutoRender.Data.Integrity }}" crossorigin="anonymous" defer></script>
   {{ end -}}
   <script src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}" crossorigin="anonymous" defer></script>
-  {{ $ghStars := $ghStars | minify | fingerprint "sha512" -}}
-  <script src="{{ $ghStars.RelPermalink }}" integrity="{{ $ghStars.Data.Integrity }}" crossorigin="anonymous" defer></script>
   {{ with .Params.mermaid -}}
     <script src="{{ $mermaid.RelPermalink }}" integrity="{{ $mermaid.Data.Integrity }}" crossorigin="anonymous" defer></script>
   {{ end -}}
