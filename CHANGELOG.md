@@ -33,14 +33,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     [`iendswith`](https://sq.io/docs/query#iendswith).
   - User-controlled wildcard matchers [`like`](https://sq.io/docs/query#like)
     and [`ilike`](https://sq.io/docs/query#ilike): `%` and `_` are wildcards.
-- [`sq inspect`](https://sq.io/docs/inspect) now has [`--markdown`](https://sq.io/docs/inspect#--markdown)
+- [#648]: [`sq inspect`](https://sq.io/docs/inspect) now has [`--markdown`](https://sq.io/docs/inspect#--markdown)
   and [`--html`](https://sq.io/docs/inspect#--html) output formats that generate
   schema documents with embedded entity relationship diagrams.
-- `sq inspect` also gained a
-  [`mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd) output format
-  (`--format=mermaid-erd`) that emits the bare
-  [Mermaid](https://mermaid.js.org) entity-relationship diagram source for
-  source and table schema inspection, with no surrounding document.
+  - [#658]: `sq inspect` also gained a
+    [`mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd) output format
+    (`--format=mermaid-erd`) that emits the bare
+    [Mermaid](https://mermaid.js.org) entity-relationship diagram source for
+    source and table schema inspection, with no surrounding document.
 
 ### Changed
 
@@ -1607,7 +1607,9 @@ make working with lots of sources much easier.
 [#637]: https://github.com/neilotoole/sq/pull/637
 [#640]: https://github.com/neilotoole/sq/issues/640
 [#646]: https://github.com/neilotoole/sq/issues/646
+[#648]: https://github.com/neilotoole/sq/pull/648
 [#652]: https://github.com/neilotoole/sq/issues/652
+[#658]: https://github.com/neilotoole/sq/pull/658
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
