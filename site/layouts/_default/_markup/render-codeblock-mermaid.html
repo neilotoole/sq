@@ -1,0 +1,59 @@
+{{- /*
+  render-codeblock-mermaid.html — build-time syntax coloring for fenced
+  ```mermaid blocks.
+
+  `sq inspect -f mermaid-erd` emits Mermaid erDiagram source, and Chroma (the
+  site's server-side highlighter) has no Mermaid lexer, so these blocks would
+  otherwise render as flat, uncolored text. Rather than pull in a client-side
+  highlighter, we tokenize the small, stable erDiagram grammar here and wrap
+  each token in a span that reuses Chroma's Nord palette classes (.k, .kt,
+  .nc, .s, .o, .p, .c1). Coloring therefore tracks the existing light/dark
+  syntax themes (_syntax.scss / _syntax-dark.scss) with no extra CSS or JS.
+
+  Note: this deliberately emits `language-mermaid-erd`, NOT `language-mermaid`,
+  so mermaid.js never treats it as a diagram to render — this is the *source*
+  view. A future rendered-diagram tab should emit `.language-mermaid` directly
+  (e.g. via a shortcode) rather than a fenced block, so it bypasses this hook.
+*/ -}}
+{{- $src := .Inner | chomp -}}
+{{- $lines := split $src "\n" -}}
+{{- $out := slice -}}
+{{- range $line := $lines -}}
+  {{- /* Minimal HTML escaping; keep quotes intact so string matching works.
+        Note: `replace` takes input FIRST, unlike `replaceRE` below. */ -}}
+  {{- $e := replace $line "&" "&amp;" -}}
+  {{- $e = replace $e "<" "&lt;" -}}
+  {{- $e = replace $e ">" "&gt;" -}}
+  {{- $trim := trim $line " \t" -}}
+  {{- $h := $e -}}
+  {{- if not $trim -}}
+    {{- /* Blank line: pass through. */ -}}
+  {{- else if hasPrefix $trim "%%" -}}
+    {{- /* Comment to end of line. */ -}}
+    {{- $h = $e | replaceRE `^(\s*)(%%.*)$` `${1}<span class="c1">${2}</span>` -}}
+  {{- else if eq $trim "erDiagram" -}}
+    {{- /* Diagram-type keyword. */ -}}
+    {{- $h = $e | replaceRE `^(\s*)(erDiagram)\s*$` `${1}<span class="k">${2}</span>` -}}
+  {{- else if findRE `(--|\.\.)` $trim -}}
+    {{- /* Relationship: LEFT  op  RIGHT [: "label"] */ -}}
+    {{- if findRE `:\s+".*"\s*$` $e -}}
+      {{- $h = $e | replaceRE `^(\s*)(\S+)(\s+)(\S+)(\s+)(\S+)(\s+:\s+)(".*")\s*$` `${1}<span class="nc">${2}</span>${3}<span class="o">${4}</span>${5}<span class="nc">${6}</span><span class="p">${7}</span><span class="s">${8}</span>` -}}
+    {{- else -}}
+      {{- $h = $e | replaceRE `^(\s*)(\S+)(\s+)(\S+)(\s+)(\S+)\s*$` `${1}<span class="nc">${2}</span>${3}<span class="o">${4}</span>${5}<span class="nc">${6}</span>` -}}
+    {{- end -}}
+  {{- else if hasSuffix $trim "{" -}}
+    {{- /* Entity block open: NAME { */ -}}
+    {{- $h = $e | replaceRE `^(\s*)(\S+)(\s*)(\{)\s*$` `${1}<span class="nc">${2}</span>${3}<span class="p">${4}</span>` -}}
+  {{- else if eq $trim "}" -}}
+    {{- /* Entity block close. */ -}}
+    {{- $h = $e | replaceRE `^(\s*)(\})\s*$` `${1}<span class="p">${2}</span>` -}}
+  {{- else -}}
+    {{- /* Attribute: type name [PK|FK|UK ...] ["comment"] */ -}}
+    {{- $h = $e | replaceRE `^(\s*)(\S+)(\s+)(\S+)((?:\s+(?:PK|FK|UK))*)(\s+".*")?\s*$` `${1}<span class="kt">${2}</span>${3}<span class="n">${4}</span><span class="k">${5}</span><span class="s">${6}</span>` -}}
+  {{- end -}}
+  {{- $out = $out | append $h -}}
+{{- end -}}
+{{- /* Drop empty spans left by absent optional groups (keys / comments). */ -}}
+{{- $html := delimit $out "\n" -}}
+{{- $html = replaceRE `<span class="[^"]*"></span>` "" $html -}}
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-mermaid-erd" data-lang="mermaid">{{ $html | safeHTML }}</code></pre></div>

@@ -46,7 +46,7 @@ metadata, and the schema structure (tables, columns, etc.).
 
 <a id="--text-default"></a>
 
-### `text` (default)
+### `text`
 
 ```shell
 $ sq inspect @sakila_pg
@@ -142,13 +142,13 @@ $ sq inspect @sakila_pg --html -o sakila.html
 $ sq inspect @sakila_pg --html > sakila.html && open sakila.html
 ```
 
-![sq_inspect_html](sq_inspect_html.png)
-
 {{< alert icon="👉" >}}
 See the [**live example**](/examples/sakila.html): the `html` schema document
-for the Postgres [sakila](https://github.com/jOOQ/sakila) sample database,
-rendered right in your browser.
+for the Postgres [sakila](https://github.com/jOOQ/sakila) sample database.
+Note that you can click on the diagram in your browser to zoom/pan etc.
 {{< /alert >}}
+
+![sq_inspect_html](sq_inspect_html.png)
 
 By default, the page loads Mermaid.js from a CDN, producing a small file that
 requires internet access to render the diagram. To produce a fully
@@ -188,6 +188,18 @@ $ sq inspect @sakila_pg.film_actor -f mermaid-erd
 
 # Write the diagram to a file.
 $ sq inspect @sakila_pg -f mermaid-erd -o sakila.mmd
+```
+
+```mermaid
+%% sq inspect @sakila/pg.actor -f mermaid-erd
+erDiagram
+    actor {
+        int actor_id PK
+        text first_name
+        text last_name
+        datetime last_update
+    }
+    actor ||--o{ film_actor : "film_actor_actor_id_fkey"
 ```
 
 The format covers only source and single-table schema inspection. Operations
