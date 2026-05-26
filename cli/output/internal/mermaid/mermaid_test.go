@@ -115,3 +115,35 @@ func TestSourceDiagram_quoting(t *testing.T) {
 func TestSourceDiagram_empty(t *testing.T) {
 	require.Equal(t, "", mermaid.SourceDiagram(nil))
 }
+
+// TestSourceDiagram_neutralizesControlChars verifies that a newline or tab in
+// a table name or FK constraint name is replaced with a space, so the emitted
+// diagram stays one line per entity/edge. ident() and the FK label share the
+// same sanitizer.
+func TestSourceDiagram_neutralizesControlChars(t *testing.T) {
+	parent := &metadata.Table{
+		Name: "parent", TableType: "table",
+		Columns: []*metadata.Column{
+			{Name: "id", Position: 1, PrimaryKey: true, ColumnType: "INTEGER", Kind: kind.Int},
+		},
+	}
+	child := &metadata.Table{
+		Name: "ch\nild", TableType: "table",
+		Columns: []*metadata.Column{
+			{Name: "id", Position: 1, PrimaryKey: true, ColumnType: "INTEGER", Kind: kind.Int},
+			{Name: "parent_id", Position: 2, ColumnType: "INTEGER", Kind: kind.Int},
+		},
+		FK: &metadata.FKGroup{Outgoing: []*metadata.ForeignKey{{
+			Name: "fk\tparent", Table: "ch\nild", Columns: []string{"parent_id"},
+			RefTable: "parent", RefColumns: []string{"id"},
+		}}},
+	}
+	src := &metadata.Source{Handle: "@q", Tables: []*metadata.Table{parent, child}}
+	metadata.LinkForeignKeys(nil, src)
+	got := mermaid.SourceDiagram(src.Tables)
+
+	require.Contains(t, got, `"ch ild" {`)
+	require.Contains(t, got, `: "fk parent"`)
+	require.NotContains(t, got, "ch\nild", "raw newline must not leak into the diagram")
+	require.NotContains(t, got, "fk\tparent", "raw tab must not leak into the diagram")
+}

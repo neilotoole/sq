@@ -141,7 +141,7 @@ func fkEdge(fk *metadata.ForeignKey, byName map[string]*metadata.Table) (erdEdge
 
 	label := `""`
 	if fk.Name != "" {
-		label = `"` + strings.ReplaceAll(fk.Name, `"`, "") + `"`
+		label = `"` + mermaidQuoteSafe.Replace(fk.Name) + `"`
 	}
 
 	return erdEdge{
@@ -249,13 +249,18 @@ func sortDedupEdges(edges []erdEdge) []erdEdge {
 // identRe matches identifiers safe to emit unquoted in a Mermaid diagram.
 var identRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
+// mermaidQuoteSafe strips characters that would corrupt a double-quoted
+// Mermaid token: a literal double-quote terminates the string, and a newline,
+// carriage return, or tab would split or break the diagram line.
+var mermaidQuoteSafe = strings.NewReplacer(`"`, "", "\n", " ", "\r", " ", "\t", " ")
+
 // ident renders an entity (table) name, quoting it when it contains
 // characters Mermaid wouldn't accept bare.
 func ident(s string) string {
 	if identRe.MatchString(s) {
 		return s
 	}
-	return `"` + strings.ReplaceAll(s, `"`, "") + `"`
+	return `"` + mermaidQuoteSafe.Replace(s) + `"`
 }
 
 // attrWordRe matches characters not allowed in a Mermaid erDiagram
