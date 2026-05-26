@@ -1,0 +1,88 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/goreleaser/goreleaser/v2.6.1/www/docs/static/schema-pro.json
+version: 2
+
+# Docker-only GoReleaser config.
+#
+# This is run by the `docker-publish` job in main.yml, which is gated behind
+# `publish` and `test-install`. Keeping the `dockers` config here (and NOT in
+# the main .goreleaser.yml) is deliberate: it ensures the image is only built
+# and pushed *after* the release has been verified installable, so a broken
+# release never yields a Docker image. The image is built from the linux
+# release binaries, so it always matches this exact release.
+project_name: sq
+
+builds:
+  - id: sq
+    builder: prebuilt
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    goamd64:
+      - v1
+    prebuilt:
+      # The CI job downloads both linux release artifacts into dist-linux/.
+      # amd64 -> dist-linux/sq_linux_amd64_v1/sq ; arm64 -> dist-linux/sq_linux_arm64/sq
+      path: dist-linux/sq_linux_{{ .Arch }}{{ with .Amd64 }}_{{ . }}{{ end }}/sq
+    binary: sq
+
+# This run only builds/pushes images; it must not create or modify a GitHub
+# release (the `publish` job already did that).
+release:
+  disable: true
+
+dockers:
+  - id: sq-amd64
+    goos: linux
+    goarch: amd64
+    goamd64: v1
+    dockerfile: packages/docker/alpine.Dockerfile
+    use: buildx
+    image_templates:
+      - "ghcr.io/neilotoole/sq:{{ .Version }}-amd64"
+    build_flag_templates:
+      - "--platform=linux/amd64"
+    extra_files:
+      - packages/docker/alpine-mssql-tools-install.sh
+      - packages/docker/configure-oh-my-zsh.sh
+      - packages/docker/sq.zsh-theme
+      - packages/docker/entrypoint.sh
+
+  - id: sq-arm64
+    goos: linux
+    goarch: arm64
+    dockerfile: packages/docker/alpine.Dockerfile
+    use: buildx
+    image_templates:
+      - "ghcr.io/neilotoole/sq:{{ .Version }}-arm64"
+    build_flag_templates:
+      - "--platform=linux/arm64"
+    extra_files:
+      - packages/docker/alpine-mssql-tools-install.sh
+      - packages/docker/configure-oh-my-zsh.sh
+      - packages/docker/sq.zsh-theme
+      - packages/docker/entrypoint.sh
+
+# Stitch the per-arch images into multi-arch manifest tags. The per-arch
+# `:{{ .Version }}-{amd64,arm64}` images must be pushed first (done above) so
+# the manifests can reference them.
+docker_manifests:
+  - name_template: "ghcr.io/neilotoole/sq:{{ .Version }}"
+    image_templates:
+      - "ghcr.io/neilotoole/sq:{{ .Version }}-amd64"
+      - "ghcr.io/neilotoole/sq:{{ .Version }}-arm64"
+  - name_template: "ghcr.io/neilotoole/sq:latest"
+    image_templates:
+      - "ghcr.io/neilotoole/sq:{{ .Version }}-amd64"
+      - "ghcr.io/neilotoole/sq:{{ .Version }}-arm64"
+
+# Keyless cosign signing of the published manifests, matching the prior
+# docker-publish workflow.
+docker_signs:
+  - cmd: cosign
+    artifacts: manifests
+    args:
+      - "sign"
+      - "--yes"
+      - "${artifact}@${digest}"
