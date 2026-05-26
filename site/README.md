@@ -181,8 +181,9 @@ those values current in `master` between publishes: it reruns the generator and 
 
 Since `master` uses classic branch protection (`enforce_admins=false`, no per-app bypass), that push
 authenticates with the **`SITE_DATA_PUSH_TOKEN`** repo secret — a fine-grained PAT owned by a repo
-admin (Contents: read/write on `neilotoole/sq`); an admin's push bypasses the PR requirement. The
-token is non-expiring; rotate it if leaked and revoke it if this workflow is removed.
+admin (Contents: read/write on `neilotoole/sq`); an admin's push bypasses the PR requirement. Keep
+the token scoped to this repo only, and prefer an expiration or periodic rotation (it is currently
+set without one). Revoke it if leaked, or if this workflow is removed.
 
 ### Commands
 
