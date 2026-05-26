@@ -180,6 +180,16 @@ else
     print_fail "Version badge (navbar-version > vX.Y.Z) not found in homepage HTML"
 fi
 
+# 6b. GitHub star count baked into homepage HTML at build time.
+print_test "GitHub star count baked into homepage"
+if [[ "$HOMEPAGE_OK" != true ]]; then
+    print_fail "Homepage did not respond; cannot check star count"
+elif echo "$BODY" | grep -qE 'gh-stars-count[^<]*>[0-9][0-9.]*k?<'; then
+    print_pass "Star count present in homepage HTML"
+else
+    print_fail "Star count (gh-stars-count > number) not found in homepage HTML"
+fi
+
 # 7. Relative links must not have target="_blank" (render-link regression)
 print_test "Relative links open in same tab (no target=_blank on internal relative)"
 if [[ "$HOMEPAGE_OK" != true ]]; then

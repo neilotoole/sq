@@ -17,7 +17,7 @@
 #
 # Local dev after a warm online run (bun install + Hugo modules resolved):
 #   make site-local  — skips fetching the sq version by default; the header badge shows the
-#                      committed value in data/release.toml (no extra env).
+#                      committed value in data/github.toml (no extra env).
 #   SQ_SITE_OFFLINE=0 make site-local  — fetch the latest sq version from GitHub at startup.
 #
 # Lighthouse harness (simulates Netlify-served production with gzip/brotli):
@@ -41,7 +41,7 @@ CHECKENV_SCRIPT := ./scripts/checkenv.bash
 LH_PORT ?= 8090
 LH_URL  ?= http://localhost:$(LH_PORT)
 
-# site-local: skip fetching the sq version (use committed data/release.toml). Override with SQ_SITE_OFFLINE=0.
+# site-local: skip fetching version + stars (use committed data/github.toml). Override with SQ_SITE_OFFLINE=0.
 SQ_SITE_OFFLINE ?= 1
 
 
@@ -95,7 +95,7 @@ site-local:
 	@$(LOGGER) log_separator
 	@$(LOGGER) log_info "Starting Hugo dev server"
 	@$(LOGGER) log_indent log_dim "http://localhost:1313 (Ctrl+C to stop)"
-	@$(LOGGER) log_indent log_dim "version: committed data/release.toml (SQ_SITE_OFFLINE=0 to fetch latest)"
+	@$(LOGGER) log_indent log_dim "version + stars: committed data/github.toml (SQ_SITE_OFFLINE=0 to fetch latest)"
 	SQ_SITE_OFFLINE=$(SQ_SITE_OFFLINE) bun scripts/dev-server.js
 
 .PHONY: site-lighthouse-serve ## Build prod site and serve it locally with gzip/brotli on LH_PORT (default 8090); Ctrl+C to stop
