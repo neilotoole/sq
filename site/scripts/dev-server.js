@@ -56,8 +56,8 @@ function waitForHugo() {
   });
 }
 
-// Bake the version data file before Hugo starts (honors SQ_SITE_OFFLINE).
-spawnSync("bun", [path.join(__dirname, "gen-version-data.js")], {
+// Bake the GitHub data file before Hugo starts (honors SQ_SITE_OFFLINE).
+spawnSync("bun", [path.join(__dirname, "gen-site-data.js")], {
   stdio: "inherit",
   cwd: process.cwd(),
   env: process.env,
