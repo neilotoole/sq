@@ -162,6 +162,10 @@ Uses Hugo's built-in Chroma (not highlight.js):
   `Site Publish (dispatch)` workflow in GitHub Actions
   (`.github/workflows/site-publish-dispatch.yml`), which builds locally and uploads
   via the Netlify CLI. Requires the `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` repo secrets.
+- Nightly (`.github/workflows/site-data-nightly.yml`, 07:00 UTC) regenerates
+  `site/data/github.toml` (build-time version + GitHub star count) and pushes to `master`
+  only if changed (no deploy). Requires the `SITE_DATA_PUSH_TOKEN` repo secret — an admin
+  fine-grained PAT (Contents: read/write) whose push bypasses `master`'s classic branch protection.
 
 **Netlify configuration** (`netlify.toml`):
 

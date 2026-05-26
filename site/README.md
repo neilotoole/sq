@@ -146,6 +146,7 @@ The project uses GitHub Actions and Netlify for continuous integration:
 | Merge to `master`                        | **No auto-deploy.** Netlify's production build is suppressed via `[context.production] ignore = "exit 0"` in `netlify.toml`           |
 | Manual `workflow_dispatch`               | `.github/workflows/site-publish-dispatch.yml` builds locally and uploads `site/public` to [sq.io](https://sq.io) via the Netlify CLI  |
 | Daily schedule / manual                  | `.github/workflows/site-links-nightly.yml` runs a full external link crawl                                                            |
+| Daily schedule / manual                  | `.github/workflows/site-data-nightly.yml` refreshes `data/github.toml` (version + stars); pushes to `master` if changed; no deploy    |
 
 Production publishes to [sq.io](https://sq.io) are manual-only. To deploy,
 go to the repo's **Actions** tab, pick **Site Publish (dispatch)**, click
@@ -163,6 +164,26 @@ performance, accessibility, best practices, and SEO. Before merging, click
 through to the deploy preview (e.g.,
 the deploy-preview URL from the PR checks) to verify your changes look
 correct.
+
+### Build-time data & nightly refresh
+
+The header's **version badge** and **GitHub star count** are computed at build time rather than
+fetched in the browser. `scripts/gen-site-data.js` fetches the latest `sq` release and the repo
+star count and writes `site/data/github.toml`; the header template renders those values. The
+generator runs during `prebuild` (so every `bun run build` / `make site-build` refreshes them), and
+the committed `data/github.toml` is the offline / fetch-failure fallback — a GitHub hiccup never
+fails a build.
+
+Because the live site only changes on a manual publish, the nightly
+[`site-data-nightly.yml`](../.github/workflows/site-data-nightly.yml) workflow (07:00 UTC) keeps
+those values current in `master` between publishes: it reruns the generator and pushes
+`data/github.toml` only when a value changed. It does **not** deploy.
+
+Since `master` uses classic branch protection (`enforce_admins=false`, no per-app bypass), that push
+authenticates with the **`SITE_DATA_PUSH_TOKEN`** repo secret — a fine-grained PAT owned by a repo
+admin (Contents: read/write on `neilotoole/sq`); an admin's push bypasses the PR requirement. Keep
+the token scoped to this repo only, and prefer an expiration or periodic rotation (it is currently
+set without one). Revoke it if leaked, or if this workflow is removed.
 
 ### Commands
 

@@ -15,7 +15,9 @@
       <a class="navbar-brand order-0 mb-0" href="{{ "/" | absLangURL }}" aria-label="{{ .Site.Params.Title }}">
         {{ .Site.Params.Title }}
       </a>
-      <a id="sq-version" class="navbar-version" href="https://github.com/neilotoole/sq/releases" rel="noopener noreferrer" aria-label="sq releases">···</a>
+      {{ with site.Data.github.latest_version -}}
+      <a class="navbar-version" href="https://github.com/neilotoole/sq/releases" rel="noopener noreferrer" aria-label="sq releases">v{{ . }}</a>
+      {{- end }}
     </div>
 
     {{ if (in .Site.Params.sections.sectionNav .Section) -}}
@@ -104,7 +106,9 @@
               <a class="nav-link social-link d-flex align-items-center" href="{{ .URL | relURL }}">{{ .Pre | safeHTML }}<small class="ms-2 d-lg-none">{{ .Name | safeHTML }}</small></a>
               {{ if strings.HasPrefix (.URL | relURL) "https://github.com/neilotoole/sq" -}}
                 <a class="nav-link social-link gh-stars-link py-0 px-1 d-flex align-items-center gap-1" href="https://github.com/neilotoole/sq/stargazers" aria-label="GitHub stars for sq">
-                  <span id="gh-stars-count" class="gh-stars-count" aria-hidden="true">···</span>
+                  {{ with site.Data.github.stars -}}
+                  <span class="gh-stars-count">{{ if ge . 1000 }}{{ printf "%.1f" (div (float .) 1000.0) | strings.TrimSuffix ".0" }}k{{ else }}{{ . }}{{ end }}</span>
+                  {{- end }}
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-star" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 6.84 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
                 </a>
               {{ end -}}

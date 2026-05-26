@@ -16,8 +16,9 @@
 #   make site-netlify-validate — Netlify deploy-preview CLI check (needs NETLIFY_*)
 #
 # Local dev after a warm online run (bun install + Hugo modules resolved):
-#   make site-local  — GET /version skips downloading the sq version by default (no extra env).
-#   SQ_SITE_OFFLINE=0 make site-local  — download latest sq version for /version.
+#   make site-local  — skips fetching the sq version by default; the header badge shows the
+#                      committed value in data/github.toml (no extra env).
+#   SQ_SITE_OFFLINE=0 make site-local  — fetch the latest sq version from GitHub at startup.
 #
 # Lighthouse harness (simulates Netlify-served production with gzip/brotli):
 #   make site-lighthouse        — build, serve, run Lighthouse (mobile + desktop), tear down
@@ -40,7 +41,7 @@ CHECKENV_SCRIPT := ./scripts/checkenv.bash
 LH_PORT ?= 8090
 LH_URL  ?= http://localhost:$(LH_PORT)
 
-# site-local: skip downloading the sq version for GET /version (503 JSON). Override with SQ_SITE_OFFLINE=0.
+# site-local: skip fetching version + stars (use committed data/github.toml). Override with SQ_SITE_OFFLINE=0.
 SQ_SITE_OFFLINE ?= 1
 
 
@@ -89,12 +90,12 @@ site-build:
 	bun run build
 	@$(LOGGER) log_success "Site built to public/"
 
-.PHONY: site-local ## Start local dev server (Hugo on :1313; /version offline unless SQ_SITE_OFFLINE=0)
+.PHONY: site-local ## Start local dev server (Hugo on :1313; version offline unless SQ_SITE_OFFLINE=0)
 site-local:
 	@$(LOGGER) log_separator
 	@$(LOGGER) log_info "Starting Hugo dev server"
 	@$(LOGGER) log_indent log_dim "http://localhost:1313 (Ctrl+C to stop)"
-	@$(LOGGER) log_indent log_dim "GET /version: offline stub (SQ_SITE_OFFLINE=0 to download sq version)"
+	@$(LOGGER) log_indent log_dim "version + stars: committed data/github.toml (SQ_SITE_OFFLINE=0 to fetch latest)"
 	SQ_SITE_OFFLINE=$(SQ_SITE_OFFLINE) bun scripts/dev-server.js
 
 .PHONY: site-lighthouse-serve ## Build prod site and serve it locally with gzip/brotli on LH_PORT (default 8090); Ctrl+C to stop

@@ -31,6 +31,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
+- [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd)
+  now syntax-colors its `erDiagram` source when writing to a terminal. Output to
+  a file or pipe (and under `--no-color`, `NO_COLOR`, or `--monochrome`) is
+  unchanged, so redirected `.mmd` files stay byte-identical to the plain source.
 - The `sqlserver` driver description shown by
   [`sq driver ls`](https://sq.io/docs/cmd/driver-ls) is now simply "Microsoft SQL
   Server", dropping the trailing "/ Azure SQL Edge" (Azure SQL Edge was retired by
@@ -1603,6 +1607,7 @@ make working with lots of sources much easier.
 [#652]: https://github.com/neilotoole/sq/issues/652
 [#658]: https://github.com/neilotoole/sq/pull/658
 [#660]: https://github.com/neilotoole/sq/issues/660
+[#692]: https://github.com/neilotoole/sq/issues/692
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
