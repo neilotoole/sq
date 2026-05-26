@@ -1,5 +1,5 @@
 const { describe, test, expect } = require("bun:test");
-const { parseReleaseTag } = require("./version-fetch.js");
+const { parseReleaseTag, parseStarCount } = require("./version-fetch.js");
 
 describe("parseReleaseTag", () => {
   test("strips the leading v from a stable tag", () => {
@@ -32,5 +32,35 @@ describe("parseReleaseTag", () => {
 
   test("rejects a non-object response", () => {
     expect(parseReleaseTag(null)).toHaveProperty("error");
+  });
+});
+
+describe("parseStarCount", () => {
+  test("accepts a non-negative integer", () => {
+    expect(parseStarCount({ stargazers_count: 1234 })).toEqual({ stars: 1234 });
+  });
+
+  test("accepts zero", () => {
+    expect(parseStarCount({ stargazers_count: 0 })).toEqual({ stars: 0 });
+  });
+
+  test("rejects a negative count", () => {
+    expect(parseStarCount({ stargazers_count: -1 })).toHaveProperty("error");
+  });
+
+  test("rejects a non-integer count", () => {
+    expect(parseStarCount({ stargazers_count: 12.5 })).toHaveProperty("error");
+  });
+
+  test("rejects a non-number count", () => {
+    expect(parseStarCount({ stargazers_count: "1234" })).toHaveProperty("error");
+  });
+
+  test("rejects a missing count", () => {
+    expect(parseStarCount({})).toHaveProperty("error");
+  });
+
+  test("rejects a non-object response", () => {
+    expect(parseStarCount(null)).toHaveProperty("error");
   });
 });
