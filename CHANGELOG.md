@@ -73,7 +73,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   commonly Rails' microsecond-precision `datetime(6)` columns. `sq` now
   re-runs the same timestamp parse and falls back to the raw text only when
   the value is genuinely unparseable.
-- `sq <command> --format=FORMAT` (e.g. `sq inspect --format=xlsx`) no longer
+- [#658]: `sq <command> --format=FORMAT` (e.g. `sq inspect --format=xlsx`) no longer
   fails with a spurious "diff does not support output format" error. The
   format check for [`sq diff`](https://sq.io/docs/diff) was being applied to
   every command's `--format` flag; it's now scoped to `sq diff` itself.
