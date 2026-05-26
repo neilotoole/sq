@@ -5,11 +5,17 @@
 # happen only via the manual Site Publish (dispatch) workflow; pushing to master
 # does not trigger a Netlify production build (it is suppressed in netlify.toml).
 #
-# Prerequisite: master is review-gated, so the Actions bot must be allowed to
-# bypass the branch ruleset's pull-request requirement (Settings -> Rules ->
-# add a bypass for the repository's GitHub Actions). Commits pushed with the
-# built-in GITHUB_TOKEN do not re-trigger workflows, so there is no CI loop.
-# Alternative: store an admin PAT secret and use it for checkout + push.
+# Prerequisite: master uses classic branch protection (required PR reviews,
+# enforce_admins=false), which has no per-app bypass — the built-in GITHUB_TOKEN
+# (github-actions[bot]) is not an admin and cannot push directly. So the push
+# uses the SITE_DATA_PUSH_TOKEN secret: a personal access token from a repo admin
+# (fine-grained, Contents: read and write on neilotoole/sq). An admin's push
+# bypasses the PR requirement because enforce_admins is false. Without the secret,
+# the workflow succeeds through the build and fails only at `git push`.
+#
+# Note: a push authenticated with a PAT (unlike the built-in GITHUB_TOKEN) does
+# re-trigger workflows, so the resulting master push will run Site CI (build, no
+# deploy) — harmless and expected.
 name: Site data (nightly)
 
 on:
@@ -17,8 +23,10 @@ on:
     - cron: "0 7 * * *"   # daily at 07:00 UTC
   workflow_dispatch:
 
+# Only the read-only version/stars fetch uses the built-in token; the git push
+# is authenticated by the SITE_DATA_PUSH_TOKEN PAT, not GITHUB_TOKEN.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: site-data-nightly
@@ -31,6 +39,10 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          # Persist the admin PAT so the later `git push` authenticates as its
+          # owner and bypasses master's PR requirement (enforce_admins=false).
+          token: ${{ secrets.SITE_DATA_PUSH_TOKEN }}
 
       - name: Set up Bun
         # Same pinned action + version as site-ci.yml / site-publish-dispatch.yml.
