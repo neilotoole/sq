@@ -67,6 +67,20 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
+      # Resolve the latest release tag (e.g. v0.53.0) so the image gets a
+      # versioned tag alongside :latest, matching the CI publish path. The
+      # Dockerfile installs the latest release, so this tag reflects what is
+      # actually baked into the image.
+      - name: Resolve latest release tag
+        id: rel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          tag=$(gh release view --repo "$REPO" --json tagName --jq .tagName)
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Latest release tag: $tag"
+
       # Build and push Docker image with Buildx (don't push on PR)
       # https://github.com/docker/build-push-action
       - name: Build and push Docker image
@@ -76,7 +90,9 @@ jobs:
           file: packages/docker/alpine.Dockerfile
           context: packages/docker
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ env.IMAGE_FQ_TAG }} # Explicitly set the tag to push
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.rel.outputs.tag }}
+            ${{ env.IMAGE_FQ_TAG }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
           cache-from: type=gha
@@ -91,7 +107,9 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         env:
           # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
-          TAGS: ${{ env.IMAGE_FQ_TAG }} # Explicitly set the tag to sign
+          TAGS: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.rel.outputs.tag }}
+            ${{ env.IMAGE_FQ_TAG }}
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
