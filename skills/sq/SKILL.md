@@ -49,7 +49,7 @@ Cross-source joins (e.g. CSV to Postgres): [Cross-source joins](https://sq.io/do
 ## Ping and inspect
 
 - **`sq ping @handle`** — connectivity check ([ping](https://sq.io/docs/cmd/ping)).
-- **`sq inspect …`** — schema, columns, sizes ([inspect](https://sq.io/docs/inspect)).
+- **`sq inspect …`** — schema, columns, sizes ([inspect](https://sq.io/docs/inspect)). Can emit a schema entity-relationship diagram as Markdown/HTML (`--markdown`/`--html`), Mermaid source (`-f mermaid-erd`), or an image file (`-f svg-erd`/`-f png-erd`).
 
 ## Output formats
 

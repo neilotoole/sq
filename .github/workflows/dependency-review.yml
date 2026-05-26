@@ -23,3 +23,15 @@ jobs:
         uses: actions/checkout@v6
       - name: 'Dependency Review'
         uses: actions/dependency-review-action@v5
+        with:
+          # Allowlisted advisories (keep the default low-severity gate for
+          # everything else):
+          #
+          # - GHSA-q7pp-wcgr-pffx: github.com/disintegration/imaging@1.6.2
+          #   (a transitive dependency of github.com/goccy/go-graphviz, used by
+          #   the png-erd/svg-erd inspect formats). It's a low-severity crash on
+          #   a maliciously crafted TIFF, and v1.6.2 is the latest release of an
+          #   unmaintained library, so there's no fixed version to upgrade to.
+          #   sq only *encodes* PNG/SVG via go-graphviz and never decodes TIFF,
+          #   so the vulnerable path is unreachable.
+          allow-ghsas: GHSA-q7pp-wcgr-pffx

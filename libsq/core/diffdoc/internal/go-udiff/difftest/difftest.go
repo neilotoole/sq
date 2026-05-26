@@ -30,119 +30,130 @@ var TestCases = []struct {
 	Name, In, Out, Unified string
 	Edits, LineEdits       []diff.Edit // expectation (LineEdits=nil => already line-aligned)
 	NoDiff                 bool
-}{{
-	Name: "empty",
-	In:   "",
-	Out:  "",
-}, {
-	Name: "no_diff",
-	In:   "gargantuan\n",
-	Out:  "gargantuan\n",
-}, {
-	Name: "replace_all",
-	In:   "fruit\n",
-	Out:  "cheese\n",
-	Unified: UnifiedPrefix + `
+}{
+	{
+		Name: "empty",
+		In:   "",
+		Out:  "",
+	},
+	{
+		Name: "no_diff",
+		In:   "gargantuan\n",
+		Out:  "gargantuan\n",
+	},
+	{
+		Name: "replace_all",
+		In:   "fruit\n",
+		Out:  "cheese\n",
+		Unified: UnifiedPrefix + `
 @@ -1 +1 @@
 -fruit
 +cheese
 `[1:],
-	Edits:     []diff.Edit{{Start: 0, End: 5, New: "cheese"}},
-	LineEdits: []diff.Edit{{Start: 0, End: 6, New: "cheese\n"}},
-}, {
-	Name: "insert_rune",
-	In:   "gord\n",
-	Out:  "gourd\n",
-	Unified: UnifiedPrefix + `
+		Edits:     []diff.Edit{{Start: 0, End: 5, New: "cheese"}},
+		LineEdits: []diff.Edit{{Start: 0, End: 6, New: "cheese\n"}},
+	},
+	{
+		Name: "insert_rune",
+		In:   "gord\n",
+		Out:  "gourd\n",
+		Unified: UnifiedPrefix + `
 @@ -1 +1 @@
 -gord
 +gourd
 `[1:],
-	Edits:     []diff.Edit{{Start: 2, End: 2, New: "u"}},
-	LineEdits: []diff.Edit{{Start: 0, End: 5, New: "gourd\n"}},
-}, {
-	Name: "delete_rune",
-	In:   "groat\n",
-	Out:  "goat\n",
-	Unified: UnifiedPrefix + `
+		Edits:     []diff.Edit{{Start: 2, End: 2, New: "u"}},
+		LineEdits: []diff.Edit{{Start: 0, End: 5, New: "gourd\n"}},
+	},
+	{
+		Name: "delete_rune",
+		In:   "groat\n",
+		Out:  "goat\n",
+		Unified: UnifiedPrefix + `
 @@ -1 +1 @@
 -groat
 +goat
 `[1:],
-	Edits:     []diff.Edit{{Start: 1, End: 2, New: ""}},
-	LineEdits: []diff.Edit{{Start: 0, End: 6, New: "goat\n"}},
-}, {
-	Name: "replace_rune",
-	In:   "loud\n",
-	Out:  "lord\n",
-	Unified: UnifiedPrefix + `
+		Edits:     []diff.Edit{{Start: 1, End: 2, New: ""}},
+		LineEdits: []diff.Edit{{Start: 0, End: 6, New: "goat\n"}},
+	},
+	{
+		Name: "replace_rune",
+		In:   "loud\n",
+		Out:  "lord\n",
+		Unified: UnifiedPrefix + `
 @@ -1 +1 @@
 -loud
 +lord
 `[1:],
-	Edits:     []diff.Edit{{Start: 2, End: 3, New: "r"}},
-	LineEdits: []diff.Edit{{Start: 0, End: 5, New: "lord\n"}},
-}, {
-	Name: "replace_partials",
-	In:   "blanket\n",
-	Out:  "bunker\n",
-	Unified: UnifiedPrefix + `
+		Edits:     []diff.Edit{{Start: 2, End: 3, New: "r"}},
+		LineEdits: []diff.Edit{{Start: 0, End: 5, New: "lord\n"}},
+	},
+	{
+		Name: "replace_partials",
+		In:   "blanket\n",
+		Out:  "bunker\n",
+		Unified: UnifiedPrefix + `
 @@ -1 +1 @@
 -blanket
 +bunker
 `[1:],
-	Edits: []diff.Edit{
-		{Start: 1, End: 3, New: "u"},
-		{Start: 6, End: 7, New: "r"},
+		Edits: []diff.Edit{
+			{Start: 1, End: 3, New: "u"},
+			{Start: 6, End: 7, New: "r"},
+		},
+		LineEdits: []diff.Edit{{Start: 0, End: 8, New: "bunker\n"}},
 	},
-	LineEdits: []diff.Edit{{Start: 0, End: 8, New: "bunker\n"}},
-}, {
-	Name: "insert_line",
-	In:   "1: one\n3: three\n",
-	Out:  "1: one\n2: two\n3: three\n",
-	Unified: UnifiedPrefix + `
+	{
+		Name: "insert_line",
+		In:   "1: one\n3: three\n",
+		Out:  "1: one\n2: two\n3: three\n",
+		Unified: UnifiedPrefix + `
 @@ -1,2 +1,3 @@
  1: one
 +2: two
  3: three
 `[1:],
-	Edits: []diff.Edit{{Start: 7, End: 7, New: "2: two\n"}},
-}, {
-	Name: "replace_no_newline",
-	In:   "A",
-	Out:  "B",
-	Unified: UnifiedPrefix + `
+		Edits: []diff.Edit{{Start: 7, End: 7, New: "2: two\n"}},
+	},
+	{
+		Name: "replace_no_newline",
+		In:   "A",
+		Out:  "B",
+		Unified: UnifiedPrefix + `
 @@ -1 +1 @@
 -A
 \ No newline at end of file
 +B
 \ No newline at end of file
 `[1:],
-	Edits: []diff.Edit{{Start: 0, End: 1, New: "B"}},
-}, {
-	Name: "delete_empty",
-	In:   "meow",
-	Out:  "", // GNU diff -u special case: +0,0
-	Unified: UnifiedPrefix + `
+		Edits: []diff.Edit{{Start: 0, End: 1, New: "B"}},
+	},
+	{
+		Name: "delete_empty",
+		In:   "meow",
+		Out:  "", // GNU diff -u special case: +0,0
+		Unified: UnifiedPrefix + `
 @@ -1 +0,0 @@
 -meow
 \ No newline at end of file
 `[1:],
-	Edits:     []diff.Edit{{Start: 0, End: 4, New: ""}},
-	LineEdits: []diff.Edit{{Start: 0, End: 4, New: ""}},
-}, {
-	Name: "append_empty",
-	In:   "", // GNU diff -u special case: -0,0
-	Out:  "AB\nC",
-	Unified: UnifiedPrefix + `
+		Edits:     []diff.Edit{{Start: 0, End: 4, New: ""}},
+		LineEdits: []diff.Edit{{Start: 0, End: 4, New: ""}},
+	},
+	{
+		Name: "append_empty",
+		In:   "", // GNU diff -u special case: -0,0
+		Out:  "AB\nC",
+		Unified: UnifiedPrefix + `
 @@ -0,0 +1,2 @@
 +AB
 +C
 \ No newline at end of file
 `[1:],
-	Edits:     []diff.Edit{{Start: 0, End: 0, New: "AB\nC"}},
-	LineEdits: []diff.Edit{{Start: 0, End: 0, New: "AB\nC"}},
-},
+		Edits:     []diff.Edit{{Start: 0, End: 0, New: "AB\nC"}},
+		LineEdits: []diff.Edit{{Start: 0, End: 0, New: "AB\nC"}},
+	},
 	// TODO(adonovan): fix this test: GNU diff -u prints "+1,2", Unifies prints "+1,3".
 	// 	{
 	// 		Name: "add_start",
@@ -172,7 +183,8 @@ var TestCases = []struct {
 `[1:],
 		Edits:     []diff.Edit{{Start: 1, End: 1, New: "B"}},
 		LineEdits: []diff.Edit{{Start: 0, End: 1, New: "AB"}},
-	}, {
+	},
+	{
 		Name: "add_empty",
 		In:   "",
 		Out:  "AB\nC",
@@ -184,7 +196,8 @@ var TestCases = []struct {
 `[1:],
 		Edits:     []diff.Edit{{Start: 0, End: 0, New: "AB\nC"}},
 		LineEdits: []diff.Edit{{Start: 0, End: 0, New: "AB\nC"}},
-	}, {
+	},
+	{
 		Name: "add_newline",
 		In:   "A",
 		Out:  "A\n",
@@ -196,7 +209,8 @@ var TestCases = []struct {
 `[1:],
 		Edits:     []diff.Edit{{Start: 1, End: 1, New: "\n"}},
 		LineEdits: []diff.Edit{{Start: 0, End: 1, New: "A\n"}},
-	}, {
+	},
+	{
 		Name: "delete_front",
 		In:   "A\nB\nC\nA\nB\nB\nA\n",
 		Out:  "C\nB\nA\nB\nA\nC\n",
@@ -225,7 +239,8 @@ A
 			{Start: 8, End: 10, New: ""},
 			{Start: 14, End: 14, New: "C\n"},
 		},
-	}, {
+	},
+	{
 		Name: "replace_last_line",
 		In:   "A\nB\n",
 		Out:  "A\nC\n\n",
@@ -272,14 +287,16 @@ A
 -
  A
 `,
-	}, {
+	},
+	{
 		Name:      "unified_lines",
 		In:        "aaa\nccc\n",
 		Out:       "aaa\nbbb\nccc\n",
 		Edits:     []diff.Edit{{Start: 4, End: 4, New: "bbb\n"}},
 		LineEdits: []diff.Edit{{Start: 4, End: 4, New: "bbb\n"}},
 		Unified:   UnifiedPrefix + "@@ -1,2 +1,3 @@\n aaa\n+bbb\n ccc\n",
-	}, {
+	},
+	{
 		Name: "60379",
 		In: `package a
 

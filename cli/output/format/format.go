@@ -13,7 +13,7 @@ func (f *Format) UnmarshalText(text []byte) error {
 	default:
 		return errz.Errorf("unknown output format {%s}", string(text))
 	case JSON, JSONA, JSONL, Text, Raw,
-		HTML, Markdown, MermaidERD, XLSX, XML,
+		HTML, Markdown, MermaidERD, PNGERD, SVGERD, XLSX, XML,
 		CSV, TSV, YAML:
 	case "table":
 		// Legacy: the "text" format used to be named "table".
@@ -41,12 +41,19 @@ const (
 	// sq inspect (source and table schema diagrams), so it's deliberately
 	// absent from All: query commands have no record writer for it.
 	MermaidERD Format = "mermaid-erd"
-	XLSX       Format = "xlsx"
-	XML        Format = "xml"
-	CSV        Format = "csv"
-	TSV        Format = "tsv"
-	Raw        Format = "raw"
-	YAML       Format = "yaml"
+	// PNGERD renders sq inspect's schema entity-relationship diagram to a PNG
+	// image. Like MermaidERD it's inspect-only (source and table schema) with
+	// no record writer, so it's deliberately absent from All.
+	PNGERD Format = "png-erd"
+	// SVGERD renders sq inspect's schema entity-relationship diagram to an SVG
+	// image. Inspect-only with no record writer; see PNGERD.
+	SVGERD Format = "svg-erd"
+	XLSX   Format = "xlsx"
+	XML    Format = "xml"
+	CSV    Format = "csv"
+	TSV    Format = "tsv"
+	Raw    Format = "raw"
+	YAML   Format = "yaml"
 )
 
 // All returns a new slice containing all format.Format values.
