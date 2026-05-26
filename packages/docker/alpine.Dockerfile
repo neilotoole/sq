@@ -17,7 +17,7 @@ RUN apk add --update --no-cache curl gnupg wget bash bash-completion zsh \
 # always matches this exact release; there's no fetch of the "latest" GitHub
 # release at build time.
 
-# Microsoft SQL Server Tools are slightly tricker to install.
+# Microsoft SQL Server Tools are slightly trickier to install.
 COPY packages/docker/alpine-mssql-tools-install.sh ./alpine-mssql-tools-install.sh
 RUN chmod +x ./alpine-mssql-tools-install.sh
 RUN ./alpine-mssql-tools-install.sh
