@@ -54,7 +54,7 @@ $ sq inspect @sakila_pg
 
 ### `--verbose`
 
-To see more detail, use the `--verbose` (`-v`) flag with the `--text` format.
+To see more detail, use the `--verbose` (`-v`) flag with the `text` format.
 
 ![sq inspect source verbose](sq_inspect_source_text_verbose.png)
 
@@ -62,8 +62,8 @@ To see more detail, use the `--verbose` (`-v`) flag with the `--text` format.
 
 ### `yaml`
 
-To see the full output, use the `--yaml` (`-y`) flag. YAML has the advantage
-of being reasonably human-readable.
+The `yaml` format (`--yaml` / `-y`) renders the full output, and is reasonably
+human-readable.
 
 ![sq inspect source yaml](sq_inspect_source_yaml.png)
 
@@ -76,7 +76,7 @@ for `sq` to introspect the schema.
 
 ### `json`
 
-The `--json` (`-j`) format renders the same content as `--yaml`, but is more
+The `json` format (`--json` / `-j`) renders the same content as `yaml`, but is more
 suited for use with other tools, such as [jq](https://jqlang.github.io/jq/).
 
 ![sq_inspect_source json](sq_inspect_source_json.png)
@@ -95,8 +95,9 @@ See more examples in the [cookbook](/docs/cookbook).
 
 ### `markdown`
 
-The `--markdown` format renders a schema document suited for embedding in
-project docs or a pull request: a source overview, per-table
+The `markdown` format (via `--markdown` or `-f markdown`) renders a schema
+document suited for embedding in project docs or a pull request: a source
+overview, per-table
 column / key / constraint / index detail, and a
 [Mermaid](https://mermaid.js.org) entity-relationship diagram. The diagram
 renders inline on GitHub, GitLab, and most Markdown viewers, showing every
@@ -119,9 +120,10 @@ $ sq inspect @sakila_pg.actor --markdown -o actor.md
 
 ### `html`
 
-The `--html` format renders the same schema document as the `--markdown`
-format — a source overview, per-table column / key / constraint / index
-detail, and a [Mermaid](https://mermaid.js.org) entity-relationship diagram —
+The `html` format (via `--html` or `-f html`) renders the same schema document
+as the `markdown` format — a source overview, per-table column / key /
+constraint / index detail, and a [Mermaid](https://mermaid.js.org)
+entity-relationship diagram —
 but as a standalone HTML page. The diagrams are rendered client-side by
 Mermaid.js, so the page can be opened directly in a browser.
 
@@ -141,7 +143,7 @@ $ sq inspect @sakila_pg --html > sakila.html && open sakila.html
 ![sq_inspect_html](sq_inspect_html.png)
 
 {{< alert icon="👉" >}}
-See the [**live example**](/examples/sakila.html): the `--html` schema document
+See the [**live example**](/examples/sakila.html): the `html` schema document
 for the Postgres [sakila](https://github.com/jOOQ/sakila) sample database,
 rendered right in your browser.
 {{< /alert >}}
@@ -161,7 +163,7 @@ $ sq config set format.html.embed-assets true
 $ sq inspect @sakila_sl3 --html --format.html.embed-assets
 ```
 
-As with `--markdown`, the `--overview` (`-O`) mode omits the schema and
+As with `markdown`, the `--overview` (`-O`) mode omits the schema and
 diagram, and inspecting a single table
 (`sq inspect @sakila_sl3.film_actor --html`) renders just that table's section.
 
@@ -169,7 +171,7 @@ diagram, and inspecting a single table
 
 The `mermaid-erd` format emits just the bare
 [Mermaid](https://mermaid.js.org) entity-relationship diagram source — the
-same diagram embedded in the `--markdown` and `--html` schema documents, but
+same diagram embedded in the `markdown` and `html` schema documents, but
 with nothing wrapped around it (no code fence, no HTML page). It's handy for
 pasting into a Markdown file, the [Mermaid live editor](https://mermaid.live),
 or a docs pipeline. There's no dedicated flag for it; select it via the
