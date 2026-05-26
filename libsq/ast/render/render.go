@@ -4,6 +4,8 @@ package render
 import (
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf16"
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -302,14 +304,30 @@ func decodeStringLiteralBody(body string) (string, error) {
 			if i+4 >= len(body) {
 				return "", errz.Errorf(`malformed string literal: short \u escape`)
 			}
-			// 4 hex digits ⇒ value fits in uint16; cast through uint16
-			// before rune to make the conversion provably safe.
-			r, err := strconv.ParseUint(body[i+1:i+5], 16, 16)
+			// 4 hex digits ⇒ value fits in uint16, so rune(v) is in range.
+			v, err := strconv.ParseUint(body[i+1:i+5], 16, 16)
 			if err != nil {
 				return "", errz.Wrap(err, `malformed string literal: invalid \u escape`)
 			}
-			b.WriteRune(rune(uint16(r)))
 			i += 4
+			r := rune(v)
+			if utf16.IsSurrogate(r) {
+				// Combine a UTF-16 surrogate pair (e.g. 😀) into a
+				// single astral codepoint, matching JSON decoding. A high
+				// surrogate followed by a "\uXXXX" low surrogate yields the
+				// combined rune; any unpaired surrogate decodes to U+FFFD, as
+				// encoding/json does.
+				if lo, ok := peekUnicodeEscape(body, i+1); ok {
+					if combined := utf16.DecodeRune(r, lo); combined != unicode.ReplacementChar {
+						b.WriteRune(combined)
+						i += 6 // consume the trailing \uXXXX low surrogate
+						continue
+					}
+				}
+				b.WriteRune(unicode.ReplacementChar)
+				continue
+			}
+			b.WriteRune(r)
 			continue
 		default:
 			return "", errz.Errorf(`malformed string literal: invalid escape \%c`, esc)
@@ -317,6 +335,20 @@ func decodeStringLiteralBody(body string) (string, error) {
 		_ = b.WriteByte(decoded)
 	}
 	return b.String(), nil
+}
+
+// peekUnicodeEscape reports whether body[i:] begins with a "\uXXXX" escape,
+// returning the decoded 16-bit value as a rune when it does. It is used to
+// look ahead for the low half of a UTF-16 surrogate pair.
+func peekUnicodeEscape(body string, i int) (r rune, ok bool) {
+	if i+6 > len(body) || body[i] != '\\' || body[i+1] != 'u' {
+		return 0, false
+	}
+	v, err := strconv.ParseUint(body[i+2:i+6], 16, 16)
+	if err != nil {
+		return 0, false
+	}
+	return rune(v), true
 }
 
 // FuncOverrideString returns a function that always returns s.

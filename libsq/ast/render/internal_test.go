@@ -35,6 +35,15 @@ func TestUnquoteLiteral(t *testing.T) {
 		{in: `"aéb"`, wantVal: "aéb", wantOk: true}, // é = U+00E9
 		{in: `"你好"`, wantVal: "你好", wantOk: true},
 
+		// UTF-16 surrogate pairs (JSON semantics): a high+low pair combines
+		// into one astral codepoint; an unpaired surrogate decodes to U+FFFD.
+		{in: `"\uD83D\uDE00"`, wantVal: "\U0001F600", wantOk: true}, // 😀 via surrogate pair
+		{in: `"\uD834\uDD1E"`, wantVal: "\U0001D11E", wantOk: true}, // 𝄞 via surrogate pair
+		{in: `"\uD800"`, wantVal: "�", wantOk: true},                // lone high surrogate
+		{in: `"\uDC00"`, wantVal: "�", wantOk: true},                // lone low surrogate
+		{in: `"\uD800x"`, wantVal: "�x", wantOk: true},              // high surrogate, no pair follows
+		{in: `"\uD83DA"`, wantVal: "�A", wantOk: true},              // high surrogate + non-low-surrogate escape
+
 		// Malformed.
 		{in: `"abc`, wantErr: "malformed literal"},
 		{in: `"\"`, wantErr: "dangling backslash"},

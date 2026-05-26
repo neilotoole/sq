@@ -16,7 +16,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
-## Unreleased
+## [v0.53.0] - 2026-05-25
 
 ### Added
 
@@ -38,14 +38,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     [`iendswith`](https://sq.io/docs/query#iendswith).
   - User-controlled wildcard matchers [`like`](https://sq.io/docs/query#like)
     and [`ilike`](https://sq.io/docs/query#ilike): `%` and `_` are wildcards.
-- [`sq inspect`](https://sq.io/docs/inspect) now has [`--markdown`](https://sq.io/docs/inspect#--markdown)
+- [#648]: [`sq inspect`](https://sq.io/docs/inspect) now has [`--markdown`](https://sq.io/docs/inspect#--markdown)
   and [`--html`](https://sq.io/docs/inspect#--html) output formats that generate
   schema documents with embedded entity relationship diagrams.
-- `sq inspect` also gained a
-  [`mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd) output format
-  (`--format=mermaid-erd`) that emits the bare
-  [Mermaid](https://mermaid.js.org) entity-relationship diagram source for
-  source and table schema inspection, with no surrounding document.
+  - [#658]: `sq inspect` also gained a
+    [`mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd) output format
+    (`--format=mermaid-erd`) that emits the bare
+    [Mermaid](https://mermaid.js.org) entity-relationship diagram source for
+    source and table schema inspection, with no surrounding document.
 
 ### Changed
 
@@ -72,60 +72,32 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   Go-style `μs` string.
 - [#613]: [`sq inspect`](https://sq.io/docs/inspect) of a SQL Server source no
   longer returns tables from schemas other than the source's current schema.
-  - `getAllTables` queried `INFORMATION_SCHEMA.TABLES` without a `TABLE_SCHEMA`
-    filter, so source-level inspect returned every table the connected user
-    could see (e.g. `dbo` plus any other schema). Cross-schema tables surfaced
-    with empty foreign-key / unique-constraint / index metadata, and a
-    same-named table in another schema collided with the real one on its bare
-    name. The query is now scoped to the current schema, as the Postgres,
-    Oracle, and DuckDB drivers already scope theirs.
 - [#471]: The SQLite driver no longer fails with `unsupported Scan, storing
   driver.Value type string into type *time.Time` when a `DATETIME`/`DATE`
   column stores text that `mattn/go-sqlite3` doesn't natively convert — most
   commonly Rails' microsecond-precision `datetime(6)` columns. `sq` now
   re-runs the same timestamp parse and falls back to the raw text only when
   the value is genuinely unparseable.
-- `sq <command> --format=FORMAT` (e.g. `sq inspect --format=xlsx`) no longer
+- [#658]: `sq <command> --format=FORMAT` (e.g. `sq inspect --format=xlsx`) no longer
   fails with a spurious "diff does not support output format" error. The
   format check for [`sq diff`](https://sq.io/docs/diff) was being applied to
   every command's `--format` flag; it's now scoped to `sq diff` itself.
 - [#652]: The [ClickHouse driver](https://sq.io/docs/drivers/clickhouse) now
   creates a copied table in its target schema (ClickHouse database) when the
   copy specifies one, rather than always in the connection's current database.
-  - `CopyTable` built the `CREATE TABLE` from the bare table name while the data-copy
-    `INSERT` used the schema-qualified name, so a cross-schema copy created the
-    table in the wrong database (and failed outright when also copying data). ClickHouse now
-    matches the other SQL drivers' `CopyTable`. No CLI command targets a cross-schema
-    copy today, so this is a latent driver-level fix surfaced while testing [#484].
 - [#484]:
   [`--insert`](https://sq.io/docs/tutorial#insert--modify) into a MySQL or
   Postgres table no longer fails when a same-named table exists in another
   schema.
-  - The drivers' `TableExists` check queried `information_schema.tables`
-    filtered only by table name, so a name present in two schemas returned
-    `COUNT(*) = 2`; the `== 1` test then reported the table as missing and `sq`
-    tried to `CREATE` it, which the database rejected with "table already
-    exists". The lookup is now scoped to the connection's current schema
-    (`DATABASE()` for MySQL, `CURRENT_SCHEMA()` for Postgres), as the other SQL
-    drivers already scope theirs.
 - [#633]: A [query](https://sq.io/docs/query) using the single-segment
   `@handle.table:alias` form on the left of a pipeline (e.g.
   `@sakila.actor:a | .a.first_name`) no longer silently collapses to
   `SELECT * FROM <table>`.
-  - The grammar previously had no alias slot on the
-    `handleTable` rule, so the parser's error recovery silently discarded the
-    alias and every downstream segment (projections, joins, etc.). The
-    multi-segment form `@sakila | .actor:a | ...` was unaffected.
 - [#646]: A [query](https://sq.io/docs/query) whose alias is a reserved word
   (e.g. `.actor | .first_name:count`, `@sakila.actor:count`, or
   `join(.film_actor:count, ...)`) now applies that alias instead of silently
   dropping it. An alias that is an argument reference (e.g. `:$x`) is now
   rejected with a clear error rather than silently discarded.
-  - Alias extraction only read the `ID` and quoted `STRING` tokens, so the
-    `ALIAS_RESERVED` (`:count`) and `ARG` (`:$x`) tokens that the grammar
-    already permits resolved to an empty alias on column, table, and
-    expression nodes; only the no-arg `func` form had a workaround. Extraction
-    is now shared across every alias position.
 - [#445]: Cross-source [`join`](https://sq.io/docs/query#join) no longer
   fails when the participating sources contain tables with the same
   name (e.g. `@src1.actor | join(@src2.actor, .actor_id)`).
@@ -1612,7 +1584,9 @@ make working with lots of sources much easier.
 [#637]: https://github.com/neilotoole/sq/pull/637
 [#640]: https://github.com/neilotoole/sq/issues/640
 [#646]: https://github.com/neilotoole/sq/issues/646
+[#648]: https://github.com/neilotoole/sq/pull/648
 [#652]: https://github.com/neilotoole/sq/issues/652
+[#658]: https://github.com/neilotoole/sq/pull/658
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
@@ -1683,3 +1657,4 @@ make working with lots of sources much easier.
 [v0.50.2]: https://github.com/neilotoole/sq/compare/v0.50.0...v0.50.2
 [v0.51.0]: https://github.com/neilotoole/sq/compare/v0.50.2...v0.51.0
 [v0.52.0]: https://github.com/neilotoole/sq/compare/v0.51.0...v0.52.0
+[v0.53.0]: https://github.com/neilotoole/sq/compare/v0.52.0...v0.53.0

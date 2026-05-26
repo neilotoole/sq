@@ -721,10 +721,17 @@ func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tpa
 				wantTables += mviewCount
 			}
 
+			// The table-inclusive assertions use a lower bound, not an exact
+			// count. go test runs package binaries in parallel, and tests in
+			// other packages (e.g. cli's TestCmdSQL_ExecMode) transiently
+			// create scratch tables in these shared sakila schemas, which would
+			// make an exact table count flaky. A missing expected table still
+			// fails (len < wantTables). The views-only count stays exact: those
+			// tests create tables, not views.
 			got, err = drvr.ListTableNames(th.Context, db, tc.schema, true, false)
 			require.NoError(t, err)
 			require.NotNil(t, got)
-			require.Len(t, got, wantTables)
+			require.GreaterOrEqual(t, len(got), wantTables)
 
 			got, err = drvr.ListTableNames(th.Context, db, tc.schema, false, true)
 			require.NoError(t, err)
@@ -734,7 +741,7 @@ func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tpa
 			got, err = drvr.ListTableNames(th.Context, db, tc.schema, true, true)
 			require.NoError(t, err)
 			require.NotNil(t, got)
-			require.Len(t, got, wantTables+tc.wantViews)
+			require.GreaterOrEqual(t, len(got), wantTables+tc.wantViews)
 
 			gotCopy := append([]string(nil), got...)
 			slices.Sort(gotCopy)
