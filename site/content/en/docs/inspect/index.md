@@ -42,7 +42,9 @@ repeatedly inspect the same `stdin` data, you should probably just [`sq add`](#a
 This output includes the source
 metadata, and the schema structure (tables, columns, etc.).
 
-### `--text` (default)
+<a id="--text-default"></a>
+
+### `text` (default)
 
 ```shell
 $ sq inspect @sakila_pg
@@ -56,7 +58,9 @@ To see more detail, use the `--verbose` (`-v`) flag with the `--text` format.
 
 ![sq inspect source verbose](sq_inspect_source_text_verbose.png)
 
-### `--yaml`
+<a id="--yaml"></a>
+
+### `yaml`
 
 To see the full output, use the `--yaml` (`-y`) flag. YAML has the advantage
 of being reasonably human-readable.
@@ -68,7 +72,9 @@ If the schema is large and complex, it can take some time (a few seconds or long
 for `sq` to introspect the schema.
 {{< /alert >}}
 
-### `--json`
+<a id="--json"></a>
+
+### `json`
 
 The `--json` (`-j`) format renders the same content as `--yaml`, but is more
 suited for use with other tools, such as [jq](https://jqlang.github.io/jq/).
@@ -85,7 +91,9 @@ $ sq inspect -j | jq -r '.tables[] | .name'
 
 See more examples in the [cookbook](/docs/cookbook).
 
-### `--markdown`
+<a id="--markdown"></a>
+
+### `markdown`
 
 The `--markdown` format renders a schema document suited for embedding in
 project docs or a pull request: a source overview, per-table
@@ -107,7 +115,9 @@ $ sq inspect @sakila_pg.actor --markdown -o actor.md
 
 ![sq_inspect_markdown ](sq_inspect_md.png)
 
-### `--html`
+<a id="--html"></a>
+
+### `html`
 
 The `--html` format renders the same schema document as the `--markdown`
 format — a source overview, per-table column / key / constraint / index
