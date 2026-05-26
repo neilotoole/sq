@@ -63,7 +63,6 @@
 {{ $slice = $slice | append $scrollLock -}}
 
 {{ $ghStars := resources.Get "js/gh-stars.js" | js.Build -}}
-{{ $sqVersion := resources.Get "js/sq-version.js" | js.Build -}}
 
 {{ if .Site.Params.options.toTopButton -}}
   {{ $toTopButton := resources.Get "js/to-top.js" -}}
@@ -86,7 +85,6 @@
   {{ end -}}
   <script src="{{ $js.RelPermalink }}" defer></script>
   <script src="{{ $ghStars.RelPermalink }}" defer></script>
-  <script src="{{ $sqVersion.RelPermalink }}" defer></script>
   {{ with .Params.mermaid -}}
     <script src="{{ $mermaid.RelPermalink }}" defer></script>
   {{ end -}}
@@ -109,9 +107,7 @@
   {{ end -}}
   <script src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}" crossorigin="anonymous" defer></script>
   {{ $ghStars := $ghStars | minify | fingerprint "sha512" -}}
-  {{ $sqVersion := $sqVersion | minify | fingerprint "sha512" -}}
   <script src="{{ $ghStars.RelPermalink }}" integrity="{{ $ghStars.Data.Integrity }}" crossorigin="anonymous" defer></script>
-  <script src="{{ $sqVersion.RelPermalink }}" integrity="{{ $sqVersion.Data.Integrity }}" crossorigin="anonymous" defer></script>
   {{ with .Params.mermaid -}}
     <script src="{{ $mermaid.RelPermalink }}" integrity="{{ $mermaid.Data.Integrity }}" crossorigin="anonymous" defer></script>
   {{ end -}}
