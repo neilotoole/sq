@@ -7,7 +7,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/alecthomas/chroma/v2"
+	chroma "github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/fatih/color"
 
