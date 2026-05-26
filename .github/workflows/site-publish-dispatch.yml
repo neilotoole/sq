@@ -104,6 +104,8 @@ jobs:
       # manual publish should never bypass the gates that block PR merges.
       - name: Install, lint, and build (make ci)
         working-directory: site
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: make ci
 
       - name: Publish site/public to Netlify (production)

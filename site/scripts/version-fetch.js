@@ -1,98 +1,126 @@
 /**
- * Downloads the latest sq version string from the published formula file.
- * Port of the Go logic in sq's version command.
+ * Fetches the latest stable sq release and GitHub star count from the GitHub
+ * API.
+ *
+ * GitHub's "latest" release endpoint returns the most recent non-prerelease,
+ * non-draft release, so beta/rc tags are excluded by definition. These values
+ * are baked into the site at build time by scripts/gen-site-data.js.
  */
 
-const FORMULA_URL =
-  "https://raw.githubusercontent.com/Homebrew/homebrew-core/HEAD/Formula/s/sq.rb";
+const RELEASES_LATEST_URL =
+  "https://api.github.com/repos/neilotoole/sq/releases/latest";
+const REPO_URL = "https://api.github.com/repos/neilotoole/sq";
 const FETCH_TIMEOUT_MS = 5000;
+const USER_AGENT = "sq-site-version-fetch";
 
-const SEMVER_REGEX = /^\d+\.\d+\.\d+(-.+)?$/;
-
-/**
- * Parse the version from the formula file body.
- * Supports: version "X.Y.Z" and url ".../tags/vX.Y.Z.tar.gz" or .zip.
- * Stops scanning at the "bottle" section.
- * @param {string} body - Raw formula file content
- * @returns {{ version: string } | { error: string }}
- */
-function getVersionFromBrewFormula(body) {
-  let urlVersion = null;
-  const lines = body.split(/\r?\n/);
-
-  for (const line of lines) {
-    const val = line.trim();
-
-    if (val.startsWith("bottle")) {
-      break;
-    }
-
-    if (val.startsWith('version "')) {
-      const version = val.slice(9, val.length - 1);
-      if (!SEMVER_REGEX.test(version)) {
-        return { error: `invalid semver: ${version}` };
-      }
-      return { version };
-    }
-
-    if (val.startsWith('url "') && val.includes("/tags/v")) {
-      const idx = val.indexOf("/tags/v");
-      if (idx !== -1) {
-        const remainder = val.slice(idx + 7);
-        let version;
-        if (remainder.includes(".tar.gz")) {
-          version = remainder.split(".tar.gz")[0];
-        } else if (remainder.includes(".zip")) {
-          version = remainder.split(".zip")[0];
-        } else {
-          continue;
-        }
-        if (SEMVER_REGEX.test(version)) {
-          urlVersion = version;
-        }
-      }
-    }
-  }
-
-  if (urlVersion) {
-    return { version: urlVersion };
-  }
-  return { error: "invalid formula" };
-}
+// Stable SemVer only: reject any pre-release (-rc.1, -beta) or build (+meta) suffix.
+const STABLE_SEMVER_REGEX = /^\d+\.\d+\.\d+$/;
 
 /**
- * Download and parse the latest sq version from the formula URL.
- * @returns {Promise<string>} Version string without "v" prefix (e.g. "0.48.11")
- * @throws {Error} On fetch or parse failure
+ * GET a GitHub API URL and return parsed JSON, with a timeout and optional
+ * token auth.
+ * @param {string} url
+ * @returns {Promise<unknown>}
+ * @throws {Error} On fetch or HTTP failure.
  */
-async function getVersion() {
+async function fetchGitHubJson(url) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
+  const headers = {
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+    "User-Agent": USER_AGENT,
+  };
+  const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   try {
-    const res = await fetch(FORMULA_URL, {
+    const res = await fetch(url, {
       method: "GET",
       signal: controller.signal,
-      headers: { Accept: "text/plain" },
+      headers,
     });
-
     clearTimeout(timeoutId);
-
     if (!res.ok) {
-      throw new Error(`formula fetch failed: ${res.status} ${res.statusText}`);
+      throw new Error(
+        `GitHub fetch failed: ${res.status} ${res.statusText} (${url})`,
+      );
     }
-
-    const body = await res.text();
-    const result = getVersionFromBrewFormula(body);
-
-    if ("error" in result) {
-      throw new Error(result.error);
-    }
-    return result.version;
+    return await res.json();
   } catch (err) {
     clearTimeout(timeoutId);
     throw err;
   }
 }
 
-module.exports = { getVersion, getVersionFromBrewFormula };
+/**
+ * Extract and validate the bare version from a GitHub release API response.
+ * @param {unknown} json - Parsed JSON from /releases/latest.
+ * @returns {{ version: string } | { error: string }}
+ */
+function parseReleaseTag(json) {
+  if (!json || typeof json !== "object") {
+    return { error: "release response is not an object" };
+  }
+  const tag = json.tag_name;
+  if (typeof tag !== "string" || tag === "") {
+    return { error: "release response has no tag_name" };
+  }
+  const version = tag.startsWith("v") ? tag.slice(1) : tag;
+  if (!STABLE_SEMVER_REGEX.test(version)) {
+    return { error: `not a stable semver tag: ${tag}` };
+  }
+  return { version };
+}
+
+/**
+ * Extract and validate the star count from a GitHub repo API response.
+ * @param {unknown} json - Parsed JSON from the repo endpoint.
+ * @returns {{ stars: number } | { error: string }}
+ */
+function parseStarCount(json) {
+  if (!json || typeof json !== "object") {
+    return { error: "repo response is not an object" };
+  }
+  const stars = json.stargazers_count;
+  if (typeof stars !== "number" || !Number.isInteger(stars) || stars < 0) {
+    return { error: `invalid stargazers_count: ${stars}` };
+  }
+  return { stars };
+}
+
+/**
+ * Download and parse the latest stable sq version from GitHub.
+ * @returns {Promise<string>} Bare version (e.g. "0.52.0").
+ * @throws {Error} On fetch, HTTP, or parse failure.
+ */
+async function getLatestVersion() {
+  const result = parseReleaseTag(await fetchGitHubJson(RELEASES_LATEST_URL));
+  if ("error" in result) {
+    throw new Error(result.error);
+  }
+  return result.version;
+}
+
+/**
+ * Download and parse the sq GitHub star count.
+ * @returns {Promise<number>} Star count (e.g. 1234).
+ * @throws {Error} On fetch, HTTP, or parse failure.
+ */
+async function getStarCount() {
+  const result = parseStarCount(await fetchGitHubJson(REPO_URL));
+  if ("error" in result) {
+    throw new Error(result.error);
+  }
+  return result.stars;
+}
+
+module.exports = {
+  getLatestVersion,
+  getStarCount,
+  parseReleaseTag,
+  parseStarCount,
+};
