@@ -143,6 +143,10 @@ func TestMetadataWriter_TableMetadata(t *testing.T) {
 // category is wrapped in its mapped output.Printing color, and stripping the
 // ANSI escapes reproduces the plain diagram byte-for-byte.
 func TestMetadataWriter_SourceMetadata_colorized(t *testing.T) {
+	// NewPrinting calls EnableColor(true), which sets each color's per-instance
+	// flag (fatih/color Color.EnableColor); that flag overrides the package
+	// global color.NoColor, so these assertions emit ANSI regardless of
+	// NO_COLOR, TERM=dumb, or a non-TTY test sink.
 	pr := output.NewPrinting()
 	require.False(t, pr.IsMonochrome(), "NewPrinting should be color-enabled")
 
@@ -205,6 +209,34 @@ func TestMetadataWriter_colorized_quotedEntity(t *testing.T) {
 		"quoted entity name colorized as a single Header token")
 	require.Contains(t, stripANSI(got), `"weird table" ||--o{ child`,
 		"round-trip preserves the quoted relationship line")
+}
+
+// TestMetadataWriter_TableMetadata_colorized verifies the focused single-table
+// ERD is colorized via the same writeDiagram path as the whole-source ERD, and
+// that stripping ANSI reproduces the plain focused diagram exactly.
+func TestMetadataWriter_TableMetadata_colorized(t *testing.T) {
+	const plainTableERD = `erDiagram
+    film_actor {
+        int actor_id PK,FK
+        int film_id PK
+    }
+    actor ||--o{ film_actor : "fk_film_actor_actor"
+`
+
+	src := newTestSource()
+	filmActor := src.Table("film_actor")
+	require.NotNil(t, filmActor)
+
+	pr := output.NewPrinting()
+	buf := &bytes.Buffer{}
+	w := mermaidw.NewMetadataWriter(buf, pr)
+	require.NoError(t, w.TableMetadata(filmActor))
+	got := buf.String()
+
+	require.NotEqual(t, plainTableERD, got, "expected colorized output")
+	require.Contains(t, got, pr.Key.Sprint("erDiagram"))
+	require.Contains(t, got, pr.Header.Sprint("film_actor"))
+	require.Equal(t, plainTableERD, stripANSI(got))
 }
 
 // TestMetadataWriter_monochrome_byteIdentical is the non-TTY regression guard:

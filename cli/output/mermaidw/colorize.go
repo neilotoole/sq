@@ -46,7 +46,10 @@ var (
 	reEntityClose = regexp.MustCompile(`^(\s*)(\})(\s*)$`)
 	// reAttr matches "type name [keys]" where keys is PK/FK/UK, comma- or
 	// space-joined (sq joins with a comma, e.g. "PK,FK"). The optional keys
-	// group includes its own leading whitespace.
+	// group includes its own leading whitespace. Unlike #691's attribute rule,
+	// there is no trailing-comment group: sq's renderer sanitizes attribute
+	// names/types to bare words and never emits an attribute-level comment, so
+	// the simpler shape suffices and an unexpected line falls through to plain.
 	reAttr = regexp.MustCompile(`^(\s*)("[^"]*"|\S+)(\s+)("[^"]*"|\S+)(\s+(?:PK|FK|UK)(?:[ ,](?:PK|FK|UK))*)?(\s*)$`)
 )
 

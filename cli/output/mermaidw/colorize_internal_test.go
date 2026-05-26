@@ -9,7 +9,9 @@ import (
 )
 
 // colorPrinting returns a color-enabled *output.Printing for the colorizer
-// unit tests.
+// unit tests. EnableColor(true) sets each color's per-instance flag, which
+// overrides the package global color.NoColor, so the wrapped output contains
+// ANSI escapes even under NO_COLOR, TERM=dumb, or a non-TTY test sink.
 func colorPrinting() *output.Printing {
 	pr := output.NewPrinting()
 	pr.EnableColor(true)
