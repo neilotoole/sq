@@ -55,3 +55,32 @@ func TestCmdConfigSecretsSet_RequiresValueOrFlag(t *testing.T) {
 	err := tr.Exec("config", "secrets", "set", "@sakila/password")
 	require.Error(t, err)
 }
+
+func TestCmdConfigSecretsGet_WithoutRevealPrintsMetadataOnly(t *testing.T) {
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", "@sakila/password", "hunter2"))
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Exec("config", "secrets", "get", "@sakila/password"))
+	require.NotContains(t, tr.Out.String(), "hunter2")
+	require.Contains(t, tr.Out.String(), "@sakila/password")
+}
+
+func TestCmdConfigSecretsGet_WithRevealPrintsValue(t *testing.T) {
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", "@sakila/password", "hunter2"))
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Exec("config", "secrets", "get", "@sakila/password", "--reveal"))
+	require.Contains(t, tr.Out.String(), "hunter2")
+}
+
+func TestCmdConfigSecretsGet_MissingErrors(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	err := tr.Exec("config", "secrets", "get", "@nope/x")
+	require.Error(t, err)
+}
