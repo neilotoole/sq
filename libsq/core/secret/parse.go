@@ -39,12 +39,10 @@ func findPlaceholders(s string) ([]placeholder, error) {
 		}
 		end += i + 2 // absolute index of '}'
 		inner := s[i+2 : end]
-		colon := strings.IndexByte(inner, ':')
-		if colon < 0 {
+		scheme, path, ok := strings.Cut(inner, ":")
+		if !ok {
 			return nil, fmt.Errorf("missing ':' separator in ${%s} at offset %d", inner, i)
 		}
-		scheme := inner[:colon]
-		path := inner[colon+1:]
 		if err := validateScheme(scheme); err != nil {
 			return nil, fmt.Errorf("%w in ${%s} at offset %d", err, inner, i)
 		}
