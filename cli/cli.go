@@ -292,6 +292,7 @@ func newCommandTree(ru *run.Run) (rootCmd *cobra.Command) {
 	addCmd(ru, configSecretsCmd, newConfigSecretsSetCmd())
 	addCmd(ru, configSecretsCmd, newConfigSecretsGetCmd())
 	addCmd(ru, configSecretsCmd, newConfigSecretsRmCmd())
+	addCmd(ru, configSecretsCmd, newConfigSecretsTestCmd())
 
 	cacheCmd := addCmd(ru, rootCmd, newCacheCmd())
 	addCmd(ru, cacheCmd, newCacheLocationCmd())

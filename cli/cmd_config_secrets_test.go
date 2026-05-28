@@ -118,6 +118,81 @@ func TestCmdConfigSecretsRm_Aliases(t *testing.T) {
 	require.ErrorIs(t, err, gokeyring.ErrNotFound)
 }
 
+func TestCmdConfigSecretsTest_AllPass(t *testing.T) {
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", "@sakila_t/password", "hunter2"))
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@sakila_t",
+		Type:     "postgres",
+		Location: "postgres://alice:${keyring:@sakila_t/password}@db/sakila",
+	}))
+	// Source with no placeholder: must be a PASS (nothing to resolve).
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@plain_t",
+		Type:     "postgres",
+		Location: "postgres://alice:hunter2@db/sakila",
+	}))
+
+	require.NoError(t, tr.Exec("config", "secrets", "test", "--all"))
+	out := tr.Out.String()
+	require.Contains(t, out, "@sakila_t")
+	require.Contains(t, out, "OK")
+	require.Contains(t, out, "@plain_t")
+}
+
+func TestCmdConfigSecretsTest_FailureReportsAndErrors(t *testing.T) {
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", "@good_t/password", "hunter2"))
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@good_t",
+		Type:     "postgres",
+		Location: "postgres://alice:${keyring:@good_t/password}@db/sakila",
+	}))
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@missing_t",
+		Type:     "postgres",
+		Location: "postgres://alice:${keyring:@missing_t/password}@db/sakila",
+	}))
+
+	err := tr.Exec("config", "secrets", "test", "--all")
+	require.Error(t, err)
+	out := tr.Out.String()
+	require.Contains(t, out, "@good_t")
+	require.Contains(t, out, "OK")
+	require.Contains(t, out, "@missing_t")
+	require.Contains(t, out, "FAIL")
+}
+
+func TestCmdConfigSecretsTest_SingleHandle(t *testing.T) {
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", "@one_t/password", "hunter2"))
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@one_t",
+		Type:     "postgres",
+		Location: "postgres://alice:${keyring:@one_t/password}@db/sakila",
+	}))
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@other_t",
+		Type:     "postgres",
+		Location: "postgres://alice:${keyring:@other_t/password}@db/sakila",
+	}))
+
+	// Test only @one_t — @other_t failure should NOT cause exit error.
+	require.NoError(t, tr.Exec("config", "secrets", "test", "@one_t"))
+	out := tr.Out.String()
+	require.Contains(t, out, "@one_t")
+	require.NotContains(t, out, "@other_t")
+}
+
 func TestCmdConfigSecretsLs(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
