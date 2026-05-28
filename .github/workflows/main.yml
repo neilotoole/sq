@@ -398,24 +398,23 @@ jobs:
           FURY_TOKEN: ${{ secrets.FURY_TOKEN }}
           AUR_PRIVATE_KEY: ${{ secrets.AUR_PRIVATE_KEY }}
 
-  test-install:
-    # Verify that install mechanisms are working on the various
-    # supported platforms. This workflow runs *after* the new release
-    # has been published. So, if this workflow fails, it means that
-    # users are experiencing those failures. Fix the problem ASAP!
-    needs: publish
-    if: startsWith(github.ref, 'refs/tags/v')
-    uses: ./.github/workflows/test-install.yml
-
   docker-publish:
-    # Build and push the Docker image to ghcr.io. Runs *after* publish and
-    # test-install, so a release that fails install verification never yields
-    # an image. GoReleaser builds the image from the linux release binaries
-    # (.goreleaser-docker.yml + packages/docker/alpine.Dockerfile), so the
-    # image always matches this exact release.
+    # Build and push the Docker image to ghcr.io. Runs as a sibling of
+    # `publish` (gated by the same lint/test jobs, plus the linux binary builds
+    # it consumes), not behind test-install — so the image ships alongside
+    # every other release artifact and is never withheld by an unrelated
+    # install-test failure on some other platform. GoReleaser builds the image
+    # from the linux release binaries (.goreleaser-docker.yml +
+    # packages/docker/alpine.Dockerfile), so the image always matches this
+    # exact release. test-install smoke-tests the published image afterward.
     runs-on: ubuntu-24.04
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: test-install
+    needs:
+      - lint
+      - test-nix
+      - test-windows-full
+      - binaries-linux-amd64
+      - binaries-linux-arm64
     permissions:
       contents: read
       packages: write
@@ -465,3 +464,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+
+  test-install:
+    # Verify that install mechanisms work across the supported platforms,
+    # including the Docker image. Runs *after* both publish and docker-publish,
+    # so every release channel is already live by the time it runs — it gates
+    # nothing. A failure here means users are already hitting the problem, so
+    # fix it ASAP; this is a post-publish canary, not a pre-publish guard.
+    needs:
+      - publish
+      - docker-publish
+    if: startsWith(github.ref, 'refs/tags/v')
+    uses: ./.github/workflows/test-install.yml

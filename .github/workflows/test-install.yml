@@ -7,6 +7,30 @@ on:
   workflow_dispatch:
 
 jobs:
+  docker:
+    # Smoke-test the just-published ghcr.io/neilotoole/sq image. docker-publish
+    # ships the image alongside the rest of the release, so by the time this
+    # runs the image must be pullable and report this exact version.
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Test Docker image
+        shell: bash
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/neilotoole/sq:${REF_NAME}"
+          # Pull explicitly so a missing/unpullable image fails here clearly.
+          docker pull "$image"
+          # entrypoint.sh exec's its args, so pass the full `sq version` command.
+          got="$(docker run --rm "$image" sq version | awk '{print $2}')"
+          if [ "$got" != "$REF_NAME" ]; then
+            echo "Expected sq $REF_NAME but got: $got"
+            exit 1
+          fi
+          echo "OK: Docker image $image reports $got"
+
   macos-brew:
     runs-on: macos-latest
     if: startsWith(github.ref, 'refs/tags/v')
