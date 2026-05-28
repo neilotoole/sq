@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newConfigSecretsCmd() *cobra.Command { //nolint:unused // wired in Task 18
+func newConfigSecretsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "secrets",
 		Args:  cobra.NoArgs,
