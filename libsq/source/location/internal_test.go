@@ -249,6 +249,24 @@ func TestWithPasswordPlaceholder(t *testing.T) {
 			placeholder: "${keyring:@h/password}",
 			want:        "postgres://:${keyring:@h/password}@db/sakila",
 		},
+		{
+			name:        "at-sign in query string",
+			loc:         "postgres://alice:hunter2@db/sakila?label=a@b",
+			placeholder: "${keyring:@h/password}",
+			want:        "postgres://alice:${keyring:@h/password}@db/sakila?label=a@b",
+		},
+		{
+			name:        "no userinfo with at-sign in query",
+			loc:         "postgres://db/sakila?label=a@b",
+			placeholder: "${keyring:@h/password}",
+			want:        "postgres://:${keyring:@h/password}@db/sakila?label=a@b",
+		},
+		{
+			name:        "port preserved",
+			loc:         "postgres://alice:hunter2@db.example.com:5432/sakila",
+			placeholder: "${keyring:@h/password}",
+			want:        "postgres://alice:${keyring:@h/password}@db.example.com:5432/sakila",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

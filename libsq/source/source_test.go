@@ -698,14 +698,31 @@ func TestSource_RedactedLocation_nil(t *testing.T) {
 	require.Empty(t, got)
 }
 
-func TestSource_RedactedLocation_PlaceholderUnchanged(t *testing.T) {
+func TestSource_RedactedLocation_Placeholders(t *testing.T) {
 	tests := []struct {
 		name, loc, want string
 	}{
 		{
-			name: "password placeholder",
+			// Placeholder in password position is masked like any password
+			// would be. The placeholder text is lost in the redacted form
+			// (use `sq config secrets ls` to enumerate references).
+			name: "password placeholder masked",
 			loc:  "postgres://alice:${keyring:@sakila/password}@db/sakila",
-			want: "postgres://alice:${keyring:@sakila/password}@db/sakila",
+			want: "postgres://alice:xxxxx@db/sakila",
+		},
+		{
+			// Placeholder in HOST: inline password must still be masked.
+			// This was the regression Copilot caught — the old code
+			// short-circuited on any "${" and leaked the inline password.
+			name: "placeholder in host, inline password masked",
+			loc:  "postgres://alice:hunter2@${env:DB_HOST}/sakila",
+			want: "postgres://alice:xxxxx@${env:DB_HOST}/sakila",
+		},
+		{
+			// Placeholder in USERNAME: inline password still masked.
+			name: "placeholder in username, inline password masked",
+			loc:  "postgres://${env:USR}:hunter2@db/sakila",
+			want: "postgres://${env:USR}:xxxxx@db/sakila",
 		},
 		{
 			name: "whole-dsn placeholder",
@@ -728,22 +745,20 @@ func TestSource_RedactedLocation_PlaceholderUnchanged(t *testing.T) {
 
 // TestSource_RedactedLocation_BareDollarBraceFallsThrough verifies that a
 // bare "${" substring without a well-formed placeholder does NOT short-
-// circuit redaction. The fallback goes through location.Redact, which is
-// allowed to handle (or fail to handle) such malformed locations by its
-// own rules — this test only asserts that the short-circuit doesn't fire.
-func TestSource_RedactedLocation_BareDollarBraceFallsThrough(_ *testing.T) {
+// circuit through the placeholder-aware path; it falls through to
+// location.Redact via the standard branch.
+func TestSource_RedactedLocation_BareDollarBraceFallsThrough(t *testing.T) {
 	// Unclosed ${ — ExtractRefs returns an error; RedactedLocation must
-	// fall through to location.Redact rather than returning the location
-	// verbatim. We assert the call doesn't return the bare input as a
-	// "placeholder" — i.e. we check that the function did NOT take the
-	// short-circuit branch.
-	loc := "postgres://alice:secret${not-a-placeholder@db/sakila"
+	// fall through to location.Redact (not return the location verbatim).
+	// We construct a URL that location.Redact CAN handle (so we get an
+	// observable masking), with the malformed ${ in the query string:
+	loc := "postgres://alice:hunter2@db/sakila?note=open${brace"
 	src := &source.Source{Handle: "@h", Type: "postgres", Location: loc}
-
-	// We can't easily verify what location.Redact returns for this input
-	// (its behavior on malformed URLs is undefined), but we can verify
-	// the test exists and the code path doesn't panic.
-	_ = src.RedactedLocation()
+	got := src.RedactedLocation()
+	require.NotContains(t, got, "hunter2",
+		"inline password must be masked even when ${ substring is malformed")
+	require.Contains(t, got, "${brace",
+		"the malformed ${ should be passed through unchanged by location.Redact")
 }
 
 func TestTarget(t *testing.T) {

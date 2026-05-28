@@ -488,21 +488,28 @@ func WithPasswordPlaceholder(loc, placeholder string) (string, error) {
 		username = u.User.Username()
 	}
 
-	// Render the URL with just the username (no password) so net/url
-	// applies its canonical userinfo encoding. Then splice ":placeholder"
-	// before the "@" that terminates userinfo. We can't go through
-	// url.UserPassword because it would percent-encode the placeholder.
-	u.User = url.User(username)
-	rendered := u.String()
-	prefix := u.Scheme + "://"
-	afterScheme, ok := strings.CutPrefix(rendered, prefix)
-	if !ok {
-		return "", errz.Errorf("unexpected url rendering for %s: %s", loc, rendered)
+	// Reassemble the URL from its parsed components so we don't depend
+	// on locating the userinfo-terminator '@' by string-cutting (which
+	// would mis-handle URLs that legitimately contain '@' in the path
+	// or query). url.User(username).String() handles userinfo encoding.
+	var b strings.Builder
+	b.WriteString(u.Scheme)
+	b.WriteString("://")
+	if username != "" {
+		b.WriteString(url.User(username).String())
 	}
-	encodedUser, afterAt, hasAt := strings.Cut(afterScheme, "@")
-	if !hasAt {
-		// url.User("") renders no userinfo segment; insert one.
-		return prefix + ":" + placeholder + "@" + afterScheme, nil
+	b.WriteString(":")
+	b.WriteString(placeholder)
+	b.WriteString("@")
+	b.WriteString(u.Host)
+	b.WriteString(u.EscapedPath())
+	if u.RawQuery != "" {
+		b.WriteString("?")
+		b.WriteString(u.RawQuery)
 	}
-	return prefix + encodedUser + ":" + placeholder + "@" + afterAt, nil
+	if u.Fragment != "" {
+		b.WriteString("#")
+		b.WriteString(u.EscapedFragment())
+	}
+	return b.String(), nil
 }
