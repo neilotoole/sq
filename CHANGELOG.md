@@ -30,7 +30,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   that are resolved at connect time. Shipped schemes: `keyring` (OS keychain,
   managed via `sq config secrets`), `env` (environment variable, e.g.
   `${env:DB_PROD_PW}`), and `file` (file contents, with one trailing newline
-  trimmed, e.g. `${file:/run/secrets/db_pw}`).
+  trimmed, e.g. `${file:/run/secrets/db_pw}` or `${file:~/.sq/db_pw}` —
+  paths must be absolute or start with `~/`, relative paths are rejected).
 - [#660]: [`sq inspect`](https://sq.io/docs/inspect) gained
   [`svg-erd`](https://sq.io/docs/inspect#svg-erd) and
   [`png-erd`](https://sq.io/docs/inspect#png-erd) output formats that render the

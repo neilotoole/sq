@@ -67,3 +67,58 @@ func TestResolver_EmptyFile(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "", got)
 }
+
+func TestResolver_TildeExpansion(t *testing.T) {
+	home, err := os.UserHomeDir()
+	require.NoError(t, err)
+
+	// Stage a file inside the user's home dir.
+	f, err := os.CreateTemp(home, ".sq_secret_test_*")
+	require.NoError(t, err)
+	_, err = f.WriteString("tilde-value\n")
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+	t.Cleanup(func() { _ = os.Remove(f.Name()) })
+
+	// Reference it as ~/<basename>.
+	rel := filepath.Base(f.Name())
+	got, err := file.New().Resolve(context.Background(), "~/"+rel)
+	require.NoError(t, err)
+	require.Equal(t, "tilde-value", got)
+}
+
+func TestResolver_BareTildeRefersToHome(t *testing.T) {
+	// "~" alone resolves to $HOME, which is a directory — reading it
+	// should fail with a non-ErrNotFound error (it's an IsDirectory
+	// error in Go's stdlib).
+	_, err := file.New().Resolve(context.Background(), "~")
+	require.Error(t, err)
+	require.NotErrorIs(t, err, secret.ErrNotFound)
+}
+
+func TestResolver_RejectsRelativePath(t *testing.T) {
+	tests := []string{
+		"relative.txt",
+		"./relative.txt",
+		"sub/dir/file",
+	}
+	for _, p := range tests {
+		t.Run(p, func(t *testing.T) {
+			_, err := file.New().Resolve(context.Background(), p)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "must be absolute")
+		})
+	}
+}
+
+func TestResolver_RejectsTildeUser(t *testing.T) {
+	_, err := file.New().Resolve(context.Background(), "~root/secret")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "tilde expansion")
+}
+
+func TestResolver_RejectsEmptyPath(t *testing.T) {
+	_, err := file.New().Resolve(context.Background(), "")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "empty path")
+}
