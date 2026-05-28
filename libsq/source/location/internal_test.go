@@ -231,6 +231,24 @@ func TestWithPasswordPlaceholder(t *testing.T) {
 			placeholder: "${keyring:foo}",
 			want:        "/path/to/data.xlsx",
 		},
+		{
+			name:        "username with @ gets re-encoded",
+			loc:         "postgres://us%40er:hunter2@db/sakila",
+			placeholder: "${keyring:@h/password}",
+			want:        "postgres://us%40er:${keyring:@h/password}@db/sakila",
+		},
+		{
+			name:        "username with colon gets re-encoded",
+			loc:         "postgres://us%3Aer:hunter2@db/sakila",
+			placeholder: "${keyring:@h/password}",
+			want:        "postgres://us%3Aer:${keyring:@h/password}@db/sakila",
+		},
+		{
+			name:        "no user (truly passwordless URL)",
+			loc:         "postgres://db/sakila",
+			placeholder: "${keyring:@h/password}",
+			want:        "postgres://:${keyring:@h/password}@db/sakila",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

@@ -5,7 +5,6 @@ package location
 // overlap and duplication. It should be consolidated.
 
 import (
-	"fmt"
 	"net/url"
 	"path"
 	"path/filepath"
@@ -464,9 +463,14 @@ func Redact(loc string) string {
 
 // WithPasswordPlaceholder returns loc with its password component
 // replaced by the given placeholder string spliced verbatim (no URL
-// encoding). The placeholder is expected to be a ${scheme:path} secret
-// reference; the verbatim splice preserves the literal '{', ':', and
-// '}' characters that URL encoding would otherwise mangle.
+// encoding on the placeholder itself). The placeholder is expected to
+// be a ${scheme:path} secret reference; the verbatim splice preserves
+// the literal '{', ':', and '}' characters that URL encoding would
+// otherwise mangle.
+//
+// Any username component is re-encoded using net/url's canonical
+// userinfo encoding, so a URL like postgres://us%40er:pw@db/sakila
+// (decoded username "us@er") becomes a valid postgres://us%40er:${...}@db/sakila.
 //
 // If loc is not a URL (e.g. a file path), it is returned unchanged.
 func WithPasswordPlaceholder(loc, placeholder string) (string, error) {
@@ -479,14 +483,26 @@ func WithPasswordPlaceholder(loc, placeholder string) (string, error) {
 		return "", errz.Err(err)
 	}
 
-	// Build a URL without userinfo, then prepend the verbatim
-	// "user:placeholder@" segment. We can't use url.UserPassword
-	// because it would percent-encode the placeholder.
-	username := ""
+	var username string
 	if u.User != nil {
 		username = u.User.Username()
 	}
-	u.User = nil
-	rest := strings.TrimPrefix(u.String(), u.Scheme+"://")
-	return fmt.Sprintf("%s://%s:%s@%s", u.Scheme, username, placeholder, rest), nil
+
+	// Render the URL with just the username (no password) so net/url
+	// applies its canonical userinfo encoding. Then splice ":placeholder"
+	// before the "@" that terminates userinfo. We can't go through
+	// url.UserPassword because it would percent-encode the placeholder.
+	u.User = url.User(username)
+	rendered := u.String()
+	prefix := u.Scheme + "://"
+	afterScheme, ok := strings.CutPrefix(rendered, prefix)
+	if !ok {
+		return "", errz.Errorf("unexpected url rendering for %s: %s", loc, rendered)
+	}
+	encodedUser, afterAt, hasAt := strings.Cut(afterScheme, "@")
+	if !hasAt {
+		// url.User("") renders no userinfo segment; insert one.
+		return prefix + ":" + placeholder + "@" + afterScheme, nil
+	}
+	return prefix + encodedUser + ":" + placeholder + "@" + afterAt, nil
 }

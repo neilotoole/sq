@@ -314,7 +314,15 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	if !cmdFlagIsSetTrue(cmd, flag.SkipVerify) {
 		// Typically we want to ping the source before adding it.
 		// But, sometimes not, for example if a source is temporarily offline.
-		if err = drvr.Ping(ctx, src); err != nil {
+		// Resolve secret placeholders first: with --keyring we just wrote
+		// the password to keyring and src.Location holds a ${keyring:...}
+		// placeholder; the driver can't ping that literal string.
+		var pingSrc *source.Source
+		pingSrc, err = driver.ResolveSourceSecrets(ctx, src)
+		if err != nil {
+			return err
+		}
+		if err = drvr.Ping(ctx, pingSrc); err != nil {
 			return err
 		}
 	}

@@ -377,6 +377,14 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 		return nil, errz.Errorf("expected driver type {%s} but got {%s}", Type, src.Type)
 	}
 
+	// If the location contains a ${scheme:path} secret placeholder, skip
+	// the default-port logic: url.Parse can't handle the unresolved
+	// placeholder. The same locationWithDefaultPort call runs at Open
+	// time on the resolved location, so the default port is still applied.
+	if strings.Contains(src.Location, "${") {
+		return src, nil
+	}
+
 	// Apply default port if not specified. Unlike some other database drivers
 	// (e.g. pgx for Postgres), clickhouse-go does not apply a default port.
 	loc, portAdded, err := locationWithDefaultPort(src.Location)

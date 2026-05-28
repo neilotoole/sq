@@ -206,6 +206,14 @@ func pingSource(ctx context.Context, dp driver.Provider, src *source.Source, tim
 		return
 	}
 
+	// Resolve any ${scheme:path} placeholders in src.Location before
+	// handing the source to the driver. Grips.doOpen does this for the
+	// query path; ping calls drvr.Ping directly, so we must do it here.
+	if src, err = driver.ResolveSourceSecrets(ctx, src); err != nil {
+		resultCh <- pingResult{src: src, err: err}
+		return
+	}
+
 	if timeout > 0 {
 		var cancelFn context.CancelFunc
 		ctx, cancelFn = context.WithTimeout(ctx, timeout)
