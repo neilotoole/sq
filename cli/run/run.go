@@ -16,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/files"
@@ -84,6 +85,10 @@ type Run struct {
 
 	// DriverRegistry is a registry of driver implementations.
 	DriverRegistry *driver.Registry
+
+	// SecretRegistry resolves ${scheme:path} placeholders in source Locations
+	// at connect time. Initialized once per run by preRun.
+	SecretRegistry *secret.Registry
 
 	// Files manages file access.
 	Files *files.Files
