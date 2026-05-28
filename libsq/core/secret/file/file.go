@@ -51,8 +51,13 @@ func (r *Resolver) Resolve(_ context.Context, path string) (string, error) {
 		return "", err
 	}
 	s := string(data)
-	s = strings.TrimSuffix(s, "\n")
-	s = strings.TrimSuffix(s, "\r")
+	// Trim a single trailing LF or CRLF only — never a bare CR.
+	switch {
+	case strings.HasSuffix(s, "\r\n"):
+		s = s[:len(s)-2]
+	case strings.HasSuffix(s, "\n"):
+		s = s[:len(s)-1]
+	}
 	return s, nil
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/location"
 )
@@ -157,15 +158,20 @@ func groupFromHandle(h string) string {
 }
 
 // RedactedLocation returns s.Location, with the password component
-// of the location masked. If s.Location contains a ${scheme:path}
-// secret-resolver placeholder, the location is returned unchanged on
-// the assumption that the placeholder is already redaction-equivalent.
+// of the location masked. If s.Location contains at least one valid
+// ${scheme:path} secret-resolver placeholder, the location is returned
+// unchanged on the assumption that the placeholder is already
+// redaction-equivalent. A bare "${" substring without a well-formed
+// placeholder (e.g. a literal "${" inside a password) falls through to
+// the standard URL-aware redactor.
 func (s *Source) RedactedLocation() string {
 	if s == nil {
 		return ""
 	}
 	if strings.Contains(s.Location, "${") {
-		return s.Location
+		if refs, err := secret.ExtractRefs(s.Location); err == nil && len(refs) > 0 {
+			return s.Location
+		}
 	}
 	return location.Redact(s.Location)
 }

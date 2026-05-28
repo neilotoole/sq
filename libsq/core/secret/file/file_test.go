@@ -49,6 +49,14 @@ func TestResolver_OnlySingleTrailingNewlineTrimmed(t *testing.T) {
 	require.Equal(t, "hunter2\n", got)
 }
 
+func TestResolver_BareTrailingCRNotTrimmed(t *testing.T) {
+	// A trailing bare \r (no LF) is NOT trimmed — only LF or CRLF.
+	p := write(t, "hunter2\r")
+	got, err := file.New().Resolve(context.Background(), p)
+	require.NoError(t, err)
+	require.Equal(t, "hunter2\r", got)
+}
+
 func TestResolver_InternalNewlinesPreserved(t *testing.T) {
 	p := write(t, "line1\nline2")
 	got, err := file.New().Resolve(context.Background(), p)

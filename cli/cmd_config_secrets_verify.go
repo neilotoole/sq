@@ -29,7 +29,7 @@ secrets are reachable before running a query.`,
   # Test a single source
   $ sq config secrets test @sakila`,
 	}
-	cmd.Flags().Bool("all", false, "Test all sources (default when no handle is given)")
+	cmd.Flags().Bool("all", false, "Test every source (mutually exclusive with @HANDLE)")
 	return cmd
 }
 
@@ -37,6 +37,14 @@ func execConfigSecretsTest(cmd *cobra.Command, args []string) error {
 	ru := run.FromContext(cmd.Context())
 	ctx := cmd.Context()
 	reg := ru.SecretRegistry
+
+	allFlag := cmdFlagIsSetTrue(cmd, "all")
+	switch {
+	case len(args) == 0 && !allFlag:
+		return errz.New("specify @HANDLE or --all")
+	case len(args) == 1 && allFlag:
+		return errz.New("--all and @HANDLE are mutually exclusive")
+	}
 
 	var handles []string
 	if len(args) == 1 {

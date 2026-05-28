@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -199,17 +200,14 @@ func looksLikeURL(loc string) bool {
 
 // promptYesNo writes prompt to out and reads a y/n response from in.
 // Returns true on "y"/"yes" (case-insensitive); false on anything else
-// or EOF.
+// or EOF (so just pressing Enter answers "no", matching the [y/N]
+// default).
 func promptYesNo(in io.Reader, out io.Writer, prompt string) (bool, error) {
 	fmt.Fprintf(out, "%s [y/N] ", prompt)
-	var resp string
-	_, err := fmt.Fscanln(in, &resp)
-	if err != nil {
-		if errors.Is(err, io.EOF) || err.Error() == "unexpected newline" {
-			return false, nil
-		}
+	line, err := bufio.NewReader(in).ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
 		return false, err
 	}
-	resp = strings.ToLower(strings.TrimSpace(resp))
+	resp := strings.ToLower(strings.TrimSpace(line))
 	return resp == "y" || resp == "yes", nil
 }
