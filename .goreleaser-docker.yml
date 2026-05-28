@@ -1,13 +1,14 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/goreleaser/goreleaser/v2.6.1/www/docs/static/schema-pro.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/goreleaser/goreleaser/v2.13.3/www/docs/static/schema-pro.json
 version: 2
 
 # Docker-only GoReleaser config.
 #
-# This is run by the `docker-publish` job in main.yml, which is gated behind
-# `publish` and `test-install`. Keeping the `dockers` config here (and NOT in
-# the main .goreleaser.yml) is deliberate: it ensures the image is only built
-# and pushed *after* the release has been verified installable, so a broken
-# release never yields a Docker image. The image is built from the linux
+# This is run by the `docker-publish` job in main.yml, which is a sibling of
+# `publish` (gated by the same lint/test jobs and the linux binary builds).
+# The split from .goreleaser.yml is deliberate: it keeps Docker's failure
+# domain (ghcr push, sigstore/fulcio) and elevated permissions
+# (`packages: write`, `id-token: write`) out of the main `publish` GoReleaser
+# run, and lets the two ship in parallel. The image is built from the linux
 # release binaries, so it always matches this exact release.
 project_name: sq
 
@@ -45,6 +46,14 @@ dockers:
       - "ghcr.io/neilotoole/sq:{{ .Tag }}-amd64"
     build_flag_templates:
       - "--platform=linux/amd64"
+      # OCI metadata for traceability (version / commit / build time / title).
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.title=sq"
+      # GHA buildx cache, scoped per arch so amd64 and arm64 don't thrash.
+      - "--cache-from=type=gha,scope=docker-amd64"
+      - "--cache-to=type=gha,mode=max,scope=docker-amd64"
     extra_files:
       - packages/docker/alpine-mssql-tools-install.sh
       - packages/docker/configure-oh-my-zsh.sh
@@ -60,6 +69,14 @@ dockers:
       - "ghcr.io/neilotoole/sq:{{ .Tag }}-arm64"
     build_flag_templates:
       - "--platform=linux/arm64"
+      # OCI metadata for traceability (version / commit / build time / title).
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.title=sq"
+      # GHA buildx cache, scoped per arch so amd64 and arm64 don't thrash.
+      - "--cache-from=type=gha,scope=docker-arm64"
+      - "--cache-to=type=gha,mode=max,scope=docker-arm64"
     extra_files:
       - packages/docker/alpine-mssql-tools-install.sh
       - packages/docker/configure-oh-my-zsh.sh

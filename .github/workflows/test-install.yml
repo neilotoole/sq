@@ -10,7 +10,10 @@ jobs:
   docker:
     # Smoke-test the just-published ghcr.io/neilotoole/sq image. docker-publish
     # ships the image alongside the rest of the release, so by the time this
-    # runs the image must be pullable and report this exact version.
+    # runs the image must be pullable and report this exact version. The pull
+    # is anonymous (no docker login) by design: the image is meant to be
+    # public, so a 401/manifest-unknown here also catches an accidental
+    # package-visibility regression — a real failure worth surfacing.
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:

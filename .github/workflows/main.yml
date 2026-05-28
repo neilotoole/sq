@@ -460,7 +460,7 @@ jobs:
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
-          args: release --clean -f .goreleaser-docker.yml
+          args: release -f .goreleaser-docker.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
