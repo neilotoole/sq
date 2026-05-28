@@ -725,6 +725,20 @@ func TestSource_RedactedLocation_Placeholders(t *testing.T) {
 			want: "postgres://${env:USR}:xxxxx@db/sakila",
 		},
 		{
+			// Placeholder in PORT — port must be all-digits per RFC 3986,
+			// so the sentinel for that position must also be digit-only.
+			name: "placeholder in port, inline password masked",
+			loc:  "postgres://alice:hunter2@db:${env:PORT}/sakila",
+			want: "postgres://alice:xxxxx@db:${env:PORT}/sakila",
+		},
+		{
+			// Multiple placeholders in different positions — sentinel
+			// ordering must align with ExtractRefs order.
+			name: "multiple placeholders across positions",
+			loc:  "postgres://${env:USR}:hunter2@${env:HOST}/${env:DB}",
+			want: "postgres://${env:USR}:xxxxx@${env:HOST}/${env:DB}",
+		},
+		{
 			name: "whole-dsn placeholder",
 			loc:  "${keyring:@prod/dsn}",
 			want: "${keyring:@prod/dsn}",

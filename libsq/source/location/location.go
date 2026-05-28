@@ -5,6 +5,7 @@ package location
 // overlap and duplication. It should be consolidated.
 
 import (
+	"fmt"
 	"net/url"
 	"path"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 	"github.com/xo/dburl"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
@@ -427,10 +429,53 @@ func isHTTP(s string) (u *url.URL, ok bool) {
 	return u, true
 }
 
-// Redact returns a redacted version of the source
-// location loc, with the password component (if any) of
-// the location masked.
+// Redact returns a redacted version of the source location loc, with
+// the password component (if any) masked.
+//
+// If loc contains one or more ${scheme:path} secret-resolver placeholders,
+// each placeholder is temporarily replaced with a digit-only sentinel
+// before standard URL/DSN redaction runs, then restored afterward.
+// Placeholders survive redaction in every URL position (host, port,
+// path, query) because the digit sentinel is valid in each. A
+// placeholder in the password position is masked along with the
+// password; the placeholder text is lost in the redacted form (use
+// 'sq config secrets ls' to enumerate references).
 func Redact(loc string) string {
+	if !strings.Contains(loc, "${") {
+		return redactRaw(loc)
+	}
+	refs, err := secret.ExtractRefs(loc)
+	if err != nil || len(refs) == 0 {
+		return redactRaw(loc)
+	}
+
+	// Substitute each placeholder with a digit-only sentinel. We use
+	// digits because they're the only character class valid in all
+	// URL positions, including ports (RFC 3986 §3.2.3 limits port to
+	// DIGIT). A sentinel like "9999<idx>9999" is unlikely to collide
+	// with a real component value.
+	sentinelled := loc
+	sentinels := make([]string, len(refs))
+	placeholders := make([]string, len(refs))
+	for i, ref := range refs {
+		placeholders[i] = "${" + ref.Scheme + ":" + ref.Path + "}"
+		sentinels[i] = fmt.Sprintf("9999%07d9999", i)
+		sentinelled = strings.Replace(sentinelled, placeholders[i], sentinels[i], 1)
+	}
+	redacted := redactRaw(sentinelled)
+	// Restore surviving sentinels. Sentinels that got eaten by redaction
+	// (because they were in the password position) are not restored —
+	// the placeholder text is consumed by the password mask.
+	for i := range refs {
+		redacted = strings.Replace(redacted, sentinels[i], placeholders[i], 1)
+	}
+	return redacted
+}
+
+// redactRaw is the underlying URL/DSN redactor with no placeholder
+// awareness. Redact wraps this with sentinel substitution when the input
+// contains ${scheme:path} placeholders.
+func redactRaw(loc string) string {
 	switch {
 	case loc == "",
 		strings.HasPrefix(loc, "/"),

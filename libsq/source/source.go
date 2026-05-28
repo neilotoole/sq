@@ -9,7 +9,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/location"
 )
@@ -158,47 +157,14 @@ func groupFromHandle(h string) string {
 }
 
 // RedactedLocation returns s.Location, with the password component
-// of the location masked.
-//
-// If s.Location contains one or more well-formed ${scheme:path} secret
-// placeholders, they are temporarily replaced with URL-safe sentinels
-// before delegating to the standard redactor, then restored. This way
-// a placeholder in the password position remains visible (it's already
-// redaction-equivalent), while an inline password that coexists with
-// placeholders elsewhere in the URL (e.g. ${env:DB_HOST} in the host)
-// still gets masked.
-//
-// A bare "${" substring without a well-formed placeholder falls through
-// to the standard URL-aware redactor unchanged.
+// masked. The underlying location.Redact handles ${scheme:path} secret
+// placeholders correctly (placeholders in non-password positions are
+// preserved; the inline password is still masked).
 func (s *Source) RedactedLocation() string {
 	if s == nil {
 		return ""
 	}
-	if !strings.Contains(s.Location, "${") {
-		return location.Redact(s.Location)
-	}
-	refs, err := secret.ExtractRefs(s.Location)
-	if err != nil || len(refs) == 0 {
-		return location.Redact(s.Location)
-	}
-
-	// Replace each placeholder with a URL-safe sentinel, redact, restore.
-	sentinelled := s.Location
-	type sub struct{ sentinel, placeholder string }
-	subs := make([]sub, 0, len(refs))
-	for i, ref := range refs {
-		placeholder := "${" + ref.Scheme + ":" + ref.Path + "}"
-		sentinel := fmt.Sprintf("__SQ_REDACT_REF_%d__", i)
-		// strings.Replace with n=1 to swap exactly the first match
-		// (placeholders appear in extract-order, so this is correct).
-		sentinelled = strings.Replace(sentinelled, placeholder, sentinel, 1)
-		subs = append(subs, sub{sentinel: sentinel, placeholder: placeholder})
-	}
-	redacted := location.Redact(sentinelled)
-	for _, s := range subs {
-		redacted = strings.Replace(redacted, s.sentinel, s.placeholder, 1)
-	}
-	return redacted
+	return location.Redact(s.Location)
 }
 
 // Clone returns a deep copy of s. If s is nil, nil is returned.
