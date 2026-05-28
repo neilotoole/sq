@@ -18,6 +18,17 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## Unreleased
 
+### Added
+
+- [#660]: [`sq inspect`](https://sq.io/docs/inspect) gained
+  [`svg-erd`](https://sq.io/docs/inspect#svg-erd) and
+  [`png-erd`](https://sq.io/docs/inspect#png-erd) output formats that render the
+  schema entity-relationship diagram directly to an SVG or PNG image file
+  (`--format=svg-erd` / `--format=png-erd`). The diagram is laid out and
+  rendered natively via an embedded [Graphviz](https://graphviz.org) engine, so
+  image export needs no external tool, browser, or network. `png-erd` is binary
+  and requires a file target (`-o`/`--output`).
+
 ### Changed
 
 - [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd)
@@ -1595,6 +1606,7 @@ make working with lots of sources much easier.
 [#648]: https://github.com/neilotoole/sq/pull/648
 [#652]: https://github.com/neilotoole/sq/issues/652
 [#658]: https://github.com/neilotoole/sq/pull/658
+[#660]: https://github.com/neilotoole/sq/issues/660
 [#692]: https://github.com/neilotoole/sq/issues/692
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2

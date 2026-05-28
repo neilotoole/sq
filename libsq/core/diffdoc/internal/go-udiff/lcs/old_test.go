@@ -7,7 +7,7 @@ package lcs
 import (
 	"fmt"
 	"log"
-	"math/rand/v2"
+	rand "math/rand/v2"
 	"os"
 	"strings"
 	"testing"
