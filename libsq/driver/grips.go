@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
@@ -95,7 +97,37 @@ func (gs *Grips) IsSQLSource(src *source.Source) bool {
 	return false
 }
 
+// ResolveSourceSecrets returns a clone of src with any ${scheme:path}
+// placeholders in src.Location resolved via the secret.Registry on ctx.
+// If there are no placeholders, or no Registry is bound to ctx, src is
+// returned unchanged.
+//
+// Exposed (rather than unexported) so callers and tests can drive the
+// resolution directly. Grips.doOpen calls it once at entry; drivers do
+// not need to call it themselves.
+func ResolveSourceSecrets(ctx context.Context, src *source.Source) (*source.Source, error) {
+	if src == nil || !strings.Contains(src.Location, "${") {
+		return src, nil
+	}
+	reg := secret.FromContext(ctx)
+	if reg == nil {
+		return src, nil
+	}
+	resolved, err := reg.Expand(ctx, src.Location)
+	if err != nil {
+		return nil, errz.Wrapf(err, "resolve secrets for %s", src.Handle)
+	}
+	clone := src.Clone()
+	clone.Location = resolved
+	return clone, nil
+}
+
 func (gs *Grips) doOpen(ctx context.Context, src *source.Source) (Grip, error) {
+	var err error
+	if src, err = ResolveSourceSecrets(ctx, src); err != nil {
+		return nil, err
+	}
+
 	grip, ok := gs.grips[src.Handle]
 	if ok {
 		return grip, nil
