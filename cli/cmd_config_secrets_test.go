@@ -193,6 +193,101 @@ func TestCmdConfigSecretsTest_SingleHandle(t *testing.T) {
 	require.NotContains(t, out, "@other_t")
 }
 
+func TestCmdConfigSecretsMigrate_PerCase(t *testing.T) {
+	tests := []struct {
+		name           string
+		inLocation     string
+		wantLocation   string
+		wantKeyring    string // empty => no keyring write expected
+		wantSkipReason string // substring expected in stdout for skipped sources
+	}{
+		{
+			name:         "url with password",
+			inLocation:   "postgres://alice:hunter2@db/sakila",
+			wantLocation: "postgres://alice:${keyring:@h/password}@db/sakila",
+			wantKeyring:  "hunter2",
+		},
+		{
+			name:           "url without password",
+			inLocation:     "postgres://alice@db/sakila",
+			wantLocation:   "postgres://alice@db/sakila",
+			wantSkipReason: "no password",
+		},
+		{
+			name:           "non-url",
+			inLocation:     "/data/file.xlsx",
+			wantLocation:   "/data/file.xlsx",
+			wantSkipReason: "not a URL",
+		},
+		{
+			name:           "already templated",
+			inLocation:     "postgres://alice:${keyring:@h/password}@db/sakila",
+			wantLocation:   "postgres://alice:${keyring:@h/password}@db/sakila",
+			wantSkipReason: "already",
+		},
+		{
+			name:         "url-encoded password is decoded into keyring",
+			inLocation:   "postgres://alice:p%40ss%3Aword@db/sakila",
+			wantLocation: "postgres://alice:${keyring:@h/password}@db/sakila",
+			wantKeyring:  "p@ss:word",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			gokeyring.MockInit()
+			th := testh.New(t)
+			tr := testrun.New(th.Context, t, nil)
+			require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+				Handle:   "@h",
+				Type:     "postgres",
+				Location: tc.inLocation,
+			}))
+
+			require.NoError(t, tr.Exec("config", "secrets", "migrate", "--all", "--yes"))
+
+			src, err := tr.Run.Config.Collection.Get("@h")
+			require.NoError(t, err)
+			require.Equal(t, tc.wantLocation, src.Location)
+
+			if tc.wantKeyring != "" {
+				got, err := gokeyring.Get("sq", "@h/password")
+				require.NoError(t, err)
+				require.Equal(t, tc.wantKeyring, got)
+			} else {
+				_, err := gokeyring.Get("sq", "@h/password")
+				require.ErrorIs(t, err, gokeyring.ErrNotFound)
+			}
+
+			if tc.wantSkipReason != "" {
+				require.Contains(t, tr.Out.String(), tc.wantSkipReason)
+			}
+		})
+	}
+}
+
+func TestCmdConfigSecretsMigrate_DryRun(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@h_dr",
+		Type:     "postgres",
+		Location: "postgres://alice:hunter2@db/sakila",
+	}))
+
+	require.NoError(t, tr.Exec("config", "secrets", "migrate", "--all", "--dry-run"))
+
+	// Source unchanged.
+	src, _ := tr.Run.Config.Collection.Get("@h_dr")
+	require.Equal(t, "postgres://alice:hunter2@db/sakila", src.Location)
+	// Keyring unchanged.
+	_, err := gokeyring.Get("sq", "@h_dr/password")
+	require.ErrorIs(t, err, gokeyring.ErrNotFound)
+	// Output describes the planned change.
+	require.Contains(t, tr.Out.String(), "@h_dr")
+	require.Contains(t, tr.Out.String(), "${keyring:@h_dr/password}")
+}
+
 func TestCmdConfigSecretsLs(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
