@@ -8,6 +8,8 @@ import (
 	gokeyring "github.com/zalando/go-keyring"
 
 	"github.com/neilotoole/sq/cli/testrun"
+	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 )
 
@@ -114,4 +116,36 @@ func TestCmdConfigSecretsRm_Aliases(t *testing.T) {
 
 	_, err := gokeyring.Get("sq", "@a/p")
 	require.ErrorIs(t, err, gokeyring.ErrNotFound)
+}
+
+func TestCmdConfigSecretsLs(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	// Seed sources with various placeholder shapes.
+	tr.Add(
+		source.Source{
+			Handle:   "@sakila_ls",
+			Type:     drivertype.Pg,
+			Location: "postgres://alice:${keyring:@sakila_ls/password}@db/sakila",
+		},
+		source.Source{
+			Handle:   "@prod_pg_ls",
+			Type:     drivertype.Pg,
+			Location: "${keyring:@prod_pg_ls/dsn}",
+		},
+		// Plain inline source — should NOT appear in ls output.
+		source.Source{
+			Handle:   "@plain_ls",
+			Type:     drivertype.Pg,
+			Location: "postgres://alice:hunter2@db/sakila",
+		},
+	)
+
+	require.NoError(t, tr.Exec("config", "secrets", "ls"))
+	out := tr.Out.String()
+	require.Contains(t, out, "@sakila_ls/password")
+	require.Contains(t, out, "@prod_pg_ls/dsn")
+	require.NotContains(t, out, "@plain_ls")
 }
