@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strings"
 
@@ -20,6 +21,9 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/secret"
+	"github.com/neilotoole/sq/libsq/core/secret/keyring"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
@@ -181,6 +185,9 @@ More examples:
 
 	cmd.Flags().StringP(flag.Handle, flag.HandleShort, "", flag.HandleUsage)
 	cmd.Flags().BoolP(flag.PasswordPrompt, flag.PasswordPromptShort, false, flag.PasswordPromptUsage)
+	cmd.Flags().Bool(flag.Keyring, false, flag.KeyringUsage)
+	cmd.Flags().Bool(flag.InlinePassword, false, flag.InlinePasswordUsage)
+	cmd.MarkFlagsMutuallyExclusive(flag.Keyring, flag.InlinePassword)
 	cmd.Flags().Bool(flag.SkipVerify, false, flag.SkipVerifyUsage)
 	cmd.Flags().BoolP(flag.AddActive, flag.AddActiveShort, false, flag.AddActiveUsage)
 
@@ -262,17 +269,9 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		lg.FromContext(ctx).Debug("Munged duckdb loc", lga.Before, locBefore, lga.After, loc)
 	}
 
-	// If the -p flag is set, sq looks for password input on stdin,
-	// or sq prompts the user.
-	if cmdFlagIsSetTrue(cmd, flag.PasswordPrompt) {
-		var passwd []byte
-		if passwd, err = readPassword(ctx, ru.Stdin, ru.Out, ru.Writers.PrOut); err != nil {
-			return err
-		}
-
-		if loc, err = location.WithPassword(loc, string(passwd)); err != nil {
-			return err
-		}
+	// Apply password: store in keyring or inline, per flags and config.
+	if loc, err = applyPassword(ctx, cmd, ru, handle, loc); err != nil {
+		return err
 	}
 
 	o, err := getSrcOptionsFromFlags(cmd.Flags(), ru.OptionsRegistry, typ)
@@ -329,6 +328,97 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	return ru.Writers.Source.Added(ru.Config.Collection, src)
+}
+
+// applyPassword handles password storage for sq add. It reads any prompted or
+// piped password, then either stores it in the OS keyring (replacing the loc
+// password field with a ${keyring:...} placeholder) or splices it inline into
+// loc. The storage mode is determined by --keyring / --inline-password flags,
+// falling back to the secrets.default config option.
+func applyPassword(ctx context.Context, cmd *cobra.Command, ru *run.Run, handle, loc string) (string, error) {
+	opts := options.FromContext(ctx)
+	var useKeyring bool
+	switch {
+	case cmdFlagIsSetTrue(cmd, flag.Keyring):
+		useKeyring = true
+	case cmdFlagIsSetTrue(cmd, flag.InlinePassword):
+		useKeyring = false
+	default:
+		useKeyring = secret.OptSecretsDefault.Get(opts) == "keyring"
+	}
+
+	// Read password from stdin/prompt if -p was passed.
+	var passwd []byte
+	var err error
+	if cmdFlagIsSetTrue(cmd, flag.PasswordPrompt) {
+		if passwd, err = readPassword(ctx, ru.Stdin, ru.Out, ru.Writers.PrOut); err != nil {
+			return loc, err
+		}
+	}
+
+	if useKeyring {
+		return applyKeyringPassword(ctx, ru, handle, loc, passwd)
+	}
+
+	if len(passwd) > 0 {
+		// Inline path: splice the prompted/piped password into the URL.
+		if loc, err = location.WithPassword(loc, string(passwd)); err != nil {
+			return loc, err
+		}
+	}
+	return loc, nil
+}
+
+// applyKeyringPassword extracts the password from the URL (if present) or
+// prompts the user, writes it to the OS keyring, and returns loc with a
+// ${keyring:...} placeholder substituted for the password field.
+func applyKeyringPassword(ctx context.Context, ru *run.Run, handle, loc string, passwd []byte) (string, error) {
+	// Extract any inline password from the URL; -p takes precedence.
+	urlPW, locNoPW, hasURLPW := decomposeURLPassword(loc)
+	if hasURLPW {
+		loc = locNoPW
+		if len(passwd) == 0 {
+			passwd = []byte(urlPW)
+		}
+	}
+
+	// If still no password, prompt the user.
+	var err error
+	if len(passwd) == 0 {
+		if passwd, err = readPassword(ctx, ru.Stdin, ru.Out, ru.Writers.PrOut); err != nil {
+			return loc, err
+		}
+	}
+
+	placeholder := fmt.Sprintf("${keyring:%s/password}", handle)
+	if loc, err = location.WithPasswordPlaceholder(loc, placeholder); err != nil {
+		return loc, err
+	}
+
+	if err = keyring.New().Set(ctx, handle+"/password", string(passwd)); err != nil {
+		return loc, errz.Wrap(err, "write password to keyring")
+	}
+	return loc, nil
+}
+
+// decomposeURLPassword splits loc into its URL-decoded password and a
+// version of loc with the password removed. hasPW is true only when loc
+// is a URL with userinfo that includes a password. For non-URL locs
+// (file paths) or URLs without a password, returns "", loc, false.
+func decomposeURLPassword(loc string) (password, locWithoutPW string, hasPW bool) {
+	u, parseErr := url.Parse(loc)
+	if parseErr != nil || u.Scheme == "" || u.Host == "" {
+		return "", loc, false
+	}
+	if u.User == nil {
+		return "", loc, false
+	}
+	pw, has := u.User.Password()
+	if !has {
+		return "", loc, false
+	}
+	u.User = url.User(u.User.Username())
+	return pw, u.String(), true
 }
 
 // readPassword reads a password from stdin pipe, or if nothing on stdin,

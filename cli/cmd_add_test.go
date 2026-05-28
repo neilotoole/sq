@@ -2,10 +2,12 @@ package cli_test
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	gokeyring "github.com/zalando/go-keyring"
 
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -325,4 +327,120 @@ func TestCmdAdd_Active(t *testing.T) {
 	require.NoError(t, tr.Exec("src", "-j"))
 	m = tr.BindMap()
 	require.Equal(t, h4, m["handle"], "active source now be %s", h4)
+}
+
+// TestCmdAdd_Keyring verifies that --keyring stores the password in the OS
+// keyring mock and writes a ${keyring:...} placeholder into the source location.
+func TestCmdAdd_Keyring(t *testing.T) {
+	gokeyring.MockInit()
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	const handle = "@sakila_kr"
+	const password = "hunter2"
+
+	err := tr.Exec("add",
+		"postgres://alice:"+password+"@localhost:5432/sakila",
+		"--handle", handle, "--keyring",
+		"--driver", "postgres", "--skip-verify")
+	require.NoError(t, err)
+
+	src, err := tr.Run.Config.Collection.Get(handle)
+	require.NoError(t, err)
+	require.Contains(t, src.Location, "${keyring:"+handle+"/password}")
+	require.NotContains(t, src.Location, password)
+
+	got, err := gokeyring.Get("sq", handle+"/password")
+	require.NoError(t, err)
+	require.Equal(t, password, got)
+}
+
+// TestCmdAdd_InlinePassword_OverridesDefault verifies that --inline-password
+// forces inline storage even when secrets.default is set to "keyring".
+func TestCmdAdd_InlinePassword_OverridesDefault(t *testing.T) {
+	gokeyring.MockInit()
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	tr.Run.Config.Options["secrets.default"] = "keyring"
+
+	const handle = "@sakila_inline"
+	err := tr.Exec("add",
+		"postgres://alice:hunter2@localhost:5432/sakila",
+		"--handle", handle, "--inline-password",
+		"--driver", "postgres", "--skip-verify")
+	require.NoError(t, err)
+
+	src, err := tr.Run.Config.Collection.Get(handle)
+	require.NoError(t, err)
+	require.Contains(t, src.Location, "hunter2")
+	require.NotContains(t, src.Location, "${keyring:")
+}
+
+// TestCmdAdd_DefaultKeyring_FromConfig verifies that when secrets.default is
+// "keyring" and neither --keyring nor --inline-password is passed, the keyring
+// path is taken.
+func TestCmdAdd_DefaultKeyring_FromConfig(t *testing.T) {
+	gokeyring.MockInit()
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	tr.Run.Config.Options["secrets.default"] = "keyring"
+
+	const handle = "@sakila_default_kr"
+	err := tr.Exec("add",
+		"postgres://alice:hunter2@localhost:5432/sakila",
+		"--handle", handle,
+		"--driver", "postgres", "--skip-verify")
+	require.NoError(t, err)
+
+	src, err := tr.Run.Config.Collection.Get(handle)
+	require.NoError(t, err)
+	require.Contains(t, src.Location, "${keyring:"+handle+"/password}")
+}
+
+// TestCmdAdd_MutuallyExclusive verifies that --keyring and --inline-password
+// cannot be used together.
+func TestCmdAdd_MutuallyExclusive(t *testing.T) {
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	err := tr.Exec("add",
+		"postgres://alice:hunter2@localhost:5432/sakila",
+		"--handle", "@x", "--keyring", "--inline-password",
+		"--driver", "postgres", "--skip-verify")
+	require.Error(t, err)
+}
+
+// TestCmdAdd_Keyring_PromptsWhenNoPassword verifies that when --keyring is set
+// but the URL has no inline password, sq reads the password from stdin (-p flag).
+func TestCmdAdd_Keyring_PromptsWhenNoPassword(t *testing.T) {
+	gokeyring.MockInit()
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	// Simulate piped stdin: write the password to a temp file and set it as Stdin.
+	f, err := os.CreateTemp(t.TempDir(), "passwd")
+	require.NoError(t, err)
+	_, err = f.WriteString("piped-password\n")
+	require.NoError(t, err)
+	_, err = f.Seek(0, 0)
+	require.NoError(t, err)
+	tr.Run.Stdin = f
+
+	const handle = "@sakila_kr_prompt"
+	err = tr.Exec("add",
+		"postgres://alice@localhost:5432/sakila", // no inline password
+		"--handle", handle, "--keyring", "--password",
+		"--driver", "postgres", "--skip-verify")
+	require.NoError(t, err)
+
+	src, err := tr.Run.Config.Collection.Get(handle)
+	require.NoError(t, err)
+	require.Contains(t, src.Location, "${keyring:"+handle+"/password}")
+
+	got, err := gokeyring.Get("sq", handle+"/password")
+	require.NoError(t, err)
+	require.Equal(t, "piped-password", got)
 }
