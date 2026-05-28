@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	gokeyring "github.com/zalando/go-keyring"
 
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 )
@@ -74,4 +76,52 @@ func checkPingOutputCSV(t *testing.T, h *testrun.TestRun, srcs ...source.Source)
 
 		require.Equal(t, "pong", recs[i][2], "error field should be empty")
 	}
+}
+
+// TestCmdPing_KeyringPlaceholder_NoLeakInJSON is a regression test for the
+// secret-leak / nil-panic pair where pingSource rebound its `src` parameter
+// to the resolved clone, leaking plaintext into the json ping writer and
+// panicking when resolution failed. The fix keeps the templated src for
+// output and uses a separate `resolved` variable for the driver call.
+func TestCmdPing_KeyringPlaceholder_NoLeakInJSON(t *testing.T) {
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", "@px_leak/password", "totally-secret-pw"))
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@px_leak",
+		Type:     drivertype.Pg,
+		Location: "postgres://alice:${keyring:@px_leak/password}@127.0.0.1:1/sakila",
+	}))
+
+	// Ping will fail at the connect step; we don't care about success,
+	// we care that the templated Location appears in the output and the
+	// resolved plaintext does NOT.
+	_ = tr.Exec("ping", "@px_leak", "--json")
+	out := tr.Out.String()
+	require.NotContains(t, out, "totally-secret-pw",
+		"resolved password must not leak into ping output")
+	require.Contains(t, out, "${keyring:@px_leak/password}",
+		"templated location must appear in ping output")
+}
+
+// TestCmdPing_KeyringMissing_DoesNotPanic guards against the nil-panic that
+// happened when ResolveSourceSecrets returned (nil, err) and the channel
+// carried a nil src to the output writer.
+func TestCmdPing_KeyringMissing_DoesNotPanic(t *testing.T) {
+	gokeyring.MockInit()
+	// Deliberately do NOT set the keyring entry.
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@px_missing",
+		Type:     drivertype.Pg,
+		Location: "postgres://alice:${keyring:@px_missing/password}@127.0.0.1:1/sakila",
+	}))
+
+	// Must not panic; should return an error.
+	err := tr.Exec("ping", "@px_missing", "--json")
+	require.Error(t, err)
 }
