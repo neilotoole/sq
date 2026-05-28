@@ -84,3 +84,34 @@ func TestCmdConfigSecretsGet_MissingErrors(t *testing.T) {
 	err := tr.Exec("config", "secrets", "get", "@nope/x")
 	require.Error(t, err)
 }
+
+func TestCmdConfigSecretsRm(t *testing.T) {
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", "@sakila/password", "hunter2"))
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Exec("config", "secrets", "rm", "@sakila/password"))
+
+	_, err := gokeyring.Get("sq", "@sakila/password")
+	require.ErrorIs(t, err, gokeyring.ErrNotFound)
+}
+
+func TestCmdConfigSecretsRm_MissingIsNotError(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Exec("config", "secrets", "rm", "@nope/x"))
+}
+
+func TestCmdConfigSecretsRm_Aliases(t *testing.T) {
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", "@a/p", "v"))
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Exec("config", "secrets", "remove", "@a/p"))
+
+	_, err := gokeyring.Get("sq", "@a/p")
+	require.ErrorIs(t, err, gokeyring.ErrNotFound)
+}
