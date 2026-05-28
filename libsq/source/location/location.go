@@ -5,6 +5,7 @@ package location
 // overlap and duplication. It should be consolidated.
 
 import (
+	"fmt"
 	"net/url"
 	"path"
 	"path/filepath"
@@ -459,4 +460,33 @@ func Redact(loc string) string {
 	}
 
 	return dbu.Redacted()
+}
+
+// WithPasswordPlaceholder returns loc with its password component
+// replaced by the given placeholder string spliced verbatim (no URL
+// encoding). The placeholder is expected to be a ${scheme:path} secret
+// reference; the verbatim splice preserves the literal '{', ':', and
+// '}' characters that URL encoding would otherwise mangle.
+//
+// If loc is not a URL (e.g. a file path), it is returned unchanged.
+func WithPasswordPlaceholder(loc, placeholder string) (string, error) {
+	if _, ok := isFpath(loc); ok {
+		return loc, nil
+	}
+
+	u, err := url.ParseRequestURI(loc)
+	if err != nil {
+		return "", errz.Err(err)
+	}
+
+	// Build a URL without userinfo, then prepend the verbatim
+	// "user:placeholder@" segment. We can't use url.UserPassword
+	// because it would percent-encode the placeholder.
+	username := ""
+	if u.User != nil {
+		username = u.User.Username()
+	}
+	u.User = nil
+	rest := strings.TrimPrefix(u.String(), u.Scheme+"://")
+	return fmt.Sprintf("%s://%s:%s@%s", u.Scheme, username, placeholder, rest), nil
 }

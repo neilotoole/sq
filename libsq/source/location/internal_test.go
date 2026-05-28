@@ -205,3 +205,38 @@ func TestParse(t *testing.T) {
 		})
 	}
 }
+
+func TestWithPasswordPlaceholder(t *testing.T) {
+	tests := []struct {
+		name        string
+		loc         string
+		placeholder string
+		want        string
+	}{
+		{
+			name:        "replace existing password",
+			loc:         "postgres://alice:hunter2@db/sakila",
+			placeholder: "${keyring:@sakila/password}",
+			want:        "postgres://alice:${keyring:@sakila/password}@db/sakila",
+		},
+		{
+			name:        "add to passwordless url",
+			loc:         "postgres://alice@db/sakila",
+			placeholder: "${keyring:@x/p}",
+			want:        "postgres://alice:${keyring:@x/p}@db/sakila",
+		},
+		{
+			name:        "non-url returned unchanged",
+			loc:         "/path/to/data.xlsx",
+			placeholder: "${keyring:foo}",
+			want:        "/path/to/data.xlsx",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := WithPasswordPlaceholder(tc.loc, tc.placeholder)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
