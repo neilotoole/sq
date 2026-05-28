@@ -20,6 +20,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
+- [#441]: [`sq config secrets`](https://sq.io/docs/cmd/sq_config_secrets) command
+  group: store source passwords in the OS keyring instead of plaintext in
+  `~/.config/sq.yml`. Subcommands: `ls`, `set`, `get`, `rm`, `migrate`, `test`.
+  [`sq add`](https://sq.io/docs/cmd/sq_add) gains `--keyring` and
+  `--inline-password` flags, and a new `secrets.default` config option
+  (`inline` | `keyring`) controls the default; existing behavior is preserved
+  (`inline`). Source `location` fields now support `${scheme:path}` placeholders
+  that are resolved at connect time; v1 ships only the `keyring` scheme.
 - [#660]: [`sq inspect`](https://sq.io/docs/inspect) gained
   [`svg-erd`](https://sq.io/docs/inspect#svg-erd) and
   [`png-erd`](https://sq.io/docs/inspect#png-erd) output formats that render the
@@ -1606,6 +1614,7 @@ make working with lots of sources much easier.
 [#648]: https://github.com/neilotoole/sq/pull/648
 [#652]: https://github.com/neilotoole/sq/issues/652
 [#658]: https://github.com/neilotoole/sq/pull/658
+[#441]: https://github.com/neilotoole/sq/issues/441
 [#660]: https://github.com/neilotoole/sq/issues/660
 [#692]: https://github.com/neilotoole/sq/issues/692
 
