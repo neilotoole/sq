@@ -698,6 +698,34 @@ func TestSource_RedactedLocation_nil(t *testing.T) {
 	require.Empty(t, got)
 }
 
+func TestSource_RedactedLocation_PlaceholderUnchanged(t *testing.T) {
+	tests := []struct {
+		name, loc, want string
+	}{
+		{
+			name: "password placeholder",
+			loc:  "postgres://alice:${keyring:@sakila/password}@db/sakila",
+			want: "postgres://alice:${keyring:@sakila/password}@db/sakila",
+		},
+		{
+			name: "whole-dsn placeholder",
+			loc:  "${keyring:@prod/dsn}",
+			want: "${keyring:@prod/dsn}",
+		},
+		{
+			name: "non-url location with placeholder",
+			loc:  "${keyring:@my/file_path}",
+			want: "${keyring:@my/file_path}",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			src := &source.Source{Handle: "@h", Type: "postgres", Location: tc.loc}
+			require.Equal(t, tc.want, src.RedactedLocation())
+		})
+	}
+}
+
 func TestTarget(t *testing.T) {
 	t.Run("nil_source", func(t *testing.T) {
 		got := source.Target(nil, "actor")
