@@ -123,22 +123,30 @@ func TestResolver_RejectsEmptyPath(t *testing.T) {
 	require.Contains(t, err.Error(), "empty path")
 }
 
-func TestResolver_RejectsURIForm(t *testing.T) {
-	// ${file:///etc/passwd} is the URI form. The parser hands us
-	// "///etc/passwd" (it splits on the first colon after the scheme).
-	// On Unix this would "accidentally" work because the kernel
-	// normalizes redundant slashes. Reject it explicitly so users get
-	// a clear nudge toward the supported form.
+func TestResolver_EmptyAuthorityURIForm(t *testing.T) {
+	// ${file:///path} is the RFC 8089 file:// URI with empty authority.
+	// The parser hands us "///path" (it splits on the first colon after
+	// the scheme). This is sugar for "/path" and should resolve the same
+	// file.
+	p := write(t, "uri-value")
+	got, err := file.New().Resolve(context.Background(), "//"+p)
+	require.NoError(t, err)
+	require.Equal(t, "uri-value", got)
+}
+
+func TestResolver_RejectsRemoteURIForm(t *testing.T) {
+	// file://host/path has a non-empty authority — that's a remote
+	// reference we don't support. Two slashes alone (no authority,
+	// no path-leading slash) is also ambiguous, reject the same way.
 	tests := []string{
-		"///etc/passwd",     // file:///etc/passwd
 		"//host/etc/passwd", // file://host/etc/passwd
-		"//etc/passwd",      // ambiguous Windows-UNC-looking form
+		"//etc/passwd",      // ambiguous: looks like host=etc, path=/passwd
 	}
 	for _, p := range tests {
 		t.Run(p, func(t *testing.T) {
 			_, err := file.New().Resolve(context.Background(), p)
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "must not start with //")
+			require.Contains(t, err.Error(), "remote file URIs are not supported")
 		})
 	}
 }

@@ -18,8 +18,9 @@ resolved at connect time. sq ships with three resolver schemes:
             Secret Service on Linux). Managed by 'sq config secrets'.
   env       Environment variable. Read-only at connect time.
   file      File contents (single trailing newline trimmed). Read-only.
-            Path must be absolute or start with ~/ (current user's home);
-            relative paths are rejected.
+            Path must be absolute, start with ~/ (current user's home),
+            or use the empty-authority file URI form (file:///path).
+            Relative and remote (file://host/path) forms are rejected.
 
 Examples:
 
@@ -27,6 +28,7 @@ Examples:
   location: postgres://alice:${env:DB_PROD_PASSWORD}@db/sakila
   location: postgres://alice:${file:/run/secrets/db_prod_pw}@db/sakila
   location: postgres://alice:${file:~/.sq/db_prod_pw}@db/sakila
+  location: postgres://alice:${file:///run/secrets/db_prod_pw}@db/sakila
 
 The subcommands below manage keyring entries. 'env' and 'file' references
 do not need management here — sq reads them at connect time directly.`,

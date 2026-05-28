@@ -78,13 +78,17 @@ func expandPath(path string) (string, error) {
 		// /etc/passwd lookup is platform-specific).
 		return "", fmt.Errorf("only ~/ (current user) tilde expansion is supported, got %q", path)
 	}
-	if strings.HasPrefix(path, "//") {
-		// URI form (file:///foo) and UNC paths (\\\\server\\share) are not
-		// supported. Tell the user the correct form so the diagnosis is
-		// obvious.
+	if strings.HasPrefix(path, "///") {
+		// RFC 8089 file:// URI with empty authority: ${file:///etc/passwd}
+		// is just sugar for ${file:/etc/passwd}. Strip the leading "//".
+		path = path[2:]
+	} else if strings.HasPrefix(path, "//") {
+		// Two slashes only: either a URI with a non-empty authority
+		// (file://host/path — remote, not supported) or an ambiguous
+		// non-standard form. Either way, reject with a clear nudge.
 		return "", fmt.Errorf(
-			"path must not start with // (got %q); use a literal absolute path "+
-				"like ${file:/path/to/secret}, not URI form ${file:///path/to/secret}",
+			"remote file URIs are not supported (got %q); use a local absolute path "+
+				"like ${file:/path/to/secret} or the empty-authority URI form ${file:///path/to/secret}",
 			path,
 		)
 	}
