@@ -11,9 +11,9 @@ import (
 	"github.com/neilotoole/sq/libsq/core/secret"
 )
 
-// TestRun_SecretRegistry_HasKeyring verifies that preRun initializes
-// SecretRegistry on the Run and registers the "keyring" scheme.
-func TestRun_SecretRegistry_HasKeyring(t *testing.T) {
+// TestRun_SecretRegistry_HasSchemes verifies that preRun initializes
+// SecretRegistry on the Run and registers all v1 backend schemes.
+func TestRun_SecretRegistry_HasSchemes(t *testing.T) {
 	// Use the in-memory mock backend so tests never touch the real OS keyring.
 	gokeyring.MockInit()
 
@@ -25,9 +25,11 @@ func TestRun_SecretRegistry_HasKeyring(t *testing.T) {
 
 	require.NotNil(t, tr.Run.SecretRegistry)
 
-	// "keyring" scheme must be registered. Resolving an unknown path returns
+	// Each shipped scheme must be registered. Resolving an unknown path returns
 	// a non-ErrUnknownScheme error, proving the scheme dispatcher fired.
-	_, err := tr.Run.SecretRegistry.ResolveScheme(ctx, "keyring", "no-such-entry")
-	require.Error(t, err)
-	require.NotErrorIs(t, err, secret.ErrUnknownScheme)
+	for _, scheme := range []string{"keyring", "env", "file"} {
+		_, err := tr.Run.SecretRegistry.ResolveScheme(ctx, scheme, "no-such-entry")
+		require.Error(t, err, "scheme %q should be registered", scheme)
+		require.NotErrorIs(t, err, secret.ErrUnknownScheme, "scheme %q", scheme)
+	}
 }

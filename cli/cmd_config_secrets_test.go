@@ -315,7 +315,31 @@ func TestCmdConfigSecretsLs(t *testing.T) {
 
 	require.NoError(t, tr.Exec("config", "secrets", "ls"))
 	out := tr.Out.String()
-	require.Contains(t, out, "@sakila_ls/password")
-	require.Contains(t, out, "@prod_pg_ls/dsn")
+	require.Contains(t, out, "keyring:@sakila_ls/password")
+	require.Contains(t, out, "keyring:@prod_pg_ls/dsn")
 	require.NotContains(t, out, "@plain_ls")
+}
+
+func TestCmdConfigSecretsLs_MultipleSchemes(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	tr.Add(
+		source.Source{
+			Handle:   "@multi_ls",
+			Type:     drivertype.Pg,
+			Location: "postgres://alice:${env:DB_PW}@${file:/etc/sq/host}/sakila",
+		},
+		source.Source{
+			Handle:   "@multi_ls2",
+			Type:     drivertype.Pg,
+			Location: "postgres://alice:${keyring:@multi_ls2/password}@db/sakila",
+		},
+	)
+
+	require.NoError(t, tr.Exec("config", "secrets", "ls"))
+	out := tr.Out.String()
+	require.Contains(t, out, "env:DB_PW")
+	require.Contains(t, out, "file:/etc/sq/host")
+	require.Contains(t, out, "keyring:@multi_ls2/password")
 }

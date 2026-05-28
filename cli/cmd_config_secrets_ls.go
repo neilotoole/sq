@@ -15,13 +15,13 @@ func newConfigSecretsLsCmd() *cobra.Command {
 		Use:     "ls",
 		Aliases: []string{"list"},
 		Args:    cobra.NoArgs,
-		Short:   "List keyring refs known to sq",
-		Long: `List every ${keyring:...} placeholder found across the configured
-source locations. The output is derived from the YAML config — no
-persistent index is maintained.
+		Short:   "List secret refs known to sq",
+		Long: `List every ${scheme:path} placeholder found across the configured
+source locations, one per line as "scheme:path". Output is derived from
+the YAML config — no persistent index is maintained.
 
-Refs in the keyring with no corresponding YAML placeholder are NOT
-listed (they're effectively orphans).`,
+Entries in the OS keyring (or environment variables, or files) that no
+source references are NOT listed; they're effectively orphans.`,
 		RunE: execConfigSecretsLs,
 	}
 	return cmd
@@ -31,26 +31,24 @@ func execConfigSecretsLs(cmd *cobra.Command, _ []string) error {
 	ru := run.FromContext(cmd.Context())
 
 	seen := make(map[string]struct{})
-	var paths []string
+	var refs []string
 	for _, src := range ru.Config.Collection.Sources() {
-		refs, err := secret.ExtractRefs(src.Location)
+		extracted, err := secret.ExtractRefs(src.Location)
 		if err != nil {
 			return err
 		}
-		for _, ref := range refs {
-			if ref.Scheme != "keyring" {
+		for _, ref := range extracted {
+			key := ref.Scheme + ":" + ref.Path
+			if _, ok := seen[key]; ok {
 				continue
 			}
-			if _, ok := seen[ref.Path]; ok {
-				continue
-			}
-			seen[ref.Path] = struct{}{}
-			paths = append(paths, ref.Path)
+			seen[key] = struct{}{}
+			refs = append(refs, key)
 		}
 	}
-	sort.Strings(paths)
-	for _, p := range paths {
-		fmt.Fprintln(ru.Out, p)
+	sort.Strings(refs)
+	for _, r := range refs {
+		fmt.Fprintln(ru.Out, r)
 	}
 	return nil
 }

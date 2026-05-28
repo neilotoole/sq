@@ -27,7 +27,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   `--inline-password` flags, and a new `secrets.default` config option
   (`inline` | `keyring`) controls the default; existing behavior is preserved
   (`inline`). Source `location` fields now support `${scheme:path}` placeholders
-  that are resolved at connect time; v1 ships only the `keyring` scheme.
+  that are resolved at connect time. Shipped schemes: `keyring` (OS keychain,
+  managed via `sq config secrets`), `env` (environment variable, e.g.
+  `${env:DB_PROD_PW}`), and `file` (file contents, with one trailing newline
+  trimmed, e.g. `${file:/run/secrets/db_pw}`).
 - [#660]: [`sq inspect`](https://sq.io/docs/inspect) gained
   [`svg-erd`](https://sq.io/docs/inspect#svg-erd) and
   [`png-erd`](https://sq.io/docs/inspect#png-erd) output formats that render the

@@ -8,17 +8,25 @@ func newConfigSecretsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "secrets",
 		Args:  cobra.NoArgs,
-		Short: "Manage source secrets in the OS keyring",
-		Long: `View and manage secret values stored in the OS keyring.
+		Short: "Manage source secrets",
+		Long: `View and manage secrets referenced from source locations.
 
-Secrets are referenced from source locations via ${keyring:<path>}
-placeholders. For example:
+Source location fields may contain ${scheme:path} placeholders that are
+resolved at connect time. sq ships with three resolver schemes:
+
+  keyring   OS keyring (macOS Keychain, Windows Credential Manager,
+            Secret Service on Linux). Managed by 'sq config secrets'.
+  env       Environment variable. Read-only at connect time.
+  file      File contents (single trailing newline trimmed). Read-only.
+
+Examples:
 
   location: postgres://alice:${keyring:@sakila/password}@db/sakila
+  location: postgres://alice:${env:DB_PROD_PASSWORD}@db/sakila
+  location: postgres://alice:${file:/run/secrets/db_prod_pw}@db/sakila
 
-At connect time, sq reads the secret from the keyring and substitutes it
-into the location. Use the subcommands below to inspect, set, delete, and
-migrate secrets.`,
+The subcommands below manage keyring entries. 'env' and 'file' references
+do not need management here — sq reads them at connect time directly.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},
