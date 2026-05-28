@@ -13,6 +13,7 @@ import (
 
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/secret/keyring"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/location"
@@ -112,8 +113,9 @@ func buildMigratePlans(srcs []*source.Source) []migratePlan {
 	out := make([]migratePlan, 0, len(srcs))
 	for _, s := range srcs {
 		p := migratePlan{src: s}
+		refs, refsErr := secret.ExtractRefs(s.Location)
 		switch {
-		case strings.Contains(s.Location, "${"):
+		case refsErr == nil && len(refs) > 0:
 			p.reason = "already has a placeholder"
 		default:
 			pw, withoutPW, ok := decomposeURLForMigrate(s.Location)
@@ -150,6 +152,7 @@ func printMigratePlans(out io.Writer, plans []migratePlan) {
 
 func applyMigratePlans(ctx context.Context, ru *run.Run, plans []migratePlan) error {
 	kr := keyring.New()
+	var anyFailed bool
 	for _, p := range plans {
 		if p.reason != "" {
 			continue
@@ -157,6 +160,7 @@ func applyMigratePlans(ctx context.Context, ru *run.Run, plans []migratePlan) er
 		krPath := p.src.Handle + "/password"
 		if err := kr.Set(ctx, krPath, p.password); err != nil {
 			fmt.Fprintf(ru.Out, "%s  FAIL   write keyring: %v\n", p.src.Handle, err)
+			anyFailed = true
 			continue
 		}
 		oldLoc := p.src.Location
@@ -165,9 +169,13 @@ func applyMigratePlans(ctx context.Context, ru *run.Run, plans []migratePlan) er
 			p.src.Location = oldLoc
 			_ = kr.Delete(ctx, krPath)
 			fmt.Fprintf(ru.Out, "%s  FAIL   save config (rolled back): %v\n", p.src.Handle, err)
+			anyFailed = true
 			continue
 		}
 		fmt.Fprintf(ru.Out, "%s  done\n", p.src.Handle)
+	}
+	if anyFailed {
+		return errz.New("one or more sources failed to migrate")
 	}
 	return nil
 }
