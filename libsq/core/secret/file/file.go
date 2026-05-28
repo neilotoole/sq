@@ -57,7 +57,8 @@ func (r *Resolver) Resolve(_ context.Context, path string) (string, error) {
 }
 
 // expandPath resolves "~" and "~/..." to the user's home directory.
-// Other paths must be absolute; relative paths are rejected.
+// Other paths must be absolute; relative paths and URI forms (file://)
+// are rejected.
 func expandPath(path string) (string, error) {
 	if path == "" {
 		return "", errors.New("empty path")
@@ -76,6 +77,16 @@ func expandPath(path string) (string, error) {
 		// "~user" style is not supported (no stdlib equivalent, and
 		// /etc/passwd lookup is platform-specific).
 		return "", fmt.Errorf("only ~/ (current user) tilde expansion is supported, got %q", path)
+	}
+	if strings.HasPrefix(path, "//") {
+		// URI form (file:///foo) and UNC paths (\\\\server\\share) are not
+		// supported. Tell the user the correct form so the diagnosis is
+		// obvious.
+		return "", fmt.Errorf(
+			"path must not start with // (got %q); use a literal absolute path "+
+				"like ${file:/path/to/secret}, not URI form ${file:///path/to/secret}",
+			path,
+		)
 	}
 	if !filepath.IsAbs(path) {
 		return "", fmt.Errorf("path must be absolute or start with ~/, got %q", path)

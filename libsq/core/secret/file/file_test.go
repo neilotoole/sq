@@ -122,3 +122,23 @@ func TestResolver_RejectsEmptyPath(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "empty path")
 }
+
+func TestResolver_RejectsURIForm(t *testing.T) {
+	// ${file:///etc/passwd} is the URI form. The parser hands us
+	// "///etc/passwd" (it splits on the first colon after the scheme).
+	// On Unix this would "accidentally" work because the kernel
+	// normalizes redundant slashes. Reject it explicitly so users get
+	// a clear nudge toward the supported form.
+	tests := []string{
+		"///etc/passwd",     // file:///etc/passwd
+		"//host/etc/passwd", // file://host/etc/passwd
+		"//etc/passwd",      // ambiguous Windows-UNC-looking form
+	}
+	for _, p := range tests {
+		t.Run(p, func(t *testing.T) {
+			_, err := file.New().Resolve(context.Background(), p)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "must not start with //")
+		})
+	}
+}
