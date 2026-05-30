@@ -295,8 +295,8 @@ github.com/duckdb/duckdb-go-bindings/lib/linux-arm64 v0.10503.0 h1:zYkiCNaQAmneI
 github.com/duckdb/duckdb-go-bindings/lib/linux-arm64 v0.10503.0/go.mod h1:81SGOYoEUs8qaAfSk1wRfM5oobrIJ5KI7AzYhK6/bvQ=
 github.com/duckdb/duckdb-go-bindings/lib/windows-amd64 v0.10503.0 h1:InTPj+kxhdsFmG8iip6FAqJoH8Oerx0tW4dzfxqkAEk=
 github.com/duckdb/duckdb-go-bindings/lib/windows-amd64 v0.10503.0/go.mod h1:K25pJL26ARblGDeuAkrdblFvUen92+CwksLtPEHRqqQ=
-github.com/duckdb/duckdb-go/v2 v2.10503.0 h1:cl8hbxl8Wn2rBuBWVyyDyJe/ZfCji7wrMPZ/EdFzN1Y=
-github.com/duckdb/duckdb-go/v2 v2.10503.0/go.mod h1:3trgI3LZo7TTgJYAP9+xCDJYdAF+E+TKE41JWKeWE5I=
+github.com/duckdb/duckdb-go/v2 v2.10503.1 h1:mExuoVmoLQYVdTiGvsKTAlRPtGBVRutx12B8lctU+NI=
+github.com/duckdb/duckdb-go/v2 v2.10503.1/go.mod h1:3trgI3LZo7TTgJYAP9+xCDJYdAF+E+TKE41JWKeWE5I=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
 github.com/dvsekhvalnov/jose2go v1.8.0 h1:LqkkVKAlHFfH9LOEl5fe4p/zL02OhWE7pCufMBG2jLA=
