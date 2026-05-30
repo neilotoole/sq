@@ -55,7 +55,10 @@ fi
 if ! echo "${CSP}" | grep -qi 'hub\.vemetric\.com'; then
 	fail "CSP missing hub.vemetric.com in connect-src"
 fi
-pass "CSP includes Vemetric domains"
+if ! echo "${CSP}" | grep -qi 'www\.google\.com'; then
+	fail "CSP missing www.google.com in connect-src (GA4 /g/collect)"
+fi
+pass "CSP includes Vemetric and GA4 domains"
 
 CACHE=$(curl -fsSI "${BASE_URL}/" | tr -d '\r' | grep -i '^cache-control:' || true)
 if [[ -z "${CACHE}" ]]; then
