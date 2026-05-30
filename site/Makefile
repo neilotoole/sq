@@ -12,7 +12,7 @@
 #   make site-local  — local dev server (bun scripts/dev-server.js)
 #   make check       — Bun, Hugo, Netlify CLI, jq, curl (Site CI / Dependabot)
 #   make check-netlify — make check + checkenv on .env (see .env.example)
-#   make ci          — deps, then site-test, then site-build (matches GitHub Site CI)
+#   make ci          — deps, site-test, site-build, validate-artifact (matches GitHub Site CI)
 #   make site-netlify-validate — Netlify deploy-preview CLI check (needs NETLIFY_*)
 #
 # Local dev after a warm online run (bun install + Hugo modules resolved):
@@ -166,10 +166,14 @@ check-env:
 .PHONY: check-netlify ## make check plus validated .env (Netlify API credentials)
 check-netlify: check check-env
 
-.PHONY: ci ## Install deps, lint, and production build (matches GitHub Site CI workflow)
-ci: deps site-test site-build
+.PHONY: site-validate-artifact ## Validate public/ build output (no server; badges, version.json)
+site-validate-artifact:
+	@./scripts/validate-artifact.sh
+
+.PHONY: ci ## Install deps, lint, build, and validate artifact (matches GitHub Site CI workflow)
+ci: deps site-test site-build site-validate-artifact
 	@$(LOGGER) log_separator
-	@$(LOGGER) log_success "CI pipeline completed (deps, lint, build)"
+	@$(LOGGER) log_success "CI pipeline completed (deps, lint, build, validate)"
 
 .PHONY: site-netlify-validate ## Netlify deploy-preview build + API poll until ready (NETLIFY_AUTH_TOKEN, NETLIFY_SITE_ID)
 site-netlify-validate: check-netlify

@@ -1,5 +1,6 @@
 const { describe, test, expect } = require("bun:test");
 const { parseReleaseTag, parseStarCount } = require("./version-fetch.js");
+const { renderVersionJson } = require("./gen-site-data.js");
 
 describe("parseReleaseTag", () => {
   test("strips the leading v from a stable tag", () => {
@@ -62,5 +63,13 @@ describe("parseStarCount", () => {
 
   test("rejects a non-object response", () => {
     expect(parseStarCount(null)).toHaveProperty("error");
+  });
+});
+
+describe("renderVersionJson", () => {
+  test("emits legacy /version response shape", () => {
+    expect(JSON.parse(renderVersionJson("0.53.0"))).toEqual({
+      "latest-version": "0.53.0",
+    });
   });
 });

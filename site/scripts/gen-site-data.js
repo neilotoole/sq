@@ -2,10 +2,11 @@
  * Build-time generator for the header's GitHub-sourced values: the latest sq
  * release version and the repo star count.
  *
- * Writes site/data/github.toml. Each value is fetched independently; on any
- * fetch failure — or when SQ_SITE_OFFLINE=1 — the committed value is kept as
- * the fallback. The script always exits 0, so a GitHub hiccup never breaks a
- * build. Also run nightly by .github/workflows/site-data-nightly.yml.
+ * Writes site/data/github.toml and site/static/version.json. Each value is
+ * fetched independently; on any fetch failure — or when SQ_SITE_OFFLINE=1 —
+ * the committed value is kept as the fallback. The script always exits 0, so a
+ * GitHub hiccup never breaks a build. Also run nightly by
+ * .github/workflows/site-data-nightly.yml.
  */
 
 const fs = require("fs");
@@ -13,6 +14,7 @@ const path = require("path");
 const { getLatestVersion, getStarCount } = require("./version-fetch.js");
 
 const DATA_FILE = path.join(__dirname, "..", "data", "github.toml");
+const VERSION_JSON = path.join(__dirname, "..", "static", "version.json");
 
 /**
  * Render the data file content.
@@ -29,6 +31,15 @@ function renderGithubToml(version, stars) {
     `latest_version = "${version}"\n` +
     `stars = ${stars}\n`
   );
+}
+
+/**
+ * Render /version JSON (legacy Netlify function response shape).
+ * @param {string} version
+ * @returns {string}
+ */
+function renderVersionJson(version) {
+  return JSON.stringify({ "latest-version": version }) + "\n";
 }
 
 /**
@@ -91,31 +102,49 @@ async function fetchOrKeep(label, fetchFn, fallback) {
   }
 }
 
+/**
+ * Write static/version.json when a version is known.
+ * @param {string} version
+ * @returns {boolean}
+ */
+function writeVersionJson(version) {
+  return writeIfChanged(VERSION_JSON, renderVersionJson(version));
+}
+
 async function main() {
   const existing = parseExisting(DATA_FILE);
+  let version = existing.version;
+  let stars = existing.stars;
 
   if (process.env.SQ_SITE_OFFLINE === "1") {
     console.log(
       "gen-site-data: SQ_SITE_OFFLINE=1, keeping committed data/github.toml",
     );
-    return;
+  } else {
+    version = await fetchOrKeep("version", getLatestVersion, existing.version);
+    stars = await fetchOrKeep("stars", getStarCount, existing.stars);
+
+    if (version == null || stars == null) {
+      console.warn(
+        "gen-site-data: missing value with no committed fallback; leaving data/github.toml unchanged",
+      );
+    } else {
+      const changed = writeIfChanged(DATA_FILE, renderGithubToml(version, stars));
+      console.log(
+        `gen-site-data: version=${version} stars=${stars}` +
+          (changed ? " (updated data/github.toml)" : " (unchanged)"),
+      );
+    }
   }
 
-  const version = await fetchOrKeep("version", getLatestVersion, existing.version);
-  const stars = await fetchOrKeep("stars", getStarCount, existing.stars);
-
-  if (version == null || stars == null) {
-    console.warn(
-      "gen-site-data: missing value with no committed fallback; leaving data/github.toml unchanged",
-    );
-    return;
+  if (version != null) {
+    const jsonChanged = writeVersionJson(version);
+    if (jsonChanged) {
+      console.log(`gen-site-data: wrote static/version.json (latest-version=${version})`);
+    }
+  } else {
+    console.warn("gen-site-data: no version available; skipping static/version.json");
   }
-
-  const changed = writeIfChanged(DATA_FILE, renderGithubToml(version, stars));
-  console.log(
-    `gen-site-data: version=${version} stars=${stars}` +
-      (changed ? " (updated data/github.toml)" : " (unchanged)"),
-  );
 }
 
 // Never let an unexpected error (e.g. a write failure) crash the build; the
@@ -124,4 +153,10 @@ main().catch((err) => {
   console.warn(`gen-site-data: unexpected error (${err.message}); keeping committed data/github.toml`);
 });
 
-module.exports = { renderGithubToml, parseExisting, writeIfChanged };
+module.exports = {
+  renderGithubToml,
+  renderVersionJson,
+  parseExisting,
+  writeIfChanged,
+  writeVersionJson,
+};
