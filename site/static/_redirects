@@ -1,5 +1,7 @@
 # Additional redirects from static/_redirects
 
+/version /version.json 200!
+
 /install.sh https://raw.githubusercontent.com/neilotoole/sq/master/install.sh 301
 /changelog https://github.com/neilotoole/sq/blob/master/CHANGELOG.md 301
 /releases https://github.com/neilotoole/sq/releases 301

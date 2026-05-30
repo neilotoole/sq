@@ -13,8 +13,8 @@ This site is built using:
 - [Bun](https://bun.sh) tooling
 - [Netlify](https://www.netlify.com) hosting
 
-Production publishes to [sq.io](https://sq.io) are **manual** — merges to
-`master` no longer auto-deploy. See [CI Workflow](#ci-workflow) below.
+Production publishes to [sq.io](https://sq.io) are **automatic** after Site CI
+passes on `master` when `site/**` changes. See [CI Workflow](#ci-workflow) below.
 
 ## Contributing
 
@@ -143,21 +143,21 @@ The project uses GitHub Actions and Netlify for continuous integration:
 |------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
 | Push to `master` or `develop` (and PRs)  | `.github/workflows/site-ci.yml` runs `make ci` when `site/**` changes, plus an informational full link crawl                          |
 | Pull request                             | Netlify deploy preview (when configured)                                                                                              |
-| Merge to `master`                        | **No auto-deploy.** Netlify's production build is suppressed via `[context.production] ignore = "exit 0"` in `netlify.toml`           |
-| Manual `workflow_dispatch`               | `.github/workflows/site-publish-dispatch.yml` builds locally and uploads `site/public` to [sq.io](https://sq.io) via the Netlify CLI  |
+| Site CI succeeds on `master`             | `.github/workflows/site-publish-production.yml` builds, deploys to [sq.io](https://sq.io), and runs post-deploy smoke checks           |
+| Manual `workflow_dispatch`               | `.github/workflows/site-publish-dispatch.yml` — escape hatch (branch/tag deploy or republish)                                        |
 | Daily schedule / manual                  | `.github/workflows/site-links-nightly.yml` runs a full external link crawl                                                            |
-| Daily schedule / manual                  | `.github/workflows/site-data-nightly.yml` refreshes `data/github.toml` (version + stars); pushes to `master` if changed; no deploy    |
+| Daily schedule / manual                  | `.github/workflows/site-data-nightly.yml` refreshes `data/github.toml`; push triggers Site CI → auto-deploy when values change       |
 
-Production publishes to [sq.io](https://sq.io) are manual-only. To deploy,
-go to the repo's **Actions** tab, pick **Site Publish (dispatch)**, click
-**Run workflow**, select the ref you want to publish (any branch, or a
-SemVer-style `vX.Y.Z` tag — pre-release suffixes like `v1.0.0-rc1` and
-build metadata are also accepted), and type `DEPLOY` into the confirmation
-field. The workflow rejects refs that are neither a branch nor a SemVer
-v-tag, and rejects any confirmation value other than the literal string
-`DEPLOY`.
-Requires the `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` repo secrets to be
-set.
+Merging to `master` with changes under `site/**` deploys production automatically
+after Site CI passes (lint, build, artifact validation, Netlify upload, smoke).
+Netlify's git integration remains suppressed via `[context.production] ignore =
+"exit 0"` in `netlify.toml` — deploys go through GitHub Actions + the Netlify CLI.
+
+For exceptional cases (deploy from a branch or tag without merging, or republish
+an older ref), use **Site Publish (dispatch)**: Actions tab → **Site Publish
+(dispatch)** → Run workflow → select ref → type `DEPLOY`. Requires
+`NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` repo secrets. The GitHub
+`production` environment must not require manual approval or auto-deploy stalls.
 
 Netlify still provides deploy previews for every PR with Lighthouse audits for
 performance, accessibility, best practices, and SEO. Before merging, click
@@ -169,15 +169,15 @@ correct.
 
 The header's **version badge** and **GitHub star count** are computed at build time rather than
 fetched in the browser. `scripts/gen-site-data.js` fetches the latest `sq` release and the repo
-star count and writes `site/data/github.toml`; the header template renders those values. The
+star count and writes `site/data/github.toml`; it also writes `static/version.json` (served at
+[`/version`](https://sq.io/version) via a redirect). The header template renders those values. The
 generator runs during `prebuild` (so every `bun run build` / `make site-build` refreshes them), and
 the committed `data/github.toml` is the offline / fetch-failure fallback — a GitHub hiccup never
 fails a build.
 
-Because the live site only changes on a manual publish, the nightly
-[`site-data-nightly.yml`](../.github/workflows/site-data-nightly.yml) workflow (07:00 UTC) keeps
-those values current in `master` between publishes: it reruns the generator and pushes
-`data/github.toml` only when a value changed. It does **not** deploy.
+The nightly [`site-data-nightly.yml`](../.github/workflows/site-data-nightly.yml) workflow (07:00
+UTC) keeps `data/github.toml` current in `master`. When it commits a change, Site CI runs and
+production auto-deploys via [`site-publish-production.yml`](../.github/workflows/site-publish-production.yml).
 
 Since `master` uses classic branch protection (`enforce_admins=false`, no per-app bypass), that push
 authenticates with the **`SITE_DATA_PUSH_TOKEN`** repo secret — a fine-grained PAT owned by a repo

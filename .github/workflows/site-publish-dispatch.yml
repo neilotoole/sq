@@ -1,10 +1,9 @@
-# Manually publish the sq.io site to Netlify production.
+# Manually publish the sq.io site to Netlify production (escape hatch).
 #
-# This workflow is the ONLY path that pushes content to https://sq.io.
-# Netlify's git integration is configured (via site/netlify.toml's
-# `[context.production] ignore = "exit 0"`) to skip the production build on
-# master pushes, so production publishes happen only when an operator
-# explicitly triggers this workflow from the Actions tab.
+# Routine publishes happen automatically via site-publish-production.yml
+# after Site CI succeeds on master when site/** changes. Use this workflow
+# to deploy from a branch or SemVer tag without merging, or to republish an
+# older ref. Netlify git integration remains suppressed (production ignore).
 #
 # PR deploy previews from Netlify are unaffected — they run from the
 # `deploy-preview` context, not `production`.
@@ -118,73 +117,13 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          if [ -z "${NETLIFY_AUTH_TOKEN:-}" ]; then
-            echo "::error::NETLIFY_AUTH_TOKEN secret is not set."
-            exit 1
-          fi
-          if [ -z "${NETLIFY_SITE_ID:-}" ]; then
-            echo "::error::NETLIFY_SITE_ID secret is not set."
-            exit 1
-          fi
           if [ -n "${INPUT_MESSAGE:-}" ]; then
             DEPLOY_MESSAGE="${INPUT_MESSAGE}"
           else
             DEPLOY_MESSAGE="Manual publish via workflow_dispatch by @${ACTOR} (${SHA})"
           fi
+          ./scripts/netlify-deploy-prod.sh "${DEPLOY_MESSAGE}"
 
-          # Run the deploy with --json. The CLI's --json output reports
-          # site_id, deploy_id, deploy_url, etc. — but no `state` field —
-          # so we can't infer success from JSON alone. We also don't fully
-          # trust the CLI exit code: in some failure modes (post-processing
-          # error, partial upload that still gets aliased) the CLI has been
-          # observed to exit 0 even though the resulting deploy is not
-          # `ready`. Capture the JSON to a file so we can echo it into the
-          # run log and extract deploy_id for the API poll below.
-          deploy_json=$(mktemp)
-          bun x netlify-cli deploy \
-            --prod \
-            --dir=public \
-            --message "${DEPLOY_MESSAGE}" \
-            --json \
-            | tee "${deploy_json}"
-
-          deploy_id=$(jq -r '.deploy_id // empty' "${deploy_json}")
-          deploy_url=$(jq -r '.deploy_url // .url // empty' "${deploy_json}")
-          echo "Deploy ID:  ${deploy_id:-<empty>}"
-          echo "Deploy URL: ${deploy_url:-<empty>}"
-          if [ -z "${deploy_id}" ]; then
-            echo "::error::netlify-cli did not return a deploy_id; cannot verify state."
-            exit 1
-          fi
-
-          # Authoritative state check: poll the Netlify API until the deploy
-          # reaches a terminal state. Production deploys typically settle
-          # within seconds of the CLI returning, but allow ~2.5 minutes of
-          # headroom for post-processing (CDN warm, edge-function build).
-          # Transient curl failures are retried rather than fatal.
-          #
-          # TODO: Share this poll loop with site/scripts/netlify-deploy-validate.sh
-          # (deploy-preview uses --build; production uses --prod --dir=public).
-          state=""
-          for attempt in $(seq 1 30); do
-            body=$(curl -fsS \
-              -H "Authorization: Bearer ${NETLIFY_AUTH_TOKEN}" \
-              "https://api.netlify.com/api/v1/sites/${NETLIFY_SITE_ID}/deploys/${deploy_id}") \
-              || { echo "Attempt ${attempt}: API call failed, will retry"; sleep 5; continue; }
-            state=$(jq -r '.state // empty' <<<"${body}")
-            echo "Attempt ${attempt}: state=${state:-<empty>}"
-            case "${state}" in
-              ready) break ;;
-              error|rejected)
-                echo "::error::Deploy ${deploy_id} ended in state=${state}."
-                exit 1
-                ;;
-            esac
-            sleep 5
-          done
-
-          if [ "${state}" != "ready" ]; then
-            echo "::error::Deploy ${deploy_id} did not reach state=ready after polling (last state: ${state:-<empty>})."
-            exit 1
-          fi
-          echo "Deploy ${deploy_id} reached state=ready."
+      - name: Post-deploy smoke (sq.io)
+        working-directory: site
+        run: ./scripts/smoke-production.sh https://sq.io

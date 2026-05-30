@@ -154,18 +154,20 @@ Uses Hugo's built-in Chroma (not highlight.js):
 **Triggers and actions:**
 
 - Push to `master` or `develop` with changes under `site/**` →
-  GitHub Actions runs linting and builds (no deploy)
+  GitHub Actions runs `make ci` (lint, build, artifact validation)
 - PR to `master` or `develop` with changes under `site/**` → CI + Netlify deploy preview
-- Merge to `master` → **No auto-deploy.** Netlify's production build is suppressed via
-  `[context.production] ignore = "exit 0"` in `netlify.toml`.
-- Production publishes to https://sq.io happen only via the manual
-  `Site Publish (dispatch)` workflow in GitHub Actions
-  (`.github/workflows/site-publish-dispatch.yml`), which builds locally and uploads
-  via the Netlify CLI. Requires the `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` repo secrets.
-- Nightly (`.github/workflows/site-data-nightly.yml`, 07:00 UTC) regenerates
-  `site/data/github.toml` (build-time version + GitHub star count) and pushes to `master`
-  only if changed (no deploy). Requires the `SITE_DATA_PUSH_TOKEN` repo secret — an admin
-  fine-grained PAT (Contents: read/write) whose push bypasses `master`'s classic branch protection.
+- Site CI succeeds on `master` with `site/**` changes →
+  [`site-publish-production.yml`](../.github/workflows/site-publish-production.yml) deploys to
+  https://sq.io and runs post-deploy smoke checks
+- Escape hatch: manual [`Site Publish (dispatch)`](../.github/workflows/site-publish-dispatch.yml)
+  for branch/tag deploys or republish. Requires `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID`.
+- Nightly ([`site-data-nightly.yml`](../.github/workflows/site-data-nightly.yml), 07:00 UTC)
+  regenerates `site/data/github.toml`; a push triggers Site CI → auto-deploy when changed.
+  Requires `SITE_DATA_PUSH_TOKEN` (admin PAT with Contents read/write).
+
+**Third-party scripts and CSP:** when adding scripts in
+[`layouts/partials/head/custom-head.html`](layouts/partials/head/custom-head.html), update
+`Content-Security-Policy` in [`netlify.toml`](netlify.toml) in the same PR.
 
 **Netlify configuration** (`netlify.toml`):
 

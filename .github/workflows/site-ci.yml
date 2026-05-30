@@ -7,11 +7,13 @@ on:
     paths:
       - "site/**"
       - ".github/workflows/site-ci.yml"
+      - ".github/workflows/site-publish-production.yml"
   pull_request:
     branches: [master, develop]
     paths:
       - "site/**"
       - ".github/workflows/site-ci.yml"
+      - ".github/workflows/site-publish-production.yml"
 
 defaults:
   run:
