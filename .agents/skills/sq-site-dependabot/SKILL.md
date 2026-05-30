@@ -12,7 +12,7 @@ compatibility: >-
 metadata:
   author: Todd Papaioannou
   homepage: https://sq.io
-  version: "0.2.0"
+  version: "0.2.1"
 ---
 
 # sq-site-dependabot
@@ -181,8 +181,10 @@ Per PR (GitHub comment or chat):
 
 - List remaining open site Dependabot PRs.
 - Note stale local branches for prune.
-- Remind: <https://sq.io> production requires manual
-  [Site Publish (dispatch)](../../../.github/workflows/site-publish-dispatch.yml).
+- Remind: merging Dependabot PRs does **not** update <https://sq.io>. Production
+  updates on a stable sq release ([Site Publish (release)](../../../.github/workflows/site-publish-release.yml))
+  or manual [Site Publish (dispatch)](../../../.github/workflows/site-publish-dispatch.yml).
+  Use dispatch when dependency changes should go live before the next release.
 
 ## Repo cross-links
 

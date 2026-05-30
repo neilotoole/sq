@@ -51,14 +51,11 @@ You may still:
 
 Document in the verdict that Layer B was skipped and merge is manual.
 
-## Not in v1
+## Not in Site CI
 
 - `site-netlify-validate` is **not** wired into `site-ci.yml` (secrets + duplicate
   build cost). Skill + Makefile only.
 
-## TODO (maintainers)
-
-- Extract shared **deploy JSON parse + API poll-until-ready** logic from
-  [`netlify-deploy-validate.sh`](../../../../site/scripts/netlify-deploy-validate.sh)
-  and [Site Publish (dispatch)](../../../../.github/workflows/site-publish-dispatch.yml)
-  into one script; keep separate deploy flags (`--build` preview vs `--prod`).
+Production publish (deploy-preview vs `--prod`) shares poll logic via
+[`netlify-deploy-poll.sh`](../../../../site/scripts/netlify-deploy-poll.sh);
+production upload uses [`site-publish-netlify.yml`](../../../../.github/workflows/site-publish-netlify.yml).

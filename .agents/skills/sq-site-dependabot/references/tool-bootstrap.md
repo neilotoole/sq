@@ -38,6 +38,7 @@ make check-netlify    # tools + checkenv.bash --merge validates .env (non-intera
 passes.
 
 Same variables as [Site Publish (dispatch)](../../../../.github/workflows/site-publish-dispatch.yml)
+and [Site Publish (release)](../../../../.github/workflows/site-publish-release.yml)
 GitHub Actions secrets. Never commit `.env`.
 
 ### Getting tokens (Netlify UI)

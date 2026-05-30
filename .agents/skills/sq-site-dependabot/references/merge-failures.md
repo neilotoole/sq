@@ -80,4 +80,6 @@ Layer B. Set `ALLOW_DIRTY_TREE=1` only to override the clean-tree guard.
 ## Post-batch
 
 - List remaining open site Dependabot PRs.
-- Remind: production <https://sq.io> requires manual **Site Publish (dispatch)**.
+- Remind: production <https://sq.io> updates on stable release
+  ([Site Publish (release)](../../../../.github/workflows/site-publish-release.yml))
+  or manual **Site Publish (dispatch)**.

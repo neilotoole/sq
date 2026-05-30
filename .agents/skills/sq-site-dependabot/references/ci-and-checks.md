@@ -61,9 +61,15 @@ CDN/plugin pipeline. Use when preview Lighthouse is inconclusive (T2+).
 
 ## Production publish (out of band)
 
-Merging Dependabot PRs does **not** update <https://sq.io>. Production uses
-[Site Publish (dispatch)](../../../../.github/workflows/site-publish-dispatch.yml)
-only.
+Merging Dependabot PRs or pushing to `master` does **not** update <https://sq.io>.
+Site CI validates builds only. Production uses
+[`site-publish-netlify.yml`](../../../../.github/workflows/site-publish-netlify.yml)
+via:
+
+- [Site Publish (release)](../../../../.github/workflows/site-publish-release.yml)
+  — automatic on stable `vX.Y.Z` GitHub releases (GoReleaser).
+- [Site Publish (dispatch)](../../../../.github/workflows/site-publish-dispatch.yml)
+  — manual when changes should go live before the next release.
 
 ## gh commands (checks on head SHA)
 

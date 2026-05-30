@@ -13,8 +13,9 @@ This site is built using:
 - [Bun](https://bun.sh) tooling
 - [Netlify](https://www.netlify.com) hosting
 
-Production publishes to [sq.io](https://sq.io) are **automatic** after Site CI
-passes on `master` when `site/**` changes. See [CI Workflow](#ci-workflow) below.
+Production publishes to [sq.io](https://sq.io) are **manual** (workflow dispatch) or
+**automatic on stable sq releases**. Merging `site/**` to `master` runs Site CI only.
+See [CI Workflow](#ci-workflow) below.
 
 ## Contributing
 
@@ -143,21 +144,22 @@ The project uses GitHub Actions and Netlify for continuous integration:
 |-----------------------------------------|--------------------------------------------------------------------------------------------------------------------------------|
 | Push to `master` or `develop` (and PRs) | `.github/workflows/site-ci.yml` runs `make ci` when `site/**` changes, plus an informational full link crawl                   |
 | Pull request                            | Netlify deploy preview (when configured)                                                                                       |
-| Site CI succeeds on `master`            | `.github/workflows/site-publish-production.yml` builds, deploys to [sq.io](https://sq.io), and runs post-deploy smoke checks   |
-| Manual `workflow_dispatch`              | `.github/workflows/site-publish-dispatch.yml` — escape hatch (branch/tag deploy or republish)                                  |
+| Stable GitHub release (`vX.Y.Z`)        | `.github/workflows/site-publish-release.yml` builds, deploys to [sq.io](https://sq.io), and runs post-deploy smoke checks      |
+| Manual `workflow_dispatch`              | `.github/workflows/site-publish-dispatch.yml` — publish doc or dependency changes before the next release                        |
 | Daily schedule / manual                 | `.github/workflows/site-links-nightly.yml` runs a full external link crawl                                                     |
-| Daily schedule / manual                 | `.github/workflows/site-data-nightly.yml` refreshes `data/github.toml`; push triggers Site CI → auto-deploy when values change |
+| Daily schedule / manual                 | `.github/workflows/site-data-nightly.yml` refreshes `data/github.toml`; push triggers Site CI only (no production deploy)      |
 
-Merging to `master` with changes under `site/**` deploys production automatically
-after Site CI passes (lint, build, artifact validation, Netlify upload, smoke).
-Netlify's git integration remains suppressed via `[context.production] ignore =
-"exit 0"` in `netlify.toml` — deploys go through GitHub Actions + the Netlify CLI.
+Merging to `master` with changes under `site/**` runs Site CI (lint, build, artifact
+validation) but does **not** update production. Netlify's git integration remains
+suppressed via `[context.production] ignore = "exit 0"` in `netlify.toml` — production
+deploys go through GitHub Actions + the Netlify CLI
+([`site-publish-netlify.yml`](../.github/workflows/site-publish-netlify.yml)).
 
-For exceptional cases (deploy from a branch or tag without merging, or republish
-an older ref), use **Site Publish (dispatch)**: Actions tab → **Site Publish
-(dispatch)** → Run workflow → select ref → type `DEPLOY`. Requires
-`NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` repo secrets. The GitHub
-`production` environment must not require manual approval or auto-deploy stalls.
+To publish before the next sq release, use **Site Publish (dispatch)**: Actions tab →
+**Site Publish (dispatch)** → Run workflow → select ref → type `DEPLOY`. Stable sq
+releases trigger **Site Publish (release)** automatically when GoReleaser publishes
+the GitHub release. Requires `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` repo secrets.
+The GitHub `production` environment must not require manual approval or publish stalls.
 
 Netlify still provides deploy previews for every PR with Lighthouse audits for
 performance, accessibility, best practices, and SEO. Before merging, click
@@ -176,8 +178,8 @@ the committed `data/github.toml` is the offline / fetch-failure fallback — a G
 fails a build.
 
 The nightly [`site-data-nightly.yml`](../.github/workflows/site-data-nightly.yml) workflow (07:00
-UTC) keeps `data/github.toml` current in `master`. When it commits a change, Site CI runs and
-production auto-deploys via [`site-publish-production.yml`](../.github/workflows/site-publish-production.yml).
+UTC) keeps `data/github.toml` current in `master`. When it commits a change, Site CI runs on
+`master` (build only — no production deploy until manual dispatch or the next stable release).
 
 Since `master` uses classic branch protection (`enforce_admins=false`, no per-app bypass), that push
 authenticates with the **`SITE_DATA_PUSH_TOKEN`** repo secret — a fine-grained PAT owned by a repo

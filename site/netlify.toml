@@ -11,7 +11,7 @@
 [context.production]
   command = "bun run build"
   # Production publishes to https://sq.io happen via GitHub Actions
-  # (site-publish-production.yml after Site CI, or site-publish-dispatch.yml).
+  # (site-publish-dispatch.yml manual, site-publish-release.yml on stable release).
   # Netlify git integration is suppressed so master pushes do not double-deploy.
   ignore = "exit 0"
 
