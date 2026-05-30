@@ -1,0 +1,24 @@
+# Auto-publish sq.io to Netlify production after a stable sq GitHub release.
+#
+# Fires when GoReleaser's publish job creates the release (Main Pipeline on
+# v* tags). Pre-releases and drafts are excluded. Netlify git integration
+# remains suppressed (site/netlify.toml production ignore).
+#
+# Requires repo secrets: NETLIFY_AUTH_TOKEN, NETLIFY_SITE_ID
+name: Site Publish (release)
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    if: >-
+      startsWith(github.event.release.tag_name, 'v')
+      && !github.event.release.prerelease
+      && !github.event.release.draft
+    uses: ./.github/workflows/site-publish-netlify.yml
+    with:
+      ref: ${{ github.event.release.tag_name }}
+      deploy_message: Auto publish for release ${{ github.event.release.tag_name }}
+    secrets: inherit

@@ -7,13 +7,17 @@ on:
     paths:
       - "site/**"
       - ".github/workflows/site-ci.yml"
-      - ".github/workflows/site-publish-production.yml"
+      - ".github/workflows/site-publish-netlify.yml"
+      - ".github/workflows/site-publish-release.yml"
+      - ".github/workflows/site-publish-dispatch.yml"
   pull_request:
     branches: [master, develop]
     paths:
       - "site/**"
       - ".github/workflows/site-ci.yml"
-      - ".github/workflows/site-publish-production.yml"
+      - ".github/workflows/site-publish-netlify.yml"
+      - ".github/workflows/site-publish-release.yml"
+      - ".github/workflows/site-publish-dispatch.yml"
 
 defaults:
   run:

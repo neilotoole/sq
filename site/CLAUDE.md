@@ -154,15 +154,16 @@ Uses Hugo's built-in Chroma (not highlight.js):
 **Triggers and actions:**
 
 - Push to `master` or `develop` with changes under `site/**` →
-  GitHub Actions runs `make ci` (lint, build, artifact validation)
+  GitHub Actions runs `make ci` (lint, build, artifact validation); no production deploy
 - PR to `master` or `develop` with changes under `site/**` → CI + Netlify deploy preview
-- Site CI succeeds on `master` with `site/**` changes →
-  [`site-publish-production.yml`](../.github/workflows/site-publish-production.yml) deploys to
+- Stable GitHub release (`vX.Y.Z`, not pre-release) →
+  [`site-publish-release.yml`](../.github/workflows/site-publish-release.yml) deploys to
   https://sq.io and runs post-deploy smoke checks
-- Escape hatch: manual [`Site Publish (dispatch)`](../.github/workflows/site-publish-dispatch.yml)
-  for branch/tag deploys or republish. Requires `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID`.
+- Manual [`Site Publish (dispatch)`](../.github/workflows/site-publish-dispatch.yml)
+  for ad-hoc publishes before the next release. Requires `NETLIFY_AUTH_TOKEN` and
+  `NETLIFY_SITE_ID`.
 - Nightly ([`site-data-nightly.yml`](../.github/workflows/site-data-nightly.yml), 07:00 UTC)
-  regenerates `site/data/github.toml`; a push triggers Site CI → auto-deploy when changed.
+  regenerates `site/data/github.toml`; a push triggers Site CI only (no deploy).
   Requires `SITE_DATA_PUSH_TOKEN` (admin PAT with Contents read/write).
 
 **Third-party scripts and CSP:** when adding scripts in
