@@ -26,7 +26,7 @@ require (
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/c2h5oh/datasize v0.0.0-20231215233829-aa82cc1e6500
 	github.com/djherbis/buffer v1.2.0
-	github.com/duckdb/duckdb-go/v2 v2.10503.0 // BRITTLE
+	github.com/duckdb/duckdb-go/v2 v2.10503.1 // BRITTLE
 	github.com/dustin/go-humanize v1.0.1
 	github.com/ecnepsnai/osquery v1.0.1
 	github.com/emirpasic/gods v1.18.1
