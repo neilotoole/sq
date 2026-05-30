@@ -145,7 +145,7 @@ The project uses GitHub Actions and Netlify for continuous integration:
 | Push to `master` or `develop` (and PRs) | `.github/workflows/site-ci.yml` runs `make ci` when `site/**` changes, plus an informational full link crawl                   |
 | Pull request                            | Netlify deploy preview (when configured)                                                                                       |
 | Stable GitHub release (`vX.Y.Z`)        | `.github/workflows/site-publish-release.yml` builds, deploys to [sq.io](https://sq.io), and runs post-deploy smoke checks      |
-| Manual `workflow_dispatch`              | `.github/workflows/site-publish-dispatch.yml` — publish doc or dependency changes before the next release                        |
+| Manual `workflow_dispatch`              | `.github/workflows/site-publish-dispatch.yml` — publish doc or dependency changes before the next release                      |
 | Daily schedule / manual                 | `.github/workflows/site-links-nightly.yml` runs a full external link crawl                                                     |
 | Daily schedule / manual                 | `.github/workflows/site-data-nightly.yml` refreshes `data/github.toml`; push triggers Site CI only (no production deploy)      |
 
