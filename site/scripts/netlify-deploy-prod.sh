@@ -18,6 +18,7 @@ else
 	log_info() { echo "$*"; }
 	log_error() { echo "ERROR: $*" >&2; }
 	log_indent() { "$@"; }
+	log_dim() { echo "$*"; }
 	log_info_dim() { echo "  $*"; }
 	log_success() { echo "$*"; }
 fi
