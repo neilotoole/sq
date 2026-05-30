@@ -139,14 +139,14 @@ This is an important note for the reader.
 
 The project uses GitHub Actions and Netlify for continuous integration:
 
-| Trigger                                  | Action                                                                                                                                |
-|------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
-| Push to `master` or `develop` (and PRs)  | `.github/workflows/site-ci.yml` runs `make ci` when `site/**` changes, plus an informational full link crawl                          |
-| Pull request                             | Netlify deploy preview (when configured)                                                                                              |
-| Site CI succeeds on `master`             | `.github/workflows/site-publish-production.yml` builds, deploys to [sq.io](https://sq.io), and runs post-deploy smoke checks           |
-| Manual `workflow_dispatch`               | `.github/workflows/site-publish-dispatch.yml` — escape hatch (branch/tag deploy or republish)                                        |
-| Daily schedule / manual                  | `.github/workflows/site-links-nightly.yml` runs a full external link crawl                                                            |
-| Daily schedule / manual                  | `.github/workflows/site-data-nightly.yml` refreshes `data/github.toml`; push triggers Site CI → auto-deploy when values change       |
+| Trigger                                 | Action                                                                                                                         |
+|-----------------------------------------|--------------------------------------------------------------------------------------------------------------------------------|
+| Push to `master` or `develop` (and PRs) | `.github/workflows/site-ci.yml` runs `make ci` when `site/**` changes, plus an informational full link crawl                   |
+| Pull request                            | Netlify deploy preview (when configured)                                                                                       |
+| Site CI succeeds on `master`            | `.github/workflows/site-publish-production.yml` builds, deploys to [sq.io](https://sq.io), and runs post-deploy smoke checks   |
+| Manual `workflow_dispatch`              | `.github/workflows/site-publish-dispatch.yml` — escape hatch (branch/tag deploy or republish)                                  |
+| Daily schedule / manual                 | `.github/workflows/site-links-nightly.yml` runs a full external link crawl                                                     |
+| Daily schedule / manual                 | `.github/workflows/site-data-nightly.yml` refreshes `data/github.toml`; push triggers Site CI → auto-deploy when values change |
 
 Merging to `master` with changes under `site/**` deploys production automatically
 after Site CI passes (lint, build, artifact validation, Netlify upload, smoke).
