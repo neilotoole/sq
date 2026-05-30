@@ -15,7 +15,11 @@ on:
         description: Message shown in the Netlify deploy log
         required: true
         type: string
-
+    secrets:
+      NETLIFY_AUTH_TOKEN:
+        required: true
+      NETLIFY_SITE_ID:
+        required: true
 concurrency:
   group: site-publish-production
   cancel-in-progress: false
