@@ -31,7 +31,7 @@ jobs:
           fetch-depth: 2
 
       - name: Detect site changes
-        uses: dorny/paths-filter@de90cc6fb38fc096f529637c54a0f9d99d4b6bd8 # v3
+        uses: dorny/paths-filter@6852f92c20ea7fd3b0c25de3b5112db3a98da050 # v3
         id: filter
         with:
           filters: |
