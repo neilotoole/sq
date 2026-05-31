@@ -1,9 +1,9 @@
 # Nightly refresh of site/data/github.toml (latest sq version + GitHub stars).
 #
 # Runs the same generator as the site build, then commits the refreshed data
-# file to master IF a value changed. This does NOT deploy — production publishes
-# happen only via the manual Site Publish (dispatch) workflow; pushing to master
-# does not trigger a Netlify production build (it is suppressed in netlify.toml).
+# file to master IF a value changed. A push to master triggers Site CI only
+# (build, no production deploy). Production publishes happen via
+# site-publish-dispatch.yml (manual) or site-publish-release.yml (stable release).
 #
 # Prerequisite: master uses classic branch protection (required PR reviews,
 # enforce_admins=false), which has no per-app bypass — the built-in GITHUB_TOKEN

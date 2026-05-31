@@ -7,6 +7,9 @@ public/
 resources/
 .hugo_build.lock
 
+# Generated at prebuild by scripts/gen-site-data.js (copied to public/ by Hugo)
+static/version.json
+
 # Netlify
 .netlify/
 # netlify-cli spins up a Deno process internally (for Edge Functions emulation)

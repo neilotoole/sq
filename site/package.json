@@ -63,7 +63,7 @@
     "@hyas/images": "^3",
     "@netlify/plugin-lighthouse": "^6.0.4",
     "asciinema-player": "^3.0.1",
-    "auto-changelog": "^2.4",
+    "auto-changelog": "^2.6",
     "autoprefixer": "^10.4",
     "bootstrap": "^5.2.3",
     "esbuild": "^0.28.0",
