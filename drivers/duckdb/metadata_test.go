@@ -346,6 +346,41 @@ func TestTableMetadata_CompositeForeignKey(t *testing.T) {
 	require.Equal(t, []string{"a", "b"}, fk.RefColumns)
 }
 
+// TestTableMetadata_ReservedWordForeignKeyColumn verifies that a
+// DuckDB FK declared on a quoted reserved-word column ("from")
+// round-trips through the loader with the identifier unwrapped in
+// FK.Columns. A loader that stripped or double-quoted the identifier
+// would surface the wrong name.
+func TestTableMetadata_ReservedWordForeignKeyColumn(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@reserved_fk_duck",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://:memory:",
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	ctx := context.Background()
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(ctx, `CREATE TABLE parent (id INT PRIMARY KEY)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx,
+		`CREATE TABLE child ("from" INT, FOREIGN KEY ("from") REFERENCES parent (id))`)
+	require.NoError(t, err)
+
+	md, err := grip.TableMetadata(ctx, "child")
+	require.NoError(t, err)
+	require.NotNil(t, md.FK)
+	require.Len(t, md.FK.Outgoing, 1)
+	fk := md.FK.Outgoing[0]
+	require.Equal(t, "parent", fk.RefTable)
+	require.Equal(t, []string{"from"}, fk.Columns,
+		`quoted reserved-word column "from" must round-trip unquoted in Columns`)
+	require.Equal(t, []string{"id"}, fk.RefColumns)
+}
+
 // TestTableMetadata_UniqueConstraints verifies UNIQUE-constraint
 // introspection on inline and composite forms.
 func TestTableMetadata_UniqueConstraints(t *testing.T) {

@@ -32,6 +32,15 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   `${env:DB_PROD_PW}`), and `file` (file contents, with one trailing newline
   trimmed, e.g. `${file:/run/secrets/db_pw}` or `${file:~/.sq/db_pw}` —
   paths must be absolute or start with `~/`, relative paths are rejected).
+- [#616]: [`sq inspect`](https://sq.io/docs/inspect) foreign-key, unique-constraint,
+  and index introspection gained per-driver integration tests for the Postgres,
+  MySQL, SQL Server, Oracle, and DuckDB loaders — composite-FK column pairing,
+  `ON DELETE` / `ON UPDATE` referential actions, Postgres / DuckDB reserved-word
+  FK identifiers, SQL Server same-catalog FK shape, plus self-referential FK
+  pointer identity and a `Source.Clone` deep-copy round-trip in the shared
+  metadata layer. The text-table verbose renderer also gained a golden-layout
+  test pinning header order and the parens-wrapped styling of unique-constraint-backing
+  indexes.
 - [#660]: [`sq inspect`](https://sq.io/docs/inspect) gained
   [`svg-erd`](https://sq.io/docs/inspect#svg-erd) and
   [`png-erd`](https://sq.io/docs/inspect#png-erd) output formats that render the
@@ -1606,6 +1615,7 @@ make working with lots of sources much easier.
 [#612]: https://github.com/neilotoole/sq/issues/612
 [#613]: https://github.com/neilotoole/sq/issues/613
 [#615]: https://github.com/neilotoole/sq/issues/615
+[#616]: https://github.com/neilotoole/sq/issues/616
 [#617]: https://github.com/neilotoole/sq/issues/617
 [#618]: https://github.com/neilotoole/sq/issues/618
 [#628]: https://github.com/neilotoole/sq/issues/628
