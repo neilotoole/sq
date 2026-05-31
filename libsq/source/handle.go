@@ -2,6 +2,7 @@ package source
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 	"unicode"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/location"
@@ -177,6 +179,15 @@ var handleTypeAliases = map[string]string{
 // a number or underscore, it will be prefixed with "h" (for "handle").
 // Thus "123.xlsx" becomes "@h123_xlsx".
 func SuggestHandle(coll *Collection, typ drivertype.Type, loc string) (string, error) {
+	// Bare-placeholder Locations (e.g. "${env:PBDSN}") don't have a
+	// DSN to parse for the database name. Derive the handle from the
+	// placeholder body per-scheme — sq is not going to resolve at
+	// suggest time, because the resolved value would be machine-
+	// dependent (defeats placeholder portability).
+	if name, ok := suggestNameFromPlaceholder(loc); ok {
+		return finalizeSuggestedHandle(coll, name), nil
+	}
+
 	locFields, err := location.Parse(loc)
 	if err != nil {
 		return "", err
@@ -208,6 +219,14 @@ func SuggestHandle(coll *Collection, typ drivertype.Type, loc string) (string, e
 	_ = ext
 	name := stringz.SanitizeAlphaNumeric(locFields.Name, '_')
 
+	return finalizeSuggestedHandle(coll, name), nil
+}
+
+// finalizeSuggestedHandle takes a raw name (already alphanumeric-ish)
+// and produces the final "@[group/]<name>[<n>]" handle, applying the
+// 'h'-prefix rule for non-letter starts, the active-group prefix, and
+// the uniqueness-suffix loop.
+func finalizeSuggestedHandle(coll *Collection, name string) string {
 	// if the name is empty, we use "h" (for "handle"), e.g "@h".
 	if name == "" {
 		name = "h"
@@ -235,18 +254,110 @@ func SuggestHandle(coll *Collection, typ drivertype.Type, loc string) (string, e
 	//  @actor2
 	//  @actor3
 	candidate := base
-	count := 1
-	for {
+	for count := 1; ; count++ {
 		if count > 1 {
 			candidate = base + strconv.Itoa(count)
 		}
-
 		if !coll.IsExistingSource(candidate) && !coll.IsExistingGroup(candidate[1:]) {
-			return candidate, nil
+			return candidate
 		}
-
-		count++
 	}
+}
+
+// suggestNameFromPlaceholder returns a handle-name candidate derived
+// from loc when loc is a bare ${scheme:body} placeholder (the entire
+// Location is exactly one placeholder, no surrounding literal text).
+// The mapping is per-scheme and uses only the placeholder body — the
+// resolved value, which would be machine/user-dependent, is
+// deliberately NOT consulted.
+//
+// Returns ok=false for non-placeholder inputs, composition inputs
+// (placeholder embedded in a literal URL), and any scheme/body shape
+// from which no meaningful name can be lifted; those fall through to
+// the URL-parse path.
+func suggestNameFromPlaceholder(loc string) (name string, ok bool) {
+	refs, err := secret.ExtractRefs(loc)
+	if err != nil || len(refs) != 1 {
+		return "", false
+	}
+	// Only the BARE-placeholder case. Composition (placeholders
+	// embedded in a URL, e.g. postgres://...:${env:PW}@host/db) is
+	// handled by the URL-parse path below.
+	if loc != "${"+refs[0].Scheme+":"+refs[0].Path+"}" {
+		return "", false
+	}
+	return suggestNameForScheme(refs[0].Scheme, refs[0].Path)
+}
+
+// suggestNameForScheme returns a lowercased handle-name candidate
+// drawn from body for a given resolver scheme. The picked segment is
+// the one with most identity-bearing meaning under each scheme's
+// convention: env-var name; file basename without extension;
+// 1Password's "item" segment; Vault's last path segment; etc.
+// Returns ok=false when no meaningful name can be lifted (e.g. opaque
+// Crockford keyring IDs); the caller falls back to the generic path.
+func suggestNameForScheme(scheme, body string) (string, bool) {
+	switch scheme {
+	case "env":
+		if body == "" {
+			return "", false
+		}
+		return strings.ToLower(body), true
+
+	case "file":
+		base := filepath.Base(body)
+		if base == "." || base == "/" || base == "" {
+			return "", false
+		}
+		if ext := filepath.Ext(base); ext != "" {
+			base = base[:len(base)-len(ext)]
+		}
+		if base == "" {
+			return "", false
+		}
+		return strings.ToLower(base), true
+
+	case "op":
+		// op://<vault>/<item>/[<section>/]<field>. The body starts
+		// with "//"; the item segment (index 1 after splitting) is
+		// the identity-bearing slot.
+		parts := strings.Split(strings.TrimPrefix(body, "//"), "/")
+		if len(parts) < 2 || parts[1] == "" {
+			return "", false
+		}
+		return strings.ToLower(parts[1]), true
+
+	case "vault":
+		// HashiCorp Vault path, possibly with sq's "#field" fragment.
+		// The last path segment is the name.
+		body = strings.SplitN(body, "#", 2)[0]
+		parts := strings.Split(body, "/")
+		if last := parts[len(parts)-1]; last != "" {
+			return strings.ToLower(last), true
+		}
+		return "", false
+
+	case "aws-sm":
+		// arn:aws:secretsmanager:<region>:<acct>:secret:<name>[#field]
+		body = strings.SplitN(body, "#", 2)[0]
+		if idx := strings.LastIndex(body, ":"); idx >= 0 && idx < len(body)-1 {
+			return strings.ToLower(body[idx+1:]), true
+		}
+		return "", false
+
+	case "keyring":
+		// Legacy handle-encoded form "@<handle>/<slot>" — extract the
+		// handle. Opaque Crockford IDs have no meaningful segment;
+		// fall through to the generic path.
+		if strings.HasPrefix(body, "@") && strings.Contains(body, "/") {
+			h := strings.TrimPrefix(strings.SplitN(body, "/", 2)[0], "@")
+			if h != "" {
+				return strings.ToLower(h), true
+			}
+		}
+		return "", false
+	}
+	return "", false
 }
 
 // Table represents a table (or view) in a source, e.g. "@sakila.actor".
