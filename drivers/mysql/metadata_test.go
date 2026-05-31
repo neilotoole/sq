@@ -157,3 +157,82 @@ func TestIndexes_ExpressionArity_MySQL(t *testing.T) {
 	require.Equal(t, []string{"a", "", "c"}, mixed.Columns,
 		"the (LOWER(b)) key position must be the empty-string sentinel")
 }
+
+// TestForeignKey_CompositeOrdering_MySQL verifies that a composite FK
+// preserves the declared column pairing across (Columns, RefColumns).
+// Loops every supported MySQL version so a driver-version regression
+// in the INFORMATION_SCHEMA KEY_COLUMN_USAGE / REFERENTIAL_CONSTRAINTS
+// join surfaces here.
+func TestForeignKey_CompositeOrdering_MySQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	for _, handle := range sakila.MyAll() {
+		t.Run(handle, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			src := th.Source(handle)
+			db := th.OpenDB(src)
+
+			parent := stringz.UniqTableName("fk_comp_parent")
+			child := stringz.UniqTableName("fk_comp_child")
+			_, err := db.ExecContext(th.Context,
+				"CREATE TABLE "+parent+" (a INT, b INT, PRIMARY KEY (a, b))")
+			require.NoError(t, err)
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(parent)) })
+			_, err = db.ExecContext(th.Context,
+				"CREATE TABLE "+child+" (x INT, y INT, FOREIGN KEY (x, y) REFERENCES "+parent+" (a, b))")
+			require.NoError(t, err)
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(child)) })
+
+			md, err := th.Open(src).TableMetadata(th.Context, child)
+			require.NoError(t, err)
+			require.NotNil(t, md.FK)
+			require.Len(t, md.FK.Outgoing, 1)
+			fk := md.FK.Outgoing[0]
+			require.Equal(t, parent, fk.RefTable)
+			require.Equal(t, []string{"x", "y"}, fk.Columns)
+			require.Equal(t, []string{"a", "b"}, fk.RefColumns)
+		})
+	}
+}
+
+// TestForeignKey_OnDeleteOnUpdate_MySQL pins that the loader populates
+// OnDelete / OnUpdate from INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
+// with the explicit non-default actions ("CASCADE" / "SET NULL").
+// Looped across MyAll because the column casing and storage-engine
+// differences between MySQL versions are a plausible regression vector.
+func TestForeignKey_OnDeleteOnUpdate_MySQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	for _, handle := range sakila.MyAll() {
+		t.Run(handle, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			src := th.Source(handle)
+			db := th.OpenDB(src)
+
+			parent := stringz.UniqTableName("fk_act_parent")
+			child := stringz.UniqTableName("fk_act_child")
+			_, err := db.ExecContext(th.Context,
+				"CREATE TABLE "+parent+" (id INT PRIMARY KEY) ENGINE=InnoDB")
+			require.NoError(t, err)
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(parent)) })
+			_, err = db.ExecContext(th.Context,
+				"CREATE TABLE "+child+" (parent_id INT, FOREIGN KEY (parent_id) REFERENCES "+parent+
+					" (id) ON DELETE CASCADE ON UPDATE SET NULL) ENGINE=InnoDB")
+			require.NoError(t, err)
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(child)) })
+
+			md, err := th.Open(src).TableMetadata(th.Context, child)
+			require.NoError(t, err)
+			require.Len(t, md.FK.Outgoing, 1)
+			fk := md.FK.Outgoing[0]
+			require.Equal(t, "CASCADE", fk.OnDelete)
+			require.Equal(t, "SET NULL", fk.OnUpdate)
+		})
+	}
+}

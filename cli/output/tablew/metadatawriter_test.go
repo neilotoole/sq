@@ -342,3 +342,106 @@ func TestPrintTablesVerbose_COLSPlainNumeric(t *testing.T) {
 		"with color disabled the row must contain no ANSI escape sequences")
 	require.NotContains(t, emptyRow, "\x1b[")
 }
+
+// TestPrintTablesVerbose_GoldenLayout is the end-to-end golden test
+// for [mdWriter.printTablesVerbose]. It pins:
+//
+//   - the header row order (NAME / TYPE / ROWS / COLS / NAME / TYPE /
+//     PK / FK / INDEXES / UNIQUE CONSTRAINTS) so a header reorder or
+//     rename in the writer surfaces as a test failure rather than as
+//     a silent CLI UX regression.
+//   - the UC-backing index rendering (parens-wrap, surviving even
+//     after the Subdued style is stripped by EnableColor(false)) so a
+//     regression that drops the parens — leaving the index name
+//     indistinguishable from a standalone unique index — is caught.
+//   - the standalone-unique-index path (no parens) so the two cases
+//     stay visibly distinct.
+//
+// Helper-function tests already cover [indexEntriesByColumn] +
+// [formatIdxCell] in isolation; this test wires them through the full
+// row-render pipeline so a regression in writeRow / column transformers
+// can't break the user-visible layout without a test failure.
+func TestPrintTablesVerbose_GoldenLayout(t *testing.T) {
+	tbls := []*metadata.Table{
+		{
+			Name:      "demo",
+			TableType: "table",
+			RowCount:  42,
+			Columns: []*metadata.Column{
+				{Name: "id", BaseType: "INTEGER", PrimaryKey: true},
+				{Name: "email", BaseType: "TEXT"},
+				{Name: "nickname", BaseType: "TEXT"},
+			},
+			UniqueConstraints: []*metadata.UniqueConstraint{
+				{Name: "demo_email_key", Table: "demo", Columns: []string{"email"}},
+			},
+			Indexes: []*metadata.Index{
+				// PK-backing — filtered upstream by indexEntriesByColumn.
+				{Name: "demo_pkey", Table: "demo", Columns: []string{"id"}, Unique: true, Primary: true},
+				// UC-backing — must render parenthesized.
+				{Name: "demo_email_key", Table: "demo", Columns: []string{"email"}, Unique: true},
+				// Standalone unique — must render WITHOUT parens.
+				{Name: "idx_email_solo", Table: "demo", Columns: []string{"email"}, Unique: true},
+				// Plain secondary — bare name.
+				{Name: "idx_demo_nick", Table: "demo", Columns: []string{"nickname"}},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	pr := output.NewPrinting()
+	pr.EnableColor(false)
+	w := NewMetadataWriter(&buf, pr).(*mdWriter)
+	require.NoError(t, w.printTablesVerbose(tbls))
+
+	out := buf.String()
+	require.NotEmpty(t, out)
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	require.GreaterOrEqual(t, len(lines), 4, "expected header + 3 column rows: got %q", out)
+
+	// Header row is line 0 with this writer. The columns are
+	// whitespace-padded in declaration order, so an in-order substring
+	// search is enough to pin the layout.
+	header := lines[0]
+	wantHeaders := []string{
+		"NAME", "TYPE", "ROWS", "COLS",
+		"NAME", "TYPE", "PK", "FK",
+		"INDEXES", "UNIQUE CONSTRAINTS",
+	}
+	pos := 0
+	for _, h := range wantHeaders {
+		idx := strings.Index(header[pos:], h)
+		require.NotEqual(t, -1, idx,
+			"header %q not found in expected position in row %q", h, header)
+		pos += idx + len(h)
+	}
+
+	// Locate the per-column rows. The "id" row is the table's leading
+	// row (starts with "demo"); the "email" and "nickname" rows are
+	// continuation rows (whitespace-padded NAME/TYPE/ROWS/COLS cells).
+	var emailRow string
+	for _, line := range lines {
+		// A continuation row mentioning "email" must NOT also start
+		// with the table name (that's the leading "demo " row whose
+		// per-column NAME cell holds "id").
+		if !strings.HasPrefix(line, "demo") && strings.Contains(line, "email") {
+			emailRow = line
+			break
+		}
+	}
+	require.NotEmpty(t, emailRow, "email column row not found in:\n%s", out)
+
+	// The email column participates in:
+	//   - demo_email_key (UC-backing → parenthesized)
+	//   - idx_email_solo (standalone unique → bare)
+	// Both must appear; the UC-backing one must be parens-wrapped, the
+	// solo one must NOT be wrapped.
+	require.Contains(t, emailRow, "(demo_email_key)",
+		"UC-backing index name must render parens-wrapped to mark it as secondary to UNIQUE CONSTRAINTS")
+	require.Contains(t, emailRow, "idx_email_solo",
+		"standalone unique index must appear in INDEXES")
+	require.NotContains(t, emailRow, "(idx_email_solo)",
+		"standalone unique index must NOT be parens-wrapped — only UC-backing entries get that styling")
+	require.Contains(t, emailRow, "demo_email_key",
+		"the UC name itself must still appear in the UNIQUE CONSTRAINTS cell")
+}

@@ -85,3 +85,100 @@ func TestIndexes_IncludeFilter_Postgres(t *testing.T) {
 	require.Equal(t, []string{"k"}, inc.Columns,
 		"INCLUDE column 'extra' must not appear in Index.Columns")
 }
+
+// TestForeignKey_CompositeOrdering_Postgres verifies that a composite FK
+// preserves the declared column pairing across (Columns, RefColumns) —
+// a driver miscounting ordinal positions in the row scan would scramble
+// the pairing and ship a structurally invalid FK.
+func TestForeignKey_CompositeOrdering_Postgres(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+	db := th.OpenDB(src)
+
+	parent := stringz.UniqTableName("fk_comp_parent")
+	child := stringz.UniqTableName("fk_comp_child")
+	_, err := db.ExecContext(th.Context,
+		"CREATE TABLE "+parent+" (a INT, b INT, PRIMARY KEY (a, b))")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(parent)) })
+	_, err = db.ExecContext(th.Context,
+		"CREATE TABLE "+child+" (x INT, y INT, FOREIGN KEY (x, y) REFERENCES "+parent+" (a, b))")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(child)) })
+
+	md, err := th.Open(src).TableMetadata(th.Context, child)
+	require.NoError(t, err)
+	require.NotNil(t, md.FK)
+	require.Len(t, md.FK.Outgoing, 1)
+	fk := md.FK.Outgoing[0]
+	require.Equal(t, parent, fk.RefTable)
+	require.Equal(t, []string{"x", "y"}, fk.Columns)
+	require.Equal(t, []string{"a", "b"}, fk.RefColumns)
+}
+
+// TestForeignKey_OnDeleteOnUpdate_Postgres pins that the loader
+// populates OnDelete / OnUpdate from
+// information_schema.referential_constraints — sakila itself uses
+// default actions, so this exercises explicit non-default values.
+func TestForeignKey_OnDeleteOnUpdate_Postgres(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+	db := th.OpenDB(src)
+
+	parent := stringz.UniqTableName("fk_act_parent")
+	child := stringz.UniqTableName("fk_act_child")
+	_, err := db.ExecContext(th.Context,
+		"CREATE TABLE "+parent+" (id INT PRIMARY KEY)")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(parent)) })
+	_, err = db.ExecContext(th.Context,
+		"CREATE TABLE "+child+" (parent_id INT REFERENCES "+parent+
+			" (id) ON DELETE CASCADE ON UPDATE SET NULL)")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(child)) })
+
+	md, err := th.Open(src).TableMetadata(th.Context, child)
+	require.NoError(t, err)
+	require.Len(t, md.FK.Outgoing, 1)
+	fk := md.FK.Outgoing[0]
+	require.Equal(t, "CASCADE", fk.OnDelete)
+	require.Equal(t, "SET NULL", fk.OnUpdate)
+}
+
+// TestForeignKey_ReservedWordColumn_Postgres verifies that a quoted
+// reserved-word column name ("from") round-trips through the FK loader
+// unquoted in Columns / RefColumns. A loader that strips or
+// double-quotes the identifier would surface the wrong name.
+func TestForeignKey_ReservedWordColumn_Postgres(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+	db := th.OpenDB(src)
+
+	parent := stringz.UniqTableName("fk_rw_parent")
+	child := stringz.UniqTableName("fk_rw_child")
+	_, err := db.ExecContext(th.Context,
+		"CREATE TABLE "+parent+" (id INT PRIMARY KEY)")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(parent)) })
+	_, err = db.ExecContext(th.Context,
+		`CREATE TABLE `+child+` ("from" INT, FOREIGN KEY ("from") REFERENCES `+parent+` (id))`)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(child)) })
+
+	md, err := th.Open(src).TableMetadata(th.Context, child)
+	require.NoError(t, err)
+	require.Len(t, md.FK.Outgoing, 1)
+	fk := md.FK.Outgoing[0]
+	require.Equal(t, []string{"from"}, fk.Columns,
+		`quoted reserved-word column "from" must round-trip unquoted in Columns`)
+	require.Equal(t, []string{"id"}, fk.RefColumns)
+}
