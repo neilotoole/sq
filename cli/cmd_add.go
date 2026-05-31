@@ -404,7 +404,13 @@ func applyPassword(ctx context.Context, cmd *cobra.Command, ru *run.Run, loc str
 //     registry and detect the driver from the resolved URL. The resolved
 //     value is used only for inspection here; it is never persisted to
 //     YAML (loc itself is what lands as the Location).
-//   - otherwise: today's behavior — detect driver from loc directly.
+//   - otherwise: detect driver from loc directly.
+//
+// --driver and --skip-verify are orthogonal. --driver suppresses the
+// add-time inference resolve (this function's job); --skip-verify
+// suppresses the post-add ping (handled in execSrcAdd). The resolve
+// failure hint below disambiguates them — users sometimes assume
+// --skip-verify alone covers both, but it does not.
 func resolveDriverType(
 	ctx context.Context, ru *run.Run, cmd *cobra.Command,
 	handle, loc string, hasPlaceholder bool,
@@ -417,7 +423,9 @@ func resolveDriverType(
 	if hasPlaceholder {
 		resolved, err := ru.SecretRegistry.Expand(ctx, loc)
 		if err != nil {
-			return "", errz.Wrapf(err, "resolve %s (or pass --%s to skip resolution)", loc, flag.AddDriver)
+			return "", errz.Wrapf(err,
+				"resolve %s (pass --%s to skip resolution; --%s alone only skips the post-add ping)",
+				loc, flag.AddDriver, flag.SkipVerify)
 		}
 		typ, err := ru.Files.DetectType(ctx, handle, resolved)
 		if err != nil {

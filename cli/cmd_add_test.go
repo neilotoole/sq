@@ -609,18 +609,48 @@ func TestCmdAdd_Placeholder_ExplicitDriver(t *testing.T) {
 	require.Equal(t, drivertype.Pg, src.Type)
 }
 
-// TestCmdAdd_Placeholder_ResolveFails verifies that when no --driver is set
-// and the placeholder cannot be resolved, the error surfaces a clear hint.
+// TestCmdAdd_Placeholder_ResolveFails verifies that when neither --driver
+// nor --skip-verify is set and the placeholder cannot be resolved, the
+// error surfaces the disambiguated recovery hint: --driver is the actual
+// escape hatch, and --skip-verify alone is NOT sufficient (it only
+// skips the post-add ping).
 func TestCmdAdd_Placeholder_ResolveFails(t *testing.T) {
 	// Variable is deliberately unset.
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
 
 	err := tr.Exec("add", "${env:SQ_TEST_DSN_FOR_ADD_MISSING}",
-		"--handle", "@x", "--skip-verify")
+		"--handle", "@x")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "--driver",
-		"error should hint at --driver as a recovery path")
+		"error should hint at --driver as the recovery path")
+	require.Contains(t, err.Error(), "--skip-verify",
+		"error should clarify what --skip-verify does (only skips post-add ping)")
+	require.Contains(t, err.Error(), "post-add ping",
+		"error should explicitly say --skip-verify is not enough on its own")
+}
+
+// TestCmdAdd_Placeholder_SkipVerifyWithDriverWorks verifies that
+// --skip-verify combined with --driver succeeds for a placeholder
+// Location AND does NOT touch the resolver (the env var is
+// intentionally absent — if sq tried to resolve, we'd see a
+// different error mentioning the env scheme). The two flags are
+// orthogonal: --driver suppresses the inference resolve, --skip-verify
+// suppresses the post-add ping; both can be set independently.
+func TestCmdAdd_Placeholder_SkipVerifyWithDriverWorks(t *testing.T) {
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	const handle = "@skipverify_with_driver"
+	require.NoError(t, tr.Exec("add", "${env:SQ_TEST_DSN_FOR_ADD_NEVER_SET}",
+		"--handle", handle,
+		"--driver", "postgres",
+		"--skip-verify"))
+
+	src, err := tr.Run.Config.Collection.Get(handle)
+	require.NoError(t, err)
+	require.Equal(t, "${env:SQ_TEST_DSN_FOR_ADD_NEVER_SET}", src.Location)
+	require.Equal(t, drivertype.Pg, src.Type)
 }
 
 // TestCmdAdd_Placeholder_KeyringRejected verifies that --keyring and a
