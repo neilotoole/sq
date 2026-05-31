@@ -437,6 +437,91 @@ func TestCmdAdd_MutuallyExclusive(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestCmdAdd_Placeholder_AutoResolve_Env verifies that a bare placeholder
+// Location triggers add-time resolution to infer the driver. The
+// placeholder itself (not the resolved value) is what lands in YAML.
+func TestCmdAdd_Placeholder_AutoResolve_Env(t *testing.T) {
+	t.Setenv("SQ_TEST_DSN_FOR_ADD", "postgres://alice:hunter2@localhost:5432/sakila")
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	const handle = "@sakila_env"
+	err := tr.Exec("add", "${env:SQ_TEST_DSN_FOR_ADD}",
+		"--handle", handle, "--skip-verify")
+	require.NoError(t, err)
+
+	src, err := tr.Run.Config.Collection.Get(handle)
+	require.NoError(t, err)
+
+	// Location is the placeholder verbatim; the resolved DSN is not persisted.
+	require.Equal(t, "${env:SQ_TEST_DSN_FOR_ADD}", src.Location)
+	// Driver was inferred from the resolved URL's scheme.
+	require.Equal(t, drivertype.Pg, src.Type)
+}
+
+// TestCmdAdd_Placeholder_ExplicitDriver verifies that --driver short-circuits
+// add-time resolution. The Location need not even resolve at add time.
+func TestCmdAdd_Placeholder_ExplicitDriver(t *testing.T) {
+	// SQ_TEST_DSN_FOR_ADD_NONEXISTENT is deliberately unset; --driver
+	// should make sq not attempt resolution at all.
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	const handle = "@sakila_explicit"
+	err := tr.Exec("add", "${env:SQ_TEST_DSN_FOR_ADD_NONEXISTENT}",
+		"--handle", handle,
+		"--driver", "postgres",
+		"--skip-verify")
+	require.NoError(t, err)
+
+	src, err := tr.Run.Config.Collection.Get(handle)
+	require.NoError(t, err)
+	require.Equal(t, "${env:SQ_TEST_DSN_FOR_ADD_NONEXISTENT}", src.Location)
+	require.Equal(t, drivertype.Pg, src.Type)
+}
+
+// TestCmdAdd_Placeholder_ResolveFails verifies that when no --driver is set
+// and the placeholder cannot be resolved, the error surfaces a clear hint.
+func TestCmdAdd_Placeholder_ResolveFails(t *testing.T) {
+	// Variable is deliberately unset.
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	err := tr.Exec("add", "${env:SQ_TEST_DSN_FOR_ADD_MISSING}",
+		"--handle", "@x", "--skip-verify")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "--driver",
+		"error should hint at --driver as a recovery path")
+}
+
+// TestCmdAdd_Placeholder_KeyringRejected verifies that --keyring and a
+// placeholder Location are incompatible: the value already lives in an
+// external store.
+func TestCmdAdd_Placeholder_KeyringRejected(t *testing.T) {
+	t.Setenv("SQ_TEST_DSN_FOR_ADD_REJECTED", "postgres://alice:hunter2@localhost/sakila")
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	err := tr.Exec("add", "${env:SQ_TEST_DSN_FOR_ADD_REJECTED}",
+		"--handle", "@x", "--keyring", "--driver", "postgres", "--skip-verify")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "--keyring")
+}
+
+// TestCmdAdd_Placeholder_InlinePasswordRejected mirrors the keyring case for
+// the inline-password flag.
+func TestCmdAdd_Placeholder_InlinePasswordRejected(t *testing.T) {
+	t.Setenv("SQ_TEST_DSN_FOR_ADD_REJECTED2", "postgres://alice:hunter2@localhost/sakila")
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	err := tr.Exec("add", "${env:SQ_TEST_DSN_FOR_ADD_REJECTED2}",
+		"--handle", "@x", "--inline-password", "--driver", "postgres", "--skip-verify")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "--inline-password")
+}
+
 // TestCmdAdd_Keyring_PromptsWhenNoPassword verifies that when --keyring is set
 // with --password, sq reads the password from stdin and splices it into the
 // URL before storing the full DSN in keyring.

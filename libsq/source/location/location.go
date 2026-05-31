@@ -356,6 +356,13 @@ func Abs(loc string) string {
 // isFpath returns the absolute filepath and true if loc is a file path.
 func isFpath(loc string) (fpath string, ok bool) {
 	// This is not exactly an industrial-strength algorithm...
+	if strings.Contains(loc, "${") {
+		// Excludes ${scheme:path} placeholders (e.g. ${env:DSN},
+		// ${keyring:abc}). These resolve at use time and must not be
+		// filepath-ified.
+		return "", false
+	}
+
 	if strings.Contains(loc, ":/") {
 		// Excludes "http:/" etc
 		return "", false

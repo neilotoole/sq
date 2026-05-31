@@ -230,48 +230,58 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return errz.Errorf("source handle already exists: %s", handle)
 	}
 
-	if cmdFlagChanged(cmd, flag.AddDriver) {
-		val, _ := cmd.Flags().GetString(flag.AddDriver)
-		typ = drivertype.Type(strings.TrimSpace(val))
-	} else {
-		typ, err = ru.Files.DetectType(ctx, handle, loc)
-		if err != nil {
-			return err
+	// A placeholder Location (e.g. "${env:DSN}" or "${op://...}") points
+	// at an external store. sq does not own the value: --keyring (which
+	// writes) and --inline-password (which expects an inline secret) are
+	// both meaningless here. Reject early with a clear message.
+	hasPlaceholder := strings.Contains(loc, "${")
+	if hasPlaceholder {
+		if cmdFlagIsSetTrue(cmd, flag.Keyring) {
+			return errz.Errorf("--%s is not supported when the location is a ${...} placeholder", flag.Keyring)
 		}
-		if typ == drivertype.None {
-			return errz.Errorf("unable to determine driver type: use --driver flag")
+		if cmdFlagIsSetTrue(cmd, flag.InlinePassword) {
+			return errz.Errorf("--%s is not supported when the location is a ${...} placeholder", flag.InlinePassword)
 		}
+	}
+
+	if typ, err = resolveDriverType(ctx, ru, cmd, handle, loc, hasPlaceholder); err != nil {
+		return err
 	}
 
 	if ru.DriverRegistry.ProviderFor(typ) == nil {
 		return errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
-	if typ == drivertype.SQLite {
-		locBefore := loc
-		// Special handling for SQLite, because it's a file-based DB.
-		loc, err = sqlite3.MungeLocation(loc)
-		if err != nil {
-			return err
+	// File-path munging and password application only make sense for
+	// non-placeholder Locations. A placeholder is opaque to sq at this
+	// stage: nothing to munge, no inline password to relocate.
+	if !hasPlaceholder {
+		if typ == drivertype.SQLite {
+			locBefore := loc
+			// Special handling for SQLite, because it's a file-based DB.
+			loc, err = sqlite3.MungeLocation(loc)
+			if err != nil {
+				return err
+			}
+
+			lg.FromContext(ctx).Debug("Munged sqlite loc", lga.Before, locBefore, lga.After, loc)
 		}
 
-		lg.FromContext(ctx).Debug("Munged sqlite loc", lga.Before, locBefore, lga.After, loc)
-	}
+		if typ == drivertype.DuckDB {
+			locBefore := loc
+			// Special handling for DuckDB, because it's a file-based DB.
+			loc, err = duckdb.MungeLocation(loc)
+			if err != nil {
+				return err
+			}
 
-	if typ == drivertype.DuckDB {
-		locBefore := loc
-		// Special handling for DuckDB, because it's a file-based DB.
-		loc, err = duckdb.MungeLocation(loc)
-		if err != nil {
-			return err
+			lg.FromContext(ctx).Debug("Munged duckdb loc", lga.Before, locBefore, lga.After, loc)
 		}
 
-		lg.FromContext(ctx).Debug("Munged duckdb loc", lga.Before, locBefore, lga.After, loc)
-	}
-
-	// Apply password: store in keyring or inline, per flags and config.
-	if loc, err = applyPassword(ctx, cmd, ru, loc); err != nil {
-		return err
+		// Apply password: store in keyring or inline, per flags and config.
+		if loc, err = applyPassword(ctx, cmd, ru, loc); err != nil {
+			return err
+		}
 	}
 
 	o, err := getSrcOptionsFromFlags(cmd.Flags(), ru.OptionsRegistry, typ)
@@ -375,6 +385,49 @@ func applyPassword(ctx context.Context, cmd *cobra.Command, ru *run.Run, loc str
 		}
 	}
 	return loc, nil
+}
+
+// resolveDriverType determines the driver type for a `sq add` invocation.
+// Three branches, in priority order:
+//
+//   - --driver was passed: use it verbatim, no detection or resolution.
+//   - loc contains a ${...} placeholder: resolve it via the secret
+//     registry and detect the driver from the resolved URL. The resolved
+//     value is used only for inspection here; it is never persisted to
+//     YAML (loc itself is what lands as the Location).
+//   - otherwise: today's behavior — detect driver from loc directly.
+func resolveDriverType(
+	ctx context.Context, ru *run.Run, cmd *cobra.Command,
+	handle, loc string, hasPlaceholder bool,
+) (drivertype.Type, error) {
+	if cmdFlagChanged(cmd, flag.AddDriver) {
+		val, _ := cmd.Flags().GetString(flag.AddDriver)
+		return drivertype.Type(strings.TrimSpace(val)), nil
+	}
+
+	if hasPlaceholder {
+		resolved, err := ru.SecretRegistry.Expand(ctx, loc)
+		if err != nil {
+			return "", errz.Wrapf(err, "resolve %s (or pass --%s to skip resolution)", loc, flag.AddDriver)
+		}
+		typ, err := ru.Files.DetectType(ctx, handle, resolved)
+		if err != nil {
+			return "", errz.Wrapf(err, "detect driver from resolved location (or pass --%s)", flag.AddDriver)
+		}
+		if typ == drivertype.None {
+			return "", errz.Errorf("could not infer driver from resolved location: use --%s flag", flag.AddDriver)
+		}
+		return typ, nil
+	}
+
+	typ, err := ru.Files.DetectType(ctx, handle, loc)
+	if err != nil {
+		return "", err
+	}
+	if typ == drivertype.None {
+		return "", errz.Errorf("unable to determine driver type: use --%s flag", flag.AddDriver)
+	}
+	return typ, nil
 }
 
 // applyKeyring writes the resolved DSN to the OS keyring at a fresh
