@@ -437,6 +437,47 @@ func TestCmdAdd_MutuallyExclusive(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestCmdAdd_Keyring_RequiresPassword verifies that --keyring rejects an
+// invocation with no password — neither inline in the URL nor via -p.
+// Without this guard, sq would silently produce a keyring entry holding
+// an incomplete DSN; the error message tells the user exactly how to fix it.
+func TestCmdAdd_Keyring_RequiresPassword(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	err := tr.Exec("add",
+		"postgres://alice@localhost:5432/sakila", // no inline password
+		"--handle", "@needs_pw", "--keyring",
+		"--driver", "postgres", "--skip-verify")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "--keyring",
+		"error should name the offending flag")
+	require.Contains(t, err.Error(), "--password",
+		"error should point at -p / --password as the recovery path")
+}
+
+// TestCmdAdd_Keyring_RequiresURL verifies that --keyring rejects a non-URL
+// Location. File paths and similar have nothing useful to store in keyring;
+// allowing the flag would create an orphan entry with a nonsensical value.
+func TestCmdAdd_Keyring_RequiresURL(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	csv := filepath.Join(t.TempDir(), "actor.csv")
+	require.NoError(t, os.WriteFile(csv, []byte("a,b\n1,2\n"), 0o600))
+
+	err := tr.Exec("add", csv,
+		"--handle", "@not_url", "--keyring",
+		"--driver", "csv", "--skip-verify")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "--keyring",
+		"error should name the offending flag")
+	require.Contains(t, err.Error(), "URL",
+		"error should clarify a URL location is required")
+}
+
 // TestCmdAdd_Placeholder_AutoResolve_Env verifies that a bare placeholder
 // Location triggers add-time resolution to infer the driver. The
 // placeholder itself (not the resolved value) is what lands in YAML.

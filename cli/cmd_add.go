@@ -431,18 +431,32 @@ func resolveDriverType(
 }
 
 // applyKeyring writes the resolved DSN to the OS keyring at a fresh
-// opaque ID and returns "${keyring:<id>}" as the new Location. If
-// passwd is non-empty (from -p / piped stdin), it is spliced into
-// loc's userinfo, overriding any inline password, before storage.
-// If neither passwd nor loc supplies a password, applyKeyring prompts
-// interactively — preserving the "--keyring implies give-me-a-password"
-// semantic from earlier versions.
-func applyKeyring(ctx context.Context, ru *run.Run, loc string, passwd []byte) (string, error) {
+// opaque ID and returns "${keyring:<id>}" as the new Location.
+//
+// Preconditions enforced here (per the Form B contract):
+//   - loc must be a URL with scheme+host. --keyring on a file path or
+//     other non-URL loc would create an orphan keyring entry with a
+//     nonsensical stored value, so reject early.
+//   - A password must be available. Either:
+//     (a) loc already has one in its userinfo, in which case the URL is
+//     stored verbatim; or
+//     (b) passwd is non-empty (the caller has read -p / piped stdin),
+//     in which case it is spliced into loc's userinfo before storage.
+//
+// No prompting fallback. The original applyKeyringPassword used to call
+// readPassword silently when neither (a) nor (b) was true; that path
+// hung non-interactive callers and produced incomplete keyring entries
+// on /dev/null-style stdin. Require the user to opt into prompting via
+// the explicit -p flag instead.
+func applyKeyring(ctx context.Context, _ *run.Run, loc string, passwd []byte) (string, error) {
+	if !isURLLocation(loc) {
+		return loc, errz.Errorf("--%s requires a URL location (got %q)", flag.Keyring, loc)
+	}
 	if len(passwd) == 0 && !urlHasPassword(loc) {
-		var err error
-		if passwd, err = readPassword(ctx, ru.Stdin, ru.Out, ru.Writers.PrOut); err != nil {
-			return loc, err
-		}
+		return loc, errz.Errorf(
+			"--%s requires a password: embed it in the URL or pass --%s",
+			flag.Keyring, flag.PasswordPrompt,
+		)
 	}
 
 	if len(passwd) > 0 {
@@ -466,9 +480,16 @@ func applyKeyring(ctx context.Context, ru *run.Run, loc string, passwd []byte) (
 	return "${keyring:" + id + "}", nil
 }
 
+// isURLLocation reports whether loc parses as a URL with a non-empty
+// scheme and host. File paths, sqlite/Excel/CSV paths, and any other
+// non-URL Location returns false.
+func isURLLocation(loc string) bool {
+	u, err := url.Parse(loc)
+	return err == nil && u.Scheme != "" && u.Host != ""
+}
+
 // urlHasPassword reports whether loc parses as a URL with a non-empty
-// password in its userinfo component. Non-URL locs (file paths,
-// sqlite/Excel files, etc.) return false.
+// password in its userinfo component. Non-URL locs return false.
 func urlHasPassword(loc string) bool {
 	u, err := url.Parse(loc)
 	if err != nil || u.Scheme == "" || u.Host == "" || u.User == nil {
