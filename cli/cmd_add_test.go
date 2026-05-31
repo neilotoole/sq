@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -18,6 +19,20 @@ import (
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
 )
+
+// keyringPlaceholderRE matches a Location set by --keyring: exactly
+// "${keyring:<id>}" where <id> is 10 chars from the Crockford alphabet
+// (excludes i, l, o, u).
+var keyringPlaceholderRE = regexp.MustCompile(`^\$\{keyring:([0-9a-hjkmnp-tv-z]{10})\}$`)
+
+// extractKeyringID returns the opaque ID from a "${keyring:<id>}" Location.
+// Fails the test if loc is not in the expected form.
+func extractKeyringID(t *testing.T, loc string) string {
+	t.Helper()
+	m := keyringPlaceholderRE.FindStringSubmatch(loc)
+	require.Len(t, m, 2, "Location %q is not a bare ${keyring:<id>} placeholder", loc)
+	return m[1]
+}
 
 func TestCmdAdd(t *testing.T) {
 	type query struct {
@@ -329,8 +344,9 @@ func TestCmdAdd_Active(t *testing.T) {
 	require.Equal(t, h4, m["handle"], "active source now be %s", h4)
 }
 
-// TestCmdAdd_Keyring verifies that --keyring stores the password in the OS
-// keyring mock and writes a ${keyring:...} placeholder into the source location.
+// TestCmdAdd_Keyring verifies that --keyring stores the full DSN in the
+// OS keyring at a fresh opaque ID and writes a bare ${keyring:<id>}
+// placeholder into the source Location.
 func TestCmdAdd_Keyring(t *testing.T) {
 	gokeyring.MockInit()
 
@@ -339,21 +355,26 @@ func TestCmdAdd_Keyring(t *testing.T) {
 
 	const handle = "@sakila_kr"
 	const password = "hunter2"
+	const dsn = "postgres://alice:" + password + "@localhost:5432/sakila"
 
-	err := tr.Exec("add",
-		"postgres://alice:"+password+"@localhost:5432/sakila",
+	err := tr.Exec("add", dsn,
 		"--handle", handle, "--keyring",
 		"--driver", "postgres", "--skip-verify")
 	require.NoError(t, err)
 
 	src, err := tr.Run.Config.Collection.Get(handle)
 	require.NoError(t, err)
-	require.Contains(t, src.Location, "${keyring:"+handle+"/password}")
-	require.NotContains(t, src.Location, password)
 
-	got, err := gokeyring.Get("sq", handle+"/password")
+	// Location is a bare placeholder; no part of the URL leaks into YAML.
+	id := extractKeyringID(t, src.Location)
+	require.NotContains(t, src.Location, password)
+	require.NotContains(t, src.Location, "alice")
+	require.NotContains(t, src.Location, "localhost")
+
+	// Keyring holds the entire DSN, not just the password.
+	got, err := gokeyring.Get("sq", id)
 	require.NoError(t, err)
-	require.Equal(t, password, got)
+	require.Equal(t, dsn, got)
 }
 
 // TestCmdAdd_InlinePassword_OverridesDefault verifies that --inline-password
@@ -380,7 +401,7 @@ func TestCmdAdd_InlinePassword_OverridesDefault(t *testing.T) {
 
 // TestCmdAdd_DefaultKeyring_FromConfig verifies that when secrets.default is
 // "keyring" and neither --keyring nor --inline-password is passed, the keyring
-// path is taken.
+// path is taken — full DSN in keyring, bare placeholder in Location.
 func TestCmdAdd_DefaultKeyring_FromConfig(t *testing.T) {
 	gokeyring.MockInit()
 
@@ -389,15 +410,19 @@ func TestCmdAdd_DefaultKeyring_FromConfig(t *testing.T) {
 	tr.Run.Config.Options["secrets.default"] = "keyring"
 
 	const handle = "@sakila_default_kr"
-	err := tr.Exec("add",
-		"postgres://alice:hunter2@localhost:5432/sakila",
+	const dsn = "postgres://alice:hunter2@localhost:5432/sakila"
+	err := tr.Exec("add", dsn,
 		"--handle", handle,
 		"--driver", "postgres", "--skip-verify")
 	require.NoError(t, err)
 
 	src, err := tr.Run.Config.Collection.Get(handle)
 	require.NoError(t, err)
-	require.Contains(t, src.Location, "${keyring:"+handle+"/password}")
+	id := extractKeyringID(t, src.Location)
+
+	got, err := gokeyring.Get("sq", id)
+	require.NoError(t, err)
+	require.Equal(t, dsn, got)
 }
 
 // TestCmdAdd_MutuallyExclusive verifies that --keyring and --inline-password
@@ -413,7 +438,8 @@ func TestCmdAdd_MutuallyExclusive(t *testing.T) {
 }
 
 // TestCmdAdd_Keyring_PromptsWhenNoPassword verifies that when --keyring is set
-// but the URL has no inline password, sq reads the password from stdin (-p flag).
+// with --password, sq reads the password from stdin and splices it into the
+// URL before storing the full DSN in keyring.
 func TestCmdAdd_Keyring_PromptsWhenNoPassword(t *testing.T) {
 	gokeyring.MockInit()
 
@@ -438,9 +464,11 @@ func TestCmdAdd_Keyring_PromptsWhenNoPassword(t *testing.T) {
 
 	src, err := tr.Run.Config.Collection.Get(handle)
 	require.NoError(t, err)
-	require.Contains(t, src.Location, "${keyring:"+handle+"/password}")
+	id := extractKeyringID(t, src.Location)
 
-	got, err := gokeyring.Get("sq", handle+"/password")
+	// The piped password was spliced into the URL; the keyring entry
+	// holds the full DSN with the password in userinfo.
+	got, err := gokeyring.Get("sq", id)
 	require.NoError(t, err)
-	require.Equal(t, "piped-password", got)
+	require.Equal(t, "postgres://alice:piped-password@localhost:5432/sakila", got)
 }

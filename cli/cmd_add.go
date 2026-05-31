@@ -270,7 +270,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	// Apply password: store in keyring or inline, per flags and config.
-	if loc, err = applyPassword(ctx, cmd, ru, handle, loc); err != nil {
+	if loc, err = applyPassword(ctx, cmd, ru, loc); err != nil {
 		return err
 	}
 
@@ -343,7 +343,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 // password field with a ${keyring:...} placeholder) or splices it inline into
 // loc. The storage mode is determined by --keyring / --inline-password flags,
 // falling back to the secrets.default config option.
-func applyPassword(ctx context.Context, cmd *cobra.Command, ru *run.Run, handle, loc string) (string, error) {
+func applyPassword(ctx context.Context, cmd *cobra.Command, ru *run.Run, loc string) (string, error) {
 	opts := options.FromContext(ctx)
 	var useKeyring bool
 	switch {
@@ -365,7 +365,7 @@ func applyPassword(ctx context.Context, cmd *cobra.Command, ru *run.Run, handle,
 	}
 
 	if useKeyring {
-		return applyKeyringPassword(ctx, ru, handle, loc, passwd)
+		return applyKeyring(ctx, ru, loc, passwd)
 	}
 
 	if len(passwd) > 0 {
@@ -377,56 +377,52 @@ func applyPassword(ctx context.Context, cmd *cobra.Command, ru *run.Run, handle,
 	return loc, nil
 }
 
-// applyKeyringPassword extracts the password from the URL (if present) or
-// prompts the user, writes it to the OS keyring, and returns loc with a
-// ${keyring:...} placeholder substituted for the password field.
-func applyKeyringPassword(ctx context.Context, ru *run.Run, handle, loc string, passwd []byte) (string, error) {
-	// Extract any inline password from the URL; -p takes precedence.
-	urlPW, locNoPW, hasURLPW := decomposeURLPassword(loc)
-	if hasURLPW {
-		loc = locNoPW
-		if len(passwd) == 0 {
-			passwd = []byte(urlPW)
-		}
-	}
-
-	// If still no password, prompt the user.
-	var err error
-	if len(passwd) == 0 {
+// applyKeyring writes the resolved DSN to the OS keyring at a fresh
+// opaque ID and returns "${keyring:<id>}" as the new Location. If
+// passwd is non-empty (from -p / piped stdin), it is spliced into
+// loc's userinfo, overriding any inline password, before storage.
+// If neither passwd nor loc supplies a password, applyKeyring prompts
+// interactively — preserving the "--keyring implies give-me-a-password"
+// semantic from earlier versions.
+func applyKeyring(ctx context.Context, ru *run.Run, loc string, passwd []byte) (string, error) {
+	if len(passwd) == 0 && !urlHasPassword(loc) {
+		var err error
 		if passwd, err = readPassword(ctx, ru.Stdin, ru.Out, ru.Writers.PrOut); err != nil {
 			return loc, err
 		}
 	}
 
-	placeholder := fmt.Sprintf("${keyring:%s/password}", handle)
-	if loc, err = location.WithPasswordPlaceholder(loc, placeholder); err != nil {
-		return loc, err
+	if len(passwd) > 0 {
+		spliced, err := location.WithPassword(loc, string(passwd))
+		if err != nil {
+			return loc, err
+		}
+		loc = spliced
 	}
 
-	if err = keyring.New().Set(ctx, handle+"/password", string(passwd)); err != nil {
-		return loc, errz.Wrap(err, "write password to keyring")
+	kr := keyring.New()
+	id, err := kr.NewID(ctx)
+	if err != nil {
+		return loc, errz.Wrap(err, "mint keyring id")
 	}
-	return loc, nil
+
+	if err = kr.Set(ctx, id, loc); err != nil {
+		return loc, errz.Wrap(err, "write to keyring")
+	}
+
+	return "${keyring:" + id + "}", nil
 }
 
-// decomposeURLPassword splits loc into its URL-decoded password and a
-// version of loc with the password removed. hasPW is true only when loc
-// is a URL with userinfo that includes a password. For non-URL locs
-// (file paths) or URLs without a password, returns "", loc, false.
-func decomposeURLPassword(loc string) (password, locWithoutPW string, hasPW bool) {
-	u, parseErr := url.Parse(loc)
-	if parseErr != nil || u.Scheme == "" || u.Host == "" {
-		return "", loc, false
+// urlHasPassword reports whether loc parses as a URL with a non-empty
+// password in its userinfo component. Non-URL locs (file paths,
+// sqlite/Excel files, etc.) return false.
+func urlHasPassword(loc string) bool {
+	u, err := url.Parse(loc)
+	if err != nil || u.Scheme == "" || u.Host == "" || u.User == nil {
+		return false
 	}
-	if u.User == nil {
-		return "", loc, false
-	}
-	pw, has := u.User.Password()
-	if !has {
-		return "", loc, false
-	}
-	u.User = url.User(u.User.Username())
-	return pw, u.String(), true
+	_, has := u.User.Password()
+	return has
 }
 
 // readPassword reads a password from stdin pipe, or if nothing on stdin,
