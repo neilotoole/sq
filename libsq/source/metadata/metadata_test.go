@@ -856,11 +856,12 @@ func TestLinkForeignKeys(t *testing.T) {
 		// The existing "idempotent" subcase calls LinkForeignKeys twice
 		// and verifies the legitimate Incoming entry isn't duplicated.
 		// This subcase goes further: it injects a bogus FK pointer
-		// directly into an Incoming slice between calls and verifies
-		// the next LinkForeignKeys pass purges it. That pins the
-		// pre-clear step at metadata.go:LinkForeignKeys (Incoming = nil
-		// for every table before re-deriving) — a regression that only
-		// appends would leave the bogus pointer in place forever.
+		// directly into an Incoming slice between the two calls and
+		// verifies the second LinkForeignKeys pass purges it. That
+		// pins the pre-clear step in [metadata.LinkForeignKeys]
+		// (FK.Incoming is set to nil on every FK-bearing table before
+		// re-deriving) — a regression that only appended would leave
+		// the bogus pointer in place forever.
 		fk := &metadata.ForeignKey{
 			Table:      "child",
 			Columns:    []string{"parent_id"},
@@ -898,7 +899,7 @@ func TestLinkForeignKeys(t *testing.T) {
 
 		metadata.LinkForeignKeys(nil, src)
 		require.Len(t, parent.FK.Incoming, 1,
-			"a third LinkForeignKeys must drop the injected bogus pointer")
+			"the second LinkForeignKeys must drop the injected bogus pointer")
 		require.Same(t, fk, parent.FK.Incoming[0],
 			"the legitimate Incoming entry must survive the clear-and-rederive cycle")
 	})

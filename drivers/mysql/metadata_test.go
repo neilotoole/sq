@@ -160,9 +160,13 @@ func TestIndexes_ExpressionArity_MySQL(t *testing.T) {
 
 // TestForeignKey_CompositeOrdering_MySQL verifies that a composite FK
 // preserves the declared column pairing across (Columns, RefColumns).
-// Loops every supported MySQL version so a driver-version regression
-// in the INFORMATION_SCHEMA KEY_COLUMN_USAGE / REFERENTIAL_CONSTRAINTS
-// join surfaces here.
+// The parent PK uses (b, a) descending while the child FK uses
+// (x, y) ascending so any loader bug that sorts either side
+// independently — or pairs by name rather than by position — is
+// caught (an alphabetic-on-both-sides fixture would let such a bug
+// slip past). Looped across MyAll() because INFORMATION_SCHEMA
+// column casing has historically differed between MySQL 5.6/5.7 and
+// 8.0 — a real regression vector for this loader.
 func TestForeignKey_CompositeOrdering_MySQL(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
@@ -178,11 +182,12 @@ func TestForeignKey_CompositeOrdering_MySQL(t *testing.T) {
 			parent := stringz.UniqTableName("fk_comp_parent")
 			child := stringz.UniqTableName("fk_comp_child")
 			_, err := db.ExecContext(th.Context,
-				"CREATE TABLE "+parent+" (a INT, b INT, PRIMARY KEY (a, b))")
+				"CREATE TABLE "+parent+" (a INT, b INT, PRIMARY KEY (b, a)) ENGINE=InnoDB")
 			require.NoError(t, err)
 			t.Cleanup(func() { th.DropTable(src, tablefq.From(parent)) })
 			_, err = db.ExecContext(th.Context,
-				"CREATE TABLE "+child+" (x INT, y INT, FOREIGN KEY (x, y) REFERENCES "+parent+" (a, b))")
+				"CREATE TABLE "+child+" (x INT, y INT, FOREIGN KEY (x, y) REFERENCES "+parent+
+					" (b, a)) ENGINE=InnoDB")
 			require.NoError(t, err)
 			t.Cleanup(func() { th.DropTable(src, tablefq.From(child)) })
 
@@ -193,7 +198,7 @@ func TestForeignKey_CompositeOrdering_MySQL(t *testing.T) {
 			fk := md.FK.Outgoing[0]
 			require.Equal(t, parent, fk.RefTable)
 			require.Equal(t, []string{"x", "y"}, fk.Columns)
-			require.Equal(t, []string{"a", "b"}, fk.RefColumns)
+			require.Equal(t, []string{"b", "a"}, fk.RefColumns)
 		})
 	}
 }
@@ -201,8 +206,11 @@ func TestForeignKey_CompositeOrdering_MySQL(t *testing.T) {
 // TestForeignKey_OnDeleteOnUpdate_MySQL pins that the loader populates
 // OnDelete / OnUpdate from INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
 // with the explicit non-default actions ("CASCADE" / "SET NULL").
-// Looped across MyAll because the column casing and storage-engine
-// differences between MySQL versions are a plausible regression vector.
+// Looped across MyAll() — MySQL only enforces FKs under InnoDB (the
+// DDL pins ENGINE=InnoDB explicitly) and the REFERENTIAL_CONSTRAINTS
+// view's column casing has shifted between 5.6/5.7 and 8.0, so a
+// per-version regression in the loader's column-name unmarshaling
+// would surface here.
 func TestForeignKey_OnDeleteOnUpdate_MySQL(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()

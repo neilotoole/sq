@@ -29,7 +29,10 @@ func upperAll(ss []string) []string {
 // preserves the declared column pairing across (Columns, RefColumns).
 // Oracle's FK loader (all_cons_columns joined via constraint_name +
 // position) is the only common-driver loader where a missing ORDER BY
-// would non-deterministically scramble composite FKs.
+// would non-deterministically scramble composite FKs. The parent PK
+// uses (b, a) descending while the child FK uses (x, y) ascending so
+// any loader bug that sorts either side independently — or pairs by
+// name rather than by position — is caught.
 func TestForeignKey_CompositeOrdering_Oracle(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
@@ -44,12 +47,12 @@ func TestForeignKey_CompositeOrdering_Oracle(t *testing.T) {
 	parent := stringz.UniqTableName("fk_comp_parent")
 	child := stringz.UniqTableName("fk_comp_child")
 	_, err := db.ExecContext(th.Context,
-		"CREATE TABLE "+parent+" (a NUMBER NOT NULL, b NUMBER NOT NULL, PRIMARY KEY (a, b))")
+		"CREATE TABLE "+parent+" (a NUMBER NOT NULL, b NUMBER NOT NULL, PRIMARY KEY (b, a))")
 	require.NoError(t, err)
 	t.Cleanup(func() { th.DropTable(src, tablefq.From(parent)) })
 	_, err = db.ExecContext(th.Context,
 		"CREATE TABLE "+child+" (x NUMBER NOT NULL, y NUMBER NOT NULL, "+
-			"FOREIGN KEY (x, y) REFERENCES "+parent+" (a, b))")
+			"FOREIGN KEY (x, y) REFERENCES "+parent+" (b, a))")
 	require.NoError(t, err)
 	t.Cleanup(func() { th.DropTable(src, tablefq.From(child)) })
 
@@ -62,7 +65,7 @@ func TestForeignKey_CompositeOrdering_Oracle(t *testing.T) {
 	fk := md.FK.Outgoing[0]
 	require.Equal(t, strings.ToUpper(parent), fk.RefTable)
 	require.Equal(t, upperAll([]string{"x", "y"}), fk.Columns)
-	require.Equal(t, upperAll([]string{"a", "b"}), fk.RefColumns)
+	require.Equal(t, upperAll([]string{"b", "a"}), fk.RefColumns)
 }
 
 // TestForeignKey_OnDelete_Oracle pins that the loader populates

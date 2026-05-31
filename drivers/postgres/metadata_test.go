@@ -90,6 +90,14 @@ func TestIndexes_IncludeFilter_Postgres(t *testing.T) {
 // preserves the declared column pairing across (Columns, RefColumns) —
 // a driver miscounting ordinal positions in the row scan would scramble
 // the pairing and ship a structurally invalid FK.
+//
+// The parent PK is declared (b, a) — alphabetically descending — while
+// the child FK is declared (x, y) — alphabetically ascending. This
+// asymmetry means a loader that pairs by position correctly produces
+// Columns=[x,y] / RefColumns=[b,a], but any loader bug that sorts
+// either side independently (or that pairs by name rather than by
+// position) yields a deterministically wrong result that this test
+// catches.
 func TestForeignKey_CompositeOrdering_Postgres(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
@@ -101,11 +109,11 @@ func TestForeignKey_CompositeOrdering_Postgres(t *testing.T) {
 	parent := stringz.UniqTableName("fk_comp_parent")
 	child := stringz.UniqTableName("fk_comp_child")
 	_, err := db.ExecContext(th.Context,
-		"CREATE TABLE "+parent+" (a INT, b INT, PRIMARY KEY (a, b))")
+		"CREATE TABLE "+parent+" (a INT, b INT, PRIMARY KEY (b, a))")
 	require.NoError(t, err)
 	t.Cleanup(func() { th.DropTable(src, tablefq.From(parent)) })
 	_, err = db.ExecContext(th.Context,
-		"CREATE TABLE "+child+" (x INT, y INT, FOREIGN KEY (x, y) REFERENCES "+parent+" (a, b))")
+		"CREATE TABLE "+child+" (x INT, y INT, FOREIGN KEY (x, y) REFERENCES "+parent+" (b, a))")
 	require.NoError(t, err)
 	t.Cleanup(func() { th.DropTable(src, tablefq.From(child)) })
 
@@ -116,7 +124,7 @@ func TestForeignKey_CompositeOrdering_Postgres(t *testing.T) {
 	fk := md.FK.Outgoing[0]
 	require.Equal(t, parent, fk.RefTable)
 	require.Equal(t, []string{"x", "y"}, fk.Columns)
-	require.Equal(t, []string{"a", "b"}, fk.RefColumns)
+	require.Equal(t, []string{"b", "a"}, fk.RefColumns)
 }
 
 // TestForeignKey_OnDeleteOnUpdate_Postgres pins that the loader

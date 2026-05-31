@@ -16,7 +16,10 @@ import (
 // FK preserves the declared column pairing across (Columns, RefColumns).
 // SQL Server's FK loader uses sys.foreign_key_columns ordered by
 // constraint_column_id; a regression in that ORDER BY would scramble
-// composite pairings.
+// composite pairings. The parent PK uses (b, a) descending while the
+// child FK uses (x, y) ascending so any loader bug that sorts either
+// side independently — or pairs by name rather than by position — is
+// caught.
 func TestForeignKey_CompositeOrdering_SQLServer(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
@@ -32,12 +35,12 @@ func TestForeignKey_CompositeOrdering_SQLServer(t *testing.T) {
 			parent := stringz.UniqTableName("fk_comp_parent")
 			child := stringz.UniqTableName("fk_comp_child")
 			_, err := db.ExecContext(th.Context,
-				"CREATE TABLE "+parent+" (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a, b))")
+				"CREATE TABLE "+parent+" (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (b, a))")
 			require.NoError(t, err)
 			t.Cleanup(func() { th.DropTable(src, tablefq.From(parent)) })
 			_, err = db.ExecContext(th.Context,
 				"CREATE TABLE "+child+" (x INT NOT NULL, y INT NOT NULL, "+
-					"FOREIGN KEY (x, y) REFERENCES "+parent+" (a, b))")
+					"FOREIGN KEY (x, y) REFERENCES "+parent+" (b, a))")
 			require.NoError(t, err)
 			t.Cleanup(func() { th.DropTable(src, tablefq.From(child)) })
 
@@ -48,7 +51,7 @@ func TestForeignKey_CompositeOrdering_SQLServer(t *testing.T) {
 			fk := md.FK.Outgoing[0]
 			require.Equal(t, parent, fk.RefTable)
 			require.Equal(t, []string{"x", "y"}, fk.Columns)
-			require.Equal(t, []string{"a", "b"}, fk.RefColumns)
+			require.Equal(t, []string{"b", "a"}, fk.RefColumns)
 		})
 	}
 }
@@ -90,7 +93,7 @@ func TestForeignKey_OnDeleteOnUpdate_SQLServer(t *testing.T) {
 			fk := md.FK.Outgoing[0]
 			require.Equal(t, "CASCADE", fk.OnDelete)
 			require.Equal(t, "SET NULL", fk.OnUpdate,
-				"REPLACE(update_referential_action_desc, '_', ' ') must rewrite SET_NULL to SET NULL")
+				"loader must normalize SET_NULL → SET NULL to match the other drivers")
 		})
 	}
 }
@@ -100,11 +103,10 @@ func TestForeignKey_OnDeleteOnUpdate_SQLServer(t *testing.T) {
 // constraint is implicitly in the current catalog) and RefSchema is
 // cleared by the loader's NULLIF when it matches the parent schema.
 // SQL Server itself does not support declared cross-database FK
-// constraints (only triggers/synonyms can fake them), so the issue
-// #616 P3 row reframes here as "pin the same-catalog shape and
-// document the cross-catalog gap". A future loader change that
-// surfaces cross-DB synonym refs should add a sibling test populating
-// RefCatalog explicitly.
+// constraints (only triggers/synonyms can fake them), so issue #616's
+// original cross-catalog assertion reframes here as a same-catalog
+// shape pin. A future loader change that surfaces cross-DB synonym
+// refs should add a sibling test populating RefCatalog explicitly.
 func TestForeignKey_SameCatalog_SQLServer(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
