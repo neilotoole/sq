@@ -32,15 +32,16 @@ var (
 //	@group/handle
 //	@group/sub/sub2/handle
 //
+// On failure, the returned error names the specific reason (missing
+// '@', illegal character, empty segment, etc.) rather than just
+// repeating the input.
+//
 // See also: IsValidHandle.
 func ValidHandle(handle string) error {
-	const msg = `invalid source handle: %s`
-	matches := handlePattern.MatchString(handle)
-	if !matches {
-		return errz.Errorf(msg, handle)
+	if handlePattern.MatchString(handle) {
+		return nil
 	}
-
-	return nil
+	return diagnoseInvalidRef(handle, true /* wantAt */)
 }
 
 // IsValidHandle returns false if handle is not a valid handle.
@@ -82,12 +83,79 @@ func IsValidGroup(group string) bool {
 }
 
 // ValidGroup returns an error if group is not a valid group name.
+// On failure, the returned error names the specific reason
+// (stray '@', illegal character, empty segment, etc.).
 func ValidGroup(group string) error {
-	if !IsValidGroup(group) {
-		return errz.Errorf("invalid group: %s", group)
+	if IsValidGroup(group) {
+		return nil
+	}
+	return diagnoseInvalidRef(group, false /* wantAt */)
+}
+
+// diagnoseInvalidRef returns a specific, human-readable error
+// describing why s is not a valid source handle (wantAt=true) or
+// group (wantAt=false). Callers should only invoke this when
+// validation has already failed; the function does not re-check the
+// canonical regex and assumes some failure mode is present. The
+// generic "invalid handle/group" fallback at the end exists only
+// for forward-compatibility — every currently-known failure mode is
+// caught explicitly above it.
+func diagnoseInvalidRef(s string, wantAt bool) error {
+	kind := "group"
+	if wantAt {
+		kind = "handle"
 	}
 
-	return nil
+	if s == "" {
+		return errz.Errorf("invalid %s: empty", kind)
+	}
+	if strings.TrimSpace(s) == "" {
+		return errz.Errorf("invalid %s %q: whitespace only", kind, s)
+	}
+
+	body := s
+	switch {
+	case wantAt && !strings.HasPrefix(s, "@"):
+		return errz.Errorf("invalid handle %q: must start with '@'", s)
+	case wantAt:
+		body = s[1:]
+		if body == "" {
+			return errz.Errorf("invalid handle %q: no name after '@'", s)
+		}
+	case strings.HasPrefix(s, "@"):
+		return errz.Errorf("invalid group %q: leading '@' is reserved for handles "+
+			"(drop the '@' to use as a group, or move to handle form)", s)
+	}
+
+	for seg := range strings.SplitSeq(body, "/") {
+		switch {
+		case seg == "":
+			return errz.Errorf("invalid %s %q: contains an empty segment "+
+				"(check for consecutive or trailing '/')", kind, s)
+		case !isASCIILetter(seg[0]):
+			return errz.Errorf("invalid %s %q: segment %q must start with a letter, got %q",
+				kind, s, seg, string(seg[0]))
+		}
+		for i := 1; i < len(seg); i++ {
+			if c := seg[i]; !isASCIIAlnumOrUnderscore(c) {
+				return errz.Errorf("invalid %s %q: segment %q contains illegal character %q "+
+					"(only letters, digits, and underscore are allowed)",
+					kind, s, seg, string(c))
+			}
+		}
+	}
+
+	// Fallback: handlePattern rejected s but no enumerated mode caught
+	// it. Shouldn't reach here in practice; preserve the old message.
+	return errz.Errorf("invalid %s: %s", kind, s)
+}
+
+func isASCIILetter(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
+}
+
+func isASCIIAlnumOrUnderscore(b byte) bool {
+	return isASCIILetter(b) || (b >= '0' && b <= '9') || b == '_'
 }
 
 // handleTypeAliases is a map of type names to the

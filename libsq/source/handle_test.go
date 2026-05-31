@@ -81,6 +81,60 @@ func TestValidHandle(t *testing.T) {
 	}
 }
 
+// TestValidHandle_ErrorMessages pins the specific diagnostic text
+// for each invalid-handle category. The error needs to name the
+// offending part so users can self-correct; "invalid handle: <s>"
+// alone is not enough.
+func TestValidHandle_ErrorMessages(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want string // substring that must appear in the error
+	}{
+		{in: "", want: "empty"},
+		{in: "  ", want: "whitespace"},
+		{in: "handle", want: "must start with '@'"},
+		{in: "@", want: "no name after '@'"},
+		{in: "@1handle", want: `must start with a letter`},
+		{in: "@_handle", want: `must start with a letter`},
+		{in: "@sakila/1bad", want: `segment "1bad" must start with a letter`},
+		{in: "@sakila/local/pg-keyring1", want: `illegal character "-"`},
+		{in: "@sakila/local/pg-keyring1", want: `letters, digits, and underscore`},
+		{in: "@sakila/", want: "empty segment"},
+		{in: "@sakila//x", want: "empty segment"},
+		{in: "@sakila/x.y", want: `illegal character "."`},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.in+" => "+tc.want, func(t *testing.T) {
+			err := source.ValidHandle(tc.in)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tc.want,
+				"diagnostic should explain why %q is invalid", tc.in)
+		})
+	}
+}
+
+// TestValidGroup_ErrorMessages mirrors TestValidHandle_ErrorMessages
+// for groups: the leading '@' is rejected, illegal chars and empty
+// segments still surface their specifics.
+func TestValidGroup_ErrorMessages(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want string
+	}{
+		{in: "@prod", want: "leading '@' is reserved for handles"},
+		{in: "prod-x", want: `illegal character "-"`},
+		{in: "prod//x", want: "empty segment"},
+		{in: "1prod", want: "must start with a letter"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.in+" => "+tc.want, func(t *testing.T) {
+			err := source.ValidGroup(tc.in)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tc.want)
+		})
+	}
+}
+
 func TestSuggestHandle(t *testing.T) {
 	testCases := []struct {
 		typ   drivertype.Type
