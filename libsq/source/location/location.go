@@ -81,7 +81,15 @@ func WithPassword(loc, passw string) (string, error) {
 
 // Short returns a short location string. For example, the
 // base name (data.xlsx) for a file, or for a DSN, user@host[:port]/db.
+//
+// Locations that start with a ${scheme:path} placeholder are returned
+// verbatim — they aren't filesystem paths or URLs and must not be run
+// through filepath.Base/dburl.Parse (which would, for example, slice
+// ${file:/abs/path/pg.dsn} down to "pg.dsn}").
 func Short(loc string) string {
+	if strings.HasPrefix(loc, "${") {
+		return loc
+	}
 	if !IsSQL(loc) {
 		// NOT a SQL location, must be a document (local filepath or URL).
 

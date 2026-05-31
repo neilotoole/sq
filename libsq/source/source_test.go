@@ -670,6 +670,34 @@ func TestSource_ShortLocation(t *testing.T) {
 		got := src.ShortLocation()
 		require.Equal(t, "data.xlsx", got)
 	})
+
+	// Placeholder Locations must NOT be filepath-shortened: ${file:...}
+	// looks like a path with trailing '}' to filepath.Base and produces
+	// nonsense like "pg.dsn}". Bare-placeholder Locations are returned
+	// verbatim — they're already as short as they meaningfully get.
+	t.Run("placeholder_file_scheme", func(t *testing.T) {
+		const loc = "${file:/Users/me/work/pg.dsn}"
+		src := &source.Source{Location: loc}
+		require.Equal(t, loc, src.ShortLocation(),
+			"file: placeholder must not be sliced by filepath.Base")
+	})
+	t.Run("placeholder_keyring_scheme", func(t *testing.T) {
+		const loc = "${keyring:j2k7m3pxtz}"
+		src := &source.Source{Location: loc}
+		require.Equal(t, loc, src.ShortLocation())
+	})
+	t.Run("placeholder_keyring_with_slash_in_body", func(t *testing.T) {
+		// Hand-managed legacy form: ${keyring:@handle/password}.
+		// The '/' in the body must not trip filepath.Base.
+		const loc = "${keyring:@sakila/password}"
+		src := &source.Source{Location: loc}
+		require.Equal(t, loc, src.ShortLocation())
+	})
+	t.Run("placeholder_env_scheme", func(t *testing.T) {
+		const loc = "${env:SAKILA_DSN}"
+		src := &source.Source{Location: loc}
+		require.Equal(t, loc, src.ShortLocation())
+	})
 }
 
 func TestSource_Group(t *testing.T) {
