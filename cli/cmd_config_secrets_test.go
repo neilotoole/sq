@@ -197,39 +197,33 @@ func TestCmdConfigSecretsMigrate_PerCase(t *testing.T) {
 	tests := []struct {
 		name           string
 		inLocation     string
-		wantLocation   string
-		wantKeyring    string // empty => no keyring write expected
-		wantSkipReason string // substring expected in stdout for skipped sources
+		wantKeyring    string // when non-empty: migration succeeds; keyring at the minted id should hold this value (the full DSN verbatim)
+		wantSkipReason string // when non-empty: migration skips; substring expected in stdout
 	}{
 		{
-			name:         "url with password",
-			inLocation:   "postgres://alice:hunter2@db/sakila",
-			wantLocation: "postgres://alice:${keyring:@h/password}@db/sakila",
-			wantKeyring:  "hunter2",
+			name:        "url with password",
+			inLocation:  "postgres://alice:hunter2@db/sakila",
+			wantKeyring: "postgres://alice:hunter2@db/sakila",
 		},
 		{
 			name:           "url without password",
 			inLocation:     "postgres://alice@db/sakila",
-			wantLocation:   "postgres://alice@db/sakila",
 			wantSkipReason: "no password",
 		},
 		{
 			name:           "non-url",
 			inLocation:     "/data/file.xlsx",
-			wantLocation:   "/data/file.xlsx",
 			wantSkipReason: "not a URL",
 		},
 		{
 			name:           "already templated",
 			inLocation:     "postgres://alice:${keyring:@h/password}@db/sakila",
-			wantLocation:   "postgres://alice:${keyring:@h/password}@db/sakila",
 			wantSkipReason: "already",
 		},
 		{
-			name:         "url-encoded password is decoded into keyring",
-			inLocation:   "postgres://alice:p%40ss%3Aword@db/sakila",
-			wantLocation: "postgres://alice:${keyring:@h/password}@db/sakila",
-			wantKeyring:  "p@ss:word",
+			name:        "url-encoded password preserved verbatim",
+			inLocation:  "postgres://alice:p%40ss%3Aword@db/sakila",
+			wantKeyring: "postgres://alice:p%40ss%3Aword@db/sakila",
 		},
 	}
 	for _, tc := range tests {
@@ -247,20 +241,20 @@ func TestCmdConfigSecretsMigrate_PerCase(t *testing.T) {
 
 			src, err := tr.Run.Config.Collection.Get("@h")
 			require.NoError(t, err)
-			require.Equal(t, tc.wantLocation, src.Location)
-
-			if tc.wantKeyring != "" {
-				got, err := gokeyring.Get("sq", "@h/password")
-				require.NoError(t, err)
-				require.Equal(t, tc.wantKeyring, got)
-			} else {
-				_, err := gokeyring.Get("sq", "@h/password")
-				require.ErrorIs(t, err, gokeyring.ErrNotFound)
-			}
 
 			if tc.wantSkipReason != "" {
+				// Skipped: Location unchanged from input; no keyring entry written.
+				require.Equal(t, tc.inLocation, src.Location)
 				require.Contains(t, tr.Out.String(), tc.wantSkipReason)
+				return
 			}
+
+			// Success: Location is a bare ${keyring:<crockford-id>}; keyring at that
+			// id holds the entire input DSN verbatim (no URL-decoding, no surgery).
+			id := extractKeyringID(t, src.Location)
+			got, err := gokeyring.Get("sq", id)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantKeyring, got)
 		})
 	}
 }
@@ -280,12 +274,10 @@ func TestCmdConfigSecretsMigrate_DryRun(t *testing.T) {
 	// Source unchanged.
 	src, _ := tr.Run.Config.Collection.Get("@h_dr")
 	require.Equal(t, "postgres://alice:hunter2@db/sakila", src.Location)
-	// Keyring unchanged.
-	_, err := gokeyring.Get("sq", "@h_dr/password")
-	require.ErrorIs(t, err, gokeyring.ErrNotFound)
-	// Output describes the planned change.
+	// Dry-run mints no IDs and writes nothing to the keyring; the planned
+	// output uses the literal "<new-id>" stand-in.
 	require.Contains(t, tr.Out.String(), "@h_dr")
-	require.Contains(t, tr.Out.String(), "${keyring:@h_dr/password}")
+	require.Contains(t, tr.Out.String(), "${keyring:<new-id>}")
 }
 
 func TestCmdConfigSecretsLs(t *testing.T) {

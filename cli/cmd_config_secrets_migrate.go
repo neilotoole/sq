@@ -16,7 +16,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/secret/keyring"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/source/location"
 )
 
 const (
@@ -29,11 +28,11 @@ func newConfigSecretsMigrateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "migrate [@HANDLE]",
 		Args:  cobra.RangeArgs(0, 1),
-		Short: "Migrate inline passwords to the keyring",
-		Long: `For each source (or one specified by handle), extract any
-inline URL password from its Location, write it to the OS keyring at
-sq/<handle>/password, and replace the inline password with
-${keyring:<handle>/password}.
+		Short: "Migrate inline-credential sources to the keyring",
+		Long: `For each source (or one specified by handle), write its
+Location URL to the OS keyring at a fresh opaque ID and replace the
+Location with a bare ${keyring:<id>} placeholder. The driver type stays
+in the driver: field; the keyring entry holds the entire DSN.
 
 Sources skipped automatically:
   - Non-URL locations (file paths, sqlite, Excel, etc.)
@@ -59,10 +58,8 @@ the confirmation prompt.`,
 }
 
 type migratePlan struct {
-	src         *source.Source
-	newLocation string
-	password    string // URL-decoded
-	reason      string // populated when skipped
+	src    *source.Source
+	reason string // populated when skipped
 }
 
 func execConfigSecretsMigrate(cmd *cobra.Command, args []string) error {
@@ -112,30 +109,7 @@ func selectMigrateSources(ru *run.Run, args []string) ([]*source.Source, error) 
 func buildMigratePlans(srcs []*source.Source) []migratePlan {
 	out := make([]migratePlan, 0, len(srcs))
 	for _, s := range srcs {
-		p := migratePlan{src: s}
-		refs, refsErr := secret.ExtractRefs(s.Location)
-		switch {
-		case refsErr == nil && len(refs) > 0:
-			p.reason = "already has a placeholder"
-		default:
-			pw, withoutPW, ok := decomposeURLForMigrate(s.Location)
-			switch {
-			case !ok && !looksLikeURL(s.Location):
-				p.reason = "not a URL"
-			case !ok:
-				p.reason = "no password component"
-			default:
-				placeholder := fmt.Sprintf("${keyring:%s/password}", s.Handle)
-				newLoc, err := location.WithPasswordPlaceholder(withoutPW, placeholder)
-				if err != nil {
-					p.reason = fmt.Sprintf("could not rewrite location: %v", err)
-				} else {
-					p.newLocation = newLoc
-					p.password = pw
-				}
-			}
-		}
-		out = append(out, p)
+		out = append(out, migratePlan{src: s, reason: migrateSkipReason(s.Location)})
 	}
 	return out
 }
@@ -146,7 +120,7 @@ func printMigratePlans(out io.Writer, plans []migratePlan) {
 			fmt.Fprintf(out, "%s  skip   (%s)\n", p.src.Handle, p.reason)
 			continue
 		}
-		fmt.Fprintf(out, "%s  ->     %s\n", p.src.Handle, p.newLocation)
+		fmt.Fprintf(out, "%s  ->     ${keyring:<new-id>}\n", p.src.Handle)
 	}
 }
 
@@ -157,22 +131,27 @@ func applyMigratePlans(ctx context.Context, ru *run.Run, plans []migratePlan) er
 		if p.reason != "" {
 			continue
 		}
-		krPath := p.src.Handle + "/password"
-		if err := kr.Set(ctx, krPath, p.password); err != nil {
+		id, err := kr.NewID(ctx)
+		if err != nil {
+			fmt.Fprintf(ru.Out, "%s  FAIL   mint keyring id: %v\n", p.src.Handle, err)
+			anyFailed = true
+			continue
+		}
+		if err = kr.Set(ctx, id, p.src.Location); err != nil {
 			fmt.Fprintf(ru.Out, "%s  FAIL   write keyring: %v\n", p.src.Handle, err)
 			anyFailed = true
 			continue
 		}
 		oldLoc := p.src.Location
-		p.src.Location = p.newLocation
-		if err := ru.ConfigStore.Save(ctx, ru.Config); err != nil {
+		p.src.Location = "${keyring:" + id + "}"
+		if err = ru.ConfigStore.Save(ctx, ru.Config); err != nil {
 			p.src.Location = oldLoc
-			_ = kr.Delete(ctx, krPath)
+			_ = kr.Delete(ctx, id)
 			fmt.Fprintf(ru.Out, "%s  FAIL   save config (rolled back): %v\n", p.src.Handle, err)
 			anyFailed = true
 			continue
 		}
-		fmt.Fprintf(ru.Out, "%s  done\n", p.src.Handle)
+		fmt.Fprintf(ru.Out, "%s  done   ->  %s\n", p.src.Handle, p.src.Location)
 	}
 	if anyFailed {
 		return errz.New("one or more sources failed to migrate")
@@ -180,30 +159,27 @@ func applyMigratePlans(ctx context.Context, ru *run.Run, plans []migratePlan) er
 	return nil
 }
 
-// decomposeURLForMigrate splits loc into its URL-decoded password and a
-// version of loc with the password removed. ok is true only when loc
-// looks like a URL with userinfo containing a password.
-func decomposeURLForMigrate(loc string) (password, locWithoutPW string, ok bool) {
+// migrateSkipReason inspects loc and returns a non-empty reason string
+// when the source should be skipped by migrate, or "" when it is a
+// valid candidate. Skip rules, in order:
+//   - Already contains a ${...} placeholder (idempotent re-runs).
+//   - Not a URL (file paths, sqlite/Excel, etc. — nothing to migrate).
+//   - URL has no password component (no secret to relocate).
+func migrateSkipReason(loc string) string {
+	if refs, _ := secret.ExtractRefs(loc); len(refs) > 0 {
+		return "already has a placeholder"
+	}
 	u, err := url.Parse(loc)
-	if err != nil || u.Scheme == "" {
-		return "", loc, false
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return "not a URL"
 	}
 	if u.User == nil {
-		return "", loc, false
+		return "no password component"
 	}
-	pw, has := u.User.Password()
-	if !has {
-		return "", loc, false
+	if _, has := u.User.Password(); !has {
+		return "no password component"
 	}
-	u.User = url.User(u.User.Username())
-	return pw, u.String(), true
-}
-
-// looksLikeURL returns true when loc has both a scheme and a host, i.e.
-// it is a network URL rather than a local file path.
-func looksLikeURL(loc string) bool {
-	u, err := url.Parse(loc)
-	return err == nil && u.Scheme != "" && u.Host != ""
+	return ""
 }
 
 // promptYesNo writes prompt to out and reads a y/n response from in.
