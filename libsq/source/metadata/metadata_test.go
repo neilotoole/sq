@@ -988,17 +988,20 @@ func TestSource_Clone_FKMutationIsolated(t *testing.T) {
 	gotFK := got.Table("film").FK.Outgoing[0]
 
 	// Mutate every reference-typed field on the cloned FK and verify
-	// the original is untouched. The mutations must use the same
-	// addressing the renderer / round-trip code would (index assignment
-	// on Columns / RefColumns, plain field overwrite for the scalars).
-	gotFK.Columns[0] = "mutated"
-	gotFK.RefColumns = append(gotFK.RefColumns, "extra")
+	// the original is untouched. Use index-assignment (in-place
+	// mutation) on both Columns and RefColumns — a shallow-copy bug
+	// where the cloned slice shares the original's backing array would
+	// surface here. Append on its own typically reallocates because
+	// slice literals have cap == len, so it doesn't reliably exercise
+	// the shared-backing-array hazard; the index-assign does.
+	gotFK.Columns[0] = "mutated_col"
+	gotFK.RefColumns[0] = "mutated_ref"
 	gotFK.OnDelete = "CASCADE"
 
 	require.Equal(t, []string{"language_id"}, fk.Columns,
-		"original FK.Columns must be unaffected by clone mutation")
+		"original FK.Columns must be unaffected by in-place mutation on the clone")
 	require.Equal(t, []string{"language_id"}, fk.RefColumns,
-		"original FK.RefColumns must be unaffected by clone mutation (append on clone reallocated)")
+		"original FK.RefColumns must be unaffected by in-place mutation on the clone")
 	require.Empty(t, fk.OnDelete,
 		"original FK.OnDelete must be unaffected by clone mutation")
 
