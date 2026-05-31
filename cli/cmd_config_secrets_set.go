@@ -16,22 +16,27 @@ func newConfigSecretsSetCmd() *cobra.Command {
 		Short: "Set a keyring secret",
 		Long: `Write a secret value to the OS keyring at the given PATH.
 
-PATH is the value used in a ${keyring:PATH} placeholder. For example,
-a path of "@sakila/password" is referenced from a source location as
-${keyring:@sakila/password}.
+PATH is the body of a ${keyring:PATH} placeholder. sq itself generates
+opaque 10-char IDs (e.g. "j2k7m3pxtz") via 'sq add --keyring', but PATH
+accepts any string — you can use a hand-crafted path for shared or
+hand-managed entries.
 
 If VALUE is omitted, read from stdin (when piped) or prompt the user
-via the -p flag.`,
+via the -p flag.
+
+Typically used to rotate a credential: pass the same PATH that already
+appears in a source's Location, with a new VALUE. The Location does
+not need to change.`,
 		RunE: execConfigSecretsSet,
-		Example: `  # Set with explicit value
-  $ sq config secrets set @sakila/password hunter2
+		Example: `  # Rotate the value at an sq-generated id
+  $ sq config secrets set j2k7m3pxtz 'postgres://alice:newpw@db/sakila'
 
-  # Set interactively
-  $ sq config secrets set @sakila/password -p
-  Password: ****
+  # Pipe a value from stdin to keep it out of shell history
+  $ sq config secrets set j2k7m3pxtz -p < secret.txt
 
-  # Set from a file
-  $ sq config secrets set @sakila/password -p < password.txt`,
+  # Prompt interactively
+  $ sq config secrets set j2k7m3pxtz -p
+  Password: ****`,
 	}
 	cmd.Flags().BoolP(flag.PasswordPrompt, flag.PasswordPromptShort, false, flag.PasswordPromptUsage)
 	return cmd

@@ -19,15 +19,18 @@ func newConfigSecretsGetCmd() *cobra.Command {
 		Long: `Print metadata for the keyring secret at PATH. With --reveal,
 prints the secret value itself to stdout.
 
-By default (no --reveal), the secret value is NOT printed — only that the
-entry exists. Use --reveal explicitly to acknowledge that you want the
-secret on screen.`,
-		RunE: execConfigSecretsGet,
-		Example: `  # Confirm the secret exists
-  $ sq config secrets get @sakila/password
+PATH is the body of a ${keyring:PATH} placeholder. Use 'sq config
+secrets ls' to find the ids referenced by your sources.
 
-  # Print the secret value
-  $ sq config secrets get @sakila/password --reveal`,
+By default (no --reveal), the value is NOT printed — only that the
+entry exists. With --reveal, the value (which under Form B is the
+entire DSN, including credentials) is written to stdout.`,
+		RunE: execConfigSecretsGet,
+		Example: `  # Confirm the entry exists at an sq-generated id
+  $ sq config secrets get j2k7m3pxtz
+
+  # Print the stored value
+  $ sq config secrets get j2k7m3pxtz --reveal`,
 	}
 	cmd.Flags().Bool(flagSecretReveal, false,
 		"Print the secret value (default: only confirm existence)")

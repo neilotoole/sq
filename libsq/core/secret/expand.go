@@ -2,6 +2,7 @@ package secret
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -33,6 +34,13 @@ func (r *Registry) Expand(ctx context.Context, template string) (string, error) 
 	for i, p := range placeholders {
 		v, err := r.ResolveScheme(ctx, p.scheme, p.path)
 		if err != nil {
+			// For the sq-owned keyring scheme, the fix is always to
+			// (re-)set the value at that path. Surface the exact
+			// command so the user doesn't have to guess.
+			if errors.Is(err, ErrNotFound) && p.scheme == "keyring" {
+				return "", fmt.Errorf("resolve ${%s:%s}: %w (run: sq config secrets set %s)",
+					p.scheme, p.path, err, p.path)
+			}
 			return "", fmt.Errorf("resolve ${%s:%s}: %w", p.scheme, p.path, err)
 		}
 		resolved[i] = v

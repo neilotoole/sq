@@ -47,6 +47,21 @@ func TestExpand_MissingSecret(t *testing.T) {
 	reg := newReg(t, nil)
 	_, err := reg.Expand(context.Background(), "${keyring:nope}")
 	require.ErrorIs(t, err, secret.ErrNotFound)
+	// keyring-scheme not-found should carry the recovery hint so the
+	// user can copy-paste the fix command from the error.
+	require.Contains(t, err.Error(), "sq config secrets set nope")
+}
+
+func TestExpand_MissingSecret_NonKeyringNoHint(t *testing.T) {
+	// Non-keyring resolvers (env, file, future op:) don't get the
+	// "sq config secrets set" hint — that command only writes to the
+	// keyring scheme. Sanity-check by registering a stub under "env".
+	reg := secret.NewRegistry()
+	reg.Register("env", &stubResolver{values: nil})
+	_, err := reg.Expand(context.Background(), "${env:MISSING}")
+	require.ErrorIs(t, err, secret.ErrNotFound)
+	require.NotContains(t, err.Error(), "sq config secrets set",
+		"only keyring not-found should suggest the set command")
 }
 
 func TestExpand_MultiplePlaceholders(t *testing.T) {
