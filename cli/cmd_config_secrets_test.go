@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -195,10 +196,16 @@ func TestCmdConfigSecretsTest_SingleHandle(t *testing.T) {
 
 func TestCmdConfigSecretsMigrate_PerCase(t *testing.T) {
 	tests := []struct {
-		name           string
-		inLocation     string
-		wantKeyring    string // when non-empty: migration succeeds; keyring at the minted id should hold this value (the full DSN verbatim)
-		wantSkipReason string // when non-empty: migration skips; substring expected in stdout
+		name string
+		// inLocation is the source's Location before migrate runs.
+		inLocation string
+		// wantKeyring is the value the keyring entry should hold after
+		// a successful migration (i.e. the full DSN verbatim). Empty
+		// when the source should be skipped.
+		wantKeyring string
+		// wantSkipReason is a substring expected on stdout when the
+		// source is skipped. Empty when the source should be migrated.
+		wantSkipReason string
 	}{
 		{
 			name:        "url with password",
@@ -334,4 +341,113 @@ func TestCmdConfigSecretsLs_MultipleSchemes(t *testing.T) {
 	require.Contains(t, out, "env:DB_PW")
 	require.Contains(t, out, "file:/etc/sq/host")
 	require.Contains(t, out, "keyring:@multi_ls2/password")
+}
+
+// TestCmdConfigSecretsLs_EmptyConfig — no sources means no output and
+// no error. Distinguishes "empty list" from "broken command".
+func TestCmdConfigSecretsLs_EmptyConfig(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Exec("config", "secrets", "ls"))
+	require.Empty(t, tr.Out.String())
+}
+
+// TestCmdConfigSecretsLs_HandleAndDriverColumns verifies that each row
+// pairs the ref with its source's handle and driver type.
+func TestCmdConfigSecretsLs_HandleAndDriverColumns(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	tr.Add(
+		source.Source{
+			Handle:   "@cols_pg",
+			Type:     drivertype.Pg,
+			Location: "${keyring:abc1234567}",
+		},
+		source.Source{
+			Handle:   "@cols_my",
+			Type:     drivertype.MySQL,
+			Location: "${env:MY_DSN}",
+		},
+	)
+	require.NoError(t, tr.Exec("config", "secrets", "ls"))
+	out := tr.Out.String()
+
+	// One row per (ref, handle); each row carries its driver.
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	require.Len(t, lines, 2)
+
+	// Find each row by its ref and assert the handle+driver are on the
+	// same line. Order is sort-by-ref-then-handle: env:* before keyring:*.
+	require.Contains(t, lines[0], "env:MY_DSN")
+	require.Contains(t, lines[0], "@cols_my")
+	require.Contains(t, lines[0], "mysql")
+
+	require.Contains(t, lines[1], "keyring:abc1234567")
+	require.Contains(t, lines[1], "@cols_pg")
+	require.Contains(t, lines[1], "postgres")
+}
+
+// TestCmdConfigSecretsLs_SharedRefShowsMultipleRows verifies the
+// load-bearing Form B property: when two sources reference the same
+// keyring ID, the listing makes the sharing visible by emitting one
+// row per (ref, source) pair rather than deduplicating.
+func TestCmdConfigSecretsLs_SharedRefShowsMultipleRows(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	const sharedID = "r5x2cd9k7w"
+	tr.Add(
+		source.Source{
+			Handle:   "@primary_sh",
+			Type:     drivertype.Pg,
+			Location: "${keyring:" + sharedID + "}",
+		},
+		source.Source{
+			Handle:   "@replica_sh",
+			Type:     drivertype.Pg,
+			Location: "${keyring:" + sharedID + "}",
+		},
+	)
+
+	require.NoError(t, tr.Exec("config", "secrets", "ls"))
+	lines := strings.Split(strings.TrimRight(tr.Out.String(), "\n"), "\n")
+	require.Len(t, lines, 2, "shared ref should produce one row per source")
+
+	// Both rows carry the same ref; handles distinguish them. Sort
+	// order is by ref then handle, so @primary_sh < @replica_sh.
+	for _, ln := range lines {
+		require.Contains(t, ln, "keyring:"+sharedID)
+	}
+	require.Contains(t, lines[0], "@primary_sh")
+	require.Contains(t, lines[1], "@replica_sh")
+}
+
+// TestCmdConfigSecretsLs_CompositionMultipleRowsPerHandle verifies that
+// a single source with several embedded placeholders produces one row
+// per placeholder.
+func TestCmdConfigSecretsLs_CompositionMultipleRowsPerHandle(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	tr.Add(source.Source{
+		Handle:   "@compo",
+		Type:     drivertype.Pg,
+		Location: "postgres://${env:DB_USER}:${keyring:abc1234567}@${env:DB_HOST}/sakila",
+	})
+
+	require.NoError(t, tr.Exec("config", "secrets", "ls"))
+	lines := strings.Split(strings.TrimRight(tr.Out.String(), "\n"), "\n")
+	require.Len(t, lines, 3, "composition source should yield one row per placeholder")
+
+	// All three rows reference the same handle; sort order surfaces
+	// env:* before keyring:*, and env:DB_HOST before env:DB_USER.
+	for _, ln := range lines {
+		require.Contains(t, ln, "@compo")
+		require.Contains(t, ln, "postgres")
+	}
+	require.Contains(t, lines[0], "env:DB_HOST")
+	require.Contains(t, lines[1], "env:DB_USER")
+	require.Contains(t, lines[2], "keyring:abc1234567")
 }
