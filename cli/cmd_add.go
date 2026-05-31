@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -241,6 +242,14 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		}
 		if cmdFlagIsSetTrue(cmd, flag.InlinePassword) {
 			return errz.Errorf("--%s is not supported when the location is a ${...} placeholder", flag.InlinePassword)
+		}
+		// Resolve relative ${file:...} paths against the current working
+		// directory. The file resolver itself only accepts absolute paths
+		// (or ~/...) — but at add time we know where the user is and can
+		// capture that intent before persisting the placeholder. Other
+		// schemes pass through unchanged.
+		if loc, err = secret.RewritePlaceholders(ctx, loc, absolutizeFilePath); err != nil {
+			return err
 		}
 	}
 
@@ -486,6 +495,41 @@ func applyKeyring(ctx context.Context, _ *run.Run, loc string, passwd []byte) (s
 func isURLLocation(loc string) bool {
 	u, err := url.Parse(loc)
 	return err == nil && u.Scheme != "" && u.Host != ""
+}
+
+// absolutizeFilePath is a secret.RewritePlaceholders callback: for
+// the "file" scheme it returns filepath.Abs(path) when path is bare
+// relative (e.g. "./pg.dsn", "pg.dsn", "../shared/pw"). Paths that
+// are already usable by the file resolver — absolute, ~/-prefixed,
+// or the file:/// URI form — pass through unchanged so user intent
+// is preserved (e.g. "~/" stays portable across users). Other
+// schemes are no-ops: their path bodies have semantics this helper
+// has no business interpreting.
+//
+// The expansion uses os.Getwd at add time and is captured once;
+// later moves of the user's working directory don't affect a source
+// already added.
+func absolutizeFilePath(_ context.Context, scheme, path string) (string, error) {
+	if scheme != "file" || path == "" {
+		return path, nil
+	}
+	if path == "~" || strings.HasPrefix(path, "~/") {
+		return path, nil
+	}
+	if strings.HasPrefix(path, "//") {
+		// Covers ${file:///abs/...} URI-empty-authority sugar and the
+		// rejected file://host/... remote form. Either way, leave for
+		// the file resolver to interpret.
+		return path, nil
+	}
+	if filepath.IsAbs(path) {
+		return path, nil
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return path, errz.Wrapf(err, "absolutize relative file path %q", path)
+	}
+	return abs, nil
 }
 
 // urlHasPassword reports whether loc parses as a URL with a non-empty

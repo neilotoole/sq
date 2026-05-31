@@ -437,6 +437,93 @@ func TestCmdAdd_MutuallyExclusive(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestCmdAdd_Placeholder_FileRelativeIsAbsolutized verifies that a
+// bare-relative path inside a ${file:...} placeholder is captured
+// against the current working directory at sq-add time, so the
+// persisted Location is independent of where sq is later invoked
+// from. Mirrors the user-reported friction case
+// (`sq add '${file:./pg.dsn}'`).
+func TestCmdAdd_Placeholder_FileRelativeIsAbsolutized(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "pg.dsn"),
+		[]byte("postgres://alice:hunter2@localhost:5432/sakila\n"),
+		0o600))
+
+	// Run sq add from inside the temp dir so the relative path resolves
+	// against it. Snapshot the real cwd post-chdir so the assertion
+	// matches what filepath.Abs will produce — on macOS, /tmp is a
+	// symlink to /private/tmp and t.TempDir returns the unresolved form.
+	pwd, err := os.Getwd()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.Chdir(pwd) })
+	require.NoError(t, os.Chdir(dir))
+	resolvedDir, err := os.Getwd()
+	require.NoError(t, err)
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	const handle = "@from_relative_file"
+	require.NoError(t, tr.Exec("add", "${file:./pg.dsn}",
+		"--handle", handle, "--skip-verify"))
+
+	src, err := tr.Run.Config.Collection.Get(handle)
+	require.NoError(t, err)
+	wantLoc := "${file:" + filepath.Join(resolvedDir, "pg.dsn") + "}"
+	require.Equal(t, wantLoc, src.Location,
+		"./pg.dsn should have been absolutized at add time")
+}
+
+// TestCmdAdd_Placeholder_FilePassthroughForms verifies that path
+// forms the file resolver already accepts (absolute, ~/) are
+// preserved verbatim — absolutizing them would harm portability
+// (~/ is user-relative by design) or be pointless (absolute paths).
+func TestCmdAdd_Placeholder_FilePassthroughForms(t *testing.T) {
+	tests := []struct {
+		name string
+		loc  string
+	}{
+		{name: "absolute", loc: "${file:/etc/sq/pg.dsn}"},
+		{name: "home-relative", loc: "${file:~/.sq/pg.dsn}"},
+		{name: "file URI sugar", loc: "${file:///etc/sq/pg.dsn}"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			th := testh.New(t)
+			tr := testrun.New(th.Context, t, nil)
+			const handle = "@passthrough"
+			require.NoError(t, tr.Exec("add", tc.loc,
+				"--handle", handle,
+				"--driver", "postgres", // skip add-time resolution
+				"--skip-verify"))
+			src, err := tr.Run.Config.Collection.Get(handle)
+			require.NoError(t, err)
+			require.Equal(t, tc.loc, src.Location,
+				"absolute/~ /file:/// paths must pass through unchanged")
+		})
+	}
+}
+
+// TestCmdAdd_Placeholder_NonFileSchemeUntouched verifies that the
+// add-time rewriter is scoped to the file scheme. A relative-looking
+// body inside ${env:...} or ${keyring:...} is opaque to sq and must
+// not be rewritten — the env-var or keyring-id semantics are unrelated
+// to filesystem paths.
+func TestCmdAdd_Placeholder_NonFileSchemeUntouched(t *testing.T) {
+	t.Setenv("SQ_TEST_DSN_PT", "postgres://alice:hunter2@localhost:5432/sakila")
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	const handle = "@env_relative_looking"
+	// "./SQ_TEST_DSN_PT" is what would happen if env-var names that
+	// happen to contain "./" were absolutized. They must not be.
+	require.NoError(t, tr.Exec("add", "${env:SQ_TEST_DSN_PT}",
+		"--handle", handle, "--skip-verify"))
+	src, err := tr.Run.Config.Collection.Get(handle)
+	require.NoError(t, err)
+	require.Equal(t, "${env:SQ_TEST_DSN_PT}", src.Location)
+}
+
 // TestCmdAdd_Keyring_RequiresPassword verifies that --keyring rejects an
 // invocation with no password — neither inline in the URL nor via -p.
 // Without this guard, sq would silently produce a keyring entry holding
