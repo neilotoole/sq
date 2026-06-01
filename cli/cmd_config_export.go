@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -52,10 +53,26 @@ the permissions sq uses for the live config file).`,
 }
 
 func execConfigExport(cmd *cobra.Command, _ []string) error {
-	_ = run.FromContext(cmd.Context())
-	_ = ioz.MarshalYAML
-	_ = errz.New
-	_ = fmt.Fprintln
-	_ = os.OpenFile
+	ru := run.FromContext(cmd.Context())
+
+	data, err := ioz.MarshalYAML(ru.Config)
+	if err != nil {
+		return errz.Wrap(err, "config export")
+	}
+
+	return writeConfigExport(ru.Stdout, data)
+}
+
+// writeConfigExport writes data to w and wraps any I/O error.
+func writeConfigExport(w io.Writer, data []byte) error {
+	if _, err := w.Write(data); err != nil {
+		return errz.Wrap(err, "config export: write")
+	}
 	return nil
 }
+
+// Unused stubs retained from Task 1, deleted on Task 3.
+var (
+	_ = fmt.Fprintln
+	_ = os.OpenFile
+)
