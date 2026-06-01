@@ -57,9 +57,9 @@ functionality that `sq` required. These requirements:
 For the `RecordWriter` implementations, given the known "flat" structure of a record, it was
 relatively straightforward to create custom writers for each type of JSON output.
 
-For general-purpose JSON output (such as metadata output), it was necessary to modify an
-existing JSON library to provide colorization (and also on-the-fly indentation). After
-benchmarking, the [segmentio.io encoder](https://github.com/segmentio/encoding) was selected
-as the base library. Rather than a separate forked project (which probably would not make
-sense to ever merge with its parent project), the modified encoder is found in
-`jsonw/internal/jcolorenc`.
+For general-purpose JSON output (such as metadata output), `jsonw` uses
+[`github.com/neilotoole/jsoncolor`](https://github.com/neilotoole/jsoncolor),
+a color-capable JSON encoder forked from
+[`segmentio/encoding`](https://github.com/segmentio/encoding). `jsoncolor`
+was extracted from sq's own in-tree fork (`jsonw/internal/jcolorenc`, now
+removed) and is now maintained as a standalone library.

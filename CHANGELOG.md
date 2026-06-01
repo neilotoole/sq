@@ -20,6 +20,15 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
+- [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export):
+  dump the active config to YAML, primarily for backups. By default,
+  output is a faithful copy of the live config: `${scheme:path}`
+  placeholders are written verbatim. With `--resolve`, every placeholder
+  is expanded end-to-end and the resolved value is spliced in-line — a
+  self-contained snapshot at the cost of writing every referenced secret
+  in plaintext. `-o PATH` writes to a file with mode `0600` (matching
+  the live config file); on non-Windows platforms the write is atomic
+  (temp-file + rename).
 - [#441]: [`sq config keyring`](https://sq.io/docs/cmd/sq_config_keyring) command
   group: store source DSNs in the OS keyring instead of plaintext in
   `~/.config/sq.yml`. Subcommands: `ls`, `create`, `update`, `get`, `rm`,
@@ -58,6 +67,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
+- `jsonw`: general-purpose JSON output (`sq inspect`, `sq config get`,
+  etc.) now uses
+  [`neilotoole/jsoncolor`](https://github.com/neilotoole/jsoncolor)
+  instead of the in-tree `jcolorenc` fork, removing ~11.7k LOC of
+  forked `segmentio/encoding` code. The hot-path record-stream encoders
+  (`--json`, `--jsona`, `--jsonl`) are unchanged. `jsoncolor` is ~32%
+  faster but allocates ~5× more bytes per encode; the affected paths
+  are not throughput-critical.
 - [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd)
   now syntax-colors its `erDiagram` source when writing to a terminal. Output to
   a file or pipe (and under `--no-color`, `NO_COLOR`, or `--monochrome`) is
@@ -66,6 +83,25 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   [`sq driver ls`](https://sq.io/docs/cmd/driver-ls) is now simply "Microsoft SQL
   Server", dropping the trailing "/ Azure SQL Edge" (Azure SQL Edge was retired by
   Microsoft on 2025-09-30).
+
+### Fixed
+
+- [#720]: The [SQLite driver](https://sq.io/docs/drivers/sqlite) no longer fails
+  with `stat /path/to/db?key=val: no such file or directory` on source-level
+  metadata commands ([`sq inspect @handle`](https://sq.io/docs/inspect),
+  `sq inspect @handle --overview`) when the source location carries a
+  `?key=val[&...]` connection-string suffix
+  (e.g. `sqlite3:///path/to/db?mode=ro`). Connection-string parameters
+  documented in the
+  [SQLite driver page](https://sq.io/docs/drivers/sqlite) — including
+  `mode`, `cache`, and `mattn/go-sqlite3`'s `immutable=1` — now flow
+  end-to-end. Unblocks the long-standing request in
+  [#443](https://github.com/neilotoole/sq/discussions/443) to query a
+  live (locked) SQLite database, e.g. Firefox cookies, by setting
+  `?immutable=1`. As part of the same change, the SQLite driver's
+  open and location-parse error messages no longer echo the
+  connection-string suffix, so secret params (e.g. `_auth_pass`)
+  don't surface in logs.
 
 ## [v0.53.0] - 2026-05-25
 
@@ -1642,6 +1678,8 @@ make working with lots of sources much easier.
 [#441]: https://github.com/neilotoole/sq/issues/441
 [#660]: https://github.com/neilotoole/sq/issues/660
 [#692]: https://github.com/neilotoole/sq/issues/692
+[#716]: https://github.com/neilotoole/sq/issues/716
+[#720]: https://github.com/neilotoole/sq/issues/720
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
