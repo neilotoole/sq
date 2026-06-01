@@ -52,9 +52,15 @@ func (w *keyringWriter) Get(path, value string, revealed bool) error {
 	return errz.Err(err)
 }
 
-// Set implements output.KeyringWriter. Successful set is silent in text
-// mode (matches the historical behavior of "sq config keyring set").
-func (w *keyringWriter) Set(_ string) error {
+// Created implements output.KeyringWriter. Successful create is silent
+// in text mode.
+func (w *keyringWriter) Created(_ string) error {
+	return nil
+}
+
+// Updated implements output.KeyringWriter. Successful update is silent
+// in text mode.
+func (w *keyringWriter) Updated(_ string) error {
 	return nil
 }
 

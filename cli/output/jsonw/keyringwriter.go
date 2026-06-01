@@ -43,11 +43,19 @@ func (w *keyringWriter) Get(path, value string, revealed bool) error {
 	return writeJSON(w.out, w.pr, r)
 }
 
-// Set implements output.KeyringWriter.
-func (w *keyringWriter) Set(path string) error {
+// Created implements output.KeyringWriter.
+func (w *keyringWriter) Created(path string) error {
 	return writeJSON(w.out, w.pr, map[string]any{
-		"path": path,
-		"set":  true,
+		"path":    path,
+		"created": true,
+	})
+}
+
+// Updated implements output.KeyringWriter.
+func (w *keyringWriter) Updated(path string) error {
+	return writeJSON(w.out, w.pr, map[string]any{
+		"path":    path,
+		"updated": true,
 	})
 }
 

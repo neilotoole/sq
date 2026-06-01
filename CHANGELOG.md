@@ -22,7 +22,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 - [#441]: [`sq config keyring`](https://sq.io/docs/cmd/sq_config_keyring) command
   group: store source DSNs in the OS keyring instead of plaintext in
-  `~/.config/sq.yml`. Subcommands: `ls`, `set`, `get`, `rm`, `migrate`.
+  `~/.config/sq.yml`. Subcommands: `ls`, `create`, `update`, `get`, `rm`,
+  `migrate`.
   [`sq add`](https://sq.io/docs/cmd/sq_add) gains a `--store inline|keyring`
   flag, and a new `secrets.store` config option (`inline` | `keyring`)
   controls the default; existing behavior is preserved (`inline`). With

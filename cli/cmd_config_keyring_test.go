@@ -16,12 +16,12 @@ import (
 	"github.com/neilotoole/sq/testh"
 )
 
-func TestCmdConfigKeyringSet_ExplicitValue(t *testing.T) {
+func TestCmdConfigKeyringCreate_ExplicitValue(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
 
-	err := tr.Exec("config", "keyring", "set", "@sakila/password", "hunter2")
+	err := tr.Exec("config", "keyring", "create", "@sakila/password", "hunter2")
 	require.NoError(t, err)
 
 	got, err := gokeyring.Get("sq", "@sakila/password")
@@ -29,7 +29,7 @@ func TestCmdConfigKeyringSet_ExplicitValue(t *testing.T) {
 	require.Equal(t, "hunter2", got)
 }
 
-func TestCmdConfigKeyringSet_PromptedFromStdin(t *testing.T) {
+func TestCmdConfigKeyringCreate_PromptedFromStdin(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
@@ -43,7 +43,7 @@ func TestCmdConfigKeyringSet_PromptedFromStdin(t *testing.T) {
 	require.NoError(t, err)
 	tr.Run.Stdin = tmp
 
-	err = tr.Exec("config", "keyring", "set", "@sakila/password", "-p")
+	err = tr.Exec("config", "keyring", "create", "@sakila/password", "-p")
 	require.NoError(t, err)
 
 	got, err := gokeyring.Get("sq", "@sakila/password")
@@ -51,14 +51,93 @@ func TestCmdConfigKeyringSet_PromptedFromStdin(t *testing.T) {
 	require.Equal(t, "hunter2", got)
 }
 
-func TestCmdConfigKeyringSet_RequiresValueOrFlag(t *testing.T) {
+func TestCmdConfigKeyringCreate_RequiresValueOrFlag(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
 
 	// No VALUE arg, no -p flag.
-	err := tr.Exec("config", "keyring", "set", "@sakila/password")
+	err := tr.Exec("config", "keyring", "create", "@sakila/password")
 	require.Error(t, err)
+}
+
+// TestCmdConfigKeyringCreate_RejectsExisting: create errors when an
+// entry already exists at the target path, and points the user at the
+// update command.
+func TestCmdConfigKeyringCreate_RejectsExisting(t *testing.T) {
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", "@dup/password", "old"))
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	err := tr.Exec("config", "keyring", "create", "@dup/password", "new")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "already exists")
+	require.Contains(t, err.Error(), "update")
+
+	// The existing value must be untouched.
+	v, err := gokeyring.Get("sq", "@dup/password")
+	require.NoError(t, err)
+	require.Equal(t, "old", v)
+}
+
+func TestCmdConfigKeyringUpdate_ExplicitValue(t *testing.T) {
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", "@upd/password", "old"))
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	err := tr.Exec("config", "keyring", "update", "@upd/password", "new")
+	require.NoError(t, err)
+
+	got, err := gokeyring.Get("sq", "@upd/password")
+	require.NoError(t, err)
+	require.Equal(t, "new", got)
+}
+
+// TestCmdConfigKeyringUpdate_RejectsMissing: update errors when the
+// target path has no entry, and points the user at the create command.
+func TestCmdConfigKeyringUpdate_RejectsMissing(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	err := tr.Exec("config", "keyring", "update", "@absent/password", "new")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no keyring entry")
+	require.Contains(t, err.Error(), "create")
+}
+
+// TestCmdConfigKeyringUpdate_Completion verifies that update's PATH
+// argument shell-completes from existing keyring refs.
+func TestCmdConfigKeyringUpdate_Completion(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil).Add(
+		source.Source{
+			Handle:   "@a_upd",
+			Type:     drivertype.Pg,
+			Location: "postgres://alice:${keyring:j2k7m3pxtz}@db/sakila",
+		},
+		source.Source{
+			Handle:   "@b_upd",
+			Type:     drivertype.Pg,
+			Location: "postgres://alice:${keyring:abc456defg}@db/sakila",
+		},
+		// env: must NOT appear in keyring-update completions.
+		source.Source{
+			Handle:   "@c_upd",
+			Type:     drivertype.Pg,
+			Location: "postgres://alice:${env:DB_PW}@db/sakila",
+		},
+	)
+
+	got := testComplete(t, tr, "config", "keyring", "update", "")
+	require.Equal(t, []string{"abc456defg", "j2k7m3pxtz"}, got.values)
+	require.Contains(t, got.directives, cobra.ShellCompDirectiveNoFileComp)
+
+	// Prefix narrows.
+	got = testComplete(t, tr, "config", "keyring", "update", "j2")
+	require.Equal(t, []string{"j2k7m3pxtz"}, got.values)
 }
 
 func TestCmdConfigKeyringGet_WithoutRevealPrintsMetadataOnly(t *testing.T) {
@@ -538,23 +617,42 @@ func TestCmdConfigKeyringGet_JSON_WithReveal(t *testing.T) {
 	require.Equal(t, "hunter2", got["value"])
 }
 
-// TestCmdConfigKeyringSet_JSON: explicit set with --json emits a
-// confirmation object.
-func TestCmdConfigKeyringSet_JSON(t *testing.T) {
+// TestCmdConfigKeyringCreate_JSON: explicit create with --json emits a
+// confirmation object with "created": true.
+func TestCmdConfigKeyringCreate_JSON(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Exec("config", "keyring", "set", "abc_set_js", "v", "--json"))
+	require.NoError(t, tr.Exec("config", "keyring", "create", "abc_create_js", "v", "--json"))
 
 	var got map[string]any
 	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
-	require.Equal(t, "abc_set_js", got["path"])
-	require.Equal(t, true, got["set"])
+	require.Equal(t, "abc_create_js", got["path"])
+	require.Equal(t, true, got["created"])
 
-	// Side effect: keyring actually got written to.
-	v, err := gokeyring.Get("sq", "abc_set_js")
+	v, err := gokeyring.Get("sq", "abc_create_js")
 	require.NoError(t, err)
 	require.Equal(t, "v", v)
+}
+
+// TestCmdConfigKeyringUpdate_JSON: explicit update with --json emits a
+// confirmation object with "updated": true.
+func TestCmdConfigKeyringUpdate_JSON(t *testing.T) {
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", "abc_update_js", "old"))
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Exec("config", "keyring", "update", "abc_update_js", "new", "--json"))
+
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
+	require.Equal(t, "abc_update_js", got["path"])
+	require.Equal(t, true, got["updated"])
+
+	v, err := gokeyring.Get("sq", "abc_update_js")
+	require.NoError(t, err)
+	require.Equal(t, "new", v)
 }
 
 // TestCmdConfigKeyringRm_JSON: rm emits a deletion confirmation.

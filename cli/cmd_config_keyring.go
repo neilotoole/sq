@@ -2,6 +2,10 @@ package cli
 
 import (
 	"github.com/spf13/cobra"
+
+	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 func newConfigKeyringCmd() *cobra.Command {
@@ -41,11 +45,29 @@ Examples of placeholder forms in a source's Location:
 		Example: `  # List keyring paths referenced by sources
   $ sq config keyring ls
 
-  # Set a keyring secret interactively
-  $ sq config keyring set @sakila/password -p
+  # Create a new keyring entry, prompting for the value
+  $ sq config keyring create @sakila/password -p
+
+  # Rotate an existing entry
+  $ sq config keyring update @sakila/password -p
 
   # Migrate inline passwords into the keyring
   $ sq config keyring migrate --all`,
 	}
 	return cmd
+}
+
+// readKeyringValueArg returns the secret value to write to the keyring,
+// sourced from either args[1] (the explicit VALUE argument) or stdin
+// (when --password / -p was set). Returns an error if neither source
+// is available — the caller advertises both options in its --help.
+func readKeyringValueArg(cmd *cobra.Command, args []string) ([]byte, error) {
+	if len(args) == 2 {
+		return []byte(args[1]), nil
+	}
+	if !cmdFlagIsSetTrue(cmd, flag.PasswordPrompt) {
+		return nil, errz.New("must provide VALUE argument or --password flag")
+	}
+	ru := run.FromContext(cmd.Context())
+	return readPassword(cmd.Context(), ru.Stdin, ru.Out, ru.Writers.PrOut)
 }

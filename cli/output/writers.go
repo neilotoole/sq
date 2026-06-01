@@ -249,8 +249,11 @@ type KeyringWriter interface {
 	// the --reveal flag.
 	Get(path, value string, revealed bool) error
 
-	// Set prints confirmation of "sq config keyring set".
-	Set(path string) error
+	// Created prints confirmation of "sq config keyring create".
+	Created(path string) error
+
+	// Updated prints confirmation of "sq config keyring update".
+	Updated(path string) error
 
 	// Rm prints confirmation of "sq config keyring rm". Deleting a
 	// non-existent entry still calls this — rm is idempotent.
