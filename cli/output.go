@@ -132,7 +132,7 @@ includes the full structured parse_error.`,
 		&options.Flag{
 			Name:   "no-redact",
 			Invert: true,
-			Usage:  "Don't redact passwords in output",
+			Usage:  "Don't redact passwords in output (deprecated, use --reveal)",
 		},
 		true,
 		"Redact passwords in output",

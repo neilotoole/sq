@@ -109,6 +109,11 @@ See docs and more: https://sq.io`,
 	addOptionFlag(cmd.PersistentFlags(), OptMonochrome)
 	addOptionFlag(cmd.PersistentFlags(), OptProgress)
 	addOptionFlag(cmd.PersistentFlags(), OptRedact)
+	// --reveal is the canonical "show me the secrets" flag, replacing
+	// --no-redact (kept for backward compatibility, see OptRedact).
+	// Either flag set to its disclosure value flips redaction off; the
+	// union is applied in getOptionsFromFlags.
+	cmd.PersistentFlags().Bool(flag.Reveal, false, flag.RevealUsage)
 	addOptionFlag(cmd.PersistentFlags(), OptVerbose)
 	addOptionFlag(cmd.PersistentFlags(), pprofile.OptMode)
 	panicOn(cmd.RegisterFlagCompletionFunc(pprofile.OptMode.Flag().Name, completeStrings(

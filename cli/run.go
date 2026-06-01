@@ -200,6 +200,15 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 		return err
 	}
 
+	// --no-redact is deprecated in favor of --reveal (see #717). Emit a
+	// log warning when the legacy flag is explicitly used. No stderr
+	// nudge, so existing scripts stay quiet on the user-facing side.
+	if cmdFlagChanged(ru.Cmd, OptRedact.Flag().Name) {
+		lg.FromContext(ctx).Warn(
+			"--no-redact is deprecated; use --reveal instead",
+			lga.Cmd, ru.Cmd.CommandPath())
+	}
+
 	if err = FinishRunInit(ctx, ru); err != nil {
 		return err
 	}

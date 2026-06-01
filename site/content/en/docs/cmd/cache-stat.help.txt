@@ -26,5 +26,6 @@ Global Flags:
       --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
   -M, --monochrome            Don't print color output
       --no-progress           Don't show progress bar
-      --no-redact             Don't redact passwords in output
+      --no-redact             Don't redact passwords in output (deprecated, use --reveal)
+      --reveal                Show secret values in output (don't redact passwords; print keyring values)
   -v, --verbose               Print verbose output

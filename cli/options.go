@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/neilotoole/sq/cli/config"
+	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output/xlsxw"
 	"github.com/neilotoole/sq/cli/pprofile"
 	"github.com/neilotoole/sq/cli/run"
@@ -68,6 +69,17 @@ func getOptionsFromFlags(flags *pflag.FlagSet, reg *options.Registry) (options.O
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	// --reveal is the canonical flag for "show me the secrets" (see #717);
+	// --no-redact is the legacy synonym (deprecated). Either flag set to
+	// its disclosure value flips redaction off. If --reveal is explicitly
+	// true, force redact=false regardless of --no-redact's value — the
+	// flags are treated as a union, not as conflicting inputs.
+	if rev := flags.Lookup(flag.Reveal); rev != nil && rev.Changed {
+		if b, _ := flags.GetBool(flag.Reveal); b {
+			o[OptRedact.Key()] = false
+		}
 	}
 
 	o, err = reg.Process(o)
