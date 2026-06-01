@@ -1039,6 +1039,22 @@ func dsnFromLocation(loc string) (string, error) {
 	return loc[len(Prefix):], nil
 }
 
+// filePathFromLocation returns the on-disk file path for a sqlite3
+// location, or "" for a malformed location or one whose path component
+// is empty. Any "?key=val&..." DSN query suffix is stripped. The
+// returned path is not cleaned; callers that need an absolute,
+// platform-normalized path should run it through filepath.Clean.
+func filePathFromLocation(loc string) string {
+	if !strings.HasPrefix(loc, Prefix) {
+		return ""
+	}
+	p := loc[len(Prefix):]
+	if i := strings.IndexByte(p, '?'); i >= 0 {
+		p = p[:i]
+	}
+	return p
+}
+
 // MungeLocation takes a location argument (as received from the user)
 // and builds a sqlite3 location URL. Each of these forms are allowed:
 //
