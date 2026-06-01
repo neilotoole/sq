@@ -41,7 +41,7 @@ func (r *Registry) Expand(ctx context.Context, template string) (string, error) 
 			// command so the user doesn't have to guess.
 			if errors.Is(err, ErrNotFound) && p.scheme == "keyring" {
 				return "", errz.Wrapf(err,
-					"resolve ${%s:%s} (run: sq config keyring set %s)",
+					"resolve ${%s:%s} (run: sq config keyring create %s)",
 					p.scheme, p.path, p.path)
 			}
 			return "", errz.Wrapf(err, "resolve ${%s:%s}", p.scheme, p.path)

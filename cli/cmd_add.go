@@ -215,7 +215,14 @@ func execSrcAdd(cmd *cobra.Command, args []string) (err error) {
 	var keyringRollbackID string
 	defer func() {
 		if err != nil && keyringRollbackID != "" {
-			_ = keyring.NewStore().Delete(ctx, keyringRollbackID)
+			if delErr := keyring.NewStore().Delete(ctx, keyringRollbackID); delErr != nil {
+				// Rollback failed: the user may have an orphan keyring
+				// entry they can't easily find (orphan-listing is
+				// pending — see #715). Log so the failure is at least
+				// recoverable from debug output.
+				lg.FromContext(ctx).Warn("Failed to roll back keyring entry on sq add error",
+					lga.Path, keyringRollbackID, lga.Err, delErr)
+			}
 		}
 	}()
 

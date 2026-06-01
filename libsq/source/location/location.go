@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -553,8 +554,7 @@ func redactRaw(loc string) string {
 	case strings.HasPrefix(loc, "http://"), strings.HasPrefix(loc, "https://"):
 		u, err := url.ParseRequestURI(loc)
 		if err != nil {
-			// If we can't parse it, just return the original loc
-			return loc
+			return redactBestEffort(loc)
 		}
 
 		return u.Redacted()
@@ -563,10 +563,33 @@ func redactRaw(loc string) string {
 	// At this point, we expect it's a DSN
 	dbu, err := dburl.Parse(loc)
 	if err != nil {
-		// Shouldn't happen, but if it does, simply return the
-		// unmodified loc.
-		return loc
+		return redactBestEffort(loc)
 	}
 
 	return dbu.Redacted()
+}
+
+// redactRawUserinfo masks the password portion of a "scheme://user:pw@"
+// or bare "user:pw@" prefix. Captures (and preserves) the leading
+// delimiter, scheme separator, and username; replaces the password and
+// the @ terminator with "xxxxx@".
+var redactRawUserinfo = regexp.MustCompile(`([:/@][^:/?@\s]+):[^@\s]+@`)
+
+// redactRawDSNPw masks "PWD=value" / "password=value" style key/value
+// pairs used in ODBC, ADO.NET, and other ;-delimited connection
+// strings. Case-insensitive; stops at ; & or whitespace.
+var redactRawDSNPw = regexp.MustCompile(`(?i)(\b(?:pwd|password|passwd|pw)\s*=)\s*[^;&\s]+`)
+
+// redactBestEffort applies regex-based credential masking to inputs
+// that the structured parsers (url.ParseRequestURI / dburl.Parse) could
+// not handle. It catches the URL userinfo "user:pw@" pattern and the
+// common DSN/ODBC "PWD=value" form. Other credential-bearing shapes
+// will pass through unmasked — when that matters, fix the upstream
+// parser, don't rely on this. The goal is "don't leak inline passwords
+// in error messages and log lines when the loc is malformed enough
+// that the structured redactors give up".
+func redactBestEffort(loc string) string {
+	loc = redactRawUserinfo.ReplaceAllString(loc, "$1:xxxxx@")
+	loc = redactRawDSNPw.ReplaceAllString(loc, "${1}xxxxx")
+	return loc
 }

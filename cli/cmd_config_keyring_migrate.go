@@ -14,6 +14,8 @@ import (
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/secret/keyring"
 	"github.com/neilotoole/sq/libsq/source"
@@ -198,7 +200,14 @@ func applyMigratePlans(ctx context.Context, ru *run.Run, plans []migratePlan) (
 		p.src.Location = "${keyring:" + id + "}"
 		if err = ru.ConfigStore.Save(ctx, ru.Config); err != nil {
 			p.src.Location = oldLoc
-			_ = kr.Delete(ctx, id)
+			if delErr := kr.Delete(ctx, id); delErr != nil {
+				// Rollback failed: the keyring entry just written may
+				// orphan, with no easy way for the user to find it
+				// (orphan-listing is pending — see #715). Log so the
+				// failure is at least recoverable from debug output.
+				lg.FromContext(ctx).Warn("Failed to roll back keyring entry on migrate save error",
+					lga.Path, id, lga.Handle, p.src.Handle, lga.Err, delErr)
+			}
 			rows = append(rows, output.KeyringMigrateRow{
 				Handle: p.src.Handle,
 				Status: output.KeyringMigrateStatusFailed,
@@ -248,7 +257,20 @@ func migrateSkipReason(loc string) string {
 		return "already has a placeholder"
 	}
 	u, err := url.Parse(loc)
-	if err != nil || u.Scheme == "" || u.Host == "" {
+	if err != nil {
+		// A genuinely malformed DSN should not be silently classified
+		// as "not a URL" — the user needs to see WHY their source was
+		// skipped. Extract just the parse error's reason (url.Error's
+		// Err field) to avoid echoing the loc string itself, which
+		// could contain inline credentials.
+		msg := "parse failed"
+		var ue *url.Error
+		if errors.As(err, &ue) && ue.Err != nil {
+			msg = ue.Err.Error()
+		}
+		return "not a URL: " + msg
+	}
+	if u.Scheme == "" || u.Host == "" {
 		return "not a URL"
 	}
 	if u.User == nil {

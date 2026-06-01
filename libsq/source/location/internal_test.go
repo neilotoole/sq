@@ -269,3 +269,46 @@ func TestRedact_SentinelCollisionDoesNotMangleQueryParam(t *testing.T) {
 	require.Contains(t, got, "nonce="+nonce,
 		"literal nonce in query string must not be rewritten by sentinel restoration")
 }
+
+// TestRedact_BestEffortFallbackOnMalformed verifies that even when
+// neither secret.ExtractRefs nor the structured DSN parsers can handle
+// the input (because of malformed placeholders, broken ports, or
+// non-URL-shaped DSNs), Redact still masks credentials best-effort.
+// Without this fallback, inputs like "postgres://alice:hunter2@host:bad/db"
+// or an ODBC string with "PWD=hunter2" would flow through error
+// messages and log lines verbatim.
+func TestRedact_BestEffortFallbackOnMalformed(t *testing.T) {
+	tests := []struct {
+		name      string
+		loc       string
+		notLeaked string // substring that MUST NOT appear in the redacted form
+	}{
+		{
+			name:      "url with malformed port and unclosed placeholder",
+			loc:       "postgres://alice:hunter2@host:invalid_port/db?token=${env:UNCLOSED",
+			notLeaked: "hunter2",
+		},
+		{
+			name:      "url with backslash mangling and unclosed placeholder",
+			loc:       `postgres://alice:hunter2@host\db?token=${`,
+			notLeaked: "hunter2",
+		},
+		{
+			name:      "odbc-style PWD= form",
+			loc:       "DRIVER={pg};SERVER=host;UID=alice;PWD=hunter2;TOKEN=${env:UNCLOSED",
+			notLeaked: "hunter2",
+		},
+		{
+			name:      "case-insensitive password= form",
+			loc:       "Server=host;User=alice;Password=hunter2;Trusted=No;BAD=${",
+			notLeaked: "hunter2",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := Redact(tc.loc)
+			require.NotContains(t, got, tc.notLeaked,
+				"Redact must mask %q in malformed inputs; got: %s", tc.notLeaked, got)
+		})
+	}
+}
