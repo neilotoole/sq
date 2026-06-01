@@ -17,12 +17,13 @@ func newConfigSecretsSetCmd() *cobra.Command {
 		Long: `Write a secret value to the OS keyring at the given PATH.
 
 PATH is the body of a ${keyring:PATH} placeholder. sq itself generates
-opaque 10-char IDs (e.g. "j2k7m3pxtz") via 'sq add --keyring', but PATH
-accepts any string — you can use a hand-crafted path for shared or
-hand-managed entries.
+opaque 10-char IDs (e.g. "j2k7m3pxtz") via 'sq add --store keyring',
+but PATH accepts any string — you can use a hand-crafted path for
+shared or hand-managed entries.
 
-If VALUE is omitted, read from stdin (when piped) or prompt the user
-via the -p flag.
+If VALUE is omitted, --password (-p) is required: sq then reads the
+value from stdin (piped data or, if stdin is a TTY, an interactive
+prompt). Stdin is NOT consulted unless -p is set.
 
 Typically used to rotate a credential: pass the same PATH that already
 appears in a source's Location, with a new VALUE. The Location does

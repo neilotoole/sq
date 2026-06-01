@@ -364,10 +364,15 @@ func Abs(loc string) string {
 // isFpath returns the absolute filepath and true if loc is a file path.
 func isFpath(loc string) (fpath string, ok bool) {
 	// This is not exactly an industrial-strength algorithm...
-	if strings.Contains(loc, "${") {
-		// Excludes ${scheme:path} placeholders (e.g. ${env:DSN},
-		// ${keyring:abc}). These resolve at use time and must not be
-		// filepath-ified.
+
+	// Excludes well-formed ${scheme:path} placeholders (e.g.
+	// ${env:DSN}, ${keyring:abc}) — those resolve at use time and
+	// must not be filepath-ified. Use ExtractRefs rather than a
+	// "${"-substring scan so that a legitimately-named file
+	// containing a literal "${" (or an escaped "$${...}") is still
+	// treated as a path. Malformed placeholder syntax is also
+	// excluded here (refsErr != nil), letting downstream catch it.
+	if refs, refsErr := secret.ExtractRefs(loc); refsErr != nil || len(refs) > 0 {
 		return "", false
 	}
 
@@ -519,57 +524,4 @@ func redactRaw(loc string) string {
 	}
 
 	return dbu.Redacted()
-}
-
-// WithPasswordPlaceholder returns loc with its password component
-// replaced by the given placeholder string spliced verbatim (no URL
-// encoding on the placeholder itself). The placeholder is expected to
-// be a ${scheme:path} secret reference; the verbatim splice preserves
-// the literal '{', ':', and '}' characters that URL encoding would
-// otherwise mangle.
-//
-// Any username component is re-encoded using net/url's canonical
-// userinfo encoding, so a URL like postgres://us%40er:pw@db/sakila
-// (decoded username "us@er") becomes a valid postgres://us%40er:${...}@db/sakila.
-//
-// If loc is not a URL (e.g. a file path), it is returned unchanged.
-func WithPasswordPlaceholder(loc, placeholder string) (string, error) {
-	if _, ok := isFpath(loc); ok {
-		return loc, nil
-	}
-
-	u, err := url.ParseRequestURI(loc)
-	if err != nil {
-		return "", errz.Err(err)
-	}
-
-	var username string
-	if u.User != nil {
-		username = u.User.Username()
-	}
-
-	// Reassemble the URL from its parsed components so we don't depend
-	// on locating the userinfo-terminator '@' by string-cutting (which
-	// would mis-handle URLs that legitimately contain '@' in the path
-	// or query). url.User(username).String() handles userinfo encoding.
-	var b strings.Builder
-	b.WriteString(u.Scheme)
-	b.WriteString("://")
-	if username != "" {
-		b.WriteString(url.User(username).String())
-	}
-	b.WriteString(":")
-	b.WriteString(placeholder)
-	b.WriteString("@")
-	b.WriteString(u.Host)
-	b.WriteString(u.EscapedPath())
-	if u.RawQuery != "" {
-		b.WriteString("?")
-		b.WriteString(u.RawQuery)
-	}
-	if u.Fragment != "" {
-		b.WriteString("#")
-		b.WriteString(u.EscapedFragment())
-	}
-	return b.String(), nil
 }

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -99,14 +98,25 @@ func (gs *Grips) IsSQLSource(src *source.Source) bool {
 
 // ResolveSourceSecrets returns a clone of src with any ${scheme:path}
 // placeholders in src.Location resolved via the secret.Registry on ctx.
-// If there are no placeholders, or no Registry is bound to ctx, src is
-// returned unchanged.
+// If there are no well-formed placeholders, or no Registry is bound
+// to ctx, src is returned unchanged.
+//
+// Detection uses secret.ExtractRefs rather than a `${`-substring scan
+// so that literal "${" sequences (e.g. an escaped "$${env:X}" or a
+// password that happens to contain "${") don't trigger resolution.
 //
 // Exposed (rather than unexported) so callers and tests can drive the
 // resolution directly. Grips.doOpen calls it once at entry; drivers do
 // not need to call it themselves.
 func ResolveSourceSecrets(ctx context.Context, src *source.Source) (*source.Source, error) {
-	if src == nil || !strings.Contains(src.Location, "${") {
+	if src == nil {
+		return src, nil
+	}
+	refs, err := secret.ExtractRefs(src.Location)
+	if err != nil {
+		return nil, errz.Wrapf(err, "parse placeholders for %s", src.Handle)
+	}
+	if len(refs) == 0 {
 		return src, nil
 	}
 	reg := secret.FromContext(ctx)

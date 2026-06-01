@@ -76,21 +76,26 @@ func TestResolver_EmptyFile(t *testing.T) {
 	require.Equal(t, "", got)
 }
 
+// fakeHome redirects os.UserHomeDir to a tempdir for the duration of t,
+// so tests that exercise tilde-expansion don't touch the runner's real
+// home. Sets both HOME (Unix) and USERPROFILE (Windows) since
+// os.UserHomeDir consults different env vars per-OS.
+func fakeHome(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+	t.Setenv("USERPROFILE", dir)
+	return dir
+}
+
 func TestResolver_TildeExpansion(t *testing.T) {
-	home, err := os.UserHomeDir()
-	require.NoError(t, err)
+	home := fakeHome(t)
 
-	// Stage a file inside the user's home dir.
-	f, err := os.CreateTemp(home, ".sq_secret_test_*")
-	require.NoError(t, err)
-	_, err = f.WriteString("tilde-value\n")
-	require.NoError(t, err)
-	require.NoError(t, f.Close())
-	t.Cleanup(func() { _ = os.Remove(f.Name()) })
+	// Stage a file inside the synthetic home dir; reference it as ~/<name>.
+	const name = "sq_tilde_test.secret"
+	require.NoError(t, os.WriteFile(filepath.Join(home, name), []byte("tilde-value\n"), 0o600))
 
-	// Reference it as ~/<basename>.
-	rel := filepath.Base(f.Name())
-	got, err := file.New().Resolve(context.Background(), "~/"+rel)
+	got, err := file.New().Resolve(context.Background(), "~/"+name)
 	require.NoError(t, err)
 	require.Equal(t, "tilde-value", got)
 }
@@ -98,7 +103,9 @@ func TestResolver_TildeExpansion(t *testing.T) {
 func TestResolver_BareTildeRefersToHome(t *testing.T) {
 	// "~" alone resolves to $HOME, which is a directory — reading it
 	// should fail with a non-ErrNotFound error (it's an IsDirectory
-	// error in Go's stdlib).
+	// error in Go's stdlib). Use a synthetic home so this isn't
+	// dependent on the runner's environment.
+	fakeHome(t)
 	_, err := file.New().Resolve(context.Background(), "~")
 	require.Error(t, err)
 	require.NotErrorIs(t, err, secret.ErrNotFound)
