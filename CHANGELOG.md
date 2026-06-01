@@ -26,8 +26,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   (where it was previously a local flag). Setting either `--reveal` or
   `--no-redact` flips redaction off; the two flags are treated as a
   union, so passing both is not an error.
-
-
+- [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export):
   dump the active config to YAML, primarily for backups. By default,
   output is a faithful copy of the live config: `${scheme:path}`
   placeholders are written verbatim. With `--expand`, every placeholder
@@ -1681,6 +1680,7 @@ make working with lots of sources much easier.
 [#660]: https://github.com/neilotoole/sq/issues/660
 [#692]: https://github.com/neilotoole/sq/issues/692
 [#716]: https://github.com/neilotoole/sq/issues/716
+[#717]: https://github.com/neilotoole/sq/issues/717
 [#720]: https://github.com/neilotoole/sq/issues/720
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2

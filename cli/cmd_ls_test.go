@@ -67,8 +67,11 @@ func TestBug520_LsShowsPassword(t *testing.T) {
 }
 
 // TestRedactFlags_Union verifies that --reveal and --no-redact behave
-// as a union: setting either flips redaction off, and setting both is
-// not treated as a conflict.
+// as a union: setting either flips redaction off, setting both is not
+// treated as a conflict, and the default (neither set) still redacts.
+// The "default" case is the baseline that makes the disclosure-case
+// assertions meaningful — without it, a regression that globally
+// breaks redaction would silently make every union case pass.
 func TestRedactFlags_Union(t *testing.T) {
 	t.Parallel()
 
@@ -78,12 +81,14 @@ func TestRedactFlags_Union(t *testing.T) {
 	)
 
 	cases := []struct {
-		name string
-		args []string
+		name    string
+		args    []string
+		expects bool // whether the password should appear in output
 	}{
-		{name: "reveal", args: []string{"ls", "-v", "--reveal"}},
-		{name: "no-redact", args: []string{"ls", "-v", "--no-redact"}},
-		{name: "both", args: []string{"ls", "-v", "--reveal", "--no-redact"}},
+		{name: "default", args: []string{"ls", "-v"}, expects: false},
+		{name: "reveal", args: []string{"ls", "-v", "--reveal"}, expects: true},
+		{name: "no-redact", args: []string{"ls", "-v", "--no-redact"}, expects: true},
+		{name: "both", args: []string{"ls", "-v", "--reveal", "--no-redact"}, expects: true},
 	}
 
 	for _, tc := range cases {
@@ -93,8 +98,13 @@ func TestRedactFlags_Union(t *testing.T) {
 			tr := testrun.New(t.Context(), t, nil)
 			require.NoError(t, tr.Exec("add", loc, "--skip-verify"))
 			require.NoError(t, tr.Reset().Exec(tc.args...))
-			require.Contains(t, tr.OutString(), password,
-				"%s must flip redaction off", tc.name)
+			if tc.expects {
+				require.Contains(t, tr.OutString(), password,
+					"%s must flip redaction off", tc.name)
+			} else {
+				require.NotContains(t, tr.OutString(), password,
+					"%s must redact by default", tc.name)
+			}
 		})
 	}
 }

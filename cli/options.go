@@ -71,13 +71,18 @@ func getOptionsFromFlags(flags *pflag.FlagSet, reg *options.Registry) (options.O
 		return nil, err
 	}
 
-	// --reveal is the canonical flag for "show me the secrets" (see #717);
-	// --no-redact is the legacy synonym (deprecated). Either flag set to
-	// its disclosure value flips redaction off. If --reveal is explicitly
-	// true, force redact=false regardless of --no-redact's value — the
-	// flags are treated as a union, not as conflicting inputs.
+	// --no-redact is processed by the registry walk above via its
+	// OptRedact.Flag.Invert mechanic. --reveal is a free-standing
+	// synonym (see #717): if explicitly set true, force redact=false,
+	// unioning with whatever --no-redact already wrote. Treating them
+	// as a union — not as conflicting inputs — keeps scripts that bake
+	// in --no-redact compatible with an ad-hoc --reveal on top.
 	if rev := flags.Lookup(flag.Reveal); rev != nil && rev.Changed {
-		if b, _ := flags.GetBool(flag.Reveal); b {
+		b, getBoolErr := flags.GetBool(flag.Reveal)
+		if getBoolErr != nil {
+			panic(getBoolErr) // Should never happen
+		}
+		if b {
 			o[OptRedact.Key()] = false
 		}
 	}
