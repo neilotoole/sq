@@ -49,8 +49,46 @@ func TestExpand_MissingSecret(t *testing.T) {
 	require.ErrorIs(t, err, secret.ErrNotFound)
 	// keyring-scheme not-found should carry the recovery hint so the
 	// user can copy-paste the fix command from the error. The -p flag
-	// is required because 'create' needs either a VALUE arg or -p.
-	require.Contains(t, err.Error(), "sq config keyring create nope -p")
+	// is required because 'create' needs either a VALUE arg or -p; the
+	// path is %q-quoted and preceded by "--" so paths with spaces or a
+	// leading "-" still copy-paste cleanly.
+	require.Contains(t, err.Error(), `sq config keyring create -p -- "nope"`)
+}
+
+// TestExpand_MissingSecret_HintShellSafe pins the shell-safe shape of
+// the recovery hint for keyring paths that would otherwise break naive
+// copy-paste: paths containing spaces, and paths starting with "-"
+// (which Cobra/pflag would otherwise treat as a flag).
+func TestExpand_MissingSecret_HintShellSafe(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		want string // substring the error must contain verbatim
+	}{
+		{
+			name: "path with space",
+			path: "sakila db pw",
+			want: `sq config keyring create -p -- "sakila db pw"`,
+		},
+		{
+			name: "path with leading dash",
+			path: "-looks-like-flag",
+			want: `sq config keyring create -p -- "-looks-like-flag"`,
+		},
+		{
+			name: "path with embedded double-quote",
+			path: `has"quote`,
+			want: `sq config keyring create -p -- "has\"quote"`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			reg := newReg(t, nil)
+			_, err := reg.Expand(context.Background(), "${keyring:"+tc.path+"}")
+			require.ErrorIs(t, err, secret.ErrNotFound)
+			require.Contains(t, err.Error(), tc.want)
+		})
+	}
 }
 
 func TestExpand_MissingSecret_NonKeyringNoHint(t *testing.T) {

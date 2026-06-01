@@ -40,10 +40,14 @@ func (r *Registry) Expand(ctx context.Context, template string) (string, error) 
 			// (re-)set the value at that path. Surface the exact
 			// command so the user doesn't have to guess.
 			if errors.Is(err, ErrNotFound) && p.scheme == "keyring" {
-				// Hint must be copy-pasteable: 'create' requires either a
-				// VALUE argument or -p (which reads from stdin/prompt).
+				// Hint must be copy-pasteable for any valid keyring path,
+				// including paths containing spaces or a leading "-". Use
+				// %q to shell-quote, "--" to stop flag parsing so a "-"-
+				// prefixed path isn't read as a flag, and put -p before
+				// "--" since -p IS a flag. 'create' requires either a
+				// VALUE arg or -p (which reads from stdin/prompt).
 				return "", errz.Wrapf(err,
-					"resolve ${%s:%s} (run: sq config keyring create %s -p)",
+					"resolve ${%s:%s} (run: sq config keyring create -p -- %q)",
 					p.scheme, p.path, p.path)
 			}
 			return "", errz.Wrapf(err, "resolve ${%s:%s}", p.scheme, p.path)
