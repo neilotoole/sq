@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 	gokeyring "github.com/zalando/go-keyring"
 
@@ -107,16 +108,41 @@ func TestCmdConfigSecretsRm_MissingIsNotError(t *testing.T) {
 	require.NoError(t, tr.Exec("config", "secrets", "rm", "@nope/x"))
 }
 
-func TestCmdConfigSecretsRm_Aliases(t *testing.T) {
+func TestCmdConfigSecretsRm_Completion(t *testing.T) {
 	gokeyring.MockInit()
-	require.NoError(t, gokeyring.Set("sq", "@a/p", "v"))
-
 	th := testh.New(t)
-	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Exec("config", "secrets", "remove", "@a/p"))
+	tr := testrun.New(th.Context, t, nil).Add(
+		source.Source{
+			Handle:   "@a",
+			Type:     drivertype.Pg,
+			Location: "postgres://alice:${keyring:j2k7m3pxtz}@db/sakila",
+		},
+		source.Source{
+			Handle:   "@b",
+			Type:     drivertype.Pg,
+			Location: "postgres://alice:${keyring:abc456defg}@db/sakila",
+		},
+		// env: ref must NOT appear in keyring-rm completions.
+		source.Source{
+			Handle:   "@c",
+			Type:     drivertype.Pg,
+			Location: "postgres://alice:${env:DB_PW}@db/sakila",
+		},
+		// Source without a password (placeholder-free) must be ignored.
+		source.Source{
+			Handle:   "@d",
+			Type:     drivertype.Pg,
+			Location: "postgres://alice:hunter2@db/sakila",
+		},
+	)
 
-	_, err := gokeyring.Get("sq", "@a/p")
-	require.ErrorIs(t, err, gokeyring.ErrNotFound)
+	got := testComplete(t, tr, "config", "secrets", "rm", "")
+	require.Equal(t, []string{"abc456defg", "j2k7m3pxtz"}, got.values)
+	require.Contains(t, got.directives, cobra.ShellCompDirectiveNoFileComp)
+
+	// Prefix narrows to the matching subset.
+	got = testComplete(t, tr, "config", "secrets", "rm", "j2")
+	require.Equal(t, []string{"j2k7m3pxtz"}, got.values)
 }
 
 func TestCmdConfigSecretsTest_AllPass(t *testing.T) {

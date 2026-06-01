@@ -1,17 +1,20 @@
 package cli
 
 import (
+	"slices"
+	"strings"
+
 	"github.com/spf13/cobra"
 
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/secret/keyring"
 )
 
 func newConfigSecretsRmCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "rm PATH",
-		Aliases: []string{"remove", "delete"},
-		Args:    cobra.ExactArgs(1),
-		Short:   "Delete a keyring secret",
+		Use:   "rm PATH",
+		Args:  cobra.ExactArgs(1),
+		Short: "Delete a keyring secret",
 		Long: `Delete the keyring secret at PATH. Deleting a non-existent entry
 is not an error (idempotent).
 
@@ -22,7 +25,48 @@ before removing.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return keyring.New().Delete(cmd.Context(), args[0])
 		},
-		Example: `  $ sq config secrets rm j2k7m3pxtz`,
+		ValidArgsFunction: completeKeyringPath,
+		Example:           `  $ sq config secrets rm j2k7m3pxtz`,
 	}
 	return cmd
+}
+
+// completeKeyringPath suggests keyring paths referenced by sources in
+// the active config. There's no portable way to enumerate keyring
+// entries via the OS APIs we use, so the candidate set is derived
+// from ${keyring:<path>} occurrences across the source collection.
+// Orphan entries (referenced by nothing) won't appear; that's the
+// same limitation that "sq config secrets ls" has.
+func completeKeyringPath(cmd *cobra.Command, args []string, toComplete string) (
+	[]string, cobra.ShellCompDirective,
+) {
+	if len(args) >= 1 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	ru := getRun(cmd)
+	if ru == nil || ru.Config == nil || ru.Config.Collection == nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	seen := make(map[string]struct{})
+	for _, src := range ru.Config.Collection.Sources() {
+		refs, err := secret.ExtractRefs(src.Location)
+		if err != nil {
+			continue
+		}
+		for _, ref := range refs {
+			if ref.Scheme != "keyring" {
+				continue
+			}
+			if !strings.HasPrefix(ref.Path, toComplete) {
+				continue
+			}
+			seen[ref.Path] = struct{}{}
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for p := range seen {
+		out = append(out, p)
+	}
+	slices.Sort(out)
+	return out, cobra.ShellCompDirectiveNoFileComp
 }
