@@ -5,7 +5,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -20,6 +22,9 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/secret"
+	"github.com/neilotoole/sq/libsq/core/secret/keyring"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
@@ -181,6 +186,9 @@ More examples:
 
 	cmd.Flags().StringP(flag.Handle, flag.HandleShort, "", flag.HandleUsage)
 	cmd.Flags().BoolP(flag.PasswordPrompt, flag.PasswordPromptShort, false, flag.PasswordPromptUsage)
+	cmd.Flags().String(flag.AddStore, "", flag.AddStoreUsage)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.AddStore,
+		completeStrings(1, flag.AddStoreInline, flag.AddStoreKeyring)))
 	cmd.Flags().Bool(flag.SkipVerify, false, flag.SkipVerifyUsage)
 	cmd.Flags().BoolP(flag.AddActive, flag.AddActiveShort, false, flag.AddActiveUsage)
 
@@ -192,13 +200,33 @@ More examples:
 	return cmd
 }
 
-func execSrcAdd(cmd *cobra.Command, args []string) error {
+func execSrcAdd(cmd *cobra.Command, args []string) (err error) {
 	ctx := cmd.Context()
 	ru := run.FromContext(ctx)
 	cfg := ru.Config
 
+	// keyringRollbackID is set non-empty by applyPassword when (and only
+	// when) --store keyring mints a fresh keyring entry. If anything in
+	// this function later returns an error before the config is
+	// persisted, the deferred cleanup deletes that orphan. After
+	// ConfigStore.Save succeeds, the placeholder is committed to YAML
+	// and we MUST NOT delete the entry — doing so would leave a
+	// dangling reference. The id is cleared at that point.
+	var keyringRollbackID string
+	defer func() {
+		if err != nil && keyringRollbackID != "" {
+			if delErr := keyring.NewStore().Delete(ctx, keyringRollbackID); delErr != nil {
+				// Rollback failed: the user may have an orphan keyring
+				// entry they can't easily find (orphan-listing is
+				// pending — see #715). Log so the failure is at least
+				// recoverable from debug output.
+				lg.FromContext(ctx).Warn("Failed to roll back keyring entry on sq add error",
+					lga.Path, keyringRollbackID, lga.Err, delErr)
+			}
+		}
+	}()
+
 	loc := location.Abs(strings.TrimSpace(args[0]))
-	var err error
 	var typ drivertype.Type
 
 	var handle string
@@ -223,54 +251,74 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return errz.Errorf("source handle already exists: %s", handle)
 	}
 
-	if cmdFlagChanged(cmd, flag.AddDriver) {
-		val, _ := cmd.Flags().GetString(flag.AddDriver)
-		typ = drivertype.Type(strings.TrimSpace(val))
-	} else {
-		typ, err = ru.Files.DetectType(ctx, handle, loc)
-		if err != nil {
+	// A placeholder Location (e.g. "${env:DSN}" or "${op://...}") points
+	// at an external store. sq does not own the value: --store (which
+	// selects where sq writes the secret) is meaningless here. Reject
+	// early with a clear message.
+	//
+	// Detect placeholders via ExtractRefs rather than a "${"-substring
+	// scan so that a literal "${" in the URL (e.g. an escaped
+	// "$${env:X}" or a password containing "${") does not flip the
+	// branch. ExtractRefs returns an error for malformed placeholders;
+	// surface that immediately rather than letting downstream resolve
+	// produce a less-clear parse error.
+	refs, err := secret.ExtractRefs(loc)
+	if err != nil {
+		return errz.Wrapf(err, "parse placeholders in location")
+	}
+	hasPlaceholder := len(refs) > 0
+	if hasPlaceholder {
+		if cmdFlagChanged(cmd, flag.AddStore) {
+			return errz.Errorf("--%s is not supported when the location is a ${...} placeholder", flag.AddStore)
+		}
+		// Resolve relative ${file:...} paths against the current working
+		// directory. The file resolver itself only accepts absolute paths
+		// (or ~/...) — but at add time we know where the user is and can
+		// capture that intent before persisting the placeholder. Other
+		// schemes pass through unchanged.
+		if loc, err = secret.RewritePlaceholders(ctx, loc, absolutizeFilePath); err != nil {
 			return err
 		}
-		if typ == drivertype.None {
-			return errz.Errorf("unable to determine driver type: use --driver flag")
-		}
+	}
+
+	if typ, err = resolveDriverType(ctx, ru, cmd, handle, loc, hasPlaceholder); err != nil {
+		return err
 	}
 
 	if ru.DriverRegistry.ProviderFor(typ) == nil {
 		return errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
-	if typ == drivertype.SQLite {
-		locBefore := loc
-		// Special handling for SQLite, because it's a file-based DB.
-		loc, err = sqlite3.MungeLocation(loc)
-		if err != nil {
-			return err
+	// File-path munging and password application only make sense for
+	// non-placeholder Locations. A placeholder is opaque to sq at this
+	// stage: nothing to munge, no inline password to relocate.
+	if !hasPlaceholder {
+		if typ == drivertype.SQLite {
+			locBefore := loc
+			// Special handling for SQLite, because it's a file-based DB.
+			loc, err = sqlite3.MungeLocation(loc)
+			if err != nil {
+				return err
+			}
+
+			lg.FromContext(ctx).Debug("Munged sqlite loc", lga.Before, locBefore, lga.After, loc)
 		}
 
-		lg.FromContext(ctx).Debug("Munged sqlite loc", lga.Before, locBefore, lga.After, loc)
-	}
+		if typ == drivertype.DuckDB {
+			locBefore := loc
+			// Special handling for DuckDB, because it's a file-based DB.
+			loc, err = duckdb.MungeLocation(loc)
+			if err != nil {
+				return err
+			}
 
-	if typ == drivertype.DuckDB {
-		locBefore := loc
-		// Special handling for DuckDB, because it's a file-based DB.
-		loc, err = duckdb.MungeLocation(loc)
-		if err != nil {
-			return err
+			lg.FromContext(ctx).Debug("Munged duckdb loc", lga.Before, locBefore, lga.After, loc)
 		}
 
-		lg.FromContext(ctx).Debug("Munged duckdb loc", lga.Before, locBefore, lga.After, loc)
-	}
-
-	// If the -p flag is set, sq looks for password input on stdin,
-	// or sq prompts the user.
-	if cmdFlagIsSetTrue(cmd, flag.PasswordPrompt) {
-		var passwd []byte
-		if passwd, err = readPassword(ctx, ru.Stdin, ru.Out, ru.Writers.PrOut); err != nil {
-			return err
-		}
-
-		if loc, err = location.WithPassword(loc, string(passwd)); err != nil {
+		// Apply password: store in keyring or inline, per flags and config.
+		// keyringRollbackID is set when --store keyring mints a new entry;
+		// the deferred cleanup at the top of execSrcAdd undoes it on err.
+		if loc, keyringRollbackID, err = applyPassword(ctx, cmd, ru, loc); err != nil {
 			return err
 		}
 	}
@@ -315,7 +363,17 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	if !cmdFlagIsSetTrue(cmd, flag.SkipVerify) {
 		// Typically we want to ping the source before adding it.
 		// But, sometimes not, for example if a source is temporarily offline.
-		if err = drvr.Ping(ctx, src); err != nil {
+		// Resolve secret placeholders first: with --store keyring we just
+		// wrote the full DSN to keyring and src.Location holds a
+		// ${keyring:...} placeholder; the driver can't ping that literal
+		// string. Same expansion is needed for ${env:...}, ${file:...},
+		// or any composition form.
+		var pingSrc *source.Source
+		pingSrc, err = driver.ResolveSourceSecrets(ctx, src)
+		if err != nil {
+			return err
+		}
+		if err = drvr.Ping(ctx, pingSrc); err != nil {
 			return err
 		}
 	}
@@ -323,12 +381,285 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	if err = ru.ConfigStore.Save(ctx, ru.Config); err != nil {
 		return err
 	}
+	// Placeholder is now persisted to YAML; the keyring entry it
+	// references is no longer rollback-eligible — deleting it would
+	// leave a dangling ${keyring:<id>} in the saved config.
+	keyringRollbackID = ""
 
 	if src, err = ru.Config.Collection.Get(src.Handle); err != nil {
 		return err
 	}
 
 	return ru.Writers.Source.Added(ru.Config.Collection, src)
+}
+
+// resolveSecretStore returns the secret-storage mode to use for the
+// current sq add invocation: either flag.AddStoreInline or
+// flag.AddStoreKeyring. The --store flag wins; if absent, the
+// secrets.store config option provides the default ("inline" out of
+// the box). An invalid --store value yields a clear error.
+func resolveSecretStore(cmd *cobra.Command, opts options.Options) (string, error) {
+	if cmdFlagChanged(cmd, flag.AddStore) {
+		v, _ := cmd.Flags().GetString(flag.AddStore)
+		switch v {
+		case flag.AddStoreInline, flag.AddStoreKeyring:
+			return v, nil
+		default:
+			return "", errz.Errorf("invalid --%s value %q: must be %q or %q",
+				flag.AddStore, v, flag.AddStoreInline, flag.AddStoreKeyring)
+		}
+	}
+	return secret.OptSecretsStore.Get(opts), nil
+}
+
+// applyPassword handles secret storage for sq add. It reads any
+// prompted or piped password, then either writes the full DSN to the
+// OS keyring (replacing src.Location with a bare "${keyring:<id>}"
+// placeholder, per Form B) or splices the password inline into loc.
+// The mode is determined by the --store flag, falling back to the
+// secrets.store config option.
+//
+// Returns (newLoc, keyringID, err). keyringID is non-empty only when
+// the --store keyring path executed and a fresh keyring entry was
+// minted; callers must roll it back via keyring.Delete if subsequent
+// steps before the config is persisted fail. For the inline path,
+// keyringID is "" and there is nothing to clean up.
+func applyPassword(ctx context.Context, cmd *cobra.Command, ru *run.Run, loc string) (
+	newLoc, keyringID string, err error,
+) {
+	var store string
+	store, err = resolveSecretStore(cmd, options.FromContext(ctx))
+	if err != nil {
+		return loc, "", err
+	}
+	useKeyring := store == flag.AddStoreKeyring
+	storeExplicit := cmdFlagChanged(cmd, flag.AddStore)
+
+	// Read password from stdin/prompt if -p was passed.
+	var passwd []byte
+	if cmdFlagIsSetTrue(cmd, flag.PasswordPrompt) {
+		if passwd, err = readPassword(ctx, ru.Stdin, ru.Out, ru.Writers.PrOut); err != nil {
+			return loc, "", err
+		}
+	}
+
+	// Route to keyring only when there's actually a secret to store —
+	// either an inline password in the URL, or one supplied via -p —
+	// OR when the user explicitly asked for it via --store keyring.
+	// Otherwise (config default of keyring + a source with no
+	// credentials, e.g. ./data.csv or postgres://alice@db/sakila),
+	// fall through to inline. The user's intent is "add this source";
+	// the keyring default shouldn't reject passwordless adds.
+	if useKeyring && (storeExplicit || len(passwd) > 0 || urlHasPassword(loc)) {
+		return applyKeyring(ctx, ru, loc, passwd)
+	}
+
+	if len(passwd) > 0 {
+		// Inline path: splice the prompted/piped password into the URL.
+		if loc, err = location.WithPassword(loc, string(passwd)); err != nil {
+			return loc, "", err
+		}
+	}
+	return loc, "", nil
+}
+
+// resolveDriverType determines the driver type for a `sq add` invocation.
+// Three branches, in priority order:
+//
+//   - --driver was passed: use it verbatim, no detection or resolution.
+//   - loc contains a ${...} placeholder: resolve it via the secret
+//     registry and detect the driver from the resolved URL. The resolved
+//     value is used only for inspection here; it is never persisted to
+//     YAML (loc itself is what lands as the Location).
+//   - otherwise: detect driver from loc directly.
+//
+// --driver and --skip-verify are orthogonal. --driver suppresses the
+// add-time inference resolve (this function's job); --skip-verify
+// suppresses the post-add ping (handled in execSrcAdd). The resolve
+// failure hint below disambiguates them — users sometimes assume
+// --skip-verify alone covers both, but it does not.
+func resolveDriverType(
+	ctx context.Context, ru *run.Run, cmd *cobra.Command,
+	handle, loc string, hasPlaceholder bool,
+) (drivertype.Type, error) {
+	if cmdFlagChanged(cmd, flag.AddDriver) {
+		val, _ := cmd.Flags().GetString(flag.AddDriver)
+		return drivertype.Type(strings.TrimSpace(val)), nil
+	}
+
+	if hasPlaceholder {
+		resolved, err := ru.SecretRegistry.Expand(ctx, loc)
+		if err != nil {
+			return "", errz.Wrapf(err,
+				"resolve %s (pass --%s to skip resolution; --%s alone only skips the post-add ping)",
+				location.Redact(loc), flag.AddDriver, flag.SkipVerify)
+		}
+		// Driver inference from a resolved URL is scheme-based —
+		// location.Parse handles every URL-shaped DSN sq supports. We
+		// deliberately do NOT route through ru.Files.DetectType for
+		// URL DSNs: DetectType binds its `loc` argument to a logger
+		// attribute and embeds it in fallback error messages, both
+		// of which would leak the plaintext resolved DSN (including
+		// password) into debug logs and stderr.
+		typ, err := driverTypeFromResolved(ctx, ru, handle, resolved)
+		if err != nil {
+			// Generic error — must not include the resolved value.
+			return "", errz.Errorf("could not infer driver from resolved location (pass --%s)", flag.AddDriver)
+		}
+		if typ == drivertype.None {
+			return "", errz.Errorf("could not infer driver from resolved location: use --%s flag", flag.AddDriver)
+		}
+		return typ, nil
+	}
+
+	typ, err := ru.Files.DetectType(ctx, handle, loc)
+	if err != nil {
+		return "", err
+	}
+	if typ == drivertype.None {
+		return "", errz.Errorf("unable to determine driver type: use --%s flag", flag.AddDriver)
+	}
+	return typ, nil
+}
+
+// driverTypeFromResolved infers a driver type from a placeholder's
+// resolved value WITHOUT leaking the value into logs or error
+// messages. URL-shaped DSNs (postgres://..., mysql://..., etc.)
+// are classified via location.Parse alone — DriverType is set by
+// scheme without any logging-side-effect path. Non-URL resolved
+// values (file paths) fall through to Files.DetectType, which is
+// safe because file paths don't carry credentials.
+//
+// Errors returned to callers must be generic; in particular,
+// callers must NOT wrap them with the resolved string. location.Parse's
+// own errors may include the bad string, so they're swallowed here.
+func driverTypeFromResolved(
+	ctx context.Context, ru *run.Run, handle, resolved string,
+) (drivertype.Type, error) {
+	fields, err := location.Parse(resolved)
+	if err != nil {
+		// Don't propagate err — it may contain the resolved DSN.
+		return drivertype.None, errz.New("could not parse resolved location")
+	}
+	if fields.DriverType != drivertype.None {
+		return fields.DriverType, nil
+	}
+	// Non-URL: file path or similar. DetectType binds loc to its
+	// logger, but for file paths (the only resolved values reaching
+	// this branch) loc is a filesystem path, not a credential.
+	return ru.Files.DetectType(ctx, handle, resolved)
+}
+
+// applyKeyring writes the resolved DSN to the OS keyring at a fresh
+// opaque ID and returns "${keyring:<id>}" as the new Location.
+//
+// Preconditions enforced here (per the Form B contract):
+//   - loc must be a URL with scheme+host. --store keyring on a file
+//     path or other non-URL loc would create an orphan keyring entry
+//     with a nonsensical stored value, so reject early.
+//   - A password must be available. Either:
+//     (a) loc already has one in its userinfo, in which case the URL is
+//     stored verbatim; or
+//     (b) passwd is non-empty (the caller has read -p / piped stdin),
+//     in which case it is spliced into loc's userinfo before storage.
+//
+// No prompting fallback. An earlier version called readPassword
+// silently when neither (a) nor (b) held; that path hung non-interactive
+// callers and produced incomplete keyring entries on /dev/null-style
+// stdin. Require the user to opt into prompting via the explicit -p
+// flag instead.
+// applyKeyring returns (newLoc, mintedID, err). On success, mintedID
+// is the keyring path the caller is responsible for rolling back if
+// any downstream step before the config is persisted fails — leaving
+// the entry behind would orphan it. On error, mintedID is "" and the
+// caller has nothing to clean up.
+func applyKeyring(ctx context.Context, _ *run.Run, loc string, passwd []byte) (newLoc, mintedID string, err error) {
+	if !isURLLocation(loc) {
+		return loc, "", errz.Errorf("--%s %s requires a URL location (got %q)",
+			flag.AddStore, flag.AddStoreKeyring, location.Redact(loc))
+	}
+	if len(passwd) == 0 && !urlHasPassword(loc) {
+		return loc, "", errz.Errorf(
+			"--%s %s requires a password: embed it in the URL or pass --%s",
+			flag.AddStore, flag.AddStoreKeyring, flag.PasswordPrompt,
+		)
+	}
+
+	if len(passwd) > 0 {
+		var spliced string
+		spliced, err = location.WithPassword(loc, string(passwd))
+		if err != nil {
+			return loc, "", err
+		}
+		loc = spliced
+	}
+
+	kr := keyring.NewStore()
+	var id string
+	id, err = kr.NewID(ctx)
+	if err != nil {
+		return loc, "", errz.Wrap(err, "mint keyring id")
+	}
+
+	if err = kr.Set(ctx, id, loc); err != nil {
+		return loc, "", errz.Wrap(err, "write to keyring")
+	}
+
+	return "${keyring:" + id + "}", id, nil
+}
+
+// isURLLocation reports whether loc parses as a URL with a non-empty
+// scheme and host. File paths, sqlite/Excel/CSV paths, and any other
+// non-URL Location returns false.
+func isURLLocation(loc string) bool {
+	u, err := url.Parse(loc)
+	return err == nil && u.Scheme != "" && u.Host != ""
+}
+
+// absolutizeFilePath is a secret.RewritePlaceholders callback: for
+// the "file" scheme it returns filepath.Abs(path) when path is bare
+// relative (e.g. "./pg.dsn", "pg.dsn", "../shared/pw"). Paths that
+// are already usable by the file resolver — absolute, ~/-prefixed,
+// or the file:/// URI form — pass through unchanged so user intent
+// is preserved (e.g. "~/" stays portable across users). Other
+// schemes are no-ops: their path bodies have semantics this helper
+// has no business interpreting.
+//
+// The expansion uses os.Getwd at add time and is captured once;
+// later moves of the user's working directory don't affect a source
+// already added.
+func absolutizeFilePath(_ context.Context, scheme, path string) (string, error) {
+	if scheme != "file" || path == "" {
+		return path, nil
+	}
+	if path == "~" || strings.HasPrefix(path, "~/") {
+		return path, nil
+	}
+	if strings.HasPrefix(path, "//") {
+		// Covers ${file:///abs/...} URI-empty-authority sugar and the
+		// rejected file://host/... remote form. Either way, leave for
+		// the file resolver to interpret.
+		return path, nil
+	}
+	if filepath.IsAbs(path) {
+		return path, nil
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return path, errz.Wrapf(err, "absolutize relative file path %q", path)
+	}
+	return abs, nil
+}
+
+// urlHasPassword reports whether loc parses as a URL with a non-empty
+// password in its userinfo component. Non-URL locs return false.
+func urlHasPassword(loc string) bool {
+	u, err := url.Parse(loc)
+	if err != nil || u.Scheme == "" || u.Host == "" || u.User == nil {
+		return false
+	}
+	_, has := u.User.Password()
+	return has
 }
 
 // readPassword reads a password from stdin pipe, or if nothing on stdin,

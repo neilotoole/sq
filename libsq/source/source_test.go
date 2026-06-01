@@ -670,6 +670,34 @@ func TestSource_ShortLocation(t *testing.T) {
 		got := src.ShortLocation()
 		require.Equal(t, "data.xlsx", got)
 	})
+
+	// Placeholder Locations must NOT be filepath-shortened: ${file:...}
+	// looks like a path with trailing '}' to filepath.Base and produces
+	// nonsense like "pg.dsn}". Bare-placeholder Locations are returned
+	// verbatim — they're already as short as they meaningfully get.
+	t.Run("placeholder_file_scheme", func(t *testing.T) {
+		const loc = "${file:/Users/me/work/pg.dsn}"
+		src := &source.Source{Location: loc}
+		require.Equal(t, loc, src.ShortLocation(),
+			"file: placeholder must not be sliced by filepath.Base")
+	})
+	t.Run("placeholder_keyring_scheme", func(t *testing.T) {
+		const loc = "${keyring:j2k7m3pxtz}"
+		src := &source.Source{Location: loc}
+		require.Equal(t, loc, src.ShortLocation())
+	})
+	t.Run("placeholder_keyring_with_slash_in_body", func(t *testing.T) {
+		// Hand-managed legacy form: ${keyring:@handle/password}.
+		// The '/' in the body must not trip filepath.Base.
+		const loc = "${keyring:@sakila/password}"
+		src := &source.Source{Location: loc}
+		require.Equal(t, loc, src.ShortLocation())
+	})
+	t.Run("placeholder_env_scheme", func(t *testing.T) {
+		const loc = "${env:SAKILA_DSN}"
+		src := &source.Source{Location: loc}
+		require.Equal(t, loc, src.ShortLocation())
+	})
 }
 
 func TestSource_Group(t *testing.T) {
@@ -696,6 +724,83 @@ func TestSource_RedactedLocation_nil(t *testing.T) {
 	var src *source.Source
 	got := src.RedactedLocation()
 	require.Empty(t, got)
+}
+
+func TestSource_RedactedLocation_Placeholders(t *testing.T) {
+	tests := []struct {
+		name, loc, want string
+	}{
+		{
+			// Placeholder in password position is masked like any password
+			// would be. The placeholder text is lost in the redacted form
+			// (use `sq config keyring ls` to enumerate references).
+			name: "password placeholder masked",
+			loc:  "postgres://alice:${keyring:@sakila/password}@db/sakila",
+			want: "postgres://alice:xxxxx@db/sakila",
+		},
+		{
+			// Placeholder in HOST: inline password must still be masked.
+			// This was the regression Copilot caught — the old code
+			// short-circuited on any "${" and leaked the inline password.
+			name: "placeholder in host, inline password masked",
+			loc:  "postgres://alice:hunter2@${env:DB_HOST}/sakila",
+			want: "postgres://alice:xxxxx@${env:DB_HOST}/sakila",
+		},
+		{
+			// Placeholder in USERNAME: inline password still masked.
+			name: "placeholder in username, inline password masked",
+			loc:  "postgres://${env:USR}:hunter2@db/sakila",
+			want: "postgres://${env:USR}:xxxxx@db/sakila",
+		},
+		{
+			// Placeholder in PORT — port must be all-digits per RFC 3986,
+			// so the sentinel for that position must also be digit-only.
+			name: "placeholder in port, inline password masked",
+			loc:  "postgres://alice:hunter2@db:${env:PORT}/sakila",
+			want: "postgres://alice:xxxxx@db:${env:PORT}/sakila",
+		},
+		{
+			// Multiple placeholders in different positions — sentinel
+			// ordering must align with ExtractRefs order.
+			name: "multiple placeholders across positions",
+			loc:  "postgres://${env:USR}:hunter2@${env:HOST}/${env:DB}",
+			want: "postgres://${env:USR}:xxxxx@${env:HOST}/${env:DB}",
+		},
+		{
+			name: "whole-dsn placeholder",
+			loc:  "${keyring:@prod/dsn}",
+			want: "${keyring:@prod/dsn}",
+		},
+		{
+			name: "non-url location with placeholder",
+			loc:  "${keyring:@my/file_path}",
+			want: "${keyring:@my/file_path}",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			src := &source.Source{Handle: "@h", Type: "postgres", Location: tc.loc}
+			require.Equal(t, tc.want, src.RedactedLocation())
+		})
+	}
+}
+
+// TestSource_RedactedLocation_BareDollarBraceFallsThrough verifies that a
+// bare "${" substring without a well-formed placeholder does NOT short-
+// circuit through the placeholder-aware path; it falls through to
+// location.Redact via the standard branch.
+func TestSource_RedactedLocation_BareDollarBraceFallsThrough(t *testing.T) {
+	// Unclosed ${ — ExtractRefs returns an error; RedactedLocation must
+	// fall through to location.Redact (not return the location verbatim).
+	// We construct a URL that location.Redact CAN handle (so we get an
+	// observable masking), with the malformed ${ in the query string:
+	loc := "postgres://alice:hunter2@db/sakila?note=open${brace"
+	src := &source.Source{Handle: "@h", Type: "postgres", Location: loc}
+	got := src.RedactedLocation()
+	require.NotContains(t, got, "hunter2",
+		"inline password must be masked even when ${ substring is malformed")
+	require.Contains(t, got, "${brace",
+		"the malformed ${ should be passed through unchanged by location.Redact")
 }
 
 func TestTarget(t *testing.T) {

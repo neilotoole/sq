@@ -87,6 +87,21 @@ const (
 	PasswordPromptShort = "p"
 	PasswordPromptUsage = "Read password from stdin or prompt"
 
+	// AddStore is the --store flag for sq add. It selects where the
+	// source's secret material lands when sq stores it. Valid values:
+	//   inline   — store the URL verbatim in the YAML config
+	//   keyring  — mint a keyring entry holding the full DSN, write a
+	//              bare ${keyring:<id>} placeholder as the YAML Location
+	// Overrides the secrets.store config option for one invocation.
+	AddStore      = "store"
+	AddStoreUsage = "Where to store the source's secret: inline | keyring (overrides secrets.store)"
+
+	// AddStoreInline / AddStoreKeyring are the two valid --store values.
+	// Exported so callers (cmd_add, completions, tests) share a single
+	// source of truth.
+	AddStoreInline  = "inline"
+	AddStoreKeyring = "keyring"
+
 	CacheTreeSize      = "size"
 	CacheTreeSizeShort = "s"
 	CacheTreeSizeUsage = "Show sizes in cache tree"

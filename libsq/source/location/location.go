@@ -5,15 +5,18 @@ package location
 // overlap and duplication. It should be consolidated.
 
 import (
+	"fmt"
 	"net/url"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/xo/dburl"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
@@ -57,6 +60,10 @@ func IsSQL(loc string) bool {
 // WithPassword returns the location string with the password
 // value set, overriding any existing password. If loc is not a URL
 // (e.g. it's a file path), it is returned unmodified.
+//
+// Returns an error when passw is non-empty but loc has no username
+// in its userinfo: producing "scheme://:passw@host/db" is almost
+// never intentional, so callers get a clear error instead.
 func WithPassword(loc, passw string) (string, error) {
 	if _, ok := isFpath(loc); ok {
 		return loc, nil
@@ -67,8 +74,16 @@ func WithPassword(loc, passw string) (string, error) {
 		return "", errz.Err(err)
 	}
 
+	if passw != "" && (u.User == nil || u.User.Username() == "") {
+		return "", errz.Errorf(
+			"cannot set password: location has no username (got %q)",
+			Redact(loc))
+	}
+
 	if passw == "" {
-		// This will effectively remove any existing password in loc
+		if u.User == nil {
+			return loc, nil
+		}
 		u.User = url.User(u.User.Username())
 	} else {
 		u.User = url.UserPassword(u.User.Username(), passw)
@@ -79,7 +94,15 @@ func WithPassword(loc, passw string) (string, error) {
 
 // Short returns a short location string. For example, the
 // base name (data.xlsx) for a file, or for a DSN, user@host[:port]/db.
+//
+// Locations that start with a ${scheme:path} placeholder are returned
+// verbatim — they aren't filesystem paths or URLs and must not be run
+// through filepath.Base/dburl.Parse (which would, for example, slice
+// ${file:/abs/path/pg.dsn} down to "pg.dsn}").
 func Short(loc string) string {
+	if strings.HasPrefix(loc, "${") {
+		return loc
+	}
 	if !IsSQL(loc) {
 		// NOT a SQL location, must be a document (local filepath or URL).
 
@@ -354,6 +377,20 @@ func Abs(loc string) string {
 // isFpath returns the absolute filepath and true if loc is a file path.
 func isFpath(loc string) (fpath string, ok bool) {
 	// This is not exactly an industrial-strength algorithm...
+
+	// Excludes well-formed ${scheme:path} placeholders (e.g.
+	// ${env:DSN}, ${keyring:abc}) — those resolve at use time and
+	// must not be filepath-ified. Excludes malformed placeholder
+	// syntax (refsErr != nil) too: a file literally named with
+	// unclosed "${" would otherwise be opened as a path here, and
+	// then fail much later with an opaque OS-level error. Bailing
+	// here lets downstream surface a proper placeholder-parse
+	// error. Files containing an escaped "$${...}" parse cleanly
+	// (no refs) and are still treated as paths.
+	if refs, refsErr := secret.ExtractRefs(loc); refsErr != nil || len(refs) > 0 {
+		return "", false
+	}
+
 	if strings.Contains(loc, ":/") {
 		// Excludes "http:/" etc
 		return "", false
@@ -427,10 +464,84 @@ func isHTTP(s string) (u *url.URL, ok bool) {
 	return u, true
 }
 
-// Redact returns a redacted version of the source
-// location loc, with the password component (if any) of
-// the location masked.
+// Redact returns a redacted version of the source location loc, with
+// the password component (if any) masked.
+//
+// If loc contains one or more ${scheme:path} secret-resolver placeholders,
+// each placeholder is temporarily replaced with a digit-only sentinel
+// before standard URL/DSN redaction runs, then restored afterward.
+// Placeholders survive redaction in every URL position (host, port,
+// path, query) because the digit sentinel is valid in each. A
+// placeholder in the password position is masked along with the
+// password; the placeholder text is lost in the redacted form (use
+// 'sq config keyring ls' to enumerate references).
 func Redact(loc string) string {
+	if !strings.Contains(loc, "${") {
+		return redactRaw(loc)
+	}
+	refs, err := secret.ExtractRefs(loc)
+	if err != nil || len(refs) == 0 {
+		return redactRaw(loc)
+	}
+
+	sentinels, ok := pickSentinels(loc, len(refs))
+	if !ok {
+		// Couldn't find non-colliding sentinels in the salt-search
+		// budget. Fall back to redactRaw without placeholder
+		// preservation: placeholders get masked along with the
+		// password, which is correct (no credentials leak) but loses
+		// the placeholder text. Astronomically unlikely path.
+		return redactRaw(loc)
+	}
+	placeholders := make([]string, len(refs))
+	sentinelled := loc
+	for i, ref := range refs {
+		placeholders[i] = "${" + ref.Scheme + ":" + ref.Path + "}"
+		sentinelled = strings.Replace(sentinelled, placeholders[i], sentinels[i], 1)
+	}
+	redacted := redactRaw(sentinelled)
+	// Restore surviving sentinels. Sentinels that got eaten by redaction
+	// (because they were in the password position) are not restored —
+	// the placeholder text is consumed by the password mask.
+	for i := range refs {
+		redacted = strings.Replace(redacted, sentinels[i], placeholders[i], 1)
+	}
+	return redacted
+}
+
+// pickSentinels chooses n digit-only sentinel strings, none of which
+// appears as a substring of loc. Digit-only so the sentinels are valid
+// in every URL position (RFC 3986 §3.2.3 limits port to DIGIT). The
+// search bumps a salt prefix until no candidate collides with loc —
+// guarding against the rare case where loc legitimately contains the
+// default sentinel pattern (e.g. a long numeric query parameter).
+//
+// Returns ok=false after maxSaltAttempts unsuccessful tries — that
+// branch is astronomically unlikely (any salt change shifts the entire
+// candidate set), but bounding the loop is the right hygiene.
+func pickSentinels(loc string, n int) ([]string, bool) {
+	const maxSaltAttempts = 1000
+	for salt := range maxSaltAttempts {
+		candidates := make([]string, n)
+		clash := false
+		for i := range candidates {
+			candidates[i] = fmt.Sprintf("9999%03d%07d9999", salt, i)
+			if strings.Contains(loc, candidates[i]) {
+				clash = true
+				break
+			}
+		}
+		if !clash {
+			return candidates, true
+		}
+	}
+	return nil, false
+}
+
+// redactRaw is the underlying URL/DSN redactor with no placeholder
+// awareness. Redact wraps this with sentinel substitution when the input
+// contains ${scheme:path} placeholders.
+func redactRaw(loc string) string {
 	switch {
 	case loc == "",
 		strings.HasPrefix(loc, "/"),
@@ -443,8 +554,7 @@ func Redact(loc string) string {
 	case strings.HasPrefix(loc, "http://"), strings.HasPrefix(loc, "https://"):
 		u, err := url.ParseRequestURI(loc)
 		if err != nil {
-			// If we can't parse it, just return the original loc
-			return loc
+			return redactBestEffort(loc)
 		}
 
 		return u.Redacted()
@@ -453,10 +563,36 @@ func Redact(loc string) string {
 	// At this point, we expect it's a DSN
 	dbu, err := dburl.Parse(loc)
 	if err != nil {
-		// Shouldn't happen, but if it does, simply return the
-		// unmodified loc.
-		return loc
+		return redactBestEffort(loc)
 	}
 
 	return dbu.Redacted()
+}
+
+// redactRawUserinfo masks the password portion of any "user:pw@host"
+// pattern, whether preceded by a scheme separator ("scheme://"), a
+// query separator, or appearing at the very start of the input.
+// Captures the leading anchor (start-of-string or one of : / @) and
+// the username separately so the replacement preserves them both.
+// The password character class explicitly excludes "/" so a greedy
+// match can't swallow a "://" scheme prefix when anchored at "^".
+var redactRawUserinfo = regexp.MustCompile(`(^|[:/@])([^:/?@\s]+):[^:/?@\s]+@`)
+
+// redactRawDSNPw masks "PWD=value" / "password=value" style key/value
+// pairs used in ODBC, ADO.NET, and other ;-delimited connection
+// strings. Case-insensitive; stops at ; & or whitespace.
+var redactRawDSNPw = regexp.MustCompile(`(?i)(\b(?:pwd|password|passwd|pw)\s*=)\s*[^;&\s]+`)
+
+// redactBestEffort applies regex-based credential masking to inputs
+// that the structured parsers (url.ParseRequestURI / dburl.Parse) could
+// not handle. It catches the URL userinfo "user:pw@" pattern and the
+// common DSN/ODBC "PWD=value" form. Other credential-bearing shapes
+// will pass through unmasked — when that matters, fix the upstream
+// parser, don't rely on this. The goal is "don't leak inline passwords
+// in error messages and log lines when the loc is malformed enough
+// that the structured redactors give up".
+func redactBestEffort(loc string) string {
+	loc = redactRawUserinfo.ReplaceAllString(loc, "${1}${2}:xxxxx@")
+	loc = redactRawDSNPw.ReplaceAllString(loc, "${1}xxxxx")
+	return loc
 }

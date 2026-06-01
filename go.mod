@@ -82,6 +82,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
+require github.com/zalando/go-keyring v0.2.8
+
 require (
 	dario.cat/mergo v1.0.2 // indirect
 	filippo.io/edwards25519 v1.2.0 // indirect
@@ -95,6 +97,7 @@ require (
 	github.com/apache/arrow-go/v18 v18.5.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
+	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/dlclark/regexp2/v2 v2.1.1 // indirect
@@ -111,6 +114,7 @@ require (
 	github.com/go-faster/errors v0.7.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/goccy/go-json v0.10.6 // indirect
+	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/gohxs/readline v0.0.0-20171011095936-a780388e6e7c // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect

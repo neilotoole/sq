@@ -17,6 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
@@ -95,7 +96,52 @@ func (gs *Grips) IsSQLSource(src *source.Source) bool {
 	return false
 }
 
+// ResolveSourceSecrets returns a clone of src with any ${scheme:path}
+// placeholders in src.Location resolved via the secret.Registry on ctx.
+// If src.Location contains no well-formed placeholders, src is returned
+// unchanged. If placeholders are present but no Registry is bound to
+// ctx, an error is returned: a placeholder on a source that has reached
+// this point is always meant to be resolved, and a silent passthrough
+// would surface later as a confusing "connection refused" or DSN-parse
+// error from the driver.
+//
+// Detection uses secret.ExtractRefs rather than a `${`-substring scan
+// so that literal "${" sequences (e.g. an escaped "$${env:X}" or a
+// password that happens to contain "${") don't trigger resolution.
+//
+// Exposed (rather than unexported) so callers and tests can drive the
+// resolution directly. Grips.doOpen calls it once at entry; drivers do
+// not need to call it themselves.
+func ResolveSourceSecrets(ctx context.Context, src *source.Source) (*source.Source, error) {
+	if src == nil {
+		return src, nil
+	}
+	refs, err := secret.ExtractRefs(src.Location)
+	if err != nil {
+		return nil, errz.Wrapf(err, "parse placeholders for %s", src.Handle)
+	}
+	if len(refs) == 0 {
+		return src, nil
+	}
+	reg := secret.FromContext(ctx)
+	if reg == nil {
+		return nil, errz.Errorf("resolve placeholders for %s: no secret registry bound to context", src.Handle)
+	}
+	resolved, err := reg.Expand(ctx, src.Location)
+	if err != nil {
+		return nil, errz.Wrapf(err, "resolve secrets for %s", src.Handle)
+	}
+	clone := src.Clone()
+	clone.Location = resolved
+	return clone, nil
+}
+
 func (gs *Grips) doOpen(ctx context.Context, src *source.Source) (Grip, error) {
+	var err error
+	if src, err = ResolveSourceSecrets(ctx, src); err != nil {
+		return nil, err
+	}
+
 	grip, ok := gs.grips[src.Handle]
 	if ok {
 		return grip, nil
