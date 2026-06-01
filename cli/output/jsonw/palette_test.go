@@ -7,6 +7,8 @@ import (
 	"github.com/fatih/color"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/jsoncolor"
+
 	"github.com/neilotoole/sq/cli/output"
 )
 
@@ -39,7 +41,7 @@ func TestNewJSONColorPalette_HasPrefixes(t *testing.T) {
 	cases := []struct {
 		name string
 		fc   *color.Color
-		got  []byte
+		got  jsoncolor.Color
 	}{
 		{"Null", pr.Null, pal.Null},
 		{"Bool", pr.Bool, pal.Bool},
@@ -58,7 +60,7 @@ func TestNewJSONColorPalette_HasPrefixes(t *testing.T) {
 			idx := bytes.IndexByte(rendered, ' ')
 			require.Positive(t, idx, "fatih/color produced no prefix for %s", tc.name)
 			wantPrefix := rendered[:idx]
-			require.Equal(t, wantPrefix, tc.got)
+			require.Equal(t, string(wantPrefix), string(tc.got))
 		})
 	}
 }
