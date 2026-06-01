@@ -1035,7 +1035,9 @@ func PathFromLocation(src *source.Source) (string, error) {
 // https://github.com/mattn/go-sqlite3#connection-string.
 func dsnFromLocation(loc string) (string, error) {
 	if !strings.HasPrefix(loc, Prefix) {
-		return "", errz.Errorf("invalid sqlite3 location: %q", loc)
+		// Don't echo loc: it may carry secret connection params
+		// (e.g. _auth_pass) in a "?key=val" suffix.
+		return "", errz.Errorf("invalid sqlite3 location: missing %q prefix", Prefix)
 	}
 	return loc[len(Prefix):], nil
 }
@@ -1095,7 +1097,9 @@ func MungeLocation(loc string) (string, error) {
 
 	fp, err := filepath.Abs(pathPart)
 	if err != nil {
-		return "", errz.Wrapf(errw(err), "invalid location: %s", loc)
+		// Use pathPart, not loc: the original may contain secret
+		// connection params (e.g. _auth_pass) in the query suffix.
+		return "", errz.Wrapf(errw(err), "invalid location: %s", pathPart)
 	}
 
 	fp = filepath.ToSlash(fp)
