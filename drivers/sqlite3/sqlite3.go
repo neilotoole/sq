@@ -1026,6 +1026,19 @@ func PathFromLocation(src *source.Source) (string, error) {
 	return loc, nil
 }
 
+// dsnFromLocation converts an sq location string
+// ("sqlite3:///path/to/foo.db?mode=ro") into the DSN form expected by
+// mattn/go-sqlite3. Requires the "sqlite3://" prefix; preserves the rest
+// verbatim (including any "?key=val&..." query suffix). mattn/go-sqlite3
+// parses the query suffix itself; see
+// https://github.com/mattn/go-sqlite3#connection-string.
+func dsnFromLocation(loc string) (string, error) {
+	if !strings.HasPrefix(loc, Prefix) {
+		return "", errz.Errorf("invalid sqlite3 location: %q", loc)
+	}
+	return loc[len(Prefix):], nil
+}
+
 // MungeLocation takes a location argument (as received from the user)
 // and builds a sqlite3 location URL. Each of these forms are allowed:
 //
