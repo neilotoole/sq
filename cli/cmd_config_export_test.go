@@ -1,6 +1,9 @@
 package cli_test
 
 import (
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -113,4 +116,64 @@ func TestCmdConfigExport_Resolve_MissingKeyring(t *testing.T) {
 		"error must name the source whose placeholder failed")
 	require.Contains(t, err.Error(), "missing",
 		"error must reference the failing placeholder path")
+}
+
+// TestCmdConfigExport_Output_Portable verifies -o writes a regular file
+// with mode 0600, with no --resolve (placeholders preserved).
+func TestCmdConfigExport_Output_Portable(t *testing.T) {
+	gokeyring.MockInit()
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@sakila",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://${keyring:abc123}",
+	}))
+
+	out := filepath.Join(t.TempDir(), "out.yml")
+	require.NoError(t, tr.Exec("config", "export", "-o", out))
+
+	data, err := os.ReadFile(out)
+	require.NoError(t, err)
+	require.Contains(t, string(data), "${keyring:abc123}")
+	require.Contains(t, string(data), "@sakila")
+
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(out)
+		require.NoError(t, err)
+		require.Equal(t, os.FileMode(0o600), info.Mode().Perm(),
+			"-o must create file with mode 0600 even without --resolve")
+	}
+}
+
+// TestCmdConfigExport_Output_Resolve verifies --resolve -o substitutes
+// secrets and still produces a 0600 file.
+func TestCmdConfigExport_Output_Resolve(t *testing.T) {
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", "abc123",
+		"postgres://user:hunter2@db.local:5432/sakila"))
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@sakila",
+		Type:     drivertype.Pg,
+		Location: "${keyring:abc123}",
+	}))
+
+	out := filepath.Join(t.TempDir(), "out.yml")
+	require.NoError(t, tr.Exec("config", "export", "--resolve", "-o", out))
+
+	data, err := os.ReadFile(out)
+	require.NoError(t, err)
+	require.Contains(t, string(data), "user:hunter2@db.local")
+
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(out)
+		require.NoError(t, err)
+		require.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -77,7 +78,13 @@ func execConfigExport(cmd *cobra.Command, _ []string) error {
 		return errz.Wrap(err, "config export")
 	}
 
-	return writeConfigExport(ru.Stdout, data)
+	w, closeFn, err := openConfigExportWriter(cmd, ru)
+	if err != nil {
+		return err
+	}
+	defer closeFn()
+
+	return writeConfigExport(w, data)
 }
 
 // exportResolveConfig returns a deep clone of cfg with every source's
@@ -103,6 +110,33 @@ func exportResolveConfig(ctx context.Context, ru *run.Run, cfg *config.Config) (
 	return clone, nil
 }
 
+// openConfigExportWriter returns the destination writer for the export.
+// When --output is set, opens the target path with mode ioz.RWPerms (0o600,
+// matching sq's permission on the live config file, since either form of
+// export may contain plaintext credentials). When --output is not set,
+// returns ru.Stdout with a no-op closer.
+func openConfigExportWriter(cmd *cobra.Command, ru *run.Run) (io.Writer, func(), error) {
+	if !cmdFlagChanged(cmd, flag.FileOutput) {
+		return ru.Stdout, func() {}, nil
+	}
+
+	fpath, err := cmd.Flags().GetString(flag.FileOutput)
+	if err != nil {
+		return nil, nil, errz.Err(err)
+	}
+	fpath = strings.TrimSpace(fpath)
+	if fpath == "" {
+		return nil, nil, errz.Errorf("config export: --%s is specified, but empty", flag.FileOutput)
+	}
+
+	f, err := os.OpenFile(fpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, ioz.RWPerms)
+	if err != nil {
+		return nil, nil, errz.Wrap(err, "config export: open output file")
+	}
+	closeFn := func() { _ = f.Close() }
+	return f, closeFn, nil
+}
+
 // writeConfigExport writes data to w and wraps any I/O error.
 func writeConfigExport(w io.Writer, data []byte) error {
 	if _, err := w.Write(data); err != nil {
@@ -110,6 +144,3 @@ func writeConfigExport(w io.Writer, data []byte) error {
 	}
 	return nil
 }
-
-// Unused stub retained for Task 4 — deleted there.
-var _ = os.OpenFile
