@@ -67,6 +67,25 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   Server", dropping the trailing "/ Azure SQL Edge" (Azure SQL Edge was retired by
   Microsoft on 2025-09-30).
 
+### Fixed
+
+- [#720]: The [SQLite driver](https://sq.io/docs/drivers/sqlite) no longer fails
+  with `stat /path/to/db?key=val: no such file or directory` on source-level
+  metadata commands ([`sq inspect @handle`](https://sq.io/docs/inspect),
+  `sq inspect @handle --overview`) when the source location carries a
+  `?key=val[&...]` connection-string suffix
+  (e.g. `sqlite3:///path/to/db?mode=ro`). Connection-string parameters
+  documented in the
+  [SQLite driver page](https://sq.io/docs/drivers/sqlite) — including
+  `mode`, `cache`, and `mattn/go-sqlite3`'s `immutable=1` — now flow
+  end-to-end. Unblocks the long-standing request in
+  [#443](https://github.com/neilotoole/sq/discussions/443) to query a
+  live (locked) SQLite database, e.g. Firefox cookies, by setting
+  `?immutable=1`. As part of the same change, the SQLite driver's
+  open and location-parse error messages no longer echo the
+  connection-string suffix, so secret params (e.g. `_auth_pass`)
+  don't surface in logs.
+
 ## [v0.53.0] - 2026-05-25
 
 ### Added
@@ -1637,6 +1656,7 @@ make working with lots of sources much easier.
 [#441]: https://github.com/neilotoole/sq/issues/441
 [#660]: https://github.com/neilotoole/sq/issues/660
 [#692]: https://github.com/neilotoole/sq/issues/692
+[#720]: https://github.com/neilotoole/sq/issues/720
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
