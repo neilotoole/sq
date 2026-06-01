@@ -251,3 +251,28 @@ func TestCmdConfigExport_Resolve_MultiSource(t *testing.T) {
 	require.NotContains(t, got, "${keyring:")
 	require.NotContains(t, got, "${env:")
 }
+
+// TestCmdConfigExport_Output_CreatesParentDir verifies that -o creates
+// missing parent directories, matching the convenience the framework's
+// -o auto-redirect provides for other sq commands.
+func TestCmdConfigExport_Output_CreatesParentDir(t *testing.T) {
+	gokeyring.MockInit()
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@sakila",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3:///tmp/inline.db",
+	}))
+
+	// Path with a parent dir that does NOT yet exist.
+	out := filepath.Join(t.TempDir(), "nested", "deeper", "backup.yml")
+	require.NoError(t, tr.Exec("config", "export", "-o", out),
+		"-o must create missing parent dirs")
+
+	data, err := os.ReadFile(out)
+	require.NoError(t, err)
+	require.Contains(t, string(data), "@sakila")
+}

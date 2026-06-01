@@ -2,6 +2,8 @@ package cli
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -92,6 +94,10 @@ func execConfigExport(cmd *cobra.Command, _ []string) error {
 	}
 	if fpath = strings.TrimSpace(fpath); fpath == "" {
 		return errz.Errorf("config export: --%s is specified, but empty", flag.FileOutput)
+	}
+
+	if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
+		return errz.Wrap(err, "config export: create parent dir")
 	}
 
 	if err = ioz.WriteFileAtomic(fpath, data, ioz.RWPerms); err != nil {

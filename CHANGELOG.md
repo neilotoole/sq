@@ -26,8 +26,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   placeholders are written verbatim. With `--resolve`, every placeholder
   is expanded end-to-end and the resolved value is spliced in-line — a
   self-contained snapshot at the cost of writing every referenced secret
-  in plaintext. `-o PATH` writes to a file atomically with mode `0600`
-  (matching the live config file).
+  in plaintext. `-o PATH` writes to a file with mode `0600` (matching
+  the live config file); on non-Windows platforms the write is atomic
+  (temp-file + rename).
 - [#441]: [`sq config keyring`](https://sq.io/docs/cmd/sq_config_keyring) command
   group: store source DSNs in the OS keyring instead of plaintext in
   `~/.config/sq.yml`. Subcommands: `ls`, `create`, `update`, `get`, `rm`,
