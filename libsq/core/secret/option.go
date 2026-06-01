@@ -1,8 +1,7 @@
 package secret
 
 import (
-	"fmt"
-
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/options"
 )
 
@@ -23,7 +22,7 @@ var OptSecretsStore = options.NewString(
 		case "inline", "keyring":
 			return nil
 		}
-		return fmt.Errorf("must be 'inline' or 'keyring', got %q", s)
+		return errz.Errorf("must be 'inline' or 'keyring', got %q", s)
 	},
 	"Default secret storage for sq add",
 	`Default secret storage backend used by "sq add" when the source URL

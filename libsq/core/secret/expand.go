@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 // Expand walks ${scheme:path} placeholders in template, resolves each via
@@ -38,10 +40,11 @@ func (r *Registry) Expand(ctx context.Context, template string) (string, error) 
 			// (re-)set the value at that path. Surface the exact
 			// command so the user doesn't have to guess.
 			if errors.Is(err, ErrNotFound) && p.scheme == "keyring" {
-				return "", fmt.Errorf("resolve ${%s:%s}: %w (run: sq config secrets set %s)",
-					p.scheme, p.path, err, p.path)
+				return "", errz.Wrapf(err,
+					"resolve ${%s:%s} (run: sq config secrets set %s)",
+					p.scheme, p.path, p.path)
 			}
-			return "", fmt.Errorf("resolve ${%s:%s}: %w", p.scheme, p.path, err)
+			return "", errz.Wrapf(err, "resolve ${%s:%s}", p.scheme, p.path)
 		}
 		resolved[i] = v
 	}

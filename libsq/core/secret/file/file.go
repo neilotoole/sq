@@ -13,7 +13,6 @@ package file
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -67,7 +66,7 @@ func (r *Resolver) Resolve(_ context.Context, path string) (string, error) {
 // are rejected.
 func expandPath(path string) (string, error) {
 	if path == "" {
-		return "", errors.New("empty path")
+		return "", errz.New("empty path")
 	}
 	if path == "~" || strings.HasPrefix(path, "~/") {
 		home, err := os.UserHomeDir()
@@ -82,7 +81,7 @@ func expandPath(path string) (string, error) {
 	if strings.HasPrefix(path, "~") {
 		// "~user" style is not supported (no stdlib equivalent, and
 		// /etc/passwd lookup is platform-specific).
-		return "", fmt.Errorf("only ~/ (current user) tilde expansion is supported, got %q", path)
+		return "", errz.Errorf("only ~/ (current user) tilde expansion is supported, got %q", path)
 	}
 	if strings.HasPrefix(path, "///") {
 		// RFC 8089 file:// URI with empty authority: ${file:///etc/passwd}
@@ -92,14 +91,14 @@ func expandPath(path string) (string, error) {
 		// Two slashes only: either a URI with a non-empty authority
 		// (file://host/path — remote, not supported) or an ambiguous
 		// non-standard form. Either way, reject with a clear nudge.
-		return "", fmt.Errorf(
+		return "", errz.Errorf(
 			"remote file URIs are not supported (got %q); use a local absolute path "+
 				"like ${file:/path/to/secret} or the empty-authority URI form ${file:///path/to/secret}",
 			path,
 		)
 	}
 	if !filepath.IsAbs(path) {
-		return "", fmt.Errorf("path must be absolute or start with ~/, got %q", path)
+		return "", errz.Errorf("path must be absolute or start with ~/, got %q", path)
 	}
 	return path, nil
 }

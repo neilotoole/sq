@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 // RewritePlaceholders walks every ${scheme:path} occurrence in
@@ -39,7 +41,7 @@ func RewritePlaceholders(
 		b.WriteString(template[pos:p.start])
 		newPath, err := fn(ctx, p.scheme, p.path)
 		if err != nil {
-			return "", fmt.Errorf("rewrite ${%s:%s}: %w", p.scheme, p.path, err)
+			return "", errz.Wrapf(err, "rewrite ${%s:%s}", p.scheme, p.path)
 		}
 		fmt.Fprintf(&b, "${%s:%s}", p.scheme, newPath)
 		pos = p.end
