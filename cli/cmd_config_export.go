@@ -2,8 +2,6 @@ package cli
 
 import (
 	"context"
-	"io"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -78,13 +76,25 @@ func execConfigExport(cmd *cobra.Command, _ []string) error {
 		return errz.Wrap(err, "config export")
 	}
 
-	w, closeFn, err := openConfigExportWriter(cmd, ru)
-	if err != nil {
-		return err
+	if !cmdFlagChanged(cmd, flag.FileOutput) {
+		if _, err = ru.Stdout.Write(data); err != nil {
+			return errz.Wrap(err, "config export: write")
+		}
+		return nil
 	}
-	defer closeFn()
 
-	return writeConfigExport(w, data)
+	fpath, err := cmd.Flags().GetString(flag.FileOutput)
+	if err != nil {
+		return errz.Err(err)
+	}
+	if fpath = strings.TrimSpace(fpath); fpath == "" {
+		return errz.Errorf("config export: --%s is specified, but empty", flag.FileOutput)
+	}
+
+	if err = ioz.WriteFileAtomic(fpath, data, ioz.RWPerms); err != nil {
+		return errz.Wrap(err, "config export: write")
+	}
+	return nil
 }
 
 // exportResolveConfig returns a deep clone of cfg with every source's
@@ -108,39 +118,4 @@ func exportResolveConfig(ctx context.Context, ru *run.Run, cfg *config.Config) (
 	}
 
 	return clone, nil
-}
-
-// openConfigExportWriter returns the destination writer for the export.
-// When --output is set, opens the target path with mode ioz.RWPerms (0o600,
-// matching sq's permission on the live config file, since either form of
-// export may contain plaintext credentials). When --output is not set,
-// returns ru.Stdout with a no-op closer.
-func openConfigExportWriter(cmd *cobra.Command, ru *run.Run) (io.Writer, func(), error) {
-	if !cmdFlagChanged(cmd, flag.FileOutput) {
-		return ru.Stdout, func() {}, nil
-	}
-
-	fpath, err := cmd.Flags().GetString(flag.FileOutput)
-	if err != nil {
-		return nil, nil, errz.Err(err)
-	}
-	fpath = strings.TrimSpace(fpath)
-	if fpath == "" {
-		return nil, nil, errz.Errorf("config export: --%s is specified, but empty", flag.FileOutput)
-	}
-
-	f, err := os.OpenFile(fpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, ioz.RWPerms)
-	if err != nil {
-		return nil, nil, errz.Wrap(err, "config export: open output file")
-	}
-	closeFn := func() { _ = f.Close() }
-	return f, closeFn, nil
-}
-
-// writeConfigExport writes data to w and wraps any I/O error.
-func writeConfigExport(w io.Writer, data []byte) error {
-	if _, err := w.Write(data); err != nil {
-		return errz.Wrap(err, "config export: write")
-	}
-	return nil
 }
