@@ -96,7 +96,11 @@ func execConfigExport(cmd *cobra.Command, _ []string) error {
 		return errz.Errorf("config export: --%s is specified, but empty", flag.FileOutput)
 	}
 
-	if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
+	// Create parent dirs at 0o700 (not os.ModePerm) because the export
+	// may contain credentials — restrict new dirs to the current user.
+	// Existing parent dirs keep their permissions; MkdirAll only sets
+	// mode on dirs it creates.
+	if err = os.MkdirAll(filepath.Dir(fpath), 0o700); err != nil {
 		return errz.Wrap(err, "config export: create parent dir")
 	}
 

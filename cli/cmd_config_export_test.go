@@ -268,11 +268,26 @@ func TestCmdConfigExport_Output_CreatesParentDir(t *testing.T) {
 	}))
 
 	// Path with a parent dir that does NOT yet exist.
-	out := filepath.Join(t.TempDir(), "nested", "deeper", "backup.yml")
+	tmp := t.TempDir()
+	out := filepath.Join(tmp, "nested", "deeper", "backup.yml")
 	require.NoError(t, tr.Exec("config", "export", "-o", out),
 		"-o must create missing parent dirs")
 
 	data, err := os.ReadFile(out)
 	require.NoError(t, err)
 	require.Contains(t, string(data), "@sakila")
+
+	if runtime.GOOS != "windows" {
+		// Freshly-created dirs should be 0o700 (not world-readable),
+		// since the file may contain credentials.
+		for _, dir := range []string{
+			filepath.Join(tmp, "nested"),
+			filepath.Join(tmp, "nested", "deeper"),
+		} {
+			info, err := os.Stat(dir)
+			require.NoError(t, err)
+			require.Equal(t, os.FileMode(0o700), info.Mode().Perm(),
+				"new parent dir %s must be 0700", dir)
+		}
+	}
 }
