@@ -16,18 +16,21 @@ import (
 // Service is the fixed keyring service name used for all sq secrets.
 const Service = "sq"
 
-// Resolver implements secret.Resolver against the OS keyring.
-type Resolver struct{}
+// Store is a client for the OS keyring, scoped to the sq service. It
+// supports the full read/write/delete lifecycle plus opaque-ID minting
+// (NewID, in id.go). Store also satisfies secret.Resolver, so it can
+// be registered under the "keyring" scheme on a secret.Registry.
+type Store struct{}
 
-// New returns a Resolver. Callers register the result with a
+// New returns a Store. Callers register the result with a
 // secret.Registry under the "keyring" scheme.
-func New() *Resolver {
-	return &Resolver{}
+func New() *Store {
+	return &Store{}
 }
 
 // Resolve returns the secret stored at path. Returns secret.ErrNotFound
 // when no entry exists.
-func (r *Resolver) Resolve(_ context.Context, path string) (string, error) {
+func (s *Store) Resolve(_ context.Context, path string) (string, error) {
 	v, err := gokeyring.Get(Service, path)
 	if errors.Is(err, gokeyring.ErrNotFound) {
 		return "", secret.ErrNotFound
@@ -39,13 +42,13 @@ func (r *Resolver) Resolve(_ context.Context, path string) (string, error) {
 }
 
 // Set writes value to the keyring at path, overwriting any existing entry.
-func (r *Resolver) Set(_ context.Context, path, value string) error {
+func (s *Store) Set(_ context.Context, path, value string) error {
 	return errz.Err(gokeyring.Set(Service, path, value))
 }
 
 // Delete removes the keyring entry at path. Deleting a non-existent
 // entry is not an error.
-func (r *Resolver) Delete(_ context.Context, path string) error {
+func (s *Store) Delete(_ context.Context, path string) error {
 	err := errz.Err(gokeyring.Delete(Service, path))
 	if errors.Is(err, gokeyring.ErrNotFound) {
 		return nil

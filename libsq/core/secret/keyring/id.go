@@ -41,13 +41,13 @@ var randSource = rand.Reader
 // Errors other than secret.ErrNotFound from the underlying keyring
 // (locked keychain, OS unavailable, etc.) are surfaced — they prevent
 // a safe mint without knowing the keyring state.
-func (r *Resolver) NewID(ctx context.Context) (string, error) {
+func (s *Store) NewID(ctx context.Context) (string, error) {
 	for range maxIDAttempts {
 		id, err := newRandomID()
 		if err != nil {
 			return "", err
 		}
-		_, err = r.Resolve(ctx, id)
+		_, err = s.Resolve(ctx, id)
 		switch {
 		case errors.Is(err, secret.ErrNotFound):
 			return id, nil

@@ -11,7 +11,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/secret/keyring"
 )
 
-func TestResolver_SetGetDelete(t *testing.T) {
+func TestStore_SetGetDelete(t *testing.T) {
 	gokeyring.MockInit() // in-memory backend for tests
 
 	r := keyring.New()
@@ -32,7 +32,7 @@ func TestResolver_SetGetDelete(t *testing.T) {
 	require.ErrorIs(t, err, secret.ErrNotFound)
 }
 
-func TestResolver_OverwriteOnSet(t *testing.T) {
+func TestStore_OverwriteOnSet(t *testing.T) {
 	gokeyring.MockInit()
 	r := keyring.New()
 	ctx := context.Background()
@@ -45,7 +45,7 @@ func TestResolver_OverwriteOnSet(t *testing.T) {
 	require.Equal(t, "second", got)
 }
 
-func TestResolver_DeleteMissingIsNotError(t *testing.T) {
+func TestStore_DeleteMissingIsNotError(t *testing.T) {
 	gokeyring.MockInit()
 	r := keyring.New()
 	// Deleting a non-existent entry should not error (idempotent).
