@@ -10,8 +10,11 @@ With --resolve, every ${scheme:path} placeholder is expanded end-to-end
 and the resolved value is spliced into the exported Location. This
 produces a fully self-contained snapshot suitable for transferring
 between machines, at the cost of writing every referenced secret in
-plaintext. The output file is always created with mode 0600 (matching
-the permissions sq uses for the live config file).
+plaintext.
+
+When --output is used, the output file is created with mode 0600 (the
+same permission sq uses for the live config file), since the export
+may contain credentials regardless of whether --resolve was set.
 
 Usage:
   sq config export

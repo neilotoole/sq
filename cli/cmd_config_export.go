@@ -33,8 +33,11 @@ With --resolve, every ${scheme:path} placeholder is expanded end-to-end
 and the resolved value is spliced into the exported Location. This
 produces a fully self-contained snapshot suitable for transferring
 between machines, at the cost of writing every referenced secret in
-plaintext. The output file is always created with mode 0600 (matching
-the permissions sq uses for the live config file).`,
+plaintext.
+
+When --output is used, the output file is created with mode 0600 (the
+same permission sq uses for the live config file), since the export
+may contain credentials regardless of whether --resolve was set.`,
 		RunE: execConfigExport,
 		Example: `  # Portable export to stdout (placeholders preserved)
   $ sq config export
@@ -97,16 +100,22 @@ func execConfigExport(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-// exportResolveConfig returns a deep clone of cfg with every source's
-// Location passed through ru.SecretRegistry.Expand. The input cfg is not
-// mutated. Resolution errors are wrapped with the source handle so the
-// user knows which source's placeholder failed.
+// exportResolveConfig returns a copy of cfg with every source's Location
+// passed through ru.SecretRegistry.Expand. Collection is deep-cloned;
+// Options and Ext are shared with the input cfg (safe because only
+// Collection sources are mutated). The input cfg is not mutated.
+// Resolution errors are wrapped with the source handle so the user knows
+// which source's placeholder failed.
 func exportResolveConfig(ctx context.Context, ru *run.Run, cfg *config.Config) (*config.Config, error) {
 	clone := &config.Config{
 		Version:    cfg.Version,
 		Options:    cfg.Options,
 		Collection: cfg.Collection.Clone(),
 		Ext:        cfg.Ext,
+	}
+
+	if clone.Collection == nil {
+		return clone, nil
 	}
 
 	for _, src := range clone.Collection.Sources() {
