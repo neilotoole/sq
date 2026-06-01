@@ -58,6 +58,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
+- `jsonw`: general-purpose JSON output (`sq inspect`, `sq config get`,
+  etc.) now uses
+  [`neilotoole/jsoncolor`](https://github.com/neilotoole/jsoncolor)
+  instead of the in-tree `jcolorenc` fork, removing ~11.7k LOC of
+  forked `segmentio/encoding` code. The hot-path record-stream encoders
+  (`--json`, `--jsona`, `--jsonl`) are unchanged. `jsoncolor` is ~32%
+  faster but allocates ~5× more bytes per encode; the affected paths
+  are not throughput-critical.
 - [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd)
   now syntax-colors its `erDiagram` source when writing to a terminal. Output to
   a file or pipe (and under `--no-color`, `NO_COLOR`, or `--monochrome`) is
