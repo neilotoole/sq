@@ -29,6 +29,7 @@ entire DSN, including credentials) is written to stdout.`,
 
   # Print the stored value
   $ sq config keyring get j2k7m3pxtz --reveal`,
+		ValidArgsFunction: completeKeyringPath,
 	}
 	cmd.Flags().Bool(flagSecretReveal, false,
 		"Print the secret value (default: only confirm existence)")

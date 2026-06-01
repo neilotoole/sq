@@ -146,6 +146,37 @@ func TestCmdConfigKeyringRm_Completion(t *testing.T) {
 	require.Equal(t, []string{"j2k7m3pxtz"}, got.values)
 }
 
+func TestCmdConfigKeyringGet_Completion(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil).Add(
+		source.Source{
+			Handle:   "@a_g",
+			Type:     drivertype.Pg,
+			Location: "postgres://alice:${keyring:j2k7m3pxtz}@db/sakila",
+		},
+		source.Source{
+			Handle:   "@b_g",
+			Type:     drivertype.Pg,
+			Location: "postgres://alice:${keyring:abc456defg}@db/sakila",
+		},
+		// env: ref must NOT appear in keyring-get completions.
+		source.Source{
+			Handle:   "@c_g",
+			Type:     drivertype.Pg,
+			Location: "postgres://alice:${env:DB_PW}@db/sakila",
+		},
+	)
+
+	got := testComplete(t, tr, "config", "keyring", "get", "")
+	require.Equal(t, []string{"abc456defg", "j2k7m3pxtz"}, got.values)
+	require.Contains(t, got.directives, cobra.ShellCompDirectiveNoFileComp)
+
+	// Prefix narrows to the matching subset.
+	got = testComplete(t, tr, "config", "keyring", "get", "abc")
+	require.Equal(t, []string{"abc456defg"}, got.values)
+}
+
 func TestCmdConfigKeyringMigrate_PerCase(t *testing.T) {
 	tests := []struct {
 		name string
