@@ -208,10 +208,10 @@ func TestParse(t *testing.T) {
 
 // TestPickSentinels verifies that the placeholder-substitution sentinel
 // chooser avoids collisions with literal strings in loc. The sentinel
-// format is "9999%03d%07d9999" (4 + salt(3) + idx(7) + 4 = 17 digits);
-// if loc legitimately contains such a substring (e.g. a 17-digit number
-// in a query parameter), the chooser must bump the salt until no
-// candidate collides.
+// format is "9999%03d%07d9999" (4 + salt(3) + idx(7) + 4 = 18 digits);
+// if loc legitimately contains such a substring (e.g. an 18-digit
+// number in a query parameter), the chooser must bump the salt until
+// no candidate collides.
 func TestPickSentinels(t *testing.T) {
 	tests := []struct {
 		name string

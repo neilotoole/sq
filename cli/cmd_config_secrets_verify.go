@@ -84,7 +84,7 @@ func testSourceSecrets(ctx context.Context, reg *secret.Registry, loc string) er
 	}
 	for _, ref := range refs {
 		if _, err := reg.ResolveScheme(ctx, ref.Scheme, ref.Path); err != nil {
-			return fmt.Errorf("${%s:%s}: %w", ref.Scheme, ref.Path, err)
+			return errz.Wrapf(err, "${%s:%s}", ref.Scheme, ref.Path)
 		}
 	}
 	return nil

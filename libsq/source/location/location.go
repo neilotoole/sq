@@ -59,6 +59,10 @@ func IsSQL(loc string) bool {
 // WithPassword returns the location string with the password
 // value set, overriding any existing password. If loc is not a URL
 // (e.g. it's a file path), it is returned unmodified.
+//
+// Returns an error when passw is non-empty but loc has no username
+// in its userinfo: producing "scheme://:passw@host/db" is almost
+// never intentional, so callers get a clear error instead.
 func WithPassword(loc, passw string) (string, error) {
 	if _, ok := isFpath(loc); ok {
 		return loc, nil
@@ -69,8 +73,16 @@ func WithPassword(loc, passw string) (string, error) {
 		return "", errz.Err(err)
 	}
 
+	if passw != "" && (u.User == nil || u.User.Username() == "") {
+		return "", errz.Errorf(
+			"cannot set password: location has no username (got %q)",
+			Redact(loc))
+	}
+
 	if passw == "" {
-		// This will effectively remove any existing password in loc
+		if u.User == nil {
+			return loc, nil
+		}
 		u.User = url.User(u.User.Username())
 	} else {
 		u.User = url.UserPassword(u.User.Username(), passw)
@@ -367,11 +379,13 @@ func isFpath(loc string) (fpath string, ok bool) {
 
 	// Excludes well-formed ${scheme:path} placeholders (e.g.
 	// ${env:DSN}, ${keyring:abc}) — those resolve at use time and
-	// must not be filepath-ified. Use ExtractRefs rather than a
-	// "${"-substring scan so that a legitimately-named file
-	// containing a literal "${" (or an escaped "$${...}") is still
-	// treated as a path. Malformed placeholder syntax is also
-	// excluded here (refsErr != nil), letting downstream catch it.
+	// must not be filepath-ified. Excludes malformed placeholder
+	// syntax (refsErr != nil) too: a file literally named with
+	// unclosed "${" would otherwise be opened as a path here, and
+	// then fail much later with an opaque OS-level error. Bailing
+	// here lets downstream surface a proper placeholder-parse
+	// error. Files containing an escaped "$${...}" parse cleanly
+	// (no refs) and are still treated as paths.
 	if refs, refsErr := secret.ExtractRefs(loc); refsErr != nil || len(refs) > 0 {
 		return "", false
 	}
