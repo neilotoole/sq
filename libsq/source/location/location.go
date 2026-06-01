@@ -473,7 +473,7 @@ func isHTTP(s string) (u *url.URL, ok bool) {
 // path, query) because the digit sentinel is valid in each. A
 // placeholder in the password position is masked along with the
 // password; the placeholder text is lost in the redacted form (use
-// 'sq config secrets ls' to enumerate references).
+// 'sq config keyring ls' to enumerate references).
 func Redact(loc string) string {
 	if !strings.Contains(loc, "${") {
 		return redactRaw(loc)

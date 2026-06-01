@@ -178,12 +178,14 @@ func TestSuggestHandle_FromPlaceholder(t *testing.T) {
 		// We don't try to make this pretty; rare hand-crafted case.
 		{loc: "${keyring:j2k7m3pxtz}", want: "@h__keyring_j2k7m3pxtz_"},
 
-		// Note: the `aws-sm`/`gcp-sm`/`azure-kv` cloud schemes from the
-		// design doc are NOT exercised here because the placeholder
-		// grammar currently requires [a-z][a-z0-9]* scheme names — no
-		// hyphens. The switch branch for `aws-sm` in handle.go is
-		// forward-looking; tests are deferred until/unless those
-		// schemes land with grammar support.
+		// Note: the cloud-SM schemes sketched in the design doc
+		// (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault)
+		// are not exercised here. The placeholder grammar currently
+		// requires [a-z][a-z0-9]* scheme names — no hyphens — so a
+		// hyphenated scheme like "aws-sm" would be rejected by the
+		// parser anyway. When those schemes land they'll either pick
+		// hyphen-free names or the grammar will be widened; handle
+		// suggestions will be added then.
 		//
 		// Composition Locations (placeholders embedded inside a
 		// literal URL, e.g. postgres://...:${env:PW}@host/db) are

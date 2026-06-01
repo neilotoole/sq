@@ -733,7 +733,7 @@ func TestSource_RedactedLocation_Placeholders(t *testing.T) {
 		{
 			// Placeholder in password position is masked like any password
 			// would be. The placeholder text is lost in the redacted form
-			// (use `sq config secrets ls` to enumerate references).
+			// (use `sq config keyring ls` to enumerate references).
 			name: "password placeholder masked",
 			loc:  "postgres://alice:${keyring:@sakila/password}@db/sakila",
 			want: "postgres://alice:xxxxx@db/sakila",

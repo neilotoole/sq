@@ -337,14 +337,6 @@ func suggestNameForScheme(scheme, body string) (string, bool) {
 		}
 		return "", false
 
-	case "aws-sm":
-		// arn:aws:secretsmanager:<region>:<acct>:secret:<name>[#field]
-		body = strings.SplitN(body, "#", 2)[0]
-		if idx := strings.LastIndex(body, ":"); idx >= 0 && idx < len(body)-1 {
-			return strings.ToLower(body[idx+1:]), true
-		}
-		return "", false
-
 	case "keyring":
 		// Legacy handle-encoded form "@<handle>/<slot>" — extract the
 		// handle. Opaque Crockford IDs have no meaningful segment;

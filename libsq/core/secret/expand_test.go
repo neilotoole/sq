@@ -49,18 +49,18 @@ func TestExpand_MissingSecret(t *testing.T) {
 	require.ErrorIs(t, err, secret.ErrNotFound)
 	// keyring-scheme not-found should carry the recovery hint so the
 	// user can copy-paste the fix command from the error.
-	require.Contains(t, err.Error(), "sq config secrets set nope")
+	require.Contains(t, err.Error(), "sq config keyring set nope")
 }
 
 func TestExpand_MissingSecret_NonKeyringNoHint(t *testing.T) {
 	// Non-keyring resolvers (env, file, future op:) don't get the
-	// "sq config secrets set" hint — that command only writes to the
+	// "sq config keyring set" hint — that command only writes to the
 	// keyring scheme. Sanity-check by registering a stub under "env".
 	reg := secret.NewRegistry()
 	reg.Register("env", &stubResolver{values: nil})
 	_, err := reg.Expand(context.Background(), "${env:MISSING}")
 	require.ErrorIs(t, err, secret.ErrNotFound)
-	require.NotContains(t, err.Error(), "sq config secrets set",
+	require.NotContains(t, err.Error(), "sq config keyring set",
 		"only keyring not-found should suggest the set command")
 }
 
@@ -128,4 +128,27 @@ func TestExpand_NonURL_NoEncoding(t *testing.T) {
 	got, err := reg.Expand(context.Background(), "${keyring:p}")
 	require.NoError(t, err)
 	require.Equal(t, "/secrets/data with space.xlsx", got)
+}
+
+// TestExpand_PortPlaceholder_DoesNotBreakUserinfoEncoding regression-checks
+// that a placeholder in the URL port position doesn't short-circuit
+// userinfo detection for other placeholders in the same template. The
+// previous implementation used a non-digit sentinel ("__SQ_SECRET_REF_N__")
+// which url.Parse rejected when substituted into the port, causing the
+// whole parse to fail and all userinfo placeholders to lose their
+// URL-encoding pass.
+func TestExpand_PortPlaceholder_DoesNotBreakUserinfoEncoding(t *testing.T) {
+	reg := newReg(t, map[string]string{
+		"pw":   `p@ss:word!`,
+		"port": "5432",
+	})
+	got, err := reg.Expand(context.Background(),
+		"postgres://alice:${keyring:pw}@host:${keyring:port}/db")
+	require.NoError(t, err)
+	// The password must be URL-encoded (userinfo splice); the port must
+	// land raw. A regression would either leave the password unencoded
+	// or break the URL entirely.
+	require.Equal(t,
+		"postgres://alice:p%40ss%3Aword%21@host:5432/db",
+		got)
 }

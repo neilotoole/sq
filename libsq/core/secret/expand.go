@@ -41,7 +41,7 @@ func (r *Registry) Expand(ctx context.Context, template string) (string, error) 
 			// command so the user doesn't have to guess.
 			if errors.Is(err, ErrNotFound) && p.scheme == "keyring" {
 				return "", errz.Wrapf(err,
-					"resolve ${%s:%s} (run: sq config secrets set %s)",
+					"resolve ${%s:%s} (run: sq config keyring set %s)",
 					p.scheme, p.path, p.path)
 			}
 			return "", errz.Wrapf(err, "resolve ${%s:%s}", p.scheme, p.path)
@@ -53,9 +53,20 @@ func (r *Registry) Expand(ctx context.Context, template string) (string, error) 
 	return spliceWithEncoding(template, placeholders, resolved, userinfoIdx), nil
 }
 
+// userinfoSentinelFmt is the fmt template for the digit-only sentinel
+// substituted in for each placeholder during userinfo detection. It
+// must be all digits so it parses correctly even when a placeholder
+// occupies the URL port position (e.g. "postgres://host:${env:PORT}/db"
+// — Go's url.Parse rejects non-digit ports, which would otherwise
+// short-circuit detection and leak userinfo placeholders past the
+// URL-encoding step). The fixed leading/trailing "9999000" /
+// "9999" plus a 7-digit index yields an 18-digit string that is
+// extremely unlikely to collide with real URL data.
+const userinfoSentinelFmt = "9999000%07d9999"
+
 // userinfoPlaceholders returns the set of indices (into placeholders)
 // whose substitution position lies inside the userinfo component of
-// template. Detected by replacing each placeholder with a URL-safe
+// template. Detected by replacing each placeholder with a digit-only
 // sentinel and parsing the resulting string as a URL. Returns an empty
 // map when template does not parse as a URL or has no userinfo.
 func userinfoPlaceholders(template string, placeholders []placeholder) map[int]bool {
@@ -64,14 +75,11 @@ func userinfoPlaceholders(template string, placeholders []placeholder) map[int]b
 		return out
 	}
 
-	const sentinelPrefix = "__SQ_SECRET_REF_"
-	const sentinelSuffix = "__"
-
 	var b strings.Builder
 	pos := 0
 	for i, p := range placeholders {
 		b.WriteString(template[pos:p.start])
-		fmt.Fprintf(&b, "%s%d%s", sentinelPrefix, i, sentinelSuffix)
+		fmt.Fprintf(&b, userinfoSentinelFmt, i)
 		pos = p.end
 	}
 	b.WriteString(template[pos:])
@@ -84,7 +92,7 @@ func userinfoPlaceholders(template string, placeholders []placeholder) map[int]b
 	user := u.User.Username()
 	pass, _ := u.User.Password()
 	for i := range placeholders {
-		ref := fmt.Sprintf("%s%d%s", sentinelPrefix, i, sentinelSuffix)
+		ref := fmt.Sprintf(userinfoSentinelFmt, i)
 		if strings.Contains(user, ref) || strings.Contains(pass, ref) {
 			out[i] = true
 		}
