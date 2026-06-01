@@ -409,3 +409,46 @@ func TestDriveri_AlterTableColumnKinds(t *testing.T) {
 	require.Equal(t, kind.Text.String(), gotTblMeta.Column("age").Kind.String())
 	require.Equal(t, kind.Float.String(), gotTblMeta.Column("weight").Kind.String())
 }
+
+// TestSourceMetadata_LocationWithConnParams reproduces gh720: a
+// source-level metadata read must succeed when the source location
+// carries a connection-string suffix (e.g. ?mode=ro). The previous
+// behavior was os.Stat returning "no such file or directory" because
+// PathFromLocation passed through the literal "path?mode=ro" string.
+func TestSourceMetadata_LocationWithConnParams(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+
+	dbPath := tu.TempFile(t, "gh720.db")
+
+	// First, create a tiny db with no conn params.
+	bootSrc := &source.Source{
+		Handle:   "@bootstrap",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + filepath.ToSlash(dbPath),
+	}
+	bootGrip := th.Open(bootSrc)
+	bootDB, err := bootGrip.DB(th.Context)
+	require.NoError(t, err)
+	_, err = bootDB.ExecContext(th.Context, `CREATE TABLE t (id INTEGER); INSERT INTO t VALUES (1);`)
+	require.NoError(t, err)
+	require.NoError(t, bootGrip.Close())
+
+	// Now open with ?mode=ro and read source metadata — this used to fail.
+	roLoc, err := sqlite3.MungeLocation("sqlite3://" + filepath.ToSlash(dbPath) + "?mode=ro")
+	require.NoError(t, err)
+
+	roSrc := &source.Source{
+		Handle:   "@ro",
+		Type:     drivertype.SQLite,
+		Location: roLoc,
+	}
+	roGrip := th.Open(roSrc)
+
+	md, err := roGrip.SourceMetadata(th.Context, true)
+	require.NoError(t, err, "SourceMetadata must succeed even when Location carries ?mode=ro")
+	require.Equal(t, "@ro", md.Handle)
+	require.NotZero(t, md.Size, "file size should be non-zero")
+	require.Equal(t, filepath.Base(dbPath), md.Name)
+}
