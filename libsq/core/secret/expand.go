@@ -40,15 +40,14 @@ func (r *Registry) Expand(ctx context.Context, template string) (string, error) 
 			// (re-)set the value at that path. Surface the exact
 			// command so the user doesn't have to guess.
 			if errors.Is(err, ErrNotFound) && p.scheme == "keyring" {
-				// Hint must be copy-pasteable for any valid keyring path,
-				// including paths containing spaces or a leading "-". Use
-				// %q to shell-quote, "--" to stop flag parsing so a "-"-
-				// prefixed path isn't read as a flag, and put -p before
-				// "--" since -p IS a flag. 'create' requires either a
-				// VALUE arg or -p (which reads from stdin/prompt).
+				// Hint must be safely copy-pasteable for any valid keyring
+				// path. shellQuoteSingle wraps with POSIX single quotes so
+				// $, backticks, $(...), and other shell metacharacters
+				// can't expand; "--" stops flag parsing so a "-"-prefixed
+				// path isn't read as a flag.
 				return "", errz.Wrapf(err,
-					"resolve ${%s:%s} (run: sq config keyring create -p -- %q)",
-					p.scheme, p.path, p.path)
+					"resolve ${%s:%s} (run: sq config keyring create -p -- %s)",
+					p.scheme, p.path, shellQuoteSingle(p.path))
 			}
 			return "", errz.Wrapf(err, "resolve ${%s:%s}", p.scheme, p.path)
 		}
@@ -146,4 +145,15 @@ func unescapeDollar(s string) string {
 		return s
 	}
 	return strings.ReplaceAll(s, "$$", "$")
+}
+
+// shellQuoteSingle wraps s in POSIX single quotes. Embedded single
+// quotes are split out via close-quote, backslash-escaped quote,
+// reopen-quote — the standard POSIX idiom for embedding a single quote
+// inside a single-quoted word. A single-quoted shell word has no
+// metacharacter interpretation at all under bash/zsh/dash, so the result
+// survives arbitrary bytes (including $, backticks, newlines, backslashes).
+// Used to build copy-pasteable command suggestions in error messages.
+func shellQuoteSingle(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }

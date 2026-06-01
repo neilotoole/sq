@@ -48,37 +48,64 @@ func TestExpand_MissingSecret(t *testing.T) {
 	_, err := reg.Expand(context.Background(), "${keyring:nope}")
 	require.ErrorIs(t, err, secret.ErrNotFound)
 	// keyring-scheme not-found should carry the recovery hint so the
-	// user can copy-paste the fix command from the error. The -p flag
-	// is required because 'create' needs either a VALUE arg or -p; the
-	// path is %q-quoted and preceded by "--" so paths with spaces or a
-	// leading "-" still copy-paste cleanly.
-	require.Contains(t, err.Error(), `sq config keyring create -p -- "nope"`)
+	// user can copy-paste the fix command from the error. Anchored on
+	// "(run: " to pin flag order; shell-safety is exercised by
+	// TestExpand_MissingSecret_HintShellSafe.
+	require.Contains(t, err.Error(), `(run: sq config keyring create -p -- 'nope')`)
 }
 
 // TestExpand_MissingSecret_HintShellSafe pins the shell-safe shape of
 // the recovery hint for keyring paths that would otherwise break naive
-// copy-paste: paths containing spaces, and paths starting with "-"
-// (which Cobra/pflag would otherwise treat as a flag).
+// copy-paste — or worse, execute attacker-controlled shell when pasted.
+// The placeholder grammar in parse.go permits any byte except a closing
+// brace in a path, so all bash metacharacters are reachable. POSIX
+// single-quoting neutralizes every case; "--" stops flag parsing for
+// "-"-prefixed paths.
 func TestExpand_MissingSecret_HintShellSafe(t *testing.T) {
 	tests := []struct {
 		name string
 		path string
-		want string // substring the error must contain verbatim
+		want string // full parenthesized hint the error must contain
 	}{
 		{
 			name: "path with space",
 			path: "sakila db pw",
-			want: `sq config keyring create -p -- "sakila db pw"`,
+			want: `(run: sq config keyring create -p -- 'sakila db pw')`,
 		},
 		{
 			name: "path with leading dash",
 			path: "-looks-like-flag",
-			want: `sq config keyring create -p -- "-looks-like-flag"`,
+			want: `(run: sq config keyring create -p -- '-looks-like-flag')`,
+		},
+		{
+			name: "path with command substitution must not execute",
+			path: "$(whoami)",
+			want: `(run: sq config keyring create -p -- '$(whoami)')`,
+		},
+		{
+			name: "path with backticks must not execute",
+			path: "`whoami`",
+			want: "(run: sq config keyring create -p -- '`whoami`')",
+		},
+		{
+			name: "path with variable expansion must not expand",
+			path: "$HOME/db",
+			want: `(run: sq config keyring create -p -- '$HOME/db')`,
+		},
+		{
+			name: "path with backslash",
+			path: `a\b`,
+			want: `(run: sq config keyring create -p -- 'a\b')`,
 		},
 		{
 			name: "path with embedded double-quote",
 			path: `has"quote`,
-			want: `sq config keyring create -p -- "has\"quote"`,
+			want: `(run: sq config keyring create -p -- 'has"quote')`,
+		},
+		{
+			name: "path with embedded single-quote escapes as '\\''",
+			path: `it's`,
+			want: `(run: sq config keyring create -p -- 'it'\''s')`,
 		},
 	}
 	for _, tc := range tests {
