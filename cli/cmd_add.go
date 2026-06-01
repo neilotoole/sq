@@ -426,6 +426,7 @@ func applyPassword(ctx context.Context, cmd *cobra.Command, ru *run.Run, loc str
 		return loc, "", err
 	}
 	useKeyring := store == flag.AddStoreKeyring
+	storeExplicit := cmdFlagChanged(cmd, flag.AddStore)
 
 	// Read password from stdin/prompt if -p was passed.
 	var passwd []byte
@@ -435,7 +436,14 @@ func applyPassword(ctx context.Context, cmd *cobra.Command, ru *run.Run, loc str
 		}
 	}
 
-	if useKeyring {
+	// Route to keyring only when there's actually a secret to store —
+	// either an inline password in the URL, or one supplied via -p —
+	// OR when the user explicitly asked for it via --store keyring.
+	// Otherwise (config default of keyring + a source with no
+	// credentials, e.g. ./data.csv or postgres://alice@db/sakila),
+	// fall through to inline. The user's intent is "add this source";
+	// the keyring default shouldn't reject passwordless adds.
+	if useKeyring && (storeExplicit || len(passwd) > 0 || urlHasPassword(loc)) {
 		return applyKeyring(ctx, ru, loc, passwd)
 	}
 

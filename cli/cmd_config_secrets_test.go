@@ -223,6 +223,13 @@ func TestCmdConfigSecretsMigrate_PerCase(t *testing.T) {
 			wantSkipReason: "not a URL",
 		},
 		{
+			name: "malformed placeholder is surfaced, not silently migrated",
+			// Unclosed ${ — ExtractRefs returns an error. Migrate must
+			// NOT stamp the malformed Location into the keyring.
+			inLocation:     "postgres://alice:${env:UNCLOSED@db/sakila",
+			wantSkipReason: "malformed placeholder",
+		},
+		{
 			name:           "already templated",
 			inLocation:     "postgres://alice:${keyring:@h/password}@db/sakila",
 			wantSkipReason: "already",

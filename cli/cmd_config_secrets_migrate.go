@@ -162,11 +162,20 @@ func applyMigratePlans(ctx context.Context, ru *run.Run, plans []migratePlan) er
 // migrateSkipReason inspects loc and returns a non-empty reason string
 // when the source should be skipped by migrate, or "" when it is a
 // valid candidate. Skip rules, in order:
+//   - Malformed placeholder syntax (don't compound the broken state by
+//     stamping the Location into the keyring).
 //   - Already contains a ${...} placeholder (idempotent re-runs).
 //   - Not a URL (file paths, sqlite/Excel, etc. — nothing to migrate).
 //   - URL has no password component (no secret to relocate).
 func migrateSkipReason(loc string) string {
-	if refs, _ := secret.ExtractRefs(loc); len(refs) > 0 {
+	refs, refsErr := secret.ExtractRefs(loc)
+	switch {
+	case refsErr != nil:
+		// Surface the parse error explicitly rather than silently
+		// treating a malformed placeholder as "no placeholder" and
+		// proceeding to write the broken Location into the keyring.
+		return "malformed placeholder syntax: " + refsErr.Error()
+	case len(refs) > 0:
 		return "already has a placeholder"
 	}
 	u, err := url.Parse(loc)

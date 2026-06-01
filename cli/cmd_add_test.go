@@ -425,6 +425,68 @@ func TestCmdAdd_StoreKeyring_FromConfig(t *testing.T) {
 	require.Equal(t, dsn, got)
 }
 
+// TestCmdAdd_StoreKeyringConfig_PasswordlessFallsThrough verifies that
+// when secrets.store=keyring is the config default (no explicit
+// --store flag), a source without a password — file path, or URL
+// without userinfo — adds successfully via the inline path instead of
+// being rejected by applyKeyring's password requirement. The keyring
+// default should only fire when there's actually a secret to store.
+func TestCmdAdd_StoreKeyringConfig_PasswordlessFallsThrough(t *testing.T) {
+	tests := []struct {
+		name string
+		loc  string
+		typ  string
+	}{
+		{name: "file path", loc: "@INVENTORY@", typ: "csv"},
+		{name: "url no password", loc: "postgres://alice@localhost:5432/sakila", typ: "postgres"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			gokeyring.MockInit()
+			th := testh.New(t)
+			tr := testrun.New(th.Context, t, nil)
+			tr.Run.Config.Options["secrets.store"] = "keyring"
+
+			loc := tc.loc
+			if loc == "@INVENTORY@" {
+				csv := filepath.Join(t.TempDir(), "actor.csv")
+				require.NoError(t, os.WriteFile(csv, []byte("a,b\n1,2\n"), 0o600))
+				loc = csv
+			}
+
+			const handle = "@passwordless"
+			err := tr.Exec("add", loc,
+				"--handle", handle,
+				"--driver", tc.typ, "--skip-verify")
+			require.NoError(t, err,
+				"keyring config default must not reject passwordless adds")
+
+			src, err := tr.Run.Config.Collection.Get(handle)
+			require.NoError(t, err)
+			require.NotContains(t, src.Location, "${keyring:",
+				"no secret to keyring → Location should stay inline")
+		})
+	}
+}
+
+// TestCmdAdd_StoreKeyringExplicit_PasswordlessRejected verifies the
+// inverse: when the user explicitly passes --store keyring on a
+// passwordless source, the rejection still fires. Explicit user
+// intent is honored.
+func TestCmdAdd_StoreKeyringExplicit_PasswordlessRejected(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	err := tr.Exec("add", "postgres://alice@localhost:5432/sakila",
+		"--handle", "@explicit_no_pw",
+		"--store", "keyring",
+		"--driver", "postgres", "--skip-verify")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "--store",
+		"explicit --store keyring without a password still rejects")
+}
+
 // TestCmdAdd_StoreInvalidValue verifies that --store rejects unknown
 // values with an actionable error. Replaces the prior
 // TestCmdAdd_MutuallyExclusive test which is now moot: a single
