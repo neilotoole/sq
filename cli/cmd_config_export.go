@@ -1,16 +1,18 @@
 package cli
 
 import (
-	"fmt"
+	"context"
 	"io"
 	"os"
 
 	"github.com/spf13/cobra"
 
+	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/lg"
 )
 
 const flagConfigExportResolve = "resolve"
@@ -53,14 +55,52 @@ the permissions sq uses for the live config file).`,
 }
 
 func execConfigExport(cmd *cobra.Command, _ []string) error {
-	ru := run.FromContext(cmd.Context())
+	ctx := cmd.Context()
+	ru := run.FromContext(ctx)
 
-	data, err := ioz.MarshalYAML(ru.Config)
+	resolve := cmdFlagIsSetTrue(cmd, flagConfigExportResolve)
+
+	cfg := ru.Config
+	if resolve {
+		cloned, err := exportResolveConfig(ctx, ru, cfg)
+		if err != nil {
+			return err
+		}
+		cfg = cloned
+
+		lg.FromContext(ctx).Warn(
+			"sq config export --resolve: resolved secrets are written in plaintext")
+	}
+
+	data, err := ioz.MarshalYAML(cfg)
 	if err != nil {
 		return errz.Wrap(err, "config export")
 	}
 
 	return writeConfigExport(ru.Stdout, data)
+}
+
+// exportResolveConfig returns a deep clone of cfg with every source's
+// Location passed through ru.SecretRegistry.Expand. The input cfg is not
+// mutated. Resolution errors are wrapped with the source handle so the
+// user knows which source's placeholder failed.
+func exportResolveConfig(ctx context.Context, ru *run.Run, cfg *config.Config) (*config.Config, error) {
+	clone := &config.Config{
+		Version:    cfg.Version,
+		Options:    cfg.Options,
+		Collection: cfg.Collection.Clone(),
+		Ext:        cfg.Ext,
+	}
+
+	for _, src := range clone.Collection.Sources() {
+		resolved, err := ru.SecretRegistry.Expand(ctx, src.Location)
+		if err != nil {
+			return nil, errz.Wrapf(err, "config export: %s", src.Handle)
+		}
+		src.Location = resolved
+	}
+
+	return clone, nil
 }
 
 // writeConfigExport writes data to w and wraps any I/O error.
@@ -71,8 +111,5 @@ func writeConfigExport(w io.Writer, data []byte) error {
 	return nil
 }
 
-// Unused stubs retained from Task 1, deleted on Task 3.
-var (
-	_ = fmt.Fprintln
-	_ = os.OpenFile
-)
+// Unused stub retained for Task 4 — deleted there.
+var _ = os.OpenFile
