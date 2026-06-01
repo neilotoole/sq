@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"strings"
@@ -10,11 +11,57 @@ import (
 	"github.com/stretchr/testify/require"
 	gokeyring "github.com/zalando/go-keyring"
 
+	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/testrun"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 )
+
+// failingConfigStore wraps a config.Store and forces Save to return an
+// error, used by migrate-rollback tests. Load / Location / Lockfile /
+// Exists delegate to the underlying store.
+type failingConfigStore struct {
+	underlying config.Store
+}
+
+func (s *failingConfigStore) Save(_ context.Context, _ *config.Config) error {
+	return errz.New("simulated save failure")
+}
+
+func (s *failingConfigStore) Load(ctx context.Context) (*config.Config, error) {
+	return s.underlying.Load(ctx)
+}
+func (s *failingConfigStore) Exists() bool     { return s.underlying.Exists() }
+func (s *failingConfigStore) Location() string { return s.underlying.Location() }
+func (s *failingConfigStore) Lockfile() (lockfile.Lockfile, error) {
+	return s.underlying.Lockfile()
+}
+
+// migrateRollbackRow / migrateRollbackEnvelope and migrateJSONRow /
+// migrateJSONEnvelope are JSON unmarshal targets for migrate-result
+// tests. Promoted to top-level types (rather than inline anonymous
+// structs) so the revive nested-structs lint stays happy.
+type migrateRollbackRow struct {
+	Handle string `json:"handle"`
+	Status string `json:"status"`
+	Error  string `json:"error"`
+}
+type migrateRollbackEnvelope struct {
+	Rows   []migrateRollbackRow `json:"rows"`
+	DryRun bool                 `json:"dry_run"`
+}
+
+type migrateJSONRow struct {
+	Handle string `json:"handle"`
+	Status string `json:"status"`
+}
+type migrateJSONEnvelope struct {
+	Rows   []migrateJSONRow `json:"rows"`
+	DryRun bool             `json:"dry_run"`
+}
 
 func TestCmdConfigKeyringCreate_ExplicitValue(t *testing.T) {
 	gokeyring.MockInit()
@@ -744,4 +791,96 @@ func TestCmdConfigKeyringMigrate_JSON_Apply(t *testing.T) {
 	require.Equal(t, "@m_pw_apply", got.Rows[0].Handle)
 	require.Equal(t, "migrated", got.Rows[0].Status)
 	require.Contains(t, got.Rows[0].NewLocation, "${keyring:")
+}
+
+// TestCmdConfigKeyringMigrate_RollbackOnSaveFailure exercises the
+// failure path in applyMigratePlans: keyring write succeeds, then
+// ConfigStore.Save fails. The expected response is:
+//
+//   - The in-memory Source.Location is restored to the pre-migrate
+//     value (no half-mutated config persists).
+//   - The "failed" row carries Status="failed" and Error contains
+//     "rolled back" so JSON consumers can detect the path.
+//   - The command surfaces a non-nil error.
+//
+// The rollback also calls kr.Delete on the orphan keyring entry, but
+// the test doesn't assert that directly because the minted ID isn't
+// observable from outside (orphan listing is pending — see #715).
+func TestCmdConfigKeyringMigrate_RollbackOnSaveFailure(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	const origLoc = "postgres://alice:hunter2@db/sakila"
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@rb_src",
+		Type:     "postgres",
+		Location: origLoc,
+	}))
+	// Swap in a failing store AFTER initial setup so the source-add
+	// Save() above still succeeds. Now any further Save errors.
+	tr.Run.ConfigStore = &failingConfigStore{underlying: tr.Run.ConfigStore}
+
+	err := tr.Exec("config", "keyring", "migrate", "--all", "--yes", "--json")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "one or more sources failed")
+
+	// The in-memory source must reflect the rollback: Location is the
+	// original DSN, not a ${keyring:...} placeholder.
+	src, getErr := tr.Run.Config.Collection.Get("@rb_src")
+	require.NoError(t, getErr)
+	require.Equal(t, origLoc, src.Location,
+		"rollback must restore the original Location")
+
+	// JSON envelope carries the failed row with a "rolled back" hint.
+	var env migrateRollbackEnvelope
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &env))
+	require.False(t, env.DryRun)
+	require.Len(t, env.Rows, 1)
+	require.Equal(t, "@rb_src", env.Rows[0].Handle)
+	require.Equal(t, "failed", env.Rows[0].Status)
+	require.Contains(t, env.Rows[0].Error, "rolled back")
+}
+
+// TestCmdConfigKeyringMigrate_JSON_SkipsPrompt verifies the documented
+// behavior in cmd_config_keyring_migrate.go: in --json mode the
+// y/N confirmation prompt is bypassed entirely, because JSON consumers
+// are non-interactive and --yes is implied.
+//
+// The test loads "n\n" into stdin (which would answer "no" if the
+// prompt fired), then runs `migrate --all --json` WITHOUT --yes. If
+// the prompt is honored, the "n" cancels migration and no entry is
+// written. The assertion below catches that regression.
+func TestCmdConfigKeyringMigrate_JSON_SkipsPrompt(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@js_prompt",
+		Type:     "postgres",
+		Location: "postgres://alice:hunter2@db/sakila",
+	}))
+	// Pipe "n\n" so the y/N prompt — if reached — would answer "no".
+	tmp, err := os.CreateTemp(t.TempDir(), "stdin")
+	require.NoError(t, err)
+	_, err = tmp.WriteString("n\n")
+	require.NoError(t, err)
+	_, err = tmp.Seek(0, 0)
+	require.NoError(t, err)
+	tr.Run.Stdin = tmp
+
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--json"))
+
+	var env migrateJSONEnvelope
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &env))
+	require.False(t, env.DryRun)
+	require.Len(t, env.Rows, 1)
+	// If the prompt had run, "n" would have aborted with no rows.
+	// "migrated" status proves the prompt was bypassed.
+	require.Equal(t, "migrated", env.Rows[0].Status,
+		"--json must bypass the y/N prompt; got status %q", env.Rows[0].Status)
+
+	// Sanity: source's Location is now a placeholder.
+	src, _ := tr.Run.Config.Collection.Get("@js_prompt")
+	require.Contains(t, src.Location, "${keyring:")
 }
