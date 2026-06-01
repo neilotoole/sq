@@ -139,14 +139,16 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
-	fp, err := PathFromLocation(src)
+	dsn, err := dsnFromLocation(src.Location)
 	if err != nil {
 		return nil, err
 	}
 
-	db, err := sql.Open(dbDrvr, fp)
+	db, err := sql.Open(dbDrvr, dsn)
 	if err != nil {
-		return nil, errz.Wrapf(errw(err), "failed to open sqlite3 source with DSN: %s", fp)
+		// Don't include dsn in the error: it may contain secret
+		// connection params (e.g. _auth_pass).
+		return nil, errz.Wrapf(errw(err), "failed to open sqlite3 source %s", src.Handle)
 	}
 
 	driver.ConfigureDB(ctx, db, src.Options)
@@ -1005,10 +1007,10 @@ func NewScratchSource(ctx context.Context, fpath string) (src *source.Source, cl
 }
 
 // PathFromLocation returns the absolute file path from the source location,
-// which should have the "sqlite3://" prefix.
+// which must have the "sqlite3://" prefix. Any "?key=val&..." connection-string
+// suffix is stripped; callers that need the full DSN should use
+// dsnFromLocation instead.
 func PathFromLocation(src *source.Source) (string, error) {
-	// FIXME: Does this actually work with query params in the path?
-	// Probably not? Maybe refactor use dburl.Parse or such.
 	if src.Type != drivertype.SQLite {
 		return "", errz.Errorf("driver {%s} does not support {%s}", drivertype.SQLite, src.Type)
 	}
@@ -1017,13 +1019,44 @@ func PathFromLocation(src *source.Source) (string, error) {
 		return "", errz.Errorf("sqlite3 source location must begin with {%s} but was: %s", Prefix, src.RedactedLocation())
 	}
 
-	loc := strings.TrimPrefix(src.Location, Prefix)
+	loc := filePathFromLocation(src.Location)
 	if len(loc) < 2 {
 		return "", errz.Errorf("sqlite3 source location is too short: %s", src.RedactedLocation())
 	}
 
-	loc = filepath.Clean(loc)
-	return loc, nil
+	return filepath.Clean(loc), nil
+}
+
+// dsnFromLocation converts an sq location string
+// ("sqlite3:///path/to/foo.db?mode=ro") into the DSN form expected by
+// mattn/go-sqlite3. Requires the "sqlite3://" prefix; preserves the rest
+// verbatim (including any "?key=val&..." query suffix). mattn/go-sqlite3
+// parses the query suffix itself; see
+// https://github.com/mattn/go-sqlite3#connection-string.
+func dsnFromLocation(loc string) (string, error) {
+	if !strings.HasPrefix(loc, Prefix) {
+		// Don't echo loc: it may carry secret connection params
+		// (e.g. _auth_pass) in a "?key=val" suffix.
+		return "", errz.Errorf("invalid sqlite3 location: missing %q prefix", Prefix)
+	}
+	return loc[len(Prefix):], nil
+}
+
+// filePathFromLocation returns the on-disk file path for a sqlite3
+// location, or "" for a malformed location or one whose path component
+// is empty. Any "?key=val&..." DSN query suffix is stripped. The
+// returned path is neither normalized nor absolutized; callers that
+// need normalization should run it through filepath.Clean, and callers
+// that need an absolute path should use filepath.Abs.
+func filePathFromLocation(loc string) string {
+	if !strings.HasPrefix(loc, Prefix) {
+		return ""
+	}
+	p := loc[len(Prefix):]
+	if i := strings.IndexByte(p, '?'); i >= 0 {
+		p = p[:i]
+	}
+	return p
 }
 
 // MungeLocation takes a location argument (as received from the user)
@@ -1036,6 +1069,10 @@ func PathFromLocation(src *source.Source) (string, error) {
 //	sqlite3:sakila.db 						--> sqlite3:///current/working/dir/sakila.db
 //	sakila.db											--> sqlite3:///current/working/dir/sakila.db
 //	/path/to/sakila.db						--> sqlite3:///path/to/sakila.db
+//
+// An optional "?key=val[&...]" connection-string suffix is preserved
+// verbatim. The first '?' is always treated as the path/query separator,
+// so paths whose POSIX filename legally contains '?' are not supported.
 //
 // The final form is particularly nice for shell completion etc.
 //
@@ -1056,11 +1093,18 @@ func MungeLocation(loc string) (string, error) {
 	loc2 = strings.TrimPrefix(loc2, "sqlite3://")
 	loc2 = strings.TrimPrefix(loc2, "sqlite3:")
 
-	fp, err := filepath.Abs(loc2)
+	pathPart, queryPart, hasQuery := strings.Cut(loc2, "?")
+
+	fp, err := filepath.Abs(pathPart)
 	if err != nil {
-		return "", errz.Wrapf(errw(err), "invalid location: %s", loc)
+		// Use pathPart, not loc: the original may contain secret
+		// connection params (e.g. _auth_pass) in the query suffix.
+		return "", errz.Wrapf(errw(err), "invalid location: %s", pathPart)
 	}
 
 	fp = filepath.ToSlash(fp)
+	if hasQuery {
+		return "sqlite3://" + fp + "?" + queryPart, nil
+	}
 	return "sqlite3://" + fp, nil
 }
