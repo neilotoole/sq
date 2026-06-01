@@ -5,8 +5,9 @@ import (
 	"io"
 	"testing"
 
-	"github.com/neilotoole/jsoncolor"
 	segmentj "github.com/segmentio/encoding/json"
+
+	"github.com/neilotoole/jsoncolor"
 
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"

@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/neilotoole/jsoncolor"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/jsoncolor"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/jsonw/internal"

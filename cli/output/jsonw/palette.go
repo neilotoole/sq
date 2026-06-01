@@ -4,6 +4,7 @@ import (
 	"bytes"
 
 	"github.com/fatih/color"
+
 	"github.com/neilotoole/jsoncolor"
 
 	"github.com/neilotoole/sq/cli/output"
