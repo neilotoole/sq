@@ -342,6 +342,7 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 			OptErrorStack.Get(o), OptErrorFormatTextVerbose.Get(o)),
 		Version: tablew.NewVersionWriter(outCfg.out, outCfg.outPr),
 		Config:  tablew.NewConfigWriter(outCfg.out, outCfg.outPr),
+		Keyring: tablew.NewKeyringWriter(outCfg.out, outCfg.outPr),
 		SQL:     sqlw.NewTextWriter(outCfg.out, outCfg.outPr),
 	}
 
@@ -360,6 +361,7 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 		w.Version = jsonw.NewVersionWriter(outCfg.out, outCfg.outPr)
 		w.Ping = jsonw.NewPingWriter(outCfg.out, outCfg.outPr)
 		w.Config = jsonw.NewConfigWriter(outCfg.out, outCfg.outPr)
+		w.Keyring = jsonw.NewKeyringWriter(outCfg.out, outCfg.outPr)
 		w.SQL = sqlw.NewJSONWriter(outCfg.out, outCfg.outPr)
 
 	case format.JSONL:

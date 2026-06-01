@@ -40,6 +40,7 @@ not need to change.`,
   Password: ****`,
 	}
 	cmd.Flags().BoolP(flag.PasswordPrompt, flag.PasswordPromptShort, false, flag.PasswordPromptUsage)
+	addKeyringFormatFlags(cmd)
 	return cmd
 }
 
@@ -61,5 +62,8 @@ func execConfigKeyringSet(cmd *cobra.Command, args []string) error {
 		return errz.New("must provide VALUE argument or --password flag")
 	}
 
-	return keyring.NewStore().Set(cmd.Context(), path, string(value))
+	if err := keyring.NewStore().Set(cmd.Context(), path, string(value)); err != nil {
+		return err
+	}
+	return ru.Writers.Keyring.Set(path)
 }

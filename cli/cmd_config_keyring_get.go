@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/run"
@@ -20,7 +18,7 @@ func newConfigKeyringGetCmd() *cobra.Command {
 prints the secret value itself to stdout.
 
 PATH is the body of a ${keyring:PATH} placeholder. Use 'sq config
-secrets ls' to find the ids referenced by your sources.
+keyring ls' to find the ids referenced by your sources.
 
 By default (no --reveal), the value is NOT printed — only that the
 entry exists. With --reveal, the value (which under Form B is the
@@ -34,6 +32,7 @@ entire DSN, including credentials) is written to stdout.`,
 	}
 	cmd.Flags().Bool(flagSecretReveal, false,
 		"Print the secret value (default: only confirm existence)")
+	addKeyringFormatFlags(cmd)
 	return cmd
 }
 
@@ -46,10 +45,6 @@ func execConfigKeyringGet(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if cmdFlagIsSetTrue(cmd, flagSecretReveal) {
-		fmt.Fprintln(ru.Out, value)
-		return nil
-	}
-	fmt.Fprintf(ru.Out, "secret exists: %s\n", path)
-	return nil
+	revealed := cmdFlagIsSetTrue(cmd, flagSecretReveal)
+	return ru.Writers.Keyring.Get(path, value, revealed)
 }

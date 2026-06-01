@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/secret"
@@ -54,6 +55,7 @@ the confirmation prompt.`,
 	cmd.Flags().Bool(flagMigrateAll, false, "Migrate every source")
 	cmd.Flags().Bool(flagMigrateDryRun, false, "Show planned changes, make no writes")
 	cmd.Flags().Bool(flagMigrateYes, false, "Skip the confirmation prompt")
+	addKeyringFormatFlags(cmd)
 	return cmd
 }
 
@@ -76,10 +78,28 @@ func execConfigKeyringMigrate(cmd *cobra.Command, args []string) error {
 	}
 
 	plans := buildMigratePlans(srcs)
-	printMigratePlans(ru.Out, plans)
 
-	if cmdFlagIsSetTrue(cmd, flagMigrateDryRun) {
-		return nil
+	dryRun := cmdFlagIsSetTrue(cmd, flagMigrateDryRun)
+	if dryRun {
+		return ru.Writers.Keyring.Migrate(planRowsForReport(plans), true)
+	}
+
+	// Non-dry-run: print the plan in text mode so the user can see what
+	// will happen before the prompt. In JSON mode, skip the pre-prompt
+	// preview — the consumer reads a single envelope after apply.
+	if outputFormatIsJSON(cmd) {
+		// JSON: skip preview, skip confirmation prompt, apply directly.
+		// JSON callers are non-interactive; --yes is implied.
+		rows, err := applyMigratePlans(ctx, ru, plans)
+		writerErr := ru.Writers.Keyring.Migrate(rows, false)
+		if err != nil {
+			return err
+		}
+		return writerErr
+	}
+
+	if err := ru.Writers.Keyring.Migrate(planRowsForReport(plans), true); err != nil {
+		return err
 	}
 
 	if !cmdFlagIsSetTrue(cmd, flagMigrateYes) {
@@ -92,7 +112,11 @@ func execConfigKeyringMigrate(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	return applyMigratePlans(ctx, ru, plans)
+	rows, applyErr := applyMigratePlans(ctx, ru, plans)
+	if writerErr := ru.Writers.Keyring.Migrate(rows, false); writerErr != nil && applyErr == nil {
+		return writerErr
+	}
+	return applyErr
 }
 
 func selectMigrateSources(ru *run.Run, args []string) ([]*source.Source, error) {
@@ -114,18 +138,38 @@ func buildMigratePlans(srcs []*source.Source) []migratePlan {
 	return out
 }
 
-func printMigratePlans(out io.Writer, plans []migratePlan) {
+// planRowsForReport converts plans into writer rows for a dry-run /
+// pre-apply preview: each plan is either a "skip" with a reason or a
+// "planned" migration.
+func planRowsForReport(plans []migratePlan) []output.KeyringMigrateRow {
+	rows := make([]output.KeyringMigrateRow, 0, len(plans))
 	for _, p := range plans {
 		if p.reason != "" {
-			fmt.Fprintf(out, "%s  skip   (%s)\n", p.src.Handle, p.reason)
+			rows = append(rows, output.KeyringMigrateRow{
+				Handle: p.src.Handle,
+				Status: output.KeyringMigrateStatusSkip,
+				Reason: p.reason,
+			})
 			continue
 		}
-		fmt.Fprintf(out, "%s  ->     ${keyring:<new-id>}\n", p.src.Handle)
+		rows = append(rows, output.KeyringMigrateRow{
+			Handle: p.src.Handle,
+			Status: output.KeyringMigrateStatusPlanned,
+		})
 	}
+	return rows
 }
 
-func applyMigratePlans(ctx context.Context, ru *run.Run, plans []migratePlan) error {
+// applyMigratePlans performs the migration and returns one row per
+// non-skipped plan describing the outcome. Skipped plans don't appear
+// in the result because they were already reported during the plan
+// phase. The returned error is non-nil if at least one source failed
+// to migrate; rows for both successes and failures are still returned.
+func applyMigratePlans(ctx context.Context, ru *run.Run, plans []migratePlan) (
+	[]output.KeyringMigrateRow, error,
+) {
 	kr := keyring.NewStore()
+	rows := make([]output.KeyringMigrateRow, 0, len(plans))
 	var anyFailed bool
 	for _, p := range plans {
 		if p.reason != "" {
@@ -133,12 +177,20 @@ func applyMigratePlans(ctx context.Context, ru *run.Run, plans []migratePlan) er
 		}
 		id, err := kr.NewID(ctx)
 		if err != nil {
-			fmt.Fprintf(ru.Out, "%s  FAIL   mint keyring id: %v\n", p.src.Handle, err)
+			rows = append(rows, output.KeyringMigrateRow{
+				Handle: p.src.Handle,
+				Status: output.KeyringMigrateStatusFailed,
+				Error:  "mint keyring id: " + err.Error(),
+			})
 			anyFailed = true
 			continue
 		}
 		if err = kr.Set(ctx, id, p.src.Location); err != nil {
-			fmt.Fprintf(ru.Out, "%s  FAIL   write keyring: %v\n", p.src.Handle, err)
+			rows = append(rows, output.KeyringMigrateRow{
+				Handle: p.src.Handle,
+				Status: output.KeyringMigrateStatusFailed,
+				Error:  "write keyring: " + err.Error(),
+			})
 			anyFailed = true
 			continue
 		}
@@ -147,16 +199,33 @@ func applyMigratePlans(ctx context.Context, ru *run.Run, plans []migratePlan) er
 		if err = ru.ConfigStore.Save(ctx, ru.Config); err != nil {
 			p.src.Location = oldLoc
 			_ = kr.Delete(ctx, id)
-			fmt.Fprintf(ru.Out, "%s  FAIL   save config (rolled back): %v\n", p.src.Handle, err)
+			rows = append(rows, output.KeyringMigrateRow{
+				Handle: p.src.Handle,
+				Status: output.KeyringMigrateStatusFailed,
+				Error:  "save config (rolled back): " + err.Error(),
+			})
 			anyFailed = true
 			continue
 		}
-		fmt.Fprintf(ru.Out, "%s  done   ->  %s\n", p.src.Handle, p.src.Location)
+		rows = append(rows, output.KeyringMigrateRow{
+			Handle:      p.src.Handle,
+			Status:      output.KeyringMigrateStatusMigrated,
+			NewLocation: p.src.Location,
+		})
 	}
 	if anyFailed {
-		return errz.New("one or more sources failed to migrate")
+		return rows, errz.New("one or more sources failed to migrate")
 	}
-	return nil
+	return rows, nil
+}
+
+// outputFormatIsJSON reports whether the caller selected JSON output via
+// --json (or --format=json once we surface that flag).
+func outputFormatIsJSON(cmd *cobra.Command) bool {
+	if cmd == nil {
+		return false
+	}
+	return cmdFlagIsSetTrue(cmd, "json")
 }
 
 // migrateSkipReason inspects loc and returns a non-empty reason string

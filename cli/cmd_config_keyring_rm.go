@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/secret/keyring"
 )
@@ -23,11 +24,17 @@ references it; a remaining ${keyring:PATH} reference will fail to
 resolve at connect time. Use 'sq config keyring ls' to find references
 before removing.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return keyring.NewStore().Delete(cmd.Context(), args[0])
+			ru := run.FromContext(cmd.Context())
+			path := args[0]
+			if err := keyring.NewStore().Delete(cmd.Context(), path); err != nil {
+				return err
+			}
+			return ru.Writers.Keyring.Rm(path)
 		},
 		ValidArgsFunction: completeKeyringPath,
 		Example:           `  $ sq config keyring rm j2k7m3pxtz`,
 	}
+	addKeyringFormatFlags(cmd)
 	return cmd
 }
 

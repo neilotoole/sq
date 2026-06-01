@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -389,4 +390,198 @@ func TestCmdConfigKeyringLs_CompositionFiltersNonKeyring(t *testing.T) {
 	require.Contains(t, lines[0], "abc1234567")
 	require.Contains(t, lines[0], "@compo")
 	require.Contains(t, lines[0], "postgres")
+}
+
+// TestCmdConfigKeyringLs_JSON exercises --json output on ls.
+func TestCmdConfigKeyringLs_JSON(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil).Add(
+		source.Source{
+			Handle:   "@a_js",
+			Type:     drivertype.Pg,
+			Location: "${keyring:abc1}",
+		},
+		source.Source{
+			Handle:   "@b_js",
+			Type:     drivertype.MySQL,
+			Location: "${keyring:abc2}",
+		},
+		// env: must be filtered out of the JSON array too.
+		source.Source{
+			Handle:   "@env_js",
+			Type:     drivertype.Pg,
+			Location: "${env:DSN}",
+		},
+	)
+	require.NoError(t, tr.Exec("config", "keyring", "ls", "--json"))
+
+	var got []struct {
+		Path   string `json:"path"`
+		Handle string `json:"handle"`
+		Driver string `json:"driver"`
+	}
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
+	require.Len(t, got, 2, "env source must not produce a row")
+	require.Equal(t, "abc1", got[0].Path)
+	require.Equal(t, "@a_js", got[0].Handle)
+	require.Equal(t, "postgres", got[0].Driver)
+	require.Equal(t, "abc2", got[1].Path)
+	require.Equal(t, "@b_js", got[1].Handle)
+	require.Equal(t, "mysql", got[1].Driver)
+}
+
+// TestCmdConfigKeyringLs_JSON_Empty: empty collection emits a JSON
+// empty array, not a no-output run. Lets consumers safely `jq .` it.
+func TestCmdConfigKeyringLs_JSON_Empty(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Exec("config", "keyring", "ls", "--json"))
+	var got []any
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
+	require.Empty(t, got)
+}
+
+// TestCmdConfigKeyringGet_JSON_WithoutReveal: metadata-only — the
+// "value" key must be absent from the JSON object.
+func TestCmdConfigKeyringGet_JSON_WithoutReveal(t *testing.T) {
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", "abc_get_js", "hunter2"))
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Exec("config", "keyring", "get", "abc_get_js", "--json"))
+
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
+	require.Equal(t, "abc_get_js", got["path"])
+	require.Equal(t, true, got["exists"])
+	_, hasValue := got["value"]
+	require.False(t, hasValue, "value must be absent without --reveal")
+}
+
+// TestCmdConfigKeyringGet_JSON_WithReveal: --reveal puts the secret
+// value into the JSON object's "value" key.
+func TestCmdConfigKeyringGet_JSON_WithReveal(t *testing.T) {
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", "abc_get_js2", "hunter2"))
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Exec("config", "keyring", "get", "abc_get_js2", "--reveal", "--json"))
+
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
+	require.Equal(t, "abc_get_js2", got["path"])
+	require.Equal(t, true, got["exists"])
+	require.Equal(t, "hunter2", got["value"])
+}
+
+// TestCmdConfigKeyringSet_JSON: explicit set with --json emits a
+// confirmation object.
+func TestCmdConfigKeyringSet_JSON(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Exec("config", "keyring", "set", "abc_set_js", "v", "--json"))
+
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
+	require.Equal(t, "abc_set_js", got["path"])
+	require.Equal(t, true, got["set"])
+
+	// Side effect: keyring actually got written to.
+	v, err := gokeyring.Get("sq", "abc_set_js")
+	require.NoError(t, err)
+	require.Equal(t, "v", v)
+}
+
+// TestCmdConfigKeyringRm_JSON: rm emits a deletion confirmation.
+func TestCmdConfigKeyringRm_JSON(t *testing.T) {
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", "abc_rm_js", "v"))
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Exec("config", "keyring", "rm", "abc_rm_js", "--json"))
+
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
+	require.Equal(t, "abc_rm_js", got["path"])
+	require.Equal(t, true, got["deleted"])
+}
+
+// TestCmdConfigKeyringMigrate_JSON_DryRun: dry-run JSON envelope reports
+// dry_run=true and one row per source with planned/skip status.
+func TestCmdConfigKeyringMigrate_JSON_DryRun(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@m_pw",
+		Type:     "postgres",
+		Location: "postgres://alice:hunter2@db/sakila",
+	}))
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@m_skip",
+		Type:     "postgres",
+		Location: "postgres://alice@db/sakila", // no password -> skip
+	}))
+
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--dry-run", "--json"))
+
+	type planRow struct {
+		Handle string `json:"handle"`
+		Status string `json:"status"`
+		Reason string `json:"reason,omitempty"`
+	}
+	type planEnvelope struct {
+		DryRun bool      `json:"dry_run"`
+		Rows   []planRow `json:"rows"`
+	}
+	var got planEnvelope
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
+	require.True(t, got.DryRun)
+	require.Len(t, got.Rows, 2)
+
+	byHandle := map[string]string{}
+	reasons := map[string]string{}
+	for _, r := range got.Rows {
+		byHandle[r.Handle] = r.Status
+		reasons[r.Handle] = r.Reason
+	}
+	require.Equal(t, "planned", byHandle["@m_pw"])
+	require.Equal(t, "skip", byHandle["@m_skip"])
+	require.Contains(t, reasons["@m_skip"], "password")
+}
+
+// TestCmdConfigKeyringMigrate_JSON_Apply: applied JSON envelope reports
+// dry_run=false and one row per non-skipped source with migrated status
+// (skipped sources omitted from the apply phase).
+func TestCmdConfigKeyringMigrate_JSON_Apply(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@m_pw_apply",
+		Type:     "postgres",
+		Location: "postgres://alice:hunter2@db/sakila",
+	}))
+
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--json"))
+
+	type applyRow struct {
+		Handle      string `json:"handle"`
+		Status      string `json:"status"`
+		NewLocation string `json:"new_location,omitempty"`
+	}
+	type applyEnvelope struct {
+		DryRun bool       `json:"dry_run"`
+		Rows   []applyRow `json:"rows"`
+	}
+	var got applyEnvelope
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
+	require.False(t, got.DryRun)
+	require.Len(t, got.Rows, 1)
+	require.Equal(t, "@m_pw_apply", got.Rows[0].Handle)
+	require.Equal(t, "migrated", got.Rows[0].Status)
+	require.Contains(t, got.Rows[0].NewLocation, "${keyring:")
 }

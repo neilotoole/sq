@@ -1,13 +1,12 @@
 package cli
 
 import (
-	"fmt"
-	"io"
 	"sort"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
+	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/source"
@@ -39,67 +38,56 @@ not surfaced — that requires keyring enumeration, deferred to a
 future release.`,
 		RunE: execConfigKeyringLs,
 	}
+	addKeyringFormatFlags(cmd)
 	return cmd
-}
-
-type lsRow struct {
-	path   string // keyring path (the body after "keyring:")
-	handle string
-	driver string
 }
 
 func execConfigKeyringLs(cmd *cobra.Command, _ []string) error {
 	ru := run.FromContext(cmd.Context())
-
-	rows, err := buildLsRows(ru.Config.Collection.Sources())
-	if err != nil {
-		return err
-	}
-	if len(rows) == 0 {
-		return nil
-	}
-
-	printLsRows(ru.Out, rows)
-	return nil
+	refs := collectKeyringRefs(ru.Config.Collection.Sources())
+	return ru.Writers.Keyring.List(refs)
 }
 
-// buildLsRows extracts (path, handle, driver) rows from sources, sorted
-// by path then handle so shared paths cluster on adjacent lines. Only
-// ${keyring:...} refs are included; env and file refs are ignored.
-// No deduplication: a shared path produces one row per referencing
-// source, which is how sharing becomes visible in the output.
-func buildLsRows(srcs []*source.Source) ([]lsRow, error) {
-	var rows []lsRow
+// collectKeyringRefs extracts (path, handle, driver) rows from srcs,
+// sorted by path then handle so shared paths cluster on adjacent rows.
+// Only ${keyring:...} refs are included; env and file refs are ignored.
+// No deduplication: a shared path yields one row per referencing source,
+// which is how sharing becomes visible in the output.
+//
+// Malformed placeholders are silently skipped here. Surfacing them
+// would require a return-error variant; in practice the same sources
+// also fail to open via "sq ping", which is the better error venue.
+func collectKeyringRefs(srcs []*source.Source) []output.KeyringRef {
+	var rows []output.KeyringRef
 	for _, src := range srcs {
 		refs, err := secret.ExtractRefs(src.Location)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		for _, ref := range refs {
 			if ref.Scheme != "keyring" {
 				continue
 			}
-			rows = append(rows, lsRow{
-				path:   ref.Path,
-				handle: src.Handle,
-				driver: string(src.Type),
+			rows = append(rows, output.KeyringRef{
+				Path:   ref.Path,
+				Handle: src.Handle,
+				Driver: string(src.Type),
 			})
 		}
 	}
 	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].path != rows[j].path {
-			return rows[i].path < rows[j].path
+		if rows[i].Path != rows[j].Path {
+			return rows[i].Path < rows[j].Path
 		}
-		return rows[i].handle < rows[j].handle
+		return rows[i].Handle < rows[j].Handle
 	})
-	return rows, nil
+	return rows
 }
 
-// printLsRows writes rows to out as three space-aligned columns.
-func printLsRows(out io.Writer, rows []lsRow) {
-	tw := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
-	for _, r := range rows {
-		fmt.Fprintf(tw, "%s\t%s\t%s\n", r.path, r.handle, r.driver)
-	}
-	_ = tw.Flush()
+// addKeyringFormatFlags registers the output-format flags supported by
+// the keyring subcommands: --text/--json/-j. The default format is
+// text/table; --json selects the JSON impl.
+func addKeyringFormatFlags(cmd *cobra.Command) {
+	cmd.Flags().BoolP(flag.Text, flag.TextShort, false, flag.TextUsage)
+	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 }
