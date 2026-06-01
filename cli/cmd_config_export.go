@@ -17,7 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 )
 
-const flagConfigExportResolve = "resolve"
+const flagConfigExportExpand = "expand"
 
 func newConfigExportCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -32,15 +32,16 @@ placeholders (keyring, env, file) are written verbatim. Inline values
 already present in source Locations (such as plaintext credentials in a
 DSN) are dumped as-is — exactly as they appear in your config file.
 
-With --resolve, every ${scheme:path} placeholder is expanded end-to-end
-and the resolved value is spliced into the exported Location. This
-produces a fully self-contained snapshot suitable for transferring
-between machines, at the cost of writing every referenced secret in
-plaintext.
+With --expand, every ${scheme:path} placeholder is fetched from its
+resolver (keyring, env var, or file) and the resolved value is spliced
+into the exported Location. This produces a fully self-contained
+snapshot suitable for transferring between machines, at the cost of
+writing every referenced secret in plaintext. Resolution may fail
+per-source if a keyring entry, env var, or file is missing.
 
 When --output is used, the output file is created with mode 0600 (the
 same permission sq uses for the live config file), since the export
-may contain credentials regardless of whether --resolve was set.`,
+may contain credentials regardless of whether --expand was set.`,
 		RunE: execConfigExport,
 		Example: `  # Portable export to stdout (placeholders preserved)
   $ sq config export
@@ -48,13 +49,13 @@ may contain credentials regardless of whether --resolve was set.`,
   # Portable export to a file (backup)
   $ sq config export -o sq.bak.yml
 
-  # Self-contained export with placeholders resolved in-line
-  $ sq config export --resolve -o sq.bak.yml`,
+  # Self-contained export with placeholders expanded in-line
+  $ sq config export --expand -o sq.bak.yml`,
 	}
 
 	cmdMarkPlainStdout(cmd)
-	cmd.Flags().Bool(flagConfigExportResolve, false,
-		"Resolve ${scheme:path} placeholders in-line (writes resolved secrets in plaintext)")
+	cmd.Flags().Bool(flagConfigExportExpand, false,
+		"Fetch ${scheme:path} placeholders from keyring/env/file and inline the resolved values (plaintext)")
 	cmd.Flags().StringP(flag.FileOutput, flag.FileOutputShort, "", flag.FileOutputUsage)
 	return cmd
 }
@@ -63,18 +64,18 @@ func execConfigExport(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
 	ru := run.FromContext(ctx)
 
-	resolve := cmdFlagIsSetTrue(cmd, flagConfigExportResolve)
+	expand := cmdFlagIsSetTrue(cmd, flagConfigExportExpand)
 
 	cfg := ru.Config
-	if resolve {
-		cloned, err := exportResolveConfig(ctx, ru, cfg)
+	if expand {
+		cloned, err := exportExpandConfig(ctx, ru, cfg)
 		if err != nil {
 			return err
 		}
 		cfg = cloned
 
 		lg.FromContext(ctx).Warn(
-			"sq config export --resolve: resolved secrets are written in plaintext")
+			"sq config export --expand: resolved secrets are written in plaintext")
 	}
 
 	// yamlw renders YAML with the same encoder sq uses for `config ls -y`
@@ -117,13 +118,13 @@ func execConfigExport(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-// exportResolveConfig returns a copy of cfg with every source's Location
+// exportExpandConfig returns a copy of cfg with every source's Location
 // passed through ru.SecretRegistry.Expand. Collection is deep-cloned;
 // Options and Ext are shared with the input cfg (safe because only
 // Collection sources are mutated). The input cfg is not mutated.
 // Resolution errors are wrapped with the source handle so the user knows
 // which source's placeholder failed.
-func exportResolveConfig(ctx context.Context, ru *run.Run, cfg *config.Config) (*config.Config, error) {
+func exportExpandConfig(ctx context.Context, ru *run.Run, cfg *config.Config) (*config.Config, error) {
 	clone := &config.Config{
 		Version:    cfg.Version,
 		Options:    cfg.Options,

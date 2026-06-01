@@ -23,12 +23,12 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export):
   dump the active config to YAML, primarily for backups. By default,
   output is a faithful copy of the live config: `${scheme:path}`
-  placeholders are written verbatim. With `--resolve`, every placeholder
-  is expanded end-to-end and the resolved value is spliced in-line — a
-  self-contained snapshot at the cost of writing every referenced secret
-  in plaintext. `-o PATH` writes to a file with mode `0600` (matching
-  the live config file); on non-Windows platforms the write is atomic
-  (temp-file + rename).
+  placeholders are written verbatim. With `--expand`, every placeholder
+  is fetched from its resolver (keyring, env var, or file) and the
+  resolved value is spliced in-line — a self-contained snapshot at the
+  cost of writing every referenced secret in plaintext. `-o PATH` writes
+  to a file with mode `0600` (matching the live config file); on
+  non-Windows platforms the write is atomic (temp-file + rename).
 - [#441]: [`sq config keyring`](https://sq.io/docs/cmd/sq_config_keyring) command
   group: store source DSNs in the OS keyring instead of plaintext in
   `~/.config/sq.yml`. Subcommands: `ls`, `create`, `update`, `get`, `rm`,
