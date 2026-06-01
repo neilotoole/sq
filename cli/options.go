@@ -80,7 +80,7 @@ func getOptionsFromFlags(flags *pflag.FlagSet, reg *options.Registry) (options.O
 	if rev := flags.Lookup(flag.Reveal); rev != nil && rev.Changed {
 		b, getBoolErr := flags.GetBool(flag.Reveal)
 		if getBoolErr != nil {
-			panic(getBoolErr) // Should never happen
+			return nil, errz.Err(getBoolErr)
 		}
 		if b {
 			o[OptRedact.Key()] = false
