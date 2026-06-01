@@ -344,9 +344,9 @@ func TestCmdAdd_Active(t *testing.T) {
 	require.Equal(t, h4, m["handle"], "active source now be %s", h4)
 }
 
-// TestCmdAdd_Keyring verifies that --keyring stores the full DSN in the
-// OS keyring at a fresh opaque ID and writes a bare ${keyring:<id>}
-// placeholder into the source Location.
+// TestCmdAdd_Keyring verifies that --store keyring stores the full DSN
+// in the OS keyring at a fresh opaque ID and writes a bare
+// ${keyring:<id>} placeholder into the source Location.
 func TestCmdAdd_Keyring(t *testing.T) {
 	gokeyring.MockInit()
 
