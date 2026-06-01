@@ -86,7 +86,7 @@ func (g *grip) getSourceMetadata(ctx context.Context, noSchema bool) (*metadata.
 
 	md := &metadata.Source{Handle: g.src.Handle, Driver: drivertype.SQLite, DBDriver: dbDrvr}
 
-	dsn, err := PathFromLocation(g.src)
+	fp, err := PathFromLocation(g.src)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func (g *grip) getSourceMetadata(ctx context.Context, noSchema bool) (*metadata.
 
 	md.DBProduct = "SQLite3 v" + md.DBVersion
 
-	fi, err := os.Stat(dsn)
+	fi, err := os.Stat(fp)
 	if err != nil {
 		return nil, errw(err)
 	}
