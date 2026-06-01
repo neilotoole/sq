@@ -282,6 +282,23 @@ func TestMungeLocation(t *testing.T) {
 			in:   "/path/to/sakila.db",
 			want: "sqlite3://" + root + "path/to/sakila.db",
 		},
+		// gh720: connection-string parameters must round-trip cleanly.
+		{
+			in:   "sqlite3:///path/to/sakila.db?mode=ro",
+			want: "sqlite3://" + root + "path/to/sakila.db?mode=ro",
+		},
+		{
+			in:   "sqlite3:///path/to/sakila.db?cache=shared&mode=rw",
+			want: "sqlite3://" + root + "path/to/sakila.db?cache=shared&mode=rw",
+		},
+		{
+			in:   "sakila.db?mode=ro",
+			want: cwdWant + "?mode=ro",
+		},
+		{
+			in:   "sqlite3:sakila.db?immutable=1",
+			want: cwdWant + "?immutable=1",
+		},
 		{
 			in:   `C:/Users/neil/work/sq/drivers/sqlite3/testdata/sakila.db`,
 			want: `sqlite3://C:/Users/neil/work/sq/drivers/sqlite3/testdata/sakila.db`,
