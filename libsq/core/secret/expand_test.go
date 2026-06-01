@@ -48,8 +48,9 @@ func TestExpand_MissingSecret(t *testing.T) {
 	_, err := reg.Expand(context.Background(), "${keyring:nope}")
 	require.ErrorIs(t, err, secret.ErrNotFound)
 	// keyring-scheme not-found should carry the recovery hint so the
-	// user can copy-paste the fix command from the error.
-	require.Contains(t, err.Error(), "sq config keyring create nope")
+	// user can copy-paste the fix command from the error. The -p flag
+	// is required because 'create' needs either a VALUE arg or -p.
+	require.Contains(t, err.Error(), "sq config keyring create nope -p")
 }
 
 func TestExpand_MissingSecret_NonKeyringNoHint(t *testing.T) {
