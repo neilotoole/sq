@@ -10,6 +10,7 @@ import (
 
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/output/yamlw"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
@@ -76,13 +77,19 @@ func execConfigExport(cmd *cobra.Command, _ []string) error {
 			"sq config export --resolve: resolved secrets are written in plaintext")
 	}
 
-	data, err := ioz.MarshalYAML(cfg)
+	// yamlw renders YAML with the same encoder sq uses for `config ls -y`
+	// and friends, honoring the configured Printing (color-on-terminal,
+	// monochrome when --output is set or stdout is not a TTY).
+	rendered, err := yamlw.MarshalToString(ru.Writers.PrOut, cfg)
 	if err != nil {
 		return errz.Wrap(err, "config export")
 	}
+	data := []byte(rendered)
 
 	if !cmdFlagChanged(cmd, flag.FileOutput) {
-		if _, err = ru.Stdout.Write(data); err != nil {
+		// Write through ru.Out (colorable-wrapped) so ANSI color codes
+		// render correctly on Windows consoles too.
+		if _, err = ru.Out.Write(data); err != nil {
 			return errz.Wrap(err, "config export: write")
 		}
 		return nil
