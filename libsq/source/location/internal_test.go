@@ -205,3 +205,66 @@ func TestParse(t *testing.T) {
 		})
 	}
 }
+
+// TestPickSentinels verifies that the placeholder-substitution sentinel
+// chooser avoids collisions with literal strings in loc. The default
+// sentinel format is "9999<salt>%07d9999"; if loc legitimately contains
+// such a substring (e.g. a 13–18-digit number in a query parameter),
+// the chooser must bump the salt until no candidate collides.
+func TestPickSentinels(t *testing.T) {
+	tests := []struct {
+		name string
+		loc  string
+		n    int
+	}{
+		{
+			name: "no collision",
+			loc:  "postgres://alice:pw@host/db",
+			n:    2,
+		},
+		{
+			name: "collision on salt=0",
+			// Embed exactly the default-salt sentinel "999900000000009999"
+			// in a query parameter; the chooser must move past salt=0.
+			loc: "postgres://alice:${env:PW}@host/db?nonce=999900000000009999",
+			n:   1,
+		},
+		{
+			name: "collision on multiple consecutive salts",
+			// Embed sentinels for salt 0, 1, 2 — the chooser should
+			// find salt=3 (or later) and succeed.
+			loc: "postgres://alice:${env:PW}@host/db?nonce=999900000000009999&n=999900100000009999&m=999900200000009999",
+			n:   1,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := pickSentinels(tc.loc, tc.n)
+			require.True(t, ok)
+			require.Len(t, got, tc.n)
+			for _, s := range got {
+				require.NotContains(t, tc.loc, s,
+					"sentinel %q must not already appear in loc", s)
+			}
+		})
+	}
+}
+
+// TestRedact_SentinelCollisionDoesNotMangleQueryParam verifies that
+// Redact's restoration step picks the right occurrence of the sentinel
+// even when loc legitimately contains the default-salt sentinel string.
+// Without the salt-bump in pickSentinels, the literal nonce in the
+// query parameter would be rewritten as the placeholder text on
+// restoration.
+func TestRedact_SentinelCollisionDoesNotMangleQueryParam(t *testing.T) {
+	const placeholder = "${env:PW}"
+	// 18-digit nonce that, were the chooser to use salt=0, would
+	// exactly match the first sentinel.
+	const nonce = "999900000000009999"
+	loc := "postgres://alice:" + placeholder + "@host/db?nonce=" + nonce
+	got := Redact(loc)
+	// The query-parameter nonce must survive unchanged — it's a
+	// user-provided value, not a sentinel.
+	require.Contains(t, got, "nonce="+nonce,
+		"literal nonce in query string must not be rewritten by sentinel restoration")
+}

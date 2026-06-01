@@ -469,17 +469,19 @@ func Redact(loc string) string {
 		return redactRaw(loc)
 	}
 
-	// Substitute each placeholder with a digit-only sentinel. We use
-	// digits because they're the only character class valid in all
-	// URL positions, including ports (RFC 3986 §3.2.3 limits port to
-	// DIGIT). A sentinel like "9999<idx>9999" is unlikely to collide
-	// with a real component value.
-	sentinelled := loc
-	sentinels := make([]string, len(refs))
+	sentinels, ok := pickSentinels(loc, len(refs))
+	if !ok {
+		// Couldn't find non-colliding sentinels in the salt-search
+		// budget. Fall back to redactRaw without placeholder
+		// preservation: placeholders get masked along with the
+		// password, which is correct (no credentials leak) but loses
+		// the placeholder text. Astronomically unlikely path.
+		return redactRaw(loc)
+	}
 	placeholders := make([]string, len(refs))
+	sentinelled := loc
 	for i, ref := range refs {
 		placeholders[i] = "${" + ref.Scheme + ":" + ref.Path + "}"
-		sentinels[i] = fmt.Sprintf("9999%07d9999", i)
 		sentinelled = strings.Replace(sentinelled, placeholders[i], sentinels[i], 1)
 	}
 	redacted := redactRaw(sentinelled)
@@ -490,6 +492,35 @@ func Redact(loc string) string {
 		redacted = strings.Replace(redacted, sentinels[i], placeholders[i], 1)
 	}
 	return redacted
+}
+
+// pickSentinels chooses n digit-only sentinel strings, none of which
+// appears as a substring of loc. Digit-only so the sentinels are valid
+// in every URL position (RFC 3986 §3.2.3 limits port to DIGIT). The
+// search bumps a salt prefix until no candidate collides with loc —
+// guarding against the rare case where loc legitimately contains the
+// default sentinel pattern (e.g. a long numeric query parameter).
+//
+// Returns ok=false after maxSaltAttempts unsuccessful tries — that
+// branch is astronomically unlikely (any salt change shifts the entire
+// candidate set), but bounding the loop is the right hygiene.
+func pickSentinels(loc string, n int) ([]string, bool) {
+	const maxSaltAttempts = 1000
+	for salt := range maxSaltAttempts {
+		candidates := make([]string, n)
+		clash := false
+		for i := range candidates {
+			candidates[i] = fmt.Sprintf("9999%03d%07d9999", salt, i)
+			if strings.Contains(loc, candidates[i]) {
+				clash = true
+				break
+			}
+		}
+		if !clash {
+			return candidates, true
+		}
+	}
+	return nil, false
 }
 
 // redactRaw is the underlying URL/DSN redactor with no placeholder

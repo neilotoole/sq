@@ -20,9 +20,9 @@ import (
 	"github.com/neilotoole/sq/testh/tu"
 )
 
-// keyringPlaceholderRE matches a Location set by --keyring: exactly
-// "${keyring:<id>}" where <id> is 10 chars from the Crockford alphabet
-// (excludes i, l, o, u).
+// keyringPlaceholderRE matches a Location set by `--store keyring`:
+// exactly "${keyring:<id>}" where <id> is 10 chars from the Crockford
+// alphabet (excludes i, l, o, u).
 var keyringPlaceholderRE = regexp.MustCompile(`^\$\{keyring:([0-9a-hjkmnp-tv-z]{10})\}$`)
 
 // extractKeyringID returns the opaque ID from a "${keyring:<id>}" Location.

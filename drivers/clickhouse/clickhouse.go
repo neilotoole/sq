@@ -69,6 +69,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
@@ -381,7 +382,17 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	// the default-port logic: url.Parse can't handle the unresolved
 	// placeholder. The same locationWithDefaultPort call runs at Open
 	// time on the resolved location, so the default port is still applied.
-	if strings.Contains(src.Location, "${") {
+	//
+	// Use secret.ExtractRefs rather than a "${"-substring scan: a literal
+	// "${" or escaped "$${...}" in src.Location is not actually a
+	// placeholder and shouldn't suppress the port-application path. A
+	// malformed-placeholder error here surfaces as ValidateSource's
+	// error rather than producing a confusing url.Parse failure later.
+	refs, err := secret.ExtractRefs(src.Location)
+	if err != nil {
+		return nil, errw(err)
+	}
+	if len(refs) > 0 {
 		return src, nil
 	}
 
