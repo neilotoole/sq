@@ -98,8 +98,12 @@ func (gs *Grips) IsSQLSource(src *source.Source) bool {
 
 // ResolveSourceSecrets returns a clone of src with any ${scheme:path}
 // placeholders in src.Location resolved via the secret.Registry on ctx.
-// If there are no well-formed placeholders, or no Registry is bound
-// to ctx, src is returned unchanged.
+// If src.Location contains no well-formed placeholders, src is returned
+// unchanged. If placeholders are present but no Registry is bound to
+// ctx, an error is returned: a placeholder on a source that has reached
+// this point is always meant to be resolved, and a silent passthrough
+// would surface later as a confusing "connection refused" or DSN-parse
+// error from the driver.
 //
 // Detection uses secret.ExtractRefs rather than a `${`-substring scan
 // so that literal "${" sequences (e.g. an escaped "$${env:X}" or a
@@ -121,7 +125,7 @@ func ResolveSourceSecrets(ctx context.Context, src *source.Source) (*source.Sour
 	}
 	reg := secret.FromContext(ctx)
 	if reg == nil {
-		return src, nil
+		return nil, errz.Errorf("resolve placeholders for %s: no secret registry bound to context", src.Handle)
 	}
 	resolved, err := reg.Expand(ctx, src.Location)
 	if err != nil {

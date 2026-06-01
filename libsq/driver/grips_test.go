@@ -59,10 +59,15 @@ func TestGrips_ResolveSourceSecrets_NoRegistry(t *testing.T) {
 		Handle:   "@sakila",
 		Location: "postgres://alice:${keyring:@sakila/password}@db/sakila",
 	}
-	// No registry on context — placeholders are left intact, no error.
+	// Placeholders present but no secret.Registry on context: must
+	// return an explicit error rather than silently passing the
+	// unresolved Location through to the driver, where it would
+	// surface as a confusing DSN-parse or connection error.
 	resolved, err := driver.ResolveSourceSecrets(context.Background(), src)
-	require.NoError(t, err)
-	require.Same(t, src, resolved)
+	require.Error(t, err)
+	require.Nil(t, resolved)
+	require.Contains(t, err.Error(), "@sakila")
+	require.Contains(t, err.Error(), "no secret registry bound to context")
 }
 
 func TestGrips_ResolveSourceSecrets_NilSource(t *testing.T) {
