@@ -73,7 +73,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   with `stat /path/to/db?key=val: no such file or directory` on source-level
   metadata commands ([`sq inspect @handle`](https://sq.io/docs/inspect),
   `sq inspect @handle --overview`) when the source location carries a
-  `?key=val[&…]` connection-string suffix
+  `?key=val[&...]` connection-string suffix
   (e.g. `sqlite3:///path/to/db?mode=ro`). Connection-string parameters
   documented in the
   [SQLite driver page](https://sq.io/docs/drivers/sqlite) — including
