@@ -33,10 +33,19 @@ $ sq add --driver=sqlite3 ./sakila.db
 ```
 
 Use the connection string form with prefix `sqlite3://` to specify
-connection [parameters](https://github.com/mattn/go-sqlite3#connection-string).
+connection [parameters](https://github.com/mattn/go-sqlite3#connection-string):
 
 ```shell
+# Read/write with a shared cache.
 $ sq add 'sqlite3://sakila.db?cache=shared&mode=rw'
+
+# Read-only — any write fails at the SQLite layer.
+$ sq add 'sqlite3://sakila.db?mode=ro'
+
+# Treat the file as immutable so SQLite skips locking. Useful for
+# inspecting a live database while another process holds it open —
+# for example, a Firefox cookies DB while the browser is running.
+$ sq add 'sqlite3://cookies.sqlite?immutable=1' --handle @cookies
 ```
 
 The full set of supported parameters can be found in the `mattn/sqlite3`
