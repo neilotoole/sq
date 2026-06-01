@@ -82,7 +82,10 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-require github.com/zalando/go-keyring v0.2.8
+require (
+	github.com/neilotoole/jsoncolor v0.9.1
+	github.com/zalando/go-keyring v0.2.8
+)
 
 require (
 	dario.cat/mergo v1.0.2 // indirect
@@ -142,7 +145,6 @@ require (
 	github.com/muesli/mango-pflag v0.2.0 // indirect
 	github.com/nathan-fiscaletti/consolesize-go v0.0.0-20260406063853-3bac975de715 // indirect
 	github.com/neilotoole/fifomu v0.2.0 // indirect
-	github.com/neilotoole/jsoncolor v0.9.1 // indirect
 	github.com/otiai10/mint v1.6.3 // indirect
 	github.com/paulmach/orb v0.13.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.26 // indirect
