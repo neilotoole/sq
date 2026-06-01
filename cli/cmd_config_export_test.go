@@ -177,3 +177,77 @@ func TestCmdConfigExport_Output_Resolve(t *testing.T) {
 		require.Equal(t, os.FileMode(0o600), info.Mode().Perm())
 	}
 }
+
+// TestCmdConfigExport_Resolve_File verifies that ${file:PATH}
+// placeholders are read from disk and spliced into Location.
+func TestCmdConfigExport_Resolve_File(t *testing.T) {
+	gokeyring.MockInit()
+
+	secretPath := filepath.Join(t.TempDir(), "dsn.txt")
+	require.NoError(t, os.WriteFile(secretPath,
+		[]byte("postgres://u:filehunter@h/db"), 0o600))
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@sakila",
+		Type:     drivertype.Pg,
+		Location: "${file:" + secretPath + "}",
+	}))
+
+	require.NoError(t, tr.Exec("config", "export", "--resolve"))
+
+	got := tr.OutString()
+	require.Contains(t, got, "postgres://u:filehunter@h/db",
+		"file placeholder must be expanded with --resolve")
+	require.NotContains(t, got, "${file:",
+		"no raw file placeholders after --resolve")
+}
+
+// TestCmdConfigExport_Resolve_MultiSource verifies that --resolve
+// handles a collection with multiple sources whose Locations use
+// different placeholder schemes (or none), and that inline-credentialed
+// sources pass through unchanged.
+func TestCmdConfigExport_Resolve_MultiSource(t *testing.T) {
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", "pg_dsn",
+		"postgres://k_user:k_pass@k.host/db"))
+	t.Setenv("SQ_TEST_MYSQL_PASS", "envmysql")
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	// 1) Keyring-backed.
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@pg",
+		Type:     drivertype.Pg,
+		Location: "${keyring:pg_dsn}",
+	}))
+	// 2) Env-backed (placeholder inside DSN, not whole DSN).
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@mysql",
+		Type:     drivertype.MySQL,
+		Location: "mysql://m_user:${env:SQ_TEST_MYSQL_PASS}@m.host/db",
+	}))
+	// 3) Inline plaintext credentials — no placeholders.
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@sqlite",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3:///tmp/inline.db",
+	}))
+
+	require.NoError(t, tr.Exec("config", "export", "--resolve"))
+
+	got := tr.OutString()
+
+	require.Contains(t, got, "postgres://k_user:k_pass@k.host/db",
+		"keyring source must be resolved")
+	require.Contains(t, got, "mysql://m_user:envmysql@m.host/db",
+		"env placeholder inside DSN must be resolved")
+	require.Contains(t, got, "sqlite3:///tmp/inline.db",
+		"inline-credentialed source must pass through verbatim")
+
+	require.NotContains(t, got, "${keyring:")
+	require.NotContains(t, got, "${env:")
+}
