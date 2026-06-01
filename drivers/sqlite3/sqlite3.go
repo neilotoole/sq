@@ -139,14 +139,14 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
-	fp, err := PathFromLocation(src)
+	dsn, err := dsnFromLocation(src.Location)
 	if err != nil {
 		return nil, err
 	}
 
-	db, err := sql.Open(dbDrvr, fp)
+	db, err := sql.Open(dbDrvr, dsn)
 	if err != nil {
-		return nil, errz.Wrapf(errw(err), "failed to open sqlite3 source with DSN: %s", fp)
+		return nil, errz.Wrapf(errw(err), "failed to open sqlite3 source with DSN: %s", dsn)
 	}
 
 	driver.ConfigureDB(ctx, db, src.Options)
