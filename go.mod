@@ -57,7 +57,7 @@ require (
 	github.com/pkg/profile v1.7.0
 	github.com/ryboe/q v1.0.26
 	github.com/samber/lo v1.53.0
-	github.com/segmentio/encoding v0.5.4
+	github.com/segmentio/encoding v0.5.4 // benchmark comparison only; see cli/output/jsonw/internal/benchmark_test.go
 	github.com/sethvargo/go-retry v0.3.0
 	github.com/shopspring/decimal v1.4.0
 	github.com/sijms/go-ora/v2 v2.9.1-0.20260319160952-ef646cf075eb
@@ -82,7 +82,10 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-require github.com/zalando/go-keyring v0.2.8
+require (
+	github.com/neilotoole/jsoncolor v0.9.1
+	github.com/zalando/go-keyring v0.2.8
+)
 
 require (
 	dario.cat/mergo v1.0.2 // indirect
@@ -133,7 +136,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
-	github.com/mattn/go-isatty v0.0.21 // indirect
+	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/mattn/go-sixel v0.0.9 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
