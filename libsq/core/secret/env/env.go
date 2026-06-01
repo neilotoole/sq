@@ -12,9 +12,9 @@ import (
 // Resolver implements secret.Resolver against the process environment.
 type Resolver struct{}
 
-// New returns a Resolver. Callers register the result with a
+// NewResolver returns a Resolver. Callers register the result with a
 // secret.Registry under the "env" scheme.
-func New() *Resolver {
+func NewResolver() *Resolver {
 	return &Resolver{}
 }
 

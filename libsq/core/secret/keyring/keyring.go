@@ -22,9 +22,9 @@ const Service = "sq"
 // be registered under the "keyring" scheme on a secret.Registry.
 type Store struct{}
 
-// New returns a Store. Callers register the result with a
+// NewStore returns a Store. Callers register the result with a
 // secret.Registry under the "keyring" scheme.
-func New() *Store {
+func NewStore() *Store {
 	return &Store{}
 }
 

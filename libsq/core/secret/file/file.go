@@ -25,9 +25,9 @@ import (
 // Resolver implements secret.Resolver by reading file contents.
 type Resolver struct{}
 
-// New returns a Resolver. Callers register the result with a
+// NewResolver returns a Resolver. Callers register the result with a
 // secret.Registry under the "file" scheme.
-func New() *Resolver {
+func NewResolver() *Resolver {
 	return &Resolver{}
 }
 

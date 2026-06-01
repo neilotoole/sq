@@ -14,7 +14,7 @@ import (
 func TestStore_SetGetDelete(t *testing.T) {
 	gokeyring.MockInit() // in-memory backend for tests
 
-	r := keyring.New()
+	r := keyring.NewStore()
 	ctx := context.Background()
 
 	const path = "@sakila/password"
@@ -34,7 +34,7 @@ func TestStore_SetGetDelete(t *testing.T) {
 
 func TestStore_OverwriteOnSet(t *testing.T) {
 	gokeyring.MockInit()
-	r := keyring.New()
+	r := keyring.NewStore()
 	ctx := context.Background()
 
 	require.NoError(t, r.Set(ctx, "k", "first"))
@@ -47,7 +47,7 @@ func TestStore_OverwriteOnSet(t *testing.T) {
 
 func TestStore_DeleteMissingIsNotError(t *testing.T) {
 	gokeyring.MockInit()
-	r := keyring.New()
+	r := keyring.NewStore()
 	// Deleting a non-existent entry should not error (idempotent).
 	require.NoError(t, r.Delete(context.Background(), "no-such-entry"))
 }

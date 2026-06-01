@@ -22,21 +22,21 @@ func write(t *testing.T, contents string) string {
 
 func TestResolver_PlainContents(t *testing.T) {
 	p := write(t, "hunter2")
-	got, err := file.New().Resolve(context.Background(), p)
+	got, err := file.NewResolver().Resolve(context.Background(), p)
 	require.NoError(t, err)
 	require.Equal(t, "hunter2", got)
 }
 
 func TestResolver_TrailingLF_Trimmed(t *testing.T) {
 	p := write(t, "hunter2\n")
-	got, err := file.New().Resolve(context.Background(), p)
+	got, err := file.NewResolver().Resolve(context.Background(), p)
 	require.NoError(t, err)
 	require.Equal(t, "hunter2", got)
 }
 
 func TestResolver_TrailingCRLF_Trimmed(t *testing.T) {
 	p := write(t, "hunter2\r\n")
-	got, err := file.New().Resolve(context.Background(), p)
+	got, err := file.NewResolver().Resolve(context.Background(), p)
 	require.NoError(t, err)
 	require.Equal(t, "hunter2", got)
 }
@@ -44,7 +44,7 @@ func TestResolver_TrailingCRLF_Trimmed(t *testing.T) {
 func TestResolver_OnlySingleTrailingNewlineTrimmed(t *testing.T) {
 	// Multiple trailing newlines: only the last one is trimmed.
 	p := write(t, "hunter2\n\n")
-	got, err := file.New().Resolve(context.Background(), p)
+	got, err := file.NewResolver().Resolve(context.Background(), p)
 	require.NoError(t, err)
 	require.Equal(t, "hunter2\n", got)
 }
@@ -52,26 +52,26 @@ func TestResolver_OnlySingleTrailingNewlineTrimmed(t *testing.T) {
 func TestResolver_BareTrailingCRNotTrimmed(t *testing.T) {
 	// A trailing bare \r (no LF) is NOT trimmed — only LF or CRLF.
 	p := write(t, "hunter2\r")
-	got, err := file.New().Resolve(context.Background(), p)
+	got, err := file.NewResolver().Resolve(context.Background(), p)
 	require.NoError(t, err)
 	require.Equal(t, "hunter2\r", got)
 }
 
 func TestResolver_InternalNewlinesPreserved(t *testing.T) {
 	p := write(t, "line1\nline2")
-	got, err := file.New().Resolve(context.Background(), p)
+	got, err := file.NewResolver().Resolve(context.Background(), p)
 	require.NoError(t, err)
 	require.Equal(t, "line1\nline2", got)
 }
 
 func TestResolver_MissingFile(t *testing.T) {
-	_, err := file.New().Resolve(context.Background(), filepath.Join(t.TempDir(), "no-such-file"))
+	_, err := file.NewResolver().Resolve(context.Background(), filepath.Join(t.TempDir(), "no-such-file"))
 	require.ErrorIs(t, err, secret.ErrNotFound)
 }
 
 func TestResolver_EmptyFile(t *testing.T) {
 	p := write(t, "")
-	got, err := file.New().Resolve(context.Background(), p)
+	got, err := file.NewResolver().Resolve(context.Background(), p)
 	require.NoError(t, err)
 	require.Equal(t, "", got)
 }
@@ -95,7 +95,7 @@ func TestResolver_TildeExpansion(t *testing.T) {
 	const name = "sq_tilde_test.secret"
 	require.NoError(t, os.WriteFile(filepath.Join(home, name), []byte("tilde-value\n"), 0o600))
 
-	got, err := file.New().Resolve(context.Background(), "~/"+name)
+	got, err := file.NewResolver().Resolve(context.Background(), "~/"+name)
 	require.NoError(t, err)
 	require.Equal(t, "tilde-value", got)
 }
@@ -106,7 +106,7 @@ func TestResolver_BareTildeRefersToHome(t *testing.T) {
 	// error in Go's stdlib). Use a synthetic home so this isn't
 	// dependent on the runner's environment.
 	fakeHome(t)
-	_, err := file.New().Resolve(context.Background(), "~")
+	_, err := file.NewResolver().Resolve(context.Background(), "~")
 	require.Error(t, err)
 	require.NotErrorIs(t, err, secret.ErrNotFound)
 }
@@ -119,7 +119,7 @@ func TestResolver_RejectsRelativePath(t *testing.T) {
 	}
 	for _, p := range tests {
 		t.Run(p, func(t *testing.T) {
-			_, err := file.New().Resolve(context.Background(), p)
+			_, err := file.NewResolver().Resolve(context.Background(), p)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "must be absolute")
 		})
@@ -127,13 +127,13 @@ func TestResolver_RejectsRelativePath(t *testing.T) {
 }
 
 func TestResolver_RejectsTildeUser(t *testing.T) {
-	_, err := file.New().Resolve(context.Background(), "~root/secret")
+	_, err := file.NewResolver().Resolve(context.Background(), "~root/secret")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "tilde expansion")
 }
 
 func TestResolver_RejectsEmptyPath(t *testing.T) {
-	_, err := file.New().Resolve(context.Background(), "")
+	_, err := file.NewResolver().Resolve(context.Background(), "")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "empty path")
 }
@@ -144,7 +144,7 @@ func TestResolver_EmptyAuthorityURIForm(t *testing.T) {
 	// the scheme). This is sugar for "/path" and should resolve the same
 	// file.
 	p := write(t, "uri-value")
-	got, err := file.New().Resolve(context.Background(), "//"+p)
+	got, err := file.NewResolver().Resolve(context.Background(), "//"+p)
 	require.NoError(t, err)
 	require.Equal(t, "uri-value", got)
 }
@@ -159,7 +159,7 @@ func TestResolver_RejectsRemoteURIForm(t *testing.T) {
 	}
 	for _, p := range tests {
 		t.Run(p, func(t *testing.T) {
-			_, err := file.New().Resolve(context.Background(), p)
+			_, err := file.NewResolver().Resolve(context.Background(), p)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "remote file URIs are not supported")
 		})

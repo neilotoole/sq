@@ -41,7 +41,7 @@ func execConfigSecretsGet(cmd *cobra.Command, args []string) error {
 	ru := run.FromContext(cmd.Context())
 	path := args[0]
 
-	value, err := keyring.New().Resolve(cmd.Context(), path)
+	value, err := keyring.NewStore().Resolve(cmd.Context(), path)
 	if err != nil {
 		return err
 	}

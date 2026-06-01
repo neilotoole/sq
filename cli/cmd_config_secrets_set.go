@@ -61,5 +61,5 @@ func execConfigSecretsSet(cmd *cobra.Command, args []string) error {
 		return errz.New("must provide VALUE argument or --password flag")
 	}
 
-	return keyring.New().Set(cmd.Context(), path, string(value))
+	return keyring.NewStore().Set(cmd.Context(), path, string(value))
 }

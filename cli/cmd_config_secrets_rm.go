@@ -23,7 +23,7 @@ references it; a remaining ${keyring:PATH} reference will fail to
 resolve at connect time. Use 'sq config secrets ls' to find references
 before removing.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return keyring.New().Delete(cmd.Context(), args[0])
+			return keyring.NewStore().Delete(cmd.Context(), args[0])
 		},
 		ValidArgsFunction: completeKeyringPath,
 		Example:           `  $ sq config secrets rm j2k7m3pxtz`,

@@ -205,9 +205,9 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 	}
 
 	ru.SecretRegistry = secret.NewRegistry()
-	ru.SecretRegistry.Register("keyring", keyring.New())
-	ru.SecretRegistry.Register("env", env.New())
-	ru.SecretRegistry.Register("file", file.New())
+	ru.SecretRegistry.Register("keyring", keyring.NewStore())
+	ru.SecretRegistry.Register("env", env.NewResolver())
+	ru.SecretRegistry.Register("file", file.NewResolver())
 	ctx = secret.NewContext(ctx, ru.SecretRegistry)
 	cmd.SetContext(ctx)
 

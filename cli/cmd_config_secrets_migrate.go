@@ -125,7 +125,7 @@ func printMigratePlans(out io.Writer, plans []migratePlan) {
 }
 
 func applyMigratePlans(ctx context.Context, ru *run.Run, plans []migratePlan) error {
-	kr := keyring.New()
+	kr := keyring.NewStore()
 	var anyFailed bool
 	for _, p := range plans {
 		if p.reason != "" {

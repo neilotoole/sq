@@ -62,7 +62,7 @@ func TestNewRandomID_NoNearTermDuplicates(t *testing.T) {
 
 func TestNewID_FreshUnderEmptyKeyring(t *testing.T) {
 	gokeyring.MockInit()
-	r := New()
+	r := NewStore()
 	ctx := context.Background()
 
 	id, err := r.NewID(ctx)
@@ -77,7 +77,7 @@ func TestNewID_FreshUnderEmptyKeyring(t *testing.T) {
 
 func TestNewID_NeverReturnsExisting(t *testing.T) {
 	gokeyring.MockInit()
-	r := New()
+	r := NewStore()
 	ctx := context.Background()
 
 	const occupied = "j2k7m3pxtz"
@@ -92,7 +92,7 @@ func TestNewID_NeverReturnsExisting(t *testing.T) {
 
 func TestNewID_RetriesOnCollision(t *testing.T) {
 	gokeyring.MockInit()
-	r := New()
+	r := NewStore()
 	ctx := context.Background()
 
 	// crockfordAlphabet[0]='0', so a random byte with low 5 bits = 0
@@ -116,7 +116,7 @@ func TestNewID_RetriesOnCollision(t *testing.T) {
 
 func TestNewID_FailsAfterMaxAttempts(t *testing.T) {
 	gokeyring.MockInit()
-	r := New()
+	r := NewStore()
 	ctx := context.Background()
 
 	const occupied = "0000000000"

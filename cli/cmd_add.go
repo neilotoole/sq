@@ -215,7 +215,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) (err error) {
 	var keyringRollbackID string
 	defer func() {
 		if err != nil && keyringRollbackID != "" {
-			_ = keyring.New().Delete(ctx, keyringRollbackID)
+			_ = keyring.NewStore().Delete(ctx, keyringRollbackID)
 		}
 	}()
 
@@ -587,7 +587,7 @@ func applyKeyring(ctx context.Context, _ *run.Run, loc string, passwd []byte) (n
 		loc = spliced
 	}
 
-	kr := keyring.New()
+	kr := keyring.NewStore()
 	var id string
 	id, err = kr.NewID(ctx)
 	if err != nil {
