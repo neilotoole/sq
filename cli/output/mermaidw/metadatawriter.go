@@ -37,14 +37,15 @@ var errNothingToRender = errz.New(
 // format, emitting bare Mermaid.js erDiagram source.
 type metadataWriter struct {
 	out io.Writer
+	pr  *output.Printing
 }
 
 // NewMetadataWriter returns a new output.MetadataWriter that outputs bare
-// Mermaid.js erDiagram source. The *output.Printing arg is accepted for
-// call-site consistency with the other metadata writers but is unused: the
-// diagram source is plain text with no color, redaction, or provenance.
-func NewMetadataWriter(out io.Writer, _ *output.Printing) output.MetadataWriter {
-	return &metadataWriter{out: out}
+// Mermaid.js erDiagram source. When pr enables color (a TTY sink), the diagram
+// is syntax-colored; in monochrome mode (files, pipes, --no-color, NO_COLOR,
+// --monochrome) the output is plain, byte-identical to the bare source.
+func NewMetadataWriter(out io.Writer, pr *output.Printing) output.MetadataWriter {
+	return &metadataWriter{out: out, pr: pr}
 }
 
 // SourceMetadata implements output.MetadataWriter. It writes the whole-source
@@ -71,12 +72,13 @@ func (w *metadataWriter) TableMetadata(md *metadata.Table) error {
 
 // writeDiagram writes the rendered diagram source to w.out, returning
 // errNothingToRender when src is empty (the mermaid package returns "" when
-// there's nothing to draw).
+// there's nothing to draw). On a TTY sink the source is syntax-colored;
+// otherwise it's written plain.
 func (w *metadataWriter) writeDiagram(src string) error {
 	if src == "" {
 		return errNothingToRender
 	}
-	_, err := io.WriteString(w.out, src)
+	_, err := io.WriteString(w.out, colorize(src, w.pr))
 	return err
 }
 

@@ -63,8 +63,41 @@ func execMove(cmd *cobra.Command, args []string) error {
 	case source.IsValidGroup(args[0]) && source.IsValidGroup(args[1]):
 		return execMoveRenameGroup(cmd, args[0], args[1])
 	default:
-		return errz.New("invalid args: see 'sq mv --help'")
+		return diagnoseMoveArgs(args[0], args[1])
 	}
+}
+
+// diagnoseMoveArgs returns a specific error for an mv invocation
+// that did not match any valid form. It surfaces the underlying
+// ValidHandle/ValidGroup reason (illegal character, missing '@',
+// etc.) for the first offending argument, falling back to the
+// remaining disallowed combination — moving a group to a handle —
+// when both arguments individually parse.
+func diagnoseMoveArgs(oldRef, newRef string) error {
+	if err := validateMoveArg(oldRef); err != nil {
+		return errz.Wrap(err, "first arg")
+	}
+	if err := validateMoveArg(newRef); err != nil {
+		return errz.Wrap(err, "second arg")
+	}
+	// Both args individually parse as a handle or group; the only
+	// remaining invalid combination is moving a group into a handle,
+	// which has no meaning (a group can only be moved to another group).
+	return errz.Errorf(
+		"cannot move group %q to handle %q: a group can only be renamed or moved to another group",
+		oldRef, newRef,
+	)
+}
+
+// validateMoveArg returns the most specific validation error for arg,
+// routed by the leading '@': args starting with '@' are validated as
+// handles; otherwise as groups. The routing matches the user's
+// apparent intent so the resulting message blames the right kind.
+func validateMoveArg(arg string) error {
+	if strings.HasPrefix(arg, "@") {
+		return source.ValidHandle(arg)
+	}
+	return source.ValidGroup(arg)
 }
 
 // execMoveRenameGroup renames a group.

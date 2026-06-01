@@ -75,6 +75,26 @@ func TestWithPassword(t *testing.T) {
 			pw:   "",
 			want: "postgres://sakila@localhost/sakila",
 		},
+		{
+			// Empty password on a URL without userinfo: leave as-is
+			// rather than emitting "postgres://@host/db".
+			loc:  "postgres://localhost/sakila",
+			pw:   "",
+			want: "postgres://localhost/sakila",
+		},
+		{
+			// Non-empty password but no username: reject.
+			// "postgres://:hunter2@host/db" is rarely intentional.
+			loc:     "postgres://localhost/sakila",
+			pw:      "hunter2",
+			wantErr: true,
+		},
+		{
+			// Same case but with an empty-username userinfo block.
+			loc:     "postgres://:oldpw@localhost/sakila",
+			pw:      "hunter2",
+			wantErr: true,
+		},
 	}
 
 	for _, tc := range testCases {

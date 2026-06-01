@@ -17,6 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz/scannerz"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/timez"
 	"github.com/neilotoole/sq/libsq/core/tuning"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -207,6 +208,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		tuning.OptFlushThreshold,
 		tuning.OptBufSpillLimit,
 		scannerz.OptScanBufLimit,
+		secret.OptSecretsStore,
 		driver.OptIngestHeader,
 		driver.OptIngestCache,
 		files.OptCacheLockTimeout,

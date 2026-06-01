@@ -15,6 +15,7 @@ var (
 	GetVersionFromBrewFormula = getVersionFromBrewFormula
 	FetchBrewVersion          = fetchBrewVersion
 	RenderSQLSupportsFormat   = renderSQLSupportsFormat
+	ErrBinaryFormatToTerminal = errBinaryFormatToTerminal
 )
 
 // DoTestParseLocStage is a helper to test the

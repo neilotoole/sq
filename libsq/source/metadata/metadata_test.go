@@ -809,6 +809,100 @@ func TestLinkForeignKeys(t *testing.T) {
 		require.Nil(t, src.Table("category").FK,
 			"category got no incoming link because the typo'd FK didn't reach it")
 	})
+
+	t.Run("self_referential_fk_pointer_identity", func(t *testing.T) {
+		// A table whose outgoing FK references itself must appear in both
+		// FK.Outgoing and FK.Incoming with identical pointer identity —
+		// LinkForeignKeys treats the referenced table as just another
+		// table in the source, and "the same table" is not a special
+		// case. Asserting Same (not just Equal) catches a future
+		// regression where LinkForeignKeys clones the FK before
+		// inserting into Incoming, breaking back-ref-to-outgoing
+		// pointer equality.
+		fk := &metadata.ForeignKey{
+			Name:       "fk_employee_manager",
+			Table:      "employee",
+			Columns:    []string{"manager_id"},
+			RefTable:   "employee",
+			RefColumns: []string{"id"},
+		}
+
+		src := &metadata.Source{
+			Tables: []*metadata.Table{
+				{
+					Name: "employee",
+					Columns: []*metadata.Column{
+						{Name: "id", PrimaryKey: true},
+						{Name: "manager_id"},
+					},
+					FK: metadata.NewFKGroup([]*metadata.ForeignKey{fk}, nil),
+				},
+			},
+		}
+
+		metadata.LinkForeignKeys(nil, src)
+
+		employee := src.Table("employee")
+		require.NotNil(t, employee.FK)
+		require.Len(t, employee.FK.Outgoing, 1)
+		require.Len(t, employee.FK.Incoming, 1,
+			"self-referential FK must surface on FK.Incoming on the same table")
+		require.Same(t, fk, employee.FK.Outgoing[0])
+		require.Same(t, employee.FK.Outgoing[0], employee.FK.Incoming[0],
+			"self-ref Outgoing and Incoming must share pointer identity")
+	})
+
+	t.Run("idempotence_clears_bogus_pointer", func(t *testing.T) {
+		// The existing "idempotent" subcase calls LinkForeignKeys twice
+		// and verifies the legitimate Incoming entry isn't duplicated.
+		// This subcase goes further: it injects a bogus FK pointer
+		// directly into an Incoming slice between the two calls and
+		// verifies the second LinkForeignKeys pass purges it. That
+		// pins the pre-clear step in [metadata.LinkForeignKeys]
+		// (FK.Incoming is set to nil on every FK-bearing table before
+		// re-deriving) — a regression that only appended would leave
+		// the bogus pointer in place forever.
+		fk := &metadata.ForeignKey{
+			Table:      "child",
+			Columns:    []string{"parent_id"},
+			RefTable:   "parent",
+			RefColumns: []string{"id"},
+		}
+		bogus := &metadata.ForeignKey{
+			Name:     "fk_bogus_injected",
+			Table:    "ghost",
+			RefTable: "parent",
+		}
+
+		src := &metadata.Source{
+			Tables: []*metadata.Table{
+				{
+					Name:    "child",
+					Columns: []*metadata.Column{{Name: "parent_id"}},
+					FK:      metadata.NewFKGroup([]*metadata.ForeignKey{fk}, nil),
+				},
+				{
+					Name:    "parent",
+					Columns: []*metadata.Column{{Name: "id"}},
+				},
+			},
+		}
+
+		metadata.LinkForeignKeys(nil, src)
+		parent := src.Table("parent")
+		require.Len(t, parent.FK.Incoming, 1)
+
+		// Inject a bogus pointer into the Incoming slice as a regression
+		// would: e.g. a re-entrant caller appending without clearing.
+		parent.FK.Incoming = append(parent.FK.Incoming, bogus)
+		require.Len(t, parent.FK.Incoming, 2)
+
+		metadata.LinkForeignKeys(nil, src)
+		require.Len(t, parent.FK.Incoming, 1,
+			"the second LinkForeignKeys must drop the injected bogus pointer")
+		require.Same(t, fk, parent.FK.Incoming[0],
+			"the legitimate Incoming entry must survive the clear-and-rederive cycle")
+	})
 }
 
 func TestSource_Clone_RelinksForeignKeys(t *testing.T) {
@@ -859,6 +953,66 @@ func TestSource_Clone_RelinksForeignKeys(t *testing.T) {
 		"original Source.FK.Incoming must be unaffected by Clone()")
 	require.NotSame(t, gotFilm.FK.Outgoing[0], origLanguage.FK.Incoming[0],
 		"clone and original FK.Incoming must not share pointer identity")
+}
+
+// TestSource_Clone_FKMutationIsolated pins the end-to-end deep-copy
+// guarantee: mutating an FK's Columns slice on the clone must not
+// affect the original Source, and the original's FK.Incoming back-ref
+// must still point at the original's Outgoing entry (no aliasing
+// across the Clone boundary).
+func TestSource_Clone_FKMutationIsolated(t *testing.T) {
+	fk := &metadata.ForeignKey{
+		Name:       "fk_film_language",
+		Table:      "film",
+		Columns:    []string{"language_id"},
+		RefTable:   "language",
+		RefColumns: []string{"language_id"},
+	}
+
+	src := &metadata.Source{
+		Tables: []*metadata.Table{
+			{
+				Name:    "film",
+				Columns: []*metadata.Column{{Name: "language_id"}},
+				FK:      metadata.NewFKGroup([]*metadata.ForeignKey{fk}, nil),
+			},
+			{
+				Name:    "language",
+				Columns: []*metadata.Column{{Name: "language_id"}},
+			},
+		},
+	}
+	metadata.LinkForeignKeys(nil, src)
+
+	got := src.Clone()
+	gotFK := got.Table("film").FK.Outgoing[0]
+
+	// Mutate every reference-typed field on the cloned FK and verify
+	// the original is untouched. Use index-assignment (in-place
+	// mutation) on both Columns and RefColumns — a shallow-copy bug
+	// where the cloned slice shares the original's backing array would
+	// surface here. Append on its own typically reallocates because
+	// slice literals have cap == len, so it doesn't reliably exercise
+	// the shared-backing-array hazard; the index-assign does.
+	gotFK.Columns[0] = "mutated_col"
+	gotFK.RefColumns[0] = "mutated_ref"
+	gotFK.OnDelete = "CASCADE"
+
+	require.Equal(t, []string{"language_id"}, fk.Columns,
+		"original FK.Columns must be unaffected by in-place mutation on the clone")
+	require.Equal(t, []string{"language_id"}, fk.RefColumns,
+		"original FK.RefColumns must be unaffected by in-place mutation on the clone")
+	require.Empty(t, fk.OnDelete,
+		"original FK.OnDelete must be unaffected by clone mutation")
+
+	// The original Source's FK.Incoming back-ref must still point at
+	// the original FK, not at the (now-mutated) clone.
+	origLanguage := src.Table("language")
+	require.Len(t, origLanguage.FK.Incoming, 1)
+	require.Same(t, fk, origLanguage.FK.Incoming[0],
+		"original Source.FK.Incoming must still point at the original FK after clone mutation")
+	require.Equal(t, []string{"language_id"}, origLanguage.FK.Incoming[0].Columns,
+		"original Incoming view of FK.Columns must remain unchanged")
 }
 
 func TestUniqueConstraint_Clone(t *testing.T) {

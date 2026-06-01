@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
 # Deploy the current site/ tree to Netlify (deploy-preview context) and poll
 # the API until state=ready. Used by `make site-netlify-validate` and the
-# sq-site-dependabot skill (Layer B). Mirrors polling logic in
-# .github/workflows/site-publish-dispatch.yml.
-#
-# TODO: Deduplicate deploy JSON parse + API poll loop with site-publish-dispatch.yml
-# (e.g. site/scripts/netlify-deploy-poll.sh). Paths differ: --build deploy-preview
-# here vs --prod --dir=public in CI; keep both entry points, share poll-only helper.
+# sq-site-dependabot skill (Layer B). Shares poll logic with
+# netlify-deploy-poll.sh (production uses netlify-deploy-prod.sh).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -76,30 +72,4 @@ if [ -z "${deploy_id}" ]; then
 	exit 1
 fi
 
-state=""
-for attempt in $(seq 1 30); do
-	body=$(curl -fsS \
-		-H "Authorization: Bearer ${NETLIFY_AUTH_TOKEN}" \
-		"https://api.netlify.com/api/v1/sites/${NETLIFY_SITE_ID}/deploys/${deploy_id}") \
-		|| {
-			log_indent log_warning "Attempt ${attempt}: API call failed, will retry"
-			sleep 5
-			continue
-		}
-	state=$(jq -r '.state // empty' <<<"${body}")
-	log_indent log_info_dim "Attempt ${attempt}: state=${state:-<empty>}"
-	case "${state}" in
-	ready) break ;;
-	error | rejected)
-		log_error "Deploy ${deploy_id} ended in state=${state}."
-		exit 1
-		;;
-	esac
-	sleep 5
-done
-
-if [ "${state}" != "ready" ]; then
-	log_error "Deploy ${deploy_id} did not reach state=ready (last: ${state:-<empty>})."
-	exit 1
-fi
-log_success "Deploy ${deploy_id} reached state=ready."
+"${SCRIPT_DIR}/netlify-deploy-poll.sh" "${deploy_id}"

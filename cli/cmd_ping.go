@@ -206,6 +206,18 @@ func pingSource(ctx context.Context, dp driver.Provider, src *source.Source, tim
 		return
 	}
 
+	// Resolve any ${scheme:path} placeholders in src.Location before
+	// handing the source to the driver. Grips.doOpen does this for the
+	// query path; ping calls drvr.Ping directly, so we must do it here.
+	// Keep the resolved clone in a separate variable: pingResult carries
+	// the original (templated) src to output writers, which serialize
+	// src.Location verbatim — we must not leak the resolved plaintext.
+	resolved, err := driver.ResolveSourceSecrets(ctx, src)
+	if err != nil {
+		resultCh <- pingResult{src: src, err: err}
+		return
+	}
+
 	if timeout > 0 {
 		var cancelFn context.CancelFunc
 		ctx, cancelFn = context.WithTimeout(ctx, timeout)
@@ -216,8 +228,8 @@ func pingSource(ctx context.Context, dp driver.Provider, src *source.Source, tim
 	start := time.Now()
 
 	go func() {
-		err = drvr.Ping(ctx, src)
-		doneCh <- pingResult{src: src, duration: time.Since(start), err: err}
+		pingErr := drvr.Ping(ctx, resolved)
+		doneCh <- pingResult{src: src, duration: time.Since(start), err: pingErr}
 	}()
 
 	select {

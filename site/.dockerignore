@@ -26,4 +26,4 @@ Common.make
 linkinator.sh
 linkinator.config.json
 BENCHMARK_README.md
-# scripts/ included so dev-server.js + version-fetch.js run in container
+# scripts/ included so dev-server.js + gen-site-data.js + version-fetch.js run in container

@@ -36,6 +36,10 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/slogbuf"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
+	"github.com/neilotoole/sq/libsq/core/secret"
+	"github.com/neilotoole/sq/libsq/core/secret/env"
+	"github.com/neilotoole/sq/libsq/core/secret/file"
+	"github.com/neilotoole/sq/libsq/core/secret/keyring"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
@@ -199,6 +203,13 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 	if err = FinishRunInit(ctx, ru); err != nil {
 		return err
 	}
+
+	ru.SecretRegistry = secret.NewRegistry()
+	ru.SecretRegistry.Register("keyring", keyring.NewStore())
+	ru.SecretRegistry.Register("env", env.NewResolver())
+	ru.SecretRegistry.Register("file", file.NewResolver())
+	ctx = secret.NewContext(ctx, ru.SecretRegistry)
+	cmd.SetContext(ctx)
 
 	var outCfg *outputConfig
 	ru.Writers, outCfg = newWriters(ru.Cmd, ru.Files, ru.Cleanup, cmdOpts, ru.Stdout, ru.Stderr)

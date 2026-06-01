@@ -42,7 +42,11 @@ repeatedly inspect the same `stdin` data, you should probably just [`sq add`](#a
 This output includes the source
 metadata, and the schema structure (tables, columns, etc.).
 
-### `--text` (default)
+## Output formats
+
+<a id="--text-default"></a>
+
+### `text`
 
 ```shell
 $ sq inspect @sakila_pg
@@ -50,16 +54,18 @@ $ sq inspect @sakila_pg
 
 ![sq inspect source text](sq_inspect_source_text.png)
 
-### `--verbose`
+<a id="--verbose"></a>
 
-To see more detail, use the `--verbose` (`-v`) flag with the `--text` format.
+To see more detail, use the `--verbose` (`-v`) flag with the `text` format.
 
 ![sq inspect source verbose](sq_inspect_source_text_verbose.png)
 
-### `--yaml`
+<a id="--yaml"></a>
 
-To see the full output, use the `--yaml` (`-y`) flag. YAML has the advantage
-of being reasonably human-readable.
+### `yaml`
+
+The `yaml` format (`--yaml` / `-y`) renders the full output, and is reasonably
+human-readable.
 
 ![sq inspect source yaml](sq_inspect_source_yaml.png)
 
@@ -68,9 +74,11 @@ If the schema is large and complex, it can take some time (a few seconds or long
 for `sq` to introspect the schema.
 {{< /alert >}}
 
-### `--json`
+<a id="--json"></a>
 
-The `--json` (`-j`) format renders the same content as `--yaml`, but is more
+### `json`
+
+The `json` format (`--json` / `-j`) renders the same content as `yaml`, but is more
 suited for use with other tools, such as [jq](https://jqlang.github.io/jq/).
 
 ![sq_inspect_source json](sq_inspect_source_json.png)
@@ -85,10 +93,13 @@ $ sq inspect -j | jq -r '.tables[] | .name'
 
 See more examples in the [cookbook](/docs/cookbook).
 
-### `--markdown`
+<a id="--markdown"></a>
 
-The `--markdown` format renders a schema document suited for embedding in
-project docs or a pull request: a source overview, per-table
+### `markdown`
+
+The `markdown` format (via `--markdown` or `-f markdown`) renders a schema
+document suited for embedding in project docs or a pull request: a source
+overview, per-table
 column / key / constraint / index detail, and a
 [Mermaid](https://mermaid.js.org) entity-relationship diagram. The diagram
 renders inline on GitHub, GitLab, and most Markdown viewers, showing every
@@ -107,11 +118,14 @@ $ sq inspect @sakila_pg.actor --markdown -o actor.md
 
 ![sq_inspect_markdown ](sq_inspect_md.png)
 
-### `--html`
+<a id="--html"></a>
 
-The `--html` format renders the same schema document as the `--markdown`
-format — a source overview, per-table column / key / constraint / index
-detail, and a [Mermaid](https://mermaid.js.org) entity-relationship diagram —
+### `html`
+
+The `html` format (via `--html` or `-f html`) renders the same schema document
+as the `markdown` format — a source overview, per-table column / key /
+constraint / index detail, and a [Mermaid](https://mermaid.js.org)
+entity-relationship diagram —
 but as a standalone HTML page. The diagrams are rendered client-side by
 Mermaid.js, so the page can be opened directly in a browser.
 
@@ -128,13 +142,13 @@ $ sq inspect @sakila_pg --html -o sakila.html
 $ sq inspect @sakila_pg --html > sakila.html && open sakila.html
 ```
 
-![sq_inspect_html](sq_inspect_html.png)
-
 {{< alert icon="👉" >}}
-See the [**live example**](/examples/sakila.html): the `--html` schema document
-for the Postgres [sakila](https://github.com/jOOQ/sakila) sample database,
-rendered right in your browser.
+See the [**live example**](/examples/sakila.html): the `html` schema document
+for the Postgres [sakila](https://github.com/jOOQ/sakila) sample database.
+Note that you can click on the diagram in your browser to zoom/pan etc.
 {{< /alert >}}
+
+![sq_inspect_html](sq_inspect_html.png)
 
 By default, the page loads Mermaid.js from a CDN, producing a small file that
 requires internet access to render the diagram. To produce a fully
@@ -151,7 +165,7 @@ $ sq config set format.html.embed-assets true
 $ sq inspect @sakila_sl3 --html --format.html.embed-assets
 ```
 
-As with `--markdown`, the `--overview` (`-O`) mode omits the schema and
+As with `markdown`, the `--overview` (`-O`) mode omits the schema and
 diagram, and inspecting a single table
 (`sq inspect @sakila_sl3.film_actor --html`) renders just that table's section.
 
@@ -159,7 +173,7 @@ diagram, and inspecting a single table
 
 The `mermaid-erd` format emits just the bare
 [Mermaid](https://mermaid.js.org) entity-relationship diagram source — the
-same diagram embedded in the `--markdown` and `--html` schema documents, but
+same diagram embedded in the `markdown` and `html` schema documents, but
 with nothing wrapped around it (no code fence, no HTML page). It's handy for
 pasting into a Markdown file, the [Mermaid live editor](https://mermaid.live),
 or a docs pipeline. There's no dedicated flag for it; select it via the
@@ -176,9 +190,77 @@ $ sq inspect @sakila_pg.film_actor -f mermaid-erd
 $ sq inspect @sakila_pg -f mermaid-erd -o sakila.mmd
 ```
 
+```mermaid
+%% sq inspect @sakila_pg.actor -f mermaid-erd
+erDiagram
+    actor {
+        int actor_id PK
+        text first_name
+        text last_name
+        datetime last_update
+    }
+    actor ||--o{ film_actor : "film_actor_actor_id_fkey"
+```
+
 The format covers only source and single-table schema inspection. Operations
 with no diagram — such as `--overview` (`-O`), `--catalogs`, or `--dbprops` —
 return an error rather than empty output.
+
+### `svg-erd`
+
+The `svg-erd` format renders the schema entity-relationship diagram directly
+to an **SVG image**, without piping the diagram source through a separate
+rendering toolchain. The diagram is laid out and rendered natively by an
+embedded [Graphviz](https://graphviz.org) engine, so it needs no external
+tools, no browser, and no network access. Each table is drawn as a box of its
+columns (with type and `PK`/`FK` markers) and foreign keys as crow's-foot
+relationship edges. Select it via the generic `--format` (`-f`) flag:
+
+```shell
+# Whole-source ERD to a file.
+$ sq inspect @sakila_pg --format=svg-erd -o sakila-schema.svg
+
+# Just the actor table (and its related tables).
+$ sq inspect @sakila_pg.actor -f svg-erd -o actor.svg
+
+# SVG is text, so it can also go to stdout / a pipe.
+$ sq inspect @sakila_pg -f svg-erd > sakila-schema.svg
+```
+
+The rendered diagram looks like this (here the whole [sakila](https://github.com/jOOQ/sakila)
+schema); `png-erd` produces the same image as a PNG:
+
+![sq inspect schema ERD image](sq_inspect_erd.png)
+
+### `png-erd`
+
+The `png-erd` format renders the same entity-relationship diagram as
+`svg-erd`, but as a **PNG image** — convenient for dropping a schema picture
+into a README, ticket, or chat message. Like `svg-erd`, it's rendered natively
+by the embedded Graphviz engine.
+
+PNG is binary, so `png-erd` requires a file target: pass `-o`/`--output` (or
+redirect stdout). Writing it directly to a terminal is refused, to avoid
+corrupting the terminal.
+
+```shell
+$ sq inspect @sakila_pg --format=png-erd -o sakila-schema.png
+
+# Single table.
+$ sq inspect @sakila_pg.actor -f png-erd -o actor.png
+```
+
+Like `mermaid-erd`, both `svg-erd` and `png-erd` cover only source and
+single-table schema inspection; operations with no diagram (`--overview`,
+`--catalogs`, `--dbprops`) return an error.
+
+{{< alert icon="👉" >}}
+The `svg-erd` and `png-erd` diagrams are laid out by Graphviz, so they look
+different from the [Mermaid](https://mermaid.js.org) diagrams produced by the
+`markdown`, `html`, and `mermaid-erd` formats. Use `mermaid-erd` when you want
+the Mermaid layout; use `svg-erd` / `png-erd` when you want a self-contained
+image file with no external rendering step.
+{{< /alert >}}
 
 ## Source overview
 

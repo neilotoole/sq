@@ -1,19 +1,17 @@
 /**
- * Local dev server: runs Hugo on an internal port and handles GET /version
- * by downloading the latest sq version string (same as the Netlify function).
- * No Netlify required locally.
+ * Local dev server: generates the build-time version data file (honoring
+ * SQ_SITE_OFFLINE), then runs Hugo and proxies to it. No Netlify required
+ * locally.
  *
- * site/Makefile passes SQ_SITE_OFFLINE=1 by default for site-local; use
- * SQ_SITE_OFFLINE=0 make site-local to download that version. Running bun scripts/dev-server.js
- * directly leaves SQ_SITE_OFFLINE unset (download unless SQ_SITE_OFFLINE=1).
+ * site/Makefile passes SQ_SITE_OFFLINE=1 by default for site-local, so the
+ * header badge shows the committed last-known version without a network call;
+ * use SQ_SITE_OFFLINE=0 make site-local to fetch the latest from GitHub.
  */
 
 const http = require("http");
 const path = require("path");
 const fs = require("fs");
-const zlib = require("node:zlib");
-const { spawn } = require("child_process");
-const { getVersion } = require("./version-fetch.js");
+const { spawn, spawnSync } = require("child_process");
 
 const HUGO_PORT = Number(process.env.HUGO_PORT) || 1314;
 const SERVER_PORT = Number(process.env.SERVER_PORT) || process.env.PORT || 1313;
@@ -58,6 +56,13 @@ function waitForHugo() {
   });
 }
 
+// Bake the GitHub data file before Hugo starts (honors SQ_SITE_OFFLINE).
+spawnSync("bun", [path.join(__dirname, "gen-site-data.js")], {
+  stdio: "inherit",
+  cwd: process.cwd(),
+  env: process.env,
+});
+
 const hugoArgs = [
   "server",
   "--port",
@@ -86,57 +91,8 @@ hugo.on("exit", (code) => {
   if (code != null && code !== 0) process.exit(code);
 });
 
-const server = http.createServer(async (req, res) => {
-  const pathname = req.url?.split("?")[0] ?? "/";
-
-  if (req.method === "GET" && pathname === "/version") {
-    const acceptEncoding = (req.headers["accept-encoding"] || "").toLowerCase();
-    const sendJson = (statusCode, bodyObj) => {
-      const json = JSON.stringify(bodyObj);
-      const raw = Buffer.from(json, "utf8");
-      const headers = {
-        "Content-Type": "application/json; charset=utf-8",
-      };
-      if (statusCode === 200) {
-        headers["Cache-Control"] = "public, max-age=300";
-      }
-      if (acceptEncoding.includes("br")) {
-        const br = zlib.brotliCompressSync(raw);
-        if (br.length < raw.length) {
-          headers["Content-Encoding"] = "br";
-          headers.Vary = "Accept-Encoding";
-          res.writeHead(statusCode, headers);
-          res.end(br);
-          return;
-        }
-      }
-      if (acceptEncoding.includes("gzip")) {
-        const gz = zlib.gzipSync(raw);
-        if (gz.length < raw.length) {
-          headers["Content-Encoding"] = "gzip";
-          headers.Vary = "Accept-Encoding";
-          res.writeHead(statusCode, headers);
-          res.end(gz);
-          return;
-        }
-      }
-      res.writeHead(statusCode, headers);
-      res.end(json);
-    };
-    if (process.env.SQ_SITE_OFFLINE === "1") {
-      sendJson(503, { error: "offline" });
-      return;
-    }
-    try {
-      const version = await getVersion();
-      sendJson(200, { "latest-version": version });
-    } catch (_) {
-      sendJson(503, { error: "unavailable" });
-    }
-    return;
-  }
-
-  // Proxy to Hugo
+const server = http.createServer((req, res) => {
+  // Proxy to Hugo.
   const proxyReq = http.request(
     {
       hostname: "127.0.0.1",
@@ -160,7 +116,7 @@ const server = http.createServer(async (req, res) => {
 waitForHugo()
   .then(() => {
     server.listen(SERVER_PORT, "0.0.0.0", () => {
-      console.log(`Dev server at http://localhost:${SERVER_PORT} (Hugo + /version)`);
+      console.log(`Dev server at http://localhost:${SERVER_PORT} (Hugo)`);
     });
   })
   .catch((err) => {

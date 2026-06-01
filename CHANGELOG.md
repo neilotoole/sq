@@ -16,6 +16,57 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## Unreleased
+
+### Added
+
+- [#441]: [`sq config keyring`](https://sq.io/docs/cmd/sq_config_keyring) command
+  group: store source DSNs in the OS keyring instead of plaintext in
+  `~/.config/sq.yml`. Subcommands: `ls`, `create`, `update`, `get`, `rm`,
+  `migrate`.
+  [`sq add`](https://sq.io/docs/cmd/sq_add) gains a `--store inline|keyring`
+  flag, and a new `secrets.store` config option (`inline` | `keyring`)
+  controls the default; existing behavior is preserved (`inline`). With
+  `--store keyring`, the entire DSN is written to the OS keyring at a fresh
+  opaque ID and the YAML Location becomes a bare `${keyring:<id>}` placeholder.
+  Source `location` fields now support `${scheme:path}` placeholders that
+  are resolved at connect time. Shipped schemes: `keyring` (OS keychain,
+  managed via `sq config keyring`), `env` (environment variable, e.g.
+  `${env:DB_PROD_PW}`), and `file` (file contents, with one trailing newline
+  trimmed, e.g. `${file:/run/secrets/db_pw}` or `${file:~/.sq/db_pw}` —
+  paths must be absolute or start with `~/`, relative paths are absolutized
+  at `sq add` time against the working directory). Use
+  [`sq ping`](https://sq.io/docs/cmd/sq_ping) to verify end-to-end that a
+  source's placeholders resolve and the datastore is reachable.
+- [#616]: [`sq inspect`](https://sq.io/docs/inspect) foreign-key, unique-constraint,
+  and index introspection gained per-driver integration tests for the Postgres,
+  MySQL, SQL Server, Oracle, and DuckDB loaders — composite-FK column pairing,
+  `ON DELETE` / `ON UPDATE` referential actions, Postgres / DuckDB reserved-word
+  FK identifiers, SQL Server same-catalog FK shape, plus self-referential FK
+  pointer identity and a `Source.Clone` deep-copy round-trip in the shared
+  metadata layer. The text-table verbose renderer also gained a golden-layout
+  test pinning header order and the parens-wrapped styling of unique-constraint-backing
+  indexes.
+- [#660]: [`sq inspect`](https://sq.io/docs/inspect) gained
+  [`svg-erd`](https://sq.io/docs/inspect#svg-erd) and
+  [`png-erd`](https://sq.io/docs/inspect#png-erd) output formats that render the
+  schema entity-relationship diagram directly to an SVG or PNG image file
+  (`--format=svg-erd` / `--format=png-erd`). The diagram is laid out and
+  rendered natively via an embedded [Graphviz](https://graphviz.org) engine, so
+  image export needs no external tool, browser, or network. `png-erd` is binary
+  and requires a file target (`-o`/`--output`).
+
+### Changed
+
+- [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd)
+  now syntax-colors its `erDiagram` source when writing to a terminal. Output to
+  a file or pipe (and under `--no-color`, `NO_COLOR`, or `--monochrome`) is
+  unchanged, so redirected `.mmd` files stay byte-identical to the plain source.
+- The `sqlserver` driver description shown by
+  [`sq driver ls`](https://sq.io/docs/cmd/driver-ls) is now simply "Microsoft SQL
+  Server", dropping the trailing "/ Azure SQL Edge" (Azure SQL Edge was retired by
+  Microsoft on 2025-09-30).
+
 ## [v0.53.0] - 2026-05-25
 
 ### Added
@@ -1575,6 +1626,7 @@ make working with lots of sources much easier.
 [#612]: https://github.com/neilotoole/sq/issues/612
 [#613]: https://github.com/neilotoole/sq/issues/613
 [#615]: https://github.com/neilotoole/sq/issues/615
+[#616]: https://github.com/neilotoole/sq/issues/616
 [#617]: https://github.com/neilotoole/sq/issues/617
 [#618]: https://github.com/neilotoole/sq/issues/618
 [#628]: https://github.com/neilotoole/sq/issues/628
@@ -1587,6 +1639,9 @@ make working with lots of sources much easier.
 [#648]: https://github.com/neilotoole/sq/pull/648
 [#652]: https://github.com/neilotoole/sq/issues/652
 [#658]: https://github.com/neilotoole/sq/pull/658
+[#441]: https://github.com/neilotoole/sq/issues/441
+[#660]: https://github.com/neilotoole/sq/issues/660
+[#692]: https://github.com/neilotoole/sq/issues/692
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3

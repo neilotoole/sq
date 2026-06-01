@@ -26,6 +26,8 @@ first: it explains the **stable** vs **full** link-check split, what PR CI block
 on, and what runs as informational/nightly follow-up.
 
 Changes under `site/` are validated by [`.github/workflows/site-ci.yml`](./.github/workflows/site-ci.yml).
+Merging site doc PRs updates `master` only; live [sq.io](https://sq.io) updates on manual
+**Site Publish (dispatch)** or a stable sq release (see [Netlify (maintainers)](#netlify-maintainers)).
 
 To triage or merge a batch of **Dependabot PRs** for `site/`, use the
 [`sq-site-dependabot`](./.agents/skills/sq-site-dependabot/) agent skill (invoke
@@ -53,7 +55,24 @@ workflows that use `paths` filters and do not run on every PR.
 Production hosting for sq.io is on Netlify. After the monorepo migration, the Netlify site
 should use repository **`neilotoole/sq`**, **base directory** `site`, and the existing
 [`site/netlify.toml`](./site/netlify.toml). Re-link the repo in Netlify if needed; confirm
-deploy previews and the `/version` function.
+deploy previews and the [`/version`](https://sq.io/version) static endpoint (redirect to
+`version.json`).
+
+#### Production publish
+
+- **Site CI** ([`site-ci.yml`](./.github/workflows/site-ci.yml)) on `master` and PRs validates
+  builds only — merging `site/**` does **not** update https://sq.io.
+- **Manual publish:** [Site Publish (dispatch)](./.github/workflows/site-publish-dispatch.yml)
+  — Actions → Run workflow → type `DEPLOY`. Use when doc or dependency changes on `master`
+  need to go live before the next sq release.
+- **Release publish:** [Site Publish (release)](./.github/workflows/site-publish-release.yml)
+  — runs automatically when GoReleaser publishes a **stable** `vX.Y.Z` GitHub release
+  (pre-releases excluded).
+- **Netlify git integration** remains suppressed via `[context.production] ignore = "exit 0"`
+  in [`site/netlify.toml`](./site/netlify.toml); all production uploads go through GitHub
+  Actions and the Netlify CLI ([`site-publish-netlify.yml`](./.github/workflows/site-publish-netlify.yml)).
+
+See [`site/README.md`](./site/README.md#ci-workflow) for the full CI table.
 
 ## Tooling
 

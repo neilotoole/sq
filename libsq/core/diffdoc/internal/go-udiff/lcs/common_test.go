@@ -6,7 +6,7 @@ package lcs
 
 import (
 	"log"
-	"math/rand/v2"
+	rand "math/rand/v2"
 	"slices"
 	"strings"
 	"testing"
@@ -65,6 +65,7 @@ func (s stringSeqs) lengths() (int, int) { return len(s.a), len(s.b) }
 func (s stringSeqs) commonPrefixLen(ai, aj, bi, bj int) int {
 	return commonPrefixLenString(s.a[ai:aj], s.b[bi:bj])
 }
+
 func (s stringSeqs) commonSuffixLen(ai, aj, bi, bj int) int {
 	return commonSuffixLenString(s.a[ai:aj], s.b[bi:bj])
 }
@@ -77,6 +78,7 @@ func commonPrefixLenString(a, b string) int {
 	}
 	return i
 }
+
 func commonSuffixLenString(a, b string) int {
 	n := min(len(a), len(b))
 	i := 0

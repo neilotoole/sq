@@ -13,6 +13,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/termz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -113,6 +114,8 @@ render a schema document that includes a Mermaid entity-relationship diagram;
 			format.Markdown.String(),
 			format.HTML.String(),
 			format.MermaidERD.String(),
+			format.SVGERD.String(),
+			format.PNGERD.String(),
 		),
 	))
 	addTextFormatFlags(cmd)
@@ -148,6 +151,18 @@ render a schema document that includes a Mermaid entity-relationship diagram;
 func execInspect(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	ru, log := run.FromContext(ctx), lg.FromContext(ctx)
+
+	o, err := getOptionsFromCmd(cmd)
+	if err != nil {
+		return err
+	}
+	if err = errBinaryFormatToTerminal(
+		getFormat(cmd, o),
+		cmdFlagChanged(cmd, flag.FileOutput),
+		termz.IsTerminal(ru.Stdout),
+	); err != nil {
+		return err
+	}
 
 	src, table, err := determineInspectTarget(ctx, ru, args)
 	if err != nil {
@@ -261,6 +276,21 @@ func execInspect(cmd *cobra.Command, args []string) error {
 	}
 
 	return ru.Writers.Metadata.SourceMetadata(srcMeta, !overviewOnly)
+}
+
+// errBinaryFormatToTerminal returns a guard error when fm is a binary image
+// format (png-erd) bound for a terminal without a file target: writing PNG
+// bytes to a TTY would corrupt the terminal. It returns nil for any other
+// format, when a file output target (-o/--output) is set, or when stdout is
+// not a terminal (a pipe, redirect, or file). svg-erd is plain-text image
+// markup and needs no such guard.
+func errBinaryFormatToTerminal(fm format.Format, fileOutputSet, stdoutIsTerminal bool) error {
+	if fm != format.PNGERD || fileOutputSet || !stdoutIsTerminal {
+		return nil
+	}
+	return errz.Errorf(
+		"%s is a binary image format and would corrupt the terminal; "+
+			"write it to a file with -o/--output (e.g. -o schema.png)", format.PNGERD)
 }
 
 // determineInspectTarget determines the source (and, optionally, table)

@@ -89,6 +89,34 @@ so they're skipped under `go test -short`. See
 [`CONTRIBUTING.md`](./CONTRIBUTING.md#test-handles) for driver test handle
 conventions.
 
+### Error handling
+
+Use [`libsq/core/errz`](./libsq/core/errz) for every error produced inside
+sq. `errz` wrappers attach a stack trace at the call site, which the CLI's
+debug output and the `errz.Format` `%+v` verb rely on. `errors.Is` / `As`
+continue to work because `errz` exposes `Unwrap`.
+
+| Situation                                         | Use                            |
+| ------------------------------------------------- | ------------------------------ |
+| Brand-new error, plain string                     | `errz.New("...")`              |
+| Brand-new error, formatted                        | `errz.Errorf("... %s", x)`     |
+| Wrap an existing error                            | `errz.Wrap(err, "context")`    |
+| Wrap an existing error, formatted                 | `errz.Wrapf(err, "fmt %s", x)` |
+| Annotate an external error with no extra context  | `errz.Err(err)`                |
+| Package-level sentinel for `errors.Is` comparison | `errors.New("...")`            |
+
+Sentinels (e.g. `secret.ErrNotFound`, `errz.ErrStop`) intentionally stay on
+`errors.New` — wrapping at package-init would attach a stack trace from
+program startup, which is meaningless. Wrap them with `errz` at the point
+they're returned.
+
+Errors crossing into sq from external libraries (stdlib, third-party
+packages) MUST be wrapped at the boundary so the stack trace anchors at the
+sq-side caller, not deep inside the external code.
+
+Avoid `fmt.Errorf` and `errors.New` outside sentinel declarations — they
+produce stackless errors that surface upstream with no useful trace.
+
 ### English spelling
 
 Use US English in all prose: code comments, godoc, user-facing strings,

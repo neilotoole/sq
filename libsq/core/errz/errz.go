@@ -5,6 +5,27 @@
 // This package is the lovechild of Dave Cheney's pkg/errors and
 // Uber's go.uber.org/multierr, and much of the code is borrowed
 // from those packages.
+//
+// # Usage convention
+//
+// Use errz for every error produced inside sq, so the stack trace anchors
+// at the call site rather than deep inside an external library.
+//
+//   - errz.New / errz.Errorf to construct a fresh error.
+//   - errz.Wrap / errz.Wrapf to wrap an existing error with extra context.
+//   - errz.Err to annotate an external error with no extra context (the
+//     common pattern at a stdlib or third-party boundary).
+//
+// errors.Is and errors.As continue to work through errz wrappers because
+// they expose Unwrap. Package-level sentinels intended for errors.Is
+// comparison (e.g. ErrStop, ErrNoMsg, secret.ErrNotFound) intentionally
+// stay on errors.New: wrapping them at package-init would attach a
+// useless start-of-program stack trace. Wrap with errz at the point of
+// return instead.
+//
+// fmt.Errorf and errors.New SHOULD NOT be used outside sentinel
+// declarations: they produce stackless errors that surface upstream
+// with no useful trace.
 package errz
 
 import (

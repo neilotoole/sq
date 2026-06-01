@@ -2,7 +2,7 @@ DRIVER      DESCRIPTION                            USER-DEFINED  DOC
 sqlite3     SQLite                                 false         https://github.com/mattn/go-sqlite3
 duckdb      DuckDB                                 false         https://duckdb.org
 postgres    PostgreSQL                             false         https://github.com/jackc/pgx
-sqlserver   Microsoft SQL Server / Azure SQL Edge  false         https://github.com/microsoft/go-mssqldb
+sqlserver   Microsoft SQL Server                   false         https://github.com/microsoft/go-mssqldb
 mysql       MySQL                                  false         https://github.com/go-sql-driver/mysql
 clickhouse  ClickHouse                             false         https://github.com/ClickHouse/clickhouse-go
 oracle      Oracle                                 false         https://github.com/sijms/go-ora

@@ -7,11 +7,17 @@ on:
     paths:
       - "site/**"
       - ".github/workflows/site-ci.yml"
+      - ".github/workflows/site-publish-netlify.yml"
+      - ".github/workflows/site-publish-release.yml"
+      - ".github/workflows/site-publish-dispatch.yml"
   pull_request:
     branches: [master, develop]
     paths:
       - "site/**"
       - ".github/workflows/site-ci.yml"
+      - ".github/workflows/site-publish-netlify.yml"
+      - ".github/workflows/site-publish-release.yml"
+      - ".github/workflows/site-publish-dispatch.yml"
 
 defaults:
   run:
@@ -42,6 +48,8 @@ jobs:
             ${{ runner.os }}-site-bun-
 
       - name: Install, lint, and build (make ci)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: make ci
 
       # Full external link crawl is valuable but inherently flaky (third-party

@@ -157,7 +157,9 @@ func groupFromHandle(h string) string {
 }
 
 // RedactedLocation returns s.Location, with the password component
-// of the location masked.
+// masked. The underlying location.Redact handles ${scheme:path} secret
+// placeholders correctly (placeholders in non-password positions are
+// preserved; the inline password is still masked).
 func (s *Source) RedactedLocation() string {
 	if s == nil {
 		return ""

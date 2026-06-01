@@ -16,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/csvw"
+	"github.com/neilotoole/sq/cli/output/erdimgw"
 	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/cli/output/htmlw"
 	"github.com/neilotoole/sq/cli/output/jsonw"
@@ -341,6 +342,7 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 			OptErrorStack.Get(o), OptErrorFormatTextVerbose.Get(o)),
 		Version: tablew.NewVersionWriter(outCfg.out, outCfg.outPr),
 		Config:  tablew.NewConfigWriter(outCfg.out, outCfg.outPr),
+		Keyring: tablew.NewKeyringWriter(outCfg.out, outCfg.outPr),
 		SQL:     sqlw.NewTextWriter(outCfg.out, outCfg.outPr),
 	}
 
@@ -359,6 +361,7 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 		w.Version = jsonw.NewVersionWriter(outCfg.out, outCfg.outPr)
 		w.Ping = jsonw.NewPingWriter(outCfg.out, outCfg.outPr)
 		w.Config = jsonw.NewConfigWriter(outCfg.out, outCfg.outPr)
+		w.Keyring = jsonw.NewKeyringWriter(outCfg.out, outCfg.outPr)
 		w.SQL = sqlw.NewJSONWriter(outCfg.out, outCfg.outPr)
 
 	case format.JSONL:
@@ -389,6 +392,12 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 
 	case format.MermaidERD:
 		w.Metadata = mermaidw.NewMetadataWriter(outCfg.out, outCfg.outPr)
+
+	case format.PNGERD:
+		w.Metadata = erdimgw.NewPNGMetadataWriter(outCfg.out, outCfg.outPr)
+
+	case format.SVGERD:
+		w.Metadata = erdimgw.NewSVGMetadataWriter(outCfg.out, outCfg.outPr)
 	default:
 	}
 
@@ -431,9 +440,10 @@ func getRecordWriterFunc(f format.Format) output.NewRecordWriterFunc {
 		return yamlw.NewRecordWriter
 	case format.Raw:
 		return raww.NewRecordWriter
-	case format.MermaidERD:
-		// mermaid-erd is a metadata-only (sq inspect) format; it has no
-		// record writer, so callers fall back to text for record output.
+	case format.MermaidERD, format.PNGERD, format.SVGERD:
+		// mermaid-erd, png-erd, and svg-erd are metadata-only (sq inspect)
+		// ERD formats; they have no record writer, so callers fall back to
+		// text for record output.
 		return nil
 	default:
 		return nil
@@ -600,14 +610,13 @@ func getOutputConfig(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup
 	}
 
 	switch {
-	case cmdFlagChanged(cmd, flag.FileOutput) || fm == format.Raw || fm == format.XLSX:
-		// For file, raw, or XLSX output, we don't decorate stdout with
-		// any colorable decorator. XLSX is binary and must not be modified.
+	case cmdFlagChanged(cmd, flag.FileOutput) || fm == format.Raw || fm == format.XLSX ||
+		fm == format.PNGERD || fm == format.SVGERD:
+		// For file, raw, XLSX, or ERD-image output, we don't decorate stdout
+		// with any colorable decorator. XLSX and png-erd are binary and must
+		// not be modified; svg-erd is plain image markup that wants no ANSI
+		// color processing either.
 		outCfg.out = stdout
-		outCfg.outPr.EnableColor(false)
-	case cmd != nil && cmdFlagChanged(cmd, flag.FileOutput):
-		// stdout is an actual regular file on disk, so no color.
-		outCfg.out = colorable.NewNonColorable(stdout)
 		outCfg.outPr.EnableColor(false)
 	case termz.IsColorTerminal(stdout) && !monochrome:
 		// stdout is a color terminal and we're colorizing.

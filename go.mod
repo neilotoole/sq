@@ -22,24 +22,25 @@ require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.46.0
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/a8m/tree v0.0.0-20240104212747-2c8764a5f17e
-	github.com/alecthomas/chroma/v2 v2.24.1
+	github.com/alecthomas/chroma/v2 v2.26.1
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/c2h5oh/datasize v0.0.0-20231215233829-aa82cc1e6500
 	github.com/djherbis/buffer v1.2.0
-	github.com/duckdb/duckdb-go/v2 v2.10503.0 // BRITTLE
+	github.com/duckdb/duckdb-go/v2 v2.10503.1 // BRITTLE
 	github.com/dustin/go-humanize v1.0.1
 	github.com/ecnepsnai/osquery v1.0.1
 	github.com/emirpasic/gods v1.18.1
 	github.com/fatih/color v1.19.0
 	github.com/go-sql-driver/mysql v1.10.0 // BRITTLE
+	github.com/goccy/go-graphviz v0.2.10
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/renameio/v2 v2.0.2
 	github.com/google/uuid v1.6.0
 	github.com/h2non/filetype v1.1.3
 	github.com/itchyny/gojq v0.12.19
 	github.com/jackc/pgx/v5 v5.9.2 // BRITTLE
-	github.com/mattn/go-colorable v0.1.14
-	github.com/mattn/go-runewidth v0.0.23
+	github.com/mattn/go-colorable v0.1.15
+	github.com/mattn/go-runewidth v0.0.24
 	github.com/mattn/go-sqlite3 v1.14.44 // BRITTLE
 	github.com/microsoft/go-mssqldb v1.10.0 // BRITTLE
 	github.com/mitchellh/go-wordwrap v1.0.1
@@ -81,6 +82,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
+require github.com/zalando/go-keyring v0.2.8
+
 require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/bubbles v1.0.0
@@ -111,8 +114,10 @@ require (
 	github.com/clipperhouse/displaywidth v0.9.0 // indirect
 	github.com/clipperhouse/stringish v0.1.1 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
+	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/dlclark/regexp2 v1.12.0 // indirect
+	github.com/disintegration/imaging v1.6.2 // indirect
+	github.com/dlclark/regexp2/v2 v2.1.1 // indirect
 	github.com/duckdb/duckdb-go-bindings v0.10503.0 // indirect
 	github.com/duckdb/duckdb-go-bindings/lib/darwin-amd64 v0.10503.0 // indirect
 	github.com/duckdb/duckdb-go-bindings/lib/darwin-arm64 v0.10503.0 // indirect
@@ -121,13 +126,17 @@ require (
 	github.com/duckdb/duckdb-go-bindings/lib/windows-amd64 v0.10503.0 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/felixge/fgprof v0.9.5 // indirect
+	github.com/flopp/go-findfont v0.1.0 // indirect
+	github.com/fogleman/gg v1.3.0 // indirect
 	github.com/go-faster/city v1.0.1 // indirect
 	github.com/go-faster/errors v0.7.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/goccy/go-json v0.10.6 // indirect
+	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/gohxs/readline v0.0.0-20171011095936-a780388e6e7c // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
+	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/google/flatbuffers v25.12.19+incompatible // indirect
 	github.com/google/pprof v0.0.0-20260402051712-545e8a4df936 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
@@ -167,6 +176,7 @@ require (
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/soniakeys/quant v1.0.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
+	github.com/tetratelabs/wazero v1.10.1 // indirect
 	github.com/tiendc/go-deepcopy v1.7.2 // indirect
 	github.com/xo/tblfmt v0.18.2 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
@@ -178,6 +188,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.51.0 // indirect
+	golang.org/x/image v0.41.0 // indirect
 	golang.org/x/net v0.54.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260508192327-42602be52be6 // indirect
 	golang.org/x/tools v0.45.0 // indirect

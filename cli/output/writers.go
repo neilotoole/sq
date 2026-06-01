@@ -203,6 +203,67 @@ type Writers struct {
 	Version      VersionWriter
 	Config       ConfigWriter
 	SQL          SQLWriter
+	Keyring      KeyringWriter
+}
+
+// KeyringRef is one row of "sq config keyring ls" output. Each row
+// describes a single ${keyring:<path>} reference reachable from the
+// active source collection.
+type KeyringRef struct {
+	Path   string `json:"path"`
+	Handle string `json:"handle"`
+	Driver string `json:"driver"`
+}
+
+// KeyringMigrateStatus enumerates the status values surfaced by
+// KeyringWriter.Migrate. The string forms are part of the JSON
+// contract and must not change casually.
+const (
+	KeyringMigrateStatusPlanned  = "planned"  // dry-run: source would be migrated
+	KeyringMigrateStatusSkip     = "skip"     // not eligible (no password, malformed, etc.)
+	KeyringMigrateStatusMigrated = "migrated" // applied: keyring entry written, YAML updated
+	KeyringMigrateStatusFailed   = "failed"   // applied: a step failed (mint/write/save)
+)
+
+// KeyringMigrateRow describes one source's outcome in a migrate plan
+// (dry-run) or migrate result (applied). Status takes one of the
+// KeyringMigrateStatus* constants.
+type KeyringMigrateRow struct {
+	Handle      string `json:"handle"`
+	Status      string `json:"status"`
+	Reason      string `json:"reason,omitempty"`       // populated for "skip"
+	NewLocation string `json:"new_location,omitempty"` // populated for "migrated"
+	Error       string `json:"error,omitempty"`        // populated for "failed"
+}
+
+// KeyringWriter prints output for the "sq config keyring" command group.
+// Implementations live in cli/output/tablew (text/table) and
+// cli/output/jsonw (JSON).
+type KeyringWriter interface {
+	// List prints the result of "sq config keyring ls".
+	List(refs []KeyringRef) error
+
+	// Get prints the result of "sq config keyring get". When revealed
+	// is false, the writer should omit the secret value (printing only
+	// metadata) so callers can pass it through verbatim regardless of
+	// the --reveal flag.
+	Get(path, value string, revealed bool) error
+
+	// Created prints confirmation of "sq config keyring create".
+	Created(path string) error
+
+	// Updated prints confirmation of "sq config keyring update".
+	Updated(path string) error
+
+	// Rm prints confirmation of "sq config keyring rm". Deleting a
+	// non-existent entry still calls this — rm is idempotent.
+	Rm(path string) error
+
+	// Migrate prints per-source migration outcomes. When dryRun is true
+	// the rows describe a plan (statuses: "planned" or "skip"); when
+	// false the rows describe applied outcomes (statuses: "migrated",
+	// "skip", or "failed").
+	Migrate(rows []KeyringMigrateRow, dryRun bool) error
 }
 
 // NewRecordWriterFunc is a func type that returns an output.RecordWriter.
