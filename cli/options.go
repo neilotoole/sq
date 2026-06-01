@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/neilotoole/sq/cli/config"
+	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output/xlsxw"
 	"github.com/neilotoole/sq/cli/pprofile"
 	"github.com/neilotoole/sq/cli/run"
@@ -68,6 +69,22 @@ func getOptionsFromFlags(flags *pflag.FlagSet, reg *options.Registry) (options.O
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	// --no-redact is processed by the registry walk above via its
+	// OptRedact.Flag.Invert mechanic. --reveal is a free-standing
+	// synonym (see #717): if explicitly set true, force redact=false,
+	// unioning with whatever --no-redact already wrote. Treating them
+	// as a union — not as conflicting inputs — keeps scripts that bake
+	// in --no-redact compatible with an ad-hoc --reveal on top.
+	if rev := flags.Lookup(flag.Reveal); rev != nil && rev.Changed {
+		b, getBoolErr := flags.GetBool(flag.Reveal)
+		if getBoolErr != nil {
+			return nil, errz.Err(getBoolErr)
+		}
+		if b {
+			o[OptRedact.Key()] = false
+		}
 	}
 
 	o, err = reg.Process(o)

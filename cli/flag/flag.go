@@ -49,6 +49,9 @@ const (
 	RenderSQL      = "render-sql"
 	RenderSQLUsage = `Render the SLQ to SQL without executing it`
 
+	Reveal      = "reveal"
+	RevealUsage = "Show secret values in output (don't redact passwords; print keyring values)"
+
 	JSON       = "json"
 	JSONShort  = "j"
 	JSONUsage  = "Output JSON"

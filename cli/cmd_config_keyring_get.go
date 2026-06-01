@@ -3,11 +3,10 @@ package cli
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/secret/keyring"
 )
-
-const flagSecretReveal = "reveal"
 
 func newConfigKeyringGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -31,8 +30,8 @@ entire DSN, including credentials) is written to stdout.`,
   $ sq config keyring get j2k7m3pxtz --reveal`,
 		ValidArgsFunction: completeKeyringPath,
 	}
-	cmd.Flags().Bool(flagSecretReveal, false,
-		"Print the secret value (default: only confirm existence)")
+	// --reveal is registered as a global persistent flag on the root cmd
+	// (see newRootCmd); the inherited flag is what's read here.
 	addKeyringFormatFlags(cmd)
 	return cmd
 }
@@ -46,6 +45,6 @@ func execConfigKeyringGet(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	revealed := cmdFlagIsSetTrue(cmd, flagSecretReveal)
+	revealed := cmdFlagIsSetTrue(cmd, flag.Reveal)
 	return ru.Writers.Keyring.Get(path, value, revealed)
 }
