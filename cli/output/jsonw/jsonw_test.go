@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -19,10 +21,15 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/record"
+	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
 )
+
+// reANSI matches any ANSI color/reset escape sequence.
+var reANSI = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 
 func TestRecordWriters(t *testing.T) {
 	const (
@@ -221,6 +228,98 @@ func TestErrorWriter(t *testing.T) {
 			require.Equal(t, tc.want, got)
 		})
 	}
+}
+
+// TestWriteJSON_Color verifies that WriteJSON emits ANSI escape sequences when
+// color is enabled, and emits none when monochrome. In both cases the
+// underlying bytes, after stripping ANSI, must be valid JSON.
+func TestWriteJSON_Color(t *testing.T) {
+	val := map[string]any{
+		"k":          "v",
+		"n":          1,
+		"b":          true,
+		"null_field": nil,
+	}
+
+	t.Run("on", func(t *testing.T) {
+		pr := output.NewPrinting()
+		pr.EnableColor(true)
+		pr.Compact = true
+		require.False(t, pr.IsMonochrome())
+
+		var buf bytes.Buffer
+		err := jsonw.WriteJSON(&buf, pr, val)
+		require.NoError(t, err)
+
+		out := buf.String()
+		require.Contains(t, out, "\x1b[", "expected ANSI escape in color output")
+		require.Contains(t, out, "\x1b[0m", "expected ANSI reset in color output")
+
+		plain := reANSI.ReplaceAllString(out, "")
+		var got map[string]any
+		require.NoError(t, json.Unmarshal([]byte(plain), &got),
+			"stripped output must be valid JSON")
+	})
+
+	t.Run("off", func(t *testing.T) {
+		pr := output.NewPrinting()
+		pr.EnableColor(false)
+		pr.Compact = true
+		require.True(t, pr.IsMonochrome())
+
+		var buf bytes.Buffer
+		err := jsonw.WriteJSON(&buf, pr, val)
+		require.NoError(t, err)
+
+		out := buf.String()
+		require.NotContains(t, out, "\x1b[", "expected no ANSI escape in monochrome output")
+
+		var got map[string]any
+		require.NoError(t, json.Unmarshal([]byte(out), &got),
+			"monochrome output must be valid JSON")
+	})
+}
+
+// TestPingWriter_Result verifies that pingWriter.Result emits correct JSON
+// for both the success and failure cases.
+func TestPingWriter_Result(t *testing.T) {
+	src := &source.Source{
+		Handle:   "@test",
+		Type:     drivertype.SQLite,
+		Location: "test://",
+	}
+
+	t.Run("success", func(t *testing.T) {
+		var buf bytes.Buffer
+		pr := output.NewPrinting()
+		pr.EnableColor(false)
+
+		pw := jsonw.NewPingWriter(&buf, pr)
+		err := pw.Result(src, 100*time.Millisecond, nil)
+		require.NoError(t, err)
+
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
+		require.Equal(t, true, got["pong"], "pong must be true on success")
+		require.NotNil(t, got["duration"], "duration must be present")
+		require.NotContains(t, got, "error", "error key must be absent on success")
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		var buf bytes.Buffer
+		pr := output.NewPrinting()
+		pr.EnableColor(false)
+
+		pw := jsonw.NewPingWriter(&buf, pr)
+		pingErr := errors.New("connection refused")
+		err := pw.Result(src, 100*time.Millisecond, pingErr)
+		require.NoError(t, err)
+
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
+		require.Equal(t, false, got["pong"], "pong must be false on failure")
+		require.Equal(t, "connection refused", got["error"])
+	})
 }
 
 // TestJSONRoundtrip tests writing JSON/JSONA/JSONL output from a query and then
