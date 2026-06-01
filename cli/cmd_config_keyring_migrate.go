@@ -24,7 +24,7 @@ const (
 	flagMigrateYes    = "yes"
 )
 
-func newConfigSecretsMigrateCmd() *cobra.Command {
+func newConfigKeyringMigrateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "migrate [@HANDLE]",
 		Args:  cobra.RangeArgs(0, 1),
@@ -41,15 +41,15 @@ Sources skipped automatically:
 
 Use --dry-run to preview without making any changes. Use --yes to skip
 the confirmation prompt.`,
-		RunE: execConfigSecretsMigrate,
+		RunE: execConfigKeyringMigrate,
 		Example: `  # Preview the migration
-  $ sq config secrets migrate --all --dry-run
+  $ sq config keyring migrate --all --dry-run
 
   # Migrate every source without prompting
-  $ sq config secrets migrate --all --yes
+  $ sq config keyring migrate --all --yes
 
   # Migrate a single source
-  $ sq config secrets migrate @sakila`,
+  $ sq config keyring migrate @sakila`,
 	}
 	cmd.Flags().Bool(flagMigrateAll, false, "Migrate every source")
 	cmd.Flags().Bool(flagMigrateDryRun, false, "Show planned changes, make no writes")
@@ -62,7 +62,7 @@ type migratePlan struct {
 	reason string // populated when skipped
 }
 
-func execConfigSecretsMigrate(cmd *cobra.Command, args []string) error {
+func execConfigKeyringMigrate(cmd *cobra.Command, args []string) error {
 	ru := run.FromContext(cmd.Context())
 	ctx := cmd.Context()
 

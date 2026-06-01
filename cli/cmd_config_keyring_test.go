@@ -15,12 +15,12 @@ import (
 	"github.com/neilotoole/sq/testh"
 )
 
-func TestCmdConfigSecretsSet_ExplicitValue(t *testing.T) {
+func TestCmdConfigKeyringSet_ExplicitValue(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
 
-	err := tr.Exec("config", "secrets", "set", "@sakila/password", "hunter2")
+	err := tr.Exec("config", "keyring", "set", "@sakila/password", "hunter2")
 	require.NoError(t, err)
 
 	got, err := gokeyring.Get("sq", "@sakila/password")
@@ -28,7 +28,7 @@ func TestCmdConfigSecretsSet_ExplicitValue(t *testing.T) {
 	require.Equal(t, "hunter2", got)
 }
 
-func TestCmdConfigSecretsSet_PromptedFromStdin(t *testing.T) {
+func TestCmdConfigKeyringSet_PromptedFromStdin(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
@@ -42,7 +42,7 @@ func TestCmdConfigSecretsSet_PromptedFromStdin(t *testing.T) {
 	require.NoError(t, err)
 	tr.Run.Stdin = tmp
 
-	err = tr.Exec("config", "secrets", "set", "@sakila/password", "-p")
+	err = tr.Exec("config", "keyring", "set", "@sakila/password", "-p")
 	require.NoError(t, err)
 
 	got, err := gokeyring.Get("sq", "@sakila/password")
@@ -50,65 +50,65 @@ func TestCmdConfigSecretsSet_PromptedFromStdin(t *testing.T) {
 	require.Equal(t, "hunter2", got)
 }
 
-func TestCmdConfigSecretsSet_RequiresValueOrFlag(t *testing.T) {
+func TestCmdConfigKeyringSet_RequiresValueOrFlag(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
 
 	// No VALUE arg, no -p flag.
-	err := tr.Exec("config", "secrets", "set", "@sakila/password")
+	err := tr.Exec("config", "keyring", "set", "@sakila/password")
 	require.Error(t, err)
 }
 
-func TestCmdConfigSecretsGet_WithoutRevealPrintsMetadataOnly(t *testing.T) {
+func TestCmdConfigKeyringGet_WithoutRevealPrintsMetadataOnly(t *testing.T) {
 	gokeyring.MockInit()
 	require.NoError(t, gokeyring.Set("sq", "@sakila/password", "hunter2"))
 
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Exec("config", "secrets", "get", "@sakila/password"))
+	require.NoError(t, tr.Exec("config", "keyring", "get", "@sakila/password"))
 	require.NotContains(t, tr.Out.String(), "hunter2")
 	require.Contains(t, tr.Out.String(), "@sakila/password")
 }
 
-func TestCmdConfigSecretsGet_WithRevealPrintsValue(t *testing.T) {
+func TestCmdConfigKeyringGet_WithRevealPrintsValue(t *testing.T) {
 	gokeyring.MockInit()
 	require.NoError(t, gokeyring.Set("sq", "@sakila/password", "hunter2"))
 
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Exec("config", "secrets", "get", "@sakila/password", "--reveal"))
+	require.NoError(t, tr.Exec("config", "keyring", "get", "@sakila/password", "--reveal"))
 	require.Contains(t, tr.Out.String(), "hunter2")
 }
 
-func TestCmdConfigSecretsGet_MissingErrors(t *testing.T) {
+func TestCmdConfigKeyringGet_MissingErrors(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	err := tr.Exec("config", "secrets", "get", "@nope/x")
+	err := tr.Exec("config", "keyring", "get", "@nope/x")
 	require.Error(t, err)
 }
 
-func TestCmdConfigSecretsRm(t *testing.T) {
+func TestCmdConfigKeyringRm(t *testing.T) {
 	gokeyring.MockInit()
 	require.NoError(t, gokeyring.Set("sq", "@sakila/password", "hunter2"))
 
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Exec("config", "secrets", "rm", "@sakila/password"))
+	require.NoError(t, tr.Exec("config", "keyring", "rm", "@sakila/password"))
 
 	_, err := gokeyring.Get("sq", "@sakila/password")
 	require.ErrorIs(t, err, gokeyring.ErrNotFound)
 }
 
-func TestCmdConfigSecretsRm_MissingIsNotError(t *testing.T) {
+func TestCmdConfigKeyringRm_MissingIsNotError(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Exec("config", "secrets", "rm", "@nope/x"))
+	require.NoError(t, tr.Exec("config", "keyring", "rm", "@nope/x"))
 }
 
-func TestCmdConfigSecretsRm_Completion(t *testing.T) {
+func TestCmdConfigKeyringRm_Completion(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil).Add(
@@ -136,91 +136,16 @@ func TestCmdConfigSecretsRm_Completion(t *testing.T) {
 		},
 	)
 
-	got := testComplete(t, tr, "config", "secrets", "rm", "")
+	got := testComplete(t, tr, "config", "keyring", "rm", "")
 	require.Equal(t, []string{"abc456defg", "j2k7m3pxtz"}, got.values)
 	require.Contains(t, got.directives, cobra.ShellCompDirectiveNoFileComp)
 
 	// Prefix narrows to the matching subset.
-	got = testComplete(t, tr, "config", "secrets", "rm", "j2")
+	got = testComplete(t, tr, "config", "keyring", "rm", "j2")
 	require.Equal(t, []string{"j2k7m3pxtz"}, got.values)
 }
 
-func TestCmdConfigSecretsTest_AllPass(t *testing.T) {
-	gokeyring.MockInit()
-	require.NoError(t, gokeyring.Set("sq", "@sakila_t/password", "hunter2"))
-
-	th := testh.New(t)
-	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
-		Handle:   "@sakila_t",
-		Type:     "postgres",
-		Location: "postgres://alice:${keyring:@sakila_t/password}@db/sakila",
-	}))
-	// Source with no placeholder: must be a PASS (nothing to resolve).
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
-		Handle:   "@plain_t",
-		Type:     "postgres",
-		Location: "postgres://alice:hunter2@db/sakila",
-	}))
-
-	require.NoError(t, tr.Exec("config", "secrets", "test", "--all"))
-	out := tr.Out.String()
-	require.Contains(t, out, "@sakila_t")
-	require.Contains(t, out, "OK")
-	require.Contains(t, out, "@plain_t")
-}
-
-func TestCmdConfigSecretsTest_FailureReportsAndErrors(t *testing.T) {
-	gokeyring.MockInit()
-	require.NoError(t, gokeyring.Set("sq", "@good_t/password", "hunter2"))
-
-	th := testh.New(t)
-	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
-		Handle:   "@good_t",
-		Type:     "postgres",
-		Location: "postgres://alice:${keyring:@good_t/password}@db/sakila",
-	}))
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
-		Handle:   "@missing_t",
-		Type:     "postgres",
-		Location: "postgres://alice:${keyring:@missing_t/password}@db/sakila",
-	}))
-
-	err := tr.Exec("config", "secrets", "test", "--all")
-	require.Error(t, err)
-	out := tr.Out.String()
-	require.Contains(t, out, "@good_t")
-	require.Contains(t, out, "OK")
-	require.Contains(t, out, "@missing_t")
-	require.Contains(t, out, "FAIL")
-}
-
-func TestCmdConfigSecretsTest_SingleHandle(t *testing.T) {
-	gokeyring.MockInit()
-	require.NoError(t, gokeyring.Set("sq", "@one_t/password", "hunter2"))
-
-	th := testh.New(t)
-	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
-		Handle:   "@one_t",
-		Type:     "postgres",
-		Location: "postgres://alice:${keyring:@one_t/password}@db/sakila",
-	}))
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
-		Handle:   "@other_t",
-		Type:     "postgres",
-		Location: "postgres://alice:${keyring:@other_t/password}@db/sakila",
-	}))
-
-	// Test only @one_t — @other_t failure should NOT cause exit error.
-	require.NoError(t, tr.Exec("config", "secrets", "test", "@one_t"))
-	out := tr.Out.String()
-	require.Contains(t, out, "@one_t")
-	require.NotContains(t, out, "@other_t")
-}
-
-func TestCmdConfigSecretsMigrate_PerCase(t *testing.T) {
+func TestCmdConfigKeyringMigrate_PerCase(t *testing.T) {
 	tests := []struct {
 		name string
 		// inLocation is the source's Location before migrate runs.
@@ -277,7 +202,7 @@ func TestCmdConfigSecretsMigrate_PerCase(t *testing.T) {
 				Location: tc.inLocation,
 			}))
 
-			require.NoError(t, tr.Exec("config", "secrets", "migrate", "--all", "--yes"))
+			require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--yes"))
 
 			src, err := tr.Run.Config.Collection.Get("@h")
 			require.NoError(t, err)
@@ -299,7 +224,7 @@ func TestCmdConfigSecretsMigrate_PerCase(t *testing.T) {
 	}
 }
 
-func TestCmdConfigSecretsMigrate_DryRun(t *testing.T) {
+func TestCmdConfigKeyringMigrate_DryRun(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
@@ -309,7 +234,7 @@ func TestCmdConfigSecretsMigrate_DryRun(t *testing.T) {
 		Location: "postgres://alice:hunter2@db/sakila",
 	}))
 
-	require.NoError(t, tr.Exec("config", "secrets", "migrate", "--all", "--dry-run"))
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--dry-run"))
 
 	// Source unchanged.
 	src, _ := tr.Run.Config.Collection.Get("@h_dr")
@@ -320,7 +245,7 @@ func TestCmdConfigSecretsMigrate_DryRun(t *testing.T) {
 	require.Contains(t, tr.Out.String(), "${keyring:<new-id>}")
 }
 
-func TestCmdConfigSecretsLs(t *testing.T) {
+func TestCmdConfigKeyringLs(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
@@ -337,6 +262,17 @@ func TestCmdConfigSecretsLs(t *testing.T) {
 			Type:     drivertype.Pg,
 			Location: "${keyring:@prod_pg_ls/dsn}",
 		},
+		// Non-keyring placeholders MUST NOT appear in keyring-ls output.
+		source.Source{
+			Handle:   "@env_ls",
+			Type:     drivertype.Pg,
+			Location: "postgres://alice:${env:DB_PW}@db/sakila",
+		},
+		source.Source{
+			Handle:   "@file_ls",
+			Type:     drivertype.Pg,
+			Location: "postgres://alice:${file:/etc/sq/secret}@db/sakila",
+		},
 		// Plain inline source — should NOT appear in ls output.
 		source.Source{
 			Handle:   "@plain_ls",
@@ -345,50 +281,32 @@ func TestCmdConfigSecretsLs(t *testing.T) {
 		},
 	)
 
-	require.NoError(t, tr.Exec("config", "secrets", "ls"))
+	require.NoError(t, tr.Exec("config", "keyring", "ls"))
 	out := tr.Out.String()
-	require.Contains(t, out, "keyring:@sakila_ls/password")
-	require.Contains(t, out, "keyring:@prod_pg_ls/dsn")
+	require.Contains(t, out, "@sakila_ls/password")
+	require.Contains(t, out, "@prod_pg_ls/dsn")
+	// Confirm env/file refs are filtered out, and plain source is absent.
+	require.NotContains(t, out, "DB_PW")
+	require.NotContains(t, out, "/etc/sq/secret")
 	require.NotContains(t, out, "@plain_ls")
+	require.NotContains(t, out, "@env_ls")
+	require.NotContains(t, out, "@file_ls")
 }
 
-func TestCmdConfigSecretsLs_MultipleSchemes(t *testing.T) {
-	gokeyring.MockInit()
-	th := testh.New(t)
-	tr := testrun.New(th.Context, t, nil)
-	tr.Add(
-		source.Source{
-			Handle:   "@multi_ls",
-			Type:     drivertype.Pg,
-			Location: "postgres://alice:${env:DB_PW}@${file:/etc/sq/host}/sakila",
-		},
-		source.Source{
-			Handle:   "@multi_ls2",
-			Type:     drivertype.Pg,
-			Location: "postgres://alice:${keyring:@multi_ls2/password}@db/sakila",
-		},
-	)
-
-	require.NoError(t, tr.Exec("config", "secrets", "ls"))
-	out := tr.Out.String()
-	require.Contains(t, out, "env:DB_PW")
-	require.Contains(t, out, "file:/etc/sq/host")
-	require.Contains(t, out, "keyring:@multi_ls2/password")
-}
-
-// TestCmdConfigSecretsLs_EmptyConfig — no sources means no output and
+// TestCmdConfigKeyringLs_EmptyConfig — no sources means no output and
 // no error. Distinguishes "empty list" from "broken command".
-func TestCmdConfigSecretsLs_EmptyConfig(t *testing.T) {
+func TestCmdConfigKeyringLs_EmptyConfig(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Exec("config", "secrets", "ls"))
+	require.NoError(t, tr.Exec("config", "keyring", "ls"))
 	require.Empty(t, tr.Out.String())
 }
 
-// TestCmdConfigSecretsLs_HandleAndDriverColumns verifies that each row
-// pairs the ref with its source's handle and driver type.
-func TestCmdConfigSecretsLs_HandleAndDriverColumns(t *testing.T) {
+// TestCmdConfigKeyringLs_HandleAndDriverColumns verifies that each row
+// pairs the keyring path with its source's handle and driver type, and
+// that non-keyring refs in the collection don't produce rows.
+func TestCmdConfigKeyringLs_HandleAndDriverColumns(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
@@ -398,35 +316,29 @@ func TestCmdConfigSecretsLs_HandleAndDriverColumns(t *testing.T) {
 			Type:     drivertype.Pg,
 			Location: "${keyring:abc1234567}",
 		},
+		// Non-keyring source: must be filtered out entirely.
 		source.Source{
 			Handle:   "@cols_my",
 			Type:     drivertype.MySQL,
 			Location: "${env:MY_DSN}",
 		},
 	)
-	require.NoError(t, tr.Exec("config", "secrets", "ls"))
+	require.NoError(t, tr.Exec("config", "keyring", "ls"))
 	out := tr.Out.String()
 
-	// One row per (ref, handle); each row carries its driver.
 	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
-	require.Len(t, lines, 2)
-
-	// Find each row by its ref and assert the handle+driver are on the
-	// same line. Order is sort-by-ref-then-handle: env:* before keyring:*.
-	require.Contains(t, lines[0], "env:MY_DSN")
-	require.Contains(t, lines[0], "@cols_my")
-	require.Contains(t, lines[0], "mysql")
-
-	require.Contains(t, lines[1], "keyring:abc1234567")
-	require.Contains(t, lines[1], "@cols_pg")
-	require.Contains(t, lines[1], "postgres")
+	require.Len(t, lines, 1, "only the keyring source should produce a row")
+	require.Contains(t, lines[0], "abc1234567")
+	require.Contains(t, lines[0], "@cols_pg")
+	require.Contains(t, lines[0], "postgres")
+	require.NotContains(t, out, "@cols_my")
 }
 
-// TestCmdConfigSecretsLs_SharedRefShowsMultipleRows verifies the
+// TestCmdConfigKeyringLs_SharedRefShowsMultipleRows verifies the
 // load-bearing Form B property: when two sources reference the same
 // keyring ID, the listing makes the sharing visible by emitting one
-// row per (ref, source) pair rather than deduplicating.
-func TestCmdConfigSecretsLs_SharedRefShowsMultipleRows(t *testing.T) {
+// row per (path, source) pair rather than deduplicating.
+func TestCmdConfigKeyringLs_SharedRefShowsMultipleRows(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
@@ -444,23 +356,24 @@ func TestCmdConfigSecretsLs_SharedRefShowsMultipleRows(t *testing.T) {
 		},
 	)
 
-	require.NoError(t, tr.Exec("config", "secrets", "ls"))
+	require.NoError(t, tr.Exec("config", "keyring", "ls"))
 	lines := strings.Split(strings.TrimRight(tr.Out.String(), "\n"), "\n")
 	require.Len(t, lines, 2, "shared ref should produce one row per source")
 
-	// Both rows carry the same ref; handles distinguish them. Sort
-	// order is by ref then handle, so @primary_sh < @replica_sh.
+	// Both rows carry the same path; handles distinguish them. Sort
+	// order is by path then handle, so @primary_sh < @replica_sh.
 	for _, ln := range lines {
-		require.Contains(t, ln, "keyring:"+sharedID)
+		require.Contains(t, ln, sharedID)
 	}
 	require.Contains(t, lines[0], "@primary_sh")
 	require.Contains(t, lines[1], "@replica_sh")
 }
 
-// TestCmdConfigSecretsLs_CompositionMultipleRowsPerHandle verifies that
-// a single source with several embedded placeholders produces one row
-// per placeholder.
-func TestCmdConfigSecretsLs_CompositionMultipleRowsPerHandle(t *testing.T) {
+// TestCmdConfigKeyringLs_CompositionFiltersNonKeyring verifies that
+// a single source with mixed placeholder schemes produces exactly one
+// row per ${keyring:...} placeholder, with env/file placeholders
+// silently filtered out.
+func TestCmdConfigKeyringLs_CompositionFiltersNonKeyring(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
@@ -470,17 +383,10 @@ func TestCmdConfigSecretsLs_CompositionMultipleRowsPerHandle(t *testing.T) {
 		Location: "postgres://${env:DB_USER}:${keyring:abc1234567}@${env:DB_HOST}/sakila",
 	})
 
-	require.NoError(t, tr.Exec("config", "secrets", "ls"))
+	require.NoError(t, tr.Exec("config", "keyring", "ls"))
 	lines := strings.Split(strings.TrimRight(tr.Out.String(), "\n"), "\n")
-	require.Len(t, lines, 3, "composition source should yield one row per placeholder")
-
-	// All three rows reference the same handle; sort order surfaces
-	// env:* before keyring:*, and env:DB_HOST before env:DB_USER.
-	for _, ln := range lines {
-		require.Contains(t, ln, "@compo")
-		require.Contains(t, ln, "postgres")
-	}
-	require.Contains(t, lines[0], "env:DB_HOST")
-	require.Contains(t, lines[1], "env:DB_USER")
-	require.Contains(t, lines[2], "keyring:abc1234567")
+	require.Len(t, lines, 1, "only the keyring placeholder should produce a row")
+	require.Contains(t, lines[0], "abc1234567")
+	require.Contains(t, lines[0], "@compo")
+	require.Contains(t, lines[0], "postgres")
 }

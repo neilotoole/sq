@@ -20,9 +20,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
-- [#441]: [`sq config secrets`](https://sq.io/docs/cmd/sq_config_secrets) command
+- [#441]: [`sq config keyring`](https://sq.io/docs/cmd/sq_config_keyring) command
   group: store source DSNs in the OS keyring instead of plaintext in
-  `~/.config/sq.yml`. Subcommands: `ls`, `set`, `get`, `rm`, `migrate`, `test`.
+  `~/.config/sq.yml`. Subcommands: `ls`, `set`, `get`, `rm`, `migrate`.
   [`sq add`](https://sq.io/docs/cmd/sq_add) gains a `--store inline|keyring`
   flag, and a new `secrets.store` config option (`inline` | `keyring`)
   controls the default; existing behavior is preserved (`inline`). With
@@ -30,11 +30,13 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   opaque ID and the YAML Location becomes a bare `${keyring:<id>}` placeholder.
   Source `location` fields now support `${scheme:path}` placeholders that
   are resolved at connect time. Shipped schemes: `keyring` (OS keychain,
-  managed via `sq config secrets`), `env` (environment variable, e.g.
+  managed via `sq config keyring`), `env` (environment variable, e.g.
   `${env:DB_PROD_PW}`), and `file` (file contents, with one trailing newline
   trimmed, e.g. `${file:/run/secrets/db_pw}` or `${file:~/.sq/db_pw}` —
   paths must be absolute or start with `~/`, relative paths are absolutized
-  at `sq add` time against the working directory).
+  at `sq add` time against the working directory). Use
+  [`sq ping`](https://sq.io/docs/cmd/sq_ping) to verify end-to-end that a
+  source's placeholders resolve and the datastore is reachable.
 - [#616]: [`sq inspect`](https://sq.io/docs/inspect) foreign-key, unique-constraint,
   and index introspection gained per-driver integration tests for the Postgres,
   MySQL, SQL Server, Oracle, and DuckDB loaders — composite-FK column pairing,

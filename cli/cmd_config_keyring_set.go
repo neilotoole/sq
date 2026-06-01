@@ -9,7 +9,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/secret/keyring"
 )
 
-func newConfigSecretsSetCmd() *cobra.Command {
+func newConfigKeyringSetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set PATH [VALUE]",
 		Args:  cobra.RangeArgs(1, 2),
@@ -28,22 +28,22 @@ prompt). Stdin is NOT consulted unless -p is set.
 Typically used to rotate a credential: pass the same PATH that already
 appears in a source's Location, with a new VALUE. The Location does
 not need to change.`,
-		RunE: execConfigSecretsSet,
+		RunE: execConfigKeyringSet,
 		Example: `  # Rotate the value at an sq-generated id
-  $ sq config secrets set j2k7m3pxtz 'postgres://alice:newpw@db/sakila'
+  $ sq config keyring set j2k7m3pxtz 'postgres://alice:newpw@db/sakila'
 
   # Pipe a value from stdin to keep it out of shell history
-  $ sq config secrets set j2k7m3pxtz -p < secret.txt
+  $ sq config keyring set j2k7m3pxtz -p < secret.txt
 
   # Prompt interactively
-  $ sq config secrets set j2k7m3pxtz -p
+  $ sq config keyring set j2k7m3pxtz -p
   Password: ****`,
 	}
 	cmd.Flags().BoolP(flag.PasswordPrompt, flag.PasswordPromptShort, false, flag.PasswordPromptUsage)
 	return cmd
 }
 
-func execConfigSecretsSet(cmd *cobra.Command, args []string) error {
+func execConfigKeyringSet(cmd *cobra.Command, args []string) error {
 	ru := run.FromContext(cmd.Context())
 	path := args[0]
 

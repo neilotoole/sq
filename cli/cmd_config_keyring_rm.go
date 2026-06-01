@@ -10,7 +10,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/secret/keyring"
 )
 
-func newConfigSecretsRmCmd() *cobra.Command {
+func newConfigKeyringRmCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "rm PATH",
 		Args:  cobra.ExactArgs(1),
@@ -20,13 +20,13 @@ is not an error (idempotent).
 
 This removes the keyring entry but does NOT touch any YAML source that
 references it; a remaining ${keyring:PATH} reference will fail to
-resolve at connect time. Use 'sq config secrets ls' to find references
+resolve at connect time. Use 'sq config keyring ls' to find references
 before removing.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return keyring.NewStore().Delete(cmd.Context(), args[0])
 		},
 		ValidArgsFunction: completeKeyringPath,
-		Example:           `  $ sq config secrets rm j2k7m3pxtz`,
+		Example:           `  $ sq config keyring rm j2k7m3pxtz`,
 	}
 	return cmd
 }
@@ -36,7 +36,7 @@ before removing.`,
 // entries via the OS APIs we use, so the candidate set is derived
 // from ${keyring:<path>} occurrences across the source collection.
 // Orphan entries (referenced by nothing) won't appear; that's the
-// same limitation that "sq config secrets ls" has.
+// same limitation that "sq config keyring ls" has.
 func completeKeyringPath(cmd *cobra.Command, args []string, toComplete string) (
 	[]string, cobra.ShellCompDirective,
 ) {

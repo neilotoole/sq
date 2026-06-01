@@ -11,7 +11,7 @@ import (
 
 const flagSecretReveal = "reveal"
 
-func newConfigSecretsGetCmd() *cobra.Command {
+func newConfigKeyringGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get PATH",
 		Args:  cobra.ExactArgs(1),
@@ -25,19 +25,19 @@ secrets ls' to find the ids referenced by your sources.
 By default (no --reveal), the value is NOT printed — only that the
 entry exists. With --reveal, the value (which under Form B is the
 entire DSN, including credentials) is written to stdout.`,
-		RunE: execConfigSecretsGet,
+		RunE: execConfigKeyringGet,
 		Example: `  # Confirm the entry exists at an sq-generated id
-  $ sq config secrets get j2k7m3pxtz
+  $ sq config keyring get j2k7m3pxtz
 
   # Print the stored value
-  $ sq config secrets get j2k7m3pxtz --reveal`,
+  $ sq config keyring get j2k7m3pxtz --reveal`,
 	}
 	cmd.Flags().Bool(flagSecretReveal, false,
 		"Print the secret value (default: only confirm existence)")
 	return cmd
 }
 
-func execConfigSecretsGet(cmd *cobra.Command, args []string) error {
+func execConfigKeyringGet(cmd *cobra.Command, args []string) error {
 	ru := run.FromContext(cmd.Context())
 	path := args[0]
 
