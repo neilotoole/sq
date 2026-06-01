@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/secret"
 )
 
@@ -48,7 +49,7 @@ func (r *Resolver) Resolve(_ context.Context, path string) (string, error) {
 		if errors.Is(err, fs.ErrNotExist) {
 			return "", secret.ErrNotFound
 		}
-		return "", err
+		return "", errz.Err(err)
 	}
 	s := string(data)
 	// Trim a single trailing LF or CRLF only — never a bare CR.
@@ -71,7 +72,7 @@ func expandPath(path string) (string, error) {
 	if path == "~" || strings.HasPrefix(path, "~/") {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return "", fmt.Errorf("expand ~: %w", err)
+			return "", errz.Wrap(err, "expand ~")
 		}
 		if path == "~" {
 			return home, nil

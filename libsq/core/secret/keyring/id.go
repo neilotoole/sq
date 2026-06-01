@@ -4,9 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"io"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/secret"
 )
 
@@ -52,11 +52,11 @@ func (r *Resolver) NewID(ctx context.Context) (string, error) {
 		case errors.Is(err, secret.ErrNotFound):
 			return id, nil
 		case err != nil:
-			return "", fmt.Errorf("check keyring id %q for collision: %w", id, err)
+			return "", errz.Wrapf(err, "check keyring id %q for collision", id)
 		}
 		// id is already taken; retry. Astronomically improbable.
 	}
-	return "", fmt.Errorf("could not mint a unique keyring id in %d attempts", maxIDAttempts)
+	return "", errz.Errorf("could not mint a unique keyring id in %d attempts", maxIDAttempts)
 }
 
 // newRandomID returns a fresh IDLen-character ID drawn uniformly from
@@ -66,7 +66,7 @@ func (r *Resolver) NewID(ctx context.Context) (string, error) {
 func newRandomID() (string, error) {
 	var buf [IDLen]byte
 	if _, err := io.ReadFull(randSource, buf[:]); err != nil {
-		return "", fmt.Errorf("read random bytes for keyring id: %w", err)
+		return "", errz.Wrap(err, "read random bytes for keyring id")
 	}
 	out := make([]byte, IDLen)
 	for i, b := range buf {

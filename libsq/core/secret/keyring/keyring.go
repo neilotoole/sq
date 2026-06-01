@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
 	gokeyring "github.com/zalando/go-keyring"
 
 	"github.com/neilotoole/sq/libsq/core/secret"
@@ -32,20 +33,20 @@ func (r *Resolver) Resolve(_ context.Context, path string) (string, error) {
 		return "", secret.ErrNotFound
 	}
 	if err != nil {
-		return "", err
+		return "", errz.Err(err)
 	}
 	return v, nil
 }
 
 // Set writes value to the keyring at path, overwriting any existing entry.
 func (r *Resolver) Set(_ context.Context, path, value string) error {
-	return gokeyring.Set(Service, path, value)
+	return errz.Err(gokeyring.Set(Service, path, value))
 }
 
 // Delete removes the keyring entry at path. Deleting a non-existent
 // entry is not an error.
 func (r *Resolver) Delete(_ context.Context, path string) error {
-	err := gokeyring.Delete(Service, path)
+	err := errz.Err(gokeyring.Delete(Service, path))
 	if errors.Is(err, gokeyring.ErrNotFound) {
 		return nil
 	}
