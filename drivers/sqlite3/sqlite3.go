@@ -146,7 +146,9 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 
 	db, err := sql.Open(dbDrvr, dsn)
 	if err != nil {
-		return nil, errz.Wrapf(errw(err), "failed to open sqlite3 source with DSN: %s", dsn)
+		// Don't include dsn in the error: it may contain secret
+		// connection params (e.g. _auth_pass).
+		return nil, errz.Wrapf(errw(err), "failed to open sqlite3 source %s", src.Handle)
 	}
 
 	driver.ConfigureDB(ctx, db, src.Options)
@@ -1041,8 +1043,9 @@ func dsnFromLocation(loc string) (string, error) {
 // filePathFromLocation returns the on-disk file path for a sqlite3
 // location, or "" for a malformed location or one whose path component
 // is empty. Any "?key=val&..." DSN query suffix is stripped. The
-// returned path is not cleaned; callers that need an absolute,
-// platform-normalized path should run it through filepath.Clean.
+// returned path is neither normalized nor absolutized; callers that
+// need normalization should run it through filepath.Clean, and callers
+// that need an absolute path should use filepath.Abs.
 func filePathFromLocation(loc string) string {
 	if !strings.HasPrefix(loc, Prefix) {
 		return ""
@@ -1064,6 +1067,10 @@ func filePathFromLocation(loc string) string {
 //	sqlite3:sakila.db 						--> sqlite3:///current/working/dir/sakila.db
 //	sakila.db											--> sqlite3:///current/working/dir/sakila.db
 //	/path/to/sakila.db						--> sqlite3:///path/to/sakila.db
+//
+// An optional "?key=val[&...]" connection-string suffix is preserved
+// verbatim. The first '?' is always treated as the path/query separator,
+// so paths whose POSIX filename legally contains '?' are not supported.
 //
 // The final form is particularly nice for shell completion etc.
 //
