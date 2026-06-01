@@ -84,10 +84,15 @@ func collectKeyringRefs(srcs []*source.Source) []output.KeyringRef {
 	return rows
 }
 
-// addKeyringFormatFlags registers the output-format flags supported by
-// the keyring subcommands: --text/--json/-j. The default format is
-// text/table; --json selects the JSON impl.
+// addKeyringFormatFlags registers the output-format + header flags
+// supported by the keyring subcommands: --text/--json (-j) for format
+// selection, plus --header (-h) / --no-header (-H) for header control
+// (mirrors the slq/sql ergonomic of accepting both forms; mutually
+// exclusive).
 func addKeyringFormatFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP(flag.Text, flag.TextShort, false, flag.TextUsage)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+	cmd.Flags().BoolP(flag.Header, flag.HeaderShort, true, flag.HeaderUsage)
+	cmd.Flags().BoolP(flag.NoHeader, flag.NoHeaderShort, false, flag.NoHeaderUsage)
+	cmd.MarkFlagsMutuallyExclusive(flag.Header, flag.NoHeader)
 }

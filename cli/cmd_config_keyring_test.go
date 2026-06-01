@@ -324,7 +324,7 @@ func TestCmdConfigKeyringLs_HandleAndDriverColumns(t *testing.T) {
 			Location: "${env:MY_DSN}",
 		},
 	)
-	require.NoError(t, tr.Exec("config", "keyring", "ls"))
+	require.NoError(t, tr.Exec("config", "keyring", "ls", "--no-header"))
 	out := tr.Out.String()
 
 	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
@@ -357,7 +357,7 @@ func TestCmdConfigKeyringLs_SharedRefShowsMultipleRows(t *testing.T) {
 		},
 	)
 
-	require.NoError(t, tr.Exec("config", "keyring", "ls"))
+	require.NoError(t, tr.Exec("config", "keyring", "ls", "--no-header"))
 	lines := strings.Split(strings.TrimRight(tr.Out.String(), "\n"), "\n")
 	require.Len(t, lines, 2, "shared ref should produce one row per source")
 
@@ -384,12 +384,43 @@ func TestCmdConfigKeyringLs_CompositionFiltersNonKeyring(t *testing.T) {
 		Location: "postgres://${env:DB_USER}:${keyring:abc1234567}@${env:DB_HOST}/sakila",
 	})
 
-	require.NoError(t, tr.Exec("config", "keyring", "ls"))
+	require.NoError(t, tr.Exec("config", "keyring", "ls", "--no-header"))
 	lines := strings.Split(strings.TrimRight(tr.Out.String(), "\n"), "\n")
 	require.Len(t, lines, 1, "only the keyring placeholder should produce a row")
 	require.Contains(t, lines[0], "abc1234567")
 	require.Contains(t, lines[0], "@compo")
 	require.Contains(t, lines[0], "postgres")
+}
+
+// TestCmdConfigKeyringLs_HeaderRow verifies that the default header
+// row prints PATH/HANDLE/DRIVER, and that --no-header suppresses it.
+func TestCmdConfigKeyringLs_HeaderRow(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil).Add(
+		source.Source{
+			Handle:   "@hdr",
+			Type:     drivertype.Pg,
+			Location: "${keyring:hdr_id}",
+		},
+	)
+
+	// Default: header is on.
+	require.NoError(t, tr.Exec("config", "keyring", "ls"))
+	out := tr.Out.String()
+	require.Contains(t, out, "PATH")
+	require.Contains(t, out, "HANDLE")
+	require.Contains(t, out, "DRIVER")
+	require.Contains(t, out, "hdr_id")
+
+	// --no-header (and the -H short form) suppresses it.
+	tr = testrun.New(th.Context, t, tr)
+	require.NoError(t, tr.Exec("config", "keyring", "ls", "--no-header"))
+	out = tr.Out.String()
+	require.NotContains(t, out, "PATH")
+	require.NotContains(t, out, "HANDLE")
+	require.NotContains(t, out, "DRIVER")
+	require.Contains(t, out, "hdr_id")
 }
 
 // TestCmdConfigKeyringLs_JSON exercises --json output on ls.

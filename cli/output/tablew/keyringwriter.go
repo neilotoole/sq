@@ -1,9 +1,9 @@
 package tablew
 
 import (
+	"context"
 	"fmt"
 	"io"
-	"text/tabwriter"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -12,16 +12,17 @@ import (
 var _ output.KeyringWriter = (*keyringWriter)(nil)
 
 // keyringWriter is the text/table implementation of output.KeyringWriter.
-// It reproduces the human-readable output that the keyring subcommands
-// used before the writer abstraction was introduced.
 type keyringWriter struct {
+	tbl *table
 	out io.Writer
 	pr  *output.Printing
 }
 
 // NewKeyringWriter returns a text/table output.KeyringWriter.
 func NewKeyringWriter(out io.Writer, pr *output.Printing) output.KeyringWriter {
-	return &keyringWriter{out: out, pr: pr}
+	tbl := &table{out: out, pr: pr, header: pr.ShowHeader}
+	tbl.reset()
+	return &keyringWriter{tbl: tbl, out: out, pr: pr}
 }
 
 // List implements output.KeyringWriter.
@@ -29,13 +30,15 @@ func (w *keyringWriter) List(refs []output.KeyringRef) error {
 	if len(refs) == 0 {
 		return nil
 	}
-	tw := tabwriter.NewWriter(w.out, 0, 0, 2, ' ', 0)
+	rows := make([][]string, 0, len(refs))
 	for _, r := range refs {
-		if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\n", r.Path, r.Handle, r.Driver); err != nil {
-			return errz.Err(err)
-		}
+		rows = append(rows, []string{r.Path, r.Handle, r.Driver})
 	}
-	return errz.Err(tw.Flush())
+	w.tbl.tblImpl.SetHeader([]string{"PATH", "HANDLE", "DRIVER"})
+	w.tbl.tblImpl.SetColTrans(0, w.pr.String.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(1, w.pr.Handle.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(2, w.pr.Faint.SprintFunc())
+	return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 }
 
 // Get implements output.KeyringWriter.
@@ -44,7 +47,7 @@ func (w *keyringWriter) Get(path, value string, revealed bool) error {
 	if revealed {
 		_, err = fmt.Fprintln(w.out, value)
 	} else {
-		_, err = fmt.Fprintf(w.out, "secret exists: %s\n", path)
+		_, err = fmt.Fprintf(w.out, "secret exists: %s\n", w.pr.Handle.Sprint(path))
 	}
 	return errz.Err(err)
 }
@@ -64,18 +67,19 @@ func (w *keyringWriter) Rm(_ string) error {
 // Migrate implements output.KeyringWriter.
 func (w *keyringWriter) Migrate(rows []output.KeyringMigrateRow, _ bool) error {
 	for _, r := range rows {
+		handle := w.pr.Handle.Sprint(r.Handle)
 		var line string
 		switch r.Status {
 		case output.KeyringMigrateStatusSkip:
-			line = fmt.Sprintf("%s  skip   (%s)\n", r.Handle, r.Reason)
+			line = fmt.Sprintf("%s  %s   (%s)\n", handle, w.pr.Faint.Sprint("skip"), r.Reason)
 		case output.KeyringMigrateStatusPlanned:
-			line = r.Handle + "  ->     ${keyring:<new-id>}\n"
+			line = fmt.Sprintf("%s  %s     %s\n", handle, w.pr.Faint.Sprint("->"), "${keyring:<new-id>}")
 		case output.KeyringMigrateStatusMigrated:
-			line = fmt.Sprintf("%s  done   ->  %s\n", r.Handle, r.NewLocation)
+			line = fmt.Sprintf("%s  %s   ->  %s\n", handle, w.pr.Enabled.Sprint("done"), r.NewLocation)
 		case output.KeyringMigrateStatusFailed:
-			line = fmt.Sprintf("%s  FAIL   %s\n", r.Handle, r.Error)
+			line = fmt.Sprintf("%s  %s   %s\n", handle, w.pr.Error.Sprint("FAIL"), r.Error)
 		default:
-			line = r.Handle + "  " + r.Status + "\n"
+			line = handle + "  " + r.Status + "\n"
 		}
 		if _, err := fmt.Fprint(w.out, line); err != nil {
 			return errz.Err(err)
