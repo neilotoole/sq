@@ -7,7 +7,8 @@ import (
 
 	segmentj "github.com/segmentio/encoding/json"
 
-	"github.com/neilotoole/sq/cli/output/jsonw/internal/jcolorenc"
+	"github.com/neilotoole/jsoncolor"
+
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 )
@@ -17,7 +18,7 @@ import (
 //
 // - stdj: the std lib json encoder
 // - segmentj: the encoder by segment.io
-// - jcolorenc: sq's fork of segmentj that supports color
+// - jsoncolor: github.com/neilotoole/jsoncolor (color-capable fork of segmentj)
 
 func BenchmarkStdj(b *testing.B) {
 	_, recs := testh.RecordsFromTbl(b, sakila.SL3, "payment")
@@ -89,12 +90,12 @@ func BenchmarkSegmentj_Indent(b *testing.B) {
 	}
 }
 
-func BenchmarkJColorEnc(b *testing.B) {
+func BenchmarkJSONColor(b *testing.B) {
 	_, recs := testh.RecordsFromTbl(b, sakila.SL3, "payment")
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		enc := jcolorenc.NewEncoder(io.Discard)
+		enc := jsoncolor.NewEncoder(io.Discard)
 		enc.SetEscapeHTML(false)
 
 		for i := range recs {
@@ -106,12 +107,12 @@ func BenchmarkJColorEnc(b *testing.B) {
 	}
 }
 
-func BenchmarkJColorEnc_Indent(b *testing.B) {
+func BenchmarkJSONColor_Indent(b *testing.B) {
 	_, recs := testh.RecordsFromTbl(b, sakila.SL3, "payment")
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		enc := jcolorenc.NewEncoder(io.Discard)
+		enc := jsoncolor.NewEncoder(io.Discard)
 		enc.SetEscapeHTML(false)
 		enc.SetIndent("", "  ")
 

@@ -4,9 +4,9 @@ import (
 	"io"
 	"time"
 
+	"github.com/neilotoole/jsoncolor"
+
 	"github.com/neilotoole/sq/cli/output"
-	"github.com/neilotoole/sq/cli/output/jsonw/internal"
-	"github.com/neilotoole/sq/cli/output/jsonw/internal/jcolorenc"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -45,8 +45,8 @@ func (p pingWriter) Result(src *source.Source, d time.Duration, err error) error
 		r.Error = err.Error()
 	}
 
-	enc := jcolorenc.NewEncoder(p.out)
-	enc.SetColors(internal.NewColors(p.pr))
+	enc := jsoncolor.NewEncoder(p.out)
+	enc.SetColors(newJSONColorPalette(p.pr))
 	enc.SetEscapeHTML(false)
 	enc.SetIndent("", "  ")
 
