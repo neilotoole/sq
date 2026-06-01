@@ -20,15 +20,21 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
+- [#717]: New global `--reveal` flag opts into showing secret values in
+  output. It supersedes the legacy `--no-redact` (still functional, now
+  marked deprecated in `--help`) and also covers `sq config keyring get`
+  (where it was previously a local flag). Setting either `--reveal` or
+  `--no-redact` flips redaction off; the two flags are treated as a
+  union, so passing both is not an error.
 - [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export):
   dump the active config to YAML, primarily for backups. By default,
   output is a faithful copy of the live config: `${scheme:path}`
-  placeholders are written verbatim. With `--resolve`, every placeholder
-  is expanded end-to-end and the resolved value is spliced in-line — a
-  self-contained snapshot at the cost of writing every referenced secret
-  in plaintext. `-o PATH` writes to a file with mode `0600` (matching
-  the live config file); on non-Windows platforms the write is atomic
-  (temp-file + rename).
+  placeholders are written verbatim. With `--expand`, every placeholder
+  is fetched from its resolver (keyring, env var, or file) and the
+  resolved value is spliced in-line — a self-contained snapshot at the
+  cost of writing every referenced secret in plaintext. `-o PATH` writes
+  to a file with mode `0600` (matching the live config file); on
+  non-Windows platforms the write is atomic (temp-file + rename).
 - [#441]: [`sq config keyring`](https://sq.io/docs/cmd/sq_config_keyring) command
   group: store source DSNs in the OS keyring instead of plaintext in
   `~/.config/sq.yml`. Subcommands: `ls`, `create`, `update`, `get`, `rm`,
@@ -83,6 +89,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   [`sq driver ls`](https://sq.io/docs/cmd/driver-ls) is now simply "Microsoft SQL
   Server", dropping the trailing "/ Azure SQL Edge" (Azure SQL Edge was retired by
   Microsoft on 2025-09-30).
+
+### Deprecated
+
+- [#717]: `--no-redact` is deprecated in favor of `--reveal`. The flag
+  continues to work and is unchanged in effect; using it now emits a log
+  warning naming the new flag, and `--help` renders it as `(deprecated,
+  use --reveal)`. No stderr nudge — existing scripts stay quiet on the
+  user-facing side. Scheduled for removal in a future major version.
 
 ### Fixed
 
@@ -1679,6 +1693,7 @@ make working with lots of sources much easier.
 [#660]: https://github.com/neilotoole/sq/issues/660
 [#692]: https://github.com/neilotoole/sq/issues/692
 [#716]: https://github.com/neilotoole/sq/issues/716
+[#717]: https://github.com/neilotoole/sq/issues/717
 [#720]: https://github.com/neilotoole/sq/issues/720
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2

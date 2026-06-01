@@ -16,7 +16,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 )
 
-// TestCmdConfigExport_Portable verifies that without --resolve, the
+// TestCmdConfigExport_Portable verifies that without --expand, the
 // output is valid YAML and any ${scheme:path} placeholder is written
 // verbatim (no resolution attempt).
 func TestCmdConfigExport_Portable(t *testing.T) {
@@ -38,15 +38,15 @@ func TestCmdConfigExport_Portable(t *testing.T) {
 	require.Contains(t, got, "config.version:")
 	require.Contains(t, got, "@sakila")
 	require.Contains(t, got, "${keyring:abc123}",
-		"placeholder must be preserved without --resolve")
+		"placeholder must be preserved without --expand")
 	require.False(t, strings.Contains(got, "Warning:"),
-		"no stderr warning without --resolve")
+		"no stderr warning without --expand")
 	require.Equal(t, "", tr.ErrOut.String())
 }
 
-// TestCmdConfigExport_Resolve_Keyring verifies that --resolve substitutes
+// TestCmdConfigExport_Expand_Keyring verifies that --expand substitutes
 // keyring values into Location strings.
-func TestCmdConfigExport_Resolve_Keyring(t *testing.T) {
+func TestCmdConfigExport_Expand_Keyring(t *testing.T) {
 	gokeyring.MockInit()
 	require.NoError(t, gokeyring.Set("sq", "abc123",
 		"postgres://user:hunter2@db.local:5432/sakila"))
@@ -60,24 +60,24 @@ func TestCmdConfigExport_Resolve_Keyring(t *testing.T) {
 		Location: "${keyring:abc123}",
 	}))
 
-	err := tr.Exec("config", "export", "--resolve")
+	err := tr.Exec("config", "export", "--expand")
 	require.NoError(t, err)
 
 	got := tr.OutString()
 	require.Contains(t, got, "postgres://user:hunter2@db.local:5432/sakila",
-		"keyring placeholder must be expanded with --resolve")
+		"keyring placeholder must be expanded with --expand")
 	require.NotContains(t, got, "${keyring:",
-		"no raw placeholders after --resolve")
+		"no raw placeholders after --expand")
 
 	// The plaintext-warning audit entry is emitted to the logger, not to
 	// stderr — we don't assert log output here to avoid coupling the test
 	// to log routing details. Verified by reading the implementation.
 	require.Equal(t, "", tr.ErrOut.String(),
-		"no stderr output even when --resolve is set")
+		"no stderr output even when --expand is set")
 }
 
-// TestCmdConfigExport_Resolve_Env verifies env: placeholders are resolved.
-func TestCmdConfigExport_Resolve_Env(t *testing.T) {
+// TestCmdConfigExport_Expand_Env verifies env: placeholders are resolved.
+func TestCmdConfigExport_Expand_Env(t *testing.T) {
 	gokeyring.MockInit()
 	t.Setenv("SQ_TEST_DB_PASS", "envhunter")
 
@@ -90,15 +90,15 @@ func TestCmdConfigExport_Resolve_Env(t *testing.T) {
 		Location: "postgres://u:${env:SQ_TEST_DB_PASS}@h/db",
 	}))
 
-	require.NoError(t, tr.Exec("config", "export", "--resolve"))
+	require.NoError(t, tr.Exec("config", "export", "--expand"))
 
 	got := tr.OutString()
 	require.Contains(t, got, "postgres://u:envhunter@h/db")
 }
 
-// TestCmdConfigExport_Resolve_MissingKeyring errors clearly when a
+// TestCmdConfigExport_Expand_MissingKeyring errors clearly when a
 // placeholder cannot be resolved.
-func TestCmdConfigExport_Resolve_MissingKeyring(t *testing.T) {
+func TestCmdConfigExport_Expand_MissingKeyring(t *testing.T) {
 	gokeyring.MockInit() // empty keyring
 
 	th := testh.New(t)
@@ -110,7 +110,7 @@ func TestCmdConfigExport_Resolve_MissingKeyring(t *testing.T) {
 		Location: "sqlite3://${keyring:missing}",
 	}))
 
-	err := tr.Exec("config", "export", "--resolve")
+	err := tr.Exec("config", "export", "--expand")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "@orphan",
 		"error must name the source whose placeholder failed")
@@ -119,7 +119,7 @@ func TestCmdConfigExport_Resolve_MissingKeyring(t *testing.T) {
 }
 
 // TestCmdConfigExport_Output_Portable verifies -o writes a regular file
-// with mode 0600, with no --resolve (placeholders preserved).
+// with mode 0600, with no --expand (placeholders preserved).
 func TestCmdConfigExport_Output_Portable(t *testing.T) {
 	gokeyring.MockInit()
 
@@ -144,13 +144,13 @@ func TestCmdConfigExport_Output_Portable(t *testing.T) {
 		info, err := os.Stat(out)
 		require.NoError(t, err)
 		require.Equal(t, os.FileMode(0o600), info.Mode().Perm(),
-			"-o must create file with mode 0600 even without --resolve")
+			"-o must create file with mode 0600 even without --expand")
 	}
 }
 
-// TestCmdConfigExport_Output_Resolve verifies --resolve -o substitutes
+// TestCmdConfigExport_Output_Expand verifies --expand -o substitutes
 // secrets and still produces a 0600 file.
-func TestCmdConfigExport_Output_Resolve(t *testing.T) {
+func TestCmdConfigExport_Output_Expand(t *testing.T) {
 	gokeyring.MockInit()
 	require.NoError(t, gokeyring.Set("sq", "abc123",
 		"postgres://user:hunter2@db.local:5432/sakila"))
@@ -165,7 +165,7 @@ func TestCmdConfigExport_Output_Resolve(t *testing.T) {
 	}))
 
 	out := filepath.Join(t.TempDir(), "out.yml")
-	require.NoError(t, tr.Exec("config", "export", "--resolve", "-o", out))
+	require.NoError(t, tr.Exec("config", "export", "--expand", "-o", out))
 
 	data, err := os.ReadFile(out)
 	require.NoError(t, err)
@@ -178,9 +178,9 @@ func TestCmdConfigExport_Output_Resolve(t *testing.T) {
 	}
 }
 
-// TestCmdConfigExport_Resolve_File verifies that ${file:PATH}
+// TestCmdConfigExport_Expand_File verifies that ${file:PATH}
 // placeholders are read from disk and spliced into Location.
-func TestCmdConfigExport_Resolve_File(t *testing.T) {
+func TestCmdConfigExport_Expand_File(t *testing.T) {
 	gokeyring.MockInit()
 
 	secretPath := filepath.Join(t.TempDir(), "dsn.txt")
@@ -196,20 +196,20 @@ func TestCmdConfigExport_Resolve_File(t *testing.T) {
 		Location: "${file:" + secretPath + "}",
 	}))
 
-	require.NoError(t, tr.Exec("config", "export", "--resolve"))
+	require.NoError(t, tr.Exec("config", "export", "--expand"))
 
 	got := tr.OutString()
 	require.Contains(t, got, "postgres://u:filehunter@h/db",
-		"file placeholder must be expanded with --resolve")
+		"file placeholder must be expanded with --expand")
 	require.NotContains(t, got, "${file:",
-		"no raw file placeholders after --resolve")
+		"no raw file placeholders after --expand")
 }
 
-// TestCmdConfigExport_Resolve_MultiSource verifies that --resolve
+// TestCmdConfigExport_Expand_MultiSource verifies that --expand
 // handles a collection with multiple sources whose Locations use
 // different placeholder schemes (or none), and that inline-credentialed
 // sources pass through unchanged.
-func TestCmdConfigExport_Resolve_MultiSource(t *testing.T) {
+func TestCmdConfigExport_Expand_MultiSource(t *testing.T) {
 	gokeyring.MockInit()
 	require.NoError(t, gokeyring.Set("sq", "pg_dsn",
 		"postgres://k_user:k_pass@k.host/db"))
@@ -237,7 +237,7 @@ func TestCmdConfigExport_Resolve_MultiSource(t *testing.T) {
 		Location: "sqlite3:///tmp/inline.db",
 	}))
 
-	require.NoError(t, tr.Exec("config", "export", "--resolve"))
+	require.NoError(t, tr.Exec("config", "export", "--expand"))
 
 	got := tr.OutString()
 

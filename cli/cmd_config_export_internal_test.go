@@ -11,16 +11,16 @@ import (
 	"github.com/neilotoole/sq/libsq/core/secret"
 )
 
-// TestExportResolveConfig_NilCollection guards against a panic when
+// TestExportExpandConfig_NilCollection guards against a panic when
 // Config.Collection is nil. The runtime path through ExecuteWith
 // rejects nil Collection earlier in FinishRunInit, but the function-
-// level guard keeps exportResolveConfig safe if called from any future
+// level guard keeps exportExpandConfig safe if called from any future
 // caller that doesn't go through the full run init.
-func TestExportResolveConfig_NilCollection(t *testing.T) {
+func TestExportExpandConfig_NilCollection(t *testing.T) {
 	cfg := &config.Config{Version: "v0.0.0-dev"}
 	ru := &run.Run{SecretRegistry: secret.NewRegistry()}
 
-	got, err := exportResolveConfig(context.Background(), ru, cfg)
+	got, err := exportExpandConfig(context.Background(), ru, cfg)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Nil(t, got.Collection)
