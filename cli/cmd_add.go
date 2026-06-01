@@ -186,9 +186,9 @@ More examples:
 
 	cmd.Flags().StringP(flag.Handle, flag.HandleShort, "", flag.HandleUsage)
 	cmd.Flags().BoolP(flag.PasswordPrompt, flag.PasswordPromptShort, false, flag.PasswordPromptUsage)
-	cmd.Flags().Bool(flag.Keyring, false, flag.KeyringUsage)
-	cmd.Flags().Bool(flag.InlinePassword, false, flag.InlinePasswordUsage)
-	cmd.MarkFlagsMutuallyExclusive(flag.Keyring, flag.InlinePassword)
+	cmd.Flags().String(flag.AddStore, "", flag.AddStoreUsage)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.AddStore,
+		completeStrings(1, flag.AddStoreInline, flag.AddStoreKeyring)))
 	cmd.Flags().Bool(flag.SkipVerify, false, flag.SkipVerifyUsage)
 	cmd.Flags().BoolP(flag.AddActive, flag.AddActiveShort, false, flag.AddActiveUsage)
 
@@ -232,16 +232,13 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	// A placeholder Location (e.g. "${env:DSN}" or "${op://...}") points
-	// at an external store. sq does not own the value: --keyring (which
-	// writes) and --inline-password (which expects an inline secret) are
-	// both meaningless here. Reject early with a clear message.
+	// at an external store. sq does not own the value: --store (which
+	// selects where sq writes the secret) is meaningless here. Reject
+	// early with a clear message.
 	hasPlaceholder := strings.Contains(loc, "${")
 	if hasPlaceholder {
-		if cmdFlagIsSetTrue(cmd, flag.Keyring) {
-			return errz.Errorf("--%s is not supported when the location is a ${...} placeholder", flag.Keyring)
-		}
-		if cmdFlagIsSetTrue(cmd, flag.InlinePassword) {
-			return errz.Errorf("--%s is not supported when the location is a ${...} placeholder", flag.InlinePassword)
+		if cmdFlagChanged(cmd, flag.AddStore) {
+			return errz.Errorf("--%s is not supported when the location is a ${...} placeholder", flag.AddStore)
 		}
 		// Resolve relative ${file:...} paths against the current working
 		// directory. The file resolver itself only accepts absolute paths
@@ -357,26 +354,39 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	return ru.Writers.Source.Added(ru.Config.Collection, src)
 }
 
+// resolveSecretStore returns the secret-storage mode to use for the
+// current sq add invocation: either flag.AddStoreInline or
+// flag.AddStoreKeyring. The --store flag wins; if absent, the
+// secrets.store config option provides the default ("inline" out of
+// the box). An invalid --store value yields a clear error.
+func resolveSecretStore(cmd *cobra.Command, opts options.Options) (string, error) {
+	if cmdFlagChanged(cmd, flag.AddStore) {
+		v, _ := cmd.Flags().GetString(flag.AddStore)
+		switch v {
+		case flag.AddStoreInline, flag.AddStoreKeyring:
+			return v, nil
+		default:
+			return "", errz.Errorf("invalid --%s value %q: must be %q or %q",
+				flag.AddStore, v, flag.AddStoreInline, flag.AddStoreKeyring)
+		}
+	}
+	return secret.OptSecretsStore.Get(opts), nil
+}
+
 // applyPassword handles password storage for sq add. It reads any prompted or
 // piped password, then either stores it in the OS keyring (replacing the loc
 // password field with a ${keyring:...} placeholder) or splices it inline into
-// loc. The storage mode is determined by --keyring / --inline-password flags,
-// falling back to the secrets.default config option.
+// loc. The storage mode is determined by the --store flag, falling back to
+// the secrets.store config option.
 func applyPassword(ctx context.Context, cmd *cobra.Command, ru *run.Run, loc string) (string, error) {
-	opts := options.FromContext(ctx)
-	var useKeyring bool
-	switch {
-	case cmdFlagIsSetTrue(cmd, flag.Keyring):
-		useKeyring = true
-	case cmdFlagIsSetTrue(cmd, flag.InlinePassword):
-		useKeyring = false
-	default:
-		useKeyring = secret.OptSecretsDefault.Get(opts) == "keyring"
+	store, err := resolveSecretStore(cmd, options.FromContext(ctx))
+	if err != nil {
+		return loc, err
 	}
+	useKeyring := store == flag.AddStoreKeyring
 
 	// Read password from stdin/prompt if -p was passed.
 	var passwd []byte
-	var err error
 	if cmdFlagIsSetTrue(cmd, flag.PasswordPrompt) {
 		if passwd, err = readPassword(ctx, ru.Stdin, ru.Out, ru.Writers.PrOut); err != nil {
 			return loc, err
@@ -467,12 +477,13 @@ func resolveDriverType(
 // the explicit -p flag instead.
 func applyKeyring(ctx context.Context, _ *run.Run, loc string, passwd []byte) (string, error) {
 	if !isURLLocation(loc) {
-		return loc, errz.Errorf("--%s requires a URL location (got %q)", flag.Keyring, loc)
+		return loc, errz.Errorf("--%s %s requires a URL location (got %q)",
+			flag.AddStore, flag.AddStoreKeyring, loc)
 	}
 	if len(passwd) == 0 && !urlHasPassword(loc) {
 		return loc, errz.Errorf(
-			"--%s requires a password: embed it in the URL or pass --%s",
-			flag.Keyring, flag.PasswordPrompt,
+			"--%s %s requires a password: embed it in the URL or pass --%s",
+			flag.AddStore, flag.AddStoreKeyring, flag.PasswordPrompt,
 		)
 	}
 

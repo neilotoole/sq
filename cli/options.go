@@ -208,7 +208,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		tuning.OptFlushThreshold,
 		tuning.OptBufSpillLimit,
 		scannerz.OptScanBufLimit,
-		secret.OptSecretsDefault,
+		secret.OptSecretsStore,
 		driver.OptIngestHeader,
 		driver.OptIngestCache,
 		files.OptCacheLockTimeout,

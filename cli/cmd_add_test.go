@@ -358,7 +358,7 @@ func TestCmdAdd_Keyring(t *testing.T) {
 	const dsn = "postgres://alice:" + password + "@localhost:5432/sakila"
 
 	err := tr.Exec("add", dsn,
-		"--handle", handle, "--keyring",
+		"--handle", handle, "--store", "keyring",
 		"--driver", "postgres", "--skip-verify")
 	require.NoError(t, err)
 
@@ -377,19 +377,19 @@ func TestCmdAdd_Keyring(t *testing.T) {
 	require.Equal(t, dsn, got)
 }
 
-// TestCmdAdd_InlinePassword_OverridesDefault verifies that --inline-password
-// forces inline storage even when secrets.default is set to "keyring".
-func TestCmdAdd_InlinePassword_OverridesDefault(t *testing.T) {
+// TestCmdAdd_StoreInline_OverridesConfig verifies that --store=inline
+// forces inline storage even when secrets.store is set to "keyring".
+func TestCmdAdd_StoreInline_OverridesConfig(t *testing.T) {
 	gokeyring.MockInit()
 
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	tr.Run.Config.Options["secrets.default"] = "keyring"
+	tr.Run.Config.Options["secrets.store"] = "keyring"
 
 	const handle = "@sakila_inline"
 	err := tr.Exec("add",
 		"postgres://alice:hunter2@localhost:5432/sakila",
-		"--handle", handle, "--inline-password",
+		"--handle", handle, "--store", "inline",
 		"--driver", "postgres", "--skip-verify")
 	require.NoError(t, err)
 
@@ -399,15 +399,15 @@ func TestCmdAdd_InlinePassword_OverridesDefault(t *testing.T) {
 	require.NotContains(t, src.Location, "${keyring:")
 }
 
-// TestCmdAdd_DefaultKeyring_FromConfig verifies that when secrets.default is
-// "keyring" and neither --keyring nor --inline-password is passed, the keyring
-// path is taken — full DSN in keyring, bare placeholder in Location.
-func TestCmdAdd_DefaultKeyring_FromConfig(t *testing.T) {
+// TestCmdAdd_StoreKeyring_FromConfig verifies that when secrets.store
+// is "keyring" and no --store flag is passed, the keyring path is
+// taken — full DSN in keyring, bare placeholder in Location.
+func TestCmdAdd_StoreKeyring_FromConfig(t *testing.T) {
 	gokeyring.MockInit()
 
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	tr.Run.Config.Options["secrets.default"] = "keyring"
+	tr.Run.Config.Options["secrets.store"] = "keyring"
 
 	const handle = "@sakila_default_kr"
 	const dsn = "postgres://alice:hunter2@localhost:5432/sakila"
@@ -425,16 +425,24 @@ func TestCmdAdd_DefaultKeyring_FromConfig(t *testing.T) {
 	require.Equal(t, dsn, got)
 }
 
-// TestCmdAdd_MutuallyExclusive verifies that --keyring and --inline-password
-// cannot be used together.
-func TestCmdAdd_MutuallyExclusive(t *testing.T) {
+// TestCmdAdd_StoreInvalidValue verifies that --store rejects unknown
+// values with an actionable error. Replaces the prior
+// TestCmdAdd_MutuallyExclusive test which is now moot: a single
+// string flag can't be mutually exclusive with itself.
+func TestCmdAdd_StoreInvalidValue(t *testing.T) {
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
 	err := tr.Exec("add",
 		"postgres://alice:hunter2@localhost:5432/sakila",
-		"--handle", "@x", "--keyring", "--inline-password",
+		"--handle", "@x", "--store", "bogus",
 		"--driver", "postgres", "--skip-verify")
 	require.Error(t, err)
+	require.Contains(t, err.Error(), "--store",
+		"error should name the offending flag")
+	require.Contains(t, err.Error(), "inline",
+		"error should list valid values")
+	require.Contains(t, err.Error(), "keyring",
+		"error should list valid values")
 }
 
 // TestCmdAdd_Placeholder_FileRelativeIsAbsolutized verifies that a
@@ -524,30 +532,33 @@ func TestCmdAdd_Placeholder_NonFileSchemeUntouched(t *testing.T) {
 	require.Equal(t, "${env:SQ_TEST_DSN_PT}", src.Location)
 }
 
-// TestCmdAdd_Keyring_RequiresPassword verifies that --keyring rejects an
-// invocation with no password — neither inline in the URL nor via -p.
-// Without this guard, sq would silently produce a keyring entry holding
-// an incomplete DSN; the error message tells the user exactly how to fix it.
-func TestCmdAdd_Keyring_RequiresPassword(t *testing.T) {
+// TestCmdAdd_StoreKeyring_RequiresPassword verifies that --store=keyring
+// rejects an invocation with no password — neither inline in the URL
+// nor via -p. Without this guard, sq would silently produce a keyring
+// entry holding an incomplete DSN; the error tells the user how to fix it.
+func TestCmdAdd_StoreKeyring_RequiresPassword(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
 
 	err := tr.Exec("add",
 		"postgres://alice@localhost:5432/sakila", // no inline password
-		"--handle", "@needs_pw", "--keyring",
+		"--handle", "@needs_pw", "--store", "keyring",
 		"--driver", "postgres", "--skip-verify")
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "--keyring",
+	require.Contains(t, err.Error(), "--store",
 		"error should name the offending flag")
+	require.Contains(t, err.Error(), "keyring",
+		"error should name the offending --store value")
 	require.Contains(t, err.Error(), "--password",
 		"error should point at -p / --password as the recovery path")
 }
 
-// TestCmdAdd_Keyring_RequiresURL verifies that --keyring rejects a non-URL
-// Location. File paths and similar have nothing useful to store in keyring;
-// allowing the flag would create an orphan entry with a nonsensical value.
-func TestCmdAdd_Keyring_RequiresURL(t *testing.T) {
+// TestCmdAdd_StoreKeyring_RequiresURL verifies that --store=keyring
+// rejects a non-URL Location. File paths and similar have nothing
+// useful to store in keyring; allowing the flag would create an orphan
+// entry with a nonsensical value.
+func TestCmdAdd_StoreKeyring_RequiresURL(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
@@ -556,11 +567,13 @@ func TestCmdAdd_Keyring_RequiresURL(t *testing.T) {
 	require.NoError(t, os.WriteFile(csv, []byte("a,b\n1,2\n"), 0o600))
 
 	err := tr.Exec("add", csv,
-		"--handle", "@not_url", "--keyring",
+		"--handle", "@not_url", "--store", "keyring",
 		"--driver", "csv", "--skip-verify")
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "--keyring",
+	require.Contains(t, err.Error(), "--store",
 		"error should name the offending flag")
+	require.Contains(t, err.Error(), "keyring",
+		"error should name the offending --store value")
 	require.Contains(t, err.Error(), "URL",
 		"error should clarify a URL location is required")
 }
@@ -653,37 +666,37 @@ func TestCmdAdd_Placeholder_SkipVerifyWithDriverWorks(t *testing.T) {
 	require.Equal(t, drivertype.Pg, src.Type)
 }
 
-// TestCmdAdd_Placeholder_KeyringRejected verifies that --keyring and a
-// placeholder Location are incompatible: the value already lives in an
-// external store.
-func TestCmdAdd_Placeholder_KeyringRejected(t *testing.T) {
-	t.Setenv("SQ_TEST_DSN_FOR_ADD_REJECTED", "postgres://alice:hunter2@localhost/sakila")
-	th := testh.New(t)
-	tr := testrun.New(th.Context, t, nil)
+// TestCmdAdd_Placeholder_StoreRejected verifies that --store with any
+// value (keyring or inline) is incompatible with a placeholder Location:
+// the value already lives in an external store, so sq has nothing to
+// write.
+func TestCmdAdd_Placeholder_StoreRejected(t *testing.T) {
+	tests := []struct{ name, store string }{
+		{name: "keyring", store: "keyring"},
+		{name: "inline", store: "inline"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("SQ_TEST_DSN_FOR_REJECTED_"+tc.name,
+				"postgres://alice:hunter2@localhost/sakila")
+			th := testh.New(t)
+			tr := testrun.New(th.Context, t, nil)
 
-	err := tr.Exec("add", "${env:SQ_TEST_DSN_FOR_ADD_REJECTED}",
-		"--handle", "@x", "--keyring", "--driver", "postgres", "--skip-verify")
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "--keyring")
+			err := tr.Exec("add", "${env:SQ_TEST_DSN_FOR_REJECTED_"+tc.name+"}",
+				"--handle", "@x", "--store", tc.store,
+				"--driver", "postgres", "--skip-verify")
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "--store",
+				"error should name the offending flag")
+		})
+	}
 }
 
-// TestCmdAdd_Placeholder_InlinePasswordRejected mirrors the keyring case for
-// the inline-password flag.
-func TestCmdAdd_Placeholder_InlinePasswordRejected(t *testing.T) {
-	t.Setenv("SQ_TEST_DSN_FOR_ADD_REJECTED2", "postgres://alice:hunter2@localhost/sakila")
-	th := testh.New(t)
-	tr := testrun.New(th.Context, t, nil)
-
-	err := tr.Exec("add", "${env:SQ_TEST_DSN_FOR_ADD_REJECTED2}",
-		"--handle", "@x", "--inline-password", "--driver", "postgres", "--skip-verify")
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "--inline-password")
-}
-
-// TestCmdAdd_Keyring_PromptsWhenNoPassword verifies that when --keyring is set
-// with --password, sq reads the password from stdin and splices it into the
-// URL before storing the full DSN in keyring.
-func TestCmdAdd_Keyring_PromptsWhenNoPassword(t *testing.T) {
+// TestCmdAdd_StoreKeyring_PromptsWhenNoPassword verifies that when
+// --store=keyring is set with --password, sq reads the password from
+// stdin and splices it into the URL before storing the full DSN in
+// keyring.
+func TestCmdAdd_StoreKeyring_PromptsWhenNoPassword(t *testing.T) {
 	gokeyring.MockInit()
 
 	th := testh.New(t)
@@ -701,7 +714,7 @@ func TestCmdAdd_Keyring_PromptsWhenNoPassword(t *testing.T) {
 	const handle = "@sakila_kr_prompt"
 	err = tr.Exec("add",
 		"postgres://alice@localhost:5432/sakila", // no inline password
-		"--handle", handle, "--keyring", "--password",
+		"--handle", handle, "--store", "keyring", "--password",
 		"--driver", "postgres", "--skip-verify")
 	require.NoError(t, err)
 

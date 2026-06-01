@@ -87,17 +87,19 @@ const (
 	PasswordPromptShort = "p"
 	PasswordPromptUsage = "Read password from stdin or prompt"
 
-	// Keyring is the --keyring flag for sq add. When set, sq writes the
-	// password to the OS keyring and stores ${keyring:@<handle>/password}
-	// in the YAML.
-	Keyring      = "keyring"
-	KeyringUsage = "Store the password in the OS keyring instead of inline"
+	// AddStore is the --store flag for sq add. It selects where the
+	// password lands when sq stores the source. Valid values:
+	//   inline   — store the password verbatim in the YAML config
+	//   keyring  — mint a keyring entry, write a ${keyring:<id>} placeholder
+	// Overrides the secrets.store config option for one invocation.
+	AddStore      = "store"
+	AddStoreUsage = "Where to store the password: inline | keyring (overrides secrets.store)"
 
-	// InlinePassword is the --inline-password flag for sq add. When set,
-	// sq stores the password verbatim in the YAML, overriding the
-	// secrets.default config option.
-	InlinePassword      = "inline-password"
-	InlinePasswordUsage = "Force inline password storage (overrides secrets.default)" //nolint:gosec
+	// AddStoreInline / AddStoreKeyring are the two valid --store values.
+	// Exported so callers (cmd_add, completions, tests) share a single
+	// source of truth.
+	AddStoreInline  = "inline"
+	AddStoreKeyring = "keyring"
 
 	CacheTreeSize      = "size"
 	CacheTreeSizeShort = "s"

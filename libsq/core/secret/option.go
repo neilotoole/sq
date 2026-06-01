@@ -6,13 +6,16 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 )
 
-// OptSecretsDefault sets the default storage backend used by sq add when
+// OptSecretsStore sets the default storage backend used by sq add when
 // a password is present. Valid values are "inline" (store the password
 // verbatim in the YAML config — historical default) or "keyring" (write
 // the password to the OS keyring and replace it with a ${keyring:...}
 // placeholder).
-var OptSecretsDefault = options.NewString(
-	"secrets.default",
+//
+// The config key is "secrets.store"; the option can be overridden per
+// invocation with the --store flag on sq add.
+var OptSecretsStore = options.NewString(
+	"secrets.store",
 	nil,
 	"inline",
 	func(s string) error {
@@ -29,5 +32,5 @@ var OptSecretsDefault = options.NewString(
   keyring  Write the password to the OS keyring and store a ${keyring:...}
            placeholder in the config.
 
-Per-command flags --keyring and --inline-password override this setting.`,
+The --store flag on sq add overrides this setting per invocation.`,
 )
