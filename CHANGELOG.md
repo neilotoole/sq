@@ -81,7 +81,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   end-to-end. Unblocks the long-standing request in
   [#443](https://github.com/neilotoole/sq/discussions/443) to query a
   live (locked) SQLite database, e.g. Firefox cookies, by setting
-  `?immutable=1`.
+  `?immutable=1`. As part of the same change, the SQLite driver's
+  open and location-parse error messages no longer echo the
+  connection-string suffix, so secret params (e.g. `_auth_pass`)
+  don't surface in logs.
 
 ## [v0.53.0] - 2026-05-25
 
