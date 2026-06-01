@@ -45,6 +45,12 @@ func (r *Resolver) Resolve(_ context.Context, path string) (string, error) {
 	}
 	data, err := os.ReadFile(resolved)
 	if err != nil {
+		// fs.ErrNotExist also matches ENOTDIR ("intermediate path
+		// component is a file, not a directory"), e.g. trying to read
+		// "/etc/passwd/secret". We treat that as ErrNotFound to keep
+		// the user-facing message consistent with the missing-entry
+		// case; the underlying err is wrapped via errz on other paths
+		// for debug.
 		if errors.Is(err, fs.ErrNotExist) {
 			return "", secret.ErrNotFound
 		}

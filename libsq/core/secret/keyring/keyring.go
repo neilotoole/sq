@@ -48,6 +48,11 @@ func (s *Store) Set(_ context.Context, path, value string) error {
 
 // Delete removes the keyring entry at path. Deleting a non-existent
 // entry is not an error.
+//
+// The order here matters subtly: errz.Err wraps before the errors.Is
+// check, but errz wrappers expose Unwrap so the gokeyring.ErrNotFound
+// sentinel is still matched through the chain. Don't invert this
+// without confirming the wrapper preserves the comparison.
 func (s *Store) Delete(_ context.Context, path string) error {
 	err := errz.Err(gokeyring.Delete(Service, path))
 	if errors.Is(err, gokeyring.ErrNotFound) {

@@ -152,3 +152,33 @@ func TestExpand_PortPlaceholder_DoesNotBreakUserinfoEncoding(t *testing.T) {
 		"postgres://alice:p%40ss%3Aword%21@host:5432/db",
 		got)
 }
+
+// TestExpand_UserinfoSentinelLiteralCollision exercises the (extremely
+// unlikely) case where user-supplied URL data legitimately contains
+// the digit-only sentinel format used by userinfoPlaceholders. The
+// format is "9999000<7-digit index>9999" — 18 fixed-position digits.
+// A collision would mis-classify an unrelated placeholder as residing
+// in userinfo and apply URL encoding spuriously.
+//
+// Unlike libsq/source/location/pickSentinels, userinfoPlaceholders
+// uses a fixed prefix (no salt bumping) on the principle that an 18-
+// digit fixed-position run is unlikely enough to dispense with the
+// salt machinery. This test pins that decision: a literal sentinel
+// substring in user data still produces correctly-encoded output.
+func TestExpand_UserinfoSentinelLiteralCollision(t *testing.T) {
+	// Build a URL where the path component contains the literal
+	// sentinel for placeholder index 0 ("999900000000009999"). If the
+	// detection logic confuses the literal for the sentinel, the
+	// password placeholder would be flagged as NOT in userinfo and
+	// would skip URL encoding — leaking a special char as a raw `@`.
+	reg := newReg(t, map[string]string{"pw": "p@ss"})
+	got, err := reg.Expand(context.Background(),
+		"postgres://alice:${keyring:pw}@host/db/999900000000009999")
+	require.NoError(t, err)
+	// The password must still be encoded (@ -> %40) AND the path
+	// substring must survive unchanged.
+	require.Contains(t, got, "alice:p%40ss@host",
+		"password must be URL-encoded despite literal sentinel in path")
+	require.Contains(t, got, "/999900000000009999",
+		"literal-sentinel path substring must survive unchanged")
+}

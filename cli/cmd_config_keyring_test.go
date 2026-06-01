@@ -884,3 +884,33 @@ func TestCmdConfigKeyringMigrate_JSON_SkipsPrompt(t *testing.T) {
 	src, _ := tr.Run.Config.Collection.Get("@js_prompt")
 	require.Contains(t, src.Location, "${keyring:")
 }
+
+// TestCmdConfigKeyringRm_Completion_TolerantOfMalformedSource verifies
+// that shell completion doesn't crash or short-circuit when one of the
+// sources in the active collection has a malformed placeholder in its
+// Location (which would make secret.ExtractRefs return an error). The
+// completion function's `continue` on extract error is the load-bearing
+// behavior here: completion is best-effort, not a config validator.
+func TestCmdConfigKeyringRm_Completion_TolerantOfMalformedSource(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil).Add(
+		source.Source{
+			Handle:   "@good_completion",
+			Type:     drivertype.Pg,
+			Location: "postgres://alice:${keyring:goodid}@db/sakila",
+		},
+		// Unclosed "${" — ExtractRefs returns an error. The completion
+		// function must skip this source rather than blow up or stop
+		// producing candidates altogether.
+		source.Source{
+			Handle:   "@bad_completion",
+			Type:     drivertype.Pg,
+			Location: "postgres://alice:${env:UNCLOSED@db/sakila",
+		},
+	)
+
+	got := testComplete(t, tr, "config", "keyring", "rm", "")
+	require.Contains(t, got.values, "goodid",
+		"malformed source must not block completion of healthy refs")
+}
