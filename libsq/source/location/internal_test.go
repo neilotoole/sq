@@ -303,6 +303,13 @@ func TestRedact_BestEffortFallbackOnMalformed(t *testing.T) {
 			loc:       "Server=host;User=alice;Password=hunter2;Trusted=No;BAD=${",
 			notLeaked: "hunter2",
 		},
+		{
+			// Bare "user:pw@host" with no scheme prefix — the regex
+			// anchor includes start-of-string so this is masked too.
+			name:      "bare userinfo, no scheme",
+			loc:       "alice:hunter2@host/db?token=${env:UNCLOSED",
+			notLeaked: "hunter2",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

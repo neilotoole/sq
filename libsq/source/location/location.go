@@ -569,11 +569,14 @@ func redactRaw(loc string) string {
 	return dbu.Redacted()
 }
 
-// redactRawUserinfo masks the password portion of a "scheme://user:pw@"
-// or bare "user:pw@" prefix. Captures (and preserves) the leading
-// delimiter, scheme separator, and username; replaces the password and
-// the @ terminator with "xxxxx@".
-var redactRawUserinfo = regexp.MustCompile(`([:/@][^:/?@\s]+):[^@\s]+@`)
+// redactRawUserinfo masks the password portion of any "user:pw@host"
+// pattern, whether preceded by a scheme separator ("scheme://"), a
+// query separator, or appearing at the very start of the input.
+// Captures the leading anchor (start-of-string or one of : / @) and
+// the username separately so the replacement preserves them both.
+// The password character class explicitly excludes "/" so a greedy
+// match can't swallow a "://" scheme prefix when anchored at "^".
+var redactRawUserinfo = regexp.MustCompile(`(^|[:/@])([^:/?@\s]+):[^:/?@\s]+@`)
 
 // redactRawDSNPw masks "PWD=value" / "password=value" style key/value
 // pairs used in ODBC, ADO.NET, and other ;-delimited connection
@@ -589,7 +592,7 @@ var redactRawDSNPw = regexp.MustCompile(`(?i)(\b(?:pwd|password|passwd|pw)\s*=)\
 // in error messages and log lines when the loc is malformed enough
 // that the structured redactors give up".
 func redactBestEffort(loc string) string {
-	loc = redactRawUserinfo.ReplaceAllString(loc, "$1:xxxxx@")
+	loc = redactRawUserinfo.ReplaceAllString(loc, "${1}${2}:xxxxx@")
 	loc = redactRawDSNPw.ReplaceAllString(loc, "${1}xxxxx")
 	return loc
 }

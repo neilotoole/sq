@@ -492,7 +492,7 @@ func resolveDriverType(
 		if err != nil {
 			return "", errz.Wrapf(err,
 				"resolve %s (pass --%s to skip resolution; --%s alone only skips the post-add ping)",
-				loc, flag.AddDriver, flag.SkipVerify)
+				location.Redact(loc), flag.AddDriver, flag.SkipVerify)
 		}
 		// Driver inference from a resolved URL is scheme-based —
 		// location.Parse handles every URL-shaped DSN sq supports. We
@@ -576,7 +576,7 @@ func driverTypeFromResolved(
 func applyKeyring(ctx context.Context, _ *run.Run, loc string, passwd []byte) (newLoc, mintedID string, err error) {
 	if !isURLLocation(loc) {
 		return loc, "", errz.Errorf("--%s %s requires a URL location (got %q)",
-			flag.AddStore, flag.AddStoreKeyring, loc)
+			flag.AddStore, flag.AddStoreKeyring, location.Redact(loc))
 	}
 	if len(passwd) == 0 && !urlHasPassword(loc) {
 		return loc, "", errz.Errorf(
