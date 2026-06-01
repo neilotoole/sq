@@ -57,7 +57,7 @@ require (
 	github.com/pkg/profile v1.7.0
 	github.com/ryboe/q v1.0.26
 	github.com/samber/lo v1.53.0
-	github.com/segmentio/encoding v0.5.4
+	github.com/segmentio/encoding v0.5.4 // benchmark comparison only; see cli/output/jsonw/internal/benchmark_test.go
 	github.com/sethvargo/go-retry v0.3.0
 	github.com/shopspring/decimal v1.4.0
 	github.com/sijms/go-ora/v2 v2.9.1-0.20260319160952-ef646cf075eb
