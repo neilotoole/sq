@@ -1005,10 +1005,10 @@ func NewScratchSource(ctx context.Context, fpath string) (src *source.Source, cl
 }
 
 // PathFromLocation returns the absolute file path from the source location,
-// which should have the "sqlite3://" prefix.
+// which must have the "sqlite3://" prefix. Any "?key=val&..." connection-string
+// suffix is stripped; callers that need the full DSN should use
+// dsnFromLocation instead.
 func PathFromLocation(src *source.Source) (string, error) {
-	// FIXME: Does this actually work with query params in the path?
-	// Probably not? Maybe refactor use dburl.Parse or such.
 	if src.Type != drivertype.SQLite {
 		return "", errz.Errorf("driver {%s} does not support {%s}", drivertype.SQLite, src.Type)
 	}
@@ -1017,13 +1017,12 @@ func PathFromLocation(src *source.Source) (string, error) {
 		return "", errz.Errorf("sqlite3 source location must begin with {%s} but was: %s", Prefix, src.RedactedLocation())
 	}
 
-	loc := strings.TrimPrefix(src.Location, Prefix)
+	loc := filePathFromLocation(src.Location)
 	if len(loc) < 2 {
 		return "", errz.Errorf("sqlite3 source location is too short: %s", src.RedactedLocation())
 	}
 
-	loc = filepath.Clean(loc)
-	return loc, nil
+	return filepath.Clean(loc), nil
 }
 
 // dsnFromLocation converts an sq location string

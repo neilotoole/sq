@@ -203,6 +203,10 @@ func TestPathFromLocation(t *testing.T) {
 		{loc: "sqlite3:///test.db", want: "/test.db"},
 		{loc: "postgres:///test.db", wantErr: true},
 		{loc: `sqlite3://C:/dir/sakila.db`, want: `C:/dir/sakila.db`},
+		// gh720: connection-string parameters must be stripped.
+		{loc: "sqlite3:///test.db?mode=ro", want: "/test.db"},
+		{loc: "sqlite3:///test.db?cache=shared&mode=rw", want: "/test.db"},
+		{loc: "sqlite3:///test.db?immutable=1", want: "/test.db"},
 	}
 
 	for _, tc := range testCases {
