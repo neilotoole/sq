@@ -7,9 +7,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
 	gokeyring "github.com/zalando/go-keyring"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/secret"
 )
 
