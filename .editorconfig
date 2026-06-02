@@ -12,7 +12,7 @@ indent_style = tab
 
 [*.md]
 # Sets the right margin to 80, which displays a guideline
-max_line_length = 80
+max_line_length = 100
 trim_trailing_whitespace = true
 
 # Override for Makefile

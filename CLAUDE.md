@@ -124,6 +124,25 @@ commit messages, PR descriptions, CHANGELOG entries, and site docs. For
 example, "honors" not "honours", "color" not "colour", "behavior" not
 "behaviour", "optimize" not "optimise".
 
+### Prose style (no AI-isms)
+
+Applies to all written content in this repo: `README.md`, `CHANGELOG.md`,
+other root-level markdown, godoc and code comments, commit messages, PR
+descriptions, and everything under [`site/`](./site/). Does **not** apply to
+code itself (string literals, test fixtures, sample data).
+
+Write like a human contributor, not a generative model. Specifically, avoid:
+
+- **Em dashes** (`—`). Use a period, comma, parentheses, or ": ".
+  No en dashes (`–`) for ranges either; use `-` or "to".
+- **"Not just X, it's Y"** / "not only X but Y" sloganeering and other
+  marketing-style antitheses.
+- **Decorative emoji** in prose. GitHub callout admonitions
+  (`> [!NOTE]` etc.) are fine when they convey real information.
+
+When in doubt: shorter, plainer, more specific. Concrete nouns and verbs
+beat adjectives.
+
 ### Markdown
 
 - Wrap lines at 100 characters where feasible.
