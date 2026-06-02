@@ -20,8 +20,9 @@ PATH is the body of a ${keyring:PATH} placeholder. Use 'sq config
 keyring ls' to find the ids referenced by your sources.
 
 By default (no --reveal), the value is NOT printed — only that the
-entry exists. With --reveal, the value (which under Form B is the
-entire DSN, including credentials) is written to stdout.`,
+entry exists. With --reveal, the stored value (which for entries
+written by 'sq add --store keyring' is the entire conn string,
+including credentials) is written to stdout.`,
 		RunE: execConfigKeyringGet,
 		Example: `  # Confirm the entry exists at an sq-generated id
   $ sq config keyring get j2k7m3pxtz

@@ -689,7 +689,7 @@ func TestSource_ShortLocation(t *testing.T) {
 	t.Run("placeholder_keyring_with_slash_in_body", func(t *testing.T) {
 		// Hand-managed legacy form: ${keyring:@handle/password}.
 		// The '/' in the body must not trip filepath.Base.
-		const loc = "${keyring:@sakila/password}"
+		const loc = "${keyring:my_db_pw}"
 		src := &source.Source{Location: loc}
 		require.Equal(t, loc, src.ShortLocation())
 	})
@@ -735,7 +735,7 @@ func TestSource_RedactedLocation_Placeholders(t *testing.T) {
 			// would be. The placeholder text is lost in the redacted form
 			// (use `sq config keyring ls` to enumerate references).
 			name: "password placeholder masked",
-			loc:  "postgres://alice:${keyring:@sakila/password}@db/sakila",
+			loc:  "postgres://alice:${keyring:my_db_pw}@db/sakila",
 			want: "postgres://alice:xxxxx@db/sakila",
 		},
 		{

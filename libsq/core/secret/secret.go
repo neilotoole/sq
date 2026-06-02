@@ -25,7 +25,7 @@ var ErrUnknownScheme = errors.New("unknown secret scheme")
 // Resolver returns secret values for placeholder paths.
 type Resolver interface {
 	// Resolve returns the secret value for the path part of a placeholder
-	// (e.g. "@sakila/password" for ${keyring:@sakila/password}). The scheme
+	// (e.g. "my_db_pw" for ${keyring:my_db_pw}). The scheme
 	// has already been dispatched to this Resolver by the Registry.
 	Resolve(ctx context.Context, path string) (string, error)
 }

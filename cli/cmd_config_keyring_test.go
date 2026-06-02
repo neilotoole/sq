@@ -68,10 +68,10 @@ func TestCmdConfigKeyringCreate_ExplicitValue(t *testing.T) {
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
 
-	err := tr.Exec("config", "keyring", "create", "@sakila/password", "hunter2")
+	err := tr.Exec("config", "keyring", "create", "my_db_pw", "hunter2")
 	require.NoError(t, err)
 
-	got, err := gokeyring.Get("sq", "@sakila/password")
+	got, err := gokeyring.Get("sq", "my_db_pw")
 	require.NoError(t, err)
 	require.Equal(t, "hunter2", got)
 }
@@ -90,10 +90,10 @@ func TestCmdConfigKeyringCreate_PromptedFromStdin(t *testing.T) {
 	require.NoError(t, err)
 	tr.Run.Stdin = tmp
 
-	err = tr.Exec("config", "keyring", "create", "@sakila/password", "-p")
+	err = tr.Exec("config", "keyring", "create", "my_db_pw", "-p")
 	require.NoError(t, err)
 
-	got, err := gokeyring.Get("sq", "@sakila/password")
+	got, err := gokeyring.Get("sq", "my_db_pw")
 	require.NoError(t, err)
 	require.Equal(t, "hunter2", got)
 }
@@ -104,7 +104,7 @@ func TestCmdConfigKeyringCreate_RequiresValueOrFlag(t *testing.T) {
 	tr := testrun.New(th.Context, t, nil)
 
 	// No VALUE arg, no -p flag.
-	err := tr.Exec("config", "keyring", "create", "@sakila/password")
+	err := tr.Exec("config", "keyring", "create", "my_db_pw")
 	require.Error(t, err)
 }
 
@@ -189,22 +189,22 @@ func TestCmdConfigKeyringUpdate_Completion(t *testing.T) {
 
 func TestCmdConfigKeyringGet_WithoutRevealPrintsMetadataOnly(t *testing.T) {
 	gokeyring.MockInit()
-	require.NoError(t, gokeyring.Set("sq", "@sakila/password", "hunter2"))
+	require.NoError(t, gokeyring.Set("sq", "my_db_pw", "hunter2"))
 
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Exec("config", "keyring", "get", "@sakila/password"))
+	require.NoError(t, tr.Exec("config", "keyring", "get", "my_db_pw"))
 	require.NotContains(t, tr.Out.String(), "hunter2")
-	require.Contains(t, tr.Out.String(), "@sakila/password")
+	require.Contains(t, tr.Out.String(), "my_db_pw")
 }
 
 func TestCmdConfigKeyringGet_WithRevealPrintsValue(t *testing.T) {
 	gokeyring.MockInit()
-	require.NoError(t, gokeyring.Set("sq", "@sakila/password", "hunter2"))
+	require.NoError(t, gokeyring.Set("sq", "my_db_pw", "hunter2"))
 
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Exec("config", "keyring", "get", "@sakila/password", "--reveal"))
+	require.NoError(t, tr.Exec("config", "keyring", "get", "my_db_pw", "--reveal"))
 	require.Contains(t, tr.Out.String(), "hunter2")
 }
 
@@ -218,13 +218,13 @@ func TestCmdConfigKeyringGet_MissingErrors(t *testing.T) {
 
 func TestCmdConfigKeyringRm(t *testing.T) {
 	gokeyring.MockInit()
-	require.NoError(t, gokeyring.Set("sq", "@sakila/password", "hunter2"))
+	require.NoError(t, gokeyring.Set("sq", "my_db_pw", "hunter2"))
 
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Exec("config", "keyring", "rm", "@sakila/password"))
+	require.NoError(t, tr.Exec("config", "keyring", "rm", "my_db_pw"))
 
-	_, err := gokeyring.Get("sq", "@sakila/password")
+	_, err := gokeyring.Get("sq", "my_db_pw")
 	require.ErrorIs(t, err, gokeyring.ErrNotFound)
 }
 

@@ -83,6 +83,33 @@ $ echo 'open:;"_Ses@me' > password.txt
 $ sq add 'postgres://user@localhost/sakila' -p < password.txt
 ```
 
+### Storing secrets in the OS keyring
+
+Even with `--password`, the password still lands in `sq.yml` in plaintext.
+To keep credentials out of the config file entirely, pass `--store keyring`:
+
+```shell
+$ sq add --store keyring postgres://alice:hunter2@db.acme.com/sakila
+@sakila/pg  postgres  ${keyring:j2k7m3pxtz}
+```
+
+`sq` mints a fresh opaque ID, writes the full conn string to the OS keyring at that
+ID, and stores a bare `${keyring:<id>}` placeholder as the YAML `location`:
+
+```yaml
+- handle: '@sakila/pg'
+  driver: postgres
+  location: ${keyring:j2k7m3pxtz}
+```
+
+The default storage backend is controlled by the
+[`secrets.store`](/docs/config#secretsstore) config option (`inline` |
+`keyring`, default `inline`). `--store` overrides the default per
+invocation.
+
+See [Secrets](/docs/secrets) for the full picture: placeholder grammar,
+the `env` and `file` schemes, and the threat model.
+
 ### Location completion
 
 It can be difficult to remember the format of database URLs (i.e. the source **location**).

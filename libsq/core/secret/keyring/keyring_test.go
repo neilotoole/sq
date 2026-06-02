@@ -17,7 +17,7 @@ func TestStore_SetGetDelete(t *testing.T) {
 	r := keyring.NewStore()
 	ctx := context.Background()
 
-	const path = "@sakila/password"
+	const path = "my_db_pw"
 	const value = "hunter2"
 
 	require.NoError(t, r.Set(ctx, path, value))

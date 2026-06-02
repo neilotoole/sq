@@ -1,0 +1,46 @@
+Walk every source's Location and print one row per ${keyring:<path>}
+placeholder it references, paired with the source's handle and driver.
+${env:...} and ${file:...} refs are not listed here — those backends are
+external; sq reads them at connect time and has nothing to manage.
+
+Output columns:
+  PATH      The keyring entry path, e.g. "j2k7m3pxtz".
+  HANDLE    The @handle that references the entry.
+  DRIVER    The source's driver type (postgres, mysql, sqlite, ...).
+
+When the same path appears in multiple sources, each source gets its own
+row — clustered together because rows are sorted by path. A repeated
+path across rows means the underlying keyring entry is shared.
+
+The listing is derived from the YAML config; no persistent index is
+maintained. Keyring entries that no source references (orphans) are
+not surfaced — that requires keyring enumeration, deferred to a
+future release.
+
+Usage:
+  sq config keyring ls
+
+Aliases:
+  ls, list
+
+Flags:
+  -t, --text        Output text
+  -j, --json        Output JSON
+  -h, --header      Print header row (default true)
+  -H, --no-header   Don't print header row
+      --help        help for ls
+
+Global Flags:
+      --config string         Load config from here
+      --debug.pprof string    pprof profiling mode (default "off")
+      --error.format string   Error output format (default "text")
+  -E, --error.stack           Print error stack trace to stderr
+      --log                   Enable logging
+      --log.file string       Log file path (default "$HOME/Library/Logs/sq/sq.log")
+      --log.format string     Log output format (text or json) (default "text")
+      --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+  -M, --monochrome            Don't print color output
+      --no-progress           Don't show progress bar
+      --no-redact             Don't redact passwords in output (deprecated, use --reveal)
+      --reveal                Show secret values in output (don't redact passwords; print keyring values)
+  -v, --verbose               Print verbose output

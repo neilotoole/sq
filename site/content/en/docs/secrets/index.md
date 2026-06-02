@@ -1,0 +1,347 @@
+---
+title: Secrets
+description: How sq handles passwords, the OS keyring, and ${scheme:path} placeholders.
+lead: ''
+draft: false
+images: []
+weight: 1037
+toc: true
+url: /docs/secrets
+---
+`sq` treats credentials with two complementary mechanisms: **redaction**, which
+keeps secrets out of terminal output and exports, and **placeholders**, which
+keep secrets out of the [config](../config) file itself. This page explains both, and how
+the global `--reveal` flag and the `sq config export --expand` flag fit in.
+
+## Overview
+
+By default:
+
+- URL-style passwords inside a source [`location`](/docs/source#add) are
+  **redacted** in any output that prints the location: `sq ls`, `sq inspect`,
+  `sq src`, `sq config ls`, `sq config export`, error messages, and so on.
+- Source locations may contain **`${scheme:path}` placeholders** that fetch
+  the real value at connect time from an external resolver. Three schemes
+  ship in the box: [`keyring`](#keyring-scheme), [`env`](#env-scheme), and
+  [`file`](#file-scheme).
+- [`sq config export`](/docs/cmd/config-export) writes placeholders to the
+  output **verbatim** — what the YAML says is what the export contains.
+
+Two global flags opt out of those defaults; they do different things:
+
+| Flag                                              | What it does                                                                                              | Where it applies                                                              |
+|---------------------------------------------------|-----------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------|
+| [`--reveal`](#--reveal-show-known-secrets)        | Stop redacting secrets in display output. Show data that `sq` already has in hand.                        | Global. Any command that prints a source location or a keyring entry's value. |
+| [`--expand`](#--expand-fetch-and-substitute)      | Resolve `${scheme:path}` placeholders and splice the fetched values into the output.                      | [`sq config export`](/docs/cmd/config-export) only.                           |
+
+`--reveal` shows you something `sq` already knows. `--expand` makes `sq` go
+fetch something it doesn't currently hold. Both can expose plaintext, but
+the security implications are different — see each section below.
+
+<a id="--reveal-show-known-secrets"></a>
+
+## Redaction
+
+`sq` redacts URL-style passwords in the location of a source when that
+location is printed. For a source
+
+```yaml
+- handle: '@sakila/pg'
+  driver: postgres
+  location: postgres://alice:hunter2@db.acme.com/sakila
+```
+
+`sq ls -v` displays the password as `xxxxx`:
+
+```shell
+$ sq ls -v
+HANDLE      DRIVER    LOCATION
+@sakila/pg  postgres  postgres://alice:xxxxx@db.acme.com/sakila
+```
+
+To see the underlying value, pass the global `--reveal` flag:
+
+```shell
+$ sq ls -v --reveal
+HANDLE      DRIVER    LOCATION
+@sakila/pg  postgres  postgres://alice:hunter2@db.acme.com/sakila
+```
+
+`--reveal` is a display flip on data that `sq` already has loaded. It applies
+to every command that prints a source location, plus
+[`sq config keyring get`](/docs/cmd/config-keyring-get), where it controls
+whether the stored value is printed.
+
+`--reveal` does **not** fetch placeholders. If a source's location is
+`postgres://alice:${keyring:abc}@db/sakila`, `--reveal` prints the placeholder
+itself, not the keyring value. Use [`sq config keyring get`](/docs/cmd/config-keyring-get)
+to inspect a keyring value directly.
+
+### `redact` config option
+
+The [`redact`](/docs/config#redact) config option (default `true`) controls
+the same behavior persistently:
+
+```shell
+# Turn off redaction for this user, persistently
+$ sq config set redact false
+```
+
+`--reveal` is the per-invocation form of the same control. Setting
+`redact: false` is equivalent to passing `--reveal` on every command.
+
+### `--no-redact` (deprecated)
+
+The earlier flag `--no-redact` still works, but is deprecated and prints a
+deprecation hint. Use `--reveal` in new scripts. Both flags do the same
+thing; `--no-redact` will be removed in a future major release.
+
+<a id="--expand-fetch-and-substitute"></a>
+
+## Substitution
+
+[`sq config export`](/docs/cmd/config-export) dumps the live config to YAML
+for backups. By default the export is a faithful copy of `sq.yml`:
+`${scheme:path}` placeholders are written verbatim, and inline credentials
+(plaintext URLs) are dumped exactly as they appear in the file.
+
+With `--expand`, every `${scheme:path}` placeholder is resolved (keyring
+read, environment variable read, or file read), and the resolved value is
+spliced inline into the exported location. The output is a self-contained
+snapshot suitable for moving between machines — at the cost of writing every
+referenced secret in plaintext, which is exactly the point of `--expand`.
+
+```yaml
+# Live config: location uses a keyring placeholder
+- handle: '@sakila/pg'
+  driver: postgres
+  location: postgres://alice:${keyring:j2k7m3pxtz}@db.acme.com/sakila
+```
+
+```shell
+# Default: placeholder preserved
+$ sq config export | grep '@sakila/pg' -A1
+- handle: '@sakila/pg'
+  location: postgres://alice:${keyring:j2k7m3pxtz}@db.acme.com/sakila
+
+# --expand: keyring value fetched and inlined
+$ sq config export --expand | grep '@sakila/pg' -A1
+- handle: '@sakila/pg'
+  location: postgres://alice:hunter2@db.acme.com/sakila
+```
+
+When `--output` is used, the exported file is created with mode `0600`,
+since it may contain credentials regardless of whether `--expand` was set.
+
+`--expand` can fail per-source if a referenced keyring entry, environment
+variable, or file is missing. The export errors with the failing source's
+handle so you know which one to fix.
+
+### `--reveal` vs `--expand`
+
+Both flags can produce plaintext secrets, but they're not interchangeable.
+
+| Concern                          | `--reveal`                                                                                            | `--expand`                                                                                                     |
+|----------------------------------|-------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
+| Purpose                          | Show secret data already loaded                                                                       | Fetch placeholder values and splice them in                                                                    |
+| Source of the printed value      | The current in-memory config                                                                          | External resolvers: OS keyring, env, file                                                                      |
+| Applies to                       | Any command that prints a location or keyring value                                                   | [`sq config export`](/docs/cmd/config-export) only                                                             |
+| What you see for a placeholder   | The placeholder text (e.g. `${keyring:abc}`)                                                          | The resolved value (e.g. `hunter2`)                                                                            |
+| Failure mode                     | Cannot fail — it is just a display flip                                                               | Can fail per source if a resolver entry is missing                                                             |
+| Risk                             | Reveals plaintext already in `sq.yml` or the keyring                                                  | Pulls plaintext **out** of resolvers into a single file you must protect                                       |
+
+Use `--reveal` to read configuration; use `--expand` to take a portable
+backup. Don't reach for `--expand` when `--reveal` is what you want.
+
+## Placeholders
+
+A source's `location` may contain one or more `${scheme:path}` placeholders.
+Each placeholder is resolved at connect time by the named scheme:
+
+```yaml
+location: postgres://alice:${keyring:j2k7m3pxtz}@db/sakila
+location: postgres://alice:${env:DB_PROD_PASSWORD}@db/sakila
+location: postgres://alice:${file:/run/secrets/db_prod_pw}@db/sakila
+location: postgres://alice:${file:~/.sq/db_prod_pw}@db/sakila
+```
+
+A placeholder can fill any segment of the location, or the whole thing:
+
+```yaml
+# Whole conn string: the keyring entry holds the entire URL
+location: ${keyring:j2k7m3pxtz}
+
+# Composition: only the password is fetched
+location: postgres://alice:${env:DB_PW}@db.acme.com/sakila
+```
+
+`sq` ships with three schemes: `keyring`, `env`, and `file`.
+
+### URL encoding
+
+When a placeholder lands inside URL userinfo (the `user:password@host` part),
+the **resolved value** must be acceptable in that position. If your password
+contains characters URL-reserves (`@`, `:`, `/`, `?`, `#`, `&`, `+`, `%`, etc.),
+either URL-encode them in the stored value or use whole-conn-string placement
+so the entire URL comes from the resolver and you don't have to worry about
+mid-URL escaping.
+
+### `keyring` scheme
+
+`${keyring:<path>}` reads from the OS keyring:
+
+- **macOS:** Keychain
+- **Windows:** Credential Manager
+- **Linux:** Secret Service (GNOME Keyring, KWallet, etc.)
+
+`sq` ships read **and** write commands for the keyring under
+[`sq config keyring`](/docs/cmd/config-keyring). Typical usage is
+[`sq add --store keyring`](/docs/cmd/add), which mints an opaque 10-character
+ID (e.g. `j2k7m3pxtz`), writes the full conn string to the keyring at that ID,
+and stores `location: ${keyring:j2k7m3pxtz}` in YAML.
+
+You can also hand-create entries:
+
+```shell
+# Create an entry; the value is whatever you want stored
+$ sq config keyring create my_db_pw -p < secret.txt
+
+# Reference it by hand in sq.yml:
+#   location: postgres://alice:${keyring:my_db_pw}@db/sakila
+```
+
+See [Managing keyring entries](#managing-keyring-entries) below.
+
+### `env` scheme
+
+`${env:<VAR>}` reads the named environment variable at connect time.
+
+```yaml
+location: postgres://alice:${env:DB_PROD_PASSWORD}@db.acme.com/sakila
+location: ${env:DB_PROD_CONN_STR}
+```
+
+If the variable is unset, the source fails to connect with an error naming
+the variable. `env` is read-only: `sq` consults the value but never sets it.
+
+### `file` scheme
+
+`${file:<path>}` reads file contents at connect time, trimming a single
+trailing newline. Path forms accepted:
+
+- Absolute path: `${file:/run/secrets/db_pw}`
+- Tilde home: `${file:~/.sq/db_pw}` (current user's home)
+- Empty-authority file URI: `${file:///run/secrets/db_pw}`
+
+Relative paths and remote `file://host/path` forms are rejected.
+
+`file` is read-only: `sq` consults the file but never writes to it.
+
+### Choosing a scheme
+
+| Environment            | Recommended scheme           | Why                                                                               |
+|------------------------|------------------------------|-----------------------------------------------------------------------------------|
+| Dev laptop             | [`keyring`](#keyring-scheme) | Plaintext never lives on disk; OS handles the storage and prompting.              |
+| CI runner              | [`env`](#env-scheme)         | CI systems already inject secrets as environment variables.                       |
+| Container / Kubernetes | [`file`](#file-scheme)       | Secrets are typically mounted into the container as files (e.g. `/run/secrets/`). |
+
+The schemes are not mutually exclusive: an `sq.yml` may use `keyring` for one
+source, `env` for another, and inline plaintext for a third.
+
+## Managing keyring entries
+
+The [`sq config keyring`](/docs/cmd/config-keyring) command group covers the
+keyring scheme end to end. The other two schemes (`env`, `file`) are
+external — `sq` reads them at connect time and has nothing to manage.
+
+| Command                                                                           | What it does                                                                  |
+|-----------------------------------------------------------------------------------|-------------------------------------------------------------------------------|
+| [`sq config keyring ls`](/docs/cmd/config-keyring-ls)                             | List `${keyring:<path>}` references found in source locations.                |
+| [`sq config keyring create`](/docs/cmd/config-keyring-create)                     | Create a new entry at `PATH`. Errors if `PATH` already exists.                |
+| [`sq config keyring update`](/docs/cmd/config-keyring-update)                     | Rotate the value at an existing `PATH`.                                       |
+| [`sq config keyring get`](/docs/cmd/config-keyring-get)                           | Check an entry exists; with `--reveal`, print its value.                      |
+| [`sq config keyring rm`](/docs/cmd/config-keyring-rm)                             | Delete an entry. Does not touch sources that reference it.                    |
+| [`sq config keyring migrate`](/docs/cmd/config-keyring-migrate)                   | Move inline-password sources to the keyring in bulk.                          |
+
+`sq config keyring ls` walks the YAML config; it lists only `keyring`
+placeholders that some source references. Orphan entries — entries in the
+keyring that no source uses — are not surfaced. Enumerating them requires
+keyring-wide iteration, which is deferred to a future release.
+
+`sq config keyring rm` deletes the keyring entry only; any remaining
+`${keyring:PATH}` reference in `sq.yml` will fail to resolve on the next
+connect. Run [`sq config keyring ls`](/docs/cmd/config-keyring-ls) first to
+find references.
+
+### How `--store keyring` lays out an entry
+
+When [`sq add --store keyring`](/docs/cmd/add) creates an entry, it stores
+the **entire conn string** at a fresh opaque 10-character ID. The YAML
+location becomes a bare placeholder:
+
+```yaml
+- handle: '@sakila/pg'
+  driver: postgres
+  location: ${keyring:j2k7m3pxtz}
+```
+
+The driver type stays in YAML (so `sq` can pick the right driver before
+resolving the keyring), but everything else — username, host, port,
+database, password, query parameters — lives in the keyring entry. One
+keyring entry, one source, no composition. The same layout is produced
+by [`sq config keyring migrate`](/docs/cmd/config-keyring-migrate).
+
+For shared credentials or password-only composition (e.g.
+`postgres://alice:${keyring:my_db_pw}@db/sakila`), hand-create an entry
+with a meaningful path: `sq config keyring create my_db_pw`.
+
+## Verifying a source
+
+Once a source uses placeholders, the obvious question is "did sq actually
+resolve them correctly?" The answer is [`sq ping`](/docs/cmd/ping):
+
+```shell
+$ sq ping @sakila/pg
+@sakila/pg  130ms  pong
+```
+
+`sq ping` opens a real connection, which forces full resolution of every
+placeholder in the source's location. If a keyring entry is missing, an
+env var is unset, or a file path doesn't exist, `sq ping` returns the
+underlying error with the failing source's handle. There is no separate
+`verify` or `test` subcommand: `sq ping` is the end-to-end check.
+
+## Threat model
+
+The keyring scheme is a useful step up from plaintext in `sq.yml`, but it
+is not a sandbox. The threats it does — and does not — address:
+
+**Protects against:**
+
+- Accidentally committing `sq.yml` to git with plaintext credentials.
+- Plaintext credentials sitting unprotected on disk in `~/.config/sq/sq.yml`.
+- Casual inspection of `sq.yml` by a sibling process or backup tool that
+  doesn't also have the user's keyring unlocked.
+
+**Does not protect against:**
+
+- A compromised user account: anything running as the user can read the
+  user's keyring once it is unlocked.
+- Malware in the user's session: it sees the same keyring `sq` does.
+- A user who runs `sq config keyring get --reveal` or
+  `sq config export --expand` and pipes the output somewhere unsafe.
+- Memory inspection: while a source is connected, the resolved conn string
+  exists in `sq`'s process memory.
+
+For the higher bar (per-application secrets, hardware-backed keys, rotated
+short-lived credentials), an external secret manager — referenced via the
+`env` or `file` scheme from CI / container runtime — is the right answer.
+The `keyring` scheme targets the dev-laptop case.
+
+## Related
+
+- [`sq config keyring`](/docs/cmd/config-keyring): keyring command group.
+- [`sq add`](/docs/cmd/add): the `--store inline|keyring` flag.
+- [`sq config export`](/docs/cmd/config-export): the `--expand` flag.
+- [`secrets.store`](/docs/config#secretsstore): default storage backend config.
+- [`redact`](/docs/config#redact): persistent redaction control config.

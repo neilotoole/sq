@@ -1,0 +1,71 @@
+View and manage entries in the OS keyring that source locations
+reference via ${keyring:<id>} placeholders.
+
+Source location fields may contain ${scheme:path} placeholders that are
+resolved at connect time. sq ships with three resolver schemes:
+
+  keyring   OS keyring (macOS Keychain, Windows Credential Manager,
+            Secret Service on Linux). Read and write.
+  env       Environment variable. Read-only at connect time.
+  file      File contents (single trailing newline trimmed). Read-only.
+            Path must be absolute, start with ~/ (current user's home),
+            or use the empty-authority file URI form (file:///path).
+            Relative and remote (file://host/path) forms are rejected.
+
+This command group manages the keyring scheme only. 'env' and 'file'
+references are external — sq reads them at connect time but does not
+write to them. Use 'sq ping' to verify end-to-end that env/file refs
+resolve correctly.
+
+Examples of placeholder forms in a source's Location:
+
+  location: postgres://alice:${keyring:j2k7m3pxtz}@db/sakila
+  location: postgres://alice:${env:DB_PROD_PASSWORD}@db/sakila
+  location: postgres://alice:${file:/run/secrets/db_prod_pw}@db/sakila
+  location: postgres://alice:${file:~/.sq/db_prod_pw}@db/sakila
+  location: postgres://alice:${file:///run/secrets/db_prod_pw}@db/sakila
+
+Usage:
+  sq config keyring
+  sq config keyring [command]
+
+Examples:
+  # List keyring paths referenced by sources
+  $ sq config keyring ls
+
+  # Create a new keyring entry, prompting for the value
+  $ sq config keyring create my_db_pw -p
+
+  # Rotate an existing entry
+  $ sq config keyring update my_db_pw -p
+
+  # Migrate inline passwords into the keyring
+  $ sq config keyring migrate --all
+
+Available Commands:
+  ls          List keyring paths referenced by sources
+  create      Create a new keyring entry
+  update      Update an existing keyring entry
+  get         Get a keyring secret
+  rm          Delete a keyring secret
+  migrate     Migrate inline-credential sources to the keyring
+
+Flags:
+      --help   help for keyring
+
+Global Flags:
+      --config string         Load config from here
+      --debug.pprof string    pprof profiling mode (default "off")
+      --error.format string   Error output format (default "text")
+  -E, --error.stack           Print error stack trace to stderr
+      --log                   Enable logging
+      --log.file string       Log file path (default "$HOME/Library/Logs/sq/sq.log")
+      --log.format string     Log output format (text or json) (default "text")
+      --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+  -M, --monochrome            Don't print color output
+      --no-progress           Don't show progress bar
+      --no-redact             Don't redact passwords in output (deprecated, use --reveal)
+      --reveal                Show secret values in output (don't redact passwords; print keyring values)
+  -v, --verbose               Print verbose output
+
+Use "sq config keyring [command] --help" for more information about a command.

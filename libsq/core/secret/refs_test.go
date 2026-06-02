@@ -16,8 +16,8 @@ func TestExtractRefs(t *testing.T) {
 	}{
 		{
 			name: "single keyring ref",
-			in:   "postgres://alice:${keyring:@sakila/password}@db/sakila",
-			want: []secret.Ref{{Scheme: "keyring", Path: "@sakila/password"}},
+			in:   "postgres://alice:${keyring:my_db_pw}@db/sakila",
+			want: []secret.Ref{{Scheme: "keyring", Path: "my_db_pw"}},
 		},
 		{
 			name: "multiple refs across schemes",

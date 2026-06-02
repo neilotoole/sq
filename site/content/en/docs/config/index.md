@@ -375,9 +375,33 @@ $ sq src -v
 @sakila/pg12  postgres  postgres://sakila:p_ssW0rd@192.168.50.132/sakila
 ```
 
-You can also use the `--no-redact` global flag.
+You can also use the global [`--reveal`](/docs/secrets#--reveal-show-known-secrets)
+flag for a per-invocation flip. The earlier `--no-redact` flag still works
+but is deprecated; use `--reveal` in new scripts.
+
+See [Secrets](/docs/secrets) for the full picture, including how `--reveal`
+relates to [`sq config export --expand`](/docs/cmd/config-export) and the
+placeholder system.
 
 {{< readfile file="../cmd/options/redact.help.txt" code="true" lang="text" >}}
+
+### `secrets.store`
+
+Default storage backend used by [`sq add`](/docs/cmd/add) when the source URL
+carries a password: `inline` (write the URL verbatim into `sq.yml`, the
+historical default) or `keyring` (write the full conn string to the OS keyring at a
+fresh opaque ID and store a bare `${keyring:<id>}` placeholder in YAML).
+
+```shell
+# Make keyring the default for new sources
+$ sq config set secrets.store keyring
+```
+
+The `--store` flag on `sq add` overrides this option per invocation. See
+[Secrets](/docs/secrets#keyring-scheme) for the keyring scheme and the
+threat model.
+
+{{< readfile file="../cmd/options/secrets.store.help.txt" code="true" lang="text" >}}
 
 ### `result.column.rename`
 
