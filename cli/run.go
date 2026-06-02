@@ -13,6 +13,7 @@ import (
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	v0_34_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.34.0" //nolint:revive
+	v0_54_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.54.0" //nolint:revive
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/drivers/clickhouse"
@@ -87,6 +88,7 @@ func newRun(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args 
 
 	upgrades := yamlstore.UpgradeRegistry{
 		v0_34_0.Version: v0_34_0.Upgrade,
+		v0_54_0.Version: v0_54_0.Upgrade,
 	}
 
 	ctx = lg.NewContext(ctx, log)
@@ -203,7 +205,7 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 	// --no-redact is deprecated in favor of --reveal (see #717). Emit a
 	// log warning when the legacy flag is explicitly used. No stderr
 	// nudge, so existing scripts stay quiet on the user-facing side.
-	if cmdFlagChanged(ru.Cmd, OptRedact.Flag().Name) {
+	if cmdFlagChanged(ru.Cmd, flag.NoRedact) {
 		lg.FromContext(ctx).Warn(
 			"--no-redact is deprecated; use --reveal instead",
 			lga.Cmd, ru.Cmd.CommandPath())

@@ -108,11 +108,12 @@ See docs and more: https://sq.io`,
 
 	addOptionFlag(cmd.PersistentFlags(), OptMonochrome)
 	addOptionFlag(cmd.PersistentFlags(), OptProgress)
-	addOptionFlag(cmd.PersistentFlags(), OptRedact)
 	// --reveal is the canonical disclosure flag; --no-redact is its
-	// deprecated alias. The two are unioned in getOptionsFromFlags so
-	// setting either flips redaction off.
+	// deprecated alias. Neither is bound directly to OptSecretsReveal —
+	// they're free-standing pflags whose presence is detected in
+	// getOptionsFromFlags and unioned into secrets.reveal=true.
 	cmd.PersistentFlags().Bool(flag.Reveal, false, flag.RevealUsage)
+	cmd.PersistentFlags().Bool(flag.NoRedact, false, flag.NoRedactUsage)
 	addOptionFlag(cmd.PersistentFlags(), OptVerbose)
 	addOptionFlag(cmd.PersistentFlags(), pprofile.OptMode)
 	panicOn(cmd.RegisterFlagCompletionFunc(pprofile.OptMode.Flag().Name, completeStrings(

@@ -35,7 +35,7 @@ postgres string above), the password is redacted by default. Thus, that location
 would be printed as `postgres://user:xxxxx@@localhost/sakila`.
 
 You can override this behavior via the global `--reveal` flag, or by setting
-the [`redact`](/docs/config#redact) config option to `false`. See
+the [`secrets.reveal`](/docs/config#secretsreveal) config option to `true`. See
 [Secrets](/docs/secrets) for the full picture.
 {{< /alert >}}
 

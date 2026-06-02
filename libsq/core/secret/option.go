@@ -37,3 +37,29 @@ carries a password.
 
 The --store flag on sq add overrides this setting per invocation.`,
 )
+
+// OptSecretsReveal controls whether secrets (URL-style passwords in
+// source locations, stored keyring values) are printed verbatim in
+// output. When false (the default), they are redacted to "xxxxx". When
+// true, they are shown.
+//
+// The config key is "secrets.reveal"; the option can be flipped per
+// invocation with the global --reveal flag, or via the deprecated
+// --no-redact alias.
+//
+// Replaces the v0.53 "redact" option, with inverted polarity:
+// secrets.reveal = !redact. The YAML upgrade at v0.54.0 migrates
+// existing configs automatically.
+var OptSecretsReveal = options.NewBool(
+	"secrets.reveal",
+	nil,
+	false,
+	"Show secret values in output",
+	`Show secret values in output. When true, passwords in source
+locations and stored keyring values are printed verbatim; when false
+(the default), they are redacted in output that prints a location or
+keyring value.
+
+This is the persistent form of the global --reveal flag.`,
+	options.TagOutput,
+)

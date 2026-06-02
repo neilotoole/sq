@@ -71,19 +71,22 @@ func getOptionsFromFlags(flags *pflag.FlagSet, reg *options.Registry) (options.O
 		return nil, err
 	}
 
-	// --no-redact is processed by the registry walk above via its
-	// OptRedact.Flag.Invert mechanic. --reveal is a free-standing
-	// synonym (see #717): if explicitly set true, force redact=false,
-	// unioning with whatever --no-redact already wrote. Treating them
-	// as a union — not as conflicting inputs — keeps scripts that bake
-	// in --no-redact compatible with an ad-hoc --reveal on top.
-	if rev := flags.Lookup(flag.Reveal); rev != nil && rev.Changed {
-		b, getBoolErr := flags.GetBool(flag.Reveal)
+	// --reveal is the canonical disclosure flag; --no-redact is its
+	// deprecated alias (see #717). Both are free-standing pflags,
+	// detected here and unioned into secrets.reveal=true. Treating
+	// them as a union — not as conflicting inputs — lets a script
+	// baking in --no-redact compose with an ad-hoc --reveal on top.
+	for _, flagName := range []string{flag.Reveal, flag.NoRedact} {
+		fl := flags.Lookup(flagName)
+		if fl == nil || !fl.Changed {
+			continue
+		}
+		b, getBoolErr := flags.GetBool(flagName)
 		if getBoolErr != nil {
 			return nil, errz.Err(getBoolErr)
 		}
 		if b {
-			o[OptRedact.Key()] = false
+			o[secret.OptSecretsReveal.Key()] = true
 		}
 	}
 
@@ -190,7 +193,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptVerbose,
 		OptPrintHeader,
 		OptMonochrome,
-		OptRedact,
+		secret.OptSecretsReveal,
 		OptProgress,
 		OptProgressDelay,
 		OptProgressMaxBars,

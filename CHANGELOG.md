@@ -57,6 +57,13 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
+- ☢️ The `redact` config option is renamed to
+  [`secrets.reveal`](https://sq.io/docs/config#secretsreveal) with inverted polarity
+  (`secrets.reveal: true` ↔ legacy `redact: false`). The new default is `false`
+  (secrets are redacted). Existing configs are migrated automatically on first run
+  by a YAML upgrade step; scripts that call `sq config get redact` or
+  `sq config set redact ...` need updating to the new key. The rename completes the
+  polarity-consistency story started by `--reveal` in #717.
 - [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd)
   now syntax-colors its `erDiagram` source when writing to a terminal.
 

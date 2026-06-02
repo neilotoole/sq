@@ -75,18 +75,19 @@ whether the stored value is printed.
 itself, not the keyring value. Use [`sq config keyring get`](/docs/cmd/config-keyring-get)
 to inspect a keyring value directly.
 
-### `redact` config option
+### `secrets.reveal` config option
 
-The [`redact`](/docs/config#redact) config option (default `true`) controls
-the same behavior persistently:
+The [`secrets.reveal`](/docs/config#secretsreveal) config option (default
+`false`) controls the same behavior persistently:
 
 ```shell
 # Turn off redaction for this user, persistently
-$ sq config set redact false
+$ sq config set secrets.reveal true
 ```
 
 `--reveal` is the per-invocation form of the same control. Setting
-`redact: false` is equivalent to passing `--reveal` on every command.
+`secrets.reveal: true` is equivalent to passing `--reveal` on every
+command.
 
 <a id="--no-redact"></a>
 {{< alert icon="👉" >}}
@@ -353,4 +354,4 @@ The `keyring` scheme targets the dev-laptop case.
 - [`sq add`](/docs/cmd/add): the `--store inline|keyring` flag.
 - [`sq config export`](/docs/cmd/config-export): the `--expand` flag.
 - [`secrets.store`](/docs/config#secretsstore): default storage backend config.
-- [`redact`](/docs/config#redact): persistent redaction control config.
+- [`secrets.reveal`](/docs/config#secretsreveal): persistent disclosure control config.
