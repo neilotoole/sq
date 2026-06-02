@@ -6,9 +6,9 @@
 ![Main pipeline](https://github.com/neilotoole/sq/actions/workflows/main.yml/badge.svg)
 [![codecov](https://codecov.io/gh/neilotoole/sq/graph/badge.svg)](https://codecov.io/gh/neilotoole/sq)
 
-`sq` is a command line tool that provides jq-style access to
+`sq` is a command line tool that provides [jq](https://jqlang.org)-style access to
 structured data sources: SQL databases, or document formats like CSV or Excel.
-It is the lovechild of sql+jq.
+It is the lovechild of SQL+jq.
 
 ![sq](site/static/images/repo/splash.png)
 
@@ -57,15 +57,6 @@ jsona       JSON Array: LF-delimited JSON arrays
 jsonl       JSON Lines: LF-delimited JSON objects
 xlsx        Microsoft Excel XLSX
 ```
-
-> [!NOTE]
-> ClickHouse Driver support is currently in beta. Full details of support can be
-> found in the [ClickHouse README](drivers/clickhouse/README.md).
->
-> [!NOTE]
-> **Oracle Driver (Experimental):** Oracle Database support is experimental.
-> The driver uses pure Go ([go-ora](https://github.com/sijms/go-ora)) and does
-> not require Oracle Instant Client. See the [Oracle driver docs](drivers/oracle/README.md) for setup.
 
 ## Install
 
@@ -144,7 +135,7 @@ Quick install from GitHub:
 npx skills add neilotoole/sq
 ```
 
-## Documentation site (sq.io)
+## Documentation site ([sq.io](https://sq.io))
 
 User-facing docs at [sq.io](https://sq.io) are built from the [`site/`](./site/) directory
 in this repository (Hugo + Bun + Netlify). To work on the website locally, see
