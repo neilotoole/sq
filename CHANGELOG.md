@@ -35,7 +35,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   - With `--store keyring`, the entire conn string is written to the OS keyring at a fresh opaque ID
     and the YAML location becomes a bare `${keyring:<id>}` placeholder, e.g. `location: ${keyring:3d28xd3jcr}`.
   - Source `location` fields now support
-    [`${scheme:path}` placeholders](https://sq.io/docs/secrets#placeholders-schemepath) that are
+    [`${scheme:path}` placeholders](https://sq.io/docs/secrets#placeholders) that are
     resolved at connect time. Shipped schemes:
     - `keyring`: OS keychain, managed via `sq config keyring`.
     - `env`: environment variable, e.g. `${env:DB_PROD_PW}` or `${env:DB_CONN_STR}`.

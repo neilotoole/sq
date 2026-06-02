@@ -21,6 +21,14 @@ A source has three main elements:
 - _**location:**_ such as `postgres://user:p_ssW0rd@localhost/sakila`. For
   a document source, _location_ may just be a file path, e.g. `/Users/neilotoole/sakila.csv`.
 
+In the `sq.yml` [config](/docs/config) file, these elements manifest as:
+
+```yaml
+- handle: '@sakila_pg'
+  driver: postgres
+  location: postgres://user:p_ssW0rd@localhost/sakila
+```
+
 {{< alert icon="👉" >}}
 When `sq` prints a location containing security credentials (such as the password in the
 postgres string above), the password is redacted by default. Thus, that location string
@@ -41,7 +49,7 @@ location: postgres://alice:${env:DB_PROD_PASSWORD}@db/sakila
 location: postgres://alice:${file:/run/secrets/db_pw}@db/sakila
 ```
 
-See [Secrets](/docs/secrets#placeholders-schemepath) for the placeholder
+See [Secrets](/docs/secrets#placeholders) for the placeholder
 grammar, the three shipped schemes, and how to migrate inline-credential
 sources to the keyring with
 [`sq add --store keyring`](/docs/cmd/add) or
