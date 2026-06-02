@@ -74,8 +74,15 @@ func getOptionsFromFlags(flags *pflag.FlagSet, reg *options.Registry) (options.O
 	// --reveal is the canonical disclosure flag; --no-redact is its
 	// deprecated alias (see #717). Both are free-standing pflags,
 	// detected here and unioned into secrets.reveal=true. Treating
-	// them as a union — not as conflicting inputs — lets a script
+	// them as a union (not as conflicting inputs) lets a script
 	// baking in --no-redact compose with an ad-hoc --reveal on top.
+	//
+	// Explicit false (--reveal=false, --no-redact=false) is a no-op:
+	// the flags are positive opt-ins, and the config or default value
+	// wins. This differs from the pre-v0.54 --no-redact, which via
+	// its Invert binding would explicitly set redact=true. To force
+	// redaction when secrets.reveal is true in config, override it
+	// via 'sq config set secrets.reveal false'.
 	for _, flagName := range []string{flag.Reveal, flag.NoRedact} {
 		fl := flags.Lookup(flagName)
 		if fl == nil || !fl.Changed {

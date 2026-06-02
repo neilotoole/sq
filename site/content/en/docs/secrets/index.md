@@ -178,11 +178,16 @@ location: postgres://alice:${env:DB_PW}@db.acme.com/sakila
 ### URL encoding
 
 When a placeholder lands inside URL userinfo (the `user:password@host` part),
-the **resolved value** must be acceptable in that position. If your password
-contains characters URL-reserves (`@`, `:`, `/`, `?`, `#`, `&`, `+`, `%`, etc.),
-either URL-encode them in the stored value or use whole-conn-string placement
-so the entire URL comes from the resolver and you don't have to worry about
-mid-URL escaping.
+`sq` automatically percent-encodes the resolved value so that characters
+URL-reserves (`@`, `:`, `/`, `?`, `#`, `&`, `+`, `%`, etc.) round-trip
+correctly. Store the raw, unencoded password in the resolver; do not
+pre-encode it, or you'll end up with a double-encoded value at connect
+time.
+
+Whole-conn-string placement (`location: ${keyring:abc}`) skips userinfo
+splicing entirely: the resolved value is used as the complete location
+string, so the resolver is responsible for any escaping the driver
+requires.
 
 ### `keyring` scheme
 

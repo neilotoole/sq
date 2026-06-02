@@ -3,6 +3,8 @@ package v0_54_0 //nolint:revive
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
@@ -18,14 +20,20 @@ const Version = "v0.54.0"
 // the top-level options map and to each source's per-source options.
 //
 // Cases:
-//   - redact: true (the historical default) → drop the key. The new
+//   - redact: true (the historical default): drop the key. The new
 //     option's default is secrets.reveal: false, which means the same
 //     thing (redaction on). Leaving the key absent keeps the config
 //     minimal.
-//   - redact: false → write secrets.reveal: true.
-//   - Already-migrated configs (no "redact" key) → no-op.
+//   - redact: false: write secrets.reveal: true.
+//   - redact set to a non-bool value (corrupt): drop the key and warn.
+//     The new option falls back to its default (redaction on).
+//   - Already-migrated configs (no "redact" key): no-op for that map.
 //
-// The "config.version" field is set to v0.54.0.
+// A corrupt shape for the top-level "options" or "collection" entries
+// (present but not a map) returns an error rather than silently
+// skipping, matching the precedent set by the v0.34.0 upgrade.
+//
+// The "config.version" field is set to v0.54.0 on success.
 func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
 	log := lg.FromContext(ctx)
 	log.Info("Starting config upgrade step", lga.To, Version)
@@ -35,19 +43,39 @@ func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
 		return nil, errz.Wrap(err, "failed to unmarshal config")
 	}
 
-	if opts, ok := m["options"].(map[string]any); ok {
-		translateRedact(opts)
+	if raw, present := m["options"]; present {
+		opts, ok := raw.(map[string]any)
+		if !ok {
+			return nil, errz.Errorf("corrupt config: invalid 'options' field (want map, got %T)", raw)
+		}
+		translateRedact(log, opts, "options")
 	}
 
-	if collection, ok := m["collection"].(map[string]any); ok {
-		if sources, ok := collection["sources"].([]any); ok {
-			for i, raw := range sources {
-				src, ok := raw.(map[string]any)
+	if raw, present := m["collection"]; present {
+		collection, ok := raw.(map[string]any)
+		if !ok {
+			return nil, errz.Errorf("corrupt config: invalid 'collection' field (want map, got %T)", raw)
+		}
+		if rawSources, present := collection["sources"]; present {
+			sources, ok := rawSources.([]any)
+			if !ok {
+				return nil, errz.Errorf("corrupt config: invalid 'collection.sources' field (want list, got %T)", rawSources)
+			}
+			for i, rawSrc := range sources {
+				src, ok := rawSrc.(map[string]any)
 				if !ok {
 					return nil, errz.Errorf("corrupt config: invalid 'collection.sources[%d]' field", i)
 				}
-				if srcOpts, ok := src["options"].(map[string]any); ok {
-					translateRedact(srcOpts)
+				if rawSrcOpts, present := src["options"]; present {
+					srcOpts, ok := rawSrcOpts.(map[string]any)
+					if !ok {
+						return nil, errz.Errorf(
+							"corrupt config: invalid 'collection.sources[%d].options' field (want map, got %T)",
+							i, rawSrcOpts)
+					}
+					handle, _ := src["handle"].(string)
+					ctxLabel := fmt.Sprintf("collection.sources[%d] (%s)", i, handle)
+					translateRedact(log, srcOpts, ctxLabel)
 				}
 			}
 		}
@@ -65,21 +93,33 @@ func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
 }
 
 // translateRedact applies the redact → secrets.reveal flip in-place
-// on the given options map. If "redact" is absent, the map is left
-// alone. If "redact" is true (matching the new default), the key is
-// dropped; if false, "secrets.reveal" is set to true.
-func translateRedact(opts map[string]any) {
-	raw, ok := opts["redact"]
-	if !ok {
+// on the given options map. ctxLabel identifies the map for log
+// messages (e.g. "options" or "collection.sources[2] (@prod/pg)").
+// Behavior:
+//   - "redact" absent: no-op.
+//   - "redact" true: key dropped (matches new default secrets.reveal:
+//     false).
+//   - "redact" false: write "secrets.reveal": true.
+//   - "redact" present but not a bool: drop the key, log a warning,
+//     and fall back to the new default. This shouldn't happen for a
+//     typed option, but if a hand-edited config introduces a bad
+//     value, surfacing it in the log lets the user understand why
+//     redaction behavior may have changed after the upgrade.
+func translateRedact(log *slog.Logger, opts map[string]any, ctxLabel string) {
+	raw, present := opts["redact"]
+	if !present {
 		return
 	}
 	delete(opts, "redact")
 
 	redact, ok := raw.(bool)
 	if !ok {
-		// Non-bool value (shouldn't happen for a typed option, but be
-		// defensive). Dropping the unrecognized value is the safest
-		// move; the new option will fall back to its default.
+		log.Warn(
+			"config upgrade: dropping non-bool 'redact' value; falling back to secrets.reveal default",
+			lga.Key, "redact",
+			lga.Loc, ctxLabel,
+			lga.Val, fmt.Sprintf("%T:%v", raw, raw),
+		)
 		return
 	}
 	if !redact {

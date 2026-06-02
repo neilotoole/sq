@@ -687,9 +687,10 @@ func TestSource_ShortLocation(t *testing.T) {
 		require.Equal(t, loc, src.ShortLocation())
 	})
 	t.Run("placeholder_keyring_with_slash_in_body", func(t *testing.T) {
-		// Hand-managed legacy form: ${keyring:@handle/password}.
-		// The '/' in the body must not trip filepath.Base.
-		const loc = "${keyring:my_db_pw}"
+		// Hand-crafted path with embedded '/' (shared namespacing,
+		// e.g. team/env/role). The '/' in the body must not trip
+		// filepath.Base.
+		const loc = "${keyring:acme/prod/db_pw}"
 		src := &source.Source{Location: loc}
 		require.Equal(t, loc, src.ShortLocation())
 	})

@@ -109,9 +109,14 @@ See docs and more: https://sq.io`,
 	addOptionFlag(cmd.PersistentFlags(), OptMonochrome)
 	addOptionFlag(cmd.PersistentFlags(), OptProgress)
 	// --reveal is the canonical disclosure flag; --no-redact is its
-	// deprecated alias. Neither is bound directly to OptSecretsReveal —
-	// they're free-standing pflags whose presence is detected in
+	// deprecated alias. Neither is bound directly to OptSecretsReveal.
+	// Both are free-standing pflags whose presence is detected in
 	// getOptionsFromFlags and unioned into secrets.reveal=true.
+	// Explicit false (--reveal=false, --no-redact=false) is a no-op:
+	// the flags are positive opt-ins to disclosure, and a leftover
+	// config or default value wins. To force redaction when
+	// secrets.reveal is true in config, override it via
+	// 'sq config set secrets.reveal false'.
 	cmd.PersistentFlags().Bool(flag.Reveal, false, flag.RevealUsage)
 	cmd.PersistentFlags().Bool(flag.NoRedact, false, flag.NoRedactUsage)
 	addOptionFlag(cmd.PersistentFlags(), OptVerbose)

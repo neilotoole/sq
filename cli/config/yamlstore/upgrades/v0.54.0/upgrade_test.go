@@ -14,6 +14,7 @@ import (
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	v0_34_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.34.0" //nolint:revive
 	v0_54_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.54.0" //nolint:revive
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -93,4 +94,98 @@ func TestUpgrade(t *testing.T) {
 	wantLines := strings.Split(strings.TrimSpace(string(wantCfgRaw)), "\n")
 	gotLines := strings.Split(strings.TrimSpace(string(gotCfgRaw)), "\n")
 	require.Equal(t, wantLines, gotLines)
+}
+
+// TestUpgrade_NoRedactKey_IsIdempotent verifies that running Upgrade
+// against a config that has no "redact" key (whether already-migrated
+// or never had one) leaves the user-visible options untouched. Only
+// the config.version stamp changes.
+func TestUpgrade_NoRedactKey_IsIdempotent(t *testing.T) {
+	log := lgt.New(t)
+	ctx := lg.NewContext(context.Background(), log)
+
+	in := []byte(`config.version: v0.53.0
+options:
+  format: json
+  secrets.reveal: true
+collection:
+  active.source: "@prod/pg"
+  sources:
+  - handle: "@prod/pg"
+    driver: postgres
+    location: postgres://sakila:p_ssW0rd@localhost/sakila
+`)
+
+	out, err := v0_54_0.Upgrade(ctx, in)
+	require.NoError(t, err)
+
+	var m map[string]any
+	require.NoError(t, ioz.UnmarshallYAML(out, &m))
+
+	require.Equal(t, v0_54_0.Version, m["config.version"],
+		"config.version is stamped")
+
+	opts, ok := m["options"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, true, opts["secrets.reveal"],
+		"existing secrets.reveal:true must survive untouched")
+	require.NotContains(t, opts, "redact",
+		"no spurious 'redact' key should appear")
+}
+
+// TestUpgrade_NonBoolRedact_DropsAndWarns verifies that a corrupt
+// (non-bool) value for "redact" is dropped without erroring out.
+// The user-visible effect is that secrets.reveal falls back to its
+// default; the runtime logs a warning at upgrade time so a
+// post-upgrade redaction-behavior change can be traced.
+func TestUpgrade_NonBoolRedact_DropsAndWarns(t *testing.T) {
+	log := lgt.New(t)
+	ctx := lg.NewContext(context.Background(), log)
+
+	in := []byte(`config.version: v0.53.0
+options:
+  format: json
+  redact: "true"
+collection:
+  active.source: "@prod/pg"
+  sources:
+  - handle: "@prod/pg"
+    driver: postgres
+    location: postgres://alice:p_ssW0rd@localhost/sakila
+    options:
+      redact: 42
+`)
+
+	out, err := v0_54_0.Upgrade(ctx, in)
+	require.NoError(t, err, "upgrade should not error on a non-bool redact value")
+
+	var m map[string]any
+	require.NoError(t, ioz.UnmarshallYAML(out, &m))
+
+	opts := m["options"].(map[string]any)
+	require.NotContains(t, opts, "redact",
+		"top-level non-bool 'redact' must be dropped")
+	require.NotContains(t, opts, "secrets.reveal",
+		"non-bool 'redact' must fall back to default, not write secrets.reveal")
+
+	srcOpts := m["collection"].(map[string]any)["sources"].([]any)[0].(map[string]any)["options"].(map[string]any)
+	require.NotContains(t, srcOpts, "redact",
+		"per-source non-bool 'redact' must be dropped")
+	require.NotContains(t, srcOpts, "secrets.reveal")
+}
+
+// TestUpgrade_CorruptOptionsShape verifies that a present-but-wrong-
+// shape "options" entry surfaces as an error rather than silently
+// stamping config.version and skipping the redact translation.
+func TestUpgrade_CorruptOptionsShape(t *testing.T) {
+	log := lgt.New(t)
+	ctx := lg.NewContext(context.Background(), log)
+
+	in := []byte(`config.version: v0.53.0
+options: "not a map"
+`)
+
+	_, err := v0_54_0.Upgrade(ctx, in)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "corrupt config")
 }

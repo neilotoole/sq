@@ -47,9 +47,9 @@ The --store flag on sq add overrides this setting per invocation.`,
 // invocation with the global --reveal flag, or via the deprecated
 // --no-redact alias.
 //
-// Replaces the v0.53 "redact" option, with inverted polarity:
-// secrets.reveal = !redact. The YAML upgrade at v0.54.0 migrates
-// existing configs automatically.
+// Replaces the legacy "redact" option, with inverted polarity:
+// secrets.reveal = !redact. A YAML upgrade step migrates existing
+// configs automatically.
 var OptSecretsReveal = options.NewBool(
 	"secrets.reveal",
 	nil,

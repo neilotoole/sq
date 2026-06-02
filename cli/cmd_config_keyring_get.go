@@ -3,8 +3,8 @@ package cli
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/secret/keyring"
 )
 
@@ -46,6 +46,15 @@ func execConfigKeyringGet(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	revealed := cmdFlagIsSetTrue(cmd, flag.Reveal)
+	// Honor both the global --reveal flag and the persistent
+	// secrets.reveal config option. getOptionsFromCmd merges config
+	// options with the flag-union state (see getOptionsFromFlags),
+	// so a user with secrets.reveal:true in config sees the value
+	// without needing --reveal on every invocation.
+	opts, err := getOptionsFromCmd(cmd)
+	if err != nil {
+		return err
+	}
+	revealed := secret.OptSecretsReveal.Get(opts)
 	return ru.Writers.Keyring.Get(path, value, revealed)
 }
