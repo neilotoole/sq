@@ -375,7 +375,7 @@ $ sq src -v
 @sakila/pg12  postgres  postgres://sakila:p_ssW0rd@192.168.50.132/sakila
 ```
 
-You can also use the global [`--reveal`](/docs/secrets#--reveal-show-known-secrets)
+You can also use the global [`--reveal`](/docs/secrets#redact--reveal)
 flag for a per-invocation flip. The earlier `--no-redact` flag still works
 but is deprecated; use `--reveal` in new scripts.
 

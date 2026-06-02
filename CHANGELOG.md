@@ -24,7 +24,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   YAML, primarily for backups. See [Secrets](https://sq.io/docs/secrets) for the bigger picture.
   - By default, output is a faithful-ish copy of the live config: `${scheme:path}` placeholders are
     written verbatim.
-  - With [`--expand`](https://sq.io/docs/secrets#--expand-fetch-and-substitute), every placeholder is
+  - With [`--expand`](https://sq.io/docs/secrets#substitution), every placeholder is
     fetched from its resolver (`keyring`, `env`, or `file`) and the resolved value is spliced
     in-line: a self-contained snapshot at the cost of writing every referenced secret in
     plaintext (which is exactly the point of `--expand`).
@@ -50,7 +50,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   (`--format=svg-erd` / `--format=png-erd`).
   - The diagram is laid out and rendered natively via an embedded [Graphviz](https://graphviz.org)
     engine, so image export needs no external tool, browser, or network.
-- [#717]: New global [`--reveal`](https://sq.io/docs/secrets#--reveal-show-known-secrets) flag opts
+- [#717]: New global [`--reveal`](https://sq.io/docs/secrets#redact--reveal) flag opts
   into showing secret values in output.
   - It supersedes the legacy `--no-redact` (still functional, now marked deprecated, will be removed
     at some point in the future).

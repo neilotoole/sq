@@ -12,7 +12,7 @@ url: /docs/cmd/config-export
 ---
 `sq config export` dumps the active config to YAML for backups. The export
 covers the source collection, config options, and active source/group
-state — the same content `sq` reads from `~/.config/sq/sq.yml`.
+state: the same content `sq` reads from its [config file](/docs/config#location).
 
 By default, the export is a faithful copy of the live config:
 `${scheme:path}` placeholders are written verbatim and inline values are
@@ -28,10 +28,10 @@ $ sq config export -o sq.bak.yml
 
 ## `--expand`
 
-`--expand` resolves every `${scheme:path}` placeholder (keyring, env, file)
-and splices the fetched value into the exported `location`. The result is a
-fully self-contained snapshot suitable for moving between machines, at the
-cost of writing every referenced secret in plaintext.
+`--expand` resolves every `${scheme:path}` [placeholder](/docs/secrets#placeholders) (`keyring`,
+`env`, `file`) and splices the fetched value into the exported `location`. The result is a fully
+self-contained snapshot suitable for moving between machines, at the cost of writing every
+referenced secret in plaintext (which is the intent of `--expand` anyway).
 
 ```shell
 $ sq config export --expand -o sq.bak.yml
@@ -42,7 +42,7 @@ the export errors with the failing source's handle.
 
 For the broader picture — how `--expand` differs from `--reveal`, the
 placeholder grammar, and the threat model — see
-[Secrets](/docs/secrets#--expand-fetch-and-substitute).
+[Secrets](/docs/secrets#substitution).
 
 See the [config](/docs/config) section for an overview of `sq`
 configuration.

@@ -29,18 +29,16 @@ By default:
 
 Two global flags opt out of those defaults; they do different things:
 
-| Flag                                              | What it does                                                                                              | Where it applies                                                              |
-|---------------------------------------------------|-----------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------|
-| [`--reveal`](#--reveal-show-known-secrets)        | Stop redacting secrets in display output. Show data that `sq` already has in hand.                        | Global. Any command that prints a source location or a keyring entry's value. |
-| [`--expand`](#--expand-fetch-and-substitute)      | Resolve `${scheme:path}` placeholders and splice the fetched values into the output.                      | [`sq config export`](/docs/cmd/config-export) only.                           |
+| Flag                                                                                              | What it does                                                                         | Where it applies                                                              |
+|---------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|-------------------------------------------------------------------------------|
+| <a href="#redact--reveal" style="white-space:nowrap">`--reveal`</a>                               | Don't redact secrets in display output. Show data that `sq` already has in hand.     | Global. Any command that prints a source location or a keyring entry's value. |
+| <a href="#substitution" style="white-space:nowrap">`--expand`</a>                                 | Resolve `${scheme:path}` placeholders and splice the fetched values into the output. | [`sq config export`](/docs/cmd/config-export) only.                           |
 
 `--reveal` shows you something `sq` already knows. `--expand` makes `sq` go
 fetch something it doesn't currently hold. Both can expose plaintext, but
 the security implications are different — see each section below.
 
-<a id="--reveal-show-known-secrets"></a>
-
-## Redaction
+## Redact & reveal
 
 `sq` redacts URL-style passwords in the location of a source when that
 location is printed. For a source
@@ -90,13 +88,12 @@ $ sq config set redact false
 `--reveal` is the per-invocation form of the same control. Setting
 `redact: false` is equivalent to passing `--reveal` on every command.
 
-### `--no-redact` (deprecated)
-
+<a id="--no-redact"></a>
+{{< alert icon="👉" >}}
 The earlier flag `--no-redact` still works, but is deprecated and prints a
 deprecation hint. Use `--reveal` in new scripts. Both flags do the same
-thing; `--no-redact` will be removed in a future major release.
-
-<a id="--expand-fetch-and-substitute"></a>
+thing; `--no-redact` will be removed in a future release.
+{{< /alert >}}
 
 ## Substitution
 
@@ -188,11 +185,23 @@ mid-URL escaping.
 
 ### `keyring` scheme
 
-`${keyring:<path>}` reads from the OS keyring:
+An *OS keyring* is the operating system's encrypted credential store, unlocked
+by the user's login session and reachable by apps running as that user.
+Storing a secret there keeps it off disk in plaintext while letting `sq`
+fetch it at connect time. Every major OS ships one, under a different name:
 
-- **macOS:** Keychain
-- **Windows:** Credential Manager
-- **Linux:** Secret Service (GNOME Keyring, KWallet, etc.)
+- **macOS:** [Keychain][keychain]
+- **Windows:** [Credential Manager][cred-mgr]
+- **Linux:** [Secret Service][secret-svc] ([GNOME Keyring][gnome-keyring], [KWallet][kwallet], etc.)
+
+`${keyring:<path>}` reads from whichever of these is active on the host
+running `sq`.
+
+[keychain]: https://support.apple.com/guide/keychain-access/welcome/mac
+[cred-mgr]: https://learn.microsoft.com/en-us/windows/win32/secauthn/credential-manager
+[secret-svc]: https://specifications.freedesktop.org/secret-service-spec/latest/
+[gnome-keyring]: https://wiki.gnome.org/Projects/GnomeKeyring
+[kwallet]: https://apps.kde.org/kwalletmanager5/
 
 `sq` ships read **and** write commands for the keyring under
 [`sq config keyring`](/docs/cmd/config-keyring). Typical usage is
