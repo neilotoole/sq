@@ -3,6 +3,9 @@ package cli
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -10,6 +13,7 @@ import (
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -193,4 +197,94 @@ func TestMaybeExpandSource_FlagSet_LenientOnResolverError(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "${keyring:abc}", got.Location,
 		"unresolvable placeholder must be left verbatim")
+}
+
+func TestMaybeExpandCollection_ParseErrorPropagates(t *testing.T) {
+	ru := newTestRun(t, nil)
+	cmd := newCmdWithExpand(t, true)
+
+	coll := &source.Collection{}
+	require.NoError(t, coll.Add(&source.Source{
+		Handle:   "@bad",
+		Type:     drivertype.Pg,
+		Location: "${malformed", // unclosed brace: parse error.
+	}))
+
+	_, err := maybeExpandCollection(context.Background(), ru, cmd, coll)
+	require.Error(t, err, "malformed placeholder must surface as an error")
+	require.Contains(t, err.Error(), "@bad",
+		"error message must include the source handle")
+}
+
+func TestMaybeExpandSource_ParseErrorPropagates(t *testing.T) {
+	ru := newTestRun(t, nil)
+	cmd := newCmdWithExpand(t, true)
+
+	src := &source.Source{
+		Handle:   "@bad",
+		Type:     drivertype.Pg,
+		Location: "${malformed", // unclosed brace: parse error.
+	}
+
+	_, err := maybeExpandSource(context.Background(), ru, cmd, src)
+	require.Error(t, err, "malformed placeholder must surface as an error")
+	require.Contains(t, err.Error(), "@bad",
+		"error message must include the source handle")
+}
+
+// captureHandler is a minimal slog.Handler that records log entries for
+// test assertions. It captures all levels.
+type captureHandler struct {
+	mu      sync.Mutex
+	records []slog.Record
+}
+
+func (h *captureHandler) Enabled(_ context.Context, _ slog.Level) bool { return true }
+
+func (h *captureHandler) Handle(_ context.Context, r slog.Record) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.records = append(h.records, r)
+	return nil
+}
+
+func (h *captureHandler) WithAttrs(_ []slog.Attr) slog.Handler {
+	// Simplified: ignore attrs for test purposes.
+	return h
+}
+
+func (h *captureHandler) WithGroup(_ string) slog.Handler { return h }
+
+func (h *captureHandler) hasMessage(msg string) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for _, r := range h.records {
+		if strings.Contains(r.Message, msg) {
+			return true
+		}
+	}
+	return false
+}
+
+func TestMaybeExpandCollection_DebugLogsSwallowedError(t *testing.T) {
+	ru := newTestRun(t, map[string]string{
+		// "abc" intentionally not set, so the resolver returns ErrNotFound.
+	})
+	cmd := newCmdWithExpand(t, true)
+
+	coll := &source.Collection{}
+	require.NoError(t, coll.Add(&source.Source{
+		Handle:   "@missing",
+		Type:     drivertype.Pg,
+		Location: "${keyring:abc}",
+	}))
+
+	handler := &captureHandler{}
+	log := slog.New(handler)
+	ctx := lg.NewContext(context.Background(), log)
+
+	_, err := maybeExpandCollection(ctx, ru, cmd, coll)
+	require.NoError(t, err, "resolver miss must still be swallowed")
+	require.True(t, handler.hasMessage("expand: leaving placeholder verbatim"),
+		"swallowed resolver error must emit a debug log entry")
 }

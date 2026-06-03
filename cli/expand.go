@@ -9,6 +9,9 @@ import (
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -38,14 +41,26 @@ func maybeExpandCollection(ctx context.Context, ru *run.Run, cmd *cobra.Command,
 
 	clone := coll.Clone()
 	for _, src := range clone.Sources() {
+		// Validate placeholder syntax upfront. Parse errors are user config
+		// bugs (e.g. "${env}" missing the colon) and must surface so the
+		// user can fix them; swallowing them silently would hide a config
+		// break behind the lenient-resolver fallback below. cmd_add does the
+		// same dance for added sources.
+		if _, parseErr := secret.ExtractRefs(src.Location); parseErr != nil {
+			return nil, errz.Wrapf(parseErr, "expand %s", src.Handle)
+		}
 		resolved, err := ru.SecretRegistry.Expand(ctx, src.Location)
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return nil, errz.Err(err)
 			}
-			// Lenient: leave the placeholder verbatim so the user can
-			// still read "what would have resolved here". No stderr
-			// noise: the verbatim placeholder is the signal.
+			// Lenient resolver failure: keep the placeholder verbatim and
+			// log at debug level. The verbatim value is the user-visible
+			// signal in default output; the debug log is for operators
+			// running with SQ_LOG=debug.
+			lg.FromContext(ctx).Debug("expand: leaving placeholder verbatim",
+				lga.Src, src.Handle,
+				lga.Err, err)
 			continue
 		}
 		src.Location = resolved
@@ -64,12 +79,26 @@ func maybeExpandSource(ctx context.Context, ru *run.Run, cmd *cobra.Command,
 		return src, nil
 	}
 
+	// Validate placeholder syntax upfront. Parse errors are user config
+	// bugs (e.g. "${env}" missing the colon) and must surface so the
+	// user can fix them; swallowing them silently would hide a config
+	// break behind the lenient-resolver fallback below.
+	if _, parseErr := secret.ExtractRefs(src.Location); parseErr != nil {
+		return nil, errz.Wrapf(parseErr, "expand %s", src.Handle)
+	}
 	clone := src.Clone()
 	resolved, err := ru.SecretRegistry.Expand(ctx, clone.Location)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return nil, errz.Err(err)
 		}
+		// Lenient resolver failure: keep the placeholder verbatim and
+		// log at debug level. The verbatim value is the user-visible
+		// signal in default output; the debug log is for operators
+		// running with SQ_LOG=debug.
+		lg.FromContext(ctx).Debug("expand: leaving placeholder verbatim",
+			lga.Src, src.Handle,
+			lga.Err, err)
 		return clone, nil
 	}
 	clone.Location = resolved
