@@ -22,16 +22,19 @@ package rqlite
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log/slog"
 	"net/url"
 	"strings"
 
 	_ "github.com/rqlite/gorqlite/stdlib" // Import for side effect of registering the "rqlite" sql driver.
 
+	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/jointype"
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/langz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -207,11 +210,31 @@ func placeholders(numCols, numRows int) string {
 	return strings.Join(rows, driver.Comma)
 }
 
-// Renderer implements driver.SQLDriver. The minimal version uses the
-// default renderer; the SLQ function overrides (contains, like, etc.)
-// land with the read-path work.
+// Renderer implements driver.SQLDriver. The SLQ function overrides
+// mirror the sqlite3 driver's since rqlite executes SQLite SQL.
 func (d *driveri) Renderer() *render.Renderer {
-	return render.NewDefaultRenderer()
+	r := render.NewDefaultRenderer()
+
+	// rqlite/SQLite has no real concept of schemas or catalogs; surface
+	// the same conventional values the sqlite3 driver uses so the
+	// rendered SQL doesn't fail on `schema()` / `catalog()`.
+	const schemaFrag = `(SELECT name FROM pragma_database_list ORDER BY seq limit 1)`
+	r.FunctionOverrides[ast.FuncNameSchema] = render.FuncOverrideString(schemaFrag)
+	const catalogFrag = `(SELECT 'default')`
+	r.FunctionOverrides[ast.FuncNameCatalog] = render.FuncOverrideString(catalogFrag)
+
+	r.FunctionOverrides[ast.FuncNameContains] = renderFuncContainsInstr
+	r.FunctionOverrides[ast.FuncNameStartsWith] = renderFuncStartsWithSubstr
+	r.FunctionOverrides[ast.FuncNameEndsWith] = renderFuncEndsWithSubstr
+	r.FunctionOverrides[ast.FuncNameIContains] = renderFuncIContainsLike
+	r.FunctionOverrides[ast.FuncNameIStartsWith] = renderFuncIStartsWithLike
+	r.FunctionOverrides[ast.FuncNameIEndsWith] = renderFuncIEndsWithLike
+	// SQLite's default LIKE is ASCII case-insensitive, so like and ilike
+	// register the same renderer.
+	r.FunctionOverrides[ast.FuncNameLike] = renderFuncLike
+	r.FunctionOverrides[ast.FuncNameILike] = renderFuncLike
+
+	return r
 }
 
 // dsnFromLocation translates an rqlite:// or rqlites:// source location
@@ -246,10 +269,19 @@ func (d *driveri) CopyTable(_ context.Context, _ sqlz.DB, _, _ tablefq.T, _ bool
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(_ context.Context, _ []*sql.ColumnType) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
-	return nil, nil, errz.New(errNotImplemented + ": RecordMeta")
+	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes)
+	if err != nil {
+		return nil, nil, errw(err)
+	}
+
+	mungeFn := func(vals []any) (record.Record, error) {
+		return newRecordFromScanRow(recMeta, vals), nil
+	}
+
+	return recMeta, mungeFn, nil
 }
 
 // DropTable implements driver.SQLDriver.
@@ -338,9 +370,54 @@ func (d *driveri) PrepareUpdateStmt(_ context.Context, _ sqlz.DB, _ string, _ []
 	return nil, errz.New(errNotImplemented + ": PrepareUpdateStmt")
 }
 
-// TableColumnTypes implements driver.SQLDriver.
-func (d *driveri) TableColumnTypes(_ context.Context, _ sqlz.DB, _ string, _ []string) ([]*sql.ColumnType, error) {
-	return nil, errz.New(errNotImplemented + ": TableColumnTypes")
+// TableColumnTypes implements driver.SQLDriver. The implementation
+// mirrors the sqlite3 driver: SELECT a single row from the table so
+// rows.ColumnTypes returns richer info than it would for an empty
+// result set. When the table is empty we fall back to the
+// no-rows ColumnTypes call.
+func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName string,
+	colNames []string,
+) ([]*sql.ColumnType, error) {
+	const queryTpl = "SELECT %s FROM %s LIMIT 1"
+
+	enquote := d.Dialect().Enquote
+	tblNameQuoted := enquote(tblName)
+
+	colsClause := "*"
+	if len(colNames) > 0 {
+		colsClause = strings.Join(langz.Apply(colNames, enquote), driver.Comma)
+	}
+
+	query := fmt.Sprintf(queryTpl, colsClause, tblNameQuoted)
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	colTypes, err := rows.ColumnTypes()
+	if err != nil {
+		sqlz.CloseRows(d.log, rows)
+		return nil, errw(err)
+	}
+
+	if rows.Next() {
+		colTypes, err = rows.ColumnTypes()
+		if err != nil {
+			sqlz.CloseRows(d.log, rows)
+			return nil, errw(err)
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		sqlz.CloseRows(d.log, rows)
+		return nil, errw(err)
+	}
+
+	if err = rows.Close(); err != nil {
+		return nil, errw(err)
+	}
+
+	return colTypes, nil
 }
 
 // AlterTableRename implements driver.SQLDriver.
