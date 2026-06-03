@@ -186,6 +186,15 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Expand ${scheme:path} placeholders for display when --expand is
+	// set. Grips.Open does its own resolution for the connection, so
+	// passing an expanded Location is a no-op there; the value also
+	// flows into metadata.Location and is shown by the metadata writer.
+	src, err = maybeExpandSource(ctx, ru, cmd, src)
+	if err != nil {
+		return err
+	}
+
 	grip, err := ru.Grips.Open(ctx, src)
 	if err != nil {
 		return errz.Wrapf(err, "failed to inspect %s", src.Handle)
