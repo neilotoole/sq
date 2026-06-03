@@ -40,6 +40,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     - `keyring`: OS keychain, managed via `sq config keyring`.
     - `env`: environment variable, e.g. `${env:DB_PROD_PW}` or `${env:DB_CONN_STR}`.
     - `file`: file contents, e.g. `${file:/run/secrets/db_pw}` or `${file:~/.sq/db_connstr}`.
+    - [#714]: `op`: 1Password CLI, e.g. `${op://Private/sakila/dsn}`. Shells out to
+      [`op read`](https://developer.1password.com/docs/cli/secret-reference-syntax/);
+      the user must already be signed in (biometric, `op signin`, or `OP_SERVICE_ACCOUNT_TOKEN`).
 - [#441]: [`sq config keyring`](https://sq.io/docs/cmd/config-keyring) command group: store
   source conn strings in the OS keyring instead of plaintext in `sq.yml`.
   - Subcommands: `ls`, `create`, `update`, `get`, `rm`, `migrate`.
@@ -1654,6 +1657,7 @@ make working with lots of sources much easier.
 [#692]: https://github.com/neilotoole/sq/issues/692
 [#716]: https://github.com/neilotoole/sq/issues/716
 [#717]: https://github.com/neilotoole/sq/issues/717
+[#714]: https://github.com/neilotoole/sq/issues/714
 [#720]: https://github.com/neilotoole/sq/issues/720
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
