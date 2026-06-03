@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -94,6 +95,20 @@ func TestResolver_TrimsTrailingNewline(t *testing.T) {
 			require.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func TestResolver_OpBinaryMissing(t *testing.T) {
+	// Point PATH at an empty directory so "op" is not found anywhere.
+	t.Setenv("PATH", t.TempDir())
+
+	_, err := op.NewResolver().Resolve(context.Background(), "//v/i/f")
+	require.Error(t, err)
+	require.NotErrorIs(t, err, secret.ErrNotFound)
+	msg := err.Error()
+	require.Contains(t, msg, "op",
+		"error must mention the missing binary by name")
+	require.Contains(t, strings.ToLower(msg), "1password",
+		"error hint should point the user at 1Password")
 }
 
 func TestResolver_UnauthedSurfacesStderr(t *testing.T) {

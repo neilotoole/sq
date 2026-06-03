@@ -48,6 +48,12 @@ func (r *Resolver) Resolve(ctx context.Context, path string) (string, error) {
 		return v.(string), nil
 	}
 
+	if _, err := exec.LookPath("op"); err != nil {
+		return "", errz.Wrap(err,
+			"1Password 'op' CLI not found on PATH; install it from "+
+				"https://developer.1password.com/docs/cli/get-started/")
+	}
+
 	// G204: binary name "op" is a literal; path comes from sq's own YAML
 	// config (a placeholder body), so this is not an untrusted external input.
 	cmd := exec.CommandContext(ctx, "op", "read", "op:"+path) //nolint:gosec // G204: see comment above.
