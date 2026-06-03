@@ -48,6 +48,11 @@ func NewResolver() *Resolver {
 // Successful values are cached per-instance. A single trailing LF or CRLF
 // is trimmed from the output, matching 1Password CLI behavior and the
 // secret/file resolver convention.
+//
+// Concurrent callers for the same path share one in-flight "op read"
+// invocation; a transient failure (network blip, op timeout) is replayed
+// to every waiter in that flight, but is not cached, so a sequential
+// retry reaches op again.
 func (r *Resolver) Resolve(ctx context.Context, path string) (string, error) {
 	if v, ok := r.cache.Load(path); ok {
 		return v.(string), nil
