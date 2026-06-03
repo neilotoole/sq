@@ -3,10 +3,10 @@
 // value 1Password's "op" CLI returns for that secret reference. The path
 // is passed through to "op read" verbatim; sq does not parse it.
 //
-// Auth is "op"'s problem: the user must already be signed in (op signin,
-// biometric prompt, or a service-account token in OP_SERVICE_ACCOUNT_TOKEN).
-// sq surfaces "op"'s stderr verbatim when authentication or connectivity
-// fails. Read-only: sq never writes to 1Password.
+// Auth is "op"'s problem: the user must already be signed in (biometric,
+// op signin, or a service-account token in OP_SERVICE_ACCOUNT_TOKEN).
+// sq surfaces "op"'s stderr in the wrapped error when authentication or
+// connectivity fails. Read-only: sq never writes to 1Password.
 //
 // Minimum supported "op" version: v2 (the version where "op read" landed).
 package op
@@ -18,6 +18,8 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/sync/singleflight"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/secret"
 )
@@ -25,9 +27,12 @@ import (
 // Resolver implements secret.Resolver by shelling out to the 1Password
 // "op" CLI. A single Resolver caches successful resolutions for its
 // lifetime so repeated placeholders within one sq invocation only call
-// "op" once per path.
+// "op" once per path. Concurrent Resolve calls for the same path are
+// coalesced via singleflight so the user never sees duplicate biometric
+// prompts.
 type Resolver struct {
-	cache sync.Map // path -> string
+	flight singleflight.Group
+	cache  sync.Map // path -> string
 }
 
 // NewResolver returns a Resolver. Callers register the result with a
@@ -47,24 +52,52 @@ func (r *Resolver) Resolve(ctx context.Context, path string) (string, error) {
 	if v, ok := r.cache.Load(path); ok {
 		return v.(string), nil
 	}
+	v, err, _ := r.flight.Do(path, func() (any, error) {
+		// Re-check the cache: a concurrent flight may have populated it
+		// while this caller was waiting on the singleflight lock.
+		if v, ok := r.cache.Load(path); ok {
+			return v.(string), nil
+		}
+		return r.runOpRead(ctx, path)
+	})
+	if err != nil {
+		return "", err
+	}
+	return v.(string), nil
+}
 
-	if _, err := exec.LookPath("op"); err != nil {
+// runOpRead is the cache-miss path: locate "op", run "op read op:<path>",
+// classify the result, and on success populate the cache and return the
+// trimmed value.
+func (r *Resolver) runOpRead(ctx context.Context, path string) (string, error) {
+	opPath, err := exec.LookPath("op")
+	if err != nil {
 		return "", errz.Wrap(err,
 			"1Password 'op' CLI not found on PATH; install it from "+
 				"https://developer.1password.com/docs/cli/get-started/")
 	}
 
-	// G204: binary name "op" is a literal; path comes from sq's own YAML
-	// config (a placeholder body), so this is not an untrusted external input.
-	cmd := exec.CommandContext(ctx, "op", "read", "op:"+path) //nolint:gosec // G204: see comment above.
+	// opPath is the absolute path resolved by LookPath for the literal
+	// "op"; the read URI is sq's own placeholder body. Neither is
+	// untrusted external input.
+	cmd := exec.CommandContext(ctx, opPath, "read", "op:"+path)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		if isNotFoundStderr(stderr.String()) {
-			return "", secret.ErrNotFound
+		// Honor context cancellation before any stderr-based classification:
+		// when the child is killed by ctx, stderr is typically empty.
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return "", errz.Wrapf(ctxErr, "op read %s", path)
 		}
-		return "", errz.Wrapf(err, "op read: %s", strings.TrimSpace(stderr.String()))
+		stderrStr := strings.TrimSpace(stderr.String())
+		if isNotFoundStderr(stderrStr) {
+			return "", errz.Wrapf(secret.ErrNotFound, "op read %s", path)
+		}
+		if stderrStr == "" {
+			return "", errz.Wrapf(err, "op read %s", path)
+		}
+		return "", errz.Wrapf(err, "op read %s: %s", path, stderrStr)
 	}
 
 	out := stdout.String()
@@ -80,13 +113,16 @@ func (r *Resolver) Resolve(ctx context.Context, path string) (string, error) {
 
 // notFoundMarkers are the stderr substrings 1Password's "op" CLI uses to
 // indicate the referenced item, vault, section, or field does not exist.
-// Matching is a small, conservative set; unknown error text is surfaced
-// verbatim rather than misclassified.
+// Matching is a small, conservative set kept item-scoped on purpose:
+// generic markers like "couldn't find" would also match account / vault
+// access failures and silently misclassify them as not-found. Unknown
+// error text is surfaced verbatim rather than misclassified.
 var notFoundMarkers = []string{
 	"isn't an item",
 	"item not found",
 	"no item found",
-	"couldn't find",
+	"couldn't find the item",
+	"couldn't find an item",
 }
 
 func isNotFoundStderr(s string) bool {
