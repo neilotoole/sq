@@ -451,9 +451,10 @@ is not a sandbox. The threats it does — and does not — address:
   exists in `sq`'s process memory.
 
 For the higher bar (per-application secrets, hardware-backed keys, rotated
-short-lived credentials), an external secret manager — referenced via the
-`env` or `file` scheme from CI / container runtime — is the right answer.
-The `keyring` scheme targets the dev-laptop case.
+short-lived credentials), an external secret manager is the right answer:
+referenced via the `env` or `file` scheme from a CI / container runtime,
+or via the `op` scheme on a dev laptop with 1Password. The `keyring` scheme
+targets the dev-laptop case when no external manager is in use.
 
 ## Related
 
