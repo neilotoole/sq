@@ -13,7 +13,11 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // recordMetaFromColumnTypes builds record.Meta for colTypes returned by
@@ -372,4 +376,261 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 	}
 
 	return rec
+}
+
+// getTableMetadata returns metadata for a single table. The shape
+// mirrors the sqlite3 driver's helper, minus the foreign-key and
+// index work — those land in a follow-up. Virtual-table BaseType
+// recovery via SELECT typeof() is also omitted; rqlite users are
+// unlikely to be hitting FTS5/r-tree tables.
+func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadata.Table, error) {
+	log := lg.FromContext(ctx)
+	tblMeta := &metadata.Table{Name: tblName}
+
+	const tpl = `SELECT
+(SELECT COUNT(*) FROM %q),
+(SELECT type FROM sqlite_master WHERE name = %q LIMIT 1),
+(SELECT 1 FROM sqlite_master WHERE name = %q AND substr("sql",0,21) == 'CREATE VIRTUAL TABLE') AS is_virtual,
+(SELECT name FROM pragma_database_list ORDER BY seq LIMIT 1)`
+
+	var schemaName string
+	// is_virtual is read as NullFloat64 because rqlite returns
+	// integer SQL literals as JSON numbers, which can't scan into
+	// sql.NullBool. NULL means not a virtual table; any non-zero
+	// value means virtual.
+	var isVirtualTbl sql.NullFloat64
+	query := fmt.Sprintf(tpl, tblMeta.Name, tblMeta.Name, tblMeta.Name)
+	err := db.QueryRowContext(ctx, query).Scan(
+		&tblMeta.RowCount, &tblMeta.DBTableType, &isVirtualTbl, &schemaName)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	switch {
+	case isVirtualTbl.Valid && isVirtualTbl.Float64 != 0:
+		tblMeta.TableType = sqlz.TableTypeVirtual
+	case tblMeta.DBTableType == sqlz.TableTypeView:
+		tblMeta.TableType = sqlz.TableTypeView
+	case tblMeta.DBTableType == sqlz.TableTypeTable:
+		tblMeta.TableType = sqlz.TableTypeTable
+	default:
+	}
+
+	tblMeta.FQName = schemaName + "." + tblName
+
+	query = fmt.Sprintf("PRAGMA TABLE_INFO('%s')", tblMeta.Name)
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	for rows.Next() {
+		col := &metadata.Column{}
+		var notnull int64
+		defaultValue := &sql.NullString{}
+		pkValue := &sql.NullInt64{}
+		if err = rows.Scan(
+			&col.Position, &col.Name, &col.BaseType, &notnull, defaultValue, pkValue,
+		); err != nil {
+			return nil, errw(err)
+		}
+		col.PrimaryKey = pkValue.Int64 > 0
+		col.ColumnType = col.BaseType
+		col.Nullable = notnull == 0
+		col.DefaultValue = defaultValue.String
+		col.Kind = kindFromDBTypeName(ctx, col.Name, col.BaseType, nil)
+		tblMeta.Columns = append(tblMeta.Columns, col)
+	}
+
+	return tblMeta, errw(rows.Err())
+}
+
+// getAllTableMetadata gets metadata for each of the non-system tables
+// in db's schema. Like getTableMetadata, the FK and index helpers are
+// deferred to a follow-up.
+func getAllTableMetadata(ctx context.Context, db sqlz.DB, schemaName string) ([]*metadata.Table, error) {
+	log := lg.FromContext(ctx)
+
+	const query = `
+SELECT m.name as table_name, m.type, p.cid, p.name, p.type, p.'notnull' as 'notnull', p.dflt_value, p.pk,
+(substr(m.sql, 0, 21) == 'CREATE VIRTUAL TABLE') AS is_virtual
+FROM sqlite_master AS m JOIN pragma_table_info(m.name) AS p
+ORDER BY m.name, p.cid
+`
+
+	var (
+		tblMetas []*metadata.Table
+		tblNames []string
+		curTblName,
+		curTblType string
+		// is_virtual is a CASE expression, not a typed column. rqlite
+		// returns it as a JSON number so we read it as float64 and
+		// treat any non-zero value as virtual.
+		curTblIsVirtual float64
+		curTblMeta      *metadata.Table
+	)
+
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	for rows.Next() {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
+
+		col := &metadata.Column{}
+		var notnull int64
+		colDefault := &sql.NullString{}
+		pkValue := &sql.NullInt64{}
+
+		if err = rows.Scan(
+			&curTblName, &curTblType, &col.Position, &col.Name, &col.BaseType,
+			&notnull, colDefault, pkValue, &curTblIsVirtual,
+		); err != nil {
+			return nil, errw(err)
+		}
+
+		if strings.HasPrefix(curTblName, "sqlite_") {
+			// Skip system tables such as sqlite_sequence.
+			continue
+		}
+
+		if curTblMeta == nil || curTblMeta.Name != curTblName {
+			curTblMeta = &metadata.Table{
+				Name:        curTblName,
+				FQName:      schemaName + "." + curTblName,
+				DBTableType: curTblType,
+			}
+			switch {
+			case curTblIsVirtual != 0:
+				curTblMeta.TableType = sqlz.TableTypeVirtual
+			case curTblMeta.DBTableType == sqlz.TableTypeView:
+				curTblMeta.TableType = sqlz.TableTypeView
+			case curTblMeta.DBTableType == sqlz.TableTypeTable:
+				curTblMeta.TableType = sqlz.TableTypeTable
+			default:
+			}
+			tblNames = append(tblNames, curTblName)
+			tblMetas = append(tblMetas, curTblMeta)
+		}
+
+		col.PrimaryKey = pkValue.Int64 > 0
+		col.ColumnType = col.BaseType
+		col.Nullable = notnull == 0
+		col.DefaultValue = colDefault.String
+		col.Kind = kindFromDBTypeName(ctx, col.Name, col.BaseType, nil)
+		curTblMeta.Columns = append(curTblMeta.Columns, col)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+
+	rowCounts, err := getTblRowCounts(ctx, db, tblNames)
+	if err != nil {
+		return nil, errw(err)
+	}
+	for i := range rowCounts {
+		tblMetas[i].RowCount = rowCounts[i]
+	}
+
+	return tblMetas, nil
+}
+
+// getTblRowCounts returns the row count of each named table in a
+// single round-trip, using the union-based query the sqlite3 driver
+// settled on after benchmarking. SQLITE_MAX_COMPOUND_SELECT caps each
+// query at 500 SELECT terms, so we batch.
+func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int64, error) {
+	log := lg.FromContext(ctx)
+	const maxCompoundSelect = 500
+
+	tblCounts := make([]int64, len(tblNames))
+	var (
+		sb    strings.Builder
+		terms int
+		j     int
+	)
+
+	for i := 0; i < len(tblNames); i++ {
+		if terms > 0 {
+			sb.WriteString(" UNION ALL ")
+		}
+		sb.WriteString("SELECT COUNT(*) FROM " + stringz.DoubleQuote(tblNames[i]))
+		terms++
+
+		if terms != maxCompoundSelect && i != len(tblNames)-1 {
+			continue
+		}
+
+		rows, err := db.QueryContext(ctx, sb.String())
+		if err != nil {
+			return nil, errw(err)
+		}
+		for rows.Next() {
+			if err = rows.Scan(&tblCounts[j]); err != nil {
+				sqlz.CloseRows(log, rows)
+				return nil, errw(err)
+			}
+			j++
+		}
+		if err = rows.Err(); err != nil {
+			sqlz.CloseRows(log, rows)
+			return nil, errw(err)
+		}
+		if err = rows.Close(); err != nil {
+			return nil, errw(err)
+		}
+
+		terms = 0
+		sb.Reset()
+	}
+
+	return tblCounts, nil
+}
+
+// getSourceMetadata builds the Source-level metadata for grip.
+// Schema/version come from a small composite query; tables come from
+// getAllTableMetadata (or are skipped when noSchema is true).
+func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSchema bool,
+) (*metadata.Source, error) {
+	md := &metadata.Source{
+		Handle:   src.Handle,
+		Driver:   drivertype.Rqlite,
+		DBDriver: dbDrvr,
+		Location: src.Location,
+		Catalog:  "default",
+	}
+
+	const q = `SELECT sqlite_version(), (SELECT name FROM pragma_database_list ORDER BY seq LIMIT 1)`
+	if err := db.QueryRowContext(ctx, q).Scan(&md.DBVersion, &md.Schema); err != nil {
+		return nil, errw(err)
+	}
+	md.DBProduct = "rqlite (SQLite " + md.DBVersion + ")"
+	md.Name = md.Schema
+	md.FQName = md.Schema
+
+	if noSchema {
+		return md, nil
+	}
+
+	var err error
+	md.Tables, err = getAllTableMetadata(ctx, db, md.Schema)
+	if err != nil {
+		return nil, err
+	}
+	for _, tbl := range md.Tables {
+		switch tbl.TableType {
+		case sqlz.TableTypeTable:
+			md.TableCount++
+		case sqlz.TableTypeView:
+			md.ViewCount++
+		}
+	}
+
+	return md, nil
 }

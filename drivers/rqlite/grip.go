@@ -6,12 +6,10 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -41,23 +39,13 @@ func (g *grip) Source() *source.Source {
 }
 
 // TableMetadata implements driver.Grip.
-func (g *grip) TableMetadata(_ context.Context, _ string) (*metadata.Table, error) {
-	return nil, errz.New("rqlite: TableMetadata not yet implemented")
+func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
+	return getTableMetadata(ctx, g.db, tblName)
 }
 
-// SourceMetadata implements driver.Grip. The current implementation
-// returns a skeletal record with just enough fields populated for
-// `sq ping` and basic source listing. Full metadata (tables, columns,
-// FKs) lands when the read-path work in task gh444-#5 completes.
-func (g *grip) SourceMetadata(_ context.Context, _ bool) (*metadata.Source, error) {
-	return &metadata.Source{
-		Handle:    g.src.Handle,
-		Driver:    drivertype.Rqlite,
-		DBDriver:  dbDrvr,
-		Location:  g.src.Location,
-		DBProduct: "rqlite",
-		Catalog:   "default",
-	}, nil
+// SourceMetadata implements driver.Grip.
+func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
+	return getSourceMetadata(ctx, g.src, g.db, noSchema)
 }
 
 // Close implements driver.Grip. Subsequent calls to Close are no-op and

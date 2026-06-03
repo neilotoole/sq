@@ -105,11 +105,18 @@ func (d *driveri) ErrWrapFunc() func(error) error {
 	return errw
 }
 
-// DBProperties implements driver.SQLDriver. Full implementation lands
-// alongside the metadata work; for now we return an empty map so callers
-// like `sq inspect` don't fail.
-func (d *driveri) DBProperties(_ context.Context, _ sqlz.DB) (map[string]any, error) {
-	return map[string]any{}, nil
+// DBProperties implements driver.SQLDriver. rqlite v10 surfaces a
+// SQLite version and a small cluster-level status payload over its
+// HTTP API rather than via pragmas, so this implementation returns
+// just the SQLite version. Richer cluster status (leader address,
+// node count) lands in a follow-up.
+func (d *driveri) DBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
+	const q = `SELECT sqlite_version()`
+	var v string
+	if err := db.QueryRowContext(ctx, q).Scan(&v); err != nil {
+		return nil, errw(err)
+	}
+	return map[string]any{"sqlite_version": v}, nil
 }
 
 // DriverMetadata implements driver.Driver.
@@ -285,8 +292,15 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
 }
 
 // DropTable implements driver.SQLDriver.
-func (d *driveri) DropTable(_ context.Context, _ sqlz.DB, _ tablefq.T, _ bool) error {
-	return errz.New(errNotImplemented + ": DropTable")
+func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifExists bool) error {
+	var stmt string
+	if ifExists {
+		stmt = fmt.Sprintf("DROP TABLE IF EXISTS %s", tbl)
+	} else {
+		stmt = fmt.Sprintf("DROP TABLE %s", tbl)
+	}
+	_, err := db.ExecContext(ctx, stmt)
+	return errw(err)
 }
 
 // CreateSchema implements driver.SQLDriver.
@@ -305,30 +319,94 @@ func (d *driveri) CreateTable(_ context.Context, _ sqlz.DB, _ *schema.Table) err
 }
 
 // CurrentSchema implements driver.SQLDriver.
-func (d *driveri) CurrentSchema(_ context.Context, _ sqlz.DB) (string, error) {
-	// Same convention as the sqlite3 driver: SQLite reports the
-	// primary database as "main".
-	return "main", nil
+func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error) {
+	const q = `SELECT name FROM pragma_database_list ORDER BY seq LIMIT 1`
+	var name string
+	if err := db.QueryRowContext(ctx, q).Scan(&name); err != nil {
+		return "", errw(err)
+	}
+	return name, nil
 }
 
 // SchemaExists implements driver.SQLDriver.
-func (d *driveri) SchemaExists(_ context.Context, _ sqlz.DB, _ string) (bool, error) {
-	return false, errz.New(errNotImplemented + ": SchemaExists")
+func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (bool, error) {
+	if schma == "" {
+		return false, nil
+	}
+	const q = `SELECT COUNT(name) FROM pragma_database_list WHERE name = ?`
+	var count int
+	return count > 0, errw(db.QueryRowContext(ctx, q, schma).Scan(&count))
 }
 
 // ListSchemas implements driver.SQLDriver.
-func (d *driveri) ListSchemas(_ context.Context, _ sqlz.DB) ([]string, error) {
-	return nil, errz.New(errNotImplemented + ": ListSchemas")
+func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error) {
+	const q = `SELECT name FROM pragma_database_list ORDER BY name`
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(d.log, rows)
+
+	var schemas []string
+	for rows.Next() {
+		var schma string
+		if err = rows.Scan(&schma); err != nil {
+			return nil, errw(err)
+		}
+		schemas = append(schemas, schma)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+	return schemas, nil
 }
 
-// ListTableNames implements driver.SQLDriver.
-func (d *driveri) ListTableNames(_ context.Context, _ sqlz.DB, _ string, _, _ bool) ([]string, error) {
-	return nil, errz.New(errNotImplemented + ": ListTableNames")
+// ListTableNames implements driver.SQLDriver. System tables
+// (sqlite_master, sqlite_sequence, etc.) are filtered out.
+func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string,
+	tables, views bool,
+) ([]string, error) {
+	var tblClause string
+	switch {
+	case tables && views:
+		tblClause = " WHERE (type = 'table' OR type = 'view')"
+	case tables:
+		tblClause = " WHERE type = 'table'"
+	case views:
+		tblClause = " WHERE type = 'view'"
+	default:
+		return []string{}, nil
+	}
+	tblClause += " AND name NOT LIKE 'sqlite_%'"
+
+	q := "SELECT name FROM "
+	if schma == "" {
+		q += "sqlite_master"
+	} else {
+		q += stringz.DoubleQuote(schma) + ".sqlite_master"
+	}
+	q += tblClause + " ORDER BY name"
+
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, errw(err)
+	}
+	names, err := sqlz.RowsScanColumn[string](ctx, rows)
+	return names, errw(err)
 }
 
-// ListSchemaMetadata implements driver.SQLDriver.
-func (d *driveri) ListSchemaMetadata(_ context.Context, _ sqlz.DB) ([]*metadata.Schema, error) {
-	return nil, errz.New(errNotImplemented + ": ListSchemaMetadata")
+// ListSchemaMetadata implements driver.SQLDriver. The returned schemas
+// carry the conventional catalog value "default".
+func (d *driveri) ListSchemaMetadata(ctx context.Context, db sqlz.DB) ([]*metadata.Schema, error) {
+	names, err := d.ListSchemas(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	schemas := make([]*metadata.Schema, len(names))
+	for i, name := range names {
+		schemas[i] = &metadata.Schema{Name: name, Catalog: "default"}
+	}
+	return schemas, nil
 }
 
 // CatalogExists implements driver.SQLDriver.
@@ -347,8 +425,13 @@ func (d *driveri) ListCatalogs(_ context.Context, _ sqlz.DB) ([]string, error) {
 }
 
 // TableExists implements driver.SQLDriver.
-func (d *driveri) TableExists(_ context.Context, _ sqlz.DB, _ string) (bool, error) {
-	return false, errz.New(errNotImplemented + ": TableExists")
+func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool, error) {
+	const query = `SELECT COUNT(*) FROM sqlite_master WHERE name = ? AND type='table'`
+	var count int64
+	if err := db.QueryRowContext(ctx, query, tbl).Scan(&count); err != nil {
+		return false, errw(err)
+	}
+	return count == 1, nil
 }
 
 // PrepareInsertStmt implements driver.SQLDriver.
