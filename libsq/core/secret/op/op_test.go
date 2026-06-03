@@ -16,7 +16,7 @@ import (
 // behavior is selected by the SQ_TEST_OP_MODE env var (set by each test via
 // t.Setenv):
 //
-//	value    -> prints $SQ_TEST_OP_VALUE then "\n", exit 0
+//	value    -> prints $SQ_TEST_OP_VALUE exactly (no added newline), exit 0
 //	echo     -> prints argv[2] then "\n", exit 0 (used to assert pass-through)
 //	notfound -> writes a 1Password "not an item" message to stderr, exit 1
 //	unauthed -> writes a 1Password sign-in message to stderr, exit 1
@@ -27,7 +27,7 @@ func installStubOp(t *testing.T) {
 	dir := t.TempDir()
 	script := `#!/bin/sh
 case "$SQ_TEST_OP_MODE" in
-  value)    printf '%s\n' "$SQ_TEST_OP_VALUE" ;;
+  value)    printf '%s' "$SQ_TEST_OP_VALUE" ;;
   echo)     printf '%s\n' "$2" ;;
   notfound) echo "[ERROR] \"$2\" isn't an item. Specify the item by its name or ID." >&2; exit 1 ;;
   unauthed) echo "[ERROR] you aren't signed in. Run 'op signin' to sign in." >&2; exit 1 ;;
@@ -62,4 +62,27 @@ func TestResolver_PassesThroughURI(t *testing.T) {
 	// the path (which already begins with "//"). A naive "op://"+path
 	// would yield op:////Private/...; this asserts the bug is absent.
 	require.Equal(t, "op://Private/sakila/dsn", got)
+}
+
+func TestResolver_TrimsTrailingNewline(t *testing.T) {
+	cases := []struct {
+		name, value, want string
+	}{
+		{"lf", "hunter2\n", "hunter2"},
+		{"crlf", "hunter2\r\n", "hunter2"},
+		{"no_trailing", "hunter2", "hunter2"},
+		{"double_lf", "hunter2\n\n", "hunter2\n"}, // only one trim
+		{"embedded_lf", "line1\nline2\n", "line1\nline2"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			installStubOp(t)
+			t.Setenv("SQ_TEST_OP_MODE", "value")
+			t.Setenv("SQ_TEST_OP_VALUE", tc.value)
+
+			got, err := op.NewResolver().Resolve(context.Background(), "//v/i/f")
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
 }

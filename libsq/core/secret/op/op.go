@@ -58,8 +58,13 @@ func (r *Resolver) Resolve(ctx context.Context, path string) (string, error) {
 		return "", errz.Wrap(err, "op read")
 	}
 
-	out := strings.TrimRight(stdout.String(), "\n")
-	out = strings.TrimRight(out, "\r")
+	out := stdout.String()
+	switch {
+	case strings.HasSuffix(out, "\r\n"):
+		out = out[:len(out)-2]
+	case strings.HasSuffix(out, "\n"):
+		out = out[:len(out)-1]
+	}
 	r.cache.Store(path, out)
 	// T4 maps op's "not an item" stderr to secret.ErrNotFound; keep the import live.
 	_ = secret.ErrNotFound
