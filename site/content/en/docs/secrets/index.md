@@ -9,8 +9,8 @@ toc: true
 url: /docs/secrets
 ---
 `sq` treats credentials with two complementary mechanisms: **redaction**, which
-keeps secrets out of terminal output and exports, and **placeholders**, which
-keep secrets out of the [config](../config) file itself. This page explains both, and how
+keeps secrets out of display output, and **placeholders**, which keep secrets
+out of the [config](../config) file itself. This page explains both, and how
 the global `--reveal` flag and the `sq config export --expand` flag fit in.
 
 ## Overview
@@ -18,8 +18,12 @@ the global `--reveal` flag and the `sq config export --expand` flag fit in.
 By default:
 
 - URL-style passwords inside a source [`location`](/docs/source#add) are
-  **redacted** in any output that prints the location: `sq ls`, `sq inspect`,
-  `sq src`, `sq config ls`, `sq config export`, error messages, and so on.
+  **redacted** in display output: `sq ls`, `sq inspect`, `sq src`,
+  `sq config ls`, error messages, and so on.
+- [`sq config export`](/docs/cmd/config-export) is a backup tool, not a
+  display tool, and writes locations **verbatim** — placeholders are
+  preserved and inline plaintext is dumped as-is. Treat the exported
+  file the same as `sq.yml` itself (mode `0600` by default).
 - Source locations may contain **`${scheme:path}` placeholders** that fetch
   the real value at connect time from an external resolver. Three schemes
   ship in the box: [`keyring`](#keyring-scheme), [`env`](#env-scheme), and

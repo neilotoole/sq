@@ -32,7 +32,7 @@ In the `sq.yml` [config](/docs/config) file, these elements manifest as:
 {{< alert icon="👉" >}}
 When `sq` prints a location containing security credentials (such as the password in the
 postgres string above), the password is redacted by default. Thus, that location string
-would be printed as `postgres://user:xxxxx@@localhost/sakila`.
+would be printed as `postgres://user:xxxxx@localhost/sakila`.
 
 You can override this behavior via the global `--reveal` flag, or by setting
 the [`secrets.reveal`](/docs/config#secretsreveal) config option to `true`. See
