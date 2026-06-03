@@ -102,16 +102,51 @@ thing; `--no-redact` will be removed in a future release.
 
 ## Substitution
 
+`--expand` resolves `${scheme:path}` placeholders against the configured
+resolvers (keyring read, environment variable read, or file read) and
+substitutes the resolved value into whatever location string `sq` is about
+to display. It is a persistent root flag: every subcommand accepts it,
+and the commands that print a source location act on it.
+
+### On display commands
+
+[`sq src`](/docs/cmd/src), [`sq ls`](/docs/cmd/ls),
+[`sq inspect`](/docs/inspect), [`sq add`](/docs/cmd/add)'s echo,
+[`sq mv`](/docs/cmd/mv)'s echo, and [`sq ping`](/docs/cmd/ping) with `-v`
+each show a source location. `--expand` decides whether that location is
+the verbatim placeholder or the resolved value. `--reveal` is the orthogonal
+axis: it flips the redaction filter on whatever string ends up being
+displayed.
+
+For a source whose YAML location is `${keyring:abc}` and whose keyring entry
+holds `postgres://alice:hunter2@db.acme.com/sakila`:
+
+| Flags                 | Displayed location                                       |
+|-----------------------|----------------------------------------------------------|
+| (none)                | `${keyring:abc}`                                         |
+| `--reveal`            | `${keyring:abc}`                                         |
+| `--expand`            | `postgres://alice:xxxxx@db.acme.com/sakila`              |
+| `--expand --reveal`   | `postgres://alice:hunter2@db.acme.com/sakila`            |
+
+If a resolver fails per source (missing keyring entry, unset env var,
+unreadable file), the placeholder is preserved verbatim for that source.
+Other sources expand normally and the command exits 0. The lenient
+fallback is deliberate: `--expand` on a display command is a diagnostic,
+and an aborted command would hide every source's state because of one
+stale placeholder.
+
+### On `sq config export`
+
 [`sq config export`](/docs/cmd/config-export) dumps the live config to YAML
 for backups. By default the export is a faithful copy of `sq.yml`:
 `${scheme:path}` placeholders are written verbatim, and inline credentials
 (plaintext URLs) are dumped exactly as they appear in the file.
 
-With `--expand`, every `${scheme:path}` placeholder is resolved (keyring
-read, environment variable read, or file read), and the resolved value is
-spliced inline into the exported location. The output is a self-contained
-snapshot suitable for moving between machines — at the cost of writing every
-referenced secret in plaintext, which is exactly the point of `--expand`.
+With `--expand`, every `${scheme:path}` placeholder is resolved and the
+resolved value is spliced inline into the exported location. The output is
+a self-contained snapshot suitable for moving between machines, at the cost
+of writing every referenced secret in plaintext, which is exactly the point
+of `--expand`.
 
 ```yaml
 # Live config: location uses a keyring placeholder
@@ -135,9 +170,9 @@ $ sq config export --expand | grep '@sakila/pg' -A1
 When `--output` is used, the exported file is created with mode `0600`,
 since it may contain credentials regardless of whether `--expand` was set.
 
-`--expand` can fail per-source if a referenced keyring entry, environment
-variable, or file is missing. The export errors with the failing source's
-handle so you know which one to fix.
+`sq config export --expand` keeps strict-abort semantics on resolver
+failure (unlike the lenient display commands). An export is a snapshot for
+transfer, and a half-resolved snapshot is the wrong artifact.
 
 ### `--reveal` vs `--expand`
 
@@ -147,13 +182,14 @@ Both flags can produce plaintext secrets, but they're not interchangeable.
 |----------------------------------|-------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
 | Purpose                          | Show secret data already loaded                                                                       | Fetch placeholder values and splice them in                                                                    |
 | Source of the printed value      | The current in-memory config                                                                          | External resolvers: OS keyring, env, file                                                                      |
-| Applies to                       | Any command that prints a location or keyring value                                                   | [`sq config export`](/docs/cmd/config-export) only                                                             |
+| Applies to                       | Any command that prints a location or keyring value                                                   | Any command that prints a source location; also [`sq config export`](/docs/cmd/config-export)                  |
 | What you see for a placeholder   | The placeholder text (e.g. `${keyring:abc}`)                                                          | The resolved value (e.g. `hunter2`)                                                                            |
-| Failure mode                     | Cannot fail — it is just a display flip                                                               | Can fail per source if a resolver entry is missing                                                             |
-| Risk                             | Reveals plaintext already in `sq.yml` or the keyring                                                  | Pulls plaintext **out** of resolvers into a single file you must protect                                       |
+| Failure mode                     | Cannot fail; it is just a display flip                                                                | Lenient per source on display commands; strict-abort on `sq config export`                                     |
+| Risk                             | Reveals plaintext already in `sq.yml` or the keyring                                                  | Pulls plaintext **out** of resolvers into terminal, log, or exported-file output                               |
 
 Use `--reveal` to read configuration; use `--expand` to take a portable
-backup. Don't reach for `--expand` when `--reveal` is what you want.
+backup or to diagnose what a source actually resolves to. Don't reach for
+`--expand` when `--reveal` is what you want.
 
 ## Placeholders
 
@@ -347,8 +383,10 @@ is not a sandbox. The threats it does — and does not — address:
 - A compromised user account: anything running as the user can read the
   user's keyring once it is unlocked.
 - Malware in the user's session: it sees the same keyring `sq` does.
-- A user who runs `sq config keyring get --reveal` or
-  `sq config export --expand` and pipes the output somewhere unsafe.
+- A user who runs `sq config keyring get --reveal`,
+  `sq config export --expand`, or any display command with
+  `--reveal --expand` and pipes the output somewhere unsafe (terminal
+  buffer, shell recording, CI log, screen share).
 - Memory inspection: while a source is connected, the resolved conn string
   exists in `sq`'s process memory.
 
@@ -361,6 +399,7 @@ The `keyring` scheme targets the dev-laptop case.
 
 - [`sq config keyring`](/docs/cmd/config-keyring): keyring command group.
 - [`sq add`](/docs/cmd/add): the `--store inline|keyring` flag.
-- [`sq config export`](/docs/cmd/config-export): the `--expand` flag.
+- [`sq config export`](/docs/cmd/config-export) (and other display
+  commands): the `--expand` flag.
 - [`secrets.store`](/docs/config#secretsstore): default storage backend config.
 - [`secrets.reveal`](/docs/config#secretsreveal): persistent disclosure control config.
