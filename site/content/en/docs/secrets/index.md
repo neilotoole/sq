@@ -25,9 +25,9 @@ By default:
   preserved and inline plaintext is dumped as-is. Treat the exported
   file the same as `sq.yml` itself (mode `0600` by default).
 - Source locations may contain **`${scheme:path}` placeholders** that fetch
-  the real value at connect time from an external resolver. Three schemes
-  ship in the box: [`keyring`](#keyring-scheme), [`env`](#env-scheme), and
-  [`file`](#file-scheme).
+  the real value at connect time from an external resolver. Four schemes
+  ship in the box: [`keyring`](#keyring-scheme), [`env`](#env-scheme),
+  [`file`](#file-scheme), and [`op`](#op-scheme).
 - [`sq config export`](/docs/cmd/config-export) writes placeholders to the
   output **verbatim** — what the YAML says is what the export contains.
 
@@ -177,7 +177,7 @@ location: ${keyring:j2k7m3pxtz}
 location: postgres://alice:${env:DB_PW}@db.acme.com/sakila
 ```
 
-`sq` ships with three schemes: `keyring`, `env`, and `file`.
+`sq` ships with four schemes: `keyring`, `env`, `file`, and `op`.
 
 ### URL encoding
 

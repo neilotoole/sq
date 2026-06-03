@@ -41,7 +41,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     - `env`: environment variable, e.g. `${env:DB_PROD_PW}` or `${env:DB_CONN_STR}`.
     - `file`: file contents, e.g. `${file:/run/secrets/db_pw}` or `${file:~/.sq/db_connstr}`.
     - [#714]: `op`: 1Password CLI, e.g. `${op://Private/sakila/dsn}`. Shells out to
-      [`op read`](https://developer.1password.com/docs/cli/secret-reference-syntax/);
+      [`op read`](https://developer.1password.com/docs/cli/reference/commands/read/) using
+      1Password's
+      [secret-reference syntax](https://developer.1password.com/docs/cli/secret-reference-syntax/);
       the user must already be signed in (biometric, `op signin`, or `OP_SERVICE_ACCOUNT_TOKEN`).
 - [#441]: [`sq config keyring`](https://sq.io/docs/cmd/config-keyring) command group: store
   source conn strings in the OS keyring instead of plaintext in `sq.yml`.
