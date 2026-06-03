@@ -31,6 +31,7 @@ Global Flags:
       --debug.pprof string    pprof profiling mode (default "off")
       --error.format string   Error output format (default "text")
   -E, --error.stack           Print error stack trace to stderr
+      --expand                Resolve ${scheme:path} placeholders to their underlying values
       --log                   Enable logging
       --log.file string       Log file path (default "$HOME/Library/Logs/sq/sq.log")
       --log.format string     Log output format (text or json) (default "text")
