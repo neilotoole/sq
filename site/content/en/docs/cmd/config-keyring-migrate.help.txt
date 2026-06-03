@@ -1,0 +1,50 @@
+For each source (or one specified by handle), write its
+Location URL to the OS keyring at a fresh opaque ID and replace the
+Location with a bare ${keyring:<id>} placeholder. The driver type stays
+in the driver: field; the keyring entry holds the entire DSN.
+
+Sources skipped automatically:
+  - Non-URL locations (file paths, sqlite, Excel, etc.)
+  - URLs with no password component
+  - Locations that already contain a ${...} placeholder
+
+Use --dry-run to preview without making any changes. Use --yes to skip
+the confirmation prompt.
+
+Usage:
+  sq config keyring migrate [@HANDLE]
+
+Examples:
+  # Preview the migration
+  $ sq config keyring migrate --all --dry-run
+
+  # Migrate every source without prompting
+  $ sq config keyring migrate --all --yes
+
+  # Migrate a single source
+  $ sq config keyring migrate @sakila
+
+Flags:
+      --all         Migrate every source
+      --dry-run     Show planned changes, make no writes
+      --yes         Skip the confirmation prompt
+  -t, --text        Output text
+  -j, --json        Output JSON
+  -h, --header      Print header row (default true)
+  -H, --no-header   Don't print header row
+      --help        help for migrate
+
+Global Flags:
+      --config string         Load config from here
+      --debug.pprof string    pprof profiling mode (default "off")
+      --error.format string   Error output format (default "text")
+  -E, --error.stack           Print error stack trace to stderr
+      --log                   Enable logging
+      --log.file string       Log file path (default "$HOME/Library/Logs/sq/sq.log")
+      --log.format string     Log output format (text or json) (default "text")
+      --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+  -M, --monochrome            Don't print color output
+      --no-progress           Don't show progress bar
+      --no-redact             Don't redact passwords in output (deprecated, use --reveal)
+      --reveal                Show secret values in output (don't redact passwords; print keyring values)
+  -v, --verbose               Print verbose output

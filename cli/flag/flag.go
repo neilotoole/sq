@@ -52,6 +52,9 @@ const (
 	Reveal      = "reveal"
 	RevealUsage = "Show secret values in output (don't redact passwords; print keyring values)"
 
+	NoRedact      = "no-redact"
+	NoRedactUsage = "Don't redact passwords in output (deprecated, use --reveal)"
+
 	JSON       = "json"
 	JSONShort  = "j"
 	JSONUsage  = "Output JSON"

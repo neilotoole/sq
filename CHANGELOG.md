@@ -21,24 +21,27 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 ### Added
 
 - [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export): dump the active config to
-  YAML, primarily for backups.
+  YAML, primarily for backups. See [Secrets](https://sq.io/docs/secrets) for the bigger picture.
   - By default, output is a faithful-ish copy of the live config: `${scheme:path}` placeholders are
     written verbatim.
-  - With `--expand`, every placeholder is fetched from its resolver (`keyring`, `env`, or `file`)
-    and the resolved value is spliced in-line: a self-contained snapshot at the cost of writing
-    every referenced secret in plaintext (which is exactly the point of `--expand`).
-- [#441]: [`sq add`](https://sq.io/docs/cmd/sq_add) gains a `--store inline|keyring`
-  flag, and a new `secrets.store` config option controls the default;
-  existing behavior is preserved (`inline`).
-  - With `--store keyring`, the entire DSN is written to the OS keyring at a fresh opaque ID and the
-    YAML location becomes a bare `${keyring:<id>}` placeholder, e.g. `location: ${keyring:3d28xd3jcr}`.
-  - Source `location` fields now support `${scheme:path}` placeholders that are resolved at connect
-    time. Shipped schemes:
+  - With [`--expand`](https://sq.io/docs/secrets#substitution), every placeholder is
+    fetched from its resolver (`keyring`, `env`, or `file`) and the resolved value is spliced
+    in-line: a self-contained snapshot at the cost of writing every referenced secret in
+    plaintext (which is exactly the point of `--expand`).
+- [#441]: [`sq add`](https://sq.io/docs/cmd/add) gains a `--store inline|keyring`
+  flag, and a new [`secrets.store`](https://sq.io/docs/config#secretsstore) config option
+  controls the default; existing behavior is preserved (`inline`).
+  See [Secrets](https://sq.io/docs/secrets) for the placeholder model and threat model.
+  - With `--store keyring`, the entire conn string is written to the OS keyring at a fresh opaque ID
+    and the YAML location becomes a bare `${keyring:<id>}` placeholder, e.g. `location: ${keyring:3d28xd3jcr}`.
+  - Source `location` fields now support
+    [`${scheme:path}` placeholders](https://sq.io/docs/secrets#placeholders) that are
+    resolved at connect time. Shipped schemes:
     - `keyring`: OS keychain, managed via `sq config keyring`.
     - `env`: environment variable, e.g. `${env:DB_PROD_PW}` or `${env:DB_CONN_STR}`.
     - `file`: file contents, e.g. `${file:/run/secrets/db_pw}` or `${file:~/.sq/db_connstr}`.
-- [#441]: [`sq config keyring`](https://sq.io/docs/cmd/sq_config_keyring) command group: store
-  source DSNs in the OS keyring instead of plaintext in config `sq.yml`.
+- [#441]: [`sq config keyring`](https://sq.io/docs/cmd/config-keyring) command group: store
+  source conn strings in the OS keyring instead of plaintext in `sq.yml`.
   - Subcommands: `ls`, `create`, `update`, `get`, `rm`, `migrate`.
 - [#660]: [`sq inspect`](https://sq.io/docs/inspect) gained
   [`svg-erd`](https://sq.io/docs/inspect#svg-erd) and
@@ -47,12 +50,27 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   (`--format=svg-erd` / `--format=png-erd`).
   - The diagram is laid out and rendered natively via an embedded [Graphviz](https://graphviz.org)
     engine, so image export needs no external tool, browser, or network.
-- [#717]: New global `--reveal` flag opts into showing secret values in output.
+- [#717]: New global [`--reveal`](https://sq.io/docs/secrets#redact--reveal) flag opts
+  into showing secret values in output.
   - It supersedes the legacy `--no-redact` (still functional, now marked deprecated, will be removed
     at some point in the future).
 
 ### Changed
 
+- ☢️ The `redact` config option is renamed to
+  [`secrets.reveal`](https://sq.io/docs/config#secretsreveal) with inverted polarity
+  (`secrets.reveal: true` equals legacy `redact: false`). The new default is `false`
+  (secrets are redacted). Existing configs are migrated automatically on first run
+  by a YAML upgrade step; scripts that call `sq config get redact` or
+  `sq config set redact ...` need updating to the new key. The rename completes the
+  polarity-consistency story started by `--reveal` in #717.
+  - As part of the polarity flip, the `--reveal` and `--no-redact` flags are now
+    positive opt-ins only: `--reveal=true` (or just `--reveal`) opts into
+    disclosure, and `--reveal=false` / `--no-redact=false` are no-ops. Previously,
+    `--no-redact=false` would force redaction by virtue of its inverted binding.
+    To force redaction when `secrets.reveal: true` is set in config, override the
+    config value with `sq config set secrets.reveal false` rather than relying on
+    a flag.
 - [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd)
   now syntax-colors its `erDiagram` source when writing to a terminal.
 

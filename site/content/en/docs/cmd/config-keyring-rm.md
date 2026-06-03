@@ -1,0 +1,22 @@
+---
+title: "sq config keyring rm"
+description: "Delete a keyring entry"
+draft: false
+images: []
+menu:
+  docs:
+    parent: "cmd"
+weight: 2038
+toc: false
+url: /docs/cmd/config-keyring-rm
+---
+See [Secrets](/docs/secrets#managing-keyring-entries) for an overview of
+the `sq config keyring` command group. `rm` only deletes the keyring
+entry; any `${keyring:PATH}` reference left in `sq.yml` will fail to
+resolve at connect time. Run
+[`sq config keyring ls`](/docs/cmd/config-keyring-ls) first to find
+references.
+
+## Reference
+
+{{< readfile file="config-keyring-rm.help.txt" code="true" lang="text" >}}

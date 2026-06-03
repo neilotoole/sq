@@ -28,7 +28,7 @@ func TestGrips_ResolveSourceSecrets(t *testing.T) {
 
 	src := &source.Source{
 		Handle:   "@sakila",
-		Location: "postgres://alice:${keyring:@sakila/password}@db/sakila",
+		Location: "postgres://alice:${keyring:my_db_pw}@db/sakila",
 	}
 
 	resolved, err := driver.ResolveSourceSecrets(ctx, src)
@@ -38,7 +38,7 @@ func TestGrips_ResolveSourceSecrets(t *testing.T) {
 		"postgres://alice:hunter2@db/sakila",
 		resolved.Location)
 	require.Equal(t,
-		"postgres://alice:${keyring:@sakila/password}@db/sakila",
+		"postgres://alice:${keyring:my_db_pw}@db/sakila",
 		src.Location, "original src must be untouched")
 }
 
@@ -57,7 +57,7 @@ func TestGrips_ResolveSourceSecrets_NoPlaceholder(t *testing.T) {
 func TestGrips_ResolveSourceSecrets_NoRegistry(t *testing.T) {
 	src := &source.Source{
 		Handle:   "@sakila",
-		Location: "postgres://alice:${keyring:@sakila/password}@db/sakila",
+		Location: "postgres://alice:${keyring:my_db_pw}@db/sakila",
 	}
 	// Placeholders present but no secret.Registry on context: must
 	// return an explicit error rather than silently passing the

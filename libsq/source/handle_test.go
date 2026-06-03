@@ -170,7 +170,7 @@ func TestSuggestHandle_FromPlaceholder(t *testing.T) {
 		{loc: "${vault:secret/data/sakila#password}", want: "@sakila"},
 
 		// keyring legacy handle-encoded form — extract handle name.
-		{loc: "${keyring:@sakila/password}", want: "@sakila"},
+		{loc: "${keyring:@sakila/conn_str}", want: "@sakila"},
 		{loc: "${keyring:@prod_db/password}", want: "@prod_db"},
 
 		// keyring opaque (Crockford) — falls through to the generic
