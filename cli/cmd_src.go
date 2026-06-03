@@ -32,14 +32,20 @@ source. Otherwise, set @HANDLE as the active data source.`,
 }
 
 func execSrc(cmd *cobra.Command, args []string) error {
-	ru := run.FromContext(cmd.Context())
+	ctx := cmd.Context()
+	ru := run.FromContext(ctx)
 	cfg := ru.Config
 
 	if len(args) == 0 {
-		// Get the active data source
+		// Get the active data source.
 		src := cfg.Collection.Active()
 		if src == nil {
 			return nil
+		}
+
+		src, err := maybeExpandSource(ctx, ru, cmd, src)
+		if err != nil {
+			return err
 		}
 
 		return ru.Writers.Source.Source(cfg.Collection, src)
@@ -50,7 +56,11 @@ func execSrc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = ru.ConfigStore.Save(cmd.Context(), cfg)
+	if err = ru.ConfigStore.Save(ctx, cfg); err != nil {
+		return err
+	}
+
+	src, err = maybeExpandSource(ctx, ru, cmd, src)
 	if err != nil {
 		return err
 	}
