@@ -166,7 +166,6 @@ func TestExpandRevealMatrix(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		c := c
 		t.Run(c.shape, func(t *testing.T) {
 			// Per-shape isolation: mock keyring and set env before each
 			// shape block so cases do not leak into each other.
@@ -175,7 +174,6 @@ func TestExpandRevealMatrix(t *testing.T) {
 			t.Setenv(envVar, envPass)
 
 			for _, combo := range combos {
-				combo := combo
 				t.Run(combo.name, func(t *testing.T) {
 					tr := testrun.New(t.Context(), t, nil)
 					require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
