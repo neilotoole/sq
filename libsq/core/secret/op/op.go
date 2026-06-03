@@ -95,9 +95,13 @@ func (r *Resolver) runOpRead(ctx context.Context, path string) (string, error) {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return "", errz.Wrapf(ctxErr, "op read %s", path)
 		}
-		stderrStr := strings.TrimSpace(stderr.String())
+		// Trim only trailing newlines so op's stderr is preserved
+		// otherwise verbatim in the wrapped error message.
+		stderrStr := strings.TrimRight(stderr.String(), "\r\n")
 		if isNotFoundStderr(stderrStr) {
-			return "", errz.Wrapf(secret.ErrNotFound, "op read %s", path)
+			// Bare sentinel, matching env/file/keyring; expand.go adds
+			// "resolve ${op:<path>}" context at the outer layer.
+			return "", secret.ErrNotFound
 		}
 		if stderrStr == "" {
 			return "", errz.Wrapf(err, "op read %s", path)
