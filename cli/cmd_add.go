@@ -390,6 +390,10 @@ func execSrcAdd(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
+	if src, err = maybeExpandSource(ctx, ru, cmd, src); err != nil {
+		return err
+	}
+
 	return ru.Writers.Source.Added(ru.Config.Collection, src)
 }
 
