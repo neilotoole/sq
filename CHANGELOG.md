@@ -25,9 +25,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   - By default, output is a faithful-ish copy of the live config: `${scheme:path}` placeholders are
     written verbatim.
   - With [`--expand`](https://sq.io/docs/secrets#substitution), every placeholder is
-    fetched from its resolver (`keyring`, `env`, or `file`) and the resolved value is spliced
-    in-line: a self-contained snapshot at the cost of writing every referenced secret in
-    plaintext (which is exactly the point of `--expand`).
+    fetched from its resolver (`keyring`, `env`, `file`, or `op`) and the resolved value
+    is spliced in-line: a self-contained snapshot at the cost of writing every referenced
+    secret in plaintext (which is exactly the point of `--expand`).
 - [#441]: [`sq add`](https://sq.io/docs/cmd/add) gains a `--store inline|keyring`
   flag, and a new [`secrets.store`](https://sq.io/docs/config#secretsstore) config option
   controls the default; existing behavior is preserved (`inline`).
@@ -40,6 +40,16 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     - `keyring`: OS keychain, managed via `sq config keyring`.
     - `env`: environment variable, e.g. `${env:DB_PROD_PW}` or `${env:DB_CONN_STR}`.
     - `file`: file contents, e.g. `${file:/run/secrets/db_pw}` or `${file:~/.sq/db_connstr}`.
+    - [#714]: `op`: 1Password CLI, e.g. `${op://Private/sakila/dsn}`. Shells out to
+      [`op read`](https://developer.1password.com/docs/cli/reference/commands/read/) using
+      1Password's
+      [secret-reference syntax](https://developer.1password.com/docs/cli/secret-reference-syntax/);
+      the user must already be signed in (biometric, `op signin`, or `OP_SERVICE_ACCOUNT_TOKEN`).
+      `sq add` accepts the bare `op://...` form (the literal "Copy Secret Reference"
+      output) as a shortcut for the wrapped `${op://...}` placeholder.
+      If a placeholder resolves to a bare value rather than a full DSN, `sq add`
+      surfaces an actionable error naming the placeholder and pointing at composition,
+      a full-DSN secret, or `--driver` as the three recovery paths.
 - [#441]: [`sq config keyring`](https://sq.io/docs/cmd/config-keyring) command group: store
   source conn strings in the OS keyring instead of plaintext in `sq.yml`.
   - Subcommands: `ls`, `create`, `update`, `get`, `rm`, `migrate`.
@@ -1681,6 +1691,7 @@ make working with lots of sources much easier.
 [#692]: https://github.com/neilotoole/sq/issues/692
 [#716]: https://github.com/neilotoole/sq/issues/716
 [#717]: https://github.com/neilotoole/sq/issues/717
+[#714]: https://github.com/neilotoole/sq/issues/714
 [#720]: https://github.com/neilotoole/sq/issues/720
 [#729]: https://github.com/neilotoole/sq/issues/729
 

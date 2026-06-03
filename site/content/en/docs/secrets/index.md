@@ -25,9 +25,9 @@ By default:
   preserved and inline plaintext is dumped as-is. Treat the exported
   file the same as `sq.yml` itself (mode `0600` by default).
 - Source locations may contain **`${scheme:path}` placeholders** that fetch
-  the real value at connect time from an external resolver. Three schemes
-  ship in the box: [`keyring`](#keyring-scheme), [`env`](#env-scheme), and
-  [`file`](#file-scheme).
+  the real value at connect time from an external resolver. Four schemes
+  ship in the box: [`keyring`](#keyring-scheme), [`env`](#env-scheme),
+  [`file`](#file-scheme), and [`op`](#op-scheme).
 - [`sq config export`](/docs/cmd/config-export) writes placeholders to the
   output **verbatim** — what the YAML says is what the export contains.
 
@@ -221,7 +221,7 @@ location: ${keyring:j2k7m3pxtz}
 location: postgres://alice:${env:DB_PW}@db.acme.com/sakila
 ```
 
-`sq` ships with three schemes: `keyring`, `env`, and `file`.
+`sq` ships with four schemes: `keyring`, `env`, `file`, and `op`.
 
 ### URL encoding
 
@@ -300,6 +300,57 @@ Relative paths and remote `file://host/path` forms are rejected.
 
 `file` is read-only: `sq` consults the file but never writes to it.
 
+### `op` scheme
+
+`${op://<vault>/<item>/[<section>/]<field>}` reads a value from 1Password
+via the [`op` CLI](https://developer.1password.com/docs/cli/) using
+1Password's
+[secret-reference syntax](https://developer.1password.com/docs/cli/secret-reference-syntax/)
+verbatim. The user must already be signed in: biometric, `op signin`, or a
+service-account token in `OP_SERVICE_ACCOUNT_TOKEN`.
+
+```yaml
+- handle: '@sakila'
+  driver: postgres
+  location: ${op://Private/sakila/dsn}                       # whole DSN
+- handle: '@sakila/composed'
+  driver: postgres
+  location: postgres://alice:${op://Private/sakila/password}@db/sakila
+```
+
+Notes:
+
+- Requires `op` v2 or newer on `PATH`.
+- The URI body is passed to `op read` verbatim; `sq` does not parse vault,
+  item, section, or field names.
+- Within one `sq` invocation, the same `${op://...}` placeholder is
+  resolved at most once (per-process cache), so biometric prompts and
+  network round-trips do not multiply.
+- `op` is read-only: `--store op` is not a thing. To put a secret into
+  1Password, use the `op` CLI directly.
+- "Item not found" surfaces as the standard `secret not found` message;
+  other failures (not signed in, network) surface `op`'s own stderr.
+
+#### `sq add` shortcuts for `op://`
+
+[`sq add`](/docs/cmd/add) accepts the bare `op://<vault>/<item>/<field>` form
+that 1Password's "Copy Secret Reference" puts on the clipboard, as sugar for
+the full `${op://...}` placeholder:
+
+```shell
+# Both forms are equivalent; the bare form is stored as ${op://...} in sq.yml.
+$ sq add 'op://Private/sakila/dsn'
+$ sq add '${op://Private/sakila/dsn}'
+```
+
+If the resolved value is a bare credential rather than a full DSN (1Password's
+default field is named `password`, so people commonly drop a DSN into it
+verbatim), `sq add` returns a hint pointing at the three options:
+
+1. Store a full DSN at that field, e.g. `postgres://alice:hunter2@db/sakila`.
+2. Use composition: `sq add 'postgres://alice:${op://Private/sakila/password}@db/sakila'`.
+3. Pass `--driver <type>` to skip driver inference entirely.
+
 ### Choosing a scheme
 
 | Environment            | Recommended scheme           | Why                                                                               |
@@ -307,6 +358,7 @@ Relative paths and remote `file://host/path` forms are rejected.
 | Dev laptop             | [`keyring`](#keyring-scheme) | Plaintext never lives on disk; OS handles the storage and prompting.              |
 | CI runner              | [`env`](#env-scheme)         | CI systems already inject secrets as environment variables.                       |
 | Container / Kubernetes | [`file`](#file-scheme)       | Secrets are typically mounted into the container as files (e.g. `/run/secrets/`). |
+| Shared / team secrets  | [`op`](#op-scheme)           | 1Password is the team source of truth; `sq` reads it via the `op` CLI.            |
 
 The schemes are not mutually exclusive: an `sq.yml` may use `keyring` for one
 source, `env` for another, and inline plaintext for a third.
@@ -314,8 +366,8 @@ source, `env` for another, and inline plaintext for a third.
 ## Managing keyring entries
 
 The [`sq config keyring`](/docs/cmd/config-keyring) command group covers the
-keyring scheme end to end. The other two schemes (`env`, `file`) are
-external — `sq` reads them at connect time and has nothing to manage.
+keyring scheme end to end. The other three schemes (`env`, `file`, `op`) are
+external: `sq` reads them at connect time and has nothing to manage.
 
 | Command                                                                           | What it does                                                                  |
 |-----------------------------------------------------------------------------------|-------------------------------------------------------------------------------|
@@ -399,9 +451,10 @@ is not a sandbox. The threats it does — and does not — address:
   exists in `sq`'s process memory.
 
 For the higher bar (per-application secrets, hardware-backed keys, rotated
-short-lived credentials), an external secret manager — referenced via the
-`env` or `file` scheme from CI / container runtime — is the right answer.
-The `keyring` scheme targets the dev-laptop case.
+short-lived credentials), an external secret manager is the right answer:
+referenced via the `env` or `file` scheme from a CI / container runtime,
+or via the `op` scheme on a dev laptop with 1Password. The `keyring` scheme
+targets the dev-laptop case when no external manager is in use.
 
 ## Related
 

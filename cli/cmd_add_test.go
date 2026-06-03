@@ -663,6 +663,59 @@ func TestCmdAdd_Placeholder_AutoResolve_Env(t *testing.T) {
 	require.Equal(t, drivertype.Pg, src.Type)
 }
 
+// TestCmdAdd_BareOpURI_IsAutoWrapped verifies the 1Password copy-paste
+// shortcut: a bare "op://..." location (the literal form emitted by
+// 1Password's "Copy Secret Reference" and by `op item get --format`)
+// is treated as a sugar for the canonical "${op://...}" placeholder,
+// so users don't have to add the ${} themselves.
+func TestCmdAdd_BareOpURI_IsAutoWrapped(t *testing.T) {
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	// --driver short-circuits add-time resolution, so the test does
+	// not need a live op CLI or stub.
+	const handle = "@sakila_pg"
+	err := tr.Exec("add", "op://Private/sakila_pg/dsn",
+		"--handle", handle,
+		"--driver", "postgres",
+		"--skip-verify")
+	require.NoError(t, err)
+
+	src, err := tr.Run.Config.Collection.Get(handle)
+	require.NoError(t, err)
+	// The location stored in YAML is the canonical wrapped form.
+	require.Equal(t, "${op://Private/sakila_pg/dsn}", src.Location)
+	require.Equal(t, drivertype.Pg, src.Type)
+}
+
+// TestCmdAdd_Placeholder_NonDSNResolved_GuidesUser verifies that when a
+// placeholder's resolved value is a bare value (e.g. just a password,
+// not a full DSN), the error names the placeholder, lists the three
+// recovery paths, and never leaks the resolved value.
+func TestCmdAdd_Placeholder_NonDSNResolved_GuidesUser(t *testing.T) {
+	// Resolved value is a bare password, not a DSN. Field name is
+	// deliberately "password" — the shape of the value is what matters
+	// for inference, not the field name.
+	t.Setenv("SQ_TEST_DSN_FOR_ADD_BARE_PW", "hunter2-secret-not-a-dsn")
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	err := tr.Exec("add", "${env:SQ_TEST_DSN_FOR_ADD_BARE_PW}", "--handle", "@x")
+	require.Error(t, err)
+	msg := err.Error()
+	require.Contains(t, msg, "${env:SQ_TEST_DSN_FOR_ADD_BARE_PW}",
+		"error should name the placeholder so the user knows which secret failed")
+	require.NotContains(t, msg, "hunter2-secret-not-a-dsn",
+		"error must not leak the resolved value")
+	require.Contains(t, msg, "compose",
+		"error should mention composition as a recovery path")
+	require.Contains(t, msg, "--driver",
+		"error should mention --driver as a recovery path")
+	require.Contains(t, msg, "postgres://",
+		"error should include a concrete DSN example")
+}
+
 // TestCmdAdd_Placeholder_ExplicitDriver verifies that --driver short-circuits
 // add-time resolution. The Location need not even resolve at add time.
 func TestCmdAdd_Placeholder_ExplicitDriver(t *testing.T) {

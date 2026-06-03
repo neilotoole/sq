@@ -227,6 +227,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) (err error) {
 	}()
 
 	loc := location.Abs(strings.TrimSpace(args[0]))
+	loc = wrapBareSecretURI(loc)
 	var typ drivertype.Type
 
 	var handle string
@@ -467,6 +468,24 @@ func applyPassword(ctx context.Context, cmd *cobra.Command, ru *run.Run, loc str
 	return loc, "", nil
 }
 
+// wrapBareSecretURI normalizes location forms that look like a URL but
+// whose scheme belongs to an external secret resolver. Today that means
+// 1Password: "op://vault/item/field" (the literal "Copy Secret Reference"
+// output from the op CLI and 1Password's app UI) is rewritten as
+// "${op://vault/item/field}" so the rest of the add flow treats it as
+// a placeholder. The bare form is unambiguous because "op" is not a sq
+// database driver scheme.
+//
+// Other resolver schemes (env, file, keyring) don't have a URL-style
+// "scheme://" form so there is nothing to normalize for them: their bare
+// natural forms ("VAR", "/path/to/file", "abc") are not URL-shaped.
+func wrapBareSecretURI(loc string) string {
+	if strings.HasPrefix(loc, "op://") {
+		return "${" + loc + "}"
+	}
+	return loc
+}
+
 // resolveDriverType determines the driver type for a `sq add` invocation.
 // Three branches, in priority order:
 //
@@ -506,12 +525,15 @@ func resolveDriverType(
 		// of which would leak the plaintext resolved DSN (including
 		// password) into debug logs and stderr.
 		typ, err := driverTypeFromResolved(ctx, ru, handle, resolved)
-		if err != nil {
-			// Generic error — must not include the resolved value.
-			return "", errz.Errorf("could not infer driver from resolved location (pass --%s)", flag.AddDriver)
-		}
-		if typ == drivertype.None {
-			return "", errz.Errorf("could not infer driver from resolved location: use --%s flag", flag.AddDriver)
+		if err != nil || typ == drivertype.None {
+			// Error and placeholder path are safe to echo (caller typed
+			// them); the resolved value is not, so it is never included.
+			return "", errz.Errorf(
+				"could not infer driver from %s: resolved value is not a DSN. "+
+					"Either store a full DSN in the secret (e.g. postgres://alice:pw@db/sakila), "+
+					"compose the placeholder into a DSN (e.g. postgres://alice:%s@db/sakila), "+
+					"or pass --%s",
+				location.Redact(loc), location.Redact(loc), flag.AddDriver)
 		}
 		return typ, nil
 	}
