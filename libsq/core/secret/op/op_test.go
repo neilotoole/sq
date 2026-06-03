@@ -95,3 +95,15 @@ func TestResolver_TrimsTrailingNewline(t *testing.T) {
 		})
 	}
 }
+
+func TestResolver_UnauthedSurfacesStderr(t *testing.T) {
+	installStubOp(t)
+	t.Setenv("SQ_TEST_OP_MODE", "unauthed")
+
+	_, err := op.NewResolver().Resolve(context.Background(), "//Private/sakila/dsn")
+	require.Error(t, err)
+	require.NotErrorIs(t, err, secret.ErrNotFound,
+		"sign-in failures must not be misclassified as not-found")
+	require.Contains(t, err.Error(), "you aren't signed in",
+		"the op CLI stderr must be surfaced so the user knows what to do")
+}
