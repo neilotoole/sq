@@ -57,7 +57,11 @@ func (r *Resolver) Resolve(ctx context.Context, path string) (string, error) {
 	if v, ok := r.cache.Load(path); ok {
 		return v.(string), nil
 	}
-	v, err, _ := r.flight.Do(path, func() (any, error) {
+	// DoChan (not Do) so each caller can honor its own ctx while waiting:
+	// the shared "op read" runs with the first caller's context, but later
+	// callers with a tighter deadline can abort independently without
+	// affecting the in-flight invocation.
+	ch := r.flight.DoChan(path, func() (any, error) {
 		// Re-check the cache: a concurrent flight may have populated it
 		// while this caller was waiting on the singleflight lock.
 		if v, ok := r.cache.Load(path); ok {
@@ -65,10 +69,15 @@ func (r *Resolver) Resolve(ctx context.Context, path string) (string, error) {
 		}
 		return r.runOpRead(ctx, path)
 	})
-	if err != nil {
-		return "", err
+	select {
+	case res := <-ch:
+		if res.Err != nil {
+			return "", res.Err
+		}
+		return res.Val.(string), nil
+	case <-ctx.Done():
+		return "", errz.Wrapf(ctx.Err(), "op read %s", path)
 	}
-	return v.(string), nil
 }
 
 // runOpRead is the cache-miss path: locate "op", run "op read op:<path>",

@@ -233,6 +233,41 @@ func TestResolver_ContextCancellation(t *testing.T) {
 		"error should chain to a context sentinel; got %v", err)
 }
 
+// TestResolver_PerCallerCtxCancel verifies that a caller waiting on a
+// coalesced singleflight can bail when its own context expires, even
+// when the shared "op read" is still hanging.
+func TestResolver_PerCallerCtxCancel(t *testing.T) {
+	installStubOp(t)
+	t.Setenv("SQ_TEST_OP_MODE", "hang")
+
+	r := op.NewResolver()
+	// First call uses the test-scoped context and is intentionally not
+	// awaited; it pins the in-flight "op read" inside the singleflight
+	// closure so the second caller is forced to wait. t.Context() is
+	// cancelled at test cleanup, which kills the hanging op process.
+	leaderCtx := t.Context()
+	go func() {
+		_, _ = r.Resolve(leaderCtx, "//v/i/f")
+	}()
+
+	// Give the leader time to enter singleflight.
+	time.Sleep(50 * time.Millisecond)
+
+	// Second caller has a tight deadline; it must abort on its own ctx
+	// without waiting for the leader's hang to complete.
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err := r.Resolve(ctx, "//v/i/f")
+	elapsed := time.Since(start)
+	require.Error(t, err)
+	require.Less(t, elapsed, time.Second,
+		"follower must bail on its own ctx, not wait for leader")
+	require.True(t,
+		errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled),
+		"follower error should chain to a context sentinel; got %v", err)
+}
+
 func TestResolver_OpBinaryMissing(t *testing.T) {
 	// Point PATH at an empty directory so "op" is not found anywhere.
 	t.Setenv("PATH", t.TempDir())
