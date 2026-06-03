@@ -32,7 +32,7 @@ import (
 //	notfound  -> writes "isn't an item" to stderr, exit 1
 //	stderr    -> writes $SQ_TEST_OP_STDERR verbatim to stderr, exit 1
 //	unauthed  -> writes a 1Password sign-in message to stderr, exit 1
-//	hang      -> sleeps 60s (used for cancellation tests)
+//	hang      -> touches $SQ_TEST_OP_STARTED_FILE (if set) then sleeps 60s
 //	count     -> appends "x" to $SQ_TEST_OP_COUNT_FILE then prints $SQ_TEST_OP_VALUE with "\n", exit 0
 func installStubOp(t *testing.T) {
 	t.Helper()
@@ -44,7 +44,7 @@ case "$SQ_TEST_OP_MODE" in
   notfound) echo "[ERROR] \"$2\" isn't an item. Specify the item by its name or ID." >&2; exit 1 ;;
   stderr)   printf '%s\n' "$SQ_TEST_OP_STDERR" >&2; exit 1 ;;
   unauthed) echo "[ERROR] you aren't signed in. Run 'op signin' to sign in." >&2; exit 1 ;;
-  hang)     sleep 60 ;;
+  hang)     if [ -n "$SQ_TEST_OP_STARTED_FILE" ]; then : >"$SQ_TEST_OP_STARTED_FILE"; fi; sleep 60 ;;
   count)    printf 'x' >>"$SQ_TEST_OP_COUNT_FILE"; printf '%s\n' "$SQ_TEST_OP_VALUE" ;;
   *)        echo "stub op: unknown mode '$SQ_TEST_OP_MODE'" >&2; exit 2 ;;
 esac
@@ -240,6 +240,9 @@ func TestResolver_PerCallerCtxCancel(t *testing.T) {
 	installStubOp(t)
 	t.Setenv("SQ_TEST_OP_MODE", "hang")
 
+	startedFile := filepath.Join(t.TempDir(), "started")
+	t.Setenv("SQ_TEST_OP_STARTED_FILE", startedFile)
+
 	r := op.NewResolver()
 	// First call uses the test-scoped context and is intentionally not
 	// awaited; it pins the in-flight "op read" inside the singleflight
@@ -250,8 +253,12 @@ func TestResolver_PerCallerCtxCancel(t *testing.T) {
 		_, _ = r.Resolve(leaderCtx, "//v/i/f")
 	}()
 
-	// Give the leader time to enter singleflight.
-	time.Sleep(50 * time.Millisecond)
+	// Wait deterministically for the leader to enter singleflight: the
+	// stub touches startedFile right before sleeping.
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(startedFile)
+		return err == nil
+	}, 5*time.Second, 10*time.Millisecond, "leader op stub never started")
 
 	// Second caller has a tight deadline; it must abort on its own ctx
 	// without waiting for the leader's hang to complete.

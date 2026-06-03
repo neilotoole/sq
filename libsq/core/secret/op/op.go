@@ -80,9 +80,10 @@ func (r *Resolver) Resolve(ctx context.Context, path string) (string, error) {
 	}
 }
 
-// runOpRead is the cache-miss path: locate "op", run "op read op:<path>",
-// classify the result, and on success populate the cache and return the
-// trimmed value.
+// runOpRead is the cache-miss path: locate "op", run
+// "op read op://<rest>" (where path already begins with "//"),
+// classify the result, and on success populate the cache and return
+// the trimmed value.
 func (r *Resolver) runOpRead(ctx context.Context, path string) (string, error) {
 	opPath, err := exec.LookPath("op")
 	if err != nil {
