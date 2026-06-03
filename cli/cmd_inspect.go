@@ -278,6 +278,16 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		return errz.Wrapf(err, "failed to read %s source metadata", src.Handle)
 	}
 
+	// Use the inspect handler's view of src.Location for display.
+	// Drivers populate srcMeta.Location from the grip's stored src,
+	// which doOpen always replaces with the resolver-expanded clone;
+	// without this override, sq inspect would always show the
+	// resolved value, leaking placeholder targets and ignoring the
+	// --expand flag. With this override, srcMeta.Location reflects
+	// the placeholder (default) or the explicitly-expanded value
+	// (when --expand is set).
+	srcMeta.Location = src.Location
+
 	// This is a bit hacky, but it works... if not "--verbose", then just zap
 	// the DBVars, as we usually don't want to see those
 	if !OptVerbose.Get(src.Options) {
