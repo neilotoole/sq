@@ -256,6 +256,37 @@ Relative paths and remote `file://host/path` forms are rejected.
 
 `file` is read-only: `sq` consults the file but never writes to it.
 
+### `op` scheme
+
+`${op://<vault>/<item>/[<section>/]<field>}` reads a value from 1Password
+via the [`op` CLI](https://developer.1password.com/docs/cli/) using
+1Password's
+[secret-reference syntax](https://developer.1password.com/docs/cli/secret-reference-syntax/)
+verbatim. The user must already be signed in: biometric, `op signin`, or a
+service-account token in `OP_SERVICE_ACCOUNT_TOKEN`.
+
+```yaml
+- handle: '@sakila'
+  driver: postgres
+  location: ${op://Private/sakila/dsn}                       # whole DSN
+- handle: '@sakila/composed'
+  driver: postgres
+  location: postgres://alice:${op://Private/sakila/password}@db/sakila
+```
+
+Notes:
+
+- Requires `op` v2 or newer on `PATH`.
+- The URI body is passed to `op read` verbatim; `sq` does not parse vault,
+  item, section, or field names.
+- Within one `sq` invocation, the same `${op://...}` placeholder is
+  resolved at most once (per-process cache), so biometric prompts and
+  network round-trips do not multiply.
+- `op` is read-only: `--store op` is not a thing. To put a secret into
+  1Password, use the `op` CLI directly.
+- "Item not found" surfaces as the standard `secret not found` message;
+  other failures (not signed in, network) surface `op`'s own stderr.
+
 ### Choosing a scheme
 
 | Environment            | Recommended scheme           | Why                                                                               |
@@ -263,6 +294,7 @@ Relative paths and remote `file://host/path` forms are rejected.
 | Dev laptop             | [`keyring`](#keyring-scheme) | Plaintext never lives on disk; OS handles the storage and prompting.              |
 | CI runner              | [`env`](#env-scheme)         | CI systems already inject secrets as environment variables.                       |
 | Container / Kubernetes | [`file`](#file-scheme)       | Secrets are typically mounted into the container as files (e.g. `/run/secrets/`). |
+| Shared / team secrets  | [`op`](#op-scheme)           | 1Password is the team source of truth; `sq` reads it via the `op` CLI.            |
 
 The schemes are not mutually exclusive: an `sq.yml` may use `keyring` for one
 source, `env` for another, and inline plaintext for a third.
@@ -270,8 +302,8 @@ source, `env` for another, and inline plaintext for a third.
 ## Managing keyring entries
 
 The [`sq config keyring`](/docs/cmd/config-keyring) command group covers the
-keyring scheme end to end. The other two schemes (`env`, `file`) are
-external — `sq` reads them at connect time and has nothing to manage.
+keyring scheme end to end. The other three schemes (`env`, `file`, `op`) are
+external: `sq` reads them at connect time and has nothing to manage.
 
 | Command                                                                           | What it does                                                                  |
 |-----------------------------------------------------------------------------------|-------------------------------------------------------------------------------|
