@@ -33,14 +33,14 @@ By default:
 
 Two global flags opt out of those defaults; they do different things:
 
-| Flag                                                                                              | What it does                                                                         | Where it applies                                                              |
-|---------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|-------------------------------------------------------------------------------|
-| <a href="#redact--reveal" style="white-space:nowrap">`--reveal`</a>                               | Don't redact secrets in display output. Show data that `sq` already has in hand.     | Global. Any command that prints a source location or a keyring entry's value. |
-| <a href="#substitution" style="white-space:nowrap">`--expand`</a>                                 | Resolve `${scheme:path}` placeholders and splice the fetched values into the output. | [`sq config export`](/docs/cmd/config-export) only.                           |
+| Flag                                                                                              | What it does                                                                         | Where it applies                                                                                       |
+|---------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------|
+| <a href="#redact--reveal" style="white-space:nowrap">`--reveal`</a>                               | Don't redact secrets in display output. Show data that `sq` already has in hand.     | Global. Any command that prints a source location or a keyring entry's value.                          |
+| <a href="#substitution" style="white-space:nowrap">`--expand`</a>                                 | Resolve `${scheme:path}` placeholders and splice the fetched values into the output. | Global. Any command that prints a source location; also [`sq config export`](/docs/cmd/config-export). |
 
 `--reveal` shows you something `sq` already knows. `--expand` makes `sq` go
 fetch something it doesn't currently hold. Both can expose plaintext, but
-the security implications are different — see each section below.
+the security implications differ; see each section below.
 
 ## Redact & reveal
 

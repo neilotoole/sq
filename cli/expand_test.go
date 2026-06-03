@@ -47,7 +47,7 @@ func newTestRun(t *testing.T, values map[string]string) *run.Run {
 // newCmdWithExpand returns a *cobra.Command with --expand registered
 // on its local flag set. When set is true, the flag is marked Changed
 // to true via Flags().Set so cmdFlagIsSetTrue returns true. (See
-// cli/flags.go:47 — cmdFlagIsSetTrue requires Changed AND value=true.)
+// cli/flags.go:47: cmdFlagIsSetTrue requires Changed AND value=true.)
 func newCmdWithExpand(t *testing.T, set bool) *cobra.Command {
 	t.Helper()
 	cmd := &cobra.Command{Use: "test"}
