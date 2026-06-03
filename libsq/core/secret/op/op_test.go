@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/secret/op"
 )
 
@@ -62,6 +63,14 @@ func TestResolver_PassesThroughURI(t *testing.T) {
 	// the path (which already begins with "//"). A naive "op://"+path
 	// would yield op:////Private/...; this asserts the bug is absent.
 	require.Equal(t, "op://Private/sakila/dsn", got)
+}
+
+func TestResolver_NotFound(t *testing.T) {
+	installStubOp(t)
+	t.Setenv("SQ_TEST_OP_MODE", "notfound")
+
+	_, err := op.NewResolver().Resolve(context.Background(), "//Private/nope/field")
+	require.ErrorIs(t, err, secret.ErrNotFound)
 }
 
 func TestResolver_TrimsTrailingNewline(t *testing.T) {

@@ -55,7 +55,10 @@ func (r *Resolver) Resolve(ctx context.Context, path string) (string, error) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		return "", errz.Wrap(err, "op read")
+		if isNotFoundStderr(stderr.String()) {
+			return "", secret.ErrNotFound
+		}
+		return "", errz.Wrapf(err, "op read: %s", strings.TrimSpace(stderr.String()))
 	}
 
 	out := stdout.String()
@@ -66,7 +69,26 @@ func (r *Resolver) Resolve(ctx context.Context, path string) (string, error) {
 		out = out[:len(out)-1]
 	}
 	r.cache.Store(path, out)
-	// T4 maps op's "not an item" stderr to secret.ErrNotFound; keep the import live.
-	_ = secret.ErrNotFound
 	return out, nil
+}
+
+// notFoundMarkers are the stderr substrings 1Password's "op" CLI uses to
+// indicate the referenced item, vault, section, or field does not exist.
+// Matching is a small, conservative set; unknown error text is surfaced
+// verbatim rather than misclassified.
+var notFoundMarkers = []string{
+	"isn't an item",
+	"item not found",
+	"no item found",
+	"couldn't find",
+}
+
+func isNotFoundStderr(s string) bool {
+	s = strings.ToLower(s)
+	for _, m := range notFoundMarkers {
+		if strings.Contains(s, m) {
+			return true
+		}
+	}
+	return false
 }
