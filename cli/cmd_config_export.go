@@ -56,6 +56,14 @@ may contain credentials regardless of whether --expand was set.`,
 	cmd.Flags().Bool(flagConfigExportExpand, false,
 		"Fetch ${scheme:path} placeholders from keyring/env/file and inline the resolved values")
 	cmd.Flags().StringP(flag.FileOutput, flag.FileOutputShort, "", flag.FileOutputUsage)
+	// execConfigExport handles --output itself to enforce mode 0600
+	// on the export file and mode 0700 on any parent dirs it creates,
+	// since the export may contain credentials. Marking the command
+	// stdout-plain stops preRun's generic --output handler from
+	// opening the file with default perms first (which would defeat
+	// the tighter perms and, on Windows, leave an open fd that breaks
+	// atomic replace).
+	cmdMarkPlainStdout(cmd)
 	return cmd
 }
 
