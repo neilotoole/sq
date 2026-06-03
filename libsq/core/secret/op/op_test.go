@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -95,6 +96,22 @@ func TestResolver_TrimsTrailingNewline(t *testing.T) {
 			require.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func TestResolver_ContextCancellation(t *testing.T) {
+	installStubOp(t)
+	t.Setenv("SQ_TEST_OP_MODE", "hang")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	_, err := op.NewResolver().Resolve(ctx, "//v/i/f")
+	elapsed := time.Since(start)
+
+	require.Error(t, err)
+	require.Less(t, elapsed, 2*time.Second,
+		"cancellation should kill the op process promptly")
 }
 
 func TestResolver_OpBinaryMissing(t *testing.T) {
