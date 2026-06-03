@@ -78,11 +78,15 @@ func checkPingOutputCSV(t *testing.T, h *testrun.TestRun, srcs ...source.Source)
 	}
 }
 
-// TestCmdPing_KeyringPlaceholder_NoLeakInJSON is a regression test for the
-// secret-leak / nil-panic pair where pingSource rebound its `src` parameter
-// to the resolved clone, leaking plaintext into the json ping writer and
-// panicking when resolution failed. The fix keeps the templated src for
-// output and uses a separate `resolved` variable for the driver call.
+// TestCmdPing_KeyringPlaceholder_NoLeakInJSON verifies that sq ping --json
+// never emits a plaintext password, regardless of whether the source
+// Location holds a keyring placeholder or an already-resolved DSN.
+//
+// When redaction is on (the default), a placeholder in the password
+// position is masked just like an inline password: the output shows
+// "xxxxx", not the resolved secret. That is the correct behavior: the
+// ping writer applies RedactedLocation before serializing, so neither
+// the resolved plaintext nor the raw placeholder leaks.
 func TestCmdPing_KeyringPlaceholder_NoLeakInJSON(t *testing.T) {
 	gokeyring.MockInit()
 	require.NoError(t, gokeyring.Set("sq", "@px_leak/password", "totally-secret-pw"))
@@ -96,14 +100,14 @@ func TestCmdPing_KeyringPlaceholder_NoLeakInJSON(t *testing.T) {
 	}))
 
 	// Ping will fail at the connect step; we don't care about success,
-	// we care that the templated Location appears in the output and the
-	// resolved plaintext does NOT.
+	// we care that the resolved plaintext does NOT appear and that the
+	// output is redacted (xxxxx in the password slot).
 	_ = tr.Exec("ping", "@px_leak", "--json")
 	out := tr.Out.String()
 	require.NotContains(t, out, "totally-secret-pw",
 		"resolved password must not leak into ping output")
-	require.Contains(t, out, "${keyring:@px_leak/password}",
-		"templated location must appear in ping output")
+	require.Contains(t, out, "xxxxx",
+		"password slot must be redacted in default (non-reveal) mode")
 }
 
 // TestCmdPing_KeyringMissing_DoesNotPanic guards against the nil-panic that

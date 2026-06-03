@@ -30,6 +30,16 @@ func (p pingWriter) Open(_ []*source.Source) error {
 
 // Result implements output.PingWriter.
 func (p pingWriter) Result(src *source.Source, d time.Duration, err error) error {
+	// Redact Location when Printing instructs us to. The embedded
+	// *source.Source serializes Location verbatim, so without this guard
+	// `sq ping --json --expand` would emit any resolved password in
+	// plaintext. Mirror the pattern from sourcewriter.go: clone, then
+	// redact, so the caller's source is not mutated.
+	if p.pr.Redact {
+		src = src.Clone()
+		src.Location = src.RedactedLocation()
+	}
+
 	r := struct { //nolint:govet // field alignment
 		*source.Source
 		Pong     bool          `json:"pong"`

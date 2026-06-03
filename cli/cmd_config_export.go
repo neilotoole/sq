@@ -17,8 +17,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 )
 
-const flagConfigExportExpand = "expand"
-
 func newConfigExportCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export",
@@ -53,8 +51,6 @@ may contain credentials regardless of whether --expand was set.`,
   $ sq config export --expand -o sq.bak.yml`,
 	}
 
-	cmd.Flags().Bool(flagConfigExportExpand, false,
-		"Fetch ${scheme:path} placeholders from keyring/env/file and inline the resolved values")
 	cmd.Flags().StringP(flag.FileOutput, flag.FileOutputShort, "", flag.FileOutputUsage)
 	// execConfigExport handles --output itself to enforce mode 0600
 	// on the export file and mode 0700 on any parent dirs it creates,
@@ -71,7 +67,7 @@ func execConfigExport(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
 	ru := run.FromContext(ctx)
 
-	expand := cmdFlagIsSetTrue(cmd, flagConfigExportExpand)
+	expand := cmdFlagIsSetTrue(cmd, flag.Expand)
 
 	cfg := ru.Config
 	if expand {
