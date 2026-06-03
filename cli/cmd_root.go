@@ -119,6 +119,18 @@ See docs and more: https://sq.io`,
 	// 'sq config set secrets.reveal false'.
 	cmd.PersistentFlags().Bool(flag.Reveal, false, flag.RevealUsage)
 	cmd.PersistentFlags().Bool(flag.NoRedact, false, flag.NoRedactUsage)
+	// --expand resolves ${scheme:path} placeholders against the
+	// registered resolvers (keyring, env, file). On display commands
+	// (sq src, sq ls, sq inspect, sq add, sq mv, sq ping -v), per-source
+	// resolver failure is lenient: the placeholder is preserved verbatim
+	// and the command exits 0. On `sq config export`, --expand keeps its
+	// existing strict-abort behavior because an export is a snapshot.
+	//
+	// Not bound to a config option: persisting --expand as a workflow
+	// preference would resolve every placeholder on every display
+	// command, defeating the reason the user put the placeholder there.
+	// Like --reveal, explicit --expand=false is a no-op.
+	cmd.PersistentFlags().Bool(flag.Expand, false, flag.ExpandUsage)
 	addOptionFlag(cmd.PersistentFlags(), OptVerbose)
 	addOptionFlag(cmd.PersistentFlags(), pprofile.OptMode)
 	panicOn(cmd.RegisterFlagCompletionFunc(pprofile.OptMode.Flag().Name, completeStrings(
