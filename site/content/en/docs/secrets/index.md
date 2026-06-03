@@ -111,12 +111,17 @@ and the commands that print a source location act on it.
 ### On display commands
 
 [`sq src`](/docs/cmd/src), [`sq ls`](/docs/cmd/ls),
-[`sq inspect`](/docs/inspect), [`sq add`](/docs/cmd/add)'s echo,
-[`sq mv`](/docs/cmd/mv)'s echo, and [`sq ping`](/docs/cmd/ping) with `-v`
-each show a source location. `--expand` decides whether that location is
-the verbatim placeholder or the resolved value. `--reveal` is the orthogonal
-axis: it flips the redaction filter on whatever string ends up being
-displayed.
+[`sq inspect`](/docs/inspect), [`sq add`](/docs/cmd/add)'s post-add
+echo, [`sq mv`](/docs/cmd/mv)'s post-mv echo, and
+[`sq ping`](/docs/cmd/ping) in JSON or YAML output each show a source
+location. `--expand` decides whether that location is the verbatim
+placeholder or the resolved value. `--reveal` is the orthogonal axis: it
+flips the redaction filter on whatever string ends up being displayed.
+
+> [!NOTE]
+> `sq ping`'s text and CSV output do not include a Location column, so
+> `--expand` has no visible effect there. Use `--json` or `--yaml` to see
+> the per-source location.
 
 For a source whose YAML location is `${keyring:abc}` and whose keyring entry
 holds `postgres://alice:hunter2@db.acme.com/sakila`:
@@ -128,12 +133,15 @@ holds `postgres://alice:hunter2@db.acme.com/sakila`:
 | `--expand`            | `postgres://alice:xxxxx@db.acme.com/sakila`              |
 | `--expand --reveal`   | `postgres://alice:hunter2@db.acme.com/sakila`            |
 
-If a resolver fails per source (missing keyring entry, unset env var,
-unreadable file), the placeholder is preserved verbatim for that source.
-Other sources expand normally and the command exits 0. The lenient
-fallback is deliberate: `--expand` on a display command is a diagnostic,
-and an aborted command would hide every source's state because of one
-stale placeholder.
+The display-expansion step is lenient: a per-source resolver failure
+(missing keyring entry, unset env var, unreadable file) leaves that
+source's placeholder verbatim and the listing continues. This applies to
+the display step only; commands that must resolve to connect (e.g.
+`sq inspect`, `sq ping`) still fail at connect time when a missing secret
+prevents the connection. The lenient display fallback is deliberate:
+`--expand` on a listing command is a diagnostic, and aborting the whole
+listing because one source's resolver is offline would hide every other
+source's state.
 
 ### On `sq config export`
 

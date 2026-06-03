@@ -120,11 +120,18 @@ See docs and more: https://sq.io`,
 	cmd.PersistentFlags().Bool(flag.Reveal, false, flag.RevealUsage)
 	cmd.PersistentFlags().Bool(flag.NoRedact, false, flag.NoRedactUsage)
 	// --expand resolves ${scheme:path} placeholders against the
-	// registered resolvers (keyring, env, file). On display commands
-	// (sq src, sq ls, sq inspect, sq add, sq mv, sq ping -v), per-source
-	// resolver failure is lenient: the placeholder is preserved verbatim
-	// and the command exits 0. On `sq config export`, --expand keeps its
-	// existing strict-abort behavior because an export is a snapshot.
+	// registered resolvers (keyring, env, file). It applies to every
+	// command that prints a source location: sq src, sq ls, sq inspect,
+	// sq add and sq mv (post-action echo), and sq ping in JSON/YAML
+	// output (the text/CSV ping output does not include Location).
+	//
+	// On the display-expansion step itself, per-source resolver failure
+	// is lenient: the placeholder is left verbatim for that source and
+	// the listing continues. Connection-time resolution is independent;
+	// commands that have to connect (sq inspect, sq ping) will still
+	// error if a missing secret prevents the connection. On
+	// `sq config export`, --expand keeps its existing strict-abort
+	// behavior because an export is a snapshot for transfer.
 	//
 	// Not bound to a config option: persisting --expand as a workflow
 	// preference would resolve every placeholder on every display

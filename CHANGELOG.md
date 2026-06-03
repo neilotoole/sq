@@ -75,17 +75,23 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   now syntax-colors its `erDiagram` source when writing to a terminal.
 - [#729]: [`--expand`](https://sq.io/docs/secrets#substitution) is now a persistent
   root flag, accepted by every subcommand. Previously it lived only on `sq config export`.
-  - Display commands ([`sq src`](https://sq.io/docs/cmd/src), [`sq ls`](https://sq.io/docs/cmd/ls),
-    [`sq inspect`](https://sq.io/docs/inspect), `sq add`, `sq mv`, `sq ping -v`) now pass
-    `${scheme:path}` placeholders through the configured resolvers and print the resolved value.
-    `--expand` composes orthogonally with `--reveal`: `--reveal` flips the redaction filter on
-    whatever string is being displayed; `--expand` decides whether that string is the verbatim
-    placeholder or the resolved value.
-  - On display commands, per-source resolver failure (missing keyring entry, unset env var,
-    unreadable file) is lenient: the placeholder is preserved verbatim for that source, the
-    other sources expand normally, and the command exits 0. `sq config export --expand`
-    keeps its existing strict-abort behavior because an export is a snapshot for transfer,
-    and a half-resolved snapshot is the wrong artifact.
+  - Commands that print a source location ([`sq src`](https://sq.io/docs/cmd/src),
+    [`sq ls`](https://sq.io/docs/cmd/ls), [`sq inspect`](https://sq.io/docs/inspect),
+    `sq add`, `sq mv`, and `sq ping` in JSON/YAML output) now pass `${scheme:path}`
+    placeholders through the configured resolvers and print the resolved value.
+    `sq ping`'s text and CSV output do not include a Location column, so `--expand`
+    has no visible effect there. `--expand` composes orthogonally with `--reveal`:
+    `--reveal` flips the redaction filter on whatever string is being displayed;
+    `--expand` decides whether that string is the verbatim placeholder or the
+    resolved value.
+  - The display-expansion step itself is lenient: a per-source resolver failure
+    (missing keyring entry, unset env var, unreadable file) leaves that source's
+    placeholder verbatim and the listing continues. This is independent of
+    connection-time resolution; commands that have to connect (e.g.
+    [`sq inspect`](https://sq.io/docs/inspect), `sq ping`) will still fail at
+    connect time if a missing secret prevents the connection. `sq config export --expand`
+    keeps its existing strict-abort behavior because an export is a snapshot for
+    transfer, and a half-resolved snapshot is the wrong artifact.
   - Subcommands that don't print a source location (e.g. [`sq sql`](https://sq.io/docs/cmd/sql),
     `sq slq`, `sq tbl`) accept `--expand` as a silent no-op, so a global alias like
     `alias sq='sq --reveal --expand'` is safe.

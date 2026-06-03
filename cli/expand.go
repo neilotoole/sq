@@ -24,9 +24,10 @@ import (
 // as errors (a partial expansion under user-driven cancellation is not
 // a "this source's keyring is offline" situation).
 //
-// Display commands (sq src, sq ls, sq inspect, sq add echo, sq mv
-// echo, sq ping -v) call this at the start of execution and pass the
-// returned collection to the writer. The writer's existing redact
+// Called by every command that prints a source location: sq src,
+// sq ls, sq inspect, sq add and sq mv (post-action echo), and
+// sq ping in JSON/YAML output. Each handler invokes this once
+// before passing data to the writer. The writer's existing redact
 // step runs on whatever Location it sees, so the matrix is:
 //
 //	raw -> [expand?] -> [redact?] -> displayed
@@ -55,8 +56,10 @@ func maybeExpandCollection(ctx context.Context, ru *run.Run, cmd *cobra.Command,
 				return nil, errz.Err(err)
 			}
 			// Lenient resolver failure: keep the placeholder verbatim and
-			// log at debug level. The verbatim value is the user-visible
-			// signal in default output; the debug log is for operators
+			// log at debug level. The verbatim placeholder may itself be
+			// hidden downstream (e.g. a placeholder inside a URL password
+			// slot is masked by the redact filter when --reveal is off),
+			// so the debug log is the reliable signal for operators
 			// running with SQ_LOG=debug.
 			lg.FromContext(ctx).Debug("expand: leaving placeholder verbatim",
 				lga.Src, src.Handle,
