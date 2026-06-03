@@ -322,6 +322,56 @@ func TestPingWriter_Result(t *testing.T) {
 	})
 }
 
+// TestPingWriter_Result_RedactsLocation verifies that pingWriter.Result
+// redacts the Location field when Printing.Redact is true, and emits
+// plaintext when Printing.Redact is false (i.e. --reveal).
+func TestPingWriter_Result_RedactsLocation(t *testing.T) {
+	const (
+		plainLoc    = "postgres://alice:hunter2@db.example.com:5432/sakila"
+		redactedLoc = "postgres://alice:xxxxx@db.example.com:5432/sakila"
+	)
+
+	src := &source.Source{
+		Handle:   "@redact_test",
+		Type:     drivertype.Pg,
+		Location: plainLoc,
+	}
+
+	t.Run("redact_on", func(t *testing.T) {
+		var buf bytes.Buffer
+		pr := output.NewPrinting()
+		pr.EnableColor(false)
+		pr.Redact = true
+
+		pw := jsonw.NewPingWriter(&buf, pr)
+		require.NoError(t, pw.Result(src, 10*time.Millisecond, nil))
+
+		out := buf.String()
+		require.NotContains(t, out, "hunter2",
+			"plaintext password must not appear when Redact is true")
+		require.Contains(t, out, redactedLoc,
+			"redacted location must appear in output")
+
+		// The caller's src must not be mutated.
+		require.Equal(t, plainLoc, src.Location,
+			"caller's source Location must not be mutated")
+	})
+
+	t.Run("redact_off", func(t *testing.T) {
+		var buf bytes.Buffer
+		pr := output.NewPrinting()
+		pr.EnableColor(false)
+		pr.Redact = false
+
+		pw := jsonw.NewPingWriter(&buf, pr)
+		require.NoError(t, pw.Result(src, 10*time.Millisecond, nil))
+
+		out := buf.String()
+		require.Contains(t, out, "hunter2",
+			"plaintext password must appear when Redact is false (--reveal)")
+	})
+}
+
 // TestJSONRoundtrip tests writing JSON/JSONA/JSONL output from a query and then
 // reading it back with "sq inspect". This verifies that JSON files
 // created by sq can be correctly detected and read.
