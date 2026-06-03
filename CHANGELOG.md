@@ -45,6 +45,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
       1Password's
       [secret-reference syntax](https://developer.1password.com/docs/cli/secret-reference-syntax/);
       the user must already be signed in (biometric, `op signin`, or `OP_SERVICE_ACCOUNT_TOKEN`).
+      `sq add` accepts the bare `op://...` form (the literal "Copy Secret Reference"
+      output) as a shortcut for the wrapped `${op://...}` placeholder.
+      If a placeholder resolves to a bare value rather than a full DSN, `sq add`
+      surfaces an actionable error naming the placeholder and pointing at composition,
+      a full-DSN secret, or `--driver` as the three recovery paths.
 - [#441]: [`sq config keyring`](https://sq.io/docs/cmd/config-keyring) command group: store
   source conn strings in the OS keyring instead of plaintext in `sq.yml`.
   - Subcommands: `ls`, `create`, `update`, `get`, `rm`, `migrate`.

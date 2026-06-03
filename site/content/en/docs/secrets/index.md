@@ -331,6 +331,26 @@ Notes:
 - "Item not found" surfaces as the standard `secret not found` message;
   other failures (not signed in, network) surface `op`'s own stderr.
 
+#### `sq add` shortcuts for `op://`
+
+[`sq add`](/docs/cmd/add) accepts the bare `op://<vault>/<item>/<field>` form
+that 1Password's "Copy Secret Reference" puts on the clipboard, as sugar for
+the full `${op://...}` placeholder:
+
+```shell
+# Both forms are equivalent; the bare form is stored as ${op://...} in sq.yml.
+$ sq add 'op://Private/sakila/dsn'
+$ sq add '${op://Private/sakila/dsn}'
+```
+
+If the resolved value is a bare credential rather than a full DSN (1Password's
+default field is named `password`, so people commonly drop a DSN into it
+verbatim), `sq add` returns a hint pointing at the three options:
+
+1. Store a full DSN at that field, e.g. `postgres://alice:hunter2@db/sakila`.
+2. Use composition: `sq add 'postgres://alice:${op://Private/sakila/password}@db/sakila'`.
+3. Pass `--driver <type>` to skip driver inference entirely.
+
 ### Choosing a scheme
 
 | Environment            | Recommended scheme           | Why                                                                               |
