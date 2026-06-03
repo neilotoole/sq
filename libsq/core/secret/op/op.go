@@ -76,7 +76,7 @@ func (r *Resolver) Resolve(ctx context.Context, path string) (string, error) {
 		}
 		return res.Val.(string), nil
 	case <-ctx.Done():
-		return "", errz.Wrapf(ctx.Err(), "op read %s", path)
+		return "", errz.Wrapf(ctx.Err(), "op read op:%s", path)
 	}
 }
 
@@ -96,7 +96,8 @@ func (r *Resolver) runOpRead(ctx context.Context, path string) (string, error) {
 	// "op", and the read URI is passed as a separate argv entry, not
 	// through a shell, so a hostile placeholder body cannot break out
 	// into command injection.
-	cmd := exec.CommandContext(ctx, opPath, "read", "op:"+path)
+	uri := "op:" + path
+	cmd := exec.CommandContext(ctx, opPath, "read", uri)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -104,7 +105,7 @@ func (r *Resolver) runOpRead(ctx context.Context, path string) (string, error) {
 		// Honor context cancellation before any stderr-based classification:
 		// when the child is killed by ctx, stderr is typically empty.
 		if ctxErr := ctx.Err(); ctxErr != nil {
-			return "", errz.Wrapf(ctxErr, "op read %s", path)
+			return "", errz.Wrapf(ctxErr, "op read %s", uri)
 		}
 		// Trim only trailing newlines so op's stderr is preserved
 		// otherwise verbatim in the wrapped error message.
@@ -115,9 +116,9 @@ func (r *Resolver) runOpRead(ctx context.Context, path string) (string, error) {
 			return "", secret.ErrNotFound
 		}
 		if stderrStr == "" {
-			return "", errz.Wrapf(err, "op read %s", path)
+			return "", errz.Wrapf(err, "op read %s", uri)
 		}
-		return "", errz.Wrapf(err, "op read %s: %s", path, stderrStr)
+		return "", errz.Wrapf(err, "op read %s: %s", uri, stderrStr)
 	}
 
 	out := stdout.String()
