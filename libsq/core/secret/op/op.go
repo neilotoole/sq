@@ -83,8 +83,9 @@ func (r *Resolver) runOpRead(ctx context.Context, path string) (string, error) {
 	}
 
 	// opPath is the absolute path resolved by LookPath for the literal
-	// "op"; the read URI is sq's own placeholder body. Neither is
-	// untrusted external input.
+	// "op", and the read URI is passed as a separate argv entry, not
+	// through a shell, so a hostile placeholder body cannot break out
+	// into command injection.
 	cmd := exec.CommandContext(ctx, opPath, "read", "op:"+path)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

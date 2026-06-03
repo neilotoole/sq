@@ -25,9 +25,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   - By default, output is a faithful-ish copy of the live config: `${scheme:path}` placeholders are
     written verbatim.
   - With [`--expand`](https://sq.io/docs/secrets#substitution), every placeholder is
-    fetched from its resolver (`keyring`, `env`, or `file`) and the resolved value is spliced
-    in-line: a self-contained snapshot at the cost of writing every referenced secret in
-    plaintext (which is exactly the point of `--expand`).
+    fetched from its resolver (`keyring`, `env`, `file`, or `op`) and the resolved value
+    is spliced in-line: a self-contained snapshot at the cost of writing every referenced
+    secret in plaintext (which is exactly the point of `--expand`).
 - [#441]: [`sq add`](https://sq.io/docs/cmd/add) gains a `--store inline|keyring`
   flag, and a new [`secrets.store`](https://sq.io/docs/config#secretsstore) config option
   controls the default; existing behavior is preserved (`inline`).
