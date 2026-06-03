@@ -50,3 +50,16 @@ func TestResolver_HappyPath(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "hunter2", got)
 }
+
+func TestResolver_PassesThroughURI(t *testing.T) {
+	installStubOp(t)
+	t.Setenv("SQ_TEST_OP_MODE", "echo")
+
+	got, err := op.NewResolver().Resolve(context.Background(), "//Private/sakila/dsn")
+	require.NoError(t, err)
+	// The stub echoes argv[2], which is the second positional arg to
+	// "op read". The resolver must reconstitute the full op:// URI from
+	// the path (which already begins with "//"). A naive "op://"+path
+	// would yield op:////Private/...; this asserts the bug is absent.
+	require.Equal(t, "op://Private/sakila/dsn", got)
+}
