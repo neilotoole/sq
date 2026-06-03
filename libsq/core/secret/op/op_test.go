@@ -98,6 +98,45 @@ func TestResolver_TrimsTrailingNewline(t *testing.T) {
 	}
 }
 
+func TestResolver_CachesAcrossCalls(t *testing.T) {
+	installStubOp(t)
+	countFile := filepath.Join(t.TempDir(), "calls")
+	t.Setenv("SQ_TEST_OP_MODE", "count")
+	t.Setenv("SQ_TEST_OP_COUNT_FILE", countFile)
+	t.Setenv("SQ_TEST_OP_VALUE", "hunter2")
+
+	r := op.NewResolver()
+	for range 3 {
+		got, err := r.Resolve(context.Background(), "//v/i/f")
+		require.NoError(t, err)
+		require.Equal(t, "hunter2", got)
+	}
+
+	data, err := os.ReadFile(countFile)
+	require.NoError(t, err)
+	require.Equal(t, "x", string(data),
+		"three Resolve calls for the same path must invoke op exactly once")
+}
+
+func TestResolver_CacheIsKeyedByPath(t *testing.T) {
+	installStubOp(t)
+	countFile := filepath.Join(t.TempDir(), "calls")
+	t.Setenv("SQ_TEST_OP_MODE", "count")
+	t.Setenv("SQ_TEST_OP_COUNT_FILE", countFile)
+	t.Setenv("SQ_TEST_OP_VALUE", "hunter2")
+
+	r := op.NewResolver()
+	_, err := r.Resolve(context.Background(), "//v/i1/f")
+	require.NoError(t, err)
+	_, err = r.Resolve(context.Background(), "//v/i2/f")
+	require.NoError(t, err)
+
+	data, err := os.ReadFile(countFile)
+	require.NoError(t, err)
+	require.Equal(t, "xx", string(data),
+		"distinct paths must each invoke op")
+}
+
 func TestResolver_ContextCancellation(t *testing.T) {
 	installStubOp(t)
 	t.Setenv("SQ_TEST_OP_MODE", "hang")
