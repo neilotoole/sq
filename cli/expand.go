@@ -8,6 +8,7 @@ import (
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -40,7 +41,7 @@ func maybeExpandCollection(ctx context.Context, ru *run.Run, cmd *cobra.Command,
 		resolved, err := ru.SecretRegistry.Expand(ctx, src.Location)
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				return nil, err
+				return nil, errz.Err(err)
 			}
 			// Lenient: leave the placeholder verbatim so the user can
 			// still read "what would have resolved here". No stderr
@@ -67,7 +68,7 @@ func maybeExpandSource(ctx context.Context, ru *run.Run, cmd *cobra.Command,
 	resolved, err := ru.SecretRegistry.Expand(ctx, clone.Location)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return nil, err
+			return nil, errz.Err(err)
 		}
 		return clone, nil
 	}

@@ -16,9 +16,9 @@ import (
 )
 
 // stubResolver returns canned values keyed by path. Missing path
-// yields secret.ErrNotFound. canceledOnly causes Resolve to return
-// ctx.Err() when the context is canceled, supporting the
-// cancellation-propagation test.
+// yields secret.ErrNotFound. If ctx is canceled, Resolve returns
+// ctx.Err() so the cancellation-propagation test can exercise that
+// path without involving a real resolver.
 type stubResolver struct {
 	values map[string]string
 }
