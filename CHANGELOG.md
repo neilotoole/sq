@@ -73,6 +73,22 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     a flag.
 - [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd)
   now syntax-colors its `erDiagram` source when writing to a terminal.
+- [#729]: [`--expand`](https://sq.io/docs/secrets#substitution) is now a persistent
+  root flag, accepted by every subcommand. Previously it lived only on `sq config export`.
+  - Display commands ([`sq src`](https://sq.io/docs/cmd/src), [`sq ls`](https://sq.io/docs/cmd/ls),
+    [`sq inspect`](https://sq.io/docs/inspect), `sq add`, `sq mv`, `sq ping -v`) now pass
+    `${scheme:path}` placeholders through the configured resolvers and print the resolved value.
+    `--expand` composes orthogonally with `--reveal`: `--reveal` flips the redaction filter on
+    whatever string is being displayed; `--expand` decides whether that string is the verbatim
+    placeholder or the resolved value.
+  - On display commands, per-source resolver failure (missing keyring entry, unset env var,
+    unreadable file) is lenient: the placeholder is preserved verbatim for that source, the
+    other sources expand normally, and the command exits 0. `sq config export --expand`
+    keeps its existing strict-abort behavior because an export is a snapshot for transfer,
+    and a half-resolved snapshot is the wrong artifact.
+  - Subcommands that don't print a source location (e.g. [`sq sql`](https://sq.io/docs/cmd/sql),
+    `sq slq`, `sq tbl`) accept `--expand` as a silent no-op, so a global alias like
+    `alias sq='sq --reveal --expand'` is safe.
 
 ### Fixed
 
@@ -81,6 +97,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   - Previously failed on [`sq inspect @handle`](https://sq.io/docs/inspect) etc.
     when the source location carried a `?key=val[&...]` connection-string suffix (e.g.
     `sqlite3:///path/to/db?mode=ro`).
+- [#729]: `sq inspect` no longer leaks the resolved target of a `${scheme:path}` placeholder
+  into its metadata output. The driver layer resolves placeholders to open the connection,
+  and the resolved value was being copied verbatim into `metadata.Source.Location`; the
+  inspect handler now overrides that field with the caller's view of `src.Location`, which
+  is the placeholder by default and the resolved value only when `--expand` is set.
 
 ## [v0.53.0] - 2026-05-25
 
@@ -1655,6 +1676,7 @@ make working with lots of sources much easier.
 [#716]: https://github.com/neilotoole/sq/issues/716
 [#717]: https://github.com/neilotoole/sq/issues/717
 [#720]: https://github.com/neilotoole/sq/issues/720
+[#729]: https://github.com/neilotoole/sq/issues/729
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
