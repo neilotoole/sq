@@ -207,7 +207,9 @@ func TestExpandRevealMatrix(t *testing.T) {
 // that source's row falls back to its verbatim placeholder while the
 // other sources expand normally, and the command exits 0.
 func TestExpandLenient_PartialFailure(t *testing.T) {
-	t.Parallel()
+	// Not parallel: gokeyring.MockInit() mutates a process-global
+	// keyring backend, and parallelizing this with another
+	// MockInit-using test in the future would race.
 
 	gokeyring.MockInit()
 	require.NoError(t, gokeyring.Set("sq", "ok_id",
@@ -233,6 +235,97 @@ func TestExpandLenient_PartialFailure(t *testing.T) {
 		"@ok must expand (with redaction)")
 	require.Contains(t, got, "${keyring:missing_id}",
 		"@missing must show verbatim placeholder")
+}
+
+// TestExpand_PerCommandWiring is a smoke test for the --expand flag across
+// the display commands that are supposed to call maybeExpandSource or
+// maybeExpandCollection. If a future refactor drops that call from one
+// handler, this test catches it even though the expand unit tests would
+// still pass.
+//
+// Shape A (whole-DSN keyring placeholder) is used because it produces the
+// most visible difference: without --expand the verbatim placeholder string
+// appears; with --expand the resolved DSN (with the password redacted) appears.
+//
+// Commands tested: sq src --json, sq ls --json, sq ping --json.
+//
+// sq add, sq mv, and sq inspect are not exercised here:
+//   - sq add and sq mv have awkward bootstrap requirements when testing
+//     with keyring placeholders (the added source must already exist in
+//     the collection before the command echo can be asserted).
+//   - sq inspect is covered by its own dedicated regression test:
+//     TestInspect_LocationOverride_NoLeak in cmd_inspect_test.go.
+func TestExpand_PerCommandWiring(t *testing.T) {
+	// Not parallel: gokeyring.MockInit() mutates a process-global
+	// keyring backend, and parallelizing this with another
+	// MockInit-using test in the future would race.
+	const (
+		keyringID    = "wiring_smoke_kr"
+		fullDSN      = "postgres://alice:hunter2@db.example.com/sakila"
+		placeholder  = "${keyring:" + keyringID + "}"
+		redactedPass = "xxxxx"
+	)
+
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", keyringID, fullDSN))
+
+	makeSrc := func() *source.Source {
+		return &source.Source{
+			Handle:   "@h",
+			Type:     drivertype.Pg,
+			Location: placeholder,
+		}
+	}
+
+	t.Run("sq_src_json", func(t *testing.T) {
+		tr := testrun.New(t.Context(), t, nil)
+		require.NoError(t, tr.Run.Config.Collection.Add(makeSrc()))
+		_, err := tr.Run.Config.Collection.SetActive("@h", false)
+		require.NoError(t, err)
+
+		require.NoError(t, tr.Exec("src", "--json", "--expand"),
+			"sq src --json --expand must succeed")
+		out := tr.OutString()
+		require.Contains(t, out, "postgres://alice:"+redactedPass+"@db.example.com/sakila",
+			"sq src --json --expand must show the resolved, redacted DSN")
+		require.NotContains(t, out, placeholder,
+			"sq src --json --expand must not show the verbatim placeholder")
+		require.NotContains(t, out, "hunter2",
+			"sq src --json --expand must not leak the plaintext secret")
+	})
+
+	t.Run("sq_ls_json", func(t *testing.T) {
+		tr := testrun.New(t.Context(), t, nil)
+		require.NoError(t, tr.Run.Config.Collection.Add(makeSrc()))
+
+		require.NoError(t, tr.Exec("ls", "--json", "--expand"),
+			"sq ls --json --expand must succeed")
+		out := tr.OutString()
+		require.Contains(t, out, "postgres://alice:"+redactedPass+"@db.example.com/sakila",
+			"sq ls --json --expand must show the resolved, redacted DSN")
+		require.NotContains(t, out, placeholder,
+			"sq ls --json --expand must not show the verbatim placeholder")
+		require.NotContains(t, out, "hunter2",
+			"sq ls --json --expand must not leak the plaintext secret")
+	})
+
+	t.Run("sq_ping_json", func(t *testing.T) {
+		tr := testrun.New(t.Context(), t, nil)
+		require.NoError(t, tr.Run.Config.Collection.Add(makeSrc()))
+
+		// Ping will fail to connect (the postgres DSN is not reachable in CI),
+		// but the JSON output is still written before the connection error. The
+		// test does not require ping success; it requires that the Location
+		// field in the JSON output is the resolved, redacted form.
+		_ = tr.Exec("ping", "@h", "--json", "--expand")
+		out := tr.OutString()
+		require.Contains(t, out, "postgres://alice:"+redactedPass+"@db.example.com/sakila",
+			"sq ping --json --expand must show the resolved, redacted DSN")
+		require.NotContains(t, out, placeholder,
+			"sq ping --json --expand must not show the verbatim placeholder")
+		require.NotContains(t, out, "hunter2",
+			"sq ping --json --expand must not leak the plaintext secret")
+	})
 }
 
 // TestExpand_NoOp_OnNonDisplayCommand verifies that --expand is
