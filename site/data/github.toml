@@ -3,4 +3,4 @@
 # nightly by .github/workflows/site-data-nightly.yml; the committed values
 # are the offline / fetch-failure fallback.
 latest_version = "0.53.0"
-stars = 2517
+stars = 2518
