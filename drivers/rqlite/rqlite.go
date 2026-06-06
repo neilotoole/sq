@@ -544,8 +544,13 @@ func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName
 }
 
 // AlterTableAddColumn implements driver.SQLDriver.
-func (d *driveri) AlterTableAddColumn(_ context.Context, _ sqlz.DB, _, _ string, _ kind.Kind) error {
-	return errz.New(errNotImplemented + ": AlterTableAddColumn")
+func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col string, knd kind.Kind) error {
+	q := fmt.Sprintf("ALTER TABLE %q ADD COLUMN %q %s", tbl, col, DBTypeForKind(knd))
+	_, err := db.ExecContext(ctx, q)
+	if err != nil {
+		return errz.Wrapf(errw(err), "rqlite: alter table: failed to add column {%s} to table {%s}", col, tbl)
+	}
+	return nil
 }
 
 // AlterTableRenameColumn implements driver.SQLDriver.

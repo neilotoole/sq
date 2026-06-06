@@ -145,3 +145,34 @@ func TestAlterTableRename(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, exists)
 }
+
+func TestAlterTableAddColumn(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	tblName := "addcol_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+	})
+
+	tblDef := schema.NewTable(tblName, []string{"id"}, []kind.Kind{kind.Int})
+	require.NoError(t, drvr.CreateTable(th.Context, db, tblDef))
+
+	require.NoError(t, drvr.AlterTableAddColumn(th.Context, db, tblName, "name", kind.Text))
+	require.NoError(t, drvr.AlterTableAddColumn(th.Context, db, tblName, "ts", kind.Datetime))
+
+	md, err := grip.TableMetadata(th.Context, tblName)
+	require.NoError(t, err)
+	require.Len(t, md.Columns, 3)
+	require.Equal(t, "name", md.Columns[1].Name)
+	require.Equal(t, kind.Text, md.Columns[1].Kind)
+	require.Equal(t, "ts", md.Columns[2].Name)
+	require.Equal(t, kind.Datetime, md.Columns[2].Kind)
+}
