@@ -13,10 +13,16 @@
 //
 // rqlite's HTTP API does not support interactive transactions, only
 // atomic batches via /db/execute. gorqlite's database/sql driver
-// surfaces Begin/Commit/Rollback as no-ops, which means sq code paths
-// that rely on a real Tx (notably Truncate and NewBatchInsert) need
-// rqlite-specific replacements rather than reusing the standard
-// Tx-wrapped helpers.
+// surfaces Begin/Commit/Rollback as no-ops, so any sq code path that
+// needs cross-statement atomicity (CopyTable's CREATE+INSERT-SELECT,
+// AlterTableColumnKinds' table-rebuild dance) goes through the
+// writeAtomic helper, which tunnels via sql.Conn.Raw() to gorqlite's
+// native WriteParameterizedContext. Truncate emits its DELETE (and
+// optional sqlite_sequence reset) as plain database/sql calls and is
+// deliberately non-atomic across the two statements; see its godoc.
+// NewBatchInsert delegates to driver.DefaultNewBatchInsert: each
+// batch is one multi-row INSERT, one HTTP call, atomic at rqlite
+// per batch.
 package rqlite
 
 import (
