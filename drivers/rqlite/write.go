@@ -36,6 +36,9 @@ type gorqliteConn interface {
 // changes() value, which is the most recent DML row count and is
 // therefore stale for DDL statements in a batch. Pick the index of
 // the statement whose count is meaningful (typically the last DML).
+//
+// On success, results has exactly len(stmts) entries. On error, results
+// may be partial or empty and should not be inspected for counts.
 func writeAtomic(ctx context.Context, db sqlz.DB,
 	stmts ...gorqlite.ParameterizedStatement,
 ) (results []gorqlite.WriteResult, err error) {
@@ -78,6 +81,11 @@ func writeAtomic(ctx context.Context, db sqlz.DB,
 			return results, errz.Wrapf(errw(wr.Err),
 				"rqlite: statement %d/%d failed", i+1, len(stmts))
 		}
+	}
+	if len(results) != len(stmts) {
+		return results, errz.Errorf(
+			"rqlite: writeAtomic: expected %d results but got %d",
+			len(stmts), len(results))
 	}
 	return results, nil
 }
