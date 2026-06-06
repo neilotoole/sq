@@ -13,6 +13,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // createTblKindDefaults maps Kind to the DEFAULT clause emitted in a
@@ -144,4 +145,32 @@ func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+// tableMetadataToSchema converts a *metadata.Table (the shape returned
+// by getTableMetadata) into a *schema.Table (the shape consumed by
+// buildCreateTableStmt). The resulting table has Name set to newName,
+// preserving the source's columns, kinds, primary key, NOT NULL, and
+// HasDefault flags. Out-of-model artefacts (CHECK constraints, indexes,
+// triggers) are not represented in *schema.Table and therefore are
+// dropped — see the design doc trade-off.
+func tableMetadataToSchema(md *metadata.Table, newName string) *schema.Table {
+	tblDef := &schema.Table{
+		Name: newName,
+		Cols: make([]*schema.Column, len(md.Columns)),
+	}
+	for i, mcol := range md.Columns {
+		col := &schema.Column{
+			Table:      tblDef,
+			Name:       mcol.Name,
+			Kind:       mcol.Kind,
+			NotNull:    !mcol.Nullable,
+			HasDefault: mcol.DefaultValue != "",
+		}
+		tblDef.Cols[i] = col
+		if mcol.PrimaryKey && tblDef.PKColName == "" {
+			tblDef.PKColName = mcol.Name
+		}
+	}
+	return tblDef
 }
