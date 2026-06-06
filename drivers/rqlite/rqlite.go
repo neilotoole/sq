@@ -173,6 +173,13 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 // count accurately, and atomic DELETE+UPDATE for Truncate is reserved
 // for the cases where it materially matters (CopyTable,
 // AlterTableColumnKinds).
+//
+// Cross-driver note: on reset-stage failure (the sqlite_sequence probe
+// or UPDATE), this function returns (affectedFromDELETE, err). The
+// DELETE genuinely committed. This diverges from drivers that wrap
+// Truncate in a real Tx (sqlite3, postgres), where reset failure
+// rolls the DELETE back and they return (0, err). Callers checking
+// the affected count across drivers should be aware.
 func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (int64, error) {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
