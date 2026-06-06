@@ -315,3 +315,29 @@ func TestCopyTable_StructureOnly(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, md.Columns, len(srcMd.Columns))
 }
+
+func TestCopyTable_WithData(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	dstName := "actor_data_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+	})
+
+	affected, err := drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: sakila.TblActor}, tablefq.T{Table: dstName}, true)
+	require.NoError(t, err)
+	require.Equal(t, int64(sakila.TblActorCount), affected)
+
+	md, err := grip.TableMetadata(th.Context, dstName)
+	require.NoError(t, err)
+	require.Equal(t, int64(sakila.TblActorCount), md.RowCount)
+}
