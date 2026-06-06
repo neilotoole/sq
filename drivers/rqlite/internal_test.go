@@ -2,8 +2,10 @@ package rqlite
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
+	_ "github.com/mattn/go-sqlite3" // For TestWriteAtomic_DBTypeCheck.
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -190,4 +192,24 @@ func TestTableMetadataToSchema(t *testing.T) {
 	require.Equal(t, "last_name", tblDef.Cols[2].Name)
 	require.False(t, tblDef.Cols[2].NotNull)
 	require.False(t, tblDef.Cols[2].HasDefault)
+}
+
+func TestWriteAtomic_DBTypeCheck(t *testing.T) {
+	ctx := context.Background()
+
+	// Open an in-memory sqlite3 db just to obtain a real *sql.Tx for the
+	// type-switch check. No network involved.
+	db, err := sql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	t.Run("rejects *sql.Tx", func(t *testing.T) {
+		tx, err := db.BeginTx(ctx, nil)
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = tx.Rollback() })
+
+		_, err = writeAtomic(ctx, tx)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "*sql.Tx")
+	})
 }
