@@ -298,7 +298,8 @@ func dsnFromLocation(loc string) (string, error) {
 
 	u, err := url.Parse(loc)
 	if err != nil {
-		return "", errz.Wrapf(err, "rqlite: invalid location: %s", loc)
+		// Don't include loc in the error: it may carry credentials.
+		return "", errz.Wrap(err, "rqlite: invalid location")
 	}
 
 	u.Scheme = scheme
