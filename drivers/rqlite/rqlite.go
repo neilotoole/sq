@@ -164,11 +164,43 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 
 // Truncate implements driver.Driver.
 //
-// TODO(gh444): implement without sql.Tx — rqlite's HTTP API has no
-// interactive transactions; emit DELETE FROM tbl via /db/execute and,
-// if reset is true, also UPDATE sqlite_sequence to clear the counter.
-func (d *driveri) Truncate(_ context.Context, _ *source.Source, _ string, _ bool) (int64, error) {
-	return 0, errz.New(errNotImplemented + ": Truncate")
+// rqlite has no interactive transactions. We emit DELETE FROM tbl
+// through the standard database/sql path; one HTTP call, atomic
+// at the rqlite layer for that single statement. When reset is true
+// and the sqlite_sequence table exists, we follow with a separate
+// UPDATE to clear the AUTOINCREMENT counter. The DELETE and the
+// counter UPDATE are NOT atomic relative to each other; this is
+// intentional. The simpler non-batch path reports the deleted-row
+// count accurately, and atomic DELETE+UPDATE for Truncate is reserved
+// for the cases where it materially matters (CopyTable,
+// AlterTableColumnKinds).
+func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (int64, error) {
+	db, err := d.doOpen(ctx, src)
+	if err != nil {
+		return 0, errw(err)
+	}
+	defer lg.WarnIfFuncError(d.log, lgm.CloseDB, db.Close)
+
+	affected, err := sqlz.ExecAffected(ctx, db, fmt.Sprintf("DELETE FROM %q", tbl))
+	if err != nil {
+		return affected, errw(err)
+	}
+
+	if reset {
+		const seqProbe = `SELECT COUNT(name) FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'`
+		var seqCount int64
+		if err = db.QueryRowContext(ctx, seqProbe).Scan(&seqCount); err != nil {
+			return affected, errw(err)
+		}
+		if seqCount > 0 {
+			if _, err = db.ExecContext(ctx,
+				"UPDATE sqlite_sequence SET seq = 0 WHERE name = ?", tbl); err != nil {
+				return affected, errw(err)
+			}
+		}
+	}
+
+	return affected, nil
 }
 
 // ValidateSource implements driver.Driver.
