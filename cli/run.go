@@ -42,6 +42,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/secret/env"
 	"github.com/neilotoole/sq/libsq/core/secret/file"
 	"github.com/neilotoole/sq/libsq/core/secret/keyring"
+	"github.com/neilotoole/sq/libsq/core/secret/op"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
@@ -223,6 +224,7 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 	ru.SecretRegistry.Register("keyring", keyring.NewStore())
 	ru.SecretRegistry.Register("env", env.NewResolver())
 	ru.SecretRegistry.Register("file", file.NewResolver())
+	ru.SecretRegistry.Register("op", op.NewResolver())
 	ctx = secret.NewContext(ctx, ru.SecretRegistry)
 	cmd.SetContext(ctx)
 

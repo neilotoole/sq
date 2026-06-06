@@ -52,6 +52,9 @@ const (
 	Reveal      = "reveal"
 	RevealUsage = "Show secret values in output (don't redact passwords; print keyring values)"
 
+	Expand      = "expand"
+	ExpandUsage = "Resolve ${scheme:path} placeholders to their underlying values"
+
 	NoRedact      = "no-redact"
 	NoRedactUsage = "Don't redact passwords in output (deprecated, use --reveal)"
 

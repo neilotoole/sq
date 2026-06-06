@@ -25,9 +25,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   - By default, output is a faithful-ish copy of the live config: `${scheme:path}` placeholders are
     written verbatim.
   - With [`--expand`](https://sq.io/docs/secrets#substitution), every placeholder is
-    fetched from its resolver (`keyring`, `env`, or `file`) and the resolved value is spliced
-    in-line: a self-contained snapshot at the cost of writing every referenced secret in
-    plaintext (which is exactly the point of `--expand`).
+    fetched from its resolver (`keyring`, `env`, `file`, or `op`) and the resolved value
+    is spliced in-line: a self-contained snapshot at the cost of writing every referenced
+    secret in plaintext (which is exactly the point of `--expand`).
 - [#441]: [`sq add`](https://sq.io/docs/cmd/add) gains a `--store inline|keyring`
   flag, and a new [`secrets.store`](https://sq.io/docs/config#secretsstore) config option
   controls the default; existing behavior is preserved (`inline`).
@@ -40,6 +40,16 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     - `keyring`: OS keychain, managed via `sq config keyring`.
     - `env`: environment variable, e.g. `${env:DB_PROD_PW}` or `${env:DB_CONN_STR}`.
     - `file`: file contents, e.g. `${file:/run/secrets/db_pw}` or `${file:~/.sq/db_connstr}`.
+    - [#714]: `op`: 1Password CLI, e.g. `${op://Private/sakila/dsn}`. Shells out to
+      [`op read`](https://developer.1password.com/docs/cli/reference/commands/read/) using
+      1Password's
+      [secret-reference syntax](https://developer.1password.com/docs/cli/secret-reference-syntax/);
+      the user must already be signed in (biometric, `op signin`, or `OP_SERVICE_ACCOUNT_TOKEN`).
+      `sq add` accepts the bare `op://...` form (the literal "Copy Secret Reference"
+      output) as a shortcut for the wrapped `${op://...}` placeholder.
+      If a placeholder resolves to a bare value rather than a full DSN, `sq add`
+      surfaces an actionable error naming the placeholder and pointing at composition,
+      a full-DSN secret, or `--driver` as the three recovery paths.
 - [#441]: [`sq config keyring`](https://sq.io/docs/cmd/config-keyring) command group: store
   source conn strings in the OS keyring instead of plaintext in `sq.yml`.
   - Subcommands: `ls`, `create`, `update`, `get`, `rm`, `migrate`.
@@ -73,6 +83,28 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     a flag.
 - [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd)
   now syntax-colors its `erDiagram` source when writing to a terminal.
+- [#729]: [`--expand`](https://sq.io/docs/secrets#substitution) is now a persistent
+  root flag, accepted by every subcommand. Previously it lived only on `sq config export`.
+  - Commands that print a source location ([`sq src`](https://sq.io/docs/cmd/src),
+    [`sq ls`](https://sq.io/docs/cmd/ls), [`sq inspect`](https://sq.io/docs/inspect),
+    `sq add`, `sq mv`, and `sq ping` in JSON/YAML output) now pass `${scheme:path}`
+    placeholders through the configured resolvers and print the resolved value.
+    `sq ping`'s text and CSV output do not include a Location column, so `--expand`
+    has no visible effect there. `--expand` composes orthogonally with `--reveal`:
+    `--reveal` flips the redaction filter on whatever string is being displayed;
+    `--expand` decides whether that string is the verbatim placeholder or the
+    resolved value.
+  - The display-expansion step itself is lenient: a per-source resolver failure
+    (missing keyring entry, unset env var, unreadable file) leaves that source's
+    placeholder verbatim and the listing continues. This is independent of
+    connection-time resolution; commands that have to connect (e.g.
+    [`sq inspect`](https://sq.io/docs/inspect), `sq ping`) will still fail at
+    connect time if a missing secret prevents the connection. `sq config export --expand`
+    keeps its existing strict-abort behavior because an export is a snapshot for
+    transfer, and a half-resolved snapshot is the wrong artifact.
+  - Subcommands that don't print a source location (e.g. [`sq sql`](https://sq.io/docs/cmd/sql),
+    `sq slq`, `sq tbl`) accept `--expand` as a silent no-op, so a global alias like
+    `alias sq='sq --reveal --expand'` is safe.
 
 ### Fixed
 
@@ -81,6 +113,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   - Previously failed on [`sq inspect @handle`](https://sq.io/docs/inspect) etc.
     when the source location carried a `?key=val[&...]` connection-string suffix (e.g.
     `sqlite3:///path/to/db?mode=ro`).
+- [#729]: `sq inspect` no longer leaks the resolved target of a `${scheme:path}` placeholder
+  into its metadata output. The driver layer resolves placeholders to open the connection,
+  and the resolved value was being copied verbatim into `metadata.Source.Location`; the
+  inspect handler now overrides that field with the caller's view of `src.Location`, which
+  is the placeholder by default and the resolved value only when `--expand` is set.
 
 ## [v0.53.0] - 2026-05-25
 
@@ -1654,7 +1691,9 @@ make working with lots of sources much easier.
 [#692]: https://github.com/neilotoole/sq/issues/692
 [#716]: https://github.com/neilotoole/sq/issues/716
 [#717]: https://github.com/neilotoole/sq/issues/717
+[#714]: https://github.com/neilotoole/sq/issues/714
 [#720]: https://github.com/neilotoole/sq/issues/720
+[#729]: https://github.com/neilotoole/sq/issues/729
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
