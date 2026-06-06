@@ -283,3 +283,35 @@ func TestTruncate_Reset(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(1), id, "AUTOINCREMENT counter should have been reset")
 }
+
+func TestCopyTable_StructureOnly(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	dstName := "actor_copy_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+	})
+
+	affected, err := drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: sakila.TblActor}, tablefq.T{Table: dstName}, false)
+	require.NoError(t, err)
+	require.Equal(t, int64(0), affected)
+
+	md, err := grip.TableMetadata(th.Context, dstName)
+	require.NoError(t, err)
+	require.Equal(t, dstName, md.Name)
+	require.Equal(t, int64(0), md.RowCount)
+
+	src2 := th.Source(sakila.Rq)
+	srcMd, err := th.Open(src2).TableMetadata(th.Context, sakila.TblActor)
+	require.NoError(t, err)
+	require.Len(t, md.Columns, len(srcMd.Columns))
+}

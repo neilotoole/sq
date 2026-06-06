@@ -27,6 +27,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/rqlite/gorqlite"
 	_ "github.com/rqlite/gorqlite/stdlib" // Import for side effect of registering the "rqlite" sql driver.
 
 	"github.com/neilotoole/sq/libsq/ast"
@@ -303,8 +304,44 @@ func dsnFromLocation(loc string) (string, error) {
 // gh444-rqlite branch — see the task list on the branch for ordering.
 
 // CopyTable implements driver.SQLDriver.
-func (d *driveri) CopyTable(_ context.Context, _ sqlz.DB, _, _ tablefq.T, _ bool) (int64, error) {
-	return 0, errz.New(errNotImplemented + ": CopyTable")
+//
+// rqlite has no interactive transactions, so we use the introspect
+// and rebuild strategy: read the source table's metadata, convert
+// to a *schema.Table, and emit a fresh CREATE TABLE via
+// buildCreateTableStmt. When copyData=true, the CREATE and the
+// INSERT-FROM-SELECT are sent as one atomic batch via writeAtomic.
+//
+// This loses any CHECK constraints, indexes, and triggers attached
+// to the source table; none of which are modeled by sq's
+// *schema.Table. PK / FK / NOT NULL / UNIQUE / defaults are preserved.
+func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
+	fromTbl, toTbl tablefq.T, copyData bool,
+) (int64, error) {
+	srcMd, err := getTableMetadata(ctx, db, fromTbl.Table)
+	if err != nil {
+		return 0, errw(err)
+	}
+
+	dstTblDef := tableMetadataToSchema(srcMd, toTbl.Table)
+	createStmt := buildCreateTableStmt(dstTblDef)
+
+	if !copyData {
+		if _, err = db.ExecContext(ctx, createStmt); err != nil {
+			return 0, errw(err)
+		}
+		return 0, nil
+	}
+
+	// Atomic CREATE + INSERT-FROM-SELECT.
+	stmts := []gorqlite.ParameterizedStatement{
+		{Query: createStmt},
+		{Query: fmt.Sprintf(`INSERT INTO %q SELECT * FROM %q`, toTbl.Table, fromTbl.Table)},
+	}
+	affected, err := writeAtomic(ctx, db, stmts...)
+	if err != nil {
+		return 0, err
+	}
+	return affected, nil
 }
 
 // RecordMeta implements driver.SQLDriver.
