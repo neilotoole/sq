@@ -11,7 +11,7 @@ url: /docs/secrets
 `sq` treats credentials with two complementary mechanisms: **redaction**, which
 keeps secrets out of display output, and **placeholders**, which keep secrets
 out of the [config](../config) file itself. This page explains both, and how
-the global `--reveal` flag and the `sq config export --expand` flag fit in.
+the global `--reveal` and `--expand` flags fit in.
 
 ## Overview
 
@@ -21,15 +21,13 @@ By default:
   **redacted** in display output: `sq ls`, `sq inspect`, `sq src`,
   `sq config ls`, error messages, and so on.
 - [`sq config export`](/docs/cmd/config-export) is a backup tool, not a
-  display tool, and writes locations **verbatim** — placeholders are
+  display tool, and writes locations **verbatim**: placeholders are
   preserved and inline plaintext is dumped as-is. Treat the exported
   file the same as `sq.yml` itself (mode `0600` by default).
 - Source locations may contain **`${scheme:path}` placeholders** that fetch
   the real value at connect time from an external resolver. Four schemes
   ship in the box: [`keyring`](#keyring-scheme), [`env`](#env-scheme),
   [`file`](#file-scheme), and [`op`](#op-scheme).
-- [`sq config export`](/docs/cmd/config-export) writes placeholders to the
-  output **verbatim** — what the YAML says is what the export contains.
 
 Two global flags opt out of those defaults; they do different things:
 
@@ -95,7 +93,7 @@ command.
 
 <a id="--no-redact"></a>
 {{< alert icon="👉" >}}
-The earlier flag `--no-redact` still works, but is deprecated and prints a
+The earlier flag `--no-redact` still works, but is deprecated and logs a
 deprecation hint. Use `--reveal` in new scripts. Both flags do the same
 thing; `--no-redact` will be removed in a future release.
 {{< /alert >}}
@@ -103,7 +101,7 @@ thing; `--no-redact` will be removed in a future release.
 ## Substitution
 
 `--expand` resolves `${scheme:path}` placeholders against the configured
-resolvers (keyring read, environment variable read, or file read) and
+resolvers (`keyring`, `env`, `file`, or `op` for 1Password), and
 substitutes the resolved value into whatever location string `sq` is about
 to display. It is a persistent root flag: every subcommand accepts it,
 and the commands that print a source location act on it.
@@ -111,17 +109,18 @@ and the commands that print a source location act on it.
 ### On display commands
 
 [`sq src`](/docs/cmd/src), [`sq ls`](/docs/cmd/ls),
-[`sq inspect`](/docs/inspect), [`sq add`](/docs/cmd/add)'s post-add
+[`sq inspect`](/docs/cmd/inspect), [`sq add`](/docs/cmd/add)'s post-add
 echo, [`sq mv`](/docs/cmd/mv)'s post-mv echo, and
 [`sq ping`](/docs/cmd/ping) in JSON or YAML output each show a source
 location. `--expand` decides whether that location is the verbatim
 placeholder or the resolved value. `--reveal` is the orthogonal axis: it
 flips the redaction filter on whatever string ends up being displayed.
 
-> [!NOTE]
-> `sq ping`'s text and CSV output do not include a Location column, so
-> `--expand` has no visible effect there. Use `--json` or `--yaml` to see
-> the per-source location.
+{{< alert icon="👉" >}}
+`sq ping`'s text and CSV output do not include a Location column, so
+`--expand` has no visible effect there. Use `--json` or `--yaml` to see
+the per-source location.
+{{< /alert >}}
 
 For a source whose YAML location is `${keyring:abc}` and whose keyring entry
 holds `postgres://alice:hunter2@db.acme.com/sakila`:
@@ -379,8 +378,8 @@ external: `sq` reads them at connect time and has nothing to manage.
 | [`sq config keyring migrate`](/docs/cmd/config-keyring-migrate)                   | Move inline-password sources to the keyring in bulk.                          |
 
 `sq config keyring ls` walks the YAML config; it lists only `keyring`
-placeholders that some source references. Orphan entries — entries in the
-keyring that no source uses — are not surfaced. Enumerating them requires
+placeholders that some source references. Orphan entries (entries in the
+keyring that no source uses) are not surfaced. Enumerating them requires
 keyring-wide iteration, which is deferred to a future release.
 
 `sq config keyring rm` deletes the keyring entry only; any remaining
@@ -401,8 +400,8 @@ location becomes a bare placeholder:
 ```
 
 The driver type stays in YAML (so `sq` can pick the right driver before
-resolving the keyring), but everything else — username, host, port,
-database, password, query parameters — lives in the keyring entry. One
+resolving the keyring), but everything else (username, host, port,
+database, password, query parameters) lives in the keyring entry. One
 keyring entry, one source, no composition. The same layout is produced
 by [`sq config keyring migrate`](/docs/cmd/config-keyring-migrate).
 
@@ -429,7 +428,7 @@ underlying error with the failing source's handle. There is no separate
 ## Threat model
 
 The keyring scheme is a useful step up from plaintext in `sq.yml`, but it
-is not a sandbox. The threats it does — and does not — address:
+is not a sandbox. The threats it does, and does not, address:
 
 **Protects against:**
 
