@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -545,6 +546,12 @@ ORDER BY m.name, p.cid
 // single round-trip, using the union-based query the sqlite3 driver
 // settled on after benchmarking. SQLITE_MAX_COMPOUND_SELECT caps each
 // query at 500 SELECT terms, so we batch.
+//
+// If a table named in tblNames is dropped by a concurrent writer
+// between the enumerate step in getAllTableMetadata and the COUNT
+// batch here, the UNION ALL fails with "no such table:". We fall
+// back to per-table COUNTs for that batch and record -1 for any
+// table that has since vanished, so callers can detect (or skip).
 func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int64, error) {
 	log := lg.FromContext(ctx)
 	const maxCompoundSelect = 500
@@ -569,7 +576,22 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 
 		rows, err := db.QueryContext(ctx, sb.String())
 		if err != nil {
-			return nil, errw(err)
+			wrapped := errw(err)
+			if errz.Has[*driver.NotExistError](wrapped) {
+				// A table enumerated by sqlite_master was dropped
+				// before we could COUNT it. Fall back to per-table
+				// COUNTs across the current batch, recording -1 for
+				// any name that has since vanished.
+				batchEnd := j + terms
+				if err = countTblsIndividually(ctx, db, tblNames[j:batchEnd], tblCounts[j:batchEnd]); err != nil {
+					return nil, err
+				}
+				j = batchEnd
+				terms = 0
+				sb.Reset()
+				continue
+			}
+			return nil, wrapped
 		}
 		for rows.Next() {
 			if err = rows.Scan(&tblCounts[j]); err != nil {
@@ -591,6 +613,32 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 	}
 
 	return tblCounts, nil
+}
+
+// countTblsIndividually issues a per-table SELECT COUNT(*) for each
+// name in names, writing the result to the matching slot in counts.
+// Tables that have vanished (NotExistError) are recorded as -1; any
+// other error aborts. This is the fallback path used by
+// getTblRowCounts when the UNION ALL batch fails because of a
+// concurrent DROP TABLE.
+func countTblsIndividually(ctx context.Context, db sqlz.DB, names []string, counts []int64) error {
+	for i, name := range names {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+		var count int64
+		err := db.QueryRowContext(ctx,
+			"SELECT COUNT(*) FROM "+stringz.DoubleQuote(name)).Scan(&count)
+		if err != nil {
+			if errz.Has[*driver.NotExistError](errw(err)) {
+				counts[i] = -1
+				continue
+			}
+			return errw(err)
+		}
+		counts[i] = count
+	}
+	return nil
 }
 
 // getSourceMetadata builds the Source-level metadata for grip.
