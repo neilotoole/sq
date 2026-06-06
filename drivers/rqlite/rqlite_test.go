@@ -519,3 +519,45 @@ func TestPrepareUpdateStmt(t *testing.T) {
 		fmt.Sprintf(`SELECT name FROM %q WHERE id=1`, tblName)).Scan(&got))
 	require.Equal(t, "after", got)
 }
+
+func TestAlterTableColumnKinds_MismatchedLength(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	err = drvr.AlterTableColumnKinds(th.Context, db, sakila.TblActor,
+		[]string{"a", "b"}, []kind.Kind{kind.Int})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "mismatched count")
+}
+
+func TestAlterTableColumnKinds_UnknownColumn(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	tblName := "unkcol_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+	})
+
+	tblDef := schema.NewTable(tblName, []string{"a"}, []kind.Kind{kind.Int})
+	require.NoError(t, drvr.CreateTable(th.Context, db, tblDef))
+
+	err = drvr.AlterTableColumnKinds(th.Context, db, tblName,
+		[]string{"nonexistent"}, []kind.Kind{kind.Text})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "column")
+}

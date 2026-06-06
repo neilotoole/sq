@@ -213,3 +213,24 @@ func TestWriteAtomic_DBTypeCheck(t *testing.T) {
 		require.Contains(t, err.Error(), "*sql.Tx")
 	})
 }
+
+func TestBuildCreateTableStmt_ForeignKey(t *testing.T) {
+	tblDef := &schema.Table{
+		Name: "film_actor",
+		Cols: []*schema.Column{
+			{Name: "actor_id", Kind: kind.Int, ForeignKey: &schema.FKConstraint{
+				RefTable: "actor", RefCol: "actor_id",
+				// Empty OnDelete/OnUpdate to exercise the CASCADE default.
+			}},
+			{Name: "film_id", Kind: kind.Int, Unique: true, ForeignKey: &schema.FKConstraint{
+				RefTable: "film", RefCol: "film_id",
+				OnDelete: "RESTRICT", OnUpdate: "SET NULL",
+			}},
+		},
+	}
+	got := buildCreateTableStmt(tblDef)
+	require.Contains(t, got, `CONSTRAINT "film_actor_actor_id_actor_actor_id_fk"`)
+	require.Contains(t, got, `ON DELETE CASCADE ON UPDATE CASCADE`)
+	require.Contains(t, got, `ON DELETE RESTRICT ON UPDATE SET NULL`)
+	require.Contains(t, got, `"film_id" INTEGER UNIQUE`)
+}
