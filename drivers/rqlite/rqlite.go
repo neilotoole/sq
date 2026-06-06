@@ -503,6 +503,26 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	return colTypes, nil
 }
 
+// getTableRecordMeta returns the record.Meta for the named columns of
+// tblName. If colNames is empty, all columns are returned.
+//
+//nolint:unused // wired up by PrepareInsertStmt / PrepareUpdateStmt in a later batch on gh444-rqlite.
+func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (
+	record.Meta, error,
+) {
+	colTypes, err := d.TableColumnTypes(ctx, db, tblName, colNames)
+	if err != nil {
+		return nil, err
+	}
+
+	destCols, _, err := d.RecordMeta(ctx, colTypes)
+	if err != nil {
+		return nil, err
+	}
+
+	return destCols, nil
+}
+
 // AlterTableRename implements driver.SQLDriver.
 func (d *driveri) AlterTableRename(_ context.Context, _ sqlz.DB, _, _ string) error {
 	return errz.New(errNotImplemented + ": AlterTableRename")
