@@ -473,3 +473,46 @@ func TestBatchInsert(t *testing.T) {
 		fmt.Sprintf(`SELECT COUNT(*) FROM %q`, tblName)).Scan(&count))
 	require.Equal(t, int64(total), count)
 }
+
+func TestPrepareUpdateStmt(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	tblName := "prepupd_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+	})
+
+	tblDef := schema.NewTable(tblName,
+		[]string{"id", "name"}, []kind.Kind{kind.Int, kind.Text})
+	require.NoError(t, drvr.CreateTable(th.Context, db, tblDef))
+
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf(`INSERT INTO %q (id, name) VALUES (?, ?)`, tblName), 1, "before")
+	require.NoError(t, err)
+
+	conn, err := db.Conn(th.Context)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
+
+	execer, err := drvr.PrepareUpdateStmt(th.Context, conn, tblName,
+		[]string{"name"}, "id = ?")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = execer.Close() })
+
+	affected, err := execer.Exec(th.Context, "after", int64(1))
+	require.NoError(t, err)
+	require.Equal(t, int64(1), affected)
+
+	var got string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		fmt.Sprintf(`SELECT name FROM %q WHERE id=1`, tblName)).Scan(&got))
+	require.Equal(t, "after", got)
+}

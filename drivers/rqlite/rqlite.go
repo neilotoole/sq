@@ -64,8 +64,6 @@ const (
 	PrefixSecure = "rqlites://"
 
 	defaultPort = 4001
-
-	errNotImplemented = "rqlite driver: not yet implemented"
 )
 
 var _ driver.Provider = (*Provider)(nil)
@@ -562,9 +560,27 @@ func (d *driveri) NewBatchInsert(ctx context.Context, msg string, db sqlz.DB,
 }
 
 // PrepareUpdateStmt implements driver.SQLDriver.
-func (d *driveri) PrepareUpdateStmt(_ context.Context, _ sqlz.DB, _ string, _ []string, _ string,
+func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string,
+	destColNames []string, where string,
 ) (*driver.StmtExecer, error) {
-	return nil, errz.New(errNotImplemented + ": PrepareUpdateStmt")
+	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
+	if err != nil {
+		return nil, err
+	}
+
+	query, err := buildUpdateStmt(destTbl, destColNames, where)
+	if err != nil {
+		return nil, err
+	}
+
+	stmt, err := db.PrepareContext(ctx, query)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	execer := driver.NewStmtExecer(stmt, driver.DefaultInsertMungeFunc(destTbl, destColsMeta),
+		newStmtExecFunc(stmt), destColsMeta)
+	return execer, nil
 }
 
 // TableColumnTypes implements driver.SQLDriver. The implementation
