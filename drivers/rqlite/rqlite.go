@@ -337,11 +337,14 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 		{Query: createStmt},
 		{Query: fmt.Sprintf(`INSERT INTO %q SELECT * FROM %q`, toTbl.Table, fromTbl.Table)},
 	}
-	affected, err := writeAtomic(ctx, db, stmts...)
+	results, err := writeAtomic(ctx, db, stmts...)
 	if err != nil {
 		return 0, err
 	}
-	return affected, nil
+	// rqlite reports rows_affected as changes() at result time, which
+	// is stale for the CREATE statement. The INSERT-SELECT at
+	// results[1] carries the real inserted-row count.
+	return results[1].RowsAffected, nil
 }
 
 // RecordMeta implements driver.SQLDriver.

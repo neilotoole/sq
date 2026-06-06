@@ -30,11 +30,15 @@ type gorqliteConn interface {
 // gorqlite's stdlib Tx is a no-op, so wrapping atomic writes inside an
 // outer Tx would silently lose atomicity.
 //
-// Returns the sum of RowsAffected across stmts (informational when an
-// error is returned; rqlite rolled back the whole batch).
+// Returns the raw []WriteResult so callers can extract the
+// per-statement RowsAffected / LastInsertID they actually trust.
+// Be aware that rqlite reports rows_affected as the underlying SQLite
+// changes() value, which is the most recent DML row count and is
+// therefore stale for DDL statements in a batch. Pick the index of
+// the statement whose count is meaningful (typically the last DML).
 func writeAtomic(ctx context.Context, db sqlz.DB,
 	stmts ...gorqlite.ParameterizedStatement,
-) (totalAffected int64, err error) {
+) (results []gorqlite.WriteResult, err error) {
 	log := lg.FromContext(ctx)
 
 	var conn *sql.Conn
@@ -42,19 +46,18 @@ func writeAtomic(ctx context.Context, db sqlz.DB,
 	case *sql.DB:
 		conn, err = v.Conn(ctx)
 		if err != nil {
-			return 0, errw(err)
+			return nil, errw(err)
 		}
 		defer lg.WarnIfFuncError(log, lgm.CloseConn, conn.Close)
 	case *sql.Conn:
 		conn = v
 	case *sql.Tx:
-		return 0, errz.New("rqlite: writeAtomic cannot run inside *sql.Tx; " +
+		return nil, errz.New("rqlite: writeAtomic cannot run inside *sql.Tx; " +
 			"gorqlite's tx is a no-op so atomicity would be silently lost")
 	default:
-		return 0, errz.Errorf("rqlite: writeAtomic: unsupported db type %T", v)
+		return nil, errz.Errorf("rqlite: writeAtomic: unsupported db type %T", v)
 	}
 
-	var results []gorqlite.WriteResult
 	rawErr := conn.Raw(func(raw any) error {
 		gc, ok := raw.(gorqliteConn)
 		if !ok {
@@ -67,15 +70,14 @@ func writeAtomic(ctx context.Context, db sqlz.DB,
 	})
 	if rawErr != nil {
 		log.Debug("rqlite: writeAtomic raw error", lga.Err, rawErr)
-		return 0, errw(rawErr)
+		return results, errw(rawErr)
 	}
 
 	for i, wr := range results {
 		if wr.Err != nil {
-			return totalAffected, errz.Wrapf(errw(wr.Err),
+			return results, errz.Wrapf(errw(wr.Err),
 				"rqlite: statement %d/%d failed", i+1, len(stmts))
 		}
-		totalAffected += wr.RowsAffected
 	}
-	return totalAffected, nil
+	return results, nil
 }
