@@ -38,10 +38,10 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/h2non/filetype v1.1.3
 	github.com/itchyny/gojq v0.12.19
-	github.com/jackc/pgx/v5 v5.9.2 // BRITTLE
+	github.com/jackc/pgx/v5 v5.10.0 // BRITTLE
 	github.com/mattn/go-colorable v0.1.15
 	github.com/mattn/go-runewidth v0.0.24
-	github.com/mattn/go-sqlite3 v1.14.44 // BRITTLE
+	github.com/mattn/go-sqlite3 v1.14.45 // BRITTLE
 	github.com/microsoft/go-mssqldb v1.10.0 // BRITTLE
 	github.com/mitchellh/go-wordwrap v1.0.1
 	github.com/muesli/mango-cobra v1.3.0
