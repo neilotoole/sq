@@ -298,9 +298,6 @@ func dsnFromLocation(loc string) (string, error) {
 	return u.String(), nil
 }
 
-// ===== Stubs for SQLDriver methods. Each lands in a later task on the
-// gh444-rqlite branch — see the task list on the branch for ordering.
-
 // CopyTable implements driver.SQLDriver.
 //
 // rqlite has no interactive transactions, so we use the introspect
