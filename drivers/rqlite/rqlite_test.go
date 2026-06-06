@@ -242,3 +242,44 @@ func TestTruncate_NoReset(t *testing.T) {
 		fmt.Sprintf(`SELECT COUNT(*) FROM %q`, tblName)).Scan(&count))
 	require.Equal(t, int64(0), count)
 }
+
+func TestTruncate_Reset(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	tblName := "trunc_reset_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+	})
+
+	tblDef := schema.NewTable(tblName, []string{"id", "name"}, []kind.Kind{kind.Int, kind.Text})
+	tblDef.PKColName = "id"
+	tblDef.AutoIncrement = true
+	require.NoError(t, drvr.CreateTable(th.Context, db, tblDef))
+
+	// Insert 3 rows so sqlite_sequence has data for this table.
+	for i := 0; i < 3; i++ {
+		_, err = db.ExecContext(th.Context,
+			fmt.Sprintf(`INSERT INTO %q (name) VALUES (?)`, tblName), "x")
+		require.NoError(t, err)
+	}
+
+	affected, err := drvr.Truncate(th.Context, src, tblName, true)
+	require.NoError(t, err)
+	require.Equal(t, int64(3), affected)
+
+	// Insert again; the new id should be 1, not 4.
+	res, err := db.ExecContext(th.Context,
+		fmt.Sprintf(`INSERT INTO %q (name) VALUES (?)`, tblName), "y")
+	require.NoError(t, err)
+	id, err := res.LastInsertId()
+	require.NoError(t, err)
+	require.Equal(t, int64(1), id, "AUTOINCREMENT counter should have been reset")
+}
