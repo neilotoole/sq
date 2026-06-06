@@ -550,11 +550,15 @@ func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
 	}
 }
 
-// NewBatchInsert implements driver.SQLDriver.
-func (d *driveri) NewBatchInsert(_ context.Context, _ string, _ sqlz.DB, _ *source.Source,
-	_ string, _ []string,
+// NewBatchInsert implements driver.SQLDriver. Each batch is one
+// multi-row INSERT statement, which gorqlite stdlib sends as one
+// HTTP POST to /db/execute, atomic per batch at the rqlite layer.
+// No rqlite-specific batching machinery is needed; we delegate to
+// the standard framework.
+func (d *driveri) NewBatchInsert(ctx context.Context, msg string, db sqlz.DB,
+	_ *source.Source, destTbl string, destColNames []string,
 ) (*driver.BatchInsert, error) {
-	return nil, errz.New(errNotImplemented + ": NewBatchInsert")
+	return driver.DefaultNewBatchInsert(ctx, msg, d, db, destTbl, destColNames)
 }
 
 // PrepareUpdateStmt implements driver.SQLDriver.

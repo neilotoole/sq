@@ -422,3 +422,54 @@ func TestPrepareInsertStmt(t *testing.T) {
 		fmt.Sprintf(`SELECT COUNT(*) FROM %q`, tblName)).Scan(&count))
 	require.Equal(t, int64(1), count)
 }
+
+func TestBatchInsert(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	tblName := "batchins_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+	})
+
+	// 4 columns -> batchSize = MaxBatchValues(500) / 4 = 125.
+	// 1500 records => 12 batches, exercising the goroutine flush path.
+	tblDef := schema.NewTable(tblName,
+		[]string{"a", "b", "c", "d"},
+		[]kind.Kind{kind.Int, kind.Text, kind.Text, kind.Datetime},
+	)
+	require.NoError(t, drvr.CreateTable(th.Context, db, tblDef))
+
+	conn, err := db.Conn(th.Context)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
+
+	bi, err := drvr.NewBatchInsert(th.Context, "batch ingest", conn, src, tblName,
+		[]string{"a", "b", "c", "d"})
+	require.NoError(t, err)
+
+	const total = 1500
+	go func() {
+		for i := 0; i < total; i++ {
+			bi.RecordCh <- []any{int64(i), "b", "c", "2026-01-01T00:00:00"}
+		}
+		close(bi.RecordCh)
+	}()
+
+	for biErr := range bi.ErrCh {
+		require.NoError(t, biErr)
+	}
+	require.Equal(t, int64(total), bi.Written())
+
+	var count int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		fmt.Sprintf(`SELECT COUNT(*) FROM %q`, tblName)).Scan(&count))
+	require.Equal(t, int64(total), count)
+}
