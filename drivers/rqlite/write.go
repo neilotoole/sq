@@ -13,14 +13,25 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
-// gorqliteConn is the structural interface satisfied by gorqlite/stdlib's
+// gorqliteWriter is the structural interface satisfied by gorqlite/stdlib's
 // *Conn (whose embedded *gorqlite.Connection provides the method).
-// Type-asserting against this interface lets us avoid importing
-// gorqlite/stdlib directly.
-type gorqliteConn interface {
+// Asserting against this method-shape interface lets us reach the
+// atomic-batch primitive without importing gorqlite/stdlib directly;
+// the coupling shifts from a package import to a method-shape match
+// on *gorqlite.Connection. An upstream signature change becomes a
+// runtime type-assert failure rather than a compile error. The
+// `var _ gorqliteWriter = (*gorqlite.Connection)(nil)` line below
+// keeps that case caught at build time.
+type gorqliteWriter interface {
 	WriteParameterizedContext(context.Context,
 		[]gorqlite.ParameterizedStatement) ([]gorqlite.WriteResult, error)
 }
+
+// Compile-time check that *gorqlite.Connection satisfies gorqliteWriter.
+// If gorqlite ever renames or changes the WriteParameterizedContext
+// signature, this becomes a build error rather than a runtime assert
+// failure.
+var _ gorqliteWriter = (*gorqlite.Connection)(nil)
 
 // writeAtomic executes stmts as a single atomic batch through gorqlite's
 // native WriteParameterizedContext. The whole batch is rolled back
@@ -62,7 +73,7 @@ func writeAtomic(ctx context.Context, db sqlz.DB,
 	}
 
 	rawErr := conn.Raw(func(raw any) error {
-		gc, ok := raw.(gorqliteConn)
+		gc, ok := raw.(gorqliteWriter)
 		if !ok {
 			return errz.Errorf("rqlite: driver conn is %T, "+
 				"expected gorqlite-backed", raw)
