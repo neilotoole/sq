@@ -66,7 +66,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     at some point in the future).
 - [#444]: Add [rqlite](https://rqlite.io) driver. `sq` now supports reading from, inspecting,
   and writing to [rqlite](https://rqlite.io) clusters, the lightweight distributed SQLite
-  database. The full SQL write surface is wired up: `CREATE TABLE`, `INSERT`
+  database. The full write surface that SQLite supports is wired up: `CREATE TABLE`, `INSERT`
   (including multi-row batch insert via `--insert`),
   [`sq tbl truncate`](https://sq.io/docs/cmd/tbl-truncate),
   [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy), and `ALTER TABLE`. Connect with
