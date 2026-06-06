@@ -1,4 +1,4 @@
-// Package rqlite — DDL/DML builder helpers.
+// DDL/DML builder helpers for the rqlite driver.
 //
 // These helpers are functionally identical to drivers/sqlite3's same-named
 // helpers. They are duplicated rather than imported because drivers in this
@@ -151,9 +151,9 @@ func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
 // by getTableMetadata) into a *schema.Table (the shape consumed by
 // buildCreateTableStmt). The resulting table has Name set to newName,
 // preserving the source's columns, kinds, primary key, NOT NULL, and
-// HasDefault flags. Out-of-model artefacts (CHECK constraints, indexes,
+// HasDefault flags. Out-of-model artifacts (CHECK constraints, indexes,
 // triggers) are not represented in *schema.Table and therefore are
-// dropped — see the design doc trade-off.
+// dropped; see the design doc trade-off.
 func tableMetadataToSchema(md *metadata.Table, newName string) *schema.Table {
 	tblDef := &schema.Table{
 		Name: newName,

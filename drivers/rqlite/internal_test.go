@@ -159,7 +159,7 @@ func TestBuildUpdateStmt(t *testing.T) {
 	})
 	t.Run("no cols errors", func(t *testing.T) {
 		_, err := buildUpdateStmt("actor", nil, "")
-		require.Error(t, err)
+		require.ErrorContains(t, err, "no columns")
 	})
 }
 
