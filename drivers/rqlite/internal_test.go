@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/testh/tu"
 )
 
@@ -120,4 +121,43 @@ func TestKindFromDBTypeName(t *testing.T) {
 			require.Equal(t, want, kindFromDBTypeName(ctx, "col", dbType, nil))
 		})
 	}
+}
+
+func TestBuildCreateTableStmt(t *testing.T) {
+	tblDef := &schema.Table{
+		Name:          "actor",
+		PKColName:     "actor_id",
+		AutoIncrement: true,
+		Cols: []*schema.Column{
+			{Name: "actor_id", Kind: kind.Int, NotNull: true},
+			{Name: "first_name", Kind: kind.Text, NotNull: true, HasDefault: true},
+			{Name: "last_name", Kind: kind.Text},
+			{Name: "last_update", Kind: kind.Datetime, NotNull: true, HasDefault: true},
+		},
+	}
+
+	got := buildCreateTableStmt(tblDef)
+
+	require.Contains(t, got, `CREATE TABLE "actor"`)
+	require.Contains(t, got, `"actor_id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL`)
+	require.Contains(t, got, `"first_name" TEXT DEFAULT '' NOT NULL`)
+	require.Contains(t, got, `"last_name" TEXT`)
+	require.Contains(t, got, `"last_update" DATETIME DEFAULT '1970-01-01T00:00:00' NOT NULL`)
+}
+
+func TestBuildUpdateStmt(t *testing.T) {
+	t.Run("with where", func(t *testing.T) {
+		got, err := buildUpdateStmt("actor", []string{"first_name", "last_name"}, "actor_id = ?")
+		require.NoError(t, err)
+		require.Equal(t, `UPDATE "actor" SET "first_name" = ?, "last_name" = ? WHERE actor_id = ?`, got)
+	})
+	t.Run("no where", func(t *testing.T) {
+		got, err := buildUpdateStmt("actor", []string{"first_name"}, "")
+		require.NoError(t, err)
+		require.Equal(t, `UPDATE "actor" SET "first_name" = ?`, got)
+	})
+	t.Run("no cols errors", func(t *testing.T) {
+		_, err := buildUpdateStmt("actor", nil, "")
+		require.Error(t, err)
+	})
 }
