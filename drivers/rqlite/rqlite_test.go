@@ -6,6 +6,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -76,4 +79,37 @@ func TestTableMetadata_Actor(t *testing.T) {
 	// rather than reusing the shared helper.
 	require.Equal(t, []kind.Kind{kind.Decimal, kind.Text, kind.Text, kind.Datetime}, gotKinds)
 	require.True(t, tbl.Columns[0].PrimaryKey, "actor_id should be primary key")
+}
+
+func TestCreateTable(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	tblName := "actor_w_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+	})
+
+	tblDef := schema.NewTable(tblName,
+		[]string{"id", "name", "ts"},
+		[]kind.Kind{kind.Int, kind.Text, kind.Datetime},
+	)
+	tblDef.PKColName = "id"
+
+	require.NoError(t, drvr.CreateTable(th.Context, db, tblDef))
+
+	got, err := grip.TableMetadata(th.Context, tblName)
+	require.NoError(t, err)
+	require.Equal(t, tblName, got.Name)
+	require.Len(t, got.Columns, 3)
+	require.Equal(t, kind.Int, got.Columns[0].Kind)
+	require.Equal(t, kind.Text, got.Columns[1].Kind)
+	require.Equal(t, kind.Datetime, got.Columns[2].Kind)
 }

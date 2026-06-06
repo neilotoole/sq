@@ -314,8 +314,21 @@ func (d *driveri) DropSchema(_ context.Context, _ sqlz.DB, _ string) error {
 }
 
 // CreateTable implements driver.SQLDriver.
-func (d *driveri) CreateTable(_ context.Context, _ sqlz.DB, _ *schema.Table) error {
-	return errz.New(errNotImplemented + ": CreateTable")
+func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *schema.Table) error {
+	query := buildCreateTableStmt(tblDef)
+
+	stmt, err := db.PrepareContext(ctx, query)
+	if err != nil {
+		return errw(err)
+	}
+
+	_, err = stmt.ExecContext(ctx)
+	if err != nil {
+		lg.WarnIfCloseError(d.log, lgm.CloseDBStmt, stmt)
+		return errw(err)
+	}
+
+	return errw(stmt.Close())
 }
 
 // CurrentSchema implements driver.SQLDriver.
