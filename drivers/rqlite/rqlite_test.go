@@ -2,14 +2,18 @@ package rqlite_test
 
 import (
 	"fmt"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/drivers/rqlite"
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -535,6 +539,56 @@ func TestAlterTableColumnKinds_MismatchedLength(t *testing.T) {
 		[]string{"a", "b"}, []kind.Kind{kind.Int})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "mismatched count")
+}
+
+// TestConsistencyLevels_Smoke verifies that gorqlite accepts each of
+// the four ?level=... URL parameters without breaking the connection
+// and that a basic SELECT still works. This is a smoke test, not a
+// real consistency verification: a single-node sakiladb image cannot
+// exercise the cluster-level semantics that "linearizable" / "strong"
+// imply. See gh738 for a future cluster-aware test.
+func TestConsistencyLevels_Smoke(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	base := th.Source(sakila.Rq)
+
+	levels := []string{"none", "weak", "linearizable", "strong"}
+	for _, level := range levels {
+		t.Run(level, func(t *testing.T) {
+			t.Parallel()
+
+			u, err := url.Parse(base.Location)
+			require.NoError(t, err)
+			q := u.Query()
+			q.Set("level", level)
+			u.RawQuery = q.Encode()
+
+			src := &source.Source{
+				Handle:   base.Handle + "_" + level,
+				Type:     base.Type,
+				Location: u.String(),
+				Options:  base.Options,
+			}
+
+			provider := &rqlite.Provider{Log: lg.FromContext(th.Context)}
+			drvr, err := provider.DriverFor(drivertype.Rqlite)
+			require.NoError(t, err)
+
+			grip, err := drvr.Open(th.Context, src)
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = grip.Close() })
+
+			db, err := grip.DB(th.Context)
+			require.NoError(t, err)
+
+			var count int64
+			require.NoError(t, db.QueryRowContext(th.Context,
+				`SELECT COUNT(*) FROM `+sakila.TblActor).Scan(&count))
+			require.Equal(t, int64(sakila.TblActorCount), count)
+		})
+	}
 }
 
 func TestAlterTableColumnKinds_UnknownColumn(t *testing.T) {
