@@ -168,7 +168,14 @@ func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
 //
 // Callers using this for CopyTable / AlterTableColumnKinds: be aware
 // that the rebuilt table will have these lossy substitutions applied.
-func tableMetadataToSchema(md *metadata.Table, newName string) *schema.Table {
+//
+// Returns an error if md.Columns is empty (the SQL emitted from
+// buildCreateTableStmt would not be valid SQLite anyway; the guard
+// prevents an index panic in that path).
+func tableMetadataToSchema(md *metadata.Table, newName string) (*schema.Table, error) {
+	if len(md.Columns) == 0 {
+		return nil, errz.Errorf("rqlite: cannot build schema for table %q with zero columns", md.Name)
+	}
 	tblDef := &schema.Table{
 		Name: newName,
 		Cols: make([]*schema.Column, len(md.Columns)),
@@ -186,5 +193,5 @@ func tableMetadataToSchema(md *metadata.Table, newName string) *schema.Table {
 			tblDef.PKColName = mcol.Name
 		}
 	}
-	return tblDef
+	return tblDef, nil
 }

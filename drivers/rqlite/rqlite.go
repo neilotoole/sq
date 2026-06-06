@@ -334,7 +334,10 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 		return 0, errw(err)
 	}
 
-	dstTblDef := tableMetadataToSchema(srcMd, toTbl.Table)
+	dstTblDef, err := tableMetadataToSchema(srcMd, toTbl.Table)
+	if err != nil {
+		return 0, errw(err)
+	}
 	createStmt := buildCreateTableStmt(dstTblDef)
 
 	if !copyData {
@@ -724,7 +727,10 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 		return errw(err)
 	}
 
-	dstTblDef := tableMetadataToSchema(srcMd, tbl)
+	dstTblDef, err := tableMetadataToSchema(srcMd, tbl)
+	if err != nil {
+		return errw(err)
+	}
 	// Apply the requested kind swaps.
 	for i, colName := range colNames {
 		col, ferr := dstTblDef.FindCol(colName)
