@@ -633,6 +633,59 @@ func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, c
 }
 
 // AlterTableColumnKinds implements driver.SQLDriver.
-func (d *driveri) AlterTableColumnKinds(_ context.Context, _ sqlz.DB, _ string, _ []string, _ []kind.Kind) error {
-	return errz.New(errNotImplemented + ": AlterTableColumnKinds")
+//
+// SQLite has no ALTER COLUMN TYPE, so we rebuild the table via an
+// atomic batch:
+//
+//	PRAGMA foreign_keys=off
+//	CREATE TABLE <tmp> (... new kinds ...)
+//	INSERT INTO <tmp> SELECT * FROM <original>
+//	DROP TABLE <original>
+//	ALTER TABLE <tmp> RENAME TO <original>
+//	PRAGMA foreign_keys=on
+//
+// All six statements ride one /db/execute HTTP call and are atomic
+// at rqlite.
+//
+// Schema is reconstructed from *metadata.Table (the source of truth
+// for what sq tracks). CHECK constraints, indexes, and triggers
+// attached to the original table are NOT preserved; sq does not
+// model them. PK / FK / NOT NULL / UNIQUE / defaults are preserved.
+func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
+	tbl string, colNames []string, kinds []kind.Kind,
+) error {
+	if len(colNames) != len(kinds) {
+		return errz.New("rqlite: alter table: mismatched count of columns and kinds")
+	}
+
+	srcMd, err := getTableMetadata(ctx, db, tbl)
+	if err != nil {
+		return errw(err)
+	}
+
+	dstTblDef := tableMetadataToSchema(srcMd, tbl)
+	// Apply the requested kind swaps.
+	for i, colName := range colNames {
+		col, ferr := dstTblDef.FindCol(colName)
+		if ferr != nil {
+			return errz.Wrapf(ferr, "rqlite: alter table: column not found")
+		}
+		col.Kind = kinds[i]
+	}
+
+	tmpName := "tmp_tbl_alter_" + stringz.Uniq8()
+	dstTblDef.Name = tmpName
+	createStmt := buildCreateTableStmt(dstTblDef)
+
+	stmts := []gorqlite.ParameterizedStatement{
+		{Query: "PRAGMA foreign_keys=off"},
+		{Query: createStmt},
+		{Query: fmt.Sprintf(`INSERT INTO %q SELECT * FROM %q`, tmpName, tbl)},
+		{Query: fmt.Sprintf(`DROP TABLE %q`, tbl)},
+		{Query: fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, tmpName, tbl)},
+		{Query: "PRAGMA foreign_keys=on"},
+	}
+
+	_, err = writeAtomic(ctx, db, stmts...)
+	return err
 }

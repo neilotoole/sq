@@ -341,3 +341,44 @@ func TestCopyTable_WithData(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(sakila.TblActorCount), md.RowCount)
 }
+
+func TestAlterTableColumnKinds(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	tblName := "kinds_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+	})
+
+	tblDef := schema.NewTable(tblName, []string{"a", "b"}, []kind.Kind{kind.Int, kind.Text})
+	require.NoError(t, drvr.CreateTable(th.Context, db, tblDef))
+
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf(`INSERT INTO %q (a, b) VALUES (?, ?)`, tblName), 42, "hello")
+	require.NoError(t, err)
+
+	// Swap kinds: a INTEGER -> TEXT, b TEXT -> INTEGER.
+	require.NoError(t, drvr.AlterTableColumnKinds(th.Context, db, tblName,
+		[]string{"a", "b"}, []kind.Kind{kind.Text, kind.Int}))
+
+	md, err := grip.TableMetadata(th.Context, tblName)
+	require.NoError(t, err)
+	require.Equal(t, tblName, md.Name)
+	require.Equal(t, kind.Text, md.Columns[0].Kind)
+	require.Equal(t, kind.Int, md.Columns[1].Kind)
+
+	// Row data should round-trip; sqlite is permissive about typing.
+	var gotA, gotB string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		fmt.Sprintf(`SELECT a, b FROM %q`, tblName)).Scan(&gotA, &gotB))
+	require.Equal(t, "42", gotA)
+	require.Equal(t, "hello", gotB)
+}
