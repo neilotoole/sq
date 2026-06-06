@@ -520,9 +520,34 @@ func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool
 }
 
 // PrepareInsertStmt implements driver.SQLDriver.
-func (d *driveri) PrepareInsertStmt(_ context.Context, _ sqlz.DB, _ string, _ []string, _ int,
+func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
+	numRows int,
 ) (*driver.StmtExecer, error) {
-	return nil, errz.New(errNotImplemented + ": PrepareInsertStmt")
+	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
+	if err != nil {
+		return nil, err
+	}
+
+	stmt, err := driver.PrepareInsertStmt(ctx, d, db, destTbl, destColsMeta.Names(), numRows)
+	if err != nil {
+		return nil, err
+	}
+
+	execer := driver.NewStmtExecer(stmt, driver.DefaultInsertMungeFunc(destTbl, destColsMeta),
+		newStmtExecFunc(stmt), destColsMeta)
+	return execer, nil
+}
+
+// newStmtExecFunc adapts a *sql.Stmt to driver.StmtExecFunc.
+func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
+	return func(ctx context.Context, args ...any) (int64, error) {
+		res, err := stmt.ExecContext(ctx, args...)
+		if err != nil {
+			return 0, errw(err)
+		}
+		affected, err := res.RowsAffected()
+		return affected, errw(err)
+	}
 }
 
 // NewBatchInsert implements driver.SQLDriver.
@@ -590,8 +615,6 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 
 // getTableRecordMeta returns the record.Meta for the named columns of
 // tblName. If colNames is empty, all columns are returned.
-//
-//nolint:unused // wired up by PrepareInsertStmt / PrepareUpdateStmt in a later batch on gh444-rqlite.
 func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (
 	record.Meta, error,
 ) {
