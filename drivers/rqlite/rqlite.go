@@ -306,9 +306,12 @@ func dsnFromLocation(loc string) (string, error) {
 // buildCreateTableStmt. When copyData=true, the CREATE and the
 // INSERT-FROM-SELECT are sent as one atomic batch via writeAtomic.
 //
-// This loses any CHECK constraints, indexes, and triggers attached
-// to the source table; none of which are modeled by sq's
-// *schema.Table. PK / FK / NOT NULL / UNIQUE / defaults are preserved.
+// This is a lossy copy. UNIQUE, FOREIGN KEY, AUTOINCREMENT, CHECK,
+// indexes, triggers, and the original DEFAULT values are NOT
+// preserved. Only Name, Kind, NotNull, PRIMARY KEY (single column),
+// and the presence (not value) of column defaults are carried over.
+// For faithful CREATE TABLE preservation, use rqlite's sqlite_master
+// text directly via a SQL parser (deferred, see follow-up).
 func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 	fromTbl, toTbl tablefq.T, copyData bool,
 ) (int64, error) {
@@ -688,9 +691,13 @@ func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, c
 // at rqlite.
 //
 // Schema is reconstructed from *metadata.Table (the source of truth
-// for what sq tracks). CHECK constraints, indexes, and triggers
-// attached to the original table are NOT preserved; sq does not
-// model them. PK / FK / NOT NULL / UNIQUE / defaults are preserved.
+// for what sq tracks). This is a lossy rebuild. UNIQUE, FOREIGN KEY,
+// AUTOINCREMENT, CHECK, indexes, triggers, and the original DEFAULT
+// values are NOT preserved. Only Name, Kind, NotNull, PRIMARY KEY
+// (single column), and the presence (not value) of column defaults
+// are carried over. For faithful CREATE TABLE preservation, use
+// rqlite's sqlite_master text directly via a SQL parser (deferred,
+// see follow-up).
 func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	tbl string, colNames []string, kinds []kind.Kind,
 ) error {

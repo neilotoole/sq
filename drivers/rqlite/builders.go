@@ -149,11 +149,24 @@ func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
 
 // tableMetadataToSchema converts a *metadata.Table (the shape returned
 // by getTableMetadata) into a *schema.Table (the shape consumed by
-// buildCreateTableStmt). The resulting table has Name set to newName,
-// preserving the source's columns, kinds, primary key, NOT NULL, and
-// HasDefault flags. Out-of-model artifacts (CHECK constraints, indexes,
-// triggers) are not represented in *schema.Table and therefore are
-// dropped; see the design doc trade-off.
+// buildCreateTableStmt). It preserves only what sq's *schema.Column
+// models from the metadata side: Name, Kind, NotNull (from !Nullable),
+// and HasDefault (as a boolean; the original default expression is
+// NOT preserved). PKColName is set from the FIRST column with
+// PrimaryKey=true.
+//
+// The following are NOT preserved because metadata.Column does not
+// expose them or schema.Column does not model them:
+//   - UNIQUE column constraints
+//   - FOREIGN KEY constraints
+//   - AUTOINCREMENT on the primary key (metadata.Column has no signal
+//     for it)
+//   - The original DEFAULT expression value (substituted by a canned
+//     per-kind default from createTblKindDefaults)
+//   - CHECK constraints, indexes, triggers
+//
+// Callers using this for CopyTable / AlterTableColumnKinds: be aware
+// that the rebuilt table will have these lossy substitutions applied.
 func tableMetadataToSchema(md *metadata.Table, newName string) *schema.Table {
 	tblDef := &schema.Table{
 		Name: newName,
