@@ -1,9 +1,10 @@
 // DDL/DML builder helpers for the rqlite driver.
 //
-// These helpers are functionally identical to drivers/sqlite3's same-named
-// helpers. They are duplicated rather than imported because drivers in this
-// repo do not cross-import. If a third driver needs them, they should be
-// promoted to a shared package then.
+// Currently identical to drivers/sqlite3's same-named helpers; drift risk
+// if either changes. Extract to a shared package if a third driver needs
+// them. They are duplicated rather than imported because drivers in this
+// repo do not cross-import.
+
 package rqlite
 
 import (
