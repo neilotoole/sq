@@ -537,8 +537,10 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 }
 
 // AlterTableRename implements driver.SQLDriver.
-func (d *driveri) AlterTableRename(_ context.Context, _ sqlz.DB, _, _ string) error {
-	return errz.New(errNotImplemented + ": AlterTableRename")
+func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
+	q := fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, tbl, newName)
+	_, err := db.ExecContext(ctx, q)
+	return errz.Wrapf(errw(err), "rqlite: alter table: failed to rename table {%s} to {%s}", tbl, newName)
 }
 
 // AlterTableAddColumn implements driver.SQLDriver.

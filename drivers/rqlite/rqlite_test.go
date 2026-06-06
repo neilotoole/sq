@@ -113,3 +113,35 @@ func TestCreateTable(t *testing.T) {
 	require.Equal(t, kind.Text, got.Columns[1].Kind)
 	require.Equal(t, kind.Datetime, got.Columns[2].Kind)
 }
+
+func TestAlterTableRename(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	uniq := stringz.Uniq8()
+	oldName := "rename_old_" + uniq
+	newName := "rename_new_" + uniq
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: oldName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: newName}, true)
+	})
+
+	tblDef := schema.NewTable(oldName, []string{"id"}, []kind.Kind{kind.Int})
+	require.NoError(t, drvr.CreateTable(th.Context, db, tblDef))
+
+	require.NoError(t, drvr.AlterTableRename(th.Context, db, oldName, newName))
+
+	exists, err := drvr.TableExists(th.Context, db, newName)
+	require.NoError(t, err)
+	require.True(t, exists)
+	exists, err = drvr.TableExists(th.Context, db, oldName)
+	require.NoError(t, err)
+	require.False(t, exists)
+}
