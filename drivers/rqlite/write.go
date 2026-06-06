@@ -82,16 +82,22 @@ func writeAtomic(ctx context.Context, db sqlz.DB,
 		results, wErr = gc.WriteParameterizedContext(ctx, stmts)
 		return wErr
 	})
-	if rawErr != nil {
-		log.Debug("rqlite: writeAtomic raw error", lga.Err, rawErr)
-		return results, errw(rawErr)
-	}
 
+	// gorqlite surfaces per-statement failures BOTH as a top-level
+	// aggregate error AND in results[i].Err. Prefer the per-statement
+	// wrap when available: it tells the caller which statement in the
+	// batch failed, which gorqlite's "there were N statement errors"
+	// aggregate does not. Fall through to the raw error only if no
+	// per-statement error is present (e.g. transport, auth, parse).
 	for i, wr := range results {
 		if wr.Err != nil {
 			return results, errz.Wrapf(errw(wr.Err),
 				"rqlite: statement %d/%d failed", i+1, len(stmts))
 		}
+	}
+	if rawErr != nil {
+		log.Debug("rqlite: writeAtomic raw error", lga.Err, rawErr)
+		return results, errw(rawErr)
 	}
 	if len(results) != len(stmts) {
 		return results, errz.Errorf(

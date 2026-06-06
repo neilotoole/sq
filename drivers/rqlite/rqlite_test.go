@@ -615,3 +615,40 @@ func TestAlterTableColumnKinds_UnknownColumn(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "column")
 }
+
+// TestWriteAtomic_PerStatementError exercises the per-statement error
+// wrap inside writeAtomic. We trigger it by pre-creating the
+// destination table so the subsequent CopyTable(copyData=true) batch's
+// stmt 1 (CREATE TABLE) fails inside the /db/execute call.
+func TestWriteAtomic_PerStatementError(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	dstName := "writeatomic_err_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+	})
+
+	// Pre-create the destination so the CopyTable's CREATE fails.
+	preDef := schema.NewTable(dstName, []string{"x"}, []kind.Kind{kind.Int})
+	require.NoError(t, drvr.CreateTable(th.Context, db, preDef))
+
+	// CopyTable(copyData=true) issues [CREATE dstName, INSERT INTO
+	// dstName SELECT * FROM actor] as one atomic batch. The CREATE
+	// fails because dstName already exists, and writeAtomic should
+	// surface "statement 1/2 failed" with the underlying cause.
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: sakila.TblActor},
+		tablefq.T{Table: dstName},
+		true)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "statement 1/2 failed",
+		"writeAtomic should identify which statement in the batch failed")
+}
