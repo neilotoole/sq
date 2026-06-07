@@ -1,10 +1,16 @@
 package parquet_test
 
 import (
+	"bytes"
 	"context"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -15,6 +21,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func nopLogger() *slog.Logger {
@@ -221,4 +228,57 @@ func readThreeColRows(t *testing.T, g driver.Grip, query string) [][3]string {
 	}
 	require.NoError(t, rows.Err())
 	return out
+}
+
+func TestOpen_HTTPS(t *testing.T) {
+	tu.SkipShort(t, true)
+
+	body, err := os.ReadFile("testdata/actor.parquet")
+	require.NoError(t, err)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.apache.parquet")
+		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+		// httpfs uses Range requests; http.ServeContent handles them correctly.
+		http.ServeContent(w, r, "actor.parquet", time.Time{}, bytes.NewReader(body))
+	}))
+	t.Cleanup(server.Close)
+
+	th := testh.New(t)
+	src := &source.Source{
+		Type:     drivertype.Parquet,
+		Handle:   "@remote_actor",
+		Location: server.URL + "/actor.parquet",
+	}
+	drvr := th.DriverFor(src)
+	g, err := drvr.Open(th.Context, src)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = g.Close() })
+
+	db, err := g.DB(th.Context)
+	require.NoError(t, err)
+	var n int
+	err = db.QueryRowContext(th.Context, `SELECT count(*) FROM "data"`).Scan(&n)
+	require.NoError(t, err)
+	require.Equal(t, 3, n)
+}
+
+func TestOpen_HTTPS_404(t *testing.T) {
+	tu.SkipShort(t, true)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(server.Close)
+
+	th := testh.New(t)
+	src := &source.Source{
+		Type:     drivertype.Parquet,
+		Handle:   "@remote_missing",
+		Location: server.URL + "/missing.parquet",
+	}
+	drvr := th.DriverFor(src)
+	_, err := drvr.Open(th.Context, src)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "parquet")
 }
