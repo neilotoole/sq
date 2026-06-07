@@ -223,8 +223,26 @@ func walkSegments(shape LocationShape, m MatchedLoc, tail string) (MatchedLoc, e
 			cursor += authEnd
 			// NOTE: cursor stops AT '/' or '?'; the delimiter
 			// belongs to the next segment.
-		case SegPathName, SegPathFile, SegConnParams:
-			// Implemented in later tasks (A5-A7).
+		case SegPathName:
+			if cursor >= len(tail) || tail[cursor] != '/' {
+				// No '/' to introduce path.
+				if seg.Optional {
+					continue
+				}
+				return m, nil
+			}
+			cursor++ // consume '/'
+			pathEnd := strings.IndexByte(tail[cursor:], '?')
+			if pathEnd == -1 {
+				m.PathName = tail[cursor:]
+				m.Current = SegPathName
+				return m, nil
+			}
+			m.PathName = tail[cursor : cursor+pathEnd]
+			m.Done = append(m.Done, SegPathName)
+			cursor += pathEnd
+		case SegPathFile, SegConnParams:
+			// Implemented in later tasks (A6-A7).
 		}
 	}
 	return m, nil

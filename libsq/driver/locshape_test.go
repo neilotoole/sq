@@ -104,3 +104,27 @@ func TestWalk_authIPv6(t *testing.T) {
 	require.Equal(t, "::1", got.Hostname)
 	require.Equal(t, 5432, got.Port)
 }
+
+func TestWalk_pathNameEmpty(t *testing.T) {
+	got, err := Walk(pgShape, "postgres://alice@localhost/")
+	require.NoError(t, err)
+	require.Contains(t, got.Done, SegAuthority)
+	require.Equal(t, SegPathName, got.Current)
+	require.Equal(t, "", got.PathName)
+}
+
+func TestWalk_pathNamePartial(t *testing.T) {
+	got, err := Walk(pgShape, "postgres://alice@localhost/myd")
+	require.NoError(t, err)
+	require.Equal(t, SegPathName, got.Current)
+	require.Equal(t, "myd", got.PathName)
+}
+
+func TestWalk_pathNameOptionalSkipped(t *testing.T) {
+	// Authority done, then '?' -> path was skipped, in ConnParams.
+	got, err := Walk(pgShape, "postgres://alice@localhost?")
+	require.NoError(t, err)
+	require.Contains(t, got.Done, SegAuthority)
+	// SegPathName NOT in Done because user skipped it.
+	require.NotContains(t, got.Done, SegPathName)
+}
