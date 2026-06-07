@@ -19,9 +19,9 @@ func TestFindPlaceholders(t *testing.T) {
 		},
 		{
 			name: "single password placeholder",
-			in:   "postgres://alice:${keyring:@sakila/password}@db/sakila",
+			in:   "postgres://alice:${keyring:my_db_pw}@db/sakila",
 			want: []placeholder{{
-				start: 17, end: 44, scheme: "keyring", path: "@sakila/password",
+				start: 17, end: 36, scheme: "keyring", path: "my_db_pw",
 			}},
 		},
 		{

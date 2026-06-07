@@ -122,6 +122,21 @@ func execPing(cmd *cobra.Command, args []string) error {
 
 	lg.From(cmd).Debug("Using ping timeout", lga.Val, fmt.Sprintf("%v", timeout))
 
+	// Expand ${scheme:path} placeholders for display when --expand is
+	// set. pingSources reads src.Location from each entry and passes
+	// it to the writer alongside the ping result; expanding here makes
+	// the displayed Location reflect what was resolved. The driver
+	// itself does its own resolution inside pingSource via
+	// ResolveSourceSecrets, which is a no-op on an already-expanded
+	// Location.
+	for i, src := range srcs {
+		expanded, expandErr := maybeExpandSource(cmd.Context(), ru, cmd, src)
+		if expandErr != nil {
+			return expandErr
+		}
+		srcs[i] = expanded
+	}
+
 	err = pingSources(cmd.Context(), ru.DriverRegistry, srcs, ru.Writers.Ping, timeout)
 	if errors.Is(err, context.Canceled) {
 		// It's common to cancel "sq ping". We don't want to print the cancel message.

@@ -12,6 +12,7 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
+	gokeyring "github.com/zalando/go-keyring"
 
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/flag"
@@ -1065,4 +1066,74 @@ func TestCmdInspect_NumericCatalogSchema(t *testing.T) {
 				"table inspect should show correct row count")
 		})
 	}
+}
+
+// TestInspect_LocationOverride_NoLeak is the regression guard for the
+// srcMeta.Location override in cli/cmd_inspect.go. Drivers populate
+// srcMeta.Location from the grip's internally stored src (which doOpen
+// always replaces with the resolver-expanded clone). Without the
+// override at the end of execInspect, sq inspect would always show the
+// resolved value, leaking placeholder targets even when the user did not
+// opt in via --expand. The override ensures the display value reflects
+// the caller's view of src.Location: the placeholder by default, the
+// resolved value only with --expand.
+//
+// A SQLite source is used so the test does not require a network database.
+// The keyring value is a sqlite3 URL pointing to a temp file; SQLite
+// creates the file on first open, so no fixture setup is required beyond
+// creating the path. The distinct path string "/sq_inspect_leak_" in the
+// resolved URL is deliberately chosen to be unlikely to appear in any
+// other output, making the NotContains assertion reliable.
+func TestInspect_LocationOverride_NoLeak(t *testing.T) {
+	// Not parallel: gokeyring.MockInit() mutates a process-global
+	// keyring backend, and parallelizing this with another
+	// MockInit-using test in the future would race.
+
+	// Build a unique temp path for the SQLite file. tu.TempFile does
+	// not create the file itself; SQLite will create it on first open.
+	dbPath := tu.TempFile(t, "sq_inspect_leak.db")
+	resolvedLoc := "sqlite3://" + dbPath
+
+	const keyringID = "inspect_leak_id"
+	placeholder := "${keyring:" + keyringID + "}"
+
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", keyringID, resolvedLoc))
+
+	// Without --expand: location in the output must be the placeholder,
+	// not the resolved sqlite3 path. The driver still resolves the
+	// location internally (so the connection succeeds), but the
+	// srcMeta.Location override in execInspect puts the placeholder back
+	// for display. This is the regression case: without that override the
+	// resolved path would appear here.
+	tr := testrun.New(t.Context(), t, nil)
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@leak",
+		Type:     drivertype.SQLite,
+		Location: placeholder,
+	}))
+	require.NoError(t, tr.Exec("inspect", "@leak", "--overview", "--yaml"),
+		"inspect without --expand must succeed (driver resolves internally)")
+	out := tr.OutString()
+	require.Contains(t, out, placeholder,
+		"default inspect must show the verbatim placeholder, not the resolved path")
+	require.NotContains(t, out, dbPath,
+		"default inspect must NOT leak the resolved path "+
+			"(regression guard for the srcMeta.Location override in execInspect)")
+
+	// With --expand: maybeExpandSource resolves the placeholder before
+	// execInspect runs, so src.Location is already the resolved sqlite3
+	// URL when srcMeta.Location = src.Location is executed. The output
+	// must therefore show the resolved path.
+	tr = testrun.New(t.Context(), t, nil)
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@leak",
+		Type:     drivertype.SQLite,
+		Location: placeholder,
+	}))
+	require.NoError(t, tr.Exec("inspect", "@leak", "--overview", "--yaml", "--expand"),
+		"inspect with --expand must succeed")
+	out = tr.OutString()
+	require.Contains(t, out, dbPath,
+		"--expand must cause the resolved path to appear in inspect output")
 }

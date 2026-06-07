@@ -108,11 +108,36 @@ See docs and more: https://sq.io`,
 
 	addOptionFlag(cmd.PersistentFlags(), OptMonochrome)
 	addOptionFlag(cmd.PersistentFlags(), OptProgress)
-	addOptionFlag(cmd.PersistentFlags(), OptRedact)
 	// --reveal is the canonical disclosure flag; --no-redact is its
-	// deprecated alias. The two are unioned in getOptionsFromFlags so
-	// setting either flips redaction off.
+	// deprecated alias. Neither is bound directly to OptSecretsReveal.
+	// Both are free-standing pflags whose presence is detected in
+	// getOptionsFromFlags and unioned into secrets.reveal=true.
+	// Explicit false (--reveal=false, --no-redact=false) is a no-op:
+	// the flags are positive opt-ins to disclosure, and a leftover
+	// config or default value wins. To force redaction when
+	// secrets.reveal is true in config, override it via
+	// 'sq config set secrets.reveal false'.
 	cmd.PersistentFlags().Bool(flag.Reveal, false, flag.RevealUsage)
+	cmd.PersistentFlags().Bool(flag.NoRedact, false, flag.NoRedactUsage)
+	// --expand resolves ${scheme:path} placeholders against the
+	// registered resolvers (keyring, env, file). It applies to every
+	// command that prints a source location: sq src, sq ls, sq inspect,
+	// sq add and sq mv (post-action echo), and sq ping in JSON/YAML
+	// output (the text/CSV ping output does not include Location).
+	//
+	// On the display-expansion step itself, per-source resolver failure
+	// is lenient: the placeholder is left verbatim for that source and
+	// the listing continues. Connection-time resolution is independent;
+	// commands that have to connect (sq inspect, sq ping) will still
+	// error if a missing secret prevents the connection. On
+	// `sq config export`, --expand keeps its existing strict-abort
+	// behavior because an export is a snapshot for transfer.
+	//
+	// Not bound to a config option: persisting --expand as a workflow
+	// preference would resolve every placeholder on every display
+	// command, defeating the reason the user put the placeholder there.
+	// Like --reveal, explicit --expand=false is a no-op.
+	cmd.PersistentFlags().Bool(flag.Expand, false, flag.ExpandUsage)
 	addOptionFlag(cmd.PersistentFlags(), OptVerbose)
 	addOptionFlag(cmd.PersistentFlags(), pprofile.OptMode)
 	panicOn(cmd.RegisterFlagCompletionFunc(pprofile.OptMode.Flag().Name, completeStrings(

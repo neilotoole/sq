@@ -1,0 +1,43 @@
+Print metadata for the keyring secret at PATH. With --reveal,
+prints the secret value itself to stdout.
+
+PATH is the body of a ${keyring:PATH} placeholder. Use 'sq config
+keyring ls' to find the ids referenced by your sources.
+
+By default (no --reveal), the value is NOT printed — only that the
+entry exists. With --reveal, the stored value (which for entries
+written by 'sq add --store keyring' is the entire conn string,
+including credentials) is written to stdout.
+
+Usage:
+  sq config keyring get PATH
+
+Examples:
+  # Confirm the entry exists at an sq-generated id
+  $ sq config keyring get j2k7m3pxtz
+
+  # Print the stored value
+  $ sq config keyring get j2k7m3pxtz --reveal
+
+Flags:
+  -t, --text        Output text
+  -j, --json        Output JSON
+  -h, --header      Print header row (default true)
+  -H, --no-header   Don't print header row
+      --help        help for get
+
+Global Flags:
+      --config string         Load config from here
+      --debug.pprof string    pprof profiling mode (default "off")
+      --error.format string   Error output format (default "text")
+  -E, --error.stack           Print error stack trace to stderr
+      --expand                Resolve ${scheme:path} placeholders to their underlying values
+      --log                   Enable logging
+      --log.file string       Log file path (default "$HOME/Library/Logs/sq/sq.log")
+      --log.format string     Log output format (text or json) (default "text")
+      --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+  -M, --monochrome            Don't print color output
+      --no-progress           Don't show progress bar
+      --no-redact             Don't redact passwords in output (deprecated, use --reveal)
+      --reveal                Show secret values in output (don't redact passwords; print keyring values)
+  -v, --verbose               Print verbose output

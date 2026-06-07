@@ -17,8 +17,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 )
 
-const flagConfigExportExpand = "expand"
-
 func newConfigExportCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export",
@@ -30,7 +28,7 @@ config options, and active source/group state. Intended for backups.
 By default, output is a faithful copy of the live config: ${scheme:path}
 placeholders (keyring, env, file) are written verbatim. Inline values
 already present in source Locations (such as plaintext credentials in a
-DSN) are dumped as-is — exactly as they appear in your config file.
+conn string) are dumped as-is — exactly as they appear in your config file.
 
 With --expand, every ${scheme:path} placeholder is fetched from its
 resolver (keyring, env var, or file) and the resolved value is spliced
@@ -43,20 +41,25 @@ When --output is used, the output file is created with mode 0600 (the
 same permission sq uses for the live config file), since the export
 may contain credentials regardless of whether --expand was set.`,
 		RunE: execConfigExport,
-		Example: `  # Portable export to stdout (placeholders preserved)
+		Example: `  # Export to stdout (placeholders preserved)
   $ sq config export
 
-  # Portable export to a file (backup)
+  # Export to a file (backup)
   $ sq config export -o sq.bak.yml
 
   # Self-contained export with placeholders expanded in-line
   $ sq config export --expand -o sq.bak.yml`,
 	}
 
-	cmdMarkPlainStdout(cmd)
-	cmd.Flags().Bool(flagConfigExportExpand, false,
-		"Fetch ${scheme:path} placeholders from keyring/env/file and inline the resolved values (plaintext)")
 	cmd.Flags().StringP(flag.FileOutput, flag.FileOutputShort, "", flag.FileOutputUsage)
+	// execConfigExport handles --output itself to enforce mode 0600
+	// on the export file and mode 0700 on any parent dirs it creates,
+	// since the export may contain credentials. Marking the command
+	// stdout-plain stops preRun's generic --output handler from
+	// opening the file with default perms first (which would defeat
+	// the tighter perms and, on Windows, leave an open fd that breaks
+	// atomic replace).
+	cmdMarkPlainStdout(cmd)
 	return cmd
 }
 
@@ -64,7 +67,7 @@ func execConfigExport(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
 	ru := run.FromContext(ctx)
 
-	expand := cmdFlagIsSetTrue(cmd, flagConfigExportExpand)
+	expand := cmdFlagIsSetTrue(cmd, flag.Expand)
 
 	cfg := ru.Config
 	if expand {

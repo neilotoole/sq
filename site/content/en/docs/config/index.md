@@ -357,27 +357,60 @@ other options, it can be set per invocation via the matching
 
 {{< readfile file="../cmd/options/verbose.help.txt" code="true" lang="text" >}}
 
-### `redact`
+### `secrets.reveal`
 
-Controls whether sensitive fields (such as the password in a DB connection string)
-are redacted.
+Controls whether sensitive fields (passwords in source locations, stored
+keyring values) are printed verbatim or redacted in output. Default is
+`false`: secrets are redacted.
 
 ```shell
 # Default behavior: password is redacted.
 $ sq src -v
 @sakila/pg12  postgres  postgres://sakila:xxxxx@192.168.50.132/sakila
 
-# Set redact to false.
-$ sq config set redact false
+# Set secrets.reveal to true.
+$ sq config set secrets.reveal true
 
 # Now the password is visible.
 $ sq src -v
 @sakila/pg12  postgres  postgres://sakila:p_ssW0rd@192.168.50.132/sakila
 ```
 
-You can also use the `--no-redact` global flag.
+`secrets.reveal` is the persistent form of the global
+[`--reveal`](/docs/secrets#redaction) flag. The earlier `--no-redact`
+flag still works but is deprecated; use `--reveal` in new scripts.
 
-{{< readfile file="../cmd/options/redact.help.txt" code="true" lang="text" >}}
+See [Secrets](/docs/secrets) for the full picture, including how `--reveal`
+relates to [`sq config export --expand`](/docs/cmd/config-export) and the
+placeholder system.
+
+{{< alert icon="🐥" >}}
+**Renamed in v0.54.0.** The earlier `redact` option (default `true`) was
+renamed to `secrets.reveal` (default `false`) for polarity-consistency with
+the `--reveal` flag. Existing configs migrate automatically on first run.
+Scripts that call `sq config get redact` or `sq config set redact ...`
+need updating to the new key.
+{{< /alert >}}
+
+{{< readfile file="../cmd/options/secrets.reveal.help.txt" code="true" lang="text" >}}
+
+### `secrets.store`
+
+Default storage backend used by [`sq add`](/docs/cmd/add) when the source URL
+carries a password: `inline` (write the URL verbatim into `sq.yml`, the
+historical default) or `keyring` (write the full conn string to the OS keyring at a
+fresh opaque ID and store a bare `${keyring:<id>}` placeholder in YAML).
+
+```shell
+# Make keyring the default for new sources
+$ sq config set secrets.store keyring
+```
+
+The `--store` flag on `sq add` overrides this option per invocation. See
+[Secrets](/docs/secrets#keyring) for the keyring scheme and the
+threat model.
+
+{{< readfile file="../cmd/options/secrets.store.help.txt" code="true" lang="text" >}}
 
 ### `result.column.rename`
 

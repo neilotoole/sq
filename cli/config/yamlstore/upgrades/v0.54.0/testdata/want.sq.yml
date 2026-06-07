@@ -1,0 +1,23 @@
+config.version: v0.54.0
+options:
+  format: json
+  secrets.reveal: true
+collection:
+  active.source: "@prod/pg"
+  active.group: prod
+  scratch: ""
+  sources:
+  - handle: "@prod/pg"
+    driver: postgres
+    location: postgres://sakila:p_ssW0rd@localhost/sakila
+  - handle: "@csv"
+    driver: csv
+    location: /Users/neilotoole/sq/person.csv
+    options:
+      ingest.header: true
+  - handle: "@xlsx"
+    driver: xlsx
+    location: /Users/neilotoole/sq/xl_demo.xlsx
+    options:
+      ingest.header: false
+      secrets.reveal: true

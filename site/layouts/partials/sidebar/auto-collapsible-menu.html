@@ -35,6 +35,11 @@
     <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Sources</a>
   </li>
   <li class="mb-1">
+    {{ $hackURL := "/docs/secrets" }}
+    {{ $active := in $currentPage.RelPermalink $hackURL }}
+    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Secrets</a>
+  </li>
+  <li class="mb-1">
     {{ $hackURL := "/docs/inspect" }}
     {{ $active := in $currentPage.RelPermalink $hackURL }}
     <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Inspect</a>

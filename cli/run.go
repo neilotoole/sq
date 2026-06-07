@@ -13,6 +13,7 @@ import (
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	v0_34_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.34.0" //nolint:revive
+	v0_54_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.54.0" //nolint:revive
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/drivers/clickhouse"
@@ -40,6 +41,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/secret/env"
 	"github.com/neilotoole/sq/libsq/core/secret/file"
 	"github.com/neilotoole/sq/libsq/core/secret/keyring"
+	"github.com/neilotoole/sq/libsq/core/secret/op"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
@@ -87,6 +89,7 @@ func newRun(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args 
 
 	upgrades := yamlstore.UpgradeRegistry{
 		v0_34_0.Version: v0_34_0.Upgrade,
+		v0_54_0.Version: v0_54_0.Upgrade,
 	}
 
 	ctx = lg.NewContext(ctx, log)
@@ -200,10 +203,13 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 		return err
 	}
 
-	// --no-redact is deprecated in favor of --reveal (see #717). Emit a
-	// log warning when the legacy flag is explicitly used. No stderr
-	// nudge, so existing scripts stay quiet on the user-facing side.
-	if cmdFlagChanged(ru.Cmd, OptRedact.Flag().Name) {
+	// --no-redact is deprecated in favor of --reveal (see #717). Warn
+	// only when the user actually opted into the deprecated behavior
+	// (--no-redact or --no-redact=true). --no-redact=false is a no-op
+	// in the new positive-opt-in semantics, so warning on it would be
+	// noise. No stderr nudge, so existing scripts stay quiet on the
+	// user-facing side.
+	if cmdFlagIsSetTrue(ru.Cmd, flag.NoRedact) {
 		lg.FromContext(ctx).Warn(
 			"--no-redact is deprecated; use --reveal instead",
 			lga.Cmd, ru.Cmd.CommandPath())
@@ -217,6 +223,7 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 	ru.SecretRegistry.Register("keyring", keyring.NewStore())
 	ru.SecretRegistry.Register("env", env.NewResolver())
 	ru.SecretRegistry.Register("file", file.NewResolver())
+	ru.SecretRegistry.Register("op", op.NewResolver())
 	ctx = secret.NewContext(ctx, ru.SecretRegistry)
 	cmd.SetContext(ctx)
 

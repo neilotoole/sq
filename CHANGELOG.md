@@ -20,102 +20,104 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
-- [#717]: New global `--reveal` flag opts into showing secret values in
-  output. It supersedes the legacy `--no-redact` (still functional, now
-  marked deprecated in `--help`) and also covers `sq config keyring get`
-  (where it was previously a local flag). Setting either `--reveal` or
-  `--no-redact` flips redaction off; the two flags are treated as a
-  union, so passing both is not an error.
-- [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export):
-  dump the active config to YAML, primarily for backups. By default,
-  output is a faithful copy of the live config: `${scheme:path}`
-  placeholders are written verbatim. With `--expand`, every placeholder
-  is fetched from its resolver (keyring, env var, or file) and the
-  resolved value is spliced in-line — a self-contained snapshot at the
-  cost of writing every referenced secret in plaintext. `-o PATH` writes
-  to a file with mode `0600` (matching the live config file); on
-  non-Windows platforms the write is atomic (temp-file + rename).
-- [#441]: [`sq config keyring`](https://sq.io/docs/cmd/sq_config_keyring) command
-  group: store source DSNs in the OS keyring instead of plaintext in
-  `~/.config/sq.yml`. Subcommands: `ls`, `create`, `update`, `get`, `rm`,
-  `migrate`.
-  [`sq add`](https://sq.io/docs/cmd/sq_add) gains a `--store inline|keyring`
-  flag, and a new `secrets.store` config option (`inline` | `keyring`)
-  controls the default; existing behavior is preserved (`inline`). With
-  `--store keyring`, the entire DSN is written to the OS keyring at a fresh
-  opaque ID and the YAML Location becomes a bare `${keyring:<id>}` placeholder.
-  Source `location` fields now support `${scheme:path}` placeholders that
-  are resolved at connect time. Shipped schemes: `keyring` (OS keychain,
-  managed via `sq config keyring`), `env` (environment variable, e.g.
-  `${env:DB_PROD_PW}`), and `file` (file contents, with one trailing newline
-  trimmed, e.g. `${file:/run/secrets/db_pw}` or `${file:~/.sq/db_pw}` —
-  paths must be absolute or start with `~/`, relative paths are absolutized
-  at `sq add` time against the working directory). Use
-  [`sq ping`](https://sq.io/docs/cmd/sq_ping) to verify end-to-end that a
-  source's placeholders resolve and the datastore is reachable.
-- [#616]: [`sq inspect`](https://sq.io/docs/inspect) foreign-key, unique-constraint,
-  and index introspection gained per-driver integration tests for the Postgres,
-  MySQL, SQL Server, Oracle, and DuckDB loaders — composite-FK column pairing,
-  `ON DELETE` / `ON UPDATE` referential actions, Postgres / DuckDB reserved-word
-  FK identifiers, SQL Server same-catalog FK shape, plus self-referential FK
-  pointer identity and a `Source.Clone` deep-copy round-trip in the shared
-  metadata layer. The text-table verbose renderer also gained a golden-layout
-  test pinning header order and the parens-wrapped styling of unique-constraint-backing
-  indexes.
+- [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export): dump the active config to
+  YAML, primarily for backups. See [Secrets](https://sq.io/docs/secrets) for the bigger picture.
+  - By default, output is a faithful-ish copy of the live config: `${scheme:path}` placeholders are
+    written verbatim.
+  - With [`--expand`](https://sq.io/docs/secrets#expanding-placeholders), every placeholder is
+    fetched from its resolver (`keyring`, `env`, `file`, or `op`) and the resolved value
+    is spliced in-line: a self-contained snapshot at the cost of writing every referenced
+    secret in plaintext (which is exactly the point of `--expand`).
+- [#441]: [`sq add`](https://sq.io/docs/cmd/add) gains a `--store inline|keyring`
+  flag, and a new [`secrets.store`](https://sq.io/docs/config#secretsstore) config option
+  controls the default; existing behavior is preserved (`inline`).
+  See [Secrets](https://sq.io/docs/secrets) for the placeholder model and threat model.
+  - With `--store keyring`, the entire conn string is written to the OS keyring at a fresh opaque ID
+    and the YAML location becomes a bare `${keyring:<id>}` placeholder, e.g. `location: ${keyring:3d28xd3jcr}`.
+  - Source `location` fields now support
+    [`${scheme:path}` placeholders](https://sq.io/docs/secrets#placeholders) that are
+    resolved at connect time. Shipped schemes:
+    - `keyring`: OS keychain, managed via `sq config keyring`.
+    - `env`: environment variable, e.g. `${env:DB_PROD_PW}` or `${env:DB_CONN_STR}`.
+    - `file`: file contents, e.g. `${file:/run/secrets/db_pw}` or `${file:~/.sq/db_connstr}`.
+    - [#714]: `op`: 1Password CLI, e.g. `${op://Private/sakila/dsn}`. Shells out to
+      [`op read`](https://developer.1password.com/docs/cli/reference/commands/read/) using
+      1Password's
+      [secret-reference syntax](https://developer.1password.com/docs/cli/secret-reference-syntax/);
+      the user must already be signed in (biometric, `op signin`, or `OP_SERVICE_ACCOUNT_TOKEN`).
+      `sq add` accepts the bare `op://...` form (the literal "Copy Secret Reference"
+      output) as a shortcut for the wrapped `${op://...}` placeholder.
+      If a placeholder resolves to a bare value rather than a full DSN, `sq add`
+      surfaces an actionable error naming the placeholder and pointing at composition,
+      a full-DSN secret, or `--driver` as the three recovery paths.
+- [#441]: [`sq config keyring`](https://sq.io/docs/cmd/config-keyring) command group: store
+  source conn strings in the OS keyring instead of plaintext in `sq.yml`.
+  - Subcommands: `ls`, `create`, `update`, `get`, `rm`, `migrate`.
 - [#660]: [`sq inspect`](https://sq.io/docs/inspect) gained
   [`svg-erd`](https://sq.io/docs/inspect#svg-erd) and
-  [`png-erd`](https://sq.io/docs/inspect#png-erd) output formats that render the
-  schema entity-relationship diagram directly to an SVG or PNG image file
-  (`--format=svg-erd` / `--format=png-erd`). The diagram is laid out and
-  rendered natively via an embedded [Graphviz](https://graphviz.org) engine, so
-  image export needs no external tool, browser, or network. `png-erd` is binary
-  and requires a file target (`-o`/`--output`).
+  [`png-erd`](https://sq.io/docs/inspect#png-erd) output formats that render the schema
+  entity-relationship diagram directly to an SVG or PNG image file
+  (`--format=svg-erd` / `--format=png-erd`).
+  - The diagram is laid out and rendered natively via an embedded [Graphviz](https://graphviz.org)
+    engine, so image export needs no external tool, browser, or network.
+- [#717]: New global [`--reveal`](https://sq.io/docs/secrets#redaction) flag opts
+  into showing secret values in output.
+  - It supersedes the legacy `--no-redact` (still functional, now marked deprecated, will be removed
+    at some point in the future).
 
 ### Changed
 
-- `jsonw`: general-purpose JSON output (`sq inspect`, `sq config get`,
-  etc.) now uses
-  [`neilotoole/jsoncolor`](https://github.com/neilotoole/jsoncolor)
-  instead of the in-tree `jcolorenc` fork, removing ~11.7k LOC of
-  forked `segmentio/encoding` code. The hot-path record-stream encoders
-  (`--json`, `--jsona`, `--jsonl`) are unchanged. `jsoncolor` is ~32%
-  faster but allocates ~5× more bytes per encode; the affected paths
-  are not throughput-critical.
+- ☢️ The `redact` config option is renamed to
+  [`secrets.reveal`](https://sq.io/docs/config#secretsreveal) with inverted polarity
+  (`secrets.reveal: true` equals legacy `redact: false`). The new default is `false`
+  (secrets are redacted). Existing configs are migrated automatically on first run
+  by a YAML upgrade step; scripts that call `sq config get redact` or
+  `sq config set redact ...` need updating to the new key. The rename completes the
+  polarity-consistency story started by `--reveal` in #717.
+  - As part of the polarity flip, the `--reveal` and `--no-redact` flags are now
+    positive opt-ins only: `--reveal=true` (or just `--reveal`) opts into
+    disclosure, and `--reveal=false` / `--no-redact=false` are no-ops. Previously,
+    `--no-redact=false` would force redaction by virtue of its inverted binding.
+    To force redaction when `secrets.reveal: true` is set in config, override the
+    config value with `sq config set secrets.reveal false` rather than relying on
+    a flag.
 - [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd)
-  now syntax-colors its `erDiagram` source when writing to a terminal. Output to
-  a file or pipe (and under `--no-color`, `NO_COLOR`, or `--monochrome`) is
-  unchanged, so redirected `.mmd` files stay byte-identical to the plain source.
-- The `sqlserver` driver description shown by
-  [`sq driver ls`](https://sq.io/docs/cmd/driver-ls) is now simply "Microsoft SQL
-  Server", dropping the trailing "/ Azure SQL Edge" (Azure SQL Edge was retired by
-  Microsoft on 2025-09-30).
-
-### Deprecated
-
-- [#717]: `--no-redact` is deprecated in favor of `--reveal`. The flag
-  continues to work and is unchanged in effect; using it now emits a log
-  warning naming the new flag, and `--help` renders it as `(deprecated,
-  use --reveal)`. No stderr nudge — existing scripts stay quiet on the
-  user-facing side. Scheduled for removal in a future major version.
+  now syntax-colors its `erDiagram` source when writing to a terminal.
+- [#729]: [`--expand`](https://sq.io/docs/secrets#expanding-placeholders) is now a persistent
+  root flag, accepted by every subcommand. Previously it lived only on `sq config export`.
+  - Commands that print a source location ([`sq src`](https://sq.io/docs/cmd/src),
+    [`sq ls`](https://sq.io/docs/cmd/ls), [`sq inspect`](https://sq.io/docs/inspect),
+    `sq add`, `sq mv`, and `sq ping` in JSON/YAML output) now pass `${scheme:path}`
+    placeholders through the configured resolvers and print the resolved value.
+    `sq ping`'s text and CSV output do not include a Location column, so `--expand`
+    has no visible effect there. `--expand` composes orthogonally with `--reveal`:
+    `--reveal` flips the redaction filter on whatever string is being displayed;
+    `--expand` decides whether that string is the verbatim placeholder or the
+    resolved value.
+  - The display-expansion step itself is lenient: a per-source resolver failure
+    (missing keyring entry, unset env var, unreadable file) leaves that source's
+    placeholder verbatim and the listing continues. This is independent of
+    connection-time resolution; commands that have to connect (e.g.
+    [`sq inspect`](https://sq.io/docs/inspect), `sq ping`) will still fail at
+    connect time if a missing secret prevents the connection. `sq config export --expand`
+    keeps its existing strict-abort behavior because an export is a snapshot for
+    transfer, and a half-resolved snapshot is the wrong artifact.
+  - Subcommands that don't print a source location (e.g. [`sq sql`](https://sq.io/docs/cmd/sql),
+    `sq slq`, `sq tbl`) accept `--expand` as a silent no-op, so a global alias like
+    `alias sq='sq --reveal --expand'` is safe.
 
 ### Fixed
 
-- [#720]: The [SQLite driver](https://sq.io/docs/drivers/sqlite) no longer fails
-  with `stat /path/to/db?key=val: no such file or directory` on source-level
-  metadata commands ([`sq inspect @handle`](https://sq.io/docs/inspect),
-  `sq inspect @handle --overview`) when the source location carries a
-  `?key=val[&...]` connection-string suffix
-  (e.g. `sqlite3:///path/to/db?mode=ro`). Connection-string parameters
-  documented in the
-  [SQLite driver page](https://sq.io/docs/drivers/sqlite) — including
-  `mode`, `cache`, and `mattn/go-sqlite3`'s `immutable=1` — now flow
-  end-to-end. Unblocks the long-standing request in
-  [#443](https://github.com/neilotoole/sq/discussions/443) to query a
-  live (locked) SQLite database, e.g. Firefox cookies, by setting
-  `?immutable=1`. As part of the same change, the SQLite driver's
-  open and location-parse error messages no longer echo the
-  connection-string suffix, so secret params (e.g. `_auth_pass`)
-  don't surface in logs.
+- [#720]: The [SQLite driver](https://sq.io/docs/drivers/sqlite) no longer fails with
+  `stat /path/to/db?key=val: no such file or directory` on source-level metadata commands.
+  - Previously failed on [`sq inspect @handle`](https://sq.io/docs/inspect) etc.
+    when the source location carried a `?key=val[&...]` connection-string suffix (e.g.
+    `sqlite3:///path/to/db?mode=ro`).
+- [#729]: `sq inspect` no longer leaks the resolved target of a `${scheme:path}` placeholder
+  into its metadata output. The driver layer resolves placeholders to open the connection,
+  and the resolved value was being copied verbatim into `metadata.Source.Location`; the
+  inspect handler now overrides that field with the caller's view of `src.Location`, which
+  is the placeholder by default and the resolved value only when `--expand` is set.
 
 ## [v0.53.0] - 2026-05-25
 
@@ -1694,7 +1696,9 @@ make working with lots of sources much easier.
 [#692]: https://github.com/neilotoole/sq/issues/692
 [#716]: https://github.com/neilotoole/sq/issues/716
 [#717]: https://github.com/neilotoole/sq/issues/717
+[#714]: https://github.com/neilotoole/sq/issues/714
 [#720]: https://github.com/neilotoole/sq/issues/720
+[#729]: https://github.com/neilotoole/sq/issues/729
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3

@@ -134,8 +134,9 @@ Flags:
       --version                        Print version info
   -M, --monochrome                     Don't print color output
       --no-progress                    Don't show progress bar
-      --no-redact                      Don't redact passwords in output (deprecated, use --reveal)
       --reveal                         Show secret values in output (don't redact passwords; print keyring values)
+      --no-redact                      Don't redact passwords in output (deprecated, use --reveal)
+      --expand                         Resolve ${scheme:path} placeholders to their underlying values
   -v, --verbose                        Print verbose output
       --debug.pprof string             pprof profiling mode (default "off")
       --config string                  Load config from here

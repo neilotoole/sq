@@ -46,10 +46,10 @@ Examples of placeholder forms in a source's Location:
   $ sq config keyring ls
 
   # Create a new keyring entry, prompting for the value
-  $ sq config keyring create @sakila/password -p
+  $ sq config keyring create my_db_pw -p
 
   # Rotate an existing entry
-  $ sq config keyring update @sakila/password -p
+  $ sq config keyring update my_db_pw -p
 
   # Migrate inline passwords into the keyring
   $ sq config keyring migrate --all`,

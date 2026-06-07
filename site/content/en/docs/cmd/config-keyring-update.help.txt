@@ -1,0 +1,50 @@
+Write a new value to an existing keyring entry at PATH.
+Errors if no entry exists at PATH; use 'sq config keyring create' to
+add a new entry.
+
+PATH is the body of a ${keyring:PATH} placeholder. Typically used to
+rotate a credential: pass the same PATH that already appears in a
+source's Location, with a new VALUE. The Location does not need to
+change.
+
+If VALUE is omitted, --password (-p) is required: sq then reads the
+value from stdin (piped data or, if stdin is a TTY, an interactive
+prompt). Stdin is NOT consulted unless -p is set.
+
+Usage:
+  sq config keyring update PATH [VALUE]
+
+Examples:
+  # Rotate the value at an sq-generated id
+  $ sq config keyring update j2k7m3pxtz 'postgres://alice:newpw@db/sakila'
+
+  # Pipe a value from stdin to keep it out of shell history
+  $ sq config keyring update j2k7m3pxtz -p < secret.txt
+
+  # Prompt interactively
+  $ sq config keyring update j2k7m3pxtz -p
+  Password: ****
+
+Flags:
+  -p, --password    Read password from stdin or prompt
+  -t, --text        Output text
+  -j, --json        Output JSON
+  -h, --header      Print header row (default true)
+  -H, --no-header   Don't print header row
+      --help        help for update
+
+Global Flags:
+      --config string         Load config from here
+      --debug.pprof string    pprof profiling mode (default "off")
+      --error.format string   Error output format (default "text")
+  -E, --error.stack           Print error stack trace to stderr
+      --expand                Resolve ${scheme:path} placeholders to their underlying values
+      --log                   Enable logging
+      --log.file string       Log file path (default "$HOME/Library/Logs/sq/sq.log")
+      --log.format string     Log output format (text or json) (default "text")
+      --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+  -M, --monochrome            Don't print color output
+      --no-progress           Don't show progress bar
+      --no-redact             Don't redact passwords in output (deprecated, use --reveal)
+      --reveal                Show secret values in output (don't redact passwords; print keyring values)
+  -v, --verbose               Print verbose output

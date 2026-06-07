@@ -21,14 +21,39 @@ A source has three main elements:
 - _**location:**_ such as `postgres://user:p_ssW0rd@localhost/sakila`. For
   a document source, _location_ may just be a file path, e.g. `/Users/neilotoole/sakila.csv`.
 
+In the `sq.yml` [config](/docs/config) file, these elements manifest as:
+
+```yaml
+- handle: '@sakila_pg'
+  driver: postgres
+  location: postgres://user:p_ssW0rd@localhost/sakila
+```
+
 {{< alert icon="👉" >}}
 When `sq` prints a location containing security credentials (such as the password in the
 postgres string above), the password is redacted by default. Thus, that location string
-would be printed as `postgres://user:xxxxx@@localhost/sakila`.
+would be printed as `postgres://user:xxxxx@localhost/sakila`.
 
-You can override this behavior via the global `--no-redact` flag, or by setting
-the [`redact`](/docs/config#redact) config option to `false`,
+You can override this behavior via the global `--reveal` flag, or by setting
+the [`secrets.reveal`](/docs/config#secretsreveal) config option to `true`. See
+[Secrets](/docs/secrets) for the full picture.
 {{< /alert >}}
+
+A location can also contain `${scheme:path}` placeholders that fetch the
+real value at connect time from the OS keyring, an environment variable,
+or a file:
+
+```yaml
+location: postgres://alice:${keyring:j2k7m3pxtz}@db/sakila
+location: postgres://alice:${env:DB_PROD_PASSWORD}@db/sakila
+location: postgres://alice:${file:/run/secrets/db_pw}@db/sakila
+```
+
+See [Secrets](/docs/secrets#placeholders) for the placeholder
+grammar, the three shipped schemes, and how to migrate inline-credential
+sources to the keyring with
+[`sq add --store keyring`](/docs/cmd/add) or
+[`sq config keyring migrate`](/docs/cmd/config-keyring-migrate).
 
 `sq` provides a set of commands to [add](#add), [list](#list-sources), [rename](#move)
 and [remove](#remove) sources.
@@ -45,6 +70,11 @@ $ sq add postgres://sakila:p_ssW0rd@localhost/sakila
 
 # Add a CSV source, specifying the handle.
 $ sq add ./actor.csv --handle @actor
+
+# Add a postgres database, storing the conn string in the OS keyring
+# instead of inline in sq.yml.
+$ sq add --store keyring postgres://sakila:p_ssW0rd@localhost/sakila
+@sakila_pg  postgres  ${keyring:j2k7m3pxtz}
 ```
 
 ### Location completion

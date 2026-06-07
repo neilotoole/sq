@@ -35,6 +35,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/termz"
 	"github.com/neilotoole/sq/libsq/core/timez"
 	"github.com/neilotoole/sq/libsq/core/tuning"
@@ -124,19 +125,6 @@ includes the full structured parse_error.`,
 		false,
 		"Don't print color output",
 		`Don't print color output.`,
-		options.TagOutput,
-	)
-
-	OptRedact = options.NewBool(
-		"redact",
-		&options.Flag{
-			Name:   "no-redact",
-			Invert: true,
-			Usage:  "Don't redact passwords in output (deprecated, use --reveal)",
-		},
-		true,
-		"Redact passwords in output",
-		`Redact passwords in output.`,
 		options.TagOutput,
 	)
 
@@ -533,7 +521,7 @@ func getOutputConfig(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup
 	pr.Verbose = OptVerbose.Get(o)
 	pr.FlushThreshold = int(tuning.OptFlushThreshold.Get(o).Bytes()) //nolint:gosec // ignore overflow concern
 	pr.Compact = OptCompact.Get(o)
-	pr.Redact = OptRedact.Get(o)
+	pr.Redact = !secret.OptSecretsReveal.Get(o)
 
 	switch {
 	case cmdFlagChanged(cmd, flag.Header):

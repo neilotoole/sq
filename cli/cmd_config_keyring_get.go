@@ -3,8 +3,8 @@ package cli
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/secret/keyring"
 )
 
@@ -20,8 +20,9 @@ PATH is the body of a ${keyring:PATH} placeholder. Use 'sq config
 keyring ls' to find the ids referenced by your sources.
 
 By default (no --reveal), the value is NOT printed — only that the
-entry exists. With --reveal, the value (which under Form B is the
-entire DSN, including credentials) is written to stdout.`,
+entry exists. With --reveal, the stored value (which for entries
+written by 'sq add --store keyring' is the entire conn string,
+including credentials) is written to stdout.`,
 		RunE: execConfigKeyringGet,
 		Example: `  # Confirm the entry exists at an sq-generated id
   $ sq config keyring get j2k7m3pxtz
@@ -45,6 +46,15 @@ func execConfigKeyringGet(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	revealed := cmdFlagIsSetTrue(cmd, flag.Reveal)
+	// Honor both the global --reveal flag and the persistent
+	// secrets.reveal config option. getOptionsFromCmd merges config
+	// options with the flag-union state (see getOptionsFromFlags),
+	// so a user with secrets.reveal:true in config sees the value
+	// without needing --reveal on every invocation.
+	opts, err := getOptionsFromCmd(cmd)
+	if err != nil {
+		return err
+	}
+	revealed := secret.OptSecretsReveal.Get(opts)
 	return ru.Writers.Keyring.Get(path, value, revealed)
 }

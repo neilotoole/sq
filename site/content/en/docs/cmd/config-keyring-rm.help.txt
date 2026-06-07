@@ -1,0 +1,36 @@
+Delete the keyring secret at PATH. Deleting a non-existent entry
+is not an error (idempotent).
+
+This removes the keyring entry but does NOT touch any YAML source that
+references it; a remaining ${keyring:PATH} reference will fail to
+resolve at connect time. Use 'sq config keyring ls' to find references
+before removing.
+
+Usage:
+  sq config keyring rm PATH
+
+Examples:
+  $ sq config keyring rm j2k7m3pxtz
+
+Flags:
+  -t, --text        Output text
+  -j, --json        Output JSON
+  -h, --header      Print header row (default true)
+  -H, --no-header   Don't print header row
+      --help        help for rm
+
+Global Flags:
+      --config string         Load config from here
+      --debug.pprof string    pprof profiling mode (default "off")
+      --error.format string   Error output format (default "text")
+  -E, --error.stack           Print error stack trace to stderr
+      --expand                Resolve ${scheme:path} placeholders to their underlying values
+      --log                   Enable logging
+      --log.file string       Log file path (default "$HOME/Library/Logs/sq/sq.log")
+      --log.format string     Log output format (text or json) (default "text")
+      --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+  -M, --monochrome            Don't print color output
+      --no-progress           Don't show progress bar
+      --no-redact             Don't redact passwords in output (deprecated, use --reveal)
+      --reveal                Show secret values in output (don't redact passwords; print keyring values)
+  -v, --verbose               Print verbose output
