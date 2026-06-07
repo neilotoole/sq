@@ -808,6 +808,48 @@ func TestSQL_ROAlias_ConflictWithURL(t *testing.T) {
 		"error message should name the canonical flag")
 }
 
+// TestSQL_ReadOnlyWithInsert_DestStaysRW verifies that --readonly applies
+// only to the source side of an --insert operation: the destination must
+// stay READ_WRITE so the INSERT itself succeeds. Mirrors the slq --insert
+// pattern fixed by gh610.
+func TestSQL_ReadOnlyWithInsert_DestStaysRW(t *testing.T) {
+	t.Parallel()
+	th := testh.New(t)
+
+	// Source: shared duckdb fixture (RO is fine).
+	src := th.Source(sakila.Duck)
+
+	// Destination: temp-copy duckdb so we can write into it without
+	// touching the shared fixture.
+	srcPath := proj.Abs("drivers/duckdb/testdata/sakila.duckdb")
+	dstPath := filepath.Join(t.TempDir(), "dest.duckdb")
+	in, err := os.Open(srcPath)
+	require.NoError(t, err)
+	defer in.Close()
+	out, err := os.Create(dstPath)
+	require.NoError(t, err)
+	_, err = io.Copy(out, in)
+	require.NoError(t, err)
+	require.NoError(t, out.Close())
+
+	dest := &source.Source{
+		Handle:   "@sakila_duck_dest",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://" + dstPath,
+	}
+
+	destTbl := "ro_insert_dest_" + t.Name()
+	// DuckDB-safe table name (no slashes, etc.).
+	destTbl = strings.ReplaceAll(destTbl, "/", "_")
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Add(*dest)
+	err = tr.Exec("sql", "--src", src.Handle, "--readonly",
+		"--insert", dest.Handle+"."+destTbl,
+		"SELECT first_name, last_name FROM actor LIMIT 3")
+	require.NoError(t, err,
+		"--readonly should apply to the source only; INSERT into dest must succeed")
+}
+
 // TestSQL_ReadOnly_RejectsWrites verifies a write statement under --readonly
 // surfaces DuckDB's native read-only error cleanly. Uses a temp copy of the
 // shared fixture so the write attempt can't accidentally mutate it.

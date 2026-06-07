@@ -95,26 +95,29 @@ func execSQL(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// --readonly / --ro: opt the raw-SQL command into read-only mode.
-	// Honored by DuckDB; ignored by other drivers. If the user explicitly
-	// requested read-only but the source URL explicitly says READ_WRITE,
-	// that's a contradiction we surface rather than silently picking one.
-	if cmdFlagIsSetTrue(cmd, flag.SQLReadOnly) || cmdFlagIsSetTrue(cmd, flag.SQLReadOnlyAlias) {
-		if activeSrc.Type == drivertype.DuckDB {
-			if mode, ok := duckdb.ExplicitAccessMode(activeSrc.Location); ok &&
-				strings.EqualFold(mode, "READ_WRITE") {
-				return errz.Errorf(
-					"sql: --%s conflicts with access_mode=READ_WRITE in %s",
-					flag.SQLReadOnly, activeSrc.Handle)
-			}
+	// --readonly / --ro: opt the raw-SQL command into read-only mode for
+	// the source. Conflict check happens up front (independent of the
+	// --insert branch) so a contradictory URL is rejected either way.
+	// Note: for --insert, the destination is opened READ_WRITE; only the
+	// source side is opened READ_ONLY (matching the slq --insert pattern).
+	readOnlySrc := cmdFlagIsSetTrue(cmd, flag.SQLReadOnly) ||
+		cmdFlagIsSetTrue(cmd, flag.SQLReadOnlyAlias)
+	if readOnlySrc && activeSrc.Type == drivertype.DuckDB {
+		if mode, ok := duckdb.ExplicitAccessMode(activeSrc.Location); ok &&
+			strings.EqualFold(mode, "READ_WRITE") {
+			return errz.Errorf(
+				"sql: --%s conflicts with access_mode=READ_WRITE in %s",
+				flag.SQLReadOnly, activeSrc.Handle)
 		}
-		ctx = driver.WithReadOnly(ctx)
-		cmd.SetContext(ctx)
 	}
 
 	if !cmdFlagChanged(cmd, flag.Insert) {
 		// The user didn't specify the --insert=@src.tbl flag,
 		// so we just want to print the records.
+		if readOnlySrc {
+			ctx = driver.WithReadOnly(ctx)
+			cmd.SetContext(ctx)
+		}
 		return execSQLPrint(ctx, ru, activeSrc)
 	}
 
@@ -135,7 +138,7 @@ func execSQL(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return execSQLInsert(ctx, ru, activeSrc, destSrc, destTbl)
+	return execSQLInsert(ctx, ru, activeSrc, destSrc, destTbl, readOnlySrc)
 }
 
 // execSQLPrint executes the SQL input, and either prints the resulting records
@@ -189,21 +192,33 @@ func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source) erro
 }
 
 // execSQLInsert executes the SQL and inserts resulting records
-// into destTbl in destSrc.
+// into destTbl in destSrc. readOnlySrc controls whether the source
+// (fromSrc) is opened READ_ONLY; the destination is always opened
+// READ_WRITE so the INSERT can succeed.
 func execSQLInsert(ctx context.Context, ru *run.Run,
-	fromSrc, destSrc *source.Source, destTbl string,
+	fromSrc, destSrc *source.Source, destTbl string, readOnlySrc bool,
 ) error {
 	args := ru.Args
 	grips := ru.Grips
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
-	fromGrip, err := grips.Open(ctx, fromSrc)
+	// Open destGrip FIRST on the RW ctx so the destination opens
+	// READ_WRITE. The Grips cache keys by src.Handle, so if fromSrc
+	// shares a handle with destSrc (self-insert), the later
+	// grips.Open(ctx, fromSrc) returns this cached RW grip.
+	destGrip, err := grips.Open(ctx, destSrc)
 	if err != nil {
 		return err
 	}
 
-	destGrip, err := grips.Open(ctx, destSrc)
+	// Now mark the ctx read-only for the source-side open. Skips the
+	// rewrite if the user didn't pass --readonly.
+	if readOnlySrc {
+		ctx = driver.WithReadOnly(ctx)
+	}
+
+	fromGrip, err := grips.Open(ctx, fromSrc)
 	if err != nil {
 		return err
 	}
