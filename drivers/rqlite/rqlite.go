@@ -381,7 +381,9 @@ func dsnFromLocation(loc string) (string, error) {
 func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 	fromTbl, toTbl tablefq.T, copyData bool,
 ) (int64, error) {
-	const q = `SELECT sql FROM sqlite_master WHERE type='table' AND name=?`
+	masterTbl := tablefq.T{Schema: fromTbl.Schema, Table: "sqlite_master"}
+	q := fmt.Sprintf("SELECT sql FROM %s WHERE type='table' AND name=?",
+		masterTbl.Render(stringz.DoubleQuote))
 	var ogDDL string
 	if err := db.QueryRowContext(ctx, q, fromTbl.Table).Scan(&ogDDL); err != nil {
 		return 0, errz.Wrapf(errw(err),
@@ -398,7 +400,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 	}
 
 	destDDL := strings.Replace(ogDDL, replaceTarget,
-		stringz.DoubleQuote(toTbl.Table), 1)
+		toTbl.Render(stringz.DoubleQuote), 1)
 
 	if !copyData {
 		if _, err = db.ExecContext(ctx, destDDL); err != nil {
@@ -410,7 +412,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 	stmts := []gorqlite.ParameterizedStatement{
 		{Query: destDDL},
 		{Query: fmt.Sprintf(`INSERT INTO %s SELECT * FROM %s`,
-			stringz.DoubleQuote(toTbl.Table), stringz.DoubleQuote(fromTbl.Table))},
+			toTbl.Render(stringz.DoubleQuote), fromTbl.Render(stringz.DoubleQuote))},
 	}
 	results, err := writeAtomic(ctx, db, stmts...)
 	if err != nil {
