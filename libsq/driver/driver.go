@@ -64,6 +64,11 @@ type SQLDriver interface {
 	// map does not have to be exhaustive, and can be nil.
 	ConnParams() map[string][]string
 
+	// LocationShape returns the declarative URL syntax for this driver.
+	// Used by shell completion. Returns the zero value if this driver
+	// has no completable URL form.
+	LocationShape() LocationShape
+
 	// ErrWrapFunc returns a func that wraps the driver's errors.
 	ErrWrapFunc() func(error) error
 

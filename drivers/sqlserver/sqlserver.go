@@ -87,6 +87,12 @@ func (d *driveri) ConnParams() map[string][]string {
 	}
 }
 
+// LocationShape implements driver.SQLDriver.
+func (d *driveri) LocationShape() driver.LocationShape {
+	// TODO(gh743): populated in subsequent tasks.
+	return driver.LocationShape{}
+}
+
 // ErrWrapFunc implements driver.SQLDriver.
 func (d *driveri) ErrWrapFunc() func(error) error {
 	return errw
