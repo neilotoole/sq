@@ -125,7 +125,6 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 		{
 			args: []string{"postgres://alice@localhost:"},
 			want: []string{
-				"postgres://alice@localhost:/",
 				"postgres://alice@localhost:5432/",
 			},
 			wantResult: stdDirective,
@@ -241,17 +240,13 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 			wantResult: stdDirective,
 		},
 		{
-			// Note the extra "?", which apparently is valid. The walker
-			// treats the second "?" as part of the sslmode value, so the
-			// completer offers sslmode value continuations on top of it.
+			// The second "?" is part of the sslmode value (it's not a
+			// query-string delimiter), so the typed value is
+			// "disable?", which doesn't match any known sslmode value.
+			// The completer offers "&" to push to the next param.
 			args: []string{"postgres://alice@localhost/sakila?sslmode=disable?"},
 			want: []string{
-				"postgres://alice@localhost/sakila?sslmode=disable?sslmode=disable",
-				"postgres://alice@localhost/sakila?sslmode=disable?sslmode=allow",
-				"postgres://alice@localhost/sakila?sslmode=disable?sslmode=prefer",
-				"postgres://alice@localhost/sakila?sslmode=disable?sslmode=require",
-				"postgres://alice@localhost/sakila?sslmode=disable?sslmode=verify-ca",
-				"postgres://alice@localhost/sakila?sslmode=disable?sslmode=verify-full",
+				"postgres://alice@localhost/sakila?sslmode=disable?&",
 			},
 			wantResult: stdDirective,
 		},
@@ -588,7 +583,6 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 		{
 			args: []string{"mysql://alice@localhost:"},
 			want: []string{
-				"mysql://alice@localhost:/",
 				"mysql://alice@localhost:3306/",
 			},
 			wantResult: stdDirective,
@@ -1046,7 +1040,6 @@ func TestCompleteAddLocation_ClickHouse(t *testing.T) {
 		{
 			args: []string{"clickhouse://alice@localhost:"},
 			want: []string{
-				"clickhouse://alice@localhost:/",
 				"clickhouse://alice@localhost:9000/",
 			},
 			wantResult: stdDirective,
@@ -1195,7 +1188,6 @@ func TestCompleteAddLocation_Oracle(t *testing.T) {
 		{
 			args: []string{"oracle://alice@localhost:"},
 			want: []string{
-				"oracle://alice@localhost:/",
 				"oracle://alice@localhost:1521/",
 			},
 			wantResult: stdDirective,
