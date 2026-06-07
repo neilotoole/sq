@@ -131,9 +131,10 @@ const (
 	SQLReadOnly      = "readonly"
 	SQLReadOnlyUsage = "Open sources read-only (DuckDB only; other drivers ignore)"
 
-	// SQLReadOnlyAlias is a convenience alias for SQLReadOnly.
-	// Registered as a separate pflag matching the --reveal / --no-redact
-	// pattern at cli/cmd_root.go.
+	// SQLReadOnlyAlias is a convenience alias for SQLReadOnly. It is
+	// registered as a separate pflag on the sql subcommand (see
+	// cli/cmd_sql.go), following the dual-registration pattern that
+	// cmd_root.go uses for --reveal / --no-redact.
 	SQLReadOnlyAlias      = "ro"
 	SQLReadOnlyAliasUsage = "Alias for --readonly"
 

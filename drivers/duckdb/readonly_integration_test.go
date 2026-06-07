@@ -32,6 +32,11 @@ func copyToTempDuckDB(t *testing.T) string {
 
 	out, err := os.Create(dstPath)
 	require.NoError(t, err)
+	// Belt-and-braces: explicit Close after Copy catches deferred fsync
+	// errors, while the deferred Close ensures the fd is released if
+	// require.NoError(io.Copy) fails the test mid-flight (relevant on
+	// Windows where an open handle blocks subsequent file ops).
+	defer func() { _ = out.Close() }()
 
 	_, err = io.Copy(out, in)
 	require.NoError(t, err)
