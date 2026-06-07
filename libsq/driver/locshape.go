@@ -7,6 +7,7 @@ package driver
 import (
 	"context"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -192,7 +193,8 @@ func Walk(shape LocationShape, loc string) (MatchedLoc, error) {
 func walkSegments(shape LocationShape, m MatchedLoc, tail string) (MatchedLoc, error) {
 	cursor := 0
 	for _, seg := range shape.Segments {
-		if seg.Kind == SegCredentials {
+		switch seg.Kind {
+		case SegCredentials:
 			matched, advance, current := walkCredentials(tail[cursor:], seg.Optional)
 			if matched.User != "" || matched.PassSet || matched.HasCreds {
 				m.User = matched.User
@@ -208,6 +210,21 @@ func walkSegments(shape LocationShape, m MatchedLoc, tail string) (MatchedLoc, e
 				m.Done = append(m.Done, SegCredentials)
 			}
 			cursor += advance
+		case SegAuthority:
+			authEnd := strings.IndexAny(tail[cursor:], "/?")
+			if authEnd == -1 {
+				// Whole remainder is (partial) authority.
+				parseAuthority(tail[cursor:], &m)
+				m.Current = SegAuthority
+				return m, nil
+			}
+			parseAuthority(tail[cursor:cursor+authEnd], &m)
+			m.Done = append(m.Done, SegAuthority)
+			cursor += authEnd
+			// NOTE: cursor stops AT '/' or '?'; the delimiter
+			// belongs to the next segment.
+		case SegPathName, SegPathFile, SegConnParams:
+			// Implemented in later tasks (A5-A7).
 		}
 	}
 	return m, nil
@@ -243,4 +260,29 @@ func walkCredentials(s string, optional bool) (matched MatchedLoc, advance int, 
 		matched.Pass = pass
 	}
 	return matched, atIdx + 1, false
+}
+
+// parseAuthority parses "host[:port]" into m.Hostname, m.Port,
+// m.PortSet. Uses net/url for IPv6-bracket and port handling.
+func parseAuthority(authStr string, m *MatchedLoc) {
+	// net/url needs a scheme to parse an authority. Wrap with a
+	// dummy scheme.
+	u, err := url.Parse("dummy://" + authStr)
+	if err != nil {
+		// Best-effort fallback: take the whole string as hostname.
+		m.Hostname = authStr
+		return
+	}
+	m.Hostname = u.Hostname()
+	if port := u.Port(); port != "" {
+		m.PortSet = true
+		if p, err := strconv.Atoi(port); err == nil {
+			m.Port = p
+		} else {
+			m.Port = -1
+		}
+	} else if strings.HasSuffix(u.Host, ":") {
+		// "host:" with empty port.
+		m.PortSet = true
+	}
 }

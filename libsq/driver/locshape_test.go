@@ -69,3 +69,38 @@ func TestWalk_credsFullUserPass(t *testing.T) {
 	require.Equal(t, "hunter2", got.Pass)
 	require.True(t, got.PassSet)
 }
+
+func TestWalk_authPartialHost(t *testing.T) {
+	got, err := Walk(pgShape, "postgres://alice@local")
+	require.NoError(t, err)
+	require.Equal(t, []SegmentKind{SegCredentials}, got.Done)
+	require.Equal(t, SegAuthority, got.Current)
+	require.Equal(t, "local", got.Hostname)
+	require.False(t, got.PortSet)
+}
+
+func TestWalk_authHostPort(t *testing.T) {
+	got, err := Walk(pgShape, "postgres://alice@localhost:5432")
+	require.NoError(t, err)
+	require.Equal(t, SegAuthority, got.Current)
+	require.Equal(t, "localhost", got.Hostname)
+	require.Equal(t, 5432, got.Port)
+	require.True(t, got.PortSet)
+}
+
+func TestWalk_authBareHost(t *testing.T) {
+	// The #743 ambiguous case: no '@', no '/' or '?'. Walker treats
+	// as partial credentials, NOT authority.
+	got, err := Walk(pgShape, "postgres://localhost")
+	require.NoError(t, err)
+	require.Equal(t, SegCredentials, got.Current)
+	require.Equal(t, "localhost", got.User)
+}
+
+func TestWalk_authIPv6(t *testing.T) {
+	got, err := Walk(pgShape, "postgres://alice@[::1]:5432")
+	require.NoError(t, err)
+	require.Equal(t, SegAuthority, got.Current)
+	require.Equal(t, "::1", got.Hostname)
+	require.Equal(t, 5432, got.Port)
+}
