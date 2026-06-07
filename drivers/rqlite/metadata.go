@@ -437,9 +437,8 @@ func coerceDecimal(d decimal.Decimal) any {
 }
 
 // getTableMetadata returns metadata for a single table. The shape
-// mirrors the sqlite3 driver's helper, minus the foreign-key and
-// index work — those land in a follow-up. Virtual-table BaseType
-// recovery via SELECT typeof() is also omitted; rqlite users are
+// mirrors the sqlite3 driver's helper. Virtual-table BaseType
+// recovery via SELECT typeof() is omitted; rqlite users are
 // unlikely to be hitting FTS5/r-tree tables.
 func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadata.Table, error) {
 	log := lg.FromContext(ctx)
@@ -501,11 +500,81 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 		tblMeta.Columns = append(tblMeta.Columns, col)
 	}
 
-	return tblMeta, errw(rows.Err())
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+
+	if tblMeta.TableType != sqlz.TableTypeVirtual && tblMeta.TableType != sqlz.TableTypeView {
+		outgoing, fkErr := getTableForeignKeys(ctx, db, tblName)
+		if fkErr != nil {
+			return nil, fkErr
+		}
+		if len(outgoing) > 0 {
+			tblMeta.FK = metadata.NewFKGroup(outgoing, nil)
+		}
+	}
+
+	return tblMeta, nil
 }
 
-// getAllTableMetadata gets metadata for each of the non-system tables
-// in db's schema. Like getTableMetadata, the FK and index helpers are
+// getTableForeignKeys returns the outgoing foreign-key constraints
+// declared on tblName, using SQLite's pragma_foreign_key_list. Returns
+// nil if the table has no foreign keys. Composite foreign keys are
+// returned as a single ForeignKey whose Columns/RefColumns slices are
+// ordered by the pragma's seq field.
+func getTableForeignKeys(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.ForeignKey, error) {
+	log := lg.FromContext(ctx)
+	// pragma_foreign_key_list returns columns:
+	//   id, seq, table, from, to, on_update, on_delete, match
+	// One row per (constraint, column-pair). id groups composite FKs.
+	const q = `SELECT id, seq, "table", "from", "to", on_update, on_delete
+FROM pragma_foreign_key_list(?)
+ORDER BY id, seq`
+
+	rows, err := db.QueryContext(ctx, q, tblName)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var (
+		fks   []*metadata.ForeignKey
+		curID int64 = -1
+		curFK *metadata.ForeignKey
+	)
+	for rows.Next() {
+		var (
+			id, seq                  int64
+			refTable, fromCol, toCol string
+			onUpdate, onDelete       sql.NullString
+		)
+		if err = rows.Scan(&id, &seq, &refTable, &fromCol, &toCol, &onUpdate, &onDelete); err != nil {
+			return nil, errw(err)
+		}
+
+		if curFK == nil || id != curID {
+			curID = id
+			curFK = &metadata.ForeignKey{
+				Table:    tblName,
+				RefTable: refTable,
+				OnDelete: onDelete.String,
+				OnUpdate: onUpdate.String,
+			}
+			fks = append(fks, curFK)
+		}
+		curFK.Columns = append(curFK.Columns, fromCol)
+		curFK.RefColumns = append(curFK.RefColumns, toCol)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+	return fks, nil
+}
+
+// getAllTableMetadata returns metadata for every table in db's schema.
+// Unlike getTableMetadata, this bulk path does not populate per-table
+// foreign keys; callers that need full FK details should re-fetch
+// individual tables via getTableMetadata. Index helpers are still
 // deferred to a follow-up.
 func getAllTableMetadata(ctx context.Context, db sqlz.DB, schemaName string) ([]*metadata.Table, error) {
 	log := lg.FromContext(ctx)

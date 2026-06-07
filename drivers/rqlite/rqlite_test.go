@@ -17,6 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
@@ -832,6 +833,103 @@ func TestCoerce_RealAffinityFloat(t *testing.T) {
 	gotPi, ok := sink.Recs[0][0].(float64)
 	require.True(t, ok, "expected float64 for REAL column, got %T", sink.Recs[0][0])
 	require.InDelta(t, 3.14, gotPi, 1e-9)
+}
+
+// TestCopyTable_PreservesFKs verifies that CopyTable carries the source
+// table's FOREIGN KEY constraints across to the destination. Uses
+// sakila.TblFilmActor as the source because it has a composite PK and
+// two outgoing FKs (to actor and film), exercising both single and
+// composite-FK preservation through the faithful-DDL rewrite path.
+func TestCopyTable_PreservesFKs(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	dstName := "film_actor_fk_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+	})
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: sakila.TblFilmActor}, tablefq.T{Table: dstName}, false)
+	require.NoError(t, err)
+
+	srcMd, err := grip.TableMetadata(th.Context, sakila.TblFilmActor)
+	require.NoError(t, err)
+	dstMd, err := grip.TableMetadata(th.Context, dstName)
+	require.NoError(t, err)
+
+	require.NotNil(t, srcMd.FK, "sanity: source film_actor should carry FKs")
+	require.NotNil(t, dstMd.FK, "destination should carry FKs after CopyTable")
+	require.Len(t, dstMd.FK.Outgoing, len(srcMd.FK.Outgoing),
+		"FK count should match source")
+
+	fkKey := func(fk *metadata.ForeignKey) string {
+		return fmt.Sprintf("%s|%s->%s",
+			fk.RefTable,
+			strings.Join(fk.Columns, ","),
+			strings.Join(fk.RefColumns, ","))
+	}
+	srcKeys := map[string]bool{}
+	for _, fk := range srcMd.FK.Outgoing {
+		srcKeys[fkKey(fk)] = true
+	}
+	for _, fk := range dstMd.FK.Outgoing {
+		require.True(t, srcKeys[fkKey(fk)],
+			"dest FK %s not present in source set", fkKey(fk))
+	}
+}
+
+// TestAlterTableColumnKinds_PreservesFKs verifies that the
+// alter-rebuild dance carries the source table's FOREIGN KEY
+// constraints across. Uses an ad-hoc parent/child fixture because
+// AlterTableColumnKinds is destructive and must not touch the shared
+// Sakila tables.
+func TestAlterTableColumnKinds_PreservesFKs(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	uniq := stringz.Uniq8()
+	parentName := "parent_fk_" + uniq
+	childName := "child_fk_" + uniq
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: childName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: parentName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY)`, parentName))
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %q (`+
+			`id INTEGER PRIMARY KEY, parent_id INTEGER, payload TEXT, `+
+			`FOREIGN KEY (parent_id) REFERENCES %q(id))`,
+		childName, parentName))
+	require.NoError(t, err)
+
+	err = drvr.AlterTableColumnKinds(th.Context, db, childName,
+		[]string{"payload"}, []kind.Kind{kind.Int})
+	require.NoError(t, err)
+
+	md, err := grip.TableMetadata(th.Context, childName)
+	require.NoError(t, err)
+	require.NotNil(t, md.FK, "child should still carry FK after AlterTableColumnKinds")
+	require.Len(t, md.FK.Outgoing, 1,
+		"child should retain exactly one FK after AlterTableColumnKinds")
+	require.Equal(t, parentName, md.FK.Outgoing[0].RefTable)
 }
 
 // TestColumnTypes_EmptyTable verifies that the rqlite-sq wrapper
