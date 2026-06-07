@@ -6,6 +6,7 @@ package parquet
 import (
 	"context"
 	"log/slog"
+	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -53,11 +54,74 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 	}
 }
 
-// Open implements driver.Driver. The full read path is not yet implemented;
-// it currently returns an error.
+// Open implements driver.Driver.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
-	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
-	return nil, errz.New("parquet: Open not yet implemented")
+	log := lg.FromContext(ctx).With(lga.Src, src)
+	log.Debug(lgm.OpenSrc, lga.Src, src)
+
+	parquetPath, dsnQuery, err := parseLocation(src.Location)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	// Build an in-memory DuckDB source whose DSN forwards the user's options.
+	memLoc := "duckdb://:memory:"
+	if dsnQuery != "" {
+		memLoc += "?" + dsnQuery
+	}
+	memSrc := &source.Source{
+		Type:     drivertype.DuckDB,
+		Handle:   src.Handle + "_pq",
+		Location: memLoc,
+	}
+
+	duckdbDrvr, err := d.registry.DriverFor(drivertype.DuckDB)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	dbGrip, err := duckdbDrvr.Open(ctx, memSrc)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	if err := createParquetView(ctx, dbGrip, parquetPath); err != nil {
+		_ = dbGrip.Close()
+		return nil, err
+	}
+
+	log.Info("Opened parquet source", lga.Src, src)
+	return &grip{
+		log:    d.log,
+		src:    src,
+		files:  d.files,
+		dbGrip: dbGrip,
+	}, nil
+}
+
+// createParquetView runs CREATE VIEW "data" AS SELECT * FROM
+// read_parquet('<path>') on dbGrip, then forces a DESCRIBE so any parquet
+// footer / file-existence errors surface at Open time rather than first
+// query. The path is escaped for splicing into a single-quoted SQL literal.
+func createParquetView(ctx context.Context, dbGrip driver.Grip, parquetPath string) error {
+	db, err := dbGrip.DB(ctx)
+	if err != nil {
+		return errw(err)
+	}
+
+	//nolint:gosec // G202: path is escaped via escapeSingleQuotes; no user-controlled SQL injection risk.
+	stmt := `CREATE VIEW "data" AS SELECT * FROM read_parquet('` +
+		escapeSingleQuotes(parquetPath) + `')`
+	if _, err := db.ExecContext(ctx, stmt); err != nil {
+		return errz.Wrapf(err, "parquet: create view for %q", parquetPath)
+	}
+
+	// Force eager footer read so errors surface here rather than at first query.
+	if _, err := db.ExecContext(ctx, `DESCRIBE "data"`); err != nil {
+		return errz.Wrapf(err, "parquet: describe view for %q", parquetPath)
+	}
+
+	return nil
 }
 
 // ValidateSource implements driver.Driver.
@@ -80,4 +144,26 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 // anchors at the parquet-side caller.
 func errw(err error) error {
 	return errz.Wrap(err, "parquet")
+}
+
+// parseLocation splits a parquet source location into the file/URL path that
+// will be passed to read_parquet(...) and the DSN query string forwarded to
+// the underlying DuckDB connection. A "?key=val&..." suffix on the location
+// becomes the dsnQuery; everything before it is the path.
+func parseLocation(loc string) (path, dsnQuery string, err error) {
+	if loc == "" {
+		return "", "", errz.New("parquet: location must not be empty")
+	}
+	if i := strings.LastIndex(loc, "?"); i >= 0 {
+		return loc[:i], loc[i+1:], nil
+	}
+	return loc, "", nil
+}
+
+// escapeSingleQuotes doubles every ' in s, suitable for splicing inside a
+// SQL single-quoted string literal. This is defence-in-depth: callers should
+// have already validated path is a clean file path or parsed URL before
+// reaching here.
+func escapeSingleQuotes(s string) string {
+	return strings.ReplaceAll(s, "'", "''")
 }
