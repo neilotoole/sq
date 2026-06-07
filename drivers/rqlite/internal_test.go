@@ -448,6 +448,12 @@ func Test_rewritePeerDNSError(t *testing.T) {
 			wantRewrite: false,
 		},
 		{
+			name:        "user host equals failed name case-insensitive",
+			err:         fakeDNSErr("localhost"),
+			loc:         "rqlite://LOCALHOST:4001",
+			wantRewrite: false,
+		},
+		{
 			name:        "malformed url",
 			err:         fakeDNSErr("rqlite1"),
 			loc:         "rqlite://%zz",

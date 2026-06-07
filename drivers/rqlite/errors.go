@@ -106,14 +106,14 @@ func rewritePeerDNSError(err error, src *source.Source) error {
 		return err
 	}
 	userHost := u.Hostname()
-	if dnsErr.Name == userHost {
+	if strings.EqualFold(dnsErr.Name, userHost) {
 		// The failing hostname is the one the user typed. That's
 		// their problem to fix; suggesting disableClusterDiscovery
 		// would be wrong.
 		return err
 	}
 	if u.Query().Get("disableClusterDiscovery") == "true" {
-		// Discovery already off — failure is something else.
+		// Discovery already off; failure is something else.
 		return err
 	}
 	return errz.Wrapf(err,
