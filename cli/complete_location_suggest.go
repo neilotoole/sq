@@ -13,31 +13,31 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 )
 
-// nextSegmentIntroducer returns the introducer character that the user
-// should type next after completing the segment of the given kind.
-// Looks up the segment AFTER the given kind in shape and returns its
-// introducer ("/" for SegPathName/SegPathFile, "?" for SegConnParams).
-// Returns "" if no following segment exists.
-func nextSegmentIntroducer(shape driver.LocationShape, after driver.SegmentKind) string {
+// nextSegmentAfter returns information about the segment that follows
+// `after` in shape. introducer is the delimiter that introduces the
+// next segment ("/" or "?"). optional reports whether that next
+// segment may be skipped. hasNext is false if no segment follows.
+func nextSegmentAfter(shape driver.LocationShape, after driver.SegmentKind) (
+	introducer string, optional, hasNext bool,
+) {
 	found := false
 	for _, seg := range shape.Segments {
 		if found {
 			switch seg.Kind {
 			case driver.SegPathName, driver.SegPathFile:
-				return "/"
+				return "/", seg.Optional, true
 			case driver.SegConnParams:
-				return "?"
+				return "?", seg.Optional, true
 			case driver.SegCredentials, driver.SegAuthority:
-				return ""
-			default:
-				return ""
+				return "", false, false
 			}
+			return "", false, false
 		}
 		if seg.Kind == after {
 			found = true
 		}
 	}
-	return ""
+	return "", false, false
 }
 
 // suggestCreds generates candidates when MatchedLoc.Current is
@@ -72,9 +72,23 @@ func suggestAuthority(m driver.MatchedLoc, src driver.Suggestions,
 ) []string {
 	cs := candidateSet{prefix: m.Loc}
 	const localhost = "localhost"
-	afterHost := nextSegmentIntroducer(shape, driver.SegAuthority)
+	afterHost, nextOptional, _ := nextSegmentAfter(shape, driver.SegAuthority)
 	if afterHost == "" {
 		afterHost = "/" // sensible fallback.
+	}
+	// If the next segment is an optional path, the user may also skip
+	// it and go straight to ConnParams. Offer "?" as an alternate
+	// continuation in that case.
+	offerQuery := nextOptional && afterHost == "/"
+
+	// addContinuation adds the prefix with afterHost, plus (when
+	// offerQuery) the prefix with "?" to support skipping the optional
+	// next segment.
+	addContinuation := func(prefix string) {
+		cs.add(prefix + afterHost)
+		if offerQuery {
+			cs.add(prefix + "?")
+		}
 	}
 
 	// Determine the base prefix the authority sits on top of.
@@ -90,13 +104,13 @@ func suggestAuthority(m driver.MatchedLoc, src driver.Suggestions,
 
 	if m.Hostname == "" {
 		// Empty host: offer localhost + history hosts/tails.
-		cs.add(base + localhost + afterHost)
+		addContinuation(base + localhost)
 		if defaultPort > 0 {
-			cs.add(base + localhost + ":" + strconv.Itoa(defaultPort) + afterHost)
+			addContinuation(base + localhost + ":" + strconv.Itoa(defaultPort))
 		}
 		cs.addPrefixed(base, tails...)
 		for _, h := range hosts {
-			cs.add(base + h + afterHost)
+			addContinuation(base + h)
 		}
 		return cs.build()
 	}
@@ -104,17 +118,17 @@ func suggestAuthority(m driver.MatchedLoc, src driver.Suggestions,
 	if !m.PortSet {
 		// Hostname but no port: offer the default port, the
 		// "afterHost" continuation, and history.
-		cs.add(m.Loc + afterHost)
+		addContinuation(m.Loc)
 		if defaultPort > 0 {
-			cs.add(m.Loc + ":" + strconv.Itoa(defaultPort) + afterHost)
+			addContinuation(m.Loc + ":" + strconv.Itoa(defaultPort))
 		}
-		cs.add(base + localhost + afterHost)
+		addContinuation(base + localhost)
 		if defaultPort > 0 {
-			cs.add(base + localhost + ":" + strconv.Itoa(defaultPort) + afterHost)
+			addContinuation(base + localhost + ":" + strconv.Itoa(defaultPort))
 		}
 		cs.addPrefixed(base, tails...)
 		for _, h := range hosts {
-			cs.add(base + h + afterHost)
+			addContinuation(base + h)
 		}
 		return cs.build()
 	}
@@ -123,17 +137,17 @@ func suggestAuthority(m driver.MatchedLoc, src driver.Suggestions,
 	// port digits, offer the default port for the typed host;
 	// otherwise offer the next-segment continuation directly.
 	if strings.HasSuffix(m.Loc, ":") && defaultPort > 0 {
-		cs.add(m.Loc + strconv.Itoa(defaultPort) + afterHost)
+		addContinuation(m.Loc + strconv.Itoa(defaultPort))
 	} else {
-		cs.add(m.Loc + afterHost)
+		addContinuation(m.Loc)
 	}
 	if defaultPort > 0 {
-		cs.add(base + localhost + ":" + strconv.Itoa(defaultPort) + afterHost)
+		addContinuation(base + localhost + ":" + strconv.Itoa(defaultPort))
 	}
-	cs.add(base + localhost + afterHost)
+	addContinuation(base + localhost)
 	cs.addPrefixed(base, tails...)
 	for _, h := range hosts {
-		cs.add(base + h + afterHost)
+		addContinuation(base + h)
 	}
 	return cs.build()
 }

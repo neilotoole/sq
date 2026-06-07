@@ -87,7 +87,16 @@ func isDefiniteFilePath(s string) bool {
 	if s == "" {
 		return false
 	}
-	return s[0] == '/' || s[0] == '.' || s[0] == '~'
+	// Tilde for home, dot for relative, slash for Unix-absolute,
+	// filepath.IsAbs for Windows-absolute (e.g. C:\foo), and a
+	// UNC prefix for shared paths on Windows.
+	if s[0] == '.' || s[0] == '~' || s[0] == '/' {
+		return true
+	}
+	if strings.HasPrefix(s, `\\`) {
+		return true
+	}
+	return filepath.IsAbs(s)
 }
 
 // collectShapes returns the LocationShape from each registered SQL
