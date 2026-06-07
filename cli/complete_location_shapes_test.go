@@ -28,3 +28,18 @@ func TestDriverShape_Postgres(t *testing.T) {
 	require.Equal(t, driver.SegConnParams, shape.Segments[3].Kind)
 	require.True(t, shape.Segments[3].Optional)
 }
+
+func TestDriverShape_MySQL(t *testing.T) {
+	th := testh.New(t)
+	drvr, err := th.Registry().SQLDriverFor(drivertype.MySQL)
+	require.NoError(t, err)
+	shape := drvr.LocationShape()
+	require.Equal(t, drivertype.MySQL, shape.Type)
+	require.Equal(t, []string{"mysql"}, shape.Schemes)
+	require.Len(t, shape.Segments, 4)
+	require.Equal(t, driver.SegCredentials, shape.Segments[0].Kind)
+	require.Equal(t, driver.SegAuthority, shape.Segments[1].Kind)
+	require.Equal(t, driver.SegPathName, shape.Segments[2].Kind)
+	require.Equal(t, "db", shape.Segments[2].Placeholder)
+	require.Equal(t, driver.SegConnParams, shape.Segments[3].Kind)
+}
