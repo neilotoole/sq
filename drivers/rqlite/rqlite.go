@@ -152,6 +152,8 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
+	maybeWarnLocalhostDiscovery(ctx, src)
+
 	loc, portAdded, err := locationWithDefaultPort(src.Location)
 	if err != nil {
 		return nil, err
@@ -171,7 +173,8 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	db, err := sql.Open(sqDBDrvrName, dsn)
 	if err != nil {
 		// Don't include dsn in the error: it may carry credentials.
-		return nil, errz.Wrapf(errw(err), "failed to open rqlite source %s", src.Handle)
+		return nil, errz.Wrapf(rewritePeerDNSError(errw(err), src),
+			"failed to open rqlite source %s", src.Handle)
 	}
 
 	driver.ConfigureDB(ctx, db, src.Options)
@@ -243,7 +246,8 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
 
 	if err = db.PingContext(ctx); err != nil {
-		return errz.Wrapf(errw(err), "ping %s: %s", src.Handle, src.RedactedLocation())
+		return errz.Wrapf(rewritePeerDNSError(errw(err), src),
+			"ping %s: %s", src.Handle, src.RedactedLocation())
 	}
 
 	return nil
