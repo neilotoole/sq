@@ -409,7 +409,8 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 
 	stmts := []gorqlite.ParameterizedStatement{
 		{Query: destDDL},
-		{Query: fmt.Sprintf(`INSERT INTO %q SELECT * FROM %q`, toTbl.Table, fromTbl.Table)},
+		{Query: fmt.Sprintf(`INSERT INTO %s SELECT * FROM %s`,
+			stringz.DoubleQuote(toTbl.Table), stringz.DoubleQuote(fromTbl.Table))},
 	}
 	results, err := writeAtomic(ctx, db, stmts...)
 	if err != nil {
@@ -824,9 +825,11 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	stmts := []gorqlite.ParameterizedStatement{
 		{Query: "PRAGMA foreign_keys=off"},
 		{Query: nuDDL},
-		{Query: fmt.Sprintf(`INSERT INTO %q SELECT * FROM %q`, tmpName, tbl)},
-		{Query: fmt.Sprintf(`DROP TABLE %q`, tbl)},
-		{Query: fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, tmpName, tbl)},
+		{Query: fmt.Sprintf(`INSERT INTO %s SELECT * FROM %s`,
+			stringz.DoubleQuote(tmpName), stringz.DoubleQuote(tbl))},
+		{Query: "DROP TABLE " + stringz.DoubleQuote(tbl)},
+		{Query: fmt.Sprintf(`ALTER TABLE %s RENAME TO %s`,
+			stringz.DoubleQuote(tmpName), stringz.DoubleQuote(tbl))},
 		{Query: "PRAGMA foreign_keys=on"},
 	}
 
