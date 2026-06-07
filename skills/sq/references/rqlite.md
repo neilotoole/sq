@@ -30,7 +30,7 @@ sq add 'rqlite://sakila:p_ssW0rd@localhost:4001?level=strong&disableClusterDisco
 ## Notes
 
 - rqlite executes SQLite SQL, so queries written for `@sqlite_handle` translate verbatim to `@rqlite_handle`.
-- **No interactive transactions.** rqlite's HTTP API exposes single statements or atomic batches; there is no `BEGIN…COMMIT`. `sq` handles this transparently: single-statement writes are atomic by themselves, and `sq tbl copy` / `AlterTableColumnKinds` use atomic batches under the hood.
+- **No interactive transactions.** rqlite's HTTP API exposes single statements or atomic batches; there is no `BEGIN…COMMIT`. `sq` handles this transparently: single-statement writes are atomic by themselves. `sq tbl copy --data` and `AlterTableColumnKinds` use atomic batches under the hood; `sq tbl copy` with structure only is a single CREATE TABLE.
 - **`sq tbl truncate`** is intentionally non-atomic across `DELETE` and the AUTOINCREMENT-counter reset. The deleted-row count is accurate; counter reset is informational.
 - **`sq tbl copy` and `ALTER COLUMN TYPE` are lossy.** UNIQUE, FOREIGN KEY, AUTOINCREMENT, CHECK constraints, indexes, triggers, and the original DEFAULT expression values are not preserved (substituted by canned per-kind defaults). Names, kinds, single-column PK, NOT NULL, and the *presence* of a default are preserved. Faithful preservation tracked at <https://github.com/neilotoole/sq/issues/737>.
 - **No schemas or catalogs.** SQLite has no schema or catalog concept; `sq inspect` reports them as the conventional `main` and `default`.

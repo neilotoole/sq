@@ -33,9 +33,10 @@ $ sq add 'rqlites://node.example.com:4001'
 $ sq add 'rqlite://sakila:p_ssW0rd@localhost:4001' --handle @rq
 ```
 
-If the port is omitted, `sq` auto-applies the default port `4001`.
-rqlite does not auto-detect from a URL alone, so the driver type is
-inferred from the `rqlite://` / `rqlites://` scheme prefix.
+rqlite's default port is `4001`, but the driver does not inject it
+automatically. Include the port explicitly in the URL. The driver type
+is inferred from the `rqlite://` / `rqlites://` scheme prefix; there
+is no file-based auto-detection.
 
 ## Connection string format
 
@@ -60,12 +61,12 @@ $ sq add 'rqlite://sakila:p_ssW0rd@localhost:4001?level=strong'
 
 **`level`**: rqlite read consistency level. Default is rqlite's default.
 
-| Value          | Behavior                                                 |
-|----------------|----------------------------------------------------------|
-| `none`         | Reads from any node. Fastest. May be stale.              |
-| `weak`         | Checks the receiving node is the leader.                 |
-| `linearizable` | Confirms leader via Raft round-trip.                     |
-| `strong`       | Safest; serializable read with full leader verification. |
+| Value          | Behavior                                                             |
+|----------------|----------------------------------------------------------------------|
+| `none`         | Reads from any node. Fastest. May be stale.                          |
+| `weak`         | Checks the receiving node is the leader.                             |
+| `linearizable` | Confirms leader via Raft round-trip.                                 |
+| `strong`       | Routes the read through the Raft log; reflects all committed writes. |
 
 See [rqlite consistency docs](https://rqlite.io/docs/api/read-consistency/).
 
@@ -122,8 +123,8 @@ endpoints, SQLite pragmas, and `sqlite_master`.
 | `name`        | first row of `pragma_database_list` (typically `main`)                          |
 | `schema`      | same as `name`                                                                  |
 | `catalog`     | hardcoded `default` (SQLite has no catalog concept)                             |
-| `user`        | populated from the URL's userinfo (e.g. `sakila`) if present                    |
-| `db_product`  | `"SQLite3 v" + db_version` (rqlite's storage engine)                            |
+| `user`        | not populated by this driver                                                    |
+| `db_product`  | `"rqlite (SQLite " + db_version + ")"`                                          |
 | `db_version`  | `sqlite_version()` reported by the rqlite leader                                |
 | `size`        | not reported. rqlite does not expose a single-file size over its HTTP API.      |
 
