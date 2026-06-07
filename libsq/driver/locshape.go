@@ -7,7 +7,9 @@ package driver
 import (
 	"context"
 	"net/url"
+	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
@@ -166,3 +168,28 @@ type Suggestions interface {
 // given the already-matched location prefix and the available
 // suggestion sources.
 type SuggestFunc func(ctx context.Context, m MatchedLoc, src Suggestions) []string
+
+// Walk matches loc against shape and returns a MatchedLoc describing
+// which segments were detected, which segment is currently being
+// typed (if any), and the parsed fields of each. loc must begin with
+// one of shape.Schemes followed by "://"; the top-level dispatcher
+// handles the no-scheme case before calling Walk.
+func Walk(shape LocationShape, loc string) (MatchedLoc, error) {
+	m := MatchedLoc{Loc: loc}
+	for _, scheme := range shape.Schemes {
+		prefix := scheme + "://"
+		if strings.HasPrefix(loc, prefix) {
+			m.Scheme = scheme
+			tail := loc[len(prefix):]
+			return walkSegments(shape, m, tail)
+		}
+	}
+	return m, errz.Errorf("scheme not matched: %q", loc)
+}
+
+// walkSegments walks the post-scheme tail against shape.Segments.
+// Stub for now; segment kinds added in subsequent tasks.
+func walkSegments(shape LocationShape, m MatchedLoc, tail string) (MatchedLoc, error) {
+	_, _ = shape, tail
+	return m, nil
+}
