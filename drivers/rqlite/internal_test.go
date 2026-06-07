@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"log/slog"
+	"net"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3" // For TestWriteAtomic_DBTypeCheck.
@@ -380,6 +383,107 @@ func Test_maybeWarnLocalhostDiscovery(t *testing.T) {
 				require.Contains(t, got, "level=WARN", "expected WARN level, got: %s", got)
 			} else {
 				require.Empty(t, got, "expected no log output, got: %s", got)
+			}
+		})
+	}
+}
+
+func Test_rewritePeerDNSError(t *testing.T) {
+	// fakeDNSErr builds a *net.DNSError with the given peer name.
+	// All real fields of net.DNSError (Err, Server, IsTimeout, etc.)
+	// are zero/false — only Name matters to the helper under test.
+	fakeDNSErr := func(name string) *net.DNSError {
+		return &net.DNSError{Err: "no such host", Name: name, IsNotFound: true}
+	}
+
+	const userLoc = "rqlite://localhost:4001"
+	const userLocOff = "rqlite://localhost:4001?disableClusterDiscovery=true"
+
+	testCases := []struct {
+		name          string
+		err           error
+		loc           string
+		wantRewrite   bool
+		wantSubstrAll []string // every substring must appear in the rewritten msg
+	}{
+		{
+			name:        "nil",
+			err:         nil,
+			loc:         userLoc,
+			wantRewrite: false,
+		},
+		{
+			name:        "non-dns error",
+			err:         errors.New("connection refused"),
+			loc:         userLoc,
+			wantRewrite: false,
+		},
+		{
+			name:          "discovered peer mismatch",
+			err:           fakeDNSErr("rqlite1"),
+			loc:           userLoc,
+			wantRewrite:   true,
+			wantSubstrAll: []string{"rqlite1", "localhost", "disableClusterDiscovery=true", "sq.io/docs/drivers/rqlite"},
+		},
+		{
+			name:          "discovered peer mismatch wrapped via fmt.Errorf",
+			err:           fmt.Errorf("Post \"http://rqlite1:4001/db/query\": dial tcp: lookup rqlite1: %w", fakeDNSErr("rqlite1")),
+			loc:           userLoc,
+			wantRewrite:   true,
+			wantSubstrAll: []string{"rqlite1", "disableClusterDiscovery=true"},
+		},
+		{
+			name:        "discovery already off",
+			err:         fakeDNSErr("rqlite1"),
+			loc:         userLocOff,
+			wantRewrite: false,
+		},
+		{
+			name:        "user host equals failed name",
+			err:         fakeDNSErr("localhost"),
+			loc:         userLoc,
+			wantRewrite: false,
+		},
+		{
+			name:        "malformed url",
+			err:         fakeDNSErr("rqlite1"),
+			loc:         "rqlite://%zz",
+			wantRewrite: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			src := &source.Source{Handle: "@rq", Location: tc.loc, Type: drivertype.Rqlite}
+			got := rewritePeerDNSError(tc.err, src)
+
+			if tc.err == nil {
+				require.Nil(t, got)
+				return
+			}
+
+			// errors.As must still find the underlying *net.DNSError
+			// (when there was one) — the rewrite must not break
+			// downstream classification.
+			var dnsErr *net.DNSError
+			origHadDNS := errors.As(tc.err, &dnsErr)
+			if origHadDNS {
+				var afterDNS *net.DNSError
+				require.True(t, errors.As(got, &afterDNS),
+					"errors.As must still reach *net.DNSError after rewrite")
+				require.Equal(t, dnsErr.Name, afterDNS.Name)
+			}
+
+			if !tc.wantRewrite {
+				// Pass-through: same instance returned.
+				require.Equal(t, tc.err.Error(), got.Error(),
+					"expected pass-through, got rewritten message")
+				return
+			}
+
+			msg := got.Error()
+			for _, sub := range tc.wantSubstrAll {
+				require.Contains(t, msg, sub, "rewritten message missing substring %q: %s", sub, msg)
 			}
 		})
 	}
