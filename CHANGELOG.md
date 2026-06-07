@@ -115,6 +115,16 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   - Subcommands that don't print a source location (e.g. [`sq sql`](https://sq.io/docs/cmd/sql),
     `sq slq`, `sq tbl`) accept `--expand` as a silent no-op, so a global alias like
     `alias sq='sq --reveal --expand'` is safe.
+- [#742]: The [rqlite driver](https://sq.io/docs/drivers/rqlite) now surfaces an
+  actionable hint when a single-node localhost setup hits gorqlite's cluster-discovery
+  default. [`sq add`](https://sq.io/docs/cmd/add) and [`sq ping`](https://sq.io/docs/cmd/ping)
+  on an `rqlite://` source whose host is loopback (e.g. `localhost`, `127.0.0.1`, `::1`)
+  log a one-line `WARN` pointing at `?disableClusterDiscovery=true` and the
+  [single-node-localhost docs](https://sq.io/docs/drivers/rqlite#single-node-localhost)
+  when the parameter is not explicitly set. If the actual peer-discovery DNS lookup
+  fails (`dial tcp: lookup <name>: no such host`), the error message is rewritten to
+  name the unreachable peer and suggest the same fix, instead of surfacing gorqlite's
+  raw `tried all peers unsuccessfully` text.
 
 ### Fixed
 
@@ -1705,6 +1715,7 @@ make working with lots of sources much easier.
 [#714]: https://github.com/neilotoole/sq/issues/714
 [#720]: https://github.com/neilotoole/sq/issues/720
 [#729]: https://github.com/neilotoole/sq/issues/729
+[#742]: https://github.com/neilotoole/sq/issues/742
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
