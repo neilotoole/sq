@@ -13,8 +13,8 @@ const accessModeKey = "access_mode"
 //
 // The rewrite is skipped (loc returned unchanged, changed=false) when:
 //   - loc does not start with the duckdb:// scheme. This is defensive:
-//     Grips.doOpen should only call this for DuckDB sources, but the helper
-//     is total.
+//     the only caller is the DuckDB driver's own doOpen, which always
+//     passes a duckdb-scheme location, but the helper is total.
 //   - loc's path component is the in-memory sentinel ":memory:" (an empty
 //     in-memory DB can't usefully be opened READ_ONLY),
 //   - loc already specifies access_mode (the user's explicit choice wins),
