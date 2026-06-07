@@ -130,7 +130,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   is the placeholder by default and the resolved value only when `--expand` is set.
 - [#744]: `sq inspect` no longer reports `0.0B` size for sources whose driver doesn't expose
   a database size (e.g. rqlite). The SIZE column renders `-` instead, and JSON / YAML output
-  omit the `size` field.
+  omits the `size` field.
 
 ## [v0.53.0] - 2026-05-25
 
