@@ -23,6 +23,20 @@ import (
 	"github.com/neilotoole/sq/libsq/source/location"
 )
 
+// peekActiveSrc returns the source that determineSources will resolve as
+// active, without opening any connection or mutating the collection.
+// Returns nil if neither --src nor the collection's active source yields
+// a known handle, or if the flag-named handle doesn't exist. Intended
+// for preflight checks (e.g. --readonly + URL access_mode conflict
+// detection) that must run before any pre-open inside determineSources.
+func peekActiveSrc(cmd *cobra.Command, coll *source.Collection) *source.Source {
+	if h, _ := cmd.Flags().GetString(flag.ActiveSrc); h != "" {
+		s, _ := coll.Get(h)
+		return s
+	}
+	return coll.Active()
+}
+
 // determineSources figures out what the active source is
 // from any combination of stdin, flags or cfg. It will
 // mutate ru.Config.Collection as necessary. If requireActive

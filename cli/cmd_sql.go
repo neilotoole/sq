@@ -82,16 +82,31 @@ func execSQL(cmd *cobra.Command, args []string) error {
 	}
 
 	// --readonly / --ro: opt the raw-SQL command into read-only mode for
-	// the source. Flip the ctx BEFORE determineSources so any pre-open
-	// it performs (e.g. --src.schema validation, which calls Grips.Open
-	// and caches the resulting grip by handle) sees the RO hint. Skip
-	// the early flip for --insert, where execSQLInsert opens destGrip
-	// first on the RW ctx before flipping to RO for the source side.
+	// the source. Two things happen here, BEFORE determineSources:
+	//   1. Peek at the would-be active source and surface the URL-conflict
+	//      error preemptively. Doing this after determineSources would let
+	//      verifySourceCatalogSchema briefly open the file READ_WRITE (the
+	//      URL wins over the RO ctx) before the error fires, defeating the
+	//      whole point of the conflict surfacing.
+	//   2. Flip the ctx so any pre-open inside determineSources sees the
+	//      RO hint. Skip the flip for --insert (execSQLInsert opens destGrip
+	//      first on the RW ctx before flipping to RO for the source side).
 	readOnlySrc := cmdFlagIsSetTrue(cmd, flag.SQLReadOnly) ||
 		cmdFlagIsSetTrue(cmd, flag.SQLReadOnlyAlias)
-	if readOnlySrc && !cmdFlagChanged(cmd, flag.Insert) {
-		ctx = driver.WithReadOnly(ctx)
-		cmd.SetContext(ctx)
+	if readOnlySrc {
+		if peek := peekActiveSrc(cmd, ru.Config.Collection); peek != nil &&
+			peek.Type == drivertype.DuckDB {
+			if mode, ok := duckdb.ExplicitAccessMode(peek.Location); ok &&
+				strings.EqualFold(mode, "READ_WRITE") {
+				return errz.Errorf(
+					"sql: --%s conflicts with access_mode=READ_WRITE in %s",
+					flag.SQLReadOnly, peek.Handle)
+			}
+		}
+		if !cmdFlagChanged(cmd, flag.Insert) {
+			ctx = driver.WithReadOnly(ctx)
+			cmd.SetContext(ctx)
+		}
 	}
 
 	err := determineSources(ctx, ru, true)
@@ -106,17 +121,6 @@ func execSQL(cmd *cobra.Command, args []string) error {
 
 	if err = applySourceOptions(cmd, activeSrc); err != nil {
 		return err
-	}
-
-	// Conflict check: --readonly + URL access_mode=READ_WRITE is a
-	// contradiction. Surface it rather than silently picking one.
-	if readOnlySrc && activeSrc.Type == drivertype.DuckDB {
-		if mode, ok := duckdb.ExplicitAccessMode(activeSrc.Location); ok &&
-			strings.EqualFold(mode, "READ_WRITE") {
-			return errz.Errorf(
-				"sql: --%s conflicts with access_mode=READ_WRITE in %s",
-				flag.SQLReadOnly, activeSrc.Handle)
-		}
 	}
 
 	if !cmdFlagChanged(cmd, flag.Insert) {

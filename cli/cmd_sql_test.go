@@ -955,3 +955,48 @@ func TestSQL_ReadOnly_Insert_SrcSchema_SourceUntouched(t *testing.T) {
 	require.Equal(t, srcStatBefore.ModTime(), srcStatAfter.ModTime(),
 		"DuckDB source file mtime must not change when --readonly + --insert + --src.schema")
 }
+
+// TestSQL_ReadOnly_Conflict_Preempted verifies the round-3 Copilot
+// finding: the --readonly + URL access_mode=READ_WRITE conflict is
+// surfaced BEFORE any file open, including the schema-validation
+// pre-open triggered by --src.schema. Without the preflight, the
+// file would briefly open RW (URL wins over the RO ctx) before the
+// error fired, mutating the source mtime.
+func TestSQL_ReadOnly_Conflict_Preempted(t *testing.T) {
+	t.Parallel()
+	th := testh.New(t)
+
+	// Copy the shared fixture so we can stat its mtime without races
+	// against parallel tests using the same shared file.
+	fixturePath := proj.Abs("drivers/duckdb/testdata/sakila.duckdb")
+	tmpPath := filepath.Join(t.TempDir(), "sakila.duckdb")
+	in, err := os.Open(fixturePath)
+	require.NoError(t, err)
+	defer in.Close()
+	out, err := os.Create(tmpPath)
+	require.NoError(t, err)
+	_, err = io.Copy(out, in)
+	require.NoError(t, err)
+	require.NoError(t, out.Close())
+
+	src := &source.Source{
+		Handle:   "@sakila_duck_conflict_preempt",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://" + tmpPath + "?access_mode=READ_WRITE",
+	}
+
+	statBefore, err := os.Stat(tmpPath)
+	require.NoError(t, err)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src)
+	err = tr.Exec("sql", "--src", src.Handle, "--src.schema=main",
+		"--readonly", "SELECT 1")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "--readonly")
+	require.Contains(t, err.Error(), "READ_WRITE")
+
+	statAfter, err := os.Stat(tmpPath)
+	require.NoError(t, err)
+	require.Equal(t, statBefore.ModTime(), statAfter.ModTime(),
+		"mtime must not change: conflict must be preempted before any open")
+}
