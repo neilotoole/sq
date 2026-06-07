@@ -254,7 +254,17 @@ func walkSegments(shape LocationShape, m MatchedLoc, tail string) (MatchedLoc, e
 			m.Done = append(m.Done, SegPathFile)
 			cursor += pathEnd
 		case SegConnParams:
-			// Implemented in later task (A7).
+			if cursor >= len(tail) || tail[cursor] != '?' {
+				if seg.Optional {
+					continue
+				}
+				return m, nil
+			}
+			cursor++ // consume '?'
+			paramText := tail[cursor:]
+			parseConnParams(paramText, &m)
+			m.Current = SegConnParams
+			return m, nil
 		}
 	}
 	return m, nil
@@ -314,5 +324,36 @@ func parseAuthority(authStr string, m *MatchedLoc) {
 	} else if strings.HasSuffix(u.Host, ":") {
 		// "host:" with empty port.
 		m.PortSet = true
+	}
+}
+
+// parseConnParams parses "key=val&key=val..." and populates m.Params,
+// m.ParamLastKey, m.ParamAtValue.
+func parseConnParams(s string, m *MatchedLoc) {
+	if s == "" {
+		m.Params = url.Values{}
+		return
+	}
+
+	// Split on '&', parse all but the last as complete key=val pairs;
+	// the last is the "currently typing" element.
+	elements := strings.Split(s, "&")
+	last := elements[len(elements)-1]
+	completed := elements[:len(elements)-1]
+
+	m.Params = url.Values{}
+	for _, el := range completed {
+		k, v, _ := strings.Cut(el, "=")
+		m.Params.Add(k, v)
+	}
+
+	key, val, hasEq := strings.Cut(last, "=")
+	m.ParamLastKey = key
+	if hasEq {
+		m.ParamAtValue = true
+		// The value-in-progress is also recorded into Params so that
+		// the completer can see existing values (incl. partial) when
+		// dedup-suggesting keys.
+		m.Params.Add(key, val)
 	}
 }

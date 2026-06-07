@@ -179,3 +179,36 @@ func TestWalk_pathFileEmptyStdin(t *testing.T) {
 	require.Equal(t, SegPathFile, got.Current)
 	require.Equal(t, "", got.PathFile)
 }
+
+func TestWalk_paramsEmpty(t *testing.T) {
+	got, err := Walk(pgShape, "postgres://alice@h/db?")
+	require.NoError(t, err)
+	require.Equal(t, SegConnParams, got.Current)
+	require.Equal(t, "", got.ParamLastKey)
+	require.False(t, got.ParamAtValue)
+}
+
+func TestWalk_paramsKeyOnly(t *testing.T) {
+	got, err := Walk(pgShape, "postgres://alice@h/db?sslm")
+	require.NoError(t, err)
+	require.Equal(t, SegConnParams, got.Current)
+	require.Equal(t, "sslm", got.ParamLastKey)
+	require.False(t, got.ParamAtValue)
+}
+
+func TestWalk_paramsAtValue(t *testing.T) {
+	got, err := Walk(pgShape, "postgres://alice@h/db?sslmode=")
+	require.NoError(t, err)
+	require.Equal(t, SegConnParams, got.Current)
+	require.Equal(t, "sslmode", got.ParamLastKey)
+	require.True(t, got.ParamAtValue)
+}
+
+func TestWalk_paramsMultipleWithLastEmpty(t *testing.T) {
+	got, err := Walk(pgShape, "postgres://alice@h/db?sslmode=require&app=")
+	require.NoError(t, err)
+	require.Equal(t, SegConnParams, got.Current)
+	require.Equal(t, "app", got.ParamLastKey)
+	require.True(t, got.ParamAtValue)
+	require.Equal(t, "require", got.Params.Get("sslmode"))
+}
