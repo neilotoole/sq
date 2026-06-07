@@ -42,14 +42,14 @@ func DetectParquet(ctx context.Context, newRdrFn files.NewReaderFunc) (
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r1)
 
 	head := make([]byte, 4)
-	n, err := io.ReadFull(r1, head)
+	_, err = io.ReadFull(r1, head)
 	if err != nil {
 		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
 			return drivertype.None, 0, nil
 		}
 		return drivertype.None, 0, errz.Err(err)
 	}
-	if n < 4 || !isParquetHead(head) {
+	if !isParquetHead(head) {
 		return drivertype.None, 0, nil
 	}
 
@@ -85,9 +85,9 @@ func isParquetFooter(b []byte) bool {
 }
 
 // readLastFour returns the last four bytes of r. If r implements io.Seeker,
-// it seeks to (-4, end). Otherwise it drains r with a constant-memory sliding
-// 4-byte window. Returns (nil, false) on error or when r has fewer than 4
-// bytes total.
+// it seeks to (-4, end). Otherwise it drains r, retaining only the most
+// recent four bytes seen. Returns (nil, false) on error or when r has fewer
+// than four bytes total.
 func readLastFour(r io.Reader) ([]byte, bool) {
 	if seeker, ok := r.(io.Seeker); ok {
 		if _, err := seeker.Seek(-4, io.SeekEnd); err == nil {
@@ -96,7 +96,8 @@ func readLastFour(r io.Reader) ([]byte, bool) {
 				return tail, true
 			}
 		}
-		// Seek failed (e.g. stream not seekable from end); fall through.
+		// Seek or read failed (e.g. stream not seekable from end); fall through
+		// to the sliding-window path.
 	}
 
 	// Sliding 4-byte window across the stream.

@@ -24,53 +24,54 @@ func TestDetectParquet(t *testing.T) {
 	body := bytes.Repeat([]byte{0xAB}, 64)
 
 	testCases := []struct {
-		name    string
-		payload []byte
-		wantTyp drivertype.Type
-		wantMin float32
-		wantMax float32
+		name      string
+		payload   []byte
+		wantTyp   drivertype.Type
+		wantScore float32
 	}{
 		{
-			name:    "head_and_tail",
-			payload: append(append([]byte(par1), body...), []byte(par1)...),
-			wantTyp: drivertype.Parquet,
-			wantMin: 1.0,
-			wantMax: 1.0,
+			name:      "head_and_tail",
+			payload:   append(append([]byte(par1), body...), []byte(par1)...),
+			wantTyp:   drivertype.Parquet,
+			wantScore: 1.0,
 		},
 		{
-			name:    "head_only_truncated",
-			payload: append([]byte(par1), body...),
-			wantTyp: drivertype.Parquet,
-			wantMin: 0.7,
-			wantMax: 0.7,
+			name:      "head_only_truncated",
+			payload:   append([]byte(par1), body...),
+			wantTyp:   drivertype.Parquet,
+			wantScore: 0.7,
 		},
 		{
-			name:    "not_parquet_csv_like",
-			payload: []byte("a,b,c\n1,2,3\n"),
-			wantTyp: drivertype.None,
-			wantMin: 0,
-			wantMax: 0,
+			name:      "not_parquet_csv_like",
+			payload:   []byte("a,b,c\n1,2,3\n"),
+			wantTyp:   drivertype.None,
+			wantScore: 0,
 		},
 		{
-			name:    "empty",
-			payload: []byte{},
-			wantTyp: drivertype.None,
-			wantMin: 0,
-			wantMax: 0,
+			name:      "empty",
+			payload:   []byte{},
+			wantTyp:   drivertype.None,
+			wantScore: 0,
 		},
 		{
-			name:    "shorter_than_four_bytes",
-			payload: []byte("PA"),
-			wantTyp: drivertype.None,
-			wantMin: 0,
-			wantMax: 0,
+			name:      "shorter_than_four_bytes",
+			payload:   []byte("PA"),
+			wantTyp:   drivertype.None,
+			wantScore: 0,
 		},
 		{
-			name:    "xlsx_zip_prefix",
-			payload: append([]byte{'P', 'K', 0x03, 0x04}, body...),
-			wantTyp: drivertype.None,
-			wantMin: 0,
-			wantMax: 0,
+			name:      "xlsx_zip_prefix",
+			payload:   append([]byte{'P', 'K', 0x03, 0x04}, body...),
+			wantTyp:   drivertype.None,
+			wantScore: 0,
+		},
+		{
+			// A 4-byte "PAR1" payload satisfies both head and tail checks: seeking
+			// to -4 from end lands at byte 0, reading back the same four bytes.
+			name:      "exactly_four_bytes_par1",
+			payload:   []byte("PAR1"),
+			wantTyp:   drivertype.Parquet,
+			wantScore: 1.0,
 		},
 	}
 
@@ -79,8 +80,7 @@ func TestDetectParquet(t *testing.T) {
 			got, score, err := parquet.DetectParquet(context.Background(), newRdrFnFromBytes(tc.payload))
 			require.NoError(t, err)
 			require.Equal(t, tc.wantTyp, got)
-			require.GreaterOrEqual(t, score, tc.wantMin)
-			require.LessOrEqual(t, score, tc.wantMax)
+			require.Equal(t, tc.wantScore, score)
 		})
 	}
 }
