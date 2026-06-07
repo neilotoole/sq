@@ -23,8 +23,10 @@ import (
 )
 
 var locSchemes = []string{
+	"clickhouse://",
 	"duckdb://",
 	"mysql://",
+	"oracle://",
 	"postgres://",
 	"rqlite://",
 	"rqlites://",
@@ -81,9 +83,8 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 		{
 			args: []string{"postgres://alice:"},
 			want: []string{
-				"postgres://alice:",
 				"postgres://alice:@",
-				"postgres://alice:password@",
+				"postgres://alice::",
 			},
 			wantResult: stdDirective,
 		},
@@ -124,6 +125,7 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 		{
 			args: []string{"postgres://alice@localhost:"},
 			want: []string{
+				"postgres://alice@localhost:/",
 				"postgres://alice@localhost:5432/",
 			},
 			wantResult: stdDirective,
@@ -239,9 +241,18 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 			wantResult: stdDirective,
 		},
 		{
-			// Note the extra "?", which apparently is valid
-			args:       []string{"postgres://alice@localhost/sakila?sslmode=disable?"},
-			want:       []string{"postgres://alice@localhost/sakila?sslmode=disable?&"},
+			// Note the extra "?", which apparently is valid. The walker
+			// treats the second "?" as part of the sslmode value, so the
+			// completer offers sslmode value continuations on top of it.
+			args: []string{"postgres://alice@localhost/sakila?sslmode=disable?"},
+			want: []string{
+				"postgres://alice@localhost/sakila?sslmode=disable?sslmode=disable",
+				"postgres://alice@localhost/sakila?sslmode=disable?sslmode=allow",
+				"postgres://alice@localhost/sakila?sslmode=disable?sslmode=prefer",
+				"postgres://alice@localhost/sakila?sslmode=disable?sslmode=require",
+				"postgres://alice@localhost/sakila?sslmode=disable?sslmode=verify-ca",
+				"postgres://alice@localhost/sakila?sslmode=disable?sslmode=verify-full",
+			},
 			wantResult: stdDirective,
 		},
 		{
@@ -301,19 +312,21 @@ func TestCompleteAddLocation_SQLServer(t *testing.T) {
 		{
 			args: []string{"sqlserver://alice@server"},
 			want: []string{
-				"sqlserver://alice@server?database=",
-				"sqlserver://alice@server:1433?database=",
+				"sqlserver://alice@server/",
+				"sqlserver://alice@server:1433/",
 			},
 			wantResult: stdDirective,
 		},
 		{
-			args:       []string{"sqlserver://alice@server/"},
-			want:       []string{"sqlserver://alice@server/instance?database="},
+			args: []string{"sqlserver://alice@server/"},
+			want: []string{
+				"sqlserver://alice@server/instance",
+			},
 			wantResult: stdDirective,
 		},
 		{
 			args:       []string{"sqlserver://alice@server/instance"},
-			want:       []string{"sqlserver://alice@server/instance?database="},
+			want:       []string{"sqlserver://alice@server/instance?"},
 			wantResult: stdDirective,
 		},
 		{
@@ -323,21 +336,21 @@ func TestCompleteAddLocation_SQLServer(t *testing.T) {
 				"sqlserver://alice@server?ApplicationIntent=",
 				"sqlserver://alice@server?ServerSPN=",
 				"sqlserver://alice@server?TrustServerCertificate=",
-				"sqlserver://alice@server?Workstation+ID=",
-				"sqlserver://alice@server?app+name=",
+				"sqlserver://alice@server?Workstation ID=",
+				"sqlserver://alice@server?app name=",
 				"sqlserver://alice@server?certificate=",
-				"sqlserver://alice@server?connection+timeout=",
-				"sqlserver://alice@server?dial+timeout=",
+				"sqlserver://alice@server?connection timeout=",
+				"sqlserver://alice@server?dial timeout=",
 				"sqlserver://alice@server?encrypt=",
 				"sqlserver://alice@server?failoverpartner=",
 				"sqlserver://alice@server?failoverport=",
 				"sqlserver://alice@server?hostNameInCertificate=",
 				"sqlserver://alice@server?keepAlive=",
 				"sqlserver://alice@server?log=",
-				"sqlserver://alice@server?packet+size=",
+				"sqlserver://alice@server?packet size=",
 				"sqlserver://alice@server?protocol=",
 				"sqlserver://alice@server?tlsmin=",
-				"sqlserver://alice@server?user+id=",
+				"sqlserver://alice@server?user id=",
 			},
 			wantResult: stdDirective,
 		},
@@ -533,9 +546,8 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 		{
 			args: []string{"mysql://alice:"},
 			want: []string{
-				"mysql://alice:",
 				"mysql://alice:@",
-				"mysql://alice:password@",
+				"mysql://alice::",
 			},
 			wantResult: stdDirective,
 		},
@@ -576,6 +588,7 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 		{
 			args: []string{"mysql://alice@localhost:"},
 			want: []string{
+				"mysql://alice@localhost:/",
 				"mysql://alice@localhost:3306/",
 			},
 			wantResult: stdDirective,
@@ -960,6 +973,298 @@ func TestCompleteAddLocation_DuckDB(t *testing.T) {
 	}
 }
 
+func TestCompleteAddLocation_ClickHouse(t *testing.T) {
+	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
+
+	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
+	t.Logf("Working dir: %s", wd)
+
+	testCases := []struct {
+		args       []string
+		want       []string
+		wantResult cobra.ShellCompDirective
+	}{
+		{
+			args:       []string{"c"},
+			want:       []string{"clickhouse://"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"clickhouse:/"},
+			want:       []string{"clickhouse://"},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://"},
+			want: []string{
+				"clickhouse://username",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice"},
+			want: []string{
+				"clickhouse://alice@",
+				"clickhouse://alice:",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice:"},
+			want: []string{
+				"clickhouse://alice:@",
+				"clickhouse://alice::",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice@"},
+			want: []string{
+				"clickhouse://alice@localhost/",
+				"clickhouse://alice@localhost:9000/",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice@localho"},
+			want: []string{
+				"clickhouse://alice@localho/",
+				"clickhouse://alice@localho:9000/",
+				"clickhouse://alice@localhost/",
+				"clickhouse://alice@localhost:9000/",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice@localhost"},
+			want: []string{
+				"clickhouse://alice@localhost/",
+				"clickhouse://alice@localhost:9000/",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice@localhost:"},
+			want: []string{
+				"clickhouse://alice@localhost:/",
+				"clickhouse://alice@localhost:9000/",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice@localhost:9000"},
+			want: []string{
+				"clickhouse://alice@localhost:9000/",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice@localhost:9000/"},
+			want: []string{
+				"clickhouse://alice@localhost:9000/db",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice@localhost:9000/db"},
+			want: []string{
+				"clickhouse://alice@localhost:9000/db?",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			// gh743: a bare host with "?" should suggest conn-param keys,
+			// not credential placeholders.
+			args: []string{"clickhouse://localhost:9000?"},
+			want: []string{
+				"clickhouse://localhost:9000?compress=",
+				"clickhouse://localhost:9000?conn_max_lifetime=",
+				"clickhouse://localhost:9000?connection_open_strategy=",
+				"clickhouse://localhost:9000?dial_timeout=",
+				"clickhouse://localhost:9000?max_idle_conns=",
+				"clickhouse://localhost:9000?max_open_conns=",
+				"clickhouse://localhost:9000?secure=",
+				"clickhouse://localhost:9000?skip_verify=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice@localhost/db?"},
+			want: []string{
+				"clickhouse://alice@localhost/db?compress=",
+				"clickhouse://alice@localhost/db?conn_max_lifetime=",
+				"clickhouse://alice@localhost/db?connection_open_strategy=",
+				"clickhouse://alice@localhost/db?dial_timeout=",
+				"clickhouse://alice@localhost/db?max_idle_conns=",
+				"clickhouse://alice@localhost/db?max_open_conns=",
+				"clickhouse://alice@localhost/db?secure=",
+				"clickhouse://alice@localhost/db?skip_verify=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice@localhost/db?secure="},
+			want: []string{
+				"clickhouse://alice@localhost/db?secure=true",
+				"clickhouse://alice@localhost/db?secure=false",
+			},
+			wantResult: stdDirective,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
+			args := append([]string{"add"}, tc.args...)
+			got := testComplete(t, nil, args...)
+			assert.Equal(t, tc.wantResult, got.result, got.directives)
+			assert.Equal(t, tc.want, got.values)
+		})
+	}
+}
+
+func TestCompleteAddLocation_Oracle(t *testing.T) {
+	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
+
+	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
+	t.Logf("Working dir: %s", wd)
+
+	testCases := []struct {
+		args       []string
+		want       []string
+		wantResult cobra.ShellCompDirective
+	}{
+		{
+			args:       []string{"o"},
+			want:       []string{"oracle://"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"oracle:/"},
+			want:       []string{"oracle://"},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://"},
+			want: []string{
+				"oracle://username",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice"},
+			want: []string{
+				"oracle://alice@",
+				"oracle://alice:",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice:"},
+			want: []string{
+				"oracle://alice:@",
+				"oracle://alice::",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice@"},
+			want: []string{
+				"oracle://alice@localhost/",
+				"oracle://alice@localhost:1521/",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice@localho"},
+			want: []string{
+				"oracle://alice@localho/",
+				"oracle://alice@localho:1521/",
+				"oracle://alice@localhost/",
+				"oracle://alice@localhost:1521/",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice@localhost"},
+			want: []string{
+				"oracle://alice@localhost/",
+				"oracle://alice@localhost:1521/",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice@localhost:"},
+			want: []string{
+				"oracle://alice@localhost:/",
+				"oracle://alice@localhost:1521/",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice@localhost:1521"},
+			want: []string{
+				"oracle://alice@localhost:1521/",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice@localhost:1521/"},
+			want: []string{
+				"oracle://alice@localhost:1521/service",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice@localhost:1521/orcl"},
+			want: []string{
+				"oracle://alice@localhost:1521/orcl?",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			// gh743: a bare host with "?" should suggest conn-param keys,
+			// not credential placeholders.
+			args: []string{"oracle://localhost:1521?"},
+			want: []string{
+				"oracle://localhost:1521?CONNECTION TIMEOUT=",
+				"oracle://localhost:1521?SSL=",
+				"oracle://localhost:1521?TRACE FILE=",
+				"oracle://localhost:1521?ssl=",
+				"oracle://localhost:1521?wallet=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice@localhost:1521/orcl?"},
+			want: []string{
+				"oracle://alice@localhost:1521/orcl?CONNECTION TIMEOUT=",
+				"oracle://alice@localhost:1521/orcl?SSL=",
+				"oracle://alice@localhost:1521/orcl?TRACE FILE=",
+				"oracle://alice@localhost:1521/orcl?ssl=",
+				"oracle://alice@localhost:1521/orcl?wallet=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice@localhost:1521/orcl?SSL="},
+			want: []string{
+				"oracle://alice@localhost:1521/orcl?SSL=false",
+				"oracle://alice@localhost:1521/orcl?SSL=true",
+			},
+			wantResult: stdDirective,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
+			args := append([]string{"add"}, tc.args...)
+			got := testComplete(t, nil, args...)
+			assert.Equal(t, tc.wantResult, got.result, got.directives)
+			assert.Equal(t, tc.want, got.values)
+		})
+	}
+}
+
 func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
 	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
@@ -1018,10 +1323,10 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 			want: []string{
 				"postgres://alice@localhost/",
 				"postgres://alice@localhost:5432/",
-				"postgres://alice@dev.acme.com:7777/",
 				"postgres://alice@dev.acme.com:7777/sakila?application_name=app1&channel_binding=prefer",
-				"postgres://alice@prod.acme.com:8888/",
 				"postgres://alice@prod.acme.com:8888/sales?application_name=app2&channel_binding=require",
+				"postgres://alice@dev.acme.com:7777/",
+				"postgres://alice@prod.acme.com:8888/",
 			},
 			wantResult: stdDirective,
 		},
@@ -1030,8 +1335,8 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 			want: []string{
 				"postgres://alice@dev/",
 				"postgres://alice@dev:5432/",
-				"postgres://alice@dev.acme.com:7777/",
 				"postgres://alice@dev.acme.com:7777/sakila?application_name=app1&channel_binding=prefer",
+				"postgres://alice@dev.acme.com:7777/",
 			},
 			wantResult: stdDirective,
 		},
@@ -1040,8 +1345,8 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 			want: []string{
 				"postgres://alice@dev.acme.com/",
 				"postgres://alice@dev.acme.com:5432/",
-				"postgres://alice@dev.acme.com:7777/",
 				"postgres://alice@dev.acme.com:7777/sakila?application_name=app1&channel_binding=prefer",
+				"postgres://alice@dev.acme.com:7777/",
 			},
 			wantResult: stdDirective,
 		},
@@ -1066,7 +1371,6 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 		{
 			args: []string{"postgres://alice@dev.acme.com/sakila?"},
 			want: []string{
-				"postgres://alice@dev.acme.com/sakila?application_name=app1&channel_binding=prefer",
 				"postgres://alice@dev.acme.com/sakila?application_name=",
 				"postgres://alice@dev.acme.com/sakila?channel_binding=",
 				"postgres://alice@dev.acme.com/sakila?connect_timeout=",
@@ -1079,7 +1383,6 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 		{
 			args: []string{"postgres://alice@dev.acme.com/sakila?app"},
 			want: []string{
-				"postgres://alice@dev.acme.com/sakila?application_name=app1&channel_binding=prefer",
 				"postgres://alice@dev.acme.com/sakila?application_name=",
 			},
 			wantResult: stdDirective,
@@ -1157,79 +1460,75 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 		{
 			args: []string{"sqlserver://alice@"},
 			want: []string{
-				"sqlserver://alice@localhost?database=",
-				"sqlserver://alice@localhost:1433?database=",
-				"sqlserver://alice@dev.acme.com:7777?database=",
+				"sqlserver://alice@localhost/",
+				"sqlserver://alice@localhost:1433/",
 				"sqlserver://alice@dev.acme.com:7777?database=sakila&app+name=app1&encrypt=disable",
 				"sqlserver://alice@prod.acme.com:8888/my_instance?database=sakila",
-				"sqlserver://alice@prod.acme.com:8888?database=",
 				"sqlserver://alice@prod.acme.com:8888?database=sales&app+name=app2&encrypt=true",
+				"sqlserver://alice@dev.acme.com:7777/",
+				"sqlserver://alice@prod.acme.com:8888/",
 			},
 			wantResult: stdDirective,
 		},
 		{
 			args: []string{"sqlserver://alice@dev"},
 			want: []string{
-				"sqlserver://alice@dev?database=",
-				"sqlserver://alice@dev:1433?database=",
-				"sqlserver://alice@dev.acme.com:7777?database=",
+				"sqlserver://alice@dev/",
+				"sqlserver://alice@dev:1433/",
 				"sqlserver://alice@dev.acme.com:7777?database=sakila&app+name=app1&encrypt=disable",
+				"sqlserver://alice@dev.acme.com:7777/",
 			},
 			wantResult: stdDirective,
 		},
 		{
 			args: []string{"sqlserver://alice@prod"},
 			want: []string{
-				"sqlserver://alice@prod?database=",
-				"sqlserver://alice@prod:1433?database=",
+				"sqlserver://alice@prod/",
+				"sqlserver://alice@prod:1433/",
 				"sqlserver://alice@prod.acme.com:8888/my_instance?database=sakila",
-				"sqlserver://alice@prod.acme.com:8888?database=",
 				"sqlserver://alice@prod.acme.com:8888?database=sales&app+name=app2&encrypt=true",
+				"sqlserver://alice@prod.acme.com:8888/",
 			},
 			wantResult: stdDirective,
 		},
 		{
 			args: []string{"sqlserver://alice@dev.acme.com"},
 			want: []string{
-				"sqlserver://alice@dev.acme.com?database=",
-				"sqlserver://alice@dev.acme.com:1433?database=",
-				"sqlserver://alice@dev.acme.com:7777?database=",
+				"sqlserver://alice@dev.acme.com/",
+				"sqlserver://alice@dev.acme.com:1433/",
 				"sqlserver://alice@dev.acme.com:7777?database=sakila&app+name=app1&encrypt=disable",
+				"sqlserver://alice@dev.acme.com:7777/",
 			},
 			wantResult: stdDirective,
 		},
 		{
 			args: []string{"sqlserver://alice@dev.acme.com?"},
 			want: []string{
-				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
-				"sqlserver://alice@dev.acme.com?database=sales&app+name=app2&encrypt=true",
 				"sqlserver://alice@dev.acme.com?database=",
 				"sqlserver://alice@dev.acme.com?ApplicationIntent=",
 				"sqlserver://alice@dev.acme.com?ServerSPN=",
 				"sqlserver://alice@dev.acme.com?TrustServerCertificate=",
-				"sqlserver://alice@dev.acme.com?Workstation+ID=",
-				"sqlserver://alice@dev.acme.com?app+name=",
+				"sqlserver://alice@dev.acme.com?Workstation ID=",
+				"sqlserver://alice@dev.acme.com?app name=",
 				"sqlserver://alice@dev.acme.com?certificate=",
-				"sqlserver://alice@dev.acme.com?connection+timeout=",
-				"sqlserver://alice@dev.acme.com?dial+timeout=",
+				"sqlserver://alice@dev.acme.com?connection timeout=",
+				"sqlserver://alice@dev.acme.com?dial timeout=",
 				"sqlserver://alice@dev.acme.com?encrypt=",
 				"sqlserver://alice@dev.acme.com?failoverpartner=",
 				"sqlserver://alice@dev.acme.com?failoverport=",
 				"sqlserver://alice@dev.acme.com?hostNameInCertificate=",
 				"sqlserver://alice@dev.acme.com?keepAlive=",
 				"sqlserver://alice@dev.acme.com?log=",
-				"sqlserver://alice@dev.acme.com?packet+size=",
+				"sqlserver://alice@dev.acme.com?packet size=",
 				"sqlserver://alice@dev.acme.com?protocol=",
 				"sqlserver://alice@dev.acme.com?tlsmin=",
-				"sqlserver://alice@dev.acme.com?user+id=",
+				"sqlserver://alice@dev.acme.com?user id=",
 			},
 			wantResult: stdDirective,
 		},
 		{
 			args: []string{"sqlserver://alice@dev.acme.com?data"},
 			want: []string{
-				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
-				"sqlserver://alice@dev.acme.com?database=sales&app+name=app2&encrypt=true",
 				"sqlserver://alice@dev.acme.com?database=",
 			},
 			wantResult: stdDirective,
@@ -1237,8 +1536,6 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 		{
 			args: []string{"sqlserver://alice@dev.acme.com?database"},
 			want: []string{
-				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
-				"sqlserver://alice@dev.acme.com?database=sales&app+name=app2&encrypt=true",
 				"sqlserver://alice@dev.acme.com?database=",
 			},
 			wantResult: stdDirective,
@@ -1246,16 +1543,13 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 		{
 			args: []string{"sqlserver://alice@dev.acme.com?database="},
 			want: []string{
-				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
-				"sqlserver://alice@dev.acme.com?database=sales&app+name=app2&encrypt=true",
+				"sqlserver://alice@dev.acme.com?database=&",
 			},
 			wantResult: stdDirective,
 		},
 		{
 			args: []string{"sqlserver://alice@dev.acme.com?database=sa"},
 			want: []string{
-				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
-				"sqlserver://alice@dev.acme.com?database=sales&app+name=app2&encrypt=true",
 				"sqlserver://alice@dev.acme.com?database=sa&",
 			},
 			wantResult: stdDirective,
@@ -1263,7 +1557,6 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 		{
 			args: []string{"sqlserver://alice@dev.acme.com?database=saki"},
 			want: []string{
-				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
 				"sqlserver://alice@dev.acme.com?database=saki&",
 			},
 			wantResult: stdDirective,
@@ -1271,7 +1564,6 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 		{
 			args: []string{"sqlserver://alice@dev.acme.com?database=sakila"},
 			want: []string{
-				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
 				"sqlserver://alice@dev.acme.com?database=sakila&",
 			},
 			wantResult: stdDirective,
@@ -1279,8 +1571,7 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 		{
 			args: []string{"sqlserver://alice@dev.acme.com?database=sakila&app"},
 			want: []string{
-				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
-				"sqlserver://alice@dev.acme.com?database=sakila&app+name=",
+				"sqlserver://alice@dev.acme.com?database=sakila&app name=",
 			},
 			wantResult: stdDirective,
 		},
@@ -1333,9 +1624,6 @@ func TestCompleteAddLocation_History_SQLite3(t *testing.T) {
 		{
 			args: []string{"sqlite3://"},
 			want: []string{
-				src3Loc,
-				"sqlite3:///zz_dir1/sqtest/sq/src1.db",
-				"sqlite3:///zz_dir1/sqtest/sq/src2.db?mode=rwc&cache=FAST",
 				"sqlite3://data/",
 				"sqlite3://my/",
 				"sqlite3://my.db",
@@ -1343,6 +1631,9 @@ func TestCompleteAddLocation_History_SQLite3(t *testing.T) {
 				"sqlite3://post.db",
 				"sqlite3://sqlite/",
 				"sqlite3://sqlite.db",
+				src3Loc,
+				"sqlite3:///zz_dir1/sqtest/sq/src1.db",
+				"sqlite3:///zz_dir1/sqtest/sq/src2.db?mode=rwc&cache=FAST",
 			},
 			wantResult: stdDirective,
 		},
