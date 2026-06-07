@@ -1026,3 +1026,21 @@ func NewSakilaSource(tb testing.TB, handle string, clean bool) *source.Source {
 		Location: "sqlite3://" + loc,
 	}
 }
+
+// DuckDBType returns the drivertype.Type value for DuckDB. Exists so
+// external tests can avoid importing drivertype directly when their
+// only use of it is to construct DuckDB sources.
+func DuckDBType() drivertype.Type {
+	return drivertype.DuckDB
+}
+
+// MakeDuckDBSource builds a *source.Source for a file-backed DuckDB
+// database at path, with the given handle. Intended for tests that
+// need an ad-hoc source without going through a Collection.
+func MakeDuckDBSource(handle, path string) *source.Source {
+	return &source.Source{
+		Handle:   handle,
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://" + path,
+	}
+}
