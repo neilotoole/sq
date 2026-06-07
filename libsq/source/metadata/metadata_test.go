@@ -172,6 +172,7 @@ func TestSource_Clone(t *testing.T) {
 		require.NotNil(t, got)
 		require.Nil(t, got.DBProperties)
 		require.Nil(t, got.Tables)
+		require.Nil(t, got.Size, "nil-Size source must clone with nil Size")
 	})
 }
 

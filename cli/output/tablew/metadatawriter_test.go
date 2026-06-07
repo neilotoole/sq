@@ -28,8 +28,21 @@ func TestSourceMetadata_nilSize(t *testing.T) {
 	require.NoError(t, w.SourceMetadata(src, true))
 
 	got := buf.String()
-	require.Contains(t, got, "-", "expected dash for nil size")
 	require.NotContains(t, got, "0.0B")
+
+	// SIZE is the 5th column (SOURCE, DRIVER, NAME, FQ NAME, SIZE, LOCATION).
+	// Locate the data row (contains the handle) and assert the SIZE cell is "-".
+	var dataRow string
+	for _, line := range strings.Split(got, "\n") {
+		if strings.Contains(line, "@test") {
+			dataRow = line
+			break
+		}
+	}
+	require.NotEmpty(t, dataRow, "data row not found in tablew output")
+	fields := strings.Fields(dataRow)
+	require.GreaterOrEqual(t, len(fields), 6, "data row should have at least 6 fields")
+	require.Equal(t, "-", fields[4], "SIZE column should render as dash for nil size")
 }
 
 // TestIndexEntriesByColumn_TagMatrix pins the verbose-text dedup
