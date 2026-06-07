@@ -9,3 +9,4 @@ docker rm -f sakiladb-ms
 docker rm -f sakiladb-my
 docker rm -f sakiladb-ch
 docker rm -f sakiladb-or
+docker rm -f sakiladb-rq

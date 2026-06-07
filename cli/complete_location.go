@@ -610,6 +610,18 @@ func locCompParseLoc(loc string) (*parsedLoc, error) {
 	p.scheme, s, ok = strings.Cut(loc, "://")
 	p.typ = drivertype.Type(p.scheme)
 
+	// Canonicalize and route rqlite-family schemes around dburl, which
+	// does not recognize them. Both rqlite:// and rqlites:// resolve to
+	// the single drivertype.Rqlite. The same parsedLoc shape (du
+	// populated) is needed downstream by locCompDoConnParams etc.
+	if p.scheme == string(drivertype.Rqlite) || p.scheme == "rqlites" {
+		p.typ = drivertype.Rqlite
+		if s == "" || !ok {
+			return p, nil
+		}
+		return locCompParseRqlite(p, s)
+	}
+
 	if s == "" || !ok {
 		return p, nil
 	}
@@ -693,6 +705,84 @@ func locCompParseLoc(loc string) (*parsedLoc, error) {
 	return p, nil
 }
 
+// locCompParseRqlite handles the rqlite/rqlites parsing path that
+// dburl does not. It populates parsedLoc with the same fields the
+// dburl branch produces so downstream callers can treat the result
+// uniformly. The after argument is the substring of p.loc that
+// follows "scheme://".
+func locCompParseRqlite(p *parsedLoc, after string) (*parsedLoc, error) {
+	// Canonicalize: both rqlite:// and rqlites:// resolve to the
+	// single drivertype.Rqlite. p.scheme retains the original
+	// (rqlite or rqlites) so candidate URL reconstruction can use
+	// whichever the user typed if downstream code chooses to.
+	p.typ = drivertype.Rqlite
+
+	// Best-effort split of user[:pass]@ before url.Parse so we
+	// can report stageDone for partials like "rqlite://alice:".
+	creds, _, ok := strings.Cut(after, "@")
+	if !ok {
+		// No @ found. The whole 'after' is the (partial) credentials
+		// typed so far.
+		if after != "" {
+			user, _, hasColon := strings.Cut(after, ":")
+			p.user = user
+			if hasColon {
+				p.stageDone = plocUser
+			}
+		}
+		return p, nil
+	}
+
+	if creds != "" {
+		user, pass, hasColon := strings.Cut(creds, ":")
+		p.user = user
+		p.pass = pass
+		if hasColon {
+			p.stageDone = plocUser
+		}
+	}
+
+	p.stageDone = plocPass
+
+	u, err := url.Parse(p.loc)
+	if err != nil {
+		// Don't include p.loc in the error: it may carry credentials.
+		return p, errz.Wrap(err, "rqlite: parse location")
+	}
+	p.du = &dburl.URL{URL: *u, OriginalScheme: p.scheme}
+
+	if u.User != nil {
+		p.user = u.User.Username()
+		p.pass, _ = u.User.Password()
+	}
+	p.hostname = u.Hostname()
+
+	if strings.ContainsRune(u.Host, ':') {
+		p.stageDone = plocHostname
+	}
+	if u.Port() != "" {
+		p.stageDone = plocHostname
+		p.port, err = strconv.Atoi(u.Port())
+		if err != nil {
+			p.port = -1
+			return p, nil //nolint:nilerr
+		}
+	}
+
+	// Mirror the host/path/query suffix detection from the dburl branch.
+	if strings.HasSuffix(after, "/") || u.Path != "" {
+		p.stageDone = plocHost
+	}
+	if strings.HasSuffix(after, "?") {
+		p.stageDone = plocPath
+	}
+	if u.RawQuery != "" {
+		p.stageDone = plocPath
+	}
+
+	return p, nil
+}
+
 // parsedLoc is a parsed representation of a driver location URL.
 // It can represent partial or fully constructed locations. The stage
 // of construction is noted in parsedLoc.stageDone.
@@ -748,6 +838,8 @@ var locSchemes = []string{
 	"duckdb://",
 	"mysql://",
 	"postgres://",
+	"rqlite://",
+	"rqlites://",
 	"sqlite3://",
 	"sqlserver://",
 }

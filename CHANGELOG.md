@@ -113,6 +113,16 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   into showing secret values in output.
   - It supersedes the legacy `--no-redact` (still functional, now marked deprecated, will be removed
     at some point in the future).
+- [#444]: Add [rqlite](https://rqlite.io) driver. `sq` now supports reading from, inspecting,
+  and writing to [rqlite](https://rqlite.io) clusters, the lightweight distributed SQLite
+  database. The full write surface that SQLite supports is wired up: `CREATE TABLE`, `INSERT`
+  (including multi-row batch insert via `--insert`),
+  [`sq tbl truncate`](https://sq.io/docs/cmd/tbl-truncate),
+  [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy), and `ALTER TABLE`. Connect with
+  `rqlite://user:pass@host:port` (or `rqlites://` for HTTPS). Multi-statement
+  operations that need atomicity (CopyTable, AlterTable kind swaps) use rqlite's native
+  `/db/execute` batch API; everything else goes through the standard `database/sql`
+  adapter via [gorqlite](https://github.com/rqlite/gorqlite).
 - [#610]: [`sq sql`](https://sq.io/docs/cmd/sql) accepts `--readonly` (alias
   `--ro`) to open DuckDB sources in read-only mode. Default remains read-write
   because reliable statement-level detection isn't feasible without a standalone
@@ -1700,6 +1710,7 @@ make working with lots of sources much easier.
 [#652]: https://github.com/neilotoole/sq/issues/652
 [#658]: https://github.com/neilotoole/sq/pull/658
 [#441]: https://github.com/neilotoole/sq/issues/441
+[#444]: https://github.com/neilotoole/sq/issues/444
 [#660]: https://github.com/neilotoole/sq/issues/660
 [#692]: https://github.com/neilotoole/sq/issues/692
 [#716]: https://github.com/neilotoole/sq/issues/716
