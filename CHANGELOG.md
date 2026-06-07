@@ -139,6 +139,20 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   and the resolved value was being copied verbatim into `metadata.Source.Location`; the
   inspect handler now overrides that field with the caller's view of `src.Location`, which
   is the placeholder by default and the resolved value only when `--expand` is set.
+- [#737]: The [rqlite driver](https://sq.io/docs/drivers/rqlite) now preserves the source table's
+  CREATE TABLE statement when running [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy) and
+  column-kind alter operations.
+  - `CopyTable` and `AlterTableColumnKinds` switched from a metadata-based introspect-and-rebuild
+    to the same faithful-DDL-rewrite shape the [sqlite3 driver](https://sq.io/docs/drivers/sqlite)
+    already uses, via the now-shared `drivers/sqlite3/sqlparser` package.
+  - Source-table attributes now carried across both operations: `UNIQUE`, `FOREIGN KEY`,
+    `AUTOINCREMENT`, `CHECK`, composite `PRIMARY KEY`, the exact `DEFAULT` expression, `WITHOUT ROWID`,
+    and column comments. Previously these were silently dropped (the destination DDL was rebuilt
+    from `*metadata.Table`, which exposes only a subset of the source's schema).
+  - Indexes and triggers are still not carried by `CopyTable`; they live as separate
+    `sqlite_master` rows and are out of scope for this fix.
+  - `getTableMetadata` now populates outgoing foreign keys via `pragma_foreign_key_list`, matching
+    the sqlite3 driver's metadata shape.
 - [#744]: `sq inspect` no longer reports `0.0B` size for sources whose driver doesn't expose
   a database size (e.g. rqlite). The SIZE column renders `-` instead, and JSON / YAML output
   omits the `size` field.
@@ -1719,6 +1733,7 @@ make working with lots of sources much easier.
 [#714]: https://github.com/neilotoole/sq/issues/714
 [#720]: https://github.com/neilotoole/sq/issues/720
 [#729]: https://github.com/neilotoole/sq/issues/729
+[#737]: https://github.com/neilotoole/sq/issues/737
 [#742]: https://github.com/neilotoole/sq/issues/742
 [#744]: https://github.com/neilotoole/sq/issues/744
 
