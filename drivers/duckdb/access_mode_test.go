@@ -1,11 +1,16 @@
 package duckdb_test
 
 import (
+	"context"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/duckdb"
+	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 func TestApplyReadOnlyToLocation(t *testing.T) {
@@ -97,4 +102,29 @@ func TestExplicitAccessMode(t *testing.T) {
 			require.Equal(t, tc.wantMode, gotMode)
 		})
 	}
+}
+
+// TestDoOpen_HonorsReadOnlyContext is a smoke check that doOpen consults
+// the ctx hint and that the DuckDB engine accepts the rewritten DSN.
+// It opens a nonexistent path READ_ONLY; the rewritten DSN should error
+// cleanly because DuckDB READ_ONLY requires an existing file. We assert
+// the file was NOT created (which would happen under READ_WRITE).
+func TestDoOpen_HonorsReadOnlyContext(t *testing.T) {
+	tmp := filepath.Join(t.TempDir(), "doesnotexist.duckdb")
+	src := &source.Source{
+		Handle:   "@test_ro",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://" + tmp,
+	}
+
+	ctx := driver.WithReadOnly(context.Background())
+
+	prov := &duckdb.Provider{}
+	drvr, err := prov.DriverFor(drivertype.DuckDB)
+	require.NoError(t, err)
+
+	_, openErr := drvr.Open(ctx, src)
+	require.Error(t, openErr, "READ_ONLY open of nonexistent file must fail")
+	require.NoFileExists(t, tmp,
+		"DuckDB must not have created the file when opened READ_ONLY")
 }
