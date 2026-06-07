@@ -149,7 +149,8 @@ render a schema document that includes a Mermaid entity-relationship diagram;
 }
 
 func execInspect(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
+	ctx := driver.WithReadOnly(cmd.Context())
+	cmd.SetContext(ctx)
 	ru, log := run.FromContext(ctx), lg.FromContext(ctx)
 
 	o, err := getOptionsFromCmd(cmd)
