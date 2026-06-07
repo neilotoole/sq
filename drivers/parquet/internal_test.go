@@ -86,3 +86,65 @@ func TestEscapeSingleQuotes(t *testing.T) {
 	require.Equal(t, `'a''b'`, "'"+escapeSingleQuotes("a'b")+"'")
 	require.Equal(t, `''''`, "'"+escapeSingleQuotes("'")+"'")
 }
+
+func TestIsNonHTTPRemote(t *testing.T) {
+	testCases := []struct {
+		loc  string
+		want bool
+	}{
+		{"/abs/path/to.parquet", false},
+		{"./rel.parquet", false},
+		{"http://example.com/x.parquet", false},
+		{"https://example.com/x.parquet", false},
+		{"https://example.com/x.parquet?X-Amz-Signature=abc", false},
+		{"s3://bucket/k.parquet", true},
+		{"gs://bucket/k.parquet", true},
+		{"r2://bucket/k.parquet", true},
+		{"azure://account/c/k.parquet", true},
+		{"abfss://container@account/k.parquet", true},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.loc, func(t *testing.T) {
+			require.Equal(t, tc.want, isNonHTTPRemote(tc.loc))
+		})
+	}
+}
+
+func TestUpdateSlidingWindow(t *testing.T) {
+	t.Run("fills_then_slides_across_iterations", func(t *testing.T) {
+		var window [4]byte
+		have := 0
+
+		updateSlidingWindow(&window, &have, []byte{1, 2})
+		require.Equal(t, 2, have)
+		require.Equal(t, []byte{1, 2, 0, 0}, window[:])
+
+		updateSlidingWindow(&window, &have, []byte{3})
+		require.Equal(t, 3, have)
+		require.Equal(t, []byte{1, 2, 3, 0}, window[:])
+
+		updateSlidingWindow(&window, &have, []byte{4, 5})
+		require.Equal(t, 4, have)
+		require.Equal(t, []byte{2, 3, 4, 5}, window[:])
+
+		updateSlidingWindow(&window, &have, []byte{6})
+		require.Equal(t, 4, have)
+		require.Equal(t, []byte{3, 4, 5, 6}, window[:])
+	})
+
+	t.Run("chunk_at_least_window_overwrites", func(t *testing.T) {
+		window := [4]byte{9, 9, 9, 9}
+		have := 4
+		updateSlidingWindow(&window, &have, []byte{1, 2, 3, 4, 5, 6})
+		require.Equal(t, 4, have)
+		require.Equal(t, []byte{3, 4, 5, 6}, window[:])
+	})
+
+	t.Run("empty_chunk_is_noop", func(t *testing.T) {
+		window := [4]byte{1, 2, 3, 4}
+		have := 4
+		updateSlidingWindow(&window, &have, nil)
+		require.Equal(t, 4, have)
+		require.Equal(t, []byte{1, 2, 3, 4}, window[:])
+	})
+}

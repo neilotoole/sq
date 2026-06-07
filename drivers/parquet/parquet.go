@@ -138,9 +138,32 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	return src, nil
 }
 
-// Ping implements driver.Driver.
+// Ping implements driver.Driver. For local files and http(s) URLs, ping is
+// delegated to files.Ping. For other URL schemes that DuckDB's httpfs can
+// reach (s3://, gs://, r2://, azure://, abfs://, abfss://), ping returns
+// nil: location.TypeOf treats them as file paths and files.Ping would call
+// os.Stat against the URL string. Reachability for those sources is verified
+// the first time the user queries the source (DuckDB surfaces auth and
+// network errors at that point).
 func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
+	if isNonHTTPRemote(src.Location) {
+		return nil
+	}
 	return d.files.Ping(ctx, src)
+}
+
+// isNonHTTPRemote reports whether loc looks like a URL with a scheme other
+// than http(s). Examples: s3://bucket/key, gs://bucket/key. These reach
+// the parquet file via DuckDB's httpfs extension at read time, so Ping
+// cannot meaningfully check them without re-running the read path.
+func isNonHTTPRemote(loc string) bool {
+	if !strings.Contains(loc, "://") {
+		return false
+	}
+	if strings.HasPrefix(loc, "http://") || strings.HasPrefix(loc, "https://") {
+		return false
+	}
+	return true
 }
 
 // errw wraps err with the package's standard boundary prefix. Errors crossing
@@ -165,7 +188,8 @@ func errw(err error) error {
 // source, use environment variables or sq config.
 func parseLocation(loc string) (path, dsnQuery string, err error) {
 	if loc == "" {
-		return "", "", errz.New("parquet: location must not be empty")
+		// No "parquet:" prefix here; callers wrap via errw.
+		return "", "", errz.New("location must not be empty")
 	}
 	if strings.Contains(loc, "://") {
 		return loc, "", nil

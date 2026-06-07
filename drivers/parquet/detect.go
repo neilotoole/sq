@@ -111,6 +111,7 @@ func readLastFour(r io.Reader) ([]byte, bool) {
 	}
 
 	// Sliding 4-byte window across the stream, capped at maxNonSeekDrain.
+	// The window is updated in place: per iteration we never allocate.
 	var window [4]byte
 	buf := make([]byte, 4096)
 	have, total := 0, 0
@@ -118,15 +119,7 @@ func readLastFour(r io.Reader) ([]byte, bool) {
 		n, err := r.Read(buf)
 		if n > 0 {
 			total += n
-			// Append to window: keep the most recent 4 bytes.
-			combined := append(window[:have], buf[:n]...)
-			if len(combined) >= 4 {
-				copy(window[:], combined[len(combined)-4:])
-				have = 4
-			} else {
-				copy(window[:], combined)
-				have = len(combined)
-			}
+			updateSlidingWindow(&window, &have, buf[:n])
 			if total > maxNonSeekDrain {
 				// Cap reached before EOF: caller falls back to head-only.
 				return nil, false
@@ -143,4 +136,33 @@ func readLastFour(r io.Reader) ([]byte, bool) {
 		return nil, false
 	}
 	return window[:], true
+}
+
+// updateSlidingWindow folds the next chunk into a fixed 4-byte tail window.
+// The window holds the most recent min(have+len(chunk), 4) bytes of the
+// cumulative stream. *have is the count of valid bytes in *window before
+// the call (0..4); the call updates *window and *have in place. No
+// allocation.
+func updateSlidingWindow(window *[4]byte, have *int, chunk []byte) {
+	n := len(chunk)
+	switch {
+	case n == 0:
+		// nothing to fold in.
+	case *have+n <= 4:
+		// Still filling: append.
+		copy(window[*have:*have+n], chunk)
+		*have += n
+	case n >= 4:
+		// Chunk alone overwrites the window.
+		copy(window[:], chunk[n-4:])
+		*have = 4
+	default:
+		// Cross-boundary case: shift the kept portion of window left,
+		// then write chunk at the right. copy() handles the in-window
+		// overlap correctly.
+		keep := 4 - n
+		copy(window[:keep], window[*have-keep:*have])
+		copy(window[keep:], chunk)
+		*have = 4
+	}
 }

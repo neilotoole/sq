@@ -116,6 +116,32 @@ func TestOpen_MissingFileFails(t *testing.T) {
 	require.Contains(t, err.Error(), "/nonexistent/path/to.parquet")
 }
 
+// TestPing_NonHTTPRemoteReturnsNil verifies that Ping does not try to stat
+// an s3:// (or similar) URL. files.Ping would treat it as a local file path
+// and fail with an os.Stat error; the parquet driver instead defers to the
+// first Open/query, which goes through DuckDB's httpfs.
+func TestPing_NonHTTPRemoteReturnsNil(t *testing.T) {
+	ctx := context.Background()
+	provider := newParquetProviderForTest(t)
+	drvr, err := provider.DriverFor(drivertype.Parquet)
+	require.NoError(t, err)
+
+	for _, loc := range []string{
+		"s3://bucket/k.parquet",
+		"gs://bucket/k.parquet",
+		"r2://bucket/k.parquet",
+	} {
+		t.Run(loc, func(t *testing.T) {
+			src := &source.Source{
+				Type:     drivertype.Parquet,
+				Handle:   "@remote",
+				Location: loc,
+			}
+			require.NoError(t, drvr.Ping(ctx, src))
+		})
+	}
+}
+
 func TestOpen_WithConnOptions(t *testing.T) {
 	ctx := context.Background()
 
