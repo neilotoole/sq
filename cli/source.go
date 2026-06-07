@@ -163,9 +163,11 @@ func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Sou
 			src.Handle, src.Type)
 	}
 
-	// Force read-only on the validation open; the cached-grip pitfalls
-	// described in the godoc above only arise if the validation grip
-	// inherits the caller's write intent.
+	// Mark the validation open read-only via the advisory hint. The
+	// driver may still open READ_WRITE if the source URL explicitly
+	// sets access_mode (user URL always wins), but for the typical
+	// case the hint prevents the cached-grip pitfalls described in
+	// the godoc above.
 	openCtx := driver.WithReadOnly(ctx)
 	grip, err := d.Open(openCtx, src)
 	if err != nil {

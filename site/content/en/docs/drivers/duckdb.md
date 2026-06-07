@@ -128,7 +128,11 @@ location:
 $ sq add 'duckdb:///data/inventory.duckdb?access_mode=READ_WRITE' --handle @inv
 ```
 
-An explicit URL setting always wins over command defaults and `--readonly`.
+An explicit URL `access_mode` always wins over the implicit defaults for `sq inspect`,
+`sq slq`, `sq diff`, and `sq ping`. For `sq sql --readonly` (or `--ro`), the explicit
+flag and an explicit URL `access_mode=READ_WRITE` are treated as a contradiction and
+`sq` returns a conflict error: the flag says "do not write", the URL says "open for
+writes", and the user has to resolve the ambiguity before any open happens.
 
 ## Type mapping
 
