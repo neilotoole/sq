@@ -30,8 +30,9 @@ func TestSourceMetadata_nilSize(t *testing.T) {
 	got := buf.String()
 	require.NotContains(t, got, "0.0B")
 
-	// SIZE is the 5th column (SOURCE, DRIVER, NAME, FQ NAME, SIZE, LOCATION).
-	// Locate the data row (contains the handle) and assert the SIZE cell is "-".
+	// With showSchema=true the source row is rendered by doSourceMetaFull
+	// with 8 columns: SOURCE, DRIVER, NAME, FQ NAME, SIZE, TABLES, VIEWS,
+	// LOCATION. SIZE is the 5th column (index 4).
 	var dataRow string
 	for line := range strings.SplitSeq(got, "\n") {
 		if strings.Contains(line, "@test") {
@@ -41,7 +42,7 @@ func TestSourceMetadata_nilSize(t *testing.T) {
 	}
 	require.NotEmpty(t, dataRow, "data row not found in tablew output")
 	fields := strings.Fields(dataRow)
-	require.GreaterOrEqual(t, len(fields), 6, "data row should have at least 6 fields")
+	require.Len(t, fields, 8, "data row should have 8 columns")
 	require.Equal(t, "-", fields[4], "SIZE column should render as dash for nil size")
 }
 
