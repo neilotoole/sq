@@ -59,3 +59,17 @@ func TestDriverShape_SQLServer(t *testing.T) {
 	require.Equal(t, driver.SegConnParams, shape.Segments[3].Kind)
 	require.Equal(t, "database", shape.Segments[3].LeadingKey)
 }
+
+func TestDriverShape_SQLite3(t *testing.T) {
+	th := testh.New(t)
+	drvr, err := th.Registry().SQLDriverFor(drivertype.SQLite)
+	require.NoError(t, err)
+	shape := drvr.LocationShape()
+	require.Equal(t, drivertype.SQLite, shape.Type)
+	require.Equal(t, []string{"sqlite3"}, shape.Schemes)
+	require.Len(t, shape.Segments, 2)
+	require.Equal(t, driver.SegPathFile, shape.Segments[0].Kind)
+	require.False(t, shape.Segments[0].Optional)
+	require.Equal(t, driver.SegConnParams, shape.Segments[1].Kind)
+	require.True(t, shape.Segments[1].Optional)
+}

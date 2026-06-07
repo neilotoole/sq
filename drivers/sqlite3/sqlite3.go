@@ -104,8 +104,14 @@ func (d *driveri) ConnParams() map[string][]string {
 
 // LocationShape implements driver.SQLDriver.
 func (d *driveri) LocationShape() driver.LocationShape {
-	// TODO(gh743): populated in subsequent tasks.
-	return driver.LocationShape{}
+	return driver.LocationShape{
+		Type:    drivertype.SQLite,
+		Schemes: []string{"sqlite3"},
+		Segments: []driver.Segment{
+			{Kind: driver.SegPathFile},
+			{Kind: driver.SegConnParams, Optional: true},
+		},
+	}
 }
 
 // ErrWrapFunc implements driver.SQLDriver.
