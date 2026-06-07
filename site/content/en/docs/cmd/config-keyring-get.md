@@ -10,9 +10,9 @@ weight: 2038
 toc: false
 url: /docs/cmd/config-keyring-get
 ---
-See [Secrets](/docs/secrets#managing-keyring-entries) for an overview of
-the `sq config keyring` command group. By default this prints only that
-the entry exists; pass [`--reveal`](/docs/secrets#redact--reveal)
+Part of the [`sq config keyring`](/docs/cmd/config-keyring) command group;
+see [Secrets](/docs/secrets) for the broader picture. By default this
+prints only that the entry exists; pass [`--reveal`](/docs/secrets#redaction)
 to print the stored value.
 
 ## Reference

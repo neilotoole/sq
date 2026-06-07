@@ -40,9 +40,9 @@ $ sq config export --expand -o sq.bak.yml
 If a referenced keyring entry, environment variable, or file is missing,
 the export errors with the failing source's handle.
 
-For the broader picture — how `--expand` differs from `--reveal`, the
-placeholder grammar, and the threat model — see
-[Secrets](/docs/secrets#substitution).
+For the broader picture (how `--expand` differs from `--reveal`, the
+placeholder grammar, the threat model), see
+[Secrets](/docs/secrets#expanding-placeholders).
 
 See the [config](/docs/config) section for an overview of `sq`
 configuration.

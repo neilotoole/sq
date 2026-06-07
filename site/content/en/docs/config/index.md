@@ -377,7 +377,7 @@ $ sq src -v
 ```
 
 `secrets.reveal` is the persistent form of the global
-[`--reveal`](/docs/secrets#redact--reveal) flag. The earlier `--no-redact`
+[`--reveal`](/docs/secrets#redaction) flag. The earlier `--no-redact`
 flag still works but is deprecated; use `--reveal` in new scripts.
 
 See [Secrets](/docs/secrets) for the full picture, including how `--reveal`
@@ -407,7 +407,7 @@ $ sq config set secrets.store keyring
 ```
 
 The `--store` flag on `sq add` overrides this option per invocation. See
-[Secrets](/docs/secrets#keyring-scheme) for the keyring scheme and the
+[Secrets](/docs/secrets#keyring) for the keyring scheme and the
 threat model.
 
 {{< readfile file="../cmd/options/secrets.store.help.txt" code="true" lang="text" >}}
