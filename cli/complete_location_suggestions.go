@@ -27,8 +27,6 @@ type locSuggestions struct {
 
 // newLocSuggestions constructs a locSuggestions for the given driver
 // type.
-//
-//nolint:unused // wired up by B14 dispatcher; B10 lands first.
 func newLocSuggestions(coll *source.Collection, typ drivertype.Type,
 	log *slog.Logger,
 ) *locSuggestions {

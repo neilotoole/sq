@@ -15,8 +15,6 @@ import (
 // suggestCreds generates candidates when MatchedLoc.Current is
 // SegCredentials. Offers username placeholders, history usernames,
 // and both "@" and ":" continuations for ambiguous early input.
-//
-//nolint:unused // wired up by B14 completeAddLocation via generateCandidates.
 func suggestCreds(m driver.MatchedLoc, src driver.Suggestions) []string {
 	cs := candidateSet{prefix: m.Loc}
 	base := m.Scheme + "://"
@@ -41,8 +39,6 @@ func suggestCreds(m driver.MatchedLoc, src driver.Suggestions) []string {
 
 // suggestAuthority generates candidates when MatchedLoc.Current is
 // SegAuthority. Offers "localhost", default port, and history hosts.
-//
-//nolint:unused // wired up by B14 completeAddLocation via generateCandidates.
 func suggestAuthority(m driver.MatchedLoc, src driver.Suggestions, defaultPort int) []string {
 	cs := candidateSet{prefix: m.Loc}
 	const localhost = "localhost"
@@ -105,8 +101,6 @@ func suggestAuthority(m driver.MatchedLoc, src driver.Suggestions, defaultPort i
 
 // suggestPathName generates candidates when MatchedLoc.Current is
 // SegPathName. Offers the placeholder name and history db names.
-//
-//nolint:unused // wired up by B14 completeAddLocation via generateCandidates.
 func suggestPathName(m driver.MatchedLoc, src driver.Suggestions, placeholder string) []string {
 	cs := candidateSet{prefix: m.Loc}
 	names := src.Values(driver.SegPathName)
@@ -132,8 +126,6 @@ func suggestPathName(m driver.MatchedLoc, src driver.Suggestions, placeholder st
 // suggestPathFile generates candidates when MatchedLoc.Current is
 // SegPathFile. Offers filesystem listings and "?" once a file is
 // fully matched.
-//
-//nolint:unused // wired up by B14 completeAddLocation via generateCandidates.
 func suggestPathFile(ctx context.Context, m driver.MatchedLoc, src driver.Suggestions) []string {
 	cs := candidateSet{prefix: m.Loc}
 	base := m.Scheme + "://"
@@ -154,8 +146,6 @@ func suggestPathFile(ctx context.Context, m driver.MatchedLoc, src driver.Sugges
 
 // suggestConnParams generates candidates when MatchedLoc.Current is
 // SegConnParams. Honors leadingKey by suggesting that key first.
-//
-//nolint:unused // wired up by B14 completeAddLocation via generateCandidates.
 func suggestConnParams(m driver.MatchedLoc, src driver.Suggestions,
 	drvr driver.SQLDriver, leadingKey string,
 ) []string {
@@ -221,8 +211,6 @@ func suggestConnParams(m driver.MatchedLoc, src driver.Suggestions,
 // (with leadingKey hoisted if set) and a key->[]value map. Keys are
 // URL-safe identifiers as declared by the driver, so no query-escape
 // is applied here.
-//
-//nolint:unused // wired up by B14 completeAddLocation via generateCandidates.
 func connParamKeysAndValues(drvr driver.SQLDriver, leadingKey string) (
 	keys []string, values map[string][]string,
 ) {
@@ -247,8 +235,6 @@ func connParamKeysAndValues(drvr driver.SQLDriver, leadingKey string) (
 // generateCandidates dispatches to the per-segment-kind helper
 // indicated by m.Current. Honors any custom Segment.Suggest hook
 // before falling back to defaults.
-//
-//nolint:unused // wired up by B14 completeAddLocation; B13 lands first.
 func generateCandidates(ctx context.Context, shape driver.LocationShape,
 	m driver.MatchedLoc, src driver.Suggestions, drvr driver.SQLDriver,
 ) []string {

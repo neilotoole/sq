@@ -1425,49 +1425,9 @@ func TestCompleteAddLocation_History_SQLite3(t *testing.T) {
 	}
 }
 
-func TestParseLoc_stage(t *testing.T) {
-	testCases := []struct {
-		loc  string
-		want cli.PlocStage
-	}{
-		{"", cli.PlocInit},
-		{"postgres", cli.PlocInit},
-		{"postgres:/", cli.PlocInit},
-		{"postgres://", cli.PlocScheme},
-		{"postgres://alice", cli.PlocScheme},
-		{"postgres://alice:", cli.PlocUser},
-		{"postgres://alice:pass", cli.PlocUser},
-		{"postgres://alice:pass@", cli.PlocPass},
-		{"postgres://alice:@", cli.PlocPass},
-		{"postgres://alice@", cli.PlocPass},
-		{"postgres://alice@localhost", cli.PlocPass},
-		{"postgres://alice:@localhost", cli.PlocPass},
-		{"postgres://alice:pass@localhost", cli.PlocPass},
-		{"postgres://alice@localhost:", cli.PlocHostname},
-		{"postgres://alice:@localhost:", cli.PlocHostname},
-		{"postgres://alice:pass@localhost:", cli.PlocHostname},
-		{"postgres://alice@localhost:5432", cli.PlocHostname},
-		{"postgres://alice@localhost:5432/", cli.PlocHost},
-		{"postgres://alice@localhost:5432/s", cli.PlocHost},
-		{"postgres://alice@localhost:5432/sakila", cli.PlocHost},
-		{"postgres://alice@localhost:5432/sakila?", cli.PlocPath},
-		{"postgres://alice@localhost:5432/sakila?sslmode=verify-ca", cli.PlocPath},
-		{"postgres://alice:@localhost:5432/sakila?sslmode=verify-ca", cli.PlocPath},
-		{"postgres://alice:pass@localhost:5432/sakila?sslmode=verify-ca", cli.PlocPath},
-		{"sqlserver://alice:pass@localhost?", cli.PlocPath},
-	}
-
-	for i, tc := range testCases {
-		t.Run(tu.Name(i, tc.loc), func(t *testing.T) {
-			th := testh.New(t)
-			ru := th.Run()
-
-			gotStage, err := cli.DoTestParseLocStage(t, ru, tc.loc)
-			require.NoError(t, err)
-			require.Equal(t, tc.want, gotStage)
-		})
-	}
-}
+// TestParseLoc_stage was deleted in B14: the legacy parsedLoc /
+// plocStage parser was replaced by driver.LocationShape + driver.Walk.
+// Stage detection is now covered by TestWalk in libsq/driver.
 
 func TestDoCompleteAddLocationFile(t *testing.T) {
 	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
