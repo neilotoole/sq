@@ -10,13 +10,16 @@ import (
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/drivers/duckdb"
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/tuning"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 func newSQLCmd() *cobra.Command {
@@ -41,6 +44,9 @@ source.`,
 	}
 
 	addQueryCmdFlags(cmd)
+
+	cmd.Flags().Bool(flag.SQLReadOnly, false, flag.SQLReadOnlyUsage)
+	cmd.Flags().Bool(flag.SQLReadOnlyAlias, false, flag.SQLReadOnlyAliasUsage)
 
 	// TODO: These flags aren't actually implemented yet.
 	// And... this entire --exec/--query mechanism needs to be revisited.
@@ -75,6 +81,34 @@ func execSQL(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// --readonly / --ro: opt the raw-SQL command into read-only mode for
+	// the source. Two things happen here, BEFORE determineSources:
+	//   1. Peek at the would-be active source and surface the URL-conflict
+	//      error preemptively. Doing this after determineSources would let
+	//      verifySourceCatalogSchema briefly open the file READ_WRITE (the
+	//      URL wins over the RO ctx) before the error fires, defeating the
+	//      whole point of the conflict surfacing.
+	//   2. Flip the ctx so any pre-open inside determineSources sees the
+	//      RO hint. Skip the flip for --insert (execSQLInsert opens destGrip
+	//      first on the RW ctx before flipping to RO for the source side).
+	readOnlySrc := cmdFlagIsSetTrue(cmd, flag.SQLReadOnly) ||
+		cmdFlagIsSetTrue(cmd, flag.SQLReadOnlyAlias)
+	if readOnlySrc {
+		if peek := peekActiveSrc(cmd, ru.Config.Collection); peek != nil &&
+			peek.Type == drivertype.DuckDB {
+			if mode, ok := duckdb.ExplicitAccessMode(peek.Location); ok &&
+				strings.EqualFold(mode, "READ_WRITE") {
+				return errz.Errorf(
+					"sql: --%s conflicts with access_mode=READ_WRITE in %s",
+					flag.SQLReadOnly, peek.Handle)
+			}
+		}
+		if !cmdFlagChanged(cmd, flag.Insert) {
+			ctx = driver.WithReadOnly(ctx)
+			cmd.SetContext(ctx)
+		}
+	}
+
 	err := determineSources(ctx, ru, true)
 	if err != nil {
 		return err
@@ -91,7 +125,8 @@ func execSQL(cmd *cobra.Command, args []string) error {
 
 	if !cmdFlagChanged(cmd, flag.Insert) {
 		// The user didn't specify the --insert=@src.tbl flag,
-		// so we just want to print the records.
+		// so we just want to print the records. RO ctx (if requested)
+		// was established above, before determineSources.
 		return execSQLPrint(ctx, ru, activeSrc)
 	}
 
@@ -112,7 +147,7 @@ func execSQL(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return execSQLInsert(ctx, ru, activeSrc, destSrc, destTbl)
+	return execSQLInsert(ctx, ru, activeSrc, destSrc, destTbl, readOnlySrc)
 }
 
 // execSQLPrint executes the SQL input, and either prints the resulting records
@@ -166,21 +201,33 @@ func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source) erro
 }
 
 // execSQLInsert executes the SQL and inserts resulting records
-// into destTbl in destSrc.
+// into destTbl in destSrc. readOnlySrc controls whether the source
+// (fromSrc) is opened READ_ONLY; the destination is always opened
+// READ_WRITE so the INSERT can succeed.
 func execSQLInsert(ctx context.Context, ru *run.Run,
-	fromSrc, destSrc *source.Source, destTbl string,
+	fromSrc, destSrc *source.Source, destTbl string, readOnlySrc bool,
 ) error {
 	args := ru.Args
 	grips := ru.Grips
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
-	fromGrip, err := grips.Open(ctx, fromSrc)
+	// Open destGrip FIRST on the RW ctx so the destination opens
+	// READ_WRITE. The Grips cache keys by src.Handle, so if fromSrc
+	// shares a handle with destSrc (self-insert), the later
+	// grips.Open(ctx, fromSrc) returns this cached RW grip.
+	destGrip, err := grips.Open(ctx, destSrc)
 	if err != nil {
 		return err
 	}
 
-	destGrip, err := grips.Open(ctx, destSrc)
+	// Now mark the ctx read-only for the source-side open. Skips the
+	// rewrite if the user didn't pass --readonly.
+	if readOnlySrc {
+		ctx = driver.WithReadOnly(ctx)
+	}
+
+	fromGrip, err := grips.Open(ctx, fromSrc)
 	if err != nil {
 		return err
 	}

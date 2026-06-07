@@ -65,6 +65,17 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 	ru := run.FromContext(ctx)
 	coll := ru.Config.Collection
 
+	// Mark the context read-only BEFORE determineSources so any source
+	// pre-open it performs (e.g. --src.schema validation, which calls
+	// Grips.Open and caches the resulting grip by handle) sees the RO
+	// hint. Only the --insert path opens a destination for writing; for
+	// that case execSLQInsert opens destGrip first on the original RW
+	// ctx, then flips to RO for source-side opens.
+	if !cmdFlagChanged(cmd, flag.Insert) {
+		ctx = driver.WithReadOnly(ctx)
+		cmd.SetContext(ctx)
+	}
+
 	err := determineSources(ctx, ru, false)
 	if err != nil {
 		return err
@@ -105,7 +116,8 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 
 	if !cmdFlagChanged(cmd, flag.Insert) {
 		// The user didn't specify the --insert=@src.tbl flag,
-		// so we just want to print the records.
+		// so we just want to print the records. The RO ctx was
+		// established at the top of the function.
 		return execSLQPrint(ctx, ru, mArgs)
 	}
 
@@ -152,6 +164,13 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 	if err != nil {
 		return err
 	}
+
+	// destGrip is now in the Grips handle-keyed cache as RW. Mark the
+	// context read-only for source-side opens performed inside the SLQ
+	// pipeline. If a source in the pipeline shares its handle with
+	// destSrc (self-insert), the cache returns this RW grip and the
+	// pipeline writes through it.
+	ctx = driver.WithReadOnly(ctx)
 
 	// Note: We don't need to worry about closing fromConn and
 	// destConn because they are closed by databases.Close, which

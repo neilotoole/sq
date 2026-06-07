@@ -3,6 +3,7 @@ package cli_test
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -740,4 +741,262 @@ func TestFlagActiveSource_sql(t *testing.T) {
 	tr = testrun.New(ctx, t, tr)
 	require.NoError(t, tr.Exec("src", "--json"))
 	require.Equal(t, "@sqlite", tr.BindMap()["handle"])
+}
+
+// TestSQL_ReadOnlyFlag_HappyPath verifies that --readonly succeeds against
+// a DuckDB source for a SELECT statement.
+func TestSQL_ReadOnlyFlag_HappyPath(t *testing.T) {
+	t.Parallel()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil).Add(*th.Source(sakila.Duck))
+	err := tr.Exec("sql", "--readonly", "SELECT count(*) AS n FROM actor")
+	require.NoError(t, err)
+	require.Contains(t, tr.Out.String(), "200")
+}
+
+// TestSQL_ROAlias_HappyPath verifies the --ro alias behaves identically.
+func TestSQL_ROAlias_HappyPath(t *testing.T) {
+	t.Parallel()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil).Add(*th.Source(sakila.Duck))
+	err := tr.Exec("sql", "--ro", "SELECT count(*) AS n FROM actor")
+	require.NoError(t, err)
+	require.Contains(t, tr.Out.String(), "200")
+}
+
+// TestSQL_ReadOnlyAndAlias_BothSet verifies that specifying both flags
+// is idempotent (no error).
+func TestSQL_ReadOnlyAndAlias_BothSet(t *testing.T) {
+	t.Parallel()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil).Add(*th.Source(sakila.Duck))
+	err := tr.Exec("sql", "--readonly", "--ro", "SELECT count(*) AS n FROM actor")
+	require.NoError(t, err)
+}
+
+// TestSQL_ReadOnly_ConflictWithURL verifies that --readonly + a URL
+// that explicitly says access_mode=READ_WRITE returns a conflict error
+// (not a silent override).
+func TestSQL_ReadOnly_ConflictWithURL(t *testing.T) {
+	t.Parallel()
+	th := testh.New(t)
+	src := th.Source(sakila.Duck).Clone()
+	src.Handle = "@sakila_duck_rw"
+	src.Location += "?access_mode=READ_WRITE"
+
+	tr := testrun.New(th.Context, t, nil).Add(*src)
+	err := tr.Exec("sql", "--src", src.Handle, "--readonly", "SELECT 1")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "--readonly")
+	require.Contains(t, err.Error(), "READ_WRITE")
+	require.Contains(t, err.Error(), src.Handle)
+}
+
+// TestSQL_ROAlias_ConflictWithURL verifies the alias produces the same
+// conflict error (error message names the canonical flag).
+func TestSQL_ROAlias_ConflictWithURL(t *testing.T) {
+	t.Parallel()
+	th := testh.New(t)
+	src := th.Source(sakila.Duck).Clone()
+	src.Handle = "@sakila_duck_rw2"
+	src.Location += "?access_mode=READ_WRITE"
+
+	tr := testrun.New(th.Context, t, nil).Add(*src)
+	err := tr.Exec("sql", "--src", src.Handle, "--ro", "SELECT 1")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "--readonly",
+		"error message should name the canonical flag")
+}
+
+// TestSQL_ReadOnlyWithInsert_DestStaysRW verifies that --readonly applies
+// only to the source side of an --insert operation: the destination must
+// stay READ_WRITE so the INSERT itself succeeds. Mirrors the slq --insert
+// pattern fixed by gh610.
+func TestSQL_ReadOnlyWithInsert_DestStaysRW(t *testing.T) {
+	t.Parallel()
+	th := testh.New(t)
+
+	// Source: shared duckdb fixture (RO is fine).
+	src := th.Source(sakila.Duck)
+
+	// Destination: temp-copy duckdb so we can write into it without
+	// touching the shared fixture.
+	srcPath := proj.Abs("drivers/duckdb/testdata/sakila.duckdb")
+	dstPath := filepath.Join(t.TempDir(), "dest.duckdb")
+	in, err := os.Open(srcPath)
+	require.NoError(t, err)
+	defer in.Close()
+	out, err := os.Create(dstPath)
+	require.NoError(t, err)
+	_, err = io.Copy(out, in)
+	require.NoError(t, err)
+	require.NoError(t, out.Close())
+
+	dest := &source.Source{
+		Handle:   "@sakila_duck_dest",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://" + dstPath,
+	}
+
+	destTbl := "ro_insert_dest_" + t.Name()
+	// DuckDB-safe table name (no slashes, etc.).
+	destTbl = strings.ReplaceAll(destTbl, "/", "_")
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Add(*dest)
+	err = tr.Exec("sql", "--src", src.Handle, "--readonly",
+		"--insert", dest.Handle+"."+destTbl,
+		"SELECT first_name, last_name FROM actor LIMIT 3")
+	require.NoError(t, err,
+		"--readonly should apply to the source only; INSERT into dest must succeed")
+}
+
+// TestSQL_ReadOnly_RejectsWrites verifies a write statement under --readonly
+// surfaces DuckDB's native read-only error cleanly. Uses a temp copy of the
+// shared fixture so the write attempt can't accidentally mutate it.
+func TestSQL_ReadOnly_RejectsWrites(t *testing.T) {
+	t.Parallel()
+	th := testh.New(t)
+
+	srcPath := proj.Abs("drivers/duckdb/testdata/sakila.duckdb")
+	dstPath := filepath.Join(t.TempDir(), "sakila.duckdb")
+	in, err := os.Open(srcPath)
+	require.NoError(t, err)
+	defer in.Close()
+	out, err := os.Create(dstPath)
+	require.NoError(t, err)
+	_, err = io.Copy(out, in)
+	require.NoError(t, err)
+	require.NoError(t, out.Close())
+
+	src := &source.Source{
+		Handle:   "@sakila_duck_ro_reject",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://" + dstPath,
+	}
+
+	tr := testrun.New(th.Context, t, nil).Add(*src)
+	err = tr.Exec("sql", "--src", src.Handle, "--readonly",
+		"INSERT INTO actor (first_name, last_name) VALUES ('X', 'Y')")
+	require.Error(t, err)
+	msg := err.Error()
+	require.True(t,
+		strings.Contains(msg, "read-only") || strings.Contains(msg, "Cannot execute"),
+		"unexpected error: %s", msg)
+}
+
+// TestSQL_ReadOnly_SrcSchema_DoesNotModifyMtime mirrors the SLQ regression
+// test: --src.schema triggers verifySourceCatalogSchema, which pre-opens
+// the source via Grips.Open. Without hoisting the RO ctx flip ahead of
+// determineSources, that pre-open caches a RW grip that subsequent RO
+// opens silently reuse, defeating the --readonly intent.
+func TestSQL_ReadOnly_SrcSchema_DoesNotModifyMtime(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Duck)
+	path := strings.TrimPrefix(src.Location, "duckdb://")
+
+	statBefore, err := os.Stat(path)
+	require.NoError(t, err)
+
+	tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+	require.NoError(t, tr.Exec("sql", "--src", src.Handle, "--src.schema=main",
+		"--readonly", "SELECT count(*) AS n FROM actor"))
+
+	statAfter, err := os.Stat(path)
+	require.NoError(t, err)
+	require.Equal(t, statBefore.ModTime(), statAfter.ModTime(),
+		"DuckDB file mtime must not change after sq sql --readonly --src.schema")
+}
+
+// TestSQL_ReadOnly_Insert_SrcSchema_SourceUntouched verifies the bug
+// Copilot caught in round 2: --insert + --src.schema + --readonly was
+// pre-opening the source RW (via verifySourceCatalogSchema's grips
+// cache), defeating the source-side RO intent. After the fix
+// (ephemeral RO open in verifySourceCatalogSchema), the source file
+// mtime stays put while the destination is opened RW for the INSERT.
+func TestSQL_ReadOnly_Insert_SrcSchema_SourceUntouched(t *testing.T) {
+	t.Parallel()
+	th := testh.New(t)
+
+	src := th.Source(sakila.Duck)
+	srcPath := strings.TrimPrefix(src.Location, "duckdb://")
+
+	// Separate temp-copy DuckDB destination so the INSERT has somewhere
+	// to land without touching the shared fixture.
+	fixturePath := proj.Abs("drivers/duckdb/testdata/sakila.duckdb")
+	dstPath := filepath.Join(t.TempDir(), "dest.duckdb")
+	in, err := os.Open(fixturePath)
+	require.NoError(t, err)
+	defer in.Close()
+	out, err := os.Create(dstPath)
+	require.NoError(t, err)
+	_, err = io.Copy(out, in)
+	require.NoError(t, err)
+	require.NoError(t, out.Close())
+	dest := &source.Source{
+		Handle:   "@duck_dest_ro_insert_schema",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://" + dstPath,
+	}
+	destTbl := "ro_insert_schema_" + strings.ReplaceAll(t.Name(), "/", "_")
+
+	srcStatBefore, err := os.Stat(srcPath)
+	require.NoError(t, err)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Add(*dest)
+	require.NoError(t, tr.Exec("sql",
+		"--src", src.Handle, "--src.schema=main", "--readonly",
+		"--insert", dest.Handle+"."+destTbl,
+		"SELECT first_name, last_name FROM actor LIMIT 3"))
+
+	srcStatAfter, err := os.Stat(srcPath)
+	require.NoError(t, err)
+	require.Equal(t, srcStatBefore.ModTime(), srcStatAfter.ModTime(),
+		"DuckDB source file mtime must not change when --readonly + --insert + --src.schema")
+}
+
+// TestSQL_ReadOnly_Conflict_Preempted verifies the round-3 Copilot
+// finding: the --readonly + URL access_mode=READ_WRITE conflict is
+// surfaced BEFORE any file open, including the schema-validation
+// pre-open triggered by --src.schema. Without the preflight, the
+// file would briefly open RW (URL wins over the RO ctx) before the
+// error fired, mutating the source mtime.
+func TestSQL_ReadOnly_Conflict_Preempted(t *testing.T) {
+	t.Parallel()
+	th := testh.New(t)
+
+	// Copy the shared fixture so we can stat its mtime without races
+	// against parallel tests using the same shared file.
+	fixturePath := proj.Abs("drivers/duckdb/testdata/sakila.duckdb")
+	tmpPath := filepath.Join(t.TempDir(), "sakila.duckdb")
+	in, err := os.Open(fixturePath)
+	require.NoError(t, err)
+	defer in.Close()
+	out, err := os.Create(tmpPath)
+	require.NoError(t, err)
+	_, err = io.Copy(out, in)
+	require.NoError(t, err)
+	require.NoError(t, out.Close())
+
+	src := &source.Source{
+		Handle:   "@sakila_duck_conflict_preempt",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://" + tmpPath + "?access_mode=READ_WRITE",
+	}
+
+	statBefore, err := os.Stat(tmpPath)
+	require.NoError(t, err)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src)
+	err = tr.Exec("sql", "--src", src.Handle, "--src.schema=main",
+		"--readonly", "SELECT 1")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "--readonly")
+	require.Contains(t, err.Error(), "READ_WRITE")
+
+	statAfter, err := os.Stat(tmpPath)
+	require.NoError(t, err)
+	require.Equal(t, statBefore.ModTime(), statAfter.ModTime(),
+		"mtime must not change: conflict must be preempted before any open")
 }

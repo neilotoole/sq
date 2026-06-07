@@ -101,7 +101,15 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
-	dsn, err := dsnFromLocation(src.Location)
+	loc := src.Location
+	if driver.IsReadOnly(ctx) {
+		var changed bool
+		if loc, changed = ApplyReadOnlyToLocation(loc); changed {
+			lg.FromContext(ctx).Debug("DuckDB source opened READ_ONLY",
+				lga.Src, src)
+		}
+	}
+	dsn, err := dsnFromLocation(loc)
 	if err != nil {
 		return nil, err
 	}

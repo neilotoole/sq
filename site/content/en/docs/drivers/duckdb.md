@@ -103,6 +103,37 @@ $ sq add 'duckdb:///path/db.duckdb?memory_limit=4GB&threads=4'
 DuckDB supports [many more settings](https://duckdb.org/docs/configuration/overview);
 the list above covers the parameters most commonly used from the CLI.
 
+## Read-only access by default
+
+For commands that don't write to the source, `sq` opens DuckDB databases with
+`access_mode=READ_ONLY`. This applies to [`sq inspect`](/docs/cmd/inspect),
+[`sq`](/docs/cmd/sq), [`sq diff`](/docs/cmd/diff), and [`sq ping`](/docs/cmd/ping).
+
+The benefits: `sq` does not touch the file's WAL or modification time, multiple `sq`
+processes can read the same file concurrently, and `sq inspect` works on files you have
+read-only access to.
+
+Commands that write ([`sq tbl copy`](/docs/cmd/tbl-copy),
+[`sq tbl drop`](/docs/cmd/tbl-drop),
+[`sq tbl truncate`](/docs/cmd/tbl-truncate)) continue to open `READ_WRITE`.
+
+For [`sq sql`](/docs/cmd/sql), the default remains `READ_WRITE` because the SQL
+statement is opaque to `sq`. Use `sq sql --readonly` (or `--ro`) to opt in to
+read-only mode.
+
+To override the default for any command, set `access_mode` explicitly in the source
+location:
+
+```shell
+$ sq add 'duckdb:///data/inventory.duckdb?access_mode=READ_WRITE' --handle @inv
+```
+
+An explicit URL `access_mode` always wins over the implicit defaults for `sq inspect`,
+`sq slq`, `sq diff`, and `sq ping`. For `sq sql --readonly` (or `--ro`), the explicit
+flag and an explicit URL `access_mode=READ_WRITE` are treated as a contradiction and
+`sq` returns a conflict error: the flag says "do not write", the URL says "open for
+writes", and the user has to resolve the ambiguity before any open happens.
+
 ## Type mapping
 
 | DuckDB type                                               | `sq` kind  | Notes                                                                                                    |

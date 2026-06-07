@@ -18,6 +18,66 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## Unreleased
 
+### Changed
+
+- [`duckdb`](https://sq.io/docs/drivers/duckdb): Read-only commands
+  ([`inspect`](https://sq.io/docs/cmd/inspect), [`sq`](https://sq.io/docs/cmd/sq),
+  [`diff`](https://sq.io/docs/cmd/diff), [`ping`](https://sq.io/docs/cmd/ping)) now open
+  DuckDB sources with `access_mode=READ_ONLY` by default. This avoids open-time WAL
+  writes, allows concurrent read-only access from multiple `sq` processes against the
+  same file, and lets `sq inspect` work on files the user has read-only access to.
+  A user-specified `?access_mode=READ_WRITE` in the source URL overrides the default.
+  ([#610](https://github.com/neilotoole/sq/issues/610))
+- ☢️ The `redact` config option is renamed to
+  [`secrets.reveal`](https://sq.io/docs/config#secretsreveal) with inverted polarity
+  (`secrets.reveal: true` equals legacy `redact: false`). The new default is `false`
+  (secrets are redacted). Existing configs are migrated automatically on first run
+  by a YAML upgrade step; scripts that call `sq config get redact` or
+  `sq config set redact ...` need updating to the new key. The rename completes the
+  polarity-consistency story started by `--reveal` in #717.
+  - As part of the polarity flip, the `--reveal` and `--no-redact` flags are now
+    positive opt-ins only: `--reveal=true` (or just `--reveal`) opts into
+    disclosure, and `--reveal=false` / `--no-redact=false` are no-ops. Previously,
+    `--no-redact=false` would force redaction by virtue of its inverted binding.
+    To force redaction when `secrets.reveal: true` is set in config, override the
+    config value with `sq config set secrets.reveal false` rather than relying on
+    a flag.
+- [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd)
+  now syntax-colors its `erDiagram` source when writing to a terminal.
+- [#729]: [`--expand`](https://sq.io/docs/secrets#expanding-placeholders) is now a persistent
+  root flag, accepted by every subcommand. Previously it lived only on `sq config export`.
+  - Commands that print a source location ([`sq src`](https://sq.io/docs/cmd/src),
+    [`sq ls`](https://sq.io/docs/cmd/ls), [`sq inspect`](https://sq.io/docs/inspect),
+    `sq add`, `sq mv`, and `sq ping` in JSON/YAML output) now pass `${scheme:path}`
+    placeholders through the configured resolvers and print the resolved value.
+    `sq ping`'s text and CSV output do not include a Location column, so `--expand`
+    has no visible effect there. `--expand` composes orthogonally with `--reveal`:
+    `--reveal` flips the redaction filter on whatever string is being displayed;
+    `--expand` decides whether that string is the verbatim placeholder or the
+    resolved value.
+  - The display-expansion step itself is lenient: a per-source resolver failure
+    (missing keyring entry, unset env var, unreadable file) leaves that source's
+    placeholder verbatim and the listing continues. This is independent of
+    connection-time resolution; commands that have to connect (e.g.
+    [`sq inspect`](https://sq.io/docs/inspect), `sq ping`) will still fail at
+    connect time if a missing secret prevents the connection. `sq config export --expand`
+    keeps its existing strict-abort behavior because an export is a snapshot for
+    transfer, and a half-resolved snapshot is the wrong artifact.
+  - Subcommands that don't print a source location (e.g. [`sq sql`](https://sq.io/docs/cmd/sql),
+    `sq slq`, `sq tbl`) accept `--expand` as a silent no-op, so a global alias like
+    `alias sq='sq --reveal --expand'` is safe.
+- [#742]: The [rqlite driver](https://sq.io/docs/drivers/rqlite) now surfaces an
+  actionable hint when a single-node localhost setup hits gorqlite's cluster-discovery
+  default. Any command that opens an `rqlite://` source whose host is loopback
+  (e.g. `localhost`, `127.0.0.1`, `::1`), including [`sq add`](https://sq.io/docs/cmd/add)
+  and [`sq ping`](https://sq.io/docs/cmd/ping), logs a one-line `WARN` pointing at
+  `?disableClusterDiscovery=true` and the
+  [single-node-localhost docs](https://sq.io/docs/drivers/rqlite#single-node-localhost)
+  when the parameter is not explicitly set to `true` or `false`. If the peer-discovery
+  DNS lookup actually fails with "no such host", the error message is rewritten to
+  name the unreachable peer and suggest the same fix, instead of surfacing gorqlite's
+  raw `tried all peers unsuccessfully` text.
+
 ### Added
 
 - [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export): dump the active config to
@@ -74,58 +134,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   operations that need atomicity (CopyTable, AlterTable kind swaps) use rqlite's native
   `/db/execute` batch API; everything else goes through the standard `database/sql`
   adapter via [gorqlite](https://github.com/rqlite/gorqlite).
-
-### Changed
-
-- ☢️ The `redact` config option is renamed to
-  [`secrets.reveal`](https://sq.io/docs/config#secretsreveal) with inverted polarity
-  (`secrets.reveal: true` equals legacy `redact: false`). The new default is `false`
-  (secrets are redacted). Existing configs are migrated automatically on first run
-  by a YAML upgrade step; scripts that call `sq config get redact` or
-  `sq config set redact ...` need updating to the new key. The rename completes the
-  polarity-consistency story started by `--reveal` in #717.
-  - As part of the polarity flip, the `--reveal` and `--no-redact` flags are now
-    positive opt-ins only: `--reveal=true` (or just `--reveal`) opts into
-    disclosure, and `--reveal=false` / `--no-redact=false` are no-ops. Previously,
-    `--no-redact=false` would force redaction by virtue of its inverted binding.
-    To force redaction when `secrets.reveal: true` is set in config, override the
-    config value with `sq config set secrets.reveal false` rather than relying on
-    a flag.
-- [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd)
-  now syntax-colors its `erDiagram` source when writing to a terminal.
-- [#729]: [`--expand`](https://sq.io/docs/secrets#expanding-placeholders) is now a persistent
-  root flag, accepted by every subcommand. Previously it lived only on `sq config export`.
-  - Commands that print a source location ([`sq src`](https://sq.io/docs/cmd/src),
-    [`sq ls`](https://sq.io/docs/cmd/ls), [`sq inspect`](https://sq.io/docs/inspect),
-    `sq add`, `sq mv`, and `sq ping` in JSON/YAML output) now pass `${scheme:path}`
-    placeholders through the configured resolvers and print the resolved value.
-    `sq ping`'s text and CSV output do not include a Location column, so `--expand`
-    has no visible effect there. `--expand` composes orthogonally with `--reveal`:
-    `--reveal` flips the redaction filter on whatever string is being displayed;
-    `--expand` decides whether that string is the verbatim placeholder or the
-    resolved value.
-  - The display-expansion step itself is lenient: a per-source resolver failure
-    (missing keyring entry, unset env var, unreadable file) leaves that source's
-    placeholder verbatim and the listing continues. This is independent of
-    connection-time resolution; commands that have to connect (e.g.
-    [`sq inspect`](https://sq.io/docs/inspect), `sq ping`) will still fail at
-    connect time if a missing secret prevents the connection. `sq config export --expand`
-    keeps its existing strict-abort behavior because an export is a snapshot for
-    transfer, and a half-resolved snapshot is the wrong artifact.
-  - Subcommands that don't print a source location (e.g. [`sq sql`](https://sq.io/docs/cmd/sql),
-    `sq slq`, `sq tbl`) accept `--expand` as a silent no-op, so a global alias like
-    `alias sq='sq --reveal --expand'` is safe.
-- [#742]: The [rqlite driver](https://sq.io/docs/drivers/rqlite) now surfaces an
-  actionable hint when a single-node localhost setup hits gorqlite's cluster-discovery
-  default. Any command that opens an `rqlite://` source whose host is loopback
-  (e.g. `localhost`, `127.0.0.1`, `::1`), including [`sq add`](https://sq.io/docs/cmd/add)
-  and [`sq ping`](https://sq.io/docs/cmd/ping), logs a one-line `WARN` pointing at
-  `?disableClusterDiscovery=true` and the
-  [single-node-localhost docs](https://sq.io/docs/drivers/rqlite#single-node-localhost)
-  when the parameter is not explicitly set to `true` or `false`. If the peer-discovery
-  DNS lookup actually fails with "no such host", the error message is rewritten to
-  name the unreachable peer and suggest the same fix, instead of surfacing gorqlite's
-  raw `tried all peers unsuccessfully` text.
+- [#610]: [`sq sql`](https://sq.io/docs/cmd/sql) accepts `--readonly` (alias
+  `--ro`) to open DuckDB sources in read-only mode. Default remains read-write
+  because reliable statement-level detection isn't feasible without a standalone
+  DuckDB parser binding.
 
 ### Fixed
 
@@ -1708,6 +1720,7 @@ make working with lots of sources much easier.
 [#572]: https://github.com/neilotoole/sq/pull/572
 [#601]: https://github.com/neilotoole/sq/issues/601
 [#602]: https://github.com/neilotoole/sq/pull/602
+[#610]: https://github.com/neilotoole/sq/issues/610
 [#612]: https://github.com/neilotoole/sq/issues/612
 [#613]: https://github.com/neilotoole/sq/issues/613
 [#615]: https://github.com/neilotoole/sq/issues/615

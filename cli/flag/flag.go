@@ -125,6 +125,19 @@ const (
 	SQLQuery      = "query"
 	SQLQueryUsage = "Execute the SQL as a query (as opposed to statement)"
 
+	// SQLReadOnly is the canonical name for `sq sql --readonly`, which
+	// asks the driver to open the source in read-only mode (currently
+	// honored by DuckDB; other drivers ignore it).
+	SQLReadOnly      = "readonly"
+	SQLReadOnlyUsage = "Open sources read-only (DuckDB only; other drivers ignore)"
+
+	// SQLReadOnlyAlias is a convenience alias for SQLReadOnly. It is
+	// registered as a separate pflag on the sql subcommand (see
+	// cli/cmd_sql.go), following the dual-registration pattern that
+	// cmd_root.go uses for --reveal / --no-redact.
+	SQLReadOnlyAlias      = "ro"
+	SQLReadOnlyAliasUsage = "Alias for --readonly"
+
 	TSV      = "tsv"
 	TSVUsage = "Output TSV"
 
