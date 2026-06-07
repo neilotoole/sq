@@ -1,8 +1,10 @@
 package rqlite
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"log/slog"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3" // For TestWriteAtomic_DBTypeCheck.
@@ -10,8 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh/tu"
 )
@@ -338,4 +343,44 @@ func TestBuildCreateTableStmt_ForeignKey(t *testing.T) {
 	require.Contains(t, got, `ON DELETE CASCADE ON UPDATE CASCADE`)
 	require.Contains(t, got, `ON DELETE RESTRICT ON UPDATE SET NULL`)
 	require.Contains(t, got, `"film_id" INTEGER UNIQUE`)
+}
+
+func Test_maybeWarnLocalhostDiscovery(t *testing.T) {
+	testCases := []struct {
+		name    string
+		loc     string
+		wantLog bool
+	}{
+		{name: "localhost", loc: "rqlite://localhost:4001", wantLog: true},
+		{name: "localhost upper", loc: "rqlite://LOCALHOST:4001", wantLog: true},
+		{name: "127.0.0.1", loc: "rqlite://127.0.0.1:4001", wantLog: true},
+		{name: "ipv6 loopback", loc: "rqlite://[::1]:4001", wantLog: true},
+		{name: "127.0.0.5", loc: "rqlite://127.0.0.5:4001", wantLog: true},
+		{name: "remote host", loc: "rqlite://example.com:4001", wantLog: false},
+		{name: "discovery off explicit", loc: "rqlite://localhost:4001?disableClusterDiscovery=true", wantLog: false},
+		{name: "discovery on explicit", loc: "rqlite://localhost:4001?disableClusterDiscovery=false", wantLog: false},
+		{name: "localhost other params", loc: "rqlite://localhost:4001?level=strong", wantLog: true},
+		{name: "https loopback", loc: "rqlites://localhost:4001", wantLog: true},
+		{name: "malformed", loc: "rqlite://%zz", wantLog: false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			h := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
+			ctx := lg.NewContext(context.Background(), slog.New(h))
+
+			src := &source.Source{Handle: "@rq", Location: tc.loc, Type: drivertype.Rqlite}
+			maybeWarnLocalhostDiscovery(ctx, src)
+
+			got := buf.String()
+			if tc.wantLog {
+				require.Contains(t, got, "disableClusterDiscovery",
+					"expected warn mentioning disableClusterDiscovery, got: %s", got)
+				require.Contains(t, got, "level=WARN", "expected WARN level, got: %s", got)
+			} else {
+				require.Empty(t, got, "expected no log output, got: %s", got)
+			}
+		})
+	}
 }
