@@ -475,9 +475,10 @@ func Test_rewritePeerDNSError(t *testing.T) {
 			}
 
 			if !tc.wantRewrite {
-				// Pass-through: same instance returned.
-				require.Equal(t, tc.err.Error(), got.Error(),
-					"expected pass-through, got rewritten message")
+				// Pass-through: helper must return the original error
+				// unchanged so callers can errors.Is against it.
+				require.True(t, errors.Is(got, tc.err),
+					"expected pass-through (errors.Is), got rewritten: %v", got)
 				return
 			}
 
