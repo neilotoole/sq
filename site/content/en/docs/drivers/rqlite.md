@@ -45,7 +45,7 @@ rqlite://username:password@hostname:port?param=value
 rqlites://username:password@hostname:port?param=value
 ```
 
-For multi-node clusters, point at any node. gorqlite discovers peers
+For multi-node clusters, point at any node. `gorqlite` discovers peers
 and follows leader redirects automatically. Disable that with
 `?disableClusterDiscovery=true` when talking to a single node behind a
 proxy that should not receive cluster gossip.
@@ -97,10 +97,10 @@ with multiple statements. `sq` maps onto this as follows:
 
 - **`sq tbl copy` and `ALTER TABLE` kind swaps are lossy.** The driver
   rebuilds the target table from `sq`'s metadata model, which preserves
-  column names, kinds, single-column primary keys, NOT NULL, and the
-  *presence* of column defaults. It does **not** preserve UNIQUE
-  constraints, FOREIGN KEY constraints, AUTOINCREMENT, CHECK
-  constraints, indexes, triggers, or the original DEFAULT *expression
+  column names, kinds, single-column primary keys, `NOT NULL`, and the
+  *presence* of column defaults. It does **not** preserve `UNIQUE`
+  constraints, `FOREIGN KEY` constraints, `AUTOINCREMENT`, `CHECK`
+  constraints, indexes, triggers, or the original `DEFAULT` *expression
   values* (substituted by canned per-kind defaults like `0` or `''`).
   Faithful preservation via SQL-text rewrite is tracked in
   [#737](https://github.com/neilotoole/sq/issues/737).
@@ -112,7 +112,7 @@ with multiple statements. `sq` maps onto this as follows:
 
 ## Inspect field provenance
 
-`sq inspect` populates the fields below from rqlite's HTTP status
+[`sq inspect`](/docs/inspect) populates the fields below from rqlite's HTTP status
 endpoints, SQLite pragmas, and `sqlite_master`.
 
 ### Source-level fields
