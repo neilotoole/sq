@@ -883,3 +883,28 @@ func TestSQL_ReadOnly_RejectsWrites(t *testing.T) {
 		strings.Contains(msg, "read-only") || strings.Contains(msg, "Cannot execute"),
 		"unexpected error: %s", msg)
 }
+
+// TestSQL_ReadOnly_SrcSchema_DoesNotModifyMtime mirrors the SLQ regression
+// test: --src.schema triggers verifySourceCatalogSchema, which pre-opens
+// the source via Grips.Open. Without hoisting the RO ctx flip ahead of
+// determineSources, that pre-open caches a RW grip that subsequent RO
+// opens silently reuse, defeating the --readonly intent.
+func TestSQL_ReadOnly_SrcSchema_DoesNotModifyMtime(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Duck)
+	path := strings.TrimPrefix(src.Location, "duckdb://")
+
+	statBefore, err := os.Stat(path)
+	require.NoError(t, err)
+
+	tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+	require.NoError(t, tr.Exec("sql", "--src", src.Handle, "--src.schema=main",
+		"--readonly", "SELECT count(*) AS n FROM actor"))
+
+	statAfter, err := os.Stat(path)
+	require.NoError(t, err)
+	require.Equal(t, statBefore.ModTime(), statAfter.ModTime(),
+		"DuckDB file mtime must not change after sq sql --readonly --src.schema")
+}
