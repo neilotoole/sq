@@ -10,8 +10,8 @@ weight: 2038
 toc: false
 url: /docs/cmd/config-keyring-rm
 ---
-See [Secrets](/docs/secrets#managing-keyring-entries) for an overview of
-the `sq config keyring` command group. `rm` only deletes the keyring
+Part of the [`sq config keyring`](/docs/cmd/config-keyring) command group;
+see [Secrets](/docs/secrets) for the broader picture. `rm` only deletes the keyring
 entry; any `${keyring:PATH}` reference left in `sq.yml` will fail to
 resolve at connect time. Run
 [`sq config keyring ls`](/docs/cmd/config-keyring-ls) first to find
