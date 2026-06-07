@@ -124,20 +124,49 @@ func activeSrcAndSchemaFromFlagsOrConfig(ru *run.Run) (*source.Source, error) {
 // DB. If both fields are empty, this is a no-op. This function is typically
 // used when the source's catalog or schema are modified, e.g. via [flag.ActiveSchema].
 //
+// The validation grip is opened with the read-only hint and is NOT cached
+// in [driver.Grips]: schema/catalog existence checks are pure reads, and
+// caching here would have surprising downstream effects. In particular,
+// for DuckDB with a `--readonly --insert` invocation, a cached RW grip
+// from validation would silently defeat the source-side RO intent the
+// caller plumbed through ctx (and a cached RO grip would defeat the
+// destination-side RW intent on a self-insert). Keeping this open
+// ephemeral and explicitly RO sidesteps both pitfalls.
+//
 // See also: processFlagActiveSchema.
 func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Source) error {
 	if src.Catalog == "" && src.Schema == "" {
 		return nil
 	}
 
-	db, drvr, err := ru.DB(ctx, src)
+	d, err := ru.Grips.DriverFor(src.Type)
+	if err != nil {
+		return err
+	}
+	sqlDrvr, ok := d.(driver.SQLDriver)
+	if !ok {
+		return errz.Errorf("%s: driver %s does not support catalog/schema validation",
+			src.Handle, src.Type)
+	}
+
+	// Force read-only on the validation open; the cached-grip pitfalls
+	// described in the godoc above only arise if the validation grip
+	// inherits the caller's write intent.
+	openCtx := driver.WithReadOnly(ctx)
+	grip, err := d.Open(openCtx, src)
+	if err != nil {
+		return err
+	}
+	defer lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDB, grip)
+
+	db, err := grip.DB(openCtx)
 	if err != nil {
 		return err
 	}
 
 	var exists bool
 	if src.Catalog != "" {
-		if exists, err = drvr.CatalogExists(ctx, db, src.Catalog); err != nil {
+		if exists, err = sqlDrvr.CatalogExists(openCtx, db, src.Catalog); err != nil {
 			return err
 		}
 		if !exists {
@@ -146,7 +175,7 @@ func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Sou
 	}
 
 	if src.Schema != "" {
-		if exists, err = drvr.SchemaExists(ctx, db, src.Schema); err != nil {
+		if exists, err = sqlDrvr.SchemaExists(openCtx, db, src.Schema); err != nil {
 			return err
 		}
 		if !exists {

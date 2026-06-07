@@ -908,3 +908,50 @@ func TestSQL_ReadOnly_SrcSchema_DoesNotModifyMtime(t *testing.T) {
 	require.Equal(t, statBefore.ModTime(), statAfter.ModTime(),
 		"DuckDB file mtime must not change after sq sql --readonly --src.schema")
 }
+
+// TestSQL_ReadOnly_Insert_SrcSchema_SourceUntouched verifies the bug
+// Copilot caught in round 2: --insert + --src.schema + --readonly was
+// pre-opening the source RW (via verifySourceCatalogSchema's grips
+// cache), defeating the source-side RO intent. After the fix
+// (ephemeral RO open in verifySourceCatalogSchema), the source file
+// mtime stays put while the destination is opened RW for the INSERT.
+func TestSQL_ReadOnly_Insert_SrcSchema_SourceUntouched(t *testing.T) {
+	t.Parallel()
+	th := testh.New(t)
+
+	src := th.Source(sakila.Duck)
+	srcPath := strings.TrimPrefix(src.Location, "duckdb://")
+
+	// Separate temp-copy DuckDB destination so the INSERT has somewhere
+	// to land without touching the shared fixture.
+	fixturePath := proj.Abs("drivers/duckdb/testdata/sakila.duckdb")
+	dstPath := filepath.Join(t.TempDir(), "dest.duckdb")
+	in, err := os.Open(fixturePath)
+	require.NoError(t, err)
+	defer in.Close()
+	out, err := os.Create(dstPath)
+	require.NoError(t, err)
+	_, err = io.Copy(out, in)
+	require.NoError(t, err)
+	require.NoError(t, out.Close())
+	dest := &source.Source{
+		Handle:   "@duck_dest_ro_insert_schema",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://" + dstPath,
+	}
+	destTbl := "ro_insert_schema_" + strings.ReplaceAll(t.Name(), "/", "_")
+
+	srcStatBefore, err := os.Stat(srcPath)
+	require.NoError(t, err)
+
+	tr := testrun.New(th.Context, t, nil).Add(*src).Add(*dest)
+	require.NoError(t, tr.Exec("sql",
+		"--src", src.Handle, "--src.schema=main", "--readonly",
+		"--insert", dest.Handle+"."+destTbl,
+		"SELECT first_name, last_name FROM actor LIMIT 3"))
+
+	srcStatAfter, err := os.Stat(srcPath)
+	require.NoError(t, err)
+	require.Equal(t, srcStatBefore.ModTime(), srcStatAfter.ModTime(),
+		"DuckDB source file mtime must not change when --readonly + --insert + --src.schema")
+}
