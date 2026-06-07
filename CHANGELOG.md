@@ -20,6 +20,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
+- [#718]: [Parquet driver](https://sq.io/docs/drivers/parquet): add Apache Parquet as a first-class
+  document source. Reads via the bundled DuckDB `parquet` and `httpfs` extensions, so column and
+  predicate pushdown apply for local and remote files. Supports `sq add`, `sq inspect`, `sq diff`,
+  and SLQ queries on `.parquet` and `.pq` files.
 - [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export): dump the active config to
   YAML, primarily for backups. See [Secrets](https://sq.io/docs/secrets) for the bigger picture.
   - By default, output is a faithful-ish copy of the live config: `${scheme:path}` placeholders are
@@ -1691,6 +1695,7 @@ make working with lots of sources much easier.
 [#692]: https://github.com/neilotoole/sq/issues/692
 [#716]: https://github.com/neilotoole/sq/issues/716
 [#717]: https://github.com/neilotoole/sq/issues/717
+[#718]: https://github.com/neilotoole/sq/issues/718
 [#714]: https://github.com/neilotoole/sq/issues/714
 [#720]: https://github.com/neilotoole/sq/issues/720
 [#729]: https://github.com/neilotoole/sq/issues/729
