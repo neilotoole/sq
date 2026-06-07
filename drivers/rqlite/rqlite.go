@@ -298,8 +298,9 @@ func dsnFromLocation(loc string) (string, error) {
 	case strings.HasPrefix(loc, Prefix):
 		scheme = "http"
 	default:
-		return "", errz.Errorf("rqlite: location must start with %q or %q, got: %s",
-			Prefix, PrefixSecure, loc)
+		// Don't include loc: it may carry credentials.
+		return "", errz.Errorf("rqlite: location must start with %q or %q",
+			Prefix, PrefixSecure)
 	}
 
 	u, err := url.Parse(loc)
