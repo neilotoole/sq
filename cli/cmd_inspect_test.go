@@ -203,7 +203,8 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 						require.NotEmpty(t, srcMeta.DBDriver)
 						require.NotEmpty(t, srcMeta.DBProduct)
 						require.NotEmpty(t, srcMeta.DBVersion)
-						require.NotZero(t, srcMeta.Size)
+						require.NotNil(t, srcMeta.Size)
+						require.NotZero(t, *srcMeta.Size)
 					})
 
 					t.Run("inspect_dbprops", func(t *testing.T) {

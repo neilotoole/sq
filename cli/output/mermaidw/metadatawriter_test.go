@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -87,7 +88,7 @@ func newTestSource() *metadata.Source {
 		Name:       "testdb",
 		Driver:     drivertype.Type("sqlite3"),
 		Schema:     "main",
-		Size:       1048576,
+		Size:       lo.ToPtr(int64(1048576)),
 		TableCount: 2,
 		ViewCount:  0,
 		Tables:     []*metadata.Table{actor, filmActor},

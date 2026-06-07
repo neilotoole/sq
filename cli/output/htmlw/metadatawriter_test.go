@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -63,7 +64,7 @@ func newTestSource() *metadata.Source {
 		}}},
 	}
 	src := &metadata.Source{
-		Handle: "@test", Name: "testdb", Schema: "main", Size: 1048576,
+		Handle: "@test", Name: "testdb", Schema: "main", Size: lo.ToPtr(int64(1048576)),
 		TableCount: 2, ViewCount: 0, Tables: []*metadata.Table{actor, filmActor},
 	}
 	metadata.LinkForeignKeys(nil, src)
@@ -170,7 +171,7 @@ func TestMetadataWriter_indexesAndUniqueConstraints(t *testing.T) {
 func TestMetadataWriter_views(t *testing.T) {
 	src := &metadata.Source{
 		Handle: "@test", Name: "db", Driver: drivertype.Type("sqlite3"),
-		Schema: "main", Size: 1024, TableCount: 1, ViewCount: 1,
+		Schema: "main", Size: lo.ToPtr(int64(1024)), TableCount: 1, ViewCount: 1,
 		Tables: []*metadata.Table{
 			{Name: "t_actor", TableType: "table", Columns: []*metadata.Column{{Name: "id", ColumnType: "int"}}},
 			{Name: "v_films", TableType: "view", Columns: []*metadata.Column{{Name: "id", ColumnType: "int"}}},

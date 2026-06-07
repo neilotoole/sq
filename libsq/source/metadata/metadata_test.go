@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -115,7 +116,7 @@ func TestSource_Clone(t *testing.T) {
 			DBProduct:  "PostgreSQL 14.0",
 			DBVersion:  "14.0",
 			User:       "postgres",
-			Size:       1024,
+			Size:       lo.ToPtr(int64(1024)),
 			TableCount: 10,
 			ViewCount:  5,
 			DBProperties: map[string]any{
