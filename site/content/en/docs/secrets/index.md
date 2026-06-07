@@ -171,7 +171,7 @@ running `sq`.
 [gnome-keyring]: https://wiki.gnome.org/Projects/GnomeKeyring
 [kwallet]: https://apps.kde.org/kwalletmanager5/
 
-The typical pattern is [`sq add DSN --store keyring`](/docs/cmd/add), which
+The typical pattern is [`sq add --store keyring DSN`](/docs/cmd/add), which
 mints an opaque 10-character ID (e.g. `j2k7m3pxtz`), writes the full conn
 string to the keyring at that ID, and stores a bare placeholder in YAML:
 
