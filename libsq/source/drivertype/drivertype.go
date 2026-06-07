@@ -54,4 +54,7 @@ const (
 
 	// XLSX is for Microsoft Excel spreadsheets.
 	XLSX = Type("xlsx")
+
+	// Parquet is for Apache Parquet.
+	Parquet = Type("parquet")
 )
