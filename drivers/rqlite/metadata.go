@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -227,13 +229,21 @@ func DBTypeForKind(knd kind.Kind) string {
 }
 
 // newRecordFromScanRow converts a Scan row into a record.Record. The
-// shape mirrors the sqlite3 driver's helper, minus a few cases that
-// only fire for SQL drivers that report richer types than gorqlite
-// does (decimal.Decimal, sqlz.NullBool from sqlserver). The remaining
-// cases are exercised when scan destinations set by setScanType
-// (sql.Null* wrappers and *nullTime) are unwrapped here.
+// shape mirrors the sqlite3 driver's helper. Two rqlite-specific
+// quirks are handled here:
 //
-//nolint:gocognit
+//   - gorqlite hands back JSON numbers as float64, so for kind.Int
+//     columns the float64 is coerced to int64. For kind.Decimal
+//     columns the value is shaped as decimal.Decimal, with a
+//     whole-number coercion to int64 that mirrors SQLite's NUMERIC
+//     affinity (mattn/go-sqlite3 surfaces integer-valued NUMERIC
+//     cells as int64; we match that so the cross-driver record
+//     contract is honored).
+//   - The scan destination for kind.Decimal columns is
+//     *decimal.NullDecimal (set in setScanType), so that case is
+//     unwrapped here too.
+//
+//nolint:funlen,gocognit
 func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 	rec = make([]any, len(row))
 
@@ -261,11 +271,9 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 			record.SetKindIfUnknown(meta, i, kind.Int)
 			rec[i] = col
 		case *float64:
-			record.SetKindIfUnknown(meta, i, kind.Float)
-			rec[i] = *col
+			rec[i] = coerceFloat64(meta, i, *col)
 		case float64:
-			record.SetKindIfUnknown(meta, i, kind.Float)
-			rec[i] = col
+			rec[i] = coerceFloat64(meta, i, col)
 		case *bool:
 			record.SetKindIfUnknown(meta, i, kind.Bool)
 			rec[i] = *col
@@ -341,6 +349,19 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 				rec[i] = nil
 			}
 			record.SetKindIfUnknown(meta, i, kind.Float)
+		case *decimal.NullDecimal:
+			if !col.Valid {
+				rec[i] = nil
+			} else {
+				rec[i] = coerceDecimal(col.Decimal)
+			}
+			record.SetKindIfUnknown(meta, i, kind.Decimal)
+		case *decimal.Decimal:
+			rec[i] = coerceDecimal(*col)
+			record.SetKindIfUnknown(meta, i, kind.Decimal)
+		case decimal.Decimal:
+			rec[i] = coerceDecimal(col)
+			record.SetKindIfUnknown(meta, i, kind.Decimal)
 		case *sql.NullBool:
 			if col.Valid {
 				rec[i] = col.Bool
@@ -377,6 +398,42 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 	}
 
 	return rec
+}
+
+// coerceFloat64 reshapes a float64 to the type implied by the
+// column's kind. gorqlite returns every JSON number as float64 so we
+// have to demote back to int64 for integer columns; otherwise the
+// cross-driver record contract (int columns yield int64) is broken.
+// For Decimal columns the value is converted to decimal.Decimal,
+// with an additional whole-number coercion to int64 that matches
+// what mattn/go-sqlite3 emits natively for NUMERIC-affinity columns
+// that happen to hold integers (Sakila's actor_id is exactly this
+// shape).
+//
+// Unknown kinds pass through as float64 and have the kind set to
+// Float, mirroring the original behavior.
+func coerceFloat64(meta record.Meta, i int, v float64) any {
+	switch meta[i].Kind() { //nolint:exhaustive
+	case kind.Int:
+		return int64(v)
+	case kind.Bool:
+		return v != 0
+	case kind.Decimal:
+		return coerceDecimal(decimal.NewFromFloat(v))
+	default:
+		record.SetKindIfUnknown(meta, i, kind.Float)
+		return v
+	}
+}
+
+// coerceDecimal demotes whole-number decimals to int64 so NUMERIC
+// columns whose stored values are integers match the cross-driver
+// record contract. Non-integer decimals are returned as-is.
+func coerceDecimal(d decimal.Decimal) any {
+	if d.IsInteger() {
+		return d.IntPart()
+	}
+	return d
 }
 
 // getTableMetadata returns metadata for a single table. The shape
