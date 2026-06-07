@@ -212,3 +212,73 @@ func TestWalk_paramsMultipleWithLastEmpty(t *testing.T) {
 	require.True(t, got.ParamAtValue)
 	require.Equal(t, "require", got.Params.Get("sslmode"))
 }
+
+var sqlserverShape = LocationShape{
+	Type:    drivertype.MSSQL,
+	Schemes: []string{"sqlserver"},
+	Segments: []Segment{
+		{Kind: SegCredentials, Optional: true},
+		{Kind: SegAuthority},
+		{Kind: SegPathName, Optional: true, Placeholder: "instance"},
+		{Kind: SegConnParams, Optional: true, LeadingKey: "database"},
+	},
+}
+
+var rqliteShape = LocationShape{
+	Type:    drivertype.Rqlite,
+	Schemes: []string{"rqlite", "rqlites"},
+	Segments: []Segment{
+		{Kind: SegCredentials, Optional: true},
+		{Kind: SegAuthority},
+		{Kind: SegConnParams, Optional: true},
+	},
+}
+
+// TestWalk_gh743BareHost covers issue #743: bare-host URLs (no
+// user@) with a trailing '?' must reach SegConnParams, not stall
+// in SegCredentials.
+func TestWalk_gh743BareHost(t *testing.T) {
+	cases := []struct {
+		name  string
+		shape LocationShape
+		loc   string
+	}{
+		{"pg_bare_host_port_q", pgShape, "postgres://localhost:5432?"},
+		{"sqlserver_bare_host_port_q", sqlserverShape, "sqlserver://localhost:1433?"},
+		{"rqlite_bare_host_port_q", rqliteShape, "rqlite://localhost:4001?"},
+		{"rqlites_bare_host_port_q", rqliteShape, "rqlites://localhost:4001?"},
+		{"pg_bare_host_only_q", pgShape, "postgres://localhost?"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := Walk(tc.shape, tc.loc)
+			require.NoError(t, err)
+			require.Equal(t, SegConnParams, got.Current,
+				"bug #743: should be in SegConnParams, not %v", got.Current)
+			require.NotContains(t, got.Done, SegCredentials)
+		})
+	}
+}
+
+func TestWalk_rqliteAltScheme(t *testing.T) {
+	got, err := Walk(rqliteShape, "rqlites://alice@h:8443?level=strong")
+	require.NoError(t, err)
+	require.Equal(t, "rqlites", got.Scheme)
+	require.Equal(t, SegConnParams, got.Current)
+}
+
+func TestWalk_sqlserverDatabaseInQuery(t *testing.T) {
+	got, err := Walk(sqlserverShape, "sqlserver://alice@h?database=mydb")
+	require.NoError(t, err)
+	require.Equal(t, SegConnParams, got.Current)
+	require.Equal(t, "database", got.ParamLastKey)
+	require.True(t, got.ParamAtValue)
+}
+
+func TestWalk_sqlserverInstanceAndDatabase(t *testing.T) {
+	got, err := Walk(sqlserverShape, "sqlserver://alice@h/myinst?database=mydb")
+	require.NoError(t, err)
+	require.Contains(t, got.Done, SegPathName)
+	require.Equal(t, "myinst", got.PathName)
+	require.Equal(t, SegConnParams, got.Current)
+}
