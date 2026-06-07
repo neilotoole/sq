@@ -26,6 +26,8 @@ var dbSchemes = []string{
 	"sqlserver",
 	"postgres",
 	"sqlite3",
+	"rqlite",
+	"rqlites",
 	"duckdb",
 	"clickhouse",
 	"oracle",
@@ -123,7 +125,29 @@ func Short(loc string) string {
 		return filepath.Base(loc)
 	}
 
-	// It's a SQL driver
+	// It's a SQL driver.
+	//
+	// rqlite (rqlite:// for HTTP, rqlites:// for HTTPS) is a network SQL
+	// driver, but xo/dburl doesn't know its schemes, so Parse-ing through
+	// dburl returns an error and the fallback "return loc" would echo
+	// inline credentials. Handle it via url.ParseRequestURI here, mirroring
+	// the user@host[:port] shape used for the other DSN drivers below.
+	if strings.HasPrefix(loc, "rqlite://") || strings.HasPrefix(loc, "rqlites://") {
+		ru, err := url.ParseRequestURI(loc)
+		if err != nil {
+			// Couldn't parse; fall back to best-effort credential masking
+			// rather than returning loc verbatim.
+			return redactBestEffort(loc)
+		}
+		sb := strings.Builder{}
+		if ru.User != nil && len(ru.User.Username()) > 0 {
+			sb.WriteString(ru.User.Username())
+			sb.WriteString("@")
+		}
+		sb.WriteString(ru.Host)
+		return sb.String()
+	}
+
 	u, err := dburl.Parse(loc)
 	if err != nil {
 		return loc
@@ -280,6 +304,13 @@ func Parse(loc string) (*Fields, error) {
 		return fields, nil
 	}
 
+	// rqlite (rqlite:// for HTTP, rqlites:// for HTTPS) is a network SQL
+	// driver, but xo/dburl doesn't know its schemes, so we parse it here
+	// rather than fall through to dburl.Parse below.
+	if strings.HasPrefix(loc, "rqlite://") || strings.HasPrefix(loc, "rqlites://") {
+		return parseRqlite(loc, fields)
+	}
+
 	if after, ok := strings.CutPrefix(loc, duckdbPrefix); ok {
 		fpath := after
 
@@ -360,6 +391,34 @@ func Parse(loc string) (*Fields, error) {
 		fields.Name = strings.TrimPrefix(u.Path, "/")
 	}
 
+	return fields, nil
+}
+
+// parseRqlite parses an rqlite:// or rqlites:// location into fields.
+// xo/dburl doesn't recognize either scheme, so this bypass uses
+// url.ParseRequestURI directly. fields is partially populated by the
+// caller; this function fills in the rqlite-specific bits.
+func parseRqlite(loc string, fields *Fields) (*Fields, error) {
+	u, err := url.ParseRequestURI(loc)
+	if err != nil {
+		return nil, errz.Wrapf(err, "parse location: %s", loc)
+	}
+
+	fields.Scheme = u.Scheme
+	fields.DriverType = drivertype.Rqlite
+	fields.DSN = loc
+	fields.Hostname = u.Hostname()
+	if u.User != nil {
+		fields.User = u.User.Username()
+		fields.Pass, _ = u.User.Password()
+	}
+	if u.Port() != "" {
+		fields.Port, err = strconv.Atoi(u.Port())
+		if err != nil {
+			return nil, errz.Wrapf(err, "parse location: invalid port {%s}: %s", u.Port(), loc)
+		}
+	}
+	fields.Name = strings.TrimPrefix(u.Path, "/")
 	return fields, nil
 }
 

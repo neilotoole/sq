@@ -1,5 +1,5 @@
 [en]
-  languageName = "English"
+  label = "English"
   contentDir = "content/en"
   weight = 10
   [en.params]
@@ -7,7 +7,7 @@
     languageTag = "en-US"
 
 [de]
-  languageName = "German"
+  label = "German"
   contentDir = "content/de"
   weight = 15
   [de.params]
@@ -15,7 +15,7 @@
     languageTag = "de-DE"
 
 [nl]
-  languageName = "Nederlands"
+  label = "Nederlands"
   contentDir = "content/nl"
   weight = 20
   [nl.params]

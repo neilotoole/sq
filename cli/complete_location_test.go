@@ -26,6 +26,8 @@ var locSchemes = []string{
 	"duckdb://",
 	"mysql://",
 	"postgres://",
+	"rqlite://",
+	"rqlites://",
 	"sqlite3://",
 	"sqlserver://",
 }
@@ -381,6 +383,85 @@ func TestCompleteAddLocation_SQLServer(t *testing.T) {
 				"sqlserver://alice@server?database=sakila&tlsmin=1.1",
 				"sqlserver://alice@server?database=sakila&tlsmin=1.2",
 				"sqlserver://alice@server?database=sakila&tlsmin=1.3",
+			},
+			wantResult: stdDirective,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
+			args := append([]string{"add"}, tc.args...)
+			got := testComplete(t, nil, args...)
+			assert.Equal(t, tc.wantResult, got.result, got.directives)
+			assert.Equal(t, tc.want, got.values)
+		})
+	}
+}
+
+// TestCompleteAddLocation_Rqlite is a smoke test for the rqlite
+// completion path: scheme partial to "rqlite://"/"rqlites://", and
+// query-param completion driven by ConnParams (level,
+// disableClusterDiscovery). rqlite is networked (no file path),
+// so file-enumeration cases are not exercised here.
+func TestCompleteAddLocation_Rqlite(t *testing.T) {
+	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
+
+	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
+	t.Logf("Working dir: %s", wd)
+
+	testCases := []struct {
+		args       []string
+		want       []string
+		wantResult cobra.ShellCompDirective
+	}{
+		{
+			// "rqlite:" only prefix-matches "rqlite://"; "rqlites://"
+			// is filtered out because it does not start with "rqlite:".
+			args:       []string{"rqlite:"},
+			want:       []string{"rqlite://"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"rqlite:/"},
+			want:       []string{"rqlite://"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"rqlites:"},
+			want:       []string{"rqlites://"},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"rqlite://"},
+			want: []string{
+				"rqlite://username",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"rqlites://"},
+			want: []string{
+				"rqlites://username",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"rqlite://alice@host:4001?"},
+			want: []string{
+				"rqlite://alice@host:4001?disableClusterDiscovery=",
+				"rqlite://alice@host:4001?level=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			// Values for "level=" are returned in ConnParams declaration
+			// order (none, weak, linearizable, strong), not sorted.
+			args: []string{"rqlite://alice@host:4001?level="},
+			want: []string{
+				"rqlite://alice@host:4001?level=none",
+				"rqlite://alice@host:4001?level=weak",
+				"rqlite://alice@host:4001?level=linearizable",
+				"rqlite://alice@host:4001?level=strong",
 			},
 			wantResult: stdDirective,
 		},

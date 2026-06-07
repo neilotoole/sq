@@ -19,6 +19,10 @@ const (
 	// SQLite is for sqlite3.
 	SQLite = Type("sqlite3")
 
+	// Rqlite is for rqlite, a distributed relational database built on
+	// SQLite. See https://rqlite.io.
+	Rqlite = Type("rqlite")
+
 	// DuckDB is for duckdb.
 	DuckDB = Type("duckdb")
 

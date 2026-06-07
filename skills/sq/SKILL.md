@@ -69,6 +69,7 @@ When the task involves a **specific driver** (connection strings, options, cavea
 | Driver (as in `sq driver ls`) | Reference                                            |
 | ----------------------------- | ---------------------------------------------------- |
 | `sqlite3`                     | [references/sqlite3.md](references/sqlite3.md)       |
+| `rqlite`                      | [references/rqlite.md](references/rqlite.md)         |
 | `duckdb`                      | [references/duckdb.md](references/duckdb.md)         |
 | `postgres`                    | [references/postgres.md](references/postgres.md)     |
 | `sqlserver`                   | [references/sqlserver.md](references/sqlserver.md)   |

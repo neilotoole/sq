@@ -30,6 +30,7 @@ import (
 	"github.com/neilotoole/sq/drivers/oracle"
 	"github.com/neilotoole/sq/drivers/parquet"
 	"github.com/neilotoole/sq/drivers/postgres"
+	"github.com/neilotoole/sq/drivers/rqlite"
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/drivers/sqlserver"
 	"github.com/neilotoole/sq/drivers/userdriver"
@@ -183,6 +184,7 @@ func (h *Helper) init() {
 		h.Cleanup.AddC(h.grips)
 
 		h.registry.AddProvider(drivertype.SQLite, &sqlite3.Provider{Log: h.Log()})
+		h.registry.AddProvider(drivertype.Rqlite, &rqlite.Provider{Log: h.Log()})
 		h.registry.AddProvider(drivertype.DuckDB, &duckdb.Provider{Log: h.Log()})
 		h.registry.AddProvider(drivertype.Pg, &postgres.Provider{Log: h.Log()})
 		h.registry.AddProvider(drivertype.MSSQL, &sqlserver.Provider{Log: h.Log()})

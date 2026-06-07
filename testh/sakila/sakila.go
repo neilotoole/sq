@@ -24,6 +24,10 @@ const (
 	TSVActorNoHeader = "@sakila_tsv_actor_noheader"
 	SL3              = "@sakila_sl3"
 	SL3Whitespace    = "@sakila_sl3_whitespace"
+	// Rq is the handle for the rqlite sakila DB. Configured via
+	// SQ_TEST_SRC__SAKILA_RQ in the test sources config; expected to
+	// point at a sakiladb/rqlite container (default localhost:4001).
+	Rq = "@sakila_rq"
 	// Duck is the handle for the DuckDB sakila DB.
 	Duck = "@sakila_duck"
 	// DuckWhitespace is the handle for the DuckDB sakila DB
@@ -78,6 +82,7 @@ func AllHandles() []string {
 		AZ1,
 		CH25,
 		Ora23,
+		Rq,
 		XLSX,
 	}
 }
@@ -99,6 +104,7 @@ func SQLAll() []string {
 		AZ1,
 		CH25,
 		Ora23,
+		Rq,
 	}
 }
 
@@ -118,6 +124,7 @@ func SQLAllExternal() []string {
 		AZ1,
 		CH25,
 		Ora23,
+		Rq,
 	}
 }
 
