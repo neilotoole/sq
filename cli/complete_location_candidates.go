@@ -11,7 +11,7 @@ import (
 // uniq/filter-prefix/exclude-prefix footer that the legacy code
 // repeated at every plocStage case.
 //
-//nolint:unused // wired up by B13 generateCandidates via suggestX helpers.
+//nolint:unused // wired up by B14 completeAddLocation via suggestX helpers.
 type candidateSet struct {
 	prefix string
 	items  []string
@@ -19,14 +19,14 @@ type candidateSet struct {
 
 // add appends candidates verbatim.
 //
-//nolint:unused // wired up by B13 generateCandidates via suggestX helpers.
+//nolint:unused // wired up by B14 completeAddLocation via suggestX helpers.
 func (c *candidateSet) add(s ...string) {
 	c.items = append(c.items, s...)
 }
 
 // addPrefixed appends candidates each prefixed by p.
 //
-//nolint:unused // wired up by B13 generateCandidates via suggestX helpers.
+//nolint:unused // wired up by B14 completeAddLocation via suggestX helpers.
 func (c *candidateSet) addPrefixed(p string, ss ...string) {
 	for _, s := range ss {
 		c.items = append(c.items, p+s)
@@ -37,7 +37,7 @@ func (c *candidateSet) addPrefixed(p string, ss ...string) {
 // the exact prefix string excluded (avoids the "completes to itself"
 // noise).
 //
-//nolint:unused // wired up by B13 generateCandidates via suggestX helpers.
+//nolint:unused // wired up by B14 completeAddLocation via suggestX helpers.
 func (c *candidateSet) build() []string {
 	out := lo.Uniq(c.items)
 	out = stringz.FilterPrefix(c.prefix, out...)
