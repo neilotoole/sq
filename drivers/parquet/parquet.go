@@ -90,7 +90,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 		return nil, err
 	}
 
-	log.Info("Opened parquet source", lga.Src, src)
+	log.Debug("Opened parquet source", lga.Src, src)
 	return &grip{
 		log:    d.log,
 		src:    src,
@@ -109,7 +109,11 @@ func createParquetView(ctx context.Context, dbGrip driver.Grip, parquetPath stri
 		return errw(err)
 	}
 
-	//nolint:gosec // G202: path is escaped via escapeSingleQuotes; no user-controlled SQL injection risk.
+	// parquetPath is user-controlled (it comes from src.Location), but
+	// escapeSingleQuotes implements SQL-standard '' escaping; DuckDB does not
+	// treat backslash as an escape character in single-quoted string literals,
+	// so doubling the quote is sufficient to neutralize any injection attempt.
+	//nolint:gosec // G202: path is escaped via escapeSingleQuotes; see comment above.
 	stmt := `CREATE VIEW "data" AS SELECT * FROM read_parquet('` +
 		escapeSingleQuotes(parquetPath) + `')`
 	if _, err := db.ExecContext(ctx, stmt); err != nil {
@@ -161,7 +165,7 @@ func parseLocation(loc string) (path, dsnQuery string, err error) {
 }
 
 // escapeSingleQuotes doubles every ' in s, suitable for splicing inside a
-// SQL single-quoted string literal. This is defence-in-depth: callers should
+// SQL single-quoted string literal. This is defense-in-depth: callers should
 // have already validated path is a clean file path or parsed URL before
 // reaching here.
 func escapeSingleQuotes(s string) string {

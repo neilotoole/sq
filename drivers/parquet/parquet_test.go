@@ -105,4 +105,37 @@ func TestOpen_MissingFileFails(t *testing.T) {
 	_, err = drvr.Open(ctx, src)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "parquet")
+	require.Contains(t, err.Error(), "/nonexistent/path/to.parquet")
+}
+
+func TestOpen_WithConnOptions(t *testing.T) {
+	ctx := context.Background()
+
+	abs, err := filepath.Abs("testdata/actor.parquet")
+	require.NoError(t, err)
+
+	provider := newParquetProviderForTest(t)
+	drvr, err := provider.DriverFor(drivertype.Parquet)
+	require.NoError(t, err)
+
+	// Setting threads=1 via the location query is the documented way to
+	// forward DuckDB connection options through a parquet source. We verify
+	// it took effect by checking DuckDB's current_setting after the view is
+	// created.
+	src := &source.Source{
+		Type:     drivertype.Parquet,
+		Handle:   "@actor_opts",
+		Location: abs + "?threads=1",
+	}
+	g, err := drvr.Open(ctx, src)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = g.Close() })
+
+	db, err := g.DB(ctx)
+	require.NoError(t, err)
+
+	var threads string
+	err = db.QueryRowContext(ctx, `SELECT current_setting('threads')`).Scan(&threads)
+	require.NoError(t, err)
+	require.Equal(t, "1", threads)
 }
