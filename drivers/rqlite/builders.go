@@ -14,7 +14,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/schema"
-	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // createTblKindDefaults maps Kind to the DEFAULT clause emitted in a
@@ -146,52 +145,4 @@ func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
 	}
 
 	return buf.String(), nil
-}
-
-// tableMetadataToSchema converts a *metadata.Table (the shape returned
-// by getTableMetadata) into a *schema.Table (the shape consumed by
-// buildCreateTableStmt). It preserves only what sq's *schema.Column
-// models from the metadata side: Name, Kind, NotNull (from !Nullable),
-// and HasDefault (as a boolean; the original default expression is
-// NOT preserved). PKColName is set from the FIRST column with
-// PrimaryKey=true.
-//
-// The following are NOT preserved because metadata.Column does not
-// expose them or schema.Column does not model them:
-//   - UNIQUE column constraints
-//   - FOREIGN KEY constraints
-//   - AUTOINCREMENT on the primary key (metadata.Column has no signal
-//     for it)
-//   - The original DEFAULT expression value (substituted by a canned
-//     per-kind default from createTblKindDefaults)
-//   - CHECK constraints, indexes, triggers
-//
-// Callers using this for CopyTable / AlterTableColumnKinds: be aware
-// that the rebuilt table will have these lossy substitutions applied.
-//
-// Returns an error if md.Columns is empty (the SQL emitted from
-// buildCreateTableStmt would not be valid SQLite anyway; the guard
-// prevents an index panic in that path).
-func tableMetadataToSchema(md *metadata.Table, newName string) (*schema.Table, error) {
-	if len(md.Columns) == 0 {
-		return nil, errz.Errorf("rqlite: cannot build schema for table %q with zero columns", md.Name)
-	}
-	tblDef := &schema.Table{
-		Name: newName,
-		Cols: make([]*schema.Column, len(md.Columns)),
-	}
-	for i, mcol := range md.Columns {
-		col := &schema.Column{
-			Table:      tblDef,
-			Name:       mcol.Name,
-			Kind:       mcol.Kind,
-			NotNull:    !mcol.Nullable,
-			HasDefault: mcol.DefaultValue != "",
-		}
-		tblDef.Cols[i] = col
-		if mcol.PrimaryKey && tblDef.PKColName == "" {
-			tblDef.PKColName = mcol.Name
-		}
-	}
-	return tblDef, nil
 }

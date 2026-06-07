@@ -17,6 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
@@ -838,6 +839,103 @@ func TestCoerce_RealAffinityFloat(t *testing.T) {
 	require.InDelta(t, 3.14, gotPi, 1e-9)
 }
 
+// TestCopyTable_PreservesFKs verifies that CopyTable carries the source
+// table's FOREIGN KEY constraints across to the destination. Uses
+// sakila.TblFilmActor as the source because it has a composite PK and
+// two outgoing FKs (to actor and film), exercising both single and
+// composite-FK preservation through the faithful-DDL rewrite path.
+func TestCopyTable_PreservesFKs(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	dstName := "film_actor_fk_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+	})
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: sakila.TblFilmActor}, tablefq.T{Table: dstName}, false)
+	require.NoError(t, err)
+
+	srcMd, err := grip.TableMetadata(th.Context, sakila.TblFilmActor)
+	require.NoError(t, err)
+	dstMd, err := grip.TableMetadata(th.Context, dstName)
+	require.NoError(t, err)
+
+	require.NotNil(t, srcMd.FK, "sanity: source film_actor should carry FKs")
+	require.NotNil(t, dstMd.FK, "destination should carry FKs after CopyTable")
+	require.Len(t, dstMd.FK.Outgoing, len(srcMd.FK.Outgoing),
+		"FK count should match source")
+
+	fkKey := func(fk *metadata.ForeignKey) string {
+		return fmt.Sprintf("%s|%s->%s",
+			fk.RefTable,
+			strings.Join(fk.Columns, ","),
+			strings.Join(fk.RefColumns, ","))
+	}
+	srcKeys := map[string]bool{}
+	for _, fk := range srcMd.FK.Outgoing {
+		srcKeys[fkKey(fk)] = true
+	}
+	for _, fk := range dstMd.FK.Outgoing {
+		require.True(t, srcKeys[fkKey(fk)],
+			"dest FK %s not present in source set", fkKey(fk))
+	}
+}
+
+// TestAlterTableColumnKinds_PreservesFKs verifies that the
+// alter-rebuild dance carries the source table's FOREIGN KEY
+// constraints across. Uses an ad-hoc parent/child fixture because
+// AlterTableColumnKinds is destructive and must not touch the shared
+// Sakila tables.
+func TestAlterTableColumnKinds_PreservesFKs(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	uniq := stringz.Uniq8()
+	parentName := "parent_fk_" + uniq
+	childName := "child_fk_" + uniq
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: childName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: parentName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY)`, parentName))
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %q (`+
+			`id INTEGER PRIMARY KEY, parent_id INTEGER, payload TEXT, `+
+			`FOREIGN KEY (parent_id) REFERENCES %q(id))`,
+		childName, parentName))
+	require.NoError(t, err)
+
+	err = drvr.AlterTableColumnKinds(th.Context, db, childName,
+		[]string{"payload"}, []kind.Kind{kind.Int})
+	require.NoError(t, err)
+
+	md, err := grip.TableMetadata(th.Context, childName)
+	require.NoError(t, err)
+	require.NotNil(t, md.FK, "child should still carry FK after AlterTableColumnKinds")
+	require.Len(t, md.FK.Outgoing, 1,
+		"child should retain exactly one FK after AlterTableColumnKinds")
+	require.Equal(t, parentName, md.FK.Outgoing[0].RefTable)
+}
+
 // TestColumnTypes_EmptyTable verifies that the rqlite-sq wrapper
 // driver (drivers/rqlite/sqldriver.go) populates DatabaseTypeName for
 // empty result sets. Without the wrapper, gorqlite/stdlib returns the
@@ -914,4 +1012,281 @@ func TestColumnTypes_EmptyTable(t *testing.T) {
 		kind.Bool,
 		kind.Bytes,
 	}, recMeta.Kinds())
+}
+
+// TestCopyTable_PreservesUniqueConstraints verifies that UNIQUE
+// column constraints survive the CopyTable rewrite. Uses an ad-hoc
+// source table because Sakila's UNIQUEs are mostly expressed as
+// indexes, not column-level constraints. The duplicate-insert step
+// also catches the case where the parser produces a CREATE TABLE
+// that is syntactically valid but loses the constraint semantics.
+func TestCopyTable_PreservesUniqueConstraints(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	uniq := stringz.Uniq8()
+	srcName := "uniq_src_" + uniq
+	dstName := "uniq_dst_" + uniq
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: srcName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY, email TEXT UNIQUE NOT NULL)`,
+		srcName))
+	require.NoError(t, err)
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: srcName}, tablefq.T{Table: dstName}, false)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`INSERT INTO %q (id, email) VALUES (1, 'a@a.com')`, dstName))
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`INSERT INTO %q (id, email) VALUES (2, 'a@a.com')`, dstName))
+	require.Error(t, err, "duplicate email should violate UNIQUE on copied table")
+}
+
+// TestCopyTable_PreservesDefaultExpression verifies that a column's
+// exact DEFAULT expression survives the rewrite. The pre-faithful
+// implementation substituted canned per-kind defaults (e.g.
+// DEFAULT 0 for any numeric column), so a fresh INSERT against the
+// destination would see 0 instead of 50000.
+func TestCopyTable_PreservesDefaultExpression(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	uniq := stringz.Uniq8()
+	srcName := "dflt_src_" + uniq
+	dstName := "dflt_dst_" + uniq
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: srcName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY, salary REAL DEFAULT 50000)`, srcName))
+	require.NoError(t, err)
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: srcName}, tablefq.T{Table: dstName}, false)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`INSERT INTO %q (id) VALUES (1)`, dstName))
+	require.NoError(t, err)
+
+	var got float64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		fmt.Sprintf(`SELECT salary FROM %q WHERE id=1`, dstName)).Scan(&got))
+	require.InDelta(t, 50000.0, got, 0.0001,
+		"DEFAULT expression should round-trip exactly, not be replaced by per-kind canned default")
+}
+
+// TestCopyTable_PreservesAutoIncrement verifies that AUTOINCREMENT
+// survives the DDL rewrite. The test does not assert sqlite_sequence
+// continuity (a known follow-up): after CopyTable, the destination
+// has fresh sqlite_sequence state, but AUTOINCREMENT is still in
+// effect, so a new INSERT picks up MAX(rowid)+1, which is greater
+// than the count of pre-existing rows.
+func TestCopyTable_PreservesAutoIncrement(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	uniq := stringz.Uniq8()
+	srcName := "ai_src_" + uniq
+	dstName := "ai_dst_" + uniq
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: srcName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)`, srcName))
+	require.NoError(t, err)
+
+	for _, name := range []string{"a", "b", "c"} {
+		_, err = db.ExecContext(th.Context, fmt.Sprintf(
+			`INSERT INTO %q (name) VALUES (?)`, srcName), name)
+		require.NoError(t, err)
+	}
+
+	affected, err := drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: srcName}, tablefq.T{Table: dstName}, true)
+	require.NoError(t, err)
+	require.Equal(t, int64(3), affected)
+
+	res, err := db.ExecContext(th.Context, fmt.Sprintf(
+		`INSERT INTO %q (name) VALUES ('x')`, dstName))
+	require.NoError(t, err)
+	id, err := res.LastInsertId()
+	require.NoError(t, err)
+	require.Greater(t, id, int64(3),
+		"AUTOINCREMENT should still be in effect; new id should advance past pre-existing rowids")
+
+	var dstDDL string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT sql FROM sqlite_master WHERE type='table' AND name=?`, dstName).Scan(&dstDDL))
+	require.Contains(t, strings.ToUpper(dstDDL), "AUTOINCREMENT",
+		"destination CREATE TABLE should preserve AUTOINCREMENT keyword")
+}
+
+// TestCopyTable_PreservesCompositePK verifies that a composite
+// PRIMARY KEY survives the rewrite. Uses sakila.TblFilmActor whose
+// PK is (actor_id, film_id). The duplicate-insert step exercises
+// the constraint semantics, not just the metadata round-trip.
+func TestCopyTable_PreservesCompositePK(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	dstName := "fa_pk_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+	})
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: sakila.TblFilmActor}, tablefq.T{Table: dstName}, false)
+	require.NoError(t, err)
+
+	md, err := grip.TableMetadata(th.Context, dstName)
+	require.NoError(t, err)
+
+	var pkCols []string
+	for _, c := range md.Columns {
+		if c.PrimaryKey {
+			pkCols = append(pkCols, c.Name)
+		}
+	}
+	require.ElementsMatch(t, []string{"actor_id", "film_id"}, pkCols,
+		"destination should retain composite PRIMARY KEY")
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`INSERT INTO %q (actor_id, film_id, last_update) VALUES (1, 1, CURRENT_TIMESTAMP)`,
+		dstName))
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`INSERT INTO %q (actor_id, film_id, last_update) VALUES (1, 1, CURRENT_TIMESTAMP)`,
+		dstName))
+	require.Error(t, err, "duplicate composite PK should be rejected")
+}
+
+// TestCopyTable_PreservesCheckConstraints verifies that table-level
+// CHECK constraints survive the CopyTable rewrite. The godoc on
+// CopyTable lists CHECK as preserved; this test pins that promise
+// via a semantic check (insert a row that violates the CHECK and
+// expect failure on the destination).
+func TestCopyTable_PreservesCheckConstraints(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	uniq := stringz.Uniq8()
+	srcName := "chk_src_" + uniq
+	dstName := "chk_dst_" + uniq
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: srcName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY, age INTEGER NOT NULL CHECK (age >= 0))`,
+		srcName))
+	require.NoError(t, err)
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: srcName}, tablefq.T{Table: dstName}, false)
+	require.NoError(t, err)
+
+	// Sanity: a valid insert succeeds.
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`INSERT INTO %q (id, age) VALUES (1, 5)`, dstName))
+	require.NoError(t, err)
+
+	// CHECK violation: negative age should be rejected on the destination.
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`INSERT INTO %q (id, age) VALUES (2, -1)`, dstName))
+	require.Error(t, err,
+		"CHECK (age >= 0) should be preserved and reject negative ages")
+}
+
+// TestAlterTableColumnKinds_PreservesUniqueAndDefault verifies that
+// UNIQUE and a non-trivial DEFAULT expression both survive an
+// AlterTableColumnKinds rebuild. The kind swap on email is a no-op
+// (TEXT -> TEXT) and is purely to exercise the rewrite path; the
+// goal is to confirm that constraints unrelated to the swapped
+// column are untouched.
+func TestAlterTableColumnKinds_PreservesUniqueAndDefault(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	tblName := "ud_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY, email TEXT UNIQUE, salary REAL DEFAULT 50000)`,
+		tblName))
+	require.NoError(t, err)
+
+	err = drvr.AlterTableColumnKinds(th.Context, db, tblName,
+		[]string{"email"}, []kind.Kind{kind.Text})
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`INSERT INTO %q (id, email) VALUES (1, 'a@a.com')`, tblName))
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`INSERT INTO %q (id, email) VALUES (2, 'a@a.com')`, tblName))
+	require.Error(t, err, "UNIQUE on email should survive the rebuild")
+
+	var salary float64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		fmt.Sprintf(`SELECT salary FROM %q WHERE id=1`, tblName)).Scan(&salary))
+	require.InDelta(t, 50000.0, salary, 0.0001,
+		"DEFAULT 50000 on salary should survive the rebuild")
 }

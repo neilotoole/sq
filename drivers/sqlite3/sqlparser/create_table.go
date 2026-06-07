@@ -3,7 +3,7 @@ package sqlparser
 import (
 	antlr "github.com/antlr4-go/antlr/v4"
 
-	"github.com/neilotoole/sq/drivers/sqlite3/internal/sqlparser/sqlite"
+	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser/sqlite"
 	"github.com/neilotoole/sq/libsq/ast/antlrz"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neilotoole/sq/drivers/sqlite3/internal/sqlparser"
+	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
