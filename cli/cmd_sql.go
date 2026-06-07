@@ -10,13 +10,16 @@ import (
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/drivers/duckdb"
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/tuning"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 func newSQLCmd() *cobra.Command {
@@ -41,6 +44,9 @@ source.`,
 	}
 
 	addQueryCmdFlags(cmd)
+
+	cmd.Flags().Bool(flag.SQLReadOnly, false, flag.SQLReadOnlyUsage)
+	cmd.Flags().Bool(flag.SQLReadOnlyAlias, false, flag.SQLReadOnlyAliasUsage)
 
 	// TODO: These flags aren't actually implemented yet.
 	// And... this entire --exec/--query mechanism needs to be revisited.
@@ -87,6 +93,23 @@ func execSQL(cmd *cobra.Command, args []string) error {
 
 	if err = applySourceOptions(cmd, activeSrc); err != nil {
 		return err
+	}
+
+	// --readonly / --ro: opt the raw-SQL command into read-only mode.
+	// Honored by DuckDB; ignored by other drivers. If the user explicitly
+	// requested read-only but the source URL explicitly says READ_WRITE,
+	// that's a contradiction we surface rather than silently picking one.
+	if cmdFlagIsSetTrue(cmd, flag.SQLReadOnly) || cmdFlagIsSetTrue(cmd, flag.SQLReadOnlyAlias) {
+		if activeSrc.Type == drivertype.DuckDB {
+			if mode, ok := duckdb.ExplicitAccessMode(activeSrc.Location); ok &&
+				strings.EqualFold(mode, "READ_WRITE") {
+				return errz.Errorf(
+					"sql: --%s conflicts with access_mode=READ_WRITE in %s",
+					flag.SQLReadOnly, activeSrc.Handle)
+			}
+		}
+		ctx = driver.WithReadOnly(ctx)
+		cmd.SetContext(ctx)
 	}
 
 	if !cmdFlagChanged(cmd, flag.Insert) {

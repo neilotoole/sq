@@ -3,6 +3,7 @@ package cli_test
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -740,4 +741,103 @@ func TestFlagActiveSource_sql(t *testing.T) {
 	tr = testrun.New(ctx, t, tr)
 	require.NoError(t, tr.Exec("src", "--json"))
 	require.Equal(t, "@sqlite", tr.BindMap()["handle"])
+}
+
+// TestSQL_ReadOnlyFlag_HappyPath verifies that --readonly succeeds against
+// a DuckDB source for a SELECT statement.
+func TestSQL_ReadOnlyFlag_HappyPath(t *testing.T) {
+	t.Parallel()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil).Add(*th.Source(sakila.Duck))
+	err := tr.Exec("sql", "--readonly", "SELECT count(*) AS n FROM actor")
+	require.NoError(t, err)
+	require.Contains(t, tr.Out.String(), "200")
+}
+
+// TestSQL_ROAlias_HappyPath verifies the --ro alias behaves identically.
+func TestSQL_ROAlias_HappyPath(t *testing.T) {
+	t.Parallel()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil).Add(*th.Source(sakila.Duck))
+	err := tr.Exec("sql", "--ro", "SELECT count(*) AS n FROM actor")
+	require.NoError(t, err)
+	require.Contains(t, tr.Out.String(), "200")
+}
+
+// TestSQL_ReadOnlyAndAlias_BothSet verifies that specifying both flags
+// is idempotent (no error).
+func TestSQL_ReadOnlyAndAlias_BothSet(t *testing.T) {
+	t.Parallel()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil).Add(*th.Source(sakila.Duck))
+	err := tr.Exec("sql", "--readonly", "--ro", "SELECT count(*) AS n FROM actor")
+	require.NoError(t, err)
+}
+
+// TestSQL_ReadOnly_ConflictWithURL verifies that --readonly + a URL
+// that explicitly says access_mode=READ_WRITE returns a conflict error
+// (not a silent override).
+func TestSQL_ReadOnly_ConflictWithURL(t *testing.T) {
+	t.Parallel()
+	th := testh.New(t)
+	src := th.Source(sakila.Duck).Clone()
+	src.Handle = "@sakila_duck_rw"
+	src.Location += "?access_mode=READ_WRITE"
+
+	tr := testrun.New(th.Context, t, nil).Add(*src)
+	err := tr.Exec("sql", "--src", src.Handle, "--readonly", "SELECT 1")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "--readonly")
+	require.Contains(t, err.Error(), "READ_WRITE")
+	require.Contains(t, err.Error(), src.Handle)
+}
+
+// TestSQL_ROAlias_ConflictWithURL verifies the alias produces the same
+// conflict error (error message names the canonical flag).
+func TestSQL_ROAlias_ConflictWithURL(t *testing.T) {
+	t.Parallel()
+	th := testh.New(t)
+	src := th.Source(sakila.Duck).Clone()
+	src.Handle = "@sakila_duck_rw2"
+	src.Location += "?access_mode=READ_WRITE"
+
+	tr := testrun.New(th.Context, t, nil).Add(*src)
+	err := tr.Exec("sql", "--src", src.Handle, "--ro", "SELECT 1")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "--readonly",
+		"error message should name the canonical flag")
+}
+
+// TestSQL_ReadOnly_RejectsWrites verifies a write statement under --readonly
+// surfaces DuckDB's native read-only error cleanly. Uses a temp copy of the
+// shared fixture so the write attempt can't accidentally mutate it.
+func TestSQL_ReadOnly_RejectsWrites(t *testing.T) {
+	t.Parallel()
+	th := testh.New(t)
+
+	srcPath := proj.Abs("drivers/duckdb/testdata/sakila.duckdb")
+	dstPath := filepath.Join(t.TempDir(), "sakila.duckdb")
+	in, err := os.Open(srcPath)
+	require.NoError(t, err)
+	defer in.Close()
+	out, err := os.Create(dstPath)
+	require.NoError(t, err)
+	_, err = io.Copy(out, in)
+	require.NoError(t, err)
+	require.NoError(t, out.Close())
+
+	src := &source.Source{
+		Handle:   "@sakila_duck_ro_reject",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://" + dstPath,
+	}
+
+	tr := testrun.New(th.Context, t, nil).Add(*src)
+	err = tr.Exec("sql", "--src", src.Handle, "--readonly",
+		"INSERT INTO actor (first_name, last_name) VALUES ('X', 'Y')")
+	require.Error(t, err)
+	msg := err.Error()
+	require.True(t,
+		strings.Contains(msg, "read-only") || strings.Contains(msg, "Cannot execute"),
+		"unexpected error: %s", msg)
 }
