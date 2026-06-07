@@ -35,7 +35,6 @@ import (
 	"strings"
 
 	"github.com/rqlite/gorqlite"
-	_ "github.com/rqlite/gorqlite/stdlib" // Import for side effect of registering the "rqlite" sql driver.
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
@@ -169,7 +168,7 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		return nil, err
 	}
 
-	db, err := sql.Open(dbDrvr, dsn)
+	db, err := sql.Open(sqDBDrvrName, dsn)
 	if err != nil {
 		// Don't include dsn in the error: it may carry credentials.
 		return nil, errz.Wrapf(errw(err), "failed to open rqlite source %s", src.Handle)
