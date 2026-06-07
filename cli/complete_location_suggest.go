@@ -56,11 +56,11 @@ func suggestCreds(m driver.MatchedLoc, src driver.Suggestions) []string {
 	}
 
 	if m.PassSet {
-		// Password phase: "@" closes credentials. If no digits typed
-		// yet, also offer a "password" placeholder so the next TAB
-		// jumps to the host. Don't offer ":" (would insert a literal
-		// colon at the start of the password) and don't replay history
-		// usernames here.
+		// Password phase: "@" closes credentials. If no characters
+		// typed yet, also offer a "password" placeholder so the next
+		// TAB jumps to the host. Don't offer ":" (would insert a
+		// literal colon at the start of the password) and don't
+		// replay history usernames here.
 		cs.add(m.Loc + "@")
 		if m.Pass == "" {
 			cs.add(m.Loc + "password@")
