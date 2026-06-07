@@ -6,26 +6,34 @@ Networked distributed SQLite via [rqlite](https://rqlite.io). Driver type in `sq
 
 ## Add a source
 
-Use [`sq add`](https://sq.io/docs/cmd/add) with an HTTP(S) URL:
+Use [`sq add`](https://sq.io/docs/cmd/add) with an HTTP(S) URL. Default port: `4001` (auto-applied when missing). Driver type is inferred from the `rqlite://` or `rqlites://` scheme.
 
-```shell
-sq add 'rqlite://localhost:4001'                            # plain HTTP
-sq add 'rqlites://node.example.com:4001'                    # HTTPS
-sq add 'rqlite://sakila:p_ssW0rd@localhost:4001' --handle @rq
-```
+**Common setups:**
 
-Default port: `4001`. The driver type is inferred from the `rqlite://` or `rqlites://` scheme; no auto-detect from a bare URL.
+- Single-node `docker run -p 4001:4001 rqlite/rqlite` from the host:
+
+  ```shell
+  sq add 'rqlite://localhost:4001?disableClusterDiscovery=true'
+  ```
+
+- Single-node `sakiladb/rqlite` from the host (Sakila preloaded; default creds `sakila` / `p_ssW0rd`):
+
+  ```shell
+  sq add 'rqlite://sakila:p_ssW0rd@localhost:4001?disableClusterDiscovery=true' --handle @rq
+  ```
+
+- Multi-node cluster (production):
+
+  ```shell
+  sq add 'rqlite://user:pass@node1:4001'   # any node; leave discovery on
+  ```
+
+**Why `?disableClusterDiscovery=true` for the localhost case:** gorqlite asks the node for its cluster peers. A single-node Docker container reports its own internal hostname (e.g. `rqlite1` for `sakiladb/rqlite`, or the container short ID for `rqlite/rqlite`) which is unresolvable from the host. The connection then fails with `dial tcp: lookup rqlite1: no such host`. Disabling discovery sidesteps this. Single-node setups have no peers to discover anyway.
 
 ## Common parameters
 
 - **`level`**: read consistency. `none` (fastest, may be stale), `weak`, `linearizable`, `strong` (safest). See [rqlite consistency](https://rqlite.io/docs/api/read-consistency/).
-- **`disableClusterDiscovery`**: `true` or `false`. Disable gorqlite's automatic peer discovery. Use when behind a proxy or talking to a single node.
-
-Example:
-
-```shell
-sq add 'rqlite://sakila:p_ssW0rd@localhost:4001?level=strong&disableClusterDiscovery=true'
-```
+- **`disableClusterDiscovery`**: `true` or `false`. Set `true` for single-node localhost (see above). Leave off (the default) for multi-node clusters so leader redirects and failover work automatically.
 
 ## Notes
 
