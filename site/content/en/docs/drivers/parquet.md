@@ -86,8 +86,7 @@ The supported parameters are the same as the [DuckDB driver](/docs/drivers/duckd
 
 - Read-only. Writing back to Parquet is not yet supported.
 - Single file per source. Partitioned datasets (e.g. `./events/year=2024/`) are not yet
-  supported as a single logical source. As a workaround, use `sq sql` against a DuckDB source:
-
-  ```sql
-  SELECT * FROM read_parquet('events/**/*.parquet');
-  ```
+  supported as a single logical source. As a workaround, use `sq sql` against a DuckDB source
+  with DuckDB's recursive glob syntax (see the
+  [DuckDB Parquet docs](https://duckdb.org/docs/data/parquet/overview.html)), for example
+  `read_parquet('events/*.parquet')` for a single directory.
