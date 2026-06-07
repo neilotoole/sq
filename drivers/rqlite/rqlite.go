@@ -232,7 +232,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
 
 	if err = db.PingContext(ctx); err != nil {
-		return errz.Wrapf(errw(err), "ping %s: %s", src.Handle, src.Location)
+		return errz.Wrapf(errw(err), "ping %s: %s", src.Handle, src.RedactedLocation())
 	}
 
 	return nil
