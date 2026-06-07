@@ -42,7 +42,7 @@ the export errors with the failing source's handle.
 
 For the broader picture — how `--expand` differs from `--reveal`, the
 placeholder grammar, and the threat model — see
-[Secrets](/docs/secrets#substitution).
+[Secrets](/docs/secrets#expanding-placeholders).
 
 See the [config](/docs/config) section for an overview of `sq`
 configuration.
