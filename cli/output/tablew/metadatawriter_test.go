@@ -33,7 +33,7 @@ func TestSourceMetadata_nilSize(t *testing.T) {
 	// SIZE is the 5th column (SOURCE, DRIVER, NAME, FQ NAME, SIZE, LOCATION).
 	// Locate the data row (contains the handle) and assert the SIZE cell is "-".
 	var dataRow string
-	for _, line := range strings.Split(got, "\n") {
+	for line := range strings.SplitSeq(got, "\n") {
 		if strings.Contains(line, "@test") {
 			dataRow = line
 			break
