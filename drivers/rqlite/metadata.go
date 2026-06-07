@@ -504,14 +504,16 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 		return nil, errw(err)
 	}
 
-	if tblMeta.TableType != sqlz.TableTypeVirtual && tblMeta.TableType != sqlz.TableTypeView {
-		outgoing, fkErr := getTableForeignKeys(ctx, db, tblName)
-		if fkErr != nil {
-			return nil, errz.Wrapf(fkErr, "rqlite: failed to read foreign keys for {%s}", tblName)
-		}
-		if len(outgoing) > 0 {
-			tblMeta.FK = metadata.NewFKGroup(outgoing, nil)
-		}
+	if tblMeta.TableType != sqlz.TableTypeTable {
+		return tblMeta, nil
+	}
+
+	outgoing, fkErr := getTableForeignKeys(ctx, db, tblName)
+	if fkErr != nil {
+		return nil, errz.Wrapf(fkErr, "rqlite: failed to read foreign keys for {%s}", tblName)
+	}
+	if len(outgoing) > 0 {
+		tblMeta.FK = metadata.NewFKGroup(outgoing, nil)
 	}
 
 	return tblMeta, nil

@@ -765,10 +765,14 @@ func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, c
 //	INSERT INTO <tmp> SELECT * FROM <original>
 //	DROP TABLE <original>
 //	ALTER TABLE <tmp> RENAME TO <original>
-//	PRAGMA foreign_keys=on
+//	PRAGMA foreign_keys=<prev>
 //
 // All six statements ride one /db/execute HTTP call and are atomic
-// at rqlite.
+// at rqlite. The prior foreign_keys value is read outside the batch
+// (rqlite has no interactive transactions) and inlined as the final
+// statement, restoring the session state rather than blindly forcing
+// it on. This mirrors the sqlite3 driver's pragmaDisableForeignKeys
+// restore pattern (drivers/sqlite3/alter.go).
 //
 // The new CREATE TABLE is built by reading the original DDL from
 // sqlite_master, patching the column type tokens for the requested
@@ -828,6 +832,18 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	tmpName := "tmp_tbl_alter_" + stringz.Uniq8()
 	nuDDL = strings.Replace(nuDDL, tbl, tmpName, 1)
 
+	// Read the prior foreign_keys pragma so we can restore it at the
+	// end of the atomic batch rather than blindly forcing it on.
+	// Matches the sqlite3 driver's pragmaDisableForeignKeys/restore
+	// pattern in drivers/sqlite3/alter.go, adapted for rqlite's
+	// no-interactive-transactions model: the restore value is inlined
+	// as the last statement of the batch rather than captured in a
+	// defer.
+	var fkPrev int64
+	if err = db.QueryRowContext(ctx, "PRAGMA foreign_keys").Scan(&fkPrev); err != nil {
+		return errz.Wrapf(errw(err), "rqlite: alter table: failed to read foreign_keys pragma")
+	}
+
 	stmts := []gorqlite.ParameterizedStatement{
 		{Query: "PRAGMA foreign_keys=off"},
 		{Query: nuDDL},
@@ -836,7 +852,7 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 		{Query: "DROP TABLE " + stringz.DoubleQuote(tbl)},
 		{Query: fmt.Sprintf(`ALTER TABLE %s RENAME TO %s`,
 			stringz.DoubleQuote(tmpName), stringz.DoubleQuote(tbl))},
-		{Query: "PRAGMA foreign_keys=on"},
+		{Query: fmt.Sprintf("PRAGMA foreign_keys=%d", fkPrev)},
 	}
 
 	_, err = writeAtomic(ctx, db, stmts...)
