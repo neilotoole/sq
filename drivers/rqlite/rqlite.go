@@ -145,7 +145,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 	}
 
 	if err = driver.OpeningPing(ctx, src, db); err != nil {
-		return nil, err
+		return nil, rewritePeerDNSError(err, src)
 	}
 
 	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
