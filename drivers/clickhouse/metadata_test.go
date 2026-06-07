@@ -335,7 +335,8 @@ func TestMetadata_SourceMetadata(t *testing.T) {
 	require.Equal(t, "ClickHouse "+md.DBVersion, md.DBProduct)
 
 	require.Equal(t, "sakila", md.User)
-	require.Greater(t, md.Size, int64(0))
+	require.NotNil(t, md.Size)
+	require.Greater(t, *md.Size, int64(0))
 
 	require.NotEmpty(t, md.Tables)
 	require.Greater(t, md.TableCount, int64(0))

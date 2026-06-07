@@ -94,7 +94,9 @@ FROM DUAL`
 	var size sql.NullInt64
 	if err := db.QueryRowContext(ctx,
 		"SELECT NVL(SUM(bytes), 0) FROM user_segments").Scan(&size); err == nil {
-		md.Size = size.Int64
+		if size.Valid {
+			md.Size = &size.Int64
+		}
 	}
 
 	// DBProperties surfaces driver-level session/version values via the

@@ -102,6 +102,17 @@ func ByteSized(size int64, precision int, sep string) string {
 	return fmt.Sprintf(tpl+"B", f)
 }
 
+// FormatSize renders an optional byte size. Returns "-" when size is nil,
+// otherwise the human-readable form from [ByteSized] with precision 1 and
+// no separator (e.g. "2.0MB"). Mirrors the rendering convention used by
+// the text, html, and markdown metadata writers for "not reported" sizes.
+func FormatSize(size *int64) string {
+	if size == nil {
+		return "-"
+	}
+	return ByteSized(*size, 1, "")
+}
+
 const (
 	_          = iota // ignore first value by assigning to blank identifier
 	kb float64 = 1 << (10 * iota)

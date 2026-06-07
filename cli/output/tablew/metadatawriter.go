@@ -127,7 +127,7 @@ func (w *mdWriter) doSourceMetaNoSchema(md *metadata.Source) error {
 		md.Driver.String(),
 		md.Name,
 		md.FQName,
-		w.tbl.pr.Number.Sprint(stringz.ByteSized(md.Size, 1, "")),
+		w.tbl.pr.Number.Sprint(stringz.FormatSize(md.Size)),
 		loc,
 	}
 
@@ -486,7 +486,7 @@ func (w *mdWriter) doSourceMetaFull(md *metadata.Source) error {
 		md.Driver.String(),
 		md.Name,
 		md.FQName,
-		w.tbl.pr.Number.Sprint(stringz.ByteSized(md.Size, 1, "")),
+		w.tbl.pr.Number.Sprint(stringz.FormatSize(md.Size)),
 		strconv.FormatInt(md.TableCount, 10),
 		strconv.FormatInt(md.ViewCount, 10),
 		loc,

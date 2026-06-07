@@ -103,6 +103,7 @@ func TestSource_Clone(t *testing.T) {
 	})
 
 	t.Run("full_source", func(t *testing.T) {
+		var size int64 = 1024
 		src := &metadata.Source{
 			Handle:     "@sakila",
 			Location:   "postgres://localhost/sakila",
@@ -115,7 +116,7 @@ func TestSource_Clone(t *testing.T) {
 			DBProduct:  "PostgreSQL 14.0",
 			DBVersion:  "14.0",
 			User:       "postgres",
-			Size:       1024,
+			Size:       &size,
 			TableCount: 10,
 			ViewCount:  5,
 			DBProperties: map[string]any{
@@ -171,6 +172,7 @@ func TestSource_Clone(t *testing.T) {
 		require.NotNil(t, got)
 		require.Nil(t, got.DBProperties)
 		require.Nil(t, got.Tables)
+		require.Nil(t, got.Size, "nil-Size source must clone with nil Size")
 	})
 }
 

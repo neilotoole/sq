@@ -449,6 +449,7 @@ func TestSourceMetadata_LocationWithConnParams(t *testing.T) {
 	md, err := roGrip.SourceMetadata(th.Context, true)
 	require.NoError(t, err, "SourceMetadata must succeed even when Location carries ?mode=ro")
 	require.Equal(t, "@ro", md.Handle)
-	require.NotZero(t, md.Size, "file size should be non-zero")
+	require.NotNil(t, md.Size, "file size should be non-nil")
+	require.NotZero(t, *md.Size, "file size should be non-zero")
 	require.Equal(t, filepath.Base(dbPath), md.Name)
 }

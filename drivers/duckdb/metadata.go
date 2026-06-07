@@ -226,7 +226,8 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 		if err != nil {
 			return nil, errz.Wrapf(err, "stat duckdb file for %s", src.Handle)
 		}
-		md.Size = fi.Size()
+		size := fi.Size()
+		md.Size = &size
 	}
 
 	if noSchema {

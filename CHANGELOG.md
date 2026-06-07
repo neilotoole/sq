@@ -140,6 +140,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   and the resolved value was being copied verbatim into `metadata.Source.Location`; the
   inspect handler now overrides that field with the caller's view of `src.Location`, which
   is the placeholder by default and the resolved value only when `--expand` is set.
+- [#744]: `sq inspect` no longer reports `0.0B` size for sources whose driver doesn't expose
+  a database size (e.g. rqlite). The SIZE column renders `-` instead, and JSON / YAML output
+  omits the `size` field.
 
 ## [v0.53.0] - 2026-05-25
 
@@ -1718,6 +1721,7 @@ make working with lots of sources much easier.
 [#714]: https://github.com/neilotoole/sq/issues/714
 [#720]: https://github.com/neilotoole/sq/issues/720
 [#729]: https://github.com/neilotoole/sq/issues/729
+[#744]: https://github.com/neilotoole/sq/issues/744
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
