@@ -230,10 +230,12 @@ loads Sakila into the leader. It requires the `rqlited` binary
 platforms):
 
 ```shell
-# In one terminal, fetch and run the helper. (Until this PR is merged to
-# master, the URL 404s; use the in-tree copy at
-# ./drivers/rqlite/sakila-start-rqlite-nodes.sh.)
-$ curl -fsSL https://raw.githubusercontent.com/neilotoole/sq/master/drivers/rqlite/sakila-start-rqlite-nodes.sh | bash
+# In one terminal, download the helper, take a look at it, and run it.
+$ curl -fsSL -o sakila-start-rqlite-nodes.sh \
+    https://raw.githubusercontent.com/neilotoole/sq/master/drivers/rqlite/sakila-start-rqlite-nodes.sh
+$ less sakila-start-rqlite-nodes.sh   # inspect before running
+$ chmod +x sakila-start-rqlite-nodes.sh
+$ ./sakila-start-rqlite-nodes.sh
 Starting rqlite cluster (data dir: /tmp/sakila-rq-nodes.XXXX)
 Loading Sakila into leader...
 
