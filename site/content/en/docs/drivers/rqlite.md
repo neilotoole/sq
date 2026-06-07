@@ -189,3 +189,72 @@ endpoints, SQLite pragmas, and `sqlite_master`.
 | ----------- | ------------------------------------------------------- |
 | `row_count` | live `SELECT COUNT(*) FROM "tbl"` per table             |
 | `size`      | not reported. rqlite does not expose per-table storage. |
+
+## Example usage
+
+Both examples use the
+[`sakiladb/rqlite`](https://hub.docker.com/r/sakiladb/rqlite) image, which
+ships rqlite preloaded with the
+[Sakila](https://dev.mysql.com/doc/sakila/en/) sample database. Default
+credentials are `sakila` / `p_ssW0rd`.
+
+### Single node
+
+Start a single-node container, add the source, and inspect:
+
+```shell
+# Port 4001 is rqlite's HTTP API.
+$ docker run --rm -d --name sakila-rq -p 4001:4001 sakiladb/rqlite:latest
+
+# Add the source. ?disableClusterDiscovery=true is required when reaching
+# the container from the host (see Single-node localhost above).
+$ sq add 'rqlite://sakila:p_ssW0rd@localhost:4001?disableClusterDiscovery=true' \
+    --handle @rq
+
+$ sq inspect @rq
+
+# Tear down
+$ docker stop sakila-rq
+```
+
+### Multiple nodes
+
+The `sakiladb/rqlite` project publishes a three-node cluster compose file at
+[`cluster-compose.yml`](https://github.com/sakiladb/rqlite/blob/master/cluster-compose.yml).
+Fetch it and bring the cluster up:
+
+```shell
+$ curl -fLO https://raw.githubusercontent.com/sakiladb/rqlite/master/cluster-compose.yml
+$ docker compose -f cluster-compose.yml up -d
+```
+
+That brings up `rqlite1` (leader, host port `4001`), `rqlite2` (follower,
+host port `4003`), and `rqlite3` (follower, host port `4005`). The
+followers start with empty volumes and receive Sakila from the leader via
+Raft snapshot within a few seconds.
+
+Each node advertises its container hostname over `/status`, which isn't
+resolvable from the host. From a developer machine the simplest approach
+is to disable cluster discovery and point `sq` at one specific node. The
+SQL layer still works; `sq` just won't follow leader redirects.
+
+```shell
+$ sq add 'rqlite://sakila:p_ssW0rd@localhost:4001?disableClusterDiscovery=true' \
+    --handle @rq_cluster
+
+$ sq inspect @rq_cluster
+```
+
+In a real deployment where the node hostnames are resolvable from
+clients, leave discovery enabled (the default) so leader redirects and
+failover work automatically:
+
+```shell
+$ sq add 'rqlite://user:pass@rqlite1.internal:4001' --handle @rq_prod
+```
+
+Tear down the cluster:
+
+```shell
+$ docker compose -f cluster-compose.yml down -v
+```
