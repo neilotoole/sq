@@ -2,6 +2,7 @@ package rqlite
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/url"
 	"strings"
@@ -80,4 +81,46 @@ func isLoopbackHost(host string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
-// rewritePeerDNSError is added in Task 4 below.
+// rewritePeerDNSError rewrites a gorqlite cluster-discovery DNS
+// failure into an actionable message naming the unreachable peer and
+// pointing at ?disableClusterDiscovery=true and the docs. Pass-through
+// in every other case (nil err, non-DNS err, user-supplied host
+// matches the failing name, discovery already disabled, src.Location
+// unparseable).
+//
+// The rewrite preserves the underlying *net.DNSError so upstream
+// errors.As classification continues to work.
+func rewritePeerDNSError(err error, src *source.Source) error {
+	if err == nil {
+		return nil
+	}
+	var dnsErr *net.DNSError
+	if !errors.As(err, &dnsErr) {
+		return err
+	}
+	u, parseErr := url.Parse(src.Location)
+	if parseErr != nil {
+		// Defensive: doOpen validates this URL earlier, but if we
+		// somehow can't parse it here, pass the error through rather
+		// than producing a misleading rewrite.
+		return err
+	}
+	userHost := u.Hostname()
+	if dnsErr.Name == userHost {
+		// The failing hostname is the one the user typed. That's
+		// their problem to fix; suggesting disableClusterDiscovery
+		// would be wrong.
+		return err
+	}
+	if u.Query().Get("disableClusterDiscovery") == "true" {
+		// Discovery already off — failure is something else.
+		return err
+	}
+	return errz.Wrapf(err,
+		"rqlite: cluster-discovery failed to resolve advertised peer %q "+
+			"(not %q from the source URL); this usually means the rqlite "+
+			"node advertised an internal hostname not resolvable from the "+
+			"host. Try ?disableClusterDiscovery=true, or see "+docsLocalhostAnchor,
+		dnsErr.Name, userHost,
+	)
+}
