@@ -81,6 +81,7 @@ When the task involves a **specific driver** (connection strings, options, cavea
 | `jsona`                       | [references/jsona.md](references/jsona.md)           |
 | `jsonl`                       | [references/jsonl.md](references/jsonl.md)           |
 | `xlsx`                        | [references/xlsx.md](references/xlsx.md)             |
+| `parquet`                     | [references/parquet.md](references/parquet.md)       |
 
 Overview of all drivers: [Drivers](https://sq.io/docs/drivers/).
 
