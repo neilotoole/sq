@@ -101,3 +101,14 @@ func TestDriverShape_ClickHouse(t *testing.T) {
 	require.Equal(t, "db", shape.Segments[2].Placeholder)
 	require.Equal(t, driver.SegConnParams, shape.Segments[3].Kind)
 }
+
+func TestDriverShape_Oracle(t *testing.T) {
+	th := testh.New(t)
+	drvr, err := th.Registry().SQLDriverFor(drivertype.Oracle)
+	require.NoError(t, err)
+	shape := drvr.LocationShape()
+	require.Equal(t, drivertype.Oracle, shape.Type)
+	require.Equal(t, []string{"oracle"}, shape.Schemes)
+	require.Len(t, shape.Segments, 4)
+	require.Equal(t, "service", shape.Segments[2].Placeholder)
+}

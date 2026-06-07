@@ -68,8 +68,16 @@ func (d *driveri) ConnParams() map[string][]string {
 
 // LocationShape implements driver.SQLDriver.
 func (d *driveri) LocationShape() driver.LocationShape {
-	// TODO(gh743): populated in subsequent tasks.
-	return driver.LocationShape{}
+	return driver.LocationShape{
+		Type:    drivertype.Oracle,
+		Schemes: []string{"oracle"},
+		Segments: []driver.Segment{
+			{Kind: driver.SegCredentials, Optional: true},
+			{Kind: driver.SegAuthority},
+			{Kind: driver.SegPathName, Optional: true, Placeholder: "service"},
+			{Kind: driver.SegConnParams, Optional: true},
+		},
+	}
 }
 
 // ErrWrapFunc implements driver.SQLDriver.
