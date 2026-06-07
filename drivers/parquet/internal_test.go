@@ -42,10 +42,23 @@ func TestParseLocation(t *testing.T) {
 			wantPath: "https://example.com/data.parquet",
 		},
 		{
-			name:       "https_with_options",
-			loc:        "https://example.com/data.parquet?threads=2",
-			wantPath:   "https://example.com/data.parquet",
-			wantDsnQry: "threads=2",
+			// For URLs, the query string belongs to the URL itself, not to sq.
+			// Connection options on remote sources must come via env or config.
+			name:     "https_query_belongs_to_url",
+			loc:      "https://example.com/data.parquet?threads=2",
+			wantPath: "https://example.com/data.parquet?threads=2",
+		},
+		{
+			// Presigned S3 URLs carry signature/expiry as query parameters that
+			// must reach read_parquet() intact; stripping them breaks auth.
+			name:     "s3_presigned_url_preserved",
+			loc:      "https://bucket.s3.amazonaws.com/k.parquet?X-Amz-Signature=abc&X-Amz-Expires=900",
+			wantPath: "https://bucket.s3.amazonaws.com/k.parquet?X-Amz-Signature=abc&X-Amz-Expires=900",
+		},
+		{
+			name:     "s3_scheme_url_preserved",
+			loc:      "s3://bucket/k.parquet?region=us-east-1",
+			wantPath: "s3://bucket/k.parquet?region=us-east-1",
 		},
 		{
 			name:    "empty",

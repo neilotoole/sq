@@ -23,11 +23,14 @@ Data is accessed via the synthetic **`.data`** table, e.g. `@handle.data`.
 
 ## Connection options
 
-DuckDB options are forwarded via the location query string:
+For local files, DuckDB options are forwarded via the location query string:
 
 ```shell
 sq add './big.parquet?threads=4&memory_limit=2GB'
 ```
+
+For remote URLs the query string belongs to the URL (presigned S3 URLs etc.), so the
+above syntax is not available. Use env vars or `sq config set` for those.
 
 ## Remote files
 

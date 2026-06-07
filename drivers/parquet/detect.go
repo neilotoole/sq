@@ -84,10 +84,20 @@ func isParquetFooter(b []byte) bool {
 	return bytes.Equal(b[len(b)-4:], parquetMagic)
 }
 
+// maxNonSeekDrain caps how many bytes readLastFour reads from a non-seekable
+// reader while scanning for the footer marker. Above this, readLastFour
+// returns (nil, false) and the caller falls back to a head-only detection
+// score. The cap exists so that detecting a multi-GB Parquet over a
+// streaming HTTP body does not silently download the entire object during
+// `sq add`; we'd rather report "probably parquet, tail not confirmed" than
+// pay that cost.
+const maxNonSeekDrain = 1 << 20 // 1 MiB.
+
 // readLastFour returns the last four bytes of r. If r implements io.Seeker,
 // it seeks to (-4, end). Otherwise it drains r, retaining only the most
-// recent four bytes seen. Returns (nil, false) on error or when r has fewer
-// than four bytes total.
+// recent four bytes seen, up to maxNonSeekDrain bytes. Returns (nil, false)
+// on error, when r has fewer than four bytes total, or when the non-seekable
+// drain hits the cap before EOF.
 func readLastFour(r io.Reader) ([]byte, bool) {
 	if seeker, ok := r.(io.Seeker); ok {
 		if _, err := seeker.Seek(-4, io.SeekEnd); err == nil {
@@ -100,13 +110,14 @@ func readLastFour(r io.Reader) ([]byte, bool) {
 		// to the sliding-window path.
 	}
 
-	// Sliding 4-byte window across the stream.
+	// Sliding 4-byte window across the stream, capped at maxNonSeekDrain.
 	var window [4]byte
 	buf := make([]byte, 4096)
-	have := 0
+	have, total := 0, 0
 	for {
 		n, err := r.Read(buf)
 		if n > 0 {
+			total += n
 			// Append to window: keep the most recent 4 bytes.
 			combined := append(window[:have], buf[:n]...)
 			if len(combined) >= 4 {
@@ -115,6 +126,10 @@ func readLastFour(r io.Reader) ([]byte, bool) {
 			} else {
 				copy(window[:], combined)
 				have = len(combined)
+			}
+			if total > maxNonSeekDrain {
+				// Cap reached before EOF: caller falls back to head-only.
+				return nil, false
 			}
 		}
 		if err == io.EOF {

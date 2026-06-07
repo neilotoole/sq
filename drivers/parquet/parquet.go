@@ -152,11 +152,23 @@ func errw(err error) error {
 
 // parseLocation splits a parquet source location into the file/URL path that
 // will be passed to read_parquet(...) and the DSN query string forwarded to
-// the underlying DuckDB connection. A "?key=val&..." suffix on the location
-// becomes the dsnQuery; everything before it is the path.
+// the underlying DuckDB connection.
+//
+// For local file paths, a "?key=val&..." suffix is treated as DuckDB
+// connection options; everything before it is the path.
+//
+// For remote URLs (any location containing "://", such as https://, s3://,
+// or gs://), the query string belongs to the URL itself. Presigned S3 URLs,
+// for example, carry signature/expiry as query parameters that must reach
+// read_parquet(...) intact. The full location is returned as the path and
+// no DSN query is extracted. To set DuckDB connection options for a remote
+// source, use environment variables or sq config.
 func parseLocation(loc string) (path, dsnQuery string, err error) {
 	if loc == "" {
 		return "", "", errz.New("parquet: location must not be empty")
+	}
+	if strings.Contains(loc, "://") {
+		return loc, "", nil
 	}
 	if i := strings.LastIndex(loc, "?"); i >= 0 {
 		return loc[:i], loc[i+1:], nil

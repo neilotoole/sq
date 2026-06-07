@@ -74,13 +74,18 @@ Explicit per-source S3 options are planned for a future release.
 
 ## Connection options
 
-DuckDB connection parameters can be appended as query-string values on the location:
+For local file sources, DuckDB connection parameters can be appended as query-string values
+on the location:
 
 ```shell
 $ sq add './big.parquet?threads=4&memory_limit=2GB'
 ```
 
 The supported parameters are the same as the [DuckDB driver](/docs/drivers/duckdb#connection-parameters).
+
+For remote sources (HTTPS, S3, etc.), the query string belongs to the URL itself
+(e.g. presigned S3 URLs carry signature parameters), so this syntax is not available.
+Use environment variables (`AWS_REGION` etc.) or [`sq config set`](/docs/config) instead.
 
 ## Limitations
 

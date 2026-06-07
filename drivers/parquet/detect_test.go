@@ -73,6 +73,16 @@ func TestDetectParquet(t *testing.T) {
 			wantTyp:   drivertype.Parquet,
 			wantScore: 1.0,
 		},
+		{
+			// Non-seekable reader carrying a payload larger than the
+			// readLastFour drain cap: detector returns head-only (0.7) rather
+			// than draining the full body to confirm the tail. This is the
+			// hot path for huge remote Parquet over a streaming HTTP body.
+			name:      "head_only_when_payload_exceeds_drain_cap",
+			payload:   append(append([]byte("PAR1"), bytes.Repeat([]byte{0xAB}, 1<<20+1024)...), []byte("PAR1")...),
+			wantTyp:   drivertype.Parquet,
+			wantScore: 0.7,
+		},
 	}
 
 	for _, tc := range testCases {
