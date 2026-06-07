@@ -28,6 +28,7 @@ import (
 	"github.com/neilotoole/sq/drivers/json"
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/drivers/oracle"
+	"github.com/neilotoole/sq/drivers/parquet"
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/drivers/sqlserver"
@@ -206,6 +207,12 @@ func (h *Helper) init() {
 
 		h.registry.AddProvider(drivertype.XLSX, &xlsx.Provider{Log: h.Log(), Ingester: h.grips, Files: h.files})
 		h.files.AddDriverDetectors(xlsx.DetectXLSX)
+		h.registry.AddProvider(drivertype.Parquet, &parquet.Provider{
+			Log:      h.Log(),
+			Registry: h.registry,
+			Files:    h.files,
+		})
+		h.files.AddDriverDetectors(parquet.DetectParquet)
 
 		h.addUserDrivers()
 
