@@ -129,9 +129,19 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - Internal: added `libsq/driver.LocationShape` describing a SQL
   driver's URL syntax declaratively. No user-visible change. Future
   work in `cli/` will consume this to simplify shell completion.
+- Internal: `cli/complete_location.go` reworked to use the declarative
+  `driver.LocationShape` model. Each SQL driver now declares its URL
+  syntax via `LocationShape()`; the completer is a thin walker over
+  those declarations.
 
 ### Fixed
 
+- [sq add](https://sq.io/docs/cmd/add) shell completion: `<scheme>://host:port?<TAB>`
+  now offers connection parameters instead of credential placeholders.
+  Bare-host (no `user@`) URLs are recognized correctly for postgres,
+  mysql, sqlserver, rqlite, clickhouse, oracle. (#743)
+- [sq add](https://sq.io/docs/cmd/add) shell completion: now suggests
+  `clickhouse://` and `oracle://` schemes. (#741)
 - [#720]: The [SQLite driver](https://sq.io/docs/drivers/sqlite) no longer fails with
   `stat /path/to/db?key=val: no such file or directory` on source-level metadata commands.
   - Previously failed on [`sq inspect @handle`](https://sq.io/docs/inspect) etc.
