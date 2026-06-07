@@ -241,8 +241,20 @@ func walkSegments(shape LocationShape, m MatchedLoc, tail string) (MatchedLoc, e
 			m.PathName = tail[cursor : cursor+pathEnd]
 			m.Done = append(m.Done, SegPathName)
 			cursor += pathEnd
-		case SegPathFile, SegConnParams:
-			// Implemented in later tasks (A6-A7).
+		case SegPathFile:
+			// PathFile has no introducer; it starts at the cursor
+			// right after "scheme://". Terminator is '?'.
+			pathEnd := strings.IndexByte(tail[cursor:], '?')
+			if pathEnd == -1 {
+				m.PathFile = tail[cursor:]
+				m.Current = SegPathFile
+				return m, nil
+			}
+			m.PathFile = tail[cursor : cursor+pathEnd]
+			m.Done = append(m.Done, SegPathFile)
+			cursor += pathEnd
+		case SegConnParams:
+			// Implemented in later task (A7).
 		}
 	}
 	return m, nil

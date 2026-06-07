@@ -138,3 +138,44 @@ func TestWalk_pathNameTerminated(t *testing.T) {
 	require.Contains(t, got.Done, SegPathName)
 	require.Equal(t, "mydb", got.PathName)
 }
+
+// sqliteShape is the sqlite3-equivalent shape used in walker tests.
+var sqliteShape = LocationShape{
+	Type:    drivertype.SQLite,
+	Schemes: []string{"sqlite3"},
+	Segments: []Segment{
+		{Kind: SegPathFile},
+		{Kind: SegConnParams, Optional: true},
+	},
+}
+
+// duckdbShape mirrors drivers/duckdb. PathFile Optional for stdin.
+var duckdbShape = LocationShape{
+	Type:    drivertype.DuckDB,
+	Schemes: []string{"duckdb"},
+	Segments: []Segment{
+		{Kind: SegPathFile, Optional: true},
+		{Kind: SegConnParams, Optional: true},
+	},
+}
+
+func TestWalk_pathFilePartial(t *testing.T) {
+	got, err := Walk(sqliteShape, "sqlite3://./foo")
+	require.NoError(t, err)
+	require.Equal(t, SegPathFile, got.Current)
+	require.Equal(t, "./foo", got.PathFile)
+}
+
+func TestWalk_pathFileWithQuery(t *testing.T) {
+	got, err := Walk(sqliteShape, "sqlite3://./foo.db?")
+	require.NoError(t, err)
+	require.Contains(t, got.Done, SegPathFile)
+	require.Equal(t, "./foo.db", got.PathFile)
+}
+
+func TestWalk_pathFileEmptyStdin(t *testing.T) {
+	got, err := Walk(duckdbShape, "duckdb://")
+	require.NoError(t, err)
+	require.Equal(t, SegPathFile, got.Current)
+	require.Equal(t, "", got.PathFile)
+}
