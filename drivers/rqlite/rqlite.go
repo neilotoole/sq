@@ -365,14 +365,14 @@ func dsnFromLocation(loc string) (string, error) {
 // rewritten CREATE and the INSERT-FROM-SELECT are sent as one atomic
 // batch.
 //
-// Preserved verbatim: UNIQUE, FOREIGN KEY, AUTOINCREMENT, CHECK,
-// composite PRIMARY KEY, the exact DEFAULT expressions, WITHOUT
-// ROWID, and column comments. Anything inside the CREATE TABLE
-// statement.
+// The rewrite preserves the original CREATE TABLE text modulo the
+// table identifier substitution. Constraints carried across: UNIQUE,
+// FOREIGN KEY, AUTOINCREMENT, CHECK, composite PRIMARY KEY, exact
+// DEFAULT expressions, WITHOUT ROWID, and column comments.
 //
-// Not preserved: indexes, triggers, views. These live as separate
+// Not preserved: indexes and triggers. These live as separate
 // sqlite_master rows and are out of scope for CopyTable. Matches the
-// sqlite3 driver's behaviour.
+// sqlite3 driver's behavior.
 //
 // Known limitation (inherited from sqlite3): self-referential FKs
 // are not rewritten. If the source has REFERENCES "actor"(id) and
@@ -764,12 +764,14 @@ func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, c
 // at rqlite.
 //
 // The new CREATE TABLE is built by reading the original DDL from
-// sqlite_master and patching only the column type tokens for the
-// requested columns. This preserves UNIQUE, FOREIGN KEY,
-// AUTOINCREMENT, CHECK, composite PRIMARY KEY, the exact DEFAULT
-// expressions, WITHOUT ROWID, and column comments. Self-referential
-// FKs resolve correctly because the DROP-and-RENAME-back restores
-// the original table name.
+// sqlite_master, patching the column type tokens for the requested
+// columns, and renaming the table identifier to a unique temporary
+// so the original can be dropped at the end. This preserves UNIQUE,
+// FOREIGN KEY, AUTOINCREMENT, CHECK, composite PRIMARY KEY, the
+// exact DEFAULT expressions, WITHOUT ROWID, and column comments.
+// Self-referential FKs resolve correctly because the DROP-and-
+// RENAME-back restores the original table name (the inner REFERENCES
+// clause is untouched by the count=1 substring replace).
 //
 // Inherited gap (matches sqlite3 driver): AUTOINCREMENT sequence
 // continuity is not preserved. The sqlite_sequence row for the

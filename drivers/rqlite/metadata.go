@@ -507,7 +507,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	if tblMeta.TableType != sqlz.TableTypeVirtual && tblMeta.TableType != sqlz.TableTypeView {
 		outgoing, fkErr := getTableForeignKeys(ctx, db, tblName)
 		if fkErr != nil {
-			return nil, fkErr
+			return nil, errz.Wrapf(fkErr, "rqlite: failed to read foreign keys for {%s}", tblName)
 		}
 		if len(outgoing) > 0 {
 			tblMeta.FK = metadata.NewFKGroup(outgoing, nil)
@@ -521,7 +521,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 // declared on tblName, using SQLite's pragma_foreign_key_list. Returns
 // nil if the table has no foreign keys. Composite foreign keys are
 // returned as a single ForeignKey whose Columns/RefColumns slices are
-// ordered by the pragma's seq field.
+// populated in the order returned by pragma_foreign_key_list (ORDER BY id, seq).
 func getTableForeignKeys(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.ForeignKey, error) {
 	log := lg.FromContext(ctx)
 	// pragma_foreign_key_list returns columns:
@@ -574,8 +574,7 @@ ORDER BY id, seq`
 // getAllTableMetadata returns metadata for every table in db's schema.
 // Unlike getTableMetadata, this bulk path does not populate per-table
 // foreign keys; callers that need full FK details should re-fetch
-// individual tables via getTableMetadata. Index helpers are still
-// deferred to a follow-up.
+// individual tables via getTableMetadata.
 func getAllTableMetadata(ctx context.Context, db sqlz.DB, schemaName string) ([]*metadata.Table, error) {
 	log := lg.FromContext(ctx)
 

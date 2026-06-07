@@ -1197,6 +1197,51 @@ func TestCopyTable_PreservesCompositePK(t *testing.T) {
 	require.Error(t, err, "duplicate composite PK should be rejected")
 }
 
+// TestCopyTable_PreservesCheckConstraints verifies that table-level
+// CHECK constraints survive the CopyTable rewrite. The godoc on
+// CopyTable lists CHECK as preserved; this test pins that promise
+// via a semantic check (insert a row that violates the CHECK and
+// expect failure on the destination).
+func TestCopyTable_PreservesCheckConstraints(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	uniq := stringz.Uniq8()
+	srcName := "chk_src_" + uniq
+	dstName := "chk_dst_" + uniq
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: srcName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY, age INTEGER NOT NULL CHECK (age >= 0))`,
+		srcName))
+	require.NoError(t, err)
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: srcName}, tablefq.T{Table: dstName}, false)
+	require.NoError(t, err)
+
+	// Sanity: a valid insert succeeds.
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`INSERT INTO %q (id, age) VALUES (1, 5)`, dstName))
+	require.NoError(t, err)
+
+	// CHECK violation: negative age should be rejected on the destination.
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`INSERT INTO %q (id, age) VALUES (2, -1)`, dstName))
+	require.Error(t, err,
+		"CHECK (age >= 0) should be preserved and reject negative ages")
+}
+
 // TestAlterTableColumnKinds_PreservesUniqueAndDefault verifies that
 // UNIQUE and a non-trivial DEFAULT expression both survive an
 // AlterTableColumnKinds rebuild. The kind swap on email is a no-op

@@ -138,7 +138,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     `AUTOINCREMENT`, `CHECK`, composite `PRIMARY KEY`, the exact `DEFAULT` expression, `WITHOUT ROWID`,
     and column comments. Previously these were silently dropped (the destination DDL was rebuilt
     from `*metadata.Table`, which exposes only a subset of the source's schema).
-  - Indexes, triggers, and views are still not carried by `CopyTable`; they live as separate
+  - Indexes and triggers are still not carried by `CopyTable`; they live as separate
     `sqlite_master` rows and are out of scope for this fix.
   - `getTableMetadata` now populates outgoing foreign keys via `pragma_foreign_key_list`, matching
     the sqlite3 driver's metadata shape.
