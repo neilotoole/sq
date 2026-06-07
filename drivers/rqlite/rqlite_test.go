@@ -62,6 +62,10 @@ func TestSourceMetadata(t *testing.T) {
 	// metadata query runs. Assert the lower bound rather than equality.
 	require.GreaterOrEqual(t, md.TableCount, int64(16))
 	require.Equal(t, int64(5), md.ViewCount)
+	// rqlite's HTTP API doesn't expose a database file size, so the
+	// driver leaves Source.Size as nil (gh744). Asserting nil prevents a
+	// regression to the int64 zero value, which would render as "0.0B".
+	require.Nil(t, md.Size, "rqlite source size should not be reported")
 }
 
 // TestTableMetadata_Actor verifies the per-table metadata path:

@@ -1023,7 +1023,8 @@ func TestSQLDriver_SourceMetadata_FieldCoverage(t *testing.T) {
 				require.NotEmpty(t, md.User, "User")
 			}
 			if tc.wantSize {
-				require.Positive(t, md.Size, "Size")
+				require.NotNil(t, md.Size, "Size")
+				require.Positive(t, *md.Size, "Size")
 			}
 			if tc.wantProps {
 				require.NotEmpty(t, md.DBProperties, "DBProperties")

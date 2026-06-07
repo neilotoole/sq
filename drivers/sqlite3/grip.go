@@ -106,7 +106,8 @@ func (g *grip) getSourceMetadata(ctx context.Context, noSchema bool) (*metadata.
 		return nil, errw(err)
 	}
 
-	md.Size = fi.Size()
+	size := fi.Size()
+	md.Size = &size
 	md.Name = fi.Name()
 	md.FQName = fi.Name() + "." + md.Schema
 	// SQLite doesn't support catalog, but we conventionally set it to "default"

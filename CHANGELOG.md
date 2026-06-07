@@ -142,6 +142,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     `sqlite_master` rows and are out of scope for this fix.
   - `getTableMetadata` now populates outgoing foreign keys via `pragma_foreign_key_list`, matching
     the sqlite3 driver's metadata shape.
+- [#744]: `sq inspect` no longer reports `0.0B` size for sources whose driver doesn't expose
+  a database size (e.g. rqlite). The SIZE column renders `-` instead, and JSON / YAML output
+  omits the `size` field.
 
 ## [v0.53.0] - 2026-05-25
 
@@ -1720,6 +1723,7 @@ make working with lots of sources much easier.
 [#720]: https://github.com/neilotoole/sq/issues/720
 [#729]: https://github.com/neilotoole/sq/issues/729
 [#737]: https://github.com/neilotoole/sq/issues/737
+[#744]: https://github.com/neilotoole/sq/issues/744
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3

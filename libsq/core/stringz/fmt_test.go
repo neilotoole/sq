@@ -77,6 +77,29 @@ func TestParseBool(t *testing.T) {
 	}
 }
 
+func TestFormatSize(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil_reports_dash", func(t *testing.T) {
+		t.Parallel()
+		require.Equal(t, "-", stringz.FormatSize(nil))
+	})
+
+	t.Run("zero_reports_zero_bytes", func(t *testing.T) {
+		t.Parallel()
+		var zero int64
+		got := stringz.FormatSize(&zero)
+		require.Equal(t, stringz.ByteSized(0, 1, ""), got)
+	})
+
+	t.Run("non_zero_matches_ByteSized", func(t *testing.T) {
+		t.Parallel()
+		v := int64(1048576)
+		got := stringz.FormatSize(&v)
+		require.Equal(t, stringz.ByteSized(v, 1, ""), got)
+	})
+}
+
 func TestPlu(t *testing.T) {
 	testCases := []struct {
 		s    string
