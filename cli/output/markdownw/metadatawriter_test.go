@@ -51,12 +51,13 @@ func newTestSource() *metadata.Source {
 		},
 	}
 
+	var size int64 = 1048576
 	src := &metadata.Source{
 		Handle:     "@test",
 		Name:       "testdb",
 		Driver:     drivertype.Type("sqlite3"),
 		Schema:     "main",
-		Size:       1048576,
+		Size:       &size,
 		TableCount: 2,
 		ViewCount:  0,
 		Tables:     []*metadata.Table{actor, filmActor},
@@ -178,6 +179,22 @@ func TestMetadataWriter_SourceMetadata_overview(t *testing.T) {
 	require.Equal(t, want, buf.String())
 }
 
+// TestMetadataWriter_SourceMetadata_nilSize verifies that a source whose
+// driver doesn't report a size renders "-" rather than "0.0B" (gh744).
+func TestMetadataWriter_SourceMetadata_nilSize(t *testing.T) {
+	src := newTestSource()
+	src.Size = nil
+
+	buf := &bytes.Buffer{}
+	w := markdownw.NewMetadataWriter(buf, output.NewPrinting())
+	require.NoError(t, w.SourceMetadata(src, true))
+
+	got := buf.String()
+	// The Size key-value row is emitted with a literal "-".
+	require.Contains(t, got, "| Size | `-` |")
+	require.NotContains(t, got, "0.0B")
+}
+
 // TestMetadataWriter_indexesAndUniqueConstraints checks that indexes and
 // unique constraints render as tables (the test source used elsewhere has
 // neither). Type is empty for one index, exercising the blank cell.
@@ -232,9 +249,10 @@ func TestMetadataWriter_backtickIdentifier(t *testing.T) {
 // "Tables & views" heading and italicizes view links in the TOC (tables
 // stay plain).
 func TestMetadataWriter_views(t *testing.T) {
+	var size int64 = 1024
 	src := &metadata.Source{
 		Handle: "@test", Name: "db", Driver: drivertype.Type("sqlite3"),
-		Schema: "main", Size: 1024, TableCount: 1, ViewCount: 1,
+		Schema: "main", Size: &size, TableCount: 1, ViewCount: 1,
 		Tables: []*metadata.Table{
 			{Name: "t_actor", TableType: "table", Columns: []*metadata.Column{{Name: "id", ColumnType: "int"}}},
 			{Name: "v_films", TableType: "view", Columns: []*metadata.Column{{Name: "id", ColumnType: "int"}}},

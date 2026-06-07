@@ -210,7 +210,7 @@ func (w *metadataWriter) writeSourceOverview(buf *bytes.Buffer, md *metadata.Sou
 	writeKVRow(buf, "DB version", md.DBVersion)
 	writeKVRow(buf, "Schema", md.Schema)
 	writeKVRow(buf, "Catalog", md.Catalog)
-	writeKVRow(buf, "Size", stringz.ByteSized(md.Size, 1, ""))
+	writeKVRow(buf, "Size", stringz.FormatSize(md.Size))
 	if showSchema {
 		writeKVRow(buf, "Tables", strconv.FormatInt(md.TableCount, 10))
 		writeKVRow(buf, "Views", strconv.FormatInt(md.ViewCount, 10))
