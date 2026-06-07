@@ -282,3 +282,22 @@ func TestWalk_sqlserverInstanceAndDatabase(t *testing.T) {
 	require.Equal(t, "myinst", got.PathName)
 	require.Equal(t, SegConnParams, got.Current)
 }
+
+func BenchmarkWalk(b *testing.B) {
+	inputs := []struct {
+		shape LocationShape
+		loc   string
+	}{
+		{pgShape, "postgres://alice@db.example.com:5432/mydb?sslmode=require"},
+		{rqliteShape, "rqlite://localhost:4001?disableClusterDiscovery=true"},
+		{sqliteShape, "sqlite3:///path/to/sakila.db?cache=shared"},
+		{pgShape, "postgres://"},
+		{pgShape, "postgres://localhost:5432?"}, // the #743 case
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, in := range inputs {
+			_, _ = Walk(in.shape, in.loc)
+		}
+	}
+}
