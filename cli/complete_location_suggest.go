@@ -55,8 +55,22 @@ func suggestCreds(m driver.MatchedLoc, src driver.Suggestions) []string {
 		return cs.build()
 	}
 
-	// Partial username: offer "@" and ":" to push past credentials,
-	// plus history usernames as continuations.
+	if m.PassSet {
+		// Password phase: "@" closes credentials. If no digits typed
+		// yet, also offer a "password" placeholder so the next TAB
+		// jumps to the host. Don't offer ":" (would insert a literal
+		// colon at the start of the password) and don't replay history
+		// usernames here.
+		cs.add(m.Loc + "@")
+		if m.Pass == "" {
+			cs.add(m.Loc + "password@")
+		}
+		return cs.build()
+	}
+
+	// Username phase: "@" closes creds with no password; ":" starts
+	// the password segment; history usernames are alternate
+	// continuations.
 	cs.add(m.Loc+"@", m.Loc+":")
 	for _, u := range unames {
 		v := base + u
@@ -177,12 +191,19 @@ func suggestPathName(m driver.MatchedLoc, src driver.Suggestions, placeholder st
 }
 
 // suggestPathFile generates candidates when MatchedLoc.Current is
-// SegPathFile. Offers filesystem listings and "?" once a file is
-// fully matched.
-func suggestPathFile(ctx context.Context, m driver.MatchedLoc, src driver.Suggestions) []string {
+// SegPathFile. Offers filesystem listings, "?" once a file is fully
+// matched, and (when the segment is Optional) "?" with empty path so
+// drivers like duckdb that allow scheme://?key=val for stdin can be
+// completed.
+func suggestPathFile(ctx context.Context, m driver.MatchedLoc, src driver.Suggestions, optional bool) []string {
 	cs := candidateSet{prefix: m.Loc}
 	base := m.Scheme + "://"
 	typed := m.PathFile
+
+	// Optional + empty: offer the skip-to-conn-params variant.
+	if optional && typed == "" {
+		cs.add(base + "?")
+	}
 
 	paths := locCompListFiles(ctx, typed)
 	for i := range paths {
@@ -314,7 +335,7 @@ func generateCandidates(ctx context.Context, shape driver.LocationShape,
 	case driver.SegPathName:
 		return suggestPathName(m, src, seg.Placeholder)
 	case driver.SegPathFile:
-		return suggestPathFile(ctx, m, src)
+		return suggestPathFile(ctx, m, src, seg.Optional)
 	case driver.SegConnParams:
 		return suggestConnParams(m, src, drvr, seg.LeadingKey)
 	}
