@@ -128,3 +128,13 @@ func TestWalk_pathNameOptionalSkipped(t *testing.T) {
 	// SegPathName NOT in Done because user skipped it.
 	require.NotContains(t, got.Done, SegPathName)
 }
+
+func TestWalk_pathNameTerminated(t *testing.T) {
+	// Path followed by '?' exercises the terminator-hit branch:
+	// SegPathName is added to Done, and the cursor advances past
+	// the path so the next segment can consume the '?'.
+	got, err := Walk(pgShape, "postgres://alice@localhost/mydb?")
+	require.NoError(t, err)
+	require.Contains(t, got.Done, SegPathName)
+	require.Equal(t, "mydb", got.PathName)
+}
