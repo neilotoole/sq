@@ -53,7 +53,8 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 	}
 }
 
-// Open implements driver.Driver. Real implementation lands in a later task.
+// Open implements driver.Driver. The full read path is not yet implemented;
+// it currently returns an error.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 	return nil, errz.New("parquet: Open not yet implemented")
