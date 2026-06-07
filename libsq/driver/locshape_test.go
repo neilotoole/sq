@@ -294,8 +294,7 @@ func BenchmarkWalk(b *testing.B) {
 		{pgShape, "postgres://"},
 		{pgShape, "postgres://localhost:5432?"}, // the #743 case
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for _, in := range inputs {
 			_, _ = Walk(in.shape, in.loc)
 		}
