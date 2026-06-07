@@ -1,8 +1,15 @@
 package rqlite
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log/slog"
+	"net"
+	"strings"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3" // For TestWriteAtomic_DBTypeCheck.
@@ -10,8 +17,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh/tu"
 )
@@ -338,4 +348,184 @@ func TestBuildCreateTableStmt_ForeignKey(t *testing.T) {
 	require.Contains(t, got, `ON DELETE CASCADE ON UPDATE CASCADE`)
 	require.Contains(t, got, `ON DELETE RESTRICT ON UPDATE SET NULL`)
 	require.Contains(t, got, `"film_id" INTEGER UNIQUE`)
+}
+
+func Test_maybeWarnLocalhostDiscovery(t *testing.T) {
+	testCases := []struct {
+		name    string
+		loc     string
+		wantLog bool
+	}{
+		{name: "localhost", loc: "rqlite://localhost:4001", wantLog: true},
+		{name: "localhost upper", loc: "rqlite://LOCALHOST:4001", wantLog: true},
+		{name: "127.0.0.1", loc: "rqlite://127.0.0.1:4001", wantLog: true},
+		{name: "ipv6 loopback", loc: "rqlite://[::1]:4001", wantLog: true},
+		{name: "127.0.0.5", loc: "rqlite://127.0.0.5:4001", wantLog: true},
+		{name: "remote host", loc: "rqlite://example.com:4001", wantLog: false},
+		{name: "discovery off explicit", loc: "rqlite://localhost:4001?disableClusterDiscovery=true", wantLog: false},
+		{name: "discovery on explicit", loc: "rqlite://localhost:4001?disableClusterDiscovery=false", wantLog: false},
+		{name: "localhost other params", loc: "rqlite://localhost:4001?level=strong", wantLog: true},
+		{name: "https loopback", loc: "rqlites://localhost:4001", wantLog: true},
+		{name: "malformed", loc: "rqlite://%zz", wantLog: false},
+		{name: "discovery empty value", loc: "rqlite://localhost:4001?disableClusterDiscovery=", wantLog: true},
+		{name: "discovery bare key", loc: "rqlite://localhost:4001?disableClusterDiscovery", wantLog: true},
+		{name: "discovery upper TRUE", loc: "rqlite://localhost:4001?disableClusterDiscovery=TRUE", wantLog: false},
+		{name: "discovery upper FALSE", loc: "rqlite://localhost:4001?disableClusterDiscovery=False", wantLog: false},
+		{name: "discovery garbage value", loc: "rqlite://localhost:4001?disableClusterDiscovery=yes", wantLog: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			h := slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
+			ctx := lg.NewContext(context.Background(), slog.New(h))
+
+			src := &source.Source{Handle: "@rq", Location: tc.loc, Type: drivertype.Rqlite}
+			maybeWarnLocalhostDiscovery(ctx, src)
+
+			raw := strings.TrimSpace(buf.String())
+			if !tc.wantLog {
+				require.Empty(t, raw, "expected no log output, got: %s", raw)
+				return
+			}
+
+			require.NotEmpty(t, raw, "expected one log entry, got none")
+			var entry map[string]any
+			require.NoError(t, json.Unmarshal([]byte(raw), &entry), "log line: %s", raw)
+			require.Equal(t, "WARN", entry["level"], "expected level=WARN, got: %v", entry["level"])
+			msg, _ := entry["msg"].(string)
+			require.Contains(t, msg, "disableClusterDiscovery",
+				"msg missing disableClusterDiscovery: %s", msg)
+		})
+	}
+}
+
+func Test_rewritePeerDNSError(t *testing.T) {
+	// fakeDNSErr builds a *net.DNSError with the given peer name.
+	// All real fields of net.DNSError (Err, Server, IsTimeout, etc.)
+	// are zero/false — only Name matters to the helper under test.
+	fakeDNSErr := func(name string) *net.DNSError {
+		return &net.DNSError{Err: "no such host", Name: name, IsNotFound: true}
+	}
+	// fakeDNSTimeoutErr builds a *net.DNSError representing a DNS
+	// timeout (IsNotFound is false). The rewrite must pass these
+	// through unchanged: they're not the cluster-discovery "no such
+	// host" case the helper targets.
+	fakeDNSTimeoutErr := func(name string) *net.DNSError {
+		return &net.DNSError{Err: "i/o timeout", Name: name, IsTimeout: true}
+	}
+
+	const userLoc = "rqlite://localhost:4001"
+	const userLocOff = "rqlite://localhost:4001?disableClusterDiscovery=true"
+
+	testCases := []struct {
+		name          string
+		err           error
+		loc           string
+		wantRewrite   bool
+		wantSubstrAll []string // every substring must appear in the rewritten msg
+	}{
+		{
+			name:        "nil",
+			err:         nil,
+			loc:         userLoc,
+			wantRewrite: false,
+		},
+		{
+			name:        "non-dns error",
+			err:         errors.New("connection refused"),
+			loc:         userLoc,
+			wantRewrite: false,
+		},
+		{
+			name:          "discovered peer mismatch",
+			err:           fakeDNSErr("rqlite1"),
+			loc:           userLoc,
+			wantRewrite:   true,
+			wantSubstrAll: []string{"rqlite1", "localhost", "disableClusterDiscovery=true", "sq.io/docs/drivers/rqlite"},
+		},
+		{
+			name: "discovered peer mismatch wrapped via fmt.Errorf",
+			err: fmt.Errorf(
+				"Post \"http://rqlite1:4001/db/query\": dial tcp: lookup rqlite1: %w",
+				fakeDNSErr("rqlite1"),
+			),
+			loc:           userLoc,
+			wantRewrite:   true,
+			wantSubstrAll: []string{"rqlite1", "disableClusterDiscovery=true"},
+		},
+		{
+			name:        "discovery already off",
+			err:         fakeDNSErr("rqlite1"),
+			loc:         userLocOff,
+			wantRewrite: false,
+		},
+		{
+			name:        "user host equals failed name",
+			err:         fakeDNSErr("localhost"),
+			loc:         userLoc,
+			wantRewrite: false,
+		},
+		{
+			name:        "user host equals failed name case-insensitive",
+			err:         fakeDNSErr("localhost"),
+			loc:         "rqlite://LOCALHOST:4001",
+			wantRewrite: false,
+		},
+		{
+			name:        "malformed url",
+			err:         fakeDNSErr("rqlite1"),
+			loc:         "rqlite://%zz",
+			wantRewrite: false,
+		},
+		{
+			name:        "dns timeout passes through",
+			err:         fakeDNSTimeoutErr("rqlite1"),
+			loc:         userLoc,
+			wantRewrite: false,
+		},
+		{
+			name:        "discovery off upper TRUE",
+			err:         fakeDNSErr("rqlite1"),
+			loc:         "rqlite://localhost:4001?disableClusterDiscovery=TRUE",
+			wantRewrite: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			src := &source.Source{Handle: "@rq", Location: tc.loc, Type: drivertype.Rqlite}
+			got := rewritePeerDNSError(tc.err, src)
+
+			if tc.err == nil {
+				require.Nil(t, got)
+				return
+			}
+
+			// errors.As must still find the underlying *net.DNSError
+			// (when there was one) — the rewrite must not break
+			// downstream classification.
+			var dnsErr *net.DNSError
+			origHadDNS := errors.As(tc.err, &dnsErr)
+			if origHadDNS {
+				var afterDNS *net.DNSError
+				require.True(t, errors.As(got, &afterDNS),
+					"errors.As must still reach *net.DNSError after rewrite")
+				require.Equal(t, dnsErr.Name, afterDNS.Name)
+			}
+
+			if !tc.wantRewrite {
+				// Pass-through: helper must return the original error
+				// unchanged so callers can errors.Is against it.
+				require.True(t, errors.Is(got, tc.err),
+					"expected pass-through (errors.Is), got rewritten: %v", got)
+				return
+			}
+
+			msg := got.Error()
+			for _, sub := range tc.wantSubstrAll {
+				require.Contains(t, msg, sub, "rewritten message missing substring %q: %s", sub, msg)
+			}
+		})
+	}
 }
