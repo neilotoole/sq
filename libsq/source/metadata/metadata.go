@@ -52,8 +52,9 @@ type Source struct { //nolint:govet // field alignment
 	User string `json:"user,omitempty" yaml:"user,omitempty"`
 
 	// Size is the physical size of the source in bytes, e.g. DB file size.
-	// A nil value means the size is not reported by the driver — this is
-	// distinct from a zero-sized source. Mirrors [Table.Size].
+	// A nil value means the size is not reported by the driver, distinct
+	// from a non-nil pointer to 0 (a genuinely zero-sized source).
+	// Mirrors [Table.Size].
 	Size *int64 `json:"size,omitempty" yaml:"size,omitempty"`
 
 	// TableCount is the count of tables (excluding views).
