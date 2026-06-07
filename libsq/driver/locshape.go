@@ -1,5 +1,3 @@
-// Package driver, locshape.go
-//
 // LocationShape declares a SQL driver's URL syntax declaratively so
 // that shell completion (and future location validation) can walk
 // partial input against a shape without per-driver branches in the
