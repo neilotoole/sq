@@ -8,8 +8,29 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
+
+// TestSourceMetadata_nilSize verifies that a source whose driver doesn't
+// report a size renders "-" in the SIZE column rather than "0.0B" (gh744).
+func TestSourceMetadata_nilSize(t *testing.T) {
+	src := &metadata.Source{
+		Handle: "@test", Driver: drivertype.SQLite, Name: "testdb",
+		FQName: "testdb", Location: "sqlite3:///tmp/testdb.db",
+		// Size left nil to simulate a driver that doesn't report it.
+	}
+
+	buf := &bytes.Buffer{}
+	pr := output.NewPrinting()
+	pr.EnableColor(false)
+	w := NewMetadataWriter(buf, pr)
+	require.NoError(t, w.SourceMetadata(src, true))
+
+	got := buf.String()
+	require.Contains(t, got, "-", "expected dash for nil size")
+	require.NotContains(t, got, "0.0B")
+}
 
 // TestIndexEntriesByColumn_TagMatrix pins the verbose-text dedup
 // contract for [indexEntriesByColumn]:

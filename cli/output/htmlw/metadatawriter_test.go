@@ -135,6 +135,24 @@ func TestMetadataWriter_SourceMetadata_overview(t *testing.T) {
 	require.NotContains(t, got, `id="tables"`)
 }
 
+// TestMetadataWriter_SourceMetadata_nilSize verifies that a source whose
+// driver doesn't report a size renders "-" in the Size row rather than
+// "0.0B" (gh744). The row is still emitted so the key-value layout stays
+// consistent across sources.
+func TestMetadataWriter_SourceMetadata_nilSize(t *testing.T) {
+	src := newTestSource()
+	src.Size = nil
+
+	buf := &bytes.Buffer{}
+	w := htmlw.NewMetadataWriter(buf, output.NewPrinting(), false)
+	require.NoError(t, w.SourceMetadata(src, true))
+
+	got := buf.String()
+	// The Size key-value row is rendered with a literal "-" value.
+	require.Contains(t, got, "<tr><td>Size</td><td><code>-</code></td></tr>")
+	require.NotContains(t, got, "0.0B")
+}
+
 // TestMetadataWriter_indexesAndUniqueConstraints checks that indexes and
 // unique constraints render as <table> elements with the expected columns.
 func TestMetadataWriter_indexesAndUniqueConstraints(t *testing.T) {

@@ -179,6 +179,22 @@ func TestMetadataWriter_SourceMetadata_overview(t *testing.T) {
 	require.Equal(t, want, buf.String())
 }
 
+// TestMetadataWriter_SourceMetadata_nilSize verifies that a source whose
+// driver doesn't report a size renders "-" rather than "0.0B" (gh744).
+func TestMetadataWriter_SourceMetadata_nilSize(t *testing.T) {
+	src := newTestSource()
+	src.Size = nil
+
+	buf := &bytes.Buffer{}
+	w := markdownw.NewMetadataWriter(buf, output.NewPrinting())
+	require.NoError(t, w.SourceMetadata(src, true))
+
+	got := buf.String()
+	// The Size key-value row is emitted with a literal "-".
+	require.Contains(t, got, "| Size | `-` |")
+	require.NotContains(t, got, "0.0B")
+}
+
 // TestMetadataWriter_indexesAndUniqueConstraints checks that indexes and
 // unique constraints render as tables (the test source used elsewhere has
 // neither). Type is empty for one index, exercising the blank cell.
