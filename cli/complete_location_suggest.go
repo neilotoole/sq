@@ -119,9 +119,10 @@ func suggestAuthority(m driver.MatchedLoc, src driver.Suggestions,
 		return cs.build()
 	}
 
-	// Hostname + port. If the port is "set but empty" (trailing colon,
-	// no digits), offer the default port for the typed host.
-	if m.Port == 0 && defaultPort > 0 {
+	// Hostname + port. If the user typed a trailing colon with no
+	// port digits, offer the default port for the typed host;
+	// otherwise offer the next-segment continuation directly.
+	if strings.HasSuffix(m.Loc, ":") && defaultPort > 0 {
 		cs.add(m.Loc + strconv.Itoa(defaultPort) + afterHost)
 	} else {
 		cs.add(m.Loc + afterHost)

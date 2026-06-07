@@ -1708,9 +1708,9 @@ func TestCompleteAddLocation_History_SQLite3(t *testing.T) {
 	}
 }
 
-// TestParseLoc_stage was deleted in B14: the legacy parsedLoc /
-// plocStage parser was replaced by driver.LocationShape + driver.Walk.
-// Stage detection is now covered by TestWalk in libsq/driver.
+// TestParseLoc_stage is no more: the legacy parsedLoc / plocStage
+// parser was replaced by driver.LocationShape + driver.Walk. Stage
+// detection is now covered by TestWalk in libsq/driver.
 
 func TestDoCompleteAddLocationFile(t *testing.T) {
 	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)

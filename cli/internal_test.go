@@ -12,8 +12,9 @@ var (
 	ErrBinaryFormatToTerminal = errBinaryFormatToTerminal
 )
 
-// B15: the legacy parsedLoc/plocStage parser was removed in B14
-// (rewrite of completeAddLocation on top of LocationShape walker).
-// DoTestParseLocStage and the PlocStage type alias / Ploc* constants
-// formerly defined here are deleted along with TestParseLoc_stage.
-// Walker stage equivalents are exercised by libsq/driver TestWalk.
+// The legacy parsedLoc/plocStage parser was removed when
+// completeAddLocation was rewritten on top of the LocationShape
+// walker. The DoTestParseLocStage helper and the PlocStage type
+// alias / Ploc* constants that formerly lived here are gone along
+// with TestParseLoc_stage. Walker stage equivalents are exercised
+// by TestWalk in libsq/driver/locshape_test.go.

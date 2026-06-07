@@ -9,7 +9,9 @@ import (
 )
 
 // pgShape is the postgres-equivalent shape used in walker tests.
-// It mirrors what drivers/postgres/postgres.go will return in PR B.
+// It is a literal mirror of what drivers/postgres/postgres.go returns
+// from LocationShape(). The duplication keeps walker tests pure (no
+// driver-package dependency); driver tests in cli/ verify the mirror.
 var pgShape = LocationShape{
 	Type:    drivertype.Pg,
 	Schemes: []string{"postgres"},
