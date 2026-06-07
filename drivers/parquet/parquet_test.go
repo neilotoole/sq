@@ -14,6 +14,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/sq/testh/sakila"
 )
 
 func nopLogger() *slog.Logger {
@@ -138,4 +139,33 @@ func TestOpen_WithConnOptions(t *testing.T) {
 	err = db.QueryRowContext(ctx, `SELECT current_setting('threads')`).Scan(&threads)
 	require.NoError(t, err)
 	require.Equal(t, "1", threads)
+}
+
+func TestSakilaParquetActor(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.ParquetActor)
+	require.Equal(t, drivertype.Parquet, src.Type)
+
+	g := th.Open(src)
+
+	db, err := g.DB(th.Context)
+	require.NoError(t, err)
+
+	var n int
+	err = db.QueryRowContext(th.Context, `SELECT count(*) FROM "data"`).Scan(&n)
+	require.NoError(t, err)
+	require.Equal(t, 200, n) // Sakila actor table has 200 rows.
+}
+
+func TestInspectSakilaParquet(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.ParquetActor)
+	g := th.Open(src)
+
+	md, err := g.SourceMetadata(th.Context, false)
+	require.NoError(t, err)
+	require.Equal(t, drivertype.Parquet, md.Driver)
+	require.Equal(t, src.Handle, md.Handle)
+	require.NotZero(t, md.Size)
+	require.Equal(t, "actor.parquet", md.Name)
 }
