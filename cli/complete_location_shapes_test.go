@@ -73,3 +73,16 @@ func TestDriverShape_SQLite3(t *testing.T) {
 	require.Equal(t, driver.SegConnParams, shape.Segments[1].Kind)
 	require.True(t, shape.Segments[1].Optional)
 }
+
+func TestDriverShape_DuckDB(t *testing.T) {
+	th := testh.New(t)
+	drvr, err := th.Registry().SQLDriverFor(drivertype.DuckDB)
+	require.NoError(t, err)
+	shape := drvr.LocationShape()
+	require.Equal(t, drivertype.DuckDB, shape.Type)
+	require.Equal(t, []string{"duckdb"}, shape.Schemes)
+	require.Len(t, shape.Segments, 2)
+	require.Equal(t, driver.SegPathFile, shape.Segments[0].Kind)
+	require.True(t, shape.Segments[0].Optional) // allows duckdb:// for stdin
+	require.Equal(t, driver.SegConnParams, shape.Segments[1].Kind)
+}

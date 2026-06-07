@@ -79,8 +79,14 @@ func (d *driveri) ConnParams() map[string][]string {
 
 // LocationShape implements driver.SQLDriver.
 func (d *driveri) LocationShape() driver.LocationShape {
-	// TODO(gh743): populated in subsequent tasks.
-	return driver.LocationShape{}
+	return driver.LocationShape{
+		Type:    drivertype.DuckDB,
+		Schemes: []string{"duckdb"},
+		Segments: []driver.Segment{
+			{Kind: driver.SegPathFile, Optional: true},
+			{Kind: driver.SegConnParams, Optional: true},
+		},
+	}
 }
 
 // DriverMetadata implements driver.Driver.
