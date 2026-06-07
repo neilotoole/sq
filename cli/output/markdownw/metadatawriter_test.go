@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -52,12 +51,13 @@ func newTestSource() *metadata.Source {
 		},
 	}
 
+	var size int64 = 1048576
 	src := &metadata.Source{
 		Handle:     "@test",
 		Name:       "testdb",
 		Driver:     drivertype.Type("sqlite3"),
 		Schema:     "main",
-		Size:       lo.ToPtr(int64(1048576)),
+		Size:       &size,
 		TableCount: 2,
 		ViewCount:  0,
 		Tables:     []*metadata.Table{actor, filmActor},
@@ -233,9 +233,10 @@ func TestMetadataWriter_backtickIdentifier(t *testing.T) {
 // "Tables & views" heading and italicizes view links in the TOC (tables
 // stay plain).
 func TestMetadataWriter_views(t *testing.T) {
+	var size int64 = 1024
 	src := &metadata.Source{
 		Handle: "@test", Name: "db", Driver: drivertype.Type("sqlite3"),
-		Schema: "main", Size: lo.ToPtr(int64(1024)), TableCount: 1, ViewCount: 1,
+		Schema: "main", Size: &size, TableCount: 1, ViewCount: 1,
 		Tables: []*metadata.Table{
 			{Name: "t_actor", TableType: "table", Columns: []*metadata.Column{{Name: "id", ColumnType: "int"}}},
 			{Name: "v_films", TableType: "view", Columns: []*metadata.Column{{Name: "id", ColumnType: "int"}}},

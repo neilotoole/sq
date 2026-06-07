@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -104,6 +103,7 @@ func TestSource_Clone(t *testing.T) {
 	})
 
 	t.Run("full_source", func(t *testing.T) {
+		var size int64 = 1024
 		src := &metadata.Source{
 			Handle:     "@sakila",
 			Location:   "postgres://localhost/sakila",
@@ -116,7 +116,7 @@ func TestSource_Clone(t *testing.T) {
 			DBProduct:  "PostgreSQL 14.0",
 			DBVersion:  "14.0",
 			User:       "postgres",
-			Size:       lo.ToPtr(int64(1024)),
+			Size:       &size,
 			TableCount: 10,
 			ViewCount:  5,
 			DBProperties: map[string]any{
