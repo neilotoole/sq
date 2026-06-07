@@ -10,8 +10,8 @@ weight: 2038
 toc: false
 url: /docs/cmd/config-keyring-create
 ---
-See [Secrets](/docs/secrets#managing-keyring-entries) for an overview of
-the `sq config keyring` command group. Most users let
+Part of the [`sq config keyring`](/docs/cmd/config-keyring) command group;
+see [Secrets](/docs/secrets) for the broader picture. Most users let
 [`sq add --store keyring`](/docs/cmd/add) create entries automatically;
 this command is for hand-crafted paths used by composition or shared
 keyring references.
