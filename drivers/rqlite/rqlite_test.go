@@ -621,6 +621,47 @@ func TestAlterTableColumnKinds_UnknownColumn(t *testing.T) {
 	require.Contains(t, err.Error(), "column")
 }
 
+// TestOpen_DefaultsPort confirms that the driver injects port 4001
+// when the source location omits a port. Without the injection,
+// gorqlite/stdlib would try Go's net/http default (80) and fail
+// with connection refused.
+func TestOpen_DefaultsPort(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	base := th.Source(sakila.Rq)
+
+	u, err := url.Parse(base.Location)
+	require.NoError(t, err)
+	// Strip the port: rebuild Host without the ":4001" suffix.
+	u.Host = u.Hostname()
+	noPortLoc := u.String()
+	require.NotContains(t, noPortLoc, ":4001",
+		"port should be stripped for this test")
+
+	src := &source.Source{
+		Handle:   base.Handle + "_noport",
+		Type:     base.Type,
+		Location: noPortLoc,
+		Options:  base.Options,
+	}
+
+	provider := &rqlite.Provider{Log: lg.FromContext(th.Context)}
+	drvr, err := provider.DriverFor(drivertype.Rqlite)
+	require.NoError(t, err)
+	grip, err := drvr.Open(th.Context, src)
+	require.NoError(t, err, "should auto-default port 4001")
+	t.Cleanup(func() { _ = grip.Close() })
+
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+	var count int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		"SELECT COUNT(*) FROM "+sakila.TblActor).Scan(&count))
+	require.Equal(t, int64(sakila.TblActorCount), count)
+}
+
 // TestWriteAtomic_PerStatementError exercises the per-statement error
 // wrap inside writeAtomic. We trigger it by pre-creating the
 // destination table so the subsequent CopyTable(copyData=true) batch's

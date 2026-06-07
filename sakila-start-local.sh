@@ -33,11 +33,11 @@ export SQ_TEST_SRC__SAKILA_MS19=localhost
 export SQ_TEST_SRC__SAKILA_MY8=localhost
 export SQ_TEST_SRC__SAKILA_CH25=localhost
 export SQ_TEST_SRC__SAKILA_OR23=localhost
-export SQ_TEST_SRC__SAKILA_RQ=localhost:4001
+export SQ_TEST_SRC__SAKILA_RQ=localhost
 EOF
 export SQ_TEST_SRC__SAKILA_PG12=localhost
 export SQ_TEST_SRC__SAKILA_MS19=localhost
 export SQ_TEST_SRC__SAKILA_MY8=localhost
 export SQ_TEST_SRC__SAKILA_CH25=localhost
 export SQ_TEST_SRC__SAKILA_OR23=localhost
-export SQ_TEST_SRC__SAKILA_RQ=localhost:4001
+export SQ_TEST_SRC__SAKILA_RQ=localhost

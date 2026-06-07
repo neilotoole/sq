@@ -223,6 +223,37 @@ func TestWriteAtomic_DBTypeCheck(t *testing.T) {
 	})
 }
 
+func TestLocationWithDefaultPort(t *testing.T) {
+	testCases := []struct {
+		loc       string
+		wantLoc   string
+		wantAdded bool
+		wantErr   bool
+	}{
+		{loc: "", wantErr: true},
+		{loc: "://bad", wantErr: true},
+		{loc: "rqlite://host:4001", wantLoc: "rqlite://host:4001", wantAdded: false},
+		{loc: "rqlite://host", wantLoc: "rqlite://host:4001", wantAdded: true},
+		{loc: "rqlites://host", wantLoc: "rqlites://host:4001", wantAdded: true},
+		{loc: "rqlite://user:pass@host", wantLoc: "rqlite://user:pass@host:4001", wantAdded: true},
+		{loc: "rqlite://host:9999", wantLoc: "rqlite://host:9999", wantAdded: false},
+		{loc: "rqlite://host?level=strong", wantLoc: "rqlite://host:4001?level=strong", wantAdded: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tu.Name(tc.loc), func(t *testing.T) {
+			got, added, err := locationWithDefaultPort(tc.loc)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.wantLoc, got)
+			require.Equal(t, tc.wantAdded, added)
+		})
+	}
+}
+
 func TestBuildCreateTableStmt_ForeignKey(t *testing.T) {
 	tblDef := &schema.Table{
 		Name: "film_actor",

@@ -33,10 +33,9 @@ $ sq add 'rqlites://node.example.com:4001'
 $ sq add 'rqlite://sakila:p_ssW0rd@localhost:4001' --handle @rq
 ```
 
-rqlite's default port is `4001`, but the driver does not inject it
-automatically. Include the port explicitly in the URL. The driver type
-is inferred from the `rqlite://` / `rqlites://` scheme prefix; there
-is no file-based auto-detection.
+If the port is omitted, `sq` auto-applies the default port `4001`.
+The driver type is inferred from the `rqlite://` / `rqlites://`
+scheme prefix; there is no file-based auto-detection.
 
 ## Connection string format
 

@@ -31,6 +31,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/rqlite/gorqlite"
@@ -152,7 +153,18 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
-	dsn, err := dsnFromLocation(src.Location)
+	loc, portAdded, err := locationWithDefaultPort(src.Location)
+	if err != nil {
+		return nil, err
+	}
+	if portAdded {
+		lg.FromContext(ctx).Debug("rqlite: applied default port",
+			lga.Src, src.Handle,
+			lga.Default, defaultPort,
+		)
+	}
+
+	dsn, err := dsnFromLocation(loc)
 	if err != nil {
 		return nil, err
 	}
@@ -286,6 +298,36 @@ func (d *driveri) Renderer() *render.Renderer {
 	r.FunctionOverrides[ast.FuncNameILike] = renderFuncLike
 
 	return r
+}
+
+// locationWithDefaultPort returns the location string with the default
+// port (4001) added if no port is specified. The second return value
+// is true if the port was added. gorqlite's stdlib driver does not
+// fall back to a default port on its own; without this injection,
+// `sq add 'rqlite://host'` would attempt port 80 (Go's HTTP default)
+// rather than rqlite's conventional 4001.
+//
+// rqlite uses the same port (4001) for HTTP and HTTPS by default.
+func locationWithDefaultPort(loc string) (string, bool, error) {
+	u, err := url.Parse(loc)
+	if err != nil {
+		// Don't include loc in the error: it may carry credentials.
+		return "", false, errz.Wrap(err, "rqlite: parse location")
+	}
+
+	if u.Hostname() == "" {
+		// Reject an empty/host-less location outright: injecting a
+		// default port into ":4001" would mask the real problem and
+		// produce a confusing downstream error.
+		return "", false, errz.New("rqlite: location is missing host")
+	}
+
+	if u.Port() != "" {
+		return loc, false, nil
+	}
+
+	u.Host = u.Hostname() + ":" + strconv.Itoa(defaultPort)
+	return u.String(), true, nil
 }
 
 // dsnFromLocation translates an rqlite:// or rqlites:// source location
