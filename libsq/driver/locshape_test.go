@@ -32,3 +32,40 @@ func TestWalk_schemeMismatch(t *testing.T) {
 	_, err := Walk(pgShape, "mysql://localhost")
 	require.Error(t, err)
 }
+
+func TestWalk_credsPartialUser(t *testing.T) {
+	got, err := Walk(pgShape, "postgres://alice")
+	require.NoError(t, err)
+	require.Equal(t, SegCredentials, got.Current)
+	require.Empty(t, got.Done)
+	require.Equal(t, "alice", got.User)
+	require.False(t, got.PassSet)
+	require.False(t, got.HasCreds)
+}
+
+func TestWalk_credsPartialPass(t *testing.T) {
+	got, err := Walk(pgShape, "postgres://alice:")
+	require.NoError(t, err)
+	require.Equal(t, SegCredentials, got.Current)
+	require.Equal(t, "alice", got.User)
+	require.True(t, got.PassSet)
+	require.Equal(t, "", got.Pass)
+}
+
+func TestWalk_credsFullUser(t *testing.T) {
+	got, err := Walk(pgShape, "postgres://alice@")
+	require.NoError(t, err)
+	require.Equal(t, []SegmentKind{SegCredentials}, got.Done)
+	require.True(t, got.HasCreds)
+	require.Equal(t, "alice", got.User)
+}
+
+func TestWalk_credsFullUserPass(t *testing.T) {
+	got, err := Walk(pgShape, "postgres://alice:hunter2@")
+	require.NoError(t, err)
+	require.Equal(t, []SegmentKind{SegCredentials}, got.Done)
+	require.True(t, got.HasCreds)
+	require.Equal(t, "alice", got.User)
+	require.Equal(t, "hunter2", got.Pass)
+	require.True(t, got.PassSet)
+}

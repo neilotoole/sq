@@ -187,9 +187,60 @@ func Walk(shape LocationShape, loc string) (MatchedLoc, error) {
 	return m, errz.Errorf("scheme not matched: %q", loc)
 }
 
-// walkSegments walks the post-scheme tail against shape.Segments.
-// Stub for now; segment kinds added in subsequent tasks.
+// walkSegments walks the post-scheme tail against shape.Segments,
+// populating m as it goes.
 func walkSegments(shape LocationShape, m MatchedLoc, tail string) (MatchedLoc, error) {
-	_, _ = shape, tail
+	cursor := 0
+	for _, seg := range shape.Segments {
+		if seg.Kind == SegCredentials {
+			matched, advance, current := walkCredentials(tail[cursor:], seg.Optional)
+			if matched.User != "" || matched.PassSet || matched.HasCreds {
+				m.User = matched.User
+				m.Pass = matched.Pass
+				m.PassSet = matched.PassSet
+				m.HasCreds = matched.HasCreds
+			}
+			if current {
+				m.Current = SegCredentials
+				return m, nil
+			}
+			if matched.HasCreds {
+				m.Done = append(m.Done, SegCredentials)
+			}
+			cursor += advance
+		}
+	}
 	return m, nil
+}
+
+// walkCredentials parses an optional user[:pass]@ prefix from s.
+// Returns the parsed fields, the number of bytes consumed (including
+// the trailing '@' if matched), and current==true if the user is
+// still typing inside the credentials segment.
+func walkCredentials(s string, optional bool) (matched MatchedLoc, advance int, current bool) {
+	atIdx := strings.IndexByte(s, '@')
+	if atIdx == -1 {
+		// No '@' present.
+		if optional && strings.ContainsAny(s, "/?") {
+			// Skip-signal: user has moved past credentials.
+			return MatchedLoc{}, 0, false
+		}
+		// Partial credentials being typed.
+		user, pass, hasColon := strings.Cut(s, ":")
+		matched.User = user
+		matched.PassSet = hasColon
+		if hasColon {
+			matched.Pass = pass
+		}
+		return matched, 0, true
+	}
+	creds := s[:atIdx]
+	user, pass, hasColon := strings.Cut(creds, ":")
+	matched.User = user
+	matched.HasCreds = true
+	matched.PassSet = hasColon
+	if hasColon {
+		matched.Pass = pass
+	}
+	return matched, atIdx + 1, false
 }
