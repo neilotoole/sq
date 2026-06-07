@@ -16,6 +16,21 @@ import (
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
+// parseSourceLoc parses a source location string. dburl.Parse is used
+// for schemes dburl knows; rqlite/rqlites fall back to net/url since
+// dburl does not recognize them. The returned *dburl.URL wraps the
+// parsed URL so callers can read User/Host/Path/RawQuery uniformly.
+func parseSourceLoc(loc string, typ drivertype.Type) (*dburl.URL, error) {
+	if typ == drivertype.Rqlite {
+		u, err := url.Parse(loc)
+		if err != nil {
+			return nil, err
+		}
+		return &dburl.URL{URL: *u, OriginalScheme: u.Scheme}, nil
+	}
+	return dburl.Parse(loc)
+}
+
 // locSuggestions provides historical and contextual values that the
 // completer offers to the user. It implements driver.Suggestions.
 // Backed by source.Collection.
@@ -86,7 +101,7 @@ func (s *locSuggestions) usernames() []string {
 		if src.Type != s.typ {
 			return nil
 		}
-		du, err := dburl.Parse(src.Location)
+		du, err := parseSourceLoc(src.Location, s.typ)
 		if err != nil {
 			s.log.Warn("Parse source location", lga.Err, err)
 			return nil
@@ -109,7 +124,7 @@ func (s *locSuggestions) hosts() []string {
 		if src.Type != s.typ {
 			return nil
 		}
-		du, err := dburl.Parse(src.Location)
+		du, err := parseSourceLoc(src.Location, s.typ)
 		if err != nil {
 			s.log.Warn("Parse source location", lga.Err, err)
 			return nil
@@ -128,7 +143,7 @@ func (s *locSuggestions) pathNames() []string {
 		if src.Type != s.typ {
 			return nil
 		}
-		du, err := dburl.Parse(src.Location)
+		du, err := parseSourceLoc(src.Location, s.typ)
 		if err != nil {
 			s.log.Warn("Parse source location", lga.Err, err)
 			return nil
@@ -160,7 +175,7 @@ func (s *locSuggestions) pathFiles() []string {
 		if src.Type != s.typ {
 			return nil
 		}
-		du, err := dburl.Parse(src.Location)
+		du, err := parseSourceLoc(src.Location, s.typ)
 		if err != nil {
 			s.log.Warn("Parse source location", lga.Err, err)
 			return nil
@@ -181,7 +196,7 @@ func (s *locSuggestions) hostsWithPathAndQuery() []string {
 		if src.Type != s.typ {
 			return nil
 		}
-		du, err := dburl.Parse(src.Location)
+		du, err := parseSourceLoc(src.Location, s.typ)
 		if err != nil {
 			s.log.Warn("Parse source location", lga.Err, err)
 			return nil
@@ -203,7 +218,7 @@ func (s *locSuggestions) pathsWithQueries() []string {
 		if src.Type != s.typ {
 			return nil
 		}
-		du, err := dburl.Parse(src.Location)
+		du, err := parseSourceLoc(src.Location, s.typ)
 		if err != nil {
 			s.log.Warn("Parse source location", lga.Err, err)
 			return nil

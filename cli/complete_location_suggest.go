@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -11,6 +12,33 @@ import (
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/driver"
 )
+
+// nextSegmentIntroducer returns the introducer character that the user
+// should type next after completing the segment of the given kind.
+// Looks up the segment AFTER the given kind in shape and returns its
+// introducer ("/" for SegPathName/SegPathFile, "?" for SegConnParams).
+// Returns "" if no following segment exists.
+func nextSegmentIntroducer(shape driver.LocationShape, after driver.SegmentKind) string {
+	found := false
+	for _, seg := range shape.Segments {
+		if found {
+			switch seg.Kind {
+			case driver.SegPathName, driver.SegPathFile:
+				return "/"
+			case driver.SegConnParams:
+				return "?"
+			case driver.SegCredentials, driver.SegAuthority:
+				return ""
+			default:
+				return ""
+			}
+		}
+		if seg.Kind == after {
+			found = true
+		}
+	}
+	return ""
+}
 
 // suggestCreds generates candidates when MatchedLoc.Current is
 // SegCredentials. Offers username placeholders, history usernames,
@@ -39,10 +67,15 @@ func suggestCreds(m driver.MatchedLoc, src driver.Suggestions) []string {
 
 // suggestAuthority generates candidates when MatchedLoc.Current is
 // SegAuthority. Offers "localhost", default port, and history hosts.
-func suggestAuthority(m driver.MatchedLoc, src driver.Suggestions, defaultPort int) []string {
+func suggestAuthority(m driver.MatchedLoc, src driver.Suggestions,
+	defaultPort int, shape driver.LocationShape,
+) []string {
 	cs := candidateSet{prefix: m.Loc}
 	const localhost = "localhost"
-	afterHost := "/" // SegPathName/SegPathFile introducer.
+	afterHost := nextSegmentIntroducer(shape, driver.SegAuthority)
+	if afterHost == "" {
+		afterHost = "/" // sensible fallback.
+	}
 
 	// Determine the base prefix the authority sits on top of.
 	base, _, hasAt := strings.Cut(m.Loc, "@")
@@ -201,16 +234,16 @@ func suggestConnParams(m driver.MatchedLoc, src driver.Suggestions,
 		// No matches: push to "&" for next param.
 		return []string{m.Loc + "&"}
 	}
-	if len(out) == 1 && out[0] == m.Loc {
-		out[0] += "&"
-	}
 	return out
 }
 
-// connParamKeysAndValues returns the driver's ConnParams keys
-// (with leadingKey hoisted if set) and a key->[]value map. Keys are
-// URL-safe identifiers as declared by the driver, so no query-escape
-// is applied here.
+// connParamKeysAndValues returns the driver's ConnParams keys (with
+// leadingKey hoisted if set) and a key->[]value map. Keys are
+// URL-query-escaped so shell completion can safely emit them (some
+// drivers, e.g. sqlserver, declare keys containing spaces such as
+// "Workstation ID"). The values map is keyed by the escaped form so
+// later lookups by m.ParamLastKey (also escaped, since it came from
+// the typed URL) hit correctly.
 func connParamKeysAndValues(drvr driver.SQLDriver, leadingKey string) (
 	keys []string, values map[string][]string,
 ) {
@@ -226,8 +259,9 @@ func connParamKeysAndValues(drvr driver.SQLDriver, leadingKey string) (
 	keys = make([]string, len(ogKeys))
 	values = make(map[string][]string, len(og))
 	for i, k := range ogKeys {
-		keys[i] = k
-		values[k] = og[k]
+		escaped := url.QueryEscape(k)
+		keys[i] = escaped
+		values[escaped] = og[k]
 	}
 	return keys, values
 }
@@ -248,7 +282,7 @@ func generateCandidates(ctx context.Context, shape driver.LocationShape,
 	case driver.SegCredentials:
 		return suggestCreds(m, src)
 	case driver.SegAuthority:
-		return suggestAuthority(m, src, drvr.DriverMetadata().DefaultPort)
+		return suggestAuthority(m, src, drvr.DriverMetadata().DefaultPort, shape)
 	case driver.SegPathName:
 		return suggestPathName(m, src, seg.Placeholder)
 	case driver.SegPathFile:

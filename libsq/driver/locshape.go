@@ -185,7 +185,7 @@ func Walk(shape LocationShape, loc string) (MatchedLoc, error) {
 			return walkSegments(shape, m, tail)
 		}
 	}
-	return m, errz.Errorf("scheme not matched: %q", loc)
+	return m, errz.New("scheme not matched")
 }
 
 // walkSegments walks the post-scheme tail against shape.Segments,
