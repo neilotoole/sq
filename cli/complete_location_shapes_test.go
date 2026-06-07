@@ -86,3 +86,18 @@ func TestDriverShape_DuckDB(t *testing.T) {
 	require.True(t, shape.Segments[0].Optional) // allows duckdb:// for stdin
 	require.Equal(t, driver.SegConnParams, shape.Segments[1].Kind)
 }
+
+func TestDriverShape_ClickHouse(t *testing.T) {
+	th := testh.New(t)
+	drvr, err := th.Registry().SQLDriverFor(drivertype.ClickHouse)
+	require.NoError(t, err)
+	shape := drvr.LocationShape()
+	require.Equal(t, drivertype.ClickHouse, shape.Type)
+	require.Equal(t, []string{"clickhouse"}, shape.Schemes)
+	require.Len(t, shape.Segments, 4)
+	require.Equal(t, driver.SegCredentials, shape.Segments[0].Kind)
+	require.Equal(t, driver.SegAuthority, shape.Segments[1].Kind)
+	require.Equal(t, driver.SegPathName, shape.Segments[2].Kind)
+	require.Equal(t, "db", shape.Segments[2].Placeholder)
+	require.Equal(t, driver.SegConnParams, shape.Segments[3].Kind)
+}
