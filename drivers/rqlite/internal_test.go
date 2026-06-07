@@ -426,8 +426,11 @@ func Test_rewritePeerDNSError(t *testing.T) {
 			wantSubstrAll: []string{"rqlite1", "localhost", "disableClusterDiscovery=true", "sq.io/docs/drivers/rqlite"},
 		},
 		{
-			name:          "discovered peer mismatch wrapped via fmt.Errorf",
-			err:           fmt.Errorf("Post \"http://rqlite1:4001/db/query\": dial tcp: lookup rqlite1: %w", fakeDNSErr("rqlite1")),
+			name: "discovered peer mismatch wrapped via fmt.Errorf",
+			err: fmt.Errorf(
+				"Post \"http://rqlite1:4001/db/query\": dial tcp: lookup rqlite1: %w",
+				fakeDNSErr("rqlite1"),
+			),
 			loc:           userLoc,
 			wantRewrite:   true,
 			wantSubstrAll: []string{"rqlite1", "disableClusterDiscovery=true"},
