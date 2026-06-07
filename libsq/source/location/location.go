@@ -125,7 +125,29 @@ func Short(loc string) string {
 		return filepath.Base(loc)
 	}
 
-	// It's a SQL driver
+	// It's a SQL driver.
+	//
+	// rqlite (rqlite:// for HTTP, rqlites:// for HTTPS) is a network SQL
+	// driver, but xo/dburl doesn't know its schemes, so Parse-ing through
+	// dburl returns an error and the fallback "return loc" would echo
+	// inline credentials. Handle it via url.ParseRequestURI here, mirroring
+	// the user@host[:port] shape used for the other DSN drivers below.
+	if strings.HasPrefix(loc, "rqlite://") || strings.HasPrefix(loc, "rqlites://") {
+		ru, err := url.ParseRequestURI(loc)
+		if err != nil {
+			// Couldn't parse; fall back to best-effort credential masking
+			// rather than returning loc verbatim.
+			return redactBestEffort(loc)
+		}
+		sb := strings.Builder{}
+		if ru.User != nil && len(ru.User.Username()) > 0 {
+			sb.WriteString(ru.User.Username())
+			sb.WriteString("@")
+		}
+		sb.WriteString(ru.Host)
+		return sb.String()
+	}
+
 	u, err := dburl.Parse(loc)
 	if err != nil {
 		return loc
