@@ -3,8 +3,10 @@ package rqlite_test
 import (
 	"fmt"
 	"net/url"
+	"strings"
 	"testing"
 
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/rqlite"
@@ -697,4 +699,215 @@ func TestWriteAtomic_PerStatementError(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "statement 1/2 failed",
 		"writeAtomic should identify which statement in the batch failed")
+}
+
+// TestCoerce_NumericAffinityInt verifies that NUMERIC-declared columns
+// holding integer values surface as int64. This pins the cross-driver
+// integer contract for NUMERIC affinity: gorqlite hands back JSON
+// numbers as float64, which the rqlite driver coerces back to int64
+// for integer-valued NUMERIC cells (matching mattn/go-sqlite3's native
+// behavior). The CREATE TABLE is issued by hand rather than via
+// schema.NewTable because the latter emits INTEGER, not NUMERIC, so
+// would not exercise the coercion path. This guards against future
+// upstream Sakila schema fixes that would otherwise silently retire
+// the existing Sakila-driven coverage.
+func TestCoerce_NumericAffinityInt(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	tblName := "coerce_numint_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf(`CREATE TABLE %q (id numeric NOT NULL PRIMARY KEY, name VARCHAR(64) NOT NULL)`,
+			tblName))
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf(`INSERT INTO %q (id, name) VALUES (?, ?)`, tblName), 42, "alpha")
+	require.NoError(t, err)
+
+	sink, err := th.QuerySQL(src, nil, fmt.Sprintf(`SELECT id, name FROM %q`, tblName))
+	require.NoError(t, err)
+	require.Len(t, sink.Recs, 1)
+	require.Len(t, sink.Recs[0], 2)
+
+	gotID, ok := sink.Recs[0][0].(int64)
+	require.True(t, ok, "expected int64 for integer-valued NUMERIC column, got %T", sink.Recs[0][0])
+	require.Equal(t, int64(42), gotID)
+	require.Equal(t, "alpha", sink.Recs[0][1])
+}
+
+// TestCoerce_NumericAffinityDecimal verifies that NUMERIC-declared
+// columns holding non-integer values surface as decimal.Decimal.
+// Pairs with TestCoerce_NumericAffinityInt to cover both branches of
+// coerceDecimal (integer demotion vs. decimal pass-through).
+func TestCoerce_NumericAffinityDecimal(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	tblName := "coerce_numdec_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf(`CREATE TABLE %q (id INTEGER NOT NULL PRIMARY KEY, price numeric NOT NULL)`,
+			tblName))
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf(`INSERT INTO %q (id, price) VALUES (?, ?)`, tblName), 1, 19.99)
+	require.NoError(t, err)
+
+	sink, err := th.QuerySQL(src, nil, fmt.Sprintf(`SELECT id, price FROM %q`, tblName))
+	require.NoError(t, err)
+	require.Len(t, sink.Recs, 1)
+	require.Len(t, sink.Recs[0], 2)
+
+	// id is INTEGER affinity, so it round-trips as int64.
+	gotID, ok := sink.Recs[0][0].(int64)
+	require.True(t, ok, "expected int64 for INTEGER column, got %T", sink.Recs[0][0])
+	require.Equal(t, int64(1), gotID)
+
+	// price is NUMERIC affinity with a non-integer value, so it
+	// surfaces as decimal.Decimal (coerceDecimal returns the value
+	// unchanged when !IsInteger).
+	gotPrice, ok := sink.Recs[0][1].(decimal.Decimal)
+	require.True(t, ok, "expected decimal.Decimal for non-integer NUMERIC column, got %T", sink.Recs[0][1])
+	require.True(t, gotPrice.Equal(decimal.NewFromFloat(19.99)),
+		"expected 19.99, got %s", gotPrice.String())
+}
+
+// TestCoerce_RealAffinityFloat verifies that REAL-declared columns
+// remain float64 with no demotion. This pins the negative case for
+// the coercion logic: future tightening of coerceFloat64 must not
+// swallow Float-affinity columns.
+func TestCoerce_RealAffinityFloat(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	tblName := "coerce_real_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf(`CREATE TABLE %q (id INTEGER NOT NULL PRIMARY KEY, pi REAL NOT NULL)`,
+			tblName))
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf(`INSERT INTO %q (id, pi) VALUES (?, ?)`, tblName), 1, 3.14)
+	require.NoError(t, err)
+
+	sink, err := th.QuerySQL(src, nil, fmt.Sprintf(`SELECT pi FROM %q`, tblName))
+	require.NoError(t, err)
+	require.Len(t, sink.Recs, 1)
+	require.Len(t, sink.Recs[0], 1)
+
+	gotPi, ok := sink.Recs[0][0].(float64)
+	require.True(t, ok, "expected float64 for REAL column, got %T", sink.Recs[0][0])
+	require.InDelta(t, 3.14, gotPi, 1e-9)
+}
+
+// TestColumnTypes_EmptyTable verifies that the rqlite-sq wrapper
+// driver (drivers/rqlite/sqldriver.go) populates DatabaseTypeName for
+// empty result sets. Without the wrapper, gorqlite/stdlib returns the
+// empty string for ColumnTypeDatabaseTypeName, which demotes every
+// column kind to kind.Unknown and breaks TableColumnTypes for empty
+// schemas. This test guards the empty-table path that TableColumnTypes
+// relies on for fresh tables.
+func TestColumnTypes_EmptyTable(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	tblName := "coltypes_empty_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+	})
+
+	// Mix the affinities so the wrapper has to emit a non-empty type
+	// string for each one. NUMERIC is included even though sq's helper
+	// maps it to kind.Decimal: the test point is that the wrapper
+	// surfaces the declared type, not what kindFromDBTypeName does
+	// with it.
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %q (
+			id INTEGER NOT NULL PRIMARY KEY,
+			name TEXT,
+			ts DATETIME,
+			n NUMERIC,
+			r REAL,
+			b BOOLEAN,
+			blob BLOB
+		)`, tblName))
+	require.NoError(t, err)
+
+	// TableColumnTypes runs through a *sql.Conn so the path matches the
+	// one PrepareInsertStmt / NewBatchInsert exercise in production.
+	conn, err := db.Conn(th.Context)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
+
+	colTypes, err := drvr.TableColumnTypes(th.Context, conn, tblName, nil)
+	require.NoError(t, err)
+	require.Len(t, colTypes, 7, "expected 7 columns for the declared schema")
+
+	// Expected declared type per column (case-insensitive: SQLite's
+	// affinity rules permit any casing on input, and we make no
+	// promises about the round-trip casing).
+	wantTypes := []string{"INTEGER", "TEXT", "DATETIME", "NUMERIC", "REAL", "BOOLEAN", "BLOB"}
+	for i, ct := range colTypes {
+		require.NotEmpty(t, ct.DatabaseTypeName(),
+			"col %d (%s) must have a non-empty DatabaseTypeName: empty type breaks kind resolution",
+			i, ct.Name())
+		require.Equal(t, strings.ToUpper(wantTypes[i]), strings.ToUpper(ct.DatabaseTypeName()),
+			"col %d (%s) declared type mismatch", i, ct.Name())
+	}
+
+	// RecordMeta should map each declared type to its expected
+	// non-Unknown kind, end-to-end. This is the assertion that ties
+	// the wrapper's DatabaseTypeName back to the rest of the driver.
+	recMeta, _, err := drvr.RecordMeta(th.Context, colTypes)
+	require.NoError(t, err)
+	require.Equal(t, []kind.Kind{
+		kind.Int,
+		kind.Text,
+		kind.Datetime,
+		kind.Decimal, // NUMERIC affinity maps to kind.Decimal per kindFromDBTypeName.
+		kind.Float,
+		kind.Bool,
+		kind.Bytes,
+	}, recMeta.Kinds())
 }

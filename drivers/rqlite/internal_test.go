@@ -6,9 +6,11 @@ import (
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3" // For TestWriteAtomic_DBTypeCheck.
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh/tu"
@@ -252,6 +254,69 @@ func TestLocationWithDefaultPort(t *testing.T) {
 			require.Equal(t, tc.wantAdded, added)
 		})
 	}
+}
+
+// TestCoerceFloat64 covers the per-kind reshaping that
+// newRecordFromScanRow applies to gorqlite's JSON-number float64
+// returns. The Sakila-driven cross-driver tests exercise the kind.Int
+// branch end-to-end, but they would still pass if the upstream Sakila
+// image switched actor_id from NUMERIC to INTEGER. This table-driven
+// case keeps direct coverage on the helper regardless of the upstream
+// schema choice.
+func TestCoerceFloat64(t *testing.T) {
+	mkMeta := func(k kind.Kind) record.Meta {
+		return record.Meta{record.NewFieldMeta(&record.ColumnTypeData{Name: "c", Kind: k}, "c")}
+	}
+
+	testCases := []struct {
+		name string
+		knd  kind.Kind
+		in   float64
+		want any
+	}{
+		{name: "int_whole", knd: kind.Int, in: 42, want: int64(42)},
+		{name: "int_truncates_fraction", knd: kind.Int, in: 42.9, want: int64(42)},
+		{name: "decimal_integer_demoted", knd: kind.Decimal, in: 42, want: int64(42)},
+		{name: "decimal_fractional_preserved", knd: kind.Decimal, in: 19.99, want: decimal.NewFromFloat(19.99)},
+		{name: "bool_zero_false", knd: kind.Bool, in: 0, want: false},
+		{name: "bool_nonzero_true", knd: kind.Bool, in: 1, want: true},
+		{name: "float_passthrough", knd: kind.Float, in: 3.14, want: 3.14},
+		{name: "unknown_promotes_to_float", knd: kind.Unknown, in: 7.5, want: 7.5},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := coerceFloat64(mkMeta(tc.knd), 0, tc.in)
+			if want, ok := tc.want.(decimal.Decimal); ok {
+				gotDec, gotOK := got.(decimal.Decimal)
+				require.True(t, gotOK, "expected decimal.Decimal, got %T", got)
+				require.True(t, want.Equal(gotDec), "want %s, got %s", want, gotDec)
+				return
+			}
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// TestCoerceDecimal covers the whole-number demotion that pairs with
+// coerceFloat64's kind.Decimal branch and the *decimal.NullDecimal /
+// *decimal.Decimal scan cases in newRecordFromScanRow.
+func TestCoerceDecimal(t *testing.T) {
+	t.Run("integer_demoted_to_int64", func(t *testing.T) {
+		got := coerceDecimal(decimal.NewFromInt(42))
+		require.Equal(t, int64(42), got)
+	})
+	t.Run("fractional_passthrough", func(t *testing.T) {
+		want := decimal.NewFromFloat(19.99)
+		got := coerceDecimal(want)
+		gotDec, ok := got.(decimal.Decimal)
+		require.True(t, ok, "expected decimal.Decimal, got %T", got)
+		require.True(t, want.Equal(gotDec))
+	})
+	t.Run("negative_integer_demoted", func(t *testing.T) {
+		got := coerceDecimal(decimal.NewFromInt(-7))
+		require.Equal(t, int64(-7), got)
+	})
 }
 
 func TestBuildCreateTableStmt_ForeignKey(t *testing.T) {
