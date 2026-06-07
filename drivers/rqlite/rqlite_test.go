@@ -464,10 +464,15 @@ func TestBatchInsert(t *testing.T) {
 
 	const total = 1500
 	go func() {
+		defer close(bi.RecordCh)
 		for i := 0; i < total; i++ {
-			bi.RecordCh <- []any{int64(i), "b", "c", "2026-01-01T00:00:00"}
+			rec := []any{int64(i), "b", "c", "2026-01-01T00:00:00"}
+			if mErr := bi.Munge(rec); mErr != nil {
+				t.Errorf("munge failed: %v", mErr)
+				return
+			}
+			bi.RecordCh <- rec
 		}
-		close(bi.RecordCh)
 	}()
 
 	for biErr := range bi.ErrCh {
