@@ -169,3 +169,56 @@ func TestInspectSakilaParquet(t *testing.T) {
 	require.NotZero(t, md.Size)
 	require.Equal(t, "actor.parquet", md.Name)
 }
+
+func TestSakilaParquetMatchesCSV(t *testing.T) {
+	th := testh.New(t)
+
+	pq := th.Open(th.Source(sakila.ParquetActor))
+	csv := th.Open(th.Source(sakila.CSVActor))
+
+	// Row count must match.
+	require.Equal(t, sakilaActorRowCount(t, csv), sakilaActorRowCount(t, pq),
+		"row count differs between csv and parquet sakila actor")
+
+	// Same ordered rows when both columns are cast to VARCHAR.
+	// Casting normalizes type-shape differences (CSV INT vs Parquet INT32,
+	// timestamp formatting, decimal padding, etc.).
+	const q = `SELECT CAST(actor_id AS VARCHAR), CAST(first_name AS VARCHAR),
+	                  CAST(last_name AS VARCHAR)
+	           FROM "data"
+	           ORDER BY CAST(actor_id AS INTEGER)
+	           LIMIT 5`
+
+	pqRows := readThreeColRows(t, pq, q)
+	csvRows := readThreeColRows(t, csv, q)
+	require.Equal(t, csvRows, pqRows,
+		"first 5 rows differ between csv and parquet sakila actor")
+}
+
+func sakilaActorRowCount(t *testing.T, g driver.Grip) int {
+	t.Helper()
+	db, err := g.DB(context.Background())
+	require.NoError(t, err)
+	var n int
+	require.NoError(t,
+		db.QueryRowContext(context.Background(), `SELECT count(*) FROM "data"`).Scan(&n))
+	return n
+}
+
+func readThreeColRows(t *testing.T, g driver.Grip, query string) [][3]string {
+	t.Helper()
+	db, err := g.DB(context.Background())
+	require.NoError(t, err)
+	rows, err := db.QueryContext(context.Background(), query)
+	require.NoError(t, err)
+	defer rows.Close()
+
+	var out [][3]string
+	for rows.Next() {
+		var a, b, c string
+		require.NoError(t, rows.Scan(&a, &b, &c))
+		out = append(out, [3]string{a, b, c})
+	}
+	require.NoError(t, rows.Err())
+	return out
+}
