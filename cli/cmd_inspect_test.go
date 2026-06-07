@@ -118,6 +118,7 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 		{sakila.XLSX, sakila.AllTbls()},
 		{sakila.SL3, sakila.AllTbls()},
 		{sakila.Duck, sakila.AllTbls()},
+		{sakila.Rq, sakila.AllTbls()},
 		{sakila.Pg, lo.Without(sakila.AllTbls(), sakila.TblFilmText)}, // pg doesn't have film_text
 		{sakila.My, sakila.AllTbls()},
 		{sakila.MS, sakila.AllTbls()},
@@ -203,8 +204,12 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 						require.NotEmpty(t, srcMeta.DBDriver)
 						require.NotEmpty(t, srcMeta.DBProduct)
 						require.NotEmpty(t, srcMeta.DBVersion)
-						require.NotNil(t, srcMeta.Size)
-						require.NotZero(t, *srcMeta.Size)
+						if tc.handle == sakila.Rq {
+							require.Nil(t, srcMeta.Size, "rqlite shouldn't report a source size")
+						} else {
+							require.NotNil(t, srcMeta.Size)
+							require.NotZero(t, *srcMeta.Size)
+						}
 					})
 
 					t.Run("inspect_dbprops", func(t *testing.T) {
