@@ -119,8 +119,13 @@ func suggestAuthority(m driver.MatchedLoc, src driver.Suggestions,
 		return cs.build()
 	}
 
-	// Hostname + port: offer afterHost.
-	cs.add(m.Loc + afterHost)
+	// Hostname + port. If the port is "set but empty" (trailing colon,
+	// no digits), offer the default port for the typed host.
+	if m.Port == 0 && defaultPort > 0 {
+		cs.add(m.Loc + strconv.Itoa(defaultPort) + afterHost)
+	} else {
+		cs.add(m.Loc + afterHost)
+	}
 	if defaultPort > 0 {
 		cs.add(base + localhost + ":" + strconv.Itoa(defaultPort) + afterHost)
 	}
@@ -186,10 +191,18 @@ func suggestConnParams(m driver.MatchedLoc, src driver.Suggestions,
 	cs := candidateSet{prefix: m.Loc}
 	keys, values := connParamKeysAndValues(drvr, leadingKey)
 
-	// Locate the "stump" (everything up to and incl. last '&' or '?').
+	// Locate the "stump" (everything up to and including the
+	// delimiter that introduces the currently-typed key=value pair).
+	// The query starts at the FIRST '?'; params inside the query are
+	// '&'-separated. Searching for the last '?' in the full URL would
+	// mis-handle values that happen to contain '?'.
 	stump := m.Loc
-	if idx := strings.LastIndexAny(stump, "&?"); idx >= 0 {
-		stump = stump[:idx+1]
+	if qIdx := strings.IndexByte(stump, '?'); qIdx >= 0 {
+		if ampIdx := strings.LastIndexByte(stump[qIdx+1:], '&'); ampIdx >= 0 {
+			stump = stump[:qIdx+1+ampIdx+1]
+		} else {
+			stump = stump[:qIdx+1]
+		}
 	}
 
 	if !m.ParamAtValue {
