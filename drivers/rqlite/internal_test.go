@@ -365,6 +365,11 @@ func Test_maybeWarnLocalhostDiscovery(t *testing.T) {
 		{name: "localhost other params", loc: "rqlite://localhost:4001?level=strong", wantLog: true},
 		{name: "https loopback", loc: "rqlites://localhost:4001", wantLog: true},
 		{name: "malformed", loc: "rqlite://%zz", wantLog: false},
+		{name: "discovery empty value", loc: "rqlite://localhost:4001?disableClusterDiscovery=", wantLog: true},
+		{name: "discovery bare key", loc: "rqlite://localhost:4001?disableClusterDiscovery", wantLog: true},
+		{name: "discovery upper TRUE", loc: "rqlite://localhost:4001?disableClusterDiscovery=TRUE", wantLog: false},
+		{name: "discovery upper FALSE", loc: "rqlite://localhost:4001?disableClusterDiscovery=False", wantLog: false},
+		{name: "discovery garbage value", loc: "rqlite://localhost:4001?disableClusterDiscovery=yes", wantLog: true},
 	}
 
 	for _, tc := range testCases {
@@ -394,6 +399,13 @@ func Test_rewritePeerDNSError(t *testing.T) {
 	// are zero/false — only Name matters to the helper under test.
 	fakeDNSErr := func(name string) *net.DNSError {
 		return &net.DNSError{Err: "no such host", Name: name, IsNotFound: true}
+	}
+	// fakeDNSTimeoutErr builds a *net.DNSError representing a DNS
+	// timeout (IsNotFound is false). The rewrite must pass these
+	// through unchanged: they're not the cluster-discovery "no such
+	// host" case the helper targets.
+	fakeDNSTimeoutErr := func(name string) *net.DNSError {
+		return &net.DNSError{Err: "i/o timeout", Name: name, IsTimeout: true}
 	}
 
 	const userLoc = "rqlite://localhost:4001"
@@ -457,6 +469,18 @@ func Test_rewritePeerDNSError(t *testing.T) {
 			name:        "malformed url",
 			err:         fakeDNSErr("rqlite1"),
 			loc:         "rqlite://%zz",
+			wantRewrite: false,
+		},
+		{
+			name:        "dns timeout passes through",
+			err:         fakeDNSTimeoutErr("rqlite1"),
+			loc:         userLoc,
+			wantRewrite: false,
+		},
+		{
+			name:        "discovery off upper TRUE",
+			err:         fakeDNSErr("rqlite1"),
+			loc:         "rqlite://localhost:4001?disableClusterDiscovery=TRUE",
 			wantRewrite: false,
 		},
 	}

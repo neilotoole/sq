@@ -49,9 +49,12 @@ func maybeWarnLocalhostDiscovery(ctx context.Context, src *source.Source) {
 	if err != nil {
 		return
 	}
-	if u.Query().Has("disableClusterDiscovery") {
+	v := u.Query().Get("disableClusterDiscovery")
+	if strings.EqualFold(v, "true") || strings.EqualFold(v, "false") {
 		// User has made an explicit choice (true or false). Don't
-		// second-guess them.
+		// second-guess them. Empty or unrecognized values fall through
+		// to the warning so a typo like ?disableClusterDiscovery=yes
+		// still gets surfaced.
 		return
 	}
 	host := u.Hostname()
@@ -95,7 +98,12 @@ func rewritePeerDNSError(err error, src *source.Source) error {
 		return nil
 	}
 	var dnsErr *net.DNSError
-	if !errors.As(err, &dnsErr) {
+	if !errors.As(err, &dnsErr) || !dnsErr.IsNotFound {
+		// Only the "no such host" case (IsNotFound) is the
+		// cluster-discovery DNS failure we want to rewrite. DNS
+		// timeouts, temporary failures, and refusals are unrelated
+		// classes and shouldn't be rewritten into a
+		// disableClusterDiscovery suggestion.
 		return err
 	}
 	u, parseErr := url.Parse(src.Location)
@@ -112,8 +120,12 @@ func rewritePeerDNSError(err error, src *source.Source) error {
 		// would be wrong.
 		return err
 	}
-	if u.Query().Get("disableClusterDiscovery") == "true" {
+	if strings.EqualFold(u.Query().Get("disableClusterDiscovery"), "true") {
 		// Discovery already off; failure is something else.
+		// gorqlite's underlying parser treats "true"/"TRUE"/"True"
+		// equivalently, so match its case-insensitive interpretation
+		// rather than producing a misleading rewrite that suggests the
+		// user "try ?disableClusterDiscovery=true" when they already have.
 		return err
 	}
 	return errz.Wrapf(err,
