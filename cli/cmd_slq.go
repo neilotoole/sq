@@ -106,6 +106,8 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 	if !cmdFlagChanged(cmd, flag.Insert) {
 		// The user didn't specify the --insert=@src.tbl flag,
 		// so we just want to print the records.
+		ctx = driver.WithReadOnly(ctx)
+		cmd.SetContext(ctx)
 		return execSLQPrint(ctx, ru, mArgs)
 	}
 
@@ -152,6 +154,13 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 	if err != nil {
 		return err
 	}
+
+	// destGrip is now in the Grips handle-keyed cache as RW. Mark the
+	// context read-only for source-side opens performed inside the SLQ
+	// pipeline. If a source in the pipeline shares its handle with
+	// destSrc (self-insert), the cache returns this RW grip and the
+	// pipeline writes through it.
+	ctx = driver.WithReadOnly(ctx)
 
 	// Note: We don't need to worry about closing fromConn and
 	// destConn because they are closed by databases.Close, which
