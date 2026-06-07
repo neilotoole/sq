@@ -84,7 +84,7 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 			args: []string{"postgres://alice:"},
 			want: []string{
 				"postgres://alice:@",
-				"postgres://alice::",
+				"postgres://alice:password@",
 			},
 			wantResult: stdDirective,
 		},
@@ -556,7 +556,7 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 			args: []string{"mysql://alice:"},
 			want: []string{
 				"mysql://alice:@",
-				"mysql://alice::",
+				"mysql://alice:password@",
 			},
 			wantResult: stdDirective,
 		},
@@ -938,6 +938,7 @@ func TestCompleteAddLocation_DuckDB(t *testing.T) {
 		{
 			args: []string{"duckdb://"},
 			want: []string{
+				"duckdb://?",
 				"duckdb://duck.duckdb",
 				"duckdb://other.duckdb",
 			},
@@ -1033,7 +1034,7 @@ func TestCompleteAddLocation_ClickHouse(t *testing.T) {
 			args: []string{"clickhouse://alice:"},
 			want: []string{
 				"clickhouse://alice:@",
-				"clickhouse://alice::",
+				"clickhouse://alice:password@",
 			},
 			wantResult: stdDirective,
 		},
@@ -1191,7 +1192,7 @@ func TestCompleteAddLocation_Oracle(t *testing.T) {
 			args: []string{"oracle://alice:"},
 			want: []string{
 				"oracle://alice:@",
-				"oracle://alice::",
+				"oracle://alice:password@",
 			},
 			wantResult: stdDirective,
 		},
