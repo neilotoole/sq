@@ -230,8 +230,10 @@ loads Sakila into the leader. It requires the `rqlited` binary
 platforms):
 
 ```shell
-# In one terminal:
-$ ./drivers/rqlite/sakila-start-rqlite-nodes.sh
+# In one terminal, fetch and run the helper. (Until this PR is merged to
+# master, the URL 404s; use the in-tree copy at
+# ./drivers/rqlite/sakila-start-rqlite-nodes.sh.)
+$ curl -fsSL https://raw.githubusercontent.com/neilotoole/sq/master/drivers/rqlite/sakila-start-rqlite-nodes.sh | bash
 Starting rqlite cluster (data dir: /tmp/sakila-rq-nodes.XXXX)
 Loading Sakila into leader...
 
@@ -260,5 +262,5 @@ Docker-based multi-node images such as `sakiladb/rqlite`'s
 advertise container-internal hostnames (`rqlite1`, `rqlite2`,
 `rqlite3`) that aren't resolvable from the host, so a host-side client
 would have to either disable discovery and point at one specific node,
-or rewrite the advertise addresses to host-reachable values plus add
+or rewrite the advertised addresses to host-reachable values plus add
 `/etc/hosts` entries. The bare-metal helper above sidesteps both.
