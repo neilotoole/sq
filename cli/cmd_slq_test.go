@@ -845,3 +845,51 @@ func TestSLQ_DuckDB_DoesNotModifyMtime(t *testing.T) {
 	require.Equal(t, statBefore.ModTime(), statAfter.ModTime(),
 		"DuckDB file mtime must not change after sq slq")
 }
+
+// TestSLQ_DuckDB_SrcSchema_DoesNotModifyMtime verifies that --src.schema's
+// catalog/schema validation (which pre-opens the source via Grips.Open)
+// happens under the read-only context, not the implicit RW. Without the
+// RO hint reaching the pre-open, verifySourceCatalogSchema caches a RW
+// grip that later RO opens silently inherit.
+func TestSLQ_DuckDB_SrcSchema_DoesNotModifyMtime(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Duck)
+	path := strings.TrimPrefix(src.Location, "duckdb://")
+
+	statBefore, err := os.Stat(path)
+	require.NoError(t, err)
+
+	tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+	require.NoError(t, tr.Exec("slq", "--src.schema=main",
+		src.Handle+" | .actor | .first_name | .[0:3]"))
+
+	statAfter, err := os.Stat(path)
+	require.NoError(t, err)
+	require.Equal(t, statBefore.ModTime(), statAfter.ModTime(),
+		"DuckDB file mtime must not change after sq slq --src.schema")
+}
+
+// TestSLQ_DuckDB_RenderSQL_DoesNotModifyMtime verifies that --render-sql
+// (which still opens sources to resolve dialect) does so under the
+// read-only context. Without the RO hint, render-sql produces only SQL
+// output but mutates the file mtime as a side effect.
+func TestSLQ_DuckDB_RenderSQL_DoesNotModifyMtime(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Duck)
+	path := strings.TrimPrefix(src.Location, "duckdb://")
+
+	statBefore, err := os.Stat(path)
+	require.NoError(t, err)
+
+	tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+	require.NoError(t, tr.Exec("slq", "--render-sql", src.Handle+" | .actor"))
+
+	statAfter, err := os.Stat(path)
+	require.NoError(t, err)
+	require.Equal(t, statBefore.ModTime(), statAfter.ModTime(),
+		"DuckDB file mtime must not change after sq slq --render-sql")
+}

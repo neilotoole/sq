@@ -81,6 +81,19 @@ func execSQL(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// --readonly / --ro: opt the raw-SQL command into read-only mode for
+	// the source. Flip the ctx BEFORE determineSources so any pre-open
+	// it performs (e.g. --src.schema validation, which calls Grips.Open
+	// and caches the resulting grip by handle) sees the RO hint. Skip
+	// the early flip for --insert, where execSQLInsert opens destGrip
+	// first on the RW ctx before flipping to RO for the source side.
+	readOnlySrc := cmdFlagIsSetTrue(cmd, flag.SQLReadOnly) ||
+		cmdFlagIsSetTrue(cmd, flag.SQLReadOnlyAlias)
+	if readOnlySrc && !cmdFlagChanged(cmd, flag.Insert) {
+		ctx = driver.WithReadOnly(ctx)
+		cmd.SetContext(ctx)
+	}
+
 	err := determineSources(ctx, ru, true)
 	if err != nil {
 		return err
@@ -95,13 +108,8 @@ func execSQL(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// --readonly / --ro: opt the raw-SQL command into read-only mode for
-	// the source. Conflict check happens up front (independent of the
-	// --insert branch) so a contradictory URL is rejected either way.
-	// Note: for --insert, the destination is opened READ_WRITE; only the
-	// source side is opened READ_ONLY (matching the slq --insert pattern).
-	readOnlySrc := cmdFlagIsSetTrue(cmd, flag.SQLReadOnly) ||
-		cmdFlagIsSetTrue(cmd, flag.SQLReadOnlyAlias)
+	// Conflict check: --readonly + URL access_mode=READ_WRITE is a
+	// contradiction. Surface it rather than silently picking one.
 	if readOnlySrc && activeSrc.Type == drivertype.DuckDB {
 		if mode, ok := duckdb.ExplicitAccessMode(activeSrc.Location); ok &&
 			strings.EqualFold(mode, "READ_WRITE") {
@@ -113,11 +121,8 @@ func execSQL(cmd *cobra.Command, args []string) error {
 
 	if !cmdFlagChanged(cmd, flag.Insert) {
 		// The user didn't specify the --insert=@src.tbl flag,
-		// so we just want to print the records.
-		if readOnlySrc {
-			ctx = driver.WithReadOnly(ctx)
-			cmd.SetContext(ctx)
-		}
+		// so we just want to print the records. RO ctx (if requested)
+		// was established above, before determineSources.
 		return execSQLPrint(ctx, ru, activeSrc)
 	}
 
