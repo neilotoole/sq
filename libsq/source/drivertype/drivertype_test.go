@@ -15,6 +15,7 @@ func TestType_String(t *testing.T) {
 	}{
 		{drivertype.None, ""},
 		{drivertype.SQLite, "sqlite3"},
+		{drivertype.Rqlite, "rqlite"},
 		{drivertype.Pg, "postgres"},
 		{drivertype.MSSQL, "sqlserver"},
 		{drivertype.MySQL, "mysql"},
@@ -40,6 +41,7 @@ func TestType_Constants(t *testing.T) {
 	// This ensures the constants don't accidentally change.
 	require.Equal(t, drivertype.Type(""), drivertype.None)
 	require.Equal(t, drivertype.Type("sqlite3"), drivertype.SQLite)
+	require.Equal(t, drivertype.Type("rqlite"), drivertype.Rqlite)
 	require.Equal(t, drivertype.Type("postgres"), drivertype.Pg)
 	require.Equal(t, drivertype.Type("sqlserver"), drivertype.MSSQL)
 	require.Equal(t, drivertype.Type("mysql"), drivertype.MySQL)

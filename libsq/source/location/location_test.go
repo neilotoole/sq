@@ -128,3 +128,28 @@ func TestWithPassword(t *testing.T) {
 		})
 	}
 }
+
+func TestShort(t *testing.T) {
+	testCases := []struct {
+		loc  string
+		want string
+	}{
+		{loc: "/path/to/data.xlsx", want: "data.xlsx"},
+		{loc: "sqlite3:///path/to/sqlite.db", want: "sqlite.db"},
+		{loc: "postgres://sakila:p_ssW0rd@localhost:5432/sakila", want: "sakila@localhost:5432/sakila"},
+		{loc: "mysql://sakila:p_ssW0rd@localhost:3306/sakila", want: "sakila@localhost:3306/sakila"},
+		{loc: "rqlite://sakila:p_ssW0rd@localhost:4001", want: "sakila@localhost:4001"},
+		{loc: "rqlites://sakila:p_ssW0rd@localhost:4001", want: "sakila@localhost:4001"},
+		{loc: "rqlite://localhost:4001", want: "localhost:4001"},
+		{loc: "rqlite://sakila:p_ssW0rd@localhost:4001?level=strong", want: "sakila@localhost:4001"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tu.Name(tc.loc), func(t *testing.T) {
+			got := location.Short(tc.loc)
+			require.NotContains(t, got, "p_ssW0rd",
+				"Short must not echo passwords")
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
