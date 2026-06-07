@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net"
+	"strings"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3" // For TestWriteAtomic_DBTypeCheck.
@@ -375,20 +377,25 @@ func Test_maybeWarnLocalhostDiscovery(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			h := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
+			h := slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
 			ctx := lg.NewContext(context.Background(), slog.New(h))
 
 			src := &source.Source{Handle: "@rq", Location: tc.loc, Type: drivertype.Rqlite}
 			maybeWarnLocalhostDiscovery(ctx, src)
 
-			got := buf.String()
-			if tc.wantLog {
-				require.Contains(t, got, "disableClusterDiscovery",
-					"expected warn mentioning disableClusterDiscovery, got: %s", got)
-				require.Contains(t, got, "level=WARN", "expected WARN level, got: %s", got)
-			} else {
-				require.Empty(t, got, "expected no log output, got: %s", got)
+			raw := strings.TrimSpace(buf.String())
+			if !tc.wantLog {
+				require.Empty(t, raw, "expected no log output, got: %s", raw)
+				return
 			}
+
+			require.NotEmpty(t, raw, "expected one log entry, got none")
+			var entry map[string]any
+			require.NoError(t, json.Unmarshal([]byte(raw), &entry), "log line: %s", raw)
+			require.Equal(t, "WARN", entry["level"], "expected level=WARN, got: %v", entry["level"])
+			msg, _ := entry["msg"].(string)
+			require.Contains(t, msg, "disableClusterDiscovery",
+				"msg missing disableClusterDiscovery: %s", msg)
 		})
 	}
 }
