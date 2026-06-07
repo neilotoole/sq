@@ -126,6 +126,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   DNS lookup actually fails with "no such host", the error message is rewritten to
   name the unreachable peer and suggest the same fix, instead of surfacing gorqlite's
   raw `tried all peers unsuccessfully` text.
+- Internal: added `libsq/driver.LocationShape` describing a SQL
+  driver's URL syntax declaratively. No user-visible change. Future
+  work in `cli/` will consume this to simplify shell completion.
 
 ### Fixed
 
