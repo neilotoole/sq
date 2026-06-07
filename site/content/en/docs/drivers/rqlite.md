@@ -189,3 +189,80 @@ endpoints, SQLite pragmas, and `sqlite_master`.
 | ----------- | ------------------------------------------------------- |
 | `row_count` | live `SELECT COUNT(*) FROM "tbl"` per table             |
 | `size`      | not reported. rqlite does not expose per-table storage. |
+
+## Example usage
+
+Both examples use the
+[`sakiladb/rqlite`](https://hub.docker.com/r/sakiladb/rqlite) image, which
+ships rqlite preloaded with the
+[Sakila](https://dev.mysql.com/doc/sakila/en/) sample database. Default
+credentials are `sakila` / `p_ssW0rd`.
+
+### Single node
+
+Start a single-node container, add the source, and inspect:
+
+```shell
+# Port 4001 is rqlite's HTTP API.
+$ docker run --rm -d --name sakila-rq -p 4001:4001 sakiladb/rqlite:latest
+
+# Add the source. ?disableClusterDiscovery=true is required when reaching
+# the container from the host (see Single-node localhost above).
+$ sq add 'rqlite://sakila:p_ssW0rd@localhost:4001?disableClusterDiscovery=true' \
+    --handle @rq
+
+$ sq inspect @rq
+
+# Tear down
+$ docker stop sakila-rq
+```
+
+### Multiple nodes
+
+For a real local cluster that exercises gorqlite's discovery and
+leader redirects (i.e. WITHOUT `?disableClusterDiscovery=true`), the
+simplest approach on a developer machine is three native `rqlited`
+processes on `127.0.0.1`, each advertising a host-reachable address.
+The sq source tree includes a helper that brings the cluster up and
+loads Sakila into the leader. It requires the `rqlited` binary
+(`brew install rqlite` on macOS; see
+[rqlite.io](https://rqlite.io/docs/install-rqlite/) for other
+platforms):
+
+```shell
+# In one terminal, download the helper, take a look at it, and run it.
+$ curl -fsSL -o sakila-start-rqlite-nodes.sh \
+    https://raw.githubusercontent.com/neilotoole/sq/master/drivers/rqlite/sakila-start-rqlite-nodes.sh
+$ less sakila-start-rqlite-nodes.sh   # inspect before running
+$ chmod +x sakila-start-rqlite-nodes.sh
+$ ./sakila-start-rqlite-nodes.sh
+Starting rqlite cluster (data dir: /tmp/sakila-rq-nodes.XXXX)
+Loading Sakila into leader...
+
+Cluster ready: 3 nodes, leader on http://localhost:4001.
+...
+Press Ctrl-C here to stop the cluster.
+
+# In another terminal:
+$ sq add 'rqlite://localhost:4001' --handle @rq_local
+$ sq inspect @rq_local
+```
+
+Ctrl-C in the first terminal tears the cluster down and removes its
+data directory.
+
+In a production deployment where node hostnames are resolvable from
+clients (typically via internal DNS), leave discovery enabled (the
+default) so leader redirects and failover work automatically:
+
+```shell
+$ sq add 'rqlite://user:pass@rqlite1.internal:4001' --handle @rq_prod
+```
+
+Docker-based multi-node images such as `sakiladb/rqlite`'s
+[`cluster-compose.yml`](https://github.com/sakiladb/rqlite/blob/master/cluster-compose.yml)
+advertise container-internal hostnames (`rqlite1`, `rqlite2`,
+`rqlite3`) that aren't resolvable from the host, so a host-side client
+would have to either disable discovery and point at one specific node,
+or rewrite the advertised addresses to host-reachable values plus add
+`/etc/hosts` entries. The bare-metal helper above sidesteps both.

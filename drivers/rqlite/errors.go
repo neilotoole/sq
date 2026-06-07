@@ -1,10 +1,17 @@
 package rqlite
 
 import (
+	"context"
+	"errors"
+	"net"
+	"net/url"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/source"
 )
 
 // errw wraps any error from the db. It should be called at every
@@ -21,4 +28,111 @@ func errw(err error) error {
 	default:
 		return errz.Err(err)
 	}
+}
+
+// docsLocalhostAnchor is the docs URL for the single-node-localhost
+// case. Kept as a package-level constant so the add-time hint and the
+// DNS error rewrite point at the same place.
+const docsLocalhostAnchor = "https://sq.io/docs/drivers/rqlite#single-node-localhost"
+
+// maybeWarnLocalhostDiscovery emits a one-line Warn log when src's URL
+// host is loopback AND disableClusterDiscovery is not explicitly set on
+// the query string. Single-node localhost (Docker container reached
+// from the host) is the most common newcomer setup and gorqlite's
+// default cluster discovery fails opaquely there; a Warn at add/open
+// time provides a breadcrumb in the log file pointing at the docs.
+//
+// Best-effort: any failure to parse src.Location or extract the host
+// is a silent no-op. The warning must never affect Open behavior.
+func maybeWarnLocalhostDiscovery(ctx context.Context, src *source.Source) {
+	u, err := url.Parse(src.Location)
+	if err != nil {
+		return
+	}
+	v := u.Query().Get("disableClusterDiscovery")
+	if strings.EqualFold(v, "true") || strings.EqualFold(v, "false") {
+		// User has made an explicit choice (true or false). Don't
+		// second-guess them. Empty or unrecognized values fall through
+		// to the warning so a typo like ?disableClusterDiscovery=yes
+		// still gets surfaced.
+		return
+	}
+	host := u.Hostname()
+	if host == "" {
+		return
+	}
+	if !isLoopbackHost(host) {
+		return
+	}
+	lg.FromContext(ctx).Warn(
+		"rqlite: source points at loopback but disableClusterDiscovery is not set; "+
+			"single-node localhost setups typically need ?disableClusterDiscovery=true "+
+			"to avoid peer-discovery failures from the host. See "+docsLocalhostAnchor,
+		lga.Src, src.Handle,
+	)
+}
+
+// isLoopbackHost reports whether host is a literal loopback reference.
+// Matches "localhost" (case-insensitive) and any IP whose net.IP
+// representation reports IsLoopback (covers 127.0.0.0/8, ::1, and
+// ::ffff:127.x.x.x mappings). No DNS resolution is performed.
+func isLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+// rewritePeerDNSError rewrites a gorqlite cluster-discovery DNS
+// failure into an actionable message naming the unreachable peer and
+// pointing at ?disableClusterDiscovery=true and the docs. Pass-through
+// in every other case (nil err, non-DNS err, user-supplied host
+// matches the failing name, discovery already disabled, src.Location
+// unparseable).
+//
+// The rewrite preserves the underlying *net.DNSError so upstream
+// errors.As classification continues to work.
+func rewritePeerDNSError(err error, src *source.Source) error {
+	if err == nil {
+		return nil
+	}
+	var dnsErr *net.DNSError
+	if !errors.As(err, &dnsErr) || !dnsErr.IsNotFound {
+		// Only the "no such host" case (IsNotFound) is the
+		// cluster-discovery DNS failure we want to rewrite. DNS
+		// timeouts, temporary failures, and refusals are unrelated
+		// classes and shouldn't be rewritten into a
+		// disableClusterDiscovery suggestion.
+		return err
+	}
+	u, parseErr := url.Parse(src.Location)
+	if parseErr != nil {
+		// Defensive: doOpen validates this URL earlier, but if we
+		// somehow can't parse it here, pass the error through rather
+		// than producing a misleading rewrite.
+		return err
+	}
+	userHost := u.Hostname()
+	if strings.EqualFold(dnsErr.Name, userHost) {
+		// The failing hostname is the one the user typed. That's
+		// their problem to fix; suggesting disableClusterDiscovery
+		// would be wrong.
+		return err
+	}
+	if strings.EqualFold(u.Query().Get("disableClusterDiscovery"), "true") {
+		// Discovery already off; failure is something else.
+		// gorqlite's underlying parser treats "true"/"TRUE"/"True"
+		// equivalently, so match its case-insensitive interpretation
+		// rather than producing a misleading rewrite that suggests the
+		// user "try ?disableClusterDiscovery=true" when they already have.
+		return err
+	}
+	return errz.Wrapf(err,
+		"rqlite: cluster-discovery failed to resolve advertised peer %q "+
+			"(not %q from the source URL); this usually means the rqlite "+
+			"node advertised an internal hostname not resolvable from the "+
+			"host. Try ?disableClusterDiscovery=true, or see "+docsLocalhostAnchor,
+		dnsErr.Name, userHost,
+	)
 }
