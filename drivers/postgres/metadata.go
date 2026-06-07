@@ -195,13 +195,18 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 	const summaryQuery = `SELECT current_catalog, current_schema(), pg_database_size(current_catalog),
 current_setting('server_version'), version(), "current_user"()`
 
+	var size sql.NullInt64
 	err := db.QueryRowContext(ctx, summaryQuery).
-		Scan(&md.Name, &schema, &md.Size, &md.DBVersion, &md.DBProduct, &md.User)
+		Scan(&md.Name, &schema, &size, &md.DBVersion, &md.DBProduct, &md.User)
 	if err != nil {
 		return nil, errw(err)
 	}
 	progress.Incr(ctx, 1)
 	debugz.DebugSleep(ctx)
+
+	if size.Valid {
+		md.Size = &size.Int64
+	}
 
 	if !schema.Valid {
 		return nil, errz.New("NULL value for current_schema(): check privileges and search_path")

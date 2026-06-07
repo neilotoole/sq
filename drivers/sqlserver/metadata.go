@@ -128,13 +128,18 @@ GROUP BY database_id) AS total_size_bytes`
 	md.Location = src.Location
 
 	var catalog, schema string
+	var size sql.NullInt64
 	err := db.QueryRowContext(ctx, query).
-		Scan(&catalog, &schema, &md.DBVersion, &md.DBProduct, &md.Size)
+		Scan(&catalog, &schema, &md.DBVersion, &md.DBProduct, &size)
 	if err != nil {
 		return nil, errw(err)
 	}
 	progress.Incr(ctx, 1)
 	debugz.DebugSleep(ctx)
+
+	if size.Valid {
+		md.Size = &size.Int64
+	}
 
 	md.Name = catalog
 	md.FQName = catalog + "." + schema

@@ -18,7 +18,7 @@ func renderSourceMeta2YAML(sm *metadata.Source) (string, error) {
 
 	// sourceMeta holds values of metadata.Source in the structure
 	// that diff wants.
-	type sourceMeta struct {
+	type sourceMeta struct { //nolint:govet // YAML output ordering matters more than 8 bytes.
 		Handle     string          `json:"handle" yaml:"handle"`
 		Location   string          `json:"location" yaml:"location"`
 		Name       string          `json:"name" yaml:"name"`
@@ -29,7 +29,7 @@ func renderSourceMeta2YAML(sm *metadata.Source) (string, error) {
 		DBProduct  string          `json:"db_product" yaml:"db_product"`
 		DBVersion  string          `json:"db_version" yaml:"db_version"`
 		User       string          `json:"user,omitempty" yaml:"user,omitempty"`
-		Size       int64           `json:"size" yaml:"size"`
+		Size       *int64          `json:"size,omitempty" yaml:"size,omitempty"`
 		TableCount int64           `json:"table_count" yaml:"table_count"`
 		ViewCount  int64           `json:"view_count" yaml:"view_count"`
 	}
