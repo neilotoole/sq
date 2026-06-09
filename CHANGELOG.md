@@ -18,56 +18,6 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## Unreleased
 
-### Changed
-
-- [#610](https://github.com/neilotoole/sq/issues/610): [`duckdb`](https://sq.io/docs/drivers/duckdb): Read-only commands
-  ([`inspect`](https://sq.io/docs/cmd/inspect), [`sq`](https://sq.io/docs/cmd/sq),
-  [`diff`](https://sq.io/docs/cmd/diff), [`ping`](https://sq.io/docs/cmd/ping)) now open
-  DuckDB sources with `access_mode=READ_ONLY` by default.
-  - This avoids open-time WAL
-    writes, allows concurrent read-only access from multiple `sq` processes against the
-    same file, and lets `sq inspect` work on files the user has read-only access to.
-    A user-specified `?access_mode=READ_WRITE` in the source URL overrides the default.
-- ☢️ The `redact` config option is renamed to
-  [`secrets.reveal`](https://sq.io/docs/config#secretsreveal) with inverted polarity
-  (`secrets.reveal: true` equals legacy `redact: false`). The new default is `false`
-  (secrets are redacted).
-  - Existing configs are migrated automatically on first run
-    by a YAML upgrade step; scripts that call `sq config get redact` or
-    `sq config set redact ...` need updating to the new key. The rename completes the
-    polarity-consistency story started by `--reveal` in #717.
-  - As part of the polarity flip, the `--reveal` and `--no-redact` flags are now
-    positive opt-ins only: `--reveal=true` (or just `--reveal`) opts into
-    disclosure, and `--reveal=false` / `--no-redact=false` are no-ops. Previously,
-    `--no-redact=false` would force redaction by virtue of its inverted binding.
-    To force redaction when `secrets.reveal: true` is set in config, override the
-    config value with `sq config set secrets.reveal false` rather than relying on
-    a flag.
-- [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd)
-  now syntax-colors its `erDiagram` source when writing to a terminal.
-- [#729]: [`--expand`](https://sq.io/docs/secrets#expanding-placeholders) is now a persistent
-  root flag, accepted by every subcommand. Previously it lived only on `sq config export`.
-  - Commands that print a source location ([`sq src`](https://sq.io/docs/cmd/src),
-    [`sq ls`](https://sq.io/docs/cmd/ls), [`sq inspect`](https://sq.io/docs/inspect),
-    `sq add`, `sq mv`, and `sq ping` in JSON/YAML output) now pass `${scheme:path}`
-    placeholders through the configured resolvers and print the resolved value.
-    `sq ping`'s text and CSV output do not include a Location column, so `--expand`
-    has no visible effect there. `--expand` composes orthogonally with `--reveal`:
-    `--reveal` flips the redaction filter on whatever string is being displayed;
-    `--expand` decides whether that string is the verbatim placeholder or the
-    resolved value.
-  - The display-expansion step itself is lenient: a per-source resolver failure
-    (missing keyring entry, unset env var, unreadable file) leaves that source's
-    placeholder verbatim and the listing continues. This is independent of
-    connection-time resolution; commands that have to connect (e.g.
-    [`sq inspect`](https://sq.io/docs/inspect), `sq ping`) will still fail at
-    connect time if a missing secret prevents the connection. `sq config export --expand`
-    keeps its existing strict-abort behavior because an export is a snapshot for
-    transfer, and a half-resolved snapshot is the wrong artifact.
-  - Subcommands that don't print a source location (e.g. [`sq sql`](https://sq.io/docs/cmd/sql),
-    `sq slq`, `sq tbl`) accept `--expand` as a silent no-op, so a global alias like
-    `alias sq='sq --reveal --expand'` is safe.
-
 ### Added
 
 - [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export): dump the active config to
@@ -143,6 +93,56 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   `--ro`) to open DuckDB sources in read-only mode. Default remains read-write
   because reliable statement-level detection isn't feasible without a standalone
   DuckDB parser binding.
+
+### Changed
+
+- [#610](https://github.com/neilotoole/sq/issues/610): [`duckdb`](https://sq.io/docs/drivers/duckdb): Read-only commands
+  ([`inspect`](https://sq.io/docs/cmd/inspect), [`sq`](https://sq.io/docs/cmd/sq),
+  [`diff`](https://sq.io/docs/cmd/diff), [`ping`](https://sq.io/docs/cmd/ping)) now open
+  DuckDB sources with `access_mode=READ_ONLY` by default.
+  - This avoids open-time WAL
+    writes, allows concurrent read-only access from multiple `sq` processes against the
+    same file, and lets `sq inspect` work on files the user has read-only access to.
+    A user-specified `?access_mode=READ_WRITE` in the source URL overrides the default.
+- ☢️ The `redact` config option is renamed to
+  [`secrets.reveal`](https://sq.io/docs/config#secretsreveal) with inverted polarity
+  (`secrets.reveal: true` equals legacy `redact: false`). The new default is `false`
+  (secrets are redacted).
+  - Existing configs are migrated automatically on first run
+    by a YAML upgrade step; scripts that call `sq config get redact` or
+    `sq config set redact ...` need updating to the new key. The rename completes the
+    polarity-consistency story started by `--reveal` in #717.
+  - As part of the polarity flip, the `--reveal` and `--no-redact` flags are now
+    positive opt-ins only: `--reveal=true` (or just `--reveal`) opts into
+    disclosure, and `--reveal=false` / `--no-redact=false` are no-ops. Previously,
+    `--no-redact=false` would force redaction by virtue of its inverted binding.
+    To force redaction when `secrets.reveal: true` is set in config, override the
+    config value with `sq config set secrets.reveal false` rather than relying on
+    a flag.
+- [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd)
+  now syntax-colors its `erDiagram` source when writing to a terminal.
+- [#729]: [`--expand`](https://sq.io/docs/secrets#expanding-placeholders) is now a persistent
+  root flag, accepted by every subcommand. Previously it lived only on `sq config export`.
+  - Commands that print a source location ([`sq src`](https://sq.io/docs/cmd/src),
+    [`sq ls`](https://sq.io/docs/cmd/ls), [`sq inspect`](https://sq.io/docs/inspect),
+    `sq add`, `sq mv`, and `sq ping` in JSON/YAML output) now pass `${scheme:path}`
+    placeholders through the configured resolvers and print the resolved value.
+    `sq ping`'s text and CSV output do not include a Location column, so `--expand`
+    has no visible effect there. `--expand` composes orthogonally with `--reveal`:
+    `--reveal` flips the redaction filter on whatever string is being displayed;
+    `--expand` decides whether that string is the verbatim placeholder or the
+    resolved value.
+  - The display-expansion step itself is lenient: a per-source resolver failure
+    (missing keyring entry, unset env var, unreadable file) leaves that source's
+    placeholder verbatim and the listing continues. This is independent of
+    connection-time resolution; commands that have to connect (e.g.
+    [`sq inspect`](https://sq.io/docs/inspect), `sq ping`) will still fail at
+    connect time if a missing secret prevents the connection. `sq config export --expand`
+    keeps its existing strict-abort behavior because an export is a snapshot for
+    transfer, and a half-resolved snapshot is the wrong artifact.
+  - Subcommands that don't print a source location (e.g. [`sq sql`](https://sq.io/docs/cmd/sql),
+    `sq slq`, `sq tbl`) accept `--expand` as a silent no-op, so a global alias like
+    `alias sq='sq --reveal --expand'` is safe.
 
 ### Fixed
 
