@@ -18,22 +18,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## Unreleased
 
-The headline items are much-improved [secrets handling](https://sq.io/docs/secrets) (including
-keyring support), and support for [rqlite](https://sq.io/docs/drivers/rqlite).
+Headline items: much-improved [secrets handling](https://sq.io/docs/secrets) (including
+keyring support) and support for [rqlite](https://sq.io/docs/drivers/rqlite).
 
 ### Added
 
 - 🐥 [#444]: Added [rqlite driver](https://sq.io/docs/drivers/rqlite). `sq` now supports reading
   from, inspecting, and writing to [rqlite](https://rqlite.io) clusters, the lightweight
   distributed SQLite database.
-- [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export): dump the active config to
-  YAML, primarily for backups. See [Secrets](https://sq.io/docs/secrets) for the bigger picture.
-  - By default, output is a faithful-ish copy of the live config: `${scheme:path}` placeholders are
-    written verbatim.
-  - With [`--expand`](https://sq.io/docs/secrets#expanding-placeholders), every placeholder is
-    fetched from its resolver (`keyring`, `env`, `file`, or `op`) and the resolved value
-    is spliced in-line: a self-contained snapshot at the cost of writing every referenced
-    secret in plaintext (which is exactly the point of `--expand`).
 - [#441]: [`sq add`](https://sq.io/docs/cmd/add) gains a `--store inline|keyring`
   flag, and a new [`secrets.store`](https://sq.io/docs/config#secretsstore) config option
   controls the default; existing behavior is preserved (`inline`).
@@ -59,6 +51,18 @@ keyring support), and support for [rqlite](https://sq.io/docs/drivers/rqlite).
 - [#441]: [`sq config keyring`](https://sq.io/docs/cmd/config-keyring) command group: store
   source conn strings in the OS keyring instead of plaintext in `sq.yml`.
   - Subcommands: `ls`, `create`, `update`, `get`, `rm`, `migrate`.
+- [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export): dump the active config to
+  YAML, primarily for backups. See [Secrets](https://sq.io/docs/secrets) for the bigger picture.
+  - By default, output is a faithful-ish copy of the live config: `${scheme:path}` placeholders are
+    written verbatim.
+  - With [`--expand`](https://sq.io/docs/secrets#expanding-placeholders), every placeholder is
+    fetched from its resolver (`keyring`, `env`, `file`, or `op`) and the resolved value
+    is spliced in-line: a self-contained snapshot at the cost of writing every referenced
+    secret in plaintext (which is exactly the point of `--expand`).
+- [#717]: New global [`--reveal`](https://sq.io/docs/secrets#redaction) flag opts
+  into showing secret values in output.
+  - It supersedes the legacy `--no-redact` (still functional, now marked deprecated, will be removed
+    at some point in the future).
 - [#660]: [`sq inspect`](https://sq.io/docs/inspect) gained
   [`svg-erd`](https://sq.io/docs/inspect#svg-erd) and
   [`png-erd`](https://sq.io/docs/inspect#png-erd) output formats that render the schema
@@ -66,10 +70,6 @@ keyring support), and support for [rqlite](https://sq.io/docs/drivers/rqlite).
   (`--format=svg-erd` / `--format=png-erd`).
   - The diagram is laid out and rendered natively via an embedded [Graphviz](https://graphviz.org)
     engine, so image export needs no external tool, browser, or network.
-- [#717]: New global [`--reveal`](https://sq.io/docs/secrets#redaction) flag opts
-  into showing secret values in output.
-  - It supersedes the legacy `--no-redact` (still functional, now marked deprecated, will be removed
-    at some point in the future).
 - [#610]: [`sq sql`](https://sq.io/docs/cmd/sql) accepts `--readonly` (alias
   `--ro`) to open DuckDB sources in read-only mode. Default remains read-write
   because reliable statement-level detection isn't feasible without a standalone
@@ -77,7 +77,7 @@ keyring support), and support for [rqlite](https://sq.io/docs/drivers/rqlite).
 
 ### Changed
 
-- [#610](https://github.com/neilotoole/sq/issues/610): [`duckdb`](https://sq.io/docs/drivers/duckdb): Read-only commands
+- [#610]: [`duckdb`](https://sq.io/docs/drivers/duckdb): Read-only commands
   ([`inspect`](https://sq.io/docs/cmd/inspect), [`sq`](https://sq.io/docs/cmd/sq),
   [`diff`](https://sq.io/docs/cmd/diff), [`ping`](https://sq.io/docs/cmd/ping)) now open
   DuckDB sources with `access_mode=READ_ONLY` by default.
