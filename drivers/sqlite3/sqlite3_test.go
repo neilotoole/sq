@@ -410,6 +410,50 @@ func TestDriveri_AlterTableColumnKinds(t *testing.T) {
 	require.Equal(t, kind.Float.String(), gotTblMeta.Column("weight").Kind.String())
 }
 
+// TestDriveri_AlterTableColumnKinds_QuotedIdentifier reproduces gh752: a
+// column declared with a non-double-quote SQLite identifier-quote style
+// (square brackets, backticks, or single quotes) used to fail the lookup in
+// AlterTableColumnKinds because sqlparser.ColDef.Name only stripped
+// double-quotes. The shared parser now strips all four legal styles.
+func TestDriveri_AlterTableColumnKinds_QuotedIdentifier(t *testing.T) {
+	testCases := []struct {
+		name    string
+		colDecl string
+	}{
+		{name: "double_quote", colDecl: `"age" INTEGER NOT NULL`},
+		{name: "single_quote", colDecl: `'age' INTEGER NOT NULL`},
+		{name: "backtick", colDecl: "`age` INTEGER NOT NULL"},
+		{name: "square_brackets", colDecl: `[age] INTEGER NOT NULL`},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			th := testh.New(t)
+			src := &source.Source{
+				Handle:   "@test",
+				Type:     drivertype.SQLite,
+				Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+			}
+
+			grip := th.Open(src)
+			db, err := grip.DB(th.Context)
+			require.NoError(t, err)
+			drvr := grip.SQLDriver()
+
+			_, err = db.ExecContext(th.Context, `CREATE TABLE example (`+tc.colDecl+`)`)
+			require.NoError(t, err)
+
+			err = drvr.AlterTableColumnKinds(th.Context, db, "example",
+				[]string{"age"}, []kind.Kind{kind.Text})
+			require.NoError(t, err)
+
+			md, err := grip.TableMetadata(th.Context, "example")
+			require.NoError(t, err)
+			require.Equal(t, kind.Text.String(), md.Column("age").Kind.String())
+		})
+	}
+}
+
 // TestSourceMetadata_LocationWithConnParams reproduces gh720: a
 // source-level metadata read must succeed when the source location
 // carries a connection-string suffix (e.g. ?mode=ro). The previous
