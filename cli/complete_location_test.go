@@ -472,6 +472,7 @@ func TestCompleteAddLocation_Rqlite(t *testing.T) {
 			want: []string{
 				"rqlite://alice@host:4001?disableClusterDiscovery=",
 				"rqlite://alice@host:4001?level=",
+				"rqlite://alice@host:4001?timeout=",
 			},
 			wantResult: stdDirective,
 		},

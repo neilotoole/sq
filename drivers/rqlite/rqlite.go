@@ -103,6 +103,7 @@ func (d *driveri) ConnParams() map[string][]string {
 	return map[string][]string{
 		"level":                   {"none", "weak", "linearizable", "strong"},
 		"disableClusterDiscovery": {"true", "false"},
+		"timeout":                 nil,
 	}
 }
 
