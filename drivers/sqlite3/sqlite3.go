@@ -327,7 +327,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 		Replacement: toTbl.Render(stringz.DoubleQuote),
 	}})
 	if err != nil {
-		return 0, errz.Wrapf(err, "sqlite3: copy table: failed to apply DDL rewrites")
+		return 0, errz.Wrap(err, "sqlite3: copy table: failed to apply DDL rewrites")
 	}
 
 	_, err = db.ExecContext(ctx, destTblCreateStmt)

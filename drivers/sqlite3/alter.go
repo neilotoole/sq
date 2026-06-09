@@ -92,7 +92,7 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	// comment / default literal.
 	tblIdent, err := sqlparser.ExtractTableIdentFromCreateTableStmt(ogDDL)
 	if err != nil {
-		return errz.Wrapf(err, "sqlite3: alter table: failed to extract table identifier from DDL")
+		return errz.Wrap(err, "sqlite3: alter table: failed to extract table identifier from DDL")
 	}
 
 	nuTblName := "tmp_tbl_alter_" + stringz.Uniq32()
@@ -112,7 +112,7 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 
 	nuDDL, err := sqlparser.ApplyEdits(ogDDL, edits)
 	if err != nil {
-		return errz.Wrapf(err, "sqlite3: alter table: failed to apply DDL rewrites")
+		return errz.Wrap(err, "sqlite3: alter table: failed to apply DDL rewrites")
 	}
 
 	if _, err = db.ExecContext(ctx, nuDDL); err != nil {
