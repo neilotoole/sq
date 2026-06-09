@@ -36,6 +36,7 @@ import (
 
 	"github.com/rqlite/gorqlite"
 
+	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser"
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -373,51 +374,67 @@ func dsnFromLocation(loc string) (string, error) {
 
 // CopyTable implements driver.SQLDriver.
 //
-// rqlite has no interactive transactions, so we use the introspect
-// and rebuild strategy: read the source table's metadata, convert
-// to a *schema.Table, and emit a fresh CREATE TABLE via
-// buildCreateTableStmt. When copyData=true, the CREATE and the
-// INSERT-FROM-SELECT are sent as one atomic batch via writeAtomic.
+// rqlite has no interactive transactions, so the implementation uses
+// the faithful-DDL-rewrite shape via writeAtomic: read the source
+// table's CREATE statement from sqlite_master, extract the table
+// identifier with the shared sqlparser package, substitute the
+// destination name, and re-execute. When copyData is true the
+// rewritten CREATE and the INSERT-FROM-SELECT are sent as one atomic
+// batch.
 //
-// This is a lossy copy. UNIQUE, FOREIGN KEY, AUTOINCREMENT, CHECK,
-// indexes, triggers, and the original DEFAULT values are NOT
-// preserved. Only Name, Kind, NotNull, PRIMARY KEY (single column),
-// and the presence (not value) of column defaults are carried over.
-// For faithful CREATE TABLE preservation, use rqlite's sqlite_master
-// text directly via a SQL parser (deferred, see follow-up).
+// The rewrite preserves the original CREATE TABLE text modulo the
+// table identifier substitution. Constraints carried across: UNIQUE,
+// FOREIGN KEY, AUTOINCREMENT, CHECK, composite PRIMARY KEY, exact
+// DEFAULT expressions, WITHOUT ROWID, and column comments.
+//
+// Not preserved: indexes and triggers. These live as separate
+// sqlite_master rows and are out of scope for CopyTable. Matches the
+// sqlite3 driver's behavior.
+//
+// Known limitation (inherited from sqlite3): self-referential FKs
+// are not rewritten. If the source has REFERENCES "actor"(id) and
+// the user copies to "actor_bak", the destination FK still points
+// at "actor" (the source).
 func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 	fromTbl, toTbl tablefq.T, copyData bool,
 ) (int64, error) {
-	srcMd, err := getTableMetadata(ctx, db, fromTbl.Table)
-	if err != nil {
-		return 0, errw(err)
+	masterTbl := tablefq.T{Schema: fromTbl.Schema, Table: "sqlite_master"}
+	q := fmt.Sprintf("SELECT sql FROM %s WHERE type='table' AND name=?",
+		masterTbl.Render(stringz.DoubleQuote))
+	var ogDDL string
+	if err := db.QueryRowContext(ctx, q, fromTbl.Table).Scan(&ogDDL); err != nil {
+		return 0, errz.Wrapf(errw(err),
+			"rqlite: copy table: failed to read DDL for {%s}", fromTbl.Table)
 	}
 
-	dstTblDef, err := tableMetadataToSchema(srcMd, toTbl.Table)
+	ogSchema, ogTblIdent, err := sqlparser.ExtractTableIdentFromCreateTableStmt(ogDDL, false)
 	if err != nil {
-		return 0, errw(err)
+		return 0, errz.Wrap(err, "rqlite: copy table")
 	}
-	createStmt := buildCreateTableStmt(dstTblDef)
+	replaceTarget := ogTblIdent
+	if ogSchema != "" {
+		replaceTarget = ogSchema + "." + ogTblIdent
+	}
+
+	destDDL := strings.Replace(ogDDL, replaceTarget,
+		toTbl.Render(stringz.DoubleQuote), 1)
 
 	if !copyData {
-		if _, err = db.ExecContext(ctx, createStmt); err != nil {
+		if _, err = db.ExecContext(ctx, destDDL); err != nil {
 			return 0, errw(err)
 		}
 		return 0, nil
 	}
 
-	// Atomic CREATE + INSERT-FROM-SELECT.
 	stmts := []gorqlite.ParameterizedStatement{
-		{Query: createStmt},
-		{Query: fmt.Sprintf(`INSERT INTO %q SELECT * FROM %q`, toTbl.Table, fromTbl.Table)},
+		{Query: destDDL},
+		{Query: fmt.Sprintf(`INSERT INTO %s SELECT * FROM %s`,
+			toTbl.Render(stringz.DoubleQuote), fromTbl.Render(stringz.DoubleQuote))},
 	}
 	results, err := writeAtomic(ctx, db, stmts...)
 	if err != nil {
 		return 0, err
 	}
-	// rqlite reports rows_affected as changes() at result time, which
-	// is stale for the CREATE statement. The INSERT-SELECT at
-	// results[1] carries the real inserted-row count.
 	return results[1].RowsAffected, nil
 }
 
@@ -753,27 +770,37 @@ func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, c
 
 // AlterTableColumnKinds implements driver.SQLDriver.
 //
-// SQLite has no ALTER COLUMN TYPE, so we rebuild the table via an
-// atomic batch:
+// SQLite has no ALTER COLUMN TYPE, so the implementation rebuilds the
+// table via an atomic batch through writeAtomic:
 //
 //	PRAGMA foreign_keys=off
-//	CREATE TABLE <tmp> (... new kinds ...)
+//	CREATE TABLE <tmp> (... new kinds, original constraints ...)
 //	INSERT INTO <tmp> SELECT * FROM <original>
 //	DROP TABLE <original>
 //	ALTER TABLE <tmp> RENAME TO <original>
-//	PRAGMA foreign_keys=on
+//	PRAGMA foreign_keys=<prev>
 //
 // All six statements ride one /db/execute HTTP call and are atomic
-// at rqlite.
+// at rqlite. The prior foreign_keys value is read outside the batch
+// (rqlite has no interactive transactions) and inlined as the final
+// statement, restoring the session state rather than blindly forcing
+// it on. This mirrors the sqlite3 driver's pragmaDisableForeignKeys
+// restore pattern (drivers/sqlite3/alter.go).
 //
-// Schema is reconstructed from *metadata.Table (the source of truth
-// for what sq tracks). This is a lossy rebuild. UNIQUE, FOREIGN KEY,
-// AUTOINCREMENT, CHECK, indexes, triggers, and the original DEFAULT
-// values are NOT preserved. Only Name, Kind, NotNull, PRIMARY KEY
-// (single column), and the presence (not value) of column defaults
-// are carried over. For faithful CREATE TABLE preservation, use
-// rqlite's sqlite_master text directly via a SQL parser (deferred,
-// see follow-up).
+// The new CREATE TABLE is built by reading the original DDL from
+// sqlite_master, patching the column type tokens for the requested
+// columns, and renaming the table identifier to a unique temporary
+// so the original can be dropped at the end. This preserves UNIQUE,
+// FOREIGN KEY, AUTOINCREMENT, CHECK, composite PRIMARY KEY, the
+// exact DEFAULT expressions, WITHOUT ROWID, and column comments.
+// Self-referential FKs resolve correctly because the DROP-and-
+// RENAME-back restores the original table name (the inner REFERENCES
+// clause is untouched by the count=1 substring replace).
+//
+// Inherited gap (matches sqlite3 driver): AUTOINCREMENT sequence
+// continuity is not preserved. The sqlite_sequence row for the
+// original table is removed by the DROP, so after the rename
+// AUTOINCREMENT restarts from MAX(rowid)+1 rather than seq+1.
 func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	tbl string, colNames []string, kinds []kind.Kind,
 ) error {
@@ -781,35 +808,64 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 		return errz.New("rqlite: alter table: mismatched count of columns and kinds")
 	}
 
-	srcMd, err := getTableMetadata(ctx, db, tbl)
-	if err != nil {
-		return errw(err)
+	const q = `SELECT sql FROM sqlite_master WHERE type='table' AND name=?`
+	var ogDDL string
+	if err := db.QueryRowContext(ctx, q, tbl).Scan(&ogDDL); err != nil {
+		return errz.Wrapf(errw(err),
+			"rqlite: alter table: failed to read DDL for {%s}", tbl)
 	}
 
-	dstTblDef, err := tableMetadataToSchema(srcMd, tbl)
+	allColDefs, err := sqlparser.ExtractCreateTableStmtColDefs(ogDDL)
 	if err != nil {
-		return errw(err)
+		return errz.Wrap(err, "rqlite: alter table: failed to extract column definitions")
 	}
-	// Apply the requested kind swaps.
-	for i, colName := range colNames {
-		col, ferr := dstTblDef.FindCol(colName)
-		if ferr != nil {
-			return errz.Wrapf(ferr, "rqlite: alter table: column not found")
+
+	colDefs := make([]*sqlparser.ColDef, 0, len(colNames))
+	for _, colName := range colNames {
+		var found *sqlparser.ColDef
+		for _, cd := range allColDefs {
+			if cd.Name == colName {
+				found = cd
+				break
+			}
 		}
-		col.Kind = kinds[i]
+		if found == nil {
+			return errz.Errorf("rqlite: alter table: column {%s} not found in table DDL", colName)
+		}
+		colDefs = append(colDefs, found)
+	}
+
+	nuDDL := ogDDL
+	for i, colDef := range colDefs {
+		wantType := DBTypeForKind(kinds[i])
+		wantColDefText := strings.Replace(colDef.Raw, colDef.RawType, wantType, 1)
+		nuDDL = strings.Replace(nuDDL, colDef.Raw, wantColDefText, 1)
 	}
 
 	tmpName := "tmp_tbl_alter_" + stringz.Uniq8()
-	dstTblDef.Name = tmpName
-	createStmt := buildCreateTableStmt(dstTblDef)
+	nuDDL = strings.Replace(nuDDL, tbl, tmpName, 1)
+
+	// Read the prior foreign_keys pragma so we can restore it at the
+	// end of the atomic batch rather than blindly forcing it on.
+	// Matches the sqlite3 driver's pragmaDisableForeignKeys/restore
+	// pattern in drivers/sqlite3/alter.go, adapted for rqlite's
+	// no-interactive-transactions model: the restore value is inlined
+	// as the last statement of the batch rather than captured in a
+	// defer.
+	var fkPrev int64
+	if err = db.QueryRowContext(ctx, "PRAGMA foreign_keys").Scan(&fkPrev); err != nil {
+		return errz.Wrapf(errw(err), "rqlite: alter table: failed to read foreign_keys pragma")
+	}
 
 	stmts := []gorqlite.ParameterizedStatement{
 		{Query: "PRAGMA foreign_keys=off"},
-		{Query: createStmt},
-		{Query: fmt.Sprintf(`INSERT INTO %q SELECT * FROM %q`, tmpName, tbl)},
-		{Query: fmt.Sprintf(`DROP TABLE %q`, tbl)},
-		{Query: fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, tmpName, tbl)},
-		{Query: "PRAGMA foreign_keys=on"},
+		{Query: nuDDL},
+		{Query: fmt.Sprintf(`INSERT INTO %s SELECT * FROM %s`,
+			stringz.DoubleQuote(tmpName), stringz.DoubleQuote(tbl))},
+		{Query: "DROP TABLE " + stringz.DoubleQuote(tbl)},
+		{Query: fmt.Sprintf(`ALTER TABLE %s RENAME TO %s`,
+			stringz.DoubleQuote(tmpName), stringz.DoubleQuote(tbl))},
+		{Query: fmt.Sprintf("PRAGMA foreign_keys=%d", fkPrev)},
 	}
 
 	_, err = writeAtomic(ctx, db, stmts...)

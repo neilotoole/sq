@@ -22,7 +22,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
-	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh/tu"
 )
 
@@ -174,44 +173,6 @@ func TestBuildUpdateStmt(t *testing.T) {
 	t.Run("no cols errors", func(t *testing.T) {
 		_, err := buildUpdateStmt("actor", nil, "")
 		require.ErrorContains(t, err, "no columns")
-	})
-}
-
-func TestTableMetadataToSchema(t *testing.T) {
-	t.Run("happy path", func(t *testing.T) {
-		md := &metadata.Table{
-			Name: "actor",
-			Columns: []*metadata.Column{
-				{Name: "actor_id", Kind: kind.Int, PrimaryKey: true, Nullable: false},
-				{Name: "first_name", Kind: kind.Text, Nullable: false, DefaultValue: "''"},
-				{Name: "last_name", Kind: kind.Text, Nullable: true},
-			},
-		}
-
-		tblDef, err := tableMetadataToSchema(md, "actor_copy")
-		require.NoError(t, err)
-
-		require.Equal(t, "actor_copy", tblDef.Name)
-		require.Equal(t, "actor_id", tblDef.PKColName)
-		require.Len(t, tblDef.Cols, 3)
-
-		require.Equal(t, "actor_id", tblDef.Cols[0].Name)
-		require.Equal(t, kind.Int, tblDef.Cols[0].Kind)
-		require.True(t, tblDef.Cols[0].NotNull)
-
-		require.Equal(t, "first_name", tblDef.Cols[1].Name)
-		require.True(t, tblDef.Cols[1].NotNull)
-		require.True(t, tblDef.Cols[1].HasDefault)
-
-		require.Equal(t, "last_name", tblDef.Cols[2].Name)
-		require.False(t, tblDef.Cols[2].NotNull)
-		require.False(t, tblDef.Cols[2].HasDefault)
-	})
-
-	t.Run("empty columns errors", func(t *testing.T) {
-		_, err := tableMetadataToSchema(&metadata.Table{Name: "x"}, "y")
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "zero columns")
 	})
 }
 
