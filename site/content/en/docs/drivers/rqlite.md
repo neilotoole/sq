@@ -12,10 +12,11 @@ The `sq` rqlite driver implements connectivity for
 It uses the [`rqlite/gorqlite`](https://github.com/rqlite/gorqlite)
 library and talks to rqlite over HTTP.
 
-Unlike `sq`'s built-in SQLite driver, rqlite is networked: there is no
-local file mode. The driver implements all optional `sq` driver
-features. Because the SQL dialect underneath rqlite is SQLite, queries
-written for `@my_sqlite` translate verbatim to `@my_rqlite`.
+Unlike `sq`'s built-in [SQLite driver](/docs/drivers/sqlite), rqlite is
+networked: there is no local file mode. The SQL dialect underneath is
+still SQLite, so queries written for `@my_sqlite` translate verbatim
+to `@my_rqlite`. Most optional `sq` SQL-driver features are supported;
+see [Limitations](#limitations) for what isn't.
 
 ## Add source
 
@@ -40,8 +41,6 @@ $ sq add 'rqlites://node.example.com:4001'
 ```
 
 If the port is omitted, `sq` auto-applies the default port `4001`.
-The driver type is inferred from the `rqlite://` / `rqlites://`
-scheme prefix; there is no file-based auto-detection.
 
 ## Connection string format
 
@@ -62,7 +61,7 @@ rqlites://username:password@hostname:port?param=value
 ## Single-node localhost
 
 When you run a single rqlite node in Docker and connect to it from your
-host (the most common newcomer setup), gorqlite's default behavior is to
+host (the most common newcomer setup), `gorqlite`'s default behavior is to
 ask the node for its cluster peers. The node truthfully reports its own
 internal advertise address, which is typically a container-only hostname
 like `rqlite1` for the `sakiladb/rqlite` image or the container's short
@@ -88,7 +87,10 @@ Pass parameters as URL query strings:
 $ sq add 'rqlite://sakila:p_ssW0rd@localhost:4001?level=strong&disableClusterDiscovery=true'
 ```
 
-**`level`**: rqlite read consistency level. Default is rqlite's default.
+### `level`
+
+rqlite read consistency level. Defaults to `weak`.
+See [rqlite consistency docs](https://rqlite.io/docs/api/read-consistency/).
 
 | Value          | Behavior                                                             |
 |----------------|----------------------------------------------------------------------|
@@ -97,15 +99,21 @@ $ sq add 'rqlite://sakila:p_ssW0rd@localhost:4001?level=strong&disableClusterDis
 | `linearizable` | Confirms leader via Raft round-trip.                                 |
 | `strong`       | Routes the read through the Raft log; reflects all committed writes. |
 
-See [rqlite consistency docs](https://rqlite.io/docs/api/read-consistency/).
+### `disableClusterDiscovery`
 
-**`disableClusterDiscovery`**: `true` or `false`. Turns off gorqlite's
-automatic peer discovery. Required for the
-[single-node localhost](#single-node-localhost) case described above;
-also useful when the rqlite node is reachable only through a proxy and
-shouldn't be probed for cluster peers. Multi-node cluster users should
-leave it off (the default) so leader redirects and failover work
-automatically.
+`true` or `false`. Turns off `gorqlite`'s automatic peer discovery.
+Required for the [single-node localhost](#single-node-localhost) case
+described above; also useful when the rqlite node is reachable only
+through a proxy and shouldn't be probed for cluster peers. Multi-node
+cluster users should leave it off (the default) so leader redirects and
+failover work automatically.
+
+### `timeout`
+
+HTTP client timeout in seconds, applied to every request the driver
+makes to the rqlite node. Integer-valued; defaults to `10`. Increase it
+for slow links or large multi-statement batches; decrease it to
+fail-fast against a flaky node.
 
 ## Write behavior
 
@@ -118,7 +126,7 @@ with multiple statements. `sq` maps onto this as follows:
   one HTTP call and is atomic at the rqlite layer.
 - **Multi-statement atomic operations** (`sq tbl copy`'s
   CREATE+INSERT-SELECT, and the `ALTER COLUMN TYPE` table-rebuild dance)
-  are sent as a single atomic batch via gorqlite's
+  are sent as a single atomic batch via `gorqlite`'s
   `WriteParameterizedContext`. If any statement fails, rqlite rolls the
   whole batch back.
 - **`sq tbl truncate`** issues `DELETE FROM tbl` and (with reset) a
@@ -127,17 +135,17 @@ with multiple statements. `sq` maps onto this as follows:
   reports the deleted-row count accurately, and the AUTOINCREMENT-counter
   reset is informational.
 
-## How sq handles rqlite quirks
+## Quirks
 
 A few rqlite-specific behaviors are smoothed over inside the driver so
 the cross-driver experience matches the rest of `sq`. Worth knowing if
 you're comparing notes against raw `gorqlite` results:
 
-- **Column types for empty tables.** gorqlite's `database/sql` adapter
+- **Column types for empty tables.** `gorqlite`'s `database/sql` adapter
   doesn't expose column type names to callers, so a fresh
   `CREATE TABLE` followed by an empty `SELECT` would normally yield
   `kind.Unknown` for every column. `sq`'s rqlite driver wraps the
-  underlying gorqlite SQL driver to expose the type names that gorqlite
+  underlying `gorqlite` SQL driver to expose the type names that `gorqlite`
   has been carrying all along, so `sq inspect` and the SLQ engine see
   proper kinds even on empty tables.
 - **JSON-numeric coercion.** rqlite returns all numeric column values
@@ -151,15 +159,15 @@ you're comparing notes against raw `gorqlite` results:
 
 ## Limitations
 
-- **`sq tbl copy` and `ALTER TABLE` kind swaps are lossy.** The driver
-  rebuilds the target table from `sq`'s metadata model, which preserves
-  column names, kinds, single-column primary keys, `NOT NULL`, and the
-  *presence* of column defaults. It does **not** preserve `UNIQUE`
-  constraints, `FOREIGN KEY` constraints, `AUTOINCREMENT`, `CHECK`
-  constraints, indexes, triggers, or the original `DEFAULT` *expression
-  values* (substituted by canned per-kind defaults like `0` or `''`).
-  Faithful preservation via SQL-text rewrite is tracked in
-  [#737](https://github.com/neilotoole/sq/issues/737).
+- **`sq tbl copy` and `ALTER TABLE` kind swaps don't carry indexes,
+  triggers, or self-referential foreign keys.** The table DDL itself is
+  preserved via SQL-text rewrite (`UNIQUE`, `FOREIGN KEY`,
+  `AUTOINCREMENT`, `CHECK`, composite `PRIMARY KEY`, exact `DEFAULT`
+  expressions, `WITHOUT ROWID`, and column comments), matching the
+  [sqlite3 driver](/docs/drivers/sqlite). Indexes and triggers live as
+  separate `sqlite_master` rows and aren't carried. Self-referential
+  FKs aren't rewritten either: copying `actor` to `actor_bak` leaves a
+  `REFERENCES "actor"(id)` clause pointing at the original `actor`.
 - **Schemas and catalogs are not supported.** SQLite has no schema or
   catalog concept, so `sq inspect` reports them as the conventional
   values `main` and `default` respectively. `CreateSchema`,
@@ -219,7 +227,7 @@ $ docker stop sakila-rq
 
 ### Multiple nodes
 
-For a real local cluster that exercises gorqlite's discovery and
+For a real local cluster that exercises `gorqlite`'s discovery and
 leader redirects (i.e. WITHOUT `?disableClusterDiscovery=true`), the
 simplest approach on a developer machine is three native `rqlited`
 processes on `127.0.0.1`, each advertising a host-reachable address.

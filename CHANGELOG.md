@@ -77,6 +77,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   DNS lookup actually fails with "no such host", the error message is rewritten to
   name the unreachable peer and suggest the same fix, instead of surfacing gorqlite's
   raw `tried all peers unsuccessfully` text.
+- The [rqlite driver](https://sq.io/docs/drivers/rqlite) now advertises the `timeout`
+  [connection parameter](https://sq.io/docs/drivers/rqlite#timeout) (HTTP client
+  timeout in seconds, gorqlite default `10`). Previously gorqlite parsed it but
+  `sq` didn't expose it to shell completion or document it.
 
 ### Added
 
