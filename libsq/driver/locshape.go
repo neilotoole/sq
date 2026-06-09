@@ -1,11 +1,6 @@
-// LocationShape declares a SQL driver's URL syntax declaratively so
-// that shell completion (and future location validation) can walk
-// partial input against a shape without per-driver branches in the
-// caller.
 package driver
 
 import (
-	"context"
 	"net/url"
 	"strconv"
 	"strings"
@@ -14,7 +9,10 @@ import (
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
-// LocationShape declares the URL syntax for a SQL driver.
+// LocationShape declares a SQL driver's URL syntax declaratively, so
+// that shell completion (and future location validation) can walk
+// partial input against the shape without per-driver branches in the
+// caller.
 type LocationShape struct {
 	// Type associates this shape with its driver.
 	Type drivertype.Type
@@ -39,6 +37,49 @@ func (s LocationShape) SegmentFor(kind SegmentKind) Segment {
 		}
 	}
 	return Segment{}
+}
+
+// Validate checks the LocationShape for structural problems that a
+// driver hand-rolled literal could realistically introduce: missing
+// type, no schemes, no segments, an unset segment kind, duplicate
+// segment kinds, or a LeadingKey/Placeholder set on a segment whose
+// kind ignores it. Callers (typically a driver-package test) should
+// invoke this once at startup, not on every completion.
+func (s LocationShape) Validate() error {
+	if s.Type == "" {
+		return errz.New("LocationShape: Type is empty")
+	}
+	if len(s.Schemes) == 0 {
+		return errz.New("LocationShape: Schemes is empty")
+	}
+	for i, sc := range s.Schemes {
+		if sc == "" {
+			return errz.Errorf("LocationShape: Schemes[%d] is empty", i)
+		}
+	}
+	if len(s.Segments) == 0 {
+		return errz.New("LocationShape: Segments is empty")
+	}
+	seen := make(map[SegmentKind]bool, len(s.Segments))
+	for i, seg := range s.Segments {
+		if seg.Kind == 0 {
+			return errz.Errorf("LocationShape: Segments[%d].Kind is unset", i)
+		}
+		if seen[seg.Kind] {
+			return errz.Errorf("LocationShape: Segments[%d] duplicates kind %v",
+				i, seg.Kind)
+		}
+		seen[seg.Kind] = true
+		if seg.LeadingKey != "" && seg.Kind != SegConnParams {
+			return errz.Errorf("LocationShape: Segments[%d] has LeadingKey on kind %v "+
+				"(only SegConnParams uses LeadingKey)", i, seg.Kind)
+		}
+		if seg.Placeholder != "" && seg.Kind != SegPathName {
+			return errz.Errorf("LocationShape: Segments[%d] has Placeholder on kind %v "+
+				"(only SegPathName uses Placeholder)", i, seg.Kind)
+		}
+	}
+	return nil
 }
 
 // SegmentKind enumerates the segment vocabulary. The minimal set that
@@ -67,11 +108,6 @@ const (
 
 // Segment configures one position in a LocationShape.
 type Segment struct {
-	// Suggest is an optional escape hatch that overrides the
-	// completer's default candidate generation for this segment.
-	// nil means "use the completer's default for this Kind".
-	Suggest SuggestFunc
-
 	// Placeholder is the noun shown as a completion hint for
 	// SegPathName (e.g. "db", "instance", "service"). Ignored for
 	// other kinds.
@@ -164,11 +200,6 @@ type Suggestions interface {
 	// Locations returns the full prior locations verbatim.
 	Locations() []string
 }
-
-// SuggestFunc returns candidate completion strings for one segment
-// given the already-matched location prefix and the available
-// suggestion sources.
-type SuggestFunc func(ctx context.Context, m MatchedLoc, src Suggestions) []string
 
 // Walk matches loc against shape and returns a MatchedLoc describing
 // which segments were detected, which segment is currently being

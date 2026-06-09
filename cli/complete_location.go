@@ -63,8 +63,12 @@ func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) (
 		}
 		m, err := driver.Walk(shape, toComplete)
 		if err != nil {
-			lg.FromContext(ctx).Error("Walk location", lga.Err, err)
-			return nil, cobra.ShellCompDirectiveError
+			// Should be unreachable: matchShape already verified the
+			// scheme prefix. Log so an unexpected Walk error is
+			// diagnosable, then yield to file completion rather than
+			// disturbing the user's session with a hard error.
+			lg.FromContext(ctx).Debug("Walk location", lga.Err, err)
+			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 		src := newLocSuggestions(ru.Config.Collection, shape.Type, lg.FromContext(ctx))
 		return generateCandidates(ctx, shape, m, src, drvr), locCompStdDirective

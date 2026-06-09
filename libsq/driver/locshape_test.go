@@ -35,6 +35,20 @@ func TestWalk_schemeMismatch(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestWalk_schemeMismatchOmitsLoc pins the credential-leak guard:
+// when the scheme doesn't match, the returned error must NOT echo
+// loc, because loc can carry inline credentials and the error may
+// be logged.
+func TestWalk_schemeMismatchOmitsLoc(t *testing.T) {
+	loc := "mysql://alice:hunter2@localhost"
+	_, err := Walk(pgShape, loc)
+	require.Error(t, err)
+	require.EqualError(t, err, "scheme not matched")
+	require.NotContains(t, err.Error(), "alice")
+	require.NotContains(t, err.Error(), "hunter2")
+	require.NotContains(t, err.Error(), "mysql")
+}
+
 func TestWalk_credsPartialUser(t *testing.T) {
 	got, err := Walk(pgShape, "postgres://alice")
 	require.NoError(t, err)
@@ -250,6 +264,7 @@ func TestWalk_gh743BareHost(t *testing.T) {
 		{"rqlite_bare_host_port_q", rqliteShape, "rqlite://localhost:4001?"},
 		{"rqlites_bare_host_port_q", rqliteShape, "rqlites://localhost:4001?"},
 		{"pg_bare_host_only_q", pgShape, "postgres://localhost?"},
+		{"pg_bare_ipv6_host_port_q", pgShape, "postgres://[::1]:5432?"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

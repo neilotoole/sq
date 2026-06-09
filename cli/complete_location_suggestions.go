@@ -9,6 +9,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/xo/dburl"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/urlz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -24,11 +25,15 @@ func parseSourceLoc(loc string, typ drivertype.Type) (*dburl.URL, error) {
 	if typ == drivertype.Rqlite {
 		u, err := url.Parse(loc)
 		if err != nil {
-			return nil, err
+			return nil, errz.Wrap(err, "parse rqlite location")
 		}
 		return &dburl.URL{URL: *u, OriginalScheme: u.Scheme}, nil
 	}
-	return dburl.Parse(loc)
+	du, err := dburl.Parse(loc)
+	if err != nil {
+		return nil, errz.Wrap(err, "parse location")
+	}
+	return du, nil
 }
 
 // locSuggestions provides historical and contextual values that the

@@ -10,6 +10,8 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/driver"
 )
 
@@ -266,10 +268,12 @@ func suggestConnParams(m driver.MatchedLoc, src driver.Suggestions,
 		return cs.build()
 	}
 
-	// We are typing a value for ParamLastKey.
+	// We are typing a value for ParamLastKey. Escape each candidate
+	// value so a sample containing whitespace or reserved query
+	// characters yields a valid URL.
 	vs := values[m.ParamLastKey]
 	for _, v := range vs {
-		cs.add(stump + m.ParamLastKey + "=" + v)
+		cs.add(stump + m.ParamLastKey + "=" + url.QueryEscape(v))
 	}
 	if len(vs) == 0 {
 		// Unknown values: offer "&" to move to next param.
@@ -316,16 +320,11 @@ func connParamKeysAndValues(drvr driver.SQLDriver, leadingKey string) (
 }
 
 // generateCandidates dispatches to the per-segment-kind helper
-// indicated by m.Current. Honors any custom Segment.Suggest hook
-// before falling back to defaults.
+// indicated by m.Current.
 func generateCandidates(ctx context.Context, shape driver.LocationShape,
 	m driver.MatchedLoc, src driver.Suggestions, drvr driver.SQLDriver,
 ) []string {
 	seg := shape.SegmentFor(m.Current)
-
-	if seg.Suggest != nil {
-		return seg.Suggest(ctx, m, src)
-	}
 
 	switch m.Current {
 	case driver.SegCredentials:
@@ -339,5 +338,11 @@ func generateCandidates(ctx context.Context, shape driver.LocationShape,
 	case driver.SegConnParams:
 		return suggestConnParams(m, src, drvr, seg.LeadingKey)
 	}
+	// m.Current is the zero value: Walk ran but didn't land on a
+	// segment (e.g. shape with no segments at all, or a fully closed
+	// URL with no trailing introducer). Log so the empty result is
+	// diagnosable.
+	lg.FromContext(ctx).Debug("No candidates for current segment",
+		lga.Loc, m.Loc, "current", m.Current)
 	return nil
 }

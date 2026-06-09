@@ -4,6 +4,7 @@ package cli
 
 var (
 	DoCompleteAddLocationFile = locCompListFiles
+	IsDefiniteFilePath        = isDefiniteFilePath
 	PreprocessFlagArgVars     = preprocessFlagArgVars
 	LastHandlePart            = lastHandlePart
 	GetVersionFromBrewFormula = getVersionFromBrewFormula

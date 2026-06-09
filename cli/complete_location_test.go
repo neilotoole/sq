@@ -8,7 +8,6 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli"
@@ -281,8 +280,8 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
-			assert.Equal(t, tc.wantResult, got.result, got.directives)
-			assert.Equal(t, tc.want, got.values)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
 		})
 	}
 }
@@ -414,8 +413,8 @@ func TestCompleteAddLocation_SQLServer(t *testing.T) {
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
-			assert.Equal(t, tc.wantResult, got.result, got.directives)
-			assert.Equal(t, tc.want, got.values)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
 		})
 	}
 }
@@ -493,8 +492,8 @@ func TestCompleteAddLocation_Rqlite(t *testing.T) {
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
-			assert.Equal(t, tc.wantResult, got.result, got.directives)
-			assert.Equal(t, tc.want, got.values)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
 		})
 	}
 }
@@ -733,8 +732,8 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
-			assert.Equal(t, tc.wantResult, got.result, got.directives)
-			assert.Equal(t, tc.want, got.values)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
 		})
 	}
 }
@@ -893,8 +892,8 @@ func TestCompleteAddLocation_SQLite3(t *testing.T) {
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
-			assert.Equal(t, tc.wantResult, got.result, got.directives)
-			assert.Equal(t, tc.want, got.values)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
 		})
 	}
 }
@@ -988,8 +987,8 @@ func TestCompleteAddLocation_DuckDB(t *testing.T) {
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
-			assert.Equal(t, tc.wantResult, got.result, got.directives)
-			assert.Equal(t, tc.want, got.values)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
 		})
 	}
 }
@@ -1146,8 +1145,8 @@ func TestCompleteAddLocation_ClickHouse(t *testing.T) {
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
-			assert.Equal(t, tc.wantResult, got.result, got.directives)
-			assert.Equal(t, tc.want, got.values)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
 		})
 	}
 }
@@ -1298,8 +1297,8 @@ func TestCompleteAddLocation_Oracle(t *testing.T) {
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
-			assert.Equal(t, tc.wantResult, got.result, got.directives)
-			assert.Equal(t, tc.want, got.values)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
 		})
 	}
 }
@@ -1442,8 +1441,8 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, tr, args...)
-			assert.Equal(t, tc.wantResult, got.result, got.directives)
-			assert.Equal(t, tc.want, got.values)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
 		})
 	}
 }
@@ -1643,8 +1642,8 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, tr, args...)
-			assert.Equal(t, tc.wantResult, got.result, got.directives)
-			assert.Equal(t, tc.want, got.values)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
 		})
 	}
 }
@@ -1772,8 +1771,8 @@ func TestCompleteAddLocation_History_SQLite3(t *testing.T) {
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, tr, args...)
-			assert.Equal(t, tc.wantResult, got.result, got.directives)
-			assert.Equal(t, tc.want, got.values)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
 		})
 	}
 }
@@ -1819,6 +1818,33 @@ func TestDoCompleteAddLocationFile(t *testing.T) {
 			t.Logf("want:  %s", tc.want)
 			got := cli.DoCompleteAddLocationFile(ctx, tc.in)
 			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestIsDefiniteFilePath(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want bool
+	}{
+		{"", false},
+		{"postgres://", false},
+		{"sqlite3://./foo.db", false},
+		{"file://", false},
+		{"foo", false},
+		{".", true},
+		{"./foo.db", true},
+		{"..", true},
+		{"../sibling.db", true},
+		{"~", true},
+		{"~/data.db", true},
+		{"/", true},
+		{"/tmp/foo.db", true},
+		{`\\server\share\db.sqlite`, true}, // Windows UNC
+	}
+	for _, tc := range testCases {
+		t.Run(tc.in, func(t *testing.T) {
+			require.Equal(t, tc.want, cli.IsDefiniteFilePath(tc.in))
 		})
 	}
 }
