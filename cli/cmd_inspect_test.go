@@ -118,6 +118,7 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 		{sakila.XLSX, sakila.AllTbls()},
 		{sakila.SL3, sakila.AllTbls()},
 		{sakila.Duck, sakila.AllTbls()},
+		{sakila.Rq, sakila.AllTbls()},
 		{sakila.Pg, lo.Without(sakila.AllTbls(), sakila.TblFilmText)}, // pg doesn't have film_text
 		{sakila.My, sakila.AllTbls()},
 		{sakila.MS, sakila.AllTbls()},
@@ -203,7 +204,12 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 						require.NotEmpty(t, srcMeta.DBDriver)
 						require.NotEmpty(t, srcMeta.DBProduct)
 						require.NotEmpty(t, srcMeta.DBVersion)
-						require.NotZero(t, srcMeta.Size)
+						if tc.handle == sakila.Rq {
+							require.Nil(t, srcMeta.Size, "rqlite shouldn't report a source size")
+						} else {
+							require.NotNil(t, srcMeta.Size)
+							require.NotZero(t, *srcMeta.Size)
+						}
 					})
 
 					t.Run("inspect_dbprops", func(t *testing.T) {
@@ -1136,4 +1142,26 @@ func TestInspect_LocationOverride_NoLeak(t *testing.T) {
 	out = tr.OutString()
 	require.Contains(t, out, dbPath,
 		"--expand must cause the resolved path to appear in inspect output")
+}
+
+// TestInspect_DuckDB_DoesNotModifyMtime verifies that running `sq inspect`
+// against a DuckDB source does not touch the file's mtime. This is the
+// primary acceptance criterion from gh610.
+func TestInspect_DuckDB_DoesNotModifyMtime(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Duck)
+	path := strings.TrimPrefix(src.Location, "duckdb://")
+
+	statBefore, err := os.Stat(path)
+	require.NoError(t, err)
+
+	tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+	require.NoError(t, tr.Exec("inspect", src.Handle))
+
+	statAfter, err := os.Stat(path)
+	require.NoError(t, err)
+	require.Equal(t, statBefore.ModTime(), statAfter.ModTime(),
+		"DuckDB file mtime must not change after sq inspect")
 }

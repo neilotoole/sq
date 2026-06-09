@@ -23,6 +23,7 @@ import (
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/drivers/oracle"
 	"github.com/neilotoole/sq/drivers/postgres"
+	"github.com/neilotoole/sq/drivers/rqlite"
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/drivers/sqlserver"
 	"github.com/neilotoole/sq/drivers/userdriver"
@@ -318,6 +319,7 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 	ru.Cleanup.AddC(ru.MDCache)
 
 	dr.AddProvider(drivertype.SQLite, &sqlite3.Provider{Log: log})
+	dr.AddProvider(drivertype.Rqlite, &rqlite.Provider{Log: log})
 	dr.AddProvider(drivertype.DuckDB, &duckdb.Provider{Log: log})
 	dr.AddProvider(drivertype.Pg, &postgres.Provider{Log: log})
 	dr.AddProvider(drivertype.MSSQL, &sqlserver.Provider{Log: log})

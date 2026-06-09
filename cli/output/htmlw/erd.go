@@ -135,7 +135,7 @@ func (w *metadataWriter) writeSourceOverview(buf *bytes.Buffer, md *metadata.Sou
 	addRow("DB version", md.DBVersion)
 	addRow("Schema", md.Schema)
 	addRow("Catalog", md.Catalog)
-	addRow("Size", stringz.ByteSized(md.Size, 1, ""))
+	addRow("Size", stringz.FormatSize(md.Size))
 	if showSchema {
 		addRow("Tables", strconv.FormatInt(md.TableCount, 10))
 		addRow("Views", strconv.FormatInt(md.ViewCount, 10))

@@ -62,8 +62,9 @@ func newTestSource() *metadata.Source {
 			RefTable: "actor", RefColumns: []string{"actor_id"},
 		}}},
 	}
+	var size int64 = 1048576
 	src := &metadata.Source{
-		Handle: "@test", Name: "testdb", Schema: "main", Size: 1048576,
+		Handle: "@test", Name: "testdb", Schema: "main", Size: &size,
 		TableCount: 2, ViewCount: 0, Tables: []*metadata.Table{actor, filmActor},
 	}
 	metadata.LinkForeignKeys(nil, src)
@@ -134,6 +135,24 @@ func TestMetadataWriter_SourceMetadata_overview(t *testing.T) {
 	require.NotContains(t, got, `id="tables"`)
 }
 
+// TestMetadataWriter_SourceMetadata_nilSize verifies that a source whose
+// driver doesn't report a size renders "-" in the Size row rather than
+// "0.0B" (gh744). The row is still emitted so the key-value layout stays
+// consistent across sources.
+func TestMetadataWriter_SourceMetadata_nilSize(t *testing.T) {
+	src := newTestSource()
+	src.Size = nil
+
+	buf := &bytes.Buffer{}
+	w := htmlw.NewMetadataWriter(buf, output.NewPrinting(), false)
+	require.NoError(t, w.SourceMetadata(src, true))
+
+	got := buf.String()
+	// The Size key-value row is rendered with a literal "-" value.
+	require.Contains(t, got, "<tr><td>Size</td><td><code>-</code></td></tr>")
+	require.NotContains(t, got, "0.0B")
+}
+
 // TestMetadataWriter_indexesAndUniqueConstraints checks that indexes and
 // unique constraints render as <table> elements with the expected columns.
 func TestMetadataWriter_indexesAndUniqueConstraints(t *testing.T) {
@@ -168,9 +187,10 @@ func TestMetadataWriter_indexesAndUniqueConstraints(t *testing.T) {
 // TestMetadataWriter_views checks the "Tables & views" heading and the
 // tinted view-chip class (sq-view) in the TOC; table chips stay plain.
 func TestMetadataWriter_views(t *testing.T) {
+	var size int64 = 1024
 	src := &metadata.Source{
 		Handle: "@test", Name: "db", Driver: drivertype.Type("sqlite3"),
-		Schema: "main", Size: 1024, TableCount: 1, ViewCount: 1,
+		Schema: "main", Size: &size, TableCount: 1, ViewCount: 1,
 		Tables: []*metadata.Table{
 			{Name: "t_actor", TableType: "table", Columns: []*metadata.Column{{Name: "id", ColumnType: "int"}}},
 			{Name: "v_films", TableType: "view", Columns: []*metadata.Column{{Name: "id", ColumnType: "int"}}},

@@ -722,7 +722,7 @@ func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *metadata.Source) 
 	md.Schema = schema
 	md.FQName = md.Catalog + "." + schema
 	if size.Valid {
-		md.Size = size.Int64
+		md.Size = &size.Int64
 	}
 	md.DBVersion = version
 	md.DBProduct = fmt.Sprintf("%s %s / %s (%s)", versionComment, version, versionOS, versionArch)

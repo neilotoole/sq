@@ -17,7 +17,7 @@ import (
 	_ "github.com/mattn/go-sqlite3" // Import for side effect of loading the driver
 	"github.com/shopspring/decimal"
 
-	"github.com/neilotoole/sq/drivers/sqlite3/internal/sqlparser"
+	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser"
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -99,6 +99,18 @@ func (d *driveri) ConnParams() map[string][]string {
 		"_txlock":                   {"immediate", "deferred", "exclusive"},
 		"cache":                     {"true", "false", "FAST"},
 		"mode":                      {"ro", "rw", "rwc", "memory"},
+	}
+}
+
+// LocationShape implements driver.SQLDriver.
+func (d *driveri) LocationShape() driver.LocationShape {
+	return driver.LocationShape{
+		Type:    drivertype.SQLite,
+		Schemes: []string{"sqlite3"},
+		Segments: []driver.Segment{
+			{Kind: driver.SegPathFile},
+			{Kind: driver.SegConnParams, Optional: true},
+		},
 	}
 }
 

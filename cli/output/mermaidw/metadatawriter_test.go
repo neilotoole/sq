@@ -82,12 +82,13 @@ func newTestSource() *metadata.Source {
 		},
 	}
 
+	var size int64 = 1048576
 	src := &metadata.Source{
 		Handle:     "@test",
 		Name:       "testdb",
 		Driver:     drivertype.Type("sqlite3"),
 		Schema:     "main",
-		Size:       1048576,
+		Size:       &size,
 		TableCount: 2,
 		ViewCount:  0,
 		Tables:     []*metadata.Table{actor, filmActor},

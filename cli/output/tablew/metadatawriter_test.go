@@ -8,8 +8,43 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
+
+// TestSourceMetadata_nilSize verifies that a source whose driver doesn't
+// report a size renders "-" in the SIZE column rather than "0.0B" (gh744).
+func TestSourceMetadata_nilSize(t *testing.T) {
+	src := &metadata.Source{
+		Handle: "@test", Driver: drivertype.SQLite, Name: "testdb",
+		FQName: "testdb", Location: "sqlite3:///tmp/testdb.db",
+		// Size left nil to simulate a driver that doesn't report it.
+	}
+
+	buf := &bytes.Buffer{}
+	pr := output.NewPrinting()
+	pr.EnableColor(false)
+	w := NewMetadataWriter(buf, pr)
+	require.NoError(t, w.SourceMetadata(src, true))
+
+	got := buf.String()
+	require.NotContains(t, got, "0.0B")
+
+	// With showSchema=true the source row is rendered by doSourceMetaFull
+	// with 8 columns: SOURCE, DRIVER, NAME, FQ NAME, SIZE, TABLES, VIEWS,
+	// LOCATION. SIZE is the 5th column (index 4).
+	var dataRow string
+	for line := range strings.SplitSeq(got, "\n") {
+		if strings.Contains(line, "@test") {
+			dataRow = line
+			break
+		}
+	}
+	require.NotEmpty(t, dataRow, "data row not found in tablew output")
+	fields := strings.Fields(dataRow)
+	require.Len(t, fields, 8, "data row should have 8 columns")
+	require.Equal(t, "-", fields[4], "SIZE column should render as dash for nil size")
+}
 
 // TestIndexEntriesByColumn_TagMatrix pins the verbose-text dedup
 // contract for [indexEntriesByColumn]:

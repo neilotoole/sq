@@ -72,7 +72,7 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 		return nil, errw(err)
 	}
 	if size.Valid {
-		md.Size = size.Int64
+		md.Size = &size.Int64
 	}
 
 	// DBProperties surfaces driver-level session/version values via the

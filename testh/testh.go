@@ -29,6 +29,7 @@ import (
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/drivers/oracle"
 	"github.com/neilotoole/sq/drivers/postgres"
+	"github.com/neilotoole/sq/drivers/rqlite"
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/drivers/sqlserver"
 	"github.com/neilotoole/sq/drivers/userdriver"
@@ -182,6 +183,7 @@ func (h *Helper) init() {
 		h.Cleanup.AddC(h.grips)
 
 		h.registry.AddProvider(drivertype.SQLite, &sqlite3.Provider{Log: h.Log()})
+		h.registry.AddProvider(drivertype.Rqlite, &rqlite.Provider{Log: h.Log()})
 		h.registry.AddProvider(drivertype.DuckDB, &duckdb.Provider{Log: h.Log()})
 		h.registry.AddProvider(drivertype.Pg, &postgres.Provider{Log: h.Log()})
 		h.registry.AddProvider(drivertype.MSSQL, &sqlserver.Provider{Log: h.Log()})
@@ -1024,5 +1026,23 @@ func NewSakilaSource(tb testing.TB, handle string, clean bool) *source.Source {
 		Handle:   handle,
 		Type:     drivertype.SQLite,
 		Location: "sqlite3://" + loc,
+	}
+}
+
+// DuckDBType returns the drivertype.Type value for DuckDB. Exists so
+// external tests can avoid importing drivertype directly when their
+// only use of it is to construct DuckDB sources.
+func DuckDBType() drivertype.Type {
+	return drivertype.DuckDB
+}
+
+// MakeDuckDBSource builds a *source.Source for a file-backed DuckDB
+// database at path, with the given handle. Intended for tests that
+// need an ad-hoc source without going through a Collection.
+func MakeDuckDBSource(handle, path string) *source.Source {
+	return &source.Source{
+		Handle:   handle,
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://" + path,
 	}
 }

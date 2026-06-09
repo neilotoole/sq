@@ -84,6 +84,7 @@ require (
 
 require (
 	github.com/neilotoole/jsoncolor v0.9.1
+	github.com/rqlite/gorqlite v0.0.0-20260504155303-50d445fd0ab9
 	github.com/zalando/go-keyring v0.2.8
 )
 

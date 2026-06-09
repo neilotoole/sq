@@ -18,16 +18,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## Unreleased
 
+Headline items: much-improved [secrets handling](https://sq.io/docs/secrets) (including
+keyring support) and support for [rqlite](https://sq.io/docs/drivers/rqlite).
+
 ### Added
 
-- [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export): dump the active config to
-  YAML, primarily for backups. See [Secrets](https://sq.io/docs/secrets) for the bigger picture.
-  - By default, output is a faithful-ish copy of the live config: `${scheme:path}` placeholders are
-    written verbatim.
-  - With [`--expand`](https://sq.io/docs/secrets#expanding-placeholders), every placeholder is
-    fetched from its resolver (`keyring`, `env`, `file`, or `op`) and the resolved value
-    is spliced in-line: a self-contained snapshot at the cost of writing every referenced
-    secret in plaintext (which is exactly the point of `--expand`).
+- 🐥 [#444]: Added [rqlite driver](https://sq.io/docs/drivers/rqlite). `sq` now supports reading
+  from, inspecting, and writing to [rqlite](https://rqlite.io) clusters, the lightweight
+  distributed SQLite database.
 - [#441]: [`sq add`](https://sq.io/docs/cmd/add) gains a `--store inline|keyring`
   flag, and a new [`secrets.store`](https://sq.io/docs/config#secretsstore) config option
   controls the default; existing behavior is preserved (`inline`).
@@ -53,6 +51,18 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [#441]: [`sq config keyring`](https://sq.io/docs/cmd/config-keyring) command group: store
   source conn strings in the OS keyring instead of plaintext in `sq.yml`.
   - Subcommands: `ls`, `create`, `update`, `get`, `rm`, `migrate`.
+- [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export): dump the active config to
+  YAML, primarily for backups. See [Secrets](https://sq.io/docs/secrets) for the bigger picture.
+  - By default, output is a faithful-ish copy of the live config: `${scheme:path}` placeholders are
+    written verbatim.
+  - With [`--expand`](https://sq.io/docs/secrets#expanding-placeholders), every placeholder is
+    fetched from its resolver (`keyring`, `env`, `file`, or `op`) and the resolved value
+    is spliced in-line: a self-contained snapshot at the cost of writing every referenced
+    secret in plaintext (which is exactly the point of `--expand`).
+- [#717]: New global [`--reveal`](https://sq.io/docs/secrets#redaction) flag opts
+  into showing secret values in output.
+  - It supersedes the legacy `--no-redact` (still functional, now marked deprecated, will be removed
+    at some point in the future).
 - [#660]: [`sq inspect`](https://sq.io/docs/inspect) gained
   [`svg-erd`](https://sq.io/docs/inspect#svg-erd) and
   [`png-erd`](https://sq.io/docs/inspect#png-erd) output formats that render the schema
@@ -60,20 +70,29 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   (`--format=svg-erd` / `--format=png-erd`).
   - The diagram is laid out and rendered natively via an embedded [Graphviz](https://graphviz.org)
     engine, so image export needs no external tool, browser, or network.
-- [#717]: New global [`--reveal`](https://sq.io/docs/secrets#redaction) flag opts
-  into showing secret values in output.
-  - It supersedes the legacy `--no-redact` (still functional, now marked deprecated, will be removed
-    at some point in the future).
+- [#610]: [`sq sql`](https://sq.io/docs/cmd/sql) accepts `--readonly` (alias
+  `--ro`) to open DuckDB sources in read-only mode. Default remains read-write
+  because reliable statement-level detection isn't feasible without a standalone
+  DuckDB parser binding.
 
 ### Changed
 
+- [#610]: [`duckdb`](https://sq.io/docs/drivers/duckdb): Read-only commands
+  ([`inspect`](https://sq.io/docs/cmd/inspect), [`sq`](https://sq.io/docs/cmd/sq),
+  [`diff`](https://sq.io/docs/cmd/diff), [`ping`](https://sq.io/docs/cmd/ping)) now open
+  DuckDB sources with `access_mode=READ_ONLY` by default.
+  - This avoids open-time WAL
+    writes, allows concurrent read-only access from multiple `sq` processes against the
+    same file, and lets `sq inspect` work on files the user has read-only access to.
+    A user-specified `?access_mode=READ_WRITE` in the source URL overrides the default.
 - ☢️ The `redact` config option is renamed to
   [`secrets.reveal`](https://sq.io/docs/config#secretsreveal) with inverted polarity
   (`secrets.reveal: true` equals legacy `redact: false`). The new default is `false`
-  (secrets are redacted). Existing configs are migrated automatically on first run
-  by a YAML upgrade step; scripts that call `sq config get redact` or
-  `sq config set redact ...` need updating to the new key. The rename completes the
-  polarity-consistency story started by `--reveal` in #717.
+  (secrets are redacted).
+  - Existing configs are migrated automatically on first run
+    by a YAML upgrade step; scripts that call `sq config get redact` or
+    `sq config set redact ...` need updating to the new key. The rename completes the
+    polarity-consistency story started by `--reveal` in #717.
   - As part of the polarity flip, the `--reveal` and `--no-redact` flags are now
     positive opt-ins only: `--reveal=true` (or just `--reveal`) opts into
     disclosure, and `--reveal=false` / `--no-redact=false` are no-ops. Previously,
@@ -105,19 +124,39 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   - Subcommands that don't print a source location (e.g. [`sq sql`](https://sq.io/docs/cmd/sql),
     `sq slq`, `sq tbl`) accept `--expand` as a silent no-op, so a global alias like
     `alias sq='sq --reveal --expand'` is safe.
+- [#742]: The [rqlite driver](https://sq.io/docs/drivers/rqlite) now surfaces an
+  actionable hint when a single-node localhost setup hits gorqlite's cluster-discovery
+  default. Any command that opens an `rqlite://` source whose host is loopback
+  (e.g. `localhost`, `127.0.0.1`, `::1`), including [`sq add`](https://sq.io/docs/cmd/add)
+  and [`sq ping`](https://sq.io/docs/cmd/ping), logs a one-line `WARN` pointing at
+  `?disableClusterDiscovery=true` and the
+  [single-node-localhost docs](https://sq.io/docs/drivers/rqlite#single-node-localhost)
+  when the parameter is not explicitly set to `true` or `false`. If the peer-discovery
+  DNS lookup actually fails with "no such host", the error message is rewritten to
+  name the unreachable peer and suggest the same fix, instead of surfacing gorqlite's
+  raw `tried all peers unsuccessfully` text.
+- Internal: `sq add` shell completion reworked atop a declarative
+  per-driver `LocationShape` model. Each SQL driver declares its URL
+  syntax via the new `driver.LocationShape` type; the completer is a
+  thin walker over those declarations. See the Fixed entries for
+  user-visible behavior changes. (#743, #741)
 
 ### Fixed
 
+- [#743]: [`sq add`](https://sq.io/docs/cmd/add) shell completion: `<scheme>://host:port?<TAB>`
+  now offers connection parameters instead of credential placeholders.
+  Bare-host (no `user@`) URLs are recognized correctly for postgres,
+  mysql, sqlserver, rqlite, clickhouse, oracle.
+- [#741]: [`sq add`](https://sq.io/docs/cmd/add) shell completion now suggests
+  `clickhouse://` and `oracle://` schemes.
 - [#720]: The [SQLite driver](https://sq.io/docs/drivers/sqlite) no longer fails with
   `stat /path/to/db?key=val: no such file or directory` on source-level metadata commands.
   - Previously failed on [`sq inspect @handle`](https://sq.io/docs/inspect) etc.
     when the source location carried a `?key=val[&...]` connection-string suffix (e.g.
     `sqlite3:///path/to/db?mode=ro`).
-- [#729]: `sq inspect` no longer leaks the resolved target of a `${scheme:path}` placeholder
-  into its metadata output. The driver layer resolves placeholders to open the connection,
-  and the resolved value was being copied verbatim into `metadata.Source.Location`; the
-  inspect handler now overrides that field with the caller's view of `src.Location`, which
-  is the placeholder by default and the resolved value only when `--expand` is set.
+- [#744]: `sq inspect` no longer reports `0.0B` size for sources whose driver doesn't expose
+  a database size (e.g. rqlite). The SIZE column renders `-` instead, and JSON / YAML output
+  omits the `size` field.
 
 ## [v0.53.0] - 2026-05-25
 
@@ -1675,6 +1714,7 @@ make working with lots of sources much easier.
 [#572]: https://github.com/neilotoole/sq/pull/572
 [#601]: https://github.com/neilotoole/sq/issues/601
 [#602]: https://github.com/neilotoole/sq/pull/602
+[#610]: https://github.com/neilotoole/sq/issues/610
 [#612]: https://github.com/neilotoole/sq/issues/612
 [#613]: https://github.com/neilotoole/sq/issues/613
 [#615]: https://github.com/neilotoole/sq/issues/615
@@ -1692,6 +1732,7 @@ make working with lots of sources much easier.
 [#652]: https://github.com/neilotoole/sq/issues/652
 [#658]: https://github.com/neilotoole/sq/pull/658
 [#441]: https://github.com/neilotoole/sq/issues/441
+[#444]: https://github.com/neilotoole/sq/issues/444
 [#660]: https://github.com/neilotoole/sq/issues/660
 [#692]: https://github.com/neilotoole/sq/issues/692
 [#716]: https://github.com/neilotoole/sq/issues/716
@@ -1699,6 +1740,9 @@ make working with lots of sources much easier.
 [#714]: https://github.com/neilotoole/sq/issues/714
 [#720]: https://github.com/neilotoole/sq/issues/720
 [#729]: https://github.com/neilotoole/sq/issues/729
+[#737]: https://github.com/neilotoole/sq/issues/737
+[#742]: https://github.com/neilotoole/sq/issues/742
+[#744]: https://github.com/neilotoole/sq/issues/744
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3

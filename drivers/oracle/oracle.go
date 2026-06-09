@@ -66,6 +66,20 @@ func (d *driveri) ConnParams() map[string][]string {
 	}
 }
 
+// LocationShape implements driver.SQLDriver.
+func (d *driveri) LocationShape() driver.LocationShape {
+	return driver.LocationShape{
+		Type:    drivertype.Oracle,
+		Schemes: []string{"oracle"},
+		Segments: []driver.Segment{
+			{Kind: driver.SegCredentials, Optional: true},
+			{Kind: driver.SegAuthority},
+			{Kind: driver.SegPathName, Optional: true, Placeholder: "service"},
+			{Kind: driver.SegConnParams, Optional: true},
+		},
+	}
+}
+
 // ErrWrapFunc implements driver.SQLDriver.
 func (d *driveri) ErrWrapFunc() func(error) error {
 	return errw
