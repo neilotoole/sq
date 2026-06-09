@@ -157,6 +157,13 @@ keyring support) and support for [rqlite](https://sq.io/docs/drivers/rqlite).
 - [#744]: `sq inspect` no longer reports `0.0B` size for sources whose driver doesn't expose
   a database size (e.g. rqlite). The SIZE column renders `-` instead, and JSON / YAML output
   omits the `size` field.
+- [#752]: The SQLite [`sqlparser`](./drivers/sqlite3/sqlparser) now strips all four
+  legal SQLite identifier-quoting styles (`"name"`, `'name'`, `` `name` ``, `[name]`)
+  from `ColDef.Name`, not just double-quotes. Previously, `AlterTableColumnKinds`
+  on the [sqlite3](https://sq.io/docs/drivers/sqlite) and
+  [rqlite](https://sq.io/docs/drivers/rqlite) drivers failed with
+  `column not found in table DDL` when the original `CREATE TABLE` declared the
+  target column using backticks, single quotes, or square brackets.
 
 ## [v0.53.0] - 2026-05-25
 
@@ -1738,6 +1745,7 @@ make working with lots of sources much easier.
 [#737]: https://github.com/neilotoole/sq/issues/737
 [#742]: https://github.com/neilotoole/sq/issues/742
 [#744]: https://github.com/neilotoole/sq/issues/744
+[#752]: https://github.com/neilotoole/sq/issues/752
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3

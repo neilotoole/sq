@@ -397,6 +397,56 @@ func TestAlterTableColumnKinds(t *testing.T) {
 	require.Equal(t, "hello", gotB)
 }
 
+// TestAlterTableColumnKinds_QuotedIdentifier reproduces gh752: a column
+// declared with any of SQLite's four legal identifier-quoting styles
+// (double-quote, single-quote, backtick, square brackets) used to fail the
+// lookup in AlterTableColumnKinds when the parser's strip-quotes step only
+// handled double-quotes. The shared sqlparser now strips all four styles.
+func TestAlterTableColumnKinds_QuotedIdentifier(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	testCases := []struct {
+		name    string
+		colDecl string
+	}{
+		{name: "double_quote", colDecl: `"age" INTEGER NOT NULL`},
+		{name: "single_quote", colDecl: `'age' INTEGER NOT NULL`},
+		{name: "backtick", colDecl: "`age` INTEGER NOT NULL"},
+		{name: "square_brackets", colDecl: `[age] INTEGER NOT NULL`},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			src := th.Source(sakila.Rq)
+			grip := th.Open(src)
+			drvr := grip.SQLDriver()
+			db, err := grip.DB(th.Context)
+			require.NoError(t, err)
+
+			tblName := "qident_" + stringz.Uniq8()
+			t.Cleanup(func() {
+				_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+			})
+
+			_, err = db.ExecContext(th.Context,
+				fmt.Sprintf(`CREATE TABLE %q (%s)`, tblName, tc.colDecl))
+			require.NoError(t, err)
+
+			err = drvr.AlterTableColumnKinds(th.Context, db, tblName,
+				[]string{"age"}, []kind.Kind{kind.Text})
+			require.NoError(t, err)
+
+			md, err := grip.TableMetadata(th.Context, tblName)
+			require.NoError(t, err)
+			require.Equal(t, kind.Text, md.Column("age").Kind)
+		})
+	}
+}
+
 func TestPrepareInsertStmt(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()

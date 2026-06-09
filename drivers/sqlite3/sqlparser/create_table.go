@@ -6,7 +6,6 @@ import (
 	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser/sqlite"
 	"github.com/neilotoole/sq/libsq/ast/antlrz"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 func parseCreateTableStmt(input string) (*sqlite.Create_table_stmtContext, error) {
@@ -97,7 +96,7 @@ func ExtractCreateTableStmtColDefs(stmt string) ([]*ColDef, error) {
 				DefCtx:  defCtx,
 				Raw:     tokx.Extract(defCtx),
 				RawName: tokx.Extract(defCtx.Column_name()),
-				Name:    stringz.StripDoubleQuote(defCtx.Column_name().GetText()),
+				Name:    trimIdentQuotes(defCtx.Column_name().GetText()),
 				RawType: tokx.Extract(defCtx.Type_name()),
 				Type:    defCtx.Type_name().GetText(),
 			}
@@ -120,10 +119,13 @@ type ColDef struct {
 	Raw string
 
 	// RawName is the raw text of the column name as it appeared in the input.
-	// It may be double-quoted.
+	// It may be quoted using any of SQLite's four legal identifier-quoting
+	// styles: double-quote, single-quote, backtick, or square brackets.
 	RawName string
 
-	// Name is the column name, stripped of any double-quotes.
+	// Name is the column name, stripped of any of SQLite's four legal
+	// identifier-quoting styles: double-quote ("name"), single-quote ('name'),
+	// backtick (`name`), and square brackets ([name]).
 	Name string
 
 	// RawType is the raw text of the column type as it appeared in the input.

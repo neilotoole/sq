@@ -101,3 +101,50 @@ weight INTEGER NOT NULL
 	snippet = input[colDefs[2].InputOffset : colDefs[2].InputOffset+len(colDefs[2].Raw)]
 	require.Equal(t, colDefs[2].Raw, snippet)
 }
+
+// TestExtractCreateTableStmtColDefs_QuotedIdentifiers verifies that ColDef.Name
+// is stripped of all four SQLite legal identifier-quoting styles: double-quote,
+// single-quote, backtick, and square brackets. See issue #752.
+func TestExtractCreateTableStmtColDefs_QuotedIdentifiers(t *testing.T) {
+	testCases := []struct {
+		name        string
+		stmt        string
+		wantRawName string
+	}{
+		{
+			name:        "double_quote",
+			stmt:        `CREATE TABLE t ("age" INTEGER NOT NULL)`,
+			wantRawName: `"age"`,
+		},
+		{
+			name:        "single_quote",
+			stmt:        `CREATE TABLE t ('age' INTEGER NOT NULL)`,
+			wantRawName: `'age'`,
+		},
+		{
+			name:        "backtick",
+			stmt:        "CREATE TABLE t (`age` INTEGER NOT NULL)",
+			wantRawName: "`age`",
+		},
+		{
+			name:        "square_brackets",
+			stmt:        `CREATE TABLE t ([age] INTEGER NOT NULL)`,
+			wantRawName: `[age]`,
+		},
+		{
+			name:        "unquoted",
+			stmt:        `CREATE TABLE t (age INTEGER NOT NULL)`,
+			wantRawName: `age`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			colDefs, err := sqlparser.ExtractCreateTableStmtColDefs(tc.stmt)
+			require.NoError(t, err)
+			require.Len(t, colDefs, 1)
+			require.Equal(t, tc.wantRawName, colDefs[0].RawName)
+			require.Equal(t, "age", colDefs[0].Name)
+		})
+	}
+}
