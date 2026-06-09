@@ -15,23 +15,31 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 )
 
 // parseSourceLoc parses a source location string. dburl.Parse is used
 // for schemes dburl knows; rqlite/rqlites fall back to net/url since
 // dburl does not recognize them. The returned *dburl.URL wraps the
 // parsed URL so callers can read User/Host/Path/RawQuery uniformly.
+//
+// On parse failure the underlying url.Parse / dburl.Parse error is
+// intentionally NOT wrapped: those errors embed the raw input
+// verbatim (e.g. `parse "postgres://alice:hunter2@host": ...`), and
+// the result is fed into callers' Warn logs. The returned error is
+// a stack-traced sentinel describing the failure category; callers
+// should log the redacted location separately.
 func parseSourceLoc(loc string, typ drivertype.Type) (*dburl.URL, error) {
 	if typ == drivertype.Rqlite {
 		u, err := url.Parse(loc)
 		if err != nil {
-			return nil, errz.Wrap(err, "parse rqlite location")
+			return nil, errz.New("parse rqlite location")
 		}
 		return &dburl.URL{URL: *u, OriginalScheme: u.Scheme}, nil
 	}
 	du, err := dburl.Parse(loc)
 	if err != nil {
-		return nil, errz.Wrap(err, "parse location")
+		return nil, errz.New("parse location")
 	}
 	return du, nil
 }
@@ -108,7 +116,8 @@ func (s *locSuggestions) usernames() []string {
 		}
 		du, err := parseSourceLoc(src.Location, s.typ)
 		if err != nil {
-			s.log.Warn("Parse source location", lga.Err, err)
+			s.log.Warn("Parse source location",
+				lga.Loc, location.Redact(src.Location), lga.Err, err)
 			return nil
 		}
 		if du.User != nil {
@@ -131,7 +140,8 @@ func (s *locSuggestions) hosts() []string {
 		}
 		du, err := parseSourceLoc(src.Location, s.typ)
 		if err != nil {
-			s.log.Warn("Parse source location", lga.Err, err)
+			s.log.Warn("Parse source location",
+				lga.Loc, location.Redact(src.Location), lga.Err, err)
 			return nil
 		}
 		hosts = append(hosts, du.Host)
@@ -150,7 +160,8 @@ func (s *locSuggestions) pathNames() []string {
 		}
 		du, err := parseSourceLoc(src.Location, s.typ)
 		if err != nil {
-			s.log.Warn("Parse source location", lga.Err, err)
+			s.log.Warn("Parse source location",
+				lga.Loc, location.Redact(src.Location), lga.Err, err)
 			return nil
 		}
 		if s.typ == drivertype.MSSQL && du.RawQuery != "" {
@@ -182,7 +193,8 @@ func (s *locSuggestions) pathFiles() []string {
 		}
 		du, err := parseSourceLoc(src.Location, s.typ)
 		if err != nil {
-			s.log.Warn("Parse source location", lga.Err, err)
+			s.log.Warn("Parse source location",
+				lga.Loc, location.Redact(src.Location), lga.Err, err)
 			return nil
 		}
 		if du.Path != "" {
@@ -203,7 +215,8 @@ func (s *locSuggestions) hostsWithPathAndQuery() []string {
 		}
 		du, err := parseSourceLoc(src.Location, s.typ)
 		if err != nil {
-			s.log.Warn("Parse source location", lga.Err, err)
+			s.log.Warn("Parse source location",
+				lga.Loc, location.Redact(src.Location), lga.Err, err)
 			return nil
 		}
 		v := urlz.StripSchemeAndUser(du.URL)
@@ -225,7 +238,8 @@ func (s *locSuggestions) pathsWithQueries() []string {
 		}
 		du, err := parseSourceLoc(src.Location, s.typ)
 		if err != nil {
-			s.log.Warn("Parse source location", lga.Err, err)
+			s.log.Warn("Parse source location",
+				lga.Loc, location.Redact(src.Location), lga.Err, err)
 			return nil
 		}
 		v := du.Path

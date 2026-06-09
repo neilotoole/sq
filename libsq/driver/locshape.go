@@ -106,6 +106,25 @@ const (
 	SegConnParams
 )
 
+// String returns the kind's name, e.g. "SegAuthority". Useful for
+// log lines and validation messages; the default %v of an int would
+// surface a numeric ordinal.
+func (k SegmentKind) String() string {
+	switch k {
+	case SegCredentials:
+		return "SegCredentials"
+	case SegAuthority:
+		return "SegAuthority"
+	case SegPathName:
+		return "SegPathName"
+	case SegPathFile:
+		return "SegPathFile"
+	case SegConnParams:
+		return "SegConnParams"
+	}
+	return "SegmentKind(unset)"
+}
+
 // Segment configures one position in a LocationShape.
 type Segment struct {
 	// Placeholder is the noun shown as a completion hint for

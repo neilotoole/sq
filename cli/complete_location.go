@@ -65,8 +65,11 @@ func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) (
 		if err != nil {
 			// Should be unreachable: matchShape already verified the
 			// scheme prefix. Log so an unexpected Walk error is
-			// diagnosable, then yield to file completion rather than
-			// disturbing the user's session with a hard error.
+			// diagnosable, then return an empty result with
+			// NoFileComp. Surfacing a hard error would interrupt the
+			// user's session; falling through to file completion
+			// would be wrong because toComplete has already committed
+			// to a driver scheme.
 			lg.FromContext(ctx).Debug("Walk location", lga.Err, err)
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
