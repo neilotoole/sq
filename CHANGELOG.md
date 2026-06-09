@@ -20,21 +20,22 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
-- [`duckdb`](https://sq.io/docs/drivers/duckdb): Read-only commands
+- [#610](https://github.com/neilotoole/sq/issues/610): [`duckdb`](https://sq.io/docs/drivers/duckdb): Read-only commands
   ([`inspect`](https://sq.io/docs/cmd/inspect), [`sq`](https://sq.io/docs/cmd/sq),
   [`diff`](https://sq.io/docs/cmd/diff), [`ping`](https://sq.io/docs/cmd/ping)) now open
-  DuckDB sources with `access_mode=READ_ONLY` by default. This avoids open-time WAL
-  writes, allows concurrent read-only access from multiple `sq` processes against the
-  same file, and lets `sq inspect` work on files the user has read-only access to.
-  A user-specified `?access_mode=READ_WRITE` in the source URL overrides the default.
-  ([#610](https://github.com/neilotoole/sq/issues/610))
+  DuckDB sources with `access_mode=READ_ONLY` by default.
+  - This avoids open-time WAL
+    writes, allows concurrent read-only access from multiple `sq` processes against the
+    same file, and lets `sq inspect` work on files the user has read-only access to.
+    A user-specified `?access_mode=READ_WRITE` in the source URL overrides the default.
 - ☢️ The `redact` config option is renamed to
   [`secrets.reveal`](https://sq.io/docs/config#secretsreveal) with inverted polarity
   (`secrets.reveal: true` equals legacy `redact: false`). The new default is `false`
-  (secrets are redacted). Existing configs are migrated automatically on first run
-  by a YAML upgrade step; scripts that call `sq config get redact` or
-  `sq config set redact ...` need updating to the new key. The rename completes the
-  polarity-consistency story started by `--reveal` in #717.
+  (secrets are redacted).
+  - Existing configs are migrated automatically on first run
+    by a YAML upgrade step; scripts that call `sq config get redact` or
+    `sq config set redact ...` need updating to the new key. The rename completes the
+    polarity-consistency story started by `--reveal` in #717.
   - As part of the polarity flip, the `--reveal` and `--no-redact` flags are now
     positive opt-ins only: `--reveal=true` (or just `--reveal`) opts into
     disclosure, and `--reveal=false` / `--no-redact=false` are no-ops. Previously,
@@ -66,21 +67,6 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   - Subcommands that don't print a source location (e.g. [`sq sql`](https://sq.io/docs/cmd/sql),
     `sq slq`, `sq tbl`) accept `--expand` as a silent no-op, so a global alias like
     `alias sq='sq --reveal --expand'` is safe.
-- [#742]: The [rqlite driver](https://sq.io/docs/drivers/rqlite) now surfaces an
-  actionable hint when a single-node localhost setup hits gorqlite's cluster-discovery
-  default. Any command that opens an `rqlite://` source whose host is loopback
-  (e.g. `localhost`, `127.0.0.1`, `::1`), including [`sq add`](https://sq.io/docs/cmd/add)
-  and [`sq ping`](https://sq.io/docs/cmd/ping), logs a one-line `WARN` pointing at
-  `?disableClusterDiscovery=true` and the
-  [single-node-localhost docs](https://sq.io/docs/drivers/rqlite#single-node-localhost)
-  when the parameter is not explicitly set to `true` or `false`. If the peer-discovery
-  DNS lookup actually fails with "no such host", the error message is rewritten to
-  name the unreachable peer and suggest the same fix, instead of surfacing gorqlite's
-  raw `tried all peers unsuccessfully` text.
-- The [rqlite driver](https://sq.io/docs/drivers/rqlite) now advertises the `timeout`
-  [connection parameter](https://sq.io/docs/drivers/rqlite#timeout) (HTTP client
-  timeout in seconds, gorqlite default `10`). Previously gorqlite parsed it but
-  `sq` didn't expose it to shell completion or document it.
 
 ### Added
 
@@ -128,16 +114,31 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   into showing secret values in output.
   - It supersedes the legacy `--no-redact` (still functional, now marked deprecated, will be removed
     at some point in the future).
-- [#444]: Add [rqlite](https://rqlite.io) driver. `sq` now supports reading from, inspecting,
-  and writing to [rqlite](https://rqlite.io) clusters, the lightweight distributed SQLite
-  database. The full write surface that SQLite supports is wired up: `CREATE TABLE`, `INSERT`
-  (including multi-row batch insert via `--insert`),
+- [#444]: Add [rqlite](https://sq.io/docs/drivers/rqlite) driver. `sq` now supports reading
+  from, inspecting, and writing to [rqlite](https://rqlite.io) clusters, the lightweight
+  distributed SQLite database. The full write surface that SQLite supports is wired up:
+  `CREATE TABLE`, `INSERT` (including multi-row batch insert via `--insert`),
   [`sq tbl truncate`](https://sq.io/docs/cmd/tbl-truncate),
   [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy), and `ALTER TABLE`. Connect with
-  `rqlite://user:pass@host:port` (or `rqlites://` for HTTPS). Multi-statement
-  operations that need atomicity (CopyTable, AlterTable kind swaps) use rqlite's native
-  `/db/execute` batch API; everything else goes through the standard `database/sql`
-  adapter via [gorqlite](https://github.com/rqlite/gorqlite).
+  `rqlite://user:pass@host:port` (or `rqlites://` for HTTPS); supported
+  [connection parameters](https://sq.io/docs/drivers/rqlite#connection-parameters) are
+  `level`, `disableClusterDiscovery`, and `timeout`. Multi-statement operations that
+  need atomicity (CopyTable, AlterTable kind swaps) use rqlite's native `/db/execute`
+  batch API; everything else goes through the standard `database/sql` adapter via
+  [gorqlite](https://github.com/rqlite/gorqlite).
+  - [#737]: [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy) and `ALTER TABLE` kind swaps
+    preserve the source table's `CREATE TABLE` faithfully via SQL-text rewrite. `UNIQUE`,
+    `FOREIGN KEY`, `AUTOINCREMENT`, `CHECK`, composite `PRIMARY KEY`, exact `DEFAULT`
+    expressions, `WITHOUT ROWID`, and column comments all ride along. Indexes, triggers,
+    and self-referential foreign keys are
+    [not carried](https://sq.io/docs/drivers/rqlite#limitations).
+  - [#742]: Single-node localhost setups get an actionable hint when gorqlite's
+    cluster-discovery default trips the container-internal hostname trap. Any command
+    that opens an `rqlite://` source whose host is loopback (e.g. `localhost`,
+    `127.0.0.1`, `::1`) logs a one-line `WARN` pointing at
+    [`?disableClusterDiscovery=true`](https://sq.io/docs/drivers/rqlite#single-node-localhost)
+    when the parameter is not explicitly set, and peer-discovery `no such host` errors
+    are rewritten to name the unreachable peer and suggest the same fix.
 - [#610]: [`sq sql`](https://sq.io/docs/cmd/sql) accepts `--readonly` (alias
   `--ro`) to open DuckDB sources in read-only mode. Default remains read-write
   because reliable statement-level detection isn't feasible without a standalone
@@ -155,20 +156,6 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   and the resolved value was being copied verbatim into `metadata.Source.Location`; the
   inspect handler now overrides that field with the caller's view of `src.Location`, which
   is the placeholder by default and the resolved value only when `--expand` is set.
-- [#737]: The [rqlite driver](https://sq.io/docs/drivers/rqlite) now preserves the source table's
-  CREATE TABLE statement when running [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy) and
-  column-kind alter operations.
-  - `CopyTable` and `AlterTableColumnKinds` switched from a metadata-based introspect-and-rebuild
-    to the same faithful-DDL-rewrite shape the [sqlite3 driver](https://sq.io/docs/drivers/sqlite)
-    already uses, via the now-shared `drivers/sqlite3/sqlparser` package.
-  - Source-table attributes now carried across both operations: `UNIQUE`, `FOREIGN KEY`,
-    `AUTOINCREMENT`, `CHECK`, composite `PRIMARY KEY`, the exact `DEFAULT` expression, `WITHOUT ROWID`,
-    and column comments. Previously these were silently dropped (the destination DDL was rebuilt
-    from `*metadata.Table`, which exposes only a subset of the source's schema).
-  - Indexes and triggers are still not carried by `CopyTable`; they live as separate
-    `sqlite_master` rows and are out of scope for this fix.
-  - `getTableMetadata` now populates outgoing foreign keys via `pragma_foreign_key_list`, matching
-    the sqlite3 driver's metadata shape.
 - [#744]: `sq inspect` no longer reports `0.0B` size for sources whose driver doesn't expose
   a database size (e.g. rqlite). The SIZE column renders `-` instead, and JSON / YAML output
   omits the `size` field.
