@@ -77,6 +77,18 @@ func (d *driveri) ConnParams() map[string][]string {
 	}
 }
 
+// LocationShape implements driver.SQLDriver.
+func (d *driveri) LocationShape() driver.LocationShape {
+	return driver.LocationShape{
+		Type:    drivertype.DuckDB,
+		Schemes: []string{"duckdb"},
+		Segments: []driver.Segment{
+			{Kind: driver.SegPathFile, Optional: true},
+			{Kind: driver.SegConnParams, Optional: true},
+		},
+	}
+}
+
 // DriverMetadata implements driver.Driver.
 func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{

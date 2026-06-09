@@ -124,9 +124,31 @@ keyring support) and support for [rqlite](https://sq.io/docs/drivers/rqlite).
   - Subcommands that don't print a source location (e.g. [`sq sql`](https://sq.io/docs/cmd/sql),
     `sq slq`, `sq tbl`) accept `--expand` as a silent no-op, so a global alias like
     `alias sq='sq --reveal --expand'` is safe.
+- [#742]: The [rqlite driver](https://sq.io/docs/drivers/rqlite) now surfaces an
+  actionable hint when a single-node localhost setup hits gorqlite's cluster-discovery
+  default. Any command that opens an `rqlite://` source whose host is loopback
+  (e.g. `localhost`, `127.0.0.1`, `::1`), including [`sq add`](https://sq.io/docs/cmd/add)
+  and [`sq ping`](https://sq.io/docs/cmd/ping), logs a one-line `WARN` pointing at
+  `?disableClusterDiscovery=true` and the
+  [single-node-localhost docs](https://sq.io/docs/drivers/rqlite#single-node-localhost)
+  when the parameter is not explicitly set to `true` or `false`. If the peer-discovery
+  DNS lookup actually fails with "no such host", the error message is rewritten to
+  name the unreachable peer and suggest the same fix, instead of surfacing gorqlite's
+  raw `tried all peers unsuccessfully` text.
+- Internal: `sq add` shell completion reworked atop a declarative
+  per-driver `LocationShape` model. Each SQL driver declares its URL
+  syntax via the new `driver.LocationShape` type; the completer is a
+  thin walker over those declarations. See the Fixed entries for
+  user-visible behavior changes. (#743, #741)
 
 ### Fixed
 
+- [#743]: [`sq add`](https://sq.io/docs/cmd/add) shell completion: `<scheme>://host:port?<TAB>`
+  now offers connection parameters instead of credential placeholders.
+  Bare-host (no `user@`) URLs are recognized correctly for postgres,
+  mysql, sqlserver, rqlite, clickhouse, oracle.
+- [#741]: [`sq add`](https://sq.io/docs/cmd/add) shell completion now suggests
+  `clickhouse://` and `oracle://` schemes.
 - [#720]: The [SQLite driver](https://sq.io/docs/drivers/sqlite) no longer fails with
   `stat /path/to/db?key=val: no such file or directory` on source-level metadata commands.
   - Previously failed on [`sq inspect @handle`](https://sq.io/docs/inspect) etc.
