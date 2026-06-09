@@ -18,8 +18,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## Unreleased
 
+The headline items are much-improved [secrets handling](https://sq.io/docs/secrets) (including
+keyring support), and support for [rqlite](https://sq.io/docs/drivers/rqlite).
+
 ### Added
 
+- 🐥 [#444]: Added [rqlite driver](https://sq.io/docs/drivers/rqlite). `sq` now supports reading
+  from, inspecting, and writing to [rqlite](https://rqlite.io) clusters, the lightweight
+  distributed SQLite database.
 - [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export): dump the active config to
   YAML, primarily for backups. See [Secrets](https://sq.io/docs/secrets) for the bigger picture.
   - By default, output is a faithful-ish copy of the live config: `${scheme:path}` placeholders are
@@ -64,31 +70,6 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   into showing secret values in output.
   - It supersedes the legacy `--no-redact` (still functional, now marked deprecated, will be removed
     at some point in the future).
-- [#444]: Add [rqlite](https://sq.io/docs/drivers/rqlite) driver. `sq` now supports reading
-  from, inspecting, and writing to [rqlite](https://rqlite.io) clusters, the lightweight
-  distributed SQLite database. The full write surface that SQLite supports is wired up:
-  `CREATE TABLE`, `INSERT` (including multi-row batch insert via `--insert`),
-  [`sq tbl truncate`](https://sq.io/docs/cmd/tbl-truncate),
-  [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy), and `ALTER TABLE`. Connect with
-  `rqlite://user:pass@host:port` (or `rqlites://` for HTTPS); supported
-  [connection parameters](https://sq.io/docs/drivers/rqlite#connection-parameters) are
-  `level`, `disableClusterDiscovery`, and `timeout`. Multi-statement operations that
-  need atomicity (CopyTable, AlterTable kind swaps) use rqlite's native `/db/execute`
-  batch API; everything else goes through the standard `database/sql` adapter via
-  [gorqlite](https://github.com/rqlite/gorqlite).
-  - [#737]: [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy) and `ALTER TABLE` kind swaps
-    preserve the source table's `CREATE TABLE` faithfully via SQL-text rewrite. `UNIQUE`,
-    `FOREIGN KEY`, `AUTOINCREMENT`, `CHECK`, composite `PRIMARY KEY`, exact `DEFAULT`
-    expressions, `WITHOUT ROWID`, and column comments all ride along. Indexes, triggers,
-    and self-referential foreign keys are
-    [not carried](https://sq.io/docs/drivers/rqlite#limitations).
-  - [#742]: Single-node localhost setups get an actionable hint when gorqlite's
-    cluster-discovery default trips the container-internal hostname trap. Any command
-    that opens an `rqlite://` source whose host is loopback (e.g. `localhost`,
-    `127.0.0.1`, `::1`) logs a one-line `WARN` pointing at
-    [`?disableClusterDiscovery=true`](https://sq.io/docs/drivers/rqlite#single-node-localhost)
-    when the parameter is not explicitly set, and peer-discovery `no such host` errors
-    are rewritten to name the unreachable peer and suggest the same fix.
 - [#610]: [`sq sql`](https://sq.io/docs/cmd/sql) accepts `--readonly` (alias
   `--ro`) to open DuckDB sources in read-only mode. Default remains read-write
   because reliable statement-level detection isn't feasible without a standalone
@@ -151,11 +132,6 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   - Previously failed on [`sq inspect @handle`](https://sq.io/docs/inspect) etc.
     when the source location carried a `?key=val[&...]` connection-string suffix (e.g.
     `sqlite3:///path/to/db?mode=ro`).
-- [#729]: `sq inspect` no longer leaks the resolved target of a `${scheme:path}` placeholder
-  into its metadata output. The driver layer resolves placeholders to open the connection,
-  and the resolved value was being copied verbatim into `metadata.Source.Location`; the
-  inspect handler now overrides that field with the caller's view of `src.Location`, which
-  is the placeholder by default and the resolved value only when `--expand` is set.
 - [#744]: `sq inspect` no longer reports `0.0B` size for sources whose driver doesn't expose
   a database size (e.g. rqlite). The SIZE column renders `-` instead, and JSON / YAML output
   omits the `size` field.
