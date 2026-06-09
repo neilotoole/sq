@@ -164,6 +164,16 @@ keyring support) and support for [rqlite](https://sq.io/docs/drivers/rqlite).
   [rqlite](https://sq.io/docs/drivers/rqlite) drivers failed with
   `column not found in table DDL` when the original `CREATE TABLE` declared the
   target column using backticks, single quotes, or square brackets.
+- [#750]: `AlterTableColumnKinds` and `CopyTable` on the
+  [sqlite3](https://sq.io/docs/drivers/sqlite) and
+  [rqlite](https://sq.io/docs/drivers/rqlite) drivers now rewrite identifier and
+  type tokens by byte offset rather than `strings.Replace`. The old approach
+  could clobber the wrong token when a column name shared a prefix with its type
+  (e.g. `TEXT_DATA TEXT`), or when the table identifier recurred elsewhere in
+  the DDL (CHECK expressions, DEFAULT literals, comments). The shared
+  `sqlparser` package now exposes `ColDef.RawNameOffset` / `ColDef.RawTypeOffset`,
+  a `TableIdent` struct with token offsets, and an `ApplyEdits` helper for
+  non-overlapping byte-range splicing.
 
 ## [v0.53.0] - 2026-05-25
 
@@ -1745,6 +1755,7 @@ make working with lots of sources much easier.
 [#737]: https://github.com/neilotoole/sq/issues/737
 [#742]: https://github.com/neilotoole/sq/issues/742
 [#744]: https://github.com/neilotoole/sq/issues/744
+[#750]: https://github.com/neilotoole/sq/issues/750
 [#752]: https://github.com/neilotoole/sq/issues/752
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2

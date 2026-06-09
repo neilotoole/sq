@@ -306,28 +306,29 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 		return 0, errw(err)
 	}
 
-	// Next, we extract the table identifier from the CREATE TABLE statement.
-	// For example, "main"."actor". Note that the schema part may be empty.
-	ogSchema, ogTbl, err := sqlparser.ExtractTableIdentFromCreateTableStmt(ogTblCreateStmt,
-		false)
+	// Extract the table identifier (with byte offsets) from the
+	// CREATE TABLE statement. Offsets let us splice the new identifier
+	// without strings.Replace, which is fragile when the identifier
+	// recurs elsewhere in the DDL (CHECK exprs, default literals, etc.).
+	ogIdent, err := sqlparser.ExtractTableIdentFromCreateTableStmt(ogTblCreateStmt)
 	if err != nil {
 		return 0, errw(err)
 	}
 
-	// Now we know what text to replace in ogTblCreateStmt.
-	replaceTarget := ogTbl
-	if ogSchema != "" {
-		replaceTarget = ogSchema + "." + ogTbl
+	identStart := ogIdent.TableOffset
+	if ogIdent.SchemaOffset >= 0 {
+		identStart = ogIdent.SchemaOffset
 	}
+	identEnd := ogIdent.TableOffset + len(ogIdent.RawTable)
 
-	// Replace the old table identifier with the new one, and, voila,
-	// we have our new CREATE TABLE statement.
-	destTblCreateStmt := strings.Replace(
-		ogTblCreateStmt,
-		replaceTarget,
-		toTbl.Render(stringz.DoubleQuote),
-		1,
-	)
+	destTblCreateStmt, err := sqlparser.ApplyEdits(ogTblCreateStmt, []sqlparser.Edit{{
+		Start:       identStart,
+		End:         identEnd,
+		Replacement: toTbl.Render(stringz.DoubleQuote),
+	}})
+	if err != nil {
+		return 0, errz.Wrapf(err, "sqlite3: copy table: failed to apply DDL rewrites")
+	}
 
 	_, err = db.ExecContext(ctx, destTblCreateStmt)
 	if err != nil {
