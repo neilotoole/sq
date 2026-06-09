@@ -94,10 +94,10 @@ func (d *detailPane) viewSource() string {
 	}
 	d.writeLabeledInt(&b, "tables:", d.src.TableCount)
 	d.writeLabeledInt(&b, "views:", d.src.ViewCount)
-	if d.src.Size > 0 {
+	if d.src.Size != nil && *d.src.Size > 0 {
 		fmt.Fprintf(&b, "%s %s bytes\n",
 			d.theme.Faint.Render("size:"),
-			d.theme.Number.Render(strconv.FormatInt(d.src.Size, 10)))
+			d.theme.Number.Render(strconv.FormatInt(*d.src.Size, 10)))
 	}
 	return b.String()
 }

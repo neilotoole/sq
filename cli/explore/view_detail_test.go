@@ -13,6 +13,7 @@ import (
 
 func TestDetailPane_SourceView(t *testing.T) {
 	d := newDetailPane(newTheme(true))
+	size := int64(1024)
 	d.setSource(&metadata.Source{
 		Handle:     "@x",
 		Driver:     "postgres",
@@ -20,7 +21,7 @@ func TestDetailPane_SourceView(t *testing.T) {
 		Location:   "postgres://localhost/x",
 		TableCount: 12,
 		ViewCount:  3,
-		Size:       1024,
+		Size:       &size,
 	})
 	out := d.view(false, 60, 20)
 	for _, want := range []string{"@x", "PostgreSQL 16", "tables: 12", "views: 3"} {

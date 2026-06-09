@@ -40,12 +40,12 @@ type metaFetcher interface {
 // distinct type so the schema-tree pane can't accidentally try to
 // iterate Tables on it.
 type sourceOverview struct {
+	Size      *int64
 	Handle    string
 	Driver    string
 	DBProduct string
 	DBVersion string
 	Location  string
-	Size      int64
 	Tables    int64
 	Views     int64
 }
