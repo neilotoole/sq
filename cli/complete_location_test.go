@@ -3,12 +3,12 @@ package cli_test
 import (
 	"context"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli"
@@ -23,8 +23,10 @@ import (
 )
 
 var locSchemes = []string{
+	"clickhouse://",
 	"duckdb://",
 	"mysql://",
+	"oracle://",
 	"postgres://",
 	"rqlite://",
 	"rqlites://",
@@ -81,7 +83,6 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 		{
 			args: []string{"postgres://alice:"},
 			want: []string{
-				"postgres://alice:",
 				"postgres://alice:@",
 				"postgres://alice:password@",
 			},
@@ -91,7 +92,9 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 			args: []string{"postgres://alice@"},
 			want: []string{
 				"postgres://alice@localhost/",
+				"postgres://alice@localhost?",
 				"postgres://alice@localhost:5432/",
+				"postgres://alice@localhost:5432?",
 			},
 			wantResult: stdDirective,
 		},
@@ -99,7 +102,9 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 			args: []string{"postgres://alice@server"},
 			want: []string{
 				"postgres://alice@server/",
+				"postgres://alice@server?",
 				"postgres://alice@server:5432/",
+				"postgres://alice@server:5432?",
 			},
 			wantResult: stdDirective,
 		},
@@ -107,9 +112,13 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 			args: []string{"postgres://alice@localho"},
 			want: []string{
 				"postgres://alice@localho/",
+				"postgres://alice@localho?",
 				"postgres://alice@localho:5432/",
+				"postgres://alice@localho:5432?",
 				"postgres://alice@localhost/",
+				"postgres://alice@localhost?",
 				"postgres://alice@localhost:5432/",
+				"postgres://alice@localhost:5432?",
 			},
 			wantResult: stdDirective,
 		},
@@ -117,7 +126,9 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 			args: []string{"postgres://alice@localhost"},
 			want: []string{
 				"postgres://alice@localhost/",
+				"postgres://alice@localhost?",
 				"postgres://alice@localhost:5432/",
+				"postgres://alice@localhost:5432?",
 			},
 			wantResult: stdDirective,
 		},
@@ -125,6 +136,7 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 			args: []string{"postgres://alice@localhost:"},
 			want: []string{
 				"postgres://alice@localhost:5432/",
+				"postgres://alice@localhost:5432?",
 			},
 			wantResult: stdDirective,
 		},
@@ -132,6 +144,7 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 			args: []string{"postgres://alice@localhost:80"},
 			want: []string{
 				"postgres://alice@localhost:80/",
+				"postgres://alice@localhost:80?",
 			},
 			wantResult: stdDirective,
 		},
@@ -239,9 +252,14 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 			wantResult: stdDirective,
 		},
 		{
-			// Note the extra "?", which apparently is valid
-			args:       []string{"postgres://alice@localhost/sakila?sslmode=disable?"},
-			want:       []string{"postgres://alice@localhost/sakila?sslmode=disable?&"},
+			// The second "?" is part of the sslmode value (it's not a
+			// query-string delimiter), so the typed value is
+			// "disable?", which doesn't match any known sslmode value.
+			// The completer offers "&" to push to the next param.
+			args: []string{"postgres://alice@localhost/sakila?sslmode=disable?"},
+			want: []string{
+				"postgres://alice@localhost/sakila?sslmode=disable?&",
+			},
 			wantResult: stdDirective,
 		},
 		{
@@ -263,8 +281,8 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
-			assert.Equal(t, tc.wantResult, got.result, got.directives)
-			assert.Equal(t, tc.want, got.values)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
 		})
 	}
 }
@@ -301,19 +319,23 @@ func TestCompleteAddLocation_SQLServer(t *testing.T) {
 		{
 			args: []string{"sqlserver://alice@server"},
 			want: []string{
-				"sqlserver://alice@server?database=",
-				"sqlserver://alice@server:1433?database=",
+				"sqlserver://alice@server/",
+				"sqlserver://alice@server?",
+				"sqlserver://alice@server:1433/",
+				"sqlserver://alice@server:1433?",
 			},
 			wantResult: stdDirective,
 		},
 		{
-			args:       []string{"sqlserver://alice@server/"},
-			want:       []string{"sqlserver://alice@server/instance?database="},
+			args: []string{"sqlserver://alice@server/"},
+			want: []string{
+				"sqlserver://alice@server/instance",
+			},
 			wantResult: stdDirective,
 		},
 		{
 			args:       []string{"sqlserver://alice@server/instance"},
-			want:       []string{"sqlserver://alice@server/instance?database="},
+			want:       []string{"sqlserver://alice@server/instance?"},
 			wantResult: stdDirective,
 		},
 		{
@@ -392,8 +414,8 @@ func TestCompleteAddLocation_SQLServer(t *testing.T) {
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
-			assert.Equal(t, tc.wantResult, got.result, got.directives)
-			assert.Equal(t, tc.want, got.values)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
 		})
 	}
 }
@@ -450,6 +472,7 @@ func TestCompleteAddLocation_Rqlite(t *testing.T) {
 			want: []string{
 				"rqlite://alice@host:4001?disableClusterDiscovery=",
 				"rqlite://alice@host:4001?level=",
+				"rqlite://alice@host:4001?timeout=",
 			},
 			wantResult: stdDirective,
 		},
@@ -471,8 +494,8 @@ func TestCompleteAddLocation_Rqlite(t *testing.T) {
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
-			assert.Equal(t, tc.wantResult, got.result, got.directives)
-			assert.Equal(t, tc.want, got.values)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
 		})
 	}
 }
@@ -533,7 +556,6 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 		{
 			args: []string{"mysql://alice:"},
 			want: []string{
-				"mysql://alice:",
 				"mysql://alice:@",
 				"mysql://alice:password@",
 			},
@@ -543,7 +565,9 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 			args: []string{"mysql://alice@"},
 			want: []string{
 				"mysql://alice@localhost/",
+				"mysql://alice@localhost?",
 				"mysql://alice@localhost:3306/",
+				"mysql://alice@localhost:3306?",
 			},
 			wantResult: stdDirective,
 		},
@@ -551,7 +575,9 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 			args: []string{"mysql://alice@server"},
 			want: []string{
 				"mysql://alice@server/",
+				"mysql://alice@server?",
 				"mysql://alice@server:3306/",
+				"mysql://alice@server:3306?",
 			},
 			wantResult: stdDirective,
 		},
@@ -559,9 +585,13 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 			args: []string{"mysql://alice@localho"},
 			want: []string{
 				"mysql://alice@localho/",
+				"mysql://alice@localho?",
 				"mysql://alice@localho:3306/",
+				"mysql://alice@localho:3306?",
 				"mysql://alice@localhost/",
+				"mysql://alice@localhost?",
 				"mysql://alice@localhost:3306/",
+				"mysql://alice@localhost:3306?",
 			},
 			wantResult: stdDirective,
 		},
@@ -569,7 +599,9 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 			args: []string{"mysql://alice@localhost"},
 			want: []string{
 				"mysql://alice@localhost/",
+				"mysql://alice@localhost?",
 				"mysql://alice@localhost:3306/",
+				"mysql://alice@localhost:3306?",
 			},
 			wantResult: stdDirective,
 		},
@@ -577,6 +609,7 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 			args: []string{"mysql://alice@localhost:"},
 			want: []string{
 				"mysql://alice@localhost:3306/",
+				"mysql://alice@localhost:3306?",
 			},
 			wantResult: stdDirective,
 		},
@@ -584,6 +617,7 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 			args: []string{"mysql://alice@localhost:80"},
 			want: []string{
 				"mysql://alice@localhost:80/",
+				"mysql://alice@localhost:80?",
 			},
 			wantResult: stdDirective,
 		},
@@ -700,8 +734,8 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
-			assert.Equal(t, tc.wantResult, got.result, got.directives)
-			assert.Equal(t, tc.want, got.values)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
 		})
 	}
 }
@@ -860,8 +894,8 @@ func TestCompleteAddLocation_SQLite3(t *testing.T) {
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
-			assert.Equal(t, tc.wantResult, got.result, got.directives)
-			assert.Equal(t, tc.want, got.values)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
 		})
 	}
 }
@@ -905,6 +939,7 @@ func TestCompleteAddLocation_DuckDB(t *testing.T) {
 		{
 			args: []string{"duckdb://"},
 			want: []string{
+				"duckdb://?",
 				"duckdb://duck.duckdb",
 				"duckdb://other.duckdb",
 			},
@@ -954,8 +989,318 @@ func TestCompleteAddLocation_DuckDB(t *testing.T) {
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
-			assert.Equal(t, tc.wantResult, got.result, got.directives)
-			assert.Equal(t, tc.want, got.values)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
+		})
+	}
+}
+
+func TestCompleteAddLocation_ClickHouse(t *testing.T) {
+	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
+
+	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
+	t.Logf("Working dir: %s", wd)
+
+	testCases := []struct {
+		args       []string
+		want       []string
+		wantResult cobra.ShellCompDirective
+	}{
+		{
+			args:       []string{"c"},
+			want:       []string{"clickhouse://"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"clickhouse:/"},
+			want:       []string{"clickhouse://"},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://"},
+			want: []string{
+				"clickhouse://username",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice"},
+			want: []string{
+				"clickhouse://alice@",
+				"clickhouse://alice:",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice:"},
+			want: []string{
+				"clickhouse://alice:@",
+				"clickhouse://alice:password@",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice@"},
+			want: []string{
+				"clickhouse://alice@localhost/",
+				"clickhouse://alice@localhost?",
+				"clickhouse://alice@localhost:9000/",
+				"clickhouse://alice@localhost:9000?",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice@localho"},
+			want: []string{
+				"clickhouse://alice@localho/",
+				"clickhouse://alice@localho?",
+				"clickhouse://alice@localho:9000/",
+				"clickhouse://alice@localho:9000?",
+				"clickhouse://alice@localhost/",
+				"clickhouse://alice@localhost?",
+				"clickhouse://alice@localhost:9000/",
+				"clickhouse://alice@localhost:9000?",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice@localhost"},
+			want: []string{
+				"clickhouse://alice@localhost/",
+				"clickhouse://alice@localhost?",
+				"clickhouse://alice@localhost:9000/",
+				"clickhouse://alice@localhost:9000?",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice@localhost:"},
+			want: []string{
+				"clickhouse://alice@localhost:9000/",
+				"clickhouse://alice@localhost:9000?",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice@localhost:9000"},
+			want: []string{
+				"clickhouse://alice@localhost:9000/",
+				"clickhouse://alice@localhost:9000?",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice@localhost:9000/"},
+			want: []string{
+				"clickhouse://alice@localhost:9000/db",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice@localhost:9000/db"},
+			want: []string{
+				"clickhouse://alice@localhost:9000/db?",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			// gh743: a bare host with "?" should suggest conn-param keys,
+			// not credential placeholders.
+			args: []string{"clickhouse://localhost:9000?"},
+			want: []string{
+				"clickhouse://localhost:9000?compress=",
+				"clickhouse://localhost:9000?conn_max_lifetime=",
+				"clickhouse://localhost:9000?connection_open_strategy=",
+				"clickhouse://localhost:9000?dial_timeout=",
+				"clickhouse://localhost:9000?max_idle_conns=",
+				"clickhouse://localhost:9000?max_open_conns=",
+				"clickhouse://localhost:9000?secure=",
+				"clickhouse://localhost:9000?skip_verify=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice@localhost/db?"},
+			want: []string{
+				"clickhouse://alice@localhost/db?compress=",
+				"clickhouse://alice@localhost/db?conn_max_lifetime=",
+				"clickhouse://alice@localhost/db?connection_open_strategy=",
+				"clickhouse://alice@localhost/db?dial_timeout=",
+				"clickhouse://alice@localhost/db?max_idle_conns=",
+				"clickhouse://alice@localhost/db?max_open_conns=",
+				"clickhouse://alice@localhost/db?secure=",
+				"clickhouse://alice@localhost/db?skip_verify=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"clickhouse://alice@localhost/db?secure="},
+			want: []string{
+				"clickhouse://alice@localhost/db?secure=true",
+				"clickhouse://alice@localhost/db?secure=false",
+			},
+			wantResult: stdDirective,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
+			args := append([]string{"add"}, tc.args...)
+			got := testComplete(t, nil, args...)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
+		})
+	}
+}
+
+func TestCompleteAddLocation_Oracle(t *testing.T) {
+	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
+
+	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
+	t.Logf("Working dir: %s", wd)
+
+	testCases := []struct {
+		args       []string
+		want       []string
+		wantResult cobra.ShellCompDirective
+	}{
+		{
+			args:       []string{"o"},
+			want:       []string{"oracle://"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"oracle:/"},
+			want:       []string{"oracle://"},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://"},
+			want: []string{
+				"oracle://username",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice"},
+			want: []string{
+				"oracle://alice@",
+				"oracle://alice:",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice:"},
+			want: []string{
+				"oracle://alice:@",
+				"oracle://alice:password@",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice@"},
+			want: []string{
+				"oracle://alice@localhost/",
+				"oracle://alice@localhost?",
+				"oracle://alice@localhost:1521/",
+				"oracle://alice@localhost:1521?",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice@localho"},
+			want: []string{
+				"oracle://alice@localho/",
+				"oracle://alice@localho?",
+				"oracle://alice@localho:1521/",
+				"oracle://alice@localho:1521?",
+				"oracle://alice@localhost/",
+				"oracle://alice@localhost?",
+				"oracle://alice@localhost:1521/",
+				"oracle://alice@localhost:1521?",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice@localhost"},
+			want: []string{
+				"oracle://alice@localhost/",
+				"oracle://alice@localhost?",
+				"oracle://alice@localhost:1521/",
+				"oracle://alice@localhost:1521?",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice@localhost:"},
+			want: []string{
+				"oracle://alice@localhost:1521/",
+				"oracle://alice@localhost:1521?",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice@localhost:1521"},
+			want: []string{
+				"oracle://alice@localhost:1521/",
+				"oracle://alice@localhost:1521?",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice@localhost:1521/"},
+			want: []string{
+				"oracle://alice@localhost:1521/service",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice@localhost:1521/orcl"},
+			want: []string{
+				"oracle://alice@localhost:1521/orcl?",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			// gh743: a bare host with "?" should suggest conn-param keys,
+			// not credential placeholders.
+			args: []string{"oracle://localhost:1521?"},
+			want: []string{
+				"oracle://localhost:1521?CONNECTION+TIMEOUT=",
+				"oracle://localhost:1521?SSL=",
+				"oracle://localhost:1521?TRACE+FILE=",
+				"oracle://localhost:1521?ssl=",
+				"oracle://localhost:1521?wallet=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice@localhost:1521/orcl?"},
+			want: []string{
+				"oracle://alice@localhost:1521/orcl?CONNECTION+TIMEOUT=",
+				"oracle://alice@localhost:1521/orcl?SSL=",
+				"oracle://alice@localhost:1521/orcl?TRACE+FILE=",
+				"oracle://alice@localhost:1521/orcl?ssl=",
+				"oracle://alice@localhost:1521/orcl?wallet=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"oracle://alice@localhost:1521/orcl?SSL="},
+			want: []string{
+				"oracle://alice@localhost:1521/orcl?SSL=false",
+				"oracle://alice@localhost:1521/orcl?SSL=true",
+			},
+			wantResult: stdDirective,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
+			args := append([]string{"add"}, tc.args...)
+			got := testComplete(t, nil, args...)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
 		})
 	}
 }
@@ -1017,11 +1362,15 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 			args: []string{"postgres://alice@"},
 			want: []string{
 				"postgres://alice@localhost/",
+				"postgres://alice@localhost?",
 				"postgres://alice@localhost:5432/",
-				"postgres://alice@dev.acme.com:7777/",
+				"postgres://alice@localhost:5432?",
 				"postgres://alice@dev.acme.com:7777/sakila?application_name=app1&channel_binding=prefer",
-				"postgres://alice@prod.acme.com:8888/",
 				"postgres://alice@prod.acme.com:8888/sales?application_name=app2&channel_binding=require",
+				"postgres://alice@dev.acme.com:7777/",
+				"postgres://alice@dev.acme.com:7777?",
+				"postgres://alice@prod.acme.com:8888/",
+				"postgres://alice@prod.acme.com:8888?",
 			},
 			wantResult: stdDirective,
 		},
@@ -1029,9 +1378,12 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 			args: []string{"postgres://alice@dev"},
 			want: []string{
 				"postgres://alice@dev/",
+				"postgres://alice@dev?",
 				"postgres://alice@dev:5432/",
-				"postgres://alice@dev.acme.com:7777/",
+				"postgres://alice@dev:5432?",
 				"postgres://alice@dev.acme.com:7777/sakila?application_name=app1&channel_binding=prefer",
+				"postgres://alice@dev.acme.com:7777/",
+				"postgres://alice@dev.acme.com:7777?",
 			},
 			wantResult: stdDirective,
 		},
@@ -1039,9 +1391,12 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 			args: []string{"postgres://alice@dev.acme.com"},
 			want: []string{
 				"postgres://alice@dev.acme.com/",
+				"postgres://alice@dev.acme.com?",
 				"postgres://alice@dev.acme.com:5432/",
-				"postgres://alice@dev.acme.com:7777/",
+				"postgres://alice@dev.acme.com:5432?",
 				"postgres://alice@dev.acme.com:7777/sakila?application_name=app1&channel_binding=prefer",
+				"postgres://alice@dev.acme.com:7777/",
+				"postgres://alice@dev.acme.com:7777?",
 			},
 			wantResult: stdDirective,
 		},
@@ -1066,7 +1421,6 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 		{
 			args: []string{"postgres://alice@dev.acme.com/sakila?"},
 			want: []string{
-				"postgres://alice@dev.acme.com/sakila?application_name=app1&channel_binding=prefer",
 				"postgres://alice@dev.acme.com/sakila?application_name=",
 				"postgres://alice@dev.acme.com/sakila?channel_binding=",
 				"postgres://alice@dev.acme.com/sakila?connect_timeout=",
@@ -1079,7 +1433,6 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 		{
 			args: []string{"postgres://alice@dev.acme.com/sakila?app"},
 			want: []string{
-				"postgres://alice@dev.acme.com/sakila?application_name=app1&channel_binding=prefer",
 				"postgres://alice@dev.acme.com/sakila?application_name=",
 			},
 			wantResult: stdDirective,
@@ -1090,8 +1443,8 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, tr, args...)
-			assert.Equal(t, tc.wantResult, got.result, got.directives)
-			assert.Equal(t, tc.want, got.values)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
 		})
 	}
 }
@@ -1157,52 +1510,63 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 		{
 			args: []string{"sqlserver://alice@"},
 			want: []string{
-				"sqlserver://alice@localhost?database=",
-				"sqlserver://alice@localhost:1433?database=",
-				"sqlserver://alice@dev.acme.com:7777?database=",
+				"sqlserver://alice@localhost/",
+				"sqlserver://alice@localhost?",
+				"sqlserver://alice@localhost:1433/",
+				"sqlserver://alice@localhost:1433?",
 				"sqlserver://alice@dev.acme.com:7777?database=sakila&app+name=app1&encrypt=disable",
 				"sqlserver://alice@prod.acme.com:8888/my_instance?database=sakila",
-				"sqlserver://alice@prod.acme.com:8888?database=",
 				"sqlserver://alice@prod.acme.com:8888?database=sales&app+name=app2&encrypt=true",
+				"sqlserver://alice@dev.acme.com:7777/",
+				"sqlserver://alice@dev.acme.com:7777?",
+				"sqlserver://alice@prod.acme.com:8888/",
+				"sqlserver://alice@prod.acme.com:8888?",
 			},
 			wantResult: stdDirective,
 		},
 		{
 			args: []string{"sqlserver://alice@dev"},
 			want: []string{
-				"sqlserver://alice@dev?database=",
-				"sqlserver://alice@dev:1433?database=",
-				"sqlserver://alice@dev.acme.com:7777?database=",
+				"sqlserver://alice@dev/",
+				"sqlserver://alice@dev?",
+				"sqlserver://alice@dev:1433/",
+				"sqlserver://alice@dev:1433?",
 				"sqlserver://alice@dev.acme.com:7777?database=sakila&app+name=app1&encrypt=disable",
+				"sqlserver://alice@dev.acme.com:7777/",
+				"sqlserver://alice@dev.acme.com:7777?",
 			},
 			wantResult: stdDirective,
 		},
 		{
 			args: []string{"sqlserver://alice@prod"},
 			want: []string{
-				"sqlserver://alice@prod?database=",
-				"sqlserver://alice@prod:1433?database=",
+				"sqlserver://alice@prod/",
+				"sqlserver://alice@prod?",
+				"sqlserver://alice@prod:1433/",
+				"sqlserver://alice@prod:1433?",
 				"sqlserver://alice@prod.acme.com:8888/my_instance?database=sakila",
-				"sqlserver://alice@prod.acme.com:8888?database=",
 				"sqlserver://alice@prod.acme.com:8888?database=sales&app+name=app2&encrypt=true",
+				"sqlserver://alice@prod.acme.com:8888/",
+				"sqlserver://alice@prod.acme.com:8888?",
 			},
 			wantResult: stdDirective,
 		},
 		{
 			args: []string{"sqlserver://alice@dev.acme.com"},
 			want: []string{
-				"sqlserver://alice@dev.acme.com?database=",
-				"sqlserver://alice@dev.acme.com:1433?database=",
-				"sqlserver://alice@dev.acme.com:7777?database=",
+				"sqlserver://alice@dev.acme.com/",
+				"sqlserver://alice@dev.acme.com?",
+				"sqlserver://alice@dev.acme.com:1433/",
+				"sqlserver://alice@dev.acme.com:1433?",
 				"sqlserver://alice@dev.acme.com:7777?database=sakila&app+name=app1&encrypt=disable",
+				"sqlserver://alice@dev.acme.com:7777/",
+				"sqlserver://alice@dev.acme.com:7777?",
 			},
 			wantResult: stdDirective,
 		},
 		{
 			args: []string{"sqlserver://alice@dev.acme.com?"},
 			want: []string{
-				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
-				"sqlserver://alice@dev.acme.com?database=sales&app+name=app2&encrypt=true",
 				"sqlserver://alice@dev.acme.com?database=",
 				"sqlserver://alice@dev.acme.com?ApplicationIntent=",
 				"sqlserver://alice@dev.acme.com?ServerSPN=",
@@ -1228,8 +1592,6 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 		{
 			args: []string{"sqlserver://alice@dev.acme.com?data"},
 			want: []string{
-				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
-				"sqlserver://alice@dev.acme.com?database=sales&app+name=app2&encrypt=true",
 				"sqlserver://alice@dev.acme.com?database=",
 			},
 			wantResult: stdDirective,
@@ -1237,8 +1599,6 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 		{
 			args: []string{"sqlserver://alice@dev.acme.com?database"},
 			want: []string{
-				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
-				"sqlserver://alice@dev.acme.com?database=sales&app+name=app2&encrypt=true",
 				"sqlserver://alice@dev.acme.com?database=",
 			},
 			wantResult: stdDirective,
@@ -1246,16 +1606,13 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 		{
 			args: []string{"sqlserver://alice@dev.acme.com?database="},
 			want: []string{
-				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
-				"sqlserver://alice@dev.acme.com?database=sales&app+name=app2&encrypt=true",
+				"sqlserver://alice@dev.acme.com?database=&",
 			},
 			wantResult: stdDirective,
 		},
 		{
 			args: []string{"sqlserver://alice@dev.acme.com?database=sa"},
 			want: []string{
-				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
-				"sqlserver://alice@dev.acme.com?database=sales&app+name=app2&encrypt=true",
 				"sqlserver://alice@dev.acme.com?database=sa&",
 			},
 			wantResult: stdDirective,
@@ -1263,7 +1620,6 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 		{
 			args: []string{"sqlserver://alice@dev.acme.com?database=saki"},
 			want: []string{
-				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
 				"sqlserver://alice@dev.acme.com?database=saki&",
 			},
 			wantResult: stdDirective,
@@ -1271,7 +1627,6 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 		{
 			args: []string{"sqlserver://alice@dev.acme.com?database=sakila"},
 			want: []string{
-				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
 				"sqlserver://alice@dev.acme.com?database=sakila&",
 			},
 			wantResult: stdDirective,
@@ -1279,7 +1634,6 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 		{
 			args: []string{"sqlserver://alice@dev.acme.com?database=sakila&app"},
 			want: []string{
-				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
 				"sqlserver://alice@dev.acme.com?database=sakila&app+name=",
 			},
 			wantResult: stdDirective,
@@ -1290,8 +1644,8 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, tr, args...)
-			assert.Equal(t, tc.wantResult, got.result, got.directives)
-			assert.Equal(t, tc.want, got.values)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
 		})
 	}
 }
@@ -1333,9 +1687,6 @@ func TestCompleteAddLocation_History_SQLite3(t *testing.T) {
 		{
 			args: []string{"sqlite3://"},
 			want: []string{
-				src3Loc,
-				"sqlite3:///zz_dir1/sqtest/sq/src1.db",
-				"sqlite3:///zz_dir1/sqtest/sq/src2.db?mode=rwc&cache=FAST",
 				"sqlite3://data/",
 				"sqlite3://my/",
 				"sqlite3://my.db",
@@ -1343,6 +1694,9 @@ func TestCompleteAddLocation_History_SQLite3(t *testing.T) {
 				"sqlite3://post.db",
 				"sqlite3://sqlite/",
 				"sqlite3://sqlite.db",
+				src3Loc,
+				"sqlite3:///zz_dir1/sqtest/sq/src1.db",
+				"sqlite3:///zz_dir1/sqtest/sq/src2.db?mode=rwc&cache=FAST",
 			},
 			wantResult: stdDirective,
 		},
@@ -1419,55 +1773,15 @@ func TestCompleteAddLocation_History_SQLite3(t *testing.T) {
 		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, tr, args...)
-			assert.Equal(t, tc.wantResult, got.result, got.directives)
-			assert.Equal(t, tc.want, got.values)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
 		})
 	}
 }
 
-func TestParseLoc_stage(t *testing.T) {
-	testCases := []struct {
-		loc  string
-		want cli.PlocStage
-	}{
-		{"", cli.PlocInit},
-		{"postgres", cli.PlocInit},
-		{"postgres:/", cli.PlocInit},
-		{"postgres://", cli.PlocScheme},
-		{"postgres://alice", cli.PlocScheme},
-		{"postgres://alice:", cli.PlocUser},
-		{"postgres://alice:pass", cli.PlocUser},
-		{"postgres://alice:pass@", cli.PlocPass},
-		{"postgres://alice:@", cli.PlocPass},
-		{"postgres://alice@", cli.PlocPass},
-		{"postgres://alice@localhost", cli.PlocPass},
-		{"postgres://alice:@localhost", cli.PlocPass},
-		{"postgres://alice:pass@localhost", cli.PlocPass},
-		{"postgres://alice@localhost:", cli.PlocHostname},
-		{"postgres://alice:@localhost:", cli.PlocHostname},
-		{"postgres://alice:pass@localhost:", cli.PlocHostname},
-		{"postgres://alice@localhost:5432", cli.PlocHostname},
-		{"postgres://alice@localhost:5432/", cli.PlocHost},
-		{"postgres://alice@localhost:5432/s", cli.PlocHost},
-		{"postgres://alice@localhost:5432/sakila", cli.PlocHost},
-		{"postgres://alice@localhost:5432/sakila?", cli.PlocPath},
-		{"postgres://alice@localhost:5432/sakila?sslmode=verify-ca", cli.PlocPath},
-		{"postgres://alice:@localhost:5432/sakila?sslmode=verify-ca", cli.PlocPath},
-		{"postgres://alice:pass@localhost:5432/sakila?sslmode=verify-ca", cli.PlocPath},
-		{"sqlserver://alice:pass@localhost?", cli.PlocPath},
-	}
-
-	for i, tc := range testCases {
-		t.Run(tu.Name(i, tc.loc), func(t *testing.T) {
-			th := testh.New(t)
-			ru := th.Run()
-
-			gotStage, err := cli.DoTestParseLocStage(t, ru, tc.loc)
-			require.NoError(t, err)
-			require.Equal(t, tc.want, gotStage)
-		})
-	}
-}
+// TestParseLoc_stage is no more: the legacy parsedLoc / plocStage
+// parser was replaced by driver.LocationShape + driver.Walk. Stage
+// detection is now covered by TestWalk in libsq/driver.
 
 func TestDoCompleteAddLocationFile(t *testing.T) {
 	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
@@ -1506,6 +1820,42 @@ func TestDoCompleteAddLocationFile(t *testing.T) {
 			t.Logf("want:  %s", tc.want)
 			got := cli.DoCompleteAddLocationFile(ctx, tc.in)
 			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestIsDefiniteFilePath(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want bool
+	}{
+		{"", false},
+		{"postgres://", false},
+		{"sqlite3://./foo.db", false},
+		{"file://", false},
+		{"foo", false},
+		{".", true},
+		{"./foo.db", true},
+		{"..", true},
+		{"../sibling.db", true},
+		{"~", true},
+		{"~/data.db", true},
+		{"/", true},
+		{"/tmp/foo.db", true},
+		{`\\server\share\db.sqlite`, true}, // Windows UNC
+	}
+	for _, tc := range testCases {
+		t.Run(tc.in, func(t *testing.T) {
+			require.Equal(t, tc.want, cli.IsDefiniteFilePath(tc.in))
+		})
+	}
+
+	// filepath.IsAbs returns true for "C:\foo" on Windows only, so
+	// the drive-letter case is gated to GOOS=windows. Without the
+	// gate, this case would fail on Linux/macOS CI.
+	if runtime.GOOS == "windows" {
+		t.Run(`C:\foo`, func(t *testing.T) {
+			require.True(t, cli.IsDefiniteFilePath(`C:\foo`))
 		})
 	}
 }

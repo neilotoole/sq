@@ -2,14 +2,9 @@ package cli
 
 // This file exports package constructs for testing.
 
-import (
-	"testing"
-
-	"github.com/neilotoole/sq/cli/run"
-)
-
 var (
 	DoCompleteAddLocationFile = locCompListFiles
+	IsDefiniteFilePath        = isDefiniteFilePath
 	PreprocessFlagArgVars     = preprocessFlagArgVars
 	LastHandlePart            = lastHandlePart
 	GetVersionFromBrewFormula = getVersionFromBrewFormula
@@ -18,26 +13,9 @@ var (
 	ErrBinaryFormatToTerminal = errBinaryFormatToTerminal
 )
 
-// DoTestParseLocStage is a helper to test the
-// non-exported locCompletionHelper.locCompParseLoc method.
-func DoTestParseLocStage(tb testing.TB, ru *run.Run, loc string) (PlocStage, error) { //nolint:revive
-	tb.Helper()
-	ploc, err := locCompParseLoc(loc)
-	if err != nil {
-		return PlocInit, err
-	}
-
-	return ploc.stageDone, nil
-}
-
-type PlocStage = plocStage
-
-const (
-	PlocInit     = plocInit
-	PlocScheme   = plocScheme
-	PlocUser     = plocUser
-	PlocPass     = plocPass
-	PlocHostname = plocHostname
-	PlocHost     = plocHost
-	PlocPath     = plocPath
-)
+// The legacy parsedLoc/plocStage parser was removed when
+// completeAddLocation was rewritten on top of the LocationShape
+// walker. The DoTestParseLocStage helper and the PlocStage type
+// alias / Ploc* constants that formerly lived here are gone along
+// with TestParseLoc_stage. Walker stage equivalents are exercised
+// by TestWalk in libsq/driver/locshape_test.go.

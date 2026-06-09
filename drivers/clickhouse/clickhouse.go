@@ -187,6 +187,20 @@ func (d *driveri) ConnParams() map[string][]string {
 	}
 }
 
+// LocationShape implements driver.SQLDriver.
+func (d *driveri) LocationShape() driver.LocationShape {
+	return driver.LocationShape{
+		Type:    drivertype.ClickHouse,
+		Schemes: []string{"clickhouse"},
+		Segments: []driver.Segment{
+			{Kind: driver.SegCredentials, Optional: true},
+			{Kind: driver.SegAuthority},
+			{Kind: driver.SegPathName, Optional: true, Placeholder: "db"},
+			{Kind: driver.SegConnParams, Optional: true},
+		},
+	}
+}
+
 // ErrWrapFunc implements driver.SQLDriver.
 func (d *driveri) ErrWrapFunc() func(error) error {
 	return errw

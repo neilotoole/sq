@@ -80,6 +80,7 @@ sakila_b*
 CLAUDE.local.md
 /.claude/*
 !/.claude/skills
+/.agents/plans/
 /docs/superpowers/
 
 ## Node / Bun (root markdown linting)

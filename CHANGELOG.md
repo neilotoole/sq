@@ -18,20 +18,18 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## Unreleased
 
+Headline items: much-improved [secrets handling](https://sq.io/docs/secrets) (including
+keyring support) and support for [rqlite](https://sq.io/docs/drivers/rqlite).
+
 ### Added
 
 - [#718]: [Parquet driver](https://sq.io/docs/drivers/parquet): add Apache Parquet as a first-class
   document source. Reads via the bundled DuckDB `parquet` and `httpfs` extensions, so column and
   predicate pushdown apply for local and remote files. Supports `sq add`, `sq inspect`, `sq diff`,
   and SLQ queries on `.parquet` and `.pq` files.
-- [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export): dump the active config to
-  YAML, primarily for backups. See [Secrets](https://sq.io/docs/secrets) for the bigger picture.
-  - By default, output is a faithful-ish copy of the live config: `${scheme:path}` placeholders are
-    written verbatim.
-  - With [`--expand`](https://sq.io/docs/secrets#expanding-placeholders), every placeholder is
-    fetched from its resolver (`keyring`, `env`, `file`, or `op`) and the resolved value
-    is spliced in-line: a self-contained snapshot at the cost of writing every referenced
-    secret in plaintext (which is exactly the point of `--expand`).
+- 🐥 [#444]: Added [rqlite driver](https://sq.io/docs/drivers/rqlite). `sq` now supports reading
+  from, inspecting, and writing to [rqlite](https://rqlite.io) clusters, the lightweight
+  distributed SQLite database.
 - [#441]: [`sq add`](https://sq.io/docs/cmd/add) gains a `--store inline|keyring`
   flag, and a new [`secrets.store`](https://sq.io/docs/config#secretsstore) config option
   controls the default; existing behavior is preserved (`inline`).
@@ -57,6 +55,18 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [#441]: [`sq config keyring`](https://sq.io/docs/cmd/config-keyring) command group: store
   source conn strings in the OS keyring instead of plaintext in `sq.yml`.
   - Subcommands: `ls`, `create`, `update`, `get`, `rm`, `migrate`.
+- [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export): dump the active config to
+  YAML, primarily for backups. See [Secrets](https://sq.io/docs/secrets) for the bigger picture.
+  - By default, output is a faithful-ish copy of the live config: `${scheme:path}` placeholders are
+    written verbatim.
+  - With [`--expand`](https://sq.io/docs/secrets#expanding-placeholders), every placeholder is
+    fetched from its resolver (`keyring`, `env`, `file`, or `op`) and the resolved value
+    is spliced in-line: a self-contained snapshot at the cost of writing every referenced
+    secret in plaintext (which is exactly the point of `--expand`).
+- [#717]: New global [`--reveal`](https://sq.io/docs/secrets#redaction) flag opts
+  into showing secret values in output.
+  - It supersedes the legacy `--no-redact` (still functional, now marked deprecated, will be removed
+    at some point in the future).
 - [#660]: [`sq inspect`](https://sq.io/docs/inspect) gained
   [`svg-erd`](https://sq.io/docs/inspect#svg-erd) and
   [`png-erd`](https://sq.io/docs/inspect#png-erd) output formats that render the schema
@@ -64,30 +74,29 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   (`--format=svg-erd` / `--format=png-erd`).
   - The diagram is laid out and rendered natively via an embedded [Graphviz](https://graphviz.org)
     engine, so image export needs no external tool, browser, or network.
-- [#717]: New global [`--reveal`](https://sq.io/docs/secrets#redaction) flag opts
-  into showing secret values in output.
-  - It supersedes the legacy `--no-redact` (still functional, now marked deprecated, will be removed
-    at some point in the future).
-- [#444]: Add [rqlite](https://rqlite.io) driver. `sq` now supports reading from, inspecting,
-  and writing to [rqlite](https://rqlite.io) clusters, the lightweight distributed SQLite
-  database. The full write surface that SQLite supports is wired up: `CREATE TABLE`, `INSERT`
-  (including multi-row batch insert via `--insert`),
-  [`sq tbl truncate`](https://sq.io/docs/cmd/tbl-truncate),
-  [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy), and `ALTER TABLE`. Connect with
-  `rqlite://user:pass@host:port` (or `rqlites://` for HTTPS). Multi-statement
-  operations that need atomicity (CopyTable, AlterTable kind swaps) use rqlite's native
-  `/db/execute` batch API; everything else goes through the standard `database/sql`
-  adapter via [gorqlite](https://github.com/rqlite/gorqlite).
+- [#610]: [`sq sql`](https://sq.io/docs/cmd/sql) accepts `--readonly` (alias
+  `--ro`) to open DuckDB sources in read-only mode. Default remains read-write
+  because reliable statement-level detection isn't feasible without a standalone
+  DuckDB parser binding.
 
 ### Changed
 
+- [#610]: [`duckdb`](https://sq.io/docs/drivers/duckdb): Read-only commands
+  ([`inspect`](https://sq.io/docs/cmd/inspect), [`sq`](https://sq.io/docs/cmd/sq),
+  [`diff`](https://sq.io/docs/cmd/diff), [`ping`](https://sq.io/docs/cmd/ping)) now open
+  DuckDB sources with `access_mode=READ_ONLY` by default.
+  - This avoids open-time WAL
+    writes, allows concurrent read-only access from multiple `sq` processes against the
+    same file, and lets `sq inspect` work on files the user has read-only access to.
+    A user-specified `?access_mode=READ_WRITE` in the source URL overrides the default.
 - ☢️ The `redact` config option is renamed to
   [`secrets.reveal`](https://sq.io/docs/config#secretsreveal) with inverted polarity
   (`secrets.reveal: true` equals legacy `redact: false`). The new default is `false`
-  (secrets are redacted). Existing configs are migrated automatically on first run
-  by a YAML upgrade step; scripts that call `sq config get redact` or
-  `sq config set redact ...` need updating to the new key. The rename completes the
-  polarity-consistency story started by `--reveal` in #717.
+  (secrets are redacted).
+  - Existing configs are migrated automatically on first run
+    by a YAML upgrade step; scripts that call `sq config get redact` or
+    `sq config set redact ...` need updating to the new key. The rename completes the
+    polarity-consistency story started by `--reveal` in #717.
   - As part of the polarity flip, the `--reveal` and `--no-redact` flags are now
     positive opt-ins only: `--reveal=true` (or just `--reveal`) opts into
     disclosure, and `--reveal=false` / `--no-redact=false` are no-ops. Previously,
@@ -130,33 +139,25 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   DNS lookup actually fails with "no such host", the error message is rewritten to
   name the unreachable peer and suggest the same fix, instead of surfacing gorqlite's
   raw `tried all peers unsuccessfully` text.
+- Internal: `sq add` shell completion reworked atop a declarative
+  per-driver `LocationShape` model. Each SQL driver declares its URL
+  syntax via the new `driver.LocationShape` type; the completer is a
+  thin walker over those declarations. See the Fixed entries for
+  user-visible behavior changes. (#743, #741)
 
 ### Fixed
 
+- [#743]: [`sq add`](https://sq.io/docs/cmd/add) shell completion: `<scheme>://host:port?<TAB>`
+  now offers connection parameters instead of credential placeholders.
+  Bare-host (no `user@`) URLs are recognized correctly for postgres,
+  mysql, sqlserver, rqlite, clickhouse, oracle.
+- [#741]: [`sq add`](https://sq.io/docs/cmd/add) shell completion now suggests
+  `clickhouse://` and `oracle://` schemes.
 - [#720]: The [SQLite driver](https://sq.io/docs/drivers/sqlite) no longer fails with
   `stat /path/to/db?key=val: no such file or directory` on source-level metadata commands.
   - Previously failed on [`sq inspect @handle`](https://sq.io/docs/inspect) etc.
     when the source location carried a `?key=val[&...]` connection-string suffix (e.g.
     `sqlite3:///path/to/db?mode=ro`).
-- [#729]: `sq inspect` no longer leaks the resolved target of a `${scheme:path}` placeholder
-  into its metadata output. The driver layer resolves placeholders to open the connection,
-  and the resolved value was being copied verbatim into `metadata.Source.Location`; the
-  inspect handler now overrides that field with the caller's view of `src.Location`, which
-  is the placeholder by default and the resolved value only when `--expand` is set.
-- [#737]: The [rqlite driver](https://sq.io/docs/drivers/rqlite) now preserves the source table's
-  CREATE TABLE statement when running [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy) and
-  column-kind alter operations.
-  - `CopyTable` and `AlterTableColumnKinds` switched from a metadata-based introspect-and-rebuild
-    to the same faithful-DDL-rewrite shape the [sqlite3 driver](https://sq.io/docs/drivers/sqlite)
-    already uses, via the now-shared `drivers/sqlite3/sqlparser` package.
-  - Source-table attributes now carried across both operations: `UNIQUE`, `FOREIGN KEY`,
-    `AUTOINCREMENT`, `CHECK`, composite `PRIMARY KEY`, the exact `DEFAULT` expression, `WITHOUT ROWID`,
-    and column comments. Previously these were silently dropped (the destination DDL was rebuilt
-    from `*metadata.Table`, which exposes only a subset of the source's schema).
-  - Indexes and triggers are still not carried by `CopyTable`; they live as separate
-    `sqlite_master` rows and are out of scope for this fix.
-  - `getTableMetadata` now populates outgoing foreign keys via `pragma_foreign_key_list`, matching
-    the sqlite3 driver's metadata shape.
 - [#744]: `sq inspect` no longer reports `0.0B` size for sources whose driver doesn't expose
   a database size (e.g. rqlite). The SIZE column renders `-` instead, and JSON / YAML output
   omits the `size` field.
@@ -1712,6 +1713,7 @@ make working with lots of sources much easier.
 [#572]: https://github.com/neilotoole/sq/pull/572
 [#601]: https://github.com/neilotoole/sq/issues/601
 [#602]: https://github.com/neilotoole/sq/pull/602
+[#610]: https://github.com/neilotoole/sq/issues/610
 [#612]: https://github.com/neilotoole/sq/issues/612
 [#613]: https://github.com/neilotoole/sq/issues/613
 [#615]: https://github.com/neilotoole/sq/issues/615

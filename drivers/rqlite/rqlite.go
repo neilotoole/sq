@@ -103,6 +103,20 @@ func (d *driveri) ConnParams() map[string][]string {
 	return map[string][]string{
 		"level":                   {"none", "weak", "linearizable", "strong"},
 		"disableClusterDiscovery": {"true", "false"},
+		"timeout":                 nil,
+	}
+}
+
+// LocationShape implements driver.SQLDriver.
+func (d *driveri) LocationShape() driver.LocationShape {
+	return driver.LocationShape{
+		Type:    drivertype.Rqlite,
+		Schemes: []string{"rqlite", "rqlites"},
+		Segments: []driver.Segment{
+			{Kind: driver.SegCredentials, Optional: true},
+			{Kind: driver.SegAuthority},
+			{Kind: driver.SegConnParams, Optional: true},
+		},
 	}
 }
 
