@@ -3,6 +3,7 @@ package cli_test
 import (
 	"context"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -1845,6 +1846,15 @@ func TestIsDefiniteFilePath(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.in, func(t *testing.T) {
 			require.Equal(t, tc.want, cli.IsDefiniteFilePath(tc.in))
+		})
+	}
+
+	// filepath.IsAbs returns true for "C:\foo" on Windows only, so
+	// the drive-letter case is gated to GOOS=windows. Without the
+	// gate, this case would fail on Linux/macOS CI.
+	if runtime.GOOS == "windows" {
+		t.Run(`C:\foo`, func(t *testing.T) {
+			require.True(t, cli.IsDefiniteFilePath(`C:\foo`))
 		})
 	}
 }

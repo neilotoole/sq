@@ -13,6 +13,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/source/location"
 )
 
 // nextSegmentAfter returns information about the segment that follows
@@ -339,10 +340,10 @@ func generateCandidates(ctx context.Context, shape driver.LocationShape,
 		return suggestConnParams(m, src, drvr, seg.LeadingKey)
 	}
 	// m.Current is the zero value: Walk ran but didn't land on a
-	// segment (e.g. shape with no segments at all, or a fully closed
-	// URL with no trailing introducer). Log so the empty result is
-	// diagnosable.
+	// segment (e.g. a fully closed URL with no trailing introducer).
+	// Log so the empty result is diagnosable; redact the loc because
+	// it may carry inline credentials.
 	lg.FromContext(ctx).Debug("No candidates for current segment",
-		lga.Loc, m.Loc, "current", m.Current)
+		lga.Loc, location.Redact(m.Loc), "current", m.Current)
 	return nil
 }

@@ -264,7 +264,6 @@ func TestWalk_gh743BareHost(t *testing.T) {
 		{"rqlite_bare_host_port_q", rqliteShape, "rqlite://localhost:4001?"},
 		{"rqlites_bare_host_port_q", rqliteShape, "rqlites://localhost:4001?"},
 		{"pg_bare_host_only_q", pgShape, "postgres://localhost?"},
-		{"pg_bare_ipv6_host_port_q", pgShape, "postgres://[::1]:5432?"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -275,6 +274,22 @@ func TestWalk_gh743BareHost(t *testing.T) {
 			require.NotContains(t, got.Done, SegCredentials)
 		})
 	}
+}
+
+// TestWalk_gh743BareHostIPv6 is the IPv6 variant of the #743 case.
+// In addition to the segment-positioning assertions in
+// TestWalk_gh743BareHost it pins the parsed Hostname and Port, so a
+// future change that breaks bracket parsing in parseAuthority is
+// caught at the walker layer.
+func TestWalk_gh743BareHostIPv6(t *testing.T) {
+	got, err := Walk(pgShape, "postgres://[::1]:5432?")
+	require.NoError(t, err)
+	require.Equal(t, SegConnParams, got.Current)
+	require.NotContains(t, got.Done, SegCredentials)
+	require.Contains(t, got.Done, SegAuthority)
+	require.Equal(t, "::1", got.Hostname)
+	require.Equal(t, 5432, got.Port)
+	require.True(t, got.PortSet)
 }
 
 func TestWalk_rqliteAltScheme(t *testing.T) {
@@ -298,6 +313,93 @@ func TestWalk_sqlserverInstanceAndDatabase(t *testing.T) {
 	require.Contains(t, got.Done, SegPathName)
 	require.Equal(t, "myinst", got.PathName)
 	require.Equal(t, SegConnParams, got.Current)
+}
+
+// TestLocationShape_Validate covers the structural mistakes that a
+// hand-rolled driver literal could realistically introduce. The
+// happy path is covered per-driver in
+// cli/complete_location_shapes_test.go.
+func TestLocationShape_Validate(t *testing.T) {
+	cases := []struct {
+		name    string
+		shape   LocationShape
+		wantMsg string
+	}{
+		{
+			name:    "empty type",
+			shape:   LocationShape{Schemes: []string{"x"}, Segments: []Segment{{Kind: SegPathFile}}},
+			wantMsg: "Type is empty",
+		},
+		{
+			name:    "no schemes",
+			shape:   LocationShape{Type: drivertype.Pg, Segments: []Segment{{Kind: SegPathFile}}},
+			wantMsg: "Schemes is empty",
+		},
+		{
+			name: "empty scheme entry",
+			shape: LocationShape{
+				Type:     drivertype.Pg,
+				Schemes:  []string{"x", ""},
+				Segments: []Segment{{Kind: SegPathFile}},
+			},
+			wantMsg: "Schemes[1] is empty",
+		},
+		{
+			name:    "no segments",
+			shape:   LocationShape{Type: drivertype.Pg, Schemes: []string{"x"}},
+			wantMsg: "Segments is empty",
+		},
+		{
+			name: "zero kind",
+			shape: LocationShape{
+				Type:     drivertype.Pg,
+				Schemes:  []string{"x"},
+				Segments: []Segment{{}},
+			},
+			wantMsg: "Segments[0].Kind is unset",
+		},
+		{
+			name: "duplicate kind",
+			shape: LocationShape{
+				Type:    drivertype.Pg,
+				Schemes: []string{"x"},
+				Segments: []Segment{
+					{Kind: SegAuthority},
+					{Kind: SegAuthority},
+				},
+			},
+			wantMsg: "duplicates kind",
+		},
+		{
+			name: "leading key on wrong kind",
+			shape: LocationShape{
+				Type:    drivertype.Pg,
+				Schemes: []string{"x"},
+				Segments: []Segment{
+					{Kind: SegAuthority, LeadingKey: "database"},
+				},
+			},
+			wantMsg: "LeadingKey on kind",
+		},
+		{
+			name: "placeholder on wrong kind",
+			shape: LocationShape{
+				Type:    drivertype.Pg,
+				Schemes: []string{"x"},
+				Segments: []Segment{
+					{Kind: SegAuthority, Placeholder: "db"},
+				},
+			},
+			wantMsg: "Placeholder on kind",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.shape.Validate()
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tc.wantMsg)
+		})
+	}
 }
 
 func BenchmarkWalk(b *testing.B) {
