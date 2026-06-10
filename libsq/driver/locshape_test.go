@@ -242,7 +242,7 @@ var sqlserverShape = LocationShape{
 
 var rqliteShape = LocationShape{
 	Type:    drivertype.Rqlite,
-	Schemes: []string{"rqlite", "rqlites"},
+	Schemes: []string{"rqlite"},
 	Segments: []Segment{
 		{Kind: SegCredentials, Optional: true},
 		{Kind: SegAuthority},

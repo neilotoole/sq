@@ -19,8 +19,8 @@ import (
 )
 
 // parseSourceLoc parses a source location string. dburl.Parse is used
-// for schemes dburl knows; rqlite/rqlites fall back to net/url since
-// dburl does not recognize them. The returned *dburl.URL wraps the
+// for schemes dburl knows; rqlite falls back to net/url since
+// dburl does not recognize it. The returned *dburl.URL wraps the
 // parsed URL so callers can read User/Host/Path/RawQuery uniformly.
 //
 // On parse failure the underlying url.Parse / dburl.Parse error is
