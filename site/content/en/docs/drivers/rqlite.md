@@ -52,6 +52,48 @@ rqlite://username:password@hostname:port
 rqlite://username:password@hostname:port?param=value
 ```
 
+## HTTP vs HTTPS
+
+rqlite serves plain HTTP by default, and so does this driver: a bare
+`rqlite://host:4001` location connects over HTTP. To connect over HTTPS
+instead, add `tls=true`:
+
+```shell
+$ sq add 'rqlite://node.example.com:4001?tls=true'
+```
+
+You usually don't need to specify `tls=true` yourself. At
+[`sq add`](/docs/cmd/add) time, `sq` probes the endpoint, and if it
+detects that the server requires TLS, it stores `tls=true` on the source
+automatically:
+
+```shell
+# node.example.com is TLS-only: sq detects this, and persists the
+# location as rqlite://node.example.com:4001?tls=true
+$ sq add 'rqlite://node.example.com:4001'
+```
+
+The probe is skipped if you pass `--skip-verify`, if the location
+already includes a `tls` or `insecure` param, or if the location
+contains `${...}` secret placeholders (such as those written by
+`--store keyring`). A source is probed only when it's added: if the
+server's transport changes later, connections fail with an error that
+suggests the fix; the saved location is never silently rewritten.
+
+### Self-signed certificates
+
+If the server presents a self-signed certificate or one issued by a
+private CA, certificate verification fails, and `sq add` errors with
+instructions. To accept the certificate, add `insecure=true` (valid
+only in combination with `tls=true`):
+
+```shell
+$ sq add 'rqlite://node.example.com:4001?tls=true&insecure=true'
+```
+
+`insecure=true` skips TLS certificate verification for the source.
+Prefer installing the CA in your trust store for production use.
+
 ## Common setups
 
 | Setup                                                       | Recommended URL                                                                  |
@@ -117,32 +159,17 @@ makes to the rqlite node. Integer-valued; defaults to `10`. Increase it
 for slow links or large multi-statement batches; decrease it to
 fail-fast against a flaky node.
 
-### TLS
+### `tls`
 
-By default rqlite serves plain HTTP. To connect over HTTPS, add `tls=true`:
+`true` or `false` (the default). Connect over HTTPS instead of plain
+HTTP. Usually set automatically at add time: see
+[HTTP vs HTTPS](#http-vs-https).
 
-```shell
-$ sq add 'rqlite://node.example.com:4001?tls=true'
-```
+### `insecure`
 
-If the server presents a self-signed certificate or one issued by a
-private CA, add `insecure=true` (valid only with `tls=true`):
-
-```shell
-$ sq add 'rqlite://node.example.com:4001?tls=true&insecure=true'
-```
-
-`insecure=true` skips TLS certificate verification for the source.
-Prefer installing the CA in your trust store for production use.
-
-You usually don't need to specify `tls=true` yourself: at
-[`sq add`](/docs/cmd/add) time, `sq` probes the endpoint, and if it detects that
-the server requires TLS, it stores `tls=true` on the source automatically. The
-probe is skipped if you pass `--skip-verify`, if the location already includes
-a `tls` or `insecure` param, or if the location contains `${...}` secret
-placeholders (such as those written by `--store keyring`). If the server
-requires TLS but presents a certificate that can't be verified, `sq add` fails
-with instructions: add `insecure=true`, or install the CA in your trust store.
+`true` or `false` (the default). Skip TLS certificate verification.
+Valid only in combination with `tls=true`. See
+[Self-signed certificates](#self-signed-certificates).
 
 ## Write behavior
 
