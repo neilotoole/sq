@@ -2,6 +2,7 @@ package rqlite
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"io"
 	"testing"
 
@@ -69,5 +70,93 @@ func TestRewriteTLSSignalError(t *testing.T) {
 		require.Contains(t, out.Error(), "?tls=true")
 		require.Contains(t, out.Error(), "&insecure=true")
 		require.Contains(t, out.Error(), "@rq")
+	})
+}
+
+func TestIsCertVerificationError(t *testing.T) {
+	testCases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"nil", nil, false},
+		{"random error", errz.New("boom"), false},
+		{"x509.UnknownAuthorityError", x509.UnknownAuthorityError{}, true},
+		{"x509.UnknownAuthorityError wrapped", errz.Wrap(x509.UnknownAuthorityError{}, "wrap"), true},
+		// x509.HostnameError is emitted by stdlib as a value, but its Error()
+		// method dereferences Certificate. Using errz.Wrap on a zero-value
+		// pointer fails; we test the type-match by wrapping a substring that
+		// the substring-fallback would also catch.
+		{
+			"x509: hostname error substring",
+			errz.New("x509: certificate is valid for example.com, not host"), true,
+		},
+		// x509.CertificateInvalidError is no longer matched by the direct
+		// errors.As check (removed in Issue #3), but its Error() string begins
+		// with "x509:" so the substring fallback still catches it and returns
+		// true. The correct action for an expired cert is "renew it", not
+		// "add ?insecure=true"; this behavior is a known limitation of the
+		// substring-fallback path, which fires only when gorqlite has already
+		// serialized the error to a string in production.
+		{
+			"x509.CertificateInvalidError caught by substring fallback",
+			x509.CertificateInvalidError{Reason: x509.Expired},
+			true,
+		},
+		{
+			"tls.CertificateVerificationError",
+			&tls.CertificateVerificationError{Err: errz.New("verify")}, true,
+		},
+		{
+			"x509: substring in serialized message",
+			errz.New("rqliteApiCall: x509: certificate signed by unknown authority"), true,
+		},
+		{
+			"tls.RecordHeaderError is not a cert error",
+			tls.RecordHeaderError{Msg: "bad"},
+			false,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, isCertVerificationError(tc.err))
+		})
+	}
+}
+
+func TestRewriteCertVerificationError(t *testing.T) {
+	src := newTestSrc(t)
+
+	t.Run("nil passes through", func(t *testing.T) {
+		require.NoError(t, rewriteCertVerificationError(nil, src))
+	})
+
+	t.Run("non-cert error passes through unchanged", func(t *testing.T) {
+		in := errz.New("connection refused")
+		out := rewriteCertVerificationError(in, src)
+		require.Same(t, in, out)
+	})
+
+	t.Run("cert error gets the actionable hint", func(t *testing.T) {
+		in := x509.UnknownAuthorityError{}
+		out := rewriteCertVerificationError(in, src)
+		require.Error(t, out)
+		require.Contains(t, out.Error(), "certificate verification failed")
+		require.Contains(t, out.Error(), "insecure=true")
+		require.Contains(t, out.Error(), "@rq")
+	})
+
+	t.Run("cert error hint uses & when location already has ?", func(t *testing.T) {
+		srcTLS := &source.Source{
+			Handle:   "@rq",
+			Type:     drivertype.Rqlite,
+			Location: "rqlite://host:4001?tls=true",
+		}
+		in := x509.UnknownAuthorityError{}
+		out := rewriteCertVerificationError(in, srcTLS)
+		require.Error(t, out)
+		require.Contains(t, out.Error(), "rqlite://host:4001?tls=true&insecure=true")
+		// Verify we did NOT produce the malformed "?tls=true?tls=true&insecure=true" form.
+		require.NotContains(t, out.Error(), "?tls=true?tls=true")
 	})
 }

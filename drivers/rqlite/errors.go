@@ -3,6 +3,7 @@ package rqlite
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"io"
 	"net"
@@ -199,6 +200,63 @@ func isTLSSignal(err error) bool {
 	// gorqlite/Go-net-http-specific; revisit if rqlite changes its
 	// HTTP stack.
 	if strings.Contains(err.Error(), "HTTP request to an HTTPS server") {
+		return true
+	}
+	return false
+}
+
+// rewriteCertVerificationError, if err looks like a TLS certificate
+// verification failure, wraps it with a hint pointing at
+// ?insecure=true (for self-signed deployments) and installing the
+// CA (for production). Otherwise returns err unchanged.
+func rewriteCertVerificationError(err error, src *source.Source) error {
+	if err == nil || !isCertVerificationError(err) {
+		return err
+	}
+	loc := src.RedactedLocation()
+	sep := "?"
+	if strings.Contains(loc, "?") {
+		sep = "&"
+	}
+	return errz.Wrapf(err,
+		"%s: TLS certificate verification failed. If this is a "+
+			"self-signed or private-CA deployment, retry with "+
+			"%s%sinsecure=true, or install the CA in your trust store",
+		src.Handle, loc, sep)
+}
+
+// isCertVerificationError reports whether err is (or wraps) one of
+// the x509 / crypto/tls verification error types. Used by the
+// enrichment to decide whether to suggest ?insecure=true.
+//
+// In production today, only the substring check (the last branch)
+// reliably fires, because gorqlite's rqliteApiCall serializes
+// transport errors via errors.New(builder.String()), breaking the
+// errors.As chain. The errors.As checks are retained as forward-
+// compat defenses for a future gorqlite that preserves the chain,
+// or callers that pass a non-gorqlite error.
+func isCertVerificationError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var unkAuth x509.UnknownAuthorityError
+	if errors.As(err, &unkAuth) {
+		return true
+	}
+	var hostErr x509.HostnameError
+	if errors.As(err, &hostErr) {
+		return true
+	}
+	var verifyErr *tls.CertificateVerificationError
+	if errors.As(err, &verifyErr) {
+		return true
+	}
+	// Substring fallback: the canonical "x509:" prefix on Go's
+	// certificate verification errors survives gorqlite's string
+	// serialization, so the substring check is the workhorse in
+	// production. Match conservatively on "x509:" since that prefix
+	// is reserved for x509 errors in Go's stdlib.
+	if strings.Contains(err.Error(), "x509:") {
 		return true
 	}
 	return false
