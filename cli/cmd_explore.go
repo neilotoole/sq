@@ -12,6 +12,7 @@ import (
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -97,6 +98,15 @@ func execExplore(cmd *cobra.Command, args []string) error {
 		EmitHandle:   emit,
 		NoColor:      noColorFor(ru) || OptMonochrome.Get(o),
 		PreviewRows:  previewRows,
+	}
+
+	// The TUI owns the terminal. Progress bars (rendered to stderr by
+	// metadata fetches and ingest jobs) would scribble over bubbletea's
+	// alt screen, so stop the progress widget and detach it from the
+	// context for the TUI's lifetime. Progress consumers are nil-safe.
+	if prog := progress.FromContext(ctx); prog != nil {
+		prog.Stop()
+		ctx = progress.NewContext(ctx, nil)
 	}
 
 	finalHandle, err := explore.Run(ctx, ru, cfg)
