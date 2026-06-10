@@ -353,6 +353,130 @@ func TestApplyEdits(t *testing.T) {
 	}
 }
 
+// TestExtractForeignTableRefsFromCreateTableStmt covers the helper that
+// powers gh759's self-FK rewrite in CopyTable: every REFERENCES <table>
+// occurrence inside a CREATE TABLE stmt must come back with a byte offset
+// that round-trips against the input.
+func TestExtractForeignTableRefsFromCreateTableStmt(t *testing.T) {
+	testCases := []struct {
+		name  string
+		in    string
+		want  []sqlparser.ForeignTableRef
+		isErr bool
+	}{
+		{
+			name: "no_fks",
+			in:   `CREATE TABLE actor (id INTEGER PRIMARY KEY, name TEXT)`,
+			want: nil,
+		},
+		{
+			name: "column_constraint_self_fk_unquoted",
+			in:   `CREATE TABLE actor (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES actor(id))`,
+			want: []sqlparser.ForeignTableRef{{RawTable: "actor", Table: "actor"}},
+		},
+		{
+			name: "column_constraint_self_fk_quoted",
+			in:   `CREATE TABLE "actor" (id INTEGER, parent_id INTEGER REFERENCES "actor"(id))`,
+			want: []sqlparser.ForeignTableRef{{RawTable: `"actor"`, Table: "actor"}},
+		},
+		{
+			name: "table_constraint_self_fk",
+			in:   `CREATE TABLE actor (id INTEGER, parent_id INTEGER, FOREIGN KEY (parent_id) REFERENCES actor(id))`,
+			want: []sqlparser.ForeignTableRef{{RawTable: "actor", Table: "actor"}},
+		},
+		{
+			name: "cross_table_fk_only",
+			in:   `CREATE TABLE address (id INTEGER, city_id INTEGER REFERENCES city(id))`,
+			want: []sqlparser.ForeignTableRef{{RawTable: "city", Table: "city"}},
+		},
+		{
+			name: "mixed_fks_in_source_order",
+			in:   `CREATE TABLE film (id INTEGER, lang INTEGER REFERENCES language(id), parent INTEGER REFERENCES film(id))`,
+			want: []sqlparser.ForeignTableRef{
+				{RawTable: "language", Table: "language"},
+				{RawTable: "film", Table: "film"},
+			},
+		},
+		{
+			name: "fk_target_with_square_bracket_quotes",
+			in:   `CREATE TABLE actor (id INTEGER, parent_id INTEGER REFERENCES [actor](id))`,
+			want: []sqlparser.ForeignTableRef{{RawTable: "[actor]", Table: "actor"}},
+		},
+		{
+			name: "fk_target_case_preserved",
+			in:   `CREATE TABLE actor (id INTEGER, parent_id INTEGER REFERENCES Actor(id))`,
+			want: []sqlparser.ForeignTableRef{{RawTable: "Actor", Table: "Actor"}},
+		},
+		{
+			name:  "invalid_stmt",
+			in:    `NOT A CREATE STATEMENT`,
+			isErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := sqlparser.ExtractForeignTableRefsFromCreateTableStmt(tc.in)
+			if tc.isErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, got, len(tc.want))
+			for i, w := range tc.want {
+				require.Equal(t, w.RawTable, got[i].RawTable, "RawTable mismatch at index %d", i)
+				require.Equal(t, w.Table, got[i].Table, "Table mismatch at index %d", i)
+				// Offsets must round-trip against the input.
+				require.Equal(t, got[i].RawTable,
+					tc.in[got[i].TableOffset:got[i].TableOffset+len(got[i].RawTable)],
+					"TableOffset must point at RawTable in the input at index %d", i)
+			}
+		})
+	}
+}
+
+// TestExtractForeignTableRefsFromCreateTableStmt_EditIntegration is the
+// end-to-end story for gh759: every self-FK offset becomes an
+// ApplyEdits Edit alongside the table-identifier edit, and the rewritten
+// DDL points all self-FKs at the destination.
+func TestExtractForeignTableRefsFromCreateTableStmt_EditIntegration(t *testing.T) {
+	const input = `CREATE TABLE "actor" (id INTEGER PRIMARY KEY, ` +
+		`parent_id INTEGER REFERENCES "actor"(id), ` +
+		`buddy INTEGER REFERENCES "actor"(id))`
+
+	ident, err := sqlparser.ExtractTableIdentFromCreateTableStmt(input)
+	require.NoError(t, err)
+	refs, err := sqlparser.ExtractForeignTableRefsFromCreateTableStmt(input)
+	require.NoError(t, err)
+	require.Len(t, refs, 2)
+
+	const destQuoted = `"actor_bak"`
+	edits := []sqlparser.Edit{{
+		Start:       ident.TableOffset,
+		End:         ident.TableOffset + len(ident.RawTable),
+		Replacement: destQuoted,
+	}}
+	for _, r := range refs {
+		if !strings.EqualFold(r.Table, ident.Table) {
+			continue
+		}
+		edits = append(edits, sqlparser.Edit{
+			Start:       r.TableOffset,
+			End:         r.TableOffset + len(r.RawTable),
+			Replacement: destQuoted,
+		})
+	}
+
+	got, err := sqlparser.ApplyEdits(input, edits)
+	require.NoError(t, err)
+	const want = `CREATE TABLE "actor_bak" (id INTEGER PRIMARY KEY, ` +
+		`parent_id INTEGER REFERENCES "actor_bak"(id), ` +
+		`buddy INTEGER REFERENCES "actor_bak"(id))`
+	require.Equal(t, want, got)
+	require.False(t, strings.Contains(got, `"actor"`),
+		"every self-FK occurrence must be rewritten")
+}
+
 // TestApplyEdits_DDLRewriteIntegration sanity-checks the end-to-end story
 // that motivates gh750: parser offsets feed ApplyEdits, and the resulting
 // DDL is correct even when the column name shares a prefix with its type

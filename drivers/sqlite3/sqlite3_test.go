@@ -1,9 +1,11 @@
 package sqlite3_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -556,6 +558,96 @@ func TestDriveri_CopyTable_TableIdentInDefaultLiteral(t *testing.T) {
 		`SELECT tag FROM actor_bak WHERE id=2`).Scan(&tag))
 	require.Equal(t, "actor_tag", tag,
 		"the DEFAULT literal must not be rewritten by the table-identifier substitution")
+}
+
+// TestDriveri_CopyTable_RewritesSelfFK verifies gh759: a CREATE TABLE
+// with a self-referential FOREIGN KEY (REFERENCES <src>(...)) must have
+// the FK target rewritten to the destination, so the destination's FKs
+// resolve against itself rather than the source.
+func TestDriveri_CopyTable_RewritesSelfFK(t *testing.T) {
+	testCases := []struct {
+		name string
+		ddl  string // %[1]s is the source table name (parameterized so we
+		// exercise both quoted and unquoted FK target forms).
+	}{
+		{
+			name: "column_constraint_unquoted",
+			ddl:  `CREATE TABLE %[1]s (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES %[1]s(id))`,
+		},
+		{
+			name: "column_constraint_quoted",
+			ddl:  `CREATE TABLE "%[1]s" (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES "%[1]s"(id))`,
+		},
+		{
+			name: "table_constraint",
+			ddl:  `CREATE TABLE %[1]s (id INTEGER PRIMARY KEY, parent_id INTEGER, FOREIGN KEY(parent_id) REFERENCES %[1]s(id))`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			th := testh.New(t)
+			src := &source.Source{
+				Handle:   "@test",
+				Type:     drivertype.SQLite,
+				Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+			}
+			grip := th.Open(src)
+			db, err := grip.DB(th.Context)
+			require.NoError(t, err)
+			drvr := grip.SQLDriver()
+
+			// FK enforcement is required for the runtime-behavior assertion.
+			_, err = db.ExecContext(th.Context, `PRAGMA foreign_keys = ON`)
+			require.NoError(t, err)
+
+			const srcName, dstName = "actor", "actor_bak"
+			_, err = db.ExecContext(th.Context, fmt.Sprintf(tc.ddl, srcName))
+			require.NoError(t, err)
+			// Seed the source with id=1 so we can verify the destination FK
+			// does NOT resolve to it after the copy.
+			_, err = db.ExecContext(th.Context,
+				fmt.Sprintf(`INSERT INTO %q (id) VALUES (1)`, srcName))
+			require.NoError(t, err)
+
+			_, err = drvr.CopyTable(th.Context, db,
+				tablefq.T{Table: srcName}, tablefq.T{Table: dstName}, false)
+			require.NoError(t, err)
+
+			// Destination DDL must name the destination in its REFERENCES clause.
+			var destDDL string
+			require.NoError(t, db.QueryRowContext(th.Context,
+				`SELECT sql FROM sqlite_master WHERE type='table' AND name=?`, dstName).Scan(&destDDL))
+			require.Contains(t, destDDL, `REFERENCES`,
+				"destination DDL should still carry a REFERENCES clause")
+			require.True(t,
+				strings.Contains(destDDL, fmt.Sprintf(`REFERENCES %s(`, dstName)) ||
+					strings.Contains(destDDL, fmt.Sprintf(`REFERENCES "%s"(`, dstName)),
+				"REFERENCES must name the destination, got: %s", destDDL)
+			require.False(t,
+				strings.Contains(destDDL, fmt.Sprintf(`REFERENCES %s(`, srcName)) ||
+					strings.Contains(destDDL, fmt.Sprintf(`REFERENCES "%s"(`, srcName)),
+				"REFERENCES must no longer name the source, got: %s", destDDL)
+
+			// Runtime check: inserting a row whose parent_id points at id=1
+			// must fail, because id=1 lives only in the source. If the FK
+			// still pointed at the source (the gh759 bug), the insert would
+			// succeed.
+			_, err = db.ExecContext(th.Context,
+				fmt.Sprintf(`INSERT INTO %q (id, parent_id) VALUES (10, 1)`, dstName))
+			require.Error(t, err,
+				"FK must resolve to the destination; an id present only in the source must not satisfy it")
+
+			// Sanity: a self-referential insert against the destination's own
+			// row resolves cleanly.
+			_, err = db.ExecContext(th.Context,
+				fmt.Sprintf(`INSERT INTO %q (id) VALUES (2)`, dstName))
+			require.NoError(t, err)
+			_, err = db.ExecContext(th.Context,
+				fmt.Sprintf(`INSERT INTO %q (id, parent_id) VALUES (3, 2)`, dstName))
+			require.NoError(t, err)
+		})
+	}
 }
 
 // TestSourceMetadata_LocationWithConnParams reproduces gh720: a

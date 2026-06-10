@@ -174,6 +174,13 @@ keyring support) and support for [rqlite](https://sq.io/docs/drivers/rqlite).
   `sqlparser` package now exposes `ColDef.RawNameOffset` / `ColDef.RawTypeOffset`,
   a `TableIdent` struct with token offsets, and an `ApplyEdits` helper for
   non-overlapping byte-range splicing.
+- [#759]: `CopyTable` on the [sqlite3](https://sq.io/docs/drivers/sqlite) and
+  [rqlite](https://sq.io/docs/drivers/rqlite) drivers now rewrites
+  self-referential foreign keys to point at the destination table. Previously
+  the destination's `REFERENCES <src>(...)` clause was left untouched, so its
+  FKs resolved against the source table instead of itself. The shared
+  `sqlparser` package gains `ExtractForeignTableRefsFromCreateTableStmt` for
+  this rewrite; cross-table FKs are left alone.
 
 ## [v0.53.0] - 2026-05-25
 
@@ -1757,6 +1764,7 @@ make working with lots of sources much easier.
 [#744]: https://github.com/neilotoole/sq/issues/744
 [#750]: https://github.com/neilotoole/sq/issues/750
 [#752]: https://github.com/neilotoole/sq/issues/752
+[#759]: https://github.com/neilotoole/sq/issues/759
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
