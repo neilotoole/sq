@@ -1136,8 +1136,10 @@ func TestCopyTable_RewritesSelfFK(t *testing.T) {
 // TestCopyTable_LeavesCrossFKsAlone is the rqlite half of the cross-FK
 // preservation invariant: REFERENCES whose target is not the source
 // table must survive the copy untouched, even when the same table also
-// carries a self-FK that does get rewritten. Predicate-inversion
-// regression class introduced by gh759; mirrored on both drivers.
+// carries a self-FK that does get rewritten. A regression that
+// inverted the predicate would silently re-point cross-table FKs at
+// the destination, a worse bug than the original gh759. Mirrored on
+// both drivers.
 func TestCopyTable_LeavesCrossFKsAlone(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()

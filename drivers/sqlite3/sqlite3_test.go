@@ -792,9 +792,9 @@ func TestDriveri_CopyTable_CompositeSelfFK(t *testing.T) {
 }
 
 // TestDriveri_CopyTable_PreservesOnDeleteCascade is the runtime sibling
-// of the sqlparser-level PreservesActionClauses test: prove that a self
-// FK with ON DELETE CASCADE not only round-trips textually through the
-// rewrite, but still fires against the destination table at runtime.
+// of the sqlparser-level PreservesActionClauses test: verifies that a
+// self FK with ON DELETE CASCADE round-trips textually through the
+// rewrite and still fires against the destination table at runtime.
 // Catches a regression class where the rewrite mangles the action clause
 // in some way that survives the parser's eyes but breaks SQLite's.
 func TestDriveri_CopyTable_PreservesOnDeleteCascade(t *testing.T) {
