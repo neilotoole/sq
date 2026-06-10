@@ -13,6 +13,29 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
+// pragmaSkip enumerates pragmas that getDBProperties must not read.
+// The pragma table-valued function mechanism ("SELECT * FROM pragma_x")
+// executes the pragma to produce its rows, so these aren't passive
+// properties: reading them would mutate the database or scan it
+// end-to-end. Notably, "SELECT * FROM pragma_optimize" can run ANALYZE,
+// which writes sqlite_stat1: that made the nominally read-only metadata
+// path take SQLite's file write lock, so concurrent SourceMetadata
+// calls flaked with "database is locked" (SQLITE_BUSY) on loaded CI
+// runners (gh699). It would also fail outright on a read-only source
+// (e.g. ?mode=ro).
+//
+// As of SQLite 3.51, incremental_vacuum and wal_checkpoint have no
+// pragma function (the "no such table" branch in readPragma skips
+// them), but they're listed defensively in case that changes.
+var pragmaSkip = map[string]bool{
+	"foreign_key_check":  true, // full-db scan
+	"incremental_vacuum": true, // mutates: frees pages from the freelist
+	"integrity_check":    true, // full-db scan
+	"optimize":           true, // mutates: may run ANALYZE, writing sqlite_stat1
+	"quick_check":        true, // full-db scan
+	"wal_checkpoint":     true, // mutates: forces a WAL checkpoint
+}
+
 // getDBProperties returns a map of the DB's settings, as exposed
 // via SQLite's pragma mechanism. The supplied incr func should
 // be invoked for each row read from the DB.
@@ -26,6 +49,10 @@ func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 
 	m := make(map[string]any, len(pragmas))
 	for _, pragma := range pragmas {
+		if pragmaSkip[pragma] {
+			continue
+		}
+
 		var val any
 		val, err = readPragma(ctx, db, pragma)
 		if err != nil {

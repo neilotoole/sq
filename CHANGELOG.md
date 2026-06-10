@@ -143,6 +143,15 @@ keyring support) and support for [rqlite](https://sq.io/docs/drivers/rqlite).
 
 ### Fixed
 
+- [#699]: The [SQLite driver](https://sq.io/docs/drivers/sqlite) no longer executes
+  side-effecting or whole-database-scanning pragmas when reading source metadata
+  (e.g. [`sq inspect`](https://sq.io/docs/inspect)). Reading DB properties via SQLite's
+  pragma table-valued functions actually executes each pragma, so `pragma_optimize`
+  could run `ANALYZE`, silently writing `sqlite_stat1` to the database. That made the
+  nominally read-only metadata path take the file write lock (concurrent metadata reads
+  could then fail with `database is locked`), and `integrity_check` / `quick_check` /
+  `foreign_key_check` scanned the entire database on every inspect. These pragmas are
+  now skipped, and those keys no longer appear in the inspect output's DB properties.
 - [#743]: [`sq add`](https://sq.io/docs/cmd/add) shell completion: `<scheme>://host:port?<TAB>`
   now offers connection parameters instead of credential placeholders.
   Bare-host (no `user@`) URLs are recognized correctly for postgres,
@@ -1754,6 +1763,7 @@ make working with lots of sources much easier.
 [#444]: https://github.com/neilotoole/sq/issues/444
 [#660]: https://github.com/neilotoole/sq/issues/660
 [#692]: https://github.com/neilotoole/sq/issues/692
+[#699]: https://github.com/neilotoole/sq/issues/699
 [#716]: https://github.com/neilotoole/sq/issues/716
 [#717]: https://github.com/neilotoole/sq/issues/717
 [#714]: https://github.com/neilotoole/sq/issues/714
