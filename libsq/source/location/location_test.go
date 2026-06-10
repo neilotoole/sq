@@ -139,9 +139,13 @@ func TestShort(t *testing.T) {
 		{loc: "postgres://sakila:p_ssW0rd@localhost:5432/sakila", want: "sakila@localhost:5432/sakila"},
 		{loc: "mysql://sakila:p_ssW0rd@localhost:3306/sakila", want: "sakila@localhost:3306/sakila"},
 		{loc: "rqlite://sakila:p_ssW0rd@localhost:4001", want: "sakila@localhost:4001"},
-		{loc: "rqlites://sakila:p_ssW0rd@localhost:4001", want: "sakila@localhost:4001"},
+		{loc: "rqlite://sakila:p_ssW0rd@localhost:4001?tls=true", want: "sakila@localhost:4001"},
 		{loc: "rqlite://localhost:4001", want: "localhost:4001"},
 		{loc: "rqlite://sakila:p_ssW0rd@localhost:4001?level=strong", want: "sakila@localhost:4001"},
+		// Unknown schemes must not leak inline credentials. rqlites:// was once
+		// special-cased; now it flows through the generic redaction paths.
+		{loc: "rqlites://alice:secret@host:4001", want: "rqlites://alice:xxxxx@host:4001"},
+		{loc: "mysqlx://bob:hunter2@host:33060", want: "mysqlx://bob:xxxxx@host:33060"},
 	}
 
 	for _, tc := range testCases {
@@ -149,7 +153,43 @@ func TestShort(t *testing.T) {
 			got := location.Short(tc.loc)
 			require.NotContains(t, got, "p_ssW0rd",
 				"Short must not echo passwords")
+			require.NotContains(t, got, "secret",
+				"Short must not echo passwords for unknown schemes")
+			require.NotContains(t, got, "hunter2",
+				"Short must not echo passwords for unknown schemes")
 			require.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func TestParseUnknownSchemeRedaction(t *testing.T) {
+	// Parse must not echo inline passwords in error messages for
+	// unknown schemes. rqlites:// is used as a representative case
+	// (it was once special-cased; now it flows through generic paths).
+	cases := []struct {
+		loc      string
+		password string
+	}{
+		{loc: "rqlites://alice:secret@host", password: "secret"},
+		{loc: "mysqlx://bob:hunter2@host:33060", password: "hunter2"},
+	}
+	for _, tc := range cases {
+		t.Run(tu.Name(tc.loc), func(t *testing.T) {
+			_, err := location.Parse(tc.loc)
+			require.Error(t, err)
+			require.NotContains(t, err.Error(), tc.password,
+				"Parse must not echo inline passwords on unknown schemes")
+			require.Contains(t, err.Error(), "xxxxx",
+				"redactBestEffort should mask the password")
+		})
+	}
+}
+
+func TestParseRqliteMalformedRedaction(t *testing.T) {
+	// Malformed IPv6 bracket: url.ParseRequestURI rejects it, and the
+	// error must not echo the inline password.
+	_, err := location.Parse("rqlite://alice:secret@[::1")
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "secret")
+	require.Contains(t, err.Error(), "xxxxx")
 }

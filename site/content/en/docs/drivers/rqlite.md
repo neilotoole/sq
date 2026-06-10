@@ -21,7 +21,7 @@ see [Limitations](#limitations) for what isn't.
 ## Add source
 
 Use [`sq add`](/docs/cmd/add) to add a source. The location argument is
-an HTTP(S) URL using one of two schemes:
+an HTTP(S) URL using the `rqlite://` scheme:
 
 ```shell
 # Single-node setup (the common local case): disable cluster discovery
@@ -37,7 +37,10 @@ $ sq add 'rqlite://sakila:p_ssW0rd@localhost:4001?disableClusterDiscovery=true' 
 $ sq add 'rqlite://node1.example.com:4001'
 
 # HTTPS
-$ sq add 'rqlites://node.example.com:4001'
+$ sq add 'rqlite://node.example.com:4001?tls=true'
+
+# HTTPS with a self-signed certificate
+$ sq add 'rqlite://node.example.com:4001?tls=true&insecure=true'
 ```
 
 If the port is omitted, `sq` auto-applies the default port `4001`.
@@ -47,7 +50,6 @@ If the port is omitted, `sq` auto-applies the default port `4001`.
 ```text
 rqlite://username:password@hostname:port
 rqlite://username:password@hostname:port?param=value
-rqlites://username:password@hostname:port?param=value
 ```
 
 ## Common setups
@@ -115,6 +117,24 @@ makes to the rqlite node. Integer-valued; defaults to `10`. Increase it
 for slow links or large multi-statement batches; decrease it to
 fail-fast against a flaky node.
 
+### TLS
+
+By default rqlite serves plain HTTP. To connect over HTTPS, add `tls=true`:
+
+```shell
+$ sq add 'rqlite://node.example.com:4001?tls=true'
+```
+
+If the server presents a self-signed certificate or one issued by a
+private CA, add `insecure=true` (valid only with `tls=true`):
+
+```shell
+$ sq add 'rqlite://node.example.com:4001?tls=true&insecure=true'
+```
+
+`insecure=true` skips TLS certificate verification for the source.
+Prefer installing the CA in your trust store for production use.
+
 ## Write behavior
 
 rqlite has no interactive transactions; its HTTP API exposes single
@@ -159,15 +179,16 @@ you're comparing notes against raw `gorqlite` results:
 
 ## Limitations
 
-- **`sq tbl copy` and `ALTER TABLE` kind swaps don't carry indexes,
-  triggers, or self-referential foreign keys.** The table DDL itself is
-  preserved via SQL-text rewrite (`UNIQUE`, `FOREIGN KEY`,
-  `AUTOINCREMENT`, `CHECK`, composite `PRIMARY KEY`, exact `DEFAULT`
-  expressions, `WITHOUT ROWID`, and column comments), matching the
-  [sqlite3 driver](/docs/drivers/sqlite). Indexes and triggers live as
-  separate `sqlite_master` rows and aren't carried. Self-referential
-  FKs aren't rewritten either: copying `actor` to `actor_bak` leaves a
-  `REFERENCES "actor"(id)` clause pointing at the original `actor`.
+- **`sq tbl copy` and `ALTER TABLE` kind swaps don't carry indexes or
+  triggers.** The table DDL itself is preserved via SQL-text rewrite
+  (`UNIQUE`, `FOREIGN KEY`, `AUTOINCREMENT`, `CHECK`, composite
+  `PRIMARY KEY`, exact `DEFAULT` expressions, `WITHOUT ROWID`, and
+  column comments), matching the
+  [sqlite3 driver](/docs/drivers/sqlite). Self-referential foreign
+  keys are rewritten to point at the destination table: copying
+  `actor` to `actor_bak` produces a `REFERENCES "actor_bak"(id)`
+  clause. Indexes and triggers live as separate `sqlite_master` rows
+  and aren't carried.
 - **Schemas and catalogs are not supported.** SQLite has no schema or
   catalog concept, so `sq inspect` reports them as the conventional
   values `main` and `default` respectively. `CreateSchema`,

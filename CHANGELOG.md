@@ -26,6 +26,10 @@ keyring support) and support for [rqlite](https://sq.io/docs/drivers/rqlite).
 - 🐥 [#444]: Added [rqlite driver](https://sq.io/docs/drivers/rqlite). `sq` now supports reading
   from, inspecting, and writing to [rqlite](https://rqlite.io) clusters, the lightweight
   distributed SQLite database.
+  - [#756]: Single URL scheme `rqlite://` with `?tls=true` for HTTPS (matching `mysql?tls=true`,
+    `postgres?sslmode=...` etc.) and the companion `?insecure=true` for self-signed certs.
+    Connection errors are enriched with actionable hints (add `?tls=true`, or `&insecure=true`
+    for self-signed certs) when the failure looks TLS-related.
 - [#441]: [`sq add`](https://sq.io/docs/cmd/add) gains a `--store inline|keyring`
   flag, and a new [`secrets.store`](https://sq.io/docs/config#secretsstore) config option
   controls the default; existing behavior is preserved (`inline`).
@@ -1781,6 +1785,7 @@ make working with lots of sources much easier.
 [#744]: https://github.com/neilotoole/sq/issues/744
 [#750]: https://github.com/neilotoole/sq/issues/750
 [#752]: https://github.com/neilotoole/sq/issues/752
+[#756]: https://github.com/neilotoole/sq/issues/756
 [#757]: https://github.com/neilotoole/sq/issues/757
 [#759]: https://github.com/neilotoole/sq/issues/759
 

@@ -5,6 +5,7 @@ package location
 // overlap and duplication. It should be consolidated.
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"path"
@@ -27,7 +28,6 @@ var dbSchemes = []string{
 	"postgres",
 	"sqlite3",
 	"rqlite",
-	"rqlites",
 	"duckdb",
 	"clickhouse",
 	"oracle",
@@ -120,19 +120,27 @@ func Short(loc string) string {
 			return name
 		}
 
-		// It's not a http URL, so it must be a filepath
+		// It's not an HTTP URL. If it has a scheme separator, it's likely
+		// a URL with an unknown driver scheme (not a filepath); redact
+		// best-effort rather than mangle it via filepath.Base, which would
+		// echo inline credentials like "user:pass@host" verbatim.
+		if strings.Contains(loc, "://") {
+			return redactBestEffort(loc)
+		}
+
+		// True filepath.
 		loc = filepath.Clean(loc)
 		return filepath.Base(loc)
 	}
 
 	// It's a SQL driver.
 	//
-	// rqlite (rqlite:// for HTTP, rqlites:// for HTTPS) is a network SQL
-	// driver, but xo/dburl doesn't know its schemes, so Parse-ing through
-	// dburl returns an error and the fallback "return loc" would echo
-	// inline credentials. Handle it via url.ParseRequestURI here, mirroring
-	// the user@host[:port] shape used for the other DSN drivers below.
-	if strings.HasPrefix(loc, "rqlite://") || strings.HasPrefix(loc, "rqlites://") {
+	// rqlite is a network SQL driver, but xo/dburl doesn't know its
+	// scheme, so Parse-ing through dburl returns an error and the
+	// fallback would echo inline credentials. Handle it via
+	// url.ParseRequestURI here, mirroring the user@host[:port] shape
+	// used for the other DSN drivers below.
+	if strings.HasPrefix(loc, "rqlite://") {
 		ru, err := url.ParseRequestURI(loc)
 		if err != nil {
 			// Couldn't parse; fall back to best-effort credential masking
@@ -150,7 +158,10 @@ func Short(loc string) string {
 
 	u, err := dburl.Parse(loc)
 	if err != nil {
-		return loc
+		// dburl rejected the scheme. Don't echo loc verbatim — it
+		// may carry inline credentials. redactBestEffort applies
+		// regex masking of user:pass@ and PWD= shapes.
+		return redactBestEffort(loc)
 	}
 
 	if u.Scheme == "sqlite3" || u.Scheme == "duckdb" {
@@ -239,7 +250,7 @@ func Parse(loc string) (*Fields, error) {
 	if !strings.Contains(loc, "://") {
 		if strings.Contains(loc, ":/") {
 			// malformed location, such as "sqlite3:/path/to/file"
-			return nil, errz.Errorf("parse location: invalid scheme: %s", loc)
+			return nil, errz.Errorf("parse location: invalid scheme: %s", redactBestEffort(loc))
 		}
 
 		// no scheme: it's just a regular file path for a document such as an Excel file
@@ -254,7 +265,7 @@ func Parse(loc string) (*Fields, error) {
 	}
 
 	if u, ok := isHTTP(loc); ok {
-		// It's a http or https URL
+		// It's an HTTP or HTTPS URL.
 		fields.Scheme = u.Scheme
 		fields.Hostname = u.Hostname()
 		if u.Port() != "" {
@@ -304,10 +315,10 @@ func Parse(loc string) (*Fields, error) {
 		return fields, nil
 	}
 
-	// rqlite (rqlite:// for HTTP, rqlites:// for HTTPS) is a network SQL
-	// driver, but xo/dburl doesn't know its schemes, so we parse it here
-	// rather than fall through to dburl.Parse below.
-	if strings.HasPrefix(loc, "rqlite://") || strings.HasPrefix(loc, "rqlites://") {
+	// rqlite is a network SQL driver, but xo/dburl doesn't know its
+	// scheme, so we parse it here rather than fall through to
+	// dburl.Parse below.
+	if strings.HasPrefix(loc, "rqlite://") {
 		return parseRqlite(loc, fields)
 	}
 
@@ -336,7 +347,10 @@ func Parse(loc string) (*Fields, error) {
 
 	u, err := dburl.Parse(loc)
 	if err != nil {
-		return nil, errz.Err(err)
+		// dburl's error may embed the raw input URL with inline
+		// credentials. Wrap with a redacted-loc message instead of
+		// surfacing dburl's err verbatim.
+		return nil, errz.Errorf("parse location: invalid: %s", redactBestEffort(loc))
 	}
 
 	fields.Scheme = u.OriginalScheme
@@ -353,7 +367,7 @@ func Parse(loc string) (*Fields, error) {
 
 	switch fields.Scheme {
 	default:
-		return nil, errz.Errorf("parse location: invalid scheme: %s", loc)
+		return nil, errz.Errorf("parse location: invalid scheme: %s", redactBestEffort(loc))
 	case "sqlserver":
 		fields.DriverType = drivertype.MSSQL
 
@@ -394,14 +408,21 @@ func Parse(loc string) (*Fields, error) {
 	return fields, nil
 }
 
-// parseRqlite parses an rqlite:// or rqlites:// location into fields.
-// xo/dburl doesn't recognize either scheme, so this bypass uses
-// url.ParseRequestURI directly. fields is partially populated by the
-// caller; this function fills in the rqlite-specific bits.
+// parseRqlite parses an rqlite:// location into fields. xo/dburl doesn't
+// recognize the rqlite scheme, so this bypass uses url.ParseRequestURI
+// directly. fields is partially populated by the caller; this function
+// fills in the rqlite-specific bits.
 func parseRqlite(loc string, fields *Fields) (*Fields, error) {
 	u, err := url.ParseRequestURI(loc)
 	if err != nil {
-		return nil, errz.Wrapf(err, "parse location: %s", loc)
+		// url.Error embeds the raw input URL, which may carry inline
+		// credentials. Strip that wrapper so only the redacted loc
+		// appears in the message, but keep the underlying cause.
+		var uerr *url.Error
+		if errors.As(err, &uerr) {
+			err = uerr.Err
+		}
+		return nil, errz.Wrapf(err, "parse location: %s", redactBestEffort(loc))
 	}
 
 	fields.Scheme = u.Scheme
@@ -415,7 +436,8 @@ func parseRqlite(loc string, fields *Fields) (*Fields, error) {
 	if u.Port() != "" {
 		fields.Port, err = strconv.Atoi(u.Port())
 		if err != nil {
-			return nil, errz.Wrapf(err, "parse location: invalid port {%s}: %s", u.Port(), loc)
+			return nil, errz.Wrapf(err, "parse location: invalid port {%s}: %s", u.Port(),
+				redactBestEffort(loc))
 		}
 	}
 	fields.Name = strings.TrimPrefix(u.Path, "/")
@@ -617,6 +639,18 @@ func redactRaw(loc string) string {
 		}
 
 		return u.Redacted()
+	case strings.HasPrefix(loc, "rqlite://"):
+		// rqlite is a network SQL driver unknown to dburl; redact its
+		// userinfo explicitly rather than relying on the best-effort
+		// regex fallback below.
+		u, err := url.ParseRequestURI(loc)
+		if err != nil {
+			return redactBestEffort(loc)
+		}
+		if _, ok := u.User.Password(); ok {
+			u.User = url.UserPassword(u.User.Username(), "xxxxx")
+		}
+		return u.String()
 	}
 
 	// At this point, we expect it's a DSN
