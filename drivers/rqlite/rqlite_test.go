@@ -397,6 +397,63 @@ func TestAlterTableColumnKinds(t *testing.T) {
 	require.Equal(t, "hello", gotB)
 }
 
+// TestAlterTableColumnKinds_PreservesAutoincrementSeq reproduces gh757: the
+// table-rebuild dance in AlterTableColumnKinds dropped the original table,
+// which removed its sqlite_sequence row, so AUTOINCREMENT restarted from
+// MAX(rowid)+1 instead of seq+1. With rows previously deleted from the high
+// end, the next insert silently reused their ids. Mirrors the sqlite3
+// driver test.
+func TestAlterTableColumnKinds_PreservesAutoincrementSeq(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	tblName := "seqtbl_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY AUTOINCREMENT, val INTEGER NOT NULL)`, tblName))
+	require.NoError(t, err)
+
+	for i := 1; i <= 10; i++ {
+		_, err = db.ExecContext(th.Context,
+			fmt.Sprintf(`INSERT INTO %q (val) VALUES (?)`, tblName), i)
+		require.NoError(t, err)
+	}
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf(`DELETE FROM %q WHERE id > 5`, tblName))
+	require.NoError(t, err)
+
+	var seq, maxID int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT seq FROM sqlite_sequence WHERE name=?`, tblName).Scan(&seq))
+	require.Equal(t, int64(10), seq)
+	require.NoError(t, db.QueryRowContext(th.Context,
+		fmt.Sprintf(`SELECT MAX(id) FROM %q`, tblName)).Scan(&maxID))
+	require.Equal(t, int64(5), maxID)
+
+	require.NoError(t, drvr.AlterTableColumnKinds(th.Context, db, tblName,
+		[]string{"val"}, []kind.Kind{kind.Text}))
+
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf(`INSERT INTO %q (val) VALUES ('post-alter')`, tblName))
+	require.NoError(t, err)
+
+	var newID int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		fmt.Sprintf(`SELECT id FROM %q WHERE val = 'post-alter'`, tblName)).Scan(&newID))
+	require.Equal(t, int64(11), newID,
+		"AUTOINCREMENT must continue from the preserved sequence (seq+1), not MAX(rowid)+1")
+}
+
 // TestAlterTableColumnKinds_QuotedIdentifier reproduces gh752: a column
 // declared with any of SQLite's four legal identifier-quoting styles
 // (double-quote, single-quote, backtick, square brackets) used to fail the
