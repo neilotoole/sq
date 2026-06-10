@@ -91,8 +91,13 @@ func execExplore(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Collection.Sources returns config-file (insertion) order; sort by
+	// handle to match sq ls. The slice is a copy, safe to sort in place.
+	sources := ru.Config.Collection.Sources()
+	source.Sort(sources)
+
 	cfg := explore.Config{
-		Sources:      ru.Config.Collection.Sources(),
+		Sources:      sources,
 		FocusedSrc:   src,
 		FocusedTable: table,
 		EmitHandle:   emit,
