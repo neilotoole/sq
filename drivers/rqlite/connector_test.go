@@ -33,7 +33,7 @@ func newRqliteMockHandler(hostPtr *string) http.Handler {
 			// Return a store.leader raft addr with no matching metadata api_addr
 			// so gorqlite successfully parses the leader but then falls back to
 			// /nodes to resolve the HTTP API address.
-			_, _ = w.Write([]byte(`{"store":{"leader":"127.0.0.1:4002","metadata":{}}}`))
+			_, _ = w.Write([]byte(`{"node":{},"store":{"leader":"127.0.0.1:4002","metadata":{}}}`))
 		case "/nodes":
 			// Return the test server itself as the reachable leader.
 			body := fmt.Sprintf(

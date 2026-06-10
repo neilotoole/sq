@@ -341,6 +341,18 @@ func execSrcAdd(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
+	drvr, err := ru.DriverRegistry.DriverFor(src.Type)
+	if err != nil {
+		return err
+	}
+
+	// Detection may rewrite src.Location (e.g. appending ?tls=true
+	// for a TLS-only rqlite endpoint), so it runs before the source
+	// is added to the collection and before Ping verifies it.
+	if err = detectConnParamsForAdd(ctx, cmd, drvr, src); err != nil {
+		return err
+	}
+
 	if err = cfg.Collection.Add(src); err != nil {
 		return err
 	}
@@ -354,11 +366,6 @@ func execSrcAdd(cmd *cobra.Command, args []string) (err error) {
 
 		// However, we do not set the active group to be the new src's group.
 		// In UX testing, it led to confused users.
-	}
-
-	drvr, err := ru.DriverRegistry.DriverFor(src.Type)
-	if err != nil {
-		return err
 	}
 
 	if !cmdFlagIsSetTrue(cmd, flag.SkipVerify) {
@@ -686,6 +693,99 @@ func urlHasPassword(loc string) bool {
 	}
 	_, has := u.User.Password()
 	return has
+}
+
+// detectConnParamsForAdd runs the driver's ConnParamDetector (if
+// implemented) against the resolved source and merges any detected
+// params into src.Location. It is a no-op when --skip-verify is set
+// or when the location contains secret placeholders. The function
+// name carries the add-time coupling deliberately: the interface is
+// a general capability, but the location rewrite is only legitimate
+// here, while the source is being established and nothing yet
+// references it.
+func detectConnParamsForAdd(ctx context.Context, cmd *cobra.Command,
+	drvr driver.Driver, src *source.Source,
+) error {
+	if cmdFlagIsSetTrue(cmd, flag.SkipVerify) {
+		return nil
+	}
+	detector, ok := drvr.(driver.ConnParamDetector)
+	if !ok {
+		return nil
+	}
+
+	// Placeholder-bearing locations are skipped: detected params
+	// would have to be merged into a stored form whose URL structure
+	// is opaque (e.g. a bare "${keyring:abc}"), which would require
+	// composition-aware rewriting of the stored value. Such sources
+	// get the standard connection-error hints instead. This mirrors
+	// ValidateSource, which also skips grammar checks for placeholders.
+	refs, err := secret.ExtractRefs(src.Location)
+	if err != nil {
+		return err
+	}
+	if len(refs) > 0 {
+		lg.FromContext(ctx).Debug("Conn param detection skipped: placeholder location",
+			lga.Src, src.Handle)
+		return nil
+	}
+
+	probeSrc, err := driver.ResolveSourceSecrets(ctx, src)
+	if err != nil {
+		return err
+	}
+	params, err := detector.DetectConnParams(ctx, probeSrc)
+	if err != nil {
+		return err
+	}
+	params = filterToAdvertisedParams(ctx, drvr, src, params)
+	if len(params) == 0 {
+		return nil
+	}
+
+	mergedLoc, err := location.MergeQuery(src.Location, params)
+	if err != nil {
+		return err
+	}
+	src.Location = mergedLoc
+	lg.FromContext(ctx).Debug("Conn param detection rewrote location",
+		lga.Src, src.Handle, lga.Loc, src.RedactedLocation())
+	return nil
+}
+
+// filterToAdvertisedParams enforces the ConnParamDetector contract
+// clause that detected keys must be a subset of the keys advertised
+// by SQLDriver.ConnParams. A violation is a driver bug: the
+// offending keys are dropped with a warning rather than failing the
+// user's add.
+func filterToAdvertisedParams(ctx context.Context, drvr driver.Driver,
+	src *source.Source, params url.Values,
+) url.Values {
+	if len(params) == 0 {
+		return params
+	}
+	sqlDrvr, ok := drvr.(driver.SQLDriver)
+	if !ok {
+		// A non-SQL driver advertises no conn params, so no detected
+		// key can be validated against the subset invariant: drop
+		// them all rather than persisting unvetted params.
+		lg.FromContext(ctx).Warn(
+			"Detected conn params from non-SQL driver; dropping all",
+			lga.Src, src.Handle)
+		return url.Values{}
+	}
+	advertised := sqlDrvr.ConnParams()
+	out := url.Values{}
+	for k, vs := range params {
+		if _, ok := advertised[k]; !ok {
+			lg.FromContext(ctx).Warn(
+				"Detected conn param not advertised by driver; dropping",
+				lga.Src, src.Handle, lga.Key, k)
+			continue
+		}
+		out[k] = vs
+	}
+	return out
 }
 
 // readPassword reads a password from stdin pipe, or if nothing on stdin,

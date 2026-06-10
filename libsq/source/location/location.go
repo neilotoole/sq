@@ -689,3 +689,42 @@ func redactBestEffort(loc string) string {
 	loc = redactRawDSNPw.ReplaceAllString(loc, "${1}xxxxx")
 	return loc
 }
+
+// MergeQuery returns loc with the given query params set, replacing
+// any existing values for the same keys. Other query params are
+// preserved. loc must be parseable by net/url and have a scheme:
+// driver-native DSN forms that net/url cannot parse (e.g. mysql's
+// "user@tcp(host)/db" shape) must not be passed here, and locations
+// bearing secret placeholders are the caller's responsibility to
+// exclude.
+func MergeQuery(loc string, params url.Values) (string, error) {
+	if len(params) == 0 {
+		return loc, nil
+	}
+	u, err := url.Parse(loc)
+	if err != nil {
+		// url.Error embeds the raw input (which may carry inline
+		// credentials); strip the wrapper and redact the loc.
+		var uerr *url.Error
+		if errors.As(err, &uerr) {
+			err = uerr.Err
+		}
+		return "", errz.Wrapf(err, "merge query: invalid location: %s",
+			redactBestEffort(loc))
+	}
+	if u.Scheme == "" {
+		// url.Parse accepts bare file paths; without a scheme there is
+		// no URL to merge query params into.
+		return "", errz.Errorf("merge query: location has no scheme: %s",
+			redactBestEffort(loc))
+	}
+	q := u.Query()
+	for k, vs := range params {
+		q.Del(k)
+		for _, v := range vs {
+			q.Add(k, v)
+		}
+	}
+	u.RawQuery = q.Encode()
+	return u.String(), nil
+}
