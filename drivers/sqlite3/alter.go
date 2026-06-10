@@ -162,11 +162,12 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 		// rebuilt table's sqlite_sequence row, created by the copy and
 		// renamed along with the table, holds MAX(rowid) of the copied
 		// rows (0 if the copy moved no rows) rather than the original
-		// seq. The UPDATE takes max(seq, captured) so the sequence never
-		// moves backward, and the conditional INSERT covers the case of
-		// no row existing. Neither statement destroys state, so a failure
-		// here can't lose the live sequence value. sqlite_sequence has no
-		// unique constraint on name, which rules out INSERT OR REPLACE.
+		// seq. The UPDATE takes max(seq, captured) so the restore never
+		// lowers the value already in place, and the conditional INSERT
+		// covers the case of no row existing. Neither statement destroys
+		// state, so a failure here can't lose the live sequence value.
+		// sqlite_sequence has no unique constraint on name, which rules
+		// out INSERT OR REPLACE.
 		if _, err = db.ExecContext(ctx,
 			"UPDATE sqlite_sequence SET seq = max(seq, ?) WHERE name = ?",
 			srcSeq.Int64, tblName); err != nil {

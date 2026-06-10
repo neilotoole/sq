@@ -841,8 +841,9 @@ func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, c
 // removes the original table's sqlite_sequence row, so the row is
 // captured outside the batch and restored as part of the batch after
 // the rename, matching the sqlite3 driver. The restore takes
-// max(seq, captured), so a sequence advanced by writes between the
-// capture read and the batch is never moved backward.
+// max(seq, captured), so it never lowers the value the rebuilt table
+// already holds; like the rebuild as a whole, it makes no guarantee
+// against writes that race the batch.
 func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	tbl string, colNames []string, kinds []kind.Kind,
 ) error {
@@ -942,11 +943,12 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 		// rebuilt table's sqlite_sequence row, created by the copy and
 		// renamed along with the table, holds MAX(rowid) of the copied
 		// rows (0 if the copy moved no rows) rather than the original
-		// seq. The UPDATE takes max(seq, captured) so the sequence never
-		// moves backward, even if the capture read (outside the batch)
-		// was stale; the conditional INSERT covers the case of no row
-		// existing. sqlite_sequence has no unique constraint on name,
-		// which rules out INSERT OR REPLACE.
+		// seq. The UPDATE takes max(seq, captured) so the restore never
+		// lowers the value already in place, even if the capture read
+		// (outside the batch) returned a stale low value; the conditional
+		// INSERT covers the case of no row existing. sqlite_sequence has
+		// no unique constraint on name, which rules out INSERT OR
+		// REPLACE.
 		stmts = append(stmts,
 			gorqlite.ParameterizedStatement{
 				Query:     "UPDATE sqlite_sequence SET seq = max(seq, ?) WHERE name = ?",
