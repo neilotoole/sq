@@ -127,7 +127,7 @@ func TestDriverShape_Rqlite(t *testing.T) {
 	shape := drvr.LocationShape()
 	require.NoError(t, shape.Validate())
 	require.Equal(t, drivertype.Rqlite, shape.Type)
-	require.Equal(t, []string{"rqlite", "rqlites"}, shape.Schemes)
+	require.Equal(t, []string{"rqlite"}, shape.Schemes)
 	require.Len(t, shape.Segments, 3)
 	require.Equal(t, driver.SegCredentials, shape.Segments[0].Kind)
 	require.Equal(t, driver.SegAuthority, shape.Segments[1].Kind)
