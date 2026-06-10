@@ -337,12 +337,11 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 		Replacement: destQuoted,
 	}}
 
-	// Rewrite self-FKs so REFERENCES <src>(...) becomes REFERENCES <dest>(...).
-	// Otherwise the destination's FKs would resolve against the source table,
-	// not itself (gh759). Cross-table FKs are left alone.
+	// Without this, the destination's self-referential FKs would resolve back
+	// to the source table, not itself (gh759). Cross-table FKs are left alone.
 	fkRefs, err := sqlparser.ExtractForeignTableRefsFromCreateTableStmt(ogTblCreateStmt)
 	if err != nil {
-		return 0, errw(err)
+		return 0, errz.Wrap(err, "sqlite3: copy table")
 	}
 	for _, r := range fkRefs {
 		if !strings.EqualFold(r.Table, ogIdent.Table) {

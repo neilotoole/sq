@@ -403,9 +403,48 @@ func TestExtractForeignTableRefsFromCreateTableStmt(t *testing.T) {
 			want: []sqlparser.ForeignTableRef{{RawTable: "[actor]", Table: "actor"}},
 		},
 		{
+			name: "fk_target_with_backtick_quotes",
+			in:   "CREATE TABLE actor (id INTEGER, parent_id INTEGER REFERENCES `actor`(id))",
+			want: []sqlparser.ForeignTableRef{{RawTable: "`actor`", Table: "actor"}},
+		},
+		{
+			name: "fk_target_with_single_quote_quotes",
+			in:   `CREATE TABLE actor (id INTEGER, parent_id INTEGER REFERENCES 'actor'(id))`,
+			want: []sqlparser.ForeignTableRef{{RawTable: `'actor'`, Table: "actor"}},
+		},
+		{
 			name: "fk_target_case_preserved",
 			in:   `CREATE TABLE actor (id INTEGER, parent_id INTEGER REFERENCES Actor(id))`,
 			want: []sqlparser.ForeignTableRef{{RawTable: "Actor", Table: "Actor"}},
+		},
+		{
+			name: "column_constraint_self_fk_with_on_delete_cascade",
+			in:   `CREATE TABLE actor (id INTEGER, parent_id INTEGER REFERENCES actor(id) ON DELETE CASCADE)`,
+			want: []sqlparser.ForeignTableRef{{RawTable: "actor", Table: "actor"}},
+		},
+		{
+			name: "table_constraint_with_on_delete_set_null_on_update_cascade",
+			in: `CREATE TABLE actor (id INTEGER, parent_id INTEGER, ` +
+				`FOREIGN KEY(parent_id) REFERENCES actor(id) ON DELETE SET NULL ON UPDATE CASCADE)`,
+			want: []sqlparser.ForeignTableRef{{RawTable: "actor", Table: "actor"}},
+		},
+		{
+			name: "column_constraint_deferrable",
+			in: `CREATE TABLE actor (id INTEGER, parent_id INTEGER ` +
+				`REFERENCES actor(id) DEFERRABLE INITIALLY DEFERRED)`,
+			want: []sqlparser.ForeignTableRef{{RawTable: "actor", Table: "actor"}},
+		},
+		{
+			name: "composite_self_fk",
+			in: `CREATE TABLE link (a INTEGER, b INTEGER, x INTEGER, y INTEGER, ` +
+				`FOREIGN KEY(a, b) REFERENCES link(x, y))`,
+			want: []sqlparser.ForeignTableRef{{RawTable: "link", Table: "link"}},
+		},
+		{
+			name: "fk_target_multi_column_parent_list",
+			in: `CREATE TABLE child (a INTEGER, b INTEGER, ` +
+				`FOREIGN KEY(a, b) REFERENCES parent(x, y))`,
+			want: []sqlparser.ForeignTableRef{{RawTable: "parent", Table: "parent"}},
 		},
 		{
 			name:  "invalid_stmt",
@@ -433,6 +472,16 @@ func TestExtractForeignTableRefsFromCreateTableStmt(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestForeignTableRef_String verifies the String() method returns the raw
+// text of the reference, for log/debug ergonomics on par with ColDef.
+func TestForeignTableRef_String(t *testing.T) {
+	const input = `CREATE TABLE actor (id INTEGER, parent_id INTEGER REFERENCES "actor"(id))`
+	refs, err := sqlparser.ExtractForeignTableRefsFromCreateTableStmt(input)
+	require.NoError(t, err)
+	require.Len(t, refs, 1)
+	require.Equal(t, `"actor"`, refs[0].String())
 }
 
 // TestExtractForeignTableRefsFromCreateTableStmt_EditIntegration is the
@@ -475,6 +524,31 @@ func TestExtractForeignTableRefsFromCreateTableStmt_EditIntegration(t *testing.T
 	require.Equal(t, want, got)
 	require.False(t, strings.Contains(got, `"actor"`),
 		"every self-FK occurrence must be rewritten")
+}
+
+// TestExtractForeignTableRefsFromCreateTableStmt_PreservesActionClauses
+// proves that ON DELETE / ON UPDATE / DEFERRABLE clauses after the rewritten
+// table token survive the splice — i.e. the offset/length span the table
+// token alone, not the surrounding clause.
+func TestExtractForeignTableRefsFromCreateTableStmt_PreservesActionClauses(t *testing.T) {
+	const input = `CREATE TABLE actor (id INTEGER PRIMARY KEY, ` +
+		`parent_id INTEGER REFERENCES actor(id) ON DELETE CASCADE ON UPDATE RESTRICT ` +
+		`DEFERRABLE INITIALLY DEFERRED)`
+
+	refs, err := sqlparser.ExtractForeignTableRefsFromCreateTableStmt(input)
+	require.NoError(t, err)
+	require.Len(t, refs, 1)
+	r := refs[0]
+	got, err := sqlparser.ApplyEdits(input, []sqlparser.Edit{{
+		Start:       r.TableOffset,
+		End:         r.TableOffset + len(r.RawTable),
+		Replacement: "actor_bak",
+	}})
+	require.NoError(t, err)
+	const want = `CREATE TABLE actor (id INTEGER PRIMARY KEY, ` +
+		`parent_id INTEGER REFERENCES actor_bak(id) ON DELETE CASCADE ON UPDATE RESTRICT ` +
+		`DEFERRABLE INITIALLY DEFERRED)`
+	require.Equal(t, want, got)
 }
 
 // TestApplyEdits_DDLRewriteIntegration sanity-checks the end-to-end story

@@ -1,6 +1,7 @@
 package sqlite3_test
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -17,6 +18,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
@@ -560,6 +562,47 @@ func TestDriveri_CopyTable_TableIdentInDefaultLiteral(t *testing.T) {
 		"the DEFAULT literal must not be rewritten by the table-identifier substitution")
 }
 
+// openSqliteForFKTest opens a fresh sqlite3 source with a connection
+// pinned to a single underlying connection. Pinning is load-bearing for
+// FK enforcement assertions: PRAGMA foreign_keys is per-connection in
+// SQLite, and without SetMaxOpenConns(1) subsequent ExecContext calls
+// might land on a different pool connection where the PRAGMA was never
+// set.
+func openSqliteForFKTest(t *testing.T) (*testh.Helper, *sql.DB, driver.SQLDriver) {
+	t.Helper()
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@test",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+	}
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+	db.SetMaxOpenConns(1)
+
+	_, err = db.ExecContext(th.Context, `PRAGMA foreign_keys = ON`)
+	require.NoError(t, err)
+	return th, db, grip.SQLDriver()
+}
+
+// assertSelfFKRewritten asserts that destDDL's REFERENCES clause names
+// dstName and does not still name srcName. Tolerates either quoted or
+// unquoted identifier styles that sqlite_master may carry.
+func assertSelfFKRewritten(t *testing.T, destDDL, srcName, dstName string) {
+	t.Helper()
+	require.Contains(t, destDDL, `REFERENCES`,
+		"destination DDL should still carry a REFERENCES clause")
+	require.True(t,
+		strings.Contains(destDDL, fmt.Sprintf(`REFERENCES %s(`, dstName)) ||
+			strings.Contains(destDDL, fmt.Sprintf(`REFERENCES "%s"(`, dstName)),
+		"REFERENCES must name the destination %q, got: %s", dstName, destDDL)
+	require.False(t,
+		strings.Contains(destDDL, fmt.Sprintf(`REFERENCES %s(`, srcName)) ||
+			strings.Contains(destDDL, fmt.Sprintf(`REFERENCES "%s"(`, srcName)),
+		"REFERENCES must no longer name the source %q, got: %s", srcName, destDDL)
+}
+
 // TestDriveri_CopyTable_RewritesSelfFK verifies gh759: a CREATE TABLE
 // with a self-referential FOREIGN KEY (REFERENCES <src>(...)) must have
 // the FK target rewritten to the destination, so the destination's FKs
@@ -567,42 +610,44 @@ func TestDriveri_CopyTable_TableIdentInDefaultLiteral(t *testing.T) {
 func TestDriveri_CopyTable_RewritesSelfFK(t *testing.T) {
 	testCases := []struct {
 		name string
-		ddl  string // %[1]s is the source table name (parameterized so we
-		// exercise both quoted and unquoted FK target forms).
+		// ddl is the source CREATE TABLE; %[1]s is the source table name,
+		// %[2]s is the FK-target identifier form (so the case_mismatch case
+		// can declare the source as `actor` but REFERENCE `Actor`).
+		ddl        string
+		fkTargetFn func(srcName string) string // produces the REFERENCES target as it appears in ddl
 	}{
 		{
-			name: "column_constraint_unquoted",
-			ddl:  `CREATE TABLE %[1]s (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES %[1]s(id))`,
+			name:       "column_constraint_unquoted",
+			ddl:        `CREATE TABLE %[1]s (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES %[2]s(id))`,
+			fkTargetFn: func(s string) string { return s },
 		},
 		{
-			name: "column_constraint_quoted",
-			ddl:  `CREATE TABLE "%[1]s" (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES "%[1]s"(id))`,
+			name:       "column_constraint_quoted",
+			ddl:        `CREATE TABLE "%[1]s" (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES "%[2]s"(id))`,
+			fkTargetFn: func(s string) string { return s },
 		},
 		{
 			name: "table_constraint",
-			ddl:  `CREATE TABLE %[1]s (id INTEGER PRIMARY KEY, parent_id INTEGER, FOREIGN KEY(parent_id) REFERENCES %[1]s(id))`,
+			ddl: `CREATE TABLE %[1]s (id INTEGER PRIMARY KEY, parent_id INTEGER, ` +
+				`FOREIGN KEY(parent_id) REFERENCES %[2]s(id))`,
+			fkTargetFn: func(s string) string { return s },
+		},
+		{
+			// Source is `actor`, FK target is `Actor`; the driver predicate
+			// matches them case-insensitively per SQLite's identifier rules.
+			name:       "case_mismatch_fk_target",
+			ddl:        `CREATE TABLE %[1]s (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES %[2]s(id))`,
+			fkTargetFn: func(s string) string { return strings.ToUpper(s[:1]) + s[1:] },
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			th := testh.New(t)
-			src := &source.Source{
-				Handle:   "@test",
-				Type:     drivertype.SQLite,
-				Location: "sqlite3://" + tu.TempFile(t, "test.db"),
-			}
-			grip := th.Open(src)
-			db, err := grip.DB(th.Context)
-			require.NoError(t, err)
-			drvr := grip.SQLDriver()
-
-			// FK enforcement is required for the runtime-behavior assertion.
-			_, err = db.ExecContext(th.Context, `PRAGMA foreign_keys = ON`)
-			require.NoError(t, err)
+			th, db, drvr := openSqliteForFKTest(t)
 
 			const srcName, dstName = "actor", "actor_bak"
-			_, err = db.ExecContext(th.Context, fmt.Sprintf(tc.ddl, srcName))
+			_, err := db.ExecContext(th.Context,
+				fmt.Sprintf(tc.ddl, srcName, tc.fkTargetFn(srcName)))
 			require.NoError(t, err)
 			// Seed the source with id=1 so we can verify the destination FK
 			// does NOT resolve to it after the copy.
@@ -614,20 +659,10 @@ func TestDriveri_CopyTable_RewritesSelfFK(t *testing.T) {
 				tablefq.T{Table: srcName}, tablefq.T{Table: dstName}, false)
 			require.NoError(t, err)
 
-			// Destination DDL must name the destination in its REFERENCES clause.
 			var destDDL string
 			require.NoError(t, db.QueryRowContext(th.Context,
 				`SELECT sql FROM sqlite_master WHERE type='table' AND name=?`, dstName).Scan(&destDDL))
-			require.Contains(t, destDDL, `REFERENCES`,
-				"destination DDL should still carry a REFERENCES clause")
-			require.True(t,
-				strings.Contains(destDDL, fmt.Sprintf(`REFERENCES %s(`, dstName)) ||
-					strings.Contains(destDDL, fmt.Sprintf(`REFERENCES "%s"(`, dstName)),
-				"REFERENCES must name the destination, got: %s", destDDL)
-			require.False(t,
-				strings.Contains(destDDL, fmt.Sprintf(`REFERENCES %s(`, srcName)) ||
-					strings.Contains(destDDL, fmt.Sprintf(`REFERENCES "%s"(`, srcName)),
-				"REFERENCES must no longer name the source, got: %s", destDDL)
+			assertSelfFKRewritten(t, destDDL, srcName, dstName)
 
 			// Runtime check: inserting a row whose parent_id points at id=1
 			// must fail, because id=1 lives only in the source. If the FK
@@ -648,6 +683,103 @@ func TestDriveri_CopyTable_RewritesSelfFK(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+// TestDriveri_CopyTable_LeavesCrossFKsAlone verifies the load-bearing
+// invariant of gh759: REFERENCES whose target is NOT the source table
+// must be left untouched. A regression that inverted the predicate
+// would silently re-point cross-table FKs at the destination, a worse
+// bug than the original.
+func TestDriveri_CopyTable_LeavesCrossFKsAlone(t *testing.T) {
+	th, db, drvr := openSqliteForFKTest(t)
+
+	_, err := db.ExecContext(th.Context,
+		`CREATE TABLE parent (id INTEGER PRIMARY KEY)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context,
+		`CREATE TABLE actor (`+
+			`id INTEGER PRIMARY KEY, `+
+			`parent_id INTEGER REFERENCES actor(id), `+
+			`other_id INTEGER REFERENCES parent(id))`)
+	require.NoError(t, err)
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: "actor"}, tablefq.T{Table: "actor_bak"}, false)
+	require.NoError(t, err)
+
+	var destDDL string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT sql FROM sqlite_master WHERE type='table' AND name=?`, "actor_bak").Scan(&destDDL))
+
+	require.True(t,
+		strings.Contains(destDDL, `REFERENCES actor_bak(`) ||
+			strings.Contains(destDDL, `REFERENCES "actor_bak"(`),
+		"self-FK must be rewritten to actor_bak, got: %s", destDDL)
+	require.True(t,
+		strings.Contains(destDDL, `REFERENCES parent(`) ||
+			strings.Contains(destDDL, `REFERENCES "parent"(`),
+		"cross-table FK to parent must be preserved, got: %s", destDDL)
+}
+
+// TestDriveri_CopyTable_MultipleSelfFKs verifies every self-FK in a
+// table with more than one REFERENCES <src>(...) is rewritten — guards
+// against a regression that returned after the first match.
+func TestDriveri_CopyTable_MultipleSelfFKs(t *testing.T) {
+	th, db, drvr := openSqliteForFKTest(t)
+
+	_, err := db.ExecContext(th.Context,
+		`CREATE TABLE actor (`+
+			`id INTEGER PRIMARY KEY, `+
+			`parent_id INTEGER REFERENCES actor(id), `+
+			`buddy_id INTEGER REFERENCES actor(id))`)
+	require.NoError(t, err)
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: "actor"}, tablefq.T{Table: "actor_bak"}, false)
+	require.NoError(t, err)
+
+	var destDDL string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT sql FROM sqlite_master WHERE type='table' AND name=?`, "actor_bak").Scan(&destDDL))
+
+	require.Equal(t, 2,
+		strings.Count(destDDL, `REFERENCES actor_bak(`)+
+			strings.Count(destDDL, `REFERENCES "actor_bak"(`),
+		"both self-FKs must point at actor_bak, got: %s", destDDL)
+	require.False(t,
+		strings.Contains(destDDL, `REFERENCES actor(`) ||
+			strings.Contains(destDDL, `REFERENCES "actor"(`),
+		"no self-FK may still point at the source, got: %s", destDDL)
+}
+
+// TestDriveri_CopyTable_CompositeSelfFK verifies composite-column
+// FOREIGN KEY(a, b) REFERENCES self(x, y) is rewritten to point at the
+// destination, with the column lists left intact.
+func TestDriveri_CopyTable_CompositeSelfFK(t *testing.T) {
+	th, db, drvr := openSqliteForFKTest(t)
+
+	_, err := db.ExecContext(th.Context,
+		`CREATE TABLE link (`+
+			`a INTEGER, b INTEGER, x INTEGER, y INTEGER, `+
+			`PRIMARY KEY (x, y), `+
+			`FOREIGN KEY(a, b) REFERENCES link(x, y))`)
+	require.NoError(t, err)
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: "link"}, tablefq.T{Table: "link_bak"}, false)
+	require.NoError(t, err)
+
+	var destDDL string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT sql FROM sqlite_master WHERE type='table' AND name=?`, "link_bak").Scan(&destDDL))
+
+	require.True(t,
+		strings.Contains(destDDL, `REFERENCES link_bak(x, y)`) ||
+			strings.Contains(destDDL, `REFERENCES "link_bak"(x, y)`),
+		"composite FK must be rewritten to link_bak with parent columns preserved, got: %s",
+		destDDL)
+	require.False(t, strings.Contains(destDDL, `REFERENCES link(`),
+		"composite FK must no longer point at link, got: %s", destDDL)
 }
 
 // TestSourceMetadata_LocationWithConnParams reproduces gh720: a
