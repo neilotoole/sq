@@ -29,6 +29,7 @@ package rqlite
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -930,9 +931,10 @@ func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, c
 //	INSERT INTO <tmp> SELECT * FROM <original>
 //	DROP TABLE <original>
 //	ALTER TABLE <tmp> RENAME TO <original>
+//	(restore sqlite_sequence row, if the original table had one)
 //	PRAGMA foreign_keys=<prev>
 //
-// All six statements ride one /db/execute HTTP call and are atomic
+// All statements ride one /db/execute HTTP call and are atomic
 // at rqlite. The prior foreign_keys value is read outside the batch
 // (rqlite has no interactive transactions) and inlined as the final
 // statement, restoring the session state rather than blindly forcing
@@ -947,12 +949,16 @@ func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, c
 // exact DEFAULT expressions, WITHOUT ROWID, and column comments.
 // Self-referential FKs resolve correctly because the DROP-and-
 // RENAME-back restores the original table name (the inner REFERENCES
-// clause is untouched by the count=1 substring replace).
+// clause is untouched because the rewrite is anchored to the table
+// identifier's byte offset).
 //
-// Inherited gap (matches sqlite3 driver): AUTOINCREMENT sequence
-// continuity is not preserved. The sqlite_sequence row for the
-// original table is removed by the DROP, so after the rename
-// AUTOINCREMENT restarts from MAX(rowid)+1 rather than seq+1.
+// AUTOINCREMENT sequence continuity is preserved (gh757): the DROP
+// removes the original table's sqlite_sequence row, so the row is
+// captured outside the batch and restored as part of the batch after
+// the rename, matching the sqlite3 driver. The restore takes
+// max(seq, captured), so it never lowers the value the rebuilt table
+// already holds; like the rebuild as a whole, it makes no guarantee
+// against writes that race the batch.
 func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	tbl string, colNames []string, kinds []kind.Kind,
 ) error {
@@ -1028,6 +1034,15 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 		return errz.Wrapf(errw(err), "rqlite: alter table: failed to read foreign_keys pragma")
 	}
 
+	// Capture the table's sqlite_sequence row (if any) outside the batch.
+	// The DROP TABLE in the batch removes the row, so without a restore
+	// the next AUTOINCREMENT insert would pick MAX(rowid)+1 rather than
+	// seq+1, silently reusing rowids of previously deleted rows (gh757).
+	srcSeq, err := readSqliteSequence(ctx, db, tbl)
+	if err != nil {
+		return err
+	}
+
 	stmts := []gorqlite.ParameterizedStatement{
 		{Query: "PRAGMA foreign_keys=off"},
 		{Query: nuDDL},
@@ -1036,9 +1051,65 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 		{Query: "DROP TABLE " + stringz.DoubleQuote(tbl)},
 		{Query: fmt.Sprintf(`ALTER TABLE %s RENAME TO %s`,
 			stringz.DoubleQuote(tmpName), stringz.DoubleQuote(tbl))},
-		{Query: fmt.Sprintf("PRAGMA foreign_keys=%d", fkPrev)},
 	}
+
+	if srcSeq.Valid {
+		// Restore AUTOINCREMENT continuity (gh757). After the rename, the
+		// rebuilt table's sqlite_sequence row, created by the copy and
+		// renamed along with the table, holds MAX(rowid) of the copied
+		// rows (0 if the copy moved no rows) rather than the original
+		// seq. The UPDATE takes max(seq, captured) so the restore never
+		// lowers the value already in place, even if the capture read
+		// (outside the batch) returned a stale low value; the conditional
+		// INSERT covers the case of no row existing. sqlite_sequence has
+		// no unique constraint on name, which rules out INSERT OR
+		// REPLACE.
+		stmts = append(stmts,
+			gorqlite.ParameterizedStatement{
+				Query:     "UPDATE sqlite_sequence SET seq = max(seq, ?) WHERE name = ?",
+				Arguments: []any{srcSeq.Int64, tbl},
+			},
+			gorqlite.ParameterizedStatement{
+				Query: "INSERT INTO sqlite_sequence (name, seq) SELECT ?, ? " +
+					"WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = ?)",
+				Arguments: []any{tbl, srcSeq.Int64, tbl},
+			},
+		)
+	}
+
+	stmts = append(stmts, gorqlite.ParameterizedStatement{
+		Query: fmt.Sprintf("PRAGMA foreign_keys=%d", fkPrev),
+	})
 
 	_, err = writeAtomic(ctx, db, stmts...)
 	return err
+}
+
+// readSqliteSequence returns the sqlite_sequence row for tbl. The result is
+// invalid (and err nil) if the sqlite_sequence table doesn't exist, or has
+// no row for tbl. Mirrors the sqlite3 driver's helper of the same name.
+func readSqliteSequence(ctx context.Context, db sqlz.DB, tbl string) (sql.NullInt64, error) {
+	var seq sql.NullInt64
+
+	// sqlite_sequence only exists once an AUTOINCREMENT table has been
+	// created in the DB; querying it blindly would error.
+	var n int
+	if err := db.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'",
+	).Scan(&n); err != nil {
+		return seq, errz.Wrap(errw(err),
+			"rqlite: alter table: failed to check for sqlite_sequence table")
+	}
+	if n == 0 {
+		return seq, nil
+	}
+
+	if err := db.QueryRowContext(ctx,
+		"SELECT seq FROM sqlite_sequence WHERE name=?", tbl,
+	).Scan(&seq); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return seq, errz.Wrapf(errw(err),
+			"rqlite: alter table: failed to read sqlite_sequence for {%s}", tbl)
+	}
+
+	return seq, nil
 }

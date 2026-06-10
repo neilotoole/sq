@@ -2,6 +2,8 @@ package sqlite3
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser"
@@ -47,6 +49,10 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 //   - https://www.sqlite.org/faq.html#q11
 //   - https://www.sqlitetutorial.net/sqlite-alter-table/
 //
+// AUTOINCREMENT sequence continuity is preserved across the rebuild (gh757):
+// the table's sqlite_sequence row is captured before the rebuild and restored
+// afterward, so the next insert picks seq+1 rather than MAX(rowid)+1.
+//
 // Note that colNames and kinds must be the same length.
 func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	tblName string, colNames []string, kinds []kind.Kind,
@@ -66,6 +72,15 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	var ogDDL string
 	if err = db.QueryRowContext(ctx, q, tblName).Scan(&ogDDL); err != nil {
 		return errz.Wrapf(err, "sqlite3: alter table: failed to read original DDL")
+	}
+
+	// Capture the table's sqlite_sequence row (if any) before the rebuild.
+	// The DROP TABLE below removes the row, so without a restore the next
+	// AUTOINCREMENT insert would pick MAX(rowid)+1 rather than seq+1,
+	// silently reusing rowids of previously deleted rows (gh757).
+	srcSeq, err := readSqliteSequence(ctx, db, tblName)
+	if err != nil {
+		return err
 	}
 
 	allColDefs, err := sqlparser.ExtractCreateTableStmtColDefs(ogDDL)
@@ -142,7 +157,64 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 		return errz.Wrapf(err, "sqlite3: alter table: failed to rename temporary table")
 	}
 
+	if srcSeq.Valid {
+		// Restore AUTOINCREMENT continuity (gh757). At this point the
+		// rebuilt table's sqlite_sequence row, created by the copy and
+		// renamed along with the table, holds MAX(rowid) of the copied
+		// rows (0 if the copy moved no rows) rather than the original
+		// seq. The UPDATE takes max(seq, captured) so the restore never
+		// lowers the value already in place, and the conditional INSERT
+		// covers the case of no row existing. Neither statement destroys
+		// state, so a failure here can't lose the live sequence value.
+		// sqlite_sequence has no unique constraint on name, which rules
+		// out INSERT OR REPLACE.
+		if _, err = db.ExecContext(ctx,
+			"UPDATE sqlite_sequence SET seq = max(seq, ?) WHERE name = ?",
+			srcSeq.Int64, tblName); err != nil {
+			return errz.Wrapf(errw(err),
+				"sqlite3: alter table: table {%s} was rebuilt, but updating sqlite_sequence to %d failed",
+				tblName, srcSeq.Int64)
+		}
+		if _, err = db.ExecContext(ctx,
+			"INSERT INTO sqlite_sequence (name, seq) SELECT ?, ? "+
+				"WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = ?)",
+			tblName, srcSeq.Int64, tblName); err != nil {
+			return errz.Wrapf(errw(err),
+				"sqlite3: alter table: table {%s} was rebuilt, but restoring sqlite_sequence to %d failed",
+				tblName, srcSeq.Int64)
+		}
+	}
+
 	return nil
+}
+
+// readSqliteSequence returns the sqlite_sequence row for tbl. The result is
+// invalid (and err nil) if the sqlite_sequence table doesn't exist, or has
+// no row for tbl.
+func readSqliteSequence(ctx context.Context, db sqlz.DB, tbl string) (sql.NullInt64, error) {
+	var seq sql.NullInt64
+
+	// sqlite_sequence only exists once an AUTOINCREMENT table has been
+	// created in the DB; querying it blindly would error.
+	var n int
+	if err := db.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'",
+	).Scan(&n); err != nil {
+		return seq, errz.Wrap(errw(err),
+			"sqlite3: alter table: failed to check for sqlite_sequence table")
+	}
+	if n == 0 {
+		return seq, nil
+	}
+
+	if err := db.QueryRowContext(ctx,
+		"SELECT seq FROM sqlite_sequence WHERE name=?", tbl,
+	).Scan(&seq); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return seq, errz.Wrapf(errw(err),
+			"sqlite3: alter table: failed to read sqlite_sequence for {%s}", tbl)
+	}
+
+	return seq, nil
 }
 
 // pragmaDisableForeignKeys disables foreign keys, returning a function that
