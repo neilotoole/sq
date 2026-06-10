@@ -211,8 +211,10 @@ type Edit struct {
 // its Replacement. Edits may be supplied in any order; they are applied in
 // reverse start order so pre-edit offsets remain valid throughout.
 //
-// Returns an error if any edit has End < Start, ranges overlap, or any
-// range falls outside [0, len(input)].
+// Returns an error if any edit has End < Start, any range falls outside
+// [0, len(input)], two edits overlap, or two edits share the same Start
+// (which would make the relative apply order ambiguous when one or both
+// is an insertion, since sort.Slice is not stable on equal Start values).
 func ApplyEdits(input string, edits []Edit) (string, error) {
 	if len(edits) == 0 {
 		return input, nil
@@ -224,11 +226,19 @@ func ApplyEdits(input string, edits []Edit) (string, error) {
 
 	for i, e := range sorted {
 		if e.Start < 0 || e.End > len(input) || e.End < e.Start {
-			return "", errz.Errorf("sqlparser: ApplyEdits: edit %d out of range [%d:%d) for input length %d",
-				i, e.Start, e.End, len(input))
+			return "", errz.Errorf("sqlparser: ApplyEdits: edit out of range [%d:%d) for input length %d",
+				e.Start, e.End, len(input))
 		}
-		if i > 0 && e.Start < sorted[i-1].End {
-			return "", errz.Errorf("sqlparser: ApplyEdits: edits %d and %d overlap", i-1, i)
+		if i == 0 {
+			continue
+		}
+		prev := sorted[i-1]
+		if e.Start < prev.End {
+			return "", errz.Errorf("sqlparser: ApplyEdits: edits overlap at byte offset %d", e.Start)
+		}
+		if e.Start == prev.Start {
+			return "", errz.Errorf("sqlparser: ApplyEdits: two edits share Start=%d (ambiguous when one is an insertion)",
+				e.Start)
 		}
 	}
 

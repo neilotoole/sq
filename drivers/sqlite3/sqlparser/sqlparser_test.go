@@ -316,6 +316,28 @@ func TestApplyEdits(t *testing.T) {
 			edits:   []sqlparser.Edit{{Start: 0, End: 10, Replacement: "X"}},
 			wantErr: true,
 		},
+		{
+			// Insertion at Start=5 plus replacement at Start=5: the relative
+			// apply order would depend on sort.Slice stability and the result
+			// would be non-deterministic. Must be rejected.
+			name:  "shared_start_insertion_plus_replacement_error",
+			input: "abcdefg",
+			edits: []sqlparser.Edit{
+				{Start: 5, End: 5, Replacement: "X"},
+				{Start: 5, End: 7, Replacement: "Y"},
+			},
+			wantErr: true,
+		},
+		{
+			// Two insertions at the same Start are also ambiguous.
+			name:  "shared_start_two_insertions_error",
+			input: "abcdef",
+			edits: []sqlparser.Edit{
+				{Start: 3, End: 3, Replacement: "X"},
+				{Start: 3, End: 3, Replacement: "Y"},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tc := range testCases {
