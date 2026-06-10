@@ -834,12 +834,15 @@ func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, c
 // exact DEFAULT expressions, WITHOUT ROWID, and column comments.
 // Self-referential FKs resolve correctly because the DROP-and-
 // RENAME-back restores the original table name (the inner REFERENCES
-// clause is untouched by the count=1 substring replace).
+// clause is untouched because the rewrite is anchored to the table
+// identifier's byte offset).
 //
 // AUTOINCREMENT sequence continuity is preserved (gh757): the DROP
 // removes the original table's sqlite_sequence row, so the row is
 // captured outside the batch and restored as part of the batch after
-// the rename, matching the sqlite3 driver.
+// the rename, matching the sqlite3 driver. The restore takes
+// max(seq, captured), so a sequence advanced by writes between the
+// capture read and the batch is never moved backward.
 func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	tbl string, colNames []string, kinds []kind.Kind,
 ) error {
@@ -937,18 +940,22 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	if srcSeq.Valid {
 		// Restore AUTOINCREMENT continuity (gh757). After the rename, the
 		// rebuilt table's sqlite_sequence row, created by the copy and
-		// renamed along with the table, holds MAX(rowid) rather than the
-		// original seq; if the source table was empty, no row exists at
-		// all. sqlite_sequence has no unique constraint on name, so
-		// DELETE-then-INSERT rather than INSERT OR REPLACE.
+		// renamed along with the table, holds MAX(rowid) of the copied
+		// rows (0 if the copy moved no rows) rather than the original
+		// seq. The UPDATE takes max(seq, captured) so the sequence never
+		// moves backward, even if the capture read (outside the batch)
+		// was stale; the conditional INSERT covers the case of no row
+		// existing. sqlite_sequence has no unique constraint on name,
+		// which rules out INSERT OR REPLACE.
 		stmts = append(stmts,
 			gorqlite.ParameterizedStatement{
-				Query:     "DELETE FROM sqlite_sequence WHERE name=?",
-				Arguments: []any{tbl},
+				Query:     "UPDATE sqlite_sequence SET seq = max(seq, ?) WHERE name = ?",
+				Arguments: []any{srcSeq.Int64, tbl},
 			},
 			gorqlite.ParameterizedStatement{
-				Query:     "INSERT INTO sqlite_sequence (name, seq) VALUES (?, ?)",
-				Arguments: []any{tbl, srcSeq.Int64},
+				Query: "INSERT INTO sqlite_sequence (name, seq) SELECT ?, ? " +
+					"WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = ?)",
+				Arguments: []any{tbl, srcSeq.Int64, tbl},
 			},
 		)
 	}

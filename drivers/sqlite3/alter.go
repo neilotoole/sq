@@ -49,6 +49,10 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 //   - https://www.sqlite.org/faq.html#q11
 //   - https://www.sqlitetutorial.net/sqlite-alter-table/
 //
+// AUTOINCREMENT sequence continuity is preserved across the rebuild (gh757):
+// the table's sqlite_sequence row is captured before the rebuild and restored
+// afterward, so the next insert picks seq+1 rather than MAX(rowid)+1.
+//
 // Note that colNames and kinds must be the same length.
 func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	tblName string, colNames []string, kinds []kind.Kind,
@@ -156,20 +160,27 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	if srcSeq.Valid {
 		// Restore AUTOINCREMENT continuity (gh757). At this point the
 		// rebuilt table's sqlite_sequence row, created by the copy and
-		// renamed along with the table, holds MAX(rowid) rather than the
-		// original seq; if the source table was empty, no row exists at
-		// all. sqlite_sequence has no unique constraint on name, so
-		// DELETE-then-INSERT rather than INSERT OR REPLACE.
+		// renamed along with the table, holds MAX(rowid) of the copied
+		// rows (0 if the copy moved no rows) rather than the original
+		// seq. The UPDATE takes max(seq, captured) so the sequence never
+		// moves backward, and the conditional INSERT covers the case of
+		// no row existing. Neither statement destroys state, so a failure
+		// here can't lose the live sequence value. sqlite_sequence has no
+		// unique constraint on name, which rules out INSERT OR REPLACE.
 		if _, err = db.ExecContext(ctx,
-			"DELETE FROM sqlite_sequence WHERE name=?", tblName); err != nil {
+			"UPDATE sqlite_sequence SET seq = max(seq, ?) WHERE name = ?",
+			srcSeq.Int64, tblName); err != nil {
 			return errz.Wrapf(errw(err),
-				"sqlite3: alter table: failed to clear sqlite_sequence for {%s}", tblName)
+				"sqlite3: alter table: table {%s} was rebuilt, but updating sqlite_sequence to %d failed",
+				tblName, srcSeq.Int64)
 		}
 		if _, err = db.ExecContext(ctx,
-			"INSERT INTO sqlite_sequence (name, seq) VALUES (?, ?)",
-			tblName, srcSeq.Int64); err != nil {
+			"INSERT INTO sqlite_sequence (name, seq) SELECT ?, ? "+
+				"WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = ?)",
+			tblName, srcSeq.Int64, tblName); err != nil {
 			return errz.Wrapf(errw(err),
-				"sqlite3: alter table: failed to restore sqlite_sequence for {%s}", tblName)
+				"sqlite3: alter table: table {%s} was rebuilt, but restoring sqlite_sequence to %d failed",
+				tblName, srcSeq.Int64)
 		}
 	}
 
