@@ -244,10 +244,20 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	return affected, nil
 }
 
-// ValidateSource implements driver.Driver.
+// ValidateSource implements driver.Driver. Guards both the driver
+// type and the rqlite-specific URL contradiction (?insecure=true
+// requires ?tls=true). The latter is also checked in
+// dsnFromLocation at every Open, but doing it here catches the
+// error at sq add time even when --skip-verify suppresses Ping.
 func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	if src.Type != drivertype.Rqlite {
 		return nil, errz.Errorf("expected driver type {%s} but got {%s}", drivertype.Rqlite, src.Type)
+	}
+	// Reuse the dsnFromLocation parser, which performs the full
+	// grammar + contradiction validation. We discard the dsn and
+	// opts because we only want the error side-effect.
+	if _, _, err := dsnFromLocation(src.Location); err != nil {
+		return nil, err
 	}
 	return src, nil
 }
@@ -355,15 +365,22 @@ type dsnOpts struct {
 	// tls is true when the user opted into HTTPS via ?tls=true (or via
 	// the legacy rqlites:// scheme, while it still exists).
 	tls bool
+
+	// insecure is true when the user opted out of TLS certificate
+	// verification via ?insecure=true. Requires tls=true; the
+	// contradiction check lives in dsnFromLocation.
+	insecure bool
 }
 
 // dsnFromLocation translates an rqlite:// source location into the
-// http(s):// URL that gorqlite.Open expects, and reports the sq-synthetic
-// query-param opts (currently just ?tls) parsed out of the location. The
-// ?tls param is stripped from the returned DSN so gorqlite never sees it.
+// http(s):// URL that gorqlite.Open expects, and reports the
+// sq-synthetic query-param opts (?tls, ?insecure) parsed out of the
+// location. Synthetic params are stripped from the returned DSN so
+// gorqlite never sees them.
 //
-// Returns an error if the location's scheme is unrecognized, or ?tls has a
-// value other than "true"/"false".
+// Returns an error if the location's scheme is unrecognized, ?tls or
+// ?insecure has a value other than "true"/"false", or ?insecure is
+// set without ?tls=true.
 //
 // The legacy rqlites:// scheme is still accepted here for now; gh756
 // removes it after the rest of the codebase migrates.
@@ -404,6 +421,25 @@ func dsnFromLocation(loc string) (string, dsnOpts, error) {
 				`rqlite: tls must be "true" or "false", got %q`, v)
 		}
 		q.Del("tls")
+	}
+
+	if v := q.Get("insecure"); v != "" {
+		switch v {
+		case "true":
+			opts.insecure = true
+		case "false":
+			opts.insecure = false
+		default:
+			return "", opts, errz.Errorf(
+				`rqlite: insecure must be "true" or "false", got %q`, v)
+		}
+		q.Del("insecure")
+	}
+
+	if opts.insecure && !opts.tls {
+		return "", opts, errz.New(
+			"rqlite: insecure has no effect without tls=true; " +
+				"either add tls=true or remove insecure")
 	}
 
 	u.Scheme = scheme
