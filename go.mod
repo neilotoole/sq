@@ -94,6 +94,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/charmbracelet/x/exp/teatest v0.0.0-20260511125431-fe5d686e0c99
+	github.com/muesli/termenv v0.16.0
 )
 
 require (
@@ -166,7 +167,6 @@ require (
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/muesli/mango v0.2.0 // indirect
 	github.com/muesli/mango-pflag v0.2.0 // indirect
-	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/nathan-fiscaletti/consolesize-go v0.0.0-20260406063853-3bac975de715 // indirect
 	github.com/neilotoole/fifomu v0.2.0 // indirect
 	github.com/otiai10/mint v1.6.3 // indirect

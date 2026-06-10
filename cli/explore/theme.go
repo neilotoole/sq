@@ -19,10 +19,13 @@ type theme struct {
 	// Title styles pane titles ("Sources", "Schema (…)") — blue + bold,
 	// like sq's Header.
 	Title lipgloss.Style
-	// Pane is the unfocused pane border.
+	// TitleFocus styles the focused pane's title (hi-blue, like sq's
+	// Hilite). Panes are borderless, so the title carries the focus
+	// signal (the inspector, which has no title, uses DividerFocus).
+	TitleFocus lipgloss.Style
+	// Pane is the borderless body style shared by all panes; panes are
+	// separated by Divider rules, not box borders.
 	Pane lipgloss.Style
-	// PaneFocus is the focused pane border (hi-blue, like sq's Hilite).
-	PaneFocus lipgloss.Style
 	// Item is the default list-item style.
 	Item lipgloss.Style
 	// ItemSel styles the selected row in the focused pane (reverse).
@@ -38,13 +41,8 @@ type theme struct {
 	Number lipgloss.Style
 	// Location is for source location URLs / paths — green, like sq's Location.
 	Location lipgloss.Style
-	// Inspector is the borderless style for the rightmost (inspector)
-	// pane, which is separated from its neighbors by Divider instead of
-	// a box border.
-	Inspector lipgloss.Style
-	// Divider styles the rule separating the inspector from the pane
-	// before it: a full-height "│" column in horizontal layouts, a "─"
-	// row in the stacked layout.
+	// Divider styles the rules separating panes: full-height "│"
+	// columns in horizontal layouts, a "─" row in the stacked layout.
 	Divider lipgloss.Style
 	// DividerFocus styles the divider when the inspector has focus. It
 	// stands in for the focused border the other panes use.
@@ -65,15 +63,9 @@ func newTheme(noColor bool) theme {
 		return theme{} // every style is the zero-value (no styling).
 	}
 	return theme{
-		Title: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(colorBlue)),
-		Pane: lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder()).
-			BorderForeground(lipgloss.Color(colorGray)).
-			Padding(0, 1),
-		PaneFocus: lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color(colorHiBlue)).
-			Padding(0, 1),
+		Title:        lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(colorBlue)),
+		TitleFocus:   lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(colorHiBlue)),
+		Pane:         lipgloss.NewStyle().Padding(0, 1),
 		Item:         lipgloss.NewStyle(),
 		ItemSel:      lipgloss.NewStyle().Reverse(true),
 		ItemCursor:   lipgloss.NewStyle().Underline(true).Faint(true),
@@ -81,7 +73,6 @@ func newTheme(noColor bool) theme {
 		Handle:       lipgloss.NewStyle().Foreground(lipgloss.Color(colorBlue)),
 		Number:       lipgloss.NewStyle().Foreground(lipgloss.Color(colorCyan)),
 		Location:     lipgloss.NewStyle().Foreground(lipgloss.Color(colorGreen)),
-		Inspector:    lipgloss.NewStyle().Padding(0, 1),
 		Divider:      lipgloss.NewStyle().Foreground(lipgloss.Color(colorGray)),
 		DividerFocus: lipgloss.NewStyle().Foreground(lipgloss.Color(colorHiBlue)),
 		Faint:        lipgloss.NewStyle().Faint(true),

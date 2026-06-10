@@ -72,7 +72,7 @@ func (d *detailPane) view(width, height int) string {
 	default:
 		body = d.theme.Faint.Render("(loading)")
 	}
-	return d.theme.Inspector.Width(width).Height(height).MaxHeight(height).Render(body)
+	return d.theme.Pane.Width(width).Height(height).MaxHeight(height).Render(body)
 }
 
 func (d *detailPane) viewSource() string {

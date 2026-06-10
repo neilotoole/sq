@@ -97,46 +97,48 @@ func (p *sourcesPane) update(msg tea.KeyMsg, keys keyMap) {
 // so the selected row stays in view.
 func (p *sourcesPane) view(focused bool, width, height int) string {
 	var b strings.Builder
-	title := p.theme.Title.Render("Sources")
-	b.WriteString(title)
+	titleStyle := p.theme.Title
+	if focused {
+		titleStyle = p.theme.TitleFocus
+	}
+	b.WriteString(titleStyle.Render("Sources"))
 	if p.filter != "" {
 		fmt.Fprintf(&b, " (/%s)", p.filter)
 	}
 	b.WriteString("\n")
 
 	vs := p.visibleSources()
-	// Available content rows = height - 2 (border) - 1 (title row).
-	avail := height - 3
+	// Available content rows = height - 1 (title row).
+	avail := height - 1
 	if avail < 1 {
 		avail = 1
 	}
 	start, end := scrollWindow(p.selected, len(vs), avail)
 	for i := start; i < end; i++ {
 		s := vs[i]
-		// Color every handle to match sq's Handle palette; the active
-		// source overrides with Active styling (green + bold).
-		line := p.theme.Handle.Render(s.Handle)
+		// Exactly one style renders each row: nesting Render calls embeds
+		// ANSI codes inside the outer style's text, which lipgloss mangles
+		// into literal "[1;32m" garbage (notably via ItemCursor's
+		// per-rune underline handling). Precedence: selection highlight
+		// beats the Handle/Active coloring.
+		st := p.theme.Handle
 		if s == p.active {
-			line = p.theme.ItemActiv.Render(s.Handle)
+			st = p.theme.ItemActiv
 		}
 		if i == p.selected {
 			if focused {
-				line = p.theme.ItemSel.Render(line)
+				st = p.theme.ItemSel
 			} else {
-				line = p.theme.ItemCursor.Render(line)
+				st = p.theme.ItemCursor
 			}
 		}
-		b.WriteString(line)
+		b.WriteString(st.Render(s.Handle))
 		if i < end-1 {
 			b.WriteString("\n")
 		}
 	}
 
-	style := p.theme.Pane
-	if focused {
-		style = p.theme.PaneFocus
-	}
-	return style.Width(width).Height(height).MaxHeight(height).Render(b.String())
+	return p.theme.Pane.Width(width).Height(height).MaxHeight(height).Render(b.String())
 }
 
 // scrollWindow computes [start, end) item indices to render given the

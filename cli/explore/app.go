@@ -306,20 +306,16 @@ func (m *Model) View() string {
 	return top + "\n" + row
 }
 
-// paneBorderWidth is the horizontal space a bordered pane adds beyond
-// its lipgloss content width (one border char each side). Layout math
-// subtracts it so rendered rows total exactly m.width; overflow would
-// wrap in the terminal and garble every line.
-const paneBorderWidth = 2
-
 // viewWide is the three-pane side-by-side layout used when the terminal
-// is at least widthFullThreshold columns wide.
+// is at least widthFullThreshold columns wide. Panes are borderless,
+// separated by full-height divider rules.
 func (m *Model) viewWide(body int) string {
 	col := m.width / numPanes
-	srcCol := m.sources.view(m.focused == paneSources, col-paneBorderWidth, body)
-	schCol := m.schema.view(m.focused == paneSchema, col-paneBorderWidth, body)
-	detCol := m.detail.view(m.width-2*col-1, body)
-	return lipgloss.JoinHorizontal(lipgloss.Top, srcCol, schCol, m.divider(body), detCol)
+	srcCol := m.sources.view(m.focused == paneSources, col, body)
+	schCol := m.schema.view(m.focused == paneSchema, col, body)
+	detCol := m.detail.view(m.width-2*col-2, body)
+	return lipgloss.JoinHorizontal(lipgloss.Top,
+		srcCol, m.divider(body, false), schCol, m.divider(body, m.focused == paneDetail), detCol)
 }
 
 // viewCompact drops the sources pane to a header line and shows the
@@ -327,9 +323,10 @@ func (m *Model) viewWide(body int) string {
 func (m *Model) viewCompact(body int) string {
 	head := m.theme.Faint.Render("source: " + m.currentAddress())
 	col := m.width / 2
-	schCol := m.schema.view(m.focused == paneSchema, col-paneBorderWidth, body-1)
+	schCol := m.schema.view(m.focused == paneSchema, col, body-1)
 	detCol := m.detail.view(m.width-col-1, body-1)
-	return head + "\n" + lipgloss.JoinHorizontal(lipgloss.Top, schCol, m.divider(body-1), detCol)
+	return head + "\n" + lipgloss.JoinHorizontal(lipgloss.Top,
+		schCol, m.divider(body-1, m.focused == paneDetail), detCol)
 }
 
 // viewStacked stacks the header, schema, and detail panes vertically
@@ -339,30 +336,29 @@ func (m *Model) viewStacked(body int) string {
 	schH := (body - 2) / 2
 	detH := body - 2 - schH
 	head := m.theme.Faint.Render("source: " + m.currentAddress())
-	schView := m.schema.view(m.focused == paneSchema, m.width-paneBorderWidth, schH)
-	rule := m.dividerStyle().Render(strings.Repeat("─", max(m.width, 1)))
+	schView := m.schema.view(m.focused == paneSchema, m.width, schH)
+	ruleStyle := m.theme.Divider
+	if m.focused == paneDetail {
+		ruleStyle = m.theme.DividerFocus
+	}
+	rule := ruleStyle.Render(strings.Repeat("─", max(m.width, 1)))
 	detView := m.detail.view(m.width, detH)
 	return head + "\n" + schView + "\n" + rule + "\n" + detView
 }
 
-// divider renders the full-height "│" rule drawn to the left of the
-// inspector pane.
-func (m *Model) divider(height int) string {
+// divider renders a full-height "│" rule separating two panes. The
+// inspector has no title row to carry a focus signal, so the divider
+// to its left is rendered with DividerFocus when it has focus.
+func (m *Model) divider(height int, focused bool) string {
+	st := m.theme.Divider
+	if focused {
+		st = m.theme.DividerFocus
+	}
 	lines := make([]string, max(height, 1))
 	for i := range lines {
 		lines[i] = "│"
 	}
-	return m.dividerStyle().Render(strings.Join(lines, "\n"))
-}
-
-// dividerStyle returns the style for the inspector divider. The
-// inspector has no border, so the divider color doubles as its focus
-// indicator.
-func (m *Model) dividerStyle() lipgloss.Style {
-	if m.focused == paneDetail {
-		return m.theme.DividerFocus
-	}
-	return m.theme.Divider
+	return st.Render(strings.Join(lines, "\n"))
 }
 
 // helpLine returns the always-visible top-line key summary. It is
