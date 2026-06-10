@@ -2,14 +2,20 @@ package cli_test
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	gokeyring "github.com/zalando/go-keyring"
 
+	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source"
@@ -842,4 +848,175 @@ func TestCmdAdd_StoreKeyring_PromptsWhenNoPassword(t *testing.T) {
 	got, err := gokeyring.Get("sq", id)
 	require.NoError(t, err)
 	require.Equal(t, "postgres://alice:piped-password@localhost:5432/sakila", got)
+}
+
+// newRqliteMockHandlerForCLI returns an HTTP handler that satisfies gorqlite's
+// cluster discovery protocol, suitable for CLI-level seam tests. hostPtr is a
+// pointer to the "host:port" string of the test server resolved at request time
+// so the handler can be constructed before the server URL is known.
+//
+// The handler responds to:
+//   - GET /status  — returns a minimal JSON body with a top-level "node" key.
+//   - GET /nodes   — returns the test server as the single leader, using the
+//     scheme dictated by tlsNodes: "https" when true, "http" when false.
+//   - GET /db/query — returns a minimal single-row result (used by PingContext).
+//
+// The tlsNodes parameter controls the scheme in the /nodes response. Set it to
+// true when the test server itself is a TLS server (httptest.NewTLSServer), and
+// false for plain HTTP servers. A mismatch causes gorqlite to connect to the
+// wrong scheme during cluster discovery, and Ping will fail.
+func newRqliteMockHandlerForCLI(hostPtr *string, tlsNodes bool) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/status":
+			// Return a store.leader raft addr with no matching metadata api_addr
+			// so gorqlite falls back to /nodes to resolve the HTTP API address.
+			_, _ = w.Write([]byte(`{"node":{},"store":{"leader":"127.0.0.1:4002","metadata":{}}}`))
+		case "/nodes":
+			// Return the test server itself as the reachable leader with the
+			// appropriate scheme so gorqlite connects via the right protocol.
+			scheme := "http"
+			if tlsNodes {
+				scheme = "https"
+			}
+			body := fmt.Sprintf(
+				`{"1":{"api_addr":"%s://%s","addr":"127.0.0.1:4002","reachable":true,"leader":true}}`,
+				scheme, *hostPtr,
+			)
+			_, _ = w.Write([]byte(body))
+		case "/db/query":
+			_, _ = w.Write([]byte(`{"results":[{"columns":["1"],"types":["integer"],"values":[[1]]}]}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	})
+}
+
+// TestCmdAdd_Rqlite_ConnParamDetection exercises the sq add detection seam
+// end-to-end against httptest servers. The TLS subtest swaps
+// http.DefaultTransport so the detector's default-verification probe trusts the
+// test server's cert; for that reason this test must not run in parallel.
+func TestCmdAdd_Rqlite_ConnParamDetection(t *testing.T) {
+	t.Run("tls_endpoint_detected_and_persisted", func(t *testing.T) {
+		var host string
+		server := httptest.NewTLSServer(newRqliteMockHandlerForCLI(&host, true))
+		t.Cleanup(server.Close)
+		host = server.Listener.Addr().String()
+
+		// The CLI-built detector uses http.DefaultTransport (nil transport).
+		// Swap in one that trusts the test cert so the HTTPS probe succeeds.
+		ogTransport := http.DefaultTransport
+		http.DefaultTransport = server.Client().Transport
+		t.Cleanup(func() { http.DefaultTransport = ogTransport })
+
+		tr := testrun.New(context.Background(), t, nil)
+		err := tr.Exec("add", "--handle", "@rq_detect", "rqlite://"+host)
+		require.NoError(t, err)
+
+		src, err := tr.Run.Config.Collection.Get("@rq_detect")
+		require.NoError(t, err)
+		require.Contains(t, src.Location, "tls=true",
+			"detection must persist tls=true for a TLS-only endpoint")
+	})
+
+	t.Run("plain_http_endpoint_not_rewritten", func(t *testing.T) {
+		var host string
+		server := httptest.NewServer(newRqliteMockHandlerForCLI(&host, false))
+		t.Cleanup(server.Close)
+		host = server.Listener.Addr().String()
+
+		tr := testrun.New(context.Background(), t, nil)
+		err := tr.Exec("add", "--handle", "@rq_plain", "rqlite://"+host)
+		require.NoError(t, err)
+
+		src, err := tr.Run.Config.Collection.Get("@rq_plain")
+		require.NoError(t, err)
+		require.NotContains(t, src.Location, "tls",
+			"plain-HTTP endpoint must not be rewritten")
+	})
+
+	t.Run("skip_verify_means_zero_probes", func(t *testing.T) {
+		var host string
+		var hits atomic.Int64
+		inner := newRqliteMockHandlerForCLI(&host, false)
+		server := httptest.NewServer(http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				hits.Add(1)
+				inner.ServeHTTP(w, r)
+			}))
+		t.Cleanup(server.Close)
+		host = server.Listener.Addr().String()
+
+		tr := testrun.New(context.Background(), t, nil)
+		err := tr.Exec("add", "--skip-verify", "--handle", "@rq_skip",
+			"rqlite://"+host)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), hits.Load(),
+			"--skip-verify must suppress detection AND ping")
+	})
+
+	t.Run("placeholder_location_not_rewritten", func(t *testing.T) {
+		// A ${env:...} placeholder location: detection must skip, so the
+		// persisted location is byte-identical to the input.
+		t.Setenv("SQ_TEST_RQ_DSN", "rqlite://localhost:4001")
+
+		tr := testrun.New(context.Background(), t, nil)
+		err := tr.Exec("add", "--skip-verify", "--driver", "rqlite",
+			"--handle", "@rq_ph", "${env:SQ_TEST_RQ_DSN}")
+		require.NoError(t, err)
+
+		src, err := tr.Run.Config.Collection.Get("@rq_ph")
+		require.NoError(t, err)
+		require.Equal(t, "${env:SQ_TEST_RQ_DSN}", src.Location,
+			"placeholder location must be persisted untouched")
+	})
+
+	t.Run("placeholder_gate_skips_detection", func(t *testing.T) {
+		// Pins the placeholder gate in detectConnParamsForAdd
+		// specifically (the prior subtest exits via the --skip-verify
+		// gate and never reaches it). A TLS endpoint behind a
+		// placeholder, WITHOUT --skip-verify and WITHOUT a transport
+		// swap: the add must fail, and the failure mode reveals which
+		// code ran. With the gate, detection is skipped and Ping fails
+		// with the TLS-signal hint. Without the gate, detection would
+		// run against the resolved location, hit the untrusted test
+		// cert, and fail with the cert-verification error instead.
+		var host string
+		server := httptest.NewTLSServer(newRqliteMockHandlerForCLI(&host, true))
+		t.Cleanup(server.Close)
+		host = server.Listener.Addr().String()
+
+		t.Setenv("SQ_TEST_RQ_TLS_DSN", "rqlite://"+host)
+
+		tr := testrun.New(context.Background(), t, nil)
+		err := tr.Exec("add", "--driver", "rqlite",
+			"--handle", "@rq_ph_tls", "${env:SQ_TEST_RQ_TLS_DSN}")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "appears to require TLS",
+			"failure must come from Ping enrichment, proving detection was skipped")
+		require.NotContains(t, err.Error(), "certificate could not be verified",
+			"detection's cert error would mean the placeholder gate did not fire")
+	})
+}
+
+// TestFilterToAdvertisedParams pins the subset-invariant contract clause:
+// detected keys not advertised by the driver's ConnParams are dropped (a driver
+// bug must not fail the user's add).
+func TestFilterToAdvertisedParams(t *testing.T) {
+	tr := testrun.New(context.Background(), t, nil)
+	drvr, err := tr.Run.DriverRegistry.DriverFor(drivertype.Rqlite)
+	require.NoError(t, err)
+
+	src := &source.Source{
+		Handle:   "@rq",
+		Type:     drivertype.Rqlite,
+		Location: "rqlite://host:4001",
+	}
+	in := url.Values{
+		"tls":           {"true"}, // advertised by rqlite ConnParams
+		"bogusDetected": {"x"},    // NOT advertised: must be dropped
+	}
+	out := cli.FilterToAdvertisedParams(context.Background(), drvr, src, in)
+	require.Equal(t, url.Values{"tls": []string{"true"}}, out)
 }
