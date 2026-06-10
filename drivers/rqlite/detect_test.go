@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
@@ -32,6 +34,9 @@ func mkResp(status int, contentType, reqURL string) *http.Response {
 }
 
 func TestProbeIndicatesTLS(t *testing.T) {
+	// Keep in sync with Go's net/http TLS-listener response;
+	// TestDetectConnParams_TLS exercises the real server-generated
+	// form end-to-end.
 	const canonical400 = "Client sent an HTTP request to an HTTPS server.\n"
 
 	t.Run("nil resp nil err", func(t *testing.T) {
@@ -146,10 +151,13 @@ func TestDetectConnParams_PlainHTTP(t *testing.T) {
 	t.Cleanup(cancel)
 
 	d := &driveri{}
-	params, err := d.detectConnParams(ctx, detectTestSrc("rqlite://"+host), nil)
+	src := detectTestSrc("rqlite://" + host)
+	ogLoc := src.Location
+	params, err := d.detectConnParams(ctx, src, nil)
 	require.NoError(t, err)
 	require.Nil(t, params, "plain-HTTP endpoint: nothing to detect")
 	require.Equal(t, int64(1), hits.Load(), "exactly one probe request")
+	require.Equal(t, ogLoc, src.Location, "detector must not mutate src")
 }
 
 func TestDetectConnParams_TLS(t *testing.T) {
@@ -164,9 +172,12 @@ func TestDetectConnParams_TLS(t *testing.T) {
 	d := &driveri{}
 	// Inject the test server's transport, which trusts its cert.
 	transport := server.Client().Transport
-	params, err := d.detectConnParams(ctx, detectTestSrc("rqlite://"+host), transport)
+	src := detectTestSrc("rqlite://" + host)
+	ogLoc := src.Location
+	params, err := d.detectConnParams(ctx, src, transport)
 	require.NoError(t, err)
 	require.Equal(t, url.Values{"tls": []string{"true"}}, params)
+	require.Equal(t, ogLoc, src.Location, "detector must not mutate src")
 }
 
 func TestDetectConnParams_TLSBadCert(t *testing.T) {
@@ -180,10 +191,13 @@ func TestDetectConnParams_TLSBadCert(t *testing.T) {
 
 	d := &driveri{}
 	// nil transport: default verification distrusts the test cert.
-	_, err := d.detectConnParams(ctx, detectTestSrc("rqlite://"+host), nil)
+	_, err := d.detectConnParams(ctx,
+		detectTestSrc("rqlite://alice:secret123@"+host), nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "insecure=true")
 	require.Contains(t, err.Error(), "tls=true")
+	require.NotContains(t, err.Error(), "secret123",
+		"cert error must not echo the password from src.Location")
 }
 
 func TestDetectConnParams_ExplicitIntentSkips(t *testing.T) {
@@ -201,6 +215,7 @@ func TestDetectConnParams_ExplicitIntentSkips(t *testing.T) {
 		"rqlite://" + host + "?tls=true",
 		"rqlite://" + host + "?tls=false",
 		"rqlite://" + host + "?tls=true&insecure=true",
+		"rqlite://" + host + "?insecure=true",
 	} {
 		params, err := d.detectConnParams(ctx, detectTestSrc(loc), nil)
 		require.NoError(t, err)
@@ -229,14 +244,18 @@ func TestDetectConnParams_NonRqliteServer(t *testing.T) {
 
 // TestDetectConnParams_NonRqliteJSON covers the JSON-but-not-rqlite
 // case end-to-end: a 200 application/json response without a
-// top-level "node" key must not be confirmed as rqlite, must not
-// trigger the HTTPS fallback, and must step aside.
+// top-level "node" key must not be confirmed as rqlite, and must
+// step aside after a single request. (The hit count alone can't
+// distinguish "no HTTPS fallback" from "fallback attempted but the
+// TLS handshake failed before reaching the handler"; what it pins is
+// the single-request step-aside.)
 func TestDetectConnParams_NonRqliteJSON(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(
+	var hits atomic.Int64
+	server := httptest.NewServer(countingHandler(http.HandlerFunc(
 		func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"version":"8","status":"ok"}`))
-		}))
+		}), &hits))
 	t.Cleanup(server.Close)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -247,6 +266,7 @@ func TestDetectConnParams_NonRqliteJSON(t *testing.T) {
 		detectTestSrc("rqlite://"+server.Listener.Addr().String()), nil)
 	require.NoError(t, err)
 	require.Nil(t, params, "non-rqlite JSON server: step aside")
+	require.Equal(t, int64(1), hits.Load(), "exactly one probe request")
 }
 
 func TestDetectConnParams_Unreachable(t *testing.T) {
@@ -288,6 +308,72 @@ func TestDetectConnParams_RedirectToHTTPS(t *testing.T) {
 	require.Nil(t, params)
 	require.Equal(t, int64(1), hits.Load(),
 		"probe must not follow the redirect: exactly one request to the front")
+}
+
+// TestDetectConnParams_HangingEndpointBounded pins two behaviors: the
+// probe client's timeout comes from conn.open-timeout (a mutation
+// passing zero or ignoring src.Options hangs this test), and a
+// client-timeout failure is not a TLS signal (step aside, nil).
+func TestDetectConnParams_HangingEndpointBounded(t *testing.T) {
+	block := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(
+		func(http.ResponseWriter, *http.Request) { <-block }))
+	t.Cleanup(func() { close(block); server.Close() })
+
+	src := detectTestSrc("rqlite://" + server.Listener.Addr().String())
+	src.Options = options.Options{
+		// Duration.Get requires a typed time.Duration value; a raw
+		// "150ms" string would silently fall back to the default.
+		driver.OptConnOpenTimeout.Key(): 150 * time.Millisecond,
+	}
+
+	start := time.Now()
+	params, err := (&driveri{}).detectConnParams(context.Background(), src, nil)
+	require.NoError(t, err)
+	require.Nil(t, params, "timeout is not a TLS signal: step aside")
+	require.Less(t, time.Since(start), 5*time.Second,
+		"probe must be bounded by conn.open-timeout, not hang")
+}
+
+// TestDetectConnParams_RedirectNotFollowedToBackend pins that the
+// probe never issues requests to a redirect target: a followed
+// redirect would leak the probe (and its Authorization header) to
+// the target. The front redirects to a separate TLS backend on the
+// same hostname (different port; the classifier compares hostname
+// only); with CheckRedirect intact the backend sees zero requests.
+// Step 1 classifies the same-host https redirect as a TLS signal;
+// step 2 then probes https against the FRONT's port (never the
+// backend's), fails the handshake against the plain listener, and
+// steps aside with nil params.
+func TestDetectConnParams_RedirectNotFollowedToBackend(t *testing.T) {
+	var backendHits atomic.Int64
+	var host string
+	backend := httptest.NewTLSServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			backendHits.Add(1)
+			newRqliteMockHandler(&host).ServeHTTP(w, r)
+		}))
+	t.Cleanup(backend.Close)
+
+	front := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, backend.URL+r.URL.Path, http.StatusMovedPermanently)
+		}))
+	t.Cleanup(front.Close)
+	host = front.Listener.Addr().String()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+
+	d := &driveri{}
+	// The injected transport trusts the backend cert, so if the
+	// client followed the redirect, the backend WOULD answer.
+	params, err := d.detectConnParams(ctx,
+		detectTestSrc("rqlite://"+host), backend.Client().Transport)
+	require.NoError(t, err)
+	require.Nil(t, params, "https probe of the plain front must step aside")
+	require.Equal(t, int64(0), backendHits.Load(),
+		"probe must never request the redirect target")
 }
 
 func TestDetectConnParams_CtxCanceled(t *testing.T) {

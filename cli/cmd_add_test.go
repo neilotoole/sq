@@ -18,6 +18,7 @@ import (
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
@@ -1019,4 +1020,33 @@ func TestFilterToAdvertisedParams(t *testing.T) {
 	}
 	out := cli.FilterToAdvertisedParams(context.Background(), drvr, src, in)
 	require.Equal(t, url.Values{"tls": []string{"true"}}, out)
+
+	t.Run("non-sql driver drops all params", func(t *testing.T) {
+		// A non-SQLDriver advertises no ConnParams, so nothing can be
+		// validated against the subset invariant: everything is dropped.
+		out := cli.FilterToAdvertisedParams(context.Background(), nonSQLDriverStub{}, src,
+			url.Values{"tls": {"true"}})
+		require.Empty(t, out)
+	})
+}
+
+// nonSQLDriverStub implements driver.Driver but NOT driver.SQLDriver.
+// Only the type assertion in filterToAdvertisedParams matters; the
+// methods are never called.
+type nonSQLDriverStub struct{}
+
+func (nonSQLDriverStub) Open(context.Context, *source.Source) (driver.Grip, error) {
+	panic("not implemented")
+}
+
+func (nonSQLDriverStub) Ping(context.Context, *source.Source) error {
+	panic("not implemented")
+}
+
+func (nonSQLDriverStub) DriverMetadata() driver.Metadata {
+	return driver.Metadata{}
+}
+
+func (nonSQLDriverStub) ValidateSource(*source.Source) (*source.Source, error) {
+	panic("not implemented")
 }

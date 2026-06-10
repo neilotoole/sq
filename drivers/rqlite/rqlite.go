@@ -194,7 +194,7 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	if opts.insecure {
 		db = sql.OpenDB(&insecureConnector{
 			dsn:    dsn,
-			client: newInsecureHTTPClient(insecureClientTimeout(dsn, src.Options)),
+			client: newInsecureHTTPClient(clientTimeout(dsn, src.Options)),
 		})
 	} else {
 		db, err = sql.Open(sqDBDrvrName, dsn)
@@ -209,14 +209,15 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	return db, nil
 }
 
-// insecureClientTimeout returns the HTTP client timeout for the
-// insecure (skip-verify) connection path. gorqlite applies the
+// clientTimeout returns the HTTP client timeout for the clients that
+// sq constructs itself: the insecure (skip-verify) connection path
+// and the conn param detection probe. gorqlite applies the
 // gorqlite-native ?timeout=N URL param (integer seconds) only when it
-// constructs its own http.Client; sq passes a custom client on the
-// insecure path, so the param must be honored here. ?timeout takes
-// precedence over conn.open-timeout, matching what gorqlite does on
-// the default path when no custom client is supplied.
-func insecureClientTimeout(dsn string, o options.Options) time.Duration {
+// constructs its own http.Client; sq passes a custom client on these
+// paths, so the param must be honored here. ?timeout takes precedence
+// over conn.open-timeout, matching what gorqlite does on the default
+// path when no custom client is supplied.
+func clientTimeout(dsn string, o options.Options) time.Duration {
 	timeout := driver.OptConnOpenTimeout.Get(o)
 	if u, err := url.Parse(dsn); err == nil {
 		if v := u.Query().Get("timeout"); v != "" {

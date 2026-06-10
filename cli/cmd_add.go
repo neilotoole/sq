@@ -766,7 +766,13 @@ func filterToAdvertisedParams(ctx context.Context, drvr driver.Driver,
 	}
 	sqlDrvr, ok := drvr.(driver.SQLDriver)
 	if !ok {
-		return params
+		// A non-SQL driver advertises no conn params, so no detected
+		// key can be validated against the subset invariant: drop
+		// them all rather than persisting unvetted params.
+		lg.FromContext(ctx).Warn(
+			"Detected conn params from non-SQL driver; dropping all",
+			lga.Src, src.Handle)
+		return url.Values{}
 	}
 	advertised := sqlDrvr.ConnParams()
 	out := url.Values{}

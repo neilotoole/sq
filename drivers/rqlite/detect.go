@@ -34,7 +34,12 @@ import (
 //     not follow redirects, or this signal is invisible and the
 //     endpoint is mis-detected as plain HTTP.
 //  3. Transport-level tls.RecordHeaderError or EOF mid-response:
-//     TLS-only servers that hang up instead of answering.
+//     TLS-only servers that hang up instead of answering. EOF is a
+//     deliberately weak signal: any abrupt close matches, not only
+//     TLS hang-ups, so a flaky plain-HTTP server can trigger an
+//     unnecessary HTTPS probe. The strict statusLooksRqlite
+//     fingerprint on the HTTPS response is the second line of
+//     defense against a false tls=true.
 func probeIndicatesTLS(resp *http.Response, body []byte, err error) bool {
 	if err != nil {
 		var rec tls.RecordHeaderError
@@ -127,7 +132,10 @@ func (d *driveri) detectConnParams(ctx context.Context, src *source.Source,
 	}
 
 	client := &http.Client{
-		Timeout:   driver.OptConnOpenTimeout.Get(src.Options),
+		// clientTimeout honors the gorqlite-native ?timeout=N URL
+		// param (integer seconds) over conn.open-timeout, keeping the
+		// probe consistent with the documented timeout behavior.
+		Timeout:   clientTimeout(loc, src.Options),
 		Transport: transport, // nil means http.DefaultTransport
 		// Do not follow redirects: a redirect to https:// is itself
 		// a TLS signal that probeIndicatesTLS must see; following it

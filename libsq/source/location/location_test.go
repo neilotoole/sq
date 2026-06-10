@@ -238,6 +238,12 @@ func TestMergeQuery(t *testing.T) {
 			params:  url.Values{"tls": {"true"}},
 			wantErr: true,
 		},
+		{
+			name:    "scheme-less loc rejected",
+			loc:     "/path/to/file.db",
+			params:  url.Values{"tls": {"true"}},
+			wantErr: true,
+		},
 	}
 
 	for _, tc := range testCases {

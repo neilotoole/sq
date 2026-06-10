@@ -692,8 +692,9 @@ func redactBestEffort(loc string) string {
 
 // MergeQuery returns loc with the given query params set, replacing
 // any existing values for the same keys. Other query params are
-// preserved. loc must be a parseable URL; locations bearing secret
-// placeholders are the caller's responsibility to exclude.
+// preserved. loc must be a parseable URL with a scheme; locations
+// bearing secret placeholders are the caller's responsibility to
+// exclude.
 func MergeQuery(loc string, params url.Values) (string, error) {
 	if len(params) == 0 {
 		return loc, nil
@@ -707,6 +708,12 @@ func MergeQuery(loc string, params url.Values) (string, error) {
 			err = uerr.Err
 		}
 		return "", errz.Wrapf(err, "merge query: invalid location: %s",
+			redactBestEffort(loc))
+	}
+	if u.Scheme == "" {
+		// url.Parse accepts bare file paths; without a scheme there is
+		// no URL to merge query params into.
+		return "", errz.Errorf("merge query: location has no scheme: %s",
 			redactBestEffort(loc))
 	}
 	q := u.Query()
