@@ -160,3 +160,27 @@ func TestRewriteCertVerificationError(t *testing.T) {
 		require.NotContains(t, out.Error(), "?tls=true?tls=true")
 	})
 }
+
+func TestEnrichConnError(t *testing.T) {
+	src := newTestSrc(t)
+
+	t.Run("nil", func(t *testing.T) {
+		require.NoError(t, enrichConnError(nil, src))
+	})
+
+	t.Run("plain unwrappable error returned unchanged", func(t *testing.T) {
+		in := errz.New("unrelated boom")
+		out := enrichConnError(in, src)
+		require.Equal(t, in.Error(), out.Error())
+	})
+
+	t.Run("tls signal wins for an io.EOF", func(t *testing.T) {
+		out := enrichConnError(io.EOF, src)
+		require.Contains(t, out.Error(), "appears to require TLS")
+	})
+
+	t.Run("cert error gets the cert hint", func(t *testing.T) {
+		out := enrichConnError(x509.UnknownAuthorityError{}, src)
+		require.Contains(t, out.Error(), "certificate verification failed")
+	})
+}

@@ -225,6 +225,19 @@ func rewriteCertVerificationError(err error, src *source.Source) error {
 		src.Handle, loc, sep)
 }
 
+// enrichConnError applies the known connection-error enrichments
+// in a fixed order. Each inner check returns the input unchanged
+// if it doesn't match, so the composition is safe and idempotent.
+// Order matters only for readability: DNS first (most specific),
+// then TLS signal (HTTP→HTTPS), then cert verification (HTTPS
+// with bad cert).
+func enrichConnError(err error, src *source.Source) error {
+	err = rewritePeerDNSError(err, src)
+	err = rewriteTLSSignalError(err, src)
+	err = rewriteCertVerificationError(err, src)
+	return err
+}
+
 // isCertVerificationError reports whether err is (or wraps) one of
 // the x509 / crypto/tls verification error types. Used by the
 // enrichment to decide whether to suggest ?insecure=true.
