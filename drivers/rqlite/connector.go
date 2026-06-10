@@ -44,12 +44,21 @@ func (c *insecureConnector) Driver() driver.Driver {
 // newInsecureHTTPClient returns an *http.Client whose TLS config
 // has InsecureSkipVerify set, with the given timeout. Intended only
 // for the ?insecure=true code path.
+//
+// http.DefaultTransport is cloned so that ProxyFromEnvironment, HTTP/2
+// support, keepalive tuning, and dial timeouts are preserved. Only the
+// TLSClientConfig is overridden.
 func newInsecureHTTPClient(timeout time.Duration) *http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.TLSClientConfig = &tls.Config{
+		//nolint:gosec // ?insecure=true is an explicit user opt-in
+		InsecureSkipVerify: true,
+		// MinVersion is set explicitly as defense in depth; TLS 1.2 is the
+		// modern floor even when certificate verification is skipped.
+		MinVersion: tls.VersionTLS12,
+	}
 	return &http.Client{
-		Timeout: timeout,
-		Transport: &http.Transport{
-			//nolint:gosec // ?insecure=true is an explicit user opt-in
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
+		Timeout:   timeout,
+		Transport: transport,
 	}
 }

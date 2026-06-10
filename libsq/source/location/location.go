@@ -119,7 +119,7 @@ func Short(loc string) string {
 			return name
 		}
 
-		// It's not a http URL. If it has a scheme separator, it's likely
+		// It's not an HTTP URL. If it has a scheme separator, it's likely
 		// a URL with an unknown driver scheme (not a filepath); redact
 		// best-effort rather than mangle it via filepath.Base, which would
 		// echo inline credentials like "user:pass@host" verbatim.
@@ -264,7 +264,7 @@ func Parse(loc string) (*Fields, error) {
 	}
 
 	if u, ok := isHTTP(loc); ok {
-		// It's a http or https URL
+		// It's an HTTP or HTTPS URL.
 		fields.Scheme = u.Scheme
 		fields.Hostname = u.Hostname()
 		if u.Port() != "" {

@@ -210,6 +210,9 @@ func TestLocationWithDefaultPort(t *testing.T) {
 		{loc: "rqlite://user:pass@host", wantLoc: "rqlite://user:pass@host:4001", wantAdded: true},
 		{loc: "rqlite://host:9999", wantLoc: "rqlite://host:9999", wantAdded: false},
 		{loc: "rqlite://host?level=strong", wantLoc: "rqlite://host:4001?level=strong", wantAdded: true},
+		{loc: "rqlite://[::1]", wantLoc: "rqlite://[::1]:4001", wantAdded: true},
+		{loc: "rqlite://[::1]:5000", wantLoc: "rqlite://[::1]:5000", wantAdded: false},
+		{loc: "rqlite://user@[::1]", wantLoc: "rqlite://user@[::1]:4001", wantAdded: true},
 	}
 
 	for _, tc := range testCases {

@@ -31,6 +31,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/url"
 	"strconv"
 	"strings"
@@ -363,7 +364,7 @@ func locationWithDefaultPort(loc string) (string, bool, error) {
 		return loc, false, nil
 	}
 
-	u.Host = u.Hostname() + ":" + strconv.Itoa(defaultPort)
+	u.Host = net.JoinHostPort(u.Hostname(), strconv.Itoa(defaultPort))
 	return u.String(), true, nil
 }
 
