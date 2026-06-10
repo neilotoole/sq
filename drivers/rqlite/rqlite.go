@@ -447,8 +447,10 @@ func dsnFromLocation(loc string) (string, dsnOpts, error) {
 	}
 
 	q := u.Query()
-	if v := q.Get("tls"); v != "" {
-		switch v {
+	// Use q.Has, not a q.Get-non-empty check: a bare "?tls" or empty
+	// "?tls=" must be rejected, not silently forwarded to gorqlite.
+	if q.Has("tls") {
+		switch v := q.Get("tls"); v {
 		case "true":
 			scheme = "https"
 			opts.tls = true
@@ -462,8 +464,8 @@ func dsnFromLocation(loc string) (string, dsnOpts, error) {
 		q.Del("tls")
 	}
 
-	if v := q.Get("insecure"); v != "" {
-		switch v {
+	if q.Has("insecure") {
+		switch v := q.Get("insecure"); v {
 		case "true":
 			opts.insecure = true
 		case "false":

@@ -62,9 +62,22 @@ func TestDsnFromLocation_TLSParam(t *testing.T) {
 }
 
 func TestDsnFromLocation_TLSInvalidValue(t *testing.T) {
-	_, _, err := dsnFromLocation("rqlite://host:4001?tls=maybe")
-	require.Error(t, err)
-	require.Contains(t, err.Error(), `tls must be "true" or "false"`)
+	testCases := []struct {
+		name string
+		loc  string
+	}{
+		{name: "junk value", loc: "rqlite://host:4001?tls=maybe"},
+		{name: "empty value", loc: "rqlite://host:4001?tls="},
+		{name: "bare key", loc: "rqlite://host:4001?tls"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, err := dsnFromLocation(tc.loc)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), `tls must be "true" or "false"`)
+		})
+	}
 }
 
 func TestDsnFromLocation_InsecureParam(t *testing.T) {
@@ -135,6 +148,16 @@ func TestDsnFromLocation_InsecureContradictions(t *testing.T) {
 		{
 			name:        "insecure with invalid value",
 			loc:         "rqlite://host:4001?tls=true&insecure=maybe",
+			wantErrFrag: `insecure must be "true" or "false"`,
+		},
+		{
+			name:        "insecure with empty value",
+			loc:         "rqlite://host:4001?tls=true&insecure=",
+			wantErrFrag: `insecure must be "true" or "false"`,
+		},
+		{
+			name:        "bare insecure key",
+			loc:         "rqlite://host:4001?tls=true&insecure",
 			wantErrFrag: `insecure must be "true" or "false"`,
 		},
 	}

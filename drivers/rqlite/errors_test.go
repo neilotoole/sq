@@ -119,13 +119,14 @@ func TestIsCertVerificationError(t *testing.T) {
 			"x509: hostname error substring",
 			errz.New("x509: certificate is valid for example.com, not host"), true,
 		},
-		// x509.CertificateInvalidError is no longer matched by the direct
-		// errors.As check (removed in Issue #3), but its Error() string begins
-		// with "x509:" so the substring fallback still catches it and returns
-		// true. The correct action for an expired cert is "renew it", not
-		// "add ?insecure=true"; this behavior is a known limitation of the
-		// substring-fallback path, which fires only when gorqlite has already
-		// serialized the error to a string in production.
+		// x509.CertificateInvalidError has no direct errors.As check in
+		// isCertVerificationError: its Reason set includes Expired, where
+		// the correct action is "renew the cert", not "add ?insecure=true".
+		// However, its Error() string begins with "x509:" so the substring
+		// fallback still catches it and returns true. That is a known
+		// limitation of the substring-fallback path, which fires only when
+		// gorqlite has already serialized the error to a string in
+		// production.
 		{
 			"x509.CertificateInvalidError caught by substring fallback",
 			x509.CertificateInvalidError{Reason: x509.Expired},
