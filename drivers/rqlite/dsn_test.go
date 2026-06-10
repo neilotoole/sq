@@ -180,6 +180,18 @@ func TestDsnFromLocation_RejectsRqlitesScheme(t *testing.T) {
 	require.Contains(t, err.Error(), `must start with "rqlite://"`)
 }
 
+// TestDsnFromLocation_MalformedRedaction pins two properties of the
+// url.Parse failure path: the inline password must not leak into the
+// error (url.Error embeds the raw URL; we strip that wrapper), and
+// the underlying parse reason must survive for diagnosability.
+func TestDsnFromLocation_MalformedRedaction(t *testing.T) {
+	_, _, err := dsnFromLocation("rqlite://alice:secret@[::1")
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "secret")
+	require.Contains(t, err.Error(), "invalid location")
+	require.Contains(t, err.Error(), "missing ']' in host")
+}
+
 func TestValidateSource_RejectsContradictions(t *testing.T) {
 	d := &driveri{}
 	src := &source.Source{
