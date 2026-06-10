@@ -27,7 +27,6 @@ var dbSchemes = []string{
 	"postgres",
 	"sqlite3",
 	"rqlite",
-	"rqlites",
 	"duckdb",
 	"clickhouse",
 	"oracle",
@@ -127,12 +126,12 @@ func Short(loc string) string {
 
 	// It's a SQL driver.
 	//
-	// rqlite (rqlite:// for HTTP, rqlites:// for HTTPS) is a network SQL
-	// driver, but xo/dburl doesn't know its schemes, so Parse-ing through
-	// dburl returns an error and the fallback "return loc" would echo
-	// inline credentials. Handle it via url.ParseRequestURI here, mirroring
-	// the user@host[:port] shape used for the other DSN drivers below.
-	if strings.HasPrefix(loc, "rqlite://") || strings.HasPrefix(loc, "rqlites://") {
+	// rqlite is a network SQL driver, but xo/dburl doesn't know its
+	// scheme, so Parse-ing through dburl returns an error and the
+	// fallback "return loc" would echo inline credentials. Handle it
+	// via url.ParseRequestURI here, mirroring the user@host[:port]
+	// shape used for the other DSN drivers below.
+	if strings.HasPrefix(loc, "rqlite://") {
 		ru, err := url.ParseRequestURI(loc)
 		if err != nil {
 			// Couldn't parse; fall back to best-effort credential masking
@@ -304,10 +303,10 @@ func Parse(loc string) (*Fields, error) {
 		return fields, nil
 	}
 
-	// rqlite (rqlite:// for HTTP, rqlites:// for HTTPS) is a network SQL
-	// driver, but xo/dburl doesn't know its schemes, so we parse it here
-	// rather than fall through to dburl.Parse below.
-	if strings.HasPrefix(loc, "rqlite://") || strings.HasPrefix(loc, "rqlites://") {
+	// rqlite is a network SQL driver, but xo/dburl doesn't know its
+	// scheme, so we parse it here rather than fall through to
+	// dburl.Parse below.
+	if strings.HasPrefix(loc, "rqlite://") {
 		return parseRqlite(loc, fields)
 	}
 
@@ -394,10 +393,10 @@ func Parse(loc string) (*Fields, error) {
 	return fields, nil
 }
 
-// parseRqlite parses an rqlite:// or rqlites:// location into fields.
-// xo/dburl doesn't recognize either scheme, so this bypass uses
-// url.ParseRequestURI directly. fields is partially populated by the
-// caller; this function fills in the rqlite-specific bits.
+// parseRqlite parses an rqlite:// location into fields. xo/dburl
+// doesn't recognize the scheme, so this bypass uses
+// url.ParseRequestURI directly. fields is partially populated by
+// the caller; this function fills in the rqlite-specific bits.
 func parseRqlite(loc string, fields *Fields) (*Fields, error) {
 	u, err := url.ParseRequestURI(loc)
 	if err != nil {

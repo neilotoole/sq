@@ -139,7 +139,7 @@ func TestShort(t *testing.T) {
 		{loc: "postgres://sakila:p_ssW0rd@localhost:5432/sakila", want: "sakila@localhost:5432/sakila"},
 		{loc: "mysql://sakila:p_ssW0rd@localhost:3306/sakila", want: "sakila@localhost:3306/sakila"},
 		{loc: "rqlite://sakila:p_ssW0rd@localhost:4001", want: "sakila@localhost:4001"},
-		{loc: "rqlites://sakila:p_ssW0rd@localhost:4001", want: "sakila@localhost:4001"},
+		{loc: "rqlite://sakila:p_ssW0rd@localhost:4001?tls=true", want: "sakila@localhost:4001"},
 		{loc: "rqlite://localhost:4001", want: "localhost:4001"},
 		{loc: "rqlite://sakila:p_ssW0rd@localhost:4001?level=strong", want: "sakila@localhost:4001"},
 	}
