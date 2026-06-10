@@ -161,3 +161,12 @@ func TestValidateSource_RejectsContradictions(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "insecure has no effect without tls=true")
 }
+
+func TestConnParams_HasTLSAndInsecure(t *testing.T) {
+	d := &driveri{}
+	params := d.ConnParams()
+	require.Contains(t, params, "tls")
+	require.ElementsMatch(t, []string{"true", "false"}, params["tls"])
+	require.Contains(t, params, "insecure")
+	require.ElementsMatch(t, []string{"true", "false"}, params["insecure"])
+}
