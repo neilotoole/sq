@@ -35,6 +35,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/rqlite/gorqlite"
 
@@ -48,8 +49,10 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
@@ -188,10 +191,9 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 
 	var db *sql.DB
 	if opts.insecure {
-		timeout := driver.OptConnOpenTimeout.Get(src.Options)
 		db = sql.OpenDB(&insecureConnector{
 			dsn:    dsn,
-			client: newInsecureHTTPClient(timeout),
+			client: newInsecureHTTPClient(insecureClientTimeout(dsn, src.Options)),
 		})
 	} else {
 		db, err = sql.Open(sqDBDrvrName, dsn)
@@ -204,6 +206,25 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 
 	driver.ConfigureDB(ctx, db, src.Options)
 	return db, nil
+}
+
+// insecureClientTimeout returns the HTTP client timeout for the
+// insecure (skip-verify) connection path. gorqlite applies the
+// gorqlite-native ?timeout=N URL param (integer seconds) only when it
+// constructs its own http.Client; sq passes a custom client on the
+// insecure path, so the param must be honored here. ?timeout takes
+// precedence over conn.open-timeout, matching what gorqlite does on
+// the default path when no custom client is supplied.
+func insecureClientTimeout(dsn string, o options.Options) time.Duration {
+	timeout := driver.OptConnOpenTimeout.Get(o)
+	if u, err := url.Parse(dsn); err == nil {
+		if v := u.Query().Get("timeout"); v != "" {
+			if secs, err := strconv.Atoi(v); err == nil && secs > 0 {
+				timeout = time.Duration(secs) * time.Second
+			}
+		}
+	}
+	return timeout
 }
 
 // Truncate implements driver.Driver.
@@ -263,6 +284,26 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	if src.Type != drivertype.Rqlite {
 		return nil, errz.Errorf("expected driver type {%s} but got {%s}", drivertype.Rqlite, src.Type)
 	}
+
+	// If the location contains a ${scheme:path} secret placeholder
+	// (e.g. "${keyring:abc}" or "${env:DSN}"), it is opaque at
+	// validation time: the URL grammar check runs at Open time on the
+	// resolved location instead.
+	//
+	// Use secret.ExtractRefs rather than a "${"-substring scan: a
+	// literal "${" or escaped "$${...}" in src.Location is not
+	// actually a placeholder and shouldn't suppress the grammar
+	// check. A malformed-placeholder error here surfaces as
+	// ValidateSource's error rather than producing a confusing
+	// parse failure later.
+	refs, err := secret.ExtractRefs(src.Location)
+	if err != nil {
+		return nil, errw(err)
+	}
+	if len(refs) > 0 {
+		return src, nil
+	}
+
 	// Reuse the dsnFromLocation parser, which performs the full
 	// grammar + contradiction validation. We discard the dsn and
 	// opts because we only want the error side-effect.

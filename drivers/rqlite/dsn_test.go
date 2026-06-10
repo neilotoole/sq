@@ -2,9 +2,12 @@ package rqlite
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
@@ -154,6 +157,39 @@ func TestValidateSource_RejectsContradictions(t *testing.T) {
 	_, err := d.ValidateSource(src)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "insecure has no effect without tls=true")
+}
+
+// TestValidateSource_AllowsPlaceholderLocation verifies that a
+// ${keyring:...} placeholder location (minted by sq add --store
+// keyring before validation runs) skips the URL grammar check, which
+// runs at Open time on the resolved location instead.
+func TestValidateSource_AllowsPlaceholderLocation(t *testing.T) {
+	d := &driveri{}
+	src := &source.Source{
+		Type:     drivertype.Rqlite,
+		Location: "${keyring:abc123}",
+	}
+	got, err := d.ValidateSource(src)
+	require.NoError(t, err)
+	require.Same(t, src, got)
+}
+
+func TestInsecureClientTimeout(t *testing.T) {
+	// The gorqlite-native ?timeout param wins over the option default.
+	got := insecureClientTimeout("https://host:4001?timeout=30", options.Options{})
+	require.Equal(t, 30*time.Second, got)
+
+	// No param: falls back to OptConnOpenTimeout's default.
+	got = insecureClientTimeout("https://host:4001", options.Options{})
+	require.Equal(t, driver.OptConnOpenTimeout.Get(options.Options{}), got)
+
+	// Invalid param: falls back.
+	got = insecureClientTimeout("https://host:4001?timeout=abc", options.Options{})
+	require.Equal(t, driver.OptConnOpenTimeout.Get(options.Options{}), got)
+
+	// Non-positive param: falls back.
+	got = insecureClientTimeout("https://host:4001?timeout=0", options.Options{})
+	require.Equal(t, driver.OptConnOpenTimeout.Get(options.Options{}), got)
 }
 
 func TestConnParams_HasTLSAndInsecure(t *testing.T) {
