@@ -193,3 +193,64 @@ func TestParseRqliteMalformedRedaction(t *testing.T) {
 	require.NotContains(t, err.Error(), "secret")
 	require.Contains(t, err.Error(), "xxxxx")
 }
+
+func TestMergeQuery(t *testing.T) {
+	testCases := []struct {
+		name    string
+		loc     string
+		params  url.Values
+		want    string
+		wantErr bool
+	}{
+		{
+			name:   "nil params returns loc unchanged",
+			loc:    "rqlite://host:4001",
+			params: nil,
+			want:   "rqlite://host:4001",
+		},
+		{
+			name:   "single param on bare loc",
+			loc:    "rqlite://host:4001",
+			params: url.Values{"tls": {"true"}},
+			want:   "rqlite://host:4001?tls=true",
+		},
+		{
+			name:   "existing unrelated params preserved",
+			loc:    "rqlite://host:4001?level=strong",
+			params: url.Values{"tls": {"true"}},
+			want:   "rqlite://host:4001?level=strong&tls=true",
+		},
+		{
+			name:   "existing same-key param replaced not duplicated",
+			loc:    "rqlite://host:4001?tls=false",
+			params: url.Values{"tls": {"true"}},
+			want:   "rqlite://host:4001?tls=true",
+		},
+		{
+			name:   "credentials round-trip unchanged",
+			loc:    "rqlite://alice:pw@host:4001",
+			params: url.Values{"tls": {"true"}},
+			want:   "rqlite://alice:pw@host:4001?tls=true",
+		},
+		{
+			name:    "unparseable loc errors without echoing it",
+			loc:     "rqlite://alice:secret@[::1",
+			params:  url.Values{"tls": {"true"}},
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := location.MergeQuery(tc.loc, tc.params)
+			if tc.wantErr {
+				require.Error(t, err)
+				require.NotContains(t, err.Error(), "secret",
+					"merge errors must not echo credentials")
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}

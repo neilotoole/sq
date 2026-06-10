@@ -689,3 +689,33 @@ func redactBestEffort(loc string) string {
 	loc = redactRawDSNPw.ReplaceAllString(loc, "${1}xxxxx")
 	return loc
 }
+
+// MergeQuery returns loc with the given query params set, replacing
+// any existing values for the same keys. Other query params are
+// preserved. loc must be a parseable URL; locations bearing secret
+// placeholders are the caller's responsibility to exclude.
+func MergeQuery(loc string, params url.Values) (string, error) {
+	if len(params) == 0 {
+		return loc, nil
+	}
+	u, err := url.Parse(loc)
+	if err != nil {
+		// url.Error embeds the raw input (which may carry inline
+		// credentials); strip the wrapper and redact the loc.
+		var uerr *url.Error
+		if errors.As(err, &uerr) {
+			err = uerr.Err
+		}
+		return "", errz.Wrapf(err, "merge query: invalid location: %s",
+			redactBestEffort(loc))
+	}
+	q := u.Query()
+	for k, vs := range params {
+		q.Del(k)
+		for _, v := range vs {
+			q.Add(k, v)
+		}
+	}
+	u.RawQuery = q.Encode()
+	return u.String(), nil
+}
