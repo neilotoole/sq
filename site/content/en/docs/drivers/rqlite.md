@@ -179,15 +179,16 @@ you're comparing notes against raw `gorqlite` results:
 
 ## Limitations
 
-- **`sq tbl copy` and `ALTER TABLE` kind swaps don't carry indexes,
-  triggers, or self-referential foreign keys.** The table DDL itself is
-  preserved via SQL-text rewrite (`UNIQUE`, `FOREIGN KEY`,
-  `AUTOINCREMENT`, `CHECK`, composite `PRIMARY KEY`, exact `DEFAULT`
-  expressions, `WITHOUT ROWID`, and column comments), matching the
-  [sqlite3 driver](/docs/drivers/sqlite). Indexes and triggers live as
-  separate `sqlite_master` rows and aren't carried. Self-referential
-  FKs aren't rewritten either: copying `actor` to `actor_bak` leaves a
-  `REFERENCES "actor"(id)` clause pointing at the original `actor`.
+- **`sq tbl copy` and `ALTER TABLE` kind swaps don't carry indexes or
+  triggers.** The table DDL itself is preserved via SQL-text rewrite
+  (`UNIQUE`, `FOREIGN KEY`, `AUTOINCREMENT`, `CHECK`, composite
+  `PRIMARY KEY`, exact `DEFAULT` expressions, `WITHOUT ROWID`, and
+  column comments), matching the
+  [sqlite3 driver](/docs/drivers/sqlite). Self-referential foreign
+  keys are rewritten to point at the destination table: copying
+  `actor` to `actor_bak` produces a `REFERENCES "actor_bak"(id)`
+  clause. Indexes and triggers live as separate `sqlite_master` rows
+  and aren't carried.
 - **Schemas and catalogs are not supported.** SQLite has no schema or
   catalog concept, so `sq inspect` reports them as the conventional
   values `main` and `default` respectively. `CreateSchema`,
