@@ -191,6 +191,80 @@ func TestModel_DetailFollowsSchemaFocus(t *testing.T) {
 	require.Contains(t, out, "PK")
 }
 
+func TestModel_InspectorFollowsSchemaCursor(t *testing.T) {
+	src := &source.Source{Handle: "@x"}
+	cfg := Config{Sources: []*source.Source{src}, FocusedSrc: src, NoColor: true}
+	m, _ := NewModel(cfg)
+	m.Update(tea.WindowSizeMsg{Width: 150, Height: 30})
+	m.Update(tableNamesLoadedMsg{handle: "@x", names: []string{"actor"}})
+	m.Update(tableMetaLoadedMsg{
+		handle: "@x", tableName: "actor",
+		meta: &metadata.Table{
+			Name:    "actor",
+			Columns: []*metadata.Column{{Name: "actor_id", BaseType: "int", PrimaryKey: true}},
+		},
+	})
+
+	m.focused = paneSchema
+	// Expand "tables (1)", then move the cursor onto "actor". No Enter:
+	// the inspector follows the cursor.
+	m.Update(tea.KeyMsg{Type: tea.KeySpace})
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	out := m.View()
+	require.Contains(t, out, "actor_id")
+	require.Contains(t, out, "PK")
+
+	// Drill down to the column node: the inspector switches to column detail.
+	m.Update(tea.KeyMsg{Type: tea.KeySpace})                     // expand "actor"
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}) // "columns (1)"
+	m.Update(tea.KeyMsg{Type: tea.KeySpace})                     // expand "columns (1)"
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}) // "actor_id"
+	out = m.View()
+	require.Contains(t, out, "position:")
+	require.Contains(t, out, "base type:")
+}
+
+func TestModel_SchemaCursor_UnloadedTable_FetchesAndFillsIn(t *testing.T) {
+	src := &source.Source{Handle: "@x"}
+	cfg := Config{Sources: []*source.Source{src}, FocusedSrc: src, NoColor: true}
+	m, _ := NewModel(cfg)
+	m.fetcher = &fakeFetcher{tableNames: map[string][]string{"@x": {"actor"}}}
+	m.Update(tea.WindowSizeMsg{Width: 150, Height: 30})
+	m.Update(tableNamesLoadedMsg{handle: "@x", names: []string{"actor"}})
+
+	m.focused = paneSchema
+	// Expand "tables (1)", then move the cursor onto "actor", whose
+	// metadata isn't loaded: the move itself must dispatch a fetch.
+	m.Update(tea.KeyMsg{Type: tea.KeySpace})
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	require.NotNil(t, cmd, "moving onto an unloaded table should dispatch a meta fetch")
+	require.Equal(t, "actor", m.focusedTbl)
+
+	// When the metadata lands, the inspector fills in.
+	m.Update(tableMetaLoadedMsg{
+		handle: "@x", tableName: "actor",
+		meta: &metadata.Table{
+			Name:    "actor",
+			Columns: []*metadata.Column{{Name: "actor_id"}},
+		},
+	})
+	require.Contains(t, m.View(), "actor_id")
+}
+
+func TestModel_View_Wide_HasInspectorDivider(t *testing.T) {
+	m := newTestModel(t)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
+	// The no-color theme renders no pane borders, so the only "│" is the
+	// inspector divider.
+	require.Contains(t, m.View(), "│")
+}
+
+func TestModel_View_Stacked_HasInspectorRule(t *testing.T) {
+	m := newTestModel(t)
+	m.Update(tea.WindowSizeMsg{Width: 60, Height: 30})
+	require.Contains(t, m.View(), "─")
+}
+
 func TestModel_PressR_TriggersPreviewFetch(t *testing.T) {
 	src := &source.Source{Handle: "@x"}
 	cfg := Config{Sources: []*source.Source{src}, FocusedSrc: src, NoColor: true, PreviewRows: 50}

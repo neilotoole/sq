@@ -38,6 +38,17 @@ type theme struct {
 	Number lipgloss.Style
 	// Location is for source location URLs / paths — green, like sq's Location.
 	Location lipgloss.Style
+	// Inspector is the borderless style for the rightmost (inspector)
+	// pane, which is separated from its neighbors by Divider instead of
+	// a box border.
+	Inspector lipgloss.Style
+	// Divider styles the rule separating the inspector from the pane
+	// before it: a full-height "│" column in horizontal layouts, a "─"
+	// row in the stacked layout.
+	Divider lipgloss.Style
+	// DividerFocus styles the divider when the inspector has focus. It
+	// stands in for the focused border the other panes use.
+	DividerFocus lipgloss.Style
 	// Faint de-emphasizes text — like sq's Faint.
 	Faint lipgloss.Style
 	// Error styles error messages — red + bold.
@@ -63,15 +74,18 @@ func newTheme(noColor bool) theme {
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color(colorHiBlue)).
 			Padding(0, 1),
-		Item:       lipgloss.NewStyle(),
-		ItemSel:    lipgloss.NewStyle().Reverse(true),
-		ItemCursor: lipgloss.NewStyle().Underline(true).Faint(true),
-		ItemActiv:  lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(colorGreen)),
-		Handle:     lipgloss.NewStyle().Foreground(lipgloss.Color(colorBlue)),
-		Number:     lipgloss.NewStyle().Foreground(lipgloss.Color(colorCyan)),
-		Location:   lipgloss.NewStyle().Foreground(lipgloss.Color(colorGreen)),
-		Faint:      lipgloss.NewStyle().Faint(true),
-		Error:      lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(colorRed)),
-		Help:       lipgloss.NewStyle().Faint(true),
+		Item:         lipgloss.NewStyle(),
+		ItemSel:      lipgloss.NewStyle().Reverse(true),
+		ItemCursor:   lipgloss.NewStyle().Underline(true).Faint(true),
+		ItemActiv:    lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(colorGreen)),
+		Handle:       lipgloss.NewStyle().Foreground(lipgloss.Color(colorBlue)),
+		Number:       lipgloss.NewStyle().Foreground(lipgloss.Color(colorCyan)),
+		Location:     lipgloss.NewStyle().Foreground(lipgloss.Color(colorGreen)),
+		Inspector:    lipgloss.NewStyle().Padding(0, 1),
+		Divider:      lipgloss.NewStyle().Foreground(lipgloss.Color(colorGray)),
+		DividerFocus: lipgloss.NewStyle().Foreground(lipgloss.Color(colorHiBlue)),
+		Faint:        lipgloss.NewStyle().Faint(true),
+		Error:        lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(colorRed)),
+		Help:         lipgloss.NewStyle().Faint(true),
 	}
 }

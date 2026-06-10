@@ -449,9 +449,9 @@ func (tr *schemaTree) update(msg tea.KeyMsg, keys keyMap) (needsFetch bool, tabl
 		if tr.selected < 0 {
 			tr.selected = 0
 		}
-	case key.Matches(msg, keys.Space):
-		// Expand/collapse is space-only: enter opens the selection in the
-		// detail pane and left/right move pane focus (see keys.go).
+	case key.Matches(msg, keys.Space), key.Matches(msg, keys.Enter):
+		// Both space and enter expand/collapse: the inspector pane
+		// follows the cursor, so there's no separate "open" action.
 		needsFetch, tableName = tr.toggleExpand(tr.selected)
 	}
 	return needsFetch, tableName

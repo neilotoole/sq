@@ -31,7 +31,7 @@ func defaultKeys() keyMap {
 		Right:     key.NewBinding(key.WithKeys("l", "right"), key.WithHelp("→/l", "pane right")),
 		Top:       key.NewBinding(key.WithKeys("g"), key.WithHelp("g", "top")),
 		Bottom:    key.NewBinding(key.WithKeys("G"), key.WithHelp("G", "bottom")),
-		Enter:     key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open")),
+		Enter:     key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "expand/collapse")),
 		Space:     key.NewBinding(key.WithKeys(" "), key.WithHelp("space", "expand/collapse")),
 		Tab:       key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "next pane")),
 		ShiftTab:  key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp("shift+tab", "prev pane")),

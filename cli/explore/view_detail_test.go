@@ -23,7 +23,7 @@ func TestDetailPane_SourceView(t *testing.T) {
 		ViewCount:  3,
 		Size:       &size,
 	})
-	out := d.view(false, 60, 20)
+	out := d.view(60, 20)
 	for _, want := range []string{"@x", "PostgreSQL 16", "tables: 12", "views: 3"} {
 		require.True(t, strings.Contains(out, want), "want %q in output, got: %s", want, out)
 	}
@@ -40,7 +40,7 @@ func TestDetailPane_TableView(t *testing.T) {
 			{Name: "title", BaseType: "text"},
 		},
 	})
-	out := d.view(false, 60, 20)
+	out := d.view(60, 20)
 	for _, want := range []string{"film", "rows: 1000", "id", "title", "PK"} {
 		require.True(t, strings.Contains(out, want), "want %q in output, got: %s", want, out)
 	}
@@ -53,14 +53,14 @@ func TestDetailPane_TableView_EmptyIndexesHidden(t *testing.T) {
 		Columns: []*metadata.Column{{Name: "a"}, {Name: "b"}},
 		// No indexes, no FK, no UniqueConstraints — typical for a CSV.
 	})
-	out := d.view(false, 60, 20)
+	out := d.view(60, 20)
 	require.NotContains(t, out, "indexes", "empty indexes section must not render")
 	require.NotContains(t, out, "fk (", "empty fk section must not render")
 }
 
 func TestDetailPane_LoadingFallback(t *testing.T) {
 	d := newDetailPane(newTheme(true))
-	out := d.view(false, 60, 20)
+	out := d.view(60, 20)
 	require.Contains(t, out, "(loading)")
 }
 

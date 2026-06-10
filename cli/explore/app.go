@@ -306,14 +306,20 @@ func (m *Model) View() string {
 	return top + "\n" + row
 }
 
+// paneBorderWidth is the horizontal space a bordered pane adds beyond
+// its lipgloss content width (one border char each side). Layout math
+// subtracts it so rendered rows total exactly m.width; overflow would
+// wrap in the terminal and garble every line.
+const paneBorderWidth = 2
+
 // viewWide is the three-pane side-by-side layout used when the terminal
 // is at least widthFullThreshold columns wide.
 func (m *Model) viewWide(body int) string {
 	col := m.width / numPanes
-	srcCol := m.sources.view(m.focused == paneSources, col, body)
-	schCol := m.schema.view(m.focused == paneSchema, col, body)
-	detCol := m.detail.view(m.focused == paneDetail, m.width-2*col, body)
-	return lipgloss.JoinHorizontal(lipgloss.Top, srcCol, schCol, detCol)
+	srcCol := m.sources.view(m.focused == paneSources, col-paneBorderWidth, body)
+	schCol := m.schema.view(m.focused == paneSchema, col-paneBorderWidth, body)
+	detCol := m.detail.view(m.width-2*col-1, body)
+	return lipgloss.JoinHorizontal(lipgloss.Top, srcCol, schCol, m.divider(body), detCol)
 }
 
 // viewCompact drops the sources pane to a header line and shows the
@@ -321,20 +327,42 @@ func (m *Model) viewWide(body int) string {
 func (m *Model) viewCompact(body int) string {
 	head := m.theme.Faint.Render("source: " + m.currentAddress())
 	col := m.width / 2
-	schCol := m.schema.view(m.focused == paneSchema, col, body-1)
-	detCol := m.detail.view(m.focused == paneDetail, m.width-col, body-1)
-	return head + "\n" + lipgloss.JoinHorizontal(lipgloss.Top, schCol, detCol)
+	schCol := m.schema.view(m.focused == paneSchema, col-paneBorderWidth, body-1)
+	detCol := m.detail.view(m.width-col-1, body-1)
+	return head + "\n" + lipgloss.JoinHorizontal(lipgloss.Top, schCol, m.divider(body-1), detCol)
 }
 
 // viewStacked stacks the header, schema, and detail panes vertically
-// for very narrow terminals.
+// for very narrow terminals. The inspector sits below a horizontal
+// rule, the stacked counterpart of the vertical divider.
 func (m *Model) viewStacked(body int) string {
-	schH := (body - 1) / 2
-	detH := body - 1 - schH
+	schH := (body - 2) / 2
+	detH := body - 2 - schH
 	head := m.theme.Faint.Render("source: " + m.currentAddress())
-	schView := m.schema.view(m.focused == paneSchema, m.width, schH)
-	detView := m.detail.view(m.focused == paneDetail, m.width, detH)
-	return head + "\n" + schView + "\n" + detView
+	schView := m.schema.view(m.focused == paneSchema, m.width-paneBorderWidth, schH)
+	rule := m.dividerStyle().Render(strings.Repeat("─", max(m.width, 1)))
+	detView := m.detail.view(m.width, detH)
+	return head + "\n" + schView + "\n" + rule + "\n" + detView
+}
+
+// divider renders the full-height "│" rule drawn to the left of the
+// inspector pane.
+func (m *Model) divider(height int) string {
+	lines := make([]string, max(height, 1))
+	for i := range lines {
+		lines[i] = "│"
+	}
+	return m.dividerStyle().Render(strings.Join(lines, "\n"))
+}
+
+// dividerStyle returns the style for the inspector divider. The
+// inspector has no border, so the divider color doubles as its focus
+// indicator.
+func (m *Model) dividerStyle() lipgloss.Style {
+	if m.focused == paneDetail {
+		return m.theme.DividerFocus
+	}
+	return m.theme.Divider
 }
 
 // helpLine returns the always-visible top-line key summary. It is
@@ -344,7 +372,6 @@ func (m *Model) helpLine() string {
 		"j/k nav",
 		"h/l pane",
 		"tab cycle",
-		"enter open",
 		"space expand",
 		"/ filter",
 		"r preview",
@@ -449,40 +476,55 @@ func (m *Model) routeKey(msg tea.KeyMsg) tea.Cmd {
 		}
 		return nil
 	case paneSchema:
-		needsFetch, tblName := m.schema.update(msg, m.keys)
-		if needsFetch && m.fetcher != nil {
-			return fetchTableMetaCmd(m.baseCtx(), m.fetcher, m.focusedSrc.Handle, tblName)
-		}
-		if key.Matches(msg, m.keys.Enter) {
-			tbl, col := m.schema.selectedDetail()
-			switch {
-			case col != nil:
-				m.detail.setColumn(col)
-			case tbl != nil:
-				m.detail.setTable(tbl)
-				m.focusedTbl = tbl.Name
-			default:
-				// Opening a table whose metadata isn't loaded yet: focus
-				// it and fetch, so the detail pane fills in on arrival.
-				if name := m.schema.selectedTableName(); name != "" {
-					m.focusedTbl = name
-					if m.fetcher != nil {
-						return fetchTableMetaCmd(m.baseCtx(), m.fetcher, m.focusedSrc.Handle, name)
-					}
-				}
-			}
-		} else if t := m.schema.selectedTableName(); t != "" {
-			m.focusedTbl = t
-		}
+		// The returned fetch request is intentionally dropped:
+		// syncDetailFromSchema fetches the selected table whenever its
+		// metadata is missing, which covers the same table toggleExpand
+		// would have flagged.
+		m.schema.update(msg, m.keys)
 		if key.Matches(msg, m.keys.Preview) {
 			return m.startPreview()
 		}
-		return nil
+		return m.syncDetailFromSchema()
 	case paneDetail:
 		if key.Matches(msg, m.keys.Preview) {
 			return m.startPreview()
 		}
 		return nil
+	}
+	return nil
+}
+
+// syncDetailFromSchema makes the inspector pane reflect the schema
+// tree's cursor: a column node shows column detail, a table node (or
+// any node within a table) shows table detail. When the cursor lands
+// on a table whose metadata hasn't loaded, the inspector shows a
+// loading state and the returned Cmd fetches the metadata; the
+// tableMetaLoadedMsg handler fills the pane in on arrival. On nodes
+// with no table context (e.g. the "tables (N)" header), the inspector
+// keeps its current content.
+func (m *Model) syncDetailFromSchema() tea.Cmd {
+	name := m.schema.selectedTableName()
+	if name != "" {
+		m.focusedTbl = name
+	}
+	tbl, col := m.schema.selectedDetail()
+	switch {
+	case col != nil:
+		m.detail.setColumn(col)
+	case tbl != nil:
+		m.detail.setTable(tbl)
+	case name != "":
+		// A table-scoped node without a direct detail target: either a
+		// leaf (index/fk/unique) whose enclosing table meta is loaded,
+		// or a table whose meta hasn't arrived yet.
+		if md := m.schema.findTableMeta(name); md != nil {
+			m.detail.setTable(md)
+			return nil
+		}
+		m.detail.setTable(nil) // renders "(loading)" until the fetch lands.
+		if m.fetcher != nil {
+			return fetchTableMetaCmd(m.baseCtx(), m.fetcher, m.focusedSrc.Handle, name)
+		}
 	}
 	return nil
 }

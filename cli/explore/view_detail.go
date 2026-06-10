@@ -54,9 +54,11 @@ func (d *detailPane) setColumn(c *metadata.Column) {
 // Replaces any earlier preview.
 func (d *detailPane) setPreview(p *previewBuffer) { d.preview = p }
 
-// view renders the appropriate sub-view at width/height. The focused
-// flag selects the focused border style.
-func (d *detailPane) view(focused bool, width, height int) string {
+// view renders the appropriate sub-view at width/height. The inspector
+// pane is borderless: the layout draws a divider to its left, and that
+// divider's color (not a border) signals focus, so no focused flag is
+// needed here.
+func (d *detailPane) view(width, height int) string {
 	var body string
 	switch d.kind {
 	case detailNone:
@@ -70,11 +72,7 @@ func (d *detailPane) view(focused bool, width, height int) string {
 	default:
 		body = d.theme.Faint.Render("(loading)")
 	}
-	style := d.theme.Pane
-	if focused {
-		style = d.theme.PaneFocus
-	}
-	return style.Width(width).Height(height).MaxHeight(height).Render(body)
+	return d.theme.Inspector.Width(width).Height(height).MaxHeight(height).Render(body)
 }
 
 func (d *detailPane) viewSource() string {
