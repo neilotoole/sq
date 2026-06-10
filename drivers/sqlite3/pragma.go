@@ -37,8 +37,7 @@ var pragmaSkip = map[string]bool{
 }
 
 // getDBProperties returns a map of the DB's settings, as exposed
-// via SQLite's pragma mechanism. The supplied incr func should
-// be invoked for each row read from the DB.
+// via SQLite's pragma mechanism.
 //
 // See: https://www.sqlite.org/pragma.html
 func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
@@ -70,7 +69,7 @@ func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 	return m, nil
 }
 
-// readPragma reads the values of pragma from the DB,and returns its value,
+// readPragma reads the values of pragma from the DB, and returns its value,
 // which is either a scalar value such as a string, or a map[string]any.
 func readPragma(ctx context.Context, db sqlz.DB, pragma string) (any, error) {
 	var (

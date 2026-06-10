@@ -878,9 +878,6 @@ func TestDriveri_CopyTable_PreservesOnDeleteCascade(t *testing.T) {
 func TestBusyTimeoutDefault(t *testing.T) {
 	t.Parallel()
 
-	th := testh.New(t)
-	dbPath := tu.TempFile(t, "gh699.db")
-
 	testCases := []struct {
 		name    string
 		connStr string
@@ -893,6 +890,9 @@ func TestBusyTimeoutDefault(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
+			th := testh.New(t)
+			dbPath := tu.TempFile(t, "gh699.db")
 
 			loc, err := sqlite3.MungeLocation("sqlite3://" + filepath.ToSlash(dbPath) + tc.connStr)
 			require.NoError(t, err)

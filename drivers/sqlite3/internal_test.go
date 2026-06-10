@@ -3,6 +3,7 @@ package sqlite3
 import (
 	"context"
 	"database/sql"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -84,10 +85,18 @@ func TestGetDBPropertiesNoSideEffects(t *testing.T) {
 	// current connection has queried.
 	db.SetMaxOpenConns(1)
 
+	// The dangling FK row (no parent table row, foreign_keys enforcement
+	// is off by default) means pragma_foreign_key_check would return a
+	// row if executed, making the foreign_key_check assertion below
+	// load-bearing: on a violation-free db that pragma returns zero rows
+	// and its key would be absent from props regardless.
 	_, err = db.ExecContext(ctx, `CREATE TABLE t (a INTEGER);
 WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM c WHERE x<5000)
 INSERT INTO t SELECT x FROM c;
-CREATE INDEX idx_t_a ON t(a);`)
+CREATE INDEX idx_t_a ON t(a);
+CREATE TABLE parent (id INTEGER PRIMARY KEY);
+CREATE TABLE child (pid INTEGER REFERENCES parent(id));
+INSERT INTO child VALUES (999);`)
 	require.NoError(t, err)
 
 	// Prime the connection's query history so that, were getDBProperties
@@ -95,6 +104,12 @@ CREATE INDEX idx_t_a ON t(a);`)
 	var n int
 	require.NoError(t, db.QueryRowContext(ctx, `SELECT count(*) FROM t WHERE a = 42`).Scan(&n))
 	require.Equal(t, 1, n)
+
+	// Snapshot the db file: getDBProperties must not modify it. The
+	// setup writes above are committed (delete journal mode, no other
+	// connections), so the on-disk bytes are stable here.
+	fileBytesBefore, err := os.ReadFile(dbFile)
+	require.NoError(t, err)
 
 	props, err := getDBProperties(ctx, db)
 	require.NoError(t, err)
@@ -116,6 +131,13 @@ CREATE INDEX idx_t_a ON t(a);`)
 	require.NoError(t, db.QueryRowContext(ctx,
 		`SELECT count(*) FROM sqlite_master WHERE name LIKE 'sqlite_stat%'`).Scan(&statCount))
 	require.Equal(t, 0, statCount, "getDBProperties must not write to the db (ANALYZE via pragma_optimize)")
+
+	// Stronger still: the file bytes must be untouched. Unlike the
+	// sqlite_stat1 check, this catches ANY write, independent of the
+	// bundled SQLite's PRAGMA optimize heuristics.
+	fileBytesAfter, err := os.ReadFile(dbFile)
+	require.NoError(t, err)
+	require.Equal(t, fileBytesBefore, fileBytesAfter, "getDBProperties must not modify the db file")
 }
 
 func TestFilePathFromLocation(t *testing.T) {
