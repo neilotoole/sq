@@ -2,7 +2,9 @@ package rqlite
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
+	"io"
 	"net"
 	"net/url"
 	"strings"
@@ -135,4 +137,69 @@ func rewritePeerDNSError(err error, src *source.Source) error {
 			"host. Try ?disableClusterDiscovery=true, or see "+docsLocalhostAnchor,
 		dnsErr.Name, userHost,
 	)
+}
+
+// rewriteTLSSignalError, if err looks like the server wanted TLS but
+// the client spoke plain HTTP, returns a new error suggesting
+// ?tls=true. Otherwise returns err unchanged.
+//
+// We deliberately do not auto-retry over HTTPS at this stage. An
+// earlier design considered a probe (gh756 option B / option A+B
+// hybrid) but concluded that a one-off Prober interface is not
+// justified for a single driver. See gh764 for the deferred
+// follow-up; the natural home for any future TLS-vs-plaintext
+// auto-detection is the AddHinter mechanism (gh755), not a
+// rqlite-specific probe.
+func rewriteTLSSignalError(err error, src *source.Source) error {
+	if err == nil || !isTLSSignal(err) {
+		return err
+	}
+	return errz.Wrapf(err,
+		"%s appears to require TLS; retry with %s?tls=true "+
+			"(add &insecure=true for self-signed certs)",
+		src.Handle, src.RedactedLocation())
+}
+
+// isTLSSignal reports whether err looks like the failure of a plain
+// HTTP request against a TLS-only server. The three checks are
+// conservative: false negatives just produce the unwrapped error,
+// which is still actionable for the user.
+//
+// In production today, only the substring check (3) fires. gorqlite's
+// rqliteApiCall serializes all transport errors to strings via
+// errors.New(builder.String()) before returning, breaking the error
+// chain — so errors.As / errors.Is on transport-layer types (1) and
+// (2) cannot match. Those checks are retained as forward-compat
+// defenses in case gorqlite later preserves the chain, or in case a
+// caller passes a non-gorqlite error (e.g. wrapped from a custom
+// probe).
+func isTLSSignal(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// 1. Go's net/http detected a TLS record on a plain-HTTP socket.
+	// Dead in production today (gorqlite breaks the error chain) but
+	// retained for forward-compat.
+	var rec tls.RecordHeaderError
+	if errors.As(err, &rec) {
+		return true
+	}
+
+	// 2. Server closed mid-handshake (a common TLS-only response
+	// to an HTTP request). Dead in production today (gorqlite breaks
+	// the error chain) but retained for forward-compat.
+	if errors.Is(err, io.EOF) {
+		return true
+	}
+
+	// 3. gorqlite-wrapped error containing the canonical 400 body
+	// Go's net/http server emits when reached over plain HTTP on a
+	// TLS listener. This is the only check that fires in production.
+	// gorqlite/Go-net-http-specific; revisit if rqlite changes its
+	// HTTP stack.
+	if strings.Contains(err.Error(), "HTTP request to an HTTPS server") {
+		return true
+	}
+	return false
 }
