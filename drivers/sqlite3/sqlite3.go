@@ -286,6 +286,15 @@ func (d *driveri) Renderer() *render.Renderer {
 }
 
 // CopyTable implements driver.SQLDriver.
+//
+// The implementation reads the source table's CREATE statement from
+// sqlite_master, extracts the table identifier (with byte offsets) via
+// the shared sqlparser package, and substitutes the destination name in
+// place. Self-referential foreign keys (REFERENCES <src>(...) inside
+// the same CREATE TABLE) are also rewritten to point at the destination
+// so the destination's FKs resolve against itself rather than the
+// source. Cross-table FKs (REFERENCES other(...) where other != src)
+// are left untouched.
 func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 	fromTbl, toTbl tablefq.T, copyData bool,
 ) (int64, error) {
@@ -306,28 +315,54 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 		return 0, errw(err)
 	}
 
-	// Next, we extract the table identifier from the CREATE TABLE statement.
-	// For example, "main"."actor". Note that the schema part may be empty.
-	ogSchema, ogTbl, err := sqlparser.ExtractTableIdentFromCreateTableStmt(ogTblCreateStmt,
-		false)
+	// Extract the table identifier (with byte offsets) from the
+	// CREATE TABLE statement. Offsets let us splice the new identifier
+	// without strings.Replace, which is fragile when the identifier
+	// recurs elsewhere in the DDL (CHECK exprs, default literals, etc.).
+	ogIdent, err := sqlparser.ExtractTableIdentFromCreateTableStmt(ogTblCreateStmt)
 	if err != nil {
-		return 0, errw(err)
+		return 0, errz.Wrap(err, "sqlite3: copy table")
 	}
 
-	// Now we know what text to replace in ogTblCreateStmt.
-	replaceTarget := ogTbl
-	if ogSchema != "" {
-		replaceTarget = ogSchema + "." + ogTbl
+	identStart := ogIdent.TableOffset
+	if ogIdent.SchemaOffset >= 0 {
+		identStart = ogIdent.SchemaOffset
+	}
+	identEnd := ogIdent.TableOffset + len(ogIdent.RawTable)
+	destQuoted := toTbl.Render(stringz.DoubleQuote)
+
+	edits := []sqlparser.Edit{{
+		Start:       identStart,
+		End:         identEnd,
+		Replacement: destQuoted,
+	}}
+
+	// Rewrite self-FKs so the destination's REFERENCES point at itself
+	// rather than the source (gh759). Cross-table FKs are left alone.
+	// SQLite's foreign_table grammar rule is a single any_name (no
+	// schema qualification permitted), so the replacement here is the
+	// destination's bare table token even when destQuoted carries a
+	// "schema"."table" prefix for the CREATE TABLE identifier edit.
+	destTableQuoted := stringz.DoubleQuote(toTbl.Table)
+	fkRefs, err := sqlparser.ExtractForeignTableRefsFromCreateTableStmt(ogTblCreateStmt)
+	if err != nil {
+		return 0, errz.Wrap(err, "sqlite3: copy table")
+	}
+	for _, r := range fkRefs {
+		if !strings.EqualFold(r.Table, ogIdent.Table) {
+			continue
+		}
+		edits = append(edits, sqlparser.Edit{
+			Start:       r.TableOffset,
+			End:         r.TableOffset + len(r.RawTable),
+			Replacement: destTableQuoted,
+		})
 	}
 
-	// Replace the old table identifier with the new one, and, voila,
-	// we have our new CREATE TABLE statement.
-	destTblCreateStmt := strings.Replace(
-		ogTblCreateStmt,
-		replaceTarget,
-		toTbl.Render(stringz.DoubleQuote),
-		1,
-	)
+	destTblCreateStmt, err := sqlparser.ApplyEdits(ogTblCreateStmt, edits)
+	if err != nil {
+		return 0, errz.Wrap(err, "sqlite3: copy table: failed to apply DDL rewrites")
+	}
 
 	_, err = db.ExecContext(ctx, destTblCreateStmt)
 	if err != nil {
