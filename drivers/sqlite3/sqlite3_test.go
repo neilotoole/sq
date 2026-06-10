@@ -523,6 +523,54 @@ func TestDriveri_AlterTableColumnKinds_ColumnNamePrefixesType(t *testing.T) {
 	}
 }
 
+// TestDriveri_AlterTableColumnKinds_PreservesAutoincrementSeq reproduces
+// gh757: the table-rebuild dance in AlterTableColumnKinds dropped the
+// original table, which removed its sqlite_sequence row, so AUTOINCREMENT
+// restarted from MAX(rowid)+1 instead of seq+1. With rows previously
+// deleted from the high end, the next insert silently reused their ids.
+func TestDriveri_AlterTableColumnKinds_PreservesAutoincrementSeq(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@test",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+	}
+
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+	drvr := grip.SQLDriver()
+
+	_, err = db.ExecContext(th.Context,
+		`CREATE TABLE seq_tbl (id INTEGER PRIMARY KEY AUTOINCREMENT, val INTEGER NOT NULL)`)
+	require.NoError(t, err)
+
+	for i := 1; i <= 10; i++ {
+		_, err = db.ExecContext(th.Context, `INSERT INTO seq_tbl (val) VALUES (?)`, i)
+		require.NoError(t, err)
+	}
+	_, err = db.ExecContext(th.Context, `DELETE FROM seq_tbl WHERE id > 5`)
+	require.NoError(t, err)
+
+	var seq, maxID int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT seq FROM sqlite_sequence WHERE name='seq_tbl'`).Scan(&seq))
+	require.Equal(t, int64(10), seq)
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT MAX(id) FROM seq_tbl`).Scan(&maxID))
+	require.Equal(t, int64(5), maxID)
+
+	require.NoError(t, drvr.AlterTableColumnKinds(th.Context, db, "seq_tbl",
+		[]string{"val"}, []kind.Kind{kind.Text}))
+
+	res, err := db.ExecContext(th.Context, `INSERT INTO seq_tbl (val) VALUES ('post-alter')`)
+	require.NoError(t, err)
+	newID, err := res.LastInsertId()
+	require.NoError(t, err)
+	require.Equal(t, int64(11), newID,
+		"AUTOINCREMENT must continue from the preserved sequence (seq+1), not MAX(rowid)+1")
+}
+
 // TestDriveri_CopyTable_TableIdentInDefaultLiteral verifies that CopyTable
 // rewrites only the table identifier and leaves a substring-matching
 // occurrence inside a column DEFAULT expression untouched. Regression

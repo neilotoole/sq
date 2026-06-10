@@ -2,6 +2,8 @@ package sqlite3
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser"
@@ -66,6 +68,15 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	var ogDDL string
 	if err = db.QueryRowContext(ctx, q, tblName).Scan(&ogDDL); err != nil {
 		return errz.Wrapf(err, "sqlite3: alter table: failed to read original DDL")
+	}
+
+	// Capture the table's sqlite_sequence row (if any) before the rebuild.
+	// The DROP TABLE below removes the row, so without a restore the next
+	// AUTOINCREMENT insert would pick MAX(rowid)+1 rather than seq+1,
+	// silently reusing rowids of previously deleted rows (gh757).
+	srcSeq, err := readSqliteSequence(ctx, db, tblName)
+	if err != nil {
+		return err
 	}
 
 	allColDefs, err := sqlparser.ExtractCreateTableStmtColDefs(ogDDL)
@@ -142,7 +153,56 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 		return errz.Wrapf(err, "sqlite3: alter table: failed to rename temporary table")
 	}
 
+	if srcSeq.Valid {
+		// Restore AUTOINCREMENT continuity (gh757). At this point the
+		// rebuilt table's sqlite_sequence row, created by the copy and
+		// renamed along with the table, holds MAX(rowid) rather than the
+		// original seq; if the source table was empty, no row exists at
+		// all. sqlite_sequence has no unique constraint on name, so
+		// DELETE-then-INSERT rather than INSERT OR REPLACE.
+		if _, err = db.ExecContext(ctx,
+			"DELETE FROM sqlite_sequence WHERE name=?", tblName); err != nil {
+			return errz.Wrapf(errw(err),
+				"sqlite3: alter table: failed to clear sqlite_sequence for {%s}", tblName)
+		}
+		if _, err = db.ExecContext(ctx,
+			"INSERT INTO sqlite_sequence (name, seq) VALUES (?, ?)",
+			tblName, srcSeq.Int64); err != nil {
+			return errz.Wrapf(errw(err),
+				"sqlite3: alter table: failed to restore sqlite_sequence for {%s}", tblName)
+		}
+	}
+
 	return nil
+}
+
+// readSqliteSequence returns the sqlite_sequence row for tbl. The result is
+// invalid (and err nil) if the sqlite_sequence table doesn't exist, or has
+// no row for tbl.
+func readSqliteSequence(ctx context.Context, db sqlz.DB, tbl string) (sql.NullInt64, error) {
+	var seq sql.NullInt64
+
+	// sqlite_sequence only exists once an AUTOINCREMENT table has been
+	// created in the DB; querying it blindly would error.
+	var n int
+	if err := db.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'",
+	).Scan(&n); err != nil {
+		return seq, errz.Wrap(errw(err),
+			"sqlite3: alter table: failed to check for sqlite_sequence table")
+	}
+	if n == 0 {
+		return seq, nil
+	}
+
+	if err := db.QueryRowContext(ctx,
+		"SELECT seq FROM sqlite_sequence WHERE name=?", tbl,
+	).Scan(&seq); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return seq, errz.Wrapf(errw(err),
+			"sqlite3: alter table: failed to read sqlite_sequence for {%s}", tbl)
+	}
+
+	return seq, nil
 }
 
 // pragmaDisableForeignKeys disables foreign keys, returning a function that

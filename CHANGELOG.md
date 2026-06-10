@@ -181,6 +181,13 @@ keyring support) and support for [rqlite](https://sq.io/docs/drivers/rqlite).
   FKs resolved against the source table instead of itself. The shared
   `sqlparser` package gains `ExtractForeignTableRefsFromCreateTableStmt` for
   this rewrite; cross-table FKs are left alone.
+- [#757]: `AlterTableColumnKinds` on the [sqlite3](https://sq.io/docs/drivers/sqlite)
+  and [rqlite](https://sq.io/docs/drivers/rqlite) drivers now preserves
+  AUTOINCREMENT sequence continuity across the table rebuild. Previously the
+  rebuild's `DROP TABLE` removed the table's `sqlite_sequence` row, so the next
+  insert picked `MAX(rowid)+1` rather than `seq+1`, silently reusing rowids of
+  previously deleted rows. The original `seq` is now captured before the
+  rebuild and restored afterward.
 
 ## [v0.53.0] - 2026-05-25
 
@@ -1764,6 +1771,7 @@ make working with lots of sources much easier.
 [#744]: https://github.com/neilotoole/sq/issues/744
 [#750]: https://github.com/neilotoole/sq/issues/750
 [#752]: https://github.com/neilotoole/sq/issues/752
+[#757]: https://github.com/neilotoole/sq/issues/757
 [#759]: https://github.com/neilotoole/sq/issues/759
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
