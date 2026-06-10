@@ -27,7 +27,6 @@ var dbSchemes = []string{
 	"postgres",
 	"sqlite3",
 	"rqlite",
-	"rqlites",
 	"duckdb",
 	"clickhouse",
 	"oracle",
@@ -120,7 +119,15 @@ func Short(loc string) string {
 			return name
 		}
 
-		// It's not a http URL, so it must be a filepath
+		// It's not a http URL. If it has a scheme separator, it's likely
+		// a URL with an unknown driver scheme (not a filepath); redact
+		// best-effort rather than mangle it via filepath.Base, which would
+		// echo inline credentials like "user:pass@host" verbatim.
+		if strings.Contains(loc, "://") {
+			return redactBestEffort(loc)
+		}
+
+		// True filepath.
 		loc = filepath.Clean(loc)
 		return filepath.Base(loc)
 	}
@@ -129,16 +136,10 @@ func Short(loc string) string {
 	//
 	// rqlite is a network SQL driver, but xo/dburl doesn't know its
 	// scheme, so Parse-ing through dburl returns an error and the
-	// fallback "return loc" would echo inline credentials. Handle it
-	// via url.ParseRequestURI here, mirroring the user@host[:port]
-	// shape used for the other DSN drivers below.
-	//
-	// Even though the rqlite driver no longer accepts the rqlites://
-	// scheme (rejected at Open time), we still pattern-match it here
-	// so malformed rqlites:// inputs get safe credential redaction
-	// instead of falling through to dburl.Parse, which echoes the
-	// raw string on failure.
-	if strings.HasPrefix(loc, "rqlite://") || strings.HasPrefix(loc, "rqlites://") {
+	// fallback would echo inline credentials. Handle it via
+	// url.ParseRequestURI here, mirroring the user@host[:port] shape
+	// used for the other DSN drivers below.
+	if strings.HasPrefix(loc, "rqlite://") {
 		ru, err := url.ParseRequestURI(loc)
 		if err != nil {
 			// Couldn't parse; fall back to best-effort credential masking
@@ -156,7 +157,10 @@ func Short(loc string) string {
 
 	u, err := dburl.Parse(loc)
 	if err != nil {
-		return loc
+		// dburl rejected the scheme. Don't echo loc verbatim — it
+		// may carry inline credentials. redactBestEffort applies
+		// regex masking of user:pass@ and PWD= shapes.
+		return redactBestEffort(loc)
 	}
 
 	if u.Scheme == "sqlite3" || u.Scheme == "duckdb" {
@@ -245,7 +249,7 @@ func Parse(loc string) (*Fields, error) {
 	if !strings.Contains(loc, "://") {
 		if strings.Contains(loc, ":/") {
 			// malformed location, such as "sqlite3:/path/to/file"
-			return nil, errz.Errorf("parse location: invalid scheme: %s", loc)
+			return nil, errz.Errorf("parse location: invalid scheme: %s", redactBestEffort(loc))
 		}
 
 		// no scheme: it's just a regular file path for a document such as an Excel file
@@ -313,13 +317,7 @@ func Parse(loc string) (*Fields, error) {
 	// rqlite is a network SQL driver, but xo/dburl doesn't know its
 	// scheme, so we parse it here rather than fall through to
 	// dburl.Parse below.
-	//
-	// Even though the rqlite driver no longer accepts the rqlites://
-	// scheme (rejected at Open time), we still pattern-match it here
-	// so malformed rqlites:// inputs get safe credential redaction
-	// instead of falling through to dburl.Parse, which echoes the
-	// raw string on failure.
-	if strings.HasPrefix(loc, "rqlite://") || strings.HasPrefix(loc, "rqlites://") {
+	if strings.HasPrefix(loc, "rqlite://") {
 		return parseRqlite(loc, fields)
 	}
 
@@ -348,7 +346,10 @@ func Parse(loc string) (*Fields, error) {
 
 	u, err := dburl.Parse(loc)
 	if err != nil {
-		return nil, errz.Err(err)
+		// dburl's error may embed the raw input URL with inline
+		// credentials. Wrap with a redacted-loc message instead of
+		// surfacing dburl's err verbatim.
+		return nil, errz.Errorf("parse location: %s", redactBestEffort(loc))
 	}
 
 	fields.Scheme = u.OriginalScheme
@@ -365,7 +366,7 @@ func Parse(loc string) (*Fields, error) {
 
 	switch fields.Scheme {
 	default:
-		return nil, errz.Errorf("parse location: invalid scheme: %s", loc)
+		return nil, errz.Errorf("parse location: invalid scheme: %s", redactBestEffort(loc))
 	case "sqlserver":
 		fields.DriverType = drivertype.MSSQL
 
@@ -406,12 +407,10 @@ func Parse(loc string) (*Fields, error) {
 	return fields, nil
 }
 
-// parseRqlite parses an rqlite:// or rqlites:// location into fields.
-// xo/dburl doesn't recognize either scheme, so this bypass uses
-// url.ParseRequestURI directly. fields is partially populated by
-// the caller; this function fills in the rqlite-specific bits.
-// Note: rqlites:// is accepted here for parse-side safety (credential
-// redaction); the rqlite driver itself rejects rqlites:// at Open time.
+// parseRqlite parses an rqlite:// location into fields. xo/dburl doesn't
+// recognize the rqlite scheme, so this bypass uses url.ParseRequestURI
+// directly. fields is partially populated by the caller; this function
+// fills in the rqlite-specific bits.
 func parseRqlite(loc string, fields *Fields) (*Fields, error) {
 	u, err := url.ParseRequestURI(loc)
 	if err != nil {
