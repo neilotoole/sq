@@ -414,3 +414,33 @@ func TestDetectConnParams_BasicAuth(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, gotAuth.Load(), "probe must carry basic auth from the location userinfo")
 }
+
+// TestDetectConnParams_BasicAuthPasswordOnly pins that the
+// password-only userinfo form (rqlite://:pw@host) also produces an
+// Authorization header, matching what gorqlite sends at connection
+// time. Without this, an auth-gated /status on a TLS endpoint would
+// 401 the probe and detection would silently step aside.
+func TestDetectConnParams_BasicAuthPasswordOnly(t *testing.T) {
+	var host string
+	var gotAuth atomic.Bool
+	inner := newRqliteMockHandler(&host)
+	server := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			if u, p, ok := r.BasicAuth(); ok && u == "" && p == "pw" {
+				gotAuth.Store(true)
+			}
+			inner.ServeHTTP(w, r)
+		}))
+	t.Cleanup(server.Close)
+	host = server.Listener.Addr().String()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+
+	d := &driveri{}
+	_, err := d.detectConnParams(ctx,
+		detectTestSrc("rqlite://:pw@"+host), nil)
+	require.NoError(t, err)
+	require.True(t, gotAuth.Load(),
+		"password-only userinfo must still produce an Authorization header")
+}

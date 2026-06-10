@@ -214,7 +214,11 @@ func probeStatus(ctx context.Context, client *http.Client, u *url.URL, scheme st
 	if err != nil {
 		return nil, nil, errz.Err(err)
 	}
-	if user != nil && user.Username() != "" {
+	if user != nil {
+		// Send auth whenever userinfo is present, including the
+		// password-only form (rqlite://:pw@host): gorqlite sends the
+		// same header at connection time, and the probe must match
+		// so auth-gated /status endpoints behave consistently.
 		pw, _ := user.Password()
 		req.SetBasicAuth(user.Username(), pw)
 	}

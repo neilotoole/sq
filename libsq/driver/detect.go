@@ -33,7 +33,10 @@ import (
 // functions), and must not be implemented via this interface,
 // because canonicalization must not be suppressed by
 // --skip-verify. Implementations must honor ctx cancellation and
-// should bound each network attempt, e.g. via OptConnOpenTimeout.
+// should bound each network attempt, e.g. via OptConnOpenTimeout or
+// a driver-native timeout param when one exists (the rqlite driver
+// gives its ?timeout=N param precedence over OptConnOpenTimeout,
+// matching its connection-time behavior).
 type ConnParamDetector interface {
 	// DetectConnParams inspects the endpoint that src.Location
 	// points at, and returns connection query parameters to be
