@@ -85,6 +85,17 @@ func TestRewriteTLSSignalError(t *testing.T) {
 		require.NotContains(t, out.Error(), "?level=strong?tls=true",
 			"must not produce malformed double-question-mark URL")
 	})
+
+	t.Run("does not rewrite when tls=true already set", func(t *testing.T) {
+		src := &source.Source{
+			Handle:   "@rq",
+			Type:     drivertype.Rqlite,
+			Location: "rqlite://host:4001?tls=true",
+		}
+		out := rewriteTLSSignalError(io.EOF, src)
+		// Should pass through unchanged (same pointer / same message).
+		require.Same(t, io.EOF, out)
+	})
 }
 
 func TestIsCertVerificationError(t *testing.T) {

@@ -349,7 +349,7 @@ func Parse(loc string) (*Fields, error) {
 		// dburl's error may embed the raw input URL with inline
 		// credentials. Wrap with a redacted-loc message instead of
 		// surfacing dburl's err verbatim.
-		return nil, errz.Errorf("parse location: %s", redactBestEffort(loc))
+		return nil, errz.Errorf("parse location: invalid: %s", redactBestEffort(loc))
 	}
 
 	fields.Scheme = u.OriginalScheme

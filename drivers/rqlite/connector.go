@@ -49,7 +49,15 @@ func (c *insecureConnector) Driver() driver.Driver {
 // support, keepalive tuning, and dial timeouts are preserved. Only the
 // TLSClientConfig is overridden.
 func newInsecureHTTPClient(timeout time.Duration) *http.Client {
-	transport := http.DefaultTransport.(*http.Transport).Clone()
+	// http.DefaultTransport is documented as *http.Transport, but
+	// test harnesses sometimes replace it. Fall back to a fresh
+	// *http.Transport on the (unreachable in production) path.
+	var transport *http.Transport
+	if dt, ok := http.DefaultTransport.(*http.Transport); ok {
+		transport = dt.Clone()
+	} else {
+		transport = &http.Transport{}
+	}
 	transport.TLSClientConfig = &tls.Config{
 		//nolint:gosec // ?insecure=true is an explicit user opt-in
 		InsecureSkipVerify: true,

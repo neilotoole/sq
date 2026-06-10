@@ -184,11 +184,29 @@ func rewriteTLSSignalError(err error, src *source.Source) error {
 	if err == nil || !isTLSSignal(err) {
 		return err
 	}
+	// If the user already set ?tls=true, the TLS signal is not a
+	// wrong-scheme hint; surfacing "retry with ?tls=true" would
+	// mislead them. Let the raw error through.
+	if locHasTLSTrue(src.Location) {
+		return err
+	}
 	hint := suggestLocWithParams(src, url.Values{"tls": {"true"}})
 	return errz.Wrapf(err,
 		"%s appears to require TLS; retry with %s "+
 			"(add &insecure=true for self-signed certs)",
 		src.Handle, hint)
+}
+
+// locHasTLSTrue reports whether loc has ?tls=true set. Used to gate
+// TLS-signal error enrichment: if the user has already opted into
+// TLS, an io.EOF or TLS handshake failure is NOT a "wrong scheme"
+// indication and the suggestion to add ?tls=true would be misleading.
+func locHasTLSTrue(loc string) bool {
+	u, err := url.Parse(loc)
+	if err != nil {
+		return false
+	}
+	return u.Query().Get("tls") == "true"
 }
 
 // isTLSSignal reports whether err looks like the failure of a plain

@@ -400,8 +400,9 @@ func dsnFromLocation(loc string) (string, dsnOpts, error) {
 
 	u, err := url.Parse(loc)
 	if err != nil {
-		// Don't include loc in the error: it may carry credentials.
-		return "", opts, errz.Wrap(err, "rqlite: invalid location")
+		// url.Parse's error embeds the raw URL in its message, which
+		// would echo inline credentials. Surface only the bare reason.
+		return "", opts, errz.New("rqlite: invalid location")
 	}
 
 	q := u.Query()
