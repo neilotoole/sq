@@ -21,7 +21,7 @@ see [Limitations](#limitations) for what isn't.
 ## Add source
 
 Use [`sq add`](/docs/cmd/add) to add a source. The location argument is
-an HTTP(S) URL using one of two schemes:
+an HTTP(S) URL using the `rqlite://` scheme:
 
 ```shell
 # Single-node setup (the common local case): disable cluster discovery
@@ -37,7 +37,10 @@ $ sq add 'rqlite://sakila:p_ssW0rd@localhost:4001?disableClusterDiscovery=true' 
 $ sq add 'rqlite://node1.example.com:4001'
 
 # HTTPS
-$ sq add 'rqlites://node.example.com:4001'
+$ sq add 'rqlite://node.example.com:4001?tls=true'
+
+# HTTPS with a self-signed certificate
+$ sq add 'rqlite://node.example.com:4001?tls=true&insecure=true'
 ```
 
 If the port is omitted, `sq` auto-applies the default port `4001`.
@@ -47,7 +50,6 @@ If the port is omitted, `sq` auto-applies the default port `4001`.
 ```text
 rqlite://username:password@hostname:port
 rqlite://username:password@hostname:port?param=value
-rqlites://username:password@hostname:port?param=value
 ```
 
 ## Common setups
@@ -114,6 +116,24 @@ HTTP client timeout in seconds, applied to every request the driver
 makes to the rqlite node. Integer-valued; defaults to `10`. Increase it
 for slow links or large multi-statement batches; decrease it to
 fail-fast against a flaky node.
+
+### TLS
+
+By default rqlite serves plain HTTP. To connect over HTTPS, add `tls=true`:
+
+```shell
+$ sq add 'rqlite://node.example.com:4001?tls=true'
+```
+
+If the server presents a self-signed certificate or one issued by a
+private CA, add `insecure=true` (valid only with `tls=true`):
+
+```shell
+$ sq add 'rqlite://node.example.com:4001?tls=true&insecure=true'
+```
+
+`insecure=true` skips TLS certificate verification for the source.
+Prefer installing the CA in your trust store for production use.
 
 ## Write behavior
 
