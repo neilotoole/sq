@@ -408,17 +408,28 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 			"rqlite: copy table: failed to read DDL for {%s}", fromTbl.Table)
 	}
 
-	ogSchema, ogTblIdent, err := sqlparser.ExtractTableIdentFromCreateTableStmt(ogDDL, false)
+	// Extract the table identifier with byte offsets so we can splice the
+	// new identifier in place without unanchored strings.Replace, which
+	// can misfire when the identifier recurs in CHECK exprs, default
+	// literals, or column names. Mirrors the sqlite3 driver's approach.
+	ogIdent, err := sqlparser.ExtractTableIdentFromCreateTableStmt(ogDDL)
 	if err != nil {
 		return 0, errz.Wrap(err, "rqlite: copy table")
 	}
-	replaceTarget := ogTblIdent
-	if ogSchema != "" {
-		replaceTarget = ogSchema + "." + ogTblIdent
+	identStart := ogIdent.TableOffset
+	if ogIdent.SchemaOffset >= 0 {
+		identStart = ogIdent.SchemaOffset
 	}
+	identEnd := ogIdent.TableOffset + len(ogIdent.RawTable)
 
-	destDDL := strings.Replace(ogDDL, replaceTarget,
-		toTbl.Render(stringz.DoubleQuote), 1)
+	destDDL, err := sqlparser.ApplyEdits(ogDDL, []sqlparser.Edit{{
+		Start:       identStart,
+		End:         identEnd,
+		Replacement: toTbl.Render(stringz.DoubleQuote),
+	}})
+	if err != nil {
+		return 0, errz.Wrap(err, "rqlite: copy table: failed to apply DDL rewrites")
+	}
 
 	if !copyData {
 		if _, err = db.ExecContext(ctx, destDDL); err != nil {
@@ -836,15 +847,34 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 		colDefs = append(colDefs, found)
 	}
 
-	nuDDL := ogDDL
-	for i, colDef := range colDefs {
-		wantType := DBTypeForKind(kinds[i])
-		wantColDefText := strings.Replace(colDef.Raw, colDef.RawType, wantType, 1)
-		nuDDL = strings.Replace(nuDDL, colDef.Raw, wantColDefText, 1)
+	// Locate the table identifier in the original DDL so its byte offset
+	// is known. Avoids unanchored strings.Replace, which can misfire when
+	// the table name appears earlier as a column-name prefix or inside a
+	// comment / default literal. Mirrors the sqlite3 driver.
+	tblIdent, err := sqlparser.ExtractTableIdentFromCreateTableStmt(ogDDL)
+	if err != nil {
+		return errz.Wrap(err, "rqlite: alter table: failed to extract table identifier from DDL")
 	}
 
 	tmpName := "tmp_tbl_alter_" + stringz.Uniq8()
-	nuDDL = strings.Replace(nuDDL, tbl, tmpName, 1)
+	edits := make([]sqlparser.Edit, 0, len(colDefs)+1)
+	for i, colDef := range colDefs {
+		edits = append(edits, sqlparser.Edit{
+			Start:       colDef.RawTypeOffset,
+			End:         colDef.RawTypeOffset + len(colDef.RawType),
+			Replacement: DBTypeForKind(kinds[i]),
+		})
+	}
+	edits = append(edits, sqlparser.Edit{
+		Start:       tblIdent.TableOffset,
+		End:         tblIdent.TableOffset + len(tblIdent.RawTable),
+		Replacement: stringz.DoubleQuote(tmpName),
+	})
+
+	nuDDL, err := sqlparser.ApplyEdits(ogDDL, edits)
+	if err != nil {
+		return errz.Wrap(err, "rqlite: alter table: failed to apply DDL rewrites")
+	}
 
 	// Read the prior foreign_keys pragma so we can restore it at the
 	// end of the atomic batch rather than blindly forcing it on.

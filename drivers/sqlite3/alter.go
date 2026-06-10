@@ -3,7 +3,6 @@ package sqlite3
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -87,15 +86,34 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 		}
 	}
 
-	nuDDL := ogDDL
-	for i, colDef := range colDefs {
-		wantType := DBTypeForKind(kinds[i])
-		wantColDefText := strings.Replace(colDef.Raw, colDef.RawType, wantType, 1)
-		nuDDL = strings.Replace(nuDDL, colDef.Raw, wantColDefText, 1)
+	// Locate the table identifier in the original DDL so its byte offset
+	// is known. Avoids unanchored strings.Replace, which can misfire when
+	// the table name also appears as a column-name prefix or inside a
+	// comment / default literal.
+	tblIdent, err := sqlparser.ExtractTableIdentFromCreateTableStmt(ogDDL)
+	if err != nil {
+		return errz.Wrap(err, "sqlite3: alter table: failed to extract table identifier from DDL")
 	}
 
 	nuTblName := "tmp_tbl_alter_" + stringz.Uniq32()
-	nuDDL = strings.Replace(nuDDL, tblName, nuTblName, 1)
+	edits := make([]sqlparser.Edit, 0, len(colDefs)+1)
+	for i, colDef := range colDefs {
+		edits = append(edits, sqlparser.Edit{
+			Start:       colDef.RawTypeOffset,
+			End:         colDef.RawTypeOffset + len(colDef.RawType),
+			Replacement: DBTypeForKind(kinds[i]),
+		})
+	}
+	edits = append(edits, sqlparser.Edit{
+		Start:       tblIdent.TableOffset,
+		End:         tblIdent.TableOffset + len(tblIdent.RawTable),
+		Replacement: stringz.DoubleQuote(nuTblName),
+	})
+
+	nuDDL, err := sqlparser.ApplyEdits(ogDDL, edits)
+	if err != nil {
+		return errz.Wrap(err, "sqlite3: alter table: failed to apply DDL rewrites")
+	}
 
 	if _, err = db.ExecContext(ctx, nuDDL); err != nil {
 		return errz.Wrapf(err, "sqlite3: alter table: failed to create temporary table")

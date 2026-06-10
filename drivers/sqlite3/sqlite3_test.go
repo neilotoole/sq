@@ -454,6 +454,110 @@ func TestDriveri_AlterTableColumnKinds_QuotedIdentifier(t *testing.T) {
 	}
 }
 
+// TestDriveri_AlterTableColumnKinds_ColumnNamePrefixesType reproduces
+// gh750: a column whose name shares its declared-case prefix with the
+// type token (e.g. `text_data text`) caused the old
+// `strings.Replace(colDef.Raw, colDef.RawType, wantType, 1)` to clobber
+// the name's prefix instead of the actual type. The offset-based rewrite
+// targets the parsed RawType position directly, so the name is
+// preserved.
+func TestDriveri_AlterTableColumnKinds_ColumnNamePrefixesType(t *testing.T) {
+	testCases := []struct {
+		name    string
+		colDecl string
+		colName string
+	}{
+		{
+			// Name and type both lowercase, name is the type's prefix.
+			name:    "lowercase_prefix",
+			colDecl: `text_data text NOT NULL`,
+			colName: "text_data",
+		},
+		{
+			// Name and type both uppercase, name is the type's prefix.
+			name:    "uppercase_prefix",
+			colDecl: `TEXT_DATA TEXT NOT NULL`,
+			colName: "TEXT_DATA",
+		},
+		{
+			// Square-bracket quoted name that contains the type token.
+			name:    "bracket_quoted_prefix",
+			colDecl: `[TEXT_DATA] TEXT NOT NULL`,
+			colName: "TEXT_DATA",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			th := testh.New(t)
+			src := &source.Source{
+				Handle:   "@test",
+				Type:     drivertype.SQLite,
+				Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+			}
+
+			grip := th.Open(src)
+			db, err := grip.DB(th.Context)
+			require.NoError(t, err)
+			drvr := grip.SQLDriver()
+
+			_, err = db.ExecContext(th.Context, `CREATE TABLE collide (`+tc.colDecl+`)`)
+			require.NoError(t, err)
+
+			err = drvr.AlterTableColumnKinds(th.Context, db, "collide",
+				[]string{tc.colName}, []kind.Kind{kind.Int})
+			require.NoError(t, err)
+
+			md, err := grip.TableMetadata(th.Context, "collide")
+			require.NoError(t, err)
+			require.Len(t, md.Columns, 1, "the column should still exist after alter")
+			require.Equal(t, tc.colName, md.Columns[0].Name,
+				"the column name must survive the alter; substring-replace would have clobbered it")
+			require.Equal(t, kind.Int.String(), md.Column(tc.colName).Kind.String())
+		})
+	}
+}
+
+// TestDriveri_CopyTable_TableIdentInDefaultLiteral verifies that CopyTable
+// rewrites only the table identifier and leaves a substring-matching
+// occurrence inside a column DEFAULT expression untouched. Regression
+// safeguard for gh750's offset-based identifier rewrite.
+func TestDriveri_CopyTable_TableIdentInDefaultLiteral(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@test",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+	}
+
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+	drvr := grip.SQLDriver()
+
+	// Source table "actor" with a column whose DEFAULT literal contains
+	// the substring "actor".
+	_, err = db.ExecContext(th.Context,
+		`CREATE TABLE actor (id INTEGER, tag TEXT DEFAULT 'actor_tag')`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context, `INSERT INTO actor (id) VALUES (1)`)
+	require.NoError(t, err)
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: "actor"}, tablefq.T{Table: "actor_bak"}, true)
+	require.NoError(t, err)
+
+	// Destination table exists; the DEFAULT literal's 'actor_tag'
+	// substring must have been preserved (not rewritten to 'actor_bak_tag').
+	_, err = db.ExecContext(th.Context, `INSERT INTO actor_bak (id) VALUES (2)`)
+	require.NoError(t, err)
+	var tag string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT tag FROM actor_bak WHERE id=2`).Scan(&tag))
+	require.Equal(t, "actor_tag", tag,
+		"the DEFAULT literal must not be rewritten by the table-identifier substitution")
+}
+
 // TestSourceMetadata_LocationWithConnParams reproduces gh720: a
 // source-level metadata read must succeed when the source location
 // carries a connection-string suffix (e.g. ?mode=ro). The previous

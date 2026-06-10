@@ -447,6 +447,115 @@ func TestAlterTableColumnKinds_QuotedIdentifier(t *testing.T) {
 	}
 }
 
+// TestAlterTableColumnKinds_ColumnNamePrefixesType reproduces gh750: a
+// column whose name shares its declared-case prefix with the type token
+// (e.g. `text_data text`) caused the old
+// `strings.Replace(colDef.Raw, colDef.RawType, wantType, 1)` to clobber
+// the name's prefix instead of the actual type. The offset-based rewrite
+// targets the parsed RawType position directly, so the name is
+// preserved. Mirrors the sqlite3 driver test.
+func TestAlterTableColumnKinds_ColumnNamePrefixesType(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	testCases := []struct {
+		name    string
+		colDecl string
+		colName string
+	}{
+		{
+			name:    "lowercase_prefix",
+			colDecl: `text_data text NOT NULL`,
+			colName: "text_data",
+		},
+		{
+			name:    "uppercase_prefix",
+			colDecl: `TEXT_DATA TEXT NOT NULL`,
+			colName: "TEXT_DATA",
+		},
+		{
+			name:    "bracket_quoted_prefix",
+			colDecl: `[TEXT_DATA] TEXT NOT NULL`,
+			colName: "TEXT_DATA",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			src := th.Source(sakila.Rq)
+			grip := th.Open(src)
+			drvr := grip.SQLDriver()
+			db, err := grip.DB(th.Context)
+			require.NoError(t, err)
+
+			tblName := "collide_" + stringz.Uniq8()
+			t.Cleanup(func() {
+				_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+			})
+
+			_, err = db.ExecContext(th.Context,
+				fmt.Sprintf(`CREATE TABLE %q (%s)`, tblName, tc.colDecl))
+			require.NoError(t, err)
+
+			err = drvr.AlterTableColumnKinds(th.Context, db, tblName,
+				[]string{tc.colName}, []kind.Kind{kind.Int})
+			require.NoError(t, err)
+
+			md, err := grip.TableMetadata(th.Context, tblName)
+			require.NoError(t, err)
+			require.Len(t, md.Columns, 1, "the column should still exist after alter")
+			require.Equal(t, tc.colName, md.Columns[0].Name,
+				"the column name must survive the alter; substring-replace would have clobbered it")
+			require.Equal(t, kind.Int, md.Column(tc.colName).Kind)
+		})
+	}
+}
+
+// TestCopyTable_TableIdentInDefaultLiteral verifies that CopyTable
+// rewrites only the table identifier and leaves a substring-matching
+// occurrence inside a column DEFAULT expression untouched. Mirrors the
+// sqlite3 driver test.
+func TestCopyTable_TableIdentInDefaultLiteral(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	srcName := "actor_" + stringz.Uniq8()
+	dstName := "actor_bak_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: srcName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf(`CREATE TABLE %q (id INTEGER, tag TEXT DEFAULT '%s_tag')`,
+			srcName, srcName))
+	require.NoError(t, err)
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: srcName}, tablefq.T{Table: dstName}, false)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf(`INSERT INTO %q (id) VALUES (1)`, dstName))
+	require.NoError(t, err)
+
+	var tag string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		fmt.Sprintf(`SELECT tag FROM %q WHERE id=1`, dstName)).Scan(&tag))
+	require.Equal(t, srcName+"_tag", tag,
+		"the DEFAULT literal must not be rewritten by the table-identifier substitution")
+}
+
 func TestPrepareInsertStmt(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
