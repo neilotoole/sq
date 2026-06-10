@@ -182,16 +182,25 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		)
 	}
 
-	dsn, _, err := dsnFromLocation(loc) // TODO(gh756): use opts.insecure for the insecure-TLS connector path
+	dsn, opts, err := dsnFromLocation(loc)
 	if err != nil {
 		return nil, err
 	}
 
-	db, err := sql.Open(sqDBDrvrName, dsn)
-	if err != nil {
-		// Don't include dsn in the error: it may carry credentials.
-		return nil, errz.Wrapf(rewritePeerDNSError(errw(err), src),
-			"failed to open rqlite source %s", src.Handle)
+	var db *sql.DB
+	if opts.insecure {
+		timeout := driver.OptConnOpenTimeout.Get(src.Options)
+		db = sql.OpenDB(&insecureConnector{
+			dsn:    dsn,
+			client: newInsecureHTTPClient(timeout),
+		})
+	} else {
+		db, err = sql.Open(sqDBDrvrName, dsn)
+		if err != nil {
+			// Don't include dsn in the error: it may carry credentials.
+			return nil, errz.Wrapf(rewritePeerDNSError(errw(err), src),
+				"failed to open rqlite source %s", src.Handle)
+		}
 	}
 
 	driver.ConfigureDB(ctx, db, src.Options)
