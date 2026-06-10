@@ -184,3 +184,12 @@ func TestParseUnknownSchemeRedaction(t *testing.T) {
 		})
 	}
 }
+
+func TestParseRqliteMalformedRedaction(t *testing.T) {
+	// Malformed IPv6 bracket: url.ParseRequestURI rejects it, and the
+	// error must not echo the inline password.
+	_, err := location.Parse("rqlite://alice:secret@[::1")
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "secret")
+	require.Contains(t, err.Error(), "xxxxx")
+}

@@ -5,6 +5,7 @@ package location
 // overlap and duplication. It should be consolidated.
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"path"
@@ -414,7 +415,14 @@ func Parse(loc string) (*Fields, error) {
 func parseRqlite(loc string, fields *Fields) (*Fields, error) {
 	u, err := url.ParseRequestURI(loc)
 	if err != nil {
-		return nil, errz.Wrapf(err, "parse location: %s", loc)
+		// url.Error embeds the raw input URL, which may carry inline
+		// credentials. Strip that wrapper so only the redacted loc
+		// appears in the message, but keep the underlying cause.
+		var uerr *url.Error
+		if errors.As(err, &uerr) {
+			err = uerr.Err
+		}
+		return nil, errz.Wrapf(err, "parse location: %s", redactBestEffort(loc))
 	}
 
 	fields.Scheme = u.Scheme
@@ -428,7 +436,8 @@ func parseRqlite(loc string, fields *Fields) (*Fields, error) {
 	if u.Port() != "" {
 		fields.Port, err = strconv.Atoi(u.Port())
 		if err != nil {
-			return nil, errz.Wrapf(err, "parse location: invalid port {%s}: %s", u.Port(), loc)
+			return nil, errz.Wrapf(err, "parse location: invalid port {%s}: %s", u.Port(),
+				redactBestEffort(loc))
 		}
 	}
 	fields.Name = strings.TrimPrefix(u.Path, "/")
@@ -630,6 +639,18 @@ func redactRaw(loc string) string {
 		}
 
 		return u.Redacted()
+	case strings.HasPrefix(loc, "rqlite://"):
+		// rqlite is a network SQL driver unknown to dburl; redact its
+		// userinfo explicitly rather than relying on the best-effort
+		// regex fallback below.
+		u, err := url.ParseRequestURI(loc)
+		if err != nil {
+			return redactBestEffort(loc)
+		}
+		if _, ok := u.User.Password(); ok {
+			u.User = url.UserPassword(u.User.Username(), "xxxxx")
+		}
+		return u.String()
 	}
 
 	// At this point, we expect it's a DSN
