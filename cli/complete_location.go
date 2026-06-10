@@ -138,8 +138,9 @@ func allSchemeURIs(shapes []driver.LocationShape) []string {
 }
 
 // matchShape returns the shape whose scheme prefixes toComplete.
-// Schemes are tested longest-first so "rqlites://" matches before
-// "rqlite://".
+// Schemes are tested longest-first so longer scheme prefixes match
+// before shorter ones (e.g. distinguishing "sqlserver://" from a
+// hypothetical "sql://").
 func matchShape(toComplete string, shapes []driver.LocationShape) (
 	driver.LocationShape, bool,
 ) {
