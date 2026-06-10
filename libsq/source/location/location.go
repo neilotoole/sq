@@ -692,7 +692,9 @@ func redactBestEffort(loc string) string {
 
 // MergeQuery returns loc with the given query params set, replacing
 // any existing values for the same keys. Other query params are
-// preserved. loc must be a parseable URL with a scheme; locations
+// preserved. loc must be parseable by net/url and have a scheme:
+// driver-native DSN forms that net/url cannot parse (e.g. mysql's
+// "user@tcp(host)/db" shape) must not be passed here, and locations
 // bearing secret placeholders are the caller's responsibility to
 // exclude.
 func MergeQuery(loc string, params url.Values) (string, error) {
