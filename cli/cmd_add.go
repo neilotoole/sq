@@ -714,12 +714,12 @@ func detectConnParamsForAdd(ctx context.Context, cmd *cobra.Command,
 		return nil
 	}
 
-	// v1: skip placeholder-bearing locations. Detected params would
-	// have to be merged into a stored form whose URL structure is
-	// opaque (e.g. a bare "${keyring:abc}"), which requires
-	// composition-aware rewriting. Such sources get the standard
-	// connection-error hints instead. This mirrors ValidateSource,
-	// which also skips grammar checks for placeholders.
+	// Placeholder-bearing locations are skipped: detected params
+	// would have to be merged into a stored form whose URL structure
+	// is opaque (e.g. a bare "${keyring:abc}"), which would require
+	// composition-aware rewriting of the stored value. Such sources
+	// get the standard connection-error hints instead. This mirrors
+	// ValidateSource, which also skips grammar checks for placeholders.
 	refs, err := secret.ExtractRefs(src.Location)
 	if err != nil {
 		return err
