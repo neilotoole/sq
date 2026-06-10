@@ -384,18 +384,18 @@ func dsnFromLocation(loc string) (string, error) {
 // batch.
 //
 // The rewrite preserves the original CREATE TABLE text modulo the
-// table identifier substitution. Constraints carried across: UNIQUE,
-// FOREIGN KEY, AUTOINCREMENT, CHECK, composite PRIMARY KEY, exact
-// DEFAULT expressions, WITHOUT ROWID, and column comments.
+// table identifier substitution and any self-referential FK rewrites.
+// Constraints carried across: UNIQUE, FOREIGN KEY, AUTOINCREMENT,
+// CHECK, composite PRIMARY KEY, exact DEFAULT expressions, WITHOUT
+// ROWID, and column comments. Self-referential foreign keys
+// (REFERENCES <src>(...) inside the same CREATE TABLE) are rewritten
+// to point at the destination so the destination's FKs resolve
+// against itself rather than the source (gh759). Cross-table FKs are
+// left untouched.
 //
 // Not preserved: indexes and triggers. These live as separate
 // sqlite_master rows and are out of scope for CopyTable. Matches the
 // sqlite3 driver's behavior.
-//
-// Known limitation (inherited from sqlite3): self-referential FKs
-// are not rewritten. If the source has REFERENCES "actor"(id) and
-// the user copies to "actor_bak", the destination FK still points
-// at "actor" (the source).
 func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 	fromTbl, toTbl tablefq.T, copyData bool,
 ) (int64, error) {
@@ -421,12 +421,37 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 		identStart = ogIdent.SchemaOffset
 	}
 	identEnd := ogIdent.TableOffset + len(ogIdent.RawTable)
+	destQuoted := toTbl.Render(stringz.DoubleQuote)
 
-	destDDL, err := sqlparser.ApplyEdits(ogDDL, []sqlparser.Edit{{
+	edits := []sqlparser.Edit{{
 		Start:       identStart,
 		End:         identEnd,
-		Replacement: toTbl.Render(stringz.DoubleQuote),
-	}})
+		Replacement: destQuoted,
+	}}
+
+	// Rewrite self-FKs so the destination's REFERENCES point at itself
+	// rather than the source (gh759). Cross-table FKs are left alone.
+	// SQLite's foreign_table grammar rule is a single any_name (no
+	// schema qualification permitted), so the replacement here is the
+	// destination's bare table token even when destQuoted carries a
+	// "schema"."table" prefix for the CREATE TABLE identifier edit.
+	destTableQuoted := stringz.DoubleQuote(toTbl.Table)
+	fkRefs, err := sqlparser.ExtractForeignTableRefsFromCreateTableStmt(ogDDL)
+	if err != nil {
+		return 0, errz.Wrap(err, "rqlite: copy table")
+	}
+	for _, r := range fkRefs {
+		if !strings.EqualFold(r.Table, ogIdent.Table) {
+			continue
+		}
+		edits = append(edits, sqlparser.Edit{
+			Start:       r.TableOffset,
+			End:         r.TableOffset + len(r.RawTable),
+			Replacement: destTableQuoted,
+		})
+	}
+
+	destDDL, err := sqlparser.ApplyEdits(ogDDL, edits)
 	if err != nil {
 		return 0, errz.Wrap(err, "rqlite: copy table: failed to apply DDL rewrites")
 	}

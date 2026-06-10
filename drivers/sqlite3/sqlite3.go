@@ -286,6 +286,15 @@ func (d *driveri) Renderer() *render.Renderer {
 }
 
 // CopyTable implements driver.SQLDriver.
+//
+// The implementation reads the source table's CREATE statement from
+// sqlite_master, extracts the table identifier (with byte offsets) via
+// the shared sqlparser package, and substitutes the destination name in
+// place. Self-referential foreign keys (REFERENCES <src>(...) inside
+// the same CREATE TABLE) are also rewritten to point at the destination
+// so the destination's FKs resolve against itself rather than the
+// source. Cross-table FKs (REFERENCES other(...) where other != src)
+// are left untouched.
 func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 	fromTbl, toTbl tablefq.T, copyData bool,
 ) (int64, error) {
@@ -312,7 +321,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 	// recurs elsewhere in the DDL (CHECK exprs, default literals, etc.).
 	ogIdent, err := sqlparser.ExtractTableIdentFromCreateTableStmt(ogTblCreateStmt)
 	if err != nil {
-		return 0, errw(err)
+		return 0, errz.Wrap(err, "sqlite3: copy table")
 	}
 
 	identStart := ogIdent.TableOffset
@@ -320,12 +329,37 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 		identStart = ogIdent.SchemaOffset
 	}
 	identEnd := ogIdent.TableOffset + len(ogIdent.RawTable)
+	destQuoted := toTbl.Render(stringz.DoubleQuote)
 
-	destTblCreateStmt, err := sqlparser.ApplyEdits(ogTblCreateStmt, []sqlparser.Edit{{
+	edits := []sqlparser.Edit{{
 		Start:       identStart,
 		End:         identEnd,
-		Replacement: toTbl.Render(stringz.DoubleQuote),
-	}})
+		Replacement: destQuoted,
+	}}
+
+	// Rewrite self-FKs so the destination's REFERENCES point at itself
+	// rather than the source (gh759). Cross-table FKs are left alone.
+	// SQLite's foreign_table grammar rule is a single any_name (no
+	// schema qualification permitted), so the replacement here is the
+	// destination's bare table token even when destQuoted carries a
+	// "schema"."table" prefix for the CREATE TABLE identifier edit.
+	destTableQuoted := stringz.DoubleQuote(toTbl.Table)
+	fkRefs, err := sqlparser.ExtractForeignTableRefsFromCreateTableStmt(ogTblCreateStmt)
+	if err != nil {
+		return 0, errz.Wrap(err, "sqlite3: copy table")
+	}
+	for _, r := range fkRefs {
+		if !strings.EqualFold(r.Table, ogIdent.Table) {
+			continue
+		}
+		edits = append(edits, sqlparser.Edit{
+			Start:       r.TableOffset,
+			End:         r.TableOffset + len(r.RawTable),
+			Replacement: destTableQuoted,
+		})
+	}
+
+	destTblCreateStmt, err := sqlparser.ApplyEdits(ogTblCreateStmt, edits)
 	if err != nil {
 		return 0, errz.Wrap(err, "sqlite3: copy table: failed to apply DDL rewrites")
 	}

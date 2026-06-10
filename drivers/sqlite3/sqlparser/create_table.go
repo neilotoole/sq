@@ -105,6 +105,77 @@ func ExtractTableIdentFromCreateTableStmt(stmt string) (*TableIdent, error) {
 	return ident, nil
 }
 
+// ForeignTableRef describes a single REFERENCES <table> occurrence inside a
+// CREATE TABLE statement's foreign-key clauses, with the byte offset of the
+// table token in the original input. Both the column-constraint form
+// (`col INTEGER REFERENCES other(id)`) and the table-constraint form
+// (`FOREIGN KEY(col) REFERENCES other(id)`) funnel through the same
+// foreign_table grammar rule, so both produce ForeignTableRef entries.
+//
+// Returned by value (not pointer) because the struct is small, logically
+// immutable after extraction, and used read-only by callers.
+type ForeignTableRef struct {
+	// RawTable is the raw text of the referenced table token as it appeared
+	// in the input, preserving any of SQLite's four legal identifier-quote
+	// styles (double-quote, single-quote, backtick, square brackets).
+	RawTable string
+
+	// Table is the referenced table name with quotes stripped. Always
+	// non-empty.
+	Table string
+
+	// TableOffset is the byte offset of RawTable in the input. The token
+	// ends at TableOffset+len(RawTable).
+	TableOffset int
+}
+
+// String returns the raw text of the foreign-table reference.
+func (r ForeignTableRef) String() string {
+	return r.RawTable
+}
+
+// ExtractForeignTableRefsFromCreateTableStmt returns one ForeignTableRef per
+// REFERENCES <table> occurrence in a CREATE TABLE statement. Refs are
+// returned in source order. A nil slice (and nil error) is returned when
+// the statement has no foreign-key clauses.
+func ExtractForeignTableRefsFromCreateTableStmt(stmt string) ([]ForeignTableRef, error) {
+	stmtCtx, err := parseCreateTableStmt(stmt)
+	if err != nil {
+		return nil, err
+	}
+
+	tokx := antlrz.NewTokenExtractor(stmt)
+	var refs []ForeignTableRef
+	collectForeignTables(stmtCtx, tokx, &refs)
+	return refs, nil
+}
+
+// collectForeignTables descends node depth-first, appending one
+// ForeignTableRef per Foreign_tableContext encountered. After recording
+// a match, the walk skips descending into the foreign_table: its only
+// child is the table-name any_name, and re-entering would risk a
+// double-record if the grammar ever grows another Foreign_tableContext
+// descendant.
+func collectForeignTables(node antlr.Tree, tokx *antlrz.TokenExtractor, out *[]ForeignTableRef) {
+	if ft, ok := node.(*sqlite.Foreign_tableContext); ok {
+		raw := tokx.Extract(ft)
+		table := trimIdentQuotes(raw)
+		if table == "" {
+			return
+		}
+		offset, _ := tokx.Offset(ft)
+		*out = append(*out, ForeignTableRef{
+			RawTable:    raw,
+			Table:       table,
+			TableOffset: offset,
+		})
+		return
+	}
+	for _, child := range node.GetChildren() {
+		collectForeignTables(child, tokx, out)
+	}
+}
+
 // ExtractCreateTableStmtColDefs extracts the column definitions from a CREATE
 // TABLE statement.
 func ExtractCreateTableStmtColDefs(stmt string) ([]*ColDef, error) {
