@@ -180,7 +180,7 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		)
 	}
 
-	dsn, err := dsnFromLocation(loc)
+	dsn, _, err := dsnFromLocation(loc) // TODO(gh756): use opts.insecure for the insecure-TLS connector path
 	if err != nil {
 		return nil, err
 	}
@@ -348,29 +348,67 @@ func locationWithDefaultPort(loc string) (string, bool, error) {
 	return u.String(), true, nil
 }
 
-// dsnFromLocation translates an rqlite:// or rqlites:// source location
-// into the http(s):// URL that gorqlite.Open expects.
-func dsnFromLocation(loc string) (string, error) {
-	var scheme string
+// dsnOpts captures the sq-synthetic query params that dsnFromLocation
+// strips before handing the URL to gorqlite. These params do not appear
+// in gorqlite's connection-string grammar; they are sq's TLS knobs.
+type dsnOpts struct {
+	// tls is true when the user opted into HTTPS via ?tls=true (or via
+	// the legacy rqlites:// scheme, while it still exists).
+	tls bool
+}
+
+// dsnFromLocation translates an rqlite:// source location into the
+// http(s):// URL that gorqlite.Open expects, and reports the sq-synthetic
+// query-param opts (currently just ?tls) parsed out of the location. The
+// ?tls param is stripped from the returned DSN so gorqlite never sees it.
+//
+// Returns an error if the location's scheme is unrecognized, or ?tls has a
+// value other than "true"/"false".
+//
+// The legacy rqlites:// scheme is still accepted here for now; gh756
+// removes it after the rest of the codebase migrates.
+func dsnFromLocation(loc string) (string, dsnOpts, error) {
+	var (
+		opts   dsnOpts
+		scheme string
+	)
 	switch {
 	case strings.HasPrefix(loc, PrefixSecure):
 		scheme = "https"
+		opts.tls = true
 	case strings.HasPrefix(loc, Prefix):
 		scheme = "http"
 	default:
 		// Don't include loc: it may carry credentials.
-		return "", errz.Errorf("rqlite: location must start with %q or %q",
+		return "", opts, errz.Errorf("rqlite: location must start with %q or %q",
 			Prefix, PrefixSecure)
 	}
 
 	u, err := url.Parse(loc)
 	if err != nil {
 		// Don't include loc in the error: it may carry credentials.
-		return "", errz.Wrap(err, "rqlite: invalid location")
+		return "", opts, errz.Wrap(err, "rqlite: invalid location")
+	}
+
+	q := u.Query()
+	if v := q.Get("tls"); v != "" {
+		switch v {
+		case "true":
+			scheme = "https"
+			opts.tls = true
+		case "false":
+			scheme = "http"
+			opts.tls = false
+		default:
+			return "", opts, errz.Errorf(
+				`rqlite: tls must be "true" or "false", got %q`, v)
+		}
+		q.Del("tls")
 	}
 
 	u.Scheme = scheme
-	return u.String(), nil
+	u.RawQuery = q.Encode()
+	return u.String(), opts, nil
 }
 
 // CopyTable implements driver.SQLDriver.

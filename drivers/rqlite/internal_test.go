@@ -68,7 +68,7 @@ func TestDsnFromLocation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tu.Name(tc.loc), func(t *testing.T) {
-			got, err := dsnFromLocation(tc.loc)
+			got, _, err := dsnFromLocation(tc.loc)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
