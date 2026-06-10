@@ -32,7 +32,8 @@ keyring support) and support for [rqlite](https://sq.io/docs/drivers/rqlite).
     for self-signed certs) when the failure looks TLS-related.
   - [#764]: `sq add` auto-detects TLS-only rqlite endpoints and stores `tls=true`
     on the source, instead of failing and asking the user to retry. Suppressed by
-    `--skip-verify` or an explicit `tls`/`insecure` param.
+    `--skip-verify`, an explicit `tls`/`insecure` param, or a `${...}` placeholder
+    location.
 - [#441]: [`sq add`](https://sq.io/docs/cmd/add) gains a `--store inline|keyring`
   flag, and a new [`secrets.store`](https://sq.io/docs/config#secretsstore) config option
   controls the default; existing behavior is preserved (`inline`).

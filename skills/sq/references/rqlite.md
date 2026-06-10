@@ -6,7 +6,7 @@ Networked distributed SQLite via [rqlite](https://rqlite.io). Driver type in `sq
 
 ## Add a source
 
-Use [`sq add`](https://sq.io/docs/cmd/add) with an HTTP(S) URL. Default port: `4001` (auto-applied when missing). Driver type is inferred from the `rqlite://` scheme. TLS is opt-in via `?tls=true`, but `sq add` auto-detects TLS-only endpoints and applies it; add `?tls=true&insecure=true` to accept self-signed certificates.
+Use [`sq add`](https://sq.io/docs/cmd/add) with an HTTP(S) URL. Default port: `4001` (auto-applied when missing). Driver type is inferred from the `rqlite://` scheme. TLS is opt-in via `?tls=true`, but `sq add` auto-detects TLS-only endpoints and applies it (skipped with `--skip-verify`, explicit `tls`/`insecure` params, or `${...}` placeholder locations); add `?tls=true&insecure=true` to accept self-signed certificates.
 
 **Common setups:**
 

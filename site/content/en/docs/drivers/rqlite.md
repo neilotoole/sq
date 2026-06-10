@@ -138,10 +138,11 @@ Prefer installing the CA in your trust store for production use.
 You usually don't need to specify `tls=true` yourself: at
 [`sq add`](/docs/cmd/add) time, `sq` probes the endpoint, and if it detects that
 the server requires TLS, it stores `tls=true` on the source automatically. The
-probe is skipped if you pass `--skip-verify`, or if the location already
-specifies `tls` or `insecure`. If the server requires TLS but presents a
-certificate that can't be verified, `sq add` fails with instructions: add
-`insecure=true`, or install the CA in your trust store.
+probe is skipped if you pass `--skip-verify`, if the location already includes
+a `tls` or `insecure` param, or if the location contains `${...}` secret
+placeholders (such as those written by `--store keyring`). If the server
+requires TLS but presents a certificate that can't be verified, `sq add` fails
+with instructions: add `insecure=true`, or install the CA in your trust store.
 
 ## Write behavior
 
