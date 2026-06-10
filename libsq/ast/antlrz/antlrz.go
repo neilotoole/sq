@@ -4,6 +4,7 @@ package antlrz
 import (
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	antlr "github.com/antlr4-go/antlr/v4"
 )
@@ -20,8 +21,9 @@ func NewTokenExtractor(input string) *TokenExtractor {
 	return &TokenExtractor{input: input}
 }
 
-// Offset returns the start and stop (inclusive) offsets of the parser rule in
-// the input.
+// Offset returns the start and stop byte offsets of the parser rule in the
+// input. start is inclusive; stop is exclusive (input[start:stop] yields the
+// rule's raw text).
 func (l *TokenExtractor) Offset(prc antlr.ParserRuleContext) (start, stop int) {
 	l.once.Do(func() {
 		l.lines = strings.Split(l.input, "\n")
@@ -29,11 +31,11 @@ func (l *TokenExtractor) Offset(prc antlr.ParserRuleContext) (start, stop int) {
 
 	startToken := prc.GetStart()
 	startLine := startToken.GetLine() - 1
-	startCol := startToken.GetColumn()
+	startCol := runeColToByteCol(l.lines[startLine], startToken.GetColumn())
 
 	stopToken := prc.GetStop()
 	stopLine := stopToken.GetLine() - 1
-	stopCol := stopToken.GetColumn() + len(stopToken.GetText())
+	stopCol := runeColToByteCol(l.lines[stopLine], stopToken.GetColumn()) + len(stopToken.GetText())
 
 	for i := range startLine {
 		startCol += len(l.lines[i]) + 1
@@ -55,11 +57,11 @@ func (l *TokenExtractor) Extract(prc antlr.ParserRuleContext) string {
 
 	startToken := prc.GetStart()
 	startLine := startToken.GetLine() - 1
-	startCol := startToken.GetColumn()
+	startCol := runeColToByteCol(l.lines[startLine], startToken.GetColumn())
 
 	stopToken := prc.GetStop()
 	stopLine := stopToken.GetLine() - 1
-	stopCol := stopToken.GetColumn() + len(stopToken.GetText())
+	stopCol := runeColToByteCol(l.lines[stopLine], stopToken.GetColumn()) + len(stopToken.GetText())
 
 	if startLine == stopLine {
 		return l.lines[startLine][startCol:stopCol]
@@ -76,4 +78,21 @@ func (l *TokenExtractor) Extract(prc antlr.ParserRuleContext) string {
 	sb.WriteString(l.lines[stopLine][:stopCol])
 
 	return sb.String()
+}
+
+// runeColToByteCol converts an ANTLR-reported rune-based column position on a
+// line to a Go byte offset into that line's underlying string. ANTLR's
+// Token.GetColumn returns the count of runes preceding the token on its line;
+// directly using that count as a byte index breaks whenever multi-byte UTF-8
+// characters appear earlier on the same line.
+func runeColToByteCol(line string, runeCol int) int {
+	byteCol := 0
+	for range runeCol {
+		if byteCol >= len(line) {
+			return byteCol
+		}
+		_, size := utf8.DecodeRuneInString(line[byteCol:])
+		byteCol += size
+	}
+	return byteCol
 }

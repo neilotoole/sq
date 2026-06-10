@@ -397,6 +397,222 @@ func TestAlterTableColumnKinds(t *testing.T) {
 	require.Equal(t, "hello", gotB)
 }
 
+// TestAlterTableColumnKinds_PreservesAutoincrementSeq reproduces gh757: the
+// table-rebuild dance in AlterTableColumnKinds dropped the original table,
+// which removed its sqlite_sequence row, so AUTOINCREMENT restarted from
+// MAX(rowid)+1 instead of seq+1. With rows previously deleted from the high
+// end, the next insert silently reused their ids. Mirrors the sqlite3
+// driver test.
+func TestAlterTableColumnKinds_PreservesAutoincrementSeq(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	tblName := "seqtbl_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY AUTOINCREMENT, val INTEGER NOT NULL)`, tblName))
+	require.NoError(t, err)
+
+	for i := 1; i <= 10; i++ {
+		_, err = db.ExecContext(th.Context,
+			fmt.Sprintf(`INSERT INTO %q (val) VALUES (?)`, tblName), i)
+		require.NoError(t, err)
+	}
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf(`DELETE FROM %q WHERE id > 5`, tblName))
+	require.NoError(t, err)
+
+	var seq, maxID int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT seq FROM sqlite_sequence WHERE name=?`, tblName).Scan(&seq))
+	require.Equal(t, int64(10), seq)
+	require.NoError(t, db.QueryRowContext(th.Context,
+		fmt.Sprintf(`SELECT MAX(id) FROM %q`, tblName)).Scan(&maxID))
+	require.Equal(t, int64(5), maxID)
+
+	require.NoError(t, drvr.AlterTableColumnKinds(th.Context, db, tblName,
+		[]string{"val"}, []kind.Kind{kind.Text}))
+
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf(`INSERT INTO %q (val) VALUES ('post-alter')`, tblName))
+	require.NoError(t, err)
+
+	var newID int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		fmt.Sprintf(`SELECT id FROM %q WHERE val = 'post-alter'`, tblName)).Scan(&newID))
+	require.Equal(t, int64(11), newID,
+		"AUTOINCREMENT must continue from the preserved sequence (seq+1), not MAX(rowid)+1")
+}
+
+// TestAlterTableColumnKinds_QuotedIdentifier reproduces gh752: a column
+// declared with any of SQLite's four legal identifier-quoting styles
+// (double-quote, single-quote, backtick, square brackets) used to fail the
+// lookup in AlterTableColumnKinds when the parser's strip-quotes step only
+// handled double-quotes. The shared sqlparser now strips all four styles.
+func TestAlterTableColumnKinds_QuotedIdentifier(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	testCases := []struct {
+		name    string
+		colDecl string
+	}{
+		{name: "double_quote", colDecl: `"age" INTEGER NOT NULL`},
+		{name: "single_quote", colDecl: `'age' INTEGER NOT NULL`},
+		{name: "backtick", colDecl: "`age` INTEGER NOT NULL"},
+		{name: "square_brackets", colDecl: `[age] INTEGER NOT NULL`},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			src := th.Source(sakila.Rq)
+			grip := th.Open(src)
+			drvr := grip.SQLDriver()
+			db, err := grip.DB(th.Context)
+			require.NoError(t, err)
+
+			tblName := "qident_" + stringz.Uniq8()
+			t.Cleanup(func() {
+				_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+			})
+
+			_, err = db.ExecContext(th.Context,
+				fmt.Sprintf(`CREATE TABLE %q (%s)`, tblName, tc.colDecl))
+			require.NoError(t, err)
+
+			err = drvr.AlterTableColumnKinds(th.Context, db, tblName,
+				[]string{"age"}, []kind.Kind{kind.Text})
+			require.NoError(t, err)
+
+			md, err := grip.TableMetadata(th.Context, tblName)
+			require.NoError(t, err)
+			require.Equal(t, kind.Text, md.Column("age").Kind)
+		})
+	}
+}
+
+// TestAlterTableColumnKinds_ColumnNamePrefixesType reproduces gh750: a
+// column whose name shares its declared-case prefix with the type token
+// (e.g. `text_data text`) caused the old
+// `strings.Replace(colDef.Raw, colDef.RawType, wantType, 1)` to clobber
+// the name's prefix instead of the actual type. The offset-based rewrite
+// targets the parsed RawType position directly, so the name is
+// preserved. Mirrors the sqlite3 driver test.
+func TestAlterTableColumnKinds_ColumnNamePrefixesType(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	testCases := []struct {
+		name    string
+		colDecl string
+		colName string
+	}{
+		{
+			name:    "lowercase_prefix",
+			colDecl: `text_data text NOT NULL`,
+			colName: "text_data",
+		},
+		{
+			name:    "uppercase_prefix",
+			colDecl: `TEXT_DATA TEXT NOT NULL`,
+			colName: "TEXT_DATA",
+		},
+		{
+			name:    "bracket_quoted_prefix",
+			colDecl: `[TEXT_DATA] TEXT NOT NULL`,
+			colName: "TEXT_DATA",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			src := th.Source(sakila.Rq)
+			grip := th.Open(src)
+			drvr := grip.SQLDriver()
+			db, err := grip.DB(th.Context)
+			require.NoError(t, err)
+
+			tblName := "collide_" + stringz.Uniq8()
+			t.Cleanup(func() {
+				_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+			})
+
+			_, err = db.ExecContext(th.Context,
+				fmt.Sprintf(`CREATE TABLE %q (%s)`, tblName, tc.colDecl))
+			require.NoError(t, err)
+
+			err = drvr.AlterTableColumnKinds(th.Context, db, tblName,
+				[]string{tc.colName}, []kind.Kind{kind.Int})
+			require.NoError(t, err)
+
+			md, err := grip.TableMetadata(th.Context, tblName)
+			require.NoError(t, err)
+			require.Len(t, md.Columns, 1, "the column should still exist after alter")
+			require.Equal(t, tc.colName, md.Columns[0].Name,
+				"the column name must survive the alter; substring-replace would have clobbered it")
+			require.Equal(t, kind.Int, md.Column(tc.colName).Kind)
+		})
+	}
+}
+
+// TestCopyTable_TableIdentInDefaultLiteral verifies that CopyTable
+// rewrites only the table identifier and leaves a substring-matching
+// occurrence inside a column DEFAULT expression untouched. Mirrors the
+// sqlite3 driver test.
+func TestCopyTable_TableIdentInDefaultLiteral(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	srcName := "actor_" + stringz.Uniq8()
+	dstName := "actor_bak_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: srcName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf(`CREATE TABLE %q (id INTEGER, tag TEXT DEFAULT '%s_tag')`,
+			srcName, srcName))
+	require.NoError(t, err)
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: srcName}, tablefq.T{Table: dstName}, false)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf(`INSERT INTO %q (id) VALUES (1)`, dstName))
+	require.NoError(t, err)
+
+	var tag string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		fmt.Sprintf(`SELECT tag FROM %q WHERE id=1`, dstName)).Scan(&tag))
+	require.Equal(t, srcName+"_tag", tag,
+		"the DEFAULT literal must not be rewritten by the table-identifier substitution")
+}
+
 func TestPrepareInsertStmt(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
@@ -888,6 +1104,332 @@ func TestCopyTable_PreservesFKs(t *testing.T) {
 		require.True(t, srcKeys[fkKey(fk)],
 			"dest FK %s not present in source set", fkKey(fk))
 	}
+}
+
+// TestCopyTable_RewritesSelfFK is the rqlite half of gh759: when a
+// source table carries a self-referential FOREIGN KEY (REFERENCES
+// <src>(...)), the destination's REFERENCES must name the destination,
+// not the source. Otherwise the destination's FKs resolve against the
+// source row set, which is the bug.
+//
+// The structural assertion (TableMetadata.FK.Outgoing[0].RefTable ==
+// dstName) is the load-bearing check. The DDL string check is a
+// redundant cross-check. FK runtime enforcement isn't exercised here
+// because rqlite's stateless HTTP transport doesn't reliably carry
+// per-connection PRAGMA foreign_keys across separate requests; the
+// sqlite3 sibling test covers that runtime axis.
+//
+// Table-driven across the cardinal self-FK shapes so the two drivers
+// stay in step (gh737 established the rqlite faithful-DDL baseline
+// this builds on).
+func TestCopyTable_RewritesSelfFK(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	testCases := []struct {
+		name string
+		// ddl is the source CREATE TABLE; %[1]q is the source table
+		// name, double-quoted via the %q verb.
+		ddl string
+	}{
+		{
+			name: "column_constraint",
+			ddl:  `CREATE TABLE %[1]q (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES %[1]q(id))`,
+		},
+		{
+			name: "table_constraint",
+			ddl: `CREATE TABLE %[1]q (id INTEGER PRIMARY KEY, parent_id INTEGER, ` +
+				`FOREIGN KEY (parent_id) REFERENCES %[1]q(id))`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			th := testh.New(t)
+			src := th.Source(sakila.Rq)
+			grip := th.Open(src)
+			drvr := grip.SQLDriver()
+			db, err := grip.DB(th.Context)
+			require.NoError(t, err)
+
+			uniq := stringz.Uniq8()
+			srcName := "actor_self_fk_" + uniq
+			dstName := "actor_self_fk_bak_" + uniq
+			t.Cleanup(func() {
+				_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+				_ = drvr.DropTable(th.Context, db, tablefq.T{Table: srcName}, true)
+			})
+
+			_, err = db.ExecContext(th.Context, fmt.Sprintf(tc.ddl, srcName))
+			require.NoError(t, err)
+
+			_, err = drvr.CopyTable(th.Context, db,
+				tablefq.T{Table: srcName}, tablefq.T{Table: dstName}, false)
+			require.NoError(t, err)
+
+			md, err := grip.TableMetadata(th.Context, dstName)
+			require.NoError(t, err)
+			require.NotNil(t, md.FK, "destination should carry an FK after CopyTable")
+			require.Len(t, md.FK.Outgoing, 1, "destination should have exactly one outgoing FK")
+			require.Equal(t, dstName, md.FK.Outgoing[0].RefTable,
+				"FK target must be rewritten to the destination, not left pointing at the source")
+
+			var destDDL string
+			require.NoError(t, db.QueryRowContext(th.Context,
+				`SELECT sql FROM sqlite_master WHERE type='table' AND name=?`, dstName).Scan(&destDDL))
+			require.True(t,
+				strings.Contains(destDDL, fmt.Sprintf(`REFERENCES %q(`, dstName)) ||
+					strings.Contains(destDDL, fmt.Sprintf(`REFERENCES %s(`, dstName)),
+				"destination DDL REFERENCES clause must name the destination, got: %s", destDDL)
+			require.False(t,
+				strings.Contains(destDDL, fmt.Sprintf(`REFERENCES %q(`, srcName)) ||
+					strings.Contains(destDDL, fmt.Sprintf(`REFERENCES %s(`, srcName)),
+				"destination DDL REFERENCES clause must not still name the source, got: %s", destDDL)
+		})
+	}
+}
+
+// TestCopyTable_LeavesCrossFKsAlone is the rqlite half of the cross-FK
+// preservation invariant: REFERENCES whose target is not the source
+// table must survive the copy untouched, even when the same table also
+// carries a self-FK that does get rewritten. A regression that
+// inverted the predicate would silently re-point cross-table FKs at
+// the destination, a worse bug than the original gh759. Mirrored on
+// both drivers.
+func TestCopyTable_LeavesCrossFKsAlone(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	uniq := stringz.Uniq8()
+	parentName := "parent_xfk_" + uniq
+	srcName := "actor_xfk_" + uniq
+	dstName := "actor_xfk_bak_" + uniq
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: srcName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: parentName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY)`, parentName))
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %q (`+
+			`id INTEGER PRIMARY KEY, `+
+			`parent_id INTEGER REFERENCES %q(id), `+
+			`other_id INTEGER REFERENCES %q(id))`,
+		srcName, srcName, parentName))
+	require.NoError(t, err)
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: srcName}, tablefq.T{Table: dstName}, false)
+	require.NoError(t, err)
+
+	md, err := grip.TableMetadata(th.Context, dstName)
+	require.NoError(t, err)
+	require.NotNil(t, md.FK)
+	require.Len(t, md.FK.Outgoing, 2, "destination should have two outgoing FKs")
+
+	refTables := map[string]bool{}
+	for _, fk := range md.FK.Outgoing {
+		refTables[fk.RefTable] = true
+	}
+	require.True(t, refTables[dstName],
+		"self-FK must be rewritten to the destination, got refs %v", refTables)
+	require.True(t, refTables[parentName],
+		"cross-table FK to %q must be preserved, got refs %v", parentName, refTables)
+	require.False(t, refTables[srcName],
+		"no FK should still name the source after copy, got refs %v", refTables)
+}
+
+// TestCopyTable_MultipleSelfFKs verifies every self-FK in a source
+// table is rewritten, not just the first; guards against a regression
+// that returned after the first match.
+func TestCopyTable_MultipleSelfFKs(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	uniq := stringz.Uniq8()
+	srcName := "actor_multi_fk_" + uniq
+	dstName := "actor_multi_fk_bak_" + uniq
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: srcName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %q (`+
+			`id INTEGER PRIMARY KEY, `+
+			`parent_id INTEGER REFERENCES %q(id), `+
+			`buddy_id INTEGER REFERENCES %q(id))`,
+		srcName, srcName, srcName))
+	require.NoError(t, err)
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: srcName}, tablefq.T{Table: dstName}, false)
+	require.NoError(t, err)
+
+	md, err := grip.TableMetadata(th.Context, dstName)
+	require.NoError(t, err)
+	require.NotNil(t, md.FK)
+	require.Len(t, md.FK.Outgoing, 2, "destination should have two outgoing FKs")
+	for _, fk := range md.FK.Outgoing {
+		require.Equal(t, dstName, fk.RefTable,
+			"every self-FK must be rewritten to the destination, got %v", fk)
+	}
+}
+
+// TestCopyTable_CompositeSelfFK verifies composite-column
+// FOREIGN KEY(a, b) REFERENCES self(x, y) is rewritten to point at the
+// destination. Mirrors the sqlite3 sibling.
+func TestCopyTable_CompositeSelfFK(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	uniq := stringz.Uniq8()
+	srcName := "link_composite_" + uniq
+	dstName := "link_composite_bak_" + uniq
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: srcName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %q (`+
+			`a INTEGER, b INTEGER, x INTEGER, y INTEGER, `+
+			`PRIMARY KEY (x, y), `+
+			`FOREIGN KEY(a, b) REFERENCES %q(x, y))`,
+		srcName, srcName))
+	require.NoError(t, err)
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: srcName}, tablefq.T{Table: dstName}, false)
+	require.NoError(t, err)
+
+	md, err := grip.TableMetadata(th.Context, dstName)
+	require.NoError(t, err)
+	require.NotNil(t, md.FK)
+	require.Len(t, md.FK.Outgoing, 1)
+	require.Equal(t, dstName, md.FK.Outgoing[0].RefTable,
+		"composite self-FK must be rewritten to the destination")
+}
+
+// TestCopyTable_CaseMismatchSelfFK verifies the driver's case-insensitive
+// match predicate: a source table named `actor_...` whose REFERENCES
+// target is written as `Actor_...` is still rewritten. SQLite identifier
+// comparison is ASCII case-insensitive for unquoted refs; the driver
+// uses strings.EqualFold. A regression to case-sensitive matching would
+// leave the destination FK pointing at the source.
+func TestCopyTable_CaseMismatchSelfFK(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	uniq := stringz.Uniq8()
+	srcName := "actor_case_" + uniq
+	upperFKTarget := strings.ToUpper(srcName[:1]) + srcName[1:]
+	dstName := "actor_case_bak_" + uniq
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: srcName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %s (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES %s(id))`,
+		srcName, upperFKTarget))
+	require.NoError(t, err)
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: srcName}, tablefq.T{Table: dstName}, false)
+	require.NoError(t, err)
+
+	md, err := grip.TableMetadata(th.Context, dstName)
+	require.NoError(t, err)
+	require.NotNil(t, md.FK)
+	require.Len(t, md.FK.Outgoing, 1)
+	require.True(t, strings.EqualFold(md.FK.Outgoing[0].RefTable, dstName),
+		"FK target must be rewritten to the destination despite case mismatch, got %q",
+		md.FK.Outgoing[0].RefTable)
+	require.False(t, strings.EqualFold(md.FK.Outgoing[0].RefTable, srcName),
+		"FK target must not still name the source after rewrite, got %q",
+		md.FK.Outgoing[0].RefTable)
+}
+
+// TestCopyTable_SchemaQualifiedDest is the rqlite parity for the
+// sqlite3 sibling: a destination with an explicit schema must rewrite
+// the CREATE TABLE identifier with the dotted "schema"."table" form
+// but the FK REFERENCES target as a bare table token. SQLite's
+// foreign_table grammar rule is a single any_name; the runtime
+// rejects "schema"."tbl" as a REFERENCES target with a syntax error,
+// so a regression would surface at CopyTable's exec rather than via
+// the structural metadata assertion.
+func TestCopyTable_SchemaQualifiedDest(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	uniq := stringz.Uniq8()
+	srcName := "actor_schema_" + uniq
+	dstName := "actor_schema_bak_" + uniq
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: srcName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES %q(id))`,
+		srcName, srcName))
+	require.NoError(t, err)
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: srcName},
+		tablefq.T{Schema: "main", Table: dstName},
+		false)
+	require.NoError(t, err,
+		"CopyTable to a schema-qualified destination must succeed; "+
+			"the runtime rejects \"main\".\"%s\" as a REFERENCES target",
+		dstName)
+
+	md, err := grip.TableMetadata(th.Context, dstName)
+	require.NoError(t, err)
+	require.NotNil(t, md.FK)
+	require.Len(t, md.FK.Outgoing, 1)
+	require.Equal(t, dstName, md.FK.Outgoing[0].RefTable,
+		"FK target must be the bare destination table, not a schema-qualified form")
 }
 
 // TestAlterTableColumnKinds_PreservesFKs verifies that the
