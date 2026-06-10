@@ -62,8 +62,8 @@ func TestDsnFromLocation(t *testing.T) {
 		{loc: Prefix + "host:4001", want: "http://host:4001"},
 		{loc: Prefix + "user:pass@host:4001", want: "http://user:pass@host:4001"},
 		{loc: Prefix + "host:4001?level=strong", want: "http://host:4001?level=strong"},
-		{loc: PrefixSecure + "host:4001", want: "https://host:4001"},
-		{loc: PrefixSecure + "user:pass@host:4001?level=none", want: "https://user:pass@host:4001?level=none"},
+		{loc: Prefix + "host:4001?tls=true", want: "https://host:4001"},
+		{loc: Prefix + "user:pass@host:4001?tls=true&level=none", want: "https://user:pass@host:4001?level=none"},
 	}
 
 	for _, tc := range testCases {
@@ -207,7 +207,6 @@ func TestLocationWithDefaultPort(t *testing.T) {
 		{loc: "://bad", wantErr: true},
 		{loc: "rqlite://host:4001", wantLoc: "rqlite://host:4001", wantAdded: false},
 		{loc: "rqlite://host", wantLoc: "rqlite://host:4001", wantAdded: true},
-		{loc: "rqlites://host", wantLoc: "rqlites://host:4001", wantAdded: true},
 		{loc: "rqlite://user:pass@host", wantLoc: "rqlite://user:pass@host:4001", wantAdded: true},
 		{loc: "rqlite://host:9999", wantLoc: "rqlite://host:9999", wantAdded: false},
 		{loc: "rqlite://host?level=strong", wantLoc: "rqlite://host:4001?level=strong", wantAdded: true},
@@ -326,7 +325,7 @@ func Test_maybeWarnLocalhostDiscovery(t *testing.T) {
 		{name: "discovery off explicit", loc: "rqlite://localhost:4001?disableClusterDiscovery=true", wantLog: false},
 		{name: "discovery on explicit", loc: "rqlite://localhost:4001?disableClusterDiscovery=false", wantLog: false},
 		{name: "localhost other params", loc: "rqlite://localhost:4001?level=strong", wantLog: true},
-		{name: "https loopback", loc: "rqlites://localhost:4001", wantLog: true},
+		{name: "https loopback", loc: "rqlite://localhost:4001?tls=true", wantLog: true},
 		{name: "malformed", loc: "rqlite://%zz", wantLog: false},
 		{name: "discovery empty value", loc: "rqlite://localhost:4001?disableClusterDiscovery=", wantLog: true},
 		{name: "discovery bare key", loc: "rqlite://localhost:4001?disableClusterDiscovery", wantLog: true},

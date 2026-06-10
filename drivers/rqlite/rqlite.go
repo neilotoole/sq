@@ -3,13 +3,14 @@
 // is github.com/rqlite/gorqlite's stdlib (database/sql) adapter.
 //
 // Unlike sq's sqlite3 driver, rqlite is networked: there is no file
-// mode. The source location is an HTTP URL using one of two schemes,
+// mode. The source location is an HTTP URL using a single scheme,
 //
-//	rqlite://user:pass@host:4001    (HTTP)
-//	rqlites://user:pass@host:4001   (HTTPS)
+//	rqlite://user:pass@host:4001              (HTTP)
+//	rqlite://user:pass@host:4001?tls=true     (HTTPS)
 //
-// which are translated to gorqlite's expected http(s):// URLs at Open
-// time.
+// which is translated to gorqlite's expected http(s):// URL at Open
+// time. The optional ?insecure=true companion param (valid only with
+// ?tls=true) opts out of TLS certificate verification.
 //
 // rqlite's HTTP API does not support interactive transactions, only
 // atomic batches via /db/execute. gorqlite's database/sql driver
@@ -64,11 +65,8 @@ const (
 	// drivertype.Rqlite's string value.
 	dbDrvr = "rqlite"
 
-	// Prefix is the scheme+separator for plain-HTTP rqlite sources.
+	// Prefix is the scheme+separator for rqlite sources.
 	Prefix = "rqlite://"
-
-	// PrefixSecure is the scheme+separator for HTTPS rqlite sources.
-	PrefixSecure = "rqlites://"
 
 	defaultPort = 4001
 )
@@ -113,7 +111,7 @@ func (d *driveri) ConnParams() map[string][]string {
 func (d *driveri) LocationShape() driver.LocationShape {
 	return driver.LocationShape{
 		Type:    drivertype.Rqlite,
-		Schemes: []string{"rqlite", "rqlites"},
+		Schemes: []string{"rqlite"},
 		Segments: []driver.Segment{
 			{Kind: driver.SegCredentials, Optional: true},
 			{Kind: driver.SegAuthority},
@@ -373,8 +371,7 @@ func locationWithDefaultPort(loc string) (string, bool, error) {
 // strips before handing the URL to gorqlite. These params do not appear
 // in gorqlite's connection-string grammar; they are sq's TLS knobs.
 type dsnOpts struct {
-	// tls is true when the user opted into HTTPS via ?tls=true (or via
-	// the legacy rqlites:// scheme, while it still exists).
+	// tls is true when the user opted into HTTPS via ?tls=true.
 	tls bool
 
 	// insecure is true when the user opted out of TLS certificate
@@ -392,25 +389,13 @@ type dsnOpts struct {
 // Returns an error if the location's scheme is unrecognized, ?tls or
 // ?insecure has a value other than "true"/"false", or ?insecure is
 // set without ?tls=true.
-//
-// The legacy rqlites:// scheme is still accepted here for now; gh756
-// removes it after the rest of the codebase migrates.
 func dsnFromLocation(loc string) (string, dsnOpts, error) {
-	var (
-		opts   dsnOpts
-		scheme string
-	)
-	switch {
-	case strings.HasPrefix(loc, PrefixSecure):
-		scheme = "https"
-		opts.tls = true
-	case strings.HasPrefix(loc, Prefix):
-		scheme = "http"
-	default:
+	var opts dsnOpts
+	if !strings.HasPrefix(loc, Prefix) {
 		// Don't include loc: it may carry credentials.
-		return "", opts, errz.Errorf("rqlite: location must start with %q or %q",
-			Prefix, PrefixSecure)
+		return "", opts, errz.Errorf("rqlite: location must start with %q", Prefix)
 	}
+	scheme := "http"
 
 	u, err := url.Parse(loc)
 	if err != nil {

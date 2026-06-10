@@ -46,12 +46,6 @@ func TestDsnFromLocation_TLSParam(t *testing.T) {
 			wantDSN: "https://alice:pw@host:4001",
 			wantTLS: true,
 		},
-		{
-			name:    "rqlites:// legacy still maps to https",
-			loc:     "rqlites://host:4001",
-			wantDSN: "https://host:4001",
-			wantTLS: true,
-		},
 	}
 
 	for _, tc := range testCases {
