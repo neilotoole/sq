@@ -527,8 +527,8 @@ func TestExtractForeignTableRefsFromCreateTableStmt_EditIntegration(t *testing.T
 }
 
 // TestExtractForeignTableRefsFromCreateTableStmt_PreservesActionClauses
-// proves that ON DELETE / ON UPDATE / DEFERRABLE clauses after the rewritten
-// table token survive the splice — i.e. the offset/length span the table
+// verifies that ON DELETE / ON UPDATE / DEFERRABLE clauses after the rewritten
+// table token survive the splice: the offset/length span the table
 // token alone, not the surrounding clause.
 func TestExtractForeignTableRefsFromCreateTableStmt_PreservesActionClauses(t *testing.T) {
 	const input = `CREATE TABLE actor (id INTEGER PRIMARY KEY, ` +

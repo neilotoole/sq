@@ -321,7 +321,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 	// recurs elsewhere in the DDL (CHECK exprs, default literals, etc.).
 	ogIdent, err := sqlparser.ExtractTableIdentFromCreateTableStmt(ogTblCreateStmt)
 	if err != nil {
-		return 0, errw(err)
+		return 0, errz.Wrap(err, "sqlite3: copy table")
 	}
 
 	identStart := ogIdent.TableOffset
@@ -337,8 +337,8 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 		Replacement: destQuoted,
 	}}
 
-	// Without this, the destination's self-referential FKs would resolve back
-	// to the source table, not itself (gh759). Cross-table FKs are left alone.
+	// Rewrite self-FKs so the destination's REFERENCES point at itself
+	// rather than the source (gh759). Cross-table FKs are left alone.
 	fkRefs, err := sqlparser.ExtractForeignTableRefsFromCreateTableStmt(ogTblCreateStmt)
 	if err != nil {
 		return 0, errz.Wrap(err, "sqlite3: copy table")

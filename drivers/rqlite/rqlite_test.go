@@ -1055,22 +1055,24 @@ func TestCopyTable_PreservesFKs(t *testing.T) {
 // not the source. Otherwise the destination's FKs resolve against the
 // source row set, which is the bug.
 //
-// The structural assertion (TableMetadata.FK.Outgoing[].RefTable ==
+// The structural assertion (TableMetadata.FK.Outgoing[0].RefTable ==
 // dstName) is the load-bearing check. The DDL string check is a
 // redundant cross-check. FK runtime enforcement isn't exercised here
 // because rqlite's stateless HTTP transport doesn't reliably carry
 // per-connection PRAGMA foreign_keys across separate requests; the
 // sqlite3 sibling test covers that runtime axis.
 //
-// Table-driven across the same shapes as the sqlite3 sibling for the
-// step-for-step parity gh737 mandates.
+// Table-driven across the cardinal self-FK shapes so the two drivers
+// stay in step (gh737 established the rqlite faithful-DDL baseline
+// this builds on).
 func TestCopyTable_RewritesSelfFK(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
 
 	testCases := []struct {
 		name string
-		// ddl is the source CREATE TABLE. %[1]s is the source table name.
+		// ddl is the source CREATE TABLE; %[1]q is the source table
+		// name, double-quoted via the %q verb.
 		ddl string
 	}{
 		{
@@ -1134,8 +1136,8 @@ func TestCopyTable_RewritesSelfFK(t *testing.T) {
 // TestCopyTable_LeavesCrossFKsAlone is the rqlite half of the cross-FK
 // preservation invariant: REFERENCES whose target is not the source
 // table must survive the copy untouched, even when the same table also
-// carries a self-FK that does get rewritten. Mirrors the sqlite3
-// sibling for gh737 driver parity.
+// carries a self-FK that does get rewritten. Predicate-inversion
+// regression class introduced by gh759; mirrored on both drivers.
 func TestCopyTable_LeavesCrossFKsAlone(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
@@ -1190,7 +1192,7 @@ func TestCopyTable_LeavesCrossFKsAlone(t *testing.T) {
 }
 
 // TestCopyTable_MultipleSelfFKs verifies every self-FK in a source
-// table is rewritten, not just the first — guards against a regression
+// table is rewritten, not just the first; guards against a regression
 // that returned after the first match.
 func TestCopyTable_MultipleSelfFKs(t *testing.T) {
 	tu.SkipShort(t, true)
@@ -1231,6 +1233,95 @@ func TestCopyTable_MultipleSelfFKs(t *testing.T) {
 		require.Equal(t, dstName, fk.RefTable,
 			"every self-FK must be rewritten to the destination, got %v", fk)
 	}
+}
+
+// TestCopyTable_CompositeSelfFK verifies composite-column
+// FOREIGN KEY(a, b) REFERENCES self(x, y) is rewritten to point at the
+// destination. Mirrors the sqlite3 sibling.
+func TestCopyTable_CompositeSelfFK(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	uniq := stringz.Uniq8()
+	srcName := "link_composite_" + uniq
+	dstName := "link_composite_bak_" + uniq
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: srcName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %q (`+
+			`a INTEGER, b INTEGER, x INTEGER, y INTEGER, `+
+			`PRIMARY KEY (x, y), `+
+			`FOREIGN KEY(a, b) REFERENCES %q(x, y))`,
+		srcName, srcName))
+	require.NoError(t, err)
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: srcName}, tablefq.T{Table: dstName}, false)
+	require.NoError(t, err)
+
+	md, err := grip.TableMetadata(th.Context, dstName)
+	require.NoError(t, err)
+	require.NotNil(t, md.FK)
+	require.Len(t, md.FK.Outgoing, 1)
+	require.Equal(t, dstName, md.FK.Outgoing[0].RefTable,
+		"composite self-FK must be rewritten to the destination")
+}
+
+// TestCopyTable_CaseMismatchSelfFK verifies the driver's case-insensitive
+// match predicate: a source table named `actor_...` whose REFERENCES
+// target is written as `Actor_...` is still rewritten. SQLite identifier
+// comparison is ASCII case-insensitive for unquoted refs; the driver
+// uses strings.EqualFold. A regression to case-sensitive matching would
+// leave the destination FK pointing at the source.
+func TestCopyTable_CaseMismatchSelfFK(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	uniq := stringz.Uniq8()
+	srcName := "actor_case_" + uniq
+	upperFKTarget := strings.ToUpper(srcName[:1]) + srcName[1:]
+	dstName := "actor_case_bak_" + uniq
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: srcName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %s (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES %s(id))`,
+		srcName, upperFKTarget))
+	require.NoError(t, err)
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: srcName}, tablefq.T{Table: dstName}, false)
+	require.NoError(t, err)
+
+	md, err := grip.TableMetadata(th.Context, dstName)
+	require.NoError(t, err)
+	require.NotNil(t, md.FK)
+	require.Len(t, md.FK.Outgoing, 1)
+	require.True(t, strings.EqualFold(md.FK.Outgoing[0].RefTable, dstName),
+		"FK target must be rewritten to the destination despite case mismatch, got %q",
+		md.FK.Outgoing[0].RefTable)
+	require.False(t, strings.EqualFold(md.FK.Outgoing[0].RefTable, srcName),
+		"FK target must not still name the source after rewrite, got %q",
+		md.FK.Outgoing[0].RefTable)
 }
 
 // TestAlterTableColumnKinds_PreservesFKs verifies that the

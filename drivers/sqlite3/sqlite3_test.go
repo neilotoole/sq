@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/sqlite3"
+	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
@@ -586,21 +587,29 @@ func openSqliteForFKTest(t *testing.T) (*testh.Helper, *sql.DB, driver.SQLDriver
 	return th, db, grip.SQLDriver()
 }
 
-// assertSelfFKRewritten asserts that destDDL's REFERENCES clause names
-// dstName and does not still name srcName. Tolerates either quoted or
-// unquoted identifier styles that sqlite_master may carry.
+// assertSelfFKRewritten parses destDDL via the sqlparser and asserts
+// every REFERENCES target's dequoted name equals dstName (and not
+// srcName), regardless of which of SQLite's four identifier-quote styles
+// (double-quote, single-quote, backtick, square brackets) the source
+// DDL carried. A naive substring check would silently miss a leftover
+// source ref written in a quote style not covered by the check.
+//
+// Only valid for tests whose source DDL contains self-FKs and no
+// cross-table FKs.
 func assertSelfFKRewritten(t *testing.T, destDDL, srcName, dstName string) {
 	t.Helper()
-	require.Contains(t, destDDL, `REFERENCES`,
-		"destination DDL should still carry a REFERENCES clause")
-	require.True(t,
-		strings.Contains(destDDL, fmt.Sprintf(`REFERENCES %s(`, dstName)) ||
-			strings.Contains(destDDL, fmt.Sprintf(`REFERENCES "%s"(`, dstName)),
-		"REFERENCES must name the destination %q, got: %s", dstName, destDDL)
-	require.False(t,
-		strings.Contains(destDDL, fmt.Sprintf(`REFERENCES %s(`, srcName)) ||
-			strings.Contains(destDDL, fmt.Sprintf(`REFERENCES "%s"(`, srcName)),
-		"REFERENCES must no longer name the source %q, got: %s", srcName, destDDL)
+	refs, err := sqlparser.ExtractForeignTableRefsFromCreateTableStmt(destDDL)
+	require.NoError(t, err, "destination DDL must parse: %s", destDDL)
+	require.NotEmpty(t, refs,
+		"destination DDL should still carry at least one REFERENCES clause: %s", destDDL)
+	for _, r := range refs {
+		require.False(t, strings.EqualFold(r.Table, srcName),
+			"REFERENCES must no longer name the source %q (got %q in %s)",
+			srcName, r.RawTable, destDDL)
+		require.True(t, strings.EqualFold(r.Table, dstName),
+			"REFERENCES must name the destination %q (got %q in %s)",
+			dstName, r.RawTable, destDDL)
+	}
 }
 
 // TestDriveri_CopyTable_RewritesSelfFK verifies gh759: a CREATE TABLE
@@ -614,7 +623,7 @@ func TestDriveri_CopyTable_RewritesSelfFK(t *testing.T) {
 		// %[2]s is the FK-target identifier form (so the case_mismatch case
 		// can declare the source as `actor` but REFERENCE `Actor`).
 		ddl        string
-		fkTargetFn func(srcName string) string // produces the REFERENCES target as it appears in ddl
+		fkTargetFn func(srcName string) string // produces the REFERENCES target as it appears in ddl.
 	}{
 		{
 			name:       "column_constraint_unquoted",
@@ -722,7 +731,7 @@ func TestDriveri_CopyTable_LeavesCrossFKsAlone(t *testing.T) {
 }
 
 // TestDriveri_CopyTable_MultipleSelfFKs verifies every self-FK in a
-// table with more than one REFERENCES <src>(...) is rewritten — guards
+// table with more than one REFERENCES <src>(...) is rewritten; guards
 // against a regression that returned after the first match.
 func TestDriveri_CopyTable_MultipleSelfFKs(t *testing.T) {
 	th, db, drvr := openSqliteForFKTest(t)
@@ -780,6 +789,44 @@ func TestDriveri_CopyTable_CompositeSelfFK(t *testing.T) {
 		destDDL)
 	require.False(t, strings.Contains(destDDL, `REFERENCES link(`),
 		"composite FK must no longer point at link, got: %s", destDDL)
+}
+
+// TestDriveri_CopyTable_PreservesOnDeleteCascade is the runtime sibling
+// of the sqlparser-level PreservesActionClauses test: prove that a self
+// FK with ON DELETE CASCADE not only round-trips textually through the
+// rewrite, but still fires against the destination table at runtime.
+// Catches a regression class where the rewrite mangles the action clause
+// in some way that survives the parser's eyes but breaks SQLite's.
+func TestDriveri_CopyTable_PreservesOnDeleteCascade(t *testing.T) {
+	th, db, drvr := openSqliteForFKTest(t)
+
+	_, err := db.ExecContext(th.Context,
+		`CREATE TABLE actor (`+
+			`id INTEGER PRIMARY KEY, `+
+			`parent_id INTEGER REFERENCES actor(id) ON DELETE CASCADE)`)
+	require.NoError(t, err)
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: "actor"}, tablefq.T{Table: "actor_bak"}, false)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context, `INSERT INTO actor_bak (id) VALUES (1)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context,
+		`INSERT INTO actor_bak (id, parent_id) VALUES (2, 1)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context,
+		`INSERT INTO actor_bak (id, parent_id) VALUES (3, 2)`)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context, `DELETE FROM actor_bak WHERE id=1`)
+	require.NoError(t, err)
+
+	var count int
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT COUNT(*) FROM actor_bak`).Scan(&count))
+	require.Equal(t, 0, count,
+		"ON DELETE CASCADE must fire on the destination: deleting id=1 should cascade to id=2 and id=3")
 }
 
 // TestSourceMetadata_LocationWithConnParams reproduces gh720: a
