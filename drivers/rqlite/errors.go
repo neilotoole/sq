@@ -140,6 +140,35 @@ func rewritePeerDNSError(err error, src *source.Source) error {
 	)
 }
 
+// suggestLocWithParams builds a hint URL by merging the given query
+// params into src.RedactedLocation(). Use this for error-enrichment
+// hints that show the user "retry with this URL." Existing query
+// params survive; the new params override any existing key.
+//
+// Falls back to a best-effort string concat if the redacted location
+// can't be parsed (which should never happen in practice, since
+// RedactedLocation produces a valid URL).
+func suggestLocWithParams(src *source.Source, params url.Values) string {
+	loc := src.RedactedLocation()
+	u, err := url.Parse(loc)
+	if err != nil {
+		// Defensive fallback.
+		sep := "?"
+		if strings.Contains(loc, "?") {
+			sep = "&"
+		}
+		return loc + sep + params.Encode()
+	}
+	q := u.Query()
+	for k, vs := range params {
+		for _, v := range vs {
+			q.Set(k, v)
+		}
+	}
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+
 // rewriteTLSSignalError, if err looks like the server wanted TLS but
 // the client spoke plain HTTP, returns a new error suggesting
 // ?tls=true. Otherwise returns err unchanged.
@@ -155,10 +184,11 @@ func rewriteTLSSignalError(err error, src *source.Source) error {
 	if err == nil || !isTLSSignal(err) {
 		return err
 	}
+	hint := suggestLocWithParams(src, url.Values{"tls": {"true"}})
 	return errz.Wrapf(err,
-		"%s appears to require TLS; retry with %s?tls=true "+
+		"%s appears to require TLS; retry with %s "+
 			"(add &insecure=true for self-signed certs)",
-		src.Handle, src.RedactedLocation())
+		src.Handle, hint)
 }
 
 // isTLSSignal reports whether err looks like the failure of a plain
@@ -213,16 +243,12 @@ func rewriteCertVerificationError(err error, src *source.Source) error {
 	if err == nil || !isCertVerificationError(err) {
 		return err
 	}
-	loc := src.RedactedLocation()
-	sep := "?"
-	if strings.Contains(loc, "?") {
-		sep = "&"
-	}
+	hint := suggestLocWithParams(src, url.Values{"tls": {"true"}, "insecure": {"true"}})
 	return errz.Wrapf(err,
 		"%s: TLS certificate verification failed. If this is a "+
 			"self-signed or private-CA deployment, retry with "+
-			"%s%sinsecure=true, or install the CA in your trust store",
-		src.Handle, loc, sep)
+			"%s, or install the CA in your trust store",
+		src.Handle, hint)
 }
 
 // enrichConnError applies the known connection-error enrichments

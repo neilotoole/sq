@@ -71,6 +71,20 @@ func TestRewriteTLSSignalError(t *testing.T) {
 		require.Contains(t, out.Error(), "&insecure=true")
 		require.Contains(t, out.Error(), "@rq")
 	})
+
+	t.Run("tls signal hint preserves existing query params", func(t *testing.T) {
+		src := &source.Source{
+			Handle:   "@rq",
+			Type:     drivertype.Rqlite,
+			Location: "rqlite://host:4001?level=strong",
+		}
+		out := rewriteTLSSignalError(io.EOF, src)
+		require.Error(t, out)
+		require.Contains(t, out.Error(), "tls=true")
+		require.Contains(t, out.Error(), "level=strong")
+		require.NotContains(t, out.Error(), "?level=strong?tls=true",
+			"must not produce malformed double-question-mark URL")
+	})
 }
 
 func TestIsCertVerificationError(t *testing.T) {
@@ -142,6 +156,7 @@ func TestRewriteCertVerificationError(t *testing.T) {
 		out := rewriteCertVerificationError(in, src)
 		require.Error(t, out)
 		require.Contains(t, out.Error(), "certificate verification failed")
+		require.Contains(t, out.Error(), "tls=true")
 		require.Contains(t, out.Error(), "insecure=true")
 		require.Contains(t, out.Error(), "@rq")
 	})
@@ -155,9 +170,27 @@ func TestRewriteCertVerificationError(t *testing.T) {
 		in := x509.UnknownAuthorityError{}
 		out := rewriteCertVerificationError(in, srcTLS)
 		require.Error(t, out)
-		require.Contains(t, out.Error(), "rqlite://host:4001?tls=true&insecure=true")
-		// Verify we did NOT produce the malformed "?tls=true?tls=true&insecure=true" form.
+		// suggestLocWithParams merges via url.Values; keys sort alphabetically.
+		require.Contains(t, out.Error(), "insecure=true")
+		require.Contains(t, out.Error(), "tls=true")
+		// Verify we did NOT produce the malformed "?tls=true?tls=true" form.
 		require.NotContains(t, out.Error(), "?tls=true?tls=true")
+		// Verify tls=true is not duplicated in the URL.
+		require.NotContains(t, out.Error(), "tls=true&tls=true")
+	})
+
+	t.Run("cert error hint includes tls=true even when location has unrelated query", func(t *testing.T) {
+		src := &source.Source{
+			Handle:   "@rq",
+			Type:     drivertype.Rqlite,
+			Location: "rqlite://host:4001?level=strong",
+		}
+		in := x509.UnknownAuthorityError{}
+		out := rewriteCertVerificationError(in, src)
+		require.Error(t, out)
+		require.Contains(t, out.Error(), "tls=true")
+		require.Contains(t, out.Error(), "insecure=true")
+		require.Contains(t, out.Error(), "level=strong")
 	})
 }
 

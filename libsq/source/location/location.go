@@ -27,6 +27,7 @@ var dbSchemes = []string{
 	"postgres",
 	"sqlite3",
 	"rqlite",
+	"rqlites",
 	"duckdb",
 	"clickhouse",
 	"oracle",
@@ -131,7 +132,13 @@ func Short(loc string) string {
 	// fallback "return loc" would echo inline credentials. Handle it
 	// via url.ParseRequestURI here, mirroring the user@host[:port]
 	// shape used for the other DSN drivers below.
-	if strings.HasPrefix(loc, "rqlite://") {
+	//
+	// Even though the rqlite driver no longer accepts the rqlites://
+	// scheme (rejected at Open time), we still pattern-match it here
+	// so malformed rqlites:// inputs get safe credential redaction
+	// instead of falling through to dburl.Parse, which echoes the
+	// raw string on failure.
+	if strings.HasPrefix(loc, "rqlite://") || strings.HasPrefix(loc, "rqlites://") {
 		ru, err := url.ParseRequestURI(loc)
 		if err != nil {
 			// Couldn't parse; fall back to best-effort credential masking
@@ -306,7 +313,13 @@ func Parse(loc string) (*Fields, error) {
 	// rqlite is a network SQL driver, but xo/dburl doesn't know its
 	// scheme, so we parse it here rather than fall through to
 	// dburl.Parse below.
-	if strings.HasPrefix(loc, "rqlite://") {
+	//
+	// Even though the rqlite driver no longer accepts the rqlites://
+	// scheme (rejected at Open time), we still pattern-match it here
+	// so malformed rqlites:// inputs get safe credential redaction
+	// instead of falling through to dburl.Parse, which echoes the
+	// raw string on failure.
+	if strings.HasPrefix(loc, "rqlite://") || strings.HasPrefix(loc, "rqlites://") {
 		return parseRqlite(loc, fields)
 	}
 
@@ -393,10 +406,12 @@ func Parse(loc string) (*Fields, error) {
 	return fields, nil
 }
 
-// parseRqlite parses an rqlite:// location into fields. xo/dburl
-// doesn't recognize the scheme, so this bypass uses
+// parseRqlite parses an rqlite:// or rqlites:// location into fields.
+// xo/dburl doesn't recognize either scheme, so this bypass uses
 // url.ParseRequestURI directly. fields is partially populated by
 // the caller; this function fills in the rqlite-specific bits.
+// Note: rqlites:// is accepted here for parse-side safety (credential
+// redaction); the rqlite driver itself rejects rqlites:// at Open time.
 func parseRqlite(loc string, fields *Fields) (*Fields, error) {
 	u, err := url.ParseRequestURI(loc)
 	if err != nil {
