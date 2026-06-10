@@ -451,6 +451,17 @@ func TestExtractForeignTableRefsFromCreateTableStmt(t *testing.T) {
 			in:    `NOT A CREATE STATEMENT`,
 			isErr: true,
 		},
+		{
+			// Pins the grammar contract the gh759 fix relies on: SQLite's
+			// foreign_table rule is a single any_name, so a schema-qualified
+			// REFERENCES target must be rejected by the parser. Without this
+			// case, a future grammar relaxation could let the runtime fix
+			// (drivers/*/CopyTable using bare-table-only for FK targets)
+			// silently round-trip an invalid form.
+			name:  "fk_target_with_schema_qualifier_rejected",
+			in:    `CREATE TABLE actor (id INTEGER, parent_id INTEGER REFERENCES "main"."actor"(id))`,
+			isErr: true,
+		},
 	}
 
 	for _, tc := range testCases {

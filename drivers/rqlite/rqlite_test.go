@@ -1326,6 +1326,55 @@ func TestCopyTable_CaseMismatchSelfFK(t *testing.T) {
 		md.FK.Outgoing[0].RefTable)
 }
 
+// TestCopyTable_SchemaQualifiedDest is the rqlite parity for the
+// sqlite3 sibling: a destination with an explicit schema must rewrite
+// the CREATE TABLE identifier with the dotted "schema"."table" form
+// but the FK REFERENCES target as a bare table token. SQLite's
+// foreign_table grammar rule is a single any_name; the runtime
+// rejects "schema"."tbl" as a REFERENCES target with a syntax error,
+// so a regression would surface at CopyTable's exec rather than via
+// the structural metadata assertion.
+func TestCopyTable_SchemaQualifiedDest(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	uniq := stringz.Uniq8()
+	srcName := "actor_schema_" + uniq
+	dstName := "actor_schema_bak_" + uniq
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: srcName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES %q(id))`,
+		srcName, srcName))
+	require.NoError(t, err)
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: srcName},
+		tablefq.T{Schema: "main", Table: dstName},
+		false)
+	require.NoError(t, err,
+		"CopyTable to a schema-qualified destination must succeed; "+
+			"the runtime rejects \"main\".\"%s\" as a REFERENCES target",
+		dstName)
+
+	md, err := grip.TableMetadata(th.Context, dstName)
+	require.NoError(t, err)
+	require.NotNil(t, md.FK)
+	require.Len(t, md.FK.Outgoing, 1)
+	require.Equal(t, dstName, md.FK.Outgoing[0].RefTable,
+		"FK target must be the bare destination table, not a schema-qualified form")
+}
+
 // TestAlterTableColumnKinds_PreservesFKs verifies that the
 // alter-rebuild dance carries the source table's FOREIGN KEY
 // constraints across. Uses an ad-hoc parent/child fixture because

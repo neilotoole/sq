@@ -796,7 +796,15 @@ func TestDriveri_CopyTable_CompositeSelfFK(t *testing.T) {
 // TABLE identifier with the dotted form but the self-FK REFERENCES
 // target as a bare table token. SQLite's foreign_table grammar rule is
 // a single any_name; emitting "schema"."tbl" as a REFERENCES target
-// produces invalid DDL.
+// produces a syntax error from the runtime.
+//
+// The load-bearing catch is the first require.NoError on CopyTable: a
+// regression that reused the schema-qualified destQuoted on the FK
+// edits would surface as a CREATE TABLE syntax error before any of the
+// downstream assertions run. The structural assertSelfFKRewritten and
+// the NotContains "main"."actor_bak" assertion lock the post-fix form;
+// the runtime FK enforcement at the end confirms the rewritten FK
+// still binds.
 func TestDriveri_CopyTable_SchemaQualifiedDest(t *testing.T) {
 	th, db, drvr := openSqliteForFKTest(t)
 
