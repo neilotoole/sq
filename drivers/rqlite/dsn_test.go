@@ -148,6 +148,15 @@ func TestDsnFromLocation_InsecureContradictions(t *testing.T) {
 	}
 }
 
+// TestDsnFromLocation_RejectsRqlitesScheme pins the removal of the
+// legacy rqlites:// scheme: only rqlite:// (with ?tls=true for HTTPS)
+// is accepted.
+func TestDsnFromLocation_RejectsRqlitesScheme(t *testing.T) {
+	_, _, err := dsnFromLocation("rqlites://host:4001")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `must start with "rqlite://"`)
+}
+
 func TestValidateSource_RejectsContradictions(t *testing.T) {
 	d := &driveri{}
 	src := &source.Source{

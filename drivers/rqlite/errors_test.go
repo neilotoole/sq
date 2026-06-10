@@ -1,10 +1,13 @@
 package rqlite
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"io"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -203,6 +206,34 @@ func TestRewriteCertVerificationError(t *testing.T) {
 		require.Contains(t, out.Error(), "insecure=true")
 		require.Contains(t, out.Error(), "level=strong")
 	})
+}
+
+// TestPing_PlainHTTPAgainstTLSServer_GetsTLSHint exercises the real
+// error path: a plain-HTTP request to a TLS listener gets Go's
+// canonical 400 response ("Client sent an HTTP request to an HTTPS
+// server"), gorqlite serializes it into its failure-log string, and
+// Ping's enrichConnError must rewrite it with the ?tls=true hint.
+// This pins both the call-site wiring (Ping -> enrichConnError) and
+// the production shape of the substring classifier.
+func TestPing_PlainHTTPAgainstTLSServer_GetsTLSHint(t *testing.T) {
+	var host string
+	server := httptest.NewTLSServer(newRqliteMockHandler(&host))
+	t.Cleanup(server.Close)
+	host = server.Listener.Addr().String()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+
+	d := &driveri{}
+	src := &source.Source{
+		Handle:   "@rq",
+		Type:     drivertype.Rqlite,
+		Location: "rqlite://" + host, // Plain HTTP at a TLS port.
+	}
+	err := d.Ping(ctx, src)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "appears to require TLS")
+	require.Contains(t, err.Error(), "tls=true")
 }
 
 func TestEnrichConnError(t *testing.T) {

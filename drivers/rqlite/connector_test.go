@@ -11,6 +11,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 // newRqliteMockHandler returns a handler that satisfies gorqlite's cluster
@@ -99,6 +102,48 @@ func TestInsecureConnector_VerifyingClientFailsOnSelfSignedCert(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "x509:",
 		"expected an x509 verification error, got: %v", err)
+}
+
+// TestDoOpen_InsecureSelectsInsecureConnector pins doOpen's dispatch:
+// with ?tls=true&insecure=true the insecure connector (skip-verify)
+// must be selected, so PingContext succeeds against a self-signed
+// TLS server. Without insecure=true, the default sql.Open path runs
+// cert verification and must fail.
+func TestDoOpen_InsecureSelectsInsecureConnector(t *testing.T) {
+	var host string
+	server := httptest.NewTLSServer(newRqliteMockHandler(&host))
+	t.Cleanup(server.Close)
+	host = server.Listener.Addr().String()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+
+	d := &driveri{}
+	t.Run("insecure=true succeeds via skip-verify", func(t *testing.T) {
+		src := &source.Source{
+			Handle:   "@rq_insecure",
+			Type:     drivertype.Rqlite,
+			Location: "rqlite://" + host + "?tls=true&insecure=true",
+		}
+		db, err := d.doOpen(ctx, src)
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = db.Close() })
+		require.NoError(t, db.PingContext(ctx))
+	})
+
+	t.Run("without insecure the default path fails cert verification", func(t *testing.T) {
+		src := &source.Source{
+			Handle:   "@rq_verify",
+			Type:     drivertype.Rqlite,
+			Location: "rqlite://" + host + "?tls=true",
+		}
+		db, err := d.doOpen(ctx, src)
+		require.NoError(t, err) // sql.Open is lazy.
+		t.Cleanup(func() { _ = db.Close() })
+		err = db.PingContext(ctx)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "x509:")
+	})
 }
 
 func TestInsecureConnector_ColumnTypeDatabaseTypeName(t *testing.T) {
