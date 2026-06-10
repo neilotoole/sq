@@ -431,6 +431,11 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 
 	// Rewrite self-FKs so the destination's REFERENCES point at itself
 	// rather than the source (gh759). Cross-table FKs are left alone.
+	// SQLite's foreign_table grammar rule is a single any_name (no
+	// schema qualification permitted), so the replacement here is the
+	// destination's bare table token even when destQuoted carries a
+	// "schema"."table" prefix for the CREATE TABLE identifier edit.
+	destTableQuoted := stringz.DoubleQuote(toTbl.Table)
 	fkRefs, err := sqlparser.ExtractForeignTableRefsFromCreateTableStmt(ogDDL)
 	if err != nil {
 		return 0, errz.Wrap(err, "rqlite: copy table")
@@ -442,7 +447,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 		edits = append(edits, sqlparser.Edit{
 			Start:       r.TableOffset,
 			End:         r.TableOffset + len(r.RawTable),
-			Replacement: destQuoted,
+			Replacement: destTableQuoted,
 		})
 	}
 

@@ -791,6 +791,40 @@ func TestDriveri_CopyTable_CompositeSelfFK(t *testing.T) {
 		"composite FK must no longer point at link, got: %s", destDDL)
 }
 
+// TestDriveri_CopyTable_SchemaQualifiedDest verifies that a destination
+// with an explicit schema (e.g. "main"."actor_bak") rewrites the CREATE
+// TABLE identifier with the dotted form but the self-FK REFERENCES
+// target as a bare table token. SQLite's foreign_table grammar rule is
+// a single any_name; emitting "schema"."tbl" as a REFERENCES target
+// produces invalid DDL.
+func TestDriveri_CopyTable_SchemaQualifiedDest(t *testing.T) {
+	th, db, drvr := openSqliteForFKTest(t)
+
+	_, err := db.ExecContext(th.Context,
+		`CREATE TABLE actor (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES actor(id))`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context, `INSERT INTO actor (id) VALUES (1)`)
+	require.NoError(t, err)
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: "actor"},
+		tablefq.T{Schema: "main", Table: "actor_bak"},
+		false)
+	require.NoError(t, err, "CopyTable to a schema-qualified destination must succeed")
+
+	var destDDL string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT sql FROM sqlite_master WHERE type='table' AND name=?`, "actor_bak").Scan(&destDDL))
+	assertSelfFKRewritten(t, destDDL, "actor", "actor_bak")
+	require.NotContains(t, destDDL, `REFERENCES "main"."actor_bak"`,
+		"REFERENCES target must be unqualified per the SQLite grammar, got: %s", destDDL)
+
+	// Runtime: FK still enforces against the destination.
+	_, err = db.ExecContext(th.Context,
+		`INSERT INTO actor_bak (id, parent_id) VALUES (10, 1)`)
+	require.Error(t, err, "FK must enforce against the destination row set")
+}
+
 // TestDriveri_CopyTable_PreservesOnDeleteCascade is the runtime sibling
 // of the sqlparser-level PreservesActionClauses test: verifies that a
 // self FK with ON DELETE CASCADE round-trips textually through the
