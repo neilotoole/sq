@@ -28,7 +28,8 @@ keyring support) and support for [rqlite](https://sq.io/docs/drivers/rqlite).
   distributed SQLite database.
   - [#756]: Single URL scheme `rqlite://` with `?tls=true` for HTTPS (matching `mysql?tls=true`,
     `postgres?sslmode=...` etc.) and the companion `?insecure=true` for self-signed certs.
-    Ping errors are enriched on first failure to point at the right URL.
+    Connection errors are enriched with actionable hints (add `?tls=true`, or `&insecure=true`
+    for self-signed certs) when the failure looks TLS-related.
 - [#441]: [`sq add`](https://sq.io/docs/cmd/add) gains a `--store inline|keyring`
   flag, and a new [`secrets.store`](https://sq.io/docs/config#secretsstore) config option
   controls the default; existing behavior is preserved (`inline`).
