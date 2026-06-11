@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# sakila-start-rqlite-nodes.sh
+# sakila-start-rqlite-cluster.sh
 #
 # Start a 3-node rqlite cluster on 127.0.0.1 (HTTP ports 4001/4003/4005,
 # Raft ports 4002/4004/4006) and load the Sakila sample database into
@@ -20,7 +20,7 @@
 # argument or an environment variable) to generate a self-signed
 # certificate and serve the HTTP API over HTTPS instead:
 #
-#   ./sakila-start-rqlite-nodes.sh HTTPS=true
+#   ./sakila-start-rqlite-cluster.sh HTTPS=true
 #
 # Prerequisites: rqlited + curl on PATH, plus openssl for HTTPS mode.
 # On macOS: `brew install rqlite`.
@@ -58,7 +58,7 @@ if [[ "$HTTPS" == "true" ]]; then
     }
 fi
 
-DATA_DIR="$(mktemp -d -t sakila-rq-nodes.XXXX)"
+DATA_DIR="$(mktemp -d -t sakila-rq-cluster.XXXX)"
 
 scheme=http
 tls_flags=()

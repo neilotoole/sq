@@ -278,29 +278,29 @@ $ sq inspect @rq
 $ docker stop sakila-rq
 ```
 
-### Multiple nodes
+### Cluster
 
 This (macOS-tested) example demonstrates a real local cluster that exercises cluster discovery and
 leader redirects (i.e. _without_ `?disableClusterDiscovery=true`). It starts three native `rqlited`
 processes on `127.0.0.1`, each advertising a host-reachable address (Docker-based clusters
 advertise container-internal hostnames; see [Single-node localhost](#single-node-localhost)).
 
-First, download the [`sakila-start-rqlite-nodes.sh`](https://raw.githubusercontent.com/neilotoole/sq/master/drivers/rqlite/sakila-start-rqlite-nodes.sh)
+First, download the [`sakila-start-rqlite-cluster.sh`](https://raw.githubusercontent.com/neilotoole/sq/master/drivers/rqlite/sakila-start-rqlite-cluster.sh)
 example script. Note that the script requires the `rqlited` binary
 (`brew install rqlite` on macOS; see [rqlite.io](https://rqlite.io/docs/install-rqlite/) for other
 platforms):
 
 ```shell
-curl -fsSL -o sakila-start-rqlite-nodes.sh \
-    https://raw.githubusercontent.com/neilotoole/sq/master/drivers/rqlite/sakila-start-rqlite-nodes.sh \
-    && chmod +x sakila-start-rqlite-nodes.sh
+curl -fsSL -o sakila-start-rqlite-cluster.sh \
+    https://raw.githubusercontent.com/neilotoole/sq/master/drivers/rqlite/sakila-start-rqlite-cluster.sh \
+    && chmod +x sakila-start-rqlite-cluster.sh
 ```
 
 #### HTTP cluster
 
 ```shell
-$ ./sakila-start-rqlite-nodes.sh
-Starting rqlite cluster (data dir: /tmp/sakila-rq-nodes.XXXX)
+$ ./sakila-start-rqlite-cluster.sh
+Starting rqlite cluster (http; data dir: /tmp/sakila-rq-cluster.XXXX)
 Loading Sakila into leader...
 
 Cluster ready: 3 nodes, leader on http://localhost:4001.
@@ -322,7 +322,7 @@ generates a self-signed certificate, so add the source with
 `?tls=true&insecure=true` (the script prints the exact command).
 
 ```shell
-$ ./sakila-start-rqlite-nodes.sh HTTPS=true
+$ ./sakila-start-rqlite-cluster.sh HTTPS=true
 ...
 $ sq add 'rqlite://localhost:4001?tls=true&insecure=true' --handle @rq
 ```
