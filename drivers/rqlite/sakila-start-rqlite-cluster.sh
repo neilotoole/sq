@@ -31,6 +31,10 @@
 
 set -euo pipefail
 
+# Sakila SQLite database loaded into the cluster leader. Overridable
+# via the environment.
+SAKILA_DB_URL="${SAKILA_DB_URL:-https://raw.githubusercontent.com/neilotoole/sq/master/drivers/sqlite3/testdata/sakila.db}"
+
 HTTPS="${HTTPS:-false}"
 for arg in "$@"; do
     case "$arg" in
@@ -146,7 +150,7 @@ fi
 
 echo "Loading Sakila into leader..."
 sakila_db="$DATA_DIR/sakila.db"
-curl -fsSL https://sq.io/testdata/sakila.db -o "$sakila_db"
+curl -fsSL "$SAKILA_DB_URL" -o "$sakila_db"
 curl -fsS ${curl_opts[@]+"${curl_opts[@]}"} \
     -X POST "$scheme://127.0.0.1:4001/db/load" \
     -H 'Content-Type: application/octet-stream' \
