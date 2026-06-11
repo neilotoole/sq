@@ -162,7 +162,7 @@ func (e *DiscoveryError) HumanError() string {
 	}
 	return fmt.Sprintf(
 		"%srqlite cluster discovery failed: advertised peer %q is not %s "+
-			"from this host.",
+			"from this host",
 		prefix, e.Peer, adj,
 	)
 }
@@ -325,10 +325,10 @@ func (e *AuthError) HumanError() string {
 	}
 	if e.HasCreds {
 		return prefix + "rqlite auth failed: the node rejected the " +
-			"source's credentials."
+			"source's credentials"
 	}
 	return prefix + "rqlite auth failed: the node requires credentials, " +
-		"but the source location has none."
+		"but the source has none"
 }
 
 // rewriteAuthError rewrites a 401 Unauthorized failure from the

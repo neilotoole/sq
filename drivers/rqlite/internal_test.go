@@ -439,7 +439,7 @@ func Test_rewriteAuthError(t *testing.T) {
 		require.True(t, errors.As(got, &hr))
 		human := hr.HumanError()
 		require.Contains(t, human, "@rq")
-		require.Contains(t, human, "the source location has none")
+		require.Contains(t, human, "the source has none")
 		require.NotContains(t, human, "tried all peers")
 		// Full diagnostic form keeps the cause chain.
 		require.Contains(t, got.Error(), "401 Unauthorized")
