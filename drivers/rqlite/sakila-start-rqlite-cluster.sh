@@ -216,6 +216,9 @@ for _ in {1..30}; do
     node_count=$(curl -fsS ${curl_opts[@]+"${curl_opts[@]}"} \
         "$scheme://127.0.0.1:4001/nodes?ver=2" 2>/dev/null \
         | grep -o '"id":' | wc -l || true)
+    # Defensive: guarantee a numeric value even if the pipeline
+    # produced no output.
+    node_count="${node_count:-0}"
     if [[ "$node_count" -eq 3 ]]; then
         break
     fi

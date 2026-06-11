@@ -11,8 +11,8 @@ url: /docs/drivers/rqlite
 The `sq` rqlite driver implements connectivity for
 [rqlite](https://rqlite.io), the lightweight distributed SQLite database. It uses the
 [`rqlite/gorqlite`](https://github.com/rqlite/gorqlite) library and talks to rqlite over HTTP(S).
-The SQL dialect underneath is still SQLite, so queries written for a source `@sqlite` translate
-verbatim to `@rqlite`.
+The SQL dialect underneath is still SQLite, so queries written for a SQLite source translate
+verbatim to an rqlite source.
 
 ## Add source
 
