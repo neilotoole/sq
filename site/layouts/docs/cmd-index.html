@@ -5,6 +5,23 @@
 {{ range $g := site.Data.cmd_groups.groups }}
   {{ $keys = $keys | append $g.key }}
   {{ $pages := where $cmds "Params.group" $g.key }}
+  {{ with $g.order }}
+    {{ $ordered := slice }}
+    {{ range $name := . }}
+      {{ $match := where $pages "File.BaseFileName" $name }}
+      {{ if $match }}
+        {{ $ordered = $ordered | append $match }}
+      {{ else }}
+        {{ warnf "cmd-index: group %q order entry %q matches no command page" $g.key $name }}
+      {{ end }}
+    {{ end }}
+    {{ range $pages }}
+      {{ if not (in $g.order .File.BaseFileName) }}
+        {{ $ordered = $ordered | append . }}
+      {{ end }}
+    {{ end }}
+    {{ $pages = $ordered }}
+  {{ end }}
   {{ if $pages }}
     {{ $sections = $sections | append (dict "key" $g.key "title" $g.title "blurb" $g.blurb "pages" $pages) }}
   {{ end }}

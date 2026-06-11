@@ -1,14 +1,19 @@
 # Ordered registry of command groups for the /docs/cmd index page
 # (rendered by layouts/docs/cmd-index.html). Pages under content/en/docs/cmd
-# declare membership via the "group" frontmatter field; this file never lists
-# individual commands. To add or reorder a group, edit here.
+# declare membership via the "group" frontmatter field; this file does not
+# control membership. To add or reorder a group, edit here.
 # NOTE: The key "other" is reserved for the layout's orphan fallback section
 # and must not be used as a group key here.
+#
+# The optional "order" list pins commands (by md file basename, e.g. "tbl-copy")
+# to the front of a group, in the given sequence; unlisted members follow
+# alphabetically. Without "order", the whole group is alphabetical.
 
 [[groups]]
 key = "query"
 title = "Query"
 blurb = "Run queries, inspect schemas, and compare data."
+order = ["sq", "sql", "inspect", "diff"]
 
 [[groups]]
 key = "sources"
