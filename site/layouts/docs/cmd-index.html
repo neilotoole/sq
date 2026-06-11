@@ -10,7 +10,7 @@
         {{ $keys = $keys | append $g.key }}
         {{ $pages := where $cmds "Params.group" $g.key }}
         {{ if $pages }}
-          <h2 id="{{ $g.key }}">{{ $g.title }}</h2>
+          <h2 id="{{ $g.key }}">{{ $g.title }} <a href="#{{ $g.key }}" class="anchor" aria-hidden="true">#</a></h2>
           {{ with $g.blurb }}<p>{{ . }}</p>{{ end }}
           {{ partial "main/cmd-index-rows.html" $pages }}
         {{ end }}
@@ -23,7 +23,7 @@
       {{ end }}
       {{ if $orphans }}
         {{ warnf "cmd-index: %d command page(s) have a missing or unknown group; rendered under Other" (len $orphans) }}
-        <h2 id="other">Other</h2>
+        <h2 id="other">Other <a href="#other" class="anchor" aria-hidden="true">#</a></h2>
         {{ partial "main/cmd-index-rows.html" $orphans }}
       {{ end }}
     </article>

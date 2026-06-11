@@ -2,6 +2,8 @@
 # (rendered by layouts/docs/cmd-index.html). Pages under content/en/docs/cmd
 # declare membership via the "group" frontmatter field; this file never lists
 # individual commands. To add or reorder a group, edit here.
+# NOTE: The key "other" is reserved for the layout's orphan fallback section
+# and must not be used as a group key here.
 
 [[groups]]
 key = "query"
