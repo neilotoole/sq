@@ -282,7 +282,8 @@ $ docker stop sakila-rq
 
 This (macOS-tested) example demonstrates a real local cluster that exercises cluster discovery and
 leader redirects (i.e. _without_ `?disableClusterDiscovery=true`). It starts three native `rqlited`
-processes on `127.0.0.1`, each advertising a host-reachable address.
+processes on `127.0.0.1`, each advertising a host-reachable address (Docker-based clusters
+advertise container-internal hostnames; see [Single-node localhost](#single-node-localhost)).
 
 First, download the [`sakila-start-rqlite-nodes.sh`](https://raw.githubusercontent.com/neilotoole/sq/master/drivers/rqlite/sakila-start-rqlite-nodes.sh)
 example script. Note that the script requires the `rqlited` binary
