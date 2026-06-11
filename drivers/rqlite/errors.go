@@ -161,9 +161,8 @@ func (e *DiscoveryError) HumanError() string {
 		prefix = e.Handle + ": "
 	}
 	return fmt.Sprintf(
-		"%srqlite cluster discovery failed: the node advertised peer %q, "+
-			"which is not %s from this host. Try adding "+
-			"?disableClusterDiscovery=true to the source location (see docs).",
+		"%srqlite cluster discovery failed: advertised peer %q is not %s "+
+			"from this host. Try ?disableClusterDiscovery=true (see docs).",
 		prefix, e.Peer, adj,
 	)
 }
