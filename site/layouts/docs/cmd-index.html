@@ -66,7 +66,7 @@
       {{ .Content }}
       {{ range $sections }}
         <h2 id="{{ .key }}">{{ .title }} <a href="#{{ .key }}" class="anchor" aria-hidden="true">#</a></h2>
-        {{ with .blurb }}<p>{{ . }}</p>{{ end }}
+        {{ with .blurb }}<p>{{ . | markdownify }}</p>{{ end }}
         {{ partial "main/cmd-index-rows.html" .pages }}
       {{ end }}
   </main>
