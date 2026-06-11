@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -87,40 +88,57 @@ func isLoopbackHost(host string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
-// rewritePeerDNSError rewrites a gorqlite cluster-discovery DNS
-// failure into an actionable message naming the unreachable peer and
-// pointing at ?disableClusterDiscovery=true and the docs. Pass-through
-// in every other case (nil err, non-DNS err, user-supplied host
-// matches the failing name, discovery already disabled, src.Location
-// unparseable).
+// gorqlitePeersPreamble is the prefix gorqlite puts on the error it
+// builds when every peer attempt failed. gorqlite serializes that
+// error to a flat string (errors.New on a strings.Builder), so on the
+// query path this substring is the only discovery-failure signal that
+// survives. gorqlite-specific phrasing; revisit if gorqlite changes
+// its error construction (same tradeoff as isTLSSignal's substring
+// check).
+const gorqlitePeersPreamble = "tried all peers unsuccessfully"
+
+// peerURLPattern extracts candidate peer URLs from gorqlite's
+// serialized "tried all peers" error text, which lists each attempt
+// in the form:
 //
-// The rewrite preserves the underlying *net.DNSError so upstream
-// errors.As classification continues to work.
-func rewritePeerDNSError(err error, src *source.Source) error {
+//	peer #0: http://user:xxxxx@rqlite1:4001/db/query?... failed due to ...
+var peerURLPattern = regexp.MustCompile(`peer #\d+: (https?://[^\s"]+)`)
+
+// rewritePeerDiscoveryError rewrites a gorqlite cluster-discovery
+// failure into an actionable message naming the problematic advertised
+// peer and pointing at ?disableClusterDiscovery=true and the docs.
+// Pass-through in every other case (nil err, unrelated err, the
+// failing host matches the host the user typed, discovery already
+// disabled, src.Location unparseable).
+//
+// Two detection paths:
+//
+//  1. Chain-preserving: err wraps a *net.DNSError with IsNotFound set.
+//     This only fires for errors that preserve the error chain (e.g.
+//     sq-side code wrapping a transport error); gorqlite's query path
+//     never produces these.
+//  2. Text: gorqlite's rqliteApiCall serializes transport errors to a
+//     flat string, so on the query path the message text is the only
+//     available signal. When the text carries gorqlite's "tried all
+//     peers" preamble, the peer URLs are parsed out and compared
+//     against the host from src.Location. A peer host that differs
+//     from the user's host is the discovery trap: the node advertised
+//     an address (internal hostname, container IP) that this client
+//     cannot use. This catches both unresolvable hostnames ("no such
+//     host") and resolvable-but-unreachable addresses (dial timeouts,
+//     connection refused).
+//
+// The chain-preserving rewrite keeps the underlying *net.DNSError
+// reachable so upstream errors.As classification continues to work.
+func rewritePeerDiscoveryError(err error, src *source.Source) error {
 	if err == nil {
 		return nil
-	}
-	var dnsErr *net.DNSError
-	if !errors.As(err, &dnsErr) || !dnsErr.IsNotFound {
-		// Only the "no such host" case (IsNotFound) is the
-		// cluster-discovery DNS failure we want to rewrite. DNS
-		// timeouts, temporary failures, and refusals are unrelated
-		// classes and shouldn't be rewritten into a
-		// disableClusterDiscovery suggestion.
-		return err
 	}
 	u, parseErr := url.Parse(src.Location)
 	if parseErr != nil {
 		// Defensive: doOpen validates this URL earlier, but if we
 		// somehow can't parse it here, pass the error through rather
 		// than producing a misleading rewrite.
-		return err
-	}
-	userHost := u.Hostname()
-	if strings.EqualFold(dnsErr.Name, userHost) {
-		// The failing hostname is the one the user typed. That's
-		// their problem to fix; suggesting disableClusterDiscovery
-		// would be wrong.
 		return err
 	}
 	if strings.EqualFold(u.Query().Get("disableClusterDiscovery"), "true") {
@@ -131,13 +149,67 @@ func rewritePeerDNSError(err error, src *source.Source) error {
 		// user "try ?disableClusterDiscovery=true" when they already have.
 		return err
 	}
+	userHost := u.Hostname()
+
+	// Path 1: chain-preserved DNS not-found. Timeouts, temporary
+	// failures, and refusals are unrelated classes and shouldn't be
+	// rewritten into a disableClusterDiscovery suggestion.
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) && dnsErr.IsNotFound {
+		if strings.EqualFold(dnsErr.Name, userHost) {
+			// The failing hostname is the one the user typed. That's
+			// their problem to fix; suggesting disableClusterDiscovery
+			// would be wrong.
+			return err
+		}
+		return errz.Wrapf(err,
+			"rqlite: cluster-discovery failed to resolve advertised peer %q "+
+				"(not %q from the source URL); this usually means the rqlite "+
+				"node advertised an internal hostname not resolvable from the "+
+				"host. Try ?disableClusterDiscovery=true, or see "+docsLocalhostAnchor,
+			dnsErr.Name, userHost,
+		)
+	}
+
+	// Path 2: gorqlite string-serialized "tried all peers" failure.
+	text := err.Error()
+	if !strings.Contains(text, gorqlitePeersPreamble) {
+		return err
+	}
+	peerHost := firstForeignPeerHost(text, userHost)
+	if peerHost == "" {
+		// Every parseable peer is the host the user typed (or none
+		// parsed): not the discovery trap.
+		return err
+	}
+	verb, desc := "reach", "an internal address not reachable from this host"
+	if strings.Contains(text, "no such host") {
+		verb, desc = "resolve", "an internal hostname not resolvable from the host"
+	}
 	return errz.Wrapf(err,
-		"rqlite: cluster-discovery failed to resolve advertised peer %q "+
+		"rqlite: cluster-discovery failed to %s advertised peer %q "+
 			"(not %q from the source URL); this usually means the rqlite "+
-			"node advertised an internal hostname not resolvable from the "+
-			"host. Try ?disableClusterDiscovery=true, or see "+docsLocalhostAnchor,
-		dnsErr.Name, userHost,
+			"node advertised %s. Try ?disableClusterDiscovery=true, or see "+
+			docsLocalhostAnchor,
+		verb, peerHost, userHost, desc,
 	)
+}
+
+// firstForeignPeerHost parses the peer URLs out of gorqlite's
+// serialized "tried all peers" error text and returns the host of the
+// first peer whose host differs from userHost. Returns empty string
+// when no peer URL parses, or every parsed peer host equals userHost.
+func firstForeignPeerHost(text, userHost string) string {
+	for _, m := range peerURLPattern.FindAllStringSubmatch(text, -1) {
+		pu, err := url.Parse(m[1])
+		if err != nil {
+			continue
+		}
+		if h := pu.Hostname(); h != "" && !strings.EqualFold(h, userHost) {
+			return h
+		}
+	}
+	return ""
 }
 
 // suggestLocWithParams builds a hint URL by merging the given query
@@ -272,11 +344,11 @@ func rewriteCertVerificationError(err error, src *source.Source) error {
 // enrichConnError applies the known connection-error enrichments
 // in a fixed order. Each inner check returns the input unchanged
 // if it doesn't match, so the composition is safe and idempotent.
-// Order matters only for readability: DNS first (most specific),
-// then TLS signal (HTTP→HTTPS), then cert verification (HTTPS
-// with bad cert).
+// Order matters only for readability: peer discovery first (most
+// specific), then TLS signal (HTTP→HTTPS), then cert verification
+// (HTTPS with bad cert).
 func enrichConnError(err error, src *source.Source) error {
-	err = rewritePeerDNSError(err, src)
+	err = rewritePeerDiscoveryError(err, src)
 	err = rewriteTLSSignalError(err, src)
 	err = rewriteCertVerificationError(err, src)
 	return err

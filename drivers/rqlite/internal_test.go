@@ -363,7 +363,34 @@ func Test_maybeWarnLocalhostDiscovery(t *testing.T) {
 	}
 }
 
-func Test_rewritePeerDNSError(t *testing.T) {
+// Test_enrichingSQLDriver_ErrWrapFunc verifies the grip-level wiring:
+// libsq obtains its error-wrap func via grip.SQLDriver().ErrWrapFunc()
+// on the query path, and that func must apply the connection-error
+// enrichments with the grip's source in scope.
+func Test_enrichingSQLDriver_ErrWrapFunc(t *testing.T) {
+	src := &source.Source{
+		Handle:   "@rq",
+		Location: "rqlite://localhost:4001",
+		Type:     drivertype.Rqlite,
+	}
+	g := &grip{src: src}
+	wrapFn := g.SQLDriver().ErrWrapFunc()
+
+	require.Nil(t, wrapFn(nil))
+
+	gorqliteErr := errors.New("tried all peers unsuccessfully. here are the results:\n" +
+		`   peer #0: http://rqlite1:4001/db/query failed due to ` +
+		`Post "http://rqlite1:4001/db/query": dial tcp: lookup rqlite1: no such host`)
+	got := wrapFn(gorqliteErr)
+	require.Error(t, got)
+	require.Contains(t, got.Error(), `"rqlite1"`)
+	require.Contains(t, got.Error(), "disableClusterDiscovery=true")
+
+	// Unrelated errors keep plain errw semantics.
+	require.Contains(t, wrapFn(errors.New("boom")).Error(), "boom")
+}
+
+func Test_rewritePeerDiscoveryError(t *testing.T) {
 	// fakeDNSErr builds a *net.DNSError with the given peer name.
 	// All real fields of net.DNSError (Err, Server, IsTimeout, etc.)
 	// are zero/false — only Name matters to the helper under test.
@@ -453,12 +480,65 @@ func Test_rewritePeerDNSError(t *testing.T) {
 			loc:         "rqlite://localhost:4001?disableClusterDiscovery=TRUE",
 			wantRewrite: false,
 		},
+
+		// Text-path cases: gorqlite serializes transport errors to flat
+		// strings, so no *net.DNSError is reachable via errors.As. The
+		// rewrite must fire on the message text alone.
+		{
+			name: "serialized dns failure (the sq inspect case)",
+			err: errors.New("tried all peers unsuccessfully. here are the results:\n" +
+				"   peer #0: http://sakila:xxxxx@rqlite1:4001/db/query?timings&level=weak&transaction " +
+				`failed due to Post "http://sakila:xxxxx@rqlite1:4001/db/query` +
+				`?timings&level=weak&transaction": dial tcp: lookup rqlite1: no such host`),
+			loc:         userLoc,
+			wantRewrite: true,
+			wantSubstrAll: []string{
+				"resolve", `"rqlite1"`, `"localhost"`,
+				"disableClusterDiscovery=true", "sq.io/docs/drivers/rqlite",
+			},
+		},
+		{
+			name: "serialized dial failure to unroutable peer ip",
+			err: errors.New("tried all peers unsuccessfully. here are the results:\n" +
+				"   peer #0: http://172.17.0.2:4001/db/query?timings&level=weak&transaction " +
+				`failed due to Post "http://172.17.0.2:4001/db/query": ` +
+				"dial tcp 172.17.0.2:4001: connect: connection refused"),
+			loc:         userLoc,
+			wantRewrite: true,
+			wantSubstrAll: []string{
+				"reach", `"172.17.0.2"`, `"localhost"`,
+				"disableClusterDiscovery=true", "sq.io/docs/drivers/rqlite",
+			},
+		},
+		{
+			name: "serialized failure but peer host equals user host",
+			err: errors.New("tried all peers unsuccessfully. here are the results:\n" +
+				`   peer #0: http://localhost:4001/db/query failed due to ` +
+				`Post "http://localhost:4001/db/query": ` +
+				"dial tcp 127.0.0.1:4001: connect: connection refused"),
+			loc:         userLoc,
+			wantRewrite: false,
+		},
+		{
+			name:        "serialized preamble without parseable peer URL",
+			err:         errors.New("tried all peers unsuccessfully. here are the results: (none)"),
+			loc:         userLoc,
+			wantRewrite: false,
+		},
+		{
+			name: "serialized failure with discovery already off",
+			err: errors.New("tried all peers unsuccessfully. here are the results:\n" +
+				`   peer #0: http://rqlite1:4001/db/query failed due to ` +
+				`Post "http://rqlite1:4001/db/query": dial tcp: lookup rqlite1: no such host`),
+			loc:         userLocOff,
+			wantRewrite: false,
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			src := &source.Source{Handle: "@rq", Location: tc.loc, Type: drivertype.Rqlite}
-			got := rewritePeerDNSError(tc.err, src)
+			got := rewritePeerDiscoveryError(tc.err, src)
 
 			if tc.err == nil {
 				require.Nil(t, got)
