@@ -16,6 +16,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/record"
@@ -363,6 +364,53 @@ func Test_maybeWarnLocalhostDiscovery(t *testing.T) {
 	}
 }
 
+// Test_DiscoveryError verifies the two faces of DiscoveryError: the
+// full diagnostic Error() for logs and verbose output, and the concise
+// HumanError() the CLI prints.
+func Test_DiscoveryError(t *testing.T) {
+	cause := errors.New("tried all peers unsuccessfully. here are the results: detail dump")
+	src := &source.Source{
+		Handle:   "@rq",
+		Location: "rqlite://localhost:4001",
+		Type:     drivertype.Rqlite,
+	}
+	gorqliteErr := errors.New("tried all peers unsuccessfully. here are the results:\n" +
+		`   peer #0: http://rqlite1:4001/db/query failed due to ` +
+		`Post "http://rqlite1:4001/db/query": dial tcp: lookup rqlite1: no such host`)
+
+	got := rewritePeerDiscoveryError(gorqliteErr, src)
+
+	// The concrete type must be reachable through the errz wrap, and
+	// must satisfy errz.HumanReadable.
+	var discErr *DiscoveryError
+	require.True(t, errors.As(got, &discErr))
+	var hr errz.HumanReadable
+	require.True(t, errors.As(got, &hr))
+
+	// Error(): full diagnostic, hint plus cause chain.
+	require.Contains(t, got.Error(), "tried all peers unsuccessfully")
+	require.Contains(t, got.Error(), "disableClusterDiscovery=true")
+	require.NotContains(t, got.Error(), "sq.io",
+		"user-facing messages must not embed docs URLs")
+
+	// HumanError(): concise, self-contained, no gorqlite dump, no URL.
+	human := hr.HumanError()
+	require.Contains(t, human, "@rq")
+	require.Contains(t, human, `"rqlite1"`)
+	require.Contains(t, human, "resolvable")
+	require.Contains(t, human, "?disableClusterDiscovery=true")
+	require.Contains(t, human, "(see docs)")
+	require.NotContains(t, human, "tried all peers")
+	require.NotContains(t, human, "sq.io")
+
+	// The reach variant words it differently.
+	reachErr := &DiscoveryError{
+		cause: cause, Handle: "@rq", Peer: "172.17.0.2",
+		UserHost: "localhost", Resolve: false,
+	}
+	require.Contains(t, reachErr.HumanError(), "reachable")
+}
+
 // Test_enrichingSQLDriver_ErrWrapFunc verifies the grip-level wiring:
 // libsq obtains its error-wrap func via grip.SQLDriver().ErrWrapFunc()
 // on the query path, and that func must apply the connection-error
@@ -432,7 +480,7 @@ func Test_rewritePeerDiscoveryError(t *testing.T) {
 			err:           fakeDNSErr("rqlite1"),
 			loc:           userLoc,
 			wantRewrite:   true,
-			wantSubstrAll: []string{"rqlite1", "localhost", "disableClusterDiscovery=true", "sq.io/docs/drivers/rqlite"},
+			wantSubstrAll: []string{"rqlite1", "localhost", "disableClusterDiscovery=true"},
 		},
 		{
 			name: "discovered peer mismatch wrapped via fmt.Errorf",
@@ -494,7 +542,7 @@ func Test_rewritePeerDiscoveryError(t *testing.T) {
 			wantRewrite: true,
 			wantSubstrAll: []string{
 				"resolve", `"rqlite1"`, `"localhost"`,
-				"disableClusterDiscovery=true", "sq.io/docs/drivers/rqlite",
+				"disableClusterDiscovery=true",
 			},
 		},
 		{
@@ -507,7 +555,7 @@ func Test_rewritePeerDiscoveryError(t *testing.T) {
 			wantRewrite: true,
 			wantSubstrAll: []string{
 				"reach", `"172.17.0.2"`, `"localhost"`,
-				"disableClusterDiscovery=true", "sq.io/docs/drivers/rqlite",
+				"disableClusterDiscovery=true",
 			},
 		},
 		{

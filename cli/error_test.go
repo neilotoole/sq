@@ -106,3 +106,25 @@ func TestPrintError_GenericError_Bootstrap(t *testing.T) {
 	require.Contains(t, tr.ErrOut.String(), "sq: something broke",
 		"generic bootstrap error must reach errOut, consistent with the parse-error path")
 }
+
+// humanReadableError is a test double implementing errz.HumanReadable.
+type humanReadableError struct{ human, full string }
+
+func (e *humanReadableError) Error() string      { return e.full }
+func (e *humanReadableError) HumanError() string { return e.human }
+
+func TestHumanizeError_HumanReadable(t *testing.T) {
+	inner := &humanReadableError{
+		human: "short and friendly (see docs).",
+		full:  "long diagnostic dump: tried all peers unsuccessfully...",
+	}
+	err := errz.Wrap(errz.Err(inner), "failed to read @rq source metadata")
+
+	got := cli.HumanizeError(err)
+	require.Equal(t, inner.human, got.Error(),
+		"a HumanReadable in the chain must replace the full rendered chain")
+
+	// Plain errors pass through with message intact.
+	plain := errz.New("ordinary failure")
+	require.Equal(t, "ordinary failure", cli.HumanizeError(plain).Error())
+}

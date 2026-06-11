@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/url"
@@ -35,8 +36,8 @@ func errw(err error) error {
 }
 
 // docsLocalhostAnchor is the docs URL for the single-node-localhost
-// case. Kept as a package-level constant so the add-time hint and the
-// DNS error rewrite point at the same place.
+// case. Used only in log output: user-facing error messages say
+// "see docs" rather than embedding URLs.
 const docsLocalhostAnchor = "https://sq.io/docs/drivers/rqlite#single-node-localhost"
 
 // maybeWarnLocalhostDiscovery emits a one-line Warn log when src's URL
@@ -104,9 +105,80 @@ const gorqlitePeersPreamble = "tried all peers unsuccessfully"
 //	peer #0: http://user:xxxxx@rqlite1:4001/db/query?... failed due to ...
 var peerURLPattern = regexp.MustCompile(`peer #\d+: (https?://[^\s"]+)`)
 
+// DiscoveryError indicates that gorqlite cluster discovery routed a
+// request to an advertised peer that this client cannot use: the
+// single-node-localhost trap (a Docker node advertising a
+// container-internal hostname) and its variants. It implements
+// errz.HumanReadable so the CLI can print a concise, actionable
+// message while the full diagnostic chain (the serialized gorqlite
+// "tried all peers" detail) stays available via Error and Unwrap for
+// logs and verbose output.
+type DiscoveryError struct {
+	cause error
+
+	// Handle is the source handle, e.g. "@rq".
+	Handle string
+
+	// Peer is the advertised peer host that failed, e.g. "rqlite1".
+	Peer string
+
+	// UserHost is the host from the source location, e.g. "localhost".
+	UserHost string
+
+	// Resolve is true when the peer hostname failed DNS resolution
+	// ("no such host"), false when the peer address resolved but could
+	// not be reached (dial timeout, connection refused).
+	Resolve bool
+}
+
+// Error implements error. It carries the full diagnostic form: the
+// hint plus the underlying cause chain.
+func (e *DiscoveryError) Error() string {
+	verb, desc := e.verbDesc()
+	msg := fmt.Sprintf(
+		"rqlite: cluster-discovery failed to %s advertised peer %q "+
+			"(not %q from the source URL); this usually means the rqlite "+
+			"node advertised %s. Try ?disableClusterDiscovery=true",
+		verb, e.Peer, e.UserHost, desc,
+	)
+	if e.cause == nil {
+		return msg
+	}
+	return msg + ": " + e.cause.Error()
+}
+
+// Unwrap returns the underlying cause.
+func (e *DiscoveryError) Unwrap() error { return e.cause }
+
+// HumanError implements errz.HumanReadable.
+func (e *DiscoveryError) HumanError() string {
+	adj := "reachable"
+	if e.Resolve {
+		adj = "resolvable"
+	}
+	prefix := ""
+	if e.Handle != "" {
+		prefix = e.Handle + ": "
+	}
+	return fmt.Sprintf(
+		"%srqlite cluster discovery failed: the node advertised peer %q, "+
+			"which is not %s from this host. Try adding "+
+			"?disableClusterDiscovery=true to the source location (see docs).",
+		prefix, e.Peer, adj,
+	)
+}
+
+// verbDesc returns the resolution-vs-reachability wording pair.
+func (e *DiscoveryError) verbDesc() (verb, desc string) {
+	if e.Resolve {
+		return "resolve", "an internal hostname not resolvable from the host"
+	}
+	return "reach", "an internal address not reachable from this host"
+}
+
 // rewritePeerDiscoveryError rewrites a gorqlite cluster-discovery
-// failure into an actionable message naming the problematic advertised
-// peer and pointing at ?disableClusterDiscovery=true and the docs.
+// failure into a *DiscoveryError naming the problematic advertised
+// peer and pointing at ?disableClusterDiscovery=true.
 // Pass-through in every other case (nil err, unrelated err, the
 // failing host matches the host the user typed, discovery already
 // disabled, src.Location unparseable).
@@ -162,13 +234,13 @@ func rewritePeerDiscoveryError(err error, src *source.Source) error {
 			// would be wrong.
 			return err
 		}
-		return errz.Wrapf(err,
-			"rqlite: cluster-discovery failed to resolve advertised peer %q "+
-				"(not %q from the source URL); this usually means the rqlite "+
-				"node advertised an internal hostname not resolvable from the "+
-				"host. Try ?disableClusterDiscovery=true, or see "+docsLocalhostAnchor,
-			dnsErr.Name, userHost,
-		)
+		return errz.Err(&DiscoveryError{
+			cause:    err,
+			Handle:   src.Handle,
+			Peer:     dnsErr.Name,
+			UserHost: userHost,
+			Resolve:  true,
+		})
 	}
 
 	// Path 2: gorqlite string-serialized "tried all peers" failure.
@@ -182,17 +254,13 @@ func rewritePeerDiscoveryError(err error, src *source.Source) error {
 		// parsed): not the discovery trap.
 		return err
 	}
-	verb, desc := "reach", "an internal address not reachable from this host"
-	if strings.Contains(text, "no such host") {
-		verb, desc = "resolve", "an internal hostname not resolvable from the host"
-	}
-	return errz.Wrapf(err,
-		"rqlite: cluster-discovery failed to %s advertised peer %q "+
-			"(not %q from the source URL); this usually means the rqlite "+
-			"node advertised %s. Try ?disableClusterDiscovery=true, or see "+
-			docsLocalhostAnchor,
-		verb, peerHost, userHost, desc,
-	)
+	return errz.Err(&DiscoveryError{
+		cause:    err,
+		Handle:   src.Handle,
+		Peer:     peerHost,
+		UserHost: userHost,
+		Resolve:  strings.Contains(text, "no such host"),
+	})
 }
 
 // firstForeignPeerHost parses the peer URLs out of gorqlite's

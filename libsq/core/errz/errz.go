@@ -439,3 +439,20 @@ func IsContextStop(ctx context.Context) bool {
 // printed. This is useful in the case where any error information may already
 // have been printed as part of the command output.
 var ErrNoMsg = errors.New("")
+
+// HumanReadable is implemented by errors that can render a concise,
+// actionable, self-contained message for end-user display, distinct from
+// Error(), which typically carries the full diagnostic chain. The CLI
+// prefers the HumanError text when printing an error that implements this
+// interface; the full Error() chain remains available in logs and verbose
+// output (e.g. the base_error field of verbose JSON error output).
+//
+// HumanError messages must stand alone: humanization replaces the entire
+// rendered error chain, including any outer operation context, so the
+// message should identify the subject (e.g. the source handle) itself.
+type HumanReadable interface {
+	error
+
+	// HumanError returns the concise, user-facing form of the error.
+	HumanError() string
+}
