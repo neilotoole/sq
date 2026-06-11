@@ -292,8 +292,8 @@ platforms):
 
 ```shell
 $ curl -fsSL -o sakila-start-rqlite-nodes.sh \
-    https://raw.githubusercontent.com/neilotoole/sq/master/drivers/rqlite/sakila-start-rqlite-nodes.sh
-$ chmod +x sakila-start-rqlite-nodes.sh
+    https://raw.githubusercontent.com/neilotoole/sq/master/drivers/rqlite/sakila-start-rqlite-nodes.sh \
+    && chmod +x sakila-start-rqlite-nodes.sh
 ```
 
 #### HTTP cluster
@@ -308,8 +308,8 @@ Cluster ready: 3 nodes, leader on http://localhost:4001.
 Press Ctrl-C here to stop the cluster.
 
 # In another terminal:
-$ sq add 'rqlite://localhost:4001' --handle @rq_local
-$ sq inspect @rq_local
+$ sq add 'rqlite://localhost:4001' --handle @rq
+$ sq inspect @rq
 ```
 
 Ctrl-C in the first terminal tears the cluster down and removes its
@@ -324,5 +324,5 @@ generates a self-signed certificate, so add the source with
 ```shell
 $ ./sakila-start-rqlite-nodes.sh HTTPS=true
 ...
-$ sq add 'rqlite://localhost:4001?tls=true&insecure=true' --handle @rq_local
+$ sq add 'rqlite://localhost:4001?tls=true&insecure=true' --handle @rq
 ```
