@@ -161,7 +161,7 @@ func (e *DiscoveryError) HumanError() string {
 		prefix = e.Handle + ": "
 	}
 	return fmt.Sprintf(
-		"%srqlite cluster discovery failed: advertised peer %q is not %s "+
+		"%srqlite: cluster-discovery failed: advertised peer %q is not %s "+
 			"from this host",
 		prefix, e.Peer, adj,
 	)
@@ -324,9 +324,9 @@ func (e *AuthError) HumanError() string {
 		prefix = e.Handle + ": "
 	}
 	if e.HasCreds {
-		return prefix + "rqlite auth failed: node rejected credentials"
+		return prefix + "rqlite: auth failed: node rejected credentials"
 	}
-	return prefix + "rqlite auth failed: node requires credentials, " +
+	return prefix + "rqlite: auth failed: node requires credentials, " +
 		"but source has none"
 }
 
