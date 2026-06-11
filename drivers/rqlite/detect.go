@@ -180,11 +180,14 @@ func (d *driveri) detectConnParams(ctx context.Context, src *source.Source,
 		hint := suggestLocWithParams(src, url.Values{
 			"tls": {"true"}, "insecure": {"true"},
 		})
-		return nil, errz.Wrapf(err2,
-			"%s: the endpoint requires TLS, but its certificate could not "+
-				"be verified. If this is a self-signed or private-CA "+
-				"deployment, retry with %s, or install the CA in your "+
-				"trust store", src.Handle, hint)
+		return nil, errz.WithHuman(
+			errz.Wrapf(err2,
+				"%s: the endpoint requires TLS, but its certificate could not "+
+					"be verified. If this is a self-signed or private-CA "+
+					"deployment, retry with %s, or install the CA in your "+
+					"trust store", src.Handle, hint),
+			humanMsg(src, "rqlite: endpoint requires TLS, but cert verification failed"),
+		)
 	default:
 		if ctx.Err() != nil {
 			return nil, errz.Err(ctx.Err())

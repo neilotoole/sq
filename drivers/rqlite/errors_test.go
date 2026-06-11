@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"io"
 	"net/http/httptest"
 	"testing"
@@ -73,6 +74,14 @@ func TestRewriteTLSSignalError(t *testing.T) {
 		require.Contains(t, out.Error(), "?tls=true")
 		require.Contains(t, out.Error(), "&insecure=true")
 		require.Contains(t, out.Error(), "@rq")
+
+		// The human form is the concise one-liner; the retry remedy
+		// stays in the long form.
+		var hr errz.HumanReadable
+		require.True(t, errors.As(out, &hr))
+		require.Equal(t,
+			"@rq: rqlite: TLS required: endpoint serves HTTPS, but source uses HTTP",
+			hr.HumanError())
 	})
 
 	t.Run("tls signal hint preserves existing query params", func(t *testing.T) {
@@ -174,6 +183,13 @@ func TestRewriteCertVerificationError(t *testing.T) {
 		require.Contains(t, out.Error(), "tls=true")
 		require.Contains(t, out.Error(), "insecure=true")
 		require.Contains(t, out.Error(), "@rq")
+
+		// The human form is the concise one-liner; the retry remedy
+		// stays in the long form.
+		var hr errz.HumanReadable
+		require.True(t, errors.As(out, &hr))
+		require.Equal(t, "@rq: rqlite: TLS cert verification failed",
+			hr.HumanError())
 	})
 
 	t.Run("cert error hint uses & when location already has ?", func(t *testing.T) {

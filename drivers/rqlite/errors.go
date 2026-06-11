@@ -273,15 +273,24 @@ func rewritePeerDiscoveryError(err error, src *source.Source) error {
 // serialized "tried all peers" error text and returns the host of the
 // first peer whose host differs from userHost. Returns empty string
 // when no peer URL parses, or every parsed peer host equals userHost.
+// Loopback hosts count as equal ("localhost" vs "127.0.0.1" vs "::1"):
+// a node legitimately advertising loopback to a loopback-typed source
+// is not the discovery trap, even when the strings differ.
 func firstForeignPeerHost(text, userHost string) string {
+	userLoopback := isLoopbackHost(userHost)
 	for _, m := range peerURLPattern.FindAllStringSubmatch(text, -1) {
 		pu, err := url.Parse(m[1])
 		if err != nil {
 			continue
 		}
-		if h := pu.Hostname(); h != "" && !strings.EqualFold(h, userHost) {
-			return h
+		h := pu.Hostname()
+		if h == "" || strings.EqualFold(h, userHost) {
+			continue
 		}
+		if userLoopback && isLoopbackHost(h) {
+			continue
+		}
+		return h
 	}
 	return ""
 }
@@ -404,10 +413,22 @@ func rewriteTLSSignalError(err error, src *source.Source) error {
 		return err
 	}
 	hint := suggestLocWithParams(src, url.Values{"tls": {"true"}})
-	return errz.Wrapf(err,
-		"%s appears to require TLS; retry with %s "+
-			"(add &insecure=true for self-signed certs)",
-		src.Handle, hint)
+	return errz.WithHuman(
+		errz.Wrapf(err,
+			"%s appears to require TLS; retry with %s "+
+				"(add &insecure=true for self-signed certs)",
+			src.Handle, hint),
+		humanMsg(src, "rqlite: TLS required: endpoint serves HTTPS, but source uses HTTP"),
+	)
+}
+
+// humanMsg prefixes msg with the source handle, yielding the standard
+// human-message shape: "@handle: driver: category failed: detail".
+func humanMsg(src *source.Source, msg string) string {
+	if src == nil || src.Handle == "" {
+		return msg
+	}
+	return src.Handle + ": " + msg
 }
 
 // locHasTLSTrue reports whether loc has ?tls=true set. Used to gate
@@ -475,11 +496,14 @@ func rewriteCertVerificationError(err error, src *source.Source) error {
 		return err
 	}
 	hint := suggestLocWithParams(src, url.Values{"tls": {"true"}, "insecure": {"true"}})
-	return errz.Wrapf(err,
-		"%s: TLS certificate verification failed. If this is a "+
-			"self-signed or private-CA deployment, retry with "+
-			"%s, or install the CA in your trust store",
-		src.Handle, hint)
+	return errz.WithHuman(
+		errz.Wrapf(err,
+			"%s: TLS certificate verification failed. If this is a "+
+				"self-signed or private-CA deployment, retry with "+
+				"%s, or install the CA in your trust store",
+			src.Handle, hint),
+		humanMsg(src, "rqlite: TLS cert verification failed"),
+	)
 }
 
 // enrichConnError applies the known connection-error enrichments

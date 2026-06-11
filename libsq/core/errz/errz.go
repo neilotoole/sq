@@ -456,3 +456,33 @@ type HumanReadable interface {
 	// HumanError returns the concise, user-facing form of the error.
 	HumanError() string
 }
+
+// WithHuman returns an error that attaches the concise human-readable
+// message to err for end-user display. The returned error implements
+// [HumanReadable]; its Error() text and chain (Unwrap) are those of
+// err, unchanged. Use this when the error carries no structured data
+// beyond the message; define a dedicated HumanReadable type when it
+// does. Returns nil if err is nil, and err unchanged if human is
+// empty.
+func WithHuman(err error, human string) error {
+	if err == nil {
+		return nil
+	}
+	if human == "" {
+		return err
+	}
+	return &humanizedError{error: err, human: human}
+}
+
+// humanizedError implements HumanReadable by pairing an error with a
+// concise display message.
+type humanizedError struct {
+	error
+	human string
+}
+
+// Unwrap returns the wrapped error.
+func (e *humanizedError) Unwrap() error { return e.error }
+
+// HumanError implements HumanReadable.
+func (e *humanizedError) HumanError() string { return e.human }

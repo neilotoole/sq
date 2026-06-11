@@ -261,3 +261,21 @@ func TestWithExitCode(t *testing.T) {
 	require.Equal(t, 3, errz.ExitCode(err))
 	require.True(t, errors.Is(err, errz.ErrNoMsg))
 }
+
+func TestWithHuman(t *testing.T) {
+	require.Nil(t, errz.WithHuman(nil, "msg"))
+
+	base := errz.New("long diagnostic dump")
+	require.Same(t, base, errz.WithHuman(base, ""),
+		"empty human message must return err unchanged")
+
+	got := errz.WithHuman(base, "short form")
+	require.Equal(t, "long diagnostic dump", got.Error(),
+		"Error() must be unchanged by WithHuman")
+	require.True(t, errors.Is(got, base),
+		"chain must remain intact through WithHuman")
+
+	var hr errz.HumanReadable
+	require.True(t, errors.As(got, &hr))
+	require.Equal(t, "short form", hr.HumanError())
+}

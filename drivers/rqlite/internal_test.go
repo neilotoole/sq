@@ -634,6 +634,18 @@ func Test_rewritePeerDiscoveryError(t *testing.T) {
 			wantRewrite: false,
 		},
 		{
+			// "localhost" vs "127.0.0.1" is not the discovery trap: a
+			// local node legitimately advertises loopback, and a dial
+			// failure there just means the node is down.
+			name: "loopback peer equals loopback user host despite differing strings",
+			err: errors.New("tried all peers unsuccessfully. here are the results:\n" +
+				`   peer #0: http://127.0.0.1:4001/db/query failed due to ` +
+				`Post "http://127.0.0.1:4001/db/query": ` +
+				"dial tcp 127.0.0.1:4001: connect: connection refused"),
+			loc:         userLoc,
+			wantRewrite: false,
+		},
+		{
 			// A 401 from a reachable foreign peer is an auth problem,
 			// not the discovery trap; suggesting disableClusterDiscovery
 			// would be wrong. rewriteAuthError handles it instead.
