@@ -325,11 +325,10 @@ func (e *AuthError) HumanError() string {
 	}
 	if e.HasCreds {
 		return prefix + "rqlite authentication failed: the node rejected " +
-			"the source's credentials. Check username and password."
+			"the source's credentials."
 	}
 	return prefix + "rqlite authentication failed: the node requires " +
-		"credentials, but the source location has none. Add user:password " +
-		"to the location (see docs)."
+		"credentials, but the source location has none."
 }
 
 // rewriteAuthError rewrites a 401 Unauthorized failure from the

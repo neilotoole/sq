@@ -442,7 +442,6 @@ func Test_rewriteAuthError(t *testing.T) {
 		human := hr.HumanError()
 		require.Contains(t, human, "@rq")
 		require.Contains(t, human, "the source location has none")
-		require.Contains(t, human, "user:password")
 		require.NotContains(t, human, "tried all peers")
 		// Full diagnostic form keeps the cause chain.
 		require.Contains(t, got.Error(), "401 Unauthorized")
@@ -455,7 +454,6 @@ func Test_rewriteAuthError(t *testing.T) {
 		require.True(t, errors.As(got, &authErr))
 		require.True(t, authErr.HasCreds)
 		require.Contains(t, authErr.HumanError(), "rejected the source's credentials")
-		require.Contains(t, authErr.HumanError(), "Check username and password")
 	})
 
 	t.Run("unparseable location defaults to creds present", func(t *testing.T) {
