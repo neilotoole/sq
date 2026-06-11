@@ -19,6 +19,7 @@ order = ["sq", "sql", "inspect", "diff"]
 key = "sources"
 title = "Sources"
 blurb = "Add and manage data sources and source groups."
+order = ["add", "src", "ls", "rm", "mv", "group", "ping", "driver-ls"]
 
 [[groups]]
 key = "tables"
