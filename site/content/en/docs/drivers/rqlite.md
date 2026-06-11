@@ -260,7 +260,7 @@ Both examples stand up a local rqlite loaded with the
 
 This example uses the
 [`sakiladb/rqlite`](https://hub.docker.com/r/sakiladb/rqlite) Docker image,
-which ships rqlite preloaded with Sakila. Default credentials are
+which ships rqlite preloaded with Sakila and serves HTTP. Default credentials are
 `sakila` / `p_ssW0rd`. Start a single-node container, add the source, and
 inspect:
 
