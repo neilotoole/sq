@@ -297,33 +297,30 @@ curl -fsSL -o sakila-start-rqlite-cluster.sh \
     && chmod +x sakila-start-rqlite-cluster.sh
 ```
 
-#### HTTP cluster
+Then start the cluster. By default it serves HTTPS (with a generated
+self-signed certificate, hence `insecure=true` below) and requires
+credentials `sakila` / `p_ssW0rd`:
 
 ```shell
 $ ./sakila-start-rqlite-cluster.sh
-Starting rqlite cluster (http; data dir: /tmp/sakila-rq-cluster.XXXX)
+Generating self-signed certificate...
+Starting rqlite cluster (https, auth; data dir: /tmp/sakila-rq-cluster.XXXX)
 Loading Sakila into leader...
 
-Cluster ready: 3 nodes, leader on http://localhost:4001.
+Cluster ready: 3 nodes, leader on https://localhost:4001.
 ...
 Press Ctrl-C here to stop the cluster.
 
 # In another terminal:
-$ sq add 'rqlite://localhost:4001' --handle @rq
+$ sq add 'rqlite://sakila:p_ssW0rd@localhost:4001?tls=true&insecure=true' --handle @rq
 $ sq inspect @rq
 ```
 
 Ctrl-C in the first terminal tears the cluster down and removes its
 data directory.
 
-#### HTTPS cluster
-
-To serve the cluster over HTTPS instead, pass `HTTPS=true`. The script
-generates a self-signed certificate, so add the source with
-`?tls=true&insecure=true` (the script prints the exact command).
-
-```shell
-$ ./sakila-start-rqlite-cluster.sh HTTPS=true
-...
-$ sq add 'rqlite://localhost:4001?tls=true&insecure=true' --handle @rq
-```
+The script accepts `HTTPS=true|false` and `AUTH=true|false` flags in any
+combination, e.g. `./sakila-start-rqlite-cluster.sh HTTPS=false AUTH=false`
+for a plain-HTTP cluster with no credentials. It prints the matching
+`sq add` command for whichever scenario it starts; see the script's
+header comments for details.
