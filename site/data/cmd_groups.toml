@@ -25,6 +25,7 @@ order = ["add", "src", "ls", "rm", "mv", "group", "ping", "driver-ls"]
 key = "tables"
 title = "Tables"
 blurb = "Copy, drop, and truncate tables."
+order = ["tbl-copy", "tbl-drop", "tbl-truncate"]
 
 [[groups]]
 key = "config"
