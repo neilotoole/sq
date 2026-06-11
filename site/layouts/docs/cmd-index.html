@@ -1,0 +1,32 @@
+{{ define "main" }}
+<div class="row justify-content-center">
+  <div class="col-md-12 col-lg-10 col-xl-8">
+    <article>
+      <h1 class="text-center">{{ .Title }}</h1>
+      {{ .Content }}
+      {{ $cmds := .RegularPages.ByTitle }}
+      {{ $keys := slice }}
+      {{ range $g := site.Data.cmd_groups.groups }}
+        {{ $keys = $keys | append $g.key }}
+        {{ $pages := where $cmds "Params.group" $g.key }}
+        {{ if $pages }}
+          <h2 id="{{ $g.key }}">{{ $g.title }}</h2>
+          {{ with $g.blurb }}<p>{{ . }}</p>{{ end }}
+          {{ partial "main/cmd-index-rows.html" $pages }}
+        {{ end }}
+      {{ end }}
+      {{ $orphans := slice }}
+      {{ range $cmds }}
+        {{ if not (in $keys (.Params.group | default "")) }}
+          {{ $orphans = $orphans | append . }}
+        {{ end }}
+      {{ end }}
+      {{ if $orphans }}
+        {{ warnf "cmd-index: %d command page(s) have a missing or unknown group; rendered under Other" (len $orphans) }}
+        <h2 id="other">Other</h2>
+        {{ partial "main/cmd-index-rows.html" $orphans }}
+      {{ end }}
+    </article>
+  </div>
+</div>
+{{ end }}
