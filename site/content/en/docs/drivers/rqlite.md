@@ -253,15 +253,16 @@ endpoints, SQLite pragmas, and `sqlite_master`.
 
 ## Example usage
 
-Both examples use the
-[`sakiladb/rqlite`](https://hub.docker.com/r/sakiladb/rqlite) image, which
-ships rqlite preloaded with the
-[Sakila](https://dev.mysql.com/doc/sakila/en/) sample database. Default
-credentials are `sakila` / `p_ssW0rd`.
+Both examples stand up a local rqlite loaded with the
+[Sakila](https://dev.mysql.com/doc/sakila/en/) sample database.
 
 ### Single node
 
-Start a single-node container, add the source, and inspect:
+This example uses the
+[`sakiladb/rqlite`](https://hub.docker.com/r/sakiladb/rqlite) Docker image,
+which ships rqlite preloaded with Sakila. Default credentials are
+`sakila` / `p_ssW0rd`. Start a single-node container, add the source, and
+inspect:
 
 ```shell
 # Port 4001 is rqlite's HTTP API.
