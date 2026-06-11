@@ -15,9 +15,9 @@
     <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Install</a>
   </li>
   <li class="mb-1">
-    {{ $hackURL := "/docs/agent-skills" }}
+    {{ $hackURL := "/docs/tutorial" }}
     {{ $active := in $currentPage.RelPermalink $hackURL }}
-    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Agent Skills</a>
+    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Tutorial</a>
   </li>
   <li class="mb-1">
     {{ $hackURL := "/docs/concepts" }}
@@ -35,9 +35,9 @@
     <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Sources</a>
   </li>
   <li class="mb-1">
-    {{ $hackURL := "/docs/secrets" }}
+    {{ $hackURL := "/docs/detect" }}
     {{ $active := in $currentPage.RelPermalink $hackURL }}
-    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Secrets</a>
+    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Detect</a>
   </li>
   <li class="mb-1">
     {{ $hackURL := "/docs/inspect" }}
@@ -45,14 +45,9 @@
     <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Inspect</a>
   </li>
   <li class="mb-1">
-    {{ $hackURL := "/docs/config" }}
+    {{ $hackURL := "/docs/diff" }}
     {{ $active := in $currentPage.RelPermalink $hackURL }}
-    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Config</a>
-  </li>
-  <li class="mb-1">
-    {{ $hackURL := "/docs/detect" }}
-    {{ $active := in $currentPage.RelPermalink $hackURL }}
-    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Detect</a>
+    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Diff</a>
   </li>
   <li class="mb-1">
     {{ $hackURL := "/docs/output" }}
@@ -60,19 +55,24 @@
     <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Output</a>
   </li>
   <li class="mb-1">
-    {{ $hackURL := "/docs/diff" }}
+    {{ $hackURL := "/docs/config" }}
     {{ $active := in $currentPage.RelPermalink $hackURL }}
-    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Diff</a>
+    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Config</a>
   </li>
   <li class="mb-1">
-    {{ $hackURL := "/docs/tutorial" }}
+    {{ $hackURL := "/docs/secrets" }}
     {{ $active := in $currentPage.RelPermalink $hackURL }}
-    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Tutorial</a>
+    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Secrets</a>
   </li>
   <li class="mb-1">
     {{ $hackURL := "/docs/cookbook" }}
     {{ $active := in $currentPage.RelPermalink $hackURL }}
     <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Cookbook</a>
+  </li>
+  <li class="mb-1">
+    {{ $hackURL := "/docs/agent-skills" }}
+    {{ $active := in $currentPage.RelPermalink $hackURL }}
+    <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Agent Skills</a>
   </li>
   <li class="mb-1">
     {{ $hackURL := "/docs/cmd" }}
