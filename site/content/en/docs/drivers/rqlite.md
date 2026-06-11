@@ -282,23 +282,22 @@ $ docker stop sakila-rq
 
 This (macOS-tested) example demonstrates a real local cluster that exercises cluster discovery and
 leader redirects (i.e. _without_ `?disableClusterDiscovery=true`). It starts three native `rqlited`
-processes on `127.0.0.1`, each advertising a host-reachable address. Native processes, not Docker:
-multi-node Docker setups such as `sakiladb/rqlite`'s
-[`cluster-compose.yml`](https://github.com/sakiladb/rqlite/blob/master/cluster-compose.yml)
-advertise container-internal hostnames that the host can't resolve, the same trap described in
-[Single-node localhost](#single-node-localhost).
+processes on `127.0.0.1`, each advertising a host-reachable address.
 
-The example
-[`sakila-start-rqlite-nodes.sh`](https://raw.githubusercontent.com/neilotoole/sq/master/drivers/rqlite/sakila-start-rqlite-nodes.sh)
-script brings the cluster up and loads Sakila into the leader. It requires the `rqlited` binary
+First, download the [`sakila-start-rqlite-nodes.sh`](https://raw.githubusercontent.com/neilotoole/sq/master/drivers/rqlite/sakila-start-rqlite-nodes.sh)
+example script. Note that the script requires the `rqlited` binary
 (`brew install rqlite` on macOS; see [rqlite.io](https://rqlite.io/docs/install-rqlite/) for other
 platforms):
 
 ```shell
-# In one terminal, download the helper and run it.
 $ curl -fsSL -o sakila-start-rqlite-nodes.sh \
     https://raw.githubusercontent.com/neilotoole/sq/master/drivers/rqlite/sakila-start-rqlite-nodes.sh
 $ chmod +x sakila-start-rqlite-nodes.sh
+```
+
+#### HTTP cluster
+
+```shell
 $ ./sakila-start-rqlite-nodes.sh
 Starting rqlite cluster (data dir: /tmp/sakila-rq-nodes.XXXX)
 Loading Sakila into leader...
@@ -315,11 +314,11 @@ $ sq inspect @rq_local
 Ctrl-C in the first terminal tears the cluster down and removes its
 data directory.
 
+#### HTTPS cluster
+
 To serve the cluster over HTTPS instead, pass `HTTPS=true`. The script
 generates a self-signed certificate, so add the source with
-`?tls=true&insecure=true` (the script prints the exact command). Adding
-the bare location instead demonstrates the add-time probe error
-described in [Self-signed certificates](#self-signed-certificates):
+`?tls=true&insecure=true` (the script prints the exact command).
 
 ```shell
 $ ./sakila-start-rqlite-nodes.sh HTTPS=true
