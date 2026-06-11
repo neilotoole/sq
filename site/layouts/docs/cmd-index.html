@@ -31,7 +31,14 @@
       <nav id="{{ if eq .Site.Params.options.scrollSpy true }}toc{{ else }}TableOfContents{{ end }}">
         <ul>
           {{ range $sections }}
-          <li><a href="#{{ .key }}">{{ .title }}</a></li>
+          <li>
+            <a href="#{{ .key }}">{{ .title }}</a>
+            <ul>
+              {{ range .pages }}
+              <li><a href="{{ .RelPermalink }}"><code>{{ .Title }}</code></a></li>
+              {{ end }}
+            </ul>
+          </li>
           {{ end }}
         </ul>
       </nav>
