@@ -314,3 +314,15 @@ $ sq inspect @rq_local
 
 Ctrl-C in the first terminal tears the cluster down and removes its
 data directory.
+
+To serve the cluster over HTTPS instead, pass `HTTPS=true`. The script
+generates a self-signed certificate, so add the source with
+`?tls=true&insecure=true` (the script prints the exact command). Adding
+the bare location instead demonstrates the add-time probe error
+described in [Self-signed certificates](#self-signed-certificates):
+
+```shell
+$ ./sakila-start-rqlite-nodes.sh HTTPS=true
+...
+$ sq add 'rqlite://localhost:4001?tls=true&insecure=true' --handle @rq_local
+```
