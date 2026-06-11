@@ -1,8 +1,12 @@
 {{ define "main" }}
-<div class="row justify-content-center">
-  <div class="col-md-12 col-lg-10 col-xl-8">
-    <article>
-      <h1 class="text-center">{{ .Title }}</h1>
+<div class="row flex-xl-nowrap">
+  <div class="col-lg-5 col-xl-4 docs-sidebar{{ if ne .Site.Params.options.navbarSticky true }} docs-sidebar-top{{ end }} d-none d-lg-block">
+    <nav {{ if eq .Site.Params.menu.section.collapsibleSidebar false }}id="sidebar-default" {{ end }}class="docs-links" aria-label="Main navigation">
+      {{ partial "sidebar/docs-menu.html" . }}
+    </nav>
+  </div>
+  <main class="docs-content col-lg-11 col-xl-9 mx-xl-auto">
+      <h1>{{ .Title }}</h1>
       {{ .Content }}
       {{ $cmds := .RegularPages.ByTitle }}
       {{ $keys := slice }}
@@ -26,7 +30,6 @@
         <h2 id="other">Other <a href="#other" class="anchor" aria-hidden="true">#</a></h2>
         {{ partial "main/cmd-index-rows.html" $orphans }}
       {{ end }}
-    </article>
-  </div>
+  </main>
 </div>
 {{ end }}
