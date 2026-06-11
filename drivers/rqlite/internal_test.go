@@ -398,8 +398,6 @@ func Test_DiscoveryError(t *testing.T) {
 	require.Contains(t, human, "@rq")
 	require.Contains(t, human, `"rqlite1"`)
 	require.Contains(t, human, "resolvable")
-	require.Contains(t, human, "disableClusterDiscovery")
-	require.Contains(t, human, "docs")
 	require.NotContains(t, human, "tried all peers")
 	require.NotContains(t, human, "sq.io")
 
