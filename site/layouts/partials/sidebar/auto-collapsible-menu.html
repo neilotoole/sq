@@ -80,9 +80,9 @@
     <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Commands</a>
   </li>
 
-
   {{ range (where .Site.Sections "Section" "in" $section) }}
     {{ range .Sections }}
+      {{- /* Sections with sidebar_skip: true in _index.md are rendered as a hardcoded link above instead. */}}
       {{ if not .Params.sidebar_skip }}
       {{ $active := in $currentPage.RelPermalink .RelPermalink }}
       <li class="mb-1">
@@ -132,7 +132,7 @@
           </ul>
         </div>
       </li>
-      {{ end }}
+      {{ end }}{{/* if not .Params.sidebar_skip */}}
     {{ end }}
   {{ end }}
 
