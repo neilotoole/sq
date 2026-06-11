@@ -1,12 +1,12 @@
 ---
 title: "sq config ls"
 description: "List config options"
+group: config
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2038
 toc: false
 url: /docs/cmd/config-ls
 ---

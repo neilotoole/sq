@@ -1,12 +1,12 @@
 ---
 title: "sq completion zsh"
 description: "Generate zsh shell completion script"
+group: shell
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2030
 toc: false
 url: /docs/cmd/completion-zsh
 ---

@@ -1,12 +1,12 @@
 ---
 title: "sq config edit"
 description: "Edit config in $EDITOR"
+group: config
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2038
 toc: false
 url: /docs/cmd/config-edit
 ---

@@ -1,12 +1,12 @@
 ---
 title: "sq mv"
 description: "Move/rename sources and groups"
+group: sources
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2112
 toc: false
 url: /docs/cmd/mv
 ---

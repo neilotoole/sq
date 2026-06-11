@@ -1,12 +1,12 @@
 ---
 title: "sq ls"
 description: "List data sources"
+group: sources
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2070
 toc: false
 url: /docs/cmd/ls
 ---

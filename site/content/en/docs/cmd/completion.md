@@ -1,12 +1,12 @@
 ---
 title: "sq completion"
 description: "Generate shell completion scripts"
+group: shell
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2030
 toc: false
 url: /docs/cmd/completion
 ---

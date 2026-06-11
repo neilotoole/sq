@@ -1,13 +1,13 @@
 ---
 title: "sq help"
 description: "Show sq help"
+group: misc
 draft: false
 images: []
 menu:
   docs:
     identifier: "cmd_help"
     parent: "cmd"
-weight: 2050
 toc: false
 url: /docs/cmd/help
 ---

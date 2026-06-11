@@ -1,12 +1,12 @@
 ---
 title: "sq rm"
 description: "Remove data source"
+group: sources
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2090
 toc: false
 url: /docs/cmd/rm
 ---
