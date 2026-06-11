@@ -411,6 +411,70 @@ func Test_DiscoveryError(t *testing.T) {
 	require.Contains(t, reachErr.HumanError(), "reachable")
 }
 
+// Test_rewriteAuthError verifies the 401 rewrite and the two faces of
+// AuthError: the credential-state-tailored HumanError() the CLI
+// prints, and the full diagnostic Error() for logs and verbose output.
+func Test_rewriteAuthError(t *testing.T) {
+	gorqlite401 := errors.New("tried all peers unsuccessfully. here are the results:\n" +
+		`   peer #0: http://localhost:4001/db/query?timings&level=weak&transaction ` +
+		"failed due to got: 401 Unauthorized, message:")
+
+	newSrc := func(loc string) *source.Source {
+		return &source.Source{Handle: "@rq", Location: loc, Type: drivertype.Rqlite}
+	}
+
+	t.Run("nil", func(t *testing.T) {
+		require.Nil(t, rewriteAuthError(nil, newSrc("rqlite://localhost:4001")))
+	})
+
+	t.Run("non-401 passes through", func(t *testing.T) {
+		in := errors.New("connection refused")
+		require.True(t, errors.Is(rewriteAuthError(in, newSrc("rqlite://localhost:4001")), in))
+	})
+
+	t.Run("401 without creds in location", func(t *testing.T) {
+		got := rewriteAuthError(gorqlite401, newSrc("rqlite://localhost:4001?disableClusterDiscovery=true"))
+		var authErr *AuthError
+		require.True(t, errors.As(got, &authErr))
+		require.False(t, authErr.HasCreds)
+		var hr errz.HumanReadable
+		require.True(t, errors.As(got, &hr))
+		human := hr.HumanError()
+		require.Contains(t, human, "@rq")
+		require.Contains(t, human, "the source location has none")
+		require.Contains(t, human, "user:password")
+		require.NotContains(t, human, "tried all peers")
+		// Full diagnostic form keeps the cause chain.
+		require.Contains(t, got.Error(), "401 Unauthorized")
+		require.Contains(t, got.Error(), "tried all peers")
+	})
+
+	t.Run("401 with creds in location", func(t *testing.T) {
+		got := rewriteAuthError(gorqlite401, newSrc("rqlite://sakila:wrongpw@localhost:4001"))
+		var authErr *AuthError
+		require.True(t, errors.As(got, &authErr))
+		require.True(t, authErr.HasCreds)
+		require.Contains(t, authErr.HumanError(), "rejected the source's credentials")
+		require.Contains(t, authErr.HumanError(), "Check username and password")
+	})
+
+	t.Run("unparseable location defaults to creds present", func(t *testing.T) {
+		got := rewriteAuthError(gorqlite401, newSrc("rqlite://sakila:${env:PW}@localhost:4001"))
+		var authErr *AuthError
+		require.True(t, errors.As(got, &authErr))
+		require.True(t, authErr.HasCreds)
+	})
+
+	t.Run("enrichConnError routes 401 to AuthError", func(t *testing.T) {
+		got := enrichConnError(gorqlite401, newSrc("rqlite://localhost:4001"))
+		var authErr *AuthError
+		require.True(t, errors.As(got, &authErr))
+		var discErr *DiscoveryError
+		require.False(t, errors.As(got, &discErr),
+			"a 401 must not be diagnosed as the discovery trap")
+	})
+}
+
 // Test_enrichingSQLDriver_ErrWrapFunc verifies the grip-level wiring:
 // libsq obtains its error-wrap func via grip.SQLDriver().ErrWrapFunc()
 // on the query path, and that func must apply the connection-error
@@ -570,6 +634,17 @@ func Test_rewritePeerDiscoveryError(t *testing.T) {
 		{
 			name:        "serialized preamble without parseable peer URL",
 			err:         errors.New("tried all peers unsuccessfully. here are the results: (none)"),
+			loc:         userLoc,
+			wantRewrite: false,
+		},
+		{
+			// A 401 from a reachable foreign peer is an auth problem,
+			// not the discovery trap; suggesting disableClusterDiscovery
+			// would be wrong. rewriteAuthError handles it instead.
+			name: "serialized 401 from foreign peer is not the discovery trap",
+			err: errors.New("tried all peers unsuccessfully. here are the results:\n" +
+				`   peer #0: http://rqlite1:4001/db/query failed due to ` +
+				"got: 401 Unauthorized, message:"),
 			loc:         userLoc,
 			wantRewrite: false,
 		},

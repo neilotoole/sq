@@ -247,6 +247,13 @@ func rewritePeerDiscoveryError(err error, src *source.Source) error {
 	if !strings.Contains(text, gorqlitePeersPreamble) {
 		return err
 	}
+	// Only connection-level failures (DNS lookup, dial) indicate the
+	// discovery trap. An HTTP-level response from a reachable peer
+	// (e.g. 401 Unauthorized) is a different problem, and must not be
+	// rewritten into a disableClusterDiscovery suggestion.
+	if !strings.Contains(text, "no such host") && !strings.Contains(text, "dial tcp") {
+		return err
+	}
 	peerHost := firstForeignPeerHost(text, userHost)
 	if peerHost == "" {
 		// Every parseable peer is the host the user typed (or none
@@ -277,6 +284,75 @@ func firstForeignPeerHost(text, userHost string) string {
 		}
 	}
 	return ""
+}
+
+// AuthError indicates that the rqlite node rejected a request as
+// unauthorized (HTTP 401): the node requires credentials that the
+// source either doesn't carry or that the node doesn't accept. It
+// implements errz.HumanReadable so the CLI can print a concise,
+// actionable message while the full diagnostic chain stays available
+// via Error and Unwrap for logs and verbose output.
+type AuthError struct {
+	cause error
+
+	// Handle is the source handle, e.g. "@rq".
+	Handle string
+
+	// HasCreds is true when the source location carries userinfo
+	// (username and/or password). It selects between the "supply
+	// credentials" and "check credentials" remedies.
+	HasCreds bool
+}
+
+// Error implements error. It carries the full diagnostic form: the
+// hint plus the underlying cause chain.
+func (e *AuthError) Error() string {
+	msg := "rqlite: authentication failed (401 Unauthorized)"
+	if e.cause == nil {
+		return msg
+	}
+	return msg + ": " + e.cause.Error()
+}
+
+// Unwrap returns the underlying cause.
+func (e *AuthError) Unwrap() error { return e.cause }
+
+// HumanError implements errz.HumanReadable.
+func (e *AuthError) HumanError() string {
+	prefix := ""
+	if e.Handle != "" {
+		prefix = e.Handle + ": "
+	}
+	if e.HasCreds {
+		return prefix + "rqlite authentication failed: the node rejected " +
+			"the source's credentials. Check username and password."
+	}
+	return prefix + "rqlite authentication failed: the node requires " +
+		"credentials, but the source location has none. Add user:password " +
+		"to the location (see docs)."
+}
+
+// rewriteAuthError rewrites a 401 Unauthorized failure from the
+// rqlite node into a *AuthError. gorqlite serializes HTTP-status
+// failures into its error text (e.g. "got: 401 Unauthorized"), so
+// detection is text-based, like the other gorqlite-path checks.
+// Pass-through for nil and non-401 errors.
+func rewriteAuthError(err error, src *source.Source) error {
+	if err == nil || !strings.Contains(err.Error(), "401 Unauthorized") {
+		return err
+	}
+	// Conservative default: if the location can't be parsed (e.g. it
+	// carries secret placeholders in userinfo, which net/url rejects),
+	// userinfo is present, so treat creds as supplied.
+	hasCreds := true
+	if u, parseErr := url.Parse(src.Location); parseErr == nil {
+		hasCreds = u.User != nil && u.User.String() != ""
+	}
+	return errz.Err(&AuthError{
+		cause:    err,
+		Handle:   src.Handle,
+		HasCreds: hasCreds,
+	})
 }
 
 // suggestLocWithParams builds a hint URL by merging the given query
@@ -412,10 +488,11 @@ func rewriteCertVerificationError(err error, src *source.Source) error {
 // in a fixed order. Each inner check returns the input unchanged
 // if it doesn't match, so the composition is safe and idempotent.
 // Order matters only for readability: peer discovery first (most
-// specific), then TLS signal (HTTP→HTTPS), then cert verification
-// (HTTPS with bad cert).
+// specific), then auth (401), then TLS signal (HTTP→HTTPS), then
+// cert verification (HTTPS with bad cert).
 func enrichConnError(err error, src *source.Source) error {
 	err = rewritePeerDiscoveryError(err, src)
+	err = rewriteAuthError(err, src)
 	err = rewriteTLSSignalError(err, src)
 	err = rewriteCertVerificationError(err, src)
 	return err

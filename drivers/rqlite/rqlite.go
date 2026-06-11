@@ -315,7 +315,13 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	return src, nil
 }
 
-// Ping implements driver.Driver.
+// Ping implements driver.Driver. gorqlite's database/sql conn doesn't
+// implement driver.Pinger, and gorqlite tolerates some failures (e.g.
+// a 401 response) at connect time, so db.PingContext alone only
+// verifies that a client can be constructed. Ping instead executes a
+// real round-trip query, so that it verifies the source is actually
+// usable: this surfaces auth, cluster-discovery, and transport
+// problems at add time rather than at first query.
 func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
@@ -323,7 +329,8 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	}
 	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
 
-	if err = db.PingContext(ctx); err != nil {
+	var n int
+	if err = db.QueryRowContext(ctx, "SELECT 1").Scan(&n); err != nil {
 		return errz.Wrapf(enrichConnError(errw(err), src),
 			"ping %s: %s", src.Handle, src.RedactedLocation())
 	}
