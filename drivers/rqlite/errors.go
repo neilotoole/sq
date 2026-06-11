@@ -307,7 +307,7 @@ type AuthError struct {
 // Error implements error. It carries the full diagnostic form: the
 // hint plus the underlying cause chain.
 func (e *AuthError) Error() string {
-	msg := "rqlite: authentication failed (401 Unauthorized)"
+	msg := "rqlite: auth failed (401 Unauthorized)"
 	if e.cause == nil {
 		return msg
 	}
@@ -324,11 +324,11 @@ func (e *AuthError) HumanError() string {
 		prefix = e.Handle + ": "
 	}
 	if e.HasCreds {
-		return prefix + "rqlite authentication failed: the node rejected " +
-			"the source's credentials."
+		return prefix + "rqlite auth failed: the node rejected the " +
+			"source's credentials."
 	}
-	return prefix + "rqlite authentication failed: the node requires " +
-		"credentials, but the source location has none."
+	return prefix + "rqlite auth failed: the node requires credentials, " +
+		"but the source location has none."
 }
 
 // rewriteAuthError rewrites a 401 Unauthorized failure from the
