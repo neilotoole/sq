@@ -291,7 +291,7 @@ example script. Note that the script requires the `rqlited` binary
 platforms):
 
 ```shell
-$ curl -fsSL -o sakila-start-rqlite-nodes.sh \
+curl -fsSL -o sakila-start-rqlite-nodes.sh \
     https://raw.githubusercontent.com/neilotoole/sq/master/drivers/rqlite/sakila-start-rqlite-nodes.sh \
     && chmod +x sakila-start-rqlite-nodes.sh
 ```
