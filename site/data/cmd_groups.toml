@@ -38,6 +38,7 @@ order = ["config-ls", "config-get", "config-set", "config-edit", "config-export"
 key = "cache"
 title = "Cache"
 blurb = "Manage sq's ingest cache."
+order = ["cache-clear", "cache-enable", "cache-disable", "cache-location", "cache-stat", "cache-tree"]
 
 [[groups]]
 key = "shell"
