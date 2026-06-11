@@ -1,0 +1,39 @@
+# Ordered registry of command groups for the /docs/cmd index page
+# (rendered by layouts/docs/cmd-index.html). Pages under content/en/docs/cmd
+# declare membership via the "group" frontmatter field; this file never lists
+# individual commands. To add or reorder a group, edit here.
+
+[[groups]]
+key = "query"
+title = "Query"
+blurb = "Run queries, inspect schemas, and compare data."
+
+[[groups]]
+key = "sources"
+title = "Sources"
+blurb = "Add and manage data sources and source groups."
+
+[[groups]]
+key = "tables"
+title = "Tables"
+blurb = "Copy, drop, and truncate tables."
+
+[[groups]]
+key = "config"
+title = "Config"
+blurb = "Manage sq's configuration and credentials."
+
+[[groups]]
+key = "cache"
+title = "Cache"
+blurb = "Manage sq's ingest cache."
+
+[[groups]]
+key = "shell"
+title = "Shell completion"
+blurb = "Generate shell completion scripts."
+
+[[groups]]
+key = "misc"
+title = "Miscellaneous"
+blurb = ""
