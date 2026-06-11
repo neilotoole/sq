@@ -256,8 +256,8 @@ Cluster ready: 3 nodes, leader on $scheme://localhost:4001.
 
 Try it from another terminal (note: no disableClusterDiscovery):
 
-    sq add '$add_loc' --handle @rq_local
-    sq inspect @rq_local
+    sq add '$add_loc' --handle @rq
+    sq inspect @rq
 $https_note
 Logs: $DATA_DIR/node{1,2,3}.log
 
