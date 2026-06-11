@@ -431,6 +431,36 @@ func humanMsg(src *source.Source, msg string) string {
 	return src.Handle + ": " + msg
 }
 
+// rewritePlainHTTPSignalError is the inverse of rewriteTLSSignalError:
+// if err looks like an HTTPS request answered by a plain-HTTP server,
+// and the source has ?tls=true set, the source's TLS setting is the
+// mismatch. Pass-through in every other case. Like the other
+// gorqlite-path checks, detection is text-based: Go's http transport
+// emits the canonical "server gave HTTP response to HTTPS client"
+// message, which survives gorqlite's string serialization.
+func rewritePlainHTTPSignalError(err error, src *source.Source) error {
+	if err == nil ||
+		!strings.Contains(err.Error(), "server gave HTTP response to HTTPS client") {
+		return err
+	}
+	// Only rewrite when the source actually opts into TLS: that's the
+	// setting the message blames. (Without tls=true, sq doesn't speak
+	// HTTPS on this path, so the signal would be something else.)
+	if !locHasTLSTrue(src.Location) {
+		return err
+	}
+	// No URL hint in the long form: the remedy is removing params
+	// (tls=true, and insecure=true if present), which
+	// suggestLocWithParams cannot express.
+	return errz.WithHuman(
+		errz.Wrapf(err,
+			"%s: tls=true is set, but the endpoint serves plain HTTP; "+
+				"remove tls=true (and insecure=true, if set) from the "+
+				"source location", src.Handle),
+		humanMsg(src, "rqlite: TLS mismatch: endpoint serves HTTP, but source uses HTTPS"),
+	)
+}
+
 // locHasTLSTrue reports whether loc has ?tls=true set. Used to gate
 // TLS-signal error enrichment: if the user has already opted into
 // TLS, an io.EOF or TLS handshake failure is NOT a "wrong scheme"
@@ -510,12 +540,14 @@ func rewriteCertVerificationError(err error, src *source.Source) error {
 // in a fixed order. Each inner check returns the input unchanged
 // if it doesn't match, so the composition is safe and idempotent.
 // Order matters only for readability: peer discovery first (most
-// specific), then auth (401), then TLS signal (HTTP→HTTPS), then
-// cert verification (HTTPS with bad cert).
+// specific), then auth (401), then the two TLS-mismatch signals
+// (HTTP→HTTPS and HTTPS→HTTP, mutually exclusive via the tls=true
+// gate), then cert verification (HTTPS with bad cert).
 func enrichConnError(err error, src *source.Source) error {
 	err = rewritePeerDiscoveryError(err, src)
 	err = rewriteAuthError(err, src)
 	err = rewriteTLSSignalError(err, src)
+	err = rewritePlainHTTPSignalError(err, src)
 	err = rewriteCertVerificationError(err, src)
 	return err
 }

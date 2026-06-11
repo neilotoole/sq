@@ -110,6 +110,53 @@ func TestRewriteTLSSignalError(t *testing.T) {
 	})
 }
 
+func TestRewritePlainHTTPSignalError(t *testing.T) {
+	srcTLS := &source.Source{
+		Handle:   "@rq",
+		Type:     drivertype.Rqlite,
+		Location: "rqlite://host:4001?tls=true",
+	}
+	gorqliteErr := errz.New("tried all peers unsuccessfully. here are the results:\n" +
+		`   peer #0: https://host:4001/db/query failed due to ` +
+		`Get "https://host:4001/db/query": ` +
+		"http: server gave HTTP response to HTTPS client")
+
+	t.Run("nil passes through", func(t *testing.T) {
+		require.NoError(t, rewritePlainHTTPSignalError(nil, srcTLS))
+	})
+
+	t.Run("unrelated error passes through unchanged", func(t *testing.T) {
+		in := errz.New("connection refused")
+		require.Same(t, in, rewritePlainHTTPSignalError(in, srcTLS))
+	})
+
+	t.Run("signal without tls=true passes through", func(t *testing.T) {
+		src := newTestSrc(t) // no tls param
+		require.Same(t, gorqliteErr, rewritePlainHTTPSignalError(gorqliteErr, src))
+	})
+
+	t.Run("signal with tls=true gets mismatch message", func(t *testing.T) {
+		out := rewritePlainHTTPSignalError(gorqliteErr, srcTLS)
+		require.Error(t, out)
+		require.Contains(t, out.Error(), "endpoint serves plain HTTP")
+		require.Contains(t, out.Error(), "remove tls=true")
+		require.Contains(t, out.Error(), "server gave HTTP response to HTTPS client")
+
+		var hr errz.HumanReadable
+		require.True(t, errors.As(out, &hr))
+		require.Equal(t,
+			"@rq: rqlite: TLS mismatch: endpoint serves HTTP, but source uses HTTPS",
+			hr.HumanError())
+	})
+
+	t.Run("enrichConnError routes the signal here", func(t *testing.T) {
+		out := enrichConnError(gorqliteErr, srcTLS)
+		var hr errz.HumanReadable
+		require.True(t, errors.As(out, &hr))
+		require.Contains(t, hr.HumanError(), "TLS mismatch")
+	})
+}
+
 func TestIsCertVerificationError(t *testing.T) {
 	testCases := []struct {
 		name string
