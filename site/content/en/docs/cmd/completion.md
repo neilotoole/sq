@@ -1,7 +1,7 @@
 ---
 title: "sq completion"
 description: "Generate shell completion scripts"
-group: shell
+group: misc
 draft: false
 images: []
 menu:

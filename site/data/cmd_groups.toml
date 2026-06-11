@@ -54,11 +54,7 @@ blurb = "Manage `sq`'s ingest cache."
 order = ["cache-clear", "cache-enable", "cache-disable", "cache-location", "cache-stat", "cache-tree"]
 
 [[groups]]
-key = "shell"
-title = "Shell completion"
-blurb = "Generate shell completion scripts."
-
-[[groups]]
 key = "misc"
 title = "Miscellaneous"
 blurb = ""
+order = ["help", "version", "completion"]

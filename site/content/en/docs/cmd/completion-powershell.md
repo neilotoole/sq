@@ -1,7 +1,7 @@
 ---
 title: "sq completion powershell"
 description: "Generate powershell shell completion script"
-group: shell
+group: misc
 draft: false
 images: []
 menu:

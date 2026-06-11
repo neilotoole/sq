@@ -1,7 +1,7 @@
 ---
 title: "sq completion zsh"
 description: "Generate zsh shell completion script"
-group: shell
+group: misc
 draft: false
 images: []
 menu:

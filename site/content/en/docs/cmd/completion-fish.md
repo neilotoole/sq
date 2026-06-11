@@ -1,7 +1,7 @@
 ---
 title: "sq completion fish"
 description: "Generate fish shell completion script"
-group: shell
+group: misc
 draft: false
 images: []
 menu:
