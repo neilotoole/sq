@@ -30,7 +30,7 @@ order = ["tbl-copy", "tbl-drop", "tbl-truncate"]
 [[groups]]
 key = "config"
 title = "Config"
-blurb = "Manage `sq`'s configuration and credentials."
+blurb = "Manage `sq`'s [configuration](/docs/config) and [credentials](/docs/secrets)."
 order = [
   "config-ls",
   "config-get",
