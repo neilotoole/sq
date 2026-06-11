@@ -31,8 +31,21 @@ order = ["tbl-copy", "tbl-drop", "tbl-truncate"]
 key = "config"
 title = "Config"
 blurb = "Manage sq's configuration and credentials."
-# The keyring command family intentionally trails via the alphabetical fallback.
-order = ["config-ls", "config-get", "config-set", "config-edit", "config-export", "config-location"]
+order = [
+  "config-ls",
+  "config-get",
+  "config-set",
+  "config-edit",
+  "config-export",
+  "config-location",
+  "config-keyring",
+  "config-keyring-ls",
+  "config-keyring-get",
+  "config-keyring-create",
+  "config-keyring-update",
+  "config-keyring-rm",
+  "config-keyring-migrate",
+]
 
 [[groups]]
 key = "cache"
