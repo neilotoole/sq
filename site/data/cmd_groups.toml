@@ -50,7 +50,7 @@ order = [
 [[groups]]
 key = "cache"
 title = "Cache"
-blurb = "Manage `sq`'s ingest cache."
+blurb = "Manage `sq`'s [ingest cache](/docs/source#cache)."
 order = ["cache-clear", "cache-enable", "cache-disable", "cache-location", "cache-stat", "cache-tree"]
 
 [[groups]]
