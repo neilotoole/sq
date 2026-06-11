@@ -108,6 +108,12 @@ nav.docs-links {
   }
 }
 
+// Tables on the /docs/cmd index hug the group blurb above them. The global
+// "table { margin: 3rem 0 }" rule is meant for tables in flowing prose.
+.cmd-index-table {
+  margin-top: 1rem;
+}
+
 nav.docs-links ul li a.docs-link.changelog {
   font-weight: bold;
   margin-top: 50px;
