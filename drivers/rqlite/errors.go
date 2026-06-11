@@ -1,7 +1,6 @@
 package rqlite
 
 import (
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
@@ -13,8 +12,6 @@ import (
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -33,48 +30,6 @@ func errw(err error) error {
 	default:
 		return errz.Err(err)
 	}
-}
-
-// docsLocalhostAnchor is the docs URL for the single-node-localhost
-// case. Used only in log output: user-facing error messages say
-// "see docs" rather than embedding URLs.
-const docsLocalhostAnchor = "https://sq.io/docs/drivers/rqlite#single-node-localhost"
-
-// maybeWarnLocalhostDiscovery emits a one-line Warn log when src's URL
-// host is loopback AND disableClusterDiscovery is not explicitly set on
-// the query string. Single-node localhost (Docker container reached
-// from the host) is the most common newcomer setup and gorqlite's
-// default cluster discovery fails opaquely there; a Warn at add/open
-// time provides a breadcrumb in the log file pointing at the docs.
-//
-// Best-effort: any failure to parse src.Location or extract the host
-// is a silent no-op. The warning must never affect Open behavior.
-func maybeWarnLocalhostDiscovery(ctx context.Context, src *source.Source) {
-	u, err := url.Parse(src.Location)
-	if err != nil {
-		return
-	}
-	v := u.Query().Get("disableClusterDiscovery")
-	if strings.EqualFold(v, "true") || strings.EqualFold(v, "false") {
-		// User has made an explicit choice (true or false). Don't
-		// second-guess them. Empty or unrecognized values fall through
-		// to the warning so a typo like ?disableClusterDiscovery=yes
-		// still gets surfaced.
-		return
-	}
-	host := u.Hostname()
-	if host == "" {
-		return
-	}
-	if !isLoopbackHost(host) {
-		return
-	}
-	lg.FromContext(ctx).Warn(
-		"rqlite: source points at loopback but disableClusterDiscovery is not set; "+
-			"single-node localhost setups typically need ?disableClusterDiscovery=true "+
-			"to avoid peer-discovery failures from the host. See "+docsLocalhostAnchor,
-		lga.Src, src.Handle,
-	)
 }
 
 // isLoopbackHost reports whether host is a literal loopback reference.

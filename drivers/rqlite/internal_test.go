@@ -1,15 +1,11 @@
 package rqlite
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net"
-	"strings"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3" // For TestWriteAtomic_DBTypeCheck.
@@ -18,7 +14,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/source"
@@ -312,56 +307,6 @@ func TestBuildCreateTableStmt_ForeignKey(t *testing.T) {
 	require.Contains(t, got, `ON DELETE CASCADE ON UPDATE CASCADE`)
 	require.Contains(t, got, `ON DELETE RESTRICT ON UPDATE SET NULL`)
 	require.Contains(t, got, `"film_id" INTEGER UNIQUE`)
-}
-
-func Test_maybeWarnLocalhostDiscovery(t *testing.T) {
-	testCases := []struct {
-		name    string
-		loc     string
-		wantLog bool
-	}{
-		{name: "localhost", loc: "rqlite://localhost:4001", wantLog: true},
-		{name: "localhost upper", loc: "rqlite://LOCALHOST:4001", wantLog: true},
-		{name: "127.0.0.1", loc: "rqlite://127.0.0.1:4001", wantLog: true},
-		{name: "ipv6 loopback", loc: "rqlite://[::1]:4001", wantLog: true},
-		{name: "127.0.0.5", loc: "rqlite://127.0.0.5:4001", wantLog: true},
-		{name: "remote host", loc: "rqlite://example.com:4001", wantLog: false},
-		{name: "discovery off explicit", loc: "rqlite://localhost:4001?disableClusterDiscovery=true", wantLog: false},
-		{name: "discovery on explicit", loc: "rqlite://localhost:4001?disableClusterDiscovery=false", wantLog: false},
-		{name: "localhost other params", loc: "rqlite://localhost:4001?level=strong", wantLog: true},
-		{name: "https loopback", loc: "rqlite://localhost:4001?tls=true", wantLog: true},
-		{name: "malformed", loc: "rqlite://%zz", wantLog: false},
-		{name: "discovery empty value", loc: "rqlite://localhost:4001?disableClusterDiscovery=", wantLog: true},
-		{name: "discovery bare key", loc: "rqlite://localhost:4001?disableClusterDiscovery", wantLog: true},
-		{name: "discovery upper TRUE", loc: "rqlite://localhost:4001?disableClusterDiscovery=TRUE", wantLog: false},
-		{name: "discovery upper FALSE", loc: "rqlite://localhost:4001?disableClusterDiscovery=False", wantLog: false},
-		{name: "discovery garbage value", loc: "rqlite://localhost:4001?disableClusterDiscovery=yes", wantLog: true},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			var buf bytes.Buffer
-			h := slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
-			ctx := lg.NewContext(context.Background(), slog.New(h))
-
-			src := &source.Source{Handle: "@rq", Location: tc.loc, Type: drivertype.Rqlite}
-			maybeWarnLocalhostDiscovery(ctx, src)
-
-			raw := strings.TrimSpace(buf.String())
-			if !tc.wantLog {
-				require.Empty(t, raw, "expected no log output, got: %s", raw)
-				return
-			}
-
-			require.NotEmpty(t, raw, "expected one log entry, got none")
-			var entry map[string]any
-			require.NoError(t, json.Unmarshal([]byte(raw), &entry), "log line: %s", raw)
-			require.Equal(t, "WARN", entry["level"], "expected level=WARN, got: %v", entry["level"])
-			msg, _ := entry["msg"].(string)
-			require.Contains(t, msg, "disableClusterDiscovery",
-				"msg missing disableClusterDiscovery: %s", msg)
-		})
-	}
 }
 
 // Test_DiscoveryError verifies the two faces of DiscoveryError: the

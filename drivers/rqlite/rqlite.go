@@ -172,8 +172,6 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
-	maybeWarnLocalhostDiscovery(ctx, src)
-
 	loc, portAdded, err := locationWithDefaultPort(src.Location)
 	if err != nil {
 		return nil, err
