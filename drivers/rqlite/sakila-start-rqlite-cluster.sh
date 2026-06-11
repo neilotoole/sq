@@ -136,6 +136,7 @@ if [[ "$AUTH" == "true" ]]; then
     cat > "$DATA_DIR/creds.json" <<CREDS
 [{"username": "$RQ_USER", "password": "$RQ_PASSWORD", "perms": ["all"]}]
 CREDS
+    chmod 600 "$DATA_DIR/creds.json"
     auth_flags=(-auth="$DATA_DIR/creds.json")
     # Joining nodes must authenticate their join requests against the
     # cluster; -join-as names the creds.json user whose credentials

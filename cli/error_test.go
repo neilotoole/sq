@@ -128,3 +128,28 @@ func TestHumanizeError_HumanReadable(t *testing.T) {
 	plain := errz.New("ordinary failure")
 	require.Equal(t, "ordinary failure", cli.HumanizeError(plain).Error())
 }
+
+// TestPrintError_HumanReadable_EndToEnd covers the full path from
+// PrintError through the run's error writer: a HumanReadable error in
+// the chain must yield the concise human form on stderr, not the full
+// diagnostic chain.
+func TestPrintError_HumanReadable_EndToEnd(t *testing.T) {
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	// Run a trivial command so the run's writers are initialized.
+	require.NoError(t, tr.Exec("ls"))
+
+	inner := &humanReadableError{
+		human: "@x: short human form",
+		full:  "long diagnostic dump: tried all peers unsuccessfully",
+	}
+	err := errz.Wrap(errz.Err(inner), "failed to read @x source metadata")
+	cli.PrintError(th.Context, tr.Run, err)
+
+	got := tr.ErrOut.String()
+	require.Contains(t, got, "short human form")
+	require.NotContains(t, got, "long diagnostic dump",
+		"text output must print the human form, not the full chain")
+	require.NotContains(t, got, "failed to read @x source metadata",
+		"humanization replaces the outer operation context too")
+}

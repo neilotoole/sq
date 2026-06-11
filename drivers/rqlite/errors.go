@@ -491,19 +491,34 @@ func rewriteCertVerificationError(err error, src *source.Source) error {
 	)
 }
 
-// enrichConnError applies the known connection-error enrichments
-// in a fixed order. Each inner check returns the input unchanged
-// if it doesn't match, so the composition is safe and idempotent.
-// Order matters only for readability: peer discovery first (most
-// specific), then auth (401), then the two TLS-mismatch signals
-// (HTTP→HTTPS and HTTPS→HTTP, mutually exclusive via the tls=true
-// gate), then cert verification (HTTPS with bad cert).
+// enrichConnError applies the known connection-error enrichments,
+// returning the result of the first rewrite that matches.
+// First-match-wins matters: a serialized gorqlite "tried all peers"
+// failure can carry multiple signals at once (e.g. a dial failure on
+// one peer and a 401 from another), and because each wrapper's
+// Error() embeds the cause text, a later check would re-match on the
+// already-wrapped error and bury the first diagnosis under a second
+// wrapper. Order: peer discovery first (most specific), then auth
+// (401), then the two TLS-mismatch signals (HTTP→HTTPS and
+// HTTPS→HTTP, mutually exclusive via the tls=true gate), then cert
+// verification (HTTPS with bad cert).
 func enrichConnError(err error, src *source.Source) error {
-	err = rewritePeerDiscoveryError(err, src)
-	err = rewriteAuthError(err, src)
-	err = rewriteTLSSignalError(err, src)
-	err = rewritePlainHTTPSignalError(err, src)
-	err = rewriteCertVerificationError(err, src)
+	if err == nil {
+		return nil
+	}
+	for _, rewrite := range []func(error, *source.Source) error{
+		rewritePeerDiscoveryError,
+		rewriteAuthError,
+		rewriteTLSSignalError,
+		rewritePlainHTTPSignalError,
+		rewriteCertVerificationError,
+	} {
+		// Identity comparison, not errors.Is: every rewrite returns
+		// the input unchanged when it doesn't match.
+		if out := rewrite(err, src); out != err { //nolint:errorlint
+			return out
+		}
+	}
 	return err
 }
 

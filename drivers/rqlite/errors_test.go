@@ -135,6 +135,15 @@ func TestRewritePlainHTTPSignalError(t *testing.T) {
 		require.Same(t, gorqliteErr, rewritePlainHTTPSignalError(gorqliteErr, src))
 	})
 
+	t.Run("signal with unparseable location passes through", func(t *testing.T) {
+		src := &source.Source{
+			Handle:   "@rq",
+			Type:     drivertype.Rqlite,
+			Location: "rqlite://%zz",
+		}
+		require.Same(t, gorqliteErr, rewritePlainHTTPSignalError(gorqliteErr, src))
+	})
+
 	t.Run("signal with tls=true gets mismatch message", func(t *testing.T) {
 		out := rewritePlainHTTPSignalError(gorqliteErr, srcTLS)
 		require.Error(t, out)
