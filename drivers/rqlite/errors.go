@@ -136,7 +136,7 @@ type DiscoveryError struct {
 func (e *DiscoveryError) Error() string {
 	verb, desc := e.verbDesc()
 	msg := fmt.Sprintf(
-		"rqlite: cluster-discovery failed to %s advertised peer %q "+
+		"rqlite: cluster discovery failed to %s advertised peer %q "+
 			"(not %q from the source URL); this usually means the rqlite "+
 			"node advertised %s. Try ?disableClusterDiscovery=true",
 		verb, e.Peer, e.UserHost, desc,
@@ -161,7 +161,7 @@ func (e *DiscoveryError) HumanError() string {
 		prefix = e.Handle + ": "
 	}
 	return fmt.Sprintf(
-		"%srqlite: cluster-discovery failed: advertised peer %q is not %s "+
+		"%srqlite: cluster discovery failed: advertised peer %q is not %s "+
 			"from this host",
 		prefix, e.Peer, adj,
 	)
@@ -175,7 +175,7 @@ func (e *DiscoveryError) verbDesc() (verb, desc string) {
 	return "reach", "an internal address not reachable from this host"
 }
 
-// rewritePeerDiscoveryError rewrites a gorqlite cluster-discovery
+// rewritePeerDiscoveryError rewrites a gorqlite cluster discovery
 // failure into a *DiscoveryError naming the problematic advertised
 // peer and pointing at ?disableClusterDiscovery=true.
 // Pass-through in every other case (nil err, unrelated err, the

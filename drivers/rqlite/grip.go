@@ -32,7 +32,7 @@ func (g *grip) DB(context.Context) (*sql.DB, error) {
 // wrapped so that ErrWrapFunc can enrich errors with source-specific
 // hints: libsq obtains its error-wrap func via
 // grip.SQLDriver().ErrWrapFunc() on the query path, and the
-// connection-error enrichments (cluster-discovery, TLS, cert) need
+// connection-error enrichments (cluster discovery, TLS, cert) need
 // the source's host and query params to apply their guards.
 func (g *grip) SQLDriver() driver.SQLDriver {
 	return &enrichingSQLDriver{SQLDriver: g.drvr, src: g.src}

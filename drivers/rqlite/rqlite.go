@@ -320,7 +320,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 // a 401 response) at connect time, so db.PingContext alone only
 // verifies that a client can be constructed. Ping instead executes a
 // real round-trip query, so that it verifies the source is actually
-// usable: this surfaces auth, cluster-discovery, and transport
+// usable: this surfaces auth, cluster discovery, and transport
 // problems at add time rather than at first query.
 func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	db, err := d.doOpen(ctx, src)
