@@ -209,7 +209,7 @@ func rewritePeerDiscoveryError(err error, src *source.Source) error {
 	if !strings.Contains(text, "no such host") && !strings.Contains(text, "dial tcp") {
 		return err
 	}
-	peerHost := firstForeignPeerHost(text, userHost)
+	peerHost, resolve := firstForeignPeer(text, userHost)
 	if peerHost == "" {
 		// Every parseable peer is the host the user typed (or none
 		// parsed): not the discovery trap.
@@ -220,21 +220,27 @@ func rewritePeerDiscoveryError(err error, src *source.Source) error {
 		Handle:   src.Handle,
 		Peer:     peerHost,
 		UserHost: userHost,
-		Resolve:  strings.Contains(text, "no such host"),
+		Resolve:  resolve,
 	})
 }
 
-// firstForeignPeerHost parses the peer URLs out of gorqlite's
+// firstForeignPeer parses the peer entries out of gorqlite's
 // serialized "tried all peers" error text and returns the host of the
-// first peer whose host differs from userHost. Returns empty string
-// when no peer URL parses, or every parsed peer host equals userHost.
-// Loopback hosts count as equal ("localhost" vs "127.0.0.1" vs "::1"):
-// a node legitimately advertising loopback to a loopback-typed source
-// is not the discovery trap, even when the strings differ.
-func firstForeignPeerHost(text, userHost string) string {
+// first peer whose host differs from userHost, plus whether that
+// peer's own failure was a DNS not-found (resolve=true) as opposed to
+// a dial failure (resolve=false). The marker check is scoped to the
+// chosen peer's text segment: with multiple peers failing differently,
+// a whole-text check would misattribute another peer's failure class.
+// Returns an empty host when no peer URL parses, or every parsed peer
+// host equals userHost. Loopback hosts count as equal ("localhost" vs
+// "127.0.0.1" vs "::1"): a node legitimately advertising loopback to a
+// loopback-typed source is not the discovery trap, even when the
+// strings differ.
+func firstForeignPeer(text, userHost string) (host string, resolve bool) {
 	userLoopback := isLoopbackHost(userHost)
-	for _, m := range peerURLPattern.FindAllStringSubmatch(text, -1) {
-		pu, err := url.Parse(m[1])
+	matches := peerURLPattern.FindAllStringSubmatchIndex(text, -1)
+	for i, m := range matches {
+		pu, err := url.Parse(text[m[2]:m[3]])
 		if err != nil {
 			continue
 		}
@@ -245,9 +251,15 @@ func firstForeignPeerHost(text, userHost string) string {
 		if userLoopback && isLoopbackHost(h) {
 			continue
 		}
-		return h
+		// This peer's failure detail runs from its entry to the next
+		// peer entry (or the end of the text).
+		end := len(text)
+		if i+1 < len(matches) {
+			end = matches[i+1][0]
+		}
+		return h, strings.Contains(text[m[0]:end], "no such host")
 	}
-	return ""
+	return "", false
 }
 
 // AuthError indicates that the rqlite node rejected a request as

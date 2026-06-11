@@ -644,6 +644,21 @@ func Test_rewritePeerDiscoveryError(t *testing.T) {
 			wantSubstrAll: []string{`"rqlite1"`, "disableClusterDiscovery=true"},
 		},
 		{
+			// Resolve must come from the chosen peer's own failure
+			// segment, not the whole text: the first foreign peer here
+			// failed a dial (reach), while a later peer failed DNS.
+			name: "mixed failure classes: verb follows the chosen peer",
+			err: errors.New("tried all peers unsuccessfully. here are the results:\n" +
+				"   peer #0: http://172.17.0.2:4001/db/query failed due to " +
+				`Post "http://172.17.0.2:4001/db/query": ` +
+				"dial tcp 172.17.0.2:4001: connect: connection refused\n" +
+				`   peer #1: http://rqlite1:4001/db/query failed due to ` +
+				`Post "http://rqlite1:4001/db/query": dial tcp: lookup rqlite1: no such host`),
+			loc:           userLoc,
+			wantRewrite:   true,
+			wantSubstrAll: []string{"reach advertised peer", `"172.17.0.2"`},
+		},
+		{
 			// "localhost" vs "127.0.0.1" is not the discovery trap: a
 			// local node legitimately advertises loopback, and a dial
 			// failure there just means the node is down.
