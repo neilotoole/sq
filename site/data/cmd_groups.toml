@@ -56,5 +56,5 @@ order = ["cache-clear", "cache-enable", "cache-disable", "cache-location", "cach
 [[groups]]
 key = "misc"
 title = "Miscellaneous"
-blurb = ""
+blurb = "Get help, print the `sq` version, and generate shell completion scripts."
 order = ["help", "version", "completion"]
