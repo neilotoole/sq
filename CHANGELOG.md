@@ -25,10 +25,8 @@ keyring, 1Password, and consistent redaction), the new
 
 ### Added
 
-- 🐥 [#444]: New [rqlite driver](https://sq.io/docs/drivers/rqlite): `sq` can now read,
-  inspect, and write to [rqlite](https://rqlite.io) clusters, the lightweight distributed
-  SQLite database. Connect via `rqlite://host:port`, with `?tls=true` for HTTPS; or just
-  let [`sq add`](https://sq.io/docs/cmd/add) auto-detect TLS ([#756], [#764]).
+- 🐥 [#444]: New [driver](https://sq.io/docs/drivers/rqlite) for
+  [rqlite](https://rqlite.io), the lightweight distributed database built on SQLite.
 - [#441]: Revamped [secrets handling](https://sq.io/docs/secrets). Source credentials no
   longer need to live as plaintext in `sq.yml`: source locations accept `${scheme:path}`
   placeholders that are resolved at connect time, and secrets are consistently redacted
@@ -1683,10 +1681,8 @@ make working with lots of sources much easier.
 [#743]: https://github.com/neilotoole/sq/issues/743
 [#750]: https://github.com/neilotoole/sq/issues/750
 [#752]: https://github.com/neilotoole/sq/issues/752
-[#756]: https://github.com/neilotoole/sq/issues/756
 [#757]: https://github.com/neilotoole/sq/issues/757
 [#759]: https://github.com/neilotoole/sq/issues/759
-[#764]: https://github.com/neilotoole/sq/issues/764
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
