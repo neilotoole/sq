@@ -18,8 +18,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## Unreleased
 
-Headline items: much-improved [secrets handling](https://sq.io/docs/secrets) (including
-keyring support) and support for [rqlite](https://sq.io/docs/drivers/rqlite).
+Headline items: revamped [secrets handling](https://sq.io/docs/secrets) (placeholders,
+keyring, 1Password, and consistent redaction), the new
+[rqlite driver](https://sq.io/docs/drivers/rqlite), and
+[`sq inspect`](https://sq.io/docs/inspect) rendering schema ERDs to SVG or PNG.
 
 ### Added
 
@@ -31,22 +33,27 @@ keyring support) and support for [rqlite](https://sq.io/docs/drivers/rqlite).
   longer need to live as plaintext in `sq.yml`: source locations accept `${scheme:path}`
   placeholders that are resolved at connect time, and secrets are consistently redacted
   in output unless you opt in to disclosure.
-  - Placeholder resolvers: `keyring` (OS keychain, managed via the new
-    [`sq config keyring`](https://sq.io/docs/cmd/config-keyring) command group, or
-    `sq add --store keyring`), `env` (environment variable), `file` (file contents),
-    and `op` (1Password CLI) ([#714]).
-  - [#717], [#729]: New global flags [`--reveal`](https://sq.io/docs/secrets#redaction)
-    (show secret values in output; supersedes the now-deprecated `--no-redact`) and
-    [`--expand`](https://sq.io/docs/secrets#expanding-placeholders) (print resolved
-    placeholder values instead of the verbatim `${scheme:path}` text).
+  - [#714]: Placeholder resolvers:
+    - `keyring`: OS keychain, managed via the new
+      [`sq config keyring`](https://sq.io/docs/cmd/config-keyring) command group:
+      `${keyring:3d28xd3jcr}`
+    - `env`: environment variable: `${env:DB_PASSWORD}`
+    - `file`: file contents: `${file:/run/secrets/db_pw}`
+    - `op`: 1Password: `${op://Private/sakila/dsn}`
+  - [#717], [#729]: New global flags:
+    - [`--reveal`](https://sq.io/docs/secrets#redaction): show secret values in output; supersedes
+      the now-deprecated `--no-redact`.
+    - [`--expand`](https://sq.io/docs/secrets#expanding-placeholders): print resolved
+      placeholder values instead of the verbatim `${scheme:path}` text.
   - [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export) dumps the active
     config to YAML, primarily for backups. With `--expand`, placeholders are resolved
     in-line, making the export a self-contained (but plaintext) snapshot.
 - [#660]: [`sq inspect`](https://sq.io/docs/inspect) gained
   [`svg-erd`](https://sq.io/docs/inspect#svg-erd) and
   [`png-erd`](https://sq.io/docs/inspect#png-erd) output formats that render the schema
-  ERD directly to an image file, via an embedded Graphviz engine (no external tool,
-  browser, or network needed).
+  ERD directly to an image file.
+  - Uses an embedded Graphviz engine (no external tool,
+    browser, or network needed); the outputted images are not the prettiest, but it's a start.
 
 ### Changed
 
