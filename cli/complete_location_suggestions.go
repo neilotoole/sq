@@ -169,9 +169,11 @@ func (s *locSuggestions) Locations() []string {
 		}
 		loc := location.StripSecrets(src.Location)
 		if _, err := parseSourceLoc(loc, s.typ); err != nil {
-			// Log the stripped value, not Redact(src.Location): Redact
-			// passes sqlite3/duckdb locations through unchanged, so a
-			// malformed location could leak secret query params here.
+			// Log the stripped value, not Redact(src.Location): the
+			// stripped value is the actual completion candidate that
+			// failed to parse, so it's what the warning should show.
+			// (Redact now masks secret query params too, so this is a
+			// relevance choice, not a leak-avoidance one.)
 			s.log.Warn("Parse source location",
 				lga.Loc, loc, lga.Err, err)
 			return nil
