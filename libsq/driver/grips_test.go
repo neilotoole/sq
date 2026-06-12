@@ -157,6 +157,18 @@ func TestGrips_ResolveSourceSecrets_MungeFileDB(t *testing.T) {
 	relPath, err := filepath.Abs("data/sakila.db")
 	require.NoError(t, err)
 
+	// Volume-qualify the absolute test paths so the expectations hold on
+	// Windows too: there, filepath.Abs("/data/sakila.db") resolves the
+	// rooted-but-driveless path against the current drive, yielding e.g.
+	// "C:\data\sakila.db", which munges to "sqlite3://C:/data/sakila.db".
+	// On POSIX, Abs is the identity here and the canonical slash form is
+	// "sqlite3:///data/sakila.db".
+	absSakilaDB, err := filepath.Abs("/data/sakila.db")
+	require.NoError(t, err)
+	absSakilaDBSlash := filepath.ToSlash(absSakilaDB)
+	absSakilaDuck, err := filepath.Abs("/data/sakila.duckdb")
+	require.NoError(t, err)
+
 	testCases := []struct {
 		name    string
 		typ     drivertype.Type
@@ -167,8 +179,8 @@ func TestGrips_ResolveSourceSecrets_MungeFileDB(t *testing.T) {
 		{
 			name:   "sqlite bare absolute path",
 			typ:    drivertype.SQLite,
-			envVal: "/data/sakila.db",
-			want:   "sqlite3:///data/sakila.db",
+			envVal: absSakilaDB,
+			want:   "sqlite3://" + absSakilaDBSlash,
 		},
 		{
 			name:   "sqlite bare relative path",
@@ -179,20 +191,20 @@ func TestGrips_ResolveSourceSecrets_MungeFileDB(t *testing.T) {
 		{
 			name:   "sqlite already munged",
 			typ:    drivertype.SQLite,
-			envVal: "sqlite3:///data/sakila.db",
-			want:   "sqlite3:///data/sakila.db",
+			envVal: "sqlite3://" + absSakilaDBSlash,
+			want:   "sqlite3://" + absSakilaDBSlash,
 		},
 		{
 			name:   "sqlite munged with query suffix",
 			typ:    drivertype.SQLite,
-			envVal: "sqlite3:///data/sakila.db?mode=ro",
-			want:   "sqlite3:///data/sakila.db?mode=ro",
+			envVal: "sqlite3://" + absSakilaDBSlash + "?mode=ro",
+			want:   "sqlite3://" + absSakilaDBSlash + "?mode=ro",
 		},
 		{
 			name:   "duckdb bare absolute path",
 			typ:    drivertype.DuckDB,
-			envVal: "/data/sakila.duckdb",
-			want:   "duckdb:///data/sakila.duckdb",
+			envVal: absSakilaDuck,
+			want:   "duckdb://" + filepath.ToSlash(absSakilaDuck),
 		},
 		{
 			name:   "duckdb memory",
@@ -233,6 +245,50 @@ func TestGrips_ResolveSourceSecrets_MungeFileDB(t *testing.T) {
 				"stored template must remain untouched")
 		})
 	}
+}
+
+// TestGrips_ResolveSourceSecrets_MungeFileDB_NoChange verifies that
+// connect-time munging is gated on resolution actually changing the
+// location bytes. A literal file-DB location with no placeholders or
+// escapes was already munged by "sq add" (or deliberately left
+// non-canonical by the user); ResolveSourceSecrets must pass it
+// through untouched, preserving pre-resolution behavior. Likewise, if
+// expansion is a byte-level no-op (a secret value that is literally
+// its own placeholder text), the still-placeholder-shaped string must
+// not be reinterpreted as a file path in the cwd; it passes through
+// for the driver to reject.
+func TestGrips_ResolveSourceSecrets_MungeFileDB_NoChange(t *testing.T) {
+	t.Run("literal non-canonical location", func(t *testing.T) {
+		src := &source.Source{
+			Handle:   "@gh798",
+			Type:     drivertype.SQLite,
+			Location: "/data/sakila.db",
+		}
+		resolved, err := driver.ResolveSourceSecrets(context.Background(), src)
+		require.NoError(t, err)
+		require.Same(t, src, resolved, "no change => return input unchanged")
+		require.Equal(t, "/data/sakila.db", resolved.Location,
+			"location must not be munged")
+	})
+
+	t.Run("expansion is byte-level no-op", func(t *testing.T) {
+		const tmpl = "${env:SQ_TEST_GH798_DB_PATH}"
+		t.Setenv("SQ_TEST_GH798_DB_PATH", tmpl)
+		reg := secret.NewRegistry()
+		reg.Register("env", env.NewResolver())
+		ctx := secret.NewContext(context.Background(), reg)
+
+		src := &source.Source{
+			Handle:   "@gh798",
+			Type:     drivertype.SQLite,
+			Location: tmpl,
+		}
+		resolved, err := driver.ResolveSourceSecrets(ctx, src)
+		require.NoError(t, err)
+		require.Equal(t, tmpl, resolved.Location,
+			"placeholder-shaped resolved value must not be munged into a file path")
+		require.True(t, resolved.SecretsResolved)
+	})
 }
 
 // TestGrips_ResolveSourceSecrets_MungeFileDB_NonFileDriver verifies

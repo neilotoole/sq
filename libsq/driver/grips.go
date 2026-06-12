@@ -164,13 +164,19 @@ func ResolveSourceSecrets(ctx context.Context, src *source.Source) (*source.Sour
 	// Apply the same munging to the resolved value here, on the clone
 	// only: the stored template must remain untouched. MungeForDriver
 	// is idempotent and a passthrough for non-file driver types, so an
-	// already-canonical location is unaffected.
-	if resolved, err = location.MungeForDriver(src.Type, resolved); err != nil {
-		// Don't echo the resolved location: it is secret material.
-		if len(refs) > 0 {
-			return nil, errz.Wrapf(err, "source %s: invalid location after resolving placeholders", src.Handle)
+	// already-canonical location is unaffected. Munging is gated on
+	// resolution actually changing the bytes: if expansion is a no-op
+	// (a secret value byte-identical to its own placeholder), the
+	// still-placeholder-shaped string must not be reinterpreted as a
+	// file path; it passes through for the driver to reject.
+	if resolved != src.Location {
+		if resolved, err = location.MungeForDriver(src.Type, resolved); err != nil {
+			// Don't echo the resolved location: it is secret material.
+			if len(refs) > 0 {
+				return nil, errz.Wrapf(err, "source %s: invalid location after resolving placeholders", src.Handle)
+			}
+			return nil, errz.Wrapf(err, "source %s: invalid location", src.Handle)
 		}
-		return nil, errz.Wrapf(err, "source %s: invalid location", src.Handle)
 	}
 
 	clone := src.Clone()
