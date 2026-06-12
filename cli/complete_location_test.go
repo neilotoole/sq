@@ -1790,10 +1790,26 @@ func TestCompleteAddLocation_History_SecretsStripped(t *testing.T) {
 				"@dev.acme.com:7777/sakila?sslmode=require&sslpassword=" + querySecret,
 		},
 		source.Source{
+			Handle: "@pg2",
+			Type:   drivertype.Pg,
+			// A ${scheme:path} placeholder password isn't itself a secret
+			// (it's the text stored in config). net/url rejects the
+			// placeholder characters in userinfo, but the parse gate
+			// tolerates a placeholder password, so this source must still
+			// contribute suggestions (bob, prod.acme.com:5432, the tail).
+			Location: "postgres://bob:${keyring:pg-prod}@prod.acme.com:5432/sales?sslmode=verify-full",
+		},
+		source.Source{
 			Handle: "@sl1",
 			Type:   drivertype.SQLite,
 			// Note that this file doesn't actually exist.
 			Location: "sqlite3:///zz_dir1/sqtest/sq/app.db?_auth_user=admin&_auth_pass=" + querySecret,
+		},
+		source.Source{
+			Handle: "@sl2",
+			Type:   drivertype.SQLite,
+			// Placeholder-valued secret query param: offered verbatim.
+			Location: "sqlite3:///zz_dir1/sqtest/sq/app2.db?_auth_user=admin&_auth_pass=${keyring:sl-dev}",
 		},
 	)
 
@@ -1805,12 +1821,14 @@ func TestCompleteAddLocation_History_SecretsStripped(t *testing.T) {
 			args: []string{"sqlite3:///zz_dir1/sqtest/"},
 			want: []string{
 				"sqlite3:///zz_dir1/sqtest/sq/app.db?_auth_user=admin&_auth_pass=",
+				"sqlite3:///zz_dir1/sqtest/sq/app2.db?_auth_user=admin&_auth_pass=${keyring:sl-dev}",
 			},
 		},
 		{
 			args: []string{"postgres://"},
 			want: []string{
 				"postgres://alice",
+				"postgres://bob",
 				"postgres://username",
 			},
 		},
@@ -1822,8 +1840,11 @@ func TestCompleteAddLocation_History_SecretsStripped(t *testing.T) {
 				"postgres://alice@localhost:5432/",
 				"postgres://alice@localhost:5432?",
 				"postgres://alice@dev.acme.com:7777/sakila?sslmode=require&sslpassword=",
+				"postgres://alice@prod.acme.com:5432/sales?sslmode=verify-full",
 				"postgres://alice@dev.acme.com:7777/",
 				"postgres://alice@dev.acme.com:7777?",
+				"postgres://alice@prod.acme.com:5432/",
+				"postgres://alice@prod.acme.com:5432?",
 			},
 		},
 	}
