@@ -71,6 +71,13 @@ func mungeFileDBLocation(prefix, loc string, allowMemory bool) (string, error) {
 	loc2 = strings.TrimPrefix(loc2, strings.TrimSuffix(prefix, "//"))
 
 	pathPart, queryPart, hasQuery := strings.Cut(loc2, "?")
+	if pathPart == "" {
+		// Reject explicitly: filepath.Abs("") would resolve to the
+		// current working directory, silently canonicalizing a prefix-only
+		// location (or an empty resolved placeholder value) to a DB
+		// location pointing at the cwd.
+		return "", errz.New("location path must not be empty")
+	}
 	if allowMemory && pathPart == ":memory:" {
 		if hasQuery {
 			return prefix + ":memory:?" + queryPart, nil
