@@ -1,10 +1,12 @@
 package location
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
@@ -28,11 +30,16 @@ import (
 // separator, so paths whose POSIX filename legally contains '?' are
 // not supported.
 //
+// MungeForDriver operates on literal location bytes: loc is used
+// verbatim, with no placeholder-template interpretation. It is the
+// connect-time munge, applied to a location whose secret placeholders
+// and '$$' escapes have already been resolved to literal form (see
+// driver.ResolveSourceSecrets). For the add-time munge of a typed
+// location, which is a placeholder template, use
+// MungeTemplateForDriver.
+//
 // MungeForDriver is idempotent: an already-canonical location is
-// returned unchanged. This matters because it runs both at add time
-// (on the literal location the user typed) and at connect time (on a
-// location resolved from secret placeholders, which may already be in
-// canonical form); see driver.ResolveSourceSecrets.
+// returned unchanged.
 //
 // Errors returned by MungeForDriver do not echo the location: at
 // connect time the location bytes are resolved secret material.
@@ -46,11 +53,34 @@ import (
 // probably isn't a problem in practice, but longer-term it may make
 // sense to rewrite the munging to be OS-independent.
 func MungeForDriver(typ drivertype.Type, loc string) (string, error) {
+	return mungeForDriver(typ, loc, false)
+}
+
+// MungeTemplateForDriver is the placeholder-template counterpart of
+// MungeForDriver, for use at add time on the location the user typed.
+// The typed location is a placeholder template ('$$' escapes a
+// literal '$'), and absolutizing a relative path splices in literal
+// filesystem bytes from the current working directory; those
+// cwd-derived bytes are escaped (secret.Escape) before joining, while
+// the user's typed bytes are preserved exactly as typed. See
+// absTemplatePath for the attribution rule. Otherwise the
+// canonicalization is identical to MungeForDriver, including
+// idempotence: re-munging a stored template does not re-escape it,
+// because an already-absolute path acquires no cwd bytes.
+//
+// loc must be a ref-free template (no well-formed ${scheme:path}
+// placeholders): placeholder-bearing locations are opaque at add time
+// and must not be munged at all.
+func MungeTemplateForDriver(typ drivertype.Type, loc string) (string, error) {
+	return mungeForDriver(typ, loc, true)
+}
+
+func mungeForDriver(typ drivertype.Type, loc string, template bool) (string, error) {
 	switch typ { //nolint:exhaustive // all other driver types pass through via default
 	case drivertype.SQLite:
-		return mungeFileDBLocation("sqlite3://", loc, false)
+		return mungeFileDBLocation("sqlite3://", loc, false, template)
 	case drivertype.DuckDB:
-		return mungeFileDBLocation("duckdb://", loc, true)
+		return mungeFileDBLocation("duckdb://", loc, true, template)
 	default:
 		return loc, nil
 	}
@@ -59,8 +89,11 @@ func MungeForDriver(typ drivertype.Type, loc string) (string, error) {
 // mungeFileDBLocation canonicalizes a file-based DB location per
 // MungeForDriver. Arg prefix is the canonical location prefix, e.g.
 // "sqlite3://". If allowMemory is true, the ":memory:" path sentinel
-// is preserved instead of being treated as a file path.
-func mungeFileDBLocation(prefix, loc string, allowMemory bool) (string, error) {
+// is preserved instead of being treated as a file path. If template
+// is true, loc is placeholder-template bytes and absolutization is
+// escape-aware (see MungeTemplateForDriver); otherwise loc is literal
+// bytes.
+func mungeFileDBLocation(prefix, loc string, allowMemory, template bool) (string, error) {
 	loc2 := strings.TrimSpace(loc)
 	if loc2 == "" {
 		return "", errz.New("location must not be empty")
@@ -85,7 +118,13 @@ func mungeFileDBLocation(prefix, loc string, allowMemory bool) (string, error) {
 		return prefix + ":memory:", nil
 	}
 
-	fp, err := filepath.Abs(pathPart)
+	var fp string
+	var err error
+	if template {
+		fp, err = absTemplatePath(pathPart)
+	} else {
+		fp, err = filepath.Abs(pathPart)
+	}
 	if err != nil {
 		// Don't echo the path: it may be resolved secret material, or
 		// carry secret connection params in a "?key=val" suffix.
@@ -97,4 +136,68 @@ func mungeFileDBLocation(prefix, loc string, allowMemory bool) (string, error) {
 		return prefix + fp + "?" + queryPart, nil
 	}
 	return prefix + fp, nil
+}
+
+// absTemplatePath absolutizes a path that is placeholder-template
+// bytes ('$$' escapes a literal '$'), preserving the template
+// semantics of the result (gh #797). Stored source locations are
+// templates, but the cwd that absolutization joins in is literal
+// filesystem bytes: a directory literally named "q$$exports" or
+// "${env:X}" must land in the template escaped, or the stored
+// location acquires escapes (or worse, well-formed refs) the user
+// never typed.
+//
+// The attribution rule: tmplPath is the user's typed bytes and is
+// preserved exactly as typed; the cwd is filesystem-derived and gets
+// secret.Escape before joining. Attribution is exact (not
+// heuristic) because the join is computed here rather than recovered
+// from filepath.Abs output:
+//
+//   - An absolute tmplPath acquires no cwd bytes; it is only
+//     filepath.Clean-ed, matching filepath.Abs. Clean is safe on
+//     template bytes: its decisions depend only on separators and
+//     "." / ".." segments, and no segment containing '$' can be "."
+//     or "..".
+//   - A relative tmplPath becomes filepath.Join(Escape(cwd),
+//     tmplPath). Escape never adds or removes separators or changes
+//     whether a segment equals "." or "..", so the Clean inside Join
+//     makes identical structural decisions on the escaped and
+//     unescaped forms ("../" segments in tmplPath consume whole
+//     escaped cwd segments). And '$' runs cannot span the '/'
+//     boundary between the two parts, so unescaping the joined
+//     result unescapes each part independently. Hence the round
+//     trip is exact: Unescape(Join(Escape(cwd), t)) ==
+//     Join(cwd, Unescape(t)) for any ref-free template t.
+//
+// Known limitation: on Windows, a drive-relative tmplPath (e.g.
+// "C:foo") is resolved against the per-drive working directory by
+// filepath.Abs, which this join does not replicate. When the cwd
+// contains no '$' (always, in practice), the function defers to
+// filepath.Abs and behavior is unchanged; a '$'-bearing cwd plus a
+// drive-relative path gets plain Join(cwd, path) semantics. The munge
+// code is already documented as OS-dependent.
+//
+// tmplPath must be ref-free: callers (isFpath, MungeTemplateForDriver)
+// exclude locations bearing well-formed ${scheme:path} placeholders
+// before absolutizing.
+func absTemplatePath(tmplPath string) (string, error) {
+	if filepath.IsAbs(tmplPath) {
+		return filepath.Clean(tmplPath), nil
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", errz.Err(err)
+	}
+	if !strings.Contains(cwd, "$") {
+		// Escape(cwd) == cwd, so the escape-aware join below reduces
+		// to filepath.Abs. Call it directly so behavior on '$'-free
+		// cwds (the overwhelmingly common case) is bit-for-bit
+		// unchanged, including Windows drive-relative handling.
+		fp, err := filepath.Abs(tmplPath)
+		if err != nil {
+			return "", errz.Err(err)
+		}
+		return fp, nil
+	}
+	return filepath.Join(secret.Escape(cwd), tmplPath), nil
 }

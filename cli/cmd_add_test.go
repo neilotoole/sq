@@ -19,6 +19,7 @@ import (
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -1217,4 +1218,130 @@ func (nonSQLDriverStub) DriverMetadata() driver.Metadata {
 
 func (nonSQLDriverStub) ValidateSource(*source.Source) (*source.Source, error) {
 	panic("not implemented")
+}
+
+// dollarDirNames are directory names containing bytes significant in
+// the placeholder-template grammar. Adding a source via a relative
+// path from inside such a directory splices these filesystem bytes
+// into the stored location template, which must escape them (gh #797).
+var dollarDirNames = []string{
+	"q$exports",
+	"q$$exports",
+	"${env:X}",
+}
+
+// chdirDollarDir creates dirName under a fresh temp dir, chdirs into
+// it, and returns the resolved cwd (os.Getwd after chdir, so macOS
+// /tmp symlinks don't skew expectations).
+func chdirDollarDir(t *testing.T, dirName string) string {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), dirName)
+	require.NoError(t, os.Mkdir(dir, 0o750))
+	t.Chdir(dir)
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+	return cwd
+}
+
+// TestCmdAdd_CwdDollarDir_CSV is the gh #797 round trip for the
+// generic document-file path (location.Abs): sq add of a relative CSV
+// path from inside a directory whose name contains '$' bytes must (a)
+// succeed, (b) store a template that resolves back to the true
+// filesystem path, (c) form no accidental ${scheme:path} ref, and (d)
+// remain queryable end to end.
+func TestCmdAdd_CwdDollarDir_CSV(t *testing.T) {
+	for _, dirName := range dollarDirNames {
+		t.Run(tu.Name(dirName), func(t *testing.T) {
+			cwd := chdirDollarDir(t, dirName)
+			require.NoError(t, os.WriteFile("actor.csv", []byte("a,b\n1,2\n3,4\n"), 0o600))
+
+			th := testh.New(t)
+			tr := testrun.New(th.Context, t, nil)
+			const handle = "@actor797"
+			// No --skip-verify: the post-add ping exercises the
+			// connect-time resolution of the stored template.
+			require.NoError(t, tr.Exec("add", "actor.csv", "--handle", handle),
+				"sq add of a relative path must succeed when the cwd contains '$' bytes")
+
+			src, err := tr.Run.Config.Collection.Get(handle)
+			require.NoError(t, err)
+
+			refs, err := secret.ExtractRefs(src.Location)
+			require.NoError(t, err, "stored template must parse cleanly")
+			require.Empty(t, refs, "filesystem-derived bytes must not form placeholder refs")
+
+			resolvedSrc, err := driver.ResolveSourceSecrets(th.Context, src)
+			require.NoError(t, err)
+			require.Equal(t, filepath.Join(cwd, "actor.csv"), resolvedSrc.Location,
+				"resolved location must be the true filesystem path")
+
+			// And the source is actually queryable.
+			tr = testrun.New(th.Context, t, tr)
+			require.NoError(t, tr.Exec(".data", "--json"))
+			var results []map[string]any
+			tr.Bind(&results)
+			require.Len(t, results, 2)
+		})
+	}
+}
+
+// TestCmdAdd_CwdDollarDir_FileDB is the gh #797 round trip for the
+// file-DB munge path (sqlite3, duckdb). The sqlite3 case pings (which
+// would create a stray DB file at a misinterpreted path if the cwd
+// bytes weren't escaped); duckdb skips verification since no real
+// duckdb database file is available here.
+func TestCmdAdd_CwdDollarDir_FileDB(t *testing.T) {
+	drvrs := []struct {
+		typ        drivertype.Type
+		prefix     string
+		fname      string
+		skipVerify bool
+	}{
+		{typ: drivertype.SQLite, prefix: "sqlite3://", fname: "sakila.db"},
+		{typ: drivertype.DuckDB, prefix: "duckdb://", fname: "sakila.duckdb", skipVerify: true},
+	}
+
+	for _, drvr := range drvrs {
+		for _, dirName := range dollarDirNames {
+			t.Run(tu.Name(drvr.typ.String(), dirName), func(t *testing.T) {
+				cwd := chdirDollarDir(t, dirName)
+				require.NoError(t, os.WriteFile(drvr.fname, nil, 0o600))
+
+				th := testh.New(t)
+				tr := testrun.New(th.Context, t, nil)
+				const handle = "@filedb797"
+				args := []string{"add", drvr.fname, "--driver", drvr.typ.String(), "--handle", handle}
+				if drvr.skipVerify {
+					args = append(args, "--skip-verify")
+				}
+				require.NoError(t, tr.Exec(args...),
+					"sq add of a relative path must succeed when the cwd contains '$' bytes")
+
+				src, err := tr.Run.Config.Collection.Get(handle)
+				require.NoError(t, err)
+
+				wantTmpl := drvr.prefix + filepath.ToSlash(filepath.Join(secret.Escape(cwd), drvr.fname))
+				require.Equal(t, wantTmpl, src.Location,
+					"stored template must escape the cwd-derived bytes")
+
+				refs, err := secret.ExtractRefs(src.Location)
+				require.NoError(t, err, "stored template must parse cleanly")
+				require.Empty(t, refs, "filesystem-derived bytes must not form placeholder refs")
+
+				resolvedSrc, err := driver.ResolveSourceSecrets(th.Context, src)
+				require.NoError(t, err)
+				wantLit := drvr.prefix + filepath.ToSlash(filepath.Join(cwd, drvr.fname))
+				require.Equal(t, wantLit, resolvedSrc.Location,
+					"resolved location must be the true filesystem path")
+
+				// The DB file the user pointed at must be the only file in
+				// the dir: a misinterpreted path would have caused sqlite3
+				// to create a stray DB elsewhere (or fail the ping).
+				entries, err := os.ReadDir(cwd)
+				require.NoError(t, err)
+				require.Len(t, entries, 1)
+				require.Equal(t, drvr.fname, entries[0].Name())
+			})
+		}
+	}
 }
