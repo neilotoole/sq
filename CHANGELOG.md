@@ -69,6 +69,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     that it preserves any inline credentials from the old config.
 - [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd)
   now syntax-colors its `erDiagram` source when writing to a terminal.
+- [#758]: For SQLite (and rqlite) sources,
+  [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy) now copies the source table's
+  indexes and triggers to the destination, renamed with the destination table
+  name appended (e.g. index `idx_name` copied to table `actor2` becomes
+  `idx_name_actor2`).
 
 ### Fixed
 
@@ -1682,6 +1687,7 @@ make working with lots of sources much easier.
 [#750]: https://github.com/neilotoole/sq/issues/750
 [#752]: https://github.com/neilotoole/sq/issues/752
 [#757]: https://github.com/neilotoole/sq/issues/757
+[#758]: https://github.com/neilotoole/sq/issues/758
 [#759]: https://github.com/neilotoole/sq/issues/759
 [#782]: https://github.com/neilotoole/sq/issues/782
 [#783]: https://github.com/neilotoole/sq/issues/783
