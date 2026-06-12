@@ -1841,9 +1841,12 @@ func TestAlterTableColumnKinds_PreservesUniqueAndDefault(t *testing.T) {
 // column (name, type, sql) turned WHERE name = "name" into a tautology,
 // and a table name containing a double quote was emitted with Go backslash
 // escaping, which SQLite rejects outright. Mirrors the sqlite3 driver test.
+//
+// Deliberately NOT parallel: the test creates tables with fixed names
+// (name, type, sql, we"ird) in the shared Sakila rqlite database, so it
+// can't safely interleave with other tests touching the same server.
 func TestTableMetadata_ProblematicTableNames(t *testing.T) {
 	tu.SkipShort(t, true)
-	t.Parallel()
 
 	th := testh.New(t)
 	src := th.Source(sakila.Rq)
@@ -1871,8 +1874,6 @@ func TestTableMetadata_ProblematicTableNames(t *testing.T) {
 
 	for _, tblName := range tblNames {
 		t.Run(tu.Name(tblName), func(t *testing.T) {
-			t.Parallel()
-
 			md, err := grip.TableMetadata(th.Context, tblName)
 			require.NoError(t, err)
 			require.Equal(t, tblName, md.Name)
