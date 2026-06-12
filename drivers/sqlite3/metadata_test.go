@@ -17,6 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -503,4 +504,60 @@ func TestIndexes_ExpressionArity(t *testing.T) {
 		"the lower(b) key position must be the empty-string sentinel")
 	require.NotContains(t, idxByName, "ix_allexpr",
 		"an all-expression index must be omitted")
+}
+
+// TestTableMetadata_ProblematicTableNames reproduces gh777: getTableMetadata
+// interpolated the table name with Go's %q, including into string-literal
+// position. SQLite resolves a double-quoted token as an identifier first, so
+// a table named after a sqlite_master column (name, type, sql) turned
+// WHERE name = "name" into a tautology that matched the first sqlite_master
+// row, and a table name containing a double quote was emitted with Go
+// backslash escaping, which SQLite rejects outright.
+func TestTableMetadata_ProblematicTableNames(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@tblnames_sl3",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "tblnames.db"),
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	// Create a view first so it occupies the first sqlite_master row. The
+	// pre-fix tautology (WHERE name = "name") matched the first row of
+	// sqlite_master, which would coincidentally report "table" if a table
+	// happened to come first; a leading view makes the bug observable for
+	// the "name" case too.
+	_, err = db.ExecContext(th.Context, `CREATE VIEW aaa_view AS SELECT 1 AS x`)
+	require.NoError(t, err)
+
+	tblNames := []string{"name", "type", "sql", `we"ird`}
+	for _, tblName := range tblNames {
+		quoted := stringz.DoubleQuote(tblName)
+		_, err = db.ExecContext(th.Context, fmt.Sprintf(
+			"CREATE TABLE %s (id INTEGER PRIMARY KEY, val TEXT)", quoted))
+		require.NoError(t, err)
+		_, err = db.ExecContext(th.Context, fmt.Sprintf(
+			"INSERT INTO %s (val) VALUES ('a'), ('b')", quoted))
+		require.NoError(t, err)
+	}
+
+	for _, tblName := range tblNames {
+		t.Run(tu.Name(tblName), func(t *testing.T) {
+			t.Parallel()
+
+			md, err := grip.TableMetadata(th.Context, tblName)
+			require.NoError(t, err)
+			require.Equal(t, tblName, md.Name)
+			require.Equal(t, int64(2), md.RowCount)
+			require.Equal(t, sqlz.TableTypeTable, md.TableType)
+			require.Len(t, md.Columns, 2)
+			require.Equal(t, "id", md.Columns[0].Name)
+			require.Equal(t, "val", md.Columns[1].Name)
+		})
+	}
 }
