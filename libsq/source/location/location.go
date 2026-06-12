@@ -546,7 +546,15 @@ func isHTTP(s string) (u *url.URL, ok bool) {
 }
 
 // Redact returns a redacted version of the source location loc, with
-// the password component (if any) masked.
+// the password component (if any) masked, and the values of
+// secret-bearing query parameters (see IsSecretQueryParam) masked with
+// the same "xxxxx" convention, e.g.
+// "sqlite3:///data/app.db?_auth_pass=xxxxx". Non-secret bytes,
+// including query parameter order and escaping, are preserved.
+//
+// Redact differs from StripSecrets, which removes secrets entirely so
+// the location remains valid for reuse (e.g. as a shell-completion
+// candidate); Redact output is for display and logging only.
 //
 // If loc contains one or more ${scheme:path} secret-resolver placeholders,
 // each placeholder is temporarily replaced with a digit-only sentinel
@@ -555,14 +563,17 @@ func isHTTP(s string) (u *url.URL, ok bool) {
 // path, query) because the digit sentinel is valid in each. A
 // placeholder in the password position is masked along with the
 // password; the placeholder text is lost in the redacted form (use
-// 'sq config keyring ls' to enumerate references).
+// 'sq config keyring ls' to enumerate references). A secret query
+// value composed entirely of placeholders likewise passes through
+// verbatim; a mixed literal/placeholder value is masked like any
+// literal secret.
 func Redact(loc string) string {
 	if !strings.Contains(loc, "${") {
-		return redactRaw(loc)
+		return redactRaw(loc, nil)
 	}
 	refs, err := secret.ExtractRefs(loc)
 	if err != nil || len(refs) == 0 {
-		return redactRaw(loc)
+		return redactRaw(loc, nil)
 	}
 
 	sentinels, ok := pickSentinels(loc, len(refs))
@@ -572,7 +583,7 @@ func Redact(loc string) string {
 		// preservation: placeholders get masked along with the
 		// password, which is correct (no credentials leak) but loses
 		// the placeholder text. Astronomically unlikely path.
-		return redactRaw(loc)
+		return redactRaw(loc, nil)
 	}
 	placeholders := make([]string, len(refs))
 	sentinelled := loc
@@ -580,7 +591,7 @@ func Redact(loc string) string {
 		placeholders[i] = "${" + ref.Scheme + ":" + ref.Path + "}"
 		sentinelled = strings.Replace(sentinelled, placeholders[i], sentinels[i], 1)
 	}
-	redacted := redactRaw(sentinelled)
+	redacted := redactRaw(sentinelled, sentinels)
 	// Restore surviving sentinels. Sentinels that got eaten by redaction
 	// (because they were in the password position) are not restored —
 	// the placeholder text is consumed by the password mask.
@@ -619,47 +630,75 @@ func pickSentinels(loc string, n int) ([]string, bool) {
 	return nil, false
 }
 
-// redactRaw is the underlying URL/DSN redactor with no placeholder
-// awareness. Redact wraps this with sentinel substitution when the input
-// contains ${scheme:path} placeholders.
-func redactRaw(loc string) string {
+// redactRaw is the underlying URL/DSN redactor, operating on a location
+// whose ${scheme:path} placeholders (if any) have been replaced with the
+// given sentinels (see Redact). It masks the userinfo password and then
+// the values of secret-bearing query parameters; a query value composed
+// entirely of sentinels is a placeholder template, not a literal secret,
+// and is left intact.
+func redactRaw(loc string, sentinels []string) string {
+	if loc == "" {
+		return loc
+	}
+
+	var redacted string
 	switch {
-	case loc == "",
-		strings.HasPrefix(loc, "/"),
+	case strings.HasPrefix(loc, "/"),
 		strings.HasPrefix(loc, "sqlite3://"),
 		strings.HasPrefix(loc, "duckdb://"):
-
-		// REVISIT: If it's a sqlite/duckdb URI, could it have auth details in there?
-		// e.g. "?_auth_pass=foo"
-		return loc
+		// File-style locations have no userinfo password to mask, but
+		// may carry secret-bearing query params (e.g. sqlite3's
+		// "?_auth_pass=..."), masked below.
+		redacted = loc
 	case strings.HasPrefix(loc, "http://"), strings.HasPrefix(loc, "https://"):
 		u, err := url.ParseRequestURI(loc)
 		if err != nil {
-			return redactBestEffort(loc)
+			redacted = redactBestEffort(loc)
+			break
 		}
-
-		return u.Redacted()
+		redacted = u.Redacted()
 	case strings.HasPrefix(loc, "rqlite://"):
 		// rqlite is a network SQL driver unknown to dburl; redact its
 		// userinfo explicitly rather than relying on the best-effort
 		// regex fallback below.
 		u, err := url.ParseRequestURI(loc)
 		if err != nil {
-			return redactBestEffort(loc)
+			redacted = redactBestEffort(loc)
+			break
 		}
 		if _, ok := u.User.Password(); ok {
 			u.User = url.UserPassword(u.User.Username(), "xxxxx")
 		}
-		return u.String()
+		redacted = u.String()
+	default:
+		// At this point, we expect it's a DSN.
+		dbu, err := dburl.Parse(loc)
+		if err != nil {
+			redacted = redactBestEffort(loc)
+			break
+		}
+		redacted = dbu.Redacted()
 	}
 
-	// At this point, we expect it's a DSN
-	dbu, err := dburl.Parse(loc)
-	if err != nil {
-		return redactBestEffort(loc)
-	}
+	return maskSecretQueryParams(redacted, sentinels)
+}
 
-	return dbu.Redacted()
+// maskSecretQueryParams masks the value of each secret-bearing query
+// parameter in loc (per IsSecretQueryParam) with "xxxxx", preserving
+// non-secret bytes verbatim. A URL fragment is preserved: per URL
+// syntax an unencoded '#' always starts the fragment, so it is carved
+// off before query processing lest it be swallowed by a masked value.
+func maskSecretQueryParams(loc string, sentinels []string) string {
+	head, frag, hasFrag := strings.Cut(loc, "#")
+	base, query, hasQuery := strings.Cut(head, "?")
+	masked := base
+	if hasQuery {
+		masked += "?" + replaceSecretQueryValues(query, "xxxxx", sentinels)
+	}
+	if hasFrag {
+		masked += "#" + frag
+	}
+	return masked
 }
 
 // redactRawUserinfo masks the password portion of any "user:pw@host"
@@ -771,7 +810,7 @@ func stripSecretsRaw(loc string, sentinels []string) string {
 	base = stripUserinfoPassword(base, sentinels)
 	stripped := base
 	if hasQuery {
-		stripped += "?" + stripSecretQueryValues(query, sentinels)
+		stripped += "?" + replaceSecretQueryValues(query, "", sentinels)
 	}
 	if hasFrag {
 		stripped += "#" + frag
@@ -807,11 +846,13 @@ func stripUserinfoPassword(base string, sentinels []string) string {
 	return base[:i+colon] + base[i+at:]
 }
 
-// stripSecretQueryValues empties the value of each secret-bearing
-// key=value pair (per IsSecretQueryParam) in the raw query string,
-// preserving pair order and the escaping of untouched pairs. Values
-// composed entirely of sentinels are kept.
-func stripSecretQueryValues(query string, sentinels []string) string {
+// replaceSecretQueryValues sets the value of each secret-bearing
+// key=value pair (per IsSecretQueryParam) in the raw query string to
+// newValue, preserving pair order and the escaping of untouched pairs.
+// Values composed entirely of sentinels are kept, as are empty values.
+// StripSecrets passes newValue="" (the location stays reusable);
+// Redact passes the "xxxxx" display mask.
+func replaceSecretQueryValues(query, newValue string, sentinels []string) string {
 	pairs := strings.Split(query, "&")
 	for i, pair := range pairs {
 		k, v, ok := strings.Cut(pair, "=")
@@ -828,7 +869,7 @@ func stripSecretQueryValues(query string, sentinels []string) string {
 		if isOnlySentinels(v, sentinels) {
 			continue
 		}
-		pairs[i] = k + "="
+		pairs[i] = k + "=" + newValue
 	}
 	return strings.Join(pairs, "&")
 }
