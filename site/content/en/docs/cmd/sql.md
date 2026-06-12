@@ -1,12 +1,12 @@
 ---
 title: "sq sql"
 description: "Execute DB-native SQL query or statement"
+group: query
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2100
 toc: true
 url: /docs/cmd/sql
 ---

@@ -1,12 +1,12 @@
 ---
 title: "sq config keyring migrate"
 description: "Migrate inline-credential sources to the keyring"
+group: config
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2038
 toc: false
 url: /docs/cmd/config-keyring-migrate
 ---

@@ -1,12 +1,12 @@
 ---
 title: "sq completion powershell"
 description: "Generate powershell shell completion script"
+group: misc
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2030
 toc: false
 url: /docs/cmd/completion-powershell
 ---

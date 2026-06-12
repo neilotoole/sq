@@ -1,12 +1,12 @@
 ---
 title: "sq config export"
 description: "Export config as YAML"
+group: config
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2038
 toc: false
 url: /docs/cmd/config-export
 ---
