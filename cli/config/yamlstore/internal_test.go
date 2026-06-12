@@ -697,10 +697,10 @@ func Test_Store_doLoad_EmptyVersionStampsBuildVersion(t *testing.T) {
 		"an empty version stamps the build version when no registry is configured")
 }
 
-// Test_Store_writeConfigBackupOnce_StatError verifies that a stat failure
-// other than ErrNotExist (here ENOTDIR, via a non-directory in the path)
-// aborts rather than silently proceeding without a backup.
-func Test_Store_writeConfigBackupOnce_StatError(t *testing.T) {
+// Test_Store_writeConfigBackupOnce_DirError verifies that an unusable
+// backup directory (here a non-directory in the path, ENOTDIR) aborts the
+// backup rather than silently proceeding without one.
+func Test_Store_writeConfigBackupOnce_DirError(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("ENOTDIR path semantics differ on Windows")
 	}
@@ -709,13 +709,40 @@ func Test_Store_writeConfigBackupOnce_StatError(t *testing.T) {
 	require.NoError(t, os.WriteFile(notDir, []byte("x"), 0o600))
 
 	ctx := lg.NewContext(context.Background(), lgt.New(t))
-	// fs.Path sits under a regular file, so stat on the backup path
-	// fails with ENOTDIR (not ErrNotExist).
+	// fs.Path sits under a regular file, so creating the temp backup in
+	// that "directory" fails with ENOTDIR.
 	store := &Store{Path: filepath.Join(notDir, "sq.yml")}
 
 	_, err := store.writeConfigBackupOnce(ctx, "v0.58.0", []byte("data"))
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "failed to stat config backup")
+	require.Contains(t, err.Error(), "temp config backup")
+}
+
+// Test_Store_writeConfigBackupOnce_DoesNotClobber verifies the
+// at-most-once guarantee: once a backup exists, a second call reports
+// wrote=false and leaves the existing (pristine) backup intact rather
+// than replacing it with possibly-degraded content.
+func Test_Store_writeConfigBackupOnce_DoesNotClobber(t *testing.T) {
+	_, cfgPath := writeTestConfig(t, "config.version: v0.58.0\n")
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+	store := &Store{Path: cfgPath}
+
+	backupPath := backupFilePath(cfgPath, "v0.58.0")
+
+	wrote, err := store.writeConfigBackupOnce(ctx, "v0.58.0", []byte("original"))
+	require.NoError(t, err)
+	require.True(t, wrote, "first call must create the backup")
+	got, err := os.ReadFile(backupPath)
+	require.NoError(t, err)
+	require.Equal(t, "original", string(got))
+
+	wrote, err = store.writeConfigBackupOnce(ctx, "v0.58.0", []byte("degraded"))
+	require.NoError(t, err)
+	require.False(t, wrote, "second call must not write over an existing backup")
+	got, err = os.ReadFile(backupPath)
+	require.NoError(t, err)
+	require.Equal(t, "original", string(got),
+		"the existing backup must not be clobbered")
 }
 
 // Test_Store_Load_RejectsBrokenConfig verifies that a broken config fails

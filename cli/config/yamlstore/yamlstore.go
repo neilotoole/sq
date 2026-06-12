@@ -276,30 +276,55 @@ func (fs *Store) backupNewerConfig(ctx context.Context) error {
 // earlier copy, so rewriting loses nothing and risks clobbering it. The
 // backup name deliberately does not end in ".sq.yml" (see backupFilePath).
 //
-// It returns wrote=true only when it created a new backup file. A stat or
-// write failure is returned as an error; both callers (doUpgrade and
-// backupNewerConfig) treat a backup failure as fatal, because the backup's
-// purpose is guaranteed recoverability.
+// The backup is created at-most-once even against a concurrent writer: the
+// full content is written to a temp file and then hard-linked into place,
+// and os.Link fails (ErrExist) rather than replacing an existing file. A
+// plain stat-then-write would have a TOCTOU window where another sq process
+// could create the backup between the two steps and have it clobbered by an
+// atomic rename, and a partial backup can never be observed because the temp
+// file is complete before it is linked.
+//
+// It returns wrote=true only when it created a new backup file. A failure is
+// returned as an error; both callers (doUpgrade and backupNewerConfig) treat
+// a backup failure as fatal, because the backup's purpose is guaranteed
+// recoverability.
 func (fs *Store) writeConfigBackupOnce(ctx context.Context, vers string, data []byte) (wrote bool, err error) {
 	backupPath := backupFilePath(fs.Path, vers)
-	switch info, statErr := os.Stat(backupPath); {
-	case statErr == nil:
-		if !info.Mode().IsRegular() {
-			// The path exists but is not a regular file (e.g. a
-			// directory), so it is not a usable backup. Refuse rather
-			// than skip the write and risk silent data loss when the
-			// caller overwrites the config.
-			return false, errz.Errorf("config backup path exists but is not a regular file: %s", backupPath)
-		}
-		lg.FromContext(ctx).Info("Config backup already exists; not overwriting", lga.Path, backupPath)
-		return false, nil
-	case !errors.Is(statErr, os.ErrNotExist):
-		// A stat failure other than "not exists" (e.g. permissions)
-		// can't confirm that the backup exists, so don't proceed.
-		return false, errz.Wrapf(statErr, "failed to stat config backup: %s", backupPath)
+	dir := filepath.Dir(backupPath)
+
+	// Temp file in the same dir, so the hard link below stays on one
+	// filesystem. os.CreateTemp uses 0600, matching ioz.RWPerms.
+	tmp, err := os.CreateTemp(dir, ".sq-config-backup-*")
+	if err != nil {
+		return false, errz.Wrapf(err, "failed to create temp config backup in %s", dir)
+	}
+	tmpName := tmp.Name()
+	defer func() { _ = os.Remove(tmpName) }()
+
+	if _, err = tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return false, errz.Wrapf(err, "failed to write temp config backup: %s", tmpName)
+	}
+	if err = tmp.Close(); err != nil {
+		return false, errz.Wrapf(err, "failed to close temp config backup: %s", tmpName)
 	}
 
-	if err = ioz.WriteFileAtomic(backupPath, data, ioz.RWPerms); err != nil {
+	if err = os.Link(tmpName, backupPath); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			// A backup already exists. Confirm it's a regular file (a
+			// usable backup), not e.g. a directory, before treating it as
+			// the existing backup and letting the caller overwrite the
+			// config.
+			info, statErr := os.Stat(backupPath)
+			if statErr != nil {
+				return false, errz.Wrapf(statErr, "failed to stat existing config backup: %s", backupPath)
+			}
+			if !info.Mode().IsRegular() {
+				return false, errz.Errorf("config backup path exists but is not a regular file: %s", backupPath)
+			}
+			lg.FromContext(ctx).Info("Config backup already exists; not overwriting", lga.Path, backupPath)
+			return false, nil
+		}
 		return false, errz.Wrapf(err, "failed to write config backup: %s", backupPath)
 	}
 	return true, nil
