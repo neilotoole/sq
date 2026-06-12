@@ -147,6 +147,11 @@ func (fs *Store) applyVersionCheck(ctx context.Context, foundVers string, checkE
 			lga.BuildVersion, buildinfo.Version)
 		return nil
 	default:
+		// A fatal check error leaves the version state indeterminate.
+		// Clear newerCfgVers anyway so a later Save on a reused Store
+		// can't act on a stale newer-than-build result from an earlier
+		// Load (the doc's "any non-newer result clears it" invariant).
+		fs.newerCfgVers = ""
 		return errz.Wrapf(checkErr, "config: %s", fs.Path)
 	}
 }
