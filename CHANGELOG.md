@@ -18,11 +18,6 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## Unreleased
 
-Headline items: revamped [secrets handling](https://sq.io/docs/secrets) (placeholders,
-keyring, 1Password, and consistent redaction), the new
-[rqlite driver](https://sq.io/docs/drivers/rqlite), and
-[`sq inspect`](https://sq.io/docs/inspect) rendering schema ERDs to SVG or PNG.
-
 ### Added
 
 - 🐥 [#444]: New [driver](https://sq.io/docs/drivers/rqlite) for
@@ -31,7 +26,7 @@ keyring, 1Password, and consistent redaction), the new
   longer need to live as plaintext in `sq.yml`: source locations accept `${scheme:path}`
   placeholders that are resolved at connect time, and secrets are consistently redacted
   in output unless you opt in to disclosure.
-  - [#714]: Placeholder resolvers:
+  - [#714]: Supported placeholder resolvers:
     - OS keychain: `${keyring:3d28xd3jcr}`
     - Environment variables: `${env:DB_PASSWORD}`
     - File contents: `${file:/run/secrets/db_pw}`
@@ -47,9 +42,10 @@ keyring, 1Password, and consistent redaction), the new
 - [#660]: [`sq inspect`](https://sq.io/docs/inspect) gained
   [`svg-erd`](https://sq.io/docs/inspect#svg-erd) and
   [`png-erd`](https://sq.io/docs/inspect#png-erd) output formats that render the schema
-  ERD directly to an image file.
-  - Uses an embedded Graphviz engine (no external tool,
-    browser, or network needed); the outputted images are not the prettiest, but it's a start.
+  ERD directly to `.svg` or `.png` image files.
+  - Uses an embedded [Graphviz](https://graphviz.org) engine (via
+    [goccy/go-graphviz](https://github.com/goccy/go-graphviz)): the generated images are
+    not the prettiest, but it's a start.
 
 ### Changed
 
