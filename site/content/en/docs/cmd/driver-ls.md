@@ -1,12 +1,12 @@
 ---
 title: "sq driver ls"
 description: "List available drivers"
+group: sources
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2040
 toc: false
 url: /docs/cmd/driver-ls
 aliases:

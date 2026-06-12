@@ -1,12 +1,12 @@
 ---
 title: "sq config keyring ls"
 description: "List keyring paths referenced by sources"
+group: config
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2038
 toc: false
 url: /docs/cmd/config-keyring-ls
 ---

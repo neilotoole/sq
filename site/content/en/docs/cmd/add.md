@@ -1,12 +1,12 @@
 ---
 title: "sq add"
 description: "Add data source"
+group: sources
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2020
 toc: false
 url: /docs/cmd/add
 ---

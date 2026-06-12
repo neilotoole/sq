@@ -168,12 +168,13 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 		return nil, enrichConnError(err, src)
 	}
 
-	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
+	return &grip{
+		log: d.log, db: db, src: src, drvr: d,
+		drvrw: &enrichingSQLDriver{driveri: d, src: src},
+	}, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
-	maybeWarnLocalhostDiscovery(ctx, src)
-
 	loc, portAdded, err := locationWithDefaultPort(src.Location)
 	if err != nil {
 		return nil, err
@@ -194,7 +195,7 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	if opts.insecure {
 		db = sql.OpenDB(&insecureConnector{
 			dsn:    dsn,
-			client: newInsecureHTTPClient(insecureClientTimeout(dsn, src.Options)),
+			client: newInsecureHTTPClient(clientTimeout(dsn, src.Options)),
 		})
 	} else {
 		db, err = sql.Open(sqDBDrvrName, dsn)
@@ -209,14 +210,15 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	return db, nil
 }
 
-// insecureClientTimeout returns the HTTP client timeout for the
-// insecure (skip-verify) connection path. gorqlite applies the
+// clientTimeout returns the HTTP client timeout for the clients that
+// sq constructs itself: the insecure (skip-verify) connection path
+// and the conn param detection probe. gorqlite applies the
 // gorqlite-native ?timeout=N URL param (integer seconds) only when it
-// constructs its own http.Client; sq passes a custom client on the
-// insecure path, so the param must be honored here. ?timeout takes
-// precedence over conn.open-timeout, matching what gorqlite does on
-// the default path when no custom client is supplied.
-func insecureClientTimeout(dsn string, o options.Options) time.Duration {
+// constructs its own http.Client; sq passes a custom client on these
+// paths, so the param must be honored here. ?timeout takes precedence
+// over conn.open-timeout, matching what gorqlite does on the default
+// path when no custom client is supplied.
+func clientTimeout(dsn string, o options.Options) time.Duration {
 	timeout := driver.OptConnOpenTimeout.Get(o)
 	if u, err := url.Parse(dsn); err == nil {
 		if v := u.Query().Get("timeout"); v != "" {
@@ -254,21 +256,24 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	}
 	defer lg.WarnIfFuncError(d.log, lgm.CloseDB, db.Close)
 
+	// Truncate has src in hand (unlike most SQLDriver methods, which
+	// take a bare db), so its errors get the connection-error
+	// enrichments too, consistent with the query and metadata paths.
 	affected, err := sqlz.ExecAffected(ctx, db, fmt.Sprintf("DELETE FROM %q", tbl))
 	if err != nil {
-		return affected, errw(err)
+		return affected, enrichConnError(errw(err), src)
 	}
 
 	if reset {
 		const seqProbe = `SELECT COUNT(name) FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'`
 		var seqCount int64
 		if err = db.QueryRowContext(ctx, seqProbe).Scan(&seqCount); err != nil {
-			return affected, errw(err)
+			return affected, enrichConnError(errw(err), src)
 		}
 		if seqCount > 0 {
 			if _, err = db.ExecContext(ctx,
 				"UPDATE sqlite_sequence SET seq = 0 WHERE name = ?", tbl); err != nil {
-				return affected, errw(err)
+				return affected, enrichConnError(errw(err), src)
 			}
 		}
 	}
@@ -314,7 +319,13 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	return src, nil
 }
 
-// Ping implements driver.Driver.
+// Ping implements driver.Driver. gorqlite's database/sql conn doesn't
+// implement driver.Pinger, and gorqlite tolerates some failures (e.g.
+// a 401 response) at connect time, so db.PingContext alone only
+// verifies that a client can be constructed. Ping instead executes a
+// real round-trip query, so that it verifies the source is actually
+// usable: this surfaces auth, cluster discovery, and transport
+// problems at add time rather than at first query.
 func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
@@ -322,7 +333,8 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	}
 	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
 
-	if err = db.PingContext(ctx); err != nil {
+	var n int
+	if err = db.QueryRowContext(ctx, "SELECT 1").Scan(&n); err != nil {
 		return errz.Wrapf(enrichConnError(errw(err), src),
 			"ping %s: %s", src.Handle, src.RedactedLocation())
 	}

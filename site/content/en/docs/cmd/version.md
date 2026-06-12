@@ -1,12 +1,12 @@
 ---
 title: "sq version"
 description: "Print sq version"
+group: misc
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2150
 toc: false
 url: /docs/cmd/version
 ---

@@ -139,9 +139,18 @@ body {
   }
 }
 
-@include media-breakpoint-up(xl) {
+@include media-breakpoint-up(lg) {
   .docs-sidebar {
-    flex: 0 1 320px;
+    flex: 0 1 240px;
+  }
+}
+
+// The sidebar is fixed-width while the grid columns are percentages, so the
+// row no longer sums to full width. Below xl there is no TOC column to
+// absorb the difference; let the content column grow into it.
+@include media-breakpoint-only(lg) {
+  .docs-content {
+    flex-grow: 1;
   }
 }
 

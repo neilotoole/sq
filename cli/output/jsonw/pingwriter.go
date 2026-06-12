@@ -52,7 +52,9 @@ func (p pingWriter) Result(src *source.Source, d time.Duration, err error) error
 	}
 
 	if err != nil {
-		r.Error = err.Error()
+		// Concise human form when available, matching the error
+		// rendering of error.format=json.
+		r.Error = errz.HumanMessage(err)
 	}
 
 	enc := jsoncolor.NewEncoder(p.out)

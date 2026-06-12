@@ -1,12 +1,12 @@
 ---
 title: "sq"
 description: "Execute SLQ query against data source"
+group: query
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2010
 toc: true
 url: /docs/cmd/sq
 ---

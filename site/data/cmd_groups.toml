@@ -1,0 +1,60 @@
+# Ordered registry of command groups for the /docs/cmd index page
+# (rendered by layouts/docs/cmd-index.html). Pages under content/en/docs/cmd
+# declare membership via the "group" frontmatter field; this file does not
+# control membership. To add or reorder a group, edit here.
+# NOTE: The key "other" is reserved for the layout's orphan fallback section
+# and must not be used as a group key here.
+#
+# The optional "order" list pins commands (by md file basename, e.g. "tbl-copy")
+# to the front of a group, in the given sequence; unlisted members follow
+# alphabetically. Without "order", the whole group is alphabetical.
+
+[[groups]]
+key = "query"
+title = "Query"
+blurb = "Run [queries](/docs/query), [inspect](/docs/inspect) sources, and [diff](/docs/diff) source metadata and table data."
+order = ["sq", "sql", "inspect", "diff"]
+
+[[groups]]
+key = "sources"
+title = "Sources"
+blurb = "Add and manage data [sources](/docs/source) and source groups."
+order = ["add", "src", "ls", "rm", "mv", "group", "ping", "driver-ls"]
+
+[[groups]]
+key = "tables"
+title = "Tables"
+blurb = "Copy, drop, and truncate tables."
+order = ["tbl-copy", "tbl-drop", "tbl-truncate"]
+
+[[groups]]
+key = "config"
+title = "Config"
+blurb = "Manage `sq`'s [configuration](/docs/config) and [credentials](/docs/secrets)."
+order = [
+  "config-ls",
+  "config-get",
+  "config-set",
+  "config-edit",
+  "config-export",
+  "config-location",
+  "config-keyring",
+  "config-keyring-ls",
+  "config-keyring-get",
+  "config-keyring-create",
+  "config-keyring-update",
+  "config-keyring-rm",
+  "config-keyring-migrate",
+]
+
+[[groups]]
+key = "cache"
+title = "Cache"
+blurb = "Manage `sq`'s [ingest cache](/docs/source#cache)."
+order = ["cache-clear", "cache-enable", "cache-disable", "cache-location", "cache-stat", "cache-tree"]
+
+[[groups]]
+key = "misc"
+title = "Miscellaneous"
+blurb = "Get help, print the `sq` version, and generate shell completion scripts."
+order = ["help", "version", "completion"]

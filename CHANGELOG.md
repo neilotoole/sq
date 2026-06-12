@@ -30,6 +30,10 @@ keyring support) and support for [rqlite](https://sq.io/docs/drivers/rqlite).
     `postgres?sslmode=...` etc.) and the companion `?insecure=true` for self-signed certs.
     Connection errors are enriched with actionable hints (add `?tls=true`, or `&insecure=true`
     for self-signed certs) when the failure looks TLS-related.
+  - [#764]: `sq add` auto-detects TLS-only rqlite endpoints and stores `tls=true`
+    on the source, instead of failing and asking the user to retry. Suppressed by
+    `--skip-verify`, an explicit `tls`/`insecure` param, or a `${...}` placeholder
+    location.
 - [#441]: [`sq add`](https://sq.io/docs/cmd/add) gains a `--store inline|keyring`
   flag, and a new [`secrets.store`](https://sq.io/docs/config#secretsstore) config option
   controls the default; existing behavior is preserved (`inline`).
@@ -128,17 +132,17 @@ keyring support) and support for [rqlite](https://sq.io/docs/drivers/rqlite).
   - Subcommands that don't print a source location (e.g. [`sq sql`](https://sq.io/docs/cmd/sql),
     `sq slq`, `sq tbl`) accept `--expand` as a silent no-op, so a global alias like
     `alias sq='sq --reveal --expand'` is safe.
-- [#742]: The [rqlite driver](https://sq.io/docs/drivers/rqlite) now surfaces an
-  actionable hint when a single-node localhost setup hits gorqlite's cluster-discovery
-  default. Any command that opens an `rqlite://` source whose host is loopback
-  (e.g. `localhost`, `127.0.0.1`, `::1`), including [`sq add`](https://sq.io/docs/cmd/add)
-  and [`sq ping`](https://sq.io/docs/cmd/ping), logs a one-line `WARN` pointing at
-  `?disableClusterDiscovery=true` and the
-  [single-node-localhost docs](https://sq.io/docs/drivers/rqlite#single-node-localhost)
-  when the parameter is not explicitly set to `true` or `false`. If the peer-discovery
-  DNS lookup actually fails with "no such host", the error message is rewritten to
-  name the unreachable peer and suggest the same fix, instead of surfacing gorqlite's
-  raw `tried all peers unsuccessfully` text.
+- [#742]: rqlite connection failures now surface concise, actionable error messages
+  instead of gorqlite's raw `tried all peers unsuccessfully` text. When cluster
+  discovery routes a request to an advertised peer that the client can't resolve or
+  reach (the
+  [single-node-localhost trap](https://sq.io/docs/drivers/rqlite#single-node-localhost)),
+  the error names the peer and points at `?disableClusterDiscovery=true`. Auth (401),
+  TLS-mismatch (both directions), and certificate-verification failures get the same
+  treatment. The concise form prints in text and JSON error output; full diagnostic
+  detail remains in verbose output and the log file. And because the driver's ping now
+  performs a real round-trip query, a broken source fails at
+  [`sq add`](https://sq.io/docs/cmd/add) time instead of at first query.
 - Internal: `sq add` shell completion reworked atop a declarative
   per-driver `LocationShape` model. Each SQL driver declares its URL
   syntax via the new `driver.LocationShape` type; the completer is a
@@ -1793,6 +1797,7 @@ make working with lots of sources much easier.
 [#756]: https://github.com/neilotoole/sq/issues/756
 [#757]: https://github.com/neilotoole/sq/issues/757
 [#759]: https://github.com/neilotoole/sq/issues/759
+[#764]: https://github.com/neilotoole/sq/issues/764
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3

@@ -218,21 +218,21 @@ func TestValidateSource_AllowsPlaceholderLocation(t *testing.T) {
 	require.Same(t, src, got)
 }
 
-func TestInsecureClientTimeout(t *testing.T) {
+func TestClientTimeout(t *testing.T) {
 	// The gorqlite-native ?timeout param wins over the option default.
-	got := insecureClientTimeout("https://host:4001?timeout=30", options.Options{})
+	got := clientTimeout("https://host:4001?timeout=30", options.Options{})
 	require.Equal(t, 30*time.Second, got)
 
 	// No param: falls back to OptConnOpenTimeout's default.
-	got = insecureClientTimeout("https://host:4001", options.Options{})
+	got = clientTimeout("https://host:4001", options.Options{})
 	require.Equal(t, driver.OptConnOpenTimeout.Get(options.Options{}), got)
 
 	// Invalid param: falls back.
-	got = insecureClientTimeout("https://host:4001?timeout=abc", options.Options{})
+	got = clientTimeout("https://host:4001?timeout=abc", options.Options{})
 	require.Equal(t, driver.OptConnOpenTimeout.Get(options.Options{}), got)
 
 	// Non-positive param: falls back.
-	got = insecureClientTimeout("https://host:4001?timeout=0", options.Options{})
+	got = clientTimeout("https://host:4001?timeout=0", options.Options{})
 	require.Equal(t, driver.OptConnOpenTimeout.Get(options.Options{}), got)
 }
 

@@ -1,12 +1,12 @@
 ---
 title: "sq cache enable"
 description: "Enable the cache"
+group: cache
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2026
 toc: false
 url: /docs/cmd/cache-enable
 ---

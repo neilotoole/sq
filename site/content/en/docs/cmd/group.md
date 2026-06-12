@@ -1,12 +1,12 @@
 ---
 title: "sq group"
 description: "Get or set active group"
+group: sources
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2111
 toc: false
 url: /docs/cmd/group
 ---

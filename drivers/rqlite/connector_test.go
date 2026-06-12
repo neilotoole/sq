@@ -24,7 +24,9 @@ import (
 //     gorqlite falls through to the /nodes fallback.
 //   - GET /nodes   — returns the test server itself as the single reachable
 //     leader, using *hostPtr resolved at call time.
-//   - GET /db/query — returns a no-op single-row result (used by PingContext).
+//   - GET /db/query — returns a no-op single-row result. gorqlite routes
+//     both PingContext and SELECT queries (e.g. the driver Ping's
+//     "SELECT 1") here.
 func newRqliteMockHandler(hostPtr *string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -33,7 +35,7 @@ func newRqliteMockHandler(hostPtr *string) http.Handler {
 			// Return a store.leader raft addr with no matching metadata api_addr
 			// so gorqlite successfully parses the leader but then falls back to
 			// /nodes to resolve the HTTP API address.
-			_, _ = w.Write([]byte(`{"store":{"leader":"127.0.0.1:4002","metadata":{}}}`))
+			_, _ = w.Write([]byte(`{"node":{},"store":{"leader":"127.0.0.1:4002","metadata":{}}}`))
 		case "/nodes":
 			// Return the test server itself as the reachable leader.
 			body := fmt.Sprintf(
