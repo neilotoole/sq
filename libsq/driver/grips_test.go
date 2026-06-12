@@ -2,13 +2,16 @@ package driver_test
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/secret"
+	"github.com/neilotoole/sq/libsq/core/secret/env"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 type captureResolver struct {
@@ -139,6 +142,116 @@ func TestGrips_ResolveSourceSecrets_Idempotent(t *testing.T) {
 		require.Same(t, r1, r2, "second resolution must be a no-op")
 		require.Equal(t, "postgres://alice:p$$wd@db/sakila", r2.Location)
 	})
+}
+
+// TestGrips_ResolveSourceSecrets_MungeFileDB verifies that the
+// driver-specific location munging that "sq add" applies to literal
+// file-DB locations is also applied to a location resolved from
+// placeholders (gh #798). A stored "${env:DB_PATH}" with
+// DB_PATH=/data/sakila.db must resolve to "sqlite3:///data/sakila.db";
+// the bare path would be rejected by the sqlite3 driver at connect
+// time ("invalid sqlite3 location: missing \"sqlite3://\" prefix").
+// The stored template must remain untouched: only the resolved clone
+// carries the munged form.
+func TestGrips_ResolveSourceSecrets_MungeFileDB(t *testing.T) {
+	relPath, err := filepath.Abs("data/sakila.db")
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name    string
+		typ     drivertype.Type
+		envVal  string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:   "sqlite bare absolute path",
+			typ:    drivertype.SQLite,
+			envVal: "/data/sakila.db",
+			want:   "sqlite3:///data/sakila.db",
+		},
+		{
+			name:   "sqlite bare relative path",
+			typ:    drivertype.SQLite,
+			envVal: "data/sakila.db",
+			want:   "sqlite3://" + filepath.ToSlash(relPath),
+		},
+		{
+			name:   "sqlite already munged",
+			typ:    drivertype.SQLite,
+			envVal: "sqlite3:///data/sakila.db",
+			want:   "sqlite3:///data/sakila.db",
+		},
+		{
+			name:   "sqlite munged with query suffix",
+			typ:    drivertype.SQLite,
+			envVal: "sqlite3:///data/sakila.db?mode=ro",
+			want:   "sqlite3:///data/sakila.db?mode=ro",
+		},
+		{
+			name:   "duckdb bare absolute path",
+			typ:    drivertype.DuckDB,
+			envVal: "/data/sakila.duckdb",
+			want:   "duckdb:///data/sakila.duckdb",
+		},
+		{
+			name:   "duckdb memory",
+			typ:    drivertype.DuckDB,
+			envVal: ":memory:",
+			want:   "duckdb://:memory:",
+		},
+		{
+			name:    "sqlite empty resolved value",
+			typ:     drivertype.SQLite,
+			envVal:  "",
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("SQ_TEST_GH798_DB_PATH", tc.envVal)
+			reg := secret.NewRegistry()
+			reg.Register("env", env.NewResolver())
+			ctx := secret.NewContext(context.Background(), reg)
+
+			src := &source.Source{
+				Handle:   "@gh798",
+				Type:     tc.typ,
+				Location: "${env:SQ_TEST_GH798_DB_PATH}",
+			}
+
+			resolved, err := driver.ResolveSourceSecrets(ctx, src)
+			if tc.wantErr {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "@gh798")
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, resolved.Location)
+			require.Equal(t, "${env:SQ_TEST_GH798_DB_PATH}", src.Location,
+				"stored template must remain untouched")
+		})
+	}
+}
+
+// TestGrips_ResolveSourceSecrets_MungeFileDB_NonFileDriver verifies
+// that munging at the resolution boundary leaves non-file driver
+// locations untouched.
+func TestGrips_ResolveSourceSecrets_MungeFileDB_NonFileDriver(t *testing.T) {
+	reg := secret.NewRegistry()
+	reg.Register("keyring", &captureResolver{value: "hunter2"})
+	ctx := secret.NewContext(context.Background(), reg)
+
+	src := &source.Source{
+		Handle:   "@sakila",
+		Type:     drivertype.Pg,
+		Location: "postgres://alice:${keyring:my_db_pw}@db/sakila",
+	}
+
+	resolved, err := driver.ResolveSourceSecrets(ctx, src)
+	require.NoError(t, err)
+	require.Equal(t, "postgres://alice:hunter2@db/sakila", resolved.Location)
 }
 
 func TestGrips_ResolveSourceSecrets_NoRegistry(t *testing.T) {

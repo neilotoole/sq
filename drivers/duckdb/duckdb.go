@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -27,6 +26,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -207,34 +207,12 @@ func PathFromLocation(src *source.Source) (string, error) {
 // But that input location gets mangled on non-Windows OSes. This probably
 // isn't a problem in practice, but longer-term it may make sense to rewrite
 // MungeLocation to be OS-independent.
+//
+// MungeLocation is idempotent, and is a thin wrapper around
+// location.MungeForDriver, which also munges locations resolved from
+// secret placeholders at connect time (driver.ResolveSourceSecrets).
 func MungeLocation(loc string) (string, error) {
-	loc2 := strings.TrimSpace(loc)
-	if loc2 == "" {
-		return "", errz.New("location must not be empty")
-	}
-
-	// Detect the :memory: sentinel, optionally preceded by the duckdb scheme
-	// and optionally followed by a "?key=val&..." query suffix.
-	bare := strings.TrimPrefix(loc2, Prefix)
-	bare = strings.TrimPrefix(bare, "duckdb:")
-	pathPart, queryPart, hasQuery := strings.Cut(bare, "?")
-	if pathPart == ":memory:" {
-		if hasQuery {
-			return Prefix + ":memory:?" + queryPart, nil
-		}
-		return Prefix + ":memory:", nil
-	}
-
-	fp, err := filepath.Abs(pathPart)
-	if err != nil {
-		return "", errz.Wrapf(err, "invalid location: %s", loc)
-	}
-
-	fp = filepath.ToSlash(fp)
-	if hasQuery {
-		return Prefix + fp + "?" + queryPart, nil
-	}
-	return Prefix + fp, nil
+	return location.MungeForDriver(drivertype.DuckDB, loc)
 }
 
 // Ping implements driver.Driver.

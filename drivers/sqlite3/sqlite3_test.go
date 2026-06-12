@@ -16,6 +16,8 @@ import (
 	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/secret"
+	"github.com/neilotoole/sq/libsq/core/secret/env"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
@@ -330,8 +332,46 @@ func TestMungeLocation(t *testing.T) {
 
 			require.NoError(t, err)
 			require.Equal(t, tc.want, got)
+
+			// MungeLocation must be idempotent: connect-time resolution
+			// (driver.ResolveSourceSecrets) munges resolved placeholder
+			// locations that may already be in canonical form (gh #798).
+			again, err := sqlite3.MungeLocation(got)
+			require.NoError(t, err)
+			require.Equal(t, got, again, "MungeLocation must be idempotent")
 		})
 	}
+}
+
+// TestPlaceholderLocation_Connect verifies end-to-end that a source
+// whose stored location is a placeholder resolving to a bare file path
+// connects successfully (gh #798). Before the fix, resolution spliced
+// the secret value without munging, and the driver rejected the bare
+// path with: invalid sqlite3 location: missing "sqlite3://" prefix.
+func TestPlaceholderLocation_Connect(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "gh798.db")
+	t.Setenv("SQ_TEST_GH798_DB_PATH", dbPath)
+
+	reg := secret.NewRegistry()
+	reg.Register("env", env.NewResolver())
+
+	th := testh.New(t)
+	ctx := secret.NewContext(th.Context, reg)
+
+	src := &source.Source{
+		Handle:   "@gh798",
+		Type:     drivertype.SQLite,
+		Location: "${env:SQ_TEST_GH798_DB_PATH}",
+	}
+
+	resolved, err := driver.ResolveSourceSecrets(ctx, src)
+	require.NoError(t, err)
+	require.Equal(t, "sqlite3://"+filepath.ToSlash(dbPath), resolved.Location)
+
+	// SQLite creates the file on open, so Ping succeeds iff the
+	// resolved location is in canonical driver form.
+	drvr := th.DriverFor(resolved)
+	require.NoError(t, drvr.Ping(ctx, resolved))
 }
 
 func TestSQLQuery_Whitespace(t *testing.T) {

@@ -22,6 +22,7 @@ import (
 	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 )
 
 // ScratchSrcFunc is a function that returns a scratch source.
@@ -113,6 +114,15 @@ func (gs *Grips) IsSQLSource(src *source.Source) bool {
 // so that literal "${" sequences (e.g. an escaped "$${env:X}" or a
 // password that happens to contain "${") don't trigger resolution.
 //
+// When the location changes, the resolved value also receives the
+// driver-specific canonicalization (location.MungeForDriver) that
+// "sq add" applies to literal locations: a ${env:DB_PATH} placeholder
+// resolving to a bare file path like /data/sakila.db becomes
+// sqlite3:///data/sakila.db, which is the form the file-based drivers
+// require. Munging is idempotent, so a secret value already in
+// canonical form passes through unchanged. The munged form exists
+// only on the returned clone; the stored template is never modified.
+//
 // ResolveSourceSecrets is idempotent: the returned clone is marked
 // SecretsResolved, and an already-resolved source passes through
 // unchanged, so accidental double-resolution cannot reinterpret
@@ -146,6 +156,21 @@ func ResolveSourceSecrets(ctx context.Context, src *source.Source) (*source.Sour
 		if resolved, err = reg.Expand(ctx, src.Location); err != nil {
 			return nil, errz.Wrapf(err, "resolve secrets for %s", src.Handle)
 		}
+	}
+
+	// At add time, a literal file-DB location gets driver-specific
+	// munging (e.g. /data/sakila.db -> sqlite3:///data/sakila.db), but
+	// a placeholder location is opaque then, so it's stored unmunged.
+	// Apply the same munging to the resolved value here, on the clone
+	// only: the stored template must remain untouched. MungeForDriver
+	// is idempotent and a passthrough for non-file driver types, so an
+	// already-canonical location is unaffected.
+	if resolved, err = location.MungeForDriver(src.Type, resolved); err != nil {
+		// Don't echo the resolved location: it is secret material.
+		if len(refs) > 0 {
+			return nil, errz.Wrapf(err, "source %s: invalid location after resolving placeholders", src.Handle)
+		}
+		return nil, errz.Wrapf(err, "source %s: invalid location", src.Handle)
 	}
 
 	clone := src.Clone()
