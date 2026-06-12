@@ -54,15 +54,23 @@ func (fs *Store) doUpgrade(ctx context.Context, startVersion, targetVersion stri
 		return nil, err
 	}
 
-	backupPath := backupFilePath(fs.Path, startVersion)
-	if err = ioz.WriteFileAtomic(backupPath, data, ioz.RWPerms); err != nil {
-		// Abort rather than continue without a backup: the point of the
-		// backup is guaranteed recoverability, and if a sibling file
-		// can't be written, rewriting the config itself is unlikely to
-		// go better.
-		return nil, errz.Wrapf(err, "failed to write config backup before upgrade: %s", backupPath)
+	// Write the backup only when an upgrade func will actually
+	// transform the config. doUpgrade itself runs on every version
+	// bump (config.version is stamped with the binary version, so
+	// every release triggers it), and an unconditional backup would
+	// accumulate one credential-bearing copy per release for no
+	// recoverability benefit.
+	if len(upgradeFns) > 0 {
+		backupPath := backupFilePath(fs.Path, startVersion)
+		if err = ioz.WriteFileAtomic(backupPath, data, ioz.RWPerms); err != nil {
+			// Abort rather than continue without a backup: the point of
+			// the backup is guaranteed recoverability, and if a sibling
+			// file can't be written, rewriting the config itself is
+			// unlikely to go better.
+			return nil, errz.Wrapf(err, "failed to write config backup before upgrade: %s", backupPath)
+		}
+		log.Info("Wrote verbatim backup of config before upgrade", lga.Path, backupPath)
 	}
-	log.Info("Wrote verbatim backup of config before upgrade", lga.Path, backupPath)
 
 	for _, fn := range upgradeFns {
 		log.Debug("Attempting config upgrade step")

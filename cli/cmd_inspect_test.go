@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"image/png"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -1142,6 +1144,32 @@ func TestInspect_LocationOverride_NoLeak(t *testing.T) {
 	out = tr.OutString()
 	require.Contains(t, out, dbPath,
 		"--expand must cause the resolved path to appear in inspect output")
+}
+
+// TestInspect_Expand_EscapedLocation verifies that `sq inspect --expand`
+// resolves the location template exactly once: the connection must use
+// the original stored source (Grips.doOpen resolves internally), with
+// the expanded clone used only for display. Feeding the expanded source
+// into Grips.Open would unescape '$$' a second time, corrupting literal
+// locations the v0.54.0 upgrade escaped.
+func TestInspect_Expand_EscapedLocation(t *testing.T) {
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "data$$file.csv")
+	require.NoError(t, os.WriteFile(fpath, []byte("a,b\n1,2\n"), 0o600))
+
+	tr := testrun.New(t.Context(), t, nil)
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle: "@csv_dollar",
+		Type:   drivertype.CSV,
+		// Stored template form: '$' escaped as '$$', as the v0.54.0
+		// config upgrade writes it.
+		Location: secret.Escape(fpath),
+	}))
+
+	require.NoError(t, tr.Exec("inspect", "@csv_dollar", "--overview", "--yaml", "--expand"),
+		"inspect --expand must resolve the location exactly once (double-unescape breaks the path)")
+	require.Contains(t, tr.OutString(), fpath,
+		"--expand must show the literal (expanded) path")
 }
 
 // TestInspect_DuckDB_DoesNotModifyMtime verifies that running `sq inspect`

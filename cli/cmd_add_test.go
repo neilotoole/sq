@@ -851,6 +851,78 @@ func TestCmdAdd_StoreKeyring_PromptsWhenNoPassword(t *testing.T) {
 	require.Equal(t, "postgres://alice:piped-password@localhost:5432/sakila", got)
 }
 
+// TestCmdAdd_InlinePassword_EscapesDollar verifies that a prompted or
+// piped password containing '$' is escaped ('$' -> '$$') when spliced
+// inline into the stored location. The stored location is a
+// placeholder template in which '$$' means a literal '$'; without
+// escaping, the connect path's unescape would corrupt the literal
+// password (e.g. 'pa$$word' -> 'pa$word').
+func TestCmdAdd_InlinePassword_EscapesDollar(t *testing.T) {
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	f, err := os.CreateTemp(t.TempDir(), "passwd")
+	require.NoError(t, err)
+	_, err = f.WriteString("pa$$word\n")
+	require.NoError(t, err)
+	_, err = f.Seek(0, 0)
+	require.NoError(t, err)
+	tr.Run.Stdin = f
+
+	const handle = "@sakila_inline_dollar"
+	err = tr.Exec("add",
+		"postgres://alice@localhost:5432/sakila",
+		"--handle", handle, "--store", "inline", "--password",
+		"--driver", "postgres", "--skip-verify")
+	require.NoError(t, err)
+
+	src, err := tr.Run.Config.Collection.Get(handle)
+	require.NoError(t, err)
+	require.Equal(t, "postgres://alice:pa$$$$word@localhost:5432/sakila", src.Location,
+		"literal password must be stored in escaped (template) form")
+
+	// Round-trip: the driver must receive the literal password. Zero
+	// refs, so no secret.Registry is needed on the context.
+	resolved, err := driver.ResolveSourceSecrets(context.Background(), src)
+	require.NoError(t, err)
+	require.Equal(t, "postgres://alice:pa$$word@localhost:5432/sakila", resolved.Location)
+}
+
+// TestCmdAdd_KeyringPassword_NotEscaped verifies that the keyring path
+// stores the literal (unescaped) DSN: keyring slots hold literal
+// values that Registry.Expand splices raw at connect time, so the
+// template escaping applied by the inline path must NOT happen here.
+func TestCmdAdd_KeyringPassword_NotEscaped(t *testing.T) {
+	gokeyring.MockInit()
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	f, err := os.CreateTemp(t.TempDir(), "passwd")
+	require.NoError(t, err)
+	_, err = f.WriteString("pa$$word\n")
+	require.NoError(t, err)
+	_, err = f.Seek(0, 0)
+	require.NoError(t, err)
+	tr.Run.Stdin = f
+
+	const handle = "@sakila_kr_dollar"
+	err = tr.Exec("add",
+		"postgres://alice@localhost:5432/sakila",
+		"--handle", handle, "--store", "keyring", "--password",
+		"--driver", "postgres", "--skip-verify")
+	require.NoError(t, err)
+
+	src, err := tr.Run.Config.Collection.Get(handle)
+	require.NoError(t, err)
+	id := extractKeyringID(t, src.Location)
+
+	got, err := gokeyring.Get("sq", id)
+	require.NoError(t, err)
+	require.Equal(t, "postgres://alice:pa$$word@localhost:5432/sakila", got,
+		"keyring holds the literal DSN, no template escaping")
+}
+
 // newRqliteMockHandlerForCLI returns an HTTP handler that satisfies gorqlite's
 // cluster discovery protocol, suitable for CLI-level seam tests. hostPtr is a
 // pointer to the "host:port" string of the test server resolved at request time

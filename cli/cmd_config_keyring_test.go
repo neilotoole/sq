@@ -348,6 +348,27 @@ func TestCmdConfigKeyringMigrate_PerCase(t *testing.T) {
 			inLocation:  "postgres://alice:p%40ss%3Aword@db/sakila",
 			wantKeyring: "postgres://alice:p%40ss%3Aword@db/sakila",
 		},
+		{
+			// The stored Location is a placeholder template: '$$' means a
+			// literal '$' (e.g. written by the v0.54.0 config upgrade).
+			// The keyring slot holds a literal value that Registry.Expand
+			// splices raw at connect time, so migrate must unescape, or
+			// the driver would receive the still-escaped bytes.
+			name:        "escaped dollar unescaped before keyring store",
+			inLocation:  "postgres://alice:p$$wd@db/sakila",
+			wantKeyring: "postgres://alice:p$wd@db/sakila",
+		},
+		{
+			// An escaped placeholder ('$${env:HOME}' means the literal
+			// text '${env:HOME}') is skipped, not migrated: the braces
+			// make url.Parse reject the userinfo. The source keeps
+			// working via the connect-path unescape, so skipping is
+			// safe; migrating would have to unescape (see previous
+			// case).
+			name:           "escaped placeholder skipped as non-URL",
+			inLocation:     "postgres://alice:$${env:HOME}@db/sakila",
+			wantSkipReason: "not a URL",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

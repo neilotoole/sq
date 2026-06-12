@@ -123,21 +123,23 @@ func execPing(cmd *cobra.Command, args []string) error {
 	lg.From(cmd).Debug("Using ping timeout", lga.Val, fmt.Sprintf("%v", timeout))
 
 	// Expand ${scheme:path} placeholders for display when --expand is
-	// set. pingSources reads src.Location from each entry and passes
-	// it to the writer alongside the ping result; expanding here makes
-	// the displayed Location reflect what was resolved. The driver
-	// itself does its own resolution inside pingSource via
-	// ResolveSourceSecrets, which is a no-op on an already-expanded
-	// Location.
+	// set. displaySrcs feeds the writer, so the displayed Location
+	// reflects what was resolved; srcs feeds the drivers untouched.
+	// The connection must use the original stored source: pingSource
+	// resolves it via ResolveSourceSecrets, and resolving an
+	// already-expanded clone a second time would unescape '$$' again,
+	// corrupting literal locations (e.g. those escaped by the v0.54.0
+	// config upgrade, or a resolved secret value containing '$$').
+	displaySrcs := make([]*source.Source, len(srcs))
 	for i, src := range srcs {
 		expanded, expandErr := maybeExpandSource(cmd.Context(), ru, cmd, src)
 		if expandErr != nil {
 			return expandErr
 		}
-		srcs[i] = expanded
+		displaySrcs[i] = expanded
 	}
 
-	err = pingSources(cmd.Context(), ru.DriverRegistry, srcs, ru.Writers.Ping, timeout)
+	err = pingSources(cmd.Context(), ru.DriverRegistry, srcs, displaySrcs, ru.Writers.Ping, timeout)
 	if errors.Is(err, context.Canceled) {
 		// It's common to cancel "sq ping". We don't want to print the cancel message.
 		return errz.ErrNoMsg
@@ -153,10 +155,10 @@ func execPing(cmd *cobra.Command, args []string) error {
 // NOTE: This ping code has an ancient lineage, in that it was
 // originally laid down before context.Context was a thing. Thus,
 // the entire thing could probably be rewritten for simplicity.
-func pingSources(ctx context.Context, dp driver.Provider, srcs []*source.Source,
+func pingSources(ctx context.Context, dp driver.Provider, srcs, displaySrcs []*source.Source,
 	w output.PingWriter, timeout time.Duration,
 ) error {
-	if err := w.Open(srcs); err != nil {
+	if err := w.Open(displaySrcs); err != nil {
 		return err
 	}
 
@@ -170,8 +172,8 @@ func pingSources(ctx context.Context, dp driver.Provider, srcs []*source.Source,
 	// is returned from this func.
 	var pingErrExists bool
 
-	for _, src := range srcs {
-		go pingSource(ctx, dp, src, timeout, resultCh)
+	for i, src := range srcs {
+		go pingSource(ctx, dp, src, displaySrcs[i], timeout, resultCh)
 	}
 
 	// This func doesn't check for context.Canceled itself; instead
@@ -211,13 +213,17 @@ func pingSources(ctx context.Context, dp driver.Provider, srcs []*source.Source,
 }
 
 // pingSource pings an individual driver.Source. It always returns a
-// result on resultCh, even when ctx is done.
-func pingSource(ctx context.Context, dp driver.Provider, src *source.Source, timeout time.Duration,
+// result on resultCh, even when ctx is done. src is the original
+// stored source, which is what the driver connects with (after
+// resolution below); displaySrc is the caller's display view of the
+// same source (identical by default, an expanded clone under
+// --expand), and is what pingResult carries to the output writers.
+func pingSource(ctx context.Context, dp driver.Provider, src, displaySrc *source.Source, timeout time.Duration,
 	resultCh chan<- pingResult,
 ) {
 	drvr, err := dp.DriverFor(src.Type)
 	if err != nil {
-		resultCh <- pingResult{src: src, err: err}
+		resultCh <- pingResult{src: displaySrc, err: err}
 		return
 	}
 
@@ -225,11 +231,12 @@ func pingSource(ctx context.Context, dp driver.Provider, src *source.Source, tim
 	// handing the source to the driver. Grips.doOpen does this for the
 	// query path; ping calls drvr.Ping directly, so we must do it here.
 	// Keep the resolved clone in a separate variable: pingResult carries
-	// the original (templated) src to output writers, which serialize
-	// src.Location verbatim — we must not leak the resolved plaintext.
+	// displaySrc to output writers, which serialize src.Location
+	// verbatim. We must not leak the resolved plaintext unless the
+	// user opted in via --expand.
 	resolved, err := driver.ResolveSourceSecrets(ctx, src)
 	if err != nil {
-		resultCh <- pingResult{src: src, err: err}
+		resultCh <- pingResult{src: displaySrc, err: err}
 		return
 	}
 
@@ -248,12 +255,12 @@ func pingSource(ctx context.Context, dp driver.Provider, src *source.Source, tim
 
 	go func() {
 		pingErr := drvr.Ping(ctx, resolved)
-		doneCh <- pingResult{src: src, duration: time.Since(start), err: pingErr}
+		doneCh <- pingResult{src: displaySrc, duration: time.Since(start), err: pingErr}
 	}()
 
 	select {
 	case <-ctx.Done():
-		resultCh <- pingResult{src: src, err: ctx.Err()}
+		resultCh <- pingResult{src: displaySrc, err: ctx.Err()}
 	case result := <-doneCh:
 		resultCh <- result
 	}

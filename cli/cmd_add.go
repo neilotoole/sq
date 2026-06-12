@@ -468,7 +468,14 @@ func applyPassword(ctx context.Context, cmd *cobra.Command, ru *run.Run, loc str
 
 	if len(passwd) > 0 {
 		// Inline path: splice the prompted/piped password into the URL.
-		if loc, err = location.WithPassword(loc, string(passwd)); err != nil {
+		// The password is a literal, but the stored location is a
+		// placeholder template in which '$$' means a literal '$', so
+		// escape it; the connect path (ResolveSourceSecrets) unescapes.
+		// Escape before WithPassword: '$' is never percent-encoded in
+		// userinfo, so the '$$' pairs survive URL encoding intact. The
+		// keyring path above needs no escaping: keyring slots hold
+		// literal values that Registry.Expand splices raw.
+		if loc, err = location.WithPassword(loc, secret.Escape(string(passwd))); err != nil {
 			return loc, "", err
 		}
 	}

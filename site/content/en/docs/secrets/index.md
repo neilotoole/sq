@@ -141,6 +141,11 @@ location: postgres://alice:$${env:HOME}@db/sakila
 A lone `$` that doesn't form a `${scheme:path}` placeholder (e.g. an inline
 password like `p$ssw0rd`) is already literal and needs no escaping.
 
+Escaping applies to location values you write yourself (the `sq add` location
+argument, or hand-edited config). A password supplied via
+[`sq add -p`](/docs/cmd/add) is a literal: `sq` escapes it for you before
+splicing it into the stored location.
+
 When upgrading a config created before `v0.54.0` (which had no placeholder
 syntax), `sq` automatically escapes any source location that would otherwise
 be reinterpreted, so existing sources connect exactly as before. The
