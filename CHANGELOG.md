@@ -64,16 +64,15 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [#741], [#743]: [`sq add`](https://sq.io/docs/cmd/add) shell completion now supports
+  [ClickHouse](https://sq.io/docs/drivers/clickhouse) and
+  [Oracle](https://sq.io/docs/drivers/oracle).
 - [#699]: The [SQLite driver](https://sq.io/docs/drivers/sqlite) no longer executes
   side-effecting or whole-database-scanning pragmas when reading source metadata for
   [`sq inspect`](https://sq.io/docs/inspect). Previously, `pragma_optimize` could
   silently run `ANALYZE` (writing to the database and taking the file write lock), and
   `integrity_check` / `quick_check` / `foreign_key_check` scanned the entire database.
   These keys no longer appear in the inspect output's DB properties.
-- [#741], [#743]: [`sq add`](https://sq.io/docs/cmd/add) shell completion now suggests
-  the `clickhouse://` and `oracle://` schemes, offers connection parameters (not
-  credential placeholders) after `host:port?<TAB>`, and correctly recognizes bare-host
-  URLs (no `user@`).
 - [#720]: The [SQLite driver](https://sq.io/docs/drivers/sqlite) no longer fails with
   `stat /path/to/db?key=val: no such file or directory` on metadata commands when the
   source location carries a `?key=val` connection-string suffix
