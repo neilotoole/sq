@@ -164,11 +164,15 @@ func (tr *TestRun) Reset() *TestRun {
 
 // PipeStdin points tr's stdin at a temp file containing content, for
 // tests that exercise prompts or piped input. Run.Stdin wants an
-// *os.File, so a plain strings.Reader doesn't suffice.
+// *os.File, so a plain strings.Reader doesn't suffice. The file is
+// closed via t.Cleanup: nothing in the Run lifecycle closes Stdin,
+// and an open handle would leak the descriptor and break TempDir
+// removal on Windows.
 func (tr *TestRun) PipeStdin(content string) *TestRun {
 	tr.T.Helper()
 	f, err := os.CreateTemp(tr.T.TempDir(), "stdin")
 	require.NoError(tr.T, err)
+	tr.T.Cleanup(func() { _ = f.Close() })
 	_, err = f.WriteString(content)
 	require.NoError(tr.T, err)
 	_, err = f.Seek(0, 0)
