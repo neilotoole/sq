@@ -126,6 +126,16 @@ func TestRevealFlagConfigPrecedence(t *testing.T) {
 			args:         []string{"--no-redact=false"},
 			wantReveal:   false,
 		},
+		{
+			// Both flags explicitly set with conflicting values: true wins,
+			// preserving union composition (a script that bakes in
+			// --no-redact composed with a user-added --reveal=false, or
+			// vice versa).
+			name:         "conflicting_flags_true_wins",
+			configReveal: "false",
+			args:         []string{"--reveal=false", "--no-redact"},
+			wantReveal:   true,
+		},
 	}
 
 	for _, tc := range testCases {
