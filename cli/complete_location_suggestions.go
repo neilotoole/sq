@@ -111,8 +111,11 @@ func (s *locSuggestions) Locations() []string {
 		}
 		loc := location.StripSecrets(src.Location)
 		if _, err := parseSourceLoc(loc, s.typ); err != nil {
+			// Log the stripped value, not Redact(src.Location): Redact
+			// passes sqlite3/duckdb locations through unchanged, so a
+			// malformed location could leak secret query params here.
 			s.log.Warn("Parse source location",
-				lga.Loc, location.Redact(src.Location), lga.Err, err)
+				lga.Loc, loc, lga.Err, err)
 			return nil
 		}
 		locs = append(locs, loc)
