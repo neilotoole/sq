@@ -103,7 +103,7 @@ func Test_checkNeedsUpgrade_newerConfigVersion(t *testing.T) {
 	store := &Store{Path: cfgPath, UpgradeRegistry: UpgradeRegistry{}}
 
 	// Should return errConfigVersionNewerThanBuild.
-	needsUpgrade, foundVers, err := store.checkNeedsUpgrade(ctx)
+	needsUpgrade, foundVers, err := store.checkNeedsUpgrade(ctx, store.UpgradeRegistry.highestVersion())
 	require.ErrorIs(t, err, errConfigVersionNewerThanBuild)
 	require.False(t, needsUpgrade)
 	require.Equal(t, "v99.0.0", foundVers)
@@ -123,7 +123,7 @@ func Test_checkNeedsUpgrade_newerConfigVersion_prerelease(t *testing.T) {
 	store := &Store{Path: cfgPath, UpgradeRegistry: UpgradeRegistry{}}
 
 	// Should NOT error for prerelease.
-	needsUpgrade, foundVers, err := store.checkNeedsUpgrade(ctx)
+	needsUpgrade, foundVers, err := store.checkNeedsUpgrade(ctx, store.UpgradeRegistry.highestVersion())
 	require.NoError(t, err)
 	require.False(t, needsUpgrade)
 	require.Equal(t, "v99.0.0", foundVers)
@@ -194,6 +194,21 @@ func Test_checkNeedsUpgrade_schemaVersion(t *testing.T) {
 			wantNeeds:       false,
 			wantNewerThanBd: true,
 		},
+		{
+			// Misbuilt binary: a registered upgrade key (v0.55.0) exceeds
+			// the build version (v0.50.0), and the config (v0.52.0) sits
+			// between them. The schema axis alone would say needsUpgrade
+			// (0.52 < 0.55), but the config is newer than the build, so
+			// the upgrade must be suppressed (wantNeeds=false) and the
+			// newer-than-build error returned. This exercises the explicit
+			// override in checkNeedsUpgrade.
+			name:            "registry key above build version",
+			buildVers:       "v0.50.0",
+			cfgVers:         "v0.52.0",
+			registry:        UpgradeRegistry{"v0.34.0": noop, "v0.55.0": noop},
+			wantNeeds:       false,
+			wantNewerThanBd: true,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -203,7 +218,7 @@ func Test_checkNeedsUpgrade_schemaVersion(t *testing.T) {
 			ctx := lg.NewContext(context.Background(), lgt.New(t))
 			store := &Store{Path: cfgPath, UpgradeRegistry: tc.registry}
 
-			needsUpgrade, foundVers, err := store.checkNeedsUpgrade(ctx)
+			needsUpgrade, foundVers, err := store.checkNeedsUpgrade(ctx, store.UpgradeRegistry.highestVersion())
 			if tc.wantNewerThanBd {
 				require.ErrorIs(t, err, errConfigVersionNewerThanBuild)
 			} else {
@@ -445,6 +460,84 @@ future_field: data this build doesn't understand
 	// newer than the build.
 	require.NoError(t, store.Save(ctx, cfg))
 	requireNoBackupFiles(t, cfgDir)
+}
+
+// Test_Store_backupNewerConfig_NonRegularBackupPath verifies that when
+// the backup path exists but is not a regular file (e.g. a directory),
+// Save fails and does not overwrite the config, rather than treating the
+// non-regular path as a valid backup and silently proceeding.
+func Test_Store_backupNewerConfig_NonRegularBackupPath(t *testing.T) {
+	setBuildVersion(t, "v0.48.0")
+
+	const cfgContent = "config.version: v0.58.0\nfuture_field: keep\n"
+	_, cfgPath := writeTestConfig(t, cfgContent)
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+
+	store := &Store{
+		Path:            cfgPath,
+		OptionsRegistry: &options.Registry{},
+		UpgradeRegistry: UpgradeRegistry{},
+	}
+
+	cfg, err := store.Load(ctx)
+	require.NoError(t, err)
+
+	// Put a directory where the backup file would go: it can't serve as
+	// a backup, and Save must refuse rather than skip the backup.
+	require.NoError(t, os.Mkdir(backupFilePath(cfgPath, "v0.58.0"), 0o700))
+
+	err = store.Save(ctx, cfg)
+	require.Error(t, err, "Save must fail when the backup path is not a regular file")
+
+	got, err := os.ReadFile(cfgPath)
+	require.NoError(t, err)
+	require.Equal(t, cfgContent, string(got),
+		"config must be left intact when the backup couldn't be written")
+}
+
+// Test_Store_Load_MultiStepUpgrade_Chains verifies that a Load spanning
+// two registered upgrade funcs runs them in ascending version order,
+// threads each func's output into the next, stamps the highest version,
+// and persists a re-loadable config (the canonicalization the removed
+// outer load-save cycle used to provide is done inside doUpgrade).
+func Test_Store_Load_MultiStepUpgrade_Chains(t *testing.T) {
+	setBuildVersion(t, "v0.55.0")
+
+	var order []string
+	var step2Input string
+	step1 := func(_ context.Context, before []byte) ([]byte, error) {
+		order = append(order, "v0.40.0")
+		return append(before, []byte("# step1\n")...), nil
+	}
+	step2 := func(_ context.Context, before []byte) ([]byte, error) {
+		order = append(order, "v0.50.0")
+		step2Input = string(before)
+		return append(before, []byte("# step2\n")...), nil
+	}
+
+	_, cfgPath := writeTestConfig(t, "config.version: v0.30.0\n")
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+	store := &Store{
+		Path:            cfgPath,
+		OptionsRegistry: &options.Registry{},
+		UpgradeRegistry: UpgradeRegistry{"v0.40.0": step1, "v0.50.0": step2},
+	}
+
+	cfg, err := store.Load(ctx)
+	require.NoError(t, err)
+	require.Equal(t, []string{"v0.40.0", "v0.50.0"}, order,
+		"both upgrade funcs must run, in ascending version order")
+	require.Contains(t, step2Input, "# step1",
+		"each func must receive the previous func's output")
+	require.Equal(t, "v0.50.0", cfg.Version,
+		"config.version must be stamped to the highest registered upgrade")
+
+	// The on-disk config must be re-loadable and stamped, and a second
+	// load must not re-run the upgrades.
+	reloaded, err := store.Load(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "v0.50.0", reloaded.Version)
+	require.Len(t, order, 2, "a second load must not re-run the upgrade funcs")
 }
 
 // Test_Store_backupNewerConfig_StatError verifies that a stat error

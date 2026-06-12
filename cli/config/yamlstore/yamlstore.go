@@ -80,7 +80,12 @@ func (fs *Store) Load(ctx context.Context) (*config.Config, error) {
 	log.Debug("Loading config from file", lga.Path, fs.Path)
 
 	if fs.UpgradeRegistry != nil {
-		mightNeedUpgrade, foundVers, checkErr := fs.checkNeedsUpgrade(ctx)
+		// The config schema version (highest registered upgrade version),
+		// derived once and used for both the needsUpgrade decision and the
+		// upgrade target, so the two can't drift.
+		schemaVers := fs.UpgradeRegistry.highestVersion()
+
+		mightNeedUpgrade, foundVers, checkErr := fs.checkNeedsUpgrade(ctx, schemaVers)
 		if err := fs.applyVersionCheck(ctx, foundVers, checkErr); err != nil {
 			return nil, err
 		}
@@ -98,20 +103,18 @@ func (fs *Store) Load(ctx context.Context) (*config.Config, error) {
 
 			// Lock is acquired; re-check, because another process may have
 			// upgraded the config while we were waiting for the lock.
-			mightNeedUpgrade, foundVers, checkErr = fs.checkNeedsUpgrade(ctx)
+			mightNeedUpgrade, foundVers, checkErr = fs.checkNeedsUpgrade(ctx, schemaVers)
 			if err = fs.applyVersionCheck(ctx, foundVers, checkErr); err != nil {
 				return nil, err
 			}
 
 			if mightNeedUpgrade {
-				// Upgrade to the config schema version: the highest version
-				// in the upgrade registry, NOT the sq build version.
-				targetVers := fs.UpgradeRegistry.highestVersion()
-				log.Info("Upgrade config?", lga.From, foundVers, lga.To, targetVers)
+				// Upgrade to the config schema version, NOT the sq build version.
+				log.Info("Upgrade config?", lga.From, foundVers, lga.To, schemaVers)
 				// doUpgrade re-marshals the upgraded config from the struct
 				// (canonical key order) and saves it, so no extra load-save
 				// cycle is needed here; the doLoad below returns it.
-				if _, err = fs.doUpgrade(ctx, foundVers, targetVers); err != nil {
+				if _, err = fs.doUpgrade(ctx, foundVers, schemaVers); err != nil {
 					return nil, err
 				}
 			}

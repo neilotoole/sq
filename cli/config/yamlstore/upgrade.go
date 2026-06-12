@@ -35,17 +35,20 @@ type UpgradeFunc func(ctx context.Context, before []byte) (after []byte, err err
 // UpgradeRegistry is a map of config_version to upgrade funcs.
 type UpgradeRegistry map[string]UpgradeFunc
 
-// doUpgrade runs the registered upgrade funcs between startVersion
-// and targetVersion. If at least one upgrade func runs, doUpgrade
-// stamps config.version with targetVersion. Load passes the highest
-// version in the UpgradeRegistry (the config schema version) as
-// targetVersion: config.version advances only when a registered
-// upgrade func transforms the config, never to the sq binary version.
-// If no upgrade func falls in the version range, doUpgrade leaves the
-// config file untouched, with no stamping and no backup: the load-save
-// cycle below is not byte-preserving (unknown keys, YAML comments, and
-// formatting are lost on re-marshal), so it must not run for releases
-// without schema changes.
+// doUpgrade runs the registered upgrade funcs in the half-open range
+// (startVersion, targetVersion], then stamps config.version with
+// targetVersion. Load passes the highest version in the UpgradeRegistry
+// (the config schema version) as targetVersion, so config.version
+// advances only when a registered upgrade func transforms the config,
+// never to the sq binary version.
+//
+// If no upgrade func falls in the range, doUpgrade leaves the config
+// file untouched (no stamping, no backup). From Load this never happens
+// (it calls doUpgrade only when foundVersion < targetVersion, and
+// targetVersion is itself a registry key, so it is always in range); the
+// guard matters only for a direct caller passing a target with no funcs
+// in range, where rewriting must be avoided because the load-save cycle
+// below is not byte-preserving.
 func (fs *Store) doUpgrade(ctx context.Context, startVersion, targetVersion string) (*config.Config, error) {
 	log := lg.FromContext(ctx)
 	log.Debug("Starting config upgrade", lga.From, startVersion, lga.To, targetVersion)
@@ -244,14 +247,16 @@ func LoadVersionFromFile(path string) (string, error) {
 // this error, as long as it doesn't exceed the build version.
 var errConfigVersionNewerThanBuild = errors.New("config: config version is newer than sq version")
 
-// checkNeedsUpgrade checks the config file's version against the
-// store's UpgradeRegistry and the current sq build version, and
-// determines if the config needs to be upgraded.
+// checkNeedsUpgrade checks the config file's version against schemaVers
+// (the config schema version, i.e. the highest version in the store's
+// UpgradeRegistry) and the current sq build version, and determines if
+// the config needs to be upgraded. The caller passes schemaVers so the
+// schema version is derived once per Load and used consistently for both
+// the needsUpgrade decision and the upgrade target.
 //
 // Returns:
-//   - needsUpgrade: true if config version < the highest version in
-//     the UpgradeRegistry, i.e. at least one registered upgrade func
-//     is outstanding.
+//   - needsUpgrade: true if config version < schemaVers, i.e. at least
+//     one registered upgrade func is outstanding.
 //   - foundVers: the semver version found in the config file.
 //   - err: non-nil on version parsing errors, or
 //     errConfigVersionNewerThanBuild if config version > build version
@@ -259,7 +264,9 @@ var errConfigVersionNewerThanBuild = errors.New("config: config version is newer
 //
 // Prerelease builds (e.g., v0.0.0-dev) are exempt from the
 // newer-version check.
-func (fs *Store) checkNeedsUpgrade(ctx context.Context) (needsUpgrade bool, foundVers string, err error) {
+func (fs *Store) checkNeedsUpgrade(
+	ctx context.Context, schemaVers string,
+) (needsUpgrade bool, foundVers string, err error) {
 	foundVers, err = LoadVersionFromFile(fs.Path)
 	if err != nil {
 		return false, "", err
@@ -273,7 +280,6 @@ func (fs *Store) checkNeedsUpgrade(ctx context.Context) (needsUpgrade bool, foun
 			foundVers, MinConfigVersion)
 	}
 
-	schemaVers := fs.UpgradeRegistry.highestVersion()
 	needsUpgrade = schemaVers != "" && semver.Compare(foundVers, schemaVers) < 0
 
 	buildVers := buildinfo.Version
