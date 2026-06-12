@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3" // For TestWriteAtomic_DBTypeCheck.
+	"github.com/rqlite/gorqlite"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -28,6 +30,15 @@ var (
 	KindFromDBTypeName = kindFromDBTypeName
 	RTypeNullTime      = rtypeNullTime
 )
+
+// ExecNonTx executes query as a single non-transactional request via
+// writeNonTx. Exported for external_test consumers that need to toggle
+// connection-level pragmas such as foreign_keys, which are no-ops when
+// executed through the regular transaction-wrapped write path (gh776).
+func ExecNonTx(ctx context.Context, db sqlz.DB, query string) error {
+	_, err := writeNonTx(ctx, db, gorqlite.ParameterizedStatement{Query: query})
+	return err
+}
 
 func TestPlaceholders(t *testing.T) {
 	testCases := []struct {
