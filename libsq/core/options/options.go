@@ -170,6 +170,11 @@ type Options map[string]any
 // appear in sq's config file, and is the JSON shape that sq has always
 // emitted: see https://github.com/neilotoole/sq/issues/791.
 func (o Options) MarshalJSON() ([]byte, error) {
+	if o == nil {
+		// Match stdlib behavior for a nil map.
+		return []byte("null"), nil
+	}
+
 	m := make(map[string]any, len(o))
 	for k, v := range o {
 		if d, ok := v.(time.Duration); ok {

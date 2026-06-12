@@ -2,6 +2,7 @@ package options_test
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"testing"
 	"time"
@@ -144,6 +145,21 @@ func TestMerge(t *testing.T) {
 	got = options.Merge(o1, o2, o3)
 	require.NotEqual(t, o1, got)
 	require.Equal(t, got, options.Options{"a": 1, "b": 2, "c": 3})
+}
+
+func TestOptions_MarshalJSON(t *testing.T) {
+	var nilOpts options.Options
+	got, err := json.Marshal(nilOpts)
+	require.NoError(t, err)
+	require.Equal(t, "null", string(got), "nil Options must marshal as null, matching stdlib")
+
+	got, err = json.Marshal(options.Options{})
+	require.NoError(t, err)
+	require.Equal(t, "{}", string(got))
+
+	got, err = json.Marshal(options.Options{"conn.open-timeout": time.Second * 100, "b": true})
+	require.NoError(t, err)
+	require.JSONEq(t, `{"conn.open-timeout": "1m40s", "b": true}`, string(got))
 }
 
 func TestOptions_LogValue(t *testing.T) {
