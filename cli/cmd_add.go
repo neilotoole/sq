@@ -633,8 +633,10 @@ func resolveDriverType(
 		if interpreted != loc {
 			// Detection ran on the interpreted bytes; surface the typed
 			// form too, or the error cites a path the user never typed.
+			// Redact: loc may be a DSN with inline credentials.
 			return "", errz.Wrapf(err,
-				"location %s contains %q, which sq interpreted as an escaped literal '$'", loc, "$$")
+				"location %s contains %q, which sq interpreted as an escaped literal '$'",
+				location.Redact(loc), "$$")
 		}
 		return "", err
 	}

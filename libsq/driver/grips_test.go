@@ -60,7 +60,7 @@ func TestGrips_ResolveSourceSecrets_NoPlaceholder(t *testing.T) {
 // the v0.54.0 config upgrade's escaping of legacy locations (which
 // never contain intentional placeholders) connect byte-identically.
 // No secret.Registry is bound to the context: unescaping must not
-// require one, since a refless location resolves nothing.
+// require one, since a ref-free location resolves nothing.
 func TestGrips_ResolveSourceSecrets_NoRefs_Unescape(t *testing.T) {
 	tests := []struct {
 		name string
