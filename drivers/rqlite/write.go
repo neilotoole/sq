@@ -67,12 +67,13 @@ func writeAtomic(ctx context.Context, db sqlz.DB,
 // This exists for statements that are no-ops inside a transaction:
 // SQLite specifies that PRAGMA foreign_keys does nothing while a
 // transaction is pending, so toggling it requires a non-transactional
-// request (gh776). Multi-statement batches passed here are NOT atomic;
-// use writeAtomic for anything that must roll back together.
+// request (gh776). It takes exactly one statement: a non-transactional
+// multi-statement batch would not be atomic, so anything that must
+// roll back together belongs in writeAtomic.
 func writeNonTx(ctx context.Context, db sqlz.DB,
-	stmts ...gorqlite.ParameterizedStatement,
+	stmt gorqlite.ParameterizedStatement,
 ) ([]gorqlite.WriteResult, error) {
-	return write(ctx, db, false, stmts)
+	return write(ctx, db, false, []gorqlite.ParameterizedStatement{stmt})
 }
 
 // write implements writeAtomic and writeNonTx. If withTx is true, the
@@ -95,8 +96,8 @@ func write(ctx context.Context, db sqlz.DB, withTx bool,
 	case *sql.Conn:
 		conn = v
 	case *sql.Tx:
-		return nil, errz.New("rqlite: write batch cannot run inside *sql.Tx; " +
-			"gorqlite's tx is a no-op so atomicity would be silently lost")
+		return nil, errz.New("rqlite: write cannot run inside *sql.Tx: " +
+			"gorqlite's transaction support is a no-op")
 	default:
 		return nil, errz.Errorf("rqlite: write batch: unsupported db type %T", v)
 	}

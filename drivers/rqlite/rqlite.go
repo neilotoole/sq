@@ -1141,6 +1141,11 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	// returned error: reporting success while the node is left with
 	// enforcement off would be worse than reporting a failed alter.
 	defer func() {
+		if fkPrev == 0 {
+			// The pragma-off below already set the value the restore
+			// would write: skip the redundant Raft-replicated request.
+			return
+		}
 		if _, restoreErr := writeNonTx(context.WithoutCancel(ctx),
 			db, gorqlite.ParameterizedStatement{
 				Query: fmt.Sprintf("PRAGMA foreign_keys=%d", fkPrev),

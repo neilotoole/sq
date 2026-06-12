@@ -1851,18 +1851,23 @@ func TestTableMetadata_ProblematicTableNames(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.Rq)
 	grip := th.Open(src)
+	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
 	require.NoError(t, err)
 
 	tblNames := []string{"name", "type", "sql", `we"ird`, "shadowed"}
-	t.Cleanup(func() {
+	// The fixed-name tables live in the shared database, so drop any
+	// leftovers from an aborted earlier run before creating: the test
+	// must be self-healing.
+	dropAll := func() {
 		_, _ = db.ExecContext(th.Context, `DROP TRIGGER IF EXISTS "shadowed"`)
-		_, _ = db.ExecContext(th.Context, `DROP TABLE IF EXISTS aab_other`)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: "aab_other"}, true)
 		for _, tblName := range tblNames {
-			_, _ = db.ExecContext(th.Context,
-				"DROP TABLE IF EXISTS "+stringz.DoubleQuote(tblName))
+			_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
 		}
-	})
+	}
+	dropAll()
+	t.Cleanup(dropAll)
 
 	// A trigger may share a table's name in sqlite_master. Create the
 	// trigger before the same-named table so the trigger row precedes the
@@ -1930,10 +1935,8 @@ func TestAlterTableColumnKinds_ForeignKeyEnforcement(t *testing.T) {
 		// Restore the node default (the test server runs without -fk),
 		// then drop child before parent.
 		_ = rqlite.ExecNonTx(th.Context, db, "PRAGMA foreign_keys=off")
-		_, _ = db.ExecContext(th.Context,
-			"DROP TABLE IF EXISTS "+stringz.DoubleQuote(childTbl))
-		_, _ = db.ExecContext(th.Context,
-			"DROP TABLE IF EXISTS "+stringz.DoubleQuote(parentTbl))
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: childTbl}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: parentTbl}, true)
 	})
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(

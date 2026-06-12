@@ -487,8 +487,10 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 
 	tblMeta.FQName = schemaName + "." + tblName
 
-	query = "PRAGMA TABLE_INFO(" + stringz.DoubleQuote(tblMeta.Name) + ")"
-	rows, err := db.QueryContext(ctx, query)
+	// The table-valued pragma function takes the table name as a bound
+	// parameter, eliminating an interpolated quoting site (gh777).
+	query = `SELECT cid, name, type, "notnull", dflt_value, pk FROM pragma_table_info(?)`
+	rows, err := db.QueryContext(ctx, query, tblMeta.Name)
 	if err != nil {
 		return nil, errw(err)
 	}
