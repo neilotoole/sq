@@ -127,13 +127,17 @@ func UniqPrefix(s string) string {
 }
 
 const (
-	// charsetAlphanumericLower is a set of characters to generate from. Note
-	// that ambiguous chars such as "i" or "j" are excluded.
-	charsetAlphanumericLower = "abcdefghkrstuvwxyz2345689"
+	// CharsetAlphanumericLower is the character set from which [UniqN] (and
+	// thus [Uniq8], [UniqSuffix], [UniqTableName]) draws every character
+	// after the first. Ambiguous chars such as "i" or "o" are excluded.
+	// It is exported so callers that need to recognize generated names
+	// (e.g. a regex matching uniq suffixes) can derive their pattern from
+	// this single source rather than duplicating the literal.
+	CharsetAlphanumericLower = "abcdefghkrstuvwxyz2345689"
 
-	// charsetAlphaLower is similar to charsetAlphanumericLower, but
-	// without numbers.
-	charsetAlphaLower = "abcdefghkrstuvwxyz"
+	// CharsetAlphaLower is [CharsetAlphanumericLower] without digits; it is
+	// the character set for the first character of a [UniqN] token.
+	CharsetAlphaLower = "abcdefghkrstuvwxyz"
 )
 
 func stringWithCharset(length int, charset string) string {
@@ -160,9 +164,9 @@ func UniqN(length int) string {
 	case length <= 0:
 		return ""
 	case length == 1:
-		return stringWithCharset(1, charsetAlphaLower)
+		return stringWithCharset(1, CharsetAlphaLower)
 	default:
-		return stringWithCharset(1, charsetAlphaLower) + stringWithCharset(length-1, charsetAlphanumericLower)
+		return stringWithCharset(1, CharsetAlphaLower) + stringWithCharset(length-1, CharsetAlphanumericLower)
 	}
 }
 

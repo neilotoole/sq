@@ -396,7 +396,7 @@ const (
 
 // createTypeTestTbl creates the type_test table, returning the actual table
 // named used. If withData is true, the test data is also loaded.
-// It is the caller's responsibility to drop the created table.
+// The table is dropped via t.Cleanup.
 func createTypeTestTable(th *testh.Helper, src *source.Source, withData bool) (rowCount int64, actualTblName string) {
 	const canonicalTblName = "type_test"
 	t := th.T
@@ -410,6 +410,10 @@ func createTypeTestTable(th *testh.Helper, src *source.Source, withData bool) (r
 
 	_, err = db.ExecContext(th.Context, createStmt)
 	require.NoError(t, err)
+
+	// Register the drop immediately: if a data-load assertion below fails,
+	// the table must not leak onto the shared container.
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(actualTblName)) })
 
 	if !withData {
 		return 0, actualTblName
@@ -447,7 +451,6 @@ func TestDatabaseTypes(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
 			insertCount, actualTblName := createTypeTestTable(th, src, true)
-			t.Cleanup(func() { th.DropTable(src, tablefq.From(actualTblName)) })
 			sink := &testh.RecordSink{}
 			recw := output.NewRecordWriterAdapter(th.Context, sink)
 			err := libsq.QuerySQL(th.Context, th.Open(src), nil, recw, "SELECT * FROM "+actualTblName)
