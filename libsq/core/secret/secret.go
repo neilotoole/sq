@@ -46,6 +46,10 @@ import (
 	"context"
 	"errors"
 	"sync"
+
+	"golang.org/x/sync/singleflight"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 // ErrNotFound is returned by Resolver implementations when a secret does
@@ -67,6 +71,13 @@ type Resolver interface {
 // Registry maps schemes to Resolvers.
 type Registry struct {
 	resolvers map[string]Resolver
+
+	// flight coalesces concurrent resolutions of the same scheme:path
+	// into a single backend hit, mirroring the op resolver. Backends can
+	// be expensive or interactive (keyring does OS-keychain IPC that may
+	// prompt; op may trigger a biometric prompt), so concurrent callers
+	// must never fan out into duplicate prompts.
+	flight singleflight.Group
 
 	// memo caches successful resolutions, keyed by scheme and path, for
 	// the Registry's lifetime, which is a single CLI invocation. Several
@@ -97,7 +108,10 @@ func (r *Registry) Register(scheme string, resolver Resolver) {
 
 // ResolveScheme dispatches a single scheme/path pair to the appropriate
 // Resolver, memoizing successful resolutions for the Registry's lifetime.
-// Returns ErrUnknownScheme if scheme has no Resolver.
+// Concurrent calls for the same scheme:path coalesce into one backend
+// hit; a failure in that shared flight is replayed to every waiter but
+// not cached, so a sequential retry reaches the backend again. Returns
+// ErrUnknownScheme if scheme has no Resolver.
 func (r *Registry) ResolveScheme(ctx context.Context, scheme, path string) (string, error) {
 	// NUL can't occur in a scheme (validateScheme permits only
 	// [a-z0-9]), so the key is unambiguous.
@@ -113,12 +127,32 @@ func (r *Registry) ResolveScheme(ctx context.Context, scheme, path string) (stri
 		return "", ErrUnknownScheme
 	}
 
-	v, err := resolver.Resolve(ctx, path)
-	if err != nil {
-		return "", err
+	// DoChan (not Do) so each caller can honor its own ctx while waiting:
+	// the shared resolution runs with the first caller's context, but a
+	// later caller with a tighter deadline can abort independently
+	// without affecting the in-flight resolution.
+	ch := r.flight.DoChan(key, func() (any, error) {
+		// Re-check the memo: a concurrent flight may have populated it
+		// while this caller was waiting on the singleflight lock.
+		if v, ok := r.memo.Load(key); ok {
+			return v.(string), nil
+		}
+		v, err := resolver.Resolve(ctx, path)
+		if err != nil {
+			return nil, err
+		}
+		r.memo.Store(key, v)
+		return v, nil
+	})
+	select {
+	case res := <-ch:
+		if res.Err != nil {
+			return "", res.Err
+		}
+		return res.Val.(string), nil
+	case <-ctx.Done():
+		return "", errz.Err(ctx.Err())
 	}
-	r.memo.Store(key, v)
-	return v, nil
 }
 
 type ctxKey struct{}

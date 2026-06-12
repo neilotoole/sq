@@ -36,11 +36,40 @@ type Grips struct {
 	drvrs        Provider
 	closeErr     error
 	scratchSrcFn ScratchSrcFunc
-	files        *files.Files
-	grips        map[string]Grip
-	clnup        *cleanup.Cleanup
-	closeOnce    sync.Once
-	mu           sync.Mutex
+
+	files *files.Files
+
+	// grips caches open Grip instances, keyed by gripCacheKey: the source
+	// handle plus the access mode (read-write, implicit read-only, or
+	// explicit read-only) derived from the read-only ctx hint. Keying on
+	// the mode means a source opened both read-only and read-write within
+	// one run gets two coexisting grips, each opened with the correct
+	// mode, regardless of which open happened first (gh #779). Both grips
+	// are registered on clnup, so Close releases them all.
+	grips map[string]Grip
+
+	clnup     *cleanup.Cleanup
+	closeOnce sync.Once
+	mu        sync.Mutex
+}
+
+// gripCacheKey returns the gs.grips cache key for opening the source
+// with the given handle under ctx: the handle plus the access mode from
+// the ctx read-only hint. Explicit read-only (e.g. sq sql --readonly)
+// is distinct from the implicit hint because drivers may treat it more
+// forcefully (DuckDB overrides access_mode=AUTOMATIC only for an
+// explicit hint). The key is derived from the handle alone, never the
+// location, so computing it requires no secret resolution. Handles
+// cannot contain NUL, so the separator is unambiguous.
+func gripCacheKey(ctx context.Context, handle string) string {
+	switch {
+	case IsReadOnlyExplicit(ctx):
+		return handle + "\x00rox"
+	case IsReadOnly(ctx):
+		return handle + "\x00ro"
+	default:
+		return handle + "\x00rw"
+	}
 }
 
 // NewGrips returns a Grips instances.
@@ -56,8 +85,16 @@ func NewGrips(drvrs Provider, fs *files.Files, scratchSrcFn ScratchSrcFunc) *Gri
 }
 
 // Open returns an opened Grip for src. The returned Grip may be cached and
-// returned on future invocations for the identical source. Thus, the caller
-// should typically not close the Grip: it will be closed via d.Close.
+// returned on future invocations for the identical source and access mode.
+// Thus, the caller should typically not close the Grip: it will be closed
+// via d.Close.
+//
+// The cache is keyed by source handle and the read-only hint on ctx (see
+// WithReadOnly), so a read-only open and a read-write open of the same
+// source yield independent grips, each connected in the requested mode:
+// call ordering across modes does not matter. A cache hit is served
+// before secret resolution runs, so repeated opens of an already-open
+// source don't repeat resolver work.
 //
 // NOTE: This entire logic re caching/not-closing is a bit sketchy,
 // and needs to be revisited.
@@ -70,7 +107,7 @@ func (gs *Grips) Open(ctx context.Context, src *source.Source) (Grip, error) {
 		return nil, err
 	}
 	gs.clnup.AddC(g)
-	gs.grips[src.Handle] = g
+	gs.grips[gripCacheKey(ctx, src.Handle)] = g
 	return g, nil
 }
 
@@ -186,14 +223,18 @@ func ResolveSourceSecrets(ctx context.Context, src *source.Source) (*source.Sour
 }
 
 func (gs *Grips) doOpen(ctx context.Context, src *source.Source) (Grip, error) {
+	// The cache key derives from the handle and the ctx read-only hint,
+	// not the location, so the lookup happens before secret resolution:
+	// a cache hit (e.g. one Grips.Open per table during inspect) must not
+	// pay for resolution again.
+	grip, ok := gs.grips[gripCacheKey(ctx, src.Handle)]
+	if ok {
+		return grip, nil
+	}
+
 	var err error
 	if src, err = ResolveSourceSecrets(ctx, src); err != nil {
 		return nil, err
-	}
-
-	grip, ok := gs.grips[src.Handle]
-	if ok {
-		return grip, nil
 	}
 
 	drvr, err := gs.drvrs.DriverFor(src.Type)
@@ -259,7 +300,7 @@ func (gs *Grips) OpenEphemeral(ctx context.Context) (Grip, error) {
 	}
 	gs.clnup.AddC(g)
 	log.Info("Opened ephemeral db", lga.Src, g.Source())
-	gs.grips[g.Source().Handle] = g
+	gs.grips[gripCacheKey(ctx, g.Source().Handle)] = g
 	return g, nil
 }
 
@@ -506,7 +547,7 @@ func (gs *Grips) OpenJoin(ctx context.Context, srcs ...*source.Source) (Grip, er
 		clnup: clnup,
 	}
 	gs.clnup.AddC(g)
-	gs.grips[g.Source().Handle] = g
+	gs.grips[gripCacheKey(ctx, g.Source().Handle)] = g
 	return g, nil
 }
 

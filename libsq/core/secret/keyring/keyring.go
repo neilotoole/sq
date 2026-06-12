@@ -30,6 +30,12 @@ func NewStore() *Store {
 
 // Resolve returns the secret stored at path. Returns secret.ErrNotFound
 // when no entry exists.
+//
+// Each call is an OS-keychain IPC roundtrip. Store deliberately has no
+// cache of its own (unlike the op resolver): per-run memoization and
+// concurrent-call coalescing happen in secret.Registry, above this
+// layer, and the keyring write commands (create, update, rm, migrate)
+// use Store directly and must always read through to the backend.
 func (s *Store) Resolve(_ context.Context, path string) (string, error) {
 	v, err := gokeyring.Get(Service, path)
 	if errors.Is(err, gokeyring.ErrNotFound) {

@@ -3,7 +3,10 @@ package secret_test
 import (
 	"context"
 	"errors"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -61,4 +64,49 @@ func TestRegistry_MemoizesResolutions(t *testing.T) {
 	}
 	require.Equal(t, 2, failing.count,
 		"failed resolutions must not be cached")
+}
+
+// slowResolver counts Resolve invocations and holds each one open long
+// enough for concurrent callers to pile up.
+type slowResolver struct {
+	count atomic.Int32
+}
+
+func (r *slowResolver) Resolve(_ context.Context, _ string) (string, error) {
+	r.count.Add(1)
+	time.Sleep(50 * time.Millisecond)
+	return "hunter2", nil
+}
+
+// TestRegistry_ConcurrentResolveSingleflight verifies that concurrent
+// resolutions of the same scheme:path are coalesced into a single
+// backend hit, mirroring the op resolver's singleflight behavior. The
+// keyring backend does OS-keychain IPC that may prompt the user, so a
+// fan-out of concurrent opens (e.g. parallel grip opens of sources
+// sharing a placeholder) must never trigger duplicate prompts.
+func TestRegistry_ConcurrentResolveSingleflight(t *testing.T) {
+	ctx := context.Background()
+	reg := secret.NewRegistry()
+	resolver := &slowResolver{}
+	reg.Register("test", resolver)
+
+	const goroutines = 10
+	var wg sync.WaitGroup
+	errs := make([]error, goroutines)
+	vals := make([]string, goroutines)
+	for i := range goroutines {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			vals[i], errs[i] = reg.Expand(ctx, "${test:pw}")
+		}()
+	}
+	wg.Wait()
+
+	for i := range goroutines {
+		require.NoError(t, errs[i])
+		require.Equal(t, "hunter2", vals[i])
+	}
+	require.Equal(t, int32(1), resolver.count.Load(),
+		"concurrent resolutions of one path must share a single backend hit")
 }
