@@ -14,6 +14,7 @@ package options
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -22,6 +23,8 @@ import (
 	"time"
 
 	"github.com/samber/lo"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 type contextKey struct{}
@@ -160,6 +163,25 @@ func (r *Registry) Process(o Options) (Options, error) {
 
 // Options is a map of Opt.Key to a value.
 type Options map[string]any
+
+// MarshalJSON implements json.Marshaler. It encodes time.Duration values in
+// their human-readable time.Duration.String form, e.g. "1m30s", not the
+// stdlib's bare int64 nanosecond count. The string form matches how durations
+// appear in sq's config file, and is the JSON shape that sq has always
+// emitted: see https://github.com/neilotoole/sq/issues/791.
+func (o Options) MarshalJSON() ([]byte, error) {
+	m := make(map[string]any, len(o))
+	for k, v := range o {
+		if d, ok := v.(time.Duration); ok {
+			m[k] = d.String()
+			continue
+		}
+		m[k] = v
+	}
+
+	b, err := json.Marshal(m)
+	return b, errz.Err(err)
+}
 
 // Clone clones o.
 func (o Options) Clone() Options {
