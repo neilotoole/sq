@@ -69,6 +69,100 @@ func TestBug520_LsShowsPassword(t *testing.T) {
 	}
 }
 
+// TestRevealFlagConfigPrecedence tests
+// https://github.com/neilotoole/sq/issues/785: an explicitly set
+// --reveal or --no-redact flag overrides config secrets.reveal in both
+// directions. In particular, --reveal=false (or --no-redact=false) must
+// force redaction even when config has secrets.reveal=true.
+func TestRevealFlagConfigPrecedence(t *testing.T) {
+	t.Parallel()
+
+	const (
+		password = "p_ssW0rd"
+		loc      = "postgres://sakila:" + password + "@localhost/sakila"
+	)
+
+	testCases := []struct {
+		name         string
+		configReveal string // empty means option not set in config
+		args         []string
+		wantReveal   bool
+	}{
+		{
+			name:       "no_flag_default_config",
+			wantReveal: false,
+		},
+		{
+			name:         "no_flag_config_true",
+			configReveal: "true",
+			wantReveal:   true,
+		},
+		{
+			name:       "reveal_default_config",
+			args:       []string{"--reveal"},
+			wantReveal: true,
+		},
+		{
+			name:         "reveal_config_false",
+			configReveal: "false",
+			args:         []string{"--reveal"},
+			wantReveal:   true,
+		},
+		{
+			name:         "no_redact_config_false",
+			configReveal: "false",
+			args:         []string{"--no-redact"},
+			wantReveal:   true,
+		},
+		{
+			name:         "reveal_false_config_true",
+			configReveal: "true",
+			args:         []string{"--reveal=false"},
+			wantReveal:   false,
+		},
+		{
+			name:         "no_redact_false_config_true",
+			configReveal: "true",
+			args:         []string{"--no-redact=false"},
+			wantReveal:   false,
+		},
+		{
+			// Both flags explicitly set with conflicting values: true wins,
+			// preserving union composition (a script that bakes in
+			// --no-redact composed with a user-added --reveal=false, or
+			// vice versa).
+			name:         "conflicting_flags_true_wins",
+			configReveal: "false",
+			args:         []string{"--reveal=false", "--no-redact"},
+			wantReveal:   true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			tr := testrun.New(t.Context(), t, nil)
+			require.NoError(t, tr.Exec("add", loc, "--skip-verify"))
+
+			if tc.configReveal != "" {
+				require.NoError(t, tr.Reset().Exec(
+					"config", "set", "secrets.reveal", tc.configReveal))
+			}
+
+			args := append([]string{"ls", "-v"}, tc.args...)
+			require.NoError(t, tr.Reset().Exec(args...))
+			if tc.wantReveal {
+				require.Contains(t, tr.OutString(), password,
+					"password should be revealed")
+			} else {
+				require.NotContains(t, tr.OutString(), password,
+					"password should be redacted")
+			}
+		})
+	}
+}
+
 // TestExpandRevealMatrix verifies the cross-product of --expand and
 // --reveal across the three placeholder shapes (whole-DSN, composition,
 // inline-plaintext) on `sq ls -v`. This is the canonical proof of the
