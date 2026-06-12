@@ -407,6 +407,46 @@ future_field: data this build doesn't understand
 		"backup must not be overwritten by subsequent saves")
 }
 
+// Test_Store_Load_ClearsNewerCfgVers_OnReload verifies that the sticky
+// newer-than-build state is cleared when the same Store later loads a
+// config that is no longer newer than the build (e.g. another process
+// normalized it while we held it). Otherwise a stale newerCfgVers would
+// trigger a spurious backup on the next Save.
+func Test_Store_Load_ClearsNewerCfgVers_OnReload(t *testing.T) {
+	setBuildVersion(t, "v0.48.0")
+
+	const newerContent = `config.version: v0.58.0
+future_field: data this build doesn't understand
+`
+	cfgDir, cfgPath := writeTestConfig(t, newerContent)
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+
+	store := &Store{
+		Path:            cfgPath,
+		OptionsRegistry: &options.Registry{},
+		UpgradeRegistry: UpgradeRegistry{},
+	}
+
+	// First load: config is newer than the build, so newerCfgVers is set.
+	_, err := store.Load(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "v0.58.0", store.newerCfgVers,
+		"a newer-than-build config must set newerCfgVers")
+
+	// The config on disk is replaced with a current one and reloaded on
+	// the same Store; the sticky flag must be cleared.
+	require.NoError(t, os.WriteFile(cfgPath, []byte("config.version: v0.48.0\n"), 0o600))
+	cfg, err := store.Load(ctx)
+	require.NoError(t, err)
+	require.Empty(t, store.newerCfgVers,
+		"reloading a non-newer config must clear the sticky newerCfgVers")
+
+	// A subsequent Save must not write a backup: the config is no longer
+	// newer than the build.
+	require.NoError(t, store.Save(ctx, cfg))
+	requireNoBackupFiles(t, cfgDir)
+}
+
 // Test_Store_backupNewerConfig_StatError verifies that a stat error
 // on the backup path other than fs.ErrNotExist (e.g. a permission
 // error) fails the backup, rather than being treated as a missing

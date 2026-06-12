@@ -66,28 +66,15 @@ func (fs *Store) doUpgrade(ctx context.Context, startVersion, targetVersion stri
 	}
 
 	// Write a verbatim backup before the upgrade funcs transform the
-	// config, unless a backup for startVersion already exists. A
+	// config, unless a backup for startVersion already exists (a
 	// repeated upgrade from the same version would back up identical
-	// content, so skipping loses nothing; and the existing file may be
-	// the downgrade guard's pristine copy of a newer config (see
-	// Store.backupNewerConfig), which an overwrite would destroy.
-	backupPath := backupFilePath(fs.Path, startVersion)
-	switch _, statErr := os.Stat(backupPath); {
-	case statErr == nil:
-		log.Info("Config backup already exists; not overwriting", lga.Path, backupPath)
-	case !errors.Is(statErr, os.ErrNotExist):
-		// A stat failure other than "not exists" (e.g. permissions)
-		// can't confirm that the backup exists, so abort the upgrade.
-		return nil, errz.Wrapf(statErr, "failed to stat config backup before upgrade: %s", backupPath)
-	default:
-		if err = ioz.WriteFileAtomic(backupPath, data, ioz.RWPerms); err != nil {
-			// Abort rather than continue without a backup: the point of
-			// the backup is guaranteed recoverability, and if a sibling
-			// file can't be written, rewriting the config itself is
-			// unlikely to go better.
-			return nil, errz.Wrapf(err, "failed to write config backup before upgrade: %s", backupPath)
-		}
-		log.Info("Wrote verbatim backup of config before upgrade", lga.Path, backupPath)
+	// content, and an existing file may be the downgrade guard's
+	// pristine copy of a newer config). Abort rather than continue
+	// without a backup: the point of the backup is guaranteed
+	// recoverability, and if a sibling file can't be written, rewriting
+	// the config itself is unlikely to go better.
+	if _, err = fs.writeConfigBackupOnce(ctx, startVersion, data); err != nil {
+		return nil, err
 	}
 
 	for _, fn := range upgradeFns {
@@ -293,7 +280,14 @@ func (fs *Store) checkNeedsUpgrade(ctx context.Context) (needsUpgrade bool, foun
 	if semver.Compare(foundVers, buildVers) > 0 && semver.Prerelease(buildVers) == "" {
 		// The config was written by a newer sq version; the caller
 		// handles this gracefully. See errConfigVersionNewerThanBuild.
-		return needsUpgrade, foundVers, errConfigVersionNewerThanBuild
+		// Never report needsUpgrade in this case: upgrading would
+		// rewrite a config carrying fields this build can't represent,
+		// the data-loss case the downgrade guard exists to prevent. In
+		// a normal build the schema version never exceeds the build
+		// version, so needsUpgrade can't co-occur with this branch; the
+		// explicit false guards a misbuilt binary whose registry holds
+		// an upgrade key above its own version.
+		return false, foundVers, errConfigVersionNewerThanBuild
 	}
 
 	return needsUpgrade, foundVers, nil
