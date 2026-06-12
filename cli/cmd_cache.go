@@ -127,6 +127,14 @@ func execCacheClear(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// The ingest cache dir is hashed from the resolved location:
+	// Grips.doOpen hands the doc driver a resolved clone of src, and
+	// Files hashes src.Location. Resolve here too, so that the lock and
+	// the clear target the dir that ingest actually used.
+	if src, err = driver.ResolveSourceSecrets(ctx, src); err != nil {
+		return err
+	}
+
 	unlock, err := ru.Files.CacheLockAcquire(ctx, src)
 	if err != nil {
 		return err

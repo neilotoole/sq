@@ -185,6 +185,10 @@ func SuggestHandle(coll *Collection, typ drivertype.Type, loc string) (string, e
 	// suggest time, because the resolved value would be machine-
 	// dependent (defeats placeholder portability).
 	if name, ok := suggestNameFromPlaceholder(loc); ok {
+		// Sanitize just like the URL-parse branch below: hyphens, dots,
+		// spaces etc. in the placeholder body are legal there but
+		// illegal in a handle.
+		name = stringz.SanitizeAlphaNumeric(name, '_')
 		return finalizeSuggestedHandle(coll, name), nil
 	}
 
