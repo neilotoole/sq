@@ -112,8 +112,12 @@ func (fs *Store) doUpgrade(ctx context.Context, startVersion, targetVersion stri
 // used both for pre-upgrade backups (doUpgrade) and for the downgrade
 // guard (Store.backupNewerConfig). The name deliberately does not end
 // in ".sq.yml": Store.loadExt treats any such file in the config dir
-// as ext config. A backup file from a prior upgrade of the same
-// version is overwritten; it holds the same from-version content.
+// as ext config. The two callers treat an existing backup file
+// differently: doUpgrade overwrites it, because a repeated upgrade
+// from the same version backs up the same from-version content; but
+// backupNewerConfig writes at most once and never overwrites, because
+// the existing backup holds the newer config that a later write would
+// destroy.
 func backupFilePath(cfgPath, fromVersion string) string {
 	base := filepath.Base(cfgPath)
 	base = strings.TrimSuffix(base, filepath.Ext(base))
@@ -151,12 +155,14 @@ func (r UpgradeRegistry) getUpgradeFuncs(startingVersion, targetVersion string) 
 }
 
 // highestVersion returns the highest version key in the registry,
-// which is the config schema version known to this build. Returns
+// which is the config schema version known to this build. Keys that
+// aren't valid semver are ignored (registry keys come from
+// compile-time registration, so this is purely defensive). Returns
 // empty string if the registry is empty.
 func (r UpgradeRegistry) highestVersion() string {
 	var highest string
 	for k := range r {
-		if highest == "" || semver.Compare(k, highest) > 0 {
+		if semver.IsValid(k) && (highest == "" || semver.Compare(k, highest) > 0) {
 			highest = k
 		}
 	}

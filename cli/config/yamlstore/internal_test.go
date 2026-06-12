@@ -2,8 +2,10 @@ package yamlstore
 
 import (
 	"context"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -355,6 +357,38 @@ future_field: data this build doesn't understand
 	require.NoError(t, err)
 	require.Equal(t, cfgContent, string(backupContent),
 		"backup must not be overwritten by subsequent saves")
+}
+
+// Test_Store_backupNewerConfig_StatError verifies that a stat error
+// on the backup path other than fs.ErrNotExist (e.g. a permission
+// error) fails the backup, rather than being treated as a missing
+// backup file.
+func Test_Store_backupNewerConfig_StatError(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("dir permissions are not enforced this way on Windows")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("dir permissions are not enforced for root")
+	}
+
+	cfgDir, cfgPath := writeTestConfig(t, "config.version: v0.58.0\n")
+
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+	store := &Store{Path: cfgPath, newerCfgVers: "v0.58.0"}
+
+	// Remove the execute bit from the config dir, so that stat on the
+	// backup path fails with a permission error, not fs.ErrNotExist.
+	require.NoError(t, os.Chmod(cfgDir, 0o600))
+	t.Cleanup(func() {
+		// Restore perms so t.TempDir cleanup can remove the dir.
+		require.NoError(t, os.Chmod(cfgDir, 0o755))
+	})
+
+	err := store.backupNewerConfig(ctx)
+	require.Error(t, err)
+	require.ErrorIs(t, err, fs.ErrPermission)
+	require.Equal(t, "v0.58.0", store.newerCfgVers,
+		"newerCfgVers must not be cleared on failure, so a retry can still back up")
 }
 
 // Test_Store_Save_NewerConfig_Prerelease_NoBackup verifies that

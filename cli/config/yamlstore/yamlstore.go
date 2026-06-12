@@ -242,10 +242,15 @@ func (fs *Store) backupNewerConfig(ctx context.Context) error {
 	}
 
 	backupPath := backupFilePath(fs.Path, fs.newerCfgVers)
-	if _, err := os.Stat(backupPath); err == nil {
+	switch _, err := os.Stat(backupPath); {
+	case err == nil:
 		// Backup already exists; don't overwrite it.
 		fs.newerCfgVers = ""
 		return nil
+	case !errors.Is(err, os.ErrNotExist):
+		// A stat failure other than "not exists" (e.g. permissions)
+		// can't confirm that the backup exists, so fail the save.
+		return errz.Wrapf(err, "failed to stat config backup before save: %s", backupPath)
 	}
 
 	data, err := os.ReadFile(fs.Path)
