@@ -311,6 +311,16 @@ func TestStripSecrets(t *testing.T) {
 			want: "",
 		},
 		{
+			name: "fragment after secret query param",
+			loc:  "sqlite3:///data/app.db?_auth_pass=hunter2#frag",
+			want: "sqlite3:///data/app.db?_auth_pass=#frag",
+		},
+		{
+			name: "fragment no query",
+			loc:  "postgres://alice:pw@host/db#frag",
+			want: "postgres://alice@host/db#frag",
+		},
+		{
 			name: "no secrets",
 			loc:  "postgres://alice@localhost:5432/sakila?sslmode=require",
 			want: "postgres://alice@localhost:5432/sakila?sslmode=require",

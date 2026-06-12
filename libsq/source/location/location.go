@@ -762,14 +762,21 @@ func StripSecrets(loc string) string {
 // ${scheme:path} placeholders (if any) have been replaced with the
 // given sentinels. A password or query value composed entirely of
 // sentinels is a placeholder template, not a literal secret, and is
-// left intact.
+// left intact. A URL fragment is preserved verbatim: per URL syntax
+// an unencoded '#' always starts the fragment, so it is carved off
+// before query processing lest it be swallowed by a blanked value.
 func stripSecretsRaw(loc string, sentinels []string) string {
+	loc, frag, hasFrag := strings.Cut(loc, "#")
 	base, query, hasQuery := strings.Cut(loc, "?")
 	base = stripUserinfoPassword(base, sentinels)
-	if !hasQuery {
-		return base
+	stripped := base
+	if hasQuery {
+		stripped += "?" + stripSecretQueryValues(query, sentinels)
 	}
-	return base + "?" + stripSecretQueryValues(query, sentinels)
+	if hasFrag {
+		stripped += "#" + frag
+	}
+	return stripped
 }
 
 // stripUserinfoPassword drops the ":password" portion of base's
