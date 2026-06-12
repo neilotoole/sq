@@ -353,7 +353,7 @@ func checkStdinSource(ctx context.Context, ru *run.Run) (*source.Source, error) 
 		}
 	}
 
-	if typ != drivertype.SQLite && typ != drivertype.DuckDB {
+	if typ != drivertype.SQLite && typ != drivertype.DuckDB && typ != drivertype.Parquet {
 		return newSource(
 			ctx,
 			ru.DriverRegistry,
@@ -364,10 +364,16 @@ func checkStdinSource(ctx context.Context, ru *run.Run) (*source.Source, error) 
 		)
 	}
 
-	// We have special handling to allow reading a sqlite or duckdb db from stdin, e.g.:
+	// We have special handling to allow reading a sqlite or duckdb db, or a
+	// parquet file, from stdin, e.g.:
 	//
 	//  $ cat sakila.db | sq '.actor'
 	//  $ cat sakila.duckdb | sq '.actor'
+	//  $ cat actor.parquet | sq '.data'
+	//
+	// These types aren't ingested via a streaming reader: the sqlite and
+	// duckdb drivers open a db file directly, and the parquet driver points
+	// DuckDB's read_parquet at a file path.
 	//
 	// We create a temp file, and copy the stdin data to it from the reader
 	// returned from Files.NewReader for @stdin. Note that it's too late to copy
@@ -403,11 +409,15 @@ func checkStdinSource(ctx context.Context, ru *run.Run) (*source.Source, error) 
 		return nil, err
 	}
 
-	scheme := "sqlite3://"
-	if typ == drivertype.DuckDB {
-		scheme = "duckdb://"
+	switch typ { //nolint:exhaustive // only the stdin-materialized types reach here
+	case drivertype.DuckDB:
+		src.Location = "duckdb://" + tmpFile.Name()
+	case drivertype.Parquet:
+		// Parquet locations are bare file paths (or URLs), no scheme prefix.
+		src.Location = tmpFile.Name()
+	default:
+		src.Location = "sqlite3://" + tmpFile.Name()
 	}
-	src.Location = scheme + tmpFile.Name()
 	return src, nil
 }
 

@@ -14,6 +14,12 @@ const (
 	CSVAddress       = "@sakila_csv_address"
 	CSVActorHTTP     = "@sakila_csv_actor_http"
 	CSVActorNoHeader = "@sakila_csv_actor_noheader"
+	// ParquetActor is the handle for the Parquet sakila actor table.
+	// Populated from drivers/csv/testdata/sakila-csv/actor.csv via
+	// drivers/parquet/testdata/generate-sakila.sh.
+	ParquetActor = "@sakila_parquet_actor"
+	// ParquetAddress is the handle for the Parquet sakila address table.
+	ParquetAddress   = "@sakila_parquet_address"
 	TSVActor         = "@sakila_tsv_actor"
 	TSVActorNoHeader = "@sakila_tsv_actor_noheader"
 	SL3              = "@sakila_sl3"
@@ -284,4 +290,6 @@ const (
 	PathCSVActorNoHeader = "drivers/csv/testdata/sakila-csv-noheader/actor.csv"
 	PathTSVActor         = "drivers/csv/testdata/sakila-tsv/actor.tsv"
 	PathTSVActorNoHeader = "drivers/csv/testdata/sakila-tsv-noheader/actor.tsv"
+	PathParquetActor     = "drivers/parquet/testdata/sakila-parquet/actor.parquet"
+	PathParquetAddress   = "drivers/parquet/testdata/sakila-parquet/address.parquet"
 )

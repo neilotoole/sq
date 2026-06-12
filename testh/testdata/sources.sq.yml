@@ -95,6 +95,12 @@ collection:
       location: '${SQ_ROOT}/drivers/csv/testdata/sakila-tsv-noheader/actor.tsv'
       options:
         ingest.header: false
+    - handle: '@sakila_parquet_actor'
+      driver: parquet
+      location: '${SQ_ROOT}/drivers/parquet/testdata/sakila-parquet/actor.parquet'
+    - handle: '@sakila_parquet_address'
+      driver: parquet
+      location: '${SQ_ROOT}/drivers/parquet/testdata/sakila-parquet/address.parquet'
 
     - handle: '@csv_person'
       driver: csv
