@@ -499,6 +499,125 @@ func TestDriveri_AlterTableColumnKinds_QuotedIdentifier(t *testing.T) {
 	}
 }
 
+// TestDriveri_AlterTableColumnKinds_EscapedQuoteColumnName reproduces gh789
+// case 1: a column literally named my"col (declared in DDL as "my""col")
+// failed the column lookup in AlterTableColumnKinds because trimIdentQuotes
+// stripped only the outer quote pair without collapsing the doubled escape,
+// so ColDef.Name was my""col and never matched. Reachable e.g. from a CSV
+// header containing a double quote.
+func TestDriveri_AlterTableColumnKinds_EscapedQuoteColumnName(t *testing.T) {
+	testCases := []struct {
+		name    string
+		colDecl string
+		colName string
+	}{
+		{
+			name:    "double_quote_escaped",
+			colDecl: `"my""col" INTEGER NOT NULL`,
+			colName: `my"col`,
+		},
+		{
+			name:    "backtick_escaped",
+			colDecl: "`my``col` INTEGER NOT NULL",
+			colName: "my`col",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			th := testh.New(t)
+			src := &source.Source{
+				Handle:   "@test",
+				Type:     drivertype.SQLite,
+				Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+			}
+
+			grip := th.Open(src)
+			db, err := grip.DB(th.Context)
+			require.NoError(t, err)
+			drvr := grip.SQLDriver()
+
+			_, err = db.ExecContext(th.Context, `CREATE TABLE example (`+tc.colDecl+`)`)
+			require.NoError(t, err)
+
+			err = drvr.AlterTableColumnKinds(th.Context, db, "example",
+				[]string{tc.colName}, []kind.Kind{kind.Text})
+			require.NoError(t, err)
+
+			md, err := grip.TableMetadata(th.Context, "example")
+			require.NoError(t, err)
+			require.Len(t, md.Columns, 1)
+			require.Equal(t, tc.colName, md.Columns[0].Name)
+			require.Equal(t, kind.Text.String(), md.Columns[0].Kind.String())
+		})
+	}
+}
+
+// TestDriveri_AlterTableColumnKinds_SingleQuotedTableName reproduces gh789
+// case 2: an externally created database whose stored DDL reads
+// CREATE TABLE 'actor' (...) (a form SQLite accepts) failed table-identifier
+// extraction because the lexer tokenizes single-quoted names as
+// STRING_LITERAL, which ExtractTableIdentFromCreateTableStmt didn't accept.
+func TestDriveri_AlterTableColumnKinds_SingleQuotedTableName(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@test",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+	}
+
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+	drvr := grip.SQLDriver()
+
+	// Execute exactly this SQL so sqlite_master stores the single-quoted
+	// form verbatim.
+	_, err = db.ExecContext(th.Context, `CREATE TABLE 'actor' (actor_id INTEGER NOT NULL)`)
+	require.NoError(t, err)
+
+	err = drvr.AlterTableColumnKinds(th.Context, db, "actor",
+		[]string{"actor_id"}, []kind.Kind{kind.Text})
+	require.NoError(t, err)
+
+	md, err := grip.TableMetadata(th.Context, "actor")
+	require.NoError(t, err)
+	require.Len(t, md.Columns, 1)
+	require.Equal(t, kind.Text.String(), md.Column("actor_id").Kind.String())
+}
+
+// TestDriveri_CopyTable_SingleQuotedTableName is the CopyTable counterpart
+// of gh789 case 2: copying a table whose stored DDL uses the single-quoted
+// form CREATE TABLE 'actor' (...) must succeed.
+func TestDriveri_CopyTable_SingleQuotedTableName(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@test",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+	}
+
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+	drvr := grip.SQLDriver()
+
+	_, err = db.ExecContext(th.Context, `CREATE TABLE 'actor' (actor_id INTEGER NOT NULL)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context, `INSERT INTO actor (actor_id) VALUES (1), (2)`)
+	require.NoError(t, err)
+
+	copied, err := drvr.CopyTable(th.Context, db,
+		tablefq.From("actor"), tablefq.From("actor_copy"), true)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), copied)
+
+	md, err := grip.TableMetadata(th.Context, "actor_copy")
+	require.NoError(t, err)
+	require.Len(t, md.Columns, 1)
+	require.Equal(t, "actor_id", md.Columns[0].Name)
+}
+
 // TestDriveri_AlterTableColumnKinds_ColumnNamePrefixesType reproduces
 // gh750: a column whose name shares its declared-case prefix with the
 // type token (e.g. `text_data text`) caused the old
