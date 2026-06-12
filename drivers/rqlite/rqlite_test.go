@@ -911,16 +911,20 @@ func TestWriteAtomic_PerStatementError(t *testing.T) {
 	require.NoError(t, drvr.CreateTable(th.Context, db, preDef))
 
 	// CopyTable(copyData=true) issues [CREATE dstName, INSERT INTO
-	// dstName SELECT * FROM actor] as one atomic batch. The CREATE
-	// fails because dstName already exists, and writeAtomic should
-	// surface "statement 1/2 failed" with the underlying cause.
+	// dstName SELECT * FROM actor, companion DDL...] as one atomic
+	// batch (the companion count depends on actor's indexes and
+	// triggers, so the batch size isn't asserted). The CREATE fails
+	// because dstName already exists, and writeAtomic should surface
+	// "statement 1/N failed" with the underlying cause.
 	_, err = drvr.CopyTable(th.Context, db,
 		tablefq.T{Table: sakila.TblActor},
 		tablefq.T{Table: dstName},
 		true)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "statement 1/2 failed",
+	require.Contains(t, err.Error(), "statement 1/",
 		"writeAtomic should identify which statement in the batch failed")
+	require.Contains(t, err.Error(), "already exists",
+		"the underlying cause should be preserved")
 }
 
 // TestCoerce_NumericAffinityInt verifies that NUMERIC-declared columns
@@ -2010,4 +2014,108 @@ func TestAlterTableColumnKinds_ForeignKeyEnforcement(t *testing.T) {
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		"INSERT INTO %s (id, pid) VALUES (2, 1)", stringz.DoubleQuote(childTbl)))
 	require.NoError(t, err)
+}
+
+// TestCopyTable_CopiesIndexesAndTriggers is the rqlite half of gh758:
+// CopyTable carries the source table's companion objects (indexes and
+// triggers, separate sqlite_master rows) across to the destination,
+// renamed to "<orig-name>_<dest-table>", riding the same writeAtomic
+// batch as the CREATE and INSERT. The UNIQUE constraint's automatic
+// index has NULL sql in sqlite_master and must be skipped by the
+// companion rewrite. Trigger timing is load-bearing: the copied
+// trigger must not fire on the rows being copied, only on subsequent
+// inserts into the destination. Mirrors the sqlite3 sibling test.
+func TestCopyTable_CopiesIndexesAndTriggers(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	uniq := stringz.Uniq8()
+	srcName := "companion_src_" + uniq
+	logName := "companion_log_" + uniq
+	dstName := "companion_dst_" + uniq
+	idxName := "idx_name_" + uniq
+	trgName := "trg_bi_" + uniq
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: srcName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: logName}, true)
+	})
+
+	for _, stmt := range []string{
+		fmt.Sprintf(`CREATE TABLE %q (id INTEGER PRIMARY KEY, name TEXT, email TEXT UNIQUE)`,
+			srcName),
+		fmt.Sprintf(`CREATE TABLE %q (id INTEGER PRIMARY KEY, msg TEXT)`, logName),
+		fmt.Sprintf(`CREATE INDEX %q ON %q (name)`, idxName, srcName),
+		fmt.Sprintf(`CREATE TRIGGER %q BEFORE INSERT ON %q BEGIN
+			INSERT INTO %q (msg) VALUES (NEW.name);
+		END`, trgName, srcName, logName),
+		fmt.Sprintf(`INSERT INTO %q (name, email) VALUES ('alice', 'a@x.com'), ('bob', 'b@x.com')`,
+			srcName),
+	} {
+		_, err = db.ExecContext(th.Context, stmt)
+		require.NoError(t, err)
+	}
+
+	copied, err := drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: srcName}, tablefq.T{Table: dstName}, true)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), copied)
+
+	// The copied trigger must not have fired on the copied rows: the
+	// source inserts logged 2 rows, and the copy must not add more.
+	var logCount int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		fmt.Sprintf(`SELECT count(*) FROM %q`, logName)).Scan(&logCount))
+	require.Equal(t, int64(2), logCount,
+		"copied trigger must not fire on the rows being copied")
+
+	// The explicit index is carried over, renamed, and re-targeted.
+	var idxSQL string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT sql FROM sqlite_master WHERE type='index' AND name=? AND tbl_name=?`,
+		idxName+"_"+dstName, dstName).Scan(&idxSQL))
+	require.Contains(t, idxSQL, fmt.Sprintf("%q", dstName))
+	require.NotContains(t, idxSQL, fmt.Sprintf("ON %s ", srcName))
+
+	// Exactly one explicit (non-NULL sql) index on the destination: the
+	// UNIQUE constraint's automatic index has NULL sql and must not have
+	// been duplicated by the companion copy.
+	var explicitIdxCount int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT count(*) FROM sqlite_master WHERE type='index' AND tbl_name=?
+			AND sql IS NOT NULL`, dstName).Scan(&explicitIdxCount))
+	require.Equal(t, int64(1), explicitIdxCount)
+
+	// The trigger is carried over, renamed, and re-targeted; its body's
+	// cross-table reference (the log table) is left untouched.
+	var trgSQL string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT sql FROM sqlite_master WHERE type='trigger' AND name=? AND tbl_name=?`,
+		trgName+"_"+dstName, dstName).Scan(&trgSQL))
+	require.Contains(t, trgSQL, fmt.Sprintf(`ON %q`, dstName))
+	require.Contains(t, trgSQL, logName,
+		"cross-table body reference must be preserved")
+
+	// The copied trigger's side effect fires on insert into the destination.
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`INSERT INTO %q (name, email) VALUES ('dave', 'd@x.com')`, dstName))
+	require.NoError(t, err)
+	require.NoError(t, db.QueryRowContext(th.Context,
+		fmt.Sprintf(`SELECT count(*) FROM %q WHERE msg='dave'`, logName)).Scan(&logCount))
+	require.Equal(t, int64(1), logCount,
+		"copied trigger must fire on insert into the destination")
+
+	// The source's companions are untouched: original names, original table.
+	var srcCompanionCount int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT count(*) FROM sqlite_master WHERE tbl_name=? AND name IN (?, ?)`,
+		srcName, idxName, trgName).Scan(&srcCompanionCount))
+	require.Equal(t, int64(2), srcCompanionCount)
 }

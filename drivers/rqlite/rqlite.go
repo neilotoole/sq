@@ -527,9 +527,14 @@ func dsnFromLocation(loc string) (string, dsnOpts, error) {
 // against itself rather than the source (gh759). Cross-table FKs are
 // left untouched.
 //
-// Not preserved: indexes and triggers. These live as separate
-// sqlite_master rows and are out of scope for CopyTable. Matches the
-// sqlite3 driver's behavior.
+// The source table's companion objects (indexes and triggers, which
+// live as separate sqlite_master rows) are also copied (gh758), with
+// each companion renamed to "<orig-name>_<dest-table>" because index
+// and trigger names are schema-global in SQLite. The companion DDL
+// rides the same writeAtomic batch as the CREATE and INSERT, after the
+// data copy so that copied triggers don't fire on the rows being
+// copied. Matches the sqlite3 driver's behavior; see
+// copyTableCompanionDDL for the rewrite details.
 func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 	fromTbl, toTbl tablefq.T, copyData bool,
 ) (int64, error) {
@@ -590,23 +595,104 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 		return 0, errz.Wrap(err, "rqlite: copy table: failed to apply DDL rewrites")
 	}
 
-	if !copyData {
+	// Read and rewrite the companion (index and trigger) DDL up front,
+	// before any writes, so a rewrite failure aborts the copy cleanly.
+	companionStmts, err := copyTableCompanionDDL(ctx, db, fromTbl, toTbl)
+	if err != nil {
+		return 0, err
+	}
+
+	if !copyData && len(companionStmts) == 0 {
+		// Single-statement fast path: no batch needed.
 		if _, err = db.ExecContext(ctx, destDDL); err != nil {
 			return 0, errw(err)
 		}
 		return 0, nil
 	}
 
-	stmts := []gorqlite.ParameterizedStatement{
-		{Query: destDDL},
-		{Query: fmt.Sprintf(`INSERT INTO %s SELECT * FROM %s`,
-			toTbl.Render(stringz.DoubleQuote), fromTbl.Render(stringz.DoubleQuote))},
+	stmts := []gorqlite.ParameterizedStatement{{Query: destDDL}}
+	insertIdx := -1
+	if copyData {
+		insertIdx = len(stmts)
+		stmts = append(stmts, gorqlite.ParameterizedStatement{
+			Query: fmt.Sprintf(`INSERT INTO %s SELECT * FROM %s`,
+				toTbl.Render(stringz.DoubleQuote), fromTbl.Render(stringz.DoubleQuote)),
+		})
 	}
+	// Companions come after the data copy: a copied trigger must not
+	// fire on the rows being copied.
+	for _, companion := range companionStmts {
+		stmts = append(stmts, gorqlite.ParameterizedStatement{Query: companion})
+	}
+
 	results, err := writeAtomic(ctx, db, stmts...)
 	if err != nil {
 		return 0, err
 	}
-	return results[1].RowsAffected, nil
+	if insertIdx == -1 {
+		return 0, nil
+	}
+	return results[insertIdx].RowsAffected, nil
+}
+
+// copyTableCompanionDDL reads the DDL of fromTbl's companion objects
+// (indexes and triggers) from sqlite_master and returns each statement
+// rewritten to apply to toTbl. Rows with NULL sql are automatic indexes
+// (e.g. backing a UNIQUE constraint or PRIMARY KEY) that the rewritten
+// CREATE TABLE already recreates, so the query excludes them.
+//
+// Index and trigger names are schema-global in SQLite, so each
+// companion is renamed by appending the destination table name:
+// "<orig-name>_<dest-table>". A trigger's ON <table> target, and any
+// table references in its body that name the source table, are
+// rewritten to the destination; references to other tables are left
+// untouched. See sqlparser.RewriteCreateIndexStmt and
+// sqlparser.RewriteCreateTriggerStmt. Mirrors the sqlite3 driver's
+// same-named helper.
+func copyTableCompanionDDL(ctx context.Context, db sqlz.DB,
+	fromTbl, toTbl tablefq.T,
+) ([]string, error) {
+	masterTbl := tablefq.T{Schema: fromTbl.Schema, Table: "sqlite_master"}
+	q := fmt.Sprintf("SELECT name, type, sql FROM %s WHERE tbl_name = ? "+
+		"AND type IN ('index','trigger') AND sql IS NOT NULL ORDER BY name",
+		masterTbl.Render(stringz.DoubleQuote))
+	rows, err := db.QueryContext(ctx, q, fromTbl.Table)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(lg.FromContext(ctx), rows)
+
+	destTblIdent := stringz.DoubleQuote(toTbl.Table)
+	var stmts []string
+	for rows.Next() {
+		var name, typ, ddl string
+		if err = rows.Scan(&name, &typ, &ddl); err != nil {
+			return nil, errw(err)
+		}
+
+		// The companion lives in the destination table's schema.
+		newIdent := tablefq.T{Schema: toTbl.Schema, Table: name + "_" + toTbl.Table}.
+			Render(stringz.DoubleQuote)
+
+		var rewritten string
+		switch typ {
+		case "index":
+			rewritten, err = sqlparser.RewriteCreateIndexStmt(ddl, newIdent, destTblIdent)
+		case "trigger":
+			rewritten, err = sqlparser.RewriteCreateTriggerStmt(ddl, newIdent, destTblIdent)
+		default:
+			// Unreachable given the query predicate.
+			continue
+		}
+		if err != nil {
+			return nil, errz.Wrapf(err, "rqlite: copy table: rewrite %s {%s}", typ, name)
+		}
+		stmts = append(stmts, rewritten)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+	return stmts, nil
 }
 
 // RecordMeta implements driver.SQLDriver.
