@@ -127,6 +127,35 @@ func TestCmdConfigExport_Expand_EscapesDollar(t *testing.T) {
 		"raw literal must not appear: it would be unescaped at connect on the importing machine")
 }
 
+// TestCmdConfigExport_Expand_ZeroRefs_DollarRoundTrip verifies that
+// --expand and the connect path agree for a location with no
+// placeholders (gh #787): a stored template "pa$$wd" connects as the
+// literal "pa$wd", and --expand must export the same template form
+// "pa$$wd" (Expand unescapes to the literal, then export re-escapes),
+// so the restored backup connects with an identical password.
+// Historically the export wrote the half-unescaped "pa$wd", silently
+// corrupting the password on restore.
+func TestCmdConfigExport_Expand_ZeroRefs_DollarRoundTrip(t *testing.T) {
+	gokeyring.MockInit()
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@sakila",
+		Type:     drivertype.Pg,
+		Location: "postgres://u:pa$$wd@h/db",
+	}))
+
+	require.NoError(t, tr.Exec("config", "export", "--expand"))
+
+	got := tr.OutString()
+	require.Contains(t, got, "postgres://u:pa$$wd@h/db",
+		"exported template must be byte-identical to the stored template")
+	require.NotContains(t, got, "postgres://u:pa$wd@h/db",
+		"the unescaped literal must not leak into the export")
+}
+
 // TestCmdConfigExport_Expand_MissingKeyring errors clearly when a
 // placeholder cannot be resolved.
 func TestCmdConfigExport_Expand_MissingKeyring(t *testing.T) {
