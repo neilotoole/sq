@@ -112,12 +112,19 @@ func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
 //
 // Locations that already expand to themselves byte-identically (no
 // refs, no "$$"; e.g. an inline password like "p$ssW0rd") are left
-// untouched so the config bytes don't churn. A missing or non-string
-// location is a corrupt config: neither could ever load (the typed
-// loader rejects empty locations and can't unmarshal non-string ones),
-// so erroring here aborts the upgrade before anything is written,
-// matching the corrupt-shape handling in Upgrade. The location value
-// is deliberately not logged: it may contain credentials.
+// untouched so the config bytes don't churn.
+//
+// A missing location is a corrupt config: it could never load
+// (validSource rejects empty locations), so erroring aborts the
+// upgrade before anything is written, matching the corrupt-shape
+// handling in Upgrade. A non-string location is skipped, NOT an
+// error: the typed loader (goccy-yaml) coerces scalar values into
+// string fields, so e.g. 'location: 123' loaded fine on v0.53.0, and
+// erroring would brick a working config. Skipping it is safe for
+// escaping purposes: a YAML value that parses as non-string can't
+// contain '$' (any '$'-bearing scalar parses as a string). The
+// location value is deliberately not logged: it may contain
+// credentials.
 func escapeLocation(log *slog.Logger, src map[string]any, i int) error {
 	raw, present := src["location"]
 	if !present {
@@ -125,8 +132,7 @@ func escapeLocation(log *slog.Logger, src map[string]any, i int) error {
 	}
 	loc, ok := raw.(string)
 	if !ok {
-		return errz.Errorf(
-			"corrupt config: invalid 'collection.sources[%d].location' field (want string, got %T)", i, raw)
+		return nil
 	}
 
 	// The skip predicate is stated in secret-package terms so it can't

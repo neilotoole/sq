@@ -145,12 +145,9 @@ func exportExpandConfig(ctx context.Context, ru *run.Run, cfg *config.Config) (*
 		if err != nil {
 			return nil, errz.Wrapf(err, "config export: %s", src.Handle)
 		}
-		// The export is itself a config, so its locations are placeholder
-		// templates. Expand's output is a literal: re-escape it ('$' ->
-		// '$$') so that the importing machine's expansion yields exactly
-		// the resolved bytes. Without this, a resolved value containing
-		// '$$' would be halved at connect time, and '${...}'-shaped text
-		// inside a secret value would be re-resolved.
+		// The export is itself a config (a template), so re-escape the
+		// resolved literal: import then round-trips byte-identically.
+		// See the "Templates vs literals" section of package secret.
 		src.Location = secret.Escape(resolved)
 	}
 

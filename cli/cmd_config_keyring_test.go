@@ -81,7 +81,7 @@ func TestCmdConfigKeyringCreate_PromptedFromStdin(t *testing.T) {
 	tr := testrun.New(th.Context, t, nil)
 
 	// Pipe a password through stdin.
-	pipeStdin(t, tr, "hunter2\n")
+	tr.PipeStdin("hunter2\n")
 
 	err := tr.Exec("config", "keyring", "create", "my_db_pw", "-p")
 	require.NoError(t, err)
@@ -875,7 +875,7 @@ func TestCmdConfigKeyringMigrate_JSON_SkipsPrompt(t *testing.T) {
 		Location: "postgres://alice:hunter2@db/sakila",
 	}))
 	// Pipe "n\n" so the y/N prompt — if reached — would answer "no".
-	pipeStdin(t, tr, "n\n")
+	tr.PipeStdin("n\n")
 
 	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--json"))
 

@@ -815,20 +815,6 @@ func TestCmdAdd_Placeholder_StoreRejected(t *testing.T) {
 	}
 }
 
-// pipeStdin points tr's stdin at a temp file containing content, for
-// tests that exercise prompts or piped input. Run.Stdin wants an
-// *os.File, so a plain strings.Reader doesn't suffice.
-func pipeStdin(t *testing.T, tr *testrun.TestRun, content string) {
-	t.Helper()
-	f, err := os.CreateTemp(t.TempDir(), "stdin")
-	require.NoError(t, err)
-	_, err = f.WriteString(content)
-	require.NoError(t, err)
-	_, err = f.Seek(0, 0)
-	require.NoError(t, err)
-	tr.Run.Stdin = f
-}
-
 // TestCmdAdd_StoreKeyring_PromptsWhenNoPassword verifies that when
 // --store=keyring is set with --password, sq reads the password from
 // stdin and splices it into the URL before storing the full DSN in
@@ -838,7 +824,7 @@ func TestCmdAdd_StoreKeyring_PromptsWhenNoPassword(t *testing.T) {
 
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	pipeStdin(t, tr, "piped-password\n")
+	tr.PipeStdin("piped-password\n")
 
 	const handle = "@sakila_kr_prompt"
 	err := tr.Exec("add",
@@ -867,7 +853,7 @@ func TestCmdAdd_StoreKeyring_PromptsWhenNoPassword(t *testing.T) {
 func TestCmdAdd_InlinePassword_EscapesDollar(t *testing.T) {
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	pipeStdin(t, tr, "pa$$word\n")
+	tr.PipeStdin("pa$$word\n")
 
 	const handle = "@sakila_inline_dollar"
 	err := tr.Exec("add",
@@ -897,7 +883,7 @@ func TestCmdAdd_KeyringPassword_NotEscaped(t *testing.T) {
 
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	pipeStdin(t, tr, "pa$$word\n")
+	tr.PipeStdin("pa$$word\n")
 
 	const handle = "@sakila_kr_dollar"
 	err := tr.Exec("add",
@@ -914,6 +900,36 @@ func TestCmdAdd_KeyringPassword_NotEscaped(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "postgres://alice:pa$$word@localhost:5432/sakila", got,
 		"keyring holds the literal DSN, no template escaping")
+}
+
+// TestCmdAdd_KeyringInlinePassword_Unescaped verifies that the
+// keyring path converts the typed location (a placeholder template,
+// where '$$' means a literal '$') to its literal form before storing:
+// keyring slots hold literals that Registry.Expand splices raw at
+// connect, so storing the template bytes verbatim would hand the
+// driver a still-escaped credential.
+func TestCmdAdd_KeyringInlinePassword_Unescaped(t *testing.T) {
+	gokeyring.MockInit()
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	const handle = "@sakila_kr_inline_dollar"
+	// Typed template form: '$$' means the literal password is 'p$ss'.
+	err := tr.Exec("add",
+		"postgres://alice:p$$ss@localhost:5432/sakila",
+		"--handle", handle, "--store", "keyring",
+		"--driver", "postgres", "--skip-verify")
+	require.NoError(t, err)
+
+	src, err := tr.Run.Config.Collection.Get(handle)
+	require.NoError(t, err)
+	id := extractKeyringID(t, src.Location)
+
+	got, err := gokeyring.Get("sq", id)
+	require.NoError(t, err)
+	require.Equal(t, "postgres://alice:p$ss@localhost:5432/sakila", got,
+		"keyring must hold the literal DSN, not the template bytes")
 }
 
 // TestCmdAdd_FileLocation_RawDollarDollar verifies that adding a file
@@ -956,6 +972,51 @@ func TestCmdAdd_FileLocation_EscapedDollarDollar(t *testing.T) {
 	src, err := tr.Run.Config.Collection.Get("@esc_dollar")
 	require.NoError(t, err)
 	require.Equal(t, escaped, src.Location, "the typed template form is what gets stored")
+}
+
+// TestCmdAdd_SQLiteLocation_RawDollarDollar verifies that the '$$'
+// add-time check also covers driver-prefixed file-DB locations. This
+// matters doubly for SQLite: it CREATES missing files on open, so
+// without the check, the add-time ping would silently create and open
+// an empty DB at the interpreted path while the user's real database
+// is never touched.
+func TestCmdAdd_SQLiteLocation_RawDollarDollar(t *testing.T) {
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "my$$file.db")
+	require.NoError(t, os.WriteFile(fpath, []byte{}, 0o600))
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	err := tr.Exec("add", "sqlite3:"+fpath,
+		"--handle", "@sl_raw_dollar", "--driver", "sqlite3", "--skip-verify")
+	require.Error(t, err,
+		"raw '$$' sqlite path whose interpreted form doesn't exist must be rejected at add time")
+	require.Contains(t, err.Error(), "$$")
+
+	// The escaped form works end-to-end (ping included).
+	tr = testrun.New(th.Context, t, nil)
+	escaped := "sqlite3:" + strings.ReplaceAll(fpath, "$", "$$")
+	require.NoError(t, tr.Exec("add", escaped, "--handle", "@sl_esc_dollar", "--driver", "sqlite3"),
+		"escaped sqlite form must pass the check and the add-time ping")
+}
+
+// TestCmdAdd_RawDollarDollar_DetectionErrorNamesTypedForm verifies
+// that when neither the typed nor the interpreted path exists and
+// driver detection fails, the error mentions the typed form and the
+// '$$' interpretation, not just the interpreted path the user never
+// typed.
+func TestCmdAdd_RawDollarDollar_DetectionErrorNamesTypedForm(t *testing.T) {
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	// Unrecognized extension and no file at either form: detection
+	// byte-sniffs the interpreted path and fails.
+	err := tr.Exec("add", filepath.Join(t.TempDir(), "data$$file.xyz"),
+		"--handle", "@nofile_dollar", "--skip-verify")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "$$",
+		"detection failure must surface the '$$' interpretation, not only the interpreted path")
 }
 
 // newRqliteMockHandlerForCLI returns an HTTP handler that satisfies gorqlite's

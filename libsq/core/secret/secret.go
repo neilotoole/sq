@@ -21,10 +21,12 @@
 //
 // Every boundary that moves bytes between the two kinds must convert
 // exactly once: Escape converts literal -> template; Expand and Unescape
-// convert template -> literal. Storing template bytes in a literal slot
-// (or vice versa), or converting twice, mangles any '$' the value
-// contains. source.Source.SecretsResolved marks an in-memory source whose
-// Location has already been converted to literal form.
+// convert template -> literal (Unescape only for templates with no refs;
+// use Registry.Expand when refs may be present). Storing template bytes
+// in a literal slot (or vice versa), or converting twice, mangles any
+// '$' the value contains. source.Source.SecretsResolved marks an
+// in-memory source whose Location has already been converted to literal
+// form.
 package secret
 
 import (

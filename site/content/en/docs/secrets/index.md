@@ -383,6 +383,12 @@ a self-contained snapshot suitable for moving between machines, at the cost
 of writing every referenced secret in plaintext (which is exactly the point
 of `--expand`).
 
+Because the exported file is itself a config, its locations are templates:
+any `$` in a resolved value is written as
+[`$$`](#literal-dollar-signs), so that the export connects byte-identically
+when used as `sq.yml`. To see resolved values in raw literal form, use the
+display commands, e.g. `sq ls -v --expand`.
+
 ```yaml
 # Live config: location uses a keyring placeholder
 - handle: '@sakila/pg'

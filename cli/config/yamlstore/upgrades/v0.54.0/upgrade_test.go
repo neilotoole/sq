@@ -195,50 +195,55 @@ collection:
 	}
 }
 
-// TestUpgrade_CorruptLocation verifies that a missing or non-string
-// source location aborts the upgrade before anything is written.
-// Neither config could ever load (the typed loader rejects empty
-// locations and fails to unmarshal non-string ones), so erroring here
-// can't break a working config; it produces a clearer error than the
-// downstream unmarshal failure, and matches the corrupt-shape
-// precedent elsewhere in this upgrade.
+// TestUpgrade_CorruptLocation verifies the upgrade's handling of
+// degenerate source locations.
+//
+// A missing location aborts the upgrade before anything is written:
+// such a config never loaded (validSource rejects empty locations), so
+// erroring can't break a working config, and it matches the
+// corrupt-shape precedent elsewhere in this upgrade.
+//
+// A non-string location is skipped, NOT an error: goccy-yaml coerces
+// scalar values (int/float/bool) into string fields, so 'location:
+// 123' loaded fine on v0.53.0 as "123" and erroring here would brick
+// a previously working config. Skipping is provably safe for escaping
+// purposes: a YAML scalar that parses as non-string can't contain '$'
+// (any '$'-bearing value parses as a string).
 func TestUpgrade_CorruptLocation(t *testing.T) {
 	log := lgt.New(t)
 	ctx := lg.NewContext(context.Background(), log)
 
-	tests := []struct {
-		name string
-		in   string
-	}{
-		{
-			name: "missing location",
-			in: `config.version: v0.53.0
+	t.Run("missing location errors", func(t *testing.T) {
+		in := []byte(`config.version: v0.53.0
 collection:
   sources:
   - handle: "@src"
     driver: postgres
-`,
-		},
-		{
-			name: "non-string location",
-			in: `config.version: v0.53.0
+`)
+		_, err := v0_54_0.Upgrade(ctx, in)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "corrupt config")
+		require.Contains(t, err.Error(), "location")
+	})
+
+	t.Run("non-string location skipped", func(t *testing.T) {
+		in := []byte(`config.version: v0.53.0
 collection:
   sources:
   - handle: "@src"
     driver: postgres
     location: 123
-`,
-		},
-	}
+`)
+		out, err := v0_54_0.Upgrade(ctx, in)
+		require.NoError(t, err,
+			"non-string location must not abort: it loaded fine on v0.53.0 (goccy coerces scalars)")
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			_, err := v0_54_0.Upgrade(ctx, []byte(tc.in))
-			require.Error(t, err)
-			require.Contains(t, err.Error(), "corrupt config")
-			require.Contains(t, err.Error(), "location")
-		})
-	}
+		var m map[string]any
+		require.NoError(t, ioz.UnmarshallYAML(out, &m))
+		require.Equal(t, v0_54_0.Version, m["config.version"])
+		src := m["collection"].(map[string]any)["sources"].([]any)[0].(map[string]any)
+		require.EqualValues(t, 123, src["location"], "non-string location value must be untouched")
+	})
 }
 
 // TestUpgrade_NoRedactKey_IsIdempotent verifies that running Upgrade

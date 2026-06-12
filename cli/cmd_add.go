@@ -20,6 +20,7 @@ import (
 	"github.com/neilotoole/sq/drivers/duckdb"
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -302,6 +303,18 @@ func execSrcAdd(cmd *cobra.Command, args []string) (err error) {
 			return err
 		}
 
+		// The pre-detection escape check covers bare file paths; munged
+		// file-DB locations (sqlite3:///path, duckdb:///path) carry the
+		// '$$' bytes inside a DSN, so check the extracted path here.
+		// Especially important for SQLite, which CREATES missing files
+		// on open: without this, the ping would silently create and
+		// open an empty DB at the interpreted path.
+		if fpath, isFileDB := fileDBPath(typ, loc); isFileDB {
+			if err = checkPathEscape(fpath); err != nil {
+				return err
+			}
+		}
+
 		// Apply password: store in keyring or inline, per flags and config.
 		// keyringRollbackID is set when --store keyring mints a new entry;
 		// the deferred cleanup at the top of execSrcAdd undoes it on err.
@@ -490,35 +503,54 @@ func mungeLocationForType(ctx context.Context, typ drivertype.Type, loc string) 
 }
 
 // checkFileLocationEscape rejects a typed file location whose '$$'
-// escaping is almost certainly unintended. The stored location is a
-// placeholder template: '$$' means a literal '$', so the connect path
-// interprets a typed path like 'data$$file.csv' as 'data$file.csv'.
-// If a file exists at the typed bytes but not at the
-// template-interpreted bytes, the user meant the literal file and
-// forgot to escape; erroring now names the real path, rather than
-// failing later with an error citing a path the user never typed.
-// Placeholder locations, non-file locations (DSNs), and paths without
-// '$$' pass through.
+// escaping is almost certainly unintended; see checkPathEscape.
+// Placeholder locations and non-file locations (DSNs) pass through;
+// driver-prefixed file-DB paths (sqlite3:, duckdb:) are covered
+// separately post-munge via fileDBPath.
 func checkFileLocationEscape(loc string, hasPlaceholder bool) error {
-	if hasPlaceholder {
+	if hasPlaceholder || location.TypeOf(secret.Unescape(loc)) != location.TypeFile {
 		return nil
 	}
-	interpreted := secret.Unescape(loc)
-	if interpreted == loc || location.TypeOf(interpreted) != location.TypeFile {
+	return checkPathEscape(loc)
+}
+
+// checkPathEscape errors when a regular file exists at the typed
+// (template) path but not at the template-interpreted path. The
+// stored location is a placeholder template: '$$' means a literal
+// '$', so the connect path interprets a typed path like
+// 'data$$file.csv' as 'data$file.csv'. When the literal file exists
+// and the interpreted one doesn't, the user meant the literal file
+// and forgot to escape; erroring now names the real path, rather than
+// failing later with an error citing a path the user never typed.
+func checkPathEscape(typedPath string) error {
+	interpreted := secret.Unescape(typedPath)
+	if interpreted == typedPath {
 		return nil
 	}
-	if _, statErr := os.Stat(loc); statErr != nil {
-		// Nothing at the typed path either; whatever is wrong, it isn't
-		// a missed escape. Let detection or the ping surface it.
-		return nil //nolint:nilerr
+	if ioz.IsPathToRegularFile(typedPath) && !ioz.IsPathToRegularFile(interpreted) {
+		return errz.Errorf(
+			"location contains %q, which sq interprets as an escaped literal '$': "+
+				"a file exists at %s, but the interpreted path %s does not",
+			"$$", typedPath, interpreted)
 	}
-	if _, statErr := os.Stat(interpreted); statErr == nil {
-		return nil
+	return nil
+}
+
+// fileDBPath returns the file path component of a munged file-DB
+// location (sqlite3:///path, duckdb:///path) and true, or ("", false)
+// for other driver types and for non-file forms (e.g. duckdb
+// ":memory:").
+func fileDBPath(typ drivertype.Type, loc string) (string, bool) {
+	src := &source.Source{Type: typ, Location: loc}
+	if typ == drivertype.SQLite {
+		p, err := sqlite3.PathFromLocation(src)
+		return p, err == nil
 	}
-	return errz.Errorf(
-		"location contains %q, which sq interprets as an escaped literal '$': "+
-			"a file exists at %s, but the interpreted path %s does not",
-		"$$", loc, interpreted)
+	if typ == drivertype.DuckDB {
+		p, err := duckdb.PathFromLocation(src)
+		return p, err == nil
+	}
+	return "", false
 }
 
 // wrapBareSecretURI normalizes location forms that look like a URL but
@@ -595,8 +627,15 @@ func resolveDriverType(
 	// not the raw typed bytes: extension-based detection is unaffected,
 	// but the byte-sniffing fallback opens the path, and it must read
 	// the same file the connect path will open.
-	typ, err := ru.Files.DetectType(ctx, handle, secret.Unescape(loc))
+	interpreted := secret.Unescape(loc)
+	typ, err := ru.Files.DetectType(ctx, handle, interpreted)
 	if err != nil {
+		if interpreted != loc {
+			// Detection ran on the interpreted bytes; surface the typed
+			// form too, or the error cites a path the user never typed.
+			return "", errz.Wrapf(err,
+				"location %s contains %q, which sq interpreted as an escaped literal '$'", loc, "$$")
+		}
 		return "", err
 	}
 	if typ == drivertype.None {
@@ -667,6 +706,13 @@ func applyKeyring(ctx context.Context, _ *run.Run, loc string, passwd []byte) (n
 			flag.AddStore, flag.AddStoreKeyring, flag.PasswordPrompt,
 		)
 	}
+
+	// The typed loc is a placeholder template ('$$' means a literal
+	// '$'; zero refs guaranteed by the caller), but the keyring slot
+	// holds a literal that Registry.Expand splices raw at connect.
+	// Convert to literal form now, before the raw literal password is
+	// spliced in below.
+	loc = secret.Unescape(loc)
 
 	if len(passwd) > 0 {
 		var spliced string

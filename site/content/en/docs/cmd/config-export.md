@@ -33,6 +33,12 @@ $ sq config export -o sq.bak.yml
 self-contained snapshot suitable for moving between machines, at the cost of writing every
 referenced secret in plaintext (which is the intent of `--expand` anyway).
 
+Because the exported file is itself a config, its locations are templates: any `$` in a
+resolved value is written as
+[`$$`](/docs/secrets#literal-dollar-signs), so that the export connects
+byte-identically when used as `sq.yml`. To see resolved values in raw literal form, use
+the display commands, e.g. `sq ls -v --expand`.
+
 ```shell
 $ sq config export --expand -o sq.bak.yml
 ```

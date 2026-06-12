@@ -132,23 +132,22 @@ func ResolveSourceSecrets(ctx context.Context, src *source.Source) (*source.Sour
 	if err != nil {
 		return nil, errz.Wrapf(err, "parse placeholders for %s", src.Handle)
 	}
+
+	var resolved string
 	if len(refs) == 0 {
-		if unescaped := secret.Unescape(src.Location); unescaped != src.Location {
-			clone := src.Clone()
-			clone.Location = unescaped
-			clone.SecretsResolved = true
-			return clone, nil
+		if resolved = secret.Unescape(src.Location); resolved == src.Location {
+			return src, nil
 		}
-		return src, nil
+	} else {
+		reg := secret.FromContext(ctx)
+		if reg == nil {
+			return nil, errz.Errorf("resolve placeholders for %s: no secret registry bound to context", src.Handle)
+		}
+		if resolved, err = reg.Expand(ctx, src.Location); err != nil {
+			return nil, errz.Wrapf(err, "resolve secrets for %s", src.Handle)
+		}
 	}
-	reg := secret.FromContext(ctx)
-	if reg == nil {
-		return nil, errz.Errorf("resolve placeholders for %s: no secret registry bound to context", src.Handle)
-	}
-	resolved, err := reg.Expand(ctx, src.Location)
-	if err != nil {
-		return nil, errz.Wrapf(err, "resolve secrets for %s", src.Handle)
-	}
+
 	clone := src.Clone()
 	clone.Location = resolved
 	clone.SecretsResolved = true
