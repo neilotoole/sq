@@ -678,6 +678,43 @@ func TestCmdConfigKeyringGet_JSON_WithReveal(t *testing.T) {
 	require.Equal(t, "hunter2", got["value"])
 }
 
+// TestCmdConfigKeyringGet_JSON_WithReveal_EmptyValue: an empty stored
+// secret must still emit the "value" key (as "") with --reveal, so a
+// consumer can distinguish "empty secret, revealed" from "redacted".
+func TestCmdConfigKeyringGet_JSON_WithReveal_EmptyValue(t *testing.T) {
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", "abc_get_js_empty", ""))
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Exec("config", "keyring", "get", "abc_get_js_empty", "--reveal", "--json"))
+
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
+	require.Equal(t, "abc_get_js_empty", got["path"])
+	require.Equal(t, true, got["exists"])
+	v, hasValue := got["value"]
+	require.True(t, hasValue, "value must be present with --reveal, even when empty")
+	require.Equal(t, "", v)
+}
+
+// TestCmdConfigKeyringGet_JSON_WithoutReveal_EmptyValue: without
+// --reveal, an empty stored secret emits no "value" key, same as any
+// other redacted secret.
+func TestCmdConfigKeyringGet_JSON_WithoutReveal_EmptyValue(t *testing.T) {
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", "abc_get_js_empty2", ""))
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Exec("config", "keyring", "get", "abc_get_js_empty2", "--json"))
+
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
+	require.Equal(t, "abc_get_js_empty2", got["path"])
+	require.Equal(t, true, got["exists"])
+	_, hasValue := got["value"]
+	require.False(t, hasValue, "value must be absent without --reveal")
+}
+
 // TestCmdConfigKeyringCreate_JSON: explicit create with --json emits a
 // confirmation object with "created": true.
 func TestCmdConfigKeyringCreate_JSON(t *testing.T) {
