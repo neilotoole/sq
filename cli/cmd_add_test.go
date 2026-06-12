@@ -1232,9 +1232,13 @@ var dollarDirNames = []string{
 
 // chdirDollarDir creates dirName under a fresh temp dir, chdirs into
 // it, and returns the resolved cwd (os.Getwd after chdir, so macOS
-// /tmp symlinks don't skew expectations).
+// /tmp symlinks don't skew expectations). Subtests using a dirName
+// that can't exist on Windows (':' is invalid in a path component)
+// are skipped there; the plain '$' dir names still run.
 func chdirDollarDir(t *testing.T, dirName string) string {
 	t.Helper()
+	tu.SkipWindowsIf(t, strings.Contains(dirName, ":"),
+		"dir name %q contains ':', which is invalid in a Windows path component", dirName)
 	dir := filepath.Join(t.TempDir(), dirName)
 	require.NoError(t, os.Mkdir(dir, 0o750))
 	t.Chdir(dir)

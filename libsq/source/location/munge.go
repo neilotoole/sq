@@ -178,7 +178,19 @@ func mungeFileDBLocation(prefix, loc string, allowMemory, template bool) (string
 //     template bytes: its decisions depend only on separators and
 //     "." / ".." segments, and no segment containing '$' can be "."
 //     or "..".
-//   - A relative tmplPath becomes filepath.Join(Escape(cwd),
+//   - A Windows rooted-no-volume tmplPath (e.g. `\foo`) is not
+//     absolute (filepath.IsAbs is false because the volume is
+//     missing), but filepath.Abs does not join it under the cwd
+//     either: it resolves the path against the cwd's volume root, so
+//     cwd `D:\work` yields `D:\foo`. That resolution is replicated
+//     here as Clean(Escape(VolumeName(cwd)) + tmplPath). Only the
+//     volume name is cwd-derived, so only it is escaped: a UNC volume
+//     can itself contain '$' (administrative shares, e.g.
+//     `\\server\c$`), while a drive volume like "C:" cannot, making
+//     Escape a no-op there. See joinVolumeTemplatePath for why Clean
+//     is exact on the escaped form. On Unix a rooted path is always
+//     absolute, so this case is unreachable there.
+//   - Any other relative tmplPath becomes filepath.Join(Escape(cwd),
 //     tmplPath). Escape never adds or removes separators or changes
 //     whether a segment equals "." or "..", so the Clean inside Join
 //     makes identical structural decisions on the escaped and
@@ -209,15 +221,48 @@ func absTemplatePath(tmplPath string) (string, error) {
 		return "", errz.Err(err)
 	}
 	if !strings.Contains(cwd, "$") {
-		// Escape(cwd) == cwd, so the escape-aware join below reduces
+		// Escape(cwd) == cwd, so the escape-aware logic below reduces
 		// to filepath.Abs. Call it directly so behavior on '$'-free
 		// cwds (the overwhelmingly common case) is bit-for-bit
-		// unchanged, including Windows drive-relative handling.
+		// unchanged, including Windows drive-relative and
+		// rooted-no-volume handling.
 		fp, err := filepath.Abs(tmplPath)
 		if err != nil {
 			return "", errz.Err(err)
 		}
 		return fp, nil
 	}
+	if isRootedNoVolume(tmplPath) {
+		// Windows-only: filepath.Abs resolves a rooted-no-volume path
+		// against the cwd's volume root, not under the cwd.
+		return joinVolumeTemplatePath(filepath.VolumeName(cwd), tmplPath), nil
+	}
 	return filepath.Join(secret.Escape(cwd), tmplPath), nil
+}
+
+// isRootedNoVolume reports whether p is rooted (begins with a path
+// separator) but carries no volume name. On Windows such a path (e.g.
+// `\foo` or `/foo`) is not absolute, because filepath.IsAbs requires
+// a volume; filepath.Abs resolves it against the current volume's
+// root rather than joining it under the cwd. On Unix, VolumeName is
+// always empty and a rooted path satisfies filepath.IsAbs, so
+// absTemplatePath never reaches this check there.
+func isRootedNoVolume(p string) bool {
+	return p != "" && os.IsPathSeparator(p[0]) && filepath.VolumeName(p) == ""
+}
+
+// joinVolumeTemplatePath resolves a rooted-no-volume template path p
+// against volume (the cwd's volume name) the way filepath.Abs would:
+// the volume is prepended and the result cleaned. Attribution per
+// absTemplatePath: p is the user's typed bytes, preserved as typed;
+// volume is filesystem-derived and is escaped, because a UNC volume
+// can itself contain '$' (administrative shares, e.g. `\\server\c$`).
+// Escaping does not perturb Clean's volume parsing: Escape only
+// doubles '$' runs, never adding or removing separators, so the
+// escaped share name remains a single path segment and Clean makes
+// the same structural decisions as on the unescaped form. And p
+// begins with a separator, so '$' runs cannot span the volume/path
+// boundary and the round trip is exact.
+func joinVolumeTemplatePath(volume, p string) string {
+	return filepath.Clean(secret.Escape(volume) + p)
 }

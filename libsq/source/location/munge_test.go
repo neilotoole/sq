@@ -3,6 +3,7 @@ package location_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -53,9 +54,13 @@ var dollarDirNames = []string{
 
 // chdirNew creates dirName under a fresh temp dir, chdirs into it, and
 // returns the resolved cwd (os.Getwd after chdir, so macOS /tmp
-// symlinks don't skew expectations).
+// symlinks don't skew expectations). Subtests using a dirName that
+// can't exist on Windows (':' is invalid in a path component) are
+// skipped there; the plain '$' dir names still run.
 func chdirNew(t *testing.T, dirName string) string {
 	t.Helper()
+	tu.SkipWindowsIf(t, strings.Contains(dirName, ":"),
+		"dir name %q contains ':', which is invalid in a Windows path component", dirName)
 	dir := filepath.Join(t.TempDir(), dirName)
 	require.NoError(t, os.Mkdir(dir, 0o750))
 	t.Chdir(dir)
