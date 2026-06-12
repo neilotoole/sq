@@ -15,22 +15,62 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// maybeExpandCollection returns coll unchanged when --expand is not set
-// on cmd. Otherwise it returns a deep clone whose source Locations have
-// each been passed through ru.SecretRegistry.Expand, with lenient
-// fallback: any per-source resolver error is swallowed and the
-// original Location is preserved verbatim. ctx is used for the
-// resolver call; context.Canceled / context.DeadlineExceeded propagate
-// as errors (a partial expansion under user-driven cancellation is not
-// a "this source's keyring is offline" situation).
-//
-// Called by every command that prints a source location: sq src,
-// sq ls, sq inspect, sq add and sq mv (post-action echo), and
-// sq ping in JSON/YAML output. Each handler invokes this once
-// before passing data to the writer. The writer's existing redact
-// step runs on whatever Location it sees, so the matrix is:
+// This file implements the --expand flag's location expansion. The
+// expansion is applied centrally in the writer layer: newWriters wraps
+// the writers that print source locations (Source, Ping, Metadata) in
+// the expand decorators from expand_writer.go, so any command that
+// prints a location honors --expand without per-command code. The
+// matrix is:
 //
 //	raw -> [expand?] -> [redact?] -> displayed
+//
+// where the redact step is the writer impls' pr.Redact handling.
+
+// expandLocation returns loc with ${scheme:path} placeholders expanded
+// via ru.SecretRegistry, with lenient fallback: a resolver error is
+// swallowed (logged at debug level) and loc is returned verbatim with
+// resolved=false. Context cancellation propagates as an error (a
+// partial expansion under user-driven cancellation is not a "this
+// source's keyring is offline" situation), as does a placeholder parse
+// error: parse errors are user config bugs (e.g. "${env}" missing the
+// colon) and must surface so the user can fix them; swallowing them
+// silently would hide a config break behind the lenient-resolver
+// fallback. The handle arg is used only for error and log context.
+func expandLocation(ctx context.Context, ru *run.Run, handle, loc string,
+) (expanded string, resolved bool, err error) {
+	if _, parseErr := secret.ExtractRefs(loc); parseErr != nil {
+		return "", false, errz.Wrapf(parseErr, "expand %s", handle)
+	}
+
+	expanded, expandErr := ru.SecretRegistry.Expand(ctx, loc)
+	if expandErr != nil {
+		if errors.Is(expandErr, context.Canceled) || errors.Is(expandErr, context.DeadlineExceeded) {
+			return "", false, errz.Err(expandErr)
+		}
+		// Lenient resolver failure: keep the placeholder verbatim and
+		// log at debug level. The verbatim placeholder may itself be
+		// hidden downstream (e.g. a placeholder inside a URL password
+		// slot is masked by the redact filter when --reveal is off),
+		// so the debug log is the reliable signal for operators
+		// running with SQ_LOG=debug.
+		lg.FromContext(ctx).Debug("expand: leaving placeholder verbatim",
+			lga.Src, handle,
+			lga.Err, expandErr)
+		return loc, false, nil
+	}
+	return expanded, true, nil
+}
+
+// maybeExpandCollection returns coll unchanged when --expand is not set
+// on cmd. Otherwise it returns a deep clone whose source Locations have
+// each been passed through expandLocation (lenient on resolver error,
+// strict on parse error and context cancellation; see expandLocation).
+//
+// Sources already carrying resolved literal locations
+// (Source.SecretsResolved) are skipped: re-resolving a literal would
+// unescape '$$' a second time, corrupting locations (e.g. those escaped
+// by the v0.54.0 config upgrade, or a resolved secret value containing
+// '$$').
 //
 // See also: maybeExpandSource for the single-source variant.
 func maybeExpandCollection(ctx context.Context, ru *run.Run, cmd *cobra.Command,
@@ -42,76 +82,82 @@ func maybeExpandCollection(ctx context.Context, ru *run.Run, cmd *cobra.Command,
 
 	clone := coll.Clone()
 	for _, src := range clone.Sources() {
-		// Validate placeholder syntax upfront. Parse errors are user config
-		// bugs (e.g. "${env}" missing the colon) and must surface so the
-		// user can fix them; swallowing them silently would hide a config
-		// break behind the lenient-resolver fallback below. cmd_add does the
-		// same dance for added sources.
-		if _, parseErr := secret.ExtractRefs(src.Location); parseErr != nil {
-			return nil, errz.Wrapf(parseErr, "expand %s", src.Handle)
-		}
-		resolved, err := ru.SecretRegistry.Expand(ctx, src.Location)
-		if err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				return nil, errz.Err(err)
-			}
-			// Lenient resolver failure: keep the placeholder verbatim and
-			// log at debug level. The verbatim placeholder may itself be
-			// hidden downstream (e.g. a placeholder inside a URL password
-			// slot is masked by the redact filter when --reveal is off),
-			// so the debug log is the reliable signal for operators
-			// running with SQ_LOG=debug.
-			lg.FromContext(ctx).Debug("expand: leaving placeholder verbatim",
-				lga.Src, src.Handle,
-				lga.Err, err)
+		if src.SecretsResolved {
+			// Location is already literal: nothing to expand, and
+			// re-resolution would double-unescape '$$'.
 			continue
 		}
-		src.Location = resolved
+		loc, resolved, err := expandLocation(ctx, ru, src.Handle, src.Location)
+		if err != nil {
+			return nil, err
+		}
+		src.Location = loc
 		// Resolved bytes are literal: mark so re-resolution is a no-op
-		// (the lenient branch above keeps the template, so it does not
-		// mark); see Source.SecretsResolved.
-		src.SecretsResolved = true
+		// (the lenient branch keeps the template, so resolved is false
+		// and the marker stays unset); see Source.SecretsResolved.
+		src.SecretsResolved = resolved
 	}
 	return clone, nil
 }
 
 // maybeExpandSource is the single-source variant of
 // maybeExpandCollection. Same semantics: --expand unset returns input
-// verbatim; --expand set returns a cloned source with Expand applied,
-// lenient on resolver error, propagates context cancellation.
+// verbatim; --expand set returns a cloned source with the location
+// expanded, lenient on resolver error, propagating parse errors and
+// context cancellation. A source already carrying a resolved literal
+// location (Source.SecretsResolved) is returned unchanged.
 func maybeExpandSource(ctx context.Context, ru *run.Run, cmd *cobra.Command,
 	src *source.Source,
 ) (*source.Source, error) {
-	if !cmdFlagIsSetTrue(cmd, flag.Expand) || src == nil {
+	if !cmdFlagIsSetTrue(cmd, flag.Expand) || src == nil || src.SecretsResolved {
 		return src, nil
 	}
 
-	// Validate placeholder syntax upfront. Parse errors are user config
-	// bugs (e.g. "${env}" missing the colon) and must surface so the
-	// user can fix them; swallowing them silently would hide a config
-	// break behind the lenient-resolver fallback below.
-	if _, parseErr := secret.ExtractRefs(src.Location); parseErr != nil {
-		return nil, errz.Wrapf(parseErr, "expand %s", src.Handle)
-	}
 	clone := src.Clone()
-	resolved, err := ru.SecretRegistry.Expand(ctx, clone.Location)
+	loc, resolved, err := expandLocation(ctx, ru, src.Handle, src.Location)
 	if err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return nil, errz.Err(err)
-		}
-		// Lenient resolver failure: keep the placeholder verbatim and
-		// log at debug level. The verbatim value is the user-visible
-		// signal in default output; the debug log is for operators
-		// running with SQ_LOG=debug.
-		lg.FromContext(ctx).Debug("expand: leaving placeholder verbatim",
-			lga.Src, src.Handle,
-			lga.Err, err)
-		return clone, nil
+		return nil, err
 	}
-	clone.Location = resolved
+	clone.Location = loc
 	// Resolved bytes are literal: mark so re-resolution is a no-op
-	// (the lenient branch above keeps the template, so it does not
-	// mark); see Source.SecretsResolved.
-	clone.SecretsResolved = true
+	// (the lenient branch keeps the template, so resolved is false and
+	// the marker stays unset); see Source.SecretsResolved.
+	clone.SecretsResolved = resolved
+	return clone, nil
+}
+
+// maybeExpandGroup is the source.Group variant of maybeExpandSource.
+// When --expand is set on cmd, it returns a clone of g whose sources
+// (recursively, including subgroups) have been expanded via
+// maybeExpandSource. Mirrors source.RedactGroup, which performs the
+// same walk for the redaction step.
+func maybeExpandGroup(ctx context.Context, ru *run.Run, cmd *cobra.Command,
+	g *source.Group,
+) (*source.Group, error) {
+	if !cmdFlagIsSetTrue(cmd, flag.Expand) || g == nil {
+		return g, nil
+	}
+
+	clone := &source.Group{Name: g.Name, Active: g.Active}
+	if g.Sources != nil {
+		clone.Sources = make([]*source.Source, len(g.Sources))
+		for i, src := range g.Sources {
+			expanded, err := maybeExpandSource(ctx, ru, cmd, src)
+			if err != nil {
+				return nil, err
+			}
+			clone.Sources[i] = expanded
+		}
+	}
+	if g.Groups != nil {
+		clone.Groups = make([]*source.Group, len(g.Groups))
+		for i, sub := range g.Groups {
+			expanded, err := maybeExpandGroup(ctx, ru, cmd, sub)
+			if err != nil {
+				return nil, err
+			}
+			clone.Groups[i] = expanded
+		}
+	}
 	return clone, nil
 }

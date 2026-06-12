@@ -397,6 +397,17 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 		w.Record = recwFn(outCfg.out, outCfg.outPr)
 	}
 
+	if cmd != nil {
+		// Decorate the writers that print source locations so that the
+		// --expand flag is honored centrally, in the writer layer: the
+		// same altitude at which Printing.Redact enforces redaction. Any
+		// command that prints a location gets --expand for free; the
+		// decorators no-op when the flag is unset. See expand_writer.go.
+		w.Source = &expandSourceWriter{w: w.Source, expander: expander{cmd: cmd}}
+		w.Ping = &expandPingWriter{w: w.Ping, expander: expander{cmd: cmd}}
+		w.Metadata = &expandMetadataWriter{w: w.Metadata, expander: expander{cmd: cmd}}
+	}
+
 	return w, outCfg
 }
 

@@ -216,13 +216,16 @@ Exit status is 0 if inputs are the same, 1 if different, 2 on any error.`,
 	))
 
 	addOptionFlag(cmd.Flags(), driver.OptIngestCache)
+
+	// Diff never writes to a source: preRun applies the read-only
+	// hint to the command context.
+	cmdMarkReadOnly(cmd)
 	return cmd
 }
 
 // execDiff compares sources or tables.
 func execDiff(cmd *cobra.Command, args []string) (err error) {
-	ctx := driver.WithReadOnly(cmd.Context())
-	cmd.SetContext(ctx)
+	ctx := cmd.Context()
 	ru := run.FromContext(ctx)
 
 	var foundDiffs bool

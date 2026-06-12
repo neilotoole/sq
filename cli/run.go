@@ -155,6 +155,13 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 		ru.Cleanup = cleanup.New()
 	}
 
+	// Commands marked via cmdMarkReadOnly get the read-only hint applied
+	// here, centrally, instead of each command flipping the context itself.
+	if cmdIsReadOnly(cmd) {
+		ctx = driver.WithReadOnly(ctx)
+		cmd.SetContext(ctx)
+	}
+
 	// If the --input=some/file flag is set, then we need
 	// to override ru.Stdin (which is typically stdin) to point
 	// it at the input source file.
@@ -499,4 +506,26 @@ func cmdMarkPlainStdout(cmd *cobra.Command) {
 // previously invoked on cmd.
 func cmdRequiresPlainStdout(cmd *cobra.Command) bool {
 	return cmd != nil && cmd.Annotations != nil && cmd.Annotations["stdout.plain"] == "true"
+}
+
+// cmdMarkReadOnly marks cmd as not intending to write to any source.
+// Before the command's RunE is invoked, preRun applies the implicit
+// read-only hint to the command's context via driver.WithReadOnly, so
+// drivers that can honor the hint (currently DuckDB) connect in
+// read-only mode. Use this for commands that are read-only by
+// definition (e.g. inspect, diff, ping). Code paths that are only
+// conditionally read-only (e.g. sq sql --readonly, or the slq
+// no-insert path) instead call driver.WithReadOnly or
+// driver.WithReadOnlyExplicit directly.
+func cmdMarkReadOnly(cmd *cobra.Command) {
+	if cmd.Annotations == nil {
+		cmd.Annotations = make(map[string]string)
+	}
+	cmd.Annotations["source.readonly"] = "true"
+}
+
+// cmdIsReadOnly returns true if cmdMarkReadOnly was previously invoked
+// on cmd.
+func cmdIsReadOnly(cmd *cobra.Command) bool {
+	return cmd != nil && cmd.Annotations != nil && cmd.Annotations["source.readonly"] == "true"
 }
