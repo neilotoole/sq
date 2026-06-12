@@ -55,10 +55,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   [`sq sql`](https://sq.io/docs/cmd/sql) flag `--readonly` (alias `--ro`) opts in for
   ad-hoc SQL.
 - ☢️ [#728]: The `redact` config option is renamed to
-  [`secrets.reveal`](https://sq.io/docs/config#secretsreveal) with inverted polarity
-  (`secrets.reveal: true` equals legacy `redact: false`); the default remains
-  redaction. Existing configs are migrated automatically on first run, but scripts
-  that call `sq config get|set redact` need updating to the new key.
+  [`secrets.reveal`](https://sq.io/docs/config#secretsreveal) with inverted polarity.
+  - `secrets.reveal: true` equals legacy `redact: false`; the default remains redaction.
+  - Existing configs are migrated automatically on first run, but scripts
+    that call `sq config get|set redact` need updating to the new `secrets.reveal` key.
 - [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd)
   now syntax-colors its `erDiagram` source when writing to a terminal.
 
@@ -67,12 +67,13 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [#741], [#743]: [`sq add`](https://sq.io/docs/cmd/add) shell completion now supports
   [ClickHouse](https://sq.io/docs/drivers/clickhouse) and
   [Oracle](https://sq.io/docs/drivers/oracle).
-- [#699]: The [SQLite driver](https://sq.io/docs/drivers/sqlite) no longer executes
-  side-effecting or whole-database-scanning pragmas when reading source metadata for
-  [`sq inspect`](https://sq.io/docs/inspect). Previously, `pragma_optimize` could
-  silently run `ANALYZE` (writing to the database and taking the file write lock), and
-  `integrity_check` / `quick_check` / `foreign_key_check` scanned the entire database.
-  These keys no longer appear in the inspect output's DB properties.
+- [#699]: [`sq inspect`](https://sq.io/docs/inspect) on
+  [SQLite](https://sq.io/docs/drivers/sqlite) sources no longer executes pragmas that
+  write to the database or scan the whole file.
+  - Previously, `pragma_optimize` could silently run `ANALYZE` (taking the file write lock), and
+    `integrity_check` / `quick_check` / `foreign_key_check` scanned the entire database. These
+    keys no longer appear in the inspect output's DB properties.
+  - On a large database, these scans potentially made each `sq inspect` painfully slow.
 - [#720]: Fixed [SQLite driver](https://sq.io/docs/drivers/sqlite) path handling for
   source locations with connection params (e.g. `sqlite3:///path/to/db?mode=ro`).
 - [#750], [#752], [#757], [#759]: A batch of fixes to the `CREATE TABLE` DDL rewriting
