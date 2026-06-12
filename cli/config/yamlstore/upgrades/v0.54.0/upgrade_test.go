@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -82,6 +83,23 @@ func TestUpgrade(t *testing.T) {
 		"per-source redact:false should migrate to secrets.reveal:true")
 	require.NotContains(t, xlsxSrc.Options, "redact",
 		"per-source 'redact' should be removed on upgrade")
+
+	// Before any upgrade step runs, a verbatim backup of the
+	// pre-upgrade config must be written alongside sq.yml, named for
+	// the version the config was upgraded from. The name must not end
+	// in ".sq.yml", or ext config loading would pick it up.
+	backupRaw, err := os.ReadFile(filepath.Join(cfgDir, "sq.v0.53.0.bak.yml"))
+	require.NoError(t, err, "pre-upgrade backup file must exist")
+	origCfgRaw, err := os.ReadFile(filepath.Join("testdata", "sq.yml"))
+	require.NoError(t, err)
+	require.Equal(t, string(origCfgRaw), string(backupRaw),
+		"backup must be byte-identical to the pre-upgrade config")
+	if runtime.GOOS != "windows" {
+		fi, err := os.Stat(filepath.Join(cfgDir, "sq.v0.53.0.bak.yml"))
+		require.NoError(t, err)
+		require.Equal(t, ioz.RWPerms, fi.Mode().Perm(),
+			"backup may contain credentials; must be user-only readable")
+	}
 
 	wantCfgRaw, err := os.ReadFile(filepath.Join("testdata", "want.sq.yml"))
 	require.NoError(t, err)

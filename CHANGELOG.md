@@ -63,6 +63,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     [`$$`](https://sq.io/docs/secrets#literal-dollar-signs) in any source location that
     the new placeholder syntax would otherwise reinterpret, so existing sources connect
     exactly as before.
+  - Before migrating, `sq` writes a verbatim
+    [backup](https://sq.io/docs/config#upgrades) of the pre-upgrade config alongside
+    `sq.yml`, e.g. `sq.v0.53.0.bak.yml`. The backup is never touched afterward; note
+    that it preserves any inline credentials from the old config.
 - [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd)
   now syntax-colors its `erDiagram` source when writing to a terminal.
 

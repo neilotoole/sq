@@ -143,7 +143,8 @@ password like `p$ssw0rd`) is already literal and needs no escaping.
 
 When upgrading a config created before `v0.54.0` (which had no placeholder
 syntax), `sq` automatically escapes any source location that would otherwise
-be reinterpreted, so existing sources connect exactly as before.
+be reinterpreted, so existing sources connect exactly as before. The
+pre-upgrade config is [backed up](/docs/config#upgrades) verbatim first.
 
 ### URL encoding
 
