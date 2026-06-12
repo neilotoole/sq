@@ -447,6 +447,12 @@ func parseRqlite(loc string, fields *Fields) (*Fields, error) {
 // Abs returns the absolute path of loc. That is, relative
 // paths etc. are resolved. If loc is not a file path or
 // it cannot be processed, loc is returned unmodified.
+//
+// Abs treats loc as placeholder-template bytes (the form in which
+// source locations are stored): the cwd bytes joined in when
+// absolutizing a relative path are literal filesystem bytes, so any
+// '$' they contain is escaped via secret.Escape, while loc's typed
+// bytes pass through exactly as typed. See absTemplatePath.
 func Abs(loc string) string {
 	if fpath, ok := isFpath(loc); ok {
 		return fpath
@@ -455,7 +461,9 @@ func Abs(loc string) string {
 	return loc
 }
 
-// isFpath returns the absolute filepath and true if loc is a file path.
+// isFpath returns the absolute filepath and true if loc is a file
+// path. The returned fpath is template bytes: cwd-derived bytes are
+// escaped per absTemplatePath.
 func isFpath(loc string) (fpath string, ok bool) {
 	// This is not exactly an industrial-strength algorithm...
 
@@ -488,7 +496,7 @@ func isFpath(loc string) (fpath string, ok bool) {
 		return "", false
 	}
 
-	fpath, err := filepath.Abs(loc)
+	fpath, err := absTemplatePath(loc)
 	if err != nil {
 		return "", false
 	}
