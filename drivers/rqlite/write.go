@@ -80,6 +80,25 @@ func writeNonTx(ctx context.Context, db sqlz.DB,
 // request rides rqlite's transaction wrapper (gorqlite's default);
 // otherwise the connection's transaction flag is cleared around the
 // request and restored afterward.
+//
+// Flag invariant: every pooled connection has gorqlite's
+// wantsTransactions flag set true except within this function's
+// non-tx window. The restore below hardcodes true (rather than
+// saving the prior value) because that invariant makes the prior
+// value always true, and gorqlite exposes no getter to save it; any
+// future code that legitimately holds a flag-false connection
+// breaks this assumption and must revisit the restore.
+//
+// Why the toggle is safe: the flag is a per-Connection, mutex-guarded
+// field consumed at request-assembly time, each pooled driver conn
+// wraps its own gorqlite.Connection, and conn.Raw pins the conn
+// exclusively for the closure's duration, so the toggle cannot be
+// observed by, or leak to, any other connection or goroutine.
+// SetExecutionWithTransaction errors only on a closed connection,
+// and database/sql never returns a closed conn to the pool, so a
+// failed restore (log-only below) cannot poison a pooled conn: any
+// later use of a closed conn fails loudly with ErrClosed rather than
+// running non-transactionally.
 func write(ctx context.Context, db sqlz.DB, withTx bool,
 	stmts []gorqlite.ParameterizedStatement,
 ) (results []gorqlite.WriteResult, err error) {
