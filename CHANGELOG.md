@@ -73,23 +73,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   silently run `ANALYZE` (writing to the database and taking the file write lock), and
   `integrity_check` / `quick_check` / `foreign_key_check` scanned the entire database.
   These keys no longer appear in the inspect output's DB properties.
-- [#720]: The [SQLite driver](https://sq.io/docs/drivers/sqlite) no longer fails with
-  `stat /path/to/db?key=val: no such file or directory` on metadata commands when the
-  source location carries a `?key=val` connection-string suffix
-  (e.g. `sqlite3:///path/to/db?mode=ro`).
+- [#720]: Fixed [SQLite driver](https://sq.io/docs/drivers/sqlite) path handling for
+  source locations with connection params (e.g. `sqlite3:///path/to/db?mode=ro`).
 - [#750], [#752], [#757], [#759]: A batch of fixes to the `CREATE TABLE` DDL rewriting
   that backs table copy and column-kind alteration on the
-  [sqlite3](https://sq.io/docs/drivers/sqlite) driver:
-  - [#752]: columns declared with backtick, single-quote, or `[bracket]` quoting no
-    longer fail with `column not found in table DDL`.
-  - [#750]: identifier and type tokens are rewritten by byte offset instead of string
-    replacement, which could clobber the wrong token when a column name shared a prefix
-    with its type (e.g. `TEXT_DATA TEXT`) or the table name recurred in CHECK
-    expressions, DEFAULT literals, or comments.
-  - [#757]: altering column kinds no longer resets the table's AUTOINCREMENT sequence,
-    which silently reused rowids of previously deleted rows.
-  - [#759]: copying a table now rewrites self-referential foreign keys to reference the
-    destination table, instead of leaving them pointing at the source.
+  [sqlite3](https://sq.io/docs/drivers/sqlite) driver.
 
 ## [v0.53.0] - 2026-05-25
 
