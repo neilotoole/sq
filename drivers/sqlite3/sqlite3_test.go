@@ -1277,3 +1277,186 @@ func TestNewScratchSource_SecretsResolved(t *testing.T) {
 	require.Equal(t, src.Location, resolved.Location,
 		"resolution must not alter the literal scratch path")
 }
+
+// TestDriveri_CopyTable_CopiesIndexesAndTriggers verifies gh758:
+// CopyTable carries the source table's companion objects (indexes and
+// triggers, separate sqlite_master rows) across to the destination,
+// renamed to "<orig-name>_<dest-table>". The UNIQUE constraint's
+// automatic index has NULL sql in sqlite_master and must be skipped by
+// the companion rewrite (the rewritten CREATE TABLE recreates it).
+// Trigger timing is also load-bearing: the copied trigger must not fire
+// on the rows being copied, only on subsequent inserts into the
+// destination.
+func TestDriveri_CopyTable_CopiesIndexesAndTriggers(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@test",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+	}
+
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+	drvr := grip.SQLDriver()
+
+	for _, stmt := range []string{
+		`CREATE TABLE src (id INTEGER PRIMARY KEY, name TEXT, email TEXT UNIQUE)`,
+		`CREATE TABLE src_log (id INTEGER PRIMARY KEY, msg TEXT)`,
+		`CREATE INDEX idx_src_name ON src (name)`,
+		`CREATE TRIGGER trg_src_bi BEFORE INSERT ON src BEGIN
+			INSERT INTO src_log (msg) VALUES (NEW.name);
+		END`,
+		`INSERT INTO src (name, email) VALUES ('alice', 'a@x.com'), ('bob', 'b@x.com')`,
+	} {
+		_, err = db.ExecContext(th.Context, stmt)
+		require.NoError(t, err)
+	}
+
+	copied, err := drvr.CopyTable(th.Context, db,
+		tablefq.From("src"), tablefq.From("dst"), true)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), copied)
+
+	// The copied trigger must not have fired on the copied rows: the
+	// source inserts logged 2 rows, and the copy must not add more.
+	var logCount int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT count(*) FROM src_log`).Scan(&logCount))
+	require.Equal(t, int64(2), logCount,
+		"copied trigger must not fire on the rows being copied")
+
+	// The explicit index is carried over, renamed, and re-targeted.
+	var idxSQL string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT sql FROM sqlite_master WHERE type='index' AND name='idx_src_name_dst'
+			AND tbl_name='dst'`).Scan(&idxSQL))
+	require.Contains(t, idxSQL, `"dst"`)
+	require.NotContains(t, idxSQL, `ON src`)
+
+	// Exactly one explicit (non-NULL sql) index on the destination: the
+	// UNIQUE constraint's automatic index has NULL sql and must not have
+	// been duplicated by the companion copy.
+	var explicitIdxCount int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT count(*) FROM sqlite_master WHERE type='index' AND tbl_name='dst'
+			AND sql IS NOT NULL`).Scan(&explicitIdxCount))
+	require.Equal(t, int64(1), explicitIdxCount)
+
+	// The UNIQUE constraint itself survives via the CREATE TABLE rewrite.
+	_, err = db.ExecContext(th.Context,
+		`INSERT INTO dst (name, email) VALUES ('carol', 'a@x.com')`)
+	require.Error(t, err, "UNIQUE(email) must be enforced on the destination")
+
+	// The trigger is carried over, renamed, and re-targeted; its body's
+	// cross-table reference (src_log) is left untouched.
+	var trgSQL string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT sql FROM sqlite_master WHERE type='trigger' AND name='trg_src_bi_dst'
+			AND tbl_name='dst'`).Scan(&trgSQL))
+	require.Contains(t, trgSQL, `ON "dst"`)
+	require.Contains(t, trgSQL, "src_log",
+		"cross-table body reference must be preserved")
+
+	// The copied trigger's side effect fires on insert into the destination.
+	_, err = db.ExecContext(th.Context,
+		`INSERT INTO dst (name, email) VALUES ('dave', 'd@x.com')`)
+	require.NoError(t, err)
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT count(*) FROM src_log WHERE msg='dave'`).Scan(&logCount))
+	require.Equal(t, int64(1), logCount,
+		"copied trigger must fire on insert into the destination")
+
+	// The source's companions are untouched: original names, original table.
+	var srcCompanionCount int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT count(*) FROM sqlite_master WHERE tbl_name='src'
+			AND name IN ('idx_src_name', 'trg_src_bi')`).Scan(&srcCompanionCount))
+	require.Equal(t, int64(2), srcCompanionCount)
+}
+
+// TestDriveri_CopyTable_TriggerBodySelfRef verifies that a trigger body
+// reference to the trigger's own table is rewritten to the destination,
+// mirroring CopyTable's self-FK rewrite semantics: the copied trigger
+// operates on the copied table, not the source.
+func TestDriveri_CopyTable_TriggerBodySelfRef(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@test",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+	}
+
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+	drvr := grip.SQLDriver()
+
+	for _, stmt := range []string{
+		`CREATE TABLE src (id INTEGER PRIMARY KEY, name TEXT)`,
+		`CREATE TRIGGER trg_upper AFTER INSERT ON src BEGIN
+			UPDATE src SET name = upper(NEW.name) WHERE id = NEW.id;
+		END`,
+		`INSERT INTO src (name) VALUES ('alice')`,
+	} {
+		_, err = db.ExecContext(th.Context, stmt)
+		require.NoError(t, err)
+	}
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.From("src"), tablefq.From("dst"), true)
+	require.NoError(t, err)
+
+	var trgSQL string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT sql FROM sqlite_master WHERE type='trigger'
+			AND name='trg_upper_dst'`).Scan(&trgSQL))
+	require.Contains(t, trgSQL, `UPDATE "dst"`,
+		"trigger body self-reference must be rewritten to the destination")
+
+	// The copied trigger acts on the destination only.
+	_, err = db.ExecContext(th.Context, `INSERT INTO dst (name) VALUES ('bob')`)
+	require.NoError(t, err)
+
+	var gotName string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT name FROM dst WHERE name='BOB'`).Scan(&gotName))
+	require.Equal(t, "BOB", gotName)
+
+	var srcCount int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT count(*) FROM src`).Scan(&srcCount))
+	require.Equal(t, int64(1), srcCount, "source table must be unaffected")
+}
+
+// TestDriveri_CopyTable_NoCompanions_StructureOnly is the regression
+// guard for the no-companion path: a plain table with copyData=false
+// still copies cleanly after the gh758 companion logic landed.
+func TestDriveri_CopyTable_NoCompanions_StructureOnly(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@test",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+	}
+
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+	drvr := grip.SQLDriver()
+
+	_, err = db.ExecContext(th.Context,
+		`CREATE TABLE src (id INTEGER PRIMARY KEY, name TEXT)`)
+	require.NoError(t, err)
+
+	copied, err := drvr.CopyTable(th.Context, db,
+		tablefq.From("src"), tablefq.From("dst"), false)
+	require.NoError(t, err)
+	require.Equal(t, int64(0), copied)
+
+	var companionCount int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT count(*) FROM sqlite_master WHERE tbl_name='dst'
+			AND type IN ('index','trigger')`).Scan(&companionCount))
+	require.Equal(t, int64(0), companionCount)
+}

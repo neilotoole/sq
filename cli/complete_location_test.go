@@ -262,6 +262,27 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 			wantResult: stdDirective,
 		},
 		{
+			// gh792: the '@' is part of the query value, not a
+			// credentials terminator. The typed value "me@" has no known
+			// completions, so the completer offers "&" to move to the
+			// next param; it must NOT emit authority-style garbage like
+			// "postgres://localhost/db?application_name=me@localhost/".
+			args: []string{"postgres://localhost/db?application_name=me@"},
+			want: []string{
+				"postgres://localhost/db?application_name=me@&",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			// gh792: an '@' in a path segment is not a credentials
+			// terminator either.
+			args: []string{"postgres://localhost/cust@"},
+			want: []string{
+				"postgres://localhost/cust@?",
+			},
+			wantResult: stdDirective,
+		},
+		{
 			// Being that sslmode is already specified, it should not appear a
 			// second time.
 			args: []string{"postgres://alice@localhost/sakila?sslmode=disable&"},

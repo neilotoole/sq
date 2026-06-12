@@ -14,7 +14,7 @@ import (
 )
 
 // gorqliteWriter is the structural interface satisfied by gorqlite/stdlib's
-// *Conn (whose embedded *gorqlite.Connection provides the method).
+// *Conn (whose embedded *gorqlite.Connection provides the methods).
 // Asserting against this method-shape interface lets us reach the
 // atomic-batch primitive without importing gorqlite/stdlib directly;
 // the coupling shifts from a package import to a method-shape match
@@ -25,6 +25,7 @@ import (
 type gorqliteWriter interface {
 	WriteParameterizedContext(context.Context,
 		[]gorqlite.ParameterizedStatement) ([]gorqlite.WriteResult, error)
+	SetExecutionWithTransaction(bool) error
 }
 
 // Compile-time check that *gorqlite.Connection satisfies gorqliteWriter.
@@ -52,6 +53,54 @@ var _ gorqliteWriter = (*gorqlite.Connection)(nil)
 // may be partial or empty and should not be inspected for counts.
 func writeAtomic(ctx context.Context, db sqlz.DB,
 	stmts ...gorqlite.ParameterizedStatement,
+) ([]gorqlite.WriteResult, error) {
+	return write(ctx, db, true, stmts)
+}
+
+// writeNonTx executes stmts as a single /db/execute request WITHOUT
+// rqlite's transaction wrapper, by clearing gorqlite's per-connection
+// transaction flag for the duration of the request (gorqlite otherwise
+// unconditionally appends &transaction, and rqlite then wraps the
+// request in BEGIN/COMMIT). The flag is restored before the connection
+// returns to the pool.
+//
+// This exists for statements that are no-ops inside a transaction:
+// SQLite specifies that PRAGMA foreign_keys does nothing while a
+// transaction is pending, so toggling it requires a non-transactional
+// request (gh776). It takes exactly one statement: a non-transactional
+// multi-statement batch would not be atomic, so anything that must
+// roll back together belongs in writeAtomic.
+func writeNonTx(ctx context.Context, db sqlz.DB,
+	stmt gorqlite.ParameterizedStatement,
+) ([]gorqlite.WriteResult, error) {
+	return write(ctx, db, false, []gorqlite.ParameterizedStatement{stmt})
+}
+
+// write implements writeAtomic and writeNonTx. If withTx is true, the
+// request rides rqlite's transaction wrapper (gorqlite's default);
+// otherwise the connection's transaction flag is cleared around the
+// request and restored afterward.
+//
+// Flag invariant: every pooled connection has gorqlite's
+// wantsTransactions flag set true except within this function's
+// non-tx window. The restore below hardcodes true (rather than
+// saving the prior value) because that invariant makes the prior
+// value always true, and gorqlite exposes no getter to save it; any
+// future code that legitimately holds a flag-false connection
+// breaks this assumption and must revisit the restore.
+//
+// Why the toggle is safe: the flag is a per-Connection, mutex-guarded
+// field consumed at request-assembly time, each pooled driver conn
+// wraps its own gorqlite.Connection, and conn.Raw pins the conn
+// exclusively for the closure's duration, so the toggle cannot be
+// observed by, or leak to, any other connection or goroutine.
+// SetExecutionWithTransaction errors only on a closed connection,
+// and database/sql never returns a closed conn to the pool, so a
+// failed restore (log-only below) cannot poison a pooled conn: any
+// later use of a closed conn fails loudly with ErrClosed rather than
+// running non-transactionally.
+func write(ctx context.Context, db sqlz.DB, withTx bool,
+	stmts []gorqlite.ParameterizedStatement,
 ) (results []gorqlite.WriteResult, err error) {
 	log := lg.FromContext(ctx)
 
@@ -66,10 +115,10 @@ func writeAtomic(ctx context.Context, db sqlz.DB,
 	case *sql.Conn:
 		conn = v
 	case *sql.Tx:
-		return nil, errz.New("rqlite: writeAtomic cannot run inside *sql.Tx; " +
-			"gorqlite's tx is a no-op so atomicity would be silently lost")
+		return nil, errz.New("rqlite: write cannot run inside *sql.Tx: " +
+			"gorqlite's transaction support is a no-op")
 	default:
-		return nil, errz.Errorf("rqlite: writeAtomic: unsupported db type %T", v)
+		return nil, errz.Errorf("rqlite: write batch: unsupported db type %T", v)
 	}
 
 	rawErr := conn.Raw(func(raw any) error {
@@ -77,6 +126,21 @@ func writeAtomic(ctx context.Context, db sqlz.DB,
 		if !ok {
 			return errz.Errorf("rqlite: driver conn is %T, "+
 				"expected gorqlite-backed", raw)
+		}
+		if !withTx {
+			if txErr := gc.SetExecutionWithTransaction(false); txErr != nil {
+				return errz.Wrap(txErr,
+					"rqlite: failed to clear connection transaction flag")
+			}
+			// Restore gorqlite's default (transactions on) before the
+			// connection goes back to the pool, whether or not the
+			// write succeeded.
+			defer func() {
+				if txErr := gc.SetExecutionWithTransaction(true); txErr != nil {
+					log.Error("rqlite: failed to restore connection transaction flag",
+						lga.Err, txErr)
+				}
+			}()
 		}
 		var wErr error
 		results, wErr = gc.WriteParameterizedContext(ctx, stmts)
@@ -96,12 +160,12 @@ func writeAtomic(ctx context.Context, db sqlz.DB,
 		}
 	}
 	if rawErr != nil {
-		log.Debug("rqlite: writeAtomic raw error", lga.Err, rawErr)
+		log.Debug("rqlite: write batch raw error", lga.Err, rawErr)
 		return results, errw(rawErr)
 	}
 	if len(results) != len(stmts) {
 		return results, errz.Errorf(
-			"rqlite: writeAtomic: expected %d results but got %d",
+			"rqlite: write batch: expected %d results but got %d",
 			len(stmts), len(results))
 	}
 	return results, nil
