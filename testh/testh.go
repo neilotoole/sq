@@ -656,8 +656,9 @@ func (h *Helper) CopyTable(
 	)
 	require.NoError(h.T, err)
 	if toTable.Schema == "" {
-		// Tables copied into another schema don't show up in the current
-		// schema's metadata, so DiffDB couldn't verify them anyway.
+		// Record only tables copied into the current/default schema:
+		// a table copied into another schema doesn't show up in the
+		// current schema's metadata, so DiffDB couldn't verify it.
 		h.recordTblCreated(src, toTable.Table)
 	}
 	if dropAfter {
@@ -922,8 +923,13 @@ func (h *Helper) DiffDB(src *source.Source) {
 		afterDB := h.openNew(src)
 		defer lg.WarnIfCloseError(h.Log(), lgm.CloseDB, afterDB)
 
+		// Use assert (not require) throughout this callback: require's
+		// FailNow would abort the remaining Cleanup chain, leaving
+		// tables, grips, and files unclosed on shared containers.
 		afterMeta, err := afterDB.SourceMetadata(h.Context, false)
-		require.NoError(h.T, err)
+		if !assert.NoError(h.T, err) {
+			return
+		}
 
 		beforeCounts := stableTableRowCounts(beforeMeta)
 		afterCounts := stableTableRowCounts(afterMeta)
@@ -932,9 +938,11 @@ func (h *Helper) DiffDB(src *source.Source) {
 		slices.Sort(beforeNames)
 		afterNames := lo.Keys(afterCounts)
 		slices.Sort(afterNames)
-		require.Equal(h.T, beforeNames, afterNames,
+		if !assert.Equal(h.T, beforeNames, afterNames,
 			"diffdb: %s: should have the same set of stable tables before and after (scratch-named tables are ignored)",
-			src.Handle)
+			src.Handle) {
+			return
+		}
 
 		for _, name := range beforeNames {
 			assert.Equal(h.T, beforeCounts[name], afterCounts[name],
