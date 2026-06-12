@@ -34,12 +34,10 @@ keyring, 1Password, and consistent redaction), the new
   placeholders that are resolved at connect time, and secrets are consistently redacted
   in output unless you opt in to disclosure.
   - [#714]: Placeholder resolvers:
-    - `keyring`: OS keychain, managed via the new
-      [`sq config keyring`](https://sq.io/docs/cmd/config-keyring) command group:
-      `${keyring:3d28xd3jcr}`
-    - `env`: environment variable: `${env:DB_PASSWORD}`
-    - `file`: file contents: `${file:/run/secrets/db_pw}`
-    - `op`: 1Password: `${op://Private/sakila/dsn}`
+    - OS keychain: `${keyring:3d28xd3jcr}`
+    - Environment variables: `${env:DB_PASSWORD}`
+    - File contents: `${file:/run/secrets/db_pw}`
+    - 1Password: `${op://Private/sakila/dsn}`
   - [#717], [#729]: New global flags:
     - [`--reveal`](https://sq.io/docs/secrets#redaction): show secret values in output; supersedes
       the now-deprecated `--no-redact`.
