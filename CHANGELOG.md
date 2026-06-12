@@ -49,13 +49,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
-- [#610]: [`duckdb`](https://sq.io/docs/drivers/duckdb): Read-only commands
-  ([`inspect`](https://sq.io/docs/cmd/inspect), [`sq`](https://sq.io/docs/cmd/sq),
-  [`diff`](https://sq.io/docs/cmd/diff), [`ping`](https://sq.io/docs/cmd/ping)) now open
-  DuckDB sources with `access_mode=READ_ONLY` by default, allowing concurrent read-only
-  access and inspection of files the user can't write to. Override with
-  `?access_mode=READ_WRITE` in the source URL. The new [`sq sql`](https://sq.io/docs/cmd/sql)
-  flag `--readonly` (alias `--ro`) opts into read-only mode for ad-hoc SQL too.
+- [#610]: The DuckDB driver now
+  [opens sources read-only](https://sq.io/docs/drivers/duckdb#read-only-access-by-default)
+  for commands that don't write (`sq`, `inspect`, `diff`, `ping`), and the new
+  [`sq sql`](https://sq.io/docs/cmd/sql) flag `--readonly` (alias `--ro`) opts in for
+  ad-hoc SQL.
 - ☢️ [#728]: The `redact` config option is renamed to
   [`secrets.reveal`](https://sq.io/docs/config#secretsreveal) with inverted polarity
   (`secrets.reveal: true` equals legacy `redact: false`); the default remains
