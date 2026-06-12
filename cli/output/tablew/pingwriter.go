@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -59,7 +60,10 @@ func (w *PingWriter) Result(src *source.Source, d time.Duration, err error) erro
 
 	default: // err other than timeout err
 		w.pr.Error.Fprintf(w.out, "fail")
-		fmt.Fprintf(w.out, "  %s", err)
+		// HumanMessage keeps the one-row-per-source layout intact:
+		// some enriched driver errors carry multi-line diagnostic
+		// chains in Error().
+		fmt.Fprintf(w.out, "  %s", errz.HumanMessage(err))
 	}
 
 	fmt.Fprintf(w.out, "\n")

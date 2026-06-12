@@ -3,6 +3,7 @@ package rqlite
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -198,6 +199,14 @@ func TestDetectConnParams_TLSBadCert(t *testing.T) {
 	require.Contains(t, err.Error(), "tls=true")
 	require.NotContains(t, err.Error(), "secret123",
 		"cert error must not echo the password from src.Location")
+
+	// The human form carries the concise one-liner; the retry remedy
+	// stays in the long form above.
+	var hr errz.HumanReadable
+	require.True(t, errors.As(err, &hr))
+	require.Equal(t,
+		"@rq: rqlite: endpoint requires TLS, but cert verification failed",
+		hr.HumanError())
 }
 
 func TestDetectConnParams_ExplicitIntentSkips(t *testing.T) {

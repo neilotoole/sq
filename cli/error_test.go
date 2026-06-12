@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -105,4 +106,59 @@ func TestPrintError_GenericError_Bootstrap(t *testing.T) {
 
 	require.Contains(t, tr.ErrOut.String(), "sq: something broke",
 		"generic bootstrap error must reach errOut, consistent with the parse-error path")
+}
+
+// humanReadableError is a test double implementing errz.HumanReadable.
+type humanReadableError struct{ human, full string }
+
+func (e *humanReadableError) Error() string      { return e.full }
+func (e *humanReadableError) HumanError() string { return e.human }
+
+func TestHumanizeError_HumanReadable(t *testing.T) {
+	inner := &humanReadableError{
+		human: "short and friendly (see docs).",
+		full:  "long diagnostic dump: tried all peers unsuccessfully...",
+	}
+	err := errz.Wrap(errz.Err(inner), "failed to read @rq source metadata")
+
+	got := cli.HumanizeError(err)
+	require.Equal(t, inner.human, got.Error(),
+		"a HumanReadable in the chain must replace the full rendered chain")
+
+	// Plain errors pass through with message intact.
+	plain := errz.New("ordinary failure")
+	require.Equal(t, "ordinary failure", cli.HumanizeError(plain).Error())
+}
+
+// TestPrintError_HumanReadable_EndToEnd covers the full path from
+// PrintError through the run's error writer: a HumanReadable error in
+// the chain must yield the concise human form on stderr, not the full
+// diagnostic chain.
+func TestPrintError_HumanReadable_EndToEnd(t *testing.T) {
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	// Run a trivial command so the run's writers are initialized.
+	require.NoError(t, tr.Exec("ls"))
+
+	inner := &humanReadableError{
+		human: "@x: short human form",
+		full:  "long diagnostic dump: tried all peers unsuccessfully",
+	}
+	err := errz.Wrap(errz.Err(inner), "failed to read @x source metadata")
+	cli.PrintError(th.Context, tr.Run, err)
+
+	got := tr.ErrOut.String()
+	require.Contains(t, got, "short human form")
+	require.NotContains(t, got, "long diagnostic dump",
+		"text output must print the human form, not the full chain")
+	require.NotContains(t, got, "failed to read @x source metadata",
+		"humanization replaces the outer operation context too")
+}
+
+// TestHumanizeError_ContextPrecedence pins that cancellation/timeout
+// messages win over a HumanReadable in the same chain: the user's own
+// interruption must not be reported as a confident domain diagnosis.
+func TestHumanizeError_ContextPrecedence(t *testing.T) {
+	err := errz.WithHuman(errz.Err(context.Canceled), "@x: confident domain diagnosis")
+	require.Equal(t, "canceled", cli.HumanizeError(err).Error())
 }
