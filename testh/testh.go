@@ -988,11 +988,24 @@ func (h *Helper) createdTblsFor(src *source.Source) []string {
 
 // scratchTableNameRe matches table names produced by stringz.UniqTableName
 // ("<base>__<8 chars>") and stringz.UniqSuffix ("<base>_<8 chars>"), where
-// the 8 chars are drawn from the stringz uniq charset (which excludes
-// ambiguous chars such as "i", "o" and "1"). No sakila table or view name
-// matches this pattern. The match is case-insensitive because some backends
-// (e.g. Oracle) store unquoted identifiers upper-case.
-var scratchTableNameRe = regexp.MustCompile(`(?i)^.+_[abcdefghkrstuvwxyz][abcdefghkrstuvwxyz2345689]{7}$`)
+// the 8 chars are a stringz.Uniq8 token: a leading letter from
+// stringz.CharsetAlphaLower followed by 7 chars from
+// stringz.CharsetAlphanumericLower (ambiguous chars such as "i", "o" and "1"
+// are excluded). The character classes are built from those exported
+// constants so the pattern can't silently drift if the uniq charset changes.
+// No sakila table or view name matches this pattern. The match is
+// case-insensitive because some backends (e.g. Oracle) store unquoted
+// identifiers upper-case.
+var scratchTableNameRe = regexp.MustCompile(uniqSuffixPattern("_"))
+
+// uniqSuffixPattern returns a regex matching a name ending in sep followed by
+// a stringz.Uniq8 token (leading CharsetAlphaLower letter + 7
+// CharsetAlphanumericLower chars). Both charsets are pure ASCII alphanumerics,
+// so they are safe to embed directly in a regex character class.
+func uniqSuffixPattern(sep string) string {
+	return `(?i)^.+` + regexp.QuoteMeta(sep) +
+		`[` + stringz.CharsetAlphaLower + `][` + stringz.CharsetAlphanumericLower + `]{7}$`
+}
 
 // isScratchTableName reports whether name looks like a test-generated
 // scratch table name. See scratchTableNameRe.
@@ -1024,18 +1037,30 @@ var (
 	// stringz.UniqTableName ("<base>__<8 chars>"). It is deliberately
 	// stricter than scratchTableNameRe (it requires the double
 	// underscore) because the sweep drops tables: it must never match
-	// anything but the harness's own generated names.
-	staleScratchTableNameRe = regexp.MustCompile(`(?i)^.+__[abcdefghkrstuvwxyz][abcdefghkrstuvwxyz2345689]{7}$`)
+	// anything but the harness's own generated names. Like
+	// scratchTableNameRe, its uniq-token character classes are derived
+	// from the exported stringz charsets.
+	staleScratchTableNameRe = regexp.MustCompile(uniqSuffixPattern("__"))
 
-	// scratchSweeps maps source handle to the *sync.Once that guards the
-	// stale scratch-table sweep for that handle: the sweep runs at most
-	// once per process per handle. sync.Once also provides the ordering
-	// that Helper.Source relies on: a concurrent caller for the same
-	// handle blocks in Once.Do until the in-flight sweep completes, so no
-	// test proceeds while its source is still being swept, while callers
-	// for other handles are unaffected.
-	scratchSweeps sync.Map // handle -> *sync.Once
+	// scratchSweeps maps source handle to the *sweepState that guards the
+	// stale scratch-table sweep for that handle. The per-handle mutex
+	// provides the ordering that Helper.Source relies on: a concurrent
+	// caller for the same handle blocks until the in-flight sweep
+	// completes, so no test proceeds while its source is still being
+	// swept, while callers for other handles are unaffected.
+	scratchSweeps sync.Map // handle -> *sweepState
 )
+
+// sweepState guards the stale-table sweep for a single handle so it runs at
+// most once per process. Unlike sync.Once, it only latches done=true when a
+// sweep actually completes its schema enumeration: a sweep that fails on
+// transient I/O (a dropped connection, a context deadline) leaves done=false,
+// so the next caller retries rather than the sweep being permanently skipped
+// for the rest of the process.
+type sweepState struct {
+	mu   sync.Mutex
+	done bool
+}
 
 // staleScratchTableQuery returns a query that selects the names of tables
 // created more than an hour ago in the current schema, or empty string if
@@ -1083,10 +1108,11 @@ AND NOT is_temporary AND metadata_modification_time < now() - INTERVAL 1 HOUR`
 //
 // sweepStaleScratchTables is called by Helper.Source without h.mu held,
 // because the sweep performs slow database I/O. It synchronizes via
-// scratchSweeps instead: the sweep runs at most once per process per
-// handle, and a concurrent call for the same handle blocks until the
-// in-flight sweep completes, so the caller never returns a source whose
-// sweep is still running.
+// scratchSweeps instead: the sweep runs at most once successfully per
+// process per handle, and a concurrent call for the same handle blocks
+// until the in-flight sweep completes, so the caller never returns a source
+// whose sweep is still running. A sweep that fails to enumerate the schema
+// is retried by the next caller (see sweepState).
 func (h *Helper) sweepStaleScratchTables(src *source.Source) {
 	if v, ok := os.LookupEnv(envScratchSweep); ok {
 		if b, err := stringz.ParseBool(strings.TrimSpace(v)); err == nil && !b {
@@ -1099,35 +1125,46 @@ func (h *Helper) sweepStaleScratchTables(src *source.Source) {
 		return
 	}
 
-	once, _ := scratchSweeps.LoadOrStore(src.Handle, &sync.Once{})
-	once.(*sync.Once).Do(func() {
-		h.doSweepStaleScratchTables(src, query)
-	})
+	v, _ := scratchSweeps.LoadOrStore(src.Handle, &sweepState{})
+	st := v.(*sweepState)
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if st.done {
+		return
+	}
+	// Latch done only when the sweep enumerated the schema. Individual
+	// drop failures are best-effort and don't prevent latching; an
+	// enumeration failure (open/query/scan) leaves done=false to retry.
+	st.done = h.doSweepStaleScratchTables(src, query)
 }
 
 // doSweepStaleScratchTables performs the actual sweep I/O for
 // sweepStaleScratchTables, which guards it with the once-per-process-
-// per-handle scratchSweeps mechanism.
-func (h *Helper) doSweepStaleScratchTables(src *source.Source, query string) {
+// per-handle scratchSweeps mechanism. It returns true once it has
+// successfully enumerated the schema (whether or not any tables were
+// dropped); a false return means an enumeration step failed and the sweep
+// should be retried by a later caller. Individual table-drop failures are
+// best-effort and logged, and do not affect the return value.
+func (h *Helper) doSweepStaleScratchTables(src *source.Source, query string) bool {
 	log := h.Log().With(lga.Handle, src.Handle)
 	drvr := h.SQLDriverFor(src)
 	grip, err := drvr.Open(h.Context, src)
 	if err != nil {
 		log.Warn("Scratch table sweep: failed to open source", lga.Err, err)
-		return
+		return false
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDB, grip)
 
 	db, err := grip.DB(h.Context)
 	if err != nil {
 		log.Warn("Scratch table sweep: failed to get DB", lga.Err, err)
-		return
+		return false
 	}
 
 	rows, err := db.QueryContext(h.Context, query)
 	if err != nil {
 		log.Warn("Scratch table sweep: query failed", lga.Err, err)
-		return
+		return false
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
@@ -1136,7 +1173,7 @@ func (h *Helper) doSweepStaleScratchTables(src *source.Source, query string) {
 		var name string
 		if err = rows.Scan(&name); err != nil {
 			log.Warn("Scratch table sweep: scan failed", lga.Err, err)
-			return
+			return false
 		}
 		if staleScratchTableNameRe.MatchString(name) {
 			stale = append(stale, name)
@@ -1144,7 +1181,7 @@ func (h *Helper) doSweepStaleScratchTables(src *source.Source, query string) {
 	}
 	if err = rows.Err(); err != nil {
 		log.Warn("Scratch table sweep: rows error", lga.Err, err)
-		return
+		return false
 	}
 
 	for _, name := range stale {
@@ -1154,6 +1191,7 @@ func (h *Helper) doSweepStaleScratchTables(src *source.Source, query string) {
 		}
 		h.T.Logf("Swept stale scratch table %s.%s", src.Handle, name)
 	}
+	return true
 }
 
 func mustLoadCollection(ctx context.Context, tb testing.TB) *source.Collection { //nolint:thelper
