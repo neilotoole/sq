@@ -36,6 +36,17 @@ file. To force the driver type explicitly:
 $ sq add --driver=parquet ./events.parquet
 ```
 
+## Stdin
+
+You can also pipe a Parquet file to `sq`:
+
+```shell
+$ cat events.parquet | sq '.data'
+```
+
+Parquet isn't a streamable format (readers start from the file footer), so `sq` buffers
+stdin to a temp file before reading it.
+
 ## Monotable
 
 `sq` treats a Parquet source as a monotable source, similar to CSV or JSON.

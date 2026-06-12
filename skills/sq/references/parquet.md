@@ -17,6 +17,9 @@ sq add --driver=parquet ./ambiguous.bin
 Detection uses the `PAR1` magic bytes at both ends of the file. Use `--driver=parquet` when the
 extension is missing or ambiguous.
 
+Piping works too (`cat events.parquet | sq '.data'`); stdin is buffered to a temp file since
+Parquet isn't streamable.
+
 ## Monotable
 
 Data is accessed via the synthetic **`.data`** table, e.g. `@handle.data`.

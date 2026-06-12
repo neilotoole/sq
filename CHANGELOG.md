@@ -26,7 +26,7 @@ keyring support) and support for [rqlite](https://sq.io/docs/drivers/rqlite).
 - [#718]: [Parquet driver](https://sq.io/docs/drivers/parquet): add Apache Parquet as a first-class
   document source. Reads via the bundled DuckDB `parquet` and `httpfs` extensions, so column and
   predicate pushdown apply for local and remote files. Supports `sq add`, `sq inspect`, `sq diff`,
-  and SLQ queries on `.parquet` and `.pq` files.
+  SLQ queries, and stdin piping (`cat events.parquet | sq '.data'`) on `.parquet` and `.pq` files.
 - 🐥 [#444]: Added [rqlite driver](https://sq.io/docs/drivers/rqlite). `sq` now supports reading
   from, inspecting, and writing to [rqlite](https://rqlite.io) clusters, the lightweight
   distributed SQLite database.

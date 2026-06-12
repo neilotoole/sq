@@ -6,6 +6,7 @@ package parquet
 import (
 	"context"
 	"log/slog"
+	"os"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -86,7 +87,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 	}
 
 	if err := createParquetView(ctx, dbGrip, parquetPath); err != nil {
-		_ = dbGrip.Close()
+		lg.WarnIfCloseError(log, lgm.CloseDB, dbGrip)
 		return nil, err
 	}
 
@@ -140,16 +141,22 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 
 // Ping implements driver.Driver. For local files and http(s) URLs, ping is
 // delegated to files.Ping. For other URL schemes that DuckDB's httpfs can
-// reach (s3://, gs://, r2://, azure://, abfs://, abfss://), ping returns
-// nil: location.TypeOf treats them as file paths and files.Ping would call
-// os.Stat against the URL string. Reachability for those sources is verified
-// the first time the user queries the source (DuckDB surfaces auth and
-// network errors at that point).
+// reach (s3://, gs://, r2://, azure://, abfs://, abfss://), files.Ping
+// doesn't work: location.TypeOf treats them as file paths and files.Ping
+// would call os.Stat against the URL string. Instead, ping opens the grip,
+// whose eager DESCRIBE reads the parquet footer via httpfs, surfacing auth
+// and network errors; this costs a remote read, but ping's whole purpose is
+// reachability verification.
 func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
-	if isNonHTTPRemote(src.Location) {
-		return nil
+	if !isNonHTTPRemote(src.Location) {
+		return d.files.Ping(ctx, src)
 	}
-	return d.files.Ping(ctx, src)
+
+	g, err := d.Open(ctx, src)
+	if err != nil {
+		return err
+	}
+	return g.Close()
 }
 
 // isNonHTTPRemote reports whether loc looks like a URL with a scheme other
@@ -178,7 +185,9 @@ func errw(err error) error {
 // the underlying DuckDB connection.
 //
 // For local file paths, a "?key=val&..." suffix is treated as DuckDB
-// connection options; everything before it is the path.
+// connection options; everything before it is the path. Exception: '?' is a
+// legal filename character, so if the whole location names an existing file,
+// the literal path wins and no options are extracted.
 //
 // For remote URLs (any location containing "://", such as https://, s3://,
 // or gs://), the query string belongs to the URL itself. Presigned S3 URLs,
@@ -195,6 +204,9 @@ func parseLocation(loc string) (path, dsnQuery string, err error) {
 		return loc, "", nil
 	}
 	if i := strings.LastIndex(loc, "?"); i >= 0 {
+		if _, err := os.Stat(loc); err == nil {
+			return loc, "", nil
+		}
 		return loc[:i], loc[i+1:], nil
 	}
 	return loc, "", nil

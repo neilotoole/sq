@@ -1,10 +1,19 @@
 package parquet
 
 import (
+	"context"
 	"errors"
+	"log/slog"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/drivers/duckdb"
+	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 func TestErrw(t *testing.T) {
@@ -79,6 +88,80 @@ func TestParseLocation(t *testing.T) {
 			require.Equal(t, tc.wantDsnQry, dsn)
 		})
 	}
+}
+
+// TestGripSourceMetadata_NonHTTPRemote verifies that SourceMetadata works
+// for s3-style remote locations. location.Filename and files.Filesize treat
+// such locations as local file paths and fail, so the grip must derive the
+// name from the URL path and leave Size nil.
+func TestGripSourceMetadata_NonHTTPRemote(t *testing.T) {
+	ctx := context.Background()
+	log := slog.New(slog.DiscardHandler)
+	reg := driver.NewRegistry(log)
+	reg.AddProvider(drivertype.DuckDB, &duckdb.Provider{Log: log})
+	drvr, err := reg.DriverFor(drivertype.DuckDB)
+	require.NoError(t, err)
+
+	memSrc := &source.Source{
+		Type:     drivertype.DuckDB,
+		Handle:   "@remote_pq",
+		Location: "duckdb://:memory:",
+	}
+	dbGrip, err := drvr.Open(ctx, memSrc)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = dbGrip.Close() })
+
+	g := &grip{
+		log: log,
+		src: &source.Source{
+			Type:     drivertype.Parquet,
+			Handle:   "@remote",
+			Location: "s3://bucket/dir/actor.parquet?region=us-east-1",
+		},
+		dbGrip: dbGrip,
+	}
+
+	md, err := g.SourceMetadata(ctx, true)
+	require.NoError(t, err)
+	require.Equal(t, drivertype.Parquet, md.Driver)
+	require.Equal(t, "@remote", md.Handle)
+	require.Equal(t, "s3://bucket/dir/actor.parquet?region=us-east-1", md.Location)
+	require.Equal(t, "actor.parquet", md.Name)
+	require.Equal(t, "actor.parquet", md.FQName)
+	require.Nil(t, md.Size)
+}
+
+func TestRemoteFileName(t *testing.T) {
+	testCases := []struct {
+		loc  string
+		want string
+	}{
+		{"s3://bucket/k.parquet", "k.parquet"},
+		{"s3://bucket/dir/sub/k.parquet", "k.parquet"},
+		{"s3://bucket/k.parquet?region=us-east-1", "k.parquet"},
+		{"gs://bucket/k.parquet", "k.parquet"},
+		{"abfss://container@account/k.parquet", "k.parquet"},
+		{"s3://bucket", "s3://bucket"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.loc, func(t *testing.T) {
+			require.Equal(t, tc.want, remoteFileName(tc.loc))
+		})
+	}
+}
+
+// TestParseLocation_LiteralPathWithQuestionMark verifies that a local file
+// whose name legally contains '?' is not split into path + DSN options: if
+// the literal path exists on disk, it wins.
+func TestParseLocation_LiteralPathWithQuestionMark(t *testing.T) {
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "data?.parquet")
+	require.NoError(t, os.WriteFile(fpath, []byte("PAR1"), 0o600))
+
+	gotPath, gotDSN, err := parseLocation(fpath)
+	require.NoError(t, err)
+	require.Equal(t, fpath, gotPath)
+	require.Empty(t, gotDSN)
 }
 
 func TestEscapeSingleQuotes(t *testing.T) {

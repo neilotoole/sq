@@ -4,7 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"log/slog"
+	"net/url"
+	"path"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -30,7 +33,8 @@ type grip struct {
 
 // DB implements driver.Grip.
 func (g *grip) DB(ctx context.Context) (*sql.DB, error) {
-	return g.dbGrip.DB(ctx)
+	db, err := g.dbGrip.DB(ctx)
+	return db, errw(err)
 }
 
 // SQLDriver implements driver.Grip.
@@ -47,12 +51,23 @@ func (g *grip) Source() *source.Source {
 func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
 	md, err := g.dbGrip.SourceMetadata(ctx, noSchema)
 	if err != nil {
-		return nil, err
+		return nil, errw(err)
 	}
 
 	md.Handle = g.src.Handle
 	md.Driver = drivertype.Parquet
 	md.Location = g.src.Location
+
+	if isNonHTTPRemote(g.src.Location) {
+		// location.Filename and files.Filesize treat non-HTTP remotes
+		// (s3://, gs://, etc.) as local file paths and fail. Derive the name
+		// from the URL path instead, and leave Size nil: determining the
+		// object size would require re-reading the remote via DuckDB httpfs.
+		md.Name = remoteFileName(g.src.Location)
+		md.FQName = md.Name
+		return md, nil
+	}
+
 	if md.Name, err = location.Filename(g.src.Location); err != nil {
 		return nil, err
 	}
@@ -67,13 +82,29 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	return md, nil
 }
 
+// remoteFileName returns the final path segment of a remote URL location,
+// stripping any query string. It falls back to loc itself if the URL does
+// not parse or has no path.
+func remoteFileName(loc string) string {
+	u, err := url.Parse(loc)
+	if err != nil || u.Path == "" || u.Path == "/" {
+		return loc
+	}
+	return path.Base(u.Path)
+}
+
 // TableMetadata implements driver.Grip.
 func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
-	return g.dbGrip.TableMetadata(ctx, tblName)
+	if tblName != source.MonotableName {
+		return nil, errz.Errorf("parquet: table name should be %q, but got: %s",
+			source.MonotableName, tblName)
+	}
+	md, err := g.dbGrip.TableMetadata(ctx, tblName)
+	return md, errw(err)
 }
 
 // Close implements driver.Grip.
 func (g *grip) Close() error {
 	g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
-	return g.dbGrip.Close()
+	return errw(g.dbGrip.Close())
 }

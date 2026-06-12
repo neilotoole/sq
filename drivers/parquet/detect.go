@@ -60,8 +60,12 @@ func DetectParquet(ctx context.Context, newRdrFn files.NewReaderFunc) (
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r2)
 
-	tail, ok := readLastFour(r2)
+	tail, ok, err := readLastFour(r2)
+	if err != nil {
+		return drivertype.None, 0, errz.Err(err)
+	}
 	if !ok {
+		log.Debug("parquet: tail not confirmed (short file or drain cap); using head-only score")
 		return drivertype.Parquet, scoreHeadOnly, nil
 	}
 	if isParquetFooter(tail) {
@@ -86,7 +90,7 @@ func isParquetFooter(b []byte) bool {
 
 // maxNonSeekDrain caps how many bytes readLastFour reads from a non-seekable
 // reader while scanning for the footer marker. Above this, readLastFour
-// returns (nil, false) and the caller falls back to a head-only detection
+// reports ok=false and the caller falls back to a head-only detection
 // score. The cap exists so that detecting a multi-GB Parquet over a
 // streaming HTTP body does not silently download the entire object during
 // `sq add`; we'd rather report "probably parquet, tail not confirmed" than
@@ -95,15 +99,17 @@ const maxNonSeekDrain = 1 << 20 // 1 MiB.
 
 // readLastFour returns the last four bytes of r. If r implements io.Seeker,
 // it seeks to (-4, end). Otherwise it drains r, retaining only the most
-// recent four bytes seen, up to maxNonSeekDrain bytes. Returns (nil, false)
-// on error, when r has fewer than four bytes total, or when the non-seekable
-// drain hits the cap before EOF.
-func readLastFour(r io.Reader) ([]byte, bool) {
-	if seeker, ok := r.(io.Seeker); ok {
+// recent four bytes seen, up to maxNonSeekDrain bytes. It returns ok=false
+// (with nil err) when r has fewer than four bytes total or when the
+// non-seekable drain hits the cap before EOF; a genuine read error is
+// returned in err so the caller can distinguish an I/O failure from a short
+// file.
+func readLastFour(r io.Reader) (tail []byte, ok bool, err error) {
+	if seeker, isSeeker := r.(io.Seeker); isSeeker {
 		if _, err := seeker.Seek(-4, io.SeekEnd); err == nil {
 			tail := make([]byte, 4)
 			if _, err := io.ReadFull(r, tail); err == nil {
-				return tail, true
+				return tail, true, nil
 			}
 		}
 		// Seek or read failed (e.g. stream not seekable from end); fall through
@@ -122,20 +128,20 @@ func readLastFour(r io.Reader) ([]byte, bool) {
 			updateSlidingWindow(&window, &have, buf[:n])
 			if total > maxNonSeekDrain {
 				// Cap reached before EOF: caller falls back to head-only.
-				return nil, false
+				return nil, false, nil
 			}
 		}
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
-			return nil, false
+			return nil, false, err
 		}
 	}
 	if have < 4 {
-		return nil, false
+		return nil, false, nil
 	}
-	return window[:], true
+	return window[:], true, nil
 }
 
 // updateSlidingWindow folds the next chunk into a fixed 4-byte tail window.

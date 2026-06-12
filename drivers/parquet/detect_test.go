@@ -3,6 +3,7 @@ package parquet_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"testing"
 
@@ -93,4 +94,46 @@ func TestDetectParquet(t *testing.T) {
 			require.Equal(t, tc.wantScore, score)
 		})
 	}
+}
+
+// errAfterReader returns its data, then a non-EOF error.
+type errAfterReader struct {
+	err  error
+	data []byte
+	pos  int
+}
+
+func (r *errAfterReader) Read(p []byte) (int, error) {
+	if r.pos < len(r.data) {
+		n := copy(p, r.data[r.pos:])
+		r.pos += n
+		return n, nil
+	}
+	return 0, r.err
+}
+
+// TestDetectParquet_TailReadErrorPropagates verifies that a genuine I/O
+// error during the tail read is propagated, per the files.TypeDetectFunc
+// contract ("an error is returned only if an IO problem occurred"), rather
+// than being silently downgraded to a head-only 0.7 score. A transient
+// network error during detection must be distinguishable from a truncated
+// file.
+func TestDetectParquet_TailReadErrorPropagates(t *testing.T) {
+	wantErr := errors.New("synthetic read failure")
+	calls := 0
+	newRdrFn := func(_ context.Context) (io.ReadCloser, error) {
+		calls++
+		if calls == 1 {
+			// First reader: the head check, which must succeed.
+			return io.NopCloser(bytes.NewReader([]byte("PAR1xxxx"))), nil
+		}
+		// Second reader: the tail check, which errors mid-drain.
+		return io.NopCloser(&errAfterReader{data: []byte("PAR1xx"), err: wantErr}), nil
+	}
+
+	typ, score, err := parquet.DetectParquet(context.Background(), newRdrFn)
+	require.Error(t, err)
+	require.ErrorIs(t, err, wantErr)
+	require.Equal(t, drivertype.None, typ)
+	require.Zero(t, score)
 }

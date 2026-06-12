@@ -924,6 +924,7 @@ func DriverDetectors() []files.TypeDetectFunc {
 		json.DetectJSON(1000),
 		json.DetectJSONA(1000),
 		json.DetectJSONL(1000),
+		parquet.DetectParquet,
 	}
 }
 
