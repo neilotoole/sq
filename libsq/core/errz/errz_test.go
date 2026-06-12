@@ -261,3 +261,49 @@ func TestWithExitCode(t *testing.T) {
 	require.Equal(t, 3, errz.ExitCode(err))
 	require.True(t, errors.Is(err, errz.ErrNoMsg))
 }
+
+func TestWithHuman(t *testing.T) {
+	require.Nil(t, errz.WithHuman(nil, "msg"))
+
+	base := errz.New("long diagnostic dump")
+	require.Same(t, base, errz.WithHuman(base, ""),
+		"empty human message must return err unchanged")
+
+	got := errz.WithHuman(base, "short form")
+	require.Equal(t, "long diagnostic dump", got.Error(),
+		"Error() must be unchanged by WithHuman")
+	require.True(t, errors.Is(got, base),
+		"chain must remain intact through WithHuman")
+
+	var hr errz.HumanReadable
+	require.True(t, errors.As(got, &hr))
+	require.Equal(t, "short form", hr.HumanError())
+}
+
+// TestWithHuman_Fidelity verifies that attaching a human message does
+// not degrade verbose rendering or stack collection.
+func TestWithHuman_Fidelity(t *testing.T) {
+	base := errz.Wrap(errz.New("root cause"), "context")
+	got := errz.WithHuman(base, "short form")
+
+	// %+v must delegate to the wrapped error: identical rendering,
+	// including stack frames.
+	verbose := fmt.Sprintf("%+v", got)
+	require.Equal(t, fmt.Sprintf("%+v", base), verbose,
+		"Format must delegate to the wrapped error")
+	require.Contains(t, verbose, ".go:",
+		"verbose rendering must include stack frames from the wrapped chain")
+
+	// Stack collection must see through the wrapper without duplicating.
+	require.Equal(t, len(errz.Stacks(base)), len(errz.Stacks(got)),
+		"WithHuman must neither hide nor duplicate stacks")
+	require.NotNil(t, errz.LastStack(got),
+		"LastStack must walk through the wrapper")
+}
+
+func TestHumanMessage(t *testing.T) {
+	require.Empty(t, errz.HumanMessage(nil))
+	require.Equal(t, "plain", errz.HumanMessage(errz.New("plain")))
+	err := errz.WithHuman(errz.New("long diagnostic"), "short form")
+	require.Equal(t, "short form", errz.HumanMessage(err))
+}

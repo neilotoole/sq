@@ -1,12 +1,12 @@
 ---
 title: "sq inspect"
 description: "Inspect data source schema and stats"
+group: query
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2060
 toc: false
 url: /docs/cmd/inspect
 ---

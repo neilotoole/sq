@@ -1,0 +1,10 @@
+<table class="table cmd-index-table">
+  <tbody>
+    {{ range . }}
+    <tr>
+      <td class="text-nowrap"><code><a href="{{ .RelPermalink }}">{{ .Title }}</a></code></td>
+      <td>{{ .Description }}</td>
+    </tr>
+    {{ end }}
+  </tbody>
+</table>

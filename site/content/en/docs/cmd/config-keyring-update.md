@@ -1,12 +1,12 @@
 ---
 title: "sq config keyring update"
 description: "Update an existing keyring entry"
+group: config
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2038
 toc: false
 url: /docs/cmd/config-keyring-update
 ---

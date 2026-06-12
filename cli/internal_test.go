@@ -11,6 +11,8 @@ var (
 	FetchBrewVersion          = fetchBrewVersion
 	RenderSQLSupportsFormat   = renderSQLSupportsFormat
 	ErrBinaryFormatToTerminal = errBinaryFormatToTerminal
+	FilterToAdvertisedParams  = filterToAdvertisedParams
+	HumanizeError             = humanizeError
 )
 
 // The legacy parsedLoc/plocStage parser was removed when

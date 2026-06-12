@@ -242,7 +242,7 @@ var sqlserverShape = LocationShape{
 
 var rqliteShape = LocationShape{
 	Type:    drivertype.Rqlite,
-	Schemes: []string{"rqlite", "rqlites"},
+	Schemes: []string{"rqlite"},
 	Segments: []Segment{
 		{Kind: SegCredentials, Optional: true},
 		{Kind: SegAuthority},
@@ -262,7 +262,7 @@ func TestWalk_gh743BareHost(t *testing.T) {
 		{"pg_bare_host_port_q", pgShape, "postgres://localhost:5432?"},
 		{"sqlserver_bare_host_port_q", sqlserverShape, "sqlserver://localhost:1433?"},
 		{"rqlite_bare_host_port_q", rqliteShape, "rqlite://localhost:4001?"},
-		{"rqlites_bare_host_port_q", rqliteShape, "rqlites://localhost:4001?"},
+		{"rqlite_bare_host_port_q_tls", rqliteShape, "rqlite://localhost:4001?tls=true"},
 		{"pg_bare_host_only_q", pgShape, "postgres://localhost?"},
 	}
 	for _, tc := range cases {
@@ -292,10 +292,10 @@ func TestWalk_gh743BareHostIPv6(t *testing.T) {
 	require.True(t, got.PortSet)
 }
 
-func TestWalk_rqliteAltScheme(t *testing.T) {
-	got, err := Walk(rqliteShape, "rqlites://alice@h:8443?level=strong")
+func TestWalk_rqliteTLSParam(t *testing.T) {
+	got, err := Walk(rqliteShape, "rqlite://alice@h:8443?level=strong&tls=true")
 	require.NoError(t, err)
-	require.Equal(t, "rqlites", got.Scheme)
+	require.Equal(t, "rqlite", got.Scheme)
 	require.Equal(t, SegConnParams, got.Current)
 }
 

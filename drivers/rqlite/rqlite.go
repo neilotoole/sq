@@ -3,13 +3,14 @@
 // is github.com/rqlite/gorqlite's stdlib (database/sql) adapter.
 //
 // Unlike sq's sqlite3 driver, rqlite is networked: there is no file
-// mode. The source location is an HTTP URL using one of two schemes,
+// mode. The source location is an HTTP URL using a single scheme,
 //
-//	rqlite://user:pass@host:4001    (HTTP)
-//	rqlites://user:pass@host:4001   (HTTPS)
+//	rqlite://user:pass@host:4001              (HTTP)
+//	rqlite://user:pass@host:4001?tls=true     (HTTPS)
 //
-// which are translated to gorqlite's expected http(s):// URLs at Open
-// time.
+// which is translated to gorqlite's expected http(s):// URL at Open
+// time. The optional ?insecure=true companion param (valid only with
+// ?tls=true) opts out of TLS certificate verification.
 //
 // rqlite's HTTP API does not support interactive transactions, only
 // atomic batches via /db/execute. gorqlite's database/sql driver
@@ -31,9 +32,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/rqlite/gorqlite"
 
@@ -47,8 +50,10 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
@@ -65,11 +70,8 @@ const (
 	// drivertype.Rqlite's string value.
 	dbDrvr = "rqlite"
 
-	// Prefix is the scheme+separator for plain-HTTP rqlite sources.
+	// Prefix is the scheme+separator for rqlite sources.
 	Prefix = "rqlite://"
-
-	// PrefixSecure is the scheme+separator for HTTPS rqlite sources.
-	PrefixSecure = "rqlites://"
 
 	defaultPort = 4001
 )
@@ -105,6 +107,8 @@ func (d *driveri) ConnParams() map[string][]string {
 		"level":                   {"none", "weak", "linearizable", "strong"},
 		"disableClusterDiscovery": {"true", "false"},
 		"timeout":                 nil,
+		"tls":                     {"true", "false"},
+		"insecure":                {"true", "false"},
 	}
 }
 
@@ -112,7 +116,7 @@ func (d *driveri) ConnParams() map[string][]string {
 func (d *driveri) LocationShape() driver.LocationShape {
 	return driver.LocationShape{
 		Type:    drivertype.Rqlite,
-		Schemes: []string{"rqlite", "rqlites"},
+		Schemes: []string{"rqlite"},
 		Segments: []driver.Segment{
 			{Kind: driver.SegCredentials, Optional: true},
 			{Kind: driver.SegAuthority},
@@ -161,15 +165,16 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 	}
 
 	if err = driver.OpeningPing(ctx, src, db); err != nil {
-		return nil, rewritePeerDNSError(err, src)
+		return nil, enrichConnError(err, src)
 	}
 
-	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
+	return &grip{
+		log: d.log, db: db, src: src, drvr: d,
+		drvrw: &enrichingSQLDriver{driveri: d, src: src},
+	}, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
-	maybeWarnLocalhostDiscovery(ctx, src)
-
 	loc, portAdded, err := locationWithDefaultPort(src.Location)
 	if err != nil {
 		return nil, err
@@ -181,20 +186,48 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		)
 	}
 
-	dsn, err := dsnFromLocation(loc)
+	dsn, opts, err := dsnFromLocation(loc)
 	if err != nil {
 		return nil, err
 	}
 
-	db, err := sql.Open(sqDBDrvrName, dsn)
-	if err != nil {
-		// Don't include dsn in the error: it may carry credentials.
-		return nil, errz.Wrapf(rewritePeerDNSError(errw(err), src),
-			"failed to open rqlite source %s", src.Handle)
+	var db *sql.DB
+	if opts.insecure {
+		db = sql.OpenDB(&insecureConnector{
+			dsn:    dsn,
+			client: newInsecureHTTPClient(clientTimeout(dsn, src.Options)),
+		})
+	} else {
+		db, err = sql.Open(sqDBDrvrName, dsn)
+		if err != nil {
+			// Don't include dsn in the error: it may carry credentials.
+			return nil, errz.Wrapf(enrichConnError(errw(err), src),
+				"failed to open rqlite source %s", src.Handle)
+		}
 	}
 
 	driver.ConfigureDB(ctx, db, src.Options)
 	return db, nil
+}
+
+// clientTimeout returns the HTTP client timeout for the clients that
+// sq constructs itself: the insecure (skip-verify) connection path
+// and the conn param detection probe. gorqlite applies the
+// gorqlite-native ?timeout=N URL param (integer seconds) only when it
+// constructs its own http.Client; sq passes a custom client on these
+// paths, so the param must be honored here. ?timeout takes precedence
+// over conn.open-timeout, matching what gorqlite does on the default
+// path when no custom client is supplied.
+func clientTimeout(dsn string, o options.Options) time.Duration {
+	timeout := driver.OptConnOpenTimeout.Get(o)
+	if u, err := url.Parse(dsn); err == nil {
+		if v := u.Query().Get("timeout"); v != "" {
+			if secs, err := strconv.Atoi(v); err == nil && secs > 0 {
+				timeout = time.Duration(secs) * time.Second
+			}
+		}
+	}
+	return timeout
 }
 
 // Truncate implements driver.Driver.
@@ -223,21 +256,24 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	}
 	defer lg.WarnIfFuncError(d.log, lgm.CloseDB, db.Close)
 
+	// Truncate has src in hand (unlike most SQLDriver methods, which
+	// take a bare db), so its errors get the connection-error
+	// enrichments too, consistent with the query and metadata paths.
 	affected, err := sqlz.ExecAffected(ctx, db, fmt.Sprintf("DELETE FROM %q", tbl))
 	if err != nil {
-		return affected, errw(err)
+		return affected, enrichConnError(errw(err), src)
 	}
 
 	if reset {
 		const seqProbe = `SELECT COUNT(name) FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'`
 		var seqCount int64
 		if err = db.QueryRowContext(ctx, seqProbe).Scan(&seqCount); err != nil {
-			return affected, errw(err)
+			return affected, enrichConnError(errw(err), src)
 		}
 		if seqCount > 0 {
 			if _, err = db.ExecContext(ctx,
 				"UPDATE sqlite_sequence SET seq = 0 WHERE name = ?", tbl); err != nil {
-				return affected, errw(err)
+				return affected, enrichConnError(errw(err), src)
 			}
 		}
 	}
@@ -245,15 +281,51 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	return affected, nil
 }
 
-// ValidateSource implements driver.Driver.
+// ValidateSource implements driver.Driver. Guards both the driver
+// type and the rqlite-specific URL contradiction (?insecure=true
+// requires ?tls=true). The latter is also checked in
+// dsnFromLocation at every Open, but doing it here catches the
+// error at sq add time even when --skip-verify suppresses Ping.
 func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	if src.Type != drivertype.Rqlite {
 		return nil, errz.Errorf("expected driver type {%s} but got {%s}", drivertype.Rqlite, src.Type)
 	}
+
+	// If the location contains a ${scheme:path} secret placeholder
+	// (e.g. "${keyring:abc}" or "${env:DSN}"), it is opaque at
+	// validation time: the URL grammar check runs at Open time on the
+	// resolved location instead.
+	//
+	// Use secret.ExtractRefs rather than a "${"-substring scan: a
+	// literal "${" or escaped "$${...}" in src.Location is not
+	// actually a placeholder and shouldn't suppress the grammar
+	// check. A malformed-placeholder error here surfaces as
+	// ValidateSource's error rather than producing a confusing
+	// parse failure later.
+	refs, err := secret.ExtractRefs(src.Location)
+	if err != nil {
+		return nil, errw(err)
+	}
+	if len(refs) > 0 {
+		return src, nil
+	}
+
+	// Reuse the dsnFromLocation parser, which performs the full
+	// grammar + contradiction validation. We discard the dsn and
+	// opts because we only want the error side-effect.
+	if _, _, err := dsnFromLocation(src.Location); err != nil {
+		return nil, err
+	}
 	return src, nil
 }
 
-// Ping implements driver.Driver.
+// Ping implements driver.Driver. gorqlite's database/sql conn doesn't
+// implement driver.Pinger, and gorqlite tolerates some failures (e.g.
+// a 401 response) at connect time, so db.PingContext alone only
+// verifies that a client can be constructed. Ping instead executes a
+// real round-trip query, so that it verifies the source is actually
+// usable: this surfaces auth, cluster discovery, and transport
+// problems at add time rather than at first query.
 func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
@@ -261,8 +333,9 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	}
 	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
 
-	if err = db.PingContext(ctx); err != nil {
-		return errz.Wrapf(rewritePeerDNSError(errw(err), src),
+	var n int
+	if err = db.QueryRowContext(ctx, "SELECT 1").Scan(&n); err != nil {
+		return errz.Wrapf(enrichConnError(errw(err), src),
 			"ping %s: %s", src.Handle, src.RedactedLocation())
 	}
 
@@ -345,33 +418,93 @@ func locationWithDefaultPort(loc string) (string, bool, error) {
 		return loc, false, nil
 	}
 
-	u.Host = u.Hostname() + ":" + strconv.Itoa(defaultPort)
+	u.Host = net.JoinHostPort(u.Hostname(), strconv.Itoa(defaultPort))
 	return u.String(), true, nil
 }
 
-// dsnFromLocation translates an rqlite:// or rqlites:// source location
-// into the http(s):// URL that gorqlite.Open expects.
-func dsnFromLocation(loc string) (string, error) {
-	var scheme string
-	switch {
-	case strings.HasPrefix(loc, PrefixSecure):
-		scheme = "https"
-	case strings.HasPrefix(loc, Prefix):
-		scheme = "http"
-	default:
+// dsnOpts captures the sq-synthetic query params that dsnFromLocation
+// strips before handing the URL to gorqlite. These params do not appear
+// in gorqlite's connection-string grammar; they are sq's TLS knobs.
+type dsnOpts struct {
+	// tls is true when the user opted into HTTPS via ?tls=true.
+	tls bool
+
+	// insecure is true when the user opted out of TLS certificate
+	// verification via ?insecure=true. Requires tls=true; the
+	// contradiction check lives in dsnFromLocation.
+	insecure bool
+}
+
+// dsnFromLocation translates an rqlite:// source location into the
+// http(s):// URL that gorqlite.Open expects, and reports the
+// sq-synthetic query-param opts (?tls, ?insecure) parsed out of the
+// location. Synthetic params are stripped from the returned DSN so
+// gorqlite never sees them.
+//
+// Returns an error if the location's scheme is unrecognized, ?tls or
+// ?insecure has a value other than "true"/"false", or ?insecure is
+// set without ?tls=true.
+func dsnFromLocation(loc string) (string, dsnOpts, error) {
+	var opts dsnOpts
+	if !strings.HasPrefix(loc, Prefix) {
 		// Don't include loc: it may carry credentials.
-		return "", errz.Errorf("rqlite: location must start with %q or %q",
-			Prefix, PrefixSecure)
+		return "", opts, errz.Errorf("rqlite: location must start with %q", Prefix)
 	}
+	scheme := "http"
 
 	u, err := url.Parse(loc)
 	if err != nil {
-		// Don't include loc in the error: it may carry credentials.
-		return "", errz.Wrap(err, "rqlite: invalid location")
+		// url.Error embeds the raw input URL in its message, which
+		// would echo inline credentials. Strip that wrapper so the
+		// underlying cause (e.g. "missing ']' in host") is preserved
+		// without the URL.
+		var uerr *url.Error
+		if errors.As(err, &uerr) {
+			err = uerr.Err
+		}
+		return "", opts, errz.Wrap(err, "rqlite: invalid location")
+	}
+
+	q := u.Query()
+	// Use q.Has, not a q.Get-non-empty check: a bare "?tls" or empty
+	// "?tls=" must be rejected, not silently forwarded to gorqlite.
+	if q.Has("tls") {
+		switch v := q.Get("tls"); v {
+		case "true":
+			scheme = "https"
+			opts.tls = true
+		case "false":
+			scheme = "http"
+			opts.tls = false
+		default:
+			return "", opts, errz.Errorf(
+				`rqlite: tls must be "true" or "false", got %q`, v)
+		}
+		q.Del("tls")
+	}
+
+	if q.Has("insecure") {
+		switch v := q.Get("insecure"); v {
+		case "true":
+			opts.insecure = true
+		case "false":
+			opts.insecure = false
+		default:
+			return "", opts, errz.Errorf(
+				`rqlite: insecure must be "true" or "false", got %q`, v)
+		}
+		q.Del("insecure")
+	}
+
+	if opts.insecure && !opts.tls {
+		return "", opts, errz.New(
+			"rqlite: insecure has no effect without tls=true; " +
+				"either add tls=true or remove insecure")
 	}
 
 	u.Scheme = scheme
-	return u.String(), nil
+	u.RawQuery = q.Encode()
+	return u.String(), opts, nil
 }
 
 // CopyTable implements driver.SQLDriver.

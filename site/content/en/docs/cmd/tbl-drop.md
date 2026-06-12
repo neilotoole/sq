@@ -1,12 +1,12 @@
 ---
 title: "sq tbl drop"
 description: "Drop one or more tables"
+group: tables
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2130
 toc: false
 url: /docs/cmd/tbl-drop
 ---

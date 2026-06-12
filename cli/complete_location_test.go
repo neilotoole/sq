@@ -29,7 +29,6 @@ var locSchemes = []string{
 	"oracle://",
 	"postgres://",
 	"rqlite://",
-	"rqlites://",
 	"sqlite3://",
 	"sqlserver://",
 }
@@ -421,10 +420,10 @@ func TestCompleteAddLocation_SQLServer(t *testing.T) {
 }
 
 // TestCompleteAddLocation_Rqlite is a smoke test for the rqlite
-// completion path: scheme partial to "rqlite://"/"rqlites://", and
+// completion path: scheme partial to "rqlite://", and
 // query-param completion driven by ConnParams (level,
-// disableClusterDiscovery). rqlite is networked (no file path),
-// so file-enumeration cases are not exercised here.
+// disableClusterDiscovery, tls, insecure). rqlite is networked
+// (no file path), so file-enumeration cases are not exercised here.
 func TestCompleteAddLocation_Rqlite(t *testing.T) {
 	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
 
@@ -437,8 +436,6 @@ func TestCompleteAddLocation_Rqlite(t *testing.T) {
 		wantResult cobra.ShellCompDirective
 	}{
 		{
-			// "rqlite:" only prefix-matches "rqlite://"; "rqlites://"
-			// is filtered out because it does not start with "rqlite:".
 			args:       []string{"rqlite:"},
 			want:       []string{"rqlite://"},
 			wantResult: stdDirective,
@@ -449,11 +446,6 @@ func TestCompleteAddLocation_Rqlite(t *testing.T) {
 			wantResult: stdDirective,
 		},
 		{
-			args:       []string{"rqlites:"},
-			want:       []string{"rqlites://"},
-			wantResult: stdDirective,
-		},
-		{
 			args: []string{"rqlite://"},
 			want: []string{
 				"rqlite://username",
@@ -461,18 +453,13 @@ func TestCompleteAddLocation_Rqlite(t *testing.T) {
 			wantResult: stdDirective,
 		},
 		{
-			args: []string{"rqlites://"},
-			want: []string{
-				"rqlites://username",
-			},
-			wantResult: stdDirective,
-		},
-		{
 			args: []string{"rqlite://alice@host:4001?"},
 			want: []string{
 				"rqlite://alice@host:4001?disableClusterDiscovery=",
+				"rqlite://alice@host:4001?insecure=",
 				"rqlite://alice@host:4001?level=",
 				"rqlite://alice@host:4001?timeout=",
+				"rqlite://alice@host:4001?tls=",
 			},
 			wantResult: stdDirective,
 		},

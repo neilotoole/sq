@@ -1007,6 +1007,49 @@ func TestDriveri_CopyTable_PreservesOnDeleteCascade(t *testing.T) {
 		"ON DELETE CASCADE must fire on the destination: deleting id=1 should cascade to id=2 and id=3")
 }
 
+// TestBusyTimeoutDefault verifies gh699: every sqlite3 connection gets a
+// default busy_timeout so that concurrent access waits for locks instead
+// of immediately failing with SQLITE_BUSY ("database is locked"). A
+// user-supplied _busy_timeout conn param must still win.
+func TestBusyTimeoutDefault(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name    string
+		connStr string
+		want    int
+	}{
+		{name: "default", connStr: "", want: 5000},
+		{name: "user_override", connStr: "?_busy_timeout=1234", want: 1234},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			dbPath := tu.TempFile(t, "gh699.db")
+
+			loc, err := sqlite3.MungeLocation("sqlite3://" + filepath.ToSlash(dbPath) + tc.connStr)
+			require.NoError(t, err)
+
+			src := &source.Source{
+				Handle:   "@gh699_" + tc.name,
+				Type:     drivertype.SQLite,
+				Location: loc,
+			}
+
+			grip := th.Open(src)
+			db, err := grip.DB(th.Context)
+			require.NoError(t, err)
+
+			var got int
+			require.NoError(t, db.QueryRowContext(th.Context, "PRAGMA busy_timeout").Scan(&got))
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
 // TestSourceMetadata_LocationWithConnParams reproduces gh720: a
 // source-level metadata read must succeed when the source location
 // carries a connection-string suffix (e.g. ?mode=ro). The previous

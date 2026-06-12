@@ -19,7 +19,7 @@ type LocationShape struct {
 
 	// Schemes are the accepted scheme prefixes (without "://").
 	// The first entry is canonical. Most drivers have one; rqlite
-	// has {"rqlite", "rqlites"}.
+	// has {"rqlite"}.
 	Schemes []string
 
 	// Segments lists the ordered URL segments that follow "scheme://".
@@ -155,8 +155,7 @@ type MatchedLoc struct {
 	// Loc is the original input verbatim.
 	Loc string
 
-	// Scheme is the matched scheme (without "://"), e.g. "rqlite"
-	// or "rqlites".
+	// Scheme is the matched scheme (without "://"), e.g. "rqlite".
 	Scheme string
 
 	// SegCredentials fields.

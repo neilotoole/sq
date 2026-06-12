@@ -108,6 +108,15 @@ nav.docs-links {
   }
 }
 
+// Tables on the /docs/cmd index hug the group blurb above them, with a clear
+// break before the next group heading. The global "table { margin: 3rem 0 }"
+// rule is meant for tables in flowing prose (and Bootstrap's .table class
+// caps margin-bottom at 1rem, which is too tight for a section break).
+.cmd-index-table {
+  margin-top: 1rem;
+  margin-bottom: 3rem;
+}
+
 nav.docs-links ul li a.docs-link.changelog {
   font-weight: bold;
   margin-top: 50px;
