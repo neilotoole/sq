@@ -88,8 +88,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   configuration was cleared, silently leaving the rest on disk.
 - [#783]: [`sq add`](https://sq.io/docs/cmd/add) and [`sq mv`](https://sq.io/docs/cmd/mv)
   no longer permit a source handle nested below an existing source's handle (e.g. adding
-  `@prod/db/x` when `@prod` exists). The conflict check was previously inconsistent:
-  it caught `@prod/x`, but not deeper nesting, and `sq mv` didn't check at all.
+  `@prod/db/x` when `@prod` exists).
 
 ## [v0.53.0] - 2026-05-25
 
