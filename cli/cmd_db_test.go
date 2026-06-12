@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -9,6 +10,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/sq/testh/sakila"
 )
 
 // TestCmdDB_Placeholder_Resolved verifies that the db dump/restore/exec
@@ -55,6 +57,59 @@ func TestCmdDB_Placeholder_Resolved(t *testing.T) {
 				"printed cmd should contain the resolved secret")
 			require.NotContains(t, got, "${env:",
 				"printed cmd should not contain the unresolved placeholder")
+		})
+	}
+}
+
+// TestCmdDB_UnsupportedDriver_ErrMsg verifies the error message when a db
+// command is invoked against a source type that doesn't support it. The
+// error prefix must appear exactly once: the "dump cluster" path used to
+// assign the prefixed error to err and then wrap it with the same prefix
+// again, yielding "db dump cluster: @x: db dump cluster: @x: ...".
+func TestCmdDB_UnsupportedDriver_ErrMsg(t *testing.T) {
+	testCases := []struct {
+		name      string
+		args      []string
+		errPrefix string
+	}{
+		{
+			name:      "dump_catalog",
+			args:      []string{"db", "dump", "catalog", sakila.CSVActor, "--print"},
+			errPrefix: "db dump catalog: " + sakila.CSVActor,
+		},
+		{
+			name:      "dump_cluster",
+			args:      []string{"db", "dump", "cluster", sakila.CSVActor, "--print"},
+			errPrefix: "db dump cluster: " + sakila.CSVActor,
+		},
+		{
+			name:      "restore_catalog",
+			args:      []string{"db", "restore", "catalog", sakila.CSVActor, "--print"},
+			errPrefix: "db restore catalog: " + sakila.CSVActor,
+		},
+		{
+			name:      "restore_cluster",
+			args:      []string{"db", "restore", "cluster", sakila.CSVActor, "--print"},
+			errPrefix: "db restore cluster: " + sakila.CSVActor,
+		},
+		{
+			name:      "exec",
+			args:      []string{"db", "exec", sakila.CSVActor, "--command", "SELECT 1", "--print"},
+			errPrefix: "db exec: " + sakila.CSVActor,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			th := testh.New(t)
+			tr := testrun.New(th.Context, t, nil)
+			tr.Add(*th.Source(sakila.CSVActor))
+
+			err := tr.Exec(tc.args...)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tc.errPrefix)
+			require.Equal(t, 1, strings.Count(err.Error(), tc.errPrefix),
+				"error prefix must appear exactly once")
 		})
 	}
 }

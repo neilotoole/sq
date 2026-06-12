@@ -13,7 +13,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/execz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
@@ -116,11 +115,7 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Resolve ${scheme:path} placeholders in src.Location before handing
-	// src to the tool command builder. Grips.doOpen does this for the
-	// query path; the db commands construct pg_dump etc. directly from
-	// src.Location, so resolution must happen here.
-	if src, err = driver.ResolveSourceSecrets(cmd.Context(), src); err != nil {
+	if src, err = resolveToolCmdSource(cmd, src); err != nil {
 		return err
 	}
 
@@ -236,10 +231,7 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Resolve placeholders at the call site: see execDBDumpCatalog.
-	// Without this, DumpClusterCmd would set PGPASSWORD to the literal
-	// placeholder text.
-	if src, err = driver.ResolveSourceSecrets(cmd.Context(), src); err != nil {
+	if src, err = resolveToolCmdSource(cmd, src); err != nil {
 		return err
 	}
 
@@ -255,7 +247,7 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 		}
 		execCmd, err = postgres.DumpClusterCmd(src, params)
 	default:
-		err = errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
+		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
 	}
 
 	if err != nil {

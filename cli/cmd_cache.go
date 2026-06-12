@@ -127,11 +127,8 @@ func execCacheClear(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// CacheClearSourceAll removes every cache dir for the handle, no
-	// matter which location hash each was created under. The obvious
-	// alternative (hash the location, clear that one dir) requires
-	// resolving any ${scheme:path} placeholders, and silently misses
-	// dirs ingested under a previous value of the secret.
+	// Clears every location-hash leaf for the handle, with no secret
+	// resolution: see CacheClearSourceAll's docs.
 	return ru.Files.CacheClearSourceAll(ctx, src, ru.Config.Collection.Handles())
 }
 

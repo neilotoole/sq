@@ -13,7 +13,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/execz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
@@ -104,8 +103,7 @@ func execDBRestoreCatalog(cmd *cobra.Command, args []string) error {
 	verbose := OptVerbose.Get(src.Options)
 	noOwner := cmdFlagBool(cmd, flag.DBRestoreNoOwner)
 
-	// Resolve placeholders at the call site: see execDBDumpCatalog.
-	if src, err = driver.ResolveSourceSecrets(cmd.Context(), src); err != nil {
+	if src, err = resolveToolCmdSource(cmd, src); err != nil {
 		return err
 	}
 
@@ -224,8 +222,7 @@ func execDBRestoreCluster(cmd *cobra.Command, args []string) error {
 	// FIXME: get rid of noOwner from this command?
 	// noOwner := cmdFlagBool(cmd, flag.RestoreNoOwner)
 
-	// Resolve placeholders at the call site: see execDBDumpCatalog.
-	if src, err = driver.ResolveSourceSecrets(cmd.Context(), src); err != nil {
+	if src, err = resolveToolCmdSource(cmd, src); err != nil {
 		return err
 	}
 
