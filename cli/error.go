@@ -137,12 +137,12 @@ func PrintError(ctx context.Context, ru *run.Run, err error) {
 		return
 	}
 
-	// Not JSON and not a renderable parse error: print the plain error to
+	// Not JSON and not a renderable parse error: print the human form to
 	// errOut, consistent with the JSON and parse-error paths above. pr carries
 	// the correct color setting for errOut (getOutputConfig matches errOutPr to
 	// the errOut writer; the pr == nil fallback above forces no color), so
 	// there's no need for a separate terminal check against os.Stderr.
-	pr.Error.Fprintln(errOut, "sq: "+err.Error())
+	pr.Error.Fprintln(errOut, "sq: "+humanErr.Error())
 }
 
 // bootstrapIsFormatJSON is a last-gasp attempt to check if the user
@@ -197,16 +197,12 @@ func humanizeError(err error) error {
 		return nil
 	}
 
-	// An error anywhere in the chain that implements errz.HumanReadable
-	// supplies its own concise user-facing message, replacing the full
-	// rendered chain (which remains in the log and in verbose output).
-	var hr errz.HumanReadable
-	if errors.As(err, &hr) {
-		return errz.New(hr.HumanError())
-	}
-
 	switch {
-	// Friendlier messages for context errors.
+	// Friendlier messages for context errors. These take precedence
+	// over the HumanReadable check below: cancellation and timeout
+	// reflect the user's own action (or their deadline), and a
+	// confident domain diagnosis of the interrupted operation would
+	// mislead.
 	default:
 	case errors.Is(err, bufio.ErrTooLong):
 		err = errz.Errorf(
@@ -227,6 +223,14 @@ func humanizeError(err error) error {
 		// For generic context.DeadlineExceeded errors, we
 		// just return "timeout".
 		err = errz.New("timeout")
+	}
+
+	// An error anywhere in the chain that implements errz.HumanReadable
+	// supplies its own concise user-facing message, replacing the full
+	// rendered chain (which remains in the log and in verbose output).
+	var hr errz.HumanReadable
+	if errors.As(err, &hr) {
+		return errz.New(hr.HumanError())
 	}
 
 	return err

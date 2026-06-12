@@ -17,6 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh/tu"
@@ -418,6 +419,25 @@ func Test_rewriteAuthError(t *testing.T) {
 			"a 401 must not be diagnosed as the discovery trap")
 	})
 
+	t.Run("same-host dial plus foreign 401 routes to AuthError", func(t *testing.T) {
+		// Finding from review: the user's own node down (dial failure,
+		// same host) plus a foreign peer that responded 401. The
+		// discovery rewrite must decline (the 401 peer was reached)
+		// and the auth rewrite gets its turn.
+		mixed := errors.New("tried all peers unsuccessfully. here are the results:\n" +
+			"   peer #0: http://localhost:4001/db/query failed due to " +
+			`Post "http://localhost:4001/db/query": ` +
+			"dial tcp 127.0.0.1:4001: connect: connection refused\n" +
+			"   peer #1: http://rqlite1:4001/db/query failed due to " +
+			"got: 401 Unauthorized, message:")
+		got := enrichConnError(mixed, newSrc("rqlite://localhost:4001"))
+		var authErr *AuthError
+		require.True(t, errors.As(got, &authErr),
+			"the reachable-but-unauthorized peer is an auth problem")
+		var discErr *DiscoveryError
+		require.False(t, errors.As(got, &discErr))
+	})
+
 	t.Run("first-match-wins: mixed dial+401 diagnoses discovery, not auth", func(t *testing.T) {
 		// One peer is the unresolvable-hostname trap, another returns
 		// 401. Discovery matches first; the 401 substring survives in
@@ -478,7 +498,13 @@ func Test_enrichingSQLDriver_ErrWrapFunc(t *testing.T) {
 		Location: "rqlite://localhost:4001",
 		Type:     drivertype.Rqlite,
 	}
-	g := &grip{src: src}
+	g := &grip{src: src, drvrw: &enrichingSQLDriver{driveri: &driveri{}, src: src}}
+
+	// Optional interfaces implemented by driveri must remain visible
+	// through the wrapper (it embeds the concrete *driveri).
+	_, ok := g.SQLDriver().(driver.ConnParamDetector)
+	require.True(t, ok, "wrapper must not erase optional interfaces")
+
 	wrapFn := g.SQLDriver().ErrWrapFunc()
 
 	require.Nil(t, wrapFn(nil))
@@ -642,6 +668,55 @@ func Test_rewritePeerDiscoveryError(t *testing.T) {
 			loc:           userLoc,
 			wantRewrite:   true,
 			wantSubstrAll: []string{`"rqlite1"`, "disableClusterDiscovery=true"},
+		},
+		{
+			// Eligibility is per-peer: the same-host dial failure must
+			// not qualify the foreign 401 peer as the discovery trap.
+			name: "same-host dial failure plus foreign 401 is not the trap",
+			err: errors.New("tried all peers unsuccessfully. here are the results:\n" +
+				"   peer #0: http://localhost:4001/db/query failed due to " +
+				`Post "http://localhost:4001/db/query": ` +
+				"dial tcp 127.0.0.1:4001: connect: connection refused\n" +
+				"   peer #1: http://rqlite1:4001/db/query failed due to " +
+				"got: 401 Unauthorized, message:"),
+			loc:         userLoc,
+			wantRewrite: false,
+		},
+		{
+			// A canceled dial says nothing about the peer: Ctrl-C or a
+			// context cancel mid-dial must not be diagnosed as the trap.
+			name: "canceled dial to foreign peer is not the trap",
+			err: errors.New("tried all peers unsuccessfully. here are the results:\n" +
+				"   peer #0: http://rqlite1:4001/db/query failed due to " +
+				`Post "http://rqlite1:4001/db/query": ` +
+				"dial tcp 172.18.0.2:4001: operation was canceled"),
+			loc:         userLoc,
+			wantRewrite: false,
+		},
+		{
+			// Marker matching is case-insensitive: Windows reports
+			// "No such host is known".
+			name: "windows-style DNS failure classifies as resolve",
+			err: errors.New("tried all peers unsuccessfully. here are the results:\n" +
+				"   peer #0: http://rqlite1:4001/db/query failed due to " +
+				`Post "http://rqlite1:4001/db/query": ` +
+				"dial tcp: lookup rqlite1: getaddrinfow: No such host is known."),
+			loc:           userLoc,
+			wantRewrite:   true,
+			wantSubstrAll: []string{"resolve advertised peer", `"rqlite1"`},
+		},
+		{
+			// The scan skips ineligible foreign peers (HTTP-level
+			// failure) and keeps looking for a trap-shaped one.
+			name: "foreign 401 peer first, foreign DNS peer second",
+			err: errors.New("tried all peers unsuccessfully. here are the results:\n" +
+				"   peer #0: http://rqlite1:4001/db/query failed due to " +
+				"got: 401 Unauthorized, message:\n" +
+				"   peer #1: http://rqlite2:4001/db/query failed due to " +
+				`Post "http://rqlite2:4001/db/query": dial tcp: lookup rqlite2: no such host`),
+			loc:           userLoc,
+			wantRewrite:   true,
+			wantSubstrAll: []string{"resolve advertised peer", `"rqlite2"`},
 		},
 		{
 			// Resolve must come from the chosen peer's own failure

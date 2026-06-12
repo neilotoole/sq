@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -152,4 +153,12 @@ func TestPrintError_HumanReadable_EndToEnd(t *testing.T) {
 		"text output must print the human form, not the full chain")
 	require.NotContains(t, got, "failed to read @x source metadata",
 		"humanization replaces the outer operation context too")
+}
+
+// TestHumanizeError_ContextPrecedence pins that cancellation/timeout
+// messages win over a HumanReadable in the same chain: the user's own
+// interruption must not be reported as a confident domain diagnosis.
+func TestHumanizeError_ContextPrecedence(t *testing.T) {
+	err := errz.WithHuman(errz.Err(context.Canceled), "@x: confident domain diagnosis")
+	require.Equal(t, "canceled", cli.HumanizeError(err).Error())
 }

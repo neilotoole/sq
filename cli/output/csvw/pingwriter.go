@@ -38,7 +38,8 @@ func (p *pingWriter) Result(src *source.Source, d time.Duration, err error) erro
 		if errors.Is(err, context.DeadlineExceeded) {
 			rec[2] = "timeout exceeded"
 		} else {
-			rec[2] = err.Error()
+			// Concise human form when available.
+			rec[2] = errz.HumanMessage(err)
 		}
 	} else {
 		rec[2] = "pong"

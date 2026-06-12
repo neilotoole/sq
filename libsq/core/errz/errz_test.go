@@ -279,3 +279,31 @@ func TestWithHuman(t *testing.T) {
 	require.True(t, errors.As(got, &hr))
 	require.Equal(t, "short form", hr.HumanError())
 }
+
+// TestWithHuman_Fidelity verifies that attaching a human message does
+// not degrade verbose rendering or stack collection.
+func TestWithHuman_Fidelity(t *testing.T) {
+	base := errz.Wrap(errz.New("root cause"), "context")
+	got := errz.WithHuman(base, "short form")
+
+	// %+v must delegate to the wrapped error: identical rendering,
+	// including stack frames.
+	verbose := fmt.Sprintf("%+v", got)
+	require.Equal(t, fmt.Sprintf("%+v", base), verbose,
+		"Format must delegate to the wrapped error")
+	require.Contains(t, verbose, ".go:",
+		"verbose rendering must include stack frames from the wrapped chain")
+
+	// Stack collection must see through the wrapper without duplicating.
+	require.Equal(t, len(errz.Stacks(base)), len(errz.Stacks(got)),
+		"WithHuman must neither hide nor duplicate stacks")
+	require.NotNil(t, errz.LastStack(got),
+		"LastStack must walk through the wrapper")
+}
+
+func TestHumanMessage(t *testing.T) {
+	require.Empty(t, errz.HumanMessage(nil))
+	require.Equal(t, "plain", errz.HumanMessage(errz.New("plain")))
+	err := errz.WithHuman(errz.New("long diagnostic"), "short form")
+	require.Equal(t, "short form", errz.HumanMessage(err))
+}

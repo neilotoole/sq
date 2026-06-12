@@ -168,7 +168,10 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 		return nil, enrichConnError(err, src)
 	}
 
-	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
+	return &grip{
+		log: d.log, db: db, src: src, drvr: d,
+		drvrw: &enrichingSQLDriver{driveri: d, src: src},
+	}, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
@@ -253,21 +256,24 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	}
 	defer lg.WarnIfFuncError(d.log, lgm.CloseDB, db.Close)
 
+	// Truncate has src in hand (unlike most SQLDriver methods, which
+	// take a bare db), so its errors get the connection-error
+	// enrichments too, consistent with the query and metadata paths.
 	affected, err := sqlz.ExecAffected(ctx, db, fmt.Sprintf("DELETE FROM %q", tbl))
 	if err != nil {
-		return affected, errw(err)
+		return affected, enrichConnError(errw(err), src)
 	}
 
 	if reset {
 		const seqProbe = `SELECT COUNT(name) FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'`
 		var seqCount int64
 		if err = db.QueryRowContext(ctx, seqProbe).Scan(&seqCount); err != nil {
-			return affected, errw(err)
+			return affected, enrichConnError(errw(err), src)
 		}
 		if seqCount > 0 {
 			if _, err = db.ExecContext(ctx,
 				"UPDATE sqlite_sequence SET seq = 0 WHERE name = ?", tbl); err != nil {
-				return affected, errw(err)
+				return affected, enrichConnError(errw(err), src)
 			}
 		}
 	}

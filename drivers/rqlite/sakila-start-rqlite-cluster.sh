@@ -155,7 +155,13 @@ cleanup() {
     rm -rf "$DATA_DIR"
     echo "Done."
 }
-trap cleanup EXIT INT TERM HUP
+# Signal handlers exit so that cleanup (via the EXIT trap) runs exactly
+# once and the script cannot continue against a torn-down cluster: a
+# trap that merely runs cleanup would return into the interrupted wait
+# loops (whose curl sits in an if-condition, exempt from set -e).
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM HUP
 
 auth_label="auth"
 [[ "$AUTH" == "true" ]] || auth_label="no auth"

@@ -198,15 +198,11 @@ func rewritePeerDiscoveryError(err error, src *source.Source) error {
 	}
 
 	// Path 2: gorqlite string-serialized "tried all peers" failure.
+	// firstForeignPeer applies the connection-level classification
+	// per peer segment: only a foreign peer whose own failure is
+	// DNS lookup or dial level indicates the discovery trap.
 	text := err.Error()
 	if !strings.Contains(text, gorqlitePeersPreamble) {
-		return err
-	}
-	// Only connection-level failures (DNS lookup, dial) indicate the
-	// discovery trap. An HTTP-level response from a reachable peer
-	// (e.g. 401 Unauthorized) is a different problem, and must not be
-	// rewritten into a disableClusterDiscovery suggestion.
-	if !strings.Contains(text, "no such host") && !strings.Contains(text, "dial tcp") {
 		return err
 	}
 	peerHost, resolve := firstForeignPeer(text, userHost)
@@ -226,16 +222,29 @@ func rewritePeerDiscoveryError(err error, src *source.Source) error {
 
 // firstForeignPeer parses the peer entries out of gorqlite's
 // serialized "tried all peers" error text and returns the host of the
-// first peer whose host differs from userHost, plus whether that
-// peer's own failure was a DNS not-found (resolve=true) as opposed to
-// a dial failure (resolve=false). The marker check is scoped to the
-// chosen peer's text segment: with multiple peers failing differently,
-// a whole-text check would misattribute another peer's failure class.
-// Returns an empty host when no peer URL parses, or every parsed peer
-// host equals userHost. Loopback hosts count as equal ("localhost" vs
-// "127.0.0.1" vs "::1"): a node legitimately advertising loopback to a
-// loopback-typed source is not the discovery trap, even when the
-// strings differ.
+// first peer that exhibits the discovery trap: a foreign host (differs
+// from userHost) whose own failure segment is connection-level. The
+// returned resolve is true for a DNS not-found, false for a dial
+// failure. All classification is scoped to each peer's own text
+// segment: with multiple peers failing differently, a whole-text check
+// would misattribute one peer's failure class to another.
+//
+// Skipped peers, in addition to unparseable ones:
+//
+//   - Same host as userHost. Loopback hosts count as equal
+//     ("localhost" vs "127.0.0.1" vs "::1"): a node legitimately
+//     advertising loopback to a loopback-typed source is not the
+//     trap, even when the strings differ.
+//   - Canceled attempts ("operation was canceled", "context
+//     canceled"): the user or a context aborted mid-dial, which says
+//     nothing about the peer being unusable. Deadline expiries remain
+//     eligible: an unroutable advertised peer typically surfaces as a
+//     dial timeout.
+//   - HTTP-level failures (e.g. a 401): the peer was reached; that's
+//     a different problem, not the discovery trap.
+//
+// Marker matching is case-insensitive so platform variants match
+// (Windows: "No such host is known").
 func firstForeignPeer(text, userHost string) (host string, resolve bool) {
 	userLoopback := isLoopbackHost(userHost)
 	matches := peerURLPattern.FindAllStringSubmatchIndex(text, -1)
@@ -257,7 +266,18 @@ func firstForeignPeer(text, userHost string) (host string, resolve bool) {
 		if i+1 < len(matches) {
 			end = matches[i+1][0]
 		}
-		return h, strings.Contains(text[m[0]:end], "no such host")
+		segment := strings.ToLower(text[m[0]:end])
+		switch {
+		case strings.Contains(segment, "operation was canceled"),
+			strings.Contains(segment, "context canceled"):
+			continue
+		case strings.Contains(segment, "no such host"):
+			return h, true
+		case strings.Contains(segment, "dial tcp"):
+			return h, false
+		default:
+			continue
+		}
 	}
 	return "", false
 }
@@ -307,12 +327,15 @@ func (e *AuthError) HumanError() string {
 }
 
 // rewriteAuthError rewrites a 401 Unauthorized failure from the
-// rqlite node into a *AuthError. gorqlite serializes HTTP-status
-// failures into its error text (e.g. "got: 401 Unauthorized"), so
-// detection is text-based, like the other gorqlite-path checks.
-// Pass-through for nil and non-401 errors.
+// rqlite node into a *AuthError. Detection is text-based, like the
+// other gorqlite-path checks, and anchored to gorqlite's exact
+// serialization: its doOnce is the module's only HTTP call site, and
+// it formats every non-200 as "got: <status>, message: <body>", so
+// "got: 401 Unauthorized" covers every gorqlite 401 path while not
+// matching quoted content (e.g. a non-401 response body that merely
+// mentions a 401). Pass-through for nil and non-401 errors.
 func rewriteAuthError(err error, src *source.Source) error {
-	if err == nil || !strings.Contains(err.Error(), "401 Unauthorized") {
+	if err == nil || !strings.Contains(err.Error(), "got: 401 Unauthorized") {
 		return err
 	}
 	// Conservative default: if the location can't be parsed (e.g. it

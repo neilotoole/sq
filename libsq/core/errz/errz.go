@@ -475,7 +475,9 @@ func WithHuman(err error, human string) error {
 }
 
 // humanizedError implements HumanReadable by pairing an error with a
-// concise display message.
+// concise display message. Everything except HumanError defers to the
+// wrapped error, so attaching a human message doesn't degrade verbose
+// rendering, structured logging, or stack collection.
 type humanizedError struct {
 	error
 	human string
@@ -486,3 +488,50 @@ func (e *humanizedError) Unwrap() error { return e.error }
 
 // HumanError implements HumanReadable.
 func (e *humanizedError) HumanError() string { return e.human }
+
+// inner implements stackTracer, so LastStack walks through the
+// wrapper to the stacks beneath it.
+func (e *humanizedError) inner() error { return e.error }
+
+// stackTrace implements stackTracer. It deliberately returns nil
+// rather than delegating: Stacks collects per chain element via
+// Unwrap, so delegation would report the inner stack twice.
+func (e *humanizedError) stackTrace() *StackTrace { return nil }
+
+// Format implements fmt.Formatter, delegating to the wrapped error so
+// that verbose rendering (%+v) keeps the chain and stack output.
+func (e *humanizedError) Format(s fmt.State, verb rune) {
+	if f, ok := e.error.(fmt.Formatter); ok {
+		f.Format(s, verb)
+		return
+	}
+	switch verb {
+	case 'v', 's':
+		_, _ = io.WriteString(s, e.Error())
+	case 'q':
+		_, _ = fmt.Fprintf(s, "%q", e.Error())
+	}
+}
+
+// LogValue implements slog.LogValuer, delegating to the wrapped error.
+func (e *humanizedError) LogValue() slog.Value {
+	if lv, ok := e.error.(slog.LogValuer); ok {
+		return lv.LogValue()
+	}
+	return slog.StringValue(e.Error())
+}
+
+// HumanMessage returns the concise HumanReadable form when any error
+// in err's chain implements HumanReadable; otherwise err.Error().
+// Returns the empty string if err is nil. Use this when rendering an
+// error in space-constrained output (e.g. one row per source).
+func HumanMessage(err error) string {
+	if err == nil {
+		return ""
+	}
+	var hr HumanReadable
+	if errors.As(err, &hr) {
+		return hr.HumanError()
+	}
+	return err.Error()
+}
