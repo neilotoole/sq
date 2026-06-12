@@ -17,24 +17,73 @@ func TestApplyReadOnlyToLocation(t *testing.T) {
 	testCases := []struct {
 		name        string
 		in          string
+		explicit    bool
 		wantOut     string
 		wantChanged bool
 	}{
 		{
-			name:        "no_query",
+			name:        "no_query_implicit",
 			in:          "duckdb:///path/to/f.duckdb",
 			wantOut:     "duckdb:///path/to/f.duckdb?access_mode=READ_ONLY",
 			wantChanged: true,
 		},
 		{
-			name:        "other_param",
+			name:        "no_query_explicit",
+			in:          "duckdb:///path/to/f.duckdb",
+			explicit:    true,
+			wantOut:     "duckdb:///path/to/f.duckdb?access_mode=READ_ONLY",
+			wantChanged: true,
+		},
+		{
+			name:        "other_param_implicit",
 			in:          "duckdb:///path/to/f.duckdb?threads=4",
 			wantOut:     "duckdb:///path/to/f.duckdb?threads=4&access_mode=READ_ONLY",
 			wantChanged: true,
 		},
 		{
-			name:        "user_read_write_wins",
+			name:        "other_param_explicit",
+			in:          "duckdb:///path/to/f.duckdb?threads=4",
+			explicit:    true,
+			wantOut:     "duckdb:///path/to/f.duckdb?threads=4&access_mode=READ_ONLY",
+			wantChanged: true,
+		},
+		{
+			name:        "automatic_implicit_unchanged",
+			in:          "duckdb:///path/to/f.duckdb?access_mode=AUTOMATIC",
+			wantOut:     "duckdb:///path/to/f.duckdb?access_mode=AUTOMATIC",
+			wantChanged: false,
+		},
+		{
+			name:        "automatic_explicit_overridden",
+			in:          "duckdb:///path/to/f.duckdb?access_mode=AUTOMATIC",
+			explicit:    true,
+			wantOut:     "duckdb:///path/to/f.duckdb?access_mode=READ_ONLY",
+			wantChanged: true,
+		},
+		{
+			name:        "automatic_lowercase_explicit_overridden",
+			in:          "duckdb:///path/to/f.duckdb?access_mode=automatic",
+			explicit:    true,
+			wantOut:     "duckdb:///path/to/f.duckdb?access_mode=READ_ONLY",
+			wantChanged: true,
+		},
+		{
+			name:        "automatic_explicit_other_params_preserved",
+			in:          "duckdb:///path/to/f.duckdb?threads=4&access_mode=AUTOMATIC",
+			explicit:    true,
+			wantOut:     "duckdb:///path/to/f.duckdb?access_mode=READ_ONLY&threads=4",
+			wantChanged: true,
+		},
+		{
+			name:        "user_read_write_wins_implicit",
 			in:          "duckdb:///path/to/f.duckdb?access_mode=READ_WRITE",
+			wantOut:     "duckdb:///path/to/f.duckdb?access_mode=READ_WRITE",
+			wantChanged: false,
+		},
+		{
+			name:        "user_read_write_wins_explicit",
+			in:          "duckdb:///path/to/f.duckdb?access_mode=READ_WRITE",
+			explicit:    true,
 			wantOut:     "duckdb:///path/to/f.duckdb?access_mode=READ_WRITE",
 			wantChanged: false,
 		},
@@ -45,8 +94,22 @@ func TestApplyReadOnlyToLocation(t *testing.T) {
 			wantChanged: false,
 		},
 		{
+			name:        "user_read_only_lowercase_already_set_explicit",
+			in:          "duckdb:///path/to/f.duckdb?access_mode=read_only",
+			explicit:    true,
+			wantOut:     "duckdb:///path/to/f.duckdb?access_mode=read_only",
+			wantChanged: false,
+		},
+		{
 			name:        "memory_skipped",
 			in:          "duckdb://:memory:",
+			wantOut:     "duckdb://:memory:",
+			wantChanged: false,
+		},
+		{
+			name:        "memory_skipped_explicit",
+			in:          "duckdb://:memory:",
+			explicit:    true,
 			wantOut:     "duckdb://:memory:",
 			wantChanged: false,
 		},
@@ -54,6 +117,25 @@ func TestApplyReadOnlyToLocation(t *testing.T) {
 			name:        "memory_with_query_skipped",
 			in:          "duckdb://:memory:?threads=4",
 			wantOut:     "duckdb://:memory:?threads=4",
+			wantChanged: false,
+		},
+		{
+			name:        "empty_path_memory_skipped",
+			in:          "duckdb://",
+			wantOut:     "duckdb://",
+			wantChanged: false,
+		},
+		{
+			name:        "empty_path_memory_skipped_explicit",
+			in:          "duckdb://",
+			explicit:    true,
+			wantOut:     "duckdb://",
+			wantChanged: false,
+		},
+		{
+			name:        "empty_path_memory_with_query_skipped",
+			in:          "duckdb://?threads=4",
+			wantOut:     "duckdb://?threads=4",
 			wantChanged: false,
 		},
 		{
@@ -72,7 +154,7 @@ func TestApplyReadOnlyToLocation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotOut, gotChanged := duckdb.ApplyReadOnlyToLocation(tc.in)
+			gotOut, gotChanged := duckdb.ApplyReadOnlyToLocation(tc.in, tc.explicit)
 			require.Equal(t, tc.wantOut, gotOut)
 			require.Equal(t, tc.wantChanged, gotChanged)
 		})
