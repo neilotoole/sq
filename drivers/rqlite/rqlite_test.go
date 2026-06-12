@@ -13,6 +13,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/source"
@@ -1835,6 +1836,184 @@ func TestAlterTableColumnKinds_PreservesUniqueAndDefault(t *testing.T) {
 		fmt.Sprintf(`SELECT salary FROM %q WHERE id=1`, tblName)).Scan(&salary))
 	require.InDelta(t, 50000.0, salary, 0.0001,
 		"DEFAULT 50000 on salary should survive the rebuild")
+}
+
+// TestTableMetadata_ProblematicTableNames reproduces gh777 for the rqlite
+// driver: getTableMetadata interpolated the table name with Go's %q,
+// including into string-literal position. SQLite resolves a double-quoted
+// token as an identifier first, so a table named after a sqlite_master
+// column (name, type, sql) turned WHERE name = "name" into a tautology,
+// and a table name containing a double quote was emitted with Go backslash
+// escaping, which SQLite rejects outright. Mirrors the sqlite3 driver test.
+//
+// Deliberately NOT parallel: the test creates tables with fixed names
+// (name, type, sql, we"ird) in the shared Sakila rqlite database, so it
+// can't safely interleave with other tests touching the same server.
+func TestTableMetadata_ProblematicTableNames(t *testing.T) {
+	tu.SkipShort(t, true)
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	tblNames := []string{"name", "type", "sql", `we"ird`, "shadowed"}
+	// The fixed-name tables live in the shared database, so drop any
+	// leftovers from an aborted earlier run before creating: the test
+	// must be self-healing.
+	dropAll := func() {
+		_, _ = db.ExecContext(th.Context, `DROP TRIGGER IF EXISTS "shadowed"`)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: "aab_other"}, true)
+		for _, tblName := range tblNames {
+			_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+		}
+	}
+	dropAll()
+	t.Cleanup(dropAll)
+
+	// A trigger may share a table's name in sqlite_master. Create the
+	// trigger before the same-named table so the trigger row precedes the
+	// table row: without the type filter in the metadata query, the
+	// trigger row shadowed the table and the metadata was misreported.
+	_, err = db.ExecContext(th.Context, `CREATE TABLE aab_other (x INTEGER)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context,
+		`CREATE TRIGGER "shadowed" AFTER INSERT ON aab_other BEGIN SELECT 1; END`)
+	require.NoError(t, err)
+
+	for _, tblName := range tblNames {
+		quoted := stringz.DoubleQuote(tblName)
+		_, err = db.ExecContext(th.Context, fmt.Sprintf(
+			"CREATE TABLE %s (id INTEGER PRIMARY KEY, val TEXT)", quoted))
+		require.NoError(t, err)
+		_, err = db.ExecContext(th.Context, fmt.Sprintf(
+			"INSERT INTO %s (val) VALUES ('a'), ('b')", quoted))
+		require.NoError(t, err)
+	}
+
+	for _, tblName := range tblNames {
+		t.Run(tu.Name(tblName), func(t *testing.T) {
+			md, err := grip.TableMetadata(th.Context, tblName)
+			require.NoError(t, err)
+			require.Equal(t, tblName, md.Name)
+			require.Equal(t, int64(2), md.RowCount)
+			require.Equal(t, sqlz.TableTypeTable, md.TableType)
+			require.Len(t, md.Columns, 2)
+			require.Equal(t, "id", md.Columns[0].Name)
+			require.Equal(t, "val", md.Columns[1].Name)
+		})
+	}
+}
+
+// TestAlterTableColumnKinds_ForeignKeyEnforcement reproduces gh776: the
+// table-rebuild dance in AlterTableColumnKinds carried PRAGMA
+// foreign_keys=off inside its transaction-wrapped batch, where SQLite
+// specifies the pragma is a no-op. On a node enforcing foreign keys, the
+// rebuild's DROP TABLE step failed with "FOREIGN KEY constraint failed"
+// whenever the altered table was referenced by another table's FK. The
+// fix issues the pragma off/restore as separate non-transactional
+// requests around the (still atomic) rebuild batch.
+//
+// The standard test server runs without -fk, so the test enables
+// enforcement on the node's write connection via a non-transactional
+// pragma, exactly as a -fk node would have it at boot.
+//
+// Deliberately NOT parallel: the foreign_keys pragma applies to the
+// node's shared write connection, so toggling it would affect writes
+// from concurrently running tests.
+func TestAlterTableColumnKinds_ForeignKeyEnforcement(t *testing.T) {
+	tu.SkipShort(t, true)
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	parentTbl := "fkparent_" + stringz.Uniq8()
+	childTbl := "fkchild_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		// Restore the node default (the test server runs without -fk),
+		// then drop child before parent.
+		_ = rqlite.ExecNonTx(th.Context, db, "PRAGMA foreign_keys=off")
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: childTbl}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: parentTbl}, true)
+	})
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		"CREATE TABLE %s (id INTEGER PRIMARY KEY, val INTEGER NOT NULL)",
+		stringz.DoubleQuote(parentTbl)))
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		"CREATE TABLE %s (id INTEGER PRIMARY KEY, pid INTEGER NOT NULL REFERENCES %s(id))",
+		stringz.DoubleQuote(childTbl), stringz.DoubleQuote(parentTbl)))
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		"INSERT INTO %s (id, val) VALUES (1, 42)", stringz.DoubleQuote(parentTbl)))
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		"INSERT INTO %s (id, pid) VALUES (1, 1)", stringz.DoubleQuote(childTbl)))
+	require.NoError(t, err)
+
+	// Enable FK enforcement on the node's write connection. This must go
+	// through the non-transactional path: a pragma in a
+	// transaction-wrapped request is a no-op.
+	require.NoError(t, rqlite.ExecNonTx(th.Context, db, "PRAGMA foreign_keys=on"))
+
+	// Sanity check: enforcement is live, so a dangling child insert fails.
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		"INSERT INTO %s (id, pid) VALUES (99, 999)", stringz.DoubleQuote(childTbl)))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "FOREIGN KEY constraint failed")
+
+	// The rebuild. Pre-fix, this failed at the DROP TABLE step with
+	// "FOREIGN KEY constraint failed" because the in-batch pragma never
+	// disabled enforcement.
+	require.NoError(t, drvr.AlterTableColumnKinds(th.Context, db, parentTbl,
+		[]string{"val"}, []kind.Kind{kind.Text}))
+
+	// Kind changed, and data in both tables survived the rebuild.
+	md, err := grip.TableMetadata(th.Context, parentTbl)
+	require.NoError(t, err)
+	require.Equal(t, kind.Text, md.Column("val").Kind)
+
+	var parentVal string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		"SELECT val FROM "+stringz.DoubleQuote(parentTbl)+" WHERE id = 1").
+		Scan(&parentVal))
+	require.Equal(t, "42", parentVal)
+	var childCount int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		"SELECT COUNT(*) FROM "+stringz.DoubleQuote(childTbl)).Scan(&childCount))
+	require.Equal(t, int64(1), childCount)
+
+	// AlterTableColumnKinds restores the foreign_keys pragma to the
+	// node's configured default: the write connection's live pragma
+	// state is not readable over the HTTP API (PRAGMA foreign_keys via
+	// /db/query is served by the read-only pool), so the boot default is
+	// the restore target. This test server's default is off, so a
+	// dangling insert succeeding here proves the restore ran. On a node
+	// actually running -fk, the same restore re-enables enforcement.
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		"INSERT INTO %s (id, pid) VALUES (100, 999)", stringz.DoubleQuote(childTbl)))
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		"DELETE FROM %s WHERE id = 100", stringz.DoubleQuote(childTbl)))
+	require.NoError(t, err)
+
+	// Re-enable enforcement: the child's FK must still be wired to the
+	// rebuilt parent (the DROP/RENAME preserved the relationship).
+	require.NoError(t, rqlite.ExecNonTx(th.Context, db, "PRAGMA foreign_keys=on"))
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		"INSERT INTO %s (id, pid) VALUES (101, 999)", stringz.DoubleQuote(childTbl)))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "FOREIGN KEY constraint failed")
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		"INSERT INTO %s (id, pid) VALUES (2, 1)", stringz.DoubleQuote(childTbl)))
+	require.NoError(t, err)
 }
 
 // TestCopyTable_CopiesIndexesAndTriggers is the rqlite half of gh758:

@@ -1217,8 +1217,11 @@ func filePathFromLocation(loc string) string {
 // MungeLocation to be OS-independent.
 //
 // MungeLocation is idempotent, and is a thin wrapper around
-// location.MungeForDriver, which also munges locations resolved from
-// secret placeholders at connect time (driver.ResolveSourceSecrets).
+// location.MungeTemplateForDriver: the user-typed location is a
+// placeholder template, so cwd bytes spliced in by absolutization are
+// escaped (gh #797). Locations resolved from secret placeholders at
+// connect time are literal bytes and take the no-escape path via
+// location.MungeForDriver (driver.ResolveSourceSecrets).
 func MungeLocation(loc string) (string, error) {
-	return location.MungeForDriver(drivertype.SQLite, loc)
+	return location.MungeTemplateForDriver(drivertype.SQLite, loc)
 }
