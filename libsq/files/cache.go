@@ -343,10 +343,94 @@ func (fs *Files) CacheClearAll(ctx context.Context) error {
 // CacheClearSource clears the ingest cache for src. If arg downloads is true,
 // the source's download dir is also cleared. The caller should typically
 // first acquire the cache lock for src via Files.cacheLockFor.
+//
+// Note that this clears only the cache dir for src's current location
+// hash (see CacheDirFor). It is used internally by ingest, which holds
+// that dir's lock and knows the resolved location. For clearing a
+// source's cache wholesale, see CacheClearSourceAll.
 func (fs *Files) CacheClearSource(ctx context.Context, src *source.Source, clearDownloads bool) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	return fs.doCacheClearSource(ctx, src, clearDownloads)
+}
+
+// CacheClearSourceAll clears the ingest cache for src by removing every
+// cache dir belonging to src.Handle, regardless of location hash. The
+// per-source cache dir leaf (see CacheDirFor) is keyed on a hash that
+// incorporates src.Location: for a location containing ${scheme:path}
+// placeholders that's the resolved location, whose hash cannot be
+// recomputed if the secret has rotated or become unavailable. Removing
+// every leaf under the handle's dir catches them all, including leaves
+// orphaned by changed options, catalog, or schema, and requires no
+// secret resolution. Downloads are cleared too.
+//
+// collHandles is the set of all handles in the active collection. It is
+// needed because a handle may coincide with a group prefix of another
+// handle (e.g. @prod and @prod/db/x can coexist), in which case the
+// nested source's cache dirs live below this handle's dir and must be
+// left untouched.
+func (fs *Files) CacheClearSourceAll(ctx context.Context, src *source.Source, collHandles []string) error {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	log := lg.FromContext(ctx)
+
+	handle := src.Handle
+	if err := source.ValidHandle(handle); err != nil {
+		return errz.Wrapf(err, "clear cache: invalid handle: %s", handle)
+	}
+
+	handleDir := filepath.Join(
+		fs.cacheDir,
+		"sources",
+		filepath.Join(strings.Split(strings.TrimPrefix(handle, "@"), "/")...),
+	)
+	if !ioz.DirExists(handleDir) {
+		return nil
+	}
+
+	// Child dirs of handleDir are location-hash leaves, except where
+	// another source's handle nests under this handle: its first path
+	// segment below this handle names a child dir that must survive.
+	nested := map[string]bool{}
+	prefix := strings.TrimPrefix(handle, "@") + "/"
+	for _, h := range collHandles {
+		if hp := strings.TrimPrefix(h, "@"); strings.HasPrefix(hp, prefix) {
+			nested[strings.SplitN(strings.TrimPrefix(hp, prefix), "/", 2)[0]] = true
+		}
+	}
+
+	entries, err := os.ReadDir(handleDir)
+	if err != nil {
+		return errz.Wrapf(err, "%s: clear cache", handle)
+	}
+
+	tmpDir := DefaultTempDir()
+	if err = ioz.RequireDir(tmpDir); err != nil {
+		return errz.Wrapf(err, "%s: clear cache", handle)
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() || nested[entry.Name()] {
+			continue
+		}
+
+		// As with doCacheClearAll, relocate each leaf before deleting,
+		// which copes with another sq instance holding an open pid lock
+		// inside the leaf.
+		leafDir := filepath.Join(handleDir, entry.Name())
+		relocateDir := filepath.Join(tmpDir, "dead_cache_"+stringz.Uniq8())
+		if err = os.Rename(leafDir, relocateDir); err != nil {
+			return errz.Wrapf(err, "%s: clear cache: relocate", handle)
+		}
+		if err = os.RemoveAll(relocateDir); err != nil {
+			log.Warn("Could not delete relocated source cache dir",
+				lga.Src, src, lga.Path, relocateDir, lga.Err, err)
+		}
+	}
+
+	log.With(lga.Src, src, lga.Dir, handleDir).Info("Cleared source cache")
+	return nil
 }
 
 func (fs *Files) doCacheClearSource(ctx context.Context, src *source.Source, clearDownloads bool) error {
