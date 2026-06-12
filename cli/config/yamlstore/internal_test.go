@@ -540,6 +540,281 @@ func Test_Store_Load_MultiStepUpgrade_Chains(t *testing.T) {
 	require.Len(t, order, 2, "a second load must not re-run the upgrade funcs")
 }
 
+// Test_LoadVersionFromFile covers the version-field parsing edge cases:
+// a malformed or missing config.version is a load-time error a real
+// (hand-edited or corrupted) config can hit.
+func Test_LoadVersionFromFile(t *testing.T) {
+	testCases := []struct {
+		name    string
+		content string
+		want    string
+		wantErr string // error-message substring; "" means expect success
+	}{
+		{"valid", "config.version: v0.34.0\n", "v0.34.0", ""},
+		{"legacy version field", "version: v0.34.0\n", "v0.34.0", ""},
+		{"legacy config_version field", "config_version: v0.34.0\n", "v0.34.0", ""},
+		{"missing field", "options:\n  format: json\n", "", "does not have a version field"},
+		{"empty string value", "config.version: \"\"\n", "", "does not have a version field"},
+		{"non-string value", "config.version: 123\n", "", "invalid value for"},
+		{"invalid semver", "config.version: not-a-version\n", "", "invalid semver value for"},
+		{"malformed yaml", "key: [unclosed\n", "", "unmarshal"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, cfgPath := writeTestConfig(t, tc.content)
+			got, err := LoadVersionFromFile(cfgPath)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				require.Equal(t, tc.want, got)
+				return
+			}
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tc.wantErr)
+		})
+	}
+}
+
+// Test_checkNeedsUpgrade_belowMinVersion verifies that a config version
+// below MinConfigVersion is a fatal error, not silently upgraded.
+func Test_checkNeedsUpgrade_belowMinVersion(t *testing.T) {
+	setBuildVersion(t, "v0.55.0")
+	noop := func(_ context.Context, before []byte) ([]byte, error) { return before, nil }
+
+	// v0.0.0-aaa sorts below MinConfigVersion (v0.0.0-dev) by prerelease.
+	_, cfgPath := writeTestConfig(t, "config.version: v0.0.0-aaa\n")
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+	store := &Store{Path: cfgPath, UpgradeRegistry: UpgradeRegistry{"v0.34.0": noop}}
+
+	_, _, err := store.checkNeedsUpgrade(ctx, store.UpgradeRegistry.highestVersion())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "less than minimum")
+}
+
+// Test_Store_doUpgrade_DirectCalls covers doUpgrade's two guard branches
+// reached only by a direct caller: an invalid target version, and a
+// target with no upgrade funcs in range (config left untouched).
+func Test_Store_doUpgrade_DirectCalls(t *testing.T) {
+	noop := func(_ context.Context, before []byte) ([]byte, error) { return before, nil }
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+
+	const cfgContent = "config.version: v0.34.0\n"
+	_, cfgPath := writeTestConfig(t, cfgContent)
+	store := &Store{
+		Path:            cfgPath,
+		OptionsRegistry: &options.Registry{},
+		UpgradeRegistry: UpgradeRegistry{"v0.34.0": noop},
+	}
+
+	// Invalid target version is rejected before any file change.
+	_, err := store.doUpgrade(ctx, "v0.34.0", "not-a-semver")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid semver")
+
+	// No upgrade funcs in range: the config is loaded and returned
+	// untouched, with no error.
+	cfg, err := store.doUpgrade(ctx, "v0.34.0", "v0.34.0")
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	got, err := os.ReadFile(cfgPath)
+	require.NoError(t, err)
+	require.Equal(t, cfgContent, string(got), "no-op upgrade must not rewrite the config")
+}
+
+// Test_Store_Load_UpgradeFuncError verifies that a failing upgrade func
+// surfaces as a load error and leaves the config file unchanged (the
+// upgraded bytes are written only after every func succeeds).
+func Test_Store_Load_UpgradeFuncError(t *testing.T) {
+	setBuildVersion(t, "v0.55.0")
+	boom := func(_ context.Context, _ []byte) ([]byte, error) {
+		return nil, fs.ErrInvalid // any non-nil error
+	}
+
+	const cfgContent = "config.version: v0.30.0\n"
+	cfgDir, cfgPath := writeTestConfig(t, cfgContent)
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+	store := &Store{
+		Path:            cfgPath,
+		OptionsRegistry: &options.Registry{},
+		UpgradeRegistry: UpgradeRegistry{"v0.50.0": boom},
+	}
+
+	_, err := store.Load(ctx)
+	require.Error(t, err, "a failing upgrade func must fail the load")
+
+	// The original config must be intact (only a verbatim backup may
+	// have been written before the func ran).
+	got, err := os.ReadFile(cfgPath)
+	require.NoError(t, err)
+	require.Equal(t, cfgContent, string(got),
+		"a failed upgrade must not corrupt the config")
+	_ = cfgDir
+}
+
+// Test_Store_applyVersionCheck_FatalClearsNewerCfgVers verifies that a
+// fatal (non-newer-than-build) check error clears newerCfgVers, so a
+// reused Store can't carry stale state into a later Save's backup.
+func Test_Store_applyVersionCheck_FatalClearsNewerCfgVers(t *testing.T) {
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+	store := &Store{Path: "irrelevant.yml", newerCfgVers: "v0.58.0"}
+
+	// fs.ErrNotExist stands in for any fatal, non-newer check error.
+	err := store.applyVersionCheck(ctx, "v0.30.0", fs.ErrNotExist)
+	require.Error(t, err)
+	require.Empty(t, store.newerCfgVers,
+		"a fatal version-check error must clear newerCfgVers")
+}
+
+// Test_Store_backupNewerConfig_ConfigDeleted verifies that if the config
+// file is gone by the time Save runs, backupNewerConfig treats it as
+// nothing-to-back-up: it clears the flag and returns nil rather than
+// failing.
+func Test_Store_backupNewerConfig_ConfigDeleted(t *testing.T) {
+	_, cfgPath := writeTestConfig(t, "config.version: v0.58.0\n")
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+	store := &Store{Path: cfgPath, newerCfgVers: "v0.58.0"}
+
+	require.NoError(t, os.Remove(cfgPath))
+
+	require.NoError(t, store.backupNewerConfig(ctx))
+	require.Empty(t, store.newerCfgVers,
+		"flag must be cleared when there is nothing on disk to back up")
+}
+
+// Test_Store_doLoad_EmptyVersionStampsBuildVersion verifies the fallback
+// stamping for a config with no version field, loaded via a registry-less
+// Store (the only path that reaches doLoad with an empty version, since a
+// registry makes the missing version fatal in checkNeedsUpgrade).
+func Test_Store_doLoad_EmptyVersionStampsBuildVersion(t *testing.T) {
+	setBuildVersion(t, "v0.55.0")
+	_, cfgPath := writeTestConfig(t, "options:\n  format: json\n")
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+	store := &Store{Path: cfgPath, OptionsRegistry: &options.Registry{}} // UpgradeRegistry nil
+
+	cfg, err := store.Load(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "v0.55.0", cfg.Version,
+		"an empty version stamps the build version when no registry is configured")
+}
+
+// Test_Store_writeConfigBackupOnce_StatError verifies that a stat failure
+// other than ErrNotExist (here ENOTDIR, via a non-directory in the path)
+// aborts rather than silently proceeding without a backup.
+func Test_Store_writeConfigBackupOnce_StatError(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("ENOTDIR path semantics differ on Windows")
+	}
+	tmp := t.TempDir()
+	notDir := filepath.Join(tmp, "notdir")
+	require.NoError(t, os.WriteFile(notDir, []byte("x"), 0o600))
+
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+	// fs.Path sits under a regular file, so stat on the backup path
+	// fails with ENOTDIR (not ErrNotExist).
+	store := &Store{Path: filepath.Join(notDir, "sq.yml")}
+
+	_, err := store.writeConfigBackupOnce(ctx, "v0.58.0", []byte("data"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to stat config backup")
+}
+
+// Test_Store_Load_RejectsBrokenConfig verifies that a broken config fails
+// Load with a clear error rather than panicking or silently loading a
+// degraded config. Broken config loading would be fatal, so each case
+// must surface a diagnostic error.
+func Test_Store_Load_RejectsBrokenConfig(t *testing.T) {
+	setBuildVersion(t, "v0.55.0")
+	noop := func(_ context.Context, b []byte) ([]byte, error) { return b, nil }
+
+	testCases := []struct {
+		name     string
+		content  string
+		registry UpgradeRegistry
+		wantErr  string
+	}{
+		{
+			name:     "malformed version",
+			content:  "config.version: not-a-version\n",
+			registry: UpgradeRegistry{"v0.34.0": noop},
+			wantErr:  "invalid semver",
+		},
+		{
+			name:     "missing version",
+			content:  "options:\n  format: json\n",
+			registry: UpgradeRegistry{"v0.34.0": noop},
+			wantErr:  "does not have a version field",
+		},
+		{
+			name:     "below minimum version",
+			content:  "config.version: v0.0.0-aaa\n",
+			registry: UpgradeRegistry{"v0.34.0": noop},
+			wantErr:  "less than minimum",
+		},
+		{
+			// Registry-less so checkNeedsUpgrade is skipped and the parse
+			// error surfaces from doLoad's unmarshal instead.
+			name:     "malformed yaml",
+			content:  "key: [unclosed\n",
+			registry: nil,
+			wantErr:  "unmarshal",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, cfgPath := writeTestConfig(t, tc.content)
+			ctx := lg.NewContext(context.Background(), lgt.New(t))
+			store := &Store{
+				Path:            cfgPath,
+				OptionsRegistry: &options.Registry{},
+				UpgradeRegistry: tc.registry,
+			}
+
+			_, err := store.Load(ctx)
+			require.Error(t, err, "broken config must fail load")
+			require.Contains(t, err.Error(), tc.wantErr)
+		})
+	}
+}
+
+// Test_Store_Load_RepairsDanglingActiveSource verifies doLoad's integrity
+// repair path: a config whose active.source references a missing handle is
+// repaired (active source unset) and persisted, and a re-load then
+// succeeds.
+func Test_Store_Load_RepairsDanglingActiveSource(t *testing.T) {
+	setBuildVersion(t, "v0.55.0")
+	noop := func(_ context.Context, b []byte) ([]byte, error) { return b, nil }
+
+	const cfgContent = `config.version: v0.34.0
+collection:
+  active.source: '@ghost'
+  sources:
+    - handle: '@real'
+      driver: sqlite3
+      location: sqlite3:///tmp/real.db
+`
+	_, cfgPath := writeTestConfig(t, cfgContent)
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+	store := &Store{
+		Path:            cfgPath,
+		OptionsRegistry: &options.Registry{},
+		UpgradeRegistry: UpgradeRegistry{"v0.34.0": noop},
+	}
+
+	// First load detects the dangling active source, repairs it, and
+	// returns the repair notice as an error.
+	_, err := store.Load(ctx)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "has been repaired")
+
+	// The repair was persisted, so a second load succeeds.
+	reloaded, err := store.Load(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, reloaded)
+	require.Empty(t, reloaded.Collection.ActiveHandle(),
+		"the dangling active source must have been unset")
+}
+
 // Test_Store_backupNewerConfig_StatError verifies that a stat error
 // on the backup path other than fs.ErrNotExist (e.g. a permission
 // error) fails the backup, rather than being treated as a missing
