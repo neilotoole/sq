@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -103,6 +105,11 @@ type Helper struct {
 	coll     *source.Collection
 	srcCache map[string]*source.Source
 
+	// createdTbls maps source handle to the names of tables created on
+	// that source via this Helper (Helper.CreateTable, Helper.CopyTable).
+	// DiffDB uses it to verify that the test dropped its own tables.
+	createdTbls map[string][]string
+
 	cancelFn context.CancelFunc
 
 	Cleanup *cleanup.Cleanup
@@ -112,6 +119,9 @@ type Helper struct {
 	closeOnce sync.Once
 
 	mu sync.Mutex
+
+	// createdTblsMu guards createdTbls.
+	createdTblsMu sync.Mutex
 }
 
 // New returns a new Helper. The helper's Close func will be
@@ -367,6 +377,13 @@ func (h *Helper) Source(handle string) *source.Source {
 
 	h.srcCache[handle] = src
 
+	if stringz.InSlice(externalHandles, handle) {
+		// The handle refers to one of the known container-backed test
+		// sources (never a user-configured source): sweep any stale
+		// scratch tables left behind by killed test processes.
+		h.sweepStaleScratchTables(src)
+	}
+
 	// envDiffDB is the name of the envar that controls whether the testing
 	// diffdb mechanism is executed automatically by Helper.Source.
 	const envDiffDB = "SQ_TEST_DIFFDB"
@@ -505,6 +522,7 @@ func (h *Helper) CreateTable(dropAfter bool, src *source.Source, tblDef *schema.
 
 	require.NoError(h.T, grip.SQLDriver().CreateTable(h.Context, db, tblDef))
 	h.T.Logf("Created table %s.%s", src.Handle, tblDef.Name)
+	h.recordTblCreated(src, tblDef.Name)
 
 	if dropAfter {
 		h.Cleanup.Add(func() { h.DropTable(src, tablefq.From(tblDef.Name)) })
@@ -610,6 +628,11 @@ func (h *Helper) CopyTable(
 		copyData,
 	)
 	require.NoError(h.T, err)
+	if toTable.Schema == "" {
+		// Tables copied into another schema don't show up in the current
+		// schema's metadata, so DiffDB couldn't verify them anyway.
+		h.recordTblCreated(src, toTable.Table)
+	}
 	if dropAfter {
 		h.Cleanup.Add(func() { h.DropTable(src, toTable) })
 	}
@@ -832,9 +855,23 @@ func (h *Helper) TableMetadata(src *source.Source, tbl string) (*metadata.Table,
 // DiffDB fails the test if src's metadata is substantially different
 // when t.Cleanup runs vs when DiffDB is invoked. Effectively DiffDB
 // takes before and after snapshots of src's metadata, and compares
-// various elements such as the number of tables, table row counts, etc.
+// various elements such as the set of tables and table row counts.
 // DiffDB is useful for verifying that tests are leaving the database
 // as they found it.
+//
+// The external sakila sources are shared databases: other tests, in this
+// process and in concurrently running test processes, create and drop
+// their own scratch tables on the same database. Thus DiffDB does not
+// assert equality of the entire table set; instead it scopes the
+// comparison to tables this test can reason about:
+//
+//  1. Stable tables, i.e. those whose name does not match the
+//     test-generated scratch-table pattern (see isScratchTableName), must
+//     be identical before and after, by name and row count: the test must
+//     not disturb the shared sakila data.
+//  2. Tables created via this Helper (Helper.CreateTable, Helper.CopyTable)
+//     must be gone: the test must clean up its own scratch tables.
+//     Scratch-named tables owned by other tests are ignored.
 //
 // Note that DiffDB adds considerable overhead to test runtime.
 //
@@ -855,23 +892,214 @@ func (h *Helper) DiffDB(src *source.Source) {
 	require.NoError(h.T, err)
 
 	h.Cleanup.Add(func() {
-		// Currently DiffDB just checks if the tables and each
-		// table's row count match.
-
 		afterDB := h.openNew(src)
 		defer lg.WarnIfCloseError(h.Log(), lgm.CloseDB, afterDB)
 
 		afterMeta, err := afterDB.SourceMetadata(h.Context, false)
 		require.NoError(h.T, err)
-		require.Equal(h.T, beforeMeta.TableNames(), afterMeta.TableNames(),
-			"diffdb: should have the same set of tables before and after")
 
-		for i, beforeTbl := range beforeMeta.Tables {
-			assert.Equal(h.T, beforeTbl.RowCount, afterMeta.Tables[i].RowCount,
-				"diffdb: %s: row count for {%s} is expected to be %d but got %d", src.Handle, beforeTbl.Name,
-				beforeTbl.RowCount, afterMeta.Tables[i].RowCount)
+		beforeCounts := stableTableRowCounts(beforeMeta)
+		afterCounts := stableTableRowCounts(afterMeta)
+
+		beforeNames := lo.Keys(beforeCounts)
+		slices.Sort(beforeNames)
+		afterNames := lo.Keys(afterCounts)
+		slices.Sort(afterNames)
+		require.Equal(h.T, beforeNames, afterNames,
+			"diffdb: %s: should have the same set of stable tables before and after (scratch-named tables are ignored)",
+			src.Handle)
+
+		for _, name := range beforeNames {
+			assert.Equal(h.T, beforeCounts[name], afterCounts[name],
+				"diffdb: %s: row count for {%s} is expected to be %d but got %d",
+				src.Handle, name, beforeCounts[name], afterCounts[name])
+		}
+
+		// Ownership check: every table created via this Helper must have
+		// been dropped by the time cleanup completes. Comparison is
+		// case-insensitive because some backends (e.g. Oracle) store
+		// unquoted identifiers upper-case.
+		afterAll := map[string]struct{}{}
+		for _, name := range afterMeta.TableNames() {
+			afterAll[strings.ToLower(name)] = struct{}{}
+		}
+		for _, tbl := range h.createdTblsFor(src) {
+			_, exists := afterAll[strings.ToLower(tbl)]
+			assert.False(h.T, exists,
+				"diffdb: %s: table {%s} was created by this test but still exists after cleanup",
+				src.Handle, tbl)
 		}
 	})
+}
+
+// recordTblCreated records that tbl was created on src via this Helper.
+// DiffDB uses the record to verify that the test dropped its own tables.
+func (h *Helper) recordTblCreated(src *source.Source, tbl string) {
+	h.createdTblsMu.Lock()
+	defer h.createdTblsMu.Unlock()
+	if h.createdTbls == nil {
+		h.createdTbls = map[string][]string{}
+	}
+	h.createdTbls[src.Handle] = append(h.createdTbls[src.Handle], tbl)
+}
+
+// createdTblsFor returns the names of tables created on src via this
+// Helper. See Helper.recordTblCreated.
+func (h *Helper) createdTblsFor(src *source.Source) []string {
+	h.createdTblsMu.Lock()
+	defer h.createdTblsMu.Unlock()
+	return slices.Clone(h.createdTbls[src.Handle])
+}
+
+// scratchTableNameRe matches table names produced by stringz.UniqTableName
+// ("<base>__<8 chars>") and stringz.UniqSuffix ("<base>_<8 chars>"), where
+// the 8 chars are drawn from the stringz uniq charset (which excludes
+// ambiguous chars such as "i", "o" and "1"). No sakila table or view name
+// matches this pattern. The match is case-insensitive because some backends
+// (e.g. Oracle) store unquoted identifiers upper-case.
+var scratchTableNameRe = regexp.MustCompile(`(?i)^.+_[abcdefghkrstuvwxyz2345689]{8}$`)
+
+// isScratchTableName reports whether name looks like a test-generated
+// scratch table name. See scratchTableNameRe.
+func isScratchTableName(name string) bool {
+	return scratchTableNameRe.MatchString(name)
+}
+
+// stableTableRowCounts returns a map of table name to row count for the
+// tables of md whose name does not match the test-generated scratch-table
+// pattern.
+func stableTableRowCounts(md *metadata.Source) map[string]int64 {
+	m := map[string]int64{}
+	for _, tbl := range md.Tables {
+		if isScratchTableName(tbl.Name) {
+			continue
+		}
+		m[tbl.Name] = tbl.RowCount
+	}
+	return m
+}
+
+// envScratchSweep is the envar that controls the stale scratch-table
+// sweep performed by Helper.Source for external test sources. The sweep
+// is enabled by default; set the envar to false to disable it.
+const envScratchSweep = "SQ_TEST_SCRATCH_SWEEP"
+
+var (
+	// staleScratchTableNameRe matches table names produced by
+	// stringz.UniqTableName ("<base>__<8 chars>"). It is deliberately
+	// stricter than scratchTableNameRe (it requires the double
+	// underscore) because the sweep drops tables: it must never match
+	// anything but the harness's own generated names.
+	staleScratchTableNameRe = regexp.MustCompile(`(?i)^.+__[abcdefghkrstuvwxyz2345689]{8}$`)
+
+	scratchSweepMu   sync.Mutex
+	scratchSweepDone = map[string]bool{}
+)
+
+// staleScratchTableQuery returns a query that selects the names of tables
+// in the current schema created more than an hour ago, or empty string if
+// typ doesn't expose table creation time (e.g. Postgres, SQLite, rqlite).
+func staleScratchTableQuery(typ drivertype.Type) string {
+	switch typ { //nolint:exhaustive
+	case drivertype.MySQL:
+		return `SELECT table_name FROM information_schema.tables
+WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'
+AND create_time IS NOT NULL AND create_time < NOW() - INTERVAL 1 HOUR`
+	case drivertype.MSSQL:
+		return `SELECT name FROM sys.tables WHERE create_date < DATEADD(HOUR, -1, SYSDATETIME())`
+	case drivertype.ClickHouse:
+		return `SELECT name FROM system.tables WHERE database = currentDatabase()
+AND NOT is_temporary AND metadata_modification_time < now() - INTERVAL 1 HOUR`
+	case drivertype.Oracle:
+		return `SELECT object_name FROM user_objects WHERE object_type = 'TABLE' AND created < SYSDATE - 1/24`
+	default:
+		return ""
+	}
+}
+
+// sweepStaleScratchTables drops stale scratch tables from src, which must
+// be one of the external (container-backed) test sources, never a
+// user-configured source.
+//
+// Tests create scratch tables on the shared sakila containers using names
+// from stringz.UniqTableName. The drops are registered via t.Cleanup, but
+// cleanup doesn't survive a killed test process (SIGKILL, Ctrl-C during
+// cleanup, IDE stop button), so stray tables accumulate on long-lived
+// containers. This sweep reaps them: at most once per process per handle,
+// it drops tables in the current schema whose name matches the harness's
+// generated-name pattern and whose creation time (per backend metadata) is
+// more than an hour old. The age threshold ensures the sweep never races a
+// concurrently running test process: no test keeps a scratch table alive
+// for anywhere near that long. Backends that don't expose table creation
+// time (Postgres, rqlite) are not swept.
+//
+// The sweep is best-effort housekeeping: errors are logged, never failed.
+// Set envar SQ_TEST_SCRATCH_SWEEP=false to disable the sweep.
+func (h *Helper) sweepStaleScratchTables(src *source.Source) {
+	if v, ok := os.LookupEnv(envScratchSweep); ok {
+		if b, err := stringz.ParseBool(strings.TrimSpace(v)); err == nil && !b {
+			return
+		}
+	}
+
+	query := staleScratchTableQuery(src.Type)
+	if query == "" {
+		return
+	}
+
+	scratchSweepMu.Lock()
+	if scratchSweepDone[src.Handle] {
+		scratchSweepMu.Unlock()
+		return
+	}
+	scratchSweepDone[src.Handle] = true
+	scratchSweepMu.Unlock()
+
+	log := h.Log().With(lga.Handle, src.Handle)
+	drvr := h.SQLDriverFor(src)
+	grip, err := drvr.Open(h.Context, src)
+	if err != nil {
+		log.Warn("Scratch table sweep: failed to open source", lga.Err, err)
+		return
+	}
+	defer lg.WarnIfCloseError(h.Log(), lgm.CloseDB, grip)
+
+	db, err := grip.DB(h.Context)
+	if err != nil {
+		log.Warn("Scratch table sweep: failed to get DB", lga.Err, err)
+		return
+	}
+
+	rows, err := db.QueryContext(h.Context, query)
+	if err != nil {
+		log.Warn("Scratch table sweep: query failed", lga.Err, err)
+		return
+	}
+	defer lg.WarnIfCloseError(h.Log(), lgm.CloseDBRows, rows)
+
+	var stale []string
+	for rows.Next() {
+		var name string
+		if err = rows.Scan(&name); err != nil {
+			log.Warn("Scratch table sweep: scan failed", lga.Err, err)
+			return
+		}
+		if staleScratchTableNameRe.MatchString(name) {
+			stale = append(stale, name)
+		}
+	}
+	if err = rows.Err(); err != nil {
+		log.Warn("Scratch table sweep: rows error", lga.Err, err)
+		return
+	}
+
+	for _, name := range stale {
+		if err = drvr.DropTable(h.Context, db, tablefq.From(name), true); err != nil {
+			log.Warn("Scratch table sweep: drop failed", lga.Table, name, lga.Err, err)
+			continue
+		}
+		h.T.Logf("Swept stale scratch table %s.%s", src.Handle, name)
+	}
 }
 
 func mustLoadCollection(ctx context.Context, tb testing.TB) *source.Collection { //nolint:thelper

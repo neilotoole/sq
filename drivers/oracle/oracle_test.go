@@ -244,6 +244,11 @@ func TestCreateAndDropTable(t *testing.T) {
 
 	err = sqlDrvr.CreateTable(ctx, db, tblDef)
 	require.NoError(t, err, "CreateTable should succeed")
+	// Safety net: if an assertion below fails, the inline DropTable never
+	// executes and the table must still be reaped (ifExists makes this a
+	// no-op on the happy path). Use defer, not t.Cleanup: the deferred
+	// grip.Close above would otherwise run first and close the connection.
+	defer func() { _ = sqlDrvr.DropTable(ctx, db, tablefq.From(tblName), true) }()
 
 	// Verify table exists
 	exists, err := sqlDrvr.TableExists(ctx, db, tblName)
@@ -505,6 +510,10 @@ func TestSakilaCrossDatabase(t *testing.T) {
 
 		err = oracleSQLDrvr.CreateTable(ctx, oracleDB, tblDef)
 		require.NoError(t, err, "Failed to create actor table in Oracle")
+		// Safety net: if an assertion below fails, the inline DropTable at
+		// the end of this subtest never executes and the table must still
+		// be reaped (ifExists makes this a no-op on the happy path).
+		defer func() { _ = oracleSQLDrvr.DropTable(ctx, oracleDB, tablefq.From(testTableName), true) }()
 		log.Info("Created table in Oracle", "table", testTableName)
 
 		// Insert data into Oracle (use uppercase table name)
