@@ -306,6 +306,45 @@ func (h *Helper) Add(src *source.Source) *source.Source {
 // If envar SQ_TEST_DIFFDB is true, DiffDB is run on every SQL source
 // returned by Source.
 func (h *Helper) Source(handle string) *source.Source {
+	src, cached := h.loadSource(handle)
+
+	if stringz.InSlice(externalHandles(), handle) {
+		// The handle refers to one of the known container-backed test
+		// sources (never a user-configured source): sweep any stale
+		// scratch tables left behind by killed test processes. The sweep
+		// performs database I/O, so it runs after loadSource has released
+		// h.mu: a sweep on one handle must not block concurrent Source
+		// calls for other handles. This is invoked even on a cache hit:
+		// the sweep runs at most once per process per handle, but a
+		// concurrent caller must block until the in-flight sweep
+		// completes, so that no Source call returns src while its sweep
+		// is still running. After the sweep has completed, this is a
+		// cheap no-op.
+		h.sweepStaleScratchTables(src)
+	}
+
+	if cached {
+		return src
+	}
+
+	// envDiffDB is the name of the envar that controls whether the testing
+	// diffdb mechanism is executed automatically by Helper.Source.
+	const envDiffDB = "SQ_TEST_DIFFDB"
+
+	if proj.BoolEnvar(envDiffDB) {
+		h.DiffDB(src)
+	}
+
+	return src
+}
+
+// loadSource returns the source for handle, loading it from the test config
+// (and copying the data file for file-based sources) on first use. The
+// returned cached is true if the source was already in h.srcCache (in which
+// case Source skips DiffDB, which already ran on first load). loadSource
+// holds h.mu for the duration; anything that performs database I/O belongs
+// in Source, after the mutex is released.
+func (h *Helper) loadSource(handle string) (src *source.Source, cached bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	t := h.T
@@ -318,8 +357,7 @@ func (h *Helper) Source(handle string) *source.Source {
 	// If the handle refers to an external database, we will skip
 	// the test if the envar for the handle is not set.
 	// This includes sakila external sources and other external test sources like ClickHouse.
-	externalHandles := append(sakila.SQLAllExternal(), "@clickhouse_test")
-	if stringz.InSlice(externalHandles, handle) {
+	if stringz.InSlice(externalHandles(), handle) {
 		// Skip the test if the envar for the handle is not set
 		handleEnvar := "SQ_TEST_SRC__" + strings.ToUpper(strings.TrimPrefix(handle, "@"))
 		if envar, ok := os.LookupEnv(handleEnvar); !ok || strings.TrimSpace(envar) == "" {
@@ -341,7 +379,7 @@ func (h *Helper) Source(handle string) *source.Source {
 	// If it's already in the cache, return it.
 	src, ok := h.srcCache[handle]
 	if ok {
-		return src
+		return src, true
 	}
 
 	src, err := h.coll.Get(handle)
@@ -376,23 +414,13 @@ func (h *Helper) Source(handle string) *source.Source {
 	}
 
 	h.srcCache[handle] = src
+	return src, false
+}
 
-	if stringz.InSlice(externalHandles, handle) {
-		// The handle refers to one of the known container-backed test
-		// sources (never a user-configured source): sweep any stale
-		// scratch tables left behind by killed test processes.
-		h.sweepStaleScratchTables(src)
-	}
-
-	// envDiffDB is the name of the envar that controls whether the testing
-	// diffdb mechanism is executed automatically by Helper.Source.
-	const envDiffDB = "SQ_TEST_DIFFDB"
-
-	if proj.BoolEnvar(envDiffDB) {
-		h.DiffDB(src)
-	}
-
-	return src
+// externalHandles returns the handles of the external (container-backed)
+// test sources: the sakila SQL sources plus ClickHouse.
+func externalHandles() []string {
+	return append(sakila.SQLAllExternal(), "@clickhouse_test")
 }
 
 // SourceConfigured returns true if the source is configured. Note
@@ -405,8 +433,7 @@ func (h *Helper) SourceConfigured(handle string) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	externalHandles := append(sakila.SQLAllExternal(), "@clickhouse_test")
-	if !stringz.InSlice(externalHandles, handle) {
+	if !stringz.InSlice(externalHandles(), handle) {
 		// Non-SQL and SQLite sources are always available.
 		return true
 	}
@@ -992,8 +1019,14 @@ var (
 	// anything but the harness's own generated names.
 	staleScratchTableNameRe = regexp.MustCompile(`(?i)^.+__[abcdefghkrstuvwxyz2345689]{8}$`)
 
-	scratchSweepMu   sync.Mutex
-	scratchSweepDone = map[string]bool{}
+	// scratchSweeps maps source handle to the *sync.Once that guards the
+	// stale scratch-table sweep for that handle: the sweep runs at most
+	// once per process per handle. sync.Once also provides the ordering
+	// that Helper.Source relies on: a concurrent caller for the same
+	// handle blocks in Once.Do until the in-flight sweep completes, so no
+	// test proceeds while its source is still being swept, while callers
+	// for other handles are unaffected.
+	scratchSweeps sync.Map // handle -> *sync.Once
 )
 
 // staleScratchTableQuery returns a query that selects the names of tables
@@ -1035,6 +1068,13 @@ AND NOT is_temporary AND metadata_modification_time < now() - INTERVAL 1 HOUR`
 //
 // The sweep is best-effort housekeeping: errors are logged, never failed.
 // Set envar SQ_TEST_SCRATCH_SWEEP=false to disable the sweep.
+//
+// sweepStaleScratchTables is called by Helper.Source without h.mu held,
+// because the sweep performs slow database I/O. It synchronizes via
+// scratchSweeps instead: the sweep runs at most once per process per
+// handle, and a concurrent call for the same handle blocks until the
+// in-flight sweep completes, so the caller never returns a source whose
+// sweep is still running.
 func (h *Helper) sweepStaleScratchTables(src *source.Source) {
 	if v, ok := os.LookupEnv(envScratchSweep); ok {
 		if b, err := stringz.ParseBool(strings.TrimSpace(v)); err == nil && !b {
@@ -1047,14 +1087,16 @@ func (h *Helper) sweepStaleScratchTables(src *source.Source) {
 		return
 	}
 
-	scratchSweepMu.Lock()
-	if scratchSweepDone[src.Handle] {
-		scratchSweepMu.Unlock()
-		return
-	}
-	scratchSweepDone[src.Handle] = true
-	scratchSweepMu.Unlock()
+	once, _ := scratchSweeps.LoadOrStore(src.Handle, &sync.Once{})
+	once.(*sync.Once).Do(func() {
+		h.doSweepStaleScratchTables(src, query)
+	})
+}
 
+// doSweepStaleScratchTables performs the actual sweep I/O for
+// sweepStaleScratchTables, which guards it with the once-per-process-
+// per-handle scratchSweeps mechanism.
+func (h *Helper) doSweepStaleScratchTables(src *source.Source, query string) {
 	log := h.Log().With(lga.Handle, src.Handle)
 	drvr := h.SQLDriverFor(src)
 	grip, err := drvr.Open(h.Context, src)
