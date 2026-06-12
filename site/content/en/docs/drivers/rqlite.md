@@ -24,7 +24,7 @@ Use [`sq add`](/docs/cmd/add) to add a source.
 # container-internal Raft hostname. See "Cluster discovery" below.
 $ sq add 'rqlite://localhost:4001?disableClusterDiscovery=true'
 
-# With credentials.
+# With credentials. See "Authentication" below.
 $ sq add 'rqlite://sakila:p_ssW0rd@localhost:4001?disableClusterDiscovery=true'
 
 # Multi-node HTTP cluster: leave discovery on. The driver follows leader
@@ -40,12 +40,49 @@ $ sq add 'rqlite://node.example.com:4001?tls=true&insecure=true'
 
 If the port is omitted, `sq` auto-applies the default port `4001`.
 
-`sq add` verifies the connection with a round-trip query, so a
-misconfigured source (unreachable node, bad credentials, TLS mismatch)
-fails at add time rather than at first query. Pass `--skip-verify` to
-add the source without contacting the node.
+### Verification
 
-## HTTP vs HTTPS
+At add time, `sq` does two things before persisting the source:
+
+1. If the location has no explicit `tls` or `insecure` param, `sq` probes the endpoint's
+   transport, and stores `tls=true` on the source if the server requires TLS. See
+   [TLS and certificates](#tls-and-certificates).
+2. `sq` verifies the connection with a round-trip query, so a misconfigured source fails
+   at add time rather than at first query.
+
+Pass `--skip-verify` to skip both steps and add the source without contacting the node.
+
+A failed add (or a failed connection to an already-added source) produces a one-line
+error naming the problem. Each failure mode has a section on this page:
+
+| Error                                           | Cause                                                  | See                                                       |
+|-------------------------------------------------|--------------------------------------------------------|-----------------------------------------------------------|
+| `rqlite: auth failed: ...`                      | node requires credentials, or rejected them            | [Authentication](#authentication)                         |
+| `rqlite: TLS required` / `rqlite: TLS mismatch` | the source's `tls` setting doesn't match the endpoint  | [TLS and certificates](#tls-and-certificates)             |
+| `rqlite: TLS cert verification failed`          | self-signed or private-CA certificate                  | [Self-signed certificates](#self-signed-certificates)     |
+| `rqlite: cluster discovery failed: ...`         | node advertised a peer address this host can't use     | [Cluster discovery](#cluster-discovery)                   |
+
+## Authentication
+
+rqlite supports HTTP basic auth. Supply credentials in the source location:
+
+```shell
+$ sq add 'rqlite://sakila:p_ssW0rd@localhost:4001?disableClusterDiscovery=true'
+```
+
+If the node requires credentials but the source has none, or the node rejects the
+supplied credentials, `sq add` (or any later use of the source) fails:
+
+```text
+sq: @rq: rqlite: auth failed: node requires credentials, but source has none
+sq: @rq: rqlite: auth failed: node rejected credentials
+```
+
+To keep the password out of sq's config file, store it as a [secret](/docs/secrets):
+e.g. pass `--store keyring` to `sq add`, which puts the password in the OS keyring
+and writes a placeholder to the config in its place.
+
+## TLS and certificates
 
 rqlite serves plain HTTP by default, and so does this driver: a bare
 `rqlite://host:4001` location connects over HTTP. To connect over HTTPS
@@ -62,10 +99,9 @@ $ sq add 'rqlite://node.example.com:4001?tls=false'
 $ sq add 'rqlite://node.example.com:4001?tls=true'
 ```
 
-{{< alert icon="👉" >}}
-If an explicit `tls` param is not provided, at [`sq add`](/docs/cmd/add) time, `sq` probes the
-endpoint, and if it detects that the server requires TLS, it stores `tls=true` on the source
-automatically:
+You usually don't need to set `tls=true` yourself: at add time, `sq` probes the
+endpoint, and if it detects that the server requires TLS, it stores `tls=true` on
+the source automatically:
 
 ```shell
 # node.example.com is TLS-only: sq detects this, and persists the
@@ -73,11 +109,12 @@ automatically:
 $ sq add 'rqlite://node.example.com:4001'
 ```
 
-The probe is skipped if you pass `--skip-verify`, if the location already includes a `tls` or
-`insecure` param, or if the location contains [secret placeholders](/docs/secrets/#placeholders).
-A source is probed only when it's added: if the server's transport changes later, connections fail
-with an error describing the mismatch; the saved location is never silently rewritten.
-{{< /alert >}}
+The probe is skipped if you pass `--skip-verify`, if the location already includes
+a `tls` or `insecure` param, or if the location contains
+[secret placeholders](/docs/secrets/#placeholders). A source is probed only when
+it's added: if the server's transport changes later, connections fail with a
+`TLS required` or `TLS mismatch` error; the saved location is never silently
+rewritten.
 
 ### Self-signed certificates
 
@@ -164,7 +201,7 @@ fail-fast against a flaky node.
 
 `true` or `false` (the default). Connect over HTTPS instead of plain
 HTTP. Usually set automatically at add time: see
-[HTTP vs HTTPS](#http-vs-https).
+[TLS and certificates](#tls-and-certificates).
 
 ### `insecure`
 
