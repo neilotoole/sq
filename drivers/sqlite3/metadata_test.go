@@ -535,7 +535,17 @@ func TestTableMetadata_ProblematicTableNames(t *testing.T) {
 	_, err = db.ExecContext(th.Context, `CREATE VIEW aaa_view AS SELECT 1 AS x`)
 	require.NoError(t, err)
 
-	tblNames := []string{"name", "type", "sql", `we"ird`}
+	// A trigger may share a table's name in sqlite_master. Create the
+	// trigger before the same-named table so the trigger row precedes the
+	// table row: without the type filter in the metadata query, the
+	// trigger row shadowed the table and the metadata was misreported.
+	_, err = db.ExecContext(th.Context, `CREATE TABLE aab_other (x INTEGER)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context,
+		`CREATE TRIGGER "shadowed" AFTER INSERT ON aab_other BEGIN SELECT 1; END`)
+	require.NoError(t, err)
+
+	tblNames := []string{"name", "type", "sql", `we"ird`, "shadowed"}
 	for _, tblName := range tblNames {
 		quoted := stringz.DoubleQuote(tblName)
 		_, err = db.ExecContext(th.Context, fmt.Sprintf(

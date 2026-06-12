@@ -280,10 +280,14 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	// SQLite rejects (gh777). In identifier position (FROM),
 	// stringz.DoubleQuote applies proper SQLite quoting, doubling any
 	// embedded double quote.
+	// The type filter matters: a trigger (or index) may share a table's
+	// name in sqlite_master, and without the filter the first matching
+	// row could misreport the table's type.
 	const tpl = `SELECT
 (SELECT COUNT(*) FROM %s),
-(SELECT type FROM sqlite_master WHERE name = ? LIMIT 1),
-(SELECT 1 FROM sqlite_master WHERE name = ? AND substr("sql",0,21) == 'CREATE VIRTUAL TABLE') AS is_virtual,
+(SELECT type FROM sqlite_master WHERE name = ? AND type IN ('table','view') LIMIT 1),
+(SELECT 1 FROM sqlite_master WHERE name = ?
+ AND type = 'table' AND substr("sql",0,21) == 'CREATE VIRTUAL TABLE') AS is_virtual,
 (SELECT name FROM pragma_database_list ORDER BY seq LIMIT 1)`
 
 	var schema string

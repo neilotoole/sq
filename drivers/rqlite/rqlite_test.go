@@ -1854,13 +1854,25 @@ func TestTableMetadata_ProblematicTableNames(t *testing.T) {
 	db, err := grip.DB(th.Context)
 	require.NoError(t, err)
 
-	tblNames := []string{"name", "type", "sql", `we"ird`}
+	tblNames := []string{"name", "type", "sql", `we"ird`, "shadowed"}
 	t.Cleanup(func() {
+		_, _ = db.ExecContext(th.Context, `DROP TRIGGER IF EXISTS "shadowed"`)
+		_, _ = db.ExecContext(th.Context, `DROP TABLE IF EXISTS aab_other`)
 		for _, tblName := range tblNames {
 			_, _ = db.ExecContext(th.Context,
 				"DROP TABLE IF EXISTS "+stringz.DoubleQuote(tblName))
 		}
 	})
+
+	// A trigger may share a table's name in sqlite_master. Create the
+	// trigger before the same-named table so the trigger row precedes the
+	// table row: without the type filter in the metadata query, the
+	// trigger row shadowed the table and the metadata was misreported.
+	_, err = db.ExecContext(th.Context, `CREATE TABLE aab_other (x INTEGER)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context,
+		`CREATE TRIGGER "shadowed" AFTER INSERT ON aab_other BEGIN SELECT 1; END`)
+	require.NoError(t, err)
 
 	for _, tblName := range tblNames {
 		quoted := stringz.DoubleQuote(tblName)

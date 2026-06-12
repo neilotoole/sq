@@ -975,6 +975,17 @@ func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, c
 // but if the process dies first, enforcement stays off until an
 // operator resets it or the node restarts.
 //
+// Two further consequences of the pragma riding node-global state:
+// concurrent rebuilds (from any client) interleave their windows, so
+// one caller's restore can re-enable enforcement inside another
+// caller's window and fail its DROP; nothing client-side can
+// serialize that. And because pragma state is connection state, not
+// database state, it is not captured in Raft snapshots: a snapshot
+// boundary falling between the pragma-off entry and the batch entry
+// means a node restoring (or joining) from that snapshot replays the
+// batch on a fresh connection at the -fk boot default, where the
+// DROP can fail, leaving that node without the alter.
+//
 // The restore target is the foreign_keys value read via /db/query,
 // which is served by the node's read-only connection pool and thus
 // reports the node's boot-time -fk default rather than the write
@@ -1005,7 +1016,7 @@ func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, c
 // against writes that race the batch.
 func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	tbl string, colNames []string, kinds []kind.Kind,
-) error {
+) (retErr error) {
 	if len(colNames) != len(kinds) {
 		return errz.New("rqlite: alter table: mismatched count of columns and kinds")
 	}
@@ -1121,24 +1132,33 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	// non-transactional requests; an in-batch pragma is a no-op inside
 	// rqlite's transaction wrapper (gh776). See the function doc
 	// comment for the atomicity tradeoff.
+	// The restore is registered BEFORE the pragma-off is issued: the off
+	// request can fail client-side after the server has already applied
+	// it (e.g. the response is lost), and the restore must run in that
+	// case too. It runs on a non-cancelable context: leaving the node's
+	// write connection with FK enforcement off is worse than the cost of
+	// one more request after cancellation. A restore failure joins the
+	// returned error: reporting success while the node is left with
+	// enforcement off would be worse than reporting a failed alter.
+	defer func() {
+		if _, restoreErr := writeNonTx(context.WithoutCancel(ctx),
+			db, gorqlite.ParameterizedStatement{
+				Query: fmt.Sprintf("PRAGMA foreign_keys=%d", fkPrev),
+			}); restoreErr != nil {
+			restoreErr = errz.Wrap(restoreErr,
+				"rqlite: alter table: failed to restore foreign_keys pragma")
+			lg.FromContext(ctx).Error(
+				"rqlite: alter table: failed to restore foreign_keys pragma",
+				lga.Err, restoreErr)
+			retErr = errz.Append(retErr, restoreErr)
+		}
+	}()
+
 	if _, err = writeNonTx(ctx, db, gorqlite.ParameterizedStatement{
 		Query: "PRAGMA foreign_keys=off",
 	}); err != nil {
 		return errz.Wrap(err, "rqlite: alter table: failed to disable foreign_keys pragma")
 	}
-	defer func() {
-		// Restore on a non-cancelable context: leaving the node's write
-		// connection with FK enforcement off is worse than the cost of
-		// one more request after cancellation.
-		if _, restoreErr := writeNonTx(context.WithoutCancel(ctx),
-			db, gorqlite.ParameterizedStatement{
-				Query: fmt.Sprintf("PRAGMA foreign_keys=%d", fkPrev),
-			}); restoreErr != nil {
-			lg.FromContext(ctx).Error(
-				"rqlite: alter table: failed to restore foreign_keys pragma",
-				lga.Err, restoreErr)
-		}
-	}()
 
 	_, err = writeAtomic(ctx, db, stmts...)
 	return err
