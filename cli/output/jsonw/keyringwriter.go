@@ -29,16 +29,20 @@ func (w *keyringWriter) List(refs []output.KeyringRef) error {
 	return writeJSON(w.out, w.pr, refs)
 }
 
-// Get implements output.KeyringWriter.
+// Get implements output.KeyringWriter. The "value" field's presence
+// carries the revealed/redacted distinction: it is emitted whenever
+// revealed is true, even for an empty stored value (hence the pointer;
+// a plain string with omitempty would drop the field for ""), and
+// omitted otherwise.
 func (w *keyringWriter) Get(path, value string, revealed bool) error {
 	type record struct {
-		Path   string `json:"path"`
-		Value  string `json:"value,omitempty"`
-		Exists bool   `json:"exists"`
+		Value  *string `json:"value,omitempty"`
+		Path   string  `json:"path"`
+		Exists bool    `json:"exists"`
 	}
 	r := record{Path: path, Exists: true}
 	if revealed {
-		r.Value = value
+		r.Value = &value
 	}
 	return writeJSON(w.out, w.pr, r)
 }
