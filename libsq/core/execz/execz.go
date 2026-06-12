@@ -138,10 +138,14 @@ func (c *Cmd) redactedEnv(escape bool) []string {
 			continue
 		}
 
-		// If the envar value is a SQL or HTTP location, redact it.
-		if location.TypeOf(parts[1]).IsURL() {
-			parts[1] = location.Redact(parts[1])
-		}
+		// Mask every env value: env vars passed to external tools exist
+		// to carry connection material (e.g. PGPASSWORD), so default to
+		// deny. URL-shaped values are masked entirely too, rather than
+		// partially redacted via location.Redact, because that only
+		// masks the userinfo password and would leak secrets carried in
+		// the query string (e.g. "?sslpassword=..."). Unlike args, env
+		// values don't need to stay informative in logs.
+		parts[1] = stringz.Redacted
 
 		if escape {
 			envars[i] = parts[0] + "=" + stringz.ShellEscape(parts[1])

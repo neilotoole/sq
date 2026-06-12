@@ -33,7 +33,19 @@ type Resolver interface {
 // Registry maps schemes to Resolvers.
 type Registry struct {
 	resolvers map[string]Resolver
-	mu        sync.RWMutex
+
+	// memo caches successful resolutions, keyed by scheme and path, for
+	// the Registry's lifetime, which is a single CLI invocation. Several
+	// code paths resolve the same location independently (e.g.
+	// --src.schema validation opens a probe connection, then Grips.doOpen
+	// opens the real one); without the memo each pass costs a fresh
+	// backend hit, which for keyring is an OS keychain roundtrip that may
+	// prompt the user. The memo also gives one invocation a consistent
+	// view of each secret. Failures are not cached, so transient backend
+	// errors don't stick.
+	memo sync.Map
+
+	mu sync.RWMutex
 }
 
 // NewRegistry returns an empty Registry.
@@ -50,15 +62,29 @@ func (r *Registry) Register(scheme string, resolver Resolver) {
 }
 
 // ResolveScheme dispatches a single scheme/path pair to the appropriate
-// Resolver. Returns ErrUnknownScheme if scheme has no Resolver.
+// Resolver, memoizing successful resolutions for the Registry's lifetime.
+// Returns ErrUnknownScheme if scheme has no Resolver.
 func (r *Registry) ResolveScheme(ctx context.Context, scheme, path string) (string, error) {
+	// NUL can't occur in a scheme (validateScheme permits only
+	// [a-z0-9]), so the key is unambiguous.
+	key := scheme + "\x00" + path
+	if v, ok := r.memo.Load(key); ok {
+		return v.(string), nil
+	}
+
 	r.mu.RLock()
 	resolver, ok := r.resolvers[scheme]
 	r.mu.RUnlock()
 	if !ok {
 		return "", ErrUnknownScheme
 	}
-	return resolver.Resolve(ctx, path)
+
+	v, err := resolver.Resolve(ctx, path)
+	if err != nil {
+		return "", err
+	}
+	r.memo.Store(key, v)
+	return v, nil
 }
 
 type ctxKey struct{}

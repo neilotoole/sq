@@ -54,6 +54,8 @@ Flags:
       --no-cache                       Don't cache ingest data
       --driver.csv.delim string        Delimiter for ingest CSV data (default "comma")
       --driver.csv.empty-as-null       Treat ingest empty CSV fields as NULL (default true)
+      --readonly                       Open sources read-only (DuckDB only; other drivers ignore)
+      --ro                             Alias for --readonly
       --help                           help for sql
 
 Global Flags:

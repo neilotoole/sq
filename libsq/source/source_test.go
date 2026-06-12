@@ -399,6 +399,63 @@ func TestCollection_Add_groupConflictsWithSource(t *testing.T) {
 	require.Error(t, coll.Add(src2), "handle group (sakila) conflicts with source @sakila")
 }
 
+// TestCollection_Add_rejectsNestingUnderAncestorHandle verifies that a new
+// handle cannot nest below an existing handle at any depth. The immediate
+// case (@sakila, then @sakila/sakiladb) is covered by
+// TestCollection_Add_groupConflictsWithSource; this exercises the deeper
+// case that previously slipped through: only the new handle's immediate
+// group was checked against existing handles, so @prod followed by
+// @prod/db/x was accepted, while the reverse order was rejected. Handles
+// and groups share path semantics (e.g. the cache dir layout), so the
+// check must be symmetric and transitive in both directions.
+func TestCollection_Add_rejectsNestingUnderAncestorHandle(t *testing.T) {
+	coll := &source.Collection{}
+	require.NoError(t, coll.Add(newSource("@prod")))
+
+	err := coll.Add(newSource("@prod/db/x"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "@prod")
+}
+
+// TestCollection_RenameSource_rejectsNestingUnderHandle verifies that
+// renaming (sq mv @x @prod/x) cannot create a handle nested below an
+// existing handle: RenameSource previously performed no such check at
+// all, so it could create nesting that Add would reject.
+func TestCollection_RenameSource_rejectsNestingUnderHandle(t *testing.T) {
+	coll := &source.Collection{}
+	require.NoError(t, coll.Add(newSource("@prod")))
+	require.NoError(t, coll.Add(newSource("@x")))
+
+	_, err := coll.RenameSource("@x", "@prod/x")
+	require.Error(t, err, "depth-1 nesting under @prod must be rejected")
+
+	_, err = coll.RenameSource("@x", "@prod/db/x")
+	require.Error(t, err, "deep nesting under @prod must be rejected")
+}
+
+// TestCollection_MoveHandleToGroup_rejectsNestingUnderHandle: moving a
+// source into a group whose path nests below an existing handle must be
+// rejected, including when only an ancestor of the dest group collides.
+func TestCollection_MoveHandleToGroup_rejectsNestingUnderHandle(t *testing.T) {
+	coll := &source.Collection{}
+	require.NoError(t, coll.Add(newSource("@prod")))
+	require.NoError(t, coll.Add(newSource("@x")))
+
+	_, err := coll.MoveHandleToGroup("@x", "prod/db")
+	require.Error(t, err, "moving @x into group prod/db nests it under handle @prod")
+}
+
+// TestCollection_RenameGroup_rejectsNestingUnderHandle: renaming a group
+// to a path nested below an existing handle must be rejected.
+func TestCollection_RenameGroup_rejectsNestingUnderHandle(t *testing.T) {
+	coll := &source.Collection{}
+	require.NoError(t, coll.Add(newSource("@g/x")))
+	require.NoError(t, coll.Add(newSource("@prod")))
+
+	_, err := coll.RenameGroup("g", "prod/sub")
+	require.Error(t, err, "renaming group g to prod/sub nests its sources under handle @prod")
+}
+
 func TestCollection_RenameGroup(t *testing.T) {
 	coll := &source.Collection{}
 

@@ -7,7 +7,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"unicode"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/secret"
@@ -217,21 +216,38 @@ func SuggestHandle(coll *Collection, typ drivertype.Type, loc string) (string, e
 	// UX reports will suggest that "@prod/csv/actor" is preferable,
 	// and thus we would still need ext.
 	_ = ext
-	name := stringz.SanitizeAlphaNumeric(locFields.Name, '_')
 
-	return finalizeSuggestedHandle(coll, name), nil
+	return finalizeSuggestedHandle(coll, locFields.Name), nil
 }
 
-// finalizeSuggestedHandle takes a raw name (already alphanumeric-ish)
-// and produces the final "@[group/]<name>[<n>]" handle, applying the
-// 'h'-prefix rule for non-letter starts, the active-group prefix, and
-// the uniqueness-suffix loop.
+// finalizeSuggestedHandle takes a raw name and produces the final
+// "@[group/]<name>[<n>]" handle: it sanitizes runes that are illegal in
+// a handle, applies the 'h'-prefix rule for non-letter starts, the
+// active-group prefix, and the uniqueness-suffix loop.
 func finalizeSuggestedHandle(coll *Collection, name string) string {
+	// Sanitize: the handle grammar (see handlePattern) permits only
+	// ASCII [a-zA-Z0-9_] in a segment, so every other rune becomes
+	// underscore. Note that stringz.SanitizeAlphaNumeric is NOT
+	// sufficient here: it keeps non-ASCII unicode letters (e.g. 'ö')
+	// that ValidHandle rejects.
+	rs := []rune(name)
+	for i, r := range rs {
+		switch {
+		case r == '_',
+			r >= 'a' && r <= 'z',
+			r >= 'A' && r <= 'Z',
+			r >= '0' && r <= '9':
+		default:
+			rs[i] = '_'
+		}
+	}
+	name = string(rs)
+
 	// if the name is empty, we use "h" (for "handle"), e.g "@h".
 	if name == "" {
 		name = "h"
-	} else if !unicode.IsLetter([]rune(name)[0]) {
-		// If the first rune is not a letter, we prepend "h".
+	} else if !isASCIILetter(name[0]) {
+		// If the first char is not a letter, we prepend "h".
 		// So "123" becomes "h123", or "_123" becomes "h_123".
 		name = "h" + name
 	}

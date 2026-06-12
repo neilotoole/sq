@@ -63,14 +63,19 @@ func (fs *Files) CacheDirFor(src *source.Source) (dir string, err error) {
 		handle += "_" + stringz.UniqN(32)
 	}
 
-	dir = filepath.Join(
+	return filepath.Join(fs.sourceHandleDir(handle), fs.sourceHash(src)), nil
+}
+
+// sourceHandleDir returns the parent dir of all of handle's cache dirs:
+// CacheDirFor returns sourceHandleDir(handle)/<location-hash>. This is
+// the single encoding of the handle-to-path layout; keep CacheDirFor and
+// CacheClearSourceAll in sync by changing only this function.
+func (fs *Files) sourceHandleDir(handle string) string {
+	return filepath.Join(
 		fs.cacheDir,
 		"sources",
 		filepath.Join(strings.Split(strings.TrimPrefix(handle, "@"), "/")...),
-		fs.sourceHash(src),
 	)
-
-	return dir, nil
 }
 
 // WriteIngestChecksum is invoked (after successful ingestion) to write the
@@ -309,19 +314,26 @@ func (fs *Files) CacheLockAcquire(ctx context.Context, src *source.Source) (unlo
 		return nil, err
 	}
 
+	return lockAcquire(ctx, lock, src.Handle)
+}
+
+// lockAcquire acquires lock, honoring [OptCacheLockTimeout] from ctx
+// options and displaying a progress waiter labeled with label. The caller
+// must invoke the returned unlock func.
+func lockAcquire(ctx context.Context, lock lockfile.Lockfile, label string) (unlock func(), err error) {
 	lockTimeout := OptCacheLockTimeout.Get(options.FromContext(ctx))
-	log := lg.FromContext(ctx).With(lga.Src, src, lga.Timeout, lockTimeout, lga.Lock, lock)
-	log.Debug("Acquiring cache lock for source")
+	log := lg.FromContext(ctx).With(lga.Timeout, lockTimeout, lga.Lock, lock)
+	log.Debug("Acquiring cache lock")
 
 	bar := progress.FromContext(ctx).NewTimeoutWaiter(
-		src.Handle+": acquire lock",
+		label+": acquire lock",
 		time.Now().Add(lockTimeout),
 	)
 
 	err = lock.Lock(ctx, lockTimeout)
 	bar.Stop()
 	if err != nil {
-		return nil, errz.Wrap(err, src.Handle+": acquire cache lock")
+		return nil, errz.Wrap(err, label+": acquire cache lock")
 	}
 
 	return func() {
@@ -343,10 +355,108 @@ func (fs *Files) CacheClearAll(ctx context.Context) error {
 // CacheClearSource clears the ingest cache for src. If arg downloads is true,
 // the source's download dir is also cleared. The caller should typically
 // first acquire the cache lock for src via Files.cacheLockFor.
+//
+// Note that this clears only the cache dir for src's current location
+// hash (see CacheDirFor). It is used internally by ingest, which holds
+// that dir's lock and knows the resolved location. For clearing a
+// source's cache wholesale, see CacheClearSourceAll.
 func (fs *Files) CacheClearSource(ctx context.Context, src *source.Source, clearDownloads bool) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	return fs.doCacheClearSource(ctx, src, clearDownloads)
+}
+
+// CacheClearSourceAll clears the ingest cache for src by removing every
+// cache dir belonging to src.Handle, regardless of location hash. The
+// per-source cache dir leaf (see CacheDirFor) is keyed on a hash that
+// incorporates src.Location: for a location containing ${scheme:path}
+// placeholders that's the resolved location, whose hash cannot be
+// recomputed if the secret has rotated or become unavailable. Removing
+// every leaf under the handle's dir catches them all, including leaves
+// orphaned by changed options, catalog, or schema, and requires no
+// secret resolution. Downloads are cleared too.
+//
+// Each leaf's cache lock is acquired (honoring [OptCacheLockTimeout])
+// before that leaf is cleared, so a concurrent ingest is not disrupted.
+//
+// collHandles is the set of all handles in the active collection. It is
+// needed because a handle may coincide with a group prefix of another
+// handle (e.g. @prod and @prod/db/x), in which case the nested source's
+// cache dirs live below this handle's dir and must be left untouched.
+// Collection.Add and the sq mv paths now reject creating such nesting,
+// but it can exist in configs created before that validation, or
+// hand-edited YAML, which is never re-validated for nesting.
+func (fs *Files) CacheClearSourceAll(ctx context.Context, src *source.Source, collHandles []string) error {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	log := lg.FromContext(ctx)
+
+	handle := src.Handle
+	if err := source.ValidHandle(handle); err != nil {
+		return errz.Wrapf(err, "clear cache: invalid handle: %s", handle)
+	}
+
+	handleDir := fs.sourceHandleDir(handle)
+	if !ioz.DirExists(handleDir) {
+		return nil
+	}
+
+	// Child dirs of handleDir are location-hash leaves, except where
+	// another source's handle nests under this handle: its first path
+	// segment below this handle names a child dir that must survive.
+	nested := map[string]bool{}
+	prefix := strings.TrimPrefix(handle, "@") + "/"
+	for _, h := range collHandles {
+		if hp := strings.TrimPrefix(h, "@"); strings.HasPrefix(hp, prefix) {
+			nested[strings.SplitN(strings.TrimPrefix(hp, prefix), "/", 2)[0]] = true
+		}
+	}
+
+	entries, err := os.ReadDir(handleDir)
+	if err != nil {
+		return errz.Wrapf(err, "%s: clear cache", handle)
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() || nested[entry.Name()] {
+			continue
+		}
+
+		// Acquire the leaf's cache lock before touching it: a concurrent
+		// ingest (Grips.OpenIngest) holds this lock for the duration of
+		// the ingest, and must not have the cache yanked out from under
+		// it mid-write.
+		leafDir := filepath.Join(handleDir, entry.Name())
+		lock, lockErr := lockfile.New(filepath.Join(leafDir, "pid.lock"))
+		if lockErr != nil {
+			return errz.Wrapf(lockErr, "%s: clear cache", handle)
+		}
+		unlock, lockErr := lockAcquire(ctx, lock, handle)
+		if lockErr != nil {
+			return lockErr
+		}
+
+		err = clearCacheDirContents(leafDir, true, handle)
+		unlock()
+		if err != nil {
+			return err
+		}
+
+		// The leaf is now empty: its contents are cleared and unlock
+		// removed pid.lock. Remove the dir itself, non-recursively: if a
+		// concurrent process re-acquired the lock in the interim, the
+		// dir is non-empty and Remove fails, which is fine, as the
+		// leaf's cache contents are already gone.
+		_ = os.Remove(leafDir)
+	}
+
+	// Best-effort: prune handleDir (and the handle's group dirs) if now
+	// empty. Failure is fine: doCacheSweep prunes empty dirs eventually.
+	_ = os.Remove(handleDir)
+
+	log.With(lga.Src, src, lga.Dir, handleDir).Info("Cleared source cache")
+	return nil
 }
 
 func (fs *Files) doCacheClearSource(ctx context.Context, src *source.Source, clearDownloads bool) error {
@@ -359,9 +469,24 @@ func (fs *Files) doCacheClearSource(ctx context.Context, src *source.Source, cle
 		return nil
 	}
 
+	if err = clearCacheDirContents(cacheDir, clearDownloads, src.Handle); err != nil {
+		return err
+	}
+
+	lg.FromContext(ctx).
+		With("clear_downloads", clearDownloads, lga.Src, src, lga.Dir, cacheDir).
+		Info("Cleared source cache")
+	return nil
+}
+
+// clearCacheDirContents removes the contents of the cache dir, always
+// preserving pid.lock (which may be held, including by the caller), and
+// preserving the download dir if clearDownloads is false. Arg handle is
+// used for error messages only.
+func clearCacheDirContents(cacheDir string, clearDownloads bool, handle string) error {
 	entries, err := os.ReadDir(cacheDir)
 	if err != nil {
-		return errz.Wrapf(err, "%s: clear cache", src.Handle)
+		return errz.Wrapf(err, "%s: clear cache", handle)
 	}
 
 	for _, entry := range entries {
@@ -376,13 +501,9 @@ func (fs *Files) doCacheClearSource(ctx context.Context, src *source.Source, cle
 		}
 
 		if err = os.RemoveAll(filepath.Join(cacheDir, entry.Name())); err != nil {
-			return errz.Wrapf(err, "%s: clear cache", src.Handle)
+			return errz.Wrapf(err, "%s: clear cache", handle)
 		}
 	}
-
-	lg.FromContext(ctx).
-		With("clear_downloads", clearDownloads, lga.Src, src, lga.Dir, cacheDir).
-		Info("Cleared source cache")
 	return nil
 }
 
