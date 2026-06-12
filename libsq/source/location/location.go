@@ -638,12 +638,15 @@ func pickSentinels(loc string, n int) ([]string, bool) {
 	return nil, false
 }
 
-// redactRaw is the underlying URL/DSN redactor, operating on a location
-// whose ${scheme:path} placeholders (if any) have been replaced with the
-// given sentinels (see Redact). It masks the userinfo password and then
-// the values of secret-bearing query parameters; a query value composed
-// entirely of sentinels is a placeholder template, not a literal secret,
-// and is left intact.
+// redactRaw is the underlying URL/DSN redactor. It masks the userinfo
+// password and then the values of secret-bearing query parameters.
+// When Redact has swapped the location's ${scheme:path} placeholders for
+// sentinels, it passes them here so that a query value composed entirely
+// of sentinels is recognized as a placeholder template, not a literal
+// secret, and left intact. sentinels is nil when loc has no placeholders
+// to preserve, and on Redact's astronomically-unlikely fallback path
+// where placeholders remain in loc and are masked like any literal
+// secret.
 func redactRaw(loc string, sentinels []string) string {
 	if loc == "" {
 		return loc
