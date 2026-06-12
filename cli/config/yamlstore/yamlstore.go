@@ -276,13 +276,16 @@ func (fs *Store) backupNewerConfig(ctx context.Context) error {
 // earlier copy, so rewriting loses nothing and risks clobbering it. The
 // backup name deliberately does not end in ".sq.yml" (see backupFilePath).
 //
-// The backup is created at-most-once even against a concurrent writer: the
-// full content is written to a temp file and then hard-linked into place,
-// and os.Link fails (ErrExist) rather than replacing an existing file. A
-// plain stat-then-write would have a TOCTOU window where another sq process
-// could create the backup between the two steps and have it clobbered by an
-// atomic rename, and a partial backup can never be observed because the temp
-// file is complete before it is linked.
+// The backup is created with O_CREATE|O_EXCL, so the create is atomic
+// against a concurrent writer (only one process can create the file) and an
+// existing backup is never clobbered. This is portable, unlike a hard link
+// (which fails on filesystems without hard-link support) or an atomic
+// rename (which replaces the destination). O_EXCL also refuses to follow a
+// symlink, and the ErrExist branch confirms via Lstat that any existing
+// entry is a real regular file, not a symlink or directory. The bytes are
+// fsync'd before close, since the backup's purpose is recoverability; the
+// only window not covered is a crash between create and write, which would
+// leave a partial backup (far rarer than the races this guards against).
 //
 // It returns wrote=true only when it created a new backup file. A failure is
 // returned as an error; both callers (doUpgrade and backupNewerConfig) treat
@@ -290,34 +293,17 @@ func (fs *Store) backupNewerConfig(ctx context.Context) error {
 // recoverability.
 func (fs *Store) writeConfigBackupOnce(ctx context.Context, vers string, data []byte) (wrote bool, err error) {
 	backupPath := backupFilePath(fs.Path, vers)
-	dir := filepath.Dir(backupPath)
 
-	// Temp file in the same dir, so the hard link below stays on one
-	// filesystem. os.CreateTemp uses 0600, matching ioz.RWPerms.
-	tmp, err := os.CreateTemp(dir, ".sq-config-backup-*")
+	f, err := os.OpenFile(backupPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, ioz.RWPerms)
 	if err != nil {
-		return false, errz.Wrapf(err, "failed to create temp config backup in %s", dir)
-	}
-	tmpName := tmp.Name()
-	defer func() { _ = os.Remove(tmpName) }()
-
-	if _, err = tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		return false, errz.Wrapf(err, "failed to write temp config backup: %s", tmpName)
-	}
-	if err = tmp.Close(); err != nil {
-		return false, errz.Wrapf(err, "failed to close temp config backup: %s", tmpName)
-	}
-
-	if err = os.Link(tmpName, backupPath); err != nil {
 		if errors.Is(err, os.ErrExist) {
-			// A backup already exists. Confirm it's a regular file (a
-			// usable backup), not e.g. a directory, before treating it as
+			// A backup already exists. Confirm with Lstat (don't follow a
+			// symlink) that it's a real regular file before treating it as
 			// the existing backup and letting the caller overwrite the
 			// config.
-			info, statErr := os.Stat(backupPath)
-			if statErr != nil {
-				return false, errz.Wrapf(statErr, "failed to stat existing config backup: %s", backupPath)
+			info, lstatErr := os.Lstat(backupPath)
+			if lstatErr != nil {
+				return false, errz.Wrapf(lstatErr, "failed to stat existing config backup: %s", backupPath)
 			}
 			if !info.Mode().IsRegular() {
 				return false, errz.Errorf("config backup path exists but is not a regular file: %s", backupPath)
@@ -325,7 +311,24 @@ func (fs *Store) writeConfigBackupOnce(ctx context.Context, vers string, data []
 			lg.FromContext(ctx).Info("Config backup already exists; not overwriting", lga.Path, backupPath)
 			return false, nil
 		}
+		return false, errz.Wrapf(err, "failed to create config backup: %s", backupPath)
+	}
+
+	// Write, fsync, and close. On any failure remove the partial file so a
+	// later run can't mistake it for a complete backup.
+	if _, err = f.Write(data); err != nil {
+		_ = f.Close()
+		_ = os.Remove(backupPath)
 		return false, errz.Wrapf(err, "failed to write config backup: %s", backupPath)
+	}
+	if err = f.Sync(); err != nil {
+		_ = f.Close()
+		_ = os.Remove(backupPath)
+		return false, errz.Wrapf(err, "failed to sync config backup: %s", backupPath)
+	}
+	if err = f.Close(); err != nil {
+		_ = os.Remove(backupPath)
+		return false, errz.Wrapf(err, "failed to close config backup: %s", backupPath)
 	}
 	return true, nil
 }

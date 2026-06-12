@@ -7,8 +7,11 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
@@ -715,7 +718,31 @@ func Test_Store_writeConfigBackupOnce_DirError(t *testing.T) {
 
 	_, err := store.writeConfigBackupOnce(ctx, "v0.58.0", []byte("data"))
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "temp config backup")
+	require.Contains(t, err.Error(), "config backup")
+}
+
+// Test_Store_writeConfigBackupOnce_CreatesBackup verifies the happy path:
+// a complete backup with the verbatim content and 0600 perms.
+func Test_Store_writeConfigBackupOnce_CreatesBackup(t *testing.T) {
+	_, cfgPath := writeTestConfig(t, "config.version: v0.58.0\n")
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+	store := &Store{Path: cfgPath}
+	backupPath := backupFilePath(cfgPath, "v0.58.0")
+
+	wrote, err := store.writeConfigBackupOnce(ctx, "v0.58.0", []byte("backup-data"))
+	require.NoError(t, err)
+	require.True(t, wrote)
+
+	got, err := os.ReadFile(backupPath)
+	require.NoError(t, err)
+	require.Equal(t, "backup-data", string(got))
+
+	if runtime.GOOS != "windows" {
+		info, statErr := os.Stat(backupPath)
+		require.NoError(t, statErr)
+		require.Equal(t, os.FileMode(0o600), info.Mode().Perm(),
+			"backup must be created with 0600 perms")
+	}
 }
 
 // Test_Store_writeConfigBackupOnce_DoesNotClobber verifies the
@@ -743,6 +770,71 @@ func Test_Store_writeConfigBackupOnce_DoesNotClobber(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "original", string(got),
 		"the existing backup must not be clobbered")
+}
+
+// Test_Store_writeConfigBackupOnce_RejectsSymlink verifies that an
+// existing symlink at the backup path is not accepted as a valid backup
+// (O_EXCL won't follow it, and the Lstat check rejects it), and that the
+// symlink's target is never written through.
+func Test_Store_writeConfigBackupOnce_RejectsSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink semantics differ on Windows")
+	}
+	_, cfgPath := writeTestConfig(t, "config.version: v0.58.0\n")
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+	store := &Store{Path: cfgPath}
+	backupPath := backupFilePath(cfgPath, "v0.58.0")
+
+	target := filepath.Join(filepath.Dir(cfgPath), "elsewhere.txt")
+	require.NoError(t, os.WriteFile(target, []byte("not the backup"), 0o600))
+	require.NoError(t, os.Symlink(target, backupPath))
+
+	wrote, err := store.writeConfigBackupOnce(ctx, "v0.58.0", []byte("data"))
+	require.Error(t, err)
+	require.False(t, wrote)
+	require.Contains(t, err.Error(), "not a regular file")
+
+	got, err := os.ReadFile(target)
+	require.NoError(t, err)
+	require.Equal(t, "not the backup", string(got),
+		"a symlinked backup path must not be written through")
+}
+
+// Test_Store_writeConfigBackupOnce_ConcurrentAtMostOnce stresses the
+// at-most-once guarantee under real concurrency: many goroutines race to
+// create the same backup; exactly one must win, and the resulting backup
+// must hold exactly one writer's complete, uncorrupted content.
+func Test_Store_writeConfigBackupOnce_ConcurrentAtMostOnce(t *testing.T) {
+	_, cfgPath := writeTestConfig(t, "config.version: v0.58.0\n")
+	store := &Store{Path: cfgPath}
+	backupPath := backupFilePath(cfgPath, "v0.58.0")
+
+	const n = 16 // < 26, so each writer's byte is a distinct lowercase letter
+	var wg sync.WaitGroup
+	var wroteCount atomic.Int32
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		i := i
+		go func() {
+			defer wg.Done()
+			ctx := lg.NewContext(context.Background(), lgt.New(t))
+			wrote, err := store.writeConfigBackupOnce(ctx, "v0.58.0", []byte{byte('a' + i)})
+			assert.NoError(t, err)
+			if wrote {
+				wroteCount.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+
+	require.Equal(t, int32(1), wroteCount.Load(),
+		"exactly one concurrent writer must create the backup")
+
+	got, err := os.ReadFile(backupPath)
+	require.NoError(t, err)
+	require.Len(t, got, 1, "backup must hold exactly one writer's complete data")
+	require.True(t, got[0] >= 'a' && got[0] < 'a'+n,
+		"backup content must be exactly one writer's byte, uncorrupted")
 }
 
 // Test_Store_Load_RejectsBrokenConfig verifies that a broken config fails
