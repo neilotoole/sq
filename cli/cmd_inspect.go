@@ -188,10 +188,13 @@ func execInspect(cmd *cobra.Command, args []string) error {
 	}
 
 	// Expand ${scheme:path} placeholders for display when --expand is
-	// set. Grips.Open does its own resolution for the connection, so
-	// passing an expanded Location is a no-op there; the value also
-	// flows into metadata.Location and is shown by the metadata writer.
-	src, err = maybeExpandSource(ctx, ru, cmd, src)
+	// set. The expanded clone is used only for the srcMeta.Location
+	// display override below. The connection must use the original
+	// src: Grips.doOpen resolves it internally, and resolving an
+	// already-expanded clone a second time would unescape '$$' again,
+	// corrupting literal locations (e.g. those escaped by the v0.54.0
+	// config upgrade, or a resolved secret value containing '$$').
+	displaySrc, err := maybeExpandSource(ctx, ru, cmd, src)
 	if err != nil {
 		return err
 	}
@@ -285,9 +288,9 @@ func execInspect(cmd *cobra.Command, args []string) error {
 	// without this override, sq inspect would always show the
 	// resolved value, leaking placeholder targets and ignoring the
 	// --expand flag. With this override, srcMeta.Location reflects
-	// the placeholder (default) or the explicitly-expanded value
+	// the stored template (default) or the explicitly-expanded value
 	// (when --expand is set).
-	srcMeta.Location = src.Location
+	srcMeta.Location = displaySrc.Location
 
 	// This is a bit hacky, but it works... if not "--verbose", then just zap
 	// the DBVars, as we usually don't want to see those

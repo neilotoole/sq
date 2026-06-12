@@ -417,6 +417,9 @@ func checkStdinSource(ctx context.Context, ru *run.Run) (*source.Source, error) 
 		scheme = "duckdb://"
 	}
 	src.Location = scheme + tmpFile.Name()
+	// The temp path is an internally constructed literal, not a
+	// placeholder template: mark it so resolution is a no-op.
+	src.SecretsResolved = true
 	return src, nil
 }
 

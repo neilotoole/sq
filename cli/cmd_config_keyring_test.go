@@ -3,7 +3,6 @@ package cli_test
 import (
 	"context"
 	"encoding/json"
-	"os"
 	"strings"
 	"testing"
 
@@ -81,16 +80,10 @@ func TestCmdConfigKeyringCreate_PromptedFromStdin(t *testing.T) {
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
 
-	// Pipe a password through stdin; matches the cmd_add test pattern.
-	tmp, err := os.CreateTemp(t.TempDir(), "pw")
-	require.NoError(t, err)
-	_, err = tmp.WriteString("hunter2\n")
-	require.NoError(t, err)
-	_, err = tmp.Seek(0, 0)
-	require.NoError(t, err)
-	tr.Run.Stdin = tmp
+	// Pipe a password through stdin.
+	tr.PipeStdin("hunter2\n")
 
-	err = tr.Exec("config", "keyring", "create", "my_db_pw", "-p")
+	err := tr.Exec("config", "keyring", "create", "my_db_pw", "-p")
 	require.NoError(t, err)
 
 	got, err := gokeyring.Get("sq", "my_db_pw")
@@ -347,6 +340,27 @@ func TestCmdConfigKeyringMigrate_PerCase(t *testing.T) {
 			name:        "url-encoded password preserved verbatim",
 			inLocation:  "postgres://alice:p%40ss%3Aword@db/sakila",
 			wantKeyring: "postgres://alice:p%40ss%3Aword@db/sakila",
+		},
+		{
+			// The stored Location is a placeholder template: '$$' means a
+			// literal '$' (e.g. written by the v0.54.0 config upgrade).
+			// The keyring slot holds a literal value that Registry.Expand
+			// splices raw at connect time, so migrate must unescape, or
+			// the driver would receive the still-escaped bytes.
+			name:        "escaped dollar unescaped before keyring store",
+			inLocation:  "postgres://alice:p$$wd@db/sakila",
+			wantKeyring: "postgres://alice:p$wd@db/sakila",
+		},
+		{
+			// An escaped placeholder ('$${env:HOME}' means the literal
+			// text '${env:HOME}') is skipped, not migrated: the braces
+			// make url.Parse reject the userinfo. The source keeps
+			// working via the connect-path unescape, so skipping is
+			// safe; migrating would have to unescape (see previous
+			// case).
+			name:           "escaped placeholder skipped as non-URL",
+			inLocation:     "postgres://alice:$${env:HOME}@db/sakila",
+			wantSkipReason: "not a URL",
 		},
 	}
 	for _, tc := range tests {
@@ -861,13 +875,7 @@ func TestCmdConfigKeyringMigrate_JSON_SkipsPrompt(t *testing.T) {
 		Location: "postgres://alice:hunter2@db/sakila",
 	}))
 	// Pipe "n\n" so the y/N prompt — if reached — would answer "no".
-	tmp, err := os.CreateTemp(t.TempDir(), "stdin")
-	require.NoError(t, err)
-	_, err = tmp.WriteString("n\n")
-	require.NoError(t, err)
-	_, err = tmp.Seek(0, 0)
-	require.NoError(t, err)
-	tr.Run.Stdin = tmp
+	tr.PipeStdin("n\n")
 
 	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--json"))
 

@@ -97,42 +97,60 @@ func (gs *Grips) IsSQLSource(src *source.Source) bool {
 }
 
 // ResolveSourceSecrets returns a clone of src with any ${scheme:path}
-// placeholders in src.Location resolved via the secret.Registry on ctx.
-// If src.Location contains no well-formed placeholders, src is returned
-// unchanged. If placeholders are present but no Registry is bound to
-// ctx, an error is returned: a placeholder on a source that has reached
-// this point is always meant to be resolved, and a silent passthrough
-// would surface later as a confusing "connection refused" or DSN-parse
-// error from the driver.
+// placeholders in src.Location resolved via the secret.Registry on ctx,
+// and any $$ escapes reduced to a literal $. If src.Location contains
+// no well-formed placeholders, the $$ escape is still honored (a clone
+// is returned when the location changes; no Registry is needed, since
+// nothing resolves). This is what lets a literal location be stored
+// escaped, e.g. by the v0.54.0 config upgrade, and reach the driver
+// byte-identically. If placeholders are present but no Registry is
+// bound to ctx, an error is returned: a placeholder on a source that
+// has reached this point is always meant to be resolved, and a silent
+// passthrough would surface later as a confusing "connection refused"
+// or DSN-parse error from the driver.
 //
 // Detection uses secret.ExtractRefs rather than a `${`-substring scan
 // so that literal "${" sequences (e.g. an escaped "$${env:X}" or a
 // password that happens to contain "${") don't trigger resolution.
 //
+// ResolveSourceSecrets is idempotent: the returned clone is marked
+// SecretsResolved, and an already-resolved source passes through
+// unchanged, so accidental double-resolution cannot reinterpret
+// resolved literal bytes as a template.
+//
 // Exposed (rather than unexported) so callers and tests can drive the
 // resolution directly. Grips.doOpen calls it once at entry; drivers do
 // not need to call it themselves.
 func ResolveSourceSecrets(ctx context.Context, src *source.Source) (*source.Source, error) {
-	if src == nil {
+	if src == nil || src.SecretsResolved {
+		// Already-resolved Locations hold literal bytes, not template
+		// bytes; running them through resolution again would corrupt
+		// any '$' they contain.
 		return src, nil
 	}
 	refs, err := secret.ExtractRefs(src.Location)
 	if err != nil {
 		return nil, errz.Wrapf(err, "parse placeholders for %s", src.Handle)
 	}
+
+	var resolved string
 	if len(refs) == 0 {
-		return src, nil
+		if resolved = secret.Unescape(src.Location); resolved == src.Location {
+			return src, nil
+		}
+	} else {
+		reg := secret.FromContext(ctx)
+		if reg == nil {
+			return nil, errz.Errorf("resolve placeholders for %s: no secret registry bound to context", src.Handle)
+		}
+		if resolved, err = reg.Expand(ctx, src.Location); err != nil {
+			return nil, errz.Wrapf(err, "resolve secrets for %s", src.Handle)
+		}
 	}
-	reg := secret.FromContext(ctx)
-	if reg == nil {
-		return nil, errz.Errorf("resolve placeholders for %s: no secret registry bound to context", src.Handle)
-	}
-	resolved, err := reg.Expand(ctx, src.Location)
-	if err != nil {
-		return nil, errz.Wrapf(err, "resolve secrets for %s", src.Handle)
-	}
+
 	clone := src.Clone()
 	clone.Location = resolved
+	clone.SecretsResolved = true
 	return clone, nil
 }
 

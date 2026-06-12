@@ -143,6 +143,21 @@ additional help for the options.
 
 ![sq config edit v](sq_config_edit_v.png)
 
+## Upgrades
+
+When a new `sq` version changes the config schema, `sq` migrates `sq.yml`
+automatically on first run. Before migrating, `sq` writes a verbatim backup of
+the config to the same dir, named for the version being upgraded from, e.g.
+`sq.v0.53.0.bak.yml`. `sq` never reads, modifies, or deletes the backup: it
+exists solely so you can restore the previous config if needed.
+
+The backup is created with user-only file permissions, but it preserves the
+old config exactly, including any inline credentials. If you later move your
+credentials out of the config (e.g. via
+[`sq config keyring migrate`](/docs/cmd/config-keyring-migrate)), remember
+that the backup still holds the plaintext values; delete it when you no
+longer need it.
+
 ## Logging
 
 By default, logging is turned off. If you need to submit a `sq`

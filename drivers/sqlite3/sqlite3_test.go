@@ -1093,3 +1093,28 @@ func TestSourceMetadata_LocationWithConnParams(t *testing.T) {
 	require.NotZero(t, *md.Size, "file size should be non-zero")
 	require.Equal(t, filepath.Base(dbPath), md.Name)
 }
+
+// TestNewScratchSource_SecretsResolved verifies that the scratch
+// source is marked SecretsResolved: its Location is a literal file
+// path constructed internally (never a placeholder template), so the
+// connect path's '$$' unescape must not reinterpret it. Without the
+// marker, a scratch path containing a literal '$$' (e.g. a cache dir
+// under a directory named with '$$') would be silently rewritten.
+func TestNewScratchSource_SecretsResolved(t *testing.T) {
+	ctx := testh.New(t).Context
+	fpath := filepath.Join(t.TempDir(), "scratch$$db.sqlite")
+
+	src, clnup, err := sqlite3.NewScratchSource(ctx, fpath)
+	require.NoError(t, err)
+	// The scratch DB file is only created on first open, which this
+	// test never does, so clnup's file removal may error: ignore it.
+	t.Cleanup(func() { _ = clnup() })
+
+	require.True(t, src.SecretsResolved,
+		"internally constructed literal locations must be marked resolved")
+
+	resolved, err := driver.ResolveSourceSecrets(ctx, src)
+	require.NoError(t, err)
+	require.Equal(t, src.Location, resolved.Location,
+		"resolution must not alter the literal scratch path")
+}

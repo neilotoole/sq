@@ -1034,6 +1034,9 @@ func NewScratchSource(ctx context.Context, fpath string) (src *source.Source, cl
 		Type:     drivertype.SQLite,
 		Handle:   source.ScratchHandle,
 		Location: Prefix + fpath,
+		// The path is an internally constructed literal, not a
+		// placeholder template: mark it so resolution is a no-op.
+		SecretsResolved: true,
 	}
 
 	clnup = func() error {

@@ -1175,6 +1175,20 @@ func TestInspect_LocationOverride_NoLeak(t *testing.T) {
 		"--expand must cause the resolved path to appear in inspect output")
 }
 
+// TestInspect_Expand_EscapedLocation verifies that `sq inspect --expand`
+// resolves the location template exactly once: the connection must use
+// the original stored source (Grips.doOpen resolves internally), with
+// the expanded clone used only for display. Feeding the expanded source
+// into Grips.Open would unescape '$$' a second time, corrupting literal
+// locations the v0.54.0 upgrade escaped.
+func TestInspect_Expand_EscapedLocation(t *testing.T) {
+	tr, fpath := newEscapedDollarCSVRun(t, "@csv_dollar")
+	require.NoError(t, tr.Exec("inspect", "@csv_dollar", "--overview", "--yaml", "--expand"),
+		"inspect --expand must resolve the location exactly once (double-unescape breaks the path)")
+	require.Contains(t, tr.OutString(), fpath,
+		"--expand must show the literal (expanded) path")
+}
+
 // TestInspect_DuckDB_DoesNotModifyMtime verifies that running `sq inspect`
 // against a DuckDB source does not touch the file's mtime. This is the
 // primary acceptance criterion from gh610.

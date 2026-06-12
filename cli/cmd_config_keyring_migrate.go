@@ -187,7 +187,14 @@ func applyMigratePlans(ctx context.Context, ru *run.Run, plans []migratePlan) (
 			anyFailed = true
 			continue
 		}
-		if err = kr.Set(ctx, id, p.src.Location); err != nil {
+		// The stored Location is a placeholder template in which '$$'
+		// escapes a literal '$' (e.g. written by the v0.54.0 config
+		// upgrade). The keyring slot holds a literal value that
+		// Registry.Expand splices raw at connect time, so unescape
+		// here; storing the template bytes verbatim would hand the
+		// driver a wrong (still-escaped) credential. Safe because
+		// migrateSkipReason guarantees zero placeholder refs.
+		if err = kr.Set(ctx, id, secret.Unescape(p.src.Location)); err != nil {
 			rows = append(rows, output.KeyringMigrateRow{
 				Handle: p.src.Handle,
 				Status: output.KeyringMigrateStatusFailed,

@@ -3,7 +3,9 @@ package yamlstore
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/mod/semver"
@@ -52,6 +54,24 @@ func (fs *Store) doUpgrade(ctx context.Context, startVersion, targetVersion stri
 		return nil, err
 	}
 
+	// Write the backup only when an upgrade func will actually
+	// transform the config. doUpgrade itself runs on every version
+	// bump (config.version is stamped with the binary version, so
+	// every release triggers it), and an unconditional backup would
+	// accumulate one credential-bearing copy per release for no
+	// recoverability benefit.
+	if len(upgradeFns) > 0 {
+		backupPath := backupFilePath(fs.Path, startVersion)
+		if err = ioz.WriteFileAtomic(backupPath, data, ioz.RWPerms); err != nil {
+			// Abort rather than continue without a backup: the point of
+			// the backup is guaranteed recoverability, and if a sibling
+			// file can't be written, rewriting the config itself is
+			// unlikely to go better.
+			return nil, errz.Wrapf(err, "failed to write config backup before upgrade: %s", backupPath)
+		}
+		log.Info("Wrote verbatim backup of config before upgrade", lga.Path, backupPath)
+	}
+
 	for _, fn := range upgradeFns {
 		log.Debug("Attempting config upgrade step")
 		data, err = fn(ctx, data)
@@ -80,6 +100,19 @@ func (fs *Store) doUpgrade(ctx context.Context, startVersion, targetVersion stri
 	}
 
 	return cfg, nil
+}
+
+// backupFilePath returns the path of the pre-upgrade backup file for
+// the config file at cfgPath, named for the version being upgraded
+// from: /path/to/sq.yml + v0.53.0 -> /path/to/sq.v0.53.0.bak.yml.
+// The name deliberately does not end in ".sq.yml": Store.loadExt
+// treats any such file in the config dir as ext config. A backup file
+// from a prior upgrade of the same version is overwritten; it holds
+// the same from-version content.
+func backupFilePath(cfgPath, fromVersion string) string {
+	base := filepath.Base(cfgPath)
+	base = strings.TrimSuffix(base, filepath.Ext(base))
+	return filepath.Join(filepath.Dir(cfgPath), fmt.Sprintf("%s.%s.bak.yml", base, fromVersion))
 }
 
 // getUpgradeFuncs returns the funcs required to upgrade from startingVersion

@@ -67,6 +67,10 @@ func maybeExpandCollection(ctx context.Context, ru *run.Run, cmd *cobra.Command,
 			continue
 		}
 		src.Location = resolved
+		// Resolved bytes are literal: mark so re-resolution is a no-op
+		// (the lenient branch above keeps the template, so it does not
+		// mark); see Source.SecretsResolved.
+		src.SecretsResolved = true
 	}
 	return clone, nil
 }
@@ -105,5 +109,9 @@ func maybeExpandSource(ctx context.Context, ru *run.Run, cmd *cobra.Command,
 		return clone, nil
 	}
 	clone.Location = resolved
+	// Resolved bytes are literal: mark so re-resolution is a no-op
+	// (the lenient branch above keeps the template, so it does not
+	// mark); see Source.SecretsResolved.
+	clone.SecretsResolved = true
 	return clone, nil
 }

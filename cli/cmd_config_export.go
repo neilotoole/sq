@@ -15,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/secret"
 )
 
 func newConfigExportCmd() *cobra.Command {
@@ -144,7 +145,10 @@ func exportExpandConfig(ctx context.Context, ru *run.Run, cfg *config.Config) (*
 		if err != nil {
 			return nil, errz.Wrapf(err, "config export: %s", src.Handle)
 		}
-		src.Location = resolved
+		// The export is itself a config (a template), so re-escape the
+		// resolved literal: import then round-trips byte-identically.
+		// See the "Templates vs literals" section of package secret.
+		src.Location = secret.Escape(resolved)
 	}
 
 	return clone, nil

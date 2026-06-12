@@ -109,6 +109,44 @@ func Test_checkNeedsUpgrade_newerConfigVersion_prerelease(t *testing.T) {
 	require.Equal(t, "v99.0.0", foundVers)
 }
 
+// Test_Store_Load_NoBackupWhenNoUpgradeFuncs verifies that a routine
+// version bump with no registered upgrade funcs in range does not
+// write a pre-upgrade backup file. Due to version inflation (see the
+// IMPLEMENTATION NOTE on errConfigVersionNewerThanBuild), doUpgrade
+// runs on every sq release; the backup must be written only when an
+// upgrade func actually transforms the config, else one
+// credential-bearing backup accumulates per release.
+func Test_Store_Load_NoBackupWhenNoUpgradeFuncs(t *testing.T) {
+	setBuildVersion(t, "v0.48.0")
+
+	cfgDir := t.TempDir()
+	cfgPath := filepath.Join(cfgDir, "sq.yml")
+	err := os.WriteFile(cfgPath, []byte("config.version: v0.47.0\n"), 0o644)
+	require.NoError(t, err)
+
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+
+	store := &Store{
+		Path:            cfgPath,
+		OptionsRegistry: &options.Registry{},
+		// Non-nil but empty: the upgrade path runs, with zero funcs in
+		// range. This mirrors production for any release that doesn't
+		// change the config schema.
+		UpgradeRegistry: UpgradeRegistry{},
+	}
+
+	cfg, err := store.Load(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "v0.48.0", cfg.Version, "config.version is still stamped")
+
+	entries, err := os.ReadDir(cfgDir)
+	require.NoError(t, err)
+	for _, e := range entries {
+		require.NotContains(t, e.Name(), ".bak.",
+			"no backup file expected when no upgrade funcs ran")
+	}
+}
+
 // Test_Store_Load_newerConfigVersion verifies that Store.Load succeeds
 // (returns no error) when the config version is newer than the build version.
 // The sentinel error errConfigVersionNewerThanBuild should be handled

@@ -124,6 +124,33 @@ location: postgres://alice:${env:DB_PW}@db.acme.com/sakila
 
 `sq` ships with four schemes: `keyring`, `env`, `file`, and `op`.
 
+### Literal dollar signs
+
+The `location` value is a template: write `$$` for a literal `$`. At connect
+time, `sq` reduces each `$$` to `$` and resolves any `${scheme:path}`
+placeholders, so the driver receives the literal form.
+
+```yaml
+# Driver receives: postgres://alice:pa$$word@db/sakila
+location: postgres://alice:pa$$$$word@db/sakila
+
+# Driver receives the literal text ${env:HOME}, not the env var value
+location: postgres://alice:$${env:HOME}@db/sakila
+```
+
+A lone `$` that doesn't form a `${scheme:path}` placeholder (e.g. an inline
+password like `p$ssw0rd`) is already literal and needs no escaping.
+
+Escaping applies to location values you write yourself (the `sq add` location
+argument, or hand-edited config). A password supplied via
+[`sq add -p`](/docs/cmd/add) is a literal: `sq` escapes it for you before
+splicing it into the stored location.
+
+When upgrading a config created before `v0.54.0` (which had no placeholder
+syntax), `sq` automatically escapes any source location that would otherwise
+be reinterpreted, so existing sources connect exactly as before. The
+pre-upgrade config is [backed up](/docs/config#upgrades) verbatim first.
+
 ### URL encoding
 
 When a placeholder lands inside URL userinfo (the `user:password@host` part),
@@ -355,6 +382,12 @@ resolved value is spliced inline into the exported location. The output is
 a self-contained snapshot suitable for moving between machines, at the cost
 of writing every referenced secret in plaintext (which is exactly the point
 of `--expand`).
+
+Because the exported file is itself a config, its locations are templates:
+any `$` in a resolved value is written as
+[`$$`](#literal-dollar-signs), so that the export connects byte-identically
+when used as `sq.yml`. To see resolved values in raw literal form, use the
+display commands, e.g. `sq ls -v --expand`.
 
 ```yaml
 # Live config: location uses a keyring placeholder
