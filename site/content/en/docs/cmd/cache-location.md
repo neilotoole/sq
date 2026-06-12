@@ -1,12 +1,12 @@
 ---
 title: "sq cache location"
 description: "Print cache location"
+group: cache
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2027
 toc: false
 url: /docs/cmd/cache-location
 ---

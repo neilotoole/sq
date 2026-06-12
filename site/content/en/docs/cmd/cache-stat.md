@@ -1,12 +1,12 @@
 ---
 title: "sq cache stat"
 description: "Show cache info"
+group: cache
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2028
 toc: false
 url: /docs/cmd/cache-stat
 ---

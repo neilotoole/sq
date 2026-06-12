@@ -1,27 +1,26 @@
 {{ define "main" }}
-<div class="row justify-content-center">
-  <div class="col-md-12 col-lg-10 col-xl-8">
-    <article>
-      <h1 class="text-center">{{ if eq .CurrentSection .FirstSection }}{{ .Section | humanize }}{{ else }}{{ .Title }}{{ end }}</h1>
-      <div class="text-center">{{ .Content }}</div>
+<div class="row flex-xl-nowrap">
+  <div class="col-lg-5 col-xl-4 docs-sidebar{{ if ne .Site.Params.options.navbarSticky true }} docs-sidebar-top{{ end }} d-none d-lg-block">
+    <nav {{ if eq .Site.Params.menu.section.collapsibleSidebar false }}id="sidebar-default" {{ end }}class="docs-links" aria-label="Main navigation">
+      {{ partial "sidebar/docs-menu.html" . }}
+    </nav>
+  </div>
+  <main class="docs-content col-lg-11 col-xl-9 mx-xl-auto">
+      <h1>{{ if eq .CurrentSection .FirstSection }}{{ .Section | humanize }}{{ else }}{{ .Title }}{{ end }}</h1>
+      {{ .Content }}
 			<div class="card-list">
 				{{ $currentSection := .CurrentSection }}
 				{{ range where .Site.RegularPages.ByTitle "Section" .Section }}
-					{{ if in (.RelPermalink | string) $currentSection.RelPermalink }}
+					{{/* Command pages are indexed by /docs/cmd (layout cmd-index), not card lists. */}}
+					{{ if and (in (.RelPermalink | string) $currentSection.RelPermalink) (not (in (.RelPermalink | string) "/docs/cmd/")) }}
 						<div class="card my-3">
 							<div class="card-body">
-                {{ if in (.RelPermalink | string) "/docs/cmd" }}
-                  {{/* Special handling for the cmd list section. */}}
-                  <code><a class="stretched-link" href="{{ .RelPermalink }}">{{ .Params.title | title | lower }} &rarr;</a></code>
-                {{ else }}
-                  <a class="stretched-link" href="{{ .RelPermalink }}">{{ .Params.title | title }} &rarr;</a>
-                {{ end }}
+                <a class="stretched-link" href="{{ .RelPermalink }}">{{ .Params.title | title }} &rarr;</a>
 							</div>
 						</div>
 					{{ end }}
 				{{ end }}
 			</div>
-    </article>
-  </div>
+  </main>
 </div>
 {{ end }}

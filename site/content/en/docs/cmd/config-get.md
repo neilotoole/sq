@@ -1,12 +1,12 @@
 ---
 title: "sq config get"
 description: "Show config option"
+group: config
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2038
 toc: false
 url: /docs/cmd/config-get
 ---

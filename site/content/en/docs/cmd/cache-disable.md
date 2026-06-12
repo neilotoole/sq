@@ -1,12 +1,12 @@
 ---
 title: "sq cache disable"
 description: "Disable the cache"
+group: cache
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2025
 toc: false
 url: /docs/cmd/cache-disable
 ---

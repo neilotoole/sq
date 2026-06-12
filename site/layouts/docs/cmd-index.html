@@ -1,0 +1,67 @@
+{{ define "main" }}
+{{ $cmds := .RegularPages.ByTitle }}
+{{ $keys := slice }}
+{{ $sections := slice }}
+{{ range $g := site.Data.cmd_groups.groups }}
+  {{ $keys = $keys | append $g.key }}
+  {{ $pages := where $cmds "Params.group" $g.key }}
+  {{ with $g.order }}
+    {{ $ordered := slice }}
+    {{ range $name := . }}
+      {{ $match := where $pages "File.BaseFileName" $name }}
+      {{ if $match }}
+        {{ $ordered = $ordered | append $match }}
+      {{ else }}
+        {{ warnf "cmd-index: group %q order entry %q matches no command page" $g.key $name }}
+      {{ end }}
+    {{ end }}
+    {{ range $pages }}
+      {{ if not (in $g.order .File.BaseFileName) }}
+        {{ $ordered = $ordered | append . }}
+      {{ end }}
+    {{ end }}
+    {{ $pages = $ordered }}
+  {{ end }}
+  {{ if $pages }}
+    {{ $sections = $sections | append (dict "key" $g.key "title" $g.title "blurb" $g.blurb "pages" $pages) }}
+  {{ end }}
+{{ end }}
+{{ $orphans := slice }}
+{{ range $cmds }}
+  {{ if not (in $keys (.Params.group | default "")) }}
+    {{ $orphans = $orphans | append . }}
+  {{ end }}
+{{ end }}
+{{ if $orphans }}
+  {{ warnf "cmd-index: %d command page(s) have a missing or unknown group; rendered under Other" (len $orphans) }}
+  {{ $sections = $sections | append (dict "key" "other" "title" "Other" "blurb" "" "pages" $orphans) }}
+{{ end }}
+<div class="row flex-xl-nowrap">
+  <div class="col-lg-5 col-xl-4 docs-sidebar{{ if ne .Site.Params.options.navbarSticky true }} docs-sidebar-top{{ end }} d-none d-lg-block">
+    <nav {{ if eq .Site.Params.menu.section.collapsibleSidebar false }}id="sidebar-default" {{ end }}class="docs-links" aria-label="Main navigation">
+      {{ partial "sidebar/docs-menu.html" . }}
+    </nav>
+  </div>
+  <nav class="docs-toc{{ if ne .Site.Params.options.navbarSticky true }} docs-toc-top{{ end }} d-none d-xl-block col-xl-3" aria-label="Secondary navigation">
+    <div class="page-links d-none d-xl-block">
+      <h3>{{ i18n "on-this-page" }}</h3>
+      <nav id="{{ if eq .Site.Params.options.scrollSpy true }}toc{{ else }}TableOfContents{{ end }}">
+        <ul>
+          {{ range $sections }}
+          <li><a href="#{{ .key }}">{{ .title }}</a></li>
+          {{ end }}
+        </ul>
+      </nav>
+    </div>
+  </nav>
+  <main class="docs-content col-lg-11 col-xl{{ if eq .Site.Params.options.fullWidth false }}-9{{ end }}">
+      <h1>{{ .Title }}</h1>
+      {{ .Content }}
+      {{ range $sections }}
+        <h2 id="{{ .key }}">{{ .title }} <a href="#{{ .key }}" class="anchor" aria-hidden="true">#</a></h2>
+        {{ with .blurb }}<p>{{ . | markdownify }}</p>{{ end }}
+        {{ partial "main/cmd-index-rows.html" .pages }}
+      {{ end }}
+  </main>
+</div>
+{{ end }}

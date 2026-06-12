@@ -1,12 +1,12 @@
 ---
 title: "sq cache tree"
 description: "Print tree view of cache dir"
+group: cache
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2029
 toc: false
 url: /docs/cmd/cache-tree
 ---

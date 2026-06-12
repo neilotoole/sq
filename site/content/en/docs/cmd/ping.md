@@ -1,12 +1,12 @@
 ---
 title: "sq ping"
 description: "Ping data sources"
+group: sources
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2080
 toc: false
 url: /docs/cmd/ping
 ---

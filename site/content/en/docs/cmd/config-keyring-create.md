@@ -1,12 +1,12 @@
 ---
 title: "sq config keyring create"
 description: "Create a new keyring entry"
+group: config
 draft: false
 images: []
 menu:
   docs:
     parent: "cmd"
-weight: 2038
 toc: false
 url: /docs/cmd/config-keyring-create
 ---

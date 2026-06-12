@@ -120,11 +120,13 @@ $ kubectl run sq-shell --image ghcr.io/neilotoole/sq
 $ kubectl exec -it sq-shell -- zsh
 ```
 
-## See also
+## Agent Skills
 
-- [Agent Skill](/docs/agent-skills) — optional Agent Skill for Claude Code,
-  Cursor, and other assistants that support the
-  [Agent Skills](https://agentskills.io/) format (after `sq` is installed).
+`sq` ships an optional [Agent Skill](https://agentskills.io/) that teaches AI
+coding assistants (Claude Code, Cursor, and others that support the format)
+how to use an installed `sq` CLI: querying with SLQ or native SQL, `@` handles,
+output formats, and more. Once `sq` is on your `PATH`, see
+[Agent Skills](/docs/agent-skills) to add the skill to your assistant.
 
 ## Upgrade
 

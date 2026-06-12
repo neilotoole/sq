@@ -5,3 +5,5 @@
   {{- $dest = $dest | absURL -}}
 {{- end -}}
 <a href="{{ $dest | safeURL }}"{{ with .Title }} title="{{ . }}"{{ end }}{{ if $isExternal }} target="_blank" rel="noopener"{{ end }}>{{ .Text | safeHTML }}</a>
+{{- /* The trim above chomps this template's trailing newline, which otherwise
+       renders as whitespace between a link and adjacent punctuation. */ -}}
