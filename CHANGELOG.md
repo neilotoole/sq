@@ -23,188 +23,77 @@ keyring support) and support for [rqlite](https://sq.io/docs/drivers/rqlite).
 
 ### Added
 
-- 🐥 [#444]: Added [rqlite driver](https://sq.io/docs/drivers/rqlite). `sq` now supports reading
-  from, inspecting, and writing to [rqlite](https://rqlite.io) clusters, the lightweight
-  distributed SQLite database.
-  - [#756]: Single URL scheme `rqlite://` with `?tls=true` for HTTPS (matching `mysql?tls=true`,
-    `postgres?sslmode=...` etc.) and the companion `?insecure=true` for self-signed certs.
-    Connection errors are enriched with actionable hints (add `?tls=true`, or `&insecure=true`
-    for self-signed certs) when the failure looks TLS-related.
-  - [#764]: `sq add` auto-detects TLS-only rqlite endpoints and stores `tls=true`
-    on the source, instead of failing and asking the user to retry. Suppressed by
-    `--skip-verify`, an explicit `tls`/`insecure` param, or a `${...}` placeholder
-    location.
-- [#441]: [`sq add`](https://sq.io/docs/cmd/add) gains a `--store inline|keyring`
-  flag, and a new [`secrets.store`](https://sq.io/docs/config#secretsstore) config option
-  controls the default; existing behavior is preserved (`inline`).
-  See [Secrets](https://sq.io/docs/secrets) for the placeholder model and threat model.
-  - With `--store keyring`, the entire conn string is written to the OS keyring at a fresh opaque ID
-    and the YAML location becomes a bare `${keyring:<id>}` placeholder, e.g. `location: ${keyring:3d28xd3jcr}`.
-  - Source `location` fields now support
-    [`${scheme:path}` placeholders](https://sq.io/docs/secrets#placeholders) that are
-    resolved at connect time. Shipped schemes:
-    - `keyring`: OS keychain, managed via `sq config keyring`.
-    - `env`: environment variable, e.g. `${env:DB_PROD_PW}` or `${env:DB_CONN_STR}`.
-    - `file`: file contents, e.g. `${file:/run/secrets/db_pw}` or `${file:~/.sq/db_connstr}`.
-    - [#714]: `op`: 1Password CLI, e.g. `${op://Private/sakila/dsn}`. Shells out to
-      [`op read`](https://developer.1password.com/docs/cli/reference/commands/read/) using
-      1Password's
-      [secret-reference syntax](https://developer.1password.com/docs/cli/secret-reference-syntax/);
-      the user must already be signed in (biometric, `op signin`, or `OP_SERVICE_ACCOUNT_TOKEN`).
-      `sq add` accepts the bare `op://...` form (the literal "Copy Secret Reference"
-      output) as a shortcut for the wrapped `${op://...}` placeholder.
-      If a placeholder resolves to a bare value rather than a full DSN, `sq add`
-      surfaces an actionable error naming the placeholder and pointing at composition,
-      a full-DSN secret, or `--driver` as the three recovery paths.
-- [#441]: [`sq config keyring`](https://sq.io/docs/cmd/config-keyring) command group: store
-  source conn strings in the OS keyring instead of plaintext in `sq.yml`.
-  - Subcommands: `ls`, `create`, `update`, `get`, `rm`, `migrate`.
-- [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export): dump the active config to
-  YAML, primarily for backups. See [Secrets](https://sq.io/docs/secrets) for the bigger picture.
-  - By default, output is a faithful-ish copy of the live config: `${scheme:path}` placeholders are
-    written verbatim.
-  - With [`--expand`](https://sq.io/docs/secrets#expanding-placeholders), every placeholder is
-    fetched from its resolver (`keyring`, `env`, `file`, or `op`) and the resolved value
-    is spliced in-line: a self-contained snapshot at the cost of writing every referenced
-    secret in plaintext (which is exactly the point of `--expand`).
-- [#717]: New global [`--reveal`](https://sq.io/docs/secrets#redaction) flag opts
-  into showing secret values in output.
-  - It supersedes the legacy `--no-redact` (still functional, now marked deprecated, will be removed
-    at some point in the future).
+- 🐥 [#444]: New [rqlite driver](https://sq.io/docs/drivers/rqlite): `sq` can now read,
+  inspect, and write to [rqlite](https://rqlite.io) clusters, the lightweight distributed
+  SQLite database. Connect via `rqlite://host:port`, with `?tls=true` for HTTPS; or just
+  let [`sq add`](https://sq.io/docs/cmd/add) auto-detect TLS ([#756], [#764]).
+- [#441]: Revamped [secrets handling](https://sq.io/docs/secrets). Source credentials no
+  longer need to live as plaintext in `sq.yml`: source locations accept `${scheme:path}`
+  placeholders that are resolved at connect time, and secrets are consistently redacted
+  in output unless you opt in to disclosure.
+  - Placeholder resolvers: `keyring` (OS keychain, managed via the new
+    [`sq config keyring`](https://sq.io/docs/cmd/config-keyring) command group, or
+    `sq add --store keyring`), `env` (environment variable), `file` (file contents),
+    and `op` (1Password CLI) ([#714]).
+  - [#717], [#729]: New global flags [`--reveal`](https://sq.io/docs/secrets#redaction)
+    (show secret values in output; supersedes the now-deprecated `--no-redact`) and
+    [`--expand`](https://sq.io/docs/secrets#expanding-placeholders) (print resolved
+    placeholder values instead of the verbatim `${scheme:path}` text).
+  - [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export) dumps the active
+    config to YAML, primarily for backups. With `--expand`, placeholders are resolved
+    in-line, making the export a self-contained (but plaintext) snapshot.
 - [#660]: [`sq inspect`](https://sq.io/docs/inspect) gained
   [`svg-erd`](https://sq.io/docs/inspect#svg-erd) and
   [`png-erd`](https://sq.io/docs/inspect#png-erd) output formats that render the schema
-  entity-relationship diagram directly to an SVG or PNG image file
-  (`--format=svg-erd` / `--format=png-erd`).
-  - The diagram is laid out and rendered natively via an embedded [Graphviz](https://graphviz.org)
-    engine, so image export needs no external tool, browser, or network.
-- [#610]: [`sq sql`](https://sq.io/docs/cmd/sql) accepts `--readonly` (alias
-  `--ro`) to open DuckDB sources in read-only mode. Default remains read-write
-  because reliable statement-level detection isn't feasible without a standalone
-  DuckDB parser binding.
+  ERD directly to an image file, via an embedded Graphviz engine (no external tool,
+  browser, or network needed).
 
 ### Changed
 
 - [#610]: [`duckdb`](https://sq.io/docs/drivers/duckdb): Read-only commands
   ([`inspect`](https://sq.io/docs/cmd/inspect), [`sq`](https://sq.io/docs/cmd/sq),
   [`diff`](https://sq.io/docs/cmd/diff), [`ping`](https://sq.io/docs/cmd/ping)) now open
-  DuckDB sources with `access_mode=READ_ONLY` by default.
-  - This avoids open-time WAL
-    writes, allows concurrent read-only access from multiple `sq` processes against the
-    same file, and lets `sq inspect` work on files the user has read-only access to.
-    A user-specified `?access_mode=READ_WRITE` in the source URL overrides the default.
-- ☢️ The `redact` config option is renamed to
+  DuckDB sources with `access_mode=READ_ONLY` by default, allowing concurrent read-only
+  access and inspection of files the user can't write to. Override with
+  `?access_mode=READ_WRITE` in the source URL. The new [`sq sql`](https://sq.io/docs/cmd/sql)
+  flag `--readonly` (alias `--ro`) opts into read-only mode for ad-hoc SQL too.
+- ☢️ [#728]: The `redact` config option is renamed to
   [`secrets.reveal`](https://sq.io/docs/config#secretsreveal) with inverted polarity
-  (`secrets.reveal: true` equals legacy `redact: false`). The new default is `false`
-  (secrets are redacted).
-  - Existing configs are migrated automatically on first run
-    by a YAML upgrade step; scripts that call `sq config get redact` or
-    `sq config set redact ...` need updating to the new key. The rename completes the
-    polarity-consistency story started by `--reveal` in #717.
-  - As part of the polarity flip, the `--reveal` and `--no-redact` flags are now
-    positive opt-ins only: `--reveal=true` (or just `--reveal`) opts into
-    disclosure, and `--reveal=false` / `--no-redact=false` are no-ops. Previously,
-    `--no-redact=false` would force redaction by virtue of its inverted binding.
-    To force redaction when `secrets.reveal: true` is set in config, override the
-    config value with `sq config set secrets.reveal false` rather than relying on
-    a flag.
+  (`secrets.reveal: true` equals legacy `redact: false`); the default remains
+  redaction. Existing configs are migrated automatically on first run, but scripts
+  that call `sq config get|set redact` need updating to the new key.
 - [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd)
   now syntax-colors its `erDiagram` source when writing to a terminal.
-- [#729]: [`--expand`](https://sq.io/docs/secrets#expanding-placeholders) is now a persistent
-  root flag, accepted by every subcommand. Previously it lived only on `sq config export`.
-  - Commands that print a source location ([`sq src`](https://sq.io/docs/cmd/src),
-    [`sq ls`](https://sq.io/docs/cmd/ls), [`sq inspect`](https://sq.io/docs/inspect),
-    `sq add`, `sq mv`, and `sq ping` in JSON/YAML output) now pass `${scheme:path}`
-    placeholders through the configured resolvers and print the resolved value.
-    `sq ping`'s text and CSV output do not include a Location column, so `--expand`
-    has no visible effect there. `--expand` composes orthogonally with `--reveal`:
-    `--reveal` flips the redaction filter on whatever string is being displayed;
-    `--expand` decides whether that string is the verbatim placeholder or the
-    resolved value.
-  - The display-expansion step itself is lenient: a per-source resolver failure
-    (missing keyring entry, unset env var, unreadable file) leaves that source's
-    placeholder verbatim and the listing continues. This is independent of
-    connection-time resolution; commands that have to connect (e.g.
-    [`sq inspect`](https://sq.io/docs/inspect), `sq ping`) will still fail at
-    connect time if a missing secret prevents the connection. `sq config export --expand`
-    keeps its existing strict-abort behavior because an export is a snapshot for
-    transfer, and a half-resolved snapshot is the wrong artifact.
-  - Subcommands that don't print a source location (e.g. [`sq sql`](https://sq.io/docs/cmd/sql),
-    `sq slq`, `sq tbl`) accept `--expand` as a silent no-op, so a global alias like
-    `alias sq='sq --reveal --expand'` is safe.
-- [#742]: rqlite connection failures now surface concise, actionable error messages
-  instead of gorqlite's raw `tried all peers unsuccessfully` text. When cluster
-  discovery routes a request to an advertised peer that the client can't resolve or
-  reach (the
-  [single-node-localhost trap](https://sq.io/docs/drivers/rqlite#single-node-localhost)),
-  the error names the peer and points at `?disableClusterDiscovery=true`. Auth (401),
-  TLS-mismatch (both directions), and certificate-verification failures get the same
-  treatment. The concise form prints in text and JSON error output; full diagnostic
-  detail remains in verbose output and the log file. And because the driver's ping now
-  performs a real round-trip query, a broken source fails at
-  [`sq add`](https://sq.io/docs/cmd/add) time instead of at first query.
-- Internal: `sq add` shell completion reworked atop a declarative
-  per-driver `LocationShape` model. Each SQL driver declares its URL
-  syntax via the new `driver.LocationShape` type; the completer is a
-  thin walker over those declarations. See the Fixed entries for
-  user-visible behavior changes. (#743, #741)
 
 ### Fixed
 
 - [#699]: The [SQLite driver](https://sq.io/docs/drivers/sqlite) no longer executes
-  side-effecting or whole-database-scanning pragmas when reading source metadata
-  (e.g. [`sq inspect`](https://sq.io/docs/inspect)). Reading DB properties via SQLite's
-  pragma table-valued functions actually executes each pragma, so `pragma_optimize`
-  could run `ANALYZE`, silently writing `sqlite_stat1` to the database. That made the
-  nominally read-only metadata path take the file write lock (concurrent metadata reads
-  could then fail with `database is locked`), and `integrity_check` / `quick_check` /
-  `foreign_key_check` scanned the entire database on every inspect. These pragmas are
-  now skipped, and those keys no longer appear in the inspect output's DB properties.
-- [#743]: [`sq add`](https://sq.io/docs/cmd/add) shell completion: `<scheme>://host:port?<TAB>`
-  now offers connection parameters instead of credential placeholders.
-  Bare-host (no `user@`) URLs are recognized correctly for postgres,
-  mysql, sqlserver, rqlite, clickhouse, oracle.
-- [#741]: [`sq add`](https://sq.io/docs/cmd/add) shell completion now suggests
-  `clickhouse://` and `oracle://` schemes.
+  side-effecting or whole-database-scanning pragmas when reading source metadata for
+  [`sq inspect`](https://sq.io/docs/inspect). Previously, `pragma_optimize` could
+  silently run `ANALYZE` (writing to the database and taking the file write lock), and
+  `integrity_check` / `quick_check` / `foreign_key_check` scanned the entire database.
+  These keys no longer appear in the inspect output's DB properties.
+- [#741], [#743]: [`sq add`](https://sq.io/docs/cmd/add) shell completion now suggests
+  the `clickhouse://` and `oracle://` schemes, offers connection parameters (not
+  credential placeholders) after `host:port?<TAB>`, and correctly recognizes bare-host
+  URLs (no `user@`).
 - [#720]: The [SQLite driver](https://sq.io/docs/drivers/sqlite) no longer fails with
-  `stat /path/to/db?key=val: no such file or directory` on source-level metadata commands.
-  - Previously failed on [`sq inspect @handle`](https://sq.io/docs/inspect) etc.
-    when the source location carried a `?key=val[&...]` connection-string suffix (e.g.
-    `sqlite3:///path/to/db?mode=ro`).
-- [#744]: `sq inspect` no longer reports `0.0B` size for sources whose driver doesn't expose
-  a database size (e.g. rqlite). The SIZE column renders `-` instead, and JSON / YAML output
-  omits the `size` field.
-- [#752]: The SQLite [`sqlparser`](./drivers/sqlite3/sqlparser) now strips all four
-  legal SQLite identifier-quoting styles (`"name"`, `'name'`, `` `name` ``, `[name]`)
-  from `ColDef.Name`, not just double-quotes. Previously, `AlterTableColumnKinds`
-  on the [sqlite3](https://sq.io/docs/drivers/sqlite) and
-  [rqlite](https://sq.io/docs/drivers/rqlite) drivers failed with
-  `column not found in table DDL` when the original `CREATE TABLE` declared the
-  target column using backticks, single quotes, or square brackets.
-- [#750]: `AlterTableColumnKinds` and `CopyTable` on the
-  [sqlite3](https://sq.io/docs/drivers/sqlite) and
-  [rqlite](https://sq.io/docs/drivers/rqlite) drivers now rewrite identifier and
-  type tokens by byte offset rather than `strings.Replace`. The old approach
-  could clobber the wrong token when a column name shared a prefix with its type
-  (e.g. `TEXT_DATA TEXT`), or when the table identifier recurred elsewhere in
-  the DDL (CHECK expressions, DEFAULT literals, comments). The shared
-  `sqlparser` package now exposes `ColDef.RawNameOffset` / `ColDef.RawTypeOffset`,
-  a `TableIdent` struct with token offsets, and an `ApplyEdits` helper for
-  non-overlapping byte-range splicing.
-- [#759]: `CopyTable` on the [sqlite3](https://sq.io/docs/drivers/sqlite) and
-  [rqlite](https://sq.io/docs/drivers/rqlite) drivers now rewrites
-  self-referential foreign keys to point at the destination table. Previously
-  the destination's `REFERENCES <src>(...)` clause was left untouched, so its
-  FKs resolved against the source table instead of itself. The shared
-  `sqlparser` package gains `ExtractForeignTableRefsFromCreateTableStmt` for
-  this rewrite; cross-table FKs are left alone.
-- [#757]: `AlterTableColumnKinds` on the [sqlite3](https://sq.io/docs/drivers/sqlite)
-  and [rqlite](https://sq.io/docs/drivers/rqlite) drivers now preserves
-  AUTOINCREMENT sequence continuity across the table rebuild. Previously the
-  rebuild's `DROP TABLE` removed the table's `sqlite_sequence` row, so the next
-  insert picked `MAX(rowid)+1` rather than `seq+1`, silently reusing rowids of
-  previously deleted rows. The original `seq` is now captured before the
-  rebuild and restored afterward.
+  `stat /path/to/db?key=val: no such file or directory` on metadata commands when the
+  source location carries a `?key=val` connection-string suffix
+  (e.g. `sqlite3:///path/to/db?mode=ro`).
+- [#750], [#752], [#757], [#759]: A batch of fixes to the `CREATE TABLE` DDL rewriting
+  that backs table copy and column-kind alteration on the
+  [sqlite3](https://sq.io/docs/drivers/sqlite) driver:
+  - [#752]: columns declared with backtick, single-quote, or `[bracket]` quoting no
+    longer fail with `column not found in table DDL`.
+  - [#750]: identifier and type tokens are rewritten by byte offset instead of string
+    replacement, which could clobber the wrong token when a column name shared a prefix
+    with its type (e.g. `TEXT_DATA TEXT`) or the table name recurred in CHECK
+    expressions, DEFAULT literals, or comments.
+  - [#757]: altering column kinds no longer resets the table's AUTOINCREMENT sequence,
+    which silently reused rowids of previously deleted rows.
+  - [#759]: copying a table now rewrites self-referential foreign keys to reference the
+    destination table, instead of leaving them pointing at the source.
 
 ## [v0.53.0] - 2026-05-25
 
@@ -1783,10 +1672,10 @@ make working with lots of sources much easier.
 [#717]: https://github.com/neilotoole/sq/issues/717
 [#714]: https://github.com/neilotoole/sq/issues/714
 [#720]: https://github.com/neilotoole/sq/issues/720
+[#728]: https://github.com/neilotoole/sq/issues/728
 [#729]: https://github.com/neilotoole/sq/issues/729
-[#737]: https://github.com/neilotoole/sq/issues/737
-[#742]: https://github.com/neilotoole/sq/issues/742
-[#744]: https://github.com/neilotoole/sq/issues/744
+[#741]: https://github.com/neilotoole/sq/issues/741
+[#743]: https://github.com/neilotoole/sq/issues/743
 [#750]: https://github.com/neilotoole/sq/issues/750
 [#752]: https://github.com/neilotoole/sq/issues/752
 [#756]: https://github.com/neilotoole/sq/issues/756
