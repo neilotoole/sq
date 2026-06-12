@@ -11,8 +11,8 @@ const accessModeKey = "access_mode"
 // ApplyReadOnlyToLocation returns loc rewritten so that DuckDB opens it
 // READ_ONLY, plus a flag reporting whether the rewrite happened. The
 // explicit arg distinguishes explicit user intent (the --readonly flag)
-// from the implicit read-only hint that non-writing commands (sq, inspect,
-// diff, ping) set.
+// from the implicit read-only hint that non-writing code paths set (e.g.
+// sq, inspect, diff, ping, or source validation at add time).
 //
 // The access_mode policy matrix (values compared case-insensitively):
 //   - no access_mode in loc: READ_ONLY appended (implicit and explicit).

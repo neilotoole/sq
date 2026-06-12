@@ -5,7 +5,8 @@ import "context"
 // readOnlyCtxKey is the (unexported) context key carrying the read-only hint.
 // The stored bool reports whether the hint is explicit: true when the user
 // asked for read-only directly (e.g. sq sql --readonly), false when a
-// non-writing command (sq, inspect, diff, ping) set the hint implicitly.
+// non-writing code path (e.g. sq, inspect, diff, ping, or source validation
+// at add time) set the hint implicitly.
 type readOnlyCtxKey struct{}
 
 // WithReadOnly returns a derived context that signals to driver.Driver
