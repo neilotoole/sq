@@ -38,7 +38,7 @@ $ sq add 'rqlite://node.example.com:4001?tls=true'
 $ sq add 'rqlite://node.example.com:4001?tls=true&insecure=true'
 ```
 
-If the port is omitted, `sq` auto-applies the default port `4001`.
+If the port is omitted, `sq` connects on the default port `4001`.
 
 ### Verification
 
@@ -78,7 +78,7 @@ sq: @rq: rqlite: auth failed: node requires credentials, but source has none
 sq: @rq: rqlite: auth failed: node rejected credentials
 ```
 
-To keep the password out of sq's config file, store it as a [secret](/docs/secrets):
+To keep the password out of `sq`'s [config](/docs/config) file, store it as a [secret](/docs/secrets):
 e.g. pass `--store keyring` to `sq add`, which puts the password in the OS keyring
 and writes a placeholder to the config in its place.
 
