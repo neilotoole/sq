@@ -23,6 +23,11 @@ import (
 // dburl does not recognize it. The returned *dburl.URL wraps the
 // parsed URL so callers can read User/Host/Path/RawQuery uniformly.
 //
+// The location is first passed through location.StripSecrets: every
+// field parsed here can end up in shell-completion candidates echoed
+// to the terminal, which must never carry inline passwords or secret
+// query parameter values.
+//
 // On parse failure the underlying url.Parse / dburl.Parse error is
 // intentionally NOT wrapped: those errors embed the raw input
 // verbatim (e.g. `parse "postgres://alice:hunter2@host": ...`), and
@@ -30,6 +35,7 @@ import (
 // a stack-traced sentinel describing the failure category; callers
 // should log the redacted location separately.
 func parseSourceLoc(loc string, typ drivertype.Type) (*dburl.URL, error) {
+	loc = location.StripSecrets(loc)
 	if typ == drivertype.Rqlite {
 		u, err := url.Parse(loc)
 		if err != nil {
@@ -93,14 +99,23 @@ func (s *locSuggestions) Tails(kind driver.SegmentKind) []string {
 	}
 }
 
-// Locations implements driver.Suggestions.
+// Locations implements driver.Suggestions. Each location is stripped
+// of inline secrets (see location.StripSecrets) before joining the
+// candidate pool; locations that don't parse even after stripping are
+// skipped, because stripping can't be verified on a malformed input.
 func (s *locSuggestions) Locations() []string {
 	var locs []string
 	_ = s.coll.Visit(func(src *source.Source) error {
 		if src.Type != s.typ {
 			return nil
 		}
-		locs = append(locs, src.Location)
+		loc := location.StripSecrets(src.Location)
+		if _, err := parseSourceLoc(loc, s.typ); err != nil {
+			s.log.Warn("Parse source location",
+				lga.Loc, location.Redact(src.Location), lga.Err, err)
+			return nil
+		}
+		locs = append(locs, loc)
 		return nil
 	})
 	locs = lo.Uniq(locs)

@@ -690,6 +690,154 @@ func redactBestEffort(loc string) string {
 	return loc
 }
 
+// IsSecretQueryParam reports whether the URL query parameter key
+// conventionally carries a secret value in driver connection strings,
+// e.g. "password" (sqlserver), "sslpassword" (postgres), "_auth_pass"
+// (sqlite3). Matching is case-insensitive. Boolean toggles that merely
+// mention passwords (e.g. mysql's "allowCleartextPasswords") do not
+// match.
+func IsSecretQueryParam(key string) bool {
+	k := strings.ToLower(key)
+	switch k {
+	case "password", "passwd", "pwd", "pw", "secret", "token",
+		"apikey", "api_key", "access_token", "auth_token":
+		return true
+	default:
+		return strings.HasSuffix(k, "password") ||
+			strings.HasSuffix(k, "passwd") ||
+			strings.HasSuffix(k, "_pass") ||
+			strings.HasSuffix(k, "_secret") ||
+			strings.HasSuffix(k, "_token")
+	}
+}
+
+// StripSecrets returns loc with embedded secrets removed, for use
+// where the location must remain valid and completable but must not
+// expose secrets, e.g. shell-completion candidates. The userinfo
+// password (if any) is dropped ("scheme://alice:pw@host" becomes
+// "scheme://alice@host"), and the values of secret-bearing query
+// parameters (see IsSecretQueryParam) are emptied
+// ("?_auth_pass=hunter2" becomes "?_auth_pass="). Stripping is purely
+// textual: non-secret portions of loc, including escaping and query
+// parameter order, are preserved byte-for-byte.
+//
+// StripSecrets differs from Redact, which masks secrets with a fixed
+// "xxxxx" string for display: a masked location accepted as a
+// completion candidate would silently create a source with a bogus
+// password, so here the secret is removed instead.
+//
+// A ${scheme:path} placeholder is not itself a secret (it's the text
+// stored in config), so a password or query value consisting entirely
+// of placeholders passes through verbatim. Mixed literal/placeholder
+// values are dropped like any literal secret.
+func StripSecrets(loc string) string {
+	refs, err := secret.ExtractRefs(loc)
+	if err != nil || len(refs) == 0 {
+		return stripSecretsRaw(loc, nil)
+	}
+	sentinels, ok := pickSentinels(loc, len(refs))
+	if !ok {
+		// No non-colliding sentinels found (astronomically unlikely).
+		// Strip without placeholder preservation: placeholder-valued
+		// passwords get dropped along with literal ones, which leaks
+		// nothing.
+		return stripSecretsRaw(loc, nil)
+	}
+	placeholders := make([]string, len(refs))
+	sentinelled := loc
+	for i, ref := range refs {
+		placeholders[i] = "${" + ref.Scheme + ":" + ref.Path + "}"
+		sentinelled = strings.Replace(sentinelled, placeholders[i], sentinels[i], 1)
+	}
+	stripped := stripSecretsRaw(sentinelled, sentinels)
+	// Restore surviving sentinels. Sentinels dropped by stripping
+	// (mixed literal/placeholder secrets) are simply absent.
+	for i := range refs {
+		stripped = strings.Replace(stripped, sentinels[i], placeholders[i], 1)
+	}
+	return stripped
+}
+
+// stripSecretsRaw implements StripSecrets on a location whose
+// ${scheme:path} placeholders (if any) have been replaced with the
+// given sentinels. A password or query value composed entirely of
+// sentinels is a placeholder template, not a literal secret, and is
+// left intact.
+func stripSecretsRaw(loc string, sentinels []string) string {
+	base, query, hasQuery := strings.Cut(loc, "?")
+	base = stripUserinfoPassword(base, sentinels)
+	if !hasQuery {
+		return base
+	}
+	return base + "?" + stripSecretQueryValues(query, sentinels)
+}
+
+// stripUserinfoPassword drops the ":password" portion of base's
+// userinfo, if present. base must not contain a query string. A
+// password composed entirely of sentinels is kept.
+func stripUserinfoPassword(base string, sentinels []string) string {
+	schemeIdx := strings.Index(base, "://")
+	if schemeIdx < 0 {
+		return base
+	}
+	authority := base[schemeIdx+3:]
+	if end := strings.IndexByte(authority, '/'); end >= 0 {
+		authority = authority[:end]
+	}
+	at := strings.LastIndexByte(authority, '@')
+	if at < 0 {
+		return base
+	}
+	userinfo := authority[:at]
+	colon := strings.IndexByte(userinfo, ':')
+	if colon < 0 {
+		return base
+	}
+	if isOnlySentinels(userinfo[colon+1:], sentinels) {
+		return base
+	}
+	i := schemeIdx + 3
+	return base[:i+colon] + base[i+at:]
+}
+
+// stripSecretQueryValues empties the value of each secret-bearing
+// key=value pair (per IsSecretQueryParam) in the raw query string,
+// preserving pair order and the escaping of untouched pairs. Values
+// composed entirely of sentinels are kept.
+func stripSecretQueryValues(query string, sentinels []string) string {
+	pairs := strings.Split(query, "&")
+	for i, pair := range pairs {
+		k, v, ok := strings.Cut(pair, "=")
+		if !ok || v == "" {
+			continue
+		}
+		key, err := url.QueryUnescape(k)
+		if err != nil {
+			key = k
+		}
+		if !IsSecretQueryParam(key) {
+			continue
+		}
+		if isOnlySentinels(v, sentinels) {
+			continue
+		}
+		pairs[i] = k + "="
+	}
+	return strings.Join(pairs, "&")
+}
+
+// isOnlySentinels reports whether s is non-empty and composed entirely
+// of strings from sentinels.
+func isOnlySentinels(s string, sentinels []string) bool {
+	if s == "" || len(sentinels) == 0 {
+		return false
+	}
+	for _, sentinel := range sentinels {
+		s = strings.ReplaceAll(s, sentinel, "")
+	}
+	return s == ""
+}
+
 // MergeQuery returns loc with the given query params set, replacing
 // any existing values for the same keys. Other query params are
 // preserved. loc must be parseable by net/url and have a scheme:
