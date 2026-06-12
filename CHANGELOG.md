@@ -107,6 +107,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
+- [`sq explore`](https://sq.io/docs/cmd/explore) — interactive TUI metadata
+  explorer. Browse the schema, columns, indexes, foreign keys, and a row
+  preview across every supported source type with keyboard-driven navigation.
+  Use `--emit-handle` (`-q`) to compose with the shell:
+  `sq $(sq explore -q @src) --csv > rows.csv`.
 - [#601], [#615], [#628], [#629], [#640]: New `SLQ` string-matching functions.
   See [Query Guide](https://sq.io/docs/query) for per-driver behavior and
   SQLite ASCII-CI quirks.

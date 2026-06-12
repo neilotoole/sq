@@ -37,6 +37,7 @@ cmds=(
   "config keyring migrate"
   "diff"
   "driver ls"
+  "explore"
   "group"
   "help"
   "inspect"

@@ -1,0 +1,52 @@
+Inspect data source schema interactively. Opens a terminal UI
+that browses the schema, columns, indexes, foreign keys, and a preview
+of rows for a data source.
+
+If @HANDLE is not provided, the active data source is used. If
+@HANDLE.TABLE is provided, that table is focused on launch.
+
+Quit with q. Use --emit-handle (-q) to write the last-focused handle
+(e.g. "@src.actor") to stdout — handy with shell substitution:
+
+  sq $(sq explore -q) --csv > rows.csv
+
+Use --no-tui when stdout is a TTY but you want the source overview
+text output instead of the interactive UI. The TUI also refuses to
+start when stdout is not a TTY (e.g. piped to a file).
+
+Usage:
+  sq explore [@HANDLE|@HANDLE.TABLE|.TABLE]
+
+Examples:
+  # Explore the active data source.
+  $ sq explore
+
+  # Explore @sakila, focused on the actor table.
+  $ sq explore @sakila.actor
+
+  # Print the source overview instead of opening the UI.
+  $ sq explore --no-tui @sakila
+
+  # Compose with the shell: query the table you navigated to.
+  $ sq $(sq explore -q @sakila) --csv > rows.csv
+
+Flags:
+  -q, --emit-handle         On quit, write the last-focused handle (e.g. @src.table) to stdout
+      --no-tui              Do not start the TUI; print the source overview instead
+      --preview-rows int    Max rows fetched for the preview pane (default 100)
+      --src.schema string   Override active schema (and/or catalog) for this query
+      --help                help for explore
+
+Global Flags:
+      --config string         Load config from here
+      --debug.pprof string    pprof profiling mode (default "off")
+      --error.format string   Error output format (default "text")
+  -E, --error.stack           Print error stack trace to stderr
+      --log                   Enable logging
+      --log.file string       Log file path (default "$HOME/Library/Logs/sq/sq.log")
+      --log.format string     Log output format (text or json) (default "text")
+      --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+  -M, --monochrome            Don't print color output
+      --no-progress           Don't show progress bar
+      --no-redact             Don't redact passwords in output
+  -v, --verbose               Print verbose output
