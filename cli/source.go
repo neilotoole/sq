@@ -169,7 +169,16 @@ func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Sou
 	// case the hint prevents the cached-grip pitfalls described in
 	// the godoc above.
 	openCtx := driver.WithReadOnly(ctx)
-	grip, err := d.Open(openCtx, src)
+
+	// Bypassing Grips also bypasses the ${scheme:path} placeholder
+	// resolution that Grips.doOpen performs, so resolve here before
+	// handing src to the driver.
+	openSrc, err := driver.ResolveSourceSecrets(openCtx, src)
+	if err != nil {
+		return err
+	}
+
+	grip, err := d.Open(openCtx, openSrc)
 	if err != nil {
 		return err
 	}

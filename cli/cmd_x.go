@@ -15,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/progress"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/files"
 )
 
@@ -50,6 +51,13 @@ func execXLockSrcCmd(cmd *cobra.Command, args []string) error {
 	ru := run.FromContext(ctx)
 	src, err := ru.Config.Collection.Get(args[0])
 	if err != nil {
+		return err
+	}
+
+	// The cache lock path is derived from a hash that includes the
+	// resolved location; ingest locks the resolved leaf, so this
+	// command must too, or it locks a dir nothing else uses.
+	if src, err = driver.ResolveSourceSecrets(ctx, src); err != nil {
 		return err
 	}
 

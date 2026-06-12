@@ -127,13 +127,9 @@ func execCacheClear(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	unlock, err := ru.Files.CacheLockAcquire(ctx, src)
-	if err != nil {
-		return err
-	}
-	defer unlock()
-
-	return ru.Files.CacheClearSource(ctx, src, true)
+	// Clears every location-hash leaf for the handle, with no secret
+	// resolution: see CacheClearSourceAll's docs.
+	return ru.Files.CacheClearSourceAll(ctx, src, ru.Config.Collection.Handles())
 }
 
 func newCacheTreeCmd() *cobra.Command {

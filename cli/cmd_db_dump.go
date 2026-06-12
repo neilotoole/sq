@@ -115,6 +115,10 @@ func execDBDumpCatalog(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	if src, err = resolveToolCmdSource(cmd, src); err != nil {
+		return err
+	}
+
 	var execCmd *execz.Cmd
 
 	switch src.Type { //nolint:exhaustive
@@ -227,6 +231,10 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	if src, err = resolveToolCmdSource(cmd, src); err != nil {
+		return err
+	}
+
 	var execCmd *execz.Cmd
 
 	switch src.Type { //nolint:exhaustive
@@ -239,7 +247,7 @@ func execDBDumpCluster(cmd *cobra.Command, args []string) error {
 		}
 		execCmd, err = postgres.DumpClusterCmd(src, params)
 	default:
-		err = errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
+		return errz.Errorf("%s: not supported for %s", errPrefix, src.Type)
 	}
 
 	if err != nil {
