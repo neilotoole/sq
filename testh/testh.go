@@ -992,7 +992,7 @@ func (h *Helper) createdTblsFor(src *source.Source) []string {
 // ambiguous chars such as "i", "o" and "1"). No sakila table or view name
 // matches this pattern. The match is case-insensitive because some backends
 // (e.g. Oracle) store unquoted identifiers upper-case.
-var scratchTableNameRe = regexp.MustCompile(`(?i)^.+_[abcdefghkrstuvwxyz2345689]{8}$`)
+var scratchTableNameRe = regexp.MustCompile(`(?i)^.+_[abcdefghkrstuvwxyz][abcdefghkrstuvwxyz2345689]{7}$`)
 
 // isScratchTableName reports whether name looks like a test-generated
 // scratch table name. See scratchTableNameRe.
@@ -1025,7 +1025,7 @@ var (
 	// stricter than scratchTableNameRe (it requires the double
 	// underscore) because the sweep drops tables: it must never match
 	// anything but the harness's own generated names.
-	staleScratchTableNameRe = regexp.MustCompile(`(?i)^.+__[abcdefghkrstuvwxyz2345689]{8}$`)
+	staleScratchTableNameRe = regexp.MustCompile(`(?i)^.+__[abcdefghkrstuvwxyz][abcdefghkrstuvwxyz2345689]{7}$`)
 
 	// scratchSweeps maps source handle to the *sync.Once that guards the
 	// stale scratch-table sweep for that handle: the sweep runs at most
