@@ -37,6 +37,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -1134,27 +1135,10 @@ func filePathFromLocation(loc string) string {
 // But that input location gets mangled on non-Windows OSes. This probably
 // isn't a problem in practice, but longer-term it may make sense to rewrite
 // MungeLocation to be OS-independent.
+//
+// MungeLocation is idempotent, and is a thin wrapper around
+// location.MungeForDriver, which also munges locations resolved from
+// secret placeholders at connect time (driver.ResolveSourceSecrets).
 func MungeLocation(loc string) (string, error) {
-	loc2 := strings.TrimSpace(loc)
-	if loc2 == "" {
-		return "", errz.New("location must not be empty")
-	}
-
-	loc2 = strings.TrimPrefix(loc2, "sqlite3://")
-	loc2 = strings.TrimPrefix(loc2, "sqlite3:")
-
-	pathPart, queryPart, hasQuery := strings.Cut(loc2, "?")
-
-	fp, err := filepath.Abs(pathPart)
-	if err != nil {
-		// Use pathPart, not loc: the original may contain secret
-		// connection params (e.g. _auth_pass) in the query suffix.
-		return "", errz.Wrapf(errw(err), "invalid location: %s", pathPart)
-	}
-
-	fp = filepath.ToSlash(fp)
-	if hasQuery {
-		return "sqlite3://" + fp + "?" + queryPart, nil
-	}
-	return "sqlite3://" + fp, nil
+	return location.MungeForDriver(drivertype.SQLite, loc)
 }

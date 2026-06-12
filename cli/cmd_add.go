@@ -483,23 +483,18 @@ func applyPassword(ctx context.Context, cmd *cobra.Command, ru *run.Run, loc str
 
 // mungeLocationForType applies driver-specific location munging for
 // the file-based DB types (SQLite, DuckDB); other types pass through
-// unchanged. Only meaningful for non-placeholder locations.
+// unchanged. Only meaningful for non-placeholder locations: a
+// placeholder location is opaque at add time, and gets the same
+// munging at connect time via driver.ResolveSourceSecrets.
 func mungeLocationForType(ctx context.Context, typ drivertype.Type, loc string) (string, error) {
-	locBefore := loc
-	var err error
-	if typ == drivertype.SQLite {
-		if loc, err = sqlite3.MungeLocation(loc); err != nil {
-			return "", err
-		}
-		lg.FromContext(ctx).Debug("Munged sqlite loc", lga.Before, locBefore, lga.After, loc)
+	munged, err := location.MungeForDriver(typ, loc)
+	if err != nil {
+		return "", err
 	}
-	if typ == drivertype.DuckDB {
-		if loc, err = duckdb.MungeLocation(loc); err != nil {
-			return "", err
-		}
-		lg.FromContext(ctx).Debug("Munged duckdb loc", lga.Before, locBefore, lga.After, loc)
+	if munged != loc {
+		lg.FromContext(ctx).Debug("Munged location", lga.Before, loc, lga.After, munged)
 	}
-	return loc, nil
+	return munged, nil
 }
 
 // checkFileLocationEscape rejects a typed file location whose '$$'
