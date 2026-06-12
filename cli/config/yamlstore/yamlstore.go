@@ -168,17 +168,7 @@ func (fs *Store) doLoad(ctx context.Context) (*config.Config, error) {
 	}
 
 	if cfg.Version == "" {
-		// Stamp the config schema version (the highest registered upgrade
-		// version), not the build version, to match fresh-config stamping
-		// (see defaultload.Load) and the schema-version model. Fall back to
-		// the build version only when no registry is configured, i.e. there
-		// is no schema version to assign.
-		if fs.UpgradeRegistry != nil {
-			cfg.Version = fs.UpgradeRegistry.highestVersion()
-		}
-		if cfg.Version == "" {
-			cfg.Version = buildinfo.Version
-		}
+		cfg.Version = buildinfo.Version
 	}
 
 	if cfg.Options == nil {
@@ -284,8 +274,15 @@ func (fs *Store) backupNewerConfig(ctx context.Context) error {
 // purpose is guaranteed recoverability.
 func (fs *Store) writeConfigBackupOnce(ctx context.Context, vers string, data []byte) (wrote bool, err error) {
 	backupPath := backupFilePath(fs.Path, vers)
-	switch _, statErr := os.Stat(backupPath); {
+	switch info, statErr := os.Stat(backupPath); {
 	case statErr == nil:
+		if !info.Mode().IsRegular() {
+			// The path exists but is not a regular file (e.g. a
+			// directory), so it is not a usable backup. Refuse rather
+			// than skip the write and risk silent data loss when the
+			// caller overwrites the config.
+			return false, errz.Errorf("config backup path exists but is not a regular file: %s", backupPath)
+		}
 		lg.FromContext(ctx).Info("Config backup already exists; not overwriting", lga.Path, backupPath)
 		return false, nil
 	case !errors.Is(statErr, os.ErrNotExist):

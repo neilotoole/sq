@@ -62,7 +62,7 @@ func (fs *Store) doUpgrade(ctx context.Context, startVersion, targetVersion stri
 
 	data, err := os.ReadFile(fs.Path)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errz.Wrapf(err, "config: failed to read file for upgrade: %s", fs.Path)
 	}
 
 	// Write a verbatim backup before the upgrade funcs transform the
