@@ -84,9 +84,9 @@ and writes a placeholder to the config in its place.
 
 ## TLS and certificates
 
-rqlite serves plain HTTP by default, and so does this driver: a bare
-`rqlite://host:4001` location connects over HTTP. To connect over HTTPS
-instead, add `tls=true`:
+rqlite serves plain HTTP by default, and the driver's default matches:
+a bare `rqlite://host:4001` location connects over HTTP. To connect
+over HTTPS instead, add `tls=true`:
 
 ```shell
 # No tls param; defaults to HTTP
