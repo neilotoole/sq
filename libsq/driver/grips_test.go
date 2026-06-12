@@ -99,6 +99,58 @@ func TestGrips_ResolveSourceSecrets_NoRefs_Unescape(t *testing.T) {
 	}
 }
 
+// TestGrips_ResolveSourceSecrets_AgreesWithExpand verifies that
+// connect-time resolution and Registry.Expand produce identical bytes
+// for the same template (gh #787). Historically the two diverged on the
+// zero-refs path: Expand unescaped "$$" while ResolveSourceSecrets
+// returned the location verbatim, so a no-placeholder password like
+// "pa$$wd" connected as "pa$$wd" but displayed and exported as "pa$wd",
+// silently corrupting restored backups.
+func TestGrips_ResolveSourceSecrets_AgreesWithExpand(t *testing.T) {
+	reg := secret.NewRegistry()
+	reg.Register("keyring", &captureResolver{value: "hunter2"})
+	ctx := secret.NewContext(context.Background(), reg)
+
+	tests := []struct {
+		name string
+		loc  string
+	}{
+		{
+			name: "zero refs with dollar escape",
+			loc:  "postgres://alice:pa$$wd@db/sakila",
+		},
+		{
+			name: "zero refs no dollar",
+			loc:  "postgres://alice:pw@db/sakila",
+		},
+		{
+			name: "refs with dollar escape outside placeholder",
+			loc:  "postgres://ali$$ce:${keyring:my_db_pw}@db/sakila",
+		},
+		{
+			name: "refs only",
+			loc:  "postgres://alice:${keyring:my_db_pw}@db/sakila",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			expanded, err := reg.Expand(ctx, tc.loc)
+			require.NoError(t, err)
+
+			src := &source.Source{
+				Handle:   "@sakila",
+				Type:     drivertype.Pg,
+				Location: tc.loc,
+			}
+			resolved, err := driver.ResolveSourceSecrets(ctx, src)
+			require.NoError(t, err)
+			require.Equal(t, expanded, resolved.Location,
+				"connect-time bytes must equal Expand output")
+		})
+	}
+}
+
 // TestGrips_ResolveSourceSecrets_Idempotent verifies that resolving an
 // already-resolved source is a no-op. Resolution converts template
 // bytes to literal bytes; reinterpreting literal bytes as a template

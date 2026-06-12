@@ -7,6 +7,19 @@
 // values back. URL-encoding of values that land inside URL userinfo is
 // handled automatically.
 //
+// # Grammar
+//
+// A placeholder is ${scheme:path}, where scheme matches [a-z][a-z0-9]*
+// and path is any non-empty text up to the first '}'. In literal text,
+// "$$" escapes a literal '$'. Because the path ends at the first '}', a
+// path containing '}' cannot be expressed. To prevent such a path from
+// silently truncating, a '}' in literal text is constrained: before the
+// first placeholder it is always literal; immediately after a
+// placeholder it is literal (so "${env:X}}" is the placeholder followed
+// by '}'); anywhere else after a placeholder it must be balanced by an
+// earlier unmatched literal '{', or parsing fails with an unbalanced-'}'
+// error.
+//
 // # Templates vs literals
 //
 // Two kinds of strings flow through this package, and confusing them

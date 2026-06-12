@@ -15,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/secret"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
@@ -181,6 +182,31 @@ func TestMaybeExpandSource_FlagSet_Expands(t *testing.T) {
 	require.NotSame(t, src, got, "must clone")
 	require.Equal(t, "postgres://alice:hunter2@db/sakila", got.Location)
 	require.Equal(t, "${keyring:abc}", src.Location, "input must not be mutated")
+}
+
+// TestMaybeExpandSource_ZeroRefs_AgreesWithConnect verifies that the
+// --expand display path agrees with connect-time resolution for a
+// template with no placeholders (gh #787): "$$" is unescaped to the
+// literal form on both paths, so the displayed location is exactly
+// what the driver connects with.
+func TestMaybeExpandSource_ZeroRefs_AgreesWithConnect(t *testing.T) {
+	ru := newTestRun(t, nil)
+	cmd := newCmdWithExpand(t, true)
+
+	src := &source.Source{
+		Handle:   "@a",
+		Type:     drivertype.Pg,
+		Location: "postgres://alice:pa$$wd@db/sakila",
+	}
+
+	got, err := maybeExpandSource(context.Background(), ru, cmd, src)
+	require.NoError(t, err)
+	require.Equal(t, "postgres://alice:pa$wd@db/sakila", got.Location)
+
+	resolved, err := driver.ResolveSourceSecrets(context.Background(), src)
+	require.NoError(t, err)
+	require.Equal(t, resolved.Location, got.Location,
+		"display expansion and connect-time resolution must agree")
 }
 
 func TestMaybeExpandSource_FlagSet_LenientOnResolverError(t *testing.T) {

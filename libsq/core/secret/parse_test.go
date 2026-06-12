@@ -81,6 +81,64 @@ func TestFindPlaceholders(t *testing.T) {
 				start: 0, end: 24, scheme: "keyring", path: "@grp/sub/name",
 			}},
 		},
+		{
+			// gh #787: a path containing '}' truncates at the first '}',
+			// leaving "rets/pw}" as literal text. The stray '}' must be a
+			// parse error, not a silent misparse.
+			name:    "truncated path with unbalanced brace",
+			in:      "postgres://alice:${file:/run/sec}rets/pw}@db/sakila",
+			wantErr: "unbalanced '}' at offset 40",
+		},
+		{
+			// gh #787 regression guard: a '}' immediately following a
+			// placeholder is literal text and must keep parsing as today.
+			name: "placeholder then literal close brace",
+			in:   "${env:X}}",
+			want: []placeholder{{
+				start: 0, end: 8, scheme: "env", path: "X",
+			}},
+		},
+		{
+			name: "placeholder then run of literal close braces",
+			in:   "${env:X}}}",
+			want: []placeholder{{
+				start: 0, end: 8, scheme: "env", path: "X",
+			}},
+		},
+		{
+			name: "balanced braces after placeholder",
+			in:   "${env:X}-{a}-b",
+			want: []placeholder{{
+				start: 0, end: 8, scheme: "env", path: "X",
+			}},
+		},
+		{
+			name: "placeholder wrapped in literal braces",
+			in:   "{${env:X}}",
+			want: []placeholder{{
+				start: 1, end: 9, scheme: "env", path: "X",
+			}},
+		},
+		{
+			name:    "unbalanced brace between placeholders",
+			in:      "${env:A}x}${env:B}",
+			wantErr: "unbalanced '}' at offset 9",
+		},
+		{
+			// A '}' before the first placeholder cannot be a truncation
+			// artifact: it stays literal.
+			name: "brace before first placeholder is literal",
+			in:   "we}ird-${env:X}",
+			want: []placeholder{{
+				start: 7, end: 15, scheme: "env", path: "X",
+			}},
+		},
+		{
+			// With no placeholders at all, braces are always literal.
+			name: "literal braces without placeholders",
+			in:   "postgres://alice:hu}nter2@db/sakila",
+			want: nil,
+		},
 	}
 
 	for _, tc := range tests {
