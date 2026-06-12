@@ -52,7 +52,9 @@ and inline plaintext is dumped as-is. Treat the exported file the same as
 ## Redaction
 
 `sq` redacts URL-style passwords in the location of a source when that
-location is printed. For a source
+location is printed. Secret-bearing query parameters, such as Postgres's
+`?sslpassword=` or SQLite's `?_auth_pass=`, are masked the same way.
+For a source
 
 ```yaml
 - handle: '@sakila/pg'

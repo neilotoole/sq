@@ -403,3 +403,110 @@ func TestStripSecrets(t *testing.T) {
 		})
 	}
 }
+
+// TestRedact_SecretQueryParams verifies that Redact masks the values of
+// secret-bearing query parameters (per location.IsSecretQueryParam) with
+// the "xxxxx" display mask, across both file-style (sqlite3/duckdb) and
+// DSN-style locations, while leaving userinfo masking and non-secret
+// bytes unchanged. Values consisting entirely of ${scheme:path}
+// placeholders are config-visible text, not secrets, and pass through
+// verbatim.
+func TestRedact_SecretQueryParams(t *testing.T) {
+	testCases := []struct {
+		name string
+		loc  string
+		want string
+	}{
+		{
+			name: "sqlite3 auth query params",
+			loc:  "sqlite3:///data/app.db?_auth_user=admin&_auth_pass=hunter2",
+			want: "sqlite3:///data/app.db?_auth_user=admin&_auth_pass=xxxxx",
+		},
+		{
+			name: "sqlite3 no query unchanged",
+			loc:  "sqlite3:///path/to/sqlite.db",
+			want: "sqlite3:///path/to/sqlite.db",
+		},
+		{
+			name: "sqlite3 non-secret params unchanged",
+			loc:  "sqlite3:///data/app.db?cache=shared&mode=ro",
+			want: "sqlite3:///data/app.db?cache=shared&mode=ro",
+		},
+		{
+			name: "sqlite3 empty secret value unchanged",
+			loc:  "sqlite3:///data/app.db?_auth_pass=",
+			want: "sqlite3:///data/app.db?_auth_pass=",
+		},
+		{
+			name: "sqlite3 fragment after secret query param",
+			loc:  "sqlite3:///data/app.db?_auth_pass=hunter2#frag",
+			want: "sqlite3:///data/app.db?_auth_pass=xxxxx#frag",
+		},
+		{
+			name: "duckdb token query param",
+			loc:  "duckdb:///data/sakila.duckdb?motherduck_token=tok123",
+			want: "duckdb:///data/sakila.duckdb?motherduck_token=xxxxx",
+		},
+		{
+			name: "postgres sslpassword",
+			loc:  "postgres://alice@localhost/sakila?sslpassword=hunter2",
+			want: "postgres://alice@localhost/sakila?sslpassword=xxxxx",
+		},
+		{
+			name: "postgres userinfo and secret query value both masked",
+			loc:  "postgres://alice:hunter2@localhost/sakila?sslpassword=abc&sslmode=require",
+			want: "postgres://alice:xxxxx@localhost/sakila?sslpassword=xxxxx&sslmode=require",
+		},
+		{
+			name: "sqlserver password query param",
+			loc:  "sqlserver://alice:hunter2@server:1433?database=sakila&password=abc",
+			want: "sqlserver://alice:xxxxx@server:1433?database=sakila&password=xxxxx",
+		},
+		{
+			name: "rqlite userinfo and token query param",
+			loc:  "rqlite://alice:hunter2@localhost:4001/mydb?auth_token=abc",
+			want: "rqlite://alice:xxxxx@localhost:4001/mydb?auth_token=xxxxx",
+		},
+		{
+			name: "http url with token query param",
+			loc:  "https://acme.com/data.csv?token=abc&format=csv",
+			want: "https://acme.com/data.csv?token=xxxxx&format=csv",
+		},
+		{
+			name: "bare path with secret query param",
+			loc:  "/data/app.db?_auth_pass=hunter2",
+			want: "/data/app.db?_auth_pass=xxxxx",
+		},
+		{
+			name: "placeholder secret query value kept verbatim",
+			loc:  "sqlite3:///data/app.db?_auth_user=admin&_auth_pass=${keyring:app-db}",
+			want: "sqlite3:///data/app.db?_auth_user=admin&_auth_pass=${keyring:app-db}",
+		},
+		{
+			name: "placeholder secret query value in DSN kept verbatim",
+			loc:  "postgres://alice@localhost/sakila?sslpassword=${env:PGPASS}",
+			want: "postgres://alice@localhost/sakila?sslpassword=${env:PGPASS}",
+		},
+		{
+			name: "mixed literal and placeholder query value masked",
+			loc:  "sqlite3:///data/app.db?_auth_pass=abc${env:DBPASS}",
+			want: "sqlite3:///data/app.db?_auth_pass=xxxxx",
+		},
+		{
+			name: "placeholder userinfo password still masked",
+			loc:  "postgres://alice:${keyring:pg-prod}@localhost/sakila?sslmode=require",
+			want: "postgres://alice:xxxxx@localhost/sakila?sslmode=require",
+		},
+		{
+			name: "placeholder in non-secret position untouched",
+			loc:  "postgres://alice@localhost/sakila?application_name=${env:APP}",
+			want: "postgres://alice@localhost/sakila?application_name=${env:APP}",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, location.Redact(tc.loc))
+		})
+	}
+}

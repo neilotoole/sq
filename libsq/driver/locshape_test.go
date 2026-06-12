@@ -292,6 +292,96 @@ func TestWalk_gh743BareHostIPv6(t *testing.T) {
 	require.True(t, got.PortSet)
 }
 
+// TestWalk_gh792AtBeyondAuthority covers issue #792: an '@' in the
+// path or query string of credential-less input must not be treated
+// as the userinfo terminator. Per RFC 3986, userinfo can only occur
+// before the first '/' or '?', so the walker bounds its '@' search to
+// that authority portion. A tail with no '/' or '?' yet (mid-typing)
+// keeps the existing behavior: an '@' there genuinely terminates
+// userinfo.
+func TestWalk_gh792AtBeyondAuthority(t *testing.T) {
+	t.Run("at_in_query_value_trailing", func(t *testing.T) {
+		// The reported repro: completing after "...application_name=me@".
+		got, err := Walk(pgShape, "postgres://localhost/db?application_name=me@")
+		require.NoError(t, err)
+		require.Equal(t, SegConnParams, got.Current)
+		require.NotContains(t, got.Done, SegCredentials)
+		require.False(t, got.HasCreds)
+		require.Empty(t, got.User)
+		require.Equal(t, "localhost", got.Hostname)
+		require.Equal(t, "db", got.PathName)
+		require.Equal(t, "application_name", got.ParamLastKey)
+		require.True(t, got.ParamAtValue)
+		require.Equal(t, "me@", got.Params.Get("application_name"))
+	})
+
+	t.Run("at_in_query_value_then_next_key", func(t *testing.T) {
+		got, err := Walk(pgShape, "postgres://localhost/db?application_name=me@example.com&ssl")
+		require.NoError(t, err)
+		require.Equal(t, SegConnParams, got.Current)
+		require.False(t, got.HasCreds)
+		require.Equal(t, "localhost", got.Hostname)
+		require.Equal(t, "me@example.com", got.Params.Get("application_name"))
+		require.Equal(t, "ssl", got.ParamLastKey)
+		require.False(t, got.ParamAtValue)
+	})
+
+	t.Run("at_in_path_segment", func(t *testing.T) {
+		got, err := Walk(pgShape, "postgres://localhost/cust@")
+		require.NoError(t, err)
+		require.Equal(t, SegPathName, got.Current)
+		require.NotContains(t, got.Done, SegCredentials)
+		require.False(t, got.HasCreds)
+		require.Equal(t, "localhost", got.Hostname)
+		require.Equal(t, "cust@", got.PathName)
+	})
+
+	t.Run("at_in_path_then_query", func(t *testing.T) {
+		got, err := Walk(pgShape, "postgres://localhost/cust@db?")
+		require.NoError(t, err)
+		require.Equal(t, SegConnParams, got.Current)
+		require.False(t, got.HasCreds)
+		require.Contains(t, got.Done, SegPathName)
+		require.Equal(t, "cust@db", got.PathName)
+	})
+
+	t.Run("at_in_query_sqlserver", func(t *testing.T) {
+		got, err := Walk(sqlserverShape, "sqlserver://localhost?database=me@x")
+		require.NoError(t, err)
+		require.Equal(t, SegConnParams, got.Current)
+		require.False(t, got.HasCreds)
+		require.Equal(t, "localhost", got.Hostname)
+		require.Equal(t, "database", got.ParamLastKey)
+		require.True(t, got.ParamAtValue)
+	})
+
+	t.Run("creds_with_at_in_query_value", func(t *testing.T) {
+		// Genuine credentials must keep working when the query also
+		// contains an '@'.
+		got, err := Walk(pgShape, "postgres://alice:hunter2@localhost/db?application_name=me@")
+		require.NoError(t, err)
+		require.True(t, got.HasCreds)
+		require.Equal(t, "alice", got.User)
+		require.Equal(t, "hunter2", got.Pass)
+		require.Equal(t, "localhost", got.Hostname)
+		require.Equal(t, "db", got.PathName)
+		require.Equal(t, SegConnParams, got.Current)
+		require.True(t, got.ParamAtValue)
+		require.Equal(t, "me@", got.Params.Get("application_name"))
+	})
+
+	t.Run("at_terminates_userinfo_when_no_boundary_yet", func(t *testing.T) {
+		// Mid-typing: no '/' or '?' yet, so the '@' is the userinfo
+		// terminator (username without password). Unchanged behavior.
+		got, err := Walk(pgShape, "postgres://bob@")
+		require.NoError(t, err)
+		require.Equal(t, []SegmentKind{SegCredentials}, got.Done)
+		require.True(t, got.HasCreds)
+		require.Equal(t, "bob", got.User)
+		require.False(t, got.PassSet)
+	})
+}
+
 func TestWalk_rqliteTLSParam(t *testing.T) {
 	got, err := Walk(rqliteShape, "rqlite://alice@h:8443?level=strong&tls=true")
 	require.NoError(t, err)
