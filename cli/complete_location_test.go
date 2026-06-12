@@ -1766,6 +1766,105 @@ func TestCompleteAddLocation_History_SQLite3(t *testing.T) {
 	}
 }
 
+// TestCompleteAddLocation_History_SecretsStripped verifies gh784:
+// prior source locations are stripped of inline secrets (userinfo
+// passwords and secret-bearing query parameter values) before they
+// are offered as shell-completion candidates.
+func TestCompleteAddLocation_History_SecretsStripped(t *testing.T) {
+	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
+	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
+	t.Logf("Working dir: %s", wd)
+
+	const (
+		userinfoSecret = "userinfoSecret77"
+		querySecret    = "querySecret88"
+	)
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	tr.Add(
+		source.Source{
+			Handle: "@pg1",
+			Type:   drivertype.Pg,
+			Location: "postgres://alice:" + userinfoSecret +
+				"@dev.acme.com:7777/sakila?sslmode=require&sslpassword=" + querySecret,
+		},
+		source.Source{
+			Handle: "@pg2",
+			Type:   drivertype.Pg,
+			// A ${scheme:path} placeholder password isn't itself a secret
+			// (it's the text stored in config). net/url rejects the
+			// placeholder characters in userinfo, but the parse gate
+			// tolerates a placeholder password, so this source must still
+			// contribute suggestions (bob, prod.acme.com:5432, the tail).
+			Location: "postgres://bob:${keyring:pg-prod}@prod.acme.com:5432/sales?sslmode=verify-full",
+		},
+		source.Source{
+			Handle: "@sl1",
+			Type:   drivertype.SQLite,
+			// Note that this file doesn't actually exist.
+			Location: "sqlite3:///zz_dir1/sqtest/sq/app.db?_auth_user=admin&_auth_pass=" + querySecret,
+		},
+		source.Source{
+			Handle: "@sl2",
+			Type:   drivertype.SQLite,
+			// Placeholder-valued secret query param: offered verbatim.
+			Location: "sqlite3:///zz_dir1/sqtest/sq/app2.db?_auth_user=admin&_auth_pass=${keyring:sl-dev}",
+		},
+	)
+
+	testCases := []struct {
+		args []string
+		want []string
+	}{
+		{
+			args: []string{"sqlite3:///zz_dir1/sqtest/"},
+			want: []string{
+				"sqlite3:///zz_dir1/sqtest/sq/app.db?_auth_user=admin&_auth_pass=",
+				"sqlite3:///zz_dir1/sqtest/sq/app2.db?_auth_user=admin&_auth_pass=${keyring:sl-dev}",
+			},
+		},
+		{
+			args: []string{"postgres://"},
+			want: []string{
+				"postgres://alice",
+				"postgres://bob",
+				"postgres://username",
+			},
+		},
+		{
+			args: []string{"postgres://alice@"},
+			want: []string{
+				"postgres://alice@localhost/",
+				"postgres://alice@localhost?",
+				"postgres://alice@localhost:5432/",
+				"postgres://alice@localhost:5432?",
+				"postgres://alice@dev.acme.com:7777/sakila?sslmode=require&sslpassword=",
+				"postgres://alice@prod.acme.com:5432/sales?sslmode=verify-full",
+				"postgres://alice@dev.acme.com:7777/",
+				"postgres://alice@dev.acme.com:7777?",
+				"postgres://alice@prod.acme.com:5432/",
+				"postgres://alice@prod.acme.com:5432?",
+			},
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
+			args := append([]string{"add"}, tc.args...)
+			got := testComplete(t, tr, args...)
+			require.Equal(t, stdDirective, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
+			for _, v := range got.values {
+				require.NotContains(t, v, userinfoSecret,
+					"completion candidate must not contain the userinfo password")
+				require.NotContains(t, v, querySecret,
+					"completion candidate must not contain a secret query param value")
+			}
+		})
+	}
+}
+
 // TestParseLoc_stage is no more: the legacy parsedLoc / plocStage
 // parser was replaced by driver.LocationShape + driver.Walk. Stage
 // detection is now covered by TestWalk in libsq/driver.
