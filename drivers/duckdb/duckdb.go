@@ -116,7 +116,8 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	loc := src.Location
 	if driver.IsReadOnly(ctx) {
 		var changed bool
-		if loc, changed = ApplyReadOnlyToLocation(loc); changed {
+		loc, changed = ApplyReadOnlyToLocation(loc, driver.IsReadOnlyExplicit(ctx))
+		if changed {
 			lg.FromContext(ctx).Debug("DuckDB source opened READ_ONLY",
 				lga.Src, src)
 		}

@@ -96,6 +96,9 @@ func execSQL(cmd *cobra.Command, args []string) error {
 	if readOnlySrc {
 		if peek := peekActiveSrc(cmd, ru.Config.Collection); peek != nil &&
 			peek.Type == drivertype.DuckDB {
+			// Only READ_WRITE is a hard conflict. access_mode=AUTOMATIC is
+			// overridden to READ_ONLY by the driver (see
+			// duckdb.ApplyReadOnlyToLocation), and READ_ONLY already agrees.
 			if mode, ok := duckdb.ExplicitAccessMode(peek.Location); ok &&
 				strings.EqualFold(mode, "READ_WRITE") {
 				return errz.Errorf(
@@ -104,7 +107,7 @@ func execSQL(cmd *cobra.Command, args []string) error {
 			}
 		}
 		if !cmdFlagChanged(cmd, flag.Insert) {
-			ctx = driver.WithReadOnly(ctx)
+			ctx = driver.WithReadOnlyExplicit(ctx)
 			cmd.SetContext(ctx)
 		}
 	}
@@ -222,9 +225,10 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 	}
 
 	// Now mark the ctx read-only for the source-side open. Skips the
-	// rewrite if the user didn't pass --readonly.
+	// rewrite if the user didn't pass --readonly. Explicit, because
+	// readOnlySrc is only true when the user passed --readonly.
 	if readOnlySrc {
-		ctx = driver.WithReadOnly(ctx)
+		ctx = driver.WithReadOnlyExplicit(ctx)
 	}
 
 	fromGrip, err := grips.Open(ctx, fromSrc)
