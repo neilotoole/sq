@@ -42,13 +42,15 @@ type UpgradeRegistry map[string]UpgradeFunc
 // advances only when a registered upgrade func transforms the config,
 // never to the sq binary version.
 //
-// If no upgrade func falls in the range, doUpgrade leaves the config
-// file untouched (no stamping, no backup). From Load this never happens
-// (it calls doUpgrade only when foundVersion < targetVersion, and
-// targetVersion is itself a registry key, so it is always in range); the
-// guard matters only for a direct caller passing a target with no funcs
-// in range, where rewriting must be avoided because the load-save cycle
-// below is not byte-preserving.
+// If no upgrade func falls in the range, doUpgrade performs no upgrade
+// (no upgrade-func transformation, no version stamping, no backup) and
+// just loads the config; the load may still rewrite the file if it
+// triggers an integrity repair (see doLoad). From Load this branch is
+// never reached (it calls doUpgrade only when foundVersion <
+// targetVersion, and targetVersion is itself a registry key, so it is
+// always in range); the guard matters only for a direct caller passing a
+// target with no funcs in range, where the not-byte-preserving upgrade
+// rewrite must be avoided.
 func (fs *Store) doUpgrade(ctx context.Context, startVersion, targetVersion string) (*config.Config, error) {
 	log := lg.FromContext(ctx)
 	log.Debug("Starting config upgrade", lga.From, startVersion, lga.To, targetVersion)
@@ -59,7 +61,7 @@ func (fs *Store) doUpgrade(ctx context.Context, startVersion, targetVersion stri
 
 	upgradeFns := fs.UpgradeRegistry.getUpgradeFuncs(startVersion, targetVersion)
 	if len(upgradeFns) == 0 {
-		log.Debug("No config upgrade funcs to run; config file untouched")
+		log.Debug("No config upgrade funcs to run; no upgrade performed")
 		return fs.doLoad(ctx)
 	}
 
