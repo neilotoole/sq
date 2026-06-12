@@ -106,6 +106,10 @@ func execDBExec(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if src, err = resolveToolCmdSource(cmd, src); err != nil {
+		return err
+	}
+
 	var execCmd *execz.Cmd
 
 	switch src.Type { //nolint:exhaustive

@@ -167,10 +167,11 @@ func DumpClusterCmd(src *source.Source, p *ToolParams) (*execz.Cmd, error) {
 	cmd := &execz.Cmd{
 		Name:       "pg_dumpall",
 		CmdDirPath: true,
-		Env:        []string{"PGPASSWORD=" + cfg.ConnConfig.Password},
+		// The password lands in the env verbatim; execz.Cmd's log
+		// rendering masks all env values, so it doesn't leak to logs.
+		Env: []string{"PGPASSWORD=" + cfg.ConnConfig.Password},
 	}
 
-	// FIXME: need mechanism to indicate that env contains password
 	if p.Verbose {
 		cmd.ProgressFromStderr = true
 		cmd.Args = append(cmd.Args, p.flag(flagVerbose))

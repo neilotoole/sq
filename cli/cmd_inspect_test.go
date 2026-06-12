@@ -887,6 +887,37 @@ func TestCmdInspect_mode_catalogs(t *testing.T) {
 	}
 }
 
+// TestCmdInspect_FlagActiveSchema_Placeholder verifies that --src.schema
+// validation works for a source whose location is a ${scheme:path}
+// placeholder. verifySourceCatalogSchema opens the source directly,
+// deliberately bypassing the grip cache, and thereby also bypassing the
+// secret resolution that Grips.doOpen performs; it must resolve at the
+// call site.
+//
+// See: https://github.com/neilotoole/sq/issues/783.
+func TestCmdInspect_FlagActiveSchema_Placeholder(t *testing.T) {
+	const handle = "@sl3_ph"
+
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+	t.Setenv("SQ_TEST_SL3_LOC", src.Location)
+
+	tr := testrun.New(th.Context, t, nil)
+	tr.Add(source.Source{
+		Handle:   handle,
+		Type:     drivertype.SQLite,
+		Location: "${env:SQ_TEST_SL3_LOC}",
+	})
+
+	err := tr.Exec("inspect", handle, "--src.schema", "main", "--json")
+	require.NoError(t, err,
+		"--src.schema validation should resolve the placeholder location")
+
+	srcMeta := &metadata.Source{}
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), srcMeta))
+	require.Contains(t, srcMeta.TableNames(), sakila.TblActor)
+}
+
 // TestCmdInspect_NumericSchema tests "sq inspect --src.schema" with numeric
 // and numeric-prefixed schema names. This validates the grammar fix for issue #470.
 // See: https://github.com/neilotoole/sq/issues/470

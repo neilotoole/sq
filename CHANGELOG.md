@@ -87,6 +87,16 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [#750], [#752], [#757], [#759]: A batch of fixes to the `CREATE TABLE` DDL rewriting
   that backs table copy and column-kind alteration on the
   [sqlite3](https://sq.io/docs/drivers/sqlite) driver.
+- [#783]: `sq db dump cluster` no longer writes the database password to the sq log file:
+  the log rendering of external commands now masks all env values (the password was passed
+  to `pg_dumpall` via `PGPASSWORD`).
+- [#783]: [`sq cache clear @src`](https://sq.io/docs/cmd/cache-clear) now clears every
+  cache dir belonging to the source, including stale dirs left over from a changed
+  location, schema, or ingest options. Previously only the dir for the source's current
+  configuration was cleared, silently leaving the rest on disk.
+- [#783]: [`sq add`](https://sq.io/docs/cmd/add) and [`sq mv`](https://sq.io/docs/cmd/mv)
+  no longer permit a source handle nested below an existing source's handle (e.g. adding
+  `@prod/db/x` when `@prod` exists).
 
 ## [v0.53.0] - 2026-05-25
 
@@ -1674,6 +1684,7 @@ make working with lots of sources much easier.
 [#757]: https://github.com/neilotoole/sq/issues/757
 [#759]: https://github.com/neilotoole/sq/issues/759
 [#782]: https://github.com/neilotoole/sq/issues/782
+[#783]: https://github.com/neilotoole/sq/issues/783
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
