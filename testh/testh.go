@@ -1030,8 +1030,11 @@ var (
 )
 
 // staleScratchTableQuery returns a query that selects the names of tables
-// in the current schema created more than an hour ago, or empty string if
+// created more than an hour ago in the current schema, or empty string if
 // typ doesn't expose table creation time (e.g. Postgres, SQLite, rqlite).
+// "Current schema" is each backend's analogue of where unqualified table
+// names resolve: MySQL and ClickHouse scope to the current database, MSSQL
+// to the caller's default schema, and Oracle to the current user.
 func staleScratchTableQuery(typ drivertype.Type) string {
 	switch typ { //nolint:exhaustive
 	case drivertype.MySQL:
@@ -1039,7 +1042,8 @@ func staleScratchTableQuery(typ drivertype.Type) string {
 WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'
 AND create_time IS NOT NULL AND create_time < NOW() - INTERVAL 1 HOUR`
 	case drivertype.MSSQL:
-		return `SELECT name FROM sys.tables WHERE create_date < DATEADD(HOUR, -1, SYSDATETIME())`
+		return `SELECT name FROM sys.tables
+WHERE schema_id = SCHEMA_ID() AND create_date < DATEADD(HOUR, -1, SYSDATETIME())`
 	case drivertype.ClickHouse:
 		return `SELECT name FROM system.tables WHERE database = currentDatabase()
 AND NOT is_temporary AND metadata_modification_time < now() - INTERVAL 1 HOUR`
@@ -1104,7 +1108,7 @@ func (h *Helper) doSweepStaleScratchTables(src *source.Source, query string) {
 		log.Warn("Scratch table sweep: failed to open source", lga.Err, err)
 		return
 	}
-	defer lg.WarnIfCloseError(h.Log(), lgm.CloseDB, grip)
+	defer lg.WarnIfCloseError(log, lgm.CloseDB, grip)
 
 	db, err := grip.DB(h.Context)
 	if err != nil {
@@ -1117,7 +1121,7 @@ func (h *Helper) doSweepStaleScratchTables(src *source.Source, query string) {
 		log.Warn("Scratch table sweep: query failed", lga.Err, err)
 		return
 	}
-	defer lg.WarnIfCloseError(h.Log(), lgm.CloseDBRows, rows)
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
 	var stale []string
 	for rows.Next() {
