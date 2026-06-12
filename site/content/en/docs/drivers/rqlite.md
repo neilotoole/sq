@@ -40,6 +40,11 @@ $ sq add 'rqlite://node.example.com:4001?tls=true&insecure=true'
 
 If the port is omitted, `sq` auto-applies the default port `4001`.
 
+`sq add` verifies the connection with a round-trip query, so a
+misconfigured source (unreachable node, bad credentials, TLS mismatch)
+fails at add time rather than at first query. Pass `--skip-verify` to
+add the source without contacting the node.
+
 ## HTTP vs HTTPS
 
 rqlite serves plain HTTP by default, and so does this driver: a bare
@@ -71,15 +76,15 @@ $ sq add 'rqlite://node.example.com:4001'
 The probe is skipped if you pass `--skip-verify`, if the location already includes a `tls` or
 `insecure` param, or if the location contains [secret placeholders](/docs/secrets/#placeholders).
 A source is probed only when it's added: if the server's transport changes later, connections fail
-with an error that suggests the fix; the saved location is never silently rewritten.
+with an error describing the mismatch; the saved location is never silently rewritten.
 {{< /alert >}}
 
 ### Self-signed certificates
 
 If the server presents a self-signed certificate or one issued by a
-private CA, certificate verification fails, and `sq add` errors with
-instructions. To accept the certificate, add `insecure=true` (valid
-only in combination with `tls=true`):
+private CA, certificate verification fails and `sq add` errors. To
+accept the certificate, add `insecure=true` (valid only in combination
+with `tls=true`):
 
 ```shell
 $ sq add 'rqlite://node.example.com:4001?tls=true&insecure=true'
@@ -103,12 +108,11 @@ host (the most common newcomer setup), discovery backfires. The node
 truthfully reports its own internal advertise address, which is
 typically a container-only hostname like `rqlite1` for the
 `sakiladb/rqlite` image or the container's short ID for the official
-`rqlite/rqlite` image. Your host can't resolve either of those, and the
-connection fails with:
+`rqlite/rqlite` image. Your host can't resolve either of those, and
+`sq add` fails with:
 
 ```text
-tried all peers unsuccessfully. ...
-dial tcp: lookup rqlite1: no such host
+sq: @rq: rqlite: cluster discovery failed: advertised peer "rqlite1" is not resolvable from this host
 ```
 
 The fix is `?disableClusterDiscovery=true` on the source URL. A
