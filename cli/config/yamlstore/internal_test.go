@@ -303,6 +303,54 @@ func Test_Store_Load_UpgradeStampsSchemaVersion(t *testing.T) {
 	require.Equal(t, cfgContent, string(backupContent))
 }
 
+// Test_Store_Load_Upgrade_PreservesGuardBackup verifies that the
+// pre-upgrade backup is written at most once: when a backup for the
+// same version already exists (here, the downgrade guard's pristine
+// copy of a newer config, written by Store.backupNewerConfig in an
+// older binary), the upgrade must not overwrite it with the degraded
+// on-disk config.
+func Test_Store_Load_Upgrade_PreservesGuardBackup(t *testing.T) {
+	setBuildVersion(t, "v0.56.0")
+
+	// The on-disk config: stamped v0.55.0, already degraded by an
+	// older (downgraded) binary's re-marshaling save.
+	const degraded = "config.version: v0.55.0\n"
+	_, cfgPath := writeTestConfig(t, degraded)
+
+	// The guard backup: the pristine v0.55-written config that the
+	// downgrade guard preserved before the older binary's first save.
+	const pristine = `config.version: v0.55.0
+# Comment from the newer sq version.
+future_field: data the older build didn't understand
+`
+	backupPath := backupFilePath(cfgPath, "v0.55.0")
+	require.NoError(t, os.WriteFile(backupPath, []byte(pristine), 0o644))
+
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+
+	var ran bool
+	store := &Store{
+		Path:            cfgPath,
+		OptionsRegistry: &options.Registry{},
+		UpgradeRegistry: UpgradeRegistry{
+			"v0.56.0": func(_ context.Context, before []byte) ([]byte, error) {
+				ran = true
+				return before, nil
+			},
+		},
+	}
+
+	cfg, err := store.Load(ctx)
+	require.NoError(t, err)
+	require.True(t, ran, "v0.56.0 upgrade must run")
+	require.Equal(t, "v0.56.0", cfg.Version)
+
+	got, err := os.ReadFile(backupPath)
+	require.NoError(t, err)
+	require.Equal(t, pristine, string(got),
+		"existing guard backup must not be clobbered by the pre-upgrade backup")
+}
+
 // Test_Store_Save_NewerConfig_BackupBeforeSave verifies the downgrade
 // guard: when the loaded config's version is newer than the build
 // version (the config was written by a newer sq version), the first

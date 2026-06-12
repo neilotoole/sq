@@ -35,14 +35,15 @@ type UpgradeFunc func(ctx context.Context, before []byte) (after []byte, err err
 // UpgradeRegistry is a map of config_version to upgrade funcs.
 type UpgradeRegistry map[string]UpgradeFunc
 
-// doUpgrade runs all the registered upgrade funcs between startVersion
-// and targetVersion, then stamps config.version with targetVersion.
-// Load passes the highest version in the UpgradeRegistry (the config
-// schema version) as targetVersion: config.version advances only when
-// a registered upgrade func transforms the config, never to the sq
-// binary version. If no upgrade func falls in the version range,
-// doUpgrade leaves the config file untouched: the load-save cycle
-// below is not byte-preserving (unknown keys, YAML comments, and
+// doUpgrade runs the registered upgrade funcs between startVersion
+// and targetVersion. If at least one upgrade func runs, doUpgrade
+// stamps config.version with targetVersion. Load passes the highest
+// version in the UpgradeRegistry (the config schema version) as
+// targetVersion: config.version advances only when a registered
+// upgrade func transforms the config, never to the sq binary version.
+// If no upgrade func falls in the version range, doUpgrade leaves the
+// config file untouched, with no stamping and no backup: the load-save
+// cycle below is not byte-preserving (unknown keys, YAML comments, and
 // formatting are lost on re-marshal), so it must not run for releases
 // without schema changes.
 func (fs *Store) doUpgrade(ctx context.Context, startVersion, targetVersion string) (*config.Config, error) {
@@ -64,17 +65,30 @@ func (fs *Store) doUpgrade(ctx context.Context, startVersion, targetVersion stri
 		return nil, errz.Err(err)
 	}
 
-	// Write a verbatim backup before the upgrade funcs transform
-	// the config.
+	// Write a verbatim backup before the upgrade funcs transform the
+	// config, unless a backup for startVersion already exists. A
+	// repeated upgrade from the same version would back up identical
+	// content, so skipping loses nothing; and the existing file may be
+	// the downgrade guard's pristine copy of a newer config (see
+	// Store.backupNewerConfig), which an overwrite would destroy.
 	backupPath := backupFilePath(fs.Path, startVersion)
-	if err = ioz.WriteFileAtomic(backupPath, data, ioz.RWPerms); err != nil {
-		// Abort rather than continue without a backup: the point of
-		// the backup is guaranteed recoverability, and if a sibling
-		// file can't be written, rewriting the config itself is
-		// unlikely to go better.
-		return nil, errz.Wrapf(err, "failed to write config backup before upgrade: %s", backupPath)
+	switch _, statErr := os.Stat(backupPath); {
+	case statErr == nil:
+		log.Info("Config backup already exists; not overwriting", lga.Path, backupPath)
+	case !errors.Is(statErr, os.ErrNotExist):
+		// A stat failure other than "not exists" (e.g. permissions)
+		// can't confirm that the backup exists, so abort the upgrade.
+		return nil, errz.Wrapf(statErr, "failed to stat config backup before upgrade: %s", backupPath)
+	default:
+		if err = ioz.WriteFileAtomic(backupPath, data, ioz.RWPerms); err != nil {
+			// Abort rather than continue without a backup: the point of
+			// the backup is guaranteed recoverability, and if a sibling
+			// file can't be written, rewriting the config itself is
+			// unlikely to go better.
+			return nil, errz.Wrapf(err, "failed to write config backup before upgrade: %s", backupPath)
+		}
+		log.Info("Wrote verbatim backup of config before upgrade", lga.Path, backupPath)
 	}
-	log.Info("Wrote verbatim backup of config before upgrade", lga.Path, backupPath)
 
 	for _, fn := range upgradeFns {
 		log.Debug("Attempting config upgrade step")
@@ -112,12 +126,11 @@ func (fs *Store) doUpgrade(ctx context.Context, startVersion, targetVersion stri
 // used both for pre-upgrade backups (doUpgrade) and for the downgrade
 // guard (Store.backupNewerConfig). The name deliberately does not end
 // in ".sq.yml": Store.loadExt treats any such file in the config dir
-// as ext config. The two callers treat an existing backup file
-// differently: doUpgrade overwrites it, because a repeated upgrade
-// from the same version backs up the same from-version content; but
-// backupNewerConfig writes at most once and never overwrites, because
-// the existing backup holds the newer config that a later write would
-// destroy.
+// as ext config. Both callers write the backup at most once and never
+// overwrite an existing file: because the path is derived the same way
+// in both, an existing backup may have been written by the other
+// caller, and in particular the downgrade guard's backup holds the
+// pristine newer config that a later overwrite would destroy.
 func backupFilePath(cfgPath, fromVersion string) string {
 	base := filepath.Base(cfgPath)
 	base = strings.TrimSuffix(base, filepath.Ext(base))
