@@ -31,8 +31,8 @@ $ sq add 'rqlite://sakila:p_ssW0rd@localhost:4001?disableClusterDiscovery=true'
 # redirects automatically.
 $ sq add 'rqlite://node1.example.com:4001'
 
-# HTTPS
-$ sq add 'rqlite://node.example.com:4001?tls=true'
+# HTTPS, using a user-supplied handle (@rq_https).
+$ sq add 'rqlite://node.example.com:4001?tls=true' --handle @rq_https
 
 # HTTPS with a self-signed certificate
 $ sq add 'rqlite://node.example.com:4001?tls=true&insecure=true'
@@ -42,7 +42,7 @@ If the port is omitted, `sq` connects on the default port `4001`.
 
 ### Verification
 
-At add time, `sq` does two things before persisting the source:
+At `sq add` time, two things happen before persisting the source:
 
 1. If the location has no explicit `tls` or `insecure` param, `sq` probes the endpoint's
    transport, and stores `tls=true` on the source if the server requires TLS. See
