@@ -70,8 +70,28 @@ func MungeForDriver(typ drivertype.Type, loc string) (string, error) {
 //
 // loc must be a ref-free template (no well-formed ${scheme:path}
 // placeholders): placeholder-bearing locations are opaque at add time
-// and must not be munged at all.
+// and must not be munged at all. For the file-DB types, this contract
+// is enforced: a loc bearing a placeholder, or with malformed
+// placeholder syntax, returns an error rather than being munged.
+// Pass-through driver types stay pass-through and are not inspected.
+// As elsewhere in this file, the error does not echo the location.
 func MungeTemplateForDriver(typ drivertype.Type, loc string) (string, error) {
+	switch typ { //nolint:exhaustive // only the file-DB types munge; others pass through
+	case drivertype.SQLite, drivertype.DuckDB:
+		// Enforce the ref-free contract before any path bytes are
+		// touched: munging a placeholder-bearing template would
+		// absolutize text the user meant as a placeholder, silently
+		// changing the template's semantics. The errors don't echo the
+		// location or the parse detail: templates can carry
+		// sensitive-adjacent text.
+		refs, err := secret.ExtractRefs(loc)
+		if err != nil {
+			return "", errz.New("cannot munge location: invalid placeholder syntax")
+		}
+		if len(refs) > 0 {
+			return "", errz.New("cannot munge location: template contains ${scheme:path} placeholders")
+		}
+	}
 	return mungeForDriver(typ, loc, true)
 }
 
@@ -177,9 +197,9 @@ func mungeFileDBLocation(prefix, loc string, allowMemory, template bool) (string
 // drive-relative path gets plain Join(cwd, path) semantics. The munge
 // code is already documented as OS-dependent.
 //
-// tmplPath must be ref-free: callers (isFpath, MungeTemplateForDriver)
-// exclude locations bearing well-formed ${scheme:path} placeholders
-// before absolutizing.
+// tmplPath must be ref-free: MungeTemplateForDriver rejects locations
+// bearing well-formed ${scheme:path} placeholders before absolutizing,
+// and isFpath excludes them.
 func absTemplatePath(tmplPath string) (string, error) {
 	if filepath.IsAbs(tmplPath) {
 		return filepath.Clean(tmplPath), nil

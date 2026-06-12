@@ -156,6 +156,54 @@ func TestMungeTemplateForDriver_EscapesCwdDollarBytes(t *testing.T) {
 	}
 }
 
+// TestMungeTemplateForDriver_RejectsPlaceholders verifies that the
+// file-DB template munge enforces its ref-free contract: a location
+// bearing a well-formed ${scheme:path} placeholder (or with malformed
+// placeholder syntax) errors instead of being munged, and the error
+// does not echo the location. Pass-through driver types stay
+// pass-through, placeholders and all.
+func TestMungeTemplateForDriver_RejectsPlaceholders(t *testing.T) {
+	placeholderLocs := []string{
+		"${env:SQ_DB_PATH}",
+		"sqlite3://${env:SQ_DB_PATH}",
+		"/var/db/${env:DB_NAME}.db",
+		"sakila.db?key=${keyring:sakila/key}",
+	}
+
+	for _, typ := range []drivertype.Type{drivertype.SQLite, drivertype.DuckDB} {
+		for _, loc := range placeholderLocs {
+			t.Run(tu.Name(typ.String(), loc), func(t *testing.T) {
+				_, err := location.MungeTemplateForDriver(typ, loc)
+				require.Error(t, err)
+				require.NotContains(t, err.Error(), loc,
+					"error must not echo the location")
+			})
+		}
+
+		t.Run(tu.Name(typ.String(), "malformed"), func(t *testing.T) {
+			_, err := location.MungeTemplateForDriver(typ, "sakila${env:.db")
+			require.Error(t, err)
+			require.NotContains(t, err.Error(), "sakila",
+				"error must not echo the location")
+		})
+
+		t.Run(tu.Name(typ.String(), "escaped dollar is ref-free"), func(t *testing.T) {
+			// '$$' is the escape for a literal '$': no ref is formed, so
+			// the template munges normally.
+			got, err := location.MungeTemplateForDriver(typ, "/var/db/q$${env:X}.db")
+			require.NoError(t, err)
+			require.Equal(t, string(typ)+":///var/db/q$${env:X}.db", got)
+		})
+	}
+
+	// A pass-through driver type is not inspected: the location returns
+	// verbatim, placeholder or not.
+	const pgLoc = "postgres://alice:${keyring:sakila/pw}@db/sakila"
+	got, err := location.MungeTemplateForDriver(drivertype.Pg, pgLoc)
+	require.NoError(t, err)
+	require.Equal(t, pgLoc, got)
+}
+
 // TestMungeTemplateForDriver_QuerySuffixPreserved verifies that the
 // "?key=val" connection-string suffix passes through template-mode
 // munging verbatim, with only the cwd-derived path bytes escaped.
