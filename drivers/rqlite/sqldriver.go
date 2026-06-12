@@ -214,7 +214,14 @@ func (r *sqRows) Next(dest []driver.Value) error {
 		// result sets.
 		return errz.New("rqlite: cannot read raw row values from gorqlite QueryResult")
 	}
-	row := r.vals[r.RowNumber()]
+	idx := r.RowNumber()
+	if idx < 0 || idx >= int64(len(r.vals)) {
+		// Same defensive posture as the valsOK guard: if gorqlite's
+		// RowNumber semantics ever change, fail loudly, never panic.
+		return errz.Errorf("rqlite: row index %d out of range (%d rows)",
+			idx, len(r.vals))
+	}
+	row := r.vals[idx]
 	if len(row) < len(dest) {
 		return errz.Errorf("rqlite: row has %d values but %d columns declared",
 			len(row), len(dest))
