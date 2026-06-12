@@ -6,6 +6,25 @@
 // placeholder via the appropriate Resolver, and substitutes the resolved
 // values back. URL-encoding of values that land inside URL userinfo is
 // handled automatically.
+//
+// # Templates vs literals
+//
+// Two kinds of strings flow through this package, and confusing them
+// silently corrupts credentials:
+//
+//   - A template contains ${scheme:path} refs and uses "$$" to escape a
+//     literal '$'. Stored source locations (sq.yml, config exports) are
+//     templates.
+//   - A literal is raw bytes. Resolver outputs, keyring slot values, and
+//     expanded locations (e.g. from driver.ResolveSourceSecrets) are
+//     literals; they are spliced or used verbatim, never re-scanned.
+//
+// Every boundary that moves bytes between the two kinds must convert
+// exactly once: Escape converts literal -> template; Expand and Unescape
+// convert template -> literal. Storing template bytes in a literal slot
+// (or vice versa), or converting twice, mangles any '$' the value
+// contains. source.Source.SecretsResolved marks an in-memory source whose
+// Location has already been converted to literal form.
 package secret
 
 import (

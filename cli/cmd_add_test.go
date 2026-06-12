@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -814,6 +815,20 @@ func TestCmdAdd_Placeholder_StoreRejected(t *testing.T) {
 	}
 }
 
+// pipeStdin points tr's stdin at a temp file containing content, for
+// tests that exercise prompts or piped input. Run.Stdin wants an
+// *os.File, so a plain strings.Reader doesn't suffice.
+func pipeStdin(t *testing.T, tr *testrun.TestRun, content string) {
+	t.Helper()
+	f, err := os.CreateTemp(t.TempDir(), "stdin")
+	require.NoError(t, err)
+	_, err = f.WriteString(content)
+	require.NoError(t, err)
+	_, err = f.Seek(0, 0)
+	require.NoError(t, err)
+	tr.Run.Stdin = f
+}
+
 // TestCmdAdd_StoreKeyring_PromptsWhenNoPassword verifies that when
 // --store=keyring is set with --password, sq reads the password from
 // stdin and splices it into the URL before storing the full DSN in
@@ -823,18 +838,10 @@ func TestCmdAdd_StoreKeyring_PromptsWhenNoPassword(t *testing.T) {
 
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-
-	// Simulate piped stdin: write the password to a temp file and set it as Stdin.
-	f, err := os.CreateTemp(t.TempDir(), "passwd")
-	require.NoError(t, err)
-	_, err = f.WriteString("piped-password\n")
-	require.NoError(t, err)
-	_, err = f.Seek(0, 0)
-	require.NoError(t, err)
-	tr.Run.Stdin = f
+	pipeStdin(t, tr, "piped-password\n")
 
 	const handle = "@sakila_kr_prompt"
-	err = tr.Exec("add",
+	err := tr.Exec("add",
 		"postgres://alice@localhost:5432/sakila", // no inline password
 		"--handle", handle, "--store", "keyring", "--password",
 		"--driver", "postgres", "--skip-verify")
@@ -860,17 +867,10 @@ func TestCmdAdd_StoreKeyring_PromptsWhenNoPassword(t *testing.T) {
 func TestCmdAdd_InlinePassword_EscapesDollar(t *testing.T) {
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-
-	f, err := os.CreateTemp(t.TempDir(), "passwd")
-	require.NoError(t, err)
-	_, err = f.WriteString("pa$$word\n")
-	require.NoError(t, err)
-	_, err = f.Seek(0, 0)
-	require.NoError(t, err)
-	tr.Run.Stdin = f
+	pipeStdin(t, tr, "pa$$word\n")
 
 	const handle = "@sakila_inline_dollar"
-	err = tr.Exec("add",
+	err := tr.Exec("add",
 		"postgres://alice@localhost:5432/sakila",
 		"--handle", handle, "--store", "inline", "--password",
 		"--driver", "postgres", "--skip-verify")
@@ -897,17 +897,10 @@ func TestCmdAdd_KeyringPassword_NotEscaped(t *testing.T) {
 
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-
-	f, err := os.CreateTemp(t.TempDir(), "passwd")
-	require.NoError(t, err)
-	_, err = f.WriteString("pa$$word\n")
-	require.NoError(t, err)
-	_, err = f.Seek(0, 0)
-	require.NoError(t, err)
-	tr.Run.Stdin = f
+	pipeStdin(t, tr, "pa$$word\n")
 
 	const handle = "@sakila_kr_dollar"
-	err = tr.Exec("add",
+	err := tr.Exec("add",
 		"postgres://alice@localhost:5432/sakila",
 		"--handle", handle, "--store", "keyring", "--password",
 		"--driver", "postgres", "--skip-verify")
@@ -921,6 +914,48 @@ func TestCmdAdd_KeyringPassword_NotEscaped(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "postgres://alice:pa$$word@localhost:5432/sakila", got,
 		"keyring holds the literal DSN, no template escaping")
+}
+
+// TestCmdAdd_FileLocation_RawDollarDollar verifies that adding a file
+// whose typed path contains '$$' fails at add time with a clear error
+// when the file exists at the typed path but not at the
+// template-interpreted path. Without this check, the add would fail at
+// the ping (or, with --skip-verify, persist a broken source) with an
+// error naming a path the user never typed, because the connect path
+// interprets '$$' as an escaped '$'.
+func TestCmdAdd_FileLocation_RawDollarDollar(t *testing.T) {
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "data$$file.csv")
+	require.NoError(t, os.WriteFile(fpath, []byte("a,b\n1,2\n"), 0o600))
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	err := tr.Exec("add", fpath, "--handle", "@raw_dollar", "--skip-verify")
+	require.Error(t, err,
+		"raw '$$' path whose interpreted form doesn't exist must be rejected at add time")
+	require.Contains(t, err.Error(), "$$")
+}
+
+// TestCmdAdd_FileLocation_EscapedDollarDollar verifies that the
+// documented escaped form works end-to-end: the stored location is the
+// typed template, detection and the add-time ping interpret it, and
+// the source connects.
+func TestCmdAdd_FileLocation_EscapedDollarDollar(t *testing.T) {
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "data$$file.csv")
+	require.NoError(t, os.WriteFile(fpath, []byte("a,b\n1,2\n"), 0o600))
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	escaped := strings.ReplaceAll(fpath, "$", "$$")
+	require.NoError(t, tr.Exec("add", escaped, "--handle", "@esc_dollar"),
+		"escaped form must pass detection and the add-time ping")
+
+	src, err := tr.Run.Config.Collection.Get("@esc_dollar")
+	require.NoError(t, err)
+	require.Equal(t, escaped, src.Location, "the typed template form is what gets stored")
 }
 
 // newRqliteMockHandlerForCLI returns an HTTP handler that satisfies gorqlite's

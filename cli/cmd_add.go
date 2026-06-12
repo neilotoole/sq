@@ -282,6 +282,10 @@ func execSrcAdd(cmd *cobra.Command, args []string) (err error) {
 		}
 	}
 
+	if err = checkFileLocationEscape(loc, hasPlaceholder); err != nil {
+		return err
+	}
+
 	if typ, err = resolveDriverType(ctx, ru, cmd, handle, loc, hasPlaceholder); err != nil {
 		return err
 	}
@@ -294,26 +298,8 @@ func execSrcAdd(cmd *cobra.Command, args []string) (err error) {
 	// non-placeholder Locations. A placeholder is opaque to sq at this
 	// stage: nothing to munge, no inline password to relocate.
 	if !hasPlaceholder {
-		if typ == drivertype.SQLite {
-			locBefore := loc
-			// Special handling for SQLite, because it's a file-based DB.
-			loc, err = sqlite3.MungeLocation(loc)
-			if err != nil {
-				return err
-			}
-
-			lg.FromContext(ctx).Debug("Munged sqlite loc", lga.Before, locBefore, lga.After, loc)
-		}
-
-		if typ == drivertype.DuckDB {
-			locBefore := loc
-			// Special handling for DuckDB, because it's a file-based DB.
-			loc, err = duckdb.MungeLocation(loc)
-			if err != nil {
-				return err
-			}
-
-			lg.FromContext(ctx).Debug("Munged duckdb loc", lga.Before, locBefore, lga.After, loc)
+		if loc, err = mungeLocationForType(ctx, typ, loc); err != nil {
+			return err
 		}
 
 		// Apply password: store in keyring or inline, per flags and config.
@@ -482,6 +468,59 @@ func applyPassword(ctx context.Context, cmd *cobra.Command, ru *run.Run, loc str
 	return loc, "", nil
 }
 
+// mungeLocationForType applies driver-specific location munging for
+// the file-based DB types (SQLite, DuckDB); other types pass through
+// unchanged. Only meaningful for non-placeholder locations.
+func mungeLocationForType(ctx context.Context, typ drivertype.Type, loc string) (string, error) {
+	locBefore := loc
+	var err error
+	if typ == drivertype.SQLite {
+		if loc, err = sqlite3.MungeLocation(loc); err != nil {
+			return "", err
+		}
+		lg.FromContext(ctx).Debug("Munged sqlite loc", lga.Before, locBefore, lga.After, loc)
+	}
+	if typ == drivertype.DuckDB {
+		if loc, err = duckdb.MungeLocation(loc); err != nil {
+			return "", err
+		}
+		lg.FromContext(ctx).Debug("Munged duckdb loc", lga.Before, locBefore, lga.After, loc)
+	}
+	return loc, nil
+}
+
+// checkFileLocationEscape rejects a typed file location whose '$$'
+// escaping is almost certainly unintended. The stored location is a
+// placeholder template: '$$' means a literal '$', so the connect path
+// interprets a typed path like 'data$$file.csv' as 'data$file.csv'.
+// If a file exists at the typed bytes but not at the
+// template-interpreted bytes, the user meant the literal file and
+// forgot to escape; erroring now names the real path, rather than
+// failing later with an error citing a path the user never typed.
+// Placeholder locations, non-file locations (DSNs), and paths without
+// '$$' pass through.
+func checkFileLocationEscape(loc string, hasPlaceholder bool) error {
+	if hasPlaceholder {
+		return nil
+	}
+	interpreted := secret.Unescape(loc)
+	if interpreted == loc || location.TypeOf(interpreted) != location.TypeFile {
+		return nil
+	}
+	if _, statErr := os.Stat(loc); statErr != nil {
+		// Nothing at the typed path either; whatever is wrong, it isn't
+		// a missed escape. Let detection or the ping surface it.
+		return nil //nolint:nilerr
+	}
+	if _, statErr := os.Stat(interpreted); statErr == nil {
+		return nil
+	}
+	return errz.Errorf(
+		"location contains %q, which sq interprets as an escaped literal '$': "+
+			"a file exists at %s, but the interpreted path %s does not",
+		"$$", loc, interpreted)
+}
+
 // wrapBareSecretURI normalizes location forms that look like a URL but
 // whose scheme belongs to an external secret resolver. Today that means
 // 1Password: "op://vault/item/field" (the literal "Copy Secret Reference"
@@ -552,7 +591,11 @@ func resolveDriverType(
 		return typ, nil
 	}
 
-	typ, err := ru.Files.DetectType(ctx, handle, loc)
+	// Detect from the template-interpreted bytes ('$$' reduced to '$'),
+	// not the raw typed bytes: extension-based detection is unaffected,
+	// but the byte-sniffing fallback opens the path, and it must read
+	// the same file the connect path will open.
+	typ, err := ru.Files.DetectType(ctx, handle, secret.Unescape(loc))
 	if err != nil {
 		return "", err
 	}

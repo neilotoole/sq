@@ -195,6 +195,52 @@ collection:
 	}
 }
 
+// TestUpgrade_CorruptLocation verifies that a missing or non-string
+// source location aborts the upgrade before anything is written.
+// Neither config could ever load (the typed loader rejects empty
+// locations and fails to unmarshal non-string ones), so erroring here
+// can't break a working config; it produces a clearer error than the
+// downstream unmarshal failure, and matches the corrupt-shape
+// precedent elsewhere in this upgrade.
+func TestUpgrade_CorruptLocation(t *testing.T) {
+	log := lgt.New(t)
+	ctx := lg.NewContext(context.Background(), log)
+
+	tests := []struct {
+		name string
+		in   string
+	}{
+		{
+			name: "missing location",
+			in: `config.version: v0.53.0
+collection:
+  sources:
+  - handle: "@src"
+    driver: postgres
+`,
+		},
+		{
+			name: "non-string location",
+			in: `config.version: v0.53.0
+collection:
+  sources:
+  - handle: "@src"
+    driver: postgres
+    location: 123
+`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := v0_54_0.Upgrade(ctx, []byte(tc.in))
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "corrupt config")
+			require.Contains(t, err.Error(), "location")
+		})
+	}
+}
+
 // TestUpgrade_NoRedactKey_IsIdempotent verifies that running Upgrade
 // against a config that has no "redact" key (whether already-migrated
 // or never had one) leaves the user-visible options untouched. Only

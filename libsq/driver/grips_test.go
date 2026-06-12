@@ -96,6 +96,51 @@ func TestGrips_ResolveSourceSecrets_NoRefs_Unescape(t *testing.T) {
 	}
 }
 
+// TestGrips_ResolveSourceSecrets_Idempotent verifies that resolving an
+// already-resolved source is a no-op. Resolution converts template
+// bytes to literal bytes; reinterpreting literal bytes as a template
+// (a second '$$' unescape, or re-resolution of '${...}'-shaped text
+// inside a resolved secret value) silently corrupts credentials. This
+// class of bug occurred three times during review (ping --expand,
+// inspect --expand, config export --expand), so the resolved clone now
+// carries a marker making double-resolution structurally harmless.
+func TestGrips_ResolveSourceSecrets_Idempotent(t *testing.T) {
+	t.Run("zero refs escaped literal", func(t *testing.T) {
+		src := &source.Source{
+			Handle:   "@sakila",
+			Location: "postgres://alice:p$$$$wd@db/sakila",
+		}
+		r1, err := driver.ResolveSourceSecrets(context.Background(), src)
+		require.NoError(t, err)
+		require.Equal(t, "postgres://alice:p$$wd@db/sakila", r1.Location)
+
+		r2, err := driver.ResolveSourceSecrets(context.Background(), r1)
+		require.NoError(t, err)
+		require.Same(t, r1, r2, "second resolution must be a no-op")
+		require.Equal(t, "postgres://alice:p$$wd@db/sakila", r2.Location)
+	})
+
+	t.Run("resolved secret value containing dollars", func(t *testing.T) {
+		reg := secret.NewRegistry()
+		reg.Register("keyring", &captureResolver{value: "p$$wd"})
+		ctx := secret.NewContext(context.Background(), reg)
+
+		src := &source.Source{
+			Handle:   "@sakila",
+			Location: "postgres://alice:${keyring:my_db_pw}@db/sakila",
+		}
+		r1, err := driver.ResolveSourceSecrets(ctx, src)
+		require.NoError(t, err)
+		require.Equal(t, "postgres://alice:p$$wd@db/sakila", r1.Location)
+
+		// Without the marker, this second pass would halve '$$' to '$'.
+		r2, err := driver.ResolveSourceSecrets(ctx, r1)
+		require.NoError(t, err)
+		require.Same(t, r1, r2, "second resolution must be a no-op")
+		require.Equal(t, "postgres://alice:p$$wd@db/sakila", r2.Location)
+	})
+}
+
 func TestGrips_ResolveSourceSecrets_NoRegistry(t *testing.T) {
 	src := &source.Source{
 		Handle:   "@sakila",

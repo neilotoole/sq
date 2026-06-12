@@ -113,11 +113,19 @@ func (gs *Grips) IsSQLSource(src *source.Source) bool {
 // so that literal "${" sequences (e.g. an escaped "$${env:X}" or a
 // password that happens to contain "${") don't trigger resolution.
 //
+// ResolveSourceSecrets is idempotent: the returned clone is marked
+// SecretsResolved, and an already-resolved source passes through
+// unchanged, so accidental double-resolution cannot reinterpret
+// resolved literal bytes as a template.
+//
 // Exposed (rather than unexported) so callers and tests can drive the
 // resolution directly. Grips.doOpen calls it once at entry; drivers do
 // not need to call it themselves.
 func ResolveSourceSecrets(ctx context.Context, src *source.Source) (*source.Source, error) {
-	if src == nil {
+	if src == nil || src.SecretsResolved {
+		// Already-resolved Locations hold literal bytes, not template
+		// bytes; running them through resolution again would corrupt
+		// any '$' they contain.
 		return src, nil
 	}
 	refs, err := secret.ExtractRefs(src.Location)
@@ -128,6 +136,7 @@ func ResolveSourceSecrets(ctx context.Context, src *source.Source) (*source.Sour
 		if unescaped := secret.Unescape(src.Location); unescaped != src.Location {
 			clone := src.Clone()
 			clone.Location = unescaped
+			clone.SecretsResolved = true
 			return clone, nil
 		}
 		return src, nil
@@ -142,6 +151,7 @@ func ResolveSourceSecrets(ctx context.Context, src *source.Source) (*source.Sour
 	}
 	clone := src.Clone()
 	clone.Location = resolved
+	clone.SecretsResolved = true
 	return clone, nil
 }
 

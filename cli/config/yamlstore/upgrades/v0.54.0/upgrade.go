@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
@@ -71,7 +70,9 @@ func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
 				if !ok {
 					return nil, errz.Errorf("corrupt config: invalid 'collection.sources[%d]' field", i)
 				}
-				escapeLocation(log, src, i)
+				if err = escapeLocation(log, src, i); err != nil {
+					return nil, err
+				}
 				if rawSrcOpts, present := src["options"]; present {
 					srcOpts, ok := rawSrcOpts.(map[string]any)
 					if !ok {
@@ -109,22 +110,32 @@ func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
 // every connect, and a literal "$$" would be unescaped to "$"
 // (see https://github.com/neilotoole/sq/issues/782).
 //
-// Locations whose only dollars are lone '$' characters (e.g. an inline
-// password like "p$ssW0rd") already expand to themselves, and are left
-// untouched so the config bytes don't churn. The location value is
-// deliberately not logged: it may contain credentials.
-func escapeLocation(log *slog.Logger, src map[string]any, i int) {
-	loc, ok := src["location"].(string)
-	if !ok || !strings.Contains(loc, "$") {
-		return
+// Locations that already expand to themselves byte-identically (no
+// refs, no "$$"; e.g. an inline password like "p$ssW0rd") are left
+// untouched so the config bytes don't churn. A missing or non-string
+// location is a corrupt config: neither could ever load (the typed
+// loader rejects empty locations and can't unmarshal non-string ones),
+// so erroring here aborts the upgrade before anything is written,
+// matching the corrupt-shape handling in Upgrade. The location value
+// is deliberately not logged: it may contain credentials.
+func escapeLocation(log *slog.Logger, src map[string]any, i int) error {
+	raw, present := src["location"]
+	if !present {
+		return errz.Errorf("corrupt config: missing 'collection.sources[%d].location' field", i)
+	}
+	loc, ok := raw.(string)
+	if !ok {
+		return errz.Errorf(
+			"corrupt config: invalid 'collection.sources[%d].location' field (want string, got %T)", i, raw)
 	}
 
-	if !strings.Contains(loc, "$$") {
-		refs, err := secret.ExtractRefs(loc)
-		if err == nil && len(refs) == 0 {
-			// Lone dollars only: expands to itself; nothing to escape.
-			return
-		}
+	// The skip predicate is stated in secret-package terms so it can't
+	// drift from the grammar: skip iff the location parses cleanly with
+	// zero refs AND unescaping is the identity, i.e. expansion yields
+	// exactly loc.
+	refs, err := secret.ExtractRefs(loc)
+	if err == nil && len(refs) == 0 && secret.Unescape(loc) == loc {
+		return nil
 	}
 
 	src["location"] = secret.Escape(loc)
@@ -133,6 +144,7 @@ func escapeLocation(log *slog.Logger, src map[string]any, i int) {
 		"config upgrade: escaped '$' as '$$' in source location so it connects byte-identically",
 		lga.Loc, fmt.Sprintf("collection.sources[%d] (%s)", i, handle),
 	)
+	return nil
 }
 
 // translateRedact applies the redact → secrets.reveal flip in-place

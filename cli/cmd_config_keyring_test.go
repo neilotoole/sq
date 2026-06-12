@@ -3,7 +3,6 @@ package cli_test
 import (
 	"context"
 	"encoding/json"
-	"os"
 	"strings"
 	"testing"
 
@@ -81,16 +80,10 @@ func TestCmdConfigKeyringCreate_PromptedFromStdin(t *testing.T) {
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
 
-	// Pipe a password through stdin; matches the cmd_add test pattern.
-	tmp, err := os.CreateTemp(t.TempDir(), "pw")
-	require.NoError(t, err)
-	_, err = tmp.WriteString("hunter2\n")
-	require.NoError(t, err)
-	_, err = tmp.Seek(0, 0)
-	require.NoError(t, err)
-	tr.Run.Stdin = tmp
+	// Pipe a password through stdin.
+	pipeStdin(t, tr, "hunter2\n")
 
-	err = tr.Exec("config", "keyring", "create", "my_db_pw", "-p")
+	err := tr.Exec("config", "keyring", "create", "my_db_pw", "-p")
 	require.NoError(t, err)
 
 	got, err := gokeyring.Get("sq", "my_db_pw")
@@ -882,13 +875,7 @@ func TestCmdConfigKeyringMigrate_JSON_SkipsPrompt(t *testing.T) {
 		Location: "postgres://alice:hunter2@db/sakila",
 	}))
 	// Pipe "n\n" so the y/N prompt — if reached — would answer "no".
-	tmp, err := os.CreateTemp(t.TempDir(), "stdin")
-	require.NoError(t, err)
-	_, err = tmp.WriteString("n\n")
-	require.NoError(t, err)
-	_, err = tmp.Seek(0, 0)
-	require.NoError(t, err)
-	tr.Run.Stdin = tmp
+	pipeStdin(t, tr, "n\n")
 
 	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--json"))
 

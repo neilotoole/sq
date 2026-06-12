@@ -113,6 +113,25 @@ func TestCmdPing_KeyringPlaceholder_NoLeakInJSON(t *testing.T) {
 		"password slot must be redacted in default (non-reveal) mode")
 }
 
+// newEscapedDollarCSVRun creates a CSV file whose name contains a
+// literal "$$", and returns a testrun holding a source whose stored
+// Location is the escaped template form (as the v0.54.0 config upgrade
+// writes it), plus the literal file path. Shared by the ping and
+// inspect --expand regression tests.
+func newEscapedDollarCSVRun(t *testing.T, handle string) (tr *testrun.TestRun, fpath string) {
+	t.Helper()
+	fpath = filepath.Join(t.TempDir(), "data$$file.csv")
+	require.NoError(t, os.WriteFile(fpath, []byte("a,b\n1,2\n"), 0o600))
+
+	tr = testrun.New(t.Context(), t, nil)
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   handle,
+		Type:     drivertype.CSV,
+		Location: secret.Escape(fpath),
+	}))
+	return tr, fpath
+}
+
 // TestCmdPing_Expand_EscapedLocation verifies that `sq ping --expand`
 // resolves the location template exactly once. The driver must connect
 // using the original stored source (resolved inside pingSource);
@@ -120,30 +139,12 @@ func TestCmdPing_KeyringPlaceholder_NoLeakInJSON(t *testing.T) {
 // ResolveSourceSecrets would unescape '$$' a second time, corrupting
 // literal locations the v0.54.0 upgrade escaped.
 func TestCmdPing_Expand_EscapedLocation(t *testing.T) {
-	dir := t.TempDir()
-	fpath := filepath.Join(dir, "data$$file.csv")
-	require.NoError(t, os.WriteFile(fpath, []byte("a,b\n1,2\n"), 0o600))
-
-	th := testh.New(t)
-	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
-		Handle: "@csv_dollar",
-		Type:   drivertype.CSV,
-		// Stored template form: '$' escaped as '$$', as the v0.54.0
-		// config upgrade writes it.
-		Location: secret.Escape(fpath),
-	}))
-
+	tr, _ := newEscapedDollarCSVRun(t, "@csv_dollar")
 	require.NoError(t, tr.Exec("ping", "--expand", "@csv_dollar"),
 		"ping --expand must resolve the location exactly once (double-unescape breaks the path)")
 
 	// Sanity: plain ping (no --expand) also works.
-	tr = testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
-		Handle:   "@csv_dollar",
-		Type:     drivertype.CSV,
-		Location: secret.Escape(fpath),
-	}))
+	tr, _ = newEscapedDollarCSVRun(t, "@csv_dollar")
 	require.NoError(t, tr.Exec("ping", "@csv_dollar"))
 }
 

@@ -67,6 +67,11 @@ func maybeExpandCollection(ctx context.Context, ru *run.Run, cmd *cobra.Command,
 			continue
 		}
 		src.Location = resolved
+		// Resolved bytes are literal, not a template: mark the source
+		// so a downstream ResolveSourceSecrets pass is a no-op. The
+		// lenient-failure branch above deliberately does NOT mark, as
+		// the placeholder is kept verbatim there.
+		src.SecretsResolved = true
 	}
 	return clone, nil
 }
@@ -105,5 +110,9 @@ func maybeExpandSource(ctx context.Context, ru *run.Run, cmd *cobra.Command,
 		return clone, nil
 	}
 	clone.Location = resolved
+	// Resolved bytes are literal, not a template: mark the source so a
+	// downstream ResolveSourceSecrets pass is a no-op. The lenient
+	// branch above does not mark, as the placeholder is kept verbatim.
+	clone.SecretsResolved = true
 	return clone, nil
 }

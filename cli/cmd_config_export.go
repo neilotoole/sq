@@ -15,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/secret"
 )
 
 func newConfigExportCmd() *cobra.Command {
@@ -144,7 +145,13 @@ func exportExpandConfig(ctx context.Context, ru *run.Run, cfg *config.Config) (*
 		if err != nil {
 			return nil, errz.Wrapf(err, "config export: %s", src.Handle)
 		}
-		src.Location = resolved
+		// The export is itself a config, so its locations are placeholder
+		// templates. Expand's output is a literal: re-escape it ('$' ->
+		// '$$') so that the importing machine's expansion yields exactly
+		// the resolved bytes. Without this, a resolved value containing
+		// '$$' would be halved at connect time, and '${...}'-shaped text
+		// inside a secret value would be re-resolved.
+		src.Location = secret.Escape(resolved)
 	}
 
 	return clone, nil
