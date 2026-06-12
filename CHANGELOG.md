@@ -59,6 +59,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   - `secrets.reveal: true` equals legacy `redact: false`; the default remains redaction.
   - Existing configs are migrated automatically on first run, but scripts
     that call `sq config get|set redact` need updating to the new `secrets.reveal` key.
+  - [#782]: The migration escapes `$` as
+    [`$$`](https://sq.io/docs/secrets#literal-dollar-signs) in any source location that
+    the new placeholder syntax would otherwise reinterpret, so existing sources connect
+    exactly as before.
 - [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd)
   now syntax-colors its `erDiagram` source when writing to a terminal.
 
@@ -1665,6 +1669,7 @@ make working with lots of sources much easier.
 [#752]: https://github.com/neilotoole/sq/issues/752
 [#757]: https://github.com/neilotoole/sq/issues/757
 [#759]: https://github.com/neilotoole/sq/issues/759
+[#782]: https://github.com/neilotoole/sq/issues/782
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3

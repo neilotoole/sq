@@ -97,13 +97,17 @@ func (gs *Grips) IsSQLSource(src *source.Source) bool {
 }
 
 // ResolveSourceSecrets returns a clone of src with any ${scheme:path}
-// placeholders in src.Location resolved via the secret.Registry on ctx.
-// If src.Location contains no well-formed placeholders, src is returned
-// unchanged. If placeholders are present but no Registry is bound to
-// ctx, an error is returned: a placeholder on a source that has reached
-// this point is always meant to be resolved, and a silent passthrough
-// would surface later as a confusing "connection refused" or DSN-parse
-// error from the driver.
+// placeholders in src.Location resolved via the secret.Registry on ctx,
+// and any $$ escapes reduced to a literal $. If src.Location contains
+// no well-formed placeholders, the $$ escape is still honored (a clone
+// is returned when the location changes; no Registry is needed, since
+// nothing resolves). This is what lets a literal location be stored
+// escaped, e.g. by the v0.54.0 config upgrade, and reach the driver
+// byte-identically. If placeholders are present but no Registry is
+// bound to ctx, an error is returned: a placeholder on a source that
+// has reached this point is always meant to be resolved, and a silent
+// passthrough would surface later as a confusing "connection refused"
+// or DSN-parse error from the driver.
 //
 // Detection uses secret.ExtractRefs rather than a `${`-substring scan
 // so that literal "${" sequences (e.g. an escaped "$${env:X}" or a
@@ -121,6 +125,11 @@ func ResolveSourceSecrets(ctx context.Context, src *source.Source) (*source.Sour
 		return nil, errz.Wrapf(err, "parse placeholders for %s", src.Handle)
 	}
 	if len(refs) == 0 {
+		if unescaped := secret.Unescape(src.Location); unescaped != src.Location {
+			clone := src.Clone()
+			clone.Location = unescaped
+			return clone, nil
+		}
 		return src, nil
 	}
 	reg := secret.FromContext(ctx)

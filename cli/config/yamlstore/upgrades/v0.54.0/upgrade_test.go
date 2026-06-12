@@ -96,6 +96,87 @@ func TestUpgrade(t *testing.T) {
 	require.Equal(t, wantLines, gotLines)
 }
 
+// TestUpgrade_EscapesLocationDollars verifies that the upgrade escapes
+// '$' as '$$' in any source location that would not survive v0.54.0
+// placeholder-template interpretation byte-identically: locations
+// containing a well-formed ${scheme:path} ref (would be silently
+// substituted at connect), malformed placeholder syntax (would fail
+// every connect), or a literal "$$" (would be unescaped at connect).
+// Locations whose only dollars are lone '$' characters already pass
+// through verbatim and must be left untouched. See
+// https://github.com/neilotoole/sq/issues/782.
+func TestUpgrade_EscapesLocationDollars(t *testing.T) {
+	log := lgt.New(t)
+	ctx := lg.NewContext(context.Background(), log)
+
+	tests := []struct {
+		name string
+		loc  string
+		want string
+	}{
+		{
+			name: "no dollar untouched",
+			loc:  "postgres://sakila:p_ssW0rd@localhost/sakila",
+			want: "postgres://sakila:p_ssW0rd@localhost/sakila",
+		},
+		{
+			name: "lone dollar untouched",
+			loc:  "postgres://sakila:p$ssW0rd@localhost/sakila",
+			want: "postgres://sakila:p$ssW0rd@localhost/sakila",
+		},
+		{
+			name: "malformed placeholder escaped",
+			loc:  "postgres://sakila:p${ss}W0rd@localhost/sakila",
+			want: "postgres://sakila:p$${ss}W0rd@localhost/sakila",
+		},
+		{
+			name: "well-formed placeholder escaped",
+			loc:  "postgres://sakila:${env:HOME}@localhost/sakila",
+			want: "postgres://sakila:$${env:HOME}@localhost/sakila",
+		},
+		{
+			name: "literal double dollar escaped",
+			loc:  "postgres://sakila:p$$wd@localhost/sakila",
+			want: "postgres://sakila:p$$$$wd@localhost/sakila",
+		},
+		{
+			name: "file path with lone dollar untouched",
+			loc:  "/Users/neilotoole/sq/file$.csv",
+			want: "/Users/neilotoole/sq/file$.csv",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			in := []byte(`config.version: v0.53.0
+collection:
+  sources:
+  - handle: "@src"
+    driver: postgres
+    location: ` + `"` + tc.loc + `"` + `
+`)
+
+			out, err := v0_54_0.Upgrade(ctx, in)
+			require.NoError(t, err)
+
+			var m map[string]any
+			require.NoError(t, ioz.UnmarshallYAML(out, &m))
+			src := m["collection"].(map[string]any)["sources"].([]any)[0].(map[string]any)
+			got, ok := src["location"].(string)
+			require.True(t, ok)
+			require.Equal(t, tc.want, got)
+
+			// The connect-path invariant: the stored location must parse
+			// cleanly with zero refs, and unescape to the original bytes,
+			// so the driver receives exactly what worked in v0.53.0.
+			refs, err := secret.ExtractRefs(got)
+			require.NoError(t, err)
+			require.Empty(t, refs)
+			require.Equal(t, tc.loc, secret.Unescape(got))
+		})
+	}
+}
+
 // TestUpgrade_NoRedactKey_IsIdempotent verifies that running Upgrade
 // against a config that has no "redact" key (whether already-migrated
 // or never had one) leaves the user-visible options untouched. Only

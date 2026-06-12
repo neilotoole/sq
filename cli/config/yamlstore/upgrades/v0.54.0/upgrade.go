@@ -5,11 +5,13 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/secret"
 )
 
 // Version is the target config version this upgrade produces.
@@ -18,8 +20,11 @@ const Version = "v0.54.0"
 // Upgrade renames the "redact" option to "secrets.reveal" and flips
 // polarity: secrets.reveal = !redact. The translation is applied at
 // the top-level options map and to each source's per-source options.
+// It also escapes '$' as '$$' in source locations that the new
+// placeholder-template machinery would otherwise reinterpret: see
+// escapeLocation.
 //
-// Cases:
+// Redact cases:
 //   - redact: true (the historical default): drop the key. The new
 //     option's default is secrets.reveal: false, which means the same
 //     thing (redaction on). Leaving the key absent keeps the config
@@ -66,6 +71,7 @@ func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
 				if !ok {
 					return nil, errz.Errorf("corrupt config: invalid 'collection.sources[%d]' field", i)
 				}
+				escapeLocation(log, src, i)
 				if rawSrcOpts, present := src["options"]; present {
 					srcOpts, ok := rawSrcOpts.(map[string]any)
 					if !ok {
@@ -90,6 +96,43 @@ func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
 
 	log.Info("SUCCESS: Config upgrade step completed", lga.To, Version)
 	return after, nil
+}
+
+// escapeLocation escapes '$' as '$$' in-place in src's "location"
+// field when the location would not survive v0.54.0
+// placeholder-template interpretation byte-identically. Source
+// locations predating v0.54.0 are literal strings: the placeholder
+// syntax did not exist, so any ${scheme:path}-shaped text in them is
+// accidental. Without escaping, a legacy location containing a
+// well-formed ref would be silently substituted at connect time
+// (sending wrong credentials), malformed placeholder syntax would fail
+// every connect, and a literal "$$" would be unescaped to "$"
+// (see https://github.com/neilotoole/sq/issues/782).
+//
+// Locations whose only dollars are lone '$' characters (e.g. an inline
+// password like "p$ssW0rd") already expand to themselves, and are left
+// untouched so the config bytes don't churn. The location value is
+// deliberately not logged: it may contain credentials.
+func escapeLocation(log *slog.Logger, src map[string]any, i int) {
+	loc, ok := src["location"].(string)
+	if !ok || !strings.Contains(loc, "$") {
+		return
+	}
+
+	if !strings.Contains(loc, "$$") {
+		refs, err := secret.ExtractRefs(loc)
+		if err == nil && len(refs) == 0 {
+			// Lone dollars only: expands to itself; nothing to escape.
+			return
+		}
+	}
+
+	src["location"] = secret.Escape(loc)
+	handle, _ := src["handle"].(string)
+	log.Info(
+		"config upgrade: escaped '$' as '$$' in source location so it connects byte-identically",
+		lga.Loc, fmt.Sprintf("collection.sources[%d] (%s)", i, handle),
+	)
 }
 
 // translateRedact applies the redact → secrets.reveal flip in-place
