@@ -77,6 +77,23 @@ func (e expander) src(s *source.Source) (*source.Source, error) {
 	return maybeExpandSource(ctx, ru, e.cmd, s)
 }
 
+// srcs returns expanded clones of each element of in per src. When
+// expansion is inactive, in is returned unchanged.
+func (e expander) srcs(in []*source.Source) ([]*source.Source, error) {
+	if !e.active() {
+		return in, nil
+	}
+	out := make([]*source.Source, len(in))
+	for i, s := range in {
+		exp, err := e.src(s)
+		if err != nil {
+			return nil, err
+		}
+		out[i] = exp
+	}
+	return out, nil
+}
+
 // expandSourceWriter decorates an output.SourceWriter, expanding
 // source locations per the --expand flag before delegating.
 type expandSourceWriter struct {
@@ -118,16 +135,9 @@ func (ew *expandSourceWriter) Added(coll *source.Collection, src *source.Source)
 
 // Removed implements output.SourceWriter.
 func (ew *expandSourceWriter) Removed(srcs ...*source.Source) error {
-	if ew.active() {
-		expanded := make([]*source.Source, len(srcs))
-		for i, src := range srcs {
-			exp, err := ew.src(src)
-			if err != nil {
-				return err
-			}
-			expanded[i] = exp
-		}
-		srcs = expanded
+	srcs, err := ew.srcs(srcs)
+	if err != nil {
+		return err
 	}
 	return ew.w.Removed(srcs...)
 }
@@ -195,20 +205,19 @@ var _ output.PingWriter = (*expandPingWriter)(nil)
 
 // Open implements output.PingWriter.
 func (ew *expandPingWriter) Open(srcs []*source.Source) error {
-	if ew.active() {
-		ew.cache = make(map[*source.Source]*source.Source, len(srcs))
-		expanded := make([]*source.Source, len(srcs))
-		for i, src := range srcs {
-			exp, err := ew.src(src)
-			if err != nil {
-				return err
-			}
-			expanded[i] = exp
-			ew.cache[src] = exp
-		}
-		srcs = expanded
+	expanded, err := ew.srcs(srcs)
+	if err != nil {
+		return err
 	}
-	return ew.w.Open(srcs)
+	if ew.active() {
+		// Cache input->expanded so the per-source Result calls don't
+		// repeat resolver I/O (see expandPingWriter doc).
+		ew.cache = make(map[*source.Source]*source.Source, len(srcs))
+		for i, src := range srcs {
+			ew.cache[src] = expanded[i]
+		}
+	}
+	return ew.w.Open(expanded)
 }
 
 // Result implements output.PingWriter.
@@ -235,10 +244,17 @@ func (ew *expandPingWriter) Close() error {
 // delegating. The other MetadataWriter methods carry no source
 // location and delegate unchanged.
 //
-// Note that callers are expected to populate srcMeta.Location with the
-// stored (template) location: drivers populate it from the grip's
-// resolved source, which execInspect resets to the stored template
-// before writing.
+// CALLER CONTRACT: srcMeta.Location must be the stored (template)
+// location, not an already-resolved literal. Unlike the source/group
+// expand paths, which skip Source.SecretsResolved sources to avoid
+// re-resolving a literal (which would unescape '$$' a second time and
+// corrupt it; see maybeExpandSource), metadata.Source carries no
+// SecretsResolved bit, so this decorator cannot detect an
+// already-resolved location and would double-unescape it. Drivers
+// populate srcMeta.Location from the grip's resolved source;
+// execInspect resets it to the stored template before writing
+// (cmd_inspect.go), satisfying the contract. Any future caller of
+// SourceMetadata must do the same.
 type expandMetadataWriter struct {
 	w output.MetadataWriter
 	expander

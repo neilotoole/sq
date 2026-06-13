@@ -491,21 +491,33 @@ func newProgressLockFunc(lock lockfile.Lockfile, msg string, timeout time.Durati
 	}
 }
 
+// cmdSetAnnotation sets a boolean marker annotation on cmd, allocating
+// the annotation map if needed. Pair with cmdHasAnnotation.
+func cmdSetAnnotation(cmd *cobra.Command, key string) {
+	if cmd.Annotations == nil {
+		cmd.Annotations = make(map[string]string)
+	}
+	cmd.Annotations[key] = "true"
+}
+
+// cmdHasAnnotation reports whether cmdSetAnnotation was previously
+// invoked on cmd for key.
+func cmdHasAnnotation(cmd *cobra.Command, key string) bool {
+	return cmd != nil && cmd.Annotations != nil && cmd.Annotations[key] == "true"
+}
+
 // cmdMarkPlainStdout indicates that the command's stdout should
 // not be decorated in any way, e.g. with color or progress bars.
 // This is useful for binary output.
 func cmdMarkPlainStdout(cmd *cobra.Command) {
 	// FIXME: implement this in newWriters or such?
-	if cmd.Annotations == nil {
-		cmd.Annotations = make(map[string]string)
-	}
-	cmd.Annotations["stdout.plain"] = "true"
+	cmdSetAnnotation(cmd, "stdout.plain")
 }
 
 // cmdRequiresPlainStdout returns true if cmdMarkPlainStdout was
 // previously invoked on cmd.
 func cmdRequiresPlainStdout(cmd *cobra.Command) bool {
-	return cmd != nil && cmd.Annotations != nil && cmd.Annotations["stdout.plain"] == "true"
+	return cmdHasAnnotation(cmd, "stdout.plain")
 }
 
 // cmdMarkReadOnly marks cmd as not intending to write to any source.
@@ -518,14 +530,11 @@ func cmdRequiresPlainStdout(cmd *cobra.Command) bool {
 // no-insert path) instead call driver.WithReadOnly or
 // driver.WithReadOnlyExplicit directly.
 func cmdMarkReadOnly(cmd *cobra.Command) {
-	if cmd.Annotations == nil {
-		cmd.Annotations = make(map[string]string)
-	}
-	cmd.Annotations["source.readonly"] = "true"
+	cmdSetAnnotation(cmd, "source.readonly")
 }
 
 // cmdIsReadOnly returns true if cmdMarkReadOnly was previously invoked
 // on cmd.
 func cmdIsReadOnly(cmd *cobra.Command) bool {
-	return cmd != nil && cmd.Annotations != nil && cmd.Annotations["source.readonly"] == "true"
+	return cmdHasAnnotation(cmd, "source.readonly")
 }
