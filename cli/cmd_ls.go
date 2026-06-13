@@ -90,10 +90,5 @@ func execList(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	coll, err := maybeExpandCollection(cmd.Context(), ru, cmd, coll)
-	if err != nil {
-		return err
-	}
-
 	return ru.Writers.Source.Collection(coll)
 }
