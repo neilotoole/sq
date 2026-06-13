@@ -44,6 +44,12 @@ type Store struct {
 	// PathOrigin is one of "flag", "env", or "default".
 	PathOrigin config.Origin
 
+	// newerCfgVers is set by Load when the config file's version is
+	// newer than the build version (the config was written by a newer
+	// sq version). When non-empty, Save writes a verbatim backup of
+	// the config file before overwriting it: see backupNewerConfig.
+	newerCfgVers string
+
 	// ExtPaths holds locations of potential ext config, both dirs and files (with suffix ".sq.yml")
 	ExtPaths []string
 }
@@ -73,21 +79,15 @@ func (fs *Store) Load(ctx context.Context) (*config.Config, error) {
 	log := lg.FromContext(ctx)
 	log.Debug("Loading config from file", lga.Path, fs.Path)
 
-	if fs.UpgradeRegistry != nil { //nolint:nestif
-		mightNeedUpgrade, foundVers, err := checkNeedsUpgrade(ctx, fs.Path)
+	if fs.UpgradeRegistry != nil {
+		// The config schema version (highest registered upgrade version),
+		// derived once and used for both the needsUpgrade decision and the
+		// upgrade target, so the two can't drift.
+		schemaVers := fs.UpgradeRegistry.highestVersion()
 
-		// Handle errConfigVersionNewerThanBuild specially: log a warning but
-		// continue execution. This allows users to downgrade sq versions for
-		// testing or debugging purposes. The config was created by a newer sq
-		// version, so it may contain fields this version doesn't recognize,
-		// but we proceed optimistically. All other errors are fatal.
-		if err != nil && !errors.Is(err, errConfigVersionNewerThanBuild) {
-			return nil, errz.Wrapf(err, "config: %s", fs.Path)
-		}
-		if errors.Is(err, errConfigVersionNewerThanBuild) {
-			log.Warn("Config version is newer than sq version; continuing anyway",
-				lga.ConfigVersion, foundVers,
-				lga.BuildVersion, buildinfo.Version)
+		mightNeedUpgrade, foundVers, checkErr := fs.checkNeedsUpgrade(ctx, schemaVers)
+		if err := fs.applyVersionCheck(ctx, foundVers, checkErr); err != nil {
+			return nil, err
 		}
 
 		if mightNeedUpgrade {
@@ -101,44 +101,59 @@ func (fs *Store) Load(ctx context.Context) (*config.Config, error) {
 			}
 			defer unlock()
 
-			// Lock is acquired; check again if config needs upgrade.
-			// Note: we re-check because another process may have upgraded
-			// the config while we were waiting for the lock.
-			mightNeedUpgrade, foundVers, err = checkNeedsUpgrade(ctx, fs.Path)
-
-			// Same handling as above: warn on newer config version, fail on
-			// other errors. See errConfigVersionNewerThanBuild documentation.
-			if err != nil && !errors.Is(err, errConfigVersionNewerThanBuild) {
-				return nil, errz.Wrapf(err, "config: %s", fs.Path)
-			}
-			if errors.Is(err, errConfigVersionNewerThanBuild) {
-				log.Warn("Config version is newer than sq version; continuing anyway",
-					lga.ConfigVersion, foundVers,
-					lga.BuildVersion, buildinfo.Version)
+			// Lock is acquired; re-check, because another process may have
+			// upgraded the config while we were waiting for the lock.
+			mightNeedUpgrade, foundVers, checkErr = fs.checkNeedsUpgrade(ctx, schemaVers)
+			if err = fs.applyVersionCheck(ctx, foundVers, checkErr); err != nil {
+				return nil, err
 			}
 
 			if mightNeedUpgrade {
-				log.Info("Upgrade config?", lga.From, foundVers, lga.To, buildinfo.Version)
-				if _, err = fs.doUpgrade(ctx, foundVers, buildinfo.Version); err != nil {
+				// Upgrade to the config schema version, NOT the sq build version.
+				log.Info("Upgrade config?", lga.From, foundVers, lga.To, schemaVers)
+				// doUpgrade re-marshals the upgraded config from the struct
+				// (canonical key order) and saves it, so no extra load-save
+				// cycle is needed here; the doLoad below returns it.
+				if _, err = fs.doUpgrade(ctx, foundVers, schemaVers); err != nil {
 					return nil, err
-				}
-
-				// We do a cycle of loading and saving the config after the upgrade,
-				// because the upgrade may have written YAML via a map, which
-				// doesn't preserve order. Loading and saving should fix that.
-				cfg, err := fs.doLoad(ctx)
-				if err != nil {
-					return nil, errz.Wrapf(err, "config: %s: load failed after config upgrade", fs.Path)
-				}
-
-				if err = fs.Save(ctx, cfg); err != nil {
-					return nil, errz.Wrapf(err, "config: %s: save failed after config upgrade", fs.Path)
 				}
 			}
 		}
 	}
 
 	return fs.doLoad(ctx)
+}
+
+// applyVersionCheck records or clears the newer-than-build state from a
+// checkNeedsUpgrade result and returns the fatal error (already wrapped),
+// if any. A result that is not errConfigVersionNewerThanBuild clears
+// fs.newerCfgVers, so a post-lock re-check (or a later Load on a reused
+// Store) that no longer sees a newer-than-build config doesn't leave the
+// flag set and trigger a spurious backup on the next Save.
+func (fs *Store) applyVersionCheck(ctx context.Context, foundVers string, checkErr error) error {
+	switch {
+	case checkErr == nil:
+		fs.newerCfgVers = ""
+		return nil
+	case errors.Is(checkErr, errConfigVersionNewerThanBuild):
+		// The config was created by a newer sq version, so it may contain
+		// fields this version doesn't recognize. Continue optimistically
+		// (this lets users downgrade sq for testing/debugging); the next
+		// Save writes a verbatim backup of the config first. See
+		// backupNewerConfig.
+		fs.newerCfgVers = foundVers
+		lg.FromContext(ctx).Warn("Config version is newer than sq version; continuing anyway",
+			lga.ConfigVersion, foundVers,
+			lga.BuildVersion, buildinfo.Version)
+		return nil
+	default:
+		// A fatal check error leaves the version state indeterminate.
+		// Clear newerCfgVers anyway so a later Save on a reused Store
+		// can't act on a stale newer-than-build result from an earlier
+		// Load (the doc's "any non-newer result clears it" invariant).
+		fs.newerCfgVers = ""
+		return errz.Wrapf(checkErr, "config: %s", fs.Path)
+	}
 }
 
 func (fs *Store) doLoad(ctx context.Context) (*config.Config, error) {
@@ -202,12 +217,132 @@ func (fs *Store) Save(ctx context.Context, cfg *config.Config) error {
 		return err
 	}
 
+	if err := fs.backupNewerConfig(ctx); err != nil {
+		return err
+	}
+
 	data, err := ioz.MarshalYAML(cfg)
 	if err != nil {
 		return err
 	}
 
 	return fs.write(ctx, data)
+}
+
+// backupNewerConfig writes a verbatim backup of the config file before
+// Save overwrites it, when Load found the config's version to be newer
+// than the build version (fs.newerCfgVers is non-empty). The config
+// was written by a newer sq version and may contain fields unknown to
+// this build's config.Config struct; Save's re-marshal silently drops
+// such fields, so the backup is the only surviving copy. The backup is
+// written at most once: if the backup file already exists, it holds
+// the newer config from an earlier run, and overwriting it with the
+// current (possibly already-degraded) file would destroy that.
+func (fs *Store) backupNewerConfig(ctx context.Context) error {
+	if fs.newerCfgVers == "" {
+		return nil
+	}
+
+	data, err := os.ReadFile(fs.Path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			// Nothing on disk to back up.
+			fs.newerCfgVers = ""
+			return nil
+		}
+		return errz.Wrapf(err, "failed to read config for backup before save: %s", fs.Path)
+	}
+
+	// Leave newerCfgVers set on error so a retried Save tries again.
+	wrote, err := fs.writeConfigBackupOnce(ctx, fs.newerCfgVers, data)
+	if err != nil {
+		return err
+	}
+	if wrote {
+		lg.FromContext(ctx).Warn(
+			"Config version is newer than sq version; wrote verbatim backup of config before save",
+			lga.ConfigVersion, fs.newerCfgVers,
+			lga.BuildVersion, buildinfo.Version,
+			lga.Path, backupFilePath(fs.Path, fs.newerCfgVers))
+	}
+	fs.newerCfgVers = ""
+	return nil
+}
+
+// writeConfigBackupOnce writes data (the verbatim current config bytes) to
+// the backup path for config version vers, unless a backup for that version
+// already exists. The backup is never overwritten: an existing one may be
+// the downgrade guard's pristine copy of a newer config, or an identical
+// earlier copy, so rewriting loses nothing and risks clobbering it. The
+// backup name deliberately does not end in ".sq.yml" (see backupFilePath).
+//
+// The backup is created with O_CREATE|O_EXCL, so the create is atomic
+// against a concurrent writer (only one process can create the file) and an
+// existing backup is never clobbered. This is portable, unlike a hard link
+// (which fails on filesystems without hard-link support) or an atomic
+// rename (which replaces the destination). O_EXCL also refuses to follow a
+// symlink, and the ErrExist branch confirms via Lstat that any existing
+// entry is a real regular file, not a symlink or directory. The bytes are
+// fsync'd before close, since the backup's purpose is recoverability.
+//
+// The only window not covered is a crash between the exclusive create and
+// the write, which leaves a zero-length backup. That gap is not closed by
+// size-checking an existing backup: the create-then-write window makes a
+// concurrent writer's brand-new backup transiently empty too, so a
+// size-based "is it complete?" test races with legitimate concurrent writes
+// (it would remove or reject another process's in-progress backup). A
+// crash in that microsecond window during a downgrade-guard save is far
+// rarer than the races this guards against.
+//
+// It returns wrote=true only when it created a new backup file. A failure is
+// returned as an error; both callers (doUpgrade and backupNewerConfig) treat
+// a backup failure as fatal, because the backup's purpose is guaranteed
+// recoverability.
+func (fs *Store) writeConfigBackupOnce(ctx context.Context, vers string, data []byte) (wrote bool, err error) {
+	backupPath := backupFilePath(fs.Path, vers)
+
+	f, err := os.OpenFile(backupPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, ioz.RWPerms)
+	if err != nil {
+		if errors.Is(err, os.ErrExist) {
+			// A backup already exists. Confirm with Lstat (don't follow a
+			// symlink) that it's a real regular file before treating it as
+			// the existing backup and letting the caller overwrite the
+			// config.
+			info, lstatErr := os.Lstat(backupPath)
+			if lstatErr != nil {
+				return false, errz.Wrapf(lstatErr, "failed to stat existing config backup: %s", backupPath)
+			}
+			if !info.Mode().IsRegular() {
+				return false, errz.Errorf("config backup path exists but is not a regular file: %s", backupPath)
+			}
+			lg.FromContext(ctx).Info("Config backup already exists; not overwriting", lga.Path, backupPath)
+			return false, nil
+		}
+		return false, errz.Wrapf(err, "failed to create config backup: %s", backupPath)
+	}
+
+	return writeBackupContents(f, backupPath, data)
+}
+
+// writeBackupContents writes data to f (an exclusively-created backup file),
+// fsyncs it, and closes it. On any failure it removes the file so a partial
+// backup is never left behind to be mistaken for a complete one.
+func writeBackupContents(f *os.File, backupPath string, data []byte) (wrote bool, err error) {
+	if _, err = f.Write(data); err != nil {
+		_ = f.Close()
+		_ = os.Remove(backupPath)
+		return false, errz.Wrapf(err, "failed to write config backup: %s", backupPath)
+	}
+	if err = f.Sync(); err != nil {
+		_ = f.Close()
+		_ = os.Remove(backupPath)
+		return false, errz.Wrapf(err, "failed to sync config backup: %s", backupPath)
+	}
+	if err = f.Close(); err != nil {
+		_ = os.Remove(backupPath)
+		return false, errz.Wrapf(err, "failed to close config backup: %s", backupPath)
+	}
+	return true, nil
 }
 
 // Write writes the config bytes to disk.
