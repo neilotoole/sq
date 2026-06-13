@@ -283,9 +283,16 @@ func (fs *Store) backupNewerConfig(ctx context.Context) error {
 // rename (which replaces the destination). O_EXCL also refuses to follow a
 // symlink, and the ErrExist branch confirms via Lstat that any existing
 // entry is a real regular file, not a symlink or directory. The bytes are
-// fsync'd before close, since the backup's purpose is recoverability; the
-// only window not covered is a crash between create and write, which would
-// leave a partial backup (far rarer than the races this guards against).
+// fsync'd before close, since the backup's purpose is recoverability.
+//
+// The only window not covered is a crash between the exclusive create and
+// the write, which leaves a zero-length backup. That gap is not closed by
+// size-checking an existing backup: the create-then-write window makes a
+// concurrent writer's brand-new backup transiently empty too, so a
+// size-based "is it complete?" test races with legitimate concurrent writes
+// (it would remove or reject another process's in-progress backup). A
+// crash in that microsecond window during a downgrade-guard save is far
+// rarer than the races this guards against.
 //
 // It returns wrote=true only when it created a new backup file. A failure is
 // returned as an error; both callers (doUpgrade and backupNewerConfig) treat
@@ -314,8 +321,13 @@ func (fs *Store) writeConfigBackupOnce(ctx context.Context, vers string, data []
 		return false, errz.Wrapf(err, "failed to create config backup: %s", backupPath)
 	}
 
-	// Write, fsync, and close. On any failure remove the partial file so a
-	// later run can't mistake it for a complete backup.
+	return writeBackupContents(f, backupPath, data)
+}
+
+// writeBackupContents writes data to f (an exclusively-created backup file),
+// fsyncs it, and closes it. On any failure it removes the file so a partial
+// backup is never left behind to be mistaken for a complete one.
+func writeBackupContents(f *os.File, backupPath string, data []byte) (wrote bool, err error) {
 	if _, err = f.Write(data); err != nil {
 		_ = f.Close()
 		_ = os.Remove(backupPath)
