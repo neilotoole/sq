@@ -323,12 +323,24 @@ func walkSegments(shape LocationShape, m MatchedLoc, tail string) (MatchedLoc, e
 // Returns the parsed fields, the number of bytes consumed (including
 // the trailing '@' if matched), and current==true if the user is
 // still typing inside the credentials segment.
+//
+// Per RFC 3986, userinfo can only occur before the first '/' or '?',
+// so the '@' search is bounded to that authority portion (#792): an
+// '@' in the path or query string is not a credentials terminator.
+// When s has no '/' or '?' yet (the user is mid-typing), the whole of
+// s is searched, because an '@' there may genuinely terminate
+// userinfo.
 func walkCredentials(s string, optional bool) (matched MatchedLoc, advance int, current bool) {
-	atIdx := strings.IndexByte(s, '@')
+	authority := s
+	if boundary := strings.IndexAny(s, "/?"); boundary != -1 {
+		authority = s[:boundary]
+	}
+	atIdx := strings.IndexByte(authority, '@')
 	if atIdx == -1 {
-		// No '@' present.
-		if optional && strings.ContainsAny(s, "/?") {
-			// Skip-signal: user has moved past credentials.
+		// No '@' present before the authority ends.
+		if optional && len(authority) < len(s) {
+			// Skip-signal: a '/' or '?' arrived without a preceding
+			// '@', so the user has moved past credentials.
 			return MatchedLoc{}, 0, false
 		}
 		// Partial credentials being typed.

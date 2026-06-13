@@ -1,11 +1,14 @@
 package location
 
 import (
+	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh/tu"
 )
@@ -204,6 +207,97 @@ func TestParse(t *testing.T) {
 			require.Equal(t, tc.want, *got)
 		})
 	}
+}
+
+// TestIsRootedNoVolume exercises the predicate behind the Windows
+// rooted-no-volume branch of absTemplatePath. The branch itself is
+// reachable only on Windows (on Unix a rooted path is absolute, and
+// '\' is not a separator), so the backslash and volume-bearing cases
+// are GOOS-gated; the separator-free cases hold everywhere.
+func TestIsRootedNoVolume(t *testing.T) {
+	require.False(t, isRootedNoVolume(""))
+	require.False(t, isRootedNoVolume("foo"))
+	require.False(t, isRootedNoVolume("./foo"))
+	require.True(t, isRootedNoVolume("/foo"),
+		"'/' is a separator on every GOOS, and VolumeName('/foo') is empty")
+
+	if runtime.GOOS == "windows" {
+		require.True(t, isRootedNoVolume(`\foo`))
+		require.False(t, isRootedNoVolume(`C:\foo`), "volume present: absolute, not this case")
+		require.False(t, isRootedNoVolume(`C:foo`), "drive-relative: not rooted")
+		require.False(t, isRootedNoVolume(`\\server\c$\foo`), "UNC: volume present")
+	} else {
+		require.False(t, isRootedNoVolume(`\foo`), "'\\' is not a separator on Unix")
+	}
+}
+
+// TestJoinVolumeTemplatePath verifies the attribution rule of the
+// rooted-no-volume join: the volume (filesystem-derived bytes) is
+// escaped, while the typed path bytes pass through exactly as typed.
+// The table inputs are already-clean backslash-style strings, on which
+// filepath.Clean is the identity on every GOOS, so these assertions
+// are effective cross-platform even though absTemplatePath reaches
+// the join only on Windows. The trailing ".."-cleaning case depends
+// on Windows separator semantics and is GOOS-gated.
+func TestJoinVolumeTemplatePath(t *testing.T) {
+	testCases := []struct {
+		volume string
+		p      string
+		want   string
+	}{
+		{volume: "", p: `\foo`, want: `\foo`},
+		{volume: "C:", p: `\foo\sakila.db`, want: `C:\foo\sakila.db`},
+		// UNC administrative share: the volume's '$' is escaped.
+		{volume: `\\server\c$`, p: `\data\sakila.db`, want: `\\server\c$$\data\sakila.db`},
+		// Typed '$$' in p is preserved as typed, not re-escaped.
+		{volume: `\\server\c$`, p: `\q$$x\sakila.db`, want: `\\server\c$$\q$$x\sakila.db`},
+	}
+	for _, tc := range testCases {
+		t.Run(tu.Name(tc.volume, tc.p), func(t *testing.T) {
+			require.Equal(t, tc.want, joinVolumeTemplatePath(tc.volume, tc.p))
+		})
+	}
+
+	// Unescaping the joined template recovers the true filesystem path.
+	got := joinVolumeTemplatePath(`\\server\c$`, `\q$$x\sakila.db`)
+	require.Equal(t, `\\server\c$\q$x\sakila.db`, secret.Unescape(got))
+
+	if runtime.GOOS == "windows" {
+		// Clean resolves ".." segments, matching filepath.Abs semantics.
+		require.Equal(t, `C:\bar.db`, joinVolumeTemplatePath("C:", `\foo\..\bar.db`))
+	}
+}
+
+// TestAbsTemplatePath_RootedNoVolume_Windows exercises the
+// rooted-no-volume branch of absTemplatePath end to end: from inside
+// a '$'-bearing cwd, a rooted but volume-less path must resolve
+// against the cwd's volume root (matching filepath.Abs), not be
+// joined under the escaped cwd. Rooted-no-volume paths exist only on
+// Windows (on Unix a rooted path is absolute and takes the IsAbs fast
+// path), so this test is Windows-only; the helpers it composes are
+// covered cross-platform by TestIsRootedNoVolume and
+// TestJoinVolumeTemplatePath.
+func TestAbsTemplatePath_RootedNoVolume_Windows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("rooted-no-volume paths exist only on Windows")
+	}
+
+	dir := filepath.Join(t.TempDir(), "q$exports")
+	require.NoError(t, os.Mkdir(dir, 0o750))
+	t.Chdir(dir)
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
+	const rooted = `\foo\sakila.db`
+	got, err := absTemplatePath(rooted)
+	require.NoError(t, err)
+	require.Equal(t, secret.Escape(filepath.VolumeName(cwd))+rooted, got)
+
+	// Parity with filepath.Abs: unescaping the template yields exactly
+	// what Abs produces for the same input.
+	wantAbs, err := filepath.Abs(rooted)
+	require.NoError(t, err)
+	require.Equal(t, wantAbs, secret.Unescape(got))
 }
 
 // TestPickSentinels verifies that the placeholder-substitution sentinel

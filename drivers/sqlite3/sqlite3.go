@@ -296,6 +296,14 @@ func (d *driveri) Renderer() *render.Renderer {
 // so the destination's FKs resolve against itself rather than the
 // source. Cross-table FKs (REFERENCES other(...) where other != src)
 // are left untouched.
+//
+// The source table's companion objects (indexes and triggers, which
+// live as separate sqlite_master rows) are also copied (gh758), with
+// each companion renamed to "<orig-name>_<dest-table>" because index
+// and trigger names are schema-global in SQLite. Companions are created
+// after the data copy so that copied triggers don't fire on (or mutate)
+// the rows being copied. See copyTableCompanionDDL for the rewrite
+// details and limitations.
 func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 	fromTbl, toTbl tablefq.T, copyData bool,
 ) (int64, error) {
@@ -365,22 +373,94 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 		return 0, errz.Wrap(err, "sqlite3: copy table: failed to apply DDL rewrites")
 	}
 
+	// Read and rewrite the companion (index and trigger) DDL up front,
+	// before any writes, so a rewrite failure aborts the copy cleanly.
+	companionStmts, err := copyTableCompanionDDL(ctx, db, fromTbl, toTbl)
+	if err != nil {
+		return 0, err
+	}
+
 	_, err = db.ExecContext(ctx, destTblCreateStmt)
 	if err != nil {
 		return 0, errw(err)
 	}
 
-	if !copyData {
-		return 0, nil
+	var affected int64
+	if copyData {
+		stmt := fmt.Sprintf("INSERT INTO %s SELECT * FROM %s", toTbl, fromTbl)
+		if affected, err = sqlz.ExecAffected(ctx, db, stmt); err != nil {
+			return 0, errw(err)
+		}
 	}
 
-	stmt := fmt.Sprintf("INSERT INTO %s SELECT * FROM %s", toTbl, fromTbl)
-	affected, err := sqlz.ExecAffected(ctx, db, stmt)
-	if err != nil {
-		return 0, errw(err)
+	// Companions are created after the data copy: a copied trigger must
+	// not fire on the rows being copied.
+	for _, stmt := range companionStmts {
+		if _, err = db.ExecContext(ctx, stmt); err != nil {
+			return 0, errw(err)
+		}
 	}
 
 	return affected, nil
+}
+
+// copyTableCompanionDDL reads the DDL of fromTbl's companion objects
+// (indexes and triggers) from sqlite_master and returns each statement
+// rewritten to apply to toTbl. Rows with NULL sql are automatic indexes
+// (e.g. backing a UNIQUE constraint or PRIMARY KEY) that the rewritten
+// CREATE TABLE already recreates, so the query excludes them.
+//
+// Index and trigger names are schema-global in SQLite, so each
+// companion is renamed by appending the destination table name:
+// "<orig-name>_<dest-table>". A trigger's ON <table> target, and any
+// table references in its body that name the source table, are
+// rewritten to the destination; references to other tables are left
+// untouched. See sqlparser.RewriteCreateIndexStmt and
+// sqlparser.RewriteCreateTriggerStmt.
+func copyTableCompanionDDL(ctx context.Context, db sqlz.DB,
+	fromTbl, toTbl tablefq.T,
+) ([]string, error) {
+	masterTbl := tablefq.T{Schema: fromTbl.Schema, Table: "sqlite_master"}
+	q := fmt.Sprintf("SELECT name, type, sql FROM %s WHERE tbl_name = ? "+
+		"AND type IN ('index','trigger') AND sql IS NOT NULL ORDER BY name",
+		masterTbl.Render(stringz.DoubleQuote))
+	rows, err := db.QueryContext(ctx, q, fromTbl.Table)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(lg.FromContext(ctx), rows)
+
+	destTblIdent := stringz.DoubleQuote(toTbl.Table)
+	var stmts []string
+	for rows.Next() {
+		var name, typ, ddl string
+		if err = rows.Scan(&name, &typ, &ddl); err != nil {
+			return nil, errw(err)
+		}
+
+		// The companion lives in the destination table's schema.
+		newIdent := tablefq.T{Schema: toTbl.Schema, Table: name + "_" + toTbl.Table}.
+			Render(stringz.DoubleQuote)
+
+		var rewritten string
+		switch typ {
+		case "index":
+			rewritten, err = sqlparser.RewriteCreateIndexStmt(ddl, newIdent, destTblIdent)
+		case "trigger":
+			rewritten, err = sqlparser.RewriteCreateTriggerStmt(ddl, newIdent, destTblIdent)
+		default:
+			// Unreachable given the query predicate.
+			continue
+		}
+		if err != nil {
+			return nil, errz.Wrapf(err, "sqlite3: copy table: rewrite %s {%s}", typ, name)
+		}
+		stmts = append(stmts, rewritten)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+	return stmts, nil
 }
 
 // RecordMeta implements driver.SQLDriver.
@@ -1137,8 +1217,11 @@ func filePathFromLocation(loc string) string {
 // MungeLocation to be OS-independent.
 //
 // MungeLocation is idempotent, and is a thin wrapper around
-// location.MungeForDriver, which also munges locations resolved from
-// secret placeholders at connect time (driver.ResolveSourceSecrets).
+// location.MungeTemplateForDriver: the user-typed location is a
+// placeholder template, so cwd bytes spliced in by absolutization are
+// escaped (gh #797). Locations resolved from secret placeholders at
+// connect time are literal bytes and take the no-escape path via
+// location.MungeForDriver (driver.ResolveSourceSecrets).
 func MungeLocation(loc string) (string, error) {
-	return location.MungeForDriver(drivertype.SQLite, loc)
+	return location.MungeTemplateForDriver(drivertype.SQLite, loc)
 }

@@ -480,10 +480,14 @@ func applyPassword(ctx context.Context, cmd *cobra.Command, ru *run.Run, loc str
 // mungeLocationForType applies driver-specific location munging for
 // the file-based DB types (SQLite, DuckDB); other types pass through
 // unchanged. Only meaningful for non-placeholder locations: a
-// placeholder location is opaque at add time, and gets the same
-// munging at connect time via driver.ResolveSourceSecrets.
+// placeholder location is opaque at add time, and gets the
+// literal-mode munging at connect time via
+// driver.ResolveSourceSecrets. The template variant is used here
+// because loc is the typed location, a placeholder template: any cwd
+// bytes spliced in by path absolutization are escaped, so a cwd
+// containing '$' cannot corrupt the stored template (gh #797).
 func mungeLocationForType(ctx context.Context, typ drivertype.Type, loc string) (string, error) {
-	munged, err := location.MungeForDriver(typ, loc)
+	munged, err := location.MungeTemplateForDriver(typ, loc)
 	if err != nil {
 		return "", err
 	}
