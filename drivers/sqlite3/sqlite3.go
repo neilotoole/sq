@@ -183,7 +183,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 		return 0, errw(err)
 	}
 
-	affected, err = sqlz.ExecAffected(ctx, tx, fmt.Sprintf("DELETE FROM %q", tbl))
+	affected, err = sqlz.ExecAffected(ctx, tx, "DELETE FROM "+stringz.DoubleQuote(tbl))
 	if err != nil {
 		return affected, errz.Append(err, errw(tx.Rollback()))
 	}

@@ -499,6 +499,64 @@ func TestDriveri_AlterTableColumnKinds_QuotedIdentifier(t *testing.T) {
 	}
 }
 
+// TestDriveri_AlterTruncate_EmbeddedQuoteIdentifier reproduces gh821: the
+// AlterTableRename, AlterTableRenameColumn, AlterTableAddColumn, and Truncate
+// paths used %q for SQL identifier quoting, which emits Go backslash escaping
+// that SQLite rejects for names containing a double quote (e.g. a we"ird table,
+// creatable from a CSV header). Each path must use SQL double-quote escaping.
+func TestDriveri_AlterTruncate_EmbeddedQuoteIdentifier(t *testing.T) {
+	const (
+		tblName = `we"ird`
+		colName = `na"me`
+	)
+
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@test",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+	}
+
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+	drvr := grip.SQLDriver()
+
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf("CREATE TABLE %s (id INTEGER)", stringz.DoubleQuote(tblName)))
+	require.NoError(t, err)
+
+	// AlterTableAddColumn: add a column whose name also contains a quote.
+	require.NoError(t, drvr.AlterTableAddColumn(th.Context, db, tblName, colName, kind.Text))
+
+	// AlterTableRenameColumn: rename the quoted column to another quoted name.
+	const renamedCol = `re"named`
+	require.NoError(t, drvr.AlterTableRenameColumn(th.Context, db, tblName, colName, renamedCol))
+
+	md, err := grip.TableMetadata(th.Context, tblName)
+	require.NoError(t, err)
+	require.Len(t, md.Columns, 2)
+	require.Equal(t, renamedCol, md.Columns[1].Name)
+
+	// Truncate: insert a row, then delete all rows via the truncate path.
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf("INSERT INTO %s (id) VALUES (1)", stringz.DoubleQuote(tblName)))
+	require.NoError(t, err)
+	affected, err := drvr.Truncate(th.Context, src, tblName, false)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), affected)
+
+	// AlterTableRename: rename the quoted table to another quoted name.
+	const newName = `we"ird2`
+	require.NoError(t, drvr.AlterTableRename(th.Context, db, tblName, newName))
+	exists, err := drvr.TableExists(th.Context, db, newName)
+	require.NoError(t, err)
+	require.True(t, exists)
+	exists, err = drvr.TableExists(th.Context, db, tblName)
+	require.NoError(t, err)
+	require.False(t, exists)
+}
+
 // TestDriveri_AlterTableColumnKinds_EscapedQuoteColumnName reproduces gh789
 // case 1: a column literally named my"col (declared in DDL as "my""col")
 // failed the column lookup in AlterTableColumnKinds because trimIdentQuotes

@@ -17,21 +17,23 @@ import (
 
 // AlterTableRename implements driver.SQLDriver.
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
-	q := fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, tbl, newName)
+	q := fmt.Sprintf(`ALTER TABLE %s RENAME TO %s`, stringz.DoubleQuote(tbl), stringz.DoubleQuote(newName))
 	_, err := db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "alter table: failed to rename table {%s} to {%s}", tbl, newName)
 }
 
 // AlterTableRenameColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
-	q := fmt.Sprintf("ALTER TABLE %q RENAME COLUMN %q TO %q", tbl, col, newName)
+	q := fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s",
+		stringz.DoubleQuote(tbl), stringz.DoubleQuote(col), stringz.DoubleQuote(newName))
 	_, err := db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
 }
 
 // AlterTableAddColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col string, knd kind.Kind) error {
-	q := fmt.Sprintf("ALTER TABLE %q ADD COLUMN %q ", tbl, col) + DBTypeForKind(knd)
+	q := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s ",
+		stringz.DoubleQuote(tbl), stringz.DoubleQuote(col)) + DBTypeForKind(knd)
 
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
