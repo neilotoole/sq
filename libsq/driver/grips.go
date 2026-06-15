@@ -41,11 +41,11 @@ type Grips struct {
 
 	// grips caches open Grip instances, keyed by gripCacheKey: the source
 	// handle plus the access mode (read-write, implicit read-only, or
-	// explicit read-only) derived from the read-only ctx hint. Keying on
-	// the mode means a source opened both read-only and read-write within
-	// one run gets two coexisting grips, each opened with the correct
-	// mode, regardless of which open happened first (gh #779). Both grips
-	// are registered on clnup, so Close releases them all.
+	// explicit read-only) passed to Open. Keying on the mode means a
+	// source opened both read-only and read-write within one run gets two
+	// coexisting grips, each opened with the correct mode, regardless of
+	// which open happened first (gh #779). Both grips are registered on
+	// clnup, so Close releases them all.
 	grips map[string]Grip
 
 	clnup     *cleanup.Cleanup
@@ -82,16 +82,15 @@ func NewGrips(drvrs Provider, fs *files.Files, scratchSrcFn ScratchSrcFunc) *Gri
 // Thus, the caller should typically not close the Grip: it will be closed
 // via d.Close.
 //
-// The access mode is selected by opts (default ModeReadWrite; pass
-// driver.ReadOnly() or driver.ReadOnlyExplicit() for a read-only open).
-// The cache is keyed by source handle and mode, so a read-only open and a
+// The access mode is given by mode (pass ModeReadWrite for a normal open,
+// ModeReadOnly or ModeReadOnlyExplicit for a read-only open). The cache
+// is keyed by source handle and mode, so a read-only open and a
 // read-write open of the same source yield independent grips, each
 // connected in the requested mode: call ordering across modes does not
 // matter. A cache hit is served before secret resolution runs, so
 // repeated opens of an already-open source don't repeat resolver work.
 //
-// mode is passed explicitly (rather than carried on ctx) and forwarded to
-// Driver.Open; pass ModeReadWrite for a normal open.
+// mode is forwarded to Driver.Open.
 //
 // NOTE: This entire logic re caching/not-closing is a bit sketchy,
 // and needs to be revisited.

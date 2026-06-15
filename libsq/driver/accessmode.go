@@ -9,9 +9,9 @@ package driver
 // AccessMode is a property of an individual open request, not of the
 // source itself: the same source may be opened read-only by one command
 // and read-write by another within a single process. It is passed
-// explicitly to Grips.Open via OpenOpt values, rather than carried
-// ambiently on a context, so that the intent is visible at every call
-// site.
+// explicitly as an argument to Grips.Open and Driver.Open, rather than
+// carried ambiently on a context, so that the intent is visible at every
+// call site.
 type AccessMode uint8
 
 const (
