@@ -102,9 +102,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [#783]: [`sq add`](https://sq.io/docs/cmd/add) and [`sq mv`](https://sq.io/docs/cmd/mv)
   no longer permit a source handle nested below an existing source's handle (e.g. adding
   `@prod/db/x` when `@prod` exists).
-- [#821]: Renaming, adding a column to, or truncating a table on the
-  [SQLite](https://sq.io/docs/drivers/sqlite) and [rqlite](https://sq.io/docs/drivers/rqlite)
-  drivers no longer fails for tables or columns whose name contains a double quote (e.g. a
+- [#821]: On the [SQLite](https://sq.io/docs/drivers/sqlite) and
+  [rqlite](https://sq.io/docs/drivers/rqlite) drivers, renaming a table, adding a column, or
+  truncating it no longer fails when a table or column name contains a double quote (e.g. a
   `we"ird` table created from a CSV header).
 
 ## [v0.53.0] - 2026-05-25
