@@ -65,12 +65,10 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 	ru := run.FromContext(ctx)
 	coll := ru.Config.Collection
 
-	// Read-only intent is no longer carried on ctx; it is set on the
-	// QueryContext (see execSLQPrint / execSLQInsert) and passed
-	// explicitly to each Grips.Open the pipeline performs. The
-	// --src.schema validation open in verifySourceCatalogSchema sets its
-	// own mode directly on ctx (it bypasses Grips).
-	err := determineSources(ctx, ru, false)
+	// Read-only intent is passed explicitly: the SLQ pipeline opens via
+	// QueryContext.AccessMode (see execSLQPrint / execSLQInsert), and the
+	// --src.schema validation pre-open is read-only (a pure read).
+	err := determineSources(ctx, ru, false, driver.ModeReadOnly)
 	if err != nil {
 		return err
 	}

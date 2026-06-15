@@ -149,11 +149,9 @@ render a schema document that includes a Mermaid entity-relationship diagram;
 }
 
 func execInspect(cmd *cobra.Command, args []string) error {
-	// inspect is wholly read-only. The mode is set on ctx for the direct
-	// driver-open in verifySourceCatalogSchema (which bypasses Grips);
-	// the Grips.Open calls below and in mdcache pass the mode explicitly.
-	ctx := driver.WithMode(cmd.Context(), driver.ModeReadOnly)
-	cmd.SetContext(ctx)
+	// inspect is wholly read-only; every open it performs passes the mode
+	// as an explicit argument.
+	ctx := cmd.Context()
 	ru, log := run.FromContext(ctx), lg.FromContext(ctx)
 
 	o, err := getOptionsFromCmd(cmd)
@@ -185,7 +183,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 	}
 
 	if srcModified {
-		if err = verifySourceCatalogSchema(ctx, ru, src); err != nil {
+		if err = verifySourceCatalogSchema(ctx, ru, src, driver.ModeReadOnly); err != nil {
 			return err
 		}
 	}

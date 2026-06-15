@@ -41,9 +41,15 @@ func peekActiveSrc(cmd *cobra.Command, coll *source.Collection) *source.Source {
 // from any combination of stdin, flags or cfg. It will
 // mutate ru.Config.Collection as necessary. If requireActive
 // is true, an error is returned if there's no active source.
-func determineSources(ctx context.Context, ru *run.Run, requireActive bool) error {
+// mode is the access mode for any source pre-open performed during
+// resolution, i.e. the verifySourceCatalogSchema validation open
+// triggered by --src.schema. It is read-only (the validation is a pure
+// read); pass ModeReadOnlyExplicit when the user explicitly requested
+// read-only (sql --readonly) so the driver may override an AUTOMATIC
+// access_mode.
+func determineSources(ctx context.Context, ru *run.Run, requireActive bool, mode driver.AccessMode) error {
 	cmd, coll := ru.Cmd, ru.Config.Collection
-	activeSrc, err := activeSrcAndSchemaFromFlagsOrConfig(ru)
+	activeSrc, err := activeSrcAndSchemaFromFlagsOrConfig(ru, mode)
 	if err != nil {
 		return err
 	}
@@ -97,7 +103,7 @@ func determineSources(ctx context.Context, ru *run.Run, requireActive bool) erro
 // of the source if the flag is set.
 //
 // See also: processFlagActiveSchema, verifySourceCatalogSchema.
-func activeSrcAndSchemaFromFlagsOrConfig(ru *run.Run) (*source.Source, error) {
+func activeSrcAndSchemaFromFlagsOrConfig(ru *run.Run, mode driver.AccessMode) (*source.Source, error) {
 	cmd, coll := ru.Cmd, ru.Config.Collection
 	var activeSrc *source.Source
 
@@ -125,7 +131,7 @@ func activeSrcAndSchemaFromFlagsOrConfig(ru *run.Run) (*source.Source, error) {
 	}
 
 	if srcModified {
-		if err = verifySourceCatalogSchema(ru.Cmd.Context(), ru, activeSrc); err != nil {
+		if err = verifySourceCatalogSchema(ru.Cmd.Context(), ru, activeSrc, mode); err != nil {
 			return nil, err
 		}
 	}
@@ -148,7 +154,7 @@ func activeSrcAndSchemaFromFlagsOrConfig(ru *run.Run) (*source.Source, error) {
 // ephemeral and explicitly RO sidesteps both pitfalls.
 //
 // See also: processFlagActiveSchema.
-func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Source) error {
+func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Source, mode driver.AccessMode) error {
 	if src.Catalog == "" && src.Schema == "" {
 		return nil
 	}
@@ -163,18 +169,12 @@ func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Sou
 			src.Handle, src.Type)
 	}
 
-	// This validation open bypasses Grips, so it gets its mode from ctx:
-	// it is reached through determineSources, which (in Approach 1a) does
-	// not yet thread an explicit mode argument. Recover the mode a command
-	// set on ctx (e.g. sql --readonly sets ModeReadOnlyExplicit), else
-	// default to the implicit read-only hint, then pass it explicitly to
-	// Driver.Open. The driver may still open READ_WRITE if the source URL
-	// pins access_mode (user URL always wins). 1b removes the ctx hop by
-	// threading mode through determineSources to here.
-	mode := driver.ModeReadOnly
-	if driver.IsReadOnlyExplicit(ctx) {
-		mode = driver.ModeReadOnlyExplicit
-	}
+	// This validation open is always read-only (a pure catalog/schema
+	// existence check). mode is passed by the caller: ModeReadOnly for
+	// the implicit case, or ModeReadOnlyExplicit when the user requested
+	// read-only (sql --readonly) so the driver may override an AUTOMATIC
+	// access_mode. The driver may still open READ_WRITE if the source URL
+	// pins access_mode (user URL always wins).
 
 	// Bypassing Grips also bypasses the ${scheme:path} placeholder
 	// resolution that Grips.doOpen performs, so resolve here before
@@ -223,7 +223,7 @@ func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Sou
 // (and validated) as appropriate.
 //
 // See: applySourceOptions, processFlagActiveSchema, verifySourceCatalogSchema.
-func getCmdSource(cmd *cobra.Command, args []string) (*source.Source, error) {
+func getCmdSource(cmd *cobra.Command, args []string, mode driver.AccessMode) (*source.Source, error) {
 	ru := run.FromContext(cmd.Context())
 
 	var src *source.Source
@@ -255,7 +255,7 @@ func getCmdSource(cmd *cobra.Command, args []string) (*source.Source, error) {
 	}
 
 	if srcModified {
-		if err = verifySourceCatalogSchema(cmd.Context(), ru, src); err != nil {
+		if err = verifySourceCatalogSchema(cmd.Context(), ru, src, mode); err != nil {
 			return nil, err
 		}
 	}

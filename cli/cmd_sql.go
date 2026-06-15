@@ -82,15 +82,11 @@ func execSQL(cmd *cobra.Command, args []string) error {
 	}
 
 	// --readonly / --ro: opt the raw-SQL command into read-only mode for
-	// the source. Two things happen here, BEFORE determineSources:
-	//   1. Peek at the would-be active source and surface the URL-conflict
-	//      error preemptively. Doing this after determineSources would let
-	//      verifySourceCatalogSchema briefly open the file READ_WRITE (the
-	//      URL wins over the RO ctx) before the error fires, defeating the
-	//      whole point of the conflict surfacing.
-	//   2. Flip the ctx so any pre-open inside determineSources sees the
-	//      RO hint. Skip the flip for --insert (execSQLInsert opens destGrip
-	//      first on the RW ctx before flipping to RO for the source side).
+	// the source. When set, peek at the would-be active source and surface
+	// the URL-conflict error preemptively. Doing this after determineSources
+	// would let verifySourceCatalogSchema briefly open the file READ_WRITE
+	// (the URL wins over the RO request) before the error fires, defeating
+	// the whole point of the conflict surfacing.
 	readOnlySrc := cmdFlagIsSetTrue(cmd, flag.SQLReadOnly) ||
 		cmdFlagIsSetTrue(cmd, flag.SQLReadOnlyAlias)
 	if readOnlySrc {
@@ -106,17 +102,17 @@ func execSQL(cmd *cobra.Command, args []string) error {
 					flag.SQLReadOnly, peek.Handle)
 			}
 		}
-		if !cmdFlagChanged(cmd, flag.Insert) {
-			// Set the mode on ctx purely for the direct driver-open inside
-			// determineSources -> verifySourceCatalogSchema, which bypasses
-			// Grips and so has no OpenOpt seam. The Grips.Open calls in
-			// execSQLPrint/execSQLInsert pass the mode explicitly instead.
-			ctx = driver.WithMode(ctx, driver.ModeReadOnlyExplicit)
-			cmd.SetContext(ctx)
-		}
 	}
 
-	err := determineSources(ctx, ru, true)
+	// The --src.schema validation pre-open inside determineSources is
+	// read-only; pass it ModeReadOnlyExplicit when --readonly was given so
+	// the driver may override an AUTOMATIC access_mode.
+	validationMode := driver.ModeReadOnly
+	if readOnlySrc {
+		validationMode = driver.ModeReadOnlyExplicit
+	}
+
+	err := determineSources(ctx, ru, true, validationMode)
 	if err != nil {
 		return err
 	}
