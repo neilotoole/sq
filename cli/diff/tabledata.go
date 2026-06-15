@@ -150,6 +150,9 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	// any errors will be sent to the shared errCh.
 
 	qc := run.NewQueryContext(cfg.Run, nil)
+	// diff only reads source data; open the source grips read-only so the
+	// pipeline's opens don't take a write lock (e.g. on DuckDB files).
+	qc.AccessMode = driver.ModeReadOnly
 
 	// We give the DB query goroutines their own context, dbCtx. This is so that
 	// we can explicitly stop the queries using dbCancel(errz.ErrStop) if we reach

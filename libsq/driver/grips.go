@@ -78,9 +78,12 @@ func NewGrips(drvrs Provider, fs *files.Files, scratchSrcFn ScratchSrcFunc) *Gri
 }
 
 // Open returns an opened Grip for src. The returned Grip may be cached and
-// returned on future invocations for the identical source and access mode.
-// Thus, the caller should typically not close the Grip: it will be closed
-// via d.Close.
+// returned on future invocations for the same source handle and access
+// mode. The cache key is the handle plus mode only: it deliberately
+// ignores src.Location and src.Options, so a second Open of the same
+// handle in the same mode returns the existing grip even if those fields
+// differ. Thus, the caller should typically not close the Grip: it will
+// be closed via d.Close.
 //
 // The access mode is given by mode (pass ModeReadWrite for a normal open,
 // ModeReadOnly or ModeReadOnlyExplicit for a read-only open). The cache
