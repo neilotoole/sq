@@ -41,7 +41,7 @@ func (d *fakeDriver) Open(_ context.Context, src *source.Source, mode driver.Acc
 	}
 	d.opens = append(d.opens, openRecord{
 		loc:      src.Location,
-		readOnly: mode != driver.ModeReadWrite,
+		readOnly: mode.IsReadOnly(),
 		explicit: mode == driver.ModeReadOnlyExplicit,
 	})
 	g := &fakeGrip{src: src}

@@ -114,7 +114,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source, mode driver.Acce
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source, mode driver.AccessMode) (*sql.DB, error) {
 	loc := src.Location
-	if mode != driver.ModeReadWrite {
+	if mode.IsReadOnly() {
 		var changed bool
 		loc, changed = ApplyReadOnlyToLocation(loc, mode == driver.ModeReadOnlyExplicit)
 		if changed {

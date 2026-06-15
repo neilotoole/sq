@@ -31,6 +31,15 @@ const (
 	ModeReadOnlyExplicit
 )
 
+// IsReadOnly reports whether m is one of the read-only modes (implicit
+// ModeReadOnly or explicit ModeReadOnlyExplicit). It checks the known
+// read-only values explicitly rather than treating "anything but
+// ModeReadWrite" as read-only, so an unset or invalid AccessMode is
+// treated as read-write, consistent with suffix and String.
+func (m AccessMode) IsReadOnly() bool {
+	return m == ModeReadOnly || m == ModeReadOnlyExplicit
+}
+
 // suffix returns the cache-key suffix for the mode. Stable and distinct
 // per mode so that a source opened in two modes within one run gets two
 // coexisting grips (gh #779).
