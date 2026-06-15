@@ -41,11 +41,11 @@ type Driver interface {
 	// The exact behavior of Ping is driver-dependent. Even if Ping does not
 	// return an error, the source may still be bad for other reasons.
 	//
-	// mode controls how the underlying connection is opened (see Open), and
-	// is not merely advisory even though a ping performs no writes: for a
-	// file-backed source it determines what the ping validates and what side
-	// effects it has. Callers therefore ping in the mode the source will be
-	// used in. The two callers differ deliberately:
+	// Arg mode controls how the underlying connection is opened (see Open),
+	// and is not merely advisory even though a ping performs no writes: for
+	// a file-backed source it determines what the ping validates and what
+	// side effects it has. Callers therefore ping in the mode the source
+	// will be used in. The two callers differ deliberately:
 	//
 	//   - "sq ping" pings ModeReadOnly: a non-disturbing connectivity check
 	//     that takes no write lock and creates nothing.

@@ -90,7 +90,7 @@ func NewGrips(drvrs Provider, fs *files.Files, scratchSrcFn ScratchSrcFunc) *Gri
 // matter. A cache hit is served before secret resolution runs, so
 // repeated opens of an already-open source don't repeat resolver work.
 //
-// mode is forwarded to Driver.Open.
+// Arg mode is forwarded to Driver.Open.
 //
 // NOTE: This entire logic re caching/not-closing is a bit sketchy,
 // and needs to be revisited.
