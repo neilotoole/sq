@@ -259,7 +259,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	// Truncate has src in hand (unlike most SQLDriver methods, which
 	// take a bare db), so its errors get the connection-error
 	// enrichments too, consistent with the query and metadata paths.
-	affected, err := sqlz.ExecAffected(ctx, db, fmt.Sprintf("DELETE FROM %q", tbl))
+	affected, err := sqlz.ExecAffected(ctx, db, "DELETE FROM "+stringz.DoubleQuote(tbl))
 	if err != nil {
 		return affected, enrichConnError(errw(err), src)
 	}
@@ -1003,14 +1003,15 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 
 // AlterTableRename implements driver.SQLDriver.
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
-	q := fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, tbl, newName)
+	q := fmt.Sprintf(`ALTER TABLE %s RENAME TO %s`, stringz.DoubleQuote(tbl), stringz.DoubleQuote(newName))
 	_, err := db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "rqlite: alter table: failed to rename table {%s} to {%s}", tbl, newName)
 }
 
 // AlterTableAddColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col string, knd kind.Kind) error {
-	q := fmt.Sprintf("ALTER TABLE %q ADD COLUMN %q %s", tbl, col, DBTypeForKind(knd))
+	q := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s",
+		stringz.DoubleQuote(tbl), stringz.DoubleQuote(col), DBTypeForKind(knd))
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
 		return errz.Wrapf(errw(err), "rqlite: alter table: failed to add column {%s} to table {%s}", col, tbl)
@@ -1020,7 +1021,8 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 
 // AlterTableRenameColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
-	q := fmt.Sprintf("ALTER TABLE %q RENAME COLUMN %q TO %q", tbl, col, newName)
+	q := fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s",
+		stringz.DoubleQuote(tbl), stringz.DoubleQuote(col), stringz.DoubleQuote(newName))
 	_, err := db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "rqlite: alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
 }

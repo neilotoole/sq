@@ -299,6 +299,65 @@ func TestTruncate_Reset(t *testing.T) {
 	require.Equal(t, int64(1), id, "AUTOINCREMENT counter should have been reset")
 }
 
+// TestAlterTruncate_EmbeddedQuoteIdentifier reproduces gh821: the
+// AlterTableRename, AlterTableRenameColumn, AlterTableAddColumn, and Truncate
+// paths used %q for SQL identifier quoting, which emits Go backslash escaping
+// that SQLite rejects for names containing a double quote (e.g. a we"ird table,
+// creatable from a CSV header). Each path must use SQL double-quote escaping.
+func TestAlterTruncate_EmbeddedQuoteIdentifier(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	uniq := stringz.Uniq8()
+	tblName := `we"ird_` + uniq
+	newName := `we"ird2_` + uniq
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: newName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf("CREATE TABLE %s (id INTEGER)", stringz.DoubleQuote(tblName)))
+	require.NoError(t, err)
+
+	// AlterTableAddColumn: add a column whose name also contains a quote.
+	const colName = `na"me`
+	require.NoError(t, drvr.AlterTableAddColumn(th.Context, db, tblName, colName, kind.Text))
+
+	// AlterTableRenameColumn: rename the quoted column to another quoted name.
+	const renamedCol = `re"named`
+	require.NoError(t, drvr.AlterTableRenameColumn(th.Context, db, tblName, colName, renamedCol))
+
+	md, err := grip.TableMetadata(th.Context, tblName)
+	require.NoError(t, err)
+	require.Len(t, md.Columns, 2)
+	require.Equal(t, renamedCol, md.Columns[1].Name)
+
+	// Truncate: insert a row, then delete all rows via the truncate path.
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf("INSERT INTO %s (id) VALUES (1)", stringz.DoubleQuote(tblName)))
+	require.NoError(t, err)
+	affected, err := drvr.Truncate(th.Context, src, tblName, false)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), affected)
+
+	// AlterTableRename: rename the quoted table to another quoted name.
+	require.NoError(t, drvr.AlterTableRename(th.Context, db, tblName, newName))
+	exists, err := drvr.TableExists(th.Context, db, newName)
+	require.NoError(t, err)
+	require.True(t, exists)
+	exists, err = drvr.TableExists(th.Context, db, tblName)
+	require.NoError(t, err)
+	require.False(t, exists)
+}
+
 func TestCopyTable_StructureOnly(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
