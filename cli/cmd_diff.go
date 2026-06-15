@@ -221,8 +221,6 @@ Exit status is 0 if inputs are the same, 1 if different, 2 on any error.`,
 
 // execDiff compares sources or tables.
 func execDiff(cmd *cobra.Command, args []string) (err error) {
-	// diff is wholly read-only; it opens sources via mdcache, which passes
-	// driver.ModeReadOnly to Grips.Open.
 	ctx := cmd.Context()
 	ru := run.FromContext(ctx)
 
