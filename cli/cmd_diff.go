@@ -221,11 +221,10 @@ Exit status is 0 if inputs are the same, 1 if different, 2 on any error.`,
 
 // execDiff compares sources or tables.
 func execDiff(cmd *cobra.Command, args []string) (err error) {
-	// diff is wholly read-only. It opens sources via mdcache (which passes
-	// driver.ReadOnly() to Grips.Open); the mode is also set on ctx for any
-	// direct driver-open inside verifySourceCatalogSchema.
-	ctx := driver.WithMode(cmd.Context(), driver.ModeReadOnly)
-	cmd.SetContext(ctx)
+	// diff is wholly read-only, and it opens sources only via mdcache,
+	// which passes driver.ModeReadOnly to Grips.Open. diff reaches no
+	// Grips-bypassing driver open, so it needs no mode on ctx.
+	ctx := cmd.Context()
 	ru := run.FromContext(ctx)
 
 	var foundDiffs bool

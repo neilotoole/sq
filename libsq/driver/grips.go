@@ -84,19 +84,21 @@ func NewGrips(drvrs Provider, fs *files.Files, scratchSrcFn ScratchSrcFunc) *Gri
 //
 // The access mode is selected by opts (default ModeReadWrite; pass
 // driver.ReadOnly() or driver.ReadOnlyExplicit() for a read-only open).
-// The cache is keyed by source handle and that mode, so a read-only open
-// and a read-write open of the same source yield independent grips, each
+// The cache is keyed by source handle and mode, so a read-only open and a
+// read-write open of the same source yield independent grips, each
 // connected in the requested mode: call ordering across modes does not
 // matter. A cache hit is served before secret resolution runs, so
 // repeated opens of an already-open source don't repeat resolver work.
 //
+// mode is passed explicitly (rather than carried on ctx) and forwarded to
+// Driver.Open; pass ModeReadWrite for a normal open.
+//
 // NOTE: This entire logic re caching/not-closing is a bit sketchy,
 // and needs to be revisited.
-func (gs *Grips) Open(ctx context.Context, src *source.Source, opts ...OpenOpt) (Grip, error) {
+func (gs *Grips) Open(ctx context.Context, src *source.Source, mode AccessMode) (Grip, error) {
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
 
-	mode := resolveMode(opts)
 	g, err := gs.doOpen(ctx, src, mode)
 	if err != nil {
 		return nil, err
@@ -241,12 +243,7 @@ func (gs *Grips) doOpen(ctx context.Context, src *source.Source, mode AccessMode
 	o := options.Merge(baseOptions, src.Options)
 
 	ctx = options.NewContext(ctx, o)
-	// Bridge the explicit mode onto ctx for the Driver.Open hop. Drivers
-	// read it via IsReadOnly / IsReadOnlyExplicit. Confining the ctx hint
-	// to this single call keeps it an internal Grips<->driver protocol
-	// rather than an app-wide ambient flag.
-	ctx = WithMode(ctx, mode)
-	grip, err = drvr.Open(ctx, src)
+	grip, err = drvr.Open(ctx, src, mode)
 	if err != nil {
 		return nil, err
 	}
@@ -289,7 +286,7 @@ func (gs *Grips) OpenEphemeral(ctx context.Context) (Grip, error) {
 	}
 
 	var grip Grip
-	if grip, err = drvr.Open(ctx, src); err != nil {
+	if grip, err = drvr.Open(ctx, src, ModeReadWrite); err != nil {
 		lg.WarnIfFuncError(log, msgCloseDB, clnup.Run)
 		return nil, err
 	}
@@ -337,7 +334,7 @@ func (gs *Grips) openNewCacheGrip(ctx context.Context, src *source.Source) (grip
 	}
 
 	var backingGrip Grip
-	if backingGrip, err = backingDrvr.Open(ctx, scratchSrc); err != nil {
+	if backingGrip, err = backingDrvr.Open(ctx, scratchSrc, ModeReadWrite); err != nil {
 		lg.WarnIfFuncError(log, msgRemoveScratch, cleanFn)
 		// The os.Remove call may be unnecessary, but doesn't hurt.
 		lg.WarnIfError(log, msgRemoveScratch, os.Remove(srcCacheDBFilepath))
@@ -537,7 +534,7 @@ func (gs *Grips) OpenJoin(ctx context.Context, srcs ...*source.Source) (Grip, er
 
 	log.Debug("Opening join db", lga.Path, fp)
 	var grip Grip
-	if grip, err = drvr.Open(ctx, joinSrc); err != nil {
+	if grip, err = drvr.Open(ctx, joinSrc, ModeReadWrite); err != nil {
 		lg.WarnIfFuncError(log, msgCloseJoinDB, clnup.Run)
 		return nil, err
 	}

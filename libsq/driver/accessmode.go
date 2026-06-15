@@ -42,6 +42,8 @@ func (m AccessMode) suffix() string {
 		return "rox"
 	case ModeReadOnly:
 		return "ro"
+	case ModeReadWrite:
+		return "rw"
 	default:
 		return "rw"
 	}
@@ -54,71 +56,29 @@ func (m AccessMode) String() string {
 		return "read-only (explicit)"
 	case ModeReadOnly:
 		return "read-only"
+	case ModeReadWrite:
+		return "read-write"
 	default:
 		return "read-write"
 	}
 }
 
-// OpenOpt configures a Grips.Open call. The zero set of opts yields
-// ModeReadWrite.
-type OpenOpt func(*AccessMode)
-
-// ReadOnly requests an implicit read-only open. It does not downgrade an
-// already-explicit request, so combining ReadOnly with ReadOnlyExplicit
-// in either order yields ModeReadOnlyExplicit.
-func ReadOnly() OpenOpt {
-	return func(m *AccessMode) {
-		if *m < ModeReadOnly {
-			*m = ModeReadOnly
-		}
-	}
-}
-
-// ReadOnlyExplicit requests an explicit read-only open (e.g. the user
-// passed sq sql --readonly).
-func ReadOnlyExplicit() OpenOpt {
-	return func(m *AccessMode) {
-		*m = ModeReadOnlyExplicit
-	}
-}
-
-// Mode returns an OpenOpt that sets the access mode directly.
-// Convenience for callers that carry an AccessMode value (e.g.
-// QueryContext) rather than composing ReadOnly/ReadOnlyExplicit.
-func Mode(mode AccessMode) OpenOpt {
-	return func(m *AccessMode) {
-		if *m < mode {
-			*m = mode
-		}
-	}
-}
-
-// resolveMode applies opts to the default ModeReadWrite.
-func resolveMode(opts []OpenOpt) AccessMode {
-	mode := ModeReadWrite
-	for _, opt := range opts {
-		if opt != nil {
-			opt(&mode)
-		}
-	}
-	return mode
-}
-
-// readOnlyCtxKey carries the resolved AccessMode from Grips.Open down to
-// driver.Driver.Open. This is an internal protocol between Grips and the
-// drivers: Grips sets it just before calling Driver.Open, and a driver
-// reads it via IsReadOnly / IsReadOnlyExplicit. Application code no
-// longer sets this; it passes OpenOpt values to Grips.Open instead.
+// readOnlyCtxKey carries an AccessMode on ctx for the paths that still
+// rely on ambient propagation. As of Approach 1a, driver.Driver.Open and
+// Ping take an explicit mode parameter, so Grips no longer uses ctx to
+// reach the driver. This key now serves only the bypass path: code that
+// resolves the source and opens a driver directly (currently
+// verifySourceCatalogSchema), reached through the shared determineSources
+// plumbing that does not yet thread a mode argument. 1b removes this by
+// threading mode through that plumbing, after which the key and these
+// helpers can be deleted.
 type readOnlyCtxKey struct{}
 
-// WithMode stores mode on ctx for the Driver.Open hop. Grips calls this
-// internally to bridge the explicit OpenOpt API to the driver's
-// ctx-based read side (avoiding a signature change to Driver.Open across
-// every driver). It is also exported for the rare caller that opens a
-// driver directly, bypassing Grips (e.g. verifySourceCatalogSchema's
-// uncached validation open): such callers have no OpenOpt seam, so they
-// set the mode on ctx themselves. Grips callers should pass OpenOpt
-// values to Grips.Open instead of using this.
+// WithMode stores mode on ctx. Used only by commands that feed the
+// verifySourceCatalogSchema bypass (which reads it back via IsReadOnly /
+// IsReadOnlyExplicit and then passes the resolved mode explicitly to
+// Driver.Open). Not used to reach drivers opened through Grips: those get
+// the mode as an explicit Grips.Open / Driver.Open argument.
 func WithMode(ctx context.Context, mode AccessMode) context.Context {
 	if mode == ModeReadWrite {
 		return ctx
@@ -126,9 +86,10 @@ func WithMode(ctx context.Context, mode AccessMode) context.Context {
 	return context.WithValue(ctx, readOnlyCtxKey{}, mode)
 }
 
-// IsReadOnly reports whether the source is being opened read-only
-// (implicit or explicit). Drivers that can honor the hint (DuckDB) call
-// this from their Open method.
+// IsReadOnly reports whether ctx carries a read-only AccessMode
+// (implicit or explicit). Read by the verifySourceCatalogSchema bypass
+// to recover a mode set by the command; drivers no longer read ctx (they
+// take an explicit mode parameter).
 func IsReadOnly(ctx context.Context) bool {
 	m, ok := ctx.Value(readOnlyCtxKey{}).(AccessMode)
 	return ok && m != ModeReadWrite

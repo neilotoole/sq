@@ -380,7 +380,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) (err error) {
 		if err != nil {
 			return err
 		}
-		if err = drvr.Ping(ctx, pingSrc); err != nil {
+		if err = drvr.Ping(ctx, pingSrc, driver.ModeReadWrite); err != nil {
 			return err
 		}
 	}

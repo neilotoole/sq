@@ -57,9 +57,9 @@ func TestReadOnly_Concurrent_TwoOpens(t *testing.T) {
 	require.NoError(t, err)
 
 	openOne := func() error {
-		ctx := driver.WithMode(context.Background(), driver.ModeReadOnly)
+		ctx := context.Background()
 		src := testh.MakeDuckDBSource("@ro_concurrent", path)
-		grip, err := drvr.Open(ctx, src)
+		grip, err := drvr.Open(ctx, src, driver.ModeReadOnly)
 		if err != nil {
 			return err
 		}
@@ -99,9 +99,9 @@ func TestReadOnly_FileChmod0444(t *testing.T) {
 	drvr, err := prov.DriverFor(testh.DuckDBType())
 	require.NoError(t, err)
 
-	ctx := driver.WithMode(context.Background(), driver.ModeReadOnly)
+	ctx := context.Background()
 	src := testh.MakeDuckDBSource("@ro_chmod", path)
-	grip, err := drvr.Open(ctx, src)
+	grip, err := drvr.Open(ctx, src, driver.ModeReadOnly)
 	require.NoError(t, err, "RO open of 0444 file must succeed")
 	defer grip.Close()
 }
@@ -121,8 +121,8 @@ func TestReadOnly_URLAccessModeWins(t *testing.T) {
 	src := testh.MakeDuckDBSource("@ro_url_override", path)
 	src.Location += "?access_mode=READ_WRITE"
 
-	ctx := driver.WithMode(context.Background(), driver.ModeReadOnly)
-	grip, err := drvr.Open(ctx, src)
+	ctx := context.Background()
+	grip, err := drvr.Open(ctx, src, driver.ModeReadOnly)
 	require.NoError(t, err)
 	defer grip.Close()
 	db, err := grip.DB(ctx)

@@ -199,13 +199,13 @@ func TestDoOpen_HonorsReadOnlyContext(t *testing.T) {
 		Location: "duckdb://" + tmp,
 	}
 
-	ctx := driver.WithMode(context.Background(), driver.ModeReadOnly)
+	ctx := context.Background()
 
 	prov := &duckdb.Provider{}
 	drvr, err := prov.DriverFor(drivertype.DuckDB)
 	require.NoError(t, err)
 
-	_, openErr := drvr.Open(ctx, src)
+	_, openErr := drvr.Open(ctx, src, driver.ModeReadOnly)
 	require.Error(t, openErr, "READ_ONLY open of nonexistent file must fail")
 	require.NoFileExists(t, tmp,
 		"DuckDB must not have created the file when opened READ_ONLY")

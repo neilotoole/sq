@@ -24,27 +24,27 @@ type openRecord struct {
 }
 
 // fakeDriver implements driver.Driver, recording each Open invocation
-// and the read-only hint carried by its context.
+// and the access mode it was passed.
 type fakeDriver struct {
 	mu    sync.Mutex
 	opens []openRecord
 	grips []*fakeGrip
 }
 
-func (d *fakeDriver) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+func (d *fakeDriver) Open(_ context.Context, src *source.Source, mode driver.AccessMode) (driver.Grip, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.opens = append(d.opens, openRecord{
 		loc:      src.Location,
-		readOnly: driver.IsReadOnly(ctx),
-		explicit: driver.IsReadOnlyExplicit(ctx),
+		readOnly: mode != driver.ModeReadWrite,
+		explicit: mode == driver.ModeReadOnlyExplicit,
 	})
 	g := &fakeGrip{src: src}
 	d.grips = append(d.grips, g)
 	return g, nil
 }
 
-func (d *fakeDriver) Ping(_ context.Context, _ *source.Source) error { return nil }
+func (d *fakeDriver) Ping(_ context.Context, _ *source.Source, _ driver.AccessMode) error { return nil }
 
 func (d *fakeDriver) DriverMetadata() driver.Metadata { return driver.Metadata{} }
 
@@ -128,9 +128,9 @@ func TestGrips_Open_ReadOnlyModeKeysCache(t *testing.T) {
 		gs, drvr := newFakeGrips()
 		ctx := context.Background()
 
-		gripRO, err := gs.Open(ctx, newSrc(), driver.ReadOnly())
+		gripRO, err := gs.Open(ctx, newSrc(), driver.ModeReadOnly)
 		require.NoError(t, err)
-		gripRW, err := gs.Open(ctx, newSrc())
+		gripRW, err := gs.Open(ctx, newSrc(), driver.ModeReadWrite)
 		require.NoError(t, err)
 
 		require.NotSame(t, gripRO, gripRW,
@@ -141,10 +141,10 @@ func TestGrips_Open_ReadOnlyModeKeysCache(t *testing.T) {
 			"second open must reach the driver without the read-only hint")
 
 		// Repeat opens in each mode hit the per-mode cache entries.
-		again, err := gs.Open(ctx, newSrc(), driver.ReadOnly())
+		again, err := gs.Open(ctx, newSrc(), driver.ModeReadOnly)
 		require.NoError(t, err)
 		require.Same(t, gripRO, again)
-		again, err = gs.Open(ctx, newSrc())
+		again, err = gs.Open(ctx, newSrc(), driver.ModeReadWrite)
 		require.NoError(t, err)
 		require.Same(t, gripRW, again)
 		require.Equal(t, 2, drvr.openCount())
@@ -160,9 +160,9 @@ func TestGrips_Open_ReadOnlyModeKeysCache(t *testing.T) {
 		gs, drvr := newFakeGrips()
 		ctx := context.Background()
 
-		gripRW, err := gs.Open(ctx, newSrc())
+		gripRW, err := gs.Open(ctx, newSrc(), driver.ModeReadWrite)
 		require.NoError(t, err)
-		gripRO, err := gs.Open(ctx, newSrc(), driver.ReadOnly())
+		gripRO, err := gs.Open(ctx, newSrc(), driver.ModeReadOnly)
 		require.NoError(t, err)
 
 		require.NotSame(t, gripRW, gripRO,
@@ -186,9 +186,9 @@ func TestGrips_Open_ReadOnlyModeKeysCache(t *testing.T) {
 		gs, drvr := newFakeGrips()
 		ctx := context.Background()
 
-		gripImplicit, err := gs.Open(ctx, newSrc(), driver.ReadOnly())
+		gripImplicit, err := gs.Open(ctx, newSrc(), driver.ModeReadOnly)
 		require.NoError(t, err)
-		gripExplicit, err := gs.Open(ctx, newSrc(), driver.ReadOnlyExplicit())
+		gripExplicit, err := gs.Open(ctx, newSrc(), driver.ModeReadOnlyExplicit)
 		require.NoError(t, err)
 
 		require.NotSame(t, gripImplicit, gripExplicit)
@@ -221,7 +221,7 @@ func TestGrips_Open_CacheHitSkipsSecretResolution(t *testing.T) {
 	regA.Register("keyring", resolverA)
 	ctxA := secret.NewContext(context.Background(), regA)
 
-	grip1, err := gs.Open(ctxA, src)
+	grip1, err := gs.Open(ctxA, src, driver.ModeReadWrite)
 	require.NoError(t, err)
 	require.Equal(t, []string{"pw"}, resolverA.calls)
 	require.Equal(t, 1, drvr.openCount())
@@ -233,7 +233,7 @@ func TestGrips_Open_CacheHitSkipsSecretResolution(t *testing.T) {
 	regB.Register("keyring", resolverB)
 	ctxB := secret.NewContext(context.Background(), regB)
 
-	grip2, err := gs.Open(ctxB, src)
+	grip2, err := gs.Open(ctxB, src, driver.ModeReadWrite)
 	require.NoError(t, err)
 	require.Same(t, grip1, grip2)
 	require.Empty(t, resolverB.calls,

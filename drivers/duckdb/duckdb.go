@@ -100,9 +100,9 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 }
 
 // Open implements driver.Driver.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source, mode driver.AccessMode) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
-	db, err := d.doOpen(ctx, src)
+	db, err := d.doOpen(ctx, src, mode)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
@@ -112,11 +112,11 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
 }
 
-func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
+func (d *driveri) doOpen(ctx context.Context, src *source.Source, mode driver.AccessMode) (*sql.DB, error) {
 	loc := src.Location
-	if driver.IsReadOnly(ctx) {
+	if mode != driver.ModeReadWrite {
 		var changed bool
-		loc, changed = ApplyReadOnlyToLocation(loc, driver.IsReadOnlyExplicit(ctx))
+		loc, changed = ApplyReadOnlyToLocation(loc, mode == driver.ModeReadOnlyExplicit)
 		if changed {
 			lg.FromContext(ctx).Debug("DuckDB source opened READ_ONLY",
 				lga.Src, src)
@@ -220,8 +220,8 @@ func MungeLocation(loc string) (string, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
-	db, err := d.doOpen(ctx, src)
+func (d *driveri) Ping(ctx context.Context, src *source.Source, mode driver.AccessMode) error {
+	db, err := d.doOpen(ctx, src, mode)
 	if err != nil {
 		return err
 	}
@@ -562,7 +562,7 @@ func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (b
 // independently of the data and there is no direct analogue to SQLite's
 // sqlite_sequence.
 func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, _ bool) (int64, error) {
-	db, err := d.doOpen(ctx, src)
+	db, err := d.doOpen(ctx, src, driver.ModeReadWrite)
 	if err != nil {
 		return 0, errw(err)
 	}

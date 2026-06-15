@@ -20,6 +20,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/timez"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -147,7 +148,7 @@ func completeCatalog(srcArgPos int) completionFunc {
 			}
 		}
 
-		db, drvr, err := ru.DB(ctx, src)
+		db, drvr, err := ru.DB(ctx, src, driver.ModeReadWrite)
 		if err != nil {
 			lg.Unexpected(log, err)
 			return nil, cobra.ShellCompDirectiveError
@@ -232,8 +233,8 @@ func completeDriverType(cmd *cobra.Command, _ []string, _ string) ([]string, cob
 
 	drivers := ru.DriverRegistry.Drivers()
 	types := make([]string, len(drivers))
-	for i, driver := range ru.DriverRegistry.Drivers() {
-		types[i] = string(driver.DriverMetadata().Type)
+	for i, drvr := range ru.DriverRegistry.Drivers() {
+		types[i] = string(drvr.DriverMetadata().Type)
 	}
 
 	return types, cobra.ShellCompDirectiveNoFileComp
@@ -470,7 +471,7 @@ func (c activeSchemaCompleter) complete(cmd *cobra.Command, args []string, toCom
 	ctx, cancelFn := context.WithTimeout(cmd.Context(), OptShellCompletionTimeout.Get(ru.Config.Options))
 	defer cancelFn()
 
-	grip, err := ru.Grips.Open(ctx, src)
+	grip, err := ru.Grips.Open(ctx, src, driver.ModeReadWrite)
 	if err != nil {
 		lg.Unexpected(log, err)
 		return nil, cobra.ShellCompDirectiveError
@@ -837,12 +838,12 @@ func isSQLDriver(ru *run.Run, handle string) (bool, error) {
 		return false, err
 	}
 
-	driver, err := ru.DriverRegistry.DriverFor(src.Type)
+	drvr, err := ru.DriverRegistry.DriverFor(src.Type)
 	if err != nil {
 		return false, err
 	}
 
-	return driver.DriverMetadata().IsSQL, nil
+	return drvr.DriverMetadata().IsSQL, nil
 }
 
 func getTableNamesForHandle(ctx context.Context, ru *run.Run, handle string) ([]string, error) {
@@ -851,7 +852,7 @@ func getTableNamesForHandle(ctx context.Context, ru *run.Run, handle string) ([]
 		return nil, err
 	}
 
-	db, drvr, err := ru.DB(ctx, src)
+	db, drvr, err := ru.DB(ctx, src, driver.ModeReadWrite)
 	if err != nil {
 		return nil, err
 	}

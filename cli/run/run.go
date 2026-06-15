@@ -133,9 +133,9 @@ func (ru *Run) Close() error {
 }
 
 // DB is a convenience method that gets the sqlz.DB and driver.SQLDriver
-// for src. Pass driver.ReadOnly() (etc.) to open read-only.
-func (ru *Run) DB(ctx context.Context, src *source.Source, opts ...driver.OpenOpt) (sqlz.DB, driver.SQLDriver, error) {
-	grip, err := ru.Grips.Open(ctx, src, opts...)
+// for src, opened in the given access mode.
+func (ru *Run) DB(ctx context.Context, src *source.Source, mode driver.AccessMode) (sqlz.DB, driver.SQLDriver, error) {
+	grip, err := ru.Grips.Open(ctx, src, mode)
 	if err != nil {
 		return nil, nil, err
 	}

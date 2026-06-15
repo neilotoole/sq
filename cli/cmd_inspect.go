@@ -202,7 +202,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	grip, err := ru.Grips.Open(ctx, src, driver.ReadOnly())
+	grip, err := ru.Grips.Open(ctx, src, driver.ModeReadOnly)
 	if err != nil {
 		return errz.Wrapf(err, "failed to inspect %s", src.Handle)
 	}

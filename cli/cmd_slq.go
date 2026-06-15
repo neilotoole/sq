@@ -156,7 +156,7 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 
 	// Open destGrip read-write (the default). It lands in the Grips
 	// handle-keyed cache under the RW key.
-	destGrip, err := ru.Grips.Open(ctx, destSrc)
+	destGrip, err := ru.Grips.Open(ctx, destSrc, driver.ModeReadWrite)
 	if err != nil {
 		return err
 	}
@@ -332,7 +332,7 @@ func preprocessUserSLQ(ctx context.Context, ru *run.Run, args []string) (string,
 			// just select @stdin.data. Instead we'll select
 			// the first table name, as found in the source meta.
 
-			db, sqlDrvr, err := ru.DB(ctx, activeSrc, driver.ReadOnly())
+			db, sqlDrvr, err := ru.DB(ctx, activeSrc, driver.ModeReadOnly)
 			if err != nil {
 				return "", err
 			}

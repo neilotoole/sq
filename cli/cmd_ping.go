@@ -240,11 +240,6 @@ func pingSource(ctx context.Context, dp driver.Provider, src, displaySrc *source
 		return
 	}
 
-	// Ping is read-only by definition: connectivity check, no writes.
-	// Ping calls drvr.Ping directly (it does not go through Grips), so
-	// the mode is carried on ctx for the driver to read.
-	ctx = driver.WithMode(ctx, driver.ModeReadOnly)
-
 	if timeout > 0 {
 		var cancelFn context.CancelFunc
 		ctx, cancelFn = context.WithTimeout(ctx, timeout)
@@ -255,7 +250,10 @@ func pingSource(ctx context.Context, dp driver.Provider, src, displaySrc *source
 	start := time.Now()
 
 	go func() {
-		pingErr := drvr.Ping(ctx, resolved)
+		// Ping is read-only by definition: connectivity check, no writes.
+		// It calls drvr.Ping directly (bypassing Grips), so the mode is an
+		// explicit argument rather than a ctx hint.
+		pingErr := drvr.Ping(ctx, resolved, driver.ModeReadOnly)
 		doneCh <- pingResult{src: displaySrc, duration: time.Since(start), err: pingErr}
 	}()
 

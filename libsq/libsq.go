@@ -53,17 +53,9 @@ type QueryContext struct {
 	// AccessMode controls how source grips are opened during query
 	// execution. The zero value (ModeReadWrite) is correct for the
 	// --insert path, where the pipeline may write through a source grip;
-	// read-only commands set ModeReadOnly. It is threaded explicitly to
+	// read-only commands set ModeReadOnly. It is passed explicitly to
 	// every Grips.Open the pipeline performs.
 	AccessMode driver.AccessMode
-}
-
-// openOpts returns the Grips.Open options implied by qc.AccessMode.
-func (qc *QueryContext) openOpts() []driver.OpenOpt {
-	if qc.AccessMode == driver.ModeReadWrite {
-		return nil
-	}
-	return []driver.OpenOpt{driver.Mode(qc.AccessMode)}
 }
 
 // RecordWriter is the interface for writing records to a

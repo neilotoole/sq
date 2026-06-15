@@ -1204,11 +1204,11 @@ func TestFilterToAdvertisedParams(t *testing.T) {
 // methods are never called.
 type nonSQLDriverStub struct{}
 
-func (nonSQLDriverStub) Open(context.Context, *source.Source) (driver.Grip, error) {
+func (nonSQLDriverStub) Open(context.Context, *source.Source, driver.AccessMode) (driver.Grip, error) {
 	panic("not implemented")
 }
 
-func (nonSQLDriverStub) Ping(context.Context, *source.Source) error {
+func (nonSQLDriverStub) Ping(context.Context, *source.Source, driver.AccessMode) error {
 	panic("not implemented")
 }
 

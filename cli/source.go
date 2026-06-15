@@ -163,39 +163,41 @@ func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Sou
 			src.Handle, src.Type)
 	}
 
-	// This validation open bypasses Grips (see godoc), so it has no
-	// OpenOpt seam: carry the mode on ctx for the driver to read.
-	// Preserve an explicit mode the caller already set on ctx (e.g. sql
-	// --readonly sets ModeReadOnlyExplicit); otherwise default to the
-	// implicit read-only hint. The driver may still open READ_WRITE if
-	// the source URL pins access_mode (user URL always wins).
-	openCtx := ctx
-	if !driver.IsReadOnly(ctx) {
-		openCtx = driver.WithMode(ctx, driver.ModeReadOnly)
+	// This validation open bypasses Grips, so it gets its mode from ctx:
+	// it is reached through determineSources, which (in Approach 1a) does
+	// not yet thread an explicit mode argument. Recover the mode a command
+	// set on ctx (e.g. sql --readonly sets ModeReadOnlyExplicit), else
+	// default to the implicit read-only hint, then pass it explicitly to
+	// Driver.Open. The driver may still open READ_WRITE if the source URL
+	// pins access_mode (user URL always wins). 1b removes the ctx hop by
+	// threading mode through determineSources to here.
+	mode := driver.ModeReadOnly
+	if driver.IsReadOnlyExplicit(ctx) {
+		mode = driver.ModeReadOnlyExplicit
 	}
 
 	// Bypassing Grips also bypasses the ${scheme:path} placeholder
 	// resolution that Grips.doOpen performs, so resolve here before
 	// handing src to the driver.
-	openSrc, err := driver.ResolveSourceSecrets(openCtx, src)
+	openSrc, err := driver.ResolveSourceSecrets(ctx, src)
 	if err != nil {
 		return err
 	}
 
-	grip, err := d.Open(openCtx, openSrc)
+	grip, err := d.Open(ctx, openSrc, mode)
 	if err != nil {
 		return err
 	}
 	defer lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDB, grip)
 
-	db, err := grip.DB(openCtx)
+	db, err := grip.DB(ctx)
 	if err != nil {
 		return err
 	}
 
 	var exists bool
 	if src.Catalog != "" {
-		if exists, err = sqlDrvr.CatalogExists(openCtx, db, src.Catalog); err != nil {
+		if exists, err = sqlDrvr.CatalogExists(ctx, db, src.Catalog); err != nil {
 			return err
 		}
 		if !exists {
@@ -204,7 +206,7 @@ func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Sou
 	}
 
 	if src.Schema != "" {
-		if exists, err = sqlDrvr.SchemaExists(openCtx, db, src.Schema); err != nil {
+		if exists, err = sqlDrvr.SchemaExists(ctx, db, src.Schema); err != nil {
 			return err
 		}
 		if !exists {

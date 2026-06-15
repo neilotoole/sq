@@ -32,13 +32,16 @@ type Provider interface {
 // Driver is the core interface that must be implemented for each type
 // of data source.
 type Driver interface {
-	// Open returns a Grip instance for src.
-	Open(ctx context.Context, src *source.Source) (Grip, error)
+	// Open returns a Grip instance for src, opened in the given access
+	// mode. Drivers that cannot honor a read-only mode (anything but
+	// DuckDB today) must ignore it and still return a working connection.
+	Open(ctx context.Context, src *source.Source, mode AccessMode) (Grip, error)
 
 	// Ping verifies that the source is reachable, or returns an error if not.
 	// The exact behavior of Ping is driver-dependent. Even if Ping does not
-	// return an error, the source may still be bad for other reasons.
-	Ping(ctx context.Context, src *source.Source) error
+	// return an error, the source may still be bad for other reasons. mode
+	// controls how the underlying connection is opened (see Open).
+	Ping(ctx context.Context, src *source.Source, mode AccessMode) error
 
 	// DriverMetadata returns driver metadata.
 	DriverMetadata() Metadata

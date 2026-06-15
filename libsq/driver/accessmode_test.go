@@ -7,23 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestResolveMode(t *testing.T) {
-	require.Equal(t, ModeReadWrite, resolveMode(nil))
-	require.Equal(t, ModeReadWrite, resolveMode([]OpenOpt{}))
-	require.Equal(t, ModeReadOnly, resolveMode([]OpenOpt{ReadOnly()}))
-	require.Equal(t, ModeReadOnlyExplicit, resolveMode([]OpenOpt{ReadOnlyExplicit()}))
-	require.Equal(t, ModeReadOnlyExplicit, resolveMode([]OpenOpt{Mode(ModeReadOnlyExplicit)}))
-
-	// ReadOnly must not downgrade an explicit request, in either order.
-	require.Equal(t, ModeReadOnlyExplicit,
-		resolveMode([]OpenOpt{ReadOnlyExplicit(), ReadOnly()}))
-	require.Equal(t, ModeReadOnlyExplicit,
-		resolveMode([]OpenOpt{ReadOnly(), ReadOnlyExplicit()}))
-
-	// nil opts are skipped.
-	require.Equal(t, ModeReadOnly, resolveMode([]OpenOpt{nil, ReadOnly(), nil}))
-}
-
 func TestAccessMode_suffix(t *testing.T) {
 	require.Equal(t, "rw", ModeReadWrite.suffix())
 	require.Equal(t, "ro", ModeReadOnly.suffix())
@@ -32,13 +15,17 @@ func TestAccessMode_suffix(t *testing.T) {
 	require.NotEqual(t, ModeReadOnly.suffix(), ModeReadOnlyExplicit.suffix())
 }
 
+// TestWithMode_RoundTrip covers the ctx carrier retained in Approach 1a
+// for the verifySourceCatalogSchema bypass. Drivers no longer read ctx
+// (they take an explicit mode parameter); these helpers serve only that
+// bypass path.
 func TestWithMode_RoundTrip(t *testing.T) {
 	ctx := context.Background()
 	require.False(t, IsReadOnly(ctx))
 	require.False(t, IsReadOnlyExplicit(ctx))
 
 	// ModeReadWrite must not write a value (so a bare ctx and a
-	// RW-marked ctx are indistinguishable to drivers).
+	// RW-marked ctx are indistinguishable).
 	require.False(t, IsReadOnly(WithMode(ctx, ModeReadWrite)))
 
 	roCtx := WithMode(ctx, ModeReadOnly)
@@ -50,9 +37,11 @@ func TestWithMode_RoundTrip(t *testing.T) {
 	require.True(t, IsReadOnlyExplicit(roxCtx))
 }
 
+type testCtxKey struct{}
+
 func TestWithMode_SurvivesChildContext(t *testing.T) {
 	ctx := WithMode(context.Background(), ModeReadOnlyExplicit)
-	child := context.WithValue(ctx, struct{}{}, "x")
+	child := context.WithValue(ctx, testCtxKey{}, "x")
 	require.True(t, IsReadOnlyExplicit(child),
 		"read-only marker must survive context derivation")
 }

@@ -166,7 +166,7 @@ func execSQL(cmd *cobra.Command, args []string) error {
 // the count of affected rows from the statement execution.
 func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source, srcMode driver.AccessMode) error {
 	args := ru.Args
-	grip, err := ru.Grips.Open(ctx, fromSrc, driver.Mode(srcMode))
+	grip, err := ru.Grips.Open(ctx, fromSrc, srcMode)
 	if err != nil {
 		return err
 	}
@@ -227,7 +227,7 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 	// READ_WRITE. The Grips cache keys by src.Handle, so if fromSrc
 	// shares a handle with destSrc (self-insert), the later
 	// grips.Open(ctx, fromSrc) returns this cached RW grip.
-	destGrip, err := grips.Open(ctx, destSrc)
+	destGrip, err := grips.Open(ctx, destSrc, driver.ModeReadWrite)
 	if err != nil {
 		return err
 	}
@@ -239,7 +239,7 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 		srcMode = driver.ModeReadOnlyExplicit
 	}
 
-	fromGrip, err := grips.Open(ctx, fromSrc, driver.Mode(srcMode))
+	fromGrip, err := grips.Open(ctx, fromSrc, srcMode)
 	if err != nil {
 		return err
 	}
