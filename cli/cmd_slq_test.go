@@ -909,3 +909,24 @@ func TestCmdSLQ_Print_ReadOnly(t *testing.T) {
 	require.NoError(t, tr.Exec("slq", src.Handle+".actor"),
 		"sq <slq> must open the source read-only (no write lock)")
 }
+
+// TestCmdSLQ_Insert_FromReadOnlySource guards that an --insert can READ from a
+// source that is read-only on disk (0444). The destination opens read-write;
+// the source, having a different handle, must open read-only (gh #779 per-source
+// mode via QueryContext.WriteHandle). A regression here forces the source RW and
+// fails with "permission denied" on the 0444 DuckDB file. The destination is a
+// (writable) SQLite source; the point is the read-only DuckDB source.
+func TestCmdSLQ_Insert_FromReadOnlySource(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.Duck)
+	dest := th.Source(sakila.SL3)
+
+	srcPath := strings.TrimPrefix(src.Location, "duckdb://")
+	require.NoError(t, os.Chmod(srcPath, 0o444))
+	t.Cleanup(func() { _ = os.Chmod(srcPath, 0o644) })
+
+	destTbl := "actor_ro_copy_" + stringz.Uniq8()
+	tr := testrun.New(th.Context, t, nil).Hush().Add(*src, *dest)
+	require.NoError(t, tr.Exec("slq", "--insert="+dest.Handle+"."+destTbl, src.Handle+".actor"),
+		"insert from a read-only source must open the source read-only and succeed")
+}

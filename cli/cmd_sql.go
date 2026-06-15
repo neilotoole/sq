@@ -221,18 +221,21 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 
 	// Open the destination read-write. Open order no longer matters: each
 	// open states its mode explicitly, and the cache keys by handle+mode.
-	// For a self-insert (fromSrc shares destSrc's handle) without
-	// --readonly, the source open below uses the same read-write key and
-	// so reuses this grip.
 	destGrip, err := grips.Open(ctx, destSrc, driver.ModeReadWrite)
 	if err != nil {
 		return err
 	}
 
-	// Open the source side explicitly read-only when --readonly was
-	// passed (readOnlySrc is only true then); otherwise read-write.
-	srcMode := driver.ModeReadWrite
-	if readOnlySrc {
+	// The source is read: open it read-only so inserting from a read-only
+	// source works. Two exceptions: a self-insert (fromSrc shares destSrc's
+	// handle) opens read-write so it reuses destGrip (DuckDB can't open one
+	// file read-only and read-write at once); and --readonly forces an
+	// explicit read-only open.
+	srcMode := driver.ModeReadOnly
+	switch {
+	case fromSrc.Handle == destSrc.Handle:
+		srcMode = driver.ModeReadWrite
+	case readOnlySrc:
 		srcMode = driver.ModeReadOnlyExplicit
 	}
 

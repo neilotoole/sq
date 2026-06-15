@@ -37,6 +37,16 @@ type QueryContext struct {
 	// May be nil or empty.
 	Args map[string]string
 
+	// WriteHandle, when non-empty, is the handle of a source the caller has
+	// already opened read-write (the --insert destination). A source in the
+	// query that shares this handle (a self-insert, e.g.
+	// `sq '@h.t1' --insert @h.t2`) must be opened read-write too, so the
+	// pipeline reuses the existing read-write grip rather than opening a
+	// second connection in a conflicting mode (DuckDB rejects concurrent
+	// read-only + read-write of one file). Other sources still use
+	// AccessMode. Empty for non-insert queries.
+	WriteHandle string
+
 	// PreExecStmts are statements that are executed before the query.
 	// These can be used for edge-case behavior, such as setting up
 	// variables in the session. These stmts are typically loaded
@@ -51,11 +61,25 @@ type QueryContext struct {
 	PostExecStmts []string
 
 	// AccessMode controls how source grips are opened during query
-	// execution. The zero value (ModeReadWrite) is correct for the
-	// --insert path, where the pipeline may write through a source grip;
-	// read-only commands set ModeReadOnly. It is passed explicitly to
-	// every Grips.Open the pipeline performs.
+	// execution. The zero value (ModeReadWrite) is the read-write default;
+	// read-only commands (print, render, diff) set ModeReadOnly. It is the
+	// mode used for every source the pipeline opens, except a source whose
+	// handle matches WriteHandle (see openModeFor).
+	//
+	// Field order note: WriteHandle (string) precedes the slice fields and
+	// AccessMode (one byte) is last, to satisfy govet fieldalignment.
 	AccessMode driver.AccessMode
+}
+
+// openModeFor returns the access mode the pipeline should use when opening
+// the source with the given handle: ModeReadWrite for the WriteHandle
+// (insert destination) source so it reuses the already-open read-write
+// grip, otherwise AccessMode.
+func (qc *QueryContext) openModeFor(handle string) driver.AccessMode {
+	if qc.WriteHandle != "" && handle == qc.WriteHandle {
+		return driver.ModeReadWrite
+	}
+	return qc.AccessMode
 }
 
 // RecordWriter is the interface for writing records to a

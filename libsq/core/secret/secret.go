@@ -46,11 +46,19 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 
 	"golang.org/x/sync/singleflight"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
+
+// resolveTimeout is a backstop upper bound on a single detached secret
+// resolution flight (see Registry.ResolveScheme). It is intentionally
+// generous: it must accommodate an interactive resolver (e.g. a 1Password
+// "op read" awaiting biometric auth), and exists only to prevent a wholly
+// stuck resolution from running indefinitely, not as the normal timeout.
+const resolveTimeout = 2 * time.Minute
 
 // ErrNotFound is returned by Resolver implementations when a secret does
 // not exist. Callers may use errors.Is to detect this case.
@@ -132,15 +140,23 @@ func (r *Registry) ResolveScheme(ctx context.Context, scheme, path string) (stri
 	// affecting the in-flight resolution.
 	//
 	// The shared resolution runs on a context detached from any single
-	// caller's cancellation (context.WithoutCancel). The closure runs
-	// under the first caller's goroutine, so binding it to that caller's
-	// ctx would let the leader's cancellation fail the flight and replay a
-	// spurious "context canceled" to every other (healthy) waiter. The
-	// shared work belongs to the flight, not the leader; resolvers enforce
-	// their own timeouts. Detaching keeps ctx values (e.g. the registry)
-	// while dropping the leader's deadline/cancel.
-	flightCtx := context.WithoutCancel(ctx)
+	// caller's cancellation. The closure runs under the first caller's
+	// goroutine, so binding it to that caller's ctx would let the leader's
+	// cancellation fail the flight and replay a spurious "context canceled"
+	// to every other (healthy) waiter. The shared work belongs to the
+	// flight, not the leader, so we drop the leader's deadline/cancel
+	// (context.WithoutCancel keeps ctx values such as the registry).
+	//
+	// The resolvers do not self-bound: keyring/env/file ignore ctx, and op
+	// shells out via exec.CommandContext with no internal timeout. So we
+	// give the detached flight a generous timeout of our own; otherwise a
+	// stuck resolution (e.g. an op subprocess awaiting a biometric prompt
+	// the user never answers) could run for the life of the process. The
+	// caller's own ctx (the select below) and OS signals remain the normal
+	// cancellation paths; this is only a backstop.
+	flightCtx, cancelFlight := context.WithTimeout(context.WithoutCancel(ctx), resolveTimeout)
 	ch := r.flight.DoChan(key, func() (any, error) {
+		defer cancelFlight()
 		// Re-check the memo: a concurrent flight may have populated it
 		// while this caller was waiting on the singleflight lock.
 		if v, ok := r.memo.Load(key); ok {
