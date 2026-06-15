@@ -26,14 +26,19 @@ type openRecord struct {
 // fakeDriver implements driver.Driver, recording each Open invocation
 // and the access mode it was passed.
 type fakeDriver struct {
-	mu    sync.Mutex
-	opens []openRecord
-	grips []*fakeGrip
+	mu        sync.Mutex
+	opens     []openRecord
+	grips     []*fakeGrip
+	failOpens int // if >0, the next Open returns an error and decrements this.
 }
 
 func (d *fakeDriver) Open(_ context.Context, src *source.Source, mode driver.AccessMode) (driver.Grip, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if d.failOpens > 0 {
+		d.failOpens--
+		return nil, errors.New("fakeDriver: forced open failure")
+	}
 	d.opens = append(d.opens, openRecord{
 		loc:      src.Location,
 		readOnly: mode != driver.ModeReadWrite,
@@ -239,6 +244,35 @@ func TestGrips_Open_CacheHitSkipsSecretResolution(t *testing.T) {
 	require.Empty(t, resolverB.calls,
 		"cache hit must not invoke secret resolution")
 	require.Equal(t, 1, drvr.openCount())
+
+	require.NoError(t, gs.Close())
+}
+
+// TestGrips_Open_ErrorNotCached verifies that a failed Open does not poison
+// the cache: a later Open of the same handle+mode retries the driver rather
+// than replaying the earlier error. (The secret layer tests the analogous
+// "failures not cached" property; this pins it for the grip cache.)
+func TestGrips_Open_ErrorNotCached(t *testing.T) {
+	gs, drvr := newFakeGrips()
+	drvr.failOpens = 1 // fail the first Open, succeed thereafter.
+	ctx := context.Background()
+	newSrc := func() *source.Source {
+		return &source.Source{
+			Handle:   "@fake",
+			Type:     drivertype.Pg,
+			Location: "postgres://alice:pw@db/sakila",
+		}
+	}
+
+	_, err := gs.Open(ctx, newSrc(), driver.ModeReadWrite)
+	require.Error(t, err, "first open should fail")
+
+	grip, err := gs.Open(ctx, newSrc(), driver.ModeReadWrite)
+	require.NoError(t, err,
+		"retry after a failed open must reach the driver again, not a cached error")
+	require.NotNil(t, grip)
+	require.Equal(t, 1, drvr.openCount(),
+		"only the successful open is recorded; the failed one cached nothing")
 
 	require.NoError(t, gs.Close())
 }

@@ -148,7 +148,7 @@ func completeCatalog(srcArgPos int) completionFunc {
 			}
 		}
 
-		db, drvr, err := ru.DB(ctx, src, driver.ModeReadWrite)
+		db, drvr, err := ru.DB(ctx, src, driver.ModeReadOnly)
 		if err != nil {
 			lg.Unexpected(log, err)
 			return nil, cobra.ShellCompDirectiveError
@@ -471,7 +471,7 @@ func (c activeSchemaCompleter) complete(cmd *cobra.Command, args []string, toCom
 	ctx, cancelFn := context.WithTimeout(cmd.Context(), OptShellCompletionTimeout.Get(ru.Config.Options))
 	defer cancelFn()
 
-	grip, err := ru.Grips.Open(ctx, src, driver.ModeReadWrite)
+	grip, err := ru.Grips.Open(ctx, src, driver.ModeReadOnly)
 	if err != nil {
 		lg.Unexpected(log, err)
 		return nil, cobra.ShellCompDirectiveError
@@ -852,7 +852,7 @@ func getTableNamesForHandle(ctx context.Context, ru *run.Run, handle string) ([]
 		return nil, err
 	}
 
-	db, drvr, err := ru.DB(ctx, src, driver.ModeReadWrite)
+	db, drvr, err := ru.DB(ctx, src, driver.ModeReadOnly)
 	if err != nil {
 		return nil, err
 	}

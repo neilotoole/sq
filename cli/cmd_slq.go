@@ -152,17 +152,21 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
-	// Open destGrip read-write (the default). It lands in the Grips
-	// handle-keyed cache under the RW key.
+	// Open destGrip read-write. It lands in the Grips cache under the RW
+	// key (handle + ModeReadWrite).
 	destGrip, err := ru.Grips.Open(ctx, destSrc, driver.ModeReadWrite)
 	if err != nil {
 		return err
 	}
 
-	// Source-side opens performed inside the SLQ pipeline are read-only,
-	// so they land under a distinct "ro" cache key and never collide with
-	// the read-write destination grip above (gh #779).
-	qc.AccessMode = driver.ModeReadOnly
+	// Open the pipeline's source grips read-write too, matching execSQLInsert.
+	// This is what makes a self-insert (a source in the query sharing
+	// destSrc's handle, e.g. `sq '@h.t1' --insert @h.t2`) work: the source
+	// open hits the same RW cache key and reuses destGrip, rather than
+	// opening a second connection in a different mode. DuckDB rejects a
+	// concurrent read-only + read-write open of one file, so a ModeReadOnly
+	// source here would break self-insert on DuckDB (gh #779).
+	qc.AccessMode = driver.ModeReadWrite
 
 	// Note: We don't need to worry about closing fromConn and
 	// destConn because they are closed by databases.Close, which

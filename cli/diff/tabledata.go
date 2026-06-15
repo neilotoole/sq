@@ -165,7 +165,7 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 			switch {
 			case errz.Has[*driver.NotExistError](err):
 				// For diffing, it's totally ok if a table is not found.
-				log.Debug("Diff: table not found", lga.Table, td2.String())
+				log.Debug("Diff: table not found", lga.Table, td1.String())
 				return
 			case errors.Is(err, errz.ErrStop) || errz.IsContextStop(dbCtx):
 				// This means we explicitly stopped the query, probably due to reaching

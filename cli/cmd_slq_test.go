@@ -893,3 +893,19 @@ func TestSLQ_DuckDB_RenderSQL_DoesNotModifyMtime(t *testing.T) {
 	require.Equal(t, statBefore.ModTime(), statAfter.ModTime(),
 		"DuckDB file mtime must not change after sq slq --render-sql")
 }
+
+// TestCmdSLQ_Print_ReadOnly guards that the plain `sq <slq>` print path opens
+// sources read-only. The DuckDB file is made read-only on disk (0444), so a
+// read-write open would fail; read-only succeeds. Mirrors TestDiff_Data_ReadOnly.
+func TestCmdSLQ_Print_ReadOnly(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.Duck)
+	path := strings.TrimPrefix(src.Location, "duckdb://")
+
+	require.NoError(t, os.Chmod(path, 0o444))
+	t.Cleanup(func() { _ = os.Chmod(path, 0o644) }) // let TempDir cleanup remove it
+
+	tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+	require.NoError(t, tr.Exec("slq", src.Handle+".actor"),
+		"sq <slq> must open the source read-only (no write lock)")
+}

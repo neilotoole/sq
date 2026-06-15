@@ -128,16 +128,25 @@ func (r *Registry) ResolveScheme(ctx context.Context, scheme, path string) (stri
 	}
 
 	// DoChan (not Do) so each caller can honor its own ctx while waiting:
-	// the shared resolution runs with the first caller's context, but a
-	// later caller with a tighter deadline can abort independently
-	// without affecting the in-flight resolution.
+	// a caller can abort independently (the select below) without
+	// affecting the in-flight resolution.
+	//
+	// The shared resolution runs on a context detached from any single
+	// caller's cancellation (context.WithoutCancel). The closure runs
+	// under the first caller's goroutine, so binding it to that caller's
+	// ctx would let the leader's cancellation fail the flight and replay a
+	// spurious "context canceled" to every other (healthy) waiter. The
+	// shared work belongs to the flight, not the leader; resolvers enforce
+	// their own timeouts. Detaching keeps ctx values (e.g. the registry)
+	// while dropping the leader's deadline/cancel.
+	flightCtx := context.WithoutCancel(ctx)
 	ch := r.flight.DoChan(key, func() (any, error) {
 		// Re-check the memo: a concurrent flight may have populated it
 		// while this caller was waiting on the singleflight lock.
 		if v, ok := r.memo.Load(key); ok {
 			return v.(string), nil
 		}
-		v, err := resolver.Resolve(ctx, path)
+		v, err := resolver.Resolve(flightCtx, path)
 		if err != nil {
 			return nil, err
 		}
