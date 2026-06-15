@@ -219,10 +219,11 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
-	// Open destGrip FIRST on the RW ctx so the destination opens
-	// READ_WRITE. The Grips cache keys by src.Handle, so if fromSrc
-	// shares a handle with destSrc (self-insert), the later
-	// grips.Open(ctx, fromSrc) returns this cached RW grip.
+	// Open the destination read-write. Open order no longer matters: each
+	// open states its mode explicitly, and the cache keys by handle+mode.
+	// For a self-insert (fromSrc shares destSrc's handle) without
+	// --readonly, the source open below uses the same read-write key and
+	// so reuses this grip.
 	destGrip, err := grips.Open(ctx, destSrc, driver.ModeReadWrite)
 	if err != nil {
 		return err

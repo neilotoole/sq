@@ -107,9 +107,9 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 	}
 
 	if !cmdFlagChanged(cmd, flag.Insert) {
-		// The user didn't specify the --insert=@src.tbl flag,
-		// so we just want to print the records. The RO ctx was
-		// established at the top of the function.
+		// The user didn't specify the --insert=@src.tbl flag, so we just
+		// want to print the records; execSLQPrint opens the source(s)
+		// read-only via QueryContext.AccessMode.
 		return execSLQPrint(ctx, ru, mArgs)
 	}
 
@@ -159,10 +159,9 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 		return err
 	}
 
-	// Source-side opens performed inside the SLQ pipeline are read-only.
-	// This reproduces the prior ctx-based hint exactly: it yields the
-	// same "ro" cache key, so the RO/RW coexistence behavior (gh #779)
-	// is unchanged; only the propagation mechanism differs.
+	// Source-side opens performed inside the SLQ pipeline are read-only,
+	// so they land under a distinct "ro" cache key and never collide with
+	// the read-write destination grip above (gh #779).
 	qc.AccessMode = driver.ModeReadOnly
 
 	// Note: We don't need to worry about closing fromConn and
