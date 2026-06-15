@@ -128,7 +128,7 @@ func TestGrips_Open_ReadOnlyModeKeysCache(t *testing.T) {
 		gs, drvr := newFakeGrips()
 		ctx := context.Background()
 
-		gripRO, err := gs.Open(driver.WithReadOnly(ctx), newSrc())
+		gripRO, err := gs.Open(ctx, newSrc(), driver.ReadOnly())
 		require.NoError(t, err)
 		gripRW, err := gs.Open(ctx, newSrc())
 		require.NoError(t, err)
@@ -141,7 +141,7 @@ func TestGrips_Open_ReadOnlyModeKeysCache(t *testing.T) {
 			"second open must reach the driver without the read-only hint")
 
 		// Repeat opens in each mode hit the per-mode cache entries.
-		again, err := gs.Open(driver.WithReadOnly(ctx), newSrc())
+		again, err := gs.Open(ctx, newSrc(), driver.ReadOnly())
 		require.NoError(t, err)
 		require.Same(t, gripRO, again)
 		again, err = gs.Open(ctx, newSrc())
@@ -162,7 +162,7 @@ func TestGrips_Open_ReadOnlyModeKeysCache(t *testing.T) {
 
 		gripRW, err := gs.Open(ctx, newSrc())
 		require.NoError(t, err)
-		gripRO, err := gs.Open(driver.WithReadOnly(ctx), newSrc())
+		gripRO, err := gs.Open(ctx, newSrc(), driver.ReadOnly())
 		require.NoError(t, err)
 
 		require.NotSame(t, gripRW, gripRO,
@@ -186,9 +186,9 @@ func TestGrips_Open_ReadOnlyModeKeysCache(t *testing.T) {
 		gs, drvr := newFakeGrips()
 		ctx := context.Background()
 
-		gripImplicit, err := gs.Open(driver.WithReadOnly(ctx), newSrc())
+		gripImplicit, err := gs.Open(ctx, newSrc(), driver.ReadOnly())
 		require.NoError(t, err)
-		gripExplicit, err := gs.Open(driver.WithReadOnlyExplicit(ctx), newSrc())
+		gripExplicit, err := gs.Open(ctx, newSrc(), driver.ReadOnlyExplicit())
 		require.NoError(t, err)
 
 		require.NotSame(t, gripImplicit, gripExplicit)

@@ -107,7 +107,11 @@ func execSQL(cmd *cobra.Command, args []string) error {
 			}
 		}
 		if !cmdFlagChanged(cmd, flag.Insert) {
-			ctx = driver.WithReadOnlyExplicit(ctx)
+			// Set the mode on ctx purely for the direct driver-open inside
+			// determineSources -> verifySourceCatalogSchema, which bypasses
+			// Grips and so has no OpenOpt seam. The Grips.Open calls in
+			// execSQLPrint/execSQLInsert pass the mode explicitly instead.
+			ctx = driver.WithMode(ctx, driver.ModeReadOnlyExplicit)
 			cmd.SetContext(ctx)
 		}
 	}
@@ -127,10 +131,14 @@ func execSQL(cmd *cobra.Command, args []string) error {
 	}
 
 	if !cmdFlagChanged(cmd, flag.Insert) {
-		// The user didn't specify the --insert=@src.tbl flag,
-		// so we just want to print the records. RO ctx (if requested)
-		// was established above, before determineSources.
-		return execSQLPrint(ctx, ru, activeSrc)
+		// The user didn't specify the --insert=@src.tbl flag, so we just
+		// want to print the records. Pass the source access mode
+		// explicitly: read-only-explicit when --readonly was given.
+		srcMode := driver.ModeReadWrite
+		if readOnlySrc {
+			srcMode = driver.ModeReadOnlyExplicit
+		}
+		return execSQLPrint(ctx, ru, activeSrc, srcMode)
 	}
 
 	// Instead of printing the records, they will be
@@ -156,9 +164,9 @@ func execSQL(cmd *cobra.Command, args []string) error {
 // execSQLPrint executes the SQL input, and either prints the resulting records
 // (if the SQL input is a query), or executes the SQL input statement and prints
 // the count of affected rows from the statement execution.
-func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source) error {
+func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source, srcMode driver.AccessMode) error {
 	args := ru.Args
-	grip, err := ru.Grips.Open(ctx, fromSrc)
+	grip, err := ru.Grips.Open(ctx, fromSrc, driver.Mode(srcMode))
 	if err != nil {
 		return err
 	}
@@ -224,14 +232,14 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 		return err
 	}
 
-	// Now mark the ctx read-only for the source-side open. Skips the
-	// rewrite if the user didn't pass --readonly. Explicit, because
-	// readOnlySrc is only true when the user passed --readonly.
+	// Open the source side explicitly read-only when --readonly was
+	// passed (readOnlySrc is only true then); otherwise read-write.
+	srcMode := driver.ModeReadWrite
 	if readOnlySrc {
-		ctx = driver.WithReadOnlyExplicit(ctx)
+		srcMode = driver.ModeReadOnlyExplicit
 	}
 
-	fromGrip, err := grips.Open(ctx, fromSrc)
+	fromGrip, err := grips.Open(ctx, fromSrc, driver.Mode(srcMode))
 	if err != nil {
 		return err
 	}

@@ -65,17 +65,11 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 	ru := run.FromContext(ctx)
 	coll := ru.Config.Collection
 
-	// Mark the context read-only BEFORE determineSources so any source
-	// pre-open it performs (e.g. --src.schema validation, which calls
-	// Grips.Open and caches the resulting grip by handle) sees the RO
-	// hint. Only the --insert path opens a destination for writing; for
-	// that case execSLQInsert opens destGrip first on the original RW
-	// ctx, then flips to RO for source-side opens.
-	if !cmdFlagChanged(cmd, flag.Insert) {
-		ctx = driver.WithReadOnly(ctx)
-		cmd.SetContext(ctx)
-	}
-
+	// Read-only intent is no longer carried on ctx; it is set on the
+	// QueryContext (see execSLQPrint / execSLQInsert) and passed
+	// explicitly to each Grips.Open the pipeline performs. The
+	// --src.schema validation open in verifySourceCatalogSchema sets its
+	// own mode directly on ctx (it bypasses Grips).
 	err := determineSources(ctx, ru, false)
 	if err != nil {
 		return err
@@ -160,17 +154,18 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
+	// Open destGrip read-write (the default). It lands in the Grips
+	// handle-keyed cache under the RW key.
 	destGrip, err := ru.Grips.Open(ctx, destSrc)
 	if err != nil {
 		return err
 	}
 
-	// destGrip is now in the Grips handle-keyed cache as RW. Mark the
-	// context read-only for source-side opens performed inside the SLQ
-	// pipeline. If a source in the pipeline shares its handle with
-	// destSrc (self-insert), the cache returns this RW grip and the
-	// pipeline writes through it.
-	ctx = driver.WithReadOnly(ctx)
+	// Source-side opens performed inside the SLQ pipeline are read-only.
+	// This reproduces the prior ctx-based hint exactly: it yields the
+	// same "ro" cache key, so the RO/RW coexistence behavior (gh #779)
+	// is unchanged; only the propagation mechanism differs.
+	qc.AccessMode = driver.ModeReadOnly
 
 	// Note: We don't need to worry about closing fromConn and
 	// destConn because they are closed by databases.Close, which
@@ -206,6 +201,8 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 // execSLQPrint executes the SLQ query, and prints output to writer.
 func execSLQPrint(ctx context.Context, ru *run.Run, mArgs map[string]string) error {
 	qc := run.NewQueryContext(ru, mArgs)
+	// Printing a query never writes to a source: open read-only.
+	qc.AccessMode = driver.ModeReadOnly
 
 	slq, err := preprocessUserSLQ(ctx, ru, ru.Args)
 	if err != nil {
@@ -237,6 +234,8 @@ func execSLQPrint(ctx context.Context, ru *run.Run, mArgs map[string]string) err
 // anyone running with verbose / debug logging.
 func execSLQRenderSQL(ctx context.Context, ru *run.Run, mArgs map[string]string) error {
 	qc := run.NewQueryContext(ru, mArgs)
+	// Rendering only reads source metadata; open read-only.
+	qc.AccessMode = driver.ModeReadOnly
 
 	if fm := getFormat(ru.Cmd, ru.Config.Options); !renderSQLSupportsFormat(fm) {
 		lg.FromContext(ctx).Warn(
@@ -333,7 +332,7 @@ func preprocessUserSLQ(ctx context.Context, ru *run.Run, args []string) (string,
 			// just select @stdin.data. Instead we'll select
 			// the first table name, as found in the source meta.
 
-			db, sqlDrvr, err := ru.DB(ctx, activeSrc)
+			db, sqlDrvr, err := ru.DB(ctx, activeSrc, driver.ReadOnly())
 			if err != nil {
 				return "", err
 			}

@@ -199,7 +199,7 @@ func TestDoOpen_HonorsReadOnlyContext(t *testing.T) {
 		Location: "duckdb://" + tmp,
 	}
 
-	ctx := driver.WithReadOnly(context.Background())
+	ctx := driver.WithMode(context.Background(), driver.ModeReadOnly)
 
 	prov := &duckdb.Provider{}
 	drvr, err := prov.DriverFor(drivertype.DuckDB)

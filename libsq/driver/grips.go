@@ -54,22 +54,15 @@ type Grips struct {
 }
 
 // gripCacheKey returns the gs.grips cache key for opening the source
-// with the given handle under ctx: the handle plus the access mode from
-// the ctx read-only hint. Explicit read-only (e.g. sq sql --readonly)
-// is distinct from the implicit hint because drivers may treat it more
-// forcefully (DuckDB overrides access_mode=AUTOMATIC only for an
-// explicit hint). The key is derived from the handle alone, never the
-// location, so computing it requires no secret resolution. Handles
-// cannot contain NUL, so the separator is unambiguous.
-func gripCacheKey(ctx context.Context, handle string) string {
-	switch {
-	case IsReadOnlyExplicit(ctx):
-		return handle + "\x00rox"
-	case IsReadOnly(ctx):
-		return handle + "\x00ro"
-	default:
-		return handle + "\x00rw"
-	}
+// with the given handle in mode: the handle plus the access mode.
+// Explicit read-only (e.g. sq sql --readonly) is distinct from the
+// implicit hint because drivers may treat it more forcefully (DuckDB
+// overrides access_mode=AUTOMATIC only for an explicit hint). The key is
+// derived from the handle alone, never the location, so computing it
+// requires no secret resolution. Handles cannot contain NUL, so the
+// separator is unambiguous.
+func gripCacheKey(mode AccessMode, handle string) string {
+	return handle + "\x00" + mode.suffix()
 }
 
 // NewGrips returns a Grips instances.
@@ -89,25 +82,27 @@ func NewGrips(drvrs Provider, fs *files.Files, scratchSrcFn ScratchSrcFunc) *Gri
 // Thus, the caller should typically not close the Grip: it will be closed
 // via d.Close.
 //
-// The cache is keyed by source handle and the read-only hint on ctx (see
-// WithReadOnly), so a read-only open and a read-write open of the same
-// source yield independent grips, each connected in the requested mode:
-// call ordering across modes does not matter. A cache hit is served
-// before secret resolution runs, so repeated opens of an already-open
-// source don't repeat resolver work.
+// The access mode is selected by opts (default ModeReadWrite; pass
+// driver.ReadOnly() or driver.ReadOnlyExplicit() for a read-only open).
+// The cache is keyed by source handle and that mode, so a read-only open
+// and a read-write open of the same source yield independent grips, each
+// connected in the requested mode: call ordering across modes does not
+// matter. A cache hit is served before secret resolution runs, so
+// repeated opens of an already-open source don't repeat resolver work.
 //
 // NOTE: This entire logic re caching/not-closing is a bit sketchy,
 // and needs to be revisited.
-func (gs *Grips) Open(ctx context.Context, src *source.Source) (Grip, error) {
+func (gs *Grips) Open(ctx context.Context, src *source.Source, opts ...OpenOpt) (Grip, error) {
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
 
-	g, err := gs.doOpen(ctx, src)
+	mode := resolveMode(opts)
+	g, err := gs.doOpen(ctx, src, mode)
 	if err != nil {
 		return nil, err
 	}
 	gs.clnup.AddC(g)
-	gs.grips[gripCacheKey(ctx, src.Handle)] = g
+	gs.grips[gripCacheKey(mode, src.Handle)] = g
 	return g, nil
 }
 
@@ -222,12 +217,12 @@ func ResolveSourceSecrets(ctx context.Context, src *source.Source) (*source.Sour
 	return clone, nil
 }
 
-func (gs *Grips) doOpen(ctx context.Context, src *source.Source) (Grip, error) {
-	// The cache key derives from the handle and the ctx read-only hint,
-	// not the location, so the lookup happens before secret resolution:
-	// a cache hit (e.g. one Grips.Open per table during inspect) must not
-	// pay for resolution again.
-	grip, ok := gs.grips[gripCacheKey(ctx, src.Handle)]
+func (gs *Grips) doOpen(ctx context.Context, src *source.Source, mode AccessMode) (Grip, error) {
+	// The cache key derives from the handle and the access mode, not the
+	// location, so the lookup happens before secret resolution: a cache
+	// hit (e.g. one Grips.Open per table during inspect) must not pay for
+	// resolution again.
+	grip, ok := gs.grips[gripCacheKey(mode, src.Handle)]
 	if ok {
 		return grip, nil
 	}
@@ -246,6 +241,11 @@ func (gs *Grips) doOpen(ctx context.Context, src *source.Source) (Grip, error) {
 	o := options.Merge(baseOptions, src.Options)
 
 	ctx = options.NewContext(ctx, o)
+	// Bridge the explicit mode onto ctx for the Driver.Open hop. Drivers
+	// read it via IsReadOnly / IsReadOnlyExplicit. Confining the ctx hint
+	// to this single call keeps it an internal Grips<->driver protocol
+	// rather than an app-wide ambient flag.
+	ctx = WithMode(ctx, mode)
 	grip, err = drvr.Open(ctx, src)
 	if err != nil {
 		return nil, err
@@ -300,7 +300,7 @@ func (gs *Grips) OpenEphemeral(ctx context.Context) (Grip, error) {
 	}
 	gs.clnup.AddC(g)
 	log.Info("Opened ephemeral db", lga.Src, g.Source())
-	gs.grips[gripCacheKey(ctx, g.Source().Handle)] = g
+	gs.grips[gripCacheKey(ModeReadWrite, g.Source().Handle)] = g
 	return g, nil
 }
 
@@ -477,7 +477,7 @@ func (gs *Grips) openCachedGripFor(ctx context.Context, src *source.Source) (bac
 		return nil, false, nil
 	}
 
-	if backingGrip, err = gs.doOpen(ctx, backingSrc); err != nil {
+	if backingGrip, err = gs.doOpen(ctx, backingSrc, ModeReadWrite); err != nil {
 		return nil, false, errz.Wrapf(err, "open cached DB for source %s", src.Handle)
 	}
 
@@ -547,7 +547,7 @@ func (gs *Grips) OpenJoin(ctx context.Context, srcs ...*source.Source) (Grip, er
 		clnup: clnup,
 	}
 	gs.clnup.AddC(g)
-	gs.grips[gripCacheKey(ctx, g.Source().Handle)] = g
+	gs.grips[gripCacheKey(ModeReadWrite, g.Source().Handle)] = g
 	return g, nil
 }
 

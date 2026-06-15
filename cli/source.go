@@ -163,12 +163,16 @@ func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Sou
 			src.Handle, src.Type)
 	}
 
-	// Mark the validation open read-only via the advisory hint. The
-	// driver may still open READ_WRITE if the source URL explicitly
-	// sets access_mode (user URL always wins), but for the typical
-	// case the hint prevents the cached-grip pitfalls described in
-	// the godoc above.
-	openCtx := driver.WithReadOnly(ctx)
+	// This validation open bypasses Grips (see godoc), so it has no
+	// OpenOpt seam: carry the mode on ctx for the driver to read.
+	// Preserve an explicit mode the caller already set on ctx (e.g. sql
+	// --readonly sets ModeReadOnlyExplicit); otherwise default to the
+	// implicit read-only hint. The driver may still open READ_WRITE if
+	// the source URL pins access_mode (user URL always wins).
+	openCtx := ctx
+	if !driver.IsReadOnly(ctx) {
+		openCtx = driver.WithMode(ctx, driver.ModeReadOnly)
+	}
 
 	// Bypassing Grips also bypasses the ${scheme:path} placeholder
 	// resolution that Grips.doOpen performs, so resolve here before

@@ -241,8 +241,9 @@ func pingSource(ctx context.Context, dp driver.Provider, src, displaySrc *source
 	}
 
 	// Ping is read-only by definition: connectivity check, no writes.
-	// Drivers that support it (currently DuckDB) connect in RO mode.
-	ctx = driver.WithReadOnly(ctx)
+	// Ping calls drvr.Ping directly (it does not go through Grips), so
+	// the mode is carried on ctx for the driver to read.
+	ctx = driver.WithMode(ctx, driver.ModeReadOnly)
 
 	if timeout > 0 {
 		var cancelFn context.CancelFunc
