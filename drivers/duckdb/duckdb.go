@@ -219,7 +219,12 @@ func MungeLocation(loc string) (string, error) {
 	return location.MungeTemplateForDriver(drivertype.DuckDB, loc)
 }
 
-// Ping implements driver.Driver.
+// Ping implements driver.Driver. DuckDB honors mode: the ping opens the
+// connection via doOpen in the requested mode, so ModeReadOnly takes no
+// write lock and fails on a missing file (DuckDB READ_ONLY requires an
+// existing file), while ModeReadWrite creates a missing file. This is why
+// "sq add" of a new .duckdb file (which pings ModeReadWrite) creates it,
+// while "sq ping" (ModeReadOnly) does not. See driver.Driver.Ping.
 func (d *driveri) Ping(ctx context.Context, src *source.Source, mode driver.AccessMode) error {
 	db, err := d.doOpen(ctx, src, mode)
 	if err != nil {

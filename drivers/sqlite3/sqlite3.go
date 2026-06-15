@@ -217,7 +217,11 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	return src, nil
 }
 
-// Ping implements driver.Driver.
+// Ping implements driver.Driver. SQLite does not honor read-only mode, so
+// mode is ignored: doOpen always opens with SQLite's create-capable
+// default. The practical effect matches DuckDB's ModeReadWrite ping, so
+// "sq add" of a new .sqlite file still creates it; there is just no
+// read-only variant to distinguish. See driver.Driver.Ping.
 func (d *driveri) Ping(ctx context.Context, src *source.Source, _ driver.AccessMode) error {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
