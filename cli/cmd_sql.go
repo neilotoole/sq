@@ -81,12 +81,13 @@ func execSQL(cmd *cobra.Command, args []string) error {
 
 	// --readonly / --ro: opt the raw-SQL command into read-only mode for
 	// the source. When set, peek at the would-be active source and surface
-	// the URL-conflict error preemptively. Doing this after determineSources
-	// would let verifySourceCatalogSchema briefly open the file READ_WRITE
-	// (the URL wins over the RO request) before the error fires, defeating
-	// the whole point of the conflict surfacing. The check is generic: any
-	// driver implementing driver.ReadOnlyConflictDetector (currently only
-	// DuckDB) gets consulted, rather than hardcoding a driver type here.
+	// the URL-conflict error preemptively, before determineSources does any
+	// validation pre-open or secret resolution. The driver also refuses an
+	// explicit read-only open against access_mode=READ_WRITE (see duckdb
+	// doOpen), so the conflict can't slip through; surfacing it here just
+	// fails fast, before that work. The check is generic: any driver
+	// implementing driver.ReadOnlyConflictDetector (currently only DuckDB)
+	// gets consulted, rather than hardcoding a driver type here.
 	readOnlySrc := cmdFlagIsSetTrue(cmd, flag.SQLReadOnly) ||
 		cmdFlagIsSetTrue(cmd, flag.SQLReadOnlyAlias)
 	if readOnlySrc {
