@@ -15,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // TestDiff_Data_ReadOnly is a regression guard for the diff --data path
@@ -26,6 +27,7 @@ import (
 // read-write open fails (DuckDB can't take a write lock on it) while a
 // read-only open succeeds. diff is wholly read-only, so it must succeed.
 func TestDiff_Data_ReadOnly(t *testing.T) {
+	tu.SkipReadOnlyFileUnenforceable(t)
 	th := testh.New(t)
 	src := th.Source(sakila.Duck)
 	path := strings.TrimPrefix(src.Location, "duckdb://")

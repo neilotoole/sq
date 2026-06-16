@@ -129,6 +129,12 @@ func TestCmdSLQ_Insert_MultipleSchemas(t *testing.T) {
 //
 // The test matrix covers all combinations of supported SQL databases as both
 // origin (data source) and destination (insert target).
+// TestCmdSLQ_Insert exercises --insert across the SQLLatest() matrix of
+// origin x dest. The origin==dest cells are self-inserts; the
+// @sakila_duck/@sakila_duck cell is the regression guard for the DuckDB
+// self-insert path (handle+mode cache + QueryContext.WriteHandle, gh #779):
+// without it, the source would open read-only while the destination holds
+// the file read-write, which DuckDB rejects.
 func TestCmdSLQ_Insert(t *testing.T) {
 	for _, origin := range sakila.SQLLatest() {
 		t.Run("origin_"+origin, func(t *testing.T) {
@@ -898,6 +904,7 @@ func TestSLQ_DuckDB_RenderSQL_DoesNotModifyMtime(t *testing.T) {
 // sources read-only. The DuckDB file is made read-only on disk (0444), so a
 // read-write open would fail; read-only succeeds. Mirrors TestDiff_Data_ReadOnly.
 func TestCmdSLQ_Print_ReadOnly(t *testing.T) {
+	tu.SkipReadOnlyFileUnenforceable(t)
 	th := testh.New(t)
 	src := th.Source(sakila.Duck)
 	path := strings.TrimPrefix(src.Location, "duckdb://")
@@ -917,6 +924,7 @@ func TestCmdSLQ_Print_ReadOnly(t *testing.T) {
 // fails with "permission denied" on the 0444 DuckDB file. The destination is a
 // (writable) SQLite source; the point is the read-only DuckDB source.
 func TestCmdSLQ_Insert_FromReadOnlySource(t *testing.T) {
+	tu.SkipReadOnlyFileUnenforceable(t)
 	th := testh.New(t)
 	src := th.Source(sakila.Duck)
 	dest := th.Source(sakila.SL3)

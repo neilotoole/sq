@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 	"testing"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // copyToTempDuckDB copies the shared sakila DuckDB fixture to a fresh
@@ -86,9 +86,7 @@ func TestReadOnly_Concurrent_TwoOpens(t *testing.T) {
 // file the process has read-only access to. Without RO, DuckDB's
 // open-time WAL touch fails with permission denied.
 func TestReadOnly_FileChmod0444(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("chmod 0444 semantics differ on Windows")
-	}
+	tu.SkipReadOnlyFileUnenforceable(t)
 	t.Parallel()
 	path := copyToTempDuckDB(t)
 
