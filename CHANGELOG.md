@@ -52,7 +52,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - ☢️ [#594]: [`avg()`](https://sq.io/docs/query#avg) now returns a consistent `float`
   on every SQL driver. Previously the result type varied by backend (a float on
   some, an integer or a decimal string on others), so an `avg()` value could not
-  be consumed portably across sources. This is a breaking change for
+  be consumed portably across sources. `float` was chosen to match `jq`'s numeric
+  model, which represents all numbers as IEEE 754 floating point. This is a
+  breaking change for
   [Postgres](https://sq.io/docs/drivers/postgres) and
   [MySQL](https://sq.io/docs/drivers/mysql), which previously returned a lossless
   decimal (rendered as a quoted string in JSON output): an `avg()` value is now a
