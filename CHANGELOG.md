@@ -49,10 +49,16 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
-- [#594]: [`avg()`](https://sq.io/docs/query#avg) now returns a consistent `float`
+- ☢️ [#594]: [`avg()`](https://sq.io/docs/query#avg) now returns a consistent `float`
   on every SQL driver. Previously the result type varied by backend (a float on
   some, an integer or a decimal string on others), so an `avg()` value could not
-  be consumed portably across sources.
+  be consumed portably across sources. This is a breaking change for
+  [Postgres](https://sq.io/docs/drivers/postgres) and
+  [MySQL](https://sq.io/docs/drivers/mysql), which previously returned a lossless
+  decimal (rendered as a quoted string in JSON output): an `avg()` value is now a
+  JSON number, and may lose precision for averages beyond float64's range
+  (~15-17 significant digits). Callers needing lossless decimal can fall back to
+  native SQL via [`sq sql`](https://sq.io/docs/cmd/sql).
 - [#610]: The DuckDB driver now
   [opens sources read-only](https://sq.io/docs/drivers/duckdb#read-only-access-by-default)
   for commands that don't write (`sq`, `inspect`, `diff`, `ping`), and the new
