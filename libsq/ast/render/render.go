@@ -380,6 +380,11 @@ func FuncOverrideCastResult(castType string) func(*Context, *ast.FuncNode) (stri
 // SQL Server's AVG over an integer column performs integer division and
 // truncates, so a result cast comes too late. The function name is resolved
 // through Renderer.FunctionNames, matching RenderFuncDefault. See issue #594.
+//
+// It is intended for single-operand aggregates such as avg() and sum(). It does
+// not reproduce RenderFuncDefault's count/count_unique special-casing (the
+// no-arg count(*) form, or count_unique becoming count(DISTINCT ...)), so it
+// must not be registered for count or count_unique.
 func FuncOverrideCastOperand(castType string) func(*Context, *ast.FuncNode) (string, error) {
 	return func(rc *Context, fn *ast.FuncNode) (string, error) {
 		fnName := strings.ToLower(fn.FuncName())
