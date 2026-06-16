@@ -75,7 +75,6 @@ func TestQuery_func(t *testing.T) {
 			wantSQL: `SELECT sum("actor_id") AS "sum(.actor_id)" FROM "actor"`,
 			override: driverMap{
 				drivertype.Pg:         `SELECT CAST(sum("actor_id") AS NUMERIC) AS "sum(.actor_id)" FROM "actor"`,
-				drivertype.DuckDB:     `SELECT CAST(sum("actor_id") AS DECIMAL(38, 6)) AS "sum(.actor_id)" FROM "actor"`,
 				drivertype.MySQL:      "SELECT CAST(sum(`actor_id`) AS DECIMAL(65, 30)) AS `sum(.actor_id)` FROM `actor`",
 				drivertype.MSSQL:      `SELECT sum(CAST("actor_id" AS DECIMAL(38, 6))) AS "sum(.actor_id)" FROM "actor"`,
 				drivertype.ClickHouse: "SELECT CAST(sum(`actor_id`) AS Nullable(Decimal(38, 6))) AS `sum(.actor_id)` FROM `actor`",
@@ -98,7 +97,6 @@ func TestQuery_func(t *testing.T) {
 			wantSQL: `SELECT sum("amount") AS "sum(.amount)" FROM "payment"`,
 			override: driverMap{
 				drivertype.Pg:         `SELECT CAST(sum("amount") AS NUMERIC) AS "sum(.amount)" FROM "payment"`,
-				drivertype.DuckDB:     `SELECT CAST(sum("amount") AS DECIMAL(38, 6)) AS "sum(.amount)" FROM "payment"`,
 				drivertype.MySQL:      "SELECT CAST(sum(`amount`) AS DECIMAL(65, 30)) AS `sum(.amount)` FROM `payment`",
 				drivertype.MSSQL:      `SELECT sum(CAST("amount" AS DECIMAL(38, 6))) AS "sum(.amount)" FROM "payment"`,
 				drivertype.ClickHouse: "SELECT CAST(sum(`amount`) AS Nullable(Decimal(38, 6))) AS `sum(.amount)` FROM `payment`",

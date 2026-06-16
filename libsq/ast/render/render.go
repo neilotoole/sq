@@ -414,10 +414,10 @@ const AggDecimalScale = 6
 
 // AggDecimalPrecision is the total precision paired with AggDecimalScale on
 // dialects whose decimal type caps at 38 digits (ClickHouse, Oracle, SQL
-// Server, DuckDB). MySQL uses its higher native cap (65) instead. With scale 6
-// this leaves 32 integer digits, so a sum whose integer part exceeds that
-// overflows on those dialects (a query error); Postgres (unconstrained NUMERIC)
-// and MySQL (precision 65) do not. See issue #839.
+// Server). MySQL uses its higher native cap (65) instead. With scale 6 this
+// leaves 32 integer digits, so a sum whose integer part exceeds that overflows
+// on those dialects (a query error); Postgres (unconstrained NUMERIC) and MySQL
+// (precision 65) do not. See issue #839.
 const AggDecimalPrecision = 38
 
 // FuncOverrideCastResult returns a FunctionOverrides impl that renders fn with

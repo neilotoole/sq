@@ -77,13 +77,17 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     engine already computed in float is not corrected. On rqlite the same float
     computation can also drift a sum of a very large integer column (beyond
     2^53); SQLite and the other drivers accumulate integer sums exactly.
-  - On Oracle, ClickHouse, SQL Server, and DuckDB the decimal cast uses a fixed
+  - On Oracle, ClickHouse, and SQL Server the decimal cast uses a fixed
     `DECIMAL(38, 6)`, so a sum of a column with more than 6 fractional digits is
     rounded to 6 places, and a sum whose integer part needs more than 32 digits
     overflows (a query error). Postgres (unconstrained `NUMERIC`) and MySQL (its
     maximum scale of 30, which no column can exceed) preserve the full scale, so
     for such columns the value can differ across drivers. The common integer and
     currency cases are unaffected.
+  - [DuckDB](https://sq.io/docs/drivers/duckdb) is not cast: its native `sum()`
+    is already a decimal for integer (`HUGEINT`) and decimal columns, and is left
+    lossless rather than narrowed to `DECIMAL(38, 6)`. As a result, `sum()` over
+    a `DOUBLE` column on DuckDB stays a float rather than a decimal.
   - Decimal values are now rendered with trailing fractional zeros trimmed (e.g.
     `100.50` displays as `100.5`) consistently across all drivers and output
     formats, so the same value reads identically regardless of the scale a

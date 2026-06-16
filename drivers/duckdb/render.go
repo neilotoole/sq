@@ -1,7 +1,6 @@
 package duckdb
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -59,13 +58,13 @@ func (d *driveri) Renderer() *render.Renderer {
 	// DuckDB uses the same schema/catalog function names as Postgres.
 	r.FunctionNames[ast.FuncNameSchema] = "current_schema"
 	r.FunctionNames[ast.FuncNameCatalog] = "current_database"
-	// sum() is harmonized to decimal across drivers (issue #839). DuckDB already
+	// sum() is deliberately not overridden here (issue #839). DuckDB already
 	// returns sum() over an integer column as HUGEINT (surfaced as decimal) and
-	// over a decimal column as DECIMAL, but sum() over a DOUBLE column as DOUBLE
-	// (kind.Float); casting the result to DECIMAL unifies all cases as decimal.
-	// Trailing zeros from the fixed scale are trimmed by stringz.FormatDecimal.
-	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult(
-		fmt.Sprintf("DECIMAL(%d, %d)", render.AggDecimalPrecision, render.AggDecimalScale))
+	// over a decimal column as DECIMAL, both lossless. sum() over a DOUBLE column
+	// returns DOUBLE (kind.Float); a DECIMAL cast would unify that as decimal but
+	// DuckDB's DECIMAL caps at precision 38, so the cast would regress the native
+	// HUGEINT integer range and round high-scale decimal sums. A float column's
+	// sum staying float is the lesser cost, so it is left as-is.
 	render.RegisterILikeFamily(r)
 	return r
 }
