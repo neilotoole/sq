@@ -51,24 +51,19 @@ type expander struct {
 	ru  *run.Run
 }
 
-// runCtx returns the command's current context and run. The returned run
-// is nil when expansion can't run (no secret registry yet); callers must
-// treat nil as "don't expand".
+// runCtx returns the command's current context (read fresh so
+// cmd.SetContext updates such as timeouts are honored when the resolver
+// runs) and the injected run.
 func (e expander) runCtx() (context.Context, *run.Run) {
-	ctx := e.cmd.Context()
-	if e.ru == nil || e.ru.SecretRegistry == nil {
-		return ctx, nil
-	}
-	return ctx, e.ru
+	return e.cmd.Context(), e.ru
 }
 
-// active reports whether expansion should be attempted at all.
+// active reports whether expansion should be attempted (the --expand flag
+// is set). The run and its secret registry are injected at construction
+// and always present by the time a decorator runs, so there's nothing
+// else to gate on.
 func (e expander) active() bool {
-	if !cmdFlagIsSetTrue(e.cmd, flag.Expand) {
-		return false
-	}
-	_, ru := e.runCtx()
-	return ru != nil
+	return cmdFlagIsSetTrue(e.cmd, flag.Expand)
 }
 
 // src returns the expanded clone of s per maybeExpandSource.
