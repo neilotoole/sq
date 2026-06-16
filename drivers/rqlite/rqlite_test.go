@@ -16,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -864,7 +865,7 @@ func TestConsistencyLevels_Smoke(t *testing.T) {
 			drvr, err := provider.DriverFor(drivertype.Rqlite)
 			require.NoError(t, err)
 
-			grip, err := drvr.Open(th.Context, src)
+			grip, err := drvr.Open(th.Context, src, driver.ModeReadWrite)
 			require.NoError(t, err)
 			t.Cleanup(func() { _ = grip.Close() })
 
@@ -933,7 +934,7 @@ func TestOpen_DefaultsPort(t *testing.T) {
 	provider := &rqlite.Provider{Log: lg.FromContext(th.Context)}
 	drvr, err := provider.DriverFor(drivertype.Rqlite)
 	require.NoError(t, err)
-	grip, err := drvr.Open(th.Context, src)
+	grip, err := drvr.Open(th.Context, src, driver.ModeReadWrite)
 	require.NoError(t, err, "should auto-default port 4001")
 	t.Cleanup(func() { _ = grip.Close() })
 

@@ -136,7 +136,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 }
 
 // Open implements driver.Driver.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessMode) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -217,8 +217,12 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	return src, nil
 }
 
-// Ping implements driver.Driver.
-func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
+// Ping implements driver.Driver. SQLite does not honor read-only mode, so
+// mode is ignored: doOpen always opens with SQLite's create-capable
+// default. The practical effect matches DuckDB's ModeReadWrite ping, so
+// "sq add" of a new .sqlite file still creates it; there is just no
+// read-only variant to distinguish. See driver.Driver.Ping.
+func (d *driveri) Ping(ctx context.Context, src *source.Source, _ driver.AccessMode) error {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return err

@@ -32,13 +32,32 @@ type Provider interface {
 // Driver is the core interface that must be implemented for each type
 // of data source.
 type Driver interface {
-	// Open returns a Grip instance for src.
-	Open(ctx context.Context, src *source.Source) (Grip, error)
+	// Open returns a Grip instance for src, opened in the given access
+	// mode. Drivers that cannot honor a read-only mode (anything but
+	// DuckDB today) must ignore it and still return a working connection.
+	Open(ctx context.Context, src *source.Source, mode AccessMode) (Grip, error)
 
 	// Ping verifies that the source is reachable, or returns an error if not.
 	// The exact behavior of Ping is driver-dependent. Even if Ping does not
 	// return an error, the source may still be bad for other reasons.
-	Ping(ctx context.Context, src *source.Source) error
+	//
+	// Arg mode controls how the underlying connection is opened (see Open),
+	// and is not merely advisory even though a ping performs no writes: for
+	// a file-backed source it determines what the ping validates and what
+	// side effects it has. Callers therefore ping in the mode the source
+	// will be used in. The two callers differ deliberately:
+	//
+	//   - "sq ping" pings ModeReadOnly: a non-disturbing connectivity check
+	//     that takes no write lock and creates nothing.
+	//   - "sq add" pings ModeReadWrite: it validates write access and, for a
+	//     not-yet-existing file source (DuckDB, SQLite), creates the file as
+	//     a side effect, which is the established add-a-new-file behavior.
+	//
+	// The distinction is material for DuckDB: opening a non-existent file
+	// ModeReadOnly fails (DuckDB READ_ONLY requires an existing file), while
+	// ModeReadWrite creates it. Drivers that don't honor read-only ignore
+	// mode (see Open).
+	Ping(ctx context.Context, src *source.Source, mode AccessMode) error
 
 	// DriverMetadata returns driver metadata.
 	DriverMetadata() Metadata

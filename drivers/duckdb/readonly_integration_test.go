@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 	"testing"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // copyToTempDuckDB copies the shared sakila DuckDB fixture to a fresh
@@ -57,9 +57,9 @@ func TestReadOnly_Concurrent_TwoOpens(t *testing.T) {
 	require.NoError(t, err)
 
 	openOne := func() error {
-		ctx := driver.WithReadOnly(context.Background())
+		ctx := context.Background()
 		src := testh.MakeDuckDBSource("@ro_concurrent", path)
-		grip, err := drvr.Open(ctx, src)
+		grip, err := drvr.Open(ctx, src, driver.ModeReadOnly)
 		if err != nil {
 			return err
 		}
@@ -86,9 +86,7 @@ func TestReadOnly_Concurrent_TwoOpens(t *testing.T) {
 // file the process has read-only access to. Without RO, DuckDB's
 // open-time WAL touch fails with permission denied.
 func TestReadOnly_FileChmod0444(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("chmod 0444 semantics differ on Windows")
-	}
+	tu.SkipReadOnlyFileUnenforceable(t)
 	t.Parallel()
 	path := copyToTempDuckDB(t)
 
@@ -99,9 +97,9 @@ func TestReadOnly_FileChmod0444(t *testing.T) {
 	drvr, err := prov.DriverFor(testh.DuckDBType())
 	require.NoError(t, err)
 
-	ctx := driver.WithReadOnly(context.Background())
+	ctx := context.Background()
 	src := testh.MakeDuckDBSource("@ro_chmod", path)
-	grip, err := drvr.Open(ctx, src)
+	grip, err := drvr.Open(ctx, src, driver.ModeReadOnly)
 	require.NoError(t, err, "RO open of 0444 file must succeed")
 	defer grip.Close()
 }
@@ -121,8 +119,8 @@ func TestReadOnly_URLAccessModeWins(t *testing.T) {
 	src := testh.MakeDuckDBSource("@ro_url_override", path)
 	src.Location += "?access_mode=READ_WRITE"
 
-	ctx := driver.WithReadOnly(context.Background())
-	grip, err := drvr.Open(ctx, src)
+	ctx := context.Background()
+	grip, err := drvr.Open(ctx, src, driver.ModeReadOnly)
 	require.NoError(t, err)
 	defer grip.Close()
 	db, err := grip.DB(ctx)

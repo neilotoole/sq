@@ -82,15 +82,11 @@ func execSQL(cmd *cobra.Command, args []string) error {
 	}
 
 	// --readonly / --ro: opt the raw-SQL command into read-only mode for
-	// the source. Two things happen here, BEFORE determineSources:
-	//   1. Peek at the would-be active source and surface the URL-conflict
-	//      error preemptively. Doing this after determineSources would let
-	//      verifySourceCatalogSchema briefly open the file READ_WRITE (the
-	//      URL wins over the RO ctx) before the error fires, defeating the
-	//      whole point of the conflict surfacing.
-	//   2. Flip the ctx so any pre-open inside determineSources sees the
-	//      RO hint. Skip the flip for --insert (execSQLInsert opens destGrip
-	//      first on the RW ctx before flipping to RO for the source side).
+	// the source. When set, peek at the would-be active source and surface
+	// the URL-conflict error preemptively. Doing this after determineSources
+	// would let verifySourceCatalogSchema briefly open the file READ_WRITE
+	// (the URL wins over the RO request) before the error fires, defeating
+	// the whole point of the conflict surfacing.
 	readOnlySrc := cmdFlagIsSetTrue(cmd, flag.SQLReadOnly) ||
 		cmdFlagIsSetTrue(cmd, flag.SQLReadOnlyAlias)
 	if readOnlySrc {
@@ -106,13 +102,17 @@ func execSQL(cmd *cobra.Command, args []string) error {
 					flag.SQLReadOnly, peek.Handle)
 			}
 		}
-		if !cmdFlagChanged(cmd, flag.Insert) {
-			ctx = driver.WithReadOnlyExplicit(ctx)
-			cmd.SetContext(ctx)
-		}
 	}
 
-	err := determineSources(ctx, ru, true)
+	// The --src.schema validation pre-open inside determineSources is
+	// read-only; pass it ModeReadOnlyExplicit when --readonly was given so
+	// the driver may override an AUTOMATIC access_mode.
+	validationMode := driver.ModeReadOnly
+	if readOnlySrc {
+		validationMode = driver.ModeReadOnlyExplicit
+	}
+
+	err := determineSources(ctx, ru, true, validationMode)
 	if err != nil {
 		return err
 	}
@@ -127,10 +127,14 @@ func execSQL(cmd *cobra.Command, args []string) error {
 	}
 
 	if !cmdFlagChanged(cmd, flag.Insert) {
-		// The user didn't specify the --insert=@src.tbl flag,
-		// so we just want to print the records. RO ctx (if requested)
-		// was established above, before determineSources.
-		return execSQLPrint(ctx, ru, activeSrc)
+		// The user didn't specify the --insert=@src.tbl flag, so we just
+		// want to print the records. Pass the source access mode
+		// explicitly: read-only-explicit when --readonly was given.
+		srcMode := driver.ModeReadWrite
+		if readOnlySrc {
+			srcMode = driver.ModeReadOnlyExplicit
+		}
+		return execSQLPrint(ctx, ru, activeSrc, srcMode)
 	}
 
 	// Instead of printing the records, they will be
@@ -156,9 +160,9 @@ func execSQL(cmd *cobra.Command, args []string) error {
 // execSQLPrint executes the SQL input, and either prints the resulting records
 // (if the SQL input is a query), or executes the SQL input statement and prints
 // the count of affected rows from the statement execution.
-func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source) error {
+func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source, srcMode driver.AccessMode) error {
 	args := ru.Args
-	grip, err := ru.Grips.Open(ctx, fromSrc)
+	grip, err := ru.Grips.Open(ctx, fromSrc, srcMode)
 	if err != nil {
 		return err
 	}
@@ -215,23 +219,27 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
-	// Open destGrip FIRST on the RW ctx so the destination opens
-	// READ_WRITE. The Grips cache keys by src.Handle, so if fromSrc
-	// shares a handle with destSrc (self-insert), the later
-	// grips.Open(ctx, fromSrc) returns this cached RW grip.
-	destGrip, err := grips.Open(ctx, destSrc)
+	// Open the destination read-write. Open order no longer matters: each
+	// open states its mode explicitly, and the cache keys by handle+mode.
+	destGrip, err := grips.Open(ctx, destSrc, driver.ModeReadWrite)
 	if err != nil {
 		return err
 	}
 
-	// Now mark the ctx read-only for the source-side open. Skips the
-	// rewrite if the user didn't pass --readonly. Explicit, because
-	// readOnlySrc is only true when the user passed --readonly.
-	if readOnlySrc {
-		ctx = driver.WithReadOnlyExplicit(ctx)
+	// The source is read: open it read-only so inserting from a read-only
+	// source works. Two exceptions: a self-insert (fromSrc shares destSrc's
+	// handle) opens read-write so it reuses destGrip (DuckDB can't open one
+	// file read-only and read-write at once); and --readonly forces an
+	// explicit read-only open.
+	srcMode := driver.ModeReadOnly
+	switch {
+	case fromSrc.Handle == destSrc.Handle:
+		srcMode = driver.ModeReadWrite
+	case readOnlySrc:
+		srcMode = driver.ModeReadOnlyExplicit
 	}
 
-	fromGrip, err := grips.Open(ctx, fromSrc)
+	fromGrip, err := grips.Open(ctx, fromSrc, srcMode)
 	if err != nil {
 		return err
 	}

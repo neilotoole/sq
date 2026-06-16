@@ -36,11 +36,33 @@ type Grips struct {
 	drvrs        Provider
 	closeErr     error
 	scratchSrcFn ScratchSrcFunc
-	files        *files.Files
-	grips        map[string]Grip
-	clnup        *cleanup.Cleanup
-	closeOnce    sync.Once
-	mu           sync.Mutex
+
+	files *files.Files
+
+	// grips caches open Grip instances, keyed by gripCacheKey: the source
+	// handle plus the access mode (read-write, implicit read-only, or
+	// explicit read-only) passed to Open. Keying on the mode means a
+	// source opened both read-only and read-write within one run gets two
+	// coexisting grips, each opened with the correct mode, regardless of
+	// which open happened first (gh #779). Both grips are registered on
+	// clnup, so Close releases them all.
+	grips map[string]Grip
+
+	clnup     *cleanup.Cleanup
+	closeOnce sync.Once
+	mu        sync.Mutex
+}
+
+// gripCacheKey returns the gs.grips cache key for opening the source
+// with the given handle in mode: the handle plus the access mode.
+// Explicit read-only (e.g. sq sql --readonly) is distinct from the
+// implicit hint because drivers may treat it more forcefully (DuckDB
+// overrides access_mode=AUTOMATIC only for an explicit hint). The key is
+// derived from the handle alone, never the location, so computing it
+// requires no secret resolution. Handles cannot contain NUL, so the
+// separator is unambiguous.
+func gripCacheKey(mode AccessMode, handle string) string {
+	return handle + "\x00" + mode.suffix()
 }
 
 // NewGrips returns a Grips instances.
@@ -56,21 +78,35 @@ func NewGrips(drvrs Provider, fs *files.Files, scratchSrcFn ScratchSrcFunc) *Gri
 }
 
 // Open returns an opened Grip for src. The returned Grip may be cached and
-// returned on future invocations for the identical source. Thus, the caller
-// should typically not close the Grip: it will be closed via d.Close.
+// returned on future invocations for the same source handle and access
+// mode. The cache key is the handle plus mode only: it deliberately
+// ignores src.Location and src.Options, so a second Open of the same
+// handle in the same mode returns the existing grip even if those fields
+// differ. Thus, the caller should typically not close the Grip: it will
+// be closed via d.Close.
+//
+// The access mode is given by mode (pass ModeReadWrite for a normal open,
+// ModeReadOnly or ModeReadOnlyExplicit for a read-only open). The cache
+// is keyed by source handle and mode, so a read-only open and a
+// read-write open of the same source yield independent grips, each
+// connected in the requested mode: call ordering across modes does not
+// matter. A cache hit is served before secret resolution runs, so
+// repeated opens of an already-open source don't repeat resolver work.
+//
+// Arg mode is forwarded to Driver.Open.
 //
 // NOTE: This entire logic re caching/not-closing is a bit sketchy,
 // and needs to be revisited.
-func (gs *Grips) Open(ctx context.Context, src *source.Source) (Grip, error) {
+func (gs *Grips) Open(ctx context.Context, src *source.Source, mode AccessMode) (Grip, error) {
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
 
-	g, err := gs.doOpen(ctx, src)
+	g, err := gs.doOpen(ctx, src, mode)
 	if err != nil {
 		return nil, err
 	}
 	gs.clnup.AddC(g)
-	gs.grips[src.Handle] = g
+	gs.grips[gripCacheKey(mode, src.Handle)] = g
 	return g, nil
 }
 
@@ -185,15 +221,19 @@ func ResolveSourceSecrets(ctx context.Context, src *source.Source) (*source.Sour
 	return clone, nil
 }
 
-func (gs *Grips) doOpen(ctx context.Context, src *source.Source) (Grip, error) {
+func (gs *Grips) doOpen(ctx context.Context, src *source.Source, mode AccessMode) (Grip, error) {
+	// The cache key derives from the handle and the access mode, not the
+	// location, so the lookup happens before secret resolution: a cache
+	// hit (e.g. one Grips.Open per table during inspect) must not pay for
+	// resolution again.
+	grip, ok := gs.grips[gripCacheKey(mode, src.Handle)]
+	if ok {
+		return grip, nil
+	}
+
 	var err error
 	if src, err = ResolveSourceSecrets(ctx, src); err != nil {
 		return nil, err
-	}
-
-	grip, ok := gs.grips[src.Handle]
-	if ok {
-		return grip, nil
 	}
 
 	drvr, err := gs.drvrs.DriverFor(src.Type)
@@ -205,7 +245,7 @@ func (gs *Grips) doOpen(ctx context.Context, src *source.Source) (Grip, error) {
 	o := options.Merge(baseOptions, src.Options)
 
 	ctx = options.NewContext(ctx, o)
-	grip, err = drvr.Open(ctx, src)
+	grip, err = drvr.Open(ctx, src, mode)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +288,7 @@ func (gs *Grips) OpenEphemeral(ctx context.Context) (Grip, error) {
 	}
 
 	var grip Grip
-	if grip, err = drvr.Open(ctx, src); err != nil {
+	if grip, err = drvr.Open(ctx, src, ModeReadWrite); err != nil {
 		lg.WarnIfFuncError(log, msgCloseDB, clnup.Run)
 		return nil, err
 	}
@@ -259,7 +299,7 @@ func (gs *Grips) OpenEphemeral(ctx context.Context) (Grip, error) {
 	}
 	gs.clnup.AddC(g)
 	log.Info("Opened ephemeral db", lga.Src, g.Source())
-	gs.grips[g.Source().Handle] = g
+	gs.grips[gripCacheKey(ModeReadWrite, g.Source().Handle)] = g
 	return g, nil
 }
 
@@ -296,7 +336,7 @@ func (gs *Grips) openNewCacheGrip(ctx context.Context, src *source.Source) (grip
 	}
 
 	var backingGrip Grip
-	if backingGrip, err = backingDrvr.Open(ctx, scratchSrc); err != nil {
+	if backingGrip, err = backingDrvr.Open(ctx, scratchSrc, ModeReadWrite); err != nil {
 		lg.WarnIfFuncError(log, msgRemoveScratch, cleanFn)
 		// The os.Remove call may be unnecessary, but doesn't hurt.
 		lg.WarnIfError(log, msgRemoveScratch, os.Remove(srcCacheDBFilepath))
@@ -436,7 +476,7 @@ func (gs *Grips) openCachedGripFor(ctx context.Context, src *source.Source) (bac
 		return nil, false, nil
 	}
 
-	if backingGrip, err = gs.doOpen(ctx, backingSrc); err != nil {
+	if backingGrip, err = gs.doOpen(ctx, backingSrc, ModeReadWrite); err != nil {
 		return nil, false, errz.Wrapf(err, "open cached DB for source %s", src.Handle)
 	}
 
@@ -496,7 +536,7 @@ func (gs *Grips) OpenJoin(ctx context.Context, srcs ...*source.Source) (Grip, er
 
 	log.Debug("Opening join db", lga.Path, fp)
 	var grip Grip
-	if grip, err = drvr.Open(ctx, joinSrc); err != nil {
+	if grip, err = drvr.Open(ctx, joinSrc, ModeReadWrite); err != nil {
 		lg.WarnIfFuncError(log, msgCloseJoinDB, clnup.Run)
 		return nil, err
 	}
@@ -506,7 +546,7 @@ func (gs *Grips) OpenJoin(ctx context.Context, srcs ...*source.Source) (Grip, er
 		clnup: clnup,
 	}
 	gs.clnup.AddC(g)
-	gs.grips[g.Source().Handle] = g
+	gs.grips[gripCacheKey(ModeReadWrite, g.Source().Handle)] = g
 	return g, nil
 }
 

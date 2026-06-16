@@ -199,14 +199,35 @@ func TestDoOpen_HonorsReadOnlyContext(t *testing.T) {
 		Location: "duckdb://" + tmp,
 	}
 
-	ctx := driver.WithReadOnly(context.Background())
+	ctx := context.Background()
 
 	prov := &duckdb.Provider{}
 	drvr, err := prov.DriverFor(drivertype.DuckDB)
 	require.NoError(t, err)
 
-	_, openErr := drvr.Open(ctx, src)
+	_, openErr := drvr.Open(ctx, src, driver.ModeReadOnly)
 	require.Error(t, openErr, "READ_ONLY open of nonexistent file must fail")
 	require.NoFileExists(t, tmp,
 		"DuckDB must not have created the file when opened READ_ONLY")
+}
+
+// TestPing_ReadOnly_MissingFile pins that a read-only ping of a non-existent
+// DuckDB file fails and does not create the file. This guards the Ping mode
+// wiring: "sq ping" passes ModeReadOnly precisely so a ping never creates or
+// write-locks the file (whereas "sq add" pings ModeReadWrite and does create).
+func TestPing_ReadOnly_MissingFile(t *testing.T) {
+	tmp := filepath.Join(t.TempDir(), "doesnotexist.duckdb")
+	src := &source.Source{
+		Handle:   "@test_ping_ro",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://" + tmp,
+	}
+
+	prov := &duckdb.Provider{}
+	drvr, err := prov.DriverFor(drivertype.DuckDB)
+	require.NoError(t, err)
+
+	require.Error(t, drvr.Ping(context.Background(), src, driver.ModeReadOnly),
+		"read-only ping of a missing file must fail")
+	require.NoFileExists(t, tmp, "ping must not create the file when read-only")
 }

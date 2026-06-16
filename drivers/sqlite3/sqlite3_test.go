@@ -371,7 +371,7 @@ func TestPlaceholderLocation_Connect(t *testing.T) {
 	// SQLite creates the file on open, so Ping succeeds iff the
 	// resolved location is in canonical driver form.
 	drvr := th.DriverFor(resolved)
-	require.NoError(t, drvr.Ping(ctx, resolved))
+	require.NoError(t, drvr.Ping(ctx, resolved, driver.ModeReadWrite))
 }
 
 func TestSQLQuery_Whitespace(t *testing.T) {

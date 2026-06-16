@@ -149,8 +149,9 @@ render a schema document that includes a Mermaid entity-relationship diagram;
 }
 
 func execInspect(cmd *cobra.Command, args []string) error {
-	ctx := driver.WithReadOnly(cmd.Context())
-	cmd.SetContext(ctx)
+	// inspect is wholly read-only; every open it performs passes the mode
+	// as an explicit argument.
+	ctx := cmd.Context()
 	ru, log := run.FromContext(ctx), lg.FromContext(ctx)
 
 	o, err := getOptionsFromCmd(cmd)
@@ -182,7 +183,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 	}
 
 	if srcModified {
-		if err = verifySourceCatalogSchema(ctx, ru, src); err != nil {
+		if err = verifySourceCatalogSchema(ctx, ru, src, driver.ModeReadOnly); err != nil {
 			return err
 		}
 	}
@@ -199,7 +200,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	grip, err := ru.Grips.Open(ctx, src)
+	grip, err := ru.Grips.Open(ctx, src, driver.ModeReadOnly)
 	if err != nil {
 		return errz.Wrapf(err, "failed to inspect %s", src.Handle)
 	}

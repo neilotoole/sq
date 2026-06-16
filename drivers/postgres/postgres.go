@@ -149,7 +149,7 @@ func (d *driveri) Renderer() *render.Renderer {
 }
 
 // Open implements driver.Driver.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessMode) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -215,7 +215,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
+func (d *driveri) Ping(ctx context.Context, src *source.Source, _ driver.AccessMode) error {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return err

@@ -129,6 +129,12 @@ func TestCmdSLQ_Insert_MultipleSchemas(t *testing.T) {
 //
 // The test matrix covers all combinations of supported SQL databases as both
 // origin (data source) and destination (insert target).
+// TestCmdSLQ_Insert exercises --insert across the SQLLatest() matrix of
+// origin x dest. The origin==dest cells are self-inserts; the
+// @sakila_duck/@sakila_duck cell is the regression guard for the DuckDB
+// self-insert path (handle+mode cache + QueryContext.WriteHandle, gh #779):
+// without it, the source would open read-only while the destination holds
+// the file read-write, which DuckDB rejects.
 func TestCmdSLQ_Insert(t *testing.T) {
 	for _, origin := range sakila.SQLLatest() {
 		t.Run("origin_"+origin, func(t *testing.T) {
@@ -892,4 +898,43 @@ func TestSLQ_DuckDB_RenderSQL_DoesNotModifyMtime(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, statBefore.ModTime(), statAfter.ModTime(),
 		"DuckDB file mtime must not change after sq slq --render-sql")
+}
+
+// TestCmdSLQ_Print_ReadOnly guards that the plain `sq <slq>` print path opens
+// sources read-only. The DuckDB file is made read-only on disk (0444), so a
+// read-write open would fail; read-only succeeds. Mirrors TestDiff_Data_ReadOnly.
+func TestCmdSLQ_Print_ReadOnly(t *testing.T) {
+	tu.SkipReadOnlyFileUnenforceable(t)
+	th := testh.New(t)
+	src := th.Source(sakila.Duck)
+	path := strings.TrimPrefix(src.Location, "duckdb://")
+
+	require.NoError(t, os.Chmod(path, 0o444))
+	t.Cleanup(func() { _ = os.Chmod(path, 0o644) }) // let TempDir cleanup remove it
+
+	tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+	require.NoError(t, tr.Exec("slq", src.Handle+".actor"),
+		"sq <slq> must open the source read-only (no write lock)")
+}
+
+// TestCmdSLQ_Insert_FromReadOnlySource guards that an --insert can READ from a
+// source that is read-only on disk (0444). The destination opens read-write;
+// the source, having a different handle, must open read-only (gh #779 per-source
+// mode via QueryContext.WriteHandle). A regression here forces the source RW and
+// fails with "permission denied" on the 0444 DuckDB file. The destination is a
+// (writable) SQLite source; the point is the read-only DuckDB source.
+func TestCmdSLQ_Insert_FromReadOnlySource(t *testing.T) {
+	tu.SkipReadOnlyFileUnenforceable(t)
+	th := testh.New(t)
+	src := th.Source(sakila.Duck)
+	dest := th.Source(sakila.SL3)
+
+	srcPath := strings.TrimPrefix(src.Location, "duckdb://")
+	require.NoError(t, os.Chmod(srcPath, 0o444))
+	t.Cleanup(func() { _ = os.Chmod(srcPath, 0o644) })
+
+	destTbl := "actor_ro_copy_" + stringz.Uniq8()
+	tr := testrun.New(th.Context, t, nil).Hush().Add(*src, *dest)
+	require.NoError(t, tr.Exec("slq", "--insert="+dest.Handle+"."+destTbl, src.Handle+".actor"),
+		"insert from a read-only source must open the source read-only and succeed")
 }

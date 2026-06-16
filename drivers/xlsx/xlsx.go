@@ -57,7 +57,7 @@ func (d *Driver) DriverMetadata() driver.Metadata {
 }
 
 // Open implements driver.Driver.
-func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+func (d *Driver) Open(ctx context.Context, src *source.Source, _ driver.AccessMode) (driver.Grip, error) {
 	log := lg.FromContext(ctx).With(lga.Src, src)
 	log.Debug(lgm.OpenSrc, lga.Src, src)
 
@@ -106,7 +106,7 @@ func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *Driver) Ping(ctx context.Context, src *source.Source) (err error) {
+func (d *Driver) Ping(ctx context.Context, src *source.Source, _ driver.AccessMode) (err error) {
 	return d.files.Ping(ctx, src)
 }
 

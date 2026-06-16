@@ -2,6 +2,7 @@ package tu
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"testing"
 )
@@ -80,5 +81,21 @@ func SkipWindowsIf(tb testing.TB, cond bool, format string, args ...any) {
 	tb.Helper()
 	if isWindows && cond {
 		tb.Skipf(format, args...)
+	}
+}
+
+// SkipReadOnlyFileUnenforceable skips tb when an on-disk read-only file
+// (chmod 0444) can't be relied on to block a write open. That's the case
+// on Windows (the 0444 bits don't map to POSIX write-deny semantics) and
+// when running as root (file permission bits are bypassed). Tests that use
+// a 0444 file as a regression guard (a read-write open must fail) call this
+// so they don't silently pass where the guard is a no-op.
+func SkipReadOnlyFileUnenforceable(tb testing.TB) {
+	tb.Helper()
+	if isWindows {
+		tb.Skip("Skip: chmod 0444 doesn't enforce read-only the same way on Windows")
+	}
+	if os.Geteuid() == 0 {
+		tb.Skip("Skip: root bypasses file permission bits, so chmod 0444 won't block a write open")
 	}
 }

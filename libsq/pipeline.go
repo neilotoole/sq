@@ -200,7 +200,7 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 	}
 
 	// At this point, src is non-nil.
-	if p.targetGrip, err = p.qc.Grips.Open(ctx, src); err != nil {
+	if p.targetGrip, err = p.qc.Grips.Open(ctx, src, p.qc.openModeFor(src.Handle)); err != nil {
 		return err
 	}
 
@@ -232,7 +232,7 @@ func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelector
 		return "", nil, err
 	}
 
-	fromGrip, err = p.qc.Grips.Open(ctx, src)
+	fromGrip, err = p.qc.Grips.Open(ctx, src, p.qc.openModeFor(src.Handle))
 	if err != nil {
 		return "", nil, err
 	}
@@ -325,7 +325,7 @@ func (p *pipeline) joinSingleSource(ctx context.Context, jc *joinClause) (fromCl
 		return "", nil, err
 	}
 
-	fromGrip, err = p.qc.Grips.Open(ctx, src)
+	fromGrip, err = p.qc.Grips.Open(ctx, src, p.qc.openModeFor(src.Handle))
 	if err != nil {
 		return "", nil, err
 	}
@@ -458,7 +458,7 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 			return "", nil, err
 		}
 		var db driver.Grip
-		if db, err = p.qc.Grips.Open(ctx, src); err != nil {
+		if db, err = p.qc.Grips.Open(ctx, src, p.qc.openModeFor(src.Handle)); err != nil {
 			return "", nil, err
 		}
 
