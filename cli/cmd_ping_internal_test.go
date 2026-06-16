@@ -22,9 +22,17 @@ import (
 // tests' background goroutines would make flaky. The "pingSource.func"
 // marker matches only the spawned closure, not this helper's own frame.
 func pingGoroutineLives() bool {
-	buf := make([]byte, 1<<20)
-	n := runtime.Stack(buf, true)
-	return bytes.Contains(buf[:n], []byte("pingSource.func"))
+	// Grow the buffer until the full dump fits: runtime.Stack truncates
+	// silently at len(buf), and a truncated tail could drop the frame we
+	// look for (a false negative that would mask a real leak).
+	buf := make([]byte, 1<<16)
+	for {
+		n := runtime.Stack(buf, true)
+		if n < len(buf) {
+			return bytes.Contains(buf[:n], []byte("pingSource.func"))
+		}
+		buf = make([]byte, 2*len(buf))
+	}
 }
 
 // fakePingProvider returns drvr for any source type.
