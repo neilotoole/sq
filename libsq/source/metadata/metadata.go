@@ -70,6 +70,14 @@ type Source struct { //nolint:govet // field alignment
 	// Typically the value is a scalar such as integer or string, but
 	// it can be a nested value such as map or array.
 	DBProperties map[string]any `json:"db_properties,omitempty" yaml:"db_properties,omitempty"`
+
+	// SecretsResolved indicates that Location holds resolved literal
+	// bytes rather than a placeholder template, mirroring
+	// [source.Source.SecretsResolved]. Drivers leave it false; the CLI
+	// inspect path sets it from the source so the --expand writer
+	// decorator can skip re-expanding an already-resolved location
+	// (which would double-unescape "$$"). Never persisted or serialized.
+	SecretsResolved bool `json:"-" yaml:"-"`
 }
 
 // Table returns the named table, or nil.
@@ -103,20 +111,21 @@ func (s *Source) Clone() *Source {
 	}
 
 	s2 := &Source{
-		Handle:     s.Handle,
-		Location:   s.Location,
-		Name:       s.Name,
-		FQName:     s.FQName,
-		Schema:     s.Schema,
-		Catalog:    s.Catalog,
-		Driver:     s.Driver,
-		DBDriver:   s.DBDriver,
-		DBProduct:  s.DBProduct,
-		DBVersion:  s.DBVersion,
-		User:       s.User,
-		Size:       s.Size,
-		TableCount: s.TableCount,
-		ViewCount:  s.ViewCount,
+		Handle:          s.Handle,
+		Location:        s.Location,
+		Name:            s.Name,
+		FQName:          s.FQName,
+		Schema:          s.Schema,
+		Catalog:         s.Catalog,
+		Driver:          s.Driver,
+		DBDriver:        s.DBDriver,
+		DBProduct:       s.DBProduct,
+		DBVersion:       s.DBVersion,
+		User:            s.User,
+		Size:            s.Size,
+		TableCount:      s.TableCount,
+		ViewCount:       s.ViewCount,
+		SecretsResolved: s.SecretsResolved,
 	}
 
 	if s.DBProperties != nil {

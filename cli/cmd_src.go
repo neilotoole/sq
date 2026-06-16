@@ -43,11 +43,6 @@ func execSrc(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		src, err := maybeExpandSource(ctx, ru, cmd, src)
-		if err != nil {
-			return err
-		}
-
 		return ru.Writers.Source.Source(cfg.Collection, src)
 	}
 
@@ -57,11 +52,6 @@ func execSrc(cmd *cobra.Command, args []string) error {
 	}
 
 	if err = ru.ConfigStore.Save(ctx, cfg); err != nil {
-		return err
-	}
-
-	src, err = maybeExpandSource(ctx, ru, cmd, src)
-	if err != nil {
 		return err
 	}
 

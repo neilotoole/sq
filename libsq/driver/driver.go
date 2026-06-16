@@ -251,6 +251,32 @@ type SQLDriver interface {
 	DBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error)
 }
 
+// ReadOnlyConflictDetector is an optional interface implemented by
+// drivers whose location syntax can explicitly demand write access,
+// contradicting a read-only request. The canonical example is DuckDB's
+// access_mode=READ_WRITE query parameter. It is consulted in two places
+// when the user explicitly requests read-only access (sq sql --readonly):
+// the CLI surfaces the conflict preemptively, before any connection is
+// opened, and the driver itself rejects such an open as defense-in-depth
+// so the conflict can't slip through for a non-CLI caller. Either way the
+// location does not silently win over the read-only request.
+//
+// Drivers without a location-level access mode (most drivers) simply
+// don't implement the interface, and no conflict is possible. Mirrors
+// the optional-capability pattern of [ConnParamDetector].
+type ReadOnlyConflictDetector interface {
+	// DetectReadOnlyConflict examines loc and reports whether it
+	// explicitly demands write access, conflicting with a read-only
+	// request. On conflict, the returned descriptor identifies the
+	// offending location component for use in the error message,
+	// echoing what the user typed (e.g. "access_mode=READ_WRITE"). A
+	// location that expresses no access preference, or one that is
+	// already compatible with read-only access, returns ok=false.
+	// Implementations must not perform I/O: this is a pure inspection
+	// of the location string.
+	DetectReadOnlyConflict(loc string) (conflict string, ok bool)
+}
+
 // Metadata holds driver metadata.
 //
 // TODO: Can driver.Metadata and dialect.Dialect be merged?
