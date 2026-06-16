@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"runtime"
 	"sync"
@@ -13,6 +14,18 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
+
+// pingGoroutineLives reports whether pingSource's spawned send goroutine
+// is currently alive, by scanning a full stack dump for its closure frame
+// ("pingSource.func"). This targets that specific goroutine rather than
+// comparing runtime.NumGoroutine to a baseline, which other parallel
+// tests' background goroutines would make flaky. The "pingSource.func"
+// marker matches only the spawned closure, not this helper's own frame.
+func pingGoroutineLives() bool {
+	buf := make([]byte, 1<<20)
+	n := runtime.Stack(buf, true)
+	return bytes.Contains(buf[:n], []byte("pingSource.func"))
+}
 
 // fakePingProvider returns drvr for any source type.
 type fakePingProvider struct{ drvr driver.Driver }
@@ -39,8 +52,6 @@ func (d *fakePingDriver) Ping(ctx context.Context, src *source.Source, mode driv
 // complete its send (doneCh is buffered, size 1) and exit. An unbuffered
 // doneCh would block that send forever, leaking the goroutine.
 func TestPingSource_TimeoutDoesNotLeakGoroutine(t *testing.T) {
-	// Not parallel: this test counts goroutines, so it must not race
-	// other tests' goroutine churn.
 	release := make(chan struct{})
 	var once sync.Once
 	releaseFn := func() { once.Do(func() { close(release) }) }
@@ -60,22 +71,23 @@ func TestPingSource_TimeoutDoesNotLeakGoroutine(t *testing.T) {
 	}
 	resultCh := make(chan pingResult, 1)
 
-	n0 := runtime.NumGoroutine()
 	pingSource(context.Background(), dp, src, 20*time.Millisecond, resultCh)
 
 	res := <-resultCh
 	require.ErrorIs(t, res.err, context.DeadlineExceeded,
 		"timeout path must return a deadline error")
+	require.True(t, pingGoroutineLives(),
+		"ping goroutine should still be blocked in Ping at this point")
 
-	// The ping goroutine is still blocked in Ping. Release it; with a
-	// buffered doneCh its send completes and it exits. Poll with a bare
-	// sleep loop rather than require.Eventually, which spawns its own
-	// goroutines and would inflate the count we're measuring.
+	// Release Ping; with a buffered doneCh its send completes and the
+	// goroutine exits. Poll a stack dump for that specific goroutine
+	// (bare sleep loop, not require.Eventually, which spawns its own
+	// goroutines).
 	releaseFn()
 	deadline := time.Now().Add(3 * time.Second)
-	for runtime.NumGoroutine() > n0 && time.Now().Before(deadline) {
+	for pingGoroutineLives() && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
 	}
-	require.LessOrEqual(t, runtime.NumGoroutine(), n0,
+	require.False(t, pingGoroutineLives(),
 		"ping goroutine must exit after Ping returns; if it doesn't, doneCh blocked the send (leak)")
 }
