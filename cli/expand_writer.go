@@ -212,6 +212,9 @@ func (ew *expandPingWriter) Open(srcs []*source.Source) error {
 	if err != nil {
 		return err
 	}
+	// Reset any prior cache so a reused writer (or an inactive re-Open)
+	// can't serve stale expanded sources from a previous call.
+	ew.cache = nil
 	if ew.active() {
 		// Cache input->expanded so the per-source Result calls don't
 		// repeat resolver I/O (see expandPingWriter doc).
@@ -239,6 +242,9 @@ func (ew *expandPingWriter) Result(src *source.Source, d time.Duration, err erro
 
 // Close implements output.PingWriter.
 func (ew *expandPingWriter) Close() error {
+	// Drop the cache so resolved (potentially plaintext) locations aren't
+	// retained past the ping run.
+	ew.cache = nil
 	return ew.w.Close()
 }
 
@@ -273,12 +279,17 @@ var _ output.MetadataWriter = (*expandMetadataWriter)(nil)
 func (ew *expandMetadataWriter) SourceMetadata(srcMeta *metadata.Source, showSchema bool) error {
 	if srcMeta != nil && !srcMeta.SecretsResolved && ew.active() {
 		ctx, ru := ew.runCtx()
-		loc, _, err := expandLocation(ctx, ru, srcMeta.Handle, srcMeta.Location)
+		loc, resolved, err := expandLocation(ctx, ru, srcMeta.Handle, srcMeta.Location)
 		if err != nil {
 			return err
 		}
 		clone := *srcMeta
 		clone.Location = loc
+		// Mark the clone resolved when expansion produced a literal, so a
+		// downstream consumer (or a repeat call) sees a consistent marker
+		// and won't re-expand. The lenient branch keeps the template and
+		// leaves resolved false; see expandLocation.
+		clone.SecretsResolved = resolved
 		srcMeta = &clone
 	}
 	return ew.w.SourceMetadata(srcMeta, showSchema)

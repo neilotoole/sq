@@ -111,20 +111,21 @@ func (s *Source) Clone() *Source {
 	}
 
 	s2 := &Source{
-		Handle:     s.Handle,
-		Location:   s.Location,
-		Name:       s.Name,
-		FQName:     s.FQName,
-		Schema:     s.Schema,
-		Catalog:    s.Catalog,
-		Driver:     s.Driver,
-		DBDriver:   s.DBDriver,
-		DBProduct:  s.DBProduct,
-		DBVersion:  s.DBVersion,
-		User:       s.User,
-		Size:       s.Size,
-		TableCount: s.TableCount,
-		ViewCount:  s.ViewCount,
+		Handle:          s.Handle,
+		Location:        s.Location,
+		Name:            s.Name,
+		FQName:          s.FQName,
+		Schema:          s.Schema,
+		Catalog:         s.Catalog,
+		Driver:          s.Driver,
+		DBDriver:        s.DBDriver,
+		DBProduct:       s.DBProduct,
+		DBVersion:       s.DBVersion,
+		User:            s.User,
+		Size:            s.Size,
+		TableCount:      s.TableCount,
+		ViewCount:       s.ViewCount,
+		SecretsResolved: s.SecretsResolved,
 	}
 
 	if s.DBProperties != nil {

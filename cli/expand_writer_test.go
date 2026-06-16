@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/secret"
@@ -331,6 +332,11 @@ func TestExpandMetadataWriter_SecretsResolved_Skipped(t *testing.T) {
 func TestExpander_NoRunOnContext_NoPanic(t *testing.T) {
 	cmd := newCmdWithExpand(t, true)
 	cmd.SetContext(context.Background()) // no run installed
+
+	// Assert the flag is set, so active()==false below is necessarily due
+	// to the missing run (not an unset flag), making this a real test of
+	// the FromContextOrNil no-panic path.
+	require.True(t, cmdFlagIsSetTrue(cmd, flag.Expand))
 
 	e := expander{cmd: cmd}
 	require.False(t, e.active(), "active must be false when no run is on the context")
