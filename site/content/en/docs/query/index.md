@@ -896,6 +896,19 @@ avg(.amount)
 4.2006673312974065
 ```
 
+`avg` returns a floating-point value on every SQL driver, so its type is
+consistent regardless of source. On Postgres and MySQL, whose native `AVG`
+returns an exact decimal, `sq` casts the result to a float for portability,
+which can lose precision for averages beyond roughly 15 to 17 significant
+digits. If you need the exact decimal, query with native SQL via the
+[`sq sql`](/docs/cmd/sql) command.
+
+{{< alert icon="👉" >}}
+On SQL Server, `AVG` over an integer column natively performs integer division
+and truncates (the average of `1` to `200` would be `100`, not `100.5`). `sq`
+casts the operand to a float so `avg` returns the true fractional value.
+{{< /alert >}}
+
 ### `count`
 
 The no-arg `count` function returns the total number of rows.

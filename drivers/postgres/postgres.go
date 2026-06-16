@@ -144,6 +144,9 @@ func (d *driveri) Renderer() *render.Renderer {
 	r := render.NewDefaultRenderer()
 	r.FunctionNames[ast.FuncNameSchema] = "current_schema"
 	r.FunctionNames[ast.FuncNameCatalog] = "current_database"
+	// avg() returns a portable float64 instead of Postgres's native numeric
+	// (which sq surfaces as a decimal.Decimal). See issue #594.
+	r.FunctionOverrides[ast.FuncNameAvg] = render.FuncOverrideCastResult("DOUBLE PRECISION")
 	render.RegisterILikeFamily(r)
 	return r
 }

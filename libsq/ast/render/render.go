@@ -357,3 +357,51 @@ func FuncOverrideString(s string) func(*Context, *ast.FuncNode) (string, error) 
 		return s, nil
 	}
 }
+
+// FuncOverrideCastResult returns a FunctionOverrides impl that renders fn with
+// the default function renderer and wraps the whole result in
+// CAST(... AS castType). Use it to coerce an aggregate's result to a portable
+// type where the engine's aggregate is already non-truncating, e.g.
+// CAST(avg(col) AS DOUBLE PRECISION) on Postgres. See issue #594.
+func FuncOverrideCastResult(castType string) func(*Context, *ast.FuncNode) (string, error) {
+	return func(rc *Context, fn *ast.FuncNode) (string, error) {
+		inner, err := RenderFuncDefault(rc, fn)
+		if err != nil {
+			return "", err
+		}
+		return "CAST(" + inner + " AS " + castType + ")", nil
+	}
+}
+
+// FuncOverrideCastOperand returns a FunctionOverrides impl that renders fn but
+// wraps each operand in CAST(... AS castType), e.g. avg(CAST(col AS FLOAT)).
+// Unlike FuncOverrideCastResult, this casts the operands, which is required
+// where the engine would otherwise compute the aggregate in the operand's type:
+// SQL Server's AVG over an integer column performs integer division and
+// truncates, so a result cast comes too late. The function name is resolved
+// through Renderer.FunctionNames, matching RenderFuncDefault. See issue #594.
+//
+// It is intended for single-operand aggregates such as avg() and sum(). It does
+// not reproduce RenderFuncDefault's count/count_unique special-casing (the
+// no-arg count(*) form, or count_unique becoming count(DISTINCT ...)), so it
+// must not be registered for count or count_unique.
+func FuncOverrideCastOperand(castType string) func(*Context, *ast.FuncNode) (string, error) {
+	return func(rc *Context, fn *ast.FuncNode) (string, error) {
+		fnName := strings.ToLower(fn.FuncName())
+		if mapped, ok := rc.Renderer.FunctionNames[fnName]; ok {
+			fnName = mapped
+		}
+
+		children := fn.Children()
+		args := make([]string, len(children))
+		for i, child := range children {
+			s, err := RenderFuncArg(rc, child)
+			if err != nil {
+				return "", err
+			}
+			args[i] = "CAST(" + s + " AS " + castType + ")"
+		}
+
+		return fnName + "(" + strings.Join(args, ", ") + ")", nil
+	}
+}

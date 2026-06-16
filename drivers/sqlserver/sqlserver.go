@@ -164,6 +164,11 @@ func (d *driveri) Renderer() *render.Renderer {
 
 	r.FunctionNames[ast.FuncNameSchema] = "SCHEMA_NAME"
 	r.FunctionNames[ast.FuncNameCatalog] = "DB_NAME"
+	// SQL Server computes AVG over an integer column using integer division,
+	// truncating the fractional part (e.g. the average of 1..200 returns 100,
+	// not 100.5). Cast the operand, not the result: CAST(AVG(col) AS FLOAT)
+	// still truncates because AVG has already returned an int. See issue #594.
+	r.FunctionOverrides[ast.FuncNameAvg] = render.FuncOverrideCastOperand("FLOAT")
 	r.FunctionOverrides[ast.FuncNameRowNum] = renderFuncRowNum
 	r.FunctionOverrides[ast.FuncNameContains] = renderFuncContainsCollate
 	r.FunctionOverrides[ast.FuncNameStartsWith] = renderFuncStartsWithCollate

@@ -49,6 +49,18 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
+- ☢️ [#594]: [`avg()`](https://sq.io/docs/query#avg) now returns a consistent `float`
+  on every SQL driver. Previously the result type varied by backend (a float on
+  some, an integer or a decimal string on others), so an `avg()` value could not
+  be consumed portably across sources. `float` was chosen to match `jq`'s numeric
+  model, which represents all numbers as IEEE 754 floating point. This is a
+  breaking change for
+  [Postgres](https://sq.io/docs/drivers/postgres) and
+  [MySQL](https://sq.io/docs/drivers/mysql), which previously returned a lossless
+  decimal (rendered as a quoted string in JSON output): an `avg()` value is now a
+  JSON number, and may lose precision for averages beyond float64's range
+  (~15-17 significant digits). Callers needing lossless decimal can fall back to
+  native SQL via [`sq sql`](https://sq.io/docs/cmd/sql).
 - [#610]: The DuckDB driver now
   [opens sources read-only](https://sq.io/docs/drivers/duckdb#read-only-access-by-default)
   for commands that don't write (`sq`, `inspect`, `diff`, `ping`), and the new
@@ -77,6 +89,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [#594]: On [SQL Server](https://sq.io/docs/drivers/sqlserver), `avg()` over an
+  integer column no longer performs integer division and truncates the result.
+  For example, the average of `1..200` now returns `100.5`, not `100`.
 - [#741], [#743]: [`sq add`](https://sq.io/docs/cmd/add) shell completion now supports
   [ClickHouse](https://sq.io/docs/drivers/clickhouse) and
   [Oracle](https://sq.io/docs/drivers/oracle).
@@ -1661,6 +1676,7 @@ make working with lots of sources much easier.
 [#570]: https://github.com/neilotoole/sq/pull/570
 [#571]: https://github.com/neilotoole/sq/pull/571
 [#572]: https://github.com/neilotoole/sq/pull/572
+[#594]: https://github.com/neilotoole/sq/issues/594
 [#601]: https://github.com/neilotoole/sq/issues/601
 [#602]: https://github.com/neilotoole/sq/pull/602
 [#610]: https://github.com/neilotoole/sq/issues/610
