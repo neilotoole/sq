@@ -48,6 +48,7 @@ var (
 	IsNullableTypeUnwrapped    = isNullableTypeUnwrapped
 	TableTypeFromEngine        = tableTypeFromEngine
 	ConvertArrayToString       = convertArrayToString
+	ResolveQualifiedColNames   = resolveQualifiedColNames
 )
 
 // clickhouse.go exports.

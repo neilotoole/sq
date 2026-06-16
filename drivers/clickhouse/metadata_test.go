@@ -530,3 +530,97 @@ func TestMetadata_UnusualColumnTypes(t *testing.T) {
 			col.Name, col.Kind, col.BaseType, col.ColumnType)
 	}
 }
+
+// TestResolveQualifiedColNames verifies that the ClickHouse driver strips a
+// table qualifier from a result-column name only when doing so resolves a
+// collision with another column, mirroring ClickHouse's own behavior of
+// qualifying a name only to disambiguate duplicates. Aliases and expressions
+// that merely happen to contain a dot are preserved verbatim. See #834.
+func TestResolveQualifiedColNames(t *testing.T) {
+	testCases := []struct {
+		name string
+		in   []string
+		want []string
+	}{
+		{
+			// Default function alias (SLQ source text) contains a dot; it
+			// collides with nothing, so it must be preserved verbatim.
+			name: "default_func_alias_preserved",
+			in:   []string{"avg(.actor_id)"},
+			want: []string{"avg(.actor_id)"},
+		},
+		{
+			// Leading-dot alias collides with nothing; preserved verbatim.
+			name: "leading_dot_alias_preserved",
+			in:   []string{".lead"},
+			want: []string{".lead"},
+		},
+		{
+			// User-supplied dotted alias collides with nothing; preserved.
+			name: "user_dotted_alias_preserved",
+			in:   []string{"a.b"},
+			want: []string{"a.b"},
+		},
+		{
+			// Duplicate-column join: ClickHouse qualifies the colliding
+			// columns (film_actor.actor_id, film_actor.last_update). The
+			// qualifier must be stripped so downstream dedup can rename them
+			// to actor_id_1 / last_update_1.
+			name: "duplicate_join_qualifier_stripped",
+			in: []string{
+				"actor_id", "first_name", "last_name", "last_update",
+				"film_actor.actor_id", "film_id", "film_actor.last_update",
+			},
+			want: []string{
+				"actor_id", "first_name", "last_name", "last_update",
+				"actor_id", "film_id", "last_update",
+			},
+		},
+		{
+			// Parenthesized alias without a dot is untouched.
+			name: "parens_no_dot_preserved",
+			in:   []string{"x(y)"},
+			want: []string{"x(y)"},
+		},
+		{
+			// Collision detection is case-insensitive, matching the
+			// downstream dedup mechanism (MungeResultColNames uses EqualFold).
+			name: "collision_case_insensitive",
+			in:   []string{"Actor_ID", "film_actor.actor_id"},
+			want: []string{"Actor_ID", "actor_id"},
+		},
+		{
+			// When two qualified columns collide on their trailing segment,
+			// both are reduced to the bare name; the distinguishing qualifiers
+			// are intentionally dropped to match the other drivers (the bare
+			// duplicates are then deduped downstream to "amount", "amount_1").
+			name: "both_qualified_collide",
+			in:   []string{"sales.amount", "returns.amount"},
+			want: []string{"amount", "amount"},
+		},
+		{
+			// A user alias whose trailing segment collides with a real column
+			// is treated as a qualifier and stripped. This degrades the alias,
+			// but the case is pathological (deliberately aliasing "x.actor_id"
+			// alongside a real "actor_id") and acceptable.
+			name: "alias_collides_with_bare",
+			in:   []string{"x.actor_id", "actor_id"},
+			want: []string{"actor_id", "actor_id"},
+		},
+		{
+			// Degenerate trailing-dot names (which ClickHouse never emits)
+			// reduce to an empty trailing segment that collides; current
+			// behavior strips both to "". Documents the edge, not a guarantee.
+			name: "trailing_dot_degenerate",
+			in:   []string{"actor.", "film."},
+			want: []string{"", ""},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := clickhouse.ResolveQualifiedColNames(tc.in)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}

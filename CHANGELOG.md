@@ -106,6 +106,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   [rqlite](https://sq.io/docs/drivers/rqlite) drivers, renaming a table, adding a column, or
   truncating it no longer fails when a table or column name contains a double quote (e.g. a
   `we"ird` table created from a CSV header).
+- [#834]: On the [ClickHouse](https://sq.io/docs/drivers/clickhouse) driver, a result-column
+  name containing a dot (e.g. the default alias `avg(.actor_id)`, or an explicit alias like
+  `"a.b"`) is no longer truncated to the segment after the last dot. The table qualifier that
+  ClickHouse adds to disambiguate duplicate join columns is still stripped so duplicates are
+  renamed consistently (e.g. `actor_id_1`).
 
 ## [v0.53.0] - 2026-05-25
 
@@ -1696,6 +1701,7 @@ make working with lots of sources much easier.
 [#782]: https://github.com/neilotoole/sq/issues/782
 [#783]: https://github.com/neilotoole/sq/issues/783
 [#821]: https://github.com/neilotoole/sq/issues/821
+[#834]: https://github.com/neilotoole/sq/issues/834
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3

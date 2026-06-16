@@ -362,6 +362,25 @@ func TestQuery_join_others(t *testing.T) {
 				assertSinkColMungedNames(colsJoinActorFilmActor...),
 			},
 		},
+		{
+			// A dotted column alias must survive a join. Selecting actor_id
+			// from both tables produces a duplicate that ClickHouse
+			// disambiguates with a table qualifier (film_actor.actor_id); the
+			// driver strips that qualifier so dedup yields actor_id_1. The
+			// explicitly dotted alias "a.b" collides with nothing, so it must
+			// be preserved verbatim rather than truncated to "b". See #834.
+			name:    "gh834/dotted-alias-with-dup-cols",
+			in:      `@sakila | .actor:a | join(.film_actor:fa, .a.actor_id == .fa.actor_id) | .a.actor_id, .fa.actor_id, .a.first_name:"a.b"`,
+			wantSQL: `SELECT "a"."actor_id", "fa"."actor_id", "a"."first_name" AS "a.b" FROM "actor" AS "a" INNER JOIN "film_actor" AS "fa" ON "a"."actor_id" = "fa"."actor_id"`,
+			override: driverMap{
+				drivertype.MySQL:      "SELECT `a`.`actor_id`, `fa`.`actor_id`, `a`.`first_name` AS `a.b` FROM `actor` AS `a` INNER JOIN `film_actor` AS `fa` ON `a`.`actor_id` = `fa`.`actor_id`",
+				drivertype.ClickHouse: "SELECT `a`.`actor_id`, `fa`.`actor_id`, `a`.`first_name` AS `a.b` FROM `actor` AS `a` INNER JOIN `film_actor` AS `fa` ON `a`.`actor_id` = `fa`.`actor_id`",
+			},
+			wantRecCount: sakila.TblFilmActorCount,
+			sinkFns: []SinkTestFunc{
+				assertSinkColMungedNames("actor_id", "actor_id_1", "a.b"),
+			},
+		},
 	}
 
 	for _, tc := range testCases {
