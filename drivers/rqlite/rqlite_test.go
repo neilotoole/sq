@@ -1035,8 +1035,8 @@ func TestCoerce_NumericAffinityWholeNumber(t *testing.T) {
 
 // TestCoerce_NumericAffinityDecimal verifies that NUMERIC-declared
 // columns holding non-integer values surface as decimal.Decimal.
-// Pairs with TestCoerce_NumericAffinityInt to cover both branches of
-// coerceDecimal (integer demotion vs. decimal pass-through).
+// Pairs with TestCoerce_NumericAffinityWholeNumber, which covers the
+// integer-valued case; both surface as decimal (see issue #839).
 func TestCoerce_NumericAffinityDecimal(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
@@ -1073,8 +1073,7 @@ func TestCoerce_NumericAffinityDecimal(t *testing.T) {
 	require.Equal(t, int64(1), gotID)
 
 	// price is NUMERIC affinity with a non-integer value, so it
-	// surfaces as decimal.Decimal (coerceDecimal returns the value
-	// unchanged when !IsInteger).
+	// surfaces as decimal.Decimal.
 	gotPrice, ok := sink.Recs[0][1].(decimal.Decimal)
 	require.True(t, ok, "expected decimal.Decimal for non-integer NUMERIC column, got %T", sink.Recs[0][1])
 	require.True(t, gotPrice.Equal(decimal.NewFromFloat(19.99)),
