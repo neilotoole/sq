@@ -303,8 +303,8 @@ If zero, no progress bar is rendered.`,
 )
 
 // newWriters returns an output.Writers instance configured per defaults and/or
-// flags from cmd. The returned writers in [outputConfig] may differ from
-// the stdout and stderr params (e.g. decorated to support colorization).
+// flags from ru.Cmd. The returned writers in [outputConfig] may differ from
+// ru.Stdout / ru.Stderr (e.g. decorated to support colorization).
 func newWriters(ru *run.Run, o options.Options) (w *output.Writers, outCfg *outputConfig) {
 	cmd, fs, clnup := ru.Cmd, ru.Files, ru.Cleanup
 	stdout, stderr := ru.Stdout, ru.Stderr
