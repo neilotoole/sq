@@ -979,8 +979,22 @@ input rows, null is returned.
 ```shell
 $ sq '.payment | sum(.amount)'
 sum(.amount)
-67416.50999999208
+67416.51
 ```
+
+`sum` returns a decimal value on every SQL driver, so its type is consistent
+regardless of source. Unlike [`avg`](#avg), `sum` is not cast to a float: the
+sum of integers or of exact decimals is itself exact, and a float would lose
+precision. In JSON output a decimal is rendered as a quoted string, so
+`sum(.actor_id)` is `"20100"` rather than a bare number.
+
+{{< alert icon="👉" >}}
+SQLite (and rqlite) compute a sum over a non-integer column in floating point
+internally, so such a sum can carry a small drift (for example
+`67416.51000000001` instead of `67416.51`). The surfaced type is still a
+decimal, but a value the engine already computed in float cannot be recovered
+after the fact. Sums over integer columns are exact.
+{{< /alert >}}
 
 ## String functions
 
