@@ -36,20 +36,10 @@ func NewContext(ctx context.Context, ru *Run) context.Context {
 }
 
 // FromContext extracts the Run added to ctx via NewContext. It panics
-// if no Run is present; callers that run after preRun (the vast
-// majority) rely on this fail-fast. Use FromContextOrNil from code that
-// may run before a Run is installed.
+// if no Run is present; this is a deliberate fail-fast, since every
+// command path installs a Run before any code that reads it runs.
 func FromContext(ctx context.Context) *Run {
 	return ctx.Value(runKey{}).(*Run)
-}
-
-// FromContextOrNil returns the Run added to ctx via NewContext, or nil
-// if none is present. Unlike FromContext it does not panic, for callers
-// that may run before a Run is installed (e.g. writer decorators built
-// over a bare context in tests).
-func FromContextOrNil(ctx context.Context) *Run {
-	ru, _ := ctx.Value(runKey{}).(*Run)
-	return ru
 }
 
 // Run is a container for injectable resources passed

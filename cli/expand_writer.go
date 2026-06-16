@@ -42,24 +42,24 @@ import (
 // context updates made by the command (e.g. cmd.SetContext) are
 // honored.
 
-// expander is the shared core of the expand decorators.
+// expander is the shared core of the expand decorators. The run is
+// injected at construction (newWriters), where it's always in hand; the
+// context is read fresh from cmd at write time so cmd.SetContext updates
+// (e.g. timeouts) are honored when the resolver runs.
 type expander struct {
 	cmd *cobra.Command
+	ru  *run.Run
 }
 
-// runCtx returns the command's current context and run. The returned
-// run is nil in degenerate cases (e.g. a test harness without a run on
-// the context, or before the secret registry is installed); callers
-// must treat nil as "don't expand". FromContextOrNil is used (not
-// FromContext) precisely so the no-run case returns nil rather than
-// panicking.
+// runCtx returns the command's current context and run. The returned run
+// is nil when expansion can't run (no secret registry yet); callers must
+// treat nil as "don't expand".
 func (e expander) runCtx() (context.Context, *run.Run) {
 	ctx := e.cmd.Context()
-	ru := run.FromContextOrNil(ctx)
-	if ru == nil || ru.SecretRegistry == nil {
+	if e.ru == nil || e.ru.SecretRegistry == nil {
 		return ctx, nil
 	}
-	return ctx, ru
+	return ctx, e.ru
 }
 
 // active reports whether expansion should be attempted at all.

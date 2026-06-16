@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/secret"
@@ -123,25 +122,25 @@ func (w *recordingMetadataWriter) Schemata(string, []*metadata.Schema) error {
 	return nil
 }
 
-// newExpanderCmd returns a cmd suitable for the expand decorators: the
-// --expand flag is registered (and set per the set arg), and the cmd's
-// context carries a run.Run whose SecretRegistry "keyring" scheme is
-// backed by values.
-func newExpanderCmd(t *testing.T, set bool, values map[string]string) *cobra.Command {
+// newExpanderCmd returns a cmd and run suitable for the expand
+// decorators: the --expand flag is registered (and set per the set arg),
+// and the run's SecretRegistry "keyring" scheme is backed by values. The
+// run is injected into the expander by the caller; the cmd carries a
+// plain context (the decorators read it only for the resolver ctx).
+func newExpanderCmd(t *testing.T, set bool, values map[string]string) (*cobra.Command, *run.Run) {
 	t.Helper()
 	cmd := newCmdWithExpand(t, set)
-	ru := newTestRun(t, values)
-	cmd.SetContext(run.NewContext(context.Background(), ru))
-	return cmd
+	cmd.SetContext(context.Background())
+	return cmd, newTestRun(t, values)
 }
 
 func TestExpandSourceWriter_Source_FlagSet_Expands(t *testing.T) {
-	cmd := newExpanderCmd(t, true, map[string]string{
+	cmd, ru := newExpanderCmd(t, true, map[string]string{
 		"abc": "postgres://alice:hunter2@db/sakila",
 	})
 
 	rec := &recordingSourceWriter{}
-	ew := &expandSourceWriter{w: rec, expander: expander{cmd: cmd}}
+	ew := &expandSourceWriter{w: rec, expander: expander{cmd: cmd, ru: ru}}
 
 	src := &source.Source{
 		Handle:   "@a",
@@ -155,10 +154,10 @@ func TestExpandSourceWriter_Source_FlagSet_Expands(t *testing.T) {
 }
 
 func TestExpandSourceWriter_Source_FlagUnset_PassThrough(t *testing.T) {
-	cmd := newExpanderCmd(t, false, nil)
+	cmd, ru := newExpanderCmd(t, false, nil)
 
 	rec := &recordingSourceWriter{}
-	ew := &expandSourceWriter{w: rec, expander: expander{cmd: cmd}}
+	ew := &expandSourceWriter{w: rec, expander: expander{cmd: cmd, ru: ru}}
 
 	src := &source.Source{
 		Handle:   "@a",
@@ -172,10 +171,10 @@ func TestExpandSourceWriter_Source_FlagUnset_PassThrough(t *testing.T) {
 }
 
 func TestExpandSourceWriter_ParseErrorPropagates(t *testing.T) {
-	cmd := newExpanderCmd(t, true, nil)
+	cmd, ru := newExpanderCmd(t, true, nil)
 
 	rec := &recordingSourceWriter{}
-	ew := &expandSourceWriter{w: rec, expander: expander{cmd: cmd}}
+	ew := &expandSourceWriter{w: rec, expander: expander{cmd: cmd, ru: ru}}
 
 	src := &source.Source{
 		Handle:   "@bad",
@@ -189,12 +188,12 @@ func TestExpandSourceWriter_ParseErrorPropagates(t *testing.T) {
 }
 
 func TestExpandSourceWriter_Collection_Expands(t *testing.T) {
-	cmd := newExpanderCmd(t, true, map[string]string{
+	cmd, ru := newExpanderCmd(t, true, map[string]string{
 		"abc": "postgres://alice:hunter2@db/sakila",
 	})
 
 	rec := &recordingSourceWriter{}
-	ew := &expandSourceWriter{w: rec, expander: expander{cmd: cmd}}
+	ew := &expandSourceWriter{w: rec, expander: expander{cmd: cmd, ru: ru}}
 
 	coll := &source.Collection{}
 	require.NoError(t, coll.Add(&source.Source{
@@ -213,13 +212,13 @@ func TestExpandSourceWriter_Collection_Expands(t *testing.T) {
 }
 
 func TestExpandSourceWriter_Group_ExpandsNestedSources(t *testing.T) {
-	cmd := newExpanderCmd(t, true, map[string]string{
+	cmd, ru := newExpanderCmd(t, true, map[string]string{
 		"abc": "postgres://alice:hunter2@db/sakila",
 		"def": "mysql://bob:opensesame@db/sakila",
 	})
 
 	rec := &recordingSourceWriter{}
-	ew := &expandSourceWriter{w: rec, expander: expander{cmd: cmd}}
+	ew := &expandSourceWriter{w: rec, expander: expander{cmd: cmd, ru: ru}}
 
 	group := &source.Group{
 		Name: "/",
@@ -262,10 +261,10 @@ func TestExpandPingWriter_OpenCachesForResult(t *testing.T) {
 	reg.Register("keyring", counting)
 	ru := &run.Run{SecretRegistry: reg}
 	cmd := newCmdWithExpand(t, true)
-	cmd.SetContext(run.NewContext(context.Background(), ru))
+	cmd.SetContext(context.Background())
 
 	rec := &recordingPingWriter{}
-	ew := &expandPingWriter{w: rec, expander: expander{cmd: cmd}}
+	ew := &expandPingWriter{w: rec, expander: expander{cmd: cmd, ru: ru}}
 
 	src := &source.Source{
 		Handle:   "@a",
@@ -286,12 +285,12 @@ func TestExpandPingWriter_OpenCachesForResult(t *testing.T) {
 }
 
 func TestExpandMetadataWriter_SourceMetadata_Expands(t *testing.T) {
-	cmd := newExpanderCmd(t, true, map[string]string{
+	cmd, ru := newExpanderCmd(t, true, map[string]string{
 		"abc": "postgres://alice:hunter2@db/sakila",
 	})
 
 	rec := &recordingMetadataWriter{}
-	ew := &expandMetadataWriter{w: rec, expander: expander{cmd: cmd}}
+	ew := &expandMetadataWriter{w: rec, expander: expander{cmd: cmd, ru: ru}}
 
 	srcMeta := &metadata.Source{
 		Handle:   "@a",
@@ -309,10 +308,10 @@ func TestExpandMetadataWriter_SourceMetadata_Expands(t *testing.T) {
 // the source/group/collection paths, so a literal '$$' is not
 // double-unescaped.
 func TestExpandMetadataWriter_SecretsResolved_Skipped(t *testing.T) {
-	cmd := newExpanderCmd(t, true, nil)
+	cmd, ru := newExpanderCmd(t, true, nil)
 
 	rec := &recordingMetadataWriter{}
-	ew := &expandMetadataWriter{w: rec, expander: expander{cmd: cmd}}
+	ew := &expandMetadataWriter{w: rec, expander: expander{cmd: cmd, ru: ru}}
 
 	srcMeta := &metadata.Source{
 		Handle:          "@a",
@@ -323,26 +322,4 @@ func TestExpandMetadataWriter_SecretsResolved_Skipped(t *testing.T) {
 	require.NotNil(t, rec.gotSrcMeta)
 	require.Equal(t, "postgres://b:pa$$wd@h/db", rec.gotSrcMeta.Location,
 		"already-resolved location must not be re-unescaped")
-}
-
-// TestExpander_NoRunOnContext_NoPanic verifies that an expand decorator
-// over a command whose context carries no run does not panic when
-// --expand is set: active() returns false and the source passes through
-// unchanged. Guards the runCtx -> run.FromContextOrNil contract.
-func TestExpander_NoRunOnContext_NoPanic(t *testing.T) {
-	cmd := newCmdWithExpand(t, true)
-	cmd.SetContext(context.Background()) // no run installed
-
-	// Assert the flag is set, so active()==false below is necessarily due
-	// to the missing run (not an unset flag), making this a real test of
-	// the FromContextOrNil no-panic path.
-	require.True(t, cmdFlagIsSetTrue(cmd, flag.Expand))
-
-	e := expander{cmd: cmd}
-	require.False(t, e.active(), "active must be false when no run is on the context")
-
-	src := &source.Source{Handle: "@a", Location: "${keyring:abc}"}
-	got, err := e.src(src)
-	require.NoError(t, err)
-	require.Same(t, src, got, "no run -> pass through unchanged, no panic")
 }

@@ -228,7 +228,7 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 	cmd.SetContext(ctx)
 
 	var outCfg *outputConfig
-	ru.Writers, outCfg = newWriters(ru.Cmd, ru.Files, ru.Cleanup, cmdOpts, ru.Stdout, ru.Stderr)
+	ru.Writers, outCfg = newWriters(ru.Cmd, ru.Files, ru.Cleanup, cmdOpts, ru.Stdout, ru.Stderr, ru)
 	ru.Out = outCfg.out
 	ru.ErrOut = outCfg.errOut
 

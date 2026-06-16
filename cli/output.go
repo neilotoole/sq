@@ -28,6 +28,7 @@ import (
 	"github.com/neilotoole/sq/cli/output/xlsxw"
 	"github.com/neilotoole/sq/cli/output/xmlw"
 	"github.com/neilotoole/sq/cli/output/yamlw"
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -305,7 +306,7 @@ If zero, no progress bar is rendered.`,
 // flags from cmd. The returned writers in [outputConfig] may differ from
 // the stdout and stderr params (e.g. decorated to support colorization).
 func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o options.Options,
-	stdout, stderr io.Writer,
+	stdout, stderr io.Writer, ru *run.Run,
 ) (w *output.Writers, outCfg *outputConfig) {
 	// Invoke getFormat to see if the format was specified
 	// via config or flag.
@@ -407,9 +408,9 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 		// writer impl. See expand_writer.go for that rationale.) Any
 		// command that prints a location gets --expand for free; the
 		// decorators no-op when the flag is unset.
-		w.Source = &expandSourceWriter{w: w.Source, expander: expander{cmd: cmd}}
-		w.Ping = &expandPingWriter{w: w.Ping, expander: expander{cmd: cmd}}
-		w.Metadata = &expandMetadataWriter{w: w.Metadata, expander: expander{cmd: cmd}}
+		w.Source = &expandSourceWriter{w: w.Source, expander: expander{cmd: cmd, ru: ru}}
+		w.Ping = &expandPingWriter{w: w.Ping, expander: expander{cmd: cmd, ru: ru}}
+		w.Metadata = &expandMetadataWriter{w: w.Metadata, expander: expander{cmd: cmd, ru: ru}}
 	}
 
 	return w, outCfg
