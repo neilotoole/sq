@@ -164,6 +164,7 @@ func (d *driveri) Renderer() *render.Renderer {
 
 	r.FunctionNames[ast.FuncNameSchema] = "SCHEMA_NAME"
 	r.FunctionNames[ast.FuncNameCatalog] = "DB_NAME"
+	r.FunctionOverrides[ast.FuncNameAvg] = doRenderFuncAvg
 	r.FunctionOverrides[ast.FuncNameRowNum] = renderFuncRowNum
 	r.FunctionOverrides[ast.FuncNameContains] = renderFuncContainsCollate
 	r.FunctionOverrides[ast.FuncNameStartsWith] = renderFuncStartsWithCollate
@@ -188,6 +189,27 @@ func (d *driveri) Renderer() *render.Renderer {
 	}
 
 	return r
+}
+
+// doRenderFuncAvg renders avg() for SQL Server. SQL Server computes AVG over an
+// integer column using integer division, truncating the fractional part (e.g.
+// the average of 1..200 returns 100, not 100.5). The fix must cast the operand,
+// not the result: CAST(AVG(col) AS FLOAT) still truncates, because AVG has
+// already returned an int. Casting the operand makes AVG compute in floating
+// point. See issue #594.
+func doRenderFuncAvg(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	args := fn.Children()
+	if len(args) != 1 {
+		// avg() always takes exactly one operand. Fall back to the default
+		// rendering for any unexpected shape rather than emit broken SQL.
+		return render.RenderFuncDefault(rc, fn)
+	}
+
+	operand, err := render.RenderFuncArg(rc, args[0])
+	if err != nil {
+		return "", err
+	}
+	return "avg(CAST(" + operand + " AS FLOAT))", nil
 }
 
 // Open implements driver.Driver.

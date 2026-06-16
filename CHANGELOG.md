@@ -49,6 +49,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
+- [#594]: [`avg()`](https://sq.io/docs/query#avg) now returns a consistent `float`
+  on every SQL driver. Previously the result type varied by backend (a float on
+  some, an integer or a decimal string on others), so an `avg()` value could not
+  be consumed portably across sources.
 - [#610]: The DuckDB driver now
   [opens sources read-only](https://sq.io/docs/drivers/duckdb#read-only-access-by-default)
   for commands that don't write (`sq`, `inspect`, `diff`, `ping`), and the new
@@ -77,6 +81,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [#594]: On [SQL Server](https://sq.io/docs/drivers/sqlserver), `avg()` over an
+  integer column no longer performs integer division and truncates the result.
+  For example, the average of `1..200` now returns `100.5`, not `100`.
 - [#741], [#743]: [`sq add`](https://sq.io/docs/cmd/add) shell completion now supports
   [ClickHouse](https://sq.io/docs/drivers/clickhouse) and
   [Oracle](https://sq.io/docs/drivers/oracle).
@@ -1661,6 +1668,7 @@ make working with lots of sources much easier.
 [#570]: https://github.com/neilotoole/sq/pull/570
 [#571]: https://github.com/neilotoole/sq/pull/571
 [#572]: https://github.com/neilotoole/sq/pull/572
+[#594]: https://github.com/neilotoole/sq/issues/594
 [#601]: https://github.com/neilotoole/sq/issues/601
 [#602]: https://github.com/neilotoole/sq/pull/602
 [#610]: https://github.com/neilotoole/sq/issues/610

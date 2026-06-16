@@ -51,23 +51,16 @@ func TestQuery_func(t *testing.T) {
 			in:      `@sakila | .actor | avg(.actor_id)`,
 			wantSQL: `SELECT avg("actor_id") AS "avg(.actor_id)" FROM "actor"`,
 			override: driverMap{
-				drivertype.MySQL:      "SELECT avg(`actor_id`) AS `avg(.actor_id)` FROM `actor`",
+				drivertype.Pg:         `SELECT CAST(avg("actor_id") AS DOUBLE PRECISION) AS "avg(.actor_id)" FROM "actor"`,
+				drivertype.MySQL:      "SELECT CAST(avg(`actor_id`) AS DOUBLE) AS `avg(.actor_id)` FROM `actor`",
+				drivertype.MSSQL:      `SELECT avg(CAST("actor_id" AS FLOAT)) AS "avg(.actor_id)" FROM "actor"`,
 				drivertype.ClickHouse: "SELECT avg(`actor_id`) AS `avg(.actor_id)` FROM `actor`",
 				drivertype.Oracle:     `SELECT CAST(avg("ACTOR_ID") AS BINARY_DOUBLE) AS "AVG(.ACTOR_ID)" FROM "ACTOR"`,
 			},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "avg(.actor_id)"),
-
-				// FIXME: The driver impls handle avg() differently. Some return
-				// float64, some int, some decimal (string). The SLQ impl of avg()
-				// needs to be modified to returned a consistent type.
-				// assertSinkColValue(0, float64(100.5)),
-				//
-				// See also:
-				// - https://github.com/golang/go/issues/30870
-				// - https://github.com/golang-sql/decomposer
-
+				assertSinkColValue(0, float64(100.5)),
 			},
 		},
 	}

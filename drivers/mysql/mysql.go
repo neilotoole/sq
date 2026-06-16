@@ -149,6 +149,7 @@ func placeholders(numCols, numRows int) string {
 func (d *driveri) Renderer() *render.Renderer {
 	r := render.NewDefaultRenderer()
 	r.FunctionNames[ast.FuncNameSchema] = "DATABASE"
+	r.FunctionOverrides[ast.FuncNameAvg] = doRenderFuncAvg
 	r.FunctionOverrides[ast.FuncNameCatalog] = doRenderFuncCatalog
 	r.FunctionOverrides[ast.FuncNameRowNum] = renderFuncRowNum
 	r.FunctionOverrides[ast.FuncNameContains] = renderFuncContainsBinary
@@ -705,6 +706,17 @@ func doRetry(ctx context.Context, fn func() error) error {
 func tblfmt[T string | tablefq.T](tbl T) string {
 	tfq := tablefq.From(tbl)
 	return tfq.Render(stringz.BacktickQuote)
+}
+
+// doRenderFuncAvg renders avg() wrapped in a cast to a floating type, so that
+// avg() returns a portable float64 instead of MySQL's native DECIMAL (which sq
+// surfaces as a decimal.Decimal). See issue #594.
+func doRenderFuncAvg(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	inner, err := render.RenderFuncDefault(rc, fn)
+	if err != nil {
+		return "", err
+	}
+	return "CAST(" + inner + " AS DOUBLE)", nil
 }
 
 const selectCatalog = `SELECT CATALOG_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = DATABASE() LIMIT 1`
