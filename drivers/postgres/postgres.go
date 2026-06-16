@@ -147,6 +147,11 @@ func (d *driveri) Renderer() *render.Renderer {
 	// avg() returns a portable float64 instead of Postgres's native numeric
 	// (which sq surfaces as a decimal.Decimal). See issue #594.
 	r.FunctionOverrides[ast.FuncNameAvg] = render.FuncOverrideCastResult("DOUBLE PRECISION")
+	// sum() returns a decimal across all drivers (issue #839). Postgres already
+	// computes sum(int) as bigint and sum(numeric) as numeric losslessly; the
+	// cast to unconstrained NUMERIC unifies the surfaced type as decimal without
+	// constraining precision or scale.
+	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult("NUMERIC")
 	render.RegisterILikeFamily(r)
 	return r
 }

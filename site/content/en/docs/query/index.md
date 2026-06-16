@@ -979,8 +979,35 @@ input rows, null is returned.
 ```shell
 $ sq '.payment | sum(.amount)'
 sum(.amount)
-67416.50999999208
+67416.51
 ```
+
+`sum` over an integer or decimal column returns a decimal value on every SQL
+driver, so its type is consistent regardless of source. Unlike [`avg`](#avg),
+`sum` is not cast to a float: the sum of integers or of exact decimals is itself
+exact, and a float would lose precision. In JSON output a decimal is rendered as
+a quoted string, so `sum(.actor_id)` is `"20100"` rather than a bare number.
+(The one exception is a `DOUBLE`/`FLOAT` column on DuckDB, noted below.)
+
+{{< alert icon="👉" >}}
+SQLite (and rqlite) compute a sum over a non-integer column in floating point
+internally, so such a sum can carry a small drift (for example
+`67416.51000000001` instead of `67416.51`). The surfaced type is still a
+decimal, but a value the engine already computed in float cannot be recovered
+after the fact. SQLite sums over integer columns are exact; on rqlite a very
+large integer sum (beyond 2^53) can also drift, because rqlite returns numbers
+over its HTTP API as floating point.
+
+On Oracle, ClickHouse, and SQL Server the decimal cast uses a fixed
+`DECIMAL(38, 6)`. So a sum of a column with more than 6 fractional digits is
+rounded to 6 places, and a sum whose integer part needs more than 32 digits
+overflows (a query error). On SQL Server the operand is cast before summing, so
+that rounding is applied per row. Postgres (unconstrained `NUMERIC`) and MySQL
+(its maximum scale of 30) preserve the full scale. DuckDB is not cast (its
+native sum is already a lossless decimal for integer and decimal columns), so a
+sum over a `DOUBLE` column on DuckDB stays a float. The common integer and
+currency cases are unaffected.
+{{< /alert >}}
 
 ## String functions
 

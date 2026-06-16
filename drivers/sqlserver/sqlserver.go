@@ -169,6 +169,17 @@ func (d *driveri) Renderer() *render.Renderer {
 	// not 100.5). Cast the operand, not the result: CAST(AVG(col) AS FLOAT)
 	// still truncates because AVG has already returned an int. See issue #594.
 	r.FunctionOverrides[ast.FuncNameAvg] = render.FuncOverrideCastOperand("FLOAT")
+	// sum() is harmonized to decimal across drivers (issue #839). SQL Server's
+	// SUM(int) returns int and overflows at the int range, so cast the operand
+	// (not the result): summing CAST(col AS DECIMAL) widens the accumulator
+	// before it can overflow, whereas CAST(SUM(col) AS DECIMAL) overflows first.
+	// The non-zero scale also pins the result to decimal; trailing zeros from the
+	// fixed scale are trimmed by stringz.FormatDecimal at render time. Because the
+	// operand (not the result) is cast, a column with more than AggDecimalScale
+	// fractional digits is rounded per row before summing, unlike the result-cast
+	// dialects which round the final sum.
+	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastOperand(
+		fmt.Sprintf("DECIMAL(%d, %d)", render.AggDecimalPrecision, render.AggDecimalScale))
 	r.FunctionOverrides[ast.FuncNameRowNum] = renderFuncRowNum
 	r.FunctionOverrides[ast.FuncNameContains] = renderFuncContainsCollate
 	r.FunctionOverrides[ast.FuncNameStartsWith] = renderFuncStartsWithCollate

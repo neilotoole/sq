@@ -152,6 +152,15 @@ func (d *driveri) Renderer() *render.Renderer {
 	// avg() returns a portable float64 instead of MySQL's native DECIMAL
 	// (which sq surfaces as a decimal.Decimal). See issue #594.
 	r.FunctionOverrides[ast.FuncNameAvg] = render.FuncOverrideCastResult("DOUBLE")
+	// sum() is harmonized to decimal across drivers (issue #839). MySQL already
+	// returns sum() over an integer or decimal column as DECIMAL, but sum() over
+	// a FLOAT/DOUBLE column as DOUBLE (kind.Float); casting the result to DECIMAL
+	// unifies all cases as decimal. Both bounds are MySQL's maximums: precision
+	// 65 preserves the accumulator range, and scale 30 is the largest scale any
+	// MySQL DECIMAL column can have, so unlike the precision-38 dialects (which
+	// round to render.AggDecimalScale) this cast never reduces a native decimal
+	// sum's scale. Trailing zeros are trimmed by stringz.FormatDecimal.
+	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult("DECIMAL(65, 30)")
 	r.FunctionOverrides[ast.FuncNameCatalog] = doRenderFuncCatalog
 	r.FunctionOverrides[ast.FuncNameRowNum] = renderFuncRowNum
 	r.FunctionOverrides[ast.FuncNameContains] = renderFuncContainsBinary

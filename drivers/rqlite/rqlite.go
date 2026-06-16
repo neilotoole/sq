@@ -389,6 +389,12 @@ func (d *driveri) Renderer() *render.Renderer {
 	r.FunctionOverrides[ast.FuncNameLike] = renderFuncLike
 	r.FunctionOverrides[ast.FuncNameILike] = renderFuncLike
 
+	// sum() is harmonized to decimal across drivers (issue #839). As with the
+	// sqlite3 driver, SQLite reports no usable type for a sum() expression, so
+	// the result kind is pinned here and applied when building record metadata.
+	// The SQLite float-computation caveat for non-integer columns applies.
+	r.FunctionResultKinds[ast.FuncNameSum] = kind.Decimal
+
 	return r
 }
 

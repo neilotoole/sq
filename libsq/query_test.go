@@ -7,10 +7,12 @@ import (
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
@@ -282,6 +284,52 @@ func assertSinkColValue(coli int, val any) SinkTestFunc {
 		for rowi, rec := range sink.Recs {
 			assert.Equal(tb, val, rec[coli], "record[%d:%d] (%s)", rowi, coli, sink.RecMeta[coli].Name())
 		}
+	}
+}
+
+// assertSinkColDecimal returns a SinkTestFunc that asserts that column coli has
+// kind.Decimal and that each record's value in that column formats to want.
+// Asserting the formatted value (rather than a specific Go type) keeps the check
+// independent of the scale a backend's cast produced; drivers surface a decimal
+// record value as a decimal.Decimal, and a pre-formatted string is also accepted
+// defensively. A driver listed in perDriver uses its override value instead of
+// want, covering backends like SQLite/rqlite that compute decimal sums in
+// floating point and so surface a drifted value. See issue #839.
+func assertSinkColDecimal(coli int, want string, perDriver driverMap) SinkTestFunc {
+	return func(tb testing.TB, sink *testh.RecordSink) {
+		tb.Helper()
+		w := want
+		if override, ok := perDriver[sink.SrcType]; ok {
+			w = override
+		}
+		require.Equal(tb, kind.Decimal, sink.RecMeta[coli].Kind(),
+			"column %d (%s) kind", coli, sink.RecMeta[coli].Name())
+		for rowi, rec := range sink.Recs {
+			var got string
+			switch v := rec[coli].(type) {
+			case decimal.Decimal:
+				got = stringz.FormatDecimal(v)
+			case string:
+				got = v
+			default:
+				require.Fail(tb, "unexpected decimal representation",
+					"record[%d:%d] (%s): want decimal.Decimal or string, got %T",
+					rowi, coli, sink.RecMeta[coli].Name(), rec[coli])
+			}
+			require.Equal(tb, w, got, "record[%d:%d] (%s)",
+				rowi, coli, sink.RecMeta[coli].Name())
+		}
+	}
+}
+
+// assertSinkColKind returns a SinkTestFunc that asserts that the column with
+// index coli has kind k, independent of any row values (so it also works when
+// the column is all-NULL, e.g. a sum() over an empty result set).
+func assertSinkColKind(coli int, k kind.Kind) SinkTestFunc {
+	return func(tb testing.TB, sink *testh.RecordSink) {
+		tb.Helper()
+		require.Equal(tb, k, sink.RecMeta[coli].Kind(),
+			"column %d (%s) kind", coli, sink.RecMeta[coli].Name())
 	}
 }
 

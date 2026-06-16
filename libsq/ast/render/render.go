@@ -2,6 +2,7 @@
 package render
 
 import (
+	"context"
 	"strconv"
 	"strings"
 	"unicode"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 )
 
@@ -26,8 +28,39 @@ type Context struct {
 	// the day.
 	Fragments *Fragments
 
+	// ResultColumnKinds records a forced kind.Kind for result columns by their
+	// zero-based output position, populated during column rendering from
+	// Renderer.FunctionResultKinds. It lets a driver pin the surfaced kind for a
+	// function result that the backend cannot express in SQL: SQLite (and thus
+	// rqlite) report no usable type for a sum() expression, so sum() is pinned to
+	// kind.Decimal here and applied when the record metadata is built. See issue
+	// #839. It's nil unless at least one result column has a forced kind.
+	ResultColumnKinds map[int]kind.Kind
+
 	// Dialect is the driver dialect.
 	Dialect dialect.Dialect
+}
+
+// ctxKeyResultColumnKinds is the context key for result-column kind hints.
+type ctxKeyResultColumnKinds struct{}
+
+// NewContextWithResultColumnKinds returns ctx with the result-column kind hints
+// attached, for retrieval by ResultColumnKindsFromContext in a driver's
+// RecordMeta. If kinds is empty, ctx is returned unchanged. See the doc on
+// Context.ResultColumnKinds and issue #839.
+func NewContextWithResultColumnKinds(ctx context.Context, kinds map[int]kind.Kind) context.Context {
+	if len(kinds) == 0 {
+		return ctx
+	}
+	return context.WithValue(ctx, ctxKeyResultColumnKinds{}, kinds)
+}
+
+// ResultColumnKindsFromContext returns the result-column kind hints attached to
+// ctx by NewContextWithResultColumnKinds, or nil if none. The returned map is
+// keyed by zero-based result-column position. See issue #839.
+func ResultColumnKindsFromContext(ctx context.Context) map[int]kind.Kind {
+	kinds, _ := ctx.Value(ctxKeyResultColumnKinds{}).(map[int]kind.Kind)
+	return kinds
 }
 
 // Renderer is a set of functions for rendering ast elements into SQL.
@@ -70,6 +103,16 @@ type Renderer struct {
 	// function to render that function. It can be used by the Renderer.Function
 	// imp. FunctionOverrides has precedence over FunctionNames.
 	FunctionOverrides map[string]func(rc *Context, fn *ast.FuncNode) (string, error)
+
+	// FunctionResultKinds maps an SLQ function name to a kind.Kind that the
+	// function's result column must be surfaced as, regardless of the type the
+	// backend reports. It exists for drivers that cannot express the desired
+	// result type in SQL: SQLite (and rqlite) report no usable type for a sum()
+	// expression, so they register sum() here to pin it to kind.Decimal. During
+	// column rendering, a match records the output position in
+	// Context.ResultColumnKinds, which the driver applies when building record
+	// metadata. Empty by default. See issue #839.
+	FunctionResultKinds map[string]kind.Kind
 
 	// Literal renders a literal fragment.
 	Literal func(rc *Context, lit *ast.LiteralNode) (string, error)
@@ -119,13 +162,14 @@ func NewDefaultRenderer() *Renderer {
 			ast.FuncNameLike:        doFuncLike,
 			ast.FuncNameILike:       doFuncILike,
 		},
-		FunctionNames: map[string]string{},
-		Literal:       doLiteral,
-		Where:         doWhere,
-		Expr:          doExpr,
-		Operator:      doOperator,
-		Distinct:      doDistinct,
-		Render:        doRender,
+		FunctionNames:       map[string]string{},
+		FunctionResultKinds: map[string]kind.Kind{},
+		Literal:             doLiteral,
+		Where:               doWhere,
+		Expr:                doExpr,
+		Operator:            doOperator,
+		Distinct:            doDistinct,
+		Render:              doRender,
 	}
 }
 
@@ -357,6 +401,24 @@ func FuncOverrideString(s string) func(*Context, *ast.FuncNode) (string, error) 
 		return s, nil
 	}
 }
+
+// AggDecimalScale is the fractional scale applied when an aggregate result
+// (e.g. sum()) is cast to a fixed-scale decimal type on dialects that require
+// an explicit precision and scale. It must agree across those dialects so the
+// same aggregate rounds identically wherever a fixed scale is used.
+//
+// A sum of values with more than AggDecimalScale fractional digits is rounded
+// to this scale on those dialects. Postgres uses an unconstrained NUMERIC and
+// is exact, so it is not subject to this rounding. See issue #839.
+const AggDecimalScale = 6
+
+// AggDecimalPrecision is the total precision paired with AggDecimalScale on
+// dialects whose decimal type caps at 38 digits (ClickHouse, Oracle, SQL
+// Server). MySQL uses its higher native cap (65) instead. With scale 6 this
+// leaves 32 integer digits, so a sum whose integer part exceeds that overflows
+// on those dialects (a query error); Postgres (unconstrained NUMERIC) and MySQL
+// (precision 65) do not. See issue #839.
+const AggDecimalPrecision = 38
 
 // FuncOverrideCastResult returns a FunctionOverrides impl that renders fn with
 // the default function renderer and wraps the whole result in

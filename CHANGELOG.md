@@ -61,6 +61,39 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   JSON number, and may lose precision for averages beyond float64's range
   (~15-17 significant digits). Callers needing lossless decimal can fall back to
   native SQL via [`sq sql`](https://sq.io/docs/cmd/sql).
+- ☢️ [#839]: [`sum()`](https://sq.io/docs/query#sum) over an integer or decimal
+  column now returns a consistent `decimal` on every SQL driver (the one
+  exception is a `DOUBLE`/`FLOAT` column on DuckDB, noted below). Previously the
+  result type varied by backend (an integer on most, a decimal on MySQL and
+  DuckDB, a float on Oracle), so a `sum()` value could not be consumed portably
+  across sources. Unlike
+  [`avg()`](https://sq.io/docs/query#avg) (see [#594]), `sum()` is harmonized to
+  `decimal` rather than `float`: the sum of integers or of exact decimals is
+  itself exact, so typing it as `float` would be a precision regression. In JSON
+  output a decimal renders as a quoted string, so `sum(.actor_id)` is now
+  `"20100"` rather than the bare `20100` that most drivers previously emitted.
+  - [SQLite](https://sq.io/docs/drivers/sqlite) and
+    [rqlite](https://sq.io/docs/drivers/rqlite) compute a sum over a non-integer
+    column in floating point internally, so such a sum may still carry that drift
+    (e.g. `67416.51000000001`). The surfaced type is now uniform, but a value the
+    engine already computed in float is not corrected. On rqlite the same float
+    computation can also drift a sum of a very large integer column (beyond
+    2^53); SQLite and the other drivers accumulate integer sums exactly.
+  - On Oracle, ClickHouse, and SQL Server the decimal cast uses a fixed
+    `DECIMAL(38, 6)`, so a sum of a column with more than 6 fractional digits is
+    rounded to 6 places, and a sum whose integer part needs more than 32 digits
+    overflows (a query error). Postgres (unconstrained `NUMERIC`) and MySQL (its
+    maximum scale of 30, which no column can exceed) preserve the full scale, so
+    for such columns the value can differ across drivers. The common integer and
+    currency cases are unaffected.
+  - [DuckDB](https://sq.io/docs/drivers/duckdb) is not cast: its native `sum()`
+    is already a decimal for integer (`HUGEINT`) and decimal columns, and is left
+    lossless rather than narrowed to `DECIMAL(38, 6)`. As a result, `sum()` over
+    a `DOUBLE` column on DuckDB stays a float rather than a decimal.
+  - Decimal values are now rendered with trailing fractional zeros trimmed (e.g.
+    `100.50` displays as `100.5`) consistently across all drivers and output
+    formats, so the same value reads identically regardless of the scale a
+    backend reported.
 - [#610]: The DuckDB driver now
   [opens sources read-only](https://sq.io/docs/drivers/duckdb#read-only-access-by-default)
   for commands that don't write (`sq`, `inspect`, `diff`, `ping`), and the new
@@ -1718,6 +1751,7 @@ make working with lots of sources much easier.
 [#783]: https://github.com/neilotoole/sq/issues/783
 [#821]: https://github.com/neilotoole/sq/issues/821
 [#834]: https://github.com/neilotoole/sq/issues/834
+[#839]: https://github.com/neilotoole/sq/issues/839
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
