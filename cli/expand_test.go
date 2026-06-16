@@ -258,6 +258,58 @@ func TestMaybeExpandSource_ParseErrorPropagates(t *testing.T) {
 		"error message must include the source handle")
 }
 
+// TestMaybeExpandSource_SecretsResolved_Skipped verifies that a source
+// already carrying a resolved literal location is returned unchanged,
+// so a literal '$$' is not unescaped a second time.
+func TestMaybeExpandSource_SecretsResolved_Skipped(t *testing.T) {
+	ru := newTestRun(t, nil)
+	cmd := newCmdWithExpand(t, true)
+
+	src := &source.Source{
+		Handle:          "@a",
+		Type:            drivertype.Pg,
+		Location:        "postgres://alice:pa$$wd@db/sakila",
+		SecretsResolved: true,
+	}
+
+	got, err := maybeExpandSource(context.Background(), ru, cmd, src)
+	require.NoError(t, err)
+	require.Same(t, src, got, "an already-resolved source must be returned unchanged")
+	require.Equal(t, "postgres://alice:pa$$wd@db/sakila", got.Location,
+		"resolved literal must not be re-unescaped")
+}
+
+// TestMaybeExpandCollection_SecretsResolved_Skipped verifies that an
+// already-resolved source in a collection is left untouched by --expand
+// while other sources still expand.
+func TestMaybeExpandCollection_SecretsResolved_Skipped(t *testing.T) {
+	ru := newTestRun(t, map[string]string{
+		"abc": "postgres://alice:hunter2@db/sakila",
+	})
+	cmd := newCmdWithExpand(t, true)
+
+	coll := &source.Collection{}
+	require.NoError(t, coll.Add(&source.Source{
+		Handle:          "@resolved",
+		Type:            drivertype.Pg,
+		Location:        "postgres://b:pa$$wd@h/db",
+		SecretsResolved: true,
+	}))
+	require.NoError(t, coll.Add(&source.Source{
+		Handle:   "@template",
+		Type:     drivertype.Pg,
+		Location: "${keyring:abc}",
+	}))
+
+	got, err := maybeExpandCollection(context.Background(), ru, cmd, coll)
+	require.NoError(t, err)
+	srcs := got.Sources()
+	require.Equal(t, "postgres://b:pa$$wd@h/db", srcs[0].Location,
+		"already-resolved source must not be re-unescaped")
+	require.Equal(t, "postgres://alice:hunter2@db/sakila", srcs[1].Location,
+		"template source must still expand")
+}
+
 // captureHandler is a minimal slog.Handler that records log entries for
 // test assertions. It captures all levels.
 type captureHandler struct {

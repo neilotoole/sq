@@ -115,6 +115,21 @@ func (d *driveri) Open(ctx context.Context, src *source.Source, mode driver.Acce
 func (d *driveri) doOpen(ctx context.Context, src *source.Source, mode driver.AccessMode) (*sql.DB, error) {
 	loc := src.Location
 	if mode.IsReadOnly() {
+		// Defense-in-depth: an explicit read-only request against a
+		// location that explicitly demands write access (access_mode=
+		// READ_WRITE) is a hard conflict. ApplyReadOnlyToLocation would
+		// silently let READ_WRITE win, so refuse here rather than open
+		// read-write under a read-only request. The CLI (cmd_sql) also
+		// surfaces this preemptively before any open; this guard covers
+		// every ModeReadOnlyExplicit caller (Open and Ping) regardless
+		// of entry point. Only explicit RO conflicts: implicit RO lets
+		// the location win (see ApplyReadOnlyToLocation).
+		if mode == driver.ModeReadOnlyExplicit {
+			if conflict, ok := d.DetectReadOnlyConflict(loc); ok {
+				return nil, errz.Errorf(
+					"duckdb: read-only requested but %s conflicts with %s", src.Handle, conflict)
+			}
+		}
 		var changed bool
 		loc, changed = ApplyReadOnlyToLocation(loc, mode == driver.ModeReadOnlyExplicit)
 		if changed {

@@ -279,7 +279,11 @@ func execInspect(cmd *cobra.Command, args []string) error {
 	// expand decorator (see expand_writer.go) then applies --expand
 	// expansion centrally, so the displayed value is the stored
 	// template by default, or the expanded value when --expand is set.
+	// SecretsResolved is carried so the decorator skips re-expanding an
+	// already-resolved location (e.g. a stdin source), matching the
+	// guard on the source/group/collection expand paths.
 	srcMeta.Location = src.Location
+	srcMeta.SecretsResolved = src.SecretsResolved
 
 	// This is a bit hacky, but it works... if not "--verbose", then just zap
 	// the DBVars, as we usually don't want to see those

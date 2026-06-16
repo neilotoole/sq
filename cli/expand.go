@@ -38,6 +38,12 @@ import (
 // fallback. The handle arg is used only for error and log context.
 func expandLocation(ctx context.Context, ru *run.Run, handle, loc string,
 ) (expanded string, resolved bool, err error) {
+	// ExtractRefs is what classifies a parse error (strict) from a
+	// resolver error (lenient): Registry.Expand below collapses both
+	// into an undifferentiated error, so the placeholder syntax is
+	// parsed here first to surface parse errors before the lenient
+	// resolver branch can swallow them. The re-parse inside Expand is
+	// the accepted cost of that classification; do not drop this call.
 	if _, parseErr := secret.ExtractRefs(loc); parseErr != nil {
 		return "", false, errz.Wrapf(parseErr, "expand %s", handle)
 	}
@@ -61,16 +67,35 @@ func expandLocation(ctx context.Context, ru *run.Run, handle, loc string,
 	return expanded, true, nil
 }
 
+// expandSourceLocation expands src.Location in place via expandLocation,
+// unless src is already a resolved literal (Source.SecretsResolved), in
+// which case it is left unchanged: re-resolving a literal would unescape
+// '$$' a second time, corrupting locations (e.g. those escaped by the
+// v0.54.0 config upgrade, or a resolved secret value containing '$$').
+// It does NOT check the --expand flag; callers gate on that. This is the
+// single skip+expand site shared by maybeExpandSource and
+// maybeExpandCollection (and, via the former, maybeExpandGroup).
+func expandSourceLocation(ctx context.Context, ru *run.Run, src *source.Source) error {
+	if src == nil || src.SecretsResolved {
+		return nil
+	}
+	loc, resolved, err := expandLocation(ctx, ru, src.Handle, src.Location)
+	if err != nil {
+		return err
+	}
+	src.Location = loc
+	// Resolved bytes are literal: mark so re-resolution is a no-op (the
+	// lenient branch keeps the template, so resolved is false and the
+	// marker stays unset); see Source.SecretsResolved.
+	src.SecretsResolved = resolved
+	return nil
+}
+
 // maybeExpandCollection returns coll unchanged when --expand is not set
 // on cmd. Otherwise it returns a deep clone whose source Locations have
-// each been passed through expandLocation (lenient on resolver error,
-// strict on parse error and context cancellation; see expandLocation).
-//
-// Sources already carrying resolved literal locations
-// (Source.SecretsResolved) are skipped: re-resolving a literal would
-// unescape '$$' a second time, corrupting locations (e.g. those escaped
-// by the v0.54.0 config upgrade, or a resolved secret value containing
-// '$$').
+// each been passed through expandSourceLocation (lenient on resolver
+// error, strict on parse error and context cancellation; see
+// expandLocation). Already-resolved sources are skipped.
 //
 // See also: maybeExpandSource for the single-source variant.
 func maybeExpandCollection(ctx context.Context, ru *run.Run, cmd *cobra.Command,
@@ -82,20 +107,9 @@ func maybeExpandCollection(ctx context.Context, ru *run.Run, cmd *cobra.Command,
 
 	clone := coll.Clone()
 	for _, src := range clone.Sources() {
-		if src.SecretsResolved {
-			// Location is already literal: nothing to expand, and
-			// re-resolution would double-unescape '$$'.
-			continue
-		}
-		loc, resolved, err := expandLocation(ctx, ru, src.Handle, src.Location)
-		if err != nil {
+		if err := expandSourceLocation(ctx, ru, src); err != nil {
 			return nil, err
 		}
-		src.Location = loc
-		// Resolved bytes are literal: mark so re-resolution is a no-op
-		// (the lenient branch keeps the template, so resolved is false
-		// and the marker stays unset); see Source.SecretsResolved.
-		src.SecretsResolved = resolved
 	}
 	return clone, nil
 }
@@ -114,15 +128,9 @@ func maybeExpandSource(ctx context.Context, ru *run.Run, cmd *cobra.Command,
 	}
 
 	clone := src.Clone()
-	loc, resolved, err := expandLocation(ctx, ru, src.Handle, src.Location)
-	if err != nil {
+	if err := expandSourceLocation(ctx, ru, clone); err != nil {
 		return nil, err
 	}
-	clone.Location = loc
-	// Resolved bytes are literal: mark so re-resolution is a no-op
-	// (the lenient branch keeps the template, so resolved is false and
-	// the marker stays unset); see Source.SecretsResolved.
-	clone.SecretsResolved = resolved
 	return clone, nil
 }
 

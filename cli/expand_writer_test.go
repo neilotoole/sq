@@ -302,3 +302,41 @@ func TestExpandMetadataWriter_SourceMetadata_Expands(t *testing.T) {
 	require.Equal(t, "${keyring:abc}", srcMeta.Location,
 		"input must not be mutated")
 }
+
+// TestExpandMetadataWriter_SecretsResolved_Skipped verifies the metadata
+// decorator skips expansion for an already-resolved location, matching
+// the source/group/collection paths, so a literal '$$' is not
+// double-unescaped.
+func TestExpandMetadataWriter_SecretsResolved_Skipped(t *testing.T) {
+	cmd := newExpanderCmd(t, true, nil)
+
+	rec := &recordingMetadataWriter{}
+	ew := &expandMetadataWriter{w: rec, expander: expander{cmd: cmd}}
+
+	srcMeta := &metadata.Source{
+		Handle:          "@a",
+		Location:        "postgres://b:pa$$wd@h/db",
+		SecretsResolved: true,
+	}
+	require.NoError(t, ew.SourceMetadata(srcMeta, true))
+	require.NotNil(t, rec.gotSrcMeta)
+	require.Equal(t, "postgres://b:pa$$wd@h/db", rec.gotSrcMeta.Location,
+		"already-resolved location must not be re-unescaped")
+}
+
+// TestExpander_NoRunOnContext_NoPanic verifies that an expand decorator
+// over a command whose context carries no run does not panic when
+// --expand is set: active() returns false and the source passes through
+// unchanged. Guards the runCtx -> run.FromContextOrNil contract.
+func TestExpander_NoRunOnContext_NoPanic(t *testing.T) {
+	cmd := newCmdWithExpand(t, true)
+	cmd.SetContext(context.Background()) // no run installed
+
+	e := expander{cmd: cmd}
+	require.False(t, e.active(), "active must be false when no run is on the context")
+
+	src := &source.Source{Handle: "@a", Location: "${keyring:abc}"}
+	got, err := e.src(src)
+	require.NoError(t, err)
+	require.Same(t, src, got, "no run -> pass through unchanged, no panic")
+}

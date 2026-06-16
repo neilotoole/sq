@@ -128,6 +128,13 @@ func execConfigExport(cmd *cobra.Command, _ []string) error {
 // Collection sources are mutated). The input cfg is not mutated.
 // Resolution errors are wrapped with the source handle so the user knows
 // which source's placeholder failed.
+//
+// This is the second --expand implementation, deliberately separate from
+// the writer-layer expansion in expand.go/expand_writer.go: config export
+// serializes a config template (so it re-escapes the resolved literal for
+// byte-identical round-trip) and is strict on resolver error, whereas the
+// display path is lenient (keeps the placeholder verbatim). Keep the two
+// in sync where they should agree (the underlying SecretRegistry.Expand).
 func exportExpandConfig(ctx context.Context, ru *run.Run, cfg *config.Config) (*config.Config, error) {
 	clone := &config.Config{
 		Version:    cfg.Version,

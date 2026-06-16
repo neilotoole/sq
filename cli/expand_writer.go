@@ -48,11 +48,14 @@ type expander struct {
 }
 
 // runCtx returns the command's current context and run. The returned
-// run may be nil in degenerate cases (e.g. a test harness without a
-// run on the context); callers must treat nil as "don't expand".
+// run is nil in degenerate cases (e.g. a test harness without a run on
+// the context, or before the secret registry is installed); callers
+// must treat nil as "don't expand". FromContextOrNil is used (not
+// FromContext) precisely so the no-run case returns nil rather than
+// panicking.
 func (e expander) runCtx() (context.Context, *run.Run) {
 	ctx := e.cmd.Context()
-	ru := run.FromContext(ctx)
+	ru := run.FromContextOrNil(ctx)
 	if ru == nil || ru.SecretRegistry == nil {
 		return ctx, nil
 	}
@@ -142,13 +145,13 @@ func (ew *expandSourceWriter) Removed(srcs ...*source.Source) error {
 	return ew.w.Removed(srcs...)
 }
 
-// Moved implements output.SourceWriter.
+// Moved implements output.SourceWriter. Only nu is expanded: every
+// underlying Moved impl displays the destination source and discards
+// old, so expanding old would be wasted resolver I/O on a value no
+// writer prints.
 func (ew *expandSourceWriter) Moved(coll *source.Collection, old, nu *source.Source) error {
-	old, err := ew.src(old)
+	nu, err := ew.src(nu)
 	if err != nil {
-		return err
-	}
-	if nu, err = ew.src(nu); err != nil {
 		return err
 	}
 	return ew.w.Moved(coll, old, nu)
@@ -244,17 +247,21 @@ func (ew *expandPingWriter) Close() error {
 // delegating. The other MetadataWriter methods carry no source
 // location and delegate unchanged.
 //
-// CALLER CONTRACT: srcMeta.Location must be the stored (template)
-// location, not an already-resolved literal. Unlike the source/group
-// expand paths, which skip Source.SecretsResolved sources to avoid
-// re-resolving a literal (which would unescape '$$' a second time and
-// corrupt it; see maybeExpandSource), metadata.Source carries no
-// SecretsResolved bit, so this decorator cannot detect an
-// already-resolved location and would double-unescape it. Drivers
-// populate srcMeta.Location from the grip's resolved source;
-// execInspect resets it to the stored template before writing
-// (cmd_inspect.go), satisfying the contract. Any future caller of
-// SourceMetadata must do the same.
+// Like the source/group expand paths, an already-resolved location is
+// skipped (re-resolving a literal would unescape '$$' a second time and
+// corrupt it; see maybeExpandSource). metadata.Source.SecretsResolved
+// carries that bit: drivers populate srcMeta.Location from the grip's
+// resolved source but leave SecretsResolved false; execInspect resets
+// the location to the stored template and sets SecretsResolved from the
+// source (cmd_inspect.go). Any future SourceMetadata caller that passes
+// an already-resolved location must set srcMeta.SecretsResolved so this
+// decorator skips it.
+//
+// Note: because expansion happens at write time, a malformed ${...}
+// placeholder under --expand surfaces here (after the source has been
+// opened and metadata read) rather than fail-fast before the open. That
+// is the accepted cost of lazy, writer-layer expansion; the parse error
+// still surfaces.
 type expandMetadataWriter struct {
 	w output.MetadataWriter
 	expander
@@ -264,7 +271,7 @@ var _ output.MetadataWriter = (*expandMetadataWriter)(nil)
 
 // SourceMetadata implements output.MetadataWriter.
 func (ew *expandMetadataWriter) SourceMetadata(srcMeta *metadata.Source, showSchema bool) error {
-	if srcMeta != nil && ew.active() {
+	if srcMeta != nil && !srcMeta.SecretsResolved && ew.active() {
 		ctx, ru := ew.runCtx()
 		loc, _, err := expandLocation(ctx, ru, srcMeta.Handle, srcMeta.Location)
 		if err != nil {

@@ -420,6 +420,39 @@ func TestExpand_PerCommandWiring(t *testing.T) {
 		require.NotContains(t, out, "hunter2",
 			"sq ping --json --expand must not leak the plaintext secret")
 	})
+
+	t.Run("sq_rm_json", func(t *testing.T) {
+		// rm reloads config from the store, so the source must be
+		// persisted (TestRun.Add saves), not just added in-memory.
+		tr := testrun.New(t.Context(), t, nil).Add(*makeSrc())
+
+		// rm's --json output for removed sources is verbose-gated.
+		require.NoError(t, tr.Exec("rm", "@h", "--json", "-v", "--expand"),
+			"sq rm --json -v --expand must succeed")
+		out := tr.OutString()
+		require.Contains(t, out, "postgres://alice:"+redactedPass+"@db.example.com/sakila",
+			"sq rm --json --expand must show the resolved, redacted DSN")
+		require.NotContains(t, out, placeholder,
+			"sq rm --json --expand must not show the verbatim placeholder")
+		require.NotContains(t, out, "hunter2",
+			"sq rm --json --expand must not leak the plaintext secret")
+	})
+
+	t.Run("sq_mv_json", func(t *testing.T) {
+		// mv reloads config from the store, so the source must be
+		// persisted (TestRun.Add saves), not just added in-memory.
+		tr := testrun.New(t.Context(), t, nil).Add(*makeSrc())
+
+		require.NoError(t, tr.Exec("mv", "@h", "@h2", "--json", "--expand"),
+			"sq mv --json --expand must succeed")
+		out := tr.OutString()
+		require.Contains(t, out, "postgres://alice:"+redactedPass+"@db.example.com/sakila",
+			"sq mv --json --expand must show the resolved, redacted DSN for the moved source")
+		require.NotContains(t, out, placeholder,
+			"sq mv --json --expand must not show the verbatim placeholder")
+		require.NotContains(t, out, "hunter2",
+			"sq mv --json --expand must not leak the plaintext secret")
+	})
 }
 
 // TestExpand_NoOp_OnNonDisplayCommand verifies that --expand is
