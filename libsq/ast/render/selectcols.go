@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/ast"
+	"github.com/neilotoole/sq/libsq/core/kind"
 )
 
 func doSelectCols(rc *Context, cols []ast.ResultColumn) (string, error) {
@@ -35,6 +36,17 @@ func doSelectCols(rc *Context, cols []ast.ResultColumn) (string, error) {
 		case *ast.FuncNode:
 			if vals[i], err = rc.Renderer.Function(rc, col); err != nil {
 				return "", err
+			}
+			// If the driver declares a forced result kind for this function
+			// (e.g. SQLite/rqlite pin sum() to kind.Decimal because the backend
+			// reports no usable type for it), record it against this output
+			// column position for the driver to apply when building record
+			// metadata. See issue #839.
+			if knd, ok := rc.Renderer.FunctionResultKinds[strings.ToLower(col.FuncName())]; ok {
+				if rc.ResultColumnKinds == nil {
+					rc.ResultColumnKinds = make(map[int]kind.Kind)
+				}
+				rc.ResultColumnKinds[i] = knd
 			}
 		case *ast.ExprElementNode:
 			if vals[i], err = rc.Renderer.Expr(rc, col.ExprNode()); err != nil {

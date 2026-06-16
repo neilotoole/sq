@@ -309,6 +309,12 @@ func (d *driveri) Renderer() *render.Renderer {
 	// an override because the default emits LOWER(col) LIKE LOWER(pat),
 	// whereas ClickHouse supports native ILIKE.
 	r.FunctionOverrides[ast.FuncNameILike] = renderFuncILike
+	// sum() is harmonized to decimal across drivers (issue #839). ClickHouse
+	// already returns sum() over a decimal column as a decimal, but sum() over an
+	// integer column as an integer; casting the result to Decimal unifies both as
+	// decimal. Trailing zeros from the fixed scale are trimmed by
+	// stringz.FormatDecimal.
+	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult("Decimal(38, 6)")
 	return r
 }
 

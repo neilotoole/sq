@@ -10,6 +10,7 @@ import (
 
 	"github.com/shopspring/decimal"
 
+	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -27,11 +28,19 @@ import (
 // gorqlite. The shape matches the sqlite3 driver's helper: the SQL is
 // SQLite's, so the column-type names and affinity rules apply verbatim.
 func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta, error) {
+	// kindHints carries forced result-column kinds recorded during rendering
+	// (e.g. sum() pinned to kind.Decimal). rqlite is SQLite-backed and reports
+	// no usable type for such expressions. See issue #839.
+	kindHints := render.ResultColumnKindsFromContext(ctx)
+
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
 	ogColNames := make([]string, len(colTypes))
 	for i, colType := range colTypes {
 		dbTypeName := colType.DatabaseTypeName()
 		knd := kindFromDBTypeName(ctx, colType.Name(), dbTypeName, colType.ScanType())
+		if hint, ok := kindHints[i]; ok {
+			knd = hint
+		}
 		colTypeData := record.NewColumnTypeData(colType, knd)
 		setScanType(ctx, colTypeData)
 		sColTypeData[i] = colTypeData

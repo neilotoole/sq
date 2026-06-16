@@ -175,13 +175,18 @@ func (d *driveri) Renderer() *render.Renderer {
 	r.FunctionOverrides[ast.FuncNameCatalog] = render.FuncOverrideString(oracleCatalogFrag)
 	// Oracle returns AVG/SUM as NUMBER(38, 255) (floating-scale,
 	// indistinguishable from COUNT at the metadata layer), which classifies as
-	// kind.Int. Both can yield fractional values (AVG always, SUM over a
-	// decimal column), so scanning into int64 fails. Casting to BINARY_DOUBLE
-	// pins the result to a float so it scans cleanly. Tradeoff: integer-valued
-	// sums lose precision beyond ~15-17 significant digits; users needing
-	// lossless big-integer sums should use raw SQL. See issue #594.
+	// kind.Int, so scanning a fractional value into int64 fails.
+	//
+	// avg() always yields a fraction and is harmonized to float64 across drivers
+	// (issue #594), so it casts to BINARY_DOUBLE. Tradeoff: avg loses precision
+	// beyond ~15-17 significant digits.
 	r.FunctionOverrides[ast.FuncNameAvg] = render.FuncOverrideCastResult("BINARY_DOUBLE")
-	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult("BINARY_DOUBLE")
+	// sum() is harmonized to decimal across drivers (issue #839), so casting it
+	// to a float would be a precision regression. The cast to NUMBER with an
+	// explicit non-zero scale gives the result column a fixed scale, which
+	// refineBareNumberKind classifies as kind.Decimal (not kind.Int), avoiding
+	// the int64 scan crash while keeping the value exact.
+	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult("NUMBER(38, 6)")
 	return r
 }
 

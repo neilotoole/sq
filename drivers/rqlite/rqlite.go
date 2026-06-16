@@ -39,6 +39,7 @@ import (
 	"time"
 
 	"github.com/rqlite/gorqlite"
+	"github.com/shopspring/decimal"
 
 	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser"
 	"github.com/neilotoole/sq/libsq/ast"
@@ -389,6 +390,12 @@ func (d *driveri) Renderer() *render.Renderer {
 	r.FunctionOverrides[ast.FuncNameLike] = renderFuncLike
 	r.FunctionOverrides[ast.FuncNameILike] = renderFuncLike
 
+	// sum() is harmonized to decimal across drivers (issue #839). As with the
+	// sqlite3 driver, SQLite reports no usable type for a sum() expression, so
+	// the result kind is pinned here and applied when building record metadata.
+	// The SQLite float-computation caveat for non-integer columns applies.
+	r.FunctionResultKinds[ast.FuncNameSum] = kind.Decimal
+
 	return r
 }
 
@@ -704,8 +711,23 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
 		return nil, nil, errw(err)
 	}
 
+	// kindHints carries result columns the renderer pinned to a kind (e.g. sum()
+	// pinned to kind.Decimal). rqlite's coerceDecimal demotes whole-number
+	// decimals to int64, which would break the cross-driver decimal contract for
+	// such columns, so they are re-promoted below. See issue #839.
+	kindHints := render.ResultColumnKindsFromContext(ctx)
+
 	mungeFn := func(vals []any) (record.Record, error) {
-		return newRecordFromScanRow(recMeta, vals), nil
+		rec := newRecordFromScanRow(recMeta, vals)
+		for i, knd := range kindHints {
+			if knd != kind.Decimal || i >= len(rec) {
+				continue
+			}
+			if v, ok := rec[i].(int64); ok {
+				rec[i] = decimal.NewFromInt(v)
+			}
+		}
+		return rec, nil
 	}
 
 	return recMeta, mungeFn, nil

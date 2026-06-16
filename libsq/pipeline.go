@@ -119,6 +119,13 @@ func (p *pipeline) execute(ctx context.Context, recw RecordWriter) error {
 		}
 	}
 
+	// Propagate any result-column kind hints recorded during rendering (e.g.
+	// SQLite/rqlite pinning sum() to kind.Decimal) so the driver can apply them
+	// when building record metadata. See issue #839.
+	if p.rc != nil {
+		ctx = render.NewContextWithResultColumnKinds(ctx, p.rc.ResultColumnKinds)
+	}
+
 	if err := QuerySQL(ctx, p.targetGrip, conn, recw, p.targetSQL); err != nil {
 		return err
 	}

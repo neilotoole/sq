@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -24,6 +25,12 @@ import (
 // recordMetaFromColumnTypes returns record.Meta for colTypes.
 func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType,
 ) (record.Meta, error) {
+	// kindHints carries forced result-column kinds recorded during rendering
+	// (e.g. sum() pinned to kind.Decimal). SQLite reports no usable type for
+	// such expressions, so without a hint they would be surfaced as int/float
+	// from the scanned value. See issue #839.
+	kindHints := render.ResultColumnKindsFromContext(ctx)
+
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
 	ogColNames := make([]string, len(colTypes))
 	for i, colType := range colTypes {
@@ -34,6 +41,11 @@ func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType,
 		dbTypeName := colType.DatabaseTypeName()
 
 		knd := kindFromDBTypeName(ctx, colType.Name(), dbTypeName, colType.ScanType())
+		if hint, ok := kindHints[i]; ok {
+			// Force the renderer-pinned kind. setScanType derives the scan
+			// target from the kind, so kind.Decimal yields a decimal scan.
+			knd = hint
+		}
 		colTypeData := record.NewColumnTypeData(colType, knd)
 
 		// It's necessary to explicitly set the scan type because
