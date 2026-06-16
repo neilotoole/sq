@@ -144,14 +144,15 @@ func activeSrcAndSchemaFromFlagsOrConfig(ru *run.Run, mode driver.AccessMode) (*
 // DB. If both fields are empty, this is a no-op. This function is typically
 // used when the source's catalog or schema are modified, e.g. via [flag.ActiveSchema].
 //
-// The validation grip is opened with the read-only hint and is NOT cached
-// in [driver.Grips]: schema/catalog existence checks are pure reads, and
+// The validation grip is opened read-only (via the mode argument, which
+// every caller passes as a read-only mode) and is NOT cached in
+// [driver.Grips]: schema/catalog existence checks are pure reads, and
 // caching here would have surprising downstream effects. In particular,
 // for DuckDB with a `--readonly --insert` invocation, a cached RW grip
-// from validation would silently defeat the source-side RO intent the
-// caller plumbed through ctx (and a cached RO grip would defeat the
-// destination-side RW intent on a self-insert). Keeping this open
-// ephemeral and explicitly RO sidesteps both pitfalls.
+// from validation would silently defeat the source-side read-only intent
+// (and a cached RO grip would defeat the destination-side RW intent on a
+// self-insert). Keeping this open ephemeral and read-only sidesteps both
+// pitfalls.
 //
 // See also: processFlagActiveSchema.
 func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Source, mode driver.AccessMode) error {

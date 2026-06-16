@@ -1,10 +1,9 @@
 package driver
 
 // AccessMode describes how a source should be opened: read-write (the
-// default), or read-only with the hint being either implicit (a
-// non-writing command such as sq, inspect, diff, ping, or add-time
-// validation) or explicit (the user asked directly, e.g. sq sql
-// --readonly).
+// default), or read-only with the intent being either implicit (a
+// non-writing command such as sq, inspect, diff, or ping) or explicit
+// (the user asked directly, e.g. sq sql --readonly).
 //
 // AccessMode is a property of an individual open request, not of the
 // source itself: the same source may be opened read-only by one command
