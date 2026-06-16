@@ -221,3 +221,48 @@ is present.
 
 Optional: set `DISABLE_TELEMETRY=1` to opt out of anonymous Skills CLI
 telemetry ([docs](https://skills.sh/docs/cli)).
+
+## Cursor Cloud specific instructions
+
+The Cursor Cloud VM ships with Go (per `go.mod`), `gcc`, and `make`. The update
+script installs `libicu-dev` (see below) and runs `go mod download`. Standard
+commands live in the `Makefile` (`make build`, `make test-short`, `make lint`);
+don't duplicate them, just use them. Notes below are the non-obvious gotchas.
+
+### Always unset `NO_COLOR` and `FORCE_COLOR` when running tests
+
+The VM environment exports `NO_COLOR=1` and `FORCE_COLOR=0`. Both break the Go
+test suite, in opposite directions, so the raw `make test` / `go test` commands
+fail in this environment unless you unset them:
+
+- `NO_COLOR=1` makes `fatih/color` a hard "no color" override that
+  `libsq/core/colorz` tests can't toggle back on, so `colorz` tests fail.
+- `FORCE_COLOR=0` is treated as "force color on" by
+  `libsq/core/termz.IsColorTerminal` (it only checks for a non-empty value), so
+  CLI output tests that write to a `*bytes.Buffer` hit an `*os.File` type
+  assertion and panic.
+
+Run the suite (or any `go test`) with both unset, e.g.:
+
+```bash
+env -u NO_COLOR -u FORCE_COLOR make test-short
+env -u NO_COLOR -u FORCE_COLOR go test -short -tags "sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_icu sqlite_introspect sqlite_json sqlite_math_functions" ./...
+```
+
+CI doesn't set either variable (and runs tests without a TTY), which is why CI
+is green. Building and running the `sq` binary itself is unaffected; this only
+bites the test suite.
+
+### `libicu-dev` is required for the Makefile build
+
+The `Makefile` `BUILD_TAGS` include `sqlite_icu`, so `mattn/go-sqlite3` needs
+ICU headers (`unicode/utypes.h`). The update script installs `libicu-dev`. The
+GitHub CI `BUILD_TAGS` omit `sqlite_icu`, so CI does not need it; if you build
+with CI's tag set you can skip ICU. `make lint` also shells out to
+`shellcheck` (for `install.sh`), which the update script installs.
+
+### Docker-backed driver tests are skipped
+
+Integration tests for Postgres, MySQL, SQL Server, and ClickHouse need the
+`sakiladb/*` Docker images; Docker is not installed by default. Use
+`make test-short` (or `go test -short`) to skip them, as above.
