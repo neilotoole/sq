@@ -74,7 +74,13 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     [rqlite](https://sq.io/docs/drivers/rqlite) compute a sum over a non-integer
     column in floating point internally, so such a sum may still carry that drift
     (e.g. `67416.51000000001`). The surfaced type is now uniform, but a value the
-    engine already computed in float is not corrected.
+    engine already computed in float is not corrected. On rqlite the same float
+    computation can also drift a sum of a very large integer column (beyond
+    2^53); SQLite and the other drivers accumulate integer sums exactly.
+  - On Oracle, ClickHouse, and SQL Server the decimal cast uses a fixed scale of
+    6, so a sum of a column with more than 6 fractional digits is rounded to 6
+    places. Postgres (and MySQL) preserve more, so for such columns the value can
+    differ across drivers. The common integer and currency cases are unaffected.
   - Decimal values are now rendered with trailing fractional zeros trimmed (e.g.
     `100.50` displays as `100.5`) consistently across all drivers and output
     formats, so the same value reads identically regardless of the scale a

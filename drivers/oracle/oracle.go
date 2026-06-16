@@ -185,8 +185,10 @@ func (d *driveri) Renderer() *render.Renderer {
 	// to a float would be a precision regression. The cast to NUMBER with an
 	// explicit non-zero scale gives the result column a fixed scale, which
 	// refineBareNumberKind classifies as kind.Decimal (not kind.Int), avoiding
-	// the int64 scan crash while keeping the value exact.
-	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult("NUMBER(38, 6)")
+	// the int64 scan crash. The value is exact up to AggDecimalScale fractional
+	// digits; a sum of values with more decimal places is rounded to that scale.
+	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult(
+		fmt.Sprintf("NUMBER(%d, %d)", render.AggDecimalPrecision, render.AggDecimalScale))
 	return r
 }
 

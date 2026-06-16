@@ -74,7 +74,7 @@ func TestQuery_func(t *testing.T) {
 			wantSQL: `SELECT sum("actor_id") AS "sum(.actor_id)" FROM "actor"`,
 			override: driverMap{
 				drivertype.Pg:         `SELECT CAST(sum("actor_id") AS NUMERIC) AS "sum(.actor_id)" FROM "actor"`,
-				drivertype.MySQL:      "SELECT sum(`actor_id`) AS `sum(.actor_id)` FROM `actor`",
+				drivertype.MySQL:      "SELECT CAST(sum(`actor_id`) AS DECIMAL(65, 6)) AS `sum(.actor_id)` FROM `actor`",
 				drivertype.MSSQL:      `SELECT sum(CAST("actor_id" AS DECIMAL(38, 6))) AS "sum(.actor_id)" FROM "actor"`,
 				drivertype.ClickHouse: "SELECT CAST(sum(`actor_id`) AS Decimal(38, 6)) AS `sum(.actor_id)` FROM `actor`",
 				drivertype.Oracle:     `SELECT CAST(sum("ACTOR_ID") AS NUMBER(38, 6)) AS "SUM(.ACTOR_ID)" FROM "ACTOR"`,
@@ -96,7 +96,7 @@ func TestQuery_func(t *testing.T) {
 			wantSQL: `SELECT sum("amount") AS "sum(.amount)" FROM "payment"`,
 			override: driverMap{
 				drivertype.Pg:         `SELECT CAST(sum("amount") AS NUMERIC) AS "sum(.amount)" FROM "payment"`,
-				drivertype.MySQL:      "SELECT sum(`amount`) AS `sum(.amount)` FROM `payment`",
+				drivertype.MySQL:      "SELECT CAST(sum(`amount`) AS DECIMAL(65, 6)) AS `sum(.amount)` FROM `payment`",
 				drivertype.MSSQL:      `SELECT sum(CAST("amount" AS DECIMAL(38, 6))) AS "sum(.amount)" FROM "payment"`,
 				drivertype.ClickHouse: "SELECT CAST(sum(`amount`) AS Decimal(38, 6)) AS `sum(.amount)` FROM `payment`",
 				drivertype.Oracle:     `SELECT CAST(sum("AMOUNT") AS NUMBER(38, 6)) AS "SUM(.AMOUNT)" FROM "PAYMENT"`,

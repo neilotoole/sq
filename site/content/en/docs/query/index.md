@@ -993,7 +993,14 @@ SQLite (and rqlite) compute a sum over a non-integer column in floating point
 internally, so such a sum can carry a small drift (for example
 `67416.51000000001` instead of `67416.51`). The surfaced type is still a
 decimal, but a value the engine already computed in float cannot be recovered
-after the fact. Sums over integer columns are exact.
+after the fact. SQLite sums over integer columns are exact; on rqlite a very
+large integer sum (beyond 2^53) can also drift, because rqlite returns numbers
+over its HTTP API as floating point.
+
+On Oracle, ClickHouse, and SQL Server the decimal cast uses a fixed scale of 6,
+so a sum of a column with more than 6 fractional digits is rounded to 6 places;
+Postgres and MySQL preserve more. The common integer and currency cases are
+unaffected.
 {{< /alert >}}
 
 ## String functions

@@ -42,6 +42,16 @@ func doSelectCols(rc *Context, cols []ast.ResultColumn) (string, error) {
 			// reports no usable type for it), record it against this output
 			// column position for the driver to apply when building record
 			// metadata. See issue #839.
+			//
+			// The hint is keyed by output-column index i; the driver applies it
+			// to colTypes[i], so this relies on the rendered SELECT column order
+			// matching the result column order one-to-one (it does today: i
+			// indexes qm.Cols, the ordered result columns). It only fires for a
+			// function used directly as a result column. A function nested inside
+			// an expression (the ExprElementNode case below, e.g. sum(.x)+0) is
+			// not pinned, so on SQLite/rqlite such a result falls back to the
+			// scanned int/float kind; the cast-based drivers still get their type
+			// because the cast travels with the function rendering.
 			if knd, ok := rc.Renderer.FunctionResultKinds[strings.ToLower(col.FuncName())]; ok {
 				if rc.ResultColumnKinds == nil {
 					rc.ResultColumnKinds = make(map[int]kind.Kind)

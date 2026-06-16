@@ -312,9 +312,11 @@ func (d *driveri) Renderer() *render.Renderer {
 	// sum() is harmonized to decimal across drivers (issue #839). ClickHouse
 	// already returns sum() over a decimal column as a decimal, but sum() over an
 	// integer column as an integer; casting the result to Decimal unifies both as
-	// decimal. Trailing zeros from the fixed scale are trimmed by
-	// stringz.FormatDecimal.
-	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult("Decimal(38, 6)")
+	// decimal. The ClickHouse driver surfaces a Decimal as an already-trimmed
+	// string (see metadata.go: kind.Decimal scans as string), so the fixed scale
+	// produces no trailing zeros here; FormatDecimal is not involved.
+	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult(
+		fmt.Sprintf("Decimal(%d, %d)", render.AggDecimalPrecision, render.AggDecimalScale))
 	return r
 }
 

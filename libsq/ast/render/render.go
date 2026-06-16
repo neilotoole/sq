@@ -402,6 +402,21 @@ func FuncOverrideString(s string) func(*Context, *ast.FuncNode) (string, error) 
 	}
 }
 
+// AggDecimalScale is the fractional scale applied when an aggregate result
+// (e.g. sum()) is cast to a fixed-scale decimal type on dialects that require
+// an explicit precision and scale. It must agree across those dialects so the
+// same aggregate rounds identically wherever a fixed scale is used.
+//
+// A sum of values with more than AggDecimalScale fractional digits is rounded
+// to this scale on those dialects. Postgres uses an unconstrained NUMERIC and
+// is exact, so it is not subject to this rounding. See issue #839.
+const AggDecimalScale = 6
+
+// AggDecimalPrecision is the total precision paired with AggDecimalScale on
+// dialects whose decimal type caps at 38 digits (ClickHouse, Oracle, SQL
+// Server). MySQL uses its higher native cap (65) instead. See issue #839.
+const AggDecimalPrecision = 38
+
 // FuncOverrideCastResult returns a FunctionOverrides impl that renders fn with
 // the default function renderer and wraps the whole result in
 // CAST(... AS castType). Use it to coerce an aggregate's result to a portable
