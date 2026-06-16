@@ -50,17 +50,18 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 ### Changed
 
 - ☢️ [#594]: [`avg()`](https://sq.io/docs/query#avg) now returns a consistent `float`
-  on every SQL driver. Previously the result type varied by backend (a float on
-  some, an integer or a decimal string on others), so an `avg()` value could not
-  be consumed portably across sources. `float` was chosen to match `jq`'s numeric
-  model, which represents all numbers as IEEE 754 floating point. This is a
-  breaking change for
-  [Postgres](https://sq.io/docs/drivers/postgres) and
-  [MySQL](https://sq.io/docs/drivers/mysql), which previously returned a lossless
-  decimal (rendered as a quoted string in JSON output): an `avg()` value is now a
-  JSON number, and may lose precision for averages beyond float64's range
-  (~15-17 significant digits). Callers needing lossless decimal can fall back to
-  native SQL via [`sq sql`](https://sq.io/docs/cmd/sql).
+  on every SQL driver.
+  - Previously the result type varied by backend (a float on
+    some, an integer or a decimal string on others), so an `avg()` value could not
+    be consumed portably across sources. `float` was chosen to match `jq`'s numeric
+    model, which represents all numbers as IEEE 754 floating point.
+  - ☢️ This is a breaking change for
+    [Postgres](https://sq.io/docs/drivers/postgres) and
+    [MySQL](https://sq.io/docs/drivers/mysql), which previously returned a lossless
+    decimal (rendered as a quoted string in JSON output).
+  - An `avg()` value is now a JSON number, and may lose precision for averages beyond float64's range
+    (~15-17 significant digits). Callers needing lossless decimal can fall back to
+    native SQL via [`sq sql`](https://sq.io/docs/cmd/sql).
 - ☢️ [#839]: [`sum()`](https://sq.io/docs/query#sum) over an integer or decimal
   column now returns a consistent `decimal` on every SQL driver (the one
   exception is a `DOUBLE`/`FLOAT` column on DuckDB, noted below). Previously the
