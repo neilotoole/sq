@@ -144,20 +144,11 @@ func (d *driveri) Renderer() *render.Renderer {
 	r := render.NewDefaultRenderer()
 	r.FunctionNames[ast.FuncNameSchema] = "current_schema"
 	r.FunctionNames[ast.FuncNameCatalog] = "current_database"
-	r.FunctionOverrides[ast.FuncNameAvg] = doRenderFuncAvg
+	// avg() returns a portable float64 instead of Postgres's native numeric
+	// (which sq surfaces as a decimal.Decimal). See issue #594.
+	r.FunctionOverrides[ast.FuncNameAvg] = render.FuncOverrideCastResult("DOUBLE PRECISION")
 	render.RegisterILikeFamily(r)
 	return r
-}
-
-// doRenderFuncAvg renders avg() wrapped in a cast to a floating type, so that
-// avg() returns a portable float64 instead of Postgres's native numeric
-// (which sq surfaces as a decimal.Decimal). See issue #594.
-func doRenderFuncAvg(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	inner, err := render.RenderFuncDefault(rc, fn)
-	if err != nil {
-		return "", err
-	}
-	return "CAST(" + inner + " AS DOUBLE PRECISION)", nil
 }
 
 // Open implements driver.Driver.

@@ -173,39 +173,16 @@ func (d *driveri) Renderer() *render.Renderer {
 	const oracleCatalogFrag = `SYS_CONTEXT('USERENV', 'DB_NAME')`
 	r.FunctionOverrides[ast.FuncNameSchema] = render.FuncOverrideString(oracleSchemaFrag)
 	r.FunctionOverrides[ast.FuncNameCatalog] = render.FuncOverrideString(oracleCatalogFrag)
-	r.FunctionOverrides[ast.FuncNameAvg] = doRenderFuncAvg
-	r.FunctionOverrides[ast.FuncNameSum] = doRenderFuncSum
+	// Oracle returns AVG/SUM as NUMBER(38, 255) (floating-scale,
+	// indistinguishable from COUNT at the metadata layer), which classifies as
+	// kind.Int. Both can yield fractional values (AVG always, SUM over a
+	// decimal column), so scanning into int64 fails. Casting to BINARY_DOUBLE
+	// pins the result to a float so it scans cleanly. Tradeoff: integer-valued
+	// sums lose precision beyond ~15-17 significant digits; users needing
+	// lossless big-integer sums should use raw SQL. See issue #594.
+	r.FunctionOverrides[ast.FuncNameAvg] = render.FuncOverrideCastResult("BINARY_DOUBLE")
+	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult("BINARY_DOUBLE")
 	return r
-}
-
-// doRenderFuncAvg wraps avg() in CAST(... AS BINARY_DOUBLE). Oracle returns
-// AVG over an integer column as NUMBER(38, 255) (floating-scale, indistinguishable
-// from COUNT/SUM at the metadata layer), which classifies as kind.Int. AVG
-// can yield fractional values, so scanning into int64 fails. The cast pins
-// the result type to a float so it scans cleanly.
-func doRenderFuncAvg(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	inner, err := render.RenderFuncDefault(rc, fn)
-	if err != nil {
-		return "", err
-	}
-	return "CAST(" + inner + " AS BINARY_DOUBLE)", nil
-}
-
-// doRenderFuncSum wraps sum() in CAST(... AS BINARY_DOUBLE). Same shape as
-// doRenderFuncAvg: Oracle returns SUM as NUMBER(38, 255) regardless of operand
-// type, which the metadata layer classifies as kind.Int. SUM over a decimal
-// column (e.g. payment.amount) yields fractional values, so scanning into
-// int64 fails. Casting to BINARY_DOUBLE pins the result to a float.
-//
-// Tradeoff: integer-valued sums lose precision beyond ~15-17 significant
-// digits. Acceptable for sq's ad-hoc use; users needing lossless big-integer
-// sums should use raw SQL. See #594 for cross-driver type harmonization.
-func doRenderFuncSum(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	inner, err := render.RenderFuncDefault(rc, fn)
-	if err != nil {
-		return "", err
-	}
-	return "CAST(" + inner + " AS BINARY_DOUBLE)", nil
 }
 
 // Open implements driver.Driver.
