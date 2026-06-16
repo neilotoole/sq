@@ -323,6 +323,17 @@ func assertSinkColDecimal(coli int, want string, perDriver driverMap) SinkTestFu
 	}
 }
 
+// assertSinkColKind returns a SinkTestFunc that asserts that the column with
+// index coli has kind k, independent of any row values (so it also works when
+// the column is all-NULL, e.g. a sum() over an empty result set).
+func assertSinkColKind(coli int, k kind.Kind) SinkTestFunc {
+	return func(tb testing.TB, sink *testh.RecordSink) {
+		tb.Helper()
+		require.Equal(tb, k, sink.RecMeta[coli].Kind(),
+			"column %d (%s) kind", coli, sink.RecMeta[coli].Name())
+	}
+}
+
 // assertSinkColValue returns a SinkTestFunc that asserts that
 // the name of column with index coli matches name.
 func assertSinkColName(coli int, name string) SinkTestFunc {

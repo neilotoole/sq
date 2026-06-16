@@ -997,10 +997,13 @@ after the fact. SQLite sums over integer columns are exact; on rqlite a very
 large integer sum (beyond 2^53) can also drift, because rqlite returns numbers
 over its HTTP API as floating point.
 
-On Oracle, ClickHouse, and SQL Server the decimal cast uses a fixed scale of 6,
-so a sum of a column with more than 6 fractional digits is rounded to 6 places.
-Postgres (unconstrained `NUMERIC`) and MySQL (its maximum scale of 30) preserve
-the full scale. The common integer and currency cases are unaffected.
+On Oracle, ClickHouse, SQL Server, and DuckDB the decimal cast uses a fixed
+`DECIMAL(38, 6)`. So a sum of a column with more than 6 fractional digits is
+rounded to 6 places, and a sum whose integer part needs more than 32 digits
+overflows (a query error). On SQL Server the operand is cast before summing, so
+that rounding is applied per row. Postgres (unconstrained `NUMERIC`) and MySQL
+(its maximum scale of 30) preserve the full scale. The common integer and
+currency cases are unaffected.
 {{< /alert >}}
 
 ## String functions
