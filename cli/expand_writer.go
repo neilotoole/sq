@@ -37,10 +37,11 @@ import (
 // (e.g. stdin sources). Lazily expanding cloned values at write time
 // has neither problem.
 //
-// The decorators hold the cobra command and derive the context, run
-// (and thus the secret registry), and flag state at write time, so
-// context updates made by the command (e.g. cmd.SetContext) are
-// honored.
+// The decorators hold the cobra command and the run (injected at
+// construction by newWriters, which carries the secret registry). The
+// context and --expand flag state are read from the command fresh at
+// write time, so context updates made by the command (e.g. cmd.SetContext
+// timeouts) are honored when the resolver runs.
 
 // expander is the shared core of the expand decorators. The run is
 // injected at construction (newWriters), where it's always in hand; the

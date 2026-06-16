@@ -254,11 +254,12 @@ type SQLDriver interface {
 // ReadOnlyConflictDetector is an optional interface implemented by
 // drivers whose location syntax can explicitly demand write access,
 // contradicting a read-only request. The canonical example is DuckDB's
-// access_mode=READ_WRITE query parameter. The CLI consults this
-// interface when the user explicitly requests read-only access (sq sql
-// --readonly), so the contradiction surfaces as an error before any
-// connection is opened, instead of the location silently winning over
-// the flag.
+// access_mode=READ_WRITE query parameter. It is consulted in two places
+// when the user explicitly requests read-only access (sq sql --readonly):
+// the CLI surfaces the conflict preemptively, before any connection is
+// opened, and the driver itself rejects such an open as defense-in-depth
+// so the conflict can't slip through for a non-CLI caller. Either way the
+// location does not silently win over the read-only request.
 //
 // Drivers without a location-level access mode (most drivers) simply
 // don't implement the interface, and no conflict is possible. Mirrors
