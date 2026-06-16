@@ -305,9 +305,10 @@ If zero, no progress bar is rendered.`,
 // newWriters returns an output.Writers instance configured per defaults and/or
 // flags from cmd. The returned writers in [outputConfig] may differ from
 // the stdout and stderr params (e.g. decorated to support colorization).
-func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o options.Options,
-	stdout, stderr io.Writer, ru *run.Run,
-) (w *output.Writers, outCfg *outputConfig) {
+func newWriters(ru *run.Run, o options.Options) (w *output.Writers, outCfg *outputConfig) {
+	cmd, fs, clnup := ru.Cmd, ru.Files, ru.Cleanup
+	stdout, stderr := ru.Stdout, ru.Stderr
+
 	// Invoke getFormat to see if the format was specified
 	// via config or flag.
 	fm := getFormat(cmd, o)
