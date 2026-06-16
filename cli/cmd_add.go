@@ -380,6 +380,11 @@ func execSrcAdd(cmd *cobra.Command, args []string) (err error) {
 		if err != nil {
 			return err
 		}
+		// Ping read-write (not read-only like "sq ping"): "sq add" validates
+		// the source the way it will be used (writable by default), and for a
+		// not-yet-existing file source (DuckDB, SQLite) the read-write ping
+		// creates the file, which is the established add-a-new-file behavior.
+		// See driver.Driver.Ping.
 		if err = drvr.Ping(ctx, pingSrc, driver.ModeReadWrite); err != nil {
 			return err
 		}
