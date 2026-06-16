@@ -17,7 +17,7 @@ func TestQuery_groupby(t *testing.T) {
 			wantSQL: `SELECT "customer_id", sum("amount") AS "sum(.amount)" FROM "payment" GROUP BY "customer_id"`,
 			override: driverMap{
 				drivertype.Pg:         `SELECT "customer_id", CAST(sum("amount") AS NUMERIC) AS "sum(.amount)" FROM "payment" GROUP BY "customer_id"`,
-				drivertype.MySQL:      "SELECT `customer_id`, CAST(sum(`amount`) AS DECIMAL(65, 6)) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`",
+				drivertype.MySQL:      "SELECT `customer_id`, CAST(sum(`amount`) AS DECIMAL(65, 30)) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`",
 				drivertype.MSSQL:      `SELECT "customer_id", sum(CAST("amount" AS DECIMAL(38, 6))) AS "sum(.amount)" FROM "payment" GROUP BY "customer_id"`,
 				drivertype.ClickHouse: "SELECT `customer_id`, CAST(sum(`amount`) AS Decimal(38, 6)) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`",
 				drivertype.Oracle:     `SELECT "CUSTOMER_ID", CAST(sum("AMOUNT") AS NUMBER(38, 6)) AS "SUM(.AMOUNT)" FROM "PAYMENT" GROUP BY "CUSTOMER_ID"`,
@@ -30,7 +30,7 @@ func TestQuery_groupby(t *testing.T) {
 			wantSQL: `SELECT "customer_id", sum("amount") AS "sum(.amount)" FROM "payment" GROUP BY "customer_id"`,
 			override: driverMap{
 				drivertype.Pg:         `SELECT "customer_id", CAST(sum("amount") AS NUMERIC) AS "sum(.amount)" FROM "payment" GROUP BY "customer_id"`,
-				drivertype.MySQL:      "SELECT `customer_id`, CAST(sum(`amount`) AS DECIMAL(65, 6)) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`",
+				drivertype.MySQL:      "SELECT `customer_id`, CAST(sum(`amount`) AS DECIMAL(65, 30)) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`",
 				drivertype.MSSQL:      `SELECT "customer_id", sum(CAST("amount" AS DECIMAL(38, 6))) AS "sum(.amount)" FROM "payment" GROUP BY "customer_id"`,
 				drivertype.ClickHouse: "SELECT `customer_id`, CAST(sum(`amount`) AS Decimal(38, 6)) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`",
 				drivertype.Oracle:     `SELECT "CUSTOMER_ID", CAST(sum("AMOUNT") AS NUMBER(38, 6)) AS "SUM(.AMOUNT)" FROM "PAYMENT" GROUP BY "CUSTOMER_ID"`,
@@ -43,7 +43,7 @@ func TestQuery_groupby(t *testing.T) {
 			wantSQL: `SELECT "customer_id", "staff_id", sum("amount") AS "sum(.amount)" FROM "payment" GROUP BY "customer_id", "staff_id"`,
 			override: driverMap{
 				drivertype.Pg:         `SELECT "customer_id", "staff_id", CAST(sum("amount") AS NUMERIC) AS "sum(.amount)" FROM "payment" GROUP BY "customer_id", "staff_id"`,
-				drivertype.MySQL:      "SELECT `customer_id`, `staff_id`, CAST(sum(`amount`) AS DECIMAL(65, 6)) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`, `staff_id`",
+				drivertype.MySQL:      "SELECT `customer_id`, `staff_id`, CAST(sum(`amount`) AS DECIMAL(65, 30)) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`, `staff_id`",
 				drivertype.MSSQL:      `SELECT "customer_id", "staff_id", sum(CAST("amount" AS DECIMAL(38, 6))) AS "sum(.amount)" FROM "payment" GROUP BY "customer_id", "staff_id"`,
 				drivertype.ClickHouse: "SELECT `customer_id`, `staff_id`, CAST(sum(`amount`) AS Decimal(38, 6)) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`, `staff_id`",
 				drivertype.Oracle:     `SELECT "CUSTOMER_ID", "STAFF_ID", CAST(sum("AMOUNT") AS NUMBER(38, 6)) AS "SUM(.AMOUNT)" FROM "PAYMENT" GROUP BY "CUSTOMER_ID", "STAFF_ID"`,
@@ -63,7 +63,7 @@ func TestQuery_groupby(t *testing.T) {
 			wantSQL: `SELECT "customer_id", sum("amount") AS "sum(.amount)" FROM "payment" GROUP BY "customer_id" HAVING sum("amount") > 100`,
 			override: driverMap{
 				drivertype.Pg:         `SELECT "customer_id", CAST(sum("amount") AS NUMERIC) AS "sum(.amount)" FROM "payment" GROUP BY "customer_id" HAVING CAST(sum("amount") AS NUMERIC) > 100`,
-				drivertype.MySQL:      "SELECT `customer_id`, CAST(sum(`amount`) AS DECIMAL(65, 6)) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id` HAVING CAST(sum(`amount`) AS DECIMAL(65, 6)) > 100",
+				drivertype.MySQL:      "SELECT `customer_id`, CAST(sum(`amount`) AS DECIMAL(65, 30)) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id` HAVING CAST(sum(`amount`) AS DECIMAL(65, 30)) > 100",
 				drivertype.MSSQL:      `SELECT "customer_id", sum(CAST("amount" AS DECIMAL(38, 6))) AS "sum(.amount)" FROM "payment" GROUP BY "customer_id" HAVING sum(CAST("amount" AS DECIMAL(38, 6))) > 100`,
 				drivertype.ClickHouse: "SELECT `customer_id`, CAST(sum(`amount`) AS Decimal(38, 6)) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id` HAVING CAST(sum(`amount`) AS Decimal(38, 6)) > 100",
 				drivertype.Oracle:     `SELECT "CUSTOMER_ID", CAST(sum("AMOUNT") AS NUMBER(38, 6)) AS "SUM(.AMOUNT)" FROM "PAYMENT" GROUP BY "CUSTOMER_ID" HAVING CAST(sum("AMOUNT") AS NUMBER(38, 6)) > 100`,

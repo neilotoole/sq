@@ -79,8 +79,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     2^53); SQLite and the other drivers accumulate integer sums exactly.
   - On Oracle, ClickHouse, and SQL Server the decimal cast uses a fixed scale of
     6, so a sum of a column with more than 6 fractional digits is rounded to 6
-    places. Postgres (and MySQL) preserve more, so for such columns the value can
-    differ across drivers. The common integer and currency cases are unaffected.
+    places. Postgres (unconstrained `NUMERIC`) and MySQL (its maximum scale of
+    30, which no column can exceed) preserve the full scale, so for such columns
+    the value can differ across drivers. The common integer and currency cases
+    are unaffected.
   - Decimal values are now rendered with trailing fractional zeros trimmed (e.g.
     `100.50` displays as `100.5`) consistently across all drivers and output
     formats, so the same value reads identically regardless of the scale a

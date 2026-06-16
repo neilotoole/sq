@@ -998,9 +998,9 @@ large integer sum (beyond 2^53) can also drift, because rqlite returns numbers
 over its HTTP API as floating point.
 
 On Oracle, ClickHouse, and SQL Server the decimal cast uses a fixed scale of 6,
-so a sum of a column with more than 6 fractional digits is rounded to 6 places;
-Postgres and MySQL preserve more. The common integer and currency cases are
-unaffected.
+so a sum of a column with more than 6 fractional digits is rounded to 6 places.
+Postgres (unconstrained `NUMERIC`) and MySQL (its maximum scale of 30) preserve
+the full scale. The common integer and currency cases are unaffected.
 {{< /alert >}}
 
 ## String functions
