@@ -589,6 +589,32 @@ func TestResolveQualifiedColNames(t *testing.T) {
 			in:   []string{"Actor_ID", "film_actor.actor_id"},
 			want: []string{"Actor_ID", "actor_id"},
 		},
+		{
+			// When two qualified columns collide on their trailing segment,
+			// both are reduced to the bare name; the distinguishing qualifiers
+			// are intentionally dropped to match the other drivers (the bare
+			// duplicates are then deduped downstream to "amount", "amount_1").
+			name: "both_qualified_collide",
+			in:   []string{"sales.amount", "returns.amount"},
+			want: []string{"amount", "amount"},
+		},
+		{
+			// A user alias whose trailing segment collides with a real column
+			// is treated as a qualifier and stripped. This degrades the alias,
+			// but the case is pathological (deliberately aliasing "x.actor_id"
+			// alongside a real "actor_id") and acceptable.
+			name: "alias_collides_with_bare",
+			in:   []string{"x.actor_id", "actor_id"},
+			want: []string{"actor_id", "actor_id"},
+		},
+		{
+			// Degenerate trailing-dot names (which ClickHouse never emits)
+			// reduce to an empty trailing segment that collides; current
+			// behavior strips both to "". Documents the edge, not a guarantee.
+			name: "trailing_dot_degenerate",
+			in:   []string{"actor.", "film."},
+			want: []string{"", ""},
+		},
 	}
 
 	for _, tc := range testCases {

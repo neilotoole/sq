@@ -575,19 +575,24 @@ func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType) 
 	return recMeta, nil
 }
 
-// resolveQualifiedColNames strips a leading table qualifier from a result-column
-// name, but only when doing so resolves a collision with another column. For a
-// duplicate-column JOIN, ClickHouse disambiguates the colliding columns by
-// keeping their table qualifier (e.g. "film_actor.actor_id"), unlike most
-// databases which return the bare name. Stripping the qualifier lets the
-// downstream dedup mechanism (driver.MungeResultColNames) rename the duplicate
-// consistently (e.g. "actor_id_1"), matching the other drivers.
+// resolveQualifiedColNames strips the table qualifier (everything up to the
+// final dot) from a result-column name, but only when doing so resolves a
+// collision with another column. For a duplicate-column JOIN, ClickHouse
+// disambiguates the colliding columns by keeping their table qualifier (e.g.
+// "film_actor.actor_id"), unlike most databases which return the bare name.
+// Stripping the qualifier lets the downstream dedup mechanism
+// (driver.MungeResultColNames) rename the duplicate consistently (e.g.
+// "actor_id_1"), matching the other drivers.
 //
 // ClickHouse only ever qualifies a name to disambiguate a duplicate, so this
 // mirrors that: a dotted name is collapsed to its trailing segment only when
 // that segment also occurs as another column's name. Names whose dot is part of
 // an alias or expression (e.g. "avg(.actor_id)", "a.b", ".lead") collide with
-// nothing and are preserved verbatim. See https://github.com/neilotoole/sq/issues/834.
+// nothing and are preserved verbatim. When two qualified columns collide on
+// their trailing segment (e.g. "sales.amount" and "returns.amount"), both are
+// reduced to the bare name and then deduped ("amount", "amount_1"); the
+// distinguishing qualifiers are intentionally dropped to match the other
+// drivers. See https://github.com/neilotoole/sq/issues/834.
 //
 // Comparison is case-insensitive to match MungeResultColNames, which detects
 // duplicates with strings.EqualFold.
@@ -601,26 +606,19 @@ func resolveQualifiedColNames(names []string) []string {
 		return name
 	}
 
+	// Count how many columns share each trailing segment, case-insensitively
+	// (matching MungeResultColNames). A segment that occurs more than once marks
+	// a collision that a qualifier would disambiguate.
+	freq := make(map[string]int, len(names))
+	for _, name := range names {
+		freq[strings.ToLower(trailing(name))]++
+	}
+
 	out := make([]string, len(names))
 	for i, name := range names {
-		if !strings.Contains(name, ".") {
-			out[i] = name
-			continue
-		}
-
-		bare := trailing(name)
-		var collides bool
-		for j, other := range names {
-			if j == i {
-				continue
-			}
-			if strings.EqualFold(trailing(other), bare) {
-				collides = true
-				break
-			}
-		}
-
-		if collides {
+		// bare != name iff name is qualified (contains a dot). Strip the
+		// qualifier only when the bare name collides with another column.
+		if bare := trailing(name); bare != name && freq[strings.ToLower(bare)] > 1 {
 			out[i] = bare
 		} else {
 			out[i] = name
