@@ -362,14 +362,14 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 			if !col.Valid {
 				rec[i] = nil
 			} else {
-				rec[i] = coerceDecimal(col.Decimal)
+				rec[i] = col.Decimal
 			}
 			record.SetKindIfUnknown(meta, i, kind.Decimal)
 		case *decimal.Decimal:
-			rec[i] = coerceDecimal(*col)
+			rec[i] = *col
 			record.SetKindIfUnknown(meta, i, kind.Decimal)
 		case decimal.Decimal:
-			rec[i] = coerceDecimal(col)
+			rec[i] = col
 			record.SetKindIfUnknown(meta, i, kind.Decimal)
 		case *sql.NullBool:
 			if col.Valid {
@@ -413,11 +413,10 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 // column's kind. gorqlite returns every JSON number as float64 so we
 // have to demote back to int64 for integer columns; otherwise the
 // cross-driver record contract (int columns yield int64) is broken.
-// For Decimal columns the value is converted to decimal.Decimal,
-// with an additional whole-number coercion to int64 that matches
-// what mattn/go-sqlite3 emits natively for NUMERIC-affinity columns
-// that happen to hold integers (Sakila's actor_id is exactly this
-// shape).
+// Decimal columns yield a decimal.Decimal, including whole-number
+// values: mattn/go-sqlite3 and the other drivers surface a NUMERIC
+// column as a decimal regardless of whether the stored value happens
+// to be an integer, so rqlite matches that (see issue #839).
 //
 // Unknown kinds pass through as float64 and have the kind set to
 // Float, mirroring the original behavior.
@@ -428,21 +427,11 @@ func coerceFloat64(meta record.Meta, i int, v float64) any {
 	case kind.Bool:
 		return v != 0
 	case kind.Decimal:
-		return coerceDecimal(decimal.NewFromFloat(v))
+		return decimal.NewFromFloat(v)
 	default:
 		record.SetKindIfUnknown(meta, i, kind.Float)
 		return v
 	}
-}
-
-// coerceDecimal demotes whole-number decimals to int64 so NUMERIC
-// columns whose stored values are integers match the cross-driver
-// record contract. Non-integer decimals are returned as-is.
-func coerceDecimal(d decimal.Decimal) any {
-	if d.IsInteger() {
-		return d.IntPart()
-	}
-	return d
 }
 
 // getTableMetadata returns metadata for a single table. The shape

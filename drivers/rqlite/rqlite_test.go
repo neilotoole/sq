@@ -987,17 +987,17 @@ func TestWriteAtomic_PerStatementError(t *testing.T) {
 		"the underlying cause should be preserved")
 }
 
-// TestCoerce_NumericAffinityInt verifies that NUMERIC-declared columns
-// holding integer values surface as int64. This pins the cross-driver
-// integer contract for NUMERIC affinity: gorqlite hands back JSON
-// numbers as float64, which the rqlite driver coerces back to int64
-// for integer-valued NUMERIC cells (matching mattn/go-sqlite3's native
-// behavior). The CREATE TABLE is issued by hand rather than via
-// schema.NewTable because the latter emits INTEGER, not NUMERIC, so
-// would not exercise the coercion path. This guards against future
-// upstream Sakila schema fixes that would otherwise silently retire
-// the existing Sakila-driven coverage.
-func TestCoerce_NumericAffinityInt(t *testing.T) {
+// TestCoerce_NumericAffinityWholeNumber verifies that a NUMERIC-declared
+// column holding an integer value surfaces as a decimal.Decimal, not an
+// int64. This pins the cross-driver contract for NUMERIC affinity:
+// mattn/go-sqlite3 and Postgres both surface a NUMERIC column as a decimal
+// regardless of whether the stored value is whole, so rqlite matches that
+// rather than demoting whole values to int64 (issue #839). The CREATE TABLE
+// is issued by hand rather than via schema.NewTable because the latter emits
+// INTEGER, not NUMERIC, so would not exercise the coercion path. This guards
+// against future upstream Sakila schema fixes that would otherwise silently
+// retire the existing Sakila-driven coverage.
+func TestCoerce_NumericAffinityWholeNumber(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
 
@@ -1027,9 +1027,9 @@ func TestCoerce_NumericAffinityInt(t *testing.T) {
 	require.Len(t, sink.Recs, 1)
 	require.Len(t, sink.Recs[0], 2)
 
-	gotID, ok := sink.Recs[0][0].(int64)
-	require.True(t, ok, "expected int64 for integer-valued NUMERIC column, got %T", sink.Recs[0][0])
-	require.Equal(t, int64(42), gotID)
+	gotID, ok := sink.Recs[0][0].(decimal.Decimal)
+	require.True(t, ok, "expected decimal.Decimal for integer-valued NUMERIC column, got %T", sink.Recs[0][0])
+	require.True(t, gotID.Equal(decimal.NewFromInt(42)), "expected 42, got %s", gotID.String())
 	require.Equal(t, "alpha", sink.Recs[0][1])
 }
 

@@ -258,7 +258,7 @@ func TestCoerceFloat64(t *testing.T) {
 	}{
 		{name: "int_whole", knd: kind.Int, in: 42, want: int64(42)},
 		{name: "int_truncates_fraction", knd: kind.Int, in: 42.9, want: int64(42)},
-		{name: "decimal_integer_demoted", knd: kind.Decimal, in: 42, want: int64(42)},
+		{name: "decimal_integer_preserved", knd: kind.Decimal, in: 42, want: decimal.NewFromInt(42)},
 		{name: "decimal_fractional_preserved", knd: kind.Decimal, in: 19.99, want: decimal.NewFromFloat(19.99)},
 		{name: "bool_zero_false", knd: kind.Bool, in: 0, want: false},
 		{name: "bool_nonzero_true", knd: kind.Bool, in: 1, want: true},
@@ -278,27 +278,6 @@ func TestCoerceFloat64(t *testing.T) {
 			require.Equal(t, tc.want, got)
 		})
 	}
-}
-
-// TestCoerceDecimal covers the whole-number demotion that pairs with
-// coerceFloat64's kind.Decimal branch and the *decimal.NullDecimal /
-// *decimal.Decimal scan cases in newRecordFromScanRow.
-func TestCoerceDecimal(t *testing.T) {
-	t.Run("integer_demoted_to_int64", func(t *testing.T) {
-		got := coerceDecimal(decimal.NewFromInt(42))
-		require.Equal(t, int64(42), got)
-	})
-	t.Run("fractional_passthrough", func(t *testing.T) {
-		want := decimal.NewFromFloat(19.99)
-		got := coerceDecimal(want)
-		gotDec, ok := got.(decimal.Decimal)
-		require.True(t, ok, "expected decimal.Decimal, got %T", got)
-		require.True(t, want.Equal(gotDec))
-	})
-	t.Run("negative_integer_demoted", func(t *testing.T) {
-		got := coerceDecimal(decimal.NewFromInt(-7))
-		require.Equal(t, int64(-7), got)
-	})
 }
 
 func TestBuildCreateTableStmt_ForeignKey(t *testing.T) {
