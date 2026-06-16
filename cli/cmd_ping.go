@@ -237,7 +237,10 @@ func pingSource(ctx context.Context, dp driver.Provider, src *source.Source, tim
 		defer cancelFn()
 	}
 
-	doneCh := make(chan pingResult)
+	// Buffered (size 1) so the goroutine's send always completes even when
+	// the select below returns on ctx.Done() first; an unbuffered channel
+	// would leak the goroutine (blocked on send) on the timeout/cancel path.
+	doneCh := make(chan pingResult, 1)
 	start := time.Now()
 
 	go func() {
