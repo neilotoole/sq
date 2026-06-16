@@ -557,16 +557,10 @@ func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType) 
 
 		sColTypeData[i] = colTypeData
 
-		// ClickHouse returns qualified column names (e.g., "actor.actor_id") for
-		// JOIN queries, unlike other databases that return just "actor_id". Strip
-		// the table prefix so the column munging mechanism can detect duplicates
-		// and rename them consistently (e.g., "actor_id_1").
-		colName := colTypeData.Name
-		if idx := strings.LastIndex(colName, "."); idx != -1 {
-			colName = colName[idx+1:]
-		}
-		ogColNames[i] = colName
+		ogColNames[i] = colTypeData.Name
 	}
+
+	ogColNames = resolveQualifiedColNames(ogColNames)
 
 	mungedColNames, err := driver.MungeResultColNames(ctx, ogColNames)
 	if err != nil {
@@ -579,6 +573,61 @@ func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType) 
 	}
 
 	return recMeta, nil
+}
+
+// resolveQualifiedColNames strips a leading table qualifier from a result-column
+// name, but only when doing so resolves a collision with another column. For a
+// duplicate-column JOIN, ClickHouse disambiguates the colliding columns by
+// keeping their table qualifier (e.g. "film_actor.actor_id"), unlike most
+// databases which return the bare name. Stripping the qualifier lets the
+// downstream dedup mechanism (driver.MungeResultColNames) rename the duplicate
+// consistently (e.g. "actor_id_1"), matching the other drivers.
+//
+// ClickHouse only ever qualifies a name to disambiguate a duplicate, so this
+// mirrors that: a dotted name is collapsed to its trailing segment only when
+// that segment also occurs as another column's name. Names whose dot is part of
+// an alias or expression (e.g. "avg(.actor_id)", "a.b", ".lead") collide with
+// nothing and are preserved verbatim. See https://github.com/neilotoole/sq/issues/834.
+//
+// Comparison is case-insensitive to match MungeResultColNames, which detects
+// duplicates with strings.EqualFold.
+func resolveQualifiedColNames(names []string) []string {
+	// trailing returns the segment after the final dot, or the whole name when
+	// there's no dot. This is the bare column name a qualifier would reduce to.
+	trailing := func(name string) string {
+		if idx := strings.LastIndex(name, "."); idx != -1 {
+			return name[idx+1:]
+		}
+		return name
+	}
+
+	out := make([]string, len(names))
+	for i, name := range names {
+		if !strings.Contains(name, ".") {
+			out[i] = name
+			continue
+		}
+
+		bare := trailing(name)
+		var collides bool
+		for j, other := range names {
+			if j == i {
+				continue
+			}
+			if strings.EqualFold(trailing(other), bare) {
+				collides = true
+				break
+			}
+		}
+
+		if collides {
+			out[i] = bare
+		} else {
+			out[i] = name
+		}
+	}
+
+	return out
 }
 
 // getNewRecordFunc returns a NewRecordFunc that transforms scanned row data
