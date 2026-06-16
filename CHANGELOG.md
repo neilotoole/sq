@@ -61,10 +61,12 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   JSON number, and may lose precision for averages beyond float64's range
   (~15-17 significant digits). Callers needing lossless decimal can fall back to
   native SQL via [`sq sql`](https://sq.io/docs/cmd/sql).
-- ☢️ [#839]: [`sum()`](https://sq.io/docs/query#sum) now returns a consistent
-  `decimal` on every SQL driver. Previously the result type varied by backend
-  (an integer on most, a decimal on MySQL and DuckDB, a float on Oracle), so a
-  `sum()` value could not be consumed portably across sources. Unlike
+- ☢️ [#839]: [`sum()`](https://sq.io/docs/query#sum) over an integer or decimal
+  column now returns a consistent `decimal` on every SQL driver (the one
+  exception is a `DOUBLE`/`FLOAT` column on DuckDB, noted below). Previously the
+  result type varied by backend (an integer on most, a decimal on MySQL and
+  DuckDB, a float on Oracle), so a `sum()` value could not be consumed portably
+  across sources. Unlike
   [`avg()`](https://sq.io/docs/query#avg) (see [#594]), `sum()` is harmonized to
   `decimal` rather than `float`: the sum of integers or of exact decimals is
   itself exact, so typing it as `float` would be a precision regression. In JSON

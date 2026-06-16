@@ -17,11 +17,13 @@ import (
 )
 
 // TestQuery_sum_floatColumn verifies that sum() over a FLOAT/DOUBLE column
-// surfaces as kind.Decimal on every SQL driver (issue #839). Sakila has no
-// float column, so a one-column float table is created per driver. This is the
-// regression guard for the drivers whose native sum() over a float column
-// returns a float (kind.Float): MySQL and DuckDB needed an explicit cast
-// override, and the cast-based drivers already coerce via their result cast.
+// surfaces as kind.Decimal (issue #839). Sakila has no float column, so a
+// one-column float table is created per driver. This is the regression guard
+// for MySQL, whose native sum() over a float column returns DOUBLE (kind.Float)
+// and which needed an explicit cast override; the other cast-based drivers
+// coerce via their result cast. ClickHouse and DuckDB are skipped (see below):
+// ClickHouse for an insert-pipeline limitation, DuckDB because it intentionally
+// has no override and leaves sum(float) as a float.
 func TestQuery_sum_floatColumn(t *testing.T) {
 	for _, handle := range sakila.SQLLatest() {
 		t.Run(handle, func(t *testing.T) {
@@ -72,7 +74,8 @@ func TestQuery_sum_floatColumn(t *testing.T) {
 			sink, err := th.QuerySLQ(src.Handle+" | ."+tblName+" | sum(.col_float)", nil)
 			require.NoError(t, err)
 			require.Len(t, sink.Recs, 1)
-			// sum(float) must surface as decimal on every driver, value 3.75.
+			// sum(float) must surface as decimal on every driver reached here
+			// (DuckDB and ClickHouse are skipped above), value 3.75.
 			assertSinkColDecimal(0, "3.75", nil)(t, sink)
 		})
 	}
