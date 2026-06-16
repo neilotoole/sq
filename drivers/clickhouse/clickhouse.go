@@ -315,10 +315,9 @@ func (d *driveri) Renderer() *render.Renderer {
 	// decimal. The cast target is wrapped in Nullable because ClickHouse's
 	// Decimal is non-nullable and sum() over a nullable column can yield NULL
 	// (e.g. an all-NULL or empty input); casting that NULL to a bare Decimal
-	// raises an error. The ClickHouse driver surfaces a Decimal as an
-	// already-trimmed string (see metadata.go: kind.Decimal scans as string), so
-	// the fixed scale produces no trailing zeros here; FormatDecimal is not
-	// involved.
+	// raises an error. A Nullable(Decimal) result scans as decimal.NullDecimal,
+	// so trailing zeros from the fixed scale are trimmed by stringz.FormatDecimal
+	// at render time, as on the other result-cast drivers.
 	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult(
 		fmt.Sprintf("Nullable(Decimal(%d, %d))", render.AggDecimalPrecision, render.AggDecimalScale))
 	return r

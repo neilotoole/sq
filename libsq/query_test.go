@@ -290,12 +290,11 @@ func assertSinkColValue(coli int, val any) SinkTestFunc {
 // assertSinkColDecimal returns a SinkTestFunc that asserts that column coli has
 // kind.Decimal and that each record's value in that column formats to want.
 // Asserting the formatted value (rather than a specific Go type) keeps the check
-// independent both of the scale a backend's cast produced and of how a driver
-// represents a decimal in a record: most surface decimal.Decimal, but ClickHouse
-// surfaces a pre-formatted string. A driver listed in perDriver uses its
-// override value instead of want, covering backends like SQLite/rqlite that
-// compute decimal sums in floating point and so surface a drifted value. See
-// issue #839.
+// independent of the scale a backend's cast produced; drivers surface a decimal
+// record value as a decimal.Decimal, and a pre-formatted string is also accepted
+// defensively. A driver listed in perDriver uses its override value instead of
+// want, covering backends like SQLite/rqlite that compute decimal sums in
+// floating point and so surface a drifted value. See issue #839.
 func assertSinkColDecimal(coli int, want string, perDriver driverMap) SinkTestFunc {
 	return func(tb testing.TB, sink *testh.RecordSink) {
 		tb.Helper()
