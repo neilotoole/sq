@@ -1158,10 +1158,10 @@ func TestInspect_LocationOverride_NoLeak(t *testing.T) {
 		"default inspect must NOT leak the resolved path "+
 			"(regression guard for the srcMeta.Location override in execInspect)")
 
-	// With --expand: maybeExpandSource resolves the placeholder before
-	// execInspect runs, so src.Location is already the resolved sqlite3
-	// URL when srcMeta.Location = src.Location is executed. The output
-	// must therefore show the resolved path.
+	// With --expand: the writer layer's expand decorator (see
+	// expand_writer.go) resolves the placeholder in srcMeta.Location
+	// before the metadata writer renders it. The output must therefore
+	// show the resolved path.
 	tr = testrun.New(t.Context(), t, nil)
 	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
 		Handle:   "@leak",

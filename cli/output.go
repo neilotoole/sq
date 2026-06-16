@@ -28,6 +28,7 @@ import (
 	"github.com/neilotoole/sq/cli/output/xlsxw"
 	"github.com/neilotoole/sq/cli/output/xmlw"
 	"github.com/neilotoole/sq/cli/output/yamlw"
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -302,11 +303,12 @@ If zero, no progress bar is rendered.`,
 )
 
 // newWriters returns an output.Writers instance configured per defaults and/or
-// flags from cmd. The returned writers in [outputConfig] may differ from
-// the stdout and stderr params (e.g. decorated to support colorization).
-func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o options.Options,
-	stdout, stderr io.Writer,
-) (w *output.Writers, outCfg *outputConfig) {
+// flags from ru.Cmd. The returned writers in [outputConfig] may differ from
+// ru.Stdout / ru.Stderr (e.g. decorated to support colorization).
+func newWriters(ru *run.Run, o options.Options) (w *output.Writers, outCfg *outputConfig) {
+	cmd, fs, clnup := ru.Cmd, ru.Files, ru.Cleanup
+	stdout, stderr := ru.Stdout, ru.Stderr
+
 	// Invoke getFormat to see if the format was specified
 	// via config or flag.
 	fm := getFormat(cmd, o)
@@ -395,6 +397,21 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 		log.Warn("No record writer impl for format", "format", fm)
 	} else {
 		w.Record = recwFn(outCfg.out, outCfg.outPr)
+	}
+
+	if cmd != nil {
+		// Decorate the writers that print source locations so that the
+		// --expand flag is honored centrally, in the writer layer, much
+		// as Printing.Redact enforces redaction once for every writer.
+		// (Redaction is a Printing field the format writers consult;
+		// expansion is a cli-side decorator instead, because it performs
+		// fallible resolver I/O that shouldn't be duplicated into every
+		// writer impl. See expand_writer.go for that rationale.) Any
+		// command that prints a location gets --expand for free; the
+		// decorators no-op when the flag is unset.
+		w.Source = &expandSourceWriter{w: w.Source, expander: expander{cmd: cmd, ru: ru}}
+		w.Ping = &expandPingWriter{w: w.Ping, expander: expander{cmd: cmd, ru: ru}}
+		w.Metadata = &expandMetadataWriter{w: w.Metadata, expander: expander{cmd: cmd, ru: ru}}
 	}
 
 	return w, outCfg

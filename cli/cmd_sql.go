@@ -10,7 +10,6 @@ import (
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/run"
-	"github.com/neilotoole/sq/drivers/duckdb"
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -19,7 +18,6 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 func newSQLCmd() *cobra.Command {
@@ -83,23 +81,27 @@ func execSQL(cmd *cobra.Command, args []string) error {
 
 	// --readonly / --ro: opt the raw-SQL command into read-only mode for
 	// the source. When set, peek at the would-be active source and surface
-	// the URL-conflict error preemptively. Doing this after determineSources
-	// would let verifySourceCatalogSchema briefly open the file READ_WRITE
-	// (the URL wins over the RO request) before the error fires, defeating
-	// the whole point of the conflict surfacing.
+	// the URL-conflict error preemptively, before determineSources does any
+	// validation pre-open or secret resolution. The driver also refuses an
+	// explicit read-only open against access_mode=READ_WRITE (see duckdb
+	// doOpen), so the conflict can't slip through; surfacing it here just
+	// fails fast, before that work. The check is generic: any driver
+	// implementing driver.ReadOnlyConflictDetector (currently only DuckDB)
+	// gets consulted, rather than hardcoding a driver type here.
 	readOnlySrc := cmdFlagIsSetTrue(cmd, flag.SQLReadOnly) ||
 		cmdFlagIsSetTrue(cmd, flag.SQLReadOnlyAlias)
 	if readOnlySrc {
-		if peek := peekActiveSrc(cmd, ru.Config.Collection); peek != nil &&
-			peek.Type == drivertype.DuckDB {
-			// Only READ_WRITE is a hard conflict. access_mode=AUTOMATIC is
-			// overridden to READ_ONLY by the driver (see
-			// duckdb.ApplyReadOnlyToLocation), and READ_ONLY already agrees.
-			if mode, ok := duckdb.ExplicitAccessMode(peek.Location); ok &&
-				strings.EqualFold(mode, "READ_WRITE") {
-				return errz.Errorf(
-					"sql: --%s conflicts with access_mode=READ_WRITE in %s",
-					flag.SQLReadOnly, peek.Handle)
+		if peek := peekActiveSrc(cmd, ru.Config.Collection); peek != nil {
+			// A DriverFor error is deliberately not surfaced here: the peek
+			// is a best-effort early check, and an unknown driver type gets
+			// a proper error from determineSources below.
+			if drvr, drvrErr := ru.DriverRegistry.DriverFor(peek.Type); drvrErr == nil {
+				if detector, ok := drvr.(driver.ReadOnlyConflictDetector); ok {
+					if conflict, has := detector.DetectReadOnlyConflict(peek.Location); has {
+						return errz.Errorf("sql: --%s conflicts with %s in %s",
+							flag.SQLReadOnly, conflict, peek.Handle)
+					}
+				}
 			}
 		}
 	}

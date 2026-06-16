@@ -132,3 +132,27 @@ func TestReadOnly_URLAccessModeWins(t *testing.T) {
 	require.NoError(t, err,
 		"write must succeed when access_mode=READ_WRITE is explicit in URL")
 }
+
+// TestReadOnly_Explicit_ConflictWithURL verifies the driver-level
+// defense-in-depth guard: an explicit read-only open against a location
+// that explicitly demands write access (access_mode=READ_WRITE) is
+// refused, covering callers that bypass the CLI's preemptive conflict
+// check. Implicit ModeReadOnly, by contrast, lets the URL win (see
+// TestReadOnly_URLAccessModeWins).
+func TestReadOnly_Explicit_ConflictWithURL(t *testing.T) {
+	t.Parallel()
+	path := copyToTempDuckDB(t)
+
+	prov := &duckdb.Provider{Log: lgt.New(t)}
+	drvr, err := prov.DriverFor(testh.DuckDBType())
+	require.NoError(t, err)
+
+	src := testh.MakeDuckDBSource("@ro_explicit_conflict", path)
+	src.Location += "?access_mode=READ_WRITE"
+
+	ctx := context.Background()
+	_, err = drvr.Open(ctx, src, driver.ModeReadOnlyExplicit)
+	require.Error(t, err,
+		"explicit read-only must be refused when the location demands READ_WRITE")
+	require.Contains(t, err.Error(), "access_mode=READ_WRITE")
+}

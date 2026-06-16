@@ -35,7 +35,9 @@ func NewContext(ctx context.Context, ru *Run) context.Context {
 	return context.WithValue(ctx, runKey{}, ru)
 }
 
-// FromContext extracts the Run added to ctx via NewContext.
+// FromContext extracts the Run added to ctx via NewContext. It panics
+// if no Run is present; this is a deliberate fail-fast, since every
+// command path installs a Run before any code that reads it runs.
 func FromContext(ctx context.Context) *Run {
 	return ctx.Value(runKey{}).(*Run)
 }

@@ -332,10 +332,10 @@ func TestExpandLenient_PartialFailure(t *testing.T) {
 }
 
 // TestExpand_PerCommandWiring is a smoke test for the --expand flag across
-// the display commands that are supposed to call maybeExpandSource or
-// maybeExpandCollection. If a future refactor drops that call from one
-// handler, this test catches it even though the expand unit tests would
-// still pass.
+// the display commands. Expansion is applied centrally by the writer-layer
+// expand decorators (see expand_writer.go); this test catches a future
+// refactor that breaks the wiring for one of these commands, even though
+// the expand unit tests would still pass.
 //
 // Shape A (whole-DSN keyring placeholder) is used because it produces the
 // most visible difference: without --expand the verbatim placeholder string
@@ -420,6 +420,39 @@ func TestExpand_PerCommandWiring(t *testing.T) {
 		require.NotContains(t, out, "hunter2",
 			"sq ping --json --expand must not leak the plaintext secret")
 	})
+
+	t.Run("sq_rm_json", func(t *testing.T) {
+		// rm reloads config from the store, so the source must be
+		// persisted (TestRun.Add saves), not just added in-memory.
+		tr := testrun.New(t.Context(), t, nil).Add(*makeSrc())
+
+		// rm's --json output for removed sources is verbose-gated.
+		require.NoError(t, tr.Exec("rm", "@h", "--json", "-v", "--expand"),
+			"sq rm --json -v --expand must succeed")
+		out := tr.OutString()
+		require.Contains(t, out, "postgres://alice:"+redactedPass+"@db.example.com/sakila",
+			"sq rm --json --expand must show the resolved, redacted DSN")
+		require.NotContains(t, out, placeholder,
+			"sq rm --json --expand must not show the verbatim placeholder")
+		require.NotContains(t, out, "hunter2",
+			"sq rm --json --expand must not leak the plaintext secret")
+	})
+
+	t.Run("sq_mv_json", func(t *testing.T) {
+		// mv reloads config from the store, so the source must be
+		// persisted (TestRun.Add saves), not just added in-memory.
+		tr := testrun.New(t.Context(), t, nil).Add(*makeSrc())
+
+		require.NoError(t, tr.Exec("mv", "@h", "@h2", "--json", "--expand"),
+			"sq mv --json --expand must succeed")
+		out := tr.OutString()
+		require.Contains(t, out, "postgres://alice:"+redactedPass+"@db.example.com/sakila",
+			"sq mv --json --expand must show the resolved, redacted DSN for the moved source")
+		require.NotContains(t, out, placeholder,
+			"sq mv --json --expand must not show the verbatim placeholder")
+		require.NotContains(t, out, "hunter2",
+			"sq mv --json --expand must not leak the plaintext secret")
+	})
 }
 
 // TestExpand_NoOp_OnNonDisplayCommand verifies that --expand is
@@ -472,6 +505,59 @@ func TestRedactFlags_Union(t *testing.T) {
 			} else {
 				require.NotContains(t, tr.OutString(), password,
 					"%s must redact by default", tc.name)
+			}
+		})
+	}
+}
+
+// TestExpandCentral_GroupCmd verifies that --expand is honored through
+// the central writer-layer decorator (see expand_writer.go) by a
+// command that has no expansion code of its own: sq group (gh780).
+// Before centralization, only commands that explicitly called
+// maybeExpandSource / maybeExpandCollection honored --expand; sq group
+// accepted the flag and silently ignored it.
+func TestExpandCentral_GroupCmd(t *testing.T) {
+	// Not parallel: uses t.Setenv.
+	const (
+		envVar  = "SQ_TEST_GROUP_EXPAND_PW"
+		envPass = "grouphunter"
+	)
+	t.Setenv(envVar, envPass)
+	loc := "postgres://alice:${env:" + envVar + "}@db/sakila"
+
+	testCases := []struct {
+		name    string
+		args    []string
+		want    string
+		wantNot string
+	}{
+		{
+			name: "expand_reveal_shows_resolved",
+			args: []string{"group", "--json", "--expand", "--reveal"},
+			want: envPass,
+		},
+		{
+			name:    "reveal_only_shows_placeholder",
+			args:    []string{"group", "--json", "--reveal"},
+			want:    "${env:" + envVar + "}",
+			wantNot: envPass,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tr := testrun.New(t.Context(), t, nil)
+			require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+				Handle:   "@group_expand",
+				Type:     drivertype.Pg,
+				Location: loc,
+			}))
+
+			require.NoError(t, tr.Exec(tc.args...))
+			got := tr.OutString()
+			require.Contains(t, got, tc.want)
+			if tc.wantNot != "" {
+				require.NotContains(t, got, tc.wantNot)
 			}
 		})
 	}
