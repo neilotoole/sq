@@ -106,6 +106,22 @@ thus the [`xlsx`](#xlsx) format has separate but equivalent options:
 There are yet more formatting options available. Check out the full list
 in the [config guide](/docs/config/#output).
 
+### decimal
+
+By default, `sq` renders `decimal` values as quoted strings in the output formats
+that distinguish a number from a string (JSON and YAML), e.g. `"100.5"`. This is
+precision-safe: a decimal beyond the range of a 64-bit float survives losslessly,
+because the value bypasses the consumer's number parser.
+
+Use `--format.decimal=number` to render decimals as bare numbers instead, e.g.
+`100.5`. That is convenient for jq-style consumers, but lossy on read for very
+large values. The default is `string`.
+
+This modifier affects only JSON and YAML. The [`xlsx`](#xlsx) format always stores
+decimals in its native numeric format and is unaffected, and all-text formats such
+as [`csv`](#csv-tsv) carry no number-vs-string distinction. See the full list of
+output options in the [config guide](/docs/config/#output).
+
 ## Formats
 
 ### text

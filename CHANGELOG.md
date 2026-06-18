@@ -46,7 +46,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   - Uses an embedded [Graphviz](https://graphviz.org) engine (via
     [goccy/go-graphviz](https://github.com/goccy/go-graphviz)): the generated images are
     not the prettiest, but it's a start.
-- [#846]: New [`format.decimal`](https://sq.io/docs/output#format-decimal) option
+- [#846]: New [`format.decimal`](https://sq.io/docs/output#decimal) option
   and `--format.decimal` flag (`string` | `number`) controlling whether decimal
   values render as quoted strings or bare numbers in JSON and YAML output.
 
