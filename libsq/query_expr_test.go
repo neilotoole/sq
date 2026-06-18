@@ -224,6 +224,28 @@ func TestQuery_expr_literal(t *testing.T) {
 	}
 }
 
+// TestQuery_oracle_fractionalNumber guards #844 end-to-end: on Oracle a computed
+// NUMBER with a fractional value (here, division) must surface as a decimal rather
+// than crash an int64 scan. Oracle-only because division semantics and the result
+// type differ across drivers (#838), so a cross-driver value assertion is not
+// meaningful; the integer-division drivers would truncate to 7, not 7.25.
+func TestQuery_oracle_fractionalNumber(t *testing.T) {
+	testCases := []queryTestCase{
+		{
+			name:         "division",
+			in:           `@sakila | .actor | where(.actor_id == 58) | (.actor_id / 8)`,
+			onlyFor:      []drivertype.Type{drivertype.Oracle},
+			wantRecCount: 1,
+			sinkFns:      []SinkTestFunc{assertSinkColDecimal(0, "7.25", nil)},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			execQueryTestCase(t, tc)
+		})
+	}
+}
+
 //nolint:exhaustive
 func TestQuery_expr_where_bool(t *testing.T) {
 	// Note that there's no actual field .actor.is_alive, thus we're only testing

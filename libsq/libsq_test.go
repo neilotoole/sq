@@ -163,6 +163,31 @@ func TestQuerySQL_Count(t *testing.T) { //nolint:tparallel
 	}
 }
 
+// TestQuerySQL_OracleFractionalNumber guards #844 for native sq sql: on Oracle a
+// computed NUMBER with a fractional value (division, AVG) reports a bare NUMBER with
+// no integer scale, so it must surface as decimal and not crash an int64 scan. This
+// is the native counterpart to the SLQ coverage in TestQuery_oracle_fractionalNumber.
+func TestQuerySQL_OracleFractionalNumber(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.Ora23) // skips the test if Oracle is not configured.
+
+	requireDecimal := func(sink *testh.RecordSink, want string) {
+		t.Helper()
+		require.Equal(t, 1, len(sink.Recs))
+		v, ok := sink.Recs[0][0].(decimal.Decimal)
+		require.Truef(t, ok, "want decimal.Decimal, got %T", sink.Recs[0][0])
+		require.Equal(t, want, stringz.FormatDecimal(v))
+	}
+
+	sink, err := th.QuerySQL(src, nil, "SELECT actor_id/8 AS q FROM actor WHERE actor_id = 58")
+	require.NoError(t, err)
+	requireDecimal(sink, "7.25")
+
+	sink, err = th.QuerySQL(src, nil, "SELECT AVG(actor_id) AS q FROM actor")
+	require.NoError(t, err)
+	requireDecimal(sink, "100.5")
+}
+
 // TestJoinDuplicateColNamesAreRenamed verifies that sq correctly handles JOIN
 // queries that produce duplicate column names in the result set.
 //

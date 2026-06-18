@@ -396,6 +396,10 @@ func TestQuery_func_rownum(t *testing.T) {
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "rownum()+1"),
+				// rownum() as a direct result column is pinned to int (see the
+				// "plain" case, which asserts int64). Here rownum() is inside an
+				// arithmetic expression, which the pin does not reach, so on Oracle
+				// the result surfaces as decimal; assertSinkCellInt accounts for that.
 				assertSinkCellInt(0, 0, 2),
 				assertSinkCellInt(199, 0, 201),
 			},

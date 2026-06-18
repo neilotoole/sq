@@ -336,6 +336,8 @@ func assertSinkColValue(coli int, val any) SinkTestFunc {
 // defensively. A driver listed in perDriver uses its override value instead of
 // want, covering backends like SQLite/rqlite that compute decimal sums in
 // floating point and so surface a drifted value. See issue #839.
+//
+//nolint:unparam // coli is kept for parity with the assertSinkCol family.
 func assertSinkColDecimal(coli int, want string, perDriver driverMap) SinkTestFunc {
 	return func(tb testing.TB, sink *testh.RecordSink) {
 		tb.Helper()
