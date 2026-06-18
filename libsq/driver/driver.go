@@ -132,7 +132,16 @@ type SQLDriver interface {
 	//
 	// RecordMeta also returns a NewRecordFunc which can be
 	// applied to the scan row from sql.Rows.
-	RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta, NewRecordFunc, error)
+	//
+	// The hints arg carries forced result-column kinds, keyed by zero-based
+	// output position, recorded during SLQ rendering (e.g. SQLite/rqlite pinning
+	// sum() to kind.Decimal, or Oracle pinning count()/rownum() to kind.Int). A
+	// hint overrides the kind derived from colTypes, which in turn selects the
+	// scan target, so it must be applied before any row is scanned. Callers
+	// outside the SLQ query path (table metadata, ingest/copy) pass nil; drivers
+	// that surface no such hints ignore the arg.
+	RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, hints map[int]kind.Kind) (
+		record.Meta, NewRecordFunc, error)
 
 	// PrepareInsertStmt prepares a statement for inserting
 	// values to destColNames in destTbl. numRows specifies

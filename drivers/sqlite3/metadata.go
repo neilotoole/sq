@@ -9,7 +9,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -23,14 +22,12 @@ import (
 )
 
 // recordMetaFromColumnTypes returns record.Meta for colTypes.
-func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType,
+func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType, kindHints map[int]kind.Kind,
 ) (record.Meta, error) {
 	// kindHints carries forced result-column kinds recorded during rendering
 	// (e.g. sum() pinned to kind.Decimal). SQLite reports no usable type for
 	// such expressions, so without a hint they would be surfaced as int/float
 	// from the scanned value. See issue #839.
-	kindHints := render.ResultColumnKindsFromContext(ctx)
-
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
 	ogColNames := make([]string, len(colTypes))
 	for i, colType := range colTypes {

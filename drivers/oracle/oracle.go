@@ -195,7 +195,7 @@ func (d *driveri) Renderer() *render.Renderer {
 	// avoid the fractional-value scan crash (issue #844). Without intervention
 	// these would surface as a decimal string ("200") instead of an integer. Pin
 	// them to kind.Int so they scan as int64 and stay numbers, matching every
-	// other driver. RecordMeta applies these hints via ResultColumnKindsFromContext.
+	// other driver. RecordMeta applies these hints via its kindHints parameter.
 	r.FunctionResultKinds[ast.FuncNameCount] = kind.Int
 	r.FunctionResultKinds[ast.FuncNameCountUnique] = kind.Int
 	r.FunctionResultKinds[ast.FuncNameRowNum] = kind.Int
@@ -603,7 +603,7 @@ ORDER BY column_id`
 
 // RecordMeta implements driver.SQLDriver.
 func (d *driveri) RecordMeta(
-	ctx context.Context, colTypes []*sql.ColumnType,
+	ctx context.Context, colTypes []*sql.ColumnType, kindHints map[int]kind.Kind,
 ) (record.Meta, driver.NewRecordFunc, error) {
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
 	ogColNames := make([]string, len(colTypes))
@@ -613,8 +613,6 @@ func (d *driveri) RecordMeta(
 	// column as a floating-scale NUMBER that refineBareNumberKind classifies as
 	// kind.Decimal (to avoid the fractional-value scan crash, issue #844), so
 	// without a hint these integer-valued functions would surface as decimal.
-	kindHints := render.ResultColumnKindsFromContext(ctx)
-
 	for i, colType := range colTypes {
 		knd := kindFromDBTypeName(d.log, colType.Name(), colType.DatabaseTypeName())
 		// Refine bare NUMBER using precision/scale from the column type metadata.
@@ -695,7 +693,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 		return nil, err
 	}
 
-	recMeta, _, err := d.RecordMeta(ctx, colTypes)
+	recMeta, _, err := d.RecordMeta(ctx, colTypes, nil)
 	return recMeta, err
 }
 

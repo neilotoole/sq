@@ -12,6 +12,7 @@ import (
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -119,14 +120,15 @@ func (p *pipeline) execute(ctx context.Context, recw RecordWriter) error {
 		}
 	}
 
-	// Propagate any result-column kind hints recorded during rendering (e.g.
+	// Pass any result-column kind hints recorded during rendering (e.g.
 	// SQLite/rqlite pinning sum() to kind.Decimal) so the driver can apply them
-	// when building record metadata. See issue #839.
+	// when building record metadata. See issues #839 and #848.
+	var hints map[int]kind.Kind
 	if p.rc != nil {
-		ctx = render.NewContextWithResultColumnKinds(ctx, p.rc.ResultColumnKinds)
+		hints = p.rc.ResultColumnKinds
 	}
 
-	if err := QuerySQL(ctx, p.targetGrip, conn, recw, p.targetSQL); err != nil {
+	if err := QuerySQL(ctx, p.targetGrip, conn, recw, hints, p.targetSQL); err != nil {
 		return err
 	}
 
@@ -552,7 +554,7 @@ func execCopyTable(ctx context.Context, fromDB driver.Grip, fromTbl tablefq.T,
 	)
 
 	query := "SELECT * FROM " + fromTbl.Render(fromDB.SQLDriver().Dialect().Enquote)
-	err := QuerySQL(ctx, fromDB, nil, inserter, query)
+	err := QuerySQL(ctx, fromDB, nil, inserter, nil, query)
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destGrip.Source().Handle, destTbl)
 	}

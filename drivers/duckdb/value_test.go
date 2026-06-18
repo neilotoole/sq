@@ -59,7 +59,7 @@ func TestRecordMeta_TypeSpectrum(t *testing.T) {
 	colTypes, err := rows.ColumnTypes()
 	require.NoError(t, err)
 
-	recMeta, newRecFn, err := grip.SQLDriver().RecordMeta(th.Context, colTypes)
+	recMeta, newRecFn, err := grip.SQLDriver().RecordMeta(th.Context, colTypes, nil)
 	require.NoError(t, err)
 
 	require.True(t, rows.Next(), "type_test should have at least one row")
@@ -200,7 +200,7 @@ func TestRecordMeta_HugeIntPrecision(t *testing.T) {
 
 			colTypes, err := rows.ColumnTypes()
 			require.NoError(t, err)
-			recMeta, newRecFn, err := grip.SQLDriver().RecordMeta(th.Context, colTypes)
+			recMeta, newRecFn, err := grip.SQLDriver().RecordMeta(th.Context, colTypes, nil)
 			require.NoError(t, err)
 
 			require.True(t, rows.Next())

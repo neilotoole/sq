@@ -201,7 +201,7 @@ func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source, srcM
 
 	// This is a query, use QuerySQL
 	recw := output.NewRecordWriterAdapter(ctx, ru.Writers.Record)
-	err = libsq.QuerySQL(ctx, grip, nil, recw, sql)
+	err = libsq.QuerySQL(ctx, grip, nil, recw, nil, sql)
 	if err != nil {
 		return err
 	}
@@ -259,7 +259,7 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 	)
 
 	start := time.Now()
-	err = libsq.QuerySQL(ctx, fromGrip, nil, inserter, args[0])
+	err = libsq.QuerySQL(ctx, fromGrip, nil, inserter, nil, args[0])
 	if err != nil {
 		return errz.Wrapf(err, "insert to {%s} failed", source.Target(destSrc, destTbl))
 	}

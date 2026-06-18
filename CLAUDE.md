@@ -131,11 +131,10 @@ than working around the old one.
 If a `context.Value`-based approach genuinely seems warranted (it rarely is),
 stop and ask before taking that path.
 
-One legacy exception predates this rule: render-time result-column kind hints
-are passed to a driver's `RecordMeta` via `context.Value`
-(`render.NewContextWithResultColumnKinds`). It's tracked for removal in
-[#848](https://github.com/neilotoole/sq/issues/848); don't extend it or model
-new code on it.
+For a worked example of this rule applied, see `SQLDriver.RecordMeta`: its
+result-column kind hints are threaded as an explicit parameter rather than
+smuggled through `context.Value` (resolved in
+[#848](https://github.com/neilotoole/sq/issues/848)).
 
 ### English spelling
 

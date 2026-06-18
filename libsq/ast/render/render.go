@@ -2,7 +2,6 @@
 package render
 
 import (
-	"context"
 	"strconv"
 	"strings"
 	"unicode"
@@ -39,28 +38,6 @@ type Context struct {
 
 	// Dialect is the driver dialect.
 	Dialect dialect.Dialect
-}
-
-// ctxKeyResultColumnKinds is the context key for result-column kind hints.
-type ctxKeyResultColumnKinds struct{}
-
-// NewContextWithResultColumnKinds returns ctx with the result-column kind hints
-// attached, for retrieval by ResultColumnKindsFromContext in a driver's
-// RecordMeta. If kinds is empty, ctx is returned unchanged. See the doc on
-// Context.ResultColumnKinds and issue #839.
-func NewContextWithResultColumnKinds(ctx context.Context, kinds map[int]kind.Kind) context.Context {
-	if len(kinds) == 0 {
-		return ctx
-	}
-	return context.WithValue(ctx, ctxKeyResultColumnKinds{}, kinds)
-}
-
-// ResultColumnKindsFromContext returns the result-column kind hints attached to
-// ctx by NewContextWithResultColumnKinds, or nil if none. The returned map is
-// keyed by zero-based result-column position. See issue #839.
-func ResultColumnKindsFromContext(ctx context.Context) map[int]kind.Kind {
-	kinds, _ := ctx.Value(ctxKeyResultColumnKinds{}).(map[int]kind.Kind)
-	return kinds
 }
 
 // Renderer is a set of functions for rendering ast elements into SQL.

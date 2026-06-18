@@ -14,6 +14,7 @@ import (
 	"errors"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -297,13 +298,18 @@ func ExecSQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 // non-nil, the query is executed against it. Otherwise, the connection is
 // obtained from grip.
 //
+// The hints arg carries forced result-column kinds (keyed by zero-based output
+// position) for the driver's RecordMeta to apply; see SQLDriver.RecordMeta. The
+// SLQ pipeline supplies hints recorded during rendering; callers executing raw
+// SQL pass nil.
+//
 // Note that QuerySQL may return before recw has finished writing, thus the
 // caller may wish to wait for recw to complete.
 // The caller is responsible for closing grip (and db, if non-nil).
 //
 // See also: ExecSQL.
 func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
-	recw RecordWriter, query string, args ...any,
+	recw RecordWriter, hints map[int]kind.Kind, query string, args ...any,
 ) error {
 	log := lg.FromContext(ctx)
 	errw := grip.SQLDriver().ErrWrapFunc()
@@ -376,7 +382,7 @@ func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 	}
 
 	drvr := grip.SQLDriver()
-	recMeta, recFromScanRowFn, err := drvr.RecordMeta(ctx, colTypes)
+	recMeta, recFromScanRowFn, err := drvr.RecordMeta(ctx, colTypes, hints)
 	if err != nil {
 		return errw(err)
 	}
