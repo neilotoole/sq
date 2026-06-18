@@ -276,13 +276,50 @@ func assertSinkCellValue(rowi, coli int, val any) SinkTestFunc {
 	}
 }
 
+// oracleInt returns the value an integer-valued result carries for src type:
+// int64(n) for every driver except Oracle, where computed integer expressions
+// (literals, arithmetic, max/min, native count) surface as decimal.Decimal.
+// Oracle reports such results as a bare NUMBER with no integer scale, which sq
+// classifies as kind.Decimal to avoid a fractional-value scan crash (issue
+// #844); SLQ count()/rownum() are pinned back to int, but other computed
+// integers are not. Operand-aware typing that would keep them integer is tracked
+// in #838.
+func oracleInt(srcType drivertype.Type, n int64) any {
+	if srcType == drivertype.Oracle {
+		return decimal.NewFromInt(n)
+	}
+	return n
+}
+
+// assertSinkColInt asserts that column coli of every record is the integer n,
+// accounting for Oracle surfacing computed integers as decimal (see oracleInt).
+func assertSinkColInt(coli int, n int64) SinkTestFunc {
+	return func(tb testing.TB, sink *testh.RecordSink) {
+		tb.Helper()
+		want := oracleInt(sink.SrcType, n)
+		for rowi, rec := range sink.Recs {
+			assert.Equal(tb, want, rec[coli], "record[%d:%d] (%s)", rowi, coli, sink.RecMeta[coli].Name())
+		}
+	}
+}
+
+// assertSinkCellInt asserts that the first column of record rowi is the integer
+// n, accounting for Oracle surfacing computed integers as decimal (see oracleInt).
+func assertSinkCellInt(rowi int, n int64) SinkTestFunc {
+	return func(tb testing.TB, sink *testh.RecordSink) {
+		tb.Helper()
+		want := oracleInt(sink.SrcType, n)
+		assert.Equal(tb, want, sink.Recs[rowi][0], "record[%d:0] (%s)", rowi, sink.RecMeta[0].Name())
+	}
+}
+
 // assertSinkColValue returns a SinkTestFunc that asserts that
-// the column with index coli of each record matches val.
-func assertSinkColValue(coli int, val any) SinkTestFunc {
+// the first column of each record matches val.
+func assertSinkColValue(val any) SinkTestFunc {
 	return func(tb testing.TB, sink *testh.RecordSink) {
 		tb.Helper()
 		for rowi, rec := range sink.Recs {
-			assert.Equal(tb, val, rec[coli], "record[%d:%d] (%s)", rowi, coli, sink.RecMeta[coli].Name())
+			assert.Equal(tb, val, rec[0], "record[%d:0] (%s)", rowi, sink.RecMeta[0].Name())
 		}
 	}
 }

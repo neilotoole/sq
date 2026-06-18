@@ -6,12 +6,14 @@ import (
 	"testing"
 
 	"github.com/samber/lo"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
@@ -143,9 +145,18 @@ func TestQuerySQL_Count(t *testing.T) { //nolint:tparallel
 
 			sink, err = th.QuerySQL(src, nil, "SELECT COUNT(*) FROM "+sakila.TblActor)
 			require.NoError(t, err)
-			count, ok := sink.Recs[0][0].(int64)
-			require.True(t, ok)
-			require.Equal(t, int64(sakila.TblActorCount), count)
+			// Oracle reports COUNT(*) in native SQL as a bare NUMBER with no integer
+			// scale, surfaced as decimal. SLQ count() is pinned back to int via a
+			// renderer hint, but native sq sql has no such hook; see #844.
+			switch v := sink.Recs[0][0].(type) {
+			case int64:
+				require.Equal(t, int64(sakila.TblActorCount), v)
+			case decimal.Decimal:
+				require.Equal(t, drivertype.Oracle, src.Type)
+				require.Equal(t, int64(sakila.TblActorCount), v.IntPart())
+			default:
+				require.Failf(t, "unexpected count type", "got %T", v)
+			}
 		})
 	}
 }

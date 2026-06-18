@@ -156,10 +156,12 @@ func TestRefineBareNumberKind(t *testing.T) {
 		ok               bool
 		want             kind.Kind
 	}{
-		// COUNT(*), SUM, integer literals — Oracle reports (38, 255).
-		{"floating_38_255", 38, oracleScaleFloating, true, kind.Int},
-		// Same shape, different precision — still floating.
-		{"floating_0_255", 0, oracleScaleFloating, true, kind.Int},
+		// The floating-scale form (scale 255) is ambiguous: COUNT(*), SUM, AVG,
+		// integer literals, and division all report it. It maps to kind.Decimal
+		// so fractional values (e.g. division) don't crash an int64 scan (#844).
+		{"floating_38_255", 38, oracleScaleFloating, true, kind.Decimal},
+		// Same shape, different precision — still floating, still decimal.
+		{"floating_0_255", 0, oracleScaleFloating, true, kind.Decimal},
 		// NUMBER(p,0) with p in [1..19] is int range.
 		{"int_5_0", 5, 0, true, kind.Int},
 		{"int_19_0", 19, 0, true, kind.Int},

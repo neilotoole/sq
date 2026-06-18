@@ -90,7 +90,7 @@ func TestQuery_expr_literal(t *testing.T) {
 				drivertype.ClickHouse: "SELECT `first_name`, 1 AS `1` FROM `actor`",
 			},
 			wantRecCount: sakila.TblActorCount,
-			sinkFns:      []SinkTestFunc{assertSinkColValue(1, int64(1))},
+			sinkFns:      []SinkTestFunc{assertSinkColInt(1, 1)},
 		},
 		{
 			name:    "table/literal",
@@ -101,7 +101,7 @@ func TestQuery_expr_literal(t *testing.T) {
 				drivertype.ClickHouse: "SELECT 1 AS `1` FROM `actor`",
 			},
 			wantRecCount: sakila.TblActorCount,
-			sinkFns:      []SinkTestFunc{assertSinkColValue(0, int64(1))},
+			sinkFns:      []SinkTestFunc{assertSinkColInt(0, 1)},
 		},
 		{
 			name:    "no-table/literal",
@@ -113,7 +113,7 @@ func TestQuery_expr_literal(t *testing.T) {
 				drivertype.Oracle:     `SELECT 1 AS "1" FROM DUAL`,
 			},
 			wantRecCount: 1,
-			sinkFns:      []SinkTestFunc{assertSinkColValue(0, int64(1))},
+			sinkFns:      []SinkTestFunc{assertSinkColInt(0, 1)},
 		},
 		{
 			name:    "no-table/literal_addition",
@@ -125,7 +125,7 @@ func TestQuery_expr_literal(t *testing.T) {
 				drivertype.Oracle:     `SELECT 1+1 AS "1+1" FROM DUAL`,
 			},
 			wantRecCount: 1,
-			sinkFns:      []SinkTestFunc{assertSinkColValue(0, int64(2))},
+			sinkFns:      []SinkTestFunc{assertSinkColInt(0, 2)},
 		},
 		{
 			name:    "table/literal_parens",
@@ -136,7 +136,7 @@ func TestQuery_expr_literal(t *testing.T) {
 				drivertype.ClickHouse: "SELECT (1) AS `(1)` FROM `actor`",
 			},
 			wantRecCount: sakila.TblActorCount,
-			sinkFns:      []SinkTestFunc{assertSinkColValue(0, int64(1))},
+			sinkFns:      []SinkTestFunc{assertSinkColInt(0, 1)},
 		},
 		{
 			name:    "table/addition",
@@ -147,7 +147,7 @@ func TestQuery_expr_literal(t *testing.T) {
 				drivertype.ClickHouse: "SELECT 1+2 AS `1+2` FROM `actor`",
 			},
 			wantRecCount: sakila.TblActorCount,
-			sinkFns:      []SinkTestFunc{assertSinkColValue(0, int64(3))},
+			sinkFns:      []SinkTestFunc{assertSinkColInt(0, 3)},
 		},
 		{
 			name:    "table/addition_whitespace",
@@ -158,7 +158,7 @@ func TestQuery_expr_literal(t *testing.T) {
 				drivertype.ClickHouse: "SELECT 1+2+3 AS `1+2+3` FROM `actor`",
 			},
 			wantRecCount: sakila.TblActorCount,
-			sinkFns:      []SinkTestFunc{assertSinkColValue(0, int64(6))},
+			sinkFns:      []SinkTestFunc{assertSinkColInt(0, 6)},
 		},
 		{
 			name:    "table/math_parens",
@@ -169,7 +169,7 @@ func TestQuery_expr_literal(t *testing.T) {
 				drivertype.ClickHouse: "SELECT ((2+2)*3) AS `((2+2)*3)` FROM `actor`",
 			},
 			wantRecCount: sakila.TblActorCount,
-			sinkFns:      []SinkTestFunc{assertSinkColValue(0, int64(12))},
+			sinkFns:      []SinkTestFunc{assertSinkColInt(0, 12)},
 		},
 		{
 			name:    "table/literal_alias",
@@ -182,7 +182,7 @@ func TestQuery_expr_literal(t *testing.T) {
 			wantRecCount: sakila.TblActorCount,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "total"),
-				assertSinkColValue(0, int64(1)),
+				assertSinkColInt(0, 1),
 			},
 		},
 		{
@@ -194,7 +194,7 @@ func TestQuery_expr_literal(t *testing.T) {
 				drivertype.ClickHouse: "SELECT (1+2) AS `total` FROM `actor`",
 			},
 			sinkFns: []SinkTestFunc{
-				assertSinkColValue(0, int64(3)),
+				assertSinkColInt(0, 3),
 				assertSinkColName(0, "total"),
 			},
 			wantRecCount: sakila.TblActorCount,
@@ -210,7 +210,7 @@ func TestQuery_expr_literal(t *testing.T) {
 				drivertype.ClickHouse: "SELECT (1+2) AS `count` FROM `actor`",
 			},
 			sinkFns: []SinkTestFunc{
-				assertSinkColValue(0, int64(3)),
+				assertSinkColInt(0, 3),
 				assertSinkColName(0, "count"),
 			},
 			wantRecCount: sakila.TblActorCount,
