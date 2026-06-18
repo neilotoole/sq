@@ -729,7 +729,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 		return nil, err
 	}
 
-	destCols, _, err := d.RecordMeta(ctx, colTypes)
+	destCols, _, err := d.RecordMeta(ctx, colTypes, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -778,7 +778,7 @@ func getTableColumnNames(ctx context.Context, db sqlz.DB, tblName string) ([]str
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, _ map[int]kind.Kind) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
 	// The jackc/pgx driver doesn't report nullability (sql.ColumnType)

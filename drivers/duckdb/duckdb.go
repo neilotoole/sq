@@ -347,7 +347,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 // are represented as nil in the driver.Value slice. The munge function
 // converts duckdb-specific types (Decimal, Interval, *big.Int, composites)
 // to sq's canonical record types.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, _ map[int]kind.Kind) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
 	ctData := make([]*record.ColumnTypeData, len(colTypes))

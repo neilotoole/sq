@@ -177,7 +177,7 @@ func TestDatabaseTypes(t *testing.T) {
 
 	sink := &testh.RecordSink{}
 	recw := output.NewRecordWriterAdapter(th.Context, sink)
-	err := libsq.QuerySQL(th.Context, th.Open(src), nil, recw, "SELECT * FROM "+actualTblName)
+	err := libsq.QuerySQL(th.Context, th.Open(src), nil, recw, nil, "SELECT * FROM "+actualTblName)
 	require.NoError(t, err)
 	_, err = recw.Wait()
 	require.NoError(t, err)

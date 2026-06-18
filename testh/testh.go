@@ -647,7 +647,7 @@ func (h *Helper) QuerySQL(src *source.Source, db sqlz.DB, query string, args ...
 
 	sink := &RecordSink{}
 	recw := output.NewRecordWriterAdapter(h.Context, sink)
-	err := libsq.QuerySQL(h.Context, grip, db, recw, query, args...)
+	err := libsq.QuerySQL(h.Context, grip, db, recw, nil, query, args...)
 	if err != nil {
 		return nil, err
 	}
