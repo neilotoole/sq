@@ -30,7 +30,7 @@ func TestQuery_func(t *testing.T) {
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "max(.actor_id)"),
-				assertSinkColValue(0, int64(200)),
+				assertSinkColInt(0, 200),
 			},
 		},
 		{
@@ -44,7 +44,7 @@ func TestQuery_func(t *testing.T) {
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "min(.actor_id)"),
-				assertSinkColValue(0, int64(1)),
+				assertSinkColInt(0, 1),
 			},
 		},
 		{
@@ -396,8 +396,12 @@ func TestQuery_func_rownum(t *testing.T) {
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "rownum()+1"),
-				assertSinkCellValue(0, 0, int64(2)),
-				assertSinkCellValue(199, 0, int64(201)),
+				// rownum() as a direct result column is pinned to int (see the
+				// "plain" case, which asserts int64). Here rownum() is inside an
+				// arithmetic expression, which the pin does not reach, so on Oracle
+				// the result surfaces as decimal; assertSinkCellInt accounts for that.
+				assertSinkCellInt(0, 0, 2),
+				assertSinkCellInt(199, 0, 201),
 			},
 		},
 		{
@@ -412,8 +416,8 @@ func TestQuery_func_rownum(t *testing.T) {
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "zero_index"),
-				assertSinkCellValue(0, 0, int64(0)),
-				assertSinkCellValue(199, 0, int64(199)),
+				assertSinkCellInt(0, 0, 0),
+				assertSinkCellInt(199, 0, 199),
 			},
 		},
 		{

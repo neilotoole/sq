@@ -189,6 +189,16 @@ func (d *driveri) Renderer() *render.Renderer {
 	// digits; a sum of values with more decimal places is rounded to that scale.
 	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult(
 		fmt.Sprintf("NUMBER(%d, %d)", render.AggDecimalPrecision, render.AggDecimalScale))
+	// count(), count_unique(), and rownum() are integer-valued, but Oracle reports
+	// their result column as the same floating-scale NUMBER as division and other
+	// arithmetic, which refineBareNumberKind now classifies as kind.Decimal to
+	// avoid the fractional-value scan crash (issue #844). Without intervention
+	// these would surface as a decimal string ("200") instead of an integer. Pin
+	// them to kind.Int so they scan as int64 and stay numbers, matching every
+	// other driver. RecordMeta applies these hints via ResultColumnKindsFromContext.
+	r.FunctionResultKinds[ast.FuncNameCount] = kind.Int
+	r.FunctionResultKinds[ast.FuncNameCountUnique] = kind.Int
+	r.FunctionResultKinds[ast.FuncNameRowNum] = kind.Int
 	return r
 }
 
@@ -598,6 +608,13 @@ func (d *driveri) RecordMeta(
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
 	ogColNames := make([]string, len(colTypes))
 
+	// kindHints carries forced result-column kinds recorded during rendering,
+	// e.g. count() and rownum() pinned to kind.Int. Oracle reports their result
+	// column as a floating-scale NUMBER that refineBareNumberKind classifies as
+	// kind.Decimal (to avoid the fractional-value scan crash, issue #844), so
+	// without a hint these integer-valued functions would surface as decimal.
+	kindHints := render.ResultColumnKindsFromContext(ctx)
+
 	for i, colType := range colTypes {
 		knd := kindFromDBTypeName(d.log, colType.Name(), colType.DatabaseTypeName())
 		// Refine bare NUMBER using precision/scale from the column type metadata.
@@ -605,6 +622,11 @@ func (d *driveri) RecordMeta(
 		// DatabaseTypeName(), so DecimalSize() distinguishes integer-range columns.
 		if colType.DatabaseTypeName() == "NUMBER" && knd == kind.Decimal {
 			knd = refineBareNumberKind(colType.DecimalSize())
+		}
+		if hint, ok := kindHints[i]; ok {
+			// Force the renderer-pinned kind; setScanType derives the scan
+			// target from it, so kind.Int yields an int64 scan.
+			knd = hint
 		}
 		colTypeData := record.NewColumnTypeData(colType, knd)
 		d.setScanType(colTypeData, knd)

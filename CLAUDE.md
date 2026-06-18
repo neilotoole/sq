@@ -117,6 +117,26 @@ sq-side caller, not deep inside the external code.
 Avoid `fmt.Errorf` and `errors.New` outside sentinel declarations — they
 produce stackless errors that surface upstream with no useful trace.
 
+### Passing data: prefer explicit signatures over `context.Value`
+
+Don't smuggle values through `context.Context` to avoid a signature or
+interface change. `context.Value` is for request-scoped metadata
+(cancellation, deadlines, trace/logging IDs), not for data a function needs
+to compute its result. If a value materially affects what a function returns
+or does, thread it as an explicit parameter (or field), even when that means
+changing an exported signature or a driver-interface method. sq is pre-v1.0.0,
+so such changes are acceptable and expected; reach for the cleaner API rather
+than working around the old one.
+
+If a `context.Value`-based approach genuinely seems warranted (it rarely is),
+stop and ask before taking that path.
+
+One legacy exception predates this rule: render-time result-column kind hints
+are passed to a driver's `RecordMeta` via `context.Value`
+(`render.NewContextWithResultColumnKinds`). It's tracked for removal in
+[#848](https://github.com/neilotoole/sq/issues/848); don't extend it or model
+new code on it.
+
 ### English spelling
 
 Use US English in all prose: code comments, godoc, user-facing strings,

@@ -123,6 +123,16 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [#844]: On [Oracle](https://sq.io/docs/drivers/oracle), a query whose result is a
+  computed `NUMBER` with a fractional value (e.g. a division like `.actor_id / 8`, or a
+  native `AVG`) no longer fails with a scan error. Oracle reports no usable precision or
+  scale for such computed numbers, so `sq` now types them as `decimal` (which is exact and
+  can hold a fractional value) rather than assuming an integer. This applies to both
+  [SLQ](https://sq.io/docs/query) queries and native [`sq sql`](https://sq.io/docs/cmd/sql).
+  - ☢️ A consequence is that an integer-valued computed result on Oracle (`max()`, `min()`,
+    an integer literal, integer arithmetic, or a `COUNT(*)` issued via `sq sql`) is now also
+    a `decimal`, so in JSON output it renders as a quoted string (e.g. `"200"`) rather than a
+    bare number. The `count()` and `rownum()` functions in SLQ remain integers.
 - [#594]: On [SQL Server](https://sq.io/docs/drivers/sqlserver), `avg()` over an
   integer column no longer performs integer division and truncates the result.
   For example, the average of `1..200` now returns `100.5`, not `100`.
@@ -1753,6 +1763,7 @@ make working with lots of sources much easier.
 [#821]: https://github.com/neilotoole/sq/issues/821
 [#834]: https://github.com/neilotoole/sq/issues/834
 [#839]: https://github.com/neilotoole/sq/issues/839
+[#844]: https://github.com/neilotoole/sq/issues/844
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3

@@ -276,8 +276,49 @@ func assertSinkCellValue(rowi, coli int, val any) SinkTestFunc {
 	}
 }
 
+// oracleInt returns the value an integer-valued result carries for src type:
+// int64(n) for every driver except Oracle, where computed integer expressions
+// (literals, arithmetic, max/min, native count) surface as decimal.Decimal.
+// Oracle reports such results as a bare NUMBER with no integer scale, which sq
+// classifies as kind.Decimal to avoid a fractional-value scan crash (issue
+// #844); SLQ count()/rownum() are pinned back to int, but other computed
+// integers are not. Operand-aware typing that would keep them integer is tracked
+// in #838.
+func oracleInt(srcType drivertype.Type, n int64) any {
+	if srcType == drivertype.Oracle {
+		return decimal.NewFromInt(n)
+	}
+	return n
+}
+
+// assertSinkColInt asserts that column coli of every record is the integer n,
+// accounting for Oracle surfacing computed integers as decimal (see oracleInt).
+func assertSinkColInt(coli int, n int64) SinkTestFunc {
+	return func(tb testing.TB, sink *testh.RecordSink) {
+		tb.Helper()
+		want := oracleInt(sink.SrcType, n)
+		for rowi, rec := range sink.Recs {
+			assert.Equal(tb, want, rec[coli], "record[%d:%d] (%s)", rowi, coli, sink.RecMeta[coli].Name())
+		}
+	}
+}
+
+// assertSinkCellInt asserts that cell (rowi, coli) is the integer n, accounting
+// for Oracle surfacing computed integers as decimal (see oracleInt).
+//
+//nolint:unparam // coli is kept for parity with the assertSinkCell/Col family.
+func assertSinkCellInt(rowi, coli int, n int64) SinkTestFunc {
+	return func(tb testing.TB, sink *testh.RecordSink) {
+		tb.Helper()
+		want := oracleInt(sink.SrcType, n)
+		assert.Equal(tb, want, sink.Recs[rowi][coli], "record[%d:%d] (%s)", rowi, coli, sink.RecMeta[coli].Name())
+	}
+}
+
 // assertSinkColValue returns a SinkTestFunc that asserts that
 // the column with index coli of each record matches val.
+//
+//nolint:unparam // coli is kept for parity with the assertSinkCol family.
 func assertSinkColValue(coli int, val any) SinkTestFunc {
 	return func(tb testing.TB, sink *testh.RecordSink) {
 		tb.Helper()
@@ -295,6 +336,8 @@ func assertSinkColValue(coli int, val any) SinkTestFunc {
 // defensively. A driver listed in perDriver uses its override value instead of
 // want, covering backends like SQLite/rqlite that compute decimal sums in
 // floating point and so surface a drifted value. See issue #839.
+//
+//nolint:unparam // coli is kept for parity with the assertSinkCol family.
 func assertSinkColDecimal(coli int, want string, perDriver driverMap) SinkTestFunc {
 	return func(tb testing.TB, sink *testh.RecordSink) {
 		tb.Helper()

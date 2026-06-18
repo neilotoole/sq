@@ -136,21 +136,26 @@ const oracleScaleFloating = 255
 
 // refineBareNumberKind refines a kind.Decimal classification for a bare-NUMBER
 // column using the precision/scale info from sql.ColumnType.DecimalSize(). It
-// returns kind.Int when the column's precision/scale indicate integer-range
-// values, and kind.Decimal otherwise (the safe default).
+// returns kind.Int only when the precision/scale pin the column to the integer
+// range, and kind.Decimal otherwise (the safe default).
 //
-// COUNT(*), SUM, and integer literals come back as NUMBER(38, oracleScaleFloating);
-// other SQL drivers (Postgres, MySQL, …) return such aggregates as int64, so
-// we map the floating-scale form to kind.Int to match cross-driver convention.
-// NUMBER(p, 0) with p in [1..19] is also int-range.
+// The floating-scale form NUMBER(38, oracleScaleFloating) is ambiguous: COUNT(*),
+// SUM, AVG, integer literals, division, and other arithmetic all report it, and
+// Oracle won't say whether the value is integral. Classifying it as kind.Int
+// crashes the scan when the value is fractional (e.g. a division like
+// actor_id/8 yields "7.25", which won't parse into int64). So the floating-scale
+// form maps to kind.Decimal, which is exact and scans any value without error,
+// for both SLQ and native sq sql. See issue #844.
+//
+// count(), count_unique(), and rownum() are integer-valued but share this
+// ambiguous form; they are pinned back to kind.Int via Renderer.FunctionResultKinds
+// (see Renderer), which RecordMeta applies. A bare NUMBER(p, 0) with p in [1..19]
+// is unambiguously int-range and stays kind.Int.
 func refineBareNumberKind(precision, scale int64, ok bool) kind.Kind {
 	if !ok {
 		return kind.Decimal
 	}
-	switch {
-	case scale == oracleScaleFloating:
-		return kind.Int
-	case scale == 0 && precision > 0 && precision <= 19:
+	if scale == 0 && precision > 0 && precision <= 19 {
 		return kind.Int
 	}
 	return kind.Decimal
