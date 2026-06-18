@@ -28,12 +28,12 @@ func NewMetadataWriter(out io.Writer, pr *output.Printing) output.MetadataWriter
 
 // DriverMetadata implements output.MetadataWriter.
 func (w *mdWriter) DriverMetadata(md []driver.Metadata) error {
-	return writeYAML(w.out, w.yp, md)
+	return writeYAML(w.out, w.yp, newDecimalMarshaler(w.pr.DecimalAsNumber), md)
 }
 
 // TableMetadata implements output.MetadataWriter.
 func (w *mdWriter) TableMetadata(md *metadata.Table) error {
-	return writeYAML(w.out, w.yp, md)
+	return writeYAML(w.out, w.yp, newDecimalMarshaler(w.pr.DecimalAsNumber), md)
 }
 
 // SourceMetadata implements output.MetadataWriter.
@@ -44,7 +44,7 @@ func (w *mdWriter) SourceMetadata(md *metadata.Source, showSchema bool) error {
 	}
 
 	if showSchema {
-		return writeYAML(w.out, w.yp, &md2)
+		return writeYAML(w.out, w.yp, newDecimalMarshaler(w.pr.DecimalAsNumber), &md2)
 	}
 
 	// Don't render "tables", "table_count", and "view_count"
@@ -55,7 +55,7 @@ func (w *mdWriter) SourceMetadata(md *metadata.Source, showSchema bool) error {
 		ViewCount       *int64             `yaml:"view_count,omitempty"`
 	}
 
-	return writeYAML(w.out, w.yp, &mdNoSchema{Source: md2})
+	return writeYAML(w.out, w.yp, newDecimalMarshaler(w.pr.DecimalAsNumber), &mdNoSchema{Source: md2})
 }
 
 // DBProperties implements output.MetadataWriter.
@@ -64,7 +64,7 @@ func (w *mdWriter) DBProperties(props map[string]any) error {
 		return nil
 	}
 
-	return writeYAML(w.out, w.yp, props)
+	return writeYAML(w.out, w.yp, newDecimalMarshaler(w.pr.DecimalAsNumber), props)
 }
 
 // Catalogs implements output.MetadataWriter.
@@ -85,7 +85,7 @@ func (w *mdWriter) Catalogs(currentCatalog string, catalogs []string) error {
 			cats[i].Active = new(true)
 		}
 	}
-	return writeYAML(w.out, w.yp, cats)
+	return writeYAML(w.out, w.yp, newDecimalMarshaler(w.pr.DecimalAsNumber), cats)
 }
 
 // Schemata implements output.MetadataWriter.
@@ -109,5 +109,5 @@ func (w *mdWriter) Schemata(currentSchema string, schemas []*metadata.Schema) er
 		}
 	}
 
-	return writeYAML(w.out, w.yp, a)
+	return writeYAML(w.out, w.yp, newDecimalMarshaler(w.pr.DecimalAsNumber), a)
 }

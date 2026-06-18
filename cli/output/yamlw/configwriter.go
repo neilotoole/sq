@@ -37,13 +37,13 @@ func (w *configWriter) Location(loc string, origin config.Origin) error {
 		Origin:   origin,
 	}
 
-	return writeYAML(w.out, w.p, c)
+	return writeYAML(w.out, w.p, newDecimalMarshaler(w.pr.DecimalAsNumber), c)
 }
 
 // CacheLocation implements output.ConfigWriter.
 func (w *configWriter) CacheLocation(loc string) error {
 	m := map[string]string{"location": loc}
-	return writeYAML(w.out, w.p, m)
+	return writeYAML(w.out, w.p, newDecimalMarshaler(w.pr.DecimalAsNumber), m)
 }
 
 // CacheStat implements output.ConfigWriter.
@@ -59,7 +59,7 @@ func (w *configWriter) CacheStat(loc string, enabled bool, size int64) error {
 		ci.Size = &size
 	}
 
-	return writeYAML(w.out, w.p, ci)
+	return writeYAML(w.out, w.p, newDecimalMarshaler(w.pr.DecimalAsNumber), ci)
 }
 
 // Opt implements output.ConfigWriter.
@@ -71,11 +71,11 @@ func (w *configWriter) Opt(o options.Options, opt options.Opt) error {
 	o2 := options.Options{opt.Key(): o[opt.Key()]}
 
 	if !w.pr.Verbose {
-		return writeYAML(w.out, w.p, o2)
+		return writeYAML(w.out, w.p, newDecimalMarshaler(w.pr.DecimalAsNumber), o2)
 	}
 
 	vo := commonw.NewVerboseOpt(opt, o2)
-	return writeYAML(w.out, w.p, vo)
+	return writeYAML(w.out, w.p, newDecimalMarshaler(w.pr.DecimalAsNumber), vo)
 }
 
 // Options implements output.ConfigWriter.
@@ -85,7 +85,7 @@ func (w *configWriter) Options(reg *options.Registry, o options.Options) error {
 	}
 
 	if !w.pr.Verbose {
-		return writeYAML(w.out, w.p, o)
+		return writeYAML(w.out, w.p, newDecimalMarshaler(w.pr.DecimalAsNumber), o)
 	}
 
 	opts := reg.Opts()
@@ -94,7 +94,7 @@ func (w *configWriter) Options(reg *options.Registry, o options.Options) error {
 		m[opt.Key()] = commonw.NewVerboseOpt(opt, o)
 	}
 
-	return writeYAML(w.out, w.p, m)
+	return writeYAML(w.out, w.p, newDecimalMarshaler(w.pr.DecimalAsNumber), m)
 }
 
 // SetOption implements output.ConfigWriter.
@@ -104,7 +104,7 @@ func (w *configWriter) SetOption(o options.Options, opt options.Opt) error {
 	}
 
 	vo := commonw.NewVerboseOpt(opt, o)
-	return writeYAML(w.out, w.p, vo)
+	return writeYAML(w.out, w.p, newDecimalMarshaler(w.pr.DecimalAsNumber), vo)
 }
 
 // UnsetOption implements output.ConfigWriter.
@@ -115,5 +115,5 @@ func (w *configWriter) UnsetOption(opt options.Opt) error {
 
 	o := options.Options{opt.Key(): opt.GetAny(nil)}
 	vo := commonw.NewVerboseOpt(opt, o)
-	return writeYAML(w.out, w.p, vo)
+	return writeYAML(w.out, w.p, newDecimalMarshaler(w.pr.DecimalAsNumber), vo)
 }

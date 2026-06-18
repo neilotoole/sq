@@ -69,7 +69,7 @@ func (w *sourceWriter) Collection(coll *source.Collection) error {
 	// the active group). This whole thing is a mess.
 	_, _ = coll.SetActive(activeHandle, true)
 
-	return writeYAML(w.out, w.p, coll.Data())
+	return writeYAML(w.out, w.p, newDecimalMarshaler(w.pr.DecimalAsNumber), coll.Data())
 }
 
 // Source implements output.SourceWriter.
@@ -82,7 +82,7 @@ func (w *sourceWriter) Source(_ *source.Collection, src *source.Source) error {
 	if w.pr.Redact {
 		src.Location = src.RedactedLocation()
 	}
-	return writeYAML(w.out, w.p, src)
+	return writeYAML(w.out, w.p, newDecimalMarshaler(w.pr.DecimalAsNumber), src)
 }
 
 // Added implements output.SourceWriter.
@@ -108,7 +108,7 @@ func (w *sourceWriter) Removed(srcs ...*source.Source) error {
 			srcs2[i].Location = srcs2[i].RedactedLocation()
 		}
 	}
-	return writeYAML(w.out, w.p, srcs2)
+	return writeYAML(w.out, w.p, newDecimalMarshaler(w.pr.DecimalAsNumber), srcs2)
 }
 
 // Group implements output.SourceWriter.
@@ -120,7 +120,7 @@ func (w *sourceWriter) Group(group *source.Group) error {
 	if w.pr.Redact {
 		source.RedactGroup(group)
 	}
-	return writeYAML(w.out, w.p, group)
+	return writeYAML(w.out, w.p, newDecimalMarshaler(w.pr.DecimalAsNumber), group)
 }
 
 // SetActiveGroup implements output.SourceWriter.
@@ -132,7 +132,7 @@ func (w *sourceWriter) SetActiveGroup(group *source.Group) error {
 	if w.pr.Redact {
 		source.RedactGroup(group)
 	}
-	return writeYAML(w.out, w.p, group)
+	return writeYAML(w.out, w.p, newDecimalMarshaler(w.pr.DecimalAsNumber), group)
 }
 
 // Groups implements output.SourceWriter.
@@ -140,5 +140,5 @@ func (w *sourceWriter) Groups(tree *source.Group) error {
 	if w.pr.Redact {
 		source.RedactGroup(tree)
 	}
-	return writeYAML(w.out, w.p, tree)
+	return writeYAML(w.out, w.p, newDecimalMarshaler(w.pr.DecimalAsNumber), tree)
 }

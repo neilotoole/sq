@@ -4,6 +4,7 @@ package yamlw
 import (
 	"bytes"
 	"io"
+	"strconv"
 
 	"github.com/fatih/color"
 	goccy "github.com/goccy/go-yaml"
@@ -16,15 +17,25 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
-var decimalMarshaler = goccy.CustomMarshaler[decimal.Decimal](func(d decimal.Decimal) ([]byte, error) {
-	return []byte(stringz.FormatDecimal(d)), nil
-})
+// newDecimalMarshaler returns a goccy encode option that renders decimal values.
+// In number mode the value is emitted as a bare YAML number; otherwise it is
+// emitted as a quoted string (precision-safe). goccy re-parses the returned
+// bytes as a YAML document, so quote-wrapping yields a string node. See #846.
+func newDecimalMarshaler(asNumber bool) goccy.EncodeOption {
+	return goccy.CustomMarshaler[decimal.Decimal](func(d decimal.Decimal) ([]byte, error) {
+		s := stringz.FormatDecimal(d)
+		if asNumber {
+			return []byte(s), nil
+		}
+		return []byte(strconv.Quote(s)), nil
+	})
+}
 
 // MarshalToString renders v to a string.
 func MarshalToString(pr *output.Printing, v any) (string, error) {
 	p := newPrinter(pr)
 	buf := &bytes.Buffer{}
-	if err := writeYAML(buf, p, v); err != nil {
+	if err := writeYAML(buf, p, newDecimalMarshaler(pr.DecimalAsNumber), v); err != nil {
 		return "", err
 	}
 	return buf.String(), nil
@@ -32,7 +43,7 @@ func MarshalToString(pr *output.Printing, v any) (string, error) {
 
 // writeYAML prints a YAML representation of v to out, using specs
 // from pr.
-func writeYAML(out io.Writer, p printer.Printer, v any) error {
+func writeYAML(out io.Writer, p printer.Printer, decimalMarshaler goccy.EncodeOption, v any) error {
 	b, err := goccy.MarshalWithOptions(v, decimalMarshaler)
 	if err != nil {
 		return errz.Err(err)

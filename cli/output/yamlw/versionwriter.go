@@ -46,5 +46,5 @@ func (w *versionWriter) Version(bi buildinfo.Info, latestVersion string, hi host
 		cbi.Timestamp = w.pr.FormatDatetime(bi.Timestamp)
 	}
 
-	return writeYAML(w.out, w.p, cbi)
+	return writeYAML(w.out, w.p, newDecimalMarshaler(w.pr.DecimalAsNumber), cbi)
 }
