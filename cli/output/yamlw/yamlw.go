@@ -35,16 +35,17 @@ func newDecimalMarshaler(asNumber bool) goccy.EncodeOption {
 func MarshalToString(pr *output.Printing, v any) (string, error) {
 	p := newPrinter(pr)
 	buf := &bytes.Buffer{}
-	if err := writeYAML(buf, p, newDecimalMarshaler(pr.DecimalAsNumber), v); err != nil {
+	if err := writeYAML(buf, p, v); err != nil {
 		return "", err
 	}
 	return buf.String(), nil
 }
 
 // writeYAML prints a YAML representation of v to out, using specs
-// from pr.
-func writeYAML(out io.Writer, p printer.Printer, decimalMarshaler goccy.EncodeOption, v any) error {
-	b, err := goccy.MarshalWithOptions(v, decimalMarshaler)
+// from pr. It always marshals decimal values as quoted strings; only the
+// record writer (recordwriter.go) needs option-aware decimal rendering.
+func writeYAML(out io.Writer, p printer.Printer, v any) error {
+	b, err := goccy.MarshalWithOptions(v, newDecimalMarshaler(false))
 	if err != nil {
 		return errz.Err(err)
 	}
