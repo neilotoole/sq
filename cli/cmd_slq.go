@@ -419,6 +419,7 @@ func addTextFormatFlags(cmd *cobra.Command) {
 // addQueryCmdFlags sets the common flags for the slq and sql commands.
 func addQueryCmdFlags(cmd *cobra.Command) {
 	addOptionFlag(cmd.Flags(), OptFormat)
+	addOptionFlag(cmd.Flags(), OptFormatDecimal)
 	panicOn(cmd.RegisterFlagCompletionFunc(
 		OptFormat.Flag().Name,
 		completeStrings(-1, stringz.Strings(format.All())...),

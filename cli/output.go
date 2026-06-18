@@ -69,6 +69,38 @@ command, sq falls back to "text". Available formats:
   markdown, html, xlsx, xml, yaml, raw`,
 	)
 
+	// OptFormatDecimal controls how decimal values render in output formats that
+	// distinguish a number from a string (JSON, YAML). "string" (the default)
+	// emits a quoted string, precision-safe beyond float64 range; "number" emits
+	// a bare number, convenient for jq-style consumers. See issue #846.
+	OptFormatDecimal = options.NewString(
+		"format.decimal",
+		&options.Flag{Name: "format.decimal"},
+		"string",
+		func(s string) error {
+			switch s {
+			case "string", "number":
+				return nil
+			default:
+				return errz.Errorf("option {format.decimal} allows only %q or %q", "string", "number")
+			}
+		},
+		"Render decimal as string or number (JSON, YAML)",
+		`Controls how decimal values render in output formats that distinguish a number
+from a string (JSON and YAML). "string" (the default) emits a quoted string,
+which is precision-safe for values beyond float64 range. "number" emits a bare
+number, which is convenient for jq-style consumers but lossy on read for very
+large values. XLSX always stores decimals adaptively and is unaffected; all-text
+formats such as CSV are no-ops.
+
+  format.decimal=string
+  [{"total":"20100"}]
+  format.decimal=number
+  [{"total":20100}]
+`,
+		options.TagOutput,
+	)
+
 	OptErrorFormat = format.NewOpt(
 		"error.format",
 		nil,
