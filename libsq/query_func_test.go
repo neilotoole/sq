@@ -61,7 +61,7 @@ func TestQuery_func(t *testing.T) {
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "avg(.actor_id)"),
-				assertSinkColValue(float64(100.5)),
+				assertSinkColValue(0, float64(100.5)),
 			},
 		},
 		{
@@ -145,7 +145,7 @@ func TestQuery_func_schema(t *testing.T) {
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
-				assertSinkColValue("dbo"),
+				assertSinkColValue(0, "dbo"),
 			},
 		},
 		{
@@ -161,7 +161,7 @@ func TestQuery_func_schema(t *testing.T) {
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
-				assertSinkColValue("dbo"),
+				assertSinkColValue(0, "dbo"),
 			},
 		},
 		{
@@ -172,7 +172,7 @@ func TestQuery_func_schema(t *testing.T) {
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
-				assertSinkColValue("public"),
+				assertSinkColValue(0, "public"),
 			},
 		},
 		{
@@ -186,7 +186,7 @@ func TestQuery_func_schema(t *testing.T) {
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
-				assertSinkColValue(infoSchema),
+				assertSinkColValue(0, infoSchema),
 			},
 		},
 		{
@@ -197,7 +197,7 @@ func TestQuery_func_schema(t *testing.T) {
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
-				assertSinkColValue("sakila"),
+				assertSinkColValue(0, "sakila"),
 			},
 		},
 		{
@@ -211,7 +211,7 @@ func TestQuery_func_schema(t *testing.T) {
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
-				assertSinkColValue(infoSchema),
+				assertSinkColValue(0, infoSchema),
 			},
 		},
 		{
@@ -222,7 +222,7 @@ func TestQuery_func_schema(t *testing.T) {
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
-				assertSinkColValue("main"),
+				assertSinkColValue(0, "main"),
 			},
 		},
 		{
@@ -233,7 +233,7 @@ func TestQuery_func_schema(t *testing.T) {
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
-				assertSinkColValue("sakila"),
+				assertSinkColValue(0, "sakila"),
 			},
 		},
 		{
@@ -265,7 +265,7 @@ func TestQuery_func_catalog(t *testing.T) {
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
-				assertSinkColValue("sakila"),
+				assertSinkColValue(0, "sakila"),
 			},
 		},
 		{
@@ -279,7 +279,7 @@ func TestQuery_func_catalog(t *testing.T) {
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
-				assertSinkColValue("model"),
+				assertSinkColValue(0, "model"),
 			},
 		},
 		{
@@ -290,7 +290,7 @@ func TestQuery_func_catalog(t *testing.T) {
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
-				assertSinkColValue("sakila"),
+				assertSinkColValue(0, "sakila"),
 			},
 		},
 		{
@@ -304,7 +304,7 @@ func TestQuery_func_catalog(t *testing.T) {
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
-				assertSinkColValue("postgres"),
+				assertSinkColValue(0, "postgres"),
 			},
 		},
 		{
@@ -315,7 +315,7 @@ func TestQuery_func_catalog(t *testing.T) {
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
-				assertSinkColValue("def"),
+				assertSinkColValue(0, "def"),
 			},
 		},
 		{
@@ -329,7 +329,7 @@ func TestQuery_func_catalog(t *testing.T) {
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
-				assertSinkColValue("default"),
+				assertSinkColValue(0, "default"),
 			},
 		},
 		{
@@ -340,7 +340,7 @@ func TestQuery_func_catalog(t *testing.T) {
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
-				assertSinkColValue("sakila"),
+				assertSinkColValue(0, "sakila"),
 			},
 		},
 		{
@@ -351,7 +351,7 @@ func TestQuery_func_catalog(t *testing.T) {
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
-				assertSinkColValue("SAKILA"),
+				assertSinkColValue(0, "SAKILA"),
 			},
 		},
 	}
@@ -396,8 +396,8 @@ func TestQuery_func_rownum(t *testing.T) {
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "rownum()+1"),
-				assertSinkCellInt(0, 2),
-				assertSinkCellInt(199, 201),
+				assertSinkCellInt(0, 0, 2),
+				assertSinkCellInt(199, 0, 201),
 			},
 		},
 		{
@@ -412,8 +412,8 @@ func TestQuery_func_rownum(t *testing.T) {
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "zero_index"),
-				assertSinkCellInt(0, 0),
-				assertSinkCellInt(199, 199),
+				assertSinkCellInt(0, 0, 0),
+				assertSinkCellInt(199, 0, 199),
 			},
 		},
 		{

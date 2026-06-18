@@ -303,23 +303,27 @@ func assertSinkColInt(coli int, n int64) SinkTestFunc {
 	}
 }
 
-// assertSinkCellInt asserts that the first column of record rowi is the integer
-// n, accounting for Oracle surfacing computed integers as decimal (see oracleInt).
-func assertSinkCellInt(rowi int, n int64) SinkTestFunc {
+// assertSinkCellInt asserts that cell (rowi, coli) is the integer n, accounting
+// for Oracle surfacing computed integers as decimal (see oracleInt).
+//
+//nolint:unparam // coli is kept for parity with the assertSinkCell/Col family.
+func assertSinkCellInt(rowi, coli int, n int64) SinkTestFunc {
 	return func(tb testing.TB, sink *testh.RecordSink) {
 		tb.Helper()
 		want := oracleInt(sink.SrcType, n)
-		assert.Equal(tb, want, sink.Recs[rowi][0], "record[%d:0] (%s)", rowi, sink.RecMeta[0].Name())
+		assert.Equal(tb, want, sink.Recs[rowi][coli], "record[%d:%d] (%s)", rowi, coli, sink.RecMeta[coli].Name())
 	}
 }
 
 // assertSinkColValue returns a SinkTestFunc that asserts that
-// the first column of each record matches val.
-func assertSinkColValue(val any) SinkTestFunc {
+// the column with index coli of each record matches val.
+//
+//nolint:unparam // coli is kept for parity with the assertSinkCol family.
+func assertSinkColValue(coli int, val any) SinkTestFunc {
 	return func(tb testing.TB, sink *testh.RecordSink) {
 		tb.Helper()
 		for rowi, rec := range sink.Recs {
-			assert.Equal(tb, val, rec[0], "record[%d:0] (%s)", rowi, sink.RecMeta[0].Name())
+			assert.Equal(tb, val, rec[coli], "record[%d:%d] (%s)", rowi, coli, sink.RecMeta[coli].Name())
 		}
 	}
 }
