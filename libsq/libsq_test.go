@@ -153,7 +153,9 @@ func TestQuerySQL_Count(t *testing.T) { //nolint:tparallel
 				require.Equal(t, int64(sakila.TblActorCount), v)
 			case decimal.Decimal:
 				require.Equal(t, drivertype.Oracle, src.Type)
-				require.Equal(t, int64(sakila.TblActorCount), v.IntPart())
+				// Exact equality (not v.IntPart(), which would truncate and hide a
+				// stray fractional count).
+				require.Equal(t, decimal.NewFromInt(int64(sakila.TblActorCount)), v)
 			default:
 				require.Failf(t, "unexpected count type", "got %T", v)
 			}
