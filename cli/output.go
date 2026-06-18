@@ -562,6 +562,7 @@ func getOutputConfig(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup
 	pr.FormatTimeAsNumber = OptTimeFormatAsNumber.Get(o)
 	pr.FormatDate = timez.FormatFunc(OptDateFormat.Get(o))
 	pr.FormatDateAsNumber = OptDateFormatAsNumber.Get(o)
+	pr.DecimalAsNumber = OptFormatDecimal.Get(o) == "number"
 
 	pr.ExcelDatetimeFormat = xlsxw.OptDatetimeFormat.Get(o)
 	pr.ExcelDateFormat = xlsxw.OptDateFormat.Get(o)
