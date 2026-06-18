@@ -131,6 +131,12 @@ than working around the old one.
 If a `context.Value`-based approach genuinely seems warranted (it rarely is),
 stop and ask before taking that path.
 
+One legacy exception predates this rule: render-time result-column kind hints
+are passed to a driver's `RecordMeta` via `context.Value`
+(`render.NewContextWithResultColumnKinds`). It's tracked for removal in
+[#848](https://github.com/neilotoole/sq/issues/848); don't extend it or model
+new code on it.
+
 ### English spelling
 
 Use US English in all prose: code comments, godoc, user-facing strings,
