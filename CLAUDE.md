@@ -117,27 +117,9 @@ sq-side caller, not deep inside the external code.
 Avoid `fmt.Errorf` and `errors.New` outside sentinel declarations — they
 produce stackless errors that surface upstream with no useful trace.
 
-### Shell completion
-
-Every command that accepts arguments must offer shell completion via the cobra
-command's `ValidArgsFunction`. Completion is part of the command, not an
-optional extra: a new command, or a new positional argument on an existing one,
-is not done until its arguments tab-complete.
-
-Reuse the helpers in [`cli/complete.go`](./cli/complete.go) rather than
-hand-rolling completion:
-
-- Source handles: `completeHandle(maxVals, includeActive)`, or
-  `completeHandleOrGroup` where a group is also valid.
-- Keyring entry paths: `completeKeyringPath`.
-- Other values (booleans, catalogs, schemas, drivers): the matching `complete*`
-  helper.
-
-Cap positional completion at the number of args the command takes (`maxVals`),
-and set `includeActive` by whether the `@active` shortcut is a sensible target.
-Commands with no positional arguments need no `ValidArgsFunction`. Add a
-completion test with the command, using the `testComplete` helper (see the
-existing `*_Completion` tests).
+Command-authoring conventions for the `cli` package (including the rule that
+every argument-taking command must offer shell completion) live in
+[`cli/CLAUDE.md`](./cli/CLAUDE.md).
 
 ### Passing data: prefer explicit signatures over `context.Value`
 
