@@ -16,7 +16,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
-## Unreleased
+## [v0.54.0] - 2026-06-19
 
 ### Added
 
@@ -55,7 +55,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [#851]: In colored output, structural punctuation is now rendered muted rather than bold,
   so values stand out.
 - [#846]: YAML now renders decimal values as quoted strings by default, matching JSON. Set
-  `format.decimal=number` to restore bare numbers.
+  [`format.decimal=number`](https://sq.io/docs/output#decimal) to restore bare numbers.
 - ☢️ [#594]: [`avg()`](https://sq.io/docs/query/#aggregate-functions) now returns a consistent `float` on
   every SQL driver. Breaking for [Postgres](https://sq.io/docs/drivers/postgres) and
   [MySQL](https://sq.io/docs/drivers/mysql), which previously returned a lossless decimal.
@@ -1774,3 +1774,4 @@ make working with lots of sources much easier.
 [v0.51.0]: https://github.com/neilotoole/sq/compare/v0.50.2...v0.51.0
 [v0.52.0]: https://github.com/neilotoole/sq/compare/v0.51.0...v0.52.0
 [v0.53.0]: https://github.com/neilotoole/sq/compare/v0.52.0...v0.53.0
+[v0.54.0]: https://github.com/neilotoole/sq/compare/v0.53.0...v0.54.0
