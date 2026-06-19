@@ -424,6 +424,10 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 		OptFormat.Flag().Name,
 		completeStrings(-1, stringz.Strings(format.All())...),
 	))
+	panicOn(cmd.RegisterFlagCompletionFunc(
+		OptFormatDecimal.Flag().Name,
+		completeStrings(-1, "string", "number"),
+	))
 	addResultFormatFlags(cmd)
 	cmd.MarkFlagsMutuallyExclusive(append(
 		[]string{OptFormat.Flag().Name},

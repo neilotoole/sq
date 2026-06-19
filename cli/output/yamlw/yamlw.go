@@ -41,9 +41,10 @@ func MarshalToString(pr *output.Printing, v any) (string, error) {
 	return buf.String(), nil
 }
 
-// writeYAML prints a YAML representation of v to out, using specs
-// from pr. It always marshals decimal values as quoted strings; only the
-// record writer (recordwriter.go) needs option-aware decimal rendering.
+// writeYAML prints a YAML representation of v to out, using the colorization
+// and formatting from printer p. It always marshals decimal values as quoted
+// strings; only the record writer (recordwriter.go) needs option-aware decimal
+// rendering.
 func writeYAML(out io.Writer, p printer.Printer, v any) error {
 	b, err := goccy.MarshalWithOptions(v, newDecimalMarshaler(false))
 	if err != nil {
