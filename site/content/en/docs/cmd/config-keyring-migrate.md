@@ -51,14 +51,16 @@ $ sq config keyring migrate --all
 ```
 
 Sources with nothing to move are skipped automatically, each with its reason
-shown in the output:
+shown in the output (skips are hidden unless you pass `-v`):
 
-- Non-URL locations (file paths, SQLite, Excel, and so on).
-- URLs with no password component.
-- Locations that already contain a `${...}` placeholder, so re-runs are
-  idempotent.
-- Locations with malformed placeholder syntax, surfaced rather than stamped
-  into the keyring.
+- File or document sources with no embedded credentials, such as CSV, SQLite,
+  or Excel: `no credentials to migrate`.
+- A connection URL that carries no password: `no password to migrate`.
+- A location that already uses a `${...}` placeholder, so re-runs are
+  idempotent: `already has a placeholder`.
+- A malformed location or placeholder, surfaced rather than stamped into the
+  keyring: `malformed location: <reason>` or
+  `malformed placeholder syntax: <reason>`.
 
 ## Preview, then confirm
 
