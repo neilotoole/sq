@@ -98,8 +98,10 @@ A real run prints the same plan, then prompts before changing anything:
 Proceed with migration? [y/N]
 ```
 
-Anything other than `y` or `yes` (including just pressing Enter) aborts without
-touching the keyring or `sq.yml`. Pass `--yes` to skip the prompt, which is what
+Answer `y`/`yes` to proceed, or `n`/`no` (or just press Enter, the `[y/N]`
+default) to cancel without touching the keyring or `sq.yml`. An unrecognized
+answer re-prompts; if the input ends without a valid answer, migrate exits
+non-zero rather than assuming no. Pass `--yes` to skip the prompt, which is what
 you want in scripts:
 
 ```shell
