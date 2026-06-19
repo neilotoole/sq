@@ -101,9 +101,9 @@ Proceed with migration? [y/N]
 Answer `y`/`yes` to proceed, or `n`/`no` (or just press Enter, the `[y/N]`
 default) to cancel. Cancelling touches nothing (no keyring writes, no `sq.yml`
 change) and exits non-zero, so a script can tell a declined migration from a
-completed one. An unrecognized answer re-prompts; if the input ends without a
-valid answer, migrate also exits non-zero. Pass `--yes` to skip the prompt,
-which is what you want in scripts:
+completed one. Only `y`/`yes`/`n`/`no` (case-insensitive) are accepted; any
+other answer, or no answer at all, is an error and exits non-zero without
+retrying. Pass `--yes` to skip the prompt, which is what you want in scripts:
 
 ```shell
 # Migrate one source without prompting
