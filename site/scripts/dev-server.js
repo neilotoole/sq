@@ -10,28 +10,13 @@
 
 const http = require("http");
 const path = require("path");
-const fs = require("fs");
 const { spawn, spawnSync } = require("child_process");
+const { requireHugoBin } = require("./resolve-hugo.js");
 
 const HUGO_PORT = Number(process.env.HUGO_PORT) || 1314;
 const SERVER_PORT = Number(process.env.SERVER_PORT) || process.env.PORT || 1313;
 
-const root = process.cwd();
-const nodeHugoA = path.join(root, "node_modules", ".bin", "hugo", "hugo");
-const nodeHugoB = path.join(root, "node_modules", ".bin", "hugo");
-function isExecutable(p) {
-  try {
-    return fs.existsSync(p) && fs.statSync(p).isFile();
-  } catch {
-    return false;
-  }
-}
-const hugoBin =
-  isExecutable(nodeHugoA)
-    ? nodeHugoA
-    : isExecutable(nodeHugoB)
-      ? nodeHugoB
-      : "hugo";
+const hugoBin = requireHugoBin();
 
 function waitForHugo() {
   return new Promise((resolve, reject) => {
