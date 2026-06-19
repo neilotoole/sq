@@ -309,11 +309,22 @@ func (d *driveri) Renderer() *render.Renderer {
 	// an override because the default emits LOWER(col) LIKE LOWER(pat),
 	// whereas ClickHouse supports native ILIKE.
 	r.FunctionOverrides[ast.FuncNameILike] = renderFuncILike
+	// sum() is harmonized to decimal across drivers (issue #839). ClickHouse
+	// already returns sum() over a decimal column as a decimal, but sum() over an
+	// integer column as an integer; casting the result to Decimal unifies both as
+	// decimal. The cast target is wrapped in Nullable because ClickHouse's
+	// Decimal is non-nullable and sum() over a nullable column can yield NULL
+	// (e.g. an all-NULL or empty input); casting that NULL to a bare Decimal
+	// raises an error. A Nullable(Decimal) result scans as decimal.NullDecimal,
+	// so trailing zeros from the fixed scale are trimmed by stringz.FormatDecimal
+	// at render time, as on the other result-cast drivers.
+	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult(
+		fmt.Sprintf("Nullable(Decimal(%d, %d))", render.AggDecimalPrecision, render.AggDecimalScale))
 	return r
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, _ map[int]kind.Kind) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
 	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes)
@@ -334,7 +345,7 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
 //
 // The returned grip should be closed when no longer needed to release
 // the database connection.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessMode) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -432,7 +443,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
+func (d *driveri) Ping(ctx context.Context, src *source.Source, _ driver.AccessMode) error {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return err

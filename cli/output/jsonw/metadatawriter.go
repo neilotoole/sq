@@ -43,7 +43,7 @@ func (w *mdWriter) SourceMetadata(md *metadata.Source, showSchema bool) error {
 	}
 
 	// Don't render "tables", "table_count", and "view_count"
-	type mdNoSchema struct {
+	type mdNoSchema struct { //nolint:govet // field alignment
 		metadata.Source
 		Tables     *[]*metadata.Table `json:"tables,omitempty"`
 		TableCount *int64             `json:"table_count,omitempty"`

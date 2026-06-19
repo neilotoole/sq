@@ -18,16 +18,27 @@ import (
 //	`actor` -> actor
 //	'actor' -> actor
 //
+// Within a quoted identifier, SQLite escapes the quote character by
+// doubling it, and trimIdentQuotes collapses the escape:
+//
+//	"my""col" -> my"col
+//	'my''col' -> my'col
+//	`my``col` -> my`col
+//
+// Square brackets have no escape mechanism in SQLite (a ] cannot appear
+// inside [..]), so bracket content is returned verbatim.
+//
 // If s is empty, unquoted, or is malformed, it is returned unchanged.
 func trimIdentQuotes(s string) string {
 	if len(s) < 2 {
 		return s
 	}
 
-	switch s[0] {
+	switch q := s[0]; q {
 	case '"', '`', '\'':
-		if s[len(s)-1] == s[0] {
-			return s[1 : len(s)-1]
+		if s[len(s)-1] == q {
+			body := s[1 : len(s)-1]
+			return strings.ReplaceAll(body, string([]byte{q, q}), string(q))
 		}
 	case '[':
 		if s[len(s)-1] == ']' {

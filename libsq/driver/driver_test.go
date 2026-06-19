@@ -270,7 +270,7 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, len(colNames), len(colTypes))
 
-			recMeta, _, err := drvr.RecordMeta(th.Context, colTypes)
+			recMeta, _, err := drvr.RecordMeta(th.Context, colTypes, nil)
 			require.NoError(t, err)
 
 			gotNames := recMeta.Names()
@@ -417,7 +417,7 @@ func TestDriver_Ping(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
 			drvr := th.DriverFor(src)
-			err := drvr.Ping(th.Context, src)
+			err := drvr.Ping(th.Context, src, driver.ModeReadWrite)
 			require.NoError(t, err)
 		})
 	}
@@ -436,7 +436,7 @@ func TestDriver_Open(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
 			drvr := th.DriverFor(src)
-			grip, err := drvr.Open(th.Context, src)
+			grip, err := drvr.Open(th.Context, src, driver.ModeReadWrite)
 			require.NoError(t, err)
 			db, err := grip.DB(th.Context)
 			require.NoError(t, err)

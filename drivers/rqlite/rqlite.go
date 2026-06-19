@@ -156,7 +156,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 }
 
 // Open implements driver.Driver.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessMode) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -259,7 +259,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	// Truncate has src in hand (unlike most SQLDriver methods, which
 	// take a bare db), so its errors get the connection-error
 	// enrichments too, consistent with the query and metadata paths.
-	affected, err := sqlz.ExecAffected(ctx, db, fmt.Sprintf("DELETE FROM %q", tbl))
+	affected, err := sqlz.ExecAffected(ctx, db, "DELETE FROM "+stringz.DoubleQuote(tbl))
 	if err != nil {
 		return affected, enrichConnError(errw(err), src)
 	}
@@ -326,7 +326,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 // real round-trip query, so that it verifies the source is actually
 // usable: this surfaces auth, cluster discovery, and transport
 // problems at add time rather than at first query.
-func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
+func (d *driveri) Ping(ctx context.Context, src *source.Source, _ driver.AccessMode) error {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return err
@@ -388,6 +388,12 @@ func (d *driveri) Renderer() *render.Renderer {
 	// register the same renderer.
 	r.FunctionOverrides[ast.FuncNameLike] = renderFuncLike
 	r.FunctionOverrides[ast.FuncNameILike] = renderFuncLike
+
+	// sum() is harmonized to decimal across drivers (issue #839). As with the
+	// sqlite3 driver, SQLite reports no usable type for a sum() expression, so
+	// the result kind is pinned here and applied when building record metadata.
+	// The SQLite float-computation caveat for non-integer columns applies.
+	r.FunctionResultKinds[ast.FuncNameSum] = kind.Decimal
 
 	return r
 }
@@ -527,9 +533,14 @@ func dsnFromLocation(loc string) (string, dsnOpts, error) {
 // against itself rather than the source (gh759). Cross-table FKs are
 // left untouched.
 //
-// Not preserved: indexes and triggers. These live as separate
-// sqlite_master rows and are out of scope for CopyTable. Matches the
-// sqlite3 driver's behavior.
+// The source table's companion objects (indexes and triggers, which
+// live as separate sqlite_master rows) are also copied (gh758), with
+// each companion renamed to "<orig-name>_<dest-table>" because index
+// and trigger names are schema-global in SQLite. The companion DDL
+// rides the same writeAtomic batch as the CREATE and INSERT, after the
+// data copy so that copied triggers don't fire on the rows being
+// copied. Matches the sqlite3 driver's behavior; see
+// copyTableCompanionDDL for the rewrite details.
 func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 	fromTbl, toTbl tablefq.T, copyData bool,
 ) (int64, error) {
@@ -590,30 +601,111 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 		return 0, errz.Wrap(err, "rqlite: copy table: failed to apply DDL rewrites")
 	}
 
-	if !copyData {
+	// Read and rewrite the companion (index and trigger) DDL up front,
+	// before any writes, so a rewrite failure aborts the copy cleanly.
+	companionStmts, err := copyTableCompanionDDL(ctx, db, fromTbl, toTbl)
+	if err != nil {
+		return 0, err
+	}
+
+	if !copyData && len(companionStmts) == 0 {
+		// Single-statement fast path: no batch needed.
 		if _, err = db.ExecContext(ctx, destDDL); err != nil {
 			return 0, errw(err)
 		}
 		return 0, nil
 	}
 
-	stmts := []gorqlite.ParameterizedStatement{
-		{Query: destDDL},
-		{Query: fmt.Sprintf(`INSERT INTO %s SELECT * FROM %s`,
-			toTbl.Render(stringz.DoubleQuote), fromTbl.Render(stringz.DoubleQuote))},
+	stmts := []gorqlite.ParameterizedStatement{{Query: destDDL}}
+	insertIdx := -1
+	if copyData {
+		insertIdx = len(stmts)
+		stmts = append(stmts, gorqlite.ParameterizedStatement{
+			Query: fmt.Sprintf(`INSERT INTO %s SELECT * FROM %s`,
+				toTbl.Render(stringz.DoubleQuote), fromTbl.Render(stringz.DoubleQuote)),
+		})
 	}
+	// Companions come after the data copy: a copied trigger must not
+	// fire on the rows being copied.
+	for _, companion := range companionStmts {
+		stmts = append(stmts, gorqlite.ParameterizedStatement{Query: companion})
+	}
+
 	results, err := writeAtomic(ctx, db, stmts...)
 	if err != nil {
 		return 0, err
 	}
-	return results[1].RowsAffected, nil
+	if insertIdx == -1 {
+		return 0, nil
+	}
+	return results[insertIdx].RowsAffected, nil
+}
+
+// copyTableCompanionDDL reads the DDL of fromTbl's companion objects
+// (indexes and triggers) from sqlite_master and returns each statement
+// rewritten to apply to toTbl. Rows with NULL sql are automatic indexes
+// (e.g. backing a UNIQUE constraint or PRIMARY KEY) that the rewritten
+// CREATE TABLE already recreates, so the query excludes them.
+//
+// Index and trigger names are schema-global in SQLite, so each
+// companion is renamed by appending the destination table name:
+// "<orig-name>_<dest-table>". A trigger's ON <table> target, and any
+// table references in its body that name the source table, are
+// rewritten to the destination; references to other tables are left
+// untouched. See sqlparser.RewriteCreateIndexStmt and
+// sqlparser.RewriteCreateTriggerStmt. Mirrors the sqlite3 driver's
+// same-named helper.
+func copyTableCompanionDDL(ctx context.Context, db sqlz.DB,
+	fromTbl, toTbl tablefq.T,
+) ([]string, error) {
+	masterTbl := tablefq.T{Schema: fromTbl.Schema, Table: "sqlite_master"}
+	q := fmt.Sprintf("SELECT name, type, sql FROM %s WHERE tbl_name = ? "+
+		"AND type IN ('index','trigger') AND sql IS NOT NULL ORDER BY name",
+		masterTbl.Render(stringz.DoubleQuote))
+	rows, err := db.QueryContext(ctx, q, fromTbl.Table)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(lg.FromContext(ctx), rows)
+
+	destTblIdent := stringz.DoubleQuote(toTbl.Table)
+	var stmts []string
+	for rows.Next() {
+		var name, typ, ddl string
+		if err = rows.Scan(&name, &typ, &ddl); err != nil {
+			return nil, errw(err)
+		}
+
+		// The companion lives in the destination table's schema.
+		newIdent := tablefq.T{Schema: toTbl.Schema, Table: name + "_" + toTbl.Table}.
+			Render(stringz.DoubleQuote)
+
+		var rewritten string
+		switch typ {
+		case "index":
+			rewritten, err = sqlparser.RewriteCreateIndexStmt(ddl, newIdent, destTblIdent)
+		case "trigger":
+			rewritten, err = sqlparser.RewriteCreateTriggerStmt(ddl, newIdent, destTblIdent)
+		default:
+			// Unreachable given the query predicate.
+			continue
+		}
+		if err != nil {
+			return nil, errz.Wrapf(err, "rqlite: copy table: rewrite %s {%s}", typ, name)
+		}
+		stmts = append(stmts, rewritten)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+	return stmts, nil
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, hints map[int]kind.Kind) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
-	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes)
+	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes, hints)
 	if err != nil {
 		return nil, nil, errw(err)
 	}
@@ -907,7 +999,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 		return nil, err
 	}
 
-	destCols, _, err := d.RecordMeta(ctx, colTypes)
+	destCols, _, err := d.RecordMeta(ctx, colTypes, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -917,14 +1009,15 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 
 // AlterTableRename implements driver.SQLDriver.
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
-	q := fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, tbl, newName)
+	q := fmt.Sprintf(`ALTER TABLE %s RENAME TO %s`, stringz.DoubleQuote(tbl), stringz.DoubleQuote(newName))
 	_, err := db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "rqlite: alter table: failed to rename table {%s} to {%s}", tbl, newName)
 }
 
 // AlterTableAddColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col string, knd kind.Kind) error {
-	q := fmt.Sprintf("ALTER TABLE %q ADD COLUMN %q %s", tbl, col, DBTypeForKind(knd))
+	q := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s",
+		stringz.DoubleQuote(tbl), stringz.DoubleQuote(col), DBTypeForKind(knd))
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
 		return errz.Wrapf(errw(err), "rqlite: alter table: failed to add column {%s} to table {%s}", col, tbl)
@@ -934,7 +1027,8 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 
 // AlterTableRenameColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
-	q := fmt.Sprintf("ALTER TABLE %q RENAME COLUMN %q TO %q", tbl, col, newName)
+	q := fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s",
+		stringz.DoubleQuote(tbl), stringz.DoubleQuote(col), stringz.DoubleQuote(newName))
 	_, err := db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "rqlite: alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
 }
@@ -944,20 +1038,57 @@ func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, c
 // SQLite has no ALTER COLUMN TYPE, so the implementation rebuilds the
 // table via an atomic batch through writeAtomic:
 //
-//	PRAGMA foreign_keys=off
 //	CREATE TABLE <tmp> (... new kinds, original constraints ...)
 //	INSERT INTO <tmp> SELECT * FROM <original>
 //	DROP TABLE <original>
 //	ALTER TABLE <tmp> RENAME TO <original>
 //	(restore sqlite_sequence row, if the original table had one)
-//	PRAGMA foreign_keys=<prev>
 //
-// All statements ride one /db/execute HTTP call and are atomic
-// at rqlite. The prior foreign_keys value is read outside the batch
-// (rqlite has no interactive transactions) and inlined as the final
-// statement, restoring the session state rather than blindly forcing
-// it on. This mirrors the sqlite3 driver's pragmaDisableForeignKeys
-// restore pattern (drivers/sqlite3/alter.go).
+// All batch statements ride one /db/execute HTTP call and are atomic
+// at rqlite. Foreign-key enforcement is disabled around the batch via
+// separate NON-transactional requests (writeNonTx): the pragma cannot
+// ride inside the batch, because gorqlite unconditionally appends
+// &transaction to /db/execute, rqlite then wraps the batch in
+// BEGIN/COMMIT, and SQLite specifies PRAGMA foreign_keys as a no-op
+// while a transaction is pending. The in-batch pragma therefore never
+// disabled enforcement, and on a node running -fk the DROP TABLE step
+// failed with "FOREIGN KEY constraint failed" for tables referenced
+// by another table's FK (gh776). This mirrors the semantics of the
+// sqlite3 driver's pragmaDisableForeignKeys/deferred-restore pattern
+// (drivers/sqlite3/alter.go), where the pragma likewise executes
+// outside any transaction.
+//
+// Atomicity tradeoff: the pragma-off request, the rebuild batch, and
+// the pragma-restore request are three requests, not one atom. The
+// rebuild batch itself remains atomic, but the pragma applies to the
+// node's shared write connection, so between off and restore, FK
+// enforcement is suspended for ALL writes on the node (the pragma
+// statements replicate through the Raft log, so the same holds on
+// every node of a cluster). The restore is deferred, and runs on a
+// non-cancelable context, so it executes even when the batch fails;
+// but if the process dies first, enforcement stays off until an
+// operator resets it or the node restarts.
+//
+// Two further consequences of the pragma riding node-global state:
+// concurrent rebuilds (from any client) interleave their windows, so
+// one caller's restore can re-enable enforcement inside another
+// caller's window and fail its DROP; nothing client-side can
+// serialize that. And because pragma state is connection state, not
+// database state, it is not captured in Raft snapshots: a snapshot
+// boundary falling between the pragma-off entry and the batch entry
+// means a node restoring (or joining) from that snapshot replays the
+// batch on a fresh connection at the -fk boot default, where the
+// DROP can fail, leaving that node without the alter.
+//
+// The restore target is the foreign_keys value read via /db/query,
+// which is served by the node's read-only connection pool and thus
+// reports the node's boot-time -fk default rather than the write
+// connection's live pragma state (which the HTTP API cannot read).
+// Restoring the configured default is the sanest available choice,
+// and also repairs a write connection left foreign_keys=off by an
+// earlier crash. For the same reason the pragma-off is issued
+// unconditionally rather than skipped when the read reports
+// enforcement already off.
 //
 // The new CREATE TABLE is built by reading the original DDL from
 // sqlite_master, patching the column type tokens for the requested
@@ -979,7 +1110,7 @@ func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, c
 // against writes that race the batch.
 func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	tbl string, colNames []string, kinds []kind.Kind,
-) error {
+) (retErr error) {
 	if len(colNames) != len(kinds) {
 		return errz.New("rqlite: alter table: mismatched count of columns and kinds")
 	}
@@ -1040,13 +1171,10 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 		return errz.Wrap(err, "rqlite: alter table: failed to apply DDL rewrites")
 	}
 
-	// Read the prior foreign_keys pragma so we can restore it at the
-	// end of the atomic batch rather than blindly forcing it on.
-	// Matches the sqlite3 driver's pragmaDisableForeignKeys/restore
-	// pattern in drivers/sqlite3/alter.go, adapted for rqlite's
-	// no-interactive-transactions model: the restore value is inlined
-	// as the last statement of the batch rather than captured in a
-	// defer.
+	// Read the foreign_keys value to restore after the rebuild. This
+	// query is served by the node's read-only connection pool, so it
+	// reports the boot-time -fk default, not the write connection's
+	// live pragma state; see the function doc comment.
 	var fkPrev int64
 	if err = db.QueryRowContext(ctx, "PRAGMA foreign_keys").Scan(&fkPrev); err != nil {
 		return errz.Wrapf(errw(err), "rqlite: alter table: failed to read foreign_keys pragma")
@@ -1062,7 +1190,6 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	}
 
 	stmts := []gorqlite.ParameterizedStatement{
-		{Query: "PRAGMA foreign_keys=off"},
 		{Query: nuDDL},
 		{Query: fmt.Sprintf(`INSERT INTO %s SELECT * FROM %s`,
 			stringz.DoubleQuote(tmpName), stringz.DoubleQuote(tbl))},
@@ -1095,9 +1222,42 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 		)
 	}
 
-	stmts = append(stmts, gorqlite.ParameterizedStatement{
-		Query: fmt.Sprintf("PRAGMA foreign_keys=%d", fkPrev),
-	})
+	// Disable FK enforcement around the rebuild via separate
+	// non-transactional requests; an in-batch pragma is a no-op inside
+	// rqlite's transaction wrapper (gh776). See the function doc
+	// comment for the atomicity tradeoff.
+	// The restore is registered BEFORE the pragma-off is issued: the off
+	// request can fail client-side after the server has already applied
+	// it (e.g. the response is lost), and the restore must run in that
+	// case too. It runs on a non-cancelable context: leaving the node's
+	// write connection with FK enforcement off is worse than the cost of
+	// one more request after cancellation. A restore failure joins the
+	// returned error: reporting success while the node is left with
+	// enforcement off would be worse than reporting a failed alter.
+	defer func() {
+		if fkPrev == 0 {
+			// The pragma-off below already set the value the restore
+			// would write: skip the redundant Raft-replicated request.
+			return
+		}
+		if _, restoreErr := writeNonTx(context.WithoutCancel(ctx),
+			db, gorqlite.ParameterizedStatement{
+				Query: fmt.Sprintf("PRAGMA foreign_keys=%d", fkPrev),
+			}); restoreErr != nil {
+			restoreErr = errz.Wrap(restoreErr,
+				"rqlite: alter table: failed to restore foreign_keys pragma")
+			lg.FromContext(ctx).Error(
+				"rqlite: alter table: failed to restore foreign_keys pragma",
+				lga.Err, restoreErr)
+			retErr = errz.Append(retErr, restoreErr)
+		}
+	}()
+
+	if _, err = writeNonTx(ctx, db, gorqlite.ParameterizedStatement{
+		Query: "PRAGMA foreign_keys=off",
+	}); err != nil {
+		return errz.Wrap(err, "rqlite: alter table: failed to disable foreign_keys pragma")
+	}
 
 	_, err = writeAtomic(ctx, db, stmts...)
 	return err

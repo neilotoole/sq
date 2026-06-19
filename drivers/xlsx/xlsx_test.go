@@ -156,7 +156,7 @@ func TestOpenFileFormats(t *testing.T) {
 				Location: filepath.Join("testdata", "file_formats", tc.filename),
 			})
 
-			grip, err := th.Grips().Open(th.Context, src)
+			grip, err := th.Grips().Open(th.Context, src, driver.ModeReadWrite)
 			if tc.wantErr {
 				require.Error(t, err)
 				return

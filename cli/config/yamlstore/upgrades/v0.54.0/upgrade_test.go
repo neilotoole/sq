@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -83,6 +84,23 @@ func TestUpgrade(t *testing.T) {
 	require.NotContains(t, xlsxSrc.Options, "redact",
 		"per-source 'redact' should be removed on upgrade")
 
+	// Before any upgrade step runs, a verbatim backup of the
+	// pre-upgrade config must be written alongside sq.yml, named for
+	// the version the config was upgraded from. The name must not end
+	// in ".sq.yml", or ext config loading would pick it up.
+	backupRaw, err := os.ReadFile(filepath.Join(cfgDir, "sq.v0.53.0.bak.yml"))
+	require.NoError(t, err, "pre-upgrade backup file must exist")
+	origCfgRaw, err := os.ReadFile(filepath.Join("testdata", "sq.yml"))
+	require.NoError(t, err)
+	require.Equal(t, string(origCfgRaw), string(backupRaw),
+		"backup must be byte-identical to the pre-upgrade config")
+	if runtime.GOOS != "windows" {
+		fi, err := os.Stat(filepath.Join(cfgDir, "sq.v0.53.0.bak.yml"))
+		require.NoError(t, err)
+		require.Equal(t, ioz.RWPerms, fi.Mode().Perm(),
+			"backup may contain credentials; must be user-only readable")
+	}
+
 	wantCfgRaw, err := os.ReadFile(filepath.Join("testdata", "want.sq.yml"))
 	require.NoError(t, err)
 
@@ -94,6 +112,138 @@ func TestUpgrade(t *testing.T) {
 	wantLines := strings.Split(strings.TrimSpace(string(wantCfgRaw)), "\n")
 	gotLines := strings.Split(strings.TrimSpace(string(gotCfgRaw)), "\n")
 	require.Equal(t, wantLines, gotLines)
+}
+
+// TestUpgrade_EscapesLocationDollars verifies that the upgrade escapes
+// '$' as '$$' in any source location that would not survive v0.54.0
+// placeholder-template interpretation byte-identically: locations
+// containing a well-formed ${scheme:path} ref (would be silently
+// substituted at connect), malformed placeholder syntax (would fail
+// every connect), or a literal "$$" (would be unescaped at connect).
+// Locations whose only dollars are lone '$' characters already pass
+// through verbatim and must be left untouched. See
+// https://github.com/neilotoole/sq/issues/782.
+func TestUpgrade_EscapesLocationDollars(t *testing.T) {
+	log := lgt.New(t)
+	ctx := lg.NewContext(context.Background(), log)
+
+	tests := []struct {
+		name string
+		loc  string
+		want string
+	}{
+		{
+			name: "no dollar untouched",
+			loc:  "postgres://sakila:p_ssW0rd@localhost/sakila",
+			want: "postgres://sakila:p_ssW0rd@localhost/sakila",
+		},
+		{
+			name: "lone dollar untouched",
+			loc:  "postgres://sakila:p$ssW0rd@localhost/sakila",
+			want: "postgres://sakila:p$ssW0rd@localhost/sakila",
+		},
+		{
+			name: "malformed placeholder escaped",
+			loc:  "postgres://sakila:p${ss}W0rd@localhost/sakila",
+			want: "postgres://sakila:p$${ss}W0rd@localhost/sakila",
+		},
+		{
+			name: "well-formed placeholder escaped",
+			loc:  "postgres://sakila:${env:HOME}@localhost/sakila",
+			want: "postgres://sakila:$${env:HOME}@localhost/sakila",
+		},
+		{
+			name: "literal double dollar escaped",
+			loc:  "postgres://sakila:p$$wd@localhost/sakila",
+			want: "postgres://sakila:p$$$$wd@localhost/sakila",
+		},
+		{
+			name: "file path with lone dollar untouched",
+			loc:  "/Users/neilotoole/sq/file$.csv",
+			want: "/Users/neilotoole/sq/file$.csv",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			in := []byte(`config.version: v0.53.0
+collection:
+  sources:
+  - handle: "@src"
+    driver: postgres
+    location: ` + `"` + tc.loc + `"` + `
+`)
+
+			out, err := v0_54_0.Upgrade(ctx, in)
+			require.NoError(t, err)
+
+			var m map[string]any
+			require.NoError(t, ioz.UnmarshallYAML(out, &m))
+			src := m["collection"].(map[string]any)["sources"].([]any)[0].(map[string]any)
+			got, ok := src["location"].(string)
+			require.True(t, ok)
+			require.Equal(t, tc.want, got)
+
+			// The connect-path invariant: the stored location must parse
+			// cleanly with zero refs, and unescape to the original bytes,
+			// so the driver receives exactly what worked in v0.53.0.
+			refs, err := secret.ExtractRefs(got)
+			require.NoError(t, err)
+			require.Empty(t, refs)
+			require.Equal(t, tc.loc, secret.Unescape(got))
+		})
+	}
+}
+
+// TestUpgrade_CorruptLocation verifies the upgrade's handling of
+// degenerate source locations.
+//
+// A missing location aborts the upgrade before anything is written:
+// such a config never loaded (validSource rejects empty locations), so
+// erroring can't break a working config, and it matches the
+// corrupt-shape precedent elsewhere in this upgrade.
+//
+// A non-string location is skipped, NOT an error: goccy-yaml coerces
+// scalar values (int/float/bool) into string fields, so 'location:
+// 123' loaded fine on v0.53.0 as "123" and erroring here would brick
+// a previously working config. Skipping is provably safe for escaping
+// purposes: a YAML scalar that parses as non-string can't contain '$'
+// (any '$'-bearing value parses as a string).
+func TestUpgrade_CorruptLocation(t *testing.T) {
+	log := lgt.New(t)
+	ctx := lg.NewContext(context.Background(), log)
+
+	t.Run("missing location errors", func(t *testing.T) {
+		in := []byte(`config.version: v0.53.0
+collection:
+  sources:
+  - handle: "@src"
+    driver: postgres
+`)
+		_, err := v0_54_0.Upgrade(ctx, in)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "corrupt config")
+		require.Contains(t, err.Error(), "location")
+	})
+
+	t.Run("non-string location skipped", func(t *testing.T) {
+		in := []byte(`config.version: v0.53.0
+collection:
+  sources:
+  - handle: "@src"
+    driver: postgres
+    location: 123
+`)
+		out, err := v0_54_0.Upgrade(ctx, in)
+		require.NoError(t, err,
+			"non-string location must not abort: it loaded fine on v0.53.0 (goccy coerces scalars)")
+
+		var m map[string]any
+		require.NoError(t, ioz.UnmarshallYAML(out, &m))
+		require.Equal(t, v0_54_0.Version, m["config.version"])
+		src := m["collection"].(map[string]any)["sources"].([]any)[0].(map[string]any)
+		require.EqualValues(t, 123, src["location"], "non-string location value must be untouched")
+	})
 }
 
 // TestUpgrade_NoRedactKey_IsIdempotent verifies that running Upgrade

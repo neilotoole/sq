@@ -40,15 +40,18 @@ func (p pingWriter) Result(src *source.Source, d time.Duration, err error) error
 		src.Location = src.RedactedLocation()
 	}
 
+	// Duration is a string in time.Duration.String form (e.g. "105.4ms"),
+	// not bare int64 nanoseconds: that's the shape sq has always emitted,
+	// and consumers parse it. See https://github.com/neilotoole/sq/issues/791.
 	r := struct { //nolint:govet // field alignment
 		*source.Source
-		Pong     bool          `json:"pong"`
-		Duration time.Duration `json:"duration"`
-		Error    string        `json:"error,omitempty"`
+		Pong     bool   `json:"pong"`
+		Duration string `json:"duration"`
+		Error    string `json:"error,omitempty"`
 	}{
 		Source:   src,
 		Pong:     err == nil,
-		Duration: d,
+		Duration: d.String(),
 	}
 
 	if err != nil {

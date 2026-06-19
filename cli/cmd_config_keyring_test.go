@@ -3,7 +3,6 @@ package cli_test
 import (
 	"context"
 	"encoding/json"
-	"os"
 	"strings"
 	"testing"
 
@@ -81,16 +80,10 @@ func TestCmdConfigKeyringCreate_PromptedFromStdin(t *testing.T) {
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
 
-	// Pipe a password through stdin; matches the cmd_add test pattern.
-	tmp, err := os.CreateTemp(t.TempDir(), "pw")
-	require.NoError(t, err)
-	_, err = tmp.WriteString("hunter2\n")
-	require.NoError(t, err)
-	_, err = tmp.Seek(0, 0)
-	require.NoError(t, err)
-	tr.Run.Stdin = tmp
+	// Pipe a password through stdin.
+	tr.PipeStdin("hunter2\n")
 
-	err = tr.Exec("config", "keyring", "create", "my_db_pw", "-p")
+	err := tr.Exec("config", "keyring", "create", "my_db_pw", "-p")
 	require.NoError(t, err)
 
 	got, err := gokeyring.Get("sq", "my_db_pw")
@@ -347,6 +340,27 @@ func TestCmdConfigKeyringMigrate_PerCase(t *testing.T) {
 			name:        "url-encoded password preserved verbatim",
 			inLocation:  "postgres://alice:p%40ss%3Aword@db/sakila",
 			wantKeyring: "postgres://alice:p%40ss%3Aword@db/sakila",
+		},
+		{
+			// The stored Location is a placeholder template: '$$' means a
+			// literal '$' (e.g. written by the v0.54.0 config upgrade).
+			// The keyring slot holds a literal value that Registry.Expand
+			// splices raw at connect time, so migrate must unescape, or
+			// the driver would receive the still-escaped bytes.
+			name:        "escaped dollar unescaped before keyring store",
+			inLocation:  "postgres://alice:p$$wd@db/sakila",
+			wantKeyring: "postgres://alice:p$wd@db/sakila",
+		},
+		{
+			// An escaped placeholder ('$${env:HOME}' means the literal
+			// text '${env:HOME}') is skipped, not migrated: the braces
+			// make url.Parse reject the userinfo. The source keeps
+			// working via the connect-path unescape, so skipping is
+			// safe; migrating would have to unescape (see previous
+			// case).
+			name:           "escaped placeholder skipped as non-URL",
+			inLocation:     "postgres://alice:$${env:HOME}@db/sakila",
+			wantSkipReason: "not a URL",
 		},
 	}
 	for _, tc := range tests {
@@ -664,6 +678,43 @@ func TestCmdConfigKeyringGet_JSON_WithReveal(t *testing.T) {
 	require.Equal(t, "hunter2", got["value"])
 }
 
+// TestCmdConfigKeyringGet_JSON_WithReveal_EmptyValue: an empty stored
+// secret must still emit the "value" key (as "") with --reveal, so a
+// consumer can distinguish "empty secret, revealed" from "redacted".
+func TestCmdConfigKeyringGet_JSON_WithReveal_EmptyValue(t *testing.T) {
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", "abc_get_js_empty", ""))
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Exec("config", "keyring", "get", "abc_get_js_empty", "--reveal", "--json"))
+
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
+	require.Equal(t, "abc_get_js_empty", got["path"])
+	require.Equal(t, true, got["exists"])
+	v, hasValue := got["value"]
+	require.True(t, hasValue, "value must be present with --reveal, even when empty")
+	require.Equal(t, "", v)
+}
+
+// TestCmdConfigKeyringGet_JSON_WithoutReveal_EmptyValue: without
+// --reveal, an empty stored secret emits no "value" key, same as any
+// other redacted secret.
+func TestCmdConfigKeyringGet_JSON_WithoutReveal_EmptyValue(t *testing.T) {
+	gokeyring.MockInit()
+	require.NoError(t, gokeyring.Set("sq", "abc_get_js_empty2", ""))
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	require.NoError(t, tr.Exec("config", "keyring", "get", "abc_get_js_empty2", "--json"))
+
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
+	require.Equal(t, "abc_get_js_empty2", got["path"])
+	require.Equal(t, true, got["exists"])
+	_, hasValue := got["value"]
+	require.False(t, hasValue, "value must be absent without --reveal")
+}
+
 // TestCmdConfigKeyringCreate_JSON: explicit create with --json emits a
 // confirmation object with "created": true.
 func TestCmdConfigKeyringCreate_JSON(t *testing.T) {
@@ -861,13 +912,7 @@ func TestCmdConfigKeyringMigrate_JSON_SkipsPrompt(t *testing.T) {
 		Location: "postgres://alice:hunter2@db/sakila",
 	}))
 	// Pipe "n\n" so the y/N prompt — if reached — would answer "no".
-	tmp, err := os.CreateTemp(t.TempDir(), "stdin")
-	require.NoError(t, err)
-	_, err = tmp.WriteString("n\n")
-	require.NoError(t, err)
-	_, err = tmp.Seek(0, 0)
-	require.NoError(t, err)
-	tr.Run.Stdin = tmp
+	tr.PipeStdin("n\n")
 
 	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--json"))
 
@@ -882,6 +927,53 @@ func TestCmdConfigKeyringMigrate_JSON_SkipsPrompt(t *testing.T) {
 
 	// Sanity: source's Location is now a placeholder.
 	src, _ := tr.Run.Config.Collection.Get("@js_prompt")
+	require.Contains(t, src.Location, "${keyring:")
+}
+
+// TestCmdConfigKeyringMigrate_ConfigFormatJSON_SkipsPrompt verifies
+// that JSON output selected via the config "format" option behaves
+// exactly like the --json flag: no preview envelope, no y/N prompt,
+// a single valid JSON document on stdout. Regression test for #790,
+// where outputFormatIsJSON checked only the --json flag while writer
+// selection used the resolved format, so `sq config set format json`
+// produced two concatenated JSON envelopes with a blocking prompt in
+// between.
+func TestCmdConfigKeyringMigrate_ConfigFormatJSON_SkipsPrompt(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	// Persist format=json to config, then start a fresh run that loads
+	// it, mirroring `sq config set format json` followed by a separate
+	// `sq config keyring migrate` invocation.
+	require.NoError(t, tr.Exec("config", "set", "format", "json"))
+	tr = testrun.New(th.Context, t, tr)
+
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@cfg_json",
+		Type:     "postgres",
+		Location: "postgres://alice:hunter2@db/sakila",
+	}))
+	// Pipe "n\n" so the y/N prompt (if reached) would answer "no".
+	tr.PipeStdin("n\n")
+
+	// No --json flag and no --yes: JSON-ness must come from config.
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all"))
+
+	// Unmarshaling the entire stdout buffer fails if the output is two
+	// concatenated documents or contains prompt text, so this asserts
+	// "exactly one valid JSON document" as well as the envelope shape.
+	var env migrateJSONEnvelope
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &env),
+		"stdout must be a single valid JSON document; got: %s", tr.Out.String())
+	require.False(t, env.DryRun)
+	require.Len(t, env.Rows, 1)
+	require.Equal(t, "migrated", env.Rows[0].Status,
+		"config format=json must bypass the y/N prompt; got status %q", env.Rows[0].Status)
+
+	// Sanity: source's Location is now a placeholder.
+	src, err := tr.Run.Config.Collection.Get("@cfg_json")
+	require.NoError(t, err)
 	require.Contains(t, src.Location, "${keyring:")
 }
 

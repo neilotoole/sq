@@ -195,7 +195,7 @@ func TestRecordMeta_BlobScan(t *testing.T) {
 
 	colTypes, err := rows.ColumnTypes()
 	require.NoError(t, err)
-	recMeta, newRecFn, err := grip.SQLDriver().RecordMeta(ctx, colTypes)
+	recMeta, newRecFn, err := grip.SQLDriver().RecordMeta(ctx, colTypes, nil)
 	require.NoError(t, err)
 	require.Equal(t, kind.Bytes, recMeta[1].Kind())
 
@@ -534,7 +534,7 @@ func TestRecordMeta_BasicQuery(t *testing.T) {
 	colTypes, err := rows.ColumnTypes()
 	require.NoError(t, err)
 
-	recMeta, newRecFn, err := grip.SQLDriver().RecordMeta(context.Background(), colTypes)
+	recMeta, newRecFn, err := grip.SQLDriver().RecordMeta(context.Background(), colTypes, nil)
 	require.NoError(t, err)
 	require.NotNil(t, newRecFn)
 	require.Len(t, recMeta, 4)

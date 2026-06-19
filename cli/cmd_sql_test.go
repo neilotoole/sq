@@ -884,6 +884,48 @@ func TestSQL_ReadOnly_RejectsWrites(t *testing.T) {
 		"unexpected error: %s", msg)
 }
 
+// TestSQL_ReadOnly_OverridesAutomatic is the gh788 repro: a location
+// carrying access_mode=AUTOMATIC (which defaults to READ_WRITE for a local
+// file) must not silently defeat --readonly. The explicit flag overrides
+// AUTOMATIC to READ_ONLY, so the write must fail and the file stay intact.
+func TestSQL_ReadOnly_OverridesAutomatic(t *testing.T) {
+	t.Parallel()
+	th := testh.New(t)
+
+	srcPath := proj.Abs("drivers/duckdb/testdata/sakila.duckdb")
+	dstPath := filepath.Join(t.TempDir(), "sakila.duckdb")
+	in, err := os.Open(srcPath)
+	require.NoError(t, err)
+	defer in.Close()
+	out, err := os.Create(dstPath)
+	require.NoError(t, err)
+	_, err = io.Copy(out, in)
+	require.NoError(t, err)
+	require.NoError(t, out.Close())
+
+	src := &source.Source{
+		Handle:   "@sakila_duck_auto",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://" + dstPath + "?access_mode=AUTOMATIC",
+	}
+
+	tr := testrun.New(th.Context, t, nil).Add(*src)
+	err = tr.Exec("sql", "--src", src.Handle, "--readonly",
+		"INSERT INTO actor (first_name, last_name) VALUES ('X', 'Y')")
+	require.Error(t, err,
+		"--readonly must override access_mode=AUTOMATIC, rejecting the INSERT")
+	msg := err.Error()
+	require.True(t,
+		strings.Contains(msg, "read-only") || strings.Contains(msg, "Cannot execute"),
+		"unexpected error: %s", msg)
+
+	// The actor table must be untouched.
+	tr = testrun.New(th.Context, t, nil).Add(*src)
+	require.NoError(t, tr.Exec("sql", "--src", src.Handle,
+		"SELECT count(*) AS n FROM actor"))
+	require.Contains(t, tr.Out.String(), "200")
+}
+
 // TestSQL_ReadOnly_SrcSchema_DoesNotModifyMtime mirrors the SLQ regression
 // test: --src.schema triggers verifySourceCatalogSchema, which pre-opens
 // the source via Grips.Open. Without hoisting the RO ctx flip ahead of

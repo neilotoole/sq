@@ -114,11 +114,11 @@ func TestSmoke(t *testing.T) {
 	src := getTestSource(t)
 
 	// Test Ping
-	err = drvr.Ping(ctx, src)
+	err = drvr.Ping(ctx, src, driver.ModeReadWrite)
 	require.NoError(t, err, "Ping should succeed")
 
 	// Test Open
-	grip, err := drvr.Open(ctx, src)
+	grip, err := drvr.Open(ctx, src, driver.ModeReadWrite)
 	require.NoError(t, err, "Open should succeed")
 	require.NotNil(t, grip)
 	defer grip.Close()
@@ -156,7 +156,7 @@ func TestOracle_DBProperties_BestEffort(t *testing.T) {
 	require.True(t, ok, "driver should implement driver.SQLDriver")
 
 	src := getTestSource(t)
-	grip, err := drvr.Open(ctx, src)
+	grip, err := drvr.Open(ctx, src, driver.ModeReadWrite)
 	require.NoError(t, err)
 	defer grip.Close()
 
@@ -191,7 +191,7 @@ func TestCurrentSchema(t *testing.T) {
 	require.True(t, ok, "driver should implement driver.SQLDriver")
 	src := getTestSource(t)
 
-	grip, err := drvr.Open(ctx, src)
+	grip, err := drvr.Open(ctx, src, driver.ModeReadWrite)
 	require.NoError(t, err)
 	defer grip.Close()
 
@@ -224,7 +224,7 @@ func TestCreateAndDropTable(t *testing.T) {
 	require.True(t, ok, "driver should implement driver.SQLDriver")
 	src := getTestSource(t)
 
-	grip, err := drvr.Open(ctx, src)
+	grip, err := drvr.Open(ctx, src, driver.ModeReadWrite)
 	require.NoError(t, err)
 	defer grip.Close()
 
@@ -296,7 +296,7 @@ func TestTypeMappings(t *testing.T) {
 	require.True(t, ok, "driver should implement driver.SQLDriver")
 	src := getTestSource(t)
 
-	grip, err := drvr.Open(ctx, src)
+	grip, err := drvr.Open(ctx, src, driver.ModeReadWrite)
 	require.NoError(t, err)
 	defer grip.Close()
 
@@ -373,7 +373,7 @@ func TestListTables(t *testing.T) {
 	require.True(t, ok, "driver should implement driver.SQLDriver")
 	src := getTestSource(t)
 
-	grip, err := drvr.Open(ctx, src)
+	grip, err := drvr.Open(ctx, src, driver.ModeReadWrite)
 	require.NoError(t, err)
 	defer grip.Close()
 
@@ -455,7 +455,7 @@ func TestSakilaCrossDatabase(t *testing.T) {
 	oracleSQLDrvr, ok := oracleDrvr.(driver.SQLDriver)
 	require.True(t, ok, "Oracle driver should implement driver.SQLDriver")
 
-	oracleGrip, err := oracleDrvr.Open(ctx, oracleSrc)
+	oracleGrip, err := oracleDrvr.Open(ctx, oracleSrc, driver.ModeReadWrite)
 	require.NoError(t, err)
 	defer oracleGrip.Close()
 
@@ -598,7 +598,7 @@ func TestTableMetadata_DispatchByObjectType(t *testing.T) {
 	require.NoError(t, err)
 
 	src := getTestSource(t)
-	grip, err := drvr.Open(ctx, src)
+	grip, err := drvr.Open(ctx, src, driver.ModeReadWrite)
 	require.NoError(t, err)
 	defer grip.Close()
 

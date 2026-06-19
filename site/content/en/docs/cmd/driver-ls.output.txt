@@ -1,5 +1,6 @@
 DRIVER      DESCRIPTION                            USER-DEFINED  DOC
 sqlite3     SQLite                                 false         https://github.com/mattn/go-sqlite3
+rqlite      rqlite                                 false         https://rqlite.io
 duckdb      DuckDB                                 false         https://duckdb.org
 postgres    PostgreSQL                             false         https://github.com/jackc/pgx
 sqlserver   Microsoft SQL Server                   false         https://github.com/microsoft/go-mssqldb

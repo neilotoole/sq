@@ -20,6 +20,7 @@ import (
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -301,7 +302,13 @@ func TestPingWriter_Result(t *testing.T) {
 		var got map[string]any
 		require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
 		require.Equal(t, true, got["pong"], "pong must be true on success")
-		require.NotNil(t, got["duration"], "duration must be present")
+		// The duration must be a human-readable string per time.Duration.String,
+		// e.g. "100ms", not bare int64 nanoseconds. See sq #791.
+		require.Equal(t, "100ms", got["duration"],
+			"duration must be a human-readable string")
+		d, err := time.ParseDuration(got["duration"].(string))
+		require.NoError(t, err, "duration must parse via time.ParseDuration")
+		require.Equal(t, 100*time.Millisecond, d)
 		require.NotContains(t, got, "error", "error key must be absent on success")
 	})
 
@@ -318,7 +325,122 @@ func TestPingWriter_Result(t *testing.T) {
 		var got map[string]any
 		require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
 		require.Equal(t, false, got["pong"], "pong must be false on failure")
+		require.Equal(t, "100ms", got["duration"],
+			"duration must be a human-readable string")
 		require.Equal(t, "connection refused", got["error"])
+	})
+}
+
+// TestConfigWriter_DurationOpt verifies that time.Duration option values are
+// encoded as human-readable quoted strings (e.g. "1m40s"), not bare int64
+// nanoseconds. The string form is the contract from sq v0.53.0 and earlier;
+// the jsoncolor swap regressed it. See sq #791.
+func TestConfigWriter_DurationOpt(t *testing.T) {
+	opt := options.NewDuration("conn.open-timeout", nil, 10*time.Second, "usage", "help")
+	o := options.Options{opt.Key(): 100 * time.Second}
+
+	t.Run("opt", func(t *testing.T) {
+		var buf bytes.Buffer
+		pr := output.NewPrinting()
+		pr.EnableColor(false)
+
+		cw := jsonw.NewConfigWriter(&buf, pr)
+		require.NoError(t, cw.Opt(o, opt))
+
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
+		require.Equal(t, "1m40s", got[opt.Key()],
+			"duration option value must be a human-readable string")
+	})
+
+	t.Run("opt_verbose", func(t *testing.T) {
+		var buf bytes.Buffer
+		pr := output.NewPrinting()
+		pr.EnableColor(false)
+		pr.Verbose = true
+
+		cw := jsonw.NewConfigWriter(&buf, pr)
+		require.NoError(t, cw.Opt(o, opt))
+
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
+		require.Equal(t, "1m40s", got["value"],
+			"verbose opt value must be a human-readable string")
+		require.Equal(t, "10s", got["default_value"],
+			"verbose opt default_value must be a human-readable string")
+	})
+
+	t.Run("options_verbose", func(t *testing.T) {
+		reg := &options.Registry{}
+		reg.Add(opt)
+
+		var buf bytes.Buffer
+		pr := output.NewPrinting()
+		pr.EnableColor(false)
+		pr.Verbose = true
+
+		cw := jsonw.NewConfigWriter(&buf, pr)
+		require.NoError(t, cw.Options(reg, o))
+
+		var got map[string]map[string]any
+		require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
+		require.Equal(t, "1m40s", got[opt.Key()]["value"])
+		require.Equal(t, "10s", got[opt.Key()]["default_value"])
+	})
+
+	t.Run("set_option_verbose", func(t *testing.T) {
+		var buf bytes.Buffer
+		pr := output.NewPrinting()
+		pr.EnableColor(false)
+		pr.Verbose = true
+
+		cw := jsonw.NewConfigWriter(&buf, pr)
+		require.NoError(t, cw.SetOption(o, opt))
+
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
+		require.Equal(t, "1m40s", got["value"])
+	})
+
+	t.Run("source_options", func(t *testing.T) {
+		// Source.Options is serialized by sourcewriter, pingwriter, and
+		// metadatawriter; duration values there must take the string form too.
+		src := &source.Source{
+			Handle:   "@duration_test",
+			Type:     drivertype.SQLite,
+			Location: "test://",
+			Options:  o,
+		}
+
+		var buf bytes.Buffer
+		pr := output.NewPrinting()
+		pr.EnableColor(false)
+
+		require.NoError(t, jsonw.WriteJSON(&buf, pr, src))
+
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
+		srcOpts, ok := got["options"].(map[string]any)
+		require.True(t, ok, "options must be a JSON object")
+		require.Equal(t, "1m40s", srcOpts[opt.Key()])
+	})
+
+	t.Run("colorized", func(t *testing.T) {
+		// The duration string must survive the colorized encoder path, which
+		// re-tokenizes json.Marshaler output.
+		var buf bytes.Buffer
+		pr := output.NewPrinting()
+		pr.EnableColor(true)
+
+		require.NoError(t, jsonw.WriteJSON(&buf, pr, o))
+
+		out := buf.String()
+		require.Contains(t, out, "\x1b[", "expected ANSI escape in color output")
+
+		plain := reANSI.ReplaceAllString(out, "")
+		var got map[string]any
+		require.NoError(t, json.Unmarshal([]byte(plain), &got))
+		require.Equal(t, "1m40s", got[opt.Key()])
 	})
 }
 

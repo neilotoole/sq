@@ -22,3 +22,9 @@ collection:
     options:
       ingest.header: false
       redact: false
+  - handle: "@prod/pg2"
+    driver: postgres
+    location: postgres://sakila:p$ssW0rd@localhost/sakila
+  - handle: "@prod/pg3"
+    driver: postgres
+    location: postgres://sakila:${env:HOME}@localhost/sakila

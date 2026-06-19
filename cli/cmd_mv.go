@@ -156,10 +156,6 @@ func execMoveHandleToGroup(cmd *cobra.Command, oldHandle, newGroup string) error
 		return err
 	}
 
-	if newSrc, err = maybeExpandSource(cmd.Context(), ru, cmd, newSrc); err != nil {
-		return err
-	}
-
 	return ru.Writers.Source.Moved(ru.Config.Collection, oldSrc, newSrc)
 }
 
@@ -187,10 +183,6 @@ func execMoveRenameHandle(cmd *cobra.Command, oldHandle, newHandle string) error
 	}
 
 	if err = ru.ConfigStore.Save(cmd.Context(), ru.Config); err != nil {
-		return err
-	}
-
-	if newSrc, err = maybeExpandSource(cmd.Context(), ru, cmd, newSrc); err != nil {
 		return err
 	}
 

@@ -150,18 +150,40 @@ func (c *Collection) Add(src *Source) error {
 		return errz.Errorf("conflict: source with handle %s already exists", src.Handle)
 	}
 
-	srcGroup := src.Group()
-	if c.isExistingHandle("@" + srcGroup) {
-		return errz.Errorf("conflict: source's group %q conflicts with existing handle %s",
-			srcGroup, "@"+srcGroup)
+	if err := c.requireNoAncestorHandle(src.Group()); err != nil {
+		return err
 	}
 
 	if c.isExistingGroup(src.Handle[1:]) {
 		return errz.Errorf("conflict: handle %s clashes with existing group %q",
-			src.Handle, src.Handle[1])
+			src.Handle, src.Handle[1:])
 	}
 
 	c.data.Sources = append(c.data.Sources, src)
+	return nil
+}
+
+// requireNoAncestorHandle returns an error if group, or any ancestor of
+// group, is the name of an existing handle. For group "prod/db" it checks
+// handles @prod and @prod/db. This prevents a source (or group) from
+// nesting below an existing handle: handles and groups share path
+// semantics (e.g. the cache dir layout maps handle path segments to
+// directories), so e.g. @prod and @prod/db/x must not coexist. The
+// reverse direction (a new handle clashing with an existing group) is
+// enforced via isExistingGroup, whose groups() expansion is transitive.
+func (c *Collection) requireNoAncestorHandle(group string) error {
+	if group == "" || group == "/" {
+		return nil
+	}
+
+	parts := strings.Split(group, "/")
+	for i := range parts {
+		ancestor := "@" + strings.Join(parts[:i+1], "/")
+		if c.isExistingHandle(ancestor) {
+			return errz.Errorf("conflict: group %q conflicts with existing handle %s",
+				group, ancestor)
+		}
+	}
 	return nil
 }
 
@@ -232,6 +254,10 @@ func (c *Collection) renameSource(oldHandle, newHandle string) (*Source, error) 
 			newHandle, newHandle[1:])
 	}
 
+	if err = c.requireNoAncestorHandle(groupFromHandle(newHandle)); err != nil {
+		return nil, err
+	}
+
 	oldGroup := src.Group()
 
 	// Do the actual renaming of the handle.
@@ -278,9 +304,8 @@ func (c *Collection) RenameGroup(oldGroup, newGroup string) ([]*Source, error) {
 		return nil, err
 	}
 
-	if c.isExistingHandle("@" + newGroup) {
-		return nil, errz.Errorf("conflict: new group %q conflicts with existing handle %s",
-			newGroup, "@"+newGroup)
+	if err := c.requireNoAncestorHandle(newGroup); err != nil {
+		return nil, err
 	}
 
 	if newGroup == "/" {
@@ -339,9 +364,10 @@ func (c *Collection) MoveHandleToGroup(handle, toGroup string) (*Source, error) 
 		return nil, err
 	}
 
-	if c.isExistingHandle("@" + toGroup) {
-		return nil, errz.Errorf("conflict: dest group %q conflicts with existing handle %s",
-			toGroup, "@"+toGroup)
+	if toGroup != "/" {
+		if err := c.requireNoAncestorHandle(toGroup); err != nil {
+			return nil, err
+		}
 	}
 
 	var newHandle string

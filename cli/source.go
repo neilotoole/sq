@@ -41,9 +41,15 @@ func peekActiveSrc(cmd *cobra.Command, coll *source.Collection) *source.Source {
 // from any combination of stdin, flags or cfg. It will
 // mutate ru.Config.Collection as necessary. If requireActive
 // is true, an error is returned if there's no active source.
-func determineSources(ctx context.Context, ru *run.Run, requireActive bool) error {
+// mode is the access mode for any source pre-open performed during
+// resolution, i.e. the verifySourceCatalogSchema validation open
+// triggered by --src.schema. It is read-only (the validation is a pure
+// read); pass ModeReadOnlyExplicit when the user explicitly requested
+// read-only (sql --readonly) so the driver may override an AUTOMATIC
+// access_mode.
+func determineSources(ctx context.Context, ru *run.Run, requireActive bool, mode driver.AccessMode) error {
 	cmd, coll := ru.Cmd, ru.Config.Collection
-	activeSrc, err := activeSrcAndSchemaFromFlagsOrConfig(ru)
+	activeSrc, err := activeSrcAndSchemaFromFlagsOrConfig(ru, mode)
 	if err != nil {
 		return err
 	}
@@ -97,7 +103,7 @@ func determineSources(ctx context.Context, ru *run.Run, requireActive bool) erro
 // of the source if the flag is set.
 //
 // See also: processFlagActiveSchema, verifySourceCatalogSchema.
-func activeSrcAndSchemaFromFlagsOrConfig(ru *run.Run) (*source.Source, error) {
+func activeSrcAndSchemaFromFlagsOrConfig(ru *run.Run, mode driver.AccessMode) (*source.Source, error) {
 	cmd, coll := ru.Cmd, ru.Config.Collection
 	var activeSrc *source.Source
 
@@ -125,7 +131,7 @@ func activeSrcAndSchemaFromFlagsOrConfig(ru *run.Run) (*source.Source, error) {
 	}
 
 	if srcModified {
-		if err = verifySourceCatalogSchema(ru.Cmd.Context(), ru, activeSrc); err != nil {
+		if err = verifySourceCatalogSchema(ru.Cmd.Context(), ru, activeSrc, mode); err != nil {
 			return nil, err
 		}
 	}
@@ -138,17 +144,18 @@ func activeSrcAndSchemaFromFlagsOrConfig(ru *run.Run) (*source.Source, error) {
 // DB. If both fields are empty, this is a no-op. This function is typically
 // used when the source's catalog or schema are modified, e.g. via [flag.ActiveSchema].
 //
-// The validation grip is opened with the read-only hint and is NOT cached
-// in [driver.Grips]: schema/catalog existence checks are pure reads, and
+// The validation grip is opened read-only (via the mode argument, which
+// every caller passes as a read-only mode) and is NOT cached in
+// [driver.Grips]: schema/catalog existence checks are pure reads, and
 // caching here would have surprising downstream effects. In particular,
 // for DuckDB with a `--readonly --insert` invocation, a cached RW grip
-// from validation would silently defeat the source-side RO intent the
-// caller plumbed through ctx (and a cached RO grip would defeat the
-// destination-side RW intent on a self-insert). Keeping this open
-// ephemeral and explicitly RO sidesteps both pitfalls.
+// from validation would silently defeat the source-side read-only intent
+// (and a cached RO grip would defeat the destination-side RW intent on a
+// self-insert). Keeping this open ephemeral and read-only sidesteps both
+// pitfalls.
 //
 // See also: processFlagActiveSchema.
-func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Source) error {
+func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Source, mode driver.AccessMode) error {
 	if src.Catalog == "" && src.Schema == "" {
 		return nil
 	}
@@ -163,26 +170,35 @@ func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Sou
 			src.Handle, src.Type)
 	}
 
-	// Mark the validation open read-only via the advisory hint. The
-	// driver may still open READ_WRITE if the source URL explicitly
-	// sets access_mode (user URL always wins), but for the typical
-	// case the hint prevents the cached-grip pitfalls described in
-	// the godoc above.
-	openCtx := driver.WithReadOnly(ctx)
-	grip, err := d.Open(openCtx, src)
+	// This validation open is always read-only (a pure catalog/schema
+	// existence check). mode is passed by the caller: ModeReadOnly for
+	// the implicit case, or ModeReadOnlyExplicit when the user requested
+	// read-only (sql --readonly) so the driver may override an AUTOMATIC
+	// access_mode. The driver may still open READ_WRITE if the source URL
+	// pins access_mode (user URL always wins).
+
+	// Bypassing Grips also bypasses the ${scheme:path} placeholder
+	// resolution that Grips.doOpen performs, so resolve here before
+	// handing src to the driver.
+	openSrc, err := driver.ResolveSourceSecrets(ctx, src)
+	if err != nil {
+		return err
+	}
+
+	grip, err := d.Open(ctx, openSrc, mode)
 	if err != nil {
 		return err
 	}
 	defer lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDB, grip)
 
-	db, err := grip.DB(openCtx)
+	db, err := grip.DB(ctx)
 	if err != nil {
 		return err
 	}
 
 	var exists bool
 	if src.Catalog != "" {
-		if exists, err = sqlDrvr.CatalogExists(openCtx, db, src.Catalog); err != nil {
+		if exists, err = sqlDrvr.CatalogExists(ctx, db, src.Catalog); err != nil {
 			return err
 		}
 		if !exists {
@@ -191,7 +207,7 @@ func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Sou
 	}
 
 	if src.Schema != "" {
-		if exists, err = sqlDrvr.SchemaExists(openCtx, db, src.Schema); err != nil {
+		if exists, err = sqlDrvr.SchemaExists(ctx, db, src.Schema); err != nil {
 			return err
 		}
 		if !exists {
@@ -208,7 +224,7 @@ func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Sou
 // (and validated) as appropriate.
 //
 // See: applySourceOptions, processFlagActiveSchema, verifySourceCatalogSchema.
-func getCmdSource(cmd *cobra.Command, args []string) (*source.Source, error) {
+func getCmdSource(cmd *cobra.Command, args []string, mode driver.AccessMode) (*source.Source, error) {
 	ru := run.FromContext(cmd.Context())
 
 	var src *source.Source
@@ -240,7 +256,7 @@ func getCmdSource(cmd *cobra.Command, args []string) (*source.Source, error) {
 	}
 
 	if srcModified {
-		if err = verifySourceCatalogSchema(cmd.Context(), ru, src); err != nil {
+		if err = verifySourceCatalogSchema(cmd.Context(), ru, src, mode); err != nil {
 			return nil, err
 		}
 	}
@@ -408,6 +424,9 @@ func checkStdinSource(ctx context.Context, ru *run.Run) (*source.Source, error) 
 		scheme = "duckdb://"
 	}
 	src.Location = scheme + tmpFile.Name()
+	// The temp path is an internally constructed literal, not a
+	// placeholder template: mark it so resolution is a no-op.
+	src.SecretsResolved = true
 	return src, nil
 }
 

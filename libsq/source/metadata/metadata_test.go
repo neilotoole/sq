@@ -105,20 +105,21 @@ func TestSource_Clone(t *testing.T) {
 	t.Run("full_source", func(t *testing.T) {
 		var size int64 = 1024
 		src := &metadata.Source{
-			Handle:     "@sakila",
-			Location:   "postgres://localhost/sakila",
-			Name:       "sakila",
-			FQName:     "sakila.public",
-			Schema:     "public",
-			Catalog:    "sakila",
-			Driver:     drivertype.Pg,
-			DBDriver:   drivertype.Pg,
-			DBProduct:  "PostgreSQL 14.0",
-			DBVersion:  "14.0",
-			User:       "postgres",
-			Size:       &size,
-			TableCount: 10,
-			ViewCount:  5,
+			Handle:          "@sakila",
+			Location:        "postgres://localhost/sakila",
+			Name:            "sakila",
+			FQName:          "sakila.public",
+			Schema:          "public",
+			Catalog:         "sakila",
+			Driver:          drivertype.Pg,
+			DBDriver:        drivertype.Pg,
+			DBProduct:       "PostgreSQL 14.0",
+			DBVersion:       "14.0",
+			User:            "postgres",
+			Size:            &size,
+			TableCount:      10,
+			ViewCount:       5,
+			SecretsResolved: true,
 			DBProperties: map[string]any{
 				"max_connections": 100,
 				"version":         "14.0",
@@ -149,6 +150,7 @@ func TestSource_Clone(t *testing.T) {
 		require.Equal(t, src.Size, got.Size)
 		require.Equal(t, src.TableCount, got.TableCount)
 		require.Equal(t, src.ViewCount, got.ViewCount)
+		require.Equal(t, src.SecretsResolved, got.SecretsResolved)
 
 		// Verify DBProperties is a deep copy
 		require.Equal(t, src.DBProperties, got.DBProperties)

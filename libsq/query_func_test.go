@@ -6,6 +6,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/neilotoole/sq/libsq"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 )
@@ -29,7 +30,7 @@ func TestQuery_func(t *testing.T) {
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "max(.actor_id)"),
-				assertSinkColValue(0, int64(200)),
+				assertSinkColInt(0, 200),
 			},
 		},
 		{
@@ -43,7 +44,7 @@ func TestQuery_func(t *testing.T) {
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "min(.actor_id)"),
-				assertSinkColValue(0, int64(1)),
+				assertSinkColInt(0, 1),
 			},
 		},
 		{
@@ -51,23 +52,78 @@ func TestQuery_func(t *testing.T) {
 			in:      `@sakila | .actor | avg(.actor_id)`,
 			wantSQL: `SELECT avg("actor_id") AS "avg(.actor_id)" FROM "actor"`,
 			override: driverMap{
-				drivertype.MySQL:      "SELECT avg(`actor_id`) AS `avg(.actor_id)` FROM `actor`",
+				drivertype.Pg:         `SELECT CAST(avg("actor_id") AS DOUBLE PRECISION) AS "avg(.actor_id)" FROM "actor"`,
+				drivertype.MySQL:      "SELECT CAST(avg(`actor_id`) AS DOUBLE) AS `avg(.actor_id)` FROM `actor`",
+				drivertype.MSSQL:      `SELECT avg(CAST("actor_id" AS FLOAT)) AS "avg(.actor_id)" FROM "actor"`,
 				drivertype.ClickHouse: "SELECT avg(`actor_id`) AS `avg(.actor_id)` FROM `actor`",
 				drivertype.Oracle:     `SELECT CAST(avg("ACTOR_ID") AS BINARY_DOUBLE) AS "AVG(.ACTOR_ID)" FROM "ACTOR"`,
 			},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "avg(.actor_id)"),
-
-				// FIXME: The driver impls handle avg() differently. Some return
-				// float64, some int, some decimal (string). The SLQ impl of avg()
-				// needs to be modified to returned a consistent type.
-				// assertSinkColValue(0, float64(100.5)),
-				//
-				// See also:
-				// - https://github.com/golang/go/issues/30870
-				// - https://github.com/golang-sql/decomposer
-
+				assertSinkColValue(0, float64(100.5)),
+			},
+		},
+		{
+			// sum() over an integer column. Harmonized to decimal across all
+			// drivers (issue #839): an exact integer sum is surfaced as a
+			// decimal, not as int64/float64. The default sum("actor_id") form
+			// covers SQLite (kind pinned at the driver layer) and DuckDB (native
+			// decimal); the others cast to a decimal type.
+			name:    "sum",
+			in:      `@sakila | .actor | sum(.actor_id)`,
+			wantSQL: `SELECT sum("actor_id") AS "sum(.actor_id)" FROM "actor"`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT CAST(sum("actor_id") AS NUMERIC) AS "sum(.actor_id)" FROM "actor"`,
+				drivertype.MySQL:      "SELECT CAST(sum(`actor_id`) AS DECIMAL(65, 30)) AS `sum(.actor_id)` FROM `actor`",
+				drivertype.MSSQL:      `SELECT sum(CAST("actor_id" AS DECIMAL(38, 6))) AS "sum(.actor_id)" FROM "actor"`,
+				drivertype.ClickHouse: "SELECT CAST(sum(`actor_id`) AS Nullable(Decimal(38, 6))) AS `sum(.actor_id)` FROM `actor`",
+				drivertype.Oracle:     `SELECT CAST(sum("ACTOR_ID") AS NUMBER(38, 6)) AS "SUM(.ACTOR_ID)" FROM "ACTOR"`,
+			},
+			wantRecCount: 1,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "sum(.actor_id)"),
+				assertSinkColDecimal(0, "20100", nil),
+			},
+		},
+		{
+			// sum() over a decimal column. Harmonized to decimal across all
+			// drivers (issue #839). SQLite (and rqlite) compute the sum in
+			// floating point internally, so they surface a drifted value
+			// (67416.51000000001); the type choice unifies the kind but cannot
+			// correct a value the engine already computed in float.
+			name:    "sum_decimal",
+			in:      `@sakila | .payment | sum(.amount)`,
+			wantSQL: `SELECT sum("amount") AS "sum(.amount)" FROM "payment"`,
+			override: driverMap{
+				drivertype.Pg:         `SELECT CAST(sum("amount") AS NUMERIC) AS "sum(.amount)" FROM "payment"`,
+				drivertype.MySQL:      "SELECT CAST(sum(`amount`) AS DECIMAL(65, 30)) AS `sum(.amount)` FROM `payment`",
+				drivertype.MSSQL:      `SELECT sum(CAST("amount" AS DECIMAL(38, 6))) AS "sum(.amount)" FROM "payment"`,
+				drivertype.ClickHouse: "SELECT CAST(sum(`amount`) AS Nullable(Decimal(38, 6))) AS `sum(.amount)` FROM `payment`",
+				drivertype.Oracle:     `SELECT CAST(sum("AMOUNT") AS NUMBER(38, 6)) AS "SUM(.AMOUNT)" FROM "PAYMENT"`,
+			},
+			wantRecCount: 1,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "sum(.amount)"),
+				assertSinkColDecimal(0, "67416.51", driverMap{
+					// SQLite/rqlite compute the sum in float; the value drifts.
+					drivertype.SQLite: "67416.51000000001",
+					drivertype.Rqlite: "67416.51000000001",
+				}),
+			},
+		},
+		{
+			// sum() over an empty result set must still surface as kind.Decimal
+			// and not crash on the forced-decimal SQLite/rqlite scan path (where
+			// the NULL scans into *decimal.NullDecimal) or on ClickHouse (whose
+			// non-nullable Decimal cast is wrapped in Nullable for this reason).
+			// The value is not asserted: most drivers return NULL for an empty
+			// sum, but ClickHouse returns 0. See issue #839.
+			name:         "sum_null",
+			in:           `@sakila | .payment | where(.payment_id < 0) | sum(.amount)`,
+			wantRecCount: 1,
+			sinkFns: []SinkTestFunc{
+				assertSinkColKind(0, kind.Decimal),
 			},
 		},
 	}
@@ -340,8 +396,12 @@ func TestQuery_func_rownum(t *testing.T) {
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "rownum()+1"),
-				assertSinkCellValue(0, 0, int64(2)),
-				assertSinkCellValue(199, 0, int64(201)),
+				// rownum() as a direct result column is pinned to int (see the
+				// "plain" case, which asserts int64). Here rownum() is inside an
+				// arithmetic expression, which the pin does not reach, so on Oracle
+				// the result surfaces as decimal; assertSinkCellInt accounts for that.
+				assertSinkCellInt(0, 0, 2),
+				assertSinkCellInt(199, 0, 201),
 			},
 		},
 		{
@@ -356,8 +416,8 @@ func TestQuery_func_rownum(t *testing.T) {
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "zero_index"),
-				assertSinkCellValue(0, 0, int64(0)),
-				assertSinkCellValue(199, 0, int64(199)),
+				assertSinkCellInt(0, 0, 0),
+				assertSinkCellInt(199, 0, 199),
 			},
 		},
 		{

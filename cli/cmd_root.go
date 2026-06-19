@@ -111,12 +111,10 @@ See docs and more: https://sq.io`,
 	// --reveal is the canonical disclosure flag; --no-redact is its
 	// deprecated alias. Neither is bound directly to OptSecretsReveal.
 	// Both are free-standing pflags whose presence is detected in
-	// getOptionsFromFlags and unioned into secrets.reveal=true.
-	// Explicit false (--reveal=false, --no-redact=false) is a no-op:
-	// the flags are positive opt-ins to disclosure, and a leftover
-	// config or default value wins. To force redaction when
-	// secrets.reveal is true in config, override it via
-	// 'sq config set secrets.reveal false'.
+	// getOptionsFromFlags and mapped onto secrets.reveal. An explicitly
+	// set flag wins over config in both directions (see #785): explicit
+	// false (--reveal=false, --no-redact=false) forces redaction even
+	// when config has secrets.reveal=true.
 	cmd.PersistentFlags().Bool(flag.Reveal, false, flag.RevealUsage)
 	cmd.PersistentFlags().Bool(flag.NoRedact, false, flag.NoRedactUsage)
 	// --expand resolves ${scheme:path} placeholders against the

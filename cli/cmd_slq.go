@@ -65,18 +65,10 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 	ru := run.FromContext(ctx)
 	coll := ru.Config.Collection
 
-	// Mark the context read-only BEFORE determineSources so any source
-	// pre-open it performs (e.g. --src.schema validation, which calls
-	// Grips.Open and caches the resulting grip by handle) sees the RO
-	// hint. Only the --insert path opens a destination for writing; for
-	// that case execSLQInsert opens destGrip first on the original RW
-	// ctx, then flips to RO for source-side opens.
-	if !cmdFlagChanged(cmd, flag.Insert) {
-		ctx = driver.WithReadOnly(ctx)
-		cmd.SetContext(ctx)
-	}
-
-	err := determineSources(ctx, ru, false)
+	// Read-only intent is passed explicitly: the SLQ pipeline opens via
+	// QueryContext.AccessMode (see execSLQPrint / execSLQInsert), and the
+	// --src.schema validation pre-open is read-only (a pure read).
+	err := determineSources(ctx, ru, false, driver.ModeReadOnly)
 	if err != nil {
 		return err
 	}
@@ -115,9 +107,9 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 	}
 
 	if !cmdFlagChanged(cmd, flag.Insert) {
-		// The user didn't specify the --insert=@src.tbl flag,
-		// so we just want to print the records. The RO ctx was
-		// established at the top of the function.
+		// The user didn't specify the --insert=@src.tbl flag, so we just
+		// want to print the records; execSLQPrint opens the source(s)
+		// read-only via QueryContext.AccessMode.
 		return execSLQPrint(ctx, ru, mArgs)
 	}
 
@@ -160,17 +152,21 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
-	destGrip, err := ru.Grips.Open(ctx, destSrc)
+	// Open destGrip read-write. It lands in the Grips cache under the RW
+	// key (handle + ModeReadWrite).
+	destGrip, err := ru.Grips.Open(ctx, destSrc, driver.ModeReadWrite)
 	if err != nil {
 		return err
 	}
 
-	// destGrip is now in the Grips handle-keyed cache as RW. Mark the
-	// context read-only for source-side opens performed inside the SLQ
-	// pipeline. If a source in the pipeline shares its handle with
-	// destSrc (self-insert), the cache returns this RW grip and the
-	// pipeline writes through it.
-	ctx = driver.WithReadOnly(ctx)
+	// Pipeline sources are read-only, except a source that shares destSrc's
+	// handle (a self-insert, e.g. `sq '@h.t1' --insert @h.t2`): that one is
+	// opened read-write via WriteHandle so it reuses destGrip instead of
+	// opening a conflicting second connection (DuckDB rejects concurrent
+	// read-only + read-write of one file, gh #779). Sources with other
+	// handles stay read-only, so inserting from a read-only source works.
+	qc.AccessMode = driver.ModeReadOnly
+	qc.WriteHandle = destSrc.Handle
 
 	// Note: We don't need to worry about closing fromConn and
 	// destConn because they are closed by databases.Close, which
@@ -206,6 +202,8 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 // execSLQPrint executes the SLQ query, and prints output to writer.
 func execSLQPrint(ctx context.Context, ru *run.Run, mArgs map[string]string) error {
 	qc := run.NewQueryContext(ru, mArgs)
+	// Printing a query never writes to a source: open read-only.
+	qc.AccessMode = driver.ModeReadOnly
 
 	slq, err := preprocessUserSLQ(ctx, ru, ru.Args)
 	if err != nil {
@@ -237,6 +235,8 @@ func execSLQPrint(ctx context.Context, ru *run.Run, mArgs map[string]string) err
 // anyone running with verbose / debug logging.
 func execSLQRenderSQL(ctx context.Context, ru *run.Run, mArgs map[string]string) error {
 	qc := run.NewQueryContext(ru, mArgs)
+	// Rendering only reads source metadata; open read-only.
+	qc.AccessMode = driver.ModeReadOnly
 
 	if fm := getFormat(ru.Cmd, ru.Config.Options); !renderSQLSupportsFormat(fm) {
 		lg.FromContext(ctx).Warn(
@@ -333,7 +333,7 @@ func preprocessUserSLQ(ctx context.Context, ru *run.Run, args []string) (string,
 			// just select @stdin.data. Instead we'll select
 			// the first table name, as found in the source meta.
 
-			db, sqlDrvr, err := ru.DB(ctx, activeSrc)
+			db, sqlDrvr, err := ru.DB(ctx, activeSrc, driver.ModeReadOnly)
 			if err != nil {
 				return "", err
 			}
@@ -419,9 +419,14 @@ func addTextFormatFlags(cmd *cobra.Command) {
 // addQueryCmdFlags sets the common flags for the slq and sql commands.
 func addQueryCmdFlags(cmd *cobra.Command) {
 	addOptionFlag(cmd.Flags(), OptFormat)
+	addOptionFlag(cmd.Flags(), OptFormatDecimal)
 	panicOn(cmd.RegisterFlagCompletionFunc(
 		OptFormat.Flag().Name,
 		completeStrings(-1, stringz.Strings(format.All())...),
+	))
+	panicOn(cmd.RegisterFlagCompletionFunc(
+		OptFormatDecimal.Flag().Name,
+		completeStrings(-1, "string", "number"),
 	))
 	addResultFormatFlags(cmd)
 	cmd.MarkFlagsMutuallyExclusive(append(

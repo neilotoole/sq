@@ -164,6 +164,22 @@ func (d *driveri) Renderer() *render.Renderer {
 
 	r.FunctionNames[ast.FuncNameSchema] = "SCHEMA_NAME"
 	r.FunctionNames[ast.FuncNameCatalog] = "DB_NAME"
+	// SQL Server computes AVG over an integer column using integer division,
+	// truncating the fractional part (e.g. the average of 1..200 returns 100,
+	// not 100.5). Cast the operand, not the result: CAST(AVG(col) AS FLOAT)
+	// still truncates because AVG has already returned an int. See issue #594.
+	r.FunctionOverrides[ast.FuncNameAvg] = render.FuncOverrideCastOperand("FLOAT")
+	// sum() is harmonized to decimal across drivers (issue #839). SQL Server's
+	// SUM(int) returns int and overflows at the int range, so cast the operand
+	// (not the result): summing CAST(col AS DECIMAL) widens the accumulator
+	// before it can overflow, whereas CAST(SUM(col) AS DECIMAL) overflows first.
+	// The non-zero scale also pins the result to decimal; trailing zeros from the
+	// fixed scale are trimmed by stringz.FormatDecimal at render time. Because the
+	// operand (not the result) is cast, a column with more than AggDecimalScale
+	// fractional digits is rounded per row before summing, unlike the result-cast
+	// dialects which round the final sum.
+	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastOperand(
+		fmt.Sprintf("DECIMAL(%d, %d)", render.AggDecimalPrecision, render.AggDecimalScale))
 	r.FunctionOverrides[ast.FuncNameRowNum] = renderFuncRowNum
 	r.FunctionOverrides[ast.FuncNameContains] = renderFuncContainsCollate
 	r.FunctionOverrides[ast.FuncNameStartsWith] = renderFuncStartsWithCollate
@@ -191,7 +207,7 @@ func (d *driveri) Renderer() *render.Renderer {
 }
 
 // Open implements driver.Driver.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessMode) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -245,7 +261,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
+func (d *driveri) Ping(ctx context.Context, src *source.Source, _ driver.AccessMode) error {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return err
@@ -352,7 +368,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, _ map[int]kind.Kind) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
@@ -771,7 +787,7 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName stri
 		return nil, errw(rows.Err())
 	}
 
-	destCols, _, err := d.RecordMeta(ctx, colTypes)
+	destCols, _, err := d.RecordMeta(ctx, colTypes, nil)
 	if err != nil {
 		sqlz.CloseRows(d.log, rows)
 		return nil, errw(err)

@@ -122,21 +122,14 @@ func execPing(cmd *cobra.Command, args []string) error {
 
 	lg.From(cmd).Debug("Using ping timeout", lga.Val, fmt.Sprintf("%v", timeout))
 
-	// Expand ${scheme:path} placeholders for display when --expand is
-	// set. pingSources reads src.Location from each entry and passes
-	// it to the writer alongside the ping result; expanding here makes
-	// the displayed Location reflect what was resolved. The driver
-	// itself does its own resolution inside pingSource via
-	// ResolveSourceSecrets, which is a no-op on an already-expanded
-	// Location.
-	for i, src := range srcs {
-		expanded, expandErr := maybeExpandSource(cmd.Context(), ru, cmd, src)
-		if expandErr != nil {
-			return expandErr
-		}
-		srcs[i] = expanded
-	}
-
+	// Note: the writer layer's expand decorator (see expand_writer.go)
+	// applies --expand expansion to the displayed locations; the
+	// original stored sources feed the drivers untouched. The
+	// connection must use the original stored source: pingSource
+	// resolves it via ResolveSourceSecrets, and resolving an
+	// already-expanded clone a second time would unescape '$$' again,
+	// corrupting literal locations (e.g. those escaped by the v0.54.0
+	// config upgrade, or a resolved secret value containing '$$').
 	err = pingSources(cmd.Context(), ru.DriverRegistry, srcs, ru.Writers.Ping, timeout)
 	if errors.Is(err, context.Canceled) {
 		// It's common to cancel "sq ping". We don't want to print the cancel message.
@@ -211,7 +204,11 @@ func pingSources(ctx context.Context, dp driver.Provider, srcs []*source.Source,
 }
 
 // pingSource pings an individual driver.Source. It always returns a
-// result on resultCh, even when ctx is done.
+// result on resultCh, even when ctx is done. src is the original
+// stored source, which is what the driver connects with (after
+// resolution below), and what pingResult carries to the output
+// writers; the writer layer's expand decorator handles the --expand
+// display view.
 func pingSource(ctx context.Context, dp driver.Provider, src *source.Source, timeout time.Duration,
 	resultCh chan<- pingResult,
 ) {
@@ -225,17 +222,14 @@ func pingSource(ctx context.Context, dp driver.Provider, src *source.Source, tim
 	// handing the source to the driver. Grips.doOpen does this for the
 	// query path; ping calls drvr.Ping directly, so we must do it here.
 	// Keep the resolved clone in a separate variable: pingResult carries
-	// the original (templated) src to output writers, which serialize
-	// src.Location verbatim — we must not leak the resolved plaintext.
+	// the stored src to output writers, which serialize src.Location
+	// verbatim. We must not leak the resolved plaintext unless the
+	// user opted in via --expand.
 	resolved, err := driver.ResolveSourceSecrets(ctx, src)
 	if err != nil {
 		resultCh <- pingResult{src: src, err: err}
 		return
 	}
-
-	// Ping is read-only by definition: connectivity check, no writes.
-	// Drivers that support it (currently DuckDB) connect in RO mode.
-	ctx = driver.WithReadOnly(ctx)
 
 	if timeout > 0 {
 		var cancelFn context.CancelFunc
@@ -243,11 +237,17 @@ func pingSource(ctx context.Context, dp driver.Provider, src *source.Source, tim
 		defer cancelFn()
 	}
 
-	doneCh := make(chan pingResult)
+	// Buffered (size 1) so the goroutine's send always completes even when
+	// the select below returns on ctx.Done() first; an unbuffered channel
+	// would leak the goroutine (blocked on send) on the timeout/cancel path.
+	doneCh := make(chan pingResult, 1)
 	start := time.Now()
 
 	go func() {
-		pingErr := drvr.Ping(ctx, resolved)
+		// Ping is read-only by definition: connectivity check, no writes.
+		// It calls drvr.Ping directly (bypassing Grips), passing the mode
+		// as an explicit argument.
+		pingErr := drvr.Ping(ctx, resolved, driver.ModeReadOnly)
 		doneCh <- pingResult{src: src, duration: time.Since(start), err: pingErr}
 	}()
 

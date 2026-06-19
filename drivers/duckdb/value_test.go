@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
@@ -58,7 +59,7 @@ func TestRecordMeta_TypeSpectrum(t *testing.T) {
 	colTypes, err := rows.ColumnTypes()
 	require.NoError(t, err)
 
-	recMeta, newRecFn, err := grip.SQLDriver().RecordMeta(th.Context, colTypes)
+	recMeta, newRecFn, err := grip.SQLDriver().RecordMeta(th.Context, colTypes, nil)
 	require.NoError(t, err)
 
 	require.True(t, rows.Next(), "type_test should have at least one row")
@@ -199,7 +200,7 @@ func TestRecordMeta_HugeIntPrecision(t *testing.T) {
 
 			colTypes, err := rows.ColumnTypes()
 			require.NoError(t, err)
-			recMeta, newRecFn, err := grip.SQLDriver().RecordMeta(th.Context, colTypes)
+			recMeta, newRecFn, err := grip.SQLDriver().RecordMeta(th.Context, colTypes, nil)
 			require.NoError(t, err)
 
 			require.True(t, rows.Next())
@@ -277,7 +278,7 @@ func TestConcurrentOpen(t *testing.T) {
 				Type:     drivertype.DuckDB,
 				Location: "duckdb://" + filepath.Join(dir, "conc_"+strconv.Itoa(i)+".duckdb"),
 			}
-			grip, err := drv.Open(th.Context, src)
+			grip, err := drv.Open(th.Context, src, driver.ModeReadWrite)
 			if err != nil {
 				return err
 			}

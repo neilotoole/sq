@@ -17,7 +17,10 @@ var rtypeNullTime = reflect.TypeFor[nullTime]()
 // itself (verbatim from mattn/go-sqlite3.SQLiteTimestampFormats). rqlite
 // returns SQLite cells as JSON over HTTP, so date/datetime values arrive
 // here as plain strings rather than typed time.Time values, and we parse
-// them with the same set SQLite uses.
+// them with the same set SQLite uses. sqRows.Next (sqldriver.go)
+// guarantees raw string delivery by bypassing gorqlite's two-format
+// toTime pre-conversion, which would otherwise error out the whole
+// result set for most of these formats (gh775).
 var sqliteTimestampFormats = []string{
 	"2006-01-02 15:04:05.999999999-07:00",
 	"2006-01-02T15:04:05.999999999-07:00",

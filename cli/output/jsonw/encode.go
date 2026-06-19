@@ -25,6 +25,7 @@ type monoEncoder struct {
 	formatDatetimeAsNumber bool
 	formatDateAsNumber     bool
 	formatTimeAsNumber     bool
+	decimalAsNumber        bool
 }
 
 func (e monoEncoder) encodeTime(b []byte, v any) ([]byte, error) {
@@ -97,6 +98,9 @@ func (e monoEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 		return b, nil
 
 	case decimal.Decimal:
+		if e.decimalAsNumber {
+			return append(b, stringz.FormatDecimal(v)...), nil
+		}
 		var err error
 		b, err = encodeString(b, stringz.FormatDecimal(v), false)
 		if err != nil {
@@ -121,6 +125,7 @@ type colorEncoder struct {
 	formatDatetimeAsNumber bool
 	formatDateAsNumber     bool
 	formatTimeAsNumber     bool
+	decimalAsNumber        bool
 }
 
 func (e *colorEncoder) encodeTime(b []byte, v any) ([]byte, error) {
@@ -218,6 +223,10 @@ func (e *colorEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 
 	case decimal.Decimal:
 		b = append(b, e.clrs.Number.Prefix...)
+		if e.decimalAsNumber {
+			b = append(b, stringz.FormatDecimal(v)...)
+			return append(b, e.clrs.Number.Suffix...), nil
+		}
 		var err error
 		b, err = encodeString(b, stringz.FormatDecimal(v), false)
 		if err != nil {
@@ -282,6 +291,7 @@ func getFieldEncoders(recMeta record.Meta, pr *output.Printing) []func(b []byte,
 			formatDateAsNumber:     pr.FormatDateAsNumber,
 			formatTime:             pr.FormatTime,
 			formatTimeAsNumber:     pr.FormatTimeAsNumber,
+			decimalAsNumber:        pr.DecimalAsNumber,
 		}
 
 		for i := range recMeta {
@@ -311,6 +321,7 @@ func getFieldEncoders(recMeta record.Meta, pr *output.Printing) []func(b []byte,
 		formatDateAsNumber:     pr.FormatDateAsNumber,
 		formatTime:             pr.FormatTime,
 		formatTimeAsNumber:     pr.FormatTimeAsNumber,
+		decimalAsNumber:        pr.DecimalAsNumber,
 	}
 	for i := range recMeta {
 		switch recMeta[i].Kind() { //nolint:exhaustive

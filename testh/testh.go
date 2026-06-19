@@ -419,7 +419,7 @@ func (h *Helper) NewCollection(handles ...string) *source.Collection {
 // during h.Close.
 func (h *Helper) Open(src *source.Source) driver.Grip {
 	ctx := h.Context
-	grip, err := h.Grips().Open(ctx, src)
+	grip, err := h.Grips().Open(ctx, src, driver.ModeReadWrite)
 	require.NoError(h.T, err)
 
 	db, err := grip.DB(ctx)
@@ -451,7 +451,7 @@ func (h *Helper) openNew(src *source.Source) driver.Grip {
 	reg := h.Registry()
 	drvr, err := reg.DriverFor(src.Type)
 	require.NoError(h.T, err)
-	grip, err := drvr.Open(h.Context, src)
+	grip, err := drvr.Open(h.Context, src, driver.ModeReadWrite)
 	require.NoError(h.T, err)
 	return grip
 }
@@ -647,7 +647,7 @@ func (h *Helper) QuerySQL(src *source.Source, db sqlz.DB, query string, args ...
 
 	sink := &RecordSink{}
 	recw := output.NewRecordWriterAdapter(h.Context, sink)
-	err := libsq.QuerySQL(h.Context, grip, db, recw, query, args...)
+	err := libsq.QuerySQL(h.Context, grip, db, recw, nil, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -811,7 +811,7 @@ func (h *Helper) Files() *files.Files {
 
 // SourceMetadata returns metadata for src.
 func (h *Helper) SourceMetadata(src *source.Source) (*metadata.Source, error) {
-	grip, err := h.Grips().Open(h.Context, src)
+	grip, err := h.Grips().Open(h.Context, src, driver.ModeReadWrite)
 	if err != nil {
 		return nil, err
 	}
@@ -821,7 +821,7 @@ func (h *Helper) SourceMetadata(src *source.Source) (*metadata.Source, error) {
 
 // TableMetadata returns metadata for src's table.
 func (h *Helper) TableMetadata(src *source.Source, tbl string) (*metadata.Table, error) {
-	grip, err := h.Grips().Open(h.Context, src)
+	grip, err := h.Grips().Open(h.Context, src, driver.ModeReadWrite)
 	if err != nil {
 		return nil, err
 	}

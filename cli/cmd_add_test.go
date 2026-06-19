@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -823,18 +825,10 @@ func TestCmdAdd_StoreKeyring_PromptsWhenNoPassword(t *testing.T) {
 
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-
-	// Simulate piped stdin: write the password to a temp file and set it as Stdin.
-	f, err := os.CreateTemp(t.TempDir(), "passwd")
-	require.NoError(t, err)
-	_, err = f.WriteString("piped-password\n")
-	require.NoError(t, err)
-	_, err = f.Seek(0, 0)
-	require.NoError(t, err)
-	tr.Run.Stdin = f
+	tr.PipeStdin("piped-password\n")
 
 	const handle = "@sakila_kr_prompt"
-	err = tr.Exec("add",
+	err := tr.Exec("add",
 		"postgres://alice@localhost:5432/sakila", // no inline password
 		"--handle", handle, "--store", "keyring", "--password",
 		"--driver", "postgres", "--skip-verify")
@@ -849,6 +843,181 @@ func TestCmdAdd_StoreKeyring_PromptsWhenNoPassword(t *testing.T) {
 	got, err := gokeyring.Get("sq", id)
 	require.NoError(t, err)
 	require.Equal(t, "postgres://alice:piped-password@localhost:5432/sakila", got)
+}
+
+// TestCmdAdd_InlinePassword_EscapesDollar verifies that a prompted or
+// piped password containing '$' is escaped ('$' -> '$$') when spliced
+// inline into the stored location. The stored location is a
+// placeholder template in which '$$' means a literal '$'; without
+// escaping, the connect path's unescape would corrupt the literal
+// password (e.g. 'pa$$word' -> 'pa$word').
+func TestCmdAdd_InlinePassword_EscapesDollar(t *testing.T) {
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	tr.PipeStdin("pa$$word\n")
+
+	const handle = "@sakila_inline_dollar"
+	err := tr.Exec("add",
+		"postgres://alice@localhost:5432/sakila",
+		"--handle", handle, "--store", "inline", "--password",
+		"--driver", "postgres", "--skip-verify")
+	require.NoError(t, err)
+
+	src, err := tr.Run.Config.Collection.Get(handle)
+	require.NoError(t, err)
+	require.Equal(t, "postgres://alice:pa$$$$word@localhost:5432/sakila", src.Location,
+		"literal password must be stored in escaped (template) form")
+
+	// Round-trip: the driver must receive the literal password. Zero
+	// refs, so no secret.Registry is needed on the context.
+	resolved, err := driver.ResolveSourceSecrets(context.Background(), src)
+	require.NoError(t, err)
+	require.Equal(t, "postgres://alice:pa$$word@localhost:5432/sakila", resolved.Location)
+}
+
+// TestCmdAdd_KeyringPassword_NotEscaped verifies that the keyring path
+// stores the literal (unescaped) DSN: keyring slots hold literal
+// values that Registry.Expand splices raw at connect time, so the
+// template escaping applied by the inline path must NOT happen here.
+func TestCmdAdd_KeyringPassword_NotEscaped(t *testing.T) {
+	gokeyring.MockInit()
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	tr.PipeStdin("pa$$word\n")
+
+	const handle = "@sakila_kr_dollar"
+	err := tr.Exec("add",
+		"postgres://alice@localhost:5432/sakila",
+		"--handle", handle, "--store", "keyring", "--password",
+		"--driver", "postgres", "--skip-verify")
+	require.NoError(t, err)
+
+	src, err := tr.Run.Config.Collection.Get(handle)
+	require.NoError(t, err)
+	id := extractKeyringID(t, src.Location)
+
+	got, err := gokeyring.Get("sq", id)
+	require.NoError(t, err)
+	require.Equal(t, "postgres://alice:pa$$word@localhost:5432/sakila", got,
+		"keyring holds the literal DSN, no template escaping")
+}
+
+// TestCmdAdd_KeyringInlinePassword_Unescaped verifies that the
+// keyring path converts the typed location (a placeholder template,
+// where '$$' means a literal '$') to its literal form before storing:
+// keyring slots hold literals that Registry.Expand splices raw at
+// connect, so storing the template bytes verbatim would hand the
+// driver a still-escaped credential.
+func TestCmdAdd_KeyringInlinePassword_Unescaped(t *testing.T) {
+	gokeyring.MockInit()
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	const handle = "@sakila_kr_inline_dollar"
+	// Typed template form: '$$' means the literal password is 'p$ss'.
+	err := tr.Exec("add",
+		"postgres://alice:p$$ss@localhost:5432/sakila",
+		"--handle", handle, "--store", "keyring",
+		"--driver", "postgres", "--skip-verify")
+	require.NoError(t, err)
+
+	src, err := tr.Run.Config.Collection.Get(handle)
+	require.NoError(t, err)
+	id := extractKeyringID(t, src.Location)
+
+	got, err := gokeyring.Get("sq", id)
+	require.NoError(t, err)
+	require.Equal(t, "postgres://alice:p$ss@localhost:5432/sakila", got,
+		"keyring must hold the literal DSN, not the template bytes")
+}
+
+// TestCmdAdd_FileLocation_RawDollarDollar verifies that adding a file
+// whose typed path contains '$$' fails at add time with a clear error
+// when the file exists at the typed path but not at the
+// template-interpreted path. Without this check, the add would fail at
+// the ping (or, with --skip-verify, persist a broken source) with an
+// error naming a path the user never typed, because the connect path
+// interprets '$$' as an escaped '$'.
+func TestCmdAdd_FileLocation_RawDollarDollar(t *testing.T) {
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "data$$file.csv")
+	require.NoError(t, os.WriteFile(fpath, []byte("a,b\n1,2\n"), 0o600))
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	err := tr.Exec("add", fpath, "--handle", "@raw_dollar", "--skip-verify")
+	require.Error(t, err,
+		"raw '$$' path whose interpreted form doesn't exist must be rejected at add time")
+	require.Contains(t, err.Error(), "$$")
+}
+
+// TestCmdAdd_FileLocation_EscapedDollarDollar verifies that the
+// documented escaped form works end-to-end: the stored location is the
+// typed template, detection and the add-time ping interpret it, and
+// the source connects.
+func TestCmdAdd_FileLocation_EscapedDollarDollar(t *testing.T) {
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "data$$file.csv")
+	require.NoError(t, os.WriteFile(fpath, []byte("a,b\n1,2\n"), 0o600))
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	escaped := strings.ReplaceAll(fpath, "$", "$$")
+	require.NoError(t, tr.Exec("add", escaped, "--handle", "@esc_dollar"),
+		"escaped form must pass detection and the add-time ping")
+
+	src, err := tr.Run.Config.Collection.Get("@esc_dollar")
+	require.NoError(t, err)
+	require.Equal(t, escaped, src.Location, "the typed template form is what gets stored")
+}
+
+// TestCmdAdd_SQLiteLocation_RawDollarDollar verifies that the '$$'
+// add-time check also covers driver-prefixed file-DB locations. This
+// matters doubly for SQLite: it CREATES missing files on open, so
+// without the check, the add-time ping would silently create and open
+// an empty DB at the interpreted path while the user's real database
+// is never touched.
+func TestCmdAdd_SQLiteLocation_RawDollarDollar(t *testing.T) {
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "my$$file.db")
+	require.NoError(t, os.WriteFile(fpath, []byte{}, 0o600))
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	err := tr.Exec("add", "sqlite3:"+fpath,
+		"--handle", "@sl_raw_dollar", "--driver", "sqlite3", "--skip-verify")
+	require.Error(t, err,
+		"raw '$$' sqlite path whose interpreted form doesn't exist must be rejected at add time")
+	require.Contains(t, err.Error(), "$$")
+
+	// The escaped form works end-to-end (ping included).
+	tr = testrun.New(th.Context, t, nil)
+	escaped := "sqlite3:" + strings.ReplaceAll(fpath, "$", "$$")
+	require.NoError(t, tr.Exec("add", escaped, "--handle", "@sl_esc_dollar", "--driver", "sqlite3"),
+		"escaped sqlite form must pass the check and the add-time ping")
+}
+
+// TestCmdAdd_RawDollarDollar_DetectionErrorNamesTypedForm verifies
+// that when neither the typed nor the interpreted path exists and
+// driver detection fails, the error mentions the typed form and the
+// '$$' interpretation, not just the interpreted path the user never
+// typed.
+func TestCmdAdd_RawDollarDollar_DetectionErrorNamesTypedForm(t *testing.T) {
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	// Unrecognized extension and no file at either form: detection
+	// byte-sniffs the interpreted path and fails.
+	err := tr.Exec("add", filepath.Join(t.TempDir(), "data$$file.xyz"),
+		"--handle", "@nofile_dollar", "--skip-verify")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "$$",
+		"detection failure must surface the '$$' interpretation, not only the interpreted path")
 }
 
 // newRqliteMockHandlerForCLI returns an HTTP handler that satisfies gorqlite's
@@ -1035,11 +1204,11 @@ func TestFilterToAdvertisedParams(t *testing.T) {
 // methods are never called.
 type nonSQLDriverStub struct{}
 
-func (nonSQLDriverStub) Open(context.Context, *source.Source) (driver.Grip, error) {
+func (nonSQLDriverStub) Open(context.Context, *source.Source, driver.AccessMode) (driver.Grip, error) {
 	panic("not implemented")
 }
 
-func (nonSQLDriverStub) Ping(context.Context, *source.Source) error {
+func (nonSQLDriverStub) Ping(context.Context, *source.Source, driver.AccessMode) error {
 	panic("not implemented")
 }
 
@@ -1049,4 +1218,134 @@ func (nonSQLDriverStub) DriverMetadata() driver.Metadata {
 
 func (nonSQLDriverStub) ValidateSource(*source.Source) (*source.Source, error) {
 	panic("not implemented")
+}
+
+// dollarDirNames are directory names containing bytes significant in
+// the placeholder-template grammar. Adding a source via a relative
+// path from inside such a directory splices these filesystem bytes
+// into the stored location template, which must escape them (gh #797).
+var dollarDirNames = []string{
+	"q$exports",
+	"q$$exports",
+	"${env:X}",
+}
+
+// chdirDollarDir creates dirName under a fresh temp dir, chdirs into
+// it, and returns the resolved cwd (os.Getwd after chdir, so macOS
+// /tmp symlinks don't skew expectations). Subtests using a dirName
+// that can't exist on Windows (':' is invalid in a path component)
+// are skipped there; the plain '$' dir names still run.
+func chdirDollarDir(t *testing.T, dirName string) string {
+	t.Helper()
+	tu.SkipWindowsIf(t, strings.Contains(dirName, ":"),
+		"dir name %q contains ':', which is invalid in a Windows path component", dirName)
+	dir := filepath.Join(t.TempDir(), dirName)
+	require.NoError(t, os.Mkdir(dir, 0o750))
+	t.Chdir(dir)
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+	return cwd
+}
+
+// TestCmdAdd_CwdDollarDir_CSV is the gh #797 round trip for the
+// generic document-file path (location.Abs): sq add of a relative CSV
+// path from inside a directory whose name contains '$' bytes must (a)
+// succeed, (b) store a template that resolves back to the true
+// filesystem path, (c) form no accidental ${scheme:path} ref, and (d)
+// remain queryable end to end.
+func TestCmdAdd_CwdDollarDir_CSV(t *testing.T) {
+	for _, dirName := range dollarDirNames {
+		t.Run(tu.Name(dirName), func(t *testing.T) {
+			cwd := chdirDollarDir(t, dirName)
+			require.NoError(t, os.WriteFile("actor.csv", []byte("a,b\n1,2\n3,4\n"), 0o600))
+
+			th := testh.New(t)
+			tr := testrun.New(th.Context, t, nil)
+			const handle = "@actor797"
+			// No --skip-verify: the post-add ping exercises the
+			// connect-time resolution of the stored template.
+			require.NoError(t, tr.Exec("add", "actor.csv", "--handle", handle),
+				"sq add of a relative path must succeed when the cwd contains '$' bytes")
+
+			src, err := tr.Run.Config.Collection.Get(handle)
+			require.NoError(t, err)
+
+			refs, err := secret.ExtractRefs(src.Location)
+			require.NoError(t, err, "stored template must parse cleanly")
+			require.Empty(t, refs, "filesystem-derived bytes must not form placeholder refs")
+
+			resolvedSrc, err := driver.ResolveSourceSecrets(th.Context, src)
+			require.NoError(t, err)
+			require.Equal(t, filepath.Join(cwd, "actor.csv"), resolvedSrc.Location,
+				"resolved location must be the true filesystem path")
+
+			// And the source is actually queryable.
+			tr = testrun.New(th.Context, t, tr)
+			require.NoError(t, tr.Exec(".data", "--json"))
+			var results []map[string]any
+			tr.Bind(&results)
+			require.Len(t, results, 2)
+		})
+	}
+}
+
+// TestCmdAdd_CwdDollarDir_FileDB is the gh #797 round trip for the
+// file-DB munge path (sqlite3, duckdb). The sqlite3 case pings (which
+// would create a stray DB file at a misinterpreted path if the cwd
+// bytes weren't escaped); duckdb skips verification since no real
+// duckdb database file is available here.
+func TestCmdAdd_CwdDollarDir_FileDB(t *testing.T) {
+	drvrs := []struct {
+		typ        drivertype.Type
+		prefix     string
+		fname      string
+		skipVerify bool
+	}{
+		{typ: drivertype.SQLite, prefix: "sqlite3://", fname: "sakila.db"},
+		{typ: drivertype.DuckDB, prefix: "duckdb://", fname: "sakila.duckdb", skipVerify: true},
+	}
+
+	for _, drvr := range drvrs {
+		for _, dirName := range dollarDirNames {
+			t.Run(tu.Name(drvr.typ.String(), dirName), func(t *testing.T) {
+				cwd := chdirDollarDir(t, dirName)
+				require.NoError(t, os.WriteFile(drvr.fname, nil, 0o600))
+
+				th := testh.New(t)
+				tr := testrun.New(th.Context, t, nil)
+				const handle = "@filedb797"
+				args := []string{"add", drvr.fname, "--driver", drvr.typ.String(), "--handle", handle}
+				if drvr.skipVerify {
+					args = append(args, "--skip-verify")
+				}
+				require.NoError(t, tr.Exec(args...),
+					"sq add of a relative path must succeed when the cwd contains '$' bytes")
+
+				src, err := tr.Run.Config.Collection.Get(handle)
+				require.NoError(t, err)
+
+				wantTmpl := drvr.prefix + filepath.ToSlash(filepath.Join(secret.Escape(cwd), drvr.fname))
+				require.Equal(t, wantTmpl, src.Location,
+					"stored template must escape the cwd-derived bytes")
+
+				refs, err := secret.ExtractRefs(src.Location)
+				require.NoError(t, err, "stored template must parse cleanly")
+				require.Empty(t, refs, "filesystem-derived bytes must not form placeholder refs")
+
+				resolvedSrc, err := driver.ResolveSourceSecrets(th.Context, src)
+				require.NoError(t, err)
+				wantLit := drvr.prefix + filepath.ToSlash(filepath.Join(cwd, drvr.fname))
+				require.Equal(t, wantLit, resolvedSrc.Location,
+					"resolved location must be the true filesystem path")
+
+				// The DB file the user pointed at must be the only file in
+				// the dir: a misinterpreted path would have caused sqlite3
+				// to create a stray DB elsewhere (or fail the ping).
+				entries, err := os.ReadDir(cwd)
+				require.NoError(t, err)
+				require.Len(t, entries, 1)
+				require.Equal(t, drvr.fname, entries[0].Name())
+			})
+		}
+	}
 }

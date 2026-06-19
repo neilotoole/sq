@@ -22,6 +22,7 @@ import (
 	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 )
 
 // ScratchSrcFunc is a function that returns a scratch source.
@@ -35,11 +36,33 @@ type Grips struct {
 	drvrs        Provider
 	closeErr     error
 	scratchSrcFn ScratchSrcFunc
-	files        *files.Files
-	grips        map[string]Grip
-	clnup        *cleanup.Cleanup
-	closeOnce    sync.Once
-	mu           sync.Mutex
+
+	files *files.Files
+
+	// grips caches open Grip instances, keyed by gripCacheKey: the source
+	// handle plus the access mode (read-write, implicit read-only, or
+	// explicit read-only) passed to Open. Keying on the mode means a
+	// source opened both read-only and read-write within one run gets two
+	// coexisting grips, each opened with the correct mode, regardless of
+	// which open happened first (gh #779). Both grips are registered on
+	// clnup, so Close releases them all.
+	grips map[string]Grip
+
+	clnup     *cleanup.Cleanup
+	closeOnce sync.Once
+	mu        sync.Mutex
+}
+
+// gripCacheKey returns the gs.grips cache key for opening the source
+// with the given handle in mode: the handle plus the access mode.
+// Explicit read-only (e.g. sq sql --readonly) is distinct from the
+// implicit hint because drivers may treat it more forcefully (DuckDB
+// overrides access_mode=AUTOMATIC only for an explicit hint). The key is
+// derived from the handle alone, never the location, so computing it
+// requires no secret resolution. Handles cannot contain NUL, so the
+// separator is unambiguous.
+func gripCacheKey(mode AccessMode, handle string) string {
+	return handle + "\x00" + mode.suffix()
 }
 
 // NewGrips returns a Grips instances.
@@ -55,21 +78,35 @@ func NewGrips(drvrs Provider, fs *files.Files, scratchSrcFn ScratchSrcFunc) *Gri
 }
 
 // Open returns an opened Grip for src. The returned Grip may be cached and
-// returned on future invocations for the identical source. Thus, the caller
-// should typically not close the Grip: it will be closed via d.Close.
+// returned on future invocations for the same source handle and access
+// mode. The cache key is the handle plus mode only: it deliberately
+// ignores src.Location and src.Options, so a second Open of the same
+// handle in the same mode returns the existing grip even if those fields
+// differ. Thus, the caller should typically not close the Grip: it will
+// be closed via d.Close.
+//
+// The access mode is given by mode (pass ModeReadWrite for a normal open,
+// ModeReadOnly or ModeReadOnlyExplicit for a read-only open). The cache
+// is keyed by source handle and mode, so a read-only open and a
+// read-write open of the same source yield independent grips, each
+// connected in the requested mode: call ordering across modes does not
+// matter. A cache hit is served before secret resolution runs, so
+// repeated opens of an already-open source don't repeat resolver work.
+//
+// Arg mode is forwarded to Driver.Open.
 //
 // NOTE: This entire logic re caching/not-closing is a bit sketchy,
 // and needs to be revisited.
-func (gs *Grips) Open(ctx context.Context, src *source.Source) (Grip, error) {
+func (gs *Grips) Open(ctx context.Context, src *source.Source, mode AccessMode) (Grip, error) {
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
 
-	g, err := gs.doOpen(ctx, src)
+	g, err := gs.doOpen(ctx, src, mode)
 	if err != nil {
 		return nil, err
 	}
 	gs.clnup.AddC(g)
-	gs.grips[src.Handle] = g
+	gs.grips[gripCacheKey(mode, src.Handle)] = g
 	return g, nil
 }
 
@@ -97,54 +134,106 @@ func (gs *Grips) IsSQLSource(src *source.Source) bool {
 }
 
 // ResolveSourceSecrets returns a clone of src with any ${scheme:path}
-// placeholders in src.Location resolved via the secret.Registry on ctx.
-// If src.Location contains no well-formed placeholders, src is returned
-// unchanged. If placeholders are present but no Registry is bound to
-// ctx, an error is returned: a placeholder on a source that has reached
-// this point is always meant to be resolved, and a silent passthrough
-// would surface later as a confusing "connection refused" or DSN-parse
-// error from the driver.
+// placeholders in src.Location resolved via the secret.Registry on ctx,
+// and any $$ escapes reduced to a literal $. If src.Location contains
+// no well-formed placeholders, the $$ escape is still honored (a clone
+// is returned when the location changes; no Registry is needed, since
+// nothing resolves). This is what lets a literal location be stored
+// escaped, e.g. by the v0.54.0 config upgrade, and reach the driver
+// byte-identically. If placeholders are present but no Registry is
+// bound to ctx, an error is returned: a placeholder on a source that
+// has reached this point is always meant to be resolved, and a silent
+// passthrough would surface later as a confusing "connection refused"
+// or DSN-parse error from the driver.
 //
 // Detection uses secret.ExtractRefs rather than a `${`-substring scan
 // so that literal "${" sequences (e.g. an escaped "$${env:X}" or a
 // password that happens to contain "${") don't trigger resolution.
 //
+// When the location changes, the resolved value also receives the
+// driver-specific canonicalization (location.MungeForDriver) that
+// "sq add" applies to literal locations: a ${env:DB_PATH} placeholder
+// resolving to a bare file path like /data/sakila.db becomes
+// sqlite3:///data/sakila.db, which is the form the file-based drivers
+// require. Munging is idempotent, so a secret value already in
+// canonical form passes through unchanged. The munged form exists
+// only on the returned clone; the stored template is never modified.
+//
+// ResolveSourceSecrets is idempotent: the returned clone is marked
+// SecretsResolved, and an already-resolved source passes through
+// unchanged, so accidental double-resolution cannot reinterpret
+// resolved literal bytes as a template.
+//
 // Exposed (rather than unexported) so callers and tests can drive the
 // resolution directly. Grips.doOpen calls it once at entry; drivers do
 // not need to call it themselves.
 func ResolveSourceSecrets(ctx context.Context, src *source.Source) (*source.Source, error) {
-	if src == nil {
+	if src == nil || src.SecretsResolved {
+		// Already-resolved Locations hold literal bytes, not template
+		// bytes; running them through resolution again would corrupt
+		// any '$' they contain.
 		return src, nil
 	}
 	refs, err := secret.ExtractRefs(src.Location)
 	if err != nil {
 		return nil, errz.Wrapf(err, "parse placeholders for %s", src.Handle)
 	}
+
+	var resolved string
 	if len(refs) == 0 {
-		return src, nil
+		if resolved = secret.Unescape(src.Location); resolved == src.Location {
+			return src, nil
+		}
+	} else {
+		reg := secret.FromContext(ctx)
+		if reg == nil {
+			return nil, errz.Errorf("resolve placeholders for %s: no secret registry bound to context", src.Handle)
+		}
+		if resolved, err = reg.Expand(ctx, src.Location); err != nil {
+			return nil, errz.Wrapf(err, "resolve secrets for %s", src.Handle)
+		}
 	}
-	reg := secret.FromContext(ctx)
-	if reg == nil {
-		return nil, errz.Errorf("resolve placeholders for %s: no secret registry bound to context", src.Handle)
+
+	// At add time, a literal file-DB location gets driver-specific
+	// munging (e.g. /data/sakila.db -> sqlite3:///data/sakila.db), but
+	// a placeholder location is opaque then, so it's stored unmunged.
+	// Apply the same munging to the resolved value here, on the clone
+	// only: the stored template must remain untouched. MungeForDriver
+	// is idempotent and a passthrough for non-file driver types, so an
+	// already-canonical location is unaffected. Munging is gated on
+	// resolution actually changing the bytes: if expansion is a no-op
+	// (a secret value byte-identical to its own placeholder), the
+	// still-placeholder-shaped string must not be reinterpreted as a
+	// file path; it passes through for the driver to reject.
+	if resolved != src.Location {
+		if resolved, err = location.MungeForDriver(src.Type, resolved); err != nil {
+			// Don't echo the resolved location: it is secret material.
+			if len(refs) > 0 {
+				return nil, errz.Wrapf(err, "source %s: invalid location after resolving placeholders", src.Handle)
+			}
+			return nil, errz.Wrapf(err, "source %s: invalid location", src.Handle)
+		}
 	}
-	resolved, err := reg.Expand(ctx, src.Location)
-	if err != nil {
-		return nil, errz.Wrapf(err, "resolve secrets for %s", src.Handle)
-	}
+
 	clone := src.Clone()
 	clone.Location = resolved
+	clone.SecretsResolved = true
 	return clone, nil
 }
 
-func (gs *Grips) doOpen(ctx context.Context, src *source.Source) (Grip, error) {
+func (gs *Grips) doOpen(ctx context.Context, src *source.Source, mode AccessMode) (Grip, error) {
+	// The cache key derives from the handle and the access mode, not the
+	// location, so the lookup happens before secret resolution: a cache
+	// hit (e.g. one Grips.Open per table during inspect) must not pay for
+	// resolution again.
+	grip, ok := gs.grips[gripCacheKey(mode, src.Handle)]
+	if ok {
+		return grip, nil
+	}
+
 	var err error
 	if src, err = ResolveSourceSecrets(ctx, src); err != nil {
 		return nil, err
-	}
-
-	grip, ok := gs.grips[src.Handle]
-	if ok {
-		return grip, nil
 	}
 
 	drvr, err := gs.drvrs.DriverFor(src.Type)
@@ -156,7 +245,7 @@ func (gs *Grips) doOpen(ctx context.Context, src *source.Source) (Grip, error) {
 	o := options.Merge(baseOptions, src.Options)
 
 	ctx = options.NewContext(ctx, o)
-	grip, err = drvr.Open(ctx, src)
+	grip, err = drvr.Open(ctx, src, mode)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +288,7 @@ func (gs *Grips) OpenEphemeral(ctx context.Context) (Grip, error) {
 	}
 
 	var grip Grip
-	if grip, err = drvr.Open(ctx, src); err != nil {
+	if grip, err = drvr.Open(ctx, src, ModeReadWrite); err != nil {
 		lg.WarnIfFuncError(log, msgCloseDB, clnup.Run)
 		return nil, err
 	}
@@ -210,7 +299,7 @@ func (gs *Grips) OpenEphemeral(ctx context.Context) (Grip, error) {
 	}
 	gs.clnup.AddC(g)
 	log.Info("Opened ephemeral db", lga.Src, g.Source())
-	gs.grips[g.Source().Handle] = g
+	gs.grips[gripCacheKey(ModeReadWrite, g.Source().Handle)] = g
 	return g, nil
 }
 
@@ -247,7 +336,7 @@ func (gs *Grips) openNewCacheGrip(ctx context.Context, src *source.Source) (grip
 	}
 
 	var backingGrip Grip
-	if backingGrip, err = backingDrvr.Open(ctx, scratchSrc); err != nil {
+	if backingGrip, err = backingDrvr.Open(ctx, scratchSrc, ModeReadWrite); err != nil {
 		lg.WarnIfFuncError(log, msgRemoveScratch, cleanFn)
 		// The os.Remove call may be unnecessary, but doesn't hurt.
 		lg.WarnIfError(log, msgRemoveScratch, os.Remove(srcCacheDBFilepath))
@@ -387,7 +476,7 @@ func (gs *Grips) openCachedGripFor(ctx context.Context, src *source.Source) (bac
 		return nil, false, nil
 	}
 
-	if backingGrip, err = gs.doOpen(ctx, backingSrc); err != nil {
+	if backingGrip, err = gs.doOpen(ctx, backingSrc, ModeReadWrite); err != nil {
 		return nil, false, errz.Wrapf(err, "open cached DB for source %s", src.Handle)
 	}
 
@@ -447,7 +536,7 @@ func (gs *Grips) OpenJoin(ctx context.Context, srcs ...*source.Source) (Grip, er
 
 	log.Debug("Opening join db", lga.Path, fp)
 	var grip Grip
-	if grip, err = drvr.Open(ctx, joinSrc); err != nil {
+	if grip, err = drvr.Open(ctx, joinSrc, ModeReadWrite); err != nil {
 		lg.WarnIfFuncError(log, msgCloseJoinDB, clnup.Run)
 		return nil, err
 	}
@@ -457,7 +546,7 @@ func (gs *Grips) OpenJoin(ctx context.Context, srcs ...*source.Source) (Grip, er
 		clnup: clnup,
 	}
 	gs.clnup.AddC(g)
-	gs.grips[g.Source().Handle] = g
+	gs.grips[gripCacheKey(ModeReadWrite, g.Source().Handle)] = g
 	return g, nil
 }
 

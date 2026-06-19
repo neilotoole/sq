@@ -73,16 +73,14 @@ func getOptionsFromFlags(flags *pflag.FlagSet, reg *options.Registry) (options.O
 
 	// --reveal is the canonical disclosure flag; --no-redact is its
 	// deprecated alias (see #717). Both are free-standing pflags,
-	// detected here and unioned into secrets.reveal=true. Treating
-	// them as a union (not as conflicting inputs) lets a script
-	// baking in --no-redact compose with an ad-hoc --reveal on top.
-	//
-	// Explicit false (--reveal=false, --no-redact=false) is a no-op:
-	// the flags are positive opt-ins, and the config or default value
-	// wins. This differs from the pre-v0.54 --no-redact, which via
-	// its Invert binding would explicitly set redact=true. To force
-	// redaction when secrets.reveal is true in config, override it
-	// via 'sq config set secrets.reveal false'.
+	// detected here and mapped onto secrets.reveal. An explicitly set
+	// flag always wins over config, in both directions (see #785):
+	// --reveal and --no-redact set secrets.reveal=true, while
+	// --reveal=false and --no-redact=false force secrets.reveal=false
+	// even when config has secrets.reveal=true. If both flags are set
+	// with conflicting values, true wins, so a script baking in
+	// --no-redact composes with an ad-hoc --reveal on top.
+	var revealChanged, reveal bool
 	for _, flagName := range []string{flag.Reveal, flag.NoRedact} {
 		fl := flags.Lookup(flagName)
 		if fl == nil || !fl.Changed {
@@ -92,9 +90,11 @@ func getOptionsFromFlags(flags *pflag.FlagSet, reg *options.Registry) (options.O
 		if getBoolErr != nil {
 			return nil, errz.Err(getBoolErr)
 		}
-		if b {
-			o[secret.OptSecretsReveal.Key()] = true
-		}
+		revealChanged = true
+		reveal = reveal || b
+	}
+	if revealChanged {
+		o[secret.OptSecretsReveal.Key()] = reveal
 	}
 
 	o, err = reg.Process(o)
@@ -184,6 +184,7 @@ func applyCollectionOptions(cmd *cobra.Command, coll *source.Collection) error {
 func RegisterDefaultOpts(reg *options.Registry) {
 	reg.Add(
 		OptFormat,
+		OptFormatDecimal,
 		OptErrorFormat,
 		OptErrorStack,
 		OptErrorFormatTextVerbose,

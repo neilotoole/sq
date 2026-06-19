@@ -18,193 +18,164 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## Unreleased
 
-Headline items: much-improved [secrets handling](https://sq.io/docs/secrets) (including
-keyring support) and support for [rqlite](https://sq.io/docs/drivers/rqlite).
-
 ### Added
 
-- 🐥 [#444]: Added [rqlite driver](https://sq.io/docs/drivers/rqlite). `sq` now supports reading
-  from, inspecting, and writing to [rqlite](https://rqlite.io) clusters, the lightweight
-  distributed SQLite database.
-  - [#756]: Single URL scheme `rqlite://` with `?tls=true` for HTTPS (matching `mysql?tls=true`,
-    `postgres?sslmode=...` etc.) and the companion `?insecure=true` for self-signed certs.
-    Connection errors are enriched with actionable hints (add `?tls=true`, or `&insecure=true`
-    for self-signed certs) when the failure looks TLS-related.
-  - [#764]: `sq add` auto-detects TLS-only rqlite endpoints and stores `tls=true`
-    on the source, instead of failing and asking the user to retry. Suppressed by
-    `--skip-verify`, an explicit `tls`/`insecure` param, or a `${...}` placeholder
-    location.
-- [#441]: [`sq add`](https://sq.io/docs/cmd/add) gains a `--store inline|keyring`
-  flag, and a new [`secrets.store`](https://sq.io/docs/config#secretsstore) config option
-  controls the default; existing behavior is preserved (`inline`).
-  See [Secrets](https://sq.io/docs/secrets) for the placeholder model and threat model.
-  - With `--store keyring`, the entire conn string is written to the OS keyring at a fresh opaque ID
-    and the YAML location becomes a bare `${keyring:<id>}` placeholder, e.g. `location: ${keyring:3d28xd3jcr}`.
-  - Source `location` fields now support
-    [`${scheme:path}` placeholders](https://sq.io/docs/secrets#placeholders) that are
-    resolved at connect time. Shipped schemes:
-    - `keyring`: OS keychain, managed via `sq config keyring`.
-    - `env`: environment variable, e.g. `${env:DB_PROD_PW}` or `${env:DB_CONN_STR}`.
-    - `file`: file contents, e.g. `${file:/run/secrets/db_pw}` or `${file:~/.sq/db_connstr}`.
-    - [#714]: `op`: 1Password CLI, e.g. `${op://Private/sakila/dsn}`. Shells out to
-      [`op read`](https://developer.1password.com/docs/cli/reference/commands/read/) using
-      1Password's
-      [secret-reference syntax](https://developer.1password.com/docs/cli/secret-reference-syntax/);
-      the user must already be signed in (biometric, `op signin`, or `OP_SERVICE_ACCOUNT_TOKEN`).
-      `sq add` accepts the bare `op://...` form (the literal "Copy Secret Reference"
-      output) as a shortcut for the wrapped `${op://...}` placeholder.
-      If a placeholder resolves to a bare value rather than a full DSN, `sq add`
-      surfaces an actionable error naming the placeholder and pointing at composition,
-      a full-DSN secret, or `--driver` as the three recovery paths.
-- [#441]: [`sq config keyring`](https://sq.io/docs/cmd/config-keyring) command group: store
-  source conn strings in the OS keyring instead of plaintext in `sq.yml`.
-  - Subcommands: `ls`, `create`, `update`, `get`, `rm`, `migrate`.
-- [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export): dump the active config to
-  YAML, primarily for backups. See [Secrets](https://sq.io/docs/secrets) for the bigger picture.
-  - By default, output is a faithful-ish copy of the live config: `${scheme:path}` placeholders are
-    written verbatim.
-  - With [`--expand`](https://sq.io/docs/secrets#expanding-placeholders), every placeholder is
-    fetched from its resolver (`keyring`, `env`, `file`, or `op`) and the resolved value
-    is spliced in-line: a self-contained snapshot at the cost of writing every referenced
-    secret in plaintext (which is exactly the point of `--expand`).
-- [#717]: New global [`--reveal`](https://sq.io/docs/secrets#redaction) flag opts
-  into showing secret values in output.
-  - It supersedes the legacy `--no-redact` (still functional, now marked deprecated, will be removed
-    at some point in the future).
+- 🐥 [#444]: New [driver](https://sq.io/docs/drivers/rqlite) for
+  [rqlite](https://rqlite.io), the lightweight distributed database built on SQLite.
+- [#441]: Revamped [secrets handling](https://sq.io/docs/secrets). Source credentials no
+  longer need to live as plaintext in `sq.yml`: source locations accept `${scheme:path}`
+  placeholders that are resolved at connect time, and secrets are consistently redacted
+  in output unless you opt in to disclosure.
+  - [#714]: Supported placeholder resolvers:
+    - OS keychain: `${keyring:3d28xd3jcr}`
+    - Environment variables: `${env:DB_PASSWORD}`
+    - File contents: `${file:/run/secrets/db_pw}`
+    - 1Password: `${op://Private/sakila/dsn}`
+  - [#717], [#729]: New global flags:
+    - [`--reveal`](https://sq.io/docs/secrets#redaction): show secret values in output; supersedes
+      the now-deprecated `--no-redact`.
+    - [`--expand`](https://sq.io/docs/secrets#expanding-placeholders): print resolved
+      placeholder values instead of the verbatim `${scheme:path}` text.
+  - [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export) dumps the active
+    config to YAML, primarily for backups. With `--expand`, placeholders are resolved
+    in-line, making the export a self-contained (but plaintext) snapshot.
 - [#660]: [`sq inspect`](https://sq.io/docs/inspect) gained
   [`svg-erd`](https://sq.io/docs/inspect#svg-erd) and
   [`png-erd`](https://sq.io/docs/inspect#png-erd) output formats that render the schema
-  entity-relationship diagram directly to an SVG or PNG image file
-  (`--format=svg-erd` / `--format=png-erd`).
-  - The diagram is laid out and rendered natively via an embedded [Graphviz](https://graphviz.org)
-    engine, so image export needs no external tool, browser, or network.
-- [#610]: [`sq sql`](https://sq.io/docs/cmd/sql) accepts `--readonly` (alias
-  `--ro`) to open DuckDB sources in read-only mode. Default remains read-write
-  because reliable statement-level detection isn't feasible without a standalone
-  DuckDB parser binding.
+  ERD directly to `.svg` or `.png` image files.
+  - Uses an embedded [Graphviz](https://graphviz.org) engine (via
+    [goccy/go-graphviz](https://github.com/goccy/go-graphviz)): the generated images are
+    not the prettiest, but it's a start.
+- [#846]: New [`format.decimal`](https://sq.io/docs/output#decimal) option
+  and `--format.decimal` flag (`string` | `number`) controlling whether decimal
+  values render as quoted strings or bare numbers in JSON and YAML output.
 
 ### Changed
 
-- [#610]: [`duckdb`](https://sq.io/docs/drivers/duckdb): Read-only commands
-  ([`inspect`](https://sq.io/docs/cmd/inspect), [`sq`](https://sq.io/docs/cmd/sq),
-  [`diff`](https://sq.io/docs/cmd/diff), [`ping`](https://sq.io/docs/cmd/ping)) now open
-  DuckDB sources with `access_mode=READ_ONLY` by default.
-  - This avoids open-time WAL
-    writes, allows concurrent read-only access from multiple `sq` processes against the
-    same file, and lets `sq inspect` work on files the user has read-only access to.
-    A user-specified `?access_mode=READ_WRITE` in the source URL overrides the default.
-- ☢️ The `redact` config option is renamed to
-  [`secrets.reveal`](https://sq.io/docs/config#secretsreveal) with inverted polarity
-  (`secrets.reveal: true` equals legacy `redact: false`). The new default is `false`
-  (secrets are redacted).
-  - Existing configs are migrated automatically on first run
-    by a YAML upgrade step; scripts that call `sq config get redact` or
-    `sq config set redact ...` need updating to the new key. The rename completes the
-    polarity-consistency story started by `--reveal` in #717.
-  - As part of the polarity flip, the `--reveal` and `--no-redact` flags are now
-    positive opt-ins only: `--reveal=true` (or just `--reveal`) opts into
-    disclosure, and `--reveal=false` / `--no-redact=false` are no-ops. Previously,
-    `--no-redact=false` would force redaction by virtue of its inverted binding.
-    To force redaction when `secrets.reveal: true` is set in config, override the
-    config value with `sq config set secrets.reveal false` rather than relying on
-    a flag.
+- [#846]: YAML now renders decimal values as quoted strings by default, matching
+  JSON and keeping precision for values beyond float64 range. Set
+  `format.decimal=number` to restore bare numbers.
+- ☢️ [#594]: [`avg()`](https://sq.io/docs/query#avg) now returns a consistent `float`
+  on every SQL driver.
+  - Previously the result type varied by backend (a float on
+    some, an integer or a decimal string on others), so an `avg()` value could not
+    be consumed portably across sources. `float` was chosen to match `jq`'s numeric
+    model, which represents all numbers as IEEE 754 floating point.
+  - ☢️ This is a breaking change for
+    [Postgres](https://sq.io/docs/drivers/postgres) and
+    [MySQL](https://sq.io/docs/drivers/mysql), which previously returned a lossless
+    decimal (rendered as a quoted string in JSON output).
+  - An `avg()` value is now a JSON number, and may lose precision for averages beyond float64's range
+    (~15-17 significant digits). Callers needing lossless decimal can fall back to
+    native SQL via [`sq sql`](https://sq.io/docs/cmd/sql).
+- ☢️ [#839]: [`sum()`](https://sq.io/docs/query#sum) over an integer or decimal
+  column now returns a consistent `decimal` on every SQL driver (the one
+  exception is a `DOUBLE`/`FLOAT` column on DuckDB, noted below). Previously the
+  result type varied by backend (an integer on most, a decimal on MySQL and
+  DuckDB, a float on Oracle), so a `sum()` value could not be consumed portably
+  across sources. Unlike
+  [`avg()`](https://sq.io/docs/query#avg) (see [#594]), `sum()` is harmonized to
+  `decimal` rather than `float`: the sum of integers or of exact decimals is
+  itself exact, so typing it as `float` would be a precision regression. In JSON
+  output a decimal renders as a quoted string, so `sum(.actor_id)` is now
+  `"20100"` rather than the bare `20100` that most drivers previously emitted.
+  - [SQLite](https://sq.io/docs/drivers/sqlite) and
+    [rqlite](https://sq.io/docs/drivers/rqlite) compute a sum over a non-integer
+    column in floating point internally, so such a sum may still carry that drift
+    (e.g. `67416.51000000001`). The surfaced type is now uniform, but a value the
+    engine already computed in float is not corrected. On rqlite the same float
+    computation can also drift a sum of a very large integer column (beyond
+    2^53); SQLite and the other drivers accumulate integer sums exactly.
+  - On Oracle, ClickHouse, and SQL Server the decimal cast uses a fixed
+    `DECIMAL(38, 6)`, so a sum of a column with more than 6 fractional digits is
+    rounded to 6 places, and a sum whose integer part needs more than 32 digits
+    overflows (a query error). Postgres (unconstrained `NUMERIC`) and MySQL (its
+    maximum scale of 30, which no column can exceed) preserve the full scale, so
+    for such columns the value can differ across drivers. The common integer and
+    currency cases are unaffected.
+  - [DuckDB](https://sq.io/docs/drivers/duckdb) is not cast: its native `sum()`
+    is already a decimal for integer (`HUGEINT`) and decimal columns, and is left
+    lossless rather than narrowed to `DECIMAL(38, 6)`. As a result, `sum()` over
+    a `DOUBLE` column on DuckDB stays a float rather than a decimal.
+  - Decimal values are now rendered with trailing fractional zeros trimmed (e.g.
+    `100.50` displays as `100.5`) consistently across all drivers and output
+    formats, so the same value reads identically regardless of the scale a
+    backend reported.
+- [#610]: The DuckDB driver now
+  [opens sources read-only](https://sq.io/docs/drivers/duckdb#read-only-access-by-default)
+  for commands that don't write (`sq`, `inspect`, `diff`, `ping`), and the new
+  [`sq sql`](https://sq.io/docs/cmd/sql) flag `--readonly` (alias `--ro`) opts in for
+  ad-hoc SQL.
+- ☢️ [#728]: The `redact` config option is renamed to
+  [`secrets.reveal`](https://sq.io/docs/config#secretsreveal) with inverted polarity.
+  - `secrets.reveal: true` equals legacy `redact: false`; the default remains redaction.
+  - Existing configs are migrated automatically on first run, but scripts
+    that call `sq config get|set redact` need updating to the new `secrets.reveal` key.
+  - [#782]: The migration escapes `$` as
+    [`$$`](https://sq.io/docs/secrets#literal-dollar-signs) in any source location that
+    the new placeholder syntax would otherwise reinterpret, so existing sources connect
+    exactly as before.
+  - Before migrating, `sq` writes a verbatim
+    [backup](https://sq.io/docs/config#upgrades) of the pre-upgrade config alongside
+    `sq.yml`, e.g. `sq.v0.53.0.bak.yml`. The backup is never touched afterward; note
+    that it preserves any inline credentials from the old config.
 - [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd)
   now syntax-colors its `erDiagram` source when writing to a terminal.
-- [#729]: [`--expand`](https://sq.io/docs/secrets#expanding-placeholders) is now a persistent
-  root flag, accepted by every subcommand. Previously it lived only on `sq config export`.
-  - Commands that print a source location ([`sq src`](https://sq.io/docs/cmd/src),
-    [`sq ls`](https://sq.io/docs/cmd/ls), [`sq inspect`](https://sq.io/docs/inspect),
-    `sq add`, `sq mv`, and `sq ping` in JSON/YAML output) now pass `${scheme:path}`
-    placeholders through the configured resolvers and print the resolved value.
-    `sq ping`'s text and CSV output do not include a Location column, so `--expand`
-    has no visible effect there. `--expand` composes orthogonally with `--reveal`:
-    `--reveal` flips the redaction filter on whatever string is being displayed;
-    `--expand` decides whether that string is the verbatim placeholder or the
-    resolved value.
-  - The display-expansion step itself is lenient: a per-source resolver failure
-    (missing keyring entry, unset env var, unreadable file) leaves that source's
-    placeholder verbatim and the listing continues. This is independent of
-    connection-time resolution; commands that have to connect (e.g.
-    [`sq inspect`](https://sq.io/docs/inspect), `sq ping`) will still fail at
-    connect time if a missing secret prevents the connection. `sq config export --expand`
-    keeps its existing strict-abort behavior because an export is a snapshot for
-    transfer, and a half-resolved snapshot is the wrong artifact.
-  - Subcommands that don't print a source location (e.g. [`sq sql`](https://sq.io/docs/cmd/sql),
-    `sq slq`, `sq tbl`) accept `--expand` as a silent no-op, so a global alias like
-    `alias sq='sq --reveal --expand'` is safe.
-- [#742]: rqlite connection failures now surface concise, actionable error messages
-  instead of gorqlite's raw `tried all peers unsuccessfully` text. When cluster
-  discovery routes a request to an advertised peer that the client can't resolve or
-  reach (the
-  [single-node-localhost trap](https://sq.io/docs/drivers/rqlite#single-node-localhost)),
-  the error names the peer and points at `?disableClusterDiscovery=true`. Auth (401),
-  TLS-mismatch (both directions), and certificate-verification failures get the same
-  treatment. The concise form prints in text and JSON error output; full diagnostic
-  detail remains in verbose output and the log file. And because the driver's ping now
-  performs a real round-trip query, a broken source fails at
-  [`sq add`](https://sq.io/docs/cmd/add) time instead of at first query.
-- Internal: `sq add` shell completion reworked atop a declarative
-  per-driver `LocationShape` model. Each SQL driver declares its URL
-  syntax via the new `driver.LocationShape` type; the completer is a
-  thin walker over those declarations. See the Fixed entries for
-  user-visible behavior changes. (#743, #741)
+- [#758]: For SQLite (and rqlite) sources,
+  [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy) now copies the source table's
+  indexes and triggers to the destination, renamed with the destination table
+  name appended (e.g. index `idx_name` copied to table `actor2` becomes
+  `idx_name_actor2`).
 
 ### Fixed
 
-- [#699]: The [SQLite driver](https://sq.io/docs/drivers/sqlite) no longer executes
-  side-effecting or whole-database-scanning pragmas when reading source metadata
-  (e.g. [`sq inspect`](https://sq.io/docs/inspect)). Reading DB properties via SQLite's
-  pragma table-valued functions actually executes each pragma, so `pragma_optimize`
-  could run `ANALYZE`, silently writing `sqlite_stat1` to the database. That made the
-  nominally read-only metadata path take the file write lock (concurrent metadata reads
-  could then fail with `database is locked`), and `integrity_check` / `quick_check` /
-  `foreign_key_check` scanned the entire database on every inspect. These pragmas are
-  now skipped, and those keys no longer appear in the inspect output's DB properties.
-- [#743]: [`sq add`](https://sq.io/docs/cmd/add) shell completion: `<scheme>://host:port?<TAB>`
-  now offers connection parameters instead of credential placeholders.
-  Bare-host (no `user@`) URLs are recognized correctly for postgres,
-  mysql, sqlserver, rqlite, clickhouse, oracle.
-- [#741]: [`sq add`](https://sq.io/docs/cmd/add) shell completion now suggests
-  `clickhouse://` and `oracle://` schemes.
-- [#720]: The [SQLite driver](https://sq.io/docs/drivers/sqlite) no longer fails with
-  `stat /path/to/db?key=val: no such file or directory` on source-level metadata commands.
-  - Previously failed on [`sq inspect @handle`](https://sq.io/docs/inspect) etc.
-    when the source location carried a `?key=val[&...]` connection-string suffix (e.g.
-    `sqlite3:///path/to/db?mode=ro`).
-- [#744]: `sq inspect` no longer reports `0.0B` size for sources whose driver doesn't expose
-  a database size (e.g. rqlite). The SIZE column renders `-` instead, and JSON / YAML output
-  omits the `size` field.
-- [#752]: The SQLite [`sqlparser`](./drivers/sqlite3/sqlparser) now strips all four
-  legal SQLite identifier-quoting styles (`"name"`, `'name'`, `` `name` ``, `[name]`)
-  from `ColDef.Name`, not just double-quotes. Previously, `AlterTableColumnKinds`
-  on the [sqlite3](https://sq.io/docs/drivers/sqlite) and
-  [rqlite](https://sq.io/docs/drivers/rqlite) drivers failed with
-  `column not found in table DDL` when the original `CREATE TABLE` declared the
-  target column using backticks, single quotes, or square brackets.
-- [#750]: `AlterTableColumnKinds` and `CopyTable` on the
-  [sqlite3](https://sq.io/docs/drivers/sqlite) and
-  [rqlite](https://sq.io/docs/drivers/rqlite) drivers now rewrite identifier and
-  type tokens by byte offset rather than `strings.Replace`. The old approach
-  could clobber the wrong token when a column name shared a prefix with its type
-  (e.g. `TEXT_DATA TEXT`), or when the table identifier recurred elsewhere in
-  the DDL (CHECK expressions, DEFAULT literals, comments). The shared
-  `sqlparser` package now exposes `ColDef.RawNameOffset` / `ColDef.RawTypeOffset`,
-  a `TableIdent` struct with token offsets, and an `ApplyEdits` helper for
-  non-overlapping byte-range splicing.
-- [#759]: `CopyTable` on the [sqlite3](https://sq.io/docs/drivers/sqlite) and
-  [rqlite](https://sq.io/docs/drivers/rqlite) drivers now rewrites
-  self-referential foreign keys to point at the destination table. Previously
-  the destination's `REFERENCES <src>(...)` clause was left untouched, so its
-  FKs resolved against the source table instead of itself. The shared
-  `sqlparser` package gains `ExtractForeignTableRefsFromCreateTableStmt` for
-  this rewrite; cross-table FKs are left alone.
-- [#757]: `AlterTableColumnKinds` on the [sqlite3](https://sq.io/docs/drivers/sqlite)
-  and [rqlite](https://sq.io/docs/drivers/rqlite) drivers now preserves
-  AUTOINCREMENT sequence continuity across the table rebuild. Previously the
-  rebuild's `DROP TABLE` removed the table's `sqlite_sequence` row, so the next
-  insert picked `MAX(rowid)+1` rather than `seq+1`, silently reusing rowids of
-  previously deleted rows. The original `seq` is now captured before the
-  rebuild and restored afterward.
+- [#844]: On [Oracle](https://sq.io/docs/drivers/oracle), a query whose result is a
+  computed `NUMBER` with a fractional value (e.g. a division like `.actor_id / 8`, or a
+  native `AVG`) no longer fails with a scan error. Oracle reports no usable precision or
+  scale for such computed numbers, so `sq` now types them as `decimal` (which is exact and
+  can hold a fractional value) rather than assuming an integer. This applies to both
+  [SLQ](https://sq.io/docs/query) queries and native [`sq sql`](https://sq.io/docs/cmd/sql).
+  - ☢️ A consequence is that an integer-valued computed result on Oracle (`max()`, `min()`,
+    an integer literal, integer arithmetic, or a `COUNT(*)` issued via `sq sql`) is now also
+    a `decimal`, so in JSON output it renders as a quoted string (e.g. `"200"`) rather than a
+    bare number. The `count()` and `rownum()` functions in SLQ remain integers.
+- [#594]: On [SQL Server](https://sq.io/docs/drivers/sqlserver), `avg()` over an
+  integer column no longer performs integer division and truncates the result.
+  For example, the average of `1..200` now returns `100.5`, not `100`.
+- [#741], [#743]: [`sq add`](https://sq.io/docs/cmd/add) shell completion now supports
+  [ClickHouse](https://sq.io/docs/drivers/clickhouse) and
+  [Oracle](https://sq.io/docs/drivers/oracle).
+- [#699]: [`sq inspect`](https://sq.io/docs/inspect) on
+  [SQLite](https://sq.io/docs/drivers/sqlite) sources no longer executes pragmas that
+  write to the database or scan the whole file.
+  - Previously, `pragma_optimize` could silently run `ANALYZE` (taking the file write lock), and
+    `integrity_check` / `quick_check` / `foreign_key_check` scanned the entire database. These
+    keys no longer appear in the inspect output's DB properties.
+  - On a large database, these scans potentially made each `sq inspect` painfully slow.
+- [#720]: Fixed [SQLite driver](https://sq.io/docs/drivers/sqlite) path handling for
+  source locations with connection params (e.g. `sqlite3:///path/to/db?mode=ro`).
+- [#750], [#752], [#757], [#759]: A batch of fixes to the `CREATE TABLE` DDL rewriting
+  that backs table copy and column-kind alteration on the
+  [sqlite3](https://sq.io/docs/drivers/sqlite) driver.
+- [#783]: `sq db dump cluster` no longer writes the database password to the sq log file:
+  the log rendering of external commands now masks all env values (the password was passed
+  to `pg_dumpall` via `PGPASSWORD`).
+- [#783]: [`sq cache clear @src`](https://sq.io/docs/cmd/cache-clear) now clears every
+  cache dir belonging to the source, including stale dirs left over from a changed
+  location, schema, or ingest options. Previously only the dir for the source's current
+  configuration was cleared, silently leaving the rest on disk.
+- [#783]: [`sq add`](https://sq.io/docs/cmd/add) and [`sq mv`](https://sq.io/docs/cmd/mv)
+  no longer permit a source handle nested below an existing source's handle (e.g. adding
+  `@prod/db/x` when `@prod` exists).
+- [#821]: On the [SQLite](https://sq.io/docs/drivers/sqlite) and
+  [rqlite](https://sq.io/docs/drivers/rqlite) drivers, renaming a table, adding a column, or
+  truncating it no longer fails when a table or column name contains a double quote (e.g. a
+  `we"ird` table created from a CSV header).
+- [#834]: On the [ClickHouse](https://sq.io/docs/drivers/clickhouse) driver, a result-column
+  name containing a dot (e.g. the default alias `avg(.actor_id)`, or an explicit alias like
+  `"a.b"`) is no longer truncated to the segment after the last dot. The table qualifier that
+  ClickHouse adds to disambiguate duplicate join columns is still stripped so duplicates are
+  renamed consistently (e.g. `actor_id_1`).
 
 ## [v0.53.0] - 2026-05-25
 
@@ -1760,6 +1731,7 @@ make working with lots of sources much easier.
 [#570]: https://github.com/neilotoole/sq/pull/570
 [#571]: https://github.com/neilotoole/sq/pull/571
 [#572]: https://github.com/neilotoole/sq/pull/572
+[#594]: https://github.com/neilotoole/sq/issues/594
 [#601]: https://github.com/neilotoole/sq/issues/601
 [#602]: https://github.com/neilotoole/sq/pull/602
 [#610]: https://github.com/neilotoole/sq/issues/610
@@ -1788,16 +1760,22 @@ make working with lots of sources much easier.
 [#717]: https://github.com/neilotoole/sq/issues/717
 [#714]: https://github.com/neilotoole/sq/issues/714
 [#720]: https://github.com/neilotoole/sq/issues/720
+[#728]: https://github.com/neilotoole/sq/issues/728
 [#729]: https://github.com/neilotoole/sq/issues/729
-[#737]: https://github.com/neilotoole/sq/issues/737
-[#742]: https://github.com/neilotoole/sq/issues/742
-[#744]: https://github.com/neilotoole/sq/issues/744
+[#741]: https://github.com/neilotoole/sq/issues/741
+[#743]: https://github.com/neilotoole/sq/issues/743
 [#750]: https://github.com/neilotoole/sq/issues/750
 [#752]: https://github.com/neilotoole/sq/issues/752
-[#756]: https://github.com/neilotoole/sq/issues/756
 [#757]: https://github.com/neilotoole/sq/issues/757
+[#758]: https://github.com/neilotoole/sq/issues/758
 [#759]: https://github.com/neilotoole/sq/issues/759
-[#764]: https://github.com/neilotoole/sq/issues/764
+[#782]: https://github.com/neilotoole/sq/issues/782
+[#783]: https://github.com/neilotoole/sq/issues/783
+[#821]: https://github.com/neilotoole/sq/issues/821
+[#834]: https://github.com/neilotoole/sq/issues/834
+[#839]: https://github.com/neilotoole/sq/issues/839
+[#844]: https://github.com/neilotoole/sq/issues/844
+[#846]: https://github.com/neilotoole/sq/issues/846
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3

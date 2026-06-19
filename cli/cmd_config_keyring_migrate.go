@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -89,7 +90,7 @@ func execConfigKeyringMigrate(cmd *cobra.Command, args []string) error {
 	// Non-dry-run: print the plan in text mode so the user can see what
 	// will happen before the prompt. In JSON mode, skip the pre-prompt
 	// preview — the consumer reads a single envelope after apply.
-	if outputFormatIsJSON(cmd) {
+	if outputFormatIsJSON(ru) {
 		// JSON: skip preview, skip confirmation prompt, apply directly.
 		// JSON callers are non-interactive; --yes is implied.
 		rows, err := applyMigratePlans(ctx, ru, plans)
@@ -187,7 +188,14 @@ func applyMigratePlans(ctx context.Context, ru *run.Run, plans []migratePlan) (
 			anyFailed = true
 			continue
 		}
-		if err = kr.Set(ctx, id, p.src.Location); err != nil {
+		// The stored Location is a placeholder template in which '$$'
+		// escapes a literal '$' (e.g. written by the v0.54.0 config
+		// upgrade). The keyring slot holds a literal value that
+		// Registry.Expand splices raw at connect time, so unescape
+		// here; storing the template bytes verbatim would hand the
+		// driver a wrong (still-escaped) credential. Safe because
+		// migrateSkipReason guarantees zero placeholder refs.
+		if err = kr.Set(ctx, id, secret.Unescape(p.src.Location)); err != nil {
 			rows = append(rows, output.KeyringMigrateRow{
 				Handle: p.src.Handle,
 				Status: output.KeyringMigrateStatusFailed,
@@ -228,13 +236,16 @@ func applyMigratePlans(ctx context.Context, ru *run.Run, plans []migratePlan) (
 	return rows, nil
 }
 
-// outputFormatIsJSON reports whether the caller selected JSON output via
-// --json (or --format=json once we surface that flag).
-func outputFormatIsJSON(cmd *cobra.Command) bool {
-	if cmd == nil {
+// outputFormatIsJSON reports whether the resolved output format is JSON,
+// whether selected via the --json flag or the config "format" option. It
+// must agree with the writer selection in newWriters, which keys off the
+// same resolved format (see getFormat): whenever the JSON keyring writer
+// is in play, the command must behave non-interactively.
+func outputFormatIsJSON(ru *run.Run) bool {
+	if ru == nil || ru.Config == nil {
 		return false
 	}
-	return cmdFlagIsSetTrue(cmd, "json")
+	return getFormat(ru.Cmd, ru.Config.Options) == format.JSON
 }
 
 // migrateSkipReason inspects loc and returns a non-empty reason string
