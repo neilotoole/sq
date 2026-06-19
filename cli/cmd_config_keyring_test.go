@@ -350,7 +350,7 @@ func TestCmdConfigKeyringMigrate_PerCase(t *testing.T) {
 		{
 			name:           "non-url",
 			inLocation:     "/data/file.xlsx",
-			wantSkipReason: "not a URL",
+			wantSkipReason: "no credentials",
 		},
 		{
 			name: "malformed placeholder is surfaced, not silently migrated",
@@ -386,9 +386,9 @@ func TestCmdConfigKeyringMigrate_PerCase(t *testing.T) {
 			// working via the connect-path unescape, so skipping is
 			// safe; migrating would have to unescape (see previous
 			// case).
-			name:           "escaped placeholder skipped as non-URL",
+			name:           "escaped placeholder makes a malformed URL",
 			inLocation:     "postgres://alice:$${env:HOME}@db/sakila",
-			wantSkipReason: "not a URL",
+			wantSkipReason: "malformed location",
 		},
 	}
 	for _, tc := range tests {
@@ -979,8 +979,8 @@ func TestCmdConfigKeyringMigrate_HidesSkipsByDefault(t *testing.T) {
 
 	out := tr.Out.String()
 	require.Contains(t, out, "@hide_pg") // the migrating source is shown
-	require.NotContains(t, out, "not a URL")
-	require.NotContains(t, out, "no password component")
+	require.NotContains(t, out, "no credentials")
+	require.NotContains(t, out, "no password")
 	require.NotContains(t, out, "@hide_csv")
 	require.NotContains(t, out, "@hide_nopw")
 }
@@ -1350,7 +1350,7 @@ func TestCmdConfigKeyringMigrate_MixedCollection(t *testing.T) {
 	// Skip reasons must appear in output.
 	out := tr.Out.String()
 	require.Contains(t, out, "no password")
-	require.Contains(t, out, "not a URL")
+	require.Contains(t, out, "no credentials")
 }
 
 // TestCmdConfigKeyringLs_Statuses verifies the three-state classification:

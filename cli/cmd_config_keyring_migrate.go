@@ -310,26 +310,27 @@ func migrateSkipReason(loc string) string {
 	}
 	u, err := url.Parse(loc)
 	if err != nil {
-		// A genuinely malformed DSN should not be silently classified
-		// as "not a URL" — the user needs to see WHY their source was
-		// skipped. Extract just the parse error's reason (url.Error's
-		// Err field) to avoid echoing the loc string itself, which
-		// could contain inline credentials.
+		// A genuinely malformed DSN should not be silently treated as a
+		// credential-less source. Surface the parse error's reason so the
+		// user sees why the source was skipped. Use only url.Error's Err
+		// field, not the loc string, which could contain inline credentials.
 		msg := "parse failed"
 		var ue *url.Error
 		if errors.As(err, &ue) && ue.Err != nil {
 			msg = ue.Err.Error()
 		}
-		return "not a URL: " + msg
+		return "malformed location: " + msg
 	}
 	if u.Scheme == "" || u.Host == "" {
-		return "not a URL"
+		// Not a connection URL (a file path, document source, and so on):
+		// there are no inline credentials to relocate.
+		return "no credentials to migrate"
 	}
 	if u.User == nil {
-		return "no password component"
+		return "no password to migrate"
 	}
 	if _, has := u.User.Password(); !has {
-		return "no password component"
+		return "no password to migrate"
 	}
 	return ""
 }
