@@ -886,6 +886,51 @@ are grouped below by purpose. For functions specific to a single backend, see
 
 ## Aggregate functions
 
+`sq` harmonizes the type returned by an aggregate function so the same query
+yields the same kind regardless of the backing database. The tables below
+summarize what each function returns and where the drivers differ; the
+per-function sections that follow have the details.
+
+Result kind by function:
+
+| Function | Result kind | Notes |
+| --- | --- | --- |
+| [`avg`](#avg) | `float` | Always floating-point, for portability. Can lose precision beyond roughly 15 to 17 significant digits. |
+| [`sum`](#sum) | `decimal` | Exact for integer and decimal columns. The one exception is a `DOUBLE`/`FLOAT` column on DuckDB, which stays `float`. |
+| [`count`](#count), [`count_unique`](#count_unique) | `int` | Row and value counts are always integers. |
+| [`max`](#max), [`min`](#min) | same as the column | No cast; the result kind is inherited from the operand column. |
+
+In JSON and YAML, a `decimal` is rendered as a quoted string by default (so
+`sum(.actor_id)` is `"20100"`, not a bare number), which is precision-safe. Use
+[`--format.decimal=number`](/docs/output/#decimal) to render bare numbers instead.
+
+`avg` and `sum` are where backends differ most. To keep the surfaced type
+uniform, `sq` injects a SQL cast, or, where a cast can't help, pins the kind.
+The mechanism and any fidelity caveat vary by driver:
+
+| Driver | `avg` | `sum` | Fidelity notes |
+| --- | --- | --- | --- |
+| [`postgres`](/docs/drivers/postgres) | cast result to `DOUBLE PRECISION` | cast result to unconstrained `NUMERIC` | Sum is exact; full scale preserved. |
+| [`mysql`](/docs/drivers/mysql) | cast result to `DOUBLE` | cast result to `DECIMAL(65, 30)` | Full scale preserved (MySQL maxima). |
+| [`sqlite3`](/docs/drivers/sqlite) | native (float) | kind pinned, no SQL cast | A sum over a non-integer column is computed in float, so small drift is possible. |
+| [`rqlite`](/docs/drivers/rqlite) | native (float) | kind pinned, no SQL cast | As `sqlite3`, plus a very large integer sum (beyond 2^53) can drift over the HTTP API. |
+| [`sqlserver`](/docs/drivers/sqlserver) | cast operand to `FLOAT` | cast operand to `DECIMAL(38, 6)` | Operand cast avoids integer-division truncation and overflow; the sum rounds per row at 6 places. |
+| [`clickhouse`](/docs/drivers/clickhouse) | native (float) | cast result to `Nullable(Decimal(38, 6))` | Rounds to 6 fractional places; overflows beyond 32 integer digits. |
+| [`oracle`](/docs/drivers/oracle) | cast result to `BINARY_DOUBLE` | cast result to `NUMBER(38, 6)` | Rounds to 6 fractional places; overflows beyond 32 integer digits. `count`, `count_unique`, and `rownum` are pinned to `int`. |
+| [`duckdb`](/docs/drivers/duckdb) | native (float) | native, not cast | The native sum is already a lossless decimal; a `DOUBLE` column's sum stays `float`. |
+
+{{< alert icon="👉" >}}
+How `sq` harmonizes numeric types is still evolving. Proposed changes, including
+config options such as `result.numeric.type`, portable cast functions like
+`decimal(x)`, `int(x)`, and `float(x)`, and normalizing the `/` division
+operator, are under discussion in
+[#845](https://github.com/neilotoole/sq/discussions/845). One known gap, a
+[`sum`](#sum) over a `DOUBLE`/`FLOAT` column on `duckdb` surfacing as `float`
+rather than `decimal`, is tracked in
+[#853](https://github.com/neilotoole/sq/issues/853). The details described here
+may change in future versions.
+{{< /alert >}}
+
 ### `avg`
 
 `avg` returns the average of all non-null values of the column.
@@ -1005,7 +1050,9 @@ overflows (a query error). On SQL Server the operand is cast before summing, so
 that rounding is applied per row. Postgres (unconstrained `NUMERIC`) and MySQL
 (its maximum scale of 30) preserve the full scale. DuckDB is not cast (its
 native sum is already a lossless decimal for integer and decimal columns), so a
-sum over a `DOUBLE` column on DuckDB stays a float. The common integer and
+sum over a `DOUBLE` column on DuckDB stays a float. That last point is a
+portability gap (every other driver surfaces `sum` as a decimal), tracked in
+[#853](https://github.com/neilotoole/sq/issues/853). The common integer and
 currency cases are unaffected.
 {{< /alert >}}
 
