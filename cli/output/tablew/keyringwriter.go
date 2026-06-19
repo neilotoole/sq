@@ -71,6 +71,29 @@ func (w *keyringWriter) Rm(_ string) error {
 	return nil
 }
 
+// Prune implements output.KeyringWriter.
+func (w *keyringWriter) Prune(rows []output.KeyringPruneRow, _ bool) error {
+	for _, r := range rows {
+		path := w.pr.String.Sprint(r.Path)
+		kind := w.pr.Faint.Sprint("(" + r.Kind + ")")
+		var line string
+		switch r.Status {
+		case output.KeyringPruneStatusPlanned:
+			line = fmt.Sprintf("%s  %s  %s\n", w.pr.Faint.Sprint("would delete"), path, kind)
+		case output.KeyringPruneStatusDeleted:
+			line = fmt.Sprintf("%s  %s  %s\n", w.pr.Enabled.Sprint("deleted"), path, kind)
+		case output.KeyringPruneStatusFailed:
+			line = fmt.Sprintf("%s  %s  %s  %s\n", w.pr.Error.Sprint("FAIL"), path, kind, r.Error)
+		default:
+			line = path + "  " + r.Status + "\n"
+		}
+		if _, err := fmt.Fprint(w.out, line); err != nil {
+			return errz.Err(err)
+		}
+	}
+	return nil
+}
+
 // Migrate implements output.KeyringWriter.
 func (w *keyringWriter) Migrate(rows []output.KeyringMigrateRow, _ bool) error {
 	for _, r := range rows {

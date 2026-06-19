@@ -15,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/secret/keyring"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -1056,4 +1057,52 @@ func TestCmdConfigKeyringRm_Completion_TolerantOfMalformedSource(t *testing.T) {
 	got := testComplete(t, tr, "config", "keyring", "rm", "")
 	require.Contains(t, got.values, "goodid",
 		"malformed source must not block completion of healthy refs")
+}
+
+func TestCmdConfigKeyringPrune_DeletesOrphans(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	kr := keyring.NewStore()
+	require.NoError(t, kr.Set(th.Context, "keep1234567", "live"))   // referenced
+	require.NoError(t, kr.Set(th.Context, "orphan23456", "stale"))  // orphan (opaque id)
+	require.NoError(t, kr.Set(th.Context, "named_orphan", "stale")) // orphan (named)
+
+	tr.Add(source.Source{
+		Handle:   "@keep_pg",
+		Type:     drivertype.Pg,
+		Location: "${keyring:keep1234567}",
+	})
+
+	require.NoError(t, tr.Exec("config", "keyring", "prune"))
+
+	// Referenced entry survives.
+	v, err := kr.Resolve(th.Context, "keep1234567")
+	require.NoError(t, err)
+	require.Equal(t, "live", v)
+
+	// Both orphans (opaque and named) are gone.
+	_, err = kr.Resolve(th.Context, "orphan23456")
+	require.ErrorIs(t, err, secret.ErrNotFound)
+	_, err = kr.Resolve(th.Context, "named_orphan")
+	require.ErrorIs(t, err, secret.ErrNotFound)
+}
+
+func TestCmdConfigKeyringPrune_DryRun(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	kr := keyring.NewStore()
+	require.NoError(t, kr.Set(th.Context, "orphan23456", "stale"))
+
+	require.NoError(t, tr.Exec("config", "keyring", "prune", "--dry-run"))
+	out := tr.Out.String()
+	require.Contains(t, out, "orphan23456")
+
+	// Dry-run deletes nothing.
+	v, err := kr.Resolve(th.Context, "orphan23456")
+	require.NoError(t, err)
+	require.Equal(t, "stale", v)
 }
