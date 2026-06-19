@@ -42,6 +42,20 @@ func (s *failingConfigStore) Lockfile() (lockfile.Lockfile, error) {
 	return s.underlying.Lockfile()
 }
 
+// countingConfigStore wraps a config.Store and counts Save invocations,
+// used to assert that migrate persists the config exactly once for the
+// whole batch (atomic) rather than once per source. Methods other than
+// Save delegate to the embedded store.
+type countingConfigStore struct {
+	config.Store
+	saves int
+}
+
+func (s *countingConfigStore) Save(ctx context.Context, cfg *config.Config) error {
+	s.saves++
+	return s.Store.Save(ctx, cfg)
+}
+
 // migrateRollbackRow / migrateRollbackEnvelope and migrateJSONRow /
 // migrateJSONEnvelope are JSON unmarshal targets for migrate-result
 // tests. Promoted to top-level types (rather than inline anonymous
@@ -382,11 +396,11 @@ func TestCmdConfigKeyringMigrate_PerCase(t *testing.T) {
 			gokeyring.MockInit()
 			th := testh.New(t)
 			tr := testrun.New(th.Context, t, nil)
-			require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+			tr.Add(source.Source{
 				Handle:   "@h",
 				Type:     "postgres",
 				Location: tc.inLocation,
-			}))
+			})
 
 			require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--yes"))
 
@@ -414,11 +428,11 @@ func TestCmdConfigKeyringMigrate_DryRun(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	tr.Add(source.Source{
 		Handle:   "@h_dr",
 		Type:     "postgres",
 		Location: "postgres://alice:hunter2@db/sakila",
-	}))
+	})
 
 	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--dry-run"))
 
@@ -792,16 +806,16 @@ func TestCmdConfigKeyringMigrate_JSON_DryRun(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	tr.Add(source.Source{
 		Handle:   "@m_pw",
 		Type:     "postgres",
 		Location: "postgres://alice:hunter2@db/sakila",
-	}))
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	})
+	tr.Add(source.Source{
 		Handle:   "@m_skip",
 		Type:     "postgres",
 		Location: "postgres://alice@db/sakila", // no password -> skip
-	}))
+	})
 
 	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--dry-run", "--json"))
 
@@ -837,11 +851,11 @@ func TestCmdConfigKeyringMigrate_JSON_Apply(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	tr.Add(source.Source{
 		Handle:   "@m_pw_apply",
 		Type:     "postgres",
 		Location: "postgres://alice:hunter2@db/sakila",
-	}))
+	})
 
 	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--json"))
 
@@ -873,27 +887,27 @@ func TestCmdConfigKeyringMigrate_JSON_Apply(t *testing.T) {
 //     "rolled back" so JSON consumers can detect the path.
 //   - The command surfaces a non-nil error.
 //
-// The rollback also calls kr.Delete on the orphan keyring entry, but
+// The rollback also calls kr.Delete on the keyring entry it wrote, but
 // the test doesn't assert that directly because the minted ID isn't
-// observable from outside (orphan listing is pending — see #715).
+// observable from outside.
 func TestCmdConfigKeyringMigrate_RollbackOnSaveFailure(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
 
 	const origLoc = "postgres://alice:hunter2@db/sakila"
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	tr.Add(source.Source{
 		Handle:   "@rb_src",
 		Type:     "postgres",
 		Location: origLoc,
-	}))
+	})
 	// Swap in a failing store AFTER initial setup so the source-add
 	// Save() above still succeeds. Now any further Save errors.
 	tr.Run.ConfigStore = &failingConfigStore{underlying: tr.Run.ConfigStore}
 
 	err := tr.Exec("config", "keyring", "migrate", "--all", "--yes", "--json")
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "one or more sources failed")
+	require.Contains(t, err.Error(), "no sources were changed")
 
 	// The in-memory source must reflect the rollback: Location is the
 	// original DSN, not a ${keyring:...} placeholder.
@@ -912,6 +926,64 @@ func TestCmdConfigKeyringMigrate_RollbackOnSaveFailure(t *testing.T) {
 	require.Contains(t, env.Rows[0].Error, "rolled back")
 }
 
+// TestCmdConfigKeyringMigrate_AtomicSingleSave verifies the migration is
+// atomic: a multi-source run saves the config exactly once for the whole
+// batch, not once per source. That single save is what makes a mid-batch
+// failure all-or-nothing.
+func TestCmdConfigKeyringMigrate_AtomicSingleSave(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	tr.Add(
+		source.Source{Handle: "@as_a", Type: "postgres", Location: "postgres://u:p1@db/a"},
+		source.Source{Handle: "@as_b", Type: "postgres", Location: "postgres://u:p2@db/b"},
+		source.Source{Handle: "@as_c", Type: "postgres", Location: "postgres://u:p3@db/c"},
+	)
+	counter := &countingConfigStore{Store: tr.Run.ConfigStore}
+	tr.Run.ConfigStore = counter
+
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--yes"))
+
+	require.Equal(t, 1, counter.saves,
+		"atomic migrate must save the config once for the batch, not once per source")
+	for _, h := range []string{"@as_a", "@as_b", "@as_c"} {
+		src, err := tr.Run.Config.Collection.Get(h)
+		require.NoError(t, err)
+		require.Contains(t, src.Location, "${keyring:", "%s should be migrated", h)
+	}
+}
+
+// TestCmdConfigKeyringMigrate_AtomicRollbackMultiSource verifies the
+// all-or-nothing guarantee across multiple sources: when the config save
+// fails, every source is rolled back to its original inline Location, not
+// just one.
+func TestCmdConfigKeyringMigrate_AtomicRollbackMultiSource(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	const locA = "postgres://alice:hunter2@db/sakila"
+	const locB = "postgres://bob:s3cr3t@db/sakila2"
+	tr.Add(
+		source.Source{Handle: "@arb_a", Type: "postgres", Location: locA},
+		source.Source{Handle: "@arb_b", Type: "postgres", Location: locB},
+	)
+	// Fail the save (after the tr.Add setup save), so the single end-of-run
+	// save fails and the whole batch must roll back.
+	tr.Run.ConfigStore = &failingConfigStore{underlying: tr.Run.ConfigStore}
+
+	err := tr.Exec("config", "keyring", "migrate", "--all", "--yes")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no sources were changed")
+
+	a, err := tr.Run.Config.Collection.Get("@arb_a")
+	require.NoError(t, err)
+	require.Equal(t, locA, a.Location, "@arb_a must be rolled back")
+	b, err := tr.Run.Config.Collection.Get("@arb_b")
+	require.NoError(t, err)
+	require.Equal(t, locB, b.Location, "@arb_b must be rolled back")
+}
+
 // TestCmdConfigKeyringMigrate_JSON_SkipsPrompt verifies the documented
 // behavior in cmd_config_keyring_migrate.go: in --json mode the
 // y/N confirmation prompt is bypassed entirely, because JSON consumers
@@ -925,11 +997,11 @@ func TestCmdConfigKeyringMigrate_JSON_SkipsPrompt(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	tr.Add(source.Source{
 		Handle:   "@js_prompt",
 		Type:     "postgres",
 		Location: "postgres://alice:hunter2@db/sakila",
-	}))
+	})
 	// Pipe "n\n" so the y/N prompt — if reached — would answer "no".
 	tr.PipeStdin("n\n")
 
@@ -968,11 +1040,11 @@ func TestCmdConfigKeyringMigrate_ConfigFormatJSON_SkipsPrompt(t *testing.T) {
 	require.NoError(t, tr.Exec("config", "set", "format", "json"))
 	tr = testrun.New(th.Context, t, tr)
 
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	tr.Add(source.Source{
 		Handle:   "@cfg_json",
 		Type:     "postgres",
 		Location: "postgres://alice:hunter2@db/sakila",
-	}))
+	})
 	// Pipe "n\n" so the y/N prompt (if reached) would answer "no".
 	tr.PipeStdin("n\n")
 
@@ -1005,11 +1077,11 @@ func TestCmdConfigKeyringMigrate_PromptAbort(t *testing.T) {
 	tr := testrun.New(th.Context, t, nil)
 
 	const origLoc = "postgres://alice:hunter2@db/sakila"
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	tr.Add(source.Source{
 		Handle:   "@pa_src",
 		Type:     "postgres",
 		Location: origLoc,
-	}))
+	})
 
 	// Answer "no" at the prompt.
 	tr.PipeStdin("n\n")
@@ -1036,11 +1108,11 @@ func TestCmdConfigKeyringMigrate_PromptProceedEmptyAborts(t *testing.T) {
 	tr := testrun.New(th.Context, t, nil)
 
 	const origLoc = "postgres://alice:hunter2@db/sakila"
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	tr.Add(source.Source{
 		Handle:   "@pe_src",
 		Type:     "postgres",
 		Location: origLoc,
-	}))
+	})
 
 	// Empty input (just Enter) should default to "no".
 	tr.PipeStdin("\n")
@@ -1060,11 +1132,11 @@ func TestCmdConfigKeyringMigrate_PromptProceed(t *testing.T) {
 	tr := testrun.New(th.Context, t, nil)
 
 	const origLoc = "postgres://alice:hunter2@db/sakila"
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	tr.Add(source.Source{
 		Handle:   "@pp_src",
 		Type:     "postgres",
 		Location: origLoc,
-	}))
+	})
 
 	// Answer "yes" at the prompt.
 	tr.PipeStdin("y\n")
@@ -1091,16 +1163,16 @@ func TestCmdConfigKeyringMigrate_SingleHandle(t *testing.T) {
 
 	const loc1 = "postgres://alice:hunter2@db/sakila"
 	const loc2 = "postgres://bob:secret99@db2/northwind"
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	tr.Add(source.Source{
 		Handle:   "@h1",
 		Type:     "postgres",
 		Location: loc1,
-	}))
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	})
+	tr.Add(source.Source{
 		Handle:   "@h2",
 		Type:     "postgres",
 		Location: loc2,
-	}))
+	})
 
 	require.NoError(t, tr.Exec("config", "keyring", "migrate", "@h1", "--yes"))
 
@@ -1153,21 +1225,21 @@ func TestCmdConfigKeyringMigrate_MixedCollection(t *testing.T) {
 	const noPassLoc = "postgres://alice@db/sakila"
 	const fileLoc = "/data/file.xlsx"
 
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	tr.Add(source.Source{
 		Handle:   "@mc_eligible",
 		Type:     "postgres",
 		Location: eligibleLoc,
-	}))
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	})
+	tr.Add(source.Source{
 		Handle:   "@mc_nopass",
 		Type:     "postgres",
 		Location: noPassLoc,
-	}))
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	})
+	tr.Add(source.Source{
 		Handle:   "@mc_file",
 		Type:     "xlsx",
 		Location: fileLoc,
-	}))
+	})
 
 	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--yes"))
 

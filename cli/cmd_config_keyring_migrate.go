@@ -59,6 +59,10 @@ the confirmation prompt.`,
 	cmd.Flags().Bool(flagMigrateDryRun, false, "Show planned changes, make no writes")
 	cmd.Flags().Bool(flagMigrateYes, false, "Skip the confirmation prompt")
 	addKeyringFormatFlags(cmd)
+	// migrate rewrites sq.yml (unlike the other keyring subcommands, which
+	// touch only the keyring), so it takes the config lock and runs against
+	// a freshly-reloaded config, like add/rm/mv and the other config writers.
+	cmdMarkRequiresConfigLock(cmd)
 	return cmd
 }
 
@@ -163,30 +167,69 @@ func planRowsForReport(plans []migratePlan) []output.KeyringMigrateRow {
 	return rows
 }
 
-// applyMigratePlans performs the migration and returns one row per
-// non-skipped plan describing the outcome. Skipped plans don't appear
-// in the result because they were already reported during the plan
-// phase. The returned error is non-nil if at least one source failed
-// to migrate; rows for both successes and failures are still returned.
+// applyMigratePlans performs the migration atomically. It writes every
+// eligible source's keyring entry and rewrites its Location in memory,
+// then saves the config exactly once. If any step fails (minting an ID,
+// writing the keyring, or the single config save), the whole batch is
+// rolled back: every keyring entry written this run is deleted, every
+// Location is restored, and the config is left untouched. So a run is
+// all-or-nothing; a failure migrates no sources. Skipped plans don't
+// appear in the result because they were already reported during the
+// plan phase.
 func applyMigratePlans(ctx context.Context, ru *run.Run, plans []migratePlan) (
 	[]output.KeyringMigrateRow, error,
 ) {
 	kr := keyring.NewStore()
-	rows := make([]output.KeyringMigrateRow, 0, len(plans))
-	var anyFailed bool
+
+	// done tracks each source whose keyring entry was written and Location
+	// rewritten in memory, so a later failure can roll the whole batch back.
+	type applied struct {
+		src *source.Source
+		id  string
+		old string
+	}
+	var done []applied
+
+	rollbackAll := func() {
+		for _, a := range done {
+			a.src.Location = a.old
+			if delErr := kr.Delete(ctx, a.id); delErr != nil {
+				// Rollback delete failed: the keyring entry written this
+				// run may orphan. Log it so the failure is recoverable
+				// from debug output and via 'sq config keyring prune'.
+				lg.FromContext(ctx).Warn("Failed to roll back keyring entry during migrate rollback",
+					lga.Path, a.id, lga.Handle, a.src.Handle, lga.Err, delErr)
+			}
+		}
+	}
+
+	// failAll rolls the batch back and reports every eligible source as
+	// failed (rolled back): migration is all-or-nothing, so on any failure
+	// nothing is persisted.
+	failAll := func(cause string) ([]output.KeyringMigrateRow, error) {
+		rollbackAll()
+		rows := make([]output.KeyringMigrateRow, 0, len(done))
+		for _, p := range plans {
+			if p.reason != "" {
+				continue
+			}
+			rows = append(rows, output.KeyringMigrateRow{
+				Handle: p.src.Handle,
+				Status: output.KeyringMigrateStatusFailed,
+				Error:  "rolled back: " + cause,
+			})
+		}
+		return rows, errz.Errorf(
+			"migration failed and was rolled back; no sources were changed: %s", cause)
+	}
+
 	for _, p := range plans {
 		if p.reason != "" {
 			continue
 		}
 		id, err := kr.NewID(ctx)
 		if err != nil {
-			rows = append(rows, output.KeyringMigrateRow{
-				Handle: p.src.Handle,
-				Status: output.KeyringMigrateStatusFailed,
-				Error:  "mint keyring id: " + err.Error(),
-			})
-			anyFailed = true
-			continue
+			return failAll("mint keyring id for " + p.src.Handle + ": " + err.Error())
 		}
 		// The stored Location is a placeholder template in which '$$'
 		// escapes a literal '$' (e.g. written by the v0.54.0 config
@@ -196,42 +239,23 @@ func applyMigratePlans(ctx context.Context, ru *run.Run, plans []migratePlan) (
 		// driver a wrong (still-escaped) credential. Safe because
 		// migrateSkipReason guarantees zero placeholder refs.
 		if err = kr.Set(ctx, id, secret.Unescape(p.src.Location)); err != nil {
-			rows = append(rows, output.KeyringMigrateRow{
-				Handle: p.src.Handle,
-				Status: output.KeyringMigrateStatusFailed,
-				Error:  "write keyring: " + err.Error(),
-			})
-			anyFailed = true
-			continue
+			return failAll("write keyring for " + p.src.Handle + ": " + err.Error())
 		}
-		oldLoc := p.src.Location
+		done = append(done, applied{src: p.src, id: id, old: p.src.Location})
 		p.src.Location = "${keyring:" + id + "}"
-		if err = ru.ConfigStore.Save(ctx, ru.Config); err != nil {
-			p.src.Location = oldLoc
-			if delErr := kr.Delete(ctx, id); delErr != nil {
-				// Rollback failed: the keyring entry just written may
-				// orphan, with no easy way for the user to find it
-				// (orphan-listing is pending — see #715). Log so the
-				// failure is at least recoverable from debug output.
-				lg.FromContext(ctx).Warn("Failed to roll back keyring entry on migrate save error",
-					lga.Path, id, lga.Handle, p.src.Handle, lga.Err, delErr)
-			}
-			rows = append(rows, output.KeyringMigrateRow{
-				Handle: p.src.Handle,
-				Status: output.KeyringMigrateStatusFailed,
-				Error:  "save config (rolled back): " + err.Error(),
-			})
-			anyFailed = true
-			continue
-		}
-		rows = append(rows, output.KeyringMigrateRow{
-			Handle:      p.src.Handle,
-			Status:      output.KeyringMigrateStatusMigrated,
-			NewLocation: p.src.Location,
-		})
 	}
-	if anyFailed {
-		return rows, errz.New("one or more sources failed to migrate")
+
+	if err := ru.ConfigStore.Save(ctx, ru.Config); err != nil {
+		return failAll("save config: " + err.Error())
+	}
+
+	rows := make([]output.KeyringMigrateRow, 0, len(done))
+	for _, a := range done {
+		rows = append(rows, output.KeyringMigrateRow{
+			Handle:      a.src.Handle,
+			Status:      output.KeyringMigrateStatusMigrated,
+			NewLocation: a.src.Location,
+		})
 	}
 	return rows, nil
 }
