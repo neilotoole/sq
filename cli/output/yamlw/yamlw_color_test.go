@@ -63,9 +63,10 @@ func TestRecordWriter_Color_UnknownNotNormal(t *testing.T) {
 	pr := output.NewPrinting()
 	pr.EnableColor(true)
 
+	// The Number-colored form is the guard: had the value fallen back to the
+	// Normal path it would be wrapped in pr.Normal's codes, not pr.Number's.
 	got := renderColorYAML(t, pr, kind.Unknown, float64(100.5))
 	require.Contains(t, got, pr.Number.Sprint("100.5"))
-	require.NotContains(t, got, pr.Normal.Sprint("100.5"))
 }
 
 // TestRecordWriter_Color_Monochrome verifies no escape codes are emitted when

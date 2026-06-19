@@ -69,4 +69,13 @@ func TestRecordWriter_Bytes(t *testing.T) {
 		got := renderColorYAML(t, pr, kind.Bytes, []byte{})
 		require.Equal(t, "- c: \"\"\n", got)
 	})
+
+	// A typed-nil []byte in a kind.Unknown column takes the byValue path but
+	// must still short-circuit to null before color resolution.
+	t.Run("unknown_nil_renders_null", func(t *testing.T) {
+		pr := output.NewPrinting()
+		pr.EnableColor(false)
+		got := renderColorYAML(t, pr, kind.Unknown, []byte(nil))
+		require.Equal(t, "- c: null\n", got)
+	})
 }

@@ -116,8 +116,10 @@ func colorForValue(pr *output.Printing, val any) *color.Color {
 	case string:
 		return pr.String
 	default:
-		// time.Time is intercepted before this point, and nil is rendered as
-		// null; anything else falls back to no color.
+		// Values that WriteRecords renders as null never reach here: an
+		// interface-nil is caught by its val == nil check, and a typed-nil
+		// []byte short-circuits in its []byte branch. A time.Time is rendered
+		// by renderTime upstream. Anything else falls back to no color.
 		return pr.Normal
 	}
 }
