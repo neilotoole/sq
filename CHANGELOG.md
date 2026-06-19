@@ -72,8 +72,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     (~15-17 significant digits). Callers needing lossless decimal can fall back to
     native SQL via [`sq sql`](https://sq.io/docs/cmd/sql).
 - ☢️ [#839]: [`sum()`](https://sq.io/docs/query#sum) over an integer or decimal
-  column now returns a consistent `decimal` on every SQL driver (the one
-  exception is a `DOUBLE`/`FLOAT` column on DuckDB, noted below). Previously the
+  column now returns a consistent `decimal` on every SQL driver. Previously the
   result type varied by backend (an integer on most, a decimal on MySQL and
   DuckDB, a float on Oracle), so a `sum()` value could not be consumed portably
   across sources. Unlike
@@ -96,10 +95,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     maximum scale of 30, which no column can exceed) preserve the full scale, so
     for such columns the value can differ across drivers. The common integer and
     currency cases are unaffected.
-  - [DuckDB](https://sq.io/docs/drivers/duckdb) is not cast: its native `sum()`
-    is already a decimal for integer (`HUGEINT`) and decimal columns, and is left
-    lossless rather than narrowed to `DECIMAL(38, 6)`. As a result, `sum()` over
-    a `DOUBLE` column on DuckDB stays a float rather than a decimal.
+  - [#853]: [DuckDB](https://sq.io/docs/drivers/duckdb) is not given a SQL cast:
+    its native `sum()` is already a decimal for integer (`HUGEINT`) and decimal
+    columns, and is left lossless rather than narrowed to `DECIMAL(38, 6)`. A
+    `sum()` over a `DOUBLE` column is computed in float and surfaced as a
+    decimal, so like SQLite it can still carry that float drift.
   - Decimal values are now rendered with trailing fractional zeros trimmed (e.g.
     `100.50` displays as `100.5`) consistently across all drivers and output
     formats, so the same value reads identically regardless of the scale a
@@ -1782,6 +1782,7 @@ make working with lots of sources much easier.
 [#844]: https://github.com/neilotoole/sq/issues/844
 [#846]: https://github.com/neilotoole/sq/issues/846
 [#851]: https://github.com/neilotoole/sq/issues/851
+[#853]: https://github.com/neilotoole/sq/issues/853
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3

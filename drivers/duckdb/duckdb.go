@@ -347,7 +347,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 // are represented as nil in the driver.Value slice. The munge function
 // converts duckdb-specific types (Decimal, Interval, *big.Int, composites)
 // to sq's canonical record types.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, _ map[int]kind.Kind) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, kindHints map[int]kind.Kind) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
 	ctData := make([]*record.ColumnTypeData, len(colTypes))
@@ -355,6 +355,14 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, _ 
 	for i, ct := range colTypes {
 		dbTypeName := ct.DatabaseTypeName()
 		knd := kindFromDBTypeName(dbTypeName)
+		if hint, ok := kindHints[i]; ok {
+			// A renderer-pinned kind (e.g. sum() forced to decimal; see #853)
+			// overrides the kind derived from the DB type name. The munge
+			// coerces the scanned value to match the pinned kind. Setting the
+			// kind here also takes it out of the Unknown state, so the later
+			// SetKindIfUnknown calls in the munge leave it alone.
+			knd = hint
+		}
 		colTypeData := record.NewColumnTypeData(ct, knd)
 		// Always use *any as the scan target. go-duckdb delivers native Go
 		// values (int32, float32, string, time.Time, duckdb.Decimal, etc.)
@@ -455,11 +463,9 @@ func newRecordFuncForDuckDB(log *slog.Logger, recMeta record.Meta) driver.NewRec
 
 			// ---- floats ----
 			case float32:
-				record.SetKindIfUnknown(recMeta, i, kind.Float)
-				rec[i] = float64(v)
+				rec[i] = coerceDuckDBFloat(recMeta, i, float64(v))
 			case float64:
-				record.SetKindIfUnknown(recMeta, i, kind.Float)
-				rec[i] = v
+				rec[i] = coerceDuckDBFloat(recMeta, i, v)
 
 			// ---- DECIMAL (duckdb.Decimal → shopspring decimal.Decimal) ----
 			case duckdbdriver.Decimal:
@@ -535,6 +541,21 @@ func newRecordFuncForDuckDB(log *slog.Logger, recMeta record.Meta) driver.NewRec
 		}
 		return rec, nil
 	}
+}
+
+// coerceDuckDBFloat normalizes a float value scanned from DuckDB for column i.
+// If that column's kind has been pinned to decimal (e.g. sum() over a DOUBLE
+// column; see #853), the float is promoted to a decimal.Decimal so the surfaced
+// value matches the surfaced kind, mirroring sum()'s decimal harmonization on
+// the other drivers. DuckDB still computed the value in float, so it can carry
+// float drift, the same tradeoff accepted for sqlite3/rqlite. Otherwise the
+// column defaults to float and the value is returned unchanged.
+func coerceDuckDBFloat(recMeta record.Meta, i int, v float64) any {
+	if recMeta[i].Kind() == kind.Decimal {
+		return decimal.NewFromFloat(v)
+	}
+	record.SetKindIfUnknown(recMeta, i, kind.Float)
+	return v
 }
 
 // CreateTable implements driver.SQLDriver.

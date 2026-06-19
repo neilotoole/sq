@@ -17,13 +17,14 @@ import (
 )
 
 // TestQuery_sum_floatColumn verifies that sum() over a FLOAT/DOUBLE column
-// surfaces as kind.Decimal (issue #839). Sakila has no float column, so a
+// surfaces as kind.Decimal (issues #839, #853). Sakila has no float column, so a
 // one-column float table is created per driver. This is the regression guard
 // for MySQL, whose native sum() over a float column returns DOUBLE (kind.Float)
 // and which needed an explicit cast override; the other cast-based drivers
-// coerce via their result cast. ClickHouse and DuckDB are skipped (see below):
-// ClickHouse for an insert-pipeline limitation, DuckDB because it intentionally
-// has no override and leaves sum(float) as a float.
+// coerce via their result cast. DuckDB takes a different path: a DECIMAL cast
+// would regress its native HUGEINT integer range, so it kind-pins sum() to
+// decimal and coerces the float value in its record munge (#853). ClickHouse is
+// skipped (see below) for an insert-pipeline limitation.
 func TestQuery_sum_floatColumn(t *testing.T) {
 	for _, handle := range sakila.SQLLatest() {
 		t.Run(handle, func(t *testing.T) {
@@ -39,13 +40,6 @@ func TestQuery_sum_floatColumn(t *testing.T) {
 			// decimal regardless of the operand type.
 			tu.SkipIf(t, src.Type == drivertype.ClickHouse,
 				"ClickHouse needs the batch-insert pipeline; sum(float) is covered via its result cast")
-
-			// DuckDB deliberately keeps sum() over a DOUBLE column as a float (it
-			// has no sum() override; see drivers/duckdb/render.go), so it would
-			// fail the decimal assertion below. That float-stays-float behavior is
-			// intentional, so DuckDB is excluded here.
-			tu.SkipIf(t, src.Type == drivertype.DuckDB,
-				"DuckDB intentionally leaves sum(float) as float (no override)")
 
 			tblName := stringz.UniqTableName("sum_float")
 			tblDef := schema.NewTable(tblName, []string{"col_float"}, []kind.Kind{kind.Float})
@@ -75,7 +69,7 @@ func TestQuery_sum_floatColumn(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, sink.Recs, 1)
 			// sum(float) must surface as decimal on every driver reached here
-			// (DuckDB and ClickHouse are skipped above), value 3.75.
+			// (ClickHouse is skipped above), value 3.75.
 			assertSinkColDecimal(0, "3.75", nil)(t, sink)
 		})
 	}
