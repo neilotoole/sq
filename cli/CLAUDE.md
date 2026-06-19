@@ -22,6 +22,13 @@ completion:
 
 Cap positional completion at the number of args the command takes (`maxVals`),
 and set `includeActive` by whether the `@active` shortcut is a sensible target.
-Commands with no positional arguments need no `ValidArgsFunction`. Add a
-completion test with the command, using the `testComplete` helper (see the
-existing `*_Completion` tests).
+
+Commands with no positional arguments need no `ValidArgsFunction`. Arguments
+whose values are inherently free-form are likewise exempt, since there is
+nothing to enumerate: a new name the user invents, a literal value to store, an
+arbitrary SQL or SLQ query. For example, `config keyring create PATH` takes no
+completion for `PATH`, because it must be a new entry that does not yet exist;
+suggesting existing paths would only offer names the command rejects.
+
+Add a completion test with the command, using the `testComplete` helper (see
+the existing `*_Completion` tests).
