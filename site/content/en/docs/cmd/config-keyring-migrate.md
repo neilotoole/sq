@@ -62,9 +62,20 @@ shown in the output:
 
 ## Preview, then confirm
 
-Preview first with `--dry-run`. It mints no IDs and writes nothing:
+Every run targets either a single source by handle or the whole collection with
+`--all`. Two flags control how it behaves, and both work with either target:
+
+- `--dry-run` previews the plan and changes nothing (mints no IDs, writes
+  nothing).
+- `--yes` skips the confirmation prompt, for non-interactive use.
+
+### `--dry-run`: preview without changes
 
 ```shell
+# Preview a single source
+$ sq config keyring migrate @sakila --dry-run
+
+# Preview the whole collection
 $ sq config keyring migrate --all --dry-run
 ```
 
@@ -79,16 +90,28 @@ HANDLE            STATUS   DETAIL
 @sakila/local/pg  migrate  ${keyring:<new-id>}
 ```
 
-A real run prints the same plan and then prompts before changing anything:
+### The confirmation prompt and `--yes`
+
+A real run prints the same plan, then prompts before changing anything:
 
 ```text
 Proceed with migration? [y/N]
 ```
 
 Anything other than `y` or `yes` (including just pressing Enter) aborts without
-touching the keyring or `sq.yml`. Pass `--yes` to skip the prompt in scripts.
-JSON output (`--json`) is non-interactive: it skips the preview and prompt and
-applies directly.
+touching the keyring or `sq.yml`. Pass `--yes` to skip the prompt, which is what
+you want in scripts:
+
+```shell
+# Migrate one source without prompting
+$ sq config keyring migrate @sakila --yes
+
+# Migrate everything without prompting
+$ sq config keyring migrate --all --yes
+```
+
+JSON output (`--json`) is non-interactive: it skips both the preview and the
+prompt and applies directly, so `--yes` is implied.
 
 ## How changes are applied
 
