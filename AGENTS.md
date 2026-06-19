@@ -221,3 +221,48 @@ is present.
 
 Optional: set `DISABLE_TELEMETRY=1` to opt out of anonymous Skills CLI
 telemetry ([docs](https://skills.sh/docs/cli)).
+
+## Cursor Cloud specific instructions
+
+These notes apply to the Cursor Cloud agent VM. The standard build/test/lint
+commands live in [Common commands](#common-commands); only the non-obvious
+caveats are captured here.
+
+### Run Go tests with `NO_COLOR` and `FORCE_COLOR` cleared
+
+The VM preseeds `NO_COLOR=1`, `FORCE_COLOR=0`, and `TERM=dumb` in the
+environment. These break color-sensitive Go tests, so clear the first two
+before running the suite:
+
+```bash
+env -u NO_COLOR -u FORCE_COLOR make test-short
+```
+
+Why: `libsq/core/colorz` tests fail under `NO_COLOR=1`, and the CLI
+`*Roundtrip` / `TestDiff_*` tests panic because `termz.IsColorTerminal`
+treats any non-empty `FORCE_COLOR` (including `FORCE_COLOR=0`) as "force color
+on", then asserts stdout is an `*os.File`. CI runs with none of these set, so
+clearing them matches CI behavior. `make lint` and `make lint-markdown` are
+unaffected.
+
+### Build needs CGO + ICU headers
+
+`make build` / `make test` pass `sqlite_icu` (among other SQLite build tags),
+so a C compiler and the ICU dev headers (`libicu-dev`, providing
+`unicode/utypes.h`) must be present. These are installed in the VM snapshot.
+The CI workflow omits `sqlite_icu`, but the `Makefile` includes it.
+
+### Tooling locations
+
+`bun` (used by `make lint-markdown` and the `site/` product) is installed at
+`~/.bun/bin`. The Go toolchain auto-downloads the version pinned in `go.mod`
+(currently 1.26.3) on first use.
+
+### SQL driver integration tests need Docker
+
+Postgres/MySQL/SQL Server/ClickHouse/Oracle driver tests require the
+`sakiladb/*` Docker images and `SQ_TEST_SRC__SAKILA_*` env vars (see
+[`CONTRIBUTING.md`](./CONTRIBUTING.md)). Docker is not installed in the VM, so
+use `make test-short` (or `go test -short`), which skips them. SQLite, CSV,
+JSON, and XLSX drivers run against checked-in testdata with no external
+service.
