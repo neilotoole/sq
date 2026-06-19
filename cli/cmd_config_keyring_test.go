@@ -11,6 +11,7 @@ import (
 	gokeyring "github.com/zalando/go-keyring"
 
 	"github.com/neilotoole/sq/cli/config"
+	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
@@ -583,6 +584,7 @@ func TestCmdConfigKeyringLs_HeaderRow(t *testing.T) {
 	require.Contains(t, out, "PATH")
 	require.Contains(t, out, "HANDLE")
 	require.Contains(t, out, "DRIVER")
+	require.Contains(t, out, "STATUS")
 	require.Contains(t, out, "hdr_id")
 
 	// --no-header (and the -H short form) suppresses it.
@@ -623,15 +625,19 @@ func TestCmdConfigKeyringLs_JSON(t *testing.T) {
 		Path   string `json:"path"`
 		Handle string `json:"handle"`
 		Driver string `json:"driver"`
+		Status string `json:"status"`
 	}
 	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
 	require.Len(t, got, 2, "env source must not produce a row")
 	require.Equal(t, "abc1", got[0].Path)
 	require.Equal(t, "@a_js", got[0].Handle)
 	require.Equal(t, "postgres", got[0].Driver)
+	// Paths are referenced by sources but not written to the mock keyring.
+	require.Equal(t, output.KeyringStatusMissing, got[0].Status)
 	require.Equal(t, "abc2", got[1].Path)
 	require.Equal(t, "@b_js", got[1].Handle)
 	require.Equal(t, "mysql", got[1].Driver)
+	require.Equal(t, output.KeyringStatusMissing, got[1].Status)
 }
 
 // TestCmdConfigKeyringLs_JSON_Empty: empty collection emits a JSON
@@ -1013,6 +1019,13 @@ func TestCmdConfigKeyringLs_Statuses(t *testing.T) {
 	require.Contains(t, out, "ref1234567")
 	require.Contains(t, out, "orphan23456")
 	require.Contains(t, out, "gone7654321")
+
+	// Spec mandates sort order: referenced → orphan → missing.
+	idxReferenced := strings.Index(out, "ref1234567")
+	idxOrphan := strings.Index(out, "orphan23456")
+	idxMissing := strings.Index(out, "gone7654321")
+	require.Less(t, idxReferenced, idxOrphan, "referenced must appear before orphan")
+	require.Less(t, idxOrphan, idxMissing, "orphan must appear before missing")
 }
 
 // TestCmdConfigKeyringRm_Completion_TolerantOfMalformedSource verifies
