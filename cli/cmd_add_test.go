@@ -1008,7 +1008,7 @@ func TestCmdAdd_SQLiteLocation_RawDollarDollar(t *testing.T) {
 	// Reproduce the add-time path computation via exported funcs so the CI
 	// log shows where it diverges. These lines surface only when the
 	// require.Error below fails (i.e. on the Windows full suite).
-	munged, mErr := location.MungeForDriver(drivertype.SQLite, "sqlite3:"+fpath)
+	munged, mErr := location.MungeTemplateForDriver(drivertype.SQLite, "sqlite3:"+fpath)
 	extracted, pErr := sqlite3.PathFromLocation(&source.Source{Type: drivertype.SQLite, Location: munged})
 	t.Logf("DIAG err=%v", err)
 	t.Logf("DIAG fpath=%q exists=%v", fpath, ioz.IsPathToRegularFile(fpath))
