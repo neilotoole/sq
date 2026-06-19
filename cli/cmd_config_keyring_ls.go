@@ -8,6 +8,7 @@ import (
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/secret/keyring"
 	"github.com/neilotoole/sq/libsq/source"
@@ -46,7 +47,10 @@ external and not listed.`,
 
 func execConfigKeyringLs(cmd *cobra.Command, _ []string) error {
 	ru := run.FromContext(cmd.Context())
-	refs := collectKeyringRefs(ru.Config.Collection.Sources())
+	refs, err := collectKeyringRefs(ru.Config.Collection.Sources())
+	if err != nil {
+		return err
+	}
 	stored, err := keyring.NewStore().List(cmd.Context())
 	if err != nil {
 		return err
@@ -118,15 +122,18 @@ func keyringStatusRank(status string) int {
 // No deduplication: a shared path yields one row per referencing source,
 // which is how sharing becomes visible in the output.
 //
-// Malformed placeholders are silently skipped here. Surfacing them
-// would require a return-error variant; in practice the same sources
-// also fail to open via "sq ping", which is the better error venue.
-func collectKeyringRefs(srcs []*source.Source) []output.KeyringRef {
+// Returns an error if any source has a malformed placeholder in its
+// Location. A malformed Location causes ExtractRefs to discard all refs
+// from that Location, so continuing silently would produce an incomplete
+// referenced set. For destructive operations such as prune, an incomplete
+// set means live, referenced entries could be misclassified as orphans
+// and deleted. Hard-failing here prevents that data loss.
+func collectKeyringRefs(srcs []*source.Source) ([]output.KeyringRef, error) {
 	var rows []output.KeyringRef
 	for _, src := range srcs {
 		refs, err := secret.ExtractRefs(src.Location)
 		if err != nil {
-			continue
+			return nil, errz.Wrapf(err, "source %s has a malformed placeholder in its location", src.Handle)
 		}
 		for _, ref := range refs {
 			if ref.Scheme != "keyring" {
@@ -145,7 +152,7 @@ func collectKeyringRefs(srcs []*source.Source) []output.KeyringRef {
 		}
 		return rows[i].Handle < rows[j].Handle
 	})
-	return rows
+	return rows, nil
 }
 
 // addKeyringFormatFlags registers the output-format + header flags

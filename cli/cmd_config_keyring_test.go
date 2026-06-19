@@ -1059,6 +1059,66 @@ func TestCmdConfigKeyringRm_Completion_TolerantOfMalformedSource(t *testing.T) {
 		"malformed source must not block completion of healthy refs")
 }
 
+// TestCmdConfigKeyringPrune_MalformedSourceAbortsWithoutDeleting verifies
+// that prune hard-fails when any source has a malformed placeholder in its
+// Location, and that no keyring entries are deleted in that case. A source
+// whose Location has both a valid ${keyring:...} ref and a malformed
+// placeholder would have its valid ref silently dropped by ExtractRefs
+// (all-or-nothing); prune would then misclassify the live entry as an
+// orphan and delete it. Hard-failing before the delete loop prevents that
+// data loss.
+func TestCmdConfigKeyringPrune_MalformedSourceAbortsWithoutDeleting(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	kr := keyring.NewStore()
+	// A live entry referenced by the malformed source (must NOT be deleted).
+	require.NoError(t, kr.Set(th.Context, "keepme1234", "live"))
+	// A genuine orphan (must also NOT be deleted, because prune must abort
+	// before touching anything when the referenced set may be incomplete).
+	require.NoError(t, kr.Set(th.Context, "orphan9999", "stale"))
+
+	// Add a source whose Location contains both a valid ${keyring:...} ref
+	// and an unclosed ${ that makes ExtractRefs return an error.
+	tr.Add(source.Source{
+		Handle:   "@bad_src",
+		Type:     drivertype.Pg,
+		Location: "postgres://u:${keyring:keepme1234}@host/db?x=${env:UNCLOSED",
+	})
+
+	err := tr.Exec("config", "keyring", "prune")
+	require.Error(t, err, "prune must error when a source has a malformed Location")
+
+	// Neither entry may have been deleted.
+	v, resolveErr := kr.Resolve(th.Context, "keepme1234")
+	require.NoError(t, resolveErr)
+	require.Equal(t, "live", v, "referenced entry must survive")
+
+	v, resolveErr = kr.Resolve(th.Context, "orphan9999")
+	require.NoError(t, resolveErr)
+	require.Equal(t, "stale", v, "orphan entry must survive when prune aborts early")
+}
+
+// TestCmdConfigKeyringLs_MalformedSourceErrors verifies that ls returns a
+// non-nil error when any source has a malformed placeholder in its Location.
+// An incomplete referenced set would misclassify live entries as orphans
+// in the output, so hard-failing is correct.
+func TestCmdConfigKeyringLs_MalformedSourceErrors(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	tr.Add(source.Source{
+		Handle:   "@bad_ls",
+		Type:     drivertype.Pg,
+		Location: "postgres://u:${keyring:keepme1234}@host/db?x=${env:UNCLOSED",
+	})
+
+	err := tr.Exec("config", "keyring", "ls")
+	require.Error(t, err, "ls must error when a source has a malformed Location")
+}
+
 func TestCmdConfigKeyringPrune_DeletesOrphans(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)

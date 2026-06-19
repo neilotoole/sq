@@ -47,8 +47,12 @@ func execConfigKeyringPrune(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
+	refs, err := collectKeyringRefs(ru.Config.Collection.Sources())
+	if err != nil {
+		return err
+	}
 	referenced := make(map[string]struct{})
-	for _, ref := range collectKeyringRefs(ru.Config.Collection.Sources()) {
+	for _, ref := range refs {
 		referenced[ref.Path] = struct{}{}
 	}
 
