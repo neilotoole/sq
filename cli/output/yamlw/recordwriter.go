@@ -3,6 +3,7 @@ package yamlw
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"io"
 	"strconv"
 	"sync"
@@ -11,6 +12,7 @@ import (
 	"github.com/fatih/color"
 	goccy "github.com/goccy/go-yaml"
 	"github.com/goccy/go-yaml/ast"
+	"github.com/shopspring/decimal"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -37,6 +39,7 @@ type recordWriter struct {
 	recMeta    record.Meta
 	fieldNames []string
 	clrs       []*color.Color
+	byValue    []bool
 	keys       []string
 	mu         sync.Mutex
 }
@@ -48,6 +51,7 @@ func (w *recordWriter) Open(_ context.Context, recMeta record.Meta) error {
 	w.buf = &bytes.Buffer{}
 	w.enc = goccy.NewEncoder(io.Discard, newDecimalMarshaler(w.pr.DecimalAsNumber))
 	w.clrs = make([]*color.Color, len(w.recMeta))
+	w.byValue = make([]bool, len(w.recMeta))
 	w.keys = make([]string, len(w.recMeta))
 	w.null = w.pr.Null.Sprint("null")
 
@@ -85,13 +89,37 @@ func (w *recordWriter) Open(_ context.Context, recMeta record.Meta) error {
 		case kind.Int, kind.Float, kind.Decimal:
 			w.clrs[i] = w.pr.Number
 		case kind.Unknown:
+			// The declared kind doesn't determine the color; resolve it from
+			// the Go value type at write time, mirroring the JSON encoder. See #851.
 			w.clrs[i] = w.pr.Normal
+			w.byValue[i] = true
 		default:
 			w.clrs[i] = w.pr.Normal
 		}
 	}
 
 	return nil
+}
+
+// colorForValue returns the color to apply to val, dispatching on the Go value
+// type. It mirrors the JSON encoder's value-type dispatch (see jsonw.encodeAny)
+// and is used for columns whose declared kind is kind.Unknown, where the column
+// color can't be determined from metadata alone. See #851.
+func colorForValue(pr *output.Printing, val any) *color.Color {
+	switch val.(type) {
+	case int64, float64, decimal.Decimal:
+		return pr.Number
+	case bool:
+		return pr.Bool
+	case []byte:
+		return pr.Bytes
+	case string:
+		return pr.String
+	default:
+		// time.Time is intercepted before this point, and nil is rendered as
+		// null; anything else falls back to no color.
+		return pr.Normal
+	}
 }
 
 // WriteRecords implements output.RecordWriter.
@@ -107,9 +135,10 @@ func (w *recordWriter) WriteRecords(ctx context.Context, recs []record.Record) e
 		err  error
 		node ast.Node
 
-		buf  = w.buf
-		clrs = w.clrs
-		keys = w.keys
+		buf     = w.buf
+		clrs    = w.clrs
+		byValue = w.byValue
+		keys    = w.keys
 	)
 
 	for i, rec := range recs {
@@ -148,6 +177,12 @@ func (w *recordWriter) WriteRecords(ctx context.Context, recs []record.Record) e
 				continue
 			}
 
+			// goccy renders a []byte as a YAML sequence of byte ints. Instead
+			// encode it as a base64 string, matching the JSON output. See #851.
+			if b, ok := val.([]byte); ok {
+				val = base64.StdEncoding.EncodeToString(b)
+			}
+
 			node, err = w.enc.EncodeToNode(val)
 			if err != nil {
 				return errz.Wrapf(err, "yaml: failed to encode result: [%d].%s",
@@ -158,7 +193,13 @@ func (w *recordWriter) WriteRecords(ctx context.Context, recs []record.Record) e
 				// Shouldn't happen
 				buf.WriteString(w.null)
 			} else {
-				buf.WriteString(clrs[j].Sprint(node.String()))
+				clr := clrs[j]
+				if byValue[j] {
+					// Resolve the color from the original record value, which
+					// may have been transformed above (e.g. []byte to base64).
+					clr = colorForValue(w.pr, rec[j])
+				}
+				buf.WriteString(clr.Sprint(node.String()))
 			}
 		}
 

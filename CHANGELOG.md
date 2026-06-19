@@ -52,6 +52,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
+- [#851]: In colored output, structured-format punctuation (JSON braces, brackets, commas,
+  and colons) is now rendered muted rather than bold, so values stand out.
 - [#846]: YAML now renders decimal values as quoted strings by default, matching
   JSON and keeping precision for values beyond float64 range. Set
   `format.decimal=number` to restore bare numbers.
@@ -129,6 +131,13 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [#851]: Two fixes to [`yaml`](https://sq.io/docs/output#yaml) output, aligning it with
+  `json`:
+  - A numeric value from an untyped column (such as the result of `avg()`) is now colorized,
+    matching `json` and the writer's own handling of typed numeric columns. Previously it
+    rendered without color.
+  - A `BLOB` value is now encoded as a base64 string (e.g. `aGk=`) instead of a sequence of
+    raw byte numbers, which produced malformed YAML.
 - [#844]: On [Oracle](https://sq.io/docs/drivers/oracle), a query whose result is a
   computed `NUMBER` with a fractional value (e.g. a division like `.actor_id / 8`, or a
   native `AVG`) no longer fails with a scan error. Oracle reports no usable precision or
@@ -1771,6 +1780,7 @@ make working with lots of sources much easier.
 [#839]: https://github.com/neilotoole/sq/issues/839
 [#844]: https://github.com/neilotoole/sq/issues/844
 [#846]: https://github.com/neilotoole/sq/issues/846
+[#851]: https://github.com/neilotoole/sq/issues/851
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
