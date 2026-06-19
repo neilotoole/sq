@@ -28,6 +28,7 @@ func TestKeyringWriter_Migrate_RowFormatting(t *testing.T) {
 	tests := []struct {
 		name     string
 		row      output.KeyringMigrateRow
+		verbose  bool
 		contains []string
 	}{
 		{
@@ -36,7 +37,7 @@ func TestKeyringWriter_Migrate_RowFormatting(t *testing.T) {
 				Handle: "@plan_src",
 				Status: output.KeyringMigrateStatusPlanned,
 			},
-			contains: []string{"@plan_src", "->", "${keyring:<new-id>}"},
+			contains: []string{"@plan_src", "migrate", "${keyring:<new-id>}"},
 		},
 		{
 			name: "skip",
@@ -45,6 +46,7 @@ func TestKeyringWriter_Migrate_RowFormatting(t *testing.T) {
 				Status: output.KeyringMigrateStatusSkip,
 				Reason: "no password component",
 			},
+			verbose:  true, // skipped sources render only in verbose mode
 			contains: []string{"@skip_src", "skip", "no password component"},
 		},
 		{
@@ -54,7 +56,7 @@ func TestKeyringWriter_Migrate_RowFormatting(t *testing.T) {
 				Status:      output.KeyringMigrateStatusMigrated,
 				NewLocation: "${keyring:abc1234567}",
 			},
-			contains: []string{"@done_src", "done", "${keyring:abc1234567}"},
+			contains: []string{"@done_src", "migrated", "${keyring:abc1234567}"},
 		},
 		{
 			name: "failed",
@@ -63,13 +65,15 @@ func TestKeyringWriter_Migrate_RowFormatting(t *testing.T) {
 				Status: output.KeyringMigrateStatusFailed,
 				Error:  "save config (rolled back): boom",
 			},
-			contains: []string{"@fail_src", "FAIL", "save config (rolled back): boom"},
+			contains: []string{"@fail_src", "failed", "save config (rolled back): boom"},
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			w := tablew.NewKeyringWriter(&buf, newTestPrinting())
+			pr := newTestPrinting()
+			pr.Verbose = tc.verbose
+			w := tablew.NewKeyringWriter(&buf, pr)
 			require.NoError(t, w.Migrate([]output.KeyringMigrateRow{tc.row}, false))
 			out := buf.String()
 			for _, s := range tc.contains {

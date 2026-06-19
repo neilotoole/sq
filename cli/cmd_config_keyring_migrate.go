@@ -108,6 +108,18 @@ func execConfigKeyringMigrate(cmd *cobra.Command, args []string) error {
 		return writerErr
 	}
 
+	// Nothing actionable (e.g. a collection of file sources with no inline
+	// credentials): report and stop without prompting or applying.
+	actionable := 0
+	for _, p := range plans {
+		if p.reason == "" {
+			actionable++
+		}
+	}
+	if actionable == 0 {
+		return ru.Writers.Keyring.Migrate(planRowsForReport(plans), true)
+	}
+
 	if err := ru.Writers.Keyring.Migrate(planRowsForReport(plans), true); err != nil {
 		return err
 	}

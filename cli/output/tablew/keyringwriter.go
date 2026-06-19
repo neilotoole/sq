@@ -94,26 +94,96 @@ func (w *keyringWriter) Prune(rows []output.KeyringPruneRow, _ bool) error {
 	return nil
 }
 
-// Migrate implements output.KeyringWriter.
+// Migrate implements output.KeyringWriter. It renders an aligned table.
+// By default only actionable rows (migrate / migrated / failed) are shown;
+// skipped sources are listed only when verbose output is enabled. When
+// nothing is actionable, a short message is printed instead of an empty
+// table.
 func (w *keyringWriter) Migrate(rows []output.KeyringMigrateRow, _ bool) error {
+	display := make([]output.KeyringMigrateRow, 0, len(rows))
+	var skipped int
 	for _, r := range rows {
-		handle := w.pr.Handle.Sprint(r.Handle)
-		var line string
-		switch r.Status {
-		case output.KeyringMigrateStatusSkip:
-			line = fmt.Sprintf("%s  %s   (%s)\n", handle, w.pr.Faint.Sprint("skip"), r.Reason)
-		case output.KeyringMigrateStatusPlanned:
-			line = fmt.Sprintf("%s  %s     %s\n", handle, w.pr.Faint.Sprint("->"), "${keyring:<new-id>}")
-		case output.KeyringMigrateStatusMigrated:
-			line = fmt.Sprintf("%s  %s   ->  %s\n", handle, w.pr.Enabled.Sprint("done"), r.NewLocation)
-		case output.KeyringMigrateStatusFailed:
-			line = fmt.Sprintf("%s  %s   %s\n", handle, w.pr.Error.Sprint("FAIL"), r.Error)
-		default:
-			line = handle + "  " + r.Status + "\n"
+		if r.Status == output.KeyringMigrateStatusSkip {
+			skipped++
+			if !w.pr.Verbose {
+				continue
+			}
 		}
-		if _, err := fmt.Fprint(w.out, line); err != nil {
-			return errz.Err(err)
-		}
+		display = append(display, r)
 	}
-	return nil
+
+	if len(display) == 0 {
+		var msg string
+		switch {
+		case skipped == 1:
+			msg = "Nothing to migrate (1 source skipped; use -v to see why).\n"
+		case skipped > 1:
+			msg = fmt.Sprintf("Nothing to migrate (%d sources skipped; use -v to see why).\n", skipped)
+		default:
+			msg = "Nothing to migrate.\n"
+		}
+		_, err := fmt.Fprint(w.out, w.pr.Faint.Sprint(msg))
+		return errz.Err(err)
+	}
+
+	w.tbl.reset()
+	tblRows := make([][]string, 0, len(display))
+	for _, r := range display {
+		tblRows = append(tblRows, []string{r.Handle, migrateStatusLabel(r.Status), migrateDetail(r)})
+	}
+	w.tbl.tblImpl.SetHeader([]string{"HANDLE", "STATUS", "DETAIL"})
+	w.tbl.tblImpl.SetColTrans(0, w.pr.Handle.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(1, w.migrateStatusTrans)
+	w.tbl.tblImpl.SetColTrans(2, w.pr.Faint.SprintFunc())
+	return w.tbl.appendRowsAndRenderAll(context.TODO(), tblRows)
+}
+
+// migrateStatusTrans colors a migrate STATUS cell by its value. Its
+// signature matches the table writer's textTransFunc (func(...any) string).
+func (w *keyringWriter) migrateStatusTrans(a ...any) string {
+	s := fmt.Sprint(a...)
+	switch s {
+	case "migrate", "migrated":
+		return w.pr.Enabled.Sprint(s)
+	case "failed":
+		return w.pr.Error.Sprint(s)
+	case "skip":
+		return w.pr.Faint.Sprint(s)
+	default:
+		return s
+	}
+}
+
+// migrateStatusLabel maps a KeyringMigrateStatus* value to its display word.
+func migrateStatusLabel(status string) string {
+	switch status {
+	case output.KeyringMigrateStatusPlanned:
+		return "migrate"
+	case output.KeyringMigrateStatusMigrated:
+		return "migrated"
+	case output.KeyringMigrateStatusFailed:
+		return "failed"
+	case output.KeyringMigrateStatusSkip:
+		return "skip"
+	default:
+		return status
+	}
+}
+
+// migrateDetail returns the DETAIL cell for a migrate row: the target
+// placeholder for a plan, the new location for a success, the error for a
+// failure, or the skip reason.
+func migrateDetail(r output.KeyringMigrateRow) string {
+	switch r.Status {
+	case output.KeyringMigrateStatusPlanned:
+		return "${keyring:<new-id>}"
+	case output.KeyringMigrateStatusMigrated:
+		return r.NewLocation
+	case output.KeyringMigrateStatusFailed:
+		return r.Error
+	case output.KeyringMigrateStatusSkip:
+		return r.Reason
+	default:
+		return ""
+	}
 }

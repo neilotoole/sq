@@ -402,7 +402,8 @@ func TestCmdConfigKeyringMigrate_PerCase(t *testing.T) {
 				Location: tc.inLocation,
 			})
 
-			require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--yes"))
+			// -v so skipped sources (and their reasons) appear in the output.
+			require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--yes", "-v"))
 
 			src, err := tr.Run.Config.Collection.Get("@h")
 			require.NoError(t, err)
@@ -961,6 +962,52 @@ func TestCmdConfigKeyringMigrate_Completion(t *testing.T) {
 	require.Empty(t, got.values)
 }
 
+// TestCmdConfigKeyringMigrate_HidesSkipsByDefault verifies that the
+// default (non-verbose) output shows only the sources that migrate, and
+// omits skipped sources and their reasons.
+func TestCmdConfigKeyringMigrate_HidesSkipsByDefault(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	tr.Add(
+		source.Source{Handle: "@hide_pg", Type: drivertype.Pg, Location: "postgres://alice:hunter2@db/sakila"},
+		source.Source{Handle: "@hide_csv", Type: "csv", Location: "/data/file.csv"},
+		source.Source{Handle: "@hide_nopw", Type: drivertype.Pg, Location: "postgres://alice@db/sakila"},
+	)
+
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--yes"))
+
+	out := tr.Out.String()
+	require.Contains(t, out, "@hide_pg") // the migrating source is shown
+	require.NotContains(t, out, "not a URL")
+	require.NotContains(t, out, "no password component")
+	require.NotContains(t, out, "@hide_csv")
+	require.NotContains(t, out, "@hide_nopw")
+}
+
+// TestCmdConfigKeyringMigrate_NothingToMigrate verifies that when every
+// source is skipped, migrate reports "Nothing to migrate", does not prompt,
+// and changes nothing.
+func TestCmdConfigKeyringMigrate_NothingToMigrate(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	tr.Add(
+		source.Source{Handle: "@nm_csv", Type: "csv", Location: "/data/a.csv"},
+		source.Source{Handle: "@nm_nopw", Type: drivertype.Pg, Location: "postgres://alice@db/sakila"},
+	)
+	// "n" on stdin would cancel if a prompt fired; it must not, because the
+	// command short-circuits before prompting when nothing is actionable.
+	tr.PipeStdin("n\n")
+
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all"))
+
+	require.Contains(t, tr.Out.String(), "Nothing to migrate")
+	csv, err := tr.Run.Config.Collection.Get("@nm_csv")
+	require.NoError(t, err)
+	require.Equal(t, "/data/a.csv", csv.Location)
+}
+
 // TestCmdConfigKeyringMigrate_AtomicSingleSave verifies the migration is
 // atomic: a multi-source run saves the config exactly once for the whole
 // batch, not once per source. That single save is what makes a mid-batch
@@ -1276,7 +1323,8 @@ func TestCmdConfigKeyringMigrate_MixedCollection(t *testing.T) {
 		Location: fileLoc,
 	})
 
-	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--yes"))
+	// -v so the skipped sources (and their reasons) appear in the output.
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--yes", "-v"))
 
 	// The eligible source must be migrated.
 	srcEligible, err := tr.Run.Config.Collection.Get("@mc_eligible")
