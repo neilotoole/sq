@@ -926,6 +926,41 @@ func TestCmdConfigKeyringMigrate_RollbackOnSaveFailure(t *testing.T) {
 	require.Contains(t, env.Rows[0].Error, "rolled back")
 }
 
+// TestCmdConfigKeyringMigrate_Completion verifies that migrate completes
+// source handles (not keyring paths), and caps at one handle.
+func TestCmdConfigKeyringMigrate_Completion(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil).Add(
+		source.Source{
+			Handle:   "@mig_a",
+			Type:     drivertype.Pg,
+			Location: "postgres://alice:hunter2@db/sakila",
+		},
+		source.Source{
+			Handle:   "@mig_b",
+			Type:     drivertype.Pg,
+			Location: "postgres://bob:s3cr3t@db/sakila2",
+		},
+	)
+
+	// Source handles are offered for the first arg (alongside any other
+	// handles the harness seeds).
+	got := testComplete(t, tr, "config", "keyring", "migrate", "")
+	require.Subset(t, got.values, []string{"@mig_a", "@mig_b"})
+	require.Contains(t, got.directives, cobra.ShellCompDirectiveNoFileComp)
+
+	// A prefix narrows the real handles (the "@active" shortcut token is
+	// always offered when includeActive is set, so don't assert against it).
+	got = testComplete(t, tr, "config", "keyring", "migrate", "@mig_a")
+	require.Contains(t, got.values, "@mig_a")
+	require.NotContains(t, got.values, "@mig_b")
+
+	// migrate takes at most one handle: no completions for a second arg.
+	got = testComplete(t, tr, "config", "keyring", "migrate", "@mig_a", "")
+	require.Empty(t, got.values)
+}
+
 // TestCmdConfigKeyringMigrate_AtomicSingleSave verifies the migration is
 // atomic: a multi-source run saves the config exactly once for the whole
 // batch, not once per source. That single save is what makes a mid-batch

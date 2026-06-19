@@ -46,6 +46,9 @@ Sources skipped automatically:
 Use --dry-run to preview without making any changes. Use --yes to skip
 the confirmation prompt.`,
 		RunE: execConfigKeyringMigrate,
+		// migrate's optional arg is a source handle (not a keyring path),
+		// so it completes handles, like the other handle-taking commands.
+		ValidArgsFunction: completeHandle(1, true),
 		Example: `  # Preview the migration
   $ sq config keyring migrate --all --dry-run
 
