@@ -117,10 +117,11 @@ Use `--format.decimal=number` to render decimals as bare numbers instead, e.g.
 `100.5`. That is convenient for jq-style consumers, but lossy on read for very
 large values. The default is `string`.
 
-This modifier affects only JSON and YAML. The [`xlsx`](#xlsx) format always stores
-decimals in its native numeric format and is unaffected, and all-text formats such
-as [`csv`](#csv-tsv) carry no number-vs-string distinction. See the full list of
-output options in the [config guide](/docs/config/#output).
+This modifier affects only JSON and YAML. The [`xlsx`](#xlsx) format is unaffected:
+it writes each decimal as a native Excel number when the value fits without precision
+loss, and as a string cell otherwise. All-text formats such as [`csv`](#csv-tsv)
+carry no number-vs-string distinction. See the full list of output options in the
+[config guide](/docs/config/#output).
 
 ## Formats
 
