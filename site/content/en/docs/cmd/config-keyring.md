@@ -10,6 +10,15 @@ menu:
 toc: false
 url: /docs/cmd/config-keyring
 ---
+The `sq config keyring` command group manages keyring entries directly.
+[`sq add --store keyring`](/docs/cmd/add) and the
+[`secrets.store`](/docs/config#secretsstore) option write entries automatically;
+reach for these subcommands to rotate a credential, migrate inline passwords in
+bulk, or inspect (or prune) what's already stored.
+
+See [Secrets](/docs/secrets) for an overview of how `sq` handles secrets
+and how the keyring scheme fits in.
+
 {{< alert icon="🐥" >}}
 You should rarely, if ever, need this command group directly. `sq config
 keyring` is a thin, platform-independent wrapper over your OS keychain (macOS
@@ -20,16 +29,10 @@ invisible. Reach in here only to inspect, rotate, or clean up entries by hand.
 This keyring support is beta and may change in a future release.
 {{< /alert >}}
 
-The `sq config keyring` command group manages keyring entries directly.
-[`sq add --store keyring`](/docs/cmd/add) and the
-[`secrets.store`](/docs/config#secretsstore) option write entries automatically;
-reach for these subcommands to rotate a credential, migrate inline passwords in
-bulk, or inspect (or prune) what's already stored.
-
-See [Secrets](/docs/secrets) for an overview of how `sq` handles secrets
-and how the keyring scheme fits in.
-
 ## Commands
+
+`sq config keyring` is a command group rather than a command itself: run
+on its own, it just prints help. Use one of its subcommands:
 
 | Command                                                         | What it does                                                   |
 |-----------------------------------------------------------------|----------------------------------------------------------------|
