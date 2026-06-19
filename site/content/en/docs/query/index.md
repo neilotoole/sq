@@ -57,6 +57,11 @@ WHERE "actor_id" < 10
 LIMIT 3 OFFSET 0
 ```
 
+{{< alert icon="👉" >}}
+To see the SQL that `sq` generates for a query, without executing it, add the
+[`--render-sql`](/docs/cmd/sq#render-sql) flag.
+{{< /alert >}}
+
 ## Shorthand
 
 For a single-table query, you can concatenate the handle and table name.
