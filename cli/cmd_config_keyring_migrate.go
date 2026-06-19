@@ -334,38 +334,33 @@ func migrateSkipReason(loc string) string {
 	return ""
 }
 
-// promptYesNo writes prompt to out and reads a y/n response from in,
-// re-prompting until it gets a recognized answer. "y"/"yes" returns true;
-// "n"/"no" or an empty line (accepting the [y/N] default) returns false.
-// Any other input is unrecognized and triggers a re-prompt. If the input
-// stream ends (EOF) before a valid answer is given, it returns an error, so
-// the caller exits non-zero rather than treating garbage as a silent "no".
+// promptYesNo writes prompt to out and reads a single y/n response from in.
+// "y"/"yes" returns true; "n"/"no", or an empty line accepting the [y/N]
+// default, returns false. Matching is case-insensitive and trims surrounding
+// whitespace. Any other input is an error (it does not retry), as is EOF with
+// no answer given, so the caller exits non-zero rather than treating it as a
+// silent "no".
 func promptYesNo(in io.Reader, out io.Writer, prompt string) (bool, error) {
-	r := bufio.NewReader(in)
-	for {
-		fmt.Fprintf(out, "%s [y/N] ", prompt)
-		line, err := r.ReadString('\n')
-		switch strings.ToLower(strings.TrimSpace(line)) {
-		case "y", "yes":
-			return true, nil
-		case "n", "no":
-			return false, nil
-		case "":
-			// An empty line (the user pressed Enter) accepts the [y/N]
-			// default of No. An empty read at EOF, though, means no answer
-			// was given at all; that's handled as an error below.
-			if !errors.Is(err, io.EOF) {
-				return false, nil
-			}
-		}
+	fmt.Fprintf(out, "%s [y/N] ", prompt)
+	line, err := bufio.NewReader(in).ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return false, errz.Err(err)
+	}
 
-		// The response was unrecognized, or the input stream ended.
+	resp := strings.TrimSpace(line)
+	switch strings.ToLower(resp) {
+	case "y", "yes":
+		return true, nil
+	case "n", "no":
+		return false, nil
+	case "":
+		// An empty line (the user pressed Enter) accepts the [y/N] default
+		// of No. An empty read at EOF means no answer was given at all.
 		if errors.Is(err, io.EOF) {
-			return false, errz.New("no valid response to prompt")
+			return false, errz.New("no response to prompt")
 		}
-		if err != nil {
-			return false, errz.Err(err)
-		}
-		// Input remains and the response was unrecognized: re-prompt.
+		return false, nil
+	default:
+		return false, errz.Errorf("unrecognized response to prompt: %q", resp)
 	}
 }

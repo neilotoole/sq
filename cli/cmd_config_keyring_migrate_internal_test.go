@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestPromptYesNo covers the y/n prompt: recognized answers, the [y/N]
-// empty-line default, re-prompting on unrecognized input, and a non-nil
-// error when the input stream ends without a valid answer.
+// TestPromptYesNo covers the strict y/n prompt: only y/yes and n/no (plus the
+// empty-line [y/N] default) are accepted; any other input is an error, as is
+// EOF with no answer. The prompt does not retry.
 func TestPromptYesNo(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -21,13 +21,16 @@ func TestPromptYesNo(t *testing.T) {
 		{name: "y", input: "y\n", want: true},
 		{name: "yes", input: "yes\n", want: true},
 		{name: "uppercase Y", input: "Y\n", want: true},
+		{name: "uppercase YES", input: "YES\n", want: true},
+		{name: "whitespace trimmed", input: "  yes  \n", want: true},
 		{name: "y no newline (data+EOF)", input: "y", want: true},
 		{name: "n", input: "n\n", want: false},
 		{name: "no", input: "no\n", want: false},
 		{name: "empty line is the [y/N] default no", input: "\n", want: false},
-		{name: "reprompt then yes", input: "what?\ny\n", want: true},
-		{name: "reprompt then no", input: "huh\nn\n", want: false},
-		{name: "invalid then EOF errors", input: "garbage\n", wantErr: true},
+		{name: "unrecognized word errors", input: "what?\n", wantErr: true},
+		{name: "partial 'ye' errors", input: "ye\n", wantErr: true},
+		{name: "yep errors", input: "yep\n", wantErr: true},
+		{name: "numeric errors", input: "1\n", wantErr: true},
 		{name: "empty input (EOF) errors", input: "", wantErr: true},
 	}
 	for _, tc := range tests {
@@ -44,13 +47,12 @@ func TestPromptYesNo(t *testing.T) {
 	}
 }
 
-// TestPromptYesNo_RepromptsOnInvalid verifies the prompt is re-issued for
-// each unrecognized response before a valid one is accepted.
-func TestPromptYesNo_RepromptsOnInvalid(t *testing.T) {
+// TestPromptYesNo_DoesNotRetry verifies the prompt is issued exactly once: an
+// unrecognized answer errors immediately rather than re-prompting.
+func TestPromptYesNo_DoesNotRetry(t *testing.T) {
 	var out bytes.Buffer
-	got, err := promptYesNo(strings.NewReader("maybe\nsure\ny\n"), &out, "Proceed?")
-	require.NoError(t, err)
-	require.True(t, got)
-	// Three reads (maybe, sure, y) means the prompt was printed three times.
-	require.Equal(t, 3, strings.Count(out.String(), "Proceed?"))
+	// A valid "y" follows the garbage, but it must never be read.
+	_, err := promptYesNo(strings.NewReader("maybe\ny\n"), &out, "Proceed?")
+	require.Error(t, err)
+	require.Equal(t, 1, strings.Count(out.String(), "Proceed?"), "prompt must be issued once")
 }
