@@ -548,8 +548,8 @@ func newRecordFuncForDuckDB(log *slog.Logger, recMeta record.Meta) driver.NewRec
 // column; see #853), the float is promoted to a decimal.Decimal so the surfaced
 // value matches the surfaced kind, mirroring sum()'s decimal harmonization on
 // the other drivers. DuckDB still computed the value in float, so it can carry
-// float drift, the same tradeoff accepted for sqlite3/rqlite. Otherwise the
-// column defaults to float and the value is returned unchanged.
+// float drift; this is the same tradeoff accepted for sqlite3/rqlite. Otherwise
+// the column defaults to float and the value is returned unchanged.
 func coerceDuckDBFloat(recMeta record.Meta, i int, v float64) any {
 	if recMeta[i].Kind() == kind.Decimal {
 		return decimal.NewFromFloat(v)

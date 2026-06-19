@@ -1029,7 +1029,6 @@ driver, so its type is consistent regardless of source. Unlike [`avg`](#avg),
 `sum` is not cast to a float: the sum of integers or of exact decimals is itself
 exact, and a float would lose precision. In JSON output a decimal is rendered as
 a quoted string, so `sum(.actor_id)` is `"20100"` rather than a bare number.
-(The one exception is a `DOUBLE`/`FLOAT` column on DuckDB, noted below.)
 
 {{< alert icon="👉" >}}
 SQLite (and rqlite) compute a sum over a non-integer column in floating point

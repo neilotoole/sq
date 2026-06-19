@@ -67,8 +67,8 @@ func (d *driveri) Renderer() *render.Renderer {
 	// the lone non-decimal sum() across drivers. Pin the surfaced kind to decimal
 	// instead of casting, so it matches every other driver: RecordMeta applies
 	// the hint and the record munge coerces the float value to a decimal. The
-	// value is still computed in float by DuckDB, so it can carry drift, the same
-	// tradeoff accepted for sqlite3/rqlite. See #853 (and #839).
+	// value is still computed in float by DuckDB, so it can carry drift; this is
+	// the same tradeoff accepted for sqlite3/rqlite. See #853 (and #839).
 	r.FunctionResultKinds[ast.FuncNameSum] = kind.Decimal
 	render.RegisterILikeFamily(r)
 	return r
