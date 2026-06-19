@@ -301,9 +301,8 @@ type KeyringWriter interface {
 	Migrate(rows []KeyringMigrateRow, dryRun bool) error
 
 	// Prune prints the orphaned entries removed by "sq config keyring
-	// prune". When dryRun is true the rows describe a plan (status
-	// "planned"); when false they describe applied outcomes (status
-	// "deleted" or "failed").
+	// prune". When dryRun is true every row's status is "planned"; when
+	// false no row is "planned" — each is "deleted" or "failed".
 	Prune(rows []KeyringPruneRow, dryRun bool) error
 }
 

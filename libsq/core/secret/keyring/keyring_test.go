@@ -63,15 +63,8 @@ func (c *countingStore) Resolve(ctx context.Context, path string) (string, error
 	return c.inner.Resolve(ctx, path)
 }
 
-// TestStore_RegistryMemoizesKeyringResolution verifies that a
-// keyring-backed Registry hits the OS keyring once per path per run
-// (gh #779). Each Store.Resolve is an OS-keychain IPC roundtrip, so
-// repeated resolution of the same placeholder (e.g. one Grips.Open per
-// table during inspect) must be served from the Registry memo. The
-// memoization deliberately lives in secret.Registry rather than in
-// Store itself: the keyring write commands (create, update, rm,
-// migrate) use Store directly and must always read through to the
-// backend.
+// TestStore_List verifies that List enumerates stored account names and
+// returns an empty slice (not an error) for an empty keyring.
 func TestStore_List(t *testing.T) {
 	gokeyring.MockInit()
 	ctx := context.Background()
@@ -91,6 +84,15 @@ func TestStore_List(t *testing.T) {
 	require.ElementsMatch(t, []string{"j2k7m3pxtz", "my_db_pw"}, users)
 }
 
+// TestStore_RegistryMemoizesKeyringResolution verifies that a
+// keyring-backed Registry hits the OS keyring once per path per run
+// (gh #779). Each Store.Resolve is an OS-keychain IPC roundtrip, so
+// repeated resolution of the same placeholder (e.g. one Grips.Open per
+// table during inspect) must be served from the Registry memo. The
+// memoization deliberately lives in secret.Registry rather than in
+// Store itself: the keyring write commands (create, update, rm,
+// migrate) use Store directly and must always read through to the
+// backend.
 func TestStore_RegistryMemoizesKeyringResolution(t *testing.T) {
 	gokeyring.MockInit()
 	ctx := context.Background()

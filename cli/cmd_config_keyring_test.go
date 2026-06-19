@@ -65,6 +65,17 @@ type migrateJSONEnvelope struct {
 	DryRun bool             `json:"dry_run"`
 }
 
+type pruneJSONRow struct {
+	Path   string `json:"path"`
+	Kind   string `json:"kind"`
+	Status string `json:"status"`
+	Error  string `json:"error,omitempty"`
+}
+type pruneJSONEnvelope struct {
+	Rows   []pruneJSONRow `json:"rows"`
+	DryRun bool           `json:"dry_run"`
+}
+
 func TestCmdConfigKeyringCreate_ExplicitValue(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
@@ -1126,7 +1137,7 @@ func TestCmdConfigKeyringPrune_DeletesOrphans(t *testing.T) {
 
 	kr := keyring.NewStore()
 	require.NoError(t, kr.Set(th.Context, "keep1234567", "live"))   // referenced
-	require.NoError(t, kr.Set(th.Context, "orphan23456", "stale"))  // orphan (opaque id)
+	require.NoError(t, kr.Set(th.Context, "m4n8k2pxtz", "stale"))   // orphan (valid sq-minted opaque ID)
 	require.NoError(t, kr.Set(th.Context, "named_orphan", "stale")) // orphan (named)
 
 	tr.Add(source.Source{
@@ -1137,13 +1148,18 @@ func TestCmdConfigKeyringPrune_DeletesOrphans(t *testing.T) {
 
 	require.NoError(t, tr.Exec("config", "keyring", "prune"))
 
+	out := tr.Out.String()
+	// Output must label both the opaque-ID and named-kind orphans.
+	require.Contains(t, out, "(id)")
+	require.Contains(t, out, "(named)")
+
 	// Referenced entry survives.
 	v, err := kr.Resolve(th.Context, "keep1234567")
 	require.NoError(t, err)
 	require.Equal(t, "live", v)
 
-	// Both orphans (opaque and named) are gone.
-	_, err = kr.Resolve(th.Context, "orphan23456")
+	// Both orphans (opaque-ID and named) are deleted.
+	_, err = kr.Resolve(th.Context, "m4n8k2pxtz")
 	require.ErrorIs(t, err, secret.ErrNotFound)
 	_, err = kr.Resolve(th.Context, "named_orphan")
 	require.ErrorIs(t, err, secret.ErrNotFound)
@@ -1155,16 +1171,90 @@ func TestCmdConfigKeyringPrune_DryRun(t *testing.T) {
 	tr := testrun.New(th.Context, t, nil)
 
 	kr := keyring.NewStore()
-	require.NoError(t, kr.Set(th.Context, "orphan23456", "stale"))
+	// m4n8k2pxtz is a valid sq-minted opaque ID (10-char Crockford).
+	require.NoError(t, kr.Set(th.Context, "m4n8k2pxtz", "stale"))
 
 	require.NoError(t, tr.Exec("config", "keyring", "prune", "--dry-run"))
 	out := tr.Out.String()
-	require.Contains(t, out, "orphan23456")
+	require.Contains(t, out, "m4n8k2pxtz")
 
 	// Dry-run deletes nothing.
-	v, err := kr.Resolve(th.Context, "orphan23456")
+	v, err := kr.Resolve(th.Context, "m4n8k2pxtz")
 	require.NoError(t, err)
 	require.Equal(t, "stale", v)
+}
+
+// TestCmdConfigKeyringPrune_JSON verifies the JSON envelope emitted by
+// "sq config keyring prune --json". It checks both the apply path
+// (dry_run=false, status="deleted") and the dry-run path
+// (dry_run=true, status="planned"), and that dry-run leaves entries intact.
+func TestCmdConfigKeyringPrune_JSON(t *testing.T) {
+	// --- Apply path ---
+	t.Run("apply", func(t *testing.T) {
+		gokeyring.MockInit()
+		th := testh.New(t)
+		tr := testrun.New(th.Context, t, nil)
+
+		kr := keyring.NewStore()
+		// m4n8k2pxtz is a valid sq-minted opaque ID (10-char Crockford).
+		require.NoError(t, kr.Set(th.Context, "m4n8k2pxtz", "stale"))
+		require.NoError(t, kr.Set(th.Context, "named_orphan", "stale"))
+
+		require.NoError(t, tr.Exec("config", "keyring", "prune", "--json"))
+
+		var env pruneJSONEnvelope
+		require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &env))
+		require.False(t, env.DryRun)
+		require.Len(t, env.Rows, 2)
+
+		byPath := map[string]pruneJSONRow{}
+		for _, r := range env.Rows {
+			byPath[r.Path] = r
+		}
+		require.Equal(t, output.KeyringKindID, byPath["m4n8k2pxtz"].Kind)
+		require.Equal(t, output.KeyringPruneStatusDeleted, byPath["m4n8k2pxtz"].Status)
+		require.Equal(t, output.KeyringKindNamed, byPath["named_orphan"].Kind)
+		require.Equal(t, output.KeyringPruneStatusDeleted, byPath["named_orphan"].Status)
+
+		// Both entries must be gone after apply.
+		_, err := kr.Resolve(th.Context, "m4n8k2pxtz")
+		require.ErrorIs(t, err, secret.ErrNotFound)
+		_, err = kr.Resolve(th.Context, "named_orphan")
+		require.ErrorIs(t, err, secret.ErrNotFound)
+	})
+
+	// --- Dry-run path ---
+	t.Run("dry-run", func(t *testing.T) {
+		gokeyring.MockInit()
+		th := testh.New(t)
+		tr := testrun.New(th.Context, t, nil)
+
+		kr := keyring.NewStore()
+		require.NoError(t, kr.Set(th.Context, "m4n8k2pxtz", "stale"))
+		require.NoError(t, kr.Set(th.Context, "named_orphan", "stale"))
+
+		require.NoError(t, tr.Exec("config", "keyring", "prune", "--dry-run", "--json"))
+
+		var env pruneJSONEnvelope
+		require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &env))
+		require.True(t, env.DryRun)
+		require.Len(t, env.Rows, 2)
+
+		byPath := map[string]pruneJSONRow{}
+		for _, r := range env.Rows {
+			byPath[r.Path] = r
+		}
+		require.Equal(t, output.KeyringPruneStatusPlanned, byPath["m4n8k2pxtz"].Status)
+		require.Equal(t, output.KeyringPruneStatusPlanned, byPath["named_orphan"].Status)
+
+		// Dry-run must not delete anything.
+		v, err := kr.Resolve(th.Context, "m4n8k2pxtz")
+		require.NoError(t, err)
+		require.Equal(t, "stale", v)
+		v, err = kr.Resolve(th.Context, "named_orphan")
+		require.NoError(t, err)
+		require.Equal(t, "stale", v)
+	})
 }
 
 // TestCmdConfigKeyringPrune_WriterError exercises the errz.Append branch

@@ -79,6 +79,62 @@ func TestKeyringWriter_Migrate_RowFormatting(t *testing.T) {
 	}
 }
 
+// TestKeyringWriter_Prune_RowFormatting pins the text-mode output shape
+// for each KeyringPruneRow status. Without this test, a regression that
+// drops the status word or kind suffix from any branch (planned/deleted/
+// failed) would silently break the user-facing prune log.
+func TestKeyringWriter_Prune_RowFormatting(t *testing.T) {
+	tests := []struct {
+		name     string
+		row      output.KeyringPruneRow
+		dryRun   bool
+		contains []string
+	}{
+		{
+			name:   "planned",
+			dryRun: true,
+			row: output.KeyringPruneRow{
+				Path:   "m4n8k2pxtz",
+				Kind:   output.KeyringKindID,
+				Status: output.KeyringPruneStatusPlanned,
+			},
+			contains: []string{"would delete", "m4n8k2pxtz", "(id)"},
+		},
+		{
+			name:   "deleted",
+			dryRun: false,
+			row: output.KeyringPruneRow{
+				Path:   "named_orphan",
+				Kind:   output.KeyringKindNamed,
+				Status: output.KeyringPruneStatusDeleted,
+			},
+			contains: []string{"deleted", "named_orphan", "(named)"},
+		},
+		{
+			name:   "failed",
+			dryRun: false,
+			row: output.KeyringPruneRow{
+				Path:   "bad_entry",
+				Kind:   output.KeyringKindNamed,
+				Status: output.KeyringPruneStatusFailed,
+				Error:  "keychain locked",
+			},
+			contains: []string{"FAIL", "bad_entry", "(named)", "keychain locked"},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			w := tablew.NewKeyringWriter(&buf, newTestPrinting())
+			require.NoError(t, w.Prune([]output.KeyringPruneRow{tc.row}, tc.dryRun))
+			out := buf.String()
+			for _, s := range tc.contains {
+				require.Contains(t, out, s, "rendered output must contain %q; got: %s", s, out)
+			}
+		})
+	}
+}
+
 // TestKeyringWriter_List_HeaderToggle verifies that List honors
 // pr.ShowHeader: header row prints when true (with STATUS/PATH/HANDLE/DRIVER
 // labels) and is omitted when false.
