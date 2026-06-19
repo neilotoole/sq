@@ -194,10 +194,19 @@ func TestMungeTemplateForDriver_RejectsPlaceholders(t *testing.T) {
 
 		t.Run(tu.Name(typ.String(), "escaped dollar is ref-free"), func(t *testing.T) {
 			// '$$' is the escape for a literal '$': no ref is formed, so
-			// the template munges normally.
+			// the template munges normally. Assert the portable invariants
+			// (the escaped '$$' survives verbatim and forms no ref) rather
+			// than the exact absolute string, which is drive-qualified on
+			// Windows ("/var/db" -> "D:/var/db").
 			got, err := location.MungeTemplateForDriver(typ, "/var/db/q$${env:X}.db")
 			require.NoError(t, err)
-			require.Equal(t, string(typ)+":///var/db/q$${env:X}.db", got)
+			require.True(t, strings.HasPrefix(got, string(typ)+":///"),
+				"munged template must be a well-formed file URI")
+			require.True(t, strings.HasSuffix(got, "/q$${env:X}.db"),
+				"escaped '$$' must be preserved verbatim")
+			refs, err := secret.ExtractRefs(got)
+			require.NoError(t, err)
+			require.Empty(t, refs, "'$$' must not form a placeholder ref")
 		})
 	}
 

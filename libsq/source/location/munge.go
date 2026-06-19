@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
@@ -151,7 +152,10 @@ func mungeFileDBLocation(prefix, loc string, allowMemory, template bool) (string
 		return "", errz.Wrap(err, "invalid location")
 	}
 
-	fp = filepath.ToSlash(fp)
+	// Ensure a leading slash precedes a Windows volume so the drive lands in
+	// the URI path, not the authority position: "C:/x" -> "/C:/x" yields
+	// "sqlite3:///C:/x", not the malformed "sqlite3://C:/x". No-op on Unix.
+	fp = ioz.FileURIPath(filepath.ToSlash(fp))
 	if hasQuery {
 		return prefix + fp + "?" + queryPart, nil
 	}

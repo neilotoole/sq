@@ -14,6 +14,7 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -195,7 +196,9 @@ func PathFromLocation(src *source.Source) (string, error) {
 	if p == "" {
 		return "", errz.Errorf("duckdb source has no file path: %s", src.RedactedLocation())
 	}
-	return p, nil
+	// Recover the OS path from the URI path: "/C:/x" -> "C:/x" on Windows.
+	// No-op on Unix and for non-volume paths.
+	return ioz.FilePathFromURI(p), nil
 }
 
 // MungeLocation takes a location argument (as received from the user)

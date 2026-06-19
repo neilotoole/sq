@@ -1171,7 +1171,7 @@ func TestInspect_LocationOverride_NoLeak(t *testing.T) {
 	require.NoError(t, tr.Exec("inspect", "@leak", "--overview", "--yaml", "--expand"),
 		"inspect with --expand must succeed")
 	out = tr.OutString()
-	require.Contains(t, out, dbPath,
+	require.Contains(t, out, yamlScalarPath(dbPath),
 		"--expand must cause the resolved path to appear in inspect output")
 }
 
@@ -1185,8 +1185,16 @@ func TestInspect_Expand_EscapedLocation(t *testing.T) {
 	tr, fpath := newEscapedDollarCSVRun(t, "@csv_dollar")
 	require.NoError(t, tr.Exec("inspect", "@csv_dollar", "--overview", "--yaml", "--expand"),
 		"inspect --expand must resolve the location exactly once (double-unescape breaks the path)")
-	require.Contains(t, tr.OutString(), fpath,
+	require.Contains(t, tr.OutString(), yamlScalarPath(fpath),
 		"--expand must show the literal (expanded) path")
+}
+
+// yamlScalarPath returns p as it appears inside a double-quoted YAML scalar:
+// a Windows path's backslashes are doubled (e.g. `C:\x` -> `C:\\x`). On Unix,
+// paths carry no backslashes, so it is a no-op. Use it when asserting that a
+// filesystem path appears in YAML output, which is OS-portable this way.
+func yamlScalarPath(p string) string {
+	return strings.ReplaceAll(p, `\`, `\\`)
 }
 
 // TestInspect_DuckDB_DoesNotModifyMtime verifies that running `sq inspect`
