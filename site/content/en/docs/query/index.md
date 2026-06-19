@@ -6,6 +6,7 @@ draft: false
 images: []
 weight: 1035
 toc: true
+tocEndLevel: 4
 url: /docs/query
 ---
 
@@ -884,7 +885,7 @@ $ sq '.actor | xjoin(.film_actor)'
 are grouped below by purpose. For functions specific to a single backend, see
 [proprietary functions](#proprietary-functions).
 
-## Aggregate functions
+### Aggregate functions
 
 `sq` harmonizes the type returned by an aggregate function so the same query
 yields the same kind regardless of the backing database. The tables below
@@ -928,7 +929,7 @@ operator, are under discussion in
 here may change in future versions.
 {{< /alert >}}
 
-### `avg`
+#### `avg`
 
 `avg` returns the average of all non-null values of the column.
 
@@ -951,7 +952,7 @@ and truncates (the average of `1` to `200` would be `100`, not `100.5`). `sq`
 casts the operand to a float so `avg` returns the true fractional value.
 {{< /alert >}}
 
-### `count`
+#### `count`
 
 The no-arg `count` function returns the total number of rows.
 
@@ -983,7 +984,7 @@ quantity
 200
 ```
 
-### `count_unique`
+#### `count_unique`
 
 `count_unique` counts the unique non-null values of a column.
 
@@ -993,7 +994,7 @@ count_unique(.first_name)
 128
 ```
 
-### `max`
+#### `max`
 
 `max` returns the maximum value of the column.
 
@@ -1003,7 +1004,7 @@ max(.amount)
 11.99
 ```
 
-### `min`
+#### `min`
 
 `min` returns the minimum non-null value of the column.
 
@@ -1013,7 +1014,7 @@ min(.amount)
 0
 ```
 
-### `sum`
+#### `sum`
 
 `sum` returns the sum of all non-null values for the column. If there are no
 input rows, null is returned.
@@ -1051,7 +1052,7 @@ carry the same small drift as SQLite. The common integer and currency cases are
 unaffected.
 {{< /alert >}}
 
-## String functions
+### String functions
 
 These functions test a column against a string and return a boolean, so
 they're typically used inside [`where`](#filter-results-where). Each
@@ -1060,7 +1061,7 @@ case-sensitive function has a case-insensitive counterpart prefixed with `i`
 [`like`](#like) / [`ilike`](#ilike) pair exposes raw SQL `LIKE` wildcards;
 the other functions treat their argument as a literal substring.
 
-### `contains`
+#### `contains`
 
 `contains(col, str)` is true when `col` contains `str` as a substring.
 Matching is always case-sensitive, regardless of the backend's default
@@ -1101,7 +1102,7 @@ For case-insensitive matching, use [`icontains`](#icontains). For
 matching user-controlled wildcard patterns (where `%` and `_` are
 significant), use [`like`](#like) / [`ilike`](#ilike).
 
-### `icontains`
+#### `icontains`
 
 `icontains(col, str)` is true when `col` contains `str` as a
 substring, **case-insensitively**. The case-sensitive counterpart is
@@ -1129,7 +1130,7 @@ Per-driver implementation:
 An empty pattern matches every non-NULL row, consistent across
 drivers — same as [`contains`](#contains).
 
-### `startswith`
+#### `startswith`
 
 `startswith(col, str)` is true when `col` begins with `str`. Matching is
 always case-sensitive. See [`contains`](#contains) for the per-driver
@@ -1143,7 +1144,7 @@ For case-insensitive matching, use [`istartswith`](#istartswith). For
 matching user-controlled wildcard patterns (where `%` and `_` are
 significant), use [`like`](#like) / [`ilike`](#ilike).
 
-### `istartswith`
+#### `istartswith`
 
 `istartswith(col, str)` is true when `col` starts with `str`,
 **case-insensitively**. The case-sensitive counterpart is
@@ -1158,7 +1159,7 @@ Per-driver implementation mirrors [`icontains`](#icontains); on
 ClickHouse, `startsWithCaseInsensitive()` is used. An empty pattern
 matches every non-NULL row.
 
-### `endswith`
+#### `endswith`
 
 `endswith(col, str)` is true when `col` ends with `str`. Matching is always
 case-sensitive. See [`contains`](#contains) for the per-driver mechanism
@@ -1172,7 +1173,7 @@ For case-insensitive matching, use [`iendswith`](#iendswith). For
 matching user-controlled wildcard patterns (where `%` and `_` are
 significant), use [`like`](#like) / [`ilike`](#ilike).
 
-### `iendswith`
+#### `iendswith`
 
 `iendswith(col, str)` is true when `col` ends with `str`,
 **case-insensitively**. The case-sensitive counterpart is
@@ -1187,7 +1188,7 @@ Per-driver implementation mirrors [`icontains`](#icontains); on
 ClickHouse, `endsWithCaseInsensitive()` is used. An empty pattern
 matches every non-NULL row.
 
-### `like`
+#### `like`
 
 `like(col, pattern)` exposes raw `LIKE`-pattern matching, where `%`
 matches any sequence and `_` matches any single character. Unlike
@@ -1235,7 +1236,7 @@ non-NULL row, in contrast with [`contains`](#contains)`(.col, "")`.
 That difference is intentional and matches standard SQL `LIKE`
 semantics.
 
-#### Column as pattern
+##### Column as pattern
 
 The pattern argument can be a column selector instead of a quoted
 string literal, enabling column-vs-column matching:
@@ -1259,7 +1260,7 @@ time over a known string; extending it to a column RHS would require
 emitting per-driver SQL-level escaping (e.g. nested `REPLACE` chains)
 that's out of scope for v1.
 
-### `ilike`
+#### `ilike`
 
 `ilike(col, pattern)` is the case-insensitive counterpart to
 [`like`](#like). `%` and `_` are wildcards in `pattern` and are not
@@ -1284,9 +1285,9 @@ for escape behavior and [Column as pattern](#column-as-pattern) for
 column-RHS semantics. For literal `%` / `_` matching, use
 [`icontains`](#icontains), which auto-escapes wildcards.
 
-## Other functions
+### Other functions
 
-### `catalog`
+#### `catalog`
 
 `catalog` returns the default [catalog](/docs/concepts#schema--catalog) of the DB connection.
 See also: [`schema`](#schema).
@@ -1318,7 +1319,7 @@ However, not every driver supports the catalog mechanism fully.
   than return `NULL` or an empty string, `sq`'s SQLite driver chooses to implement `catalog()`
   by returning the string `default`.
 
-### `schema`
+#### `schema`
 
 `schema` returns the default [schema](/docs/concepts#schema--catalog) of the DB connection.
 See also: [`catalog`](#catalog).
@@ -1353,7 +1354,7 @@ schema()
 dbo
 ```
 
-### `rownum`
+#### `rownum`
 
 `rownum` returns the one-indexed row number of the current row.
 
@@ -1388,7 +1389,7 @@ index  first_name
 2       AL
 ```
 
-## Proprietary functions
+### Proprietary functions
 
 The standard functions listed above are all _portable_: that is to say, they
 behave (more or less) the same whether the backing DB is Postgres, MySQL, etc.
