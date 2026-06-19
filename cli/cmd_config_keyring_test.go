@@ -860,6 +860,9 @@ func TestCmdConfigKeyringMigrate_JSON_Apply(t *testing.T) {
 
 	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--json"))
 
+	// JSON output must stay plain: no ANSI color escapes.
+	require.NotContains(t, tr.Out.String(), "\x1b[", "JSON output must not be colorized")
+
 	type applyRow struct {
 		Handle      string `json:"handle"`
 		Status      string `json:"status"`
@@ -1006,6 +1009,21 @@ func TestCmdConfigKeyringMigrate_NothingToMigrate(t *testing.T) {
 	csv, err := tr.Run.Config.Collection.Get("@nm_csv")
 	require.NoError(t, err)
 	require.Equal(t, "/data/a.csv", csv.Location)
+}
+
+// TestCmdConfigKeyringMigrate_JSON_NothingActionable verifies that a JSON-mode
+// run with nothing eligible does not rewrite sq.yml (no no-op save), matching
+// the text-mode short-circuit.
+func TestCmdConfigKeyringMigrate_JSON_NothingActionable(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	tr.Add(source.Source{Handle: "@js_csv", Type: "csv", Location: "/tmp/x.csv"})
+	counter := &countingConfigStore{Store: tr.Run.ConfigStore}
+	tr.Run.ConfigStore = counter
+
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--json"))
+	require.Equal(t, 0, counter.saves, "an all-skipped JSON run must not save sq.yml")
 }
 
 // TestCmdConfigKeyringMigrate_AtomicSingleSave verifies the migration is

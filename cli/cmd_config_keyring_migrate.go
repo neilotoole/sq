@@ -262,6 +262,13 @@ func applyMigratePlans(ctx context.Context, ru *run.Run, plans []migratePlan) (
 		p.src.Location = "${keyring:" + id + "}"
 	}
 
+	if len(done) == 0 {
+		// Nothing was eligible (e.g. JSON mode on an all-skipped collection,
+		// where the text-mode short-circuit doesn't apply): don't rewrite
+		// sq.yml for a no-op.
+		return nil, nil
+	}
+
 	if err := ru.ConfigStore.Save(ctx, ru.Config); err != nil {
 		return failAll("save config: " + err.Error())
 	}

@@ -8,6 +8,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestConfigKeyringMigrate_RequiresConfigLock guards that migrate is marked to
+// take the config lock, since it mutates sq.yml. Dropping the marker would
+// silently make migrate non-atomic against a concurrent sq process.
+func TestConfigKeyringMigrate_RequiresConfigLock(t *testing.T) {
+	require.True(t, cmdRequiresConfigLock(newConfigKeyringMigrateCmd()))
+}
+
 // TestPromptYesNo covers the strict y/n prompt: only y/yes and n/no (plus the
 // empty-line [y/N] default) are accepted; any other input is an error, as is
 // EOF with no answer. The prompt does not retry.
