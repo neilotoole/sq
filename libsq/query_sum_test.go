@@ -76,14 +76,14 @@ func TestQuery_sum_floatColumn(t *testing.T) {
 	}
 }
 
-// TestQuery_sum_floatColumn_duckDBDrift verifies that DuckDB's sum() over a
+// TestQuery_sum_floatColumn_DuckDBDrift verifies that DuckDB's sum() over a
 // DOUBLE column, which the kind-pin surfaces as a decimal without a SQL cast
 // (#853), faithfully preserves the float drift rather than presenting a rounded
 // value. Unlike TestQuery_sum_floatColumn, which uses exactly-representable
 // inputs, this picks inputs whose float64 sum is inexact, so it exercises the
 // "computed in float, can carry drift" path. DuckDB is embedded, so this runs
 // without Docker.
-func TestQuery_sum_floatColumn_duckDBDrift(t *testing.T) {
+func TestQuery_sum_floatColumn_DuckDBDrift(t *testing.T) {
 	tu.SkipShort(t, true)
 
 	th, src, drvr, _, db := testh.NewWith(t, sakila.Duck)
