@@ -68,6 +68,17 @@ Preview first with `--dry-run`. It mints no IDs and writes nothing:
 $ sq config keyring migrate --all --dry-run
 ```
 
+The output is an aligned table listing only the sources that will migrate.
+Sources with nothing to move (file paths, no password, already migrated) are
+omitted to keep the list focused; pass `-v` to show them with their skip
+reason. If nothing is eligible, migrate says so and makes no changes:
+
+```text
+HANDLE            STATUS   DETAIL
+@sakila/pg        migrate  ${keyring:<new-id>}
+@sakila/local/pg  migrate  ${keyring:<new-id>}
+```
+
 A real run prints the same plan and then prompts before changing anything:
 
 ```text
