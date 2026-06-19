@@ -80,7 +80,7 @@ func TestKeyringWriter_Migrate_RowFormatting(t *testing.T) {
 }
 
 // TestKeyringWriter_List_HeaderToggle verifies that List honors
-// pr.ShowHeader: header row prints when true (with PATH/HANDLE/DRIVER
+// pr.ShowHeader: header row prints when true (with STATUS/PATH/HANDLE/DRIVER
 // labels) and is omitted when false.
 func TestKeyringWriter_List_HeaderToggle(t *testing.T) {
 	refs := []output.KeyringRef{
@@ -94,6 +94,7 @@ func TestKeyringWriter_List_HeaderToggle(t *testing.T) {
 		w := tablew.NewKeyringWriter(&buf, pr)
 		require.NoError(t, w.List(refs))
 		out := buf.String()
+		require.Contains(t, out, "STATUS")
 		require.Contains(t, out, "PATH")
 		require.Contains(t, out, "HANDLE")
 		require.Contains(t, out, "DRIVER")
@@ -107,9 +108,31 @@ func TestKeyringWriter_List_HeaderToggle(t *testing.T) {
 		w := tablew.NewKeyringWriter(&buf, pr)
 		require.NoError(t, w.List(refs))
 		out := buf.String()
+		require.NotContains(t, out, "STATUS")
 		require.NotContains(t, out, "PATH")
 		require.NotContains(t, out, "HANDLE")
 		require.NotContains(t, out, "DRIVER")
 		require.Contains(t, out, "abc123")
 	})
+}
+
+// TestKeyringWriter_ListStatusColumn verifies that List renders the STATUS
+// column with the correct values for referenced, orphan, and missing rows.
+func TestKeyringWriter_ListStatusColumn(t *testing.T) {
+	buf := &bytes.Buffer{}
+	w := tablew.NewKeyringWriter(buf, newTestPrinting())
+
+	err := w.List([]output.KeyringRef{
+		{Status: output.KeyringStatusReferenced, Path: "j2k7m3pxtz", Handle: "@prod", Driver: "postgres"},
+		{Status: output.KeyringStatusOrphan, Path: "m4n8k2pxtz"},
+		{Status: output.KeyringStatusMissing, Path: "@stale/pw", Handle: "@stale", Driver: "mysql"},
+	})
+	require.NoError(t, err)
+
+	out := buf.String()
+	require.Contains(t, out, "STATUS")
+	require.Contains(t, out, "referenced")
+	require.Contains(t, out, "orphan")
+	require.Contains(t, out, "missing")
+	require.Contains(t, out, "m4n8k2pxtz")
 }

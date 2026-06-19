@@ -32,12 +32,13 @@ func (w *keyringWriter) List(refs []output.KeyringRef) error {
 	}
 	rows := make([][]string, 0, len(refs))
 	for _, r := range refs {
-		rows = append(rows, []string{r.Path, r.Handle, r.Driver})
+		rows = append(rows, []string{r.Status, r.Path, r.Handle, r.Driver})
 	}
-	w.tbl.tblImpl.SetHeader([]string{"PATH", "HANDLE", "DRIVER"})
-	w.tbl.tblImpl.SetColTrans(0, w.pr.String.SprintFunc())
-	w.tbl.tblImpl.SetColTrans(1, w.pr.Handle.SprintFunc())
-	w.tbl.tblImpl.SetColTrans(2, w.pr.Faint.SprintFunc())
+	w.tbl.tblImpl.SetHeader([]string{"STATUS", "PATH", "HANDLE", "DRIVER"})
+	w.tbl.tblImpl.SetColTrans(0, w.pr.Faint.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(1, w.pr.String.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(2, w.pr.Handle.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(3, w.pr.Faint.SprintFunc())
 	return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 }
 

@@ -207,13 +207,24 @@ type Writers struct {
 }
 
 // KeyringRef is one row of "sq config keyring ls" output. Each row
-// describes a single ${keyring:<path>} reference reachable from the
-// active source collection.
+// describes one keyring entry: either a ${keyring:<path>} reference
+// reachable from the active source collection, or an entry found in the
+// OS keyring. Status classifies the row.
 type KeyringRef struct {
+	Status string `json:"status"`
 	Path   string `json:"path"`
 	Handle string `json:"handle"`
 	Driver string `json:"driver"`
 }
+
+// KeyringStatus* enumerate the status values surfaced by
+// KeyringWriter.List. The string forms are part of the JSON contract
+// and must not change casually.
+const (
+	KeyringStatusReferenced = "referenced" // in config and present in the keyring
+	KeyringStatusOrphan     = "orphan"     // in the keyring, referenced by no source
+	KeyringStatusMissing    = "missing"    // referenced by a source, absent from the keyring
+)
 
 // KeyringMigrateStatus enumerates the status values surfaced by
 // KeyringWriter.Migrate. The string forms are part of the JSON
