@@ -52,8 +52,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
-- [#851]: In colored output, structured-format punctuation (JSON braces, brackets, commas,
-  and colons) is now rendered muted rather than bold, so values stand out.
+- [#851]: In colored output, structural punctuation is now rendered muted rather than bold,
+  so values stand out. This is most visible in JSON (braces, brackets, commas, colons) and
+  also applies to SQL syntax highlighting and other colorized output.
 - [#846]: YAML now renders decimal values as quoted strings by default, matching
   JSON and keeping precision for values beyond float64 range. Set
   `format.decimal=number` to restore bare numbers.
