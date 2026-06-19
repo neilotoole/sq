@@ -1,6 +1,7 @@
 package ioz_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -27,7 +28,7 @@ func TestFileURIPath_RoundTrip(t *testing.T) {
 			require.Equal(t, tc.uriPath, gotURI, "FileURIPath")
 			// The authority position (immediately after "//") must never be a
 			// volume: an encoded path always begins with a slash.
-			require.True(t, gotURI[0] == '/', "encoded URI path must start with '/'")
+			require.True(t, strings.HasPrefix(gotURI, "/"), "encoded URI path must start with '/'")
 			// Round-trip back to the OS path.
 			require.Equal(t, tc.fsPath, ioz.FilePathFromURI(gotURI), "FilePathFromURI(FileURIPath(x))")
 		})
