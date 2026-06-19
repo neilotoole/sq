@@ -140,3 +140,27 @@ func (zeroReader) Read(p []byte) (int, error) {
 	}
 	return len(p), nil
 }
+
+func TestIsID(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want bool
+	}{
+		{in: "j2k7m3pxtz", want: true},   // canonical 10-char Crockford
+		{in: "0000000000", want: true},   // all-zero, still 10 valid chars
+		{in: "", want: false},            // empty
+		{in: "j2k7m3pxt", want: false},   // 9 chars
+		{in: "j2k7m3pxtzz", want: false}, // 11 chars
+		{in: "my_db_pw", want: false},    // user-named: underscore + wrong length
+		{in: "j2k7m3pxti", want: false},  // contains excluded 'i'
+		{in: "j2k7m3pxtl", want: false},  // contains excluded 'l'
+		{in: "j2k7m3pxto", want: false},  // contains excluded 'o'
+		{in: "abcdefghuz", want: false},  // contains excluded 'u'
+		{in: "J2K7M3PXTZ", want: false},  // uppercase not in lowercased alphabet
+	}
+	for _, tc := range testCases {
+		t.Run(tc.in, func(t *testing.T) {
+			require.Equal(t, tc.want, IsID(tc.in))
+		})
+	}
+}

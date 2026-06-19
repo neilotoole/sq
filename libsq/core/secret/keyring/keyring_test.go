@@ -72,6 +72,25 @@ func (c *countingStore) Resolve(ctx context.Context, path string) (string, error
 // Store itself: the keyring write commands (create, update, rm,
 // migrate) use Store directly and must always read through to the
 // backend.
+func TestStore_List(t *testing.T) {
+	gokeyring.MockInit()
+	ctx := context.Background()
+	st := keyring.NewStore()
+
+	// Empty keyring yields an empty list, not an error.
+	users, err := st.List(ctx)
+	require.NoError(t, err)
+	require.Empty(t, users)
+
+	// Populate, then enumerate.
+	require.NoError(t, st.Set(ctx, "j2k7m3pxtz", "secret-a"))
+	require.NoError(t, st.Set(ctx, "my_db_pw", "secret-b"))
+
+	users, err = st.List(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"j2k7m3pxtz", "my_db_pw"}, users)
+}
+
 func TestStore_RegistryMemoizesKeyringResolution(t *testing.T) {
 	gokeyring.MockInit()
 	ctx := context.Background()
