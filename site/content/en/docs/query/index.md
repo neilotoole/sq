@@ -896,7 +896,7 @@ Result kind by function:
 | Function | Result kind | Notes |
 | --- | --- | --- |
 | [`avg`](#avg) | `float` | Always floating-point, for portability. Can lose precision beyond roughly 15 to 17 significant digits. |
-| [`sum`](#sum) | `decimal` | Exact for integer and decimal columns. A sum over a float column is computed in float (so it can carry small drift) but is still surfaced as `decimal`. |
+| [`sum`](#sum) | `decimal` | Exact for integer and decimal columns. A float column's sum is surfaced as `decimal` too, with precision that depends on the driver (see below). |
 | [`count`](#count), [`count_unique`](#count_unique) | `int` | Row and value counts are always integers. |
 | [`max`](#max), [`min`](#min) | same as the column | No cast; the result kind is inherited from the operand column. |
 

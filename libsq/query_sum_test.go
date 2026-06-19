@@ -103,6 +103,12 @@ func TestQuery_sum_floatColumn_duckDBDrift(t *testing.T) {
 	// 0.1 + 0.2 is not exactly representable in float64; the sum drifts to
 	// 0.30000000000000004. DuckDB computes it in float, and we surface that
 	// drifted value as a decimal without correcting it.
+	//
+	// Keep this to exactly two addends: with two values there is no summation
+	// reordering freedom, so DuckDB's SUM matches Go's left-to-right fold bit for
+	// bit. With three or more inexact addends, DuckDB could fold in a different
+	// order (or in parallel) and produce a different float64 than fa + fb below,
+	// breaking the exact-match assertion.
 	for _, v := range []float64{0.1, 0.2} {
 		rec := []any{v}
 		require.NoError(t, execer.Munge(rec))
