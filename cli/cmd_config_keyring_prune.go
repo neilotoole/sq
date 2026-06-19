@@ -46,6 +46,11 @@ what prune would remove without deleting anything.`,
 	}
 	cmd.Flags().Bool(flagPruneDryRun, false, "Show orphans that would be deleted, make no changes")
 	addKeyringFormatFlags(cmd)
+	// prune decides what to delete by diffing the keyring against the config's
+	// references, so it takes the config lock and runs against a freshly
+	// reloaded config. Otherwise a concurrent writer (e.g. sq add) could make
+	// an orphan referenced after prune read the config but before it deletes.
+	cmdMarkRequiresConfigLock(cmd)
 	return cmd
 }
 

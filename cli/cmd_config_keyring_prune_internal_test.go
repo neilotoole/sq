@@ -33,6 +33,13 @@ func (f *fakePruner) Delete(_ context.Context, path string) error {
 	return nil
 }
 
+// TestConfigKeyringPrune_RequiresConfigLock guards that prune takes the config
+// lock, since it deletes keyring entries based on the config's references and
+// must not race a concurrent config writer.
+func TestConfigKeyringPrune_RequiresConfigLock(t *testing.T) {
+	require.True(t, cmdRequiresConfigLock(newConfigKeyringPruneCmd()))
+}
+
 // TestPruneOrphans_DeleteFailure verifies that when one entry's deletion
 // fails, prune still deletes the others, marks the failed row, and returns
 // a summary error naming the failure count.

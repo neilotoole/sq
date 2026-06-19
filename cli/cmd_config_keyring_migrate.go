@@ -328,9 +328,11 @@ func migrateSkipReason(loc string) string {
 		}
 		return "malformed location: " + msg
 	}
-	if u.Scheme == "" || u.Host == "" {
+	if u.Scheme == "" {
 		// Not a connection URL (a file path, document source, and so on):
-		// there are no inline credentials to relocate.
+		// there are no inline credentials to relocate. A scheme-bearing URL
+		// with an empty host still falls through to the password checks below,
+		// so one that carries a password is migrated rather than skipped.
 		return "no credentials to migrate"
 	}
 	if u.User == nil {

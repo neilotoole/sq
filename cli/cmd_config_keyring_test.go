@@ -343,6 +343,15 @@ func TestCmdConfigKeyringMigrate_PerCase(t *testing.T) {
 			wantKeyring: "postgres://alice:hunter2@db/sakila",
 		},
 		{
+			// A scheme-bearing URL with a password but an empty host still
+			// carries an inline credential, so it must migrate (regression
+			// guard: the host check used to skip it, leaving the password
+			// in sq.yml).
+			name:        "url with password but empty host",
+			inLocation:  "postgres://alice:hunter2@/sakila",
+			wantKeyring: "postgres://alice:hunter2@/sakila",
+		},
+		{
 			name:           "url without password",
 			inLocation:     "postgres://alice@db/sakila",
 			wantSkipReason: "no password",
