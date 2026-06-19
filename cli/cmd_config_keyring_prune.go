@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"sort"
 
 	"github.com/spf13/cobra"
@@ -9,7 +10,17 @@ import (
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/secret/keyring"
+	"github.com/neilotoole/sq/libsq/source"
 )
+
+// keyringPruner is the subset of *keyring.Store that prune needs:
+// enumerate stored entries and delete them by path. Defining it here lets
+// tests substitute a fault-injecting fake to exercise the delete-failure
+// path, which the go-keyring mock backend cannot trigger.
+type keyringPruner interface {
+	List(ctx context.Context) ([]string, error)
+	Delete(ctx context.Context, path string) error
+}
 
 const flagPruneDryRun = "dry-run"
 
@@ -40,18 +51,38 @@ what prune would remove without deleting anything.`,
 
 func execConfigKeyringPrune(cmd *cobra.Command, _ []string) error {
 	ru := run.FromContext(cmd.Context())
-	kr := keyring.NewStore()
+	dryRun := cmdFlagIsSetTrue(cmd, flagPruneDryRun)
+	return pruneOrphans(
+		cmd.Context(),
+		keyring.NewStore(),
+		ru.Config.Collection.Sources(),
+		dryRun,
+		ru.Writers.Keyring,
+	)
+}
 
-	stored, err := kr.List(cmd.Context())
+// pruneOrphans enumerates kr's entries, treats every entry that no source in
+// srcs references as an orphan, and (unless dryRun) deletes each, reporting
+// the outcome via w. It returns a non-nil error if enumeration fails, if any
+// source Location fails to parse, or if any deletion fails (the per-entry
+// failures are also visible in the reported rows).
+func pruneOrphans(
+	ctx context.Context,
+	kr keyringPruner,
+	srcs []*source.Source,
+	dryRun bool,
+	w output.KeyringWriter,
+) error {
+	stored, err := kr.List(ctx)
 	if err != nil {
 		return err
 	}
 
-	refs, err := collectKeyringRefs(ru.Config.Collection.Sources())
+	refs, err := collectKeyringRefs(srcs)
 	if err != nil {
 		return err
 	}
-	referenced := make(map[string]struct{})
+	referenced := make(map[string]struct{}, len(refs))
 	for _, ref := range refs {
 		referenced[ref.Path] = struct{}{}
 	}
@@ -64,7 +95,6 @@ func execConfigKeyringPrune(cmd *cobra.Command, _ []string) error {
 	}
 	sort.Strings(orphans)
 
-	dryRun := cmdFlagIsSetTrue(cmd, flagPruneDryRun)
 	rows := make([]output.KeyringPruneRow, 0, len(orphans))
 	var failed int
 	for _, path := range orphans {
@@ -76,7 +106,7 @@ func execConfigKeyringPrune(cmd *cobra.Command, _ []string) error {
 		case dryRun:
 			row.Status = output.KeyringPruneStatusPlanned
 		default:
-			if delErr := kr.Delete(cmd.Context(), path); delErr != nil {
+			if delErr := kr.Delete(ctx, path); delErr != nil {
 				row.Status = output.KeyringPruneStatusFailed
 				row.Error = delErr.Error()
 				failed++
@@ -87,7 +117,7 @@ func execConfigKeyringPrune(cmd *cobra.Command, _ []string) error {
 		rows = append(rows, row)
 	}
 
-	writeErr := ru.Writers.Keyring.Prune(rows, dryRun)
+	writeErr := w.Prune(rows, dryRun)
 	var summaryErr error
 	if failed > 0 {
 		summaryErr = errz.Errorf("failed to delete %d of %d orphaned keyring entries", failed, len(orphans))
