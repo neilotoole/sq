@@ -485,9 +485,12 @@ func isFpath(loc string) (fpath string, ok bool) {
 		return "", false
 	}
 
-	if strings.Contains(loc, "sqlite:") {
-		// Excludes "sqlite:my_file.db"
-		// Be wary of windows paths, e.g. "D:\a\b\c.file"
+	if strings.Contains(loc, "sqlite3:") || strings.Contains(loc, "sqlite:") {
+		// Excludes the sqlite3 driver scheme, e.g. "sqlite3:my_file.db" and
+		// the Windows form "sqlite3:C:\db" (which has no ":/" to catch it
+		// above), plus the legacy "sqlite:" spelling. Without the "sqlite3:"
+		// check a driver-scheme location was wrongly treated as a relative
+		// file path and joined under the cwd (gh #797).
 		return "", false
 	}
 
