@@ -6,6 +6,7 @@ draft: false
 images: []
 weight: 1035
 toc: true
+tocEndLevel: 4
 url: /docs/query
 ---
 
@@ -55,6 +56,11 @@ SELECT "first_name", "last_name" FROM "actor"
 WHERE "actor_id" < 10
 LIMIT 3 OFFSET 0
 ```
+
+{{< alert icon="👉" >}}
+To see the SQL that `sq` generates for a query, without executing it, add the
+[`--render-sql`](/docs/cmd/sq#render-sql) flag.
+{{< /alert >}}
 
 ## Shorthand
 
@@ -884,7 +890,7 @@ $ sq '.actor | xjoin(.film_actor)'
 are grouped below by purpose. For functions specific to a single backend, see
 [proprietary functions](#proprietary-functions).
 
-## Aggregate functions
+### Aggregate functions
 
 `sq` harmonizes the type returned by an aggregate function so the same query
 yields the same kind regardless of the backing database. The tables below
@@ -893,33 +899,43 @@ per-function sections that follow have the details.
 
 Result kind by function:
 
-| Function | Result kind | Notes |
-| --- | --- | --- |
-| [`avg`](#avg) | `float` | Always floating-point, for portability. Can lose precision beyond roughly 15 to 17 significant digits. |
-| [`sum`](#sum) | `decimal` | Exact for integer and decimal columns. A float column's sum is surfaced as `decimal` too, with precision that depends on the driver (see below). |
-| [`count`](#count), [`count_unique`](#count_unique) | `int` | Row and value counts are always integers. |
-| [`max`](#max), [`min`](#min) | same as the column | No cast; the result kind is inherited from the operand column. |
+| Function                                           | Result kind        | Notes                                                                                                                                            |
+|----------------------------------------------------|--------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
+| [`avg`](#avg)                                      | `float`            | Always floating-point, for portability. Can lose precision beyond roughly 15 to 17 significant digits.                                           |
+| [`sum`](#sum)                                      | `decimal`          | Exact for integer and decimal columns. A float column's sum is surfaced as `decimal` too, with precision that depends on the driver (see below). |
+| [`count`](#count), [`count_unique`](#count_unique) | `int`              | Row and value counts are always integers.                                                                                                        |
+| [`max`](#max), [`min`](#min)                       | same as the column | No cast; the result kind is inherited from the operand column.                                                                                   |
 
-In JSON and YAML, a `decimal` is rendered as a quoted string by default (so
-`sum(.actor_id)` is `"20100"`, not a bare number), which is precision-safe. Use
+{{< alert icon="👉" >}}
+`avg` and `sum` deliberately return different kinds, and the choice reflects each
+operation's nature. An average is inherently fractional and approximate, so `avg`
+is a `float`, matching jq's numeric model. A sum of exact values is itself exact,
+so `sum` is a `decimal`; computing it in float would regress precision. The
+[current rationale](https://github.com/neilotoole/sq/discussions/845) may still
+change (see below).
+{{< /alert >}}
+
+In [JSON](/docs/output/#json) and [YAML](/docs/output/#yaml), a `decimal` is
+rendered as a quoted string by default (so `sum(.actor_id)` is `"20100"`, not a
+bare number), which is precision-safe. Use
 [`--format.decimal=number`](/docs/output/#decimal) to render bare numbers instead.
 
 `avg` and `sum` are where backends differ most. To keep the surfaced type
 uniform, `sq` injects a SQL cast, or, where a cast can't help, pins the kind.
 The mechanism and any fidelity caveat vary by driver:
 
-| Driver | `avg` | `sum` | Fidelity notes |
-| --- | --- | --- | --- |
-| [`postgres`](/docs/drivers/postgres) | cast result to `DOUBLE PRECISION` | cast result to unconstrained `NUMERIC` | Sum is exact; full scale preserved. |
-| [`mysql`](/docs/drivers/mysql) | cast result to `DOUBLE` | cast result to `DECIMAL(65, 30)` | Full scale preserved (MySQL maxima). |
-| [`sqlite3`](/docs/drivers/sqlite) | native (float) | kind pinned, no SQL cast | A sum over a non-integer column is computed in float, so small drift is possible. |
-| [`rqlite`](/docs/drivers/rqlite) | native (float) | kind pinned, no SQL cast | As `sqlite3`, plus a very large integer sum (beyond 2^53) can drift over the HTTP API. |
-| [`sqlserver`](/docs/drivers/sqlserver) | cast operand to `FLOAT` | cast operand to `DECIMAL(38, 6)` | Operand cast avoids integer-division truncation and overflow; the sum rounds per row at 6 places. |
-| [`clickhouse`](/docs/drivers/clickhouse) | native (float) | cast result to `Nullable(Decimal(38, 6))` | Rounds to 6 fractional places; overflows beyond 32 integer digits. |
-| [`oracle`](/docs/drivers/oracle) | cast result to `BINARY_DOUBLE` | cast result to `NUMBER(38, 6)` | Rounds to 6 fractional places; overflows beyond 32 integer digits. `count`, `count_unique`, and `rownum` are pinned to `int`. |
-| [`duckdb`](/docs/drivers/duckdb) | native (float) | kind pinned, no SQL cast | Native sum over integer (HUGEINT) and decimal columns is lossless; a `DOUBLE` column's sum is computed in float, so small drift is possible. |
+| Driver                                   | `avg`                             | `sum`                                     | Fidelity notes                                                                                                                               |
+|------------------------------------------|-----------------------------------|-------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
+| [`postgres`](/docs/drivers/postgres)     | cast result to `DOUBLE PRECISION` | cast result to unconstrained `NUMERIC`    | Sum is exact; full scale preserved.                                                                                                          |
+| [`mysql`](/docs/drivers/mysql)           | cast result to `DOUBLE`           | cast result to `DECIMAL(65, 30)`          | Full scale preserved (MySQL maxima).                                                                                                         |
+| [`sqlite3`](/docs/drivers/sqlite)        | native (float)                    | kind pinned, no SQL cast                  | A sum over a non-integer column is computed in float, so small drift is possible.                                                            |
+| [`rqlite`](/docs/drivers/rqlite)         | native (float)                    | kind pinned, no SQL cast                  | As `sqlite3`, plus a very large integer sum (beyond 2^53) can drift over the HTTP API.                                                       |
+| [`sqlserver`](/docs/drivers/sqlserver)   | cast operand to `FLOAT`           | cast operand to `DECIMAL(38, 6)`          | Operand cast avoids integer-division truncation and overflow; the sum rounds per row at 6 places.                                            |
+| [`clickhouse`](/docs/drivers/clickhouse) | native (float)                    | cast result to `Nullable(Decimal(38, 6))` | Rounds to 6 fractional places; overflows beyond 32 integer digits.                                                                           |
+| [`oracle`](/docs/drivers/oracle)         | cast result to `BINARY_DOUBLE`    | cast result to `NUMBER(38, 6)`            | Rounds to 6 fractional places; overflows beyond 32 integer digits. `count`, `count_unique`, and `rownum` are pinned to `int`.                |
+| [`duckdb`](/docs/drivers/duckdb)         | native (float)                    | kind pinned, no SQL cast                  | Native sum over integer (HUGEINT) and decimal columns is lossless; a `DOUBLE` column's sum is computed in float, so small drift is possible. |
 
-{{< alert icon="👉" >}}
+{{< alert icon="⚠️" >}}
 How `sq` harmonizes numeric types is still evolving. Proposed changes, including
 config options such as `result.numeric.type`, portable cast functions like
 `decimal(x)`, `int(x)`, and `float(x)`, and normalizing the `/` division
@@ -928,7 +944,7 @@ operator, are under discussion in
 here may change in future versions.
 {{< /alert >}}
 
-### `avg`
+#### `avg`
 
 `avg` returns the average of all non-null values of the column.
 
@@ -951,7 +967,7 @@ and truncates (the average of `1` to `200` would be `100`, not `100.5`). `sq`
 casts the operand to a float so `avg` returns the true fractional value.
 {{< /alert >}}
 
-### `count`
+#### `count`
 
 The no-arg `count` function returns the total number of rows.
 
@@ -983,7 +999,7 @@ quantity
 200
 ```
 
-### `count_unique`
+#### `count_unique`
 
 `count_unique` counts the unique non-null values of a column.
 
@@ -993,7 +1009,7 @@ count_unique(.first_name)
 128
 ```
 
-### `max`
+#### `max`
 
 `max` returns the maximum value of the column.
 
@@ -1003,7 +1019,7 @@ max(.amount)
 11.99
 ```
 
-### `min`
+#### `min`
 
 `min` returns the minimum non-null value of the column.
 
@@ -1013,7 +1029,7 @@ min(.amount)
 0
 ```
 
-### `sum`
+#### `sum`
 
 `sum` returns the sum of all non-null values for the column. If there are no
 input rows, null is returned.
@@ -1051,7 +1067,7 @@ carry the same small drift as SQLite. The common integer and currency cases are
 unaffected.
 {{< /alert >}}
 
-## String functions
+### String functions
 
 These functions test a column against a string and return a boolean, so
 they're typically used inside [`where`](#filter-results-where). Each
@@ -1060,7 +1076,7 @@ case-sensitive function has a case-insensitive counterpart prefixed with `i`
 [`like`](#like) / [`ilike`](#ilike) pair exposes raw SQL `LIKE` wildcards;
 the other functions treat their argument as a literal substring.
 
-### `contains`
+#### `contains`
 
 `contains(col, str)` is true when `col` contains `str` as a substring.
 Matching is always case-sensitive, regardless of the backend's default
@@ -1101,7 +1117,7 @@ For case-insensitive matching, use [`icontains`](#icontains). For
 matching user-controlled wildcard patterns (where `%` and `_` are
 significant), use [`like`](#like) / [`ilike`](#ilike).
 
-### `icontains`
+#### `icontains`
 
 `icontains(col, str)` is true when `col` contains `str` as a
 substring, **case-insensitively**. The case-sensitive counterpart is
@@ -1129,7 +1145,7 @@ Per-driver implementation:
 An empty pattern matches every non-NULL row, consistent across
 drivers — same as [`contains`](#contains).
 
-### `startswith`
+#### `startswith`
 
 `startswith(col, str)` is true when `col` begins with `str`. Matching is
 always case-sensitive. See [`contains`](#contains) for the per-driver
@@ -1143,7 +1159,7 @@ For case-insensitive matching, use [`istartswith`](#istartswith). For
 matching user-controlled wildcard patterns (where `%` and `_` are
 significant), use [`like`](#like) / [`ilike`](#ilike).
 
-### `istartswith`
+#### `istartswith`
 
 `istartswith(col, str)` is true when `col` starts with `str`,
 **case-insensitively**. The case-sensitive counterpart is
@@ -1158,7 +1174,7 @@ Per-driver implementation mirrors [`icontains`](#icontains); on
 ClickHouse, `startsWithCaseInsensitive()` is used. An empty pattern
 matches every non-NULL row.
 
-### `endswith`
+#### `endswith`
 
 `endswith(col, str)` is true when `col` ends with `str`. Matching is always
 case-sensitive. See [`contains`](#contains) for the per-driver mechanism
@@ -1172,7 +1188,7 @@ For case-insensitive matching, use [`iendswith`](#iendswith). For
 matching user-controlled wildcard patterns (where `%` and `_` are
 significant), use [`like`](#like) / [`ilike`](#ilike).
 
-### `iendswith`
+#### `iendswith`
 
 `iendswith(col, str)` is true when `col` ends with `str`,
 **case-insensitively**. The case-sensitive counterpart is
@@ -1187,7 +1203,7 @@ Per-driver implementation mirrors [`icontains`](#icontains); on
 ClickHouse, `endsWithCaseInsensitive()` is used. An empty pattern
 matches every non-NULL row.
 
-### `like`
+#### `like`
 
 `like(col, pattern)` exposes raw `LIKE`-pattern matching, where `%`
 matches any sequence and `_` matches any single character. Unlike
@@ -1235,7 +1251,7 @@ non-NULL row, in contrast with [`contains`](#contains)`(.col, "")`.
 That difference is intentional and matches standard SQL `LIKE`
 semantics.
 
-#### Column as pattern
+##### Column as pattern
 
 The pattern argument can be a column selector instead of a quoted
 string literal, enabling column-vs-column matching:
@@ -1259,7 +1275,7 @@ time over a known string; extending it to a column RHS would require
 emitting per-driver SQL-level escaping (e.g. nested `REPLACE` chains)
 that's out of scope for v1.
 
-### `ilike`
+#### `ilike`
 
 `ilike(col, pattern)` is the case-insensitive counterpart to
 [`like`](#like). `%` and `_` are wildcards in `pattern` and are not
@@ -1284,9 +1300,9 @@ for escape behavior and [Column as pattern](#column-as-pattern) for
 column-RHS semantics. For literal `%` / `_` matching, use
 [`icontains`](#icontains), which auto-escapes wildcards.
 
-## Other functions
+### Other functions
 
-### `catalog`
+#### `catalog`
 
 `catalog` returns the default [catalog](/docs/concepts#schema--catalog) of the DB connection.
 See also: [`schema`](#schema).
@@ -1318,7 +1334,7 @@ However, not every driver supports the catalog mechanism fully.
   than return `NULL` or an empty string, `sq`'s SQLite driver chooses to implement `catalog()`
   by returning the string `default`.
 
-### `schema`
+#### `schema`
 
 `schema` returns the default [schema](/docs/concepts#schema--catalog) of the DB connection.
 See also: [`catalog`](#catalog).
@@ -1353,7 +1369,7 @@ schema()
 dbo
 ```
 
-### `rownum`
+#### `rownum`
 
 `rownum` returns the one-indexed row number of the current row.
 
@@ -1388,7 +1404,7 @@ index  first_name
 2       AL
 ```
 
-## Proprietary functions
+### Proprietary functions
 
 The standard functions listed above are all _portable_: that is to say, they
 behave (more or less) the same whether the backing DB is Postgres, MySQL, etc.
