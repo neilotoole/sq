@@ -1106,3 +1106,55 @@ func TestCmdConfigKeyringPrune_DryRun(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "stale", v)
 }
+
+// TestCmdConfigKeyringPrune_WriterError exercises the errz.Append branch
+// where the output writer itself fails. The command must surface the writer
+// error even when no individual deletion failed.
+//
+// The test pre-populates tr.Run.Writers with an erroring stub before calling
+// Exec. preRun skips writer initialization when Writers is non-nil (see
+// cli/run.go), so the stub is preserved through command execution. The prune
+// command accesses only ru.Writers.Keyring, so nil values in the other
+// Writers fields do not cause a panic.
+//
+// Note on Delete seam: forcing kr.Delete to fail is not cleanly testable via
+// the zalando/go-keyring mock. MockInit installs an in-memory map backend;
+// Delete on a present key always succeeds, and Store.Delete treats not-found
+// as success explicitly. Adding a seam for a forced Delete failure would
+// require production code changes purely for testing, so the partial-delete-
+// failure path is not tested at the kr.Delete level.
+func TestCmdConfigKeyringPrune_WriterError(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	kr := keyring.NewStore()
+	require.NoError(t, kr.Set(th.Context, "orphan23456", "stale"))
+
+	// Pre-populate Writers with a stub so preRun skips writer
+	// initialization. Only Keyring needs to be set; the prune
+	// command touches no other writer field.
+	tr.Run.Writers = &output.Writers{Keyring: &failingKeyringWriter{}}
+
+	err := tr.Exec("config", "keyring", "prune")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "simulated prune writer failure")
+}
+
+// failingKeyringWriter is a KeyringWriter stub whose Prune always errors,
+// used by TestCmdConfigKeyringPrune_WriterError.
+type failingKeyringWriter struct{}
+
+func (w *failingKeyringWriter) List(_ []output.KeyringRef) error { return nil }
+func (w *failingKeyringWriter) Get(_, _ string, _ bool) error    { return nil }
+func (w *failingKeyringWriter) Created(_ string) error           { return nil }
+func (w *failingKeyringWriter) Updated(_ string) error           { return nil }
+func (w *failingKeyringWriter) Rm(_ string) error                { return nil }
+
+func (w *failingKeyringWriter) Migrate(_ []output.KeyringMigrateRow, _ bool) error {
+	return nil
+}
+
+func (w *failingKeyringWriter) Prune(_ []output.KeyringPruneRow, _ bool) error {
+	return errz.New("simulated prune writer failure")
+}

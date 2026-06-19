@@ -83,11 +83,10 @@ func execConfigKeyringPrune(cmd *cobra.Command, _ []string) error {
 		rows = append(rows, row)
 	}
 
-	if writeErr := ru.Writers.Keyring.Prune(rows, dryRun); writeErr != nil {
-		return writeErr
-	}
+	writeErr := ru.Writers.Keyring.Prune(rows, dryRun)
+	var summaryErr error
 	if failed > 0 {
-		return errz.Errorf("failed to delete %d of %d orphaned keyring entries", failed, len(orphans))
+		summaryErr = errz.Errorf("failed to delete %d of %d orphaned keyring entries", failed, len(orphans))
 	}
-	return nil
+	return errz.Append(writeErr, summaryErr)
 }
