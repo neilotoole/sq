@@ -1169,9 +1169,6 @@ func PathFromLocation(src *source.Source) (string, error) {
 		return "", errz.Errorf("sqlite3 source location is too short: %s", src.RedactedLocation())
 	}
 
-	// Recover the OS path from the URI path: "/C:/x" -> "C:/x" on Windows.
-	// No-op on Unix and for non-volume paths.
-	loc = ioz.FilePathFromURI(loc)
 	return filepath.Clean(loc), nil
 }
 

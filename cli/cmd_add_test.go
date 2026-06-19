@@ -19,11 +19,14 @@ import (
 
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/testrun"
+	"github.com/neilotoole/sq/drivers/sqlite3"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -1000,6 +1003,19 @@ func TestCmdAdd_SQLiteLocation_RawDollarDollar(t *testing.T) {
 
 	err := tr.Exec("add", "sqlite3:"+fpath,
 		"--handle", "@sl_raw_dollar", "--driver", "sqlite3", "--skip-verify")
+
+	// DIAGNOSTIC (temporary, gh #797): on Windows the guard didn't fire.
+	// Reproduce the add-time path computation via exported funcs so the CI
+	// log shows where it diverges. These lines surface only when the
+	// require.Error below fails (i.e. on the Windows full suite).
+	munged, mErr := location.MungeForDriver(drivertype.SQLite, "sqlite3:"+fpath)
+	extracted, pErr := sqlite3.PathFromLocation(&source.Source{Type: drivertype.SQLite, Location: munged})
+	t.Logf("DIAG err=%v", err)
+	t.Logf("DIAG fpath=%q exists=%v", fpath, ioz.IsPathToRegularFile(fpath))
+	t.Logf("DIAG munged=%q mErr=%v", munged, mErr)
+	t.Logf("DIAG extracted=%q pErr=%v typedExists=%v interpretedExists=%v",
+		extracted, pErr, ioz.IsPathToRegularFile(extracted), ioz.IsPathToRegularFile(secret.Unescape(extracted)))
+
 	require.Error(t, err,
 		"raw '$$' sqlite path whose interpreted form doesn't exist must be rejected at add time")
 	require.Contains(t, err.Error(), "$$")

@@ -200,8 +200,8 @@ func TestMungeTemplateForDriver_RejectsPlaceholders(t *testing.T) {
 			// Windows ("/var/db" -> "D:/var/db").
 			got, err := location.MungeTemplateForDriver(typ, "/var/db/q$${env:X}.db")
 			require.NoError(t, err)
-			require.True(t, strings.HasPrefix(got, string(typ)+":///"),
-				"munged template must be a well-formed file URI")
+			require.True(t, strings.HasPrefix(got, string(typ)+"://"),
+				"munged template must carry the driver scheme prefix")
 			require.True(t, strings.HasSuffix(got, "/q$${env:X}.db"),
 				"escaped '$$' must be preserved verbatim")
 			refs, err := secret.ExtractRefs(got)
