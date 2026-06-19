@@ -130,7 +130,9 @@ func execConfigKeyringMigrate(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		if !ok {
-			return nil
+			// Declining is a deliberate non-success: nothing is migrated, so
+			// exit non-zero (like apt/dnf "Abort.") rather than report success.
+			return errz.New("migration cancelled")
 		}
 	}
 

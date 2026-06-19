@@ -1167,9 +1167,11 @@ func TestCmdConfigKeyringMigrate_PromptAbort(t *testing.T) {
 
 	// Answer "no" at the prompt.
 	tr.PipeStdin("n\n")
-	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all"))
+	execErr := tr.Exec("config", "keyring", "migrate", "--all")
+	require.Error(t, execErr, "declining must exit non-zero")
+	require.Contains(t, execErr.Error(), "cancelled")
 
-	// Abort is not an error; the source Location must be unchanged.
+	// Declining changes nothing; the source Location must be unchanged.
 	src, err := tr.Run.Config.Collection.Get("@pa_src")
 	require.NoError(t, err)
 	require.Equal(t, origLoc, src.Location, "abort must not modify the Location")
@@ -1196,9 +1198,10 @@ func TestCmdConfigKeyringMigrate_PromptProceedEmptyAborts(t *testing.T) {
 		Location: origLoc,
 	})
 
-	// Empty input (just Enter) should default to "no".
+	// Empty input (just Enter) defaults to "no", which cancels (non-zero).
 	tr.PipeStdin("\n")
-	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all"))
+	execErr := tr.Exec("config", "keyring", "migrate", "--all")
+	require.Error(t, execErr, "empty Enter (default no) must exit non-zero")
 
 	src, err := tr.Run.Config.Collection.Get("@pe_src")
 	require.NoError(t, err)
