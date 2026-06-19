@@ -83,6 +83,33 @@ func TestKeyringWriter_Migrate_RowFormatting(t *testing.T) {
 	}
 }
 
+// TestKeyringWriter_Migrate_Colorized verifies the color scheme renders:
+// migrate is green, a failed status is red, and a skipped row is muted in
+// full (handle and status both faint).
+func TestKeyringWriter_Migrate_Colorized(t *testing.T) {
+	pr := output.NewPrinting()
+	pr.EnableColor(true)
+	pr.Verbose = true // render skip rows too
+
+	// Guard: the assertions below are meaningless unless color is actually on.
+	require.NotEqual(t, "migrate", pr.Enabled.Sprint("migrate"),
+		"color must be enabled for this test to verify anything")
+
+	var buf bytes.Buffer
+	w := tablew.NewKeyringWriter(&buf, pr)
+	require.NoError(t, w.Migrate([]output.KeyringMigrateRow{
+		{Handle: "@pg", Status: output.KeyringMigrateStatusPlanned},
+		{Handle: "@csv", Status: output.KeyringMigrateStatusSkip, Reason: "not a URL"},
+		{Handle: "@bad", Status: output.KeyringMigrateStatusFailed, Error: "boom"},
+	}, true))
+	out := buf.String()
+
+	require.Contains(t, out, pr.Enabled.Sprint("migrate"), "migrate status must be green")
+	require.Contains(t, out, pr.Error.Sprint("failed"), "failed status must be red")
+	require.Contains(t, out, pr.Faint.Sprint("skip"), "skip status must be muted")
+	require.Contains(t, out, pr.Faint.Sprint("@csv"), "skip row's handle must be muted too")
+}
+
 // TestKeyringWriter_Prune_RowFormatting pins the text-mode output shape
 // for each KeyringPruneRow status. Without this test, a regression that
 // drops the status word or kind suffix from any branch (planned/deleted/
@@ -102,7 +129,7 @@ func TestKeyringWriter_Prune_RowFormatting(t *testing.T) {
 				Kind:   output.KeyringKindID,
 				Status: output.KeyringPruneStatusPlanned,
 			},
-			contains: []string{"would delete", "m4n8k2pxtz", "(id)"},
+			contains: []string{"delete", "m4n8k2pxtz", "id"},
 		},
 		{
 			name:   "deleted",
@@ -112,7 +139,7 @@ func TestKeyringWriter_Prune_RowFormatting(t *testing.T) {
 				Kind:   output.KeyringKindNamed,
 				Status: output.KeyringPruneStatusDeleted,
 			},
-			contains: []string{"deleted", "named_orphan", "(named)"},
+			contains: []string{"deleted", "named_orphan", "named"},
 		},
 		{
 			name:   "failed",
@@ -123,7 +150,7 @@ func TestKeyringWriter_Prune_RowFormatting(t *testing.T) {
 				Status: output.KeyringPruneStatusFailed,
 				Error:  "keychain locked",
 			},
-			contains: []string{"FAIL", "bad_entry", "(named)", "keychain locked"},
+			contains: []string{"failed", "bad_entry", "named", "keychain locked"},
 		},
 	}
 	for _, tc := range tests {

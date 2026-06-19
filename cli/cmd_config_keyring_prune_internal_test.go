@@ -56,5 +56,5 @@ func TestPruneOrphans_DeleteFailure(t *testing.T) {
 
 	out := buf.String()
 	require.Contains(t, out, "boom123456")
-	require.Contains(t, out, "FAIL")
+	require.Contains(t, out, "failed")
 }

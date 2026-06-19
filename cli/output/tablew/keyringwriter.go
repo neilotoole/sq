@@ -71,27 +71,49 @@ func (w *keyringWriter) Rm(_ string) error {
 	return nil
 }
 
-// Prune implements output.KeyringWriter.
+// Prune implements output.KeyringWriter. It renders an aligned table of the
+// orphaned entries (PATH / KIND / STATUS). When there are none, it prints a
+// short message instead of an empty table.
 func (w *keyringWriter) Prune(rows []output.KeyringPruneRow, _ bool) error {
-	for _, r := range rows {
-		path := w.pr.String.Sprint(r.Path)
-		kind := w.pr.Faint.Sprint("(" + r.Kind + ")")
-		var line string
-		switch r.Status {
-		case output.KeyringPruneStatusPlanned:
-			line = fmt.Sprintf("%s  %s  %s\n", w.pr.Faint.Sprint("would delete"), path, kind)
-		case output.KeyringPruneStatusDeleted:
-			line = fmt.Sprintf("%s  %s  %s\n", w.pr.Enabled.Sprint("deleted"), path, kind)
-		case output.KeyringPruneStatusFailed:
-			line = fmt.Sprintf("%s  %s  %s  %s\n", w.pr.Error.Sprint("FAIL"), path, kind, r.Error)
-		default:
-			line = path + "  " + r.Status + "\n"
-		}
-		if _, err := fmt.Fprint(w.out, line); err != nil {
-			return errz.Err(err)
-		}
+	if len(rows) == 0 {
+		_, err := fmt.Fprint(w.out, w.pr.Faint.Sprint("No orphaned entries to prune.\n"))
+		return errz.Err(err)
 	}
-	return nil
+
+	w.tbl.reset()
+	tblRows := make([][]string, 0, len(rows))
+	for _, r := range rows {
+		// Pre-color per row: the action status is green, a failure is red,
+		// and the KIND is muted as supplementary info.
+		status := pruneStatusCell(r)
+		if r.Status == output.KeyringPruneStatusFailed {
+			status = w.pr.Error.Sprint(status)
+		} else {
+			status = w.pr.Enabled.Sprint(status)
+		}
+		tblRows = append(tblRows, []string{w.pr.String.Sprint(r.Path), w.pr.Faint.Sprint(r.Kind), status})
+	}
+	w.tbl.tblImpl.SetHeader([]string{"PATH", "KIND", "STATUS"})
+	return w.tbl.appendRowsAndRenderAll(context.TODO(), tblRows)
+}
+
+// pruneStatusCell returns the STATUS cell for a prune row: "delete" for a
+// dry-run plan, "deleted" for a removed entry, or "failed: <error>" for a
+// deletion that failed.
+func pruneStatusCell(r output.KeyringPruneRow) string {
+	switch r.Status {
+	case output.KeyringPruneStatusPlanned:
+		return "delete"
+	case output.KeyringPruneStatusDeleted:
+		return "deleted"
+	case output.KeyringPruneStatusFailed:
+		if r.Error != "" {
+			return "failed: " + r.Error
+		}
+		return "failed"
+	default:
+		return r.Status
+	}
 }
 
 // Migrate implements output.KeyringWriter. It renders an aligned table.
@@ -129,28 +151,28 @@ func (w *keyringWriter) Migrate(rows []output.KeyringMigrateRow, _ bool) error {
 	w.tbl.reset()
 	tblRows := make([][]string, 0, len(display))
 	for _, r := range display {
-		tblRows = append(tblRows, []string{r.Handle, migrateStatusLabel(r.Status), migrateDetail(r)})
+		handle, status, detail := w.colorMigrateRow(r)
+		tblRows = append(tblRows, []string{handle, status, detail})
 	}
 	w.tbl.tblImpl.SetHeader([]string{"HANDLE", "STATUS", "DETAIL"})
-	w.tbl.tblImpl.SetColTrans(0, w.pr.Handle.SprintFunc())
-	w.tbl.tblImpl.SetColTrans(1, w.migrateStatusTrans)
-	w.tbl.tblImpl.SetColTrans(2, w.pr.Faint.SprintFunc())
 	return w.tbl.appendRowsAndRenderAll(context.TODO(), tblRows)
 }
 
-// migrateStatusTrans colors a migrate STATUS cell by its value. Its
-// signature matches the table writer's textTransFunc (func(...any) string).
-func (w *keyringWriter) migrateStatusTrans(a ...any) string {
-	s := fmt.Sprint(a...)
-	switch s {
-	case "migrate", "migrated":
-		return w.pr.Enabled.Sprint(s)
-	case "failed":
-		return w.pr.Error.Sprint(s)
-	case "skip":
-		return w.pr.Faint.Sprint(s)
-	default:
-		return s
+// colorMigrateRow pre-colors a migrate row's cells. A skipped row is muted in
+// full (it's benign and should recede behind the actionable rows); a
+// migrate/migrated row gets a green status with a muted detail; a failed row
+// gets a red status and error. Pre-coloring (rather than a column transform)
+// is what lets the whole skip row be dimmed, and it stays aligned because the
+// table measures column width with ANSI codes stripped.
+func (w *keyringWriter) colorMigrateRow(r output.KeyringMigrateRow) (handle, status, detail string) {
+	handle, status, detail = r.Handle, migrateStatusLabel(r.Status), migrateDetail(r)
+	switch r.Status {
+	case output.KeyringMigrateStatusSkip:
+		return w.pr.Faint.Sprint(handle), w.pr.Faint.Sprint(status), w.pr.Faint.Sprint(detail)
+	case output.KeyringMigrateStatusFailed:
+		return w.pr.Handle.Sprint(handle), w.pr.Error.Sprint(status), w.pr.Error.Sprint(detail)
+	default: // planned, migrated
+		return w.pr.Handle.Sprint(handle), w.pr.Enabled.Sprint(status), w.pr.Faint.Sprint(detail)
 	}
 }
 

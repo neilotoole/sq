@@ -1503,9 +1503,9 @@ func TestCmdConfigKeyringPrune_DeletesOrphans(t *testing.T) {
 	require.NoError(t, tr.Exec("config", "keyring", "prune"))
 
 	out := tr.Out.String()
-	// Output must label both the opaque-ID and named-kind orphans.
-	require.Contains(t, out, "(id)")
-	require.Contains(t, out, "(named)")
+	// Output must label both the opaque-ID and named-kind orphans (KIND column).
+	require.Contains(t, out, "id")
+	require.Contains(t, out, "named")
 
 	// Referenced entry survives.
 	v, err := kr.Resolve(th.Context, "keep1234567")
@@ -1517,6 +1517,24 @@ func TestCmdConfigKeyringPrune_DeletesOrphans(t *testing.T) {
 	require.ErrorIs(t, err, secret.ErrNotFound)
 	_, err = kr.Resolve(th.Context, "named_orphan")
 	require.ErrorIs(t, err, secret.ErrNotFound)
+}
+
+// TestCmdConfigKeyringPrune_NothingToPrune verifies that with no orphans,
+// prune reports it rather than printing an empty table.
+func TestCmdConfigKeyringPrune_NothingToPrune(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	// A referenced entry exists, but nothing is orphaned.
+	require.NoError(t, keyring.NewStore().Set(th.Context, "keep7654321", "live"))
+	tr.Add(source.Source{
+		Handle:   "@keep2",
+		Type:     drivertype.Pg,
+		Location: "${keyring:keep7654321}",
+	})
+
+	require.NoError(t, tr.Exec("config", "keyring", "prune"))
+	require.Contains(t, tr.Out.String(), "No orphaned entries to prune")
 }
 
 func TestCmdConfigKeyringPrune_DryRun(t *testing.T) {
