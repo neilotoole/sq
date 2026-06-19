@@ -46,9 +46,15 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   - Uses an embedded [Graphviz](https://graphviz.org) engine (via
     [goccy/go-graphviz](https://github.com/goccy/go-graphviz)): the generated images are
     not the prettiest, but it's a start.
+- [#846]: New [`format.decimal`](https://sq.io/docs/output#decimal) option
+  and `--format.decimal` flag (`string` | `number`) controlling whether decimal
+  values render as quoted strings or bare numbers in JSON and YAML output.
 
 ### Changed
 
+- [#846]: YAML now renders decimal values as quoted strings by default, matching
+  JSON and keeping precision for values beyond float64 range. Set
+  `format.decimal=number` to restore bare numbers.
 - ☢️ [#594]: [`avg()`](https://sq.io/docs/query#avg) now returns a consistent `float`
   on every SQL driver.
   - Previously the result type varied by backend (a float on
@@ -1764,6 +1770,7 @@ make working with lots of sources much easier.
 [#834]: https://github.com/neilotoole/sq/issues/834
 [#839]: https://github.com/neilotoole/sq/issues/839
 [#844]: https://github.com/neilotoole/sq/issues/844
+[#846]: https://github.com/neilotoole/sq/issues/846
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3

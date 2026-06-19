@@ -46,7 +46,7 @@ func (w *recordWriter) Open(_ context.Context, recMeta record.Meta) error {
 	w.recMeta = recMeta
 	w.fieldNames = w.recMeta.MungedNames()
 	w.buf = &bytes.Buffer{}
-	w.enc = goccy.NewEncoder(io.Discard, decimalMarshaler)
+	w.enc = goccy.NewEncoder(io.Discard, newDecimalMarshaler(w.pr.DecimalAsNumber))
 	w.clrs = make([]*color.Color, len(w.recMeta))
 	w.keys = make([]string, len(w.recMeta))
 	w.null = w.pr.Null.Sprint("null")

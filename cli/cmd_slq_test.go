@@ -938,3 +938,27 @@ func TestCmdSLQ_Insert_FromReadOnlySource(t *testing.T) {
 	require.NoError(t, tr.Exec("slq", "--insert="+dest.Handle+"."+destTbl, src.Handle+".actor"),
 		"insert from a read-only source must open the source read-only and succeed")
 }
+
+func TestCmdSLQ_FormatDecimal(t *testing.T) {
+	t.Parallel()
+
+	t.Run("default_string", func(t *testing.T) {
+		t.Parallel()
+		th := testh.New(t)
+		src := th.Source(sakila.SL3)
+		tr := testrun.New(th.Context, t, nil).Add(*src)
+		require.NoError(t, tr.Exec("slq", "--format=json", "--compact", ".actor | sum(.actor_id)"))
+		require.Contains(t, tr.Out.String(), `:"20100"}`)
+	})
+
+	t.Run("number", func(t *testing.T) {
+		t.Parallel()
+		th := testh.New(t)
+		src := th.Source(sakila.SL3)
+		tr := testrun.New(th.Context, t, nil).Add(*src)
+		require.NoError(t, tr.Exec("slq", "--format=json", "--compact", "--format.decimal=number", ".actor | sum(.actor_id)"))
+		out := tr.Out.String()
+		require.Contains(t, out, ":20100}")
+		require.NotContains(t, out, `"20100"`)
+	})
+}

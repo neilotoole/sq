@@ -179,6 +179,11 @@ type Printing struct {
 	// rendered as naked numbers (instead of as a string) if possible.
 	// See cli.OptDateFormatAsNumber.
 	FormatDateAsNumber bool
+
+	// DecimalAsNumber renders decimal values as bare numbers rather than
+	// quoted strings, in formats that distinguish the two (JSON, YAML).
+	// See cli.OptFormatDecimal and issue #846.
+	DecimalAsNumber bool
 }
 
 // NewPrinting returns a Printing instance. Color and pretty-print
@@ -197,6 +202,7 @@ func NewPrinting() *Printing {
 		FormatTimeAsNumber:     false,
 		FormatDate:             timez.FormatFunc(timez.DefaultDate),
 		FormatDateAsNumber:     false,
+		DecimalAsNumber:        false,
 		monochrome:             false,
 		Indent:                 "  ",
 		Active:                 color.New(color.FgGreen, color.Bold),
@@ -250,6 +256,7 @@ func (pr *Printing) Clone() *Printing {
 		FormatTimeAsNumber:     pr.FormatTimeAsNumber,
 		FormatDate:             pr.FormatDate,
 		FormatDateAsNumber:     pr.FormatDateAsNumber,
+		DecimalAsNumber:        pr.DecimalAsNumber,
 		ExcelDatetimeFormat:    pr.ExcelDatetimeFormat,
 		ExcelDateFormat:        pr.ExcelDateFormat,
 		ExcelTimeFormat:        pr.ExcelTimeFormat,

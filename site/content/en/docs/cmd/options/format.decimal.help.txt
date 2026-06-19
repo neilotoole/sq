@@ -1,0 +1,15 @@
+Usage:
+  sq config set format.decimal string
+
+Controls how decimal values render in output formats that distinguish a number
+from a string (JSON and YAML). "string" (the default) emits a quoted string,
+which is precision-safe for values beyond float64 range. "number" emits a bare
+number, which is convenient for jq-style consumers but lossy on read for very
+large values. XLSX always stores decimals adaptively and is unaffected; all-text
+formats such as CSV are no-ops.
+
+  format.decimal=string
+  [{"total":"20100"}]
+  format.decimal=number
+  [{"total":20100}]
+
