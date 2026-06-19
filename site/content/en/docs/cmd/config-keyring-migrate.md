@@ -81,12 +81,13 @@ applies directly.
 
 ## How changes are applied
 
-Sources are migrated one at a time: mint an ID, write the keyring entry,
-rewrite the source's `location`, and save `sq.yml`. If saving fails for a
-source, `migrate` rolls that source back, restoring its original `location` and
-deleting the keyring entry it just wrote, then reports the source as failed and
-continues with the rest. A run that hits a failure still reports which sources
-succeeded, and exits non-zero.
+`migrate` runs under a config lock (so it won't race another `sq` process) and
+is atomic: a `--all` run either migrates every eligible source or changes
+nothing. It writes each source's keyring entry and rewrites its `location` in
+memory, then saves `sq.yml` once for the whole batch. If any step fails, the
+run is rolled back: every keyring entry it wrote is deleted, every `location`
+is restored, `sq.yml` is left untouched, and the command exits non-zero. A
+failed migration never leaves your config half-converted.
 
 ## Reference
 
