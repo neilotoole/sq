@@ -12,6 +12,7 @@ import (
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -119,7 +120,15 @@ func (p *pipeline) execute(ctx context.Context, recw RecordWriter) error {
 		}
 	}
 
-	if err := QuerySQL(ctx, p.targetGrip, conn, recw, p.targetSQL); err != nil {
+	// Pass any result-column kind hints recorded during rendering (e.g.
+	// SQLite/rqlite pinning sum() to kind.Decimal) so the driver can apply them
+	// when building record metadata. See issues #839 and #848.
+	var hints map[int]kind.Kind
+	if p.rc != nil {
+		hints = p.rc.ResultColumnKinds
+	}
+
+	if err := QuerySQL(ctx, p.targetGrip, conn, recw, hints, p.targetSQL); err != nil {
 		return err
 	}
 
@@ -200,7 +209,7 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 	}
 
 	// At this point, src is non-nil.
-	if p.targetGrip, err = p.qc.Grips.Open(ctx, src); err != nil {
+	if p.targetGrip, err = p.qc.Grips.Open(ctx, src, p.qc.openModeFor(src.Handle)); err != nil {
 		return err
 	}
 
@@ -232,7 +241,7 @@ func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelector
 		return "", nil, err
 	}
 
-	fromGrip, err = p.qc.Grips.Open(ctx, src)
+	fromGrip, err = p.qc.Grips.Open(ctx, src, p.qc.openModeFor(src.Handle))
 	if err != nil {
 		return "", nil, err
 	}
@@ -325,7 +334,7 @@ func (p *pipeline) joinSingleSource(ctx context.Context, jc *joinClause) (fromCl
 		return "", nil, err
 	}
 
-	fromGrip, err = p.qc.Grips.Open(ctx, src)
+	fromGrip, err = p.qc.Grips.Open(ctx, src, p.qc.openModeFor(src.Handle))
 	if err != nil {
 		return "", nil, err
 	}
@@ -458,7 +467,7 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 			return "", nil, err
 		}
 		var db driver.Grip
-		if db, err = p.qc.Grips.Open(ctx, src); err != nil {
+		if db, err = p.qc.Grips.Open(ctx, src, p.qc.openModeFor(src.Handle)); err != nil {
 			return "", nil, err
 		}
 
@@ -545,7 +554,7 @@ func execCopyTable(ctx context.Context, fromDB driver.Grip, fromTbl tablefq.T,
 	)
 
 	query := "SELECT * FROM " + fromTbl.Render(fromDB.SQLDriver().Dialect().Enquote)
-	err := QuerySQL(ctx, fromDB, nil, inserter, query)
+	err := QuerySQL(ctx, fromDB, nil, inserter, nil, query)
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destGrip.Source().Handle, destTbl)
 	}

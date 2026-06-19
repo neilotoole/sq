@@ -49,6 +49,45 @@ func TestExtractTableIdentFromCreateTableStmt(t *testing.T) {
 			wantRawSchema: `"sak ila"`,
 			wantRawTable:  `"actor"`,
 		},
+		{
+			// Single-quoted table name: the lexer tokenizes 'actor' as
+			// STRING_LITERAL, not IDENTIFIER, but SQLite accepts this
+			// form in DDL. See issue #789.
+			in:           `CREATE TABLE 'actor' ( actor_id INTEGER NOT NULL)`,
+			wantTable:    "actor",
+			wantRawTable: `'actor'`,
+		},
+		{
+			in:            `CREATE TABLE 'main'.'actor' ( actor_id INTEGER NOT NULL)`,
+			wantSchema:    "main",
+			wantTable:     "actor",
+			wantRawSchema: `'main'`,
+			wantRawTable:  `'actor'`,
+		},
+		{
+			in:           "CREATE TABLE `actor` ( actor_id INTEGER NOT NULL)",
+			wantTable:    "actor",
+			wantRawTable: "`actor`",
+		},
+		{
+			// A bare keyword lexes as its keyword token, not IDENTIFIER,
+			// and reaches table_name via any_name's keyword alternative.
+			in:           `CREATE TABLE replace ( actor_id INTEGER NOT NULL)`,
+			wantTable:    "replace",
+			wantRawTable: "replace",
+		},
+		{
+			// Doubled escape quotes must collapse: DDL "my""tbl" denotes
+			// a table literally named my"tbl. See issue #789.
+			in:           `CREATE TABLE "my""tbl" ( actor_id INTEGER NOT NULL)`,
+			wantTable:    `my"tbl`,
+			wantRawTable: `"my""tbl"`,
+		},
+		{
+			in:           `CREATE TABLE 'my''tbl' ( actor_id INTEGER NOT NULL)`,
+			wantTable:    `my'tbl`,
+			wantRawTable: `'my''tbl'`,
+		},
 	}
 
 	for i, tc := range testCases {
@@ -171,6 +210,55 @@ func TestExtractCreateTableStmtColDefs_QuotedIdentifiers(t *testing.T) {
 			require.Len(t, colDefs, 1)
 			require.Equal(t, tc.wantRawName, colDefs[0].RawName)
 			require.Equal(t, "age", colDefs[0].Name)
+		})
+	}
+}
+
+// TestExtractCreateTableStmtColDefs_EscapedQuotes verifies that ColDef.Name
+// collapses doubled escape quotes inside quoted column names: DDL "my""col"
+// denotes a column literally named my"col, and similarly for single quotes
+// and backticks. Square brackets have no escape mechanism in SQLite, so
+// bracket content is taken verbatim. See issue #789.
+func TestExtractCreateTableStmtColDefs_EscapedQuotes(t *testing.T) {
+	testCases := []struct {
+		name        string
+		stmt        string
+		wantRawName string
+		wantName    string
+	}{
+		{
+			name:        "double_quote_escaped",
+			stmt:        `CREATE TABLE t ("my""col" INTEGER NOT NULL)`,
+			wantRawName: `"my""col"`,
+			wantName:    `my"col`,
+		},
+		{
+			name:        "single_quote_escaped",
+			stmt:        `CREATE TABLE t ('my''col' INTEGER NOT NULL)`,
+			wantRawName: `'my''col'`,
+			wantName:    `my'col`,
+		},
+		{
+			name:        "backtick_escaped",
+			stmt:        "CREATE TABLE t (`my``col` INTEGER NOT NULL)",
+			wantRawName: "`my``col`",
+			wantName:    "my`col",
+		},
+		{
+			name:        "bracket_content_verbatim",
+			stmt:        `CREATE TABLE t ([my"col] INTEGER NOT NULL)`,
+			wantRawName: `[my"col]`,
+			wantName:    `my"col`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			colDefs, err := sqlparser.ExtractCreateTableStmtColDefs(tc.stmt)
+			require.NoError(t, err)
+			require.Len(t, colDefs, 1)
+			require.Equal(t, tc.wantRawName, colDefs[0].RawName)
+			require.Equal(t, tc.wantName, colDefs[0].Name)
 		})
 	}
 }

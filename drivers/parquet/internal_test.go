@@ -107,7 +107,7 @@ func TestGripSourceMetadata_NonHTTPRemote(t *testing.T) {
 		Handle:   "@remote_pq",
 		Location: "duckdb://:memory:",
 	}
-	dbGrip, err := drvr.Open(ctx, memSrc)
+	dbGrip, err := drvr.Open(ctx, memSrc, driver.ModeReadWrite)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = dbGrip.Close() })
 

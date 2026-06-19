@@ -3,7 +3,9 @@ package yamlstore
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/mod/semver"
@@ -33,9 +35,22 @@ type UpgradeFunc func(ctx context.Context, before []byte) (after []byte, err err
 // UpgradeRegistry is a map of config_version to upgrade funcs.
 type UpgradeRegistry map[string]UpgradeFunc
 
-// doUpgrade runs all the registered upgrade funcs between cfg.Version
-// and targetVersion. Typically this is checked by Load, but can be
-// explicitly invoked for testing etc.
+// doUpgrade runs the registered upgrade funcs in the half-open range
+// (startVersion, targetVersion], then stamps config.version with
+// targetVersion. Load passes the highest version in the UpgradeRegistry
+// (the config schema version) as targetVersion, so config.version
+// advances only when a registered upgrade func transforms the config,
+// never to the sq binary version.
+//
+// If no upgrade func falls in the range, doUpgrade performs no upgrade
+// (no upgrade-func transformation, no version stamping, no backup) and
+// just loads the config; the load may still rewrite the file if it
+// triggers an integrity repair (see doLoad). From Load this branch is
+// never reached (it calls doUpgrade only when foundVersion <
+// targetVersion, and targetVersion is itself a registry key, so it is
+// always in range); the guard matters only for a direct caller passing a
+// target with no funcs in range, where the not-byte-preserving upgrade
+// rewrite must be avoided.
 func (fs *Store) doUpgrade(ctx context.Context, startVersion, targetVersion string) (*config.Config, error) {
 	log := lg.FromContext(ctx)
 	log.Debug("Starting config upgrade", lga.From, startVersion, lga.To, targetVersion)
@@ -44,11 +59,26 @@ func (fs *Store) doUpgrade(ctx context.Context, startVersion, targetVersion stri
 		return nil, errz.Errorf("invalid semver for config version {%s}", targetVersion)
 	}
 
-	var err error
 	upgradeFns := fs.UpgradeRegistry.getUpgradeFuncs(startVersion, targetVersion)
+	if len(upgradeFns) == 0 {
+		log.Debug("No config upgrade funcs to run; no upgrade performed")
+		return fs.doLoad(ctx)
+	}
 
 	data, err := os.ReadFile(fs.Path)
 	if err != nil {
+		return nil, errz.Wrapf(err, "config: failed to read file for upgrade: %s", fs.Path)
+	}
+
+	// Write a verbatim backup before the upgrade funcs transform the
+	// config, unless a backup for startVersion already exists (a
+	// repeated upgrade from the same version would back up identical
+	// content, and an existing file may be the downgrade guard's
+	// pristine copy of a newer config). Abort rather than continue
+	// without a backup: the point of the backup is guaranteed
+	// recoverability, and if a sibling file can't be written, rewriting
+	// the config itself is unlikely to go better.
+	if _, err = fs.writeConfigBackupOnce(ctx, startVersion, data); err != nil {
 		return nil, err
 	}
 
@@ -82,6 +112,23 @@ func (fs *Store) doUpgrade(ctx context.Context, startVersion, targetVersion stri
 	return cfg, nil
 }
 
+// backupFilePath returns the path of the backup file for the config
+// file at cfgPath, named for the config version being backed up:
+// /path/to/sq.yml + v0.53.0 -> /path/to/sq.v0.53.0.bak.yml. It is
+// used both for pre-upgrade backups (doUpgrade) and for the downgrade
+// guard (Store.backupNewerConfig). The name deliberately does not end
+// in ".sq.yml": Store.loadExt treats any such file in the config dir
+// as ext config. Both callers write the backup at most once and never
+// overwrite an existing file: because the path is derived the same way
+// in both, an existing backup may have been written by the other
+// caller, and in particular the downgrade guard's backup holds the
+// pristine newer config that a later overwrite would destroy.
+func backupFilePath(cfgPath, fromVersion string) string {
+	base := filepath.Base(cfgPath)
+	base = strings.TrimSuffix(base, filepath.Ext(base))
+	return filepath.Join(filepath.Dir(cfgPath), fmt.Sprintf("%s.%s.bak.yml", base, fromVersion))
+}
+
 // getUpgradeFuncs returns the funcs required to upgrade from startingVersion
 // to targetVersion. We iterate over the set of registered funcs; if the
 // version (the key) is greater than startingVersion, and less than or equal
@@ -110,6 +157,21 @@ func (r UpgradeRegistry) getUpgradeFuncs(startingVersion, targetVersion string) 
 	}
 
 	return upgradeFns
+}
+
+// highestVersion returns the highest version key in the registry,
+// which is the config schema version known to this build. Keys that
+// aren't valid semver are ignored (registry keys come from
+// compile-time registration, so this is purely defensive). Returns
+// empty string if the registry is empty.
+func (r UpgradeRegistry) highestVersion() string {
+	var highest string
+	for k := range r {
+		if semver.IsValid(k) && (highest == "" || semver.Compare(k, highest) > 0) {
+			highest = k
+		}
+	}
+	return highest
 }
 
 // LoadVersionFromFile loads the version from the config file.
@@ -170,60 +232,71 @@ func LoadVersionFromFile(path string) (string, error) {
 // Note that prerelease builds (e.g., v0.0.0-dev) are exempt from this
 // check and will not trigger this error.
 //
-// IMPLEMENTATION NOTE: The current config.version mechanism is not ideal.
-// Currently, sq always stamps config.version with the sq binary version
-// after any upgrade processing. However, config.version should semantically
-// represent the config schema version - i.e., the sq version in which the
-// config schema last changed in a way that requires migration. Since schema
-// changes are infrequent (only one upgrade exists: v0.34.0), the config
-// version gets "inflated" unnecessarily. For example, a config touched by
-// sq v0.48.0 gets stamped v0.48.0, but the schema hasn't changed since
-// v0.34.0, so sq v0.47.0 should be able to read it fine. This error and
-// its graceful handling work around this design limitation.
+// Because the config was written by a newer sq version, it may contain
+// fields unknown to this build's config.Config struct, which a Save
+// would silently drop. Store.Save guards against that data loss by
+// writing a verbatim backup of the config file before its first
+// overwrite: see Store.backupNewerConfig.
+//
+// config.version is a config schema version: it identifies the sq
+// version in which the config schema last changed in a way that
+// requires migration (the highest registered UpgradeFunc version),
+// and is stamped only when an upgrade func runs. Earlier sq releases
+// instead stamped config.version with the sq binary version on every
+// release, so configs in the wild carry "inflated" versions
+// (e.g. v0.48.0 with a v0.34.0-era schema). The comparisons here
+// tolerate that: an inflated version triggers neither an upgrade nor
+// this error, as long as it doesn't exceed the build version.
 var errConfigVersionNewerThanBuild = errors.New("config: config version is newer than sq version")
 
-// checkNeedsUpgrade checks the config file's version against the current sq
-// build version and determines if the config needs to be upgraded.
+// checkNeedsUpgrade checks the config file's version against schemaVers
+// (the config schema version, i.e. the highest version in the store's
+// UpgradeRegistry) and the current sq build version, and determines if
+// the config needs to be upgraded. The caller passes schemaVers so the
+// schema version is derived once per Load and used consistently for both
+// the needsUpgrade decision and the upgrade target.
 //
 // Returns:
-//   - needsUpgrade: true if config version < build version (upgrade required)
-//   - foundVers: the semver version found in the config file
-//   - err: non-nil on version parsing errors, or errConfigVersionNewerThanBuild
-//     if config version > build version (for non-prerelease builds)
+//   - needsUpgrade: true if config version < schemaVers, i.e. at least
+//     one registered upgrade func is outstanding.
+//   - foundVers: the semver version found in the config file.
+//   - err: non-nil on version parsing errors, or
+//     errConfigVersionNewerThanBuild if config version > build version
+//     (for non-prerelease builds).
 //
-// When config version equals build version, returns (false, foundVers, nil).
-// Prerelease builds (e.g., v0.0.0-dev) are exempt from the newer-version check.
-func checkNeedsUpgrade(ctx context.Context, path string) (needsUpgrade bool, foundVers string, err error) {
-	foundVers, err = LoadVersionFromFile(path)
+// Prerelease builds (e.g., v0.0.0-dev) are exempt from the
+// newer-version check.
+func (fs *Store) checkNeedsUpgrade(
+	ctx context.Context, schemaVers string,
+) (needsUpgrade bool, foundVers string, err error) {
+	foundVers, err = LoadVersionFromFile(fs.Path)
 	if err != nil {
 		return false, "", err
 	}
 
 	lg.FromContext(ctx).Debug("Found config version in file",
-		lga.Version, foundVers, lga.Path, path)
+		lga.Version, foundVers, lga.Path, fs.Path)
 
 	if semver.Compare(foundVers, MinConfigVersion) < 0 {
 		return false, foundVers, errz.Errorf("version %q is less than minimum value %q",
 			foundVers, MinConfigVersion)
 	}
 
+	needsUpgrade = schemaVers != "" && semver.Compare(foundVers, schemaVers) < 0
+
 	buildVers := buildinfo.Version
-
-	switch semver.Compare(foundVers, buildVers) {
-	case 0:
-		// Versions are the same, nothing to do here
-		return false, foundVers, nil
-	case 1:
-		// sq version is less than config version:
-		// - user needs to upgrade sq
-		// - but we make an exception if sq is prerelease
-		if semver.Prerelease(buildVers) == "" {
-			return false, foundVers, errConfigVersionNewerThanBuild
-		}
-		return false, foundVers, nil
-
-	default:
-		// config version is less than sq version; we need to upgrade config.
-		return true, foundVers, nil
+	if semver.Compare(foundVers, buildVers) > 0 && semver.Prerelease(buildVers) == "" {
+		// The config was written by a newer sq version; the caller
+		// handles this gracefully. See errConfigVersionNewerThanBuild.
+		// Never report needsUpgrade in this case: upgrading would
+		// rewrite a config carrying fields this build can't represent,
+		// the data-loss case the downgrade guard exists to prevent. In
+		// a normal build the schema version never exceeds the build
+		// version, so needsUpgrade can't co-occur with this branch; the
+		// explicit false guards a misbuilt binary whose registry holds
+		// an upgrade key above its own version.
+		return false, foundVers, errConfigVersionNewerThanBuild
 	}
+
+	return needsUpgrade, foundVers, nil
 }

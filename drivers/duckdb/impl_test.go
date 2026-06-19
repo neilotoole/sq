@@ -12,6 +12,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
@@ -46,7 +47,7 @@ func TestPing(t *testing.T) {
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 
-	require.NoError(t, drvr.Ping(th.Context, src))
+	require.NoError(t, drvr.Ping(th.Context, src, driver.ModeReadWrite))
 }
 
 // TestValidateSource verifies that ValidateSource returns the same source

@@ -149,8 +149,9 @@ render a schema document that includes a Mermaid entity-relationship diagram;
 }
 
 func execInspect(cmd *cobra.Command, args []string) error {
-	ctx := driver.WithReadOnly(cmd.Context())
-	cmd.SetContext(ctx)
+	// inspect is wholly read-only; every open it performs passes the mode
+	// as an explicit argument.
+	ctx := cmd.Context()
 	ru, log := run.FromContext(ctx), lg.FromContext(ctx)
 
 	o, err := getOptionsFromCmd(cmd)
@@ -182,21 +183,12 @@ func execInspect(cmd *cobra.Command, args []string) error {
 	}
 
 	if srcModified {
-		if err = verifySourceCatalogSchema(ctx, ru, src); err != nil {
+		if err = verifySourceCatalogSchema(ctx, ru, src, driver.ModeReadOnly); err != nil {
 			return err
 		}
 	}
 
-	// Expand ${scheme:path} placeholders for display when --expand is
-	// set. Grips.Open does its own resolution for the connection, so
-	// passing an expanded Location is a no-op there; the value also
-	// flows into metadata.Location and is shown by the metadata writer.
-	src, err = maybeExpandSource(ctx, ru, cmd, src)
-	if err != nil {
-		return err
-	}
-
-	grip, err := ru.Grips.Open(ctx, src)
+	grip, err := ru.Grips.Open(ctx, src, driver.ModeReadOnly)
 	if err != nil {
 		return errz.Wrapf(err, "failed to inspect %s", src.Handle)
 	}
@@ -279,15 +271,19 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		return errz.Wrapf(err, "failed to read %s source metadata", src.Handle)
 	}
 
-	// Use the inspect handler's view of src.Location for display.
-	// Drivers populate srcMeta.Location from the grip's stored src,
-	// which doOpen always replaces with the resolver-expanded clone;
-	// without this override, sq inspect would always show the
-	// resolved value, leaking placeholder targets and ignoring the
-	// --expand flag. With this override, srcMeta.Location reflects
-	// the placeholder (default) or the explicitly-expanded value
-	// (when --expand is set).
+	// Reset srcMeta.Location to the stored (template) location for
+	// display. Drivers populate srcMeta.Location from the grip's stored
+	// src, which doOpen always replaces with the resolver-expanded
+	// clone; without this override, sq inspect would always show the
+	// resolved value, leaking placeholder targets. The writer layer's
+	// expand decorator (see expand_writer.go) then applies --expand
+	// expansion centrally, so the displayed value is the stored
+	// template by default, or the expanded value when --expand is set.
+	// SecretsResolved is carried so the decorator skips re-expanding an
+	// already-resolved location (e.g. a stdin source), matching the
+	// guard on the source/group/collection expand paths.
 	srcMeta.Location = src.Location
+	srcMeta.SecretsResolved = src.SecretsResolved
 
 	// This is a bit hacky, but it works... if not "--verbose", then just zap
 	// the DBVars, as we usually don't want to see those

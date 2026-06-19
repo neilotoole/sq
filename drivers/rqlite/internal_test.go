@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3" // For TestWriteAtomic_DBTypeCheck.
+	"github.com/rqlite/gorqlite"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -28,6 +30,15 @@ var (
 	KindFromDBTypeName = kindFromDBTypeName
 	RTypeNullTime      = rtypeNullTime
 )
+
+// ExecNonTx executes query as a single non-transactional request via
+// writeNonTx. Exported for external_test consumers that need to toggle
+// connection-level pragmas such as foreign_keys, which are no-ops when
+// executed through the regular transaction-wrapped write path (gh776).
+func ExecNonTx(ctx context.Context, db sqlz.DB, query string) error {
+	_, err := writeNonTx(ctx, db, gorqlite.ParameterizedStatement{Query: query})
+	return err
+}
 
 func TestPlaceholders(t *testing.T) {
 	testCases := []struct {
@@ -247,7 +258,7 @@ func TestCoerceFloat64(t *testing.T) {
 	}{
 		{name: "int_whole", knd: kind.Int, in: 42, want: int64(42)},
 		{name: "int_truncates_fraction", knd: kind.Int, in: 42.9, want: int64(42)},
-		{name: "decimal_integer_demoted", knd: kind.Decimal, in: 42, want: int64(42)},
+		{name: "decimal_integer_preserved", knd: kind.Decimal, in: 42, want: decimal.NewFromInt(42)},
 		{name: "decimal_fractional_preserved", knd: kind.Decimal, in: 19.99, want: decimal.NewFromFloat(19.99)},
 		{name: "bool_zero_false", knd: kind.Bool, in: 0, want: false},
 		{name: "bool_nonzero_true", knd: kind.Bool, in: 1, want: true},
@@ -267,27 +278,6 @@ func TestCoerceFloat64(t *testing.T) {
 			require.Equal(t, tc.want, got)
 		})
 	}
-}
-
-// TestCoerceDecimal covers the whole-number demotion that pairs with
-// coerceFloat64's kind.Decimal branch and the *decimal.NullDecimal /
-// *decimal.Decimal scan cases in newRecordFromScanRow.
-func TestCoerceDecimal(t *testing.T) {
-	t.Run("integer_demoted_to_int64", func(t *testing.T) {
-		got := coerceDecimal(decimal.NewFromInt(42))
-		require.Equal(t, int64(42), got)
-	})
-	t.Run("fractional_passthrough", func(t *testing.T) {
-		want := decimal.NewFromFloat(19.99)
-		got := coerceDecimal(want)
-		gotDec, ok := got.(decimal.Decimal)
-		require.True(t, ok, "expected decimal.Decimal, got %T", got)
-		require.True(t, want.Equal(gotDec))
-	})
-	t.Run("negative_integer_demoted", func(t *testing.T) {
-		got := coerceDecimal(decimal.NewFromInt(-7))
-		require.Equal(t, int64(-7), got)
-	})
 }
 
 func TestBuildCreateTableStmt_ForeignKey(t *testing.T) {

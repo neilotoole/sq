@@ -173,6 +173,22 @@ func TestSuggestHandle_FromPlaceholder(t *testing.T) {
 		{loc: "${keyring:@sakila/conn_str}", want: "@sakila"},
 		{loc: "${keyring:@prod_db/password}", want: "@prod_db"},
 
+		// Names containing runes illegal in handles (hyphens, dots,
+		// spaces) must be sanitized to underscore, matching the URL
+		// branch of SuggestHandle. Without this, the suggested handle
+		// fails ValidHandle and the add aborts.
+		{loc: "${file:/secrets/pg-prod.dsn}", want: "@pg_prod"},
+		{loc: "${file:/secrets/my db.dsn}", want: "@my_db"},
+		{loc: "${env:MY-DSN}", want: "@my_dsn"},
+		{loc: "${op://Private/sakila-pg/dsn}", want: "@sakila_pg"},
+		{loc: "${vault:secret/data/pg.prod}", want: "@pg_prod"},
+
+		// Non-ASCII letters are also illegal in handles (the handle
+		// grammar is ASCII [a-zA-Z][a-zA-Z0-9_]*), so they sanitize to
+		// underscore too.
+		{loc: "${file:/secrets/börse.dsn}", want: "@b_rse"},
+		{loc: "${env:CAFÉ_DSN}", want: "@caf__dsn"},
+
 		// keyring opaque (Crockford) — falls through to the generic
 		// path, which produces the existing "h"-prefixed ugly form.
 		// We don't try to make this pretty; rare hand-crafted case.

@@ -144,12 +144,20 @@ func (d *driveri) Renderer() *render.Renderer {
 	r := render.NewDefaultRenderer()
 	r.FunctionNames[ast.FuncNameSchema] = "current_schema"
 	r.FunctionNames[ast.FuncNameCatalog] = "current_database"
+	// avg() returns a portable float64 instead of Postgres's native numeric
+	// (which sq surfaces as a decimal.Decimal). See issue #594.
+	r.FunctionOverrides[ast.FuncNameAvg] = render.FuncOverrideCastResult("DOUBLE PRECISION")
+	// sum() returns a decimal across all drivers (issue #839). Postgres already
+	// computes sum(int) as bigint and sum(numeric) as numeric losslessly; the
+	// cast to unconstrained NUMERIC unifies the surfaced type as decimal without
+	// constraining precision or scale.
+	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult("NUMERIC")
 	render.RegisterILikeFamily(r)
 	return r
 }
 
 // Open implements driver.Driver.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessMode) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -215,7 +223,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
+func (d *driveri) Ping(ctx context.Context, src *source.Source, _ driver.AccessMode) error {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return err
@@ -721,7 +729,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 		return nil, err
 	}
 
-	destCols, _, err := d.RecordMeta(ctx, colTypes)
+	destCols, _, err := d.RecordMeta(ctx, colTypes, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -770,7 +778,7 @@ func getTableColumnNames(ctx context.Context, db sqlz.DB, tblName string) ([]str
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, _ map[int]kind.Kind) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
 	// The jackc/pgx driver doesn't report nullability (sql.ColumnType)

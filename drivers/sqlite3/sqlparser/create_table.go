@@ -83,7 +83,7 @@ func ExtractTableIdentFromCreateTableStmt(stmt string) (*TableIdent, error) {
 	ident := &TableIdent{SchemaOffset: -1}
 
 	if n, ok := stmtCtx.Schema_name().(*sqlite.Schema_nameContext); ok {
-		if n.Any_name() != nil && !n.Any_name().IsEmpty() && n.Any_name().IDENTIFIER() != nil {
+		if anyNameIsExtractable(n.Any_name()) {
 			ident.RawSchema = tokx.Extract(n)
 			ident.Schema = trimIdentQuotes(ident.RawSchema)
 			ident.SchemaOffset, _ = tokx.Offset(n)
@@ -91,7 +91,7 @@ func ExtractTableIdentFromCreateTableStmt(stmt string) (*TableIdent, error) {
 	}
 
 	if x, ok := stmtCtx.Table_name().(*sqlite.Table_nameContext); ok {
-		if x.Any_name() != nil && !x.Any_name().IsEmpty() && x.Any_name().IDENTIFIER() != nil {
+		if anyNameIsExtractable(x.Any_name()) {
 			ident.RawTable = tokx.Extract(x)
 			ident.Table = trimIdentQuotes(ident.RawTable)
 			ident.TableOffset, _ = tokx.Offset(x)
@@ -103,6 +103,18 @@ func ExtractTableIdentFromCreateTableStmt(stmt string) (*TableIdent, error) {
 	}
 
 	return ident, nil
+}
+
+// anyNameIsExtractable reports whether n matches a directly extractable
+// alternative of the any_name grammar rule: IDENTIFIER (bare, double-quoted,
+// backtick-quoted, or bracket-quoted), STRING_LITERAL (single-quoted; the
+// lexer tokenizes 'actor' as STRING_LITERAL, not IDENTIFIER, but SQLite
+// accepts the form in DDL), or a bare keyword. The remaining alternative,
+// a parenthesized any_name, is a grammar artifact that SQLite itself does
+// not accept in a CREATE TABLE name position, so it is not accepted here.
+func anyNameIsExtractable(n sqlite.IAny_nameContext) bool {
+	return n != nil && !n.IsEmpty() &&
+		(n.IDENTIFIER() != nil || n.STRING_LITERAL() != nil || n.Keyword() != nil)
 }
 
 // ForeignTableRef describes a single REFERENCES <table> occurrence inside a

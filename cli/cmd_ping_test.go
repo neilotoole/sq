@@ -3,6 +3,8 @@ package cli_test
 import (
 	"context"
 	"encoding/csv"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -10,6 +12,7 @@ import (
 	gokeyring "github.com/zalando/go-keyring"
 
 	"github.com/neilotoole/sq/cli/testrun"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
@@ -108,6 +111,41 @@ func TestCmdPing_KeyringPlaceholder_NoLeakInJSON(t *testing.T) {
 		"resolved password must not leak into ping output")
 	require.Contains(t, out, "xxxxx",
 		"password slot must be redacted in default (non-reveal) mode")
+}
+
+// newEscapedDollarCSVRun creates a CSV file whose name contains a
+// literal "$$", and returns a testrun holding a source whose stored
+// Location is the escaped template form (as the v0.54.0 config upgrade
+// writes it), plus the literal file path. Shared by the ping and
+// inspect --expand regression tests.
+func newEscapedDollarCSVRun(t *testing.T, handle string) (tr *testrun.TestRun, fpath string) {
+	t.Helper()
+	fpath = filepath.Join(t.TempDir(), "data$$file.csv")
+	require.NoError(t, os.WriteFile(fpath, []byte("a,b\n1,2\n"), 0o600))
+
+	tr = testrun.New(t.Context(), t, nil)
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   handle,
+		Type:     drivertype.CSV,
+		Location: secret.Escape(fpath),
+	}))
+	return tr, fpath
+}
+
+// TestCmdPing_Expand_EscapedLocation verifies that `sq ping --expand`
+// resolves the location template exactly once. The driver must connect
+// using the original stored source (resolved inside pingSource);
+// feeding the already-expanded source back through
+// ResolveSourceSecrets would unescape '$$' a second time, corrupting
+// literal locations the v0.54.0 upgrade escaped.
+func TestCmdPing_Expand_EscapedLocation(t *testing.T) {
+	tr, _ := newEscapedDollarCSVRun(t, "@csv_dollar")
+	require.NoError(t, tr.Exec("ping", "--expand", "@csv_dollar"),
+		"ping --expand must resolve the location exactly once (double-unescape breaks the path)")
+
+	// Sanity: plain ping (no --expand) also works.
+	tr, _ = newEscapedDollarCSVRun(t, "@csv_dollar")
+	require.NoError(t, tr.Exec("ping", "@csv_dollar"))
 }
 
 // TestCmdPing_KeyringMissing_DoesNotPanic guards against the nil-panic that

@@ -13,6 +13,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/execz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
@@ -85,7 +86,9 @@ func execDBExec(cmd *cobra.Command, args []string) error {
 		cmdString string
 	)
 
-	if src, err = getCmdSource(cmd, args); err != nil {
+	// The --src.schema validation pre-open is read-only (a pure read);
+	// the db exec statement itself opens separately below.
+	if src, err = getCmdSource(cmd, args, driver.ModeReadOnly); err != nil {
 		return err
 	}
 
@@ -103,6 +106,10 @@ func execDBExec(cmd *cobra.Command, args []string) error {
 	}
 
 	if err = applySourceOptions(cmd, src); err != nil {
+		return err
+	}
+
+	if src, err = resolveToolCmdSource(cmd, src); err != nil {
 		return err
 	}
 

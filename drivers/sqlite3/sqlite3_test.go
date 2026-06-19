@@ -16,6 +16,8 @@ import (
 	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/secret"
+	"github.com/neilotoole/sq/libsq/core/secret/env"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
@@ -330,8 +332,46 @@ func TestMungeLocation(t *testing.T) {
 
 			require.NoError(t, err)
 			require.Equal(t, tc.want, got)
+
+			// MungeLocation must be idempotent: connect-time resolution
+			// (driver.ResolveSourceSecrets) munges resolved placeholder
+			// locations that may already be in canonical form (gh #798).
+			again, err := sqlite3.MungeLocation(got)
+			require.NoError(t, err)
+			require.Equal(t, got, again, "MungeLocation must be idempotent")
 		})
 	}
+}
+
+// TestPlaceholderLocation_Connect verifies end-to-end that a source
+// whose stored location is a placeholder resolving to a bare file path
+// connects successfully (gh #798). Before the fix, resolution spliced
+// the secret value without munging, and the driver rejected the bare
+// path with: invalid sqlite3 location: missing "sqlite3://" prefix.
+func TestPlaceholderLocation_Connect(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "gh798.db")
+	t.Setenv("SQ_TEST_GH798_DB_PATH", dbPath)
+
+	reg := secret.NewRegistry()
+	reg.Register("env", env.NewResolver())
+
+	th := testh.New(t)
+	ctx := secret.NewContext(th.Context, reg)
+
+	src := &source.Source{
+		Handle:   "@gh798",
+		Type:     drivertype.SQLite,
+		Location: "${env:SQ_TEST_GH798_DB_PATH}",
+	}
+
+	resolved, err := driver.ResolveSourceSecrets(ctx, src)
+	require.NoError(t, err)
+	require.Equal(t, "sqlite3://"+filepath.ToSlash(dbPath), resolved.Location)
+
+	// SQLite creates the file on open, so Ping succeeds iff the
+	// resolved location is in canonical driver form.
+	drvr := th.DriverFor(resolved)
+	require.NoError(t, drvr.Ping(ctx, resolved, driver.ModeReadWrite))
 }
 
 func TestSQLQuery_Whitespace(t *testing.T) {
@@ -457,6 +497,183 @@ func TestDriveri_AlterTableColumnKinds_QuotedIdentifier(t *testing.T) {
 			require.Equal(t, kind.Text.String(), md.Column("age").Kind.String())
 		})
 	}
+}
+
+// TestDriveri_AlterTruncate_EmbeddedQuoteIdentifier reproduces gh821: the
+// AlterTableRename, AlterTableRenameColumn, AlterTableAddColumn, and Truncate
+// paths used %q for SQL identifier quoting, which emits Go backslash escaping
+// that SQLite rejects for names containing a double quote (e.g. a we"ird table,
+// creatable from a CSV header). Each path must use SQL double-quote escaping.
+func TestDriveri_AlterTruncate_EmbeddedQuoteIdentifier(t *testing.T) {
+	const (
+		tblName = `we"ird`
+		colName = `na"me`
+	)
+
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@test",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+	}
+
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+	drvr := grip.SQLDriver()
+
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf("CREATE TABLE %s (id INTEGER)", stringz.DoubleQuote(tblName)))
+	require.NoError(t, err)
+
+	// AlterTableAddColumn: add a column whose name also contains a quote.
+	require.NoError(t, drvr.AlterTableAddColumn(th.Context, db, tblName, colName, kind.Text))
+
+	// AlterTableRenameColumn: rename the quoted column to another quoted name.
+	const renamedCol = `re"named`
+	require.NoError(t, drvr.AlterTableRenameColumn(th.Context, db, tblName, colName, renamedCol))
+
+	md, err := grip.TableMetadata(th.Context, tblName)
+	require.NoError(t, err)
+	require.Len(t, md.Columns, 2)
+	require.Equal(t, renamedCol, md.Columns[1].Name)
+
+	// Truncate: insert a row, then delete all rows via the truncate path.
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf("INSERT INTO %s (id) VALUES (1)", stringz.DoubleQuote(tblName)))
+	require.NoError(t, err)
+	affected, err := drvr.Truncate(th.Context, src, tblName, false)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), affected)
+
+	// AlterTableRename: rename the quoted table to another quoted name.
+	const newName = `we"ird2`
+	require.NoError(t, drvr.AlterTableRename(th.Context, db, tblName, newName))
+	exists, err := drvr.TableExists(th.Context, db, newName)
+	require.NoError(t, err)
+	require.True(t, exists)
+	exists, err = drvr.TableExists(th.Context, db, tblName)
+	require.NoError(t, err)
+	require.False(t, exists)
+}
+
+// TestDriveri_AlterTableColumnKinds_EscapedQuoteColumnName reproduces gh789
+// case 1: a column literally named my"col (declared in DDL as "my""col")
+// failed the column lookup in AlterTableColumnKinds because trimIdentQuotes
+// stripped only the outer quote pair without collapsing the doubled escape,
+// so ColDef.Name was my""col and never matched. Reachable e.g. from a CSV
+// header containing a double quote.
+func TestDriveri_AlterTableColumnKinds_EscapedQuoteColumnName(t *testing.T) {
+	testCases := []struct {
+		name    string
+		colDecl string
+		colName string
+	}{
+		{
+			name:    "double_quote_escaped",
+			colDecl: `"my""col" INTEGER NOT NULL`,
+			colName: `my"col`,
+		},
+		{
+			name:    "backtick_escaped",
+			colDecl: "`my``col` INTEGER NOT NULL",
+			colName: "my`col",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			th := testh.New(t)
+			src := &source.Source{
+				Handle:   "@test",
+				Type:     drivertype.SQLite,
+				Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+			}
+
+			grip := th.Open(src)
+			db, err := grip.DB(th.Context)
+			require.NoError(t, err)
+			drvr := grip.SQLDriver()
+
+			_, err = db.ExecContext(th.Context, `CREATE TABLE example (`+tc.colDecl+`)`)
+			require.NoError(t, err)
+
+			err = drvr.AlterTableColumnKinds(th.Context, db, "example",
+				[]string{tc.colName}, []kind.Kind{kind.Text})
+			require.NoError(t, err)
+
+			md, err := grip.TableMetadata(th.Context, "example")
+			require.NoError(t, err)
+			require.Len(t, md.Columns, 1)
+			require.Equal(t, tc.colName, md.Columns[0].Name)
+			require.Equal(t, kind.Text.String(), md.Columns[0].Kind.String())
+		})
+	}
+}
+
+// TestDriveri_AlterTableColumnKinds_SingleQuotedTableName reproduces gh789
+// case 2: an externally created database whose stored DDL reads
+// CREATE TABLE 'actor' (...) (a form SQLite accepts) failed table-identifier
+// extraction because the lexer tokenizes single-quoted names as
+// STRING_LITERAL, which ExtractTableIdentFromCreateTableStmt didn't accept.
+func TestDriveri_AlterTableColumnKinds_SingleQuotedTableName(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@test",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+	}
+
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+	drvr := grip.SQLDriver()
+
+	// Execute exactly this SQL so sqlite_master stores the single-quoted
+	// form verbatim.
+	_, err = db.ExecContext(th.Context, `CREATE TABLE 'actor' (actor_id INTEGER NOT NULL)`)
+	require.NoError(t, err)
+
+	err = drvr.AlterTableColumnKinds(th.Context, db, "actor",
+		[]string{"actor_id"}, []kind.Kind{kind.Text})
+	require.NoError(t, err)
+
+	md, err := grip.TableMetadata(th.Context, "actor")
+	require.NoError(t, err)
+	require.Len(t, md.Columns, 1)
+	require.Equal(t, kind.Text.String(), md.Column("actor_id").Kind.String())
+}
+
+// TestDriveri_CopyTable_SingleQuotedTableName is the CopyTable counterpart
+// of gh789 case 2: copying a table whose stored DDL uses the single-quoted
+// form CREATE TABLE 'actor' (...) must succeed.
+func TestDriveri_CopyTable_SingleQuotedTableName(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@test",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+	}
+
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+	drvr := grip.SQLDriver()
+
+	_, err = db.ExecContext(th.Context, `CREATE TABLE 'actor' (actor_id INTEGER NOT NULL)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context, `INSERT INTO actor (actor_id) VALUES (1), (2)`)
+	require.NoError(t, err)
+
+	copied, err := drvr.CopyTable(th.Context, db,
+		tablefq.From("actor"), tablefq.From("actor_copy"), true)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), copied)
+
+	md, err := grip.TableMetadata(th.Context, "actor_copy")
+	require.NoError(t, err)
+	require.Len(t, md.Columns, 1)
+	require.Equal(t, "actor_id", md.Columns[0].Name)
 }
 
 // TestDriveri_AlterTableColumnKinds_ColumnNamePrefixesType reproduces
@@ -1092,4 +1309,212 @@ func TestSourceMetadata_LocationWithConnParams(t *testing.T) {
 	require.NotNil(t, md.Size, "file size should be non-nil")
 	require.NotZero(t, *md.Size, "file size should be non-zero")
 	require.Equal(t, filepath.Base(dbPath), md.Name)
+}
+
+// TestNewScratchSource_SecretsResolved verifies that the scratch
+// source is marked SecretsResolved: its Location is a literal file
+// path constructed internally (never a placeholder template), so the
+// connect path's '$$' unescape must not reinterpret it. Without the
+// marker, a scratch path containing a literal '$$' (e.g. a cache dir
+// under a directory named with '$$') would be silently rewritten.
+func TestNewScratchSource_SecretsResolved(t *testing.T) {
+	ctx := testh.New(t).Context
+	fpath := filepath.Join(t.TempDir(), "scratch$$db.sqlite")
+
+	src, clnup, err := sqlite3.NewScratchSource(ctx, fpath)
+	require.NoError(t, err)
+	// The scratch DB file is only created on first open, which this
+	// test never does, so clnup's file removal may error: ignore it.
+	t.Cleanup(func() { _ = clnup() })
+
+	require.True(t, src.SecretsResolved,
+		"internally constructed literal locations must be marked resolved")
+
+	resolved, err := driver.ResolveSourceSecrets(ctx, src)
+	require.NoError(t, err)
+	require.Equal(t, src.Location, resolved.Location,
+		"resolution must not alter the literal scratch path")
+}
+
+// TestDriveri_CopyTable_CopiesIndexesAndTriggers verifies gh758:
+// CopyTable carries the source table's companion objects (indexes and
+// triggers, separate sqlite_master rows) across to the destination,
+// renamed to "<orig-name>_<dest-table>". The UNIQUE constraint's
+// automatic index has NULL sql in sqlite_master and must be skipped by
+// the companion rewrite (the rewritten CREATE TABLE recreates it).
+// Trigger timing is also load-bearing: the copied trigger must not fire
+// on the rows being copied, only on subsequent inserts into the
+// destination.
+func TestDriveri_CopyTable_CopiesIndexesAndTriggers(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@test",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+	}
+
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+	drvr := grip.SQLDriver()
+
+	for _, stmt := range []string{
+		`CREATE TABLE src (id INTEGER PRIMARY KEY, name TEXT, email TEXT UNIQUE)`,
+		`CREATE TABLE src_log (id INTEGER PRIMARY KEY, msg TEXT)`,
+		`CREATE INDEX idx_src_name ON src (name)`,
+		`CREATE TRIGGER trg_src_bi BEFORE INSERT ON src BEGIN
+			INSERT INTO src_log (msg) VALUES (NEW.name);
+		END`,
+		`INSERT INTO src (name, email) VALUES ('alice', 'a@x.com'), ('bob', 'b@x.com')`,
+	} {
+		_, err = db.ExecContext(th.Context, stmt)
+		require.NoError(t, err)
+	}
+
+	copied, err := drvr.CopyTable(th.Context, db,
+		tablefq.From("src"), tablefq.From("dst"), true)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), copied)
+
+	// The copied trigger must not have fired on the copied rows: the
+	// source inserts logged 2 rows, and the copy must not add more.
+	var logCount int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT count(*) FROM src_log`).Scan(&logCount))
+	require.Equal(t, int64(2), logCount,
+		"copied trigger must not fire on the rows being copied")
+
+	// The explicit index is carried over, renamed, and re-targeted.
+	var idxSQL string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT sql FROM sqlite_master WHERE type='index' AND name='idx_src_name_dst'
+			AND tbl_name='dst'`).Scan(&idxSQL))
+	require.Contains(t, idxSQL, `"dst"`)
+	require.NotContains(t, idxSQL, `ON src`)
+
+	// Exactly one explicit (non-NULL sql) index on the destination: the
+	// UNIQUE constraint's automatic index has NULL sql and must not have
+	// been duplicated by the companion copy.
+	var explicitIdxCount int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT count(*) FROM sqlite_master WHERE type='index' AND tbl_name='dst'
+			AND sql IS NOT NULL`).Scan(&explicitIdxCount))
+	require.Equal(t, int64(1), explicitIdxCount)
+
+	// The UNIQUE constraint itself survives via the CREATE TABLE rewrite.
+	_, err = db.ExecContext(th.Context,
+		`INSERT INTO dst (name, email) VALUES ('carol', 'a@x.com')`)
+	require.Error(t, err, "UNIQUE(email) must be enforced on the destination")
+
+	// The trigger is carried over, renamed, and re-targeted; its body's
+	// cross-table reference (src_log) is left untouched.
+	var trgSQL string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT sql FROM sqlite_master WHERE type='trigger' AND name='trg_src_bi_dst'
+			AND tbl_name='dst'`).Scan(&trgSQL))
+	require.Contains(t, trgSQL, `ON "dst"`)
+	require.Contains(t, trgSQL, "src_log",
+		"cross-table body reference must be preserved")
+
+	// The copied trigger's side effect fires on insert into the destination.
+	_, err = db.ExecContext(th.Context,
+		`INSERT INTO dst (name, email) VALUES ('dave', 'd@x.com')`)
+	require.NoError(t, err)
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT count(*) FROM src_log WHERE msg='dave'`).Scan(&logCount))
+	require.Equal(t, int64(1), logCount,
+		"copied trigger must fire on insert into the destination")
+
+	// The source's companions are untouched: original names, original table.
+	var srcCompanionCount int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT count(*) FROM sqlite_master WHERE tbl_name='src'
+			AND name IN ('idx_src_name', 'trg_src_bi')`).Scan(&srcCompanionCount))
+	require.Equal(t, int64(2), srcCompanionCount)
+}
+
+// TestDriveri_CopyTable_TriggerBodySelfRef verifies that a trigger body
+// reference to the trigger's own table is rewritten to the destination,
+// mirroring CopyTable's self-FK rewrite semantics: the copied trigger
+// operates on the copied table, not the source.
+func TestDriveri_CopyTable_TriggerBodySelfRef(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@test",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+	}
+
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+	drvr := grip.SQLDriver()
+
+	for _, stmt := range []string{
+		`CREATE TABLE src (id INTEGER PRIMARY KEY, name TEXT)`,
+		`CREATE TRIGGER trg_upper AFTER INSERT ON src BEGIN
+			UPDATE src SET name = upper(NEW.name) WHERE id = NEW.id;
+		END`,
+		`INSERT INTO src (name) VALUES ('alice')`,
+	} {
+		_, err = db.ExecContext(th.Context, stmt)
+		require.NoError(t, err)
+	}
+
+	_, err = drvr.CopyTable(th.Context, db,
+		tablefq.From("src"), tablefq.From("dst"), true)
+	require.NoError(t, err)
+
+	var trgSQL string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT sql FROM sqlite_master WHERE type='trigger'
+			AND name='trg_upper_dst'`).Scan(&trgSQL))
+	require.Contains(t, trgSQL, `UPDATE "dst"`,
+		"trigger body self-reference must be rewritten to the destination")
+
+	// The copied trigger acts on the destination only.
+	_, err = db.ExecContext(th.Context, `INSERT INTO dst (name) VALUES ('bob')`)
+	require.NoError(t, err)
+
+	var gotName string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT name FROM dst WHERE name='BOB'`).Scan(&gotName))
+	require.Equal(t, "BOB", gotName)
+
+	var srcCount int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT count(*) FROM src`).Scan(&srcCount))
+	require.Equal(t, int64(1), srcCount, "source table must be unaffected")
+}
+
+// TestDriveri_CopyTable_NoCompanions_StructureOnly is the regression
+// guard for the no-companion path: a plain table with copyData=false
+// still copies cleanly after the gh758 companion logic landed.
+func TestDriveri_CopyTable_NoCompanions_StructureOnly(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@test",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+	}
+
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+	drvr := grip.SQLDriver()
+
+	_, err = db.ExecContext(th.Context,
+		`CREATE TABLE src (id INTEGER PRIMARY KEY, name TEXT)`)
+	require.NoError(t, err)
+
+	copied, err := drvr.CopyTable(th.Context, db,
+		tablefq.From("src"), tablefq.From("dst"), false)
+	require.NoError(t, err)
+	require.Equal(t, int64(0), copied)
+
+	var companionCount int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT count(*) FROM sqlite_master WHERE tbl_name='dst'
+			AND type IN ('index','trigger')`).Scan(&companionCount))
+	require.Equal(t, int64(0), companionCount)
 }

@@ -103,6 +103,13 @@ func TestMungeLocation(t *testing.T) {
 
 			require.NoError(t, err)
 			require.Equal(t, tc.want, got)
+
+			// MungeLocation must be idempotent: connect-time resolution
+			// (driver.ResolveSourceSecrets) munges resolved placeholder
+			// locations that may already be in canonical form (gh #798).
+			again, err := MungeLocation(got)
+			require.NoError(t, err)
+			require.Equal(t, got, again, "MungeLocation must be idempotent")
 		})
 	}
 }

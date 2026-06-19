@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -27,6 +26,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -100,9 +100,9 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 }
 
 // Open implements driver.Driver.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source, mode driver.AccessMode) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
-	db, err := d.doOpen(ctx, src)
+	db, err := d.doOpen(ctx, src, mode)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
@@ -112,11 +112,27 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
 }
 
-func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
+func (d *driveri) doOpen(ctx context.Context, src *source.Source, mode driver.AccessMode) (*sql.DB, error) {
 	loc := src.Location
-	if driver.IsReadOnly(ctx) {
+	if mode.IsReadOnly() {
+		// Defense-in-depth: an explicit read-only request against a
+		// location that explicitly demands write access (access_mode=
+		// READ_WRITE) is a hard conflict. ApplyReadOnlyToLocation would
+		// silently let READ_WRITE win, so refuse here rather than open
+		// read-write under a read-only request. The CLI (cmd_sql) also
+		// surfaces this preemptively before any open; this guard covers
+		// every ModeReadOnlyExplicit caller (Open and Ping) regardless
+		// of entry point. Only explicit RO conflicts: implicit RO lets
+		// the location win (see ApplyReadOnlyToLocation).
+		if mode == driver.ModeReadOnlyExplicit {
+			if conflict, ok := d.DetectReadOnlyConflict(loc); ok {
+				return nil, errz.Errorf(
+					"duckdb: cannot open %s read-only: its location sets %s", src.Handle, conflict)
+			}
+		}
 		var changed bool
-		if loc, changed = ApplyReadOnlyToLocation(loc); changed {
+		loc, changed = ApplyReadOnlyToLocation(loc, mode == driver.ModeReadOnlyExplicit)
+		if changed {
 			lg.FromContext(ctx).Debug("DuckDB source opened READ_ONLY",
 				lga.Src, src)
 		}
@@ -207,39 +223,25 @@ func PathFromLocation(src *source.Source) (string, error) {
 // But that input location gets mangled on non-Windows OSes. This probably
 // isn't a problem in practice, but longer-term it may make sense to rewrite
 // MungeLocation to be OS-independent.
+//
+// MungeLocation is idempotent, and is a thin wrapper around
+// location.MungeTemplateForDriver: the user-typed location is a
+// placeholder template, so cwd bytes spliced in by absolutization are
+// escaped (gh #797). Locations resolved from secret placeholders at
+// connect time are literal bytes and take the no-escape path via
+// location.MungeForDriver (driver.ResolveSourceSecrets).
 func MungeLocation(loc string) (string, error) {
-	loc2 := strings.TrimSpace(loc)
-	if loc2 == "" {
-		return "", errz.New("location must not be empty")
-	}
-
-	// Detect the :memory: sentinel, optionally preceded by the duckdb scheme
-	// and optionally followed by a "?key=val&..." query suffix.
-	bare := strings.TrimPrefix(loc2, Prefix)
-	bare = strings.TrimPrefix(bare, "duckdb:")
-	pathPart, queryPart, hasQuery := strings.Cut(bare, "?")
-	if pathPart == ":memory:" {
-		if hasQuery {
-			return Prefix + ":memory:?" + queryPart, nil
-		}
-		return Prefix + ":memory:", nil
-	}
-
-	fp, err := filepath.Abs(pathPart)
-	if err != nil {
-		return "", errz.Wrapf(err, "invalid location: %s", loc)
-	}
-
-	fp = filepath.ToSlash(fp)
-	if hasQuery {
-		return Prefix + fp + "?" + queryPart, nil
-	}
-	return Prefix + fp, nil
+	return location.MungeTemplateForDriver(drivertype.DuckDB, loc)
 }
 
-// Ping implements driver.Driver.
-func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
-	db, err := d.doOpen(ctx, src)
+// Ping implements driver.Driver. DuckDB honors mode: the ping opens the
+// connection via doOpen in the requested mode, so ModeReadOnly takes no
+// write lock and fails on a missing file (DuckDB READ_ONLY requires an
+// existing file), while ModeReadWrite creates a missing file. This is why
+// "sq add" of a new .duckdb file (which pings ModeReadWrite) creates it,
+// while "sq ping" (ModeReadOnly) does not. See driver.Driver.Ping.
+func (d *driveri) Ping(ctx context.Context, src *source.Source, mode driver.AccessMode) error {
+	db, err := d.doOpen(ctx, src, mode)
 	if err != nil {
 		return err
 	}
@@ -345,7 +347,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 // are represented as nil in the driver.Value slice. The munge function
 // converts duckdb-specific types (Decimal, Interval, *big.Int, composites)
 // to sq's canonical record types.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, _ map[int]kind.Kind) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
 	ctData := make([]*record.ColumnTypeData, len(colTypes))
@@ -580,7 +582,7 @@ func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (b
 // independently of the data and there is no direct analogue to SQLite's
 // sqlite_sequence.
 func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, _ bool) (int64, error) {
-	db, err := d.doOpen(ctx, src)
+	db, err := d.doOpen(ctx, src, driver.ModeReadWrite)
 	if err != nil {
 		return 0, errw(err)
 	}

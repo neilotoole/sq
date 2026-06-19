@@ -885,6 +885,37 @@ func TestCmdInspect_mode_catalogs(t *testing.T) {
 	}
 }
 
+// TestCmdInspect_FlagActiveSchema_Placeholder verifies that --src.schema
+// validation works for a source whose location is a ${scheme:path}
+// placeholder. verifySourceCatalogSchema opens the source directly,
+// deliberately bypassing the grip cache, and thereby also bypassing the
+// secret resolution that Grips.doOpen performs; it must resolve at the
+// call site.
+//
+// See: https://github.com/neilotoole/sq/issues/783.
+func TestCmdInspect_FlagActiveSchema_Placeholder(t *testing.T) {
+	const handle = "@sl3_ph"
+
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+	t.Setenv("SQ_TEST_SL3_LOC", src.Location)
+
+	tr := testrun.New(th.Context, t, nil)
+	tr.Add(source.Source{
+		Handle:   handle,
+		Type:     drivertype.SQLite,
+		Location: "${env:SQ_TEST_SL3_LOC}",
+	})
+
+	err := tr.Exec("inspect", handle, "--src.schema", "main", "--json")
+	require.NoError(t, err,
+		"--src.schema validation should resolve the placeholder location")
+
+	srcMeta := &metadata.Source{}
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), srcMeta))
+	require.Contains(t, srcMeta.TableNames(), sakila.TblActor)
+}
+
 // TestCmdInspect_NumericSchema tests "sq inspect --src.schema" with numeric
 // and numeric-prefixed schema names. This validates the grammar fix for issue #470.
 // See: https://github.com/neilotoole/sq/issues/470
@@ -1127,10 +1158,10 @@ func TestInspect_LocationOverride_NoLeak(t *testing.T) {
 		"default inspect must NOT leak the resolved path "+
 			"(regression guard for the srcMeta.Location override in execInspect)")
 
-	// With --expand: maybeExpandSource resolves the placeholder before
-	// execInspect runs, so src.Location is already the resolved sqlite3
-	// URL when srcMeta.Location = src.Location is executed. The output
-	// must therefore show the resolved path.
+	// With --expand: the writer layer's expand decorator (see
+	// expand_writer.go) resolves the placeholder in srcMeta.Location
+	// before the metadata writer renders it. The output must therefore
+	// show the resolved path.
 	tr = testrun.New(t.Context(), t, nil)
 	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
 		Handle:   "@leak",
@@ -1142,6 +1173,20 @@ func TestInspect_LocationOverride_NoLeak(t *testing.T) {
 	out = tr.OutString()
 	require.Contains(t, out, dbPath,
 		"--expand must cause the resolved path to appear in inspect output")
+}
+
+// TestInspect_Expand_EscapedLocation verifies that `sq inspect --expand`
+// resolves the location template exactly once: the connection must use
+// the original stored source (Grips.doOpen resolves internally), with
+// the expanded clone used only for display. Feeding the expanded source
+// into Grips.Open would unescape '$$' a second time, corrupting literal
+// locations the v0.54.0 upgrade escaped.
+func TestInspect_Expand_EscapedLocation(t *testing.T) {
+	tr, fpath := newEscapedDollarCSVRun(t, "@csv_dollar")
+	require.NoError(t, tr.Exec("inspect", "@csv_dollar", "--overview", "--yaml", "--expand"),
+		"inspect --expand must resolve the location exactly once (double-unescape breaks the path)")
+	require.Contains(t, tr.OutString(), fpath,
+		"--expand must show the literal (expanded) path")
 }
 
 // TestInspect_DuckDB_DoesNotModifyMtime verifies that running `sq inspect`

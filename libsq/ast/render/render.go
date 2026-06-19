@@ -9,6 +9,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 )
 
@@ -25,6 +26,15 @@ type Context struct {
 	// a SQL query. It may not be initialized until late in
 	// the day.
 	Fragments *Fragments
+
+	// ResultColumnKinds records a forced kind.Kind for result columns by their
+	// zero-based output position, populated during column rendering from
+	// Renderer.FunctionResultKinds. It lets a driver pin the surfaced kind for a
+	// function result that the backend cannot express in SQL: SQLite (and thus
+	// rqlite) report no usable type for a sum() expression, so sum() is pinned to
+	// kind.Decimal here and applied when the record metadata is built. See issue
+	// #839. It's nil unless at least one result column has a forced kind.
+	ResultColumnKinds map[int]kind.Kind
 
 	// Dialect is the driver dialect.
 	Dialect dialect.Dialect
@@ -70,6 +80,16 @@ type Renderer struct {
 	// function to render that function. It can be used by the Renderer.Function
 	// imp. FunctionOverrides has precedence over FunctionNames.
 	FunctionOverrides map[string]func(rc *Context, fn *ast.FuncNode) (string, error)
+
+	// FunctionResultKinds maps an SLQ function name to a kind.Kind that the
+	// function's result column must be surfaced as, regardless of the type the
+	// backend reports. It exists for drivers that cannot express the desired
+	// result type in SQL: SQLite (and rqlite) report no usable type for a sum()
+	// expression, so they register sum() here to pin it to kind.Decimal. During
+	// column rendering, a match records the output position in
+	// Context.ResultColumnKinds, which the driver applies when building record
+	// metadata. Empty by default. See issue #839.
+	FunctionResultKinds map[string]kind.Kind
 
 	// Literal renders a literal fragment.
 	Literal func(rc *Context, lit *ast.LiteralNode) (string, error)
@@ -119,13 +139,14 @@ func NewDefaultRenderer() *Renderer {
 			ast.FuncNameLike:        doFuncLike,
 			ast.FuncNameILike:       doFuncILike,
 		},
-		FunctionNames: map[string]string{},
-		Literal:       doLiteral,
-		Where:         doWhere,
-		Expr:          doExpr,
-		Operator:      doOperator,
-		Distinct:      doDistinct,
-		Render:        doRender,
+		FunctionNames:       map[string]string{},
+		FunctionResultKinds: map[string]kind.Kind{},
+		Literal:             doLiteral,
+		Where:               doWhere,
+		Expr:                doExpr,
+		Operator:            doOperator,
+		Distinct:            doDistinct,
+		Render:              doRender,
 	}
 }
 
@@ -355,5 +376,71 @@ func peekUnicodeEscape(body string, i int) (r rune, ok bool) {
 func FuncOverrideString(s string) func(*Context, *ast.FuncNode) (string, error) {
 	return func(_ *Context, _ *ast.FuncNode) (string, error) {
 		return s, nil
+	}
+}
+
+// AggDecimalScale is the fractional scale applied when an aggregate result
+// (e.g. sum()) is cast to a fixed-scale decimal type on dialects that require
+// an explicit precision and scale. It must agree across those dialects so the
+// same aggregate rounds identically wherever a fixed scale is used.
+//
+// A sum of values with more than AggDecimalScale fractional digits is rounded
+// to this scale on those dialects. Postgres uses an unconstrained NUMERIC and
+// is exact, so it is not subject to this rounding. See issue #839.
+const AggDecimalScale = 6
+
+// AggDecimalPrecision is the total precision paired with AggDecimalScale on
+// dialects whose decimal type caps at 38 digits (ClickHouse, Oracle, SQL
+// Server). MySQL uses its higher native cap (65) instead. With scale 6 this
+// leaves 32 integer digits, so a sum whose integer part exceeds that overflows
+// on those dialects (a query error); Postgres (unconstrained NUMERIC) and MySQL
+// (precision 65) do not. See issue #839.
+const AggDecimalPrecision = 38
+
+// FuncOverrideCastResult returns a FunctionOverrides impl that renders fn with
+// the default function renderer and wraps the whole result in
+// CAST(... AS castType). Use it to coerce an aggregate's result to a portable
+// type where the engine's aggregate is already non-truncating, e.g.
+// CAST(avg(col) AS DOUBLE PRECISION) on Postgres. See issue #594.
+func FuncOverrideCastResult(castType string) func(*Context, *ast.FuncNode) (string, error) {
+	return func(rc *Context, fn *ast.FuncNode) (string, error) {
+		inner, err := RenderFuncDefault(rc, fn)
+		if err != nil {
+			return "", err
+		}
+		return "CAST(" + inner + " AS " + castType + ")", nil
+	}
+}
+
+// FuncOverrideCastOperand returns a FunctionOverrides impl that renders fn but
+// wraps each operand in CAST(... AS castType), e.g. avg(CAST(col AS FLOAT)).
+// Unlike FuncOverrideCastResult, this casts the operands, which is required
+// where the engine would otherwise compute the aggregate in the operand's type:
+// SQL Server's AVG over an integer column performs integer division and
+// truncates, so a result cast comes too late. The function name is resolved
+// through Renderer.FunctionNames, matching RenderFuncDefault. See issue #594.
+//
+// It is intended for single-operand aggregates such as avg() and sum(). It does
+// not reproduce RenderFuncDefault's count/count_unique special-casing (the
+// no-arg count(*) form, or count_unique becoming count(DISTINCT ...)), so it
+// must not be registered for count or count_unique.
+func FuncOverrideCastOperand(castType string) func(*Context, *ast.FuncNode) (string, error) {
+	return func(rc *Context, fn *ast.FuncNode) (string, error) {
+		fnName := strings.ToLower(fn.FuncName())
+		if mapped, ok := rc.Renderer.FunctionNames[fnName]; ok {
+			fnName = mapped
+		}
+
+		children := fn.Children()
+		args := make([]string, len(children))
+		for i, child := range children {
+			s, err := RenderFuncArg(rc, child)
+			if err != nil {
+				return "", err
+			}
+			args[i] = "CAST(" + s + " AS " + castType + ")"
+		}
+
+		return fnName + "(" + strings.Join(args, ", ") + ")", nil
 	}
 }

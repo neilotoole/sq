@@ -260,3 +260,253 @@ func TestMergeQuery(t *testing.T) {
 		})
 	}
 }
+
+func TestIsSecretQueryParam(t *testing.T) {
+	testCases := []struct {
+		key  string
+		want bool
+	}{
+		{key: "", want: false},
+		{key: "password", want: true},
+		{key: "Password", want: true},
+		{key: "passwd", want: true},
+		{key: "pwd", want: true},
+		{key: "pw", want: true},
+		{key: "secret", want: true},
+		{key: "token", want: true},
+		{key: "apikey", want: true},
+		{key: "api_key", want: true},
+		{key: "access_token", want: true},
+		{key: "auth_token", want: true},
+		{key: "sslpassword", want: true},
+		{key: "_auth_pass", want: true},
+		{key: "client_secret", want: true},
+		// Non-secrets, including near-misses.
+		{key: "user", want: false},
+		{key: "_auth_user", want: false},
+		{key: "_auth_salt", want: false},
+		{key: "database", want: false},
+		{key: "sslmode", want: false},
+		{key: "allowCleartextPasswords", want: false},
+		{key: "allowNativePasswords", want: false},
+		{key: "_foreign_keys", want: false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.key, func(t *testing.T) {
+			require.Equal(t, tc.want, location.IsSecretQueryParam(tc.key))
+		})
+	}
+}
+
+func TestStripSecrets(t *testing.T) {
+	testCases := []struct {
+		name string
+		loc  string
+		want string
+	}{
+		{
+			name: "empty",
+			loc:  "",
+			want: "",
+		},
+		{
+			name: "fragment after secret query param",
+			loc:  "sqlite3:///data/app.db?_auth_pass=hunter2#frag",
+			want: "sqlite3:///data/app.db?_auth_pass=#frag",
+		},
+		{
+			name: "fragment no query",
+			loc:  "postgres://alice:pw@host/db#frag",
+			want: "postgres://alice@host/db#frag",
+		},
+		{
+			name: "no secrets",
+			loc:  "postgres://alice@localhost:5432/sakila?sslmode=require",
+			want: "postgres://alice@localhost:5432/sakila?sslmode=require",
+		},
+		{
+			name: "userinfo password dropped",
+			loc:  "postgres://alice:hunter2@localhost:5432/sakila",
+			want: "postgres://alice@localhost:5432/sakila",
+		},
+		{
+			name: "userinfo password and secret query value",
+			loc:  "postgres://alice:hunter2@localhost/sakila?sslpassword=abc&sslmode=require",
+			want: "postgres://alice@localhost/sakila?sslpassword=&sslmode=require",
+		},
+		{
+			name: "sqlite auth query params",
+			loc:  "sqlite3:///data/app.db?_auth_user=admin&_auth_pass=hunter2",
+			want: "sqlite3:///data/app.db?_auth_user=admin&_auth_pass=",
+		},
+		{
+			name: "sqlserver query before path",
+			loc:  "sqlserver://alice:hunter2@server:1433?database=sakila&password=abc",
+			want: "sqlserver://alice@server:1433?database=sakila&password=",
+		},
+		{
+			name: "empty secret value unchanged",
+			loc:  "sqlite3:///data/app.db?_auth_pass=",
+			want: "sqlite3:///data/app.db?_auth_pass=",
+		},
+		{
+			name: "username only userinfo unchanged",
+			loc:  "postgres://alice@localhost/sakila",
+			want: "postgres://alice@localhost/sakila",
+		},
+		{
+			name: "empty password dropped with colon",
+			loc:  "postgres://alice:@localhost/sakila",
+			want: "postgres://alice@localhost/sakila",
+		},
+		{
+			name: "ipv6 host",
+			loc:  "postgres://alice:hunter2@[::1]:5432/sakila",
+			want: "postgres://alice@[::1]:5432/sakila",
+		},
+		{
+			name: "placeholder password kept verbatim",
+			loc:  "postgres://alice:${keyring:pg-prod}@localhost/sakila",
+			want: "postgres://alice:${keyring:pg-prod}@localhost/sakila",
+		},
+		{
+			name: "mixed literal and placeholder password dropped",
+			loc:  "postgres://alice:abc${env:PGPASS}@localhost/sakila",
+			want: "postgres://alice@localhost/sakila",
+		},
+		{
+			name: "placeholder secret query value kept verbatim",
+			loc:  "sqlite3:///data/app.db?_auth_user=admin&_auth_pass=${keyring:app-db}",
+			want: "sqlite3:///data/app.db?_auth_user=admin&_auth_pass=${keyring:app-db}",
+		},
+		{
+			name: "mixed literal and placeholder query value blanked",
+			loc:  "sqlite3:///data/app.db?_auth_pass=abc${env:DBPASS}",
+			want: "sqlite3:///data/app.db?_auth_pass=",
+		},
+		{
+			name: "placeholder in non-secret position untouched",
+			loc:  "postgres://alice@${env:PGHOST}/sakila?application_name=app1",
+			want: "postgres://alice@${env:PGHOST}/sakila?application_name=app1",
+		},
+		{
+			name: "no scheme query still scrubbed",
+			loc:  "/data/app.db?_auth_pass=hunter2",
+			want: "/data/app.db?_auth_pass=",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, location.StripSecrets(tc.loc))
+		})
+	}
+}
+
+// TestRedact_SecretQueryParams verifies that Redact masks the values of
+// secret-bearing query parameters (per location.IsSecretQueryParam) with
+// the "xxxxx" display mask, across both file-style (sqlite3/duckdb) and
+// DSN-style locations, while leaving userinfo masking and non-secret
+// bytes unchanged. Values consisting entirely of ${scheme:path}
+// placeholders are config-visible text, not secrets, and pass through
+// verbatim.
+func TestRedact_SecretQueryParams(t *testing.T) {
+	testCases := []struct {
+		name string
+		loc  string
+		want string
+	}{
+		{
+			name: "sqlite3 auth query params",
+			loc:  "sqlite3:///data/app.db?_auth_user=admin&_auth_pass=hunter2",
+			want: "sqlite3:///data/app.db?_auth_user=admin&_auth_pass=xxxxx",
+		},
+		{
+			name: "sqlite3 no query unchanged",
+			loc:  "sqlite3:///path/to/sqlite.db",
+			want: "sqlite3:///path/to/sqlite.db",
+		},
+		{
+			name: "sqlite3 non-secret params unchanged",
+			loc:  "sqlite3:///data/app.db?cache=shared&mode=ro",
+			want: "sqlite3:///data/app.db?cache=shared&mode=ro",
+		},
+		{
+			name: "sqlite3 empty secret value unchanged",
+			loc:  "sqlite3:///data/app.db?_auth_pass=",
+			want: "sqlite3:///data/app.db?_auth_pass=",
+		},
+		{
+			name: "sqlite3 fragment after secret query param",
+			loc:  "sqlite3:///data/app.db?_auth_pass=hunter2#frag",
+			want: "sqlite3:///data/app.db?_auth_pass=xxxxx#frag",
+		},
+		{
+			name: "duckdb token query param",
+			loc:  "duckdb:///data/sakila.duckdb?motherduck_token=tok123",
+			want: "duckdb:///data/sakila.duckdb?motherduck_token=xxxxx",
+		},
+		{
+			name: "postgres sslpassword",
+			loc:  "postgres://alice@localhost/sakila?sslpassword=hunter2",
+			want: "postgres://alice@localhost/sakila?sslpassword=xxxxx",
+		},
+		{
+			name: "postgres userinfo and secret query value both masked",
+			loc:  "postgres://alice:hunter2@localhost/sakila?sslpassword=abc&sslmode=require",
+			want: "postgres://alice:xxxxx@localhost/sakila?sslpassword=xxxxx&sslmode=require",
+		},
+		{
+			name: "sqlserver password query param",
+			loc:  "sqlserver://alice:hunter2@server:1433?database=sakila&password=abc",
+			want: "sqlserver://alice:xxxxx@server:1433?database=sakila&password=xxxxx",
+		},
+		{
+			name: "rqlite userinfo and token query param",
+			loc:  "rqlite://alice:hunter2@localhost:4001/mydb?auth_token=abc",
+			want: "rqlite://alice:xxxxx@localhost:4001/mydb?auth_token=xxxxx",
+		},
+		{
+			name: "http url with token query param",
+			loc:  "https://acme.com/data.csv?token=abc&format=csv",
+			want: "https://acme.com/data.csv?token=xxxxx&format=csv",
+		},
+		{
+			name: "bare path with secret query param",
+			loc:  "/data/app.db?_auth_pass=hunter2",
+			want: "/data/app.db?_auth_pass=xxxxx",
+		},
+		{
+			name: "placeholder secret query value kept verbatim",
+			loc:  "sqlite3:///data/app.db?_auth_user=admin&_auth_pass=${keyring:app-db}",
+			want: "sqlite3:///data/app.db?_auth_user=admin&_auth_pass=${keyring:app-db}",
+		},
+		{
+			name: "placeholder secret query value in DSN kept verbatim",
+			loc:  "postgres://alice@localhost/sakila?sslpassword=${env:PGPASS}",
+			want: "postgres://alice@localhost/sakila?sslpassword=${env:PGPASS}",
+		},
+		{
+			name: "mixed literal and placeholder query value masked",
+			loc:  "sqlite3:///data/app.db?_auth_pass=abc${env:DBPASS}",
+			want: "sqlite3:///data/app.db?_auth_pass=xxxxx",
+		},
+		{
+			name: "placeholder userinfo password still masked",
+			loc:  "postgres://alice:${keyring:pg-prod}@localhost/sakila?sslmode=require",
+			want: "postgres://alice:xxxxx@localhost/sakila?sslmode=require",
+		},
+		{
+			name: "placeholder in non-secret position untouched",
+			loc:  "postgres://alice@localhost/sakila?application_name=${env:APP}",
+			want: "postgres://alice@localhost/sakila?application_name=${env:APP}",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, location.Redact(tc.loc))
+		})
+	}
+}

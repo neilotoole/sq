@@ -13,8 +13,10 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -296,6 +298,65 @@ func TestTruncate_Reset(t *testing.T) {
 	id, err := res.LastInsertId()
 	require.NoError(t, err)
 	require.Equal(t, int64(1), id, "AUTOINCREMENT counter should have been reset")
+}
+
+// TestAlterTruncate_EmbeddedQuoteIdentifier reproduces gh821: the
+// AlterTableRename, AlterTableRenameColumn, AlterTableAddColumn, and Truncate
+// paths used %q for SQL identifier quoting, which emits Go backslash escaping
+// that SQLite rejects for names containing a double quote (e.g. a we"ird table,
+// creatable from a CSV header). Each path must use SQL double-quote escaping.
+func TestAlterTruncate_EmbeddedQuoteIdentifier(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	uniq := stringz.Uniq8()
+	tblName := `we"ird_` + uniq
+	newName := `we"ird2_` + uniq
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: newName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf("CREATE TABLE %s (id INTEGER)", stringz.DoubleQuote(tblName)))
+	require.NoError(t, err)
+
+	// AlterTableAddColumn: add a column whose name also contains a quote.
+	const colName = `na"me`
+	require.NoError(t, drvr.AlterTableAddColumn(th.Context, db, tblName, colName, kind.Text))
+
+	// AlterTableRenameColumn: rename the quoted column to another quoted name.
+	const renamedCol = `re"named`
+	require.NoError(t, drvr.AlterTableRenameColumn(th.Context, db, tblName, colName, renamedCol))
+
+	md, err := grip.TableMetadata(th.Context, tblName)
+	require.NoError(t, err)
+	require.Len(t, md.Columns, 2)
+	require.Equal(t, renamedCol, md.Columns[1].Name)
+
+	// Truncate: insert a row, then delete all rows via the truncate path.
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf("INSERT INTO %s (id) VALUES (1)", stringz.DoubleQuote(tblName)))
+	require.NoError(t, err)
+	affected, err := drvr.Truncate(th.Context, src, tblName, false)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), affected)
+
+	// AlterTableRename: rename the quoted table to another quoted name.
+	require.NoError(t, drvr.AlterTableRename(th.Context, db, tblName, newName))
+	exists, err := drvr.TableExists(th.Context, db, newName)
+	require.NoError(t, err)
+	require.True(t, exists)
+	exists, err = drvr.TableExists(th.Context, db, tblName)
+	require.NoError(t, err)
+	require.False(t, exists)
 }
 
 func TestCopyTable_StructureOnly(t *testing.T) {
@@ -804,7 +865,7 @@ func TestConsistencyLevels_Smoke(t *testing.T) {
 			drvr, err := provider.DriverFor(drivertype.Rqlite)
 			require.NoError(t, err)
 
-			grip, err := drvr.Open(th.Context, src)
+			grip, err := drvr.Open(th.Context, src, driver.ModeReadWrite)
 			require.NoError(t, err)
 			t.Cleanup(func() { _ = grip.Close() })
 
@@ -873,7 +934,7 @@ func TestOpen_DefaultsPort(t *testing.T) {
 	provider := &rqlite.Provider{Log: lg.FromContext(th.Context)}
 	drvr, err := provider.DriverFor(drivertype.Rqlite)
 	require.NoError(t, err)
-	grip, err := drvr.Open(th.Context, src)
+	grip, err := drvr.Open(th.Context, src, driver.ModeReadWrite)
 	require.NoError(t, err, "should auto-default port 4001")
 	t.Cleanup(func() { _ = grip.Close() })
 
@@ -910,29 +971,33 @@ func TestWriteAtomic_PerStatementError(t *testing.T) {
 	require.NoError(t, drvr.CreateTable(th.Context, db, preDef))
 
 	// CopyTable(copyData=true) issues [CREATE dstName, INSERT INTO
-	// dstName SELECT * FROM actor] as one atomic batch. The CREATE
-	// fails because dstName already exists, and writeAtomic should
-	// surface "statement 1/2 failed" with the underlying cause.
+	// dstName SELECT * FROM actor, companion DDL...] as one atomic
+	// batch (the companion count depends on actor's indexes and
+	// triggers, so the batch size isn't asserted). The CREATE fails
+	// because dstName already exists, and writeAtomic should surface
+	// "statement 1/N failed" with the underlying cause.
 	_, err = drvr.CopyTable(th.Context, db,
 		tablefq.T{Table: sakila.TblActor},
 		tablefq.T{Table: dstName},
 		true)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "statement 1/2 failed",
+	require.Contains(t, err.Error(), "statement 1/",
 		"writeAtomic should identify which statement in the batch failed")
+	require.Contains(t, err.Error(), "already exists",
+		"the underlying cause should be preserved")
 }
 
-// TestCoerce_NumericAffinityInt verifies that NUMERIC-declared columns
-// holding integer values surface as int64. This pins the cross-driver
-// integer contract for NUMERIC affinity: gorqlite hands back JSON
-// numbers as float64, which the rqlite driver coerces back to int64
-// for integer-valued NUMERIC cells (matching mattn/go-sqlite3's native
-// behavior). The CREATE TABLE is issued by hand rather than via
-// schema.NewTable because the latter emits INTEGER, not NUMERIC, so
-// would not exercise the coercion path. This guards against future
-// upstream Sakila schema fixes that would otherwise silently retire
-// the existing Sakila-driven coverage.
-func TestCoerce_NumericAffinityInt(t *testing.T) {
+// TestCoerce_NumericAffinityWholeNumber verifies that a NUMERIC-declared
+// column holding an integer value surfaces as a decimal.Decimal, not an
+// int64. This pins the cross-driver contract for NUMERIC affinity:
+// mattn/go-sqlite3 and Postgres both surface a NUMERIC column as a decimal
+// regardless of whether the stored value is whole, so rqlite matches that
+// rather than demoting whole values to int64 (issue #839). The CREATE TABLE
+// is issued by hand rather than via schema.NewTable because the latter emits
+// INTEGER, not NUMERIC, so would not exercise the coercion path. This guards
+// against future upstream Sakila schema fixes that would otherwise silently
+// retire the existing Sakila-driven coverage.
+func TestCoerce_NumericAffinityWholeNumber(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
 
@@ -962,16 +1027,16 @@ func TestCoerce_NumericAffinityInt(t *testing.T) {
 	require.Len(t, sink.Recs, 1)
 	require.Len(t, sink.Recs[0], 2)
 
-	gotID, ok := sink.Recs[0][0].(int64)
-	require.True(t, ok, "expected int64 for integer-valued NUMERIC column, got %T", sink.Recs[0][0])
-	require.Equal(t, int64(42), gotID)
+	gotID, ok := sink.Recs[0][0].(decimal.Decimal)
+	require.True(t, ok, "expected decimal.Decimal for integer-valued NUMERIC column, got %T", sink.Recs[0][0])
+	require.True(t, gotID.Equal(decimal.NewFromInt(42)), "expected 42, got %s", gotID.String())
 	require.Equal(t, "alpha", sink.Recs[0][1])
 }
 
 // TestCoerce_NumericAffinityDecimal verifies that NUMERIC-declared
 // columns holding non-integer values surface as decimal.Decimal.
-// Pairs with TestCoerce_NumericAffinityInt to cover both branches of
-// coerceDecimal (integer demotion vs. decimal pass-through).
+// Pairs with TestCoerce_NumericAffinityWholeNumber, which covers the
+// integer-valued case; both surface as decimal (see issue #839).
 func TestCoerce_NumericAffinityDecimal(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
@@ -1008,8 +1073,7 @@ func TestCoerce_NumericAffinityDecimal(t *testing.T) {
 	require.Equal(t, int64(1), gotID)
 
 	// price is NUMERIC affinity with a non-integer value, so it
-	// surfaces as decimal.Decimal (coerceDecimal returns the value
-	// unchanged when !IsInteger).
+	// surfaces as decimal.Decimal.
 	gotPrice, ok := sink.Recs[0][1].(decimal.Decimal)
 	require.True(t, ok, "expected decimal.Decimal for non-integer NUMERIC column, got %T", sink.Recs[0][1])
 	require.True(t, gotPrice.Equal(decimal.NewFromFloat(19.99)),
@@ -1543,7 +1607,7 @@ func TestColumnTypes_EmptyTable(t *testing.T) {
 	// RecordMeta should map each declared type to its expected
 	// non-Unknown kind, end-to-end. This is the assertion that ties
 	// the wrapper's DatabaseTypeName back to the rest of the driver.
-	recMeta, _, err := drvr.RecordMeta(th.Context, colTypes)
+	recMeta, _, err := drvr.RecordMeta(th.Context, colTypes, nil)
 	require.NoError(t, err)
 	require.Equal(t, []kind.Kind{
 		kind.Int,
@@ -1831,4 +1895,286 @@ func TestAlterTableColumnKinds_PreservesUniqueAndDefault(t *testing.T) {
 		fmt.Sprintf(`SELECT salary FROM %q WHERE id=1`, tblName)).Scan(&salary))
 	require.InDelta(t, 50000.0, salary, 0.0001,
 		"DEFAULT 50000 on salary should survive the rebuild")
+}
+
+// TestTableMetadata_ProblematicTableNames reproduces gh777 for the rqlite
+// driver: getTableMetadata interpolated the table name with Go's %q,
+// including into string-literal position. SQLite resolves a double-quoted
+// token as an identifier first, so a table named after a sqlite_master
+// column (name, type, sql) turned WHERE name = "name" into a tautology,
+// and a table name containing a double quote was emitted with Go backslash
+// escaping, which SQLite rejects outright. Mirrors the sqlite3 driver test.
+//
+// Deliberately NOT parallel: the test creates tables with fixed names
+// (name, type, sql, we"ird) in the shared Sakila rqlite database, so it
+// can't safely interleave with other tests touching the same server.
+func TestTableMetadata_ProblematicTableNames(t *testing.T) {
+	tu.SkipShort(t, true)
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	tblNames := []string{"name", "type", "sql", `we"ird`, "shadowed"}
+	// The fixed-name tables live in the shared database, so drop any
+	// leftovers from an aborted earlier run before creating: the test
+	// must be self-healing.
+	dropAll := func() {
+		_, _ = db.ExecContext(th.Context, `DROP TRIGGER IF EXISTS "shadowed"`)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: "aab_other"}, true)
+		for _, tblName := range tblNames {
+			_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+		}
+	}
+	dropAll()
+	t.Cleanup(dropAll)
+
+	// A trigger may share a table's name in sqlite_master. Create the
+	// trigger before the same-named table so the trigger row precedes the
+	// table row: without the type filter in the metadata query, the
+	// trigger row shadowed the table and the metadata was misreported.
+	_, err = db.ExecContext(th.Context, `CREATE TABLE aab_other (x INTEGER)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context,
+		`CREATE TRIGGER "shadowed" AFTER INSERT ON aab_other BEGIN SELECT 1; END`)
+	require.NoError(t, err)
+
+	for _, tblName := range tblNames {
+		quoted := stringz.DoubleQuote(tblName)
+		_, err = db.ExecContext(th.Context, fmt.Sprintf(
+			"CREATE TABLE %s (id INTEGER PRIMARY KEY, val TEXT)", quoted))
+		require.NoError(t, err)
+		_, err = db.ExecContext(th.Context, fmt.Sprintf(
+			"INSERT INTO %s (val) VALUES ('a'), ('b')", quoted))
+		require.NoError(t, err)
+	}
+
+	for _, tblName := range tblNames {
+		t.Run(tu.Name(tblName), func(t *testing.T) {
+			md, err := grip.TableMetadata(th.Context, tblName)
+			require.NoError(t, err)
+			require.Equal(t, tblName, md.Name)
+			require.Equal(t, int64(2), md.RowCount)
+			require.Equal(t, sqlz.TableTypeTable, md.TableType)
+			require.Len(t, md.Columns, 2)
+			require.Equal(t, "id", md.Columns[0].Name)
+			require.Equal(t, "val", md.Columns[1].Name)
+		})
+	}
+}
+
+// TestAlterTableColumnKinds_ForeignKeyEnforcement reproduces gh776: the
+// table-rebuild dance in AlterTableColumnKinds carried PRAGMA
+// foreign_keys=off inside its transaction-wrapped batch, where SQLite
+// specifies the pragma is a no-op. On a node enforcing foreign keys, the
+// rebuild's DROP TABLE step failed with "FOREIGN KEY constraint failed"
+// whenever the altered table was referenced by another table's FK. The
+// fix issues the pragma off/restore as separate non-transactional
+// requests around the (still atomic) rebuild batch.
+//
+// The standard test server runs without -fk, so the test enables
+// enforcement on the node's write connection via a non-transactional
+// pragma, exactly as a -fk node would have it at boot.
+//
+// Deliberately NOT parallel: the foreign_keys pragma applies to the
+// node's shared write connection, so toggling it would affect writes
+// from concurrently running tests.
+func TestAlterTableColumnKinds_ForeignKeyEnforcement(t *testing.T) {
+	tu.SkipShort(t, true)
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	parentTbl := "fkparent_" + stringz.Uniq8()
+	childTbl := "fkchild_" + stringz.Uniq8()
+	t.Cleanup(func() {
+		// Restore the node default (the test server runs without -fk),
+		// then drop child before parent.
+		_ = rqlite.ExecNonTx(th.Context, db, "PRAGMA foreign_keys=off")
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: childTbl}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: parentTbl}, true)
+	})
+
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		"CREATE TABLE %s (id INTEGER PRIMARY KEY, val INTEGER NOT NULL)",
+		stringz.DoubleQuote(parentTbl)))
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		"CREATE TABLE %s (id INTEGER PRIMARY KEY, pid INTEGER NOT NULL REFERENCES %s(id))",
+		stringz.DoubleQuote(childTbl), stringz.DoubleQuote(parentTbl)))
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		"INSERT INTO %s (id, val) VALUES (1, 42)", stringz.DoubleQuote(parentTbl)))
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		"INSERT INTO %s (id, pid) VALUES (1, 1)", stringz.DoubleQuote(childTbl)))
+	require.NoError(t, err)
+
+	// Enable FK enforcement on the node's write connection. This must go
+	// through the non-transactional path: a pragma in a
+	// transaction-wrapped request is a no-op.
+	require.NoError(t, rqlite.ExecNonTx(th.Context, db, "PRAGMA foreign_keys=on"))
+
+	// Sanity check: enforcement is live, so a dangling child insert fails.
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		"INSERT INTO %s (id, pid) VALUES (99, 999)", stringz.DoubleQuote(childTbl)))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "FOREIGN KEY constraint failed")
+
+	// The rebuild. Pre-fix, this failed at the DROP TABLE step with
+	// "FOREIGN KEY constraint failed" because the in-batch pragma never
+	// disabled enforcement.
+	require.NoError(t, drvr.AlterTableColumnKinds(th.Context, db, parentTbl,
+		[]string{"val"}, []kind.Kind{kind.Text}))
+
+	// Kind changed, and data in both tables survived the rebuild.
+	md, err := grip.TableMetadata(th.Context, parentTbl)
+	require.NoError(t, err)
+	require.Equal(t, kind.Text, md.Column("val").Kind)
+
+	var parentVal string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		"SELECT val FROM "+stringz.DoubleQuote(parentTbl)+" WHERE id = 1").
+		Scan(&parentVal))
+	require.Equal(t, "42", parentVal)
+	var childCount int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		"SELECT COUNT(*) FROM "+stringz.DoubleQuote(childTbl)).Scan(&childCount))
+	require.Equal(t, int64(1), childCount)
+
+	// AlterTableColumnKinds restores the foreign_keys pragma to the
+	// node's configured default: the write connection's live pragma
+	// state is not readable over the HTTP API (PRAGMA foreign_keys via
+	// /db/query is served by the read-only pool), so the boot default is
+	// the restore target. This test server's default is off, so a
+	// dangling insert succeeding here proves the restore ran. On a node
+	// actually running -fk, the same restore re-enables enforcement.
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		"INSERT INTO %s (id, pid) VALUES (100, 999)", stringz.DoubleQuote(childTbl)))
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		"DELETE FROM %s WHERE id = 100", stringz.DoubleQuote(childTbl)))
+	require.NoError(t, err)
+
+	// Re-enable enforcement: the child's FK must still be wired to the
+	// rebuilt parent (the DROP/RENAME preserved the relationship).
+	require.NoError(t, rqlite.ExecNonTx(th.Context, db, "PRAGMA foreign_keys=on"))
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		"INSERT INTO %s (id, pid) VALUES (101, 999)", stringz.DoubleQuote(childTbl)))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "FOREIGN KEY constraint failed")
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		"INSERT INTO %s (id, pid) VALUES (2, 1)", stringz.DoubleQuote(childTbl)))
+	require.NoError(t, err)
+}
+
+// TestCopyTable_CopiesIndexesAndTriggers is the rqlite half of gh758:
+// CopyTable carries the source table's companion objects (indexes and
+// triggers, separate sqlite_master rows) across to the destination,
+// renamed to "<orig-name>_<dest-table>", riding the same writeAtomic
+// batch as the CREATE and INSERT. The UNIQUE constraint's automatic
+// index has NULL sql in sqlite_master and must be skipped by the
+// companion rewrite. Trigger timing is load-bearing: the copied
+// trigger must not fire on the rows being copied, only on subsequent
+// inserts into the destination. Mirrors the sqlite3 sibling test.
+func TestCopyTable_CopiesIndexesAndTriggers(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	uniq := stringz.Uniq8()
+	srcName := "companion_src_" + uniq
+	logName := "companion_log_" + uniq
+	dstName := "companion_dst_" + uniq
+	idxName := "idx_name_" + uniq
+	trgName := "trg_bi_" + uniq
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: dstName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: srcName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: logName}, true)
+	})
+
+	for _, stmt := range []string{
+		fmt.Sprintf(`CREATE TABLE %q (id INTEGER PRIMARY KEY, name TEXT, email TEXT UNIQUE)`,
+			srcName),
+		fmt.Sprintf(`CREATE TABLE %q (id INTEGER PRIMARY KEY, msg TEXT)`, logName),
+		fmt.Sprintf(`CREATE INDEX %q ON %q (name)`, idxName, srcName),
+		fmt.Sprintf(`CREATE TRIGGER %q BEFORE INSERT ON %q BEGIN
+			INSERT INTO %q (msg) VALUES (NEW.name);
+		END`, trgName, srcName, logName),
+		fmt.Sprintf(`INSERT INTO %q (name, email) VALUES ('alice', 'a@x.com'), ('bob', 'b@x.com')`,
+			srcName),
+	} {
+		_, err = db.ExecContext(th.Context, stmt)
+		require.NoError(t, err)
+	}
+
+	copied, err := drvr.CopyTable(th.Context, db,
+		tablefq.T{Table: srcName}, tablefq.T{Table: dstName}, true)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), copied)
+
+	// The copied trigger must not have fired on the copied rows: the
+	// source inserts logged 2 rows, and the copy must not add more.
+	var logCount int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		fmt.Sprintf(`SELECT count(*) FROM %q`, logName)).Scan(&logCount))
+	require.Equal(t, int64(2), logCount,
+		"copied trigger must not fire on the rows being copied")
+
+	// The explicit index is carried over, renamed, and re-targeted.
+	var idxSQL string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT sql FROM sqlite_master WHERE type='index' AND name=? AND tbl_name=?`,
+		idxName+"_"+dstName, dstName).Scan(&idxSQL))
+	require.Contains(t, idxSQL, fmt.Sprintf("%q", dstName))
+	require.NotContains(t, idxSQL, fmt.Sprintf("ON %s ", srcName))
+
+	// Exactly one explicit (non-NULL sql) index on the destination: the
+	// UNIQUE constraint's automatic index has NULL sql and must not have
+	// been duplicated by the companion copy.
+	var explicitIdxCount int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT count(*) FROM sqlite_master WHERE type='index' AND tbl_name=?
+			AND sql IS NOT NULL`, dstName).Scan(&explicitIdxCount))
+	require.Equal(t, int64(1), explicitIdxCount)
+
+	// The trigger is carried over, renamed, and re-targeted; its body's
+	// cross-table reference (the log table) is left untouched.
+	var trgSQL string
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT sql FROM sqlite_master WHERE type='trigger' AND name=? AND tbl_name=?`,
+		trgName+"_"+dstName, dstName).Scan(&trgSQL))
+	require.Contains(t, trgSQL, fmt.Sprintf(`ON %q`, dstName))
+	require.Contains(t, trgSQL, logName,
+		"cross-table body reference must be preserved")
+
+	// The copied trigger's side effect fires on insert into the destination.
+	_, err = db.ExecContext(th.Context, fmt.Sprintf(
+		`INSERT INTO %q (name, email) VALUES ('dave', 'd@x.com')`, dstName))
+	require.NoError(t, err)
+	require.NoError(t, db.QueryRowContext(th.Context,
+		fmt.Sprintf(`SELECT count(*) FROM %q WHERE msg='dave'`, logName)).Scan(&logCount))
+	require.Equal(t, int64(1), logCount,
+		"copied trigger must fire on insert into the destination")
+
+	// The source's companions are untouched: original names, original table.
+	var srcCompanionCount int64
+	require.NoError(t, db.QueryRowContext(th.Context,
+		`SELECT count(*) FROM sqlite_master WHERE tbl_name=? AND name IN (?, ?)`,
+		srcName, idxName, trgName).Scan(&srcCompanionCount))
+	require.Equal(t, int64(2), srcCompanionCount)
 }

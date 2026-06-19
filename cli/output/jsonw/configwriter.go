@@ -2,6 +2,7 @@ package jsonw
 
 import (
 	"io"
+	"time"
 
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/output"
@@ -59,6 +60,23 @@ func (w *configWriter) Location(loc string, origin config.Origin) error {
 	return writeJSON(w.out, w.pr, c)
 }
 
+// verboseOptJSON returns vo with any time.Duration values in its Value and
+// DefaultValue fields replaced by their human-readable string form
+// (time.Duration.String, e.g. "1m30s"). Durations inside options.Options maps
+// are handled by options.Options.MarshalJSON, but VerboseOpt holds the values
+// in plain `any` fields, so they must be converted here. The conversion lives
+// in this package (not in commonw.NewVerboseOpt) because it applies only to
+// JSON output. See https://github.com/neilotoole/sq/issues/791.
+func verboseOptJSON(vo commonw.VerboseOpt) commonw.VerboseOpt {
+	if d, ok := vo.Value.(time.Duration); ok {
+		vo.Value = d.String()
+	}
+	if d, ok := vo.DefaultValue.(time.Duration); ok {
+		vo.DefaultValue = d.String()
+	}
+	return vo
+}
+
 // Opt implements output.ConfigWriter.
 func (w *configWriter) Opt(o options.Options, opt options.Opt) error {
 	if o == nil || opt == nil {
@@ -71,7 +89,7 @@ func (w *configWriter) Opt(o options.Options, opt options.Opt) error {
 		return writeJSON(w.out, w.pr, o2)
 	}
 
-	vo := commonw.NewVerboseOpt(opt, o2)
+	vo := verboseOptJSON(commonw.NewVerboseOpt(opt, o2))
 	return writeJSON(w.out, w.pr, vo)
 }
 
@@ -88,7 +106,7 @@ func (w *configWriter) Options(reg *options.Registry, o options.Options) error {
 	opts := reg.Opts()
 	m := map[string]commonw.VerboseOpt{}
 	for _, opt := range opts {
-		m[opt.Key()] = commonw.NewVerboseOpt(opt, o)
+		m[opt.Key()] = verboseOptJSON(commonw.NewVerboseOpt(opt, o))
 	}
 
 	return writeJSON(w.out, w.pr, m)
@@ -100,7 +118,7 @@ func (w *configWriter) SetOption(o options.Options, opt options.Opt) error {
 		return nil
 	}
 
-	vo := commonw.NewVerboseOpt(opt, o)
+	vo := verboseOptJSON(commonw.NewVerboseOpt(opt, o))
 	return writeJSON(w.out, w.pr, vo)
 }
 
@@ -111,6 +129,6 @@ func (w *configWriter) UnsetOption(opt options.Opt) error {
 	}
 
 	o := options.Options{opt.Key(): opt.GetAny(nil)}
-	vo := commonw.NewVerboseOpt(opt, o)
+	vo := verboseOptJSON(commonw.NewVerboseOpt(opt, o))
 	return writeJSON(w.out, w.pr, vo)
 }

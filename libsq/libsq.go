@@ -14,6 +14,7 @@ import (
 	"errors"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -37,6 +38,16 @@ type QueryContext struct {
 	// May be nil or empty.
 	Args map[string]string
 
+	// WriteHandle, when non-empty, is the handle of a source the caller has
+	// already opened read-write (the --insert destination). A source in the
+	// query that shares this handle (a self-insert, e.g.
+	// `sq '@h.t1' --insert @h.t2`) must be opened read-write too, so the
+	// pipeline reuses the existing read-write grip rather than opening a
+	// second connection in a conflicting mode (DuckDB rejects concurrent
+	// read-only + read-write of one file). Other sources still use
+	// AccessMode. Empty for non-insert queries.
+	WriteHandle string
+
 	// PreExecStmts are statements that are executed before the query.
 	// These can be used for edge-case behavior, such as setting up
 	// variables in the session. These stmts are typically loaded
@@ -49,6 +60,27 @@ type QueryContext struct {
 	//
 	// See also: QueryContext.PreExecStmts.
 	PostExecStmts []string
+
+	// AccessMode controls how source grips are opened during query
+	// execution. The zero value (ModeReadWrite) is the read-write default;
+	// read-only commands (print, render, diff) set ModeReadOnly. It is the
+	// mode used for every source the pipeline opens, except a source whose
+	// handle matches WriteHandle (see openModeFor).
+	//
+	// Field order note: WriteHandle (string) precedes the slice fields and
+	// AccessMode (one byte) is last, to satisfy govet fieldalignment.
+	AccessMode driver.AccessMode
+}
+
+// openModeFor returns the access mode the pipeline should use when opening
+// the source with the given handle: ModeReadWrite for the WriteHandle
+// (insert destination) source so it reuses the already-open read-write
+// grip, otherwise AccessMode.
+func (qc *QueryContext) openModeFor(handle string) driver.AccessMode {
+	if qc.WriteHandle != "" && handle == qc.WriteHandle {
+		return driver.ModeReadWrite
+	}
+	return qc.AccessMode
 }
 
 // RecordWriter is the interface for writing records to a
@@ -266,13 +298,18 @@ func ExecSQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 // non-nil, the query is executed against it. Otherwise, the connection is
 // obtained from grip.
 //
+// The hints arg carries forced result-column kinds (keyed by zero-based output
+// position) for the driver's RecordMeta to apply; see SQLDriver.RecordMeta. The
+// SLQ pipeline supplies hints recorded during rendering; callers executing raw
+// SQL pass nil.
+//
 // Note that QuerySQL may return before recw has finished writing, thus the
 // caller may wish to wait for recw to complete.
 // The caller is responsible for closing grip (and db, if non-nil).
 //
 // See also: ExecSQL.
 func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
-	recw RecordWriter, query string, args ...any,
+	recw RecordWriter, hints map[int]kind.Kind, query string, args ...any,
 ) error {
 	log := lg.FromContext(ctx)
 	errw := grip.SQLDriver().ErrWrapFunc()
@@ -345,7 +382,7 @@ func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 	}
 
 	drvr := grip.SQLDriver()
-	recMeta, recFromScanRowFn, err := drvr.RecordMeta(ctx, colTypes)
+	recMeta, recFromScanRowFn, err := drvr.RecordMeta(ctx, colTypes, hints)
 	if err != nil {
 		return errw(err)
 	}

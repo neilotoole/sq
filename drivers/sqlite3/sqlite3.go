@@ -37,6 +37,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -135,7 +136,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 }
 
 // Open implements driver.Driver.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessMode) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -182,7 +183,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 		return 0, errw(err)
 	}
 
-	affected, err = sqlz.ExecAffected(ctx, tx, fmt.Sprintf("DELETE FROM %q", tbl))
+	affected, err = sqlz.ExecAffected(ctx, tx, "DELETE FROM "+stringz.DoubleQuote(tbl))
 	if err != nil {
 		return affected, errz.Append(err, errw(tx.Rollback()))
 	}
@@ -216,8 +217,12 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	return src, nil
 }
 
-// Ping implements driver.Driver.
-func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
+// Ping implements driver.Driver. SQLite does not honor read-only mode, so
+// mode is ignored: doOpen always opens with SQLite's create-capable
+// default. The practical effect matches DuckDB's ModeReadWrite ping, so
+// "sq add" of a new .sqlite file still creates it; there is just no
+// read-only variant to distinguish. See driver.Driver.Ping.
+func (d *driveri) Ping(ctx context.Context, src *source.Source, _ driver.AccessMode) error {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return err
@@ -282,6 +287,16 @@ func (d *driveri) Renderer() *render.Renderer {
 	r.FunctionOverrides[ast.FuncNameLike] = renderFuncLike
 	r.FunctionOverrides[ast.FuncNameILike] = renderFuncLike
 
+	// sum() is harmonized to decimal across drivers (issue #839). SQLite has no
+	// decimal type and reports no usable type for a sum() expression, so a SQL
+	// cast can't pin the surfaced type. Instead, pin the result kind here; the
+	// driver applies it when building record metadata, scanning the value as a
+	// decimal. Note: SQLite computes sum() over a non-integer column in floating
+	// point, so a decimal-column sum may still carry that drift (e.g.
+	// 67416.51000000001); the kind is unified, but the engine's computed value
+	// is not corrected.
+	r.FunctionResultKinds[ast.FuncNameSum] = kind.Decimal
+
 	return r
 }
 
@@ -295,6 +310,14 @@ func (d *driveri) Renderer() *render.Renderer {
 // so the destination's FKs resolve against itself rather than the
 // source. Cross-table FKs (REFERENCES other(...) where other != src)
 // are left untouched.
+//
+// The source table's companion objects (indexes and triggers, which
+// live as separate sqlite_master rows) are also copied (gh758), with
+// each companion renamed to "<orig-name>_<dest-table>" because index
+// and trigger names are schema-global in SQLite. Companions are created
+// after the data copy so that copied triggers don't fire on (or mutate)
+// the rows being copied. See copyTableCompanionDDL for the rewrite
+// details and limitations.
 func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 	fromTbl, toTbl tablefq.T, copyData bool,
 ) (int64, error) {
@@ -364,29 +387,101 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 		return 0, errz.Wrap(err, "sqlite3: copy table: failed to apply DDL rewrites")
 	}
 
+	// Read and rewrite the companion (index and trigger) DDL up front,
+	// before any writes, so a rewrite failure aborts the copy cleanly.
+	companionStmts, err := copyTableCompanionDDL(ctx, db, fromTbl, toTbl)
+	if err != nil {
+		return 0, err
+	}
+
 	_, err = db.ExecContext(ctx, destTblCreateStmt)
 	if err != nil {
 		return 0, errw(err)
 	}
 
-	if !copyData {
-		return 0, nil
+	var affected int64
+	if copyData {
+		stmt := fmt.Sprintf("INSERT INTO %s SELECT * FROM %s", toTbl, fromTbl)
+		if affected, err = sqlz.ExecAffected(ctx, db, stmt); err != nil {
+			return 0, errw(err)
+		}
 	}
 
-	stmt := fmt.Sprintf("INSERT INTO %s SELECT * FROM %s", toTbl, fromTbl)
-	affected, err := sqlz.ExecAffected(ctx, db, stmt)
-	if err != nil {
-		return 0, errw(err)
+	// Companions are created after the data copy: a copied trigger must
+	// not fire on the rows being copied.
+	for _, stmt := range companionStmts {
+		if _, err = db.ExecContext(ctx, stmt); err != nil {
+			return 0, errw(err)
+		}
 	}
 
 	return affected, nil
 }
 
+// copyTableCompanionDDL reads the DDL of fromTbl's companion objects
+// (indexes and triggers) from sqlite_master and returns each statement
+// rewritten to apply to toTbl. Rows with NULL sql are automatic indexes
+// (e.g. backing a UNIQUE constraint or PRIMARY KEY) that the rewritten
+// CREATE TABLE already recreates, so the query excludes them.
+//
+// Index and trigger names are schema-global in SQLite, so each
+// companion is renamed by appending the destination table name:
+// "<orig-name>_<dest-table>". A trigger's ON <table> target, and any
+// table references in its body that name the source table, are
+// rewritten to the destination; references to other tables are left
+// untouched. See sqlparser.RewriteCreateIndexStmt and
+// sqlparser.RewriteCreateTriggerStmt.
+func copyTableCompanionDDL(ctx context.Context, db sqlz.DB,
+	fromTbl, toTbl tablefq.T,
+) ([]string, error) {
+	masterTbl := tablefq.T{Schema: fromTbl.Schema, Table: "sqlite_master"}
+	q := fmt.Sprintf("SELECT name, type, sql FROM %s WHERE tbl_name = ? "+
+		"AND type IN ('index','trigger') AND sql IS NOT NULL ORDER BY name",
+		masterTbl.Render(stringz.DoubleQuote))
+	rows, err := db.QueryContext(ctx, q, fromTbl.Table)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(lg.FromContext(ctx), rows)
+
+	destTblIdent := stringz.DoubleQuote(toTbl.Table)
+	var stmts []string
+	for rows.Next() {
+		var name, typ, ddl string
+		if err = rows.Scan(&name, &typ, &ddl); err != nil {
+			return nil, errw(err)
+		}
+
+		// The companion lives in the destination table's schema.
+		newIdent := tablefq.T{Schema: toTbl.Schema, Table: name + "_" + toTbl.Table}.
+			Render(stringz.DoubleQuote)
+
+		var rewritten string
+		switch typ {
+		case "index":
+			rewritten, err = sqlparser.RewriteCreateIndexStmt(ddl, newIdent, destTblIdent)
+		case "trigger":
+			rewritten, err = sqlparser.RewriteCreateTriggerStmt(ddl, newIdent, destTblIdent)
+		default:
+			// Unreachable given the query predicate.
+			continue
+		}
+		if err != nil {
+			return nil, errz.Wrapf(err, "sqlite3: copy table: rewrite %s {%s}", typ, name)
+		}
+		stmts = append(stmts, rewritten)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+	return stmts, nil
+}
+
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, hints map[int]kind.Kind) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
-	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes)
+	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes, hints)
 	if err != nil {
 		return nil, nil, errw(err)
 	}
@@ -1014,7 +1109,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 		return nil, err
 	}
 
-	destCols, _, err := d.RecordMeta(ctx, colTypes)
+	destCols, _, err := d.RecordMeta(ctx, colTypes, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1034,6 +1129,9 @@ func NewScratchSource(ctx context.Context, fpath string) (src *source.Source, cl
 		Type:     drivertype.SQLite,
 		Handle:   source.ScratchHandle,
 		Location: Prefix + fpath,
+		// The path is an internally constructed literal, not a
+		// placeholder template: mark it so resolution is a no-op.
+		SecretsResolved: true,
 	}
 
 	clnup = func() error {
@@ -1131,27 +1229,13 @@ func filePathFromLocation(loc string) string {
 // But that input location gets mangled on non-Windows OSes. This probably
 // isn't a problem in practice, but longer-term it may make sense to rewrite
 // MungeLocation to be OS-independent.
+//
+// MungeLocation is idempotent, and is a thin wrapper around
+// location.MungeTemplateForDriver: the user-typed location is a
+// placeholder template, so cwd bytes spliced in by absolutization are
+// escaped (gh #797). Locations resolved from secret placeholders at
+// connect time are literal bytes and take the no-escape path via
+// location.MungeForDriver (driver.ResolveSourceSecrets).
 func MungeLocation(loc string) (string, error) {
-	loc2 := strings.TrimSpace(loc)
-	if loc2 == "" {
-		return "", errz.New("location must not be empty")
-	}
-
-	loc2 = strings.TrimPrefix(loc2, "sqlite3://")
-	loc2 = strings.TrimPrefix(loc2, "sqlite3:")
-
-	pathPart, queryPart, hasQuery := strings.Cut(loc2, "?")
-
-	fp, err := filepath.Abs(pathPart)
-	if err != nil {
-		// Use pathPart, not loc: the original may contain secret
-		// connection params (e.g. _auth_pass) in the query suffix.
-		return "", errz.Wrapf(errw(err), "invalid location: %s", pathPart)
-	}
-
-	fp = filepath.ToSlash(fp)
-	if hasQuery {
-		return "sqlite3://" + fp + "?" + queryPart, nil
-	}
-	return "sqlite3://" + fp, nil
+	return location.MungeTemplateForDriver(drivertype.SQLite, loc)
 }

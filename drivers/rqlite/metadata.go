@@ -26,12 +26,19 @@ import (
 // recordMetaFromColumnTypes builds record.Meta for colTypes returned by
 // gorqlite. The shape matches the sqlite3 driver's helper: the SQL is
 // SQLite's, so the column-type names and affinity rules apply verbatim.
-func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta, error) {
+func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType, kindHints map[int]kind.Kind,
+) (record.Meta, error) {
+	// kindHints carries forced result-column kinds recorded during rendering
+	// (e.g. sum() pinned to kind.Decimal). rqlite is SQLite-backed and reports
+	// no usable type for such expressions. See issue #839.
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
 	ogColNames := make([]string, len(colTypes))
 	for i, colType := range colTypes {
 		dbTypeName := colType.DatabaseTypeName()
 		knd := kindFromDBTypeName(ctx, colType.Name(), dbTypeName, colType.ScanType())
+		if hint, ok := kindHints[i]; ok {
+			knd = hint
+		}
 		colTypeData := record.NewColumnTypeData(colType, knd)
 		setScanType(ctx, colTypeData)
 		sColTypeData[i] = colTypeData
@@ -353,14 +360,14 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 			if !col.Valid {
 				rec[i] = nil
 			} else {
-				rec[i] = coerceDecimal(col.Decimal)
+				rec[i] = col.Decimal
 			}
 			record.SetKindIfUnknown(meta, i, kind.Decimal)
 		case *decimal.Decimal:
-			rec[i] = coerceDecimal(*col)
+			rec[i] = *col
 			record.SetKindIfUnknown(meta, i, kind.Decimal)
 		case decimal.Decimal:
-			rec[i] = coerceDecimal(col)
+			rec[i] = col
 			record.SetKindIfUnknown(meta, i, kind.Decimal)
 		case *sql.NullBool:
 			if col.Valid {
@@ -404,11 +411,10 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 // column's kind. gorqlite returns every JSON number as float64 so we
 // have to demote back to int64 for integer columns; otherwise the
 // cross-driver record contract (int columns yield int64) is broken.
-// For Decimal columns the value is converted to decimal.Decimal,
-// with an additional whole-number coercion to int64 that matches
-// what mattn/go-sqlite3 emits natively for NUMERIC-affinity columns
-// that happen to hold integers (Sakila's actor_id is exactly this
-// shape).
+// Decimal columns yield a decimal.Decimal, including whole-number
+// values: mattn/go-sqlite3 and the other drivers surface a NUMERIC
+// column as a decimal regardless of whether the stored value happens
+// to be an integer, so rqlite matches that (see issue #839).
 //
 // Unknown kinds pass through as float64 and have the kind set to
 // Float, mirroring the original behavior.
@@ -419,21 +425,11 @@ func coerceFloat64(meta record.Meta, i int, v float64) any {
 	case kind.Bool:
 		return v != 0
 	case kind.Decimal:
-		return coerceDecimal(decimal.NewFromFloat(v))
+		return decimal.NewFromFloat(v)
 	default:
 		record.SetKindIfUnknown(meta, i, kind.Float)
 		return v
 	}
-}
-
-// coerceDecimal demotes whole-number decimals to int64 so NUMERIC
-// columns whose stored values are integers match the cross-driver
-// record contract. Non-integer decimals are returned as-is.
-func coerceDecimal(d decimal.Decimal) any {
-	if d.IsInteger() {
-		return d.IntPart()
-	}
-	return d
 }
 
 // getTableMetadata returns metadata for a single table. The shape
@@ -444,10 +440,22 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	log := lg.FromContext(ctx)
 	tblMeta := &metadata.Table{Name: tblName}
 
+	// The table name is bound as a query parameter where it appears in
+	// string-literal position: interpolating it with Go's %q resolved a
+	// double-quoted token as an identifier first, so a table named after
+	// a sqlite_master column (name, type, sql) produced a tautology, and
+	// a name containing a double quote got Go backslash escaping, which
+	// SQLite rejects (gh777). In identifier position (FROM),
+	// stringz.DoubleQuote applies proper SQLite quoting, doubling any
+	// embedded double quote.
+	// The type filter matters: a trigger (or index) may share a table's
+	// name in sqlite_master, and without the filter the first matching
+	// row could misreport the table's type.
 	const tpl = `SELECT
-(SELECT COUNT(*) FROM %q),
-(SELECT type FROM sqlite_master WHERE name = %q LIMIT 1),
-(SELECT 1 FROM sqlite_master WHERE name = %q AND substr("sql",0,21) == 'CREATE VIRTUAL TABLE') AS is_virtual,
+(SELECT COUNT(*) FROM %s),
+(SELECT type FROM sqlite_master WHERE name = ? AND type IN ('table','view') LIMIT 1),
+(SELECT 1 FROM sqlite_master WHERE name = ?
+ AND type = 'table' AND substr("sql",0,21) == 'CREATE VIRTUAL TABLE') AS is_virtual,
 (SELECT name FROM pragma_database_list ORDER BY seq LIMIT 1)`
 
 	var schemaName string
@@ -456,8 +464,8 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	// sql.NullBool. NULL means not a virtual table; any non-zero
 	// value means virtual.
 	var isVirtualTbl sql.NullFloat64
-	query := fmt.Sprintf(tpl, tblMeta.Name, tblMeta.Name, tblMeta.Name)
-	err := db.QueryRowContext(ctx, query).Scan(
+	query := fmt.Sprintf(tpl, stringz.DoubleQuote(tblMeta.Name))
+	err := db.QueryRowContext(ctx, query, tblMeta.Name, tblMeta.Name).Scan(
 		&tblMeta.RowCount, &tblMeta.DBTableType, &isVirtualTbl, &schemaName)
 	if err != nil {
 		return nil, errw(err)
@@ -475,8 +483,10 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 
 	tblMeta.FQName = schemaName + "." + tblName
 
-	query = fmt.Sprintf("PRAGMA TABLE_INFO('%s')", tblMeta.Name)
-	rows, err := db.QueryContext(ctx, query)
+	// The table-valued pragma function takes the table name as a bound
+	// parameter, eliminating an interpolated quoting site (gh777).
+	query = `SELECT cid, name, type, "notnull", dflt_value, pk FROM pragma_table_info(?)`
+	rows, err := db.QueryContext(ctx, query, tblMeta.Name)
 	if err != nil {
 		return nil, errw(err)
 	}

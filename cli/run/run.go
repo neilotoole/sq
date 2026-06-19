@@ -35,7 +35,9 @@ func NewContext(ctx context.Context, ru *Run) context.Context {
 	return context.WithValue(ctx, runKey{}, ru)
 }
 
-// FromContext extracts the Run added to ctx via NewContext.
+// FromContext extracts the Run added to ctx via NewContext. It panics
+// if no Run is present; this is a deliberate fail-fast, since every
+// command path installs a Run before any code that reads it runs.
 func FromContext(ctx context.Context) *Run {
 	return ctx.Value(runKey{}).(*Run)
 }
@@ -133,9 +135,9 @@ func (ru *Run) Close() error {
 }
 
 // DB is a convenience method that gets the sqlz.DB and driver.SQLDriver
-// for src.
-func (ru *Run) DB(ctx context.Context, src *source.Source) (sqlz.DB, driver.SQLDriver, error) {
-	grip, err := ru.Grips.Open(ctx, src)
+// for src, opened in the given access mode.
+func (ru *Run) DB(ctx context.Context, src *source.Source, mode driver.AccessMode) (sqlz.DB, driver.SQLDriver, error) {
+	grip, err := ru.Grips.Open(ctx, src, mode)
 	if err != nil {
 		return nil, nil, err
 	}

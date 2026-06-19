@@ -22,8 +22,12 @@ import (
 )
 
 // recordMetaFromColumnTypes returns record.Meta for colTypes.
-func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType,
+func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType, kindHints map[int]kind.Kind,
 ) (record.Meta, error) {
+	// kindHints carries forced result-column kinds recorded during rendering
+	// (e.g. sum() pinned to kind.Decimal). SQLite reports no usable type for
+	// such expressions, so without a hint they would be surfaced as int/float
+	// from the scanned value. See issue #839.
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
 	ogColNames := make([]string, len(colTypes))
 	for i, colType := range colTypes {
@@ -34,6 +38,11 @@ func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType,
 		dbTypeName := colType.DatabaseTypeName()
 
 		knd := kindFromDBTypeName(ctx, colType.Name(), dbTypeName, colType.ScanType())
+		if hint, ok := kindHints[i]; ok {
+			// Force the renderer-pinned kind. setScanType derives the scan
+			// target from the kind, so kind.Decimal yields a decimal scan.
+			knd = hint
+		}
 		colTypeData := record.NewColumnTypeData(colType, knd)
 
 		// It's necessary to explicitly set the scan type because
@@ -271,17 +280,30 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	// Note that there's no easy way of getting the physical size of
 	// a table, so tblMeta.Size remains nil.
 
-	// But we can get the row count and table type ("table" or "view")
+	// But we can get the row count and table type ("table" or "view").
+	// The table name is bound as a query parameter where it appears in
+	// string-literal position: interpolating it with Go's %q resolved a
+	// double-quoted token as an identifier first, so a table named after
+	// a sqlite_master column (name, type, sql) produced a tautology, and
+	// a name containing a double quote got Go backslash escaping, which
+	// SQLite rejects (gh777). In identifier position (FROM),
+	// stringz.DoubleQuote applies proper SQLite quoting, doubling any
+	// embedded double quote.
+	// The type filter matters: a trigger (or index) may share a table's
+	// name in sqlite_master, and without the filter the first matching
+	// row could misreport the table's type.
 	const tpl = `SELECT
-(SELECT COUNT(*) FROM %q),
-(SELECT type FROM sqlite_master WHERE name = %q LIMIT 1),
-(SELECT 1 FROM sqlite_master WHERE name = %q AND substr("sql",0,21) == 'CREATE VIRTUAL TABLE') AS is_virtual,
+(SELECT COUNT(*) FROM %s),
+(SELECT type FROM sqlite_master WHERE name = ? AND type IN ('table','view') LIMIT 1),
+(SELECT 1 FROM sqlite_master WHERE name = ?
+ AND type = 'table' AND substr("sql",0,21) == 'CREATE VIRTUAL TABLE') AS is_virtual,
 (SELECT name FROM pragma_database_list ORDER BY seq LIMIT 1)`
 
 	var schema string
 	var isVirtualTbl sql.NullBool
-	query := fmt.Sprintf(tpl, tblMeta.Name, tblMeta.Name, tblMeta.Name)
-	err := db.QueryRowContext(ctx, query).Scan(&tblMeta.RowCount, &tblMeta.DBTableType, &isVirtualTbl, &schema)
+	query := fmt.Sprintf(tpl, stringz.DoubleQuote(tblMeta.Name))
+	err := db.QueryRowContext(ctx, query, tblMeta.Name, tblMeta.Name).
+		Scan(&tblMeta.RowCount, &tblMeta.DBTableType, &isVirtualTbl, &schema)
 	if err != nil {
 		return nil, errw(err)
 	}
@@ -303,8 +325,10 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	// 0	actor_id	INT			1		<null>		1
 	// 1	film_id		INT			1		<null>		2
 	// 2	last_update	TIMESTAMP	1		<null>		0
-	query = fmt.Sprintf("PRAGMA TABLE_INFO('%s')", tblMeta.Name)
-	rows, err := db.QueryContext(ctx, query)
+	// The table-valued pragma function takes the table name as a bound
+	// parameter, eliminating an interpolated quoting site (gh777).
+	query = `SELECT cid, name, type, "notnull", dflt_value, pk FROM pragma_table_info(?)`
+	rows, err := db.QueryContext(ctx, query, tblMeta.Name)
 	if err != nil {
 		return nil, errw(err)
 	}
@@ -814,7 +838,7 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 		if terms > 0 {
 			sb.WriteString(" UNION ALL ")
 		}
-		sb.WriteString(fmt.Sprintf("SELECT COUNT(*) FROM %q", tblNames[i]))
+		sb.WriteString("SELECT COUNT(*) FROM " + stringz.DoubleQuote(tblNames[i]))
 		terms++
 
 		if terms != maxCompoundSelect && i != len(tblNames)-1 {

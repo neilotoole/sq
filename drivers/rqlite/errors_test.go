@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
@@ -303,7 +304,7 @@ func TestPing_PlainHTTPAgainstTLSServer_GetsTLSHint(t *testing.T) {
 		Type:     drivertype.Rqlite,
 		Location: "rqlite://" + host, // Plain HTTP at a TLS port.
 	}
-	err := d.Ping(ctx, src)
+	err := d.Ping(ctx, src, driver.ModeReadWrite)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "appears to require TLS")
 	require.Contains(t, err.Error(), "tls=true")

@@ -65,8 +65,14 @@ type Source struct { //nolint:govet
 	// Type is the driver type, e.g. postgres.Type.
 	Type drivertype.Type `yaml:"driver" json:"driver"`
 
-	// Location is the source location, such as a DB connection URI,
-	// or a file path.
+	// Location is the source location: a DB connection URI or a file
+	// path, stored as a placeholder template. At connect time,
+	// ${scheme:path} refs are resolved via the secret registry and
+	// "$$" escapes are reduced to a literal "$"; see the
+	// libsq/core/secret package doc for the template-vs-literal rules.
+	// Code that hands the location to anything external (a driver, a
+	// subprocess, a hash) must use the resolved form from
+	// driver.ResolveSourceSecrets, not these raw template bytes.
 	Location string `yaml:"location" json:"location"`
 
 	// Catalog, when non-empty, specifies a catalog (database) name
@@ -94,6 +100,16 @@ type Source struct { //nolint:govet
 
 	// Options are additional params, typically empty.
 	Options options.Options `yaml:"options,omitempty" json:"options,omitempty"`
+
+	// SecretsResolved indicates that Location holds resolved literal
+	// bytes rather than a placeholder template: ${scheme:path} refs
+	// have been substituted and "$$" escapes reduced to "$". It is set
+	// by resolution (driver.ResolveSourceSecrets, and the CLI --expand
+	// machinery) so that feeding an already-resolved source back into
+	// resolution is a no-op, instead of a second reinterpretation of
+	// the literal bytes that would silently corrupt any '$' they
+	// contain. Never persisted or serialized.
+	SecretsResolved bool `yaml:"-" json:"-"`
 }
 
 // LogValue implements slog.LogValuer.
@@ -174,12 +190,13 @@ func (s *Source) Clone() *Source {
 	}
 
 	return &Source{
-		Handle:   s.Handle,
-		Type:     s.Type,
-		Location: s.Location,
-		Catalog:  s.Catalog,
-		Schema:   s.Schema,
-		Options:  s.Options.Clone(),
+		Handle:          s.Handle,
+		Type:            s.Type,
+		Location:        s.Location,
+		Catalog:         s.Catalog,
+		Schema:          s.Schema,
+		Options:         s.Options.Clone(),
+		SecretsResolved: s.SecretsResolved,
 	}
 }
 

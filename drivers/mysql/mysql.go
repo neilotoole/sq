@@ -149,6 +149,18 @@ func placeholders(numCols, numRows int) string {
 func (d *driveri) Renderer() *render.Renderer {
 	r := render.NewDefaultRenderer()
 	r.FunctionNames[ast.FuncNameSchema] = "DATABASE"
+	// avg() returns a portable float64 instead of MySQL's native DECIMAL
+	// (which sq surfaces as a decimal.Decimal). See issue #594.
+	r.FunctionOverrides[ast.FuncNameAvg] = render.FuncOverrideCastResult("DOUBLE")
+	// sum() is harmonized to decimal across drivers (issue #839). MySQL already
+	// returns sum() over an integer or decimal column as DECIMAL, but sum() over
+	// a FLOAT/DOUBLE column as DOUBLE (kind.Float); casting the result to DECIMAL
+	// unifies all cases as decimal. Both bounds are MySQL's maximums: precision
+	// 65 preserves the accumulator range, and scale 30 is the largest scale any
+	// MySQL DECIMAL column can have, so unlike the precision-38 dialects (which
+	// round to render.AggDecimalScale) this cast never reduces a native decimal
+	// sum's scale. Trailing zeros are trimmed by stringz.FormatDecimal.
+	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult("DECIMAL(65, 30)")
 	r.FunctionOverrides[ast.FuncNameCatalog] = doRenderFuncCatalog
 	r.FunctionOverrides[ast.FuncNameRowNum] = renderFuncRowNum
 	r.FunctionOverrides[ast.FuncNameContains] = renderFuncContainsBinary
@@ -165,7 +177,7 @@ func (d *driveri) Renderer() *render.Renderer {
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, _ map[int]kind.Kind) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
 	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes)
@@ -543,7 +555,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 		return nil, err
 	}
 
-	destCols, _, err := d.RecordMeta(ctx, colTypes)
+	destCols, _, err := d.RecordMeta(ctx, colTypes, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -552,7 +564,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 }
 
 // Open implements driver.Driver.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessMode) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -610,7 +622,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
+func (d *driveri) Ping(ctx context.Context, src *source.Source, _ driver.AccessMode) error {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return err

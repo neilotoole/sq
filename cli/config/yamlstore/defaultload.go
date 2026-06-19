@@ -67,6 +67,16 @@ func Load(ctx context.Context, osArgs []string, optsReg *options.Registry,
 
 	if !cfgStore.Exists() {
 		cfg := config.New()
+		if schemaVers := upgrades.highestVersion(); schemaVers != "" {
+			// Stamp the fresh config with the config schema version (the
+			// highest registered upgrade version), not the build version.
+			// config.version tracks the schema, and advances only when a
+			// registered upgrade func transforms the config. Stamping the
+			// build version here would inflate the version (and, for
+			// prerelease builds such as v0.0.0-dev, would mark a
+			// current-schema config as predating every upgrade).
+			cfg.Version = schemaVers
+		}
 		return cfg, cfgStore, nil
 	}
 

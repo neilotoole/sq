@@ -131,9 +131,12 @@ func SQLAllExternal() []string {
 // SQLLatest returns the handles for the latest
 // version of each supported SQL database. This is provided
 // in addition to SQLAll to enable quicker iterative testing
-// during development.
+// during development. DuckDB is included: it is embedded (runs without
+// Docker under -short) and, being the only driver that honors read-only
+// access mode with an exclusive file lock, it exercises grip-cache and
+// access-mode paths that the other drivers don't (gh #779).
 func SQLLatest() []string {
-	return []string{SL3, Pg, My, MS, CH, Ora}
+	return []string{SL3, Duck, Pg, My, MS, CH, Ora}
 }
 
 // PgAll returns the handles for all postgres versions.

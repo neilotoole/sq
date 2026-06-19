@@ -21,3 +21,9 @@ collection:
     options:
       ingest.header: false
       secrets.reveal: true
+  - handle: "@prod/pg2"
+    driver: postgres
+    location: postgres://sakila:p$ssW0rd@localhost/sakila
+  - handle: "@prod/pg3"
+    driver: postgres
+    location: postgres://sakila:$${env:HOME}@localhost/sakila

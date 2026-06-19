@@ -55,8 +55,11 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 	}
 }
 
-// Open implements driver.Driver.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+// Open implements driver.Driver. The mode argument is ignored: a parquet
+// source is always read-only (it's a view over read_parquet), and the
+// in-memory DuckDB scaffold that backs it must be opened read-write so the
+// view can be created.
+func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessMode) (driver.Grip, error) {
 	log := lg.FromContext(ctx).With(lga.Src, src)
 	log.Debug(lgm.OpenSrc, lga.Src, src)
 
@@ -81,7 +84,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 		return nil, errw(err)
 	}
 
-	dbGrip, err := duckdbDrvr.Open(ctx, memSrc)
+	dbGrip, err := duckdbDrvr.Open(ctx, memSrc, driver.ModeReadWrite)
 	if err != nil {
 		return nil, errw(err)
 	}
@@ -147,12 +150,12 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 // whose eager DESCRIBE reads the parquet footer via httpfs, surfacing auth
 // and network errors; this costs a remote read, but ping's whole purpose is
 // reachability verification.
-func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
+func (d *driveri) Ping(ctx context.Context, src *source.Source, mode driver.AccessMode) error {
 	if !isNonHTTPRemote(src.Location) {
 		return d.files.Ping(ctx, src)
 	}
 
-	g, err := d.Open(ctx, src)
+	g, err := d.Open(ctx, src, mode)
 	if err != nil {
 		return err
 	}

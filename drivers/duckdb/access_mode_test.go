@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/duckdb"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -17,24 +18,73 @@ func TestApplyReadOnlyToLocation(t *testing.T) {
 	testCases := []struct {
 		name        string
 		in          string
+		explicit    bool
 		wantOut     string
 		wantChanged bool
 	}{
 		{
-			name:        "no_query",
+			name:        "no_query_implicit",
 			in:          "duckdb:///path/to/f.duckdb",
 			wantOut:     "duckdb:///path/to/f.duckdb?access_mode=READ_ONLY",
 			wantChanged: true,
 		},
 		{
-			name:        "other_param",
+			name:        "no_query_explicit",
+			in:          "duckdb:///path/to/f.duckdb",
+			explicit:    true,
+			wantOut:     "duckdb:///path/to/f.duckdb?access_mode=READ_ONLY",
+			wantChanged: true,
+		},
+		{
+			name:        "other_param_implicit",
 			in:          "duckdb:///path/to/f.duckdb?threads=4",
 			wantOut:     "duckdb:///path/to/f.duckdb?threads=4&access_mode=READ_ONLY",
 			wantChanged: true,
 		},
 		{
-			name:        "user_read_write_wins",
+			name:        "other_param_explicit",
+			in:          "duckdb:///path/to/f.duckdb?threads=4",
+			explicit:    true,
+			wantOut:     "duckdb:///path/to/f.duckdb?threads=4&access_mode=READ_ONLY",
+			wantChanged: true,
+		},
+		{
+			name:        "automatic_implicit_unchanged",
+			in:          "duckdb:///path/to/f.duckdb?access_mode=AUTOMATIC",
+			wantOut:     "duckdb:///path/to/f.duckdb?access_mode=AUTOMATIC",
+			wantChanged: false,
+		},
+		{
+			name:        "automatic_explicit_overridden",
+			in:          "duckdb:///path/to/f.duckdb?access_mode=AUTOMATIC",
+			explicit:    true,
+			wantOut:     "duckdb:///path/to/f.duckdb?access_mode=READ_ONLY",
+			wantChanged: true,
+		},
+		{
+			name:        "automatic_lowercase_explicit_overridden",
+			in:          "duckdb:///path/to/f.duckdb?access_mode=automatic",
+			explicit:    true,
+			wantOut:     "duckdb:///path/to/f.duckdb?access_mode=READ_ONLY",
+			wantChanged: true,
+		},
+		{
+			name:        "automatic_explicit_other_params_preserved",
+			in:          "duckdb:///path/to/f.duckdb?threads=4&access_mode=AUTOMATIC",
+			explicit:    true,
+			wantOut:     "duckdb:///path/to/f.duckdb?access_mode=READ_ONLY&threads=4",
+			wantChanged: true,
+		},
+		{
+			name:        "user_read_write_wins_implicit",
 			in:          "duckdb:///path/to/f.duckdb?access_mode=READ_WRITE",
+			wantOut:     "duckdb:///path/to/f.duckdb?access_mode=READ_WRITE",
+			wantChanged: false,
+		},
+		{
+			name:        "user_read_write_wins_explicit",
+			in:          "duckdb:///path/to/f.duckdb?access_mode=READ_WRITE",
+			explicit:    true,
 			wantOut:     "duckdb:///path/to/f.duckdb?access_mode=READ_WRITE",
 			wantChanged: false,
 		},
@@ -45,8 +95,22 @@ func TestApplyReadOnlyToLocation(t *testing.T) {
 			wantChanged: false,
 		},
 		{
+			name:        "user_read_only_lowercase_already_set_explicit",
+			in:          "duckdb:///path/to/f.duckdb?access_mode=read_only",
+			explicit:    true,
+			wantOut:     "duckdb:///path/to/f.duckdb?access_mode=read_only",
+			wantChanged: false,
+		},
+		{
 			name:        "memory_skipped",
 			in:          "duckdb://:memory:",
+			wantOut:     "duckdb://:memory:",
+			wantChanged: false,
+		},
+		{
+			name:        "memory_skipped_explicit",
+			in:          "duckdb://:memory:",
+			explicit:    true,
 			wantOut:     "duckdb://:memory:",
 			wantChanged: false,
 		},
@@ -54,6 +118,25 @@ func TestApplyReadOnlyToLocation(t *testing.T) {
 			name:        "memory_with_query_skipped",
 			in:          "duckdb://:memory:?threads=4",
 			wantOut:     "duckdb://:memory:?threads=4",
+			wantChanged: false,
+		},
+		{
+			name:        "empty_path_memory_skipped",
+			in:          "duckdb://",
+			wantOut:     "duckdb://",
+			wantChanged: false,
+		},
+		{
+			name:        "empty_path_memory_skipped_explicit",
+			in:          "duckdb://",
+			explicit:    true,
+			wantOut:     "duckdb://",
+			wantChanged: false,
+		},
+		{
+			name:        "empty_path_memory_with_query_skipped",
+			in:          "duckdb://?threads=4",
+			wantOut:     "duckdb://?threads=4",
 			wantChanged: false,
 		},
 		{
@@ -72,7 +155,7 @@ func TestApplyReadOnlyToLocation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotOut, gotChanged := duckdb.ApplyReadOnlyToLocation(tc.in)
+			gotOut, gotChanged := duckdb.ApplyReadOnlyToLocation(tc.in, tc.explicit)
 			require.Equal(t, tc.wantOut, gotOut)
 			require.Equal(t, tc.wantChanged, gotChanged)
 		})
@@ -117,14 +200,82 @@ func TestDoOpen_HonorsReadOnlyContext(t *testing.T) {
 		Location: "duckdb://" + tmp,
 	}
 
-	ctx := driver.WithReadOnly(context.Background())
+	ctx := context.Background()
 
 	prov := &duckdb.Provider{}
 	drvr, err := prov.DriverFor(drivertype.DuckDB)
 	require.NoError(t, err)
 
-	_, openErr := drvr.Open(ctx, src)
+	_, openErr := drvr.Open(ctx, src, driver.ModeReadOnly)
 	require.Error(t, openErr, "READ_ONLY open of nonexistent file must fail")
 	require.NoFileExists(t, tmp,
 		"DuckDB must not have created the file when opened READ_ONLY")
+}
+
+// TestPing_ReadOnly_MissingFile pins that a read-only ping of a non-existent
+// DuckDB file fails and does not create the file. This guards the Ping mode
+// wiring: "sq ping" passes ModeReadOnly precisely so a ping never creates or
+// write-locks the file (whereas "sq add" pings ModeReadWrite and does create).
+func TestPing_ReadOnly_MissingFile(t *testing.T) {
+	tmp := filepath.Join(t.TempDir(), "doesnotexist.duckdb")
+	src := &source.Source{
+		Handle:   "@test_ping_ro",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://" + tmp,
+	}
+
+	prov := &duckdb.Provider{}
+	drvr, err := prov.DriverFor(drivertype.DuckDB)
+	require.NoError(t, err)
+
+	require.Error(t, drvr.Ping(context.Background(), src, driver.ModeReadOnly),
+		"read-only ping of a missing file must fail")
+	require.NoFileExists(t, tmp, "ping must not create the file when read-only")
+}
+
+// TestDetectReadOnlyConflict verifies the driver.ReadOnlyConflictDetector
+// implementation: only an explicit access_mode=READ_WRITE in the location
+// is a conflict with a read-only request.
+func TestDetectReadOnlyConflict(t *testing.T) {
+	p := &duckdb.Provider{Log: lgt.New(t)}
+	drvr, err := p.DriverFor(drivertype.DuckDB)
+	require.NoError(t, err)
+
+	detector, ok := drvr.(driver.ReadOnlyConflictDetector)
+	require.True(t, ok,
+		"duckdb driver must implement driver.ReadOnlyConflictDetector")
+
+	testCases := []struct {
+		name         string
+		in           string
+		wantConflict string
+		wantOK       bool
+	}{
+		{name: "no_query", in: "duckdb:///f.duckdb", wantOK: false},
+		{name: "other_param", in: "duckdb:///f.duckdb?threads=4", wantOK: false},
+		{name: "read_only", in: "duckdb:///f.duckdb?access_mode=READ_ONLY", wantOK: false},
+		{name: "automatic", in: "duckdb:///f.duckdb?access_mode=AUTOMATIC", wantOK: false},
+		{
+			name:         "read_write",
+			in:           "duckdb:///f.duckdb?access_mode=READ_WRITE",
+			wantConflict: "access_mode=READ_WRITE",
+			wantOK:       true,
+		},
+		{
+			name:         "read_write_lowercase_echoes_user_input",
+			in:           "duckdb:///f.duckdb?access_mode=read_write",
+			wantConflict: "access_mode=read_write",
+			wantOK:       true,
+		},
+		{name: "empty", in: "", wantOK: false},
+		{name: "non_duckdb", in: "sqlite3:///f.db?access_mode=READ_WRITE", wantOK: false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotConflict, gotOK := detector.DetectReadOnlyConflict(tc.in)
+			require.Equal(t, tc.wantOK, gotOK)
+			require.Equal(t, tc.wantConflict, gotConflict)
+		})
+	}
 }

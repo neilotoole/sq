@@ -88,7 +88,7 @@ func TestOpen_LocalActorFixture(t *testing.T) {
 		Handle:   "@actor",
 		Location: abs,
 	}
-	g, err := drvr.Open(ctx, src)
+	g, err := drvr.Open(ctx, src, driver.ModeReadWrite)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = g.Close() })
 
@@ -119,7 +119,7 @@ func TestOpen_TruncatedFileFails(t *testing.T) {
 		Handle:   "@truncated",
 		Location: abs,
 	}
-	_, err = drvr.Open(ctx, src)
+	_, err = drvr.Open(ctx, src, driver.ModeReadWrite)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "truncated.parquet")
 }
@@ -231,7 +231,7 @@ func TestOpen_MissingFileFails(t *testing.T) {
 		Handle:   "@missing",
 		Location: "/nonexistent/path/to.parquet",
 	}
-	_, err = drvr.Open(ctx, src)
+	_, err = drvr.Open(ctx, src, driver.ModeReadWrite)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "parquet")
 	require.Contains(t, err.Error(), "/nonexistent/path/to.parquet")
@@ -256,7 +256,7 @@ func TestPing_NonHTTPRemoteVerifiesReachability(t *testing.T) {
 		Handle:   "@remote_missing",
 		Location: "s3://sq-test-nonexistent-bucket-d41d8cd9/k.parquet",
 	}
-	require.Error(t, drvr.Ping(ctx, src))
+	require.Error(t, drvr.Ping(ctx, src, driver.ModeReadWrite))
 }
 
 func TestOpen_WithConnOptions(t *testing.T) {
@@ -278,7 +278,7 @@ func TestOpen_WithConnOptions(t *testing.T) {
 		Handle:   "@actor_opts",
 		Location: abs + "?threads=1",
 	}
-	g, err := drvr.Open(ctx, src)
+	g, err := drvr.Open(ctx, src, driver.ModeReadWrite)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = g.Close() })
 
@@ -456,7 +456,7 @@ func TestOpen_HTTPS(t *testing.T) {
 		Location: server.URL + "/actor.parquet",
 	}
 	drvr := th.DriverFor(src)
-	g, err := drvr.Open(th.Context, src)
+	g, err := drvr.Open(th.Context, src, driver.ModeReadWrite)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = g.Close() })
 
@@ -483,7 +483,7 @@ func TestOpen_HTTPS_404(t *testing.T) {
 		Location: server.URL + "/missing.parquet",
 	}
 	drvr := th.DriverFor(src)
-	_, err := drvr.Open(th.Context, src)
+	_, err := drvr.Open(th.Context, src, driver.ModeReadWrite)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "missing.parquet",
 		"error should reference the requested path")

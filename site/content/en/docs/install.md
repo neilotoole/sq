@@ -142,6 +142,15 @@ Note that `sq` is still pre-`v1.0.0`. Occasionally a release introduces a breaki
 Before upgrading, check the [CHANGELOG](https://github.com/neilotoole/sq/blob/master/CHANGELOG.md)
 or the notes for the latest [release](https://github.com/neilotoole/sq/releases).
 
+{{< alert icon="👉" >}}
+When a new version changes the config schema, `sq` migrates `sq.yml` automatically
+on first run, and first writes a verbatim backup (e.g. `sq.v0.53.0.bak.yml`) to the
+[config dir](/docs/config#location). The backup preserves the old config exactly,
+including any inline credentials: see [config upgrades](/docs/config#upgrades).
+`sq` never removes these backup files; it's up to you to delete them when no
+longer needed.
+{{< /alert >}}
+
 To upgrade, use the mechanism specific to the package manager for
 your system, e.g.:
 

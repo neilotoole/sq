@@ -11,6 +11,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/urlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
@@ -23,6 +24,19 @@ import (
 // dburl does not recognize it. The returned *dburl.URL wraps the
 // parsed URL so callers can read User/Host/Path/RawQuery uniformly.
 //
+// The location is first passed through location.StripSecrets: every
+// field parsed here can end up in shell-completion candidates echoed
+// to the terminal, which must never carry inline passwords or secret
+// query parameter values.
+//
+// A userinfo password surviving StripSecrets is a pure ${scheme:path}
+// placeholder, whose characters net/url rejects in userinfo. The
+// password is therefore replaced with a benign digit sentinel before
+// parsing so placeholder-password sources still contribute completion
+// suggestions (see sentinelizePlaceholderPassword). Callers must not
+// read the password from the returned URL; no completion candidate
+// carries a password, so none does.
+//
 // On parse failure the underlying url.Parse / dburl.Parse error is
 // intentionally NOT wrapped: those errors embed the raw input
 // verbatim (e.g. `parse "postgres://alice:hunter2@host": ...`), and
@@ -30,6 +44,8 @@ import (
 // a stack-traced sentinel describing the failure category; callers
 // should log the redacted location separately.
 func parseSourceLoc(loc string, typ drivertype.Type) (*dburl.URL, error) {
+	loc = location.StripSecrets(loc)
+	loc = sentinelizePlaceholderPassword(loc)
 	if typ == drivertype.Rqlite {
 		u, err := url.Parse(loc)
 		if err != nil {
@@ -42,6 +58,50 @@ func parseSourceLoc(loc string, typ drivertype.Type) (*dburl.URL, error) {
 		return nil, errz.New("parse location")
 	}
 	return du, nil
+}
+
+// sentinelizePlaceholderPassword replaces each ${scheme:path}
+// placeholder ref in loc's userinfo password with the digit "0".
+// net/url rejects '$', '{', and '}' in userinfo, so a placeholder
+// password such as "postgres://alice:${keyring:pg}@host/db" (which
+// location.StripSecrets keeps verbatim: placeholders are config-
+// visible text, not secrets) would otherwise fail the parse gate and
+// the source would contribute nothing to completion. The returned
+// value is parse fodder only; callers offer the original text to the
+// user. Refs outside the userinfo password (e.g. query values, which
+// parse fine; or usernames, which must keep failing the gate lest the
+// sentinel be offered as a username suggestion) are left verbatim.
+func sentinelizePlaceholderPassword(loc string) string {
+	schemeIdx := strings.Index(loc, "://")
+	if schemeIdx < 0 {
+		return loc
+	}
+	authority := loc[schemeIdx+3:]
+	if i := strings.IndexAny(authority, "/?#"); i >= 0 {
+		authority = authority[:i]
+	}
+	at := strings.LastIndexByte(authority, '@')
+	if at < 0 {
+		return loc
+	}
+	userinfo := authority[:at]
+	colon := strings.IndexByte(userinfo, ':')
+	if colon < 0 {
+		return loc
+	}
+	passwd := userinfo[colon+1:]
+	if !strings.Contains(passwd, "${") {
+		return loc
+	}
+	refs, err := secret.ExtractRefs(passwd)
+	if err != nil || len(refs) == 0 {
+		return loc
+	}
+	for _, ref := range refs {
+		passwd = strings.Replace(passwd, "${"+ref.Scheme+":"+ref.Path+"}", "0", 1)
+	}
+	i := schemeIdx + 3
+	return loc[:i+colon+1] + passwd + loc[i+at:]
 }
 
 // locSuggestions provides historical and contextual values that the
@@ -93,14 +153,32 @@ func (s *locSuggestions) Tails(kind driver.SegmentKind) []string {
 	}
 }
 
-// Locations implements driver.Suggestions.
+// Locations implements driver.Suggestions. Each location is stripped
+// of inline secrets (see location.StripSecrets) before joining the
+// candidate pool; locations that don't parse even after stripping are
+// skipped, because stripping can't be verified on a malformed input.
+// The parse gate tolerates a ${scheme:path} placeholder password (see
+// parseSourceLoc), so such locations join the pool with the
+// placeholder text intact: placeholders are config-visible text, not
+// secrets.
 func (s *locSuggestions) Locations() []string {
 	var locs []string
 	_ = s.coll.Visit(func(src *source.Source) error {
 		if src.Type != s.typ {
 			return nil
 		}
-		locs = append(locs, src.Location)
+		loc := location.StripSecrets(src.Location)
+		if _, err := parseSourceLoc(loc, s.typ); err != nil {
+			// Log the stripped value, not Redact(src.Location): the
+			// stripped value is the actual completion candidate that
+			// failed to parse, so it's what the warning should show.
+			// (Redact now masks secret query params too, so this is a
+			// relevance choice, not a leak-avoidance one.)
+			s.log.Warn("Parse source location",
+				lga.Loc, loc, lga.Err, err)
+			return nil
+		}
+		locs = append(locs, loc)
 		return nil
 	})
 	locs = lo.Uniq(locs)
