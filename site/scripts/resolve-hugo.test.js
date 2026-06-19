@@ -27,8 +27,20 @@ describe("resolveHugoBin", () => {
 
 describe("isExecutable", () => {
   test("returns false for a missing path", () => {
-    expect(isExecutable(path.join(os.tmpdir(), "sq-no-such-hugo-bin"))).toBe(
-      false
-    );
+    expect(isExecutable(path.join(os.tmpdir(), "sq-no-such-hugo-bin"))).toBe(false);
+  });
+
+  test("respects execute permission on unix", () => {
+    if (process.platform === "win32") return;
+
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "sq-hugo-"));
+    const p = path.join(tmp, "hugo");
+    fs.writeFileSync(p, "");
+
+    fs.chmodSync(p, 0o644);
+    expect(isExecutable(p)).toBe(false);
+
+    fs.chmodSync(p, 0o755);
+    expect(isExecutable(p)).toBe(true);
   });
 });
