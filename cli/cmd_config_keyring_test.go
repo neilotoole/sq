@@ -996,6 +996,205 @@ func TestCmdConfigKeyringMigrate_ConfigFormatJSON_SkipsPrompt(t *testing.T) {
 	require.Contains(t, src.Location, "${keyring:")
 }
 
+// TestCmdConfigKeyringMigrate_PromptAbort verifies that answering "n" at the
+// y/N confirmation leaves the source untouched and returns no error (abort is
+// not a failure).
+func TestCmdConfigKeyringMigrate_PromptAbort(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	const origLoc = "postgres://alice:hunter2@db/sakila"
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@pa_src",
+		Type:     "postgres",
+		Location: origLoc,
+	}))
+
+	// Answer "no" at the prompt.
+	tr.PipeStdin("n\n")
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all"))
+
+	// Abort is not an error; the source Location must be unchanged.
+	src, err := tr.Run.Config.Collection.Get("@pa_src")
+	require.NoError(t, err)
+	require.Equal(t, origLoc, src.Location, "abort must not modify the Location")
+
+	// No keyring entry written: Location still lacks a ${keyring:...} placeholder.
+	require.NotContains(t, src.Location, "${keyring:")
+
+	// The plan/prompt text must appear so the user can see what would run.
+	require.Contains(t, tr.Out.String(), "@pa_src")
+}
+
+// TestCmdConfigKeyringMigrate_PromptProceedEmptyAborts verifies that pressing
+// Enter without typing confirms the [y/N] default of "no", aborting the
+// migration without error.
+func TestCmdConfigKeyringMigrate_PromptProceedEmptyAborts(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	const origLoc = "postgres://alice:hunter2@db/sakila"
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@pe_src",
+		Type:     "postgres",
+		Location: origLoc,
+	}))
+
+	// Empty input (just Enter) should default to "no".
+	tr.PipeStdin("\n")
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all"))
+
+	src, err := tr.Run.Config.Collection.Get("@pe_src")
+	require.NoError(t, err)
+	require.Equal(t, origLoc, src.Location, "empty Enter must abort and leave Location unchanged")
+	require.NotContains(t, src.Location, "${keyring:")
+}
+
+// TestCmdConfigKeyringMigrate_PromptProceed verifies that answering "y" at the
+// confirmation prompt executes the migration.
+func TestCmdConfigKeyringMigrate_PromptProceed(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	const origLoc = "postgres://alice:hunter2@db/sakila"
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@pp_src",
+		Type:     "postgres",
+		Location: origLoc,
+	}))
+
+	// Answer "yes" at the prompt.
+	tr.PipeStdin("y\n")
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all"))
+
+	src, err := tr.Run.Config.Collection.Get("@pp_src")
+	require.NoError(t, err)
+
+	// Location must now be a bare ${keyring:<id>} placeholder.
+	id := extractKeyringID(t, src.Location)
+
+	// The keyring entry must hold the original DSN verbatim.
+	got, err := gokeyring.Get("sq", id)
+	require.NoError(t, err)
+	require.Equal(t, origLoc, got)
+}
+
+// TestCmdConfigKeyringMigrate_SingleHandle verifies that passing a single
+// @HANDLE migrates only that source, leaving other eligible sources unchanged.
+func TestCmdConfigKeyringMigrate_SingleHandle(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	const loc1 = "postgres://alice:hunter2@db/sakila"
+	const loc2 = "postgres://bob:secret99@db2/northwind"
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@h1",
+		Type:     "postgres",
+		Location: loc1,
+	}))
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@h2",
+		Type:     "postgres",
+		Location: loc2,
+	}))
+
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "@h1", "--yes"))
+
+	// @h1 must be migrated.
+	src1, err := tr.Run.Config.Collection.Get("@h1")
+	require.NoError(t, err)
+	id := extractKeyringID(t, src1.Location)
+	got, err := gokeyring.Get("sq", id)
+	require.NoError(t, err)
+	require.Equal(t, loc1, got)
+
+	// @h2 must be untouched.
+	src2, err := tr.Run.Config.Collection.Get("@h2")
+	require.NoError(t, err)
+	require.Equal(t, loc2, src2.Location, "@h2 must not be migrated when only @h1 was specified")
+}
+
+// TestCmdConfigKeyringMigrate_RequiresHandleOrAll verifies that running
+// migrate with no handle and no --all flag returns an error.
+func TestCmdConfigKeyringMigrate_RequiresHandleOrAll(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	err := tr.Exec("config", "keyring", "migrate")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "specify @HANDLE or --all")
+}
+
+// TestCmdConfigKeyringMigrate_UnknownHandle verifies that migrating a handle
+// that does not exist in the collection returns an error.
+func TestCmdConfigKeyringMigrate_UnknownHandle(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	err := tr.Exec("config", "keyring", "migrate", "@nonexistent", "--yes")
+	require.Error(t, err)
+}
+
+// TestCmdConfigKeyringMigrate_MixedCollection verifies that --all --yes
+// migrates only eligible sources and skips the rest with an informative
+// reason. Three sources: one eligible, one without a password, one non-URL.
+func TestCmdConfigKeyringMigrate_MixedCollection(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	const eligibleLoc = "postgres://alice:hunter2@db/sakila"
+	const noPassLoc = "postgres://alice@db/sakila"
+	const fileLoc = "/data/file.xlsx"
+
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@mc_eligible",
+		Type:     "postgres",
+		Location: eligibleLoc,
+	}))
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@mc_nopass",
+		Type:     "postgres",
+		Location: noPassLoc,
+	}))
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@mc_file",
+		Type:     "xlsx",
+		Location: fileLoc,
+	}))
+
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--yes"))
+
+	// The eligible source must be migrated.
+	srcEligible, err := tr.Run.Config.Collection.Get("@mc_eligible")
+	require.NoError(t, err)
+	id := extractKeyringID(t, srcEligible.Location)
+	got, err := gokeyring.Get("sq", id)
+	require.NoError(t, err)
+	require.Equal(t, eligibleLoc, got)
+
+	// The no-password source must be unchanged.
+	srcNoPass, err := tr.Run.Config.Collection.Get("@mc_nopass")
+	require.NoError(t, err)
+	require.Equal(t, noPassLoc, srcNoPass.Location)
+
+	// The file source must be unchanged.
+	srcFile, err := tr.Run.Config.Collection.Get("@mc_file")
+	require.NoError(t, err)
+	require.Equal(t, fileLoc, srcFile.Location)
+
+	// Skip reasons must appear in output.
+	out := tr.Out.String()
+	require.Contains(t, out, "no password")
+	require.Contains(t, out, "not a URL")
+}
+
 // TestCmdConfigKeyringLs_Statuses verifies the three-state classification:
 // referenced (in keyring + in config), orphan (in keyring, no config ref),
 // and missing (in config, absent from keyring).
