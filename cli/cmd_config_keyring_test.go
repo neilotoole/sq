@@ -14,6 +14,7 @@ import (
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
+	"github.com/neilotoole/sq/libsq/core/secret/keyring"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
@@ -975,6 +976,43 @@ func TestCmdConfigKeyringMigrate_ConfigFormatJSON_SkipsPrompt(t *testing.T) {
 	src, err := tr.Run.Config.Collection.Get("@cfg_json")
 	require.NoError(t, err)
 	require.Contains(t, src.Location, "${keyring:")
+}
+
+// TestCmdConfigKeyringLs_Statuses verifies the three-state classification:
+// referenced (in keyring + in config), orphan (in keyring, no config ref),
+// and missing (in config, absent from keyring).
+func TestCmdConfigKeyringLs_Statuses(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	// A referenced entry: source references it AND it exists in the keyring.
+	require.NoError(t, keyring.NewStore().Set(th.Context, "ref1234567", "live-secret"))
+	// An orphan: exists in the keyring, referenced by nothing.
+	require.NoError(t, keyring.NewStore().Set(th.Context, "orphan23456", "stale-secret"))
+
+	tr.Add(
+		source.Source{
+			Handle:   "@ref_pg",
+			Type:     drivertype.Pg,
+			Location: "${keyring:ref1234567}",
+		},
+		// A missing entry: source references it, but it is NOT in the keyring.
+		source.Source{
+			Handle:   "@missing_pg",
+			Type:     drivertype.Pg,
+			Location: "${keyring:gone7654321}",
+		},
+	)
+
+	require.NoError(t, tr.Exec("config", "keyring", "ls"))
+	out := tr.Out.String()
+	require.Contains(t, out, "referenced")
+	require.Contains(t, out, "orphan")
+	require.Contains(t, out, "missing")
+	require.Contains(t, out, "ref1234567")
+	require.Contains(t, out, "orphan23456")
+	require.Contains(t, out, "gone7654321")
 }
 
 // TestCmdConfigKeyringRm_Completion_TolerantOfMalformedSource verifies

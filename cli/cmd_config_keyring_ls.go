@@ -9,6 +9,7 @@ import (
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/secret"
+	"github.com/neilotoole/sq/libsq/core/secret/keyring"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -17,25 +18,26 @@ func newConfigKeyringLsCmd() *cobra.Command {
 		Use:     "ls",
 		Aliases: []string{"list"},
 		Args:    cobra.NoArgs,
-		Short:   "List keyring paths referenced by sources",
-		Long: `Walk every source's Location and print one row per ${keyring:<path>}
-placeholder it references, paired with the source's handle and driver.
-${env:...} and ${file:...} refs are not listed here — those backends are
-external; sq reads them at connect time and has nothing to manage.
+		Short:   "List keyring entries and their status",
+		Long: `List every keyring entry under the sq service, reconciled against
+the ${keyring:<path>} placeholders referenced by sources.
 
 Output columns:
+  STATUS    referenced | orphan | missing (see below).
   PATH      The keyring entry path, e.g. "j2k7m3pxtz".
-  HANDLE    The @handle that references the entry.
-  DRIVER    The source's driver type (postgres, mysql, sqlite, ...).
+  HANDLE    The @handle that references the entry (blank for orphans).
+  DRIVER    The source's driver type (blank for orphans).
 
-When the same path appears in multiple sources, each source gets its own
-row — clustered together because rows are sorted by path. A repeated
-path across rows means the underlying keyring entry is shared.
+Status values:
+  referenced  Present in the keyring and referenced by a source.
+  orphan      Present in the keyring, referenced by no source. Remove
+              with 'sq config keyring prune'.
+  missing     Referenced by a source but absent from the keyring; that
+              source will fail to resolve its secret at connect time.
 
-The listing is derived from the YAML config; no persistent index is
-maintained. Keyring entries that no source references (orphans) are
-not surfaced — that requires keyring enumeration, deferred to a
-future release.`,
+A path referenced by multiple sources yields one row per source. Only
+${keyring:...} refs are reconciled; ${env:...} and ${file:...} are
+external and not listed.`,
 		RunE: execConfigKeyringLs,
 	}
 	addKeyringFormatFlags(cmd)
@@ -45,7 +47,69 @@ future release.`,
 func execConfigKeyringLs(cmd *cobra.Command, _ []string) error {
 	ru := run.FromContext(cmd.Context())
 	refs := collectKeyringRefs(ru.Config.Collection.Sources())
-	return ru.Writers.Keyring.List(refs)
+	stored, err := keyring.NewStore().List(cmd.Context())
+	if err != nil {
+		return err
+	}
+	rows := reconcileKeyringEntries(refs, stored)
+	return ru.Writers.Keyring.List(rows)
+}
+
+// reconcileKeyringEntries builds the unified ls rows by classifying each
+// keyring path. A referenced path present in the keyring is "referenced";
+// a referenced path absent from the keyring is "missing"; a stored path
+// that no source references is an "orphan". Referenced/missing rows keep
+// their handle and driver (one row per referencing source); orphan rows
+// have neither. Rows are sorted referenced, then orphan, then missing,
+// breaking ties by path then handle.
+func reconcileKeyringEntries(refs []output.KeyringRef, stored []string) []output.KeyringRef {
+	storedSet := make(map[string]struct{}, len(stored))
+	for _, s := range stored {
+		storedSet[s] = struct{}{}
+	}
+	referencedSet := make(map[string]struct{}, len(refs))
+
+	rows := make([]output.KeyringRef, 0, len(refs)+len(stored))
+	for _, r := range refs {
+		referencedSet[r.Path] = struct{}{}
+		r.Status = output.KeyringStatusReferenced
+		if _, ok := storedSet[r.Path]; !ok {
+			r.Status = output.KeyringStatusMissing
+		}
+		rows = append(rows, r)
+	}
+	for _, s := range stored {
+		if _, ok := referencedSet[s]; ok {
+			continue
+		}
+		rows = append(rows, output.KeyringRef{Status: output.KeyringStatusOrphan, Path: s})
+	}
+
+	sort.Slice(rows, func(i, j int) bool {
+		if ri, rj := keyringStatusRank(rows[i].Status), keyringStatusRank(rows[j].Status); ri != rj {
+			return ri < rj
+		}
+		if rows[i].Path != rows[j].Path {
+			return rows[i].Path < rows[j].Path
+		}
+		return rows[i].Handle < rows[j].Handle
+	})
+	return rows
+}
+
+// keyringStatusRank orders statuses for display: referenced first (the
+// healthy common case), then orphan, then missing.
+func keyringStatusRank(status string) int {
+	switch status {
+	case output.KeyringStatusReferenced:
+		return 0
+	case output.KeyringStatusOrphan:
+		return 1
+	case output.KeyringStatusMissing:
+		return 2
+	default:
+		return 3
+	}
 }
 
 // collectKeyringRefs extracts (path, handle, driver) rows from srcs,
