@@ -117,6 +117,10 @@ sq-side caller, not deep inside the external code.
 Avoid `fmt.Errorf` and `errors.New` outside sentinel declarations — they
 produce stackless errors that surface upstream with no useful trace.
 
+Command-authoring conventions for the `cli` package (including the rule that
+every argument-taking command must offer shell completion) live in
+[`cli/CLAUDE.md`](./cli/CLAUDE.md).
+
 ### Passing data: prefer explicit signatures over `context.Value`
 
 Don't smuggle values through `context.Context` to avoid a signature or

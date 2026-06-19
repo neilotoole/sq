@@ -46,6 +46,9 @@ Sources skipped automatically:
 Use --dry-run to preview without making any changes. Use --yes to skip
 the confirmation prompt.`,
 		RunE: execConfigKeyringMigrate,
+		// migrate's optional arg is a source handle (not a keyring path),
+		// so it completes handles, like the other handle-taking commands.
+		ValidArgsFunction: completeHandle(1, true),
 		Example: `  # Preview the migration
   $ sq config keyring migrate --all --dry-run
 
@@ -59,6 +62,10 @@ the confirmation prompt.`,
 	cmd.Flags().Bool(flagMigrateDryRun, false, "Show planned changes, make no writes")
 	cmd.Flags().Bool(flagMigrateYes, false, "Skip the confirmation prompt")
 	addKeyringFormatFlags(cmd)
+	// migrate rewrites sq.yml (unlike the other keyring subcommands, which
+	// touch only the keyring), so it takes the config lock and runs against
+	// a freshly-reloaded config, like add/rm/mv and the other config writers.
+	cmdMarkRequiresConfigLock(cmd)
 	return cmd
 }
 
@@ -101,6 +108,18 @@ func execConfigKeyringMigrate(cmd *cobra.Command, args []string) error {
 		return writerErr
 	}
 
+	// Nothing actionable (e.g. a collection of file sources with no inline
+	// credentials): report and stop without prompting or applying.
+	actionable := 0
+	for _, p := range plans {
+		if p.reason == "" {
+			actionable++
+		}
+	}
+	if actionable == 0 {
+		return ru.Writers.Keyring.Migrate(planRowsForReport(plans), true)
+	}
+
 	if err := ru.Writers.Keyring.Migrate(planRowsForReport(plans), true); err != nil {
 		return err
 	}
@@ -111,7 +130,9 @@ func execConfigKeyringMigrate(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		if !ok {
-			return nil
+			// Declining is a deliberate non-success: nothing is migrated, so
+			// exit non-zero (like apt/dnf "Abort.") rather than report success.
+			return errz.New("migration cancelled")
 		}
 	}
 
@@ -163,30 +184,69 @@ func planRowsForReport(plans []migratePlan) []output.KeyringMigrateRow {
 	return rows
 }
 
-// applyMigratePlans performs the migration and returns one row per
-// non-skipped plan describing the outcome. Skipped plans don't appear
-// in the result because they were already reported during the plan
-// phase. The returned error is non-nil if at least one source failed
-// to migrate; rows for both successes and failures are still returned.
+// applyMigratePlans performs the migration atomically. It writes every
+// eligible source's keyring entry and rewrites its Location in memory,
+// then saves the config exactly once. If any step fails (minting an ID,
+// writing the keyring, or the single config save), the whole batch is
+// rolled back: every keyring entry written this run is deleted, every
+// Location is restored, and the config is left untouched. So a run is
+// all-or-nothing; a failure migrates no sources. Skipped plans don't
+// appear in the result because they were already reported during the
+// plan phase.
 func applyMigratePlans(ctx context.Context, ru *run.Run, plans []migratePlan) (
 	[]output.KeyringMigrateRow, error,
 ) {
 	kr := keyring.NewStore()
-	rows := make([]output.KeyringMigrateRow, 0, len(plans))
-	var anyFailed bool
+
+	// done tracks each source whose keyring entry was written and Location
+	// rewritten in memory, so a later failure can roll the whole batch back.
+	type applied struct {
+		src *source.Source
+		id  string
+		old string
+	}
+	var done []applied
+
+	rollbackAll := func() {
+		for _, a := range done {
+			a.src.Location = a.old
+			if delErr := kr.Delete(ctx, a.id); delErr != nil {
+				// Rollback delete failed: the keyring entry written this
+				// run may orphan. Log it so the failure is recoverable
+				// from debug output and via 'sq config keyring prune'.
+				lg.FromContext(ctx).Warn("Failed to roll back keyring entry during migrate rollback",
+					lga.Path, a.id, lga.Handle, a.src.Handle, lga.Err, delErr)
+			}
+		}
+	}
+
+	// failAll rolls the batch back and reports every eligible source as
+	// failed (rolled back): migration is all-or-nothing, so on any failure
+	// nothing is persisted.
+	failAll := func(cause string) ([]output.KeyringMigrateRow, error) {
+		rollbackAll()
+		rows := make([]output.KeyringMigrateRow, 0, len(done))
+		for _, p := range plans {
+			if p.reason != "" {
+				continue
+			}
+			rows = append(rows, output.KeyringMigrateRow{
+				Handle: p.src.Handle,
+				Status: output.KeyringMigrateStatusFailed,
+				Error:  "rolled back: " + cause,
+			})
+		}
+		return rows, errz.Errorf(
+			"migration failed and was rolled back; no sources were changed: %s", cause)
+	}
+
 	for _, p := range plans {
 		if p.reason != "" {
 			continue
 		}
 		id, err := kr.NewID(ctx)
 		if err != nil {
-			rows = append(rows, output.KeyringMigrateRow{
-				Handle: p.src.Handle,
-				Status: output.KeyringMigrateStatusFailed,
-				Error:  "mint keyring id: " + err.Error(),
-			})
-			anyFailed = true
-			continue
+			return failAll("mint keyring id for " + p.src.Handle + ": " + err.Error())
 		}
 		// The stored Location is a placeholder template in which '$$'
 		// escapes a literal '$' (e.g. written by the v0.54.0 config
@@ -196,42 +256,30 @@ func applyMigratePlans(ctx context.Context, ru *run.Run, plans []migratePlan) (
 		// driver a wrong (still-escaped) credential. Safe because
 		// migrateSkipReason guarantees zero placeholder refs.
 		if err = kr.Set(ctx, id, secret.Unescape(p.src.Location)); err != nil {
-			rows = append(rows, output.KeyringMigrateRow{
-				Handle: p.src.Handle,
-				Status: output.KeyringMigrateStatusFailed,
-				Error:  "write keyring: " + err.Error(),
-			})
-			anyFailed = true
-			continue
+			return failAll("write keyring for " + p.src.Handle + ": " + err.Error())
 		}
-		oldLoc := p.src.Location
+		done = append(done, applied{src: p.src, id: id, old: p.src.Location})
 		p.src.Location = "${keyring:" + id + "}"
-		if err = ru.ConfigStore.Save(ctx, ru.Config); err != nil {
-			p.src.Location = oldLoc
-			if delErr := kr.Delete(ctx, id); delErr != nil {
-				// Rollback failed: the keyring entry just written may
-				// orphan, with no easy way for the user to find it
-				// (orphan-listing is pending — see #715). Log so the
-				// failure is at least recoverable from debug output.
-				lg.FromContext(ctx).Warn("Failed to roll back keyring entry on migrate save error",
-					lga.Path, id, lga.Handle, p.src.Handle, lga.Err, delErr)
-			}
-			rows = append(rows, output.KeyringMigrateRow{
-				Handle: p.src.Handle,
-				Status: output.KeyringMigrateStatusFailed,
-				Error:  "save config (rolled back): " + err.Error(),
-			})
-			anyFailed = true
-			continue
-		}
-		rows = append(rows, output.KeyringMigrateRow{
-			Handle:      p.src.Handle,
-			Status:      output.KeyringMigrateStatusMigrated,
-			NewLocation: p.src.Location,
-		})
 	}
-	if anyFailed {
-		return rows, errz.New("one or more sources failed to migrate")
+
+	if len(done) == 0 {
+		// Nothing was eligible (e.g. JSON mode on an all-skipped collection,
+		// where the text-mode short-circuit doesn't apply): don't rewrite
+		// sq.yml for a no-op.
+		return nil, nil
+	}
+
+	if err := ru.ConfigStore.Save(ctx, ru.Config); err != nil {
+		return failAll("save config: " + err.Error())
+	}
+
+	rows := make([]output.KeyringMigrateRow, 0, len(done))
+	for _, a := range done {
+		rows = append(rows, output.KeyringMigrateRow{
+			Handle:      a.src.Handle,
+			Status:      output.KeyringMigrateStatusMigrated,
+			NewLocation: a.src.Location,
+		})
 	}
 	return rows, nil
 }
@@ -269,40 +317,60 @@ func migrateSkipReason(loc string) string {
 	}
 	u, err := url.Parse(loc)
 	if err != nil {
-		// A genuinely malformed DSN should not be silently classified
-		// as "not a URL" — the user needs to see WHY their source was
-		// skipped. Extract just the parse error's reason (url.Error's
-		// Err field) to avoid echoing the loc string itself, which
-		// could contain inline credentials.
+		// A genuinely malformed DSN should not be silently treated as a
+		// credential-less source. Surface the parse error's reason so the
+		// user sees why the source was skipped. Use only url.Error's Err
+		// field, not the loc string, which could contain inline credentials.
 		msg := "parse failed"
 		var ue *url.Error
 		if errors.As(err, &ue) && ue.Err != nil {
 			msg = ue.Err.Error()
 		}
-		return "not a URL: " + msg
+		return "malformed location: " + msg
 	}
-	if u.Scheme == "" || u.Host == "" {
-		return "not a URL"
+	if u.Scheme == "" {
+		// Not a connection URL (a file path, document source, and so on):
+		// there are no inline credentials to relocate. A scheme-bearing URL
+		// with an empty host still falls through to the password checks below,
+		// so one that carries a password is migrated rather than skipped.
+		return "no credentials to migrate"
 	}
 	if u.User == nil {
-		return "no password component"
+		return "no password to migrate"
 	}
 	if _, has := u.User.Password(); !has {
-		return "no password component"
+		return "no password to migrate"
 	}
 	return ""
 }
 
-// promptYesNo writes prompt to out and reads a y/n response from in.
-// Returns true on "y"/"yes" (case-insensitive); false on anything else
-// or EOF (so just pressing Enter answers "no", matching the [y/N]
-// default).
+// promptYesNo writes prompt to out and reads a single y/n response from in.
+// "y"/"yes" returns true; "n"/"no", or an empty line accepting the [y/N]
+// default, returns false. Matching is case-insensitive and trims surrounding
+// whitespace. Any other input is an error (it does not retry), as is EOF with
+// no answer given, so the caller exits non-zero rather than treating it as a
+// silent "no".
 func promptYesNo(in io.Reader, out io.Writer, prompt string) (bool, error) {
 	fmt.Fprintf(out, "%s [y/N] ", prompt)
 	line, err := bufio.NewReader(in).ReadString('\n')
 	if err != nil && !errors.Is(err, io.EOF) {
-		return false, err
+		return false, errz.Err(err)
 	}
-	resp := strings.ToLower(strings.TrimSpace(line))
-	return resp == "y" || resp == "yes", nil
+
+	resp := strings.TrimSpace(line)
+	switch strings.ToLower(resp) {
+	case "y", "yes":
+		return true, nil
+	case "n", "no":
+		return false, nil
+	case "":
+		// An empty line (the user pressed Enter) accepts the [y/N] default
+		// of No. An empty read at EOF means no answer was given at all.
+		if errors.Is(err, io.EOF) {
+			return false, errz.New("no response to prompt")
+		}
+		return false, nil
+	default:
+		return false, errz.Errorf("unrecognized response to prompt: %q", resp)
+	}
 }

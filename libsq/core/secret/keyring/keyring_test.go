@@ -63,6 +63,27 @@ func (c *countingStore) Resolve(ctx context.Context, path string) (string, error
 	return c.inner.Resolve(ctx, path)
 }
 
+// TestStore_List verifies that List enumerates stored account names and
+// returns an empty slice (not an error) for an empty keyring.
+func TestStore_List(t *testing.T) {
+	gokeyring.MockInit()
+	ctx := context.Background()
+	st := keyring.NewStore()
+
+	// Empty keyring yields an empty list, not an error.
+	users, err := st.List(ctx)
+	require.NoError(t, err)
+	require.Empty(t, users)
+
+	// Populate, then enumerate.
+	require.NoError(t, st.Set(ctx, "j2k7m3pxtz", "secret-a"))
+	require.NoError(t, st.Set(ctx, "my_db_pw", "secret-b"))
+
+	users, err = st.List(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"j2k7m3pxtz", "my_db_pw"}, users)
+}
+
 // TestStore_RegistryMemoizesKeyringResolution verifies that a
 // keyring-backed Registry hits the OS keyring once per path per run
 // (gh #779). Each Store.Resolve is an OS-keychain IPC roundtrip, so

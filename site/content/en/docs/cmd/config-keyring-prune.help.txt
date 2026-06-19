@@ -1,35 +1,29 @@
-List every keyring entry under the sq service, reconciled against
-the ${keyring:<path>} placeholders referenced by sources.
+Delete every keyring entry under the sq service that no source
+references. An entry is an orphan when no source Location contains a
+${keyring:PATH} placeholder naming it; hand-crafted references count, so
+an entry wired into any source is never pruned.
 
-Output columns:
-  STATUS    referenced | orphan | missing (see below).
-  PATH      The keyring entry path, e.g. "j2k7m3pxtz".
-  HANDLE    The @handle that references the entry (blank for orphans).
-  DRIVER    The source's driver type (blank for orphans).
-
-Status values:
-  referenced  Present in the keyring and referenced by a source.
-  orphan      Present in the keyring, referenced by no source. Remove
-              with 'sq config keyring prune'.
-  missing     Referenced by a source but absent from the keyring; that
-              source will fail to resolve its secret at connect time.
-
-A path referenced by multiple sources yields one row per source. Only
-${keyring:...} refs are reconciled; ${env:...} and ${file:...} are
-external and not listed.
+Both sq-generated opaque IDs and user-named entries are pruned. Use
+'sq config keyring ls' to review entries first, and --dry-run to preview
+what prune would remove without deleting anything.
 
 Usage:
-  sq config keyring ls
+  sq config keyring prune
 
-Aliases:
-  ls, list
+Examples:
+  # Preview orphans without deleting
+  $ sq config keyring prune --dry-run
+
+  # Delete all orphaned entries
+  $ sq config keyring prune
 
 Flags:
+      --dry-run     Show orphans that would be deleted, make no changes
   -t, --text        Output text
   -j, --json        Output JSON
   -h, --header      Print header row (default true)
   -H, --no-header   Don't print header row
-      --help        help for ls
+      --help        help for prune
 
 Global Flags:
       --config string         Load config from here
