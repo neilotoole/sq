@@ -894,33 +894,43 @@ per-function sections that follow have the details.
 
 Result kind by function:
 
-| Function | Result kind | Notes |
-| --- | --- | --- |
-| [`avg`](#avg) | `float` | Always floating-point, for portability. Can lose precision beyond roughly 15 to 17 significant digits. |
-| [`sum`](#sum) | `decimal` | Exact for integer and decimal columns. A float column's sum is surfaced as `decimal` too, with precision that depends on the driver (see below). |
-| [`count`](#count), [`count_unique`](#count_unique) | `int` | Row and value counts are always integers. |
-| [`max`](#max), [`min`](#min) | same as the column | No cast; the result kind is inherited from the operand column. |
+| Function                                           | Result kind        | Notes                                                                                                                                            |
+|----------------------------------------------------|--------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
+| [`avg`](#avg)                                      | `float`            | Always floating-point, for portability. Can lose precision beyond roughly 15 to 17 significant digits.                                           |
+| [`sum`](#sum)                                      | `decimal`          | Exact for integer and decimal columns. A float column's sum is surfaced as `decimal` too, with precision that depends on the driver (see below). |
+| [`count`](#count), [`count_unique`](#count_unique) | `int`              | Row and value counts are always integers.                                                                                                        |
+| [`max`](#max), [`min`](#min)                       | same as the column | No cast; the result kind is inherited from the operand column.                                                                                   |
 
-In JSON and YAML, a `decimal` is rendered as a quoted string by default (so
-`sum(.actor_id)` is `"20100"`, not a bare number), which is precision-safe. Use
+{{< alert icon="👉" >}}
+`avg` and `sum` deliberately return different kinds, and the choice reflects each
+operation's nature. An average is inherently fractional and approximate, so `avg`
+is a `float`, matching jq's numeric model. A sum of exact values is itself exact,
+so `sum` is a `decimal`; computing it in float would regress precision. The
+[current rationale](https://github.com/neilotoole/sq/discussions/845) may still
+change (see below).
+{{< /alert >}}
+
+In [JSON](/docs/output/#json) and [YAML](/docs/output/#yaml), a `decimal` is
+rendered as a quoted string by default (so `sum(.actor_id)` is `"20100"`, not a
+bare number), which is precision-safe. Use
 [`--format.decimal=number`](/docs/output/#decimal) to render bare numbers instead.
 
 `avg` and `sum` are where backends differ most. To keep the surfaced type
 uniform, `sq` injects a SQL cast, or, where a cast can't help, pins the kind.
 The mechanism and any fidelity caveat vary by driver:
 
-| Driver | `avg` | `sum` | Fidelity notes |
-| --- | --- | --- | --- |
-| [`postgres`](/docs/drivers/postgres) | cast result to `DOUBLE PRECISION` | cast result to unconstrained `NUMERIC` | Sum is exact; full scale preserved. |
-| [`mysql`](/docs/drivers/mysql) | cast result to `DOUBLE` | cast result to `DECIMAL(65, 30)` | Full scale preserved (MySQL maxima). |
-| [`sqlite3`](/docs/drivers/sqlite) | native (float) | kind pinned, no SQL cast | A sum over a non-integer column is computed in float, so small drift is possible. |
-| [`rqlite`](/docs/drivers/rqlite) | native (float) | kind pinned, no SQL cast | As `sqlite3`, plus a very large integer sum (beyond 2^53) can drift over the HTTP API. |
-| [`sqlserver`](/docs/drivers/sqlserver) | cast operand to `FLOAT` | cast operand to `DECIMAL(38, 6)` | Operand cast avoids integer-division truncation and overflow; the sum rounds per row at 6 places. |
-| [`clickhouse`](/docs/drivers/clickhouse) | native (float) | cast result to `Nullable(Decimal(38, 6))` | Rounds to 6 fractional places; overflows beyond 32 integer digits. |
-| [`oracle`](/docs/drivers/oracle) | cast result to `BINARY_DOUBLE` | cast result to `NUMBER(38, 6)` | Rounds to 6 fractional places; overflows beyond 32 integer digits. `count`, `count_unique`, and `rownum` are pinned to `int`. |
-| [`duckdb`](/docs/drivers/duckdb) | native (float) | kind pinned, no SQL cast | Native sum over integer (HUGEINT) and decimal columns is lossless; a `DOUBLE` column's sum is computed in float, so small drift is possible. |
+| Driver                                   | `avg`                             | `sum`                                     | Fidelity notes                                                                                                                               |
+|------------------------------------------|-----------------------------------|-------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
+| [`postgres`](/docs/drivers/postgres)     | cast result to `DOUBLE PRECISION` | cast result to unconstrained `NUMERIC`    | Sum is exact; full scale preserved.                                                                                                          |
+| [`mysql`](/docs/drivers/mysql)           | cast result to `DOUBLE`           | cast result to `DECIMAL(65, 30)`          | Full scale preserved (MySQL maxima).                                                                                                         |
+| [`sqlite3`](/docs/drivers/sqlite)        | native (float)                    | kind pinned, no SQL cast                  | A sum over a non-integer column is computed in float, so small drift is possible.                                                            |
+| [`rqlite`](/docs/drivers/rqlite)         | native (float)                    | kind pinned, no SQL cast                  | As `sqlite3`, plus a very large integer sum (beyond 2^53) can drift over the HTTP API.                                                       |
+| [`sqlserver`](/docs/drivers/sqlserver)   | cast operand to `FLOAT`           | cast operand to `DECIMAL(38, 6)`          | Operand cast avoids integer-division truncation and overflow; the sum rounds per row at 6 places.                                            |
+| [`clickhouse`](/docs/drivers/clickhouse) | native (float)                    | cast result to `Nullable(Decimal(38, 6))` | Rounds to 6 fractional places; overflows beyond 32 integer digits.                                                                           |
+| [`oracle`](/docs/drivers/oracle)         | cast result to `BINARY_DOUBLE`    | cast result to `NUMBER(38, 6)`            | Rounds to 6 fractional places; overflows beyond 32 integer digits. `count`, `count_unique`, and `rownum` are pinned to `int`.                |
+| [`duckdb`](/docs/drivers/duckdb)         | native (float)                    | kind pinned, no SQL cast                  | Native sum over integer (HUGEINT) and decimal columns is lossless; a `DOUBLE` column's sum is computed in float, so small drift is possible. |
 
-{{< alert icon="👉" >}}
+{{< alert icon="⚠️" >}}
 How `sq` harmonizes numeric types is still evolving. Proposed changes, including
 config options such as `result.numeric.type`, portable cast functions like
 `decimal(x)`, `int(x)`, and `float(x)`, and normalizing the `/` division
