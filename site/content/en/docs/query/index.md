@@ -896,7 +896,7 @@ Result kind by function:
 | Function | Result kind | Notes |
 | --- | --- | --- |
 | [`avg`](#avg) | `float` | Always floating-point, for portability. Can lose precision beyond roughly 15 to 17 significant digits. |
-| [`sum`](#sum) | `decimal` | Exact for integer and decimal columns. The one exception is a `DOUBLE`/`FLOAT` column on DuckDB, which stays `float`. |
+| [`sum`](#sum) | `decimal` | Exact for integer and decimal columns. A float column's sum is surfaced as `decimal` too, with precision that depends on the driver (see below). |
 | [`count`](#count), [`count_unique`](#count_unique) | `int` | Row and value counts are always integers. |
 | [`max`](#max), [`min`](#min) | same as the column | No cast; the result kind is inherited from the operand column. |
 
@@ -917,18 +917,15 @@ The mechanism and any fidelity caveat vary by driver:
 | [`sqlserver`](/docs/drivers/sqlserver) | cast operand to `FLOAT` | cast operand to `DECIMAL(38, 6)` | Operand cast avoids integer-division truncation and overflow; the sum rounds per row at 6 places. |
 | [`clickhouse`](/docs/drivers/clickhouse) | native (float) | cast result to `Nullable(Decimal(38, 6))` | Rounds to 6 fractional places; overflows beyond 32 integer digits. |
 | [`oracle`](/docs/drivers/oracle) | cast result to `BINARY_DOUBLE` | cast result to `NUMBER(38, 6)` | Rounds to 6 fractional places; overflows beyond 32 integer digits. `count`, `count_unique`, and `rownum` are pinned to `int`. |
-| [`duckdb`](/docs/drivers/duckdb) | native (float) | native, not cast | The native sum is already a lossless decimal; a `DOUBLE` column's sum stays `float`. |
+| [`duckdb`](/docs/drivers/duckdb) | native (float) | kind pinned, no SQL cast | Native sum over integer (HUGEINT) and decimal columns is lossless; a `DOUBLE` column's sum is computed in float, so small drift is possible. |
 
 {{< alert icon="👉" >}}
 How `sq` harmonizes numeric types is still evolving. Proposed changes, including
 config options such as `result.numeric.type`, portable cast functions like
 `decimal(x)`, `int(x)`, and `float(x)`, and normalizing the `/` division
 operator, are under discussion in
-[#845](https://github.com/neilotoole/sq/discussions/845). One known gap, a
-[`sum`](#sum) over a `DOUBLE`/`FLOAT` column on `duckdb` surfacing as `float`
-rather than `decimal`, is tracked in
-[#853](https://github.com/neilotoole/sq/issues/853). The details described here
-may change in future versions.
+[#845](https://github.com/neilotoole/sq/discussions/845). The details described
+here may change in future versions.
 {{< /alert >}}
 
 ### `avg`
@@ -1032,7 +1029,6 @@ driver, so its type is consistent regardless of source. Unlike [`avg`](#avg),
 `sum` is not cast to a float: the sum of integers or of exact decimals is itself
 exact, and a float would lose precision. In JSON output a decimal is rendered as
 a quoted string, so `sum(.actor_id)` is `"20100"` rather than a bare number.
-(The one exception is a `DOUBLE`/`FLOAT` column on DuckDB, noted below.)
 
 {{< alert icon="👉" >}}
 SQLite (and rqlite) compute a sum over a non-integer column in floating point
@@ -1049,11 +1045,10 @@ rounded to 6 places, and a sum whose integer part needs more than 32 digits
 overflows (a query error). On SQL Server the operand is cast before summing, so
 that rounding is applied per row. Postgres (unconstrained `NUMERIC`) and MySQL
 (its maximum scale of 30) preserve the full scale. DuckDB is not cast (its
-native sum is already a lossless decimal for integer and decimal columns), so a
-sum over a `DOUBLE` column on DuckDB stays a float. That last point is a
-portability gap (every other driver surfaces `sum` as a decimal), tracked in
-[#853](https://github.com/neilotoole/sq/issues/853). The common integer and
-currency cases are unaffected.
+native sum is already a lossless decimal for integer and decimal columns); a sum
+over a `DOUBLE` column is computed in float and surfaced as a decimal, so it can
+carry the same small drift as SQLite. The common integer and currency cases are
+unaffected.
 {{< /alert >}}
 
 ## String functions
