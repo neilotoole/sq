@@ -9,7 +9,12 @@ const { execFileSync } = require("child_process");
 
 function isExecutable(filePath) {
   try {
-    return fs.existsSync(filePath) && fs.statSync(filePath).isFile();
+    if (!fs.statSync(filePath).isFile()) return false;
+    // On Windows, X_OK is not meaningful; existence + regular file is sufficient.
+    if (process.platform !== "win32") {
+      fs.accessSync(filePath, fs.constants.X_OK);
+    }
+    return true;
   } catch {
     return false;
   }
