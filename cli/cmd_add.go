@@ -309,12 +309,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) (err error) {
 		// Especially important for SQLite, which CREATES missing files
 		// on open: without this, the ping would silently create and
 		// open an empty DB at the interpreted path.
-		fpath, isFileDB := fileDBPath(typ, loc)
-		lg.FromContext(ctx).Warn("DIAG guard",
-			"loc", loc, "typ", typ, "isFileDB", isFileDB, "fpath", fpath,
-			"typedExists", ioz.IsPathToRegularFile(fpath),
-			"interpretedExists", ioz.IsPathToRegularFile(secret.Unescape(fpath)))
-		if isFileDB {
+		if fpath, isFileDB := fileDBPath(typ, loc); isFileDB {
 			if err = checkPathEscape(fpath); err != nil {
 				return err
 			}
