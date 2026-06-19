@@ -92,7 +92,7 @@ func TestKeyringWriter_Migrate_Colorized(t *testing.T) {
 	pr.Verbose = true // render skip rows too
 
 	// Guard: the assertions below are meaningless unless color is actually on.
-	require.NotEqual(t, "migrate", pr.Enabled.Sprint("migrate"),
+	require.NotEqual(t, "migrate", pr.Success.Sprint("migrate"),
 		"color must be enabled for this test to verify anything")
 
 	var buf bytes.Buffer
@@ -104,7 +104,7 @@ func TestKeyringWriter_Migrate_Colorized(t *testing.T) {
 	}, true))
 	out := buf.String()
 
-	require.Contains(t, out, pr.Enabled.Sprint("migrate"), "migrate status must be green")
+	require.Contains(t, out, pr.Success.Sprint("migrate"), "migrate status must be green")
 	require.Contains(t, out, pr.Error.Sprint("failed"), "failed status must be red")
 	require.Contains(t, out, pr.Faint.Sprint("skip"), "skip status must be muted")
 	require.Contains(t, out, pr.Faint.Sprint("@csv"), "skip row's handle must be muted too")

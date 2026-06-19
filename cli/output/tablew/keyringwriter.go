@@ -89,7 +89,7 @@ func (w *keyringWriter) Prune(rows []output.KeyringPruneRow, _ bool) error {
 		if r.Status == output.KeyringPruneStatusFailed {
 			status = w.pr.Error.Sprint(status)
 		} else {
-			status = w.pr.Enabled.Sprint(status)
+			status = w.pr.Success.Sprint(status)
 		}
 		tblRows = append(tblRows, []string{w.pr.String.Sprint(r.Path), w.pr.Faint.Sprint(r.Kind), status})
 	}
@@ -172,7 +172,7 @@ func (w *keyringWriter) colorMigrateRow(r output.KeyringMigrateRow) (handle, sta
 	case output.KeyringMigrateStatusFailed:
 		return w.pr.Handle.Sprint(handle), w.pr.Error.Sprint(status), w.pr.Error.Sprint(detail)
 	default: // planned, migrated
-		return w.pr.Handle.Sprint(handle), w.pr.Enabled.Sprint(status), w.pr.Faint.Sprint(detail)
+		return w.pr.Handle.Sprint(handle), w.pr.Success.Sprint(status), w.pr.Faint.Sprint(detail)
 	}
 }
 
