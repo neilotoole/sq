@@ -178,8 +178,15 @@ func (w *recordWriter) WriteRecords(ctx context.Context, recs []record.Record) e
 			}
 
 			// goccy renders a []byte as a YAML sequence of byte ints. Instead
-			// encode it as a base64 string, matching the JSON output. See #851.
+			// encode it as a base64 string, matching the JSON output. A nil
+			// slice is a NULL value, rendered as null like the JSON encoder
+			// (a typed-nil []byte does not satisfy the val == nil check above).
+			// See #851.
 			if b, ok := val.([]byte); ok {
+				if b == nil {
+					buf.WriteString(w.null)
+					continue
+				}
 				val = base64.StdEncoding.EncodeToString(b)
 			}
 

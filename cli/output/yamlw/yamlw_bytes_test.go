@@ -50,4 +50,23 @@ func TestRecordWriter_Bytes(t *testing.T) {
 		require.Equal(t, "- c: "+wantHi+"\n", got)
 		require.NotContains(t, got, "\x1b")
 	})
+
+	// A typed-nil []byte is a NULL value and must render as null, matching the
+	// JSON encoder, rather than as the base64 of an empty slice (""). It does
+	// not satisfy the writer's val == nil check, so it reaches the []byte path.
+	t.Run("nil_renders_null", func(t *testing.T) {
+		pr := output.NewPrinting()
+		pr.EnableColor(false)
+		got := renderColorYAML(t, pr, kind.Bytes, []byte(nil))
+		require.Equal(t, "- c: null\n", got)
+	})
+
+	// An empty but non-nil []byte is distinct from NULL: it round-trips as an
+	// empty string, matching the JSON encoder.
+	t.Run("empty_renders_quoted_empty", func(t *testing.T) {
+		pr := output.NewPrinting()
+		pr.EnableColor(false)
+		got := renderColorYAML(t, pr, kind.Bytes, []byte{})
+		require.Equal(t, "- c: \"\"\n", got)
+	})
 }
