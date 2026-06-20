@@ -16,6 +16,17 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## Unreleased
+
+### Fixed
+
+- [#863]: Fixed `FORCE_COLOR` handling to follow the [force-color.org](https://force-color.org/)
+  convention: `FORCE_COLOR=0` (and `false`) disables color output instead of forcing it
+  on. [NO_COLOR](https://no-color.org/) continues to take precedence over `FORCE_COLOR`.
+- [#863]: Forcing color to a non-terminal stdout (e.g. when `FORCE_COLOR` is set and
+  output is a pipe or buffer) no longer panics; `sq` writes raw ANSI to non-`*os.File`
+  writers instead of performing an unchecked type assertion.
+
 ## [v0.54.0] - 2026-06-19
 
 ### Added
@@ -1703,6 +1714,7 @@ make working with lots of sources much easier.
 [#846]: https://github.com/neilotoole/sq/issues/846
 [#851]: https://github.com/neilotoole/sq/issues/851
 [#853]: https://github.com/neilotoole/sq/issues/853
+[#863]: https://github.com/neilotoole/sq/pull/863
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
