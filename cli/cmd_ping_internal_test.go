@@ -79,7 +79,7 @@ func TestPingSource_TimeoutDoesNotLeakGoroutine(t *testing.T) {
 	}
 	resultCh := make(chan pingResult, 1)
 
-	pingSource(context.Background(), dp, src, 20*time.Millisecond, resultCh)
+	pingSource(context.Background(), dp, nil, src, 20*time.Millisecond, resultCh)
 
 	res := <-resultCh
 	require.ErrorIs(t, res.err, context.DeadlineExceeded,

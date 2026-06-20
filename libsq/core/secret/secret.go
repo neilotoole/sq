@@ -164,16 +164,3 @@ func (r *Registry) ResolveScheme(ctx context.Context, scheme, path string) (stri
 		return "", errz.Err(ctx.Err())
 	}
 }
-
-type ctxKey struct{}
-
-// NewContext returns a context carrying reg.
-func NewContext(parent context.Context, reg *Registry) context.Context {
-	return context.WithValue(parent, ctxKey{}, reg)
-}
-
-// FromContext returns the Registry carried by ctx, or nil if none.
-func FromContext(ctx context.Context) *Registry {
-	r, _ := ctx.Value(ctxKey{}).(*Registry)
-	return r
-}
