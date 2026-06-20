@@ -131,6 +131,30 @@ func TestNewErrorAfterBytesReader_nilErrPanics(t *testing.T) {
 	})
 }
 
+// TestNewErrorAfterBytesReader_concurrent hammers Read from multiple goroutines.
+// Under -race it would catch the missing mutex on errorAfterBytesReader.count.
+func TestNewErrorAfterBytesReader_concurrent(t *testing.T) {
+	wantErr := errors.New("done")
+	rdr := ioz.NewErrorAfterBytesReader([]byte("abcdefghij"), wantErr)
+
+	wg := &sync.WaitGroup{}
+	for range 8 {
+		wg.Go(func() {
+			buf := make([]byte, 4)
+			for {
+				if _, err := rdr.Read(buf); err != nil {
+					return
+				}
+			}
+		})
+	}
+	wg.Wait()
+
+	// Once exhausted, further reads return the sentinel error.
+	_, err := rdr.Read(make([]byte, 4))
+	require.True(t, errors.Is(err, wantErr))
+}
+
 func TestNewErrorAfterRandNReader(t *testing.T) {
 	wantErr := errors.New("kaboom")
 
@@ -222,24 +246,29 @@ func TestCopyAsync_nilCallback(t *testing.T) {
 	t.Parallel()
 
 	// With a nil callback there's no completion signal, so synchronize on the
-	// source reaching EOF (which happens-after the final write to dst). This also
+	// source reaching EOF, which happens-after the final write to dst. This also
 	// confirms a nil callback doesn't panic.
+	//
+	// dst is wrapped in plainWriter so io.Copy uses the Read/Write loop rather
+	// than bytes.Buffer.ReadFrom; ReadFrom writes bookkeeping fields after the
+	// final read returns (i.e. after EOF fires close(done)), which would race
+	// with the buf.String() read below.
 	const src = "the quick brown fox"
-	dst := &bytes.Buffer{}
+	buf := &bytes.Buffer{}
 	done := make(chan struct{})
 	r := ioz.NotifyOnEOFReader(strings.NewReader(src), func(err error) error {
 		close(done)
 		return err
 	})
 
-	ioz.CopyAsync(dst, r, nil)
+	ioz.CopyAsync(plainWriter{buf}, r, nil)
 
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):
 		t.Fatal("CopyAsync did not complete")
 	}
-	require.Equal(t, src, dst.String())
+	require.Equal(t, src, buf.String())
 }
 
 func TestMarshalUnmarshalYAML_RoundTrip(t *testing.T) {
@@ -283,6 +312,14 @@ func TestDelayReader_noJitter(t *testing.T) {
 	// A plain reader (non-Closer) must not yield a Closer.
 	_, ok := r.(io.Closer)
 	require.False(t, ok)
+}
+
+func TestDelayReader_zeroDelayWithJitter(t *testing.T) {
+	// jitter with a zero delay must not panic (mrand.Int63n panics for n <= 0).
+	r := ioz.DelayReader(strings.NewReader("hello"), 0, true)
+	got, err := io.ReadAll(r)
+	require.NoError(t, err)
+	require.Equal(t, "hello", string(got))
 }
 
 func TestDelayReader_closerPassthrough(t *testing.T) {

@@ -77,6 +77,23 @@ func TestCopyFile(t *testing.T) {
 		require.False(t, ioz.FileAccessible(dst))
 	})
 
+	t.Run("rename_failure_cleans_temp", func(t *testing.T) {
+		// dst is an existing directory, so the final os.Rename(tmp, dst) fails.
+		// The staged temp file (created in dst's parent) must be cleaned up.
+		base := t.TempDir()
+		src := filepath.Join(base, "src.txt")
+		require.NoError(t, os.WriteFile(src, []byte(content), 0o600))
+		dst := filepath.Join(base, "dstdir")
+		require.NoError(t, os.Mkdir(dst, 0o700))
+
+		require.Error(t, ioz.CopyFile(dst, src, false))
+
+		// base should still contain only src.txt and dstdir, no orphan temp file.
+		entries, err := os.ReadDir(base)
+		require.NoError(t, err)
+		require.Len(t, entries, 2, "temp file must be removed when rename fails")
+	})
+
 	t.Run("overwrites_existing_dst", func(t *testing.T) {
 		src := filepath.Join(t.TempDir(), "src.txt")
 		require.NoError(t, os.WriteFile(src, []byte(content), 0o600))
@@ -147,6 +164,8 @@ func TestFileAccessible(t *testing.T) {
 	require.NoError(t, os.WriteFile(f, []byte("x"), 0o600))
 	require.True(t, ioz.FileAccessible(f))
 	require.False(t, ioz.FileAccessible(filepath.Join(t.TempDir(), "nope")))
+	// FileAccessible reports existence, not regular-file-ness: a dir yields true.
+	require.True(t, ioz.FileAccessible(t.TempDir()))
 }
 
 func TestReadFileToString(t *testing.T) {

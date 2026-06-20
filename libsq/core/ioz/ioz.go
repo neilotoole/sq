@@ -119,7 +119,8 @@ type delayReader struct {
 // Read implements io.Reader.
 func (d delayReader) Read(p []byte) (n int, err error) {
 	delay := d.delay
-	if d.jitter {
+	// Guard d.delay > 0: mrand.Int63n panics for n <= 0.
+	if d.jitter && d.delay > 0 {
 		delay += time.Duration(mrand.Int63n(int64(d.delay))) / 3 //nolint:gosec
 	}
 
@@ -478,10 +479,16 @@ type errorAfterBytesReader struct {
 
 	// count is the number of bytes read so far.
 	count int
+
+	// mu guards count for concurrent Read calls, matching errorAfterRandNReader.
+	mu sync.Mutex
 }
 
 // Read implements io.Reader.
 func (e *errorAfterBytesReader) Read(p []byte) (n int, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
 	if e.count >= e.errorAtCount {
 		return 0, e.err
 	}

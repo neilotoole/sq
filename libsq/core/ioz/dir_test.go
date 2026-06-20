@@ -28,6 +28,31 @@ func TestRenameDir_simple(t *testing.T) {
 	require.Equal(t, "hi", string(got))
 }
 
+func TestRenameDir_overExistingDir(t *testing.T) {
+	// newpath already exists as a non-empty dir, exercising the staging path.
+	src := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(src, "new.txt"), []byte("new"), 0o600))
+
+	dst := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dst, "old.txt"), []byte("old"), 0o600))
+
+	require.NoError(t, ioz.RenameDir(src, dst))
+
+	// dst now holds src's content; the old content is gone.
+	require.True(t, ioz.FileAccessible(filepath.Join(dst, "new.txt")))
+	require.False(t, ioz.FileAccessible(filepath.Join(dst, "old.txt")))
+	require.False(t, ioz.DirExists(src))
+
+	// No staging dir should be left behind in dst's parent.
+	parent := filepath.Dir(dst)
+	entries, err := os.ReadDir(parent)
+	require.NoError(t, err)
+	for _, e := range entries {
+		require.NotContains(t, e.Name(), filepath.Base(dst)+"_", "staging dir must be cleaned up")
+		require.NotContains(t, e.Name(), "_"+filepath.Base(dst), "staging dir must be cleaned up")
+	}
+}
+
 func TestRenameDir_errors(t *testing.T) {
 	t.Run("source_not_exist", func(t *testing.T) {
 		err := ioz.RenameDir(filepath.Join(t.TempDir(), "nope"), filepath.Join(t.TempDir(), "dst"))
@@ -185,6 +210,12 @@ func TestPrintTree(t *testing.T) {
 	out := buf.String()
 	require.Contains(t, out, "a.txt")
 	require.Contains(t, out, "sub")
+}
+
+func TestPrintTree_missingLoc(t *testing.T) {
+	buf := &strings.Builder{}
+	err := ioz.PrintTree(buf, filepath.Join(t.TempDir(), "nope"), false, false)
+	require.Error(t, err, "an inaccessible loc must return an error, not silent empty output")
 }
 
 func TestPruneEmptyDirTree(t *testing.T) {

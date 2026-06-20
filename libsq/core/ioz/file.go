@@ -53,7 +53,11 @@ func CopyFile(dst, src string, mkdir bool) error {
 		_ = os.Remove(tmp.Name())
 		return errz.Err(err)
 	}
-	return errz.Err(os.Rename(tmp.Name(), dst))
+	if err = os.Rename(tmp.Name(), dst); err != nil {
+		_ = os.Remove(tmp.Name())
+		return errz.Err(err)
+	}
+	return nil
 }
 
 // PrintFile reads file from name and writes it to stdout.
@@ -89,7 +93,9 @@ func IsPathToRegularFile(path string) bool {
 	return fi.Mode().IsRegular()
 }
 
-// FileAccessible returns true if path is a file that can be read.
+// FileAccessible returns true if path exists, i.e. os.Stat(path) succeeds. It
+// does not verify that path is a regular file or that it is readable: a
+// directory, or a regular file whose mode forbids reading, also yields true.
 func FileAccessible(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil

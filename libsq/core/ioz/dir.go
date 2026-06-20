@@ -27,26 +27,31 @@ func RenameDir(oldDir, newpath string) error {
 	}
 
 	if newFi, _ := os.Stat(newpath); newFi != nil && newFi.IsDir() {
-		// os.Rename will fail when newpath is a directory.
-		// So, we first move (rename) newpath to a temp staging path,
-		// and then we move oldpath to newpath, and finally we remove
-		// the staging dir. We do this because if there's open files
-		// in newpath, os.RemoveAll may fail, so this technique is
-		// more likely to succeed? Not completely sure about that.
-		staging := filepath.Join(os.TempDir(), stringz.Uniq8()+"_"+filepath.Base(newpath))
+		// os.Rename fails when newpath already exists and is a directory. So we
+		// first move newpath aside to a staging path, then move oldDir to
+		// newpath, then remove the staging dir. We move newpath aside (rather
+		// than deleting it first) so that if any open files prevent removal, the
+		// original is still recoverable.
+		//
+		// The staging path is created as a sibling of newpath (same directory,
+		// hence same filesystem) so that os.Rename can't fail with EXDEV.
+		// Staging via os.TempDir would break whenever TMPDIR is on a different
+		// device than newpath.
+		staging := filepath.Join(filepath.Dir(newpath), stringz.Uniq8()+"_"+filepath.Base(newpath))
 
 		if err = os.Rename(newpath, staging); err != nil {
 			return errz.Err(err)
 		}
 
 		if err = os.Rename(oldDir, newpath); err != nil {
+			// Restore the original newpath from staging, so a failed rename
+			// doesn't leave newpath missing.
+			_ = os.Rename(staging, newpath)
 			return errz.Err(err)
 		}
 
-		// If the staging deletion (i.e. the old dir) fails,
-		// do we even care? It'll be left hanging around in
-		// the tmp dir, which I guess could be a security
-		// issue in some circumstances?
+		// The staging dir (the previous newpath contents) is no longer needed.
+		// If removal fails it's left in the same directory; not worth surfacing.
 		_ = os.RemoveAll(staging)
 		return nil
 	}
@@ -97,13 +102,13 @@ func ReadDir(dir string, includeDirPath, markDirs, includeDot bool) (paths []str
 					continue
 				}
 
-				fi, err2 = os.Stat(linked)
+				linkedFi, err2 := os.Stat(linked)
 				if err2 != nil {
 					err = errz.Append(err, errz.Err(err2))
 					continue
 				}
 
-				if fi.IsDir() {
+				if linkedFi.IsDir() {
 					name += "/"
 				}
 			}
@@ -154,8 +159,14 @@ func RequireDir(dir string) error {
 
 // PrintTree prints the file tree structure at loc to w.
 // This function uses the github.com/a8m/tree library, which is
-// a Go implementation of the venerable "tree" command.
+// a Go implementation of the venerable "tree" command. Per-entry errors
+// encountered while walking are rendered inline in the tree output by the
+// library; an error is returned only if loc itself can't be accessed.
 func PrintTree(w io.Writer, loc string, showSize, colorize bool) error {
+	if _, err := os.Stat(loc); err != nil {
+		return errz.Err(err)
+	}
+
 	opts := &tree.Options{
 		Fs:       new(ostree.FS),
 		OutFile:  w,
