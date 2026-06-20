@@ -182,7 +182,8 @@ func ingestJSON(ctx context.Context, job *ingestJob) error { //nolint:gocognit
 		return errz.Err(err)
 	}
 	// Roll back unless we reach the explicit Commit below. One transaction per
-	// ingest collapses the per-row autocommit fsyncs (gh866).
+	// ingest collapses the per-row autocommit fsyncs (gh866; cache DB
+	// durability pragmas tracked in gh868).
 	committed := false
 	defer func() {
 		if !committed {

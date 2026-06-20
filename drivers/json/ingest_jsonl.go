@@ -128,7 +128,8 @@ func ingestJSONL(ctx context.Context, job *ingestJob) error { //nolint:gocognit
 	}
 	// Roll back unless we reach the explicit Commit below. Wrapping the whole
 	// ingest in one transaction collapses the per-row autocommit fsyncs that
-	// make this catastrophically slow on Windows (gh866).
+	// make this catastrophically slow on Windows (gh866; cache DB durability
+	// pragmas tracked in gh868).
 	committed := false
 	defer func() {
 		if !committed {
