@@ -118,6 +118,7 @@ func TestPrintFile(t *testing.T) {
 	t.Cleanup(func() { os.Stdout = orig }) // restore even if PrintFile panics
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = r.Close() }) // close the read end to avoid leaking an fd
 	os.Stdout = w
 	printErr := ioz.PrintFile(f)
 	require.NoError(t, w.Close())

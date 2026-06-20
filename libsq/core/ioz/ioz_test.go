@@ -441,7 +441,7 @@ func TestNotifyOnErrorReader(t *testing.T) {
 		require.True(t, errors.Is(err, sentinel))
 	})
 
-	t.Run("no_error_no_callback", func(t *testing.T) {
+	t.Run("eof_counts_as_error_and_invokes_fn", func(t *testing.T) {
 		var called bool
 		r := ioz.NotifyOnErrorReader(strings.NewReader("ok"), func(err error) error {
 			called = true
@@ -451,7 +451,7 @@ func TestNotifyOnErrorReader(t *testing.T) {
 		// so fn is invoked. Verify the bytes still arrive intact.
 		got, err := io.ReadAll(r)
 		require.Equal(t, "ok", string(got))
-		require.True(t, called)
+		require.True(t, called, "fn must fire on io.EOF")
 		require.NoError(t, err, "io.ReadAll swallows the EOF returned by fn")
 	})
 
