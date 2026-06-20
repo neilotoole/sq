@@ -11,7 +11,6 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
-	"time"
 	"unicode"
 	"unsafe"
 
@@ -29,10 +28,6 @@ import (
 //
 // See: url.URL.Redacted.
 const Redacted = "xxxxx"
-
-func init() { //nolint:gochecknoinits
-	rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec
-}
 
 // Reverse reverses the input string.
 func Reverse(input string) string {
@@ -256,10 +251,17 @@ func SuffixSlice(a []string, w string) []string {
 	if len(a) == 0 {
 		return []string{}
 	}
+	ret := make([]string, len(a))
+	sb := strings.Builder{}
 	for i := range a {
-		a[i] += w
+		sb.Grow(len(a[i]) + len(w))
+		sb.WriteString(a[i])
+		sb.WriteString(w)
+		ret[i] = sb.String()
+		sb.Reset()
 	}
-	return a
+
+	return ret
 }
 
 // UniqTableName returns a new lower-case table name based on
@@ -305,10 +307,14 @@ func SanitizeAlphaNumeric(s string, r rune) string {
 	return string(runes)
 }
 
-// TrimLen returns s but with a maximum length of maxLen.
+// TrimLen returns s but with a maximum length of maxLen. If maxLen
+// is zero or negative, the empty string is returned.
 // This func is only tested with ASCII chars; results are not
 // guaranteed for multibyte runes.
 func TrimLen(s string, maxLen int) string {
+	if maxLen <= 0 {
+		return ""
+	}
 	if len(s) <= maxLen {
 		return s
 	}
@@ -469,26 +475,9 @@ func Val(i any) any {
 	}
 }
 
-// HasAnyPrefix returns true if s has any of the prefixes.
-func HasAnyPrefix(s string, prefixes ...string) bool {
-	for _, prefix := range prefixes {
-		if strings.HasPrefix(s, prefix) {
-			return true
-		}
-	}
-	return false
-}
-
 // FilterPrefix returns a new slice containing each element
 // of a that has prefix.
 func FilterPrefix(prefix string, a ...string) []string {
-	return lo.Filter(a, func(item string, _ int) bool {
-		return strings.HasPrefix(item, prefix)
-	})
-}
-
-// ElementsHavingPrefix returns the elements of a that have prefix.
-func ElementsHavingPrefix(a []string, prefix string) []string {
 	return lo.Filter(a, func(item string, _ int) bool {
 		return strings.HasPrefix(item, prefix)
 	})
@@ -510,10 +499,9 @@ func SanitizeFilename(name string) string {
 	if name == "" {
 		return ""
 	}
+	// The regex replaces each disallowed rune with repl ("_"), a 1:1
+	// length-preserving substitution, so name stays non-empty here.
 	name = filenameRegex.ReplaceAllString(name, repl)
-	if name == "" {
-		return ""
-	}
 
 	name = filepath.Clean(name)
 	// Some extra paranoid handling below.
