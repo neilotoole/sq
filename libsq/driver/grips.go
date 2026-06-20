@@ -41,7 +41,8 @@ type Grips struct {
 
 	// secretReg resolves ${scheme:path} placeholders in source Locations
 	// at open time (see ResolveSourceSecrets). It may be nil, in which
-	// case opening a source whose Location contains placeholders fails.
+	// case the first (uncached) open of a source whose Location contains
+	// placeholders fails; cache hits are served before resolution runs.
 	secretReg *secret.Registry
 
 	// grips caches open Grip instances, keyed by gripCacheKey: the source
@@ -197,7 +198,7 @@ func ResolveSourceSecrets(ctx context.Context, reg *secret.Registry,
 		}
 	} else {
 		if reg == nil {
-			return nil, errz.Errorf("resolve placeholders for %s: no secret registry", src.Handle)
+			return nil, errz.Errorf("resolve placeholders for %s: no secret registry provided", src.Handle)
 		}
 		if resolved, err = reg.Expand(ctx, src.Location); err != nil {
 			return nil, errz.Wrapf(err, "resolve secrets for %s", src.Handle)
