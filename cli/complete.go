@@ -83,6 +83,15 @@ func completeBool(_ *cobra.Command, _ []string, _ string) ([]string, cobra.Shell
 	return []string{"true", "false"}, cobra.ShellCompDirectiveNoFileComp
 }
 
+// completeNone is a completionFunc for a flag whose value is inherently
+// free-form, so there's nothing to enumerate (e.g. a variable name the user
+// invents, an arbitrary literal). It offers no candidates but, unlike leaving
+// the flag without a completion func, suppresses cobra's default filename
+// completion, which would be meaningless noise for such a value.
+func completeNone(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+	return nil, cobra.ShellCompDirectiveNoFileComp
+}
+
 // completeHandle is a completionFunc that suggests handles. It is for
 // positional completion: maxVals caps the number of positional args the
 // command takes, and completion is suppressed once that many are present

@@ -42,6 +42,10 @@ func newSLQCmd() *cobra.Command {
 	cmd.Flags().Bool(flag.RenderSQL, false, flag.RenderSQLUsage)
 
 	cmd.Flags().StringArray(flag.Arg, nil, flag.ArgUsage)
+	// The --arg value is a free-form variable name (and then a literal value),
+	// so there's nothing to suggest; register completeNone to at least suppress
+	// cobra's default filename completion.
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.Arg, completeNone))
 
 	// Explicitly add flagVersion because people like to do "sq --version"
 	// as much as "sq version".

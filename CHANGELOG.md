@@ -25,7 +25,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   [`add --store`](https://sq.io/docs/cmd/add) (`inline | keyring`), `config get --src`,
   `config set --src`, `--log.level`, and `--log.format` produced nothing once a
   positional arg was present (which is the usual case). The `--error.format` flag also
-  now offers completion.
+  now offers completion, and `--arg` no longer suggests filenames for its free-form value.
 
 ## [v0.54.0] - 2026-06-19
 

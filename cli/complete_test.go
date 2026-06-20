@@ -591,6 +591,14 @@ func TestCompleteFlagValues_afterPositional(t *testing.T) {
 			wantContains:  []string{sakila.Pg},
 			wantDirective: handleDirective,
 		},
+		{
+			// --arg is free-form (a variable name): no candidates, but file
+			// completion is suppressed rather than left as the default.
+			name:          "arg",
+			args:          []string{".actor", "--" + flag.Arg, ""},
+			wantContains:  nil,
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
 	}
 
 	for _, tc := range testCases {
