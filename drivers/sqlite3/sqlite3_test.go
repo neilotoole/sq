@@ -1336,6 +1336,58 @@ func TestNewScratchSource_SecretsResolved(t *testing.T) {
 		"resolution must not alter the literal scratch path")
 }
 
+// TestNewScratchSource_RelaxedDurability verifies gh868: the scratch
+// (disposable) cache DB is opened with relaxed durability pragmas, so
+// large document ingests don't pay a per-INSERT fsync. The params must
+// be both present in the Location and actually applied on the connection
+// by the underlying driver.
+func TestNewScratchSource_RelaxedDurability(t *testing.T) {
+	th := testh.New(t)
+	fpath := filepath.Join(t.TempDir(), "scratch.sqlite")
+
+	src, clnup, err := sqlite3.NewScratchSource(th.Context, fpath)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = clnup() })
+
+	require.True(t, strings.HasSuffix(src.Location, sqlite3.ScratchConnParams),
+		"scratch location must carry the relaxed-durability params")
+
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	// PRAGMA synchronous reports the numeric level: 0 == OFF.
+	var sync int
+	require.NoError(t, db.QueryRowContext(th.Context, `PRAGMA synchronous`).Scan(&sync))
+	require.Zero(t, sync, "synchronous must be OFF (0)")
+
+	var journalMode string
+	require.NoError(t, db.QueryRowContext(th.Context, `PRAGMA journal_mode`).Scan(&journalMode))
+	require.Equal(t, "memory", strings.ToLower(journalMode), "journal_mode must be MEMORY")
+}
+
+// TestNewScratchSource_CleanupRemovesJournal verifies that the scratch
+// cleanup func targets SQLite's rollback journal sibling file
+// ("<fpath>-journal"), not the bogus "<fpath>/.db-journal" child path it
+// used previously. journal_mode=MEMORY means no journal is normally
+// created, so this guards the corrected path against regression (gh868).
+func TestNewScratchSource_CleanupRemovesJournal(t *testing.T) {
+	th := testh.New(t)
+	fpath := filepath.Join(t.TempDir(), "scratch.sqlite")
+
+	// Simulate an on-disk scratch DB plus a stale rollback journal.
+	require.NoError(t, os.WriteFile(fpath, []byte("db"), 0o600))
+	journal := fpath + "-journal"
+	require.NoError(t, os.WriteFile(journal, []byte("journal"), 0o600))
+
+	_, clnup, err := sqlite3.NewScratchSource(th.Context, fpath)
+	require.NoError(t, err)
+
+	require.NoError(t, clnup())
+	require.NoFileExists(t, fpath, "scratch DB file must be removed")
+	require.NoFileExists(t, journal, "scratch DB journal sibling must be removed")
+}
+
 // TestDriveri_CopyTable_CopiesIndexesAndTriggers verifies gh758:
 // CopyTable carries the source table's companion objects (indexes and
 // triggers, separate sqlite_master rows) across to the destination,
