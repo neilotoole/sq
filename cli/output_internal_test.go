@@ -11,9 +11,9 @@ import (
 )
 
 // TestGetOutputConfig_ForcedColorNonFileStdout verifies that getOutputConfig
-// does not panic when FORCE_COLOR forces color on but stdout is not an *os.File
-// (e.g. a bytes.Buffer in tests, or a pipe). Before the fix, this path type-
-// asserted stdout to *os.File for colorable.NewColorable.
+// does not panic when FORCE_COLOR forces color on but stdout or stderr is not an
+// *os.File (e.g. a bytes.Buffer in tests, or a pipe). Before the fix, the
+// stdout path type-asserted to *os.File for colorable.NewColorable.
 func TestGetOutputConfig_ForcedColorNonFileStdout(t *testing.T) {
 	t.Setenv("NO_COLOR", "")
 	t.Setenv("FORCE_COLOR", "1")
@@ -25,5 +25,7 @@ func TestGetOutputConfig_ForcedColorNonFileStdout(t *testing.T) {
 	outCfg := getOutputConfig(nil, nil, nil, format.JSON, options.Options{}, stdout, stderr)
 	require.NotNil(t, outCfg)
 	require.Same(t, stdout, outCfg.out)
+	require.Same(t, stderr, outCfg.errOut)
 	require.False(t, outCfg.outPr.IsMonochrome())
+	require.False(t, outCfg.errOutPr.IsMonochrome())
 }

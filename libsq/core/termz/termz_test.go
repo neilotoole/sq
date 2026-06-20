@@ -21,6 +21,8 @@ func TestIsColorTerminal_EnvOverrides(t *testing.T) {
 	}{
 		{name: "no_env", want: false},
 		{name: "no_color_set", noColor: "1", want: false},
+		{name: "no_color_zero_still_disables", noColor: "0", want: false},
+		{name: "no_color_false_still_disables", noColor: "false", want: false},
 		{name: "no_color_wins_over_force", noColor: "1", forceColor: "1", want: false},
 		{name: "force_color_1", forceColor: "1", want: true},
 		{name: "force_color_2", forceColor: "2", want: true},
