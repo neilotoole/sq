@@ -79,6 +79,28 @@ Use `--monochrome` (`-M`) flag to output without color. Or set via [config](/doc
 
 ![sq query -M](sq_query_monochrome.png)
 
+### NO_COLOR and FORCE_COLOR
+
+When stdout or stderr is not a terminal, `sq` normally omits ANSI color. Two
+environment variables override that behavior:
+
+- [`NO_COLOR`](https://no-color.org/): any non-empty value disables color (the
+  value itself is ignored).
+- [`FORCE_COLOR`](https://force-color.org/): any non-empty value enables color,
+  except `0` or `false` (case-insensitive), which disable it.
+
+Effective precedence (highest wins):
+
+1. [`--monochrome`](/docs/output#monochrome) (`-M`) or
+   [`monochrome`](/docs/config#monochrome) config: always disables color.
+2. `NO_COLOR` (any non-empty value).
+3. `FORCE_COLOR` (except `0` / `false`, which disable color).
+4. `TERM=dumb`: disables color.
+5. Terminal auto-detection: color only when the stream is a real TTY.
+
+`--monochrome` wins over `FORCE_COLOR`, so `FORCE_COLOR=1 sq --monochrome` prints
+plain text.
+
 ### datetime
 
 By default, `sq` outputs timestamps in an [IS08601](https://en.wikipedia.org/wiki/ISO_8601)
