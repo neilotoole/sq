@@ -228,7 +228,7 @@ func NotifyOnEOFReader(r io.Reader, fn func(error) error) io.Reader {
 		return &notifyOnEOFReadCloser{notifyOnEOFReader{r: rc, fn: fn}}
 	}
 
-	return &notifyOnEOFReader{r: r}
+	return &notifyOnEOFReader{r: r, fn: fn}
 }
 
 type notifyOnEOFReader struct {
@@ -265,6 +265,9 @@ func (r *notifyOnEOFReadCloser) Close() error {
 // what's returned to the r caller: fn can transform the error
 // or return it unchanged. If r or fn is nil, r is returned.
 //
+// If r is an [io.ReadCloser], the returned reader will also
+// implement [io.ReadCloser].
+//
 // See also: [NotifyOnEOFReader], which is a specialization of
 // [NotifyOnErrorReader].
 func NotifyOnErrorReader(r io.Reader, fn func(error) error) io.Reader {
@@ -272,7 +275,11 @@ func NotifyOnErrorReader(r io.Reader, fn func(error) error) io.Reader {
 		return r
 	}
 
-	return &notifyOnErrorReader{r: r}
+	if rc, ok := r.(io.ReadCloser); ok {
+		return &notifyOnErrorReadCloser{notifyOnErrorReader{r: rc, fn: fn}}
+	}
+
+	return &notifyOnErrorReader{r: r, fn: fn}
 }
 
 type notifyOnErrorReader struct {
@@ -288,6 +295,20 @@ func (r *notifyOnErrorReader) Read(p []byte) (n int, err error) {
 	}
 
 	return n, err
+}
+
+var _ io.ReadCloser = (*notifyOnErrorReadCloser)(nil)
+
+type notifyOnErrorReadCloser struct {
+	notifyOnErrorReader
+}
+
+// Close implements io.Closer.
+func (r *notifyOnErrorReadCloser) Close() error {
+	if c, ok := r.r.(io.Closer); ok {
+		return c.Close()
+	}
+	return nil
 }
 
 var _ io.Writer = (*WrittenWriter)(nil)

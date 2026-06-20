@@ -123,7 +123,9 @@ func ReadDir(dir string, includeDirPath, markDirs, includeDot bool) (paths []str
 		}
 	}
 
-	return paths, nil
+	// Note: err may be a non-nil multierr accumulated while resolving symlinks
+	// above. Per the doc contract, paths is still returned alongside it.
+	return paths, err
 }
 
 func countNonDirs(entries []os.DirEntry) (count int) {
@@ -237,6 +239,22 @@ func doPruneEmptyDirTree(ctx context.Context, dir string, isRoot bool) (count in
 		count += n
 		if err != nil {
 			return count, err
+		}
+	}
+
+	// After pruning children, dir may itself have become empty (it contained
+	// only empty dirs, all now removed). If so, and it isn't the root, prune it
+	// too, so that chains of dirs containing only empty dirs are fully collapsed.
+	if !isRoot {
+		var remaining []os.DirEntry
+		if remaining, err = os.ReadDir(dir); err != nil {
+			return count, errz.Err(err)
+		}
+		if len(remaining) == 0 {
+			if err = os.RemoveAll(dir); err != nil {
+				return count, errz.Err(err)
+			}
+			count++
 		}
 	}
 
