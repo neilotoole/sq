@@ -27,14 +27,14 @@ func (c *captureResolver) Resolve(_ context.Context, path string) (string, error
 func TestGrips_ResolveSourceSecrets(t *testing.T) {
 	reg := secret.NewRegistry()
 	reg.Register("keyring", &captureResolver{value: "hunter2"})
-	ctx := secret.NewContext(context.Background(), reg)
+	ctx := context.Background()
 
 	src := &source.Source{
 		Handle:   "@sakila",
 		Location: "postgres://alice:${keyring:my_db_pw}@db/sakila",
 	}
 
-	resolved, err := driver.ResolveSourceSecrets(ctx, src)
+	resolved, err := driver.ResolveSourceSecrets(ctx, reg, src)
 	require.NoError(t, err)
 	require.NotSame(t, src, resolved, "must return a clone")
 	require.Equal(t,
@@ -47,12 +47,12 @@ func TestGrips_ResolveSourceSecrets(t *testing.T) {
 
 func TestGrips_ResolveSourceSecrets_NoPlaceholder(t *testing.T) {
 	reg := secret.NewRegistry()
-	ctx := secret.NewContext(context.Background(), reg)
+	ctx := context.Background()
 	src := &source.Source{
 		Handle:   "@sakila",
 		Location: "postgres://alice:hunter2@db/sakila",
 	}
-	resolved, err := driver.ResolveSourceSecrets(ctx, src)
+	resolved, err := driver.ResolveSourceSecrets(ctx, reg, src)
 	require.NoError(t, err)
 	require.Same(t, src, resolved, "no placeholder => return input unchanged")
 }
@@ -62,8 +62,8 @@ func TestGrips_ResolveSourceSecrets_NoPlaceholder(t *testing.T) {
 // refs: the driver must receive the literal form. This is what makes
 // the v0.54.0 config upgrade's escaping of legacy locations (which
 // never contain intentional placeholders) connect byte-identically.
-// No secret.Registry is bound to the context: unescaping must not
-// require one, since a ref-free location resolves nothing.
+// A nil secret.Registry is passed: unescaping must not require one,
+// since a ref-free location resolves nothing.
 func TestGrips_ResolveSourceSecrets_NoRefs_Unescape(t *testing.T) {
 	tests := []struct {
 		name string
@@ -90,7 +90,7 @@ func TestGrips_ResolveSourceSecrets_NoRefs_Unescape(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			src := &source.Source{Handle: "@sakila", Location: tc.loc}
-			resolved, err := driver.ResolveSourceSecrets(context.Background(), src)
+			resolved, err := driver.ResolveSourceSecrets(context.Background(), nil, src)
 			require.NoError(t, err)
 			require.NotSame(t, src, resolved, "must return a clone when location changes")
 			require.Equal(t, tc.want, resolved.Location)
@@ -109,7 +109,7 @@ func TestGrips_ResolveSourceSecrets_NoRefs_Unescape(t *testing.T) {
 func TestGrips_ResolveSourceSecrets_AgreesWithExpand(t *testing.T) {
 	reg := secret.NewRegistry()
 	reg.Register("keyring", &captureResolver{value: "hunter2"})
-	ctx := secret.NewContext(context.Background(), reg)
+	ctx := context.Background()
 
 	tests := []struct {
 		name string
@@ -143,7 +143,7 @@ func TestGrips_ResolveSourceSecrets_AgreesWithExpand(t *testing.T) {
 				Type:     drivertype.Pg,
 				Location: tc.loc,
 			}
-			resolved, err := driver.ResolveSourceSecrets(ctx, src)
+			resolved, err := driver.ResolveSourceSecrets(ctx, reg, src)
 			require.NoError(t, err)
 			require.Equal(t, expanded, resolved.Location,
 				"connect-time bytes must equal Expand output")
@@ -165,11 +165,11 @@ func TestGrips_ResolveSourceSecrets_Idempotent(t *testing.T) {
 			Handle:   "@sakila",
 			Location: "postgres://alice:p$$$$wd@db/sakila",
 		}
-		r1, err := driver.ResolveSourceSecrets(context.Background(), src)
+		r1, err := driver.ResolveSourceSecrets(context.Background(), nil, src)
 		require.NoError(t, err)
 		require.Equal(t, "postgres://alice:p$$wd@db/sakila", r1.Location)
 
-		r2, err := driver.ResolveSourceSecrets(context.Background(), r1)
+		r2, err := driver.ResolveSourceSecrets(context.Background(), nil, r1)
 		require.NoError(t, err)
 		require.Same(t, r1, r2, "second resolution must be a no-op")
 		require.Equal(t, "postgres://alice:p$$wd@db/sakila", r2.Location)
@@ -178,18 +178,18 @@ func TestGrips_ResolveSourceSecrets_Idempotent(t *testing.T) {
 	t.Run("resolved secret value containing dollars", func(t *testing.T) {
 		reg := secret.NewRegistry()
 		reg.Register("keyring", &captureResolver{value: "p$$wd"})
-		ctx := secret.NewContext(context.Background(), reg)
+		ctx := context.Background()
 
 		src := &source.Source{
 			Handle:   "@sakila",
 			Location: "postgres://alice:${keyring:my_db_pw}@db/sakila",
 		}
-		r1, err := driver.ResolveSourceSecrets(ctx, src)
+		r1, err := driver.ResolveSourceSecrets(ctx, reg, src)
 		require.NoError(t, err)
 		require.Equal(t, "postgres://alice:p$$wd@db/sakila", r1.Location)
 
 		// Without the marker, this second pass would halve '$$' to '$'.
-		r2, err := driver.ResolveSourceSecrets(ctx, r1)
+		r2, err := driver.ResolveSourceSecrets(ctx, reg, r1)
 		require.NoError(t, err)
 		require.Same(t, r1, r2, "second resolution must be a no-op")
 		require.Equal(t, "postgres://alice:p$$wd@db/sakila", r2.Location)
@@ -277,7 +277,7 @@ func TestGrips_ResolveSourceSecrets_MungeFileDB(t *testing.T) {
 			t.Setenv("SQ_TEST_GH798_DB_PATH", tc.envVal)
 			reg := secret.NewRegistry()
 			reg.Register("env", env.NewResolver())
-			ctx := secret.NewContext(context.Background(), reg)
+			ctx := context.Background()
 
 			src := &source.Source{
 				Handle:   "@gh798",
@@ -285,7 +285,7 @@ func TestGrips_ResolveSourceSecrets_MungeFileDB(t *testing.T) {
 				Location: "${env:SQ_TEST_GH798_DB_PATH}",
 			}
 
-			resolved, err := driver.ResolveSourceSecrets(ctx, src)
+			resolved, err := driver.ResolveSourceSecrets(ctx, reg, src)
 			if tc.wantErr {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), "@gh798")
@@ -316,7 +316,7 @@ func TestGrips_ResolveSourceSecrets_MungeFileDB_NoChange(t *testing.T) {
 			Type:     drivertype.SQLite,
 			Location: "/data/sakila.db",
 		}
-		resolved, err := driver.ResolveSourceSecrets(context.Background(), src)
+		resolved, err := driver.ResolveSourceSecrets(context.Background(), nil, src)
 		require.NoError(t, err)
 		require.Same(t, src, resolved, "no change => return input unchanged")
 		require.Equal(t, "/data/sakila.db", resolved.Location,
@@ -328,14 +328,14 @@ func TestGrips_ResolveSourceSecrets_MungeFileDB_NoChange(t *testing.T) {
 		t.Setenv("SQ_TEST_GH798_DB_PATH", tmpl)
 		reg := secret.NewRegistry()
 		reg.Register("env", env.NewResolver())
-		ctx := secret.NewContext(context.Background(), reg)
+		ctx := context.Background()
 
 		src := &source.Source{
 			Handle:   "@gh798",
 			Type:     drivertype.SQLite,
 			Location: tmpl,
 		}
-		resolved, err := driver.ResolveSourceSecrets(ctx, src)
+		resolved, err := driver.ResolveSourceSecrets(ctx, reg, src)
 		require.NoError(t, err)
 		require.Equal(t, tmpl, resolved.Location,
 			"placeholder-shaped resolved value must not be munged into a file path")
@@ -349,7 +349,7 @@ func TestGrips_ResolveSourceSecrets_MungeFileDB_NoChange(t *testing.T) {
 func TestGrips_ResolveSourceSecrets_MungeFileDB_NonFileDriver(t *testing.T) {
 	reg := secret.NewRegistry()
 	reg.Register("keyring", &captureResolver{value: "hunter2"})
-	ctx := secret.NewContext(context.Background(), reg)
+	ctx := context.Background()
 
 	src := &source.Source{
 		Handle:   "@sakila",
@@ -357,7 +357,7 @@ func TestGrips_ResolveSourceSecrets_MungeFileDB_NonFileDriver(t *testing.T) {
 		Location: "postgres://alice:${keyring:my_db_pw}@db/sakila",
 	}
 
-	resolved, err := driver.ResolveSourceSecrets(ctx, src)
+	resolved, err := driver.ResolveSourceSecrets(ctx, reg, src)
 	require.NoError(t, err)
 	require.Equal(t, "postgres://alice:hunter2@db/sakila", resolved.Location)
 }
@@ -367,19 +367,19 @@ func TestGrips_ResolveSourceSecrets_NoRegistry(t *testing.T) {
 		Handle:   "@sakila",
 		Location: "postgres://alice:${keyring:my_db_pw}@db/sakila",
 	}
-	// Placeholders present but no secret.Registry on context: must
-	// return an explicit error rather than silently passing the
-	// unresolved Location through to the driver, where it would
-	// surface as a confusing DSN-parse or connection error.
-	resolved, err := driver.ResolveSourceSecrets(context.Background(), src)
+	// Placeholders present but a nil secret.Registry: must return an
+	// explicit error rather than silently passing the unresolved
+	// Location through to the driver, where it would surface as a
+	// confusing DSN-parse or connection error.
+	resolved, err := driver.ResolveSourceSecrets(context.Background(), nil, src)
 	require.Error(t, err)
 	require.Nil(t, resolved)
 	require.Contains(t, err.Error(), "@sakila")
-	require.Contains(t, err.Error(), "no secret registry bound to context")
+	require.Contains(t, err.Error(), "no secret registry")
 }
 
 func TestGrips_ResolveSourceSecrets_NilSource(t *testing.T) {
-	got, err := driver.ResolveSourceSecrets(context.Background(), nil)
+	got, err := driver.ResolveSourceSecrets(context.Background(), nil, nil)
 	require.NoError(t, err)
 	require.Nil(t, got)
 }

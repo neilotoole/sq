@@ -878,8 +878,8 @@ func TestCmdAdd_InlinePassword_EscapesDollar(t *testing.T) {
 		"literal password must be stored in escaped (template) form")
 
 	// Round-trip: the driver must receive the literal password. Zero
-	// refs, so no secret.Registry is needed on the context.
-	resolved, err := driver.ResolveSourceSecrets(context.Background(), src)
+	// refs, so a nil secret.Registry suffices.
+	resolved, err := driver.ResolveSourceSecrets(context.Background(), nil, src)
 	require.NoError(t, err)
 	require.Equal(t, "postgres://alice:pa$$word@localhost:5432/sakila", resolved.Location)
 }
@@ -1283,7 +1283,7 @@ func TestCmdAdd_CwdDollarDir_CSV(t *testing.T) {
 			require.NoError(t, err, "stored template must parse cleanly")
 			require.Empty(t, refs, "filesystem-derived bytes must not form placeholder refs")
 
-			resolvedSrc, err := driver.ResolveSourceSecrets(th.Context, src)
+			resolvedSrc, err := driver.ResolveSourceSecrets(th.Context, nil, src)
 			require.NoError(t, err)
 			require.Equal(t, filepath.Join(cwd, "actor.csv"), resolvedSrc.Location,
 				"resolved location must be the true filesystem path")
@@ -1341,7 +1341,7 @@ func TestCmdAdd_CwdDollarDir_FileDB(t *testing.T) {
 				require.NoError(t, err, "stored template must parse cleanly")
 				require.Empty(t, refs, "filesystem-derived bytes must not form placeholder refs")
 
-				resolvedSrc, err := driver.ResolveSourceSecrets(th.Context, src)
+				resolvedSrc, err := driver.ResolveSourceSecrets(th.Context, nil, src)
 				require.NoError(t, err)
 				wantLit := drvr.prefix + filepath.ToSlash(filepath.Join(cwd, drvr.fname))
 				require.Equal(t, wantLit, resolvedSrc.Location,

@@ -215,16 +215,19 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 			lga.Cmd, ru.Cmd.CommandPath())
 	}
 
-	if err = FinishRunInit(ctx, ru); err != nil {
-		return err
-	}
-
+	// Build the secret registry before FinishRunInit, which constructs
+	// ru.Grips: Grips captures the registry at construction time to
+	// resolve ${scheme:path} placeholders in source Locations.
 	ru.SecretRegistry = secret.NewRegistry()
 	ru.SecretRegistry.Register("keyring", keyring.NewStore())
 	ru.SecretRegistry.Register("env", env.NewResolver())
 	ru.SecretRegistry.Register("file", file.NewResolver())
 	ru.SecretRegistry.Register("op", op.NewResolver())
-	ctx = secret.NewContext(ctx, ru.SecretRegistry)
+
+	if err = FinishRunInit(ctx, ru); err != nil {
+		return err
+	}
+
 	cmd.SetContext(ctx)
 
 	var outCfg *outputConfig
@@ -312,7 +315,7 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 	ru.DriverRegistry = driver.NewRegistry(log)
 	dr := ru.DriverRegistry
 
-	ru.Grips = driver.NewGrips(dr, ru.Files, scratchSrcFunc)
+	ru.Grips = driver.NewGrips(dr, ru.Files, ru.SecretRegistry, scratchSrcFunc)
 	ru.Cleanup.AddC(ru.Grips)
 	ru.MDCache = mdcache.New(log, cfg.Collection, ru.Grips)
 	ru.Cleanup.AddC(ru.MDCache)
