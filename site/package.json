@@ -57,7 +57,7 @@
   "devDependencies": {
     "@babel/cli": "^8.0",
     "@babel/core": "^8.0",
-    "@babel/preset-env": "^7.29",
+    "@babel/preset-env": "^8.0",
     "@eslint/js": "^10.0.1",
     "@fullhuman/postcss-purgecss": "^8.0",
     "@hyas/images": "^3",
