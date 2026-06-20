@@ -29,6 +29,13 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [#866]: Ingesting JSON and JSONL is now much faster, especially on Windows, where a large
   JSONL file could previously take minutes. Each ingest now runs as a single transaction, so a
   failed ingest no longer leaves a partially-populated cache.
+- Shell completion for flag values now works even when the command already has a
+  positional argument. Previously, tab-completing values for flags such as
+  [`add --store`](https://sq.io/docs/cmd/add) (`inline | keyring`), `config get --src`,
+  `config set --src`, `--log.level`, and `--log.format` produced nothing once a
+  positional arg was present (which is the usual case). The `--error.format` flag also
+  now offers completion, and `--arg` no longer offers irrelevant suggestions (filenames
+  for its variable name, or table names for its value), since both are free-form.
 
 ## [v0.54.0] - 2026-06-19
 
