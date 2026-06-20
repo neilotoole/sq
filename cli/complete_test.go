@@ -529,6 +529,70 @@ func TestCompleteAllCobraRequestCmds(t *testing.T) {
 	}
 }
 
+// TestCompleteFlagValues_afterPositional is a regression test for flag value
+// completion being suppressed once the command already has a positional arg.
+// The completeStrings / completeHandle helpers cap on len(args) (the positional
+// args), which is correct for positional completion but must not gate flag value
+// completion: a flag takes a single value regardless of how many positionals
+// precede it. See the broken --store / --src / --log.* / --error.format cases.
+func TestCompleteFlagValues_afterPositional(t *testing.T) {
+	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
+	t.Parallel()
+
+	testCases := []struct {
+		name         string
+		args         []string
+		wantContains []string
+	}{
+		{
+			name:         "add_store",
+			args:         []string{"add", "postgres://x", "--" + flag.AddStore, ""},
+			wantContains: []string{flag.AddStoreInline, flag.AddStoreKeyring},
+		},
+		{
+			name:         "log_level",
+			args:         []string{".data", "--log.level", ""},
+			wantContains: []string{"DEBUG", "INFO", "WARN", "ERROR"},
+		},
+		{
+			name:         "log_format",
+			args:         []string{".data", "--log.format", ""},
+			wantContains: []string{"text", "json"},
+		},
+		{
+			name:         "error_format",
+			args:         []string{".data", "--error.format", ""},
+			wantContains: []string{"text", "json"},
+		},
+		{
+			name:         "config_get_src",
+			args:         []string{"config", "get", "format", "--" + flag.ConfigSrc, ""},
+			wantContains: []string{sakila.Pg},
+		},
+		{
+			name:         "config_set_src",
+			args:         []string{"config", "set", "format", "json", "--" + flag.ConfigSrc, ""},
+			wantContains: []string{sakila.Pg},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			tr := testrun.New(th.Context, t, nil)
+			tr.Add(*th.Source(sakila.Pg))
+
+			got := testComplete(t, tr, tc.args...)
+			require.NotEqual(t, cobra.ShellCompDirectiveError, got.result)
+			for j := range tc.wantContains {
+				assert.Contains(t, got.values, tc.wantContains[j])
+			}
+		})
+	}
+}
+
 func enableCompletionLog(ctx context.Context) context.Context {
 	o := options.FromContext(ctx)
 	if o == nil {

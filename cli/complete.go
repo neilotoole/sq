@@ -67,14 +67,14 @@ var (
 	_ completionFunc = (*handleTableCompleter)(nil).complete
 )
 
-// completeStrings completes from a slice of string.
-func completeStrings(maxVals int, a ...string) completionFunc {
-	return func(_ *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
-		if maxVals > 0 && len(args) >= maxVals {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		return a, cobra.ShellCompDirectiveNoFileComp & cobra.ShellCompDirectiveKeepOrder
+// completeStrings completes a flag value from a fixed slice of strings. It is
+// for flag values only, not positional args: a flag takes a single value
+// regardless of how many positional args precede it, so there's no positional
+// cap to apply (cf. completeHandle, whose maxVals cap is meaningful only for
+// positional completion). The candidates are returned in the given order.
+func completeStrings(a ...string) completionFunc {
+	return func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+		return a, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveKeepOrder
 	}
 }
 
@@ -108,6 +108,16 @@ func completeHandle(maxVals int, includeActive bool) completionFunc {
 
 		return handles, cobra.ShellCompDirectiveNoFileComp
 	}
+}
+
+// completeHandleFlag is the flag-value counterpart to completeHandle. It
+// suggests source handles for a flag value (e.g. --src), with no positional
+// cap: completeHandle's maxVals gates on len(args), the positional args, which
+// is correct for positional completion but would wrongly suppress a flag's
+// value once enough positionals are present. A flag takes a single value
+// regardless of preceding positionals.
+func completeHandleFlag(includeActive bool) completionFunc {
+	return completeHandle(0, includeActive)
 }
 
 // completeCatalog is a completionFunc that suggests catalogs.

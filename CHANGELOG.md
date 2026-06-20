@@ -16,6 +16,17 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## Unreleased
+
+### Fixed
+
+- Shell completion for flag values now works even when the command already has a
+  positional argument. Previously, tab-completing values for flags such as
+  [`add --store`](https://sq.io/docs/cmd/add) (`inline | keyring`), `config get --src`,
+  `config set --src`, `--log.level`, and `--log.format` produced nothing once a
+  positional arg was present (which is the usual case). The `--error.format` flag also
+  now offers completion.
+
 ## [v0.54.0] - 2026-06-19
 
 ### Added
