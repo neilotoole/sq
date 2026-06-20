@@ -1349,7 +1349,7 @@ func TestNewScratchSource_RelaxedDurability(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = clnup() })
 
-	require.True(t, strings.HasSuffix(src.Location, sqlite3.ScratchConnParams),
+	require.True(t, strings.HasSuffix(src.Location, "?_synchronous=OFF&_journal_mode=MEMORY"),
 		"scratch location must carry the relaxed-durability params")
 
 	grip := th.Open(src)

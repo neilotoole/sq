@@ -1119,7 +1119,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 
 var _ driver.ScratchSrcFunc = NewScratchSource
 
-// ScratchConnParams is the "?key=val&..." connection-string suffix appended
+// scratchConnParams is the "?key=val&..." connection-string suffix appended
 // to scratch (disposable) SQLite DB locations: the ingest cache DB for
 // document sources (CSV, Excel, JSON, etc.), join work DBs, and ephemeral
 // DBs. These DBs are never authoritative: each is rebuilt from its source if
@@ -1148,7 +1148,7 @@ var _ driver.ScratchSrcFunc = NewScratchSource
 // switch to synchronous=NORMAL + journal_mode=WAL, whose journal is on disk).
 //
 // See gh #868.
-const ScratchConnParams = "?_synchronous=OFF&_journal_mode=MEMORY"
+const scratchConnParams = "?_synchronous=OFF&_journal_mode=MEMORY"
 
 // NewScratchSource returns a new scratch src. The supplied fpath
 // must be the absolute path to the location to create the SQLite DB file,
@@ -1159,7 +1159,7 @@ func NewScratchSource(ctx context.Context, fpath string) (src *source.Source, cl
 	src = &source.Source{
 		Type:     drivertype.SQLite,
 		Handle:   source.ScratchHandle,
-		Location: Prefix + fpath + ScratchConnParams,
+		Location: Prefix + fpath + scratchConnParams,
 		// The path is an internally constructed literal, not a
 		// placeholder template: mark it so resolution is a no-op.
 		SecretsResolved: true,
@@ -1168,7 +1168,7 @@ func NewScratchSource(ctx context.Context, fpath string) (src *source.Source, cl
 	clnup = func() error {
 		// SQLite's rollback journal for "<fpath>" is the sibling file
 		// "<fpath>-journal", not a "<fpath>/.db-journal" child path. Under
-		// ScratchConnParams' journal_mode=MEMORY no on-disk journal is
+		// scratchConnParams' journal_mode=MEMORY no on-disk journal is
 		// normally created, but remove a stale one defensively (e.g. left by
 		// an earlier abnormal exit before this DB's mode was applied).
 		if journal := fpath + "-journal"; ioz.FileAccessible(journal) {
