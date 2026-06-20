@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"fmt"
 	"slices"
 	"strings"
 	"time"
@@ -53,12 +52,11 @@ func newSLQCmd() *cobra.Command {
 // execSLQ is sq's core command.
 func execSLQ(cmd *cobra.Command, args []string) error {
 	if len(args) == 0 {
-		msg := "no query"
 		if cmdFlagChanged(cmd, flag.Arg) {
-			msg += fmt.Sprintf(": maybe check flag --%s usage", flag.Arg)
+			return errz.Wrapf(errz.ErrNoQuery, "maybe check flag --%s usage", flag.Arg)
 		}
 
-		return errz.New(msg)
+		return errz.ErrNoQuery
 	}
 
 	ctx := cmd.Context()

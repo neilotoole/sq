@@ -16,6 +16,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## Unreleased
+
+### Added
+
+- Interactive commands may show a right-aligned update-available notice on
+  stderr when a newer release is cached. Set `SQ_NO_UPDATE_NOTIFIER=1` to
+  disable. See [install docs](https://sq.io/docs/install#update-notices).
+
 ## [v0.54.0] - 2026-06-19
 
 ### Added

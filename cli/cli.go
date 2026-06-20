@@ -34,8 +34,10 @@ import (
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/cobraz"
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/footer"
 	"github.com/neilotoole/sq/cli/pprofile"
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/cli/updatecheck"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -89,6 +91,7 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) (err error) {
 		if err != nil {
 			PrintError(ctx, ru, err)
 		}
+		footer.Render(ctx, ru, err)
 	}()
 
 	ctx = options.NewContext(ctx, options.Merge(options.FromContext(ctx), ru.Config.Options))
@@ -100,6 +103,8 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) (err error) {
 	)
 
 	ctx = run.NewContext(ctx, ru)
+
+	updatecheck.StartBackgroundCheck(ctx, updatecheck.CacheDirForRun(ru))
 
 	memStatRefreshFreq := OptDebugTrackMemory.Get(options.FromContext(ctx))
 	if memStatRefreshFreq > 0 {
