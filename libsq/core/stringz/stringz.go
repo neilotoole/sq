@@ -308,7 +308,7 @@ func SanitizeAlphaNumeric(s string, r rune) string {
 }
 
 // TrimLen returns s but with a maximum length of maxLen. If maxLen
-// is negative, the empty string is returned.
+// is zero or negative, the empty string is returned.
 // This func is only tested with ASCII chars; results are not
 // guaranteed for multibyte runes.
 func TrimLen(s string, maxLen int) string {

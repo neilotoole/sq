@@ -510,7 +510,10 @@ func TestType(t *testing.T) {
 	require.Equal(t, "string", stringz.Type("hello"))
 	require.Equal(t, "bool", stringz.Type(true))
 	require.Equal(t, "<nil>", stringz.Type(nil))
-	require.Equal(t, "*errz.errz", stringz.Type(errz.New("x")))
+	// Assert only the stable package/pointer prefix; the concrete type
+	// name is an unexported errz implementation detail.
+	require.True(t, strings.HasPrefix(stringz.Type(errz.New("x")), "*errz."),
+		"want a pointer to a type in the errz package")
 }
 
 func TestSprintJSON(t *testing.T) {
