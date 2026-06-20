@@ -117,7 +117,8 @@ func TestReadDir_symlinks(t *testing.T) {
 	// A symlink that resolves to a directory.
 	require.NoError(t, os.Symlink(target, filepath.Join(dir, "linktodir")))
 	// A broken symlink, to exercise the EvalSymlinks error path under markDirs.
-	require.NoError(t, os.Symlink(filepath.Join(t.TempDir(), "missing"), filepath.Join(dir, "broken")))
+	brokenTarget := filepath.Join(t.TempDir(), "missing_target_dir")
+	require.NoError(t, os.Symlink(brokenTarget, filepath.Join(dir, "broken")))
 
 	t.Run("symlinked_dir_marked", func(t *testing.T) {
 		// Drop the broken link so only the good symlink is present.
@@ -131,8 +132,13 @@ func TestReadDir_symlinks(t *testing.T) {
 	t.Run("broken_symlink_yields_error_but_continues", func(t *testing.T) {
 		paths, err := ioz.ReadDir(dir, false, true, false)
 		require.Error(t, err, "broken symlink under markDirs should produce an error")
-		// The good symlink is still listed despite the broken one's error.
+		// The error must identify the unresolvable target, proving it was
+		// accumulated rather than swallowed.
+		require.ErrorContains(t, err, "missing_target_dir")
+		// The good symlink is still listed despite the broken one's error,
+		// proving ReadDir accumulates the error and continues.
 		require.Contains(t, paths, "linktodir/")
+		require.NotContains(t, paths, "broken", "unresolvable symlink should be omitted from paths")
 	})
 }
 
@@ -215,6 +221,27 @@ func TestPruneEmptyDirTree(t *testing.T) {
 		require.NoError(t, err)
 		require.Zero(t, count)
 		require.True(t, ioz.DirExists(root))
+	})
+
+	t.Run("symlink_to_dir_spares_parent", func(t *testing.T) {
+		// countNonDirs treats a symlink (even to a dir) as a non-dir, so a dir
+		// whose only entry is a symlink-to-dir must be spared. This pins the
+		// invariant the post-order removal relies on.
+		if runtime.GOOS == "windows" {
+			t.Skip("symlinks are unreliable on Windows")
+		}
+		root := t.TempDir()
+		realDir := filepath.Join(t.TempDir(), "real")
+		require.NoError(t, os.Mkdir(realDir, 0o700))
+
+		sub := filepath.Join(root, "sub")
+		require.NoError(t, os.Mkdir(sub, 0o700))
+		require.NoError(t, os.Symlink(realDir, filepath.Join(sub, "link")))
+
+		count, err := ioz.PruneEmptyDirTree(context.Background(), root)
+		require.NoError(t, err)
+		require.Zero(t, count)
+		require.True(t, ioz.DirExists(sub), "dir holding a symlink must not be pruned")
 	})
 
 	t.Run("context_cancelled", func(t *testing.T) {

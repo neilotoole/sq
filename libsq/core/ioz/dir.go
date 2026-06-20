@@ -190,73 +190,72 @@ func DirSize(path string) (int64, error) {
 // contains at least one non-dir entry, that dir is spared. Arg dir
 // must be an absolute path.
 func PruneEmptyDirTree(ctx context.Context, dir string) (count int, err error) {
-	return doPruneEmptyDirTree(ctx, dir, true)
+	count, _, err = doPruneEmptyDirTree(ctx, dir, true)
+	return count, err
 }
 
-func doPruneEmptyDirTree(ctx context.Context, dir string, isRoot bool) (count int, err error) {
+// doPruneEmptyDirTree implements [PruneEmptyDirTree] via a single post-order
+// pass. It returns the number of dirs removed in the subtree rooted at dir, and
+// removedSelf reports whether dir itself was removed (always false for the root,
+// which is never pruned). The parent uses removedSelf to decide whether it has
+// in turn become empty, so chains of dirs containing only empty dirs collapse in
+// one pass without re-reading any dir.
+func doPruneEmptyDirTree(ctx context.Context, dir string, isRoot bool) (count int, removedSelf bool, err error) {
 	if !filepath.IsAbs(dir) {
-		return 0, errz.Errorf("dir must be absolute: %s", dir)
+		return 0, false, errz.Errorf("dir must be absolute: %s", dir)
 	}
 
 	select {
 	case <-ctx.Done():
-		return 0, errz.Err(ctx.Err())
+		return 0, false, errz.Err(ctx.Err())
 	default:
 	}
 
 	var entries []os.DirEntry
 	if entries, err = os.ReadDir(dir); err != nil {
-		return 0, errz.Err(err)
+		return 0, false, errz.Err(err)
 	}
 
-	if len(entries) == 0 {
-		if isRoot {
-			return 0, nil
-		}
-		err = os.RemoveAll(dir)
-		if err != nil {
-			return 0, errz.Err(err)
-		}
-		return 1, nil
-	}
-
-	// We've got some entries... let's check what they are.
+	// If any entry is a non-dir, this dir holds real content and is spared (as
+	// are its descendants). Note that countNonDirs treats a symlink, including a
+	// symlink to a dir, as a non-dir, so a dir containing one is never pruned.
 	if countNonDirs(entries) != 0 {
-		// There are some non-dir entries, so this dir doesn't get deleted.
-		return 0, nil
+		return 0, false, nil
 	}
 
-	// Each of the entries is a dir. Recursively prune.
-	var n int
+	// Every entry (if any) is a dir. Recursively prune each, tracking whether
+	// they all removed themselves. With no entries, the dir is already empty and
+	// allChildrenRemoved stays true.
+	allChildrenRemoved := true
 	for _, entry := range entries {
 		select {
 		case <-ctx.Done():
-			return count, errz.Err(ctx.Err())
+			return count, false, errz.Err(ctx.Err())
 		default:
 		}
 
-		n, err = doPruneEmptyDirTree(ctx, filepath.Join(dir, entry.Name()), false)
+		var (
+			n            int
+			childRemoved bool
+		)
+		n, childRemoved, err = doPruneEmptyDirTree(ctx, filepath.Join(dir, entry.Name()), false)
 		count += n
 		if err != nil {
-			return count, err
+			return count, false, err
+		}
+		if !childRemoved {
+			allChildrenRemoved = false
 		}
 	}
 
-	// After pruning children, dir may itself have become empty (it contained
-	// only empty dirs, all now removed). If so, and it isn't the root, prune it
-	// too, so that chains of dirs containing only empty dirs are fully collapsed.
-	if !isRoot {
-		var remaining []os.DirEntry
-		if remaining, err = os.ReadDir(dir); err != nil {
-			return count, errz.Err(err)
+	// dir is now empty iff every child removed itself (or it had no children).
+	// Prune it too, unless it's the root, which is never removed.
+	if !isRoot && allChildrenRemoved {
+		if err = os.RemoveAll(dir); err != nil {
+			return count, false, errz.Err(err)
 		}
-		if len(remaining) == 0 {
-			if err = os.RemoveAll(dir); err != nil {
-				return count, errz.Err(err)
-			}
-			count++
-		}
+		return count + 1, true, nil
 	}
 
-	return count, nil
+	return count, false, nil
 }

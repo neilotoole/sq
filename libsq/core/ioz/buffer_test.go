@@ -3,6 +3,7 @@ package ioz_test
 import (
 	"bytes"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -83,7 +84,12 @@ func TestBuffers_NewMem2Disk_spillToDisk(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, len(want), n)
 	require.Equal(t, int64(len(want)), buf.Len())
-	require.GreaterOrEqual(t, buf.Cap(), buf.Len())
+
+	// The overflow must actually spill to a backing file in dir; otherwise this
+	// test would pass even if the payload stayed entirely in memory.
+	spillEntries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	require.NotEmpty(t, spillEntries, "payload exceeding memBufSize must spill to a file on disk")
 
 	got, err := io.ReadAll(buf)
 	require.NoError(t, err)

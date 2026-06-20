@@ -140,8 +140,19 @@ func FileInfoEqual(a, b os.FileInfo) bool {
 
 // WriteToFile writes the contents of r to fp. If fp doesn't exist,
 // the file is created (including any parent dirs). If fp exists, it is
-// truncated. The write operation is context-aware.
+// truncated. The write operation is context-aware: if ctx is already done,
+// WriteToFile returns before touching fp, so an existing file is left intact.
+// Cancellation partway through the copy may still leave a truncated or partial
+// file behind, as the write is not atomic (see [WriteFileAtomic]).
 func WriteToFile(ctx context.Context, fp string, r io.Reader) (written int64, err error) {
+	// Check ctx before opening with O_TRUNC, so an already-cancelled write
+	// doesn't destroy the existing contents of fp.
+	select {
+	case <-ctx.Done():
+		return 0, errz.Err(ctx.Err())
+	default:
+	}
+
 	if err = RequireDir(filepath.Dir(fp)); err != nil {
 		return 0, err
 	}

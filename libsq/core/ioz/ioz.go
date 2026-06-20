@@ -217,47 +217,20 @@ func (w *notifyWriter) Write(p []byte) (n int, err error) {
 // If r is an [io.ReadCloser], the returned reader will also
 // implement [io.ReadCloser].
 //
-// See also: [NotifyOnErrorReader], which is a generalization of
-// [NotifyOnEOFReader].
+// NotifyOnEOFReader is a specialization of [NotifyOnErrorReader], implemented
+// in terms of it: it forwards to fn only when the error is [io.EOF], and passes
+// any other error through unchanged.
 func NotifyOnEOFReader(r io.Reader, fn func(error) error) io.Reader {
 	if r == nil || fn == nil {
 		return r
 	}
 
-	if rc, ok := r.(io.ReadCloser); ok {
-		return &notifyOnEOFReadCloser{notifyOnEOFReader{r: rc, fn: fn}}
-	}
-
-	return &notifyOnEOFReader{r: r, fn: fn}
-}
-
-type notifyOnEOFReader struct {
-	r  io.Reader
-	fn func(error) error
-}
-
-// Read implements io.Reader.
-func (r *notifyOnEOFReader) Read(p []byte) (n int, err error) {
-	n, err = r.r.Read(p)
-	if err != nil && errors.Is(err, io.EOF) {
-		err = r.fn(err)
-	}
-
-	return n, err
-}
-
-var _ io.ReadCloser = (*notifyOnEOFReadCloser)(nil)
-
-type notifyOnEOFReadCloser struct {
-	notifyOnEOFReader
-}
-
-// Close implements io.Closer.
-func (r *notifyOnEOFReadCloser) Close() error {
-	if c, ok := r.r.(io.Closer); ok {
-		return c.Close()
-	}
-	return nil
+	return NotifyOnErrorReader(r, func(err error) error {
+		if errors.Is(err, io.EOF) {
+			return fn(err)
+		}
+		return err
+	})
 }
 
 // NotifyOnErrorReader returns an [io.Reader] that invokes fn

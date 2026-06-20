@@ -193,11 +193,19 @@ func TestCopyAsync(t *testing.T) {
 	src := "the quick brown fox"
 	dst := &bytes.Buffer{}
 
+	// Capture the callback args and assert on them from the test goroutine;
+	// calling require.* inside the callback goroutine would invoke t.FailNow on
+	// the wrong goroutine. Receiving from done establishes a happens-before edge
+	// with the copy, so dst is safe to read afterwards.
+	var (
+		gotWritten int64
+		gotErr     error
+	)
 	done := make(chan struct{})
 	ioz.CopyAsync(dst, strings.NewReader(src), func(written int64, err error) {
-		defer close(done)
-		require.NoError(t, err)
-		require.Equal(t, int64(len(src)), written)
+		gotWritten = written
+		gotErr = err
+		close(done)
 	})
 
 	select {
@@ -205,13 +213,33 @@ func TestCopyAsync(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("CopyAsync callback not invoked")
 	}
+	require.NoError(t, gotErr)
+	require.Equal(t, int64(len(src)), gotWritten)
 	require.Equal(t, src, dst.String())
+}
 
-	// A nil callback must not panic.
-	require.NotPanics(t, func() {
-		ioz.CopyAsync(&bytes.Buffer{}, strings.NewReader(src), nil)
-		time.Sleep(50 * time.Millisecond)
+func TestCopyAsync_nilCallback(t *testing.T) {
+	t.Parallel()
+
+	// With a nil callback there's no completion signal, so synchronize on the
+	// source reaching EOF (which happens-after the final write to dst). This also
+	// confirms a nil callback doesn't panic.
+	const src = "the quick brown fox"
+	dst := &bytes.Buffer{}
+	done := make(chan struct{})
+	r := ioz.NotifyOnEOFReader(strings.NewReader(src), func(err error) error {
+		close(done)
+		return err
 	})
+
+	ioz.CopyAsync(dst, r, nil)
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("CopyAsync did not complete")
+	}
+	require.Equal(t, src, dst.String())
 }
 
 func TestMarshalUnmarshalYAML_RoundTrip(t *testing.T) {
@@ -536,7 +564,7 @@ func TestWriteErrorCloser(t *testing.T) {
 	t.Run("invokes_fn", func(t *testing.T) {
 		wantErr := errors.New("upstream boom")
 		var gotErr error
-		wec := ioz.NewFuncWriteErrorCloser(nopWC{&bytes.Buffer{}}, func(err error) {
+		wec := ioz.NewFuncWriteErrorCloser(ioz.WriteCloser(&bytes.Buffer{}), func(err error) {
 			gotErr = err
 		})
 		n, err := wec.Write([]byte("hi"))
@@ -548,7 +576,7 @@ func TestWriteErrorCloser(t *testing.T) {
 	})
 
 	t.Run("nil_fn", func(t *testing.T) {
-		wec := ioz.NewFuncWriteErrorCloser(nopWC{&bytes.Buffer{}}, nil)
+		wec := ioz.NewFuncWriteErrorCloser(ioz.WriteCloser(&bytes.Buffer{}), nil)
 		require.NotPanics(t, func() { wec.Error(errors.New("x")) })
 	})
 }
@@ -581,7 +609,6 @@ type nopWC struct{ io.Writer }
 
 func (nopWC) Close() error { return nil }
 
-// plainWriter implements only io.Writer (no Close, no ReaderFrom).
-type plainWriter struct{ w io.Writer }
-
-func (p plainWriter) Write(b []byte) (int, error) { return p.w.Write(b) }
+// plainWriter implements only io.Writer (no Close, no ReaderFrom): embedding the
+// io.Writer interface promotes Write but not ReadFrom, matching nopWC's idiom.
+type plainWriter struct{ io.Writer }

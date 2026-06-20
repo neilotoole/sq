@@ -98,6 +98,7 @@ func TestPrintFile(t *testing.T) {
 	require.NoError(t, os.WriteFile(f, []byte(content), 0o600))
 
 	orig := os.Stdout
+	t.Cleanup(func() { os.Stdout = orig }) // restore even if PrintFile panics
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
 	os.Stdout = w
@@ -206,9 +207,26 @@ func TestWriteToFile_contextCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	fp := filepath.Join(t.TempDir(), "out.txt")
-	_, err := ioz.WriteToFile(ctx, fp, strings.NewReader("some data"))
-	require.Error(t, err)
+	t.Run("new_file_not_created", func(t *testing.T) {
+		fp := filepath.Join(t.TempDir(), "out.txt")
+		_, err := ioz.WriteToFile(ctx, fp, strings.NewReader("some data"))
+		require.Error(t, err)
+		require.False(t, ioz.FileAccessible(fp), "cancelled write must not create the file")
+	})
+
+	t.Run("existing_file_preserved", func(t *testing.T) {
+		// An already-cancelled write must not truncate a pre-existing file.
+		const existing = "pre-existing content that must survive"
+		fp := filepath.Join(t.TempDir(), "out.txt")
+		require.NoError(t, os.WriteFile(fp, []byte(existing), 0o600))
+
+		_, err := ioz.WriteToFile(ctx, fp, strings.NewReader("replacement"))
+		require.Error(t, err)
+
+		got, err := os.ReadFile(fp)
+		require.NoError(t, err)
+		require.Equal(t, existing, string(got))
+	})
 }
 
 func TestWriteToFile_truncatesExisting(t *testing.T) {
