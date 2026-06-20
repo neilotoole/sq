@@ -356,7 +356,7 @@ func TestPlaceholderLocation_Connect(t *testing.T) {
 	reg.Register("env", env.NewResolver())
 
 	th := testh.New(t)
-	ctx := secret.NewContext(th.Context, reg)
+	ctx := th.Context
 
 	src := &source.Source{
 		Handle:   "@gh798",
@@ -364,7 +364,7 @@ func TestPlaceholderLocation_Connect(t *testing.T) {
 		Location: "${env:SQ_TEST_GH798_DB_PATH}",
 	}
 
-	resolved, err := driver.ResolveSourceSecrets(ctx, src)
+	resolved, err := driver.ResolveSourceSecrets(ctx, reg, src)
 	require.NoError(t, err)
 	require.Equal(t, "sqlite3://"+filepath.ToSlash(dbPath), resolved.Location)
 
@@ -1330,7 +1330,7 @@ func TestNewScratchSource_SecretsResolved(t *testing.T) {
 	require.True(t, src.SecretsResolved,
 		"internally constructed literal locations must be marked resolved")
 
-	resolved, err := driver.ResolveSourceSecrets(ctx, src)
+	resolved, err := driver.ResolveSourceSecrets(ctx, nil, src)
 	require.NoError(t, err)
 	require.Equal(t, src.Location, resolved.Location,
 		"resolution must not alter the literal scratch path")
