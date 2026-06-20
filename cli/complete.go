@@ -240,12 +240,18 @@ func completeSLQ(cmd *cobra.Command, args []string, toComplete string) ([]string
 	// VALUE. Count those fake positionals so we can skip them.
 	//
 	// The "=" form ("--arg=NAME:VALUE") is consumed by pflag as a single token,
-	// so it contributes no fake positionals. A joined NAME:VALUE always contains
-	// ":", a dangling NAME (a valid identifier) never does.
+	// so it contributes no fake positionals. We tell the two apart by ":": a
+	// joined NAME:VALUE always contains one, a dangling NAME never does. This
+	// assumes valid input (NAME is a bare identifier, per stringz.ValidIdent);
+	// malformed input like "--arg fo:o" or "--arg=foo" is misclassified, but
+	// such input is rejected at exec time, so the cost is only stray completion.
 	//
 	// Cobra traverses the arg list once per positional during completion (to
-	// check each intermediate word), and StringArray is cumulative, so vals
-	// may contain duplicate entries. Deduplicate before counting.
+	// check each intermediate word), and StringArray is cumulative, so vals may
+	// contain duplicate entries. Deduplicate before counting. This relies on
+	// each space-form pair having a distinct NAME; genuinely duplicate keys
+	// (e.g. "--arg x A --arg x B", itself a misuse warned about at exec time)
+	// undercount, at worst suppressing completion of a following query word.
 	spaceFormArgCount := 0
 	if vals, _ := cmd.Flags().GetStringArray(flag.Arg); len(vals) > 0 {
 		seen := make(map[string]struct{}, len(vals))

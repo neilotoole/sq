@@ -629,6 +629,23 @@ func TestCompleteFlagValues_afterPositional(t *testing.T) {
 			wantContains:  []string{sakila.Pg},
 			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
 		},
+		{
+			// Two space-form pairs, second one mid-VALUE ("--arg a A --arg b
+			// <TAB>"): the second VALUE slot is still open, so suppress.
+			name:          "arg_two_pairs_mid_value",
+			args:          []string{"--" + flag.Arg, "a", "A", "--" + flag.Arg, "b", ""},
+			wantEmpty:     true,
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			// Two complete space-form pairs ("--arg a A --arg b B @<TAB>"): both
+			// VALUE slots are filled, so the current word is a real query
+			// positional that must still complete.
+			name:          "arg_two_pairs_complete_completes_query",
+			args:          []string{"--" + flag.Arg, "a", "A", "--" + flag.Arg, "b", "B", "@"},
+			wantContains:  []string{sakila.Pg},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
 	}
 
 	for _, tc := range testCases {
