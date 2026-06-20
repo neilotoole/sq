@@ -70,7 +70,9 @@ Before upgrading, check the changelog: https://sq.io/changelog`,
 func execVersion(cmd *cobra.Command, _ []string) error {
 	ru := run.FromContext(cmd.Context())
 
-	latestVersion, err := updatecheck.FetchLatestWithWait(cmd.Context(), updatecheck.CacheDirForRun(ru), 500*time.Millisecond)
+	latestVersion, err := updatecheck.FetchLatestWithWait(
+		cmd.Context(), updatecheck.CacheDirForRun(ru), 500*time.Millisecond,
+	)
 	if err != nil {
 		return err
 	}
