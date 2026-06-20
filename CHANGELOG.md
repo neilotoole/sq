@@ -16,6 +16,17 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## Unreleased
+
+### Fixed
+
+- `FORCE_COLOR` now follows the [force-color.org](https://force-color.org/) convention:
+  `FORCE_COLOR=0` (and `false`) disables color output, rather than being treated as
+  "force color on". `NO_COLOR` continues to take precedence over `FORCE_COLOR`.
+- Forcing color to a non-terminal stdout (e.g. when `FORCE_COLOR` is set and output is a
+  pipe or buffer) no longer panics; `sq` now writes raw ANSI to non-`*os.File` writers
+  instead of performing an unchecked type assertion.
+
 ## [v0.54.0] - 2026-06-19
 
 ### Added

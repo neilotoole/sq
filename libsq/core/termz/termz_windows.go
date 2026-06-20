@@ -28,14 +28,8 @@ func IsTerminal(w io.Writer) bool {
 // [NO_COLOR]: https://no-color.org/
 // [FORCE_COLOR]: https://force-color.org/
 func IsColorTerminal(w io.Writer) bool {
-	if os.Getenv("NO_COLOR") != "" {
-		return false
-	}
-	if os.Getenv("FORCE_COLOR") != "" {
-		return true
-	}
-	if os.Getenv("TERM") == "dumb" {
-		return false
+	if enabled, ok := colorEnvOverride(); ok {
+		return enabled
 	}
 
 	if w == nil {

@@ -657,8 +657,17 @@ func getOutputConfig(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup
 		outCfg.out = stdout
 		outCfg.outPr.EnableColor(false)
 	case termz.IsColorTerminal(stdout) && !monochrome:
-		// stdout is a color terminal and we're colorizing.
-		outCfg.out = colorable.NewColorable(stdout.(*os.File))
+		// stdout is a color terminal and we're colorizing. Guard the type
+		// assertion: termz.IsColorTerminal can also return true when color is
+		// forced via FORCE_COLOR, in which case stdout may not be an *os.File
+		// (e.g. a bytes.Buffer in tests, or a pipe). go-colorable's
+		// NewColorable requires an *os.File, so fall back to writing raw ANSI
+		// to non-file writers, which pass through unchanged on non-Windows.
+		if f, ok := stdout.(*os.File); ok {
+			outCfg.out = colorable.NewColorable(f)
+		} else {
+			outCfg.out = stdout
+		}
 		outCfg.outPr.EnableColor(true)
 	case termz.IsTerminal(stderr):
 		// stdout is a terminal, but won't be colorized.
