@@ -71,6 +71,19 @@ func (w *keyringWriter) Rm(path string) error {
 	})
 }
 
+// Prune implements output.KeyringWriter. Emits a single JSON object with
+// the dry-run flag and the row array, matching the Migrate envelope.
+func (w *keyringWriter) Prune(rows []output.KeyringPruneRow, dryRun bool) error {
+	if rows == nil {
+		rows = []output.KeyringPruneRow{}
+	}
+	type envelope struct {
+		Rows   []output.KeyringPruneRow `json:"rows"`
+		DryRun bool                     `json:"dry_run"`
+	}
+	return writeJSON(w.out, w.pr, envelope{DryRun: dryRun, Rows: rows})
+}
+
 // Migrate implements output.KeyringWriter. Emits a single JSON object
 // with the dry-run flag and the row array so a consumer can tell the
 // modes apart from the JSON alone.

@@ -409,7 +409,7 @@ func TempDir(tb testing.TB, subs ...string) string {
 
 	dir, err := os.Getwd()
 	require.NoError(tb, err)
-	dir = strings.TrimPrefix(dir, proj.Dir())
+	dir = sanitizeCwdSegment(dir, proj.Dir())
 
 	fp := filepath.Join(
 		os.TempDir(),
@@ -432,6 +432,25 @@ func TempDir(tb testing.TB, subs ...string) string {
 	err = os.MkdirAll(fp, 0o777)
 	require.NoError(tb, err)
 	return fp
+}
+
+// sanitizeCwdSegment reduces dir (a working directory) to a path segment safe to
+// nest under a temp dir. When dir is inside the project tree, the projDir prefix
+// is trimmed to keep the segment short. Otherwise, e.g. when a test has chdir'd
+// into a temp dir outside the project tree, any volume name (such as a Windows
+// drive letter "C:") and leading separators are stripped so an absolute dir
+// can't inject an illegal drive component like "...\sq\test\C:" into the joined
+// path (gh #797). filepath.VolumeName handles the live Windows case; the
+// explicit drive-letter check also makes the behavior testable off-Windows.
+func sanitizeCwdSegment(dir, projDir string) string {
+	dir = strings.TrimPrefix(dir, projDir)
+	if vol := filepath.VolumeName(dir); vol != "" {
+		dir = dir[len(vol):]
+	} else if len(dir) >= 2 && dir[1] == ':' &&
+		((dir[0] >= 'A' && dir[0] <= 'Z') || (dir[0] >= 'a' && dir[0] <= 'z')) {
+		dir = dir[2:]
+	}
+	return strings.TrimLeft(dir, `/\`)
 }
 
 // TempFile returns the path to a temp file with the given name, in a unique

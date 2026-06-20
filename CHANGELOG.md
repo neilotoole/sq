@@ -16,7 +16,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
-## Unreleased
+## [v0.54.0] - 2026-06-19
 
 ### Added
 
@@ -52,130 +52,60 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
-- [#846]: YAML now renders decimal values as quoted strings by default, matching
-  JSON and keeping precision for values beyond float64 range. Set
-  `format.decimal=number` to restore bare numbers.
-- ☢️ [#594]: [`avg()`](https://sq.io/docs/query#avg) now returns a consistent `float`
-  on every SQL driver.
-  - Previously the result type varied by backend (a float on
-    some, an integer or a decimal string on others), so an `avg()` value could not
-    be consumed portably across sources. `float` was chosen to match `jq`'s numeric
-    model, which represents all numbers as IEEE 754 floating point.
-  - ☢️ This is a breaking change for
-    [Postgres](https://sq.io/docs/drivers/postgres) and
-    [MySQL](https://sq.io/docs/drivers/mysql), which previously returned a lossless
-    decimal (rendered as a quoted string in JSON output).
-  - An `avg()` value is now a JSON number, and may lose precision for averages beyond float64's range
-    (~15-17 significant digits). Callers needing lossless decimal can fall back to
-    native SQL via [`sq sql`](https://sq.io/docs/cmd/sql).
-- ☢️ [#839]: [`sum()`](https://sq.io/docs/query#sum) over an integer or decimal
-  column now returns a consistent `decimal` on every SQL driver (the one
-  exception is a `DOUBLE`/`FLOAT` column on DuckDB, noted below). Previously the
-  result type varied by backend (an integer on most, a decimal on MySQL and
-  DuckDB, a float on Oracle), so a `sum()` value could not be consumed portably
-  across sources. Unlike
-  [`avg()`](https://sq.io/docs/query#avg) (see [#594]), `sum()` is harmonized to
-  `decimal` rather than `float`: the sum of integers or of exact decimals is
-  itself exact, so typing it as `float` would be a precision regression. In JSON
-  output a decimal renders as a quoted string, so `sum(.actor_id)` is now
-  `"20100"` rather than the bare `20100` that most drivers previously emitted.
-  - [SQLite](https://sq.io/docs/drivers/sqlite) and
-    [rqlite](https://sq.io/docs/drivers/rqlite) compute a sum over a non-integer
-    column in floating point internally, so such a sum may still carry that drift
-    (e.g. `67416.51000000001`). The surfaced type is now uniform, but a value the
-    engine already computed in float is not corrected. On rqlite the same float
-    computation can also drift a sum of a very large integer column (beyond
-    2^53); SQLite and the other drivers accumulate integer sums exactly.
-  - On Oracle, ClickHouse, and SQL Server the decimal cast uses a fixed
-    `DECIMAL(38, 6)`, so a sum of a column with more than 6 fractional digits is
-    rounded to 6 places, and a sum whose integer part needs more than 32 digits
-    overflows (a query error). Postgres (unconstrained `NUMERIC`) and MySQL (its
-    maximum scale of 30, which no column can exceed) preserve the full scale, so
-    for such columns the value can differ across drivers. The common integer and
-    currency cases are unaffected.
-  - [DuckDB](https://sq.io/docs/drivers/duckdb) is not cast: its native `sum()`
-    is already a decimal for integer (`HUGEINT`) and decimal columns, and is left
-    lossless rather than narrowed to `DECIMAL(38, 6)`. As a result, `sum()` over
-    a `DOUBLE` column on DuckDB stays a float rather than a decimal.
-  - Decimal values are now rendered with trailing fractional zeros trimmed (e.g.
-    `100.50` displays as `100.5`) consistently across all drivers and output
-    formats, so the same value reads identically regardless of the scale a
-    backend reported.
+- [#851]: In colored output, structural punctuation is now rendered muted rather than bold,
+  so values stand out.
+- [#846]: YAML now renders decimal values as quoted strings by default, matching JSON. Set
+  [`format.decimal=number`](https://sq.io/docs/output#decimal) to restore bare numbers.
+- ☢️ [#594]: [`avg()`](https://sq.io/docs/query/#aggregate-functions) now returns a consistent `float` on
+  every SQL driver. Breaking for [Postgres](https://sq.io/docs/drivers/postgres) and
+  [MySQL](https://sq.io/docs/drivers/mysql), which previously returned a lossless decimal.
+- ☢️ [#839], [#853]: [`sum()`](https://sq.io/docs/query/#aggregate-functions) over an integer or decimal
+  column now returns a consistent `decimal` on every SQL driver, rendered in JSON as a
+  quoted string (e.g. `"20100"`).
 - [#610]: The DuckDB driver now
   [opens sources read-only](https://sq.io/docs/drivers/duckdb#read-only-access-by-default)
-  for commands that don't write (`sq`, `inspect`, `diff`, `ping`), and the new
-  [`sq sql`](https://sq.io/docs/cmd/sql) flag `--readonly` (alias `--ro`) opts in for
-  ad-hoc SQL.
-- ☢️ [#728]: The `redact` config option is renamed to
-  [`secrets.reveal`](https://sq.io/docs/config#secretsreveal) with inverted polarity.
-  - `secrets.reveal: true` equals legacy `redact: false`; the default remains redaction.
-  - Existing configs are migrated automatically on first run, but scripts
-    that call `sq config get|set redact` need updating to the new `secrets.reveal` key.
-  - [#782]: The migration escapes `$` as
-    [`$$`](https://sq.io/docs/secrets#literal-dollar-signs) in any source location that
-    the new placeholder syntax would otherwise reinterpret, so existing sources connect
-    exactly as before.
-  - Before migrating, `sq` writes a verbatim
-    [backup](https://sq.io/docs/config#upgrades) of the pre-upgrade config alongside
-    `sq.yml`, e.g. `sq.v0.53.0.bak.yml`. The backup is never touched afterward; note
-    that it preserves any inline credentials from the old config.
-- [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd)
-  now syntax-colors its `erDiagram` source when writing to a terminal.
+  for non-writing commands, and [`sq sql`](https://sq.io/docs/cmd/sql) gained a `--readonly`
+  (alias `--ro`) flag.
+- ☢️ [#728], [#782]: The `redact` config option is renamed to
+  [`secrets.reveal`](https://sq.io/docs/config#secretsreveal) with inverted polarity; existing
+  configs are migrated automatically (after a [backup](https://sq.io/docs/config#upgrades)).
+- [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd) now
+  syntax-colors its `erDiagram` source when writing to a terminal.
 - [#758]: For SQLite (and rqlite) sources,
-  [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy) now copies the source table's
-  indexes and triggers to the destination, renamed with the destination table
-  name appended (e.g. index `idx_name` copied to table `actor2` becomes
-  `idx_name_actor2`).
+  [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy) now copies the source table's indexes and
+  triggers to the destination.
 
 ### Fixed
 
-- [#844]: On [Oracle](https://sq.io/docs/drivers/oracle), a query whose result is a
-  computed `NUMBER` with a fractional value (e.g. a division like `.actor_id / 8`, or a
-  native `AVG`) no longer fails with a scan error. Oracle reports no usable precision or
-  scale for such computed numbers, so `sq` now types them as `decimal` (which is exact and
-  can hold a fractional value) rather than assuming an integer. This applies to both
-  [SLQ](https://sq.io/docs/query) queries and native [`sq sql`](https://sq.io/docs/cmd/sql).
-  - ☢️ A consequence is that an integer-valued computed result on Oracle (`max()`, `min()`,
-    an integer literal, integer arithmetic, or a `COUNT(*)` issued via `sq sql`) is now also
-    a `decimal`, so in JSON output it renders as a quoted string (e.g. `"200"`) rather than a
-    bare number. The `count()` and `rownum()` functions in SLQ remain integers.
-- [#594]: On [SQL Server](https://sq.io/docs/drivers/sqlserver), `avg()` over an
-  integer column no longer performs integer division and truncates the result.
-  For example, the average of `1..200` now returns `100.5`, not `100`.
+- [#851]: Two fixes to [`yaml`](https://sq.io/docs/output#yaml) output: a numeric value from
+  an untyped column is now colorized, and a `BLOB` value is now encoded as base64.
+- [#844]: On [Oracle](https://sq.io/docs/drivers/oracle), a query whose result is a computed
+  `NUMBER` with a fractional value no longer fails with a scan error; such numbers are now
+  typed as `decimal`.
+- [#594]: On [SQL Server](https://sq.io/docs/drivers/sqlserver), `avg()` over an integer
+  column no longer performs integer division and truncates the result.
 - [#741], [#743]: [`sq add`](https://sq.io/docs/cmd/add) shell completion now supports
   [ClickHouse](https://sq.io/docs/drivers/clickhouse) and
   [Oracle](https://sq.io/docs/drivers/oracle).
 - [#699]: [`sq inspect`](https://sq.io/docs/inspect) on
-  [SQLite](https://sq.io/docs/drivers/sqlite) sources no longer executes pragmas that
-  write to the database or scan the whole file.
-  - Previously, `pragma_optimize` could silently run `ANALYZE` (taking the file write lock), and
-    `integrity_check` / `quick_check` / `foreign_key_check` scanned the entire database. These
-    keys no longer appear in the inspect output's DB properties.
-  - On a large database, these scans potentially made each `sq inspect` painfully slow.
-- [#720]: Fixed [SQLite driver](https://sq.io/docs/drivers/sqlite) path handling for
-  source locations with connection params (e.g. `sqlite3:///path/to/db?mode=ro`).
-- [#750], [#752], [#757], [#759]: A batch of fixes to the `CREATE TABLE` DDL rewriting
-  that backs table copy and column-kind alteration on the
+  [SQLite](https://sq.io/docs/drivers/sqlite) sources no longer executes pragmas that write
+  to the database or scan the whole file, which could make each inspect painfully slow.
+- [#720]: Fixed [SQLite driver](https://sq.io/docs/drivers/sqlite) path handling for source
+  locations with connection params (e.g. `sqlite3:///path/to/db?mode=ro`).
+- [#750], [#752], [#757], [#759]: A batch of fixes to the `CREATE TABLE` DDL rewriting that
+  backs table copy and column-kind alteration on the
   [sqlite3](https://sq.io/docs/drivers/sqlite) driver.
-- [#783]: `sq db dump cluster` no longer writes the database password to the sq log file:
-  the log rendering of external commands now masks all env values (the password was passed
-  to `pg_dumpall` via `PGPASSWORD`).
-- [#783]: [`sq cache clear @src`](https://sq.io/docs/cmd/cache-clear) now clears every
-  cache dir belonging to the source, including stale dirs left over from a changed
-  location, schema, or ingest options. Previously only the dir for the source's current
-  configuration was cleared, silently leaving the rest on disk.
-- [#783]: [`sq add`](https://sq.io/docs/cmd/add) and [`sq mv`](https://sq.io/docs/cmd/mv)
-  no longer permit a source handle nested below an existing source's handle (e.g. adding
-  `@prod/db/x` when `@prod` exists).
+- [#783]: `sq db dump cluster` no longer writes the database password to the sq log file.
+- [#783]: [`sq cache clear @src`](https://sq.io/docs/cmd/cache-clear) now clears every cache
+  dir belonging to the source, including stale dirs left over from a changed location, schema,
+  or ingest options.
+- [#783]: [`sq add`](https://sq.io/docs/cmd/add) and [`sq mv`](https://sq.io/docs/cmd/mv) no
+  longer permit a source handle nested below an existing source's handle.
 - [#821]: On the [SQLite](https://sq.io/docs/drivers/sqlite) and
   [rqlite](https://sq.io/docs/drivers/rqlite) drivers, renaming a table, adding a column, or
-  truncating it no longer fails when a table or column name contains a double quote (e.g. a
-  `we"ird` table created from a CSV header).
+  truncating it no longer fails when a table or column name contains a double quote.
 - [#834]: On the [ClickHouse](https://sq.io/docs/drivers/clickhouse) driver, a result-column
-  name containing a dot (e.g. the default alias `avg(.actor_id)`, or an explicit alias like
-  `"a.b"`) is no longer truncated to the segment after the last dot. The table qualifier that
-  ClickHouse adds to disambiguate duplicate join columns is still stripped so duplicates are
-  renamed consistently (e.g. `actor_id_1`).
+  name containing a dot is no longer truncated to the segment after the last dot.
 
 ## [v0.53.0] - 2026-05-25
 
@@ -1776,6 +1706,8 @@ make working with lots of sources much easier.
 [#839]: https://github.com/neilotoole/sq/issues/839
 [#844]: https://github.com/neilotoole/sq/issues/844
 [#846]: https://github.com/neilotoole/sq/issues/846
+[#851]: https://github.com/neilotoole/sq/issues/851
+[#853]: https://github.com/neilotoole/sq/issues/853
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
@@ -1847,3 +1779,4 @@ make working with lots of sources much easier.
 [v0.51.0]: https://github.com/neilotoole/sq/compare/v0.50.2...v0.51.0
 [v0.52.0]: https://github.com/neilotoole/sq/compare/v0.51.0...v0.52.0
 [v0.53.0]: https://github.com/neilotoole/sq/compare/v0.52.0...v0.53.0
+[v0.54.0]: https://github.com/neilotoole/sq/compare/v0.53.0...v0.54.0

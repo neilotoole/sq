@@ -207,13 +207,24 @@ type Writers struct {
 }
 
 // KeyringRef is one row of "sq config keyring ls" output. Each row
-// describes a single ${keyring:<path>} reference reachable from the
-// active source collection.
+// describes one keyring entry: either a ${keyring:<path>} reference
+// reachable from the active source collection, or an entry found in the
+// OS keyring. Status classifies the row.
 type KeyringRef struct {
+	Status string `json:"status"`
 	Path   string `json:"path"`
 	Handle string `json:"handle"`
 	Driver string `json:"driver"`
 }
+
+// KeyringStatus* enumerate the status values surfaced by
+// KeyringWriter.List. The string forms are part of the JSON contract
+// and must not change casually.
+const (
+	KeyringStatusReferenced = "referenced" // in config and present in the keyring
+	KeyringStatusOrphan     = "orphan"     // in the keyring, referenced by no source
+	KeyringStatusMissing    = "missing"    // referenced by a source, absent from the keyring
+)
 
 // KeyringMigrateStatus enumerates the status values surfaced by
 // KeyringWriter.Migrate. The string forms are part of the JSON
@@ -234,6 +245,30 @@ type KeyringMigrateRow struct {
 	Reason      string `json:"reason,omitempty"`       // populated for "skip"
 	NewLocation string `json:"new_location,omitempty"` // populated for "migrated"
 	Error       string `json:"error,omitempty"`        // populated for "failed"
+}
+
+// KeyringPruneStatus* enumerate the status values surfaced by
+// KeyringWriter.Prune. The string forms are part of the JSON contract.
+const (
+	KeyringPruneStatusPlanned = "planned" // dry-run: entry would be deleted
+	KeyringPruneStatusDeleted = "deleted" // applied: entry was deleted
+	KeyringPruneStatusFailed  = "failed"  // applied: deletion failed
+)
+
+// KeyringKind* classify a keyring entry's path shape, for display only.
+const (
+	KeyringKindID    = "id"    // sq-minted opaque Crockford ID
+	KeyringKindNamed = "named" // user-named entry
+)
+
+// KeyringPruneRow describes one orphaned entry in a prune plan (dry-run)
+// or result (applied). Kind is informational; Status takes one of the
+// KeyringPruneStatus* constants.
+type KeyringPruneRow struct {
+	Path   string `json:"path"`
+	Kind   string `json:"kind"`
+	Status string `json:"status"`
+	Error  string `json:"error,omitempty"` // populated for "failed"
 }
 
 // KeyringWriter prints output for the "sq config keyring" command group.
@@ -264,6 +299,11 @@ type KeyringWriter interface {
 	// false the rows describe applied outcomes (statuses: "migrated",
 	// "skip", or "failed").
 	Migrate(rows []KeyringMigrateRow, dryRun bool) error
+
+	// Prune prints the orphaned entries removed by "sq config keyring
+	// prune". When dryRun is true every row's status is "planned"; when
+	// false no row is "planned" — each is "deleted" or "failed".
+	Prune(rows []KeyringPruneRow, dryRun bool) error
 }
 
 // NewRecordWriterFunc is a func type that returns an output.RecordWriter.
