@@ -16,7 +16,6 @@ import (
 	v0_54_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.54.0" //nolint:revive
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
-	"github.com/neilotoole/sq/cli/updatecheck"
 	"github.com/neilotoole/sq/drivers/clickhouse"
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/duckdb"
@@ -219,8 +218,6 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 	if err = FinishRunInit(ctx, ru); err != nil {
 		return err
 	}
-
-	updatecheck.StartBackgroundCheck(ctx, updatecheck.CacheDirForRun(ru))
 
 	ru.SecretRegistry = secret.NewRegistry()
 	ru.SecretRegistry.Register("keyring", keyring.NewStore())

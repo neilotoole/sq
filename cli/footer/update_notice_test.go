@@ -122,7 +122,7 @@ func writeUpdateCache(cacheDir, latest string) error {
 		return err
 	}
 
-	return os.WriteFile(filepath.Join(cacheDir, "update-check.json"), b, 0o644)
+	return os.WriteFile(filepath.Join(cacheDir, "update-check.json"), b, 0o600)
 }
 
 func noopLockFunc(context.Context) (func(), error) {

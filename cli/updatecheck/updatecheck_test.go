@@ -132,7 +132,10 @@ func TestVersionFromBrewFormula_URLBased(t *testing.T) {
 func TestFetchBrewVersion(t *testing.T) {
 	t.Parallel()
 
-	latest, err := fetchBrewVersion(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	latest, err := fetchBrewVersion(ctx)
 	require.NoError(t, err)
 	require.True(t, semver.IsValid("v"+latest))
 }

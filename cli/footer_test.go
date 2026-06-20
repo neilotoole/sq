@@ -38,5 +38,5 @@ func writeUpdateCheckCache(cacheDir, latest string) error {
 		return err
 	}
 
-	return os.WriteFile(filepath.Join(cacheDir, "update-check.json"), b, 0o644)
+	return os.WriteFile(filepath.Join(cacheDir, "update-check.json"), b, 0o600)
 }
