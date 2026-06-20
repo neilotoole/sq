@@ -669,7 +669,7 @@ func getOutputConfig(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup
 			outCfg.out = stdout
 		}
 		outCfg.outPr.EnableColor(true)
-	case termz.IsTerminal(stderr):
+	case termz.IsTerminal(stdout):
 		// stdout is a terminal, but won't be colorized.
 		outCfg.out = colorable.NewNonColorable(stdout)
 		outCfg.outPr.EnableColor(false)
