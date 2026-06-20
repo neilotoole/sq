@@ -30,6 +30,9 @@ func TestIsColorTerminal_EnvOverrides(t *testing.T) {
 		{name: "force_color_zero", forceColor: "0", want: false},
 		{name: "force_color_false", forceColor: "false", want: false},
 		{name: "force_color_false_mixed_case", forceColor: "False", want: false},
+		// An empty-but-present FORCE_COLOR= is deliberately treated as unset:
+		// it falls through to terminal detection, which is false for a buffer.
+		{name: "force_color_empty", forceColor: "", want: false},
 		{name: "term_dumb", term: "dumb", want: false},
 		{name: "force_color_wins_over_term_dumb", forceColor: "1", term: "dumb", want: true},
 	}

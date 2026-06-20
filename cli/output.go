@@ -674,12 +674,11 @@ func getOutputConfig(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup
 			outCfg.out = stdout
 		}
 		outCfg.outPr.EnableColor(true)
-	case termz.IsTerminal(stdout):
-		// stdout is a terminal, but won't be colorized.
-		outCfg.out = colorable.NewNonColorable(stdout)
-		outCfg.outPr.EnableColor(false)
 	default:
-		// stdout is a not a terminal at all. No color.
+		// stdout is either a non-color terminal or not a terminal at all, and
+		// won't be colorized either way. Unlike the stderr switch above, there's
+		// no progress bar riding on stdout, so the terminal-vs-not distinction
+		// makes no observable difference here; a single arm covers both.
 		outCfg.out = colorable.NewNonColorable(stdout)
 		outCfg.outPr.EnableColor(false)
 	}

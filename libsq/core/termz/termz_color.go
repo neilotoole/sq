@@ -15,6 +15,12 @@ import (
 // color, except when its value is "0" or "false", which disables it; TERM=dumb
 // disables color.
 //
+// One deliberate divergence from supports-color: an empty-but-present
+// FORCE_COLOR= is treated as unset (fall through to terminal detection) rather
+// than "force on". Go cannot cheaply tell an empty value from an unset one, and
+// an inherited empty FORCE_COLOR= is far more likely accidental than an
+// intentional request to force color, so the safer reading is "no preference".
+//
 // [NO_COLOR]: https://no-color.org/
 // [FORCE_COLOR]: https://force-color.org/
 func colorEnvOverride() (enabled, ok bool) {
