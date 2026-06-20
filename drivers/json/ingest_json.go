@@ -151,7 +151,7 @@ func DetectJSON(sampleSize int) files.TypeDetectFunc {
 	}
 }
 
-func ingestJSON(ctx context.Context, job *ingestJob) error {
+func ingestJSON(ctx context.Context, job *ingestJob) error { //nolint:gocognit
 	bar := progress.FromContext(ctx).NewUnitCounter("Ingest JSON", "object")
 	defer bar.Stop()
 

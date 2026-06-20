@@ -26,6 +26,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [#863]: Forcing color to a non-terminal stdout (e.g. when `FORCE_COLOR` is set and
   output is a pipe or buffer) no longer panics; `sq` writes raw ANSI to non-`*os.File`
   writers instead of performing an unchecked type assertion.
+- [#866]: Ingesting JSON and JSONL is now much faster, especially on Windows, where a large
+  JSONL file could previously take minutes. Each ingest now runs as a single transaction, so a
+  failed ingest no longer leaves a partially-populated cache.
 
 ## [v0.54.0] - 2026-06-19
 
@@ -1715,6 +1718,7 @@ make working with lots of sources much easier.
 [#851]: https://github.com/neilotoole/sq/issues/851
 [#853]: https://github.com/neilotoole/sq/issues/853
 [#863]: https://github.com/neilotoole/sq/pull/863
+[#866]: https://github.com/neilotoole/sq/issues/866
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
