@@ -228,23 +228,6 @@ These notes apply to the Cursor Cloud agent VM. The standard build/test/lint
 commands live in [Common commands](#common-commands); only the non-obvious
 caveats are captured here.
 
-### Run Go tests with `NO_COLOR` and `FORCE_COLOR` cleared
-
-The VM preseeds `NO_COLOR=1`, `FORCE_COLOR=0`, and `TERM=dumb` in the
-environment. These break color-sensitive Go tests, so clear the first two
-before running the suite:
-
-```bash
-env -u NO_COLOR -u FORCE_COLOR make test-short
-```
-
-Why: `libsq/core/colorz` tests fail under `NO_COLOR=1`, and the CLI
-`*Roundtrip` / `TestDiff_*` tests panic because `termz.IsColorTerminal`
-treats any non-empty `FORCE_COLOR` (including `FORCE_COLOR=0`) as "force color
-on", then asserts stdout is an `*os.File`. CI runs with none of these set, so
-clearing them matches CI behavior. `make lint` and `make lint-markdown` are
-unaffected.
-
 ### Build needs CGO + ICU headers
 
 `make build` / `make test` pass `sqlite_icu` (among other SQLite build tags),
