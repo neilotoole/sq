@@ -70,7 +70,7 @@ func gripCacheKey(mode AccessMode, handle string) string {
 	return handle + "\x00" + mode.suffix()
 }
 
-// NewGrips returns a Grips instances. secretReg resolves secret
+// NewGrips returns a Grips instance. secretReg resolves secret
 // placeholders in source Locations at open time; it may be nil if no
 // source uses placeholders.
 func NewGrips(drvrs Provider, fs *files.Files, secretReg *secret.Registry,

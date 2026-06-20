@@ -828,7 +828,10 @@ func detectConnParamsForAdd(ctx context.Context, cmd *cobra.Command,
 		return nil
 	}
 
-	probeSrc, err := driver.ResolveSourceSecrets(ctx, run.FromContext(ctx).SecretRegistry, src)
+	// len(refs) == 0 is guaranteed by the early return above, so
+	// ResolveSourceSecrets only unescapes "$$" and never consults the
+	// registry: pass nil rather than reaching back into the context.
+	probeSrc, err := driver.ResolveSourceSecrets(ctx, nil, src)
 	if err != nil {
 		return err
 	}
