@@ -177,6 +177,19 @@ func ingestJSON(ctx context.Context, job *ingestJob) error {
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDB, conn)
 
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		return errz.Err(err)
+	}
+	// Roll back unless we reach the explicit Commit below. One transaction per
+	// ingest collapses the per-row autocommit fsyncs (gh866).
+	committed := false
+	defer func() {
+		if !committed {
+			lg.WarnIfError(log, "Rollback JSON ingest tx", errz.Err(tx.Rollback()))
+		}
+	}()
+
 	proc := newProcessor(job.flatten)
 	scan := newObjectInArrayScanner(log, r)
 
@@ -212,7 +225,7 @@ func ingestJSON(ctx context.Context, job *ingestJob) error {
 					return err
 				}
 
-				if err = execSchemaDelta(ctx, drvr, conn, proc.curSchema, newSchema); err != nil {
+				if err = execSchemaDelta(ctx, drvr, tx, proc.curSchema, newSchema); err != nil {
 					return err
 				}
 
@@ -228,7 +241,7 @@ func ingestJSON(ctx context.Context, job *ingestJob) error {
 					return err
 				}
 
-				if err = job.execInsertions(ctx, drvr, conn, insertions); err != nil {
+				if err = job.execInsertions(ctx, drvr, tx, insertions); err != nil {
 					return err
 				}
 			}
@@ -262,7 +275,7 @@ func ingestJSON(ctx context.Context, job *ingestJob) error {
 			return err
 		}
 
-		if err = job.execInsertions(ctx, drvr, conn, insertions); err != nil {
+		if err = job.execInsertions(ctx, drvr, tx, insertions); err != nil {
 			return err
 		}
 	}
@@ -271,6 +284,10 @@ func ingestJSON(ctx context.Context, job *ingestJob) error {
 		return errz.New("empty JSON input")
 	}
 
+	if err = tx.Commit(); err != nil {
+		return errz.Err(err)
+	}
+	committed = true
 	return nil
 }
 
