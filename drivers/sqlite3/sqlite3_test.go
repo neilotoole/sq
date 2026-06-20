@@ -1364,6 +1364,13 @@ func TestNewScratchSource_RelaxedDurability(t *testing.T) {
 	var journalMode string
 	require.NoError(t, db.QueryRowContext(th.Context, `PRAGMA journal_mode`).Scan(&journalMode))
 	require.Equal(t, "memory", strings.ToLower(journalMode), "journal_mode must be MEMORY")
+
+	// Close the grip before the test returns so t.TempDir()'s cleanup can
+	// delete the DB file: Windows cannot remove a file that still has an open
+	// handle, and the testh Helper otherwise closes the grip only after
+	// t.TempDir()'s RemoveAll runs. grip.Close is idempotent (closeOnce), so
+	// the Helper's later close is a harmless no-op.
+	require.NoError(t, grip.Close())
 }
 
 // TestNewScratchSource_CleanupRemovesJournal verifies that the scratch
