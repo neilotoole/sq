@@ -43,14 +43,24 @@ func TestRenameDir_overExistingDir(t *testing.T) {
 	require.False(t, ioz.FileAccessible(filepath.Join(dst, "old.txt")))
 	require.False(t, ioz.DirExists(src))
 
-	// No staging dir should be left behind in dst's parent.
+	// No staging dir should be left behind. RenameDir stages newpath aside as
+	// "<uniq8>_<base(newpath)>" in newpath's parent, so check for that suffix.
 	parent := filepath.Dir(dst)
 	entries, err := os.ReadDir(parent)
 	require.NoError(t, err)
+	stagingSuffix := "_" + filepath.Base(dst)
 	for _, e := range entries {
-		require.NotContains(t, e.Name(), filepath.Base(dst)+"_", "staging dir must be cleaned up")
-		require.NotContains(t, e.Name(), "_"+filepath.Base(dst), "staging dir must be cleaned up")
+		require.NotContains(t, e.Name(), stagingSuffix, "staging dir must be cleaned up")
 	}
+}
+
+func TestRenameDir_samePathNoOp(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "f.txt"), []byte("hi"), 0o600))
+
+	// Renaming a dir onto itself is a no-op, matching os.Rename.
+	require.NoError(t, ioz.RenameDir(dir, dir))
+	require.True(t, ioz.FileAccessible(filepath.Join(dir, "f.txt")))
 }
 
 func TestRenameDir_errors(t *testing.T) {

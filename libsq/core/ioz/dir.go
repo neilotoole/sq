@@ -26,6 +26,11 @@ func RenameDir(oldDir, newpath string) error {
 		return errz.Errorf("rename dir: not a dir: %s", oldDir)
 	}
 
+	if filepath.Clean(oldDir) == filepath.Clean(newpath) {
+		// Renaming to the same path is a no-op, matching os.Rename.
+		return nil
+	}
+
 	if newFi, _ := os.Stat(newpath); newFi != nil && newFi.IsDir() {
 		// os.Rename fails when newpath already exists and is a directory. So we
 		// first move newpath aside to a staging path, then move oldDir to
@@ -45,8 +50,13 @@ func RenameDir(oldDir, newpath string) error {
 
 		if err = os.Rename(oldDir, newpath); err != nil {
 			// Restore the original newpath from staging, so a failed rename
-			// doesn't leave newpath missing.
-			_ = os.Rename(staging, newpath)
+			// doesn't leave newpath missing. If the rollback also fails, surface
+			// both errors plus the staging location, since that's now the only
+			// copy of newpath's original contents.
+			if rbErr := os.Rename(staging, newpath); rbErr != nil {
+				return errz.Append(errz.Err(err),
+					errz.Wrapf(rbErr, "rollback failed: original contents of %s remain at %s", newpath, staging))
+			}
 			return errz.Err(err)
 		}
 
