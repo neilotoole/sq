@@ -610,6 +610,15 @@ func TestCompleteFlagValues_afterPositional(t *testing.T) {
 			wantEmpty:     true,
 			wantDirective: cobra.ShellCompDirectiveNoFileComp,
 		},
+		{
+			// The "=" form "--arg=NAME:VALUE" is a self-contained token, so the
+			// next word is a real query positional that must still complete (it
+			// is not the dangling VALUE slot of the space form).
+			name:          "arg_equals_form_completes_query",
+			args:          []string{"--" + flag.Arg + "=name:TOM", "@"},
+			wantContains:  []string{sakila.Pg},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
 	}
 
 	for _, tc := range testCases {

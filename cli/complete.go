@@ -240,13 +240,19 @@ func completeSLQ(cmd *cobra.Command, args []string, toComplete string) ([]string
 
 	// --arg takes a "NAME VALUE" pair, but that pairing is a pre-parse hack
 	// (preprocessFlagArgVars) that doesn't run during completion, so cobra
-	// sees --arg as a single-value flag: after "--arg NAME" it consumes NAME
-	// as the flag value and treats the next word as a positional, landing us
-	// here with args empty. That word is actually the free-form arg VALUE, so
+	// sees --arg as a single-value flag. After the space form "--arg NAME" it
+	// consumes NAME as the flag value and treats the next word as a positional,
+	// landing us here with args empty; that word is the free-form arg VALUE, so
 	// suppress suggestions rather than offering query/table completions. (When
 	// the query is typed first, args is non-empty and we already returned
 	// above.)
-	if cmdFlagChanged(cmd, flag.Arg) {
+	//
+	// The "=" form "--arg=NAME:VALUE" is a single self-contained token, so the
+	// next word is a real query positional that must still complete. Tell the
+	// two apart by the trailing ":" that a joined NAME:VALUE always has and a
+	// dangling NAME (a plain identifier, per stringz.ValidIdent) never does.
+	if vals, _ := cmd.Flags().GetStringArray(flag.Arg); len(vals) > 0 &&
+		!strings.Contains(vals[len(vals)-1], ":") {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
