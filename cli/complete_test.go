@@ -553,6 +553,7 @@ func TestCompleteFlagValues_afterPositional(t *testing.T) {
 		name          string
 		args          []string
 		wantContains  []string
+		wantEmpty     bool // assert no candidates at all (free-form value)
 		wantDirective cobra.ShellCompDirective
 	}{
 		{
@@ -592,11 +593,21 @@ func TestCompleteFlagValues_afterPositional(t *testing.T) {
 			wantDirective: handleDirective,
 		},
 		{
-			// --arg is free-form (a variable name): no candidates, but file
-			// completion is suppressed rather than left as the default.
-			name:          "arg",
+			// --arg NAME slot is free-form (a variable name): no candidates,
+			// but file completion is suppressed rather than left as default.
+			name:          "arg_name",
 			args:          []string{".actor", "--" + flag.Arg, ""},
-			wantContains:  nil,
+			wantEmpty:     true,
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			// --arg VALUE slot ("sq --arg first <TAB>"): cobra consumes the
+			// name as the flag value and would otherwise offer query/table
+			// completions for the trailing positional. The value is free-form,
+			// so suppress them.
+			name:          "arg_value",
+			args:          []string{"--" + flag.Arg, "first", ""},
+			wantEmpty:     true,
 			wantDirective: cobra.ShellCompDirectiveNoFileComp,
 		},
 	}
@@ -614,6 +625,9 @@ func TestCompleteFlagValues_afterPositional(t *testing.T) {
 				"wanted: %v\ngot   : %v",
 				cobraz.MarshalDirective(tc.wantDirective),
 				cobraz.MarshalDirective(got.result))
+			if tc.wantEmpty {
+				assert.Empty(t, got.values)
+			}
 			for j := range tc.wantContains {
 				assert.Contains(t, got.values, tc.wantContains[j])
 			}

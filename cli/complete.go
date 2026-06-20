@@ -238,6 +238,18 @@ func completeSLQ(cmd *cobra.Command, args []string, toComplete string) ([]string
 		return nil, cobra.ShellCompDirectiveError
 	}
 
+	// --arg takes a "NAME VALUE" pair, but that pairing is a pre-parse hack
+	// (preprocessFlagArgVars) that doesn't run during completion, so cobra
+	// sees --arg as a single-value flag: after "--arg NAME" it consumes NAME
+	// as the flag value and treats the next word as a positional, landing us
+	// here with args empty. That word is actually the free-form arg VALUE, so
+	// suppress suggestions rather than offering query/table completions. (When
+	// the query is typed first, args is non-empty and we already returned
+	// above.)
+	if cmdFlagChanged(cmd, flag.Arg) {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	c := &handleTableCompleter{}
 	return c.complete(cmd, args, toComplete)
 }
