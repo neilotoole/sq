@@ -253,10 +253,16 @@ func TestCopyAsync_nilCallback(t *testing.T) {
 	// than bytes.Buffer.ReadFrom; ReadFrom writes bookkeeping fields after the
 	// final read returns (i.e. after EOF fires close(done)), which would race
 	// with the buf.String() read below.
+	//
+	// The source is followed by an EmptyReader so io.EOF always arrives on a
+	// final zero-byte read, strictly after the last write to buf. An io.Reader
+	// may legally return (n>0, io.EOF) in a single call; appending EmptyReader
+	// removes any dependence on the source deferring EOF to a separate read.
 	const src = "the quick brown fox"
 	buf := &bytes.Buffer{}
 	done := make(chan struct{})
-	r := ioz.NotifyOnEOFReader(strings.NewReader(src), func(err error) error {
+	srcRdr := io.MultiReader(strings.NewReader(src), ioz.EmptyReader{})
+	r := ioz.NotifyOnEOFReader(srcRdr, func(err error) error {
 		close(done)
 		return err
 	})
