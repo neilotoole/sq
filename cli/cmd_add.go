@@ -189,14 +189,14 @@ More examples:
 	cmd.Flags().BoolP(flag.PasswordPrompt, flag.PasswordPromptShort, false, flag.PasswordPromptUsage)
 	cmd.Flags().String(flag.AddStore, "", flag.AddStoreUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.AddStore,
-		completeStrings(1, flag.AddStoreInline, flag.AddStoreKeyring)))
+		completeStrings(flag.AddStoreInline, flag.AddStoreKeyring)))
 	cmd.Flags().Bool(flag.SkipVerify, false, flag.SkipVerifyUsage)
 	cmd.Flags().BoolP(flag.AddActive, flag.AddActiveShort, false, flag.AddActiveUsage)
 
 	addOptionFlag(cmd.Flags(), driver.OptIngestHeader)
 	addOptionFlag(cmd.Flags(), csv.OptEmptyAsNull)
 	addOptionFlag(cmd.Flags(), csv.OptDelim)
-	panicOn(cmd.RegisterFlagCompletionFunc(csv.OptDelim.Flag().Name, completeStrings(-1, csv.NamedDelims()...)))
+	panicOn(cmd.RegisterFlagCompletionFunc(csv.OptDelim.Flag().Name, completeStrings(csv.NamedDelims()...)))
 
 	return cmd
 }

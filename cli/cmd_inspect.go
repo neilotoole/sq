@@ -107,7 +107,7 @@ render a schema document that includes a Mermaid entity-relationship diagram;
 	// offering e.g. csv/xlsx/xml here would imply support that doesn't exist.
 	panicOn(cmd.RegisterFlagCompletionFunc(
 		OptFormat.Flag().Name,
-		completeStrings(-1,
+		completeStrings(
 			format.Text.String(),
 			format.JSON.String(),
 			format.YAML.String(),
