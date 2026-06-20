@@ -29,6 +29,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [#866]: Ingesting JSON and JSONL is now much faster, especially on Windows, where a large
   JSONL file could previously take minutes. Each ingest now runs as a single transaction, so a
   failed ingest no longer leaves a partially-populated cache.
+- [#868]: Ingesting any document source (CSV, Excel, JSON, etc.) is now faster, especially on
+  Windows and other slow filesystems. The disposable ingest cache DB is opened with relaxed
+  durability, so writes no longer pay a per-row disk sync. The cache is rebuilt from the source
+  if it is ever missing or corrupt, so there is no loss of correctness.
 - Shell completion for flag values now works even when the command already has a
   positional argument. Previously, tab-completing values for flags such as
   [`add --store`](https://sq.io/docs/cmd/add) (`inline | keyring`), `config get --src`,
@@ -1726,6 +1730,7 @@ make working with lots of sources much easier.
 [#853]: https://github.com/neilotoole/sq/issues/853
 [#863]: https://github.com/neilotoole/sq/pull/863
 [#866]: https://github.com/neilotoole/sq/issues/866
+[#868]: https://github.com/neilotoole/sq/issues/868
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
