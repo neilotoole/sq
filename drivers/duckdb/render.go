@@ -7,6 +7,7 @@ import (
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/jointype"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
@@ -58,13 +59,17 @@ func (d *driveri) Renderer() *render.Renderer {
 	// DuckDB uses the same schema/catalog function names as Postgres.
 	r.FunctionNames[ast.FuncNameSchema] = "current_schema"
 	r.FunctionNames[ast.FuncNameCatalog] = "current_database"
-	// sum() is deliberately not overridden here (issue #839). DuckDB already
-	// returns sum() over an integer column as HUGEINT (surfaced as decimal) and
-	// over a decimal column as DECIMAL, both lossless. sum() over a DOUBLE column
-	// returns DOUBLE (kind.Float); a DECIMAL cast would unify that as decimal but
-	// DuckDB's DECIMAL caps at precision 38, so the cast would regress the native
-	// HUGEINT integer range and round high-scale decimal sums. A float column's
-	// sum staying float is the lesser cost, so it is left as-is.
+	// sum() is not given a SQL cast (unlike most drivers). DuckDB's native sum()
+	// is already lossless for integer columns (widened to HUGEINT, surfaced as
+	// decimal) and decimal columns (DECIMAL); a DECIMAL cast caps at precision 38
+	// and would regress the HUGEINT integer range and round high-scale decimal
+	// sums. But sum() over a DOUBLE column natively returns DOUBLE (kind.Float),
+	// the lone non-decimal sum() across drivers. Pin the surfaced kind to decimal
+	// instead of casting, so it matches every other driver: RecordMeta applies
+	// the hint and the record munge coerces the float value to a decimal. The
+	// value is still computed in float by DuckDB, so it can carry drift; this is
+	// the same tradeoff accepted for sqlite3/rqlite. See #853 (and #839).
+	r.FunctionResultKinds[ast.FuncNameSum] = kind.Decimal
 	render.RegisterILikeFamily(r)
 	return r
 }

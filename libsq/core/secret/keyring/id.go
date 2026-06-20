@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"io"
+	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/secret"
@@ -32,6 +33,23 @@ const maxIDAttempts = 8
 // crypto/rand.Reader. Tests in this package override it to obtain
 // deterministic IDs.
 var randSource = rand.Reader
+
+// IsID reports whether s has the shape of an sq-minted keyring ID:
+// exactly IDLen characters, each drawn from the Crockford Base32
+// alphabet. It is a syntactic check only (it does not consult the
+// keyring) and is used to label entries as "id" versus "named" in
+// command output, not to gate any destructive action.
+func IsID(s string) bool {
+	if len(s) != IDLen {
+		return false
+	}
+	for _, r := range s {
+		if !strings.ContainsRune(crockfordAlphabet, r) {
+			return false
+		}
+	}
+	return true
+}
 
 // NewID returns a fresh Crockford Base32 ID guaranteed not to collide
 // with an existing entry under the sq keyring service. The returned

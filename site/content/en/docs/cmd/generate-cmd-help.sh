@@ -30,6 +30,7 @@ cmds=(
   "config export"
   "config keyring"
   "config keyring ls"
+  "config keyring prune"
   "config keyring create"
   "config keyring update"
   "config keyring get"

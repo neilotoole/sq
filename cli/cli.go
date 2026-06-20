@@ -290,6 +290,7 @@ func newCommandTree(ru *run.Run) (rootCmd *cobra.Command) {
 	addCmd(ru, configCmd, newConfigExportCmd())
 	configKeyringCmd := addCmd(ru, configCmd, newConfigKeyringCmd())
 	addCmd(ru, configKeyringCmd, newConfigKeyringLsCmd())
+	addCmd(ru, configKeyringCmd, newConfigKeyringPruneCmd())
 	addCmd(ru, configKeyringCmd, newConfigKeyringCreateCmd())
 	addCmd(ru, configKeyringCmd, newConfigKeyringUpdateCmd())
 	addCmd(ru, configKeyringCmd, newConfigKeyringGetCmd())

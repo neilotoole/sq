@@ -44,6 +44,7 @@ implementation. To view the installed/supported drivers:
 $ sq driver ls
 DRIVER      DESCRIPTION
 sqlite3     SQLite
+rqlite      rqlite
 postgres    PostgreSQL
 sqlserver   Microsoft SQL Server
 mysql       MySQL

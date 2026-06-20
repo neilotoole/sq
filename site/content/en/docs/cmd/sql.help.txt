@@ -20,6 +20,7 @@ Examples:
 
 Flags:
   -f, --format string                  Specify output format (default "text")
+      --format.decimal string          Render decimal as string or number (JSON, YAML) (default "string")
   -t, --text                           Output text
   -h, --header                         Print header row (default true)
   -H, --no-header                      Don't print header row

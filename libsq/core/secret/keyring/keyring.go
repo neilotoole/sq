@@ -52,6 +52,22 @@ func (s *Store) Set(_ context.Context, path, value string) error {
 	return errz.Err(gokeyring.Set(Service, path, value))
 }
 
+// List returns the account names ("users") of every entry stored under
+// the sq keyring service. The result is the raw set reported by the OS
+// keyring; callers reconcile it against config to classify entries as
+// referenced or orphaned.
+//
+// Each call is an OS-keyring roundtrip. On macOS this enumerates via the
+// security(1) tool's attribute-only dump, which does not raise an auth
+// prompt.
+func (s *Store) List(_ context.Context) ([]string, error) {
+	users, err := gokeyring.ListUsers(Service)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+	return users, nil
+}
+
 // Delete removes the keyring entry at path. Deleting a non-existent
 // entry is not an error.
 //

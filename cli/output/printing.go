@@ -34,7 +34,7 @@ type Printing struct {
 	// Active is the color for an active handle (or group, etc).
 	Active *color.Color
 
-	// Bold is the color for bold elements. Frequently Punc will just be color.Bold.
+	// Bold is the color for bold elements.
 	Bold *color.Color
 
 	// Bool is the color for boolean values.
@@ -225,7 +225,7 @@ func NewPrinting() *Printing {
 		Normal:                 color.New(),
 		Null:                   color.New(color.Faint),
 		Number:                 color.New(color.FgCyan),
-		Punc:                   color.New(color.Bold),
+		Punc:                   color.New(color.Faint),
 		String:                 color.New(color.FgGreen),
 		Subdued:                color.New(color.Faint, color.Italic),
 		Stack:                  color.New(color.Faint),

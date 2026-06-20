@@ -13,6 +13,7 @@ url: /docs/drivers
 [ClickHouse](/docs/drivers/clickhouse),
 [Oracle](/docs/drivers/oracle),
 [SQLite](/docs/drivers/sqlite),
+[rqlite](/docs/drivers/rqlite),
 [DuckDB](/docs/drivers/duckdb),
 [CSV](/docs/drivers/csv),
 [JSON](/docs/drivers/json),
