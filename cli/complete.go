@@ -249,7 +249,7 @@ func completeSLQ(cmd *cobra.Command, args []string, toComplete string) ([]string
 	//
 	// The "=" form "--arg=NAME:VALUE" is a single self-contained token, so the
 	// next word is a real query positional that must still complete. Tell the
-	// two apart by the trailing ":" that a joined NAME:VALUE always has and a
+	// two apart by the ":" that a joined NAME:VALUE always contains and a
 	// dangling NAME (a plain identifier, per stringz.ValidIdent) never does.
 	if vals, _ := cmd.Flags().GetStringArray(flag.Arg); len(vals) > 0 &&
 		!strings.Contains(vals[len(vals)-1], ":") {
