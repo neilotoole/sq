@@ -531,10 +531,13 @@ func TestCompleteAllCobraRequestCmds(t *testing.T) {
 
 // TestCompleteFlagValues_afterPositional is a regression test for flag value
 // completion being suppressed once the command already has a positional arg.
-// The completeStrings / completeHandle helpers cap on len(args) (the positional
-// args), which is correct for positional completion but must not gate flag value
-// completion: a flag takes a single value regardless of how many positionals
-// precede it. See the broken --store / --src / --log.* / --error.format cases.
+// The bug: completion helpers capped on len(args) (the positional args), which
+// is correct for positional completion but wrongly gated flag value completion,
+// since a flag takes a single value regardless of how many positionals precede
+// it. The fix split the helpers: completeStrings no longer caps (flag-only), and
+// completeHandle's positional cap is used only via the positional ValidArgsFunc,
+// with completeHandleFlag for flag values. See the formerly broken --store /
+// --src / --log.* / --error.format cases.
 func TestCompleteFlagValues_afterPositional(t *testing.T) {
 	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
 	t.Parallel()
