@@ -539,40 +539,54 @@ func TestCompleteFlagValues_afterPositional(t *testing.T) {
 	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
 	t.Parallel()
 
+	// completeStrings flags suppress file completion and keep the listed order;
+	// the &-vs-| regression (NoFileComp & KeepOrder == 0 == Default) would
+	// re-enable file completion and drop order, so assert the directive too.
+	const stringsDirective = cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveKeepOrder
+	// completeHandleFlag suppresses file completion but sorts handles.
+	const handleDirective = cobra.ShellCompDirectiveNoFileComp
+
 	testCases := []struct {
-		name         string
-		args         []string
-		wantContains []string
+		name          string
+		args          []string
+		wantContains  []string
+		wantDirective cobra.ShellCompDirective
 	}{
 		{
-			name:         "add_store",
-			args:         []string{"add", "postgres://x", "--" + flag.AddStore, ""},
-			wantContains: []string{flag.AddStoreInline, flag.AddStoreKeyring},
+			name:          "add_store",
+			args:          []string{"add", "postgres://x", "--" + flag.AddStore, ""},
+			wantContains:  []string{flag.AddStoreInline, flag.AddStoreKeyring},
+			wantDirective: stringsDirective,
 		},
 		{
-			name:         "log_level",
-			args:         []string{".data", "--log.level", ""},
-			wantContains: []string{"DEBUG", "INFO", "WARN", "ERROR"},
+			name:          "log_level",
+			args:          []string{".data", "--log.level", ""},
+			wantContains:  []string{"DEBUG", "INFO", "WARN", "ERROR"},
+			wantDirective: stringsDirective,
 		},
 		{
-			name:         "log_format",
-			args:         []string{".data", "--log.format", ""},
-			wantContains: []string{"text", "json"},
+			name:          "log_format",
+			args:          []string{".data", "--log.format", ""},
+			wantContains:  []string{"text", "json"},
+			wantDirective: stringsDirective,
 		},
 		{
-			name:         "error_format",
-			args:         []string{".data", "--error.format", ""},
-			wantContains: []string{"text", "json"},
+			name:          "error_format",
+			args:          []string{".data", "--error.format", ""},
+			wantContains:  []string{"text", "json"},
+			wantDirective: stringsDirective,
 		},
 		{
-			name:         "config_get_src",
-			args:         []string{"config", "get", "format", "--" + flag.ConfigSrc, ""},
-			wantContains: []string{sakila.Pg},
+			name:          "config_get_src",
+			args:          []string{"config", "get", "format", "--" + flag.ConfigSrc, ""},
+			wantContains:  []string{sakila.Pg},
+			wantDirective: handleDirective,
 		},
 		{
-			name:         "config_set_src",
-			args:         []string{"config", "set", "format", "json", "--" + flag.ConfigSrc, ""},
-			wantContains: []string{sakila.Pg},
+			name:          "config_set_src",
+			args:          []string{"config", "set", "format", "json", "--" + flag.ConfigSrc, ""},
+			wantContains:  []string{sakila.Pg},
+			wantDirective: handleDirective,
 		},
 	}
 
@@ -585,7 +599,10 @@ func TestCompleteFlagValues_afterPositional(t *testing.T) {
 			tr.Add(*th.Source(sakila.Pg))
 
 			got := testComplete(t, tr, tc.args...)
-			require.NotEqual(t, cobra.ShellCompDirectiveError, got.result)
+			assert.Equal(t, tc.wantDirective, got.result,
+				"wanted: %v\ngot   : %v",
+				cobraz.MarshalDirective(tc.wantDirective),
+				cobraz.MarshalDirective(got.result))
 			for j := range tc.wantContains {
 				assert.Contains(t, got.values, tc.wantContains[j])
 			}

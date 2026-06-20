@@ -83,9 +83,11 @@ func completeBool(_ *cobra.Command, _ []string, _ string) ([]string, cobra.Shell
 	return []string{"true", "false"}, cobra.ShellCompDirectiveNoFileComp
 }
 
-// completeHandle is a completionFunc that suggests handles.
-// The max arg is the maximum number of completions. Set to 0
-// for no limit.
+// completeHandle is a completionFunc that suggests handles. It is for
+// positional completion: maxVals caps the number of positional args the
+// command takes, and completion is suppressed once that many are present
+// (set to 0 for no cap). For flag-value completion use completeHandleFlag,
+// which has no positional cap.
 func completeHandle(maxVals int, includeActive bool) completionFunc {
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if maxVals > 0 && len(args) >= maxVals {
