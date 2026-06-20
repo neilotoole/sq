@@ -234,30 +234,46 @@ func completeHandleOrGroup(cmd *cobra.Command, args []string, toComplete string)
 // completes the "table select" segment (that is, the @HANDLE.NAME)
 // segment.
 func completeSLQ(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	if len(args) != 0 {
-		return nil, cobra.ShellCompDirectiveError
+	// Space-form --arg pairs ("--arg NAME VALUE") leave VALUE as a fake
+	// positional because preprocessFlagArgVars doesn't run during completion,
+	// so cobra treats the next word as a positional instead of the pair's
+	// VALUE. Count those fake positionals so we can skip them.
+	//
+	// The "=" form ("--arg=NAME:VALUE") is consumed by pflag as a single token,
+	// so it contributes no fake positionals. A joined NAME:VALUE always contains
+	// ":", a dangling NAME (a valid identifier) never does.
+	//
+	// Cobra traverses the arg list once per positional during completion (to
+	// check each intermediate word), and StringArray is cumulative, so vals
+	// may contain duplicate entries. Deduplicate before counting.
+	spaceFormArgCount := 0
+	if vals, _ := cmd.Flags().GetStringArray(flag.Arg); len(vals) > 0 {
+		seen := make(map[string]struct{}, len(vals))
+		for _, v := range vals {
+			if _, dup := seen[v]; dup {
+				continue
+			}
+			seen[v] = struct{}{}
+			if !strings.Contains(v, ":") {
+				spaceFormArgCount++
+			}
+		}
 	}
 
-	// --arg takes a "NAME VALUE" pair, but that pairing is a pre-parse hack
-	// (preprocessFlagArgVars) that doesn't run during completion, so cobra
-	// sees --arg as a single-value flag. After the space form "--arg NAME" it
-	// consumes NAME as the flag value and treats the next word as a positional,
-	// landing us here with args empty; that word is the free-form arg VALUE, so
-	// suppress suggestions rather than offering query/table completions. (When
-	// the query is typed first, args is non-empty and we already returned
-	// above.)
-	//
-	// The "=" form "--arg=NAME:VALUE" is a single self-contained token, so the
-	// next word is a real query positional that must still complete. Tell the
-	// two apart by the ":" that a joined NAME:VALUE always contains and a
-	// dangling NAME (a plain identifier, per stringz.ValidIdent) never does.
-	if vals, _ := cmd.Flags().GetStringArray(flag.Arg); len(vals) > 0 &&
-		!strings.Contains(vals[len(vals)-1], ":") {
+	// Fewer positionals than expected VALUEs: we're still in the VALUE slot.
+	if len(args) < spaceFormArgCount {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
+	// Strip the fake positionals. If any real args remain, there is already a
+	// complete query positional and nothing more to suggest.
+	realArgs := args[spaceFormArgCount:]
+	if len(realArgs) != 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
 	c := &handleTableCompleter{}
-	return c.complete(cmd, args, toComplete)
+	return c.complete(cmd, realArgs, toComplete)
 }
 
 // completeDriverType is a completionFunc that suggests drivers.

@@ -619,6 +619,16 @@ func TestCompleteFlagValues_afterPositional(t *testing.T) {
 			wantContains:  []string{sakila.Pg},
 			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
 		},
+		{
+			// Space form with both NAME and VALUE present: cobra sees VALUE as a
+			// positional, so args is non-empty. The current word is a real query
+			// positional that must still complete. Use "@" prefix (handle
+			// completion) so no live DB is needed for this short test.
+			name:          "arg_space_form_complete_pair_completes_query",
+			args:          []string{"--" + flag.Arg, "first", "TOM", "@"},
+			wantContains:  []string{sakila.Pg},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
 	}
 
 	for _, tc := range testCases {
