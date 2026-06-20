@@ -240,10 +240,12 @@ func ingestJSONL(ctx context.Context, job *ingestJob) error { //nolint:gocognit
 		return errz.New("empty JSONL input")
 	}
 
+	// tx.Commit marks the tx as done whether or not it succeeds, so the
+	// deferred rollback could only ever return ErrTxDone. Skip it either way.
+	committed = true
 	if err = tx.Commit(); err != nil {
 		return errz.Err(err)
 	}
-	committed = true
 	return nil
 }
 
