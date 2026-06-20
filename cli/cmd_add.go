@@ -376,7 +376,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) (err error) {
 		// string. Same expansion is needed for ${env:...}, ${file:...},
 		// or any composition form.
 		var pingSrc *source.Source
-		pingSrc, err = driver.ResolveSourceSecrets(ctx, src)
+		pingSrc, err = driver.ResolveSourceSecrets(ctx, ru.SecretRegistry, src)
 		if err != nil {
 			return err
 		}
@@ -828,7 +828,10 @@ func detectConnParamsForAdd(ctx context.Context, cmd *cobra.Command,
 		return nil
 	}
 
-	probeSrc, err := driver.ResolveSourceSecrets(ctx, src)
+	// len(refs) == 0 is guaranteed by the early return above, so
+	// ResolveSourceSecrets only unescapes "$$" and never consults the
+	// registry: pass nil rather than reaching back into the context.
+	probeSrc, err := driver.ResolveSourceSecrets(ctx, nil, src)
 	if err != nil {
 		return err
 	}

@@ -180,7 +180,7 @@ func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Sou
 	// Bypassing Grips also bypasses the ${scheme:path} placeholder
 	// resolution that Grips.doOpen performs, so resolve here before
 	// handing src to the driver.
-	openSrc, err := driver.ResolveSourceSecrets(ctx, src)
+	openSrc, err := driver.ResolveSourceSecrets(ctx, ru.SecretRegistry, src)
 	if err != nil {
 		return err
 	}
