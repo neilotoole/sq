@@ -4,10 +4,12 @@ import (
 	"context"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
 
 // resetMemStatsState restores the package-level mem-stats cache to its zero
@@ -71,6 +73,11 @@ func TestMemStats_Concurrent(t *testing.T) {
 	resetMemStatsState(t)
 	MemStatsRefresh = time.Nanosecond
 
+	// Record a nil result rather than asserting inside the worker goroutines:
+	// require.* calls t.FailNow (runtime.Goexit), which must run on the test
+	// goroutine, so the workers flag failure and the test goroutine asserts.
+	var sawNil atomic.Bool
+
 	const goroutines = 16
 	var wg sync.WaitGroup
 	wg.Add(goroutines)
@@ -78,18 +85,24 @@ func TestMemStats_Concurrent(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for range 1000 {
-				require.NotNil(t, MemStats())
+				if MemStats() == nil {
+					sawNil.Store(true)
+					return
+				}
 			}
 		}()
 	}
 	wg.Wait()
+	require.False(t, sawNil.Load(), "MemStats must never return nil")
 }
 
 func TestStartMemStatsTracker(t *testing.T) {
 	resetMemStatsState(t)
 	MemStatsRefresh = time.Millisecond
 
-	baseline := runtime.NumGoroutine()
+	// Snapshot pre-existing goroutines so goleak only flags the tracker if it
+	// fails to exit after cancel.
+	ignoreExisting := goleak.IgnoreCurrent()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	sys, curAllocs, totalAllocs, gcPauseNs := StartMemStatsTracker(ctx)
@@ -98,32 +111,29 @@ func TestStartMemStatsTracker(t *testing.T) {
 	require.NotNil(t, totalAllocs)
 	require.NotNil(t, gcPauseNs)
 
-	// Allocate some garbage so the tracker observes non-zero values.
+	// Allocate live heap so the tracker observes non-trivial Alloc/Sys, and
+	// force a GC so PauseTotalNs becomes non-zero.
 	sink := make([][]byte, 0, 128)
 	for range 128 {
 		sink = append(sink, make([]byte, 1<<16))
 	}
+	runtime.GC() //nolint:revive // explicit GC populates PauseTotalNs for the gcPauseNs assertion
 	runtime.KeepAlive(sink)
 
+	// All four peaks must be populated, including curAllocs and gcPauseNs,
+	// which are the values the exit-branch refresh fix targets.
 	require.Eventually(t, func() bool {
-		return sys.Load() > 0 && totalAllocs.Load() > 0
-	}, 2*time.Second, time.Millisecond, "tracker should populate sys and totalAllocs")
+		return sys.Load() > 0 && curAllocs.Load() > 0 &&
+			totalAllocs.Load() > 0 && gcPauseNs.Load() > 0
+	}, 2*time.Second, time.Millisecond, "tracker should populate all four peak values")
 
-	// Cancel and confirm the tracker goroutine exits (no leak). Its final
-	// pass does an uncached ReadMemStats, so values must remain sensible. Poll
-	// in this goroutine (not via require.Eventually, whose own poller goroutine
-	// would skew the count) until the goroutine total returns to baseline.
+	// Cancel and confirm the tracker goroutine exits (no leak). goleak retries
+	// with backoff, so it absorbs the goroutine's shutdown latency.
 	cancel()
-	var exited bool
-	for deadline := time.Now().Add(2 * time.Second); time.Now().Before(deadline); {
-		if runtime.NumGoroutine() <= baseline {
-			exited = true
-			break
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
-	require.True(t, exited, "tracker goroutine should exit when ctx is done")
+	goleak.VerifyNone(t, ignoreExisting)
 
 	require.Positive(t, sys.Load())
+	require.Positive(t, curAllocs.Load())
 	require.Positive(t, totalAllocs.Load())
+	require.Positive(t, gcPauseNs.Load())
 }

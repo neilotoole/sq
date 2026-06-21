@@ -46,9 +46,9 @@ func MemStats() *runtime.MemStats {
 // StartMemStatsTracker starts a goroutine that tracks memory stats, returning
 // the peak values of [runtime.MemStats.Sys], [runtime.MemStats.Alloc],
 // [runtime.MemStats.TotalAlloc] and [runtime.MemStats.PauseTotalNs]. The
-// goroutine samples every [MemStatsRefresh] and exits when ctx is done.
-//
-//nolint:revive // datarace
+// goroutine wakes on each [MemStatsRefresh] tick and reads the cached
+// [MemStats], so its effective sampling resolution is bounded by
+// [MemStatsRefresh]. It exits when ctx is done.
 func StartMemStatsTracker(ctx context.Context) (sys, curAllocs, totalAllocs, gcPauseNs *atomic.Uint64) {
 	lg.FromContext(ctx).Info("Starting memory stats tracker", lga.Freq, MemStatsRefresh)
 
@@ -57,23 +57,29 @@ func StartMemStatsTracker(ctx context.Context) (sys, curAllocs, totalAllocs, gcP
 	totalAllocs = &atomic.Uint64{}
 	gcPauseNs = &atomic.Uint64{}
 
+	// record updates the peak atomics (sys, curAllocs) and the latest-value
+	// atomics (totalAllocs, gcPauseNs) from a single stats sample. Shared by
+	// the sampling loop and the final exit pass so the two can't drift.
+	record := func(stats *runtime.MemStats) {
+		if stats.Sys > sys.Load() {
+			sys.Store(stats.Sys)
+		}
+
+		if stats.Alloc > curAllocs.Load() {
+			curAllocs.Store(stats.Alloc)
+		}
+
+		totalAllocs.Store(stats.TotalAlloc)
+		gcPauseNs.Store(stats.PauseTotalNs)
+	}
+
 	go func() {
 		ticker := time.NewTicker(MemStatsRefresh)
 		defer ticker.Stop()
 
 		for {
 			// Use our (cached) MemStats, which is updated periodically.
-			stats := MemStats()
-			if stats.Sys > sys.Load() {
-				sys.Store(stats.Sys)
-			}
-
-			if stats.Alloc > curAllocs.Load() {
-				curAllocs.Store(stats.Alloc)
-			}
-
-			totalAllocs.Store(stats.TotalAlloc)
-			gcPauseNs.Store(stats.PauseTotalNs)
+			record(MemStats())
 
 			select {
 			case <-ctx.Done():
@@ -81,16 +87,7 @@ func StartMemStatsTracker(ctx context.Context) (sys, curAllocs, totalAllocs, gcP
 				// runtime.ReadMemStats, just so we have fresh values on exit.
 				var ms runtime.MemStats
 				runtime.ReadMemStats(&ms)
-				if ms.Sys > sys.Load() {
-					sys.Store(ms.Sys)
-				}
-
-				if ms.Alloc > curAllocs.Load() {
-					curAllocs.Store(ms.Alloc)
-				}
-
-				totalAllocs.Store(ms.TotalAlloc)
-				gcPauseNs.Store(ms.PauseTotalNs)
+				record(&ms)
 				return
 			case <-ticker.C:
 			}
