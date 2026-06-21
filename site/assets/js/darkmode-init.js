@@ -1,4 +1,4 @@
-const globalDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+const globalDark = window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ?? false;
 const localMode = localStorage.getItem("theme");
 
 if (globalDark && localMode === null) {
