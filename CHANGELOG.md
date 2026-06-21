@@ -25,6 +25,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [#865]: Fixed several broken shell-completion things.
 - [#863]: `FORCE_COLOR` handling now follows the [force-color.org](https://force-color.org/)
   conventions.
+- On Windows, a bare `${file:/}` source placeholder no longer suggests an invalid
+  backslash handle name; the name is now derived using URI path semantics on all platforms.
 - Various other bug fixes: [#902], [#911], [#915], [#916], [#918], [#920], [#923].
 
 ## [v0.54.0] - 2026-06-19
