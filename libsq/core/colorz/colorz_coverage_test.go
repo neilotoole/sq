@@ -11,7 +11,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-// failWriter is an io.Writer (and ByteWriter) that accepts up to failAfter
+// failWriter is an io.Writer that accepts up to failAfter
 // bytes across all writes, then returns an error. It performs partial writes,
 // returning the count actually accepted alongside the error, mimicking a real
 // short-write failure. It's used to exercise the error-handling branches of
@@ -34,14 +34,6 @@ func (w *failWriter) Write(p []byte) (int, error) {
 	}
 	w.written += len(p)
 	return len(p), nil
-}
-
-func (w *failWriter) WriteByte(_ byte) error {
-	if w.failAfter-w.written <= 0 {
-		return errBoom
-	}
-	w.written++
-	return nil
 }
 
 // newColorPrinter returns a colorPrinter with deterministic, easily-readable
@@ -407,7 +399,7 @@ func TestSeqs_Append(t *testing.T) {
 	got = s.Append([]byte("pre:"), nil)
 	require.Equal(t, "pre:", string(got))
 
-	// Empty prefix: p is appended uncolored (consistent with Writeln/PutByte).
+	// Empty prefix: p is appended uncolored (consistent with Writeln).
 	got = (Seqs{}).Append([]byte("pre:"), []byte("hi"))
 	require.Equal(t, "pre:hi", string(got))
 }
@@ -429,32 +421,6 @@ func TestSeqs_Appendln(t *testing.T) {
 	// Empty prefix: p is appended uncolored, then the trailing newline.
 	got = (Seqs{}).Appendln([]byte("pre:"), []byte("hi"))
 	require.Equal(t, "pre:hi\n", string(got))
-}
-
-func TestSeqs_PutByte(t *testing.T) {
-	s := Seqs{Prefix: []byte("<P>"), Suffix: []byte("<S>")}
-
-	buf := &bytes.Buffer{}
-	s.PutByte(buf, 'x')
-	require.Equal(t, "<P>x<S>", buf.String())
-
-	// No prefix: the byte is written uncolored.
-	buf.Reset()
-	(Seqs{}).PutByte(buf, 'x')
-	require.Equal(t, "x", buf.String())
-}
-
-func TestSeqs_PutlnByte(t *testing.T) {
-	s := Seqs{Prefix: []byte("<P>"), Suffix: []byte("<S>")}
-
-	buf := &bytes.Buffer{}
-	s.PutlnByte(buf, 'x')
-	require.Equal(t, "<P>x<S>\n", buf.String())
-
-	// No prefix: byte plus newline, uncolored.
-	buf.Reset()
-	(Seqs{}).PutlnByte(buf, 'x')
-	require.Equal(t, "x\n", buf.String())
 }
 
 func TestStrip(t *testing.T) {

@@ -284,45 +284,6 @@ func (s Seqs) Appendln(dest, p []byte) []byte {
 	return dest
 }
 
-var _ ByteWriter = (*bytes.Buffer)(nil)
-
-// ByteWriter is implemented by bytes.Buffer. It's used by [Seqs.PutByte] and
-// [Seqs.PutlnByte] to avoid unnecessary allocations.
-type ByteWriter interface {
-	io.Writer
-	WriteByte(byte) error
-}
-
-// PutByte writes a colorized byte to w. This method is basically an
-// optimization for when w is [bytes.Buffer]. It's named PutByte rather than
-// WriteByte to avoid shadowing the [io.ByteWriter] WriteByte(byte) error
-// method.
-func (s Seqs) PutByte(w ByteWriter, b byte) {
-	if len(s.Prefix) == 0 {
-		_ = w.WriteByte(b)
-		return
-	}
-
-	_, _ = w.Write(s.Prefix)
-	_ = w.WriteByte(b)
-	_, _ = w.Write(s.Suffix)
-}
-
-// PutlnByte writes a colorized byte and a newline to w. This method is
-// basically an optimization for when w is [bytes.Buffer].
-func (s Seqs) PutlnByte(w ByteWriter, b byte) {
-	if len(s.Prefix) == 0 {
-		_ = w.WriteByte(b)
-		_, _ = w.Write(newline)
-		return
-	}
-
-	_, _ = w.Write(s.Prefix)
-	_ = w.WriteByte(b)
-	_, _ = w.Write(s.Suffix)
-	_, _ = w.Write(newline)
-}
-
 // ExtractSeqs extracts the prefix and suffix bytes for the terminal color
 // sequence produced by c. The prefix and suffix are extracted even if c is
 // disabled, e.g. via [color.Color.DisableColor]. If c is nil, or if there's no
