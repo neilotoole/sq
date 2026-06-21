@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -85,13 +86,16 @@ func TestOptHeaderTimeout_correct_error(t *testing.T) {
 	ctx := lg.NewContext(context.Background(), lgt.New(t))
 
 	const srvrBody = `Hello World!`
-	serverDelay := time.Second * 2
+	// serverDelay is read by the handler goroutine and rewritten by the test
+	// goroutine between requests, so it must be accessed atomically.
+	var serverDelay atomic.Int64
+	serverDelay.Store(int64(time.Second * 2))
 	srvr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
 			t.Log("Server request context done")
 			return
-		case <-time.After(serverDelay):
+		case <-time.After(time.Duration(serverDelay.Load())):
 		}
 		_, err := w.Write([]byte(srvrBody))
 		assert.NoError(t, err)
@@ -112,7 +116,7 @@ func TestOptHeaderTimeout_correct_error(t *testing.T) {
 
 	// Now let's try again, with a shorter server delay, so the
 	// request should succeed.
-	serverDelay = time.Millisecond
+	serverDelay.Store(int64(time.Millisecond))
 	resp, err = c.Do(req)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)

@@ -38,9 +38,7 @@ func NewDefaultClient() *http.Client {
 func NewClient(opts ...Opt) *http.Client {
 	c := *http.DefaultClient
 	c.Timeout = 0
-	// http.DefaultClient has a nil Transport, so we always start from a clone of
-	// http.DefaultTransport.
-	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr := baseTransport(&c)
 
 	DefaultTLSVersion.apply(tr)
 	for _, opt := range opts {
@@ -56,6 +54,15 @@ func NewClient(opts ...Opt) *http.Client {
 	}
 	c.Transport = RoundTrip(c.Transport, contextCause())
 	return &c
+}
+
+// baseTransport returns a clone of c's transport, or a clone of
+// http.DefaultTransport if c has none (as is the case for http.DefaultClient).
+func baseTransport(c *http.Client) *http.Transport {
+	if c.Transport == nil {
+		return http.DefaultTransport.(*http.Transport).Clone()
+	}
+	return c.Transport.(*http.Transport).Clone()
 }
 
 var _ Opt = (*TripFunc)(nil)
@@ -113,7 +120,8 @@ func ResponseLogValue(resp *http.Response) slog.Value {
 			continue
 		}
 
-		hAttrs = append(hAttrs, slog.Any(k, h.Get(k)))
+		// Log all values for a multi-value header, not just the first.
+		hAttrs = append(hAttrs, slog.Any(k, vals))
 	}
 
 	if len(hAttrs) > 0 {
@@ -157,7 +165,8 @@ func RequestLogValue(req *http.Request) slog.Value {
 			continue
 		}
 
-		attrs = append(attrs, slog.Any(k, h.Get(k)))
+		// Log all values for a multi-value header, not just the first.
+		attrs = append(attrs, slog.Any(k, vals))
 	}
 
 	return slog.GroupValue(attrs...)

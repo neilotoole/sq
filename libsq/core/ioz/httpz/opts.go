@@ -36,11 +36,17 @@ var _ Opt = (*minTLSVersion)(nil)
 type minTLSVersion uint16
 
 func (v minTLSVersion) apply(tr *http.Transport) {
-	// NewClient applies the minimum TLS version first, to a freshly cloned
-	// transport whose TLSClientConfig is nil, so we create the config here.
-	// We allow tls.VersionTLS10, even though it's not considered secure these
-	// days; ultimately this could become a config option.
-	tr.TLSClientConfig = &tls.Config{MinVersion: uint16(v)}
+	if tr.TLSClientConfig == nil {
+		// We allow tls.VersionTLS10, even though it's not considered
+		// secure these days. Ultimately this could become a config
+		// option.
+		tr.TLSClientConfig = &tls.Config{MinVersion: uint16(v)}
+	} else {
+		// Preserve any settings already on the config (RootCAs, ServerName,
+		// etc.) by cloning rather than replacing it.
+		tr.TLSClientConfig = tr.TLSClientConfig.Clone()
+		tr.TLSClientConfig.MinVersion = uint16(v)
+	}
 }
 
 // DefaultTLSVersion is the default minimum TLS version,
@@ -138,6 +144,19 @@ func OptRequestTimeout(timeout time.Duration) TripFunc {
 				cancelFn(cancelErr)
 			case <-timerCancelCh:
 				// Stop the timer goroutine.
+			}
+		}()
+
+		// If next.RoundTrip panics, the normal cleanup below is skipped, which
+		// would leak the timer goroutine and the cancel context. Signal the
+		// goroutine and release the context before the panic propagates. On the
+		// normal path recover() is nil and timerCancelCh is closed below, so this
+		// does not double-close.
+		defer func() {
+			if r := recover(); r != nil {
+				close(timerCancelCh)
+				cancelFn(context.Canceled)
+				panic(r)
 			}
 		}()
 

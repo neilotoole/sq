@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -14,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
+	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/testh/tu"
 )
 
@@ -27,6 +29,25 @@ type stubRoundTripper struct {
 func (s *stubRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
 	s.called = true
 	return s.resp, s.err
+}
+
+// panicRoundTripper is an http.RoundTripper that panics, simulating a buggy
+// inner round-tripper.
+type panicRoundTripper struct{}
+
+func (panicRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	panic("inner round tripper panic")
+}
+
+// recordHandler is a slog.Handler that records emitted records for assertions.
+type recordHandler struct{ records *[]slog.Record }
+
+func (h recordHandler) Enabled(context.Context, slog.Level) bool { return true }
+func (h recordHandler) WithAttrs([]slog.Attr) slog.Handler       { return h }
+func (h recordHandler) WithGroup(string) slog.Handler            { return h }
+func (h recordHandler) Handle(_ context.Context, r slog.Record) error {
+	*h.records = append(*h.records, r)
+	return nil
 }
 
 func TestStatusText(t *testing.T) {
@@ -208,15 +229,24 @@ func TestOptRequestTimeout_directStub(t *testing.T) {
 
 		tf := httpz.OptRequestTimeout(time.Hour)
 		_, err = tf(&stubRoundTripper{err: context.Canceled}, cReq)
-		require.Error(t, err)
+		require.ErrorIs(t, err, context.Canceled)
+	})
+
+	t.Run("panic_is_repropagated", func(t *testing.T) {
+		// A panicking inner round-tripper must re-panic (and not be swallowed);
+		// the deferred cleanup releases the timer goroutine and context first.
+		tf := httpz.OptRequestTimeout(time.Hour)
+		require.Panics(t, func() { _, _ = tf(panicRoundTripper{}, req) })
 	})
 }
 
 func TestOptResponseTimeout_logsOnCloseAfterTimeout(t *testing.T) {
 	// When the body is closed after the response timeout has already elapsed,
 	// the ReadCloserNotifier callback logs (the errors.Is(cause, timeoutErr)
-	// branch). Drive it with a direct stub and a short timeout.
-	req, err := http.NewRequest(http.MethodGet, "https://example.com", nil)
+	// branch). Capture the log to verify that branch actually fires.
+	var records []slog.Record
+	ctx := lg.NewContext(context.Background(), slog.New(recordHandler{&records}))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://example.com", nil)
 	require.NoError(t, err)
 
 	tf := httpz.OptResponseTimeout(40 * time.Millisecond)
@@ -227,6 +257,14 @@ func TestOptResponseTimeout_logsOnCloseAfterTimeout(t *testing.T) {
 	// Let the timeout elapse so the context cause becomes the timeout error.
 	time.Sleep(120 * time.Millisecond)
 	require.NoError(t, resp.Body.Close())
+
+	var logged bool
+	for _, r := range records {
+		if strings.Contains(r.Message, "HTTP request not completed within timeout") {
+			logged = true
+		}
+	}
+	require.True(t, logged, "closing the body after the timeout must log the warning")
 }
 
 func TestReadResponseHeader(t *testing.T) {
