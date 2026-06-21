@@ -55,7 +55,8 @@ Contrast with http.request.timeout.`,
 
 // maybeStartDownload returns the remote file for src, either as the path to an
 // already-cached file (dlFile) or as a stream of an in-progress download
-// (dlStream). Exactly one of dlFile, dlStream, err is non-nil.
+// (dlStream). Exactly one of the three results is set: dlFile is non-empty, or
+// dlStream is non-nil, or err is non-nil.
 //
 // Resolution order:
 //   - If src's download path is already recorded in Files.downloadedFiles, it

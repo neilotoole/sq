@@ -170,6 +170,13 @@ func TestFiles_CacheClearAll_TempDirUnusable(t *testing.T) {
 	require.NoError(t, os.WriteFile(bogusTmp, nil, 0o600))
 	t.Setenv("TMPDIR", bogusTmp)
 
+	// Precondition: the TMPDIR override must actually take effect (os.TempDir
+	// reads TMPDIR on each call, it doesn't cache), otherwise this test would
+	// be meaningless and could pass even against the old, temp-dir-dependent
+	// implementation.
+	require.True(t, strings.HasPrefix(files.DefaultTempDir(), bogusTmp),
+		"TMPDIR override must make DefaultTempDir unusable")
+
 	noopLock := func(context.Context) (func(), error) { return func() {}, nil }
 	fs, err := files.New(ctx, nil, noopLock, tmpDir, cacheDir)
 	require.NoError(t, err)

@@ -432,7 +432,12 @@ func TestFiles_AddStdin_Twice(t *testing.T) {
 	}
 
 	require.NoError(t, fs.AddStdin(ctx, mkStdin()))
-	require.Error(t, fs.AddStdin(ctx, mkStdin()), "second AddStdin must error")
+
+	// The duplicate guard returns early without taking ownership of the file,
+	// so the test must close this handle itself.
+	dup := mkStdin()
+	t.Cleanup(func() { _ = dup.Close() })
+	require.Error(t, fs.AddStdin(ctx, dup), "second AddStdin must error")
 }
 
 // TestFiles_Ping_HTTP_TransportError covers the Ping HTTP branch where the HTTP
