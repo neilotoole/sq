@@ -715,8 +715,7 @@ func doRetry(ctx context.Context, fn func() error) error {
 // tblfmt formats a table name for use in a query. The arg can be a string,
 // or a tablefq.T.
 func tblfmt[T string | tablefq.T](tbl T) string {
-	tfq := tablefq.From(tbl)
-	return tfq.Render(stringz.BacktickQuote)
+	return tablefq.Format(tbl, stringz.BacktickQuote)
 }
 
 const selectCatalog = `SELECT CATALOG_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = DATABASE() LIMIT 1`
