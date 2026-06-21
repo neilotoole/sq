@@ -205,6 +205,17 @@ func TestSource_TableNames(t *testing.T) {
 			src:  &metadata.Source{},
 			want: []string{},
 		},
+		{
+			name: "nil_table_entry_skipped",
+			src: &metadata.Source{
+				Tables: []*metadata.Table{
+					{Name: "actor"},
+					nil,
+					{Name: "film"},
+				},
+			},
+			want: []string{"actor", "film"},
+		},
 	}
 
 	for _, tc := range testCases {

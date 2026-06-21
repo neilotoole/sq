@@ -151,15 +151,17 @@ func (s *Source) Clone() *Source {
 }
 
 // TableNames is a convenience method that returns the source's table names.
-// If s is nil, a nil slice is returned.
+// If s is nil, a nil slice is returned. Nil table entries are skipped.
 func (s *Source) TableNames() []string {
 	if s == nil {
 		return nil
 	}
 
-	names := make([]string, len(s.Tables))
-	for i, tblDef := range s.Tables {
-		names[i] = tblDef.Name
+	names := make([]string, 0, len(s.Tables))
+	for _, tblDef := range s.Tables {
+		if tblDef != nil {
+			names = append(names, tblDef.Name)
+		}
 	}
 	return names
 }
